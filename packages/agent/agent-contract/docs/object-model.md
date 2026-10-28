@@ -77,8 +77,10 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 每次提交随 execution 修订保存。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
 | ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个工具调用一个 Action | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
-| ResultResponsibility | ConsumptionId | 结果被登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
+| ResultResponsibility | ConsumptionId | Tool 结果经 recordResult 登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
 | ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用与 accepted 阶段共同保存 | 阶段独立记录 reached 或 unresolved，后得引用由新 recording operation 附加 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照 |
+
+Model 接收不经过上述 ResultResponsibility 的 recordResult/release 状态链。独立接收方共同保存 received 与完整材料，并据此返回 saved；Model 自行推进其确认。Agent Loop 从 received 采用材料。
 
 AgentJournal 是提供者端口，没有对象身份。EffectCoordinator 与 TerminalObserver 是内部责任角色，不新增公开类或服务键。
 
@@ -163,7 +165,7 @@ classDiagram
   EffectCoordinator --> MessageHandoff : per-source message admission
   EffectCoordinator --> ModelRuntime : admit and admission reconciliation
   ModelReceiver --> ModelRuntime : validate original admission and dispatches
-  ModelReceiver --> Journal : joint received material and receipt
+  ModelReceiver --> AgentJournal : joint received material and receipt
   EffectCoordinator --> ToolRuntime : invoke with original request and consumer, then reference queries
   AgentInstanceHost --> AgentRuntime : hosts
   AgentInstanceHost --> AgentRegistration : owns
@@ -356,7 +358,7 @@ stateDiagram-v2
 | AgentRegistration | withdrawing | 撤除结果未知 | withdrawing | 同一操作重试 |
 | TerminalObservation | 无 | tryFinish 提交终态 | 待观察 | 完整集合在提交时固定 |
 | TerminalObservation | 待观察 | recordTerminalObservation 成功 | 已观察 | 核对终态、经过、采用与证据 |
-| ResultResponsibility | 无 | 结果被登记 | 待释放 | 结果版本与消费位置已记录 |
+| ResultResponsibility | 无 | Tool 结果被登记 | 待释放 | 结果版本与消费位置已记录 |
 | ResultResponsibility | 待释放 | recordResult 的 transfer 为 custody 或 processed | 依据已保存 | 提供者的共同提交成功 |
 | ResultResponsibility | 依据已保存 | recordResult 的 release 为 confirmed | 已释放 | 含原生产者确认依据 |
 | PendingCall.tool | 无 | 完整原请求材料保存并提交原意图 | intent | fixed、consumer 投影与 effect intent 已保存，无 call/admission/reference |

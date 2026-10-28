@@ -93,7 +93,18 @@ function fault(value: unknown): value is ModelFault {
     const r = value.reported
     return (
       object(r) &&
-      ['metric', 'limit', 'actual'].every(key => r[key] === null || typeof r[key] === 'string')
+      (r.metric === null ||
+        (typeof r.metric === 'string' &&
+          [
+            'context-tokens',
+            'input-tokens',
+            'image-bytes',
+            'image-count',
+            'request-bytes',
+            'voice-bytes',
+            'voice-duration-ms',
+          ].includes(r.metric))) &&
+      ['limit', 'actual'].every(key => r[key] === null || typeof r[key] === 'string')
     )
   }
   return true

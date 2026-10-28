@@ -118,13 +118,14 @@ flowchart TB
         M0["M0 本用途的调模型之前位置与最终请求记录"] -. 调用 .-> X0
         M0 --> M6["M6 认回原调用意图与准入，发出前核资格"]
         M0 -->|压缩用途被否决：步骤请求不发出| M5
-        M6 --> M1["M1 等原调用：增量由 Model 先保存后发布"]
+        M6 --> M1["M1 等 Journal 中原绑定的 received result"]
+        MR["实例外接收方：共同提交 received 与完整材料"] -. Journal 已提交事实 .-> M1
         M1 -->|interrupt 作用于具名调用| M1
-        M1 -->|首内容前可重试失败| M2["M2 调模型之后位置：failure 的重试决定"]
+        M2["M2 调模型之后位置：failure 的重试决定（独立触发通道待实现）"]
         M2 -. 调用 .-> X0
         M2 -->|retry 结论交 Model 的重试策略| M1
         M2 -->|不再重试：Model 收场| M1
-        M1 -->|整调用真实收场| M3["M3 可靠保管原结果与费用"]
+        M1 -->|匹配原 reference、consumer、consumption| M3["M3 读取完整材料并采用结果与费用"]
         M3 --> M4["M4 调模型之后位置：complete_reply 或最终 failure"]
         M4 -. 调用 .-> X0
         M4 --> M5["M5 按保存的返回去处返回"]
@@ -222,7 +223,7 @@ flowchart TB
 | M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
 | M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | 不等待 | 转 M1 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次 |
 | M1 | 原 PendingCall 与 Journal received 条目 | 不写接收材料；等待提示由 Journal 及 timer 提供 | 不提交 | 尚无匹配 received 时等待 | 匹配原 reference、consumer、consumption 的 result 转 M3 | 不连接 Model observer 或轮询收场 | entries 缺席返回 unavailable |
-| M2 | 失败事实、Model 的重试请求 | 该位置 failure 维度的 Passage | 随 X 协议提交 | X4 等待 | retry 结论交 Model 的重试策略，回 M1。没有 retry 时 Model 按不再重试收场，回 M1 | 只在首内容前 | 不建新调用。规则见扩展作者协议的[输出](../../../agent-contract/docs/public-api/extensions.md#输出) |
+| M2 | 失败事实、Model 的重试请求；独立触发通道待实现，M1 不从 observer 取得 | 该位置 failure 维度的 Passage | 随 X 协议提交 | X4 等待 | retry 结论交 Model 的重试策略，回 M1。没有 retry 时 Model 按不再重试收场，回 M1 | 只在首内容前 | 不建新调用。规则见扩展作者协议的[输出](../../../agent-contract/docs/public-api/extensions.md#输出) |
 | M3 | 已提交 received 与同提供者的完整材料 | 核 schema 与原关联，解释结果后条件提交 producer 事件 | 原材料可读且 Authority 有效时 | 不等待 Model ACK | 转 M4 | receiver 推进 revision 时重读再提交 | 最终失败不再进入 M2 |
 | M4 | 结果或最终失败。循环判断另经执行历史读取能力读本执行的原始工作事实 | 该位置 complete_reply 或 failure 维度的 Passage。合法 inject 经 X5 交 Q。循环判断的守卫判断记入其 Passage 的 `guard` 操作，效果采纳时写 checkpoint 的 `guard` | 随 X 协议提交 | X4 等待 | 转 M5 | 一次调用一次 | 用途为 extension 时不经过位置。failure 维度在这里是原调用最终失败的触发，`retry` 输出不合法，按报错处置。循环判断这一受信系统扩展在主请求的 complete_reply 维度运行，按 `loopGuardPolicy` 的策略形成守卫事实。守卫 L1、L2 的干预消息由它返回 inject，经 X5 交 Q 进入历史一次。L4 由它返回 ask，不记为守卫事实，答复到达后以 replay 重新判断；卡片呈现确定失败时它的结论取报错分支、输出 observed，守卫事实保持上一次的值。它不可用时 Conclusion 记不可用，checkpoint 的 `guard` 沿用上一次，不伪造判断。规则见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | M5 | 保存的返回去处，或 M0 的否决 | 不写 | 不提交 | 不等待 | 主请求回 I3。压缩步骤回 C1。扩展能力操作回 X2 | 不隐式进入主回复解析 | 内部用途的结果不进入主回复序列 |
@@ -454,7 +455,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | --- | --- | --- | --- |
 | I1 | 同一原动作不能因恢复得到第二个逻辑调用 | M6 在 admit 前保存 Model reference。A2 在 invoke 前保存完整请求、consumer、intent，Tool 证明引用后保存 associated。R0 按两域各自恢复规则接续 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求) |
 | I2 | 已失效挂接不得提交新业务或实际发出 | E1、E9、F3、Q2、A2、M6：提交核围栏与修订号，发出前核资格 | [并发与提交](../../../agent-contract/SPEC.md#并发与提交)、[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管) |
-| I3 | 责任交接前原结果一直有耐久保管者 | T1、M3、H0、O0：保管依据保存后才解除生产责任 | [持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
+| I3 | 责任交接前原结果一直有耐久保管者 | Model 由实例外接收方共同保存，M3 只采用；Tool 在 T1、H0、O0 保管后解除生产责任 | [持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | I4 | unknown 不推导 absent、failed 或 finished | E2、R0、T0、M1、Q2、X3：查询未知保持未知，先查原操作 | [并发与提交](../../../agent-contract/SPEC.md#并发与提交)、[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | I5 | 同批必要判断和卡片处理未齐，任何获准工具不得提前发出 | A1、X4、A2：屏障打开之前不发起 | [整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 4 条 |
 | I6 | 同一扩展调用的已成立最终结论不重跑 | X1、X3：已有最终 Conclusion 直接复用，结果未知以 replay 重调 | [扩展、卡片与材料](../../../agent-contract/SPEC.md#扩展卡片与材料) |

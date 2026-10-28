@@ -5,10 +5,12 @@ import {
   agentEvaluator,
   type ModelReceiverDependencies,
   type ModelReceiverState,
+  readModelDeliveryMaterial,
 } from '@omne-harness/agent'
 import { sampleAccountHandoff } from '@omne-harness/agent-contract/testing'
 import {
   decodeDispatchId,
+  decodeModelCallId,
   decodeModelOperationId,
   decodeResultVersion,
   encodeModelInvocationRef,
@@ -16,6 +18,7 @@ import {
   type ModelDelivery,
 } from '@omne-harness/model-contract'
 import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
+import { modelDeliveryMaterial, modelReceivedDraft } from '../src/receiving-material.ts'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
@@ -755,3 +758,751 @@ it('retains the access identity of the push while asynchronous checks run', asyn
   release.resolve()
   expect(await result).toHaveProperty('ok')
 })
+
+describe('maintenance isolation and independent saved', () => {
+  it.each(['retry', 'recover'] as const)(
+    'denies %s for a foreign tenant, revoked principal, or absent execution',
+    async method => {
+      const s = await setup()
+      s.outlet({ kind: 'invalid', field: 'account', reason: 'private-account' })
+      ok(
+        await s.receiver.push({
+          access: alice,
+          delivery: withAccount(s.delivery),
+          signal: new AbortController().signal,
+        }),
+      )
+      const before = s.receiver.inspect()
+      s.assembly.controls.access.check.always(input =>
+        input.access.principal === 'revoked'
+          ? { kind: 'denied' }
+          : { kind: 'allowed', evidence: evidence('access') },
+      )
+      for (const input of [
+        { access: { ...alice, tenant: tenantB }, execution: execution() },
+        { access: { ...alice, principal: 'revoked' }, execution: execution() },
+        { access: alice, execution: execution('absent') },
+      ]) {
+        expect(
+          await s.receiver[method]({ ...input, signal: new AbortController().signal }),
+        ).toMatchObject({ failure: { kind: 'denied' } })
+        expect(s.receiver.inspect()).toEqual(before)
+      }
+    },
+  )
+  it('returns first and repeated saved while the actual outlet remains pending', async () => {
+    const s = await setup(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>()
+    let sends = 0
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        capacity: () => ({ records: 10, bytes: 1000000, attachments: 10, inFlight: 1 }),
+        outlet: {
+          async deliver() {
+            sends++
+            entered.resolve()
+            await release.promise
+            return { kind: 'received' }
+          },
+        },
+      },
+      s.state,
+    )
+    const input = {
+      access: alice,
+      delivery: withAccount(s.delivery),
+      signal: new AbortController().signal,
+    }
+    const pushed = receiver.push(input)
+    await entered.promise
+    try {
+      expect(
+        await Promise.race([
+          pushed,
+          new Promise(resolve => setTimeout(() => resolve('still-waiting'), 50)),
+        ]),
+      ).toHaveProperty('ok')
+      expect(await receiver.push(input)).toHaveProperty('ok')
+      expect([...s.state.active.values()]).toEqual([0])
+      expect(s.state.outletActive.size).toBe(1)
+      expect(sends).toBe(1)
+      const late = withAccount(s.delivery, '2')
+      if (late.kind !== 'result' || !late.accounts[0]?.account) throw new Error('account required')
+      const item = late.accounts[0]
+      if (!item.account) throw new Error('account required')
+      const later: ModelDelivery = {
+        kind: 'account',
+        consumer: late.consumer,
+        key: {
+          kind: 'account',
+          reference: late.key.reference,
+          dispatch: item.dispatch,
+          revision: item.account.revision,
+        },
+        account: item.account,
+      }
+      expect(await receiver.push({ ...input, delivery: later })).toHaveProperty('ok')
+      expect([...s.state.active.values()]).toEqual([0])
+    } finally {
+      release.resolve()
+      await pushed
+      await drainTasks(s.state)
+    }
+  })
+  it.each(['targets', 'access', 'inspect', 'dispatches'] as const)(
+    'names the actual throwing %s dependency',
+    async dependency => {
+      const s = await setup()
+      const throws = async (): Promise<never> => {
+        throw new Error(`private-${dependency}`)
+      }
+      const receiver = createAgentModelReceiver(
+        {
+          ...s.dependencies,
+          targets:
+            dependency === 'targets'
+              ? { ...s.dependencies.targets, resolve: throws }
+              : s.dependencies.targets,
+          access: dependency === 'access' ? { check: throws } : s.dependencies.access,
+          models: {
+            ...s.dependencies.models,
+            ...(dependency === 'inspect'
+              ? { inspect: throws }
+              : dependency === 'dispatches'
+                ? { dispatches: throws }
+                : {}),
+          },
+        },
+        s.state,
+      )
+      expect(
+        await receiver.push({
+          access: alice,
+          delivery: s.delivery,
+          signal: new AbortController().signal,
+        }),
+      ).toEqual({ failure: { kind: 'unavailable', dependency } })
+      expect(receiver.inspect().diagnostics).toHaveLength(1)
+      expect(s.sent).toEqual([])
+    },
+  )
+})
+
+const signal = () => new AbortController().signal
+async function drainTasks(state: ModelReceiverState<string>) {
+  while (state.tasks.size) await Promise.all(state.tasks)
+}
+
+it('rejects an arbitrary OverLimitMetric in persisted received facts', async () => {
+  const s = await setup()
+  if (s.delivery.kind !== 'result') throw new Error('result required')
+  const delivery: ModelDelivery = {
+    ...s.delivery,
+    settlement: {
+      ...s.delivery.settlement,
+      termination: {
+        kind: 'failed',
+        fault: {
+          cause: 'input-over-limit',
+          diagnostic: 'too large',
+          upstreamStatus: null,
+          reported: { metric: 'input-tokens', limit: '4', actual: '5' },
+        },
+      },
+    },
+  }
+  const material = modelDeliveryMaterial(alice, delivery)
+  const expected = modelReceivedDraft(delivery, s.pending.consumption)
+  expect(readModelDeliveryMaterial(alice, material, expected)).not.toBeNull()
+  const malformed = JSON.parse(JSON.stringify(material).replace('input-tokens', 'banana'))
+  expect(readModelDeliveryMaterial(alice, malformed, expected)).toBeNull()
+})
+
+it.each(['retry', 'recover'] as const)(
+  'keeps %s reports within two tenants with the same execution and another execution in one tenant',
+  async method => {
+    const s = await setup()
+    s.outlet({ kind: 'invalid', field: 'account', reason: 'private-original' })
+    ok(
+      await s.receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }),
+    )
+    await drainTasks(s.state)
+    const original = ok(resolveModelInvocationRef(s.pending.reference, alice.tenant))
+    for (const [access, id, suffix] of [
+      [{ ...alice, tenant: tenantB }, execution(), 'tenant-b'],
+      [alice, execution('other-execution'), 'other-execution'],
+    ] as const) {
+      const pending = {
+        ...s.pending,
+        reference: ok(
+          encodeModelInvocationRef({
+            tenant: access.tenant,
+            admission: original.admission,
+            call: ok(decodeModelCallId(`mcall_${suffix}`)),
+          }),
+        ),
+        position: { ...s.pending.position, work: suffix },
+      }
+      ok(
+        await s.dependencies.provider.journal.open({
+          ...access,
+          execution: id,
+          operation: operation(`open-${suffix}`),
+          instance: instance(suffix),
+          grant: null,
+          initial: acceptedInput(suffix),
+          checkpoint: { ...checkpoint(), calls: [pending] },
+        }),
+      )
+      expect(ok(await s.receiver[method]({ access, execution: id, signal: signal() }))).toEqual({
+        pending: 0,
+        blocked: 0,
+        diagnostics: [],
+      })
+    }
+    expect(
+      ok(await s.receiver[method]({ access: alice, execution: execution(), signal: signal() })),
+    ).toMatchObject({ blocked: 1 })
+  },
+)
+
+it.each(['targets', 'access', 'journal'] as const)(
+  'does not turn a maintenance %s failure into an empty success',
+  async dependency => {
+    const s = await setup()
+    const throws = async (): Promise<never> => {
+      throw new Error('offline')
+    }
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        targets:
+          dependency === 'targets'
+            ? { ...s.dependencies.targets, forExecution: throws }
+            : s.dependencies.targets,
+        access: dependency === 'access' ? { check: throws } : s.dependencies.access,
+        provider:
+          dependency === 'journal'
+            ? {
+                ...s.dependencies.provider,
+                journal: { ...s.dependencies.provider.journal, load: throws },
+              }
+            : s.dependencies.provider,
+      },
+      s.state,
+    )
+    expect(
+      await receiver.recover({ access: alice, execution: execution(), signal: signal() }),
+    ).toEqual({
+      failure: { kind: 'unavailable', owner: 'agent-model-receiver', diagnostic: dependency },
+    })
+  },
+)
+
+it('preserves explicit denied from Journal maintenance load without changing retained state', async () => {
+  const s = await setup()
+  const receiver = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      provider: {
+        ...s.dependencies.provider,
+        journal: {
+          ...s.dependencies.provider.journal,
+          async load() {
+            return { failure: { kind: 'denied', action: 'load' } }
+          },
+        },
+      },
+    },
+    s.state,
+  )
+  expect(
+    await receiver.recover({ access: alice, execution: execution(), signal: signal() }),
+  ).toHaveProperty('failure.kind', 'denied')
+  expect(receiver.inspect()).toEqual({ pending: 0, blocked: 0, diagnostics: [] })
+})
+
+it.each(['targets', 'access', 'final-access'] as const)(
+  'cancels an unresolved %s check without leaking a report or starting further reads',
+  async phase => {
+    const s = await setup(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>()
+    let checks = 0,
+      reads = 0
+    const wait = async () => {
+      entered.resolve()
+      await release.promise
+    }
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        targets: {
+          ...s.dependencies.targets,
+          async forExecution(input) {
+            if (phase === 'targets') await wait()
+            return s.dependencies.targets.forExecution(input)
+          },
+        },
+        access: {
+          async check(input) {
+            checks++
+            if ((phase === 'access' && checks === 1) || (phase === 'final-access' && checks === 2))
+              await wait()
+            return s.dependencies.access.check(input)
+          },
+        },
+        provider: {
+          ...s.dependencies.provider,
+          materials: {
+            ...s.dependencies.provider.materials,
+            async read(input) {
+              reads++
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+        },
+      },
+      s.state,
+    )
+    const stop = new AbortController()
+    const pending = receiver.retry({ access: alice, execution: execution(), signal: stop.signal })
+    await entered.promise
+    stop.abort()
+    expect(await pending).toEqual({
+      failure: {
+        kind: 'unavailable',
+        owner: 'agent-model-receiver',
+        diagnostic: 'maintenance-cancelled',
+      },
+    })
+    expect(reads).toBe(0)
+    expect(s.state.tasks.size).toBeGreaterThan(0)
+    release.resolve()
+    await drainTasks(s.state)
+    expect(reads).toBe(0)
+    expect(s.state.tasks.size).toBe(0)
+  },
+)
+
+it('rechecks qualification after an awaited load and denies the final report after revocation', async () => {
+  const s = await setup(),
+    entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  let revoked = false
+  const receiver = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      access: {
+        async check() {
+          return revoked ? { kind: 'denied' } : { kind: 'allowed', evidence: evidence('access') }
+        },
+      },
+      provider: {
+        ...s.dependencies.provider,
+        journal: {
+          ...s.dependencies.provider.journal,
+          async load(input) {
+            entered.resolve()
+            await release.promise
+            return s.dependencies.provider.journal.load(input)
+          },
+        },
+      },
+    },
+    s.state,
+  )
+  const pending = receiver.recover({ access: alice, execution: execution(), signal: signal() })
+  await entered.promise
+  revoked = true
+  release.resolve()
+  expect(await pending).toHaveProperty('failure.kind', 'denied')
+  expect(s.sent).toEqual([])
+})
+
+it('keeps the actual outlet task through cancellation and reassembly and fences the old driver', async () => {
+  const s = await setup(),
+    entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const oldSent: AgentAccountHandoff[] = [],
+    newSent: AgentAccountHandoff[] = []
+  const old = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      outlet: {
+        async deliver(input) {
+          oldSent.push(input.handoff)
+          entered.resolve()
+          await release.promise
+          return { kind: 'received' }
+        },
+      },
+    },
+    s.state,
+  )
+  const delivery = withAccount(s.delivery)
+  ok(await old.push({ access: alice, delivery, signal: signal() }))
+  await entered.promise
+  const next = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      outlet: {
+        async deliver(input) {
+          newSent.push(input.handoff)
+          return { kind: 'received' }
+        },
+      },
+    },
+    s.state,
+  )
+  const stop = new AbortController()
+  const waiting = next.retry({ access: alice, execution: execution(), signal: stop.signal })
+  stop.abort()
+  expect(await waiting).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
+  expect(s.state.outletActive.size).toBe(1)
+  expect(s.state.outletTasks.size).toBe(1)
+  expect(newSent).toEqual([])
+  const late = withAccount(s.delivery, '2')
+  if (late.kind !== 'result' || !late.accounts[0]?.account) throw new Error('account required')
+  const item = late.accounts[0]
+  if (!item.account) throw new Error('account required')
+  const later: ModelDelivery = {
+    kind: 'account',
+    consumer: late.consumer,
+    key: {
+      kind: 'account',
+      reference: late.key.reference,
+      dispatch: item.dispatch,
+      revision: item.account.revision,
+    },
+    account: item.account,
+  }
+  // Already accepted old pushes still commit, but may not send with their retired driver.
+  ok(await old.push({ access: alice, delivery: later, signal: signal() }))
+  release.resolve()
+  await drainTasks(s.state)
+  expect(oldSent).toHaveLength(1)
+  expect(newSent).toHaveLength(0)
+  expect(s.state.outletActive.size).toBe(0)
+  expect(
+    ok(await next.retry({ access: alice, execution: execution(), signal: signal() })).pending,
+  ).toBe(0)
+  expect(newSent).toHaveLength(1)
+  expect(newSent[0]?.account.revision).toBe('2')
+})
+
+it('freezes the original binding workset before authorization and excludes a concurrently added instance', async () => {
+  const s = await setup(),
+    entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const originalRef = ok(resolveModelInvocationRef(s.pending.reference, alice.tenant))
+  const laterRef = ok(
+    encodeModelInvocationRef({
+      ...originalRef,
+      tenant: alice.tenant,
+      call: ok(decodeModelCallId('mcall_concurrent')),
+    }),
+  )
+  const laterPending = {
+    ...s.pending,
+    reference: laterRef,
+    consumption: consumption('later'),
+    position: { ...s.pending.position, work: 'later-binding' },
+  }
+  const inspected = ok(
+    await s.dependencies.models.inspect({ ...alice, reference: s.pending.reference }),
+  )
+  if (inspected.kind !== 'found') throw new Error('original call required')
+  const foreignReads: string[] = [],
+    sends: string[] = []
+  let first = true
+  const receiver = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      access: {
+        async check(input) {
+          if (input.access.principal !== 'limited')
+            return { kind: 'allowed', evidence: evidence('access') }
+          if (input.target.kind !== 'execution' || input.target.instance !== instance())
+            return { kind: 'denied' }
+          if (first) {
+            first = false
+            entered.resolve()
+            await release.promise
+          }
+          return { kind: 'allowed', evidence: evidence('access') }
+        },
+      },
+      models: {
+        async inspect(input) {
+          return input.reference === laterRef
+            ? {
+                ok: {
+                  kind: 'found',
+                  state: {
+                    ...inspected.state,
+                    call: ok(decodeModelCallId('mcall_concurrent')),
+                    consumer: laterPending.position,
+                  },
+                },
+              }
+            : s.dependencies.models.inspect(input)
+        },
+        dispatches: () => s.dependencies.models.dispatches({ ...alice, call: originalRef.call }),
+      },
+      outlet: {
+        async deliver(input) {
+          sends.push(input.access.principal)
+          return {
+            kind: 'invalid',
+            field: 'account',
+            reason: input.handoff.call === laterRef ? 'private-later-binding' : 'original-binding',
+          }
+        },
+      },
+      provider: {
+        ...s.dependencies.provider,
+        materials: {
+          ...s.dependencies.provider.materials,
+          async read(input) {
+            const result = await s.dependencies.provider.materials.read(input)
+            if (input.principal === 'limited' && JSON.stringify(result).includes('later-binding'))
+              foreignReads.push('later')
+            return result
+          },
+        },
+      },
+    },
+    s.state,
+  )
+  ok(await receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }))
+  await drainTasks(s.state)
+  const maintaining = receiver.recover({
+    access: { ...alice, principal: 'limited' },
+    execution: execution(),
+    signal: signal(),
+  })
+  await entered.promise
+  const attached = ok(
+    await s.dependencies.provider.journal.attach({
+      ...alice,
+      execution: execution(),
+      operation: operation('later-attach'),
+      instance: instance('later'),
+      grant: null,
+      takeover: evidence('later-takeover'),
+      recovery: evidence('later-recovery'),
+    }),
+  )
+  const snapshot = ok(
+    await s.dependencies.provider.journal.load({ ...alice, execution: execution() }),
+  )
+  ok(
+    await s.dependencies.provider.journal.commit({
+      ...alice,
+      execution: execution(),
+      operation: operation('later-binding'),
+      authority: attached.authority,
+      expected: snapshot.revision,
+      checkpoint: { ...snapshot.checkpoint, calls: [laterPending] },
+      state: { kind: 'advancing' },
+      events: [],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+    }),
+  )
+  const prior = withAccount(s.delivery)
+  if (prior.kind !== 'result' || !prior.accounts[0]?.account) throw new Error('account required')
+  const delivery: ModelDelivery = {
+    ...prior,
+    consumer: laterPending.position,
+    key: { ...prior.key, reference: laterRef },
+    accounts: prior.accounts.map(item => ({
+      ...item,
+      account:
+        item.account === null
+          ? null
+          : {
+              ...item.account,
+              subject: { kind: 'model_call', id: ok(decodeModelCallId('mcall_concurrent')) },
+            },
+    })),
+  }
+  ok(await receiver.push({ access: alice, delivery, signal: signal() }))
+  // Do not wait for the deliberately held maintenance task.
+  await Promise.all(s.state.outletTasks.values())
+  release.resolve()
+  const report = ok(await maintaining)
+  expect(report.blocked).toBe(1)
+  expect(JSON.stringify(report)).not.toContain('private-later-binding')
+  expect(foreignReads).toEqual([])
+  expect(sends).toEqual(['alice', 'alice'])
+  expect(
+    await receiver.retry({
+      access: { ...alice, principal: 'limited' },
+      execution: execution(),
+      signal: signal(),
+    }),
+  ).toHaveProperty('failure.kind', 'denied')
+})
+
+it('does not report success when retry cannot read original Model authority for an unknown commit', async () => {
+  const s = await setup()
+  s.assembly.controls.journal.failNext('received', { kind: 'commit-unknown', outcome: 'pending' })
+  expect(await s.push()).toHaveProperty('failure.kind', 'outcome-unknown')
+  const receiver = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      models: {
+        ...s.dependencies.models,
+        async inspect() {
+          return { failure: { kind: 'unavailable', dependency: 'model', diagnostic: 'offline' } }
+        },
+      },
+    },
+    s.state,
+  )
+  expect(await receiver.retry({ access: alice, execution: execution(), signal: signal() })).toEqual(
+    { failure: { kind: 'unavailable', owner: 'agent-model-receiver', diagnostic: 'inspect' } },
+  )
+  expect(receiver.inspect().pending).toBe(1)
+})
+
+it('does not start the next binding qualification after cancellation of the first check', async () => {
+  const s = await setup(),
+    entered = Promise.withResolvers<void>(),
+    release = Promise.withResolvers<void>()
+  const targets = ok(
+    await s.dependencies.targets.forExecution({ access: alice, execution: execution() }),
+  )
+  const first = targets[0]
+  if (!first) throw new Error('original target required')
+  let checks = 0
+  const receiver = createAgentModelReceiver(
+    {
+      ...s.dependencies,
+      targets: {
+        ...s.dependencies.targets,
+        async forExecution() {
+          return { ok: [first, { ...first, instance: instance('other') }] }
+        },
+      },
+      access: {
+        async check() {
+          checks++
+          entered.resolve()
+          await release.promise
+          return { kind: 'allowed', evidence: evidence('allowed') }
+        },
+      },
+    },
+    s.state,
+  )
+  const stop = new AbortController()
+  const pending = receiver.retry({ access: alice, execution: execution(), signal: stop.signal })
+  await entered.promise
+  stop.abort()
+  expect(await pending).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
+  release.resolve()
+  await drainTasks(s.state)
+  expect(checks).toBe(1)
+})
+
+it.each(['unknown', 'saved'] as const)(
+  'does not start material verification after cancelling an already issued %s maintenance query',
+  async initial => {
+    const s = await setup(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>()
+    if (initial === 'unknown') {
+      s.assembly.controls.journal.failNext('received', {
+        kind: 'commit-unknown',
+        outcome: 'applied',
+      })
+      expect(await s.push()).toHaveProperty('failure.kind', 'outcome-unknown')
+    } else ok(await s.push())
+    const received = s.dependencies.provider.received
+    if (!received) throw new Error('received provider required')
+    let reads = 0
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        provider: {
+          ...s.dependencies.provider,
+          received: {
+            ...received,
+            async query(input) {
+              entered.resolve()
+              await release.promise
+              return received.query(input)
+            },
+          },
+          materials: {
+            ...s.dependencies.provider.materials,
+            async read(input) {
+              reads++
+              return s.dependencies.provider.materials.read(input)
+            },
+          },
+        },
+      },
+      s.state,
+    )
+    const stop = new AbortController()
+    const pending = receiver[initial === 'unknown' ? 'retry' : 'recover']({
+      access: alice,
+      execution: execution(),
+      signal: stop.signal,
+    })
+    await entered.promise
+    stop.abort()
+    expect(await pending).toHaveProperty('failure.diagnostic', 'maintenance-cancelled')
+    release.resolve()
+    await drainTasks(s.state)
+    expect(reads).toBe(initial === 'unknown' ? 0 : 1)
+    expect(receiver.inspect().pending).toBe(initial === 'unknown' ? 1 : 0)
+    expect([...s.state.receptions.values()][0]?.commit.kind).toBe(initial)
+    expect(
+      ok(await receiver.retry({ access: alice, execution: execution(), signal: signal() })).pending,
+    ).toBe(0)
+    expect(reads).toBe(1)
+  },
+)
+
+it.each(['denied', 'unavailable', 'throw'] as const)(
+  'preserves %s from the outbound qualification instead of returning a successful report',
+  async failure => {
+    const s = await setup()
+    s.outlet({ kind: 'unknown' })
+    ok(
+      await s.receiver.push({ access: alice, delivery: withAccount(s.delivery), signal: signal() }),
+    )
+    await drainTasks(s.state)
+    let checks = 0
+    const receiver = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        access: {
+          async check() {
+            checks++
+            if (checks === 2) {
+              if (failure === 'throw') throw new Error('access unavailable')
+              return failure === 'denied'
+                ? { kind: 'denied' }
+                : { kind: 'unavailable', diagnostic: 'access offline' }
+            }
+            return { kind: 'allowed', evidence: evidence('allowed') }
+          },
+        },
+      },
+      s.state,
+    )
+    const reply = await receiver.retry({ access: alice, execution: execution(), signal: signal() })
+    expect(reply).toHaveProperty('failure.kind', failure === 'denied' ? 'denied' : 'unavailable')
+    expect(s.sent).toHaveLength(1)
+    expect(receiver.inspect().pending).toBe(1)
+  },
+)

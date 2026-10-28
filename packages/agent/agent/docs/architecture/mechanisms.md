@@ -30,7 +30,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 
 Model 的完整交付由实例外接收方保管。接收方持有原消费绑定查询与显式状态，在每次 push 中核当前资格、原调用与完整 dispatch 集合，然后通过同一提供者的 received 端口共同提交材料、条目和 saved。提交结果与未知映射消费 [J02](../../../agent-contract/SPEC.md#结果接收)，不在 loop 内重复实现。
 
-M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料继续；恢复不向 Model 重领全文。接收提交可以增加 execution revision，但不改变 attachment；loop 重新读取后以新修订条件提交。账目出站与 blocked/unknown 状态归宿主接收方，Model 自己取得 ACK。
+M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料继续；恢复不向 Model 重领全文。接收提交可以增加 execution revision，但不改变 attachment；loop 重新读取后以新修订条件提交。账目出站与 blocked/unknown 状态归宿主接收方，Model 自己取得 ACK。 saved 在共同提交、材料核对与入队完成后返回，不等待 outlet。宿主持有独立任务及驱动代；重装配不撤销真实在途交接，旧代不能发出后继待办。维护的授权工作集、取消与报告范围见[公开入口](../public-api.md#独立-model-接收入口)。
 
 ### 交付责任解除的两条路径与保管者更替
 
@@ -116,7 +116,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | T0 | 中断类控制的阶段与可选 toolOperation，原 toolInvocation 已在接受时保存 | recordControl | 相同完整输入按原操作认回，新引用由新 R2 实际写入 | 无 | [Recording operation 与阶段事实](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)，不重复阶段事件 |
 | T0 | 事件 stream：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号) |
 | T1 | 第一步：`results`（ResultResponsibility 的保管或完成依据） | `recordResult`，transfer 为 custody 或 processed，用自己派生的操作身份 | 按原操作幂等的记录 | 见[提交参加者](#提交参加者)的 custody 与 processed 行 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
-| T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
+| T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“Tool 材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | T1 | 事件 producer：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | 节点表 T1 |
 | T2 | 每个槽位的 `passages`（each），`batch.slots` 的 `each` 与改写后的 `candidate` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T2 |
 | T4 | `passages`（batch），`batch.batchPass` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T4 |
@@ -124,9 +124,8 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | M0 | 主请求：最终请求记录，`adoptedContext`，`effects`。与 I2 的 `calls` 为同一次。最终请求记录在 `JournalCommit` 中没有字段，见 AGENT-M04 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
 | M0 | 压缩步骤：`passages`（调模型之前，用途 compaction） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M0 |
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
-| M1 | 事件 stream：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号) |
+| M1 | 不投影 Model stream，只读取 Journal received | 无 | 无 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M2 | `passages`（failure 维度） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M2 |
-| M3 | received result 与完整材料 | `commit` 携带 producer 事件 | 条件提交 | receiver 修订变化时重读；真实撤权停止 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M3 | received result 与完整材料 | `commit` 携带 producer 事件 | 条件提交 | receiver 修订变化时重读；真实撤权停止 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M4 | `passages`（complete_reply 或 failure），循环判断的 `guard` 操作记入 Passage 的 `operations`，效果采纳时写 `guard` | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | Q2 | 接纳回执随 checkpoint，事件 message。主回复带 `replyAdmission`。压缩与其他来源在提供者声明对应种类时带 context-transition 或 message，否则 `caller` 为 none | `commit`。先经 `MessageHandoff.accept` 取得接纳 | 条件提交 | 按 `caller` 的种类 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)、[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素) |
@@ -273,7 +272,7 @@ Context 的 derive 返回实际候选消息和具名 commitment（C2）。压缩
 | Model 调用取得原用途的回复 | 首内容前的合法重试或回退仍在原调用内。输出限额截断是真实完成加提醒 | 不可重试或策略耗尽时，整调用以失败收场交原消费者。本地保存故障不伪装成供应商失败 | Model，见[重试与策略](../../../../model/model-contract/SPEC.md#重试与策略)与[故障交接](../../../../model/model-contract/SPEC.md#故障交接) | 在 M1 继续等待原调用。failure 维度每次调用触发两种：每次首内容前的发出失败触发一次（M2），这里 `retry` 合法，结论交 Model 的重试策略；最终失败触发一次（M4），这里 `retry` 不合法。首内容前最终没有有效回复时，I3 以失败候选 no-reply 转 F1，不调用一个不存在的模型判断。首内容后按原部分内容与提醒处理，不重发 |
 | Model 的主动控制 | 中断保留已到内容与费用 | 实际停止未确认时，物理停止阶段记为 unresolved | Model，见[控制、取消与晚到事实](../../../../model/model-contract/SPEC.md#控制取消与晚到事实) | 不记为上游故障。不执行该回复尚未发出的工具建议。不连带取消无关的工具。阶段事实在 M1 经 recordControl 记录 |
 | Tool 调用形成可解释结果 | 完成、失败、不可用、转后台、被中断、等不到应答都是正常的语义返回 | 执行、环境或存储损坏使结果无法可靠形成时，Tool 向其外层责任者上交身份、阶段与分类，保留原调用与未结责任 | Tool，见[结果与失败范围](../../../../tool/tool-contract/SPEC.md#结果与失败范围) | 普通失败是可消费的结果（T1、T2）。Agent 可以改参数或换方法，不自动结束 execution。观察或读取失败保持未知，不伪造 failed 的结果 |
-| Tool 或 Model 自身失联 | 由自身拥有者可信确认，并给出原调用的恢复结论 | 效果未知必须保留。当前查询失败不构成失联 | Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复)。Tool，见[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) | Tool 失联后不自动重放。Model 首内容前的恢复重发由 Model 策略与原用途处理，首内容后不重发。Agent 只消费拥有者给出的收场：在 M1、T0 等待，在 M3、T1 保管 |
+| Tool 或 Model 自身失联 | 由自身拥有者可信确认，并给出原调用的恢复结论 | 效果未知必须保留。当前查询失败不构成失联 | Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复)。Tool，见[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) | Tool 失联后不自动重放。Model 首内容前的恢复重发由 Model 策略与原用途处理，首内容后不重发。Agent 只消费拥有者给出的收场：Model 在 M1 等 received、在 M3 采用同源材料；Tool 在 T0 等待、在 T1 保管 |
 | Agent step 完成观察、判断、动作与承接 | 消费工具的正常语义结果，重新规划，按明确策略继续 | 没有可用模型、请求无法装下、必需能力缺失等形成具名的失败候选（F1） | Agent | 不统一变成“再调一次模型”。压缩与扩展内部调用回原位置，由该位置处理失败 |
 | Agent execution 继续原工作 | 合法重挂接、接续原操作、有限压缩、依赖恢复 | 已有明确失败条件时形成失败候选。需要外部能力的事项保留为未交清责任 | Agent，本页与 [SPEC](../../../agent-contract/SPEC.md#恢复与接管) | tryFinish 只终结 execution。事件与结果责任的交付可以在终结后继续（O0）。上交不是第四种终态 |
 | 外部协调者边界 | 协调者按自己的规则决定业务是否继续、是否换推进者、何时取消 | 协调者的业务失败或结束由它自己记录 | 外部协调者 | Agent 不保存协调者的业务状态，不解释其内部。协调者的取消经 control 进入 Agent，协调者的输入受理与终结经提交参加者参加。协调者的业务结束不自动终结 execution，execution 的终结也不自动结束协调者的业务 |
@@ -289,7 +288,7 @@ Context 的 derive 返回实际候选消息和具名 commitment（C2）。压缩
 | 情形 | 生产者保留什么 | Agent 消费什么 | 禁止 | 拥有者条款 |
 | --- | --- | --- | --- | --- |
 | Model 首内容前的可重试失败 | 原调用、各次真实发出与可能的费用。在首内容为 none-proven、原策略与当前资格都允许时准备下一次发出，仍属原调用 | 在 M1 继续等待同一调用。M2 的 retry 结论交 Model 的重试策略 | 因一次发出失败另建调用。抹去旧发出的可能费用 | Model 的[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容)与[重试与策略](../../../../model/model-contract/SPEC.md#重试与策略) |
-| Model 已有内容，或首内容无法排除 | 原部分内容与失败事实，以 runtime-lost 或真实失败收场 | 在 M3 保管原部分内容、失败事实与费用。M4 经过 failure 维度。主请求回 I3，以中断或部分结果处理，不解析未完整到达的工具建议 | 透明重发同一逻辑回复。拼接另一份生成内容冒充原流。执行未完成的工具建议 | Model 的[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容)与[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) |
+| Model 已有内容，或首内容无法排除 | 原部分内容与失败事实，以 runtime-lost 或真实失败收场 | 宿主共同保存原部分内容、失败事实与费用后，M3 从 received 材料采用。M4 经过 failure 维度。主请求回 I3，以中断或部分结果处理，不解析未完整到达的工具建议 | 透明重发同一逻辑回复。拼接另一份生成内容冒充原流。执行未完成的工具建议 | Model 的[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容)与[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) |
 | Model 或 Tool 的观察连接中断 | 生产者继续保管原流。已发布的内容先经保存确认 | 观察者按原流身份重新取得当前快照与后续游标。Agent 的 stream 事件按原序号与游标去重 | 用观察失败推断执行失败。把累计快照再次当作增量追加。重新生成内容或重新运行工具 | Model 的[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)，Tool 的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) |
 | Tool 已产生进度或业务效果后失败 | 真实收场与已知或未知的效果 | 在 T1 保管该结果，含 failed 终局与 unknown 效果。T2 经过单结果范围，T5 交消息准入 | 以未得到完整结果或未调用 emit 为由自动重跑 | Tool 的[结果与失败范围](../../../../tool/tool-contract/SPEC.md#结果与失败范围)与[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
 | 消费者已尝试外部动作，完成回执未知 | 消费者及其外部适配器保存动作身份、原事件范围、接收方与固定输入 | Agent 不消费这类动作。Agent 只保证事件的四个层次与业务接受层的区分 | 换身份重送。把本地没有完成记录解释为外部未发生 | 消费者（外部协调者或独立调用方）。Agent 侧见 SPEC 的[事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次) |
@@ -436,18 +435,20 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | Tool 发起前后 | association-unknown 无引用 | intent 与完整请求、consumer 保留 | 当前资格下重入原 invoke | 猜 ID，进入 associated-only 视图 | R0 回 A2 | SC-AG-217 |
 | 提交回执丢失 | Journal 提交回执丢失 | 原操作身份、持久索引与接管围栏 | query 原操作。committed 取原结果回后继。unknown 等待。excluded 才重新求值 | 用新的随机身份重试。把查无记录当作 excluded | R0 回 E4 | SC-AG-163 |
 | 提交回执丢失 | 消息准入的提交回执未知（Q2） | accept 以操作身份加来源身份幂等 | 以同一操作身份与同一候选重新调用 accept 即是查询。接纳回执随 checkpoint 提交 | 换候选或换身份重新 accept。把拒收当作未调用 | Q2 转 R0，再 Q4 | SC-AG-163 |
-| 输出后 | Model 已接收首片、保存窗口未确认。拥有者 Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) | 接收窗口把首内容状态置为 uncertain。preserve 关闭窗口 | Model 按其协议收场：无法证明没有内容时保持 uncertain，以 runtime-lost 收场。Agent 在 M1 等待该收场 | 以未保存首片或用户没有看到为由重新请求。Agent 产生新的调用 | M1 转 M3 | SC-AG-165 |
-| 输出后 | Model 已有部分输出后供应商失败。拥有者 Model，见[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容) | 原部分内容、失败事实与费用 | M3 保管。M4 经过 failure 维度。M5 回原用途。主请求在 I3 以部分结果处理转 I8 | 自动再生成并接在旧输出后。执行未完成的工具建议 | M3、M4、M5，回 I3 转 I8 | SC-AG-166 |
-| 输出后 | 流批次保存回执未知、尚未发布。拥有者 Model 与 Tool，见[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)与[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) | 生产者先保存后发布。游标只指向已保存事实 | 生产者查原保存操作，确认后发布原批次。Agent 的 stream 事件只投影已发布事实 | 未确认先展示。为取得同内容重新运行生产者 | M1、T0 | SC-AG-167 |
-| 输出后 | 原内容已发布、观察者断线或崩溃 | 原流身份、块身份、序号与游标 | 观察者按原流身份取当前快照与后续游标。Agent 的读取方按事件身份去重重连 | 把累计快照再次追加。把观察失败当作工具执行失败 | M1、T0。读取方沿 SPEC 的[订阅、背压与关闭](../../../agent-contract/SPEC.md#订阅背压与关闭) | SC-AG-167 |
+| 输出后 | Model 已接收首片、保存窗口未确认。拥有者 Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) | 接收窗口把首内容状态置为 uncertain。preserve 关闭窗口 | Model 按其协议收场：无法证明没有内容时保持 uncertain，以 runtime-lost 收场。Agent 在 M1 等待该收场对应的 Journal received | 以未保存首片或用户没有看到为由重新请求。Agent 产生新的调用 | M1 转 M3 | SC-AG-165 |
+| 输出后 | Model 已有部分输出后供应商失败。拥有者 Model，见[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容) | 原部分内容、失败事实与费用 | 宿主接收方共同提交 received 与完整材料后，M3 采用。M4 经过 failure 维度。M5 回原用途。主请求在 I3 以部分结果处理转 I8 | 自动再生成并接在旧输出后。执行未完成的工具建议 | M3、M4、M5，回 I3 转 I8 | SC-AG-166 |
+| 输出后 | 流批次保存回执未知、尚未发布。拥有者 Model 与 Tool，见[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)与[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) | 生产者先保存后发布。游标只指向已保存事实 | 生产者查原保存操作，确认后发布原批次。Model 的观察者只读已发布事实；Agent 的 M1 不投影 Model stream。Tool 事件保持原协议 | 未确认先展示。为取得同内容重新运行生产者 | M1、T0 | SC-AG-167 |
+| 输出后 | 原内容已发布、观察者断线或崩溃 | 原流身份、块身份、序号与游标 | 观察者按原流身份取当前快照与后续游标。Agent 的读取方按事件身份去重重连 | 把累计快照再次追加。把观察失败当作工具执行失败 | Model 观察者在 loop 外。T0 读取方沿 SPEC 的[订阅、背压与关闭](../../../agent-contract/SPEC.md#订阅背压与关闭) | SC-AG-167 |
 | 输出后 | Tool 已产生业务效果但没有 emit。拥有者 Tool，见[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) | Tool 保存真实收场与已知或未知的效果 | 按原执行与效果证据核实。真实失联由 Tool 以失败与异常中断收场。Agent 在 T1 保管收场 | 以没有过程输出认定没有业务效果。自动重放 | T0 转 T1 | SC-AG-168 |
 | 输出后 | 消费者外部发送已尝试、确认丢失。拥有者是消费者 | 消费者保存的动作身份、原事件范围、接收方与固定输入 | 消费者查询原动作，或由接收方按同身份认回。不能核定时保留未知 | 换身份重送。因本地未记完成推断外部未发生 | 不在 Agent 节点内。Agent 的事件四层不变 | SC-AG-169 |
-| 结果取得 | 结果已产生、尚未被消费 | 生产者保管。原 consumption 去重 | 新推进者在 M3 或 T1 按原 consumption 保管，走两条路径之一。重交认回原结果版本 | 先解除交付责任再补保存 | R0 回 M3 或 T1 | SC-AG-170 |
-| 结果取得 | 材料已保存、责任绑定未知 | 材料拥有者按 identity 认回 preserve。custody 交接有操作身份 | 保留材料，query 原绑定操作。确认后继续 | 超时删除。用孤立材料的存在当作保管交接完成 | T1、M3 转 R0 | SC-AG-171 |
+| 结果取得 | Model 结果已产生、尚未共同保存 | Model 保管原载荷；宿主保存原接收 operation 与消费绑定 | 接收方按原 operation 查询 unknown；committed 认回原 received、完整材料与 saved；excluded 不换号重做 | loop 用 inspect 生成结果或提前返回 saved | 宿主接收方；M1 继续等待 | SC-AG-170 |
+| 结果取得 | Tool 结果已产生、尚未被消费 | Tool 保管。原 consumption 去重 | 新推进者在 T1 按原 consumption 保管，走 Tool 的两条路径之一 | 先解除交付责任再补保存 | R0 回 T1 | SC-AG-170 |
+| Tool 结果取得 | Tool 材料已保存、责任绑定未知 | 材料拥有者按 identity 认回 preserve。custody 交接有操作身份 | 保留材料，query 原绑定操作。确认后继续 | 超时删除。用孤立材料的存在当作保管交接完成 | T1 转 R0 | SC-AG-171 |
 | 结果取得 | 后台占位已保管，最终结果以同一 consumption 迟到 | 占位版本的前台交付已解除。原 consumption 的责任待释放 | 本执行推进中时 I8 转 T1 保管，回 I8 以 consume 消费。没有推进资格时 O0 只保管 | 改写原槽位。重开批次。把占位的释放当作最终结果已交付 | I8、T1、I8，或 O0 | SC-AG-172 |
 | 结果取得 | 一批中一个结果先到、另一个仍等待。T5 部分提交后崩溃 | 槽位的 `each`、`candidate`、`handoff` 进度随 checkpoint | 先到者完成 T1、T2 并解除生产责任。T3 未齐则 W0。T5 只提交尚未接纳的候选 | 重跑已结束的单结果经过。重新提交已接纳的消息。重跑工具或整批经过 | T3 转 W0。T5 | SC-AG-173 |
-| 确认前后 | 消费侧保管已成、解除回执丢失 | recordResult 的 release 操作身份。生产者的确认依据 | 以原 release 操作对账，需要时重认幂等确认。确认后从消费侧继续 | 再调模型。再次处理同一份结果。向 Model 重领全文 | M3、T1、O0 | SC-AG-174 |
-| 确认前后 | 生产侧责任已解除、消费端交付未完成 | 消费侧依据：custody 的材料或 processed 的完成依据 | 新消费者从消费侧依据继续 | 向 Model 索取全文。重新执行工具 | E2、E4 回原消费位置 | SC-AG-175 |
+| Tool 确认前后 | 消费侧保管已成、解除回执丢失 | recordResult 的 release 操作身份。Tool 的确认依据 | 以原 release 操作对账，需要时重认幂等确认。确认后从消费侧继续 | 重新执行 Tool。再次处理同一份结果 | T1、O0 | SC-AG-174 |
+| Model 确认前后 | received 与材料共同保存，生产者 ACK 未完成 | 原 received、材料、接收 operation 与 saved | Model 自己认回 ACK；loop 从原 received 材料继续。宿主独立驱动原账目 handoff | Agent 查询或执行 Model ACK；以 outlet 未完撤回 saved | M1 转 M3；宿主出站 | SC-AG-174 |
+| 确认前后 | 生产侧责任已解除、消费端交付未完成 | Model 用原 received 与完整材料；Tool 用 custody 材料或 processed 完成依据 | 新消费者从各自消费侧依据继续 | 向 Model 索取全文。重新执行工具 | E2、E4 回原消费位置 | SC-AG-175 |
 | 卡片答复与处理 | 扩展调用停在 requested、asked、resolved 或 applied | Passage 的 `progress` 与 `operations`。CardRound 的状态 | 按上文[扩展经过与精确采用接续](#扩展经过与精确采用接续)的表取第一条匹配行。方言不能携带回放绑定的实现，结果未知时 `replay` 返回 `replayInconsistent`，按报错处置，不再运行 | 用新版本解释原判断。重问卡片。重跑已记录的操作。对不能携带回放绑定的实现再运行一次 | E4 按 `passages` 直接回 X2、X4 或 X5。applied 回原扩展节点的后继 | SC-AG-176，另见 SC-AG-100 至 SC-AG-103、SC-AG-110 |
 | 卡片答复与处理 | 人已答复、尚未 processed | 卡片端口按原 round 读到唯一有效答复。该轮为 answered | 以 `replay` 携带全部轮次的答复调用原精确采用。整批屏障保持 | 把 answered 当作全部处理完成。发出已获准的动作 | X4 转 X2 | SC-AG-177，另见 SC-AG-101 |
 | 卡片答复与处理 | 卡片已呈现、回执丢失 | present 的幂等身份是 passage 加 round 加完整请求身份集合 | lookup 认回原呈现。unknown 时不重出卡 | 再次 present | X4 | SC-AG-45 |
@@ -456,7 +457,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 终态与接管 | tryFinish 已成、回执丢失 | 原终结的操作身份。ended 与末事件共同提交 | query 原终结。load 读终态。F4、O0 继续 | 重开执行。重复终态。重跑终态前的效果 | F3 转 R0，再 F4 | SC-AG-180 |
 | 终态与接管 | 旧实例被取代后迟到 | stale-advance。superseded 的挂接 | 旧挂接拒绝业务写与发出。合格保管者仍可以记录真实结果与费用 | 因旧资格无效丢弃真实结果 | E1 转 E9。O0 保管 | SC-AG-181、SC-AG-189 |
 | 依赖与生产者状态 | Model 或 Tool 的查询暂不可用。拥有者 Model 与 Tool，见[换代、恢复和耐久](../../../../model/model-contract/SPEC.md#换代恢复和耐久)与[中断与失联](../../../../../docs/architecture/runtime/tool-runtime.md#中断与失联) | 原状态未定 | 保留技术待办，按 reconciliationDelayMs 重查 | 自动报告生产者失联。重发 | W0 回 E1，再回原节点 | SC-AG-182 |
-| 依赖与生产者状态 | Model 或 Tool 自身确认失去连续性。拥有者 Model 与 Tool，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复)与[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) | 拥有者的连续性证据与收场 | 沿其自身恢复协议：Model 以 runtime-lost 收场不重发，只有首内容为 none-proven 且窗口可靠闭合时按原政策恢复发出。Tool 失败收束不重放。Agent 在 M3、T1 保管收场 | 用 Agent 崩溃推导生产者也崩溃 | M1 转 M3。T0 转 T1 | SC-AG-183 |
+| 依赖与生产者状态 | Model 或 Tool 自身确认失去连续性。拥有者 Model 与 Tool，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复)与[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) | 拥有者的连续性证据与收场 | 沿其自身恢复协议：Model 以 runtime-lost 收场不重发，只有首内容为 none-proven 且窗口可靠闭合时按原政策恢复发出。Tool 失败收束不重放。Model 收场由宿主共同保存后在 M3 采用；Tool 收场在 T1 保管 | 用 Agent 崩溃推导生产者也崩溃 | M1 转 M3。T0 转 T1 | SC-AG-183 |
 | 依赖与生产者状态 | 存储损坏或原精确材料不可读 | load 返回 unavailable。resolve 缺原实现 | 明确报告依赖不可用或损坏，保留诊断与恢复候选。缺原实现保持具名等待 | 以空快照、零费用或新执行掩盖丢失 | E2 转 W0。X0 具名等待 | SC-AG-184 |
 
 同一原请求的重送还要遵守原生产者协议对新资格与固定语义的处理。生产者不支持原身份在新挂接下合法认回或继续时，保持不可用并交提供者补足，不自行把新 authority 填进旧固定请求伪装相同操作。

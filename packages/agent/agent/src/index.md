@@ -25,5 +25,10 @@
 - [testing/tools.ts](testing/tools.ts)：`ToolRuntime` 替身
 - [testing/clock.ts](testing/clock.ts)：可控时钟
 - [testing/script.ts](testing/script.ts)：替身共用的编排方法
-- [receiving.ts](receiving.ts)：实例外 Model 接收、原操作认回、账目待办与宿主持有状态
+- [receiving.ts](receiving.ts)：实例外 Model 准入、共同保存及原操作认回
+- [receiving-state.ts](receiving-state.ts)：宿主接收事实、原绑定范围与真实任务引用
+- [receiving-scope.ts](receiving-scope.ts)：原绑定资格、条目匹配与取消等待
+- [receiving-maintenance.ts](receiving-maintenance.ts)：按原绑定工作集恢复、重试与报告
+- [receiving-outlet.ts](receiving-outlet.ts)：账目入队、真实出口任务与驱动换代
+- [testing/model-receiver.ts](testing/model-receiver.ts)：公共宿主测试装配，真实内存 Journal 加显式依赖替身
 - [receiving-material.ts](receiving-material.ts)：完整 ModelDelivery 的版本 facts 材料与读取校验

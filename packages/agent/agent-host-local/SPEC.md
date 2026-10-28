@@ -16,9 +16,9 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 接收组件逐次核验主体、原调用、consumer、admission 和完整 dispatch 集合，包括 saved 重投。它按 [J02](../agent-contract/SPEC.md#结果接收) 与 Model 原协议的顺序处理拒绝、认回、取消、容量和共同提交。只有收到 committed 的原结果才向 Model 返回 saved。内部共同提交结果与失败须按 [Model 接收结果与失败映射](../agent-contract/SPEC.md#model-接收结果与失败映射)转换，保留原操作、未知、排除和内部诊断。Model 自己取得 ACK，本组件不持有生产者 ACK 权限。
 
-接收句柄须提供 push、recover、retry 和只读待办及诊断查询。宿主显式创建并持有接收状态；Agent 实例重建不清空它，接收组件重装配继续传入同一状态。recover 按 execution 从 received 及材料恢复账目待办。unknown 与 unavailable 保留原 handoff，宿主在可重试待办存在时驱动 retry。denied、conflict 与 invalid 保留为 blocked 待办和具名诊断，不自动重试，重装配也不重新发送。恢复和重试返回剩余待办与诊断，不能以空实现声称成功。
+接收句柄须提供 push、recover、retry 和只读待办及诊断查询。宿主显式创建并持有接收状态；Agent 实例重建不清空它，接收组件重装配继续传入同一状态。recover 按 execution 从 received 及材料恢复账目待办。unknown 与 unavailable 保留原 handoff，宿主在可重试待办存在时驱动 retry。denied、conflict 与 invalid 保留为 blocked 待办和具名诊断，不自动重试，重装配也不重新发送。恢复和重试返回 Agent Reply。它们先按原绑定工作集核 receive-result，返回前重核；不存在或无权统一 denied，依赖不可读返回 unavailable。报告只含该集合，await 期间新增的绑定留到下一次维护。inspect 是宿主管理的全局视图，不作为租户查询。
 
-停止只停止本次驱动，不取消已受理的共同提交，不撤回 saved，不删除材料或待办。接收状态的内存实现仅支持同进程接续，不证明断电或跨进程恢复；要求耐久的宿主必须保存该状态。容量、材料、接收与出站的精确行为分别沿 [J02](../agent-contract/SPEC.md#结果接收)、[共同提交](../agent-contract/SPEC.md#接收共同提交)和 [J28](../agent-contract/SPEC.md#账目出站)。
+共同提交、材料核对和入队后即返回 saved，不等待 outlet。宿主状态持有实际出站任务与当前驱动代；旧代只结算已发出的交接，不能驱动后继。每次实际出站前重核原绑定资格。停止只停止本次等待与后续驱动，不取消已受理的共同提交，不撤回 saved，不删除材料或待办。取消时目标或最终资格检查尚未完成，返回无内容 unavailable（owner=agent-model-receiver，diagnostic=maintenance-cancelled）；已判定 denied 不改成成功。接收状态的内存实现仅支持同进程接续，不证明断电或跨进程恢复；要求耐久的宿主须保存接收与出站的业务事实。Promise 和驱动代只表示本进程的实际执行，不作为耐久记录。容量、材料、接收与出站的精确行为分别沿 [J02](../agent-contract/SPEC.md#结果接收)、[共同提交](../agent-contract/SPEC.md#接收共同提交)和 [J28](../agent-contract/SPEC.md#账目出站)。
 
 ## 验证
 
@@ -26,4 +26,4 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 账目验证覆盖全部非 null 账目、迟到修订、同 handoff 重试、blocked 的重装配保留，以及实例重建后继续接收。合一内存提供者须显式执行接收共同提交套件的 required 模式，账目出站须执行其公开一致性套件。上述替身验证不证明生产 Model、磁盘耐久或跨进程恢复。
 
-完整插件实现时另行验证 [装配协议](docs/cordis.md)、依赖撤除与恢复交接。根入口测试核对组件导出；接收算法与同源内存提供者的行为验证在 agent 成员中执行，不代表完整插件运行验证。
+完整插件实现时另行验证 [装配协议](docs/cordis.md)、依赖撤除与恢复交接。根入口测试实际装配工厂，验证 supported/unsupported、共同保存与原 handoff 重试。Agent 成员另验证接收算法、隔离、取消与换代，不代表完整插件运行验证。
