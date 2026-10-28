@@ -27,3 +27,5 @@
 <!-- documentation:placeholder -->
 
 待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+
+`public-entry.spec.ts` 经根入口实际创建接收方，以 Agent 公开 `createModelReceiverFixture` 装配同源内存 Journal。它验证 unsupported 拒绝、真实 push 的条目与材料、pending 报告及重装配后的同 handoff retry。Model、Access 与 outlet 是显式替身；该用例不证明完整 Cordis 插件、生产 Model host 或磁盘耐久。

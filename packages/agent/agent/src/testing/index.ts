@@ -2,12 +2,25 @@
 // clock and `createTestAgentDependencies`, which assembles all 17 dependencies of the factory. They
 // are for tests only. Nothing here is durable, and a double answers what the test scripted; it
 // proves nothing about a real provider.
+import { assembleModelReceiverFixture, type ModelReceiverFixture } from './model-receiver.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { decodeModelInstanceId, type ModelInstanceId } from '@omne-harness/model-contract'
 import {
   createScriptedModelProvider,
+  createScriptedConformanceSubject,
+  createScriptedResultPusher,
+  type ScriptedResultPusher,
   type ScriptController,
 } from '@omne-harness/model-contract/testing'
+import {
+  createAgentModelReceiver,
+  createModelReceiverState,
+  type AgentModelReceiver,
+} from '../receiving.ts'
+import {
+  createMemoryAgentAccountOutlet,
+  sampleReceivedModelAccount,
+} from '@omne-harness/agent-contract/testing'
 import type { AgentInstant } from '@omne-harness/agent-contract'
 import type { AgentDependencies } from '../construction.ts'
 import { createManualAgentClock, type ManualAgentClock } from './clock.ts'
@@ -96,6 +109,8 @@ export type { ScriptedToolRuntime } from './tools.ts'
 export type TestAgentDependenciesOptions<P> = Readonly<{
   /** Options of the memory Journal, such as its declared participants. */
   journal?: MemoryAgentJournalOptions<P>
+  /** Enables the public Model testing pusher under an explicit tenant principal. */
+  receivingPrincipal?: P
   /** The instance of the scripted Model provider. Default: `minst_agent-testing`. */
   modelInstance?: ModelInstanceId
   /** The start of the manual clock. Default: `1970-01-01T00:00:00Z`. */
@@ -107,6 +122,8 @@ export type TestAgentDependenciesOptions<P> = Readonly<{
 /** The control handle of every dependency in `TestAgentDependencies.dependencies`. */
 export type TestAgentControls<P> = Readonly<{
   journal: MemoryAgentJournal<P>
+  receiver: AgentModelReceiver<P> | null
+  pusher: ScriptedResultPusher<P> | null
   access: ScriptedAccessCheck<P>
   models: ScriptController<P>
   tools: ScriptedToolRuntime<P>
@@ -145,10 +162,43 @@ export function createTestAgentDependencies<P>(
     instance,
     ...(options.samePrincipal === undefined ? {} : { samePrincipal: options.samePrincipal }),
   })
+  const journal = createMemoryAgentJournal<P>(options.journal)
+  const access = createScriptedAccessCheck<P>()
+  const reception =
+    options.receivingPrincipal === undefined
+      ? null
+      : createAgentModelReceiver(
+          {
+            provider: journal.provider,
+            access: access.port,
+            targets: journal.targets,
+            outlet: createMemoryAgentAccountOutlet<P>(),
+            models: models.provider.runtime.calls,
+            capacity: () => ({
+              records: 10000,
+              bytes: 64 * 1024 * 1024,
+              attachments: 10000,
+              inFlight: 64,
+            }),
+          },
+          createModelReceiverState<P>(),
+        )
+  if (reception && 'failure' in reception) throw new Error('Memory received capability missing')
+  const receiver = reception?.ok ?? null
+  const pusher =
+    options.receivingPrincipal === undefined
+      ? null
+      : createScriptedResultPusher({
+          scripted: models,
+          principal: options.receivingPrincipal,
+          resolveReceiver: () => receiver,
+        })
   const controls: TestAgentControls<P> = {
-    journal: createMemoryAgentJournal<P>(options.journal),
-    access: createScriptedAccessCheck<P>(),
-    models: models.controller,
+    journal,
+    access,
+    receiver,
+    pusher,
+    models: pusher?.controller ?? models.controller,
     tools: createScriptedToolRuntime<P>(),
     adoptions: createTableAdoptions<P>(),
     conditions: createTableConditions<P>(),
@@ -163,13 +213,15 @@ export function createTestAgentDependencies<P>(
     reads: createScriptedReads<P>(),
     clock: createManualAgentClock(options.clockStart),
   }
+  controls.materials.preserve.always(input => journal.provider.materials.preserve(input))
+  controls.materials.read.always(input => journal.provider.materials.read(input))
   return {
     durability: 'none',
     controls,
     dependencies: {
       journal: controls.journal.port,
       access: controls.access.port,
-      models: models.provider.runtime,
+      models: pusher?.provider.runtime ?? models.provider.runtime,
       tools: controls.tools.port,
       adoptions: controls.adoptions.port,
       conditions: controls.conditions.port,
@@ -193,4 +245,15 @@ function defaultModelInstance(): ModelInstanceId {
   if ('failure' in decoded)
     throw new Error(`invalid default model instance ${DEFAULT_MODEL_INSTANCE}`)
   return decoded.ok
+}
+
+export type { ModelReceiverFixture } from './model-receiver.ts'
+
+/** A lawful original binding and common memory provider for host receiver tests. */
+export function createModelReceiverFixture(): Promise<ModelReceiverFixture> {
+  const { tenant } = createScriptedConformanceSubject()
+  return assembleModelReceiverFixture(
+    tenant,
+    sampleReceivedModelAccount(tenant, 'receiver-fixture'),
+  )
 }

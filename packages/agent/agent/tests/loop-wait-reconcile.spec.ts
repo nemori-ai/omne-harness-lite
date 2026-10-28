@@ -161,14 +161,22 @@ describe('W0 rereads the original producer', () => {
       })
       return 'ok' in state && state.ok.kind === 'found' && state.ok.state.phase === 'settled'
     })
-    expect(
-      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
-    ).toEqual(waiting)
+    await eventually(async () => {
+      const saved = ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      )
+      return saved.entries?.some(entry => entry.kind === 'received') === true
+    })
+    const received = ok(
+      await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+    )
+    expect(received.checkpoint).toEqual(waiting.checkpoint)
+    expect(received.executionAttachment).toEqual(waiting.executionAttachment)
     ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))
     const events = await eventsOf(handle)
     expect(events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
     expect(admissions).toBe(1)
-    expect(observations).toBeGreaterThan(0)
+    expect(observations).toBe(0)
     expect(closed).toBe(observations)
     expect(assembly.controls.clock.pending()).toEqual([])
   })
@@ -282,6 +290,17 @@ describe('W0 local ownership', () => {
       ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
     ).toEqual(before)
     assembly.release.open()
+    await eventually(
+      async () =>
+        ok(
+          await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+        ).entries?.some(
+          entry =>
+            entry.kind === 'received' &&
+            entry.delivery.producer === 'model' &&
+            entry.delivery.key.kind === 'result',
+        ) === true,
+    )
     ok(await c.runExecution())
     expect(
       ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() })),
@@ -419,33 +438,18 @@ it.each(['observer', 'clock'] as const)(
             : result
         },
       },
-      models: {
-        ...d.models,
-        instances: {
-          connect: async input => {
-            const route = await d.models.instances.connect(input)
-            if ('failure' in route || route.ok.kind !== 'live') return route
-            const original = route.ok.handle
-            const finishObservation = () => {
+      journal: {
+        ...d.journal,
+        output: {
+          ...d.journal.output,
+          async *events(input) {
+            const finish = () => {
               if (fault === 'observer') throw new Error('observer cleanup failed')
             }
-            return {
-              ok: {
-                kind: 'live',
-                handle: {
-                  ...original,
-                  async *observe(input) {
-                    try {
-                      for await (const seen of original.observe(input)) {
-                        if (seen.kind === 'ended') return
-                        yield { ...seen, kind: 'changed' as const }
-                      }
-                    } finally {
-                      finishObservation()
-                    }
-                  },
-                },
-              },
+            try {
+              yield* d.journal.output.events({ ...input, after: null })
+            } finally {
+              finish()
             }
           },
         },
@@ -526,6 +530,17 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
   ).toBe('ready')
   expect(assembly.controls.clock.pending()).toEqual([])
   assembly.release.open()
+  await eventually(
+    async () =>
+      ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      ).entries?.some(
+        entry =>
+          entry.kind === 'received' &&
+          entry.delivery.producer === 'model' &&
+          entry.delivery.key.kind === 'result',
+      ) === true,
+  )
   ok(await c.runExecution())
   const after = ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
   expect(after.state.kind).toBe('ended')
@@ -619,6 +634,17 @@ it('NA-W0-1: an input racing the waiting commit is reread without abandoning the
   expect(waiting.state.kind).toBe('waiting')
   expect(waiting.checkpoint.calls).toHaveLength(1)
   assembly.release.open()
+  await eventually(
+    async () =>
+      ok(
+        await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
+      ).entries?.some(
+        entry =>
+          entry.kind === 'received' &&
+          entry.delivery.producer === 'model' &&
+          entry.delivery.key.kind === 'result',
+      ) === true,
+  )
   ok(await c.runExecution())
   const finished = ok(
     await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
@@ -720,7 +746,8 @@ describe('review regressions preserve the original wait responsibility', () => {
         await assembly.controls.journal.port.load({ ...alice, execution: execution() }),
       )
       expect(ended.state.kind).toBe('ended')
-      expect(ended.results).toHaveLength(1)
+      expect(ended.results).toEqual([])
+      expect(ended.entries?.filter(entry => entry.kind === 'received')).toHaveLength(1)
       expect(ended.effects).toHaveLength(1)
     },
   )

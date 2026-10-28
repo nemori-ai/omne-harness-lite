@@ -40,7 +40,7 @@ Residual gaps name what the connected path does not include. Only a blocking gap
 | [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | no | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536), [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | No Session faces, drive adapter, or Session-side hand-over. This application orders the calls. |
 | [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | no | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | Session cannot form a completed Run terminal on this path. |
 | [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | no | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542), [#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | No Agent-side Context adapter. The bridge fixes the request after the Request Context lease. |
-| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | no | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502), [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | The Agent runtime does not yet consume the #672 receive surface and account outlet. H06 evidence comes from the runtime's own Model call consumption and journal. |
+| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | no | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502), [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | The test assembly now connects the public Model pusher, independent receiver and joint memory Journal. Final H06 receive/account integration remains outside this migration. |
 
 ## Configuration and operation
 

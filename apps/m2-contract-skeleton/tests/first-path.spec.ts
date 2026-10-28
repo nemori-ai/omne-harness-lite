@@ -1,6 +1,7 @@
 // The connected first tenant path over the `./testing` doubles: the happy path reaches every hop,
 // and each failure stops at the hop that owns it without faking the later ones.
 import { describe, expect, it } from 'vitest'
+import type { JsonValue } from '@omne-harness/json-text'
 import type { HistoryPage } from '@omne-harness/session-contract'
 import {
   createMemorySessionEvidenceBridge,
@@ -108,6 +109,7 @@ describe('connected first tenant path', () => {
     for (const hop of ['H05', 'H06', 'H07', 'H08'] as const)
       expect(observed[hop].connected).toBe(false)
     expect(observed.H08.evidence.join(' ')).toContain('has no assistant message')
+    expect(observed.H06.evidence).toContain('agent:no reply of the journal Model call')
   })
 
   it('fails H08 when the Session history does not carry the Model reply text', async () => {
@@ -201,4 +203,259 @@ describe('connected first tenant path', () => {
         expect(text).not.toContain(forbidden)
     }
   })
+})
+
+it.each([
+  'missing-snapshot',
+  'missing-entries',
+  'empty',
+  'start-fence',
+  'tool-account',
+  'model-account',
+] as const)('does not claim H06 for %s instead of the received Model result', async variant => {
+  const original = agentDouble()
+  const { sampleStartFence, sampleReceivedToolAccount, sampleReceivedModelAccount } =
+    await import('@omne-harness/agent-contract/testing')
+  const observed = await runFirstTenantPath(
+    pathDependencies({
+      agent: async input => {
+        const agent = await original(input)
+        return {
+          ...agent,
+          journal: {
+            ...agent.journal,
+            async load(request) {
+              const snapshot = await agent.journal.load(request)
+              if ('failure' in snapshot) return snapshot
+              if (variant === 'missing-snapshot')
+                return {
+                  failure: { kind: 'unavailable', owner: 'test', diagnostic: 'no snapshot' },
+                }
+              if (variant === 'missing-entries') {
+                const { entries: _, ...rest } = snapshot.ok
+                return { ok: rest }
+              }
+              const entries =
+                variant === 'empty'
+                  ? []
+                  : variant === 'start-fence'
+                    ? [sampleStartFence('wrong')]
+                    : variant === 'tool-account'
+                      ? [sampleReceivedToolAccount(input.tenant, 'wrong')]
+                      : [sampleReceivedModelAccount(input.tenant, 'wrong')]
+              return { ok: { ...snapshot.ok, entries } }
+            },
+          },
+        }
+      },
+    }),
+  )
+  expect(observed.H06.connected).toBe(false)
+  expect(observed.H06.evidence).toContain('agent:journal has no received Model result')
+})
+
+it.each(['unreadable', 'wrong-schema'] as const)(
+  'does not claim H06 when received material is %s',
+  async variant => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        agent: async input => {
+          const agent = await original(input)
+          return {
+            ...agent,
+            materials: {
+              ...agent.materials,
+              async read(request) {
+                const material = await agent.materials.read(request)
+                if ('failure' in material) return material
+                if (variant === 'unreadable')
+                  return {
+                    failure: { kind: 'unavailable', owner: 'test', diagnostic: 'lost material' },
+                  }
+                if (material.ok.kind !== 'facts') throw new Error('expected received facts')
+                return {
+                  ok: {
+                    ...material.ok,
+                    schema: { ...material.ok.schema, revision: 'unsupported' },
+                  },
+                }
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(observed.H06.connected).toBe(false)
+    expect(observed.H06.evidence).toContain(
+      'agent:journal records received Model material and its original binding',
+    )
+  },
+)
+
+it('selects the result after unrelated entries rather than adopting the first entry', async () => {
+  const original = agentDouble()
+  const { sampleStartFence, sampleReceivedToolAccount, sampleReceivedModelAccount } =
+    await import('@omne-harness/agent-contract/testing')
+  const observed = await runFirstTenantPath(
+    pathDependencies({
+      agent: async input => {
+        const agent = await original(input)
+        return {
+          ...agent,
+          journal: {
+            ...agent.journal,
+            async load(request) {
+              const snapshot = await agent.journal.load(request)
+              if ('failure' in snapshot) return snapshot
+              return {
+                ok: {
+                  ...snapshot.ok,
+                  entries: [
+                    sampleStartFence('other'),
+                    sampleReceivedToolAccount(input.tenant, 'other'),
+                    sampleReceivedModelAccount(input.tenant, 'other'),
+                    ...(snapshot.ok.entries ?? []),
+                  ],
+                },
+              }
+            },
+          },
+        }
+      },
+    }),
+  )
+  expect(observed.H06.connected).toBe(true)
+  expect(observed.H06.evidence).toContain(
+    'agent:journal records received Model material and its original binding',
+  )
+})
+
+it('does not claim H06 when readable received material names another original call', async () => {
+  const original = agentDouble()
+  const { decodeModelCallId, encodeModelInvocationRef, resolveModelInvocationRef } =
+    await import('@omne-harness/model-contract')
+  const observed = await runFirstTenantPath(
+    pathDependencies({
+      agent: async input => {
+        const agent = await original(input)
+        let replacement: { from: string; to: string } | null = null
+        return {
+          ...agent,
+          journal: {
+            ...agent.journal,
+            async load(request) {
+              const snapshot = await agent.journal.load(request)
+              if ('failure' in snapshot) return snapshot
+              const entries = snapshot.ok.entries?.map(entry => {
+                if (
+                  entry.kind !== 'received' ||
+                  entry.delivery.producer !== 'model' ||
+                  entry.delivery.key.kind !== 'result' ||
+                  !('accounts' in entry.delivery)
+                )
+                  return entry
+                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
+                const call = decodeModelCallId('mcall_other-original')
+                if ('failure' in ref || 'failure' in call)
+                  throw new Error('valid original reference required')
+                const changed = encodeModelInvocationRef({
+                  ...ref.ok,
+                  tenant: input.tenant,
+                  call: call.ok,
+                })
+                if ('failure' in changed) throw new Error('valid replacement required')
+                replacement = { from: entry.delivery.key.reference, to: changed.ok }
+                return {
+                  ...entry,
+                  delivery: {
+                    ...entry.delivery,
+                    key: { ...entry.delivery.key, reference: changed.ok },
+                  },
+                }
+              })
+              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
+            },
+          },
+          materials: {
+            ...agent.materials,
+            async read(request) {
+              const material = await agent.materials.read(request)
+              if ('failure' in material || material.ok.kind !== 'facts' || replacement === null)
+                return material
+              const replace = (json: JsonValue): JsonValue => {
+                if (json.kind === 'string')
+                  return {
+                    ...json,
+                    value: json.value === replacement?.from ? replacement.to : json.value,
+                  }
+                if (json.kind === 'array') return { ...json, items: json.items.map(replace) }
+                if (json.kind === 'object')
+                  return {
+                    ...json,
+                    entries: json.entries.map(entry => ({ ...entry, value: replace(entry.value) })),
+                  }
+                return json
+              }
+              return { ok: { ...material.ok, value: replace(material.ok.value) } }
+            },
+          },
+        }
+      },
+    }),
+  )
+  expect(observed.H06.connected).toBe(false)
+  expect(observed.H06.evidence).toContain('agent:no reply of the journal Model call')
+})
+
+it('rejects a received reference encoded for another tenant', async () => {
+  const original = agentDouble()
+  const { encodeModelInvocationRef, resolveModelInvocationRef } =
+    await import('@omne-harness/model-contract')
+  const observed = await runFirstTenantPath(
+    pathDependencies({
+      agent: async input => {
+        const agent = await original(input)
+        return {
+          ...agent,
+          journal: {
+            ...agent.journal,
+            async load(request) {
+              const snapshot = await agent.journal.load(request)
+              if ('failure' in snapshot) return snapshot
+              const entries = snapshot.ok.entries?.map(entry => {
+                if (entry.kind !== 'received' || entry.delivery.producer !== 'model') return entry
+                const ref = resolveModelInvocationRef(entry.delivery.key.reference, input.tenant)
+                if ('failure' in ref) throw new Error('original reference required')
+                const foreign = encodeModelInvocationRef({
+                  ...ref.ok,
+                  tenant: memoryOtherAccess<PathPrincipal>('foreign').tenant,
+                })
+                if ('failure' in foreign) throw new Error('foreign reference required')
+                if ('accounts' in entry.delivery)
+                  return {
+                    ...entry,
+                    delivery: {
+                      producer: 'model' as const,
+                      key: { ...entry.delivery.key, reference: foreign.ok },
+                      accounts: entry.delivery.accounts,
+                    },
+                  }
+                return {
+                  ...entry,
+                  delivery: {
+                    producer: 'model' as const,
+                    key: { ...entry.delivery.key, reference: foreign.ok },
+                    account: entry.delivery.account,
+                  },
+                }
+              })
+              return { ok: { ...snapshot.ok, ...(entries === undefined ? {} : { entries }) } }
+            },
+          },
+        }
+      },
+    }),
+  )
+  expect(observed.H06.connected).toBe(false)
 })

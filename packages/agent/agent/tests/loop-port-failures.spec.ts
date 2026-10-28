@@ -202,41 +202,37 @@ const CASES: readonly Case[] = [
   ],
   [
     'M1',
-    'models.calls.inspect',
+    'journal.load',
     'M6',
     d =>
-      models(d, {
-        calls: { inspect: failing(d.models.calls.inspect, fail(MODEL_FAILURE), fromNth(2)) },
-      }),
-  ],
-  [
-    'M3',
-    'models.consumption.beginRead',
-    'M6',
-    d =>
-      models(d, {
-        consumption: {
-          beginRead: failing(d.models.consumption.beginRead, fail(MODEL_FAILURE), nth(1)),
+      journal(d, {
+        async load(input) {
+          const loaded = await d.journal.load(input)
+          return 'ok' in loaded &&
+            loaded.ok.checkpoint.position === 'M6' &&
+            loaded.ok.entries?.length
+            ? fail(PORT_FAILURE)
+            : loaded
         },
       }),
   ],
   [
     'M3',
-    'journal.recordResult',
+    'materials.read',
     'M6',
-    d =>
-      journal(d, { recordResult: failing(d.journal.recordResult, fail(PORT_FAILURE), of('M3')) }),
+    d => ({
+      ...d,
+      materials: {
+        ...d.materials,
+        read: failing(d.materials.read, fail(PORT_FAILURE), fromNth(1)),
+      },
+    }),
   ],
   [
     'M3',
-    'models.consumption.acknowledge',
+    'journal.commit',
     'M6',
-    d =>
-      models(d, {
-        consumption: {
-          acknowledge: failing(d.models.consumption.acknowledge, fail(MODEL_FAILURE), nth(1)),
-        },
-      }),
+    d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('M3')) }),
   ],
   [
     'Q2',
@@ -259,13 +255,6 @@ const CASES: readonly Case[] = [
     d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
   ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
-  [
-    'O0',
-    'journal.recordResult',
-    'F3',
-    d =>
-      journal(d, { recordResult: failing(d.journal.recordResult, fail(PORT_FAILURE), of('O0')) }),
-  ],
 ]
 
 describe('a port failure on the normal path stops the run at its node (#502 1.2 limit)', () => {
