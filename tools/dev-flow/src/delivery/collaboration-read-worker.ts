@@ -4,8 +4,21 @@ import { InputError } from './protocol.ts'
 export type ReadProbe = 'reconcile' | 'runs' | 'deadline'
 
 /** One persistent read-only process per probe keeps remote REST outside the local health loop. */
-export function createReadWorkers(module: URL, input: unknown, timeoutMs = 120_000) {
-  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1)
+export function createReadWorkers(
+  module: URL,
+  input: unknown,
+  policy: Readonly<Record<ReadProbe, number>> = {
+    reconcile: 180_000,
+    runs: 120_000,
+    deadline: 120_000,
+  },
+) {
+  const timeouts = { reconcile: policy.reconcile, runs: policy.runs, deadline: policy.deadline }
+  if (
+    Object.values(timeouts).some(
+      value => !Number.isSafeInteger(value) || value < 1 || value > 2_147_483_647,
+    )
+  )
     throw new InputError('reduce-worker-timeout-invalid')
   type Pending = {
     resolve: (value: unknown) => void
@@ -87,7 +100,7 @@ export function createReadWorkers(module: URL, input: unknown, timeoutMs = 120_0
       if (worker.pending !== undefined)
         return Promise.reject(new InputError('reduce-worker-probe-overlap'))
       return new Promise((resolve, reject) => {
-        const timer = setTimeout(() => fail(worker, 'reduce-worker-probe-timeout'), timeoutMs)
+        const timer = setTimeout(() => fail(worker, 'reduce-worker-probe-timeout'), timeouts[kind])
         worker.pending = { resolve, reject, timer }
         worker.child.send({ kind, input }, error => {
           if (error !== null) fail(worker, 'reduce-worker-send-failed')
