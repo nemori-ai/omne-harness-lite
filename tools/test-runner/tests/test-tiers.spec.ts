@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：真起 vitest、turbo 与 git 子进程，各层跑了什么要真跑才看得到。快层账本（dcffba381／77d603dac）里整份合计 21.9／51.4 秒，只标超预算的用例，余下仍有 13.1／30.9 秒，过了 10 秒线（tools/test-runner/README_ZH.md「归层」）。
 // 测试分层：仓库根的分层定义、运行器交给 turbo 的任务，以及真起 vitest 时三种层各跑了什么、导入了什么。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {

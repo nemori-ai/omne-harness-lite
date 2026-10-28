@@ -324,29 +324,34 @@ describe('摘要与审讯页', () => {
     expect(lines.at(-1)).toBe(`审讯页：${context.reviewPath}`)
   })
 
-  it('审讯页自包含：数据内联、无外部资源，内联数据不含可提前闭合脚本的字符', () => {
-    const tricky = buildReport({
-      ...base,
-      files: [
-        file('packages/core/storage/src/t.ts', 'export const obj = { "</script>": () => 1 }\n'),
-      ],
-    })
-    const html = renderPage(tricky, {
-      head: 'abc',
-      shortHead: 'abc',
-      branch: 'b',
-      dirty: true,
-      generatedAt: '2026-10-01T00:00:00.000Z',
-      summary: ['一行 <b>'],
-      changedEdgeLimit: 24,
-    })
-    expect(html).toContain('"page":{"changedEdgeLimit":24}')
-    // 内联的 React 与 React Flow 在错误信息和署名链接里带网址字符串，那不是外部资源；与架构视图的测试判同一组加载方式。
-    expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
-    // React Flow 的 bundle、内联数据与页面脚本。
-    expect(html.match(/<\/script>/gu)).toHaveLength(3)
-    expect(html).toContain('window.StructureFlow')
-    expect(html).toContain('一行 &lt;b&gt;')
-    expect(html).toContain('工作树不干净')
-  })
+  // 归慢层：渲染整份审讯页（内联 React 与 React Flow 的 bundle）并逐项扫描。快层账本里这条 1.6／3.7 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '审讯页自包含：数据内联、无外部资源，内联数据不含可提前闭合脚本的字符',
+    { tags: ['slow'] },
+    () => {
+      const tricky = buildReport({
+        ...base,
+        files: [
+          file('packages/core/storage/src/t.ts', 'export const obj = { "</script>": () => 1 }\n'),
+        ],
+      })
+      const html = renderPage(tricky, {
+        head: 'abc',
+        shortHead: 'abc',
+        branch: 'b',
+        dirty: true,
+        generatedAt: '2026-10-01T00:00:00.000Z',
+        summary: ['一行 <b>'],
+        changedEdgeLimit: 24,
+      })
+      expect(html).toContain('"page":{"changedEdgeLimit":24}')
+      // 内联的 React 与 React Flow 在错误信息和署名链接里带网址字符串，那不是外部资源；与架构视图的测试判同一组加载方式。
+      expect(html).not.toMatch(/<script[^>]+src=|<link[^>]+href=|fetch\(/u)
+      // React Flow 的 bundle、内联数据与页面脚本。
+      expect(html.match(/<\/script>/gu)).toHaveLength(3)
+      expect(html).toContain('window.StructureFlow')
+      expect(html).toContain('一行 &lt;b&gt;')
+      expect(html).toContain('工作树不干净')
+    },
+  )
 })

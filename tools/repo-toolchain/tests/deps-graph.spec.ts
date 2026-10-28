@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：真起 dependency-cruiser，在临时 git 检出里出依赖图。快层账本（dcffba381／77d603dac）里整份合计 12.1／21.1 秒，9 条里 5 条超单条预算（2.5 秒），余下的合计不到 0.2 秒（tools/test-runner/README_ZH.md「归层」）。
 // 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员、组之间的环，以及按提交取的基线图。
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'

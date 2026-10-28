@@ -248,50 +248,61 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  it('其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员', () => {
-    const { root, home } = members()
-    const branches = Array.from({ length: 14 }, (_, i) => `  if (x === ${i}) return ${i}`).join(
-      '\n',
-    )
-    const tangled = Array.from(
-      { length: OVER },
-      (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
-    ).join('\n')
-    write(root, 'packages/core/a/src/tangled.ts', tangled)
-    write(root, 'packages/infra/b/src/tangled.ts', tangled)
-    write(root, 'packages/core/a/tests/a.spec.ts', "it('不断言', () => { run() })\n")
-    const result = run(root, home)
-    expect(result.stderr).toBe('')
-    expect(result.status).toBe(0)
-    expect(result.stdout).toContain('  没有断言的测试数 1')
-    expect(result.stdout).toMatch(/全仓重复行占比（%） \d/u)
-    expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
-    const draft = join(home, 'proposals', 'packages-core-a.md')
-    expect(existsSync(draft)).toBe(true)
-    expect(readFileSync(draft, 'utf8')).toContain('## 要清理的条目')
-  })
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 3.2／8.1 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员',
+    { tags: ['slow'] },
+    () => {
+      const { root, home } = members()
+      const branches = Array.from({ length: 14 }, (_, i) => `  if (x === ${i}) return ${i}`).join(
+        '\n',
+      )
+      const tangled = Array.from(
+        { length: OVER },
+        (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
+      ).join('\n')
+      write(root, 'packages/core/a/src/tangled.ts', tangled)
+      write(root, 'packages/infra/b/src/tangled.ts', tangled)
+      write(root, 'packages/core/a/tests/a.spec.ts', "it('不断言', () => { run() })\n")
+      const result = run(root, home)
+      expect(result.stderr).toBe('')
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain('  没有断言的测试数 1')
+      expect(result.stdout).toMatch(/全仓重复行占比（%） \d/u)
+      expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
+      const draft = join(home, 'proposals', 'packages-core-a.md')
+      expect(existsSync(draft)).toBe(true)
+      expect(readFileSync(draft, 'utf8')).toContain('## 要清理的条目')
+    },
+  )
 
-  it('配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入', () => {
-    const { root, home } = members()
-    const branches = Array.from({ length: 14 }, (_, i) => `  if (x === ${i}) return ${i}`).join(
-      '\n',
-    )
-    const tangled = Array.from(
-      { length: OVER },
-      (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
-    ).join('\n')
-    write(root, 'examples/demo/src/tangled.ts', tangled)
-    write(root, 'packages/core/a/src/tangled.ts', tangled.replaceAll('return', 'return 1 +'))
-    const result = run(root, home)
-    expect(result.status).toBe(0)
-    expect(result.stdout).toContain(`超 alert 的函数数 ${OVER * 2}`)
-    expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
-    expect(result.stdout).not.toContain('examples/demo：')
-    expect(existsSync(join(home, 'proposals', 'packages-core-a.md'))).toBe(true)
-    expect(existsSync(join(home, 'proposals', 'examples-demo.md'))).toBe(false)
-  })
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 3.3／9.4 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入',
+    { tags: ['slow'] },
+    () => {
+      const { root, home } = members()
+      const branches = Array.from({ length: 14 }, (_, i) => `  if (x === ${i}) return ${i}`).join(
+        '\n',
+      )
+      const tangled = Array.from(
+        { length: OVER },
+        (_, n) => `export function tangled${n}(x: number) {\n${branches}\n  return -1\n}\n`,
+      ).join('\n')
+      write(root, 'examples/demo/src/tangled.ts', tangled)
+      write(root, 'packages/core/a/src/tangled.ts', tangled.replaceAll('return', 'return 1 +'))
+      const result = run(root, home)
+      expect(result.status).toBe(0)
+      expect(result.stdout).toContain(`超 alert 的函数数 ${OVER * 2}`)
+      expect(result.stdout).toContain(`packages/core/a：超 alert 的函数数 ${OVER}`)
+      expect(result.stdout).not.toContain('examples/demo：')
+      expect(existsSync(join(home, 'proposals', 'packages-core-a.md'))).toBe(true)
+      expect(existsSync(join(home, 'proposals', 'examples-demo.md'))).toBe(false)
+    },
+  )
 
-  it('给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1', () => {
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 4.8／10.1 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it('给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const base = git(root, 'rev-parse', 'HEAD')
     write(root, 'packages/core/a/acceptance/a.acceptance.ts', 'expect(a).toBe(1)\n')

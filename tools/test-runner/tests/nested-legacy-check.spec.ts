@@ -174,48 +174,53 @@ it('reports archived compiler roots outside the member, which a member glob cann
   expect(problem(root)).toContain('Archived files are compiler roots')
 }, 20_000)
 
-it('real Vitest filters external compiler roots without an internal archive trigger', async () => {
-  const root = fixture()
-  rmSync(join(root, 'src/archive.legacy'), { recursive: true })
-  const archived = `${root}-shared.legacy`
-  roots.push(archived)
-  put(archived, 'poison.ts', 'export const bad: string = 1\n')
-  const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
-  config.include.push(`../${basename(archived)}/**/*.ts`)
-  put(root, 'tsconfig.test.json', JSON.stringify(config))
-  put(
-    root,
-    'vitest.config.ts',
-    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts'], typecheck: { enabled: true, include: ['tests/**/*.spec-d.ts'], tsconfig: './tsconfig.test.json' } } })\n`,
-  )
-  put(
-    root,
-    'tests/live.spec.ts',
-    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
-  )
-  put(
-    root,
-    'tests/live.spec-d.ts',
-    `import { test, expectTypeOf } from 'vitest'\ntest('live type', () => expectTypeOf(1).toBeNumber())\n`,
-  )
-  const target: TestMember = {
-    path: '.',
-    name: '@fixture/nested',
-    script: 'vitest run',
-    dependencies: [],
-  }
-  const out = join(root, 'evidence')
-  mkdirSync(out)
-  const result = await runMembers(
-    root,
-    [target],
-    out,
-    { memberConcurrency: 1, vitestMaxWorkers: 1 },
-    'test',
-    () => {},
-  )
-  expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
-}, 20_000)
+// Slow: starts real Vitest in a fixture workspace. 2.4 s / 6.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'real Vitest filters external compiler roots without an internal archive trigger',
+  { tags: ['slow'], timeout: 20_000 },
+  async () => {
+    const root = fixture()
+    rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+    const archived = `${root}-shared.legacy`
+    roots.push(archived)
+    put(archived, 'poison.ts', 'export const bad: string = 1\n')
+    const config = JSON.parse(readFileSync(join(root, 'tsconfig.test.json'), 'utf8'))
+    config.include.push(`../${basename(archived)}/**/*.ts`)
+    put(root, 'tsconfig.test.json', JSON.stringify(config))
+    put(
+      root,
+      'vitest.config.ts',
+      `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts'], typecheck: { enabled: true, include: ['tests/**/*.spec-d.ts'], tsconfig: './tsconfig.test.json' } } })\n`,
+    )
+    put(
+      root,
+      'tests/live.spec.ts',
+      `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+    )
+    put(
+      root,
+      'tests/live.spec-d.ts',
+      `import { test, expectTypeOf } from 'vitest'\ntest('live type', () => expectTypeOf(1).toBeNumber())\n`,
+    )
+    const target: TestMember = {
+      path: '.',
+      name: '@fixture/nested',
+      script: 'vitest run',
+      dependencies: [],
+    }
+    const out = join(root, 'evidence')
+    mkdirSync(out)
+    const result = await runMembers(
+      root,
+      [target],
+      out,
+      { memberConcurrency: 1, vitestMaxWorkers: 1 },
+      'test',
+      () => {},
+    )
+    expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
+  },
+)
 
 it('a project without archived roots keeps its native configuration', () => {
   const root = fixture()
@@ -237,37 +242,42 @@ it('accepts the native directory form of tsc --project without archives', () => 
   expect(problem(root)).toBeUndefined()
 }, 20_000)
 
-it('keeps a native Vitest projects configuration when there are no archived inputs', async () => {
-  const root = fixture()
-  rmSync(join(root, 'src/archive.legacy'), { recursive: true })
-  put(
-    root,
-    'vitest.config.ts',
-    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { projects: [{ test: { name: 'unit', include: ['tests/**/*.spec.ts'] } }] } })\n`,
-  )
-  put(
-    root,
-    'tests/live.spec.ts',
-    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
-  )
-  const target: TestMember = {
-    path: '.',
-    name: '@fixture/nested',
-    script: 'vitest run',
-    dependencies: [],
-  }
-  const out = join(root, 'evidence')
-  mkdirSync(out)
-  const result = await runMembers(
-    root,
-    [target],
-    out,
-    { memberConcurrency: 1, vitestMaxWorkers: 1 },
-    'test',
-    () => {},
-  )
-  expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
-}, 20_000)
+// Slow: starts real Vitest in a fixture workspace. 2.6 s / 5.1 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'keeps a native Vitest projects configuration when there are no archived inputs',
+  { tags: ['slow'], timeout: 20_000 },
+  async () => {
+    const root = fixture()
+    rmSync(join(root, 'src/archive.legacy'), { recursive: true })
+    put(
+      root,
+      'vitest.config.ts',
+      `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { projects: [{ test: { name: 'unit', include: ['tests/**/*.spec.ts'] } }] } })\n`,
+    )
+    put(
+      root,
+      'tests/live.spec.ts',
+      `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+    )
+    const target: TestMember = {
+      path: '.',
+      name: '@fixture/nested',
+      script: 'vitest run',
+      dependencies: [],
+    }
+    const out = join(root, 'evidence')
+    mkdirSync(out)
+    const result = await runMembers(
+      root,
+      [target],
+      out,
+      { memberConcurrency: 1, vitestMaxWorkers: 1 },
+      'test',
+      () => {},
+    )
+    expect(result[0]?.exitCode, readFileSync(join(out, '..log'), 'utf8')).toBe(0)
+  },
+)
 
 it('preserves a single native CLI exclusion as a whole pattern', () => {
   const root = fixture()
@@ -292,106 +302,118 @@ it('preserves a single native CLI exclusion as a whole pattern', () => {
   ])
 }, 20_000)
 
-it('filters external archived runtime tests and preserves external active failures', async () => {
-  const root = fixture()
-  const shared = root + '-shared.legacy'
-  const active = shared + '-not'
-  roots.push(shared, active)
-  put(shared, 'poison[1].spec.ts', `throw new Error('EXTERNAL_ARCHIVE_EXECUTED')\n`)
-  put(
-    root,
-    'vitest.config.ts',
-    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts', '../${basename(root)}-shared*/**/*.spec.ts'] } })\n`,
-  )
-  put(
-    root,
-    'tests/live.spec.ts',
-    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
-  )
-  const target: TestMember = {
-    path: '.',
-    name: '@fixture/nested',
-    script: 'vitest run',
-    dependencies: [],
-  }
-  const run = async (name: string) => {
-    const out = join(root, 'evidence', name)
-    mkdirSync(out, { recursive: true })
-    return (
-      await runMembers(
-        root,
-        [target],
-        out,
-        { memberConcurrency: 1, vitestMaxWorkers: 1 },
-        'test',
-        () => {},
-      )
-    )[0]
-  }
-  const passed = await run('pass')
-  expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
-  expect(passed?.report?.testResults.map(result => result.name)).toEqual([
-    join(root, 'tests/live.spec.ts'),
-  ])
-  put(
-    active,
-    'error.spec.ts',
-    `import { test, expect } from 'vitest'\ntest('external active error', () => expect(1).toBe(2))\n`,
-  )
-  const failed = await run('fail')
-  expect(failed?.exitCode).not.toBe(0)
-  expect(readFileSync(join(root, 'evidence/fail/..log'), 'utf8')).toContain('external active error')
-}, 30_000)
+// Slow: starts real Vitest in a fixture workspace. 4.5 s / 10.9 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'filters external archived runtime tests and preserves external active failures',
+  { tags: ['slow'], timeout: 30_000 },
+  async () => {
+    const root = fixture()
+    const shared = root + '-shared.legacy'
+    const active = shared + '-not'
+    roots.push(shared, active)
+    put(shared, 'poison[1].spec.ts', `throw new Error('EXTERNAL_ARCHIVE_EXECUTED')\n`)
+    put(
+      root,
+      'vitest.config.ts',
+      `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts', '../${basename(root)}-shared*/**/*.spec.ts'] } })\n`,
+    )
+    put(
+      root,
+      'tests/live.spec.ts',
+      `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+    )
+    const target: TestMember = {
+      path: '.',
+      name: '@fixture/nested',
+      script: 'vitest run',
+      dependencies: [],
+    }
+    const run = async (name: string) => {
+      const out = join(root, 'evidence', name)
+      mkdirSync(out, { recursive: true })
+      return (
+        await runMembers(
+          root,
+          [target],
+          out,
+          { memberConcurrency: 1, vitestMaxWorkers: 1 },
+          'test',
+          () => {},
+        )
+      )[0]
+    }
+    const passed = await run('pass')
+    expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
+    expect(passed?.report?.testResults.map(result => result.name)).toEqual([
+      join(root, 'tests/live.spec.ts'),
+    ])
+    put(
+      active,
+      'error.spec.ts',
+      `import { test, expect } from 'vitest'\ntest('external active error', () => expect(1).toBe(2))\n`,
+    )
+    const failed = await run('fail')
+    expect(failed?.exitCode).not.toBe(0)
+    expect(readFileSync(join(root, 'evidence/fail/..log'), 'utf8')).toContain(
+      'external active error',
+    )
+  },
+)
 
-it('real Vitest ignores archived runtime/type roots while active source errors still fail', async () => {
-  const root = fixture()
-  put(
-    root,
-    'vitest.config.ts',
-    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts'], exclude: ['tests/fixtures/**'], typecheck: { enabled: true, include: ['tests/**/*.spec-d.ts'], exclude: ['tests/fixtures/**'], tsconfig: './tsconfig.test.json' } } })\n`,
-  )
-  put(
-    root,
-    'tests/live.spec.ts',
-    `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
-  )
-  put(
-    root,
-    'tests/live.spec-d.ts',
-    `import { test, expectTypeOf } from 'vitest'\ntest('live type', () => expectTypeOf(1).toBeNumber())\n`,
-  )
-  put(root, 'tests/archive.legacy/poison.spec.ts', `throw new Error('archived runtime ran')\n`)
-  put(root, 'tests/archive.legacy/poison.spec-d.ts', `export const bad: string = 1\n`)
-  put(root, 'tests/fixtures/excluded.spec-d.ts', `export const bad: string = 1\n`)
-  const target: TestMember = {
-    path: '.',
-    name: '@fixture/nested',
-    script: 'vitest run',
-    dependencies: [],
-  }
-  const run = async (name: string) => {
-    const out = join(root, 'evidence', name)
-    mkdirSync(out, { recursive: true })
-    return (
-      await runMembers(
-        root,
-        [target],
-        out,
-        { memberConcurrency: 1, vitestMaxWorkers: 1 },
-        'test',
-        () => {},
-      )
-    )[0]
-  }
-  const passed = await run('pass')
-  expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
-  expect(passed?.report?.testResults.map(result => result.name).join('\n')).not.toContain(
-    '.legacy/',
-  )
-  put(root, 'src/live.ts', 'export const value: number = "active error"\n')
-  const failed = await run('fail')
-  expect(failed?.exitCode).not.toBe(0)
-}, 30_000)
+// Slow: starts real Vitest in a fixture workspace. 4.2 s / 8.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'real Vitest ignores archived runtime/type roots while active source errors still fail',
+  { tags: ['slow'], timeout: 30_000 },
+  async () => {
+    const root = fixture()
+    put(
+      root,
+      'vitest.config.ts',
+      `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { include: ['tests/**/*.spec.ts'], exclude: ['tests/fixtures/**'], typecheck: { enabled: true, include: ['tests/**/*.spec-d.ts'], exclude: ['tests/fixtures/**'], tsconfig: './tsconfig.test.json' } } })\n`,
+    )
+    put(
+      root,
+      'tests/live.spec.ts',
+      `import { test, expect } from 'vitest'\ntest('live', () => expect(1).toBe(1))\n`,
+    )
+    put(
+      root,
+      'tests/live.spec-d.ts',
+      `import { test, expectTypeOf } from 'vitest'\ntest('live type', () => expectTypeOf(1).toBeNumber())\n`,
+    )
+    put(root, 'tests/archive.legacy/poison.spec.ts', `throw new Error('archived runtime ran')\n`)
+    put(root, 'tests/archive.legacy/poison.spec-d.ts', `export const bad: string = 1\n`)
+    put(root, 'tests/fixtures/excluded.spec-d.ts', `export const bad: string = 1\n`)
+    const target: TestMember = {
+      path: '.',
+      name: '@fixture/nested',
+      script: 'vitest run',
+      dependencies: [],
+    }
+    const run = async (name: string) => {
+      const out = join(root, 'evidence', name)
+      mkdirSync(out, { recursive: true })
+      return (
+        await runMembers(
+          root,
+          [target],
+          out,
+          { memberConcurrency: 1, vitestMaxWorkers: 1 },
+          'test',
+          () => {},
+        )
+      )[0]
+    }
+    const passed = await run('pass')
+    expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
+    expect(passed?.report?.testResults.map(result => result.name).join('\n')).not.toContain(
+      '.legacy/',
+    )
+    put(root, 'src/live.ts', 'export const value: number = "active error"\n')
+    const failed = await run('fail')
+    expect(failed?.exitCode).not.toBe(0)
+  },
+)
 
 // 归慢层：起两次真实 vitest，各带一次 tsc 类型测试。
 it(

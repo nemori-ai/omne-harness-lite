@@ -82,50 +82,60 @@ const exportsOf = (snapshot: ApiSnapshot, subpath = '.') =>
 
 // Each case builds a real TypeScript 6 program over the fixture dist, which takes about a second.
 describe('contract API snapshots', { timeout: 60_000 }, () => {
-  it('lists the exports of each entry and every declaration file of the dist, normalized', () => {
-    const root = shapesCheckout()
-    const shapes = texts(root, MEMBERS).get('packages/x/shapes') ?? ''
-    expect(shapes.match(/^- .*$/gmu)).toEqual([
-      '- `Id` · 包 `@fixture/base`',
-      '- `Shape` · `shape.d.ts`',
-      '- `ShapeRegistry` = `Registry` · `registry.d.ts`',
-      '- `Unit` 仅类型 · `unit.d.ts`',
-      '- `area` · `shape.d.ts`',
-    ])
-    // Every declaration file, also one reached only as an augmentation target; comments and layout removed.
-    expect(shapes.match(/^## 声明文件 .*$/gmu)).toEqual([
-      '## 声明文件 `augment.d.ts`',
-      '## 声明文件 `facility.d.ts`',
-      '## 声明文件 `index.d.ts`',
-      '## 声明文件 `registry.d.ts`',
-      '## 声明文件 `shape.d.ts`',
-      '## 声明文件 `unit.d.ts`',
-    ])
-    expect(shapes).not.toContain('comment')
-    expect(shapes).not.toContain('A shape')
-    expect(shapes).toContain(
-      'export interface Shape {\n    readonly side: number;\n    readonly box: Box;\n}\ninterface Box {\n    readonly width: number;\n}',
-    )
-    expect(shapes).toContain(
-      "declare module './facility.ts' {\n    interface Facilities {\n        files: string;\n    }\n}",
-    )
-    // The augmenting member's interface does not leak into the augmented member's snapshot.
-    const base = texts(root, MEMBERS).get('packages/x/base') ?? ''
-    expect(base).toContain('export interface Blocks {\n}')
-    expect(base).not.toContain('shape: number')
-  })
+  // Slow: builds a real TypeScript 6 program over the fixture dist. 1.8 s / 4.4 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'lists the exports of each entry and every declaration file of the dist, normalized',
+    { tags: ['slow'] },
+    () => {
+      const root = shapesCheckout()
+      const shapes = texts(root, MEMBERS).get('packages/x/shapes') ?? ''
+      expect(shapes.match(/^- .*$/gmu)).toEqual([
+        '- `Id` · 包 `@fixture/base`',
+        '- `Shape` · `shape.d.ts`',
+        '- `ShapeRegistry` = `Registry` · `registry.d.ts`',
+        '- `Unit` 仅类型 · `unit.d.ts`',
+        '- `area` · `shape.d.ts`',
+      ])
+      // Every declaration file, also one reached only as an augmentation target; comments and layout removed.
+      expect(shapes.match(/^## 声明文件 .*$/gmu)).toEqual([
+        '## 声明文件 `augment.d.ts`',
+        '## 声明文件 `facility.d.ts`',
+        '## 声明文件 `index.d.ts`',
+        '## 声明文件 `registry.d.ts`',
+        '## 声明文件 `shape.d.ts`',
+        '## 声明文件 `unit.d.ts`',
+      ])
+      expect(shapes).not.toContain('comment')
+      expect(shapes).not.toContain('A shape')
+      expect(shapes).toContain(
+        'export interface Shape {\n    readonly side: number;\n    readonly box: Box;\n}\ninterface Box {\n    readonly width: number;\n}',
+      )
+      expect(shapes).toContain(
+        "declare module './facility.ts' {\n    interface Facilities {\n        files: string;\n    }\n}",
+      )
+      // The augmenting member's interface does not leak into the augmented member's snapshot.
+      const base = texts(root, MEMBERS).get('packages/x/base') ?? ''
+      expect(base).toContain('export interface Blocks {\n}')
+      expect(base).not.toContain('shape: number')
+    },
+  )
 
-  it('gives byte-identical output for the same dist, and ignores comments and member order', () => {
-    const root = shapesCheckout()
-    expect(texts(root, [...MEMBERS].reverse())).toEqual(texts(root, MEMBERS))
-    const plain = snapshotOf({
-      'index.d.ts': 'export interface A {\n    b: string;\n    c?: number;\n}\n',
-    })
-    const noisy = snapshotOf({
-      'index.d.ts': '/** doc */\nexport interface A {\n  // note\n  b: string\n  c?: number\n}\n',
-    })
-    expect(renderSnapshot(noisy)).toBe(renderSnapshot(plain))
-  })
+  // Slow: builds real TypeScript 6 programs over two fixture dists. 1.7 s / 6.0 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'gives byte-identical output for the same dist, and ignores comments and member order',
+    { tags: ['slow'] },
+    () => {
+      const root = shapesCheckout()
+      expect(texts(root, [...MEMBERS].reverse())).toEqual(texts(root, MEMBERS))
+      const plain = snapshotOf({
+        'index.d.ts': 'export interface A {\n    b: string;\n    c?: number;\n}\n',
+      })
+      const noisy = snapshotOf({
+        'index.d.ts': '/** doc */\nexport interface A {\n  // note\n  b: string\n  c?: number\n}\n',
+      })
+      expect(renderSnapshot(noisy)).toBe(renderSnapshot(plain))
+    },
+  )
 
   it('marks values that only arrive through export type * as type-only, several stars deep', () => {
     const snapshot = snapshotOf({
@@ -193,74 +203,79 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     expect(results[1]).toMatchObject({ message: '入口 ./more 的 ./dist/more.d.ts 不存在' })
   })
 
-  it('writes the configured path, then reports a member whose dist moved away from it', () => {
-    const root = shapesCheckout()
-    expect(writeSnapshots(root, CONFIG).members).toEqual([
-      {
+  // Slow: builds real TypeScript 6 programs over the fixture dist, twice. 3.6 s / 6.5 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'writes the configured path, then reports a member whose dist moved away from it',
+    { tags: ['slow'] },
+    () => {
+      const root = shapesCheckout()
+      expect(writeSnapshots(root, CONFIG).members).toEqual([
+        {
+          directory: 'packages/x/base',
+          status: 'written',
+          snapshotFile: 'packages/x/base/api/base.api.md',
+        },
+        {
+          directory: 'packages/x/shapes',
+          status: 'written',
+          snapshotFile: 'packages/x/shapes/api/shapes.api.md',
+        },
+      ])
+      expect(readFileSync(join(root, 'packages/x/base/api/base.api.md'), 'utf8')).toContain(
+        '# @fixture/base 的 API 快照',
+      )
+      expect(writeSnapshots(root, CONFIG).members.every(item => item.status === 'unchanged')).toBe(
+        true,
+      )
+      const clean = checkSnapshots(root, CONFIG).members
+      expect(clean.every(item => item.status === 'match')).toBe(true)
+      expect(clean[0]).toMatchObject({ sha256: expect.stringMatching(/^[0-9a-f]{64}$/u) })
+
+      setDist(root, 'packages/x/base', {
+        'index.d.ts':
+          'export type Id = number;\nexport interface Blocks {\n}\nexport type Extra = 1;\n',
+      })
+      const run = checkSnapshots(root, CONFIG)
+      expect(run.members[0]).toMatchObject({
         directory: 'packages/x/base',
-        status: 'written',
-        snapshotFile: 'packages/x/base/api/base.api.md',
-      },
-      {
-        directory: 'packages/x/shapes',
-        status: 'written',
-        snapshotFile: 'packages/x/shapes/api/shapes.api.md',
-      },
-    ])
-    expect(readFileSync(join(root, 'packages/x/base/api/base.api.md'), 'utf8')).toContain(
-      '# @fixture/base 的 API 快照',
-    )
-    expect(writeSnapshots(root, CONFIG).members.every(item => item.status === 'unchanged')).toBe(
-      true,
-    )
-    const clean = checkSnapshots(root, CONFIG).members
-    expect(clean.every(item => item.status === 'match')).toBe(true)
-    expect(clean[0]).toMatchObject({ sha256: expect.stringMatching(/^[0-9a-f]{64}$/u) })
+        status: 'differs',
+        change: 'review',
+        differences: [
+          {
+            target: { scope: 'export', entry: '.', name: 'Extra' },
+            kind: 'added',
+            change: 'additive',
+          },
+          {
+            target: { scope: 'declaration', path: 'index.d.ts', statement: 'type Id' },
+            kind: 'changed',
+            change: 'review',
+            reasons: [{ kind: 'outside-whitelist', why: '改动不是新增可选属性' }],
+          },
+          {
+            target: { scope: 'export', entry: '.', name: 'Id' },
+            kind: 'changed',
+            change: 'review',
+            reasons: [{ kind: 'direction', readers: false, writers: false }],
+          },
+        ],
+      })
+      const text = renderCheck(run).join('\n')
+      expect(text).toContain(
+        'packages/x/base：packages/x/base/api/base.api.md 与 dist 不一致，review',
+      )
+      expect(text).toContain(
+        '入口 `.` · `Id`：改动，review（读方破坏，写方破坏：实例 （无类型参数）：',
+      )
+      expect(text).toContain('1 个不一致')
 
-    setDist(root, 'packages/x/base', {
-      'index.d.ts':
-        'export type Id = number;\nexport interface Blocks {\n}\nexport type Extra = 1;\n',
-    })
-    const run = checkSnapshots(root, CONFIG)
-    expect(run.members[0]).toMatchObject({
-      directory: 'packages/x/base',
-      status: 'differs',
-      change: 'review',
-      differences: [
-        {
-          target: { scope: 'export', entry: '.', name: 'Extra' },
-          kind: 'added',
-          change: 'additive',
-        },
-        {
-          target: { scope: 'declaration', path: 'index.d.ts', statement: 'type Id' },
-          kind: 'changed',
-          change: 'review',
-          reasons: [{ kind: 'outside-whitelist', why: '改动不是新增可选属性' }],
-        },
-        {
-          target: { scope: 'export', entry: '.', name: 'Id' },
-          kind: 'changed',
-          change: 'review',
-          reasons: [{ kind: 'direction', readers: false, writers: false }],
-        },
-      ],
-    })
-    const text = renderCheck(run).join('\n')
-    expect(text).toContain(
-      'packages/x/base：packages/x/base/api/base.api.md 与 dist 不一致，review',
-    )
-    expect(text).toContain(
-      '入口 `.` · `Id`：改动，review（读方破坏，写方破坏：实例 （无类型参数）：',
-    )
-    expect(text).toContain('1 个不一致')
-
-    setDist(root, 'packages/x/base', undefined)
-    expect(checkSnapshots(root, CONFIG).members[0]).toMatchObject({
-      directory: 'packages/x/base',
-      status: 'unbuilt',
-    })
-  })
+      setDist(root, 'packages/x/base', undefined)
+      expect(checkSnapshots(root, CONFIG).members[0]).toMatchObject({
+        directory: 'packages/x/base',
+        status: 'unbuilt',
+      })
+    },
+  )
 
   it('does not rewrite a member whose dependency is unbuilt', () => {
     const root = contractCheckout({

@@ -58,48 +58,57 @@ it('ignores archived timestamps while an active newer source still makes dist st
   expect(distIsStale(root)).toBe(true)
 })
 
-it('real coverage excludes archived tests and source, keeps configured exclusions and active failures', () => {
-  const root = fixture()
-  const member = 'packages/live'
-  const dir = join(root, member)
-  mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true })
-  symlinkSync(
-    fileURLToPath(new URL('../node_modules/vitest', import.meta.url)),
-    join(dir, 'node_modules/vitest'),
-    'dir',
-  )
-  mkdirSync(join(dir, 'node_modules/@vitest'))
-  symlinkSync(
-    fileURLToPath(new URL('../../../node_modules/@vitest/coverage-v8', import.meta.url)),
-    join(dir, 'node_modules/@vitest/coverage-v8'),
-    'dir',
-  )
-  symlinkSync(
-    fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)),
-    join(dir, 'node_modules/.bin/vitest'),
-  )
-  put(dir, 'package.json', JSON.stringify({ type: 'module', scripts: { test: 'vitest run' } }))
-  put(
-    dir,
-    'vitest.config.ts',
-    `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { exclude: ['tests/fixtures/**'], coverage: { exclude: ['src/ignored.ts'] } } })\n`,
-  )
-  put(dir, 'src/live.ts', 'export const value = 1\n')
-  put(dir, 'src/ignored.ts', 'export const ignored = 1\n')
-  put(dir, 'src/archive.legacy/poison.ts', 'throw new Error("archive source loaded")\n')
-  put(
-    dir,
-    'tests/live.spec.ts',
-    `import { test, expect } from 'vitest'\nimport { value } from '../src/live.ts'\ntest('live', () => expect(value).toBe(1))\n`,
-  )
-  put(dir, 'tests/archive.legacy/poison.spec.ts', 'throw new Error("archive test ran")\n')
-  put(dir, 'tests/fixtures/poison.spec.ts', 'throw new Error("configured excluded test ran")\n')
-  put(root, 'packages/old.legacy/package.json', JSON.stringify({ scripts: { test: 'vitest run' } }))
-  const out = join(root, 'evidence')
-  const result = measureCoverage(root, [member, 'packages/old.legacy'], out)
-  expect([...result.members]).toEqual([[member, 0]])
-  expect([...result.files.keys()]).toEqual([`${member}/src/live.ts`])
-  put(dir, 'tests/current.legacy-not/poison.spec.ts', 'throw new Error("active test failed")\n')
-  const failed = measureCoverage(root, [member], out)
-  expect(failed.members.get(member)).not.toBe(0)
-}, 25_000)
+// Slow: runs real vitest coverage in a fixture workspace. 4.5 s / 6.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+it(
+  'real coverage excludes archived tests and source, keeps configured exclusions and active failures',
+  { tags: ['slow'], timeout: 25_000 },
+  () => {
+    const root = fixture()
+    const member = 'packages/live'
+    const dir = join(root, member)
+    mkdirSync(join(dir, 'node_modules/.bin'), { recursive: true })
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules/vitest', import.meta.url)),
+      join(dir, 'node_modules/vitest'),
+      'dir',
+    )
+    mkdirSync(join(dir, 'node_modules/@vitest'))
+    symlinkSync(
+      fileURLToPath(new URL('../../../node_modules/@vitest/coverage-v8', import.meta.url)),
+      join(dir, 'node_modules/@vitest/coverage-v8'),
+      'dir',
+    )
+    symlinkSync(
+      fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url)),
+      join(dir, 'node_modules/.bin/vitest'),
+    )
+    put(dir, 'package.json', JSON.stringify({ type: 'module', scripts: { test: 'vitest run' } }))
+    put(
+      dir,
+      'vitest.config.ts',
+      `import { defineConfig } from 'vitest/config'\nexport default defineConfig({ test: { exclude: ['tests/fixtures/**'], coverage: { exclude: ['src/ignored.ts'] } } })\n`,
+    )
+    put(dir, 'src/live.ts', 'export const value = 1\n')
+    put(dir, 'src/ignored.ts', 'export const ignored = 1\n')
+    put(dir, 'src/archive.legacy/poison.ts', 'throw new Error("archive source loaded")\n')
+    put(
+      dir,
+      'tests/live.spec.ts',
+      `import { test, expect } from 'vitest'\nimport { value } from '../src/live.ts'\ntest('live', () => expect(value).toBe(1))\n`,
+    )
+    put(dir, 'tests/archive.legacy/poison.spec.ts', 'throw new Error("archive test ran")\n')
+    put(dir, 'tests/fixtures/poison.spec.ts', 'throw new Error("configured excluded test ran")\n')
+    put(
+      root,
+      'packages/old.legacy/package.json',
+      JSON.stringify({ scripts: { test: 'vitest run' } }),
+    )
+    const out = join(root, 'evidence')
+    const result = measureCoverage(root, [member, 'packages/old.legacy'], out)
+    expect([...result.members]).toEqual([[member, 0]])
+    expect([...result.files.keys()]).toEqual([`${member}/src/live.ts`])
+    put(dir, 'tests/current.legacy-not/poison.spec.ts', 'throw new Error("active test failed")\n')
+    const failed = measureCoverage(root, [member], out)
+    expect(failed.members.get(member)).not.toBe(0)
+  },
+)

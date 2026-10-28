@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：每条用例在临时检出里用 TypeScript 6 编译成员的声明。快层账本（dcffba381／77d603dac）里整份合计 7.3／16.7 秒，4 条全超单条预算（2.5 秒）（tools/test-runner/README_ZH.md「归层」）。
 import {
   copyFileSync,
   mkdirSync,

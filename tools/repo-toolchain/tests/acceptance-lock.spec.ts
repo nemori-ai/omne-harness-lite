@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：在临时 git 仓库里起 git 与验收锁 CLI 子进程。快层账本（dcffba381／77d603dac）里整份合计 8.6／16.7 秒，只标超预算的那一条，余下仍有 6.8／12.8 秒，过了 10 秒线（tools/test-runner/README_ZH.md「归层」）。
 // 验收锁的正反夹具：拥有者与人改验收放行，实施角色改验收、未提交的验收改动报出。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
