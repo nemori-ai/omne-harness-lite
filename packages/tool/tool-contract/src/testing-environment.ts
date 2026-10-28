@@ -1,3 +1,6 @@
+import { tenantEquals, tenantCodec } from '@omne-harness/legal-identity'
+import { sameAdoption } from './value-shapes.ts'
+import { judgeFixedToolRequest } from './judge-request.ts'
 // The ToolEnvironment conformance suite (P03, story 22) and a non-durable double that conforms to
 // it. The double keeps its state in memory and declares `durability: 'none'`: it proves nothing
 // about a durable provider and must not be assembled into production.
@@ -29,6 +32,7 @@ import {
   type ConformanceCase,
 } from './testing-case.ts'
 import {
+  adoption,
   callId,
   digestOf,
   evidence,
@@ -86,7 +90,7 @@ export const environmentAnswers = {
   inspectPreparation: { clause: 'P03', progress: UNSETTLED },
   release: { clause: 'P03', progress: UNSETTLED },
   inspectRelease: { clause: 'P03', progress: UNSETTLED },
-} as const satisfies AnswerModel<keyof ToolEnvironment<unknown, unknown>>
+} as const satisfies AnswerModel<Exclude<keyof ToolEnvironment<unknown, unknown>, 'adoption'>>
 
 /** What a preparation answer says apart from the reconnect capability, which may be a fresh handle. */
 const preparationView = <E>(answer: PreparationProgress<E>): unknown =>
@@ -101,8 +105,10 @@ const preparationView = <E>(answer: PreparationProgress<E>): unknown =>
 function scene<P, E>(fixture: ToolEnvironmentFixture<P, E>, access: Access<P> = fixture.access) {
   const { environment } = fixture
   const request = fixture.request ?? fixedRequest()
-  const record = (operation = 'prepare-1', call: ToolCallId = callId('call-1')) =>
-    preparationRecord(access, call, operation, request)
+  const record = (operation = 'prepare-1', call: ToolCallId = callId('call-1')) => ({
+    ...preparationRecord(access, call, operation, request),
+    adoption: environment.adoption,
+  })
   const input = (preparation: PreparationRecord) => ({
     ...access,
     call: preparation.call,
@@ -599,8 +605,41 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     }
   }
 
+  const adapterAdoption = adoption('environment')
+  const check = (
+    input: Access<P> & { call: ToolCallId },
+    record: PreparationRecord | ReleaseRecord,
+  ): Outcome<void, ToolFailure> => {
+    const recordedTenant = tenantCodec.parse(
+      JSON.stringify({
+        organization: record.tenant?.organization?.text,
+        account: record.tenant?.account?.text,
+      }),
+    )
+    if (
+      !tenantCodec.encode(input.tenant).ok ||
+      !recordedTenant.ok ||
+      !tenantEquals(input.tenant, recordedTenant.value) ||
+      input.call !== record.call
+    )
+      return fail({ kind: 'denied', action: 'environment' })
+    if (!sameAdoption(adapterAdoption, record.adoption))
+      return fail({
+        kind: 'unavailable',
+        dependency: 'tool-environment',
+        diagnostic: 'the original environment adapter is unavailable',
+      })
+    if ('request' in record) {
+      const judged = judgeFixedToolRequest(record.request)
+      if ('failure' in judged) return fail({ kind: 'invalid', ...judged.failure })
+    }
+    return succeed(undefined)
+  }
   const environment: ToolEnvironment<P, MemoryEnvironment> = {
+    adoption: adapterAdoption,
     prepare: input => {
+      const checked = check(input, input.preparation)
+      if ('failure' in checked) return reply(checked)
       const record = input.preparation
       const at = key(input.tenant, record.call, record.operation)
       const digest = digestOf({
@@ -638,6 +677,8 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
       return reply(succeed(answer(entry)))
     },
     inspectPreparation: input => {
+      const checked = check(input, input.preparation)
+      if ('failure' in checked) return reply(checked)
       const entry = preparations.get(
         key(input.tenant, input.preparation.call, input.preparation.operation),
       )
@@ -650,6 +691,8 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
       )
     },
     release: input => {
+      const checked = check(input, input.release)
+      if ('failure' in checked) return reply(checked)
       const at = key(input.tenant, input.release.call, input.release.operation)
       const digest = digestOf({
         kind: 'release',
@@ -671,15 +714,18 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
       }
       return reply(succeed(progress))
     },
-    inspectRelease: input =>
-      reply(
+    inspectRelease: input => {
+      const checked = check(input, input.release)
+      if ('failure' in checked) return reply(checked)
+      return reply(
         succeed(
           releases.get(key(input.tenant, input.release.call, input.release.operation)) ?? {
             kind: 'unknown',
             diagnostic: 'no release of this operation was seen',
           },
         ),
-      ),
+      )
+    },
   }
 
   const controls: MemoryToolEnvironment<P>['controls'] = {

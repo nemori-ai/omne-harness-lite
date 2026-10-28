@@ -50,7 +50,7 @@
 新增名字按同一规则归入口：
 
 - [结果推送与保存](#结果推送与保存)的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）当前没有组外导入者，也不被根入口声明引用。它们由 Tool 组外的消费拥有者实现或调用，不是提供者协议，按规则 3 进根入口。
-- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录。两者按规则 2、3 进 `./provider`。受理记录中的许可引用与消费事实直接使用 authorization 的公开类型，由 authorization 导出。外层调用方成为 Tool 名字的组外导入者时，按规则 6 移回根入口。
+- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录，`ToolPermitRef` 与 `ToolPermitConsumption` 只被受理记录引用。它们的声明引用 `./provider` 的名字或只被这些名字引用，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
 - 这些新面的一致性套件与内存替身在 `./testing`。
 
 下列详细行为章节与本页操作协议共同构成本规格。
@@ -224,11 +224,15 @@ Tool 的这些类型由 Tool 自己拥有，不导入消费方的身份或确认
 
 ### 环境声明与请求方作用域
 
-`ToolEnvironmentDeclaration` 是环境声明槽，包含 schema 的精确 `adoption` 与 JSON 声明 `value`。作者的 `ToolDeclarations.environment` 可以为 null，表示没有特殊环境声明。非空槽必须同时给出这两项，旧的裸 `Adoption` 无效。Tool 经 schema-provider 按 adoption 取得 schema 并校验 value。schema 不可取得时不开放该定义的可用性，声明不合法时拒绝定义。Tool 不解释设施枚举、绑定层、放置或恢复类型，也不直接导入 EE 契约。工具作者按[环境声明拥有者](../../execution/execution-environment-contract/docs/public-api.md#工具环境声明)发布的 schema 写值。
+`ToolEnvironmentDeclaration` 是环境声明槽，包含 schema 的精确 `adoption` 与 JSON 声明 `value`。作者的 `ToolDeclarations.environment` 可以为 null，表示没有特殊环境声明。非空槽必须同时给出这两项，旧的裸 `Adoption` 无效。Tool 的受信 Loader 装配把精确 adoption 映射到 schema-provider 的 `SchemaRef`，再经 schema-provider 校验 value；schema-provider 本身不提供采用身份目录。schema 不可取得时不开放该定义的可用性，声明不合法时拒绝定义。当前没有真实 ToolLoader 实现，映射与定义层校验是其未交付责任；声明槽的形状检查不能代替它。Tool 不解释设施枚举、绑定层、放置或恢复类型，也不直接导入 EE 契约。工具作者按[环境声明拥有者](../../execution/execution-environment-contract/docs/public-api.md#工具环境声明)发布的 schema 写值。
 
 固定请求的 `environment` 保留与所采用定义相同的声明槽或 null。受理和准备边界核对其一致性，不能用一个合法但不同的环境声明替换原需求。固定请求的唯一 `requesterScope` 消费 RC 公开的 `ScopeRef`，未知输入经 `decodeScopeRef` 检查。调用方显式给出同一引用，Tool 不按 Session 标识拼造，也不查询 RC。`ResourceScope` 只拥有并发授予与排队，`workspace` 只拥有工作区身份，这三项不互相推导。
 
 `ToolEnvironment.prepare` 接收固定请求的同一 requesterScope。环境适配器把它原样传给放置、获取及 provider，可信绑定来源核 scope、父链与真实租户。引用形状合法不证明该绑定成立。缺引用、坏引用、租户缺失或不匹配都不得分配资源。请求的 tenant 不能自证资格，普通动作仍由真实 Access 主体核当前授权。环境提供者采用在准备计划提交时固定，后续准备与恢复不暗换它。
+
+`ToolEnvironment` 的只读 `adoption: Adoption` 是受信装配选定的环境适配器协议采用。它不是声明 schema 的采用，也不替代 EE 在原获取中保存的实际 provider、代次或 placement。真实 driver 从该端口读取 adoption，作为 `planPreparation` 的必填 `environmentAdoption: Adoption` 参数提交。计划边界校验其合法形状，把它纳入原操作的输入摘要，并与准备记录一同保存为 `PreparationRecord.adoption`。同 operation 改采用返回 conflict；声明为 null 也不能省略这项环境协议采用。
+
+prepare、inspectPreparation、release 与 inspectRelease 均沿原记录的采用执行。driver 在调用环境端口前核原记录采用与当前端口 adoption 全等，端口也拒绝不匹配的原记录。不同或无法确认时返回 unavailable，保留原任务、未知结果及清理责任，不调用新适配器处理旧操作，也不覆盖原记录。恢复原操作需要重新接回原采用的适配器；该条件不授予跨版本恢复能力。
 
 <a id="342-返回与执行事实"></a>
 
@@ -996,7 +1000,7 @@ recordStart 显式绑定原 invocation。unknown 查 authority 和原 binding.in
 
 关闭先写关闭意图和具名 scope 的 program-fence 任务，再由 authority.invalidate 使相应守卫失效，确认后由 Children.confirmBarrier 保存 closed。该回执确认的是适用范围的屏障，不是全体子调用永久失权。已 consume 子调用按真实原因控制及保管。正常 returned 只关闭新 reserve，不使原预留的启动资格失效。不能用父是否 closed 一个布尔值决定全部子 start/resume。
 
-consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ConsumptionFact` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
+consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ToolPermitConsumption` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
 
 #### 外层调用方的启动围栏
 
@@ -1013,9 +1017,9 @@ consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `st
 
 #### 授权消费点与撤权再核
 
-许可引用与消费事实直接消费授权拥有者的公开 `PermitRef` 与 `ConsumptionFact`。Tool 不再定义同义许可类型。
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用是 `ToolPermitRef`，消费事实是 `ToolPermitConsumption`。两者对 Tool 不透明，字段与 authorization 的 `PermitRef`、`ConsumptionFact` 对应（`permit` 放宽为文本，`evidence` 放宽为 `DurableEvidence`），授权侧的值可以直接赋给它们，反向不成立。许可的授予、撤回与解释归授权拥有者。
 
-本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可的授予、撤回、引用身份与消费事实解释归授权拥有者，Tool 原样保存授权侧的公开值，不放宽品牌或证据形状。
+按 [#675 C6](https://github.com/nemori-ai/omne-harness-lite/issues/675) 的有环保留分支，当前继续保留这两个 Tool 类型。产品源码依赖图没有 authorization 到 Tool 的反向路径，但授权包的测试开发依赖包含 Tool 与 agent-contract；Tool 直接依赖 authorization 会造成 `tool-contract → authorization → agent-contract → tool-contract` 等构建任务环。单成员类型检查通过不能证明根任务可运行。替换条件是相应拥有者先解除测试依赖造成的任务环，再同时验证产品依赖方向、受影响的 Turbo 构建与类型任务、真实消费者及 API 迁移；仅 #659 入轨不再是充分条件。依赖整理归授权与工程工具拥有者，本卡不绕过任务图或修改其测试。
 
 1. 绑定。一次调用需要消费哪些授权许可，由启动排序域的提供者按受信配置解析。当前公开请求没有出示许可的字段。
 2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在 consume 的同一排序内（线性化点之前）、形成受理记录之前，向授权拥有者的许可台账（authorization 的 `PermitLedger.consume`）消费每个绑定许可。消费位置标识原调用：`owner` 是启动排序域提供者的拥有者名，`work` 是原调用身份 `ToolCallId` 的文本，`position` 固定为 `start`；租户由许可引用携带。同一调用的每次启动与接续因此使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。

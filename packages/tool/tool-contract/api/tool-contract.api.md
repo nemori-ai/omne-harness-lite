@@ -61,6 +61,7 @@
 - `ToolDeliveryId` · `identity.d.ts`
 - `ToolDeliveryKey` · `result-delivery.d.ts`
 - `ToolDeliveryRejection` · `result-delivery.d.ts`
+- `ToolEnvironmentDeclaration` · `definitions.d.ts`
 - `ToolExecutionRef` · `execution.d.ts`
 - `ToolFailure` · `results.d.ts`
 - `ToolIdentity` · `identity.d.ts`
@@ -546,13 +547,13 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { Modality } from '@omne-harness/modality';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { ToolWaitContract } from './author-context.ts';
-import type { ParameterContract, SourceLayer, ToolArguments, ToolAssetVersion, ToolAvailability, ToolDefinition, ToolGovernance, ToolImplementationFacts, ToolInvocation, ToolReturnDeclaration, ToolValueSchema } from './definitions.ts';
+import type { ParameterContract, SourceLayer, ToolArguments, ToolAssetVersion, ToolAvailability, ToolDefinition, ToolEnvironmentDeclaration, ToolGovernance, ToolImplementationFacts, ToolInvocation, ToolReturnDeclaration, ToolValueSchema } from './definitions.ts';
 import type { TextRenderer, ToolExecutor } from './execution.ts';
 import type { Access, Adoption, DurableEvidence, ToolCallId } from './identity.ts';
 import type { Reply, ToolResult } from './results.ts';
 export type ToolDeclarations = Readonly<{
     adoption: Adoption;
-    environment: Adoption | null;
+    environment: ToolEnvironmentDeclaration | null;
     attachments: readonly Readonly<{
         store: string;
         mediaTypes: readonly string[];
@@ -1009,6 +1010,7 @@ export interface ToolOffloader<P, B extends ContentBlock> {
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity';
+import type { ScopeRef } from '@omne-harness/runtime-context-contract';
 import type { SchemaRef } from '@omne-harness/schema-provider';
 import type { ToolDeclarations } from './authoring.ts';
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts';
@@ -1122,6 +1124,10 @@ export type ToolInvocation = Readonly<{
     kind: 'direct' | 'programmatic';
     source: DurableEvidence;
 }>;
+export type ToolEnvironmentDeclaration = Readonly<{
+    adoption: Adoption;
+    value: JsonValue;
+}>;
 export type FixedToolRequest = Readonly<{
     availability: ToolAvailability;
     invocation: ToolInvocation;
@@ -1130,7 +1136,8 @@ export type FixedToolRequest = Readonly<{
     settings: Adoption;
     context: Adoption;
     workspace: WorkspaceId | null;
-    environment: Adoption;
+    environment: ToolEnvironmentDeclaration | null;
+    requesterScope: ScopeRef;
     resources: readonly Adoption[];
     scope: ResourceScope;
     consumer: ConsumerRef;
@@ -1147,11 +1154,13 @@ export type FixedToolRequest = Readonly<{
 ## 声明文件 `dynamics.d.ts`
 
 ```ts
+import { type JsonValue } from '@omne-harness/json-text';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ToolBindingKey, ToolShape } from './authoring.ts';
 import type { SourceLayer, ToolDefinition, ToolGovernance, ToolImplementationFacts } from './definitions.ts';
 import type { DurableEvidence } from './identity.ts';
 export declare function deriveDefinition(governance: ToolGovernance, facts: ToolImplementationFacts): ToolDefinition;
+export declare function canonicalJsonText(value: JsonValue): string;
 export declare function shapeOf(definition: ToolDefinition): ToolShape;
 export declare function sameShape(left: ToolShape, right: ToolShape): boolean;
 export declare function sameSourceLayer(left: SourceLayer, right: SourceLayer): boolean;
@@ -1354,6 +1363,7 @@ export interface ToolCommands<P, B extends ContentBlock> {
     planPreparation(input: WriteContext & Readonly<{
         request: FixedToolRequest;
         purpose: 'initial' | 'resume';
+        environmentAdoption: Adoption;
     }>): Reply<PreparationRecord>;
     prepared(input: WriteContext & Readonly<{
         preparation: PreparationRecord;
@@ -1528,7 +1538,7 @@ export { decodeToolCallId, decodeToolOperationId } from './identity.ts';
 export type { Access, Adoption, ConsumerRef, DurableEvidence, ToolCallId, ToolCursor, ToolDeliveryId, ToolIdentity, ToolIdentityRejection, ToolInstanceId, ToolOperationId, ToolResultVersion, ToolRevision, ToolWaitId, } from './identity.ts';
 export { encodeToolInvocationRef, encodeToolOperationRef, readToolOperationRef, resolveToolInvocationRef, resolveToolOperationRef, } from './reference.ts';
 export type { ToolInvocationParts, ToolInvocationRef, ToolOperationParts, ToolOperationRef, ToolReferenceFailure, ToolReferenceRejection, } from './reference.ts';
-export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
+export type { FixedToolRequest, ParameterContract, ResourceScope, SourceLayer, ToolArguments, ToolAvailability, ToolCommandDeclaration, ToolDefinition, ToolEnvironmentDeclaration, ToolImplementationShape, ToolInvocation, ToolProgramDeclaration, ToolReturnDeclaration, ToolSchemaIdentity, } from './definitions.ts';
 export type { ActiveRelation, Attachment, DeliveryState, Effect, InterruptionCause, OperationResolution, ReleasedDelivery, Reply, ResultPage, ToolFailure, ToolLookup, ToolRelation, ToolResult, ToolResultData, ToolState, ToolTerminal, WaitState, } from './results.ts';
 export type { BackgroundSource, ControlReceipt, ForegroundReturn, Handoff, InvocationAccess, ProcessBlock, ToolCommandOutcome, ToolControl, ToolDefiniteFailure, ToolInvocationCommands, ToolInvocationContentReader, ToolInvocationQueries, ToolInvokeOutcome, ToolInvokeRequest, ToolReleaseDeliveryOutcome, ToolRuntime, ToolStreamDelta, ToolStreamEnd, ToolStreamObservation, ToolStreamReferences, ToolStreamSelection, ToolStreamSnapshot, } from './operations.ts';
 export type { ToolDecision, ToolWaitSchemaSnapshot } from './author-context.ts';
@@ -1556,6 +1566,7 @@ export declare function jsonTextBytes(tree: JsonValue): number;
 ## 声明文件 `judge-definition.d.ts`
 
 ```ts
+import type { JsonValue } from '@omne-harness/json-text';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { ToolDeclarations } from './authoring.ts';
 import type { ToolImplementationDeclaration } from './authoring.ts';
@@ -1564,6 +1575,15 @@ import { type Check } from './shape.ts';
 export declare const parameterContract: Check<ParameterContract>;
 export declare const programDeclaration: Check<ToolProgramDeclaration>;
 export declare const returnDeclaration: Check<ToolReturnDeclaration>;
+export declare const environmentDeclaration: Check<{
+    readonly adoption: Readonly<{
+        owner: string;
+        name: string;
+        revision: string;
+        digest: string;
+    }>;
+    readonly value: JsonValue;
+} & Partial<{}>>;
 export declare const toolDeclarations: Check<ToolDeclarations>;
 export declare const commandName: Check<string>;
 export declare const commandSummary: Check<string>;
@@ -2000,6 +2020,7 @@ export interface PreparedEnvironment<E> {
     readonly preparation: PreparationRecord;
 }
 export interface ToolEnvironment<P, E> {
+    readonly adoption: Adoption;
     prepare(input: CallAccess<P> & Readonly<{
         preparation: PreparationRecord;
     }>): Reply<PreparationProgress<E>>;

@@ -43,6 +43,7 @@ export type {
   ToolAvailability,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolEnvironmentDeclaration,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,

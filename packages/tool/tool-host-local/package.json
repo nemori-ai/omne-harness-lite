@@ -32,9 +32,10 @@
     "@omne-harness/tool-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@typescript/typescript6": "catalog:"
+    "vitest": "catalog:"
   }
 }

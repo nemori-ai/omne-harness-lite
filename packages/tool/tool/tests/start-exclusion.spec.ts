@@ -1,3 +1,4 @@
+import { adoption } from './runtime-values.ts'
 // The commands of the way to a start under a negative answer given in flight (SPEC 14), and the
 // queue entries they leave (SPEC 22): a negative answer excludes a command from its first read on,
 // whatever it did between that read and its transaction; a call that settled never keeps or gets
@@ -124,6 +125,7 @@ async function stage(harness: StartHarness, until: 'accepted' | 'prepared' | 'qu
       ...(await writeContext(harness, 'c1', 'c1/plan')),
       request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial',
+      environmentAdoption: adoption('environment'),
     }),
   )
   ok(
@@ -152,6 +154,7 @@ describe('14 exclusion of the commands on the way to a start', () => {
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
       request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial' as const,
+      environmentAdoption: adoption('environment'),
     }
     arm(1, 'op-c1/plan')
     expect(failure(await harness.commands.planPreparation(input))).toEqual(excludedOf('op-c1/plan'))
@@ -367,6 +370,7 @@ describe('22 queue entries of calls that settled', () => {
       ...(await writeContext(harness, 'c1', 'op-c1/plan')),
       request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial',
+      environmentAdoption: adoption('environment'),
     })
     // The settlement moved the state revision on, so the transaction refuses the stale plan.
     expect(failure(refused)).toMatchObject({ kind: 'stale-revision' })

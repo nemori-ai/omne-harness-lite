@@ -1,4 +1,5 @@
 // The closed judgment of a fixed request (342 values, definitions and the fixed request; P02).
+import { decodeScopeRef, type ScopeRef } from '@omne-harness/runtime-context-contract'
 import { succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   FixedToolRequest,
@@ -8,7 +9,8 @@ import type {
   ToolInvocation,
 } from './definitions.ts'
 import type { ToolInvokeRequest } from './operations.ts'
-import { toolDefinition } from './judge-definition.ts'
+import { canonicalJsonText } from './dynamics.ts'
+import { environmentDeclaration, toolDefinition } from './judge-definition.ts'
 import { toolArguments } from './parameter-codec.ts'
 import {
   filled,
@@ -26,7 +28,14 @@ import {
   type Check,
   type ShapeRejection,
 } from './shape.ts'
-import { adoption, consumerRef, durableEvidence, sourceLayer, workspaceId } from './value-shapes.ts'
+import {
+  adoption,
+  consumerRef,
+  durableEvidence,
+  sameAdoption,
+  sourceLayer,
+  workspaceId,
+} from './value-shapes.ts'
 
 /** A time limit is a non-negative finite integer of milliseconds (342 values). */
 const nonNegativeSafeInteger: Check<number> = (value, at) => {
@@ -61,6 +70,20 @@ const limits = record({
   backgroundAfterMs: nullable(nonNegativeSafeInteger),
 })
 
+// Copy data properties before calling RC's decoder; it must not observe input accessors.
+const requesterScope: Check<ScopeRef> = (value, at) => {
+  const seen = new Set<unknown>()
+  const copy: Check<ScopeRef> = (source, field) => {
+    if (seen.has(source)) return reject(field, 'cycle')
+    seen.add(source)
+    const shape = record({ ref: nonBlank }, { parent: copy })(source, field)
+    if ('failure' in shape) return shape
+    const decoded = decodeScopeRef(shape.ok)
+    return 'ok' in decoded ? decoded : reject(field, decoded.failure.reason)
+  }
+  return copy(value, at)
+}
+
 const callerFields = {
   availability,
   command: nullable(filled),
@@ -68,7 +91,8 @@ const callerFields = {
   settings: adoption,
   context: adoption,
   workspace: nullable(workspaceId),
-  environment: adoption,
+  environment: nullable(environmentDeclaration),
+  requesterScope,
   resources: list(adoption),
   scope,
   consumer: consumerRef,
@@ -94,14 +118,25 @@ function commandRule(
   return known ? undefined : { field, reason: 'unknown-command' }
 }
 
+function requestRule(request: ToolInvokeRequest, at: string): ShapeRejection | undefined {
+  const declared = request.availability.definition.declarations.environment
+  const fixed = request.environment
+  const matches =
+    declared === null || fixed === null
+      ? declared === fixed
+      : sameAdoption(declared.adoption, fixed.adoption) &&
+        canonicalJsonText(declared.value) === canonicalJsonText(fixed.value)
+  return matches
+    ? commandRule(request.availability.definition, request.command, at)
+    : { field: member(at, 'environment'), reason: 'definition-mismatch' }
+}
+
 const fixedToolRequest: Check<FixedToolRequest> = refine(
   record({ ...callerFields, invocation }),
-  (request, at) => commandRule(request.availability.definition, request.command, at),
+  requestRule,
 )
 
-const invokeToolRequest: Check<ToolInvokeRequest> = refine(record(callerFields), (request, at) =>
-  commandRule(request.availability.definition, request.command, at),
-)
+const invokeToolRequest: Check<ToolInvokeRequest> = refine(record(callerFields), requestRule)
 
 /**
  * Judges an untrusted value as a fixed request. The check is closed: every field has the

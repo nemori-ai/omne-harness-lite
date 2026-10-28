@@ -38,6 +38,10 @@
 - `ToolRegistration` · `cordis.d.ts`
 - `ToolRegistrationFailure` · `cordis.d.ts`
 - `ToolRegistrationInput` · `cordis.d.ts`
+- `ToolResidencyPage` · `cordis.d.ts`
+- `ToolResidencyReader` · `cordis.d.ts`
+- `ToolResidencyReaderService` · `cordis.d.ts`
+- `ToolResidencyReference` · `cordis.d.ts`
 - `ToolResourceResponsesService` · `cordis.d.ts`
 - `ToolRuntimeService` · `cordis.d.ts`
 - `ToolStartAuthorityService` · `cordis.d.ts`
@@ -61,6 +65,7 @@
 - `toolOutputCustodyKey` · `cordis.d.ts`
 - `toolPublicationAuthorityKey` · `cordis.d.ts`
 - `toolReadsKey` · `cordis.d.ts`
+- `toolResidencyReaderKey` · `cordis.d.ts`
 - `toolResourceResponsesKey` · `cordis.d.ts`
 - `toolResultPolicyKey` · `cordis.d.ts`
 - `toolRuntimeKey` · `cordis.d.ts`
@@ -84,6 +89,7 @@
 - `ToolRegistrationFixture` · `testing.d.ts`
 - `ToolRegistrationGrant` · `testing.d.ts`
 - `ToolRegistrationService` · `testing.d.ts`
+- `ToolResidencyReaderFixture` · `testing.d.ts`
 - `createMemoryToolBindingRegistry` · `testing.d.ts`
 - `createMemoryToolRegistrations` · `testing.d.ts`
 - `isNotApplicable` · 包 `@omne-harness/tool-contract`
@@ -94,6 +100,7 @@
 - `runToolDynamicsSuite` · `testing.d.ts`
 - `toolBindingRegistryConformance` · `testing.d.ts`
 - `toolRegistrationConformance` · `testing.d.ts`
+- `toolResidencyReaderConformance` · `testing.d.ts`
 
 ## 声明文件 `cordis.d.ts`
 
@@ -103,7 +110,7 @@ import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import { type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolRuntime } from '@omne-harness/tool-contract';
-import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence } from '@omne-harness/tool-contract/provider';
+import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
     constructor(ctx: Context);
@@ -197,6 +204,31 @@ export declare abstract class ToolContributionAuthorityService<P> extends Servic
     abstract readonly admits: ToolContributionAuthority<P>['admits'];
 }
 export declare const toolContributionAuthorityKey = "toolContributionAuthority";
+export type ToolResidencyReference = Readonly<{
+    holder: string;
+    tenant: TenantId;
+    shape: ToolShape;
+}>;
+export type ToolResidencyPage = Readonly<{
+    items: readonly ToolResidencyReference[];
+    next: string | null;
+}>;
+export interface ToolResidencyReader {
+    referencing(input: Readonly<{
+        scope: 'system';
+        key: ToolBindingKey;
+        after: string | null;
+    }>): Promise<Outcome<ToolResidencyPage, Readonly<{
+        kind: 'unavailable';
+        diagnostic: string;
+    }>>>;
+}
+export declare abstract class ToolResidencyReaderService extends Service implements ToolResidencyReader {
+    static readonly provide = "toolResidencyReader";
+    constructor(ctx: Context);
+    abstract readonly referencing: ToolResidencyReader['referencing'];
+}
+export declare const toolResidencyReaderKey = "toolResidencyReader";
 export type ToolLoadFailure = Readonly<{
     kind: 'denied';
 }> | Readonly<{
@@ -258,6 +290,7 @@ export declare const toolGenerationsKey = "toolGenerations";
 export declare abstract class ToolEnvironmentService<P, E> extends Service implements ToolEnvironment<P, E> {
     static readonly provide = "toolEnvironments";
     constructor(ctx: Context);
+    abstract readonly adoption: ToolEnvironment<P, E>['adoption'];
     abstract readonly prepare: ToolEnvironment<P, E>['prepare'];
     abstract readonly inspectPreparation: ToolEnvironment<P, E>['inspectPreparation'];
     abstract readonly release: ToolEnvironment<P, E>['release'];
@@ -422,6 +455,7 @@ export declare abstract class ToolOffloaderService<P, B extends ContentBlock> ex
 export declare const toolOffloaderKey = "toolOffloader";
 declare module '@deepseek-ai/cordis' {
     interface Context {
+        toolResidencyReader: ToolResidencyReaderService;
         toolRuntime: ToolRuntimeService<unknown, ContentBlock>;
         toolCommands: ToolCommandsService<unknown, ContentBlock>;
         toolBindings: ToolBindingsService<unknown, ContentBlock, unknown>;
@@ -463,11 +497,11 @@ export {};
 ```ts
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
-import type { TenantId } from '@omne-harness/legal-identity';
+import { type TenantId } from '@omne-harness/legal-identity';
 import { type Access, type DurableEvidence } from '@omne-harness/tool-contract';
-import { type ToolAuthority, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
+import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolAuthorityFailure, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+import type { ToolAuthorityFailure, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
 export type { AnswerModel, AnswerRow, ConformanceCase } from '@omne-harness/tool-contract/testing';
 export { NotApplicable, isNotApplicable, runConformanceCase, type CaseVerdict, } from '@omne-harness/tool-contract/testing';
 export interface ToolRegistrationService<P> {
@@ -555,4 +589,11 @@ export declare const TOOL_DYNAMICS_CRITERIA: readonly [
     'unrelated capabilities see zero failures throughout; P16 directory and Catalog absence semantics are unchanged'
 ];
 export declare function runToolDynamicsSuite(): readonly ConformanceCase<ToolDynamicsFixture>[];
+export interface ToolResidencyReaderFixture {
+    readonly reader: ToolResidencyReader;
+    readonly key: ToolBindingKey;
+    readonly references: readonly ToolResidencyReference[];
+    interrupt?(): void;
+}
+export declare function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[];
 ```

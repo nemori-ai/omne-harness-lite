@@ -21,6 +21,7 @@ it('the testing entry exports the registration and G7 suites, their non-durable 
     'runToolDynamicsSuite',
     'toolBindingRegistryConformance',
     'toolRegistrationConformance',
+    'toolResidencyReaderConformance',
   ])
   expect(testing.createMemoryToolRegistrations().durability).toBe('none')
   expect(testing.createMemoryToolBindingRegistry([]).durability).toBe('none')

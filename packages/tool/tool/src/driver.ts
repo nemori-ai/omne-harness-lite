@@ -1,3 +1,4 @@
+import { matchEnvironmentAdoption } from './environment-adoption.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -323,6 +324,7 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       await commands.planPreparation({
         ...write.ok,
         request: recovery.request,
+        environmentAdoption: environments.adoption,
         purpose: 'initial',
       }),
     )
@@ -336,6 +338,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: Step<P>,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
+    const matching = matchEnvironmentAdoption(environments, task.preparation.adoption)
+    if ('failure' in matching) return matching
     const key = callKey(step.tenant, step.call)
     const request = {
       principal: step.principal,
@@ -441,6 +445,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: CallAccess<P>,
     preparation: PreparationRecord,
   ): Promise<Outcome<E, ToolFailure>> => {
+    const matching = matchEnvironmentAdoption(environments, preparation.adoption)
+    if ('failure' in matching) return matching
     const cached = environmentsPrepared.get(callKey(step.tenant, step.call))
     if (cached !== undefined) return succeed(cached)
     const progress = await environments.inspectPreparation({

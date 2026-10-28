@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 // Legal Tool values that the conformance suites and their non-durable doubles build. The suites
 // take identity from the fixture (`Access`), so no value here names a caller or a tenant.
 import { createHash } from 'node:crypto'
@@ -161,7 +162,8 @@ export function fixedRequest(): FixedToolRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
@@ -285,4 +287,10 @@ export function resourceWait(
     request: evidence(`${wait}/request`),
     deadline,
   }
+}
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
 }

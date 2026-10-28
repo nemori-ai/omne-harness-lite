@@ -6,10 +6,11 @@
 // nothing about the real services and must not be assembled into production.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
+import { isDeepStrictEqual } from 'node:util'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { decodeStreamId } from '@omne-harness/stream-arrival'
-import type { TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
   decodeToolCallId,
   type Access,
@@ -44,6 +45,8 @@ import {
 } from '@omne-harness/tool-contract/testing'
 import type {
   ToolAuthorityFailure,
+  ToolResidencyReader,
+  ToolResidencyReference,
   ToolRegistration,
   ToolRegistrationFailure,
   ToolRegistrationInput,
@@ -1056,16 +1059,14 @@ export function toolBindingRegistryConformance<P>(): readonly ConformanceCase<
 
 /** G7 access by layer: official to every tenant, organization to the same organization, tenant to the same tenant. */
 function visibleTo(layer: SourceLayer, tenant: Access<unknown>['tenant']): boolean {
+  if (!tenantCodec.encode(tenant).ok) return false
   switch (layer.kind) {
     case 'official':
       return true
     case 'organization':
       return layer.organization.text === tenant.organization.text
     case 'tenant':
-      return (
-        layer.tenant.organization.text === tenant.organization.text &&
-        layer.tenant.account.text === tenant.account.text
-      )
+      return sameSourceLayer(layer, { kind: 'tenant', tenant })
     case 'workspace':
       // The double has no workspace grants: a workspace entry is visible to no tenant scope.
       return false
@@ -1134,14 +1135,13 @@ export function createMemoryToolBindingRegistry<P>(
     return succeed(grant.authority as VerifiedAuthority)
   }
   const admits = (tenant: Access<unknown>['tenant'], authority: ToolAuthority): boolean => {
+    if (!tenantCodec.encode(tenant).ok) return false
     const grant = grants.find(candidate =>
       sameEvidence(candidate.authority.holding, authority.holding),
     )
     if (grant === undefined || grant.registrants === null) return grant !== undefined
-    return grant.registrants.some(
-      candidate =>
-        candidate.organization.text === tenant.organization.text &&
-        candidate.account.text === tenant.account.text,
+    return grant.registrants.some(candidate =>
+      sameSourceLayer({ kind: 'tenant', tenant: candidate }, { kind: 'tenant', tenant }),
     )
   }
   const remove = (token: string): boolean => {
@@ -1187,8 +1187,10 @@ export function createMemoryToolBindingRegistry<P>(
       })
       return succeed(contribution)
     },
-    snapshot: scope =>
-      succeed(
+    snapshot: scope => {
+      if (!('scope' in scope) && !tenantCodec.encode(scope.tenant).ok)
+        return fail({ kind: 'unavailable', diagnostic: 'tenant eligibility is unavailable' })
+      return succeed(
         Object.freeze(
           entries
             .filter(entry => 'scope' in scope || visibleTo(entry.key.layer, scope.tenant))
@@ -1203,7 +1205,8 @@ export function createMemoryToolBindingRegistry<P>(
               }),
             ),
         ),
-      ),
+      )
+    },
     pins: key => (find(key) === undefined ? fail({ kind: 'unknown-key' }) : succeed('0')),
     close: key => {
       const entry = find(key)
@@ -1389,4 +1392,59 @@ const dynamicsCase = (index: number, name: string): ConformanceCase<ToolDynamics
 /** The dynamics suite skeleton: ten named cases, each not applicable until 2.5 fills it. */
 export function runToolDynamicsSuite(): readonly ConformanceCase<ToolDynamicsFixture>[] {
   return TOOL_DYNAMICS_CRITERIA.map((name, index) => dynamicsCase(index, name))
+}
+
+/** Source facts for this key. Include equal holder texts under different tenants. */
+export interface ToolResidencyReaderFixture {
+  readonly reader: ToolResidencyReader
+  readonly key: ToolBindingKey
+  readonly references: readonly ToolResidencyReference[]
+  /** Makes the next page read unavailable, including an already obtained cursor. */
+  interrupt?(): void
+}
+
+/** Reader checks only; this suite does not implement the generation coordinator. */
+export function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[] {
+  return [
+    {
+      name: 'all pages preserve every holder tenant and first shape',
+      clause: 'G7',
+      async run({ reader, key, references }) {
+        let after: string | null = null
+        const cursors = new Set<string>()
+        const items: ToolResidencyReference[] = []
+        do {
+          const page = await reader.referencing({ scope: 'system', key, after })
+          if ('failure' in page) assert.fail(`referencing: ${page.failure.diagnostic}`)
+          items.push(...page.ok.items)
+          after = page.ok.next
+          if (after !== null) {
+            assert.equal(cursors.has(after), false, 'a cursor must advance')
+            cursors.add(after)
+          }
+        } while (after !== null)
+        const remaining = [...references]
+        for (const item of items) {
+          const index = remaining.findIndex(reference => isDeepStrictEqual(reference, item))
+          assert.notEqual(index, -1, 'each reference must retain its holder, tenant and shape')
+          remaining.splice(index, 1)
+        }
+        assert.equal(remaining.length, 0, 'every source reference must be returned')
+      },
+    },
+    {
+      name: 'a page failure stays unavailable and cannot become an empty terminal page',
+      clause: 'G7',
+      async run({ reader, key, interrupt }) {
+        if (interrupt === undefined) throw new NotApplicable('interrupt')
+        const first = await reader.referencing({ scope: 'system', key, after: null })
+        if ('failure' in first) assert.fail('the first page must be readable')
+        if (first.ok.next === null) throw new NotApplicable('multiple-pages')
+        interrupt()
+        const page = await reader.referencing({ scope: 'system', key, after: first.ok.next })
+        assert.ok('failure' in page, 'interruption must not claim an empty result')
+        assert.equal(page.failure.kind, 'unavailable')
+      },
+    },
+  ]
 }

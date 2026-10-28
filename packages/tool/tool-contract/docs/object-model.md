@@ -282,7 +282,7 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolBindings | 资产/装配的合法采用解析、执行提供者映射 | 固定 adoption、原 start 或消费方档案 | resolve 新发起与 recover 原查询分面；不自动取最新实现 |
 | ToolRecoveryBinding | `ToolBindings.recover` 按原启动记录交出的恢复面 | 原 start、事实回执、暂停记录、控制派发 | 只有原事实查询与控制（acknowledge、inspectStart、inspectSuspension、stop、inspectControl），没有 start；撤权后仍须有受权托管者处理原责任 |
 | ToolEnvironment | 环境拥有者的准备与释放能力 | 原 PreparationRecord 或 ReleaseRecord | 按同一操作去重，inspect 认回原分配；缺条件拒绝，不降级到更宽松环境 |
-| ToolStartAuthority | 受信的启动资格守卫 | prepare 的输入，consume 的 permit | permit 本身不授权；失效与 consume 在同一排序域；准入资料不可读时不受理新的 consume，回复 `unknown` 并保留原任务；consume 是授权许可的消费点，受理记录 ToolStartAcceptance 冻结所核守卫修订号并带 ConsumptionFact，撤权在这里再核，受理后的撤权留在残余窗口（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)） |
+| ToolStartAuthority | 受信的启动资格守卫 | prepare 的输入，consume 的 permit | permit 本身不授权；失效与 consume 在同一排序域；准入资料不可读时不受理新的 consume，回复 `unknown` 并保留原任务；consume 是授权许可的消费点，受理记录 ToolStartAcceptance 冻结所核守卫修订号并带 ToolPermitConsumption，撤权在这里再核，受理后的撤权留在残余窗口（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)） |
 | ToolStartFence | 同一启动排序域提供者给外层调用方的视图，只有 invalidate | 外层调用方自己的守卫资源、失效操作号与失效依据 | 与 ToolStartAuthority 共用排序域；证据返回后旧修订号的 permit 不再受理，已受理的启动不受影响，由外层调用方逐个 stop；证据由外层调用方写成独立的 `start-fence` 条目（[外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏)） |
 | ToolClock | 持续时间来源，提供 now、begin、elapsed、waitUntil | 原操作与执行引用；一段计时的证据 | `begin` 只产生标记，没有提交的计时段没有效果，也不需要关闭；已用时间只累计已提交的计时段；跨 epoch 比较返回 unknown，不归零 |
 | ResultPolicy | 具名结果政策，校验结果块的许可 | 一个 ToolResult 的块与附件 | 采用明确；缺对应政策不把任意 ContentBlock 当合法终局 |

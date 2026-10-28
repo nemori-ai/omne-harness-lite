@@ -71,6 +71,8 @@
 
 环境声明槽、固定请求的 requesterScope 与准备传递要求见[环境声明与请求方作用域](../SPEC.md#环境声明与请求方作用域)。声明保存 adoption 与 JSON value，不是裸环境采用。ScopeRef 与 decodeScopeRef 的定义归 RC 公开契约，Tool 不复制类型或从会话名推导。
 
+环境适配器在 `ToolEnvironment.adoption` 暴露自己的协议采用。driver 把它传入 `planPreparation.environmentAdoption` 并固定到准备记录；它与声明 schema 的采用不同。恢复与释放仍核对原采用，不匹配返回 unavailable 并保留责任。声明 adoption 到 `SchemaRef` 的映射归受信 Loader 装配，当前尚无真实 Loader；形状检查不证明已完成声明值的 schema 校验。
+
 第三方秘密的窄消费面及完整失败集合归[凭据端口](../SPEC.md#第三方凭据端口)，秘密能力不进入固定请求。后台状态的供给块声明、重算供给与失效重读边界见[RC 交接](../SPEC.md#tool-后台状态的-rc-交接)。这些条款不证明秘密保管、RC 持有者或生产宿主已经实现。
 
 ## 发起、队列与环境协议

@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { describe, expect, it } from 'vitest'
 import { organizationCodec, workspaceEquals } from '@omne-harness/legal-identity'
 import { type FixedToolRequest, type ToolInvokeRequest } from '@omne-harness/tool-contract'
@@ -21,7 +22,8 @@ function request(): FixedToolRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
@@ -320,5 +322,98 @@ describe('request judgment', () => {
 
   it('request judgment: a value that is not an object is rejected as the request itself', () => {
     expect(rejection(null)).toEqual({ field: 'FixedToolRequest', reason: 'type' })
+  })
+})
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
+}
+
+describe('environment declarations and explicit requester scope', () => {
+  const environment = {
+    adoption: adoption('environment-schema'),
+    value: { kind: 'string' as const, value: 'declared requirement' },
+  }
+  const declared = () => {
+    const value = request()
+    return {
+      ...value,
+      environment,
+      availability: {
+        ...value.availability,
+        definition: {
+          ...value.availability.definition,
+          declarations: { ...value.availability.definition.declarations, environment },
+        },
+      },
+    }
+  }
+
+  it('keeps the declaration and scope separately from workspace and concurrency scope', () => {
+    const value = declared()
+    const judged = judgeFixedToolRequest(value)
+    expect(judged).toEqual({ ok: value })
+    if ('failure' in judged) throw new Error('valid declaration rejected')
+    expect(judged.ok.environment).not.toBe(value.environment)
+    expect(judged.ok.requesterScope).not.toBe(value.requesterScope)
+    expect(Object.isFrozen(judged.ok.requesterScope)).toBe(true)
+  })
+
+  it('rejects bare adoptions and declarations that differ from the selected definition', () => {
+    expect(rejection({ ...declared(), environment: adoption('old-environment') }).field).toBe(
+      'environment.adoption',
+    )
+    for (const environment of [
+      null,
+      { ...declared().environment, adoption: adoption('other-schema') },
+      { ...declared().environment, value: { kind: 'null' } },
+    ])
+      expect(rejection({ ...declared(), environment })).toEqual({
+        field: 'environment',
+        reason: 'definition-mismatch',
+      })
+    const bare = declared()
+    expect(
+      rejection({
+        ...bare,
+        availability: {
+          ...bare.availability,
+          definition: {
+            ...bare.availability.definition,
+            declarations: {
+              ...bare.availability.definition.declarations,
+              environment: adoption('bare'),
+            },
+          },
+        },
+      }).field,
+    ).toBe('availability.definition.declarations.environment.adoption')
+  })
+
+  it('requires a valid explicit scope and never calls scope getters', () => {
+    const missing = { ...request() }
+    Reflect.deleteProperty(missing, 'requesterScope')
+    expect(rejection(missing)).toEqual({ field: 'requesterScope', reason: 'missing' })
+    for (const requesterScope of [
+      null,
+      { ref: '' },
+      { ref: 'scope', tenant: 'not-a-binding' },
+      { ref: 'scope', parent: { ref: '' } },
+    ])
+      expect(rejection({ ...request(), requesterScope }).field).toMatch(/^requesterScope/)
+    let reads = 0
+    const requesterScope = {
+      get ref() {
+        reads += 1
+        return 'scope'
+      },
+    }
+    expect(rejection({ ...request(), requesterScope })).toEqual({
+      field: 'requesterScope.ref',
+      reason: 'accessor',
+    })
+    expect(reads).toBe(0)
   })
 })

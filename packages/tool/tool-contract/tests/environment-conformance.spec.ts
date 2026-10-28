@@ -1300,7 +1300,9 @@ const lateHandles: readonly Variant<Fixture>[] = [
 ]
 
 /** The methods of the port that take an access, and the case that checks another tenant on each. */
-const CROSS_TENANT: Readonly<Record<keyof ToolEnvironment<string, MemoryEnvironment>, string>> = {
+const CROSS_TENANT: Readonly<
+  Record<Exclude<keyof ToolEnvironment<string, MemoryEnvironment>, 'adoption'>, string>
+> = {
   prepare: NAMES.E17,
   inspectPreparation: NAMES.E16,
   release: NAMES.E18,
