@@ -99,7 +99,10 @@ const wholeSeconds = ms => Math.floor(ms / 1000)
 const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000))
 
-/** 票与名额登记同一格式：谁、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。 */
+/**
+ * 票与名额登记同一格式：谁、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。
+ * `since` 保持整秒：别的进程（包括旧版本的本脚本）按整秒读它，它只用于排队提示里的「已 N 秒」，不进账本。
+ */
 function describe(beatSeconds) {
   return `pid=${process.pid}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
 }
