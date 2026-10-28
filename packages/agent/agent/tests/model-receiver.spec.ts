@@ -17,7 +17,17 @@ import {
 } from '@omne-harness/model-contract'
 import type { AgentAccountHandoff, AgentAccountOutcome } from '@omne-harness/agent-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
-import { acceptedInput, execution, operation, ok, evidence, tenantB } from './journal-support.ts'
+import {
+  acceptedInput,
+  checkpoint,
+  consumption,
+  execution,
+  instance,
+  operation,
+  ok,
+  evidence,
+  tenantB,
+} from './journal-support.ts'
 import { alice, loopAssembly } from './loop-support.ts'
 import { options } from './factory-support.ts'
 
@@ -592,6 +602,88 @@ it('refuses a non-original admission, result relation, tenant, and authoritative
   ).toEqual([])
   expect(s.sent).toEqual([])
 })
+
+it.each(['same', 'different'] as const)(
+  'retains the original target when another execution claims the call with %s admission',
+  async admission => {
+    const s = await setup()
+    const original = ok(resolveModelInvocationRef(s.pending.reference, alice.tenant))
+    const laterReference = ok(
+      encodeModelInvocationRef({
+        ...original,
+        tenant: alice.tenant,
+        admission:
+          admission === 'same' ? original.admission : ok(decodeModelOperationId('mop_later')),
+      }),
+    )
+    const later = {
+      ...s.pending,
+      reference: laterReference,
+      consumption: consumption('later-consumption'),
+      position: { ...s.pending.position, work: 'later-execution', purpose: 'forged' },
+    }
+    const foreign = { ...alice, tenant: tenantB }
+    const foreignReference = ok(encodeModelInvocationRef({ ...original, tenant: tenantB }))
+    for (const [who, id, pending] of [
+      [alice, execution('later-execution'), later],
+      [foreign, execution(), { ...later, reference: foreignReference }],
+    ] as const)
+      ok(
+        await s.dependencies.provider.journal.open({
+          ...who,
+          execution: id,
+          operation: operation(`open-${id}`),
+          instance: instance(),
+          grant: null,
+          initial: acceptedInput(`input-${id}`),
+          checkpoint: { ...checkpoint('M6'), calls: [pending] },
+        }),
+      )
+    const target = ok(
+      await s.dependencies.targets.resolve({
+        access: alice,
+        reference: laterReference,
+        consumer: later.position,
+      }),
+    )
+    expect(target.execution).toBe(execution())
+    expect(target.pending).toEqual(s.pending)
+    const foreignTarget = ok(
+      await s.dependencies.targets.resolve({
+        access: foreign,
+        reference: foreignReference,
+        consumer: later.position,
+      }),
+    )
+    expect(foreignTarget.pending.reference).toBe(foreignReference)
+    expect(foreignTarget.pending.consumption).toBe(later.consumption)
+    expect(
+      await s.dependencies.targets.resolve({
+        access: foreign,
+        reference: s.pending.reference,
+        consumer: s.pending.position,
+      }),
+    ).toHaveProperty('failure.kind', 'denied')
+    expect(
+      await s.receiver.push({
+        access: alice,
+        delivery: { ...s.delivery, consumer: later.position },
+        signal: new AbortController().signal,
+      }),
+    ).toEqual({ failure: { kind: 'invalid', field: 'consumer', reason: 'not-original' } })
+    ok(await s.push())
+    expect(
+      ok(await s.dependencies.provider.journal.load({ ...alice, execution: execution() })).entries,
+    ).toHaveLength(1)
+    for (const [who, id] of [
+      [alice, execution('later-execution')],
+      [foreign, execution()],
+    ] as const)
+      expect(
+        ok(await s.dependencies.provider.journal.load({ ...who, execution: id })).entries,
+      ).toEqual([])
+  },
+)
 
 it('does not return a saved receipt whose owner is unrelated to the frozen consumer', async () => {
   const s = await setup(),

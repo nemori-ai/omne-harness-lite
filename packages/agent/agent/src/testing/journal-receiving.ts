@@ -27,7 +27,6 @@ import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { ReceivedCommitFixture } from '@omne-harness/agent-contract/testing'
 import type { ModelReceptionTarget, ModelReceptionTargets } from '../receiving-types.ts'
 import { canonical } from '../canonical.ts'
 import { jsonTree } from '../receiving-values.ts'
@@ -38,10 +37,7 @@ type Input<P> = ReceivedCommitInput<P, ContentBlock>
 type Kept = { entry: ReceivedEntry; receipt: CommandReceipt; saved: DurableEvidence | null }
 type Stored = { tenant: string; execution: AgentExecutionId | null; value: Material<ContentBlock> }
 type Qualification = 'allowed' | 'denied' | 'unavailable'
-export type JournalReceivingControls<P> = Omit<
-  ReceivedCommitFixture<P, ContentBlock>,
-  'journal' | 'entries' | 'materials' | 'received'
->
+export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
 type Hooks<P> = {
   custodian?(input: Access<P> & { execution: AgentExecutionId }): boolean
   owned(
@@ -138,6 +134,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
   const bindings = new Map<string, { execution: AgentExecutionId; text: string }>()
   const consumerExecutions = new Map<string, AgentExecutionId>()
   const targets = new Map<string, ModelReceptionTarget>()
+  const callTargets = new Map<string, ModelReceptionTarget>()
   const qualifications = new Map<string, Map<P, Qualification>>()
   const pauses = new Map<
     string,
@@ -435,8 +432,8 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       return readMaterial(input, input.source)
     },
   }
-  const controls: JournalReceivingControls<P> = {
-    async bind(input) {
+  const controls = {
+    async bind(input: Input<P>) {
       const key = deliveryText(input, input.entry),
         text = textOf(input)
       const old = bindings.get(key)
@@ -448,12 +445,12 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         input.execution,
       )
     },
-    material: name => ({
+    material: (name: string): Material<ContentBlock> => ({
       kind: 'facts',
       schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
       value: { kind: 'string', value: name },
     }),
-    async inspect(access, execution) {
+    async inspect(access: Access<P>, execution: AgentExecutionId) {
       const found = hooks.owned({ ...access, execution }, 'inspect')
       if ('failure' in found) throw new Error('execution unavailable')
       return {
@@ -464,35 +461,35 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
         ).length,
       }
     },
-    pause(input) {
+    pause(input: ExecutionMutation<P>) {
       const reached = Promise.withResolvers<DurableEvidence>(),
         released = Promise.withResolvers<void>()
       pauses.set(operationKey(input), { reached: reached.resolve, released: released.promise })
       return { reached: reached.promise, release: () => released.resolve() }
     },
-    fault(input, point) {
+    fault(input: ExecutionMutation<P>, point: 'before-publish' | 'after-publish') {
       faults.set(operationKey(input), point)
     },
-    async exclude(input, evidence) {
+    async exclude(input: Input<P>, evidence: DurableEvidence) {
       hooks.operations.set(operationKey(input), {
         kind: 'excluded',
         key: textOf(input),
         evidence: structuredClone(evidence),
       })
     },
-    qualify(input, execution, status) {
+    qualify(input: Access<P>, execution: AgentExecutionId, status: Qualification) {
       const key = executionText({ ...input, execution }),
         map = qualifications.get(key) ?? new Map<P, Qualification>()
       map.set(input.principal, status)
       qualifications.set(key, map)
     },
-    retainSaved(input, saved) {
+    retainSaved(input: ExecutionMutation<P>, saved: DurableEvidence) {
       const kept = aliases.get(operationKey(input))
       if (!kept || kept.entry.consumer.owner !== saved.owner)
         throw new Error('original consumer saved evidence required')
       kept.saved = structuredClone(saved)
     },
-    loseMaterial(source) {
+    loseMaterial(source: DurableEvidence) {
       materials.delete(canonical(source))
     },
   }
@@ -500,10 +497,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async resolve(input) {
       const requested = resolveModelInvocationRef(input.reference, input.access.tenant)
       if ('failure' in requested) return fail(denied())
-      const found = [...targets.values()].find(target => {
-        const original = resolveModelInvocationRef(target.pending.reference, input.access.tenant)
-        return 'ok' in original && original.ok.call === requested.ok.call
-      })
+      const found = callTargets.get(targetKey(input.access, requested.ok.call))
       if (!found) return fail(denied())
       const permission = qualified({ ...input.access, execution: found.execution })
       return 'failure' in permission ? permission : succeed(structuredClone(found))
@@ -524,8 +518,15 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
       for (const pending of execution.checkpoint.calls) {
         if (pending.kind !== 'model') continue
         const key = targetKey({ tenant: execution.tenant }, pending.reference)
-        if (!targets.has(key))
-          targets.set(key, { execution: execution.id, instance, pending: structuredClone(pending) })
+        if (!targets.has(key)) {
+          const target = { execution: execution.id, instance, pending: structuredClone(pending) }
+          targets.set(key, target)
+          const reference = resolveModelInvocationRef(pending.reference, execution.tenant)
+          if ('ok' in reference) {
+            const callKey = targetKey(execution, reference.ok.call)
+            if (!callTargets.has(callKey)) callTargets.set(callKey, target)
+          }
+        }
         consumerExecutions.set(
           canonical([tenantText(execution.tenant), pending.position]),
           execution.id,

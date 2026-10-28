@@ -95,7 +95,7 @@ const receptionKey = <P>(access: Access<P>, delivery: ModelDelivery) =>
 const sameExecution = <P>(
   value: { access: Access<P>; execution: AgentExecutionId },
   input: { access: Access<P>; execution: AgentExecutionId },
-) => tenantKey(value.access) === tenantKey(input.access) && value.execution === input.execution
+) => value.execution === input.execution && tenantKey(value.access) === tenantKey(input.access)
 
 export function createAgentModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
