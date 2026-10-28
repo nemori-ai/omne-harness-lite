@@ -24,4 +24,4 @@
 
 [environment-allocation.spec.ts](environment-allocation.spec.ts) 经公开调度工厂验证 allocated 的只读查询、策略消费、当前资格、并发唯一采用和已释放条目的迟到事实。提供者为非耐久替身。
 
-[environment-boundaries.spec.ts](environment-boundaries.spec.ts) 验证未发送预占返还、诊断阻塞时其他租户推进、各资源异常阶段与释放操作关联，以及诊断失败后保留原责任。夹具见 [environment-boundary-fixture.ts](environment-boundary-fixture.ts)，不消费真实秘密或生产环境。
+[environment-boundaries.spec.ts](environment-boundaries.spec.ts) 验证未发送预占返还、诊断阻塞时其他租户推进、各资源异常阶段与释放操作关联，以及诊断失败后保留原责任。末尾的换代用例复现 #675 第二轮 QA 的三条转发反例：首次派发、认回追加 prepare 与直接 inspectPreparation 在 `await check` 恢复后被微任务换掉原采用时，宿主拒绝并不转发（`invalidForwards` 为空），未发送的派发返还预占，已发送的保留原分配；最终守卫处 getter 抛错时诊断关联原操作且预占先于诊断返还。夹具见 [environment-boundary-fixture.ts](environment-boundary-fixture.ts)，不消费真实秘密或生产环境。

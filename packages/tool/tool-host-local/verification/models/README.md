@@ -2,7 +2,7 @@
 
 [EnvironmentPreparation.tla](EnvironmentPreparation.tla) 检查宿主预占、原请求、查询、首次采用和释放的有限安全性质。行为依据为 [Tool P03](../../../tool-contract/SPEC.md#p03-环境准备和释放) 和宿主的 [环境准备租户调度](../../SPEC.md#环境准备的租户调度)。[EnvironmentDriver.tla](EnvironmentDriver.tla) 单独检查 driver 一次 step 的追加 prepare 上限及 prepared 缓存条件。
 
-模型检查不证明源码精化。带完整守卫的规格配置与当前源码映射配置分开。后者保留 `await check(...)` 恢复后缺少原采用再核的对应缺口。即使规格配置完整通过，也不能据此关闭该缺口。
+模型检查不证明源码精化。带完整守卫的规格配置与撤掉转发前守卫的负控配置分开；后者曾对应 `await check(...)` 恢复后缺少原采用再核的源码缺口，该缺口已由源码的同步 `adoptionGuard` 关闭（见[转发前的最终原采用守卫与源码的对应](#转发前的最终原采用守卫与源码的对应)）。规格配置完整通过仍不证明源码符合。
 
 ## 状态、有限边界与原子步骤
 
@@ -55,7 +55,7 @@
 | 已发送未知、分配和待清理责任继续占额 | `SentDutyRetained` | 同上 |
 | 未发送失败不铸造外部终局 | `NoInventedExternalFinal` | 同上 |
 | 原请求完整身份不改变 | `OriginalRequestsOnly` | 同上 |
-| 外层 await 恢复后仍沿原适配器转发 | `OriginalAdapterAtForward` | 同上，及 current-source.cfg 的定向反例 |
+| 外层 await 恢复后仍沿原适配器转发 | `OriginalAdapterAtForward` | 同上，及 forward.cfg 的定向负控 |
 | 总占额和每租户占额不超过当前模型边界 | `QuotaBounds` | 同上 |
 | inspect 不产生首次采用 | `InspectNeverAdopts` | 同上 |
 | 丢原登记和退休不能产生新采用 | `NoColdAdoption`、`NoRetiredAdoption` | 同上 |
@@ -65,17 +65,17 @@
 | A 仍等待诊断时 B 实际可发送 | `NeverBWhileADiagnosticWaits` 的反例 | witness-b.cfg，否定命题的反例只作为存在性见证 |
 | A 有第二项排队，同时 A、B 各有一个在途操作 | `NeverTwoTenantsWithAQueued` 的反例 | witness-quota.cfg，仅全局容量 2 |
 
-四个宿主负控分别启用 `LeakReservation`、`InspectAdopts`、`SkipRegistration`、`SkipRetirement`。它们必须分别违反 `LocalRefusalVacates`、`InspectNeverAdopts`、`NoColdAdoption`、`NoRetiredAdoption`。每个配置只检查其定向目标，不能用其他异常或其他不变量代替成功命中。
+五个宿主负控分别启用 `LeakReservation`、`InspectAdopts`、`SkipRegistration`、`SkipRetirement`、`SkipForwardAdoption`。它们必须分别违反 `LocalRefusalVacates`、`InspectNeverAdopts`、`NoColdAdoption`、`NoRetiredAdoption`、`OriginalAdapterAtForward`。每个配置只检查其定向目标，不能用其他异常或其他不变量代替成功命中。
 
 `SkipRetirement` 同时撤掉显式 prepare 入口、重试答复消费、检查后转发和首次采用的退休守卫，其中包含 `PublicSnapshot` 对退休项的不可用映射。只撤掉部分守卫会被余下守卫挡住，不能检验该终态保护。规格正控始终设置该开关为 FALSE。
 
-### 当前源码与规格的对应缺口
+### 转发前的最终原采用守卫与源码的对应
 
-`check` 在内部 await qualify 后调用 matches 并返回。`enqueue.dispatch` 与 `inspectOrRecognize` 在外层 await check 恢复后只检查 retired，随后进入 `sendPreparation`。`sendPreparation` 设置 sent 并直接调用 environment.prepare。这个外层恢复边界之后没有再次匹配原 adoption。
+`check` 在内部 await qualify 后调用 matches 并返回。`enqueue.dispatch`、`inspectOrRecognize` 与直接 `inspectPreparation` 在外层 await check 恢复后，先核 retired，再同步调用 `adoptionGuard`，它在没有新的等待点的情况下再次匹配原 adoption，然后才进入 `sendPreparation` 或 `queryPreparation`。守卫不成立时按既有 unavailable 返回；尚未发送的派发同时撤回本地预占，已发送的条目保留查询与清理责任；getter 抛错走 `qualify` 阶段诊断并先撤未发送预占。这对应规格里 `Dispatch`、`ForwardRecognition` 的 `s.original` 守卫与 `RefuseBeforeSend`、`DeclineRecognition`。直接查询路径没有在模型里单独展开，由 `tests/environment-boundaries.spec.ts` 的直接 inspectPreparation 换代用例覆盖。
 
-`EnvironmentPreparation-current-source.cfg` 只设置 `SkipForwardAdoption=TRUE`，保留其他安全守卫。它表达上述实际缺失，不作为正确提供者的环境假设。预期反例为 Reserve、CompleteDispatchCheck、AdapterChange、Dispatch，命中 `OriginalAdapterAtForward`。首次发送和认回转发共享这个缺口。检查必须固定源码提交、运行配置并检查实际轨迹，静态轨迹本身不是已运行证据。
+`EnvironmentPreparation-forward.cfg` 只设置 `SkipForwardAdoption=TRUE`，保留其他安全守卫。它是负控：撤掉转发前守卫时必须命中 `OriginalAdapterAtForward`，预期轨迹为 Reserve、CompleteDispatchCheck、AdapterChange、Dispatch。它曾作为当时源码的对应配置（`current-source`）复现 #675 第二轮的转发反例；守卫落入源码后它只证明性质对该守卫敏感，不再描述源码。
 
-规格正控里的最终原采用守卫是应当满足的承诺。当前源码配置命中反例后，runner 的预期结果可以成立，但实现符合性必须报告 `counterexample-found`。这不关闭 F3，也不授权模型实施者修产品。
+规格正控里的最终原采用守卫是源码应当满足的承诺。模型检查不证明源码精化：守卫与源码的对应由上段文字和宿主测试维护，runner 的 `implementationConformance` 固定报告 `not-established-by-this-run`。
 
 ## 外部前提与实际验证的责任
 
@@ -114,7 +114,7 @@ runner 固定 locale、时区与颜色环境，保存完整命令、起止、退
 
 所有配置都设置 `CHECK_DEADLOCK FALSE`。本轮检查安全性质、指定动作的可执行性及有限可达轨迹，不检查全局无死锁，也不证明进展。runner 对死锁错误的拒绝只验证结果分类器不会把它误认成具名不变量反例，不能解释为本次启用了死锁检查。
 
-`node .../check-models.mjs --self-test` 检查日志解析器拒绝缺完成标记、未清空队列、伪零退出、缺状态数、错属性、错退出码、缺轨迹、死锁、超时和信号。正式执行同时调用这些自检。`summary.json` 的 `allExpectedResults` 仅表示各检查产生预期结果；`implementationConformance` 单列当前源码反例，不能用 runner 零退出报告产品通过。
+`node .../check-models.mjs --self-test` 检查日志解析器拒绝缺完成标记、未清空队列、伪零退出、缺状态数、错属性、错退出码、缺轨迹、死锁、超时和信号。正式执行同时调用这些自检。`summary.json` 的 `allExpectedResults` 仅表示各检查产生预期结果；`implementationConformance` 固定为 `not-established-by-this-run`，不能用 runner 零退出报告产品通过。
 
 ## 未覆盖范围
 

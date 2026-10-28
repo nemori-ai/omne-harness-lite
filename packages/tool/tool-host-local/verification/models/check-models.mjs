@@ -36,9 +36,9 @@ const cases = [
     'NoRetiredAdoption',
   ],
   [
-    'current-source',
+    'negative-forward',
     'EnvironmentPreparation',
-    'EnvironmentPreparation-current-source',
+    'EnvironmentPreparation-forward',
     'OriginalAdapterAtForward',
   ],
   [
@@ -360,14 +360,11 @@ async function main() {
     const log = readFileSync(logPath, 'utf8')
     summary.runs.push({
       name,
-      category:
-        name === 'current-source'
-          ? 'source-counterexample'
-          : name.startsWith('witness-')
-            ? 'reachability'
-            : expected
-              ? 'negative-control'
-              : 'safety',
+      category: name.startsWith('witness-')
+        ? 'reachability'
+        : expected
+          ? 'negative-control'
+          : 'safety',
       command: [java, ...args],
       model: { path: modelPath, sha256: hash(modelPath) },
       config: { path: configPath, sha256: hash(configPath) },
@@ -394,11 +391,9 @@ async function main() {
   summary.endedAt = new Date().toISOString()
   summary.allExpectedResults =
     summary.runs.length === selected.length && summary.runs.every(run => run.accepted)
-  summary.implementationConformance = summary.runs.some(
-    run => run.category === 'source-counterexample' && run.accepted,
-  )
-    ? 'counterexample-found'
-    : 'not-established-by-this-run'
+  // Model checking never establishes source refinement; the source correspondence is documented
+  // in README.md and checked by the host tests, not by this runner.
+  summary.implementationConformance = 'not-established-by-this-run'
   save()
   if (!summary.allExpectedResults) process.exitCode = 1
 }

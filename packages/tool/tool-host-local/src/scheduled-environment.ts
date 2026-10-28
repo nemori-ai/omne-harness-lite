@@ -178,6 +178,31 @@ export function createLocalScheduledEnvironment<P, E>(
     }
   }
 
+  /**
+   * The final original-adoption check of a path that resumed from an await: it runs synchronously,
+   * so nothing can replace the adapter between it and the forward that follows. `null` means the
+   * forward may go ahead; a failure is the reply, after `onFailure` ran (before any diagnostic wait).
+   */
+  const adoptionGuard = (
+    request: EnvironmentPreparationInput<P>,
+    onFailure: () => void,
+  ): Reply<never> | null => {
+    try {
+      if (matches(request.preparation.adoption)) return null
+    } catch (cause) {
+      onFailure()
+      return environmentDiagnostic(input.diagnostics, {
+        stage: 'qualify',
+        tenant: request.tenant,
+        call: request.call,
+        operation: request.preparation.operation,
+        cause,
+      }).then(unavailable)
+    }
+    onFailure()
+    return Promise.resolve(unavailable('the original environment adapter is unavailable'))
+  }
+
   const attempt = async (
     entry: Entry<E>,
     work: () => Reply<PreparationProgress<E>>,
@@ -255,6 +280,10 @@ export function createLocalScheduledEnvironment<P, E>(
     const checked = await check(request)
     if ('failure' in checked) return checked
     if (entry.retired) return unavailable('the original preparation was retired')
+    const refused = adoptionGuard(checked.ok, () => {
+      if (!entry.sent) vacate(entry)
+    })
+    if (refused !== null) return refused
     return sendPreparation(entry, checked.ok)
   }
   const recall = (
@@ -319,11 +348,14 @@ export function createLocalScheduledEnvironment<P, E>(
         cancel: () => resolve(unavailable('the original preparation was released')),
         dispatch: () => {
           void run(entry, async () => {
-            const checked = await check(request, () => {
+            const unsent = () => {
               if (!entry.sent) vacate(entry)
-            })
+            }
+            const checked = await check(request, unsent)
             if ('failure' in checked) return checked
             if (entry.retired) return unavailable('the original preparation was retired')
+            const refused = adoptionGuard(checked.ok, unsent)
+            if (refused !== null) return refused
             return sendPreparation(entry, checked.ok)
           }).then(resolve)
         },
@@ -401,6 +433,8 @@ export function createLocalScheduledEnvironment<P, E>(
       return fail({ kind: 'conflict', operation: request.preparation.operation })
     // Inspection never dispatches queued work or performs acquisition/recognition.
     if (entry && !entry.occupied && entry.running !== null) return pending('preparation queued')
+    const refused = adoptionGuard(request, () => {})
+    if (refused !== null) return refused
     const result = await queryPreparation(request)
     if (entry && 'ok' in result && !entry.retired) observe(entry, result.ok)
     return result
