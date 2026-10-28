@@ -20,6 +20,7 @@ it('the testing entry exports the registration and G7 suites, their non-durable 
     'runConformanceCase',
     'runToolDynamicsSuite',
     'toolBindingRegistryConformance',
+    'toolLoaderSourceConformance',
     'toolRegistrationConformance',
     'toolResidencyReaderConformance',
   ])

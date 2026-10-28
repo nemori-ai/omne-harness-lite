@@ -49,6 +49,7 @@ export {
   type MemoryToolResultReceiver,
   type ToolResultReceiverFixture,
 } from './testing-result-receiver.ts'
+export { toolCredentialsConformance, type ToolCredentialsFixture } from './testing-credentials.ts'
 export {
   createMemoryToolEnvironment,
   environmentAnswers,

@@ -1,4 +1,4 @@
-// The single-machine Tool host exports the local start coordinator without importing Cordis.
+// Independent local host factories. This entry does not import Cordis.
 export {
   createLocalStartCoordinator,
   START_COORDINATOR_DOMAIN_KEY,
@@ -8,3 +8,20 @@ export {
   type LocalStartCoordinatorInput,
   type StartCoordinatorAccess,
 } from './start-coordinator.ts'
+export {
+  createLocalToolCredentials,
+  type LocalToolCredentialsInput,
+  type ToolCredentialAccess,
+  type ToolCredentialCapability,
+  type ToolCredentialReferences,
+  type ToolCredentialSecrets,
+} from './credentials.ts'
+export {
+  createLocalScheduledEnvironment,
+  type LocalScheduledEnvironmentInput,
+} from './scheduled-environment.ts'
+export type {
+  ToolEnvironmentSchedulingPolicy,
+  EnvironmentPreparationInput,
+  EnvironmentReleaseInput,
+} from './environment-policy.ts'

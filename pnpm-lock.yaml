@@ -1649,6 +1649,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result

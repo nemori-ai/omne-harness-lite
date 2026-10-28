@@ -17,6 +17,12 @@ export {
   decodeToolWaitId,
 } from './identity.ts'
 export type { CallAccess, Mutation } from './identity.ts'
+export type {
+  ToolCredentialFailure,
+  ToolCredentialRequest,
+  ToolCredentials,
+  ToolCredentialUsage,
+} from './credentials.ts'
 export {
   defaultResultPolicy,
   defaultResultPolicyAdoption,

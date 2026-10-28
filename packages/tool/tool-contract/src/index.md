@@ -13,6 +13,7 @@
 - [作者执行上下文](author-context.ts)。
 - [执行者与账本命令端口](execution.ts)。
 - [提供者端口与 runtime 工厂输入](ports.ts)。
+- [凭据端口](credentials.ts)与[实际绑定一致性套件](testing-credentials.ts)。
 - [定义、作者适配与独立消费](authoring.ts)。
 - [持久状态与协议记录](records.ts)。
 - [输出保管、持久读取与账目](custody.ts)。

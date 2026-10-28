@@ -1,5 +1,7 @@
 # tool-cordis-contract 公开接口
 
+`./testing` 的 `toolLoaderSourceConformance` 经公开 `loaderFor(authority)` / `load` 接缝观察设置读取来源。两名租户登记者使用同一官方或组织贡献时，每次读取仍须来自贡献所在层。缺 Loader 的夹具报告不适用。当前 [loader-source.spec.ts](../tests/loader-source.spec.ts) 只验证套件能识别正确替身与租户泄漏反例，不证明真实 Loader、设置 SDK 或 G7 已交付。
+
 根入口 `.` 不导出值。`./cordis` 由 [src/cordis.ts](../src/cordis.ts) 定义，源码是唯一定义，本页不手写签名。
 
 - 20 个抽象 Service 类与 1 个具体类 `ToolInstancesService`，共 21 个，另有 21 个键常量。`ToolStartFenceService`（键 `toolStartFence`）只投影 `ToolStartFence` 的 `invalidate`，与 `ToolStartAuthorityService` 由同一提供者兑现同一排序域。其中 `ToolContributionAuthorityService`（`verify`、`admits`）与 `ToolGenerationsService`（`ensureLoaded`、`unload`、`sweep`、`loaderFor`）来自 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md)；`ToolBindingsService` 另投影登记表的 `snapshot`、`pins`、`close`、`reopen`、`drain`。`VerifiedAuthority` 是带品牌的 `ToolAuthority`，没有运行时构造器，只由 `ToolContributionAuthority.verify` 的实现产出，普通 `ToolAuthority` 不能代替它。随它们导出的类型是 `VerifiedAuthority`、`ToolAuthorityFailure`、`ToolContributionAuthority`、`ToolLoadFailure`、`ToolLoadState`、`ToolUnloadState`、`ToolSweepReport`、`ToolGenerationsFailure` 与 `ToolGenerations`。

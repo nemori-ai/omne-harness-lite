@@ -199,6 +199,10 @@
 - `ToolContentReader` · `custody.d.ts`
 - `ToolContribution` · `authoring.d.ts`
 - `ToolContributionFailure` · `authoring.d.ts`
+- `ToolCredentialFailure` · `credentials.d.ts`
+- `ToolCredentialRequest` · `credentials.d.ts`
+- `ToolCredentialUsage` · `credentials.d.ts`
+- `ToolCredentials` · `credentials.d.ts`
 - `ToolDecisionBridge` · `ports.d.ts`
 - `ToolDirectory` · `operations.d.ts`
 - `ToolDriver` · `ports.d.ts`
@@ -323,6 +327,7 @@
 - `MemoryToolStartAuthority` · `testing-start-authority.d.ts`
 - `NotApplicable` · `testing-case.d.ts`
 - `ToolClockFixture` · `testing-clock.d.ts`
+- `ToolCredentialsFixture` · `testing-credentials.d.ts`
 - `ToolDecisionBridgeFixture` · `testing-decision-bridge.d.ts`
 - `ToolEnvironmentFixture` · `testing-environment.d.ts`
 - `ToolExecutorBindingFixture` · `testing-executor-binding.d.ts`
@@ -371,6 +376,7 @@
 - `testingTenant` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
+- `toolCredentialsConformance` · `testing-credentials.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
 - `toolExecutorBindingConformance` · `testing-executor-binding.d.ts`
@@ -875,6 +881,32 @@ export declare function evaluateToolAvailability(facts: AvailabilityFacts): Tool
 ```ts
 import { type BodyContract } from '@omne-harness/assets';
 export declare function toolBodyContract(): BodyContract;
+```
+
+## 声明文件 `credentials.d.ts`
+
+```ts
+import type { Outcome } from '@omne-harness/operation-result';
+import type { FixedToolRequest } from './definitions.ts';
+import type { Adoption, CallAccess } from './identity.ts';
+import type { ToolFailure } from './results.ts';
+export type ToolCredentialUsage = Readonly<{
+    adoption: Adoption;
+    purpose: string;
+    target: string;
+}>;
+export type ToolCredentialRequest<P> = CallAccess<P> & Readonly<{
+    request: FixedToolRequest;
+    usage: ToolCredentialUsage;
+}>;
+export type ToolCredentialFailure = Readonly<{
+    kind: 'missing';
+}> | Extract<ToolFailure, {
+    kind: 'denied' | 'invalid' | 'unavailable';
+}>;
+export interface ToolCredentials<P, C> {
+    resolve(input: ToolCredentialRequest<P>): Promise<Outcome<C, ToolCredentialFailure>>;
+}
 ```
 
 ## 声明文件 `custody.d.ts`
@@ -2261,6 +2293,7 @@ export { describedAdoption } from './adoption.ts';
 export type { AdoptionRules } from './adoption.ts';
 export { TOOL_IDENTITY_MAX_LENGTH, decodeToolCursor, decodeToolDeliveryId, decodeToolInstanceId, decodeToolResultVersion, decodeToolRevision, decodeToolWaitId, } from './identity.ts';
 export type { CallAccess, Mutation } from './identity.ts';
+export type { ToolCredentialFailure, ToolCredentialRequest, ToolCredentials, ToolCredentialUsage, } from './credentials.ts';
 export { defaultResultPolicy, defaultResultPolicyAdoption, defaultResultPolicyRules, } from './result-policy.ts';
 export { judgeImplementationFacts, judgeToolDefinition } from './judge-definition.ts';
 export { deriveDefinition, foldResident, planAdoption, refreshAvailability, sameBindingKey, sameShape, sameSourceLayer, shapeOf, } from './dynamics.ts';
@@ -3397,6 +3430,28 @@ export declare function createMemoryToolClock(): MemoryToolClock;
 export declare function memoryToolClockFixture(): ToolClockFixture;
 ```
 
+## 声明文件 `testing-credentials.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { ToolCredentialFailure, ToolCredentialRequest, ToolCredentials, ToolCredentialUsage } from './credentials.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface ToolCredentialsFixture<P, C> {
+    credentials: ToolCredentials<P, C>;
+    request: ToolCredentialRequest<P>;
+    otherTenant: TenantId;
+    replaceBinding(binding: ToolCredentialUsage & {
+        tenant: TenantId;
+    }): void;
+    failSelected(failure: ToolCredentialFailure): void;
+    sourcesRead(): readonly string[];
+    use(capability: C): Promise<Outcome<unknown, ToolCredentialFailure>>;
+    uses(): number;
+}
+export declare function toolCredentialsConformance<P, C>(): readonly ConformanceCase<ToolCredentialsFixture<P, C>>[];
+```
+
 ## 声明文件 `testing-decision-bridge.d.ts`
 
 ```ts
@@ -4058,6 +4113,7 @@ export { createMemoryAuthorizedToolStartAuthority, type MemoryAuthorizedToolStar
 export { memoryToolStartFenceFixture, toolStartFenceConformance, type ToolStartFenceFixture, } from './testing-start-fence.ts';
 export { memoryToolStartAuthorizationFixture, toolStartAuthorizationConformance, type ToolStartAuthorizationFixture, } from './testing-start-authorization.ts';
 export { createMemoryToolResultReceiver, memoryToolResultReceiverFixture, toolResultReceiverConformance, type MemoryToolResultReceiver, type ToolResultReceiverFixture, } from './testing-result-receiver.ts';
+export { toolCredentialsConformance, type ToolCredentialsFixture } from './testing-credentials.ts';
 export { createMemoryToolEnvironment, environmentAnswers, memoryToolEnvironmentFixture, toolEnvironmentConformance, type MemoryEnvironment, type MemoryToolEnvironment, type ToolEnvironmentFixture, } from './testing-environment.ts';
 export { completedFinal, createMemoryToolExecutorBinding, executorBindingAnswers, memoryToolExecutorBindingFixture, toolExecutorBindingConformance, type MemoryToolExecutorBinding, type ToolExecutorBindingFixture, } from './testing-executor-binding.ts';
 export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCustodyAnswers, toolOutputCustodyConformance, type MemoryToolOutputCustody, type ToolOutputCustodyFixture, } from './testing-output-custody.ts';

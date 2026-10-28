@@ -86,6 +86,7 @@
 - `ToolBindingRegistryFixture` · `testing.d.ts`
 - `ToolBindingRegistryService` · `testing.d.ts`
 - `ToolDynamicsFixture` · `testing.d.ts`
+- `ToolLoaderSourceFixture` · `testing.d.ts`
 - `ToolRegistrationFixture` · `testing.d.ts`
 - `ToolRegistrationGrant` · `testing.d.ts`
 - `ToolRegistrationService` · `testing.d.ts`
@@ -99,6 +100,7 @@
 - `runConformanceCase` · 包 `@omne-harness/tool-contract`
 - `runToolDynamicsSuite` · `testing.d.ts`
 - `toolBindingRegistryConformance` · `testing.d.ts`
+- `toolLoaderSourceConformance` · `testing.d.ts`
 - `toolRegistrationConformance` · `testing.d.ts`
 - `toolResidencyReaderConformance` · `testing.d.ts`
 
@@ -498,10 +500,19 @@ export {};
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
-import { type Access, type DurableEvidence } from '@omne-harness/tool-contract';
-import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolLoadedRegistration } from '@omne-harness/tool-contract/provider';
+import { type Access, type DurableEvidence, type SourceLayer } from '@omne-harness/tool-contract';
+import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolLoadedRegistration, type ToolLoader } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
-import type { ToolAuthorityFailure, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+import type { ToolAuthorityFailure, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
+    readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>;
+    readonly authority: ToolAuthority;
+    readonly access: Access<P>;
+    readonly otherAccess: Access<P>;
+    readonly load: Omit<Parameters<ToolLoader<P, E, B>['load']>[0], keyof Access<P>>;
+    settingsReads(): readonly SourceLayer[];
+}
+export declare function toolLoaderSourceConformance<P, E, B extends ContentBlock>(): readonly ConformanceCase<ToolLoaderSourceFixture<P, E, B>>[];
 export type { AnswerModel, AnswerRow, ConformanceCase } from '@omne-harness/tool-contract/testing';
 export { NotApplicable, isNotApplicable, runConformanceCase, type CaseVerdict, } from '@omne-harness/tool-contract/testing';
 export interface ToolRegistrationService<P> {

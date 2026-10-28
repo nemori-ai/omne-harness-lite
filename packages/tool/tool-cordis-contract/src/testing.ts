@@ -34,6 +34,7 @@ import {
   type ToolContributionFailure,
   type ToolHandle,
   type ToolLoadedRegistration,
+  type ToolLoader,
 } from '@omne-harness/tool-contract/provider'
 import {
   finalAnswer,
@@ -45,6 +46,7 @@ import {
 } from '@omne-harness/tool-contract/testing'
 import type {
   ToolAuthorityFailure,
+  ToolGenerations,
   ToolResidencyReader,
   ToolResidencyReference,
   ToolRegistration,
@@ -52,6 +54,44 @@ import type {
   ToolRegistrationInput,
   VerifiedAuthority,
 } from './cordis.ts'
+
+/** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
+export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
+  readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>
+  readonly authority: ToolAuthority
+  readonly access: Access<P>
+  readonly otherAccess: Access<P>
+  readonly load: Omit<Parameters<ToolLoader<P, E, B>['load']>[0], keyof Access<P>>
+  settingsReads(): readonly SourceLayer[]
+}
+
+/** The fixture supplies an official or organization contribution and two authorized registrants. */
+export function toolLoaderSourceConformance<
+  P,
+  E,
+  B extends ContentBlock,
+>(): readonly ConformanceCase<ToolLoaderSourceFixture<P, E, B>>[] {
+  return [
+    {
+      clause: 'P15',
+      name: 'shared loading reads the contribution source, independently of the registrant tenant',
+      async run(fixture) {
+        if (!fixture.generations) throw new NotApplicable('loaderFor')
+        assert.ok(['official', 'organization'].includes(fixture.authority.layer.kind))
+        assert.notDeepEqual(fixture.access.tenant, fixture.otherAccess.tenant)
+        const loader = fixture.generations.loaderFor(fixture.authority)
+        const before = fixture.settingsReads().length
+        for (const access of [fixture.access, fixture.otherAccess]) {
+          const result = await loader.load({ ...fixture.load, ...access })
+          assert.ok('ok' in result)
+        }
+        const reads = fixture.settingsReads().slice(before)
+        assert.ok(reads.length > 0, 'observe an actual settings read through load')
+        assert.ok(reads.every(source => sameSourceLayer(source, fixture.authority.layer)))
+      },
+    },
+  ]
+}
 
 export type { AnswerModel, AnswerRow, ConformanceCase } from '@omne-harness/tool-contract/testing'
 export {
