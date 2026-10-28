@@ -284,20 +284,44 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 
 ## 集成节点的清单
 
-本节拥有常驻 Reduce 与 Line 的协作责任。完整阶段、请求处理机、优先级和恢复 guard 归[负责人状态](map-reduce-states.md)。工具编码与可执行接口归[交付工具](../../tools/dev-flow/src/delivery/README.md)。技能负责动作顺序，模板只填写本次事实与引用。首次开工和恢复必须读状态正文，不能只凭图或上一条会话记忆继续。
+本节拥有常驻 Reduce 与 Line 的协作责任。阶段、恢复与组合不变式归[负责人状态](map-reduce-states.md)。工具编码与可执行接口归[交付工具](../../tools/dev-flow/src/delivery/README.md)。技能负责动作顺序，模板只填写本次事实与引用。首次开工和恢复先读本节与状态正文，不只凭图或上一条会话记忆继续。
 
-同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、消费者迁移、跨域实现与联调、集成冲突及交出后的问题。Line 是跨波持续的本域会话，只负责获准本域本波的细化、实现和验证；不是路径归属表里的交付线。内部 map 节点持有一次节点任务，不替代常驻 Line。轨道写入单写，接收与监督持续运行。
+同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、消费者迁移、跨域实现与联调、集成冲突及交回后的问题。Line 是跨波持续的本域会话，只负责获准本域本波的细化、实现和验证。Line 不是路径归属表里的交付线。内部 map 节点持有一次节点任务，不替代常驻 Line。轨道写入单写，Reduce 的等待持续挂起。
 
-- 收口点 F 是实际读回的联调提交，波以当前正式 R(w) 为界。
-- 线父卡承载线包、连续 delta、状态和批次交接。线包引用 binding，branch/taskBase/写范围不得手抄成第二份权威。
-- 卡在线内顺序合入批次，批次承载本线本波结果。ready、blocked、failed 都必须交出明确结果；零差异不造空 PR。
-- 交出登记、实际合入、本波接受和整波放行分别读回。Action 成功、PR ready、单卡接受和队列暂空都不能代替其中任何一步。
+- 收口点 F 是实际读回的联调提交。波以当前收口卡 R(w) 为界。
+- 线父卡承载线包、delta 和交回记录。线包引用 binding，branch、taskBase 与写范围不得手抄成第二份权威。
+- 卡在线内顺序合入批次，批次承载本线本波结果。ready、blocked、failed 都必须交回明确结果。零差异不造空 PR。
+- 交回、实际合入和整波放行分别核对。PR ready、单卡接受和队列暂空都不能代替其中任何一步。
 
 ### 线会话记录
 
-线父卡承载 `line-delta` 与 `line-state`。Reduce 发布连续 delta，Line 只在开工或有效 release 后消费并写回 state。工具核对作者权限、binding、修订、前项与引用闭包；普通评论和 HTML 标记不能授予放行。记录格式和读写命令归[交付工具](../../tools/dev-flow/src/delivery/README.md)，状态与恢复规则归[负责人状态](map-reduce-states.md)。
+线父卡上有两种协作记录。Reduce 发布 delta，Line 发布交回记录。两种记录都是人读评论。评论第一行是标记：delta 用 `<!-- line-delta -->`，交回记录用 `<!-- line-handoff -->`。等待命令按这个标记发现评论。普通评论和没有标记的评论不授予开工或放行。
 
-delta 传达已登记事实，不登记 attempt，也不改写在途卡的 taskBase。state 保存已消费位置及恢复所需事实。恢复时先核对当前执行、写权与可信 state，再按序补读，不能在波内逐卡吸收新的输入。技能与信息包消费上述唯一协议，不另立记录格式。
+两种记录的正文都写下列固定项：
+
+| 项 | delta | 交回记录 |
+| --- | --- | --- |
+| 波 | 本条 delta 指向的波 | 本次交回的波 |
+| F | 下一次开工的收口点 | 本次执行所基于的收口点 |
+| assignment 或结果 | active、idle、redo 或 terminal，及其依据 | ready、blocked 或 failed |
+| 任务与 binding 链接 | 任务卡及卡上的 binding。idle 与 terminal 写「无」 | 任务卡、卡上的交接报告评论、PR 或「无 PR」 |
+| 变化 | 本波变化、外域变化、消费者迁移、工具与技能版本变化 | 已完成部分、未完成部分及原因 |
+| 等待 | Line 下一步等待的对象 | 本线交回后挂起的等待命令 |
+
+assignment 的含义：
+
+- active：下一波有任务。Line 从 F 建新批次分支，按任务卡开工。
+- idle：下一波轮空。delta 写明原因。Line 不建任务分支，不交空 PR，继续等待下一条 delta。
+- redo：同一波重做。Reduce 已更正输入，并在任务卡上登记了新 attempt。Line 按新 binding 重新开工。redo 不推进波号。
+- terminal：本线结束。Line 交最终报告后停止。只有 terminal 结束本线。
+
+delta 传达已核对的事实，不改写在途卡的 taskBase。新 attempt 由派发命令登记在任务卡上，delta 只引用它。Line 按发布顺序逐条读取 delta，不跳过 idle delta。Line 不在波内逐卡吸收新的输入。技能与信息包消费本节的记录格式，不另立格式。
+
+### 可选：多方协作的机读记录
+
+多方或跨组织协作时，可以启用机读协作记录与相应命令。这些记录包括写集 scope 区块、epoch、责任声明、facts、line-assignment 与 integration-request。相应命令包括 reduce 的 claim、record、release 与 supervise。记录格式、校验与命令用法归[交付工具](../../tools/dev-flow/src/delivery/README.md)。
+
+单负责人协作不要求这些记录。启用后，工具的校验结果是附加条件，不取消本节的人读记录、不变量和收口顺序。
 
 ### 不变量
 
@@ -348,43 +372,55 @@ Reduce 以里程碑的可验证进展、端到端完成时间和反馈时延为�
 
 ### 线怎样工作
 
-开工边界读回有效 binding、线包、连续 delta、唯一 attempt、模型策略和真实等待目标。通过状态正文的 StartReady 才从 F 建批次分支。波内按队列自主实现、验证与评审，局部细节在授权内决定，不吸收新评论或新设计。
+Line 的生命周期有五个阶段：
 
-发现共享物、权限或全局决定缺口，先暂停依赖项并继续无依赖工作。无工作可继续或达到约定结束条件时结束本次执行，固定候选和五节报告，经统一 submit 交 blocked/failed，并停写。没有远端通路则保存本机非成功交接文件并打开供人带回，不声称登记成功。
+1. 开工。Line 读首次消息或最新 delta，取得身份、长程目标、方法地图、当前分工和 F。binding 齐全且任务卡开放，Line 就可以开工。事件接收器的健康状态和自检结果不阻止开工。
+2. 执行。Line 逐卡按 `claim` 技能推进。波内自主实现、验证与评审，局部细节在授权内决定。Line 不吸收新评论或新设计。
+3. 交回。本线本波工作完成或无法继续时，Line 交回。交回物是本线本波的 PR、每张卡上的五节交接报告和线父卡上的一条交回记录。零差异时没有 PR。交接报告的五节归 `claim` 技能的[任务包](../../.meta_harness/agents/skills/claim/canonical/references/task-pack.md)。发布交回记录后，Line 停写。
+4. 等待。Line 用一条低层等待命令等线父卡上的下一条 delta，例如 `wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间>`。等待期间，Line 阻塞在等待命令上，不结束会话回合。等待命令超时后，Line 用同一 `--since` 重跑。等待命令失败时，Line 记录失败状态，然后等人转告。
+5. 终态。只有明确的 terminal delta 结束本线。Line 交最终报告后停止。预案中没有未来任务、任务列表为空或等待超时都不等于终态。
 
-ready 登记后等当前 R(w) 的有效 release。blocked/failed 登记后先等匹配 requestId/旧 attempt 的有效 disposition。takeover/rescope 由 reduce 接管，Line 保存责任变更后回等当前收口。只有旧执行停止、写权交接读回、新 attempt 获准、完整新输入可执行时，显式 redispatch 才允许同波重新准备；不能恢复旧执行或凭普通评论返工。
+遇阻时，Line 先暂停依赖项，继续无依赖工作。无工作可继续时，Line 用同一个交回入口交 blocked 或 failed。交回记录写明原因和已完成部分。然后 Line 停写。Line 不向人提问，也不用普通评论向 reduce 求方案。
 
-每次正常 release 都按序消费本线 delta 并写回 state。active 从最终 F 建新分支，不重放旧补丁；idle 不建任务卡或空 PR，保存原因并立即重挂真实直接后继；只有明确 terminal 才最终交接。nextHint 未知、预案中无未来任务或任务列表空不等于终态。恢复逐条补读，不跳过轮空收口。
+Reduce 对 blocked 或 failed 有两种处置。第一种是发一条 redo delta：Reduce 先更正输入并登记新 attempt，Line 读到后按新 binding 同波重做。第二种是 Reduce 接管剩余工作：Line 继续等待下一条 delta。处置不需要另写认领、替代或处置记录。Line 不恢复旧执行，也不凭普通评论返工。
+
+没有远端通路时，Line 在本机保存交回记录，并打开供人带回。Line 不声称交回记录已发布。恢复时，Line 读线父卡上最后一条 delta 和自己最后一条交回记录，判断所处阶段。已交回的 Line 回到等待，不重开代码写入。
 
 ### 集成节点怎样工作
 
-1. 准备当前正式波及 R(w)，只预规划后一波，不预建更远卡。核对已接受依据、基线、写集求交与读写交叉（在收口点的检出上运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件> <读集文件>...`：退出 1 表示有写集交集或产品语义读写交叉，改分解；退出 0 时逐条复核标准错误中的 `read-overlap-frozen:` 行，写进线包的交叉检查结果）、消费者影响、参加交付和全部存续线清单、期限、两宿主角色策略及接收资源。
-2. 持续接收 ready/blocked/failed，完整分页对账并按状态规则选下一可处理项。只读 next 不取得写权。通过 claim 读回 owner/epoch 后接管一个请求，保留原始 head、候选 head、targetBase 和 merge 链。
+1. 准备当前正式波及 R(w)，只预规划后一波，不预建更远卡。核对已接受依据、基线、写集求交与读写交叉（在收口点的检出上运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件> <读集文件>...`：退出 1 表示有写集交集或产品语义读写交叉，改分解；退出 0 时逐条复核标准错误中的 `read-overlap-frozen:` 行，写进线包的交叉检查结果）、消费者影响、参加交付和全部存续线清单、期限及两宿主角色策略。
+2. 按[等待监督](#等待监督)挂起等待，接收批次 PR 与各线交回记录。一次接管一个批次 PR，保留原始 head、候选 head、targetBase 和 merge 链。blocked 或 failed 的交回按[线怎样工作](#线怎样工作)处置。
 3. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，持续收件。同步后先生成宿主投影并运行 `check:agents`，再执行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。候选或基线变动后重做受影响验证与独立评审。按既有权限发 gate，绑定精确 workflow/ref/head/runId/runAttempt。需要审批时交有权者，监督器不自动批准。以实际 PR/轨道读回记录 merged，回退使原结果重新未解决。
 4. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。任一 pending、未知副作用、未解决失败或失效证据都阻止收口。检查失败由 reduce 处置；不把失败标红后仍当成功放行。
-5. 按下文固定顺序物化后继、发布所有存续线 delta、有权接受、最终 release、关闭。轨道提升和 stable 权限仍沿本页原规则。
+5. 按[接受与逐收口续接](#接受与逐收口续接)的顺序建后继、发布全部存续线 delta、关闭收口卡。轨道提升和 stable 权限仍沿本页原规则。
 
 ### 冲突即退回分解
 
-此标题保留为既有链接入口。分解错误不再触发常规 line-return 修复路径。Reduce 接管后负责全部集成冲突、跨域修改、消费者迁移及改后验证，不能只处理 shared 冲突。记录冲突文件、责任和对下一波分解的影响。确需 Line 同波再执行时必须走显式 disposition 和新 attempt 的全部 guard。
+此标题保留为既有链接入口。分解错误不触发常规退回 Line 修复的路径。Reduce 接管后负责全部集成冲突、跨域修改、消费者迁移及改后验证，不能只处理 shared 冲突。记录冲突文件、责任和对下一波分解的影响。确需 Line 同波再执行时，Reduce 登记新 attempt 并发 redo delta。
 
 ### 失败处理
 
 | 情形 | 处置与禁止动作 |
 | --- | --- |
-| Line 硬阻塞或失败 | 非成功交接后停写，reduce 接管；不等普通问答 |
-| 非成功结果收到 | 记录 takeover、redispatch 或有权 rescope 并读回；处置发布本身不等于问题解决 |
-| 候选冲突、越界、准入失败 | Reduce 冻结发布并修复或获得范围决定，验证当前候选；不自动退回旧 attempt |
-| 未到约定期限或远机沉默 | 保留 pending/unknown，不能推断失联或跳过结果 |
-| 期限届满 | 核对事实，在 reduce 决定等待、重排或取消；范围变化具名，不伪装成功 |
-| 写入/合并/发布响应丢失 | 持久保存同一 operationId，先读回恢复；未知不重复 POST 或 merge |
-| 接收器、权限、游标或日志故障 | 明确诊断，保存队列，冻结受影响操作并恢复，不报告空队列成功 |
+| Line 硬阻塞或失败 | Line 交回 blocked 或 failed 后停写。Reduce 发 redo delta 或接管，不等普通问答 |
+| 候选冲突、越界、准入失败 | Reduce 冻结发布并修复或获得范围决定，验证当前候选。不自动退回旧 attempt |
+| 未到约定期限或远机沉默 | 保留 pending 或 unknown，不能推断失联或跳过结果 |
+| 期限届满 | 核对事实，由 reduce 决定等待、重排或取消。范围变化具名，不伪装成功 |
+| 写入、合并或发布的响应丢失 | 保存原操作输入，先读回实际结果再决定。结果未知时不重复 POST 或 merge |
+| 等待命令、权限或事件文件故障 | 明确诊断并恢复。Line 记录状态后等人转告。Reduce 恢复后先对账，不报告空队列成功 |
 
 ### 接受与逐收口续接
 
-接受顺序必须是：验证本波成果，调整后一波预案；继续推进时创建并读回下一波任务与真实 R(w+1)，有权终态时读回终态决定且不建虚构后继；发布并读回所有存续线父卡 delta，继续推进时检查下一输入齐备，终态时检查全线 terminal delta 齐备；有权接受并读回 R(w)，发布并读回最终 ReleaseRecord，最后关闭并读回 R(w)。稳定操作身份、计划修订及 F 必须一致。任一存续线的 delta 缺失，或非终态后继无效，都不能接受。
+收口顺序固定：
 
-Delta 至少给出原候选到最终候选的变化与原因、外域变化、消费者迁移、最终 F、下一任务/验收、工具与策略版本、等待链、active/idle/terminal 及其依据。Line 逐个收口消费，不按未来参与预案跳波。正常 terminal 在有效 release 中明确发布；停止、取消、限定接受和完成分别记录。
+1. 在联调轨道头完成整波检查，见[集成节点怎样工作](#集成节点怎样工作)第 4 步。
+2. 按真实结果调整后一波预案。继续推进时，建下一波任务卡与收口卡 R(w+1)。里程碑终态时不建虚构后继。
+3. 为每条存续线在线父卡发布 delta，包括 idle 线。终态时为每条存续线发布 terminal delta。
+4. 关闭本波收口卡 R(w)。关闭 R(w) 即放行。
+
+任一存续线缺 delta，或非终态时缺后继收口卡，Reduce 都不能关闭 R(w)。各 delta 中的 F 与计划修订必须一致。收口卡按自身交付条件接受。本节不要求另写机读接受记录或 ReleaseRecord。
+
+delta 的变化项至少写原候选到最终候选的变化与原因、外域变化、消费者迁移和工具与技能版本变化。Line 逐条读取 delta，不按未来参与预案跳波。停止、取消、限定接受和完成分别写明。
 
 ### 提问前三问
 
@@ -392,20 +428,16 @@ Reduce 向人提设计或方案问题前先检查：是否当前里程碑所必�
 
 ### 等待监督
 
-| 信号类别 | 观察与返回 | Reduce 处置 |
-| --- | --- | --- |
-| 交接与积压 | 登记事件及完整分页中的 ready/blocked/failed | 接管未处理存量，不只收 PR |
-| 申请 Action | 精确 request/head/workflow/run/attempt 的完成、失败、取消、超时、重跑或缺回执 | 用原身份恢复，不把 run 成功当登记 |
-| 候选和目标轨道 | head/base/check/review/push、PR 关闭、合入或回退 | 冻结受影响发布，重验或恢复事实 |
-| 发布审批与合入 | gate、deployment、审批状态及 Git 读回 | 按权限处理，不自动批准 |
-| 自有子代理和检查 | tool-session/进程完成、异常、输出丢失、预算或期限 | 读取证据并限定处置 |
-| 接收监督基础设施 | 进程、连接、文件、游标、凭证及重复写者 | 明确报错并恢复 |
-| 预期项与期限 | 固定 roster、登记状态和本地定时器 | 到期核对并决定等待、重排或取消 |
-| 收口和后继就绪 | 接受、delta、ReleaseRecord、Issue 状态与写入回执 | 缺项/矛盾阻止放行，先 delta 后关闭 |
+Reduce 在波内挂两条等待，命令用法归[交付工具](../../tools/dev-flow/src/delivery/README.md#事件等待)：
 
-准备/收件阶段监控预期交接、运行和基础设施；集成增加候选、验证、发布与审批；收口增加接受与后继一致性。处理一项时其他信号仍持久落盘，先排空积压再等待。next 不可单独阻塞而遮蔽 supervise 的其他信号。接收游标与已处置位置分开。
+- 批次 PR：`wait-cli.ts pr-ready --base <联调轨道>`。处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂。
+- 交回记录：`wait-cli.ts any --comment <线父卡>:line-handoff ...`。每条参加线写一个 `--comment`。
 
-本机健康默认每 5 秒检查，期限由输入明确给出。GitHub 变化以事件驱动，在启动、重连、相应事件或显式恢复时有界对账；仅已登记活动 run/审批可有界轮询。阶段结束撤销对应检查，不周期扫描所有 Issue/PR/评论或 Line 进度。父 tool-session 观察监督器自身退出。普通问答评论与波中 Line 心跳不属于依赖。远机未暴露进程保持未知。
+命中后先处理，再从命中的 delivery id 用 `--since` 重挂。处理一项时，另一条等待保持挂起。
+
+Reduce 自己启动的对象由 Reduce 自己观察，包括 gate 运行与审批、子代理与检查进程，以及约定期限。审批交有权者，Reduce 不自动批准。期限到达时，Reduce 核对事实并决定等待、重排或取消。
+
+等待命令只发现事件。Issue 关闭或评论命中不代表整波已放行。GitHub 变化以事件驱动，等待命令在启动时对账一次。Reduce 不周期扫描所有 Issue、PR、评论或 Line 进度。普通问答评论与波中 Line 心跳不属于依赖。远机未暴露的进程保持未知。
 
 ## Issue 与 Project 的配合
 
@@ -422,8 +454,8 @@ dev-flow 对平台的写入限于下列范围：
 - 看板日期与属性字段：`start` 新建 task context 后尽力写 Dispatched at、Line、Kind 与 Wave。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
 - Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
 - 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
-- 协作记录：申请命令触发已采用 workflow，由 workflow 校验并登记可信回执；授权写者发布 delta、state、claim、处置及请求结果记录。每次写入沿[协作记录合同](../../tools/dev-flow/src/delivery/SPEC.md#协作记录边界)核对权限、序号与持久操作身份。
-- 整波放行：Reduce 沿[接受顺序](#接受与逐收口续接)读回有权接受，发布最终 ReleaseRecord 后关闭 reduce 卡并读回。命令不授予接受权。
+- 可选的机读协作记录：只在[多方协作](#可选多方协作的机读记录)启用时写入。申请命令触发已采用 workflow，由 workflow 校验并登记可信回执。授权写者发布机读 delta、state、claim、处置及请求结果记录。每次写入沿[协作记录合同](../../tools/dev-flow/src/delivery/SPEC.md#协作记录边界)核对权限、序号与持久操作身份。人读的 delta 与交回记录是会话发布的普通评论，不属于本项。
+- 整波放行：Reduce 按[收口顺序](#接受与逐收口续接)关闭本波收口卡。启用机读记录时，`reduce release` 先发布 ReleaseRecord，再关闭收口卡。命令不授予接受权。
 - facts 与事件接入：按已采用部署触发 facts workflow；显式管理事件接收所需的仓库 hook。创建、恢复及清理由[工具安装与事件合同](../../tools/dev-flow/src/delivery/SPEC.md)约束，不从普通等待推断管理权。
 - 包发布：`release-run` 按[包发布运行合同](../../tools/dev-flow/src/integration/SPEC.md#包发布运行命令)触发 `gate-release.yml` 的 `github-gate` 运行，写前保存意图并读回精确运行。默认只观察；只有显式 `--approve --note FILE`、平台允许当前账号审批且本次授权有效时，才能批准 `npm-release`，不批准其他环境。包发布不构成整波 reduce 放行。
 - 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
