@@ -284,6 +284,6 @@ validate 必须有 `--rehearsal-evidence`，缺少时退出 2。证据先读 `sc
 
 证据里与消息命令都不匹配的项不使 validate 失败。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出，由 reduce 说明。
 
-工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN、FORWARDED_REPORTED 或 CLAIMED_READBACK。正式消息不改变 binding 的写范围或已有唯一执行。
+工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN 或 FORWARDED_REPORTED。正式消息不改变 binding 的写范围或已有唯一执行。
 
 验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更、子命令选项、五事实不混同，以及演练覆盖：缺证据、证据针对别的消息、缺命令、重复命令、空白差异、多余证据项、非 0 退出码、CommonMark 代码块边界、未闭合块和非 shell 块。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。

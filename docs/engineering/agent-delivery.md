@@ -73,7 +73,7 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 | 角色 | 阶段 | 可执行流程 |
 | --- | --- | --- |
 | 线会话（推进一条线的会话，跨波不换） | 开工 → 执行（按 `claim`）→ 交回（批次 PR 可为空、五节交接报告、线父卡交回记录，然后停写）→ 等待下一条 delta → active 开新波、idle 继续等待、redo 按新 attempt 重做、terminal 交最终报告 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md)；卡级动作用 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md)，状态归[负责人状态](map-reduce-states.md) |
-| 集成节点（兼调度者） | 同一里程碑同一会话负责 → 当前波正式建卡及后一波预案 → 首次消息生成、校验、演练并打开供人转发 → 用 `wait-cli` 盯批次 PR 与线父卡交回记录 → 接管批次 PR 与全局集成问题（blocked 交回发 redo delta 或接管）→ 验证成果 → 建后继卡并发布每条存续线的 delta → 关闭本波收口卡即放行 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md)、[`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md)；规则归[集成清单](integration.md#集成节点的清单) |
+| 集成节点（兼调度者） | 同一里程碑同一会话负责 → 当前波正式建卡及后一波预案 → 首次消息依次生成（render）、演练、校验（validate）并打开供人转发 → 用 `wait-cli` 盯批次 PR 与线父卡交回记录 → 接管批次 PR 与全局集成问题（blocked 交回发 redo delta 或接管）→ 验证成果 → 建后继卡并发布每条存续线的 delta → 收口卡按自身交付条件接受并读回 → 关闭本波收口卡即放行 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md)、[`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md)；规则归[集成清单](integration.md#集成节点的清单) |
 
 Line 波中按冻结输入自主执行，不向人提问、不通过普通评论向 reduce 求方案。缺口先停依赖项并继续独立工作；无工作可继续时交 blocked 或 failed 并停写，然后等待 reduce 的 redo delta 或下一条 delta。Line 读 delta 续接，等待命令只发现事件，整波放行以关闭收口卡为准。精确等待与恢复由固定工具帮助定义。
 

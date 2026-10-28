@@ -14,7 +14,7 @@ description: >
 | --- | --- | --- |
 | PREPARE | 1–4 | 当前波任务、收口卡 R(w) 与 F 已建并读回，写集求交通过 |
 | DISPATCH | 5–8 | 首次消息已演练、校验并打开供人转发，`integrate` 的等待已挂起 |
-| RELEASE_WAVE | 「放行」 | 全部存续线的 delta 已读回，R(w) 已关闭并读回 |
+| RELEASE_WAVE | 「放行」 | 全部存续线的 delta 已读回，R(w) 的接受决定已读回，R(w) 已关闭并读回 |
 
 ## 1. 整理需求，定位已有卡
 
@@ -69,11 +69,15 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
    - 长程目标：`milestone_close_condition`、`line_later_wave_plan`。
    - 方法：`line_work_kind`、`role_policy_ref`。
    - 分工：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。
-   - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_commands`、`line_state_path`、`final_report_ref`。
+   - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_health_command`、`line_state_path`、`final_report_ref`。
 
    分支、taskBase 与写范围只写 binding 的引用。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
+
+   命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
+
+   命令代码块从行首开始，不放进列表或引用。缩进 4 个以上空格的围栏不算代码块，validate 不要求其中的命令有演练证据。
 3. **生成。** render 写出 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md` 并返回 sha256。同修订相同字节复用文件。内容要变时用新修订。
-4. **演练。这一步不能跳过。** 在本机按目标机的同一布局运行首次消息和线包里的每条命令，包括交回命令、等待命令和接收器命令。演练不向生产卡发试验记录：发布类命令用不承载交付的演练卡。把每条命令的原文、实际运行的命令、退出码与输出摘要写进演练证据 JSON，`messageSha256` 取 render 返回值。格式归 `tools/dev-flow/src/delivery/README.md`「首次派发临时消息」。
+4. **演练。这一步不能跳过。** 在本机按目标机的同一布局运行首次消息和线包里的每条命令，包括交回命令、等待命令和接收器健康命令。健康命令用本机接收器演练同形命令。演练不向生产卡发试验记录：发布类命令用不承载交付的演练卡。把每条命令的原文、实际运行的命令、退出码与输出摘要写进演练证据 JSON，`messageSha256` 取 render 返回值。格式归 `tools/dev-flow/src/delivery/README.md`「首次派发临时消息」。
 5. **校验。** 带演练证据运行 validate。缺证据、证据针对另一份消息或有命令没有证据条目时，validate 退出 2。
    - 结果里的 `nonZeroExits` 逐条列出非 0 退出码。每一条都写说明进校验记录。带 `--timeout` 的等待命令演练时退出 3 是预期结果。其他非 0 退出表示命令有错：改输入，用新修订重新 render，重新演练。
    - validate 只给 STRUCTURE_CHECKED。它不证明命令输出正确，也不等于 VALIDATED。按返回的 `remainingGuards` 逐项核对：读回 binding 与 attempt，核对目标机上的固定材料、当前收口卡与等待对象、角色策略和权限，检查秘密与矛盾副本。逐项保存证据后才记录 VALIDATED。常见格式扫描不能证明没有其他秘密。
@@ -91,10 +95,11 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继。
 2. 为每条存续线写一条 delta，idle 线也写。正文按 `.meta_harness/human/map-reduce-delivery/templates/line-delta.md`，首行是 `<!-- line-delta -->`，固定项归「线会话记录」。终态时每条存续线都发 terminal delta。
-3. 用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，然后读回这条评论，核对首行标记、F 与计划修订。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
-4. 全部存续线的 delta 都已读回，各条的 F 与计划修订一致，非终态时 R(w+1) 已建，才关闭 R(w) 并读回关闭状态。关闭 R(w) 就是放行。
+3. 用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，然后读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
+4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
+5. 关闭 R(w)，读回关闭状态。关闭 R(w) 是放行动作。
 
-任一存续线缺 delta，或非终态时缺后继收口卡，都不关闭 R(w)。单卡接受和关闭事件不能代替整波放行。
+任一存续线缺 delta，非终态时缺后继收口卡，或 R(w) 的接受决定没有读回，都不关闭 R(w)。单卡接受和只观察到的 closed 事件都不能代替整波放行。
 
 ## 恢复
 

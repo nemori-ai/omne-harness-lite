@@ -10,7 +10,7 @@
 
 ## 2 滚动规划与逐收口等待
 
-R(w) 是当前波 w 的收口卡，F(w) 是它的最终基线。总波数不必预先固定。当前波及 R(w) 已建卡。后一波只保留可调整预案，不预建交付卡或 R(w+1)。本波成果收齐并验证后，Reduce 按实际结果调整预案，建下一波卡与 R(w+1)，为全部存续线发布 delta，再关闭 R(w)。更远路线图不授予开工权限。
+R(w) 是当前波 w 的收口卡，F(w) 是它的最终基线。总波数不必预先固定。当前波及 R(w) 已建卡。后一波只保留可调整预案，不预建交付卡或 R(w+1)。本波成果收齐并验证后，Reduce 按实际结果调整预案，建下一波卡与 R(w+1)，为全部存续线发布 delta。然后 R(w) 按自身交付条件接受并读回，Reduce 再关闭 R(w)。关闭 R(w) 是放行动作，只观察到 closed 事件不等于放行。更远路线图不授予开工权限。
 
 ```text
 assignment(l) ∈ {active, idle, redo, terminal}
@@ -47,6 +47,7 @@ stateDiagram-v2
     VERIFY_WAVE --> SERVE: 检查失败或候选变化
     VERIFY_WAVE --> RELEASE_WAVE: 整波检查通过
     RELEASE_WAVE --> SERVE: R(w)已关闭且仍有后续波
+    RELEASE_WAVE --> DISPATCH: R(w)已关闭且下一波有新线加入
     RELEASE_WAVE --> FINALIZE: 最后一波已关闭
     FINALIZE --> DONE: 最终报告和接受齐备
     DONE --> [*]
@@ -54,11 +55,11 @@ stateDiagram-v2
 
 | 阶段 | Reduce 的动作 | 离开条件 |
 | --- | --- | --- |
-| PREPARE | 备齐目标、设计、边界和首波输入。用 `scope-cli` 求交，写集相交或产品语义读写交叉时改分解。经[提问前三问](integration.md#提问前三问)处理必要分歧 | 首波任务、R1 与 F0 已建，首次消息已生成并通过派发校验，进入 DISPATCH。必要输入缺失且不能自主决定时留在 PREPARE，只把真实决定交人 |
-| DISPATCH | 打开首次消息供人转发，挂起[等待](integration.md#等待监督) | 消息已展示且等待已挂起，进入 SERVE。「已展示」不是「人已转发」，更不是「Line 已开工」 |
+| PREPARE | 备齐目标、设计、边界和首波输入。用 `scope-cli` 求交，写集相交或产品语义读写交叉时改分解。经[提问前三问](integration.md#提问前三问)处理必要分歧 | 首波任务、R1 与 F0 已建并读回，写集求交通过，进入 DISPATCH。必要输入缺失且不能自主决定时留在 PREPARE，只把真实决定交人 |
+| DISPATCH | 按第 6 节依次生成、演练、校验首次消息，再打开供人转发。挂起[等待](integration.md#等待监督) | 消息已展示且等待已挂起，进入 SERVE。「已展示」不是「人已转发」，更不是「Line 已开工」 |
 | SERVE | 逐个处理批次 PR 与交回记录。blocked 或 failed 交回时发 redo delta 或接管 | WaveReady 成立且没有进行中的轨道写入，进入 VERIFY_WAVE |
 | VERIFY_WAVE | 在联调轨道头运行整波检查与里程碑联调命令 | 通过后进入 RELEASE_WAVE。检查失败或候选变化时回 SERVE，旧证据失效 |
-| RELEASE_WAVE | 按[收口顺序](integration.md#接受与逐收口续接)建下一波卡与 R(w+1)，发布全部存续线 delta，关闭 R(w) | R(w) 已关闭且有后续波时回 SERVE，w 加 1，F 取 F(w)。最后一波关闭后进入 FINALIZE |
+| RELEASE_WAVE | 按[收口顺序](integration.md#接受与逐收口续接)建下一波卡与 R(w+1)，发布全部存续线 delta，接受并读回 R(w)，关闭 R(w) | R(w) 已关闭且有后续波时回 SERVE，w 加 1，F 取 F(w)。下一波有新线加入时进入 DISPATCH，为新线生成首次消息。最后一波关闭后进入 FINALIZE |
 | FINALIZE | 收各线最终报告，核对里程碑结束条件 | 齐备后进入 DONE。仍有未交项时继续等待既定期限，不伪造完成 |
 | DONE | 只对账和诊断 | 新的里程碑另建工作实例，不复活旧写权 |
 
@@ -69,7 +70,7 @@ resolved(l,w) = 本线本波结果已合入且证据适用
 WaveReady = (∀l ∈ 本波参加线: resolved(l,w))
             ∧ Reduce 自有工作完成 ∧ 无未决集成缺陷 ∧ 无未知写入
 
-ReleaseReady = WaveReady ∧ 整波检查通过
+ReleaseReady = WaveReady ∧ 整波检查通过 ∧ R(w) 的接受决定已读回
                ∧ ((下一波卡与 R(w+1) 已建 ∧ 每条存续线已有 delta)
                   OR (有权终态 ∧ 每条存续线已有 terminal delta))
 ```
@@ -106,7 +107,7 @@ stateDiagram-v2
 
 | 阶段 | Line 的动作 | 离开条件 |
 | --- | --- | --- |
-| 开工 | 读首次消息或最新 delta，取得身份、长程目标、方法地图、当前分工和 F。核对任务卡上的 binding | active 或 redo：binding 齐全且任务卡开放，进入执行。事件接收器的健康状态和自检结果不阻止开工。idle：进入等待 |
+| 开工 | 从首次消息取得身份、长程目标、方法地图与分工，从 delta 取得 F 与本波 assignment。核对任务卡上的 binding | active 或 redo：binding 齐全且任务卡开放，进入执行。事件接收器的健康状态和自检结果不阻止开工。idle：进入等待。输入缺失且无法自主解决：进入交回，结果为 blocked |
 | 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审 | 本波完成，或无工作可继续，进入交回 |
 | 交回 | 开 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录 | 交回记录已发布，Line 停写，进入等待 |
 | 等待 | 用低层等待命令等线父卡上的下一条 `line-delta`，不结束会话回合 | 按 delta 的 assignment 转移。超时后用同一起点重跑。等待命令失败时，Line 记录状态，等人转告 |
@@ -146,7 +147,7 @@ Reduce 收到 blocked 或 failed 后，核对事实和剩余责任，继续处�
 | I02 | 写权在交回时转移。Line 发布交回记录后停写，Reduce 才接管候选 | Line 交回后继续推送，或 Reduce 与 Line 同时写同一候选 |
 | I03 | Reduce 的等待不中断，轨道写入单写 | 处理 A 时丢 B，或两个候选同时写轨道 |
 | I04 | 交回、合入和整波放行分开 | 交回即开下一波，或 PR ready 即记合入 |
-| I05 | 下一波卡和全部存续线 delta 先于关闭 R(w) | 先关闭后补 delta，或漏发 idle 线 |
+| I05 | 下一波卡、全部存续线 delta 和 R(w) 的接受读回先于关闭 R(w) | 先关闭后补 delta，漏发 idle 线，或未接受就关闭 R(w) |
 | I06 | idle 线继续订阅 | 因本波没有任务而停止等待 |
 | I07 | 只有明确的 terminal delta 结束本线 | 因空队列、未建后继卡或等待超时而停止 |
 | I08 | 原候选、reduce 候选、验证基线和合入提交可追溯 | 修改 head 后复用不适用的旧证据 |
@@ -169,7 +170,7 @@ DispatchReady = authorizedAndBound ∧ prerequisitesKnown
                 ∧ everyCommandRehearsedOnSameLayout
                 ∧ allRequiredFieldsFilled ∧ noSecrets ∧ noContradictoryCopies
 
-GENERATED → VALIDATED → OPENED_FOR_HUMAN → FORWARDED_REPORTED → CLAIMED_READBACK
+GENERATED → REHEARSED → STRUCTURE_CHECKED → VALIDATED → OPENED_FOR_HUMAN → FORWARDED_REPORTED
 ```
 
 `everyCommandRehearsedOnSameLayout` 指消息里的每条命令都已在本机按目标机的同一布局运行，输出已附进校验记录。
@@ -178,15 +179,18 @@ GENERATED → VALIDATED → OPENED_FOR_HUMAN → FORWARDED_REPORTED → CLAIMED_
 
 | 派发状态 | 成立条件 | 不能声称的事实 |
 | --- | --- | --- |
-| GENERATED | 临时文件写入成功 | 内容已就绪或已给人看 |
-| VALIDATED | DispatchReady 全部成立，版本和摘要固定 | 已转发 |
+| GENERATED | render 写出临时文件并返回 sha256 | 内容已就绪或已给人看 |
+| REHEARSED | 消息里的每条命令已在本机同布局运行，演练证据针对这份消息的 sha256 | 命令输出正确 |
+| STRUCTURE_CHECKED | validate 带演练证据通过 | 剩余 guard 已核对 |
+| VALIDATED | DispatchReady 全部成立，Reduce 已逐项核对剩余 guard，版本和摘要固定 | 已转发 |
 | OPENED_FOR_HUMAN | 侧边栏或 IDE 打开操作成功。queued 单列为等待展示 | 人已读或已转发 |
-| FORWARDED_REPORTED | 人在 reduce 会话说已转发，或有可信投递记录 | Line 已开工 |
-| CLAIMED_READBACK | active 线的首张任务卡已认领并读回。idle 线停在 FORWARDED_REPORTED | 任意任务已完成 |
+| FORWARDED_REPORTED | 人在 reduce 会话说已转发 | Line 已开工 |
+
+FORWARDED_REPORTED 是派发链的最后一个状态。Line 开工后的进展由交回记录与批次 PR 体现，Reduce 不另读回认领。
 
 人将文件正文原样复制到目标 Line 会话。Reduce 不自动给其他会话发消息，也不替人创建新的目标会话。需要改内容时，Reduce 重新生成新修订，不让转发者补缺字段或现场设计。公开材料使用目标机器可访问的精确提交链接。本机路径只用于该机器的运行绑定，不能伪装成跨机可读资料。频道 URL 和令牌只引用本机配置位置。
 
-旧修订在首次认领前可被新修订替代，接收端核对有效版本。认领后的重复转发只接续同一执行。消息正文不授予 binding 未包含的权限。
+Line 开工前，Reduce 可以用新修订替代旧修订，并告诉人只转发新修订。Line 开工后，重复转发只接续同一执行。消息正文不授予 binding 未包含的权限。
 
 ## 7 转移验收场景
 

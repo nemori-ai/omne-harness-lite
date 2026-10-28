@@ -36,7 +36,7 @@ description: >
 
 ## 命令
 
-首次消息与线包给出本线实际的交回命令、等待命令和接收器命令，派发前已在同布局演练。参数与退出码归 `tools/dev-flow/src/delivery/README.md`「事件等待」。命令形式如下：
+首次消息与线包给出本线实际的交回命令、等待命令和接收器健康命令，派发前已在同布局演练。接收器的启动方法、命令参数与退出码归 `tools/dev-flow/src/delivery/README.md`「事件等待」。命令形式如下：
 
 ```sh
 gh issue comment <线父卡> --repo <owner/name> --body-file <交回记录文件>

@@ -304,6 +304,6 @@ export function validateInitialDispatch(
       .filter(entry => entry.exitCode !== 0)
       .map(entry => ({ command: entry.command, exitCode: entry.exitCode })),
     remainingGuards: INITIAL_DISPATCH_REMAINING_GUARDS,
-    next: 'The reduce owner must verify every remaining guard before recording VALIDATED. Open through the host UI only after that. Opening, human forwarding and claim readback are separate facts.',
+    next: 'The reduce owner must verify every remaining guard before recording VALIDATED. Open through the host UI only after that. Opening and human forwarding are separate facts.',
   }
 }

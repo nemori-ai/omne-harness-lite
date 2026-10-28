@@ -47,7 +47,7 @@ const COMMAND_FIELDS = [
   'prepare_commands',
   'handoff_post_command',
   'wait_command',
-  'events_receiver_commands',
+  'events_receiver_health_command',
 ] as const
 
 type EvidenceOptions = {
@@ -147,7 +147,7 @@ describe('initial dispatch materialization without implicit authority', () => {
     expect(result.extraEntries).toEqual([])
     expect(result.nonZeroExits).toEqual([])
     expect(result.remainingGuards).toHaveLength(4)
-    expect(result.next).toContain('Opening, human forwarding and claim readback are separate facts')
+    expect(result.next).toContain('Opening and human forwarding are separate facts')
   })
   it('rejects modified generated output', () => {
     const f = fixture()

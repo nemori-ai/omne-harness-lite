@@ -32,4 +32,4 @@ Reduce 在线父卡上为每条存续线发布 delta，idle 线也发。delta �
 - redo：reduce 先更正输入，在任务卡上登记新 attempt，再发 redo。redo 不推进波号。
 - terminal：写明完成、限定接受或取消，及最终报告的入口。空队列不能推断为 terminal。
 
-各 delta 的 F 与计划修订必须一致。Line 按发布顺序逐条读取，不跳过 idle delta。
+同一次收口的各 delta 的 F 必须一致。Line 按发布顺序逐条读取，不跳过 idle delta。

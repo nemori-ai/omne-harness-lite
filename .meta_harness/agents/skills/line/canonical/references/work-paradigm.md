@@ -40,7 +40,7 @@
 | 设计模块、核类型外承诺 | Matt `codebase-design`；pstack `architect` | 不变量、失败、配置与性能承诺 |
 | 写 TypeScript | `pstack:typescript-best-practices` | `docs/architecture/layers-and-dependencies.md` |
 | 定位缺陷 | Matt `diagnosing-bugs`（按需）；pstack bug-fix playbook | 先便宜复现，再怀疑环境（P6） |
-| 评审 | `review-code`、`review-docs`、`review-delivery`；Matt `code-review` 分开判 Standards 与 Spec | 力度按 `quality.md` 风险级别：L0、L1 不派实现评审，L3 逐行读热点 |
+| 评审 | `review-code`、`review-docs`、`review-delivery`；Matt `code-review` 分开判 Standards 与 Spec | 力度按 `quality.md` 风险级别。实现评审在 L2、L3 才派（`implementation-reviewer` 角色定义） |
 | 写文档与报告 | `asd-ste100`；`pstack:technical-writing`、`pstack:unslop` | 保留事实、条件与置信度 |
 | 写给子代理的简报 | Matt `writing-for-agents` | 只给指针、写明完成与停止条件 |
 
@@ -57,7 +57,7 @@
 | SOLID 与 DDD 方法 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」 | 卡级：用单一职责区分变化原因，用依赖倒置与接口隔离表达消费者所需能力；限界上下文与防腐层用于判断概念归属与转换 | `review-code` 设计与实践一面，问题要指到具体类型、函数或分支；这些方法不替代业务语义与不变量的判断 |
 | TypeScript 最佳实践 | `pstack:typescript-best-practices` 与 `principle-type-system-discipline`；`engineering-taste.md`「TS/JS 代码」；包边界归 `docs/workspace.md` 与 `publication.md` | 写范围含 `.ts` 时会话级加载；实施简报写明适用条目 | `typecheck`、`lint:rules`、`lint:oxlint`；评审查非法状态是否可表示、外部数据是否在边界解析 |
 | 防御与失败语义 | `docs/defensive-patterns.md`「当前指导」；`quality.md`「公开能力、策略与观测」 | 卡级：`spec.md` 写本卡的失败、未知、取消、清理与外部效果；策略做成可配置对象，默认值只是初值 | 评审查错误是否被静默变成成功、disposer 是否被当成可逆 |
-| 结构读数与测试判别力 | `docs/clean-loop.md`「回路怎么转」（四条硬线）；`docs/verification.md` 的声明边界 | 若干切片后集中跑一次，不在每个切片跑 | `pnpm run metrics --base <taskBase> --coverage`（圈复杂度、CRAP）；`pnpm run mutation --base <taskBase>`（差分变异）；红项逐条交代，不在量测范围内写「未测量」 |
+| 结构读数与测试判别力 | `docs/clean-loop.md`「回路怎么转」（四条硬线）；`docs/verification.md` 的声明边界 | 若干切片后集中跑一次，不在每个切片跑 | `pnpm run metrics --base <taskBase> --coverage`（圈复杂度、CRAP）；`pnpm run mutation --base <taskBase>`（差分变异）；红项逐条交代。工具不覆盖的范围写「未测量」，不写零 |
 | 新责任边界 | `harness-design-handbook` 技能（覆盖、性质、Cordis 承载） | 只在出现新的能力或责任边界时加载 | `design-reviewer` 按指定的一种判断评审 |
 
 三层里的复用方式：
@@ -130,7 +130,7 @@
 ### 进度记录：两层，固定格式
 
 - **卡级：** `tmp/issue-<号>/plan.md` 的进度总览，格式与更新时点归 `claim` 技能 plan 模板「进度更新」：进度条一行、当前一行、切片表，状态只用五个值。每完成一步就勾选，写者交回、提交推送、受阻时改表，交回前改成最终状态并贴进交接报告。
-- **线级：** `tmp/line-<线>/state.md` 开头的「本波进度」，格式不改：
+- **线级：** `tmp/line-<线>/state.md` 开头的「本波进度」，格式固定：
   - `本波进度：[■■■□□□□□□□] 1/3 卡已交回 · 波 <w> · F <短 sha> · 更新 <UTC 时间>`
   - `当前：#<卡号> 切片 <号> 第 <n> 步`；轮空写 `当前：轮空，等待下一条 delta`；受阻写 `当前：受阻：<一句原因>`。
   - 卡队列表：`| 卡 | 状态 | 批次分支上的提交 |`，状态只用 `待做`、`进行中（切片 x/y）`、`已交回`、`受阻（<原因>）`、`跳过（<理由>）`。
@@ -158,10 +158,10 @@
 
 1. **用宿主的 shell 或 bash 工具，作为一次前台阻塞的工具调用来执行。** 不加 `nohup`、`&`、`setsid`、`disown`，不放后台，不用 Claude Code 的 `run_in_background`。
 2. **原因：** 放到后台而前台不阻塞，会话就会结束本回合。Codex 上，后台进程跑完也唤醒不了已结束的会话，线就永远等不到收口。
-3. **单次工具调用有时长上限。** 给等待命令加 `--timeout`，取略小于宿主单次调用上限的值。退出码 3 表示超时，不表示条件不成立：立即用**同一个 `--since`**（命令带 operation-id 与 journal 时也保持不变）在新的前台调用里重跑同一条命令。这是重新挂上事件等待，不是轮询 GitHub（每次启动只做一次有界对账）。
+3. **单次工具调用有时长上限。** 给等待命令加 `--timeout`，取略小于宿主单次调用上限的值。退出码 3 表示超时，不表示条件不成立：立即用**同一个 `--since`** 在新的前台调用里重跑同一条命令。这是重新挂上事件等待，不是轮询 GitHub（每次启动只做一次有界对账）。
 4. **等待返回后**按 delta 处理：active 开工、idle 再次前台阻塞等待、redo 按新 attempt 重开、terminal 交最终报告。只有读到明确的 terminal delta 并交完最终报告，才可以结束回合。
 5. **等自己派出的子代理时同理：** 前台没有别的工作就阻塞等它，不结束回合。
-6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。它是每台机器一个的常驻服务，要活过会话，由本机第一个开工的会话启动一次；它不是等待命令，等待命令本身仍然前台阻塞。
+6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。每台机器只有一个接收器。它是常驻服务，要活过会话，由本机第一个开工的会话启动一次。启动方法见 `tools/dev-flow/src/delivery/README.md`「事件等待」。首次消息只给只读的 `health` 命令，不给 `init` 与 `serve`。接收器不是等待命令，等待命令本身仍然前台阻塞。
 7. 每次重挂前后更新 `state.md` 的等待命令与 `--since`，便于替换会话接续。
 
 - 每次交回、停下或压缩上下文前，更新 `tmp/line-<线>/state.md`：本波进度、身份、已消费 delta、当前 attempt 与 head、未完成操作、下一步。替换会话只读它和线父卡就能接上。

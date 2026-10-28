@@ -20,6 +20,10 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 ```
 
 - 每条参加线写一个 `--comment`。
+- 两条等待同时挂着的方法取决于宿主：
+  - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行。任务结束时，宿主唤醒会话。
+  - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时换另一条等待，各自的 `--since` 不变。
+  - 这条宿主差异只适用于 Reduce。线会话的等待一律前台阻塞，没有例外。
 - 命中后先处理，再从命中的 delivery id 用 `--since` 重挂。处理一项时，另一条等待保持挂起。
 - 处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂 `pr-ready`。
 - 等待命中只表示有事件。Issue 关闭或评论命中不代表整波已放行。
@@ -53,7 +57,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
 2. 检查失败或候选变化时回到监督，旧证据失效。
-3. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、关闭 R(w)。
+3. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
 4. 调整后一波预案时，按 `integration.md`「波段编排的判断原则」用本波实际耗时、集成负荷和新事实修正取舍。
 
 ## 提问前三问
