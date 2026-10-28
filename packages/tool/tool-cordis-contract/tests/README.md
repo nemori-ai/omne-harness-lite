@@ -16,6 +16,7 @@
 | [flawed-registrations.ts](flawed-registrations.ts) | 自证用的登记服务：不设缺陷时与替身同语义，设一个缺陷就破坏一条规则。登记服务的规则是自己步骤的顺序，从外面无法破坏，所以变体在这里构造，不叠在替身上。无缺陷时它须通过套件，防止这份副本偏离替身。不是测试文件 |
 | [conformance-harness.ts](conformance-harness.ts) | 自证的运行器，与 `tool-contract` 的副本同形，因为测试不能跨包导入相对路径。条款锚点接受 `IC-<编号>` |
 | [cordis-entry.spec-d.ts](cordis-entry.spec-d.ts) | `Context` 增补的服务类型、键的字面量类型和 `tool-cordis-contract/call-changed` 的参数；启动围栏服务只有 `invalidate`，启动排序域服务可以充当它 |
+| [residency.spec.ts](residency.spec.ts) | 常驻引用 Reader 套件（G7）的自证：守约的分页 Reader 全过；合并跨租户持有者、把中断页报成空页、丢 shape、重复项与不前进的游标各被套件的断言检出（只认 `AssertionError`）。另有 C7 的 Tool 侧定向测试（裁定 https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480754440 ）：两个租户各有同名持有者、首次 shape 不同，按各自租户经 Reader 取首次 shape、经登记表的租户读取取当前贡献，再 `planAdoption`，一方 `freeze`、另一方 `advance`；把另一租户的事实交叉代入时两方结论都改变；显式租户缺失或未铸造时登记表读取 `unavailable`，该租户没有同名持有者时拒绝 |
 | [module-graph.ts](module-graph.ts) | 导入图遍历工具。各 Tool 包各有一份同样的副本，因为测试不能跨包导入相对路径 |
 
 运行命令分快层 `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-contract` 与慢层 `pnpm turbo run test:slow --filter=@omne-harness/tool-cordis-contract`。turbo 先构建本包及其依赖，再运行本层的 vitest。`*.spec-d.ts` 的类型检查属于快层。
