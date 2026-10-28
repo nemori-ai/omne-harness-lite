@@ -231,7 +231,26 @@ export function validatePrefix(context: HistoryContext, prefix: SessionExecution
   }
 }
 
-/** Final decisions consume only already committed prefix effects, never a promised future cursor. */
+function requireObservedTail(
+  context: HistoryContext,
+  boundary: ExecutionHistoryBoundary,
+  upper: bigint,
+): void {
+  const prefix = context.reads?.prefixes.find(item => item.execution === boundary.execution)
+  if (
+    prefix === undefined ||
+    BigInt(prefix.through) < upper ||
+    prefix.facts.some(
+      fact =>
+        BigInt(fact.sequence) <= upper &&
+        (fact.consequences.length === 0 ||
+          fact.consequences.some(consequence => consequence.kind !== 'observed')),
+    )
+  )
+    unavailableAt(`history.prefix.${boundary.execution}.committedConsequences`)
+}
+
+/** Final decisions require committed effects; a validated observed-only tail needs no cursor write. */
 export function requirePrepared(context: HistoryContext, scope: SessionInputScope): void {
   if (context.reads !== undefined && !equalValue(context.reads.scope, scope))
     invalidAt('history.scope', 'does not equal the command input range')
@@ -254,8 +273,7 @@ export function requirePrepared(context: HistoryContext, scope: SessionInputScop
       boundary.ended === null
         ? BigInt(boundary.emittedThrough)
         : BigInt(boundary.ended.sequence) - 1n
-    if (BigInt(boundary.readThrough) < upper)
-      unavailableAt(`history.prefix.${execution}.committedConsequences`)
+    if (BigInt(boundary.readThrough) < upper) requireObservedTail(context, boundary, upper)
     for (const batch of context.index.batches.filter(
       item =>
         item.execution === execution &&
