@@ -32,3 +32,9 @@
 ## 初始化协议的形状边界
 
 初始化来源、可选 creation.initialization 与 Session 自有守卫编码归 [session-contract](../../session-contract/SPEC.md#初始化来源与提交)。本成员以 AD-10 的既有 SessionEvidenceBridge.prepare 核验完整计划及原项结果，复用 AD-12 注册适配函数。SessionContextInput.prepare 仍只接受 create、change、startRun、reload。原注册键到 Context CommitRef、basedOn/revision 的确定映射在 Session 提交中保存，见 [AD-12](../SPEC.md#ad-12)。实际插件和导出范围仍以本页现状及源码为准，Context、Agent 和 Model 接口保持。
+
+## 同日志归一与历史读取
+
+[AD-02](../SPEC.md#ad-02)消费 Session 自有的根、历史目录、原批次、原 attempt 与归一调用登记候选值。该成员负责公开 Agent identity decoder、Model/Tool invocation resolver 与原 effect/pending/Authority 的校验；session-contract 负责其语言内的完整性与不变量。
+
+已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。候选 testing 提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。新增 Session 值、第三个可选 reads 与 executionEvidence 的候选导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。本页所列能力仍未在本成员实现。

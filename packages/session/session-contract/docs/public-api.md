@@ -129,3 +129,24 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 `InitializationSource`、`InitializationSources` 在 [values.ts](../src/values.ts)；`InitialAdoption`、`InitializationAdoption`、`InitializationGuardFacts`、`InitializationGuardResult`、`InitializationConsequence`、`InitializationState` 与 `InitializationFactReference` 的保存类型在 [values.ts](../src/values.ts)，守卫解析与 `INITIALIZATION_PROTOCOL` 常量在 [initialization-schema.ts](../src/initialization-schema.ts)。`InitializationPlanItem`、`InitializationRequirement` 与 `InitializationRegistration` 也归 values.ts；`initializationRegistrationCommit` 在 [initialization-plan.ts](../src/initialization-plan.ts)。
 
 `DecideReads.initializationReceipts` 可选，仅认回已有同值初始化结果时需要原回执。省略语义、可信来源和当前支持范围见[初始化实现](initialization.md)。`./testing` 导出显式登记的内存来源与采用 fixture；未配置来源的初始化不默认通过。
+
+## 同日志历史材料的候选增加
+
+以下值和可选参数尚未在源码实现，不计入上表的现有导出。完整字段、来源、失败与省略规则归 [FR-01](../SPEC.md#fr-01)、[FR-05](../SPEC.md#fr-05)、[FR-06](../SPEC.md#fr-06)。实施后由源码拥有精确定义，本页同步为导航，不维护另一套类型签名。
+
+| 拟增加位置 | 候选内容 | 保持与省略 |
+| --- | --- | --- |
+| Session-owned 值 | SessionLogRoot、SessionHistoryIndex、InputAdmissionBoundary、InputAdmissionMember、ExecutionHistoryBoundary、SessionFactBoundary、SessionBatchRecord、SessionAttemptRecord、SessionTakenRecord、SessionHistoryReads、SessionInputScope、InputAdmissionPage、SessionInputAdmission、SessionExecutionPrefix、SessionPrefixFact | 只表达本域关系、根和消费投影，不含 Agent 类型或 runtime 对象。字段形状逐项见 FR-01。 |
+| WorkSnapshot | 可选 historyIndex | 未提供表示没有本次完整性材料，不自动表示空原关系。旧有效输入能由其完整已有事实证明的分支仍可调用；缺必要证明返回 unavailable。 |
+| DecideReads | 可选 history | 原 compaction 必填形状保持。只有本次实际消费的历史必须齐备。 |
+| projectSessionLog | 第三个可选 reads | 既有 snapshot、observation 及其顺序保持。当前二参数调用仍可构造；省略按 FR-01 核可证明范围。 |
+| reduce | 第三个可选 reads | 原 previous、batch、结果联合保持。真实读源不可用先由提供者返回 unavailable，不调用 reduce；新版本完整批违背必要证明义务按 SL18 quarantined。旧合法历史按其原 Adoption 判断。 |
+| SessionLogObservation | 可选 executionEvidence | source 是原事实来源；revision/executionEvidence 是同根真实 head。旧有效 source 同时为该 head 回执且可证明时可省略，不能从事件序号推导 revision。 |
+| SessionCallRegistration、SessionCallRecord、SessionCallWait | associated 与 tool-intent 分开，完整 purpose 及同消费后续关联 | CallBinding 的 producer.call 保持必填且非空。没有 reference 的 Tool intent 使用新值，不放宽旧绑定含义。 |
+| SessionLogConsequence | 新 call-registration、call-association、registered-waiting 分支 | 旧 call/producer/waiting 分支保留。新路径按原完整 purpose 和来源建立、关联、等待，旧有效映射的适用条件见 FR-06。 |
+| WorkSnapshot | 可选 callRegistrations、callWaits | 同一 SE18/SE22 的投影，已关联部分与既有 consumptions/waiting 一致。省略不能抹去 intent 和未结责任。 |
+| OpenWork、ControlScope.scope | 可选 unassociatedWaiting: readonly SessionCallWait[] | 原 consumption/position 定位未关联等待及控制范围。AD-04、压缩核对与 judgeIdle 消费同一结果，关联后与既有 producer waiting 合并去重。 |
+| OpenWork | 可选 unsettledControls: readonly SessionOperationId[] | 原 SE24/SE25 的未交清控制入口。取消解除等待后再关联时仍保留原登记、等待、控制与关联条目作为下界，不借用 unresolved；只有原责任依证据解除后退出。 |
+| ControlProgress | 可选 pendingUnassociatedWaiting: readonly SessionCallWait[] | 同一 SE24/SE25 的原待交接或核对责任。只有原具名控制或合法交接证据才能解除，未知或空 producer 集合不能推出 reconciled。字段与省略规则归 FR-06，不新增控制端口或状态。 |
+
+解释版本沿既有 HistoryEntry.schema 与 WorkSnapshot.interpreter，不加第二个 historyProtocol 标志，不给 CommittedBatch 增加必填参数。具体精确 Adoption、版本不兼容和原批完整性分别按 [初始化解释版本与重建](../SPEC.md#初始化解释版本与重建) 与 FR-01 判断。归一和提交的完整流程归 [session-adapters AD-02](../../session-adapters/SPEC.md#ad-02)，不能把纯函数已有 completed 分支当作该同日志提供者已经实现。

@@ -6,7 +6,7 @@
 
 业务含义归[产品稿](../../../.meta_harness/design/product/sessions-and-work/design.md)，数据结构与算法归[领域架构](../session/docs/architecture/mechanisms.md)。术语以[当前统一语言](../../../.meta_harness/design/ubiquitous_language/index.md)为锚点，系统保证沿[数据与状态](../../../docs/architecture/data-and-state.md)及已接受运行架构。旧输入快照只用于追溯，不授予冲突设计继续采用。
 
-本次修订状态：下文同日志到达替代、C3 四项细化、J04 消费义务、J18 归档结束时点及 JC-Release 是待独立评审和接受的候选。它们消费冻结 Agent 与 Context 契约，不表示这些新条款已经接受或实现。上述源码支持范围仍有效，尤其当前源码不能从 Agent 日志形成 completed。
+本次修订状态：FR-01 至 FR-07 的历史读取、前缀准备和归一形状为文稿候选，新增形状尚未实现。初始化来源协议的源码支持与提供者限制以上述状态行为准。现有 projectSessionLog 可以从归一的 ended 后果形成 completed；Agent Journal 同根提供者及本节新增保护尚无完整运行组合证据。设计候选、形式模型结果与实现接受分别取得，不因文稿存在而相互替代。
 
 ## 阶段范围与采用边界
 
@@ -439,6 +439,7 @@ Run终态只为完成、失败、被取消，每Run最多一次有效终结。�
 | PA | 与 Agent 的参加与核对 |
 | PM | 推进映射、`claim` 与 `reload` |
 | EC | 事件消费与交付责任解除 |
+| FR | 同日志解释的历史材料、归一后果与发布前缀 |
 | RS | Run 两层状态机的转移 |
 | I-R | Run 不变量 |
 | I-F | 会话冻结不变量 |
@@ -554,7 +555,7 @@ Session 命令：
 | `accept` | `denied`；`invalid`（内容或引用不可靠，或去处不明）；`archived`；`frozen`（普通输入到达已冻结且没有未终结 Run 的会话）；`conflict`（同身份异内容）；`unavailable`（存储或保管） | `commit-unknown`。未知期间不报告未受理，不新建提交 | `queryOperation`；同身份同内容认回 | 输入耐久与去处归 Session；业务流程拓展点的结论归命令域与 hooks 拥有者 |
 | `readWork`、`loadRecovery` | `denied`；`unavailable`（不能读）；`quarantined`（缺批、损坏或未知相关类别）。不返回部分状态 | 只读，没有未知 | 不适用 | 归约归本成员，介质归存储提供者 |
 | `readInput` | `denied`；`invalid`（不存在或不属于本会话）；`unavailable`（内容暂不可恢复）。不以空正文代替 | 只读，没有未知 | 不适用 | 内容耐久归 Session 的保管参加者 |
-| `startRun` | `no-input`；`run-active`；`archived`；`frozen`（会话已冻结时 `verdict` 为 null；候选采用带回冻结判定时 `verdict` 为该判定）；`not-ready`（初始化未完成）；`login-required`（普通输入入口而守卫材料里没有 `login-entry` 项，由 `decide` 产出）；`denied`（新 Run 准入）；`invalid`（候选）；`changed`（采用边界已变）；`unavailable`（桥） | `commit-unknown` | `queryOperation`。认回为 `committed` 时从回执读 `AdvanceRef` 与首条输入，再发起执行（[PM-02](#pm-02)） | 两次提交的顺序归 Session |
+| `startRun` | `no-input`；`run-active`；`archived`；`frozen`（会话已冻结时 `verdict` 为 null；候选采用带回冻结判定时 `verdict` 为该判定）；`not-ready`（初始化未完成）；`login-required`（普通输入入口而守卫材料里没有 `login-entry` 项，由 `decide` 产出）；`denied`（新 Run 准入）；`invalid`（候选）；`changed`（采用边界已变）；`unavailable`（桥或必要原材料）；`quarantined`（权威缺批、损坏或原关联矛盾） | `commit-unknown` | `queryOperation`。认回为 `committed` 时从回执读 `AdvanceRef` 与首条输入，再发起执行（[PM-02](#pm-02)） | 两次提交的顺序归 Session |
 | `claim` | `stale-advance`；`changed`；`terminal`；`archived`；`denied`（接管资格）；`invalid`（`continuity`） | `commit-unknown` | [PM-10](#pm-10) | 资格判断归 Session；挂接授予归执行记录提供者 |
 | `reload` | `invalid`（候选，或定义标识不同）；`changed`（修订或交接证明过期）；`terminal`；`archived`；`frozen`（同 `startRun`）；`conflict`；`unavailable`（桥） | `commit-unknown` | [PM-10](#pm-10) | 采用合法性归装配；转换证明归 Agent |
 | `recordMessage` | `invalid`（执行不是本 Run 的执行，或消息分类不符）；`archived`（归档后不再追加） | 由提交方返回 | [PA-05](#pa-05) | 消息准入归 Agent；历史条目归 Session 参加者 |
@@ -564,8 +565,8 @@ Session 命令：
 | `bindExternalCall` | `denied`（资格材料）；`archived`；`invalid`；`conflict` | `commit-unknown` | `queryOperation` | 资格材料的真实性归消费者拥有者 |
 | `commitDerived` | `invalid`（来源分类不符，或 `judgeCompaction` 拒绝）；`archived`（归档后不再追加变化提醒） | 参加时由提交方返回；变化提醒分支为 `commit-unknown` | 参加时 [PA-05](#pa-05)；变化提醒分支 `queryOperation`，同变化材料认回 | 压缩形状归 message 包；变化材料归 Runtime Context |
 | `release` | `stale-advance`（认回既有 SE16）；`terminal`；`invalid`（交接依据不指向该 attempt 的挂接） | `commit-unknown` | `queryOperation` | 交接依据归执行记录提供者；资格交还的事实归 Session |
-| `control` | `denied`；`invalid`（目标不存在，或种类不支持）；`conflict`（同身份异目标或异种类）；`terminal`（与已生效终态冲突，带回该终态）；`archived`（归档后的 Run 控制） | `commit-unknown`。认回为 `committed` 之后才开始传播 | `queryOperation`；同身份认回原进度 | 传播归控制传播协调；物理停止归生产者 |
-| `finishRun` | `terminal`（终态已成立，带回该终态）；`changed`；`invalid`（收束依据不成立） | `commit-unknown` | `queryOperation` | 收束依据见 [P-5](#具名前提与明确缺项) 与 [PM-02](#pm-02) |
+| `control` | `denied`；`invalid`（目标不存在，或种类不支持）；`conflict`（同身份异目标或异种类）；`terminal`（与已生效终态冲突，带回该终态）；`archived`（归档后的 Run 控制）；`unavailable`（必要权威材料暂不可读）；`quarantined`（权威缺批、损坏或原关联矛盾） | `commit-unknown`。认回为 `committed` 之后才开始传播 | `queryOperation`；同身份认回原进度 | 传播归控制传播协调；物理停止归生产者 |
+| `finishRun` | `terminal`（终态已成立，带回该终态）；`archived`；`denied`（恢复者资格）；`stale-advance`（目标不是当前 Run）；`changed`；`invalid`（收束依据不成立）；`unavailable`（必要权威材料暂不可读）；`quarantined`（权威缺批、损坏或原关联矛盾） | `commit-unknown` | `queryOperation` | 收束依据见 [P-5](#具名前提与明确缺项) 与 [PM-02](#pm-02) |
 | `queryOperation` | `denied`；`unavailable`（不返回空记录） | 只读，没有未知 | 不适用。`attempt-rejected` 不证明原操作未提交（[SL09](#日志提交与查询结果)） | `not-committed` 的排除证明只由存储提供者给出 |
 
 #### SessionManagement
@@ -592,9 +593,9 @@ Session 命令：
 | `change` | `denied`（资格不足；Agent 发起而没有人的授权证据）；`invalid`（越过上界、移除必需注册；加载失败时保留原值；原 workspace-load 项未 ready（含 failed）时拒绝 workspace 维度，其他维度按原规则判定；workspace 维度按 `create` 的同一规则核验（含缺 `workspaceAttachment` 键），在认回与租户、会话核对之后进行）；`conflict`（同身份异材料）；`changed`（注册的前修订过期）；`archived` | `commit-unknown`。未知期间作用域持有者不先使注册生效 | `queryOperation`；同材料认回 | 本操作提交初始化计划之外的注册变更；初始增加见 JC-01、JC-02；共享源归其拥有者 |
 | `setRelation` | `invalid`（子会话常驻，或 handoff 进入级联）；`denied`；`conflict` | `commit-unknown` | `queryOperation` | 关系后果归 Session |
 | `configureAutoArchive` | `denied`；`invalid`（`idleMs` 不是正十进制毫秒数）；`unavailable`（设置源） | `commit-unknown` | `queryOperation` | 配置源归租户设置拥有者 |
-| `considerAutoArchive` | `unavailable`（来源不可达、观察为 `unknown` 或组合缺席）；`invalid`（`idleEvidence` 不指向已确认的 SE31）；`denied` | `archived` 分支为 `commit-unknown`；其他结果不提交，没有未知 | `queryOperation`；同依据认回 | 归档复用 `control(archive)` 的完整结果。仍有未结工作时返回 `not-due`，不以空集合冒充已覆盖 |
+| `considerAutoArchive` | `unavailable`（来源不可达、观察为 `unknown` 或组合缺席）；`invalid`（`idleEvidence` 不指向已确认的 SE31）；`denied`；`quarantined`（权威缺批、损坏或原关联矛盾） | `archived` 分支为 `commit-unknown`；其他结果不提交，没有未知 | `queryOperation`；同依据认回 | 归档复用 `control(archive)` 的完整结果。仍有未结工作时返回 `not-due`，不以空集合冒充已覆盖 |
 | `interrupt` | `terminal`；`archived`；`invalid`（加急消息准入或处置决定）；`denied`；`conflict` | `commit-unknown` | `queryOperation`；同次插队不重复插入消息 | 实际转换由 Tool 确认，经 `receive` 承接 |
-| `freeze` | `invalid`（原因不是 `tool-shape-lost`，或证据不是耐久证据）；`not-ready`（初始化未完成）；`denied` | `commit-unknown` | `queryOperation`；已冻结时按状态认回，不论证据是否相同 | 判定与证据归 Tool；状态转换归 Session（[常驻工具与会话冻结](#常驻工具与会话冻结)） |
+| `freeze` | `invalid`（原因不是 `tool-shape-lost`，或证据不是耐久证据）；`not-ready`（初始化未完成）；`denied`；`unavailable`（必要权威材料暂不可读）；`quarantined`（权威缺批、损坏或原关联矛盾） | `commit-unknown` | `queryOperation`；已冻结时按状态认回，不论证据是否相同 | 判定与证据归 Tool；状态转换归 Session（[常驻工具与会话冻结](#常驻工具与会话冻结)） |
 
 #### SessionReconciliation
 
@@ -607,7 +608,7 @@ Session 命令：
 
 | 操作 | 拒绝的原因 | 未知 | 认回 | 责任 |
 | --- | --- | --- | --- | --- |
-| `receive` | `invalid`（事实拥有者、版本或原关联不可信；Agent 事件的执行不是本 Run 的执行；`release` 缺生产者确认）；`conflict`（同身份异事实）；`denied` | `commit-unknown` | `queryOperation`；重放的事实同身份认回，不重复写入 | 事实语义归其拥有者。本操作不授予推进资格，不改变生产者的终局或费用，不复活已终态的 Run |
+| `receive` | `invalid`（事实拥有者、版本或原关联不可信；Agent 事件的执行不是本 Run 的执行；`release` 缺生产者确认）；`conflict`（同身份异事实）；`denied`；`quarantined`（权威缺批、损坏或原关联矛盾）；`unavailable`（必要原材料） | `commit-unknown` | `queryOperation`；重放的事实同身份认回，不重复写入 | 事实语义归其拥有者。本操作不授予推进资格，不改变生产者的终局或费用，不复活已终态的 Run |
 | `pending` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空完成） | 只读，没有未知 | 不适用 | 待办只在相应操作成功后由归约解除。读取不删除待办 |
 | `references` | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页） | 只读，没有未知 | 不适用 | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool |
 | `releasedScopes` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空页） | 只读，没有未知 | 不适用 | 账本是会话日志的 SE25；存储提供者维护派生索引，读取不扫描日志 |
@@ -660,7 +661,7 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 - `ProducerRef` 的字符串由生产领域的编解码解析，并核对原关联。`AgentInstanceRef`、`ExecutionRef.execution`、`BatchId` 与 `ConsumptionId` 由 Agent 的受信适配解析。Session 不定义另一套生产者或执行身份格式。
 - `AttemptId` 是 (Run, 序号) 的确定编码，从日志派生，不另存。
 - `WorkSnapshot` 来自一个完整权威提交位置。`lifecycle` 由事实归约得出，不单独写入。取值的优先次序是 `archived`、`initializing`、`active`、`frozen`、`dormant`：初始化完成之前的会话不能开始 Run，也不会被冻结；冻结的会话有未终结 Run 时为 `active`，`frozen` 字段非空。`residents` 是 SE36 的累积，只增不减。`active` 当且仅当有未终结的 Run。`ordinal` 只是已提交 attempt 的开始顺序，不单独证明 `advance` 有效。`revisions` 公开两类修订计数：所选工作区（每次 SE05 加一）与设置声明（每次 SE06 加一）。
-- `RunState.active.execution` 是 `ExecutionRef = { execution, revision, evidence, readThrough }`。它指向 Agent 的权威记录，Session 不保存接续值。`revision` 与 `evidence` 取自 Session 读到的最新 Agent 事件或参加提交的回执，第一次之前为空。`readThrough` 是已读到并保存的 Agent 事件序号，初值为 `"0"`（[EC-02](#ec-02)）。
+- `RunState.active.execution` 是 `ExecutionRef = { execution, revision, evidence, readThrough }`。它指向 Agent 的权威记录，Session 不保存接续值。`revision` 与 `evidence` 取自同根 load 的真实 head 与该 head 的原回执，或本次参加提交的原回执，第一次之前为空。事件原来源另存，见 [FR-05](#fr-05)。`readThrough` 是已读到并保存的 Agent 事件序号，初值为 `"0"`（[EC-02](#ec-02)）。
 - `pending` 是有待处理资格的普通输入的有序集合。`handed` 是其中已交入执行而尚未承接的子集。`pending` 为空只在权威读成功时有意义，读取故障不变成空集合。
 - `InputBatch` 是 Agent 承接事件给出的批次：批次身份、水位线与精确有序成员。Session 不重选批界或顺序。
 - 一个 `Consumption` 固定原调用与消费位置。`results` 的每项按生产者、版本与交付唯一定位。Model 的交付为 null，Tool 给出真实交付身份的编码值。`preserveResult` 首次保存某版本时追加该项，重复同值认回，不覆盖已有版本的保管、完成或释放。`completeConsumption` 与 `completeExternalConsumption` 只提交 `completion.result` 指定的项。
@@ -686,7 +687,7 @@ Run 外登记（`bindExternalCall`）与 Run 内登记同种类，载荷使用�
 | 9 | `bindExternalCall` | `SessionWork` | 无；守卫核对外部关联与当前准入 | 调用与结果（SE18） | Session 提交 |
 | 10 | `completeExternalConsumption` | `SessionWork` | 无；守卫核对原外部位置与投递资格 | 调用与结果（SE21）；必要时历史消息（SE10） | Session 提交 |
 | 11 | `release` | `SessionWork` | `judgeAdvance` | Run、批次与 attempt（SE16） | Session 提交 |
-| 12 | `control` | `SessionWork` | `resolveControlScope`；`archive` 另用 `resolveCascade` | 控制与终态（SE24、SE25）；`cancel-run` 与 `archive` 同批有 SE26 与 SE16；`archive` 另有归档、冻结、关系与空闲（SE27）；`unarchive` 另有 SE28、SE31；冻结的会话里 `cancel-run` 另有 SE38 | Session 提交 |
+| 12 | `control` | `SessionWork` | `resolveControlScope`；`archive` 另用 `resolveCascade` | 控制与终态（SE24、SE25）；`cancel-run` 与 `archive` 同批有 SE26 与 SE16；`archive` 另有归档、冻结、关系与空闲（SE27）；`unarchive` 另有 SE28、SE31；冻结的会话里 `cancel-run` 与有 active Run 的 `archive` 另有 SE38，完整范围见 [FR-04](#fr-04) | Session 提交 |
 | 13 | `finishRun` | `SessionWork` | `judgeAdvance`（有界收束分支） | 控制与终态（SE26）；Run、批次与 attempt（SE16）；准入拒绝分支另有受理与分流（SE35）；冻结的会话里另有 SE38 | Session 提交 |
 | 14 | `create` | `SessionManagement` | 无；守卫核对真实初始定义采用与完整初始化计划 | SE01、初始 SE08；已有结果写 SE02，注册 ready 同批 SE07，首次常驻定义同批 SE36；有初始输入时另有 SE10、SE11 | Session 提交，按[初始化来源与提交](#初始化来源与提交)形成完整批次 |
 | 15 | `completeInitialization` | `SessionManagement` | 无；守卫核对原绑定、结果与必要成功事实 | SE02；新的注册决定同批 SE07；确有新增能力实际采用才同批 SE08、必要 SE36 | Session 提交；已存在的同值事实只引用，不重复写入 |
@@ -909,7 +910,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：[P-1](#具名前提与明确缺项)、[P-2](#具名前提与明确缺项)。
 - 动作：
   1. 参加种类：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种。缺一种就拒绝装配。Session 不声明其他参加种类。
-  2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件消费读到更新的事件时同样更新这两项。
+  2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件解释按 [FR-05](#fr-05) 取得同根真实 head 及原回执，不以事件序号或事件原来源代替这两项。
 - 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为日志解释进度与参加提交的投影进度可能不同；发布前仍复核权威 Session 修订。
 - 失败：参加种类不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
 - 未知与认回：没有独立提交。
@@ -994,7 +995,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### PM-02 新 Run：两次提交，顺序固定
 
-- 前提：`judgeRunStart` 的结果为 `eligible`，带首条输入。
+- 前提：`judgeRunStart` 的结果为 `eligible`，带首条输入。该候选首条已按 [FR-02](#fr-02)、[FR-03](#fr-03) 核对全部原交入与必要前缀；不能把已 taken 但未解释的输入交给后继。
 - 动作：
   1. 第一次提交是 `startRun`（JC-05）。它写 Run 开始与首个 attempt，不扣除任何输入的待处理资格。
   2. 第二次提交是 `invoke`：输入为首条输入（适配器经 `readInput` 取内容），来源依据为 SE13 回执，推进资格依据为本 attempt 的 SE15 证据，执行身份为 SE13 所记。执行记录提供者打开执行时，Session 参加者按 [PA-01](#pa-01) 第 1 条只读核对。
@@ -1002,7 +1003,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 结果：核对成立时挂接被授予，Session 不写 attempt 条目。两次提交之间崩溃时，按 [PA-06](#pa-06) 第 2 项处理。
 - 失败：
   - 核对失败时 `invoke` 返回 `denied`，执行不创建。Run 保持 active，由当前 attempt 的持有者继续。
-  - `invoke` 返回 `invalid`（首条输入被消息准入拒收）时，执行不创建。Session 以这次拒绝为耐久依据，提交有界收束的 `finishRun`，终态为 failed，同批写首条输入的 SE35（结果为 rejected）。这是 Session 单方的终结，不属于 [P-5](#具名前提与明确缺项)。Run 已经 active 而执行不存在，必须有出口，终态又不可反转，所以不让 Run 回到未开始。其余待处理输入保留待处理资格，交给下一个 Run。
+  - `invoke` 返回 `invalid`（首条输入被消息准入拒收）时，执行不创建。Session 以这次拒绝为耐久依据，提交有界收束的 `finishRun`，终态为 failed，同批写首条输入的 SE35（结果为 rejected）。这是 Session 单方的终结，不属于 [P-5](#具名前提与明确缺项)。Run 已经 active 而执行不存在，必须有出口，终态又不可反转，所以不让 Run 回到未开始。未冻结时，其余待处理输入保留资格，交给下一个 Run。已冻结时，按 [FR-04](#fr-04) 完成相关前缀，在同批首条 SE35 rejected 解除其资格后，为其余仍 pending 的输入写精确 SE38；首条输入不重复写 SE38。
 - 未知与认回：`startRun` 按 OP 表。`invoke` 与 `submit` 按出站操作身份 `query`。
 - 责任：顺序由 Session 固定，两次提交不能合并为一次。
 
@@ -1187,7 +1188,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### EC-02 同日志解释进度与认回
 
-`ExecutionRef.readThrough` 是 Session 对 Agent 事实的解释进度。每个派生后果按原 execution 与事实身份唯一认回。这些后果在 Agent 原提交之后的另一笔 Session 提交中成立。进度与派生条目、该次 Session 操作答案同批保存，条目保留原来源身份或引用，不复制事件正文。不能先推进进度再补条目。解释失败保留 Agent 已提交事实与原解释进度。不产生条目的事实可以在内存越过，持久进度随下一次共同提交前进。重读不重复写后果。
+`ExecutionRef.readThrough` 是 Session 对 Agent 事实的解释进度。每个派生后果按原 execution 与事实身份唯一认回。事件进度、真实 head 与原来源按 [FR-05](#fr-05) 分别保存；历史批次与首次调用登记按 [FR-02](#fr-02)、[FR-06](#fr-06) 核验。这些后果在 Agent 原提交之后的另一笔 Session 提交中成立。进度与派生条目、该次 Session 操作答案同批保存，条目保留原来源身份或引用，不复制事件正文。不能先推进进度再补条目。解释失败保留 Agent 已提交事实与原解释进度。不产生条目的事实可以在内存越过，持久进度随下一次共同提交前进。重读不重复写后果。
 
 同日志解释不向 Agent `output.acknowledge` 确认另一条事件副本流。提交未知时先查原操作，查询仍未知时保持未知。任何读取、重复提交及查询都重新核验当前资格，执行键包含租户与 execution，材料读取不得绕过租户绑定。
 
@@ -1282,6 +1283,190 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 结果：通知只唤醒推进触发、恢复扫描与订阅者。丢失、重复或合并都不改变事实，权威状态由扫描补查。
 - 责任：发出归本成员。通知的可靠性不是任何条款的前提。
 
+### 同日志解释的历史材料与发布前缀
+
+本节规定 Session-owned 的候选可加值及行为。源码尚未声明这些新增形状。这里的根、目录和原关系用于判断 Session 后果，不包含 Agent 类型、checkpoint 或运行时对象。Agent 的原事件和输出语义仍由其契约拥有。
+
+<a id="fr-01"></a>
+
+#### FR-01 可信根、目录与可选读取材料
+
+`WorkSnapshot` 可增加 `historyIndex: SessionHistoryIndex`，`DecideReads` 可增加 `history: SessionHistoryReads`。`projectSessionLog` 可增加第三个可选参数 `reads: SessionHistoryReads`，`reduce` 可增加第三个同名可选参数。现有参数顺序、必填字段与结果联合保持。下列字段表是拟新增值的完整必要形状，现有公开形状仍以源码为准。
+
+| 候选值 | 必要字段及约束 |
+| --- | --- |
+| `SessionLogRoot` | `tenant`、`session`、`position`、`source`。前两项使用 Session 既有身份。`position` 是该会话共同日志的非负十进制位置，Agent 与 Session 发布均使它前进。它不等于 Session revision、execution revision 或 event sequence。`source` 是提供者对该原根的完整 `DurableEvidence`。 |
+| `SessionHistoryIndex` | `root: SessionLogRoot`、`inputs: readonly InputAdmissionBoundary[]`、`executions: readonly ExecutionHistoryBoundary[]`、`attempts: readonly SessionAttemptRecord[]`、`batches: readonly SessionBatchRecord[]`、`taken: readonly SessionTakenRecord[]`。集合只需覆盖本次决定及其完整批次涉及的关系，不要求枚举无关历史。缺少所需项表示未知。它不是空关系。 |
+| `InputAdmissionBoundary` | `input: InputId`、`directory: string`、`version: string`、`count: string`、`members: readonly InputAdmissionMember[]`、`source: DurableEvidence`。目录身份和版本非空，数量为非负十进制。目录按原受理提交顺序覆盖该输入在全部 Run 的原交入关系，固定范围为 `[0,count)`。目录的来源与数量由同根原记录索引给出，不能由请求页长度生成。 |
+| `InputAdmissionMember` | `ordinal: string`、`run: RunId`、`execution: string`、`operation: string`、`accepted: DurableEvidence`、`attempt: AttemptId`。members 是同根权威目录的有序成员索引，序号范围与 count 相符。请求页必须逐项匹配这些原关系键，不能替换成员。 |
+| `ExecutionHistoryBoundary` | `run: RunId`、`execution: string`、`started: DurableEvidence`、`revision: string`、`executionEvidence: DurableEvidence`、`emittedThrough: string`、`readThrough: string`、`interpreted: DurableEvidence | null`、`ended: { sequence: string, source: DurableEvidence } | null`、`facts: readonly SessionFactBoundary[]`。facts 覆盖本次所需而尚未解释的事件范围。Run 与执行由原 SE13 固定。revision 与 executionEvidence 来自同根 load 的真实 head 及其原回执。readThrough 与 interpreted 来自已确认 Session 解释提交，零进度时 interpreted 为 null。ended 为该根已有的原结束事件，不能从 EOF 推导。 |
+| `SessionFactBoundary` | `sequence: string`、`source: DurableEvidence`、`kinds: readonly SessionLogConsequence['kind'][]`。kinds 是提供者从该原事件取得的 Session 后果种类及原顺序，无后果时为 observed。它来自可信根，不取请求 facts 自报值。批次正文另外由 SessionBatchRecord 固定，调用和等待的原字段真实性仍由 FR-07 的原协议校验负责。 |
+| `SessionBatchRecord` | `run: RunId`、`execution: string`、`sequence: string`、`source: DurableEvidence`、`batch: InputBatch`。batch 保留原事件的完整有序成员、水位线与身份；这是尚未解释或已经解释原承接的只读消费投影，不是新的业务决定。 |
+| `SessionAttemptRecord` | `run: RunId`、`attempt: AttemptId`、`execution: string`、`ordinal: string`、`started: DurableEvidence`。started 指向已成立的原 SE15；执行关系同时符合原 SE13。记录允许证明旧 attempt，不要求其当前仍有推进资格。 |
+| `SessionTakenRecord` | `run: RunId`、`execution: string`、`sequence: string`、`source: DurableEvidence`、`batch: InputBatch`、`commit: DurableEvidence`。完整批次和原事件身份来自已成立 SE14，commit 指向其原解释提交。 |
+| `SessionHistoryReads` | `root: SessionLogRoot`、`scope: SessionInputScope`、`admissions: readonly InputAdmissionPage[]`、`prefixes: readonly SessionExecutionPrefix[]`、`attempts: readonly SessionAttemptRecord[]`、`taken: readonly SessionTakenRecord[]`。每项均与 root 同根。额外无关项不能代替缺项。attempts 与 taken 的每项必须对应 historyIndex 中同身份、同来源的原记录；reads 不能自建一个 snapshot 没有的 attempt 或已解释事实。 |
+| `SessionInputScope` | 两个分支。`{ kind: 'pending', inputs: readonly InputId[] }` 要求 inputs 与 snapshot.pending 的有序集合完整相等。`{ kind: 'selected', inputs: readonly InputId[] }` 要求 inputs 精确等于本次 startRun 候选首条、将交入输入或被解释完整批次的明确范围。不得由 reads 自选并缩小命令范围。 |
+| `InputAdmissionPage` | `input`、`directory`、`version`、`offset: string`、`next: string | null`、`records: readonly SessionInputAdmission[]`。offset 是本页第一项在原目录中的零起点序号；next 必须是本页结尾序号，只有结尾等于权威 count 时才为 null。非末页不允许零记录。 |
+| `SessionInputAdmission` | `ordinal: string`、`run: RunId`、`execution: string`、`runStarted: DurableEvidence`、`operation: string`、`accepted: DurableEvidence`、`attempt: AttemptId`、`attemptStarted: DurableEvidence`、`attachment: string`、`grant: DurableEvidence`。operation 与 accepted 定位原交入受理，不能用 SE35 缺席证明未受理。其原 SE13、SE15、grant 与 attachment 由提供者在原受理发布时固定。相同输入的多个合法受理各占一个目录位置。 |
+| `SessionExecutionPrefix` | `execution: string`、`run: RunId`、`after: string`、`through: string`、`facts: readonly SessionPrefixFact[]`。范围为 `(after,through]`，after 等于本轮已确认 readThrough；全部序号逐一连续，through 不超过该根 emittedThrough。facts 的每个序号、来源和后果种类顺序须匹配同根 SessionFactBoundary。已由 snapshot 证明覆盖的前缀无需重交正文。 |
+| `SessionPrefixFact` | `sequence: string`、`source: DurableEvidence`、`consequences: readonly SessionLogConsequence[]`。这是 Session 后果及其来源的消费投影。每个原事件有一项；无 Session 后果使用既有 observed。ended 后果必须与该根 ended 的序号和来源相同。原事件正文仍只存于 Agent 记录。 |
+
+所有证据均采用既有 `DurableEvidence`，`owner`、`record`、`revision`、`digest` 四个字段均须完整。整数文本使用 `0` 或不含前导零的正十进制，不能用浮点数处理。身份、版本、operation、attachment 和业务字符串不得为空。目录、页、execution、attempt、taken 的本域引用必须相互匹配，不得从身份字符串拆出 Run 或 attempt。
+
+`historyIndex` 是当前读取根的投影。新提交后，提供者从新根重建或更新该投影；纯归约不铸造根证据，也不把旧根材料自动标成新根。
+
+`historyIndex` 是权威读提供者交给纯层的可信输入。它必须由同一根上的原 SE13、SE15、SE14、Agent 原受理、原事件及原提交元数据投影或重建。目录成员键、原批次和待解释事件边界也由该根给出；它们是读取投影，不将 Agent 事件副本写入 Session 日志。原受理发布与输入目录更新同批，SE35 答复丢失不影响目录覆盖。目录为 count=0 的项，只有其同根原索引证明完整空范围时才表示未交入。单独的空数组、空页、缺字段或 `complete: true` 均不提供这个证明。
+
+纯函数把 snapshot 作为可信根，并核验请求 reads。它不承诺识别调用者同时伪造的、内部完全自洽的整份 snapshot 与全部原材料。资格、原材料真实性及可信根取得归提供者。纯层仍必须判定本域能够表达的错租户、错会话、错根、遗漏、重复、冲突和顺序错误。不能用这一信任边界取消 pure 负例。
+
+省略新增材料只允许两种情况：本次分支不消费这类历史，或 snapshot 已含全部所需根、完整目录和原事实。空 pending 只能免除其输入关系读取，不能证明别的所需材料存在。旧快照的 handed、taken、当前 advance 或 executions 单项不足以证明全部原交入关系；只有当前 advance 已确证的同一 attempt 可替代相应 SE15 投影。新增提供者不能通过省略已成立事实得到旧调用语义。
+
+`decide` 与 `projectSessionLog` 对无法证明的必要材料返回既有 unavailable，owner 指向材料拥有者。过期的同域根返回既有 changed，并带回 snapshot.revision；它不把共同日志 position 转成 SessionRevision。提供者依据具体根差异重新准备。错租户或错会话返回 denied，格式和请求材料不一致返回带具体字段的 invalid；同身份异值返回 conflict。已证权威历史 gap 或互相矛盾返回 quarantined。它们均不生成部分后果。
+
+重放先依据每条 `HistoryEntry.schema`、整批已登记解释配置和 `WorkSnapshot.interpreter` 识别精确采用。本节新增证明义务随[初始化解释版本与重建](#初始化解释版本与重建)的 session-log revision 3 生效，使用同一精确 digest，不增加第二个协议版本字段。提供者从不可剥除的原提交封套取得 schema，调用方不能改写 schema 以降级验证。版本 3 的相关 SE14、SE18/SE22、SE38 和执行引用批次必须带有足够的 snapshot 原事实或读取证明；与本次批次无关的证明不要求携带。此前版本的合法历史不因没有新增 reads 成为畸形。若已登记并使用其原精确解释器，按原承诺重放；本候选仅支持上述精确采用时，其他采用是版本不支持，沿该节的版本不兼容诊断和隔离路径，不报告为“旧历史缺新增 reads”。这里不新增名为 unsupported 的 ReduceResult 分支。
+
+重放提供者先取得该版本和该批所需原材料。真实读源暂不可用时在服务边界返回 unavailable，不调用 reduce。已按新协议声明为完整而送入 reduce 的批次，若缺少该协议要求的依据、存在因果矛盾或相关未知类别，按 SL18 返回现有 quarantined 及具体字段诊断，不发布部分治理状态。`ReduceResult` 仍只有 reduced 与 quarantined；这一结果形状不把真实读取失败改成历史损坏。可恢复索引先按 SL14 重建。
+
+<a id="fr-02"></a>
+
+#### FR-02 完整性与历史承接的纯层核验
+
+凡是后继 startRun、重新交入或者包含 SE38 的新提交，纯层先核验相应材料。准备覆盖只证明捕获根以前的事实，最终资格仍按 FR-03 重核。
+
+1. 由命令和 snapshot 推导 Q。SE38 路径取全部 pending，包含 handed 但未有效 taken 的输入。startRun 只检查按原顺序选出的候选首条，发现已 taken 则先解释并重新选择。invoke/submit 的只读参加只检查将交入的输入。pure 不接受漏掉成员的 scope。
+2. 对 Q 中每个输入，从其权威目录的 offset=0 读取到 count。检查页的 input、directory、version、同根及逐项 ordinal；检查 next 精确连接后页。拒绝缺页、重复位置、未消费 next 和与 count 不同的总范围。原输入目录 count=0 时不要求虚构一页。
+3. E 等于这些完整关系里的 execution 并集。每个 E 须存在原 SE13 关系、同根 head 边界和已解释进度。readThrough 须与 snapshot 的原 execution 引用相等。关系中的 attempt、grant 与 attachment 必须指回原事实。全部有序批次成员须取得自己的原受理关系，即使其中某成员不在最初 Q 内；扩展批次校验不缩小或重选批界。
+4. 每个相关 execution 从已确认 readThrough 连续覆盖到所需上界。发现 ended 时，取消、冻结及有界收束的准备只到 ended.sequence−1；没有 ended 则到捕获的 emittedThrough。已有可信解释进度超过上界时核验其原覆盖，不回退。遗漏一个相关 execution、事件或必要后果都不能靠“准备完成”字段跳过。
+5. 历史 SE14 首先逐项匹配可信根 SessionBatchRecord 中的完整批次，然后以原发生时点的原 Run、原受理、原 grant/attachment、批次身份、水位线、成员与顺序判定。终态清空当前 handed/taken 不否定原承接。该 SE14 仅移除相应输入仍有的 pending 资格；只在当前 Run 相同才更新 handed、taken、waiting。它不改变后继 advance、taken 或 waiting，不复活 Run。
+6. 同一原事件的已成立 SE14 按原身份认回。若同一输入已经有后继交入或承接，又发现更早合法 taken，判为历史矛盾并隔离，不删除后继、不重置 pending、不改写既有 SE38。
+7. 对一次待发布批次，decide/project 及 reduce 按逐项演进的临时状态核验完整结果。SE38 集合必须精确等于最终仍 pending 的集合，且与 SE37 或唯一 Run 终态共同成立。若同批有 PM-02 首条输入的 SE35 rejected，先按该拒收解除该输入，再计算其余输入的 SE38，不给首条输入再写 SE38。
+
+原日志缺口按 SL14 处置。缺少材料不推导“从未 taken”。P-5 的不可解释记录也不能代替完整承接材料。
+
+<a id="fr-03"></a>
+
+#### FR-03 准备前缀、重核与最终发布
+
+适配提供者持有每个 `(tenant, session)` 的共同提交根。以下准备不是所有 Session 命令的通用前置步骤，只应用于 FR-04 所列路径。
+
+1. 核对当前资格并认回原操作。已提交的 freeze、cancel 或终结返回原答案。未知解释提交先按原身份认回，unknown 不能表示该前缀没有发布。
+2. 捕获根 G 的 Q、完整原交入目录、E、解释进度、原 SE13/SE15、head revision/receipt、emittedThrough 与当前 grant。不得把几个读取时点拼成 G。
+3. 逐个相关 execution 解释所需连续前缀。准备不解释 ended。input-taken 按原完整批次产生 SE14，中间 producer、waiting、control 仍产生适用后果，无后果事件按 EC-02 越过。不能只挑 taken 而跳过其它必要后果。
+4. 每段后果、解释进度与操作答案另笔共同发布。失败不撤销此前成功段。没有后果的扫描位置仅为可丢的内部准备进度，不单独提交 cursor-only 批次。
+5. 必须完成本次捕获 E 的全部所需前缀，才重算 Q。某个 SE14 使 Q 缩小不提前丢掉 E 中尚未完成的前缀。然后取得最新根 G′，重新核对 Q、目录、相关 head 与当前资格，只补新增关系或必要后缀。
+6. 最终提交在 G′ 上重核 lifecycle、frozen、原 Run、当前 grant、原操作和完整输入范围，以共同根 CAS 或等价串行化一次发布。CAS 失败重读重算。以前成功的前缀不是继续使用旧 pending 的授权。
+
+若 Agent 新 taken 先取得共同根，最终 Session CAS 必须失效，解释该事实后再决定。若 Session 的冻结无 active 或 Run 终态先取得共同根，旧 grant 不能再提交业务 taken。合法结果保管、received 和独立取消资格不要求旧推进 grant 仍有效。
+
+准备本身不能解释 ended，也不能将“Agent 已 ended”改成 Session completed。另一正常解释器可以独立提交 ended 的后果，谁先形成 Session 终态仍按 PA-08 裁定。已捕获 ended 的 execution 后续只增加保管修订时，不必为了找更多 taken 无限追逐 head；最终仍重验共同根和原材料身份。
+
+<a id="fr-04"></a>
+
+#### FR-04 全部解除入口与原准入
+
+| 入口 | 必须完成的准备及结果 |
+| --- | --- |
+| 后继 startRun 或重新 invoke/submit | 先核对将消费输入的完整原交入关系和必要前缀。原事实确认未 taken 的 handed 输入保持原 InputId、顺序及 SE13 predecessor。 |
+| 未冻结的普通 cancel-run | 不增加 SE38 专用前缀门槛，保留原权威读和控制守卫。取消可先成立，历史 SE14 后续解释。后继消费前执行上一行。 |
+| freeze，无 active Run | 准备全部 pending 的相关前缀。SE37 与精确 SE38 集合同批。已由 SE27 合法解除资格的输入不在 Q，不重复释放。 |
+| freeze，有 active Run | 只按原规则写 SE37，不因未解释前缀延迟冻结，不取消原 Run。其后仍允许原 Run 合法交入与 claim，终态走下列相应入口。 |
+| frozen cancel-run | 先完成全部 Q 的相关前缀，严格停在 ended 之前。SE24/25、SE26 cancelled、SE16 与剩余 SE38 同批。 |
+| frozen finishRun，P-5 | 保留原恢复者资格、目标 Run、expected 修订和收束依据核验，只能对未终态 Run 写 failed。先完成完整相关前缀，SE26 failed、SE16 与剩余 SE38 同批。拿不到承接前缀时仍不能完成。 |
+| frozen finishRun，PM-02 首条输入拒收 | 原执行没有创建，原拒绝依据核验通过。原准入、目标 Run 和 expected 不变。对全部 Q 核原受理目录及相关前缀。首条 SE35 rejected、SE26 failed、SE16 与其余 pending 的精确 SE38 同批。 |
+| frozen archive，有 active Run | 前缀准备停在 ended 之前，另收齐原归档材料。唯一 cancelled、SE16、剩余 SE38、SE27 及传播/释放责任同批。SE27 的取消范围不替代 SE38 的冻结原因。 |
+| frozen 正常解释 ended | 先完成 ended 之前的连续前缀和全部 Q 的相关前缀，再核原 ended 来源。其后果、进度、唯一 SE26/SE16 和剩余 SE38 同批。已有终态时仅按原 Run 认回来源。 |
+| frozen archive，无 active Run | 先核对原冻结或终态已同批解除全部 pending 的不变量。原坏批次或遗留矛盾须隔离，不能借归档补造迟到 SE38。 |
+| considerAutoArchive | 先满足既有无未结工作、空闲覆盖与到期条件。未解释原事实不证明空闲。到期才提交原完整归档结果；不绕过 not-due、unavailable 或上述冻结核验。 |
+| 重复 freeze 或已有终态的控制/finishRun | 先按原操作或状态认回，不重写 SE37、SE26、SE38，不借重放修补坏批次。 |
+
+未冻结 archive 保持原 SE27、原控制范围、权威读及完整结果义务，不套用 SE38 的冻结原因。本节不扩大 finishRun 的准入：Run 已终态仍返回 terminal，会话已归档仍按原 archived 边界处理，目标与 expected 必须符合 judgeAdvance 的有界收束分支。Agent 已结束时按其真实结论解释，不能选择 P-5 把 completed 改成 failed。
+
+<a id="fr-05"></a>
+
+#### FR-05 真实 head、事件进度与来源
+
+`SessionLogObservation` 可增加 `executionEvidence?: DurableEvidence`。`revision` 固定取本次同根 load 的真实 head revision，executionEvidence 取该 head 的原 CommandReceipt 证据。`source` 始终是被解释事件或事实的原来源。`sequence` 仅为事件序号，快照、entries 或 results 对账为 null。它们不推进事件 readThrough。
+
+提供者的原提交元数据保存 execution、revision、原 receipt 以及本次 emitted sequences。Session 消费其本域引用，不解析 evidence.record，不将 event.cause.revision、load.history.revision 或材料修订当作 execution revision。S3 新路径必须提供 executionEvidence。旧调用省略该字段时，只有同根可信材料证明 source 正好是该 execution/revision 的原 head 回执才能沿用 source；无法证明返回 unavailable，不能默认两个来源相同。
+
+纯层核对 snapshot 与 reads 的执行 head、观察 revision/evidence 和原 fact.source。二者来源角色分别保存。ExecutionRef 用 head revision/evidence 更新，readThrough 只随成功解释提交前进。不得用低 head 覆盖高 head；过期根在发布前重读。SE19 的 result.source 保留生产者原来源，条目 origin 保留被解释事件来源，不用最新 head 回执覆盖任一项。
+
+例如，message 参加已使 head revision=5，readThrough=0。解释 sequence=1 时使用 revision=5 和该 head 的原回执，readThrough 仅到 1。两事件可属于同一 Agent 提交，无事件 received 也可增加 revision；因此两个数值没有相等要求。
+
+<a id="fr-06"></a>
+
+#### FR-06 首次登记、Tool 关联与等待
+
+`CallBinding` 继续表示已经关联稳定 invocation reference 的调用。`producer.call` 非空，不能用空字符串或虚构 reference 表示 Tool intent。新增 `SessionCallRegistration` 与既有 CallBinding 分开表示下列候选值。
+
+| 候选值或后果 | 必要字段及含义 |
+| --- | --- |
+| `SessionCallRegistration` 的 `associated` 分支 | `kind: 'associated'`、`binding: CallBinding`、`purpose`。binding.producer.kind=model 时 purpose 为 main、compaction 或 extension；kind=tool 时为 action。 |
+| `SessionCallRegistration` 的 `tool-intent` 分支 | `kind: 'tool-intent'`、`action: string`、`consumer: ConsumerRef`、`request: DurableEvidence`、`initiatingAttempt: AttemptId | null`、`purpose: 'action'`。该分支没有 producer 或 reference。Run 内 initiatingAttempt 必须有原 SE15，null 只用于原本合法的 Run 外调用。 |
+| `SessionCallRecord` | `consumption: ConsumptionId`、`registration: SessionCallRegistration`、`registered: DurableEvidence`、`association: DurableEvidence | null`。registered 保留最初 SE18，tool-intent 的 association 为 null，后续关联另存其原关联来源。 |
+| `SessionCallWait` | `consumption: ConsumptionId`、`position: string`。其绑定由同一历史或本批前段的 SessionCallRecord 决定，position 与原 consumer 的对应位置一致。 |
+| 新 `call-registration` 后果 | `consumption`、`registration`。生成原 SE18；同消费同值认回，异值 conflict。 |
+| 新 `call-association` 后果 | `consumption`、`binding: CallBinding`、`source: DurableEvidence`。只将已登记 tool-intent 关联到真实 Tool reference，按原关联事实追加 SE18，不重新创建消费身份。 |
+| 新 `registered-waiting` 后果 | `calls: readonly SessionCallWait[]`、`other: readonly Waiting[]`。other 只能是既有 extension-batch 或 dependency 分支。二者合成该事件报告的完整等待集合，不是增量。所有 calls 先定位原或同批前段的登记，再生成 SE22。 |
+
+`WorkSnapshot` 可增加 `callRegistrations: readonly SessionCallRecord[]` 与 `callWaits: readonly SessionCallWait[]` 两个可选投影。已关联记录同时投影为既有 consumptions；其生产者等待同时投影为既有 waiting。未关联 Tool 不制造一个含假 producer 的 Consumption 或 Waiting。两个投影都从同一 SE18/SE22 归约，不另存一套权威事实。下表补齐这些事实的公开消费结果，旧字段、分支与函数签名保留。
+
+| 公开结果的候选增加 | 来源与语义 |
+| --- | --- |
+| `OpenWork.unassociatedWaiting?: readonly SessionCallWait[]` | 列出 callWaits 中登记仍为 tool-intent 的原等待，以及原控制尚未交清的 pendingUnassociatedWaiting。每项以 consumption 定位 SessionCallRecord，以 position 定位原 SE22 等待位置，不含 ProducerRef。后者只表示原等待的交接责任，不恢复业务等待。既有 waiting 仍只承载原 Waiting。 |
+| `OpenWork.unsettledControls?: readonly SessionOperationId[]` | 列出 controls 中 state 尚非 reconciled，或 pending/pendingUnassociatedWaiting 尚非空的原控制操作身份。由既有 SE24/SE25 派生，为控制交接仍未结束时的保留下界入口，不借用只表示操作结果未知的 unresolved。 |
+| `ControlScope` 的 `scope` 分支增加 `unassociatedWaiting?: readonly SessionCallWait[]` | 从同一原等待集合选出本次控制范围内的未关联责任。它是交给原协调者的责任清单，不是可向生产者发送的目标。范围按下文控制表和原 Run/attempt 关系确定。 |
+| `ControlProgress.pendingUnassociatedWaiting?: readonly SessionCallWait[]` | 把本次控制尚待交接或核对的原未关联责任投影为清单。它随原 SE24/SE25 保存，沿原控制身份认回，不增加控制状态或端口。解除本域等待不自动清空此清单。 |
+
+`openWork` 的该清单由同一快照的 callRegistrations、callWaits 与 controls 中的 pendingUnassociatedWaiting 合并求得，按 `(consumption, position)` 去重。等待来源仍是原 SE18/SE22，控制处置及交接来源仍是原 SE24/SE25，不增加第二套权威。已解释的 intent 即使 readThrough 已越过其事件，仍在清单中，不能由 unreadEvents 或 backgroundPlaceholders 代替。后续真实关联时，仍有效的同一业务等待改映射到既有 waiting 的 producer 分支，并从 unassociatedWaiting 移除。已有相同 producer waiting 只保留一项，不产生第二个等待、消费身份或推进资格。已解除的业务等待只转换原控制核对责任，不恢复 producer waiting。该转换与登记关联共同归约。
+
+上述可选字段的省略只兼容可由旧关联事实完整重建的合法快照和结果。只有完整原事实证明不存在未关联等待或待交接责任时，省略才等价于空集合。历史已有 intent 或未关联责任时，提供者必须重建并交出清单，不能以缺字段证明为空。必要原事实不可读时，读取或命令协调按原共同失败规则返回 unavailable，不向这些纯函数交入不完整快照，也不改变其返回联合。归约仍按该精确解释版本核投影完整性。
+
+历史持有者把每项 unassociatedWaiting 定位到原 SE18 登记条目和仍生效的 SE22 等待条目。等待已解除但控制责任尚未交清时，定位其原 SE22 及承载该待办的原 SE24/SE25。原 action、consumer、固定请求和发起 attempt 由该 SE18 取得。AD-04 将这些条目引用纳入压缩下界，原事件仅作为来源，不用事件序号冒充 Session 条目引用。`DecideReads.compaction.open` 按同一 openWork 核对这些引用，遗漏任何一项均沿原压缩核对拒绝。原控制待办及其引用的登记沿原待交接责任保留，不能借压缩丢掉认回材料。
+
+`judgeIdle` 读取同一清单，非空时为 not-due；待控制责任非空也沿原 controls 未完成守卫阻止 due，不以 Run 已终态或 producers 为空证明空闲。此处不扩大 PA-02 只读条件终结的 Session 阻塞范围。
+
+unsettledControls 从同一快照的 controls 按原控制操作身份去重求得，不新增权威状态。它保持从原 SE24 到尚未交清责任的定位。初次保存控制时，原 SE24 固定本次选中的未关联 consumption/position，后继 SE25 不改写该原范围。历史持有者以原控制操作身份定位这份原 SE24、仍生效的 SE25、尚未交清项的原 SE18/SE22 及其真实关联条目，全部纳入 AD-04 下界和 compaction.open 的一致核对。取消先解除业务等待、随后 intent 关联时，unassociatedWaiting 可变空且旧 waiting 仍为空，但原控制仍在 unsettledControls，以上引用仍保留。
+
+转换到 pending 中的真实 producer 核对项不解除原责任；只有原控制责任依证据解除后，才能移出相应引用和 unsettledControls。必要原条目不可取得时沿原 unavailable 处理，不能交空下界。该字段同样按上文省略规则处理，judgeIdle 见非空也不得出 due。
+
+未关联等待的控制只表达[终态与控制](#终态与控制)、[归档与撤销](#归档与撤销)、[PM-13](#pm-13) 及原 SE24/SE25 的已有责任。Agent 对取消的交接、准备阶段插队及责任释放分别按其[取消、退出与结构变更](../../agent/agent-contract/SPEC.md#取消退出与结构变更)、[插队](../../agent/agent-contract/SPEC.md#插队)、[六个阶段](../../agent/agent-contract/SPEC.md#六个阶段)，不在此新增取消政策。
+
+| 原控制 | 未关联责任的选择与交回 |
+| --- | --- |
+| Run cancel-run | 以登记的 initiatingAttempt 经原 SE15/SE13 定位目标 Run，只纳入该 Run 原前台等待。按 I-R9 排除已确认后台、子会话及无关 Run 外调用。SE24/SE25 保存清单，原 execution 的取消与交接沿 PM-13 和 AgentDrivePort.control，SE26/SE16 的原时点不变。 |
+| interrupt 插队 | 只纳入原 Run 的适用前台等待，保持 SE10/SE11 加急输入及 SE24/SE25 原处置责任。准备阶段无真实 invocation 时，按 Agent 插队第 5 项只保存并交回原 execution 的插队责任，不对不存在的调用发中断或转后台，不终结 Run。 |
+| archive | 按 SE27 的原取消范围纳入本会话业务等待，范围包含原有 Run 内、Run 外及前后台责任；子方仍用原级联机制。保存原登记及 SE24/SE25 后续交接、核对责任，沿 PM-13 处理实际存在的 execution，不为 Run 外登记补造 Run、attempt 或 execution。逻辑归档不等待物理停止。 |
+| stop-call、background-tool | 仍只接受真实已关联的 ProducerRef，不能用 ConsumptionId、假引用或未关联清单替代。未关联登记不能成为这两个具名生产者操作的目标；无真实绑定沿原 invalid 处理。此分支不扩大到其他 intent。 |
+
+控制提交只解除原范围内的本域业务等待。协调者仍以原控制、consumption、position、登记及历史 Run/attempt 关联认回未交清责任。只有原具名控制或合法交接事实证明对应责任已由合法保管方接管或结清，才能经 SE25 解除 pendingUnassociatedWaiting 中的该项。原 Agent 记录、交接或传播答案未知时保留并报告，按 PM-13/PM-14 恢复，不从空 producers、无挂接、Run 终态或新等待集合推导 reconciled。
+
+后续关联只把同一责任映射为原控制范围内的真实 producer 核对项，与已有 pending 去重，不重授执行资格，不在取消后 invoke 以求得引用。原控制未覆盖的调用不因关联被追加入其范围。原事实不能证明释放或关联时继续保留未知，不默认终态或虚构外域请求。
+
+旧 call、producer、waiting 后果及 CallBinding 保留。旧 associated 调用未提供 purpose 时，只有既有解释版本已经确定其 Model purpose 为 main、Tool purpose 为 action 才沿原映射；新的同日志归一必须提供原完整 purpose。未知目的不能按 main 处理。新增投影省略时沿可证明的旧关联登记重建，不能以省略消掉历史 intent 或等待。无法证明登记、用途或原 attempt 时返回 unavailable。
+
+Tool 后续 associated 时，consumption、action、consumer 四字段、固定 request 与 initiatingAttempt 逐项保持，purpose 保持 action，原 registered 不变。只有 producer 的真实关联及其来源被追加。已有 associated 同值认回，改 reference 或固定绑定冲突。关联时把原 callWaits 中仍有效的同一位置映射为既有 producer waiting，不能新造消费或把它交给当前 attempt。已由控制解除的位置只沿原控制映射核对责任，不恢复该等待。
+
+首次 waiting 对所有新消费先给 call-registration，再给 registered-waiting，在一次 observation 中产生 SE18、SE22、解释进度和操作答案。首次 producer 缺 SE18 时先完整登记再 producer，同批产生 SE18/SE19；已有 Tool intent 时先给已证明的 call-association。仅有结果而无法恢复 binding 时停止该后果，不重发生产者。
+
+原 attempt 从原 effect/pending 的 Authority，经同根 grant-to-attachment 关系回到已成立 SE15。waiting 的报告 attachment 可以是接管后的新挂接，不能代表发起者。纯层用当前或历史 SE15 核对 initiatingAttempt，不用 ID 前缀、consumer.work、instance 或最大 ordinal 猜测。迟到登记和结果仍归原 Run/attempt，不清空后继 taken 或等待。
+
+<a id="fr-07"></a>
+
+#### FR-07 归一责任、失败和成本边界
+
+adapter 验证原 Agent identity decoder、Model/Tool invocation resolver、原 effect/pending/Authority、原结果 call、grant、完整材料及其同根来源。session-contract 不导入这些外域类型或解码器。纯层检查本域租户、会话、原 execution-to-Run、原 SE15、完整证据、非空版本与 request、结果 producer 与冻结 binding 相同、同身份同值、连续序号、完整 Q/目录/相关前缀以及原终态不变。归约执行同一组本域不变量，不能因为 adapter 已归一而跳过。
+
+原结果的 producer.call 是 ModelCallId 或 ToolCallId。adapter 用 `resolveModelInvocationRef(reference, tenant)` 或 `resolveToolInvocationRef(reference, tenant)` 得到原 call，再核对该值；归一结果的 producer 才使用 Session binding 中的稳定 invocation reference。禁止 JSON 拆字段、字符串截取或正则猜测 opaque reference。错误返回实际字段位置。外租户及不存在的执行保持同一拒绝语义，根、材料、游标、答案与 alias 均不改变。
+
+真实权威材料暂不可读返回已有 unavailable，gap、损坏或已证关联矛盾按 SL14 返回 quarantined。索引可重建时先重建。投影落后而原事实可读时主动追平，不能据落后拒绝必要控制。必须解释的后果缺材料时不得跳过、推进 cursor 或提前宣称终态成功。已提交前缀保留，最终命令尚未提交时不能报告该命令成功。
+
+读取成本限于 Q 的目录页、全部原交入关系、相关执行未解释前缀及必要材料字节。不得为了少量 Q 枚举或 load 全会话无关旧执行。按条目和字节预算分段读取，output.read 的 limit 不超过提供者上限；load 仍返回其承诺的完整快照，不能裁剪数组冒充完整。允许复用不可变根的原材料和同修订内部分页，不为每次 head 读取反复物化全部旧 results/effects。
+
+预算耗尽保存内部接续位置并 yield。位置包含固定根和上界、Q 的目录版本、关系页位置、捕获 E 的剩余前缀及已确认解释操作。yield 是内部接续，不新增业务成功、拒绝或失败结果。重试先认回已提交段；无后果的内存扫描丢失后可重读。根变化只重算必要差异，最终仍检查完整共同根；无关保管变化不扩大 E 或重读已验证全部 load。
+
+SE38 的最终完整批不能按页预算拆成多个成功终态。必要完整快照或最终批超过提供者实际容量时，沿既有 unavailable 处置，不默默无界缓存。本节不规定固定容量、固定延迟或无条件无饥饿。P-5 下无法恢复承接前缀的分支仍不能释放无法证明未 taken 的输入。
+
 ### Run 两层状态机与不变量
 
 Run 层为 `none → active → completed | failed | cancelled`，终态不可反转。attempt 层只在 `active` 内，为 `granted → advancing ⇄ waiting → released | superseded → granted`。等待不是 Run 的状态。状态图归[状态转移页](docs/object-model/session-state-transitions.md#正交状态与唯一依据)，系统层说明见 [Run 与 attempt 的两层状态](../../../docs/architecture/runtime/session-and-run.md#run-与-attempt-的两层状态)。
@@ -1306,7 +1491,7 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | <a id="i-r1"></a>I-R1 | 同一 Session 至多一个未终结 Run | `judgeRunStart`；`startRun` 的条件提交核对 `run` 为 none | 第二个 `startRun` 返回 `run-active`；同身份认回 |
 | <a id="i-r2"></a>I-R2 | 同一 Run 至多一个非空 `advance`；序号严格递增 | `judgeAdvance`；`claim` 与 `reload` 的条件提交核对 `expected` | 旧 attempt 的写入得到 `stale-advance`；并发的第二个 `claim` 得到 `stale-advance` 或 `changed` |
 | <a id="i-r3"></a>I-R3 | 每个普通输入至多一次有效承接；批界由 Agent 的输入水位线决定，Session 不重选 | 承接只由 Agent 的 `input-taken` 事件派生（按 EC-01 从同日志解释；SE35 不替代 SE14），按事件身份认回；同一 `InputId` 的 `submit` 按输入身份认回，至多一次受理 | 重放的承接事件不重复写 SE14；重复的 `submit` 认回原受理；Session 没有重选批界的命令 |
-| <a id="i-r4"></a>I-R4 | 终态三选一且不可反转；终态后没有新 attempt、承接或发起 | `judgeAdvance` 读到 `run.terminal` 时返回 `terminal`；`judgeRunStart` 不复活 Run；`receive` 读到第二个结束事实时只认回 | 终态后的 `claim`、`reload`、`release`、`finishRun` 返回 `terminal`；终态后的 `submit` 由 Agent 返回 `terminal` |
+| <a id="i-r4"></a>I-R4 | 终态三选一且不可反转；终态后没有新 attempt、业务承接或发起。终态前已成立的历史承接按 FR-02 解释，不属于新承接 | `judgeAdvance` 读到 `run.terminal` 时返回 `terminal`；`judgeRunStart` 不复活 Run；`receive` 读到第二个结束事实时只认回 | 终态后的 `claim`、`reload`、`release`、`finishRun` 返回 `terminal`；终态后的 `submit` 由 Agent 返回 `terminal` |
 | <a id="i-r5"></a>I-R5 | 取消生效即为 cancelled 终态；优雅或强制不改变时点 | `resolveControlScope` 在同批形成 SE26 | 取消之后完成的条件终结得到「冲突」；强制只改变传播的急迫程度 |
 | <a id="i-r6"></a>I-R6 | 等待只针对原位置；结束由处理、控制或 Agent 的新等待集合表达 | `waiting` 事件的集合；`completeConsumption` 核对原位置 | 非原位置的处理返回 `invalid`；不存在结束等待的命令 |
 | <a id="i-r7"></a>I-R7 | 调用登记不冒称已发出；结果版本唯一；保管、处理与释放分别认回 | SE18 只由 Agent 事件（按 EC-01 从同日志解释）或 `bindExternalCall` 写；`preserveResult` 按版本唯一；`receive(release)` 核对生产者确认 | 同版本异摘要返回 `conflict`；没有生产者确认的 `release` 写入被拒 |
@@ -1325,9 +1510,9 @@ Session 日志能区分的 attempt 层事实是 `advance` 是否为空（SE15、
 | `judgeAdvance` | `run` 与三种申请之一：attempt 的 `AdvanceRef` 与 `expected`；有界收束的收束依据；参加的 execution | `ok`、`stale-advance`、`changed`、`terminal`、`archived` | `claim`、`reload`、`release`、`finishRun`；参加的 `recordMessage`、`commitDerived(compaction)` | ST08、ST09、ST10、ST11、ST20 |
 | `routeInput` | `RoutedInput`、`lifecycle`、`frozen`、`run` | `queue`（去处为当前 Run 或下一个 Run；冻结的会话只有当前 Run）、`card`、`business`、`rejected`（`archived`、`frozen` 或 `invalid`） | `accept` | ST03、ST04、ST05 |
 | `judgeRunStart` | 快照、入口类别 | `eligible`（带首条输入）、`not-ready`、`archived`、`frozen`、`run-active`、`no-input`、`login-required`（结局集保留；本函数只看快照，快照不含登录状态，所以从不产出它。`login-required` 由 `decide` 按登录门材料的存在与否产出，裁定 R2） | `startRun`；推进触发 | ST06 |
-| `openWork` | 快照 | `OpenWork`：待处理输入、已交入未承接的输入、已承接而其后还没有模型调用登记（SE18）的输入、等待中的执行、后台占位、结果未知的操作、未读的 Agent 事件。CM-04 的「模型尚未读取的输入」对应前三项，未读的 Agent 事件使下界只会更保守 | 历史持有者的未结工作下界；`judgeCompletion`；`judgeIdle` 的本会话部分 | ST20、ST24b；message 包的 [CM-04](../../common/message/SPEC.md#模型视图) |
+| `openWork` | 快照 | `OpenWork`：待处理输入、已交入未承接的输入、已承接而其后还没有模型调用登记（SE18）的输入、等待中的执行（含 FR-06 的 unassociatedWaiting）、后台占位、结果未知的操作、未读的 Agent 事件。CM-04 的「模型尚未读取的输入」对应前三项，未读的 Agent 事件使下界只会更保守 | 历史持有者的未结工作下界；`judgeCompletion`；`judgeIdle` 的本会话部分 | ST20、ST24b；message 包的 [CM-04](../../common/message/SPEC.md#模型视图) |
 | `judgeCompletion` | 快照、execution | `allowed`、`blocked`（待交输入）、`cancelled`（SE26 cancelled 已成立）、`terminal`（其他终态已成立） | 条件终结的只读参加（[PA-02](#pa-02)） | ST20 |
-| `resolveControlScope` | 快照、`Control` 或 `ControlIntent` | `scope`（待核对的生产者、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid` | `control`、`interrupt`、到期的 `considerAutoArchive` | ST18a、ST18b、ST19a、ST19b、ST21 |
+| `resolveControlScope` | 快照、`Control` 或 `ControlIntent` | `scope`（待核对的生产者、FR-06 未关联等待责任、撤销的资格、是否同批形成 cancelled 终态、传播责任、级联与作用域释放任务）、`terminal`、`invalid` | `control`、`interrupt`、到期的 `considerAutoArchive` | ST18a、ST18b、ST19a、ST19b、ST21 |
 | `resolveCascade` | 快照中的关系、子会话列表 | 级联任务列表；handoff 不在其中 | `control(archive)`、`considerAutoArchive` | ST21、ST23 |
 | `judgeIdle` | `IdleObservation`、自动归档策略、关系、`openWork`、`IdleCoverage` | `due`、`not-due`、`exempt`、`disabled`、`unavailable` | `considerAutoArchive`；空闲与自动归档调度 | ST24a、ST24b |
 | `resolveOperation` | 操作身份、规范化参数摘要、已提交记录 | `new`、`recovered`（原回执）、`conflict` | 全部变更命令核权后的首个领域步骤；`queryOperation` | [SL07](#日志提交与查询结果) |
@@ -1754,7 +1939,7 @@ Session 在 Tool 的启动排序域里是工作资格的版本拥有者，不是
 ### C3 四项拥有者细化
 
 1. SE13 提交时固定 execution 所属 Run，reload 只变 attempt，不把旧 execution 转绑后继。后继开始后首次迟到的 complete、fail 或 cancelled 结论仍定位原 Run。原 Run 已有终态时，追加或引用原来源作为认回证据，不改写历史 SE26，不撤销后继的推进资格。关系缺失、错租户或错会话均不得采用。
-2. freeze 只在初始化完成后成立。没有 active Run 时，SE37 与全部剩余 pending 输入的 SE38 同批提交。有 active Run 时不取消它，其后每条终态路径都在终态批次解除全部剩余待处理资格，包括 handed 但未 taken 的输入。未冻结时，这些输入保留原 InputId、顺序和资格，经 SE13 的 predecessor 关系交给后继，可再次交入，SE14 的有效承接仍至多一次。
+2. freeze 只在初始化完成后成立。没有 active Run 时，SE37 与全部剩余 pending 输入的 SE38 同批提交。有 active Run 时不取消它，其后每条终态路径都在终态批次解除全部剩余待处理资格，包括 handed 但未 taken 的输入。集合须先按 [FR-02](#fr-02) 至 [FR-04](#fr-04) 核对原承接，不能使用落后的 pending。未冻结时，原事实确认未承接的这些输入保留原 InputId、顺序和资格，经 SE13 的 predecessor 关系交给后继，可再次交入，SE14 的有效承接仍至多一次。
 3. create、有新增实际采用的 completeInitialization、startRun 与 reload 的采用材料明确携带新增常驻定义和本次完整的能力身份/ResidentKey 对。SE36 对每个首次纳入能力保存资产版本与 shape，已有能力不重复写。SE08 保存当前采用键对。可选新增材料省略只表示没有新声明，不得以空投影清除已有键。references 保留冻结未归档会话，排除归档会话，按系统 maintainer 资格读取提交时维护的索引，目录不可用返回 unavailable。
 4. inspect 失败集合封闭为 denied、unavailable，missing 是成功的执行状态。只有公开读取能证明执行不存在或已删除时才返回 missing，拒绝和不可用均不能映射为 missing。prewarm 失败集合封闭为 denied、unsupported、unavailable。保留现有宽 DriveReply 导出，方法约束是其子集。P-7 未解除前不调用 prewarm，也不引入假定的 commit-unknown 路径。
 
@@ -1793,3 +1978,25 @@ return invalid('value', 'the input has no identity or no content')
 ```
 
 该分支没有生成 SE12。操作表与 JC-03 对拒绝留痕的要求一致，偏离发生在实现。影响是拒绝决定没有对应日志留痕。本候选保留现行拒绝行为，未替负责人裁定补写或撤销 SE12。README 的首条路径支持声明必须带此例外。
+
+### 同日志前缀与归一的持续验证
+
+以下为必要验证条件，不是通过记录。具体运行结果与适用精确解释采用分别提交。每个直接纯层负例先建立合法租户、SE13、SE15、原目录、根和版本一致的可通过基线，再只改变所判的一项；另保留合法对照。不能以先在无关字段失败代替目标不变量被触发。
+
+| 标识 | 安排与禁止结果 |
+| --- | --- |
+| VC-FR01 | taken 已发布但未解释，普通取消后启动后继。先解释历史 SE14，输入不重交；仅 handed 且原目录证明确实未 taken 时可按原身份交后继。 |
+| VC-FR02 | 对 FR-04 的每个 SE38 入口安排 taken/ended 未解释，含 PM-02 首条 rejected。最终 SE38 只含真正剩余集合，与唯一终态或 SE37 同批。 |
+| VC-FR03 | captured E 含多个未完成前缀，其中一个 SE14 使 Q 缩小。完成原 E 后再重算；cancel 准备不解释 ended，独立正常 ended 先发布仍按 PA-08 返回 terminal。 |
+| VC-FR04 | taken 与最终 CAS 分别先赢，另安排页预算、字节预算、yield、前缀发布后丢答复。前者迫使重新准备，后者拒绝旧 grant 的新业务 taken；保管不被误拒。 |
+| VC-FR05 | 直接调用纯层，漏 Q、原目录页、相关 execution、批次成员或一个事件，伪报结束，或替换页成员、根和 cursor。按 FR-01/02 明确拒绝，零部分条目和进度。完整批次的矛盾历史按 SL18 隔离。 |
+| VC-FR06 | head revision=5 时解释 sequence=1，同 commit 多事件，无事件 received，sequence=null 的结果对账。head 真实依据与原事件/result.source 分离，cursor 只按事件变化。 |
+| VC-FR07 | 首次 waiting 含多个新调用，producer 先到，接管后报告旧 waiting。SE18 与 SE22/19 同批，发起 attempt 来自原 effect/grant/SE15，不取报告者或最新 attempt。 |
+| VC-FR08 | Model 的 main、compaction、extension 和 Tool action；Tool intent 后续关联。无假 reference，同 consumption/consumer/fixed，不新造调用或丢等待。 |
+| VC-FR08a | Tool intent 的 SE18/SE22 已解释且 readThrough 已越过原事件，无 invocation reference。openWork 仍以原 consumption/position 列出未关联等待；AD-04 与 compaction.open 都含原登记及生效等待条目，漏任一引用被拒，judgeIdle 不出 due。真实关联与重复 producer waiting 同时存在时只保留原责任一份。 |
+| VC-FR08b | 对同一 intent 分别执行 Run 取消、插队、归档及具名 stop-call/background-tool。按 FR-06 选原范围，保存 SE24/SE25 未关联责任；无真实 producer 不发虚构请求。未知不清空责任或 reconciled，合法交接才解除，迟到关联只映射原责任，不恢复资格。另保留后台、Run 外与子方范围对照。 |
+| VC-FR08c | cancel 已解除原业务等待，pendingUnassociatedWaiting 仍在，随后原 intent 真实关联。未关联投影移除并转既有 pending producer 核对项，旧 waiting 仍为空。unsettledControls 持续定位原 SE18/SE22/SE24/SE25 及关联条目，AD-04 和 compaction.open 不掉下界；只有原控制责任按证据解除后才退出。 |
+| VC-FR09 | 合法同域输入里替换 reference 为外租户/错 call，或直接 pure 提交 unrelated attempt、空版本、空 request/source、错误 producer、同版本异值。原入口按其职责拒绝，不变根、材料、cursor、答案或 alias。 |
+| VC-FR10 | 大量无关旧 execution 有迟到保管，只准备少量 Q。读集合限于相关目录和必要后缀，不全历史 load。P-5 缺承接前缀仍不可释放未知输入。 |
+
+恢复排序机制须取得有限行为模型、精确配置和边界、实际结果及具名负控制，再核对模型前提。实现后另交公共入口、同根故障、跨租户、纯层负例及模型动作到真实发布点的对应。模型或轻量文档检查不证明实现接受、真实耐久、跨进程、Model ACK、新 scope 初始化或 SE12 偏离已经闭合。

@@ -46,3 +46,7 @@
 - [release-digests.ts](release-digests.ts)：生成的精确发布摘要常量
 - [testing-initialization-source.ts](testing-initialization-source.ts)：显式登记的内存可信来源
 - [testing-initialization.ts](testing-initialization.ts)：显式实际采用测试前提
+
+## 候选导出与实际支持
+
+[公开接口页的候选增加](../docs/public-api.md#同日志历史材料的候选增加)列出 FR-01/05/06 的新增值与可选材料。它们尚不是本目录的现有导出。当前 projectSessionLog、reduce 可处理已有归一形状，完整 Agent 日志读取、历史目录核验与新 Tool intent 形状仍待对应实施。公开签名、API 快照和导出集合在实施交付时同步，本次文稿不改源码或生成快照。

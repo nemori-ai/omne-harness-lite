@@ -38,6 +38,29 @@ sequenceDiagram
 4. 首次发布失败该批全无。后续解释失败不撤销 Agent 已提交事实，不推进解释进度。各批丢答复查询各自原操作。未解释事实计入未结工作。
 5. Agent ended 已发布而 Session 尚未解释时，cancel 可先写 cancelled。后续 ended 只留原 Run 引用，不改终态或后继；冻结后的终态提交仍解除余下待处理资格。
 
+#### FA-02 的相关前缀准备
+
+```mermaid
+sequenceDiagram
+  participant C as 命令协调者
+  participant R as 会话共同根
+  participant N as 归一与纯层
+  C->>R: 认回原操作，捕获 Q、目录与 E
+  loop 完成捕获 E 的必要前缀
+    R->>N: 同根原材料与真实 head
+    N->>R: 后果、进度、操作答案独立发布
+  end
+  C->>R: 重读 G′，重算 Q 和必要差额
+  C->>R: 重核资格及 CAS 完整终态或冻结批
+  R-->>C: 原完整结果或原操作待认回
+```
+
+此流程只用于 [FR-04](../../session-contract/SPEC.md#fr-04) 的后继消费和 SE38 路径。准备不解释 ended，独立正常 ended 解释仍按 PA-08 竞争。Q 缩小时先完成已捕获 E 的剩余前缀。最终 CAS 失败重读重算，前缀成功不授权沿用旧 pending。
+
+首次 waiting/producer 先从原 pending、effect Authority 与 SE15 取得登记，再同批写 SE18/SE22 或 SE18/SE19。observation.source 保留原事实，revision/executionEvidence 取真实 head。Tool intent 先保存无 reference 的登记，后续关联保持原消费身份与固定位置。具体字段与失败见 [AD-02](../SPEC.md#ad-02)。
+
+按相关条目和字节预算 yield，保持内部接续责任；它不是新业务结果。原事实可读而投影落后时主动补齐，真实不可读按 unavailable，已证权威损坏按 quarantined。PM-02 rejected 首输入与剩余 SE38、P-5 缺原前缀的限制均沿 FR-04，不改 finishRun 原准入。
+
 ### FA-03 Runtime Context 的持有、供给与变化提醒
 
 对应 [AD-03](../SPEC.md#ad-03)。
@@ -65,7 +88,7 @@ flowchart LR
 1. 一次组装开始时，插件先完成 FA-03 第 4 步的补拉，再以 `basis` 为 null 调 `readModelView` 取当前 epoch 与上界，给出历史依据：epoch、上界、作用域引用与访问身份。
 2. Request Context 以 `HistorySource.read` 带依据、游标与字节预算读取。插件以 `readModelView` 读一页，原样交出每行的序号、条目位置、字节数、前缀摘要与消息。
 3. `readModelView` 返回 `epoch-changed` 时，插件返回 epoch 已变与当前依据。Request Context 用新依据重取。`denied`、`invalid`、`unavailable` 分别交为无资格、无效与不可用。
-4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。
+4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。未关联等待以 consumption/position 定位原 SE18 与生效 SE22，两者均保留并在 compaction.open 核对；真实关联后与 producer waiting 合并去重。业务等待已解除而原控制尚未交清时，沿 unsettledControls 保留原 SE18/SE22/SE24/SE25 及关联条目直到原责任依证据解除。必要材料不可读时报告不可用。
 5. 压缩转换经 FA-01 的 `context-transition` 提交。提交之后的重签见 FA-03 第 5 步。
 
 ### FA-05 Model 日志结果与账目
