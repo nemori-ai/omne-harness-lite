@@ -248,7 +248,7 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 3.2／8.1 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 3.2 秒，超过单条预算 2.5 秒（负载下 8.1 秒）（tools/test-runner/README_ZH.md「归层」）。
   it(
     '其余报告项再多也是 0：超阈值的函数、重复代码、没有断言的测试、超预算的成员',
     { tags: ['slow'] },
@@ -276,7 +276,7 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 3.3／9.4 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 3.3 秒，超过单条预算 2.5 秒（负载下 9.4 秒）（tools/test-runner/README_ZH.md「归层」）。
   it(
     '配置里排除的成员组（初值 examples）不判预算、不生成草稿；全仓指标照样计入',
     { tags: ['slow'] },
@@ -301,7 +301,7 @@ describe('入口', { timeout: 60_000 }, () => {
     },
   )
 
-  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。快层账本里这条 4.8／10.1 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：起回路入口 CLI 子进程，在临时 git 仓库里整条度量。全量准入快层账本里这条 4.8 秒，超过单条预算 2.5 秒（负载下 10.1 秒）（tools/test-runner/README_ZH.md「归层」）。
   it('给了基线：有要解释的红项一段与验收锁一行；锁被破退出 1', { tags: ['slow'] }, () => {
     const { root, home } = members()
     const base = git(root, 'rev-parse', 'HEAD')

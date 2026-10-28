@@ -1,5 +1,5 @@
 // @module-tag slow
-// Slow: every case runs the package-template CLI as a child process over a temporary git workspace (tsc and git included). File total 19.1 s / 56.1 s on the two fast-tier ledgers (dcffba381 / 77d603dac); 2 / 13 of its 13 cases are over the 2.5 s per-case budget, and one reached 6 s against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
+// Slow: every case runs the package-template CLI as a child process over a temporary git workspace (tsc and git included). File total 19.1 s on the full-admission fast-tier ledger, 56.1 s under load; 2 of its 13 cases are over the 2.5 s per-case budget on the admission run, all 13 under load, and one reached 6 s under load against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
 import { afterEach, expect, it } from 'vitest'
 import { spawnSync, execFileSync } from 'node:child_process'
 import {

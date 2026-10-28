@@ -22,7 +22,7 @@ import { renderPage } from '../src/report/render.ts'
 import { buildReport } from '../src/metrics/report.ts'
 
 const bands = { green: 8, yellow: 12, red: 20 }
-// Slow: runs the architecture view CLI as a child process. 2.1 s / 4.4 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: runs the architecture view CLI as a child process. 2.1 s on the full-admission fast-tier ledger, 4.4 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
 it(
   'rejects JSON output paths that would overwrite report artifacts before writing',
   { tags: ['slow'] },
@@ -405,7 +405,7 @@ describe('architecture view projection', () => {
     expect(added.edges[0]?.kind).toBe('type-import')
     expect(added.edges[0]?.evidence.every(item => item.version === 'current')).toBe(true)
   })
-  // Slow: renders the whole view page and reads the existing metric page. 1.5 s / 3.9 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  // Slow: renders the whole view page and reads the existing metric page. 1.5 s on the full-admission fast-tier ledger, 3.9 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'embeds an inert payload and preserves the existing metric page without external resources',
     { tags: ['slow'] },

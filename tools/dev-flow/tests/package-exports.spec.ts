@@ -1,5 +1,5 @@
 // @module-tag slow
-// Slow: builds declarations in temporary packages, runs the TypeScript checker on them (ts.createProgram) and starts the CLI as a child process. File total 9.3 s / 30.3 s on the two fast-tier ledgers (dcffba381 / 77d603dac); tagging its slowest case alone still leaves 7.3 s / 24.8 s, over the 10 s file line, and two cases reached 5.4 s and 5.5 s against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
+// Slow: builds declarations in temporary packages, runs the TypeScript checker on them (ts.createProgram) and starts the CLI as a child process. File total 9.3 s on the full-admission fast-tier ledger, 30.3 s under load; tagging its heaviest case alone still leaves 7.3 s (24.8 s under load), and two cases reached 5.4 s and 5.5 s under load against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
 import { spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'

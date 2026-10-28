@@ -1137,7 +1137,7 @@ describe('retired delivery structures', () => {
     expect(() => parseConfig({ ...config(), schemaVersion: 1 })).toThrow()
     expect(() => parseCapture({ ...capture(), protocolVersion: 1 })).toThrow()
   })
-  // Slow: starts the delivery CLI as a child process several times. 1.7 s / 4.8 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  // Slow: starts the delivery CLI as a child process several times. 1.7 s on the full-admission fast-tier ledger, 4.8 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'real CLI rejects old formats and retired structural keys with exit 2',
     { tags: ['slow'] },

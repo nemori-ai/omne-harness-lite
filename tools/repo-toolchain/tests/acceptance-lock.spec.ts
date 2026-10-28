@@ -1,5 +1,3 @@
-// @module-tag slow
-// 归慢层：在临时 git 仓库里起 git 与验收锁 CLI 子进程。快层账本（dcffba381／77d603dac）里整份合计 8.6／16.7 秒，只标超预算的那一条，余下仍有 6.8／12.8 秒，过了 10 秒线（tools/test-runner/README_ZH.md「归层」）。
 // 验收锁的正反夹具：拥有者与人改验收放行，实施角色改验收、未提交的验收改动报出。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -251,53 +249,63 @@ describe('验收锁：读 Git', () => {
     expect(report.violations).toHaveLength(1)
   })
 
-  it('入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2', () => {
-    const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
-    // `pnpm run check` 把解析出的基线导成 BASELINE；这里要的是不给基线时的缺省，所以去掉它。
-    const { BASELINE: _inherited, ...env } = process.env
-    const run = (...args: string[]) =>
-      spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
-        encoding: 'utf8',
-        env,
-      })
-    const { root, base } = repository()
-    expect(run('--base', base, '--root', root).status).toBe(0)
-    write(root, SPEC, 'expect(true).toBe(true)\n')
-    commit(root, 'fix\n\nAgent-Role: tui-developer')
-    const broken = run('--base', base, '--root', root)
-    expect(broken.status).toBe(1)
-    expect(broken.stdout).toContain('Agent-Role: tui-developer')
-    git(root, 'checkout', '-q', '-B', 'work')
-    git(root, 'branch', '-f', 'main', base)
-    const byDefault = run('--root', root)
-    expect(byDefault.status).toBe(1)
-    expect(byDefault.stdout).toContain('验收锁（基线 main，')
-    expect(run('--bogus', '--root', root).status).toBe(2)
-    expect(run('--base', 'no-such-ref', '--root', root).status).toBe(2)
-  })
+  // 归慢层：在临时 git 仓库里连起几次验收锁 CLI 子进程与 git 子进程。全量准入快层账本里这条 1.8 秒，负载下 3.9 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '入口：锁没破退出 0，破了退出 1，不给基线时取 main，认不出的参数或基线不存在退出 2',
+    { tags: ['slow'] },
+    () => {
+      const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+      // `pnpm run check` 把解析出的基线导成 BASELINE；这里要的是不给基线时的缺省，所以去掉它。
+      const { BASELINE: _inherited, ...env } = process.env
+      const run = (...args: string[]) =>
+        spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
+          encoding: 'utf8',
+          env,
+        })
+      const { root, base } = repository()
+      expect(run('--base', base, '--root', root).status).toBe(0)
+      write(root, SPEC, 'expect(true).toBe(true)\n')
+      commit(root, 'fix\n\nAgent-Role: tui-developer')
+      const broken = run('--base', base, '--root', root)
+      expect(broken.status).toBe(1)
+      expect(broken.stdout).toContain('Agent-Role: tui-developer')
+      git(root, 'checkout', '-q', '-B', 'work')
+      git(root, 'branch', '-f', 'main', base)
+      const byDefault = run('--root', root)
+      expect(byDefault.status).toBe(1)
+      expect(byDefault.stdout).toContain('验收锁（基线 main，')
+      expect(run('--bogus', '--root', root).status).toBe(2)
+      expect(run('--base', 'no-such-ref', '--root', root).status).toBe(2)
+    },
+  )
 
-  it('入口：不给基线时按统一规则取，BASELINE 与 origin/main 都先于 main', () => {
-    const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
-    const { BASELINE: _inherited, ...inherited } = process.env
-    const run = (env: Record<string, string>) =>
-      spawnSync(process.execPath, ['--experimental-strip-types', cli, '--root', root], {
-        encoding: 'utf8',
-        env: { ...inherited, ...env },
-      })
-    const { root, base } = repository()
-    write(root, SPEC, 'expect(true).toBe(true)\n')
-    commit(root, 'fix\n\nAgent-Role: tui-developer')
-    git(root, 'checkout', '-q', '-B', 'work')
-    git(root, 'branch', '-f', 'main', 'HEAD')
-    expect(run({}).status).toBe(0)
-    git(root, 'update-ref', 'refs/remotes/origin/main', base)
-    const remote = run({})
-    expect(remote.status).toBe(1)
-    expect(remote.stdout).toContain('验收锁（基线 origin/main，')
-    const explicit = run({ BASELINE: 'main' })
-    expect(explicit.status).toBe(0)
-    expect(explicit.stdout).toContain('验收锁（基线 main，')
-  })
+  // 归慢层：在临时 git 仓库里连起几次验收锁 CLI 子进程与 git 子进程。全量准入快层账本里这条 1.1 秒，负载下 2.7 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '入口：不给基线时按统一规则取，BASELINE 与 origin/main 都先于 main',
+    { tags: ['slow'] },
+    () => {
+      const cli = fileURLToPath(new URL('../src/acceptance/cli.ts', import.meta.url))
+      const { BASELINE: _inherited, ...inherited } = process.env
+      const run = (env: Record<string, string>) =>
+        spawnSync(process.execPath, ['--experimental-strip-types', cli, '--root', root], {
+          encoding: 'utf8',
+          env: { ...inherited, ...env },
+        })
+      const { root, base } = repository()
+      write(root, SPEC, 'expect(true).toBe(true)\n')
+      commit(root, 'fix\n\nAgent-Role: tui-developer')
+      git(root, 'checkout', '-q', '-B', 'work')
+      git(root, 'branch', '-f', 'main', 'HEAD')
+      expect(run({}).status).toBe(0)
+      git(root, 'update-ref', 'refs/remotes/origin/main', base)
+      const remote = run({})
+      expect(remote.status).toBe(1)
+      expect(remote.stdout).toContain('验收锁（基线 origin/main，')
+      const explicit = run({ BASELINE: 'main' })
+      expect(explicit.status).toBe(0)
+      expect(explicit.stdout).toContain('验收锁（基线 main，')
+    },
+  )
 })
 
 describe('D010 exact historical approval', () => {

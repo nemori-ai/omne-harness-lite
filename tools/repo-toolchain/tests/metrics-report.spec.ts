@@ -324,7 +324,7 @@ describe('摘要与审讯页', () => {
     expect(lines.at(-1)).toBe(`审讯页：${context.reviewPath}`)
   })
 
-  // 归慢层：渲染整份审讯页（内联 React 与 React Flow 的 bundle）并逐项扫描。快层账本里这条 1.6／3.7 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：渲染整份审讯页（内联 React 与 React Flow 的 bundle）并逐项扫描。全量准入快层账本里这条 1.6 秒，负载下 3.7 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '审讯页自包含：数据内联、无外部资源，内联数据不含可提前闭合脚本的字符',
     { tags: ['slow'] },

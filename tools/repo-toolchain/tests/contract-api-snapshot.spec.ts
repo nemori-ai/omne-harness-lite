@@ -82,7 +82,7 @@ const exportsOf = (snapshot: ApiSnapshot, subpath = '.') =>
 
 // Each case builds a real TypeScript 6 program over the fixture dist, which takes about a second.
 describe('contract API snapshots', { timeout: 60_000 }, () => {
-  // Slow: builds a real TypeScript 6 program over the fixture dist. 1.8 s / 4.4 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  // Slow: builds a real TypeScript 6 program over the fixture dist. 1.8 s on the full-admission fast-tier ledger, 4.4 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'lists the exports of each entry and every declaration file of the dist, normalized',
     { tags: ['slow'] },
@@ -120,7 +120,7 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     },
   )
 
-  // Slow: builds real TypeScript 6 programs over two fixture dists. 1.7 s / 6.0 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  // Slow: builds real TypeScript 6 programs over two fixture dists. 1.7 s on the full-admission fast-tier ledger, 6.0 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
   it(
     'gives byte-identical output for the same dist, and ignores comments and member order',
     { tags: ['slow'] },
@@ -203,7 +203,7 @@ describe('contract API snapshots', { timeout: 60_000 }, () => {
     expect(results[1]).toMatchObject({ message: '入口 ./more 的 ./dist/more.d.ts 不存在' })
   })
 
-  // Slow: builds real TypeScript 6 programs over the fixture dist, twice. 3.6 s / 6.5 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  // Slow: builds real TypeScript 6 programs over the fixture dist, twice. 3.6 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (6.5 s under load) (tools/test-runner/README_ZH.md「归层」).
   it(
     'writes the configured path, then reports a member whose dist moved away from it',
     { tags: ['slow'] },

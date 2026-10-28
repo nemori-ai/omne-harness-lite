@@ -569,13 +569,7 @@ describe('报告汇总', () => {
         expect(targets.map(({ mutant: m }) => m.id)).toEqual(['1', '2', '3', '4'])
         const all = planRecheck(nested, targets, 8)
         expect(ids(all)).toEqual(['1', '2', '3', '4'])
-        expect(all.reading).toEqual({
-          limit: 8,
-          targets: 4,
-          skipped: 0,
-          mutants: 5,
-          allMutants: 5,
-        })
+        expect(all.reading).toEqual({ limit: 8, targets: 4, skipped: 0, mutants: 5, allMutants: 5 })
         // 数组带上 4 个，再加最后那处超过 4：跳过它。
         const four = planRecheck(nested, targets, 4)
         expect(ids(four)).toEqual(['1', '2', '3'])
@@ -807,7 +801,7 @@ function cliAt(root: string, ...args: string[]) {
 }
 
 describe('入口的参数', () => {
-  // 归慢层：起变异入口 CLI 子进程。快层账本里这条 2.7／7.1 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：起变异入口 CLI 子进程。全量准入快层账本里这条 2.7 秒，超过单条预算 2.5 秒（负载下 7.1 秒）（tools/test-runner/README_ZH.md「归层」）。
   it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', { tags: ['slow'] }, () => {
     expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
     expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
@@ -838,7 +832,7 @@ describe('入口的参数', () => {
     expect(ran.stdout).toMatch(/变异范围：基线 |没有可变异的改动：基线 /u)
   })
 
-  // 归慢层：在临时 git 仓库里起变异入口 CLI 子进程。快层账本里这条 2.2／5.8 秒，超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  // 归慢层：在临时 git 仓库里起变异入口 CLI 子进程。全量准入快层账本里这条 2.2 秒，负载下 5.8 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
   it(
     '--plan 读准入检查的计划：变异计划里的成员；有计划外的改动、或计划不是当前提交算的就拒绝',
     { tags: ['slow'] },

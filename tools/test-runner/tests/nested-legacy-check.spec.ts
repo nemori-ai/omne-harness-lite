@@ -174,7 +174,7 @@ it('reports archived compiler roots outside the member, which a member glob cann
   expect(problem(root)).toContain('Archived files are compiler roots')
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 2.4 s / 6.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: starts real Vitest in a fixture workspace. 2.4 s on the full-admission fast-tier ledger, 6.2 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
 it(
   'real Vitest filters external compiler roots without an internal archive trigger',
   { tags: ['slow'], timeout: 20_000 },
@@ -242,7 +242,7 @@ it('accepts the native directory form of tsc --project without archives', () => 
   expect(problem(root)).toBeUndefined()
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 2.6 s / 5.1 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: starts real Vitest in a fixture workspace. 2.6 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (5.1 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'keeps a native Vitest projects configuration when there are no archived inputs',
   { tags: ['slow'], timeout: 20_000 },
@@ -302,7 +302,7 @@ it('preserves a single native CLI exclusion as a whole pattern', () => {
   ])
 }, 20_000)
 
-// Slow: starts real Vitest in a fixture workspace. 4.5 s / 10.9 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: starts real Vitest in a fixture workspace. 4.5 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (10.9 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'filters external archived runtime tests and preserves external active failures',
   { tags: ['slow'], timeout: 30_000 },
@@ -360,7 +360,7 @@ it(
   },
 )
 
-// Slow: starts real Vitest in a fixture workspace. 4.2 s / 8.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: starts real Vitest in a fixture workspace. 4.2 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (8.2 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'real Vitest ignores archived runtime/type roots while active source errors still fail',
   { tags: ['slow'], timeout: 30_000 },

@@ -58,7 +58,7 @@ it('ignores archived timestamps while an active newer source still makes dist st
   expect(distIsStale(root)).toBe(true)
 })
 
-// Slow: runs real vitest coverage in a fixture workspace. 4.5 s / 6.2 s on the two fast-tier ledgers, over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+// Slow: runs real vitest coverage in a fixture workspace. 4.5 s on the full-admission fast-tier ledger, over the 2.5 s per-case budget (6.2 s under load) (tools/test-runner/README_ZH.md「归层」).
 it(
   'real coverage excludes archived tests and source, keeps configured exclusions and active failures',
   { tags: ['slow'], timeout: 25_000 },
