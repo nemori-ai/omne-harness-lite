@@ -7,7 +7,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import type { TaskBinding, TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { Condition } from '../src/delivery/protocol.ts'
+import { LINES_PATH } from '../src/delivery/lines.ts'
 import { contextPath, parseContext } from '../src/integration/context.ts'
+import { git } from '../src/integration/git.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { integrationFixture, type CardAttributeFields } from './fixtures/integration.ts'
 
@@ -78,7 +80,7 @@ function fixture({
   platform?: Platform
 }) {
   const f = integrationFixture({
-    ...(withLines ? { lines } : {}),
+    lines: withLines ? lines : null,
     ...(withBoard ? { board } : {}),
   })
   homes.push(f.home)
@@ -384,11 +386,36 @@ describe('start keeps report-only findings as reports', () => {
     ])
   })
 
-  it('reports unavailable rules once and still starts', async () => {
+  it('refuses a new context when the attribute rules cannot be read', async () => {
     const f = fixture({ version: 2, withLines: false })
-    const { context, reports } = await start(f)
-    expect(context).toMatchObject(expectedContext(f))
-    expect(reports).toEqual([
+    await expect(start(f)).rejects.toMatchObject({
+      code: 'refused',
+      message: expect.stringContaining('attribute-rules-unavailable'),
+    })
+    expect(existsSync(contextPath(f.root))).toBe(false)
+  })
+
+  it('refuses a new context when the committed line table is malformed', async () => {
+    const f = fixture({ version: 2 })
+    writeFileSync(join(f.root, LINES_PATH), '{"schemaVersion": 1}\n')
+    git(f.root, ['commit', '-q', '-am', 'break the line table'])
+    await expect(start(f)).rejects.toMatchObject({
+      code: 'refused',
+      message: expect.stringContaining('attribute-rules-unavailable'),
+    })
+    expect(existsSync(contextPath(f.root))).toBe(false)
+  })
+
+  it('only reports unavailable rules on a rerun in a tree the task already bound', async () => {
+    const f = fixture({ version: 2 })
+    const first = await start(f)
+    const bound = readFileSync(contextPath(f.root), 'utf8')
+    git(f.root, ['rm', '-q', LINES_PATH])
+    git(f.root, ['commit', '-q', '-m', 'drop the line table'])
+    const rerun = await start(f)
+    expect(rerun.context).toEqual(first.context)
+    expect(readFileSync(contextPath(f.root), 'utf8')).toBe(bound)
+    expect(rerun.reports).toEqual([
       expect.objectContaining({ severity: 'report', code: 'attribute-rules-unavailable' }),
     ])
   })

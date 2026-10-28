@@ -53,9 +53,12 @@
 
 - `--baseline-write <提交> [--milestone <名>] [--member <成员目录>]...`：从这个提交生成区块。成员取那个提交的线归属表，`--member` 给出时只写这些成员（补登记用）。标准输出是整个围栏区块，加 `--json` 时是 JSON 对象。没给 `--milestone` 时 `milestone` 为 null。提交解析不了、`--member` 不是那个提交上的契约成员、成员声明不全、那个提交上没有快照文件或没有 `api` 目录时，出错退出。
 - `--baseline <文件>`：读区块并逐成员核对。文件内容整段是 JSON 对象时按 JSON 读，否则须恰好含一个 `json omne-contract-baseline:v1` 围栏，例如登记评论的正文。键、格式或围栏个数不对时出错退出。
-  - 成员取登记与工作树线归属表的并集。登记的成员从它自己的 `commit` 上的快照比到工作树的快照，分类规则与 `--diff` 相同。只在工作树线归属表里的成员是基线之后加入的，基线一侧没有快照，整份算新增。只在登记里的成员整份算删除。
-  - 总的分类取各成员中最强的一项，读不出的成员按 review 计。分类为 `review` 而没有 `breakingCards` 时，结果为拒绝（`refused`），退出 1。有 `breakingCards` 时放行。
-  - 登记与它的提交对不上时，在 `registration` 里逐项报告，不改变分类与退出码：`sha256-mismatch`（那个提交上快照文件的 SHA-256 与登记不同）、`api-tree-mismatch`（`api` 树号与登记不同）、`not-a-contract-member`（那个提交上这个成员不是契约成员）。
+  - 成员取登记与工作树线归属表的并集。登记的成员从它自己的 `commit` 上的快照比到工作树的快照，分类规则与 `--diff` 相同。只在登记里的成员整份算删除。
+  - 基线点是全部登记提交的共同祖先（`git merge-base --octopus`，只有一个提交时就是它）。没有登记、只在工作树线归属表里的成员：在基线点上已是契约成员的是漏登记；不是的是基线之后加入的，基线一侧没有快照，整份算新增。
+  - 下列成员判不了，列在 `undetermined`，成员状态为 `invalid`：登记的成员在它的 `commit` 上不是契约成员、声明读不出或没有快照文件；漏登记的成员。登记一侧读不出时不能当作没有快照，否则一份写错提交的登记会让整个成员按新增放行。
+  - 总的分类取各成员中最强的一项，读不出与判不了的成员按 review 计。有判不了的成员时结果为拒绝（`refused`），退出 1，`breakingCards` 不能放行。否则分类为 `review` 而没有 `breakingCards` 时拒绝，退出 1；有 `breakingCards` 时放行。放行只说明登记了承接卡；每个 review 成员由哪张卡承接，由集成节点核对。
+  - 登记与它的提交对不上时，在 `registration` 里逐项报告：`sha256-mismatch`（那个提交上快照文件的 SHA-256 与登记不同）、`api-tree-mismatch`（`api` 树号与登记不同）、`not-a-contract-member`（那个提交上这个成员不是契约成员，这个成员同时判不了）。前两项不改变分类与退出码。
+  - 登记的提交没有共同祖先时出错退出。
   - 它只比快照文件，不读 dist。先用 `--check` 确认工作树的快照与 dist 一致。
 
 ## 分类
@@ -139,9 +142,9 @@
 | `--write` 全部成员写成或不变 | 0 |
 | `--write` 有成员没写成（没有 dist、声明不全、编译诊断） | 1 |
 | `--baseline-write` 写出区块 | 0 |
-| `--baseline` 完成，分类不是 `review`，或是 `review` 而有 `breakingCards` | 0 |
-| `--baseline` 完成，分类为 `review` 而没有 `breakingCards` | 1 |
-| 用法错误、配置错误、基线不是提交、基线区块不合格、`--baseline-write` 的成员不合条件、Git 或工具出错 | 2 |
+| `--baseline` 完成，没有判不了的成员，分类不是 `review`，或是 `review` 而有 `breakingCards` | 0 |
+| `--baseline` 完成，有判不了的成员，或分类为 `review` 而没有 `breakingCards` | 1 |
+| 用法错误、配置错误、基线不是提交、基线区块不合格、登记的提交没有共同祖先、`--baseline-write` 的成员不合条件、Git 或工具出错 | 2 |
 
 ## 验证
 
@@ -149,4 +152,4 @@
 - [contract-api-snapshot.spec.ts](../../tests/contract-api-snapshot.spec.ts)：快照内容、确定性、诊断、写与核对、配置校验。
 - [contract-api-classify.spec.ts](../../tests/contract-api-classify.spec.ts)：全局作用域的每一类差异、白名单门的正反例、每种附注、归一化的正反例、破坏方向。
 - [contract-api-cli.spec.ts](../../tests/contract-api-cli.spec.ts)：对比基线与命令的退出码（慢层）。
-- [contract-api-baseline.spec.ts](../../tests/contract-api-baseline.spec.ts)：区块格式的写、读与拒绝；`--baseline-write` 的 `sha256` 与 `--check --json` 同口径、`apiTree` 等于 `git rev-parse`、`--member` 只写指定成员、成员不合条件时退出 2；`--baseline` 的两个成员参照不同提交、基线之后加入的成员、review 拒绝与有 `breakingCards` 放行、登记不符只报告、读评论正文里的区块（慢层）。
+- [contract-api-baseline.spec.ts](../../tests/contract-api-baseline.spec.ts)：区块格式的写、读与拒绝；`--baseline-write` 的 `sha256` 与 `--check --json` 同口径、`apiTree` 等于 `git rev-parse`、`--member` 只写指定成员、成员不合条件时退出 2；`--baseline` 的两个成员参照不同提交、基线之后加入的成员、review 拒绝与有 `breakingCards` 放行、登记不符只报告、读评论正文里的区块；登记的提交上不是契约成员或没有快照文件时判不了（有 `breakingCards` 也拒绝）、基线点上已是契约成员而没有登记时判不了、只在登记里的成员算删除、工作树快照读不出按 review 计；短一位的哈希与缺 `milestone` 键拒绝（慢层）。

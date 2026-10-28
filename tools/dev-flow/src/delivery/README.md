@@ -142,7 +142,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
 1. 命令读工作树的 task context。没有 context 时，标准输出写 `{"bound": false, …}`，标准错误写「未绑定」，退出0。
 2. 本卡的改动从 binding 的 `taskBase` 算起，沿 HEAD 的第一父提交链逐个提交计算：
    - 只有一个父提交的提交，取它改动的全部文件。改名算作删除旧路径与新增新路径。
-   - 合并提交只取 `git diff-tree --cc` 列出的文件，即与每个父提交都不同的文件：冲突的解决与合并时另加的改动。合并带进来的提交不逐个计算，所以同步目标分支与合并同批次别的卡都不计入。
+   - 合并提交取 `git diff-tree --cc` 列出的文件，即与每个父提交都不同的文件：冲突的解决、合并时另加的改动，以及两侧都改过的文件（没有冲突也算）。
+   - 合并带进来的提交（其他父提交可达、第一父提交不可达的提交）中，在本卡以外的远端跟踪分支上的不计入：目标分支、批次分支与别的卡来自远端。其余按上面两条逐个计入，例如本卡的本地侧分支。
    - 再加上工作树中与 HEAD 不同的已跟踪文件，以及 Git 不忽略的未跟踪文件。
    - 不用 context 的 `targetBase`。它是远端目标分支头，可以早于批次头。
 3. `tmp` 下的路径与线归属表 `shared` 中的路径不计入。其余每个文件：
@@ -157,7 +158,25 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
 
 标准输出是 JSON：`issue`、`attempt`、`taskBase`、`head`、本卡改动的文件 `files`、契约核对 `contract`，以及 `findings`。`contract.kind` 为 `not-needed`、`skipped` 或 `checked`。文件发现有 `code`、`file`、`message` 与 `remedy`，契约发现有 `code`、`member`、`change`、`declared`、`message` 与 `remedy`。每项发现向标准错误写一行。没有发现退出0，有发现退出1。参数错误、context 不属于本工作树、`taskBase` 不是 HEAD 的祖先、读不到线归属表，或 `omne-contract-api` 运行失败时退出2。
 
-同步目标分支时用合并提交。快进同步时，带进来的提交成为第一父提交链的一部分，会算作本卡的改动。
+下图是一张卡的提交图。`B` 是 taskBase，`o/target` 是目标分支的远端跟踪分支，别的卡的提交经它进入。
+
+```text
+  o/target:    B ── T1 ── T2
+                            \
+  本卡:        B ── C1 ── C2 ── M1 ── C3 ── M2    + 未提交改动
+                     \                     /
+  本地侧分支:          S1 ─────────────────
+```
+
+- 计入：第一父链上的 `C1`、`C2`、`C3`；`M1`、`M2` 与每个父提交都不同的文件；`M2` 带进来的 `S1`，它不在别的远端跟踪分支上；未提交改动。
+- 不计入：`M1` 带进来的 `T1`、`T2`，它们在 `o/target` 上。
+
+下列做法把别人的提交算成本卡的改动，检查因此失败。改法写在每项后面：
+
+- 快进同步：卡还没有提交时，`git merge` 默认快进，目标分支的提交成为第一父链。改用 `git merge --no-ff`。
+- rebase 同步：目标分支的提交成为第一父链。改用 `git merge --no-ff`。已经 rebase 的分支，从 taskBase 新建分支并 cherry-pick 本卡的提交。
+- 合并只在本地的别的分支：它的提交不在远端跟踪分支上，按本卡的提交计入。先 `git fetch`，再合并远端跟踪分支。
+- 两侧都改过同一文件的合并：没有冲突时 `--cc` 也列出这个文件。这个文件不在写范围内时，请调度者扩大写范围，或在合并前与那张卡的负责人协调。
 
 ## 契约基线的读取
 
@@ -165,18 +184,19 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
 node --experimental-strip-types tools/dev-flow/src/delivery/baseline-cli.ts read <baseline 卡号> --out <文件> [--config <文件>]
 ```
 
-命令读 baseline 卡的全部评论，找出 `json omne-contract-baseline:v1` 区块，按评论时间合并，把合并后的区块写到 `--out`。`omne-contract-api --baseline <文件>` 读这个文件，核对里程碑内的累计变化。登记规则见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)。命令只发 GET 请求，不写评论。
+命令读 baseline 卡的全部评论，找出登记者发的 `json omne-contract-baseline:v1` 区块，按评论时间合并，把合并后的区块写到 `--out`。`omne-contract-api --baseline <文件>` 读这个文件，核对里程碑内的累计变化。登记规则见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)。命令只发 GET 请求，不写评论。
 
-1. 评论按创建时间从旧到新处理。同一成员取最晚的区块。较晚的区块可以只写受影响的成员，也可以写基线之后加入的成员。
-2. `breakingCards` 取各区块的并集。
-3. 下列情况拒绝，不写文件，退出1。标准错误逐项写代码、评论与说明：
-   - `baseline-missing`：卡的评论里没有区块。
+1. 登记者是 publish 环境的审批者：User 审批者的 login 与 node ID 都要相同，Team 审批者看 active 成员关系。别人发的区块不读，不改基线，也不加 `breakingCards`。标准错误为每条这样的评论写一行 `baseline: ignored`，JSON 的 `ignored` 列出它们。
+2. 评论按创建时间从旧到新处理，同一时间按评论 ID。同一成员取最晚的区块。较晚的区块可以只写受影响的成员，也可以写基线之后加入的成员。
+3. `breakingCards` 取各区块的并集。
+4. 下列情况拒绝，不写文件，退出1。标准错误逐项写代码、评论与说明：
+   - `baseline-missing`：卡上没有登记者发的区块。
    - `baseline-duplicate`：一条评论有两个以上区块。
    - `baseline-invalid`：区块没有结束的围栏、不是 JSON，或键与格式不合格。
    - `baseline-milestone-mismatch`：区块的 `milestone` 与最早的区块不同。用 `--baseline-write` 加 `--milestone` 重新生成。
-4. 参数、交付配置或 GitHub 读取错误时退出2。
+5. 参数、交付配置或 GitHub 读取错误时退出2。有区块时命令要读 publish 环境；云端会话的代理不放行这个读取，所以在本地会话运行。
 
-区块格式归 repo-toolchain 的 `omne-contract-api`。钉住的 0.0.15 还没有这个格式的解析，所以本命令按同一个 v1 形状校验，钉子升级后改为导入包的解析。精确条款见 [SPEC](SPEC.md#契约基线的读取)。
+区块格式归 repo-toolchain 的 `omne-contract-api`。dev-flow 依赖的版本不导出这个格式的解析，所以本命令自带一份同形状的校验。精确条款见 [SPEC](SPEC.md#契约基线的读取)。
 
 ## 里程碑命令
 

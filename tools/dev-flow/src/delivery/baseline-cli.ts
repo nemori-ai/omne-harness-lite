@@ -37,7 +37,7 @@ function options(args: readonly string[]): { issue: number; out: string; config:
 /**
  * Reads the contract baseline registered in the comments of a baseline card and writes the
  * merged `json omne-contract-baseline:v1` block to `--out`, for `omne-contract-api --baseline`.
- * Only GET requests. Standard output is the JSON result. Exit 0 when the file is written, 1 when
+ * Only blocks of publish environment reviewers count; the others are listed. Only GET requests. Standard output is the JSON result. Exit 0 when the file is written, 1 when
  * the registrations are refused (no file), 2 on bad arguments or a failed read.
  */
 function main(args: readonly string[]): number {
@@ -47,6 +47,8 @@ function main(args: readonly string[]): number {
     issue,
     call: runGhRead,
   })
+  for (const comment of read.ignored)
+    process.stderr.write(`baseline: ignored ${comment.url}: ${comment.reason}\n`)
   if (read.kind === 'refused') {
     process.stdout.write(`${JSON.stringify({ issue, ...read }, null, 2)}\n`)
     for (const problem of read.problems)

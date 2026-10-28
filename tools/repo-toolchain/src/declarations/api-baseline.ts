@@ -206,17 +206,25 @@ export interface RegistrationFinding {
   readonly actual: string | null
 }
 
-/** 一个成员的核对结果；`commit` 是登记的基线提交，基线之后加入的成员为 null。 */
+/** 一个成员的核对结果；`commit` 是登记的基线提交，没有登记的成员为 null。 */
 export type BaselineMemberRun = DiffMember & { readonly commit: string | null }
+
+/** 判不了的成员：登记一侧读不出，或基线上已是契约成员却没有登记。有一项就拒绝。 */
+export interface UndeterminedMember {
+  readonly path: string
+  readonly reason: string
+}
 
 export interface BaselineRun {
   readonly milestone: string | null
   readonly change: ApiChange
   readonly breakingCards: readonly string[]
-  /** 分类为 review 且没有 breakingCards。 */
+  /** 有判不了的成员，或分类为 review 且没有 breakingCards。 */
   readonly refused: boolean
   readonly members: readonly BaselineMemberRun[]
   readonly registration: readonly RegistrationFinding[]
+  /** breakingCards 不能放行这些成员。 */
+  readonly undetermined: readonly UndeterminedMember[]
 }
 
 interface CommitSide {
@@ -224,10 +232,34 @@ interface CommitSide {
   readonly contracts: Contracts
 }
 
+/** 登记一侧读不出时的原因；读得出时为 undefined。 */
+function unreadableRegistration(entry: BaselineMember, before: Side): string | undefined {
+  switch (before.kind) {
+    case 'absent':
+      return `登记的提交 ${entry.commit.slice(0, 9)} 上不是契约成员`
+    case 'invalid':
+      return `登记的提交 ${entry.commit.slice(0, 9)} 上读不出：${before.message}`
+    case 'present':
+      return before.text === undefined
+        ? `登记的提交 ${entry.commit.slice(0, 9)} 上没有快照文件 ${before.file}`
+        : undefined
+    default: {
+      const _exhaustive: never = before
+      return _exhaustive
+    }
+  }
+}
+
 /**
  * 逐成员从登记的提交比到工作树的快照，分类与 `--diff` 相同。成员取登记与当前线归属表的并集：
- * 只在当前表里的成员是基线之后加入的，基线一侧没有快照，整份算新增；只在登记里的成员整份算删除。
- * 登记的提交上快照的 sha256 或 api 树与登记不同时，记在 `registration`。
+ *
+ * - 登记的成员在它的提交上不是契约成员、读不出或没有快照文件时判不了。
+ * - 没有登记、只在当前表里的成员：在基线点（全部登记提交的共同祖先）上已是契约成员的，是漏登记，
+ *   判不了；不是的，是基线之后加入的，基线一侧没有快照，整份算新增。
+ * - 只在登记里的成员整份算删除。
+ *
+ * 有判不了的成员就拒绝，breakingCards 不能放行。登记的提交上快照的 sha256 或 api 树与登记不同时，
+ * 记在 `registration`，只报告。
  */
 export function checkBaseline(
   root: string,
@@ -247,19 +279,30 @@ export function checkBaseline(
     return sideOf
   }
   const registered = new Map(baseline.members.map(member => [member.path, member]))
+  const basePoint = commonAncestor(root, [...new Set(baseline.members.map(item => item.commit))])
   const directories = new Set([
     ...registered.keys(),
     ...now.located.map(item => item.member.directory),
     ...now.problems.map(item => item.directory),
   ])
   const registration: RegistrationFinding[] = []
-  const members = [...directories].sort(byCodeUnit).map(directory => {
+  const undetermined: UndeterminedMember[] = []
+  const members = [...directories].sort(byCodeUnit).map((directory): BaselineMemberRun => {
     const entry = registered.get(directory)
     let before: Side = { kind: 'absent' }
     if (entry !== undefined) {
       const then = atCommit(entry.commit)
       before = side(then.contracts, then.read, directory)
       registration.push(...registrationFindings(root, entry, before))
+      const reason = unreadableRegistration(entry, before)
+      if (reason !== undefined) {
+        undetermined.push({ path: directory, reason })
+        return { directory, status: 'invalid', message: reason, commit: entry.commit }
+      }
+    } else if (isContractAt(atCommit(basePoint), directory)) {
+      const reason = `基线点 ${basePoint.slice(0, 9)} 上已是契约成员，却没有登记`
+      undetermined.push({ path: directory, reason })
+      return { directory, status: 'invalid', message: reason, commit: null }
     }
     const compared = diffMember(
       { root: realRoot, directory },
@@ -276,9 +319,26 @@ export function checkBaseline(
     milestone: baseline.milestone,
     change,
     breakingCards,
-    refused: change === 'review' && breakingCards.length === 0,
+    refused: undetermined.length > 0 || (change === 'review' && breakingCards.length === 0),
     members,
     registration,
+    undetermined,
+  }
+}
+
+/** 这个提交上目录是不是契约成员（声明不全的也算）。 */
+function isContractAt(commit: CommitSide, directory: string): boolean {
+  return side(commit.contracts, commit.read, directory).kind !== 'absent'
+}
+
+/** 几个登记提交的共同祖先；只有一个提交时就是它。没有共同祖先时出错。 */
+function commonAncestor(root: string, commits: readonly string[]): string {
+  const [only] = commits
+  if (commits.length === 1 && only !== undefined) return resolveCommit(root, only)
+  try {
+    return git(root, ['merge-base', '--octopus', ...commits]).trim()
+  } catch (error) {
+    throw new Error(`登记的提交没有共同祖先：${commits.join('、')}`, { cause: error })
   }
 }
 
@@ -320,19 +380,30 @@ const REGISTRATION_WORDS: Readonly<Record<RegistrationFinding['code'], string>> 
 
 export function renderBaseline(run: BaselineRun): string[] {
   const changed = run.members.filter(item => item.status !== 'compared' || item.change !== 'none')
-  const verdict = run.refused
-    ? '拒绝：有 review 而基线没有登记 breakingCards'
-    : run.change === 'review'
-      ? `放行：review 由 ${run.breakingCards.join('、')} 承接`
-      : '通过'
+  const verdict =
+    run.undetermined.length > 0
+      ? `拒绝：${run.undetermined.length} 个成员判不了`
+      : run.refused
+        ? '拒绝：有 review 而基线没有登记 breakingCards'
+        : run.change === 'review'
+          ? `放行：review 由 ${run.breakingCards.join('、')} 承接`
+          : '通过'
   const lines = [
     `契约 API 相对里程碑 ${run.milestone ?? '（未命名）'} 的基线：${run.change}` +
       `（${run.members.length} 个契约成员，${changed.length} 个有变化或读不出）。${verdict}`,
   ]
   for (const item of changed) {
-    const base = item.commit === null ? '基线之后加入' : `基线 ${item.commit.slice(0, 9)}`
+    const undetermined = run.undetermined.some(entry => entry.path === item.directory)
+    const base =
+      item.commit !== null
+        ? `基线 ${item.commit.slice(0, 9)}`
+        : undetermined
+          ? '没有登记'
+          : '基线之后加入'
     if (item.status === 'invalid') {
-      lines.push(`  ${item.directory}（${base}）：读不出，${item.message}`)
+      lines.push(
+        `  ${item.directory}（${base}）：${undetermined ? '判不了' : '读不出'}，${item.message}`,
+      )
       continue
     }
     lines.push(`  ${item.directory}（${base}）：${item.change}`)

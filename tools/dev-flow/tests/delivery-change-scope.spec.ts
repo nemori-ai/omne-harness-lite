@@ -2,7 +2,7 @@
 // Slow: every case builds a real temporary Git repository with a hand-written task context;
 // the CLI cases also start a Node process.
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -68,6 +68,21 @@ function repo() {
   return { home, root, initial }
 }
 type Repo = ReturnType<typeof repo>
+/**
+ * Pushes `branch` to the bare remote `origin` of the repository, creating it on first use, and
+ * fetches it. Returns the remote-tracking name: targets, batches and other cards come from the
+ * remote.
+ */
+function publish(r: { home: string; root: string }, branch: string): string {
+  const remote = join(r.home, 'remote.git')
+  if (!existsSync(remote)) {
+    git(r.home, ['init', '-q', '--bare', remote])
+    git(r.root, ['remote', 'add', 'origin', remote])
+  }
+  git(r.root, ['push', '-q', 'origin', branch])
+  git(r.root, ['fetch', '-q', 'origin'])
+  return `origin/${branch}`
+}
 function binding(taskBase: string, patch: Partial<Record<string, unknown>> = {}): TaskBinding {
   return {
     schemaVersion: 2,
@@ -154,7 +169,7 @@ describe('the changes of the card', () => {
     git(r.root, ['checkout', '-b', 'target', base])
     commitFiles(r.root, { 'apps/x.ts': 'x2\n', 'README.md': 'r2\n' }, 'target fix')
     git(r.root, ['checkout', 'a/card'])
-    git(r.root, ['merge', '--no-ff', '--no-edit', 'target'])
+    git(r.root, ['merge', '--no-ff', '--no-edit', publish(r, 'target')])
     expect(codes(r)).toEqual([])
   })
 
@@ -166,7 +181,7 @@ describe('the changes of the card', () => {
     commitFiles(r.root, { 'model/m.ts': 'other\n' }, 'other card 2')
     git(r.root, ['checkout', 'a/card'])
     commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
-    git(r.root, ['merge', '--no-ff', '--no-edit', 'other-card'])
+    git(r.root, ['merge', '--no-ff', '--no-edit', publish(r, 'other-card')])
     expect(codes(r)).toEqual([])
   })
 
@@ -182,6 +197,48 @@ describe('the changes of the card', () => {
     write(r.root, 'tools/b.ts', 'resolved\n')
     git(r.root, ['add', 'tools/b.ts'])
     git(r.root, ['commit', '--no-edit'])
+    expect(codes(r)).toEqual([['change-outside-scope', 'tools/b.ts']])
+  })
+
+  it('counts the commits of a local side branch of the card that a merge brings in', () => {
+    const r = repo()
+    const base = bind(r)
+    commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
+    const fork = git(r.root, ['rev-parse', 'HEAD'])
+    commitFiles(r.root, { 'tools/a.ts': 'a3\n' })
+    // The side branch is only local: no remote-tracking branch has its commit.
+    git(r.root, ['checkout', '-b', 'side', fork])
+    commitFiles(r.root, { 'model/m.ts': 'side\n' }, 'side work')
+    git(r.root, ['checkout', 'a/card'])
+    git(r.root, ['merge', '--no-ff', '--no-edit', 'side'])
+    expect(base).not.toBe(fork)
+    expect(codes(r)).toEqual([
+      ['change-outside-scope', 'model/m.ts'],
+      ['change-outside-line', 'model/m.ts'],
+    ])
+  })
+
+  it('counts the card commits when the target became the first parent', () => {
+    const r = repo()
+    const base = bind(r)
+    commitFiles(r.root, { 'tools/a.ts': 'a2\n', 'model/m.ts': 'mine\n' }, 'card work')
+    const work = git(r.root, ['rev-parse', 'HEAD'])
+    git(r.root, ['checkout', '-b', 'target', base])
+    commitFiles(r.root, { 'README.md': 'target\n' }, 'target work')
+    const target = publish(r, 'target')
+    // Merged from the target side, then the card branch was moved to that merge.
+    git(r.root, ['merge', '--no-ff', '--no-edit', work])
+    const merge = git(r.root, ['rev-parse', 'HEAD'])
+    git(r.root, ['checkout', 'a/card'])
+    git(r.root, ['reset', '-q', '--hard', merge])
+    expect(git(r.root, ['rev-parse', `${merge}^1`])).toBe(git(r.root, ['rev-parse', target]))
+    expect(codes(r)).toContainEqual(['change-outside-scope', 'model/m.ts'])
+  })
+
+  it('counts an uncommitted move of a file outside the scope by its old path', () => {
+    const r = repo()
+    bind(r, { binding: { writeScope: ['tools/a.ts', 'tools/c.ts'] } })
+    git(r.root, ['mv', 'tools/b.ts', 'tools/c.ts'])
     expect(codes(r)).toEqual([['change-outside-scope', 'tools/b.ts']])
   })
 
@@ -446,7 +503,7 @@ describe('the contract change of the card', () => {
       git(r.root, ['commit', '-m', 'other card breaks pkg/b'])
       git(r.root, ['checkout', 'a/card'])
       commitFiles(r.root, { 'tools/a.ts': 'a2\n' })
-      git(r.root, ['merge', '--no-ff', '--no-edit', 'other-card'])
+      git(r.root, ['merge', '--no-ff', '--no-edit', publish(r, 'other-card')])
       let runs = 0
       const report = changeScope({
         root: r.root,
@@ -472,13 +529,34 @@ describe('the contract change of the card', () => {
     write(r.root, 'pkg/a/api/notes.md', 'notes\n')
     git(r.root, ['add', '-A'])
     git(r.root, ['commit', '-m', 'card touches pkg/a/api'])
-    git(r.root, ['merge', '--no-ff', '--no-edit', 'other-card'])
+    git(r.root, ['merge', '--no-ff', '--no-edit', publish(r, 'other-card')])
     const report = changeScope({ root: r.root })
     expect(report).toMatchObject({
       bound: true,
       findings: [],
       contract: { kind: 'checked', base, members: [{ path: 'pkg/a', change: 'none' }] },
     })
+  })
+
+  it('refuses a difference whose base is not taskBase', () => {
+    const r = repo()
+    bind(r, { binding: { writeScope: ['tools'] } })
+    // tools-line has no contract members; this table adds tools as one in the working tree.
+    write(
+      r.root,
+      LINES_PATH,
+      JSON.stringify({
+        ...lines,
+        lines: [{ ...lines.lines[0], contracts: ['tools'] }, lines.lines[1]],
+      }),
+    )
+    write(r.root, 'tools/api/tools.api.md', 'x\n')
+    expect(() =>
+      changeScope({
+        root: r.root,
+        diffContracts: () => ({ commit: 'f'.repeat(40), members: [compared('tools', 'none')] }),
+      }),
+    ).toThrow(/不是 taskBase/)
   })
 
   it('skips the comparison for a version 1 binding, which declares no contract change', () => {

@@ -85,30 +85,33 @@ export type DiffContracts = (range: { base: string; head: string }) => ContractD
 /** Builds the snapshot difference for a checkout root, with the policy's timeout. */
 export type ContractDiffProvider = (context: { root: string; timeoutMs: number }) => DiffContracts
 
-export type FindingCode =
-  | 'parent-registry-drift'
-  | 'lower-bound-unknown'
-  | 'lower-bound-not-ancestor'
-  | 'unit-missing'
-  | 'unit-invalid'
-  | 'unit-target-mismatch'
-  | 'pr-unreadable'
-  | 'pr-base-mismatch'
-  | 'pr-section-missing'
-  | 'cards-line-invalid'
-  | 'cards-empty'
-  | 'contract-line-invalid'
-  | 'contract-path-unknown'
-  | 'contract-level-exceeds-card'
-  | 'contract-breaking-off-integration'
-  | 'contracts-unknown'
-  | 'contract-diff-stale'
-  | 'contract-diff-mismatch'
-  | 'card-inferred'
-  | 'card-unresolved'
-  | 'card-unreadable'
-  | 'card-line-unknown'
-  | 'card-other-line'
+/** Every finding code of `ri-notes`. */
+export const findingCodes = [
+  'parent-registry-drift',
+  'lower-bound-unknown',
+  'lower-bound-not-ancestor',
+  'unit-missing',
+  'unit-invalid',
+  'unit-target-mismatch',
+  'pr-unreadable',
+  'pr-base-mismatch',
+  'pr-section-missing',
+  'cards-line-invalid',
+  'cards-empty',
+  'contract-line-invalid',
+  'contract-path-unknown',
+  'contract-level-exceeds-card',
+  'contract-breaking-off-integration',
+  'contracts-unknown',
+  'contract-diff-stale',
+  'contract-diff-mismatch',
+  'card-inferred',
+  'card-unresolved',
+  'card-unreadable',
+  'card-line-unknown',
+  'card-other-line',
+] as const
+export type FindingCode = (typeof findingCodes)[number]
 /**
  * The codes that make `ri-notes` exit 1: a declared contract change above the cards, a breaking
  * change off the integration track, and declarations that disagree with the snapshot difference.

@@ -4,7 +4,7 @@
 
 ## 分支与任务
 
-自 2026-10-15 起，四条主干的进入按[现行准入](#现行准入)执行：`github-gate` 的流程构造合并并写记录标签。本机集成工具只负责任务开工、状态读取、基线、task-sync，以及为提升 PR 生成说明的「所含的卡」与「契约变化」两节（`ri-notes`，只读）。它不构造候选，也不验证或发布。
+自 2026-10-15 起，四条主干的进入按[现行准入](#现行准入)执行：`github-gate` 的流程构造合并并写记录标签。本机集成工具只负责任务开工、状态读取、基线、task-sync，为提升 PR 生成说明的「所含的卡」与「契约变化」两节（`ri-notes`，只读；契约发现让它退出 1），以及在 `pnpm run check` 中核对契约快照与 dist（`contract-check`）。它不构造候选，不验证候选，也不发布。
 
 main 保存完整集成结果。任意数量的 integration/<track> 保存已登记责任轨道。stable 指向 main 中经过完整检查的既有 checkpoint。轨道和 stable 不加用户名；工作及临时分支遵守人的署名约定。
 
@@ -145,7 +145,13 @@ flowchart TD
 1. 登记评论带一个 `json omne-contract-baseline:v1` 机读区块，由 `omne-contract-api --baseline-write <基线提交> --milestone <里程碑名>` 生成，原样贴进评论。区块对每个成员记基线提交、快照文件的 `sha256` 与 `api` 目录的树号 `apiTree`，不记几个成员拼接的摘要。基线文件不入库。
 2. 补登记只写受影响的成员，生成时加 `--member <成员目录>`。较晚的登记覆盖同一成员较早的登记。
 3. `breakingCards` 列出承接破坏性改动的 `integration` 卡。调度者在破坏性裁定读回后补登记它。
-4. 集成节点用 dev-flow 的 `baseline-cli.ts read <baseline 卡号> --out <文件>` 读出并合并全部登记，再用 `omne-contract-api --baseline <文件>` 核对累计变化。累计为 review 而登记没有 `breakingCards` 时核对失败。钉住的 repo-toolchain 0.0.15 还没有 `--baseline` 与 `--baseline-write`，钉子升级前从 repo-toolchain 源码运行。命令见 [dev-flow 交付观察说明](../../tools/dev-flow/src/delivery/README.md#契约基线的读取)。
+4. 只有登记者发的区块算登记。登记者是 publish 环境的审批者，即能派发的人。别人发的区块不改基线，也不加 `breakingCards`，读取结果列出这些评论。
+5. 集成节点用 dev-flow 的 `baseline-cli.ts read <baseline 卡号> --out <文件>` 读出并合并全部登记，再用 `omne-contract-api --baseline <文件>` 核对累计变化。`--baseline` 与 `--baseline-write` 从 repo-toolchain 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。命令见 [dev-flow 交付观察说明](../../tools/dev-flow/src/delivery/README.md#契约基线的读取)。
+6. 核对在下列情况失败：
+   - 有成员判不了：登记的成员在它的基线提交上不是契约成员或没有快照；或者成员在基线点（全部登记提交的共同祖先）上已是契约成员，却没有登记。`breakingCards` 不能放行这些成员。
+   - 累计为 review 而登记没有 `breakingCards`。
+
+   基线点之后才加入的成员按上面里程碑内的规则第 4 条，整份算新增。有 `breakingCards` 时核对通过，只说明登记了承接卡；每个 review 成员由哪张卡承接，由集成节点核对。
 
 ## 进轨道 PR 的说明
 
@@ -163,7 +169,7 @@ flowchart TD
 
 本地核对分两处：
 
-1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡的快照变化不计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 2. 批次与提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
 
 确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。

@@ -26,7 +26,12 @@ import { runGhCommand, type GhCommand } from '../delivery/github-read.ts'
 import type { TaskBinding } from '../delivery/binding.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { conditionCardsOf } from '../delivery/observe.ts'
-import { dispatchFieldGaps, type CapturedIssue, type DeliveryConfig } from '../delivery/protocol.ts'
+import {
+  dispatchFieldGaps,
+  InputError,
+  type CapturedIssue,
+  type DeliveryConfig,
+} from '../delivery/protocol.ts'
 import { taskStatus, taskSync } from './sync.ts'
 import { checkUpstream } from './upstream.ts'
 
@@ -131,7 +136,7 @@ async function start(
     task,
   })
   // Only a new context is refused; a rerun on a tree this task already bound keeps reporting.
-  if (state.context === null && 'findings' in attributes) refuseAttributes(attributes)
+  if (state.context === null) refuseAttributes(attributes)
   const { context, created } = bind(root, state.context, task.binding, info, targetBase, () =>
     same(
       admissionDigest(currentAdmission(config, scope, facts?.project)),
@@ -177,11 +182,12 @@ function bind(
 }
 /** The attribute findings of an admitted task with its valid body line, or why there are none. */
 type CardJudgement =
-  | { findings: AttributeFinding[]; line: string | undefined }
-  | { unavailable: string }
+  | { kind: 'judged'; findings: AttributeFinding[]; line: string | undefined }
+  | { kind: 'unavailable'; reason: string }
 /**
  * Judges the attributes of an admitted task. The line table comes from the same commit as the
- * policy. A missing table or any failure gives `unavailable`: then nothing refuses.
+ * policy. A missing or malformed table, or another known input failure, gives `unavailable`; a
+ * new context is then refused. Any other error propagates.
  */
 function judgeCard({
   root,
@@ -200,12 +206,13 @@ function judgeCard({
 }): CardJudgement {
   try {
     const file = maybeBlob(root, commit, LINES_PATH)
-    if (file === null) return { unavailable: `Committed ${LINES_PATH} is missing` }
+    if (file === null) return { kind: 'unavailable', reason: `Committed ${LINES_PATH} is missing` }
     const lines = parseDeliveryLines(json(file.text, LINES_PATH)),
       conditions = observeAdmission(config, capture, task.issue.url).cards[0]?.conditions ?? [],
       issues = new Map(capture.issues.map(issue => [issue.url, issue])),
       card = readCardAttributes(task.issue.body, task.issue)
     return {
+      kind: 'judged',
       findings: attributeFindings({
         binding: task.binding,
         card,
@@ -216,16 +223,20 @@ function judgeCard({
       line: judgeAttributes(card, lines).attributes.line,
     }
   } catch (error) {
-    return {
-      unavailable: error instanceof Error ? error.message : 'Attribute findings failed',
-    }
+    if (!(error instanceof IntegrationError || error instanceof InputError)) throw error
+    return { kind: 'unavailable', reason: error.message }
   }
 }
 /**
- * Refuses a new context when `attributeRefusals` keeps any finding. The message lists each one
- * with its code, clause and remedy; nothing is written.
+ * Refuses a new context when the rules cannot be read, or when `attributeRefusals` keeps any
+ * finding. The message lists each one with its code, clause and remedy; nothing is written.
  */
-function refuseAttributes(judgement: Extract<CardJudgement, { findings: unknown }>): void {
+function refuseAttributes(judgement: CardJudgement): void {
+  if (judgement.kind === 'unavailable')
+    throw new IntegrationError(
+      'refused',
+      `Attribute findings refuse a new context (1):\n- attribute-rules-unavailable ${judgement.reason} 改法：在工作树 HEAD 上提交合格的 ${LINES_PATH}（用 check:lines 核对），再运行 start。`,
+    )
   const refusals = attributeRefusals(judgement.findings, judgement.line)
   if (refusals.length > 0)
     throw new IntegrationError(
@@ -238,8 +249,8 @@ function refuseAttributes(judgement: Extract<CardJudgement, { findings: unknown 
 }
 /**
  * Writes the attribute findings of a started task, one JSON line each with severity `report`.
- * Without rules it writes one `attribute-rules-unavailable` line. Reports never change the start
- * result.
+ * Without rules it writes one `attribute-rules-unavailable` line; this happens only on a rerun,
+ * because a new context without rules is refused. Reports never change the start result.
  */
 function reportAttributes(
   judgement: CardJudgement,
@@ -247,9 +258,9 @@ function reportAttributes(
   report: ReportSink,
 ): void {
   const findings =
-    'findings' in judgement
+    judgement.kind === 'judged'
       ? judgement.findings
-      : [{ code: 'attribute-rules-unavailable', message: judgement.unavailable }]
+      : [{ code: 'attribute-rules-unavailable', message: judgement.reason }]
   for (const finding of findings)
     try {
       report(JSON.stringify({ severity: 'report', issue: task.issue.url, ...finding }))

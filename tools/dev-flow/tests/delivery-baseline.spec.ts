@@ -41,15 +41,24 @@ const member = (path: string, n: number) => ({
 })
 const block = (value: unknown) =>
   `\`\`\`json ${BASELINE_MARKER}\n${JSON.stringify(value, null, 2)}\n\`\`\``
-/** A comment of the baseline card; `id` also orders comments that share a creation time. */
-function comment(id: number, createdAt: string, body: string): BaselineComment {
+/**
+ * A comment of the baseline card; `id` also orders comments that share a creation time. The
+ * author is the registrar `human` unless another login is given.
+ */
+function comment(id: number, createdAt: string, body: string, login = 'human'): BaselineComment {
   return {
     id,
     url: `https://github.com/owner/repo/issues/797#issuecomment-${id}`,
     createdAt,
+    updatedAt: createdAt,
+    author: { login, nodeId: `U_${login}` },
     body,
   }
 }
+/** Only `human` with its node ID may register. */
+const registrar = ({ login, nodeId }: { login: string; nodeId: string }) =>
+  login === 'human' && nodeId === 'U_human'
+const merge = (comments: BaselineComment[]) => mergeRegistrations(comments, registrar)
 const FULL = block({
   milestone: 'M1.5',
   members: [member('pkg/a', 1), member('pkg/b', 1), member('pkg/c', 1)],
@@ -58,7 +67,7 @@ const SUPPLEMENT = block({ milestone: 'M1.5', members: [member('pkg/b', 2)] })
 
 describe('the merge of the registrations', () => {
   it('takes the latest registration of each member and keeps the others', () => {
-    const merged = mergeRegistrations([
+    const merged = merge([
       comment(1, '2026-10-20T00:00:00Z', `登记基线\n\n${FULL}\n`),
       comment(2, '2026-10-21T00:00:00Z', '没有区块的评论'),
       comment(3, '2026-10-22T00:00:00Z', `补登记 pkg/b\n\n${SUPPLEMENT}`),
@@ -73,19 +82,24 @@ describe('the merge of the registrations', () => {
         {
           url: expect.stringContaining('-1'),
           createdAt: '2026-10-20T00:00:00Z',
+          author: 'human',
+          edited: false,
           members: ['pkg/a', 'pkg/b', 'pkg/c'],
         },
         {
           url: expect.stringContaining('-3'),
           createdAt: '2026-10-22T00:00:00Z',
+          author: 'human',
+          edited: false,
           members: ['pkg/b'],
         },
       ],
+      ignored: [],
     })
   })
 
   it('orders the registrations by creation time, not by the order of the response', () => {
-    const merged = mergeRegistrations([
+    const merged = merge([
       comment(3, '2026-10-22T00:00:00Z', SUPPLEMENT),
       comment(1, '2026-10-20T00:00:00Z', FULL),
     ])
@@ -96,7 +110,7 @@ describe('the merge of the registrations', () => {
   })
 
   it('collects the breaking cards of every registration once', () => {
-    const merged = mergeRegistrations([
+    const merged = merge([
       comment(1, '2026-10-20T00:00:00Z', FULL),
       comment(
         2,
@@ -132,7 +146,7 @@ describe('the merge of the registrations', () => {
   })
 
   const refused = (...comments: BaselineComment[]) => {
-    const result = mergeRegistrations(comments)
+    const result = merge(comments)
     if (result.kind !== 'refused') throw new Error('expected a refusal')
     return result.problems.map(problem => [problem.code, problem.comment])
   }
@@ -169,7 +183,7 @@ describe('the merge of the registrations', () => {
 
   it('adds a member that a later registration names for the first time', () => {
     // A contract member added after the baseline gets its first snapshot in a supplement.
-    const merged = mergeRegistrations([
+    const merged = merge([
       comment(1, '2026-10-20T00:00:00Z', FULL),
       comment(
         2,
@@ -198,8 +212,66 @@ describe('the merge of the registrations', () => {
     ).toEqual([['baseline-milestone-mismatch', expect.stringContaining('-2')]])
   })
 
+  it('orders by creation time first and by id only within the same time', () => {
+    const later = block({ milestone: 'M1.5', members: [member('pkg/b', 3)] })
+    // id 2 was created later than id 5: time decides.
+    expect(
+      merge([
+        comment(1, '2026-10-20T00:00:00Z', FULL),
+        comment(2, '2026-10-23T00:00:00Z', later),
+        comment(5, '2026-10-22T00:00:00Z', SUPPLEMENT),
+      ]),
+    ).toMatchObject({
+      baseline: { members: [member('pkg/a', 1), member('pkg/b', 3), member('pkg/c', 1)] },
+    })
+    // Same time, the larger id comes last even when the response lists it first.
+    expect(
+      merge([
+        comment(1, '2026-10-20T00:00:00Z', FULL),
+        comment(7, '2026-10-22T00:00:00Z', later),
+        comment(6, '2026-10-22T00:00:00Z', SUPPLEMENT),
+      ]),
+    ).toMatchObject({
+      baseline: { members: [member('pkg/a', 1), member('pkg/b', 3), member('pkg/c', 1)] },
+    })
+  })
+
+  it('refuses hashes one digit short and names a missing milestone key', () => {
+    const short = (patch: object) =>
+      refused(
+        comment(
+          1,
+          '2026-10-20T00:00:00Z',
+          block({ milestone: 'M1.5', members: [{ ...member('pkg/a', 1), ...patch }] }),
+        ),
+      )
+    expect(short({ commit: commit(1).slice(1) })).toEqual([
+      ['baseline-invalid', expect.any(String)],
+    ])
+    expect(short({ apiTree: commit(1).slice(1) })).toEqual([
+      ['baseline-invalid', expect.any(String)],
+    ])
+    expect(short({ sha256: digest(1).slice(1) })).toEqual([
+      ['baseline-invalid', expect.any(String)],
+    ])
+    const missing = merge([
+      comment(1, '2026-10-20T00:00:00Z', block({ members: [member('pkg/a', 1)] })),
+    ])
+    expect(missing).toMatchObject({
+      kind: 'refused',
+      problems: [{ code: 'baseline-invalid', message: expect.stringContaining('缺 milestone') }],
+    })
+  })
+
+  it('reads a baseline file as one block or as plain JSON, and refuses two blocks', () => {
+    const value = { milestone: 'M1.5', members: [member('pkg/a', 1)] }
+    expect(parseBaselineText(JSON.stringify(value))).toEqual(value)
+    expect(parseBaselineText(`说明\n\n${block(value)}\n`)).toEqual(value)
+    expect(() => parseBaselineText(`${block(value)}\n\n${block(value)}`)).toThrow('找到 2 个')
+  })
+
   it('writes a block that reads back as the merged baseline', () => {
-    const merged = mergeRegistrations([
+    const merged = merge([
       comment(1, '2026-10-20T00:00:00Z', FULL),
       comment(3, '2026-10-22T00:00:00Z', SUPPLEMENT),
     ])
@@ -210,24 +282,50 @@ describe('the merge of the registrations', () => {
   })
 })
 
-/** Serves the comments of Issue 797 in pages of 100 and records every call. */
-function github(bodies: { createdAt: string; body: string }[]) {
+/** The publish environment: user `human` and team `stewards` are required reviewers. */
+const ENVIRONMENT = {
+  protection_rules: [
+    { type: 'wait_timer' },
+    {
+      type: 'required_reviewers',
+      reviewers: [
+        { type: 'User', reviewer: { login: 'human', node_id: 'U_human' } },
+        { type: 'Team', reviewer: { slug: 'stewards' } },
+      ],
+    },
+  ],
+}
+type Served = { createdAt: string; body: string; login?: string; updatedAt?: string }
+/**
+ * Serves the comments of Issue 797 in pages of 100, the publish environment and the team
+ * `stewards`, whose only active member is `steward`. Records every call.
+ */
+function github(bodies: Served[], environment: unknown = ENVIRONMENT) {
   const calls: (readonly string[])[] = []
   const call: GhCommand = argv => {
     calls.push(argv)
     const path = argv.at(-1) ?? ''
     const [route = '', query = ''] = path.split('?')
+    if (route === 'repos/owner/repo/environments/publish') {
+      if (environment === null) throw new Error('HTTP 404')
+      return environment
+    }
+    if (route.startsWith('orgs/owner/teams/stewards/memberships/')) {
+      if (route.endsWith('/steward')) return { state: 'active' }
+      throw new Error('HTTP 404')
+    }
     if (route !== 'repos/owner/repo/issues/797/comments') throw new Error(`unexpected ${path}`)
     const page = Number(new URLSearchParams(query).get('page'))
     return bodies.slice((page - 1) * 100, page * 100).map((item, index) => {
-      const id = (page - 1) * 100 + index + 1
+      const id = (page - 1) * 100 + index + 1,
+        login = item.login ?? 'human'
       return {
         id,
         html_url: `https://github.com/owner/repo/issues/797#issuecomment-${id}`,
         created_at: item.createdAt,
-        updated_at: item.createdAt,
+        updated_at: item.updatedAt ?? item.createdAt,
         body: item.body,
-        user: { login: 'human' },
+        user: { login, node_id: `U_${login}` },
       }
     })
   }
@@ -249,17 +347,90 @@ describe('reading the registrations', () => {
       kind: 'merged',
       baseline: { members: [member('pkg/a', 1), member('pkg/b', 2), member('pkg/c', 1)] },
     })
-    expect(g.calls).toEqual(
-      [1, 2].map(page => [
-        'api',
-        '--method',
-        'GET',
-        '-H',
-        'Accept: application/vnd.github+json',
-        '-H',
-        'X-GitHub-Api-Version: 2026-03-10',
-        `repos/owner/repo/issues/797/comments?per_page=100&page=${page}`,
-      ]),
+    const get = (path: string) => [
+      'api',
+      '--method',
+      'GET',
+      '-H',
+      'Accept: application/vnd.github+json',
+      '-H',
+      'X-GitHub-Api-Version: 2026-03-10',
+      path,
+    ]
+    expect(g.calls).toEqual([
+      ...[1, 2].map(page => get(`repos/owner/repo/issues/797/comments?per_page=100&page=${page}`)),
+      get('repos/owner/repo/environments/publish'),
+    ])
+  })
+
+  it('ignores a later block of an author who may not register, and lists it', () => {
+    const g = github([
+      { createdAt: '2026-10-19T00:00:00Z', body: FULL },
+      {
+        createdAt: '2026-10-22T00:00:00Z',
+        login: 'stranger',
+        body: block({
+          milestone: 'M1.5',
+          members: [member('pkg/b', 9)],
+          breakingCards: ['https://github.com/owner/repo/issues/66'],
+        }),
+      },
+    ])
+    const result = readBaseline({ repository: 'owner/repo', issue: 797, call: g.call })
+    expect(result).toEqual({
+      kind: 'merged',
+      baseline: {
+        milestone: 'M1.5',
+        members: [member('pkg/a', 1), member('pkg/b', 1), member('pkg/c', 1)],
+      },
+      registrations: [
+        expect.objectContaining({ author: 'human', members: ['pkg/a', 'pkg/b', 'pkg/c'] }),
+      ],
+      ignored: [
+        {
+          url: expect.stringContaining('-2'),
+          author: 'stranger',
+          reason: expect.stringContaining('publish'),
+        },
+      ],
+    })
+  })
+
+  it('takes a block of an active member of a reviewer team, and needs the node ID of a user', () => {
+    const g = github([
+      { createdAt: '2026-10-19T00:00:00Z', body: FULL },
+      { createdAt: '2026-10-22T00:00:00Z', login: 'steward', body: SUPPLEMENT },
+    ])
+    expect(readBaseline({ repository: 'owner/repo', issue: 797, call: g.call })).toMatchObject({
+      kind: 'merged',
+      baseline: { members: [member('pkg/a', 1), member('pkg/b', 2), member('pkg/c', 1)] },
+      ignored: [],
+    })
+    // The login of the reviewer with another node ID: a renamed or reused account.
+    const impostor = github([{ createdAt: '2026-10-19T00:00:00Z', body: FULL }])
+    const call: GhCommand = (argv, timeout) => {
+      const value = impostor.call(argv, timeout)
+      return Array.isArray(value)
+        ? value.map(item => ({ ...item, user: { login: 'human', node_id: 'U_other' } }))
+        : value
+    }
+    expect(readBaseline({ repository: 'owner/repo', issue: 797, call })).toMatchObject({
+      kind: 'refused',
+      problems: [{ code: 'baseline-missing' }],
+      ignored: [{ author: 'human' }],
+    })
+  })
+
+  it('marks an edited registration and fails when the environment cannot be read', () => {
+    const g = github([
+      { createdAt: '2026-10-19T00:00:00Z', updatedAt: '2026-10-25T00:00:00Z', body: FULL },
+    ])
+    expect(readBaseline({ repository: 'owner/repo', issue: 797, call: g.call })).toMatchObject({
+      registrations: [{ edited: true }],
+    })
+    const none = github([{ createdAt: '2026-10-19T00:00:00Z', body: FULL }], null)
+    expect(() => readBaseline({ repository: 'owner/repo', issue: 797, call: none.call })).toThrow(
+      'Cannot read the publish environment',
     )
   })
 
@@ -287,7 +458,7 @@ describe('baseline-cli', () => {
               id: index + 1,
               html_url: `https://github.com/owner/repo/issues/797#issuecomment-${index + 1}`,
               updated_at: item.created_at,
-              user: { login: 'human' },
+              user: { login: 'human', node_id: 'U_human' },
               ...item,
             })),
       ),
@@ -298,6 +469,10 @@ describe('baseline-cli', () => {
 import { appendFileSync, readFileSync } from 'node:fs'
 appendFileSync(${JSON.stringify(join(dir, 'calls'))}, JSON.stringify(process.argv.slice(2)) + '\\n')
 ${comments === 'fail' ? "process.stderr.write('HTTP 401: Bad credentials'); process.exit(1)" : ''}
+if (process.argv.at(-1).endsWith('/environments/publish')) {
+  process.stdout.write(${JSON.stringify(JSON.stringify(ENVIRONMENT))})
+  process.exit(0)
+}
 const page = new URLSearchParams(process.argv.at(-1).split('?')[1]).get('page')
 process.stdout.write(page === '1' ? readFileSync(${JSON.stringify(data)}, 'utf8') : '[]')
 `,

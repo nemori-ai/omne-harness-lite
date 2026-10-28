@@ -128,8 +128,8 @@ export function cardAdmission(
 const POLICY_PATH = 'docs/engineering/integration-policy.json'
 const BINDING_SOURCE = 'tools/dev-flow/src/delivery/binding.ts'
 /**
- * The policy, delivery config and line table committed at the task base, where `start` will
- * read them. Refuses a task base whose dev-flow cannot read a version 2 binding. The task base
+ * The policy, delivery config and line table committed at the task base. `start` reads them
+ * again at the HEAD of the task worktree, which starts at the task base. Refuses a task base whose dev-flow cannot read a version 2 binding. The task base
  * must be a local commit of `root`; fetch it first.
  */
 export function taskBaseInputs(

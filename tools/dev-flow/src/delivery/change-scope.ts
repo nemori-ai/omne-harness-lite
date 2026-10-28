@@ -70,15 +70,23 @@ export type ChangeScopeReport =
 /** Runs `omne-contract-api --diff <base>` on the working tree; a failure throws. */
 export type DiffContractsFrom = (base: string) => DiffRun
 
+/** Said after each remedy: a fast-forward or rebase sync also puts other commits on the chain. */
+const SYNC_NOTE =
+  '这个文件来自别人的提交时，多半是快进或 rebase 同步，或合并了只在本地的分支：改用 git merge --no-ff 合并远端跟踪分支，见 tools/dev-flow/src/delivery/README.md「改动的写范围与线归属」。'
 const REMEDIES: Record<ChangeCode, string> = {
-  'change-outside-scope':
-    '撤回这个文件的改动。确实要改时，请调度者扩大写范围并重新派发，再提交这个改动。',
-  'change-outside-line':
-    '撤回这个文件的改动。别的线与联调轨道的路径由那条线的卡或交付线为 integration 的卡修改。',
+  'change-outside-scope': `撤回这个文件的改动。确实要改时，请调度者扩大写范围并重新派发，再提交这个改动。${SYNC_NOTE}`,
+  'change-outside-line': `撤回这个文件的改动。别的线与联调轨道的路径由那条线的卡或交付线为 integration 的卡修改。${SYNC_NOTE}`,
 }
 
 function nameList(output: string): string[] {
   return output.split('\0').filter(file => file !== '')
+}
+/** Commits as `[commit, ...parents]`, from `git rev-list --parents`. */
+function withParents(output: string): string[][] {
+  return output
+    .split('\n')
+    .filter(line => line !== '')
+    .map(line => line.split(' '))
 }
 /**
  * The files this card changed since `taskBase`, one commit at a time along the first-parent
@@ -86,22 +94,22 @@ function nameList(output: string): string[] {
  *
  * - A commit with one parent gives every file it changes. Renames count as a deletion and an
  *   addition.
- * - A merge gives only the files that differ from every parent (`diff-tree --cc`): conflict
- *   resolutions and changes made in the merge. The commits it brings in are not walked.
+ * - A merge gives the files that differ from every parent (`diff-tree --cc`): conflict
+ *   resolutions, changes made in the merge, and files that both sides changed.
+ * - A merge also brings in the commits of its other parents. The ones on a remote-tracking
+ *   branch other than `<remote>/<branch>` of the card belong to the target, the batch or another
+ *   card and do not count. The others are the card's own work, for example a
+ *   local side branch, and count like commits on the chain.
  * - The worktree adds tracked files that differ from HEAD and untracked files Git does not
  *   ignore.
  */
-export function cardChanges(root: string, taskBase: string): string[] {
+export function cardChanges(root: string, taskBase: string, branch: string): string[] {
   const head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}'])
   requireAncestor(root, taskBase, head)
   const files = new Set<string>(),
     add = (output: string) => nameList(output).forEach(file => files.add(file))
-  const commits = git(root, ['rev-list', '--first-parent', '--parents', `${taskBase}..${head}`])
-    .split('\n')
-    .filter(line => line !== '')
-    .map(line => line.split(' '))
-  for (const [commit, ...parents] of commits) {
-    if (commit === undefined) continue
+  const changesOf = ([commit, ...parents]: string[]) => {
+    if (commit === undefined) return
     if (parents.length > 1)
       add(git(root, ['diff-tree', '--cc', '--no-commit-id', '--name-only', '-z', commit]))
     else
@@ -117,6 +125,26 @@ export function cardChanges(root: string, taskBase: string): string[] {
           commit,
         ]),
       )
+  }
+  const chain = withParents(
+    git(root, ['rev-list', '--first-parent', '--parents', `${taskBase}..${head}`]),
+  )
+  for (const entry of chain) {
+    changesOf(entry)
+    const [, first, ...others] = entry
+    if (first === undefined) continue
+    for (const other of others)
+      withParents(
+        git(root, [
+          'rev-list',
+          '--parents',
+          other,
+          '--not',
+          first,
+          `--exclude=*/${branch}`,
+          '--remotes',
+        ]),
+      ).forEach(changesOf)
   }
   add(git(root, ['diff', '--no-renames', '--name-only', '-z', 'HEAD']))
   add(git(root, ['ls-files', '--others', '--exclude-standard', '-z']))
@@ -319,7 +347,7 @@ export function changeScope({
       linesFile === undefined
         ? committedLines(actual, binding.taskBase)
         : parseDeliveryLines(json(readFileSync(linesFile, 'utf8'), linesFile)),
-    files = cardChanges(actual, binding.taskBase),
+    files = cardChanges(actual, binding.taskBase, binding.branch),
     contract = checkContracts(actual, binding, files, lines, diffContracts ?? installedDiff(actual))
   return {
     bound: true,

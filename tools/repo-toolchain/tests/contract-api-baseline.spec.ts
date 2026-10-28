@@ -22,6 +22,7 @@ import {
   committedCheckout,
   contractCheckout,
   MEMBERS,
+  setContracts,
   setDist,
 } from './fixtures/contract-api.ts'
 import { commit, git, removeTemporaries } from './fixtures/loop-canary/repository.ts'
@@ -83,8 +84,23 @@ describe('the baseline block format', () => {
       JSON.stringify({ ...sample, members: [{ ...sample.members[0], tree: SHA1 }] }),
     ],
     ['breakingCards that are not strings', JSON.stringify({ ...sample, breakingCards: [1] })],
+    [
+      'a sha256 one digit short',
+      JSON.stringify({ ...sample, members: [{ ...sample.members[0], sha256: SHA256.slice(1) }] }),
+    ],
+    [
+      'a commit one digit short',
+      JSON.stringify({ ...sample, members: [{ ...sample.members[0], commit: SHA1.slice(1) }] }),
+    ],
   ])('refuses %s', (_name, text) => {
     expect(() => parseBaselineText(text)).toThrow(BaselineFormatError)
+  })
+
+  it('names the missing milestone key, which is not the same as a null milestone', () => {
+    expect(() => parseBaselineText(JSON.stringify({ members: sample.members }))).toThrow(
+      '缺 milestone',
+    )
+    expect(parseBaselineText(JSON.stringify({ ...sample, milestone: null })).milestone).toBeNull()
   })
 })
 
@@ -268,6 +284,84 @@ describe('checking against a baseline', { timeout: 120_000 }, () => {
     expect(cli(root, '--baseline', path)).toMatchObject({ status: 2 })
     expect(cli(root, '--baseline', join(root, '..', 'missing.json'))).toMatchObject({ status: 2 })
     expect(cli(root, '--milestone', 'M1', '--check')).toMatchObject({ status: 2 })
+  })
+
+  it('cannot judge a member whose registered commit has no such contract member', () => {
+    const { root, base } = committedCheckout()
+    const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
+    // The first commit of the fixture holds only a README: no line table, no contract member.
+    const empty = git(root, 'rev-list', '--max-parents=0', 'HEAD')
+    const [a, b] = baseline.members
+    const wrong = {
+      ...baseline,
+      members: [{ ...a!, commit: empty }, b!],
+      breakingCards: ['https://github.com/o/r/issues/9'],
+    }
+    const run = checkBaseline(root, CONFIG, wrong)
+    // breakingCards do not cover a member that cannot be judged.
+    expect(run).toMatchObject({
+      refused: true,
+      undetermined: [{ path: 'packages/x/a', reason: expect.stringContaining('不是契约成员') }],
+    })
+    expect(run.members[0]).toMatchObject({ directory: 'packages/x/a', status: 'invalid' })
+    expect(run.registration).toContainEqual(
+      expect.objectContaining({ path: 'packages/x/a', code: 'not-a-contract-member' }),
+    )
+    const shown = cli(root, '--baseline', baselineFile(root, wrong))
+    expect(shown.status).toBe(1)
+    expect(shown.stdout).toContain('packages/x/a')
+    expect(shown.stdout).toContain('判不了')
+  })
+
+  it('cannot judge a member whose registered commit has no snapshot file', () => {
+    const { root, base } = committedCheckout()
+    const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
+    git(root, 'rm', '-q', 'packages/x/a/api/a.api.md')
+    const bare = commit(root, 'a without a snapshot')
+    writeSnapshots(root, CONFIG)
+    const [a, b] = baseline.members
+    const run = checkBaseline(root, CONFIG, { ...baseline, members: [{ ...a!, commit: bare }, b!] })
+    expect(run).toMatchObject({
+      refused: true,
+      undetermined: [{ path: 'packages/x/a', reason: expect.stringContaining('没有快照文件') }],
+    })
+  })
+
+  it('cannot judge a member that was a contract member at the baseline but is not registered', () => {
+    const { root, base } = committedCheckout()
+    // A registration that left out packages/x/b although it was a contract member at base.
+    const partial = writeBaseline(root, CONFIG, base, {
+      milestone: 'M1',
+      members: ['packages/x/a'],
+    })
+    const run = checkBaseline(root, CONFIG, partial)
+    expect(run).toMatchObject({
+      refused: true,
+      undetermined: [{ path: 'packages/x/b', reason: expect.stringContaining('没有登记') }],
+    })
+    expect(run.members[1]).toMatchObject({
+      directory: 'packages/x/b',
+      status: 'invalid',
+      commit: null,
+    })
+  })
+
+  it('counts a registered member that left the line table as a removal', () => {
+    const { root, base } = committedCheckout()
+    const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
+    setContracts(root, ['packages/x/a'])
+    const run = checkBaseline(root, CONFIG, baseline)
+    expect(run).toMatchObject({ change: 'review', refused: true, undetermined: [] })
+    expect(run.members[1]).toMatchObject({ directory: 'packages/x/b', change: 'review' })
+  })
+
+  it('counts a member whose working snapshot cannot be read as review', () => {
+    const { root, base } = committedCheckout()
+    const baseline = writeBaseline(root, CONFIG, base, { milestone: 'M1' })
+    writeFileSync(join(root, 'packages/x/b/api/b.api.md'), 'not a snapshot\n')
+    const run = checkBaseline(root, CONFIG, baseline)
+    expect(run.members[1]).toMatchObject({ directory: 'packages/x/b', status: 'invalid' })
+    expect(run).toMatchObject({ change: 'review', refused: true })
   })
 
   it('takes sha256 over the snapshot file bytes', () => {

@@ -4,6 +4,7 @@ import { GhReadError } from '../src/delivery/github-read.ts'
 import { registeredTrack } from '../src/integration/policy.ts'
 import { CARDS_SECTION, formatCardLine, parsePullSections } from '../src/integration/pr-sections.ts'
 import {
+  findingCodes,
   RI_REFUSING_CODES,
   riNotes,
   riNotesExitCode,
@@ -871,6 +872,19 @@ describe('the exit code of ri-notes', () => {
     })
     expect(agreed.findings).toEqual([])
     expect(riNotesExitCode(agreed)).toBe(0)
+  })
+
+  it('is 1 for exactly the three contract codes of the ruling, one finding at a time', () => {
+    // Ruling OQ6 A: these three codes refuse a promotion; every other code only reports.
+    const refusing = [
+      'contract-level-exceeds-card',
+      'contract-breaking-off-integration',
+      'contract-diff-mismatch',
+    ]
+    for (const code of findingCodes) {
+      const notes = { findings: [{ severity: 'report' as const, code, at: {}, message: code }] }
+      expect(riNotesExitCode(notes), code).toBe(refusing.includes(code) ? 1 : 0)
+    }
   })
 
   it('is 0 for the other report-only codes', () => {

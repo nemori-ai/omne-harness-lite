@@ -20,8 +20,19 @@ export type ContractBaseline = {
   members: BaselineMember[]
   breakingCards?: string[]
 }
+/** The author of a comment: the login and the node ID, which a renamed account keeps. */
+export type CommentAuthor = { login: string; nodeId: string }
 /** One comment of the baseline card. `id` orders comments that share a creation time. */
-export type BaselineComment = { id: number; url: string; createdAt: string; body: string }
+export type BaselineComment = {
+  id: number
+  url: string
+  createdAt: string
+  updatedAt: string
+  author: CommentAuthor
+  body: string
+}
+/** Whether the author may register a baseline: a reviewer of the publish environment. */
+export type RegistrarCheck = (author: CommentAuthor) => boolean
 
 export const baselineProblemCodes = [
   'baseline-missing',
@@ -36,11 +47,27 @@ export type BaselineProblem = {
   comment: string | null
   message: string
 }
-/** One comment that registers members, oldest first. */
-export type Registration = { url: string; createdAt: string; members: string[] }
+/**
+ * One comment that registers members, oldest first. `edited` is true when the comment changed
+ * after it was created; GitHub lets the author and maintainers edit a comment.
+ */
+export type Registration = {
+  url: string
+  createdAt: string
+  author: string
+  edited: boolean
+  members: string[]
+}
+/** A comment with a block whose author may not register a baseline. Its block is not read. */
+export type IgnoredComment = { url: string; author: string; reason: string }
 export type BaselineRead =
-  | { kind: 'merged'; baseline: ContractBaseline; registrations: Registration[] }
-  | { kind: 'refused'; problems: BaselineProblem[] }
+  | {
+      kind: 'merged'
+      baseline: ContractBaseline
+      registrations: Registration[]
+      ignored: IgnoredComment[]
+    }
+  | { kind: 'refused'; problems: BaselineProblem[]; ignored: IgnoredComment[] }
 
 class FormatError extends Error {}
 function fail(message: string): never {
@@ -102,6 +129,10 @@ function parseBaseline(value: unknown): ContractBaseline {
 }
 
 const FENCE = new RegExp(`^\`\`\`json ${BASELINE_MARKER}\\s*$`, 'u')
+/** Whether `body` has at least one block opening line, closed or not. */
+function hasBlock(body: string): boolean {
+  return body.split(/\r?\n/u).some(line => FENCE.test(line))
+}
 /** The text inside each block of `body`, in order. An unterminated block is a format error. */
 function blocksOf(body: string): string[] {
   const lines = body.split(/\r?\n/u),
@@ -179,6 +210,8 @@ function isProblem(value: ContractBaseline | BaselineProblem): value is Baseline
 /**
  * Merges the registrations of a baseline card, oldest comment first (creation time, then id):
  *
+ * - Only a comment whose author passes `isRegistrar` registers. A block in any other comment is
+ *   not read; the comment is listed in `ignored`.
  * - The first block is the registration of the milestone. A later block is a supplement with
  *   the same milestone. It can name a member that no earlier block has: a contract member added
  *   after the baseline gets its first snapshot this way.
@@ -187,14 +220,27 @@ function isProblem(value: ContractBaseline | BaselineProblem): value is Baseline
  *
  * Any defect refuses the whole read with every problem found.
  */
-export function mergeRegistrations(comments: readonly BaselineComment[]): BaselineRead {
+export function mergeRegistrations(
+  comments: readonly BaselineComment[],
+  isRegistrar: RegistrarCheck,
+): BaselineRead {
   const ordered = [...comments].sort((a, b) => byCodeUnit(a.createdAt, b.createdAt) || a.id - b.id)
   const problems: BaselineProblem[] = [],
     registrations: Registration[] = [],
+    ignored: IgnoredComment[] = [],
     members = new Map<string, BaselineMember>(),
     cards: string[] = []
   let milestone: string | null | undefined
   for (const comment of ordered) {
+    if (!hasBlock(comment.body)) continue
+    if (!isRegistrar(comment.author)) {
+      ignored.push({
+        url: comment.url,
+        author: comment.author.login,
+        reason: `${comment.author.login} 不是 publish 环境的审批者，区块不算登记。`,
+      })
+      continue
+    }
     const read = registrationOf(comment)
     if (read === null) continue
     if (isProblem(read)) {
@@ -213,6 +259,8 @@ export function mergeRegistrations(comments: readonly BaselineComment[]): Baseli
     registrations.push({
       url: comment.url,
       createdAt: comment.createdAt,
+      author: comment.author.login,
+      edited: comment.updatedAt !== comment.createdAt,
       members: read.members.map(item => item.path),
     })
   }
@@ -220,9 +268,9 @@ export function mergeRegistrations(comments: readonly BaselineComment[]): Baseli
     problems.push({
       code: 'baseline-missing',
       comment: null,
-      message: `卡的评论里没有 ${BASELINE_MARKER} 区块。用 omne-contract-api --baseline-write 生成区块，贴进登记评论。`,
+      message: `卡上没有登记者发的 ${BASELINE_MARKER} 区块。登记者用 omne-contract-api --baseline-write 生成区块，贴进登记评论。`,
     })
-  if (problems.length > 0 || milestone === undefined) return { kind: 'refused', problems }
+  if (problems.length > 0 || milestone === undefined) return { kind: 'refused', problems, ignored }
   return {
     kind: 'merged',
     baseline: {
@@ -231,6 +279,7 @@ export function mergeRegistrations(comments: readonly BaselineComment[]): Baseli
       ...(cards.length === 0 ? {} : { breakingCards: cards }),
     },
     registrations,
+    ignored,
   }
 }
 
@@ -239,10 +288,16 @@ function parseComment(value: unknown, index: number): BaselineComment {
     id = c.id
   if (typeof id !== 'number' || !Number.isSafeInteger(id))
     throw new InputError(`comments[${index}].id must be an integer`)
+  const user = record(c.user, `comments[${index}].user`)
   return {
     id,
     url: text(c.html_url, `comments[${index}].html_url`),
     createdAt: text(c.created_at, `comments[${index}].created_at`),
+    updatedAt: text(c.updated_at, `comments[${index}].updated_at`),
+    author: {
+      login: text(user.login, `comments[${index}].user.login`),
+      nodeId: text(user.node_id, `comments[${index}].user.node_id`),
+    },
     body: c.body === null ? '' : text(c.body, `comments[${index}].body`),
   }
 }
@@ -263,15 +318,96 @@ export function readComments(repository: string, issue: number, call: GhRead): B
   }
   throw new InputError(`Page limit reached at ${path}`)
 }
-/** Reads the comments of the baseline card and merges its registrations. */
+const PUBLISH_ENVIRONMENT = 'publish'
+/**
+ * The registrar check of `repository`: the author is a required reviewer of the publish
+ * environment, as a user (login and node ID) or as an active member of a reviewer team. These are
+ * the people who may dispatch, the same rule as the dispatch comment of `start`
+ * (`integration/authority.ts`). An environment that cannot be read fails the read; a team
+ * membership that cannot be read does not grant.
+ */
+export function publishReviewers(repository: string, call: GhRead): RegistrarCheck {
+  let environment: Record<string, unknown>
+  try {
+    environment = record(
+      call(
+        [
+          'api',
+          '--method',
+          'GET',
+          ...REST_HEADERS,
+          `repos/${repository}/environments/${PUBLISH_ENVIRONMENT}`,
+        ],
+        TIMEOUT_MS,
+      ),
+      'environment',
+    )
+  } catch {
+    throw new InputError(`Cannot read the ${PUBLISH_ENVIRONMENT} environment`)
+  }
+  const reviewers = array(environment.protection_rules, 'protection_rules')
+    .map(item => record(item, 'protection rule'))
+    .filter(rule => rule.type === 'required_reviewers')
+    .flatMap(rule => array(rule.reviewers, 'reviewers').map(item => record(item, 'reviewer')))
+  if (reviewers.length === 0)
+    throw new InputError(`The ${PUBLISH_ENVIRONMENT} environment has no required reviewers`)
+  const org = repository.split('/')[0] ?? ''
+  const cache = new Map<string, boolean>()
+  const member = (slug: string, login: string): boolean => {
+    try {
+      const membership = record(
+        call(
+          [
+            'api',
+            '--method',
+            'GET',
+            ...REST_HEADERS,
+            `orgs/${org}/teams/${slug}/memberships/${login}`,
+          ],
+          TIMEOUT_MS,
+        ),
+        'team membership',
+      )
+      return membership.state === 'active'
+    } catch {
+      // An unreadable or absent membership never grants.
+      return false
+    }
+  }
+  return ({ login, nodeId }) => {
+    const key = `${login} ${nodeId}`,
+      cached = cache.get(key)
+    if (cached !== undefined) return cached
+    const granted = reviewers.some(entry => {
+      const reviewer = record(entry.reviewer, 'reviewer')
+      if (entry.type === 'User') return reviewer.login === login && reviewer.node_id === nodeId
+      if (entry.type === 'Team') return member(text(reviewer.slug, 'team slug'), login)
+      return false
+    })
+    cache.set(key, granted)
+    return granted
+  }
+}
+/**
+ * Reads the comments of the baseline card and merges the registrations of the publish
+ * reviewers. `isRegistrar` replaces that check.
+ */
 export function readBaseline({
   repository,
   issue,
   call,
+  isRegistrar,
 }: {
   repository: string
   issue: number
   call: GhRead
+  isRegistrar?: RegistrarCheck
 }): BaselineRead {
-  return mergeRegistrations(readComments(repository, issue, call))
+  const comments = readComments(repository, issue, call)
+  const check =
+    isRegistrar ??
+    (comments.some(comment => hasBlock(comment.body))
+      ? publishReviewers(repository, call)
+      : () => false)
+  return mergeRegistrations(comments, check)
 }

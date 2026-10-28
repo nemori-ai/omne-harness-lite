@@ -673,8 +673,8 @@ omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比�
 - 登记者运行 `--baseline-write <基线提交> --milestone <名>`，把输出的 `json omne-contract-baseline:v1` 区块贴进 baseline 卡的登记评论。区块给每个成员记 `path`、`commit`、快照的 `sha256` 与 `apiTree`。基线文件不入库。
 - 补登记个别成员时加 `--member <成员目录>`，只写这些成员，它们的 `commit` 可以与其他成员不同。
 - 有破坏性改动的裁定读回后，调度者在区块里补 `breakingCards`，列出承接的 `integration` 卡。
-- 核对时把登记合并成一个文件（JSON 对象，或含一个区块的评论正文），运行 `--baseline <文件>`。每个成员从它自己的 `commit` 比到工作树的快照。基线之后加入的成员整份算新增。分类为 `review` 而没有 `breakingCards` 时退出 1。登记的 `sha256` 或 `apiTree` 与那个提交对不上时只报告。
-- 本目录的源码要等发布新版本、仓库升钉子之后才在检查中运行。
+- 核对时把登记合并成一个文件（JSON 对象，或含一个区块的评论正文），运行 `--baseline <文件>`。每个成员从它自己的 `commit` 比到工作树的快照。基线之后加入的成员整份算新增。下列成员判不了，命令退出 1，`breakingCards` 不能放行：登记的成员在它的 `commit` 上不是契约成员或没有快照；在基线点（全部登记提交的共同祖先）上已是契约成员却没有登记。其余情况分类为 `review` 而没有 `breakingCards` 时退出 1。登记的 `sha256` 或 `apiTree` 与那个提交对不上时只报告。
+- `--baseline-write` 与 `--baseline` 从 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。
 
 `review` 不是 PR「契约变化」一节的级别。它包括两方都破坏的改动、只破坏一方的改动，也包括按「可加改动」表不破坏、但不在白名单里的改动（例如契约声明开放的联合加成员、给类型参数加默认值）。PR 的 none、additive 或 breaking 由人按「可加改动」表判定。
 

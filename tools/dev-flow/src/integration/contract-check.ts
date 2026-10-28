@@ -43,7 +43,7 @@ const WRITE = '运行 `pnpm run contract:api --write`，核对快照的改动后
 const FAILURE_TEXT: Record<FailingStatus, { message: string; remedy: string }> = {
   differs: {
     message: '快照文件与 dist 现场生成的快照不一致',
-    remedy: `公开面的改动是本卡要做的时，${WRITE}。不是要做的改动时，改回声明后重新构建。`,
+    remedy: `先重新构建这个成员（pnpm turbo run build --filter=<包名>），再运行检查：dist 可能早于合并进来的快照。仍不一致且公开面的改动是本卡要做的时，${WRITE}。不是要做的改动时，改回声明后重新构建。`,
   },
   unreadable: {
     message: '快照文件读不回（格式版本不对或被改坏）',

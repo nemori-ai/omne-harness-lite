@@ -118,7 +118,7 @@ Attribute findings refuse a new context (1):
 {"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
 ```
 
-报告不改变标准输出、context 与退出码。线归属表读不到时只报告一行 `attribute-rules-unavailable`，不拒绝。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+报告不改变标准输出、context 与退出码。线归属表在工作树 HEAD 上缺失或不合格时，新建 context 被拒绝（`attribute-rules-unavailable`）；已有同绑定的 context 时只报告这一行。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
 
 ### 看板字段
 
@@ -276,7 +276,8 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-c
 `pnpm run check` 在构建之后每次都运行它。命令运行钉住的 `omne-contract-api --check --json`，拿成员 dist 现场生成的快照与快照文件比较：
 
 - 成员为 `differs`、`unreadable`、`missing` 或 `invalid` 时退出 1，检查失败。标准错误逐个写成员、状态与改法。公开面的改动是本卡要做的时，运行 `pnpm run contract:api --write`，核对快照改动后提交。不是要做的改动时，改回声明。
-- 没有 dist 的成员（`unbuilt`）只报告。影响面计划没有选中的成员不构建，它们的源码与快照都没有变。
+- 没有 dist 的成员（`unbuilt`）只报告。影响面计划没有选中的成员不构建；本卡改了成员的快照或源码时，影响面会选中它。
+- 报 `differs` 时先重新构建这个成员再核对：长期使用的工作树合并了同步之后，dist 可能早于合并进来的快照。仍不一致时才运行 `--write`。
 - 找不到 `omne-contract-api`、运行失败或输出不合格时退出 2，检查也失败。
 
 标准输出是 JSON 报告，标准错误最后一行是汇总。精确条款见 [SPEC](SPEC.md#契约快照核对) 的 I22。

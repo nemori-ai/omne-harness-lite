@@ -40,7 +40,7 @@ pnpm --silent run check:docs
 pnpm --silent run check:design
 # 常驻：线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置），失败即失败。
 pnpm --silent run check:lines
-# 常驻：本卡自己的改动（逐提交，合并只取冲突解决，加未提交改动）须在 binding 写范围与本线内；本卡改了契约成员的 api 目录时，快照差异不超过申报的契约变更。没有 task context 时只报告「未绑定」。
+# 常驻：本卡自己的改动（沿第一父链逐提交；合并取与每个父提交都不同的文件，加上它带进来的、不在别的远端跟踪分支上的提交；加未提交改动）须在 binding 写范围与本线内；本卡改了契约成员的 api 目录时，快照差异不超过申报的契约变更。没有 task context 时只报告「未绑定」。
 node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts >/dev/null
 # 按计划：Python 工具测试。
 step python

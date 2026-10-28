@@ -40,7 +40,7 @@
 - carry 之后，binding 的里程碑与 Issue 的里程碑不同。这是条款为 `binding.milestone` 的 `attribute-binding-drift`。
 - 交付线为 `integration` 的卡带版本 1 的 binding。交付线取正文「身份与责任」。线内的卡带版本 1 的 binding 时拒绝，调度者用 `dispatch-cli.ts` 重新派发，生成版本 2 的 binding。
 
-被拒绝时，调度者按消息中的改法修订卡、同步标签或重新派发，执行者再运行 `start`。工作树已有同绑定的 context 时，重跑 `start` 只报告发现。
+工作树 HEAD 上的线归属表缺失或不合格时，属性规则不可得，`start` 也拒绝新建 context，消息为 `attribute-rules-unavailable`。被拒绝时，调度者按消息中的改法修订卡、同步标签或重新派发，执行者再运行 `start`。工作树已有同绑定的 context 时，重跑 `start` 只报告发现。
 
 调度者用 `milestone-cli.ts create <名称> --due <日期>` 建里程碑，用 `milestone-cli.ts carry --from <A> --to <B> --reason <原因> <卡号>...` 把卡移到另一个里程碑。carry 在每张卡上发一条固定格式的流转评论，不改 binding。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#里程碑命令)。
 

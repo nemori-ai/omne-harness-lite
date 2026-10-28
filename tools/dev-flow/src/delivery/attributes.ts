@@ -80,8 +80,7 @@ export type AttributeCode = (typeof attributeCodes)[number]
 export type AttributeFinding = { code: AttributeCode; clause: string; message: string }
 /**
  * The codes that refuse a new context in `start` and a dispatch: every attribute code. The
- * findings in `REPORT_ONLY_FINDINGS` are reported instead. When #731 adopts the rule table, the
- * table replaces this constant.
+ * findings in `REPORT_ONLY_FINDINGS` are reported instead.
  */
 export const REFUSING_ATTRIBUTE_CODES: readonly AttributeCode[] = attributeCodes
 /**

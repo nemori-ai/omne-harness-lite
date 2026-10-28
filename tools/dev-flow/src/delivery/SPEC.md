@@ -90,7 +90,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 6. `conditionCards` 是目标为 Issue 的交付条件及目标卡的属性。线内的卡引用交付线不是本线也不是 `integration` 的卡为 `condition-cross-line`。目标卡未读到或交付线不合格时不判断。`baseline` 卡没有任何交付条件：`readCardAttributes` 带上「交付条件」章节的文本，它不是「无」时为 `condition-cross-line`，条款为 `交付条件`。
 7. `line:`、`nature:`、`contract:` 三族标签与正文属性的投影不同为 `label-drift`。契约变更为 `none` 时不应有 `contract:` 标签。
 
-准入观察不提供规则，所以准入不产生属性发现。`attributeRefusals` 从发现中选出拒绝的项：`REFUSING_ATTRIBUTE_CODES` 现为全部代码，`REPORT_ONLY_FINDINGS` 现只有条款为 `binding.milestone` 的 `attribute-binding-drift`，正文交付线为 `integration` 时 `binding-v1` 也只报告。`ATTRIBUTE_REMEDIES` 给出每个代码的改法。`start` 新建 context 时按它拒绝，见[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。派发命令按它拒绝，见[派发命令](#派发命令)。`start` 另有派发字段的拒绝，见 `dispatchFieldGaps`。
+准入观察不提供规则，所以准入不产生属性发现。`attributeRefusals` 从发现中选出拒绝的项：`REFUSING_ATTRIBUTE_CODES` 是全部代码，`REPORT_ONLY_FINDINGS` 只有条款为 `binding.milestone` 的 `attribute-binding-drift`，正文交付线为 `integration` 时 `binding-v1` 也只报告。`ATTRIBUTE_REMEDIES` 给出每个代码的改法。`start` 新建 context 时按它拒绝，见[集成工具规格](../integration/SPEC.md#授权与开工)的 I16。派发命令按它拒绝，见[派发命令](#派发命令)。`start` 另有派发字段的拒绝，见 `dispatchFieldGaps`。
 
 ## 标签同步
 
@@ -135,7 +135,8 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 [change-scope.ts](change-scope.ts) 的 `changeScope({ root, linesFile, diffContracts })` 只读，核对已绑定工作树中本卡实际改动的文件，以及本卡改到的契约成员的快照差异。[change-scope-cli.ts](change-scope-cli.ts) 是它的命令行，`scripts/check.sh` 在常驻检查中调用它。
 
 - 没有 task context 时返回 `bound: false`，不读 Git 历史，CLI 退出0。context 不属于本工作树或分支、或没有 `ownerTask` 时读取失败，CLI 退出2。
-- `cardChanges(root, taskBase)` 要求 `taskBase` 是 HEAD 的祖先，否则以 `refused` 失败。它沿 `git rev-list --first-parent taskBase..HEAD` 逐个提交计算：单父提交取 `git diff-tree -r --no-renames` 的全部文件；合并提交只取 `git diff-tree --cc` 的文件；再并入 `git diff --no-renames HEAD` 与 `git ls-files --others --exclude-standard`。结果去重后排序。不读 `targetBase`。
+- `cardChanges(root, taskBase, branch)` 要求 `taskBase` 是 HEAD 的祖先，否则以 `refused` 失败。它沿 `git rev-list --first-parent taskBase..HEAD` 逐个提交计算：单父提交取 `git diff-tree -r --no-renames` 的全部文件；合并提交取 `git diff-tree --cc` 的文件，即与每个父提交都不同的文件，含两侧都改过而没有冲突的文件。对每个合并的其他父提交 P，再走 `git rev-list P --not <第一父提交> --exclude=*/<branch> --remotes` 列出的提交，按同样两条规则计入：不在本卡以外任何远端跟踪分支上的提交是本卡自己的工作。最后并入 `git diff --no-renames HEAD`（未提交的改名计旧路径与新路径）与 `git ls-files --others --exclude-standard`。结果去重后排序。不读 `targetBase`。
+- 限制（误拒方向）：快进同步、rebase 同步与合并只在本地的别的分支，会把别人的提交算进来；没有冲突而两侧都改过的文件也算进来。改法见 [README](README.md#改动的写范围与线归属)。合并带进来的本卡提交若已推到本卡以外的远端分支名下，不计入；这是剩下的漏检形状。
 - `changeFindings(files, binding, lines)` 跳过 `isOpenScope` 为真的文件（`tmp` 与 `shared`）。不在任一 `writeScope` 项之下（按 `under`）的文件为 `change-outside-scope`。版本2、交付线不是 `integration` 的 binding，文件的 `scopeOwners` 含本线以外的归属时为 `change-outside-line`。同一文件两项都有时先列 `change-outside-scope`。每项带固定的 `remedy`。
 - 线归属表缺省取 `taskBase` 提交中的 `docs/engineering/delivery-lines.json`。读不到或不合格时失败。
 - 契约核对：`touchedContracts(files, members)` 取改动文件中有 `<成员>/api/` 下文件的契约成员。成员取 `taskBase` 线归属表（或 `--lines`）与工作树线归属表的 `contracts` 的并集，因为本卡可以新增成员。没有这样的成员时 `contract.kind` 为 `not-needed`，不运行 `omne-contract-api`。版本1的 binding 没有契约变更字段，`contract.kind` 为 `skipped` 并列出成员。其余情况运行 `diffContracts(taskBase)`，缺省为 dev-flow 依赖解析出的 `omne-contract-api --diff <taskBase> --json --root <检出根>`，经 `contract-diff.ts` 的 `runDiff` 与 `parseDiffRun`，超时 `CONTRACT_DIFF_TIMEOUT_MS`（120 秒）。它比较 `taskBase` 上的快照与工作树的快照，所以未提交的快照改动也计入。运行失败、输出不合格或输出的 `commit` 不是 `taskBase` 时抛出。`contract.kind` 为 `checked`，逐成员列出 `path` 与 `change`。
@@ -143,20 +144,21 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 
 CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件或成员>: <说明> 改法：<改法>`。退出码：没有发现或未绑定为0，有发现为1，参数、context、Git、线归属表读取错误或 `omne-contract-api` 运行失败为2，错误以一行 JSON `{code, message}` 写到标准错误。
 
-`tests/delivery-change-scope.spec.ts` 在临时真实 Git 仓库与手写 context 上覆盖：范围内放行；本卡提交越界；改名与删除；同步合并带来的文件不计入；合并同批次别的卡的提交不计入；冲突解决越界；`targetBase` 早于 `taskBase` 且其间有别的卡的提交时不计入；未提交与未跟踪的越界改动；`tmp` 与 `shared` 不计入；别的线与联调轨道的路径即使在写范围内也拒绝；`integration` 卡不做线归属；线归属表取 `taskBase` 的版本；CLI 的未绑定、无发现、有发现与两种退出2。契约核对用注入的差异覆盖三种申报对三种差异、只比较改到的成员、`invalid` 与缺失的成员、版本1跳过，以及没有改 `api` 目录时不运行差异（合并别的卡带进来的快照变化）。用安装的 `omne-contract-api` 在临时检出覆盖：差异为 none 时放行，additive 申报 `none` 时拒绝、申报 `additive` 时放行，合并别的卡对另一成员的 review 不计入，差异运行失败时退出2。
+`tests/delivery-change-scope.spec.ts` 在临时真实 Git 仓库与手写 context 上覆盖：范围内放行；本卡提交越界；改名与删除（含未提交的 `git mv`）；从远端同步合并带来的文件不计入；从远端合并同批次别的卡的提交不计入；冲突解决越界；本卡本地侧分支作第二父时计入；目标作第一父、卡分支移到合并时本卡提交计入；契约差异的基线不是 taskBase 时失败；`targetBase` 早于 `taskBase` 且其间有别的卡的提交时不计入；未提交与未跟踪的越界改动；`tmp` 与 `shared` 不计入；别的线与联调轨道的路径即使在写范围内也拒绝；`integration` 卡不做线归属；线归属表取 `taskBase` 的版本；CLI 的未绑定、无发现、有发现与两种退出2。契约核对用注入的差异覆盖三种申报对三种差异、只比较改到的成员、`invalid` 与缺失的成员、版本1跳过，以及没有改 `api` 目录时不运行差异（合并别的卡带进来的快照变化）。用安装的 `omne-contract-api` 在临时检出覆盖：差异为 none 时放行，additive 申报 `none` 时拒绝、申报 `additive` 时放行，合并别的卡对另一成员的 review 不计入，差异运行失败时退出2。
 
 ## 契约基线的读取
 
-[baseline.ts](baseline.ts) 读 baseline 卡评论中的 `json omne-contract-baseline:v1` 区块，按评论时间合并。区块格式归 repo-toolchain 的 `omne-contract-api`（`src/declarations/api-baseline.ts`）。钉住的 0.0.15 还没有这个模块，所以本模块按同一个 v1 形状校验：顶层只有 `milestone`（必有，字符串或 null）、`members`（非空，每项只有 `path`、`commit`、`sha256`、`apiTree`，`path` 是不重复的仓库相对路径，`commit` 与 `apiTree` 为40位、`sha256` 为64位小写十六进制）与可选的 `breakingCards`（不重复的非空字符串）。钉子升到带这个模块的版本后，改为导入包的解析。
+[baseline.ts](baseline.ts) 读 baseline 卡评论中的 `json omne-contract-baseline:v1` 区块，按评论时间合并。区块格式归 repo-toolchain 的 `omne-contract-api`（`src/declarations/api-baseline.ts`）。dev-flow 依赖的 repo-toolchain 版本不导出这个解析，所以本模块自带一份同形状的校验：顶层只有 `milestone`（必有，字符串或 null）、`members`（非空，每项只有 `path`、`commit`、`sha256`、`apiTree`，`path` 是不重复的仓库相对路径，`commit` 与 `apiTree` 为40位、`sha256` 为64位小写十六进制）与可选的 `breakingCards`（不重复的非空字符串）。
 
-- `readComments(repository, issue, call)` 只发 `gh api --method GET` 加 `REST_HEADERS` 与 `repos/<仓库>/issues/<编号>/comments?per_page=100&page=<n>`，逐页读到一页少于100条为止，最多20页，超出时以 `InputError` 失败。评论的 `id`、`html_url`、`created_at` 与 `body` 不合格时以 `InputError` 失败。命令不写平台。
-- `mergeRegistrations(comments)` 按 `created_at` 再按 `id` 从旧到新处理。没有区块的评论跳过。一条评论有两个以上区块为 `baseline-duplicate`。区块没有结束的围栏、不是 JSON 或形状不合格为 `baseline-invalid`。区块的 `milestone` 与最早的区块不同为 `baseline-milestone-mismatch`。全部评论都没有区块为 `baseline-missing`。有任一问题时结果为 `refused`，逐项列出代码、评论与说明。
-- 没有问题时结果为 `merged`。同一成员取最晚的区块。较晚的区块可以写较早区块没有的成员：基线之后加入的契约成员由 baseline 卡这样补登记首份快照，见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)第4条。`breakingCards` 是各区块的并集，按首次出现的顺序。`registrations` 从旧到新列出每条登记评论与它写的成员。
+- `readComments(repository, issue, call)` 只发 `gh api --method GET` 加 `REST_HEADERS` 与 `repos/<仓库>/issues/<编号>/comments?per_page=100&page=<n>`，逐页读到一页少于100条为止，最多20页，超出时以 `InputError` 失败。评论的 `id`、`html_url`、`created_at`、`updated_at`、`user.login`、`user.node_id` 与 `body` 不合格时以 `InputError` 失败。命令不写平台。
+- 登记者：`publishReviewers(repository, call)` 读 `repos/<仓库>/environments/publish`，取 `required_reviewers`。作者的 login 与 node ID 都等于一个 User 审批者，或作者是一个 Team 审批者的 active 成员时，作者是登记者。这是能派发的人，口径同 `start` 对派发评论的核对（`integration/authority.ts`）。环境读不到或没有审批者时以 `InputError` 失败；团队成员关系读不到时不授予。只有评论里有区块时才读环境。
+- `mergeRegistrations(comments, isRegistrar)` 按 `created_at` 再按 `id` 从旧到新处理。没有区块的评论跳过。作者不是登记者的评论不读区块，列在 `ignored`（评论、作者与原因），不改基线，也不加 `breakingCards`。登记者的评论中：一条评论有两个以上区块为 `baseline-duplicate`；区块没有结束的围栏、不是 JSON 或形状不合格为 `baseline-invalid`；区块的 `milestone` 与最早的区块不同为 `baseline-milestone-mismatch`。没有登记者发的区块为 `baseline-missing`。有任一问题时结果为 `refused`，逐项列出代码、评论与说明。
+- 没有问题时结果为 `merged`。同一成员取最晚的区块。较晚的区块可以写较早区块没有的成员：基线之后加入的契约成员由 baseline 卡这样补登记首份快照，见[里程碑内的规则](../../../../docs/engineering/integration.md#里程碑内的规则)第4条。漏登记由 `omne-contract-api --baseline` 判出。`breakingCards` 是各区块的并集，按首次出现的顺序。`registrations` 从旧到新列出每条登记评论、作者、`edited`（`updated_at` 不等于 `created_at`）与它写的成员。编辑过的评论照常采信：GitHub 只让作者与有写权限的人编辑评论。
 - `renderBaselineBlock` 按固定的键顺序写围栏区块，成员按 `path` 排序。`parseBaselineText` 与 `omne-contract-api --baseline` 读法相同：整段是 JSON 对象，或恰好含一个区块。
 
-[baseline-cli.ts](baseline-cli.ts) 的 `read <卡号> --out <文件> [--config <文件>]` 从交付配置取仓库，读这张卡并合并。结果为 `merged` 时把区块写到 `--out`，标准输出为 JSON（`issue`、`out`、`kind`、`baseline`、`registrations`），退出0。结果为 `refused` 时不写文件，标准输出为 JSON（`issue`、`kind`、`problems`），每个问题向标准错误写一行 `baseline: <代码> [<评论>]: <说明>`，退出1。参数、交付配置与 GitHub 读取错误退出2，标准输出为空，错误以一行 JSON `{kind: "baseline-error", message}` 写到标准错误，不转述 API 输出。
+[baseline-cli.ts](baseline-cli.ts) 的 `read <卡号> --out <文件> [--config <文件>]` 从交付配置取仓库，读这张卡并合并。每条 `ignored` 向标准错误写一行 `baseline: ignored <评论>: <原因>`。结果为 `merged` 时把区块写到 `--out`，标准输出为 JSON（`issue`、`out`、`kind`、`baseline`、`registrations`、`ignored`），退出0。结果为 `refused` 时不写文件，标准输出为 JSON（`issue`、`kind`、`problems`、`ignored`），每个问题向标准错误写一行 `baseline: <代码> [<评论>]: <说明>`，退出1。参数、交付配置与 GitHub 读取错误（含环境读不到）退出2，标准输出为空，错误以一行 JSON `{kind: "baseline-error", message}` 写到标准错误，不转述 API 输出。云端会话的代理不放行环境读取，所以有区块时命令在云端会话退出2。
 
-`tests/delivery-baseline.spec.ts` 用记录调用的 GitHub 替身覆盖：分页完整且只有固定 argv 的 GET；同一成员取最晚的区块，与响应顺序无关；较晚的区块加入新成员；`breakingCards` 合并；缺区块、一条评论两个区块、各种不合格的区块与 milestone 不同各拒绝；写出的区块读回等于合并结果；评论形状不合格时失败。CLI 用例经 PATH 上的 `gh` 替身覆盖写出文件退出0、拒绝时退出1且不写文件、读取失败与参数错误退出2。与 `--baseline` 的组合不在本成员的测试中：钉住的 0.0.15 没有 `--baseline`。
+`tests/delivery-baseline.spec.ts` 用记录调用的 GitHub 替身覆盖：分页完整且只有固定 argv 的 GET；同一成员取最晚的区块，先比时间、同一时间再比 `id`，与响应顺序无关；较晚的区块加入新成员；`breakingCards` 合并；缺区块、一条评论两个区块、各种不合格的区块（含短一位的哈希与缺 `milestone` 键）与 milestone 不同各拒绝；非登记者较晚的区块不改基线、不加 `breakingCards` 并列在 `ignored`；团队成员授予、login 相同而 node ID 不同不授予；编辑过的评论标 `edited`；环境读不到时失败；写出的区块读回等于合并结果；`parseBaselineText` 的纯 JSON、单区块与两个区块。CLI 用例经 PATH 上的 `gh` 替身覆盖写出文件退出0、拒绝时退出1且不写文件、读取失败与参数错误退出2。与 `--baseline` 的组合不在本成员的测试中：dev-flow 依赖的版本没有 `--baseline`。
 
 ## 里程碑命令
 
