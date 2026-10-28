@@ -10,7 +10,7 @@ import {
 import { dirname, join, resolve } from 'node:path'
 import { canonical } from '../integration/parse.ts'
 import { strictJson } from './strict-json.ts'
-import { uuid } from './input-values.ts'
+import { uuid } from './identifiers.ts'
 
 /** Each intent is an exclusive, flushed file. A crash after creation requires recovery, never repost. */
 export function operationJournal(root: string, operationId: string) {
@@ -33,7 +33,7 @@ export function operationJournal(root: string, operationId: string) {
     read(name: string): unknown | undefined {
       const path = join(directory, fileName(name))
       try {
-        return strictJson(readFileSync(path, 'utf8'))
+        return strictJson(readFileSync(path, 'utf8'), path)
       } catch (error) {
         if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return undefined
         throw error

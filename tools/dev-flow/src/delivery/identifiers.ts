@@ -9,6 +9,13 @@ export function fullSha(value: unknown, at: string): string {
   return result
 }
 
+/** A SHA-256 digest: 64 hex digits, returned in lower case. */
+export function sha256Hex(value: unknown, at: string): string {
+  const result = string(value, at).toLowerCase()
+  if (!/^[0-9a-f]{64}$/.test(result)) throw new InputError(`${at}: SHA-256 digest required`)
+  return result
+}
+
 /** An RFC 4122 UUID of versions 1 to 8, returned in lower case. */
 export function uuid(value: unknown, at: string): string {
   const result = string(value, at)

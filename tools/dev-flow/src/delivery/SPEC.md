@@ -87,7 +87,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。`tests/delivery-input-values.spec.ts` 覆盖严格 JSON 的重复键、畸形与上限拒绝，完整 SHA 与 UUID 校验，以及操作日志的独占写入、按操作分目录与越界名称拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。`tests/delivery-identifiers.spec.ts` 覆盖严格 JSON 的重复键、畸形、上限拒绝与文件标签，完整 SHA、SHA-256 摘要与 UUID 校验，以及操作日志的独占写入、按操作分目录与越界名称拒绝。远端响应在这些测试中以有限 fixture 提供。
 
 真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
@@ -209,6 +209,8 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 `planDispatch` 在任何写入之前判断并生成版本2 binding，`dispatch` 为占位 URL。拒绝的条件依次为：卡未开放；`actor` 不等于 `responsible`；`dispatchFieldGaps` 非空；准入观察对本卡有偏离；正文属性不合格或交付修订不唯一；卡上已有评论的 `omne-integration-authority:v1` 区块派发同一修订与 attempt，且没有 `force`；`confirmations` 引用卡上没有的条件；某个 start 条件没有 `confirmations` 项；拟写的 binding 有 `attributeRefusals` 选出的属性发现。交付修订、属性、里程碑与条件 ID 取自采集到的卡。每个 start 条件的确认摘要是 `conditionDigest(condition)`，与 `start` 核对时用同一函数和同一解析。
 
+`dispatchProse(text)` 拒绝空的或只含空白的派发正文，抛出 `input-error`。`dispatch-cli post` 读入 `--text` 文件后先调用它，`postDispatch` 在第一个请求之前也调用它。所以空白正文使 `post` 退出 2，不调用 GitHub。
+
 `postDispatch` 串行发三个请求：POST 占位评论，PATCH 把它改成 `dispatchComment(prose, decision)`，GET 读回。决定中 binding 的 `dispatch` 是占位评论的 `html_url`。PATCH 失败时错误给出占位评论 URL，不重试、不删除。PATCH 成功后、GET 之前调用 `onPosted`，交出派发 URL 与 binding；GET 失败时错误给出派发评论 URL。`verified` 表示读回的评论正文等于写入的正文。
 
 `bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
@@ -271,8 +273,17 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 `line-initial-dispatch-cli.ts` 提供 fields、render 和 validate。模板来自工具源码检出的固定模板路径，不从输入 JSON 选择代码或模板。fields 返回模板占位名。输入只含 schemaVersion、milestone、line、revision、fields，未知顶层字段拒绝；字段集合必须与模板完全相同。line 是受限短名，milestone/revision 为正整数，dispatch_revision 必须相同。只输出模板的消息正文，不把填写说明交给 Line。
 
-输入 JSON 与演练证据先经 [strict-json.ts](strict-json.ts) 解析，重复键（含转义后相同的键）、超过 1 MiB 或嵌套超过 128 层时拒绝。生成使用独占创建。同修订、同内容重放复用文件；已有不同内容或损坏文件明确拒绝，不能静默覆盖。validate 重新渲染并核对实际文件字节。空字段、残留占位、重复 CLI 选项、常见 token/private key 和 smee 频道地址拒绝。该扫描不是通用秘密证明。输入中的命令始终是消息文本，工具不执行它们。
+输入 JSON 与演练证据先经 [strict-json.ts](strict-json.ts) 解析，重复键（含转义后相同的键）、超过 1 MiB 或嵌套超过 128 层时拒绝，错误以文件路径开头，例如 `<path>: json-invalid`。生成使用独占创建。同修订、同内容重放复用文件；已有不同内容或损坏文件明确拒绝，不能静默覆盖。空字段、残留占位、重复 CLI 选项、子命令不接受的选项、常见 token/private key 和 smee 频道地址拒绝。该扫描不是通用秘密证明。输入中的命令始终是消息文本，工具不执行它们。
+
+validate 必须有 `--rehearsal-evidence`，缺少时退出 2。证据先读 `schemaVersion`（只接受 1），再读其余字段：`messageSha256` 是 64 位十六进制摘要，按小写比较；`commands[]` 每项有 `command`、可选 `executed`、`exitCode`（0 到 255 的整数）和 `outputSummary`，其他字段拒绝。两项的 `command` 合并连续空白后相同时拒绝，一条命令只有一个演练结果。`executed` 只作记录，不参与匹配。validate 依次核对下列各项，任一项不成立就退出 2，不输出 STRUCTURE_CHECKED：
+
+1. 消息文件与按输入重新生成的字节相同。
+2. `messageSha256` 等于消息文件的 SHA-256。
+3. 消息里的代码块都已闭合，且都是 shell 代码块。代码块边界按 CommonMark 识别：开始行缩进不超过 3 个空格，以 3 个以上反引号或 3 个以上 `~` 开头；信息串的第一个词转成小写后是语言。结束行用同一字符，长度不短于开始行，且没有信息串；块内带信息串的边界行仍属于块内容。语言是 `sh`、`bash`、`shell` 或 `zsh` 的块是 shell 代码块。未闭合的块报 `initial-dispatch-fence-unclosed`，其他语言或没有语言标签的块报 `initial-dispatch-non-shell-block`。字段值带入的代码块按同一规则处理。
+4. shell 代码块里的每条命令都有证据项。空行和以 `#` 开头的行跳过，行尾反斜杠连接下一行，比较前去掉首尾空白并合并连续空白。缺证据时报 `initial-dispatch-rehearsal-missing` 并列出命令。
+
+证据里与消息命令都不匹配的项不使 validate 失败。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出，由 reduce 说明。
 
 工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN、FORWARDED_REPORTED 或 CLAIMED_READBACK。正式消息不改变 binding 的写范围或已有唯一执行。
 
-验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更及五事实不混同。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。
+验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更、子命令选项、五事实不混同，以及演练覆盖：缺证据、证据针对别的消息、缺命令、重复命令、空白差异、多余证据项、非 0 退出码、CommonMark 代码块边界、未闭合块和非 shell 块。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。

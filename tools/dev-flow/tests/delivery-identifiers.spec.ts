@@ -2,7 +2,7 @@ import { mkdtempSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { fullSha, uuid } from '../src/delivery/input-values.ts'
+import { fullSha, sha256Hex, uuid } from '../src/delivery/identifiers.ts'
 import { operationJournal } from '../src/delivery/operation-journal.ts'
 import { strictJson } from '../src/delivery/strict-json.ts'
 import { NEXT_UUID, UUID } from './fixtures/identifiers.ts'
@@ -19,21 +19,25 @@ describe('strict JSON', () => {
   it.each(['{"a":1,"a":2}', '{"a":{"b":1,"b":2}}', '{"a":1,"\\u0061":2}'])(
     'rejects duplicate keys in %s',
     value => {
-      expect(() => strictJson(value)).toThrow('json-duplicate-key')
+      expect(() => strictJson(value, 'in.json')).toThrow('in.json: json-duplicate-key')
     },
   )
   it('accepts nested strings, escaped keys, arrays and JSON primitives without executing data', () => {
     const value = { 'key"': ['$(echo never-executed)', true, null, 1.2e-5, { a: 2 }], b: '\\u0061' }
-    expect(strictJson(JSON.stringify(value))).toEqual(value)
+    expect(strictJson(JSON.stringify(value), 'in.json')).toEqual(value)
     for (const primitive of ['null', 'false', '42', '"string"'])
-      expect(strictJson(primitive)).toEqual(JSON.parse(primitive))
+      expect(strictJson(primitive, 'in.json')).toEqual(JSON.parse(primitive))
   })
   it.each(['{', '{"a":}', '[1,]', '{"a":1} extra'])('rejects malformed JSON %s', value => {
-    expect(() => strictJson(value)).toThrow('json-invalid')
+    expect(() => strictJson(value, 'in.json')).toThrow('in.json: json-invalid')
   })
   it('bounds nested and oversized input', () => {
-    expect(() => strictJson('['.repeat(130) + '0' + ']'.repeat(130))).toThrow('json-too-deep')
-    expect(() => strictJson('"' + 'x'.repeat(1024 * 1024) + '"')).toThrow('json-too-large')
+    expect(() => strictJson('['.repeat(130) + '0' + ']'.repeat(130), 'in.json')).toThrow(
+      'in.json: json-too-deep',
+    )
+    expect(() => strictJson('"' + 'x'.repeat(1024 * 1024) + '"', 'in.json')).toThrow(
+      'in.json: json-too-large',
+    )
   })
 })
 
@@ -45,6 +49,15 @@ describe('input identifiers', () => {
   it.each(['a'.repeat(39), 'a'.repeat(41), 'g'.repeat(40), 7])('rejects %s as a Git SHA', value => {
     expect(() => fullSha(value, 'commit')).toThrow('commit')
   })
+  it('accepts a SHA-256 digest in either case and lower-cases it', () => {
+    expect(sha256Hex('AB'.repeat(32), 'messageSha256')).toBe('ab'.repeat(32))
+  })
+  it.each(['a'.repeat(63), 'a'.repeat(65), 'g'.repeat(64), 'a'.repeat(40), 7])(
+    'rejects %s as a SHA-256 digest',
+    value => {
+      expect(() => sha256Hex(value, 'messageSha256')).toThrow('messageSha256')
+    },
+  )
   it('accepts RFC 4122 UUIDs and lower-cases them', () => {
     expect(uuid(UUID.toUpperCase(), 'operationId')).toBe(UUID)
   })

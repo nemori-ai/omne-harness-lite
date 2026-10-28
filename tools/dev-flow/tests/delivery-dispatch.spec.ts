@@ -333,15 +333,16 @@ describe('posting and binding', () => {
     ['a whitespace-only text', ' \n\t\n  '],
   ])('refuses %s before any GitHub call', (_name, prose) => {
     const gh = github()
-    expect(() =>
+    const post = () =>
       postDispatch({
         repository: 'owner/repo',
         plan: posted,
         basis: spec.basis,
         prose,
         call: gh.call,
-      }),
-    ).toThrow('--text is empty or holds only whitespace')
+      })
+    expect(post).toThrow('--text is empty or holds only whitespace')
+    expect(post).toThrow(expect.objectContaining({ name: 'IntegrationError', code: 'input-error' }))
     expect(gh.calls).toEqual([])
   })
 

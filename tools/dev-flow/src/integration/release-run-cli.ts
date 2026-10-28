@@ -40,7 +40,7 @@ export async function releaseRunMain(
     Boolean(values.approve) !== (values.note !== undefined)
   )
     throw new InputError('release-run-input-journal-or-approval-options-invalid')
-  const input = parseReleaseRunInput(strictJson(readFileSync(values.input, 'utf8')))
+  const input = parseReleaseRunInput(strictJson(readFileSync(values.input, 'utf8'), values.input))
   const result = await releaseRun({
     ...dependencies,
     call: dependencies?.call ?? runGhCommand,

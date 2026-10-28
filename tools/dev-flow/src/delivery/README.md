@@ -404,13 +404,22 @@ render 之后、validate 之前，reduce 在本机同布局运行消息里的每
 }
 ```
 
+每条命令只写一个证据项。`command` 合并连续空白后相同的两项被拒绝。`executed` 只作记录，validate 用 `command` 匹配。
+
 validate 按下列规则检查，任一项不满足就退出 2，不输出 STRUCTURE_CHECKED：
 
-- 缺 `--rehearsal-evidence`，或证据文件格式不符。exitCode 是 0 到 255 的整数。不认识的字段被拒绝。
+- 缺 `--rehearsal-evidence`，或证据文件格式不符。schemaVersion 先读，只接受 1。messageSha256 是 64 位十六进制摘要。exitCode 是 0 到 255 的整数。不认识的字段被拒绝。JSON 错误以文件路径开头，例如 `tmp/<task>/rehearsal.json: json-invalid`。
 - 消息文件与按输入重新生成的内容不同。
 - `messageSha256` 与消息文件的 sha256 不同。证据必须针对这一份消息。
-- 消息里有命令没有证据条目。命令指 `sh`、`bash`、`shell` 或 `zsh` 代码块里的每一行。空行和 `#` 注释行跳过，行尾反斜杠连接下一行，比较前合并连续空白。行内代码不算命令。
+- 消息里有未闭合的代码块（`initial-dispatch-fence-unclosed`），或有不是 shell 的代码块（`initial-dispatch-non-shell-block`）。没有语言标签的块也不是 shell 块。字段值带入的代码块同样检查。
+- 消息里有命令没有证据条目（`initial-dispatch-rehearsal-missing`）。命令指 shell 代码块里的每一行。空行和 `#` 注释行跳过，行尾反斜杠连接下一行，比较前合并连续空白。行内代码不算命令。
 
-证据里多出的条目（例如线包里的命令）不报错。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
+代码块边界按 CommonMark 识别：
+
+- 开始行缩进不超过 3 个空格，以 3 个以上反引号或 3 个以上 `~` 开头。缩进 4 个空格的行不是边界。
+- 信息串的第一个词转成小写后是语言。`sh title=x` 和 `Bash` 都是 shell 块。shell 块的语言是 `sh`、`bash`、`shell` 或 `zsh`。
+- 结束行用开始行的字符，长度不短于开始行，不带信息串。块内的 `` ```bash `` 这类带信息串的行仍是块内容，也算命令。
+
+证据里多出的条目（例如线包里的命令）不报错。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出与消息命令都不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
 
 GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。

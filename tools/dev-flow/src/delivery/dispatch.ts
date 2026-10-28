@@ -37,7 +37,6 @@ import { LINES_PATH, parseDeliveryLines, type DeliveryLines } from './lines.ts'
 import { conditionCardsOf } from './observe.ts'
 import {
   dispatchFieldGaps,
-  InputError,
   parseConfig,
   record,
   text,
@@ -320,7 +319,10 @@ export function dispatchDecision(
  */
 export function dispatchProse(value: string): string {
   if (value.trim() === '')
-    throw new InputError('--text is empty or holds only whitespace; write the dispatch text first')
+    throw new IntegrationError(
+      'input-error',
+      '--text is empty or holds only whitespace; write the dispatch text first',
+    )
   return value
 }
 
