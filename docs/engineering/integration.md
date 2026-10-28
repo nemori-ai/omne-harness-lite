@@ -317,12 +317,6 @@ assignment 的含义：
 
 delta 传达已核对的事实，不改写在途卡的 taskBase。新 attempt 由派发命令登记在任务卡上，delta 只引用它。Line 按发布顺序逐条读取 delta，不跳过 idle delta。Line 不在波内逐卡吸收新的输入。技能与信息包消费本节的记录格式，不另立格式。
 
-### 可选：多方协作的机读记录
-
-多方或跨组织协作时，可以启用机读协作记录与相应命令。这些记录包括写集 scope 区块、epoch、责任声明、facts、line-assignment 与 integration-request。相应命令包括 reduce 的 claim、record、release 与 supervise。记录格式、校验与命令用法归[交付工具](../../tools/dev-flow/src/delivery/README.md)。
-
-单负责人协作不要求这些记录。启用后，工具的校验结果是附加条件，不取消本节的人读记录、不变量和收口顺序。
-
 ### 不变量
 
 1. 波内输入冻结。Line 不读取别线未集成产出，不主动升级工具、技能或策略。
@@ -418,7 +412,7 @@ Reduce 对 blocked 或 failed 有两种处置。第一种是发一条 redo delta
 3. 为每条存续线在线父卡发布 delta，包括 idle 线。终态时为每条存续线发布 terminal delta。
 4. 关闭本波收口卡 R(w)。关闭 R(w) 即放行。
 
-任一存续线缺 delta，或非终态时缺后继收口卡，Reduce 都不能关闭 R(w)。各 delta 中的 F 与计划修订必须一致。收口卡按自身交付条件接受。本节不要求另写机读接受记录或 ReleaseRecord。
+任一存续线缺 delta，或非终态时缺后继收口卡，Reduce 都不能关闭 R(w)。各 delta 中的 F 与计划修订必须一致。收口卡按自身交付条件接受。
 
 delta 的变化项至少写原候选到最终候选的变化与原因、外域变化、消费者迁移和工具与技能版本变化。Line 逐条读取 delta，不按未来参与预案跳波。停止、取消、限定接受和完成分别写明。
 
@@ -454,9 +448,8 @@ dev-flow 对平台的写入限于下列范围：
 - 看板日期与属性字段：`start` 新建 task context 后尽力写 Dispatched at、Line、Kind 与 Wave。写入失败只向标准错误报告，不改变 `start` 的输出、context 与退出码。云端会话不写，只报告一行。Delivered at、Accepted at 与 Cycle days 由 `board-cli.ts` 写入。
 - Stage：`board-cli.ts` 的 `delivered`、`integrating`、`accepted` 按本地路径把 Stage 改为 In review、Integrating、Accepted。运行者见[交付操作](agent-delivery.md#4-推进和更新状态)。
 - 里程碑流转：`milestone-cli.ts` 建里程碑，改卡的里程碑并发流转评论。
-- 可选的机读协作记录：只在[多方协作](#可选多方协作的机读记录)启用时写入。申请命令触发已采用 workflow，由 workflow 校验并登记可信回执。授权写者发布机读 delta、state、claim、处置及请求结果记录。每次写入沿[协作记录合同](../../tools/dev-flow/src/delivery/SPEC.md#协作记录边界)核对权限、序号与持久操作身份。人读的 delta 与交回记录是会话发布的普通评论，不属于本项。
-- 整波放行：Reduce 按[收口顺序](#接受与逐收口续接)关闭本波收口卡。启用机读记录时，`reduce release` 先发布 ReleaseRecord，再关闭收口卡。命令不授予接受权。
-- facts 与事件接入：按已采用部署触发 facts workflow；显式管理事件接收所需的仓库 hook。创建、恢复及清理由[工具安装与事件合同](../../tools/dev-flow/src/delivery/SPEC.md)约束，不从普通等待推断管理权。
+- 整波放行：Reduce 按[收口顺序](#接受与逐收口续接)关闭本波收口卡。命令不授予接受权。
+- 事件接入：显式管理事件接收所需的仓库 hook。创建、恢复及清理由[工具安装与事件合同](../../tools/dev-flow/src/delivery/SPEC.md)约束，不从普通等待推断管理权。
 - 包发布：`release-run` 按[包发布运行合同](../../tools/dev-flow/src/integration/SPEC.md#包发布运行命令)触发 `gate-release.yml` 的 `github-gate` 运行，写前保存意图并读回精确运行。默认只观察；只有显式 `--approve --note FILE`、平台允许当前账号审批且本次授权有效时，才能批准 `npm-release`，不批准其他环境。包发布不构成整波 reduce 放行。
 - 部署批准：`gate-cli wait` 按运行者已有权限与本次授权批准 gate 的部署，命令不授予确认资格。
 
