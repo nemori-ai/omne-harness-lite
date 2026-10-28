@@ -109,7 +109,7 @@ owner: PanQiWei
 ## 决定范围
 
 - 有权决定者：PanQiWei。
-- 决定日期及对应 revision：2026-10-14。revision 1 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781 。revision 2 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011 。revision 3 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/882 。
+- 决定日期及对应 revision：2026-10-14。revision 1 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6164802781 。revision 2 记录为 https://github.com/nemori-ai/omne-harness-lite/issues/241#issuecomment-6165325011 。revision 3 于 2026-10-28 接受，记录为 https://github.com/nemori-ai/omne-harness-lite/issues/882 。
 - 采用范围：revision 1 的建议方案。通用检查交给成熟工具。Cordis 服务关系和领域知识继续自写。编译和类型检查用 TypeScript 7。旧编程接口从 `@typescript/typescript6` 导入。格式化换 oxfmt，选项沿用现有 Prettier 选项。任务缓存用 turborepo。上了 turborepo 就不再把 pnpm 并发调到核数。oxlint 的正确性规则作门禁，测试风格只报告。dependency-cruiser 检查方向和循环，配置保留 `dist` 但不深入它。knip 先只报告。类型检查用源码条件、全仓一次完成。revision 2 采用 `turbo run <task> --affected` 作为影响面目标。替换完成前保留现行选择器。未识别文件转全量。`turbo.json` 和其他选择配置的改动按全量。准入基线显式传入。准入不读取 PR 能写入的缓存。dependency-cruiser 始终全量，并启用源码条件。不使用 `vitest --changed`。revision 3 采用：只改了成员根目录文档的成员不选中，也不作下游种子；有只改了文档的成员时，turbo 选中的成员里有解释不了的，判全量。这两项是 turbo `--affected` 结果之上的集合差，不是另一套选择算法。两条硬线不变。
 - 不采用范围及必要理由：不采用继续把 TypeScript 6 当作编译和类型检查的编译器。不采用把编程接口直接改到 TypeScript 7 根入口。不采用 #227 的测量作为新工程的性能保证。不采用在本次接受时实施工具切换或改写技术基础页。
 - 未决与依赖停止点：
