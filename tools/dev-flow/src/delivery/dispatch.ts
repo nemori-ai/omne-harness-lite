@@ -37,6 +37,7 @@ import { LINES_PATH, parseDeliveryLines, type DeliveryLines } from './lines.ts'
 import { conditionCardsOf } from './observe.ts'
 import {
   dispatchFieldGaps,
+  InputError,
   parseConfig,
   record,
   text,
@@ -313,6 +314,16 @@ export function dispatchDecision(
     },
   }
 }
+/**
+ * The dispatcher's text for the comment. An empty or whitespace-only text is refused: the
+ * comment would hold only the authority block, and the line session would get no instructions.
+ */
+export function dispatchProse(value: string): string {
+  if (value.trim() === '')
+    throw new InputError('--text is empty or holds only whitespace; write the dispatch text first')
+  return value
+}
+
 /** The dispatch comment: the dispatcher's text, then the authority block that `start` reads. */
 export function dispatchComment(prose: string, decision: Decision): string {
   return `${prose.trimEnd()}\n\n\`\`\`json ${AUTHORITY_MARKER}\n${JSON.stringify(decision, null, 2)}\n\`\`\`\n`
@@ -363,6 +374,7 @@ export function postDispatch({
   call: GhCommand
   onPosted?: (posted: PostedDispatch) => void
 }): PostedDispatch & { verified: boolean } {
+  dispatchProse(prose)
   const number = plan.binding.issue.number
   let placeholder: Record<string, unknown>
   try {
