@@ -45,6 +45,7 @@
 - `SourceLayer` · `definitions.d.ts`
 - `ToolArguments` · `definitions.d.ts`
 - `ToolAvailability` · `definitions.d.ts`
+- `ToolBackgroundCallsValue` · `background-calls.d.ts`
 - `ToolCallId` · `identity.d.ts`
 - `ToolCatalog` · `authoring.d.ts`
 - `ToolCommandDeclaration` · `definitions.d.ts`
@@ -112,6 +113,8 @@
 - `WaitIntent` · `records.d.ts`
 - `WaitRecord` · `records.d.ts`
 - `WaitState` · `results.d.ts`
+- `backgroundCallsBlock` · `background-calls.d.ts`
+- `backgroundCallsSchema` · `background-calls.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
@@ -186,6 +189,8 @@
 - `ToolAuthor` · `authoring.d.ts`
 - `ToolAuthorLimits` · `author-context.d.ts`
 - `ToolAuthority` · `authoring.d.ts`
+- `ToolBackgroundCallSource` · `background-calls-projection.d.ts`
+- `ToolBackgroundCallsSource` · `background-calls-projection.d.ts`
 - `ToolBindingDrain` · `authoring.d.ts`
 - `ToolBindingEntry` · `authoring.d.ts`
 - `ToolBindingKey` · `authoring.d.ts`
@@ -296,6 +301,7 @@
 - `judgeToolState` · `judge-state.d.ts`
 - `planAdoption` · `dynamics.d.ts`
 - `presentTool` · `catalog.d.ts`
+- `projectToolBackgroundCalls` · `background-calls-projection.d.ts`
 - `projectToolResult` · `result-projection.d.ts`
 - `readToolInvocationRef` · `reference.d.ts`
 - `refreshAvailability` · `dynamics.d.ts`
@@ -856,6 +862,68 @@ export type AvailabilityFacts = Readonly<{
     attachmentsReadable: boolean;
 }>;
 export {};
+```
+
+## 声明文件 `background-calls-projection.d.ts`
+
+```ts
+import type { ContentBlock } from '@omne-harness/content-block';
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { ScopeRef, SupplyAnswer, SupplyInput } from '@omne-harness/runtime-context-contract';
+import { type ToolBackgroundCallsValue } from './background-calls.ts';
+import type { ToolRecovery } from './execution.ts';
+export type ToolBackgroundCallSource = Pick<ToolRecovery<ContentBlock>, 'admission' | 'state' | 'tasks'> & Readonly<{
+    tenant: TenantId;
+    requesterScope: ScopeRef;
+    description: SupplyAnswer<Pick<ToolBackgroundCallsValue['calls'][number], 'activity' | 'waiting'>>;
+}>;
+export type ToolBackgroundCallsSource = Exclude<SupplyAnswer<Readonly<{
+    tenant: TenantId;
+    scope: ScopeRef;
+    calls: readonly ToolBackgroundCallSource[];
+}>>, {
+    kind: 'none';
+}> | Readonly<{
+    kind: 'partial';
+}>;
+export declare function projectToolBackgroundCalls({ input, source, }: Readonly<{
+    input: SupplyInput;
+    source: ToolBackgroundCallsSource;
+}>): SupplyAnswer<ToolBackgroundCallsValue>;
+```
+
+## 声明文件 `background-calls.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { SuppliedBlockDescriptor } from '@omne-harness/runtime-context-contract';
+import { type ToolCallId, type ToolRevision } from './identity.ts';
+import { type ToolInvocationRef } from './reference.ts';
+import type { PhysicalExecution, ToolTask } from './records.ts';
+import type { ToolState } from './results.ts';
+export type ToolBackgroundCallsValue = Readonly<{
+    tenant: TenantId;
+    calls: readonly Readonly<{
+        call: ToolCallId;
+        reference: ToolInvocationRef;
+        activity: string;
+        waiting: string | null;
+        revision: ToolRevision;
+        phase: ToolState['phase'];
+        execution: PhysicalExecution['kind'];
+        pending: readonly ToolTask['kind'][];
+        delivery: 'none' | 'pending' | 'released';
+    }>[];
+}>;
+declare module '@omne-harness/runtime-context-contract' {
+    interface ContextBlocks {
+        'tool.background-calls': ToolBackgroundCallsValue;
+    }
+}
+export declare const backgroundCallsSchema: SuppliedBlockDescriptor<'tool.background-calls', ToolBackgroundCallsValue>['schema'];
+export declare const backgroundCallsBlock: SuppliedBlockDescriptor<'tool.background-calls', ToolBackgroundCallsValue> & {
+    readonly volatility: 'stable';
+};
 ```
 
 ## 声明文件 `binding.d.ts`
@@ -1581,6 +1649,8 @@ export type { ClockSegment, ControlProgress, ControlRecord, ExternalResponse, Ph
 export type { ContentPage, DiagnosticPage, ProcessSnapshot, RawOutput } from './custody.ts';
 export { judgeToolDelivery } from './result-delivery.ts';
 export type { ToolDelivery, ToolDeliveryFailure, ToolDeliveryKey, ToolDeliveryRejection, ToolResultReceiver, ToolSavedReceipt, } from './result-delivery.ts';
+export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.ts';
+export type { ToolBackgroundCallsValue } from './background-calls.ts';
 ```
 
 ## 声明文件 `json-tree.d.ts`
@@ -2320,6 +2390,8 @@ export type { Checkpoint, ControlDispatch, DrainState, ExternalOperationResoluti
 export type { ToolPermitConsumption, ToolPermitRef, ToolStartAcceptance, ToolStartFence, } from './records.ts';
 export type { AccountScope, ToolAccounts, ToolContentReader, ToolOffloader, ToolOutputCustody, ToolReads, } from './custody.ts';
 export type { ChildPosition, ChildReservation, ChildState, ProgramClosure, ProgramEnd, ProgramToolResult, ProgramTools, ToolChildren, } from './program.ts';
+export { projectToolBackgroundCalls } from './background-calls-projection.ts';
+export type { ToolBackgroundCallSource, ToolBackgroundCallsSource, } from './background-calls-projection.ts';
 ```
 
 ## 声明文件 `records.d.ts`

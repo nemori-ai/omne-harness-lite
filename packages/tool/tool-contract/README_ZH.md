@@ -2,6 +2,8 @@
 
 与 [README.md](README.md) 是同一成员。设计已接受。SPEC 的[公开入口的分组](SPEC.md#公开入口的分组)（D-03）与[公共流协议上的观察](SPEC.md#公共流协议上的观察)（D-10）两节是 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，它们的接受在该卡交付时记录。[结果推送与保存](SPEC.md#结果推送与保存)、[外层调用方的启动围栏](SPEC.md#外层调用方的启动围栏)与[授权消费点与撤权再核](SPEC.md#授权消费点与撤权再核)是 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，接受同样在该卡交付时记录。公开名字分两个入口（[SPEC「公开入口的分组」](SPEC.md#公开入口的分组)）：根入口导出 Tool 组外成员实际导入的名字及其声明的传递闭包，以及按规则 3 进入的结果推送名字与 `judgeToolDelivery`，子路径入口 `./provider` 导出只被 Tool 组实现成员使用的提供者协议（含 `toolBodyContract`、其余身份解码函数、默认结果政策、契约函数、启动围栏视图 `ToolStartFence`、受理记录 `ToolStartAcceptance` 与许可引用）。子路径入口 `./binding` 只供受信的执行绑定提供者读取句柄内的作者。子路径入口 `./testing` 给十个一致性套件和守约的非耐久替身：环境、启动排序域、执行者绑定、输出保管、ToolClock、决策桥、资源应答、结果接收端口、外层调用方的启动围栏与启动排序域的授权消费点；登记语义套件在 `tool-cordis-contract` 的 `./testing`，用法见 [README](README.md#一致性套件)。夹具可另给第二个租户的 `otherAccess`，跨租户用例以它判定；缺失时不适用。每个端口有一张回答表，套件经 `finalAnswer` 与 `resendRecalls` 读取答复，不轮询；夹具的完成手柄只在延迟工作落地后才 resolve，缺手柄的用例报告不适用，不是通过。服务定义与服务键在 [`@omne-harness/tool-cordis-contract`](../tool-cordis-contract/README_ZH.md)。本包不含 runtime 与提供者的实现。独立执行函数和 runtime 在 `@omne-harness/tool`。支持范围见[支持范围](#支持范围)。
 
+后台 RC 块的声明、封闭 schema 和纯投影已实现，入口见[后台调用供给](docs/public-api.md#后台调用的-rc-供给)。完整获权目录、可信说明来源与生产 RC 持有者尚未交付。
+
 ## 支持范围
 
 检出范围和跨包总表见[工具执行组的支持范围](../README.md#支持范围)。本节只写本包的部分。每档的验证范围只说明测试核对了什么，不说明测试范围之外的行为已成立。

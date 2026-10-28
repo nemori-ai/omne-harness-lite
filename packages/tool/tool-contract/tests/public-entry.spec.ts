@@ -12,10 +12,13 @@ import {
 
 it('exports on the root only the names members outside the Tool group import, and their closure', () => {
   // SPEC「公开入口的分组」rule 1: the root runtime names are the reference codecs and the two
-  // identity decoders that members outside `packages/tool` import, and by rule 3 the relation
+  // identity decoders and the RC block declaration/schema consumed outside the Tool group,
+  // and by rule 3 the relation
   // check of a result push, which receivers outside the group call. The grouping table of the
   // switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
+    'backgroundCallsBlock',
+    'backgroundCallsSchema',
     'decodeToolCallId',
     'decodeToolOperationId',
     'encodeToolInvocationRef',
@@ -62,6 +65,7 @@ it('exports the provider protocol on the provider entry, and no name on both ent
     'judgeToolState',
     'planAdoption',
     'presentTool',
+    'projectToolBackgroundCalls',
     'projectToolResult',
     'readToolInvocationRef',
     'refreshAvailability',

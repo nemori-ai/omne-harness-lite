@@ -198,3 +198,9 @@ export type {
   ProgramTools,
   ToolChildren,
 } from './program.ts'
+
+export { projectToolBackgroundCalls } from './background-calls-projection.ts'
+export type {
+  ToolBackgroundCallSource,
+  ToolBackgroundCallsSource,
+} from './background-calls-projection.ts'

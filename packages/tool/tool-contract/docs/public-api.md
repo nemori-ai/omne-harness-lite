@@ -2,7 +2,7 @@
 
 `./provider` 的 [ToolCredentials](../src/credentials.ts) 是第三方凭据窄消费端口。失败闭集与实际使用绑定按 [P15](../SPEC.md#第三方凭据端口)。`./testing` 的 [toolCredentialsConformance](../src/testing-credentials.ts) 修改独立秘密存储中的租户、采用、用途和目标，分别检验解析与实际使用；套件不提供生产 vault。
 
-公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。按规则 3，结果推送的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）也在根入口。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录（含启动围栏视图 `ToolStartFence`、受理记录 `ToolStartAcceptance` ，其中许可引用与消费事实直接使用 authorization 的公开类型）、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
+公开名字分两个入口，规则见 [SPEC「公开入口的分组」](../SPEC.md#公开入口的分组)。根入口 `@omne-harness/tool-contract` 导出 Tool 组外成员实际导入的名字及其声明的传递闭包：调用与操作引用的 codec（`encodeToolInvocationRef`、`encodeToolOperationRef`、`readToolOperationRef`、`resolveToolInvocationRef`、`resolveToolOperationRef`）、`decodeToolCallId`、`decodeToolOperationId`，以及 `ToolRuntime`、`ToolDefinition`、`ToolAvailability`、`ToolFailure`、`ResultPage` 等类型和它们到达的类型。按规则 3，结果推送的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）也在根入口。子路径入口 `@omne-harness/tool-contract/provider` 导出只被 Tool 组实现成员使用的提供者协议：资产正文端口 `toolBodyContract`、`describedAdoption`、其余品牌身份解码函数、默认结果政策、契约函数（定义、请求、交付解除与状态的判定，呈现与可用性，作者注册，定义派生与常驻规则纯函数，等待契约，默认参数 codec，结果渲染与投影）、由外部提供者实现的端口、协议记录（含启动围栏视图 `ToolStartFence`、受理记录 `ToolStartAcceptance` ，其中许可引用与消费事实暂保留 Tool 类型，授权测试依赖形成的构建任务环解除后再迁移）、保管与账目读写端口、装载与绑定登记表。一个名字只从一个入口导出；下文各节按主题导航源码模块，不再逐名标注入口，精确归属以 [src/index.ts](../src/index.ts) 与 [src/provider.ts](../src/provider.ts) 为准。契约函数不做 I/O，不读时钟，不产生随机值，不调度并发，也不持有状态。两个入口都不导入 Cordis，也不导入提供者成员。
 
 公开类型的唯一定义在 [src/index.ts](../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。`createToolRuntime`、`createToolLedger`、`executeTool` 与 `createIndependentToolScope` 在 `@omne-harness/tool`，导航见该包的 public-api（`tool/docs/public-api.md`）。其中 `executeTool` 与 `createIndependentToolScope` 已实现。`createToolLedger` 与 `createToolRuntime` 只实现了一部分路径，其余操作回复具名的 `unsupported`。宿主在 `@omne-harness/tool-host-local`：G5 的 `createLocalStartCoordinator` 已实现，G4 的宿主时钟与 G7 的绑定登记表尚未交付。五档支持范围见[工具执行组的支持范围](../../README.md#支持范围)。
 
@@ -39,6 +39,19 @@
 - [result-projection.ts](../src/result-projection.ts)：`projectToolResult`，把结果投影为供消费方使用的消息块，不读取字节。
 
 默认结果政策只接受文本块与共享引用块，拒绝 thinking、inline 媒体、inline 文件、嵌套容器和未知分支，规则归 [P14](../SPEC.md#p14-附件引用与消费方交付)。采用的 `digest` 是 `sha256:` 加规则集 JSON 文本的 SHA-256 十六进制值，读者可以重新计算。`judge` 拒绝时，`reason` 是规则集 `reject` 中的规则名。消息工具部件（`tool_call`、`tool_result`）和带 `blocks` 或 `content` 成员的值属于嵌套容器。被接受的种类形状不对时，`reason` 是 `invalid-` 加 content-block 的拒绝原因。`judgeResult` 也检查卸载原件的摘要块和附件引用。
+
+## 后台调用的 RC 供给
+
+[后台 RC 交接条款](../SPEC.md#tool-后台状态的-rc-交接)由以下入口兑现。
+
+- 根入口的 [backgroundCallsBlock、backgroundCallsSchema 与 ToolBackgroundCallsValue](../src/background-calls.ts)提供供给块声明、封闭校验与 RC `ContextBlocks` 增补。schema 核对引用的 tenant/call，不证明原 admission、来源完整性或读取权限。
+- `./provider` 的 [projectToolBackgroundCalls](../src/background-calls-projection.ts)是纯投影。`ToolBackgroundCallsSource.value` 表示来源对本次 `SupplyInput` 给出的完整获权目录。`partial` 返回 `unknown`。其余失败保持原 `SupplyAnswer` 分支，不供给部分列表。
+
+供给回调先核真实主体、可信 scope/tenant 绑定与当前披露资格，再读取原调用事实和获准披露的工作、等待说明。投影不执行这些 I/O 或授权操作。匹配的字段和值类型不能代替来源核验。`ToolBackgroundCallSource` 只携带本片所需原事实，不提供目录扫描端口。未知说明用 `unknown`，没有适用等待的已知事实用 `waiting: null`。说明不得由调用标识、定义描述或原始参数猜造。
+
+调用方用 RC 的 `ProducerRegistration` 登记 `scoped: false` 回调。事实变化后调用原 `ProducerHandle.invalidate`，重新读取现源。失效结果、generation、scope 终止和撤权继续由 RC 协议处理。没有 `publish` 缓存重放或步骤更新。生产者撤除不清偿原 Tool 调用责任。
+
+[公开 RC 消费测试](../tests/background-calls-rc.spec.ts)使用显式授权测试源及 RC 非耐久替身。完整获权目录、可信工作及等待说明的生产来源、生产 RC 持有者和 Loader 尚未完成。本入口不宣称生产后台供给成立。
 
 ## 普通操作与实例目录
 
@@ -120,7 +133,7 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 
 这些值是提供者协议，不开放给脚本。值引用均须查验其拥有者记录。时间、序号和字节计数使用规范非负十进制字符串，解析边界禁止符号、前导零、非整数和溢出投影。
 
-- [records.ts](../src/records.ts)：物理执行、队列位置、计时、协议身份、准备与释放、启动进度与围栏、外层调用方的启动围栏视图 `ToolStartFence`（[外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏)）、受理记录 `ToolStartAcceptance` ，其中许可引用与消费事实直接使用 authorization 的公开类型（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)）、等待意图与记录、外部回应、控制、检查点、事实批次、程序调度、待办任务与排空状态。
+- [records.ts](../src/records.ts)：物理执行、队列位置、计时、协议身份、准备与释放、启动进度与围栏、外层调用方的启动围栏视图 `ToolStartFence`（[外层调用方的启动围栏](../SPEC.md#外层调用方的启动围栏)）、受理记录 `ToolStartAcceptance` ，其中许可引用与消费事实暂保留 Tool 类型，授权测试依赖形成的构建任务环解除后再迁移（[授权消费点与撤权再核](../SPEC.md#授权消费点与撤权再核)）、等待意图与记录、外部回应、控制、检查点、事实批次、程序调度、待办任务与排空状态。
 
 ## 输出保管、持久读取与账目
 

@@ -293,3 +293,9 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 验证单次工具停止不自动结束消费方的工作；withdraw 的 reach 为 foreground-and-unadmitted 时，只撤回控制提交时是前台关系的目标（是否已启动不影响），对程序调用只控制前台子调用及未受理预留；reach 为 all 时撤回目标的前后台执行，都不等物理全停。构造控制与转后台的竞争：目标先按阈值转后台，再提交 reach 为 foreground-and-unadmitted 的撤回，控制结果必须是 rejected，原因 out-of-reach，不形成中断，调用不变；发起即后台、尚未启动的目标同样是后台关系，该 reach 的撤回回 rejected（out-of-reach），要撤回它须用 all；同一目标在 reach 为 all 时形成 interrupted 逻辑终局，没有前台 final。缺失、未知的 reach 以及 stop、background 带多余字段的控制被拒。控制路径尚未实现，这些场景是待执行的反例，不表示已有通过的运行证据。完成与停止竞争、撤回后的真实结果和费用均按原调用追加，不伪报未执行、不复活工作，控制方不重启旧调用。分别故障注入仅调用方退出、查询不可用、Tool 自身确认丢失、外部提交未知、保存失败和消费者替换；认回句柄或原结果、不重发，效果未知不写未发生。
 
 持久验证须覆盖进程崩溃、OS 崩溃和断电及唯一附件副本，资源释放或隔离域退出不替代宿主迟到结果责任。不依赖外部工作对象的程序的查询、停止、恢复与真实归属也须验证。TOOL-M02、TOOL-M03 的精确协议未实现或真实故障环境缺失时，保留未覆盖，不用图、mock 或仅进程重启声称完整兑现。
+
+## 后台状态供给的验证边界
+
+[background-calls.spec.ts](../tests/background-calls.spec.ts)覆盖封闭 schema、引用 tenant/call、原 admission、后台未结清筛选、补充结果交付、完整与部分目录、说明缺失及供值失败。字段检查不证明授权。
+
+[background-calls-rc.spec.ts](../tests/background-calls-rc.spec.ts)经公开 RC 入口消费声明与纯投影，覆盖当前来源重算、撤权、旧 generation、scope 终止和生产者撤除。可信目录、授权与 RC 持有者均是测试输入或非耐久替身。生产目录和可信说明来源尚缺，不能据此宣称生产供给、耐久恢复或完整组合通过。
