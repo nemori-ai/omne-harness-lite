@@ -24,12 +24,7 @@ import {
   repositoryFromRemote,
   type EventRecord,
 } from '../src/delivery/events.ts'
-import {
-  cleanForwarderHooks,
-  forwardArgv,
-  githubReconcile,
-  type Reconcile,
-} from '../src/delivery/events-gh.ts'
+import { forwardArgv, githubReconcile, type Reconcile } from '../src/delivery/events-gh.ts'
 import { createReceiverServer, serveReceiver } from '../src/delivery/events-receiver.ts'
 import { waitForEvent, WaitTimeout } from '../src/delivery/events-wait.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
@@ -716,283 +711,127 @@ describe('createReceiverServer', () => {
   })
 })
 
-describe('serveReceiver', () => {
-  const FORWARDER = 'https://webhook-forwarder.github.com/hook'
-  /**
-   * `gh` over a hook list that records the order of every action. Hook 1 belongs to another
-   * receiver. The forwarder creates the hooks in `created`, at spawn or after `createAfterMs`.
-   */
-  function harness(
-    options: {
-      failDelete?: number
-      created?: number[]
-      createAfterMs?: number
-      /** `list` fails at the start, or every read after the forwarder stopped. */
-      failList?: 'start' | 'after-stop'
-    } = {},
-  ) {
-    const actions: string[] = []
-    const hooks = [
-      { id: 1, name: 'cli', config: { url: FORWARDER } },
-      { id: 2, name: 'web', config: { url: 'https://example.com/github' } },
-    ]
-    const gh = (argv: readonly string[]): string => {
-      if (argv.includes('DELETE')) {
-        const id = Number(argv.at(-1)?.split('/').at(-1))
-        if (id === options.failDelete) throw new Error('forbidden')
-        actions.push(`delete ${id}`)
-        hooks.splice(0, hooks.length, ...hooks.filter(hook => hook.id !== id))
-        return ''
-      }
-      if (
-        options.failList === 'start' ||
-        (options.failList === 'after-stop' && actions.includes('stop'))
-      )
-        throw new Error('list failed')
-      return JSON.stringify([hooks])
-    }
-    const create = () =>
-      (options.created ?? [3]).forEach(id =>
-        hooks.push({ id, name: 'cli', config: { url: FORWARDER } }),
-      )
+describe('serveReceiver legacy ownership', () => {
+  function harness() {
     let resolveExit: (code: number | null) => void = () => undefined
+    const stop = vi.fn(async () => resolveExit(0))
     const spawnForward = vi.fn(
-      (_args: { repository: string; port: number; secret: string | undefined }) => {
-        actions.push('spawn')
-        if (options.createAfterMs === undefined) create()
-        else setTimeout(create, options.createAfterMs)
-        return {
-          exited: new Promise<number | null>(resolve => {
-            resolveExit = resolve
-          }),
-          stop: () => {
-            actions.push('stop')
-            resolveExit(0)
-            return Promise.resolve()
-          },
-        }
-      },
+      (_args: { repository: string; port: number; secret: string | undefined }) => ({
+        exited: new Promise<number | null>(resolve => {
+          resolveExit = resolve
+        }),
+        stop,
+      }),
     )
-    return { actions, hooks, gh, spawnForward, crash: () => resolveExit(1) }
+    return { spawnForward, stop, crash: (code: number) => resolveExit(code) }
   }
   const run = (
     h: ReturnType<typeof harness>,
     stopped: Promise<void>,
-    extra: {
-      secret?: string
-      log?: (message: string) => void
-      file?: string
-      discoveryMs?: number
-    } = {},
+    file: string,
+    log: (message: string) => void = () => undefined,
   ) =>
     serveReceiver({
       port: 0,
-      file: extra.file ?? join(tempDir(), 'events.jsonl'),
+      file,
       repository: 'owner/repo',
-      ...(extra.secret === undefined ? {} : { secret: extra.secret }),
-      gh: h.gh,
+      secret: 's',
       spawnForward: h.spawnForward,
       stopped,
-      log: extra.log ?? (() => undefined),
-      hookPollMs: 10,
-      hookDiscoveryMs: extra.discoveryMs ?? 1000,
+      log,
     })
 
-  it('starts without deleting any hook, stops the forwarder, then deletes only its own hook', async () => {
+  it('stops its child and persists unknown hook ownership without claiming clean shutdown', async () => {
+    const file = join(tempDir(), 'events.jsonl')
     const h = harness()
     let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), { secret: 's' })
+    const messages: string[] = []
+    const exit = run(
+      h,
+      new Promise<void>(resolve => {
+        stop = resolve
+      }),
+      file,
+      m => messages.push(m),
+    )
     await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
     expect(h.spawnForward.mock.calls[0]?.[0]).toMatchObject({
       repository: 'owner/repo',
       secret: 's',
     })
+    expect(readFileSync(join(file, '..', 'receiver.pid'), 'utf8')).toBe(`${process.pid}\n`)
     stop()
-    expect(await exit).toBe(0)
-    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
-    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
-  })
-
-  it('finds its hook when the forwarder creates it some time after the start', async () => {
-    const h = harness({ createAfterMs: 100 })
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)))
-    await vi.waitFor(() => expect(h.hooks.map(hook => hook.id)).toContain(3))
-    await sleep(50)
-    stop()
-    expect(await exit).toBe(0)
-    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
-    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
-  })
-
-  it('deletes its hook when the stop comes right after the start', async () => {
-    const h = harness()
-    const exit = run(h, Promise.resolve())
-    expect(await exit).toBe(0)
-    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
-  })
-
-  it('exits 1 and still cleans up its own hook when the forwarder dies', async () => {
-    const h = harness()
-    const exit = run(h, new Promise<void>(() => undefined))
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    h.crash()
-    expect(await exit).toBe(1)
-    expect(h.actions.slice(-2)).toEqual(['stop', 'delete 3'])
-    expect(h.hooks.map(hook => hook.id)).toEqual([1, 2])
-  })
-
-  it('exits 1 and names the leftover when its hook cannot be deleted at shutdown', async () => {
-    const h = harness({ failDelete: 3 })
-    const messages: string[] = []
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
-      log: message => messages.push(message),
-    })
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    stop()
-    expect(await exit).toBe(1)
-    expect(messages.join('\n')).toContain('Forwarder hooks left behind: 3')
-  })
-
-  it('deletes none and exits 1 when it cannot tell which of several new hooks is its own', async () => {
-    const h = harness({ created: [3, 4] })
-    const messages: string[] = []
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
-      log: message => messages.push(message),
-    })
-    await vi.waitFor(() =>
-      expect(messages).toContain(
-        'Multiple forwarder hooks appeared: 3, 4; none will be deleted on stop',
-      ),
+    expect(await exit).toBe(2)
+    expect(h.stop).toHaveBeenCalledTimes(1)
+    expect(messages.join('\n')).toContain('No hooks were deleted')
+    expect(existsSync(join(file, '..', 'receiver.pid'))).toBe(false)
+    expect(JSON.parse(readFileSync(join(file, '..', 'receiver-state.json'), 'utf8'))).toMatchObject(
+      {
+        mode: 'legacy',
+        state: 'recovery-needed',
+        reasonCode: 'legacy-hook-ownership-unknown',
+        hookId: null,
+      },
     )
-    stop()
-    expect(await exit).toBe(1)
-    expect(h.actions).toEqual(['spawn', 'stop'])
-    expect(messages.join('\n')).toContain('Cannot tell which of the hooks 3, 4')
   })
 
-  it('deletes none when discovery found one hook and another new one is there at shutdown', async () => {
-    const h = harness()
-    const messages: string[] = []
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
-      log: message => messages.push(message),
-    })
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    await sleep(50)
-    h.hooks.push({ id: 5, name: 'cli', config: { url: FORWARDER } })
-    stop()
-    expect(await exit).toBe(1)
-    expect(h.actions).toEqual(['spawn', 'stop'])
-    expect(messages.join('\n')).toContain('Cannot tell which of the hooks 3, 5')
-  })
+  it.each([1, 422])(
+    'cleans up its local writer after child exit %s and preserves recovery diagnostics',
+    async code => {
+      const file = join(tempDir(), 'events.jsonl')
+      const h = harness()
+      const messages: string[] = []
+      const exit = run(h, new Promise<void>(() => undefined), file, m => messages.push(m))
+      await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
+      h.crash(code)
+      expect(await exit).toBe(2)
+      expect(h.stop).toHaveBeenCalledTimes(1)
+      expect(messages.join('\n')).toContain(
+        code === 422 ? 'legacy-hook-conflict' : 'recovery-needed',
+      )
+      expect(existsSync(join(file, '..', 'receiver.pid'))).toBe(false)
+    },
+  )
 
-  it('logs when no new hook appears in time, then takes the new hook of the shutdown list', async () => {
-    const h = harness({ createAfterMs: 300 })
-    const messages: string[] = []
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
-      log: message => messages.push(message),
-      discoveryMs: 100,
-    })
-    await vi.waitFor(() =>
-      expect(messages.join('\n')).toContain('No new forwarder hook appeared within 100 ms'),
-    )
-    await vi.waitFor(() => expect(h.hooks.map(hook => hook.id)).toContain(3))
-    stop()
-    expect(await exit).toBe(0)
-    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
-  })
-
-  it('still deletes the hook it found when the shutdown list fails, names the leftovers and exits 1', async () => {
-    const h = harness({ failList: 'after-stop' })
-    const messages: string[] = []
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), {
-      log: message => messages.push(message),
-    })
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    await sleep(50)
-    stop()
-    expect(await exit).toBe(1)
-    expect(h.actions).toEqual(['spawn', 'stop', 'delete 3'])
-    expect(messages.join('\n')).toContain('Forwarder hooks left behind: none known')
-    const failing = harness({ failList: 'after-stop', failDelete: 3 })
-    const lines: string[] = []
-    let stopFailing: () => void = () => undefined
-    const failed = run(failing, new Promise<void>(resolve => (stopFailing = resolve)), {
-      log: message => lines.push(message),
-    })
-    await vi.waitFor(() => expect(failing.spawnForward).toHaveBeenCalled())
-    await sleep(50)
-    stopFailing()
-    expect(await failed).toBe(1)
-    expect(lines.join('\n')).toContain('Forwarder hooks left behind: 3.')
-  })
-
-  it('writes receiver.pid while it runs and removes it on every exit path', async () => {
-    const dir = tempDir()
-    const file = join(dir, 'events.jsonl'),
-      pidFile = join(dir, 'receiver.pid')
-    const h = harness()
-    let stop: () => void = () => undefined
-    const exit = run(h, new Promise<void>(resolve => (stop = resolve)), { file })
-    await vi.waitFor(() => expect(h.spawnForward).toHaveBeenCalled())
-    expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
-    stop()
-    expect(await exit).toBe(0)
-    expect(existsSync(pidFile)).toBe(false)
-    const refused = harness({ failList: 'start' })
-    await expect(run(refused, new Promise<void>(() => undefined), { file })).rejects.toThrow(
-      'list failed',
-    )
-    expect(refused.spawnForward).not.toHaveBeenCalled()
-    expect(existsSync(pidFile)).toBe(false)
-  })
-
-  it('refuses to start while receiver.pid names a running process, and replaces a stale one', async () => {
-    const dir = tempDir()
-    const file = join(dir, 'events.jsonl'),
+  it('refuses a live receiver PID without spawning a second child', async () => {
+    const dir = tempDir(),
+      file = join(dir, 'events.jsonl'),
       pidFile = join(dir, 'receiver.pid')
     writeFileSync(pidFile, `${process.pid}\n`)
     const h = harness()
-    await expect(run(h, Promise.resolve(), { file })).rejects.toBeInstanceOf(InputError)
+    await expect(run(h, Promise.resolve(), file)).rejects.toBeInstanceOf(InputError)
     expect(h.spawnForward).not.toHaveBeenCalled()
     expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
-    const gone = spawnSync(process.execPath, ['-e', '']).pid
-    writeFileSync(pidFile, `${gone}\n`)
-    const stale = harness()
-    let stop: () => void = () => undefined
-    const exit = run(stale, new Promise<void>(resolve => (stop = resolve)), { file })
-    await vi.waitFor(() => expect(stale.spawnForward).toHaveBeenCalled())
-    expect(readFileSync(pidFile, 'utf8')).toBe(`${process.pid}\n`)
-    stop()
-    expect(await exit).toBe(0)
+  })
+
+  it('reclaims a stale PID but never converts unknown hook ownership to success', async () => {
+    const dir = tempDir(),
+      file = join(dir, 'events.jsonl'),
+      pidFile = join(dir, 'receiver.pid')
+    writeFileSync(pidFile, `${spawnSync(process.execPath, ['-e', '']).pid}\n`)
+    const h = harness()
+    expect(await run(h, Promise.resolve(), file)).toBe(2)
+    expect(h.spawnForward).toHaveBeenCalledTimes(1)
     expect(existsSync(pidFile)).toBe(false)
   })
-})
 
-describe('cleanForwarderHooks', () => {
-  it('deletes every forwarder hook of the repository and reports the ones it could not delete', () => {
-    const FORWARDER = 'https://webhook-forwarder.github.com/hook'
-    const hooks = [
-      { id: 1, name: 'cli', config: { url: FORWARDER } },
-      { id: 2, name: 'web', config: { url: 'https://example.com/github' } },
-      { id: 3, name: 'cli', config: { url: FORWARDER } },
-      { id: 4, name: 'cli', config: { url: FORWARDER } },
-    ]
-    const deleted: number[] = []
-    const gh = (argv: readonly string[]): string => {
-      if (!argv.includes('DELETE')) return JSON.stringify([hooks])
-      const id = Number(argv.at(-1)?.split('/').at(-1))
-      if (id === 3) throw new Error('forbidden')
-      deleted.push(id)
-      return ''
-    }
-    expect(cleanForwarderHooks('owner/repo', gh)).toEqual({ deleted: [1, 4], failed: [3] })
-    expect(deleted).toEqual([1, 4])
+  it('releases the local writer when spawning the child fails', async () => {
+    const dir = tempDir(),
+      file = join(dir, 'events.jsonl')
+    await expect(
+      serveReceiver({
+        port: 0,
+        file,
+        repository: 'owner/repo',
+        stopped: Promise.resolve(),
+        log: () => undefined,
+        spawnForward: () => {
+          throw new Error('spawn fixture failure')
+        },
+      }),
+    ).rejects.toThrow('spawn fixture failure')
+    expect(existsSync(join(dir, 'receiver.pid'))).toBe(false)
+    expect(existsSync(join(dir, 'receiver.guard'))).toBe(false)
   })
 })
 

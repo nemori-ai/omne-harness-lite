@@ -56,7 +56,7 @@ function confirmations(value: unknown): Confirmation[] {
     }
   })
 }
-function parseDecision(value: unknown): Decision {
+export function parseDispatchDecision(value: unknown): Decision {
   const v = record(value, 'decision')
   const schemaVersion = literal(v.schemaVersion, 1, 'schemaVersion')
   const responsible = string(v.responsible, 'responsible')
@@ -222,7 +222,7 @@ function requireFactsGrant(
 export function readAuthority(
   policy: Policy,
   url: string,
-  capture: Pick<DeliveryCapture, 'issues'>,
+  capture: { issues: Pick<CapturedIssue, 'number' | 'comments' | 'commentsComplete'>[] },
   facts?: AuthorityFacts,
   read: GhRead = runGhRead,
 ): Decision {
@@ -231,7 +231,7 @@ export function readAuthority(
   if (match === null || match[1] !== policy.repository)
     throw new IntegrationError('unknown', 'Unsupported authority URL')
   const issue = capture.issues.find(item => item.number === Number(match[2]))
-  if (issue === undefined)
+  if (issue === undefined || !issue.commentsComplete)
     throw new IntegrationError('unknown', 'Authority Issue is not in the complete Issue capture')
   const raw = record(
     read(
@@ -265,7 +265,7 @@ export function readAuthority(
     'Authority comment changed during capture',
   )
   const body = text(raw.body, 'body')
-  const decision = parseDecision(section(body, 'omne-integration-authority:v1'))
+  const decision = parseDispatchDecision(section(body, 'omne-integration-authority:v1'))
   // Dispatch follows the reviewers who confirm trunk publication.
   if (facts !== undefined) requireFactsGrant(facts, url, user, body, raw.updated_at)
   else if (!isDispatchReviewer(policy, user, read))

@@ -47,6 +47,104 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 
 正常观察退出0。错误输入退出2。偏离不自动阻断交付。`enabled:false` 可以预备读取，但不能派发日常任务。正式配置保持未启用。长期产品与场景由[产品模块](../../../repo-toolchain/src/product/SPEC.md)独立发现；普通任务沿共同交付协议独立维护本次身份、范围和结果。平台启用、默认分支模板和实际宿主执行仍未由离线检查覆盖。
 
+## 预准入命令
+
+在仓库根运行：
+
+```sh
+pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pre-admission
+```
+
+此入口迁移 `pre-admission.sh`。包内同名 script 与构建后的 `omne-pre-admission` 提供同一行为。省略 `--worktree` 时使用当前目录。每次运行生成新的 operation ID，也可用 `--operation-id UUID` 指定未使用的 ID；重复 ID 拒绝，防止覆盖证据。
+
+命令依次执行接受锁、affected build、declarations、contract-api、lines、docs、design、deps、rules、oxlint 和 format。任一步失败即停止并返回该步退出码。标准输出包含已执行步骤、各步日志路径和失败日志末 20 行。详细顺序与绑定分支行为见 [SPEC](SPEC.md#预准入执行)。
+
+## 安装协作命令
+
+reduce 负责人准备并按具名权限采用安装描述符。完整字段归[SPEC](SPEC.md#协作工具安装与固定来源)。同一里程碑各负责人复用这一份已采用描述符，不能从候选 HEAD 推断采用。
+
+1. 为工具准备独立的干净源检出，固定在描述符的 `toolCommit`，并按锁文件准备依赖。产品工作树可以继续开发。
+2. 核对描述符及其来自采用决定的 SHA-256。文件留在工具工作树之外，或私有 Git 目录内。
+3. 在工具检出运行安装命令。将下列路径和摘要替换为已经核对的值。
+
+```sh
+pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256>
+```
+
+命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
+
+升级 workflow 后需要读取旧 facts 时，使用版本 2 或 3 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。所有版本的普通安装均不取得生产权；未激活时，`facts:prepare` 返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或从空目录推断可以重新生产。
+
+只有负责 facts 生产的 reduce 工具检出需要下列一种显式采用方式。Line 和其他只读消费者不加这些选项。
+
+首次生产且从未有旧生产者时，添加 `--initial-producer`。这是操作员对首次接管的明确声明。工具只检查本地没有旧 journal，不能证明其他机器没有生产者。
+
+替换旧生产者时，先停止旧进程并禁用其启动器，再在新工具检出执行：
+
+```sh
+pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256> --producer-from /absolute/old-tool-checkout
+```
+
+新描述符须显式保留所有旧 journal 所需的 workflow 身份。命令核对旧描述符，完整复制 journal 原字节，持久记录旧端退役，再激活新端。它不终止进程，也不能阻止不认识退役记录的旧二进制或远端写者。保留旧检出和记录。转移中断后重复同一命令；不要改用初始模式、删除部分记录或重启旧生产者。
+
+转移只覆盖 facts 生产 journal。已提交的 request 回执、line 和 wait journal 仍须保留。Line 在波末交接后或下一波开工前切换；已挂 wait 保留原结果，或明确取消后按同一上下文重新挂起。跨机复制和远端进程停止由迁移操作负责人处理，本命令要求旧检出在本机可访问。
+
+新安装产生首个新 generation 前，可停止新写者，核对 journal 未新增，再回旧固定工具进行原 wait 和 request 的读取、恢复演练。保留旧端退役与新端激活记录，不启动旧 facts 生产者。返回新端时重复同一转移命令核对。已有新 generation 后不得恢复旧快照，也不支持不兼容生产者降级。
+
+安装后，使用这个源工具检出的命令。参数帮助分别为：
+
+```sh
+pnpm run integration:request --help
+pnpm run line --help
+pnpm run reduce:watch --help
+pnpm run reduce --help
+```
+
+watch 的 parent、operation ID、journal 和事件文件来自本线实际派发。request 的 JSON 只携带任务输入。line 和 watch 从已采用来源取得资格与接受责任。普通命令没有 policy、facts JSON 或接受者覆盖选项。
+
+在其他工作目录调用时，使用工具源脚本的绝对路径或 `pnpm --dir /absolute/tool-checkout run ...`。来源由工具安装决定，与当前工作目录无关。当前安装合同只支持 Node 源执行，构建后的 `dist` 协作入口拒绝。
+
+缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
+
+## 读取线输入与发布记录
+
+`pnpm run line` 是 `line-inbox-cli.ts` 的包命令，也是 `line-cli` 的正式同义入口。Line 在开工边界读取 delta，在完成交接或消费边界发布 state；Reduce 发布下一输入。使用实际派发值替换下列占位符：
+
+```sh
+pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone>
+pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone> --since <comment-id>
+pnpm run line delta --repo owner/repo --parent <line-parent> --input /absolute/delta.json --journal /absolute/line-journal
+pnpm run line state --repo owner/repo --parent <line-parent> --input /absolute/consumption.json --journal /absolute/line-journal
+```
+
+inbox 不推进消费；since 是实际评论 ID，筛选前仍校验完整可信记录流。delta/state 输入使用完整公开记录和稳定 operationId。未知写入重复原输入及 journal 只读恢复，不换 ID 重发。字段、权限、结果和退出码见[独立线记录命令](SPEC.md#独立线记录命令)。
+
+## 部署申请 workflow
+
+默认分支须先存在 `.github/workflows/integration-request.yml`，GitHub 才能登记手动触发入口。只更新 `github-gate` 不足以完成首次安装。默认分支的占位入口不登记申请；实际执行使用 `--ref github-gate`。默认分支和轨道的运输继续遵守[分支准入](../../../../docs/engineering/integration.md#现行准入)。
+
+在 `github-gate` 部署的申请 workflow 使用 `delivery` environment 的 `OMNE_COLLABORATION_DESCRIPTOR` 和 `OMNE_COLLABORATION_SHA256`。先发布受审工具提交 T 及固定来源 S，再发布 workflow 提交 W，最后采用固定 T、S、W 的描述符。环境变量不是接受决定，不替代逐卡授权。
+
+每次运行只取得一份描述符快照及摘要。检出前核对原始字节摘要、仓库、完整工具 SHA、published 模式和当前 workflow HEAD。随后检出该工具 SHA，安装锁定依赖，以默认只读模式采用描述符，再执行申请校验和登记。缺失或不匹配时在检出前失败。所有步骤消费同一份快照，不能各自重读可变配置。
+
+## 准备下一波的派发事实
+
+使用 published 安装的 reduce 负责人，在发布下一波前准备实际 reduce 和任务派发的 facts。每个命令只观察一次，返回后继续处理其他集成申请。
+
+```sh
+pnpm run facts:prepare --repo owner/name --dispatch https://github.com/owner/name/issues/123#issuecomment-456
+```
+
+`ready` 退出 0，`pending` 退出 3，`failed` 或 `unknown` 退出 2。重复原命令会观察同一持久操作。`unknown` 不表示未派发，不能删除 journal 或更换安装来重发。
+
+自有程序装配可通过 `deployedCollaboration(repo, { factsPreparation: { networkMs: 25000, totalMs: 60000, maxCalls: 128 } })` 调整 facts 准备的观察预算。`openCollaborationInstallation` 的第四个参数接受相同选项。仅在实际读取量或网络时延需要时调整。普通 CLI 仍使用单次 15 秒、总计 30 秒和 128 次请求的默认值。该策略只配置 facts 准备，不替换安装身份、权限或 journal。值域、复制和耗尽行为见[规格](SPEC.md)。
+
+只有精确运行的 attempt 1 已明确失败，而且没有该派发的 facts，才可加 `--retry-failed` 创建新的生产代。新代沿用人的派发授权，生成新 nonce 和新运行，不使用 GitHub rerun。资格为负、事实冲突、成功但未读到 facts、运行未知都不能用此选项绕过。
+
+生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。已完整转移的旧操作使用其原安装和 workflow 恢复；新 POST 只使用当前 workflow。未显式采用的旧绑定拒绝，不能删除记录来消除冲突。
+
+下一波所需的当前、历史和任务派发集合由 reduce 负责汇总。所有准备结果为 ready 后，发布时仍重新执行资格和接受校验。该命令不接受卡片，也不放行 line。
+
 ## 属性发现
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。观察报告中的属性发现只报告，不计入 `deviation`。`stock.attribute` 是这一类的数量。
@@ -77,11 +175,11 @@ integration 的 `start`、`register` 使用专用准入采集。它只读取任�
 node --experimental-strip-types tools/dev-flow/src/delivery/labels-cli.ts --issue <N> [--apply]
 ```
 
-命令经 `gh api` 读一张卡，按正文属性算出 `line:`、`nature:`、`contract:` 三族标签的目标集合，向标准输出写增删差异。契约变更为 `none` 时目标中没有 `contract:` 标签。不读 Project。
+命令经 `gh api` 读一张卡，从正文的主工作类型及三个属性计算 `kind:`、`line:`、`nature:`、`contract:` 四族标签，向标准输出写增删差异。主工作类型须唯一且属于六类采用范围。契约变更为 `none` 时目标中没有 `contract:` 标签。不读 Project。
 
-加 `--apply` 时只增删这三族标签，其他标签不变。然后命令再读一次卡，核对三族标签等于目标集合，结果写在 `readback` 与 `verified` 中。
+加 `--apply` 时只增删这四族标签，其他标签不变。然后命令再读一次卡，核对标签和正文推导出的目标集合均未漂移，结果写在 `readback` 与 `verified` 中。
 
-- 正文属性缺失或不合格时退出2，不改标签。
+- 正文主工作类型或属性缺失、重复或不合格时退出2，不改标签。
 - 某次写入失败时退出2，消息给出失败的是第几次写入。之前的写入已生效，重试前先再读一次卡。
 - 读回与目标不同时退出1。
 
@@ -286,41 +384,35 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 线会话与集成节点用这组命令阻塞在 GitHub 事件上。命令不轮询 API。
 
-先启动接收器。它在本机监听，把 GitHub 事件追加到事件文件。
+频道模式适用于多机。每台机器使用独立频道与 hook，并显式指定业务仓库和事件文件。先初始化，再将 serve 作为原宿主工具的后台进程运行。
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --port <端口> [--file <事件文件>] [--repo <owner/name>] [--secret <s>]
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts init --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts health --repo <owner/name> --file <事件文件>
 ```
 
-- `--file` 缺省为工作树根下的 `tmp/github-events/events.jsonl`。目录不存在时建立。
-- `--repo` 缺省取 `git remote get-url origin`。
-- 接收器只绑定 127.0.0.1，只接受 POST。给出 `--secret` 时校验 `X-Hub-Signature-256`，并以 `-S` 传给转发器。
-- 接收器自己拉起并持有 `gh webhook forward`，转发 `issues`、`pull_request`、`issue_comment`。
-- 启动后在事件文件同目录写 `receiver.pid`，内容是接收器的进程号。正常停止、转发器退出和停止时读不到 hook 列表，都删除它。要核对本机有没有接收器在跑，读这个文件并用 `kill -0 <进程号>` 核对进程还在。
-- 同一事件文件只允许一个接收器，第二个启动会被拒绝：`receiver.pid` 已存在且其中的进程还在时，接收器退出2并说明。进程已不在时（例如上一个接收器被 SIGKILL），接收器覆盖这个文件。
-- 启动时不删除任何 hook。接收器先记下仓库里已有的转发 hook，拉起转发器后在30秒内读 hook 列表找新出现的 hook。30秒内没找到时，标准错误写一行说明，停止时再找。
-- 按 Ctrl-C、发 SIGTERM 或 SIGHUP 停止。接收器先停转发器，再只删除自己的 hook。自己的 hook 是启动后找到的新 hook 与停止时新出现的 hook 合起来、仍在仓库里的那一个。标准错误出现 `Forwarder hooks left behind` 时，到仓库设置里删除那些 hook，或运行 `clean`。
-- 新出现多个 hook 时，接收器认不出哪个是自己的。启动后一看到多个，标准错误立即写一行 `Multiple forwarder hooks appeared: …`，接收器继续运行。停止时它一个都不删，退出1，标准错误写出这些 hook 号。
-- 停止时读不到 hook 列表，接收器仍删除启动后找到的那一个 hook，标准错误写出残留的 hook 号，退出1。
-- 启动失败退出2，标准错误写一行 `{"kind":"receiver-error",…}`，错误带系统错误码时多一个 `code` 字段。
-- 接收器因未捕获的异常退出时也结束转发器。被 SIGKILL 时转发器、hook 与 `receiver.pid` 都会残留。
+init 创建频道并保存本地配置，serve 建立或恢复精确 hook。配置、进程身份和健康记录保存在事件文件同目录。频道地址属于秘密，只保存在权限受限的配置中，不放进卡片、日志或错误文本。一个事件目录只有一个写者，频道与 legacy 共用本地排他守卫。健康检查每 5 秒检查本机进程身份、连接和日志，不扫描 GitHub 业务状态。
 
-同一仓库上的多个接收器：两个接收器启动时间相差小于30秒时，接收器可能把对方的 hook 认作自己的，停止时可能删错。操作规则：
-
-- 一台机器只开一个接收器。
-- 不同机器上的接收器错开启动，间隔超过30秒。
-- 启动后用 `gh api repos/<owner>/<name>/hooks` 核对转发 hook 恰好多了一个。
-- 较早启动的接收器在较晚的仍在运行时停止，会看到两个新 hook，一个都不删，退出1。这时等较晚的也停止后运行 `clean`。
-
-接收器被 SIGKILL 后 hook 会残留。用 `clean` 清理。
+借用已有频道时，由拥有者提供权限受限的频道地址文件及 hook ID。运行 init 时同时传入 `--channel-file <文件> --hook <ID>`。借用实例不创建或删除 hook。受限云端可用这种模式；端到端自检仍须完成。
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts clean [--repo <owner/name>]
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts check --repo <owner/name> --file <事件文件> --delivery <真实投递guid> --issue <已关闭Issue>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts recover --repo <owner/name> --file <事件文件>
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts clean --repo <owner/name> --file <事件文件>
 ```
 
-- `clean` 删除仓库里全部指向 `webhook-forwarder.github.com` 的 `cli` 类型 hook，不问是谁建的。
-- `clean` 会影响所有正在运行的接收器。先停掉其他接收器再运行它。
-- 标准输出一行 `{"kind":"hooks-cleaned","deleted":[…],"failed":[…]}`。有删不掉的退出1。
+check 核对进程、连接、精确 hook、真实事件落盘及等待对账。借用实例用 `--hook-evidence <拥有者证据文件>` 提供 hook 事实；仅有 pid 不算自检通过。创建响应丢失时，recover 只按持久 instance/channel 身份恢复，不重复创建。clean 只处理本机已停止实例持有的精确 hook；归属无法证明就失败，不扫描删除全仓 hook。
+
+SIGINT、SIGTERM 或 SIGHUP 请求停止。自建实例只删除已确认归属的 hook，借用实例只退订。停止、失败及恢复状态写回本地记录。连接恢复触发权威对账；频道没有可靠重放承诺，覆盖缺口不能当成没有业务变化。
+
+legacy 单机选项仍可显式运行：
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts serve --mode legacy --port <端口> --repo <owner/name> --file <事件文件> [--secret <s>]
+```
+
+legacy 只监听 loopback，并持有 `gh webhook forward` 子进程。给出 secret 时校验原始签名。停止时结束自己的子进程、释放本地写者，但不从列表差分猜 hook 归属。无法证明远端清理时保留 `recovery-needed`，退出 2。422 返回 `legacy-hook-conflict`。原来扫删其他接收器 hook 的 clean 行为已退出。
 
 再用四条命令等待。命令一直阻塞到匹配事件出现，打印匹配的那一行 JSON，退出0。输入、对账或读文件出错时退出2，标准错误写一行 `{"kind":"wait-error",…}`，错误带系统错误码时多一个 `code` 字段。
 
@@ -335,29 +427,25 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - `--timeout <秒>`，缺省不超时。超时退出3，标准错误写说明。超时不表示条件不成立。
 - `--since <ISO 时间或 delivery id>`，只认之后的事件。缺省认文件里已有的全部行。
 - `--repo <owner/name>`，对账用，缺省取 `origin`。
-- 输出多一个 `source` 字段。`event` 表示事件文件里的行，`reconcile` 表示启动对账命中。
+- 输出多一个 `source` 字段。`event` 表示可信事件文件里的行，`reconcile` 表示权威对账命中。
 - `comment` 的标记名是评论第一行 `<!-- 标记名 -->` 里的词。`<!-- line-delta -->` 的标记名是 `line-delta`。
 - `pr-ready` 认非草稿 PR 的 `ready_for_review`、`opened` 与 `synchronize`。`synchronize` 表示 head 变了。
 - `--ignore <pr>@<head>` 可重复。号与 head 都相同的 PR 被跳过，事件与对账都一样。head 前进后同一个 PR 会再次命中。head 写完整的 sha（40 或 64 位十六进制），大小写不分。短 sha 退出2。
 - 集成节点处理完一个批次后，再等时带上 `--ignore <pr>@<它处理时的 head>`，就不会立刻拿到同一个 PR。
 - `pr-ready` 的输出带 `number` 与 `head`。
 - `any` 接受可重复的 `--issue-closed` 与 `--comment`，任一命中就返回那一行。输出多一个 `matched` 字段，值是 `issue-closed` 或 `comment`。三个单项命令的输出不带 `matched`。
-- 线会话用 `any --issue-closed <收口卡> --comment <线父卡>:line-return --since <时间> --file <事件文件>`，收口和批次被退回都能唤醒它。
+- 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受，不能替代上层 ReleaseRecord 校验。
 - 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
-接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。之后不再调用 GitHub API。
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
 
-依赖：
+带 `receiver.mode=channel` 的事件只作提示。匹配事件和 connected/reconnected 诊断触发有界权威对账，频道提示本身不能放行。库调用必须同时提供明确 repository 与 reconcile，CLI 自动传入所选仓库。不匹配的仓库或缺失对账函数会失败。
 
-- `gh` 2.x。
-- 扩展 `cli/gh-webhook`，用 `gh extension install cli/gh-webhook` 安装。探路用的是 v0.2.0。
-- 对仓库的 admin 权限，因为转发器要建立和删除 hook。
-
-延迟：探路实测通常1至3秒，出现过一次26秒。条件刚满足就等不到事件时，用 `--timeout` 设上限。
-
-当前没有验证的情况：私有仓库、同一仓库上并发的转发器、真实的 `pull_request` 事件、转发器建立 hook 的真实耗时对发现新 hook 的影响。条款见[SPEC](SPEC.md#事件等待)。
+频道模式需要可访问频道服务和 GitHub REST。自建 hook 需要相应仓库权限；借用模式不需要消费者管理 hook。legacy 另需 cli/gh-webhook 扩展。真实多机、宿主续接与采用结论按本次候选验收记录，不以单元测试或旧探路延迟代替。条款见 [SPEC](SPEC.md#事件等待)。
 
 ## 运行模块检查
+
+生产者转移与持久准备的[有限模型检查](../../verification/producer-continuity/README.md)使用已配置的 Java 与 `TLA2TOOLS_JAR`，将完整证据写入新的任务目录。该入口与下列实现检查各自保留覆盖范围。
 
 ```sh
 pnpm --filter @omne-harness/dev-flow exec vitest run \
@@ -373,3 +461,57 @@ pnpm --filter @omne-harness/dev-flow typecheck
 平台边界依据 GitHub 官方的[Issue依赖API](https://docs.github.com/en/rest/issues/issue-dependencies)、[Issue API](https://docs.github.com/en/rest/issues/issues)及[GraphQL对象](https://docs.github.com/en/graphql/reference/objects)。实际远端读回仍以采集结果为准。
 
 可选任务绑定和条件目标 scope 由 [binding.ts](binding.ts) 解析，供[集成工具](../integration/README.md)消费。旧六列表 scope 为 all；七列表最后一列是适用目标。阶段等待图尚未完整验证目标层细化，报告保留 uncovered。观察不检查 Git 是否真的达到 completionTarget，也不授发布权限。
+
+## 首次派发临时消息
+
+Reduce 从有效 binding、线包、计划、宿主策略和目标机配置填写输入。使用 `pnpm initial-dispatch fields` 取得固定模板的完整字段名。JSON 包含 schemaVersion=1、milestone、line、revision 和 fields；line 只允许小写字母、数字及连字符，fields 是全部字段的非空字符串映射。
+
+```sh
+pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
+pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --root <目标检出>
+```
+
+消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。同修订相同内容复用，不同内容拒绝覆盖。修改输出文件后 validate 拒绝。工具不会执行填写的命令、开窗口、转发消息或认领任务。
+
+GENERATED 仅证明文件已生成。STRUCTURE_CHECKED 仅证明字段、修订、常见敏感模式及字节检查通过。Reduce 按返回的 remainingGuards 逐项读回授权、固定输入、目标机实际命令和当前收口链，并检查秘密及矛盾后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+
+
+## Reduce 操作与后台监督
+
+reduce 负责人使用版本 3 固定安装。描述符中的 `gateWorkflow` 采用精确的发布工作流提交。部署该工作流时，运行标题必须是 `gate-publish:${pr}:${head}:${checkpoint}`。普通输入不能覆盖它。源码或帮助存在不代表安装和工作流已部署。
+
+```sh
+pnpm run reduce next --input /absolute/next.json
+pnpm run reduce claim --input /absolute/claim.json
+pnpm run reduce prepare --input /absolute/pre-push.json
+pnpm run reduce record --input /absolute/state.json
+pnpm run reduce check-release --input /absolute/readiness.json
+pnpm run reduce release --input /absolute/release.json
+pnpm run reduce supervise --input /absolute/supervision.json
+pnpm run reduce ack --input /absolute/handled.json
+```
+
+所有输入含 `schemaVersion:1`。`next` 另外含完整 `context`、`owner` 和可选 `since` 评论 ID。它读取完整当前队列，不因 cursor 跳过更早的未决请求。返回 `idle` 只表示当前没有未决申请，不表示波已完成。
+
+`claim`、`prepare` 和 `record` 输入含 canonical `record`、稳定 `journalRoot` 和 `checkpoint` 字符串。没有命名 checkpoint 时显式传空字符串。claim 只接受 claimed 状态；prepare 只保存 integrating 的推送前意图，不执行 Git。冲突修复由 reduce 完成，更新候选后重新取得影响、测试、适用评审与准入证据，再记录精确 gate。合入不能只凭 Action success 判断。
+
+`check-release` 输入含 release `record` 与 `readinessEvidence`。它检查完整请求、所有线、delta、后继输入、具名整波报告及实际轨道 HEAD，不产生接受或发布。`release` 再加 `journalRoot`，要求已有精确接受决定，按发布读回、关闭、终态读回的顺序推进。unknown 必须沿用原输入、operation ID 和 journal 恢复，不能用新 ID 重发。
+
+supervise 的输入字段为：
+
+| 字段 | 内容 |
+| --- | --- |
+| context、owner、epoch | 当前波及当前 reduce 执行身份 |
+| operationId、journalRoot | 原操作 UUID 与绝对日志目录 |
+| phase、deadline、timeoutMs | 当前负责人阶段、UTC 截止时间、可选本次等待毫秒数 |
+| file | 接收器事件文件的绝对路径 |
+| runs | 活动 `request-run` 的 input/workflow，或 `gate` 的 correlation；后者含 repo/pull/candidateHead/checkpoint/workflow，不含 adoptedWorkflowHead |
+| candidates | 每项含登记申请的 request 与当前 state record |
+| local | 每项含 id/pid/processStartedAt/resultFile/deadline。结果文件用绝对路径，进程身份用实际 `processIdentity` 读数 |
+| release | 普通阶段可为 null；VERIFY_WAVE、RELEASE_WAVE、FINALIZE 须提供 record/readinessEvidence |
+
+事件、启动和截止触发权威对账。每 10 秒只观察仍活动的 run/审批；运行结束时重新读回资格与申请回执。每 5 秒检查本机接收器及自有进程。远端 bootstrap 和 REST 在分别持久的只读子进程中执行，不阻塞本机健康检查。不审批、不发布、不代替负责人处理返回信号。
+
+原 shell tool call 返回 actionable、timeout 或 cancelled。信号先入持久队列，返回不等于消费。处理后执行 ack，其输入含 `schemaVersion:1`、`supervision` 原输入、信号 `id` 和处置 `evidence` 字符串。然后恢复原监督操作；变化的阶段或活动对象须来自当前实际交接。未知远端操作另按其原 journal 恢复。
+
+退出码为 0 已取得结果，1 写结果未知，2 输入冲突或证据不可用，3 等待超时，130 取消。停止监督会终止自有读取进程；POSIX 宿主同时终止这些进程组中的命令子进程。父 tool-session 仍须观察监督器自身的退出和 stderr。这里的自动检查不证明人类转发、宿主续接或完整双机行为。

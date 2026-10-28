@@ -1,4 +1,4 @@
-import { execFileSync, spawn } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import {
   commentMarker,
   FORWARDED_EVENTS,
@@ -22,7 +22,6 @@ export const runGhText: GhText = (argv, timeoutMs) =>
   })
 
 const GH_TIMEOUT_MS = 15_000
-const FORWARDER_URL_PREFIX = 'https://webhook-forwarder.github.com/'
 /** The `pr-ready` reconcile reads only this many open pull requests of the base branch. */
 const PR_LIST_LIMIT = 200
 
@@ -178,57 +177,6 @@ export function githubReconcile(repository: string, call: GhCommand): Reconcile 
   }
 }
 
-/** Ids of the repository hooks that `gh webhook forward` created: name `cli`, forwarder URL. */
-export function listForwarderHooks(repository: string, gh: GhText): number[] {
-  const pages = array(
-    JSON.parse(
-      gh(
-        ['api', '--method', 'GET', '--paginate', '--slurp', `repos/${repository}/hooks`],
-        GH_TIMEOUT_MS * 4,
-      ),
-    ),
-    'hook pages',
-  )
-  return pages
-    .flatMap(page => array(page, 'hook page'))
-    .map(item => record(item, 'hook'))
-    .filter(hook => {
-      const url = record(hook.config ?? {}, 'hook.config').url
-      return hook.name === 'cli' && typeof url === 'string' && url.startsWith(FORWARDER_URL_PREFIX)
-    })
-    .flatMap(hook => (typeof hook.id === 'number' ? [hook.id] : []))
-}
-
-/** Ids in `current` that are not in `before`. */
-export function newHooks(current: readonly number[], before: readonly number[]): number[] {
-  return current.filter(id => !before.includes(id))
-}
-
-/** Deletes the hooks one by one and returns the ids whose deletion failed. */
-export function deleteHooks(repository: string, ids: readonly number[], gh: GhText): number[] {
-  return ids.filter(id => {
-    try {
-      gh(['api', '--method', 'DELETE', `repos/${repository}/hooks/${id}`], GH_TIMEOUT_MS)
-      return false
-    } catch {
-      return true
-    }
-  })
-}
-
-/**
- * Deletes every forwarder hook of the repository, whoever created it, and returns the ids
- * deleted and the ids that could not be deleted. It stops the forwarders of other receivers.
- */
-export function cleanForwarderHooks(
-  repository: string,
-  gh: GhText,
-): { deleted: number[]; failed: number[] } {
-  const ids = listForwarderHooks(repository, gh)
-  const failed = deleteHooks(repository, ids, gh)
-  return { deleted: ids.filter(id => !failed.includes(id)), failed }
-}
-
 /** A running forwarder: `exited` resolves with its exit code, `stop` ends it and waits. */
 export type ForwardProcess = { exited: Promise<number | null>; stop: () => Promise<void> }
 export type SpawnForward = (args: {
@@ -254,36 +202,4 @@ export function forwardArgv(args: {
     `http://127.0.0.1:${args.port}`,
     ...(args.secret === undefined ? [] : ['-S', args.secret]),
   ]
-}
-
-const STOP_GRACE_MS = 5000
-
-/**
- * Starts `gh webhook forward` as a child that the caller owns. Its output goes to stderr. When
- * this process exits first, for example on an uncaught exception, the child is killed with it.
- */
-export const spawnGhForward: SpawnForward = args => {
-  const child = spawn('gh', forwardArgv(args), { stdio: ['ignore', 2, 2], shell: false })
-  const killChild = () => child.kill()
-  process.once('exit', killChild)
-  let done = false
-  const exited = new Promise<number | null>(resolve => {
-    const finish = (code: number | null) => {
-      done = true
-      process.removeListener('exit', killChild)
-      resolve(code)
-    }
-    child.once('error', () => finish(null))
-    child.once('exit', code => finish(code))
-  })
-  return {
-    exited,
-    stop: async () => {
-      if (done) return
-      child.kill('SIGTERM')
-      const timer = setTimeout(() => child.kill('SIGKILL'), STOP_GRACE_MS)
-      await exited
-      clearTimeout(timer)
-    },
-  }
 }

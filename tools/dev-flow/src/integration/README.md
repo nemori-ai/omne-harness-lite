@@ -29,6 +29,22 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 
 `baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，它为空时不补缺省；缺省基线的统一规则在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`scripts/check.sh` 经测试运行器的 `baseline` 命令使用它，不再调用本命令。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
 
+## 包发布运行
+
+在仓库根运行：
+
+```sh
+pnpm run release-run --input /absolute/release.json --journal /absolute/task/release
+```
+
+此入口迁移 `release.sh`。包内同名 script 与构建后的 `omne-release-run` 提供同一行为。它启动 `gate-release.yml` 在 `github-gate` 上的一次包发布运行，与整波 reduce release 分开。
+
+输入须包含 `schemaVersion: 1`、`repo`、稳定 UUID `operationId`、`package`、完整 SHA `commit`、正整数 `issue`、布尔 `dryRun` 和完整 SHA `workflowHead`。`package` 只接受 `repo-toolchain` 或 `repo-config`。`workflowHead` 是本次已经核对的实际 `github-gate` 提交；派发前工具再次比对。
+
+默认只观察审批。需要批准时显式加 `--approve --note /absolute/note.txt`，且 GitHub 必须允许当前账户批准 `npm-release`。其他环境不批准。`--timeout SECONDS` 限制观察时间，默认 5400 秒；超时不取消远端运行。
+
+工具保存本次精确 run 与 attempt，成功退出要求该运行完成且 conclusion 为 success。恢复使用相同输入和日志目录。没有精确派发回执时保持 unknown，不根据最新 run 猜测归属，也不重复派发。见 [SPEC](SPEC.md#包发布运行命令)。
+
 ## 执行命令
 
 变更命令统一读取严格 JSON 文件：
@@ -48,12 +64,12 @@ Issue 正文的 `当前执行与交接` 中放唯一一个 binding 围栏区块�
 
 版本 2：schemaVersion=2，含版本 1 的全部字段，另加四个必填字段，记录派发时的卡属性：
 
-| 字段 | 取值 |
-| --- | --- |
-| `line` | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
-| `nature` | `design`、`contract`、`impl`、`integration` 或 `baseline` |
-| `contractChange` | `none`、`additive` 或 `breaking` |
-| `milestone` | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null` |
+| 字段             | 取值                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `line`           | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
+| `nature`         | `design`、`contract`、`impl`、`integration` 或 `baseline`                             |
+| `contractChange` | `none`、`additive` 或 `breaking`                                                      |
+| `milestone`      | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null`                       |
 
 缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。
 
@@ -209,12 +225,12 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 
 事实来源按环境变量选择：
 
-| 变量 | 取值 | 结果 |
-| --- | --- | --- |
-| `OMNE_DELIVERY_FACTS` | `workflow` 或 `direct` | 按取值选择，覆盖自动识别。供测试与排障使用 |
-| `OMNE_DELIVERY_FACTS` | 其他值，包括空串 | `input-error`，不读平台 |
-| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS` | 使用 workflow 事实 |
-| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取 |
+| 变量                      | 取值                                             | 结果                                       |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| `OMNE_DELIVERY_FACTS`     | `workflow` 或 `direct`                           | 按取值选择，覆盖自动识别。供测试与排障使用 |
+| `OMNE_DELIVERY_FACTS`     | 其他值，包括空串                                 | `input-error`，不读平台                    |
+| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS`            | 使用 workflow 事实                         |
+| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取                                   |
 
 使用 workflow 事实时：
 

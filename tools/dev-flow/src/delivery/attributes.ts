@@ -11,6 +11,7 @@ import {
   type DeliveryLines,
 } from './lines.ts'
 import type { CapturedIssue } from './protocol.ts'
+import { readWorkKind, type WorkKind } from './work-kind.ts'
 
 /** Card attribute values adopted in docs/engineering/delivery.md「卡属性与合法组合」. */
 export const natures = ['design', 'contract', 'impl', 'integration', 'baseline'] as const
@@ -37,6 +38,7 @@ export const attributeNames = [
  */
 export type CardAttributes = {
   issue: string
+  workKind: WorkKind | undefined
   fields: Record<AttributeName, string[]>
   milestone: string | null | undefined
   labels: string[]
@@ -53,6 +55,7 @@ export function readCardAttributes(
   const values = (name: AttributeName) => identity.get(ATTRIBUTE_FIELDS[name]) ?? []
   return {
     issue: issue.url,
+    workKind: readWorkKind(body),
     fields: {
       line: values('line'),
       nature: values('nature'),

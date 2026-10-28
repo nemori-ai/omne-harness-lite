@@ -528,6 +528,19 @@ describe('dispatch eligibility from delivery facts', () => {
       throw new Error('cloud sessions cannot read this path')
     }
   }
+  it('refuses an incomplete comment capture before adopting any authority facts', () => {
+    const calls: string[][] = []
+    expect(() =>
+      readAuthority(
+        policy,
+        scope.authority,
+        { issues: [{ ...captured, commentsComplete: false }] },
+        authorityFacts,
+        read(calls),
+      ),
+    ).toThrow('complete Issue capture')
+    expect(calls).toEqual([])
+  })
   it('grants dispatch from facts that match the comment, without reading the environment', () => {
     const calls: string[][] = []
     const decision = readAuthority(

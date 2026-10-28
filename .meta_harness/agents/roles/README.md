@@ -223,3 +223,9 @@ Cursor 原生配置与模型/权限资格由 [design-subagents](../skills/design
 七个生产记录现为 proved。PanQiWei 接受它们在 Cursor CLI `2026.08.04-aaa8809` 与 IDE `3.24.12` 的项目视图中正式派发。Cloud 没有版本记录，不在派发范围内。
 pending 或绑定过期的文件不进入合格摘要。proved 且绑定仍对应当前源的文件进入合格摘要，`subagentStart` 按文件摘要放行。
 记录缺失或 unsupported 时，整个 Cursor 构建在写入前不产生文件。
+
+## 协作派发与宿主策略
+
+外部常驻 Line 与唯一 Reduce 的状态归 [负责人状态](../../../docs/engineering/map-reduce-states.md)，按 `line`、`dispatch`、`integrate` 与 `claim` 技能执行。角色名不授予跨域修改、发布或接受权限，派发事实必须包含实际范围、固定输入、结束条件和恢复入口。
+
+Codex 与 Claude Code 使用同一职责源和各自已核验模型默认配置。选择规则归 [dispatch-policy.json](dispatch-policy.json)，精确宿主值归各角色的 `codex.toml` 与 `claude.yaml`，不能在模板重抄一份模型表。精确 model、effort、策略修订和选择理由由正式角色解析器输出；developer/qa 的 model 不得为 null。固定约束优先，未知宿主/角色/模型及冲突失败，不静默降级。requested 与 observed 分别记录，宿主未提供运行观测则为 unknown。两宿主配置存在及生成通过不代表实际加载或等待续接通过；采用者在开工边界读回有效版本，旧会话不支持热载时明确接续方式。

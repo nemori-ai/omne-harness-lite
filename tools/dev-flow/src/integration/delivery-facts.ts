@@ -2,10 +2,11 @@ import { execFileSync } from 'node:child_process'
 import { randomBytes } from 'node:crypto'
 import { setTimeout as wait } from 'node:timers/promises'
 import type { GhRead } from '../delivery/github-read.ts'
-import type { AdmissionProject } from '../delivery/admission.ts'
 import type { DeliveryConfig } from '../delivery/protocol.ts'
 import type { Policy } from './policy.ts'
-import { fields, integer, literal, object, section, string, IntegrationError } from './parse.ts'
+import { object, section, IntegrationError } from './parse.ts'
+import { FACTS_MARKER, parseDeliveryFacts, type DeliveryFacts } from './delivery-facts-record.ts'
+export { FACTS_MARKER, type AuthorityFacts, type DeliveryFacts } from './delivery-facts-record.ts'
 
 /**
  * Delivery facts for a cloud session: the `delivery-facts` workflow on `github-gate` reads the
@@ -18,7 +19,6 @@ export const DELIVERY_IDENTITY = 'omne-harness-lite-delivery[bot]'
 export const FACTS_WORKFLOW = 'delivery-facts.yml'
 export const FACTS_WORKFLOW_PATH = `.github/workflows/${FACTS_WORKFLOW}`
 export const FACTS_BRANCH = 'github-gate'
-export const FACTS_MARKER = 'omne-delivery-facts:v1'
 /** From the dispatch to adopted facts; the limit the card fixes. */
 export const FACTS_BUDGET_MS = 180_000
 export const FACTS_POLL_MS = 5_000
@@ -40,21 +40,6 @@ export function factsSource(env: Readonly<Record<string, string | undefined>>): 
   return env['CCR_AGENT_PROXY_ENABLED'] === '1' ? 'workflow' : 'direct'
 }
 
-export type AuthorityFacts = {
-  url: string
-  author: string
-  authorNodeId: string
-  reviewer: boolean
-  bodySha256: string
-  updatedAt: string
-}
-export type DeliveryFacts = {
-  nonce: string
-  run: number
-  issue: number
-  authority: AuthorityFacts
-  project: AdmissionProject
-}
 export type FactsPorts = {
   /** Runs `gh api`; the dispatch answers 204 without a body, so empty output is `undefined`. */
   gh: GhRead
@@ -86,49 +71,6 @@ const API_HEADERS = [
 ]
 function unknown(message: string): IntegrationError {
   return new IntegrationError('unknown', message)
-}
-/** Strict shape of the facts block. Any parse failure is one fixed message without API content. */
-function parseFacts(value: unknown): DeliveryFacts {
-  try {
-    const v = fields(
-      value,
-      ['schemaVersion', 'nonce', 'run', 'issue', 'authority', 'project'],
-      'facts',
-    )
-    const a = fields(
-      v.authority,
-      ['url', 'author', 'authorNodeId', 'reviewer', 'bodySha256', 'updatedAt'],
-      'facts.authority',
-    )
-    const p = fields(v.project, ['id', 'item', 'stage'], 'facts.project')
-    literal(v.schemaVersion, 1, 'facts.schemaVersion')
-    const nonce = string(v.nonce, 'facts.nonce'),
-      bodySha256 = string(a.bodySha256, 'facts.authority.bodySha256')
-    if (!/^[0-9a-f]{32}$/.test(nonce) || !/^[0-9a-f]{64}$/.test(bodySha256))
-      throw new IntegrationError('input-error', 'facts digest format')
-    if (typeof a.reviewer !== 'boolean')
-      throw new IntegrationError('input-error', 'facts.authority.reviewer must be a boolean')
-    return {
-      nonce,
-      run: integer(v.run, 'facts.run'),
-      issue: integer(v.issue, 'facts.issue'),
-      authority: {
-        url: string(a.url, 'facts.authority.url'),
-        author: string(a.author, 'facts.authority.author'),
-        authorNodeId: string(a.authorNodeId, 'facts.authority.authorNodeId'),
-        reviewer: a.reviewer,
-        bodySha256,
-        updatedAt: string(a.updatedAt, 'facts.authority.updatedAt'),
-      },
-      project: {
-        id: string(p.id, 'facts.project.id'),
-        item: string(p.item, 'facts.project.item'),
-        stage: p.stage === null ? null : string(p.stage, 'facts.project.stage'),
-      },
-    }
-  } catch {
-    throw unknown('Delivery facts block is malformed. API output omitted.')
-  }
 }
 /**
  * Dispatches `delivery-facts.yml` on `github-gate` for the task card and waits for the facts
@@ -239,7 +181,7 @@ export async function fetchDeliveryFacts(
       throw unknown('Delivery facts block is malformed. API output omitted.')
     }
     if (block === undefined) throw unknown('Delivery facts block is missing')
-    const facts = parseFacts(block)
+    const facts = parseDeliveryFacts(block)
     if (facts.nonce !== nonce) throw unknown('Delivery facts nonce mismatch')
     if (facts.issue !== issue) throw unknown('Delivery facts Issue mismatch')
     if (facts.authority.url !== scope.authority)

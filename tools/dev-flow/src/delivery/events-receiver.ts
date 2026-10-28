@@ -1,17 +1,12 @@
-import { createHmac, timingSafeEqual } from 'node:crypto'
-import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { createHmac, randomUUID, timingSafeEqual } from 'node:crypto'
+import { appendFileSync, mkdirSync } from 'node:fs'
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http'
-import type { AddressInfo } from 'node:net'
-import { dirname, join } from 'node:path'
-import { errorCode, normalizeGithubEvent } from './events.ts'
-import {
-  deleteHooks,
-  listForwarderHooks,
-  newHooks,
-  type GhText,
-  type SpawnForward,
-} from './events-gh.ts'
+import { dirname, resolve } from 'node:path'
+import { errorCode, FORWARDED_EVENTS, normalizeGithubEvent } from './events.ts'
+import { type SpawnForward } from './events-gh.ts'
 import { InputError } from './protocol.ts'
+import { claimReceiver } from './events-receiver-state.ts'
+import { receiverPaths, writePrivateJson } from './events-channel-config.ts'
 
 const MAX_BODY_BYTES = 26 * 1024 * 1024
 
@@ -66,7 +61,9 @@ export function createReceiverServer(args: {
         !signatureValid(
           args.secret,
           body,
-          request.headers['x-hub-signature-256'] as string | undefined,
+          typeof request.headers['x-hub-signature-256'] === 'string'
+            ? request.headers['x-hub-signature-256']
+            : undefined,
         )
       )
         return reply(response, 401, 'Bad signature')
@@ -94,68 +91,13 @@ export type ServeArgs = {
   file: string
   repository: string
   secret?: string
-  gh: GhText
   spawnForward: SpawnForward
   /** Resolves when the operator asks to stop (SIGINT, SIGTERM or SIGHUP). */
   stopped: Promise<void>
   log: (message: string) => void
-  /** Time between two reads of the hook list while the new hook is not yet there. Default 500. */
-  hookPollMs?: number
-  /** Longest time to look for the new hook after the forwarder started. Default 30000. */
-  hookDiscoveryMs?: number
 }
 
-const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms))
-
-function processAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0)
-    return true
-  } catch (error) {
-    return errorCode(error) === 'EPERM'
-  }
-}
-
-/**
- * Writes the process id to `pidFile` only when the file does not exist. An existing file that
- * names a running process refuses the start with `InputError`. Any other existing file is stale
- * and is replaced.
- */
-function claimPidFile(pidFile: string): void {
-  const content = `${process.pid}\n`
-  try {
-    writeFileSync(pidFile, content, { flag: 'wx' })
-    return
-  } catch (error) {
-    if (errorCode(error) !== 'EEXIST') throw error
-  }
-  let pid = Number.NaN
-  try {
-    pid = Number(readFileSync(pidFile, 'utf8').trim())
-  } catch (error) {
-    if (errorCode(error) !== 'ENOENT') throw error
-  }
-  if (Number.isSafeInteger(pid) && pid > 0 && processAlive(pid))
-    throw new InputError(
-      `Another receiver (process ${pid}) writes to the event file in ${dirname(pidFile)}. Only one receiver may use an event file. Stop it, or pass another --file.`,
-    )
-  writeFileSync(pidFile, content)
-}
-
-/**
- * Runs the receiver until `stopped` resolves, the forwarder exits or the listening server fails.
- * Returns the exit code: 0 after a requested stop with its hook removed, 1 when the forwarder
- * died, the server failed, or its hook could not be removed or identified. It rejects when the
- * start fails: the port is taken, another receiver holds the event file, or the first hook list
- * cannot be read.
- *
- * Startup deletes nothing. It claims `receiver.pid`, lists the forwarder hooks, starts the
- * forwarder, and looks for the hooks that were not in the first list. Shutdown stops the
- * forwarder first, then deletes the one hook of this receiver, then removes `receiver.pid` and
- * closes the server. Hooks of other receivers stay. When it sees several new hooks, the receiver
- * cannot tell which one is its own and deletes none of them. Every exit path, a rejection
- * included, stops the forwarder, removes `receiver.pid` and closes the server.
- */
+/** Runs the legacy single-machine forwarder. Hook ownership is never inferred from lists. */
 export async function serveReceiver(args: ServeArgs): Promise<number> {
   const server = createReceiverServer({
     file: args.file,
@@ -176,124 +118,82 @@ export async function serveReceiver(args: ServeArgs): Promise<number> {
       server.close(() => resolve())
       server.closeAllConnections()
     })
-  const pidFile = join(dirname(args.file), 'receiver.pid')
+  let owner: ReturnType<typeof claimReceiver>
   try {
-    claimPidFile(pidFile)
+    owner = claimReceiver({
+      instanceId: randomUUID(),
+      repository: args.repository,
+      eventFile: resolve(args.file),
+      mode: 'legacy',
+      managed: true,
+      hookId: null,
+      events: [...FORWARDED_EVENTS],
+    })
   } catch (error) {
     await closeServer()
     throw error
   }
   try {
-    return await runForwarder(args, (server.address() as AddressInfo).port, serverFailed)
+    const address = server.address()
+    if (address === null || typeof address === 'string')
+      throw new InputError('Receiver address unavailable')
+    return await runForwarder(args, address.port, serverFailed)
   } finally {
-    rmSync(pidFile, { force: true })
-    await closeServer()
+    owner.state.state = 'recovery-needed'
+    owner.state.reasonCode = 'legacy-hook-ownership-unknown'
+    try {
+      writePrivateJson(receiverPaths(args.file).state, owner.state)
+    } finally {
+      try {
+        owner.release()
+      } finally {
+        await closeServer()
+      }
+    }
   }
 }
 
-/** Runs the forwarder for the receiver on `port` and removes its hook when it ends. */
 async function runForwarder(
   args: ServeArgs,
   port: number,
   serverFailed: Promise<Error>,
 ): Promise<number> {
-  const { repository, gh, log } = args
-  const before = listForwarderHooks(repository, gh)
+  const { repository, log } = args
   const forward = args.spawnForward({ repository, port, secret: args.secret })
   let stopping: Promise<void> | undefined
   const stopForward = () => (stopping ??= forward.stop())
-  const end = new AbortController()
   try {
     log(`Receiving on 127.0.0.1:${port}, appending to ${args.file}`)
-    const discovery = discoverHooks(args, before, end.signal)
     const reason = await Promise.race([
       args.stopped.then(() => ({ kind: 'stop' as const })),
       forward.exited.then(exit => ({ kind: 'exited' as const, exit })),
       serverFailed.then(error => ({ kind: 'server' as const, error })),
     ])
-    end.abort()
     if (reason.kind === 'exited') log(`The forwarder exited unexpectedly with code ${reason.exit}`)
     if (reason.kind === 'server') {
       const code = errorCode(reason.error)
       log(`The receiver server failed${code === undefined ? '' : ` (${code})`}. Shutting down.`)
     }
     await stopForward()
-    return removeOwnHook(args, before, await discovery, reason.kind === 'stop' ? 0 : 1)
+    if (reason.kind === 'exited' && reason.exit === 422) {
+      log(
+        JSON.stringify({
+          kind: 'receiver-error',
+          reasonCode: 'legacy-hook-conflict',
+          message: 'The legacy forwarder returned HTTP 422. Use an independent channel.',
+        }),
+      )
+      return 2
+    }
+    log(
+      JSON.stringify({
+        kind: 'receiver-error',
+        reasonCode: 'recovery-needed',
+        message: 'Legacy hook ownership is unproven. No hooks were deleted.',
+      }),
+    )
+    return 2
   } finally {
-    end.abort()
     await stopForward()
   }
-}
-
-/**
- * Reads the hook list until hooks appear that are not in `before`, and returns them. Returns
- * undefined when `signal` aborts or the discovery time passes first.
- */
-async function discoverHooks(
-  args: ServeArgs,
-  before: readonly number[],
-  signal: AbortSignal,
-): Promise<number[] | undefined> {
-  const { repository, gh, log } = args
-  const pollMs = args.hookPollMs ?? 500,
-    discoveryMs = args.hookDiscoveryMs ?? 30_000
-  const deadline = Date.now() + discoveryMs
-  while (!signal.aborted && Date.now() < deadline) {
-    try {
-      const fresh = newHooks(listForwarderHooks(repository, gh), before)
-      if (fresh.length > 1)
-        log(`Multiple forwarder hooks appeared: ${fresh.join(', ')}; none will be deleted on stop`)
-      if (fresh.length > 0) return fresh
-    } catch {
-      // The next read tries again. The shutdown read reports a failure.
-    }
-    await sleep(pollMs)
-  }
-  if (!signal.aborted)
-    log(
-      `No new forwarder hook appeared within ${discoveryMs} ms. On stop the receiver takes the hooks that are not in its starting list.`,
-    )
-  return undefined
-}
-
-/**
- * Deletes the hook of this receiver after the forwarder stopped and returns the exit code. The
- * candidates are the hooks that discovery `found` together with the hooks of the shutdown list
- * that are not in `before`, kept only when still in the shutdown list. One candidate is deleted.
- * Several candidates are all kept and give 1. When the shutdown list cannot be read, the hook
- * that discovery found alone is still deleted, and the result is 1.
- */
-function removeOwnHook(
-  args: ServeArgs,
-  before: readonly number[],
-  found: readonly number[] | undefined,
-  code: number,
-): number {
-  const { repository, gh, log } = args
-  let current: number[]
-  try {
-    current = listForwarderHooks(repository, gh)
-  } catch {
-    const known = found ?? []
-    const left = known.length === 1 ? deleteHooks(repository, known, gh) : known
-    log(
-      `Cannot list the forwarder hooks. Forwarder hooks left behind: ${left.length > 0 ? left.join(', ') : 'none known'}. Other cli hooks of the repository may remain; check them by hand.`,
-    )
-    return 1
-  }
-  const candidates = [...new Set([...(found ?? []), ...newHooks(current, before)])].filter(id =>
-    current.includes(id),
-  )
-  if (candidates.length > 1) {
-    log(
-      `Cannot tell which of the hooks ${candidates.join(', ')} this receiver created. None deleted. Stop the other receivers, then run the clean command.`,
-    )
-    return 1
-  }
-  const leftover = deleteHooks(repository, candidates, gh)
-  if (leftover.length > 0) {
-    log(`Forwarder hooks left behind: ${leftover.join(', ')}. Delete them by hand.`)
-    return 1
-  }
-  return code
 }

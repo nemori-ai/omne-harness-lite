@@ -1,131 +1,77 @@
 ---
 name: dispatch
 description: >
-  调度者侧的建卡与派发：把人的需求整理成交付卡，打齐必填标签与里程碑，做波准入并发首波线包，核对写范围，用 dev-flow 发派发评论、写回 binding，建分支与工作树，运行 start 并核对看板字段。
-  调度者要建卡、做波准入、派发一张或一波卡、为同一张卡登记新 attempt、或问「怎么派发」「怎么把这张卡交给 subagent」时加载。线会话为线内的卡登记 attempt 时也加载。点名 /dispatch 时加载。
-  执行者认领已派发的卡用 claim，集成节点合入候选用 integrate，不用本技能。不在线内的派发：start 读回、看板字段核对完、派发包交出后停下，不替执行者实现。线内的卡由线会话按第 5 至 8 节登记后继续按 claim 推进，不停下。
+  Reduce 建当前波任务、核对准入、登记 binding 并生成首次 Line 消息。首次派发、下一波物化或派发恢复时加载；收件与集成用 integrate。
 ---
 
 # 派发
 
-本技能把调度者的建卡与派发串成可执行的步骤。规则归执行仓库的正文与工具，本技能只给顺序和命令：
+首次和恢复先读 `docs/engineering/integration.md`「集成节点的清单」及 `docs/engineering/map-reduce-states.md`。Reduce 的 PREPARE/DISPATCH/RELEASE_WAVE 按下表执行，请求状态、其他阶段和八类监督继续按 integrate。人只与唯一 reduce 会话讨论设计；Line 开工后没有波中问答通道。
 
-- 对话判断、建卡和派发的顺序：`docs/engineering/agent-delivery.md`。
-- 卡的模块、Stage、字段总表、标签族、合法组合与契约变更：`docs/engineering/delivery.md`。
-- 线、轨道、波、批次、里程碑与集成节点：`docs/engineering/integration.md`。
-- 命令的输入、输出与退出码：`tools/dev-flow/src/delivery/README.md` 与 `tools/dev-flow/src/integration/README.md`。
-
-开始前确认三件事。缺一项时停下，向负责人要。
-
-- 你是本卡的调度者，或代调度者执行、有明确委派的会话。调度者的资格按 agent-delivery.md「取任务和派发」核对。
-- 本次动作有授权依据。
-- 当前目录是执行仓库的检出。
+| 阶段 | 输入与动作 | 出口/等待 | 失败/恢复 |
+| --- | --- | --- | --- |
+| PREPARE，R01/R02 | 已接受依据、里程碑目标、F、权限、当前波 roster、两宿主策略；核对写集/依赖并准备自包含输入 | 准入和输入齐备才到 DISPATCH；只正式建当前波，后一波仅预案 | 缺口先过三问，冻结依赖项，不把未定设计派给 Line |
+| DISPATCH，R03 | 读回 binding、首次模板与目标机器绑定，render/validate 临时文件后打开 | 分别记录五种派发事实并持续监督，机器 claim 读回才算认领 | queued 不算打开；生成/认领结果未知先原操作恢复，重复消息复用唯一执行 |
+| RELEASE_WAVE，R09–R13 | 本波整体成果通过后调整预案；非终态建后继任务与真实 R，有权终态不建虚构卡；发布所有存续线 delta | 非终态后继与全线 delta，或有权终态与全线 terminal delta 读回后，才可接受本波，再 release/close | 非终态缺后继、缺任一存续线 delta 或授权均拒绝放行；建卡未知先对账，不重复创建 |
 
 ## 1. 整理需求，定位已有卡
 
-按 agent-delivery.md「整理需求并定位已有卡」做。同一活动结果已有卡时更新那张卡的修订，不另建。缺产品或架构决定时，卡留在 Backlog 并写明具名问题，不编默认答案。
-
-派发前读到的事实一律从收口点或 taskBase 读，不从主检出读：`git show <taskBase>:<路径>`，或在该提交的工作树里读。主检出可能落后于轨道。
+从有效卡、已接受正文和精确 F 读事实，不从主检出猜当前版本。人已授权且可查清的事项自行决定。Reduce 提问前完成里程碑必要性、方案复杂度、自主可决策性三问；剩余真实冲突或权限决定才交人。
 
 ## 2. 建卡
 
-1. 按 delivery.md「6. 访问、失败与最小工具」在交接入口登记创建操作标识，再按 `.github/ISSUE_TEMPLATE/` 的模板写正文。删除全部占位与填写提示，保留「接手本卡」。
-2. 「身份与责任」写齐交付线、性质、契约变更与主工作类型。组合按 delivery.md「卡属性与合法组合」核对。
-3. 打标签并设置里程碑。`start` 在卡缺唯一的 `kind:` 标签、唯一的 `line:` 标签或里程碑时拒绝开工：
-   - 手打 `kind:<主工作类型>` 与 `level:delivery` 或 `level:subtask`。
-   - `line:`、`nature:`、`contract:` 三族用标签同步命令打：`node --experimental-strip-types tools/dev-flow/src/delivery/labels-cli.ts --issue <N> --apply`。
-   - 在 Issue 上设置里程碑。改里程碑用 `milestone-cli.ts carry`，不手改。
-4. 把卡加入主 Project，Status 设为 Backlog。就绪复核通过后设为 Ready。
-5. Needs decision 由调度者置位，工具不写。卡需要人拍板时置 `yes`，包括线内卡申请破坏性契约改动。在卡的评论中写明要裁定的问题，决定读回后置 `no`。规则见 delivery.md「契约变更与里程碑类型」。
+按 `docs/engineering/delivery.md` 与 `agent-delivery.md` 登记创建操作标识，按实际 Issue 模板写本次范围、负责人、revision、条件和验收。`kind:` 唯一且与正文主工作类型一致；`line:`、`nature:`、`contract:` 按正式标签工具同步。Project 是投影，失败单列，不伪造成功。创建未知先用原操作身份读回。
 
 ## 3. 波准入
 
-开波前按 integration.md「集成节点怎样工作」第 1 步做四项核对：
+分解当前波前，按 `docs/engineering/integration.md`「波段编排的判断原则」权衡关键路径、容量、反馈时延与风险。
 
-- 开工条件的目标卡已接受，并且其合入提交是收口点的祖先。目标是上一波的收口卡时，核对它「已接受」即可，不核对合入提交。
-- 不同线的卡写范围两两不相交。
-- 每个契约成员的源码至多在一条线的写范围里。
-- 破坏性卡改动的契约成员不被其他线的卡的写范围成员依赖。
+按 integration 的不变量核对：开工依据已接受且合入提交在 F；跨线写集不交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。使用 `tools/dev-flow/src/delivery/scope-cli.ts` 对本波绑定求交，同线顺序任务先按线聚合。任一失败不开波，改分解或缺口，不降低判据。
 
-写范围求交的命令：
-
-```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...
-```
-
-退出 1 时不开波，先改分解。已关闭的卡默认不参与，列在 `excluded`。还没写进 Issue 的 binding 用文件传入。同线顺序推进的卡可以重叠。命令两两求交，所以把同线重叠的卡的写范围之并作为一张卡用文件传入。
-
-四项都过后开波。首波给每条线的线父卡发线包（模板在 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md`）。之后各波的波准入由集成节点在波末按 integrate 技能第 4 节调用本节，`line-delta` 也由它发。线内的卡由线会话按第 5 至 8 节登记，授权来自线包，taskBase 取批次分支头。
-
-每波一张收口卡（交付线 `integration`，里程碑卡的子卡）。下一波每张卡的开工条件只写一条 `issue-result`，目标是上一波的收口卡，判据写「整项结果已接受：收口点已在联调轨道上」。卡与卡之间不写跨线开工条件，同线先后由线包队列保证。原生 blocked-by 同步为同一条边。收口卡之间按波顺序阻塞。收口卡关闭就是下一波各线开工的事件，由集成节点在波末最后一步关闭。
-
-```mermaid
-flowchart LR
-  F0["F(0)"] --> W1["波 1 各卡"]
-  W1 --> C1["收口卡 1"]
-  C1 --> W2["波 2 各卡"]
-  W2 --> C2["收口卡 2"]
-  C2 --> W3["波 3 各卡"]
-  W3 --> C3["收口卡 3"]
-  C1 -. "阻塞" .-> C2
-  C2 -. "阻塞" .-> C3
-```
-
-图中实线从左往右读：一波的各卡从上一个收口点或收口卡开工，收口卡代表这一波的结果。下一波每张卡只等上一波的收口卡。虚线是收口卡之间的顺序阻塞：前一张收口卡阻塞后一张。
+只正式排当前波及 R(w)，预规划后一波但不预建卡。当前波成果验证后才调整并物化下一波任务和 R(w+1)，它们仍依赖 R(w) 有效放行。先读回全部后继卡与所有存续线 delta，再接受 R(w)，最后发布 ReleaseRecord、关闭并读回。单卡接受和关闭事件不能替代整波放行。
 
 ## 4. 准备本波的 Wave
 
-Wave 字段记录卡所属的波。在 Project 的 Wave 字段中为本波建一个迭代，起止日覆盖本波的派发时间。`start` 只在卡还没有 Wave 时写入包含开工日的那个迭代，同一张卡的新 attempt 不改 Wave。
+Wave 和 Project 字段沿 `delivery.md` 及工具帮助。已有 Wave 不覆写。没有正式当前 R 或约定期限时不能把远期预案当可订阅对象。Line idle 也必须有当前真实等待，不制造空任务或空 PR。
 
 ## 5. 发派发评论，写回 binding
 
-1. 在 `tmp/issue-<N>/` 写 `spec.json`。字段见 delivery/README.md「派发命令」。只写调度者的决定：attempt、分支、taskBase、写范围、路线、终点、依据，以及每个 start 条件的确认依据。修订、属性、里程碑、条件 ID 与摘要由命令从卡上读。
-2. 写 `prose.md`：派发说明的人读部分。不在文字里重抄分支、taskBase 或写范围，这些以 binding 为准，抄写会出现笔误。
-3. 先演练，确认通过所有核对：
+按已采用工具的 `tools/dev-flow/src/delivery/README.md` 准备 `spec.json` 与人读 `prose.md`。分支、taskBase、route、写范围和权限由 binding 单源持有，prose 仅引用。
 
-   ```sh
-   node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post --spec tmp/issue-<N>/spec.json --text tmp/issue-<N>/prose.md --dry-run
-   ```
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post --spec <spec.json> --text <prose.md> --dry-run
+node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post --spec <spec.json> --text <prose.md> --out <binding.json>
+node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
+```
 
-   拒绝时按消息改卡：补标签或里程碑、改协议偏离、用标签同步命令改标签、补确认依据。然后重跑。
-4. 正式派发，并把 binding 写回卡：
-
-   ```sh
-   node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post --spec tmp/issue-<N>/spec.json --text tmp/issue-<N>/prose.md --out tmp/issue-<N>/binding.json
-   node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding tmp/issue-<N>/binding.json --worktree <工作树路径>
-   ```
-
-   两个命令都读回核对，退出 1 表示读回不符，按输出修正。`post` 改写成功后先在标准错误写出派发评论 URL，并写出 `--out`。之后的读回失败也不要再派发一次。卡上已有同一修订与 attempt 的派发评论时 `post` 拒绝，确需重发才加 `--force`。`post` 失败时消息里有占位评论的 URL，先改写或删除它，再重新派发。
+每次写入读回精确 revision/attempt；未知结果恢复原操作，不用 force 逃避冲突。该入口登记 binding，不等于首次消息 render/validate、打开或转发。
 
 ## 6. 建分支与工作树，运行 start
 
-1. 远端工作分支指向 taskBase。远端还没有这根分支时：`git push origin <taskBase>:refs/heads/<分支>`。已有同名分支时核对尖端等于 taskBase，不等时停下，不覆盖。
-2. 二选一：
-   - 执行者自己认领：交出派发评论，执行者按 claim 技能建树并运行 `start`。
-   - 调度者为执行者建好树：`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree .worktrees/issue-<N>-r<修订>a<序号>`。命令安装依赖、重生成投影并运行 `start`。
-3. 用 `cli.ts status` 读回 context：issue、revision、attempt、taskBase 与 binding 一致。`start` 拒绝时按原因改卡后重跑，不手写 context。
+按固定工具的 integration/worktree 帮助从 binding 的 taskBase 准备隔离树。已有同名分支核对尖端，不能覆盖别的执行。运行 start 后用 status 读回 issue/revision/attempt/branch/taskBase 一致且 relation=current，不手写 context。首次重复转发只接续同 owner/attempt，owner 冲突或未知认领进入 RECOVER。
 
 ## 7. 看板字段
 
-`start` 新建 context 后写 Dispatched at、Line、Kind 与 Wave。读 `start` 写到标准错误的报告行：
-
-- 有 `board-skipped` 或 `board-write-failed` 时，修好原因后补写：`node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts dispatched --issue <N>`。
-- Wave 被跳过，按原因处置：
-  - 原因是 `Wave is already …`：卡已经有 Wave，按规则不覆盖，不处理。
-  - 原因是 `Wave has no iteration on <date>`：Project 的 Wave 字段里没有包含开工日的迭代。按第 4 步建好本波迭代后补写。不要为已有 Wave 的卡新建重叠迭代，因为重叠时取配置顺序第一个，会让别的卡写错。
-- Status 改为 In progress 由调度者在 Project 中设置。云端会话用 `delivery-stage`。
+按工具结果补写已获准的 Project 字段。看板失败保留诊断，由有权限者补投影，不绕过真正 binding/准入。受限环境只需要 REST 协作事实，不能因 Project 不可写声称认领失败或成功。
 
 ## 8. 交出派发包
 
-并行的卡按 claim 技能 `references/` 中的模板写上下文地图与任务信息包，派发前做一次其中的自包含检查。任务信息包写明准入锁路径。
+首次使用 `.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md`，从有效 binding、线包、计划、宿主策略和本机配置具体化。实例写到 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`，字段和权限引用不得另造第二份事实。readiness 包含目标机器可访问的精确版本、当前真实 R、合法 active/idle 入口、完整运行 recipe、无占位和秘密。
 
-- 线内的卡：线会话按第 5 至 8 节登记后，继续按 claim 技能推进这张卡，不停下。
-- 不在线内的派发：派发包交出后停下，等执行者交回。
+先用固定工具列出模板字段，再从有效来源写输入 JSON。输入含 schemaVersion=1、milestone 数字、line 短名、revision 数字和 fields 字符串映射。fields 必须包含全部列出字段，dispatch_revision 与 revision 一致。命令中的 input 是 reduce 已具体化的输入文件，不由转发者补填。
 
-## 已知的坑
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts fields
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts render --input <具体化输入.json> --root <目标检出>
+node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts validate --input <具体化输入.json> --root <目标检出>
+```
 
-- 扩写范围后重跑求交。写范围变了，binding 就变了，按新 attempt 重新派发。
-- 写范围只以卡上的 binding 为准。计划表与任务信息包从 binding 生成，不手抄。
-- 任务信息包里每条「已知事实」，要么在收口点上复核过并写明出处，要么标「未核」，让执行者自己核。旧草稿与主检出都不可信。
-- 条件行改过后，旧派发评论里的摘要失效，`start` 会拒绝。登记新 attempt 重跑 `post`，命令按现行条件行重算摘要。
-- 改共享提示页（例如 roles 下的页面）的卡，自测要列 Cursor 资格测试，写范围要列资格记录。
+render 只产生 GENERATED，validate 只产生 STRUCTURE_CHECKED。根据返回的 remainingGuards，实际读回 binding/owner/attempt、目标机上的固定材料、当前入口与收口链，核对工具 recipe、宿主策略及权限，并检查秘密和矛盾副本。保存逐项证据后才记录 VALIDATED。常见密钥扫描不能证明没有未知格式的秘密。同修订相同字节复用；不同字节拒绝，改内容使用新修订。
+
+生成、完整校验、打开、人声明已转发、机器 claim 读回是五种事实。校验完成后，用宿主侧边栏或 IDE 的公开操作打开返回的绝对 path；queued 只算待展示。人原样转发，reduce 不自动发送或创建外部会话，也不让人补设计。新修订须重新校验；已认领后不得用重复消息绕过取消/写权交接。
+
+包必须包含开工与结束两个边界、本域裁量、停止条件、ready/blocked/failed 同一交接入口、处置等待及正常逐 R 等待。后续波使用 delta，保留同一 Line 会话，不再“首次派发”。内部单节点 map brief 与外部常驻线模板分开。
+
+## 恢复与停止
+
+按 G00–G06/RC01–RC09，先保存待完成操作、游标、实际写者和恢复点。权威回执决定当前阶段，不能从已生成文件推断已打开、转发或 claim。明确停止冻结新写入并保存交接；STOPPED 不等于 DONE。新 epoch 先确认旧执行终止。恢复后的等待纳入 integrate 八类监督，先排空积压再挂脚本。

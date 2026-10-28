@@ -83,7 +83,7 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | --- | --- | --- | --- | --- | --- |
 | Status | 卡的调度阶段，取 [§2](#2-卡片与阶段) 表中的值，含 Integrating | Project 字段本身。任务事实仍归 Issue 正文，接受与取消归决定记录 | 按事件写，见本表下方的列表 | 阶段变化时 | 各里程碑看板与当前波的列、Active work 与周期的过滤、Awaiting acceptance |
 | Line | 卡的交付线 | 正文「交付线」。`line:` 标签与本字段都是投影。派发后取 binding 的 `line` | `start` 新建 context 后写入。失败时调度者用 `board-cli.ts dispatched` 补写 | 开工时 | 各里程碑看板与当前波的泳道、Active work 的排序、周期 |
-| Kind | 卡的主工作类型 | 正文「主工作类型」。本字段取卡上唯一的 `kind:` 标签 | 同 Line | 开工时 | 按 kind 分组 |
+| Kind | 卡的主工作类型 | 正文「主工作类型」。写入前核对唯一的 `kind:` 标签与正文一致 | 同 Line | 开工时 | 按 kind 分组 |
 | Wave | 卡所属的波 | 调度者在 Project 中为本波建的迭代，起止日覆盖本波的派发时间。`start` 取包含开工日的那个迭代 | 同 Line | 卡第一次开工时。卡已有 Wave 时不覆盖，同一张卡的新 attempt 不改 Wave | 当前波、路线图 |
 | Needs decision | `yes` 表示卡在等人拍板，`no` 或空表示不等 | Project 字段本身。要裁定的问题和决定写在卡的评论中 | 本卡调度者。工具不写 | 发现需要人裁定时置 `yes`，包括破坏性契约改动的申请。决定读回后置 `no` | 待裁 |
 | Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
@@ -263,3 +263,9 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
 Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；视图不另增 Stage 或可编辑调度队列，Stage 只取 [§2](#2-卡片与阶段) 表中的值。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。dev-flow 对平台的写入范围见[多层分支规则](integration.md#issue-与-project-的配合)。
+
+## Map-Reduce 交接与整波放行
+
+常驻 Line 与唯一 reduce 的责任、两个协调边界、三问、八类监督及接受顺序归[集成清单](integration.md#集成节点的清单)，完整状态和恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。
+
+整波接受前，非终态必须读回下一波任务和真实 reduce，以及包括 idle 在内的全部存续线 delta；有权终态必须读回终态决定及全线 terminal delta，不建虚构后继。随后有权接受读回、最终 ReleaseRecord 读回、关闭读回依次执行。非成功交接保持 blocked/failed，处置发布不等于问题已解决。只有显式终态结束 Line；轮空逐收口续接。

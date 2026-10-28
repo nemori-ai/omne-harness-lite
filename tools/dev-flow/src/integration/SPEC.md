@@ -30,7 +30,7 @@ I14。`start` 对 route 中的轨道（下称目标轨道）及其上游链做�
    1. 远端有 `refs/tags/omne/gate/track/<ID>` 时，读该附注标签的正文。正文是 `omne-gate-record:v1` JSON，取 `parent` 字段；没有该字段或取值为 null 时为 `main`，与 `github-gate` 流程的读法相同。
    2. 否则读远端 `github-gate` 分支的 `gate/cutover.json`。其中登记了 `integration/<ID>` 时，可信上游为 `main`。
    3. 两者都没有为 refused。
-   
+
    registry 的 `parent` 与可信上游不同为 refused。标签不是附注标签、正文不是合格 JSON、`parent` 的取值不合格，或 `gate/cutover.json` 不是以分支名为键、以提交号为值的 JSON 对象，都为 unknown。远端读不到为 unknown。
 
 `start` 的远端读取只取链上各轨道的分支与起点标签，以及 `github-gate` 分支上的 `gate/cutover.json`，不枚举或拉取其他标签。`start` 不读核对下限。`status` 与 task-sync 不做上游链核对。[I17](#提升-pr-的说明) 的 `ri-notes` 另有读取范围，它按同一顺序确定上游。
@@ -139,6 +139,22 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 - nonce 作为 workflow 输入，出现在 Actions 运行记录中。别人发出含同一 nonce 的评论会让本次开工以 unknown 失败，但不能让工具采用伪造的事实。
 - 候选评论按正文包含 nonce 原文筛选。这依赖 nonce 为 32 位小写十六进制：JSON 不转义这些字符。改变 nonce 格式时须同时修订筛选。
 
+## 协作等待中的只读事实
+
+公共评论读取器和 facts 读取器接受末尾的可选读取策略 `ReadPolicy`。`networkMs` 默认 15000，必须是 1 至 2147483647 的整数。读取器在网络 I/O 前校验并复制策略。未知字段、显式 undefined 字段、null 和非法数值拒绝。该时限适用于全部分页、第二次快照以及 run 列表后的精确读取，不限制评论数量或削减事实认证。生产工厂的总预算由[准备事实规格](../delivery/SPEC.md)定义。
+
+[published-delivery-facts.ts](published-delivery-facts.ts) 的 `readPublishedDeliveryFacts` 读取 reduce 已预先发布的 facts。调用方提供已采用安装中的 repository、Project ID、workflow 的 ID/path/ref/head 及 Bot login/node ID。普通命令参数不得替换这些采用值。该入口只发 REST GET，不派发 workflow，不读 GraphQL、environment 或组织成员，也不回退直接资格查询。它与现有 `fetchDeliveryFacts` 共用 [delivery-facts-record.ts](delivery-facts-record.ts) 的 v1 数据形状；现有主动派发入口保持其独立行为。
+
+读取器完整捕捉当前卡评论，再逐条核对固定 Bot 的事实。Bot 名称、原生账号 ID 和类型必须一致。先拒绝该 Bot 的已编辑评论，再按 facts 标记识别区块，不能用编辑或删除标记来隐藏已有负面事实。未编辑且不含 facts 标记的其他 Bot 评论不作为资格依据。区块须唯一且严格解析，未知字段、重复字段及未知版本均拒绝。匹配同一 dispatch URL 的事实必须同时匹配其实际作者、作者 node ID、正文摘要和更新时间，以及请求卡号与固定 Project。事实评论不得早于其所声明的派发修订。其他正常派发的事实不授予本次权限。
+
+每项事实都必须来自固定仓库和 workflow 的成功运行。当前 run 及精确 `attempts/1` 都必须报告 attempt 1、同一 workflow ID/path、ref、完整 head SHA、仓库与 head 仓库，以及 `workflow_dispatch` 事件。评论创建时间须分别位于两个响应的 `run_started_at` 与 `updated_at` 之间。两个端点可以给出不同的 `updated_at`；它不是运行身份，不能仅因该值跨端点不同而拒绝同一次成功运行。两个端点的 `created_at` 也可能不同，且 attempt 元数据创建时间可能晚于运行开始时间；创建元数据不作为运行身份。各响应独立验证创建时间不晚于更新时间、开始时间不晚于更新时间，以及评论在运行窗口内。运行开始时间仍须一致。运行重试、失败、未完成、来源或时间不匹配均拒绝。返回前再次核对参与评论、Bot 账号、派发账号、run/attempt 与完整评论集合；同一端点在读取期间变化不返回部分权限。多对象 REST 读取仍不是事务。
+
+每个 nonce 和 run 只对应一个事实回执。多份独立正面观察可同时成立，返回其精确评论引用。同一派发存在可信负面资格时拒绝；正负观察并存时报告冲突，必须有新的派发才能继续，不按发布时间选择较新的事实。可信候选损坏、被编辑或关联运行失败时，不能退回较早的正面观察。没有对应事实时明确失败，不临时调用权限更大的路径。
+
+这里核对的是可信 App 发布的观察，不是对 App 被攻陷后的密码学证明，也不保证发布后 environment 成员没有变化。派发本身的撤销仍由既有 `readAuthority` 独立核对。Stage 与 Project membership 仍是事实记录中的快照。固定安装采用、reduce 发布准备及正式 CLI 装配属于调用方责任；模块测试不代表这些入口已部署。
+
+验证资源为 [只读 facts 测试](../../tests/integration-published-delivery-facts.spec.ts)、[既有 facts 回归](../../tests/integration-delivery-facts.spec.ts)和[协作等待测试](../../tests/delivery-reduce-watch.spec.ts)。替身验证覆盖当前、历史与任务派发，及等待期间出现的未来卡；真实 App/Action 和云端宿主须另行验证。
+
 ## 任务工作树与 gate 等待
 
 I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机检出，不写平台，只经 `gh api GET` 读卡的 binding。程序以固定 argv 运行，不经 shell，步骤经 [worktree.ts](worktree.ts) 的 `Runner` 注入。任一步骤非零退出时命令停止，报告步骤名与最后五行标准错误，不删除已建的目录或分支。
@@ -149,6 +165,18 @@ I20。`worktree-cli.ts` 的 `prepare`、`swap` 与 `projections` 只操作本机
 - `projections` 把本树 `.meta_harness/agents` 编译到新的临时目录，`rsync -rlpc` 进 `.meta_harness/`，运行 `link_agents.py`，去掉 `.meta_harness/.cursor` 下 `Dockerfile`、`environment.json`、`install.sh` 的组写权限，再运行 `pnpm run check:agents`。`check:agents` 失败时命令失败。临时目录无论成败都删除。
 
 I21。`gate-cli.ts wait` 等待一次 workflow 运行。说明去掉首尾空白后按字符计须在 1 到 1024 之间，否则在任何请求之前拒绝。`environments` 至少有一个环境名，CLI 缺省为 `publish`。每轮先读运行，`status` 为 `completed` 时返回 `conclusion` 与每轮批准的环境 ID；否则读 `pending_deployments`，把 `current_user_can_approve` 为 true 且环境名在 `environments` 中的部署在一次 POST 中批准，评论为说明。每轮按当时的待确认部署判断，不按此前批准过的环境 ID 跳过。然后等待一个间隔。到达时限时以 `unknown` 失败。CLI 在结论为 `success` 时退出0，其他结论退出1，失败退出2。命令不判断当前身份是否获授权代为确认，也不派发 gate。
+
+## 包发布运行命令
+
+`release-run-cli.ts`、仓库根和包内的 `release-run` script、构建后的 `omne-release-run` 迁移包发布脚本。它固定使用 `gate-release.yml` 与 `github-gate`，不表示整波 reduce release。
+
+输入由 `parseReleaseRunInput` 严格解析，包含版本、仓库、UUID operationId、包名、候选提交、Issue 号、显式 dryRun 与 workflowHead。支持 repo-toolchain 和 repo-config。派发前读取实际 workflow ID 与 ref head，确认与输入一致；在一次 POST 之前持久保存 intent。精确 dispatch receipt 绑定本次输入和 run。没有 receipt 时返回 unknown，恢复不选择最新 run，也不重复 POST。
+
+每次观察核对同仓库、workflow ID/path、ref、head、workflow_dispatch、run ID 和 attempt 1，并读取精确 attempt。重跑、身份变化、失败或取消均不能报告成功。观察超时只停止本地等待，远端运行可能继续。相同输入和操作日志用于恢复；冲突输入拒绝，日志不共用临时文件。
+
+默认只观察。显式 `--approve --note FILE` 才可能批准，且仅处理 `npm-release`，要求平台 `current_user_can_approve` 为真。审批前再次核对精确 run，并先保存审批 intent；不确定结果不重发。其他环境不批准。实际 approvals 另行读回。GitHub 审批接口按 run 定位，没有 compare-and-set attempt 保证，工具不声明消除该平台并发窗口。
+
+成功退出要求精确 run 完成且 conclusion 为 success。其他观察结果退出 1，输入或命令错误退出 2。输出包含操作身份、run/attempt 链接、诊断及恢复状态。持续验证由 [integration-release-run.spec.ts](../../tests/integration-release-run.spec.ts) 维护；替身通过不替代真实受保护环境审批证明。
 
 ## 状态与同步
 
@@ -208,31 +236,31 @@ I17。`ri-notes` 为一条轨道生成提升 PR 的「所含的卡」与「契�
 
 发现代码：
 
-| 代码 | 定位 | 含义 |
-| --- | --- | --- |
-| `parent-registry-drift` | 无 | registry 的 `parent` 与可信上游不同 |
-| `lower-bound-unknown` | 无 | 没有切换点，也没有起点标签 |
-| `lower-bound-not-ancestor` | 下限提交 | 下限不是轨道头的祖先 |
-| `unit-missing` | 提交 | 下限之后的提交没有 unit |
-| `unit-invalid` | 提交 | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告 |
-| `unit-target-mismatch` | 提交 | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
-| `pr-unreadable` | 提交、PR | PR 读不到 |
-| `pr-base-mismatch` | 提交、PR | PR 的 base 不是源轨道 |
-| `pr-section-missing` | 提交、PR、节 | PR 没有声明一节，或该节没有列表行 |
-| `cards-line-invalid` | 提交、PR、节 | 「所含的卡」的行不符合格式 |
-| `cards-empty` | 节 | 没有可列出的卡 |
-| `contract-line-invalid` | 提交、PR、节 | 「契约变化」的行不符合格式 |
-| `contract-path-unknown` | PR、节、路径 | 路径不是契约成员 |
-| `contract-level-exceeds-card` | PR、节、路径 | 级别高于所含卡的契约变更 |
-| `contract-breaking-off-integration` | PR、节、路径 | 联调轨道之外有 breaking |
-| `contracts-unknown` | 节 | 有提交的契约变化未知 |
-| `contract-diff-stale` | 节 | 快照差异不覆盖本次范围 |
-| `contract-diff-mismatch` | 节、路径 | 快照差异与声明不符 |
-| `card-inferred` | 卡 | 卡按分支名推测 |
-| `card-unresolved` | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding |
-| `card-unreadable` | 卡 | 卡读不到 |
-| `card-line-unknown` | 卡 | 卡没有合法的交付线 |
-| `card-other-line` | 卡 | 卡的线不属于源轨道及其子孙轨道 |
+| 代码                                | 定位             | 含义                                                          |
+| ----------------------------------- | ---------------- | ------------------------------------------------------------- |
+| `parent-registry-drift`             | 无               | registry 的 `parent` 与可信上游不同                           |
+| `lower-bound-unknown`               | 无               | 没有切换点，也没有起点标签                                    |
+| `lower-bound-not-ancestor`          | 下限提交         | 下限不是轨道头的祖先                                          |
+| `unit-missing`                      | 提交             | 下限之后的提交没有 unit                                       |
+| `unit-invalid`                      | 提交             | unit 标签或正文不合格，或没有 `pr`。下限之前的提交也报告      |
+| `unit-target-mismatch`              | 提交             | unit 的目标不是源轨道，或结果不是该提交。下限之前的提交也报告 |
+| `pr-unreadable`                     | 提交、PR         | PR 读不到                                                     |
+| `pr-base-mismatch`                  | 提交、PR         | PR 的 base 不是源轨道                                         |
+| `pr-section-missing`                | 提交、PR、节     | PR 没有声明一节，或该节没有列表行                             |
+| `cards-line-invalid`                | 提交、PR、节     | 「所含的卡」的行不符合格式                                    |
+| `cards-empty`                       | 节               | 没有可列出的卡                                                |
+| `contract-line-invalid`             | 提交、PR、节     | 「契约变化」的行不符合格式                                    |
+| `contract-path-unknown`             | PR、节、路径     | 路径不是契约成员                                              |
+| `contract-level-exceeds-card`       | PR、节、路径     | 级别高于所含卡的契约变更                                      |
+| `contract-breaking-off-integration` | PR、节、路径     | 联调轨道之外有 breaking                                       |
+| `contracts-unknown`                 | 节               | 有提交的契约变化未知                                          |
+| `contract-diff-stale`               | 节               | 快照差异不覆盖本次范围                                        |
+| `contract-diff-mismatch`            | 节、路径         | 快照差异与声明不符                                            |
+| `card-inferred`                     | 卡               | 卡按分支名推测                                                |
+| `card-unresolved`                   | 提交、PR，可有卡 | 推测不出卡，或推测的卡没有可用的 binding                      |
+| `card-unreadable`                   | 卡               | 卡读不到                                                      |
+| `card-line-unknown`                 | 卡               | 卡没有合法的交付线                                            |
+| `card-other-line`                   | 卡               | 卡的线不属于源轨道及其子孙轨道                                |
 
 ### 限制
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { parseCliOptions } from '../delivery/cli-options.ts'
 import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
 import { runGhCommand } from '../delivery/github-read.ts'
@@ -13,21 +14,11 @@ const usage =
 function options(args: string[]): Map<string, string> {
   const [first, ...rest] = args
   if (first !== 'wait') throw new InputError(usage)
-  const allowed = ['--run', '--note', '--environments', '--interval', '--timeout', '--config'],
-    values = new Map<string, string>()
-  for (let index = 0; index < rest.length; index += 2) {
-    const flag = rest[index] ?? '',
-      value = rest[index + 1]
-    if (
-      !allowed.includes(flag) ||
-      value === undefined ||
-      value.startsWith('--') ||
-      values.has(flag)
-    )
-      throw new InputError(usage)
-    values.set(flag, value)
-  }
-  return values
+  return parseCliOptions(
+    rest,
+    { values: ['--run', '--note', '--environments', '--interval', '--timeout', '--config'] },
+    usage,
+  ).values
 }
 function positive(value: string | undefined, fallback: number): number {
   if (value === undefined) return fallback

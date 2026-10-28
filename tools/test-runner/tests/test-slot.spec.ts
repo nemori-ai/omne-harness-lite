@@ -293,7 +293,13 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       'while (process.cpuUsage().user < 600000) {} process.exit(3)',
       'a"b\\c\tz',
     ]
-    const result = slot(args)
+    const clock = join(dir, 'ledger-clock.mjs')
+    writeFileSync(clock, `Date.now = () => ${Date.now()}\n`)
+    const result = slot(args, {
+      NODE_OPTIONS: [process.env['NODE_OPTIONS'], `--import=${pathToFileURL(clock).href}`]
+        .filter(Boolean)
+        .join(' '),
+    })
     expect(result.status).toBe(3)
     // 前提：名额空闲、没有排队；在此前提下 waitSeconds 应为 0。跨整秒边界的情形由下面的伪时钟用例核对。
     expect(result.stderr).not.toContain('排队中')

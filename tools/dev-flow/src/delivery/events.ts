@@ -3,6 +3,33 @@ import { InputError } from './protocol.ts'
 /** The GitHub events that the receiver forwards and the wait commands understand. */
 export const FORWARDED_EVENTS = ['issues', 'pull_request', 'issue_comment'] as const
 
+export type ChannelReceiverIdentity = {
+  instanceId: string
+  repository: string
+  mode: 'channel'
+  requiresReconcile: true
+}
+
+export type ReceiverDiagnostic = {
+  reasonCode: string
+  connectionEpoch: number
+  coverage: 'coverage-gap'
+}
+
+export type EventSubject = {
+  runId: number | null
+  runAttempt: number | null
+  workflowJobId: number | null
+  checkRunId: number | null
+  checkSuiteId: number | null
+  deploymentId: number | null
+  deploymentStatusId: number | null
+  reviewId: number | null
+  pullNumber: number | null
+  headSha: string | null
+  ref: string | null
+}
+
 /** One webhook delivery reduced to the fields the wait commands judge. */
 export type EventRecord = {
   /** `X-GitHub-Delivery`; null only when the header is absent, then the record is never deduplicated. */
@@ -21,6 +48,9 @@ export type EventRecord = {
   html_url: string | null
   /** ISO time at which the receiver accepted the delivery. */
   receivedAt: string
+  receiver?: ChannelReceiverIdentity
+  diagnostic?: ReceiverDiagnostic
+  subject?: EventSubject
 }
 
 /** One pull request at one head commit. */
@@ -188,6 +218,13 @@ export function parseEventLine(line: string): EventRecord | undefined {
   const body = object(value)
   if (body === undefined || typeof body.event !== 'string' || typeof body.receivedAt !== 'string')
     return undefined
+  const receiver = parseReceiverIdentity(body.receiver)
+  const diagnostic = parseReceiverDiagnostic(body.diagnostic)
+  const subject = parseEventSubject(body.subject)
+  if (body.receiver !== undefined && receiver === undefined) return undefined
+  if (body.diagnostic !== undefined && (diagnostic === undefined || receiver === undefined))
+    return undefined
+  if (body.subject !== undefined && subject === undefined) return undefined
   return {
     delivery: text(body.delivery),
     event: body.event,
@@ -200,6 +237,90 @@ export function parseEventLine(line: string): EventRecord | undefined {
     marker: text(body.marker),
     html_url: text(body.html_url),
     receivedAt: body.receivedAt,
+    ...(receiver === undefined ? {} : { receiver }),
+    ...(diagnostic === undefined ? {} : { diagnostic }),
+    ...(subject === undefined ? {} : { subject }),
+  }
+}
+
+function parseEventSubject(value: unknown): EventSubject | undefined {
+  const candidate = object(value)
+  if (candidate === undefined) return undefined
+  const idKeys = [
+    'runId',
+    'runAttempt',
+    'workflowJobId',
+    'checkRunId',
+    'checkSuiteId',
+    'deploymentId',
+    'deploymentStatusId',
+    'reviewId',
+    'pullNumber',
+  ] as const
+  for (const key of idKeys) {
+    const value = candidate[key]
+    if (value !== null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0))
+      return undefined
+  }
+  if (
+    candidate.headSha !== null &&
+    (typeof candidate.headSha !== 'string' ||
+      !/^(?:[a-fA-F0-9]{40}|[a-fA-F0-9]{64})$/.test(candidate.headSha))
+  )
+    return undefined
+  if (candidate.ref !== null && (typeof candidate.ref !== 'string' || candidate.ref.length === 0))
+    return undefined
+  return {
+    runId: integer(candidate.runId),
+    runAttempt: integer(candidate.runAttempt),
+    workflowJobId: integer(candidate.workflowJobId),
+    checkRunId: integer(candidate.checkRunId),
+    checkSuiteId: integer(candidate.checkSuiteId),
+    deploymentId: integer(candidate.deploymentId),
+    deploymentStatusId: integer(candidate.deploymentStatusId),
+    reviewId: integer(candidate.reviewId),
+    pullNumber: integer(candidate.pullNumber),
+    headSha: text(candidate.headSha)?.toLowerCase() ?? null,
+    ref: text(candidate.ref),
+  }
+}
+
+function parseReceiverIdentity(value: unknown): ChannelReceiverIdentity | undefined {
+  const candidate = object(value)
+  if (
+    candidate === undefined ||
+    candidate.mode !== 'channel' ||
+    candidate.requiresReconcile !== true ||
+    typeof candidate.instanceId !== 'string' ||
+    candidate.instanceId.trim() === '' ||
+    typeof candidate.repository !== 'string' ||
+    !/^[\w.-]+\/[\w.-]+$/.test(candidate.repository)
+  )
+    return undefined
+  return {
+    instanceId: candidate.instanceId,
+    repository: candidate.repository,
+    mode: 'channel',
+    requiresReconcile: true,
+  }
+}
+
+function parseReceiverDiagnostic(value: unknown): ReceiverDiagnostic | undefined {
+  const candidate = object(value)
+  if (
+    candidate === undefined ||
+    typeof candidate.reasonCode !== 'string' ||
+    candidate.reasonCode.trim() === '' ||
+    typeof candidate.connectionEpoch !== 'number' ||
+    !Number.isSafeInteger(candidate.connectionEpoch) ||
+    candidate.connectionEpoch < 0 ||
+    candidate.coverage !== 'coverage-gap'
+  )
+    return undefined
+  return {
+    reasonCode: candidate.reasonCode,
+    connectionEpoch: candidate.connectionEpoch,
+    coverage: 'coverage-gap',
   }
 }
 

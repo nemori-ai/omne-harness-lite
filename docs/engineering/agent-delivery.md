@@ -48,7 +48,7 @@
 
 修订由卡owner授权后交正文单写者集成。语义变化升交付revision，保留既有决定范围；分类标签只投影正文。规范变义先由其拥有者接受并写回，卡引用新有效输入；原生边与条件表不一致须对账。改了卡不表示已满足准入。
 
-主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding与 `kind:` 标签写入，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
+主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding写 Line，核对正文主工作类型与唯一 `kind:` 标签一致后写 Kind，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
 
 当前波视图要求负责人已采用波的节奏，调度者已在Wave字段中为本波建好迭代；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
 
@@ -72,10 +72,10 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 | 角色 | 阶段 | 可执行流程 |
 | --- | --- | --- |
-| 线会话（推进一条线的会话，跨波不换） | 线级准备一次 → 每波从收口点切批次分支 → 波内逐卡（卡级增量准备、按计划推进、合入批次分支）→ 波末开批次 PR → 后台等本波收口卡关闭或 `line-return` 退回 → 读 `line-delta` 进下一波 → 里程碑收尾 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md) 技能。单张卡的准备与推进归 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md) 技能 |
-| 集成节点（兼调度者） | 里程碑开工（冻结共享物、基线、波计划、线父卡与收口卡）→ 首波波准入并发线包 → 等批次 PR → 逐批次合入，有缺陷时以 `line-return` 退回 → 建收口点 → 逐卡接受 → 收口卡接受评论 → 下一波波准入 → 发 `line-delta` → 关闭收口卡 → 里程碑收尾时接受线父卡 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) 技能（建卡、波准入、首波线包、派发）与 [`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) 技能（收批次到关收口卡） |
+| 线会话（推进一条线的会话，跨波不换） | 开工读取冻结输入 → 波内自主实施验证 → 交 ready/blocked/failed 并停写 → 非成功先等有效处置 → 逐当前 reduce 的有效 release 消费 delta → active/idle 续挂或明确 terminal 最终交接 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md)；卡级动作用 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md)，状态归[负责人状态](map-reduce-states.md) |
+| 集成节点（兼调度者） | 同一里程碑同一会话负责 → 当前波正式建卡及后一波预案 → 首次消息生成/校验/打开供人转发 → 持续收件与八类监督 → 接管全局集成问题 → 验证成果 → 建后继卡并读回全部存续线 delta → 有权接受 → 最终 release → 关闭读回 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md)、[`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md)；规则归[集成清单](integration.md#集成节点的清单) |
 
-线会话在波内收不到任何人或别的 agent 的消息，所以它不提问。拿不准的事按线包的停止条件写到线父卡上，调度者在下一波的 `line-delta` 里答复。线会话与集成节点的等待一律阻塞在本机的 GitHub 事件文件上，不轮询 GitHub，命令归 `tools/dev-flow/src/delivery/README.md`「事件等待」。
+Line 波中按冻结输入自主执行，不向人提问、不通过普通评论向 reduce 求方案。缺口先停依赖项并继续独立工作；达到结束条件时交 blocked/failed 并停写，先等有效处置，不能等下一波答复形成循环阻塞。正常路径按当前 R 的有效 release 逐节点续接，事件只是权威对账提示。精确等待、恢复和有界活动 run 观察由固定工具帮助定义，不用低层 closed/comment 事件代替整波放行。
 
 ## 4. 推进和更新状态
 

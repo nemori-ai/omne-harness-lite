@@ -35,6 +35,7 @@ describe('reading card attributes', () => {
     )
     expect(card).toEqual({
       issue: url,
+      workKind: undefined,
       fields: { line: ['model'], nature: ['impl'], contractChange: ['additive'] },
       milestone: 'M1',
       labels: ['line:model', 'kind:feature'],

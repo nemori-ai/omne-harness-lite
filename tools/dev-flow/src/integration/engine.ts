@@ -301,7 +301,7 @@ function reportBoard({
       cloud,
       issue: { id: task.binding.issue.id, url: task.binding.issue.url },
       line: cardLine(task.binding, readCardAttributes(task.issue.body, task.issue)),
-      kind: cardKind(task.issue.labels),
+      kind: cardKind(readCardAttributes(task.issue.body, task.issue)),
       now: board.now(),
       call: board.call,
     }))

@@ -5,7 +5,7 @@ import { table } from './fixtures/lines.ts'
 
 const url = 'https://github.com/owner/repo/issues/7'
 const body = (contract = 'additive') =>
-  `## 身份与责任\n\n- 交付线：model\n- 性质：impl\n- 契约变更：${contract}\n\n## 目标与范围\n\n正文。`
+  `## 身份与责任\n\n- 主工作类型：feature\n- 交付线：model\n- 性质：impl\n- 契约变更：${contract}\n\n## 目标与范围\n\n正文。`
 /** A GitHub stand-in that applies label writes to one Issue and records every call. */
 function github(labels: string[], text = body()) {
   const state = { labels: [...labels] },
@@ -45,8 +45,8 @@ describe('attribute label sync', () => {
     expect(run(gh, false)).toEqual({
       plan: {
         issue: url,
-        current: ['line:platform', 'nature:impl'],
-        target: ['contract:additive', 'line:model', 'nature:impl'],
+        current: ['kind:feature', 'line:platform', 'nature:impl'],
+        target: ['contract:additive', 'kind:feature', 'line:model', 'nature:impl'],
         add: ['contract:additive', 'line:model'],
         remove: ['line:platform'],
       },
@@ -55,12 +55,12 @@ describe('attribute label sync', () => {
     expect(gh.calls.every(call => call[2] === 'GET')).toBe(true)
   })
 
-  it('applies only the three families and verifies the readback', () => {
+  it('applies only the four families and verifies the readback', () => {
     const gh = github(['line:platform', 'contract:breaking', 'kind:feature', 'linear:x'])
     const result = run(gh, true)
     expect(result).toMatchObject({
       applied: true,
-      readback: ['contract:additive', 'line:model', 'nature:impl'],
+      readback: ['contract:additive', 'kind:feature', 'line:model', 'nature:impl'],
       verified: true,
     })
     expect(gh.state.labels.sort()).toEqual([
@@ -78,7 +78,7 @@ describe('attribute label sync', () => {
   })
 
   it('projects contract change none to no contract label and writes nothing when equal', () => {
-    const gh = github(['line:model', 'nature:impl'], body('none'))
+    const gh = github(['kind:feature', 'line:model', 'nature:impl'], body('none'))
     expect(run(gh, true)).toMatchObject({ plan: { add: [], remove: [] }, verified: true })
     expect(gh.calls.map(call => call[2])).toEqual(['GET', 'GET'])
   })
@@ -89,6 +89,23 @@ describe('attribute label sync', () => {
     expect(
       syncLabels({ repository: 'owner/repo', number: 7, apply: true, lines: table(), call }),
     ).toMatchObject({ verified: false, readback: [] })
+  })
+
+  it('does not verify old labels after the body kind changes during the write', () => {
+    const gh = github([])
+    let reads = 0
+    const call: GhCommand = (argv, timeout) => {
+      const result = gh.call(argv, timeout)
+      if (argv[2] === 'GET' && ++reads === 2)
+        return {
+          ...(result as object),
+          body: body().replace('主工作类型：feature', '主工作类型：bug'),
+        }
+      return result
+    }
+    expect(
+      syncLabels({ repository: 'owner/repo', number: 7, apply: true, lines: table(), call }),
+    ).toMatchObject({ verified: false, readback: expect.arrayContaining(['kind:feature']) })
   })
 
   it('refuses a card whose attributes cannot project labels and writes nothing', () => {
@@ -115,5 +132,29 @@ describe('attribute label sync', () => {
     expect(() =>
       syncLabels({ repository: 'owner/repo', number: 7, apply: false, lines: table(), call }),
     ).toThrow('pull request')
+  })
+
+  it('replaces conflicting kind labels from the body while preserving other families', () => {
+    const gh = github(['kind:bug', 'kind:maintenance', 'level:subtask', 'domain:agent'])
+    expect(run(gh, true)).toMatchObject({
+      plan: { remove: ['kind:bug', 'kind:maintenance'] },
+      verified: true,
+    })
+    expect(gh.state.labels).toEqual(
+      expect.arrayContaining(['kind:feature', 'level:subtask', 'domain:agent']),
+    )
+    expect(
+      gh.state.labels.some(label => label === 'kind:bug' || label === 'kind:maintenance'),
+    ).toBe(false)
+  })
+
+  it.each([
+    body().replace('- 主工作类型：feature\n', ''),
+    body().replace('主工作类型：feature', '主工作类型：task'),
+    body().replace('主工作类型：feature', '主工作类型：feature\n- 主工作类型：bug'),
+  ])('refuses an absent, invalid or repeated body kind before writing', text => {
+    const gh = github(['kind:feature'], text)
+    expect(() => run(gh, true)).toThrow('Card work kind cannot project labels')
+    expect(gh.calls.map(call => call[2])).toEqual(['GET'])
   })
 })
