@@ -60,9 +60,9 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
 | `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
 | `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
-| `dispatch` | Reduce 当前波建卡、准入、binding 与首次临时消息，五种派发事实分开记录 |
-| `integrate` | 唯一 Reduce 持续收件与八类监督、接管迁移集成、后继及全线 delta 先于接受、最终 release 收口 |
-| `line` | 常驻 Line 开工、自主执行、三种结果交接、处置等待及 active/idle/terminal 逐收口续接 |
+| `dispatch` | Reduce 当前波建卡、准入、binding 与首次临时消息，生成、校验、演练、打开与人转发分开记录 |
+| `integrate` | 唯一 Reduce 用 `wait-cli` 持续收件、接管迁移集成、blocked 交回发 redo delta 或接管、后继与全线 delta 先于关闭收口卡 |
+| `line` | 常驻 Line 开工、自主执行、交回、等待下一条 delta 及 active/idle/redo/terminal 逐收口续接 |
 | `claim` | active Line 或独立任务的卡级准备、实施与五节交回；跨波协调按 line |
 | `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
 | `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |

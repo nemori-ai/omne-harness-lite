@@ -355,6 +355,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 调度者用这两个命令派发一张卡的一个 attempt。`post` 发派发评论，`bind` 把 binding 写进卡的正文。两步之间不改卡。
 
+`post` 在任何平台调用之前拒绝空或只含空白的 `--text`，退出2。
+
 `spec.json` 只写调度者的决定，字段全部必填，多余字段拒绝：
 
 | 字段                                                                                      | 内容                                                                       |
