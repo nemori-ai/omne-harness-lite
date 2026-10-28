@@ -247,6 +247,8 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     ]
     const result = slot(args)
     expect(result.status).toBe(3)
+    // 名额空闲、没有排队：waitSeconds 记的是真实经过的整秒数，不因进队与拿到名额跨过整秒边界而成 1。
+    expect(result.stderr).not.toContain('排队中')
     const [line, ...rest] = ledger()
     expect(rest).toEqual([])
     expect(line).toMatchObject({

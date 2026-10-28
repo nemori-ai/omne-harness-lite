@@ -94,6 +94,8 @@ try {
 
 const commandLine = args.join(' ').replaceAll('\n', ' ')
 const unixNow = () => Math.floor(Date.now() / 1000)
+// 账本里的时刻按毫秒取、经过的时长按毫秒相减后再取整秒：先各自取整再相减，跨过整秒边界的几毫秒会被记成 1 秒。
+const wholeSeconds = ms => Math.floor(ms / 1000)
 const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000))
 
@@ -199,9 +201,9 @@ function duration(seconds) {
   return `${Math.floor(seconds / 3600)} 小时 ${Math.floor((seconds % 3600) / 60)} 分`
 }
 
-/** RFC 3339 本地时刻，带冒号的时区偏移。 */
-function jsonTime(seconds) {
-  const at = new Date(seconds * 1000)
+/** RFC 3339 本地时刻（精确到秒），带冒号的时区偏移；参数是毫秒时刻。 */
+function jsonTime(ms) {
+  const at = new Date(ms)
   const pad = n => String(n).padStart(2, '0')
   const offset = -at.getTimezoneOffset()
   const sign = offset >= 0 ? '+' : '-'
@@ -295,7 +297,7 @@ function takeTurn() {
 }
 
 const HOLDER_BEAT_SECONDS = 5
-const started = unixNow()
+const started = Date.now()
 let aheadOnArrival
 let waited = 0
 let status = 0
@@ -316,7 +318,7 @@ function record(event, run) {
     waitSeconds: waited,
     slot: event === 'ran' ? acquired : null,
     acquiredAt: event === 'ran' ? jsonTime(run.acquiredAt) : null,
-    heldSeconds: event === 'ran' ? run.endedAt - run.acquiredAt : null,
+    heldSeconds: event === 'ran' ? wholeSeconds(run.endedAt - run.acquiredAt) : null,
     cpuSeconds: event === 'ran' ? run.cpuSeconds : null,
     loadAtAcquire: event === 'ran' ? run.loadAtAcquire : null,
     endedAt: jsonTime(run.endedAt),
@@ -342,13 +344,13 @@ let lastSeen = ''
 for (;;) {
   inQueue(takeTurn)
   aheadOnArrival ??= ahead
-  waited = unixNow() - started
+  waited = wholeSeconds(Date.now() - started)
   if (acquired) break
   if (waited >= maxWaitSeconds) {
     status = 75
     inQueue(() => {
       rmSync(ticket, { force: true })
-      record('gave-up', { endedAt: unixNow() })
+      record('gave-up', { endedAt: Date.now() })
     })
     process.stderr.write(
       `with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，共 ${slots} 个名额，锁在 ${slotDir}），命令没有执行\n`,
@@ -380,7 +382,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, interr
 if (announced)
   process.stderr.write(`with-test-slot: 等了 ${waited} 秒，拿到名额 ${acquired}/${slots}\n`)
 const slotPath = join(slotDir, `slot-${acquired}.lock`)
-const acquiredAt = unixNow()
+const acquiredAt = Date.now()
 const loadAtAcquire = load()
 const heartbeat = setInterval(() => {
   try {
@@ -394,7 +396,7 @@ const heartbeat = setInterval(() => {
 const result = await run(args, { ...process.env, OMNE_TEST_SLOT_HELD: slotPath }, true)
 clearInterval(heartbeat)
 status = result.status
-const endedAt = unixNow()
+const endedAt = Date.now()
 inQueue(() => {
   rmSync(slotPath, { force: true })
   record('ran', { acquiredAt, endedAt, cpuSeconds: result.cpuSeconds, loadAtAcquire })

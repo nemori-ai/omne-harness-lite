@@ -1,3 +1,6 @@
+// @module-tag slow
+// Slow: the case runs tsc ten times (build and typecheck of five generated members) and git in a temporary
+// workspace; about 3.5 s on an idle 4-core host, over the 5 s fast budget under load (5.2–6.8 s on the integration node).
 import { describe, expect, it } from 'vitest'
 import { createDomain } from '../src/package-template/domain.ts'
 import { createPackage } from '../src/package-template/create.ts'
