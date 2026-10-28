@@ -27,11 +27,11 @@ const DIFFERENCE_KINDS = [
 ] as const
 const DIFFERENCE_SCOPES = ['snapshot', 'entry', 'export', 'declaration'] as const
 
-type Difference = {
+export type Difference = {
   scope: (typeof DIFFERENCE_SCOPES)[number]
   kind: (typeof DIFFERENCE_KINDS)[number]
 }
-type ComparedMember = {
+export type ComparedMember = {
   status: 'compared'
   directory: string
   before: string | undefined
@@ -40,9 +40,10 @@ type ComparedMember = {
   differences: Difference[]
 }
 /** One member of the CLI's diff result, reduced to the fields this provider reads. */
-type DiffMember = ComparedMember | { status: 'invalid'; directory: string; message: string }
-type DiffRun = { commit: string; members: DiffMember[] }
-type Unavailable = Extract<ContractDiff, { kind: 'unavailable' }>
+export type DiffMember = ComparedMember | { status: 'invalid'; directory: string; message: string }
+/** The fields of one `omne-contract-api --diff --json` run that dev-flow reads. */
+export type DiffRun = { commit: string; members: DiffMember[] }
+export type Unavailable = Extract<ContractDiff, { kind: 'unavailable' }>
 type Range = Parameters<DiffContracts>[0]
 
 function optionalPath(value: unknown, path: string): string | undefined {
@@ -203,24 +204,21 @@ export function contractApiEnv(root: string): NodeJS.ProcessEnv {
 }
 
 /**
- * Runs `omne-contract-api --diff`. Each failure has its own reason: timeout, process error with
- * its error code, exit code with standard error.
+ * Runs `omne-contract-api` with `args` on the checkout `root`. Each failure has its own reason:
+ * timeout, process error with its error code, exit code with standard error.
  */
-export function runDiff(
+export function runContractApi(
   command: ContractApiCommand,
-  { root, base, timeoutMs }: { root: string; base: string; timeoutMs: number },
+  args: readonly string[],
+  { root, timeoutMs }: { root: string; timeoutMs: number },
 ): { kind: 'ran'; stdout: string } | Unavailable {
-  const result = spawnSync(
-    command.file,
-    [...command.args, '--diff', base, '--json', '--root', root],
-    {
-      cwd: root,
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      maxBuffer: 64 * 1024 * 1024,
-      env: contractApiEnv(root),
-    },
-  )
+  const result = spawnSync(command.file, [...command.args, ...args, '--root', root], {
+    cwd: root,
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    maxBuffer: 64 * 1024 * 1024,
+    env: contractApiEnv(root),
+  })
   if (result.error !== undefined) {
     const code = 'code' in result.error ? result.error.code : undefined
     return code === 'ETIMEDOUT'
@@ -240,6 +238,13 @@ export function runDiff(
       reason: `${CONTRACT_API_BIN} 退出码 ${result.status ?? `null（信号 ${result.signal ?? '未知'}）`}${stderr === '' ? '' : `：${stderr}`}`,
     }
   return { kind: 'ran', stdout: result.stdout }
+}
+/** Runs `omne-contract-api --diff <base> --json` on the working tree of `root`. */
+export function runDiff(
+  command: ContractApiCommand,
+  { root, base, timeoutMs }: { root: string; base: string; timeoutMs: number },
+): { kind: 'ran'; stdout: string } | Unavailable {
+  return runContractApi(command, ['--diff', base, '--json'], { root, timeoutMs })
 }
 
 /**

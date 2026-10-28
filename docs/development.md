@@ -281,6 +281,8 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 `check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
 
+已绑定任务的工作树上，`pnpm run check` 每次都核对本卡实际改动的文件。本卡的改动从 binding 的 `taskBase` 沿第一父链逐提交计算：合并提交计入与每个父提交都不同的文件（冲突的解决、合并时另加的改动、两侧都改过的文件），它带进来的提交只在不属于别的远端跟踪分支时计入，所以从远端同步目标分支与合并别的卡带进来的提交不计入。工作树中未提交的改动也计入。不在 binding 写范围内的文件，以及线内的卡改到别的线或联调轨道的文件，让检查失败，标准错误逐项写文件、代码与改法。撤回这些改动，或请调度者扩大写范围并重新派发。本卡改了契约成员的 `api` 目录时，检查还用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异：差异超过 binding 的契约变更时检查失败，`omne-contract-api` 运行失败时检查也失败。同步目标分支时用 `git merge --no-ff` 合并远端跟踪分支，不用快进或 rebase：快进与 rebase 把目标分支的提交放到第一父链上，会算成本卡的改动。没有 task context 的工作树只报告「未绑定」。命令与算法见[交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+
 没有绑定任务的工作树才需要显式基线。在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
 
 ```sh
@@ -497,4 +499,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。提升 PR 由轨道 owner 提出，说明中列出所含的卡及其在上一层的条件，见[现行准入](engineering/integration.md#现行准入)。说明的「所含的卡」与「契约变化」两节用 `pnpm run ri-notes --track <轨道 ID> --format markdown` 生成：两节写到标准输出，发现写到标准错误。贴进 PR 之前先处理这些发现。命令只读 Git 与 GitHub，只报告，发现不改变退出码；条款见[集成工具契约](../tools/dev-flow/src/integration/SPEC.md)的 I17，两节的规则见[进轨道 PR 的说明](engineering/integration.md#进轨道-pr-的说明)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
+先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge --no-ff` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。提升 PR 由轨道 owner 提出，说明中列出所含的卡及其在上一层的条件，见[现行准入](engineering/integration.md#现行准入)。说明的「所含的卡」与「契约变化」两节用 `pnpm run ri-notes --track <轨道 ID> --format markdown` 生成：两节写到标准输出，发现写到标准错误。贴进 PR 之前先处理这些发现。命令只读 Git 与 GitHub。有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1，其他发现只报告，退出 0；读取失败退出 2。确认者在 gate 说明里贴退出码与标准错误最后一行的汇总。条款见[集成工具契约](../tools/dev-flow/src/integration/SPEC.md)的 I17，两节的规则见[进轨道 PR 的说明](engineering/integration.md#进轨道-pr-的说明)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

@@ -4,7 +4,10 @@ import { GhReadError } from '../src/delivery/github-read.ts'
 import { registeredTrack } from '../src/integration/policy.ts'
 import { CARDS_SECTION, formatCardLine, parsePullSections } from '../src/integration/pr-sections.ts'
 import {
+  findingCodes,
+  RI_REFUSING_CODES,
   riNotes,
+  riNotesExitCode,
   type CardBinding,
   type CardRead,
   type DiffContracts,
@@ -816,5 +819,82 @@ describe('ri-notes GitHub readers', () => {
       kind: 'invalid',
       reason: expect.any(String),
     })
+  })
+})
+
+describe('the exit code of ri-notes', () => {
+  const declared = (level: string, change: string, track = 'legacy-refactor') =>
+    input({
+      track,
+      commits: [unitCommit(2, 10, `refs/heads/integration/${track}`)],
+      pulls: {
+        10: work(
+          body(
+            ['- #7 revision 1 attempt `7-a1`：无'],
+            [`- packages/model/model-contract：${level}`],
+          ),
+          `integration/${track}`,
+        ),
+      },
+      cards: { 7: { line: 'model', nature: 'impl', change } },
+    })
+  const available =
+    (members: [string, 'none' | 'additive' | 'review'][]): DiffContracts =>
+    range => ({ kind: 'available', ...range, members: new Map(members) })
+
+  it('is 1 for each refusing contract code', () => {
+    const exceeds = riNotes(declared('additive', 'none'))
+    expect(codes(exceeds)).toContain('contract-level-exceeds-card')
+    expect(riNotesExitCode(exceeds)).toBe(1)
+
+    // The model track is a line track, not the integration track.
+    const breaking = riNotes(declared('breaking', 'breaking', 'model'))
+    expect(codes(breaking)).toContain('contract-breaking-off-integration')
+    expect(codes(breaking)).not.toContain('contract-level-exceeds-card')
+    expect(riNotesExitCode(breaking)).toBe(1)
+
+    const mismatch = riNotes({
+      ...declared('additive', 'additive'),
+      diffContracts: available([['packages/model/model-contract', 'none']]),
+    })
+    expect(codes(mismatch)).toEqual(['contract-diff-mismatch'])
+    expect(riNotesExitCode(mismatch)).toBe(1)
+  })
+
+  it('is 0 when the snapshot difference is unavailable and when nothing is found', () => {
+    const unavailable = riNotes(declared('additive', 'additive'))
+    expect(unavailable.contractCheck.kind).toBe('unavailable')
+    expect(riNotesExitCode(unavailable)).toBe(0)
+
+    const agreed = riNotes({
+      ...declared('additive', 'additive'),
+      diffContracts: available([['packages/model/model-contract', 'additive']]),
+    })
+    expect(agreed.findings).toEqual([])
+    expect(riNotesExitCode(agreed)).toBe(0)
+  })
+
+  it('is 1 for exactly the three contract codes of the ruling, one finding at a time', () => {
+    // Ruling OQ6 A: these three codes refuse a promotion; every other code only reports.
+    const refusing = [
+      'contract-level-exceeds-card',
+      'contract-breaking-off-integration',
+      'contract-diff-mismatch',
+    ]
+    for (const code of findingCodes) {
+      const notes = { findings: [{ severity: 'report' as const, code, at: {}, message: code }] }
+      expect(riNotesExitCode(notes), code).toBe(refusing.includes(code) ? 1 : 0)
+    }
+  })
+
+  it('is 0 for the other report-only codes', () => {
+    const notes = riNotes(
+      input({ commits: [unitCommit(2, 10)], pulls: { 10: work(body(null)) }, cards: {} }),
+    )
+    expect(notes.findings.length).toBeGreaterThan(0)
+    expect(
+      notes.findings.some(f => (RI_REFUSING_CODES as readonly string[]).includes(f.code)),
+    ).toBe(false)
+    expect(riNotesExitCode(notes)).toBe(0)
   })
 })
