@@ -9,6 +9,7 @@ import {
   assignReadSets,
   classifyReadConflicts,
   frozenPageStop,
+  matchesRegistered,
   narrowerReadPath,
   parseReadSetFile,
   readOverlap,
@@ -168,6 +169,9 @@ describe('read conflict kinds', () => {
       'docs/architecture/x.md',
       'docs/engineering-old/x.md',
       'docs/development.md.bak',
+      'docs/engineering/x.md.bak',
+      'docs/engineering/x.mdx',
+      'tools/README.md.orig',
       'docs/workspace.md',
       'tools',
       'tools/dev-flow/src/x.ts',
@@ -222,7 +226,7 @@ describe('read conflict kinds', () => {
 
   // The same paths matched with test-runner's own pattern semantics give these patterns.
   it('matches the real reader rules and global paths as the test runner does', () => {
-    const match = (path: string) => registered.find(pattern => matchesGlob(path, pattern))
+    const match = (path: string) => registered.find(pattern => matchesRegistered(path, pattern))
     expect(
       Object.fromEntries(
         [
@@ -230,6 +234,7 @@ describe('read conflict kinds', () => {
           'docs/engineering/integration-policy.json',
           'tools/repo-toolchain/resources/clean-loop-entries.md',
           'tools/dev-flow/turbo.json',
+          '.cursor/turbo.json',
           'tsconfig.base.json',
           'packages/agent/agent-contract/package.json',
           'packages/agent/agent-contract/src/x.ts',
@@ -244,6 +249,7 @@ describe('read conflict kinds', () => {
       'tools/repo-toolchain/resources/clean-loop-entries.md':
         'tools/repo-toolchain/resources/clean-loop-entries.md',
       'tools/dev-flow/turbo.json': '**/turbo.json',
+      '.cursor/turbo.json': '**/turbo.json',
       'tsconfig.base.json': 'tsconfig*.json',
       'packages/agent/agent-contract/package.json': 'packages/*/*/package.json',
       'packages/agent/agent-contract/src/x.ts': 'packages/**/*.ts',
@@ -251,6 +257,21 @@ describe('read conflict kinds', () => {
       '.meta_harness/agents/skills/review-code/canonical/SKILL.md': undefined,
       'docs/development.md': undefined,
     })
+  })
+
+  // matchesGlob alone does not let * and ** match a segment that starts with a dot; the test
+  // runner's patterns do. A registered page would then count as frozen.
+  it('lets * and ** match path segments that start with a dot', () => {
+    const fixture =
+      'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/design.md'
+    expect(matchesGlob(fixture, 'tools/repo-toolchain/tests/fixtures/**')).toBe(false)
+    expect(matchesRegistered(fixture, 'tools/repo-toolchain/tests/fixtures/**')).toBe(true)
+    expect(frozenPage(fixture, ['tools/repo-toolchain/tests/fixtures/**'])).toBe(false)
+    expect(frozenPage(fixture, ['**/design.md'])).toBe(false)
+    expect(frozenPage(fixture, ['tools/*/tests/fixtures/*/repo/*/design/**'])).toBe(false)
+    expect(matchesRegistered('docs/a.md', 'docs/b.md')).toBe(false)
+    expect(matchesRegistered('.meta_harness/x.md', '.meta_harness/*.md')).toBe(true)
+    expect(matchesRegistered('xmeta_harness/x.md', '.meta_harness/*.md')).toBe(false)
   })
 
   it('takes the narrower path and refuses two paths where neither contains the other', () => {
@@ -264,6 +285,13 @@ describe('read conflict kinds', () => {
     expect(() => narrowerReadPath(conflict('docs/a.md', 'docs/b.md'))).toThrow(
       'neither path contains the other',
     )
+    let thrown: unknown
+    try {
+      narrowerReadPath(conflict('docs/a.md', 'docs/b.md'))
+    } catch (error) {
+      thrown = error
+    }
+    expect(thrown).toMatchObject({ code: 'invariant' })
     expect(() =>
       classifyReadConflicts([conflict('tools/a', 'tools/ab')], { registered: [], tracked: [] }),
     ).toThrow('neither path contains the other')
@@ -274,11 +302,14 @@ describe('read conflict kinds', () => {
       '.meta_harness/agents/skills/review-code/canonical/SKILL.md',
       '.meta_harness/agents/skills/review-code/adapters/codex/strategy.yaml',
       '.meta_harness/agents/evaluation/README.md',
+      '.meta_harness/agents/evaluation/harness/roleeval/aaa.py',
       '.meta_harness/agents/evaluation/harness/roleeval/stats.py',
       'docs/engineering/integration.md',
       'docs/engineering/x.md',
       'tools/dev-flow/README.md',
       'tools/dev-flow/src/x.ts',
+      'tools/dev-docs/README.md',
+      'tools/dev-docs-other/src/x.ts',
     ]
     const skill = conflict(
         '.meta_harness/agents/skills/review-code',
@@ -294,7 +325,8 @@ describe('read conflict kinds', () => {
       member = conflict('tools/dev-flow', 'tools/dev-flow'),
       newPage = conflict('docs/engineering/new.md', 'docs/engineering'),
       registeredPage = conflict('docs/engineering/x.md', 'docs/engineering/x.md'),
-      productPage = conflict('docs/architecture/x.md', 'docs/architecture')
+      productPage = conflict('docs/architecture/x.md', 'docs/architecture'),
+      pagesBesidePrefix = conflict('tools/dev-docs', 'tools/dev-docs')
     expect(
       classifyReadConflicts(
         [
@@ -307,6 +339,7 @@ describe('read conflict kinds', () => {
           newPage,
           registeredPage,
           productPage,
+          pagesBesidePrefix,
         ],
         { registered: ['docs/engineering/x.md'], tracked },
       ),
@@ -314,9 +347,9 @@ describe('read conflict kinds', () => {
       stopping: [
         {
           ...evaluationTree,
-          file: '.meta_harness/agents/evaluation/harness/roleeval/stats.py',
+          file: '.meta_harness/agents/evaluation/harness/roleeval/aaa.py',
           reason:
-            '.meta_harness/agents/evaluation/harness/roleeval/stats.py: neither a .md page nor a skill adapter strategy.yaml',
+            '.meta_harness/agents/evaluation/harness/roleeval/aaa.py: neither a .md page nor a skill adapter strategy.yaml',
         },
         {
           ...sourceInMember,
@@ -339,7 +372,7 @@ describe('read conflict kinds', () => {
           reason: 'docs/architecture/x.md: outside the engineering method and verification areas',
         },
       ],
-      frozen: [skill, evaluation, pageInMember, newPage],
+      frozen: [skill, evaluation, pageInMember, newPage, pagesBesidePrefix],
     })
   })
 
@@ -551,6 +584,7 @@ describe('scope-cli read-overlap kinds', () => {
       )
       expect(written.output.readConflicts).toEqual([])
       expect(written.output.frozenReadConflicts).toEqual([])
+      expect(written.output.readBasis).toBeNull()
     },
   )
 
@@ -690,5 +724,42 @@ describe('scope-cli read-overlap kinds', () => {
     expect(ran.output.conflicts).toEqual([])
     expect(ran.output.readConflicts).toEqual([])
     expect(ran.output.frozenReadConflicts).toHaveLength(2)
+    expect(ran.output.readBasis).toEqual({ commit: expect.stringMatching(/^[0-9a-f]{40}$/u) })
   })
+
+  // Without git on PATH the command cannot read the configuration or the tracked files at HEAD.
+  // It must not fall back to judging the paths alone, which would count a page as frozen.
+  it(
+    'stops every crossing and gives the reason when it cannot read the basis',
+    { tags: ['slow'] },
+    () => {
+      const { a, b } = inputs({
+        a: binding(1, ['docs/development.md']),
+        b: binding(2, ['scripts/b.mjs']),
+      })
+      const [reads] = Object.values(inputs({ r: { source: b, reads: ['docs/development.md'] } }))
+      const empty = realpathSync(mkdtempSync(join(tmpdir(), 'omne-read-path-')))
+      homes.push(empty)
+      const result = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', cli, a!, b!, reads!],
+        { encoding: 'utf8', env: { PATH: empty, NO_COLOR: '1' } },
+      )
+      const unknown = `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: `
+      expect(result.status, result.stderr).toBe(1)
+      expect(result.stderr).toMatch(
+        new RegExp(
+          `^read-overlap: ${a} docs/development\\.md -> ${b} docs/development\\.md \\(cannot classify: ${unknown.replaceAll('.', '\\.')}.+\\)\\n$`,
+          'u',
+        ),
+      )
+      const output = JSON.parse(result.stdout)
+      expect(output.frozenReadConflicts).toEqual([])
+      expect(output.readConflicts).toEqual([
+        expect.objectContaining({ reason: expect.stringContaining(`cannot classify: ${unknown}`) }),
+      ])
+      expect(output.readConflicts[0]).not.toHaveProperty('file')
+      expect(output.readBasis).toEqual({ unknown: expect.stringContaining(unknown) })
+    },
+  )
 })

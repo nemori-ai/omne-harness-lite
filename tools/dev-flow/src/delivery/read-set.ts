@@ -73,9 +73,21 @@ export function registeredReadPatterns(value: unknown, path: string): string[] {
   ]
 }
 
+/** A `.` that starts a path segment. */
+const DOT_SEGMENT = /(^|\/)\./gu
+/**
+ * True when the registered `pattern` matches `file`. It calls `matchesGlob` from `node:path`
+ * after it replaces the `.` that starts each segment, in both, with the same other character. So
+ * `*` and `**` also match segments that start with `.`, as the test runner's patterns do.
+ */
+export function matchesRegistered(file: string, pattern: string): boolean {
+  const hide = (value: string) => value.replace(DOT_SEGMENT, '$1\u0001')
+  return matchesGlob(hide(file), hide(pattern))
+}
+
 /**
  * Why `file` is not a frozen page, or undefined when it is one. `registered` holds the patterns
- * of `registeredReadPatterns`, matched with `matchesGlob` from `node:path`.
+ * of `registeredReadPatterns`, matched with `matchesRegistered`.
  */
 export function frozenPageStop(file: string, registered: readonly string[]): string | undefined {
   const { areas, pageSuffix, skillStrategy } = FROZEN_READ_PATHS
@@ -83,7 +95,7 @@ export function frozenPageStop(file: string, registered: readonly string[]): str
     return 'outside the engineering method and verification areas'
   if (!file.endsWith(pageSuffix) && !matchesGlob(file, skillStrategy))
     return `neither a ${pageSuffix} page nor a skill adapter strategy.yaml`
-  const pattern = registered.find(item => matchesGlob(file, item))
+  const pattern = registered.find(item => matchesRegistered(file, item))
   return pattern === undefined
     ? undefined
     : `read by code: ${REGISTERED_READ_PATTERNS.config} registers ${pattern}`

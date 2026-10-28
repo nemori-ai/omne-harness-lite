@@ -58,26 +58,32 @@ function options(args: string[]): {
   }
 }
 /**
- * Reads the registered patterns and the tracked files at `HEAD` of this checkout, which the
- * dispatcher runs on the freeze point. A failure gives the reason, and every conflict stops.
+ * Reads the registered patterns and the tracked files at `HEAD` of this checkout. `commit` names
+ * the commit that `HEAD` resolved to. A failure gives the reason, and every conflict stops.
  */
-function readBasis(root: string): ReadBasis {
+function readBasis(root: string): { basis: ReadBasis; commit?: string } {
   try {
-    const config = git(root, ['show', `HEAD:${REGISTERED_READ_PATTERNS.config}`])
+    const commit = git(root, ['rev-parse', '--verify', 'HEAD^{commit}'])
+    const config = git(root, ['show', `${commit}:${REGISTERED_READ_PATTERNS.config}`])
     return {
-      registered: registeredReadPatterns(
-        json(config, REGISTERED_READ_PATTERNS.config),
-        REGISTERED_READ_PATTERNS.config,
-      ),
-      tracked: git(root, ['ls-tree', '-r', '-z', '--name-only', 'HEAD'])
-        .split('\0')
-        .filter(file => file !== ''),
+      commit,
+      basis: {
+        registered: registeredReadPatterns(
+          json(config, REGISTERED_READ_PATTERNS.config),
+          REGISTERED_READ_PATTERNS.config,
+        ),
+        tracked: git(root, ['ls-tree', '-r', '-z', '--name-only', commit])
+          .split('\0')
+          .filter(file => file !== ''),
+      },
     }
   } catch (error) {
     return {
-      unknown: `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
+      basis: {
+        unknown: `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      },
     }
   }
 }
@@ -109,11 +115,23 @@ try {
       members,
     ),
     crossings = readOverlap(overlap.cards, sets),
+    read = crossings.length === 0 ? undefined : readBasis(repositoryFile('')),
     { stopping: readConflicts, frozen: frozenReadConflicts } = classifyReadConflicts(
       crossings,
-      crossings.length === 0 ? { registered: [], tracked: [] } : readBasis(repositoryFile('')),
+      read?.basis ?? { registered: [], tracked: [] },
     )
-  const result = { ...overlap, readSets: sets, readConflicts, frozenReadConflicts }
+  const result = {
+    ...overlap,
+    readSets: sets,
+    readBasis:
+      read === undefined
+        ? null
+        : 'unknown' in read.basis
+          ? { unknown: read.basis.unknown }
+          : { commit: read.commit },
+    readConflicts,
+    frozenReadConflicts,
+  }
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
   for (const conflict of result.conflicts)
     process.stderr.write(
