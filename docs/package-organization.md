@@ -343,7 +343,7 @@ agent从[任务地图](context-map.md#领域设计与新增模块)定位责任�
 
 当前 typescript-package@3.0.0 的 service-contract 创建与结构扫描不再限制 core。IC-1 与 IC-5 按已采用责任和公开入口判断，不按 core 或 util 目录名许可。具体范围见[模板](../tools/dev-flow/templates/package/README_ZH.md)及[符合性报告](../tools/repo-toolchain/src/arch/CONFORMANCE.md)。
 
-分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员和组之间不成环。除下文的九条方向行外，契约不依赖其提供者、提供者经接口接入这类按角色判断的规则仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
+分组方向已由工具适配：旧的三层路径表退役，本节与[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)中能按成员路径表达的规则写在根 `.dependency-cruiser.cjs`，由 `pnpm run lint:deps` 检查，clean loop 的硬线读同一张依赖图，见[依赖规则](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。已表达的有：SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务成员不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具，以及成员之间不成环。组之间也不成环，[`constraints.json`](architecture/constraints.json) 登记的具名组环例外除外：组集合与某条例外完全相同的组环不失败，每条例外写明组集合、裁定链接和理由，格式见[组环例外](../tools/repo-toolchain/src/arch/CONFORMANCE.md#组环例外)。成员之间的环没有例外。除下文的九条方向行外，契约不依赖其提供者、提供者经接口接入这类按角色判断的规则仍靠评审。不能手写骨架或伪造采用标识绕过现行检查。
 
 角色标记和方向行已经机读。[`constraints.json`](architecture/constraints.json)的 `roles` 登记成员的角色，`directions` 登记方向行。`pnpm run lint:deps` 从 repo-toolchain 0.0.12 起执行这些方向行。
 

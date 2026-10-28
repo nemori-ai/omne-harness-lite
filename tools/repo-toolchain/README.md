@@ -63,6 +63,17 @@ Version 0.0.12 is the first version in which `omne-deps` checks the direction ro
 - No direction rows: when the runner has no `constraints.json`, the command prints that it did not check directions, and the exit code comes from the other findings. A schema 1 or 2 file, or a schema 3 file without `directions`, prints that there are no direction rows.
 - Exit 2: `constraints.json` does not parse, fails validation, fails the check of its cited sources, or `docs/architecture/constraints.json` and `.meta_harness/design/architecture/constraints.json` both exist. The command reads the file before it runs dependency-cruiser.
 
+## Group cycle exceptions
+
+A cycle between groups fails by default. When an owner rules that a group cycle is correct, the runner repository records it in `groupCycleExceptions` of its schema 3 `constraints.json`. Each entry has an id, the set of groups, an https link to the ruling, and a one-line reason. The field format is in [the conformance contract](src/arch/CONFORMANCE.md#组环例外). The command reads exceptions only from the runner repository. An exception in the checked tree has no effect.
+
+- A group cycle (a strongly connected component) whose set of groups is equal to the `groups` of an exception does not fail. The command prints one `excepted` line with the groups, the exception id, the ruling link and the reason. A component with more groups, fewer groups or different groups fails as before.
+- An exception that matches no group cycle is an `unused-group-cycle-exception` finding and exits 1.
+- Exceptions do not apply to cycles between members, to file cycles, or to other rules.
+- The hard lines of `omne-loop-status` and of the stop hook read the same exceptions. An excepted group cycle is not a hard line. The status lists it under the cycle line and keeps it in `hardLines.exceptedCycles` of `status.json`. An unused exception is a cycle hard line.
+- `omne-metrics` and the architecture report do not read exceptions. They still list an excepted group cycle as a cycle.
+- Published version 0.0.15 does not know this field. It rejects a `constraints.json` that has the field and exits 2. Record an exception together with the upgrade to a version that supports it.
+
 ## Contract API snapshots
 
 `omne-contract-api` keeps one API snapshot file for each contract member. The contract members are the `contracts` entries of `docs/engineering/delivery-lines.json`. The behavior contract is in the [SPEC](src/declarations/SPEC.md).

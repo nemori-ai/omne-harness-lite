@@ -64,7 +64,12 @@ import {
 
 import type { AssemblyObservations, AssemblyDelta } from './sensors/assembly.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import type { ConstraintChange } from '../arch/conformance-model.ts'
+import type {
+  ArchitectureGroupCycleException,
+  ConstraintChange,
+} from '../arch/conformance-model.ts'
+import { readRunnerConstraints } from '../arch/constraints.ts'
+import { judgeGroupCycles, runnerGroupCycleExceptions } from '../arch/group-cycles.ts'
 
 const OFF = '配置里关了'
 
@@ -479,18 +484,34 @@ function baselineOf(
 /**
  * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `pnpm run metrics`、`lint:deps` 同一张图。
  * 无法解析的导入不算硬线：它由 `lint:deps` 门禁与类型检查拦，没装依赖的树里外部包也会落进这一类。
+ * 组环与 `lint:deps` 一样按 runner 的具名例外判：放行的组环只列在 `exceptedCycles`，没命中的例外算进环。
  */
-export function directionLines(report: Report): Pick<HardLines, 'direction' | 'cycles'> {
-  const findings = report.findings.filter(finding => finding.rule !== 'no-unresolvable')
+export function directionLines(
+  report: Pick<Report, 'findings'>,
+  exceptions: readonly ArchitectureGroupCycleException[],
+): Pick<HardLines, 'direction' | 'cycles' | 'exceptedCycles'> {
+  const judged = judgeGroupCycles(
+    report.findings.filter(finding => finding.rule !== 'no-unresolvable'),
+    exceptions,
+  )
   return {
-    cycles: findings.filter(finding => finding.kind.endsWith('cycle')),
-    direction: findings.filter(finding => !finding.kind.endsWith('cycle')),
+    cycles: [
+      ...judged.findings.filter(finding => finding.kind.endsWith('cycle')),
+      ...judged.unused,
+    ],
+    exceptedCycles: judged.excepted,
+    direction: judged.findings.filter(finding => !finding.kind.endsWith('cycle')),
   }
+}
+
+/** 回路读的组环例外：与 `lint:deps` 同一份 runner `constraints.json`；文件坏了照常抛错，不当成没有例外。 */
+export function loopGroupCycleExceptions(): readonly ArchitectureGroupCycleException[] {
+  return runnerGroupCycleExceptions(readRunnerConstraints())
 }
 
 function hardLinesOf(
   root: string,
-  report: Report,
+  dependencyLines: ReturnType<typeof directionLines>,
   base: string | undefined,
   sensors: SensorLine,
   history: ReturnType<typeof auditHistory>,
@@ -501,7 +522,7 @@ function hardLinesOf(
       ? { status: 'unjudged', reason: '没给基线' }
       : { status: 'judged', violations: judge(base) }
   return {
-    ...directionLines(report),
+    ...dependencyLines,
     acceptanceLock: range(() =>
       history.flatMap(item =>
         item.acceptance.unresolvedViolations.map(message =>
@@ -546,6 +567,8 @@ export async function runLoopStatus(
     options.out ?? join(home, 'status', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )
 
+  // 先读 runner 的组环例外：文件坏了直接按工具错误停下，不先量一遍。
+  const groupCycleExceptions = loopGroupCycleExceptions()
   const files = collectMemberSources(root)
   const acceptanceConfig = readAcceptanceLockConfig()
   const audits = auditHistory(root, options.base, acceptanceConfig)
@@ -596,7 +619,7 @@ export async function runLoopStatus(
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
   const hardLines = hardLinesOf(
     root,
-    report,
+    directionLines(report, groupCycleExceptions),
     options.base,
     options.strict
       ? judgeSensors(sensors, config, scope)

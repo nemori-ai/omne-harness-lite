@@ -69,6 +69,8 @@ export interface DependencyFinding<Kind extends string = DependencyFindingKind> 
   readonly sites: readonly ImportSite[]
   /** 涉及的成员边；违规不跨成员时为空。 */
   readonly edges: readonly { readonly from: string; readonly to: string }[]
+  /** 只有 `group-cycle` 有：环上的组键，按字典序。具名组环例外按它判完全相同。 */
+  readonly groups?: readonly string[]
 }
 
 export interface DependencyGraph {
@@ -409,13 +411,14 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       message: `组之间成环：${component.join('、')}`,
       sites: inside.flatMap(edge => firstSite(edge.from, edge.to)),
       edges: inside.map(edge => ({ from: edge.from, to: edge.to })),
+      groups: component,
     })
   }
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v4：`modules` 不再含解析失败的节点）。 */
-const GRAPH_FORMAT = 'v4'
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`）。 */
+const GRAPH_FORMAT = 'v5'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {

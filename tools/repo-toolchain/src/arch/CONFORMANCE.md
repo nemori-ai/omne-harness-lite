@@ -59,6 +59,27 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 规则结果身份包括规则、源入口、目标入口/未解析名称、符号和类型/引用形式，排除行号。
 同包内两个入口不能共用一个违反规则身份。未知表达式继续携带位置和原因。
 
+## 组环例外
+
+表示（schemaVersion 3）：
+
+- schema 3 另有顶层数组 `groupCycleExceptions`，可以缺省。给了就必须是数组，`null` 等别的值拒绝。schema 1、2 出现这个字段时按未知字段拒绝。
+- 一条是 `{ "id", "groups", "ruling", "reason" }`，字段不多不少。
+  - `id` 非空，在 `groupCycleExceptions` 内唯一。
+  - `groups` 至少两个元素，元素唯一。每个元素是依赖图的组键：`packages/<组>`、`apps` 或 `examples`。读入后按字典序排列，书写顺序不影响含义。
+  - 两条例外的组集合不能相同，否则一个组环会命中两条例外。
+  - `ruling` 是裁定的 `https://` 链接。它不是 `source`，不按 Markdown 来源核对文件和锚点，也不进 `sources` 摘要。
+  - `reason` 是一句非空理由。
+- `groupCycleExceptions` 参与语义预期比较：增删改一条是语义变化。组的书写顺序与条目顺序不是。
+
+判定（`omne-deps` 与回路状态的硬线用同一个函数 `group-cycles.ts` 的 `judgeGroupCycles`、同一份输入）：
+
+- 例外只从可信 runner 的 `constraints.json` 读，不从被检版本读。runner 没有文件或文件是 schema 1、2 时没有例外。
+- 一个组环（依赖图组间的强连通分量，`deps/graph.ts` 的 `group-cycle` 发现带它的 `groups`）的组集合与某条例外的 `groups` 完全相同时放行：不算失败，记下命中的例外。分量更大、更小或不同都照常失败。
+- 一条例外没有命中任何组环时，产生一条 `unused-group-cycle-exception` 发现，照常失败。
+- 例外只作用于 `group-cycle`。成员环、文件环、规则违规和方向发现不受影响。
+- 本报告的符合性行不读例外，结构度量的环也不读。
+
 ## 机械子集
 
 机械规则沿[产品包组织](../../../../docs/package-organization.md)按采用责任、公开入口和源码闭包判断。core与util目录名不授予许可。存量candidate、unknown及未映射继续报告unknown，不因迁移提高采用状态。domains保留原机读分组投影，不代替完整领域清单，也不按目录数量重标。

@@ -165,6 +165,10 @@ describe('graphOf', () => {
     expect(byKind('group-cycle').map(finding => finding.message)).toEqual([
       '组之间成环：packages/infra、packages/session',
     ])
+    // 具名组环例外按这个组集合判完全相同。
+    expect(byKind('group-cycle').map(finding => finding.groups)).toEqual([
+      ['packages/infra', 'packages/session'],
+    ])
   })
 })
 

@@ -46,11 +46,23 @@ export interface ArchitectureDirection {
   readonly to: readonly [string, ...string[]]
   readonly source: string
 }
+/**
+ * schema 3 的具名组环例外：依赖图上组集合与 `groups` 完全相同的组环不算失败。`groups` 是组键
+ * （`packages/<组>`、`apps`、`examples`），按字典序；`ruling` 是裁定的 https 链接，`reason` 是一句理由。
+ */
+export interface ArchitectureGroupCycleException {
+  readonly id: string
+  readonly groups: readonly [string, string, ...string[]]
+  readonly ruling: string
+  readonly reason: string
+}
 export interface ArchitectureConstraints {
   readonly schemaVersion: 1 | 2 | 3
   readonly importExceptions?: readonly ArchitectureImportException[]
   /** 只有 schema 3 可以声明；schema 1、2 的文档没有这个字段。 */
   readonly directions?: readonly ArchitectureDirection[]
+  /** 只有 schema 3 可以声明；schema 1、2 的文档没有这个字段。 */
+  readonly groupCycleExceptions?: readonly ArchitectureGroupCycleException[]
   readonly domains: readonly {
     readonly id: string
     readonly label: string

@@ -8,6 +8,7 @@ import {
   RULE_IDS,
   type ArchitectureConstraints,
   type ArchitectureDirection,
+  type ArchitectureGroupCycleException,
   type ArchitectureImportException,
   type ArchitectureRole,
   type ConstraintInput,
@@ -212,6 +213,49 @@ function directions(value: unknown, roles: readonly ArchitectureRole[]): Archite
   const byId = new Map(roles.map(declared => [declared.id, declared]))
   return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
 }
+/** 组键：与 deps/graph.ts 的 `memberOf` 给出的 `group` 同形。 */
+const GROUP_KEY = /^(?:packages\/[^/]+|apps|examples)$/u
+function groupKey(value: unknown): string {
+  const key = safePath(str(value))
+  if (!GROUP_KEY.test(key))
+    throw new Error(`Architecture group cycle exceptions require group keys: ${key}`)
+  return key
+}
+function ruling(value: unknown): string {
+  const text = str(value)
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    throw new Error(`Architecture group cycle exceptions require an https ruling link: ${text}`)
+  }
+  if (url.protocol !== 'https:')
+    throw new Error(`Architecture group cycle exceptions require an https ruling link: ${text}`)
+  return text
+}
+function groupCycleException(value: unknown): ArchitectureGroupCycleException {
+  const row = obj(value, ['id', 'groups', 'ruling', 'reason'])
+  const [first, second, ...rest] = strings(row['groups']).map(groupKey).sort()
+  if (first === undefined || second === undefined)
+    throw new Error('Architecture group cycle exceptions require at least two groups')
+  return {
+    id: str(row['id']),
+    groups: [first, second, ...rest],
+    ruling: ruling(row['ruling']),
+    reason: str(row['reason']),
+  }
+}
+/**
+ * schema 3 的 `groupCycleExceptions`：缺省是没有例外；给了就必须是数组。两条例外的组集合相同时拒绝：
+ * 一个组环只能命中一条例外。
+ */
+function groupCycleExceptions(value: unknown): ArchitectureGroupCycleException[] {
+  const rows = unique((value === undefined ? [] : list(value)).map(groupCycleException))
+  const sets = rows.map(row => row.groups.join('\u0000'))
+  if (new Set(sets).size !== sets.length)
+    throw new Error('Architecture group cycle exceptions repeat a group set')
+  return rows
+}
 export function parseConstraints(text: string): ArchitectureConstraints {
   const parsed: unknown = JSON.parse(text)
   if (!record(parsed)) throw new Error('Architecture constraints require an object')
@@ -224,7 +268,7 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     'roles',
     'rules',
     'importExceptions',
-    ...(schemaVersion === 3 ? ['directions'] : []),
+    ...(schemaVersion === 3 ? ['directions', 'groupCycleExceptions'] : []),
   ])
   const domains = unique(
     list(value['domains']).map(item => {
@@ -240,7 +284,12 @@ export function parseConstraints(text: string): ArchitectureConstraints {
     roles,
     rules: unique(list(value['rules']).map(rule)),
     importExceptions: importExceptions(value['importExceptions']),
-    ...(schemaVersion === 3 ? { directions: directions(value['directions'], roles) } : {}),
+    ...(schemaVersion === 3
+      ? {
+          directions: directions(value['directions'], roles),
+          groupCycleExceptions: groupCycleExceptions(value['groupCycleExceptions']),
+        }
+      : {}),
   }
 }
 /** 读哪一版：工作树读文件，历史版本读那个提交。 */
@@ -488,6 +537,11 @@ function semanticDirections(rows: ArchitectureConstraints['directions']) {
     ),
   }
 }
+/** 语义比较里的组环例外：与方向行相同，没有例外时不出现这个键。 */
+function semanticGroupCycleExceptions(rows: ArchitectureConstraints['groupCycleExceptions']) {
+  if (!rows?.length) return {}
+  return { groupCycleExceptions: sortedById(rows.map(row => ({ ...row }))) }
+}
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null
   return JSON.stringify({
@@ -501,6 +555,7 @@ export function semanticConstraints(value: ArchitectureConstraints | null): stri
         }
       : {}),
     ...semanticDirections(value.directions),
+    ...semanticGroupCycleExceptions(value.groupCycleExceptions),
     rules: sortedById(value.rules),
     roles: sortedById(
       value.roles.map(row => ({
