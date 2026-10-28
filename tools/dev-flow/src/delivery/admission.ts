@@ -172,6 +172,14 @@ export function collectAdmission(
     }
     throw new InputError('Admission page limit reached')
   }
+  /**
+   * A closed Issue other than the task settled its own prerequisites when it closed, so the
+   * closure reads it as a leaf: the Issue itself, without its relations, condition table checks or
+   * targets. The task is never a leaf because admission observes the task whatever its state.
+   */
+  function isLeaf(state: string, url: string): boolean {
+    return state === 'closed' && url !== scope.task
+  }
   function fetchIssue(url: string, includeRelations = true): CapturedIssue {
     const cached = issues.get(url)
     if (cached !== undefined) return cached
@@ -186,9 +194,7 @@ export function collectAdmission(
     const state = raw.state
     if (state !== 'open' && state !== 'closed')
       throw new InputError('Admission Issue state invalid')
-    // A closed Issue other than the task settled its own prerequisites when it closed. Admission
-    // reads it for its state and comments only, and does not expand its relations.
-    const expand = includeRelations && (state === 'open' || url === scope.task)
+    const expand = includeRelations && !isLeaf(state, url)
     const comments = paged(`issues/${number}/comments`).map(item => {
       const c = record(item, 'Admission comment')
       return {
@@ -242,7 +248,7 @@ export function collectAdmission(
   const queue = [{ url: scope.task, depth: 0 }]
   for (const { url, depth } of queue) {
     const issue = fetchIssue(url)
-    if (!issue.relationsComplete) continue
+    if (isLeaf(issue.state, url)) continue
     const observed = observeAdmission(config, snapshot(), url)
     if (
       observed.findings.some(
