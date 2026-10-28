@@ -83,7 +83,8 @@ describe('baseline 命令', () => {
     })
   })
 
-  it('--base 先于环境变量 BASELINE，环境变量先于 origin/main', () => {
+  // 归慢层：在临时 git 仓库里连起几次 baseline 命令子进程。全量准入快层账本里这条 1.3 秒，负载下 3.3 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it('--base 先于环境变量 BASELINE，环境变量先于 origin/main', { tags: ['slow'] }, () => {
     const root = repository()
     git(root, 'update-ref', 'refs/remotes/origin/main', 'HEAD')
     const both = baseline(root, ['--base', 'HEAD'], { BASELINE: 'main' })
@@ -92,19 +93,24 @@ describe('baseline 命令', () => {
     expect(JSON.parse(env.stdout)).toMatchObject({ targetBase: 'main', source: 'explicit' })
   })
 
-  it('已绑定任务的树：取固定的 targetBase；不等于它的显式基线被拒绝，退出 2', () => {
-    const root = repository()
-    const target = git(root, 'rev-parse', 'HEAD')
-    git(root, 'commit', '-q', '--allow-empty', '-m', 'task work')
-    bind(root, target)
-    expect(JSON.parse(baseline(root).stdout)).toMatchObject({
-      state: 'bound',
-      targetBase: target,
-      source: 'task',
-    })
-    const refused = baseline(root, [], { BASELINE: 'HEAD' })
-    expect(refused.status).toBe(2)
-    expect(refused.stdout).toBe('')
-    expect(refused.stderr).toContain('Explicit base differs from fixed targetBase')
-  })
+  // 归慢层：在临时 git 仓库里起 baseline 命令子进程。全量准入快层账本里这条 1.4 秒，负载下 3.0 秒，负载下超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '已绑定任务的树：取固定的 targetBase；不等于它的显式基线被拒绝，退出 2',
+    { tags: ['slow'] },
+    () => {
+      const root = repository()
+      const target = git(root, 'rev-parse', 'HEAD')
+      git(root, 'commit', '-q', '--allow-empty', '-m', 'task work')
+      bind(root, target)
+      expect(JSON.parse(baseline(root).stdout)).toMatchObject({
+        state: 'bound',
+        targetBase: target,
+        source: 'task',
+      })
+      const refused = baseline(root, [], { BASELINE: 'HEAD' })
+      expect(refused.status).toBe(2)
+      expect(refused.stdout).toBe('')
+      expect(refused.stderr).toContain('Explicit base differs from fixed targetBase')
+    },
+  )
 })

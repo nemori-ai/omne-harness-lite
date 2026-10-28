@@ -113,11 +113,19 @@
 | `attempt` | 同一项任务的 attempt，取不到时为 `null`。两项取不到时，脚本都不提醒、不改退出码 |
 | `cores`、`slots`、`slot` | 机器核数、名额总数、用的是第几个 |
 | `aheadOnArrival` | 进队时前面有几张活票 |
-| `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339 |
-| `waitSeconds`、`heldSeconds` | 排了多久、占了多久 |
-| `cpuSeconds` | 命令及其已退出的子孙进程用掉的 CPU（用户态加内核态）；除以 `heldSeconds` 就是这类任务平均占几个核 |
+| `arrivedAt`、`acquiredAt`、`endedAt` | 进队、拿到名额、结束（或放弃）的时刻，RFC 3339，截到秒 |
+| `waitSeconds`、`heldSeconds` | 排了多久、占了多久，毫秒差向下取整到整秒（见下） |
+| `cpuSeconds` | 命令及其已退出的子孙进程用掉的 CPU（用户态加内核态），精确到 0.01 秒 |
 | `loadAtAcquire`、`loadAtEnd` | 拿到名额时与结束时的机器负载（1、5、15 分钟平均）；与测试耗时账本里的超时对时间，看负载到多少开始超时 |
 | `exitCode` | 命令的退出码；放弃时是 75 |
+
+**秒数的取整。**时刻字段与两个秒数字段只记到整秒，没有毫秒字段。`cpuSeconds` 记到 0.01 秒。
+
+- `waitSeconds` 与 `heldSeconds` 各自把毫秒差向下取整。
+- 三个时刻字段各自截到秒。所以 `endedAt` 减 `acquiredAt` 可能比 `heldSeconds` 大 1。`acquiredAt` 减 `arrivedAt` 可能比 `waitSeconds` 大 1 或 2，因为脚本在拿到名额之前量 `waitSeconds`，稍后才取 `acquiredAt`。以 `waitSeconds` 与 `heldSeconds` 为准。
+- 命令不到 1 秒时，`heldSeconds` 为 0，而 `cpuSeconds` 可以大于 0。
+
+**平均核数。**这类任务平均占几个核，等于 `cpuSeconds` 除以命令实际占用名额的时间。实际占用时间在 `heldSeconds` 秒以上、`heldSeconds` + 1 秒以下，所以平均核数落在 (`cpuSeconds` ÷ (`heldSeconds` + 1)，`cpuSeconds` ÷ `heldSeconds`] 这个区间里。`heldSeconds` 为 0 时无法相除，只有下界 `cpuSeconds` ÷ 1。命令越短，区间越宽，不要只取上界。
 
 脚本的行为由 `tools/test-runner/tests/test-slot.spec.ts` 核对。
 
