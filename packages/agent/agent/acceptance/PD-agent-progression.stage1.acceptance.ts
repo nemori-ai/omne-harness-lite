@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { expect, it } from 'vitest'
 import { fail } from '@omne-harness/operation-result'
 import type { AgentJournal, ExecutionSnapshot } from '@omne-harness/agent-contract'
+import { agentModelDeliverySchema, readModelDeliveryMaterial } from '@omne-harness/agent'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { options } from '../tests/factory-support.ts'
 import {
   acceptedInput,
@@ -16,7 +18,14 @@ import {
   operation,
   type Principal,
 } from '../tests/journal-support.ts'
-import { alice, eventsOf, invoke, loopAssembly, REPLY_TEXT } from '../tests/loop-support.ts'
+import {
+  alice,
+  eventsOf,
+  invoke,
+  loopAssembly,
+  REPLY_TEXT,
+  type LoopAssembly,
+} from '../tests/loop-support.ts'
 import { deferred, executor } from './fixtures/process.ts'
 
 const entry = () => ({
@@ -51,6 +60,40 @@ async function eventPage(journal: AgentJournal<Principal>) {
   )
   if (page.kind !== 'page') throw new Error('Unexpected output gap')
   return page.events
+}
+
+async function savedModelDelivery(assembly: LoopAssembly, saved: ExecutionSnapshot) {
+  const pending = saved.effects[0]?.pending
+  const pusher = assembly.controls.pusher
+  if (pending?.kind !== 'model' || pusher === null)
+    throw new Error('Missing original Model call or producer pusher')
+  const reference = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
+  const pushed = await pusher.settled({ tenant: alice.tenant, call: reference.call })
+  expect(pushed.status).toBe('saved')
+  if (pushed.status !== 'saved' || pushed.delivery === null)
+    throw new Error('Producer did not receive saved for the original delivery')
+  const received = saved.entries?.filter(item => item.kind === 'received')
+  expect(received).toHaveLength(1)
+  const entry = received?.[0]
+  if (entry === undefined || entry.kind !== 'received') throw new Error('Missing received entry')
+  expect(entry.delivery.key).toEqual(pushed.key)
+  expect(entry.consumer).toEqual(pushed.delivery.consumer)
+  expect(entry.consumption).toBe(pending.consumption)
+  const material = ok(
+    await assembly.controls.journal.provider.materials.read({
+      ...alice,
+      source: entry.material,
+    }),
+  )
+  expect(material).toMatchObject({ kind: 'facts', schema: agentModelDeliverySchema })
+  const { material: _source, ...expected } = entry
+  expect(readModelDeliveryMaterial(alice, material, expected)).toEqual(pushed.delivery)
+  expect(saved.results).toEqual([])
+  const acknowledgements = pusher.acknowledgements()
+  expect(acknowledgements).toHaveLength(1)
+  expect(acknowledgements[0]?.call.call).toBe(reference.call)
+  expect(acknowledgements[0]?.reply).toHaveProperty('ok')
+  return { entry, material, pushed, acknowledgements }
 }
 
 function originalAuthority(saved: ExecutionSnapshot) {
@@ -89,11 +132,9 @@ it('S1 J-AG02: public invoke processes the actual complete reply and ends once',
   ])
   expect(events.filter(item => item.body.kind === 'ended')).toHaveLength(1)
   expect(events.at(-1)?.body.kind).toBe('ended')
-  expect(saved.results).toHaveLength(1)
-  expect(saved.results[0]?.completion).not.toBeNull()
-  expect(saved.results[0]?.release.kind).toBe('confirmed')
+  const delivery = await savedModelDelivery(assembly, saved)
   expect(saved.output.acknowledgedThrough).toBeNull()
-  await save('S1-public-journey', { events, saved })
+  await save('S1-public-journey', { events, saved, delivery })
 })
 
 it.each(['I2', 'M6', 'M1', 'M4'] as const)(
@@ -150,7 +191,7 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
             await suspended.promise
           }
         }
-        if (cut === 'M1' && calls.admit === 1 && call.path.join('.') === 'models.calls.inspect') {
+        if (cut === 'M1' && calls.admit === 1 && call.path.join('.') === 'journal.load') {
           reached.resolve()
           await suspended.promise
         }
@@ -191,10 +232,11 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
       expect(before.checkpoint.position).toBe(cut === 'M1' ? 'M6' : cut)
       expect(counts).toEqual({
         admit: cut === 'M1' || cut === 'M4' ? 1 : 0,
-        beginRead: cut === 'M4' ? 1 : 0,
-        ack: cut === 'M4' ? 1 : 0,
+        beginRead: 0,
+        ack: 0,
       })
-      if (cut === 'M4') expect(before.results[0]).toMatchObject({ release: { kind: 'pending' } })
+      const beforeDelivery = cut === 'M4' ? await savedModelDelivery(assembly, before) : null
+      if (cut !== 'M4') expect(before.entries).toEqual([])
       const preparations = assembly.controls.requests.prepare.calls.length
       expect(
         (await eventPage(assembly.controls.journal.port)).filter(e => e.body.kind === 'message'),
@@ -223,9 +265,16 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
       }
       const cancelledPaths = first.cancelledCalls.map(call => call.path.join('.'))
       expect(cancelledPaths).toEqual(
-        cut === 'I2' ? ['journal.commit'] : cut === 'M1' ? ['models.calls.inspect'] : [],
+        cut === 'I2' ? ['journal.commit'] : cut === 'M1' ? ['journal.load'] : [],
       )
       assembly.release.open()
+      if (cut === 'M1') {
+        const pending = before.effects[0]?.pending
+        if (pending?.kind !== 'model' || assembly.controls.pusher === null)
+          throw new Error('Missing admitted Model call at M1')
+        const reference = ok(resolveModelInvocationRef(pending.reference, alice.tenant))
+        await assembly.controls.pusher.settled({ tenant: alice.tenant, call: reference.call })
+      }
       second = executor(assembly.dependencies, entry())
       expect(second.child.pid).not.toBe(death.pid)
       expect(await second.drive('continue', originalAuthority(before))).toEqual({ ok: undefined })
@@ -252,12 +301,13 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
       )
         throw new Error('The original M0 intent was not captured')
       expect(after.effects).toEqual(attemptedIntent.effects)
-      if (cut === 'M4') {
-        expect(after.results[0]?.result).toEqual(before.results[0]?.result)
-        expect(after.results[0]?.completion).toEqual(before.results[0]?.completion)
+      const afterDelivery = await savedModelDelivery(assembly, after)
+      if (beforeDelivery !== null) {
+        expect(afterDelivery.entry).toEqual(beforeDelivery.entry)
+        expect(afterDelivery.material).toEqual(beforeDelivery.material)
+        expect(afterDelivery.pushed.receipt).toEqual(beforeDelivery.pushed.receipt)
       }
-      expect(after.results[0]?.release.kind).toBe('confirmed')
-      expect(calls).toEqual({ admit: 1, beginRead: 1, ack: 1 })
+      expect(calls).toEqual({ admit: 1, beginRead: 0, ack: 0 })
       expect(assembly.controls.requests.prepare.calls).toHaveLength(preparations)
       expect(events.filter(e => e.body.kind === 'input-taken')).toHaveLength(1)
       expect(events.filter(e => e.body.kind === 'producer')).toHaveLength(1)
@@ -269,6 +319,8 @@ it.each(['I2', 'M6', 'M1', 'M4'] as const)(
         replacement: second.child.pid,
         counts,
         afterCounts: calls,
+        beforeDelivery,
+        afterDelivery,
         before,
         afterDeath,
         after,
