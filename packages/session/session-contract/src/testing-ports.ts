@@ -13,6 +13,7 @@ import type {
   SessionCommand,
 } from './ports.ts'
 import { adoption, guard, mintEvidence } from './testing-values.ts'
+import type { MemoryInitializationSource } from './testing-initialization-source.ts'
 
 /** What the scripted identity bridge answers: a material, a refusal, or that the source is unavailable. */
 export type IdentityScript = 'allow' | 'deny' | 'unavailable'
@@ -88,7 +89,7 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
  * assembly's bridge takes it from the first input's origin, unless scripted to omit it.
  */
 export function createMemorySessionEvidenceBridge(
-  options: Readonly<{ loginEntry?: boolean }> = {},
+  options: Readonly<{ loginEntry?: boolean; initialization?: MemoryInitializationSource }> = {},
 ): MemorySessionEvidenceBridge {
   let down = false
   let loginEntry = options.loginEntry ?? true
@@ -102,6 +103,17 @@ export function createMemorySessionEvidenceBridge(
             owner: 'evidence',
             diagnostic: 'the evidence source is scripted down',
           }),
+        )
+      if (command.kind === 'create' || command.kind === 'completeInitialization')
+        return (
+          options.initialization?.prepare(command) ??
+          Promise.resolve(
+            fail({
+              kind: 'invalid' as const,
+              field: 'initialization',
+              reason: 'no trusted initialization source was configured',
+            }),
+          )
         )
       const materials: GuardCommand[] = [
         guard('evidence-bridge', 'evidence', {

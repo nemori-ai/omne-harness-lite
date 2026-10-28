@@ -8,15 +8,31 @@ import {
   operationId,
   ordinaryInput,
   evidence,
+  createMemoryInitializationSource,
 } from '@omne-harness/session-contract/testing'
+import { initializationGuards } from './initialization-fixture.ts'
 
 export function scene() {
   const access = memoryAccess('tester')
-  const port = createMemorySessionTransactions<string>()
+  const initialization = createMemoryInitializationSource()
+  const port = createMemorySessionTransactions<string>({ initialization })
   const base = { tenant: access.tenant, session: access.session }
-  const commit = <K extends MutationName>(
+  const commit = async <K extends MutationName>(
     command: Extract<SessionCommand, { kind: K }> & { kind: K },
-  ) => port.commit<K>({ command, guards: [guard('login', 'login-entry', 'present')] })
+  ) => {
+    const guards = [guard('login', 'login-entry', 'present')]
+    const complete: SessionCommand = command
+    if (complete.kind === 'create' || complete.kind === 'completeInitialization') {
+      const previous = await port.readWork(access)
+      const fixture = initializationGuards(complete, 'ok' in previous ? previous.ok : null)[0]
+      if (fixture === undefined) throw new Error('missing initialization fixture')
+      initialization.controls.register(complete, fixture)
+      guards.push(
+        ...succeeded(await initialization.prepare(complete), 'initialization preparation'),
+      )
+    }
+    return port.commit<K>({ command, guards })
+  }
   const read = async () => succeeded(await port.readWork(access), 'read')
   const create = async (value = creation()) =>
     succeeded(
@@ -65,7 +81,19 @@ export function scene() {
       }),
       kind,
     )
-  return { access, base, port, commit, read, create, accept, start, active, control }
+  return {
+    access,
+    base,
+    port,
+    initialization,
+    commit,
+    read,
+    create,
+    accept,
+    start,
+    active,
+    control,
+  }
 }
 
 export async function open() {

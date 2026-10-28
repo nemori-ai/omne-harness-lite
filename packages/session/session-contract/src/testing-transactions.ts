@@ -44,6 +44,15 @@ import { materializeModelView, compactionReads, type MaterializedModelView } fro
 import { decodeEntry } from './entries.ts'
 import { reduce } from './reduce.ts'
 import {
+  createMemoryInitializationSource,
+  type MemoryInitializationSource,
+} from './testing-initialization-source.ts'
+import {
+  adoptedInitializationFixture,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
+} from './testing-initialization.ts'
+import {
   conformanceCase,
   assertIndistinguishable,
   expectKind,
@@ -112,6 +121,14 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
     }>
 }
 
+export interface MemoryInitializationTransactions<P> extends MemorySessionLogTransactions<P> {
+  readonly controls: MemorySessionLogTransactions<P>['controls'] &
+    Readonly<{
+      failNextInitializationCommit(): void
+      loseNextInitializationReply(): void
+    }>
+}
+
 const unavailable = (diagnostic: string): Extract<SessionFailure, { kind: 'unavailable' }> => ({
   kind: 'unavailable',
   owner: TESTING_OWNER,
@@ -163,6 +180,7 @@ function decodeCursor(text: string): Cursor | null {
  */
 export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
   const reasons: PendingReason[] = []
+  if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
   if (snapshot.unresolved.length > 0) reasons.push('unresolved')
   if (snapshot.controls.some(control => control.state === 'propagating')) reasons.push('controls')
   if (snapshot.tasks.length > 0) reasons.push('tasks')
@@ -256,6 +274,7 @@ function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'o
 }
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
+  initialization?: MemoryInitializationSource
   /** The fixture supplies authorization; no principal is interpreted as production authority. */
   authorize?: (
     input: SessionAccess<P> | Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
@@ -264,9 +283,11 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
 }>
 export function createMemorySessionTransactions<P>(
   options: MemorySessionTransactionOptions<P> = {},
-): MemorySessionLogTransactions<P> {
+): MemoryInitializationTransactions<P> {
   const stores = new Map<string, Store>()
   let directoryAvailable = true
+  let failInitialization = false
+  let loseInitializationReply = false
   const issuedCursors = new Set<string>()
 
   const storeOf = (access: SessionAccess<P>, action: string): Outcome<Store, SessionFailure> => {
@@ -288,6 +309,18 @@ export function createMemorySessionTransactions<P>(
     if ('failure' in key) return key
     const store = stores.get(key.ok)
     if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+    if (command.kind === 'create' || command.kind === 'completeInitialization') {
+      const refusal =
+        options.initialization?.verify(command, input.guards) ??
+        (options.initialization === undefined
+          ? {
+              kind: 'invalid' as const,
+              field: 'initialization',
+              reason: 'no trusted initialization source was configured',
+            }
+          : null)
+      if (refusal !== null) return fail(refusal)
+    }
     const held = store?.operations.get(command.input.operation)
     const frozen =
       store === undefined
@@ -309,12 +342,29 @@ export function createMemorySessionTransactions<P>(
           ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
           : null,
       ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
+      initializationReceipts: [...(store?.operations.values() ?? [])].map(
+        value => value.record.receipt,
+      ),
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') {
-      const original = held ?? frozen
+      const original = held ?? store?.operations.get(decision.receipt.operation) ?? frozen
       if (original === undefined) return fail(unavailable('a recalled operation without a record'))
-      return succeed(original.recall({ ...decision.receipt, recovered: true }))
+      const recall: Recall =
+        command.kind === 'completeInitialization' ? receipt => receipt : original.recall
+      if (held === undefined && store !== undefined && command.kind === 'completeInitialization') {
+        const operations = new Map(store.operations)
+        operations.set(command.input.operation, {
+          record: {
+            operation: command.input.operation,
+            digest: commandDigest(command),
+            receipt: original.record.receipt,
+          },
+          recall,
+        })
+        stores.set(key.ok, { ...store, operations })
+      }
+      return succeed(recall({ ...decision.receipt, recovered: true }))
     }
     if (
       decision.entries.length === 0 &&
@@ -379,7 +429,16 @@ export function createMemorySessionTransactions<P>(
       operations,
       inputs,
     }
+    const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
+    if (initialization && failInitialization) {
+      failInitialization = false
+      return fail(unavailable('injected failure before initialization publication'))
+    }
     stores.set(key.ok, target)
+    if (initialization && loseInitializationReply) {
+      loseInitializationReply = false
+      return fail({ kind: 'commit-unknown', operation: command.input.operation })
+    }
     return succeed(recall(receipt))
   }
 
@@ -706,6 +765,12 @@ export function createMemorySessionTransactions<P>(
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
       },
+      failNextInitializationCommit: () => {
+        failInitialization = true
+      },
+      loseNextInitializationReply: () => {
+        loseInitializationReply = true
+      },
       entriesOf: (tenant: TenantId, session: SessionId) => {
         const key = keyOf(tenant, session)
         return 'failure' in key ? [] : [...(stores.get(key.ok)?.entries ?? [])]
@@ -730,6 +795,9 @@ export interface SessionTransactionsFixture<P> {
   readonly otherAccess?: SessionAccess<P>
   readonly creation: SessionCreation
   operation(name: string): SessionOperationId
+  initializationGuards?(
+    command: Extract<SessionCommand, { kind: 'create' }>,
+  ): Promise<readonly GuardCommand[]>
 }
 
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
@@ -744,11 +812,13 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
   /** The login confirmation the assembly's evidence bridge takes from the first input's origin. */
   const loginEntry = (name: string) =>
     guard('evidence-bridge', LOGIN_ENTRY_OWNER, { session: access.session, operation: name })
-  const create = (name = 'create', creation = fixture.creation) =>
-    commit<'create'>({
+  const create = async (name = 'create', creation = fixture.creation) => {
+    const command: Extract<SessionCommand, { kind: 'create' }> = {
       kind: 'create',
       input: { ...base, operation: fixture.operation(name), creation },
-    })
+    }
+    return commit<'create'>(command, (await fixture.initializationGuards?.(command)) ?? [])
+  }
   const accept = (input: string, name = `accept-${input}`) =>
     commit<'accept'>({
       kind: 'accept',
@@ -1196,6 +1266,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
           all.entries.map(entry => entry.kind),
           [
             'session.created',
+            'session.adoption',
             'message.user',
             'intake.routed',
             'run.started',
@@ -1205,7 +1276,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         )
         assert.deepEqual(
           all.entries.map(entry => Number(entry.revision)),
-          [1, 2, 2, 3, 3, 4],
+          [1, 1, 2, 2, 3, 3, 4],
         )
         const first = succeeded(
           await s.port.history.begin({
@@ -1256,7 +1327,7 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         const since = succeeded(
           await s.port.history.since({
             ...fixture.access,
-            after: all.entries[2]?.id as EntryId,
+            after: all.entries.find(entry => entry.kind === 'intake.routed')?.id as EntryId,
             kinds: [],
             pageBytes: 1_000_000,
           }),
@@ -1400,11 +1471,21 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 
 /** A fresh fixture over a fresh in-memory port, with the second tenant for the cross-tenant case. */
 export function memorySessionTransactionsFixture(): SessionTransactionsFixture<string> {
+  const initialization = createMemoryInitializationSource()
   return {
-    port: createMemorySessionTransactions<string>(),
+    port: createMemorySessionTransactions<string>({ initialization }),
     access: memoryAccess('tester'),
     otherAccess: memoryOtherAccess('stranger'),
     creation: legalCreation(),
     operation: name => operationId(name),
+    initializationGuards: async command => {
+      initialization.controls.register(
+        command,
+        initializationFixtureGuard(
+          initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+        ),
+      )
+      return succeeded(await initialization.prepare(command), 'initialization source')
+    },
   }
 }

@@ -26,6 +26,9 @@ Session 的纯契约成员，不依赖 Cordis。
 
 组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。`session` 与 `session-cordis` 当前只声明依赖，尚未导入本成员；`session-cordis-contract` 在其 Cordis 服务定义下转出这些类型。
 
+初始化已支持可选注册、工作区加载及执行准备来源，严格初始采用守卫、同批结果事实和原回执认回。当前解释器支持当前精确 revision 3 采用。接线、摘要及验证导航见[初始化实现](docs/initialization.md)。真实采用提供者、加载器及 Context replay 尚未由内存证据证明。
+
+
 ## 使用
 
 本成员有根入口 `@omne-harness/session-contract` 与只给测试的 `@omne-harness/session-contract/testing`，没有 `./cordis` 入口。只需要类型与纯函数的调用方只安装本成员，不需要 Cordis，也不需要宿主。

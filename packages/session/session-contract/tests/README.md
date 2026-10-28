@@ -24,7 +24,7 @@
 
 运行方式：在仓库根执行 `node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：真实耐久、跨进程原子提交、真实提供者与完整组合未验证。Model ACK confirmed 与新 Context scope 的实际初始化仍按 SPEC 的具名停止点处理。初始化任务来源仍有待补齐，见 SPEC 的 JC-01。
+当前缺口：真实耐久、跨进程原子提交、真实提供者与完整组合未验证。Model ACK confirmed 与新 Context scope 的实际初始化仍按 SPEC 的具名停止点处理。初始化纯核心与显式来源替身的覆盖见[初始化实现](../docs/initialization.md#验证导航)。
 
 新增行为资源：
 

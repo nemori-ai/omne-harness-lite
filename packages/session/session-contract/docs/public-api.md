@@ -20,6 +20,8 @@
 | `SessionAccess`、`Mutation`、`AgentInstanceRef`、`AdvanceRef`、`SessionCallerClass`                                                                                                                                                                                                                                      | [identity.ts](../src/identity.ts)    | `SessionAccess<P>` 是 legal-identity 的 `Access<P>` 加 `session`（J51）                                                           |
 | `ExecutionRef`、`Participation`、`ProducerRef`、`CallBinding`、`ProducedResult`、`ResultConsumption`、`Consumption`、`InputBatch`、`RunTerminal`、`RunState`、`Waiting`、`ControlTarget`、`ControlProgress`、`ControlIntent`、`ScopeReleaseDisposition`、`RecoveryTask`、`ResidentTool`、`SessionFrozen`、`WorkSnapshot` | [values.ts](../src/values.ts)        | 快照与工作事实。`ControlProgress` 没有围栏字段，`RecoveryTask` 没有 `start-fence` 变体，见[被替代的协议](../SPEC.md#被替代的协议) |
 
+初始化守卫中的 inputSnapshot/capabilities 复用 ContextMaterial，residentBindings/newResidents 复用 ResidentAdoption 的 keys/residents。decision.commit 为字符串，具体边界见 [初始化材料的嵌套字段](../SPEC.md#初始化材料的嵌套字段)。这些材料由 Session 的初始化守卫解析器校验，不新增外域 API。
+
 ## 操作身份的派生
 
 [OP-00](../SPEC.md#op-00)。
@@ -121,3 +123,9 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 同版本的 custody 与 completion 同值保留，异值返回 conflict。归约也拒绝替换既有依据。重复结果不会将 release 从 confirmed 改回 pending。已完成版本的同值重复提交不再次追加所附消息。`release` 投影仅保存 pending/confirmed，原确认来源在日志中；本接口不单独提供原 release.source 的判等投影。
 
 身份桥套件比较不同租户、会话、operation、命令种类及命令内容准备出的不透明材料，并用复用首次材料的违例提供者自证。套件不规定 `GuardCommand.facts` 格式，也不证明生产事务参与者会拒绝重放材料。实际装配仍须验证提交边界的材料绑定。
+
+## 初始化公开值与纯读取
+
+`InitializationSource`、`InitializationSources` 在 [values.ts](../src/values.ts)；`InitialAdoption`、`InitializationAdoption`、`InitializationGuardFacts`、`InitializationGuardResult`、`InitializationConsequence`、`InitializationState` 与 `InitializationFactReference` 的保存类型在 [values.ts](../src/values.ts)，守卫解析与 `INITIALIZATION_PROTOCOL` 常量在 [initialization-schema.ts](../src/initialization-schema.ts)。`InitializationPlanItem`、`InitializationRequirement` 与 `InitializationRegistration` 也归 values.ts；`initializationRegistrationCommit` 在 [initialization-plan.ts](../src/initialization-plan.ts)。
+
+`DecideReads.initializationReceipts` 可选，仅认回已有同值初始化结果时需要原回执。省略语义、可信来源和当前支持范围见[初始化实现](initialization.md)。`./testing` 导出显式登记的内存来源与采用 fixture；未配置来源的初始化不默认通过。

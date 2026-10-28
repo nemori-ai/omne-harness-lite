@@ -39,6 +39,8 @@ export type {
   IdleCoverage,
   IdleObservation,
   InitializationResult,
+  InitializationSource,
+  InitializationSources,
   InputBatch,
   Modes,
   Participation,
@@ -147,3 +149,17 @@ export {
   type SessionLogConsequence,
 } from './projection.ts'
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
+export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
+export type {
+  InitialAdoption,
+  InitializationAdoption,
+  InitializationGuardFacts,
+  InitializationGuardResult,
+  InitializationConsequence,
+  InitializationState,
+  InitializationFactReference,
+} from './initialization-schema.ts'
+export { initializationRegistrationCommit } from './initialization-plan.ts'
+export type { InitializationPlanItem } from './initialization-plan.ts'
+export type { InitializationRegistration } from './initialization-registration.ts'
+export type { InitializationRequirement } from './initialization-requirements.ts'

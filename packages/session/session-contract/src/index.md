@@ -34,3 +34,15 @@
 
 - [reduce-results.ts](reduce-results.ts)：结果保管、完成与释放的归约保护
 - [result-state.ts](result-state.ts)：原 Run 关系与参加提交引用
+
+- [initialization-plan.ts](initialization-plan.ts)：原来源计划与注册提交身份
+- [initialization-parse.ts](initialization-parse.ts)：封闭嵌套值解析
+- [initialization-schema.ts](initialization-schema.ts)：守卫协议与保存形状
+- [initialization-registration.ts](initialization-registration.ts)：注册绑定与修订
+- [initialization-requirements.ts](initialization-requirements.ts)：要求与计划关系
+- [initialization-validation.ts](initialization-validation.ts)：完整命令与原项核对
+- [decide-initialization.ts](decide-initialization.ts)：初始化同批事实及原回执
+- [reduce-initialization.ts](reduce-initialization.ts)：整批校验与原结果索引
+- [release-digests.ts](release-digests.ts)：生成的精确发布摘要常量
+- [testing-initialization-source.ts](testing-initialization-source.ts)：显式登记的内存可信来源
+- [testing-initialization.ts](testing-initialization.ts)：显式实际采用测试前提

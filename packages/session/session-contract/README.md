@@ -26,6 +26,9 @@ Not verified: durability, concurrency across processes, recovery against a real 
 
 Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` currently declare the dependency but do not import this package. `session-cordis-contract` re-exports the types under its Cordis service definitions.
 
+Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 3 adoption. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
+
+
 ## Usage
 
 The package has two entries: `@omne-harness/session-contract` and `@omne-harness/session-contract/testing` (tests only). It has no `./cordis` entry. A caller that needs only the types and the pure functions installs this package alone. It needs no Cordis and no host.

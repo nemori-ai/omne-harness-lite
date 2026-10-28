@@ -78,6 +78,8 @@ export function applyExtended(
         entry.observation === null ? null : { observation: entry.observation, commit: source }
       return null
     case 'session.frozen':
+      if (draft.tasks.some(task => task.kind === 'initialization'))
+        return 'session frozen before every initialization item was ready'
       if (draft.frozen !== null) return 'a second freeze'
       draft.frozen = { cause: 'tool-shape-lost', evidence: entry.evidence, commit: source }
       return null

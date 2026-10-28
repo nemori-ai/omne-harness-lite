@@ -262,6 +262,7 @@ export type ProducerFact =
 
 /** Every value is decided from the snapshot alone, so the index stays exact at commit time. unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; inputs: pending inputs non-empty; run: an unfinished Run exists; idle-armed: auto-archive is enabled, not exempt, and no Run is unfinished, so the scanner asks judgeIdle whether it is due; release: a preserved or processed result still waits for delivery release. */
 export type PendingReason =
+  | 'initialization'
   | 'unresolved'
   | 'controls'
   | 'tasks'

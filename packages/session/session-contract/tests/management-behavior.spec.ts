@@ -14,6 +14,7 @@ import {
   adoption,
   creation,
   createMemorySessionTransactions,
+  createMemoryInitializationSource,
   memoryAccess,
   evidence,
   operationId,
@@ -24,6 +25,7 @@ import {
   sessionId,
 } from '@omne-harness/session-contract/testing'
 import { scene, open, participation } from './scene.ts'
+import { initializationGuards } from './initialization-fixture.ts'
 
 const binding = {
   producer: { kind: 'model', call: 'model-call' },
@@ -517,20 +519,25 @@ it('failed initialization blocks start and freeze until the same required item b
 
 it('each history page and model-view read rechecks current authorization', async () => {
   let allowed = true
-  const port = createMemorySessionTransactions<string>({ authorize: () => allowed })
+  const initialization = createMemoryInitializationSource()
+  const port = createMemorySessionTransactions<string>({ authorize: () => allowed, initialization })
   const access = memoryAccess('tester')
+  const command = {
+    kind: 'create' as const,
+    input: {
+      tenant: access.tenant,
+      session: access.session,
+      operation: operationId('create'),
+      creation: creation({ initial: ordinaryInput('first') }),
+    },
+  }
+  const material = initializationGuards(command, null)[0]
+  if (material === undefined) throw new Error('missing explicit adoption fixture')
+  initialization.controls.register(command, material)
   succeeded(
     await port.commit({
-      command: {
-        kind: 'create',
-        input: {
-          tenant: access.tenant,
-          session: access.session,
-          operation: operationId('create'),
-          creation: creation({ initial: ordinaryInput('first') }),
-        },
-      },
-      guards: [],
+      command,
+      guards: succeeded(await initialization.prepare(command), 'prepare'),
     }),
     'create',
   )

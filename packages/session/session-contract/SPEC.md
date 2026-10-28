@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：普通输入拒绝不写 SE12，见 [SE12-JC03](#se12-jc03-现行未决偏离)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化归 #680。当前初始化代码仍只消费 `SessionCreation.requiredIdentities`（裁定 R1）；[初始化来源与提交](#初始化来源与提交)规定的可加来源材料尚未实现，保留 `requiredIdentities` 的原身份映射。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：普通输入拒绝不写 SE12，见 [SE12-JC03](#se12-jc03-现行未决偏离)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化归 #680。当前初始化纯核心实现[初始化来源与提交](#初始化来源与提交)的三类可加来源、严格守卫、同批事实、原结果索引与 revision 3 重建，保留 `requiredIdentities` 的原身份映射。可信来源接线与精确发布摘要见[初始化实现](docs/initialization.md)。生产采用源、真实加载及 Context 提交应用仍待对应提供者验证。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
@@ -748,6 +748,14 @@ requirements 不是调用方自报的任务列表。受信适配器按已采用�
 | execution-adoption | `{kind:execution-ready,evidence,adoption}`。adoption 为 null 时只证明原类型准备；非 null 时含原 definitionName、adopted、source、boundary、inputSnapshot、capabilities、residentBindings、newResidents，格式与 initialAdoption 的对应字段相同，证明真实新增能力采用 |
 
 事实源仍在原拥有者。桥在可信装配边界生成材料，存储参加者只接受已登记的精确协议与受信来源。最终提交重核当前资格、原绑定、完整要求及材料有效边界，随后纯 decide 解析并核对上述关系。调用方可构造相同 JSON 不构成受信来源，digest 也不授予权限。无法在提交边界证明依据仍有效时拒绝或报告 unavailable，不以 Session CAS 成功代替共享依据有效。该编码不增加 GuardCommand 的公开必填字段，也不增加 SessionContextInput 的参数分支。
+
+#### 初始化材料的嵌套字段
+
+initialAdoption.inputSnapshot 与 initialAdoption.capabilities 各使用既有 `ContextMaterial` 形状 `{ schema: Adoption, value: JsonValue }`。inputSnapshot 保存原拥有者版本化的完整求值输入，capabilities 保存原拥有者版本化的完整实际采用清单，包括该协议要求的清单、绑定和来源。capabilities 不是 string[]。Session 核对精确 schema、材料完整性及受信验证结果，不解析外域 value 自行授予采用。
+
+空清单也必须由该精确材料协议显式表达。缺字段或 null 不默认空，也不默认已采用。residentBindings 使用 `ResidentAdoption['keys']`，newResidents 使用 `ResidentAdoption['residents']`，二者保留原能力身份、ResidentKey 与首次常驻定义的完整约束。execution-ready.adoption 非 null 时，其同名字段使用完全相同的形状与核验规则。
+
+context-registration 的 decision.commit 是下一节唯一编码算法产生的字符串。decision.scope 已另存原作用域，commit 不包含 `{scope,commit}` 对象。适配器调用 Context 时把该字符串包装为原 `CommitRef = { commit: string }`，不改变编码、scope 或注册身份。此处只明确 Session 保存和翻译的材料，不增加 Context API 或实际采用来源。
 
 #### 初始注册的身份与修订
 

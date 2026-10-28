@@ -9,14 +9,17 @@ import { applyExtended } from './reduce-extended.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
+import { initializationProjection, validateInitializationBatch } from './reduce-initialization.ts'
+import { sameInitializationValue } from './initialization-plan.ts'
+import { adoption, InitializationInvalid } from './initialization-parse.ts'
 
-/** The evidence of one committed batch: the session, its revision and the digest of the entry ids. */
+/** The evidence of one committed batch: the session, its revision and the digest of the complete entries, including their exact interpretation adoption. */
 export function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence {
   return {
     owner: '@omne-harness/session-contract',
     record: `${session}@${batch.revision}`,
     revision: batch.revision,
-    digest: `sha256:${digestOf(batch.entries.map(entry => entry.id))}`,
+    digest: `sha256:${digestOf(batch.entries)}`,
   }
 }
 
@@ -93,6 +96,8 @@ function apply(draft: Draft, entry: SessionEntry, source: DurableEvidence): stri
       return null
     }
     case 'run.started': {
+      if (draft.tasks.some(task => task.kind === 'initialization'))
+        return 'a Run started before every initialization item was ready'
       if (draft.run.kind === 'active') return 'a second Run started while one is unfinished'
       if (!draft.pending.includes(entry.first)) return 'the first input of the Run is not pending'
       draft.run = {
@@ -169,7 +174,7 @@ function created(
     residents: [],
     definition: {
       name: entry.creation.definition.name,
-      adopted: entry.creation.definition.candidate,
+      adopted: entry.initialAdoption.adopted,
     },
     execution: entry.creation.execution,
     declarations: origin,
@@ -182,6 +187,16 @@ function created(
     controls: [],
     unresolved: [],
     creation: entry.creation,
+    initialization: {
+      protocol: 1,
+      createOperation: entry.operation,
+      initialAdoption: entry.initialAdoption,
+      input: entry.input,
+      requirements: entry.requirements,
+      plan: entry.plan,
+      results: [],
+      registrations: [],
+    },
     tasks: entry.items.map(item => ({
       kind: 'initialization',
       ...item,
@@ -206,19 +221,48 @@ function created(
  * `quarantined` and no partial state.
  */
 export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): ReduceResult {
+  if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
+  try {
+    for (const row of batch.entries) adoption(row.schema)
+    if (previous !== null) adoption(previous.interpreter)
+  } catch (error) {
+    if (error instanceof InitializationInvalid)
+      return quarantined('missing interpretation basis: absent or malformed version metadata')
+    throw error
+  }
+  const firstSchema = batch.entries[0]?.schema
+  if (batch.entries.some(row => !sameInitializationValue(row.schema, firstSchema)))
+    return quarantined('missing interpretation basis: conflicting batch interpreter adoptions')
+  const unsupported = batch.entries.find(
+    entry => !sameInitializationValue(entry.schema, SESSION_INTERPRETER),
+  )
+  if (unsupported !== undefined)
+    return quarantined(`unsupported interpreter adoption: ${JSON.stringify(unsupported.schema)}`)
+  if (previous !== null && !sameInitializationValue(previous.interpreter, SESSION_INTERPRETER))
+    return quarantined(
+      `unsupported snapshot interpreter adoption: ${JSON.stringify(previous.interpreter)}`,
+    )
   if (previous !== null && batch.revision === previous.revision)
-    return { kind: 'reduced', snapshot: previous }
+    return sameInitializationValue(previous.source, batchEvidence(batch, previous.session))
+      ? { kind: 'reduced', snapshot: previous }
+      : quarantined('the repeated batch contradicts the committed snapshot')
   if (previous !== null && Number(batch.revision) !== Number(previous.revision) + 1)
     return quarantined(`batch ${batch.revision} does not follow revision ${previous.revision}`)
-  if (batch.entries.length === 0) return quarantined(`batch ${batch.revision} has no entries`)
   if (batch.entries.some(entry => entry.revision !== batch.revision))
     return quarantined(`batch ${batch.revision} holds an entry of another revision`)
   let draft: Draft | null = previous === null ? null : { ...previous }
-  for (const [index, row] of batch.entries.entries()) {
+  const decodedEntries: SessionEntry[] = []
+  for (const row of batch.entries) {
     const decoded = decodeEntry(row)
     if ('unknown' in decoded) return quarantined(`unknown entry kind ${decoded.unknown}`)
     if ('malformed' in decoded) return quarantined(decoded.malformed)
-    const entry = decoded.ok
+    decodedEntries.push(decoded.ok)
+  }
+  const initializationDiagnostic = validateInitializationBatch(previous, batch, decodedEntries)
+  if (initializationDiagnostic !== null) return quarantined(initializationDiagnostic)
+  for (const [index, row] of batch.entries.entries()) {
+    const entry = decodedEntries[index]
+    if (entry === undefined) return quarantined('missing decoded entry')
     if (draft === null) {
       if (entry.kind !== 'session.created' || index !== 0)
         return quarantined('the first batch does not begin with session.created')
@@ -227,6 +271,8 @@ export function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): Re
     }
     const diagnostic = apply(draft, entry, row.origin.source)
     if (diagnostic !== null) return quarantined(`${row.kind} at ${row.id}: ${diagnostic}`)
+    const initialization = initializationProjection(draft, entry, row, batch)
+    if (initialization !== undefined) draft.initialization = initialization
   }
   if (draft === null) return quarantined('the batch created nothing')
   draft.revision = batch.revision

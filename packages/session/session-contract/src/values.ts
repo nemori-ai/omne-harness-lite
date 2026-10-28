@@ -227,6 +227,27 @@ export type SessionCreation = Readonly<{
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
   residentAdoption?: ResidentAdoption
+  initialization?: InitializationSources
+}>
+export type InitializationSource = Readonly<{
+  item: string
+  owner: string
+  protocol: Adoption
+}> &
+  (
+    | Readonly<{
+        kind: 'context-registration'
+        input: Omit<
+          Extract<DeclarationChange, { kind: 'context-registration' }>,
+          'kind' | 'registration'
+        >
+      }>
+    | Readonly<{ kind: 'workspace-load' }>
+    | Readonly<{ kind: 'execution-adoption' }>
+  )
+export type InitializationSources = Readonly<{
+  sources: readonly InitializationSource[]
+  results: readonly InitializationResult[]
 }>
 export type InitializationResult = Readonly<{
   item: string
@@ -348,6 +369,7 @@ export type WorkSnapshot = Readonly<{
   contextScopes?: readonly ContextScopeBinding[]
   contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
   changes?: readonly DeclarationChange[]
+  initialization?: InitializationState
 }>
 
 /** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */
@@ -366,4 +388,108 @@ export type ContextScopeBinding = Readonly<{
   scope: string
   operation: SessionOperationId
   ended: DurableEvidence | null
+}>
+
+export type InitializationPlanItem = Readonly<{
+  kind: 'identity' | InitializationSource['kind']
+  owner: string
+  item: string
+  protocol: Adoption
+  originalInput: JsonValue
+}>
+
+export type InitializationRegistration = Readonly<{
+  scope: string
+  tenant: string
+  key: string
+  commit: string
+  basedOn: number
+  revision: number
+  creating: true
+  required: true
+  need: ContextMaterial
+  binding: ContextMaterial
+  parameters: ContextMaterial
+}>
+
+export type InitializationRequirement = Readonly<{
+  kind:
+    | 'entry-contract'
+    | 'identity'
+    | 'context-registration'
+    | 'workspace-load'
+    | 'execution-preparation'
+  key: string
+  requirement: DurableEvidence
+  resolution:
+    | Readonly<{ kind: 'satisfied'; evidence: DurableEvidence }>
+    | Readonly<{ kind: 'planned'; owner: string; item: string }>
+}>
+
+export type InitializationAdoption = Readonly<{
+  definitionName: string
+  adopted: Adoption
+  source: DurableEvidence
+  boundary: DurableEvidence
+  inputSnapshot: ContextMaterial
+  capabilities: ContextMaterial
+  residentBindings: ResidentAdoption['keys']
+  newResidents: ResidentAdoption['residents']
+}>
+export type InitialAdoption = InitializationAdoption & Readonly<{ candidate: Adoption }>
+export type InitializationConsequence =
+  | Readonly<{ kind: 'identity'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'workspace-load'; evidence: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-registration'
+      prepared: DurableEvidence
+      decision: InitializationRegistration
+    }>
+  | Readonly<{
+      kind: 'execution-ready'
+      evidence: DurableEvidence
+      adoption: InitializationAdoption | null
+    }>
+export type InitializationGuardResult = Readonly<{
+  owner: string
+  item: string
+  result: InitializationResult
+  consequence: InitializationConsequence | null
+}>
+export type InitializationGuardFacts = Readonly<{
+  version: 1
+  command: 'create' | 'completeInitialization'
+  binding: Readonly<{ tenant: string; session: string; operation: string; createOperation: string }>
+  input: JsonValue
+  initialAdoption: InitialAdoption | null
+  requirements: readonly InitializationRequirement[] | null
+  plan: readonly InitializationPlanItem[]
+  results: readonly InitializationGuardResult[]
+}>
+export type InitializationFactReference =
+  | Readonly<{ kind: 'batch'; ordinal: number }>
+  | Readonly<{ kind: 'committed'; entry: DurableEvidence }>
+
+export type InitializationResultRecord = Readonly<{
+  operation: SessionOperationId
+  outcome: InitializationGuardResult
+  facts: readonly InitializationFactReference[]
+  entry: DurableEvidence
+  revision: string
+  range: Readonly<{ first: import('./identity.ts').EntryId; last: import('./identity.ts').EntryId }>
+}>
+export type InitializationState = Readonly<{
+  protocol: 1
+  createOperation: SessionOperationId
+  initialAdoption: InitialAdoption
+  input: JsonValue
+  requirements: readonly InitializationRequirement[]
+  plan: readonly InitializationPlanItem[]
+  results: readonly InitializationResultRecord[]
+  registrations: readonly Readonly<{
+    plan: InitializationPlanItem
+    prepared: DurableEvidence
+    decision: InitializationRegistration
+    entry: DurableEvidence
+  }>[]
 }>

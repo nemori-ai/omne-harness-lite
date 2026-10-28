@@ -21,6 +21,7 @@ export {
   sessionTransactionsConformance,
   type MemorySessionTransactions,
   type MemorySessionLogTransactions,
+  type MemoryInitializationTransactions,
   type SessionTransactionsFixture,
 } from './testing-transactions.ts'
 export {
@@ -54,6 +55,15 @@ export {
 } from './testing-values.ts'
 
 export * from './testing-providers.ts'
+export {
+  createMemoryInitializationSource,
+  type MemoryInitializationSource,
+} from './testing-initialization-source.ts'
+export {
+  adoptedInitializationFixture,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
+} from './testing-initialization.ts'
 export type { MemorySessionTransactionOptions } from './testing-transactions.ts'
 export {
   sessionIdentityBridgeConformance,

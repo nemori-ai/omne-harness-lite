@@ -19,3 +19,9 @@
 - [scene.ts](scene.ts)：测试中的会话操作辅助
 
 - [result-integrity.spec.ts](result-integrity.spec.ts)：原执行与位置、结果依据不变、迟到保管、后继隔离及归档提醒。
+
+- [initialization-plan.spec.ts](initialization-plan.spec.ts)：原计划与注册身份编码
+- [initialization-behavior.spec.ts](initialization-behavior.spec.ts)：来源义务、原子事实与重试
+- [initialization-integrity.spec.ts](initialization-integrity.spec.ts)：来源绑定、篡改与解释隔离
+- [protocol-release.spec.ts](protocol-release.spec.ts)：完整发布集合与摘要
+- [initialization-scenario.ts](initialization-scenario.ts)、[initialization-fixture.ts](initialization-fixture.ts)：显式测试前提

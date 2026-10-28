@@ -45,16 +45,26 @@ import type {
 } from './values.ts'
 import type { EntryClass, HistoryEntry } from './faces.ts'
 import type { EncodedEntry } from './judgments.ts'
+import type {
+  InitialAdoption,
+  InitializationAdoption,
+  InitializationGuardResult,
+  InitializationFactReference,
+  InitializationPlanItem,
+  InitializationRequirement,
+  InitializationRegistration,
+} from './values.ts'
+import { SESSION_RELEASE_DIGEST } from './release-digests.ts'
 
 /**
  * The interpreter of this member: the adoption that every snapshot and entry schema names.
- * Revision 2: `creation.workspace` is sixth-family text and `creation.workspaceAttachment` is new.
+ * Revision 3 records verified initial adoption and the bound initialization plan.
  */
 export const SESSION_INTERPRETER: Adoption = Object.freeze({
   owner: '@omne-harness/session-contract',
   name: 'session-log',
-  revision: '2',
-  digest: 'sha256:session-log-2',
+  revision: '3',
+  digest: SESSION_RELEASE_DIGEST,
 })
 
 /** The initialization item of one required identity (SE01 → `tasks.initialization`). */
@@ -71,12 +81,30 @@ export type SessionEntry =
       operation: SessionOperationId
       creation: SessionCreation
       items: readonly InitializationItem[]
+      initializationProtocol: 1
+      initialAdoption: InitialAdoption
+      requirements: readonly InitializationRequirement[]
+      plan: readonly InitializationPlanItem[]
+      input: JsonValue
     }>
-  | Readonly<{ kind: 'session.initialization-item'; result: InitializationResult }>
+  | Readonly<{
+      kind: 'session.initialization-item'
+      result: InitializationResult
+      createOperation: SessionOperationId
+      operation: SessionOperationId
+      plan: InitializationPlanItem
+      outcome: InitializationGuardResult
+      facts: readonly InitializationFactReference[]
+    }>
   | Readonly<{
       kind: 'session.adoption'
       adopted: Adoption
       residentKeys?: ResidentAdoption['keys']
+      initialization?: Readonly<{
+        createOperation: SessionOperationId
+        item: Readonly<{ owner: string; item: string }> | null
+        adoption: InitializationAdoption
+      }>
     }>
   | Readonly<{
       kind: `message.${Message['role']}`
@@ -142,6 +170,12 @@ export type SessionEntry =
         | 'session.recovery-input-adopted'
       declaration: DeclarationChange
       scope: string | null
+      initialization?: Readonly<{
+        createOperation: SessionOperationId
+        plan: InitializationPlanItem
+        prepared: DurableEvidence
+        decision: InitializationRegistration
+      }>
     }>
   | Readonly<{
       kind: 'session.workspace-changed'

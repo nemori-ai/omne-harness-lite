@@ -36,6 +36,8 @@ import {
   testingWorkspace,
 } from '@omne-harness/session-contract/testing'
 import { encodeEntry } from '../src/entries.ts'
+import type { SessionEntry } from '../src/entries.ts'
+import { initializationGuards } from './initialization-fixture.ts'
 
 const access = memoryAccess('tester')
 const base = { tenant: access.tenant, session: access.session }
@@ -43,7 +45,9 @@ const base = { tenant: access.tenant, session: access.session }
 /** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
   const guards =
-    command.kind === 'startRun' ? [guard('evidence-bridge', 'login-entry', 'login')] : []
+    command.kind === 'startRun'
+      ? [guard('evidence-bridge', 'login-entry', 'login')]
+      : initializationGuards(command, previous)
   const decision = decide(previous, command, guards, null, { compaction: null })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
@@ -182,8 +186,12 @@ const WORKSPACE_TEXT = 'wsp_c0nf0rmance000000000000000'
 const workspace = () => testingWorkspace(WORKSPACE_TEXT)
 const workspaceAttachment = { instance: 'host-1:/srv/work', basis: 'git:4f2a9c1' }
 
-function decisionOf(command: SessionCommand, previous: WorkSnapshot | null = null) {
-  return decide(previous, command, [], null, { compaction: null })
+function decisionOf(
+  command: SessionCommand,
+  previous: WorkSnapshot | null = null,
+  guards = initializationGuards(command, previous),
+) {
+  return decide(previous, command, guards, null, { compaction: null })
 }
 
 /** The member `key` of a json-text object tree, or undefined. */
@@ -298,7 +306,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       items: [],
     }
     expect(() =>
-      encodeEntry(entry, { owner: 'session', via: 'direct', source: evidence('forged') }),
+      encodeEntry(entry as unknown as SessionEntry, {
+        owner: 'session',
+        via: 'direct',
+        source: evidence('forged'),
+      }),
     ).toThrow(TypeError)
   })
 
@@ -313,7 +325,9 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ],
     ['an adoption', adoption('workspace')],
   ])('a creation whose workspace is %s is invalid', (_case, forged) => {
-    expect(decisionOf(createCommand({ workspace: forged as never, workspaceAttachment }))).toEqual({
+    expect(
+      decisionOf(createCommand({ workspace: forged as never, workspaceAttachment }), null, []),
+    ).toEqual({
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'creation.workspace', reason: expect.any(String) },
     })
@@ -342,7 +356,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ],
   ])('a creation with a workspace and %s is invalid', (_case, attached, field) => {
     expect(
-      decisionOf(createCommand({ workspace: workspace(), workspaceAttachment: attached as never })),
+      decisionOf(
+        createCommand({ workspace: workspace(), workspaceAttachment: attached as never }),
+        null,
+        [],
+      ),
     ).toEqual({ kind: 'rejected', failure: { kind: 'invalid', field, reason: expect.any(String) } })
   })
 
@@ -351,7 +369,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ['a missing attachment key', undefined],
   ])('a creation with no workspace and %s is invalid', (_case, attached) => {
     expect(
-      decisionOf(createCommand({ workspace: null, workspaceAttachment: attached as never })),
+      decisionOf(
+        createCommand({ workspace: null, workspaceAttachment: attached as never }),
+        null,
+        [],
+      ),
     ).toEqual({
       kind: 'rejected',
       failure: {
@@ -496,9 +518,8 @@ describe('reduce', () => {
       kind: 'quarantined',
     })
     expect(reduce(null, unknown)).toMatchObject({ kind: 'quarantined' })
-    expect(reduce(created, { revision: created.revision, entries: [] })).toEqual({
-      kind: 'reduced',
-      snapshot: created,
+    expect(reduce(created, { revision: created.revision, entries: [] })).toMatchObject({
+      kind: 'quarantined',
     })
   })
 })

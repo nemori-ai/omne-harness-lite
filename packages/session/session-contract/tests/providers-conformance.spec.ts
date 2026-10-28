@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { initializationGuards } from './initialization-fixture.ts'
 import {
   sessionIdentityBridgeConformance,
   sessionEvidenceBridgeConformance,
@@ -10,6 +11,7 @@ import {
   agentDriveConformance,
   createScriptedSessionIdentityBridge,
   createMemorySessionEvidenceBridge,
+  createMemoryInitializationSource,
   createMemorySessionContextInput,
   createMemorySessionClock,
   createMemorySessionIdleInput,
@@ -30,7 +32,21 @@ function prove<F>(cases: readonly ConformanceCase<F>[], factory: () => F) {
 }
 describe('effective provider conformance on non-durable doubles', () => {
   prove(sessionIdentityBridgeConformance(), () => createScriptedSessionIdentityBridge<string>())
-  prove(sessionEvidenceBridgeConformance(), createMemorySessionEvidenceBridge)
+  prove(sessionEvidenceBridgeConformance(), () => {
+    const initialization = createMemoryInitializationSource()
+    const bridge = createMemorySessionEvidenceBridge({ initialization })
+    return {
+      ...bridge,
+      prepare: async command => {
+        if (command.kind === 'create') {
+          const material = initializationGuards(command, null)[0]
+          if (material === undefined) throw new Error('missing explicit adoption fixture')
+          initialization.controls.register(command, material)
+        }
+        return bridge.prepare(command)
+      },
+    }
+  })
   prove(sessionContextInputConformance(), () => createMemorySessionContextInput<string>())
   prove(sessionClockConformance(), createMemorySessionClock)
   prove(sessionIdleInputConformance(), () =>

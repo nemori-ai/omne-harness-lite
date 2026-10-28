@@ -27,7 +27,7 @@ export const completeEvidence = (source: DurableEvidence): boolean =>
   [source.owner, source.record, source.revision, source.digest].every(part => part.length > 0)
 
 export function residentEntries(
-  snapshot: WorkSnapshot | null,
+  snapshot: Pick<WorkSnapshot, 'residents'> | null,
   material: ResidentAdoption | undefined,
   source: DurableEvidence,
 ): Decision {

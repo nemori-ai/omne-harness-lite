@@ -110,6 +110,8 @@ export type DecideReads = Readonly<{
   idleObservation?: IdleObservation
   idleCoverage?: IdleCoverage
   frozenReceipt?: CommitReceipt
+  /** Original receipts from the same committed root, required only for initialization result recall. */
+  initializationReceipts?: readonly CommitReceipt[]
 }>
 
 export const OFF_PATH_DIAGNOSTIC =
