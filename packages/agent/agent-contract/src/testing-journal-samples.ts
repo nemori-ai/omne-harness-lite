@@ -7,17 +7,15 @@ import {
   decodeModelOperationId,
   decodeResultVersion,
   encodeModelInvocationRef,
-  resolveModelInvocationRef,
   type ModelDeliveryKey,
 } from '@omne-harness/model-contract'
-import { decodeStreamId, encodeStreamRef, type StreamCallCodec } from '@omne-harness/stream-arrival'
 import {
   decodeToolCallId,
   decodeToolOperationId,
   encodeToolInvocationRef,
 } from '@omne-harness/tool-contract'
 import { decodeConsumptionId, type DurableEvidence } from './identity.ts'
-import type { ReceivedEntry, StartFenceEntry, StreamReferenceEntry } from './receiving.ts'
+import type { ReceivedEntry, StartFenceEntry } from './receiving.ts'
 
 function identity<T>(decoded: Outcome<T, unknown>, what: string): T {
   if (!('ok' in decoded)) throw new TypeError(`the suite value ${what} is invalid`)
@@ -166,33 +164,5 @@ export function sampleReceivedToolAccount(
       account: { ...kept, usage: [{ name: 'input', state: 'known', lexeme, unit: 'token' }] },
     },
     ...consumerOf(name),
-  }
-}
-
-/** The stream call codec of the suite: the call text is a Model invocation reference. */
-const modelStreamCodec: StreamCallCodec = {
-  producer: 'model',
-  resolve: ({ text, tenant }) => {
-    const resolved = resolveModelInvocationRef(text, tenant)
-    if ('ok' in resolved && typeof text === 'string') return { ok: text }
-    if ('failure' in resolved && resolved.failure.kind === 'foreign-tenant') {
-      return { failure: { kind: 'foreign-tenant' } }
-    }
-    return { failure: { kind: 'malformed' } }
-  },
-}
-
-/** A stream-reference entry of the suite for a Model call that `tenant` owns. */
-export function sampleStreamReference(tenant: TenantId, name: string): StreamReferenceEntry {
-  const { reference } = modelReference(tenant, name)
-  const stream = identity(decodeStreamId(`str_${name}`), name)
-  return {
-    kind: 'stream-reference',
-    producer: 'model',
-    reference: identity(
-      encodeStreamRef({ tenant, producer: 'model', call: reference, stream }, modelStreamCodec),
-      name,
-    ),
-    consumption: identity(decodeConsumptionId(`cons-${name}`), name),
   }
 }

@@ -13,7 +13,6 @@ export {
   sampleReceivedModelResult,
   sampleReceivedToolAccount,
   sampleStartFence,
-  sampleStreamReference,
   type AgentJournalEntriesFixture,
   type MemoryAgentJournalEntries,
 } from './testing-journal-entries.ts'

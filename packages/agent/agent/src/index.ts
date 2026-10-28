@@ -8,5 +8,18 @@ export type {
   AgentRuntimeOptions,
 } from './construction.ts'
 
-export { agentProcessedResultSchema, readProcessedModelMaterial } from './loop/processed-result.ts'
-export type { ProcessedModelIdentity } from './loop/processed-result.ts'
+export { agentModelDeliverySchema, readModelDeliveryMaterial } from './receiving-material.ts'
+
+export { createAgentModelReceiver, createModelReceiverState } from './receiving.ts'
+export type {
+  AgentModelReceiver,
+  ModelReceiverState,
+  ModelReceiverReport,
+  ModelReceptionDiagnostic,
+} from './receiving.ts'
+export type {
+  ModelReceiverDependencies,
+  ModelReceptionTarget,
+  ModelReceptionTargets,
+  ModelReceptionCapacity,
+} from './receiving-types.ts'

@@ -1,11 +1,10 @@
-// Producer receiving surface of the Agent contract (SPEC "生产者接收面"): the three receiving entries
+// Producer receiving surface of the Agent contract (SPEC "生产者接收面"): the receiving entries
 // of the Journal, the port that records them, and the account outlet toward Request Context. Types
-// only; no function runs here. The receipt types of Model and Tool and `StreamRef` keep their one
+// only; no function runs here. The receipt types of Model and Tool keep their one
 // definition in their owners; this file only refers to them.
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type * as M from '@omne-harness/model-contract'
-import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival'
 import type * as T from '@omne-harness/tool-contract'
 import type { Reply } from './evaluation.ts'
 import type { CommandReceipt, ExecutionMutation } from './execution.ts'
@@ -66,19 +65,11 @@ export type ReceivedEntry = Readonly<{
   material: DurableEvidence
 }>
 
-/** A producer stream reference that Agent obtained (J04). Holding it grants no observation. */
-export type StreamReferenceEntry = Readonly<{
-  kind: 'stream-reference'
-  producer: StreamProducer
-  reference: StreamRef
-  consumption: ConsumptionId
-}>
-
 /**
  * The receiving entries of the Journal (J01). The union is open: a reader keeps an entry of an
  * unknown kind and does not interpret it, so a later kind is an additive change.
  */
-export type AgentJournalEntry = StartFenceEntry | ReceivedEntry | StreamReferenceEntry
+export type AgentJournalEntry = StartFenceEntry | ReceivedEntry
 
 /**
  * The input of one record. An entry of the advancing side carries the current Authority; the
@@ -86,7 +77,7 @@ export type AgentJournalEntry = StartFenceEntry | ReceivedEntry | StreamReferenc
  */
 export type JournalEntryRecord<P> = ExecutionMutation<P> &
   (
-    | Readonly<{ authority: Authority; entry: StartFenceEntry | StreamReferenceEntry }>
+    | Readonly<{ authority: Authority; entry: StartFenceEntry }>
     | Readonly<{ authority: null; entry: ReceivedEntry }>
   )
 

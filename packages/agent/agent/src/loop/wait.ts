@@ -1,5 +1,5 @@
 // One execution's W0 notification window. Streams provide hints; only the original Journal slots,
-// snapshot, producer inspection and the original failed read establish progress. Closing this window stops no business work.
+// snapshot and the original failed read establish progress. Closing this window stops no business work.
 import { setImmediate as yieldTurn } from 'node:timers/promises'
 import type {
   Access,
@@ -90,28 +90,6 @@ export async function waitForExecutionChange<P>(
             }
           })().catch(failed),
         )
-      for (const wait of input.waits) {
-        if (wait.kind !== 'producer' || wait.pending.kind !== 'model') continue
-        const reference = wait.pending.reference
-        const route = await ports.models.instances.connect({ ...access, reference })
-        if ('failure' in route || route.ok.kind !== 'live') continue
-        const handle = route.ok.handle
-        tasks.push(
-          (async () => {
-            for await (const seen of handle.observe({ ...access, signal: controller.signal })) {
-              if (controller.signal.aborted || seen.kind === 'ended') return
-              if (
-                seen.kind === 'changed' ||
-                (input.position === 'M1' && seen.value.state.phase === 'settled') ||
-                input.position === 'M6'
-              ) {
-                changed()
-                return
-              }
-            }
-          })().catch(failed),
-        )
-      }
       // Observation consumption starts before these reads. Replay, the initial snapshot and the
       // clock cover the window because these ports provide no registration-ready receipt.
       const latest = await ports.journal.load({ ...access, execution })
@@ -125,20 +103,6 @@ export async function waitForExecutionChange<P>(
         if ('failure' in queried && queried.failure.kind !== 'unavailable') return queried
       }
       if (operationsReady && 'ok' in latest) return succeed('ready')
-      for (const wait of input.waits) {
-        if (wait.kind !== 'producer' || wait.pending.kind !== 'model') continue
-        const read = await ports.models.calls.inspect({
-          ...access,
-          reference: wait.pending.reference,
-        })
-        if (
-          'ok' in read &&
-          read.ok.kind === 'found' &&
-          (input.position === 'M6' ||
-            (input.position === 'M1' && read.ok.state.phase === 'settled'))
-        )
-          return succeed('ready')
-      }
       if ('ok' in latest && input.recheck != null) {
         const rechecked = await input.recheck(latest.ok)
         if ('ok' in rechecked) return succeed('ready')

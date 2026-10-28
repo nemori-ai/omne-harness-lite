@@ -11,3 +11,5 @@
 - [README.md](README.md)：验证资源的范围与运行方式
 - [models/](models/index.md)：形式模型
 - [proofs/](proofs/index.md)：论证与证明
+
+- [model-reception/](model-reception/README.md)：Model 结果接收、共同提交与账目重放的有限模型

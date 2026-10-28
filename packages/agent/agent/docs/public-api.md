@@ -1,6 +1,6 @@
 # Agent 通用实现的构造入口
 
-根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出 `agentProcessedResultSchema`、`readProcessedModelMaterial` 与类型 `ProcessedModelIdentity`，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
+根入口导出下列类型、`createAgentRuntime`、通用评估器 `agentEvaluator`（契约 `AgentEvaluator` 的实现，装配经 `AgentAdoptions` 为绑定的定义采用它）与它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema`。根入口还导出独立 Model 接收工厂、宿主持有状态和完整材料读取器，说明见下文。`createAgentRuntime` 的协调者要求所采用的评估器以本包的节点集合（Loop 算法页节点表的节点 ID）为 `position` 词汇，并返回本包转移表能承接的 `Next`。经 `AgentAdoptions` 交来的其他评估器只与契约形状兼容，不与本协调者的语义兼容：它的位置与决定没有转移行时，执行以缺陷停止。工厂已实现创建校验与四个面的访问守卫，`invoke` 走 Loop 正常路径的骨架，其他操作本体尚未实现，实际支持范围与未实现的校验见[成员 README](../README_ZH.md#支持范围)。下列行为是设计中的工厂行为，操作和行为由 [纯契约](../../agent-contract/README.md) 拥有。测试装配在 `./testing` 入口，见[成员 README](../README_ZH.md#支持范围)。本包不接收 Cordis Context，不导入任何外部协调者的类型。
 
 ## 参数与依赖
 
@@ -137,7 +137,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | admission    | agentActionAdmission | 局部必需：采用的定义带有工具动作时。端口是契约包的 ActionAdmission，由授权领域的适配器实现                                                          | 采用的定义带有工具动作时，创建返回 unavailable。运行中该端口返回 unavailable 时，该批动作全部被拒绝，不放行，也不出卡 | 换实现后下一次准入生效。已经 allow 的准入证据由 Tool 在发起前按当前权限再核，参数或依据变化时旧批准失效                                        |
 | extensions   | agentExtensions      | 局部必需：采用的定义声明了扩展位置时。端口是契约包的 ExtensionImplementations，形状归[扩展规格](../../agent-contract/docs/public-api/extensions.md) | 已声明的必需扩展无法解析时，创建返回 unavailable。可选扩展按其声明的不可用处置跳过                                    | 已开始的经过保留精确采用，不因换代重问、重判或重放效果                                                                                         |
 | cards        | agentDecisionCards   | 局部必需：存在可能出卡的扩展或动作准入时。端口是契约包的 DecisionCards，由人在回路领域的适配器实现                                                  | 需要出卡的路径返回 unavailable，按各自声明的不可用处置                                                                | 已呈现的卡片按原身份认回，不重新出卡                                                                                                           |
-| materials    | agentMaterials       | 本实现局部必需：M3 processed 结果；设计中的 custody 路径也使用它                                                                                    | 本实现 M3 不 ACK，保留原 Model 责任；不推广为所有 processed 实现的公共要求                                            | 保存成功而 Journal 绑定未知时保留孤立材料，以原 Journal 操作查询                                                                               |
+| materials    | agentMaterials       | 本实现局部必需：读取 received 完整材料；其他 custody 路径也使用它                                                                                    | M3 无法采用 received 结果，显式保留等待或失败                                            | Model 材料与条目共同提交；未知沿原接收操作查询                                                                               |
 | reads        | agentReads           | 局部必需：扩展使用具名读取时                                                                                                                        | 该读取返回 unavailable，经过保留原状态                                                                                | 已捕获的读取值不重读                                                                                                                           |
 | registration | 无服务键             | 可选：只在需要目录路由和重启后发现时。端口是宿主为本实例提供的 AgentRegistrationHandle，runtime 不取得整个宿主                                      | 实例不被发布。runtime 只能经返回的 provider 使用，connect 与 resolve 不可用，quiesce 跳过撤登记                       | 换宿主前先 quiesce 或 detach。新宿主为新的预约提供新的句柄，旧登记不能撤后继                                                                   |
 | clock        | agentClock           | 必需                                                                                                                                                | 创建返回 unavailable                                                                                                  | now 为新失败候选及 W0 检查读取 UTC 当前时刻，失败为 unavailable（owner 为 agentClock）；waitUntil 等待进程内检查时刻。无法表示的检查时刻返回 unavailable，不伪造或截断。换时钟不改变逻辑终态               |
@@ -166,21 +166,19 @@ Journal 必须支持本 execution 的输入与条件终结、原操作查询、�
 
 quiesce 的形状与行为都不在本页：形状见契约包的 AgentRuntimeControl，同一操作的重试、已 unresolved 之后的重试、以及对停用中 runtime 的新 quiesce，行为见 SPEC 的“[托管协调与运行实例](../../agent-contract/SPEC.md#托管协调与运行实例)”。本实现只负责资源释放：工厂取得的依赖为借用对象，只释放自己创建的订阅和资源。Model 与 Tool 的原执行、共享连接和存储由各自拥有者管理。业务保管不依赖本 provider 持续在线。
 
-## 本实现的 processed 完成材料
+## 独立 Model 接收入口
 
-`agentProcessedResultSchema` 是本包拥有的精确版本采用：owner 为 `@omne-harness/agent`，name 为 `agent-processed-model-result`，revision 为 `1`，digest 为 `agent:processed-model-result/1`。它标识 `AgentMaterials.facts` 的解释规则，不是处理完成证明。
+根入口导出 `createAgentModelReceiver`、`createModelReceiverState`、`agentModelDeliverySchema` 和 `readModelDeliveryMaterial`。类型由 [receiving-types.ts](../src/receiving-types.ts) 与 [receiving.ts](../src/receiving.ts) 拥有。
 
-M3 将已解释的 reply、partial 或 no-reply 与原 tenant、execution、step、consumption、consumer、ProducedResult、settlement、parts、dispatch/费用及 I3 后续责任一起保存。稳定材料 identity 为 `<execution>/<consumption>/processed/1`，在原租户下同输入认回原回执、异值冲突。保存须不可变且可读，回执 owner 必须与原受理 consumer.owner 一致。协调者直接采用材料回执，不改写 owner。
+`ModelReceiverDependencies` 必须传同一提供者的 journal/entries/materials/received，receive-result 的 access check，原目标查询 targets，Model inspect/dispatches 窄面，账目 outlet 与显式租户容量。`ModelReceptionTarget` 带原 execution、instance 和 model PendingCall。targets 由保存原消费绑定的提供者实现，不按 consumer 文本猜身份。received 为 null 时工厂拒绝创建接收方。
 
-材料成立后，M3 以 recordResult(processed) 将原 ProducedResult/consumption 与该完成依据绑定。材料与绑定都成立后，从 Journal.results[].completion 读回核对，再在当前原 Authority 下 ACK。保存失败或绑定失败/未知均零 ACK；已存孤立材料保留。缺材料端口或不支持本 schema 时，本实现不能完成这条 processed 路径。
+`createModelReceiverState()` 的返回值由宿主持有。重装配继续传同一状态。句柄的 push 遵守 Model 接收顺序；recover 按 execution 读回 received 和材料；retry 继续原未知提交与可重试账目。inspect 返回待办数、blocked 数及诊断的副本。账目 hard failure 保持 blocked，重装配不会自动重发。
 
-`readProcessedModelMaterial(material, expected)` 接受材料与 `ProcessedModelIdentity`，后者给出原 tenant、execution、step、consumption、consumer 与 ProducedResult。它核对精确 schema、原关联与后续责任，重新解释已存结果，再返回回复、部分结果或无回复。未知 schema、损坏或关联不符返回 failure；它不向 Model 索取全文。
+facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner=agent、name=received-model-delivery、revision=1、digest=agent:received-model-delivery/1。`readModelDeliveryMaterial(access, material, expected)` 核对 schema、租户与不含材料引用的原 received 草稿；合法时返回完整 delivery，不合法时返回 null。它不读取存储，也不证明资格或耐久。
 
-该导出用于拥有者为 Agent 的 Model 完成证据适配器：适配器需要解释本包 schema，不能依赖内部文件路径或自行重写解释规则。当前测试装配的严格证据适配器从根导入此函数并实际消费它。真实宿主适配器仍未由本包交付。读取器单独不证明材料已经保存、Journal 绑定成立或当前资格有效。受信适配器还须读取实际不可变材料，核验原 Model 调用及 consumer、已成立 Journal 绑定和当前消费资格，再认可 ACK。
+正常 loop 只 admit/cancel Model；未知或恢复时 inspect 只作受理对账。M1/M3/I3 消费 Journal 的 received 与同提供者材料，不再保留 processed 完成材料或 Model ACK 管线。保留的 Journal recordResult 服务其他既有责任。
 
-I3 与当前内部窄接续读取 Journal 完成依据，不依赖旧协调者的结果缓存。该接缝只覆盖原 runtime/Access/Authority、旧驱动已停的必要串行切点；它不提供新的公开恢复端口、custody 或阶段 5 通用水合。
-
-M3 已提交 producer/M4 后，新协调者通过 I3 查询原 reference 的真实 acknowledged 状态，核原 call/version/consumer、ACK operation 与 completion receipt，认回已丢失的原确认依据，不重新 ACK。随后既有 O0 以原 consumption 的稳定操作记录 release.confirmed；Journal 写入未知用原操作 query，unknown 与 unavailable 保持失败及责任。此处只支持本卡主调用接续，O0 的整体责任交清仍由后续阶段接受。
+测试装配可显式传 receivingPrincipal 启用公开 Model testing pusher。controls.pusher 暴露 deliveries、settled 与 acknowledgements，controls.receiver 是独立接收方。controls.journal.provider 为同源四视图，targets 在原 PendingCall 提交时保留原绑定。该提供者无磁盘耐久。
 
 ## 测试 Journal 的保留引用故障
 
@@ -203,3 +201,5 @@ M3 已提交 producer/M4 后，新协调者通过 I3 查询原 reference 的真�
 随后调用真实 `port.recordControl` 的新 R，按 [控制接受与迟到引用](../../agent-contract/SPEC.md#控制接受与迟到引用) 观察精确失败，并核对 S2 等于 S1、原 C/R 回执与完整事件不变、新 R 仍 query unknown。原 R 的同输入认回、异输入冲突及外租户附件次序仍按原业务规则。清除后还须验证真实合法写入。设施自身的 `rejected` 不是业务防御证据。
 
 行为资源为 [保留引用公开观察](../tests/journal-tool-control.spec.ts) 和 [控制隔离与恢复](../tests/memory-journal.spec.ts)。它们覆盖内存存储故障，不证明生产存储损坏、耐久恢复、跨进程隔离或独立 QA 已接受。
+
+接收工厂返回 `Outcome`：联合接收能力存在时为 `ok` 句柄；`received=null` 时为 `failure: { kind: 'unsupported' }`，不创建接收能力。

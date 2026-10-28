@@ -26,16 +26,22 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 
 结果未知时先按原身份查询（`AgentExecutionRecovery.query`，R0）。committed 时取原结果，回原节点的后继。unknown 时等待原操作，重查间隔是[工厂配置](../public-api.md#工厂配置)的 reconciliationDelayMs。excluded 必须排除原写入与迟到提交，不是查无记录。只有 excluded 才允许以同一帧重新求值。当前事实已变而需要不同语义的请求时，先以独立的重新求值转移条件提交新的帧版本，再从新 revision 派生新身份。不在同一槽位换输入，不用新的随机身份重试，不把查不到当作排除证明。Journal 提供者在 attach 成功时保证旧推进者可能提交的写入已进入可读前缀或已被围栏排除，已受理而未定的操作可以从持久索引枚举并查询。幂等身份只认回逻辑操作，不保证供应商在现实世界只执行一次。规则的行为句见 SPEC 的[并发与提交](../../../agent-contract/SPEC.md#并发与提交)与[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
 
+### Model 独立接收与采用
+
+Model 的完整交付由实例外接收方保管。接收方持有原消费绑定查询与显式状态，在每次 push 中核当前资格、原调用与完整 dispatch 集合，然后通过同一提供者的 received 端口共同提交材料、条目和 saved。提交结果与未知映射消费 [J02](../../../agent-contract/SPEC.md#结果接收)，不在 loop 内重复实现。
+
+M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料继续；恢复不向 Model 重领全文。接收提交可以增加 execution revision，但不改变 attachment；loop 重新读取后以新修订条件提交。账目出站与 blocked/unknown 状态归宿主接收方，Model 自己取得 ACK。
+
 ### 交付责任解除的两条路径与保管者更替
 
-每个 ProducedResult 在 execution 内有一条 ResultResponsibility，身份是结果项加 consumption。它在结果登记时为待释放，经 recordResult 的 transfer 保存保管依据或完成依据，最后以含原生产者确认依据的 release 进入已释放。已释放表示生产侧交付责任解除（英文 ACK）。解除只有两条路径，条件归 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)。两条路径对应 Tool 契约的[可靠交接与处理的两条路径](../../../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)：Agent 的先保管后处理（custody 路径）对应 Tool 的先保管后处理，Agent 的先处理后保存完成依据（processed 路径）对应 Tool 的先完成处理。本节只写每条路径经过的端口与保管者的更替。
+本节的两条旧交接路径适用于仍使用 recordResult 的 Tool 等消费者，不用于 Model received 路径。每个这样的 ProducedResult 在 execution 内有一条 ResultResponsibility，身份是结果项加 consumption。它在结果登记时为待释放，经 recordResult 的 transfer 保存保管依据或完成依据，最后以含原生产者确认依据的 release 进入已释放。已释放表示生产侧交付责任解除（英文 ACK）。解除只有两条路径，条件归 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)。两条路径对应 Tool 契约的[可靠交接与处理的两条路径](../../../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)：Agent 的先保管后处理（custody 路径）对应 Tool 的先保管后处理，Agent 的先处理后保存完成依据（processed 路径）对应 Tool 的先完成处理。本节只写每条路径经过的端口与保管者的更替。
 
 - custody 路径：消费者先经 `AgentMaterials.preserve` 把内容或有效可恢复引用保存到材料拥有者，再经 Journal 的 custody 交接绑定原版本、位置与责任。
 - processed 路径：生产者在处理期间继续保管原结果。消费者完成必要处理后，经 Journal 的 processed 交接保存足以恢复已完成结果及责任的完成依据。
 
-保管者按生产者、材料拥有者或消费侧完成依据的次序更替。任一时刻恰有一个耐久保管者，双方不能同时放弃，也不能重复逻辑承接。Model 解除回执丢失沿原 ACK 操作认回。Tool 只在原 ToolOperationRef 可取得时查询，可靠否定后才可明确重入 releaseDelivery；引用丢失且 lookup.delivery 未证明释放时保留未知。Model 与 Tool 各自的解除条款见 Model 的 [ACK 的前提与效果](../../../../model/model-contract/SPEC.md#ack-的前提与效果)与 Tool 的[卸载与全文读取](../../../../tool/tool-contract/SPEC.md#卸载与全文读取)。
+保管者按生产者、材料拥有者或消费侧完成依据的次序更替。任一时刻恰有一个耐久保管者，双方不能同时放弃，也不能重复逻辑承接。Model ACK 的对账属于 Model 自己，Agent 不执行。Tool 只在原 ToolOperationRef 可取得时查询，可靠否定后才可明确重入 releaseDelivery；引用丢失且 lookup.delivery 未证明释放时保留未知。Model 与 Tool 各自的解除条款见 Model 的 [ACK 的前提与效果](../../../../model/model-contract/SPEC.md#ack-的前提与效果)与 Tool 的[卸载与全文读取](../../../../tool/tool-contract/SPEC.md#卸载与全文读取)。
 
-后台占位是一个独立的结果版本，与最终结果共享同一个 consumption，各有自己的结果项与释放记录。占位保管后只解除占位这一版本的前台交付，原 consumption 的 ResultResponsibility 保持待释放，`reconcile` 返回的 `remaining` 仍含该 consumption。最终结果以同一 consumption 到达时，按两条路径之一保管并解除，该消费关系在最终结果的责任已释放时闭合。所以没有“已释放又回转”的状态。Tool 的失联结果与晚到原全文是同一 consumption 下的两个版本，同理处理。节点是 T1、M3 与 O0，行为见 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)与[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2、8 条。
+后台占位是一个独立的结果版本，与最终结果共享同一个 consumption，各有自己的结果项与释放记录。占位保管后只解除占位这一版本的前台交付，原 consumption 的 ResultResponsibility 保持待释放，`reconcile` 返回的 `remaining` 仍含该 consumption。最终结果以同一 consumption 到达时，按两条路径之一保管并解除，该消费关系在最终结果的责任已释放时闭合。所以没有“已释放又回转”的状态。Tool 的失联结果与晚到原全文是同一 consumption 下的两个版本，同理处理。节点是 T1 与相关 O0 保管入口，行为见 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)与[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2、8 条。
 
 ## 提交点与聚合边界
 
@@ -46,7 +52,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 唯一的聚合是 execution。Agent 经 Journal 写入的事实都属于某一个 execution，由同一个 Journal 提供者保存。Journal 写入的位置分四类。
 
 1. checkpoint 的分面：`AgentCheckpoint` 的 `schema`、`definition`、`step`、`position`、`calls`、`passages`、`batch`、`inputBatch`、`requestPreparation`、`compaction`、`adoptedContext`、`guard`、`completedPassages` 与 `priorConditions`。槽位 `slots` 属于 `batch`。持久帧就是这些既有分面，见接口增量表的 [D1](loop-algorithm.md#接口增量)。
-2. checkpoint 之外的快照字段：`ExecutionSnapshot` 的 `state`、`inputWatermark`、`history`、`replyAdmissions`、`executionAttachment`、`unresolved`、`controls`、`results`、`effects`、`terminalObservations` 与 `output`。
+2. checkpoint 之外的快照字段：`ExecutionSnapshot` 的 `state`、`inputWatermark`、`history`、`replyAdmissions`、`executionAttachment`、`unresolved`、`controls`、`results`、`entries`、`effects`、`terminalObservations` 与 `output`。
 3. 事件：Journal 在提交中为事件分配序号，规则见 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)。
 4. 快照之外、按身份读取的记录：
    - 受理时保存的输入内容，经 `inputs` 读取，见 SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)。
@@ -55,7 +61,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
    - 挂接的围栏记录，保留到 execution 的保留期结束，见对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 ExecutionAttachment 行。
    - 最终请求记录，它在 checkpoint 被取代之后仍承载自己的事实，见 SPEC 的[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended)。
 
-不经 Journal 的事实由各自的拥有者保存。材料由材料拥有者经 `AgentMaterials` 保存。消息的长期保存归历史拥有者，Agent 经 `MessageHandoff.accept` 交接，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。卡片与答复归人在回路领域，Agent 经 `DecisionCards` 读取。
+不经 Journal 的事实由各自的拥有者保存。其他材料由材料拥有者经 `AgentMaterials` 保存；Model received 材料与 Journal 条目由同一提供者共同发布。消息的长期保存归历史拥有者，Agent 经 `MessageHandoff.accept` 交接，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。卡片与答复归人在回路领域，Agent 经 `DecisionCards` 读取。
 
 分层沿用对象模型的三层，见[跨域概念与内部可见范围](../../../agent-contract/docs/object-model.md#跨域概念与内部可见范围)：纯 Evaluator、效果协调层、宿主集成层。各层内的角色见[模块与状态责任](README.md#模块与状态责任)。纯 Evaluator 只读决策事实并返回下一步，它不调用 Journal。效果协调层的 Runtime coordinator、Execution coordinator 与 Passage evaluator / batch coordinator 调用 Journal。宿主集成层的 Journal adapter 提供 Journal。声明了提交参加者时，共同提交由集成适配器兑现。父卡 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 用领域层、应用层、基础设施层作分层尺子，它们依次对应纯 Evaluator 与纯转移、效果协调层的 runtime 协调者、宿主集成层的 Journal 提供者与适配器。
 
@@ -120,8 +126,8 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | M1 | 事件 stream：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号) |
 | M2 | `passages`（failure 维度） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M2 |
-| M3 | `results`（保管或完成依据） | `recordResult`，transfer 为 custody 或 processed | 按原操作幂等的记录 | 同 T1 | SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
-| M3 | 事件 producer：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | 节点表 M3 |
+| M3 | received result 与完整材料 | `commit` 携带 producer 事件 | 条件提交 | receiver 修订变化时重读；真实撤权停止 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
+| M3 | received result 与完整材料 | `commit` 携带 producer 事件 | 条件提交 | receiver 修订变化时重读；真实撤权停止 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M4 | `passages`（complete_reply 或 failure），循环判断的 `guard` 操作记入 Passage 的 `operations`，效果采纳时写 `guard` | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | Q2 | 接纳回执随 checkpoint，事件 message。主回复带 `replyAdmission`。压缩与其他来源在提供者声明对应种类时带 context-transition 或 message，否则 `caller` 为 none | `commit`。先经 `MessageHandoff.accept` 取得接纳 | 条件提交 | 按 `caller` 的种类 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)、[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素) |
 | Q5 | 拒收事实随来源节点保存：主回复为 rejected 的 `replyAdmission`。压缩不提交转换。工具结果与拒绝消息经 T5 转 H0。外部输入不写入，invoke 或 submit 返回 invalid。系统提醒不写入 Passage | 来源节点的提交 | 随来源节点 | 随来源节点 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
@@ -154,7 +160,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | `submit` | 提交与记录 | 效果协调层，在公开操作 `input.submit` 之内。宿主集成层的长期执行记录适配器（经恢复入口） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `input.submit` 行与[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
 | `control` | 提交与记录 | 效果协调层，在公开操作 `control` 之内。宿主集成层的长期执行记录适配器（经恢复入口） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `control` 行 |
 | `acknowledge` | 提交与记录 | 效果协调层，在公开操作 `output.acknowledge` 之内。宿主集成层的长期执行记录适配器（经恢复入口） | Journal 提供者 | 按原操作幂等的记录，只确认单调的连续前缀 | SPEC 逐操作表的 `output.acknowledge` 行与[确认](../../../agent-contract/SPEC.md#确认) |
-| `recordResult` | 提交与记录 | Execution coordinator（T1、M3）。不要求挂接的合法保管方与宿主的长期保管者（O0、reconcile） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `AgentJournal.recordResult` 行与[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
+| `recordResult` | 提交与记录 | Execution coordinator（T1）。不要求挂接的合法保管方与宿主的长期保管者（O0、reconcile） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `AgentJournal.recordResult` 行与[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | `recordControl` | 提交与记录 | Execution coordinator（F0、M1、T0、O0） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `AgentJournal.recordControl` 行 |
 | `tryFinish` | 终结 | Execution coordinator（F3） | Journal 提供者 | 条件终结 | SPEC 逐操作表的 `AgentJournal.tryFinish` 行与[条件终结](../../../agent-contract/SPEC.md#条件终结) |
 | `recordTerminalObservation` | 终态后观察登记 | 宿主集成层的长期协调者（F4） | Journal 提供者 | 按原操作幂等的记录 | SPEC 逐操作表的 `AgentJournal.recordTerminalObservation` 行与[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended) |
@@ -174,8 +180,8 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | --- | --- | --- | --- | --- |
 | message | Q2：T5 的工具结果与拒绝消息，X5 的系统提醒 | `commit` 的 `caller` | 契约没有为这一种具名参加者。SPEC 列出的常见参加者是外部协调者与 Context 参加者 | 本页的读法是 `caller` 为 none：消息由历史拥有者在 accept 时保存，Journal 的 message 事件带消息正文，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。待 M04-10 裁定 |
 | context-transition | C3 经 Q2 | `commit` 的 `caller` | Context 参加者，它核验并共同保存实际范围与排除名单 | 本页的读法是 `caller` 为 none，待 M04-10 裁定。SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条写转换经 Journal 的 context-transition 交接保存，独立装配由其合法历史拥有者兑现 |
-| custody | T1、M3、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的保管依据。材料先经 `AgentMaterials.preserve` 保存到材料拥有者，见本页的[交付责任解除的两条路径与保管者更替](#交付责任解除的两条路径与保管者更替) | 提供者自己建立保管依据，见[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
-| processed | T1、M3、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的处理依据 | 提供者自己建立完成依据，依据同上 |
+| custody | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的保管依据。材料先经 `AgentMaterials.preserve` 保存到材料拥有者，见本页的[交付责任解除的两条路径与保管者更替](#交付责任解除的两条路径与保管者更替) | 提供者自己建立保管依据，见[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
+| processed | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的处理依据 | 提供者自己建立完成依据，依据同上 |
 
 装配者在[工厂配置](../public-api.md#工厂配置)的 `jointCommits` 列出本装配会用到的种类。工厂创建时把每一种与 `capabilities.participants` 比对，缺一种返回 unsupported，不创建 runtime，也不保存状态。独立调用的装配列空表。runtime 遇到 `commit.caller` 中未声明的种类，在保存任何状态之前返回 unsupported，规则见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。本节按 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项读出：这条规则不约束 `recordResult.transfer`。公开接口页“非 none 种类只能在声明了对应参加者时使用”一句字面上也覆盖 transfer，这项出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
 
@@ -229,7 +235,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 
 本节发现的出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)，由各自的拥有者裁定。实施时不自行补定。
 
-- M04-1：T0、M1、T1、M3 的 stream 与 producer 事件由哪次写入承载没有写明。
+- M04-1：Tool 的 T0、T1 事件承载仍待裁定。Model M1 不投影 stream，M3 以条件提交发布 producer。
 - M04-2 与 M04-6 已按 [#558 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)闭合：ready 的 requestPreparation 保存最终请求，检查与退避时刻只在进程内计算。
 - M04-3：外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加没有声明形状。
 - M04-4：按原操作幂等的记录方法是否推进 revision 没有写明。
@@ -385,7 +391,7 @@ RegisteredReads 的 captured 结果在返回前已耐久保存。返回丢失时
 
 可靠承接有两条路径：先保管后处理，或先处理后保存完成依据。两条路径均须满足原消费契约，才能解除生产侧对应的交付责任。路径的条件、保管者更替与后台占位的闭合见上文[交付责任解除的两条路径与保管者更替](#交付责任解除的两条路径与保管者更替)。
 
-Agent 失去资格后不能提交新推进。原执行仍可以记录真实结果和费用，新的合法推进者可在原 execution 尚可推进时继续业务消费；外部协调者路径还须由协调者保持自己的推进资格依据有效。execution 终结后，只进行允许的事实保管、费用结算及交付（O0），不恢复已终结工作。结果保管与释放的节点是 T1、M3 与 O0。
+Agent 失去资格后不能提交新推进。原执行仍可以记录真实结果和费用，新的合法推进者可在原 execution 尚可推进时继续业务消费；外部协调者路径还须由协调者保持自己的推进资格依据有效。execution 终结后，只进行允许的事实保管、费用结算及交付（O0），不恢复已终结工作。结果保管与释放的节点是 T1 与相关 O0 保管入口。
 
 ### 等待、唤醒与公平
 

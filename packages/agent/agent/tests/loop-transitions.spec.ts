@@ -46,7 +46,7 @@ const NORMAL_PATH: readonly Row[] = [
   ['I2', 'call', 'M0', '如何返回', '调用 M'],
   ['M0', 'recorded', 'M6', '如何返回', '转 M6'],
   ['M6', 'admitted', 'M1', '如何返回', '转 M1'],
-  ['M1', 'settled', 'M3', '如何返回', '整调用真实收场转 M3'],
+  ['M1', 'settled', 'M3', '如何返回', '匹配原 reference、consumer、consumption 的 result 转 M3'],
   ['M3', 'kept', 'M4', '如何返回', '转 M4'],
   ['M4', 'proceed', 'M5', '如何返回', '转 M5'],
   ['M5', 'return-I3', 'I3', '如何返回', '主请求回 I3'],

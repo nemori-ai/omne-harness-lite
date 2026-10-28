@@ -77,7 +77,7 @@ async function settled(
         ...d.models.calls,
         async admit(input) {
           const admitted = await d.models.calls.admit(input)
-          if ('ok' in admitted)
+          if ('ok' in admitted) {
             assembly.controls.models.settle({
               tenant: input.tenant,
               call: input.call,
@@ -88,6 +88,8 @@ async function settled(
               pageSize: 10,
               pageTargetBytes: 65536,
             })
+            await assembly.controls.pusher?.settled({ tenant: input.tenant, call: input.call })
+          }
           return admitted
         },
       },
@@ -207,7 +209,11 @@ describe('#515 reply admission and iteration close', () => {
       position: 'I8',
       batch: { actions: [], slots: [], barrier: { kind: 'closed', judging: [], asked: [] } },
     })
-    expect(empty?.checkpoint.batch?.source).toEqual((await load(assembly)).results[0]?.result)
+    const producer = commits
+      .flatMap(commit => commit.events)
+      .find(event => event.kind === 'producer')
+    expect(producer).toBeDefined()
+    expect(empty?.checkpoint.batch?.source).toEqual(producer?.result)
     expect((await load(assembly)).checkpoint.batch).toBeNull()
   })
 
@@ -381,8 +387,10 @@ describe('#515 reply admission and iteration close', () => {
     expect(
       commits.flatMap(item => item.events).filter(event => event.kind === 'message'),
     ).toHaveLength(1)
-    const completion = (await load(assembly)).results[0]?.completion
-    if (!completion) throw new Error('missing processed binding')
+    const completion = (await load(assembly)).entries?.find(
+      entry => entry.kind === 'received',
+    )?.material
+    if (!completion) throw new Error('missing received material')
     const material = ok(
       await assembly.dependencies.materials.read({ ...alice, source: completion }),
     )

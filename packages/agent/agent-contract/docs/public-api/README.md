@@ -193,7 +193,7 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 
 [行为与约束](../../SPEC.md#生产者接收面)。
 
-- [receiving.ts](../../src/receiving.ts)：三类接收面条目 `StartFenceEntry`、`ReceivedEntry` 与 `StreamReferenceEntry`，它们的开放联合 `AgentJournalEntry`，`received` 条目的交付 `ReceivedDelivery`（按交付键的 kind 分支，账目交付必带该修订的 `CallAccount`），记录输入 `JournalEntryRecord` 与记录端口 `AgentJournalEntries`，账目出站的交接元组 `AgentAccountHandoff`、结果 `AgentAccountOutcome` 与端口 `AgentAccountOutlet`。
+- [receiving.ts](../../src/receiving.ts)：两类接收面条目 `StartFenceEntry` 与 `ReceivedEntry`，它们的开放联合 `AgentJournalEntry`，`received` 条目的交付 `ReceivedDelivery`（按交付键的 kind 分支，账目交付必带该修订的 `CallAccount`），记录输入 `JournalEntryRecord` 与记录端口 `AgentJournalEntries`，账目出站的交接元组 `AgentAccountHandoff`、结果 `AgentAccountOutcome` 与端口 `AgentAccountOutlet`。
 - [receiving.ts](../../src/receiving.ts) 还导出独立的 `AgentReceivedCommits`。`ReceivedCommitInput` 携带条目草稿与完整材料。`ReceivedCommitValue` 保留原命令回执、完整条目与原 saved 依据。`ReceivedCommitResult` 区分 committed 与 excluded，`ReceivedCommitQuery` 另含 unknown。`AgentReceivedProvider` 描述同一提供者的 journal、entries、materials 与固定 received 能力。类型没有增加旧端口的必需成员。
 - [execution.ts](../../src/execution.ts)：`ExecutionSnapshot.entries` 是可选字段，提供者支持接收面条目时按提交顺序列出全部已提交条目。
 

@@ -324,24 +324,11 @@ describe('#516 terminal exit', () => {
     },
   )
 
-  it('NA-O0-1: losing the coordinator after terminal recalls the real ACK without reading Model content or ACKing again', async () => {
-    let pause = true
-    let modelReads = 0
-    let acknowledgements = 0
+  it('NA-O0-1: terminal replay keeps received custody without Agent Model consumption', async () => {
+    let modelReads = 0,
+      acknowledgements = 0
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
-      journal: {
-        ...d.journal,
-        recordResult(input) {
-          if (pause && input.operation.startsWith('O0/')) {
-            pause = false
-            return Promise.resolve(
-              fail({ kind: 'unavailable', owner: 'test', diagnostic: 'exit before release' }),
-            )
-          }
-          return d.journal.recordResult(input)
-        },
-      },
       models: {
         ...d.models,
         consumption: {
@@ -360,17 +347,21 @@ describe('#516 terminal exit', () => {
     const first = coordinator(assembly)
     ok(await first.accept())
     assembly.release.open()
-    expect(failure(await first.runExecution()).node).toBe('O0')
-    expect((await load(assembly)).results[0]?.release.kind).toBe('pending')
-    const counts = [modelReads, acknowledgements]
+    ok(await first.runExecution())
+    const before = await load(assembly)
+    expect(before.entries).toHaveLength(1)
+    expect(before.results).toEqual([])
+    const originalAcks = assembly.controls.pusher?.acknowledgements()
+    expect(originalAcks).toHaveLength(1)
     let idle = 0
     const restored = coordinator(assembly, () => {
       idle++
     })
     ok(await restored.accept())
     ok(await restored.runExecution())
-    expect((await load(assembly)).results[0]?.release.kind).toBe('confirmed')
-    expect([modelReads, acknowledgements]).toEqual(counts)
+    expect((await load(assembly)).entries).toEqual(before.entries)
+    expect(assembly.controls.pusher?.acknowledgements()).toEqual(originalAcks)
+    expect([modelReads, acknowledgements]).toEqual([0, 0])
     expect(idle).toBe(1)
   })
 
@@ -519,7 +510,7 @@ describe('#516 terminal exit', () => {
         [],
       )
       ok(await c.runExecution())
-      expect((await load(assembly)).revision).not.toBe(before.revision) // only O0 records the real release
+      expect((await load(assembly)).revision).toBe(before.revision) // No Agent Model release write remains.
       expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual(
         [],
       )
@@ -663,6 +654,10 @@ describe('#516 terminal exit', () => {
                     pageSize: 10,
                     pageTargetBytes: 65536,
                   })
+                  await assembly.controls.pusher?.settled({
+                    tenant: input.tenant,
+                    call: input.call,
+                  })
                 }
                 return admitted
               },
@@ -705,28 +700,14 @@ describe('#516 terminal exit', () => {
       expect(page.events.filter(event => event.body.kind === 'waiting')).toEqual([])
       expect(admissions).toHaveLength(2)
       expect(new Set(admissions).size).toBe(2)
-      expect(reads).toEqual(references)
-      expect(acknowledgements.map(item => item.call)).toEqual(admissions)
-      expect(saved.results).toHaveLength(2)
-      expect(
-        saved.results.every(item => item.completion !== null && item.release.kind === 'confirmed'),
-      ).toBe(true)
-      const original = references[0]
-      if (original === undefined) throw new Error('missing original Model reference')
-      const inspected = ok(
-        await assembly.dependencies.models.calls.inspect({ ...alice, reference: original }),
-      )
-      expect(inspected).toMatchObject({
-        kind: 'found',
-        state: {
-          phase: 'settled',
-          custody: {
-            kind: 'acknowledged',
-            operation: acknowledgements[0]?.operation,
-            receipt: saved.results[0]?.completion,
-          },
-        },
-      })
+      expect(reads).toEqual([])
+      expect(acknowledgements).toEqual([])
+      expect(saved.results).toEqual([])
+      expect(saved.entries).toHaveLength(2)
+      const producerAcks = assembly.controls.pusher?.acknowledgements()
+      expect(producerAcks?.map(item => item.call.call)).toEqual(admissions)
+      expect(producerAcks?.every(item => 'ok' in item.reply)).toBe(true)
+      expect(references).toHaveLength(2)
     },
   )
 })
