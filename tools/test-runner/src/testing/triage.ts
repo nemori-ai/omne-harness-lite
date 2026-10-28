@@ -105,6 +105,8 @@ async function rerun(
   const memberDir = join(root, failure.member)
   const reportPath = `${base}.json`
   // 经成员自己的脚本跑（它是 `vitest run …`，验收的那份还带着自己的配置），后面的参数原样传给 vitest。
+  // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫不在场：选不中时退出码可能是 0，
+  // 归类只看 JSON 报告（`outcomeOf`），没选中的记为没跑到。
   const result = await spawnLogged(
     'pnpm',
     [
