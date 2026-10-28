@@ -285,7 +285,8 @@
 | ID | 中文 | English | 一句话 |
 |---|---|---|---|
 | [UL-residency](terms/reach-and-availability.md#ul-residency--常驻--residency) | 常驻 | Residency | 能力身份始终对 agent 可见；**是引用上的一项偏好类设置，不是资产的属性**；可见时展示什么归装配策略；会话里的常驻工具组成常驻工具集合 |
-| [UL-resident-tool-set](terms/reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set) | 常驻工具集合 | Resident Tool Set | 会话的全部常驻工具及各自首次定义；**只增不减，名字与参数形状在会话内不变**；不是主会话的「常驻」 |
+| [UL-residency-holder](terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder) | 常驻持有者 | Residency Holder | 保存首次 shape 并在采用点供给它的角色，会话是一种；不另建身份或生命周期 |
+| [UL-resident-tool-set](terms/reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set) | 常驻工具集合 | Resident Tool Set | 常驻持有者的全部常驻工具及各自首次 shape；**只增不减，名字与参数形状在持有者存续期间不变**；不是主会话的「常驻」 |
 | [UL-current-availability](terms/reach-and-availability.md#ul-current-availability--当下可用性--current-availability) | 当下可用性 | Current Availability | **依赖解析的结果，不是开关**；每一次执行尝试开始前重算。**可见但用了一定失败**，与禁用不同 |
 | [UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in) | 替换件 | Stand-in | 不可用时占在原位的**同形呈现**：只换说明，调用必得「不可用」；常驻工具的形状取首次定义 |
 | [UL-same-shape](terms/reach-and-availability.md#ul-same-shape--同形--same-shape) | 同形 | Same Shape | 两份工具定义的名字、种类、参数契约与命令表都相等；说明、返回、声明、版本与执行者不参与 |

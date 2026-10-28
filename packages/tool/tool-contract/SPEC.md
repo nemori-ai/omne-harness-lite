@@ -50,7 +50,7 @@
 新增名字按同一规则归入口：
 
 - [结果推送与保存](#结果推送与保存)的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）当前没有组外导入者，也不被根入口声明引用。它们由 Tool 组外的消费拥有者实现或调用，不是提供者协议，按规则 3 进根入口。
-- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录，`ToolPermitRef` 与 `ToolPermitConsumption` 只被受理记录引用。它们的声明引用 `./provider` 的名字或只被这些名字引用，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
+- `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录。两者按规则 2、3 进 `./provider`。受理记录中的许可引用与消费事实直接使用 authorization 的公开类型，由 authorization 导出。外层调用方成为 Tool 名字的组外导入者时，按规则 6 移回根入口。
 - 这些新面的一致性套件与内存替身在 `./testing`。
 
 下列详细行为章节与本页操作协议共同构成本规格。
@@ -176,7 +176,7 @@
 
 最终结果的文本、内容 ref 与附件地址分流归 [P14](#p14-附件引用与消费方交付)。共享值迁移和提供者验证由共享内容块拥有者继续跟踪，不再把这两种路径记为产品来源缺证。任意嵌套容器未获准。过程在途内容的故障保留仍需技术兑现。
 
-[RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的对象链、会话常驻规则、G7 与换代协调者已写入本页。类型变更清单第 1–7 项与纯函数 `deriveDefinition`、`shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 在源码中实现：源码导出 `ToolGovernance`、`ToolImplementation`、`ToolAuthority` 与带 `layer` 的可用结果。登记表与协调者的本地实现归 2.4，动态性套件的用例体归 2.5。[公开入口的分组](#公开入口的分组)与[公共流协议上的观察](#公共流协议上的观察)的源码已按两节实现。按键排空与交接依赖 [P09](#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，协调者在有在途调用时停在 `draining`。
+[RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的对象链、常驻持有者规则、G7 与换代协调者已写入本页。类型变更清单第 1–7 项与纯函数 `deriveDefinition`、`shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 在源码中实现：源码导出 `ToolGovernance`、`ToolImplementation`、`ToolAuthority` 与带 `layer` 的可用结果。登记表与协调者的本地实现归 2.4，动态性套件的用例体归 2.5。[公开入口的分组](#公开入口的分组)与[公共流协议上的观察](#公共流协议上的观察)的源码已按两节实现。按键排空与交接依赖 [P09](#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，协调者在有在途调用时停在 `draining`。
 
 修改定义、调用匹配、结果保管或控制协议时同步所有消费方、环境、决策方、程序消费方、动作桥接方、Context 和相应验证。提供者补自己真实承担的机制与限制，不另写一份更弱的公共保证。独立执行与 runtime 的部分路径已在 `@omne-harness/tool` 实现，范围见[组的支持范围](../README.md#支持范围)。耐久存储与故障测试尚无。本规格不授予实施或符合性接受。
 
@@ -210,7 +210,7 @@ Tool 的这些类型由 Tool 自己拥有，不导入消费方的身份或确认
 
 `programmable` 的定义与默认行为归[定义专题](#可编程调用的定义与准入)。`ToolDefinition` 保留可选字段，不将未声明改写成作者显式声明。原始正文适配器须校验字段类型，`ToolBindings.inspect` 返回匹配实际定义采用的值。`ToolAvailability` 描述一般可用性，不因不支持脚本编排就把直接调用也标为不可用。
 
-`FixedToolRequest.workspace` 为 null 或第六族 `WorkspaceId`，只承载工作区身份。工具运行在哪个实例、哪个版本归 `environment` 所指执行环境的放置，不进此字段。`FixedToolRequest.environment` 现为 `Adoption`，承载实例与版本的改造归 [#675](https://github.com/nemori-ai/omne-harness-lite/issues/675) J17，落地前 Tool 不承载实例与版本。`judgeFixedToolRequest` 与 `judgeToolInvokeRequest` 对该字段要求对象形状 `{ name: 'WorkspaceId', text }` 且 `text` 被 `workspaceCodec.parse` 接受，字符串、别的族的对象和 `Adoption` 形状都返回 invalid，并指向 `workspace` 字段。
+`FixedToolRequest.workspace` 为 null 或第六族 `WorkspaceId`，只承载工作区身份。工具运行在哪个实例、哪个版本归 `environment` 所指执行环境的放置，不进此字段。`FixedToolRequest.environment` 固定作者的环境声明槽或 null，环境提供者的采用另由 `PreparationRecord.adoption` 保存。声明不包含工作区实例。`judgeFixedToolRequest` 与 `judgeToolInvokeRequest` 对该字段要求对象形状 `{ name: 'WorkspaceId', text }` 且 `text` 被 `workspaceCodec.parse` 接受，字符串、别的族的对象和 `Adoption` 形状都返回 invalid，并指向 `workspace` 字段。
 
 `FixedToolRequest.invocation` 必填，区分直接调用与脚本编排。`source` 由受信发起协调者保存，能核对当前主体、租户、目标工具、原 call/operation、调用方式和实际发起位置。脚本调用另关联原脚本执行及子调用位置；不要求独立调用虚构外部工作关联。ToolCommands 的准入提供者核对来源与实际受信入口，不能信任脚本提交的 kind 或摘要。来源缺失或类型非法返回 invalid，来源伪造或与入口不符返回 denied；必要来源不可读返回 unavailable，不回退为 direct。
 
@@ -221,6 +221,14 @@ Tool 的这些类型由 Tool 自己拥有，不导入消费方的身份或确认
 拒绝记录与启动在同一排序域裁定。先实际启动则不能写 rejected，按在途控制处理；无法排除实际或延迟启动时仍保留 unknown 并对账。rejected 成立后，原调用永久禁止 start 或 resume，即使后来重新允许 programmable，也只能另发新调用。记录确认未知时按原 operation 查询，不先收场或重试执行。
 
 首次启动被拒绝时，当前宿主随后以 preserveResult 保存 unavailable 终局、原因及 effect=not-started，再完成原结果交付和资源释放。resume 被拒绝则保存 interrupted（cause 为 resume-rejected，携带排除依据 exclusion）及此前真实效果，不能声称整次调用未启动。该操作核验原 startRejection、未启动排除依据和当前写资格，允许从准备、排队或已持有启动意图但未执行的状态收场，不能改写取消或其他已成立终局。loadRecovery 返回 startRejection 及 settle 待办；崩溃恢复只续做结果保存与交付，不走 inspectStart(not-started) 所允许的首次启动。保存未知继续认回原操作，确认前不声称结果已交回，也不遗失原环境与名额的释放责任。已启动执行保留原 invocation 与定义采用，控制及安全 resume 仍按原协议，不能以定义更新重发原动作。
+
+### 环境声明与请求方作用域
+
+`ToolEnvironmentDeclaration` 是环境声明槽，包含 schema 的精确 `adoption` 与 JSON 声明 `value`。作者的 `ToolDeclarations.environment` 可以为 null，表示没有特殊环境声明。非空槽必须同时给出这两项，旧的裸 `Adoption` 无效。Tool 经 schema-provider 按 adoption 取得 schema 并校验 value。schema 不可取得时不开放该定义的可用性，声明不合法时拒绝定义。Tool 不解释设施枚举、绑定层、放置或恢复类型，也不直接导入 EE 契约。工具作者按[环境声明拥有者](../../execution/execution-environment-contract/docs/public-api.md#工具环境声明)发布的 schema 写值。
+
+固定请求的 `environment` 保留与所采用定义相同的声明槽或 null。受理和准备边界核对其一致性，不能用一个合法但不同的环境声明替换原需求。固定请求的唯一 `requesterScope` 消费 RC 公开的 `ScopeRef`，未知输入经 `decodeScopeRef` 检查。调用方显式给出同一引用，Tool 不按 Session 标识拼造，也不查询 RC。`ResourceScope` 只拥有并发授予与排队，`workspace` 只拥有工作区身份，这三项不互相推导。
+
+`ToolEnvironment.prepare` 接收固定请求的同一 requesterScope。环境适配器把它原样传给放置、获取及 provider，可信绑定来源核 scope、父链与真实租户。引用形状合法不证明该绑定成立。缺引用、坏引用、租户缺失或不匹配都不得分配资源。请求的 tenant 不能自证资格，普通动作仍由真实 Access 主体核当前授权。环境提供者采用在准备计划提交时固定，后续准备与恢复不暗换它。
 
 <a id="342-返回与执行事实"></a>
 
@@ -336,6 +344,38 @@ released.evidence 是 Tool 生产侧解除该版本 delivery 的耐久回执，�
 
 取回原文是一个新的合法 Tool 调用，取得新页并产生新输出，只计取回本身的实际成本，不重做原效果或回写旧占位。独立消费者也能依 call/result 调用 readResult，不需要存储私有文件路径。
 
+### Tool 后台状态的 RC 交接
+
+`tool.background-calls` 是 Tool 从已提交调用事实重算的供给块，种类依据是 [RC 产品块表](../../../.meta_harness/design/product/runtime-context/design.md#22-块声明归语义拥有者)。块声明、值 schema 与投影含义归 Tool，作用域注册及资格绑定归 RC 持有者。Tool 增补 RC 的 `ContextBlocks`，不复制 RC 的生产者或持有者协议。声明使用现有 `SuppliedBlockDescriptor`，字段如下。
+
+| 字段 | 值 | 含义 |
+| --- | --- | --- |
+| key | tool.background-calls | 唯一块键 |
+| kind / recovery | supplied / recompute | 从当前原事实重算 |
+| consumers | model、tool、extension | 允许读取的消费者类，实际读取仍核资格 |
+| volatility | stable | 不是逐步或逐请求块 |
+| required | true | 必需感知，缺值不能当无后台任务 |
+| disclosure | eligibility-checked | 每次供值核当前读取资格 |
+| carriesPrevious | false | 快照与提醒不携带撤权或清偿前的旧值 |
+
+值的封闭形状为 `{ tenant: TenantId, calls: readonly { call: ToolCallId, reference: ToolInvocationRef, activity: string, waiting: string | null, revision: ToolRevision, phase: ToolState['phase'], execution: PhysicalExecution['kind'], pending: readonly ToolTask['kind'][], delivery: 'none' | 'pending' | 'released' }[] }`。值 schema 校验这些已有 Tool 值的合法形状，并拒绝未知字段。pending 只列未结清任务种类，不携带原始任务证据。delivery 汇总原结果及补充版本的交付：任一 pending 就为 pending，没有任何交付为 none，否则为 released。值不含结果正文、参数、秘密或执行命令。
+
+生产者只列原 tenant、原 requesterScope 下 relation 为 background，且满足下列任一条件的原调用：phase 不是 settled、物理执行尚未可靠结束、有未清偿任务、原结果或补充版本有 pending 交付。phase 不是 settled 包含 accepted、preparing、queued、starting、running 与 suspended，不能只列 running。Tool 的原调用修订随每项携带，RC 块修订不能代替它。逻辑 settled 但物理执行未结束或清理未完成的调用仍不能漏掉。前台转后台不创建第二 Tool Execution。
+
+reference 必须取自原调用真实的 admission，解码后 reference 的 tenant、call 必须分别与外层 tenant 和本项 call 一致。存在该引用不授予查询或控制权限，消费者通过已有 Tool 查询与命令入口操作，每次仍核当前资格。
+
+activity 是可信且获当前披露许可的原调用工作说明，必须为非空字符串。它由原固定请求与实际调用事实的拥有者投影，不能拿 call ID、任意请求者文字或未脱敏参数充当。工作说明缺失，或不能证明它与原调用的绑定时，整个 supply 返回 unknown。当前披露被拒时整个 supply 返回 refused，不编造说明或交付部分列表。
+
+waiting 按实际未完成等待内容给出非空说明，没有适用等待时为 null。等待事实未知时整个 supply 返回 unknown，不能假定无等待。工作说明与等待说明都不携带结果正文、原始参数、秘密或执行命令。
+
+生产者使用现有 `ProducerRegistration`，scoped 为 false，并提供接收 `{ scope, tenant, principal }` 的 supply 回调。登记携带声明及原 producer 身份，取得绑定 tenant、producer 与 generation 的 `ProducerHandle`。完整获权目录与原调用事实是重算输入，回调核真实主体、可信 scope/tenant 绑定及当前披露资格，不能只过滤一份未授权缓存。只有证实目录完整、原事实可读且确实没有符合项时，才返回 `SupplyAnswer` 的 value，calls 为空。目录不完整或源事实未知返回 unknown，来源不可读返回 unavailable，拒绝供值返回 refused，均不返回部分列表或 none。
+
+事实变化后，当前生产者通过原 handle 的 `invalidate({ kind: 'scope', scope, tenant })` 或本 tenant 的 invalidate 通知重读，随后从当前原事实重新 supply。不通过 publish 重放旧缓存，也不使用状态块的步骤更新。旧 generation、已撤除、scope 未注册或已结束等拒绝不覆盖当前值。失败集合直接消费 RC 的 `InvalidateResult`，unknown 与 unavailable 不视为失效成功。重试沿原 producer、scope、tenant 和事实来源继续核验，不能为此重发原 Tool 动作。RC 的 invalidate 没有 origin 或业务 operation 字段，Tool 不添加另一套动作提交接口。原来源与修订由 Tool 的持久事实保留，不能把通知成功称为业务提交或持久 exactly-once。
+
+RC 持有者以自己的耐久注册材料固定块到需要的绑定，注册及原提交认回归 [#859](https://github.com/nemori-ai/omne-harness-lite/issues/859)。生产者登记不代替该注册，也不授予读取权限。Tool 只交 schema、声明、投影与供给约束。完整获权目录的真实提供者尚未交付，这是 Tool 供给拥有者的具名实现缺项。仅部分原记录不能证明完整空集，也不能宣称生产供给已经实现。
+
+T502-3 的持有规则同时要求：持有者退出、归档、观察断开或供给生产者撤除均不解除原调用的执行、结果保管、交付及资源清理义务。原受权宿主持续保管，后继持有者仅在可靠交接后承接。RC 缺值、供值失败或失效通知成功都不能代替这次责任交接。
+
 <a id="342-当前增量与验证边界"></a>
 
 ### 运行契约的验证边界
@@ -407,7 +447,7 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G4 | 宿主时钟适配器：同进程单调时钟加进程 epoch，跨进程比较返回 unknown（[P07](#p07-计时控制与检查点)） | `tool-host-local` 根入口 |
 | G5 | 本地启动协调器实现 [P04](#p04-实际发起围栏) 的同机排序域。其他拥有者通过 `invalidate` 进入同一排序域。耐久受理台账依赖记录仓 | `tool-host-local` 根入口 |
 | G6 | `./testing` 入口：`tool-contract` 提供端口一致性套件，`tool` 提供真实 runtime 的测试装配、非耐久记录仓和记录仓一致性用例。套件不依赖测试框架，返回用例列表，用 `node:assert` 判定。其他领域的测试可以把 `@omne-harness/tool/testing` 作为开发依赖 | `tool-contract` 与 `tool` 的 `./testing` |
-| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(WorkspaceId)`。`workspace` 是 legal-identity 第六族 `WorkspaceId`；实例与版本不在来源层，归执行环境放置。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。比较两个来源层是否同一层（登记键比较、`sameBindingKey`）用 `sameSourceLayer`，不用 `tenantEquals`：organization 与 tenant 层按文本比较，因为 `judgeFixedToolRequest` 复制出的 `layer.tenant` 是封闭形状核过的文本，未经 `tenantCodec` 铸造。workspace 层用 `workspaceEquals`：`judgeFixedToolRequest` 对 `layer.workspace` 经 `workspaceCodec.parse` 重铸，所以核过的值可直接比较。登记表保存或读回的 workspace 层须经 `workspaceCodec.parse` 重铸。未铸出的值与任何层都不相等，比较结果为不相等，不是错误。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
+| G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(WorkspaceId)`。`workspace` 是 legal-identity 第六族 `WorkspaceId`；实例与版本不在来源层，归执行环境放置。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。比较两个来源层是否同一层（登记键比较、`sameBindingKey`）用 `sameSourceLayer`，不用 `tenantEquals`：organization 与 tenant 层按文本比较，因为 `judgeFixedToolRequest` 复制出的 `layer.tenant` 是封闭形状核过的文本，未经 `tenantCodec` 铸造。workspace 层用 `workspaceEquals`：`judgeFixedToolRequest` 对 `layer.workspace` 经 `workspaceCodec.parse` 重铸，所以核过的值可直接比较。登记表保存或读回的 workspace 层须经 `workspaceCodec.parse` 重铸。未铸出的值与任何层都不相等，比较结果为不相等，不是错误。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有有效持有者引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
 | G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
 
@@ -423,7 +463,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 多命令在消费方面前始终是紧凑清单和交给所选命令的参数，不展开全部命令参数。提供完整参数时，系统据此校验，用法入口和可选 help 据此答详细用法。仅清单时，系统不能凭空推导参数校验，实际工具判断参数合法性。help 与统一 inspect 结果一致，不熟命令的动作前取得详细用法。
 
-呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。会话内常驻集合的规则见[会话常驻规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
+呈现位置由装配决定，工具作者的定义不拥有这一预算选择。非常驻能力通过发现与取用入口可达，已合法纳入的常驻工具也可搜索，标明可直接调用。常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻集合的规则见[常驻持有者规则](#会话常驻规则r1r5)。呈现位置不放宽实际调用授权。元能力入口沿自身不可移除规则，不在本稿重定完整元能力集合。
 
 ### 声明与设置
 
@@ -451,25 +491,27 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 采用点是会话初始化、新 Run 开始和显式 reload。采用点与必需提供者变化时，重算合法选择、治理及依赖。各刷新点允许的变化不同，见[刷新点允许的变化](#刷新点允许的变化)。提供者恢复不独自恢复工具可用性，当前定义、持有和治理仍须成立。
 
-从未合法取得的定义被过滤时，不新增可见身份，不能凭名称编 schema。已知但卸载、撤权、被禁用或依赖失效时，保留最近合法身份和形状，用不可用说明替换。授权撤销后不得为维持同形读取新的未授权内容。合法新定义可以改变非常驻工具的后续采用形状。会话常驻项的 name 与参数形状在会话内不变（R1），实现只在采用点同形前进。
+从未合法取得的定义被过滤时，不新增可见身份，不能凭名称编 schema。已知但卸载、撤权、被禁用或依赖失效时，保留最近合法身份和形状，用不可用说明替换。授权撤销后不得为维持同形读取新的未授权内容。合法新定义可以改变非常驻工具的后续采用形状。常驻项的 name 与参数形状在持有者存续期间不变（R1），实现只在采用点同形前进。
 
-同标识还有合法候选时先按共同选择规则更新实现，不跳过候选直接认定不可用。例外：与会话常驻项首次定义不同形的候选不替换该项，按 R5 处理。必需绑定不等于服务永远在线；从未取得必需合法定义或 runtime 自身必要依赖不能建立时，按装配失败处理，不能用 dummy 补齐未知定义。
+同标识还有合法候选时先按共同选择规则更新实现，不跳过候选直接认定不可用。例外：与常驻项首次定义不同形的候选不替换该项，按 R5 处理。必需绑定不等于服务永远在线；从未取得必需合法定义或 runtime 自身必要依赖不能建立时，按装配失败处理，不能用 dummy 补齐未知定义。
 
 动作桥接方的每个发现动作是工具条目，动作身份和许可沿合法端点，不成为另一个资产持有对象。每次接续执行开始及显式合法刷新可更新后续清单。失联保留最近合法取得的清单并给原因，未发现过的动作不编造，对端删除的已知动作仍能解释不可用。程序消费方的资源读取和脚本执行分别准入，方法读取不授权任意路径脚本或 Shell。
 
-### 会话常驻规则（R1–R5）
+<a id="会话常驻规则r1r5"></a>
 
-本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
+### 常驻持有者规则（R1–R5）
 
-常驻工具是调用方不经 Tools 元工具发现即可调用的工具。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+常驻持有者的词义见[统一语言](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)。本节规则由 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 于 2026-10-21 采用。
 
-- R1：会话初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在会话内不变。
-- R2：会话可以在采用点加入此前未装载的常驻工具。Run 中途不加入。Run 中途的新工具经 Tools 元工具（非常驻）可达。
-- R3：已装载的常驻工具被卸载或暂时不可用，且登记表里没有本会话可访问的同形可用贡献时，会话以同形替换件替代它：`ToolAvailability` 的 `known-unavailable` 带原 definition。调用它得到不可用应答。有同形可用贡献时不走 R3，`resolve` 按 G7 的回退顺序路由到它。
-- R4：会话持久保存每个常驻工具首次装载的 definition，会话事实种类是 `tool-resident-admitted`。当前记下的登记键从 Run 依据派生，不另写会话事实。
+常驻工具是调用方不经 Tools 元工具发现即可调用的工具。本节的常驻集合属于具体持有者，持有者提供自己的采用点；会话路径的采用点如下。同形指 `shapeOf(definition)` 相等。`shapeOf` 只看 name、kind、参数契约和命令表。参数契约取 schema 的规范 JSON 与 vocabulary 的 owner、name、digest。命令表按命令名排序，取各命令的参数契约或 `executor-owned` 标记。description、参数 descriptions、命令 summary、returns、declarations、adoption 与 executor 不参与。采用点是会话初始化、新 Run 开始和显式 reload。
+
+- R1：常驻持有者初始化确定常驻集合后，集合只增不减。每一项的 name 与参数形状在该持有者存续期间不变。
+- R2：常驻持有者可以在采用点加入此前未装载的常驻工具。会话路径上 Run 中途不加入，Run 中途的新工具经 Tools 元工具（非常驻）可达。
+- R3：已装载的常驻工具被卸载或暂时不可用，且登记表里没有本持有者租户可访问的同形可用贡献时，常驻持有者以同形替换件替代它：`ToolAvailability` 的 `known-unavailable` 带原 definition。调用它得到不可用应答。有同形可用贡献时不走 R3，`resolve` 按 G7 的回退顺序路由到它。
+- R4：常驻持有者持久保存每个常驻工具首次定义的 shape，并在采用点把它作为 `planAdoption` 的输入供给。当前记下的登记键从采用依据派生，不另写持有者事实。会话路径上这项事实的种类与种类准入归会话域（[会话与工作](../../../docs/domains/sessions-and-work/README.md)）。
 - R5：常驻工具的实现变更，且新定义与首次定义不同形时，按下列规则处理。
-  - R5a：原实现仍装载且可用时，会话继续使用它（同形）。版本不钉死：负责选取实现的一方按记下的形状选同形可用实现，见[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)。
-  - R5b：没有同形可用实现、原实现不可装载，且存在不同形的合法胜出者时，会话冻结。「不可装载」要耐久证据：换代协调者 `ensureLoaded` 返回 `missing`（包或 digest 缺失）或 `rejected`（装载被确定性拒绝）时铸造的 Tool `DurableEvidence`；`unavailable` 是暂时失败，不构成证据。冻结只在采用点判定。Tool 只给判定与原因 `tool-shape-lost`。冻结是 Session 拥有的独立会话生命周期状态，不是归档，见[会话与工作](../../../docs/domains/sessions-and-work/README.md)。冻结后在途 Run 自然收场，会话不再派发新 Run。
+  - R5a：原实现仍装载且可用时，常驻持有者继续使用它（同形）。版本不钉死：负责选取实现的一方按记下的形状选同形可用实现，见[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)。
+  - R5b：没有同形可用实现、原实现不可装载，且存在不同形的合法胜出者时，Tool 给出冻结判定。会话路径上由会话提交冻结。「不可装载」要耐久证据：换代协调者 `ensureLoaded` 返回 `missing`（包或 digest 缺失）或 `rejected`（装载被确定性拒绝）时铸造的 Tool `DurableEvidence`；`unavailable` 是暂时失败，不构成证据。冻结只在采用点判定。Tool 只给判定与原因 `tool-shape-lost`。冻结是 Session 拥有的独立会话生命周期状态，不是归档，见[会话与工作](../../../docs/domains/sessions-and-work/README.md)。冻结后在途 Run 自然收场，会话不再派发新 Run。
   - 暂时缺席、未知与撤权一律按 R3 处理，不冻结。
 
 非常驻工具不受 R1–R5 约束。meta 能力入口（Tools 元工具）必定常驻且不可替换，不参与卸载与冻结判定；经它发现和使用非常驻工具只是对它的一次调用。动作桥接方（MCP）的动作不在本节范围。
@@ -483,7 +525,7 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 
 #### 采用点判定
 
-采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本会话按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本会话可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本（[接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）。重装的失败按换代协调者的失败集合归类：`missing` 与 `rejected` 是耐久失败；`unavailable` 是暂时失败；`denied` 与来源核验的 `invalid` 按撤权处理，给同形替换件（R3）；`conflict` 表示同键已有贡献，按该贡献是否可用走第一或第二行；`draining` 按 draining 处理，视为不可用。
+采用点对每个常驻项按下表判定。「记下的键可用」指采用依据里记下的登记键在登记表中 live、非 draining、且本持有者租户按 G7 可访问。「同形可用贡献」指登记表里任一来源层、本持有者租户可访问、非 draining、与首次定义同形的贡献，不要求它是合法胜出者。协调者按保留义务重装记下的键，这不是为选版回头寻找旧版本（[接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）。重装的失败按换代协调者的失败集合归类：`missing` 与 `rejected` 是耐久失败；`unavailable` 是暂时失败；`denied` 与来源核验的 `invalid` 按撤权处理，给同形替换件（R3）；`conflict` 表示同键已有贡献，按该贡献是否可用走第一或第二行；`draining` 按 draining 处理，视为不可用。
 
 | 记下的键可用 | 同形可用贡献 | 合法胜出者 | 结论 |
 | --- | --- | --- | --- |
@@ -495,7 +537,9 @@ Tool Definition 和 Tool Execution 分别存在。工具资产的 body 保持小
 | 否 | 无 | 无 | 协调者重装记下的键：成功则保持；`missing`、`rejected` 或暂时失败都给同形替换件（R3） |
 | 否 | 无 | 不同形 | 协调者重装记下的键：成功则保持（R5a）；`missing` 或 `rejected` 则冻结（R5b）；暂时失败则同形替换件（R3） |
 
-判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定的交付路径：新 Run 的判定随采用材料经 `startRun` 交会话；显式 reload 的判定由 Tool 宿主经 `ToolResidencyActions.freeze({ session, cause, evidence })` 交会话，输入形状与 [session-contract 的 `freeze`](../../session/session-contract/SPEC.md#常驻工具与会话冻结) 相同：`session` 是会话引用，租户由 Session 按会话目录取得。两条路径都是采用点，会话只执行一次状态转换。
+判定由纯函数 `planAdoption` 给出，输出是前进、保持、替换件或 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。冻结判定只有一条交付路径：新 Run 开始与显式 reload 时，装配协调者在采用点调用 `planAdoption`，把判定放进本次候选采用材料。材料怎样到达常驻持有者、持有者怎样提交冻结，归持有者一侧的契约。会话路径见[工具运行时](../../../docs/architecture/runtime/tool-runtime.md#冻结判定只随采用材料到达)。会话初始化不判冻结，因为没有可比的首次 shape。Tool 不定义向常驻持有者交付冻结判定的端口。
+
+采用点的租户由请求显式携带，并由具体持有者边界核对。装配协调者按该租户收集事实，不能按不透明 holder 或会话名查询租户。相同 holder 文本可存在于两个租户，判定只约束材料所属租户。Tool 的纯判定不执行任何状态提交，也不控制在途调用。
 
 #### 刷新点允许的变化
 
@@ -926,6 +970,16 @@ prepared 命令核验环境 owner 的归属、设施、代次与固定请求。�
 
 release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证据。执行已结束、已可靠排除或安全检查点不再使用资源，且结果、附件、过程及接续事实已有独立保管者，才可提交释放任务。release 回包丢失查 inspectRelease；失败或未知继续保留清理责任。释放完成不改原业务结果，不删除全文，也不证明外部效果撤回。不得把原对象的 finally 回调作为唯一释放协议。
 
+#### 原环境引用与 U16 未闭合边界
+
+准备、获取和释放的 pending 或 unknown 保留原身份及责任，先查询原事实。Tool 在向环境适配器发出获取前可靠保存原调用、准备操作、requesterScope、固定环境采用和完整原获取描述的可恢复引用。环境适配器保存 EE 要求的 tenant、acquisition、origin、scope 与 placement，placement 含 quotaDomain、原 provider 名称/代/版本、binding、continuity 与完整 requirement。Tool 不复制这些外域类型或在 Tool 进度中另造同义结构。
+
+inspect 查询只刷新原事实，不调用 acquire、plan、permit、adopt 或设施动作，也不签发采用记录或租约。查询发现原 provider 已分配后，只有原登记、首次捕获的 guard 与 ledger 仍有效，且原采用核验、作用域状态与当前准入均成立时，调用方才可用完全相同的 acquire 输入继续首次采用或认回。该阶段沿 EE 的原采用状态转移，只签发一次采用记录与租约，不再调用 provider 获取，也不重新计划、许可或接续。acquisition、tenant、origin、scope、placement 和 provider 均不得改变。完整规则归 [EE 查询本地获取](../../execution/execution-environment-contract/SPEC.md#原获取的查询与结清)。
+
+分配 unknown 保留原名额，pending 不证明零分配。原事实未查清时不再次分配。已分配后采用失败保留首次失败及 cleanup 的 settled、pending 或 unknown，清理未结清继续计额。采用失败不能重新采用，已失效或已结清的记录不复活旧租约。当前普通权限与系统恢复资格分别核验。原引用仍在或可从原持久事实重建时按原记录接续，不能换键、scope、origin、provider 或 placement 重发。
+
+U16 是具名未闭合项，归 Tool 恢复拥有者承接（[#802 剩余责任](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6451232986)）。当调用方丢失原引用但 Tool 的原持久事实仍可取得时，由原事实重建引用并继续查询。若原引用与原持久事实全部丢失，当前协议没有安全认回能力。重复 release 的幂等不关闭这个缺口。此时不能报告恢复成功、推定未执行或换键重发，必须保留未知、可能占用的名额及清理责任，并交恢复拥有者调查。没有完整目录也不能声明全部资源已释放。
+
 ### P04 实际发起围栏
 
 Tool 的事务只决定本域是否预留启动。受信执行边界再使用 ToolStartAuthority，核当前身份/授权、工作资格、推进代次、批决定、调用方式许可、固定定义和执行绑定、实际环境代次，以及 programmatic 子调用的原父程序推进屏障。prepare 生成包含各拥有者版本的 permit，permit 本身不授权执行。
@@ -942,7 +996,7 @@ recordStart 显式绑定原 invocation。unknown 查 authority 和原 binding.in
 
 关闭先写关闭意图和具名 scope 的 program-fence 任务，再由 authority.invalidate 使相应守卫失效，确认后由 Children.confirmBarrier 保存 closed。该回执确认的是适用范围的屏障，不是全体子调用永久失权。已 consume 子调用按真实原因控制及保管。正常 returned 只关闭新 reserve，不使原预留的启动资格失效。不能用父是否 closed 一个布尔值决定全部子 start/resume。
 
-consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ToolPermitConsumption` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
+consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `started.acceptance` 定位这份记录。记录固定这些内容：原启动 `start`、被消费 permit 的 `request` 证据 `permit`、受理时冻结的守卫 `guards`、在此消费的授权许可 `authorizations`（`ConsumptionFact` 列表）、`executorReceipt` 与 `acceptance` 本身。之后的失效、撤权或恢复都不改写这份记录。
 
 #### 外层调用方的启动围栏
 
@@ -959,7 +1013,9 @@ consume 形成的受理记录是 `ToolStartAcceptance`，`StartProgress` 的 `st
 
 #### 授权消费点与撤权再核
 
-本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可引用是 `ToolPermitRef`，消费事实是 `ToolPermitConsumption`。两者对 Tool 不透明，字段与 authorization 的 `PermitRef`、`ConsumptionFact` 对应（`permit` 放宽为文本，`evidence` 放宽为 `DurableEvidence`），授权侧的值可以直接赋给它们，反向不成立。authorization 的测试以开发依赖导入本包，本包若导入 authorization 会形成成员依赖环，所以暂用 Tool 自有的引用类型；#659 入轨、依赖环解除后替换，跟踪见 [#659](https://github.com/nemori-ai/omne-harness-lite/issues/659)。许可的授予、撤回与解释归授权拥有者。
+许可引用与消费事实直接消费授权拥有者的公开 `PermitRef` 与 `ConsumptionFact`。Tool 不再定义同义许可类型。
+
+本节依据 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674) 采用的 J50。consume 是授权许可的消费点。许可的授予、撤回、引用身份与消费事实解释归授权拥有者，Tool 原样保存授权侧的公开值，不放宽品牌或证据形状。
 
 1. 绑定。一次调用需要消费哪些授权许可，由启动排序域的提供者按受信配置解析。当前公开请求没有出示许可的字段。
 2. 消费。consume 依次核对守卫、做第 4 项的撤权再核，然后在 consume 的同一排序内（线性化点之前）、形成受理记录之前，向授权拥有者的许可台账（authorization 的 `PermitLedger.consume`）消费每个绑定许可。消费位置标识原调用：`owner` 是启动排序域提供者的拥有者名，`work` 是原调用身份 `ToolCallId` 的文本，`position` 固定为 `start`；租户由许可引用携带。同一调用的每次启动与接续因此使用同一位置，其他调用使用不同位置。每个许可都答 `consumed`，或答 `already-consumed` 且事实中的位置是本调用时，consume 才能受理。受理记录的 `authorizations` 带全部消费事实，每个事实含许可引用。
@@ -1188,7 +1244,9 @@ projectToolResult 是不读字节的纯投影，检查完整结果的块形状�
 
 ToolDefinition.declarations.settings 明确装载/装配时允许从配置赋值的项。items 是封闭路径清单，schema 是对应值约束，defaults 也必须满足同一规则。路径采用属性段数组，不接受任意表达式；空路径、重复、祖先与后代重叠、schema 外字段及未声明项拒绝。可选且无默认项可以缺省，缺必填项拒绝，不猜值。null 是普通值，不自动表示清除。
 
-items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。本租户的绑定缺失时，调用按缺凭据失败，不静默退回缺省凭据或其他租户的凭据。
+items.category 对接设置拥有者已有的偏好、绑定、落点/身份和治理分类，sensitive 标记受保护值；它们不创设来源权限。消费原设置求值及证据，核当前合法来源、锁定与上界，不在 Tool 重写覆盖算法。目标环境可由获准层配置，工作区不能配落点/身份或提高治理权限。programmable、backgroundAllowed、主体、租户和授权上界不属于可被配置覆盖的作者构造参数。秘密内容不进入 defaults、Catalog、消费方的工具声明或日志；配置只保存获准引用，解析能力由 DI 提供。工具凭据按调用的租户绑定。第三方凭据的选择与实际绑定按下节执行。
+
+共享贡献的装载期设置只读取该贡献所在来源层的值：官方贡献取官方值，组织贡献取对应组织值。登记者的 Access 只核登记资格，不把该租户的设置带入共享作者闭包。租户相关设置在每次调用时求值并由 `FixedToolRequest.settings` 固定。作者构造参数 C 只含装载期合法值，不能捕获某次调用的租户设置。设置读取不可用时装载返回 unavailable，不发布部分配置。
 
 作者构造配置 C、本次调用参数 A、服务与环境依赖 E 分开。受信装载器校验配置后把 C 交实现模块的 `createAuthor(construction)`，它产生 ToolImplementation；C 不合并进 arguments.original/effective，不接受调用方或程序执行方经调用参数改写。服务、SchemaRef、函数、signal 与秘密解析器不作为 JSON 配置。无需给每个 ToolExecutor 再加一个配置参数，作者闭包固定本次合法装配值。
 
@@ -1202,13 +1260,21 @@ ToolBindingRegistry 接受受信装载结果与 `ToolAuthority { layer, asset, h
 
 draining 的地位：记下该键的请求仍可经 `resolve` 的首选分支解析到它；回退分支与采用点选择都排除它；换代协调者 `ensureLoaded` 遇到 draining 的同键返回 `draining`，不认回。
 
-回退顺序（[接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）：在本会话按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot(scope)` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
+回退顺序（[接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)）：在本持有者租户按 G7 可访问（含工作区层的当前获授）、live 且非 draining 的同形贡献中，取登记序号最小的一份。登记序号是登记表本地排序域给每次成功登记分配的单调序号，`snapshot(scope)` 返回它。回退不比较资产版本，不读合法胜出者，不做层序选择；向胜出者前进只在采用点由 `planAdoption` 完成。
 
-同形 serving 替代：对一份有会话引用的贡献，存在另一份 live、非 draining、与引用会话记下的形状同形、且按 G7 对每个引用会话的租户都可访问（官方层对任何合法租户，组织层核同组织，租户层核 `tenantEquals`）的贡献。工作区层的贡献不作为 serving 替代：它只服务当前获授该工作区的会话，协调者不读会话的工作区。它不必是合法胜出者。`ToolResidencyReader.referencing` 因此返回每个引用会话的身份（含租户）与 shape，与 Session 契约的引用形状一致。
+同形 serving 替代：对一份有持有者引用的贡献，存在另一份 live、非 draining、与引用持有者记下的形状同形、且按 G7 对每个引用持有者的租户都可访问（官方层对任何合法租户，组织层核同组织，租户层核 `tenantEquals`）的贡献。工作区层的贡献不作为 serving 替代：它只服务当前获授该工作区的持有者，协调者不读取持有者的工作区。它不必是合法胜出者。`ToolResidencyReader.referencing({ scope: 'system', key, after })` 返回 `Outcome<Page<{ holder, tenant, shape }>, unavailable>`。holder 是只在同一 tenant 内区分持有者的不透明标识，Tool 不解析。shape 使用已有 `ToolShape`，是该持有者保存的首次定义形状。Page 为 `{ items, next }`，after 与 next 是不透明游标，null 分别表示首页与读完。不返回定义正文。失败只有 unavailable，不能返回空页伪装无引用。协调者必须读完所有页，并按每项 tenant 与 shape 核 G7。任意页失败、坏租户、租户资格未知或任一持有者缺少合法同形替代都保留原贡献。
 
 新配置须整体校验后才供后续采用，失败不发布半新半旧注册，保留此前仍合法的候选。FixedToolRequest.settings 指向原设置快照，和 definition/executor 一起用于执行、settle 与恢复；不再新增同义配置快照字段。原版本或秘密引用无法合法恢复时明确 unavailable，不能改取最新值继续。当前资格撤回仍约束受保护动作，旧快照不授永久许可。
 
 从 Tool 治理视角，资产提供身份与治理声明，作者提供实现及操作，Tool 提供类别校验、定义派生、注册与合法装载。草稿发布、持有、所有权和合法候选选择继续由资产及装配拥有者提供输入，不要求 Tool 再造发布治理。文件写入不代表登记；撤登记只阻止后续采用，不表示在途调用取消或副作用回滚。作者插件 fiber 的贡献 effect 与旧 token 条件撤除归 Tool 宿主。工具实现的计划卸载、排空与交接由换代协调者 `toolGenerations` 执行（`tool-host-local/docs/cordis.md#作者装载与贡献登记`）。
+
+#### 第三方凭据端口
+
+Tool 自己拥有窄消费端口 `ToolCredentials<P, C>`。`resolve` 输入为 `CallAccess<P> & { request: FixedToolRequest, usage: { adoption, purpose, target } }`，成功结果为仅供本次受限动作使用的能力 C。adoption 是固定请求所选工具定义的精确采用，purpose 与 target 分别标明用途和目标。提供者核当前真实主体、tenant、原 call、固定请求，以及所选工具采用、用途和目标的一致性。拒绝不执行目标工具的外部动作。
+
+配置引用依次从租户、该租户所属组织、官方来源选择。只有上层确定未配置时才查下一来源。选定引用后，秘密保管返回 missing、denied、invalid 或 unavailable 中任何一项，都终止解析，不另选来源、缺省秘密或其他租户秘密。所有来源确定未配置时返回 missing。资格不成立为 denied，固定输入或实际绑定不匹配为 invalid，依赖不可读或判断未知为 unavailable。失败闭集为 `missing | denied | invalid | unavailable`，不返回部分能力。
+
+秘密值仍由 settings 的秘密保管持有。提供者必须在实际使用时核秘密绑定的租户、工具采用、用途和目标，不能回显请求字段冒充核验，也不能只在选引用时核验。成功只授予该次受限使用，不是新的 Tool 持久提交或业务效果回执。能力 C、秘密值与解析器都不进入固定请求、日志、Catalog、RC 块或持久记录。提供者缺席时返回 unavailable，Tool 不降级到环境变量或共享默认凭据。调用已经在途时，解析失败与秘密撤权均不证明已发生的外部效果撤回，仍沿原调用保管和控制协议收场。真实秘密保管提供者及其部署验证另由装配承担。
 
 ### P16 目录与发现的故障隔离
 

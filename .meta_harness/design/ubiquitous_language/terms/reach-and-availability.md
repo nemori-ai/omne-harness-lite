@@ -50,27 +50,34 @@
 - **注意**：**上下文预算是装配方的问题，工具作者根本不知道**——这就是标记挂在引用上而非资产上的理由
 - **注意 ②**：一个会话里的常驻工具组成[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)。集合只增不减，每一项的名字与参数形状在会话内不变，依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
+### UL-residency-holder · 常驻持有者 · Residency Holder
+
+> **中**：已有对象在保存常驻工具首次定义的 shape，并在采用点供给该 shape 及承担对应引用保留义务时扮演的角色。会话是一种常驻持有者。这个角色不另建身份或生命周期。
+>
+> **EN**: The role of an existing object that preserves each resident tool's initial shape and supplies it at adoption points. It also carries the corresponding reference-retention duties. A session can hold this role. The role adds no identity or lifecycle.
+
+- **形态**：属性
+- **出处**：[常驻持有者的现行定义](../conventions.md#常驻持有者的现行定义)，PanQiWei 2026-10-24 的 D-04 裁决。
+- **别混**：[常驻工具集合](#ul-resident-tool-set--常驻工具集合--resident-tool-set)是从首次纳入事实得到的视图。常驻持有者是保存这些事实并消费该视图的已有对象所扮演的角色。
+
 ### UL-resident-tool-set · 常驻工具集合 · Resident Tool Set
 
-> **中**：一个会话里全部[常驻](#ul-residency--常驻--residency)工具，连同每一项首次采用时的[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)。
-> 会话初始化时确定这个集合。此后集合只增不减。会话只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)加入此前未装载的常驻工具，Run 中途不加入。
-> 集合里每一项的名字与参数形状在会话内不变：实现可以换，但新定义必须与首次采用的定义[同形](#ul-same-shape--同形--same-shape)。
-> 某一项被卸载或暂时不可用时，会话用同形的[替换件](#ul-stand-in--替换件--stand-in)占住它。
-> 会话为每一项保存一条首次采用的事实，集合从这些事实算出；当前记下的登记键从 Run 的[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)算出，不另存。
+> **中**：一个[常驻持有者](#ul-residency-holder--常驻持有者--residency-holder)的全部[常驻](#ul-residency--常驻--residency)工具，连同每一项首次采用时的[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)形状。
+> 持有者初始化时确定这个集合。此后集合只增不减。持有者只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)加入此前未装载的常驻工具，Run 中途不加入。
+> 集合里每一项的名字与参数形状在持有者存续期间不变：实现可以换，但新定义必须与首次采用的定义[同形](#ul-same-shape--同形--same-shape)。
+> 某一项被卸载或暂时不可用时，持有者用同形的[替换件](#ul-stand-in--替换件--stand-in)占住它。
+> 持有者为每一项保存一条首次采用的事实，集合从这些事实算出；当前记下的登记键从采用依据派生。会话路径上，它从 Run 的[采用依据](agent-runtime-loop.md#ul-adoption-basis--采用依据--adoption-basis)算出，不另存。
 >
-> **EN**: All resident tools of one session, together with the tool definition that each one
-> had when the session first adopted it. The session fixes this set at initialization. After
-> that the set only grows. The session adds a resident tool that it has not loaded before only
-> at an adoption point, never in the middle of a Run. The name and argument shape of each item
-> stay the same for the life of the session: the implementation may change, but the new
-> definition must have the same shape as the first one. When an item is unloaded or
-> temporarily unavailable, the session holds its place with a stand-in of the same shape. The
-> session records one first-admission fact per item, and the set is computed from these facts.
-> The currently recorded registration key is computed from the Run's adoption basis and is
-> not stored separately.
+> **EN**: All tools admitted as resident by one residency holder, with their initial definition shapes.
+> The set only grows after initialization. The holder adds items at adoption points.
+> Each item's name and argument shape remain fixed for that holder.
+> A replacement implementation must have the same shape.
+> An unavailable item keeps its place through a stand-in of the same shape.
+> The set is derived from the holder's first-admission facts.
+> Registration keys come from adoption evidence and are not separate holder facts.
 
 - **形态**：视图
-- **出处**：[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
+- **出处**：[常驻持有者的现行定义](../conventions.md#常驻持有者的现行定义)，PanQiWei 2026-10-24 的 D-04 裁决；会话路径依据[工具执行产品页 定义、已知能力与一次执行](../../product/tool-execution/design.md#resident-tools)（rev 5）；已采用的 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)（R1–R4）；[PF-006 §4 常驻](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#常驻)（rev 24）
 - **别混 ①**：不是会话产品页里主会话的「常驻」。那个标记让主会话免于自动归档，与工具无关
 - **别混 ②**：非常驻工具不受这些规则约束。Run 中途新装载的工具经 `Tools()` 够到，不进这个集合。MCP 动作不在这些规则的范围内
 - **注意**：RFC-0012 简称它「常驻集合」。跨 topic 引用时写全称，避免与主会话的「常驻」混淆
