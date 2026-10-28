@@ -35,6 +35,13 @@
 
 建卡时按[卡属性与合法组合](delivery.md#卡属性与合法组合)登记交付线、性质与契约变更；调度者在 Issue 上设置里程碑，并打唯一的 `kind:` 与 `line:` 标签，缺任一项时 `start` 拒绝开工。调度者的建卡与派发步骤由 `dispatch` 技能给出，集成节点的步骤由 `integrate` 技能给出；两个技能只引用本页的规则与 dev-flow 的命令，不另立规则。建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
 
+新建 context 时，`start` 也按属性发现拒绝开工。它拒绝[属性发现](../../tools/dev-flow/src/delivery/README.md#属性发现)的全部代码，派发命令用同一条规则。拒绝消息逐项写代码、条款与改法。下面两项只报告，不拒绝：
+
+- carry 之后，binding 的里程碑与 Issue 的里程碑不同。这是条款为 `binding.milestone` 的 `attribute-binding-drift`。
+- 交付线为 `integration` 的卡带版本 1 的 binding。交付线取正文「身份与责任」。线内的卡带版本 1 的 binding 时拒绝，调度者用 `dispatch-cli.ts` 重新派发，生成版本 2 的 binding。
+
+工作树 HEAD 上的线归属表缺失或不合格时，属性规则不可得，`start` 也拒绝新建 context，消息为 `attribute-rules-unavailable`。被拒绝时，调度者按消息中的改法修订卡、同步标签或重新派发，执行者再运行 `start`。工作树已有同绑定的 context 时，重跑 `start` 只报告发现。
+
 调度者用 `milestone-cli.ts create <名称> --due <日期>` 建里程碑，用 `milestone-cli.ts carry --from <A> --to <B> --reason <原因> <卡号>...` 把卡移到另一个里程碑。carry 在每张卡上发一条固定格式的流转评论，不改 binding。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#里程碑命令)。
 
 读回实际Issue、正文、所需关系及主Project归属，再报告操作结果。Project加入或关系写入失败时，保留真实Issue身份及缺口，逐项修复，不把整项说成未创建而盲重建。
@@ -57,7 +64,7 @@ Git任务开工前核对执行区唯一正式binding、直接目标分支及工�
 
 并行仅在独立写范围和条件允许时展开，共享接口及集成目标有单一责任。其他卡被阻塞不妨碍已获准的独立部分。旧实例失联、调度者交接及过时候选的处置继续按共用协议，不用更新时间或assignee模拟锁。
 
-并行派发多张卡前，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件>...`，核对写范围两两不相交。任务 tmp 与线归属表的 `shared` 路径不计入。命令退出 1 时不派发这组卡，先改分解。调度者为每条线写线包。线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图本卡附录与任务信息包。不在线内的卡由调度者写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
+并行派发多张卡前，调度者在收口点的检出上运行 `node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号或 binding 文件> <读集文件>...`，核对写范围两两不相交。每张卡的读集文件列出它的任务信息包引用的正文页。任务 tmp 与线归属表的 `shared` 路径不计入。命令同时核对读写交叉，即一张卡的写范围落进另一张卡的读集。读写交叉分两类，判定规则见[读写交叉的两类](integration.md#读写交叉的两类)：产品语义正文的交叉输出为 `read-overlap`，工程方法与验证正文的交叉输出为 `read-overlap-frozen`。写范围交集与 `read-overlap` 使命令退出 1，这时不派发这组卡，先改分解。只有 `read-overlap-frozen` 时命令退出 0。调度者逐条复核这些交叉并记录它们，读方按本波收口点的版本消费这些说明页。调度者为每条线写线包。线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图本卡附录与任务信息包。不在线内的卡由调度者写，派发前做一次其中的自包含检查。合入顺序与集成节点的步骤见[集成节点的清单](integration.md#集成节点的清单)。
 
 ### 按角色的流程
 

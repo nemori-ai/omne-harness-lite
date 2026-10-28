@@ -1,9 +1,15 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import {
+  checkSummary,
+  contractCheckExitCode,
+  FAILING_STATUSES,
+  runContractCheck,
+} from './contract-check.ts'
 import { snapshotContractDiff } from './contract-diff.ts'
 import { openIntegration, type Command } from './engine.ts'
 import { fields, integer, json, sha, string, IntegrationError } from './parse.ts'
-import { riNotes, type RiNotes } from './ri-notes.ts'
+import { riNotes, riNotesExitCode, RI_REFUSING_CODES, type RiNotes } from './ri-notes.ts'
 import { riInput } from './ri-source.ts'
 import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
 
@@ -31,8 +37,10 @@ export function parseCommand(value: unknown): Command {
       throw new IntegrationError('input-error', 'Unsupported integration command')
   }
 }
-const RI_NOTES_USAGE =
-  'integration ri-notes --track ID [--root PATH] [--format json|markdown]\n  Builds the「所含的卡」and「契约变化」sections of a promotion PR; read-only, report-only.\n'
+const RI_NOTES_USAGE = `integration ri-notes --track ID [--root PATH] [--format json|markdown]
+  Builds the「所含的卡」and「契约变化」sections of a promotion PR. Read-only.
+  Exit 1 when a finding is ${RI_REFUSING_CODES.join(', ')}; exit 0 otherwise; exit 2 on bad input or a failed read.
+`
 /** Options as `--key value` pairs; an unknown, repeated or valueless option is an input error. */
 function parseOptions(args: readonly string[], allowed: readonly string[]): Map<string, string> {
   const options = new Map<string, string>()
@@ -59,11 +67,14 @@ function writeMarkdown(notes: RiNotes): void {
   const summary = { findings: notes.findings.length, codes, contractCheck: notes.contractCheck }
   process.stderr.write(`${JSON.stringify({ severity: 'report', summary })}\n`)
 }
-/** `ri-notes`: findings are report-only and never change the exit code. */
-function runRiNotes(args: readonly string[]): void {
+/**
+ * `ri-notes`: returns 1 when a finding has a refusing code (`RI_REFUSING_CODES`), otherwise 0.
+ * An unavailable snapshot difference only reports. The output is the same for both exit codes.
+ */
+function runRiNotes(args: readonly string[]): 0 | 1 {
   if (args.length === 1 && args[0] === '--help') {
     process.stdout.write(RI_NOTES_USAGE)
-    return
+    return 0
   }
   const options = parseOptions(args, ['--root', '--track', '--format']),
     track = options.get('--track'),
@@ -82,6 +93,30 @@ function runRiNotes(args: readonly string[]): void {
   )
   if (format === 'markdown') writeMarkdown(notes)
   else process.stdout.write(`${JSON.stringify(notes, null, 2)}\n`)
+  return riNotesExitCode(notes)
+}
+const CONTRACT_CHECK_USAGE = `integration contract-check [--root PATH]
+  Runs the pinned omne-contract-api --check --json. Exit 1 when a member is ${FAILING_STATUSES.join(', ')}; unbuilt only reports.
+  Exit 2 when the CLI is missing, fails or prints output of another shape.
+`
+/**
+ * `contract-check`: standard output is the JSON report. Standard error has one line for each
+ * failing member, then the summary line. Returns 1 when a member fails, otherwise 0.
+ */
+function runCheck(args: readonly string[]): 0 | 1 {
+  if (args.length === 1 && args[0] === '--help') {
+    process.stdout.write(CONTRACT_CHECK_USAGE)
+    return 0
+  }
+  const options = parseOptions(args, ['--root'])
+  const report = runContractCheck({ root: resolve(options.get('--root') ?? process.cwd()) })
+  process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
+  for (const failure of report.failures)
+    process.stderr.write(
+      `contract-check: ${failure.status} ${failure.member}: ${failure.message} 改法：${failure.remedy}\n`,
+    )
+  process.stderr.write(`contract-check: ${checkSummary(report)}\n`)
+  return contractCheckExitCode(report)
 }
 async function runEngine(kind: string, options: ReadonlyMap<string, string>): Promise<unknown> {
   const engine = await openIntegration({ root: resolve(options.get('--root') ?? process.cwd()) })
@@ -109,12 +144,16 @@ async function main(argv: string[]): Promise<void> {
   const [kind, ...args] = argv
   if (kind === '--help' || kind === undefined) {
     process.stdout.write(
-      `integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\n${RI_NOTES_USAGE}execute reads a strict command union; see integration/README.md\n`,
+      `integration status|baselines|execute [--root PATH] [--base REF] [--input JSON_FILE]\n${RI_NOTES_USAGE}${CONTRACT_CHECK_USAGE}execute reads a strict command union; see integration/README.md\n`,
     )
     return
   }
   if (kind === 'ri-notes') {
-    runRiNotes(args)
+    process.exitCode = runRiNotes(args)
+    return
+  }
+  if (kind === 'contract-check') {
+    process.exitCode = runCheck(args)
     return
   }
   const result = await runEngine(kind, parseOptions(args, ['--root', '--base', '--input']))

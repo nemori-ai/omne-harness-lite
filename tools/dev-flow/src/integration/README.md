@@ -98,13 +98,27 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 执行失败不创建部分 context。已有同绑定 context 时照原样返回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发资格。
 
-准入成功后，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+准入成功后、写 context 之前，`start` 与 `register` 判断本卡的属性发现。新建 context 时，有拒绝的发现就以 `refused` 拒绝开工，不写 context，不写看板，退出码为 2。消息逐项写代码、条款、说明与改法，例如：
 
-```json
-{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"label-drift","clause":"line:","message":"line: 标签应为 line:model，实为 无。"}
+```text
+Attribute findings refuse a new context (1):
+- label-drift [nature:] nature: 标签应为 nature:impl，实为 无。 改法：运行 labels-cli.ts --issue <卡号> --apply，按正文同步标签。
 ```
 
-发现只报告，不拒绝开工，不改变标准输出、context 与退出码。版本 1 的 binding 报告 `binding-v1`。线归属表读不到时只报告一行 `attribute-rules-unavailable`。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+拒绝全部属性代码，有两个例外只报告：
+
+- 条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后 binding 保留派发时的里程碑，这是预期状态。
+- 版本 1 的 binding 的 `binding-v1`，只在正文的交付线为 `integration` 时只报告。线内的卡拒绝，改法是重新派发，生成版本 2 的 binding。
+
+已有同绑定的 context 时重跑不拒绝，全部发现只报告。派发命令用同一条拒绝规则。
+
+开工成功时，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+
+```json
+{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
+```
+
+报告不改变标准输出、context 与退出码。线归属表在工作树 HEAD 上缺失或不合格时，新建 context 被拒绝（`attribute-rules-unavailable`）；已有同绑定的 context 时只报告这一行。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
 
 ### 看板字段
 
@@ -228,7 +242,13 @@ pnpm run ri-notes --track <轨道 ID>
 - `--format markdown` 只把两节写到标准输出，供贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
 - `ri-notes --help` 输出用法。
 
-命令只读，只报告。发现不改变退出码，也不进入 `pnpm run check`。远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+命令只读，不进入 `pnpm run check`。退出码如下：
+
+- 有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1。先改 PR 的「契约变化」或所含卡的申报，再提出提升 PR。
+- 其他发现只报告，退出 0。`contractCheck` 为 `unavailable` 时也只报告。
+- 远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+
+退出 1 时输出不变：两节照常写到标准输出。确认者在 gate 说明里贴这次运行的退出码与标准错误最后一行的汇总，见[进轨道 PR 的说明](../../../../docs/engineering/integration.md#进轨道-pr-的说明)。
 
 贴进 PR 之前，先处理发现：
 
@@ -247,6 +267,21 @@ pnpm run ri-notes --track <轨道 ID>
 
 核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、工作树有改动、Git 读取失败、找不到 `omne-contract-api`、超时、进程出错（附错误码）、退出码与标准错误、输出解析失败、输出的基线不是合并点，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
 
+## 契约快照核对
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check [--root PATH]
+```
+
+`pnpm run check` 在构建之后每次都运行它。命令运行钉住的 `omne-contract-api --check --json`，拿成员 dist 现场生成的快照与快照文件比较：
+
+- 成员为 `differs`、`unreadable`、`missing` 或 `invalid` 时退出 1，检查失败。标准错误逐个写成员、状态与改法。公开面的改动是本卡要做的时，运行 `pnpm run contract:api --write`，核对快照改动后提交。不是要做的改动时，改回声明。
+- 没有 dist 的成员（`unbuilt`）只报告。影响面计划没有选中的成员不构建；本卡改了成员的快照或源码时，影响面会选中它。
+- 报 `differs` 时先重新构建这个成员再核对：长期使用的工作树合并了同步之后，dist 可能早于合并进来的快照。仍不一致时才运行 `--write`。
+- 找不到 `omne-contract-api`、运行失败或输出不合格时退出 2，检查也失败。
+
+标准输出是 JSON 报告，标准错误最后一行是汇总。精确条款见 [SPEC](SPEC.md#契约快照核对) 的 I22。
+
 ## 持续验证
 
 在 `tools/dev-flow` 下运行：
@@ -256,6 +291,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十六个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-check`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十七个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 与 `integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

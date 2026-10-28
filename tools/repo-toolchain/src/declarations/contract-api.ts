@@ -139,7 +139,8 @@ export function locateContracts(
   return { located, problems }
 }
 
-function digest(bytes: Buffer): string {
+/** 快照摘要：文件字节的 SHA-256，十六进制小写。 */
+export function digest(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex')
 }
 
@@ -325,7 +326,7 @@ export interface DiffRun {
 export class BaseRevisionError extends Error {}
 
 /** 基线解析成提交；不是提交时抛 BaseRevisionError，其他 Git 失败原样带着 cause 抛出。 */
-function resolveCommit(root: string, base: string): string {
+export function resolveCommit(root: string, base: string): string {
   try {
     return git(root, ['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).trim()
   } catch (error) {
@@ -338,7 +339,7 @@ function exitStatus(error: unknown): unknown {
   return typeof error === 'object' && error !== null && 'status' in error ? error.status : undefined
 }
 
-function git(root: string, args: readonly string[]): string {
+export function git(root: string, args: readonly string[]): string {
   return execFileSync('git', args, {
     env: repositoryEnv(process.env),
     cwd: root,
@@ -349,7 +350,7 @@ function git(root: string, args: readonly string[]): string {
 }
 
 /** 提交里的文件：路径不在那棵树里是 undefined；其余 Git 失败照常抛出，不当作没有文件。 */
-function revisionReader(root: string, commit: string): ReadFile {
+export function revisionReader(root: string, commit: string): ReadFile {
   return path => {
     if (git(root, ['ls-tree', '-z', commit, '--', path]) === '') return undefined
     return git(root, ['cat-file', 'blob', `${commit}:${path}`])
@@ -384,7 +385,8 @@ export function diffSnapshots(root: string, config: ContractApiConfig, base: str
   return { base, commit, change: strongest(changes), members }
 }
 
-type Side =
+/** 一个成员在一侧（基线提交或工作树）的情况。 */
+export type Side =
   | { readonly kind: 'absent' }
   | { readonly kind: 'invalid'; readonly message: string }
   | {
@@ -394,7 +396,7 @@ type Side =
       readonly text: string | undefined
     }
 
-function side(contracts: Contracts, read: ReadFile, directory: string): Side {
+export function side(contracts: Contracts, read: ReadFile, directory: string): Side {
   const problem = contracts.problems.find(item => item.directory === directory)
   if (problem !== undefined) return { kind: 'invalid', message: problem.message }
   const found = contracts.located.find(item => item.member.directory === directory)
@@ -407,7 +409,8 @@ function side(contracts: Contracts, read: ReadFile, directory: string): Side {
   }
 }
 
-function diffMember(context: ClassifyContext, before: Side, after: Side): DiffMember {
+/** 一个成员两侧快照的比较；一侧读不出时为 invalid。 */
+export function diffMember(context: ClassifyContext, before: Side, after: Side): DiffMember {
   const directory = context.directory
   if (before.kind === 'invalid')
     return { directory, status: 'invalid', message: `基线上：${before.message}` }
@@ -505,7 +508,7 @@ const KIND_WORDS: Readonly<Record<Difference['kind'], string>> = {
 }
 
 /** 一项差异的一行说明；review 的项把每条依据写出来，检查器证明过的 additive 项标明。 */
-function describeDifference(item: Difference): string {
+export function describeDifference(item: Difference): string {
   const head = `${describeTarget(item.target)}：${KIND_WORDS[item.kind]}，${item.change}`
   if (item.change === 'additive')
     return item.proved === true ? `${head}（读方不破坏，写方不破坏）` : head

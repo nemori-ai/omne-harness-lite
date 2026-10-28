@@ -188,7 +188,9 @@ export interface CheckPlan {
 }
 
 /**
- * `scripts/check.sh` 每次都跑的常驻步骤，按脚本里的顺序写根 `package.json` 的脚本名；计划打印原样列出。
+ * `scripts/check.sh` 每次都跑的常驻步骤，按脚本里的顺序写；计划打印原样列出。
+ * 经 pnpm 运行的写根 `package.json` 的脚本名；直接运行 dev-flow 的两步写 `change-scope`（本卡改动的核对）
+ * 与 `contract-check`（契约快照核对）。
  * `scripts/check.sh` 改了常驻步骤这里要跟着改，`tests/scope.spec.ts` 从脚本读出来比对。
  */
 export const RESIDENT_STEPS = [
@@ -196,10 +198,11 @@ export const RESIDENT_STEPS = [
   'check:docs',
   'check:design',
   'check:lines',
+  'change-scope',
   'format:check',
   'test:format',
   'check:declarations',
-  'contract:api',
+  'contract-check',
   'lint:rules',
   'lint:oxlint',
   'lint:deps',

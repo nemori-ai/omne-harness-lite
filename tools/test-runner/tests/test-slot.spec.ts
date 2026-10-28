@@ -1,5 +1,8 @@
+// @module-tag slow
+// 归慢层：起运行名额脚本子进程，排队、等待与杀进程都是真的，另有临时 git 仓库。全量准入快层账本里整份合计 15.4 秒，负载下 22.0 秒，只标超预算的 3 条，余下仍有 7.5 秒（负载下 12.3 秒），过了线（tools/test-runner/README_ZH.md「归层」）。
 // 运行名额脚本的行为核对：透传退出码、嵌套放行、占满时按先来后到排队并报出位置、
-// 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行。
+// 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行；
+// 账本的等待与占用秒数按毫秒差截到整秒，用预载的伪时钟把时刻放到整秒边界两侧核对。
 import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -13,7 +16,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const SCRIPT = resolve(
@@ -127,6 +130,51 @@ interface Queued {
 
 /** `until` 最多等多久：比用例时限短，超时时报出已收到的输出，而不是只报用例超时。 */
 const UNTIL_LIMIT_MS = 20_000
+
+/**
+ * 伪时钟：预载进脚本的 node 进程，替换 `Date.now`。时刻从 `SLOT_TEST_CLOCK_START` 起，每读一次前进 1 毫秒；
+ * `SLOT_TEST_CLOCK_SHIFT` 指向的文件存在时再加上其中的毫秒数，命令写这个文件就能把时钟往前拨。
+ */
+const CLOCK_SOURCE = `import { existsSync, readFileSync } from 'node:fs'
+const start = Number(process.env.SLOT_TEST_CLOCK_START)
+const shift = process.env.SLOT_TEST_CLOCK_SHIFT
+let reads = 0
+Date.now = () => start + reads++ + (existsSync(shift) ? Number(readFileSync(shift, 'utf8')) : 0)
+`
+
+/**
+ * 2023-11-14T22:13:20Z 的毫秒时刻：伪时钟的整秒基准。有意取在过去：脚本拿 `Date.now()` 比名额锁文件的真实 mtime，
+ * 取将来的时刻会让排队者把占用者的锁当成失效删掉。
+ */
+const CLOCK_SECOND = 1_700_000_000_000
+
+/**
+ * 在伪时钟下经名额执行命令：时钟从 `startMs` 起，命令可往 `clockShift()` 写毫秒数拨快时钟；`TZ=UTC` 让账本时刻按字符串比对。
+ * 设了时限：时钟几乎不走，脚本若该放弃而没放弃就会一直排下去。
+ */
+function slotWithClock(args: readonly string[], startMs: number, env: Record<string, string> = {}) {
+  return spawnSync(SCRIPT, args, {
+    encoding: 'utf8',
+    timeout: 10_000,
+    env: slotEnv({ ...clockEnv(startMs), ...env }),
+  })
+}
+
+/** 写出伪时钟模块，返回让脚本预载它的环境变量。 */
+function clockEnv(startMs: number): Record<string, string> {
+  const clock = join(dir, 'clock.mjs')
+  writeFileSync(clock, CLOCK_SOURCE)
+  return {
+    TZ: 'UTC',
+    NODE_OPTIONS: `--import ${pathToFileURL(clock).href}`,
+    SLOT_TEST_CLOCK_START: String(startMs),
+    SLOT_TEST_CLOCK_SHIFT: clockShift(),
+  }
+}
+
+function clockShift(): string {
+  return join(dir, 'clock.shift')
+}
 
 /** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。 */
 function queue(args: readonly string[], env: Record<string, string> = {}): Queued {
@@ -247,6 +295,8 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     ]
     const result = slot(args)
     expect(result.status).toBe(3)
+    // 前提：名额空闲、没有排队；在此前提下 waitSeconds 应为 0。跨整秒边界的情形由下面的伪时钟用例核对。
+    expect(result.stderr).not.toContain('排队中')
     const [line, ...rest] = ledger()
     expect(rest).toEqual([])
     expect(line).toMatchObject({
@@ -270,6 +320,40 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       expect(load).toHaveLength(3)
       expect(load?.every(value => typeof value === 'number' && value >= 0)).toBe(true)
     }
+  })
+
+  it('运行账本：进队与拿到名额之间跨过整秒边界、只过了几毫秒，waitSeconds 记 0', () => {
+    const result = slotWithClock(['bash', '-c', 'exit 0'], CLOCK_SECOND + 999)
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stderr).not.toContain('排队中')
+    expect(ledger()).toEqual([
+      expect.objectContaining({
+        event: 'ran',
+        arrivedAt: '2023-11-14T22:13:20+00:00',
+        acquiredAt: '2023-11-14T22:13:21+00:00',
+        endedAt: '2023-11-14T22:13:21+00:00',
+        waitSeconds: 0,
+        heldSeconds: 0,
+      }),
+    ])
+  })
+
+  it('运行账本：命令占用约 1.6 秒、跨过两个整秒边界，heldSeconds 记 1，时刻截到秒', () => {
+    const result = slotWithClock(
+      ['bash', '-c', `printf 1600 > "${clockShift()}"`],
+      CLOCK_SECOND + 900,
+    )
+    expect(result.status, result.stderr).toBe(0)
+    expect(ledger()).toEqual([
+      expect.objectContaining({
+        event: 'ran',
+        arrivedAt: '2023-11-14T22:13:20+00:00',
+        acquiredAt: '2023-11-14T22:13:20+00:00',
+        endedAt: '2023-11-14T22:13:22+00:00',
+        waitSeconds: 0,
+        heldSeconds: 1,
+      }),
+    ])
   })
 
   it('运行账本：工作树有 task context 时记下最后一项任务的卡号与 attempt', () => {
@@ -368,6 +452,32 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     }
   })
 
+  it('名额占满、最长等待为 0：头一次没轮到就放弃，不报排队，跨整秒边界的几毫秒记 0 秒', async () => {
+    const holder = await hold()
+    try {
+      const marker = join(dir, 'ran')
+      const result = slotWithClock(['touch', marker], CLOCK_SECOND + 999, {
+        OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0',
+      })
+      expect(result.status, result.stderr).toBe(75)
+      expect(result.stderr).toContain('命令没有执行')
+      expect(result.stderr).not.toContain('排队中')
+      expect(existsSync(marker)).toBe(false)
+      expect(tickets()).toEqual([])
+      expect(ledger()).toEqual([
+        expect.objectContaining({
+          event: 'gave-up',
+          arrivedAt: '2023-11-14T22:13:20+00:00',
+          endedAt: '2023-11-14T22:13:21+00:00',
+          waitSeconds: 0,
+          exitCode: 75,
+        }),
+      ])
+    } finally {
+      await holder.release()
+    }
+  })
+
   it('名额占满：前一个放手后，排队的那个拿到名额并执行', async () => {
     const holder = await hold()
     const waiter = queue(['bash', '-c', 'echo 轮到了'])
@@ -377,6 +487,22 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     expect(await waiter.exited).toBe(0)
     expect(waiter.stdout()).toBe('轮到了\n')
     expect(waiter.stderr()).toContain('拿到名额 1/1')
+    // 占用从拿到名额算起，不含排队的时间：命令只是一次 echo。
+    expect(ledger().find(line => line.command === 'bash -c echo 轮到了')?.heldSeconds).toBe(0)
+  })
+
+  it('名额占满：排队约 0.6 秒后拿到名额，waitSeconds 截到整秒记 0', async () => {
+    const holder = await hold()
+    const waiter = queue(['true'], clockEnv(CLOCK_SECOND))
+    await waiter.until('排队中')
+    writeFileSync(clockShift(), '600')
+    await holder.release()
+    expect(await waiter.exited).toBe(0)
+    expect(ledger().find(line => line.command === 'true')).toMatchObject({
+      event: 'ran',
+      arrivedAt: '2023-11-14T22:13:20+00:00',
+      waitSeconds: 0,
+    })
   })
 
   it('先来后到：按进队顺序拿到名额，与谁看得勤无关', async () => {
