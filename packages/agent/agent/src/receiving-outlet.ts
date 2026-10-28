@@ -74,11 +74,7 @@ export function createReceptionOutlet<P>(
       let qualificationFailure: Failure | undefined
       for (const [key, item] of items) {
         if (signal.aborted || state.driver !== driver) break
-        const active = state.outletTasks.get(key)
-        if (active) {
-          await active
-          continue
-        }
+        if (state.outletTasks.has(key)) continue
         if (state.outbound.get(key)?.kind !== 'pending') continue
         const binding = item.binding
         // Reserve the task before authorization yields, so another driver cannot double-send.

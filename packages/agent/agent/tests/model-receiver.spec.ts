@@ -1193,6 +1193,125 @@ it('keeps the actual outlet task through cancellation and reassembly and fences 
   expect(newSent[0]?.account.revision).toBe('2')
 })
 
+it.each([
+  { method: 'retry', completion: 'new-first' },
+  { method: 'recover', completion: 'new-first' },
+  { method: 'retry', completion: 'old-first' },
+  { method: 'recover', completion: 'old-first' },
+] as const)(
+  '$method skips the actual outlet task after reassembly and preserves tasks finishing $completion',
+  async ({ method, completion }) => {
+    const s = await setup(),
+      entered = Promise.withResolvers<void>(),
+      release = Promise.withResolvers<void>(),
+      releaseNew = Promise.withResolvers<void>()
+    const delivery = withAccount(s.delivery)
+    if (delivery.kind !== 'result' || !delivery.accounts[0]) throw new Error('result required')
+    const call = ok(resolveModelInvocationRef(delivery.key.reference, alice.tenant)).call
+    const original = ok(await s.dependencies.models.dispatches({ ...alice, call }))[0]
+    if (!original) throw new Error('actual first dispatch required')
+    const second = ok(decodeDispatchId('mdisp_successor'))
+    s.assembly.controls.models.recordDispatch({
+      tenant: alice.tenant,
+      call,
+      record: { ...original, dispatch: second, account: null },
+    })
+    const oldSent: AgentAccountHandoff[] = [],
+      newSent: AgentAccountHandoff[] = []
+    const old = createAgentModelReceiver(
+      {
+        ...s.dependencies,
+        outlet: {
+          async deliver(input) {
+            oldSent.push(input.handoff)
+            entered.resolve()
+            await release.promise
+            return { kind: 'received' }
+          },
+        },
+      },
+      s.state,
+    )
+    try {
+      ok(
+        await old.push({
+          access: alice,
+          delivery: {
+            ...delivery,
+            accounts: [
+              ...delivery.accounts,
+              { dispatch: second, account: delivery.accounts[0].account },
+            ],
+          },
+          signal: signal(),
+        }),
+      )
+      await entered.promise
+      const oldTasks = [...s.state.outletTasks.entries()]
+      const oldActive = [...s.state.outletActive]
+      expect(oldTasks).toHaveLength(1)
+      expect(oldActive).toHaveLength(1)
+      expect(old.inspect().pending).toBe(2)
+      const next = createAgentModelReceiver(
+        {
+          ...s.dependencies,
+          outlet: {
+            async deliver(input) {
+              newSent.push(input.handoff)
+              if (completion === 'old-first') await releaseNew.promise
+              return { kind: 'received' }
+            },
+          },
+        },
+        s.state,
+      )
+      let completed = false
+      const driven = next[method]({ access: alice, execution: execution(), signal: signal() }).then(
+        result => {
+          completed = true
+          return result
+        },
+      )
+      await expect.poll(() => newSent.map(handoff => handoff.dispatch)).toEqual([second])
+      expect(oldSent.map(handoff => handoff.dispatch)).toEqual([original.dispatch])
+      for (const [key, task] of oldTasks) expect(s.state.outletTasks.get(key)).toBe(task)
+      for (const key of oldActive) expect(s.state.outletActive.has(key)).toBe(true)
+      if (completion === 'new-first') {
+        await expect.poll(() => completed).toBe(true)
+        expect(ok(await driven).pending).toBe(1)
+        expect([...s.state.outletTasks.entries()]).toEqual(oldTasks)
+        expect([...s.state.outletActive]).toEqual(oldActive)
+        release.resolve()
+      } else {
+        const newTasks = [...s.state.outletTasks.entries()].filter(
+          ([key]) => !oldActive.includes(key),
+        )
+        expect(newTasks).toHaveLength(1)
+        expect(s.state.outletActive.size).toBe(2)
+        release.resolve()
+        await expect.poll(() => s.state.outletTasks.size).toBe(1)
+        for (const [key, task] of newTasks) expect(s.state.outletTasks.get(key)).toBe(task)
+        expect([...s.state.outletActive]).toEqual(newTasks.map(([key]) => key))
+        releaseNew.resolve()
+        ok(await driven)
+      }
+      await drainTasks(s.state)
+      expect(oldSent.map(handoff => handoff.dispatch)).toEqual([original.dispatch])
+      expect(newSent.map(handoff => handoff.dispatch)).toEqual([second])
+      expect(s.state.outletActive.size).toBe(0)
+      expect(s.state.outletTasks.size).toBe(0)
+      expect(
+        ok(await next[method]({ access: alice, execution: execution(), signal: signal() })).pending,
+      ).toBe(0)
+      expect(newSent).toHaveLength(1)
+    } finally {
+      release.resolve()
+      releaseNew.resolve()
+      await drainTasks(s.state)
+    }
+  },
+)
+
 it('freezes the original binding workset before authorization and excludes a concurrently added instance', async () => {
   const s = await setup(),
     entered = Promise.withResolvers<void>(),
