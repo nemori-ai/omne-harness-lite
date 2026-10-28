@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto'
 import { readdirSync } from 'node:fs'
 import { operationJournal } from '../delivery/line-state-journal.ts'
 import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
+import { parseReadPolicy, type ReadPolicy } from '../delivery/collaboration-read.ts'
 import { InputError } from '../delivery/protocol.ts'
 import { hash256, utcTime } from '../delivery/collaboration-values.ts'
 import {
@@ -69,6 +70,19 @@ export type PreparationPorts = {
   call: GhCommand
   now?: () => number
   nonce?: () => string
+}
+
+export type FactsPreparationPolicy = Readonly<ReadPolicy & { totalMs: number; maxCalls: number }>
+
+export function parseFactsPreparationPolicy(value: unknown = {}): FactsPreparationPolicy {
+  const input = fields(value, ['networkMs', 'totalMs', 'maxCalls'], 'facts-preparation-policy')
+  const network = parseReadPolicy('networkMs' in input ? { networkMs: input.networkMs } : {})
+  const totalMs =
+    'totalMs' in input ? integer(input.totalMs, 'facts-preparation-policy.totalMs') : 30_000
+  const maxCalls =
+    'maxCalls' in input ? integer(input.maxCalls, 'facts-preparation-policy.maxCalls') : 128
+  if (totalMs > 2_147_483_647) throw new InputError('facts-preparation-policy.totalMs-too-large')
+  return Object.freeze({ ...network, totalMs, maxCalls })
 }
 
 function slotId(dispatch: string): string {
@@ -206,7 +220,12 @@ function readRunReceipt(journal: ReturnType<typeof operationJournal>, intent: In
 }
 
 /** Bootstrap fixes installation and storage. Callers supply only the dispatch and explicit retry choice. */
-export function createFactsPreparation(ports: PreparationPorts) {
+export function createFactsPreparation(
+  ports: PreparationPorts,
+  options?: Partial<FactsPreparationPolicy>,
+) {
+  const policy = parseFactsPreparationPolicy(options)
+  const readPolicy = { networkMs: policy.networkMs }
   const installations = adoptedInstallations(ports)
   const readerDeployment: FactsReadDeployment = {
     ...ports.deployment,
@@ -231,20 +250,22 @@ export function createFactsPreparation(ports: PreparationPorts) {
       diagnostic,
     })
     const now = ports.now ?? Date.now,
-      deadline = now() + 30_000
+      deadline = now() + policy.totalMs
     let calls = 0
     const call: GhCommand = (args, timeout) => {
-      if (++calls > 128 || now() >= deadline)
+      const remaining = deadline - now()
+      if (++calls > policy.maxCalls || remaining <= 0)
         throw new InputError('facts-preparation-observation-budget')
-      return ports.call(args, Math.min(timeout, Math.max(1, deadline - now())))
+      return ports.call(args, Math.min(timeout, remaining))
     }
-    const get = (path: string) => call(['api', '--method', 'GET', ...REST_HEADERS, path], 15_000)
+    const get = (path: string) =>
+      call(['api', '--method', 'GET', ...REST_HEADERS, path], policy.networkMs)
     try {
       assertActive()
       let published: PublishedFacts | null = null
       let snapshot: PublishedFactsMissing['dispatch']
       try {
-        published = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
+        published = readPublishedDeliveryFacts(readerDeployment, dispatch, call, readPolicy)
         const { reviewer: _reviewer, ...identity } = published.authority
         snapshot = identity
       } catch (error) {
@@ -275,9 +296,9 @@ export function createFactsPreparation(ports: PreparationPorts) {
       const observe = (item: Intent): PreparedFactsRun | null => {
         const runId = readRunReceipt(journal, item)
         if (runId !== undefined) {
-          return readPreparedFactsRun(item.binding.deployment, item.input, runId, call)
+          return readPreparedFactsRun(item.binding.deployment, item.input, runId, call, readPolicy)
         }
-        return findPreparedFactsRun(item.binding.deployment, item.input, call)
+        return findPreparedFactsRun(item.binding.deployment, item.input, call, readPolicy)
       }
       if (intent !== null) {
         generation = intent.generation
@@ -285,7 +306,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
         if (observed === null) return unknown('facts-preparation-dispatch-unresolved-no-repost')
         if (observed.status !== 'completed') return { status: 'pending', generation, run: observed }
         if (observed.conclusion === 'success') {
-          const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
+          const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call, readPolicy)
           if (
             !facts.observations.some(
               o => o.facts.run === observed?.id && o.facts.nonce === intent?.input.nonce,
@@ -322,7 +343,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
       )
         throw new InputError('facts-preparation-deployment-changed')
       try {
-        readPublishedDeliveryFacts(readerDeployment, dispatch, call)
+        readPublishedDeliveryFacts(readerDeployment, dispatch, call, readPolicy)
         return unknown('facts-preparation-facts-appeared-before-dispatch')
       } catch (error) {
         if (!(error instanceof PublishedFactsMissing)) throw error
@@ -374,7 +395,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
                 `inputs[${key}]=${value}`,
               ]),
             ],
-            15_000,
+            policy.networkMs,
           ),
           ports.deployment.repository,
         )
@@ -396,7 +417,7 @@ export function createFactsPreparation(ports: PreparationPorts) {
           run: observed,
           diagnostic: 'facts-preparation-run-failed',
         }
-      const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call)
+      const facts = readPublishedDeliveryFacts(readerDeployment, dispatch, call, readPolicy)
       if (
         !facts.observations.some(
           o => o.facts.run === observed?.id && o.facts.nonce === intent?.input.nonce,

@@ -124,6 +124,8 @@ pnpm run facts:prepare --repo owner/name --dispatch https://github.com/owner/nam
 
 `ready` 退出 0，`pending` 退出 3，`failed` 或 `unknown` 退出 2。重复原命令会观察同一持久操作。`unknown` 不表示未派发，不能删除 journal 或更换安装来重发。
 
+自有程序装配可通过 `deployedCollaboration(repo, { factsPreparation: { networkMs: 25000, totalMs: 60000, maxCalls: 128 } })` 调整 facts 准备的观察预算。`openCollaborationInstallation` 的第四个参数接受相同选项。仅在实际读取量或网络时延需要时调整。普通 CLI 仍使用单次 15 秒、总计 30 秒和 128 次请求的默认值。该策略只配置 facts 准备，不替换安装身份、权限或 journal。值域、复制和耗尽行为见[规格](SPEC.md)。
+
 只有精确运行的 attempt 1 已明确失败，而且没有该派发的 facts，才可加 `--retry-failed` 创建新的生产代。新代沿用人的派发授权，生成新 nonce 和新运行，不使用 GitHub rerun。资格为负、事实冲突、成功但未读到 facts、运行未知都不能用此选项绕过。
 
 生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。已完整转移的旧操作使用其原安装和 workflow 恢复；新 POST 只使用当前 workflow。未显式采用的旧绑定拒绝，不能删除记录来消除冲突。

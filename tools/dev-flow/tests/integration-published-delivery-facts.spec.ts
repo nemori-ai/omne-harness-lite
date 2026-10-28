@@ -125,6 +125,22 @@ function fixture() {
 }
 
 describe('published delivery facts without workflow dispatch', () => {
+  it('propagates configured network limits through facts, comments and repeated run reads', () => {
+    const f = fixture()
+    const timeouts: number[] = []
+    const read: GhRead = (args, timeout) => {
+      timeouts.push(timeout)
+      return f.read(args, timeout)
+    }
+    expect(
+      readPublishedDeliveryFacts(f.readDeployment, f.current.html_url, read, {
+        networkMs: 25_000,
+      }).observations,
+    ).toHaveLength(1)
+    expect(timeouts.length).toBeGreaterThan(10)
+    expect(new Set(timeouts)).toEqual(new Set([25_000]))
+  })
+
   it.each([false, true])(
     'accepts endpoint creation metadata recorded after the run started, current endpoint: %s',
     currentEndpoint => {

@@ -1,10 +1,14 @@
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { canonical, digest, object, same, string } from '../integration/parse.ts'
+import { canonical, digest, fields, object, same, string } from '../integration/parse.ts'
 import { parsePolicy } from '../integration/policy.ts'
 import type { PolicySource } from '../integration/context.ts'
 import { repository } from '../integration/git.ts'
-import { createFactsPreparation } from '../integration/prepare-delivery-facts.ts'
+import {
+  createFactsPreparation,
+  parseFactsPreparationPolicy,
+  type FactsPreparationPolicy,
+} from '../integration/prepare-delivery-facts.ts'
 import { readAcceptanceSourcesRest } from './collaboration-acceptance-source.ts'
 import { publishedAuthorityReaders } from './collaboration-facts.ts'
 import {
@@ -178,7 +182,18 @@ export function adoptCollaborationProducer(
   return { installationDigest: current.installationDigest, journalRoot: state.journalRoot }
 }
 
-export function openCollaborationInstallation(root: string, repo: string, transport: GhRead) {
+export type CollaborationOptions = Readonly<{ factsPreparation?: Partial<FactsPreparationPolicy> }>
+
+export function openCollaborationInstallation(
+  root: string,
+  repo: string,
+  transport: GhRead,
+  options: CollaborationOptions = {},
+) {
+  const input = fields(options, ['factsPreparation'], 'collaboration-options')
+  if ('factsPreparation' in input && input.factsPreparation === undefined)
+    throw new InputError('collaboration-options.factsPreparation-required')
+  const factsPolicy = parseFactsPreparationPolicy(input.factsPreparation)
   const { record, installation } = readCollaborationInstallationRecord(root)
   same(installation.repository, repo, 'collaboration-installation-repository-mismatch')
   const read: GhRead = (argv, timeout) => {
@@ -248,15 +263,18 @@ export function openCollaborationInstallation(root: string, repo: string, transp
       installation.schemaVersion !== 1 ? installation.facts.historicalWorkflows : []
     const state = readProducerState(producerPorts(root, current, historicalWorkflows, read))
     if (state !== undefined)
-      prepareFacts = createFactsPreparation({
-        deployment: current.deployment,
-        installationDigest: current.installationDigest,
-        historicalWorkflows,
-        priorInstallations: state.priorInstallations,
-        assertActive: state.assertActive,
-        journalRoot: state.journalRoot,
-        call: transport,
-      })
+      prepareFacts = createFactsPreparation(
+        {
+          deployment: current.deployment,
+          installationDigest: current.installationDigest,
+          historicalWorkflows,
+          priorInstallations: state.priorInstallations,
+          assertActive: state.assertActive,
+          journalRoot: state.journalRoot,
+          call: transport,
+        },
+        factsPolicy,
+      )
   }
 
   same(
@@ -267,6 +285,6 @@ export function openCollaborationInstallation(root: string, repo: string, transp
   return { installation, policy, request, watch, authorityFor: readers.authorityFor, prepareFacts }
 }
 
-export function deployedCollaboration(repo: string) {
-  return openCollaborationInstallation(collaborationToolRoot(), repo, runGhRead)
+export function deployedCollaboration(repo: string, options?: CollaborationOptions) {
+  return openCollaborationInstallation(collaborationToolRoot(), repo, runGhRead, options)
 }

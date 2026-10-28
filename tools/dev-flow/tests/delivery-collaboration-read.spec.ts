@@ -4,6 +4,7 @@ import {
   readCompleteComments,
   readReferencedComment,
   recordComments,
+  type ReadPolicy,
   type CollaborationComment,
 } from '../src/delivery/collaboration-read.ts'
 import { orderedRecords, type SequencedComment } from '../src/delivery/collaboration-sequence.ts'
@@ -48,6 +49,39 @@ function source(
 }
 
 describe('complete collaboration comment reads', () => {
+  it.each([
+    null,
+    [],
+    { networkMs: undefined },
+    { networkMs: 0 },
+    { networkMs: -1 },
+    { networkMs: 1.5 },
+    { networkMs: Infinity },
+    { networkMs: NaN },
+    { networkMs: 2_147_483_648 },
+    { timeout: 1000 },
+  ])('rejects invalid policy %j before reading', policy => {
+    const read = source([])
+    expect(() =>
+      readCompleteComments('owner/repo', 10, read, policy as Partial<ReadPolicy>),
+    ).toThrow()
+    expect(read).not.toHaveBeenCalled()
+  })
+
+  it('keeps the default network limit when policy is omitted', () => {
+    const read = source([])
+    readCompleteComments('owner/repo', 10, read)
+    expect(read.mock.calls.map(call => call[1])).toEqual([15_000, 15_000, 15_000])
+  })
+
+  it('uses the configured network limit for every page and both snapshots', () => {
+    const read = source(Array.from({ length: 105 }, (_, index) => rawComment(index + 1)))
+    expect(
+      readCompleteComments('owner/repo', 10, read, { networkMs: 25_000 }).comments,
+    ).toHaveLength(105)
+    expect(read.mock.calls.map(call => call[1])).toEqual([25_000, 25_000, 25_000, 25_000])
+  })
+
   it.each([0, 100, 205])(
     'reads all %s comments including the final empty page when needed',
     count => {
@@ -96,6 +130,12 @@ describe('complete collaboration comment reads', () => {
 describe('referenced comment reads', () => {
   const body = encodeRecordComment(delta())
   const reference = { issue: 10, commentId: 24, sha256: commentDigest(body) }
+
+  it('uses the configured network limit for an exact comment', () => {
+    const read = vi.fn<GhRead>(() => rawComment(24, body))
+    expect(readReferencedComment('owner/repo', reference, read, { networkMs: 25_000 }).id).toBe(24)
+    expect(read.mock.calls[0]?.[1]).toBe(25_000)
+  })
 
   it('reads the exact comment and preserves its author for a separate permission check', () => {
     const raw = rawComment(24, body)

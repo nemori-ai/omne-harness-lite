@@ -138,7 +138,11 @@ bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config �
 
 `facts:prepare` 与 `facts-preparation-cli.ts` 提供 reduce 的显式生产入口。普通参数只有 repository、精确 dispatch URL 和 `--retry-failed`。bootstrap 固定 published 安装、workflow、Bot、Project 和私有 Git 目录中的 journal。direct 安装拒绝此生产命令。line/watch 的端口不取得生产能力。
 
-每个调用只观察一次，不等待 Actions 完成。网络观察预算为 30 秒、最多 128 次请求，单次请求最多 15 秒。预算耗尽保留 unknown。结果为 ready、pending、failed 或 unknown，CLI 退出码分别为 0、3、2、2。ready 仍须由完整只读 facts 读取器认证，不能仅凭运行 success。
+每个调用只观察一次，不等待 Actions 完成。默认网络观察预算为 30 秒、最多 128 次请求，单次请求最多 15 秒。预算耗尽保留 unknown。结果为 ready、pending、failed 或 unknown，CLI 退出码分别为 0、3、2、2。ready 仍须由完整只读 facts 读取器认证，不能仅凭运行 success。
+
+程序装配方可向 `openCollaborationInstallation` 或 `deployedCollaboration` 传入 `factsPreparation` 策略，字段为 `networkMs`、`totalMs` 和 `maxCalls`。`createFactsPreparation` 的第二个参数接受同一策略。省略字段沿用上述默认值。毫秒值必须是 1 至 2147483647 的整数，次数必须是正安全整数。未知字段、显式 undefined 字段、null 及其他非法值在任何安装文件或网络读取前拒绝。解析器复制并冻结策略，调用者随后修改原对象不影响现有工厂。CLI 不增加策略选项，采用默认值。
+
+工厂每次调用分别计算截止时间和请求次数。达到次数上限后，下一次请求在发送前拒绝。所有 facts GET 和 dispatch POST 的时限为 `networkMs` 与剩余总时间中的较小值。预算耗尽不清除 journal，不重发未决 dispatch。总预算不强制中断同步本地代码，也不能替代传输实现遵守单次时限的责任。
 
 派发 URL 的 SHA-256 前 128 位经固定 version-8 和 variant 位编码成 journal UUID。键不含调用者 operation ID、安装摘要或派发修订。完整 URL、派发作者账号、正文摘要、更新时间、安装摘要及部署身份保存在每个 intent 中，冲突时拒绝。相同 URL 的编辑或安装变更不能绕过旧操作。
 

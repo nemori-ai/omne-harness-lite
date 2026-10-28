@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import {
   createFactsPreparation,
   type PreparationPorts,
+  type FactsPreparationPolicy,
 } from '../src/integration/prepare-delivery-facts.ts'
 import { InputError } from '../src/delivery/protocol.ts'
 import { runFactsPreparationCli } from '../src/delivery/facts-preparation-cli.ts'
@@ -136,32 +137,41 @@ function fixture() {
     }
     return structuredClone(api.read(args, timeout))
   }
+  const create = (
+    transport = call,
+    overrides: Partial<PreparationPorts> = {},
+    policy?: Partial<FactsPreparationPolicy>,
+  ) =>
+    createFactsPreparation(
+      {
+        deployment: state.currentDeployment,
+        installationDigest: state.installation,
+        historicalWorkflows: state.historicalWorkflows,
+        priorInstallations: state.priorInstallations,
+        assertActive: () => {
+          if (state.retired) throw new InputError('producer-retired')
+        },
+        journalRoot: root,
+        call: transport,
+        nonce: () => (++state.nonce).toString(16).padStart(32, '0'),
+        ...(state.budget
+          ? {
+              now: (() => {
+                let n = 0
+                return () => n++ * 30_000
+              })(),
+            }
+          : {}),
+        ...overrides,
+      },
+      policy,
+    )
   const prepare = (
     retryFailed = false,
     transport = call,
     overrides: Partial<PreparationPorts> = {},
-  ) =>
-    createFactsPreparation({
-      deployment: state.currentDeployment,
-      installationDigest: state.installation,
-      historicalWorkflows: state.historicalWorkflows,
-      priorInstallations: state.priorInstallations,
-      assertActive: () => {
-        if (state.retired) throw new InputError('producer-retired')
-      },
-      journalRoot: root,
-      call: transport,
-      nonce: () => (++state.nonce).toString(16).padStart(32, '0'),
-      ...(state.budget
-        ? {
-            now: (() => {
-              let n = 0
-              return () => n++ * 30_000
-            })(),
-          }
-        : {}),
-      ...overrides,
-    })(current.html_url, { retryFailed })
+    policy?: Partial<FactsPreparationPolicy>,
+  ) => create(transport, overrides, policy)(current.html_url, { retryFailed })
   const adopt = () => {
     state.priorInstallations.push({
       installationDigest: state.installation,
@@ -220,6 +230,7 @@ function fixture() {
     call,
     calls,
     prepare,
+    create,
     adopt,
     publish,
     slot,
@@ -227,6 +238,119 @@ function fixture() {
 }
 
 describe('durable single-dispatch facts preparation', () => {
+  it.each([
+    null,
+    [],
+    { totalMs: undefined },
+    { totalMs: 0 },
+    { totalMs: 2_147_483_648 },
+    { totalMs: NaN },
+    { maxCalls: 0 },
+    { maxCalls: 1.5 },
+    { maxCalls: Infinity },
+    { maxCalls: Number.MAX_SAFE_INTEGER + 1 },
+    { maxCalls: undefined },
+    { unknown: 1 },
+  ])('rejects invalid facts policy %j before authority or network reads', policy => {
+    const f = fixture()
+    let authorityCalls = 0
+    expect(() =>
+      f.create(
+        f.call,
+        {
+          assertActive: () => {
+            authorityCalls++
+          },
+        },
+        policy as Partial<FactsPreparationPolicy>,
+      ),
+    ).toThrow()
+    expect(authorityCalls).toBe(0)
+    expect(f.calls).toHaveLength(0)
+  })
+
+  it('uses copied policy for nested reads', () => {
+    const f = fixture()
+    const policy = { networkMs: 25_000, totalMs: 60_000, maxCalls: 128 }
+    const timeouts: number[] = []
+    const prepare = f.create(
+      (args, timeout) => {
+        timeouts.push(timeout)
+        return f.call(args, timeout)
+      },
+      { now: () => 0 },
+      policy,
+    )
+    policy.networkMs = 1
+    policy.maxCalls = 1
+    expect(prepare(f.current.html_url).status).toBe('pending')
+    f.publish()
+    expect(prepare(f.current.html_url).status).toBe('ready')
+    expect(timeouts.length).toBeGreaterThan(10)
+    expect(new Set(timeouts)).toEqual(new Set([25_000]))
+    expect(f.state.posts).toBe(1)
+  })
+
+  it('stops before the first call beyond the configured request budget', () => {
+    const f = fixture()
+    expect(f.prepare(false, f.call, { now: () => 0 }, { maxCalls: 1 })).toMatchObject({
+      status: 'unknown',
+      diagnostic: 'facts-preparation-observation-budget',
+    })
+    expect(f.calls).toHaveLength(1)
+    expect(f.state.posts).toBe(0)
+  })
+
+  it('starts a fresh deadline and request count for each call to the same factory', () => {
+    const f = fixture()
+    let now = 0
+    const timeouts: number[] = []
+    const prepare = f.create(
+      (args, timeout) => {
+        timeouts.push(timeout)
+        return f.call(args, timeout)
+      },
+      { now: () => now },
+      { maxCalls: 1, totalMs: 500 },
+    )
+    expect(prepare(f.current.html_url)).toMatchObject({
+      status: 'unknown',
+      diagnostic: 'facts-preparation-observation-budget',
+    })
+    now = 60_000
+    expect(prepare(f.current.html_url)).toMatchObject({
+      status: 'unknown',
+      diagnostic: 'facts-preparation-observation-budget',
+    })
+    expect(timeouts).toEqual([500, 500])
+    expect(f.state.posts).toBe(0)
+  })
+
+  it('limits requests by remaining time and recovers the original intent without another POST', () => {
+    const f = fixture()
+    f.prepare()
+    const timeouts: number[] = []
+    let now = 0
+    const prepare = f.create(
+      (args, timeout) => {
+        timeouts.push(timeout)
+        const result = f.call(args, timeout)
+        now += 600
+        return result
+      },
+      { now: () => now },
+      { totalMs: 1000, networkMs: 25_000 },
+    )
+    expect(prepare(f.current.html_url)).toMatchObject({
+      status: 'unknown',
+      diagnostic: 'facts-preparation-observation-budget',
+    })
+    expect(timeouts).toEqual([1000, 400])
+    expect(f.state.posts).toBe(1)
+    expect(f.prepare().status).toBe('pending')
+    expect(f.state.posts).toBe(1)
+  })
+
   it('runs source CLI help from another cwd without loading installation', () => {
     const path = fileURLToPath(new URL('../src/delivery/facts-preparation-cli.ts', import.meta.url))
     const help = spawnSync(process.execPath, ['--experimental-strip-types', path, '--help'], {

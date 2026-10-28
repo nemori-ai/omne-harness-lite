@@ -1,4 +1,4 @@
-import { array, canonical, integer, object, string } from '../integration/parse.ts'
+import { array, canonical, fields, integer, object, string } from '../integration/parse.ts'
 import { REST_HEADERS, type GhRead } from './github-read.ts'
 import { InputError } from './protocol.ts'
 import { commentDigest, decodeRecordComment } from './collaboration-comments.ts'
@@ -8,6 +8,17 @@ import type {
   WaveIdentity,
 } from './collaboration-records.ts'
 import { parseReference, utcTime } from './collaboration-values.ts'
+
+export type ReadPolicy = Readonly<{ networkMs: number }>
+
+export function parseReadPolicy(value: unknown = {}): ReadPolicy {
+  const input = fields(value, ['networkMs'], 'collaboration-read-policy')
+  const networkMs =
+    'networkMs' in input ? integer(input.networkMs, 'collaboration-read-policy.networkMs') : 15_000
+  if (networkMs > 2_147_483_647)
+    throw new InputError('collaboration-read-policy.networkMs-too-large')
+  return Object.freeze({ networkMs })
+}
 
 export type CollaborationComment = {
   id: number
@@ -90,12 +101,19 @@ export function parseCollaborationComment(
 }
 
 /** Reads every page and checks the Issue count and revision again before returning a snapshot. */
-export function readCompleteComments(repo: string, issue: number, read: GhRead): CommentSnapshot {
+export function readCompleteComments(
+  repo: string,
+  issue: number,
+  read: GhRead,
+  options?: Partial<ReadPolicy>,
+): CommentSnapshot {
+  const policy = parseReadPolicy(options)
   if (!/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(repo))
     throw new InputError('collaboration-repo-invalid')
   integer(issue, 'issue')
   const endpoint = `repos/${repo}/issues/${issue}`
-  const get = (path: string) => read(['api', '--method', 'GET', ...REST_HEADERS, path], 15_000)
+  const get = (path: string) =>
+    read(['api', '--method', 'GET', ...REST_HEADERS, path], policy.networkMs)
   const before = issueIdentity(get(endpoint), repo, issue)
   const comments: CollaborationComment[] = [],
     ids = new Set<number>()
@@ -139,14 +157,16 @@ export function readReferencedComment(
   repo: string,
   reference: CommentReference,
   read: GhRead,
+  options?: Partial<ReadPolicy>,
 ): CollaborationComment {
+  const policy = parseReadPolicy(options)
   if (!/^[A-Za-z0-9][\w.-]*\/[A-Za-z0-9][\w.-]*$/.test(repo))
     throw new InputError('collaboration-repo-invalid')
   const ref = parseReference(reference)
   const comment = parseCollaborationComment(
     read(
       ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repo}/issues/comments/${ref.commentId}`],
-      15_000,
+      policy.networkMs,
     ),
     repo,
     ref.issue,

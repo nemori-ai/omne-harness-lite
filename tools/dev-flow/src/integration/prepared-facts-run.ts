@@ -1,4 +1,5 @@
 import { REST_HEADERS, type GhRead } from '../delivery/github-read.ts'
+import { parseReadPolicy, type ReadPolicy } from '../delivery/collaboration-read.ts'
 import { InputError } from '../delivery/protocol.ts'
 import { utcTime } from '../delivery/collaboration-values.ts'
 import type { FactsDeployment } from './published-delivery-facts.ts'
@@ -40,9 +41,12 @@ export function readPreparedFactsRun(
   input: FactsRunInput,
   runId: number,
   read: GhRead,
+  options?: Partial<ReadPolicy>,
 ): PreparedFactsRun {
+  const policy = parseReadPolicy(options)
   const endpoint = `repos/${deployment.repository}/actions/runs/${runId}`
-  const get = (path: string) => read(['api', '--method', 'GET', ...REST_HEADERS, path], 15_000)
+  const get = (path: string) =>
+    read(['api', '--method', 'GET', ...REST_HEADERS, path], policy.networkMs)
   function parse(value: unknown): PreparedFactsRun {
     const v = object(value, 'facts preparation run')
     if (
@@ -88,7 +92,9 @@ export function findPreparedFactsRun(
   deployment: FactsDeployment,
   input: FactsRunInput,
   read: GhRead,
+  options?: Partial<ReadPolicy>,
 ): PreparedFactsRun | null {
+  const policy = parseReadPolicy(options)
   const endpoint = `repos/${deployment.repository}/actions/workflows/${deployment.workflow.id}/runs`
   const title = factsRunName(input),
     ids = new Set<number>(),
@@ -98,7 +104,7 @@ export function findPreparedFactsRun(
     const value = object(
       read(
         ['api', '--method', 'GET', ...REST_HEADERS, `${endpoint}?per_page=100&page=${page}`],
-        15_000,
+        policy.networkMs,
       ),
       'facts preparation runs',
     )
@@ -122,5 +128,7 @@ export function findPreparedFactsRun(
   }
   if (ids.size !== expected) throw new InputError('facts-preparation-runs-incomplete')
   if (matches.length > 1) throw new InputError('facts-preparation-run-duplicated')
-  return matches[0] === undefined ? null : readPreparedFactsRun(deployment, input, matches[0], read)
+  return matches[0] === undefined
+    ? null
+    : readPreparedFactsRun(deployment, input, matches[0], read, policy)
 }

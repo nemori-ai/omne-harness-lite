@@ -131,6 +131,8 @@ I15。Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `en
 
 ## 协作等待中的只读事实
 
+公共评论读取器和 facts 读取器接受末尾的可选读取策略 `ReadPolicy`。`networkMs` 默认 15000，必须是 1 至 2147483647 的整数。读取器在网络 I/O 前校验并复制策略。未知字段、显式 undefined 字段、null 和非法数值拒绝。该时限适用于全部分页、第二次快照以及 run 列表后的精确读取，不限制评论数量或削减事实认证。生产工厂的总预算由[准备事实规格](../delivery/SPEC.md)定义。
+
 [published-delivery-facts.ts](published-delivery-facts.ts) 的 `readPublishedDeliveryFacts` 读取 reduce 已预先发布的 facts。调用方提供已采用安装中的 repository、Project ID、workflow 的 ID/path/ref/head 及 Bot login/node ID。普通命令参数不得替换这些采用值。该入口只发 REST GET，不派发 workflow，不读 GraphQL、environment 或组织成员，也不回退直接资格查询。它与现有 `fetchDeliveryFacts` 共用 [delivery-facts-record.ts](delivery-facts-record.ts) 的 v1 数据形状；现有主动派发入口保持其独立行为。
 
 读取器完整捕捉当前卡评论，再逐条核对固定 Bot 的事实。Bot 名称、原生账号 ID 和类型必须一致。先拒绝该 Bot 的已编辑评论，再按 facts 标记识别区块，不能用编辑或删除标记来隐藏已有负面事实。未编辑且不含 facts 标记的其他 Bot 评论不作为资格依据。区块须唯一且严格解析，未知字段、重复字段及未知版本均拒绝。匹配同一 dispatch URL 的事实必须同时匹配其实际作者、作者 node ID、正文摘要和更新时间，以及请求卡号与固定 Project。事实评论不得早于其所声明的派发修订。其他正常派发的事实不授予本次权限。

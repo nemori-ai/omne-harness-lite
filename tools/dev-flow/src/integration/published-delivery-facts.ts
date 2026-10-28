@@ -1,7 +1,9 @@
 import { collaborationBlock } from '../delivery/collaboration-block.ts'
 import {
   parseCollaborationComment,
+  parseReadPolicy,
   readCompleteComments,
+  type ReadPolicy,
   type CollaborationComment,
 } from '../delivery/collaboration-read.ts'
 import type { CommentReference } from '../delivery/collaboration-records.ts'
@@ -46,7 +48,9 @@ export function readPublishedDeliveryFacts(
   deployment: FactsReadDeployment,
   dispatchUrl: string,
   read: GhRead,
+  options?: Partial<ReadPolicy>,
 ): PublishedFacts {
+  const policy = parseReadPolicy(options)
   const match =
     /^https:\/\/github\.com\/([^/]+\/[^/]+)\/issues\/([1-9]\d*)#issuecomment-([1-9]\d*)$/.exec(
       dispatchUrl,
@@ -58,10 +62,10 @@ export function readPublishedDeliveryFacts(
   const prefix = `repos/${deployment.repository}`
   const get = (path: string) =>
     object(
-      read(['api', '--method', 'GET', ...REST_HEADERS, `${prefix}/${path}`], 15_000),
+      read(['api', '--method', 'GET', ...REST_HEADERS, `${prefix}/${path}`], policy.networkMs),
       'published facts response',
     )
-  const snapshot = readCompleteComments(deployment.repository, issue, read)
+  const snapshot = readCompleteComments(deployment.repository, issue, read, policy)
   const dispatch = snapshot.comments.find(comment => comment.url === dispatchUrl)
   if (dispatch === undefined) unknown('Published facts dispatch is missing')
 
@@ -170,7 +174,7 @@ export function readPublishedDeliveryFacts(
   if (observations.length === 0) {
     same(commentIdentity(dispatch), actor, 'Published facts dispatch account changed during read')
     same(
-      readCompleteComments(deployment.repository, issue, read),
+      readCompleteComments(deployment.repository, issue, read, policy),
       snapshot,
       'Published facts collection changed during read',
     )
@@ -195,7 +199,7 @@ export function readPublishedDeliveryFacts(
     same(verifyRun(run, comment), observed, 'Published facts workflow changed during read')
   same(commentIdentity(dispatch), actor, 'Published facts dispatch account changed during read')
   same(
-    readCompleteComments(deployment.repository, issue, read),
+    readCompleteComments(deployment.repository, issue, read, policy),
     snapshot,
     'Published facts collection changed during read',
   )

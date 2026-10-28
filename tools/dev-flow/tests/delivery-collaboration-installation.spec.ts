@@ -23,6 +23,7 @@ import {
 import {
   adoptCollaborationProducer,
   openCollaborationInstallation,
+  type CollaborationOptions,
 } from '../src/delivery/collaboration-bootstrap.ts'
 import { factsRunName } from '../src/integration/prepared-facts-run.ts'
 import type { FactsDeployment } from '../src/integration/published-delivery-facts.ts'
@@ -562,6 +563,29 @@ describe('installed collaboration assembly', () => {
 })
 
 describe('installed producer continuity', () => {
+  it.each([
+    null,
+    [],
+    { factsPreparation: undefined },
+    { factsPreparation: null },
+    { factsPreparation: { maxCalls: 0 } },
+    { unexpected: true },
+  ])('rejects invalid bootstrap policy %j before touching an installation', options => {
+    let requests = 0
+    expect(() =>
+      openCollaborationInstallation(
+        '/missing-installation-for-policy-test',
+        policy.repository,
+        () => {
+          requests++
+          throw new Error('unexpected network')
+        },
+        options as CollaborationOptions,
+      ),
+    ).toThrow(/collaboration-options|facts-preparation-policy/)
+    expect(requests).toBe(0)
+  })
+
   function published(
     f: ReturnType<typeof fixture>,
     head: string,
@@ -601,6 +625,36 @@ describe('installed producer continuity', () => {
   }
 
   // These adoption cases repeatedly start real Git processes to validate both tool checkouts.
+  it('passes copied policy through an adopted producer installation', { tags: ['slow'] }, () => {
+    const f = fixture()
+    install(f, published(f, f.head), ['--initial-producer'])
+    const timeouts: number[] = []
+    let preparing = false
+    const options = { factsPreparation: { networkMs: 25_000, totalMs: 60_000, maxCalls: 1 } }
+    const assembly = openCollaborationInstallation(
+      f.root,
+      policy.repository,
+      (args, timeout) => {
+        if (preparing) {
+          timeouts.push(timeout)
+          throw new Error('fixture-facts-observation-stop')
+        }
+        return f.read(args, timeout)
+      },
+      options,
+    )
+    options.factsPreparation.networkMs = 1
+    preparing = true
+    expect(assembly.prepareFacts).toBeTypeOf('function')
+    expect(
+      assembly.prepareFacts!('https://github.com/owner/repo/issues/10#issuecomment-20'),
+    ).toMatchObject({
+      status: 'unknown',
+      diagnostic: 'facts-preparation-storage-or-network-unavailable',
+    })
+    expect(timeouts).toEqual([25_000])
+  })
+
   it.each([1, 2])(
     'requires explicit producer adoption for schema %s',
     { tags: ['slow'] },
