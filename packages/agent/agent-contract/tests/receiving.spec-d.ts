@@ -9,7 +9,6 @@ import type {
 } from '@omne-harness/agent-contract/testing'
 import type { CallAccount } from '@omne-harness/call-account'
 import type * as M from '@omne-harness/model-contract'
-import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Access,
@@ -38,14 +37,11 @@ import type {
   ReceivedEntry,
   Reply,
   StartFenceEntry,
-  StreamReferenceEntry,
 } from '@omne-harness/agent-contract'
 
 describe('the receiving entries', () => {
   it('have the three kinds of the SPEC table', () => {
-    expectTypeOf<AgentJournalEntry['kind']>().toEqualTypeOf<
-      'start-fence' | 'received' | 'stream-reference'
-    >()
+    expectTypeOf<AgentJournalEntry['kind']>().toEqualTypeOf<'start-fence' | 'received'>()
   })
 
   it('reuse the delivery keys of Model and Tool, one branch per kind of key', () => {
@@ -75,14 +71,6 @@ describe('the receiving entries', () => {
     void refused
   })
 
-  it('keep the stream reference of stream-arrival and no credential', () => {
-    expectTypeOf<StreamReferenceEntry['reference']>().toEqualTypeOf<StreamRef>()
-    expectTypeOf<StreamReferenceEntry['producer']>().toEqualTypeOf<StreamProducer>()
-    expectTypeOf<keyof StreamReferenceEntry>().toEqualTypeOf<
-      'kind' | 'producer' | 'reference' | 'consumption'
-    >()
-  })
-
   it('name the Tool operation of the fence with the root identity of Tool', () => {
     expectTypeOf<StartFenceEntry['operation']>().toEqualTypeOf<T.ToolOperationId>()
   })
@@ -92,9 +80,9 @@ describe('the record input', () => {
   it('needs an Authority for an entry of the advancing side and none for received', () => {
     type Input = JournalEntryRecord<string>
     expectTypeOf<Extract<Input, { authority: null }>['entry']>().toEqualTypeOf<ReceivedEntry>()
-    expectTypeOf<Extract<Input, { authority: Authority }>['entry']>().toEqualTypeOf<
-      StartFenceEntry | StreamReferenceEntry
-    >()
+    expectTypeOf<
+      Extract<Input, { authority: Authority }>['entry']
+    >().toEqualTypeOf<StartFenceEntry>()
     const fence = null as unknown as StartFenceEntry
     const base = null as unknown as Omit<Input, 'authority' | 'entry'>
     // @ts-expect-error A start-fence entry cannot be recorded without an Authority.

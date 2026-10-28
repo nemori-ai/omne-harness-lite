@@ -1,6 +1,6 @@
 # Agent 具体装配的行为边界
 
-本包承担 Agent 的本地宿主装配。当前根入口及 `./cordis` 仍为空，独立接收组件与完整宿主插件均尚未实现。以下接收组件责任已明确，不能据此声称完整 reserve、实例启动插件或生产 Model 接收方解析器已经交付。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
+本包承担 Agent 的本地宿主装配。当前根入口提供独立 Model 接收组件；`./cordis` 仍为空，完整宿主插件尚未实现。以下接收组件责任已明确，不能据此声称完整 reserve、实例启动插件或生产 Model 接收方解析器已经交付。领域行为消费 [agent-contract](../agent-contract/SPEC.md)，框架公共保证消费 [agent-cordis-contract](../agent-cordis-contract/SPEC.md)。
 
 ## 提供者责任
 
@@ -26,4 +26,4 @@ Agent 本地宿主负责实例保留、协程托管和登记贡献。reserve 不
 
 账目验证覆盖全部非 null 账目、迟到修订、同 handoff 重试、blocked 的重装配保留，以及实例重建后继续接收。合一内存提供者须显式执行接收共同提交套件的 required 模式，账目出站须执行其公开一致性套件。上述替身验证不证明生产 Model、磁盘耐久或跨进程恢复。
 
-完整插件实现时另行验证 [装配协议](docs/cordis.md)、依赖撤除与恢复交接。当前骨架测试只检查导出，不代表独立接收组件或完整插件的运行验证。
+完整插件实现时另行验证 [装配协议](docs/cordis.md)、依赖撤除与恢复交接。根入口测试核对组件导出；接收算法与同源内存提供者的行为验证在 agent 成员中执行，不代表完整插件运行验证。

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('root entry exposes the independent host receiver and its retained state', async () => {
   const root = (await import('@omne-harness/agent-host-local')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual(['createLocalModelReceiver', 'createModelReceiverState'])
 })

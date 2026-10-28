@@ -57,7 +57,6 @@ import {
   type Principal,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
-import { memoryMaterials, proofModels } from './materials-support.ts'
 
 /**
  * A value whose consumer reads only the fields given. The rest of the contract shape is left out on
@@ -184,14 +183,18 @@ function replyParts(reply: ScriptedReply): readonly ResultPart[] {
 }
 
 /** A gate that the test opens; the Model settles no admitted call before it is open. */
-export type Gate = Readonly<{ open(): void; opened: Promise<void> }>
+export type Gate = Readonly<{ open(): void; opened: Promise<void>; isOpen(): boolean }>
 
 export function gate(): Gate {
+  let released = false
   let open = () => {}
   const opened = new Promise<void>(resolve => {
-    open = resolve
+    open = () => {
+      released = true
+      resolve()
+    }
   })
-  return { open, opened }
+  return { open, opened, isOpen: () => released }
 }
 
 /**
@@ -201,8 +204,9 @@ export function gate(): Gate {
 function respondingModels(
   models: ModelRuntime<Principal>,
   controller: TestAgentControls<Principal>['models'],
-  release: Promise<void>,
+  release: Gate,
   reply: ScriptedReply,
+  pusher: NonNullable<TestAgentControls<Principal>['pusher']>,
 ): ModelRuntime<Principal> {
   return {
     ...models,
@@ -211,12 +215,25 @@ function respondingModels(
       async admit(input) {
         const admitted = await models.calls.admit(input)
         if ('ok' in admitted) {
-          void release.then(() => {
+          const responding = release.opened.then(async () => {
             const call = { tenant: input.tenant, call: input.call }
             controller.start({
               ...call,
               dispatch: ok(decodeDispatchId('mdisp_1')),
               firstContent: 'observed',
+            })
+            controller.recordDispatch({
+              ...call,
+              record: {
+                dispatch: ok(decodeDispatchId('mdisp_1')),
+                supplier: input.request.suppliers[0],
+                intent: input.operation,
+                send: 'started',
+                firstContent: 'observed',
+                terminal: { kind: 'completed', reason: 'stop' },
+                account: null,
+                materialization: null,
+              },
             })
             controller.settle({
               ...call,
@@ -227,7 +244,9 @@ function respondingModels(
               pageSize: reply.pageSize,
               pageTargetBytes: 65536,
             })
+            await pusher.settled(call)
           })
+          if (release.isOpen()) await responding
         }
         return admitted
       },
@@ -256,10 +275,9 @@ export async function loopAssembly(
   reply: ScriptedReply = ONE_TEXT,
   configuration: Partial<AgentConfiguration> = { reconciliationDelayMs: 1000 },
 ): Promise<LoopAssembly> {
-  const { dependencies, controls } = createTestAgentDependencies<Principal>()
-  const materials = memoryMaterials<Principal>()
-  controls.materials.preserve.always(input => materials.preserve(input))
-  controls.materials.read.always(input => materials.read(input))
+  const { dependencies, controls } = createTestAgentDependencies<Principal>({
+    receivingPrincipal: 'alice',
+  })
   const release = gate()
   controls.adoptions.define(adoption('definition'), {
     definition: stub({ category: 'AgentDefinition', name: 'test' }),
@@ -268,11 +286,12 @@ export async function loopAssembly(
   })
   for (const execution of executions) controls.conditions.define(execution, conditions())
   controls.selection.select.always(() => ({ ok: selected }))
+  if (controls.pusher === null) throw new Error('public result pusher required')
   const assembled = wrap({
     ...dependencies,
-    models: respondingModels(dependencies.models, controls.models, release.opened, reply),
+    models: respondingModels(dependencies.models, controls.models, release, reply, controls.pusher),
   })
-  const guarded = { ...assembled, models: proofModels(assembled) }
+  const guarded = assembled
   const provider = ok(await createAgentRuntime(guarded, options(configuration)))
   return { provider, dependencies: guarded, controls, release }
 }

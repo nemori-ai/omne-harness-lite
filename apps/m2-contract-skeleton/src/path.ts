@@ -2,13 +2,17 @@
 // port that the caller passes in; this module imports only root entries and builds no double. The
 // caller (the tests of this application) wires the `./testing` doubles. Each hop returns an
 // observation with safe evidence labels: no credential, login proof or message body enters it.
-import type { AgentProvider } from '@omne-harness/agent'
+import { readModelDeliveryMaterial, type AgentProvider } from '@omne-harness/agent'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeInputId as decodeAgentInputId,
   type AgentExecutionId,
   type AgentJournal,
+  type AgentMaterials,
+  type Access,
   type DurableEvidence as AgentEvidence,
   type MessageHandoff,
   type RequestPreparation,
@@ -65,6 +69,7 @@ export type ConnectedObservation = Readonly<{
 export type PathAgent = Readonly<{
   provider: AgentProvider<PathPrincipal>
   journal: AgentJournal<PathPrincipal>
+  materials: AgentMaterials<PathPrincipal, ContentBlock>
   /** The Agent instance that Session's `startRun` names. */
   instance: string
 }>
@@ -87,6 +92,7 @@ export type PathDependencies = Readonly<{
   agent(
     input: Readonly<{
       tenant: TenantId
+      principal: PathPrincipal
       handoff: MessageHandoff<PathPrincipal>
       requests: RequestPreparation<PathPrincipal>
     }>,
@@ -568,7 +574,11 @@ async function createSession(
 type Drive = Readonly<{
   observation: ConnectedObservation
   /** Present once the Agent accepted the invoke; the later hops read its journal. */
-  agent: Readonly<{ journal: AgentJournal<PathPrincipal>; execution: AgentExecutionId }> | null
+  agent: Readonly<{
+    journal: AgentJournal<PathPrincipal>
+    materials: AgentMaterials<PathPrincipal, ContentBlock>
+    execution: AgentExecutionId
+  }> | null
   log: BridgeLog
 }>
 
@@ -612,6 +622,7 @@ async function driveFirstRequest(
   if ('failure' in accepted) return stop(`session-accept:${accepted.failure.kind}`)
   const binding: Binding = { execution: null, sessionInput, written: 0 }
   const agent = await deps.agent({
+    principal: identified.principal,
     tenant: identified.tenant,
     handoff: messageBridge(scene, binding, log),
     requests: contextBridge(scene, identified.tenant, deps, log),
@@ -670,7 +681,7 @@ async function driveFirstRequest(
           : 'session-contract:commit(receive input-handover) committed through the Agent message hand-over',
       ],
     },
-    agent: { journal: agent.journal, execution: execution.ok },
+    agent: { journal: agent.journal, materials: agent.materials, execution: execution.ok },
     log,
   }
 }
@@ -687,21 +698,34 @@ function leaseLabel(log: BridgeLog): string {
 }
 
 /** H05, H06 and H07: what the Agent journal and the bridges observed. */
-function observeAgent(
+async function observeAgent(
   snapshot: AgentSnapshot | null,
   log: BridgeLog,
-): Readonly<Record<'H05' | 'H06' | 'H07', ConnectedObservation>> {
+  materials: AgentMaterials<PathPrincipal, ContentBlock>,
+  access: Access<PathPrincipal>,
+): Promise<Readonly<Record<'H05' | 'H06' | 'H07', ConnectedObservation>>> {
   const modelResult =
-    snapshot?.results.find(
-      binding => binding.result.producer.kind === 'model' && binding.completion !== null,
+    snapshot?.entries?.find(
+      entry =>
+        entry.kind === 'received' &&
+        entry.delivery.producer === 'model' &&
+        entry.delivery.key.kind === 'result',
     ) ?? null
+  let originalCall: string | null = null
+  let materialReadable = false
+  if (modelResult?.kind === 'received' && modelResult.delivery.producer === 'model') {
+    const { material, ...expected } = modelResult
+    const read = await materials.read({ ...access, source: material })
+    materialReadable = 'ok' in read && readModelDeliveryMaterial(access, read.ok, expected) !== null
+    const ref = resolveModelInvocationRef(modelResult.delivery.key.reference, access.tenant)
+    if ('ok' in ref) originalCall = ref.ok.call
+  }
   const leased =
     log.lease !== null &&
     log.lease.acquired > 0 &&
     log.lease.outstanding === 0 &&
     log.lease.planned > 0
-  const producer = modelResult?.result.producer
-  const sameCall = producer?.kind === 'model' && String(producer.call) === (log.reply?.call ?? null)
+  const sameCall = originalCall !== null && originalCall === (log.reply?.call ?? null)
   const ended = snapshot?.state.kind === 'ended'
   return {
     H05: {
@@ -721,11 +745,11 @@ function observeAgent(
       ],
     },
     H06: {
-      connected: modelResult !== null && sameCall,
+      connected: modelResult !== null && materialReadable && sameCall,
       evidence: [
         modelResult === null
-          ? 'agent:journal has no processed Model result'
-          : 'agent:journal records the Model result as processed by the Agent',
+          ? 'agent:journal has no received Model result'
+          : 'agent:journal records received Model material and its original binding',
         sameCall
           ? 'agent:message hand-over carries the reply of the same Model call'
           : 'agent:no reply of the journal Model call',
@@ -795,7 +819,13 @@ export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstP
     tenant: login.identified.tenant,
     execution: drive.agent.execution,
   })
-  Object.assign(result, observeAgent('ok' in loaded ? loaded.ok : null, drive.log))
+  Object.assign(
+    result,
+    await observeAgent('ok' in loaded ? loaded.ok : null, drive.log, drive.agent.materials, {
+      principal: login.identified.principal,
+      tenant: login.identified.tenant,
+    }),
+  )
   result.H08 = await readReply(session.scene, drive.log)
   if (drive.log.failures.length > 0)
     for (const hop of ['H04', 'H05', 'H06', 'H07'] as const)

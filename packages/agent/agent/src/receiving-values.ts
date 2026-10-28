@@ -1,23 +1,10 @@
-// This implementation's processed-result facts. Materials owns the immutable payload and receipt;
-// Journal owns its binding to the original consumption. Neither a schema nor a digest proves ACK.
-import { isDeepStrictEqual } from 'node:util'
-import {
-  judgeEvidence,
-  type Adoption,
-  type AgentExecutionId,
-  type ConsumerRef,
-  type ConsumptionId,
-  type Material,
-  type ProducedResult,
-  type StepId,
-  type Failure,
-} from '@omne-harness/agent-contract'
+import { judgeEvidence } from '@omne-harness/agent-contract'
+import type { Material } from '@omne-harness/agent-contract'
 import {
   judgeBlockIdentity,
   judgeContentBlock,
   type ContentBlock,
 } from '@omne-harness/content-block'
-import type { TenantId } from '@omne-harness/legal-identity'
 import {
   decodeOutputCursor,
   decodeModelOperationId,
@@ -28,28 +15,8 @@ import {
   type Settlement,
   type Termination,
 } from '@omne-harness/model-contract'
-import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { consumeModelResult, type ModelOutcome, type ModelResult } from './model-result.ts'
-import { AGENT_OWNER } from './identities.ts'
-
-export const agentProcessedResultSchema: Adoption = Object.freeze({
-  owner: AGENT_OWNER,
-  name: 'agent-processed-model-result',
-  revision: '1',
-  digest: 'agent:processed-model-result/1',
-})
-type Facts = Extract<Material<ContentBlock>, { kind: 'facts' }>
-type Json = Facts['value']
-export type ProcessedModelIdentity = Readonly<{
-  tenant: TenantId
-  execution: AgentExecutionId
-  step: StepId
-  consumption: ConsumptionId
-  consumer: ConsumerRef
-  produced: ProducedResult
-}>
-
-function json(value: unknown): Json {
+type Json = Extract<Material<ContentBlock>, { kind: 'facts' }>['value']
+export function json(value: unknown): Json {
   if (value === null) return { kind: 'null' }
   if (typeof value === 'string') return { kind: 'string', value }
   if (typeof value === 'boolean') return { kind: 'boolean', value }
@@ -65,10 +32,10 @@ function json(value: unknown): Json {
         .sort(([a], [b]) => (a === b ? 0 : a < b ? -1 : 1))
         .map(([key, value]) => ({ key, value: json(value) })),
     }
-  throw new TypeError('processed facts must be JSON data')
+  throw new TypeError('received facts must be JSON data')
 }
 
-function plain(value: Json): unknown {
+export function plain(value: Json): unknown {
   switch (value.kind) {
     case 'null':
       return null
@@ -77,7 +44,7 @@ function plain(value: Json): unknown {
       return value.value
     case 'number': {
       const n = Number(value.lexeme)
-      if (!Number.isFinite(n)) throw new TypeError('invalid processed number')
+      if (!Number.isFinite(n)) throw new TypeError('invalid received number')
       return n
     }
     case 'array':
@@ -85,39 +52,16 @@ function plain(value: Json): unknown {
     case 'object': {
       const result: Record<string, unknown> = Object.create(null)
       for (const entry of value.entries) {
-        if (Object.hasOwn(result, entry.key)) throw new TypeError('duplicate processed field')
+        if (Object.hasOwn(result, entry.key)) throw new TypeError('duplicate received field')
         result[entry.key] = plain(entry.value)
       }
       return result
     }
   }
 }
-function object(value: unknown): value is Record<string, unknown> {
+export function object(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
-const equal = (a: unknown, b: unknown) => isDeepStrictEqual(json(a), json(b))
-const outcome = (result: ModelOutcome) =>
-  result.kind === 'reply' ? { kind: result.kind, reply: result.reply } : { kind: result.kind }
-const responsibility = (consumer: ConsumerRef) => ({ kind: 'continue-at', consumer })
-
-export function processedModelMaterial(
-  identity: ProcessedModelIdentity,
-  result: ModelResult,
-): Facts {
-  return {
-    kind: 'facts',
-    schema: agentProcessedResultSchema,
-    value: json({
-      ...identity,
-      settlement: result.settlement,
-      parts: result.parts,
-      dispatches: result.dispatches,
-      outcome: outcome(result),
-      responsibility: responsibility(identity.consumer),
-    }),
-  }
-}
-
 const faultCauses = new Set([
   'profile-withdrawn',
   'excluded',
@@ -165,7 +109,7 @@ function termination(value: unknown): value is Termination {
         : value.kind === 'interrupted' && 'ok' in decodeModelOperationId(value.control))
   )
 }
-function settlement(value: unknown): Settlement | null {
+export function settlement(value: unknown): Settlement | null {
   if (!object(value) || !termination(value.termination)) return null
   const version = decodeResultVersion(value.version),
     cursor = decodeOutputCursor(value.cursor),
@@ -175,7 +119,7 @@ function settlement(value: unknown): Settlement | null {
     : null
 }
 
-function jsonTree(value: unknown): value is Json {
+export function jsonTree(value: unknown): value is Json {
   if (!object(value)) return false
   switch (value.kind) {
     case 'null':
@@ -204,6 +148,25 @@ function jsonTree(value: unknown): value is Json {
 function block(value: unknown): ModelBlock | null {
   const content = judgeContentBlock(value)
   if ('ok' in content) return content.ok
+  if (object(value) && value.kind === 'reasoning_state') {
+    const identity = judgeBlockIdentity(value)
+    if (
+      'rejected' in identity ||
+      identity.ok.visibility.toHuman ||
+      typeof value.payload !== 'string' ||
+      value.payload.length === 0 ||
+      value.payload.length > 1048576 ||
+      !Array.isArray(value.pairs)
+    )
+      return null
+    const pairs: Extract<ModelBlock, { kind: 'reasoning_state' }>['pairs'][number][] = []
+    for (const pair of value.pairs) {
+      const ref = judgeBlockIdentity({ id: pair, visibility: identity.ok.visibility })
+      if ('rejected' in ref || pairs.includes(ref.ok.id)) return null
+      pairs.push(ref.ok.id)
+    }
+    return { kind: 'reasoning_state', ...identity.ok, payload: value.payload, pairs }
+  }
   if (
     !object(value) ||
     value.kind !== 'tool_call' ||
@@ -225,7 +188,7 @@ function block(value: unknown): ModelBlock | null {
       }
     : null
 }
-function parts(value: unknown): readonly ResultPart[] | null {
+export function parts(value: unknown): readonly ResultPart[] | null {
   if (!Array.isArray(value)) return null
   const result: ResultPart[] = []
   for (const p of value) {
@@ -252,55 +215,4 @@ function parts(value: unknown): readonly ResultPart[] | null {
     } else return null
   }
   return result
-}
-
-/** Read only this exact schema and original association. Recompute the interpretation, never turn
- * missing/corrupt output into an empty reply. This checks data; a trusted adapter also checks the
- * actual immutable material, Journal binding and current consumer qualification before ACK. */
-export function readProcessedModelMaterial(
-  material: Material<ContentBlock>,
-  expected: ProcessedModelIdentity,
-): Outcome<ModelOutcome, Failure> {
-  const invalid = fail<Failure>({
-    kind: 'invalid',
-    field: 'processed-result',
-    reason: 'unknown schema, corrupt facts or original association mismatch',
-  })
-  try {
-    if (material.kind !== 'facts' || !equal(material.schema, agentProcessedResultSchema))
-      return invalid
-    const v = plain(material.value)
-    if (
-      !object(v) ||
-      !Object.entries(expected).every(([key, value]) => equal(v[key], value)) ||
-      !equal(v.responsibility, responsibility(expected.consumer)) ||
-      !Array.isArray(v.dispatches)
-    )
-      return invalid
-    const s = settlement(v.settlement),
-      p = parts(v.parts)
-    if (
-      !s ||
-      !p ||
-      s.version !== expected.produced.version ||
-      !equal(s.source, expected.produced.source)
-    )
-      return invalid
-    const interpreted = consumeModelResult([expected.execution, expected.step], {
-      produced: expected.produced,
-      settlement: s,
-      parts: p,
-      dispatches: [],
-    })
-    if ('failure' in interpreted) return interpreted
-    if (!equal(v.outcome, outcome(interpreted.ok))) return invalid
-    const { produced, settlement: terminal, kind } = interpreted.ok
-    return succeed(
-      kind === 'reply'
-        ? { produced, settlement: terminal, kind, reply: interpreted.ok.reply }
-        : { produced, settlement: terminal, kind },
-    )
-  } catch {
-    return invalid
-  }
 }

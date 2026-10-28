@@ -403,7 +403,6 @@ describe('R0 and W0 coordination', () => {
       let acknowledgements = 0
       let processed = 0
       let admittedCall: string | null = null
-      let acknowledgedResult: string | null = null
       const writes: string[] = []
       const assembly = await loopAssembly([execution()], d => ({
         ...d,
@@ -452,7 +451,6 @@ describe('R0 and W0 coordination', () => {
             ...d.models.consumption,
             acknowledge: input => {
               acknowledgements += 1
-              acknowledgedResult = input.result
               return d.models.consumption.acknowledge(input)
             },
             beginRead: input => {
@@ -476,9 +474,10 @@ describe('R0 and W0 coordination', () => {
       expect(queries).toBe(1)
       expect(admits).toBe(1)
       expect(connects).toBe(0)
-      expect(reads).toBe(1)
-      expect(acknowledgements).toBe(1)
-      expect(processed).toBe(1)
+      expect(reads).toBe(0)
+      expect(acknowledgements).toBe(0)
+      expect(processed).toBe(0)
+      expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
       expect(assembly.controls.handoff.accept.calls).toHaveLength(
         target === 'Q2' && outcome === 'dropped' ? 3 : 2,
       )
@@ -493,8 +492,11 @@ describe('R0 and W0 coordination', () => {
       ).toBe(true)
       const saved = await load(assembly)
       expect(saved.state.kind).toBe('ended')
-      expect(saved.results[0]?.result.producer).toEqual({ kind: 'model', call: admittedCall })
-      expect(saved.results[0]?.result.version).toBe(acknowledgedResult)
+      expect(saved.results).toEqual([])
+      expect(saved.entries).toHaveLength(1)
+      const received = saved.entries?.[0]
+      if (!received || received.kind !== 'received' || received.delivery.key.kind !== 'result')
+        throw new Error('received result required')
       const admissions = ok(
         await assembly.dependencies.journal.readReplyAdmissions({
           ...alice,
@@ -525,8 +527,11 @@ describe('R0 and W0 coordination', () => {
       expect(
         page.kind === 'page' && page.events.find(event => event.body.kind === 'producer')?.body,
       ).toMatchObject({
-        result: saved.results[0]?.result,
-        consumption: saved.results[0]?.consumption,
+        result: {
+          producer: { kind: 'model', call: admittedCall },
+          version: received.delivery.key.result,
+        },
+        consumption: received.consumption,
       })
     },
   )

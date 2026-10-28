@@ -23,7 +23,6 @@
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图
 - [loop-port-failures.spec.ts](loop-port-failures.spec.ts)：路径上每个节点的端口失败停在该节点
 - [loop-slot.spec.ts](loop-slot.spec.ts)：单执行槽的释放、停止后的占用、observe 与登记投影
-- [materials-support.ts](materials-support.ts)：真实可读取的内存材料、稳定身份/不可变与资格校验，以及核对 Model 原关联和 Journal 绑定的严格 ACK 证据适配器
 - [loop-support.ts](loop-support.ts)：Loop 测试共用的 `LoopFacts` 构造与装配
 - [factory-support.ts](factory-support.ts)：工厂测试共用的选项、调用记录与登记句柄替身
 - [fixtures.spec.ts](fixtures.spec.ts)：每个替身的编排接口
@@ -31,3 +30,5 @@
 - [journal-support.ts](journal-support.ts)：测试共用的契约值与步骤
 - [module-graph.ts](module-graph.ts)：导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入
+- [journal-received.spec.ts](journal-received.spec.ts)：同源提供者执行 required 接收共同提交套件
+- [model-receiver.spec.ts](model-receiver.spec.ts)：资格、原交付校验、未知、容量、账目和重装配

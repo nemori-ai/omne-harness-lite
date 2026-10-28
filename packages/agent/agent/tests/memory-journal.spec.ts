@@ -692,6 +692,7 @@ describe('fact 6: revision', () => {
         'checkpoint',
         'controls',
         'effects',
+        'entries',
         'execution',
         'executionAttachment',
         'history',

@@ -30,7 +30,6 @@ import type {
   JournalEntryRecord,
   ReceivedEntry,
   StartFenceEntry,
-  StreamReferenceEntry,
 } from './receiving.ts'
 import { canonicalText, doubleEvidence, tenantText, type ConformanceCase } from './testing-case.ts'
 
@@ -39,14 +38,12 @@ import {
   sampleReceivedModelResult,
   sampleReceivedToolAccount,
   sampleStartFence,
-  sampleStreamReference,
 } from './testing-journal-samples.ts'
 export {
   sampleReceivedModelAccount,
   sampleReceivedModelResult,
   sampleReceivedToolAccount,
   sampleStartFence,
-  sampleStreamReference,
 } from './testing-journal-samples.ts'
 
 const OWNER = 'agentJournalEntries'
@@ -255,7 +252,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
     execution: AgentExecutionId,
     authority: Authority,
     operation: AgentOperationId,
-    entry: StartFenceEntry | StreamReferenceEntry,
+    entry: StartFenceEntry,
   ) => record({ ...who, execution, operation, authority, entry })
   const receiving = (
     who: Access<P>,
@@ -540,28 +537,6 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           'a Tool account with a call of another tenant',
         )
         assert.deepEqual(await fixture.read(access, execution), [model, tool])
-      },
-    },
-    {
-      name: 'records a stream-reference entry only under the current Authority',
-      async run() {
-        const execution = executionId('stream')
-        const old = await fixture.open(access, execution)
-        const entry = sampleStreamReference(access.tenant, 'stream')
-        await recorded(advancing(access, execution, old, operationId('s1'), entry), 'stream')
-        await fixture.supersede(access, execution)
-        await refused(
-          advancing(
-            access,
-            execution,
-            old,
-            operationId('s2'),
-            sampleStreamReference(access.tenant, 'late'),
-          ),
-          'stale-advance',
-          'stream-reference under a superseded Authority',
-        )
-        assert.deepEqual(await fixture.read(access, execution), [entry])
       },
     },
   ]

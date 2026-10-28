@@ -186,7 +186,6 @@
 - `SelectedModel` · `request.d.ts`
 - `StartFenceEntry` · `receiving.d.ts`
 - `StepId` · `identity.d.ts`
-- `StreamReferenceEntry` · `receiving.d.ts`
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
@@ -237,7 +236,6 @@
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
 - `sampleReceivedToolAccount` · `testing-journal-samples.d.ts`
 - `sampleStartFence` · `testing-journal-samples.d.ts`
-- `sampleStreamReference` · `testing-journal-samples.d.ts`
 
 ## 声明文件 `body-contract.d.ts`
 
@@ -2039,7 +2037,6 @@ export interface RegisteredReads<P> {
 import type { CallAccount } from '@omne-harness/call-account';
 import type { ContentBlock } from '@omne-harness/content-block';
 import type * as M from '@omne-harness/model-contract';
-import type { StreamProducer, StreamRef } from '@omne-harness/stream-arrival';
 import type * as T from '@omne-harness/tool-contract';
 import type { Reply } from './evaluation.ts';
 import type { CommandReceipt, ExecutionMutation } from './execution.ts';
@@ -2089,16 +2086,10 @@ export type ReceivedEntry = Readonly<{
     consumption: ConsumptionId;
     material: DurableEvidence;
 }>;
-export type StreamReferenceEntry = Readonly<{
-    kind: 'stream-reference';
-    producer: StreamProducer;
-    reference: StreamRef;
-    consumption: ConsumptionId;
-}>;
-export type AgentJournalEntry = StartFenceEntry | ReceivedEntry | StreamReferenceEntry;
+export type AgentJournalEntry = StartFenceEntry | ReceivedEntry;
 export type JournalEntryRecord<P> = ExecutionMutation<P> & (Readonly<{
     authority: Authority;
-    entry: StartFenceEntry | StreamReferenceEntry;
+    entry: StartFenceEntry;
 }> | Readonly<{
     authority: null;
     entry: ReceivedEntry;
@@ -2381,7 +2372,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import { type Access, type AgentExecutionId, type Authority } from './identity.ts';
 import type { AgentJournalEntries, AgentJournalEntry } from './receiving.ts';
 import { type ConformanceCase } from './testing-case.ts';
-export { sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, sampleStreamReference, } from './testing-journal-samples.ts';
+export { sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, } from './testing-journal-samples.ts';
 export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
     readonly durability: 'none';
     open(input: Readonly<{
@@ -2421,12 +2412,11 @@ export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, o
 
 ```ts
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ReceivedEntry, StartFenceEntry, StreamReferenceEntry } from './receiving.ts';
+import type { ReceivedEntry, StartFenceEntry } from './receiving.ts';
 export declare function sampleStartFence(name: string): StartFenceEntry;
 export declare function sampleReceivedModelResult(tenant: TenantId, name: string, dispatchRevision?: string): ReceivedEntry;
 export declare function sampleReceivedModelAccount(tenant: TenantId, name: string, revision?: string): ReceivedEntry;
 export declare function sampleReceivedToolAccount(tenant: TenantId, name: string, lexeme?: string): ReceivedEntry;
-export declare function sampleStreamReference(tenant: TenantId, name: string): StreamReferenceEntry;
 ```
 
 ## 声明文件 `testing-received-conformance.d.ts`
@@ -2557,7 +2547,7 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 
 ```ts
 export type { ConformanceCase } from './testing-case.ts';
-export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, sampleStreamReference, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
+export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';

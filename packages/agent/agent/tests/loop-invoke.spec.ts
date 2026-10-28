@@ -111,10 +111,8 @@ describe('C2 one input, one reply, ended', () => {
       await assembly.dependencies.journal.load({ ...alice, execution: execution() }),
     )
     expect(loaded.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
-    // The reply's responsibility is completed on the processed path and released after the ACK.
-    expect(loaded.results).toHaveLength(1)
-    expect(loaded.results[0]?.completion).not.toBeNull()
-    expect(loaded.results[0]?.release.kind).toBe('confirmed')
+    expect(loaded.results).toEqual([])
+    expect(loaded.entries?.filter(entry => entry.kind === 'received')).toHaveLength(1)
     expect(loaded.replyAdmissions.lastAdmission).not.toBeNull()
   })
 
@@ -174,7 +172,7 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     ])
   })
 
-  it('待 #558 M04-1: the producer event goes with the commit after recordResult; M04-8: input-taken with the I0 commit', async () => {
+  it('the producer event goes with M3 after joint receipt; input-taken goes with I0', async () => {
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], dependencies => ({
       ...dependencies,

@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/agent-contract'
 import { readyPreparation } from '@omne-harness/agent/testing'
 import { fail } from '@omne-harness/operation-result'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
 import {
@@ -96,7 +97,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     )
   })
 
-  it('NA-I0-2: an input accepted before reply custody waits for the next step', async () => {
+  it('NA-I0-2: an input accepted after intent and before Model admission waits for the next step', async () => {
     const taken: JournalCommit<Principal>[] = []
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
@@ -114,14 +115,8 @@ describe('I0 fixes one batch at a legal input boundary', () => {
         ...d.models,
         calls: {
           ...d.models.calls,
-          admit(input) {
+          async admit(input) {
             calls += 1
-            return d.models.calls.admit(input)
-          },
-        },
-        consumption: {
-          ...d.models.consumption,
-          async beginRead(input) {
             if (calls === 1) {
               before = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
               ok(
@@ -134,7 +129,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
               )
               after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
             }
-            return d.models.consumption.beginRead(input)
+            return d.models.calls.admit(input)
           },
         },
       },
@@ -172,7 +167,7 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     expect(batches).toEqual([['input-exec-1'], ['input-exec-2']])
   })
 
-  it('an input accepted during the live call preserves the fixed request through M3 custody', async () => {
+  it('an input accepted during the live call preserves the fixed request through M3 adoption', async () => {
     let before: AgentCheckpoint | null = null
     let after: AgentCheckpoint | null = null
     let stopAtI8 = false
@@ -186,34 +181,28 @@ describe('I0 fixes one batch at a legal input boundary', () => {
             : d.conditions.read(input)
         },
       },
-      models: {
-        ...d.models,
-        instances: {
-          ...d.models.instances,
-          async connect(input) {
-            before = structuredClone(
-              ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint,
-            )
-            ok(
-              await d.journal.submit({
-                ...alice,
-                execution: execution(),
-                operation: operation('live-input'),
-                value: acceptedInput('live-input'),
-              }),
-            )
-            after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
-            stopAtI8 = true
-            assembly.release.open()
-            return d.models.instances.connect(input)
-          },
-        },
-      },
     }))
     const c = coordinator(assembly)
     ok(await c.accept())
     ok(await c.runExecution())
-    ok(await c.waitForWake({ reconciliationDelayMs: 1000, signal: new AbortController().signal }))
+    before = (await snapshot(assembly)).checkpoint
+    ok(
+      await assembly.dependencies.journal.submit({
+        ...alice,
+        execution: execution(),
+        operation: operation('live-input'),
+        value: acceptedInput('live-input'),
+      }),
+    )
+    after = (await snapshot(assembly)).checkpoint
+    stopAtI8 = true
+    const pending = before.calls[0]
+    if (pending?.kind !== 'model') throw new Error('original call required')
+    assembly.release.open()
+    await assembly.controls.pusher?.settled({
+      tenant: alice.tenant,
+      call: ok(resolveModelInvocationRef(pending.reference, alice.tenant)).call,
+    })
     expect(failure(await c.runExecution())).toMatchObject({
       node: 'I8',
       failure: { kind: 'unavailable' },
@@ -325,9 +314,9 @@ describe('I1 prepares at the fixed input boundary', () => {
       ...d,
       models: {
         ...d.models,
-        consumption: {
-          ...d.models.consumption,
-          async beginRead(input) {
+        calls: {
+          ...d.models.calls,
+          async admit(input) {
             reads += 1
             if (reads === 1)
               ok(
@@ -338,7 +327,7 @@ describe('I1 prepares at the fixed input boundary', () => {
                   value: acceptedInput('late'),
                 }),
               )
-            return d.models.consumption.beginRead(input)
+            return d.models.calls.admit(input)
           },
         },
       },

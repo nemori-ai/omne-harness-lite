@@ -161,7 +161,9 @@ classDiagram
   EffectCoordinator --> DecisionCards : presents cards, reads replies
   EffectCoordinator --> ActionAdmission : current admission per action
   EffectCoordinator --> MessageHandoff : per-source message admission
-  EffectCoordinator --> ModelRuntime : public call and ACK protocol
+  EffectCoordinator --> ModelRuntime : admit and admission reconciliation
+  ModelReceiver --> ModelRuntime : validate original admission and dispatches
+  ModelReceiver --> Journal : joint received material and receipt
   EffectCoordinator --> ToolRuntime : invoke with original request and consumer, then reference queries
   AgentInstanceHost --> AgentRuntime : hosts
   AgentInstanceHost --> AgentRegistration : owns
@@ -431,7 +433,7 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
 | 条件终结 | tryFinish 返回 ended、changed 或 blocked | SPEC 的“托管协调与运行实例”的“条件终结” |
 | ControlRecord | 各阶段 reached 或 unresolved | SPEC 的“取消、退出与结构变更” |
-| 接收面条目 AgentJournalEntry | 一经提交不可变。种类有 start-fence、received、stream-reference，联合事先声明开放 | SPEC 的“生产者接收面”的“日志条目” |
+| 接收面条目 AgentJournalEntry | 一经提交不可变。种类有 start-fence、received，联合事先声明开放 | SPEC 的“生产者接收面”的“日志条目” |
 
 生产者结果确认的条件归 SPEC 的“持久性与交付责任”和“事件交付的四个层次”，本页不重复。
 

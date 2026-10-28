@@ -17,9 +17,9 @@ PACKAGE_TEMPLATE_DRAFT
 | 独立执行已实现          | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 无                           | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | runtime 已实现的路径    | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），`jointCommits` 有一种未被 Journal 声明返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口                       | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
 | Loop 正常路径与受理     | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。未支持的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择、I0 输入批、I1 准备、W0 等待与 R0 原操作对账已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 根入口                       | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对 E1/E2/I1/M1 的端口失败保存等待，其余受测节点的端口失败使运行停止。`tests/loop-intake-prepare.spec.ts` 核对 I0/I1 与准备失败，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
-| 主调用接缝              | I2/M0 在首次受理前固定原调用、最终请求与效果意图。M6 先查原 reference，M1 等待真实收场。M3 以 processed 路径处理并解除 Model 责任，随后条件提交 producer。最终失败且无有效回复经 M4/M5/I3 形成 no-reply；部分失败不执行工具建议。Agent stream 与缺元数据的推理结果仍未支持，见[主调用与结果消费](#主调用与结果消费)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `invoke`；窄接续仅为内部入口 | `tests/loop-main-call.spec.ts` 核对原调用身份、受理回执丢失、原 Authority、M1 等待、在途输入、processed/ACK 次序、费用关联与 Read 收尾。`tests/loop-recovery.spec.ts` 保留真实提交点的 committed/excluded 矩阵。只用脚本化 Model 与内存 Journal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 主调用接缝              | I2/M0 在首次受理前固定原调用、最终请求与效果意图。M6 正常直接 admit，M1 等待 received，M3 读取完整材料并条件提交 producer。最终失败且无有效回复经 M4/M5/I3 形成 no-reply；部分失败不执行工具建议。Agent stream 与缺元数据的推理结果仍未支持，见[主调用与结果消费](#主调用与结果消费)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `invoke`；窄接续仅为内部入口 | `tests/loop-main-call.spec.ts` 核对原调用身份、受理回执丢失、原 Authority、M1 等待、在途输入、received 采用、独立 pusher ACK 与原调用恢复。`tests/loop-recovery.spec.ts` 保留真实提交点的 committed/excluded 矩阵。只用脚本化 Model 与内存 Journal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | 回复准入与 iter 收口 | I3 接纳事实、message 与接续同 revision。I4 保存空动作批。I8 选择 F1、新 step 或一次等待保存。 | `invoke`；测试直接 Journal.submit | `tests/loop-reply-close.spec.ts` 与 `tests/loop-recovery.spec.ts` 的原操作矩阵。仅脚本化 Model 与内存 Journal。 |
-| 终态出口 | F1 固定意图，F3 对账 changed、blocked 与未知结果。F4 保留观察台账，O0 认回原 ACK release，E9 回 idle 保持登记。 | `invoke`；Journal 记录与内部协调者 | `tests/loop-terminal.spec.ts`：新输入竞争、原终结查询、custody、非空观察台账恢复与迟读事件。只覆盖同一内存 Journal。 |
+| 终态出口 | F1 固定意图，F3 对账 changed、blocked 与未知结果。F4 保留观察台账，O0 不承接 Model ACK，E9 回 idle 保持登记。 | `invoke`；Journal 记录与内部协调者 | `tests/loop-terminal.spec.ts`：新输入竞争、原终结查询、custody、非空观察台账恢复与迟读事件。只覆盖同一内存 Journal。 |
 | 阶段 1 可执行验收 | 完整普通回复准入、无工具空动作批与完成。执行进程退出后的受控窄接续。 | `pnpm --filter @omne-harness/agent acceptance` | [验收入口](acceptance/README.md)在 I2、M6、M1、M4 与 F4 杀死执行子进程。父进程中同一个 Journal、脚本 Model 与材料存活。不证明 Journal 宿主死亡耐久、公开 resume、工具或扩展求值。 |
 | 测试装配（`./testing`） | `createMemoryAgentJournal`：单进程、非耐久的内存 `AgentJournal`，按[同形清单](docs/architecture/mechanisms.md#两种实现必须同形的事实)第 1 至 15 条实现全部 18 个成员，参加者集合由选项给定，可在指定操作上编排 `unavailable` 与三种 `commit-unknown`。各端口的可编排替身、`createManualAgentClock` 与手写的 `ToolRuntime` 替身。`createTestAgentDependencies` 返回 17 项依赖（`registration` 为 null）与各替身的控制手柄，`models` 是 `model-contract/testing` 的脚本化提供者                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | `./testing`                  | `tests/memory-journal.spec.ts` 按同形清单逐条核对，用例名带条目号。`tests/fixtures.spec.ts` 为每个编排接口各有一条用例。只有一个进程，耐久性、崩溃与跨进程没有覆盖                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 尚未交付的宿主与提供者  | 四个面中 `invoke`、`observe` 之外的操作本体，句柄的 `submit`（#502 的阶段表尚未分配）、`control` 与 `acknowledge`。正常路径之外的节点：A、T、C、X 子图，F0、H0、Q5、M2。评估器的 `decode`（阶段 5）。耐久 Journal 提供者 `agent-journal-local`。真实的 Context、HITL、授权、外部协调者的适配器与材料存储                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 无                           | 没有证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -42,7 +42,7 @@ Loop 随后自行推进：
 - 节点的去向只取 `src/loop/nodes.ts` 的转移表。正常路径的行依据节点表或其伪代码。E1 的 `found-existing` 行是阶段 1 的例外，见[临时做法](#临时做法)。
 - E4 按下文的恢复路由选择去向。评估器处理输入边界与 I8 的决定。
 - I2 以契约的 `encodeModelInvocationRef` 编码主调用的 `ModelInvocationRef`，M0 在 M6 首次 admit 之前把它随 PendingCall、最终请求采用与效果意图一次保存。M6、M1、M3 经 `resolveModelInvocationRef` 从它读回调用身份。
-- 协调者向 Model 受理调用，观察到真实收场后读完结果，以 `recordResult` 走 processed 路径保管，再 `acknowledge`。
+- 协调者受理 Model 调用，等待 Journal 后读取共同提交的 received 材料。ACK 由 Model 自己取得。
 - Q1 不提交（NA-Q1-1）。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次。被拒收的候选（Q5）尚未交付，当前以具名的 `unavailable` 停止。
 - 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。正常路径的事件为 input-taken、producer、message、ended，序号从 1 连续。
 
@@ -93,50 +93,19 @@ runtime 继续占用执行槽。公开 observe 不呈现这一内部停止原因
 
 #### 主调用与结果消费
 
-I2 只构造主调用的 PendingCall，返回位置为 I3。M0 的一次条件提交保存该调用、ready 最终请求采用、adoptedContext 与 EffectIntent。
-M6 先 inspect 已保存的 reference。found 接续原调用，不再 admit。
-可信 not-accepted 必须对应原 admission；M6 重读当前 Authority 后，才以原身份受理固定请求。
-受理回执未知时仍查询原 reference，不分配第二个逻辑调用。
+I2 建立原 PendingCall，M0 在受理之前共同提交固定请求与效果意图。M6 正常直接 admit；受理未知或协调者恢复时才 inspect 原 reference 对账，不从查询生成结果。
 
-M1 先 inspect 原调用。已收场时直接采用原 settlement，不要求活体连接。
-仍在途时继续 observe。观察连接结束后重查原调用，不把断线当作模型失败。
-查询未知、重试未结束或没有活体路由时保存等待，不提前消费结果。
-按 [#514 revision 2 范围决定](https://github.com/nemori-ai/omne-harness-lite/issues/514#issuecomment-6311420823)，本阶段不发布 Agent stream。
-原生产者 schema 与来源映射、可靠接受后的透传仍属后续责任。
+M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材料，核对 schema、原租户、reference、consumer 和 consumption，解释回复、部分结果或无回复，再条件提交 producer 事件。I3 及恢复后的协调者继续读取这份材料。loop 不连接 Model observer、不分页读 Model 结果、不调用 Model consumption，也不以 recordResult 保存 Model 责任。只有接收方推进 revision 时，仍有效的 attachment 重新 load 并继续条件提交；真实撤权仍停止推进。
 
-M3 按原 call/resultVersion/consumption 读取全部结果页，并关闭读取关系。
-完整回复形成候选，最终失败的部分内容不成为新工具动作，无有效回复则保留明确的 no-reply 结果。
-本实现先经 AgentMaterials 保存已解释的 reply/partial/no-reply facts，再以 recordResult 绑定完成依据。
-精确的 agentProcessedResultSchema 保存原 tenant、execution、call/version、consumption、consumer 位置、settlement、结果项、dispatch/费用与 I3 后续责任。费用未知保持未知，不另造账目。
-材料须不可变且可读取，稳定 identity 配同输入认回原回执、异值冲突。必须直接采用材料回执；其 owner 与原受理 consumer.owner 不符时具名失败、零 ACK，不改写 owner。
-材料保存与 Journal processed 绑定都成立后才 ACK。绑定失败或未知时保留材料与 Model 原责任，未知 Journal 操作用原身份查询。材料缺席时，本实现的 processed 路径不能 ACK。
-I3 与窄接续从 Journal.results[].completion 读材料，核对精确 schema 与原关联。导出的 readProcessedModelMaterial 只判断这些数据，不证明实际保存、Journal 绑定或当前资格。
-受信 Model 证据适配器仍须读取实际材料、核验 Journal 绑定与当前资格。测试适配组合实际执行这些检查，材料存入真实的非耐久内存存储。
-producer 由之后的条件提交携带。ACK 或 producer 回执丢失后认回原操作，不再索取 Model 全文。
+独立的 `createAgentModelReceiver` 显式消费同一 `AgentReceivedProvider`、主体资格核验、原目标查询、Model inspect/dispatches、账目出口、租户容量与宿主持有状态。每次 push 在首次 await 前复制冻结完整 typed delivery，核当前资格与原 Model 事实，再共同提交条目、材料和 saved。未知只查原 operation，排除不换身份复活。材料采用 `agentModelDeliverySchema`，`readModelDeliveryMaterial` 核验编码与原绑定；读取器本身不证明耐久保存。
 
-完整读取的结果页在账目读取或材料保存失败后仍保留。不完整读取先关闭原 Read，再用新的确定读取身份重领同一 call/version/consumption；这不增加逻辑调用或受理。
-closeRead 失败保留原 Read，重入先重试关闭，再决定是否重新读取。
+宿主在重装配时保留 `createModelReceiverState()`。`recover` 读取已保存条目和材料，`retry` 驱动未决提交与账目待办。共同提交之后才把每个非 null dispatch 账目放入出口待办。unknown/unavailable 保留原 handoff 重试；denied/invalid/conflict 保留 blocked 与诊断。saved 不等于生产者 ACK，测试由 Model 公开 pusher 独立取得 ACK。
 
-没有扩展时，M4/M5 直通且不提交。首内容前最终失败且无有效回复由 I3 生成 no-reply 候选，再交 F1 固定终态意图。
-候选时刻来自 AgentClock.now。取时失败不写候选，同一已形成候选重试不再次取时。
-部分失败回 I8，完整的工具参数也不因失败收场而获准执行。
-
-按 [推理结果支持边界](https://github.com/nemori-ai/omne-harness-lite/issues/514#issuecomment-6311593067)，缺原产出 scope/format 的 reasoning_state、完整或未封 thinking 返回 unsupported。
-此时不写 processed，不 ACK，也不接纳消息，Model 继续承担原结果责任。
-已有 Read 会被关闭。关闭失败明确返回失败，不声称已经关闭或释放责任。
-原结果中的 replayCarried 不触发新调用，关闭回放再试仍由后续规则决定。
-
-内部 continueExecution 只供原 runtime 在旧驱动停止后串行使用，须携带原 Access/Authority。
-它核对当前挂接与已存 ready。在 I2，须尚无已存调用或未决 Journal 操作，再由已存 step 按原规则派生调用身份。在 M6，须有相符的 ready 与 PendingCall，已有结果必须带 processed completion。它也接受该调用已保存 completion 时的 M3/M4/M5/I3 位置。随后从 Journal 重建固定调用帧。
-它不传旧 iteration，不重新 prepare，不新分配 call/admission，也不把 inputBatch ID 配新水位线冒充旧批。
-测试丢弃旧协调者，但保留同一内存 Journal、Model 和原 Authority。
-该入口覆盖意图提交前后、受理回执丢失，以及 processed completion 已存而尚未完成 I3 的切点。ACK 后只从消费侧材料接续，不向 Model 索全文；它不证明公开 resume、挂接恢复或进程耐久。
-producer 已提交后，M4/M5 不再经过 M3，统一在 I3 接续。原 ACK 回执缓存丢失时，I3 以原 reference 查询真实 acknowledged 事实，核原结果版本、consumer、ACK 操作和 completion 回执，恢复原确认依据；不再次 ACK。
-既有 O0 以稳定的原 consumption 操作记录结果 release。写入未知时查询原操作，unknown 不当作 excluded 或成功；ACK 未确认或不可读时停止接续并保留责任。终态 O0 接续见下文。其他生产者与 custody 路径继续归后续卡。
+没有扩展时 M4/M5 不另提交。最终失败且无有效回复形成 no-reply；部分输出不启动工具。缺少必要 replay 元数据的 reasoning-state/thinking 仍返回 unsupported，已经接收的材料保持可读。本实现不证明公开 resume 或跨进程耐久。
 
 #### 回复准入与 iter 收口
 
-I3 读取 Journal 绑定的 processed 结果。Q2 在同一 revision 提交 admitted 的 ModelReplyAdmission、message 事件与 Q4 接续。
+I3 读取 Journal 绑定的 received 结果。Q2 在同一 revision 提交 admitted 的 ModelReplyAdmission、message 事件与 Q4 接续。
 Q4 回 I3 后关闭主调用，再进入 I4。回执保持原操作与原候选关联。
 Journal 回执未知时认回原操作。excluded 后重评不增加第二次逻辑回复。
 I4 在进入 I8 前保存完整空 ActionBatch。工具动作仍属后续阶段。
@@ -147,7 +116,7 @@ I8 在原挂接下重读快照、revision、输入边界、准入投影与当前
 已有结果需要后续消费节点时保持 unsupported。完整恢复尚未交付。
 I8 选择下一 step 或候选时清除已消费的空批。
 
-ordinary completed/limit 的合法全 sealed 内容可以准入为回复。原 trims 与 settlement 保存在 processed 材料中，不合成 trim 或提醒。
+ordinary completed/limit 的合法全 sealed 内容可以准入为回复。原 trims 与 settlement 保存在 received 材料中，不合成 trim 或提醒。
 部分内容与 interrupted 结果无回复准入、无可执行动作，回 I8 按事实分流，不直接决定完成。
 interrupted 保留原控制身份。控制请求协议与阶段记录仍由后续卡交付。
 
@@ -160,7 +129,7 @@ interrupted 保留原控制身份。控制请求协议与阶段记录仍由后�
 F1 只在候选依据的修订未变时固定完整 FinishIntent。提交被排除后保留原意图与时刻。
 F2 只绑定一次终态前经过。内存 Journal 拒绝缺少经过依据、或与已固定 settling 意图不同的终结。
 先受理的新输入使旧候选无效。R0 重读事实后回 I8，或重新固定失败候选。
-no-reply 结果已消费时，I8 只关闭 completion 与原 ACK 匹配的原调用续点，同次驱动承接新输入。原 release 仍由 O0 负责。
+I8 关闭已消费的 no-reply 调用续点，received 材料继续保留。
 
 F3 只调用 tryFinish 创建终态。Journal 一次保存 ended、最后事件、固定观察责任与原操作结果。
 changed 与 blocked 回 R0。custody 必须真实移交后，下一次完成才能成立。
@@ -169,8 +138,7 @@ unknown 或查询不可用保留原责任，不写可能使原终结失效的 wa
 
 F4 认回已有观察登记，把未登记项留在长期 Journal。
 它不执行扩展、不虚构 observed。合法宿主观察者可在 runtime 回 idle 后登记剩项。
-O0 从原 completion 材料与 Model 的真实 ACK 确认恢复本实现主调用的 release。
-它核对原 call、version、source、consumer、ACK operation 与 receipt，不重读 Model 正文、不重复 ACK。
+O0 保留宿主接收方持有的 received 材料与账目待办。
 
 O0 不替读取方确认输出。未确认事件与其他已保管结果责任继续留在 Journal。
 E9 释放执行槽并保持登记。原 ended execution 不重开，新 execution 身份可以复用 idle runtime。
@@ -213,7 +181,7 @@ M3 复用同一原调用的已处理结果。I3 在其提交已知成立前保�
 
 W0 在一次提交中保存 waiting 状态和一条 waiting 事件（J2）。
 它保留 checkpoint 的原 position，并让出本次推进段。provider 持有唯一串行驱动。
-驱动启动 Journal 与原 Model 观察，再重读快照、原操作槽及相关生产者状态。
+驱动启动 Journal 观察，再重读快照与原操作槽；只有受理未知时才查询 Model。
 进度未变才通过 AgentClock 等待配置 reconciliationDelayMs 对应的检查时刻。
 通知或检查时刻到达后回 E1。二者都不证明生产者收场或原操作未执行。
 执行仍占槽，`observe` 显示 occupied。
@@ -292,7 +260,7 @@ stateDiagram-v2
 以下条目说明阶段 1 的读法与尚未交付的机制。完整行为由节点表拥有。测试覆盖见 [tests/README](tests/README.md)。
 
 - 临时简化，1.3–1.9 按节点表收紧：骨架对写 checkpoint 的节点，在结束时各提交一次。提交把 `position` 前移到下一节点，剩余节点尚未全部按节点表收紧。I2 仅构造调用帧，M0 一次提交，M6、M1 收场、无扩展 M4 与 M5 不提交。U0 至 Q4 在 execution 存在之前运行，不提交；E1、E2、E4 只读，不提交，否则会覆盖 E4 要读的 `position`；F3 用 `tryFinish`；ended 之后 Journal 拒绝提交，F4、O0、E9 只用各自的记录方法。
-- 按 #558 M04-1，producer 事件由 M3 的 `recordResult` 之后紧随的一次条件提交承载。
+- producer 事件由 M3 读取 received 完整材料后的一次条件提交承载。
 - 按 #558 M04-8，input-taken 只由 I0 的提交承载。
 - 待 #558 M04-7：`open` 不写事件。
 - 待 #558 M04-5：独立装配下 `recordResult.transfer` 取 processed，没有声明参加者。
@@ -342,7 +310,7 @@ stateDiagram-v2
 - 工厂的四种创建失败与 idle，以及四个面的访问守卫。
 - 内存 Journal 的同形清单、三项临时做法及各替身的编排接口。
 - 转移表、评估器与一条输入到 ended 的正常路径。
-- 主调用意图与固定请求的一次提交、原 reference 认回、最终失败、部分结果、processed 顺序及回执未知。
+- 主调用意图与固定请求的一次提交、原 reference 认回、最终失败、部分结果、received 采用与接收回执未知。
 - 缺原推理回放元数据时保留生产责任，以及 Read 的异常和关闭失败。
 - 受理的 C1、输入冲突、busy、commit-unknown 与 R0 重试路由。
 - 输入的规范化等价性，以及 E1 found-existing 正常结束协调。

@@ -40,7 +40,7 @@
 | [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | 否 | [#536](https://github.com/nemori-ai/omne-harness-lite/issues/536)、[#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。 |
 | [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | 否 | [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756) | 本路径上 Session 不能形成 completed 的 Run 终态。 |
 | [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | 否 | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542)、[#676](https://github.com/nemori-ai/omne-harness-lite/issues/676) | 没有 Agent 一侧的 Context 适配；Request Context 取得租约后，由本应用的桥固定请求。 |
-| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | 否 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)、[#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | Agent 运行时尚未消费 #672 接收面与账目出口；H06 的连通证据来自 Agent 运行时自身的 Model 调用消费与 journal。 |
+| [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | 否 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)、[#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) | 测试装配已接公开 Model pusher、独立接收方和共同提交内存 Journal；H06 最终接收与账目接线验收仍在本次迁移之外。 |
 
 ## 配置与运行
 

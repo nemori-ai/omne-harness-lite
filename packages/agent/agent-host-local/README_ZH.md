@@ -4,11 +4,11 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 职责与状态
 
-具体的 Cordis 装配与资源生命周期。包骨架已初始化，公开运行能力尚未实现。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
+具体的 Cordis 装配与资源生命周期。根入口提供独立 Model 接收组件，完整 Cordis 插件尚未实现。设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。
 
 ## 使用
 
-当前入口不提供运行能力。后继消费形状见 [公开入口](docs/public-api.md)，不能将设计片段当作可执行示例。
+根入口导出 `createLocalModelReceiver(dependencies, state)` 与 `createModelReceiverState()`。重装配继续传原状态；依赖包含同一 Journal 提供者、当前资格、原目标、Model 只读面、账目出口和显式容量。形状见[公开入口](docs/public-api.md)。`./cordis` 仍为空。
 
 ## 契约
 
@@ -24,7 +24,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 ## 验证
 
-`pnpm test` 与 `pnpm typecheck` 当前只验证包骨架与空入口，不证明业务能力已经支持。
+本成员的类型与测试核对根入口导出。agent 成员使用公开 Model pusher 和同源内存 Journal 验证共享接收算法；它不证明完整 Cordis 插件或生产存储。
 
 ## 维护
 
