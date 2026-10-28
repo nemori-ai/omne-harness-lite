@@ -79,13 +79,9 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 ### 静态注入依赖是否改为使用点取得
 
-| 项 | 内容 |
-| --- | --- |
-| 拥有者 | [Cordis 集成约定](../../../../../docs/architecture/cordis-integration-conventions.md#ic-8)的拥有者与应用装配者 |
-| Agent 所需保证 | 宿主插件的十项静态依赖中，`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext` 与 `agentMessageHandoff` 只在请求准备与消息准入处使用。IC-8 允许两种取得方式：静态 inject，或创建时核验在场再在使用点取得。前者使任一项换代等于本宿主全部在途 execution 失联并需 takeover 资格恢复，后者失去 PENDING 诊断并要在每个使用点处理缺席。Agent 需要拥有者裁定这五项采用哪一种 |
-| 阻塞的能力 | 不阻塞 Agent 的独立设计。裁定之前，适配器重绑定的半径按[本地宿主页的换代](../../../agent-host-local/docs/cordis.md#换代)所写 |
-| Agent 侧已产出的边界 | 本地宿主页的换代节写出半径与必须创建时在场的五项；Cordis 页的[依赖与定义拥有者](../../../agent-cordis-contract/docs/cordis.md#依赖与定义拥有者)写出三种取得方式 |
-| 关闭条件 | 拥有者裁定后，本地宿主页改写 `inject` 数组与取得方式，Cordis 页同步取得方式表 |
+K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/architecture/runtime/application-assembly.md#插件树)裁定，将 Agent 宿主的十项必需依赖全部设为静态 inject。缺任一项时宿主停在 PENDING，不改为首次使用时才失败。[本地宿主页](../../../agent-host-local/docs/cordis.md#静态依赖)保持这项取得方式。
+
+静态依赖换代仍可能使宿主全部在途 execution 失联，恢复资格和处置沿[本地宿主页的换代](../../../agent-host-local/docs/cordis.md#换代)。关闭此设计问题不表示完整宿主插件或换代验证已经实现。
 
 ### 输入内容的展开、脱敏与否决在哪里完成
 
