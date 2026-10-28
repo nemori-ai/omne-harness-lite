@@ -160,7 +160,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会
 出处如下。
 
 - 来源职责与禁止的反向耦合：[产品包组织](package-organization.md#依赖方向与cordis集成)「依赖方向与Cordis集成」。
-- 七条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。
+- 九条方向约束：[constraints.json](architecture/constraints.json) 的 `directions`，范围与未覆盖见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。本图只画核心四项之间的七条；public-contract、sdk 与公共流契约到 Model、Tool 的两条（`DIR-ACCESS-MODEL`、`DIR-ACCESS-TOOL`）不在本图。
 - 集成方认识被集成方：[系统分层](architecture/layers-and-dependencies.md#领域语义依赖与模型边界)「领域语义依赖与模型边界」。
 - Session 与 Model、Tool 的关系：[会话与工作](domains/sessions-and-work/README.md#协作与依赖)「协作与依赖」。
 - 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/tool-cordis-contract/docs/cordis.md)。
@@ -168,7 +168,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - 三条流表一行：[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)「三条流不逐块进会话日志」；[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)「流引用与自身事件」。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项核对于 `eebb3cc77`。
 
 ## 顶层架构
 
