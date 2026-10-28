@@ -1,6 +1,6 @@
 # Agent 的具体 Cordis 装配
 
-状态：设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，未实现。本包是具体提供者草稿，根入口与 `./cordis` 当前都是空导出，尚无插件实现。它消费的服务定义与目录插件 `agentInstancesPlugin` 已经在 agent-cordis-contract 实现。
+状态：完整 Cordis 宿主插件的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受，尚未实现。根入口已实现独立 `createLocalModelReceiver` 工厂及宿主状态创建；`./cordis` 仍为空导出。服务定义与目录插件 `agentInstancesPlugin` 已在 agent-cordis-contract 实现。接收组件的实际范围见 [SPEC](../SPEC.md#独立结果接收组件)，不能据此声明完整 reserve、实例启动或生产 Model 解析器已实现。
 
 唯一 Service、键、增补、事件、登记协议及 IC-1 至 IC-19 的符合性映射消费 [Cordis 定义](../../agent-cordis-contract/docs/cordis.md)，不得复制或重声明。本页只写本插件特有的装配：插件与入口、静态依赖与局部依赖、配置、装载、停止准入与撤除、候选发行行、实例作用域和租户。
 
@@ -8,11 +8,19 @@
 
 插件 `agentHostPlugin` 由 `@omne-harness/agent-host-local/cordis` 导出，名称是 `agent-host`。它用 `@omne-harness/kernel-basis/cordis` 的 `definePlugin` 构造。导出名是设计中的名称，实现时以实际源码为准。
 
-插件在一个插件体内逐个构造三个服务面：`agentInstanceHost`、`agentPublicationAuthority` 和 `agentExecutionRecovery`。每个子类 `extends` 定义入口的抽象类，不另写键，三个键登记在这一条 fiber 上（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。选择一条 fiber 的理由是：三个服务面共用宿主进程内的同一份状态，即预约表、宿主持有的 runtime 和 `route` 的路由。它们必须一起出现、一起撤除。如果分成三条 fiber，一个服务面撤除后另一个仍可能被调用，并读到已经失效的状态。目录 `agentInstances` 不是本插件的服务面。目录是定义入口导出的具体注册表，以独立的目录插件 `agent-instances` 装载。本包不拥有 Model 与 Tool 的运行寿命。
+插件在一个插件体内逐个构造三个服务面：`agentInstanceHost`、`agentPublicationAuthority` 和 `agentExecutionRecovery`。每个子类 `extends` 定义入口的抽象类，不另写键，三个键登记在这一条 fiber 上（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。选择一条 fiber 的理由是：三个服务面共用宿主进程内的同一份状态，即预约表、宿主持有的 runtime 和 `route` 的路由。它们必须一起出现、一起撤除。如果分成三条 fiber，一个服务面撤除后另一个仍可能被调用，并读到已经失效的状态。目录 `agentInstances` 不是本插件的服务面。目录是定义入口导出的具体注册表，以独立的目录插件 `agent-instances` 装载。本包不拥有 Model 与 Tool 的运行寿命。结果接收方由宿主持有，独立于这些 Agent 实例；实例贡献 fiber 的撤除不销毁接收方及其待办状态。
 
 ## 注入、配置与生命周期
 
 Agent 核心的原位置解释、Journal 交接和材料保管服务保持可独立取得。独立装配注入执行记录提供者；有外部协调者的装配注入具备共同受理与终结保证的 Journal 适配器。宿主插件不直接 inject 外部协调者自己定义的服务。这不包括 Agent 定义的端口 `agentMessageHandoff`：它由外部协调者或独立调用方的提供者实现，宿主以静态 inject 取得。模型 `modelRuntime` 与请求准备 `agentRequests` 也以静态 inject 取得。只有六项局部必需依赖经阶段适配器取得：工具、扩展、卡片、动作准入、材料和具名读取，见下文“局部依赖与可选依赖”。缺席时保存原位置或按已定缺失策略收束，不把不存在的能力伪装为实现。计划换代先经 Journal.detach 保存 checkpoint 并撤旧 attachment；外部协调者把此交接与自己的换代资格排序相接；非计划卸载停止新动作，当前恢复者依法认回。调用方退出不传播Model/Tool取消。
+
+### 接收组件的宿主寿命
+
+独立接收组件由宿主在 Agent 实例之外装配和持有，不新增 Cordis 服务键。装配者显式传入共同提供者、权威核验依赖、账目出站、容量与宿主状态，不能分别注入来自不同权威状态的接收视图。依赖和逐次接收行为归 [SPEC](../SPEC.md#独立结果接收组件) 与 [J02](../../agent-contract/SPEC.md#结果接收)。
+
+Agent 实例 dispose、detach 或重建不清空接收状态。接收组件重装配继续使用同一宿主状态，以 recover 恢复 received 账目待办。宿主驱动可重试待办，保留 blocked 待办及其诊断，不因重装配自动重发。停止组件的本次驱动不取消已受理的共同提交，也不删除已保存的材料。内存状态不承诺进程重启恢复。耐久宿主另须保存接收与出站业务事实；实际 Promise 和驱动代仅用于本进程的任务控制。
+
+完整插件仍须由其实现接入这个组件；本节不声称 reserve、实例启动或生产 Model 的接收方解析器已实现。
 
 ### 静态依赖
 
@@ -47,7 +55,7 @@ export const agentHostPlugin = definePlugin({
 
 可选依赖是目录。`reserve` 时，宿主经 `ctx.get(agentInstances)` 现取目录，接受 undefined。目录缺席时 reserve 返回 unavailable。装配者可以不经宿主，把工厂的 `registration` 设为 null，创建不发布的实例。
 
-外域的变更通知是可选的唤醒提示。Tool 的 Cordis 定义声明了 [`tool-cordis-contract/call-changed`](../../../tool/tool-cordis-contract/docs/cordis.md#配置与变更通知)，载荷只有租户、ToolCallId 与 ToolRevision。实例进入等待节点时，宿主在自己的 fiber 上经 `ctx.on` 监听该事件，按本实例的租户与 associated Tool PendingCall 的调用引用解出的 call 过滤。intent 尚无调用身份，不能用本地猜测的 ID 匹配通知。历史未知后的新拒绝不解除原 pending、材料或交接责任，宿主不能将其当成无调用。关联命中即唤醒 runtime 重读原调用；离开等待时撤除监听。这个监听不依赖 `toolRuntime` 提供者在场，没有发送者时只是不会被唤醒。通知可以丢失、重复或先于监听到达，所以它不是事实源：唤醒后仍以 inspect 或 lookup 的结果为准，遗漏由 reconciliationDelayMs 的持久重读兜底，规则见[等待、唤醒与公平](../../agent/docs/architecture/mechanisms.md#等待唤醒与公平)。监听器失败只记诊断，不改变 Tool 一侧已提交的结果。Model 的 Cordis 定义当前没有同类通知，Model 调用只靠重读。
+外域的变更通知是可选的唤醒提示。Tool 的 Cordis 定义声明了 [`tool-cordis-contract/call-changed`](../../../tool/tool-cordis-contract/docs/cordis.md#配置与变更通知)，载荷只有租户、ToolCallId 与 ToolRevision。实例进入等待节点时，宿主在自己的 fiber 上经 `ctx.on` 监听该事件，按本实例的租户与 associated Tool PendingCall 的调用引用解出的 call 过滤。intent 尚无调用身份，不能用本地猜测的 ID 匹配通知。历史未知后的新拒绝不解除原 pending、材料或交接责任，宿主不能将其当成无调用。关联命中即唤醒 runtime 重读原调用；离开等待时撤除监听。这个监听不依赖 `toolRuntime` 提供者在场，没有发送者时只是不会被唤醒。通知可以丢失、重复或先于监听到达，所以它不是事实源：唤醒后仍以 inspect 或 lookup 的结果为准，遗漏由 reconciliationDelayMs 的持久重读兜底，规则见[等待、唤醒与公平](../../agent/docs/architecture/mechanisms.md#等待唤醒与公平)。监听器失败只记诊断，不改变 Tool 一侧已提交的结果。Model 的 Cordis 定义当前没有同类通知。Model 结果由实例外的接收方共同提交到 Journal，loop 只以 Journal 条目为采用依据，经 Journal 事件提示和 timer 唤醒后重读，不轮询 Model 收场。
 
 Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Request Context/HITL的完整服务定义若以后成为各原拥有者的公共接缝，应在同一采用中将本消费投影适配到该定义，不能保留两个含义相同的权威服务面。当前这些Agent端口拥有者是实际消费形状的Agent成员，未授予外域业务写权。
 
@@ -95,7 +103,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 影响半径是整个宿主。十项静态依赖中任一项非计划换代，等于本宿主插件全部实例的全部在途 execution 同时失联。它们的挂接仍是 active，所以恢复需要持 takeover 资格的主体，只持 resume 资格的主体不能恢复它们。一次良性的适配器重绑定因此是整个宿主范围的失联，不是单个实例的事件。目录插件静态 inject `agentAccessCheck`，它随同一类换代一起重跑。
 
-十项中缺席时工厂无法运作的依赖是：`agentJournal`、`agentAccessCheck`、`agentAdoptions`、`agentClock` 与 `modelRuntime`，工厂没有它们不能校验绑定、核验资格、解析采用、调度等待或受理主请求。`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext` 与 `agentMessageHandoff` 只在请求准备与消息准入处使用；工厂在创建时仍要求它们在场，必需性见工厂页。后五项是否改为创建时核验在场、使用点取得，以换取不因它们换代而卸载全部实例，交装配拥有者裁定，登记在[开放问题](../../agent/docs/architecture/open-questions.md#静态注入依赖是否改为使用点取得)。裁定之前本页按全部十项静态 inject 写。
+十项中缺席时工厂无法运作的依赖是：`agentJournal`、`agentAccessCheck`、`agentAdoptions`、`agentClock` 与 `modelRuntime`，工厂没有它们不能校验绑定、核验资格、解析采用、调度等待或受理主请求。`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext` 与 `agentMessageHandoff` 只在请求准备与消息准入处使用；工厂在创建时仍要求它们在场，必需性见工厂页。本部署按[应用装配页的裁定](../../../../docs/architecture/runtime/application-assembly.md#插件树)将全部十项设为静态 inject。缺任一项时宿主停在 PENDING，不改为首次使用时才失败。对应[开放问题](../../agent/docs/architecture/open-questions.md#静态注入依赖是否改为使用点取得)已关闭；该裁定不缩小上述换代半径。
 
 ## 候选发行行
 
@@ -140,4 +148,4 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 外部协调者的装配须验证：协调者已可靠受理而通知尚未到达时，Agent 不能越过原输入完成；不能先提交一域再提交另一域。独立装配须验证消费者不回复终态批准也能完成。两者均核原输入身份、共同事件保存、查询未知与旧挂接失权；加载成功不证明这些性质。
 
-实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。模板入口测试只验证未实现状态，不证明这些性质。
+实现时验证静态 inject、局部依赖撤除、旧引用拒绝和先业务交接后 dispose。另须验证：Journal 提供者没有声明装配所需的共同提交时工厂返回 unsupported；贡献 fiber 卸载后登记消失；旧登记身份的晚到撤除不撤后继；quiesce 返回 unresolved 时宿主不撤登记。`./cordis` 入口测试只核对完整插件未实现。根入口另以真实工厂和同源内存 Journal 验证 supported/unsupported、共同保存及原 handoff 重试；两者都不证明本节完整插件生命周期。

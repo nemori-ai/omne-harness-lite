@@ -36,7 +36,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 | 编号 | 出入 | 拥有者 | 阻塞 |
 | --- | --- | --- | --- |
-| M04-1 | 没有拥有者写明 T0、M1 的 stream 事件与 T1、M3 的 producer 事件由哪次写入承载。`JournalCommit.events` 只排除 ended，类型上允许这两种事件。T1 的第二步有一次 `commit` 可以承载，M3 没有自己的 `commit`。SPEC [请求接缝的逐操作要素](../../../agent-contract/SPEC.md#请求接缝的逐操作要素)的 derive 行写步骤结果以 producer 事件投影，由 Agent 提交时产生。另有一处张力：SPEC [事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)写事件由 Journal 在条件提交中分配，[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与逐操作表的 `Journal.recordResult、recordControl` 行写 `recordControl` 的阶段事实投影为 control 事件，而 `recordControl` 没有事件输入。候选读法有三种，本项不作选择：由已有的一次 `commit` 承载，由 `recordResult` 或 `recordControl` 投影，或新增方法 | agent-contract | 阶段 1 中 M1、T0、T1、M3 的事件投影 |
+| M04-1 | Model received 路径已由 J02 明确：M1 等待同一 Journal，M3 条件提交 producer 事件，不投影 Model stream。其余 Tool stream/producer 与 control 的事件承载仍须按原节点和公开 Journal 条款裁定。 | agent-contract | T0、T1 及 control 的事件投影 |
 | M04-3 | 外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加不是 `CallerCommit` 种类，`capabilities.participants` 没有声明它的形状。与[外部协调者怎样与 Agent 共同受理输入和终结](#外部协调者怎样与-agent-共同受理输入和终结)的 SW-M01 同一主题 | agent-contract | 协调者装配在工厂创建时的拒绝条件 |
 | M04-4 | 对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 AgentCheckpoint 行写 checkpoint 每次提交随 execution 修订保存，SPEC [事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次)写事件与 execution 修订一起保存。没有拥有者写明 `submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 是否推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
 | M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
@@ -79,13 +79,9 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 ### 静态注入依赖是否改为使用点取得
 
-| 项 | 内容 |
-| --- | --- |
-| 拥有者 | [Cordis 集成约定](../../../../../docs/architecture/cordis-integration-conventions.md#ic-8)的拥有者与应用装配者 |
-| Agent 所需保证 | 宿主插件的十项静态依赖中，`agentConditions`、`agentRequests`、`agentModelSelection`、`agentModelContext` 与 `agentMessageHandoff` 只在请求准备与消息准入处使用。IC-8 允许两种取得方式：静态 inject，或创建时核验在场再在使用点取得。前者使任一项换代等于本宿主全部在途 execution 失联并需 takeover 资格恢复，后者失去 PENDING 诊断并要在每个使用点处理缺席。Agent 需要拥有者裁定这五项采用哪一种 |
-| 阻塞的能力 | 不阻塞 Agent 的独立设计。裁定之前，适配器重绑定的半径按[本地宿主页的换代](../../../agent-host-local/docs/cordis.md#换代)所写 |
-| Agent 侧已产出的边界 | 本地宿主页的换代节写出半径与必须创建时在场的五项；Cordis 页的[依赖与定义拥有者](../../../agent-cordis-contract/docs/cordis.md#依赖与定义拥有者)写出三种取得方式 |
-| 关闭条件 | 拥有者裁定后，本地宿主页改写 `inject` 数组与取得方式，Cordis 页同步取得方式表 |
+K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/architecture/runtime/application-assembly.md#插件树)裁定，将 Agent 宿主的十项必需依赖全部设为静态 inject。缺任一项时宿主停在 PENDING，不改为首次使用时才失败。[本地宿主页](../../../agent-host-local/docs/cordis.md#静态依赖)保持这项取得方式。
+
+静态依赖换代仍可能使宿主全部在途 execution 失联，恢复资格和处置沿[本地宿主页的换代](../../../agent-host-local/docs/cordis.md#换代)。关闭此设计问题不表示完整宿主插件或换代验证已经实现。
 
 ### 输入内容的展开、脱敏与否决在哪里完成
 

@@ -10,12 +10,7 @@ import {
   testAdoption,
   testEvidence,
 } from '@omne-harness/agent/testing'
-import {
-  decodeAgentInstanceId,
-  type Material,
-  type SelectedModel,
-} from '@omne-harness/agent-contract'
-import type { ContentBlock } from '@omne-harness/content-block'
+import { decodeAgentInstanceId, type SelectedModel } from '@omne-harness/agent-contract'
 import type { IdentityOperations } from '@omne-harness/identity'
 import {
   adjustableLoginTerms,
@@ -110,25 +105,9 @@ export type AgentDoubleOptions = Readonly<{
 /** The Agent of one tenant from `createTestAgentDependencies`, with the path's bridges plugged in. */
 export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies['agent'] {
   const reply = options.reply === undefined ? REPLY_TEXT : options.reply
-  return async ({ tenant, handoff, requests }): Promise<PathAgent> => {
-    const { dependencies, controls } = createTestAgentDependencies<PathPrincipal>()
-    const store = new Map<string, Material<ContentBlock>>()
-    controls.materials.preserve.always(input => {
-      store.set(input.identity, input.value)
-      return {
-        ok: {
-          owner: input.consumer.owner,
-          record: input.identity,
-          revision: '1',
-          digest: `sha256:${'a'.repeat(64)}`,
-        },
-      }
-    })
-    controls.materials.read.always(input => {
-      const value = store.get(input.source.record)
-      return value === undefined
-        ? { failure: { kind: 'denied', action: 'materials.read' } }
-        : { ok: value }
+  return async ({ tenant, principal, handoff, requests }): Promise<PathAgent> => {
+    const { dependencies, controls } = createTestAgentDependencies<PathPrincipal>({
+      receivingPrincipal: principal,
     })
     const definition = testAdoption('definition-cs')
     controls.adoptions.define(definition, {
@@ -195,7 +174,12 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
     const provider = ok(
       await createAgentRuntime({ ...dependencies, models, handoff, requests }, runtimeOptions),
     )
-    return { provider, journal: dependencies.journal, instance: AGENT_INSTANCE }
+    return {
+      provider,
+      journal: dependencies.journal,
+      materials: dependencies.materials,
+      instance: AGENT_INSTANCE,
+    }
   }
 }
 

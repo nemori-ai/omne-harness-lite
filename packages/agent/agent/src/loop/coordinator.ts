@@ -18,7 +18,6 @@
 //   M6, M1 settlement, M4 (without extensions) and M5 make no checkpoint commit. M3 carries producer.
 // - M04-8 的读法: the input-taken event is written by the I0 commit.
 // - M04-7: `open` writes no event (the memory Journal's reading of SPEC).
-// - M04-5: `recordResult.transfer` is processed without a declared participant.
 //
 // E1/E2 dependency failures save a W0 wait. Unknown R0 operations keep their original revision. Other
 // Unsupported outcomes stop with a named failure. Its owner distinguishes a port failure,
@@ -59,11 +58,11 @@ import type {
   Next,
   PendingCall,
   Preparation,
-  ProducedResult,
   RuntimeConditions,
   SelectedModel,
   StepId,
   Waiting,
+  ReceivedEntry,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -78,7 +77,6 @@ import {
   mainBatch,
   mainConsumption,
   mainInvocation,
-  modelOperation,
   ordinalOf,
   stepOf,
   type Message,
@@ -87,12 +85,8 @@ import { canonical } from '../canonical.ts'
 import { waitForExecutionChange } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
-import { consumeModelResult, type ModelResult, type ModelOutcome } from './model-result.ts'
-import {
-  processedModelMaterial,
-  readProcessedModelMaterial,
-  type ProcessedModelIdentity,
-} from './processed-result.ts'
+import { consumeModelResult, type ModelOutcome } from './model-result.ts'
+import { readModelDeliveryMaterial } from '../receiving-material.ts'
 
 /** The ports the coordinator uses. None of them depends on the content block type. */
 export type LoopPorts<P> = Pick<
@@ -187,23 +181,8 @@ type Iteration = {
   pending: ModelPendingCall | null // I2
   settlement: M.Settlement | null // M1
   result: ModelOutcome | null // restored from the Journal-bound completion, not a Model cache
-  processing: ModelResult | null
-  read: ResultReadFrame | null
+  admission: 'new' | 'unknown' | 'accepted'
 }
-
-type ResultReadFrame = {
-  attempt: number
-  read: M.ReadId | null
-  parts: M.ResultPart[]
-  complete: boolean
-}
-
-/** A result whose Model acknowledgement O0 records as the release of its responsibility. */
-type Acknowledged = Readonly<{
-  produced: ProducedResult
-  consumption: ConsumptionId
-  receipt: DurableEvidence
-}>
 
 const step = (on: Label, commit: Write | null = {}): Outcome<Step, Failure> =>
   succeed({ on, commit })
@@ -392,8 +371,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       activeDrive = false
     }
   }
-  const acknowledged: Acknowledged[] = []
-  const unknownReleases = new Set<AgentOperationId>()
 
   async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
     const base = required(checkpoint, 'checkpoint')
@@ -414,6 +391,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       replyAdmission: write.replyAdmission ?? null,
     })
     if ('failure' in committed) {
+      if (committed.failure.kind === 'changed') {
+        const latest = await load()
+        if ('failure' in latest) return latest
+        if (advancementOf(latest.ok).kind !== 'current') return fail({ kind: 'stale-advance' })
+        if (canonical(latest.ok.checkpoint) === canonical(base)) {
+          revision = latest.ok.revision
+          return commit(node, to, write)
+        }
+      }
       if (committed.failure.kind === 'commit-unknown')
         pendingCommit = { operation: committed.failure.operation, node }
       return committed
@@ -684,7 +670,12 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const advancement = advancementOf(read.ok)
       if (advancement.kind === 'ended') return step('terminal', null)
       if (advancement.kind === 'superseded') return step('superseded', null)
-      if (read.ok.revision !== revision && pendingCommit === null && !waking) {
+      if (
+        read.ok.revision !== revision &&
+        pendingCommit === null &&
+        !waking &&
+        canonical(read.ok.checkpoint) !== canonical(checkpoint)
+      ) {
         entry.idle()
         return step('found-existing', null)
       }
@@ -746,83 +737,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     async E3() {
       return step('passed')
     },
-    /** O0: the release of each acknowledged result is recorded. */
     async O0() {
-      const read = await load()
-      if ('failure' in read) return read
-      // Journal custody survives this coordinator. Restore only our own processed main results,
-      // and only from a producer's real ACK confirmation, without business advancement or ACK.
-      for (const item of read.ok.results) {
-        if (
-          item.release.kind === 'confirmed' ||
-          item.completion === null ||
-          item.result.producer.kind !== 'model' ||
-          acknowledged.some(known => known.consumption === item.consumption)
-        )
-          continue
-        const match = /^step-(0|[1-9][0-9]*)\/main\/reply$/u.exec(item.consumption)
-        if (match?.[1] === undefined || !Number.isSafeInteger(Number(match[1]))) continue
-        const of = stepOf(Number(match[1]))
-        const reference = mainInvocation(access.tenant, execution, of)
-        if (invocationParts(reference, access.tenant).call !== item.result.producer.call) continue
-        const material = await ports.materials.read({ ...access, source: item.completion })
-        if ('failure' in material) return material
-        const result = readProcessedModelMaterial(material.ok, {
-          tenant: access.tenant,
-          execution,
-          step: of,
-          consumption: item.consumption,
-          consumer: mainPosition(of),
-          produced: item.result,
-        })
-        if ('failure' in result) return result
-        const restored = await confirmAcknowledgement(
-          {
-            step: of,
-            consumption: item.consumption,
-            reference,
-            position: mainPosition(of),
-          },
-          result.ok,
-          item.completion,
-          'O0',
-        )
-        if ('failure' in restored) return restored
-      }
-      for (const operation of read.ok.unresolved)
-        if (
-          acknowledged.some(
-            item => operation === journalOperation('O0', `release/${item.consumption}`, null),
-          )
-        )
-          unknownReleases.add(operation)
-      for (const item of acknowledged) {
-        const operation = journalOperation('O0', `release/${item.consumption}`, null)
-        if (unknownReleases.has(operation)) {
-          const queried = await ports.journal.query({ ...access, execution, operation })
-          if ('failure' in queried) return queried
-          if (queried.ok.kind === 'unknown') return fail({ kind: 'commit-unknown', operation })
-          unknownReleases.delete(operation)
-          if (queried.ok.kind === 'committed') {
-            revision = queried.ok.receipt.revision
-            continue
-          }
-        }
-        const released = await ports.journal.recordResult({
-          ...access,
-          execution,
-          operation,
-          result: item.produced,
-          consumption: item.consumption,
-          transfer: { kind: 'none' },
-          release: { kind: 'confirmed', receipt: item.receipt },
-        })
-        if ('failure' in released) {
-          if (released.failure.kind === 'commit-unknown') unknownReleases.add(operation)
-          return released
-        }
-        revision = released.ok.revision
-      }
       return step('delivered', null)
     },
     /** E9: the execution is ended, so there is no attachment to detach; the runtime is idle. */
@@ -955,8 +870,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         pending: null,
         settlement: null,
         result: null,
-        processing: null,
-        read: null,
+        admission: 'new',
       }
       // M04-8 的读法: the input-taken event goes with the commit that fixes the batch and the step.
       return step('taken', {
@@ -976,8 +890,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in restored) return restored
       const result = restored.ok.result
       current.result = result
-      const recalled = await recallAcknowledgement(current, result, restored.ok.completion)
-      if ('failure' in recalled) return recalled
       if (result.kind === 'no-reply') {
         if (decided?.kind !== 'try-finish' || decided.failure?.kind !== 'no-reply') {
           const instant = await ports.clock.now()
@@ -1256,19 +1168,25 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         effects: [{ action: current.action, pending, authority: required(authority, 'authority') }],
       })
     },
-    /** M6: inspect the saved reference before admitting the fixed request. */
     async M6() {
       const current = required(iteration, 'iteration')
       const pending = required(current.pending, 'pending call')
-      const found = await ports.models.calls.inspect({ ...access, reference: pending.reference })
-      if ('failure' in found) return modelWait('M6', found.failure)
-      if (found.ok.kind === 'found') {
+      const { call, admission } = invocationParts(pending.reference, access.tenant)
+      if (current.admission === 'accepted') {
         state = { kind: 'advancing' }
         return step('admitted', null)
       }
-      const { call, admission } = invocationParts(pending.reference, access.tenant)
-      if (found.ok.operation !== admission)
-        return fail(defect('M6: not-accepted names another admission'))
+      if (current.admission === 'unknown') {
+        const found = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+        if ('failure' in found) return modelWait('M6', found.failure)
+        if (found.ok.kind === 'found') {
+          current.admission = 'accepted'
+          state = { kind: 'advancing' }
+          return step('admitted', null)
+        }
+        if (found.ok.operation !== admission)
+          return fail(defect('M6: not-accepted names another admission'))
+      }
       const eligible = await currentAttachment()
       if ('failure' in eligible) return eligible
       const ready = required(current.ready, 'ready preparation')
@@ -1283,6 +1201,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if ('failure' in admitted) {
         if (admitted.failure.kind !== 'commit-unknown')
           return fail(modelFailure('M6', admitted.failure))
+        current.admission = 'unknown'
         const recalled = await ports.models.calls.inspect({
           ...access,
           reference: pending.reference,
@@ -1293,117 +1212,28 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       } else if (admitted.ok.reference !== pending.reference) {
         return fail(defect('M6: admission returned another reference'))
       }
+      current.admission = 'accepted'
       state = { kind: 'advancing' }
       return step('admitted', null)
     },
-    /** M1 waits for the original call, without interpreting or publishing its content. */
     async M1() {
       const current = required(iteration, 'iteration')
-      const settled = await settlementOf(required(current.pending, 'pending call').reference)
-      if ('failure' in settled)
-        return settled.failure.kind === 'unavailable'
-          ? waitFor('M1', settled.failure, () =>
-              settlementOf(required(current.pending, 'pending call').reference),
-            )
-          : settled
-      if (settled.ok === null) return producerWait('M1', required(current.pending, 'pending call'))
-      current.settlement = settled.ok
+      const pending = required(current.pending, 'pending call')
+      const received = await receivedOf(pending)
+      if ('failure' in received)
+        return received.failure.kind === 'unavailable'
+          ? waitFor('M1', received.failure, () => receivedOf(pending))
+          : received
+      if (received.ok === null) return producerWait('M1', pending)
       return step('settled', null)
     },
-    /** M3 processes one real result, saves its completion, then releases the Model responsibility. */
     async M3() {
       const current = required(iteration, 'iteration')
-      const pending = required(current.pending, 'pending call')
-      const { call } = invocationParts(pending.reference, access.tenant)
-      const saved = await completionOf(current)
-      if ('failure' in saved) return saved
-      if (saved.ok === null && current.processing === null) {
-        const settlement = required(current.settlement, 'settlement')
-        const parts = await readResult(current, pending.reference, call, settlement.version)
-        if ('failure' in parts) return parts
-        const dispatches = await ports.models.calls.dispatches({ ...access, call })
-        if ('failure' in dispatches) return fail(modelFailure('M3', dispatches.failure))
-        const produced: ProducedResult = {
-          producer: { kind: 'model', call },
-          version: settlement.version,
-          delivery: null,
-          source: settlement.source,
-        }
-        const consumed = consumeModelResult([execution, current.step], {
-          produced,
-          settlement,
-          parts: parts.ok,
-          dispatches: dispatches.ok,
-        })
-        if ('failure' in consumed) return consumed
-        current.processing = consumed.ok
-      }
-      if (!acknowledged.some(item => item.consumption === current.consumption)) {
-        if (saved.ok === null) {
-          const result = required(current.processing, 'processed result')
-          const preserved = await ports.materials.preserve({
-            ...access,
-            identity: `${execution}/${current.consumption}/processed/1`,
-            consumer: pending.position,
-            value: processedModelMaterial(processedIdentity(current, result.produced), result),
-          })
-          if ('failure' in preserved) return preserved
-          const completion = preserved.ok
-          if (completion.owner !== pending.position.owner)
-            return fail({
-              kind: 'invalid',
-              field: 'materials.owner',
-              reason: 'completion owner differs from original consumer',
-            })
-          const recorded = await ports.journal.recordResult({
-            ...access,
-            execution,
-            operation: journalOperation('M3', `result/${current.consumption}`, null),
-            result: result.produced,
-            consumption: current.consumption,
-            transfer: {
-              kind: 'processed',
-              result: result.produced,
-              consumption: current.consumption,
-              completion,
-            },
-            release: { kind: 'pending' },
-          })
-          if ('failure' in recorded) {
-            if (recorded.failure.kind === 'commit-unknown')
-              pendingCommit = { operation: recorded.failure.operation, node: 'M3' }
-            return recorded
-          }
-          revision = recorded.ok.revision
-        }
-        // Record the binding's revision before a material read can fail. A later retry must not
-        // mistake this coordinator's own successful binding for another driver's progress.
-        const bound = await currentAttachment()
-        if ('failure' in bound) return bound
-        const restored = await readCompletion(current)
-        if ('failure' in restored) return restored
-        const { result, completion } = restored.ok
-        current.result = result
-        // Material reads can suspend while the current attachment changes. Check again before ACK.
-        const refreshed = await currentAttachment()
-        if ('failure' in refreshed) return refreshed
-        const acked = await ports.models.consumption.acknowledge({
-          ...access,
-          call,
-          operation: modelOperation(execution, current.step, 'ack'),
-          result: result.settlement.version,
-          evidence: { kind: 'processed', completion },
-        })
-        if ('failure' in acked) return fail(modelFailure('M3', acked.failure))
-        acknowledged.push({
-          produced: result.produced,
-          consumption: current.consumption,
-          receipt: acked.ok.custody.receipt,
-        })
-      }
       const restored = await readCompletion(current)
       if ('failure' in restored) return restored
       current.result = restored.ok.result
+      const refreshed = await currentAttachment()
+      if ('failure' in refreshed) return refreshed
       return step('kept', {
         events: [
           {
@@ -1427,146 +1257,76 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
-  function processedIdentity(current: Iteration, produced: ProducedResult): ProcessedModelIdentity {
-    return {
-      tenant: access.tenant,
-      execution,
-      step: current.step,
-      consumption: current.consumption,
-      consumer: required(current.pending, 'pending call').position,
-      produced,
-    }
-  }
-
-  async function completionOf(current: Iteration) {
+  async function receivedOf(
+    pending: ModelPendingCall,
+  ): Promise<Outcome<ReceivedEntry | null, Failure>> {
     const read = await load()
     if ('failure' in read) return read
-    return succeed(read.ok.results.find(item => item.consumption === current.consumption) ?? null)
+    if (read.ok.entries === undefined)
+      return fail({
+        kind: 'unavailable',
+        owner: 'agentJournal',
+        diagnostic: 'received entries unsupported',
+      })
+    const found = read.ok.entries.find(
+      (entry): entry is ReceivedEntry =>
+        entry.kind === 'received' &&
+        entry.delivery.producer === 'model' &&
+        entry.delivery.key.kind === 'result' &&
+        entry.delivery.key.reference === pending.reference &&
+        entry.consumption === pending.consumption &&
+        canonical(entry.consumer) === canonical(pending.position),
+    )
+    return succeed(found ?? null)
   }
 
   async function readCompletion(
     current: Iteration,
   ): Promise<Outcome<{ result: ModelOutcome; completion: DurableEvidence }, Failure>> {
-    const saved = await completionOf(current)
-    if ('failure' in saved) return saved
-    const item = saved.ok
     const pending = required(current.pending, 'pending call')
-    const call = invocationParts(pending.reference, access.tenant).call
-    if (
-      !item?.completion ||
-      item.result.producer.kind !== 'model' ||
-      item.result.producer.call !== call ||
-      item.completion.owner !== pending.position.owner
-    )
+    const received = await receivedOf(pending)
+    if ('failure' in received) return received
+    if (received.ok === null)
       return fail({
-        kind: 'invalid',
-        field: 'processed-result',
-        reason: 'missing original Journal completion binding',
+        kind: 'unavailable',
+        owner: 'agentJournal',
+        diagnostic: 'original received result not available',
       })
-    const material = await ports.materials.read({ ...access, source: item.completion })
+    const { material: source, ...expected } = received.ok
+    const material = await ports.materials.read({ ...access, source })
     if ('failure' in material) return material
-    const result = readProcessedModelMaterial(material.ok, processedIdentity(current, item.result))
-    if ('failure' in result) return result
-    if (
-      current.settlement !== null &&
-      (current.settlement.version !== result.ok.settlement.version ||
-        !sameEvidence(current.settlement.source, result.ok.settlement.source))
-    )
+    const delivery = readModelDeliveryMaterial(access, material.ok, expected)
+    if (!delivery || delivery.kind !== 'result')
       return fail({
         kind: 'invalid',
-        field: 'processed-result',
-        reason: 'settlement differs from original call',
+        field: 'received.material',
+        reason: 'invalid schema or original binding',
       })
-    return succeed({ result: result.ok, completion: item.completion })
+    const call = invocationParts(pending.reference, access.tenant).call
+    const result = consumeModelResult([execution, current.step], {
+      produced: {
+        producer: { kind: 'model', call },
+        version: delivery.key.result,
+        delivery: null,
+        source: delivery.settlement.source,
+      },
+      settlement: delivery.settlement,
+      parts: delivery.parts,
+    })
+    return 'failure' in result ? result : succeed({ result: result.ok, completion: source })
   }
 
-  /** I3 has consumed this no-reply result. A refused F1 must not turn its retained call
-   * continuation back into production. The Journal completion and real ACK remain O0's duty. */
   function callsAfterConsumedNoReply(read: ExecutionSnapshot): readonly PendingCall[] {
     const current = iteration
     if (current?.result?.kind !== 'no-reply' || current.pending === null)
       return read.checkpoint.calls
     const pending = current.pending
-    const result = current.result
-    const completed = read.results.find(item => item.consumption === pending.consumption)
-    if (completed?.completion == null) return read.checkpoint.calls
-    const completion = completed.completion
-    if (
-      completed.result.version !== result.produced.version ||
-      !sameEvidence(completed.result.source, result.produced.source) ||
-      !acknowledged.some(
-        item => item.consumption === pending.consumption && sameEvidence(item.receipt, completion),
-      )
-    )
-      return read.checkpoint.calls
     return read.checkpoint.calls.filter(
       call =>
         call.kind !== 'model' ||
         call.consumption !== pending.consumption ||
         call.reference !== pending.reference,
     )
-  }
-
-  /** M4/M5/I3 continuation can bypass M3 after producer committed. Recover the real original ACK
-   * confirmation for this main consumption, so existing O0 can close its Journal responsibility. */
-  async function recallAcknowledgement(
-    current: Iteration,
-    result: ModelOutcome,
-    completion: DurableEvidence,
-  ): Promise<Outcome<void, Failure>> {
-    if (acknowledged.some(item => item.consumption === current.consumption))
-      return succeed(undefined)
-    const eligible = await currentAttachment()
-    if ('failure' in eligible) return eligible
-    const pending = required(current.pending, 'pending call')
-    return confirmAcknowledgement({ ...pending, step: current.step }, result, completion, 'I3')
-  }
-
-  async function confirmAcknowledgement(
-    pending: Pick<ModelPendingCall, 'consumption' | 'reference' | 'position'> &
-      Readonly<{ step: StepId }>,
-    result: ModelOutcome,
-    completion: DurableEvidence,
-    node: 'I3' | 'O0',
-  ): Promise<Outcome<void, Failure>> {
-    const call = invocationParts(pending.reference, access.tenant).call
-    const inspected = await ports.models.calls.inspect({ ...access, reference: pending.reference })
-    if ('failure' in inspected) return fail(modelFailure(node, inspected.failure))
-    if (
-      inspected.ok.kind !== 'found' ||
-      inspected.ok.state.phase !== 'settled' ||
-      inspected.ok.state.custody.kind !== 'acknowledged'
-    )
-      return fail({
-        kind: 'unavailable',
-        owner: 'modelRuntime',
-        diagnostic: `${node}: original acknowledgement is not confirmed`,
-      })
-    const state = inspected.ok.state
-    const consumer = state.consumer
-    const custody = inspected.ok.state.custody
-    if (
-      state.call !== call ||
-      state.settlement.version !== result.settlement.version ||
-      !sameEvidence(state.settlement.source, result.settlement.source) ||
-      consumer.owner !== pending.position.owner ||
-      consumer.work !== pending.position.work ||
-      consumer.position !== pending.position.position ||
-      consumer.purpose !== pending.position.purpose ||
-      custody.operation !== modelOperation(execution, pending.step, 'ack') ||
-      !sameEvidence(custody.receipt, completion)
-    )
-      return fail({
-        kind: 'invalid',
-        field: 'model-acknowledgement',
-        reason: 'confirmation differs from original result or consumer',
-      })
-    acknowledged.push({
-      produced: result.produced,
-      consumption: pending.consumption,
-      receipt: custody.receipt,
-    })
-    return succeed(undefined)
   }
 
   function producerWait(node: 'M1' | 'M6', pending: PendingCall) {
@@ -1587,7 +1347,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       : fail(converted)
   }
 
-  /** Recheck the actual attachment before admission/ACK, and adopt its current revision. */
   async function currentAttachment(): Promise<Outcome<void, Failure>> {
     const read = await load()
     if ('failure' in read) return read
@@ -1595,108 +1354,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     revision = read.ok.revision
     checkpoint = read.ok.checkpoint
     return succeed(undefined)
-  }
-
-  /** Inspect is authoritative even when the original live observation has disappeared. */
-  async function settlementOf(
-    reference: M.ModelInvocationRef,
-  ): Promise<Outcome<M.Settlement | null, Failure>> {
-    const inspected = await ports.models.calls.inspect({ ...access, reference })
-    if ('failure' in inspected) return fail(modelFailure('M1', inspected.failure))
-    if (inspected.ok.kind !== 'found') return succeed(null)
-    if (inspected.ok.state.phase === 'settled') return succeed(inspected.ok.state.settlement)
-    return succeed(null)
-  }
-
-  /** Keep acquired pages until processing is bound. A closed complete Read never needs reopening.
-   * Failed incomplete reads are closed first, then a new deterministic read attempt may reread the
-   * same original result. A failed close retains its Read identity and is retried before any new read. */
-  async function readResult(
-    current: Iteration,
-    reference: M.ModelInvocationRef,
-    call: M.ModelCallId,
-    version: M.ResultVersion,
-  ): Promise<Outcome<readonly M.ResultPart[], Failure>> {
-    const frame = (current.read ??= { attempt: 0, read: null, parts: [], complete: false })
-    async function close(): Promise<Outcome<void, Failure>> {
-      if (frame.read === null) return succeed(undefined)
-      try {
-        const closed = await ports.models.consumption.closeRead({
-          ...access,
-          call,
-          read: frame.read,
-        })
-        if ('failure' in closed) return fail(modelFailure('M3', closed.failure))
-        if (closed.ok.kind !== 'ended') return fail(defect('M3: closeRead left a Read open'))
-        frame.read = null
-        if (!frame.complete) {
-          frame.attempt++
-          frame.parts = []
-        }
-        return succeed(undefined)
-      } catch (error) {
-        return fail(defect(diagnosticOf(error)))
-      }
-    }
-    // A previous call could have stopped on closeRead. Finish that close before further work.
-    if (frame.read !== null) {
-      const closed = await close()
-      if ('failure' in closed) return closed
-    }
-    if (frame.complete) return succeed(frame.parts)
-    const begun = await ports.models.consumption.beginRead({
-      ...access,
-      reference,
-      operation: modelOperation(
-        execution,
-        current.step,
-        frame.attempt === 0 ? 'read' : `read_${frame.attempt}`,
-      ),
-      result: version,
-    })
-    if ('failure' in begun) return fail(modelFailure('M3', begun.failure))
-    if (begun.ok.kind !== 'started')
-      return fail(notYet('M3', 'a result acknowledged before processing was bound', '#502 1.6'))
-    frame.read = begun.ok.read
-    let page = begun.ok.value
-    let failure: Failure | null = null
-    try {
-      for (;;) {
-        if (page.kind !== 'reading') {
-          failure = modelFailure('M3', {
-            kind: 'unavailable',
-            dependency: 'model-read',
-            diagnostic: `read ended ${page.reason}`,
-          })
-          break
-        }
-        if (page.page.settlement.version !== version) {
-          failure = defect('M3: result page changed its version')
-          break
-        }
-        frame.parts.push(...page.page.parts)
-        if (page.page.next === null) {
-          frame.complete = true
-          break
-        }
-        const following = await ports.models.consumption.readNext({
-          ...access,
-          call,
-          read: frame.read,
-          after: page.page.next,
-        })
-        if ('failure' in following) {
-          failure = modelFailure('M3', following.failure)
-          break
-        }
-        page = following.ok
-      }
-    } catch (error) {
-      failure = defect(diagnosticOf(error))
-    }
-    const closed = await close()
-    if ('failure' in closed) return closed
-    return failure === null ? succeed(frame.parts) : fail(failure)
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1833,11 +1490,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           pending?.kind !== 'model' ||
           pending.purpose !== 'main' ||
           ready?.kind !== 'ready' ||
-          !sameEvidence(pending.fixed, ready.source) ||
-          (read.ok.results.some(item => item.consumption === pending.consumption) &&
-            !read.ok.results.some(
-              item => item.consumption === pending.consumption && item.completion !== null,
-            ))
+          !sameEvidence(pending.fixed, ready.source)
         )
           return fail({ node: 'E4', failure: { kind: 'unsupported' } })
         revision = read.ok.revision
@@ -1858,8 +1511,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           pending,
           settlement: null,
           result: null,
-          processing: null,
-          read: null,
+          admission: 'unknown',
         }
         // The first available recovery snapshot already owns these unknown identities. Query
         // them before another fallible read can take the normal E1 -> W0 route.

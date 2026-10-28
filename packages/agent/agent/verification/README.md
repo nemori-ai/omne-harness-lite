@@ -26,4 +26,4 @@
 
 <!-- documentation:placeholder -->
 
-待补：本目录对本包的实际内容、负责人与当前缺口。不适用时写明理由，并在 `documentation.json` 把本文件记为 `not-applicable`。
+[Model 结果接收模型](model-reception/README.md) 检查共同提交、原操作认回、账目发送时序和实例分离后的责任保留。它是有限安全性模型，不证明产品实现精化、生产耐久或 Model ACK。

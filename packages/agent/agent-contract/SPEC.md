@@ -197,12 +197,12 @@ Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities.p
 
 已确认保存的业务进度、扩展结论、有效参数、卡片、答复、结果和账目在普通进程崩溃、操作系统崩溃及断电后仍可读取和解释。可重建缓存不另立事实权威；介质或整机物理损毁不自动纳入普通恢复保证。
 
-生产侧交付责任的解除（英文 ACK）只有两条路径，名称与条件对应 Tool 契约的[可靠交接与处理的两条路径](../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)。
+Tool 生产侧交付责任的解除（英文 ACK）有两条路径，名称与条件对应 Tool 契约的[可靠交接与处理的两条路径](../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)。
 
 - 先保管后处理：合法消费者把内容或有效可恢复引用、原身份、原消费位置与后续责任经 custody 交接保存，返回 saved，由生产者解除。
 - 先处理后保存完成依据：合法消费者完成必要处理，经 processed 交接保存完成依据后解除。处理须符合原生产消费契约，不强制另存可重领全文。处理未完成、完成依据保存未知或当前资格失效时不解除。
 
-尚需后续处理时，消费者必须保留足以接续的内容和责任。结果接收方保存并返回 saved 之后，Model 以原 evidence 沿专用 ACK operation 自己取得 ACK，Agent 一侧不执行 Model 的 ACK。整项调用真实收场等解除前提仍归 Model 契约，单次发出失败不满足这一前提。Tool 取得 saved 后按自身协议释放 delivery。解除生效后，接续从消费侧保存的数据继续，不要求 Model 重新提供完整副本。工具结果按自身保留契约，不能借 Model 的交付责任解除删除全文。
+尚需后续处理时，消费者必须保留足以接续的内容和责任。Model 结果由结果接收方按“[接收共同提交](#接收共同提交)”一次保存完整材料、条目和原消费责任。结果接收方返回 saved 之后，Model 以原 evidence 沿专用 ACK operation 自己取得 ACK，Agent 一侧不执行 Model 的 ACK。整项调用真实收场等解除前提仍归 Model 契约，单次发出失败不满足这一前提。Tool 取得 saved 后按自身协议释放 delivery。解除生效后，接续从消费侧保存的数据继续，不要求 Model 重新提供完整副本。工具结果按自身保留契约，不能借 Model 的交付责任解除删除全文。
 
 Model 的 ACK 未知时由 Model 沿原 query 认回，Agent 不再调模型，也不再次处理同一份结果。Tool 仅在原操作引用可取得时 queryOperation；引用丢失且 lookup 未证明释放时保持未知，见“Tool 交付解除未知”。后台占位只解除占位这一版本的前台交付，最终结果以同一 consumption 到达后按两条路径之一解除，该消费关系才闭合。保管者的更替见[机制页](../agent/docs/architecture/mechanisms.md#交付责任解除的两条路径与保管者更替)。
 
@@ -610,7 +610,7 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 取得原卡后 read 返回的 chosen 与 declined 都是人的原决定，由原扩展按原规则解释，不给默认批准或超时。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
 
-AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果的 custody 路径先把所需全文或独立可恢复引用保管，再由 Journal 的 custody 交接适配原保管拥有者，绑定原版本/位置/责任，成功后才解除交付责任。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
+AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果不走 preserve 后再绑定 custody 的路径，由结果接收方按“[接收共同提交](#接收共同提交)”保存。通用材料端口及 Tool 的既有保管协议保持有效。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
 Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.invoke` 发 direct 调用。`ActionJudgment.allowed.request` 使用这个公开请求，不使用受信 `FixedToolRequest`。请求的 `availability` 原样取自请求组装保存的可用性结论，Agent 不重算或改写它。Tool 的受信入口绑定来源、调用方式及内部固定请求。programmatic 子调用由 Tool 原协议拥有，Agent 不另造来源。`acceptDecision` 是 Tool 受信内部端口，普通 Agent 不因持有 ToolRuntime 获得它。
 
@@ -769,7 +769,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 宿主对实例失联的判断可以作为证据，放进 resume 的恢复依据一并提交，供追溯。它不替代 takeover 的资格核验：宿主认为失联，不等于主体有权取代当前的推进者。两个不同操作身份的 resume 互相取代的风险，由 takeover 资格与 attach 的条件提交共同限制。条件提交使同一 execution 同一时刻只有一个 active 挂接，被取代一方的提交返回 stale-advance。
 
-新挂接之后，Agent 先对账原提交、原调用、原结果、原等待与原卡片，再回到原节点。对账按原操作身份做只读查询，Model 为 inspect。查询不改变调用生命周期，查询结果只用于判断。采用的事实以经生产者事实路径写进 Journal 的条目为准。已提交则采用原结果，未定则等待，查询暂不可用时保持未知，不推断失败、未发生或已完成。同一执行等待后被唤醒时，唤醒不是新挂接或接管。执行回到进入等待之前的状态，经 E1、E2、E4 重读后回原节点。只有被打断的首次认回会回到 reconciling。旧实例被取代后迟到的真实结果与费用，仍可由合格的保管者经 recordResult 记录，不要求旧挂接有效，也不恢复业务推进。每个切点的处置见[机制页的恢复切点表](../agent/docs/architecture/mechanisms.md#恢复切点表)，入口与回归节点见[Loop 算法页](../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)。
+新挂接之后，Agent 先对账原提交、原调用、原结果、原等待与原卡片，再回到原节点。对账按原操作身份做只读查询，Model 为 inspect。查询不改变调用生命周期，查询结果只用于判断。采用的事实以经生产者事实路径写进 Journal 的条目为准。已提交则采用原结果，未定则等待，查询暂不可用时保持未知，不推断失败、未发生或已完成。同一执行等待后被唤醒时，唤醒不是新挂接或接管。执行回到进入等待之前的状态，经 E1、E2、E4 重读后回原节点。只有被打断的首次认回会回到 reconciling。旧实例被取代后迟到的真实结果与费用，仍由合格的保管者保存。Model 交付经结果接收方的共同提交进入 Journal，Tool 保留既有 recordResult 路径。两者都不要求旧挂接有效，也不恢复业务推进。每个切点的处置见[机制页的恢复切点表](../agent/docs/architecture/mechanisms.md#恢复切点表)，入口与回归节点见[Loop 算法页](../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)。
 
 显式换代（reload）可以走任一条路径：旧 runtime 能够配合时，先 detach 再恢复。旧 runtime 失联时，直接接管。两条路径都由治理排序决定先后，先准备并验证新实例，再撤旧授新。换代的 recovery 须绑定 handover 验证过的原 execution 与修订号、源与目标 continuation 摘要、目标采用及转换后的 continuation 摘要。attach 条件核验该原版本仍适用，并共同保存转换后的接续。版本已变化返回 changed，调用方重新加载并核验，不拿旧证明接管新状态。兼容证明不授予推进权。
 
@@ -789,7 +789,7 @@ AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件
 
 load 返回原控制命令、当前完成意图、effect intent、逐结果的责任台账、终态后观察台账和输出进度，恢复不依赖旧命令的调用栈。大记录可以用同一快照修订号的受限分页实现，但不能用不完整数组冒充完整快照。
 
-recordResult 供当前合法的保管方核对原结果版本和交付责任，不要求旧挂接有效。transfer 为 custody 或 processed 时，提供者在自己的共同提交边界建立保管或处理依据并更新结果责任，成功回执才能支持生产者确认。它不能修改 checkpoint、接受输入或发新效果。transfer 为 none 时只核对已有责任与释放结果，confirmed 必须包含原生产者的确认依据。结果项、版本、消费位置与 transfer 逐项一致，冲突则拒绝。执行 ended 之后仍可调用，保管资格与业务推进权分别检查。结果对账不需要活体或新推进权，终态后只保管原事实，不再发起原业务。
+recordResult 供当前合法的保管方核对原结果版本和交付责任，不要求旧挂接有效。transfer 为 custody 或 processed 时，提供者在自己的共同提交边界建立保管或处理依据并更新结果责任，成功回执才能支持生产者确认。Model 的结果采用与账目接收使用“[结果接收](#结果接收)”规定的共同提交，不以此处的 custody、processed 或 release 路径完成。Agent 不把 saved 填入要求原生产者确认的 confirmed.receipt，也不把 Model 的 ACK 作为 Agent 收场条件。它不能修改 checkpoint、接受输入或发新效果。transfer 为 none 时只核对已有责任与释放结果，confirmed 必须包含原生产者的确认依据。结果项、版本、消费位置与 transfer 逐项一致，冲突则拒绝。执行 ended 之后仍可调用，保管资格与业务推进权分别检查。结果对账不需要活体或新推进权，终态后只保管原事实，不再发起原业务。
 
 #### 条件终结
 
@@ -872,39 +872,65 @@ acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连�
 
 #### 日志条目
 
-J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录里另存三类接收面条目，类型是 `AgentJournalEntry`。
+J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录里另存两类接收面条目，类型是 `AgentJournalEntry`。
 
 | kind | 记下的事实 | 写入者 | 写入时的挂接 |
 | --- | --- | --- | --- |
 | `start-fence` | Tool 启动围栏已在 Tool 的排序域内生效 | 推进者 | 当前有效的 Authority |
 | `received` | 生产者推送的一个结果版本或一个账目修订已被结果接收方保存 | 结果接收方，即合法的保管方 | 不要求挂接 |
-| `stream-reference` | Agent 取得的一个生产者流引用 | 推进者 | 当前有效的 Authority |
 
 条目按下列规则写入和读取。
 
 1. 普通条目经 `AgentJournalEntries.record` 写入。接收方经 `AgentReceivedCommits.commit` 一次提交 `received` 条目与材料，见“[接收共同提交](#接收共同提交)”。原 record 入口保持有效，其接收记录的共存规则见该节。上述端口与 `AgentJournal` 由同一提供者在同一权威排序中兑现。它们由不同排序域提供时，该装配不具备本节的保证。
 2. record 成功时推进 execution 修订号，返回 `CommandReceipt`。同一操作同一条目认回原回执。同一操作配不同条目返回 conflict。
-3. 推进者写入时带自己的 Authority。该挂接已被取代或其推进资格已撤销时，record 返回 stale-advance，不写入。结果接收方写入 `received` 时 Authority 为 null。`start-fence` 或 `stream-reference` 的 Authority 为 null 时返回 invalid，field 为 `authority`。
-4. execution 已 ended 时，`start-fence` 与 `stream-reference` 返回 terminal。`received` 仍可写入，因为保管资格与推进权分别检查，规则同 recordResult。
+3. 推进者写入时带自己的 Authority。该挂接已被取代或其推进资格已撤销时，record 返回 stale-advance，不写入。结果接收方写入 `received` 时 Authority 为 null。`start-fence` 的 Authority 为 null 时返回 invalid，field 为 `authority`。
+4. execution 已 ended 时，`start-fence` 返回 terminal。`received` 仍可写入，因为保管资格与推进权分别检查，规则同 recordResult。
 5. Access 的租户与 execution 所属租户不同时返回 denied，不区分对象不存在与无权访问。
 6. 读取形状是 `ExecutionSnapshot` 与 `AgentEvent`。`ExecutionSnapshot.entries` 是可选字段。提供者支持本端口时，它按提交顺序给出该 execution 的全部已提交条目。字段缺席表示提供者不支持接收面条目，不表示没有条目。需要条目的读方在字段缺席时返回 unavailable，不把缺席当作空列表。把条目投影为 `AgentEventBody` 的新事件种类，要给闭合联合加成员，归 #673。在此之前，读方经 load 读取条目。
 7. `AgentJournalEntry` 是开放联合。读方遇到不认识的 kind 时保留原条目，不解释它，不报错，也不丢弃。读方不得对 kind 做穷尽断言。今后增加种类按可加改动处理。
 8. 共同提交中，参加者因推进资格已被取代或撤销而冲突时，Agent 返回 stale-advance，规则见“[提交参加者协议](#提交参加者协议)”。
-9. 未决项（[#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)）：`AgentJournalEntries` 与 `AgentAccountOutlet` 在工厂依赖中是必需还是可选，尚未分类。
+9. 结果接收工厂必须取得同一 `AgentReceivedProvider` 的条目与材料视图，以及 `AgentAccountOutlet`。不得用分离存储或吞掉账目的默认实现补齐依赖。`received` 为 null 时拒绝提供接收能力。在 Model 结果路径中，loop 不写 received、不执行账目出站，只读取 Journal 及同提供者的材料。这不取消 J03 中 Tool 推进者记录 start-fence 的既有责任。该分类针对独立接收工厂，不把 Model 接收责任移入 Agent runtime 工厂。
 
 #### 结果接收
 
-J02 规定结果的去处、常驻的结果接收方、保存回执与账目。Agent 宿主的结果接收方实现 Model 的 `ModelResultReceiver` 与 Tool 的 `ToolResultReceiver`，按原拥有者的协议返回 saved 回执。回执与失败的形状、saved 的合取事实和 push 的决定顺序归 Model 的[结果推送与保存](../../model/model-contract/SPEC.md#结果推送与保存)与 Tool 的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)。本小节只规定接收方在 Agent 一侧的责任。
+J02 规定结果的去处、常驻的结果接收方、保存回执与账目。结果接收方实现 Model 的 `ModelResultReceiver` 与 Tool 的 `ToolResultReceiver`，按原拥有者的协议返回 saved 回执。结果接收方由 Agent 宿主装配并常驻，是 Agent 实例外的角色，不随实例重装配丢失状态。回执与失败的形状、saved 的合取事实和 push 的决定顺序归 Model 的[结果推送与保存](../../model/model-contract/SPEC.md#结果推送与保存)与 Tool 的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)。本小节只规定接收方在 Agent 一侧的责任。
 
-1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 找到原 `PendingCall` 及其 consumption，不重新选择去处。
-2. 租户。载荷的调用引用编入租户。接收方用原拥有者的公开 resolve 函数取得这个租户，核对它与 `access.tenant` 相同。接收方不从去处、地址或宿主取得租户。
-3. 保存。接收方经 `AgentReceivedCommits.commit` 提交完整冻结载荷的 `Material`，或不依赖生产者待释放副本的可恢复引用的材料表示，以及尚无材料证据的条目草稿。提供者在同一次提交中建立完整 `received` 条目、材料与 saved 依据。接收方取得 committed 的原结果后才返回 saved，不在调用方先 preserve 再 record。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。能力与未知处理见“[接收共同提交](#接收共同提交)”。
-4. 认回键。结果的认回键是（租户，生产者种类，调用，结果版本）。账目的认回键是（调用，Model 的 dispatch 或 Tool 的账目事件 event，修订），租户来自调用引用。键直接取生产者的交付键：Model 的 `ModelDeliveryKey` 与 Tool 的 `ToolDeliveryKey`。接收操作身份由交付键确定派生。新旧接收入口共享此认回键，同键同内容认回原条目与原 saved。同键异 consumer、consumption、材料或账目返回 conflict，原条目不变。
+1. 去处。生产者推送到受理时冻结的 `ConsumerRef`。接收方按冻结 consumer 和原调用引用查找原 `PendingCall`、consumption、execution 与原 instance，不重新选择去处。稳定目标查询由保存原消费绑定的提供者实现，以 Access、冻结 consumer 和原调用引用为查询依据。原绑定随 Journal 已提交的 PendingCall 建立，包含租户、execution、原 instance、reference、consumer 与 consumption。checkpoint 清掉已完成调用、原 attachment 脱离或实例销毁后，提供者仍保留这份绑定供迟到交付和账目使用。不得从当前 attachment 或任意 consumer 文本猜测 instance。
+2. 租户。载荷的调用引用编入租户。接收方用原拥有者的公开 resolve 函数取得这个租户，核对它与 `access.tenant` 相同。接收方不从去处、地址或宿主取得租户。目标不存在、跨租户或无权访问时统一返回 denied，不泄漏存在性。
+3. 保存。`received` 条目的唯一写入者是结果接收方。它经 `AgentReceivedCommits.commit` 提交完整冻结载荷的 `Material`，或不依赖生产者待释放副本的可恢复引用的材料表示，以及尚无材料证据的条目草稿。提供者在同一次提交中建立完整 `received` 条目、材料与 saved 依据。接收方取得 committed 的原结果后才返回 saved，不在调用方先 preserve 再 record。saved 证据的 owner 是冻结的 `consumer.owner`，证据定位 `received` 条目、材料和原消费责任。能力与未知处理见“[接收共同提交](#接收共同提交)”。
+4. 认回键。结果的认回键是（租户，生产者种类，调用，结果版本）。账目的认回键是（调用，Model 的 dispatch 或 Tool 的账目事件 event，修订），租户来自调用引用。键直接取生产者的交付键：Model 的 `ModelDeliveryKey` 与 Tool 的 `ToolDeliveryKey`。接收操作身份由完整交付键确定派生，提供者再按租户与 execution 分域。新旧接收入口共享此认回键，同键同内容认回原条目与原 saved。同键异 consumer、consumption、材料或账目返回 conflict，原条目不变。提交未知时只查询原 operation；仍为 unknown 时不发 saved，不自动换身份。excluded 不冒充成功。
 5. 账目。`received` 条目带推送载荷里运行时补全的账目。Model 结果带冻结时全部 dispatch 的账目快照。Tool 结果带 account 或 null。账目交付带该修订的 `CallAccount`。尚无报告时保持 null，不填零。
 6. 主体。接收方以代原租户行事的主体写 Journal（J19）。写入所用 Access 的租户就是调用引用的租户。接收方不以系统作用域的主体写某个租户的条目。
-7. 容量与背压。接收入口按租户分开容量。份额是可配置策略，由实现的工厂配置给出（[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)），本契约不定数值。额度不足时按生产者的协议返回 backpressured，不删除旧责任来腾出空间。
-8. 恢复。接收方恢复时从 `received` 条目认回已保存的交付。尚未收到的账目修订，接收方经 Model 按调用读取账目的入口取回，即 Model [逐操作行为](../../model/model-contract/SPEC.md#342-逐操作行为)中的 dispatches。当前阶段该入口的账目只保存在内存里，进程重启之后的取回要等 [#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)。本契约不把它写成重启后的耐久保证。
-9. 主体资格。接收方在写 `received` 条目之前，以 `AgentAccessCheck` 核验推送主体，操作名是 receive-result，目标是冻结 consumer 对应的 execution。allowed 之后才写入。denied 与 unavailable 按生产者协议的 denied 与 unavailable 返回，不写入，没有默认放行。核验结果只对这一次 push 有效。接收方怎样取得目标里的实例身份，是未决项，承接卡是 #502。`AgentAccessOperation` 增加 receive-result 是给闭合联合加成员，属破坏性改动，由本节承担。
+7. 容量与背压。接收工厂必须取得显式的租户容量策略，额度不足时按生产者协议返回 backpressured，不删除旧责任来腾出空间。逻辑额度与实际 in-flight 槽分别记录，同 key 已保存不重复占逻辑额度。部分保存、未知及仍在途的写保留相应占用；等待取消不能释放仍在途的槽。只有已知未提交时才释放相应临时预留。取消和容量的完整决定顺序沿原生产者协议，不撤销已成立的共同提交。
+8. 恢复。接收方从 `received` 条目与原材料认回已保存交付。尚未收到的账目修订可以经 Model [逐操作行为](../../model/model-contract/SPEC.md#342-逐操作行为)中的 dispatches 取回。取回的账目通过原交付校验并经 `received` 共同提交之后才被采用，不能由查询伪造 loop 可采用的结果。该入口当前只保存在内存里的账目不具备进程重启后的取回保证，耐久责任仍由原提供者承担。
+9. 主体资格。每次 push，包括已保存交付的重投，都先以 `AgentAccessCheck` 核验主体的 receive-result 资格，目标使用原绑定的 instance 与 execution。allowed 之后才读取原调用权威或写入。denied 与 unavailable 按生产者协议返回，不写入，没有默认放行。核验结果只对这一次 push 有效，缓存不放行。`AgentAccessOperation` 的 receive-result 成员由本节承担。
+10. Model 原交付校验。接收工厂必须取得 Model 的只读 inspect 与 dispatches。每次 push 在主体资格通过后，经这些入口核验原受理、admission、完整冻结 consumer 和完整 dispatch 集合，然后才能认回原 saved。原调用未受理、admission 非原值、consumer 不符、dispatch 缺项或多项等，按 Model 协议的字段与原因返回 invalid；集合不可读返回 unavailable，dependency 为 dispatches。只有这些前置检查通过后，同 key 异内容才返回 conflict。Model 查询只决定 push 准入，完整材料仍来自本次合法的生产者交付，不由 inspect 构造。
+11. 完整材料。接收方在首次异步或排队前取得合法 typed delivery 的自有冻结副本，后续调用方修改不得改变已接收输入。Model 交付使用现有 facts 材料分支及具名版本 schema，保存完整 settlement、parts、accounts、consumer 与 key。读取时校验 schema、租户、原 reference、版本及绑定；缺失或不支持的材料显式失败，不把未知 JSON 强转为可信材料。此约定不增加 Material 分支或改变接收共同提交的公开形状。
+12. loop 与接收方分工。正常 loop 对 Model 只调用 admit 与 cancel。受理未知或恢复重新挂接时允许 inspect 对账，但不能由查询返回值写 received 或材料。loop 等待 Journal 条目、现有事件提示和 timer，不连接 Model observer，不轮询 Model 收场。缺少 entries 返回 unavailable；无匹配 received 时继续等待。采用时按原 reference、consumer 与 consumption 选择已提交 result，再从同一提供者读取完整材料。后续恢复仍由原 received 派生结果，业务提交沿原 checkpoint 与幂等交接规则。接收提交增加 revision 时，仍持有效 attachment 的 loop 必须重新 load 并以新修订继续条件提交，不能将该变化误判为另一推进者。真正失去 Authority 时仍停止推进。
+
+维护入口 retry/recover 返回 Agent Reply，先从原绑定提供者取得该 execution 的完整原 Model 绑定集合，再核各原 instance/execution 的当前 receive-result 资格。无对象、无原绑定或无权统一 denied；依赖不可读返回 unavailable，不能返回空成功报告。材料读取、出站、报告与诊断均限定到本次绑定集合，await 期间新增绑定不进入本次维护。每次出站和最终报告之前重核资格；拒绝不改变原 unknown、blocked 或实际在途责任。inspect 仅供宿主管理，可返回全局状态，不可暴露为租户查询。
+
+saved 与 outlet 完成互不等待。宿主状态持有出站任务引用和驱动代。重装配不清理真实在途任务；旧代只结算已开始的交接，不发出后继。维护取消结束等待与后续驱动，不撤销交接；目标或资格检查仍未决时返回无内容 unavailable，owner 为 agent-model-receiver，diagnostic 为 maintenance-cancelled。已判定拒绝时保留 denied。任务引用与驱动代属于同进程控制，不是耐久业务身份。
+
+##### Model 接收结果与失败映射
+
+结果接收方把共同提交的内部结果转换为 Model 的公开 push 结果，不扩展两侧的公开联合。公开载荷或关系不合法时，先按 Model 原协议返回其规定的 invalid 字段和原因。提供者内部的 invalid 不属于这些生产者输入错误，按下表处理。
+
+| 内部事实 | 本次 push 的公开结果及接续 |
+| --- | --- |
+| commit 或 query 返回 committed，原材料与责任均可核对 | 返回原 key 与原 saved。outlet 失败不改变 saved |
+| commit-unknown；原 query 返回 unknown，或其依赖不可读 | 返回 outcome-unknown。保留同一 operation、完整输入和占用，只继续查询原操作，不自动换身份或重做 |
+| 原 query 的当前资格核验返回 denied | 返回 denied，不披露缓存。原未知继续保留，denied 不构成排除 |
+| commit 或 query 返回 excluded | 返回 unavailable，dependency 为 responsibility。保留原排除依据，同 key 重投仍沿原 operation，不得换号复活。已确定未提交的临时预留可以释放 |
+| commit 或 query 返回 unsupported，包括旧接收记录缺少 saved 的富结果依据 | 返回 unavailable，dependency 为 responsibility。不补造 saved，不把旧记录当作未提交 |
+| denied | 返回 denied，不返回原条目或材料 |
+| conflict | 返回 conflict，不改变原状态与责任 |
+| commit 返回 unavailable，且没有未决写 | 返回 unavailable，dependency 为 responsibility。不声称原操作已排除，按原身份接续。此前仍有未决写时返回 outcome-unknown |
+| 提供者内部 invalid，或与接收无关的 stale-advance、not-ready、terminal、busy、changed | 返回 unavailable，dependency 为 responsibility。保留具名内部诊断，不向生产者泄漏内部输入路径，不虚构 Model 的 invalid 关系 |
+| 写入可能成立之后抛错或意外中断 | 返回 outcome-unknown，按原 operation 查明，不能改报普通失败 |
+| 确定未开始接管之前抛错 | 返回 unavailable，dependency 为实际失败依赖。原有未决状态继续保留 |
+
+原操作以及未知或排除记录不得因这些响应而清除。查询 unavailable 不能抹掉原 unknown；只有后续权威查询确认 committed 或 excluded 后才能更新该未知状态。接收方不得自动为已排除的交付创建另一 operation。内部诊断保存在宿主持有的接收状态中，接收组件重装配不清除它。
 
 #### 接收共同提交
 
@@ -986,7 +1012,7 @@ J03 规定 Agent 怎样使 Tool 的旧启动失效，以及“已生效”记在
 J04 规定显示投影凭什么观察生产者，以及观察资格由谁签发。
 
 1. J04 的目标是 Agent 的事件流只发自身事件。#673 收窄 stream 分支之前，现有 stream 分支按“[事件身份与序号](#事件身份与序号)”的规则保持有效。生产者的过程流由观察者经 [stream-arrival](../../common/stream-arrival/README.md) 的观察端口直接观察，先快照后增量。观察资格由授权与接入一侧签发，生产者核验。Agent 不签发观察资格。
-2. Agent 取得生产者流的引用时写 `stream-reference` 条目，记下 `StreamRef`、生产者种类与原 consumption。`StreamRef` 不带凭据，持有它不是观察资格。观察者经它观察时另带显式 Access，生产者核对两处租户相同。
+2. Agent 不记录生产者流引用。Journal 只保存稳定调用引用。观察者按该引用经 Model 的 current 取得当前 `StreamRef`，重新挂接仍沿 current，不把旧流引用当事实。Agent 实例内可以缓存首次挂接目标，缓存不写进 Journal。`StreamRef` 不带凭据，持有它不是观察资格；观察者另带显式 Access，生产者核对两处租户相同。
 3. 现有 `AgentEventBody` 的 stream 分支透传上游内容。J04 决定以流引用取代这种透传。收窄该分支是破坏性改动，归 #673，取代在收窄时生效。
 
 #### 账目出站
@@ -997,8 +1023,9 @@ J28 规定“某次固定请求的账目已收到”由谁、经哪个端口交�
 2. 交接元组 `AgentAccountHandoff` 带编入租户的 Model 调用引用、dispatch、该修订的 `CallAccount`、原结果版本和 `received` 条目的提交证据。原账目确有结果版本的关联时才给出结果版本，否则为 null，不从账目修订推造。端口输入另带 Access。Context 一侧核对 Access 的租户与调用引用的租户相同。
 3. 本端口只交 Model 账目。Tool 的账目不经本端口交给 Context。
 4. 幂等键是（租户，调用，dispatch，修订）。同一交接可以重交。结果有六种：received、denied、conflict、invalid、unknown、unavailable。received 包括对方认回的重复交接和被较高修订取代的乱序修订。结果为 unknown 或 unavailable 时，接收方保留待办，以同一交接重试。结果为 denied、conflict 或 invalid 时不重试同一交接，接收方仍保留原待办并报告带具名原因的诊断，不静默丢弃。这与 RQ-14 的“调用方保持原待办”一致。received 不是清理 Journal 条目的依据。
-5. 恢复时，接收方从 `received` 条目重放全部 Model 账目交接，结果幂等。出站失败不撤销已经交给生产者的 saved。
-6. Context 一侧的适配器与目标作用域的取得归 Request Context 的 [RQ-14](../../context/request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)。Agent 契约不导入 Request Context 的成员。
+5. 接收方在共同提交 committed 之后，交出 result 中全部非 null 的账目，或 account 交付的单个修订。恢复以 `received` 条目及其材料为重放源，不另建权威业务日志。出站失败不撤销已经交给生产者的 saved，重复 push 的 saved 结果也不因此改变。
+6. 宿主持有接收状态及接收组件，Agent 实例重建不替换它们。接收组件重装配时继续传入同一宿主状态，经 recover 按 execution 从 received 恢复待办。unknown、unavailable 在 retry 或 recover 时以同一 handoff 重试，宿主在存在可重试待办时驱动 retry。denied、conflict、invalid 的待办标为 blocked 并保留诊断，不自动重试；重装配与 recover 也不得清除 blocked 或重新自动发送。停止只终止本次驱动，不取消已受理的共同提交，不删除材料或待办。内存状态只支持同进程接续；要求跨进程恢复的宿主必须保存该状态。
+7. Context 一侧的适配器与目标作用域的取得归 Request Context 的 [RQ-14](../../context/request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)。Agent 契约不导入 Request Context 的成员。
 
 #### 控制映射与无活体入口
 
@@ -1073,7 +1100,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
-| AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence` 或 `stream-reference`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
+| AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
 | AgentReceivedCommits.commit | ExecutionMutation、不含 material 的 ReceivedEntry 草稿、完整 Material；不带 Authority | committed，含原 receipt、完整 entry 与 saved；或 excluded，含原排除依据 | invalid（实际无效字段）；denied；conflict（operation 异语义或 delivery 异绑定、材料、账目）；unavailable（确定中途失败不新增任一半、不推进 revision，或既有材料不可读）；unsupported（缺能力或旧 saved 无依据，不表示未提交）；commit-unknown，先按原 operation query。精确映射见“[接收共同提交](#接收共同提交)” |
 | AgentReceivedCommits.query | 指向被查询原操作的 ExecutionMutation | committed，含原 value；excluded，含原依据；或 unknown | invalid（实际无效查询字段）；denied；unavailable（权威状态或原材料不可读）；unsupported（旧非接收操作或富结果依据不足，不表示未提交）。查询失败保持未知，不产生排除依据 |
 | AgentAccountOutlet.deliver | Access、账目交接元组 | received | denied、conflict、invalid：不重试，保留待办并报告诊断；unknown 与 unavailable：以同一交接重试。见“[账目出站](#账目出站)” |

@@ -102,7 +102,7 @@ The lease counts are caller-reported. `src/` does not import `./testing`, so it 
 
 ## H06
 
-The Model settles the admitted call. The Agent processes the result and records it in its journal. The hop is connected when the journal holds a processed Model result and the Agent message hand-over carries the reply of the same Model call. The public Model obligations are additional fragments. The connection evidence comes from the Model call consumption of the Agent runtime and from its journal. The receive surface of [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672) is not on this path, see GAP-RECEIVE-SURFACE. The M1 ruling of 2026-10-25 (pending-decision row 37) keeps this hop verified, because the M2 pure-message path does not depend on that surface.
+The Model settles the admitted call. Its public testing pusher delivers the complete result to the independent Agent receiver, which jointly saves received material and entry. The Agent reads that material and hands over the reply of the original call. Producer ACK remains with the Model pusher. This test assembly does not close the final H06 receive/account integration gate; see GAP-RECEIVE-SURFACE.
 
 ## H07
 
@@ -130,7 +130,7 @@ Non-blocking. No Agent-side Context adapter is on the track. The context bridge 
 
 ## GAP-RECEIVE-SURFACE
 
-Non-blocking. The Agent runtime does not yet consume the receive surface of [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672) (`AgentJournalEntries`) or the account outlet (`AgentAccountOutlet`). The connection evidence of H06 comes from the Model call consumption of the Agent runtime and from its journal. No Model account hand-over occurs on the path. This is a consumer migration gap. [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) and [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) own it.
+Non-blocking. The test assembly consumes the public Model pusher and the Agent joint receiver. Final H06 integration, production Model resolution and durable Session Journal/account forwarding are not proved by this in-memory path. The existing integration gate remains open.
 
 ## Maintenance and exit
 

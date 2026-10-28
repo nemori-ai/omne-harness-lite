@@ -38,6 +38,8 @@ import type {
   TerminalObservation,
   Adoption,
   Access,
+  AgentJournalEntry,
+  AgentReceivedProvider,
 } from '@omne-harness/agent-contract'
 import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
@@ -50,6 +52,9 @@ import {
   type ToolOperationParts,
   type ToolOperationRef,
 } from '@omne-harness/tool-contract'
+import type { ContentBlock } from '@omne-harness/content-block'
+import type { ModelReceptionTargets } from '../receiving-types.ts'
+import { createJournalReceiving, type JournalReceivingControls } from './journal-receiving.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   attachmentIdOf,
@@ -77,6 +82,8 @@ export type JournalWrite =
   | 'recordControl'
   | 'tryFinish'
   | 'recordTerminalObservation'
+  | 'received'
+  | 'record'
 
 /** The read methods of the Journal. `read` also serves each page of `events`. */
 export type JournalRead = 'load' | 'inputs' | 'readReplyAdmissions' | 'query' | 'read'
@@ -135,7 +142,7 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
   grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
   /** Whether `open` and `attach` need a non-null grant. Default: `false`. */
   requireGrant?: boolean
-  /** Whether the caller of `recordResult` is the lawful custodian or processor. Default: yes. */
+  /** Whether the caller of `recordResult` or `received` is the lawful custodian or processor. Default: yes. */
   custodian?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
   /** Whether the caller of `recordTerminalObservation` may observe and record. Default: yes. */
   observer?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
@@ -149,6 +156,9 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
 
 export type MemoryAgentJournal<P> = Readonly<{
   port: AgentJournal<P>
+  provider: AgentReceivedProvider<P, ContentBlock>
+  targets: ModelReceptionTargets<P>
+  receiving: JournalReceivingControls<P>
   durability: 'none'
   /** Changes one saved Tool control's invocation, or restores its first saved bytes with null. */
   setRetainedToolInvocationFault(
@@ -192,7 +202,7 @@ export type MemoryAgentJournal<P> = Readonly<{
    * Applies the retention policy to one execution: drops the acknowledged events. Unacknowledged
    * events are kept, as SPEC "终态后与 ended" requires. Returns how many events were dropped.
    */
-  applyRetention(execution: AgentExecutionId): number
+  applyRetention(execution: AgentExecutionId, tenant?: TenantId): number
 }>
 
 type Attachment = {
@@ -203,7 +213,7 @@ type Attachment = {
 
 type Range = Readonly<{ from: number; to: number }>
 
-type Execution = {
+export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
   revision: number
@@ -227,9 +237,12 @@ type Execution = {
   observed: Map<TerminalObservation['passage'], CommandReceipt>
   admissions: Readonly<{ sequence: number; fact: ModelReplyAdmission }>[]
   admissionThroughs: Map<string, number>
+  entries: AgentJournalEntry[]
   serial: number
   waiters: Set<() => void>
 }
+
+type Execution = MemoryExecution
 
 type Committed = Readonly<{
   kind: 'committed'
@@ -237,7 +250,7 @@ type Committed = Readonly<{
   value: unknown
   receipt: CommandReceipt
 }>
-type Excluded = Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
+type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
 type Pending = Readonly<{
   kind: 'pending'
   key: string
@@ -246,10 +259,10 @@ type Pending = Readonly<{
   operation: AgentOperationId
   run: () => void
 }>
-type OperationRecord = Committed | Excluded | Pending
+export type OperationRecord = Committed | Excluded | Pending
 
 /** The outcome of preparing one write: either an answer without a write, or a write to apply. */
-type Attempt<R> =
+export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   /** A declared participant could not tell whether its part held; nothing is saved yet. */
   | Readonly<{ kind: 'unknown' }>
@@ -544,7 +557,11 @@ export function createMemoryAgentJournal<P>(
     revision: '1',
     digest: 'memory:reply-admission-projection',
   }
-  const executions = new Map<AgentExecutionId, Execution>()
+  const executions = new Map<string, Execution>()
+  const executionKey = (tenant: TenantId, id: AgentExecutionId) => {
+    const encoded = tenantCodec.encode(tenant)
+    return JSON.stringify([encoded.ok ? encoded.value : null, id])
+  }
   const operations = new Map<string, OperationRecord>()
   const writeFaults = new Map<JournalWrite, WriteFault[]>()
   const readFaults = new Map<JournalRead, number>()
@@ -572,7 +589,7 @@ export function createMemoryAgentJournal<P>(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     action: string,
   ): Outcome<Execution, Failure> {
-    const execution = executions.get(input.execution)
+    const execution = executions.get(executionKey(input.tenant, input.execution))
     if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) {
       return fail(denied(action))
     }
@@ -687,7 +704,7 @@ export function createMemoryAgentJournal<P>(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
   ): Outcome<Readonly<{ fault: WriteFault | undefined }>, Failure> {
     const fault = writeFaults.get(method)?.shift()
-    const target = executions.get(input.execution)
+    const target = executions.get(executionKey(input.tenant, input.execution))
     const foreign =
       target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
     return foreign ? fail(denied(method)) : succeed({ fault })
@@ -729,6 +746,7 @@ export function createMemoryAgentJournal<P>(
       if (operations.get(at)?.kind === 'committed') return
       operations.set(at, {
         kind: 'excluded',
+        key,
         evidence: journalEvidence(`${input.execution}/excluded/${input.operation}/${reason}`, 0),
       })
     }
@@ -818,9 +836,10 @@ export function createMemoryAgentJournal<P>(
   /** Excludes every pending write of an execution: the fence of `attach` (fact 5). */
   function fence(execution: Execution): void {
     for (const [key, record] of operations) {
-      if (!pendingOf(record, execution)) continue
+      if (!pendingOf(record, execution) || record.key.startsWith('received:')) continue
       operations.set(key, {
         kind: 'excluded',
+        key: record.key,
         evidence: journalEvidence(`${execution.id}/excluded/${record.operation}/fenced`, 0),
       })
     }
@@ -900,6 +919,7 @@ export function createMemoryAgentJournal<P>(
       unresolved,
       controls: execution.controls,
       results: execution.results,
+      entries: execution.entries,
       effects: execution.effects,
       terminalObservations: execution.observations,
       output: {
@@ -995,7 +1015,7 @@ export function createMemoryAgentJournal<P>(
     open(input) {
       const key = semanticKey('open', input)
       return write('open', input, key, () => {
-        const existing = executions.get(input.execution)
+        const existing = executions.get(executionKey(input.tenant, input.execution))
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
           return answer(fail(denied('open')))
         }
@@ -1025,6 +1045,7 @@ export function createMemoryAgentJournal<P>(
           observed: new Map(),
           admissions: [],
           admissionThroughs: new Map(),
+          entries: [],
           serial: 0,
           waiters: new Set(),
         }
@@ -1044,7 +1065,10 @@ export function createMemoryAgentJournal<P>(
           kind: 'write',
           value: { receipt, authority },
           receipt,
-          apply: () => executions.set(input.execution, execution),
+          apply: () => {
+            executions.set(executionKey(input.tenant, input.execution), execution)
+            receiving.remember(execution, input.instance)
+          },
         }
       })
     },
@@ -1198,6 +1222,7 @@ export function createMemoryAgentJournal<P>(
           receipt,
           apply: () => {
             execution.checkpoint = copy(input.checkpoint)
+            receiving.remember(execution, input.authority.instance)
             execution.state = copy(input.state)
             for (const effect of input.effects) {
               if (!execution.effects.some(existing => existing.action === effect.action)) {
@@ -1712,9 +1737,11 @@ export function createMemoryAgentJournal<P>(
     },
 
     async query(input) {
+      const rejected = receiving.queryQualification(input)
+      if (rejected) return fail(rejected)
       const fault = readFault('query')
       if (fault !== undefined) return fault
-      const execution = executions.get(input.execution)
+      const execution = executions.get(executionKey(input.tenant, input.execution))
       if (execution !== undefined && !tenantEquals(execution.tenant, input.tenant)) {
         return fail(denied('query'))
       }
@@ -1779,14 +1806,27 @@ export function createMemoryAgentJournal<P>(
     },
   }
 
+  const receiving = createJournalReceiving<P>({
+    owned,
+    operations,
+    operationKey,
+    write,
+    holds,
+    receiptOf,
+    nextEvidence,
+    ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
+  })
   return {
     port,
+    provider: { journal: port, ...receiving.ports },
+    targets: receiving.targets,
+    receiving: receiving.controls,
     durability: 'none',
     setRetainedToolInvocationFault(input) {
       if (!retainedToolInvocationFaults) return { kind: 'rejected', reason: 'disabled' }
       const key = retainedFaultKey(input)
       if (key === undefined) return { kind: 'rejected', reason: 'invalid-input' }
-      const execution = executions.get(input.execution)
+      const execution = executions.get(executionKey(input.tenant, input.execution))
       if (execution === undefined || !tenantEquals(execution.tenant, input.tenant)) {
         return { kind: 'rejected', reason: 'target-unavailable' }
       }
@@ -1825,7 +1865,9 @@ export function createMemoryAgentJournal<P>(
     },
     settle(execution, operation, outcome, tenant) {
       // The tenant of an existing execution, or the one the test names for a pending `open`.
-      const owner = executions.get(execution)?.tenant ?? tenant
+      const matches = [...executions.values()].filter(value => value.id === execution)
+      const owner = tenant ?? (matches.length === 1 ? matches[0]?.tenant : undefined)
+      if (owner === undefined && matches.length > 1) return false
       for (const [key, record] of operations) {
         if (
           record.kind !== 'pending' ||
@@ -1839,6 +1881,7 @@ export function createMemoryAgentJournal<P>(
         else {
           operations.set(key, {
             kind: 'excluded',
+            key: record.key,
             evidence: journalEvidence(`${execution}/excluded/${operation}/dropped`, 0),
           })
         }
@@ -1847,8 +1890,11 @@ export function createMemoryAgentJournal<P>(
       return false
     },
     joint: () => copy(jointFacts),
-    applyRetention(id) {
-      const execution = executions.get(id)
+    applyRetention(id, tenant) {
+      const matches = [...executions.values()].filter(
+        value => value.id === id && (tenant === undefined || tenantEquals(tenant, value.tenant)),
+      )
+      const execution = matches.length === 1 ? matches[0] : undefined
       if (execution === undefined) return 0
       const before = execution.retainedFrom
       execution.retainedFrom = Math.max(execution.retainedFrom, execution.acknowledged + 1)
