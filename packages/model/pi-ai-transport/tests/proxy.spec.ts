@@ -314,6 +314,7 @@ describe('a proxy that fails the connection', () => {
     // The target answers the TLS client hello with plain text and closes the connection.
     const target = createTcpServer(socket => {
       socket.on('error', () => {})
+      socket.resume()
       socket.end('HTTP/1.1 400 Bad Request\r\n\r\n')
     })
     await new Promise<void>(resolve => target.listen(0, '127.0.0.1', resolve))
