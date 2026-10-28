@@ -1,3 +1,4 @@
+import { AssertionError } from 'node:assert/strict'
 import { callId, fixedRequest, preparationRecord, releaseRecord } from '../src/testing-values.ts'
 import { describe, expect, it } from 'vitest'
 import {
@@ -44,7 +45,9 @@ it('detects an inspector that adopts while returning the earlier allocated fact'
       return fact
     },
   }
-  await expect(scenario.run({ environment, access, ...backing.controls })).rejects.toThrow()
+  await expect(scenario.run({ environment, access, ...backing.controls })).rejects.toThrow(
+    AssertionError,
+  )
 })
 
 it('detects lost-registration queries that reuse a cached allocation fact', async () => {
@@ -68,7 +71,7 @@ it('detects lost-registration queries that reuse a cached allocation fact', asyn
         backing.controls.forgetRegistration(preparation)
       },
     }),
-  ).rejects.toThrow()
+  ).rejects.toThrow(AssertionError)
 })
 
 it('detects duplicate leases during concurrent original adoption', async () => {
@@ -87,7 +90,7 @@ it('detects duplicate leases during concurrent original adoption', async () => {
   }
   await expect(
     scenario.run({ environment, access, ...backing.controls, leases: () => leases }),
-  ).rejects.toThrow()
+  ).rejects.toThrow(AssertionError)
 })
 
 it('detects an adoption failure that abandons cleanup', async () => {
@@ -101,7 +104,7 @@ it('detects an adoption failure that abandons cleanup', async () => {
       ...backing.controls,
       outstanding: () => 0,
     }),
-  ).rejects.toThrow()
+  ).rejects.toThrow(AssertionError)
 })
 
 it('release before first adoption permanently removes the allocation and cannot issue a lease', async () => {

@@ -1,3 +1,4 @@
+import { AssertionError } from 'node:assert/strict'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
 import type { SourceLayer } from '@omne-harness/tool-contract'
@@ -57,7 +58,7 @@ it.each(['official', 'organization'] as const)(
     ])
     for (const test of cases) {
       expect(await runConformanceCase(test, fixture(source, false))).toEqual({ kind: 'passed' })
-      await expect(runConformanceCase(test, fixture(source, true))).rejects.toThrow()
+      await expect(runConformanceCase(test, fixture(source, true))).rejects.toThrow(AssertionError)
     }
   },
 )
@@ -98,6 +99,6 @@ it.each(['no-read', 'failed-load', 'same-tenant'] as const)(
     expect(cases).toHaveLength(1)
     const test = cases[0]
     if (!test) throw new Error('missing loader source case')
-    await expect(test.run(broken)).rejects.toThrow()
+    await expect(test.run(broken)).rejects.toThrow(AssertionError)
   },
 )

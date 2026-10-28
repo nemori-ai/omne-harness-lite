@@ -1,3 +1,4 @@
+import { AssertionError } from 'node:assert/strict'
 import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { testingTenant } from '@omne-harness/tool-contract/testing'
@@ -76,7 +77,7 @@ describe('residency reader shared contract', () => {
     source.reader = {
       referencing: async () => succeed({ items: source.references.slice(0, 1), next: null }),
     }
-    await expect(toolResidencyReaderConformance()[0]?.run(source)).rejects.toThrow()
+    await expect(toolResidencyReaderConformance()[0]?.run(source)).rejects.toThrow(AssertionError)
   })
 
   it('detects a reader that turns an interrupted page into an empty page', async () => {
@@ -84,7 +85,7 @@ describe('residency reader shared contract', () => {
     source.interrupt = () => {
       source.reader.referencing = async () => succeed({ items: [], next: null })
     }
-    await expect(toolResidencyReaderConformance()[1]?.run(source)).rejects.toThrow()
+    await expect(toolResidencyReaderConformance()[1]?.run(source)).rejects.toThrow(AssertionError)
   })
 })
 
@@ -129,6 +130,6 @@ it.each(['shape', 'duplicate', 'cursor'] as const)(
       })
     const scenario = toolResidencyReaderConformance()[0]
     if (!scenario) throw new Error('missing reader case')
-    await expect(scenario.run(source)).rejects.toThrow()
+    await expect(scenario.run(source)).rejects.toThrow(AssertionError)
   },
 )
