@@ -15,6 +15,6 @@ export type {
 export function createLocalModelReceiver<P>(
   dependencies: ModelReceiverDependencies<P>,
   state: ModelReceiverState<P>,
-) {
+): ReturnType<typeof createAgentModelReceiver<P>> {
   return createAgentModelReceiver(dependencies, state)
 }
