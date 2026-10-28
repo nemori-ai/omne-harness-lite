@@ -26,7 +26,7 @@ import {
 import { POLICY_PATH } from '../integration/policy.ts'
 import type { FactsDeployment } from '../integration/published-delivery-facts.ts'
 import { ACCEPTANCE_SOURCES_PATH, parseAccountIdentity } from './collaboration-acceptance-source.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import type { Evidence } from './collaboration-records.ts'
 import { evidenceList, fullSha, hash256, nonempty } from './collaboration-values.ts'
 import { InputError } from './protocol.ts'
@@ -169,7 +169,7 @@ export function parseCollaborationInstallation(value: unknown): CollaborationIns
 function descriptor(text: string, expectedDigest: string): CollaborationInstallation {
   if (digest(text) !== hash256(expectedDigest, 'installation.sha256'))
     throw new InputError('collaboration-installation-digest-mismatch')
-  return parseCollaborationInstallation(collaborationJson(text))
+  return parseCollaborationInstallation(strictJson(text))
 }
 
 function installationPath(root: string): string {
@@ -239,9 +239,7 @@ export function parseCollaborationInstallationRecord(value: unknown) {
 export function readCollaborationInstallationRecord(root: string) {
   const path = installationPath(root)
   if (!existsSync(path)) throw new InputError('collaboration-installation-required')
-  const decoded = parseCollaborationInstallationRecord(
-    collaborationJson(readFileSync(path, 'utf8')),
-  )
+  const decoded = parseCollaborationInstallationRecord(strictJson(readFileSync(path, 'utf8')))
   requireToolCommit(root, decoded.installation)
   return decoded
 }

@@ -14,7 +14,7 @@ import {
 import { parseIssueIdentity, type TaskBinding } from './binding.ts'
 import { bodyFields } from './body.ts'
 import { collaborationBlock } from './collaboration-block.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { commentDigest } from './collaboration-comments.ts'
 import {
   parseCollaborationComment,
@@ -91,7 +91,7 @@ export function readAcceptanceSources(
 }
 
 function parseAcceptanceSources(text: string, source: PolicySource): AdoptedAcceptanceSources {
-  const raw = object(collaborationJson(text), 'acceptance sources')
+  const raw = object(strictJson(text), 'acceptance sources')
   if (raw.schemaVersion !== 1 && raw.schemaVersion !== 2)
     throw new InputError('collaboration-acceptance-source-version')
   const v = fields(

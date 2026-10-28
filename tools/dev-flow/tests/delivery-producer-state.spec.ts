@@ -20,7 +20,7 @@ import {
   type ProducerInstallation,
 } from '../src/delivery/collaboration-producer-state.ts'
 import { canonical, digest } from '../src/integration/parse.ts'
-import { operationJournal } from '../src/delivery/line-state-journal.ts'
+import { operationJournal } from '../src/delivery/operation-journal.ts'
 
 const roots: string[] = []
 const slot = '11111111-1111-4111-8111-111111111111'

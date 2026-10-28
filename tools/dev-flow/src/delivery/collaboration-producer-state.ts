@@ -27,7 +27,7 @@ import {
   same,
   string,
 } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { hash256, uuid } from './collaboration-values.ts'
 import { InputError } from './protocol.ts'
 
@@ -75,7 +75,7 @@ function readBytes(path: string): Buffer {
   }
 }
 function readJson(path: string): unknown {
-  return collaborationJson(new TextDecoder('utf-8', { fatal: true }).decode(readBytes(path)))
+  return strictJson(new TextDecoder('utf-8', { fatal: true }).decode(readBytes(path)))
 }
 function sync(path: string): void {
   const fd = openSync(path, 'r')
@@ -148,7 +148,7 @@ function inventory(root: string): Inventory {
         throw new InputError('producer-journal-entry-invalid')
       const path = `${slot}/${name}`
       const bytes = readBytes(join(root, path))
-      collaborationJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
+      strictJson(new TextDecoder('utf-8', { fatal: true }).decode(bytes))
       files.push({ path, sha256: createHash('sha256').update(bytes).digest('hex') })
     }
   }
@@ -233,7 +233,7 @@ export function readProducerState(ports: Ports) {
   sync(path)
   sync(gitDir)
   const { activation, proofs } = parseActivation(
-    collaborationJson(new TextDecoder('utf-8', { fatal: true }).decode(captured)),
+    strictJson(new TextDecoder('utf-8', { fatal: true }).decode(captured)),
     ports.resolveInstallation,
   )
   same(
@@ -344,7 +344,7 @@ export function transferProducer(
   const oldActivation =
     sourceBytes !== undefined
       ? parseActivation(
-          collaborationJson(new TextDecoder('utf-8', { fatal: true }).decode(sourceBytes)),
+          strictJson(new TextDecoder('utf-8', { fatal: true }).decode(sourceBytes)),
           ports.resolveInstallation,
         )
       : undefined

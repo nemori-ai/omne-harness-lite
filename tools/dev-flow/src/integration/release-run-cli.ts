@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
-import { collaborationJson } from '../delivery/collaboration-json.ts'
+import { strictJson } from '../delivery/strict-json.ts'
 import { runGhCommand } from '../delivery/github-read.ts'
 import { InputError } from '../delivery/protocol.ts'
 import { releaseRun, type ReleaseRunOptions } from './release-run.ts'
@@ -40,7 +40,7 @@ export async function releaseRunMain(
     Boolean(values.approve) !== (values.note !== undefined)
   )
     throw new InputError('release-run-input-journal-or-approval-options-invalid')
-  const input = parseReleaseRunInput(collaborationJson(readFileSync(values.input, 'utf8')))
+  const input = parseReleaseRunInput(strictJson(readFileSync(values.input, 'utf8')))
   const result = await releaseRun({
     ...dependencies,
     call: dependencies?.call ?? runGhCommand,

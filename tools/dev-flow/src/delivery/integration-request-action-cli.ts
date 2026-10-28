@@ -11,7 +11,7 @@ import {
   string,
   IntegrationError,
 } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { fullSha } from './collaboration-values.ts'
 import { runGhCommand } from './github-read.ts'
@@ -34,7 +34,7 @@ export function runIntegrationRequestAction(
     )
       throw new InputError('integration-request-action-event-invalid')
     const request = required('OMNE_REQUEST'),
-      input = parseRequestInput(collaborationJson(request))
+      input = parseRequestInput(strictJson(request))
     const inputDigest = digest(canonical(input))
     if (
       required('OMNE_INPUT_DIGEST') !== inputDigest ||
@@ -42,7 +42,7 @@ export function runIntegrationRequestAction(
     )
       throw new InputError('integration-request-action-input-mismatch')
     const event = object(
-      collaborationJson(readFileSync(required('GITHUB_EVENT_PATH'), 'utf8')),
+      strictJson(readFileSync(required('GITHUB_EVENT_PATH'), 'utf8')),
       'workflow event',
     )
     const inputs = object(event.inputs, 'workflow inputs')

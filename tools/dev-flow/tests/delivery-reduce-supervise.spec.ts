@@ -179,7 +179,7 @@ describe('bounded reduce supervision', () => {
         join(f.input.journalRoot, f.input.operationId, `signal-${'a'.repeat(64)}.json`),
         '{',
       )
-      const rejected = expect(pending).rejects.toThrow('collaboration-json-invalid')
+      const rejected = expect(pending).rejects.toThrow('json-invalid')
       if (completion === 'abort') controller.abort()
       else await vi.advanceTimersByTimeAsync(60_000)
       await rejected
@@ -204,7 +204,7 @@ describe('bounded reduce supervision', () => {
       })
     })
     try {
-      await expect(superviseReduce(f.input, f.ports)).rejects.toThrow('collaboration-json-invalid')
+      await expect(superviseReduce(f.input, f.ports)).rejects.toThrow('json-invalid')
       expect(f.close).toHaveBeenCalledOnce()
       expect(f.ports.stop).toHaveBeenCalledOnce()
       expect(vi.getTimerCount()).toBe(0)

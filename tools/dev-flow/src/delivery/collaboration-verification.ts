@@ -8,7 +8,7 @@ import {
   string,
   strings,
 } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { readReferencedComment } from './collaboration-read.ts'
 import type {
   Evidence,
@@ -68,7 +68,7 @@ export function verifyCollaborationReport(
   if (!comment.body.startsWith(VERIFICATION_MARKER))
     throw new InputError('verification-report-marker')
   const report = fields(
-    collaborationJson(comment.body.slice(VERIFICATION_MARKER.length)),
+    strictJson(comment.body.slice(VERIFICATION_MARKER.length)),
     ['schemaVersion', 'subject', 'writer', 'checks', 'recordedAt'],
     'verification report',
   )

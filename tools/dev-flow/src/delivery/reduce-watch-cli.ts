@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { parseArgs } from 'node:util'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { deployedCollaboration } from './collaboration-bootstrap.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { WaitTimeout } from './events-wait.ts'
@@ -64,7 +64,7 @@ export function parseReduceWatchArgs(argv: string[]): ReduceWatchInput {
   let purpose: ReduceWatchInput['purpose'] = { kind: 'wave' }
   if (v.purpose === 'disposition') {
     const request = parseRequestInput(
-      collaborationJson(readFileSync(required(v['request-input'], 'request-input'), 'utf8')),
+      strictJson(readFileSync(required(v['request-input'], 'request-input'), 'utf8')),
     )
     if (request.context.repo !== v.repo || request.lineParent !== issue(v.parent, 'parent'))
       throw new InputError('watch-request-input-owner')

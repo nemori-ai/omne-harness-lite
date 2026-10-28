@@ -1,5 +1,7 @@
 import { array, fields, integer, string, literal, choice } from '../integration/parse.ts'
 import { InputError } from './protocol.ts'
+import { fullSha, uuid } from './input-values.ts'
+export { fullSha, uuid } from './input-values.ts'
 import type {
   ActiveAssignment,
   Assignment,
@@ -12,24 +14,10 @@ import type {
   WorkflowEvidence,
 } from './collaboration-records.ts'
 
-export function fullSha(value: unknown, at: string): string {
-  const result = string(value, at).toLowerCase()
-  if (!/^(?:[0-9a-f]{40}|[0-9a-f]{64})$/.test(result))
-    throw new InputError(`${at}: full Git SHA required`)
-  return result
-}
-
 export function hash256(value: unknown, at: string): string {
   const result = string(value, at)
   if (!/^[0-9a-f]{64}$/.test(result)) throw new InputError(`${at}: SHA-256 required`)
   return result
-}
-
-export function uuid(value: unknown, at: string): string {
-  const result = string(value, at)
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(result))
-    throw new InputError(`${at}: UUID required`)
-  return result.toLowerCase()
 }
 
 export function utcTime(value: unknown, at: string): string {

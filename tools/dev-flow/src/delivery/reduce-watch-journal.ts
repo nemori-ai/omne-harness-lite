@@ -14,7 +14,7 @@ import { dirname } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
 import { object, literal, integer, same } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { errorCode } from './events.ts'
 import { InputError } from './protocol.ts'
 
@@ -31,7 +31,7 @@ function requireJournalFile(path: string): void {
 export function loadWatchJournal(path: string): Record<string, unknown> | undefined {
   requireJournalFile(path)
   try {
-    const value = object(collaborationJson(readFileSync(path, 'utf8')), 'watch journal')
+    const value = object(strictJson(readFileSync(path, 'utf8')), 'watch journal')
     literal(value.schemaVersion, 1, 'watch journal.schemaVersion')
     return value
   } catch (error) {
@@ -111,7 +111,7 @@ function recoverLock(path: string): void {
     if (errorCode(error) === 'ENOENT') return
     throw error
   }
-  const lock = object(collaborationJson(bytes), 'watch lock')
+  const lock = object(strictJson(bytes), 'watch lock')
   same(lock.host, hostname(), 'watch-lock-foreign-host')
   const pid = integer(lock.pid, 'watch lock.pid')
   try {

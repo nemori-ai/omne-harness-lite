@@ -1,7 +1,7 @@
 import { canonical, digest } from '../integration/parse.ts'
 import { commentMarker } from './events.ts'
 import { InputError } from './protocol.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { parseCollaborationRecord } from './collaboration-parse.ts'
 import { RECORD_MARKERS, type CollaborationRecord } from './collaboration-records.ts'
 
@@ -28,7 +28,7 @@ export function decodeRecordComment(body: string): CollaborationRecord | undefin
     throw new InputError('collaboration-schema-fence-invalid')
   const end = lines.findIndex((line, index) => index > start && line === '```')
   if (end < 0) throw new InputError('collaboration-schema-fence-unclosed')
-  const record = parseCollaborationRecord(collaborationJson(lines.slice(start + 1, end).join('\n')))
+  const record = parseCollaborationRecord(strictJson(lines.slice(start + 1, end).join('\n')))
   if (record.kind !== kind) throw new InputError('collaboration-marker-kind-mismatch')
   return record
 }

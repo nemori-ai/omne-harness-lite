@@ -1,7 +1,7 @@
 import { readdirSync } from 'node:fs'
 import { canonical, digest, integer, object, same, string } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
-import { operationJournal } from './line-state-journal.ts'
+import { strictJson } from './strict-json.ts'
+import { operationJournal } from './operation-journal.ts'
 import { InputError } from './protocol.ts'
 import { parseReduceSignal as parseSavedSignal } from './reduce-supervise-values.ts'
 import type { ReduceSignal, SuperviseInput } from './reduce-supervise.ts'
@@ -42,7 +42,7 @@ export function superviseJournal(input: SuperviseInput) {
             return []
           }
           const entry = journal.read(name)
-          const copy = collaborationJson(canonical(entry))
+          const copy = strictJson(canonical(entry))
           if (
             typeof copy !== 'object' ||
             copy === null ||

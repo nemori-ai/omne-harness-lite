@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { fields, IntegrationError, literal, string } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { InputError } from './protocol.ts'
 import { deployedReduce } from './reduce-bootstrap.ts'
 import {
@@ -57,7 +57,7 @@ function readInput(rest: string[]): unknown {
   })
   if (tokens.length !== 1 || values.input === undefined)
     throw new InputError('reduce-one-input-required')
-  return collaborationJson(readFileSync(values.input, 'utf8'))
+  return strictJson(readFileSync(values.input, 'utf8'))
 }
 
 export function reduceMain(args: string[], bootstrap = deployedReduce): number {

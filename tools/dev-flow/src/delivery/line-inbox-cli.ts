@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { integer, literal } from '../integration/parse.ts'
 import { deployedCollaboration } from './collaboration-bootstrap.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { parseCollaborationRecord } from './collaboration-parse.ts'
 import type { RecordWriteInput } from './collaboration-write.ts'
 import { runGhCommand, type GhCommand } from './github-read.ts'
@@ -120,7 +120,7 @@ export function lineCommandMain(
       kind,
       repo,
       parent,
-      record: collaborationJson(readFileSync(values.input, 'utf8')),
+      record: strictJson(readFileSync(values.input, 'utf8')),
       journalRoot: values.journal,
     }
   }

@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { object, string } from '../integration/parse.ts'
 import { decodeRecordComment } from './collaboration-comments.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import type { ReleaseRecord, WaveIdentity } from './collaboration-records.ts'
 import type { ReduceRequest } from './reduce-integration-read.ts'
 import { InputError } from './protocol.ts'
@@ -22,7 +22,7 @@ export function assertReduceOperationsSettled(
     if (!entry.isDirectory() || entry.name === operationId) continue
     const path = join(root, entry.name, 'intent.json')
     if (!existsSync(path)) continue
-    const intent = object(collaborationJson(readFileSync(path, 'utf8')), 'pending intent')
+    const intent = object(strictJson(readFileSync(path, 'utf8')), 'pending intent')
     const record = decodeRecordComment(string(intent.body, 'pending intent.body'))
     if (
       record?.kind !== 'state' ||
@@ -45,7 +45,7 @@ export function assertReduceReleaseOperation(root: string, release: ReleaseRecor
     if (!existsSync(join(folder, 'publish.json'))) continue
     const path = join(folder, 'release.json')
     if (!existsSync(path)) throw new InputError('reduce-release-intent-missing')
-    const intent = object(collaborationJson(readFileSync(path, 'utf8')), 'release intent')
+    const intent = object(strictJson(readFileSync(path, 'utf8')), 'release intent')
     const previous = object(intent.release, 'release intent.record')
     const context = object(previous.context, 'release intent.context')
     if (

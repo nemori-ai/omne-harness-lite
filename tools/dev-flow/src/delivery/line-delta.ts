@@ -3,7 +3,7 @@ import { commentDigest, encodeRecordComment } from './collaboration-comments.ts'
 import { parseCollaborationRecord } from './collaboration-parse.ts'
 import type { LineConsumptionRecord, LineDeltaRecord } from './collaboration-records.ts'
 import { writeSequencedRecord, type RecordWriteInput } from './collaboration-write.ts'
-import { operationJournal } from './line-state-journal.ts'
+import { operationJournal } from './operation-journal.ts'
 import { InputError } from './protocol.ts'
 
 export type LineWriteInput = Pick<RecordWriteInput, 'call' | 'authority'> & {

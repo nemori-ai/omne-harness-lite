@@ -12,7 +12,7 @@ import type { CommentReference, Evidence, ReleaseRecord } from './collaboration-
 import { validateRecordAuthority } from './collaboration-trust.ts'
 import { REST_HEADERS } from './github-read.ts'
 import { readLineRecords } from './line-inbox.ts'
-import { operationJournal } from './line-state-journal.ts'
+import { operationJournal } from './operation-journal.ts'
 import { InputError } from './protocol.ts'
 import {
   assertReduceOperationsSettled,

@@ -10,7 +10,7 @@ import {
 } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { canonical, digest, fields, integer, literal } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import type { RequestInput, WorkflowEvidence } from './collaboration-records.ts'
 import { parseWorkflow, utcTime, uuid } from './collaboration-values.ts'
@@ -107,7 +107,7 @@ export class RequestJournal {
   }
   read(): RequestIntent | null {
     const path = join(this.directory, 'intent.json')
-    return existsSync(path) ? parseIntent(collaborationJson(readFileSync(path, 'utf8'))) : null
+    return existsSync(path) ? parseIntent(strictJson(readFileSync(path, 'utf8'))) : null
   }
   prepare(intent: RequestIntent): RequestIntent {
     const previous = this.read()
@@ -128,7 +128,7 @@ export class RequestJournal {
     if (!existsSync(path)) return false
     const intent = this.read()
     const value = fields(
-      collaborationJson(readFileSync(path, 'utf8')),
+      strictJson(readFileSync(path, 'utf8')),
       ['operationId', 'inputDigest'],
       'dispatch intent',
     )
@@ -159,7 +159,7 @@ export class RequestJournal {
   runId(): number | null {
     const path = join(this.directory, 'run.json')
     if (!existsSync(path)) return null
-    const v = fields(collaborationJson(readFileSync(path, 'utf8')), ['runId'], 'dispatch run')
+    const v = fields(strictJson(readFileSync(path, 'utf8')), ['runId'], 'dispatch run')
     return integer(v.runId, 'dispatch.runId')
   }
 }

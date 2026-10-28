@@ -24,7 +24,7 @@ import {
   type ProducerInstallation,
 } from './collaboration-producer-state.ts'
 import type { FactsDeployment } from '../integration/published-delivery-facts.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { REST_HEADERS, runGhRead, type GhRead } from './github-read.ts'
 import { githubRequestEvidence } from './integration-request-evidence.ts'
 import type { RequestBootstrap } from './integration-request.ts'
@@ -65,14 +65,14 @@ function readPolicy(repo: string, source: PolicySource, read: GhRead) {
   const file = readFile(repo, source.commit, source.path, read)
   if (file.blob !== source.blob || digest(file.text) !== source.digest)
     throw new InputError('collaboration-installation-policy-changed')
-  return parsePolicy(collaborationJson(file.text))
+  return parsePolicy(strictJson(file.text))
 }
 
 function configuration(installation: CollaborationInstallation, read: GhRead) {
   const policy = readPolicy(installation.repository, installation.policySource, read)
   same(policy.repository, installation.repository, 'collaboration-installation-policy-repository')
   const config = parseConfig(
-    collaborationJson(
+    strictJson(
       readFile(
         installation.repository,
         installation.policySource.commit,

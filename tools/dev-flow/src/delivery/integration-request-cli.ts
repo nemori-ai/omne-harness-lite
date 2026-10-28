@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { IntegrationError } from '../integration/parse.ts'
 import { deployedCollaboration } from './collaboration-bootstrap.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import { parseRequestInput } from './collaboration-parse.ts'
 import { runGhCommand, type GhCommand } from './github-read.ts'
 import { submitIntegrationRequest, type RequestBootstrap } from './integration-request.ts'
@@ -67,7 +67,7 @@ export function runIntegrationRequestCli(
     }
     repo = required('--repo')
     operationId = required('--operation-id')
-    const input = parseRequestInput(collaborationJson(readFileSync(required('--input'), 'utf8')))
+    const input = parseRequestInput(strictJson(readFileSync(required('--input'), 'utf8')))
     if (input.context.repo !== repo) throw new InputError('integration-request-repository-mismatch')
     const result = submitIntegrationRequest({
       mode,

@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { readdirSync } from 'node:fs'
-import { operationJournal } from '../delivery/line-state-journal.ts'
+import { operationJournal } from '../delivery/operation-journal.ts'
 import { REST_HEADERS, type GhCommand } from '../delivery/github-read.ts'
 import { parseReadPolicy, type ReadPolicy } from '../delivery/collaboration-read.ts'
 import { InputError } from '../delivery/protocol.ts'

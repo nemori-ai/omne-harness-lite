@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { collaborationJson } from '../src/delivery/collaboration-json.ts'
 import { parseCollaborationRecord, parseRequestInput } from '../src/delivery/collaboration-parse.ts'
 import {
   commentDigest,
@@ -241,27 +240,5 @@ describe('collaboration record boundary', () => {
       decodeRecordComment(body.replace('omne-collaboration:v1', 'omne-collaboration:v2')),
     ).toThrow('fence-invalid')
     expect(commentDigest(body + 'edited')).not.toBe(commentDigest(body))
-  })
-})
-
-describe('strict collaboration JSON', () => {
-  it.each(['{"a":1,"a":2}', '{"a":{"b":1,"b":2}}', '{"a":1,"\\u0061":2}'])(
-    'rejects duplicate keys in %s',
-    value => {
-      expect(() => collaborationJson(value)).toThrow('duplicate-key')
-    },
-  )
-  it('accepts nested strings, escaped keys, arrays and JSON primitives without executing data', () => {
-    const value = { 'key"': ['$(echo never-executed)', true, null, 1.2e-5, { a: 2 }], b: '\\u0061' }
-    expect(collaborationJson(JSON.stringify(value))).toEqual(value)
-    for (const primitive of ['null', 'false', '42', '"string"'])
-      expect(collaborationJson(primitive)).toEqual(JSON.parse(primitive))
-  })
-  it.each(['{', '{"a":}', '[1,]', '{"a":1} extra'])('rejects malformed JSON %s', value => {
-    expect(() => collaborationJson(value)).toThrow('json-invalid')
-  })
-  it('bounds nested and oversized input', () => {
-    expect(() => collaborationJson('['.repeat(130) + '0' + ']'.repeat(130))).toThrow('too-deep')
-    expect(() => collaborationJson('"' + 'x'.repeat(1024 * 1024) + '"')).toThrow('too-large')
   })
 })

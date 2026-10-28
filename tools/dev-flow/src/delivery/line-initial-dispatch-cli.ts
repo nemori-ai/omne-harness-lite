@@ -4,7 +4,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { parseArgs } from 'node:util'
 import { IntegrationError } from '../integration/parse.ts'
-import { collaborationJson } from './collaboration-json.ts'
+import { strictJson } from './strict-json.ts'
 import {
   generateInitialDispatch,
   initialDispatchFields,
@@ -68,9 +68,7 @@ export function initialDispatchMain(args: string[], templateRoot = toolRoot()): 
   }
   if (parsed.values.input === undefined) throw new InputError('initial-dispatch-input-required')
   const evidencePath = parsed.values['rehearsal-evidence']
-  const input = parseInitialDispatchInput(
-    collaborationJson(readFileSync(parsed.values.input, 'utf8')),
-  )
+  const input = parseInitialDispatchInput(strictJson(readFileSync(parsed.values.input, 'utf8')))
   const root = resolve(parsed.values.root ?? process.cwd())
   if (command === 'render') {
     if (evidencePath !== undefined) throw new InputError('initial-dispatch-render-options')
@@ -79,7 +77,7 @@ export function initialDispatchMain(args: string[], templateRoot = toolRoot()): 
   }
   if (evidencePath === undefined)
     throw new InputError('initial-dispatch-rehearsal-evidence-required')
-  const evidence = parseRehearsalEvidence(collaborationJson(readFileSync(evidencePath, 'utf8')))
+  const evidence = parseRehearsalEvidence(strictJson(readFileSync(evidencePath, 'utf8')))
   process.stdout.write(
     JSON.stringify(validateInitialDispatch(root, template, input, evidence)) + '\n',
   )
