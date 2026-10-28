@@ -295,6 +295,7 @@
 - `judgeFixedToolRequest` · `judge-request.d.ts`
 - `judgeHandoff` · `judge-release.d.ts`
 - `judgeImplementationFacts` · `judge-definition.d.ts`
+- `judgePreparationFact` · `judge-preparation.d.ts`
 - `judgeToolArguments` · `parameter-codec.d.ts`
 - `judgeToolDefinition` · `judge-definition.d.ts`
 - `judgeToolInvokeRequest` · `judge-request.d.ts`
@@ -335,6 +336,7 @@
 - `ToolClockFixture` · `testing-clock.d.ts`
 - `ToolCredentialsFixture` · `testing-credentials.d.ts`
 - `ToolDecisionBridgeFixture` · `testing-decision-bridge.d.ts`
+- `ToolEnvironmentAllocationFixture` · `testing-environment-allocation.d.ts`
 - `ToolEnvironmentFixture` · `testing-environment.d.ts`
 - `ToolExecutorBindingFixture` · `testing-executor-binding.d.ts`
 - `ToolOutputCustodyFixture` · `testing-output-custody.d.ts`
@@ -384,6 +386,7 @@
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolCredentialsConformance` · `testing-credentials.d.ts`
 - `toolDecisionBridgeConformance` · `testing-decision-bridge.d.ts`
+- `toolEnvironmentAllocationConformance` · `testing-environment-allocation.d.ts`
 - `toolEnvironmentConformance` · `testing-environment.d.ts`
 - `toolExecutorBindingConformance` · `testing-executor-binding.d.ts`
 - `toolOutputCustodyConformance` · `testing-output-custody.d.ts`
@@ -1701,6 +1704,18 @@ export declare function judgeToolDefinition(value: unknown): Outcome<ToolDefinit
 }>>;
 ```
 
+## 声明文件 `judge-preparation.d.ts`
+
+```ts
+import type { DurableEvidence } from './identity.ts';
+import type { PreparationRecord } from './records.ts';
+import { type Checked } from './shape.ts';
+export declare function judgePreparationFact(value: unknown, expected: PreparationRecord): Checked<Readonly<{
+    preparation: PreparationRecord;
+    evidence: DurableEvidence;
+}>>;
+```
+
 ## 声明文件 `judge-release.d.ts`
 
 ```ts
@@ -2369,6 +2384,7 @@ export { judgeImplementationFacts, judgeToolDefinition } from './judge-definitio
 export { deriveDefinition, foldResident, planAdoption, refreshAvailability, sameBindingKey, sameShape, sameSourceLayer, shapeOf, } from './dynamics.ts';
 export type { AdoptionFacts, AdoptionPlan, FreezeVerdict, RefreshFacts, RefreshOutcome, ResidentFoldFailure, ResidentTool, ToolReloadResult, } from './dynamics.ts';
 export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts';
+export { judgePreparationFact } from './judge-preparation.ts';
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts';
 export { judgeToolState } from './judge-state.ts';
 export { evaluateToolAvailability, presentTool } from './catalog.ts';
@@ -2462,6 +2478,10 @@ export type PreparationRecord = ProtocolIdentity & Readonly<{
     request: FixedToolRequest;
 }>;
 export type PreparationProgress<E> = Readonly<{
+    kind: 'allocated';
+    preparation: PreparationRecord;
+    evidence: DurableEvidence;
+}> | Readonly<{
     kind: 'prepared';
     environment: PreparedEnvironment<E>;
 }> | Readonly<{
@@ -3597,6 +3617,26 @@ export declare function createMemoryToolDecisionBridge<P>(): MemoryToolDecisionB
 export declare function memoryToolDecisionBridgeFixture(): ToolDecisionBridgeFixture<string>;
 ```
 
+## 声明文件 `testing-environment-allocation.d.ts`
+
+```ts
+import type { Access } from './identity.ts';
+import type { ToolEnvironment } from './ports.ts';
+import type { PreparationRecord } from './records.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface ToolEnvironmentAllocationFixture<P, E> {
+    readonly environment: ToolEnvironment<P, E>;
+    readonly access: Access<P>;
+    allocations(): number;
+    leases(): number;
+    outstanding(): number;
+    allocateBeforeAdoption(): void;
+    forgetRegistration(preparation: PreparationRecord): void;
+    failAdoption(preparation: PreparationRecord, reason: string): void;
+}
+export declare function toolEnvironmentAllocationConformance<P, E>(): readonly ConformanceCase<ToolEnvironmentAllocationFixture<P, E>>[];
+```
+
 ## 声明文件 `testing-environment.d.ts`
 
 ```ts
@@ -3619,11 +3659,17 @@ export interface ToolEnvironmentFixture<P, E> {
 export declare const environmentAnswers: {
     readonly prepare: {
         readonly clause: 'P03';
-        readonly progress: string[];
+        readonly progress: readonly [
+            "allocated",
+            ...string[]
+        ];
     };
     readonly inspectPreparation: {
         readonly clause: 'P03';
-        readonly progress: string[];
+        readonly progress: readonly [
+            "allocated",
+            ...string[]
+        ];
     };
     readonly release: {
         readonly clause: 'P03';
@@ -3643,6 +3689,11 @@ export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvir
     readonly durability: 'none';
     readonly controls: Readonly<{
         allocations(): number;
+        leases(): number;
+        outstanding(): number;
+        allocateBeforeAdoption(): void;
+        forgetRegistration(preparation: PreparationRecord): void;
+        failAdoption(preparation: PreparationRecord, reason: string): void;
         hold(): void;
         settle(): Promise<void>;
         excludeDeferred(preparation: PreparationRecord): Promise<void>;
@@ -4193,6 +4244,7 @@ export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockC
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
 export { testingTenant, testingWorkspace } from './testing-values.ts';
+export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
 ```
 
 ## 声明文件 `value-shapes.d.ts`

@@ -397,7 +397,7 @@ describe('scheduling configuration', () => {
   })
 })
 
-it('retains allocated-but-not-adopted work when the four-verb progress cannot express adoption readiness', async () => {
+it('retains allocated-but-not-adopted work when the adapter provides no trustworthy adoption fact', async () => {
   const f = fixture()
   let allocations = 0
   let leases = 0
@@ -413,7 +413,7 @@ it('retains allocated-but-not-adopted work when the four-verb progress cannot ex
     },
     inspectPreparation: async () => {
       inspections += 1
-      // The provider knows it allocated, but has no E until the separate adoption action.
+      // The provider knows it allocated but supplies no fact permitting first adoption.
       return succeed({ kind: 'pending', diagnostic: 'original work incomplete' })
     },
   }

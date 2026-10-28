@@ -8,7 +8,7 @@ import assert from 'node:assert/strict'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { FixedToolRequest } from './definitions.ts'
 import type { Access, DurableEvidence, ToolCallId } from './identity.ts'
-import type { ToolEnvironment } from './ports.ts'
+import type { PreparedEnvironment, ToolEnvironment } from './ports.ts'
 import type {
   PreparationProgress,
   PreparationRecord,
@@ -81,13 +81,13 @@ export interface ToolEnvironmentFixture<P, E> {
 const UNSETTLED = ['pending', 'unknown']
 
 /**
- * The answer model of the environment port (P03): `pending` and `unknown` keep the original task,
+ * The answer model of the environment port (P03): `allocated`, `pending` and `unknown` keep the original task,
  * so every other kind of a preparation (`prepared`, `excluded`, `rejected`) and of a release
  * (`released`, `rejected`) is final.
  */
 export const environmentAnswers = {
-  prepare: { clause: 'P03', progress: UNSETTLED },
-  inspectPreparation: { clause: 'P03', progress: UNSETTLED },
+  prepare: { clause: 'P03', progress: ['allocated', ...UNSETTLED] },
+  inspectPreparation: { clause: 'P03', progress: ['allocated', ...UNSETTLED] },
   release: { clause: 'P03', progress: UNSETTLED },
   inspectRelease: { clause: 'P03', progress: UNSETTLED },
 } as const satisfies AnswerModel<Exclude<keyof ToolEnvironment<unknown, unknown>, 'adoption'>>
@@ -544,6 +544,14 @@ export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvir
   readonly durability: 'none'
   readonly controls: Readonly<{
     allocations(): number
+    leases(): number
+    outstanding(): number
+    /** The next allocation loses its initial answer before first adoption. */
+    allocateBeforeAdoption(): void
+    /** Lose only the local registration, leaving the original operation known and unsettled. */
+    forgetRegistration(preparation: PreparationRecord): void
+    /** A terminal adoption failure retains the original allocation and cleanup responsibility. */
+    failAdoption(preparation: PreparationRecord, reason: string): void
     hold(): void
     settle(): Promise<void>
     excludeDeferred(preparation: PreparationRecord): Promise<void>
@@ -552,6 +560,7 @@ export interface MemoryToolEnvironment<P> extends ToolEnvironment<P, MemoryEnvir
 }
 
 type Entry =
+  | { kind: 'allocated'; environment: PreparedEnvironment<MemoryEnvironment> }
   | { kind: 'prepared'; progress: PreparationProgress<MemoryEnvironment> }
   | { kind: 'pending'; record: PreparationRecord }
   | { kind: 'excluded'; exclusion: DurableEvidence }
@@ -568,10 +577,13 @@ const reply = <T>(outcome: Outcome<T, ToolFailure>): Promise<Outcome<T, ToolFail
  */
 export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
   const preparations = new Map<string, Entry>()
+  const originalAllocations = new Map<string, PreparedEnvironment<MemoryEnvironment>>()
   const releases = new Map<string, ReleaseProgress>()
   /** What each operation was asked to do: the same identity with another input is a conflict. */
   const asked = new Map<string, string>()
   let allocated = 0
+  let leases = 0
+  let deferAdoption = false
   let held = false
   let rejection: string | null = null
   let minted = 0
@@ -582,19 +594,26 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     minted += 1
     return mintEvidence(`environment/${kind}/${minted}`, content)
   }
-  const allocate = (record: PreparationRecord): PreparationProgress<MemoryEnvironment> => {
+  const allocate = (
+    record: PreparationRecord,
+  ): Extract<PreparationProgress<MemoryEnvironment>, { kind: 'prepared' }> => {
     allocated += 1
-    return {
-      kind: 'prepared',
-      environment: {
-        value: { resource: `resource-${allocated}` },
-        evidence: mint('resource', { allocation: allocated }),
-        preparation: record,
-      },
+    const environment = {
+      value: { resource: `resource-${allocated}` },
+      evidence: mint('resource', { allocation: allocated }),
+      preparation: record,
     }
+    originalAllocations.set(key(record.tenant, record.call, record.operation), environment)
+    return { kind: 'prepared', environment }
   }
   const answer = (entry: Entry): PreparationProgress<MemoryEnvironment> => {
     switch (entry.kind) {
+      case 'allocated':
+        return {
+          kind: 'allocated',
+          preparation: entry.environment.preparation,
+          evidence: entry.environment.evidence,
+        }
       case 'prepared':
       case 'rejected':
         return entry.progress
@@ -635,46 +654,78 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
     }
     return succeed(undefined)
   }
+  const prepareNew = (
+    record: PreparationRecord,
+    at: string,
+  ): Promise<Outcome<PreparationProgress<MemoryEnvironment>, ToolFailure>> => {
+    if (rejection !== null) {
+      const reason = rejection
+      rejection = null
+      const progress: PreparationProgress<MemoryEnvironment> = {
+        kind: 'rejected',
+        reason,
+        evidence: mint('rejection', { reason }),
+      }
+      preparations.set(at, { kind: 'rejected', progress })
+      return reply(succeed(progress))
+    }
+    if (held) {
+      held = false
+      const entry: Entry = { kind: 'pending', record }
+      preparations.set(at, entry)
+      return reply(succeed(answer(entry)))
+    }
+    const progress = allocate(record)
+    if (deferAdoption) {
+      deferAdoption = false
+      preparations.set(at, { kind: 'allocated', environment: progress.environment })
+      return reply(
+        succeed({ kind: 'unknown', diagnostic: 'allocation reply lost before adoption' }),
+      )
+    }
+    leases += 1
+    const entry: Entry = { kind: 'prepared', progress }
+    preparations.set(at, entry)
+    return reply(succeed(answer(entry)))
+  }
+
   const environment: ToolEnvironment<P, MemoryEnvironment> = {
     adoption: adapterAdoption,
     prepare: input => {
       const checked = check(input, input.preparation)
       if ('failure' in checked) return reply(checked)
-      const record = input.preparation
-      const at = key(input.tenant, record.call, record.operation)
-      const digest = digestOf({
-        kind: 'prepare',
-        adoption: record.adoption,
-        inputDigest: record.inputDigest,
-        purpose: record.purpose,
+      const judged = judgeFixedToolRequest(input.preparation.request)
+      if ('failure' in judged) return reply(fail({ kind: 'invalid', ...judged.failure }))
+      const record = Object.freeze({
+        ...input.preparation,
+        tenant: input.tenant,
+        adoption: Object.freeze({ ...input.preparation.adoption }),
+        request: judged.ok,
       })
+      const at = key(input.tenant, record.call, record.operation)
+      const digest = digestOf({ kind: 'prepare', record })
       if (asked.get(at) !== undefined && asked.get(at) !== digest)
         return reply(fail({ kind: 'conflict', operation: record.operation }))
+      const known = asked.has(at)
       asked.set(at, digest)
       const existing = preparations.get(at)
+      if (existing?.kind === 'allocated') {
+        leases += 1
+        const progress = { kind: 'prepared' as const, environment: existing.environment }
+        preparations.set(at, { kind: 'prepared', progress })
+        return reply(succeed(progress))
+      }
+      if (known && existing === undefined)
+        return reply(
+          succeed({
+            kind: 'unknown',
+            diagnostic: 'original registration lost; query and cleanup retained',
+          }),
+        )
       // An exclusion lets the original operation ask again; every other answer is the original.
       if (existing !== undefined && existing.kind !== 'excluded')
         return reply(succeed(answer(existing)))
-      if (rejection !== null) {
-        const reason = rejection
-        rejection = null
-        const progress: PreparationProgress<MemoryEnvironment> = {
-          kind: 'rejected',
-          reason,
-          evidence: mint('rejection', { reason }),
-        }
-        preparations.set(at, { kind: 'rejected', progress })
-        return reply(succeed(progress))
-      }
-      if (held) {
-        held = false
-        const entry: Entry = { kind: 'pending', record }
-        preparations.set(at, entry)
-        return reply(succeed(answer(entry)))
-      }
-      const entry: Entry = { kind: 'prepared', progress: allocate(record) }
-      preparations.set(at, entry)
-      return reply(succeed(answer(entry)))
+      return prepareNew(record, at)
     },
     inspectPreparation: input => {
       const checked = check(input, input.preparation)
@@ -711,6 +762,17 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
           evidence: mint('release', { resource: input.release.resource }),
         }
         releases.set(at, progress)
+        const original = key(input.tenant, input.call, input.release.preparation)
+        originalAllocations.delete(original)
+        if (preparations.get(original)?.kind === 'allocated')
+          preparations.set(original, {
+            kind: 'rejected',
+            progress: {
+              kind: 'rejected',
+              reason: 'released before adoption',
+              evidence: progress.evidence,
+            },
+          })
       }
       return reply(succeed(progress))
     },
@@ -730,13 +792,35 @@ export function createMemoryToolEnvironment<P>(): MemoryToolEnvironment<P> {
 
   const controls: MemoryToolEnvironment<P>['controls'] = {
     allocations: () => allocated,
+    leases: () => leases,
+    outstanding: () => originalAllocations.size,
+    allocateBeforeAdoption: () => {
+      deferAdoption = true
+    },
+    forgetRegistration: preparation => {
+      preparations.delete(key(preparation.tenant, preparation.call, preparation.operation))
+    },
+    failAdoption: (preparation, reason) => {
+      const at = key(preparation.tenant, preparation.call, preparation.operation)
+      if (preparations.has(at))
+        preparations.set(at, {
+          kind: 'rejected',
+          progress: {
+            kind: 'rejected',
+            reason,
+            evidence: mint('adoption-failure', { at, reason }),
+          },
+        })
+    },
     hold: () => {
       held = true
     },
     settle: () => {
       for (const [at, entry] of preparations)
-        if (entry.kind === 'pending')
+        if (entry.kind === 'pending') {
+          leases += 1
           preparations.set(at, { kind: 'prepared', progress: allocate(entry.record) })
+        }
       return Promise.resolve()
     },
     excludeDeferred: preparation => {

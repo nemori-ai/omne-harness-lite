@@ -299,3 +299,5 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 [background-calls.spec.ts](../tests/background-calls.spec.ts)覆盖封闭 schema、引用 tenant/call、原 admission、后台未结清筛选、补充结果交付、完整与部分目录、说明缺失及供值失败。字段检查不证明授权。
 
 [background-calls-rc.spec.ts](../tests/background-calls-rc.spec.ts)经公开 RC 入口消费声明与纯投影，覆盖当前来源重算、撤权、旧 generation、scope 终止和生产者撤除。可信目录、授权与 RC 持有者均是测试输入或非耐久替身。生产目录和可信说明来源尚缺，不能据此宣称生产供给、耐久恢复或完整组合通过。
+
+首次采用事实的共享验证见 [environment-allocation.spec.ts](../tests/environment-allocation.spec.ts) 与 [公共套件](../src/testing-environment-allocation.ts)。消费者反例分别在 [driver](../../tool/tests/driver-allocation.spec.ts) 和 [宿主](../../tool-host-local/tests/environment-allocation.spec.ts)。这些测试不证明真实 EE 的原登记、guard、ledger 或冷恢复映射。

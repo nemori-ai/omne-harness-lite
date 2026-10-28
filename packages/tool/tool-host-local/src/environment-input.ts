@@ -6,7 +6,13 @@ import {
   type Adoption,
   type ToolFailure,
 } from '@omne-harness/tool-contract'
-import { judgeFixedToolRequest, type CallAccess } from '@omne-harness/tool-contract/provider'
+import {
+  judgeFixedToolRequest,
+  judgePreparationFact,
+  type PreparationProgress,
+  type PreparationRecord,
+  type CallAccess,
+} from '@omne-harness/tool-contract/provider'
 import type { EnvironmentPreparationInput, EnvironmentReleaseInput } from './environment-policy.ts'
 
 export const environmentUnavailable = (diagnostic: string) =>
@@ -127,5 +133,23 @@ export function fixedReleaseInput<P>(
         custody: Object.freeze({ ...record.custody }),
       }),
     }),
+  )
+}
+
+export function checkedPreparationProgress<E>(
+  progress: PreparationProgress<E>,
+  expected: PreparationRecord,
+): Outcome<PreparationProgress<E>, ToolFailure> {
+  if (progress.kind !== 'allocated' && progress.kind !== 'prepared') return succeed(progress)
+  const fact = progress.kind === 'allocated' ? progress : progress.environment
+  const checked = judgePreparationFact(
+    { preparation: fact.preparation, evidence: fact.evidence },
+    expected,
+  )
+  if ('failure' in checked) return fail({ kind: 'invalid', ...checked.failure })
+  return succeed(
+    progress.kind === 'allocated'
+      ? { kind: 'allocated', ...checked.ok }
+      : { kind: 'prepared', environment: { value: progress.environment.value, ...checked.ok } },
   )
 }

@@ -970,6 +970,17 @@ prepareStart 原子地对账保存（契约不要求两域共同事务，“原�
 
 PreparationRecord 固定原调用、操作、环境采用、输入摘要和 initial/resume 用途。先提交再 prepare；对端按同一操作去重，inspectPreparation 查询原分配。prepared 返回原资源的重新连接能力 E 和持久证据，不重新分配环境。pending 或 unknown 保留原任务；excluded 须排除全部延迟分配，才允许用原操作重新请求。rejected 保存具体 environment 失败及清理责任，不降级宿主。
 
+`PreparationProgress` 的 `allocated` 表示原环境分配已确认，当前原登记尚未完成首次采用。它不是 `prepared`，不含可执行环境、租约或执行许可。答复携带原 `PreparationRecord` 与定位原分配事实的耐久证据；tenant、call、准备操作、适配器采用、输入摘要及完整固定准备输入必须与本次原请求一致。证据的拥有者、记录、修订和摘要来自原事实拥有者，不以回显请求或自造摘要代替。适配器在发出外部获取前保存的原获取映射及其查询、清理定位继续有效；答复丢失不能丢掉这份责任。Tool 不因此创建另一份 EE 获取记录，也不把这份证据当作工具输出保管回执。
+
+只有适配器能确认原本地登记仍存在、原获取已分配且处于尚未完成首次采用的路径时，才可返回 `allocated`。原登记、首次捕获的 guard 和 ledger 的对应关系必须仍可核对。此事实不是未来动作的授权。仅原描述查询得到 allocated、adoption 为空，或孤立的 provisional 状态均不足以产生该分支。原登记已丢失、冷恢复、采用失败、失效、释放中、已释放或已结清均不返回可首次采用的分支；按既有未知、拒绝与清理规则保留原身份及责任。EE 的 notAllocated 是原键终局，不得为让 Tool 同键重新排队而转成 excluded。
+
+`inspectPreparation` 可以返回 `allocated`，但本身仍只查询原事实，不调用 prepare、acquire、plan、permit、adopt 或设施动作，不新签发租约。`prepare` 可以报告该事实，也可以沿完整原输入完成首次采用；每次进入采用仍须重核原登记、首次 guard 与 ledger、原采用、scope 状态及当前准入。首次调用与查询后的接续共用原来的唯一采用转移，不重复 provider 分配，不重新计划、许可或接续。当前条件不成立时，保留原分配查询与清理责任，不回退提供者或换操作。
+
+Tool driver 在准备任务上收到并核对 `allocated` 后，只能再次调用同一环境适配器的 prepare，输入仍是原准备。一次驱动步骤最多因此追加一次 prepare，答复仍为 allocated、pending、unknown 或不可用时保留原任务并等待后续查询，不能在该步骤循环重试。只有真实 prepared 才可记录环境准备完成并进入执行队列；allocated 不进入 prepared 缓存。`environmentOf` 的重新连接路径不得把 allocated 变成可执行环境，也不得借此取得旧租约。错 tenant、call、操作、采用、摘要或固定输入的答复明确拒绝，保留原任务与资源责任。
+
+`allocated` 不确认清理或释放，不返还宿主名额。release 与 inspectRelease 继续消费原 ReleaseRecord 和 ReleaseProgress。没有可用 E 也不抹掉适配器中按原获取查询与结清的定位；无法取得清理所需依据时保留未知和待办，不制造资源不存在、输出已保管或释放成功。取消、撤权、scope 释放或 provider 退役后，迟到 allocated 不恢复采用资格；原获取清理仍按原协议继续。
+
+
 prepared 命令核验环境 owner 的归属、设施、代次与固定请求。同一准备回执不能供另一调用使用。若准备期间已取消，仍登记原资源并安排 release，不能丢弃回包。计划安全接续可以用新准备操作取得符合原环境采用的资源，但不能暗改未暂停执行的环境。
 
 release 使用独立 ReleaseRecord，绑定原准备、资源和独立保管证据。执行已结束、已可靠排除或安全检查点不再使用资源，且结果、附件、过程及接续事实已有独立保管者，才可提交释放任务。release 回包丢失查 inspectRelease；失败或未知继续保留清理责任。释放完成不改原业务结果，不删除全文，也不证明外部效果撤回。不得把原对象的 finally 回调作为唯一释放协议。

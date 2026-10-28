@@ -102,3 +102,8 @@ export {
 } from './testing-resource-responses.ts'
 
 export { testingTenant, testingWorkspace } from './testing-values.ts'
+
+export {
+  toolEnvironmentAllocationConformance,
+  type ToolEnvironmentAllocationFixture,
+} from './testing-environment-allocation.ts'

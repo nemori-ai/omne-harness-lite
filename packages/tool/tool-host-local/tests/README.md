@@ -21,3 +21,5 @@
 [可运行教程](../../tool/examples/README.md)由 tool 成员拥有，使用公开内存 start authority。这里的 coordinator、start-composition 与 start-authority-conformance 测试运行真实 createLocalStartCoordinator。教程不能替代本包这些组合与提供者检查，二者仍只支持各自的单进程非耐久范围。
 
 在仓库根按教程构建两个成员及其依赖后，执行 `pnpm --filter @omne-harness/tool-host-local run typecheck` 和 `pnpm --filter @omne-harness/tool-host-local run test`。生产宿主、耐久、多进程与断电恢复不在这些命令的证明范围内。
+
+[environment-allocation.spec.ts](environment-allocation.spec.ts) 经公开调度工厂验证 allocated 的只读查询、策略消费、当前资格、并发唯一采用和已释放条目的迟到事实。提供者为非耐久替身。

@@ -63,6 +63,7 @@ export type PreparationRecord = ProtocolIdentity &
     request: FixedToolRequest
   }>
 export type PreparationProgress<E> =
+  | Readonly<{ kind: 'allocated'; preparation: PreparationRecord; evidence: DurableEvidence }>
   | Readonly<{ kind: 'prepared'; environment: PreparedEnvironment<E> }>
   | Readonly<{ kind: 'excluded'; exclusion: DurableEvidence }>
   | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>

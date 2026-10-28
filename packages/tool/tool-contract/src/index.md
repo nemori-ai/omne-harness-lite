@@ -42,3 +42,6 @@
 
 - [background-calls.ts](background-calls.ts)：后台调用值、封闭 schema、供给声明与 RC 类型增补。
 - [background-calls-projection.ts](background-calls-projection.ts)：从本次完整获权目录和原调用事实做纯投影，不执行授权或目录 I/O。
+
+- [原准备事实的绑定判定](judge-preparation.ts)。
+- [首次采用一致性套件](testing-environment-allocation.ts)。

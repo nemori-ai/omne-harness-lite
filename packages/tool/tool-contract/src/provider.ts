@@ -50,6 +50,7 @@ export type {
   ToolReloadResult,
 } from './dynamics.ts'
 export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
+export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
 export { evaluateToolAvailability, presentTool } from './catalog.ts'

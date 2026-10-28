@@ -48,3 +48,5 @@
 - [后台块测试原事实](background-calls-fixture.ts)，不作为生产来源。
 
 - [后台块公开类型消费](background-calls.spec-d.ts)，核对 RC ContextBlocks 与 ProducerRegistration。
+
+- [首次采用一致性与非耐久替身](environment-allocation.spec.ts)。

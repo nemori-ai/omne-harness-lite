@@ -20,6 +20,7 @@ import {
   fixedPreparationInput,
   matchingEnvironment,
   fixedReleaseInput,
+  checkedPreparationProgress,
 } from './environment-input.ts'
 
 export type LocalScheduledEnvironmentInput<P, E> = Readonly<{
@@ -144,7 +145,10 @@ export function createLocalScheduledEnvironment<P, E>(
     if ('failure' in fixed) return fixed
     try {
       const allowed = await input.qualify(fixed.ok)
-      return 'failure' in allowed ? allowed : fixed
+      if ('failure' in allowed) return allowed
+      return matches(fixed.ok.preparation.adoption)
+        ? fixed
+        : unavailable('the original environment adapter is unavailable')
     } catch {
       return unavailable('preparation qualification unavailable')
     }
@@ -156,8 +160,10 @@ export function createLocalScheduledEnvironment<P, E>(
   ): Reply<PreparationProgress<E>> => {
     try {
       const outcome = await work()
-      if ('ok' in outcome) observe(entry, outcome.ok)
-      return outcome
+      const checked =
+        'failure' in outcome ? outcome : checkedPreparationProgress(outcome.ok, entry.preparation)
+      if ('ok' in checked) observe(entry, checked.ok)
+      return checked
     } catch {
       const progress = {
         kind: 'unknown' as const,
@@ -179,7 +185,10 @@ export function createLocalScheduledEnvironment<P, E>(
     request: EnvironmentPreparationInput<P>,
   ): Reply<PreparationProgress<E>> => {
     try {
-      return await environment.inspectPreparation(request)
+      const result = await environment.inspectPreparation(request)
+      return 'failure' in result
+        ? result
+        : checkedPreparationProgress(result.ok, request.preparation)
     } catch {
       return succeed({
         kind: 'unknown',
@@ -194,12 +203,17 @@ export function createLocalScheduledEnvironment<P, E>(
   ): Reply<PreparationProgress<E>> => {
     const inspected = await queryPreparation(request)
     if (entry.retired) return unavailable('the original preparation was retired')
-    if ('failure' in inspected || decision === 'inspect' || inspected.ok.kind !== 'prepared')
+    if (
+      'failure' in inspected ||
+      decision === 'inspect' ||
+      !['allocated', 'prepared'].includes(inspected.ok.kind)
+    )
       return inspected
     // Recognition preserves every original input. The provider must not allocate a second time.
-    if (!matches(request.preparation.adoption))
-      return unavailable('the original environment adapter is unavailable')
-    return environment.prepare(request)
+    const checked = await check(request)
+    if ('failure' in checked) return checked
+    if (entry.retired) return unavailable('the original preparation was retired')
+    return environment.prepare(checked.ok)
   }
   const recall = (
     entry: Entry<E>,
@@ -234,11 +248,12 @@ export function createLocalScheduledEnvironment<P, E>(
         key,
         cancel: () => resolve(unavailable('the original preparation was released')),
         dispatch: () => {
-          void run(entry, () =>
-            matches(request.preparation.adoption)
-              ? environment.prepare(request)
-              : Promise.resolve(unavailable('the original environment adapter is unavailable')),
-          ).then(resolve)
+          void run(entry, async () => {
+            const checked = await check(request)
+            if ('failure' in checked) return checked
+            if (entry.retired) return unavailable('the original preparation was retired')
+            return environment.prepare(checked.ok)
+          }).then(resolve)
         },
       }
     })
