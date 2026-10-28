@@ -186,6 +186,9 @@ export function collectAdmission(
     const state = raw.state
     if (state !== 'open' && state !== 'closed')
       throw new InputError('Admission Issue state invalid')
+    // A closed Issue other than the task settled its own prerequisites when it closed. Admission
+    // reads it for its state and comments only, and does not expand its relations.
+    const expand = includeRelations && (state === 'open' || url === scope.task)
     const comments = paged(`issues/${number}/comments`).map(item => {
       const c = record(item, 'Admission comment')
       return {
@@ -195,12 +198,12 @@ export function collectAdmission(
         updatedAt: text(c.updated_at, 'comment.updatedAt'),
       }
     })
-    const blockedBy = includeRelations
+    const blockedBy = expand
       ? paged(`issues/${number}/dependencies/blocked_by`).map(item =>
           text(record(item, 'dependency').html_url, 'dependency.url'),
         )
       : []
-    const parentIssue = includeRelations ? parentOf(number) : null
+    const parentIssue = expand ? parentOf(number) : null
     const issue: CapturedIssue = {
       number,
       url,
@@ -213,7 +216,7 @@ export function collectAdmission(
       ),
       comments,
       commentsComplete: true,
-      relationsComplete: includeRelations,
+      relationsComplete: expand,
       blockedBy,
       parentIssue,
       stage: null,
@@ -238,8 +241,9 @@ export function collectAdmission(
   }
   const queue = [{ url: scope.task, depth: 0 }]
   for (const { url, depth } of queue) {
-    const issue = fetchIssue(url),
-      observed = observeAdmission(config, snapshot(), url)
+    const issue = fetchIssue(url)
+    if (!issue.relationsComplete) continue
+    const observed = observeAdmission(config, snapshot(), url)
     if (
       observed.findings.some(
         finding =>
