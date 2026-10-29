@@ -1,7 +1,7 @@
 import { readFileSync, realpathSync, statSync } from 'node:fs'
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 
 function repositoryEnv(base) {
   const env = { ...base }
@@ -99,7 +99,39 @@ function output(result) {
   )
 }
 
-function run() {
+// Runs the measurement command under `sh -c` and stops it at the timeout. On POSIX `sh` execs
+// the command, so killing `sh` stops it. Git for Windows' `sh` runs a native program as a child
+// and killing `sh` leaves that child holding the output pipes; there the whole process tree stops.
+function measure(command, options) {
+  if (process.platform !== 'win32') {
+    return Promise.resolve(spawnSync('sh', ['-c', command], { ...options, killSignal: 'SIGKILL' }))
+  }
+  const { input, timeout, encoding, ...spawnOptions } = options
+  return new Promise(done => {
+    const child = spawn('sh', ['-c', command], { ...spawnOptions, windowsHide: true })
+    let stdout = ''
+    let stderr = ''
+    let error
+    const timer = setTimeout(() => {
+      error = Object.assign(new Error('spawn sh ETIMEDOUT'), { code: 'ETIMEDOUT' })
+      spawnSync('taskkill', ['/pid', String(child.pid), '/t', '/f'], { stdio: 'ignore', windowsHide: true })
+    }, timeout)
+    child.stdout.setEncoding(encoding).on('data', chunk => (stdout += chunk))
+    child.stderr.setEncoding(encoding).on('data', chunk => (stderr += chunk))
+    child.stdin.on('error', () => {})
+    child.on('error', spawnError => {
+      clearTimeout(timer)
+      done({ error: spawnError, status: null, signal: null, stdout, stderr })
+    })
+    child.on('close', (status, signal) => {
+      clearTimeout(timer)
+      done({ error, status, signal, stdout, stderr })
+    })
+    child.stdin.end(input)
+  })
+}
+
+async function run() {
   const [identity, event] = process.argv.slice(2)
   if (!/^[a-zA-Z0-9_-]+$/.test(identity ?? '') || !['stop', 'subagentStop'].includes(event)) {
     throw new Error('invalid hook invocation')
@@ -132,19 +164,18 @@ function run() {
     stop_hook_active: false,
     hook_event_name: event === 'stop' ? 'Stop' : 'SubagentStop',
   }
-  const result = spawnSync('sh', ['-c', config.command], {
+  const result = await measure(config.command, {
     env: repositoryEnv(process.env),
     cwd: target,
     input: JSON.stringify(normalized),
     encoding: 'utf8',
     timeout: config.timeout * 1000,
-    killSignal: 'SIGKILL',
   })
   return output(result)
 }
 
 try {
-  process.stdout.write(`${JSON.stringify(run())}\n`)
+  process.stdout.write(`${JSON.stringify(await run())}\n`)
 } catch (error) {
   process.stdout.write(`${JSON.stringify(diagnostic('adapter-failed', error.message))}\n`)
 }

@@ -187,7 +187,7 @@ def source_of(tiny: dict[str, Any], name: str) -> Path:
 
 
 def runs(counter: Path) -> int:
-    return len(counter.read_text().splitlines()) if counter.exists() else 0
+    return len(counter.read_text(encoding="utf-8").splitlines()) if counter.exists() else 0
 
 
 # --- A2：模板与副本 -----------------------------------------------------------------------------------------
@@ -228,8 +228,8 @@ def test_fixed_inputs_move_before_old_sources_are_excluded(tiny: dict[str, Any])
     copied = workspace.template(root, tiny["work"], flow_id="relocated", base=base,
                                 excludes=["old-design", "AGENTS.md"], setup=[], inputs=inputs)
     assert not (copied / "old-design").exists() and not (copied / "AGENTS.md").exists()
-    assert (copied / "member/tests/fixtures/input.json").read_text() == payload
-    assert (copied / "member/tests/reader.ts").read_text() == "read('member/tests/fixtures/input.json')\n"
+    assert (copied / "member/tests/fixtures/input.json").read_text(encoding="utf-8") == payload
+    assert (copied / "member/tests/reader.ts").read_text(encoding="utf-8") == "read('member/tests/fixtures/input.json')\n"
     altered = [{**inputs[0], "to": "member/tests/fixtures/other.json"}]
     assert workspace.template_name("relocated", base, [], [], inputs) != workspace.template_name(
         "relocated", base, [], [], altered)
@@ -239,10 +239,14 @@ def test_fixed_inputs_move_before_old_sources_are_excluded(tiny: dict[str, Any])
 def test_case_input_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str) -> None:
     write(tmp_path, {"input.json": "{}\n", "reader.ts": "read('original')\n",
                      ".meta_harness/agents/evaluation/truth.json": "answer\n",
-                     ".meta_harness/agents/evaluation/真值.json": "answer-unicode\n",
-                     ".meta_harness/agents/evaluation/truth\nline.json": "answer-newline\n"})
+                     ".meta_harness/agents/evaluation/真值.json": "answer-unicode\n"})
     git(tmp_path, "init", "-q")
     git(tmp_path, "add", "-A")
+    # Windows cannot name a file with a newline (and Git there refuses the path unless protectNTFS is off);
+    # the index holds that path on every platform.
+    blob = subprocess.run(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input="answer-newline\n",
+                          check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
+    git(tmp_path, "-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo", f"100644,{blob},.meta_harness/agents/evaluation/truth\nline.json")
     git(tmp_path, "-c", "user.name=fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "fixed inputs")
     base = git(tmp_path, "rev-parse", "HEAD")
     source = "input.json"
@@ -261,7 +265,7 @@ def test_case_input_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str)
     if case == "not-in-base":
         identifier = "f" * 40
     if case == "duplicate-reader":
-        (tmp_path / "reader.ts").write_text("read('original'); read('original')\n")
+        (tmp_path / "reader.ts").write_text("read('original'); read('original')\n", encoding="utf-8")
     expected = b"absent" if case == "reader" else b"original"
     replacement = "unsafe'path" if case == "unsafe-replacement" else "new"
     consumers = [{"file": "reader.ts", "literal_sha256": hashlib.sha256(expected).hexdigest(), "replace": replacement}]
@@ -301,7 +305,7 @@ def test_a_single_commit_is_one_baseline_and_a_delivery_is_a_second_commit(tiny:
     shown = workspace.git(dest, "show", "-s", "--format=%an <%ae>|%cn|%B", "HEAD")
     assert shown.startswith("implementer <implementer@invalid>|implementer|member: a delivery")
     assert "Harness: claude-code\nAgent-Role: developer" in shown
-    assert "infra" in (dest / "member/dist/mod.js").read_text(), "交付之后成员重新构建过"
+    assert "infra" in (dest / "member/dist/mod.js").read_text(encoding="utf-8"), "交付之后成员重新构建过"
     assert workspace.git(dest, "status", "--porcelain") == ""
 
 
@@ -325,14 +329,14 @@ def judged(case: dict[str, Any], name: str) -> dict[str, Any]:
 def test_the_copy_hides_the_answer(implement_copy: dict[str, Any]) -> None:
     dest = implement_copy["dest"]
     assert not (dest / "member/tests/mod.spec.ts").exists() and not (dest / "member/dist").exists()
-    assert (dest / "member/src/mod.ts").read_text() == "export const v = 'stub'\n"
+    assert (dest / "member/src/mod.ts").read_text(encoding="utf-8") == "export const v = 'stub'\n"
     assert workspace.git(dest, "status", "--porcelain") == "", "桩与删除都在基线提交里"
 
 
 def test_a_correct_implementation_succeeds(implement_copy: dict[str, Any]) -> None:
     dest = implement_copy["dest"]
-    (dest / "member/src/mod.ts").write_text("export const v = 'good'\n")
-    (dest / "member/tests/mine.spec.ts").write_text("my own=nothing-like-this\n")   # 角色自己的测试红了也不算
+    (dest / "member/src/mod.ts").write_text("export const v = 'good'\n", encoding="utf-8")
+    (dest / "member/tests/mine.spec.ts").write_text("my own=nothing-like-this\n", encoding="utf-8")   # 角色自己的测试红了也不算
     result = judged(implement_copy, "good")
     assert result["success"] and result["hidden_passed"] == result["hidden_total"] == 1
     assert (result["all_passed"], result["all_total"]) == (2, 2), "跑的是原有测试，角色的测试被挪开"
@@ -350,17 +354,17 @@ def test_hidden_tests_still_red_is_a_failure(implement_copy: dict[str, Any]) -> 
 
 
 def test_a_red_typecheck_fails_even_with_green_tests(implement_copy: dict[str, Any]) -> None:
-    (implement_copy["dest"] / "member/src/mod.ts").write_text("export const v = 'good' // TYPE_ERROR\n")
+    (implement_copy["dest"] / "member/src/mod.ts").write_text("export const v = 'good' // TYPE_ERROR\n", encoding="utf-8")
     result = judged(implement_copy, "typecheck")
     assert result["all_passed"] == result["all_total"] and not result["typecheck"] and not result["success"]
 
 
 def test_editing_an_existing_test_and_writing_outside_the_scope_are_seen(implement_copy: dict[str, Any]) -> None:
     dest = implement_copy["dest"]
-    (dest / "member/src/mod.ts").write_text("export const v = 'good'\n")
-    (dest / "member/tests/other.spec.ts").write_text("exports=\n")    # 原有测试被改弱
-    (dest / "README.md").write_text("顺手改了\n")
-    (dest / "member/notes.md").write_text("范围外的新文件\n")
+    (dest / "member/src/mod.ts").write_text("export const v = 'good'\n", encoding="utf-8")
+    (dest / "member/tests/other.spec.ts").write_text("exports=\n", encoding="utf-8")    # 原有测试被改弱
+    (dest / "README.md").write_text("顺手改了\n", encoding="utf-8")
+    (dest / "member/notes.md").write_text("范围外的新文件\n", encoding="utf-8")
     result = judged(implement_copy, "scope")
     assert result["tampered"] == ["member/tests/other.spec.ts"]
     assert sorted(result["outside"]) == ["README.md", "member/notes.md"]
@@ -410,7 +414,7 @@ def qa_report(verdict: str = "Fail", **results: str) -> dict[str, Any]:
 
 def test_the_acceptance_copy_carries_the_defect_in_its_artefact(qa_copy: dict[str, Any]) -> None:
     dest = qa_copy["dest"]
-    assert not (dest / "member/tests").exists() and "'bad'" in (dest / "member/dist/mod.js").read_text()
+    assert not (dest / "member/tests").exists() and "'bad'" in (dest / "member/dist/mod.js").read_text(encoding="utf-8")
 
 
 def test_a_right_report_succeeds_and_each_criterion_is_judged(qa_copy: dict[str, Any]) -> None:
@@ -450,8 +454,8 @@ def test_no_report_or_a_broken_one_fails(qa_copy: dict[str, Any]) -> None:
 
 
 def test_a_changed_artefact_and_a_write_outside_the_scope_are_seen(qa_copy: dict[str, Any]) -> None:
-    (qa_copy["dest"] / "member/dist/mod.js").write_text("改过的制品\n")
-    (qa_copy["dest"] / "member/acceptance.sh").write_text("范围外\n")
+    (qa_copy["dest"] / "member/dist/mod.js").write_text("改过的制品\n", encoding="utf-8")
+    (qa_copy["dest"] / "member/acceptance.sh").write_text("范围外\n", encoding="utf-8")
     result = report(qa_copy, qa_report())
     assert not result["artefact_unchanged"] and result["outside"] == ["member/acceptance.sh"]
     scored = acceptance.scored(result, claude_host.Episode(), ["Read"])
@@ -472,22 +476,22 @@ def test_verify_catches_a_stale_target_list_a_wrong_truth_and_seeds_that_get_cau
         tiny: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli, "REPO", tiny["repo"])
     root = tiny["repo"] / "suites"
-    (root / "tiny-implement" / "target-tests.json").write_text(json.dumps({"T1": ["mod.spec.ts :: something else"]}))
+    (root / "tiny-implement" / "target-tests.json").write_text(json.dumps({"T1": ["mod.spec.ts :: something else"]}), encoding="utf-8")
     problems = cli.verify(suite.load(root / "tiny-implement"), tiny["work"])
     assert len(problems) == 1 and "not the stored target tests" in problems[0]
-    flow = json.loads((root / "tiny-acceptance" / "flow.json").read_text())
+    flow = json.loads((root / "tiny-acceptance" / "flow.json").read_text(encoding="utf-8"))
     flow["materials"][1]["expected"]["failing_criteria"] = ["C1"]
-    (root / "tiny-acceptance" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False))
+    (root / "tiny-acceptance" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False), encoding="utf-8")
     problems = cli.verify(suite.load(root / "tiny-acceptance"), tiny["work"], only=["Q2"])
     assert any("ground truth reports ['C2']" in problem for problem in problems)
-    flow = json.loads((root / "tiny-delivery" / "flow.json").read_text())
+    flow = json.loads((root / "tiny-delivery" / "flow.json").read_text(encoding="utf-8"))
     flow["checks"]["member_test"] = [PY, "-c", "import sys; sys.exit(1)"]
     flow["materials"][0]["seeds"][0]["ops"][0]["find"] = "'nowhere'"
-    (root / "tiny-delivery" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False))
+    (root / "tiny-delivery" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False), encoding="utf-8")
     problems = cli.verify(suite.load(root / "tiny-delivery"), tiny["work"])
     assert len(problems) == 1 and "found it 0 times" in problems[0], "种入落不下就停在那里"
     flow["materials"][0]["seeds"][0]["ops"][0]["find"] = "'good'"
-    (root / "tiny-delivery" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False))
+    (root / "tiny-delivery" / "flow.json").write_text(json.dumps(flow, ensure_ascii=False), encoding="utf-8")
     problems = cli.verify(suite.load(root / "tiny-delivery"), tiny["work"])
     assert len(problems) == 1 and "own tests exit 1" in problems[0]
 
@@ -502,7 +506,7 @@ def test_a_seed_may_make_several_edits_in_order(tmp_path: Path) -> None:
         {"op": "append", "file": "b.md", "text": "追加\n"}))
     assert [change["id"] for change in seed.changes()] == ["I9", "I9", "I9"]
     workspace.apply(tmp_path, seed.changes(), suite=tmp_path)
-    assert (tmp_path / "a.ts").read_text() == "1 2\n" and (tmp_path / "b.md").read_text() == "说明\n追加\n"
+    assert (tmp_path / "a.ts").read_text(encoding="utf-8") == "1 2\n" and (tmp_path / "b.md").read_text(encoding="utf-8") == "说明\n追加\n"
     with pytest.raises(workspace.WorkspaceError, match="I9"):
         workspace.apply(tmp_path, seed.changes()[:1], suite=tmp_path)
 
@@ -511,9 +515,9 @@ def test_tracked_intact_allows_untracked_output_only(tiny: dict[str, Any]) -> No
     flow = tiny["flows"]["tiny-delivery"]
     dest = tiny["tmp"] / "review-copy"
     facts = checkout.build(flow, flow.materials[0], dest, source=source_of(tiny, "tiny-delivery"))
-    (dest / "metrics-report.txt").write_text("跑检查留下的\n")
+    (dest / "metrics-report.txt").write_text("跑检查留下的\n", encoding="utf-8")
     assert review.tracked_intact(dest, facts["head"]) == (1, "受版本管理的文件没有被改动，HEAD 仍是交付提交")
-    (dest / "README.md").write_text("改了\n")
+    (dest / "README.md").write_text("改了\n", encoding="utf-8")
     value, why = review.tracked_intact(dest, facts["head"])
     assert value == 0 and "README.md" in why
     workspace.git(dest, "checkout", "--", "README.md")
@@ -524,7 +528,7 @@ def test_tracked_intact_allows_untracked_output_only(tiny: dict[str, Any]) -> No
 def test_the_delivery_brief_names_both_commits_and_the_note(tiny: dict[str, Any]) -> None:
     flow = tiny["flows"]["tiny-delivery"]
     text = review.delivery_brief(flow.materials[0], Path("/w"), {"baseline": "b" * 40, "head": "h" * 40})
-    assert text == f"审 `/w`：基线 `{'b' * 40}`，交付 `{'h' * 40}`。\n\n- 只改了 member。\n"
+    assert text == f"审 `{Path('/w')}`：基线 `{'b' * 40}`，交付 `{'h' * 40}`。\n\n- 只改了 member。\n"
 
 
 # --- 用 cli 走一遍：准备、派发、收录 ----------------------------------------------------------------------------
@@ -596,7 +600,7 @@ def test_an_implement_run_is_judged_on_its_copy_before_the_copy_goes(
 
     monkeypatch.setattr(implement, "judge", watched)
     said, evidence = run_checkout(wired_checkout, "tiny-implement", "T1",
-                                  edit=lambda copy: (copy / "member/src/mod.ts").write_text("export const v = 'good'\n"),
+                                  edit=lambda copy: (copy / "member/src/mod.ts").write_text("export const v = 'good'\n", encoding="utf-8"),
                                   calls=[("Edit", {"file_path": "member/src/mod.ts"}, "ok")])
     # prepare 里的 verify 判两次（桩在位、放回原件），record 判一次；三次判定时副本都还在
     assert seen == [True, True, True], "判定时副本还在"
@@ -640,7 +644,7 @@ def test_an_acceptance_run_lands_one_row_per_criterion_and_one_for_the_run(wired
 
 def test_a_delivery_review_records_tracked_intact_for_the_judge_to_add_to(wired_checkout: dict[str, Any]) -> None:
     said, evidence = run_checkout(wired_checkout, "tiny-delivery", "D1", calls=[("Bash", {"command": "pnpm test"}, "ok")],
-                                  edit=lambda copy: (copy / "coverage.txt").write_text("未跟踪的检查输出\n"))
+                                  edit=lambda copy: (copy / "coverage.txt").write_text("未跟踪的检查输出\n", encoding="utf-8"))
     record = json.loads((evidence / "episode.json").read_text(encoding="utf-8"))
     assert record["observations"] == {"tracked_intact": [1, "受版本管理的文件没有被改动，HEAD 仍是交付提交"]}
     assert "oracle" not in record and VariantStore(wired_checkout["out"], "baseline").rows() == []
@@ -830,14 +834,15 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
         if flow.family == "implement":
+            # stub_files gives native relative paths; a Git object name takes forward slashes.
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
-                workspace.git(repo, "show", f"{base}:{path}")
+                workspace.git(repo, "show", f"{base}:{Path(path).as_posix()}")
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "write-tests":
             for path in material.task["hidden_tests"]:
                 workspace.git(repo, "show", f"{base}:{path}")
             module = subprocess.run(["git", "-C", str(repo), "show", f"{base}:{material.task['target']}"],
-                                    capture_output=True, text=True, check=True).stdout
+                                    capture_output=True, text=True, encoding="utf-8", check=True).stdout
             assert write_tests.landing(material, module) == [], f"{flow.id}/{material.id}: mutants no longer land once"
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "acceptance":

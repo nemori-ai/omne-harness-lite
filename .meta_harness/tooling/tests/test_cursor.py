@@ -12,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from compile_agents import deliver
 from projection import compile_sources
 from cursor_probe import main as probe
+from executable_bits import copy_tree, staged_modes
 from qualification_test_support import qualify_roles
 
 SOURCE = Path(__file__).parents[2] / "agents"
@@ -19,7 +20,7 @@ SOURCE = Path(__file__).parents[2] / "agents"
 
 @pytest.fixture
 def source(tmp_path):
-    root = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    root = copy_tree(SOURCE, tmp_path / "source")
     qualify_roles(root)
     return root
 
@@ -43,7 +44,7 @@ def test_cursor_never_requires_pair_configs_or_renderer(source, tmp_path):
 @pytest.mark.parametrize("extra", ["effort: xhigh", "permissionMode: default", "tools: Read", "model: inherit", "readonly: yes-please"])
 def test_native_config_rejects_cross_host_unknown_and_duplicate_fields(source, extra):
     config = source / "roles/developer/cursor.yaml"
-    config.write_text(config.read_text() + extra + "\n")
+    config.write_text(config.read_text(encoding="utf-8") + extra + "\n", encoding="utf-8")
     with pytest.raises(ValueError):
         compile_sources(source, hosts=("cursor",))
 
@@ -52,9 +53,9 @@ def test_native_config_rejects_cross_host_unknown_and_duplicate_fields(source, e
     ("is_background", 0), ("description", ""), ("name", "other-role")])
 def test_invalid_native_values_fail_without_silent_coercion(source, field, value):
     path = source / "roles/developer/cursor.yaml"
-    config = yaml.safe_load(path.read_text())
+    config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config[field] = value
-    path.write_text(yaml.safe_dump(config))
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
     with pytest.raises(ValueError):
         compile_sources(source, hosts=("cursor",))
 
@@ -67,11 +68,12 @@ def test_missing_cursor_config_fails(source):
 
 def test_unsupported_cursor_strategy_fails_before_delivery(source):
     path = source / "skills/harness-design-handbook/adapters/cursor/strategy.yaml"
-    path.write_text("version: 1\nhost: cursor\nskill: harness-design-handbook\nmode: unsupported\nreason: missing native capability\n")
+    path.write_text("version: 1\nhost: cursor\nskill: harness-design-handbook\nmode: unsupported\nreason: missing native capability\n", encoding="utf-8")
     with pytest.raises(ValueError, match="missing native capability"):
         compile_sources(source, hosts=("cursor",))
 
 
+@staged_modes
 def test_clean_clone_initialization_has_no_personal_or_session_start_dependency(tmp_path):
     project = tmp_path / "clean clone"
     shutil.copytree(SOURCE, project / ".meta_harness/agents")
@@ -84,7 +86,7 @@ def test_clean_clone_initialization_has_no_personal_or_session_start_dependency(
         result = subprocess.run(command + extra, cwd=tmp_path, capture_output=True, text=True)
         assert result.returncode == 0, result.stdout + result.stderr
     assert (project / ".cursor").is_symlink()
-    hooks = json.loads((project / ".cursor/hooks.json").read_text())
+    hooks = json.loads((project / ".cursor/hooks.json").read_text(encoding="utf-8"))
     assert set(hooks["hooks"]) == {"stop", "subagentStop", "subagentStart"}
     shutil.rmtree(project / ".meta_harness/agents")
     moved = tmp_path / "moved project"
@@ -105,12 +107,12 @@ def installed(source, tmp_path):
     subprocess.run(["git", "init", "-q", str(workspace)], check=True)
     tool = workspace / "tools/repo-toolchain"
     (tool / "src/loop").mkdir(parents=True)
-    (tool / "package.json").write_text('{"type":"module"}')
+    (tool / "package.json").write_text('{"type":"module"}', encoding="utf-8")
     (tool / "node_modules/typescript").mkdir(parents=True)
-    (tool / "node_modules/typescript/package.json").write_text("{}")
+    (tool / "node_modules/typescript/package.json").write_text("{}", encoding="utf-8")
     (tool / "src/loop/stop-hook.ts").write_text("import {readFileSync,writeFileSync} from 'node:fs';"
         "writeFileSync('receipt.json',JSON.stringify({cwd:process.cwd(),payload:JSON.parse(readFileSync(0,'utf8'))}));"
-        "process.stdout.write(JSON.stringify({decision:'block',reason:'new measured facts'}));")
+        "process.stdout.write(JSON.stringify({decision:'block',reason:'new measured facts'}));", encoding="utf-8")
     return package, workspace
 
 
@@ -120,7 +122,7 @@ def invoke(installed, changes=None, event="stop", text=None, env=None):
                "subagent_type": "developer", **(changes or {})}
     result = subprocess.run(["node", str(package / "runtime/cursor-hook.mjs"), "loop-stop-facts", event],
                             input=json.dumps(payload) if text is None else text,
-                            cwd=package, capture_output=True, text=True, env=env)
+                            cwd=package, capture_output=True, text=True, encoding="utf-8", env=env)
     assert result.returncode == 0
     return json.loads(result.stdout), result.stderr
 
@@ -128,12 +130,12 @@ def invoke(installed, changes=None, event="stop", text=None, env=None):
 def test_relocated_plugin_measures_target_and_normalizes_payload(installed):
     output, stderr = invoke(installed)
     assert output == {"followup_message": "new measured facts"} and stderr == ""
-    receipt = json.loads((installed[1] / "receipt.json").read_text())
+    receipt = json.loads((installed[1] / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["cwd"] == receipt["payload"]["cwd"] == str(installed[1])
     assert receipt["payload"]["stop_hook_active"] is False
     assert receipt["payload"]["hook_event_name"] == "Stop"
     assert invoke(installed, event="subagentStop")[0] == output
-    assert json.loads((installed[1] / "receipt.json").read_text())["payload"]["hook_event_name"] == "SubagentStop"
+    assert json.loads((installed[1] / "receipt.json").read_text(encoding="utf-8"))["payload"]["hook_event_name"] == "SubagentStop"
 
 
 def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(installed, tmp_path):
@@ -141,24 +143,25 @@ def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(insta
     foreign = tmp_path / "foreign"
     foreign.mkdir()
     subprocess.run(["git", "init", "-q", str(foreign)], check=True)
-    (foreign / "marker").write_text("foreign")
+    (foreign / "marker").write_text("foreign", encoding="utf-8")
     subprocess.run(["git", "-C", str(foreign), "add", "."], check=True)
     index = (foreign / ".git/index").read_bytes()
     env = {**os.environ, "GIT_DIR": str(foreign / ".git"), "GIT_WORK_TREE": str(foreign),
            "GIT_INDEX_FILE": str(foreign / ".git/index")}
     tool = workspace / "tools/repo-toolchain/src/loop/stop-hook.ts"
-    tool.write_text("import {execFileSync} from 'node:child_process';" + tool.read_text() +
-                   "if(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim()!==process.cwd())process.exit(9);")
+    # Git prints the top level with forward slashes on Windows; resolve() compares it as a path.
+    tool.write_text("import {execFileSync} from 'node:child_process';import {resolve} from 'node:path';" + tool.read_text(encoding="utf-8") +
+                   "if(resolve(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim())!==resolve(process.cwd()))process.exit(9);", encoding="utf-8")
     assert invoke(installed, env=env) == ({"followup_message": "new measured facts"}, "")
     shutil.copytree(package, workspace / ".cursor")
-    project = json.loads((workspace / ".cursor/hooks.json").read_text())["hooks"]["stop"][0]["command"]
-    canonical = json.loads((package / "runtime/loop-stop-facts.json").read_text())["command"]
+    project = json.loads((workspace / ".cursor/hooks.json").read_text(encoding="utf-8"))["hooks"]["stop"][0]["command"]
+    canonical = json.loads((package / "runtime/loop-stop-facts.json").read_text(encoding="utf-8"))["command"]
     for command in (project, canonical):
-        result = subprocess.run(["sh", "-c", command], cwd=workspace, env=env, text=True, capture_output=True,
+        result = subprocess.run(["sh", "-c", command], cwd=workspace, env=env, text=True, encoding="utf-8", capture_output=True,
                                 input=json.dumps({"workspace_roots": [str(workspace)], "cwd": str(workspace),
                                                   "status": "completed", "loop_count": 0}))
         assert result.returncode == 0 and result.stderr == "", result.stderr
-        assert json.loads((workspace / "receipt.json").read_text())["cwd"] == str(workspace)
+        assert json.loads((workspace / "receipt.json").read_text(encoding="utf-8"))["cwd"] == str(workspace)
     assert not (foreign / "receipt.json").exists()
     assert (foreign / ".git/index").read_bytes() == index
 
@@ -193,10 +196,10 @@ def test_ambiguous_roots_fail_without_selecting_first(installed, tmp_path):
 def test_measurement_faults_are_observable_without_followup(installed, script, code):
     package, workspace = installed
     path = package / "runtime/loop-stop-facts.json"
-    config = json.loads(path.read_text())
+    config = json.loads(path.read_text(encoding="utf-8"))
     config["timeout"] = 1
-    path.write_text(json.dumps(config))
-    (workspace / "tools/repo-toolchain/src/loop/stop-hook.ts").write_text(script)
+    path.write_text(json.dumps(config), encoding="utf-8")
+    (workspace / "tools/repo-toolchain/src/loop/stop-hook.ts").write_text(script, encoding="utf-8")
     output, stderr = invoke(installed)
     assert output == {} and code in stderr
 
@@ -213,40 +216,40 @@ def test_native_project_command_resolves_from_subdirectory_after_move(installed)
     shutil.copytree(package, workspace / ".cursor")
     child = workspace / "..cache"
     child.mkdir()
-    config = json.loads((workspace / ".cursor/hooks.json").read_text())
+    config = json.loads((workspace / ".cursor/hooks.json").read_text(encoding="utf-8"))
     command = config["hooks"]["stop"][0]["command"]
     assert "CURSOR_PLUGIN_ROOT" not in command
     env = {**os.environ, "CURSOR_PLUGIN_ROOT": str(package / "unrelated inherited root")}
-    result = subprocess.run(["sh", "-c", command], cwd=child, env=env, text=True, capture_output=True,
+    result = subprocess.run(["sh", "-c", command], cwd=child, env=env, text=True, encoding="utf-8", capture_output=True,
                             input=json.dumps({"workspace_roots": [str(workspace)], "cwd": str(child),
                                               "status": "completed", "loop_count": 0}))
     assert json.loads(result.stdout) == {"followup_message": "new measured facts"}, result.stderr
-    assert json.loads((workspace / "receipt.json").read_text())["cwd"] == str(workspace)
+    assert json.loads((workspace / "receipt.json").read_text(encoding="utf-8"))["cwd"] == str(workspace)
     assert invoke(installed, {"workspace_roots": None, "cwd": str(child)})[0] == {}
     result = subprocess.run(["node", str(package / "runtime/cursor-hook.mjs"), "loop-stop-facts", "stop"],
                             input=json.dumps({"cwd": str(child), "status": "completed", "loop_count": 0}),
-                            text=True, capture_output=True)
+                            text=True, encoding="utf-8", capture_output=True)
     assert json.loads(result.stdout).get("followup_message"), result.stderr
-    assert json.loads((workspace / "receipt.json").read_text())["payload"]["cwd"] == str(workspace)
+    assert json.loads((workspace / "receipt.json").read_text(encoding="utf-8"))["payload"]["cwd"] == str(workspace)
 
 
 def test_native_plugin_command_uses_host_substitution_despite_inherited_root(installed):
     package, workspace = installed
     assert not (workspace / ".cursor").exists()
-    manifest = json.loads((package / ".cursor-plugin/plugin.json").read_text())
+    manifest = json.loads((package / ".cursor-plugin/plugin.json").read_text(encoding="utf-8"))
     assert manifest["hooks"] == "./plugin-hooks.json"
-    config = json.loads((package / manifest["hooks"]).read_text())
+    config = json.loads((package / manifest["hooks"]).read_text(encoding="utf-8"))
     command = config["hooks"]["stop"][0]["command"]
     assert "${CURSOR_PLUGIN_ROOT}" in command and "CURSOR_PLUGIN_ROOT:-" not in command
     expanded = command.replace("${CURSOR_PLUGIN_ROOT}", str(package))
     result = subprocess.run(["sh", "-c", expanded], cwd=workspace,
                             env={**os.environ, "CURSOR_PLUGIN_ROOT": str(package / "unrelated inherited root")},
-                            text=True, capture_output=True,
+                            text=True, encoding="utf-8", capture_output=True,
                             input=json.dumps({"workspace_roots": [str(workspace)],
                                               "status": "completed", "loop_count": 0}))
     assert result.returncode == 0 and result.stderr == ""
     assert json.loads(result.stdout) == {"followup_message": "new measured facts"}
-    assert json.loads((workspace / "receipt.json").read_text())["payload"]["cwd"] == str(workspace)
+    assert json.loads((workspace / "receipt.json").read_text(encoding="utf-8"))["payload"]["cwd"] == str(workspace)
 
 
 def test_git_common_fallback_runs_main_tool_but_measures_target(installed, tmp_path):
@@ -258,7 +261,7 @@ def test_git_common_fallback_runs_main_tool_but_measures_target(installed, tmp_p
     subprocess.run(["git", "worktree", "add", "-qb", "fixture", str(worktree)], cwd=main, check=True)
     output, stderr = invoke((package, worktree))
     assert output == {"followup_message": "new measured facts"}, stderr
-    receipt = json.loads((worktree / "receipt.json").read_text())
+    receipt = json.loads((worktree / "receipt.json").read_text(encoding="utf-8"))
     assert receipt["cwd"] == receipt["payload"]["cwd"] == str(worktree)
     assert not (main / "receipt.json").exists()
 
@@ -267,11 +270,11 @@ def test_probe_driver_records_fixture_receipts_and_isolates_loop_home(tmp_path, 
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     subprocess.run(["git", "init", "-q", str(workspace)], check=True)
-    expected_revision = subprocess.check_output(["git", "-C", str(Path(__file__).parents[3]), "rev-parse", "HEAD"], text=True).strip()
+    expected_revision = subprocess.check_output(["git", "-C", str(Path(__file__).parents[3]), "rev-parse", "HEAD"], text=True, encoding="utf-8").strip()
     foreign = tmp_path / "foreign"
     subprocess.run(["git", "init", "-q", str(foreign)], check=True)
     prompt = tmp_path / "prompt.txt"
-    prompt.write_text("Invoke the named role once.")
+    prompt.write_text("Invoke the named role once.", encoding="utf-8")
     agent = tmp_path / "fixture-agent"
     agent.write_text(f"#!{sys.executable}\n" + '''import json, os, pathlib, subprocess, sys
 if "--version" in sys.argv:
@@ -279,39 +282,44 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 plugin = pathlib.Path(sys.argv[sys.argv.index("--plugin-dir") + 1])
 assert "--mode" not in sys.argv
-assert subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip() == sys.argv[sys.argv.index("--workspace") + 1]
+top = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+assert pathlib.Path(top).resolve() == pathlib.Path(sys.argv[sys.argv.index("--workspace") + 1]).resolve()
 output = pathlib.Path(os.environ["OMNE_CURSOR_PROBE_OUTPUT"])
 assert os.environ["OMNE_METRICS_HOME"] == str(output / "loop")
 for event, payload in [("subagentStart", {"subagent_type":"developer", "subagent_model":"fixture-model"}),
                        ("subagentStop", {"status":"completed", "subagent_type":"developer"}),
                        ("stop", {"status":"completed", "loop_count":0})]:
-    subprocess.run(["node", str(plugin / "receipt.mjs"), event], input=json.dumps(payload), text=True,
+    subprocess.run(["node", str(plugin / "receipt.mjs"), event], input=json.dumps(payload), text=True, encoding="utf-8",
                    check=True, capture_output=True, env={**os.environ, "CURSOR_PLUGIN_ROOT":str(plugin)})
 print(json.dumps({"type":"result", "subtype":"success"}))
-''')
+''', encoding="utf-8")
     agent.chmod(0o755)
+    if os.name != "posix":
+        # Windows starts no shebang script; a batch file hands it to the same interpreter.
+        script, agent = agent, tmp_path / "fixture-agent.cmd"
+        agent.write_text(f'@"{sys.executable}" "{script}" %*\n', encoding="utf-8")
     output = tmp_path / "evidence"
     arguments = ["--workspace", str(workspace), "--output", str(output), "--agent", str(agent),
                  "--model", "fixture-model", "--prompt-file", str(prompt), "--timeout", "10"]
     monkeypatch.setenv("GIT_DIR", str(foreign / ".git"))
     monkeypatch.setenv("GIT_WORK_TREE", str(foreign))
     assert probe([*arguments, "--run"]) == 0
-    result = json.loads((output / "result.json").read_text())
+    result = json.loads((output / "result.json").read_text(encoding="utf-8"))
     assert result["source_revision"] == expected_revision
     assert result["native_receipts"] == 3
     assert result["subagent_start"][0]["subagent_model"] == "fixture-model"
     assert result["stop"][-1]["status"] == "completed"
-    assert (output / "host-version.txt").read_text() == "fixture-host\n"
-    assert json.loads((output / "stdout.jsonl").read_text())["subtype"] == "success"
+    assert (output / "host-version.txt").read_text(encoding="utf-8") == "fixture-host\n"
+    assert json.loads((output / "stdout.jsonl").read_text(encoding="utf-8"))["subtype"] == "success"
     with pytest.raises(SystemExit):
         probe(arguments)
 
 
 def test_cursor_description_rejects_colon_space(source):
     path = source / "roles/developer/cursor.yaml"
-    config = yaml.safe_load(path.read_text())
+    config = yaml.safe_load(path.read_text(encoding="utf-8"))
     config["description"] = "Implement one slice: then stop"
-    path.write_text(yaml.safe_dump(config))
+    path.write_text(yaml.safe_dump(config), encoding="utf-8")
     with pytest.raises(ValueError, match="colon-space"):
         compile_sources(source, hosts=("cursor",))
 
@@ -321,19 +329,19 @@ def test_subagent_start_uses_the_qualified_file_summary(installed):
     gate = package / "runtime/cursor-role-gate.mjs"
 
     def run(payload):
-        result = subprocess.run(["node", str(gate)], input=json.dumps(payload), text=True, capture_output=True)
+        result = subprocess.run(["node", str(gate)], input=json.dumps(payload), text=True, encoding="utf-8", capture_output=True)
         assert result.returncode == 0, result.stderr
         return json.loads(result.stdout)
 
     assert run({"subagent_type": "explore"}) == {"permission": "allow"}
     assert run({"subagent_type": "developer"}) == {"permission": "allow"}
     agent = package / "agents/developer.md"
-    agent.write_text(agent.read_text() + "\nchanged\n")
+    agent.write_text(agent.read_text(encoding="utf-8") + "\nchanged\n", encoding="utf-8")
     denied = run({"subagent_type": "developer"})
     assert denied["permission"] == "deny" and "summary does not match" in denied["user_message"]
-    config = json.loads((package / "runtime/role-gate.json").read_text())
+    config = json.loads((package / "runtime/role-gate.json").read_text(encoding="utf-8"))
     del config["summaries"]["qa"]
-    (package / "runtime/role-gate.json").write_text(json.dumps(config))
+    (package / "runtime/role-gate.json").write_text(json.dumps(config), encoding="utf-8")
     pending = run({"subagent_type": "qa"})
     assert pending["permission"] == "deny" and "no qualified agent file" in pending["user_message"]
     assert run({"subagent_type": "generalPurpose"})["permission"] == "allow"
