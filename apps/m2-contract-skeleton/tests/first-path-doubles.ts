@@ -26,9 +26,15 @@ import {
 import { decodeHistorySequence } from '@omne-harness/request-context-contract'
 import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing'
 import {
+  adoptedInitializationFixture,
+  createMemoryInitializationSource,
   createMemorySessionEvidenceBridge,
+  createMemorySessionHistorySource,
   createMemorySessionTransactions,
   creation,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
+  type MemoryInitializationSource,
 } from '@omne-harness/session-contract/testing'
 import { parseDuration, parseInstant } from '@omne-harness/utc-instant'
 import { createScriptedConformanceSubject } from '@omne-harness/model-contract/testing'
@@ -216,12 +222,42 @@ export const assembleWithMemorySources: PathDependencies['assemble'] = async ({
   }
 }
 
+/** Offline fixture: each `create` the path commits is registered as trusted initialization facts. */
+function trustedInitialization(): MemoryInitializationSource {
+  const source = createMemoryInitializationSource()
+  return {
+    ...source,
+    prepare: command => {
+      if (command.kind === 'create')
+        source.controls.register(
+          command,
+          initializationFixtureGuard(
+            initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+          ),
+        )
+      return source.prepare(command)
+    },
+  }
+}
+
+/** The Session port and its evidence bridge share one initialization source, as an assembly wires them;
+ * the port reads original history material from its own history source. */
+export function sessionDoubles() {
+  const initialization = trustedInitialization()
+  return {
+    session: createMemorySessionTransactions<PathPrincipal>({
+      initialization,
+      history: createMemorySessionHistorySource(),
+    }),
+    evidence: createMemorySessionEvidenceBridge({ initialization }),
+  }
+}
+
 export function pathDependencies(overrides: Partial<PathDependencies> = {}): PathDependencies {
   return {
     identity: identityDouble(),
     login: { loginIdentifier: 'first@example.test', credential: 'first tenant credential' },
-    session: createMemorySessionTransactions<PathPrincipal>(),
-    evidence: createMemorySessionEvidenceBridge(),
+    ...sessionDoubles(),
     creation: creation({ purpose: 'm2-first-path' }),
     request: firstRequest(),
     agent: agentDouble(),

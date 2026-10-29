@@ -7,8 +7,6 @@ import type { SessionCommand, SessionTransactionPort } from '@omne-harness/sessi
 import {
   adoption,
   memorySessionTransactionsFixture,
-  operationId,
-  ordinaryInput,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
@@ -43,7 +41,7 @@ const NAMES = {
   query:
     'queryOperation answers committed with the receipt, and unknown for an operation never seen',
   finish: 'finishRun with an admission rejection fails the Run and releases the first input',
-  offPath: 'a kind off the first path is refused unavailable naming #756',
+  offPath: 'archive commits its scope cleanup without pretending physical release',
 } as const
 
 type Fixture = SessionTransactionsFixture<string>
@@ -300,40 +298,15 @@ const variants: readonly Variant<Fixture>[] = [
     }),
   },
   {
-    name: 'an off-path kind writes before refusing',
+    name: 'archive pretends scope cleanup is already released',
     fails: [NAMES.offPath],
     fixture: variant(real => ({
-      commit: (async input => {
-        const answer = await real.commit(input)
-        if ('failure' in answer && answer.failure.kind === 'unavailable') {
-          const { tenant, session } = input.command.input
-          await real.commit({
-            command: {
-              kind: 'accept',
-              input: {
-                tenant,
-                session,
-                operation: operationId('variant-write'),
-                value: ordinaryInput('variant'),
-              },
-            },
-            guards: [],
-          })
-        }
-        return answer
-      }) as Port['commit'],
-    })),
-  },
-  {
-    name: 'an off-path kind is refused without naming #756',
-    fails: [NAMES.offPath],
-    fixture: variant(real => ({
-      commit: (async input => {
-        const answer = await real.commit(input)
-        return 'failure' in answer && answer.failure.kind === 'unavailable'
-          ? fail({ ...answer.failure, diagnostic: 'unsupported' })
-          : answer
-      }) as Port['commit'],
+      readWork: async input => {
+        const result = await real.readWork(input)
+        return 'ok' in result && result.ok.lifecycle === 'archived'
+          ? succeed({ ...result.ok, tasks: [] })
+          : result
+      },
     })),
   },
   {

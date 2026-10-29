@@ -19,14 +19,16 @@
 
 ### F-SE02 Agent 事件到日志条目
 
+本流程按同一会话日志展开。源码支持范围以各成员 SPEC 的状态行为准。
+
 | 项 | 内容 |
 | --- | --- |
-| 参与者 | Agent 输出读取；`session-adapters` 的事件消费插件；`session` 命令处理；`session-storage-sql` |
-| 时序 | 按序读取 Agent 事件 → 按执行与序号去重 → 承接、调用登记、等待、控制阶段与执行结束作为会话事实与读取游标在同一次提交里保存；消息与流事件只推进游标 → 提交成功后向 Agent 确认 |
-| 数据去向 | Agent 执行的派生事实进会话日志；Run 的完成与失败在读到结束事件时按 Agent 的结论成立；游标随事实保存；确认交回 Agent |
-| 失败分支 | 提交后确认丢失，重读时按执行与序号去重；读到缺口时经恢复入口读完整快照后对账；消息进历史、压缩转换、保管与处理完成走提交参加者路径，与 Agent 的记录共同提交，事件到达时不写第二份 |
-| 来源成员 | 事件目录：`session-contract`；读取与确认：`session-adapters`；归约：`session` |
-| 成员流程 | 契约协议 [F-SC07](../session-contract/docs/flows/scenarios.md#f-sc07-从-agent-事件派生事实)、[F-SC02](../session-contract/docs/flows/scenarios.md#f-sc02-消息进历史的共同提交)；机制见 [session 的机制流程](../session/docs/flows.md) |
+| 参与者 | Agent；session-adapters 的 Journal 提供者与解释器；Session 日志提交者 |
+| 时序 | 首次发布共同保存 Agent 事实、适用四类 CallerCommit 参加事实及 Agent 操作答案；received、材料、绑定、saved 同批。open/submit/tryFinish 的 Session 参加只读核对。后续经同一提供者 output.read/events 读事件正文，load 读 entries/results 等快照；另一笔 Session 提交共同保存后果、进度与该次答案 |
+| 数据去向 | 共用会话日志，只存原来源身份或引用，不复制事件正文。事件序号用于 readThrough，entries 提交顺序/results 快照不作事件 cursor。ended 尚未解释时 cancel 可先写 cancelled；后续 ended 只留原 Run 引用，不改终态或后继 |
+| 失败分支 | 首次发布失败该批全无；后续解释失败不撤销 Agent 已提交事实且不推进解释进度，各批未知均认回自身原操作。每次读核对当前资格、租户与 execution/Run；缺口隔离，不可用保持未知，未解释事实计入未结工作 |
+| 来源成员 | 语义归 session-contract；Journal 形状与翻译归 session-adapters；持久实现另行兑现 |
+| 成员流程 | [EC-01](../session-contract/SPEC.md#ec-01)、[F-SC07](../session-contract/docs/flows/scenarios.md#f-sc07-从同日志-agent-条目派生事实)、[AD-02](../session-adapters/SPEC.md#ad-02) |
 
 ### F-SE03 控制传播
 
@@ -111,7 +113,7 @@
 | 参与者 | Model、Tool 与 Agent 的流；`session-adapters`；`session` |
 | 时序 | 模型回复流、工具内部事件流和 Agent 的 `stream` 事件都不逐块落盘 → 在途内容由生产者保管 → 收场后终态事实与结果消息进日志 → 保管或处理证据成立后确认 |
 | 数据去向 | 收场事实、经准入的消息、保管或处理事实与账目进会话日志 |
-| 失败分支 | 各阶段崩溃时，按生产者已保管的批次与日志已提交的事实对账；迟到结果由消费适配器读生产者事实后补交 |
+| 失败分支 | 各阶段崩溃时，按生产者已保管的批次与日志已提交的事实对账；迟到结果由 Agent 宿主的结果接收方写入同一会话日志，Session 读日志后补交 |
 | 来源成员 | 事件映射：`session-contract`；消费与确认：`session-adapters` |
 | 成员流程 | 契约协议 [F-SC12](../session-contract/docs/flows/scenarios.md#f-sc12-流到日志)；机制见 [session 的机制流程](../session/docs/flows.md) |
 

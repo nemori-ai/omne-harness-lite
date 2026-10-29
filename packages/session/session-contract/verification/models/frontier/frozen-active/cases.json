@@ -1,0 +1,259 @@
+[
+  {
+    "name": "positive-core",
+    "kind": "positive",
+    "module": "FrozenActive",
+    "expected_invariant": null,
+    "checked_invariants": [
+      "TypeOK",
+      "OriginalDirectory",
+      "NoFalseRelease",
+      "HistoryCoverage",
+      "WholeReleaseBatch",
+      "ReleaseAtMostOnce",
+      "CapturedPrefixRetained",
+      "CursorSound",
+      "ExactBatch",
+      "NoPostTerminalTake",
+      "EndedLast",
+      "CancelWindow",
+      "TerminalStable"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "positive-pending",
+    "kind": "positive",
+    "module": "FrozenActive",
+    "expected_invariant": null,
+    "checked_invariants": [
+      "TypeOK",
+      "OriginalDirectory",
+      "NoFalseRelease",
+      "HistoryCoverage",
+      "WholeReleaseBatch",
+      "ReleaseAtMostOnce",
+      "CapturedPrefixRetained",
+      "CursorSound",
+      "ExactBatch",
+      "NoPostTerminalTake",
+      "EndedLast",
+      "CancelWindow",
+      "TerminalStable"
+    ],
+    "bug": "none",
+    "takes": false,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "positive-normal-ended",
+    "kind": "positive",
+    "module": "FrozenActive",
+    "expected_invariant": null,
+    "checked_invariants": [
+      "TypeOK",
+      "OriginalDirectory",
+      "NoFalseRelease",
+      "HistoryCoverage",
+      "WholeReleaseBatch",
+      "ReleaseAtMostOnce",
+      "CapturedPrefixRetained",
+      "CursorSound",
+      "ExactBatch",
+      "NoPostTerminalTake",
+      "EndedLast",
+      "CancelWindow",
+      "TerminalStable"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": true,
+    "ends": true
+  },
+  {
+    "name": "negative-old-root",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "HistoryCoverage",
+    "checked_invariants": [
+      "HistoryCoverage"
+    ],
+    "bug": "old-root",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "negative-old-coverage-taken",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "NoFalseRelease",
+    "checked_invariants": [
+      "NoFalseRelease"
+    ],
+    "bug": "old-coverage",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "negative-old-coverage-history",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "HistoryCoverage",
+    "checked_invariants": [
+      "HistoryCoverage"
+    ],
+    "bug": "old-coverage",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "negative-drop-tail",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "CapturedPrefixRetained",
+    "checked_invariants": [
+      "CapturedPrefixRetained"
+    ],
+    "bug": "drop-captured",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "negative-half-release",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "WholeReleaseBatch",
+    "checked_invariants": [
+      "WholeReleaseBatch"
+    ],
+    "bug": "half-release",
+    "takes": false,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "negative-postterminal-take",
+    "kind": "negative",
+    "module": "FrozenActive",
+    "expected_invariant": "NoPostTerminalTake",
+    "checked_invariants": [
+      "NoPostTerminalTake"
+    ],
+    "bug": "no-take-guard",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "witness-new-taken",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoTakenWitness",
+    "checked_invariants": [
+      "NoTakenWitness"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "witness-new-pending",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoPendingWitness",
+    "checked_invariants": [
+      "NoPendingWitness"
+    ],
+    "bug": "none",
+    "takes": false,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "witness-final-agent-wins",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoFinalAgentWinner",
+    "checked_invariants": [
+      "NoFinalAgentWinner"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "witness-final-session-wins",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoFinalSessionWinner",
+    "checked_invariants": [
+      "NoFinalSessionWinner"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "witness-normal-ended-wins",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoNormalWinner",
+    "checked_invariants": [
+      "NoNormalWinner"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": true,
+    "ends": true
+  },
+  {
+    "name": "witness-cancel-before-ended",
+    "kind": "witness",
+    "module": "FrozenActive",
+    "expected_invariant": "NoCancelBeforeEnded",
+    "checked_invariants": [
+      "NoCancelBeforeEnded"
+    ],
+    "bug": "none",
+    "takes": true,
+    "normal": true,
+    "ends": true
+  },
+  {
+    "name": "sensitivity-old-guard-taken",
+    "kind": "sensitivity",
+    "module": "FrozenActive",
+    "expected_invariant": null,
+    "checked_invariants": [
+      "NoTakenWitness"
+    ],
+    "bug": "old-accept-guard",
+    "takes": true,
+    "normal": false,
+    "ends": false
+  },
+  {
+    "name": "sensitivity-old-guard-pending",
+    "kind": "sensitivity",
+    "module": "FrozenActive",
+    "expected_invariant": null,
+    "checked_invariants": [
+      "NoPendingWitness"
+    ],
+    "bug": "old-accept-guard",
+    "takes": false,
+    "normal": false,
+    "ends": false
+  }
+]

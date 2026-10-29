@@ -4,7 +4,7 @@
 
 ## 阅读顺序
 
-1. 先读 [SPEC 的五个锚点](../../SPEC.md#五个锚点)与 [Session 与 Agent 的两条通道](../../SPEC.md#session-与-agent-的两条通道)。全部流程以这两节为前提。
+1. 先读 [SPEC 的五个锚点](../../SPEC.md#五个锚点)与 [Session 与 Agent 的同一日志](../../SPEC.md#session-与-agent-的同一日志)。全部流程以这两节为前提。
 2. 再读组根的[跨成员流程 F-SE01 至 F-SE10](../../../docs/key-flows.md)。组根写各成员怎样分工，本目录写契约层的操作与事实。
 3. 然后按 [scenarios](scenarios.md#编号表) 的编号表选读 F-SC01 至 F-SC16。每条流程的开头列出它细化的组根流程与依据的条款。F-SC01 至 F-SC10 沿 Session 与 Agent 的协议，F-SC11 至 F-SC13 是三条读路径，F-SC14 至 F-SC16 是冻结、引用查询与作用域释放。
 4. 操作的形状在 [public-api](../public-api.md)，事件的含义在[事件目录](../object-model/session-log-events.md#原生事实类别)，守卫与完整结果在[状态转移页](../object-model/session-state-transitions.md#命令守卫与完整结果)。流程只引用它们，不复述。
@@ -14,7 +14,7 @@
 - 流程描述 Session 与 Agent、Model、Tool、存储提供者、读取者之间的协议。参与者是逻辑角色，不表示部署、进程或共同寿命。
 - 时序图给出阅读次序与分支，不是算法证明，也不穷举并发交错。并发裁定按条款的「并发裁定」列与[共同提交与共享事务域](../../SPEC.md#共同提交与共享事务域)。
 - 「提交」在图中指一次权威提交。提交结果未知时各方按 [PA-05](../../SPEC.md#pa-05) 与 [PA-07](../../SPEC.md#pa-07) 认回，不改写为失败或成功。每张图的未知分支都遵守这条规则。
-- Session 只在 Agent 已有的四种调用方交接上作为提交参加者。其余 Agent 事实从事件流派生。流程里的「参加」「冲突」「失败」「不支持」沿 Agent 契约的[提交参加者协议](../../../../agent/agent-contract/SPEC.md#提交参加者协议)。
+- Session 只在 Agent 已有的四种调用方交接上作为提交参加者。其余 Agent 事实由 Session 从同一会话日志里的 Agent 条目解释派生。流程里的「参加」「冲突」「失败」「不支持」沿 Agent 契约的[提交参加者协议](../../../../agent/agent-contract/SPEC.md#提交参加者协议)。
 - 流程只用契约已经定义的操作名。Agent 一侧的操作名沿 Agent 契约的[托管协调与运行实例](../../../../agent/agent-contract/SPEC.md#托管协调与运行实例)与[事件流与读取](../../../../agent/agent-contract/SPEC.md#事件流与读取)。
 - 流程存在不表示实现、提供者或验证已经完成。
 
