@@ -30,7 +30,7 @@ sequenceDiagram
 
 ### FA-02 同日志 Agent 事实解释
 
-对应 [AD-02](../SPEC.md#ad-02)。本流程为待评审候选。
+对应 [AD-02](../SPEC.md#ad-02)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
 
 1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
 2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读取事件正文，经 load 读取 entries/results 等快照。每次读核对当前资格、租户、execution 与原 Run 绑定。readThrough 是事件序号，entries 提交顺序和 results 快照不能替代它。
@@ -79,7 +79,7 @@ flowchart LR
 2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料。三部分全部限定于本次恢复的原 scope：该 scope 全部注册提交的耐久顺序、该 scope 每个 `checkpointed` 块的步提交全值、该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。然后重签资格。首次恢复前，本 scope 的注册、步提交和已确认结束三部分均无时，只交本 scope 空材料。代次绑定和新 scope 初始化的责任边界见 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实)，本流程不补齐 #680 的新 scope 初始化。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
-5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实按 Session 契约的 [J18 候选](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 在归档同批产生，物理释放仍等待独立读回。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
+5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实按 Session 契约的 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 在归档同批产生，物理释放仍等待独立读回。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
 
 ### FA-04 历史源读取与未结工作下界
 
@@ -93,7 +93,7 @@ flowchart LR
 
 ### FA-05 Model 日志结果与账目
 
-对应 [AD-05](../SPEC.md#ad-05)。本流程为待评审候选。
+对应 [AD-05](../SPEC.md#ad-05)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
 
 1. Agent 宿主结果接收方将 received、完整材料、消费绑定与 saved 共同提交到 Session 日志。
 2. 本插件经同一 AgentJournal 的 `load().entries` 选取 Model 的 received 条目。结果交付从 `delivery.accounts` 读取冻结账目快照，账目交付从 `delivery.account` 读取该 key 修订的账目；完整材料按条目的 material 引用经同提供者 AgentMaterials.read 读取并按 Agent J02 校验。entries 缺席返回 unavailable，材料不可读显式失败。load.results 不代替这条路径。事件正文另经 output.read / output.events 读。核对当前资格、原租户、执行、consumption 及版本，以原事实身份解释 Session 后果。

@@ -1,6 +1,6 @@
 # @omne-harness/session-adapters 行为规格
 
-状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为由 `./testing` 内存提供者承载；其余候选插件仍未交付。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
+状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
 
 ## 范围与依据
 
@@ -45,11 +45,12 @@
 
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | 同日志候选 |
-| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | 同日志候选 |
+| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现；生产插件未交付 |
+| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史源与未结工作下界 | 入站 | 无 | `reader`；下界读取为 `coordinator` | `HistorySource.read`；压缩计划的下界输入 | 取得方式待 [NP-02](#np-02) |
-| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | Model ACK 到达未决 |
+| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | `./testing` 内存提供者已实现；Model ACK 到达未决 |
+| [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现；生产插件未交付 |
 | [AD-06](#ad-06) | Tool 消费适配 | 入站 | 无 | `coordinator` | `queries.lookup`、`queries.readResult`、`queries.account`、`content.read`；交付释放的翻译依据 | 可登记 |
 | [AD-07](#ad-07) | 模型选择端口提供者 | 入站 | `agentModelSelection` | `coordinator` | `ModelSelection.select`；`modelProfiles.resolve` | 可登记 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
@@ -321,7 +322,7 @@ Request Context 没有为历史源读口定义取得方式（[NP-02](#np-02)）�
 
 收到 received 与 saved 不能推导 ACK。Model 确认路径是 Session [JC-Release](../session-contract/SPEC.md#jc-release) 的 MODEL-ACK-ARRIVAL 未决义务。冻结 Agent recordResult 排除 Model 采用，接收共同提交不执行 ACK。因此没有已采用的 ACK 记录可读时保持 pending，暂停该 confirmed 投影。不得发明 JournalEntry、Agent 端口或直接 Model ACK 路径。
 
-Tool 原生产者确认由 Agent 宿主合格保管/结果协调者以既有 recordResult 保存，Session 协调适配者按 load().results 读取并成为 ProducerFact.release 的写入者。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
+Tool 原生产者确认由 Agent 宿主的结果接收方（当前合格保管者）以既有 recordResult 保存，Session 适配协调者（本插件）按 load().results 读取并成为 ProducerFact.release 的写入者。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
 
 <a id="ad-06"></a>
 

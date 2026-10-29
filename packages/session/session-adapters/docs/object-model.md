@@ -8,7 +8,7 @@
 
 | 运行对象 | 关联的 Session 对象 | 关联的邻域对象 | 持有什么 |
 | --- | --- | --- | --- |
-| 入站插件（AD-01 至 AD-08、AD-13） | 命令、`ProducerFact`、`ModelViewRead` | `CallerCommit`、Agent 事件、读取资格、`HistorySource`、`SelectedModel` | 订阅、上一份已过滤快照、前缀摘要缓存 |
+| 入站插件（AD-01 至 AD-08、AD-13） | 命令、`ProducerFact`、`ModelViewRead` | `CallerCommit`、同一会话日志里的 Agent 条目与事件正文、`HistorySource`、`SelectedModel` | 上一份已过滤快照、前缀摘要缓存。解释进度不在插件内保存，它在 Session 日志的 `ExecutionRef.readThrough` 里 |
 | 构造依赖端口实现（AD-09 至 AD-12） | `GuardCommand`（`participant` 为材料拥有者）、`ContextMaterial`、`FreezeVerdict` | 身份材料、候选采用、`NeedBinding` | 无业务状态 |
 | 出站端口实现（AD-14 至 AD-17） | `AdvanceRef`、`ExecutionRef`、`DurableEvidence`、作用域引用、`ReleasedScope`、`ProducedResult` | `AgentRuntime`、执行句柄、`StartGuard`、`RecoveryAccess`、ACK、`releaseDelivery` 的操作引用 | 执行句柄；恢复授权的引用；Tool 释放操作引用的对应 |
 | 翻译函数 | 操作身份、模式值 | 邻域的操作身份、`DecisionMode`、元能力宿主的两个布尔值 | 无。纯函数 |

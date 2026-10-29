@@ -23,7 +23,7 @@ Session 自有业务事实经具名操作提交，邻域不拼写 SE 编号或�
 | `schema`             | 该种类载荷的精确采用                                                                                                                                     | 本目录           |
 | 效力                 | 依据或留痕                                                                                                                                               | 本目录与用途变体 |
 | `origin.owner`       | 事实拥有者：`session`、`agent`、`model`、`tool`、`hitl`、`user`、`runtime-context`、`request-context`、`execution-environment`、`clock`、`authorization` | 命令             |
-| `origin.via`         | 经由方：`direct`、`agent-participant`、`agent-events`、`session-adapter`、`intake`                                                                       | 命令             |
+| `origin.via`         | 经由方：`direct`、`agent-participant`、`same-log`、`session-adapter`、`intake`。`same-log` 表示 Session 按同一日志里的 Agent 条目解释后写入 | 命令             |
 | `origin.operation`   | 提交它的 `SessionOperationId`                                                                                                                            | 命令             |
 | `origin.source`      | 拥有者一侧原记录的耐久证据                                                                                                                               | 命令参数         |
 | `refs`               | 实际存在的 `run`、`attempt`、`consumption`、`input`、`card`、`control`、`target`                                                                         | 命令参数         |
@@ -180,23 +180,23 @@ Model 给出的事实：
 
 | 事实               | 经由                                                                        | 条目                               | 提交命令                                                            |
 | ------------------ | --------------------------------------------------------------------------- | ---------------------------------- | ------------------------------------------------------------------- |
-| 真实收场           | 同一 Journal 的 Agent 生产者事件；迟到时由 Session 的消费适配器按原调用读取 | SE19                               | Agent 事件经后续 Session 解释提交；直接读取的生产者事实经 `receive` |
+| 真实收场           | 同一 Journal 的 Agent 生产者事件；迟到时由 Agent 宿主的结果接收方按原调用读取生产者后写入同一日志 | SE19 | Agent 事件经后续 Session 解释提交；结果接收方写入的事实由 Session 适配协调者读日志后经 `receive` 提交 |
 | 完整回复、中断回复 | Agent 形成消息                                                              | SE10                               | `recordMessage`                                                     |
-| 账目               | 迟到时由消费适配器读取                                                      | SE32                               | `receive`                                                           |
-| 交付责任解除确认   | Session 的消费适配器                                                        | SE19；`release` 派生为 `confirmed` | `receive`                                                           |
+| 账目               | Agent 宿主的结果接收方写入同一日志：在途账目随 `received` 条目，迟到账目按原调用读取生产者后写入 | SE32 | Session 适配协调者读日志后经 `receive` 提交 |
+| 交付责任解除确认   | 没有写入者：MODEL-ACK-ARRIVAL 未决 | 不写；`release` 保持 pending | 不适用 |
 
 Tool 给出的事实：
 
 | 事实                                   | 经由                                                             | 条目                                     | 提交命令                                                                                      |
 | -------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------- | --------------------------------------------------------------------------------------------- |
 | 受理回执与固定请求                     | 同一 Journal 的 Agent 等待事件                                   | SE18                                     | 后续 Session 解释提交                                                                         |
-| 真实收场、效果确定性                   | 同一 Journal 的 Agent 生产者事件；迟到时由消费适配器读取         | SE19                                     | Agent 事件经后续 Session 解释提交；直接读取的生产者事实经 `receive`                           |
+| 真实收场、效果确定性                   | 同一 Journal 的 Agent 生产者事件；迟到时由 Agent 宿主的结果接收方按原调用读取生产者后写入同一日志 | SE19 | Agent 事件经后续 Session 解释提交；结果接收方写入的事实由 Session 适配协调者读日志后经 `receive` 提交 |
 | Run 仍未终结时的最终结果               | 同一 Journal 的 Agent 原事实与交接                               | SE19、SE20 或 SE21、SE10                 | SE19 经后续 Session 解释提交；交接经 `preserveResult`、`completeConsumption`、`recordMessage` |
 | 转后台确认与占位                       | Tool 的转换确认经消费适配器；占位消息由 Agent 提交               | SE19、SE21 占位、SE10 占位消息           | `receive`、`completeConsumption`、`recordMessage`                                             |
 | Run 已终结、会话未归档时的后台最终结果 | Session 的消费适配器                                             | 先 SE19、SE20 登记结果，再 SE11 业务输入 | `receive`、`preserveResult`，再 `accept`                                                      |
 | 迟到版本                               | 合格保管者经 Agent 的 `recordResult`；Agent 记录已删除时直接提交 | SE20                                     | `preserveResult`                                                                              |
-| 交付责任解除确认                       | Session 的消费适配器                                             | SE19；`release` 派生为 `confirmed`       | `receive`                                                                                     |
-| 账目                                   | 迟到时由消费适配器读取                                           | SE32                                     | `receive`                                                                                     |
+| 交付责任解除确认                       | Agent 宿主的结果接收方经 `recordResult` 写入同一日志；Session 适配协调者读 `load().results` | SE19；`release` 派生为 `confirmed` | `receive` |
+| 账目                                   | Agent 宿主的结果接收方写入同一日志；迟到账目按原调用读取生产者后写入 | SE32 | Session 适配协调者读日志后经 `receive` 提交 |
 | 常驻工具的首次定义                     | 采用点的候选采用材料                                             | SE36                                     | `create`、`startRun`、`reload`                                                                |
 | 冻结判定                               | 候选采用材料，或 Tool 宿主的协调者经 session-adapters            | SE37；没有未终结 Run 时另有 SE38         | `freeze`                                                                                      |
 
@@ -214,7 +214,7 @@ Tool 给出的事实：
 | 时钟与空闲输入          | 空闲观察                                                             | SE31                                                               | `recordIdle`                                                                      |
 | 初始化项的负责方        | 初始化结果                                                           | SE02                                                               | `completeInitialization`                                                          |
 
-迟到的账目与收场由 Session 的消费适配器按原调用身份读取生产者事实后提交，不等 Agent 在场。这需要 Model 与 Tool 给出读取资格，是与这两方的具名前提。前提不成立时，迟到的收场只能经 Agent 事件到达，Agent 不在时保持未知。Agent 事件不带账目，所以在途与迟到的账目都保持未知。不以查不到当未发生。
+迟到的账目与收场由 Agent 宿主的结果接收方按原调用身份读取生产者事实，写入同一会话日志，不等 Agent 在场。Session 只读日志里的结果与账目：Session 适配协调者读到这些事实后经 `receive` 提交，Session 不读取生产者。读取资格需要 Model 与 Tool 给出，是与这两方的具名前提（P-3）。前提不成立时，迟到的收场只能经 Agent 事件到达，Agent 不在时保持未知。迟到的账目保持未知，在途账目仍随 `received` 条目到达。不以查不到当未发生。Model 交付责任解除的确认路径是未决义务 MODEL-ACK-ARRIVAL，Tool 一侧的写入者见 SPEC 的 [JC-Release](../../SPEC.md#jc-release)。
 
 ## 消息、物理结果与流协议
 

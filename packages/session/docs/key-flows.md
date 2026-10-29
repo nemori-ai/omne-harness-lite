@@ -19,7 +19,7 @@
 
 ### F-SE02 Agent 事件到日志条目
 
-本流程为同日志候选，当前源码支持范围仍以成员状态行为准。
+本流程按同一会话日志展开。源码支持范围以各成员 SPEC 的状态行为准。
 
 | 项 | 内容 |
 | --- | --- |
@@ -28,7 +28,7 @@
 | 数据去向 | 共用会话日志，只存原来源身份或引用，不复制事件正文。事件序号用于 readThrough，entries 提交顺序/results 快照不作事件 cursor。ended 尚未解释时 cancel 可先写 cancelled；后续 ended 只留原 Run 引用，不改终态或后继 |
 | 失败分支 | 首次发布失败该批全无；后续解释失败不撤销 Agent 已提交事实且不推进解释进度，各批未知均认回自身原操作。每次读核对当前资格、租户与 execution/Run；缺口隔离，不可用保持未知，未解释事实计入未结工作 |
 | 来源成员 | 语义归 session-contract；Journal 形状与翻译归 session-adapters；持久实现另行兑现 |
-| 成员流程 | [EC-01](../session-contract/SPEC.md#ec-01)、[F-SC07](../session-contract/docs/flows/scenarios.md#f-sc07-从-agent-事件派生事实)、[AD-02](../session-adapters/SPEC.md#ad-02) |
+| 成员流程 | [EC-01](../session-contract/SPEC.md#ec-01)、[F-SC07](../session-contract/docs/flows/scenarios.md#f-sc07-从同日志-agent-条目派生事实)、[AD-02](../session-adapters/SPEC.md#ad-02) |
 
 ### F-SE03 控制传播
 
