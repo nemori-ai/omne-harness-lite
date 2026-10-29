@@ -7,6 +7,7 @@ import {
   type AgentCheckpoint,
   type AgentJournal,
 } from '@omne-harness/agent-contract'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import { type SessionCommand } from '@omne-harness/session-contract'
 import {
@@ -49,19 +50,31 @@ export function checkpoint(): AgentCheckpoint {
     priorConditions: null,
   }
 }
+export type SceneQualification = { agent: boolean; session: boolean | 'unavailable' }
 export async function scene(
   session = 'journal-session',
   budget?: { entries: number; bytes: number; capacityBytes: number },
-  qualification = { agent: true, session: true },
+  qualification: SceneQualification = { agent: true, session: true },
 ) {
   const access = memoryAccess('tester', session)
   const initialization = createMemoryInitializationSource()
-  // The Session side: an explicit policy that the scene's qualification flag decides per request.
-  const accessCheck = createPolicySessionAccessCheck<string>(request =>
-    qualification.session
-      ? { kind: 'allowed', evidence: evidence(`access/${request.operation}`) }
-      : { kind: 'denied' },
-  )
+  // The Session side: an explicit policy. Only the scene's own tenant may touch a session; the
+  // scene's qualification flag decides the rest per request, and every allowed decision gets its
+  // own evidence so a test can tell which call a recorded decision came from.
+  let decisions = 0
+  const accessCheck = createPolicySessionAccessCheck<string>(request => {
+    if (
+      request.target.kind === 'session' &&
+      'tenant' in request.access &&
+      !tenantEquals(request.access.tenant, access.tenant)
+    )
+      return { kind: 'denied' }
+    if (qualification.session === 'unavailable')
+      return { kind: 'unavailable', diagnostic: 'scene qualification unavailable' }
+    return qualification.session
+      ? { kind: 'allowed', evidence: evidence(`access/${request.operation}/${++decisions}`) }
+      : { kind: 'denied' }
+  })
   const backend = createMemorySessionJournal({
     initialization,
     accessCheck,

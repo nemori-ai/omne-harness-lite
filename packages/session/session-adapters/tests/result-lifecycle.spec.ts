@@ -290,37 +290,37 @@ for (const point of ['before-publish', 'after-publish'] as const)
     expect(recovered.work.run).toEqual(before.work.run)
   })
 
-// The Session half of a `custody`/`processed` participation is a delegated same-log commit: the
-// Agent qualification and the gap gate decide it at the execution point, and the Session access
-// check is not asked a second time for the derived participation (session-contract SPEC
-// 「当前操作的访问裁定」, delegated operations share the internal path).
+// The Session half of a `custody`/`processed` participation is a Session mutation of its own: the
+// Session access check decides it once before anything is prepared, while the Agent qualification
+// and the gap gate are checked again at the publication point, after a pause.
 for (const kind of ['custody', 'processed'] as const)
-  it(`does not ask the Session access check for the delegated ${kind} participation`, async () => {
-    const s = await lifecycle(`late-${kind}-delegated`, 'ended'),
-      request = lateRequest(s, kind),
-      before = s.accessCheck.controls.asked().length
-    // Whatever the Session half answers (custody is preserved; processed conflicts with the
-    // ended Run), the derived participation never reaches the Session access check.
-    await s.view.journal.recordResult(request)
-    expect(s.accessCheck.controls.asked().slice(before)).toEqual([])
-  })
-
-for (const kind of ['custody', 'processed'] as const)
-  for (const boundary of ['agent', 'gap'] as const)
-    it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {
+  for (const boundary of ['agent', 'session', 'gap'] as const)
+    it(`preserves the ${boundary} failure when ${kind} is refused before publication`, async () => {
       const qualification = { agent: true, session: true },
         s = await lifecycle(`late-${kind}-${boundary}`, 'ended', qualification),
         request = lateRequest(s, kind),
         before = await observed(s, request),
-        pause = s.view.controls.pauseWrite(request, 'recordResult'),
-        writing = s.view.journal.recordResult(request)
-      await pause.reached
-      if (boundary === 'gap') s.view.controls.quarantine('confirmed result history gap')
-      else qualification[boundary] = false
-      pause.release()
+        asked = s.accessCheck.controls.asked().length
+      if (boundary === 'session') qualification.session = false
+      const pause =
+        boundary === 'session' ? null : s.view.controls.pauseWrite(request, 'recordResult')
+      const writing = s.view.journal.recordResult(request)
+      if (pause) {
+        await pause.reached
+        if (boundary === 'gap') s.view.controls.quarantine('confirmed result history gap')
+        else qualification.agent = false
+        pause.release()
+      }
       expect(await writing).toMatchObject({
         failure: { kind: boundary === 'gap' ? 'unavailable' : 'denied' },
       })
+      if (boundary === 'session')
+        expect(
+          s.accessCheck.controls
+            .asked()
+            .slice(asked)
+            .map(item => item.operation),
+        ).toEqual([kind === 'custody' ? 'preserveResult' : 'completeConsumption'])
       qualification.agent = true
       qualification.session = true
       expect(s.view.controls.root()).toBe(before.root)

@@ -1,7 +1,10 @@
-import { scene, ok, operation, evidence } from './common-journal.ts'
+import { scene, ok, operation, evidence, type SceneQualification } from './common-journal.ts'
 import { toolCall } from './tool-call.ts'
 
-export async function resultCall(name: string, qualification = { agent: true, session: true }) {
+export async function resultCall(
+  name: string,
+  qualification: SceneQualification = { agent: true, session: true },
+) {
   const s = await scene(name, undefined, qualification),
     tool = toolCall(s.access.tenant, name)
   ok(
