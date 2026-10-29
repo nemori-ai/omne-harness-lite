@@ -17,6 +17,7 @@ import {
   operationId,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import { createMemorySessionJournal } from '../../src/testing.ts'
 import { ok, operation, instance, checkpoint } from './common-journal.ts'
 
@@ -24,14 +25,18 @@ import { ok, operation, instance, checkpoint } from './common-journal.ts'
 export function sessionFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource(),
     access = memoryAccess('tester')
-  // The suite tests transaction semantics; the access policy is stated open and the double's
-  // tenant keying refuses a foreign tenant (J40).
+  // The suite tests transaction semantics; the access policy is one explicit choice: only the
+  // fixture's tenant may touch a session, so the check itself refuses the other tenant (J40)
+  // before the double's tenant keying would. Tenant and system directories stay open.
   const backend = createMemorySessionJournal({
     initialization,
-    accessCheck: createPolicySessionAccessCheck(request => ({
-      kind: 'allowed',
-      evidence: evidence(`access/${request.operation}`),
-    })),
+    accessCheck: createPolicySessionAccessCheck(request =>
+      request.target.kind === 'session' &&
+      'tenant' in request.access &&
+      !tenantEquals(request.access.tenant, access.tenant)
+        ? { kind: 'denied' }
+        : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+    ),
     authorize: () => 'allowed',
   })
   const view = backend.forSession(access)

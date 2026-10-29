@@ -117,6 +117,48 @@ describe('the common-journal double requires the explicit access check', () => {
     expect(s.accessCheck.controls.asked()).toEqual([])
   })
 
+  it('refuses a denied or unavailable readInput and queryOperation without the answer', async () => {
+    const s = await scene([
+      allowed('create'),
+      { kind: 'denied' },
+      { kind: 'unavailable', diagnostic: 'directory down' },
+      { kind: 'denied' },
+      { kind: 'unavailable', diagnostic: 'directory down' },
+      allowed('read-input'),
+      allowed('query'),
+    ])
+    const created = await s.create()
+    if ('failure' in created) throw new Error('create failed')
+    const input = s.command.input.creation.initial!.input,
+      operation = created.ok.receipt.operation
+    expect(await s.port.readInput({ ...access, input })).toEqual({
+      failure: { kind: 'denied', action: 'readInput' },
+    })
+    expect(await s.port.readInput({ ...access, input })).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('directory down') },
+    })
+    expect(await s.port.queryOperation({ ...access, operation })).toEqual({
+      failure: { kind: 'denied', action: 'queryOperation' },
+    })
+    expect(await s.port.queryOperation({ ...access, operation })).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('directory down') },
+    })
+    // The same reads answer once the check allows them: the refusals above hid real answers.
+    expect(await s.port.readInput({ ...access, input })).toMatchObject({ ok: { input } })
+    expect(await s.port.queryOperation({ ...access, operation })).toMatchObject({
+      ok: { kind: 'committed' },
+    })
+    expect(s.accessCheck.controls.asked().map(item => item.operation)).toEqual([
+      'create',
+      'readInput',
+      'readInput',
+      'queryOperation',
+      'queryOperation',
+      'readInput',
+      'queryOperation',
+    ])
+  })
+
   it('asks once per public call, never reuses allowed, and records the evidence with the commit', async () => {
     const s = await scene([
       allowed('decision-create'),

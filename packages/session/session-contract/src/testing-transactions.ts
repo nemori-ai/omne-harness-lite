@@ -1724,14 +1724,18 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
 export function memorySessionTransactionsFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
-  // The suite tests transaction semantics; this fixture states an open policy and leaves the
-  // tenant keying of the double to refuse a foreign tenant (J40).
-  const accessCheck = createPolicySessionAccessCheck<string>(request => ({
-    kind: 'allowed',
-    evidence: evidence(`access/${request.operation}`),
-  }))
-  const port = createMemorySessionTransactions<string>({ history, initialization, accessCheck })
   const access = memoryAccess('tester')
+  // The suite tests transaction semantics; this fixture states one explicit policy: only the
+  // fixture's tenant may touch a session, so the check itself refuses the other tenant (J40)
+  // before the tenant keying of the double would. Tenant and system directories stay open.
+  const accessCheck = createPolicySessionAccessCheck<string>(request =>
+    request.target.kind === 'session' &&
+    'tenant' in request.access &&
+    !tenantEquals(request.access.tenant, access.tenant)
+      ? { kind: 'denied' }
+      : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+  )
+  const port = createMemorySessionTransactions<string>({ history, initialization, accessCheck })
   return {
     port,
     prepareInputAdmission: async input => {

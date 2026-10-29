@@ -126,6 +126,50 @@ describe('the memory transaction factory requires the explicit access check', ()
     expect(s.accessCheck.controls.asked()).toEqual([])
   })
 
+  it('refuses a denied or unavailable readInput and queryOperation without the answer', async () => {
+    const s = await scene([
+      allowed('create'),
+      { kind: 'denied' },
+      { kind: 'unavailable', diagnostic: 'directory down' },
+      { kind: 'denied' },
+      { kind: 'unavailable', diagnostic: 'directory down' },
+      allowed('read-input'),
+      allowed('query'),
+    ])
+    const created = succeeded(await s.create(), 'create')
+    const input = s.command.input.creation.initial!.input
+    expect(refused(await s.port.readInput({ ...access, input }), 'denied readInput')).toEqual({
+      kind: 'denied',
+      action: 'readInput',
+    })
+    expect(
+      refused(await s.port.readInput({ ...access, input }), 'unavailable readInput'),
+    ).toMatchObject({ kind: 'unavailable', diagnostic: expect.stringContaining('directory down') })
+    const operation = created.receipt.operation
+    expect(
+      refused(await s.port.queryOperation({ ...access, operation }), 'denied queryOperation'),
+    ).toEqual({ kind: 'denied', action: 'queryOperation' })
+    expect(
+      refused(await s.port.queryOperation({ ...access, operation }), 'unavailable queryOperation'),
+    ).toMatchObject({ kind: 'unavailable', diagnostic: expect.stringContaining('directory down') })
+    // The same reads answer once the check allows them: the refusals above hid real answers.
+    expect(succeeded(await s.port.readInput({ ...access, input }), 'allowed readInput').input).toBe(
+      input,
+    )
+    expect(
+      succeeded(await s.port.queryOperation({ ...access, operation }), 'allowed queryOperation'),
+    ).toMatchObject({ kind: 'committed' })
+    expect(s.accessCheck.controls.asked().map(item => item.operation)).toEqual([
+      'create',
+      'readInput',
+      'readInput',
+      'queryOperation',
+      'queryOperation',
+      'readInput',
+      'queryOperation',
+    ])
+  })
+
   it('asks once per call and never reuses an allowed answer, including a recall', async () => {
     const s = await scene([allowed('create'), allowed('read-1'), { kind: 'denied' }])
     succeeded(await s.create(), 'create')
