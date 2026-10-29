@@ -1,6 +1,7 @@
 // 并行度从机器推的规则：预算怎么来、怎么分。两个校验点是量过的机器：24 核（空闲 0.8）与 8 核。
 import { describe, expect, it } from 'vitest'
 import {
+  budgetFor,
   deriveParallelism,
   idleBetween,
   observeMachine,
@@ -82,6 +83,20 @@ describe('空闲率', () => {
   it('没有核或时间没走时当全闲', () => {
     expect(idleBetween([], [])).toBe(1)
     expect(idleBetween(sample(10, 10), sample(10, 10))).toBe(1)
+  })
+})
+
+describe('调用方交下来的预算', () => {
+  it('OMNE_WORKER_BUDGET 已设时以它为准，不超过核数；不是正整数就报错', async () => {
+    const given = await budgetFor({ ...POLICY, sampleMs: 0 }, { OMNE_WORKER_BUDGET: '3' })
+    expect(given.workers).toBe(3)
+    expect(given.source).toBe('env')
+    const capped = await budgetFor({ ...POLICY, sampleMs: 0 }, { OMNE_WORKER_BUDGET: '100000' })
+    expect(capped.workers).toBe(capped.machine.cores)
+    await expect(budgetFor(POLICY, { OMNE_WORKER_BUDGET: 'many' })).rejects.toThrow(
+      'OMNE_WORKER_BUDGET',
+    )
+    expect((await budgetFor({ ...POLICY, sampleMs: 0 }, {})).source).toBe('sampled')
   })
 })
 

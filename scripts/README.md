@@ -44,8 +44,8 @@
 （算不出计划就在这里失败，不改判全量；`pnpm run check:plan` 只打印不跑）。然后按步骤图跑下面这些步骤。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts)，运行器在 [check-graph.ts](../tools/test-runner/src/testing/check-graph.ts)；`node --experimental-strip-types tools/test-runner/src/testing/cli.ts check --list` 打印当前的表（`check.sh` 不接受这个开关）。调度规则：
 
 - 每一步只声明「先于我完成的步骤」，没有依赖的同时跑。
-- 重步骤（构建、类型检查、成员测试、验收）自己按[并行度](../tools/test-runner/README_ZH.md#测试运行)起多进程把机器占满，所以一次只跑一个：两个一起只会互相挤，并让预算采样看到对方的尖峰。
-- 轻步骤（单线程检查，含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个，与重步骤同时跑、填它留下的空。
+- 重步骤（构建、类型检查、成员测试、验收）自己按[并行度](../tools/test-runner/README_ZH.md#测试运行)起多进程把机器占满，所以一次只跑一个：两个一起只会互相挤。工作进程预算在起任何步骤之前、机器安静时采一次，经 `OMNE_WORKER_BUDGET` 交给各重步骤；调用方已设它时原样交下去。
+- 轻步骤（单线程检查，含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个，以低优先级与重步骤同时跑、填它留下的空，不和重步骤抢核。
 
 失败语义：
 
@@ -165,9 +165,9 @@
 
 runner 与别的任务共用主机，并行度过高时本来一两秒的用例会被挤过时限。
 测试并行度由运行器按 runner 主机的核数、空闲率与内存推出来（策略在 [test-runs.config.json](../tools/test-runner/test-runs.config.json)，本地与 CI 同用一份，见[并行度](../tools/test-runner/README_ZH.md#测试运行)）；
-要钉死时设仓库变量 `OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
+要钉死时设仓库变量 `OMNE_WORKER_BUDGET`（整份工作进程预算）、`OMNE_TEST_MEMBER_CONCURRENCY`（同时跑几个成员）与
 `OMNE_VITEST_MAX_WORKERS`（每个成员几个工作进程），留空即用推出的值。本地临时调整用环境变量
-`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`pnpm run check` 自带运行名额，
+`OMNE_WORKER_BUDGET`、`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS`。`pnpm run check` 自带运行名额，
 runner 上的任务与同一用户在主机上手工起的全量检查会互相排队。
 耗时账本留在 runner 主机的 `$OMNE_TEST_LEDGER_HOME`（仓库变量；留空则落在检出目录的 `tmp/test-ledger/`，
 随下一次全新检出被清掉）。

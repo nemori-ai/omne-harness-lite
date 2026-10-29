@@ -145,7 +145,7 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
 turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
 
-**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时采样机器（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟步骤过了启动尖峰再量）：核数（`availableParallelism()`）、
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的、已降到低优先级，那时再采只会把它们当成别的负载而缩预算）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
 `parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
 空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
@@ -155,8 +155,8 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 慢层的下限是起子进程最多的成员（repo-toolchain，28 个慢文件）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。
 同一策略在 8 核上推出 3 × 2，这只是预测，没有在 8 核上复测；之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
 `memoryPerWorkerMiB` 是安全上限的估计，不是测量：空闲内存少于它乘预算时才起作用。
-两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
-会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存）。
+预算可用 `OMNE_WORKER_BUDGET`（正整数，超过核数按核数）钉死，不再采样；两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
+会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存，以及是自己采的还是环境变量给的）。
 
 **耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
 `--out` 可直接指定）留下：

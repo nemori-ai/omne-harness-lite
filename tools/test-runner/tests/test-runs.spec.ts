@@ -187,7 +187,11 @@ describe('并行度', () => {
     triage: { repeats: 3 },
     mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
   })
-  const budget = { workers: 20, machine: { cores: 24, idleFraction: 0.85, freeMemoryMiB: 65536 } }
+  const budget = {
+    workers: 20,
+    machine: { cores: 24, idleFraction: 0.85, freeMemoryMiB: 65536 },
+    source: 'sampled' as const,
+  }
 
   it('预算按策略推出并行度，环境变量覆盖', () => {
     expect(effectiveParallelism(config, {}, budget)).toEqual({

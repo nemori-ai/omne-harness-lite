@@ -5,6 +5,7 @@
 // 每步的输出落自己的日志。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, rmSync, writeSync } from 'node:fs'
+import { constants, setPriority } from 'node:os'
 import { join } from 'node:path'
 
 /** 一条命令：可执行文件与参数，至少有可执行文件。 */
@@ -193,6 +194,13 @@ export async function runGraph(
           detached: process.platform !== 'win32',
         })
         running.set(step.name, child)
+        // 轻步骤降到低优先级：它们填重步骤留下的空，不和按预算占满机器的重步骤抢核。起不来的进程没有 pid，跳过。
+        if (!step.heavy && child.pid !== undefined)
+          try {
+            setPriority(child.pid, constants.priority.PRIORITY_BELOW_NORMAL)
+          } catch {
+            // 平台不让改优先级时照常跑
+          }
         const opened = log
         child.once('error', error => failToStart(`起不来：${message(error)}`, opened))
         child.once('exit', (code, signal) =>

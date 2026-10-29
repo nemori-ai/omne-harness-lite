@@ -32,7 +32,16 @@ export interface Machine {
 export interface Budget {
   readonly workers: number
   readonly machine: Machine
+  /** 来历：这一步自己采样推出的，还是调用方经 `OMNE_WORKER_BUDGET` 交下来的（检查图在开始前安静时采一次，交给各重步骤）。 */
+  readonly source: 'sampled' | 'env'
 }
+
+/**
+ * 调用方交下来的预算。`pnpm run check` 在起任何步骤之前采样一次，再经它交给各重步骤：
+ * 重步骤开始时机器上跑着的是本图自己的轻步骤（已降低优先级），那时采样会把它们当成别的负载而缩预算。
+ * CI 要钉死预算时也设它。
+ */
+export const WORKER_BUDGET_ENV = 'OMNE_WORKER_BUDGET'
 
 /** `cpus()` 给的样子里这里用到的部分：每个核各状态的累计时间。 */
 export type CpuSample = readonly { readonly times: Readonly<Record<string, number>> }[]
@@ -87,11 +96,23 @@ export function workerBudget(machine: Machine, policy: ParallelPolicy): Budget {
     machine.freeMemoryMiB > 0
       ? Math.floor(machine.freeMemoryMiB / policy.memoryPerWorkerMiB)
       : Number.POSITIVE_INFINITY
-  return { workers: clamp(Math.min(byCpu, byMemory), 1, machine.cores), machine }
+  return { workers: clamp(Math.min(byCpu, byMemory), 1, machine.cores), machine, source: 'sampled' }
 }
 
-/** 看一眼机器，按策略给出这一次运行的预算。 */
-export async function budgetFor(policy: ParallelPolicy): Promise<Budget> {
+/**
+ * 这一次运行的预算：`OMNE_WORKER_BUDGET` 已设时以它为准（须为正整数，不超过核数），否则采样机器按策略推。
+ */
+export async function budgetFor(
+  policy: ParallelPolicy,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Promise<Budget> {
+  const given = env[WORKER_BUDGET_ENV]
+  if (given !== undefined && given !== '') {
+    if (!/^[1-9]\d*$/u.test(given))
+      throw new Error(`环境变量 ${WORKER_BUDGET_ENV} 须为正整数，现在是 ${given}`)
+    const machine = await observeMachine(0)
+    return { workers: Math.min(Number(given), machine.cores), machine, source: 'env' }
+  }
   return workerBudget(await observeMachineSettled(policy.sampleMs), policy)
 }
 
@@ -111,6 +132,8 @@ export function deriveParallelism(budget: Budget, policy: ParallelPolicy): Paral
 /** 账本与日志里写的预算来历。 */
 export function describeBudget(budget: Budget): string {
   const { workers, machine } = budget
+  if (budget.source === 'env')
+    return `预算 ${workers} 个进程：由 ${WORKER_BUDGET_ENV} 给定；本机 ${machine.cores} 核`
   return (
     `预算 ${workers} 个进程：本机 ${machine.cores} 核、空闲 ${Math.round(machine.idleFraction * 100)}%` +
     `、空闲内存 ${Math.round(machine.freeMemoryMiB / 1024)} GiB`
