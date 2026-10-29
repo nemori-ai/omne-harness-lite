@@ -44,6 +44,7 @@ export function buildTargets(
   root: string,
   targets: readonly TestMember[],
   runDir: string,
+  concurrency: number,
 ): boolean {
   const started = Date.now()
   process.stdout.write(`构建 ${targets.length} 个成员及其依赖 …`)
@@ -51,6 +52,7 @@ export function buildTargets(
     root,
     targets.map(member => member.name),
     admissionRequested(process.env),
+    concurrency,
   )
   const buildLog = join(runDir, 'build.log')
   writeFileSync(buildLog, built.output)

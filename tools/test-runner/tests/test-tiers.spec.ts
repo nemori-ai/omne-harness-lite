@@ -355,8 +355,9 @@ describe('运行器交给 turbo 的命令', () => {
         'tools/repo-toolchain/tests/fixtures/**',
       ]),
     )
-    expect(typecheckArgs(['@a/x'], false)).toContain('--cache=local:rw')
-    expect(typecheckArgs(['@a/x'], true)).toContain('--cache=local:w')
+    expect(typecheckArgs(['@a/x'], false, 5)).toContain('--cache=local:rw')
+    expect(typecheckArgs(['@a/x'], true, 5)).toContain('--cache=local:w')
+    expect(typecheckArgs(['@a/x'], true, 5)).toContain('--concurrency=5')
   })
 
   it('三个测试任务的 env 与 passThroughEnv 各是同一份', () => {

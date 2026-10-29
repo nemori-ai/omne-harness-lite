@@ -1,7 +1,11 @@
 {
   "parallel": {
-    "memberConcurrency": 2,
-    "vitestMaxWorkers": 4
+    "memberDivisor": 3,
+    "workerDivisor": 4,
+    "maxWorkersPerMember": 8,
+    "minimum": 2,
+    "memoryPerWorkerMiB": 512,
+    "sampleMs": 500
   },
   "affected": {
     "excludeRoots": ["examples"],

@@ -37,6 +37,7 @@ import {
 } from './steps.ts'
 import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
+import { budgetFor } from './parallelism.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -102,13 +103,15 @@ async function step(argv: readonly string[]): Promise<number> {
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
   const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
+  // 预算在这一步开始时看一次机器：并行跑着的别的检查会降低空闲率，这一步就少占一些。
+  const budget = await budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: () => buildStep(ROOT, file),
-    typecheck: () => typecheckStep(ROOT, file),
+    build: () => buildStep(ROOT, file, budget),
+    typecheck: () => typecheckStep(ROOT, file, budget),
     // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。
-    test: () => testStep(ROOT, file, planPath === undefined),
-    acceptance: () => acceptanceStep(ROOT, file),
+    test: () => testStep(ROOT, file, budget, planPath === undefined),
+    acceptance: () => acceptanceStep(ROOT, file, budget),
   }
   return steps[name as Step]()
 }
@@ -195,6 +198,7 @@ async function run(request: RunRequest): Promise<number> {
     at: coordinates(ROOT, undefined),
     base: planned === undefined || planned.plan.mode === 'full' ? null : planned.base,
     plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
+    budget: await budgetFor(config.parallel),
   })
 }
 

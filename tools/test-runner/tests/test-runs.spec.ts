@@ -169,27 +169,44 @@ const AFFECTED_EMPTY = {
   residentBuild: [],
 }
 
+const POLICY = {
+  memberDivisor: 3,
+  workerDivisor: 4,
+  maxWorkersPerMember: 8,
+  minimum: 2,
+  memoryPerWorkerMiB: 512,
+  sampleMs: 0,
+}
+
 describe('并行度', () => {
   const config = parseTestRunsConfig({
-    parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+    parallel: POLICY,
     affected: AFFECTED_EMPTY,
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
     mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
   })
+  const budget = { workers: 20, machine: { cores: 24, idleFraction: 0.85, freeMemoryMiB: 65536 } }
 
-  it('配置给初值，环境变量覆盖', () => {
-    expect(effectiveParallelism(config, {})).toEqual({ memberConcurrency: 2, vitestMaxWorkers: 4 })
+  it('预算按策略推出并行度，环境变量覆盖', () => {
+    expect(effectiveParallelism(config, {}, budget)).toEqual({
+      memberConcurrency: 7,
+      vitestMaxWorkers: 5,
+    })
     expect(
-      effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '1', VITEST_MAX_WORKERS: '8' }),
+      effectiveParallelism(
+        config,
+        { OMNE_TEST_MEMBER_CONCURRENCY: '1', VITEST_MAX_WORKERS: '8' },
+        budget,
+      ),
     ).toEqual({ memberConcurrency: 1, vitestMaxWorkers: 8 })
   })
 
   it('环境变量不是正整数就报错，不悄悄回落', () => {
-    expect(() => effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '0' })).toThrow(
-      'OMNE_TEST_MEMBER_CONCURRENCY',
-    )
-    expect(() => effectiveParallelism(config, { VITEST_MAX_WORKERS: '50%' })).toThrow(
+    expect(() =>
+      effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '0' }, budget),
+    ).toThrow('OMNE_TEST_MEMBER_CONCURRENCY')
+    expect(() => effectiveParallelism(config, { VITEST_MAX_WORKERS: '50%' }, budget)).toThrow(
       'VITEST_MAX_WORKERS',
     )
   })
@@ -198,13 +215,22 @@ describe('并行度', () => {
     expect(() => parseTestRunsConfig({})).toThrow()
     expect(() =>
       parseTestRunsConfig({
-        parallel: { memberConcurrency: 0, vitestMaxWorkers: 4 },
+        parallel: { ...POLICY, memberDivisor: 0 },
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
       }),
-    ).toThrow('parallel.memberConcurrency')
+    ).toThrow('parallel.memberDivisor')
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+      }),
+    ).toThrow('parallel.memberDivisor')
   })
 
   it('复核上限（#649）：配置给初值，环境变量覆盖，0 表示不复核；不是非负整数就报错', () => {
@@ -216,7 +242,7 @@ describe('并行度', () => {
     )
     expect(() =>
       parseTestRunsConfig({
-        parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+        parallel: POLICY,
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
@@ -225,9 +251,13 @@ describe('并行度', () => {
     ).toThrow('mutation.recheckMaxMutants')
   })
 
-  it('仓库里的配置：两者之积不超过 8 核', () => {
+  it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全', () => {
     const { parallel } = readTestRunsConfig()
-    expect(parallel.memberConcurrency * parallel.vitestMaxWorkers).toBeLessThanOrEqual(8)
+    expect(parallel.memberDivisor).toBeGreaterThan(1)
+    expect(parallel.workerDivisor).toBeGreaterThan(1)
+    expect(parallel.minimum).toBeGreaterThanOrEqual(1)
+    expect(parallel.maxWorkersPerMember).toBeGreaterThanOrEqual(parallel.minimum)
+    expect(parallel.memoryPerWorkerMiB).toBeGreaterThan(0)
   })
 })
 

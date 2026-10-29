@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
+import { describeBudget, type Budget } from './parallelism.ts'
 import { changedFiles, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
 import {
@@ -171,32 +172,37 @@ export function pythonStep(root: string, file: PlanFile): number {
       ])
 }
 
-/** 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。 */
-export function buildStep(root: string, file: PlanFile): number {
+/** 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。同时构建的成员数取预算。 */
+export function buildStep(root: string, file: PlanFile, budget: Budget): number {
   const paths = file.plan.build.map(entry => entry.path)
   if (paths.length === 0) {
     console.log('构建：跳过——没有被选中的成员')
     return 0
   }
-  console.log(`构建：${paths.length} 个成员及其上游——${paths.join('、')}`)
+  console.log(
+    `构建：${paths.length} 个成员及其上游——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
+  )
   const names = membersAt(root, paths).map(member => member.name)
-  return turboBuild(root, names, admissionRequested(process.env))
+  return turboBuild(root, names, admissionRequested(process.env), budget.workers)
 }
 
-/** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。 */
-export function typecheckStep(root: string, file: PlanFile): number {
+/** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。同时检查的成员数取预算。 */
+export function typecheckStep(root: string, file: PlanFile, budget: Budget): number {
   const paths = file.plan.typecheck
   if (paths.length === 0) {
     console.log('类型检查：跳过——没有被选中的成员')
     return 0
   }
   const members = membersAt(root, paths)
-  console.log(`类型检查：${paths.length} 个成员——${paths.join('、')}`)
+  console.log(
+    `类型检查：${paths.length} 个成员——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
+  )
   checkTypecheckScopes(root, members)
   return turboTypecheck(
     root,
     members.map(member => member.name),
     admissionRequested(process.env),
+    budget.workers,
   )
 }
 
@@ -213,6 +219,8 @@ export interface RecordedRun {
   readonly base: RunMeta['base']
   readonly plan: RunMeta['plan']
   readonly scope?: RunMeta['scope']
+  /** 这一次运行的工作进程预算：并行度由它推出来（环境变量可盖过），账本记下它的来历。 */
+  readonly budget: Budget
 }
 
 function runDirOf(run: RecordedRun): string {
@@ -228,13 +236,14 @@ function runDirOf(run: RecordedRun): string {
 
 /** 跑 `targets` 的脚本并写账本；退出码只反映是否全过。 */
 export async function recordedRun(root: string, run: RecordedRun): Promise<number> {
-  const { script, tier, targets } = run
+  const { script, tier, targets, budget } = run
   const config = readTestRunsConfig()
-  const parallel = effectiveParallelism(config, process.env)
+  const parallel = effectiveParallelism(config, process.env, budget)
   const runDir = runDirOf(run)
   mkdirSync(runDir, { recursive: true })
   // 测试的构建由 turbo 按任务依赖在同一次运行里做；验收不经 turbo，先在这里构建。
-  if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir)) return 1
+  if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir, budget.workers))
+    return 1
 
   const meta = {
     script,
@@ -245,14 +254,20 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     base: run.base,
     startedAt: new Date().toISOString(),
     parallel,
-    cores: availableParallelism(),
+    cores: budget.machine.cores,
     plan: run.plan,
     ...(run.scope === undefined ? {} : { scope: run.scope }),
     members: targets.map(member => member.path),
+    // 账本类型来自钉住的 repo-toolchain；预算的来历作为额外一栏记下，供按机器比较账本。
+    budget: {
+      workers: budget.workers,
+      idleFraction: Math.round(budget.machine.idleFraction * 100) / 100,
+      freeMemoryMiB: budget.machine.freeMemoryMiB,
+    },
   }
   console.log(
     `跑 ${targets.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-      `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（本机 ${meta.cores} 核）`,
+      `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（${describeBudget(budget)}）`,
   )
   const started = Date.now()
   const report = (done: MemberRun, finished: number) => {
@@ -298,7 +313,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
   writeFileSync(
     join(runDir, 'ledger.json'),
-    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile, null, 1)}\n`,
+    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile & { meta: { budget: unknown } }, null, 1)}\n`,
   )
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
@@ -309,7 +324,12 @@ const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason
 
 /** 合并前的成员测试：计划里的成员的快层，快层全部通过才跑慢层；跑了的层各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。
  * `build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
-export async function testStep(root: string, file: PlanFile, build = false): Promise<number> {
+export async function testStep(
+  root: string,
+  file: PlanFile,
+  budget: Budget,
+  build = false,
+): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
   const targets = withScript(
@@ -333,6 +353,7 @@ export async function testStep(root: string, file: PlanFile, build = false): Pro
     at,
     base: file.plan.mode === 'full' ? null : file.base,
     plan: planSummary(file.plan),
+    budget,
   } as const
   console.log(
     `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
@@ -393,7 +414,11 @@ export function recordSkippedAcceptance(
 }
 
 /** 可执行验收：只跑计划里有验收的成员（驱动前面构建好的 dist，不再构建）；一个都没有时记一份「跳过」的账本。 */
-export async function acceptanceStep(root: string, file: PlanFile): Promise<number> {
+export async function acceptanceStep(
+  root: string,
+  file: PlanFile,
+  budget: Budget,
+): Promise<number> {
   const config = readTestRunsConfig()
   const accepting = listTestMembers(root, config.affected.excludeRoots, 'acceptance')
   const selected = new Set(file.plan.acceptance)
@@ -421,5 +446,6 @@ export async function acceptanceStep(root: string, file: PlanFile): Promise<numb
     base: file.plan.mode === 'full' ? null : file.base,
     plan: planSummary(file.plan),
     scope: { reason: file.plan.reason, skipped },
+    budget,
   })
 }

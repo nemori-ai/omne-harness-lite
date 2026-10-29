@@ -114,7 +114,8 @@ describe('legacy check boundaries', () => {
       true,
     )
     const file: PlanFile = { head: '', dirty: false, base: { ref: '', mergeBase: '' }, plan }
-    expect(typecheckStep(root, file)).not.toBe(0)
+    const budget = { workers: 2, machine: { cores: 2, idleFraction: 1, freeMemoryMiB: 4096 } }
+    expect(typecheckStep(root, file, budget)).not.toBe(0)
     expect(() => readFileSync(join(root, 'root-shortcut'))).toThrow()
     put(
       root,
@@ -124,6 +125,6 @@ describe('legacy check boundaries', () => {
         scripts: { typecheck: 'node -e "process.exit(0)"' },
       }),
     )
-    expect(typecheckStep(root, file)).toBe(0)
+    expect(typecheckStep(root, file, budget)).toBe(0)
   })
 })

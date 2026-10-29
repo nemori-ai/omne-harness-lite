@@ -223,11 +223,17 @@ export function packageNames(stdout: string): string[] | undefined {
   return names
 }
 
-function buildArgs(names: readonly string[], admission: boolean): string[] {
+/** 构建的 turbo 参数：同时构建的成员数取工作进程预算（tsc 各占一个核）。 */
+export function buildArgs(
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): string[] {
   return [
     'run',
     'build',
     ...names.map(name => `--filter=${name}`),
+    `--concurrency=${concurrency}`,
     `--cache=${admission ? 'local:w' : 'local:rw'}`,
     '--output-logs=errors-only',
   ]
@@ -237,9 +243,14 @@ function buildArgs(names: readonly string[], admission: boolean): string[] {
  * 用 turbo 构建一批成员；turbo 按依赖先构建上游。准入模式本地缓存只写不读。
  * 返回退出码；没有成员时不跑、返回 0。
  */
-export function turboBuild(root: string, names: readonly string[], admission: boolean): number {
+export function turboBuild(
+  root: string,
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): number {
   if (names.length === 0) return 0
-  const args = buildArgs(names, admission)
+  const args = buildArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
   const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
   if (run.error !== undefined) throw run.error
@@ -251,9 +262,10 @@ export function turboBuildCaptured(
   root: string,
   names: readonly string[],
   admission: boolean,
+  concurrency: number,
 ): { readonly status: number; readonly output: string } {
   if (names.length === 0) return { status: 0, output: '' }
-  const run = spawnSync(TURBO_BIN, buildArgs(names, admission), {
+  const run = spawnSync(TURBO_BIN, buildArgs(names, admission, concurrency), {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
@@ -263,28 +275,34 @@ export function turboBuildCaptured(
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
 }
 
-/** 类型检查同时运行的成员数，与改由 turbo 调度之前 `pnpm -r` 的缺省并发相同。 */
-const TYPECHECK_CONCURRENCY = 4
-
 /**
  * 类型检查的 turbo 参数。任务按输入缓存，并依赖上游成员的 `typecheck`，上游源码一改下游就重新检查（见 turbo.json）；
- * 准入模式本地缓存只写不读，与构建相同。
+ * 准入模式本地缓存只写不读，与构建相同。同时检查的成员数取工作进程预算（tsc 各占一个核）。
  */
-export function typecheckArgs(names: readonly string[], admission: boolean): string[] {
+export function typecheckArgs(
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): string[] {
   return [
     'run',
     'typecheck',
     ...names.map(name => `--filter=${name}`),
-    `--concurrency=${TYPECHECK_CONCURRENCY}`,
+    `--concurrency=${concurrency}`,
     `--cache=${admission ? 'local:w' : 'local:rw'}`,
     '--output-logs=errors-only',
   ]
 }
 
 /** 用 turbo 跑一批成员的 `typecheck` 脚本；不先构建。没有成员时不跑、返回 0。 */
-export function turboTypecheck(root: string, names: readonly string[], admission: boolean): number {
+export function turboTypecheck(
+  root: string,
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): number {
   if (names.length === 0) return 0
-  const args = typecheckArgs(names, admission)
+  const args = typecheckArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
   const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
   if (run.error !== undefined) throw run.error

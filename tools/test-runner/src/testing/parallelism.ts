@@ -1,0 +1,101 @@
+// 并行度从机器推，不写死：核数、启动时实测的空闲率与空闲内存给出「工作进程预算」，
+// 策略（test-runs.config.json 的 `parallel`）只说预算怎样分给同时运行的成员与成员内的工作进程。
+// 规则在 24 核（空闲率 0.8，预算 20）与 8 核两台机器上量过，见 README_ZH.md「并行度」。
+import { availableParallelism, cpus, freemem } from 'node:os'
+import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
+
+/** 预算怎样分：都是关于预算的比例与上下限，不含任何一台机器的核数。 */
+export interface ParallelPolicy {
+  /** 同时运行的成员数 = ceil(预算 ÷ 它)。快层的墙钟 ≈ 各成员启动开销之和 ÷ 同时成员数，到 CPU 饱和为止。 */
+  readonly memberDivisor: number
+  /** 每个成员至多的工作进程数 = ceil(预算 ÷ 它)。vitest 按文件数惰性起进程，小成员用不满，大成员靠它压尾巴。 */
+  readonly workerDivisor: number
+  /** 每个成员工作进程的上限：超过它，大成员的文件级并行已到头，只会挤别的成员。 */
+  readonly maxWorkersPerMember: number
+  /** 两个数的下限：再小的机器也至少两个成员并行、每成员两个进程。 */
+  readonly minimum: number
+  /** 按空闲内存封顶预算时，每个工作进程按多少 MiB 算。 */
+  readonly memoryPerWorkerMiB: number
+  /** 实测空闲率的采样时长（毫秒）。 */
+  readonly sampleMs: number
+}
+
+/** 推预算用的机器观察。 */
+export interface Machine {
+  readonly cores: number
+  /** 采样期间全部核的空闲比例，0 到 1。 */
+  readonly idleFraction: number
+  readonly freeMemoryMiB: number
+}
+
+/** 工作进程预算：这一次运行打算同时占多少个 CPU。 */
+export interface Budget {
+  readonly workers: number
+  readonly machine: Machine
+}
+
+/** 两次 `cpus()` 之间全部核的空闲比例；读不到就当全闲。 */
+function idleBetween(before: ReturnType<typeof cpus>, after: ReturnType<typeof cpus>): number {
+  let idle = 0
+  let total = 0
+  for (const [index, core] of after.entries()) {
+    const previous = before[index]
+    if (previous === undefined) continue
+    for (const key of Object.keys(core.times) as (keyof typeof core.times)[]) {
+      const delta = core.times[key] - previous.times[key]
+      total += delta
+      if (key === 'idle') idle += delta
+    }
+  }
+  return total > 0 ? idle / total : 1
+}
+
+/** 看一眼机器：核数、`sampleMs` 内的空闲率与空闲内存。 */
+export async function observeMachine(sampleMs: number): Promise<Machine> {
+  const before = cpus()
+  await new Promise(resolve => setTimeout(resolve, sampleMs))
+  return {
+    cores: availableParallelism(),
+    idleFraction: idleBetween(before, cpus()),
+    freeMemoryMiB: Math.floor(freemem() / (1024 * 1024)),
+  }
+}
+
+const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
+
+/**
+ * 预算 = 核数 × 空闲率，再按空闲内存封顶，至少 1、至多核数。
+ * 空闲率让已经忙着的机器（别的检查、后台程序）少被挤；名额脚本挡的是整套检查，挡不住别的负载。
+ */
+export function workerBudget(machine: Machine, policy: ParallelPolicy): Budget {
+  const byCpu = Math.floor(machine.cores * machine.idleFraction)
+  const byMemory = Math.floor(machine.freeMemoryMiB / policy.memoryPerWorkerMiB)
+  return { workers: clamp(Math.min(byCpu, byMemory), 1, machine.cores), machine }
+}
+
+/** 看一眼机器，按策略给出这一次运行的预算。 */
+export async function budgetFor(policy: ParallelPolicy): Promise<Budget> {
+  return workerBudget(await observeMachine(policy.sampleMs), policy)
+}
+
+/** 预算按策略分成「同时成员数 × 每成员工作进程数」。 */
+export function deriveParallelism(budget: Budget, policy: ParallelPolicy): Parallelism {
+  const { workers } = budget
+  return {
+    memberConcurrency: Math.max(policy.minimum, Math.ceil(workers / policy.memberDivisor)),
+    vitestMaxWorkers: clamp(
+      Math.ceil(workers / policy.workerDivisor),
+      policy.minimum,
+      Math.max(policy.minimum, policy.maxWorkersPerMember),
+    ),
+  }
+}
+
+/** 账本与日志里写的预算来历。 */
+export function describeBudget(budget: Budget): string {
+  const { workers, machine } = budget
+  return (
+    `预算 ${workers} 个进程：本机 ${machine.cores} 核、空闲 ${Math.round(machine.idleFraction * 100)}%` +
+    `、空闲内存 ${Math.round(machine.freeMemoryMiB / 1024)} GiB`
+  )
+}

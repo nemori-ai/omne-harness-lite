@@ -127,14 +127,23 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 `pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
 调用方已经构建过时（`pnpm run check` 的测试一步、`run --all` 不带 `--build`）带 `--only`，只跑测试任务；
 否则不带，turbo 按任务的 `dependsOn` 在同一次运行里先构建成员及其上游（准入模式下构建缓存只写不读）。
-构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 取 `parallel.memberConcurrency`，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
+构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 是同时跑的成员数，每个成员的 vitest 至多起 `VITEST_MAX_WORKERS` 个工作进程；两个数由下面的「并行度」推出来。
 一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。各成员的退出码与起止时间取自 turbo 的运行摘要（`--summarize`），
 摘要里没有某个成员的执行记录时，这个成员记为失败。turbo 的输出按每行的 `<包名>:<任务>: ` 前缀拆成各成员的日志。
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
-turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。两个并行度可用环境变量
-`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
-会盖过成员配置里的 `maxWorkers`。初值 2 × 4 是在 8 核主机上量出来的：pnpm 默认的 4 个成员并行、
-每个成员最多 7 个工作进程时，全量要 18 到 22 分钟且有十几条用例被挤过时限；2 × 4 约 13 分钟。
+turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
+
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时看一眼机器：核数（`availableParallelism()`）、
+`parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
+空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
+预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
+构建与类型检查的 turbo 并发、Stryker 的工作进程数直接取预算（tsc 与 Stryker 的进程各占一个核）。
+策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 是 2026-10-29 在 24 核（空闲 0.8，预算 20）主机上全量扫描后定的：
+快层的墙钟 ≈ 各成员 vitest 启动与收集之和 ÷ 同时成员数，到 6 至 8 个成员时碰到 CPU 平台期（91 秒降到 39 至 41 秒），再多只让起子进程的用例贴线；
+慢层被最长的单个文件兜底，4 × 6 到 12 × 4 都在 217 至 240 秒。同一策略在 8 核上给 3 × 2，与之前在 8 核上量到的 2 × 4 与 4 × 2 相当（两者只差约 1 分钟）。
+`memoryPerWorkerMiB` 是安全上限的估计，不是测量：空闲内存少于它乘预算时才起作用。
+两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
+会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存）。
 
 **耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
 `--out` 可直接指定）留下：
