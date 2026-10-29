@@ -6,12 +6,19 @@ import { createRequire } from 'node:module'
 import { delimiter, dirname, join } from 'node:path'
 import ts from '@typescript/typescript6'
 
-/** Child processes get no NODE_PATH, no inherited npm configuration and no Node options. */
+/**
+ * Child processes get no NODE_PATH, no inherited npm configuration and no Node options. Windows
+ * variable names are case-insensitive and can arrive as `NPM_CONFIG_REGISTRY`, so there the names
+ * are compared without case.
+ */
 export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv {
+  const fold = (name: string) => (process.platform === 'win32' ? name.toUpperCase() : name)
   const env: NodeJS.ProcessEnv = {}
-  for (const [key, value] of Object.entries(process.env))
-    if (key !== 'NODE_PATH' && key !== 'NODE_OPTIONS' && !key.startsWith('npm_config_'))
-      env[key] = value
+  for (const [key, value] of Object.entries(process.env)) {
+    const name = fold(key)
+    if (name === fold('NODE_PATH') || name === fold('NODE_OPTIONS')) continue
+    if (!name.startsWith(fold('npm_config_'))) env[key] = value
+  }
   return { ...env, ...extra }
 }
 
