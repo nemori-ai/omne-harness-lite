@@ -110,6 +110,9 @@ describe('the judgement of one --check run', () => {
   })
 })
 
+// 起不了进程时的错误码：POSIX 上没有执行位的文件是 EACCES；Windows 不看执行位，非可执行映像按找不到报 ENOENT。
+const CANNOT_START = process.platform === 'win32' ? 'ENOENT' : 'EACCES'
+
 describe('the --check process', () => {
   it('throws with the error code when the process cannot start', () => {
     const root = temporary(),
@@ -117,7 +120,7 @@ describe('the --check process', () => {
     writeFileSync(file, 'plain text\n', { mode: 0o644 })
     expect(() =>
       runContractCheck({ root, timeoutMs: 60_000, command: { file, args: [] } }),
-    ).toThrow(/进程出错（EACCES）/)
+    ).toThrow(`进程出错（${CANNOT_START}）`)
   })
 })
 
