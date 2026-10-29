@@ -18,11 +18,13 @@ is excluded from every template.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -296,6 +298,19 @@ def checkout(source: Path, dest: Path, *, linked: list[str], drop: list[str]) ->
     if dest.exists():
         raise WorkspaceError(f"{dest} already exists; a run never reuses a copy")
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        _checkout_without_posix_tools(source, dest, linked)
+    else:
+        _checkout_with_rsync(source, dest, linked)
+    for relative in drop:
+        target = dest / relative
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        elif target.is_dir():
+            shutil.rmtree(target)
+
+
+def _checkout_with_rsync(source: Path, dest: Path, linked: list[str]) -> None:
     excluded = [argument for name in [*linked, READY] for argument in ("--exclude", name)]
     copied = subprocess.run(["rsync", "-a", *excluded, f"{source}/", f"{dest}/"], capture_output=True, text=True)
     if copied.returncode != 0:
@@ -307,12 +322,50 @@ def checkout(source: Path, dest: Path, *, linked: list[str], drop: list[str]) ->
             target = dest / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(["cp", "-al", str(source / relative), str(target)], check=True)
-    for relative in drop:
-        target = dest / relative
-        if target.is_symlink() or target.is_file():
-            target.unlink()
-        elif target.is_dir():
-            shutil.rmtree(target)
+
+
+# Windows has neither rsync nor cp, and a bare ``find`` there is find.exe. The same copy is made in Python:
+# the copy is ``rsync -a --exclude`` (links stay links, a name is excluded at any depth), every ``linked``
+# entry is found like ``find -name -prune`` and placed like ``cp -al`` (files hard-linked, links stay links).
+
+def _checkout_without_posix_tools(source: Path, dest: Path, linked: list[str]) -> None:
+    excluded = [*linked, READY]
+    _place(source, dest, hard_link=False, excluded=excluded)
+    for found in _named(source, linked):
+        target = dest / found.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _place(found, target, hard_link=True, excluded=[])
+
+
+def _named(root: Path, names: list[str]) -> list[Path]:
+    """Every entry under ``root`` whose name matches one of ``names``, not looking inside a match or a link."""
+    found: list[Path] = []
+    for entry in os.scandir(root):
+        if any(fnmatch.fnmatchcase(entry.name, name) for name in names):
+            found.append(Path(entry.path))
+        elif entry.is_dir(follow_symlinks=False) and not entry.is_junction():
+            found += _named(Path(entry.path), names)
+    return found
+
+
+def _place(source: Path, target: Path, *, hard_link: bool, excluded: list[str]) -> None:
+    """Put ``source`` at ``target``: a link (symbolic or junction) as a link to the same place, a file copied with
+    its times or hard-linked, a directory entry by entry, leaving out names that match ``excluded``."""
+    if source.is_symlink() or source.is_junction():
+        # The link's own directory flag, not its target's: a link is copied as it is, even one that does not resolve.
+        attributes = getattr(os.lstat(source), "st_file_attributes", 0)
+        os.symlink(os.readlink(source), target,
+                   target_is_directory=bool(attributes & stat.FILE_ATTRIBUTE_DIRECTORY))
+    elif source.is_dir():
+        target.mkdir()
+        for entry in os.scandir(source):
+            if not any(fnmatch.fnmatchcase(entry.name, name) for name in excluded):
+                _place(Path(entry.path), target / entry.name, hard_link=hard_link, excluded=excluded)
+        shutil.copystat(source, target)
+    elif hard_link:
+        os.link(source, target)
+    else:
+        shutil.copy2(source, target)
 
 
 def baseline(dest: Path) -> str:
