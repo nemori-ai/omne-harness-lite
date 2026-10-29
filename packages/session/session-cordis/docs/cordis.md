@@ -6,7 +6,7 @@
 
 现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，两个入口都没有导出。下文是 SPEC 固定的目标形状，不是源码事实。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
-当前访问检查的服务定义、注入与执行边界仅为契约要求，源码尚未实施。本成员仍无运行实现。
+访问检查类型与独立脚本替身已由 session-contract 导出。[session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 已导出 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。事务 commit 的显式 access、工厂必需 accessCheck、实际读写 check 与本成员的生产注入尚未接入。本成员仍无运行实现，生产运行尚未验证。
 
 ## 插件与服务
 

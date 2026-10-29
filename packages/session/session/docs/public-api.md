@@ -80,7 +80,7 @@ export type SessionDependencies<P> = Readonly<{
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
 | 按调用现取 | `notifier`、`agentDrive`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
 
-公开面与直接事务入口均按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 在实际执行处检查一次，不缓存 allowed。拒绝、不可用或抛错不继续执行。同一公开调用内部委派不重复检查，存储只核租户键与可信裁定证据。新访问类型、工厂接线与运行验证尚未实施。
+公开面与直接事务入口均按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 在实际执行处检查一次，不缓存 allowed。拒绝、不可用或抛错不继续执行。同一公开调用内部委派不重复检查，存储只核租户键与可信裁定证据。访问检查类型与独立脚本替身已由 [session-contract](../../session-contract/docs/access-check.md) 导出，Service 与键已由 [session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 导出。事务 commit 的显式 access、工厂必需 accessCheck、实际读写 check 与生产注入尚未接入，生产运行尚未验证。
 
 `principals` 是本成员内部动作使用的主体。协调器以 `coordinator` 调用方类、调度器与恢复以 `maintainer` 调用方类提交命令时，带上对应的主体，由身份桥核实它的可信来源。主体由应用装配的维护拥有者签发，本成员不铸造主体。
 

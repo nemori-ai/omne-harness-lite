@@ -4,7 +4,7 @@
 
 本页的性质编号是 1 至 11。服务定义成员的性质 1 至 7 写作「定义性质 n」。
 
-当前访问检查的服务定义、注入与执行边界仅为契约要求，源码尚未实施。本成员仍无运行实现。
+访问检查类型与独立脚本替身已由 session-contract 导出。[session-cordis-contract](../session-cordis-contract/docs/public-api.md) 已导出 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。事务 commit 的显式 access、工厂必需 accessCheck、实际读写 check 与本成员的生产注入尚未接入。本成员仍无运行实现，生产运行尚未验证。
 
 ## 提供者责任
 

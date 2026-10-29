@@ -105,6 +105,63 @@ describe('Agent cancelled requires the original Run cancellation', () => {
     },
   )
 
+  it.each(['completed', 'failed'] as const)(
+    'rejects cancelled replay after interpreting the original %s event',
+    async outcome => {
+      const s = await open()
+      const original = await s.active()
+      const observation = ended(s, original, outcome)
+      const receipt = succeeded(
+        await s.project(observation, operationId(`interpret-${outcome}`)),
+        'interpret original event',
+      )
+      const before = await s.read()
+      const entries = s.port.controls.entriesOf(s.base.tenant, s.base.session)
+
+      expect(receipt.recovered).toBe(false)
+      expect(before.run).toMatchObject({
+        kind: 'terminal',
+        terminal: { run: original.run.run, outcome },
+      })
+      expect(before.executions?.find(item => item.run === original.run.run)).toMatchObject({
+        terminal: { run: original.run.run, outcome },
+        execution: { execution: observation.execution, readThrough: observation.sequence },
+      })
+      expect(
+        before.historyIndex?.executions.find(item => item.execution === observation.execution),
+      ).toMatchObject({ readThrough: observation.sequence })
+      expect(observation.sequence).toBe('1')
+      expect(projectSessionLog(before, observation)).toEqual({ kind: 'entries', entries: [] })
+
+      const replay: SessionLogObservation = {
+        ...observation,
+        consequences: observation.consequences.map(consequence =>
+          consequence.kind === 'ended' ? { ...consequence, outcome: 'cancelled' } : consequence,
+        ),
+      }
+      const operation = operationId(`replay-${outcome}-as-cancelled`)
+      expect(operation).not.toBe(receipt.operation)
+      expect(projectSessionLog(before, replay)).toMatchObject({
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'outcome' },
+      })
+
+      // Preserve the original Agent fact while testing a changed interpretation.
+      expect(await s.port.controls.project(replay, operation)).toEqual({
+        failure: {
+          kind: 'invalid',
+          field: 'outcome',
+          reason: 'Agent cancellation requires committed Session cancellation',
+        },
+      })
+      expect(await s.read()).toEqual(before)
+      expect(s.port.controls.entriesOf(s.base.tenant, s.base.session)).toEqual(entries)
+      expect(succeeded(await s.port.queryOperation({ ...s.access, operation }), 'query')).toEqual({
+        kind: 'unknown',
+      })
+    },
+  )
+
   it.each([
     { successor: false, outcome: 'cancelled' },
     { successor: true, outcome: 'cancelled' },

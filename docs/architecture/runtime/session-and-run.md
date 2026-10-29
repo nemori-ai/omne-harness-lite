@@ -372,7 +372,7 @@ flowchart TD
 
 条目封套记录事实拥有者与经由方。经由方只供人与诊断使用，不参与治理。事件种类名保持稳定：旧种类永不复用，未知种类先隔离，不跳过。
 
-迟到的 Model 与 Tool 账目和收场，由 Session 的消费适配器读取生产者事实后提交。这需要 Model 与 Tool 给出读取资格，是与这两方的联合前提。Run 终态之后到达的后台结果作为后继工作的业务输入受理，保留原执行关联，不让原 Run 复活。精确目录见[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。
+迟到的 Model 与 Tool 账目和收场，由 Agent 宿主结果接收方取得生产者读取资格后写入同一会话日志。Session 的消费适配器只读同日志事实与原材料，核对当前读取资格后提交本域后果，不直接查询生产者。读取资格、日志交付或必要原材料未具备时，相应事实保持未知，见[联合前提与具名待决](#联合前提与具名待决)。Run 终态之后到达的后台结果作为后继工作的业务输入受理，保留原执行关联，不让原 Run 复活。精确目录见[事件目录](../../../packages/session/session-contract/docs/object-model/session-log-events.md)。
 
 ## 共同提交与参加关系
 

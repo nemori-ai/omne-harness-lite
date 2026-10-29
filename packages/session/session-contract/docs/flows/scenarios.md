@@ -644,7 +644,7 @@ epoch 视图是两次压缩之间的模型可见序列。它在压缩提交时�
 ```mermaid
 sequenceDiagram
     participant Q as Request Context 历史源读口
-    participant X as 应用装配桥接 历史持有者
+    participant X as session-adapters AD-04 历史持有者
     participant H as SessionHistory
     participant D as 存储读路径
     Q->>X: HistorySource.read，带历史依据、位置与预算
