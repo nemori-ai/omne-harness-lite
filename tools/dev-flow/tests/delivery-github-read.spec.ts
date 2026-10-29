@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
@@ -6,6 +6,7 @@ import { collectDelivery, GhReadError, runGhRead } from '../src/delivery/github-
 import type { GhRead } from '../src/delivery/github-read.ts'
 import { collectAdmission, observeAdmission } from '../src/delivery/admission.ts'
 import { InputError, parseCapture, parseConfig } from '../src/delivery/protocol.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 const config = parseConfig({
   schemaVersion: 2,
   kind: 'github-delivery-config',
@@ -717,9 +718,8 @@ describe('gh read process outcomes', () => {
   function withFakeGh<T>(script: string, run: () => T): T {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-')))
     try {
-      writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node\n${script}\n`)
-      chmodSync(join(dir, 'gh'), 0o755)
-      vi.stubEnv('PATH', `${dir}:${process.env.PATH}`)
+      writeGh(dir, `#!/usr/bin/env node\n${script}\n`)
+      for (const [name, value] of Object.entries(ghEnv(dir))) vi.stubEnv(name, value)
       return run()
     } finally {
       vi.unstubAllEnvs()

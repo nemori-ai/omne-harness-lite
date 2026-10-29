@@ -6,14 +6,13 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
-  chmodSync,
   mkdirSync,
   symlinkSync,
   linkSync,
   realpathSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { delimiter, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
@@ -33,6 +32,7 @@ import type {
   DeliveryCapture,
   DeliveryConfig,
 } from '../src/delivery/protocol.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const at = '2026-10-10T00:00:00Z'
 export function config(): DeliveryConfig {
@@ -834,9 +834,7 @@ describe('actual offline CLI', () => {
         first = join(dir, 'first.json'),
         second = join(dir, 'second.json')
       writeFileSync(cfg, JSON.stringify(config()))
-      const gh = join(dir, 'gh')
-      writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-      chmodSync(gh, 0o755)
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
       let saved = missing,
         reported = first
       if (mode === 'directory-parent') {
@@ -872,7 +870,7 @@ describe('actual offline CLI', () => {
           '--report',
           reported,
         ],
-        { encoding: 'utf8', env: { ...process.env, PATH: dir + delimiter + process.env.PATH } },
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
       )
       expect(result.status).toBe(2)
       expect(result.stderr).toContain('overwrite')
@@ -943,9 +941,7 @@ describe('actual offline CLI', () => {
         alias = join(dir, 'report-link.json')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync('report.json', alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-      chmodSync(gh, 0o755)
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
       const result = spawnSync(
         process.execPath,
         [
@@ -959,7 +955,7 @@ describe('actual offline CLI', () => {
           '--report',
           alias,
         ],
-        { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
       )
       expect(result.status).toBe(0)
       expect(parseCapture(JSON.parse(readFileSync(saved, 'utf8'))).kind).toBe(
@@ -982,12 +978,10 @@ describe('actual offline CLI', () => {
         marker = join(dir, 'gh-called')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync(missing, alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(
-        gh,
+      writeGh(
+        dir,
         '#!/usr/bin/env node\nrequire("node:fs").appendFileSync(process.env.DELIVERY_READ_MARKER, "read\\n"); process.stdout.write("[]")\n',
       )
-      chmodSync(gh, 0o755)
       const result = spawnSync(
         process.execPath,
         [
@@ -1003,7 +997,7 @@ describe('actual offline CLI', () => {
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, PATH: dir + ':' + process.env.PATH, DELIVERY_READ_MARKER: marker },
+          env: { ...process.env, ...ghEnv(dir), DELIVERY_READ_MARKER: marker },
         },
       )
       expect(result.status).toBe(2)

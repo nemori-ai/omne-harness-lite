@@ -1,13 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -33,6 +25,7 @@ import { conditionDigest } from '../src/integration/authority.ts'
 import { git } from '../src/integration/git.ts'
 import { commit, init, policyDocument } from './fixtures/integration.ts'
 import { registry, table } from './fixtures/lines.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const url = 'https://github.com/owner/repo/issues/7'
 const config = parseConfig({
@@ -470,8 +463,7 @@ describe('dispatch-cli post with an empty text', () => {
     const bin = join(home, 'bin'),
       calls = join(home, 'gh-calls.log')
     mkdirSync(bin)
-    writeFileSync(join(bin, 'gh'), `#!/bin/sh\necho "$@" >> '${calls}'\nexit 1\n`)
-    chmodSync(join(bin, 'gh'), 0o755)
+    writeGh(bin, `#!/bin/sh\necho "$@" >> '${calls}'\nexit 1\n`)
     writeFileSync(join(home, 'spec.json'), JSON.stringify(spec))
     writeFileSync(join(home, 'prose.md'), prose)
     const result = spawnSync(
@@ -487,7 +479,7 @@ describe('dispatch-cli post with an empty text', () => {
         '--root',
         home,
       ],
-      { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` } },
+      { encoding: 'utf8', env: { ...process.env, ...ghEnv(bin) } },
     )
     expect(result.status).toBe(2)
     expect(JSON.parse(result.stderr)).toMatchObject({

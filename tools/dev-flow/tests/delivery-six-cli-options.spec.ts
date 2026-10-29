@@ -1,26 +1,18 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import {
-  realpathSync,
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { realpathSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const home = realpathSync(mkdtempSync(join(tmpdir(), 'six-cli-options-'))),
   missing = join(home, 'absent.json'),
   calls = join(home, 'unexpected-gh'),
   bin = join(home, 'bin')
 mkdirSync(bin)
-writeFileSync(join(bin, 'gh'), `#!/bin/sh\ntouch '${calls}'\nexit 97\n`)
-chmodSync(join(bin, 'gh'), 0o755)
+writeGh(bin, `#!/bin/sh\ntouch '${calls}'\nexit 97\n`)
 afterAll(() => rmSync(home, { recursive: true, force: true }))
 
 const commands = [
@@ -76,7 +68,7 @@ function run(path: string, args: string[]) {
       encoding: 'utf8',
       env: {
         ...process.env,
-        PATH: `${bin}:${process.env.PATH}`,
+        ...ghEnv(bin),
         OMNE_DELIVERY_FACTS: 'direct',
       },
       timeout: 10_000,
