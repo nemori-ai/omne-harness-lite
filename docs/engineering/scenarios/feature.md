@@ -23,7 +23,7 @@
 1. 按 [pstack poteto-mode 的 Feature playbook](../skills.md#playbook-入口)组织任务，先用 how 定位影响。路由与实际读取方式按该页的固定 port 来源。
 2. 只有新边界或既有设计不足时用 architect；类型之外的承诺可按需用 Matt codebase-design。有效输入充分时直接从该阶段继续，不重复访谈或审批。
 3. 明确可验证单元与消费者，按[任务跟踪](../workflow.md#任务跟踪与接续)保留原步骤、跳过理由及四项吞吐检查点。需要补充切片时使用 Matt to-tickets；按实际研发需要形成普通任务；真实Issue独立维护本次结果与接受边界。独立任务按隔离交接并行，共享对象单一负责人，耦合任务按依赖推进。
-4. 实施实际公开类型、行为与必要验证，优先复用已有方法。相称且有价值的测试路径可用明确来源的 pstack:tdd；缺真实验证路线才参考 create-verification-skill，并由项目 canonical 源维护。
+4. 实施实际公开类型、行为与必要验证，优先复用已有方法。先设计必要的测试与验证，实施可以按 TDD 顺序。TDD 的默认来源是 [ub-mode 的 TDD 一节](../skills.md#ub-mode-研发品味)，需要展开时读 pstack:tdd。缺真实验证路线才参考 create-verification-skill，并由项目 canonical 源维护。
 5. 验证真实产物及受影响消费者，必要时用 blast-radius 核对 diff 外行为。按风险选择接受看法及相称验证；长任务按[成果保存](../publication.md#成果保存与跨会话接续)及时保存真实成果。沿[评审与交付](review-and-delivery.md)汇总，无发布授权就停在可审阅交付。
 
 ## 完成及交付
