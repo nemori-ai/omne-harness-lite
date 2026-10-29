@@ -851,9 +851,8 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
         if flow.family == "implement":
-            # stub_files gives native relative paths; a Git object name takes forward slashes.
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
-                workspace.git(repo, "show", f"{base}:{Path(path).as_posix()}")
+                workspace.git(repo, "show", f"{base}:{path}")
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "write-tests":
             for path in material.task["hidden_tests"]:

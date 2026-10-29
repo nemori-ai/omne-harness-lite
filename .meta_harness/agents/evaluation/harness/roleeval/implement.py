@@ -21,9 +21,10 @@ AGENT_TESTS = "tests.agent"
 
 
 def stub_files(flow: Flow, material: Material) -> list[str]:
-    """Paths, relative to the checkout, that the task's stub replaces."""
+    """Paths, relative to the checkout, that the task's stub replaces; written with "/" on every platform, as Git and
+    the brief name them."""
     stub = flow.root / material.task["stub"]
-    return sorted(str(path.relative_to(stub)) for path in stub.rglob("*") if path.is_file())
+    return sorted(path.relative_to(stub).as_posix() for path in stub.rglob("*") if path.is_file())
 
 
 def prepare(flow: Flow, material: Material, dest: Path) -> dict[str, str]:
