@@ -263,7 +263,10 @@ function copy<T>(value: T): T {
   return structuredClone(value)
 }
 
-function sameResult(left: ResultResponsibility['result'], right: ResultResponsibility['result']) {
+function sameResultKey(
+  left: ResultResponsibility['result'],
+  right: ResultResponsibility['result'],
+) {
   return (
     left.producer.kind === right.producer.kind &&
     left.producer.call === right.producer.call &&
@@ -1348,12 +1351,14 @@ export function createJournal<P>(
         const transfer = input.transfer
         if (
           transfer.kind !== 'none' &&
-          (!sameResult(transfer.result, input.result) || transfer.consumption !== input.consumption)
+          (semanticKey('result', transfer.result) !== semanticKey('result', input.result) ||
+            transfer.consumption !== input.consumption)
         ) {
           return rejected
         }
         const known = execution.results.find(
-          item => sameResult(item.result, input.result) && item.consumption === input.consumption,
+          item =>
+            sameResultKey(item.result, input.result) && item.consumption === input.consumption,
         )
         if (
           known !== undefined &&

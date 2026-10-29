@@ -1,4 +1,5 @@
 import { commandScope } from './frontier.ts'
+import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -244,6 +245,12 @@ export function createSessionTransactions<P>(
   stores: SessionDirectory,
   options: MemorySessionTransactionOptions<P> = {},
 ): MemoryInitializationTransactions<P> & {
+  prepareReconciliation(
+    observation: SessionLogObservation,
+    operation: SessionOperationId,
+    releases: readonly ToolRelease[],
+    beforePublish: () => SessionFailure | null,
+  ): Outcome<CommitReceipt | null, SessionFailure>
   prepareCommand(input: {
     command: SessionCommand
     guards: readonly GuardCommand[]
@@ -748,87 +755,106 @@ export function createSessionTransactions<P>(
     },
   }
 
+  const prepareProjection = (
+    observation: SessionLogObservation,
+    operation: SessionOperationId,
+    releases: readonly ToolRelease[] = [],
+    beforePublish?: () => SessionFailure | null,
+  ): Outcome<CommitReceipt | null, SessionFailure> => {
+    const key = keyOf(observation.tenant, observation.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    if (store === undefined) return fail(denied('project'))
+    const held = store.operations.get(operation)
+    const digest = releases.length ? digestOf({ observation, releases }) : digestOf(observation)
+    if (held !== undefined)
+      return held.record.digest === digest
+        ? succeed({ ...held.record.receipt, recovered: true })
+        : fail({ kind: 'conflict', operation })
+    const selected = observation.consequences.find(item => item.kind === 'input-taken')
+    const material = options.history?.read(
+      store.snapshot,
+      store.entries,
+      selected?.kind === 'input-taken'
+        ? { kind: 'selected', inputs: selected.batch.ordered }
+        : { kind: 'pending', inputs: store.snapshot.pending },
+      [observation.execution],
+      observation.sequence === null
+        ? new Map()
+        : !observation.consequences.some(item => item.kind === 'ended')
+          ? new Map([[observation.execution, observation.sequence]])
+          : undefined,
+    )
+    const prepared = {
+      ...store.snapshot,
+      ...(material === undefined ? {} : { historyIndex: material.index }),
+    }
+    const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
+    if (decision.kind === 'rejected') return fail(decision.failure)
+    if (decision.kind === 'recovered') return succeed(decision.receipt)
+    const encoded = [...decision.entries]
+    for (const fact of releases) {
+      const command = {
+        kind: 'receive' as const,
+        input: { tenant: observation.tenant, session: observation.session, operation, fact },
+      }
+      const qualification = options.verifyCommand?.(command, [])
+      if (qualification) return fail(qualification)
+      const release = decide(prepared, command, [], null, {
+        compaction: null,
+        ...(material ? { history: material.reads } : {}),
+      })
+      if (release.kind === 'rejected') return fail(release.failure)
+      if (release.kind === 'recovered')
+        return fail(unavailable('release unexpectedly recovered outside its reconciliation'))
+      encoded.push(...release.entries)
+    }
+    if (encoded.length === 0) return succeed(null)
+    const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+    const entries = encoded.map((entry, index) => ({
+      ...entry,
+      id: String(store.entries.length + index + 1) as EntryId,
+      revision,
+    }))
+    if (
+      options.capacityBytes !== undefined &&
+      (Buffer.byteLength(canonicalText(entries)) > options.capacityBytes ||
+        Buffer.byteLength(canonicalText(prepared)) > options.capacityBytes)
+    )
+      return fail(unavailable('required interpretation batch or snapshot exceeds capacity'))
+    const reduced = reduce(prepared, { revision, entries }, material?.reads)
+    if (reduced.kind === 'quarantined')
+      return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+    const receipt = receiptOf(observation.tenant, observation.session, operation, revision, entries)
+    const operations = new Map(store.operations)
+    operations.set(operation, {
+      record: { operation, digest, receipt },
+      projection: observation,
+      recall: value => value,
+    })
+    const refusal = beforePublish?.()
+    if (refusal) return fail(refusal)
+    stores.set(key.ok, {
+      ...store,
+      snapshot: reduced.snapshot,
+      lastCommit: receipt,
+      entries: [...store.entries, ...entries],
+      operations,
+      modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
+    })
+    return succeed(receipt)
+  }
+
   return Object.freeze({
     ...port,
     prepareCommand: commit,
+    prepareReconciliation: prepareProjection,
     durability: 'none' as const,
     controls: Object.freeze({
-      project: async (
-        observation: SessionLogObservation,
-        operation: SessionOperationId,
-      ): Promise<Outcome<CommitReceipt | null, SessionFailure>> => {
-        const key = keyOf(observation.tenant, observation.session)
-        if ('failure' in key) return key
-        const blocked = stores.gate(key.ok)
-        if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
-        const store = stores.get(key.ok)
-        if (store === undefined) return fail(denied('project'))
-        const held = store.operations.get(operation)
-        const digest = digestOf(observation)
-        if (held !== undefined)
-          return held.record.digest === digest
-            ? succeed({ ...held.record.receipt, recovered: true })
-            : fail({ kind: 'conflict', operation })
-        const selected = observation.consequences.find(item => item.kind === 'input-taken')
-        const material = options.history?.read(
-          store.snapshot,
-          store.entries,
-          selected?.kind === 'input-taken'
-            ? { kind: 'selected', inputs: selected.batch.ordered }
-            : { kind: 'pending', inputs: store.snapshot.pending },
-          [observation.execution],
-          observation.sequence === null
-            ? new Map()
-            : !observation.consequences.some(item => item.kind === 'ended')
-              ? new Map([[observation.execution, observation.sequence]])
-              : undefined,
-        )
-        const prepared = {
-          ...store.snapshot,
-          ...(material === undefined ? {} : { historyIndex: material.index }),
-        }
-        const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
-        if (decision.kind === 'rejected') return fail(decision.failure)
-        if (decision.kind === 'recovered') return succeed(decision.receipt)
-        if (decision.entries.length === 0) return succeed(null)
-        const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
-        const entries = decision.entries.map((entry, index) => ({
-          ...entry,
-          id: String(store.entries.length + index + 1) as EntryId,
-          revision,
-        }))
-        if (
-          options.capacityBytes !== undefined &&
-          (Buffer.byteLength(canonicalText(entries)) > options.capacityBytes ||
-            Buffer.byteLength(canonicalText(prepared)) > options.capacityBytes)
-        )
-          return fail(unavailable('required interpretation batch or snapshot exceeds capacity'))
-        const reduced = reduce(prepared, { revision, entries }, material?.reads)
-        if (reduced.kind === 'quarantined')
-          return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
-        const receipt = receiptOf(
-          observation.tenant,
-          observation.session,
-          operation,
-          revision,
-          entries,
-        )
-        const operations = new Map(store.operations)
-        operations.set(operation, {
-          record: { operation, digest, receipt },
-          projection: observation,
-          recall: value => value,
-        })
-        stores.set(key.ok, {
-          ...store,
-          snapshot: reduced.snapshot,
-          lastCommit: receipt,
-          entries: [...store.entries, ...entries],
-          operations,
-          modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
-        })
-        return succeed(receipt)
-      },
+      project: async (observation: SessionLogObservation, operation: SessionOperationId) =>
+        prepareProjection(observation, operation),
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
       },

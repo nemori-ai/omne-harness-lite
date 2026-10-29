@@ -1,3 +1,4 @@
+import { toolReleases } from './result-release.ts'
 import { captureModelSettlement } from './model-settlement.ts'
 import { resultPreparation, preparationOperation } from './result-preparation.ts'
 import { publicationHooks } from './publication.ts'
@@ -956,7 +957,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               result: value.result,
             })
           }
-          const result = await base.controls.project(
+          const releases = toolReleases(root, execution)
+          const result = base.prepareReconciliation(
             {
               tenant: input.tenant,
               session: input.session,
@@ -970,6 +972,38 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               consequences: consequences.length ? consequences : [{ kind: 'observed' }],
             },
             input.operation,
+            releases,
+            () => {
+              const qualification = cell.authorize(input, 'reconcile')
+              if (qualification)
+                return qualification.kind === 'denied'
+                  ? qualification
+                  : { kind: 'unavailable', owner: 'session-qualification', diagnostic: 'reconcile' }
+              for (const fact of releases) {
+                const refusal = verifyCommand(
+                  {
+                    kind: 'receive',
+                    input: {
+                      tenant: input.tenant,
+                      session: input.session,
+                      operation: input.operation,
+                      fact,
+                    },
+                  },
+                  [],
+                )
+                if (refusal) return refusal
+              }
+              const gap = cell.gate()
+              if (gap !== null) return { kind: 'quarantined', diagnostic: gap }
+              if (cell.current() !== root)
+                return {
+                  kind: 'unavailable',
+                  owner: 'session-history',
+                  diagnostic: 'reconciliation root changed',
+                }
+              return null
+            },
           )
           return fault === 'after-publish' && cell.current() !== root
             ? fail<SessionFailure>({ kind: 'commit-unknown', operation: input.operation })

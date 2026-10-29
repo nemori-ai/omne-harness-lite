@@ -14,6 +14,10 @@ Agent 原记录、四类 CallerCommit 参加事实及原 Agent 答案同批可�
 
 `controls.reconcile` 用新的稳定 Session operation 读取同根原结果和控制快照。它使用 `sequence: null`，不推进事件 cursor。它能处理无事件的结果责任更新，以及原后台槽位在控制事件之后才成立的情形。它不能补造 Model ACK 或 Tool 物理停止。停止核对中的原收场替代项只消费完整原调用关联且先于原具名控制提交的 Tool result 槽位或 ModelReplyAdmission；原请求对应的生产者确认仍按 AD-02 核对。Model facts 的未公开 schema 保持未解释。
 
+Tool 的原 `release.confirmed.receipt` 由 `recordResult` 保存后，`controls.reconcile` 核对原 execution 所属 Run、consumption、完整结果和保管事实。它以原 receipt 为 source，经现有 `receive(release)` 决定写 SE19。一次对账中的全部释放与快照后果经过完整 reduce 校验，在一个 Session 修订和共同根中发布，并保存原 reconcile operation 的答案。任一释放被拒绝时不发布本批其他条目。已经反映的释放不重复写；发布后失答复可查询原 operation 或以原参数重试。Agent 确认与 Session 对账各有一次发布，Session 对账失败不会撤销原 Agent 确认。Model ACK 未决边界保持。
+
+`recordResult.result` 与非 none 的 `transfer.result` 必须完整相同，包括 delivery 和 source。不同完整材料即使具有相同 producer、call 和 version，也在 Pending 准备之前被拒绝。查找既有责任仍按原结果键进行，同键异值不能新增第二份责任。
+
 首次 custody/processed 的调用若尚未登记，提供者先核新请求和原操作，再以独立 operation 解释此前已提交 Pending/effect 的登记。准备未知时停止新结果提交。后续 joint 失败可以留下这笔旧 Pending 登记，但不能留下新结果或其 Session 参加事实。重试已提交的 Agent 操作直接认回原答案。
 
 冻结后的终态及后继输入承接先准备相关输入的全部原交入关系和必要前缀，再在当前根决定。原 `ended` 边界、授权、交入目录和解释进度都有同根索引。条目/字节预算耗尽会在内部让出执行；容量不足返回 unavailable，不截短最终释放批次。`finishRun.expected` 保持调用者原值；独立前缀解释若推进 Session 修订，首次请求可以返回 changed。调用者须重读，再以新操作和新 expected 收束。已成功的原操作仍先认回。
