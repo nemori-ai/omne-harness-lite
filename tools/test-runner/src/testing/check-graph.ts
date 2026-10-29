@@ -171,7 +171,7 @@ export async function runGraph(
 
   const inFlight = new Set<Promise<void>>()
   while (pending.size > 0 || inFlight.size > 0) {
-    if (!failed)
+    if (!failed || options.keepGoing === true)
       for (const name of pending) {
         const step = byName.get(name)
         if (step !== undefined && ready(step)) {

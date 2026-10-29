@@ -107,14 +107,20 @@ describe('运行', () => {
     expect(existsSync(join(dir, 'logs', 'fails.log'))).toBe(true)
   })
 
-  it('keepGoing：失败后其余照跑，依赖失败的仍不开始', async () => {
+  it('keepGoing：失败后其余照跑，失败之后才就绪的也起，依赖失败的仍不开始', async () => {
     const run = await runGraph(
-      [step('fails', 50, 3), step('after', 10, 0, ['fails']), step('other', 300)],
+      [
+        step('fails', 50, 3),
+        step('after', 10, 0, ['fails']),
+        step('other', 300),
+        step('later', 10, 0, ['other']),
+      ],
       { ...options(), keepGoing: true },
     )
     const by = new Map(run.results.map(result => [result.name, result]))
     expect(by.get('other')?.exitCode).toBe(0)
     expect(by.get('other')?.cancelled).toBe(false)
+    expect(by.get('later')?.exitCode).toBe(0)
     expect(run.skipped).toEqual(['after'])
   })
 
