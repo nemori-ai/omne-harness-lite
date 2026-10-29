@@ -19,14 +19,19 @@ pnpm run test:triage --run <运行目录>                # 把那次运行里的
 pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑
 ```
 
-**检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`，
-每一步只声明先于它完成的步骤，没有依赖的同时跑；重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个，轻步骤（含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个；一步失败其余终止（`--keep-going` 时照跑，依赖失败步骤的不启动），
-退出码取第一个失败的那一步。每步的输出落 `tmp/check-run/<步骤>.log`，结束写逐步耗时表 `tmp/check-run/steps.tsv` 并打印实际走过的关键路径。
-准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写 `tmp/admission/<时间>-<head>.log`：命令、head、基线、核数、逐步结果与末行 `exit=<码>`。步骤的含义与顺序归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。
-自测：`tests/check-graph.spec.ts` 用假步骤核对依赖顺序、轻步骤并发上限、失败取消与 keep-going、起不来的命令、逐步表与关键路径。
+**检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`。
+
+- 每一步只声明先于它完成的步骤，没有依赖的同时跑。
+- 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个；轻步骤（含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个。
+- 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步。`--keep-going` 时其余照跑，依赖失败步骤的不启动。
+- 产物：每步的输出落 `tmp/check-run/<步骤>.log`（名字里的 `:` 换成 `-`，例如 `check-docs.log`）；结束时写逐步耗时表 `tmp/check-run/steps.tsv`，并打印实际走过的关键路径。
+- 准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写准入日志，内容与位置归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。步骤的含义与顺序也归那里。
+- `--list` 打印步骤表，供别的成员核对自己有没有接进来（dev-flow 的接线测试用它）。
+
+自测：`tests/check-graph.spec.ts` 用假步骤核对依赖顺序、轻重两条道的并发上限、失败取消与 keep-going、起不来的命令、逐步表与关键路径。
 
 **分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
 以及把 vitest 的 mode（`fast`／`slow`，不给为两层）翻成 `tagsFilter`。给了 mode 时，`passWithNoTests` 与 `experimental.preParse`
@@ -140,14 +145,15 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
 turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
 
-**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时看一眼机器（成员测试的快层与慢层各看一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟步骤过了启动尖峰再量）：核数（`availableParallelism()`）、
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时采样机器（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟步骤过了启动尖峰再量）：核数（`availableParallelism()`）、
 `parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
 空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
 构建与类型检查的 turbo 并发、Stryker 的工作进程数直接取预算（tsc 与 Stryker 的进程各占一个核）。
-策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 是 2026-10-29 在 24 核（空闲 0.8，预算 20）主机上全量扫描后定的：
+策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/verification.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主（空闲 0.8，预算 19），2026-10-29 扫描：
 快层的墙钟 ≈ 各成员 vitest 启动与收集之和 ÷ 同时成员数，到 6 至 8 个成员时碰到 CPU 平台期（91 秒降到 39 至 41 秒），再多只让起子进程的用例贴线；
-慢层被最长的单个文件兜底，4 × 6 到 12 × 4 都在 217 至 240 秒；把那个文件拆开之后，慢层的下限换成起子进程最多的成员（repo-toolchain）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。同一策略在 8 核上给 3 × 2，与之前在 8 核上量到的 2 × 4 与 4 × 2 相当（两者只差约 1 分钟）。
+慢层的下限是起子进程最多的成员（repo-toolchain，28 个慢文件）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。
+同一策略在 8 核上推出 3 × 2，这只是预测，没有在 8 核上复测；之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
 `memoryPerWorkerMiB` 是安全上限的估计，不是测量：空闲内存少于它乘预算时才起作用。
 两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
 会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存）。

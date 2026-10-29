@@ -26,7 +26,7 @@ git status --short
 完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
 
-支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行（pnpm 的 `script-shell` 指向它，turbo 经 pnpm 起成员脚本也走它），不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。
+支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：检查入口在 Windows 上能运行，但部分成员测试与 Python 工具测试本身还不跨平台（路径分隔符、双盘符拼接、短路径等），所以 Windows 上的 `pnpm run check` 目前不能以退出 0 作为准入结论；修复另立卡，进度以该卡为准。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 

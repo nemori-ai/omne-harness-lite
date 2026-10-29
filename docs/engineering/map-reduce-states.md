@@ -104,7 +104,7 @@ SERVE 一次接管一个批次 PR：
 
 1. 保留原始 head、候选 head、targetBase 和 merge 链。
 2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
-3. 同步后先生成宿主投影并运行 `pnpm run check:agents`，再运行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。
+3. 同步后先生成宿主投影并运行 `pnpm run check:agents`，再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
 4. 候选或基线变动后，重做受影响的验证与独立评审。
 5. 按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者，Reduce 不自动批准。
 6. 以实际 PR 与轨道的读回记录 merged。合入被回退时，原结果重新未解决。

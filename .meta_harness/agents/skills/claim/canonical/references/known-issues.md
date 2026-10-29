@@ -13,7 +13,7 @@
 | 读任务状态 | `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts status` |
 | 同步目标分支后更新 targetBase | 先 `git merge <目标提交>`，再用 `{"kind":"task-sync","target":"<40 位提交号>"}` 运行 `cli.ts execute` |
 | 文档检查 | `pnpm run check:docs` |
-| 准入 | `OMNE_ADMISSION=1 pnpm run check` |
+| 准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） |
 | 定向复现准入里的测试失败 | `npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>` |
 | 后台运行并传出退出码 | `<命令> > "$log" 2>&1; rc=$?; echo "exit=$rc" >> "$log"; exit "$rc"` |
 | 看板 Stage | `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispatched\|delivered\|integrating\|accepted> --issue <号>`。云端会话用 `gh workflow run delivery-stage.yml --ref github-gate -f issue=<号> -f stage="In progress"` |
