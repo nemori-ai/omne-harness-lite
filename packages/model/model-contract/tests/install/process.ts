@@ -1,8 +1,9 @@
 // Child processes of the install-closure facility, and the TypeScript compiler that it owns. A
 // member does not depend on the compiler: the facility brings its own.
 import { spawnSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { delimiter, dirname, join } from 'node:path'
 import ts from '@typescript/typescript6'
 
 /** Child processes get no NODE_PATH, no inherited npm configuration and no Node options. */
@@ -14,6 +15,32 @@ export function childEnv(extra: Record<string, string> = {}): NodeJS.ProcessEnv 
   return { ...env, ...extra }
 }
 
+/**
+ * The pnpm entry that Node can start on Windows. There `pnpm` on PATH is `pnpm.cmd` and a shell shim,
+ * which Node cannot start without a shell; the entry is `node_modules/pnpm/bin/pnpm.cjs` next to
+ * `pnpm.cmd` (the npm global layout), run with this process's Node. A missing entry is an error.
+ */
+function windowsPnpmEntry(): string {
+  const seen: string[] = []
+  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
+    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+    if (existsSync(entry)) return entry
+    seen.push(join(directory, 'pnpm.cmd'))
+  }
+  throw new Error(
+    seen.length === 0
+      ? 'no pnpm.cmd on PATH'
+      : `no node_modules/pnpm/bin/pnpm.cjs next to ${seen.join(', ')}`,
+  )
+}
+
+/** The command line that starts `command`; only `pnpm` on Windows differs from the arguments. */
+function commandLine(command: string, args: readonly string[]): [string, readonly string[]] {
+  if (process.platform !== 'win32' || command !== 'pnpm') return [command, args]
+  return [process.execPath, [windowsPnpmEntry(), ...args]]
+}
+
 export function exec(
   command: string,
   args: readonly string[],
@@ -21,7 +48,8 @@ export function exec(
   extra?: Record<string, string>,
   timeoutMs?: number,
 ) {
-  const result = spawnSync(command, args, {
+  const [file, argv] = commandLine(command, args)
+  const result = spawnSync(file, argv, {
     cwd,
     env: childEnv(extra),
     encoding: 'utf8',
