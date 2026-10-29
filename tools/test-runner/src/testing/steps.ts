@@ -42,7 +42,7 @@ import {
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { runMembers, runTurboTests, slugOf } from './run.ts'
-import { buildTargets, timestamp } from './support.ts'
+import { buildTargets, pnpmCommand, timestamp } from './support.ts'
 
 /** 环境变量 `FULL`：`1` 要全量，不设或空串不要；别的值报错，不猜。 */
 export function fullRequested(env: Readonly<Record<string, string | undefined>>): boolean {
@@ -146,7 +146,12 @@ export function pythonStep(root: string, file: PlanFile): number {
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
   return runner === undefined
-    ? spawnInherited(root, 'pnpm', ['--silent', 'run', 'test:python'])
+    ? spawnInherited(root, pnpmCommand().command, [
+        ...pnpmCommand().args,
+        '--silent',
+        'run',
+        'test:python',
+      ])
     : spawnInherited(root, 'uv', [
         'run',
         '--project',

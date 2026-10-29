@@ -8,7 +8,8 @@
 // 第 3 条「未识别文件按全量处理」turbo 不提供，由 scope.ts 判。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
@@ -22,7 +23,20 @@ import {
 
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
-export const TURBO_BIN = join(RUNNER, 'node_modules', '.bin', 'turbo')
+/**
+ * turbo 的平台二进制：`turbo` 包的 `bin/turbo` 按平台在它的可选依赖里找同名二进制，这里照它的规则找。
+ * 不经 `node_modules/.bin/turbo`：那是 shell 脚本，Windows 上不能直接 spawn。
+ */
+function turboBinary(): string {
+  const require = createRequire(import.meta.url)
+  const platform = process.platform === 'win32' ? 'windows' : process.platform
+  const arch = process.arch === 'x64' ? '64' : process.arch
+  const extension = process.platform === 'win32' ? '.exe' : ''
+  return require.resolve(`@turbo/${platform}-${arch}/bin/turbo${extension}`, {
+    paths: [dirname(require.resolve('turbo/package.json', { paths: [RUNNER] }))],
+  })
+}
+export const TURBO_BIN = turboBinary()
 
 /** 环境变量 `OMNE_ADMISSION=1`：准入模式，本地缓存只写不读。 */
 export function admissionRequested(env: Readonly<Record<string, string | undefined>>): boolean {

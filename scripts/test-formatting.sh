@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
+# The scenarios below need real symbolic links (a dangling link, a link to the formatter). Git Bash
+# copies the target instead unless told to create native links; other shells ignore the variable.
+export MSYS=winsymlinks:nativestrict
 main() {
 
 if (( $# )); then

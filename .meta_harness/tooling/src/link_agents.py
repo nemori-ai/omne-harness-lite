@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -28,11 +29,26 @@ DIRECTORY_LINKS = directory_links()
 FILE_LINKS = {".cursor": CLOUD_RUNTIME}
 
 
+def _traversable(link: Path) -> bool:
+    """Whether a link opens as a directory. Windows answers a file link to a directory with EACCES."""
+    try:
+        return link.is_dir()
+    except OSError:
+        return False
+
+
 def _queue_link(project: Path, name: str, relative: Path, pending: list, check: bool):
     destination = project / name
     if destination.is_symlink():
         if destination.readlink() != relative:
             raise ValueError(f"existing link has another target: {destination}")
+        if os.name == "nt" and not _traversable(destination) and (project / relative).is_dir():
+            # Git for Windows checks a link out as a file link when its target does not exist yet,
+            # and Windows cannot traverse a file link into a directory. Recreate it as a directory link.
+            if check:
+                raise ValueError(f"project link is a file link to a directory: {destination}")
+            destination.unlink()
+            pending.append((destination, relative))
     elif destination.exists():
         raise ValueError(f"existing real path; migration is required before linking: {destination}")
     elif check:

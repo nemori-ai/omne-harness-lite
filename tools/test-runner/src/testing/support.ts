@@ -1,7 +1,7 @@
 // 测试运行入口与变异入口共用的几件事：读命令行参数、运行目录的时间戳、先把目标成员连同依赖构建一遍。
 import { admissionRequested, turboBuildCaptured } from './turbo.ts'
-import { writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, writeFileSync } from 'node:fs'
+import { delimiter, join } from 'node:path'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 export interface Flags {
@@ -58,4 +58,29 @@ export function buildTargets(
   if (built.status === 0) return true
   console.log(`构建失败（退出码 ${built.status ?? -1}），没有运行。日志：${buildLog}`)
   return false
+}
+
+/** 要起的一条命令：可执行文件与放在调用方参数前面的参数。 */
+export interface Command {
+  readonly command: string
+  readonly args: readonly string[]
+}
+
+/**
+ * 起 pnpm 的命令。POSIX 上就是 `pnpm`；Windows 上 PATH 里的 `pnpm` 是 `pnpm.cmd`，Node 不经 shell 起不了它，
+ * 改为用本进程的 Node 运行同一目录下 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）。找不到就报错，不猜。
+ */
+export function pnpmCommand(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Command {
+  if (process.platform !== 'win32') return { command: 'pnpm', args: [] }
+  for (const directory of (env['PATH'] ?? env['Path'] ?? '').split(delimiter)) {
+    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+    if (existsSync(entry)) return { command: process.execPath, args: [entry] }
+    throw new Error(
+      `${join(directory, 'pnpm.cmd')} 旁边没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+    )
+  }
+  throw new Error('PATH 里没有 pnpm.cmd')
 }

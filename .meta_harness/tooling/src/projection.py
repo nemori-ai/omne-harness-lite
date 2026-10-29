@@ -5,8 +5,12 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
+import stat
+import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -60,6 +64,37 @@ def unique_mapping(loader, node, deep=False):
 
 
 UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+
+
+def _git_toplevel(path: Path) -> Path:
+    """The nearest ancestor holding `.git` (a directory, or the file of a worktree)."""
+    for item in (path, *path.parents):
+        if (item / ".git").exists():
+            return item
+    raise ValueError(f"not inside a Git checkout: {path}")
+
+
+@lru_cache(maxsize=None)
+def _git_index_modes(top: Path) -> dict[Path, int]:
+    """Permission bits per tracked file, read from the Git index of the checkout at `top`."""
+    listing = subprocess.run(["git", "-C", str(top), "ls-files", "-s", "-z"],
+                             capture_output=True, check=True).stdout
+    modes = {}
+    for entry in listing.split(b"\0"):
+        if not entry:
+            continue
+        meta, _, name = entry.partition(b"\t")
+        modes[(Path(top) / os.fsdecode(name)).resolve()] = int(meta.split(b" ", 1)[0], 8) & 0o777
+    return modes
+
+
+def file_mode(path: Path) -> int:
+    """Permission bits of a file. NTFS keeps no executable bit, so Windows reads the mode Git
+    tracks for the file; an untracked file there counts as 0o644."""
+    if os.name == "posix":
+        return stat.S_IMODE(path.stat().st_mode)
+    resolved = path.resolve()
+    return _git_index_modes(_git_toplevel(resolved.parent)).get(resolved, 0o644)
 
 
 def no_symlinks(path: Path):
@@ -161,7 +196,7 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
             content = text.encode("utf-8")
         if relative == Path("SKILL.md"):
             validate_skill(content.decode("utf-8"), skill.name)
-        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        mode = 0o755 if file_mode(file) & 0o111 else 0o644
         outputs[SKILL_TARGETS[host] / skill.name / relative] = Artifact(content, mode)
     if replacements.keys() - used:
         raise ValueError(f"unused adapter slots: {sorted(replacements.keys() - used)}")
@@ -303,7 +338,7 @@ def _check_cloud_setup(directory: Path, scripts: tuple[str, ...]) -> None:
             f"plus optional {sorted(CLOUD_SOURCE_ONLY)}; found {sorted(names)}"
         )
     for script in scripts:
-        if not (directory / script).stat().st_mode & 0o111:
+        if not file_mode(directory / script) & 0o111:
             raise ValueError(f"cloud {script} must be executable")
 
 
@@ -335,7 +370,7 @@ def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
     outputs = {}
     for name in CLOUD_RUNTIME:
         file = directory / name
-        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        mode = 0o755 if file_mode(file) & 0o111 else 0o644
         if name == "install.sh" and mode != 0o755:
             raise ValueError("cloud install.sh must be executable")
         outputs[package / name] = Artifact(file.read_bytes(), mode)

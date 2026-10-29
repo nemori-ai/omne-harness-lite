@@ -92,7 +92,9 @@ run_formatter() {
     fi
     # The scope filter above admits only file types that oxfmt formats; ignorePatterns in the
     # config is a second guard for the same exclusions.
-    "$oxfmt" "--$mode" --config "$config" "$@"
+    # The full target list exceeds the Windows command-line limit (32767 characters); xargs splits
+    # it into runs that fit the platform limit and exits non-zero when any run fails.
+    printf '%s\0' "$@" | xargs -0 "$oxfmt" "--$mode" --config "$config"
 }
 
 collect_default_targets() {
