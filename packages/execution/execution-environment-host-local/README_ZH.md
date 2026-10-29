@@ -64,7 +64,7 @@ await ctx.plugin(createHostFilesPlugin(domain))
 
 Service 子类与 `filesFacilityPlugin` 的配置只接受缺省、`null` 或空对象。宿主文件插件另接受 `drainBoundMs`：有限的非负毫秒数，是释放、结清或退役等在途文件操作的上界，初值 10000。结果为待处置时，`ctx.logger` 收到一条错误级诊断。配额策略是 `createHostFilesDomain` 的选项，不是插件配置；初值是每租户 64 个未结清的获取，没有全局上界。三个端口以 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务给出，不进插件树。一个 isolate 标签下只装一份服务。
 
-宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。没有探测，所以前提报 `unknown`。
+宿主文件设施在 Node 上运行，使用 `O_NOFOLLOW` 与设备号、inode 核对对象身份；没有 `O_NOFOLLOW` 的宿主（Windows 上的 Node）改为打开之后对末段 `lstat` 核对。`package.json` 声明的引擎是 `>=24`。宿主事实里的平台取 `process.platform` 加 `os.release()`，提供者版本取本包 `package.json` 的 `version`。没有探测，所以前提报 `unknown`。
 
 ## 验证
 
