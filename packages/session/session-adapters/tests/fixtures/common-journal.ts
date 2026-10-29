@@ -69,9 +69,10 @@ export async function scene(
       !tenantEquals(request.access.tenant, access.tenant)
     )
       return { kind: 'denied' }
-    if (qualification.session === 'unavailable')
+    const session = qualification.session
+    if (session === 'unavailable')
       return { kind: 'unavailable', diagnostic: 'scene qualification unavailable' }
-    return qualification.session
+    return session
       ? { kind: 'allowed', evidence: evidence(`access/${request.operation}/${++decisions}`) }
       : { kind: 'denied' }
   })

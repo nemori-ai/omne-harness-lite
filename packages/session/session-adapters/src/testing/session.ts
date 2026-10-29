@@ -292,14 +292,14 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
   accessCheck: SessionAccessCheck<P>
 }>
 /**
- * The internal commit input: the public `commit` has already asked the access check once and
- * hands the decision over; a delegated same-log participation (an Agent commit the Agent side
- * authorized) passes `null` and shares the execution path without a second decision.
+ * The internal commit input: the caller has already asked the access check once for this command
+ * (the public `commit`, or the Agent write that derives a participation) and hands the allowed
+ * decision over. No path commits without one.
  */
 export type PreparedCommit = Readonly<{
   command: SessionCommand
   guards: readonly GuardCommand[]
-  decision: DurableEvidence | null
+  decision: DurableEvidence
 }>
 export function createSessionTransactions<P>(
   stores: SessionDirectory,
@@ -417,7 +417,7 @@ export function createSessionTransactions<P>(
             digest: commandDigest(command),
             receipt: original.record.receipt,
           },
-          ...(input.decision === null ? {} : { decision: input.decision }),
+          decision: input.decision,
           recall,
         })
         stores.set(key.ok, { ...store, operations })
@@ -486,7 +486,7 @@ export function createSessionTransactions<P>(
     const operations = new Map(store?.operations)
     operations.set(command.input.operation, {
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
-      ...(input.decision === null ? {} : { decision: input.decision }),
+      decision: input.decision,
       recall,
     })
     const inputs = new Map(store?.inputs)

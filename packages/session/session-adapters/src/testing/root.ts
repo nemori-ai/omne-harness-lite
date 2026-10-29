@@ -23,7 +23,13 @@ import type {
   RoutedInput,
   CommitReceipt,
 } from '@omne-harness/session-contract'
-import type { JournalWrite, MemoryExecution, OperationRecord, JointFact } from './journal.ts'
+import type {
+  JointDecision,
+  JournalWrite,
+  MemoryExecution,
+  OperationRecord,
+  JointFact,
+} from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 
 export type SessionState = Readonly<{
@@ -107,6 +113,7 @@ export type JournalHooks<P> = {
     input: ExecutionMutation<P>,
     method: JournalWrite,
     receipt: CommandReceipt,
+    decision: JointDecision | null,
   ): Failure | undefined
   committed(
     input: ExecutionMutation<P>,

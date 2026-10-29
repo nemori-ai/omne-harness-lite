@@ -98,11 +98,30 @@ export type JointFact = Readonly<{
 
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
+/**
+ * The current decision of the joint participation one public `commit` or `recordResult` derives:
+ * the evidence of the allowed decision and the digest of the command it decided. The journal
+ * hands it to the participant of the same call only.
+ */
+export type JointDecision = Readonly<{ evidence: DurableEvidence; digest: string }>
+
 export type MemoryAgentJournalOptions<P> = Readonly<{
   prepareResult?: (
     input: ExecutionMutation<P>,
     method: 'commit' | 'recordResult',
   ) => Promise<Failure | undefined>
+
+  /**
+   * Asked once per public `commit` or `recordResult` whose caller participates, after the Agent
+   * qualification and before any Session preparation or the joint publication. `receipt` is the
+   * receipt this call will issue: the same operation at the same revision issues the same evidence,
+   * so the decided command and the published command carry the same participation.
+   */
+  qualifyParticipation?: (
+    input: ExecutionMutation<P>,
+    method: 'commit' | 'recordResult',
+    receipt: CommandReceipt,
+  ) => Promise<Outcome<JointDecision, Failure>>
 
   retainedToolInvocationFaults?: boolean
 
@@ -570,10 +589,46 @@ export function createJournal<P>(
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
-  function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
+  // One operation at one revision issues one evidence: a reservation before the transaction and
+  // the preparation inside it name the same receipt.
+  const issued = new Map<string, DurableEvidence>()
+  function nextEvidence(
+    execution: Execution,
+    what: string,
+    operation: AgentOperationId,
+    revision: number,
+  ): DurableEvidence {
+    const at = JSON.stringify([execution.id, what, operation, revision])
+    const prior = issued.get(at)
+    if (prior !== undefined) return cell.issueEvidence(prior)
     execution.serial += 1
-    return cell.issueEvidence(
-      journalEvidence(`${cell.namespace}/${execution.id}/${what}/${execution.serial}`, revision),
+    const evidence = journalEvidence(
+      `${cell.namespace}/${execution.id}/${what}/${execution.serial}`,
+      revision,
+    )
+    issued.set(at, evidence)
+    return cell.issueEvidence(evidence)
+  }
+
+  /** The receipt a public write will issue, or the one it will recognize, before its transaction. */
+  function reservedReceipt(
+    method: 'commit' | 'recordResult',
+    input: ExecutionMutation<P>,
+    key: string,
+  ): CommandReceipt | undefined {
+    const at = operationKey(input.tenant, input.execution, input.operation)
+    const record = at === undefined ? undefined : state().operations.get(at)
+    if (record?.kind === 'committed' && record.key === key) return copy(record.receipt)
+    const execution = state().executions.get(executionKey(input.tenant, input.execution))
+    if (execution === undefined) return undefined
+    const revision = execution.revision + 1
+    const what = method === 'commit' ? 'commit' : 'result'
+    return receiptOf(
+      execution,
+      input.operation,
+      revision,
+      nextEvidence(execution, what, input.operation, revision),
+      'applied',
     )
   }
 
@@ -645,19 +700,33 @@ export function createJournal<P>(
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
-    if (options.prepareResult && (method === 'commit' || method === 'recordResult')) {
+    // The pause point of the testing controls: everything this call does on the Session side
+    // (the participation decision, result preparation, the joint publication) comes after it.
+    await cell.wait(input, method)
+    let decision: JointDecision | null = null
+    if (method === 'commit' || method === 'recordResult') {
       const caller =
         method === 'commit'
           ? (input as Parameters<AgentJournal<P>['commit']>[0]).caller
           : (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-      if (caller.kind === 'custody' || caller.kind === 'processed') {
+      if (caller.kind !== 'none' && options.qualifyParticipation) {
+        // The Session decision of the derived participation: once per public call, before any
+        // Session preparation, the pause point and the joint publication; a recognized operation
+        // is decided again with its original receipt.
+        const receipt = reservedReceipt(method, input, key)
+        if (receipt === undefined) return fail(denied(method))
+        const qualified = await options.qualifyParticipation(input, method, receipt)
+        if ('failure' in qualified) return qualified
+        decision = qualified.ok
+      }
+      if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         // The same validator handles both initial requests and retries. A held answer never prepares history.
         const preview = prepare()
         if (preview.kind === 'answer')
           return cell.transact(input, method, () =>
-            run(method, entered.ok.fault, input, key, prepare, beforeRecognition),
+            run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision),
           )
         if (preview.kind === 'unknown')
           return fail({ kind: 'commit-unknown', operation: input.operation })
@@ -665,9 +734,8 @@ export function createJournal<P>(
         if (failure) return fail(failure)
       }
     }
-    await cell.wait(input, method)
     return cell.transact(input, method, () =>
-      run(method, entered.ok.fault, input, key, prepare, beforeRecognition),
+      run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision),
     )
   }
 
@@ -691,6 +759,7 @@ export function createJournal<P>(
     key: string,
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
+    decision: JointDecision | null = null,
   ): Outcome<R, Failure> {
     const at = operationKey(input.tenant, input.execution, input.operation)
     if (at === undefined) return fail(denied(method))
@@ -738,7 +807,7 @@ export function createJournal<P>(
       prepared.apply()
       const captured = cell.committed(input, method, prepared.receipt)
       if (captured) return { kind: 'answered', value: fail(captured) }
-      const participation = cell.participate(input, method, prepared.receipt)
+      const participation = cell.participate(input, method, prepared.receipt, decision)
       if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
       cell.touch()
       state().operations.set(at, {
@@ -1022,7 +1091,7 @@ export function createJournal<P>(
           entries: [],
           serial: 0,
         }
-        const evidence = nextEvidence(execution, 'open', 1)
+        const evidence = nextEvidence(execution, 'open', input.operation, 1)
         const authority: Authority = {
           execution: input.execution,
           executionAttachment: attachmentIdOf(input.execution, 1),
@@ -1063,7 +1132,7 @@ export function createJournal<P>(
         }
         const revision = execution.revision + 1
         const ordinal = execution.attachments.length + 1
-        const evidence = nextEvidence(execution, 'attach', revision)
+        const evidence = nextEvidence(execution, 'attach', input.operation, revision)
         const authority: Authority = {
           execution: execution.id,
           executionAttachment: attachmentIdOf(execution.id, ordinal),
@@ -1105,7 +1174,7 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         const revision = execution.revision + 1
-        const handoff = nextEvidence(execution, 'handoff', revision)
+        const handoff = nextEvidence(execution, 'handoff', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, handoff, 'applied')
         return {
           kind: 'write',
@@ -1190,7 +1259,7 @@ export function createJournal<P>(
           }
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'commit', revision)
+        const evidence = nextEvidence(execution, 'commit', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const caller = input.caller
         return {
@@ -1242,7 +1311,7 @@ export function createJournal<P>(
           }
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'submit', revision)
+        const evidence = nextEvidence(execution, 'submit', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
         return {
           kind: 'write',
@@ -1275,7 +1344,7 @@ export function createJournal<P>(
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
         if ('failure' in target) return answer(target)
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'control', revision)
+        const evidence = nextEvidence(execution, 'control', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
         return {
           kind: 'write',
@@ -1319,7 +1388,7 @@ export function createJournal<P>(
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'acknowledge', revision)
+        const evidence = nextEvidence(execution, 'acknowledge', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',
@@ -1389,7 +1458,7 @@ export function createJournal<P>(
           return rejected
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'result', revision)
+        const evidence = nextEvidence(execution, 'result', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const responsibility: ResultResponsibility = {
           result: copy(input.result),
@@ -1482,7 +1551,7 @@ export function createJournal<P>(
             return answer(fail(conflict(input.operation)))
           }
           const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'record-control', revision)
+          const evidence = nextEvidence(execution, 'record-control', input.operation, revision)
           const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
           const ended = execution.state.kind === 'ended'
           return {
@@ -1563,7 +1632,7 @@ export function createJournal<P>(
         const blocked = blockedReason(execution, input.operation, authorization.kind)
         if (blocked !== undefined) return answer(succeed(blocked))
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'finish', revision)
+        const evidence = nextEvidence(execution, 'finish', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const conclusion = copy(input.intent.conclusion)
         const observations: TerminalObservation[] = execution.checkpoint.passages
@@ -1619,7 +1688,7 @@ export function createJournal<P>(
           if (first !== undefined) return answer(succeed(copy(first)))
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'observation', revision)
+        const evidence = nextEvidence(execution, 'observation', input.operation, revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',

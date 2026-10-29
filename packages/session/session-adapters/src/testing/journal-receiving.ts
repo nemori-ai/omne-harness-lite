@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto'
 import type {
   Access,
   AgentExecutionId,
+  AgentOperationId,
   AgentInstanceId,
   AgentJournalEntries,
   AgentMaterials,
@@ -79,7 +80,12 @@ type Hooks<P> = {
     evidence: DurableEvidence,
     state: CommandReceipt['state'],
   ): CommandReceipt
-  nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
+  nextEvidence(
+    execution: MemoryExecution,
+    what: string,
+    operation: AgentOperationId,
+    revision: number,
+  ): DurableEvidence
 }
 const unavailable = (diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -334,7 +340,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             execution,
             input.operation,
             revision,
-            hooks.nextEvidence(execution, 'received', revision),
+            hooks.nextEvidence(execution, 'received', input.operation, revision),
             'applied',
           )
           const entry: ReceivedEntry = { ...input.entry, material: sourceOf(input) }
@@ -435,7 +441,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           execution,
           input.operation,
           revision,
-          hooks.nextEvidence(execution, 'record', revision),
+          hooks.nextEvidence(execution, 'record', input.operation, revision),
           'applied',
         )
         return {

@@ -290,27 +290,23 @@ for (const point of ['before-publish', 'after-publish'] as const)
     expect(recovered.work.run).toEqual(before.work.run)
   })
 
-// The Session half of a `custody`/`processed` participation is a Session mutation of its own: the
-// Session access check decides it once before anything is prepared, while the Agent qualification
-// and the gap gate are checked again at the publication point, after a pause.
+// The Session half of a `custody`/`processed` participation is a Session mutation of its own: after
+// the pause, the Session access check decides it once before anything is prepared, and the Agent
+// qualification and the gap gate are checked again at the publication point.
 for (const kind of ['custody', 'processed'] as const)
   for (const boundary of ['agent', 'session', 'gap'] as const)
-    it(`preserves the ${boundary} failure when ${kind} is refused before publication`, async () => {
+    it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {
       const qualification = { agent: true, session: true },
         s = await lifecycle(`late-${kind}-${boundary}`, 'ended', qualification),
         request = lateRequest(s, kind),
         before = await observed(s, request),
-        asked = s.accessCheck.controls.asked().length
-      if (boundary === 'session') qualification.session = false
-      const pause =
-        boundary === 'session' ? null : s.view.controls.pauseWrite(request, 'recordResult')
-      const writing = s.view.journal.recordResult(request)
-      if (pause) {
-        await pause.reached
-        if (boundary === 'gap') s.view.controls.quarantine('confirmed result history gap')
-        else qualification.agent = false
-        pause.release()
-      }
+        asked = s.accessCheck.controls.asked().length,
+        pause = s.view.controls.pauseWrite(request, 'recordResult'),
+        writing = s.view.journal.recordResult(request)
+      await pause.reached
+      if (boundary === 'gap') s.view.controls.quarantine('confirmed result history gap')
+      else qualification[boundary] = false
+      pause.release()
       expect(await writing).toMatchObject({
         failure: { kind: boundary === 'gap' ? 'unavailable' : 'denied' },
       })
