@@ -90,6 +90,20 @@ async function finalEntryIsOpened(
   return entry.dev === opened.dev && entry.ino === opened.ino ? 'opened' : 'conflict'
 }
 
+/** The refusal a host without `O_NOFOLLOW` owes after the open, or none when the final entry is the opened object. */
+async function refusalAfterOpen(
+  requestId: string,
+  path: string,
+  opened: FileStats,
+): Promise<
+  { readonly kind: 'unresolved'; readonly requestId: string } | FacilityResult<never> | undefined
+> {
+  if (noFollow !== undefined) return undefined
+  const final = await finalEntryIsOpened(path, opened)
+  if (final === 'opened') return undefined
+  return final === 'unresolved' ? { kind: 'unresolved', requestId } : reject(requestId, final)
+}
+
 function pathWithoutTrailingSlash(path: string): string {
   let current = path
   while (current.length > 1 && current.endsWith('/')) current = current.slice(0, -1)
@@ -272,14 +286,10 @@ export function createHostFilesEngine(): HostFilesEngine {
         const stat = await handle.stat({ bigint: true })
         const object = tokenOf(stat)
 
-        if (noFollow === undefined) {
-          const final = await finalEntryIsOpened(opening, stat)
-          if (final !== 'opened') {
-            await closeOrTrack(handle)
-            return final === 'unresolved'
-              ? { kind: 'unresolved', requestId }
-              : reject(requestId, final)
-          }
+        const refused = await refusalAfterOpen(requestId, opening, stat)
+        if (refused !== undefined) {
+          await closeOrTrack(handle)
+          return refused
         }
 
         if (path.length > 1 && path.endsWith('/') && !stat.isDirectory()) {
