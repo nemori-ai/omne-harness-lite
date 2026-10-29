@@ -69,14 +69,15 @@ pnpm --filter @omne-harness/repo-toolchain test
 
 - 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
 - 方向行：`docs/architecture/constraints.json` schema 3 的 `directions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#方向行)；`omne-deps` 怎样用它见下面[依赖方向](#依赖方向)一节。
+- 组环例外：同一文件 schema 3 的 `groupCycleExceptions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#组环例外)；`omne-deps` 与回路状态怎样用它见下面[组环例外](#组环例外)一节。
 - 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。图里另保留成员里 dependency-cruiser 走到的模块清单（`modules`）与跨成员的文件级依赖事实（`dependencies`，含测试与 `src` 下的 testing 入口，不含 Node 内建模块），方向行的判定与架构符合性报告的方向行都只从这两项判断，不另解析导入。
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
 - 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
 - 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
-- 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。
+- 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。按具名例外放行的组环不算硬线。
 
-自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`（runner 与被检树分开的临时仓库）；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 
 ### 依赖方向
 
@@ -88,6 +89,17 @@ pnpm --filter @omne-harness/repo-toolchain test
 - 汇总行：`依赖方向：检查了 <n> 条方向行、<m> 个成员对，命中 <k> 处`，有角色没有文件时再写几处。
 - 没有方向行：运行检查器的仓库没有 `constraints.json` 时不检查方向，写「runner 没有 docs/architecture/constraints.json，未检查」，退出码只由其他发现决定；文件是 schema 1、2，或 schema 3 缺省 `directions`，写「没有方向行」。
 - 退出 2：`constraints.json` 解析失败、校验失败、来源核对失败，或 `docs/architecture/constraints.json` 与 `.meta_harness/design/architecture/constraints.json` 两份并存。先读它再运行 dependency-cruiser，所以文件坏了不出依赖图。
+
+### 组环例外
+
+组之间成环默认失败。负责人裁定某条具体的依赖链在架构上成立时，在运行检查器的仓库的 `constraints.json` 里登记一条 `groupCycleExceptions`，写明成员边（`from`、`to` 是成员路径）、裁定链接和一句理由。例外只放行登记的那几条边。例外与方向行一样只从运行检查器的仓库读，被检查的树登记的例外不生效。例外从 repo-toolchain 0.0.16 起执行。
+
+- 放行：一个组环的每一条跨组成员边都登记了，`omne-deps` 才放行它，另写一行 `excepted 组环 <组>、<组> 按例外 <id>（裁定 <链接>）放行 <from> → <to>、…：<理由>`。环上有一条边没登记，就照常报 `组之间成环` 并失败，消息末尾列出没登记的边；机读的 `edges` 仍是环上的全部边。因此两个组之间以后新增的任何没有登记的成员边，都会让组环失败。
+- 没用上：登记的边必须出现在某个组环里，不论那个组环最后是否放行。边被删、组环已消失或边不在环上时，这条例外报一条 `unused-group-cycle-exception`，写明 id、没用上的边和裁定链接，并退出 1。这条发现的机读 `edges` 是没用上的边。要删掉或改写这条例外。
+- 成员环：成员之间的环不受例外影响，照常失败。文件环与其他规则也一样。
+- 汇总行：有放行的组环时，末行写「<n> 个组环按具名例外放行」。
+- 回路状态：硬线读同一份例外。放行的组环不算硬线，在 `status.md` 硬线一段的「环」下面列出例外、裁定链接与放行的边，在 `status.json` 的 `hardLines.exceptedCycles` 里保留。没用上的例外算进「环」这条硬线。runner 的 `constraints.json` 坏了时，回路状态按工具错误退出 2。收工钩子的硬线同样按例外判。
+- 结构度量与实际架构的报告不读例外：它们照旧把放行的组环列为环。
 
 ## 提交署名
 
@@ -326,7 +338,7 @@ pnpm run loop:status --snapshot                        # 干净的工作树上�
 pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，pnpm run check 的最后一步
 ```
 
-**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线），
+**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线；按[组环例外](#组环例外)放行的组环不算硬线），
 或给了 `--base` 且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；
 2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 

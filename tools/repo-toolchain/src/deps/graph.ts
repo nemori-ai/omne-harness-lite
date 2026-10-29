@@ -60,7 +60,13 @@ export type DependencyFindingKind =
   | 'member-cycle'
   | 'group-cycle'
 
-export interface DependencyFinding<Kind extends string = DependencyFindingKind> {
+/** 发现涉及的成员边。 */
+export interface FindingEdge {
+  readonly from: string
+  readonly to: string
+}
+
+interface FindingBase<Kind extends string> {
   readonly kind: Kind
   /** dependency-cruiser 的规则名；成员环与组环是本模块算的，取 kind。 */
   readonly rule: string
@@ -68,8 +74,17 @@ export interface DependencyFinding<Kind extends string = DependencyFindingKind> 
   /** 可定位的导入处；环取环上各边的首个导入处。 */
   readonly sites: readonly ImportSite[]
   /** 涉及的成员边；违规不跨成员时为空。 */
-  readonly edges: readonly { readonly from: string; readonly to: string }[]
+  readonly edges: readonly FindingEdge[]
 }
+
+/** 组环：`edges` 是环所在各组之间的全部跨组成员边，`groups` 是环上的组键，按字典序。 */
+export interface GroupCycleFinding extends FindingBase<'group-cycle'> {
+  readonly groups: readonly string[]
+}
+
+/** 本模块与方向规则的发现；`group-cycle` 是带组键的变体，别的种类只有基础字段。 */
+export type DependencyFinding<Kind extends string = DependencyFindingKind> =
+  Kind extends 'group-cycle' ? GroupCycleFinding : FindingBase<Kind>
 
 export interface DependencyGraph {
   readonly members: readonly Member[]
@@ -392,30 +407,31 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
       groupEdges.set(pairKey(from, to), { from, to })
   }
   for (const component of cycles([...new Set(groupOf.values())], [...groupEdges.values()])) {
-    const inside = edgeList.filter(edge => {
-      const from = groupOf.get(edge.from)
-      const to = groupOf.get(edge.to)
-      return (
-        from !== undefined &&
-        to !== undefined &&
-        from !== to &&
-        component.includes(from) &&
-        component.includes(to)
-      )
+    const inside = edgeList.flatMap(edge => {
+      const fromGroup = groupOf.get(edge.from)
+      const toGroup = groupOf.get(edge.to)
+      return fromGroup !== undefined &&
+        toGroup !== undefined &&
+        fromGroup !== toGroup &&
+        component.includes(fromGroup) &&
+        component.includes(toGroup)
+        ? [{ from: edge.from, to: edge.to }]
+        : []
     })
     findings.push({
       kind: 'group-cycle',
       rule: 'group-cycle',
       message: `组之间成环：${component.join('、')}`,
       sites: inside.flatMap(edge => firstSite(edge.from, edge.to)),
-      edges: inside.map(edge => ({ from: edge.from, to: edge.to })),
+      edges: inside,
+      groups: component,
     })
   }
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v4：`modules` 不再含解析失败的节点）。 */
-const GRAPH_FORMAT = 'v4'
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`）。 */
+const GRAPH_FORMAT = 'v5'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
