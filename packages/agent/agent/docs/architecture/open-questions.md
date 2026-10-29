@@ -73,6 +73,12 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 独立调用者在类型上只依赖 agent-contract 与 agent，不认识外部协调者。但装配上它要自备工厂表中的全部必需依赖，其中授权、Context、模型选择与消息准入等外域适配器都尚无提供者。没有任何页拥有“最小独立装配”：哪些提供者组成能运行一次独立 invoke 的最小集合，由谁提供默认实现。拥有者定为 agent-host-local。关闭条件是本地宿主装配页给出最小独立装配的提供者清单与候选发行行，或登记为由应用装配拥有。
 
+下面一项是 Agent 自己的 Loop 行为缺口，不依赖外域。
+
+### at 判定失败之后扩展调用怎样接续
+
+拥有者是 agent-contract。调模型之后的失败分支里，扩展的 `retry` 计划 `notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。Agent 把 `at` 交给 Model 之前以 `parseInstant` 判定一次。判定失败时，Agent 不把这次重试交给 Model，按 SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”取时失败一条保留原准备与接续，见“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条。之后该扩展调用怎样接续没有定义：由哪一次推进再判定一次，再次失败时该扩展调用怎样结束，以及这段等待怎样被观察。关闭条件是 SPEC“作为 Model 调用方”第 3 条写出判定失败之后的接续路径，与“时钟读取与等待”和作者协议的[调用结果](../../../agent-contract/docs/public-api/extensions.md#调用协议)一致，并有验证资源覆盖。
+
 ## 外域依赖
 
 本节登记 Agent 依赖、但不归 Agent 拥有的契约与专题。每条写拥有者、Agent 所需的保证、被阻塞的能力、Agent 一侧已经产出的边界和关闭条件。Agent 只写自己需要的保证，不替拥有者写内部实现。拥有者没有兑现时，对应的系统组合不具备相应保证，其余独立设计继续。
@@ -158,10 +164,20 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | Model 主干 |
-| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。Agent 一侧由适配器实现这个端口：以调模型之后位置 failure 维度的扩展调用作为策略拥有者的原位置，decide 与 inspect 按扩展调用身份认回，Agent 挂接失效时由下一个合法推进者回答 inspect。需要 Model 确认下列四点。第一，这一对应合法。第二，`notBefore` 非 null 时已定：它是 `judgeExtensionOutput` 以 `parseInstant` 校验过的 `UtcInstantText`，Agent 原样交给 Model（SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条）；为 null 时取该 Conclusion 的 `at`，`at` 的 `AgentInstant` 与 Model 的 `notBefore` 字符串是否使用同一时刻编码仍待写明，写出之前 Agent 原样传递，不转换。第三，策略协调者的寿命归 Model 宿主：原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用。第四，Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用 |
+| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。Agent 一侧由适配器实现这个端口：以调模型之后位置 failure 维度的扩展调用作为策略拥有者的原位置，decide 与 inspect 按扩展调用身份认回，Agent 挂接失效时由下一个合法推进者回答 inspect。需要 Model 确认下列四点。第一，这一对应合法。第二，`notBefore` 非 null 时已定：它是 `judgeExtensionOutput` 以 `parseInstant` 校验过的 `UtcInstantText`，Agent 原样交给 Model（SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条）；为 null 时取该 Conclusion 的 `at`，`at` 的时刻编码已定：它是 `AgentClock.now` 的成功值，形式见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”，Agent 交给 Model 之前以 `parseInstant` 判定一次，见“作为 Model 调用方”第 3 条。第三，策略协调者的寿命归 Model 宿主：原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用。第四，Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用 |
 | 阻塞的能力 | 首内容前失败的重试决定（CAP-AG08） |
 | Agent 侧已产出的边界 | 作者协议的 `retry` 输出与[位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表) |
-| 关闭条件 | Model 确认对应关系、策略寿命和迟到决定的处置，适配器形状写入 Agent 公开接口页；`notBefore` 为 null 时 Conclusion 的 `at` 经 `parseInstant` 判定失败之后，该扩展调用怎样接续（Agent SPEC「作为 Model 调用方」第 3 条）。时刻编码已定，见 Agent SPEC「时钟读取与等待」 |
+| 关闭条件 | Model 确认对应关系、策略寿命和迟到决定的处置，适配器形状写入 Agent 公开接口页。时刻编码已定，见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”。`at` 判定失败之后的接续是 Agent 自己的开放问题，见“[at 判定失败之后扩展调用怎样接续](#at-判定失败之后扩展调用怎样接续)” |
+
+### 命名读取与注入能力怎样对应需要声明
+
+| 项 | 内容 |
+| --- | --- |
+| 拥有者 | 读面拥有者（授权的命名读取协议）与装配 |
+| Agent 所需保证 | 三点。第一，装配凭需要声明的哪一项认出要注入的能力种类。第二，`NamedCapturedRead` 的 `schema` 与对应需要声明的 `schema` 是什么关系。第三，命名读取里“读不到”包含哪些读取结果。Agent 只按需要名交付与核对，不定义读取怎样产生 |
+| 阻塞的能力 | 官方准入按需要名收到读取时“读不到必需需要”的完整判定，以及装配按 `schema` 核对注入物 |
+| Agent 侧已产出的边界 | SPEC 的“[声明判断](../../../agent-contract/SPEC.md#声明判断)”的 `needs` 段与“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”第 2 条。`NamedCapturedRead` 的形状见公开接口页的[扩展、人工卡片与材料](../../../agent-contract/docs/public-api/README.md#扩展人工卡片与材料) |
+| 关闭条件 | 读面拥有者写明命名读取协议里“读不到”的读取结果集合，以及读取的 `schema` 与需要声明的 `schema` 的对应关系。装配写明凭需要声明的哪一项认出能力种类。SPEC 的 `needs` 段改为引用这些规则 |
 
 ### 端口提供者缺口
 

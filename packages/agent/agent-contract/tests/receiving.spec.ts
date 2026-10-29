@@ -351,6 +351,37 @@ describe('the entries suite fails a provider that breaks a rule', () => {
       /latest established attachment, also when detached/u,
     )
   })
+
+  it('fails the projection case when an entry event carries another execution', async () => {
+    // A provider that files the events of one execution under another execution.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const other = decodeAgentExecutionId('other-execution')
+    if (!('ok' in other)) throw new Error('the test execution is invalid')
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      events: async (who, execution) =>
+        (await eventsOf(fixture, who, execution)).map(event => ({ ...event, execution: other.ok })),
+    })
+    await expect(caseNamed(cases, 'projects each written entry').run()).rejects.toThrow(
+      /the event should belong to the execution it was written to/u,
+    )
+  })
+
+  it('fails the projection case when an entry event carries a stale attachment', async () => {
+    // A provider that allocates every entry event under an attachment that is not the latest.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      events: async (who, execution) =>
+        (await eventsOf(fixture, who, execution)).map(event => ({
+          ...event,
+          executionAttachment: staleAttachment,
+        })),
+    })
+    await expect(caseNamed(cases, 'projects each written entry').run()).rejects.toThrow(
+      /latest attachment, also for received without one/u,
+    )
+  })
 })
 
 describe('the commit cases of the suite fail a provider that breaks a rule', () => {
@@ -395,6 +426,19 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
     )
   })
 
+  it('fails the commit projection case when the earlier entry has no event', async () => {
+    // A provider that projects received entries but not the start-fences written before them.
+    const cases = brokenCases(fixture => ({
+      events: async (who, execution) =>
+        (await eventsOf(fixture, who, execution)).filter(
+          event => event.body.kind !== 'entry' || event.body.entry.kind !== 'start-fence',
+        ),
+    }))
+    await expect(caseNamed(cases, 'commit projects the entry').run()).rejects.toThrow(
+      /the start-fence must have added an event/u,
+    )
+  })
+
   it('fails the commit replay case when a replayed commit allocates another event', async () => {
     const replies = new Map<string, number>()
     const cases = brokenCases(fixture => ({
@@ -410,6 +454,39 @@ describe('the commit cases of the suite fail a provider that breaks a rule', () 
     }))
     await expect(caseNamed(cases, 'replays and operation aliases').run()).rejects.toThrow(
       /a replay must allocate no event/u,
+    )
+  })
+
+  it('fails the commit replay case when a replayed commit returns another value', async () => {
+    // A provider that recalls the delivery on a replay but reports a new revision for it.
+    const seen = new Set<string>()
+    const cases = brokenCases(fixture => ({
+      joint: {
+        ...fixture.joint,
+        received: {
+          ...fixture.joint.received,
+          async commit(input: ReceivedCommitInput<string, ContentBlock>) {
+            const reply = await fixture.joint.received.commit(input)
+            if (!seen.has(input.operation)) {
+              seen.add(input.operation)
+              return reply
+            }
+            if (!('ok' in reply) || reply.ok.kind !== 'committed') return reply
+            const { value } = reply.ok
+            const revision = decodeExecutionRevision(`${value.receipt.revision}.1`)
+            if (!('ok' in revision)) throw new Error('the test revision is invalid')
+            return {
+              ok: {
+                ...reply.ok,
+                value: { ...value, receipt: { ...value.receipt, revision: revision.ok } },
+              },
+            }
+          },
+        },
+      },
+    }))
+    await expect(caseNamed(cases, 'replays and operation aliases').run()).rejects.toThrow(
+      /a replay must recall the original value/u,
     )
   })
 

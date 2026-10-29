@@ -847,16 +847,18 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
       async run() {
         const input = await prepare('entry-event')
         const latest = await fixture.supersede(input, input.execution)
-        // An earlier event, so that the sequence and the schema of the commit's event have a
-        // predecessor to compare with.
-        await ok(
-          fixture.entries.record({
-            ...input,
-            operation: operation('entry-event-fence'),
-            authority: latest,
-            entry: sampleStartFence('entry-event'),
-          }),
-        )
+        // Two earlier events, so that the sequence and the schema of the commit's event have a
+        // predecessor to compare with, and the commit's event is the last one but not the second.
+        for (const name of ['entry-event-fence', 'entry-event-fence-2']) {
+          await ok(
+            fixture.entries.record({
+              ...input,
+              operation: operation(name),
+              authority: latest,
+              entry: sampleStartFence(name),
+            }),
+          )
+        }
         const before = await events(input)
         const previous = before.at(-1)
         assert.ok(previous !== undefined, 'the start-fence must have added an event')
@@ -892,10 +894,15 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
         const input = await prepare('replay-event')
         const value = await committed(joint.received.commit(input))
         const after = await events(input)
-        assert.deepEqual(await committed(joint.received.commit(input)), value)
+        assert.deepEqual(
+          await committed(joint.received.commit(input)),
+          value,
+          'a replay must recall the original value',
+        )
         assert.deepEqual(
           await committed(joint.received.commit({ ...input, operation: operation('alias-event') })),
           value,
+          'an operation alias must recall the original value',
         )
         assert.deepEqual(await events(input), after, 'a replay must allocate no event')
       },

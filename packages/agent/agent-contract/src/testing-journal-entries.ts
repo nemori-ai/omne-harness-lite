@@ -685,7 +685,11 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         )
         assert.equal(Number(second?.sequence), Number(first?.sequence) + 1)
         for (const event of [first, second]) {
-          assert.equal(event?.execution, execution)
+          assert.equal(
+            event?.execution,
+            execution,
+            'the event should belong to the execution it was written to',
+          )
           assert.equal(
             event?.executionAttachment,
             authority.executionAttachment,
