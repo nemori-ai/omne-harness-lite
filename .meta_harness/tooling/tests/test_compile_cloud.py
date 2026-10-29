@@ -192,6 +192,10 @@ def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     ub_mode_revision = "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f"
     assert f"ARG UB_MODE_REVISION={ub_mode_revision}" in dockerfile
     assert f"unclebob/ub-mode@{ub_mode_revision}" in skills
+    install = (repo / ".meta_harness/agents/cloud/cursor/install.sh").read_text(encoding="utf-8")
+    assert "unclebob/ub-mode/${UB_MODE_REVISION}/SKILL.md" in dockerfile
+    assert "unclebob/ub-mode/${ub_mode_revision}/SKILL.md" in install
+    assert "unclebob/ub-mode/master" not in dockerfile + install
     assert "-a cursor -g -s '*' -y --copy" in dockerfile
     assert f"ARG GIT_HUMAN_NAME={name}" in dockerfile
     assert f"ARG GIT_HUMAN_EMAIL={email}" in dockerfile

@@ -30,7 +30,7 @@ description: >
 
 按 `integration.md`「不变量」核对：开工依据已接受且合入提交在 F；跨线写集不相交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。在收口点的检出上按 `integration.md`「读写交叉的两类」运行 `scope-cli.ts`，对本波绑定求交，同线顺序任务先按线聚合。退出 1 时不开波，改分解，不降低判据。退出 0 时逐条复核 `read-overlap-frozen:` 行，写进线包。
 
-建卡范围按 `map-reduce-states.md`「阶段内的核对」PREPARE 第 1 步。
+建卡范围按 `map-reduce-states.md` 第 2 节「滚动规划与逐收口等待」。
 
 ## 4. 准备本波的 Wave
 
