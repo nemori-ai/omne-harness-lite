@@ -33,7 +33,6 @@ import type {
   SessionFailure,
   SessionHistory,
   GuardCommand,
-  MutationName,
   SessionCommand,
   SessionTransactionPort,
   SessionLogObservation,
