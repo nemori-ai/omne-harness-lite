@@ -577,6 +577,18 @@ it('leaves a regular file with a trailing slash unresolved on read', async () =>
   expect(await readFile(path, 'utf8')).toBe('file-bytes')
 })
 
+it('leaves a regular file followed by a dot segment unresolved on read', async () => {
+  // POSIX opens `file/.` with ENOTDIR. Without O_NOFOLLOW (Windows) the open succeeds on the file
+  // itself, and the check of the final entry after the open must answer the same way.
+  const root = await tree()
+  const path = join(root, 'notes.txt')
+  await writeFile(path, 'file-bytes')
+  const named = await hostObjectToken(path)
+  const result = await createHostFiles().read(request(`${path}/.`, named, 'file-dot-read'))
+  expect(result).toEqual({ kind: 'unresolved', requestId: 'file-dot-read' })
+  expect(await readFile(path, 'utf8')).toBe('file-bytes')
+})
+
 it('leaves a regular file with a trailing slash unresolved on write and does not truncate it', async () => {
   const root = await tree()
   const path = join(root, 'notes.txt')

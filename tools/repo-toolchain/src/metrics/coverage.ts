@@ -167,6 +167,9 @@ export function measureCoverage(
         ],
         { cwd: memberDir, stdio: ['ignore', log, log] },
       )
+      // A vitest that could not start is not a test outcome: the exit code would say "tests failed".
+      if (result.error !== undefined)
+        throw new Error(`覆盖率运行无法启动（${member}）：${result.error.message}`)
       exitCodes.set(member, result.status ?? -1)
     } finally {
       closeSync(log)
