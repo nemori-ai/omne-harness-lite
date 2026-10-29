@@ -296,12 +296,12 @@ A 表达要做什么，E 提供业务服务，context 提供本次执行的 emit
 | ToolOperation | 一个 ToolAuthor、参数说明与返回声明 | defineToolOperation 的完整输入 | 封闭单操作 A/R，保留 E/B 兼容性；不公开 executor；不代表已可用 |
 | ToolImplementation | 实现侧事实（description、backgroundAllowed、declarations）、一个操作或命令名到操作的表 | 构造时给定命令 summary 与操作 | 不含 name、adoption 与治理字段；装载时与资产治理声明派生唯一 ToolDefinition；登记后由 ToolBindings 按登记键持有；不进入数据契约 |
 | ToolImplementationModule | 实现包导出的 executor 与 createAuthor，与作者插件同包导出 | createAuthor 的 construction | 是 ToolLoader 的 load 输入；不是数据契约 |
-| 换代协调者 toolGenerations | Tool 宿主的 Service，唯一持有 ctx.plugin 句柄；会话引用读取端口 ToolResidencyReader | ensureLoaded 的 authority；unload 的登记键；sweep 无参数 | 每个动词向目标态收敛，可重复调用；有引用且无同形 serving 替代时不 dispose，契约见 [cordis](../../tool-cordis-contract/docs/cordis.md#换代协调者契约) |
+| 换代协调者 toolGenerations | Tool 宿主的 Service，唯一持有 ctx.plugin 句柄；应用装配桥接的持有者引用读取端口 ToolResidencyReader | ensureLoaded 的 authority；unload 的登记键；sweep 无参数 | 每个动词向目标态收敛，可重复调用；有引用且无同形 serving 替代时不 dispose，契约见 [cordis](../../tool-cordis-contract/docs/cordis.md#换代协调者契约) |
 | PreparedEnvironment | 环境拥有者产生受限 E 和持久资源身份 | 不接受任意重绑定 | E 不可序列化；清理通过环境协议，非对象销毁即业务完成 |
 | ToolDecisionBridge | 决策方的 ensure/inspect/resolve/invalidate 适配 | 原 wait、请求登记、决定和终局依据 | 决定仍由决策方唯一拥有，不把普通消息当决定 |
 | ToolResourceResponses | 各资源协议登记、认回、到期、失效及资格校验器 | 原等待、受信应答/到期证据 | 与决策方分开；没有默认资源超时 |
 | ToolOutputCustody / ContentReader | 耐久内容与附件提供者、当前读取资格 | 原 operation、codec/bytes 或精确结果引用 | 返回耐久证据；临时 URL 不够；读取与删除权分开 |
-| ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑；会话常驻项的 name 与参数形状在会话内不变（[R1](../SPEC.md#会话常驻规则r1r5)） |
+| ToolCatalog | 合法定义选择、消费者能力与设置读取 | inspect/search/usage 的范围 | 同实例数据变化可重求值，不依赖 Cordis 重跑；常驻项的 name 与参数形状在持有者存续期间不变（[R1](../SPEC.md#会话常驻规则r1r5)） |
 | ToolInstanceHost | 长期宿主上下文、调度器、目录及发布资格 | 安装 driver，按 call 唤醒 | 不挂在调用方下；同 call 提示归并；可从扫描补偿 |
 | ToolDirectory / ToolHandle | 发布资格与贡献 token / 发布代次 `(instance, generation)`、该代次的过程流 `stream` 与只服务该引用的观察源 `observation` | connect（受信路由查找，只服务实例绑定）；普通观察经门面的 `instances.current` 与 `observation.observe({ ref, access, signal })`，没有 `after` | 只提供观察路由；已建立的观察在代次替换后以 `producer-ended`/`stale-instance` 结束，对非当前代次的新观察请求在门面层得到 `stale-stream`，不暗连后继。按 [SPEC D-10](../SPEC.md#公共流协议上的观察)；门面实现在 `tool/src/stream-facade.ts` |
 | ToolChildren | 本域持久关联、受信来源签发、子调用门面 | parent/ordinal、子受理及保管回执 | 父程序退出后继续；程序拿不到此端口 |

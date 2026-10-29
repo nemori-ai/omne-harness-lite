@@ -8,7 +8,7 @@
 
 ## 边界
 
-测试不需要真实存储、身份源、时钟或 Cordis：事务端口与四个构造端口用 `./testing` 的非耐久替身。替身通过套件不证明真实存储的耐久、跨进程并发或恢复。依赖方向测试读取构建后的 `dist`，运行前须先构建本成员及其依赖。测试通过不代替规格或验收。
+测试不需要真实存储、身份源、时钟或 Cordis：有效提供者端口使用 `./testing` 的非耐久替身。替身通过套件不证明真实存储的耐久、跨进程并发或恢复。依赖方向测试读取构建后的 `dist`，运行前须先构建本成员及其依赖。测试通过不代替规格或验收。
 
 ## 维护
 
@@ -17,11 +17,24 @@
 ## 本包事实
 
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口与 `./testing` 的导出集合，`sessionModesBlock` 的形状。
-- [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径种类的 `decide`/`reduce`（创建与初始化项、受理、开 Run、交入、消息参加、有界收束）、认回与冲突、跨租户拒绝、未知种类隔离、领域服务的边界结局、路径外种类指向 #756。
+- [decide-reduce.spec.ts](decide-reduce.spec.ts)：首条路径种类的 `decide`/`reduce`（创建与初始化项、受理、开 Run、交入、消息参加、有界收束）、认回与冲突、跨租户拒绝、未知种类隔离、领域服务的边界结局。
 - [transactions-conformance.spec.ts](transactions-conformance.spec.ts)：事务端口套件对替身的自证：合法替身全过，无第二租户时跨租户用例记为不适用，每个用例都有一个违例变体让它变红。
 - [dependency-direction.spec.ts](dependency-direction.spec.ts)：构建后的根入口不加载 Cordis、任何 `./cordis` 入口、依赖本成员的成员、`./testing` 与 `node:assert`。
 - 辅助：[conformance-harness.ts](conformance-harness.ts)、[module-graph.ts](module-graph.ts)。
 
-运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-contract`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
+运行方式：在仓库根执行 `node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：SPEC 的[持续验证义务与未覆盖](../SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](../SPEC.md#候选的持续验证义务)只有首条路径涉及的部分有测试；路径外种类、其余端口的套件与真实组合归 #756 与实现成员。没有 `*.spec-d.ts` 类型测试。具名维护者由负责人指定。
+当前缺口：真实耐久、跨进程原子提交、真实提供者与完整组合未验证。Model ACK confirmed 与新 Context scope 的实际初始化仍按 SPEC 的具名停止点处理。初始化纯核心与显式来源替身的覆盖见[初始化实现](../docs/initialization.md#验证导航)。
+
+新增行为资源：
+
+- [extended-behavior.spec.ts](extended-behavior.spec.ts)：attempt、冻结、同日志终态、常驻键、结果责任与作用域。
+- [management-behavior.spec.ts](management-behavior.spec.ts)：环境设置同批、控制、生产者事实、级联、空闲与连续压缩。
+- [providers-conformance.spec.ts](providers-conformance.spec.ts)：八类提供者套件自证与违例控制。
+
+- [result-integrity.spec.ts](result-integrity.spec.ts)：原执行与位置、结果依据不变、迟到保管、后继隔离及归档提醒。
+
+同日志纯层的根、历史承接、完整 SE38、未关联控制与压缩引用用例见 [frontier-behavior.spec.ts](frontier-behavior.spec.ts) 和 [work-entry-behavior.spec.ts](work-entry-behavior.spec.ts)。这些用例使用显式内存原材料，不证明真实 Agent 归一、共同日志 CAS 或完整组合。
+
+- [same-log-integrity.spec.ts](same-log-integrity.spec.ts)：原 Run 与 attempt、完整解释批次、空事件对账及迟到认回。
+- [history-source-isolation.spec.ts](history-source-isolation.spec.ts)：显式租户与 Session 作用域、同文本身份及独立材料根。

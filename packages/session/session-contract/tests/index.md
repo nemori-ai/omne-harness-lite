@@ -12,3 +12,23 @@
 - [conformance-harness.ts](conformance-harness.ts)：套件自证的运行器
 - [module-graph.ts](module-graph.ts)：构建产物的导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+
+- [extended-behavior.spec.ts](extended-behavior.spec.ts)：冻结、执行历史、结果与作用域
+- [management-behavior.spec.ts](management-behavior.spec.ts)：管理命令、生产者事实与压缩
+- [providers-conformance.spec.ts](providers-conformance.spec.ts)：提供者套件自证
+- [scene.ts](scene.ts)：测试中的会话操作辅助
+
+- [result-integrity.spec.ts](result-integrity.spec.ts)：原执行与位置、结果依据不变、迟到保管、后继隔离及归档提醒。
+
+- [initialization-plan.spec.ts](initialization-plan.spec.ts)：原计划与注册身份编码
+- [initialization-behavior.spec.ts](initialization-behavior.spec.ts)：来源义务、原子事实与重试
+- [initialization-integrity.spec.ts](initialization-integrity.spec.ts)：来源绑定、篡改与解释隔离
+- [protocol-release.spec.ts](protocol-release.spec.ts)：完整发布集合与摘要
+- [initialization-scenario.ts](initialization-scenario.ts)、[initialization-fixture.ts](initialization-fixture.ts)：显式测试前提
+
+- [frontier-behavior.spec.ts](frontier-behavior.spec.ts)：同根原事实、登记、控制及历史承接
+- [frontier-release.spec.ts](frontier-release.spec.ts)：各冻结终态的完整解除与无额外准备门槛
+- [work-entry-behavior.spec.ts](work-entry-behavior.spec.ts)：原控制引用与压缩下界
+
+- [same-log-integrity.spec.ts](same-log-integrity.spec.ts)：原 Run 与 attempt、完整解释批次、空事件对账及迟到认回。
+- [history-source-isolation.spec.ts](history-source-isolation.spec.ts)：显式租户与 Session 作用域、同文本身份及独立材料根。

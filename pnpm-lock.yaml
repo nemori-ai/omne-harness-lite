@@ -19,8 +19,8 @@ catalogs:
       specifier: 0.0.3
       version: 0.0.3
     '@omne-harness/repo-toolchain':
-      specifier: 0.0.15
-      version: 0.0.15
+      specifier: 0.0.16
+      version: 0.0.16
     '@standard-schema/spec':
       specifier: 1.1.0
       version: 1.1.0
@@ -117,7 +117,7 @@ importers:
         version: 0.0.3
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.15(vitest@4.1.11)
+        version: 0.0.16(vitest@4.1.11)
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.11(vitest@4.1.11)
@@ -1388,7 +1388,40 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/exchange-refs':
+        specifier: workspace:*
+        version: link:../../common/exchange-refs
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../session-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1542,6 +1575,9 @@ importers:
         specifier: workspace:*
         version: link:../../util/unix-format
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1581,6 +1617,9 @@ importers:
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@omne-harness/schema-provider':
         specifier: workspace:*
         version: link:../../schema/schema-provider
@@ -1643,6 +1682,9 @@ importers:
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
@@ -1656,6 +1698,9 @@ importers:
         specifier: workspace:*
         version: link:../tool-cordis-contract
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1721,7 +1766,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.15(vitest@4.1.11)
+        version: 0.0.16(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1742,7 +1787,7 @@ importers:
         version: link:../../packages/common/legal-identity
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.15(vitest@4.1.11)
+        version: 0.0.16(vitest@4.1.11)
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
@@ -1814,7 +1859,7 @@ importers:
     devDependencies:
       '@omne-harness/repo-toolchain':
         specifier: 'catalog:'
-        version: 0.0.15(vitest@4.1.11)
+        version: 0.0.16(vitest@4.1.11)
       '@stryker-mutator/api':
         specifier: 'catalog:'
         version: 10.0.0
@@ -2580,8 +2625,8 @@ packages:
     resolution: {integrity: sha512-aEw6ZlUaN2yYnFxS7Tn0H0fnCCf2fwuDm63q373RwJ6tv22dV6GYgOw9r93lF3AYHCffhn1aLw1BkYtWUaSJpQ==}
     engines: {node: '>=24'}
 
-  '@omne-harness/repo-toolchain@0.0.15':
-    resolution: {integrity: sha512-9TF+DWLCXVk09Kyb3ZCKlIb4DUZwRfDoJfvH706mPt8pZamIOgMlSJVU+GvhVYWIPyr7uo62zG2CneOi/ZoJkA==}
+  '@omne-harness/repo-toolchain@0.0.16':
+    resolution: {integrity: sha512-9V3n1aUmadOPMNl//dckfqjpQSRjK3Wfe/7rWIKESOlmHQFT0OBKOuQAyV0Gm0CLFPNXlsULiF5qm8hEzxMC2w==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -5466,7 +5511,7 @@ snapshots:
 
   '@omne-harness/repo-config@0.0.3': {}
 
-  '@omne-harness/repo-toolchain@0.0.15(vitest@4.1.11)':
+  '@omne-harness/repo-toolchain@0.0.16(vitest@4.1.11)':
     dependencies:
       '@jscpd/core': 4.0.1
       '@jscpd/tokenizer': 4.0.1

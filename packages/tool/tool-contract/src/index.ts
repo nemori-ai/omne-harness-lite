@@ -43,6 +43,7 @@ export type {
   ToolAvailability,
   ToolCommandDeclaration,
   ToolDefinition,
+  ToolEnvironmentDeclaration,
   ToolImplementationShape,
   ToolInvocation,
   ToolProgramDeclaration,
@@ -127,3 +128,6 @@ export type {
   ToolResultReceiver,
   ToolSavedReceipt,
 } from './result-delivery.ts'
+
+export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.ts'
+export type { ToolBackgroundCallsValue } from './background-calls.ts'

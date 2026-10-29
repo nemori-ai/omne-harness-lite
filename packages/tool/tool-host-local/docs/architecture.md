@@ -4,7 +4,9 @@
 
 ## 模块与依赖
 
-本包只有一个实现模块 [start-coordinator.ts](../src/start-coordinator.ts)。它依赖 `@omne-harness/tool` 的记录仓端口 `ToolLedgerStore`、`host` 域、`recordKey`、`isTenantShape` 与 `canonicalDigest`，依赖 `@omne-harness/tool-contract` 的类型与身份解码。它不依赖 Cordis。
+启动协调器位于 [start-coordinator.ts](../src/start-coordinator.ts)。它依赖 `@omne-harness/tool` 的记录仓端口 `ToolLedgerStore`、`host` 域、`recordKey`、`isTenantShape` 与 `canonicalDigest`，依赖 `@omne-harness/tool-contract` 的类型与身份解码。它不依赖 Cordis。
+
+环境调度和凭据是另外两个独立工厂，见[公开接口](public-api.md)。它们消费 legal-identity 的正式租户校验，环境调度不直接依赖 EE。
 
 ## 记录
 
@@ -25,6 +27,6 @@
 
 ## 先后
 
-每个操作在进程内串行区里读域、决定、按域修订号条件提交，提交后才回复。先后由记录仓的条件提交裁定：按旧修订号做出的决定提交失败，重读后重新决定。串行区只让同一进程内的操作不必为修订冲突重试，它不是先后正确的前提。证据的 `revision` 是那次提交的域修订号，所以两条证据的修订号给出它们的先后。`consume` 与 `invalidate` 并发时，较早提交的一方决定结果：失效先提交则启动被拒绝，受理先提交则启动在途。
+每个操作在本租户的进程内串行区里读域、决定、按域修订号条件提交，提交后才回复。先后由记录仓的条件提交裁定：按旧修订号做出的决定提交失败，重读后重新决定。串行区只让同一进程内的操作不必为修订冲突重试，它不是先后正确的前提。证据的 `revision` 是那次提交的域修订号，所以两条证据的修订号给出它们的先后。`consume` 与 `invalidate` 并发时，较早提交的一方决定结果：失效先提交则启动被拒绝，受理先提交则启动在途。
 
 本包只测试了一个进程内的协调器。两个进程共用一个耐久记录仓时，条件提交仍然阻止两个写者同时成功，但这种装配没有验证，所以本包不声明跨进程的启动保证。

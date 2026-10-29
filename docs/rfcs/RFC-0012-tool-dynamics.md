@@ -221,10 +221,25 @@ R5. 常驻工具的实现变更且新定义与首次定义不同形时：
 | 统一语言与领域对象 | `.meta_harness/design/ubiquitous_language/`、`domain_objects/` | 已写回（2026-10-21，#618 分支）：新增常驻工具集合、同形、来源层、会话冻结、采用点、采用依据；C-65、C-66 | `check:design` 对账一致 |
 | 阶段二子卡与新卡 | #421 revision 5、#439–#444 revision 2、#626（2.0.1）；#580、#619、#446、#502 的要求评论 | 已完成（2026-10-21） | 各卡单写者读回 |
 
+<a id="更正标注2026-10-29常驻持有者与引用桥接"></a>
+
+## 更正标注（2026-10-29）：常驻持有者与引用桥接
+
+本标注依据 PanQiWei 的 [D-04 裁决](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)及 [#753 J20 结论表](https://github.com/nemori-ai/omne-harness-lite/issues/753#issuecomment-6437595717)，只记录部分范围的后继更正。原 2026-10-21 方案、各旧日期的更正与采用范围保留原文，它们不表示本轮决定已经在当时采用。当前规则由下列正式拥有者完整表达，不要求消费者拼读提案历史。
+
+| 被取代的精确范围 | 现行规则及拥有者 |
+| --- | --- |
+| 「会话常驻集合的规则」将会话作为唯一常驻主体，以及 R4 保存完整首次 definition 的要求 | 规则适用于[常驻持有者](../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-residency-holder--常驻持有者--residency-holder)，会话是一种。角色不新建身份或生命周期。持有者持久保存每项首次定义的 shape，采用点供给 planAdoption，当前登记键从采用依据派生。会话事实种类与种类准入仍归会话域。现行 [R1–R5](../../packages/tool/tool-contract/SPEC.md#常驻持有者规则r1r5)归 Tool |
+| 「加载、卸载、替换与换代协调者」的会话引用专用读面、原 system/key 输入与会话身份返回，以及「受影响拥有者」「消费者切换责任」中要求会话实现 Tool 端口的部分 | Reader 严格为 `referencing({ scope: 'system', key, after })` 返回 `Outcome<Page<{ holder, tenant, shape }>, unavailable>`。Page 为 `{ items, next }`，游标不透明，null 表示首页或读完。holder 只在同一 tenant 内区分持有者，shape 为已有 ToolShape，不返回正文，失败不返回空页。服务键只归 tool-cordis-contract，应用装配桥接具体持有者公开引用操作。Session 不提供 Tool 服务。现行 [Reader](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)归 Tool 与应用装配 |
+| 原文中把 Tool 到会话的冻结判定交付视作独立端口的含义 | Tool 不设冻结交付动作或替代端口。planAdoption 只作纯输出，新 Run 开始与显式 reload 的候选采用材料是唯一交付路径。初始化不判冻结，具体持有者提交自己的状态转换，在途责任仍按原调用履行。现行[采用点判定](../../packages/tool/tool-contract/SPEC.md#采用点判定)归 Tool，持有者侧提交归其契约 |
+| 换代协调者按会话引用保留，以及系统 Reader 结果与同形 serving 替代的判断 | unload 先 close，逐页读取后按每项 tenant 与 shape 核 G7，不能按同名 holder 跨租户合并。任一页不可读、租户无效、资格未知或缺同形替代时 reopen 并 retained。Reader 缺席或未就绪时协调者 PENDING，不提供 toolGenerations。系统作用域例外不免除逐持有者租户资格核验。现行 [G7](../../packages/tool/tool-contract/SPEC.md#342-契约缺口决定)与[换代协议](../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)归 Tool |
+
+原 Reader 不提供记下的键与 ToolAuthority 的目录。sweep 只能处理原持久采用依据可取的项，目录缺口未闭合前不能声称完成全量恢复，不通过新增 Reader 动作补造能力。更正条款的写回、源码实施、运行验证与接受分别判断。
+
 ## 后继关系与维护
 
 | 后继提案或更正依据 | 部分或全部取代的精确范围 | 当前规范入口 |
 | --- | --- | --- |
-| 无 | 无 | 见「写回现行正文」各目标源 |
+| [D-04](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690) 与 [#753 J20](https://github.com/nemori-ai/omne-harness-lite/issues/753#issuecomment-6437595717)，更正标注日期 2026-10-29 | 仅上节表列的常驻主体、R4、Reader、冻结交付及系统 G7 范围。原接受记录、方案与采用范围保留 | 见[更正标注](#更正标注2026-10-29常驻持有者与引用桥接)的逐项拥有者 |
 
 留给后续提案的接缝：一份资产引用多个实现并按 `ToolInspection.consumer` 选变体；资产层 Profile 对象；层序求值器与 `register` 的候选选择输入；MCP 动作的常驻规则；远端加载提供者；协调者 GC 策略。

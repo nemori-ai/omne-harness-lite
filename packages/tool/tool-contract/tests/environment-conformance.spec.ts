@@ -1177,11 +1177,15 @@ const NEEDS_SETTLE: Readonly<Record<string, string>> = Object.fromEntries(
   ].map(name => [name, 'settle']),
 )
 
+// allocated requires an independently recorded pre-adoption allocation, exercised by
+// environment-allocation.spec.ts. It cannot mask arbitrary rejections or released records.
 const legal: readonly LegalProvider<Fixture>[] = [
-  ...maskKinds(environmentAnswers).map((kind): LegalProvider<Fixture> => ({
-    name: `generated: every first answer is ${kind} until settle`,
-    fixture: generated(kind),
-  })),
+  ...maskKinds(environmentAnswers)
+    .filter(kind => kind !== 'allocated')
+    .map((kind): LegalProvider<Fixture> => ({
+      name: `generated: every first answer is ${kind} until settle`,
+      fixture: generated(kind),
+    })),
   {
     name: 'deferred allocation: every preparation is unknown first and settle lands the work',
     fixture: deferredPreparation({ first: 'unknown', landsAt: 'settle' }),
@@ -1223,13 +1227,13 @@ const legal: readonly LegalProvider<Fixture>[] = [
 ]
 
 /** The providers that are legal but offer no completion handle: the cases that need it are not applicable. */
-const legalWithoutHandle: readonly LegalProvider<Fixture>[] = maskKinds(environmentAnswers).map(
-  (kind): LegalProvider<Fixture> => ({
+const legalWithoutHandle: readonly LegalProvider<Fixture>[] = maskKinds(environmentAnswers)
+  .filter(kind => kind !== 'allocated')
+  .map((kind): LegalProvider<Fixture> => ({
     name: `generated: every first answer is ${kind} and the fixture offers no settle`,
     fixture: generated(kind, { settle: false }),
     notApplicable: NEEDS_SETTLE,
-  }),
-)
+  }))
 
 /**
  * Fixtures that break the completion contract of a handle (it resolves before the work landed),
@@ -1300,7 +1304,9 @@ const lateHandles: readonly Variant<Fixture>[] = [
 ]
 
 /** The methods of the port that take an access, and the case that checks another tenant on each. */
-const CROSS_TENANT: Readonly<Record<keyof ToolEnvironment<string, MemoryEnvironment>, string>> = {
+const CROSS_TENANT: Readonly<
+  Record<Exclude<keyof ToolEnvironment<string, MemoryEnvironment>, 'adoption'>, string>
+> = {
   prepare: NAMES.E17,
   inspectPreparation: NAMES.E16,
   release: NAMES.E18,
@@ -1357,7 +1363,7 @@ describe('ToolEnvironment conformance suite', () => {
 
   itPassesLegal(cases, legalWithoutHandle)
 
-  for (const kind of maskKinds(environmentAnswers))
+  for (const kind of maskKinds(environmentAnswers).filter(kind => kind !== 'allocated'))
     itNeedsTheHandle(cases, {
       name: `generated: every first answer is ${kind}`,
       handleName: 'settle',

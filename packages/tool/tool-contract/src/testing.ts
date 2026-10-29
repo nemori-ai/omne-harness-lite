@@ -50,6 +50,12 @@ export {
   type ToolResultReceiverFixture,
 } from './testing-result-receiver.ts'
 export {
+  toolCredentialsConformance,
+  type ToolCredentialEscape,
+  type ToolCredentialEscapeExit,
+  type ToolCredentialsFixture,
+} from './testing-credentials.ts'
+export {
   createMemoryToolEnvironment,
   environmentAnswers,
   memoryToolEnvironmentFixture,
@@ -101,3 +107,8 @@ export {
 } from './testing-resource-responses.ts'
 
 export { testingTenant, testingWorkspace } from './testing-values.ts'
+
+export {
+  toolEnvironmentAllocationConformance,
+  type ToolEnvironmentAllocationFixture,
+} from './testing-environment-allocation.ts'

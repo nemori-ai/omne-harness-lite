@@ -50,7 +50,7 @@ const USAGE = [
   '      算基线以来改动的影响面并打印；--json 另写计划文件。基线按 baseline 命令的规则取；',
   '      --full 或环境变量 FULL=1 给全量计划',
   `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full])`,
-  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层再慢层，不构建',
+  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层，快层通过才跑慢层，不构建',
   '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
   '      不给 --all 时按影响面选成员（基线按 baseline 命令的规则取），先构建它们及其依赖（--no-build 跳过），缺省只跑快层',
   '      --all 跑全部成员，缺省两层全跑；测试不构建（调用方先构建），除非给 --build；验收缺省先构建，--no-build 跳过',

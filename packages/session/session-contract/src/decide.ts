@@ -1,15 +1,8 @@
-// `decide` turns one command into the content of one commit (SPEC「领域服务与归约」): it recalls the
-// operation, runs the domain services of the command table, and produces the entry batch or the
-// refusal. The guard materials ride along opaque: `decide` reads only their presence (the login
-// gate of `startRun`), never their `facts`. `reduce(decide(...))` round-trips under one interpreter.
-//
-// Support in this member (card #536 revision 5): the kinds of the M2 first tenant path are decided
-// to the SPEC (`create`, `completeInitialization`, `accept` of an ordinary input, `startRun`,
-// `recordMessage`, `receive` of a hand-over, and `finishRun`). Every other kind is refused with
-// `unavailable` naming #756 (S-1b); the `workspace` dimension of `change` is judged before that
-// refusal, so an illegal selection is `invalid`. The Agent-event copy branch of `receive` is superseded (P1
-// decision item 1): the facts it carried (taken batches, the Run's completed terminal) reach
-// Session by a replacement that #756 designs.
+import { requiredWorkEntries } from './work-entry-state.ts'
+import { decodeEntry } from './entries.ts'
+import { validateFrontierBatch } from './frontier-state.ts'
+import { SessionValidationFailure } from './session-validation.ts'
+import { CallConflict } from './call-state.ts'
 import type {
   AttemptId,
   DurableEvidence,
@@ -23,9 +16,13 @@ import { tenantEquals, workspaceCodec, type WorkspaceId } from '@omne-harness/le
 import type { RunTerminal, WorkSnapshot, WorkspaceAttachment } from './values.ts'
 import type { HistoryEntry, ProducerFact, SessionFailure } from './faces.ts'
 import type { GuardCommand, SessionCommand } from './ports.ts'
-import { encodeEntry, toJsonValue, type InitializationItem } from './entries.ts'
+import { encodeEntry } from './entries.ts'
 import {
-  OFF_PATH_FAILURE,
+  decideInitializationCreate,
+  decideInitializationComplete,
+  validateInitializationRecall,
+} from './decide-initialization.ts'
+import {
   judgeAdvance,
   judgeRunStart,
   resolveOperation,
@@ -35,9 +32,15 @@ import {
   type EncodedEntry,
   type OperationRecord,
 } from './judgments.ts'
+import { judgeCompaction } from '@omne-harness/message'
+import { decideManagement, decideControl } from './decide-management.ts'
+import { decideResults } from './decide-results.ts'
+import { decideProducerFact } from './decide-receive.ts'
+import { residentEntries, completeEvidence } from './decision-support.ts'
 import { digestOf } from './operations.ts'
+import { canonicalInitializationValue, creationInput, tenantText } from './initialization-plan.ts'
+import { InitializationInvalid } from './initialization-parse.ts'
 
-/** The kinds that this member decides to the SPEC; every other kind is left to #756. */
 export const PATH_MUTATIONS = Object.freeze([
   'create',
   'completeInitialization',
@@ -143,6 +146,7 @@ function commandEvidence(operation: SessionOperationId, what: string): DurableEv
 function decideCreate(
   previous: WorkSnapshot | null,
   command: Extract<SessionCommand, { kind: 'create' }>,
+  guards: readonly GuardCommand[],
 ): Decision {
   if (previous !== null) return invalid('session', 'the session already exists')
   const { creation } = command.input
@@ -161,31 +165,13 @@ function decideCreate(
     return invalid('creation.modes.value.environment', 'incomplete adoption')
   if (creation.modes.kind === 'tenant-default' && emptyAdoption(creation.modes.source))
     return invalid('creation.modes.source', 'incomplete adoption')
-  const items: InitializationItem[] = creation.requiredIdentities.map(identity => ({
-    item: identity.name,
-    owner: identity.capability,
-    protocol: creation.entryContract,
-    input: toJsonValue({ capability: identity.capability, name: identity.name }),
-  }))
-  const source = commandEvidence(command.input.operation, 'created')
-  const out: EncodedEntry[] = [
-    encodeEntry(
-      {
-        kind: 'session.created',
-        tenant: command.input.tenant,
-        session: command.input.session,
-        operation: command.input.operation,
-        creation,
-        items,
-      },
-      sessionOrigin(source, 'intake'),
-    ),
-  ]
+  const initialized = decideInitializationCreate(command, guards)
+  if (initialized.kind !== 'entries') return initialized
+  const out = [...initialized.entries]
   if (creation.initial !== null) {
-    const initial = creation.initial
-    if (initial.input.length === 0 || initial.message.blocks.length === 0)
+    if (creation.initial.input.length === 0 || creation.initial.message.blocks.length === 0)
       return invalid('creation.initial', 'the initial input has no identity or no content')
-    out.push(...acceptedOrdinary(initial, 'next-run', null))
+    out.push(...acceptedOrdinary(creation.initial, 'next-run', null))
   }
   return entries(out)
 }
@@ -214,29 +200,6 @@ function acceptedOrdinary(
   ]
 }
 
-function decideCompleteInitialization(
-  snapshot: WorkSnapshot,
-  command: Extract<SessionCommand, { kind: 'completeInitialization' }>,
-): Decision {
-  const { result } = command.input
-  const task = snapshot.tasks.find(
-    item =>
-      item.kind === 'initialization' && item.item === result.item && item.owner === result.owner,
-  )
-  if (task === undefined)
-    return invalid('result.item', 'no pending initialization item of that owner')
-  if (task.kind === 'initialization' && task.state === 'failed' && result.result.kind === 'failed')
-    return rejected({ kind: 'conflict', operation: task.originalOperation })
-  const evidence = result.result.kind === 'ready' ? result.result.evidence : result.result.recovery
-  if (emptyEvidence(evidence)) return invalid('result.result', 'incomplete evidence')
-  return entries([
-    encodeEntry(
-      { kind: 'session.initialization-item', result },
-      { owner: result.owner, via: 'intake', source: evidence },
-    ),
-  ])
-}
-
 function decideAccept(
   snapshot: WorkSnapshot,
   command: Extract<SessionCommand, { kind: 'accept' }>,
@@ -249,10 +212,37 @@ function decideAccept(
       if (route.reason === 'frozen') return rejected({ kind: 'frozen', verdict: null })
       return invalid('value', 'the input has no identity or no content')
     case 'card':
-    case 'business':
-      return rejected(OFF_PATH_FAILURE)
+    case 'business': {
+      if (value.kind === 'ordinary') return invalid('value', 'not a routed input')
+      const source = value.kind === 'card-decision' ? value.decision : value.input
+      if (!completeEvidence(source) || !completeEvidence(value.destination))
+        return invalid('value', 'incomplete route evidence')
+      const routed = encodeEntry(
+        {
+          kind: 'intake.routed',
+          task: {
+            kind: 'routed-input',
+            originalOperation: command.input.operation,
+            value,
+            state: 'pending',
+          },
+        },
+        sessionOrigin(source),
+      )
+      return entries(
+        value.kind === 'card-decision'
+          ? [
+              routed,
+              encodeEntry(
+                { kind: 'hitl.decision', value },
+                { owner: 'hitl', via: 'intake', source },
+              ),
+            ]
+          : [routed],
+      )
+    }
     case 'queue': {
-      if (value.kind !== 'ordinary') return rejected(OFF_PATH_FAILURE)
+      if (value.kind !== 'ordinary') return invalid('value', 'not an ordinary input')
       if (snapshot.pending.includes(value.input))
         return invalid('value.input', 'an input of that identity was already accepted')
       const run = snapshot.run.kind === 'active' ? snapshot.run.run : null
@@ -289,8 +279,25 @@ function decideStartRun(
   const run = runIdOf(snapshot.session, judgment.first, predecessor)
   const source = commandEvidence(command.input.operation, 'run-started')
   const out: EncodedEntry[] = []
-  if (digestOf(candidate) !== digestOf(snapshot.definition.adopted))
-    out.push(encodeEntry({ kind: 'session.adoption', adopted: candidate }, sessionOrigin(source)))
+  const residents = residentEntries(snapshot, command.input.residentAdoption, source)
+  if (residents.kind !== 'entries') return residents
+  out.push(...residents.entries)
+  if (
+    digestOf(candidate) !== digestOf(snapshot.definition.adopted) ||
+    command.input.residentAdoption !== undefined
+  )
+    out.push(
+      encodeEntry(
+        {
+          kind: 'session.adoption',
+          adopted: candidate,
+          ...(command.input.residentAdoption === undefined
+            ? {}
+            : { residentKeys: command.input.residentAdoption.keys }),
+        },
+        sessionOrigin(source),
+      ),
+    )
   out.push(
     encodeEntry(
       {
@@ -401,6 +408,18 @@ function decideFinishRun(
       sessionOrigin(source),
     ),
   )
+  if (snapshot.frozen !== null && snapshot.pending.length > 0)
+    out.push(
+      encodeEntry(
+        {
+          kind: 'intake.released',
+          inputs: snapshot.pending.filter(
+            input => bounded.kind !== 'admission-rejected' || input !== bounded.input,
+          ),
+        },
+        sessionOrigin(source),
+      ),
+    )
   return entries(out)
 }
 
@@ -413,7 +432,7 @@ function decideReceive(
     case 'input-handover':
       return decideHandover(snapshot, fact)
     default:
-      return rejected(OFF_PATH_FAILURE)
+      return decideProducerFact(snapshot, command)
   }
 }
 
@@ -443,20 +462,253 @@ function decideHandover(
   ])
 }
 
-/**
- * `change` is decided by #756. Its `workspace` dimension is still judged here, so an illegal
- * selection is `invalid` rather than `unavailable`.
- */
-function decideChange(command: Extract<SessionCommand, { kind: 'change' }>): Decision {
+function decideChange(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'change' }>,
+): Decision {
   const { declaration } = command.input
+  const proof =
+    'authorization' in declaration
+      ? declaration.authorization
+      : 'basis' in declaration
+        ? declaration.basis
+        : declaration.registration
+  if (!completeEvidence(proof)) return invalid('declaration', 'incomplete evidence')
+  if (declaration.kind === 'model' && !declaration.name)
+    return invalid('declaration.name', 'empty model selection')
+  if (
+    declaration.kind === 'environment-mode' &&
+    (emptyAdoption(declaration.value) || !completeEvidence(declaration.setting))
+  )
+    return invalid('declaration', 'incomplete environment adoption or setting')
   if (declaration.kind === 'workspace') {
+    const loading = snapshot.creation.initialization?.sources.find(
+      source => source.kind === 'workspace-load',
+    )
+    if (
+      loading !== undefined &&
+      snapshot.tasks.some(
+        task =>
+          task.kind === 'initialization' &&
+          task.owner === loading.owner &&
+          task.item === loading.item,
+      )
+    )
+      return invalid('declaration.value', 'the original workspace-load item is not ready')
     const refused = judgeWorkspace(declaration.value, declaration.workspaceAttachment, {
       workspace: 'declaration.value',
       attachment: 'declaration.workspaceAttachment',
     })
     if (refused !== null) return refused
   }
-  return rejected(OFF_PATH_FAILURE)
+  const source = commandEvidence(command.input.operation, 'change')
+  if (declaration.kind === 'workspace')
+    return entries([
+      encodeEntry(
+        {
+          kind: 'session.workspace-changed',
+          workspace: declaration.value,
+          workspaceAttachment: declaration.workspaceAttachment,
+          basis: declaration.basis,
+        },
+        sessionOrigin(source),
+      ),
+    ])
+  const kind =
+    declaration.kind === 'model'
+      ? 'session.model-selected'
+      : declaration.kind.endsWith('-mode')
+        ? 'session.mode-changed'
+        : declaration.kind === 'context-registration'
+          ? 'session.context-registration-changed'
+          : declaration.kind === 'context-step-commit' || declaration.kind === 'recovery-input'
+            ? 'session.recovery-input-adopted'
+            : 'session.declaration-adopted'
+  const scope = snapshot.contextScopes?.at(-1)?.scope ?? null
+  return entries([
+    encodeEntry({ kind, declaration, scope }, sessionOrigin(source)),
+    ...(declaration.kind === 'environment-mode'
+      ? [
+          encodeEntry(
+            { kind: 'session.declaration-adopted', declaration, scope },
+            sessionOrigin(source),
+          ),
+        ]
+      : []),
+  ])
+}
+
+function decideAttempt(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'claim' | 'reload' | 'release' }>,
+): Decision {
+  if (command.kind === 'release') {
+    const judgment = judgeAdvance(snapshot, {
+      kind: 'attempt',
+      advance: command.input.advance,
+      expected: command.input.expected,
+    })
+    if (judgment.kind !== 'ok') return rejected(judgment)
+    if (!completeEvidence(command.input.handover)) return invalid('handover', 'incomplete evidence')
+    return entries([
+      encodeEntry(
+        {
+          kind: 'run.attempt-released',
+          run: command.input.advance.run,
+          attempt: command.input.advance.attempt,
+          reason: 'released',
+        },
+        sessionOrigin(command.input.handover),
+      ),
+    ])
+  }
+  if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+  if (snapshot.run.kind === 'terminal')
+    return rejected({ kind: 'terminal', terminal: snapshot.run.terminal })
+  if (snapshot.run.kind !== 'active' || command.input.run !== snapshot.run.run)
+    return rejected({
+      kind: 'stale-advance',
+      current: snapshot.run.kind === 'active' ? snapshot.run.advance : null,
+    })
+  if (command.kind === 'reload' && snapshot.frozen !== null)
+    return rejected({ kind: 'frozen', verdict: snapshot.frozen })
+  if (command.kind === 'reload' && command.input.expected !== snapshot.revision)
+    return rejected({ kind: 'changed', revision: snapshot.revision })
+  const source = command.kind === 'claim' ? command.input.continuity : command.input.handover
+  if (
+    !completeEvidence(source) ||
+    !command.input.instance.id ||
+    command.input.instance.owner !== 'agent'
+  )
+    return invalid('instance', 'incomplete instance or handover')
+  const out: EncodedEntry[] = []
+  if (command.kind === 'reload') {
+    if (
+      emptyAdoption(command.input.candidate) ||
+      command.input.candidate.name !== snapshot.definition.adopted.name
+    )
+      return invalid('candidate', 'a reload must preserve the definition identity')
+    const residents = residentEntries(snapshot, command.input.residentAdoption, source)
+    if (residents.kind !== 'entries') return residents
+    out.push(...residents.entries)
+    if (
+      digestOf(command.input.candidate) !== digestOf(snapshot.run.adoption) ||
+      command.input.residentAdoption !== undefined
+    )
+      out.push(
+        encodeEntry(
+          {
+            kind: 'session.adoption',
+            adopted: command.input.candidate,
+            ...(command.input.residentAdoption === undefined
+              ? {}
+              : { residentKeys: command.input.residentAdoption.keys }),
+          },
+          sessionOrigin(source),
+        ),
+      )
+  }
+  if (snapshot.run.advance !== null)
+    out.push(
+      encodeEntry(
+        {
+          kind: 'run.attempt-released',
+          run: snapshot.run.run,
+          attempt: snapshot.run.advance.attempt,
+          reason: 'superseded',
+        },
+        sessionOrigin(source),
+      ),
+    )
+  const ordinal = String(BigInt(snapshot.run.ordinal) + 1n)
+  out.push(
+    encodeEntry(
+      {
+        kind: 'run.attempt-started',
+        run: snapshot.run.run,
+        attempt: attemptIdOf(snapshot.run.run, ordinal),
+        ordinal,
+        instance: command.input.instance,
+        reason: command.kind,
+      },
+      sessionOrigin(source),
+    ),
+  )
+  return entries(out)
+}
+
+function decideDerived(
+  snapshot: WorkSnapshot,
+  command: Extract<SessionCommand, { kind: 'commitDerived' }>,
+  reads: DecideReads,
+): Decision {
+  const input = command.input
+  const source = commandEvidence(input.operation, 'derived')
+  if (input.value.kind === 'compaction') {
+    if (input.participation === undefined || input.judgment === undefined)
+      return invalid('participation', 'context transition materials are required')
+    const judgment = judgeAdvance(snapshot, {
+      kind: 'participation',
+      execution: input.participation.execution,
+      joint: input.participation.joint,
+    })
+    if (judgment.kind !== 'ok') return rejected(judgment)
+    if (input.participation.joint !== 'context-transition')
+      return invalid('participation', 'not a context transition')
+    if (reads.compaction === null)
+      return rejected({
+        kind: 'unavailable',
+        owner: 'session-history',
+        diagnostic: 'compaction transaction reads are missing',
+      })
+    if (
+      requiredWorkEntries(snapshot).some(
+        ref => !reads.compaction?.open.some(entry => String(entry) === ref),
+      )
+    )
+      return invalid('reads.compaction.open', 'missing original unclosed work reference')
+    const compact = judgeCompaction(input.value.message, reads.compaction)
+    if ('rejected' in compact) return invalid('value.message', compact.rejected)
+    return entries([
+      encodeEntry(
+        {
+          kind: 'message.compaction',
+          message: input.value.message,
+          source: input.judgment,
+          admission: input.judgment,
+          consumption: null,
+          participation: input.participation,
+        },
+        sessionOrigin(source),
+      ),
+      encodeEntry(
+        {
+          kind: 'history.annotated',
+          targets: reads.compaction.covered.map(item => item.ref),
+          source: input.judgment,
+        },
+        sessionOrigin(source),
+      ),
+    ])
+  }
+  if (snapshot.lifecycle === 'archived') return rejected({ kind: 'archived' })
+  if (input.expected !== snapshot.revision)
+    return rejected({ kind: 'changed', revision: snapshot.revision })
+  if (input.value.message.role !== 'system_reminder')
+    return invalid('value.message', 'not a context reminder')
+  return entries([
+    encodeEntry(
+      {
+        kind: 'message.system_reminder',
+        message: input.value.message,
+        source: input.value.source,
+        admission: null,
+        consumption: null,
+        participation: null,
+      },
+      sessionOrigin(source),
+    ),
+  ])
 }
 
 /**
@@ -467,24 +719,62 @@ export function commandDigest(command: SessionCommand): string {
   const { operation: _operation, ...rest } = command.input as Record<string, unknown> & {
     operation: SessionOperationId
   }
-  return digestOf({ kind: command.kind, input: rest })
+  const input =
+    command.kind === 'create'
+      ? {
+          ...rest,
+          tenant: tenantText(command.input.tenant),
+          creation: creationInput(command.input.creation),
+        }
+      : command.kind === 'completeInitialization'
+        ? { ...rest, tenant: tenantText(command.input.tenant) }
+        : rest
+  return digestOf({
+    kind: command.kind,
+    input:
+      command.kind === 'create' || command.kind === 'completeInitialization'
+        ? canonicalInitializationValue(input)
+        : input,
+  })
 }
 
 /**
  * Runs the domain services for one command and encodes the batch. `previous` is null only for
- * `create`. `reads` is read only by `commitDerived(compaction)`, which this member does not decide.
+ * `create`. `reads` supplies transaction-bound compaction and management observations.
  */
-export function decide(
+function decideCommand(
   previous: WorkSnapshot | null,
   command: SessionCommand,
   guards: readonly GuardCommand[],
   record: OperationRecord | null,
-  _reads: DecideReads,
+  reads: DecideReads,
 ): Decision {
-  const recall = resolveOperation(record, command.input.operation, commandDigest(command))
-  if (recall.kind === 'recovered') return { kind: 'recovered', receipt: recall.receipt }
+  if (
+    previous !== null &&
+    (previous.session !== command.input.session ||
+      !tenantEquals(previous.tenant, command.input.tenant))
+  )
+    return rejected({ kind: 'denied', action: command.kind })
+  let digest = ''
+  if (record !== null) {
+    try {
+      digest = commandDigest(command)
+    } catch (error) {
+      if (error instanceof TypeError || error instanceof InitializationInvalid)
+        return invalid('command', error.message)
+      throw error
+    }
+  }
+  const recall = resolveOperation(record, command.input.operation, digest)
+  if (recall.kind === 'recovered') {
+    if (command.kind === 'create' || command.kind === 'completeInitialization') {
+      const refused = validateInitializationRecall(previous, command, guards)
+      if (refused !== null) return refused
+    }
+    return { kind: 'recovered', receipt: recall.receipt }
+  }
   if (recall.kind === 'conflict') return rejected({ kind: 'conflict', operation: recall.operation })
-  if (command.kind === 'create') return decideCreate(previous, command)
+  if (command.kind === 'create') return decideCreate(previous, command, guards)
   if (previous === null) return rejected({ kind: 'denied', action: command.kind })
   if (
     previous.session !== command.input.session ||
@@ -493,7 +783,7 @@ export function decide(
     return rejected({ kind: 'denied', action: command.kind })
   switch (command.kind) {
     case 'completeInitialization':
-      return decideCompleteInitialization(previous, command)
+      return decideInitializationComplete(previous, command, guards, reads)
     case 'accept':
       return decideAccept(previous, command)
     case 'startRun':
@@ -505,8 +795,87 @@ export function decide(
     case 'finishRun':
       return decideFinishRun(previous, command)
     case 'change':
-      return decideChange(command)
-    default:
-      return rejected(OFF_PATH_FAILURE)
+      return decideChange(previous, command)
+    case 'claim':
+    case 'reload':
+    case 'release':
+      return decideAttempt(previous, command)
+    case 'bindExternalCall':
+    case 'preserveResult':
+    case 'completeConsumption':
+    case 'completeExternalConsumption':
+      return decideResults(previous, command)
+    case 'commitDerived':
+      return decideDerived(previous, command, reads)
+    case 'interrupt': {
+      if (
+        command.input.urgent.message.blocks.length === 0 ||
+        previous.pending.includes(command.input.urgent.input)
+      )
+        return invalid('urgent', 'empty or duplicate input')
+      const control = decideControl(
+        previous,
+        {
+          kind: 'interrupt',
+          run: command.input.run,
+          urgent: command.input.urgent,
+          decision: command.input.decision,
+        },
+        command.input.operation,
+        reads,
+      )
+      return control.kind === 'entries'
+        ? entries([
+            ...acceptedOrdinary(command.input.urgent, 'current-run', command.input.run),
+            ...control.entries,
+          ])
+        : control
+    }
+    case 'freeze':
+      if (previous.frozen !== null)
+        return reads.frozenReceipt === undefined
+          ? rejected({
+              kind: 'unavailable',
+              owner: 'session-history',
+              diagnostic: 'the original freeze receipt is required for state recall',
+            })
+          : { kind: 'recovered', receipt: reads.frozenReceipt }
+      return decideManagement(previous, command, reads)
+    case 'control':
+    case 'setRelation':
+    case 'configureAutoArchive':
+    case 'considerAutoArchive':
+    case 'recordIdle':
+      return decideManagement(previous, command, reads)
+    default: {
+      const exhaustive: never = command
+      return exhaustive
+    }
+  }
+}
+
+export function decide(
+  previous: WorkSnapshot | null,
+  command: SessionCommand,
+  guards: readonly GuardCommand[],
+  record: OperationRecord | null,
+  reads: DecideReads,
+): Decision {
+  try {
+    const decision = decideCommand(previous, command, guards, record, reads)
+    if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
+      const decoded = decision.entries.map(row => {
+        const value = decodeEntry(row)
+        if (!('ok' in value)) throw new Error('invalid locally encoded entry')
+        return value.ok
+      })
+      validateFrontierBatch(previous, decoded, reads.history)
+    }
+    return decision
+  } catch (error) {
+    if (error instanceof SessionValidationFailure) return rejected(error.failure)
+    if (error instanceof CallConflict)
+      return rejected({ kind: 'conflict', operation: command.input.operation })
+    throw error
   }
 }

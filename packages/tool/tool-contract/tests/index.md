@@ -42,3 +42,13 @@
 
 - [调用与操作引用 codec 测试](reference.spec.ts)。
 - [测试租户构造器的合法编码与非法输入](testing-tenant.spec.ts)。
+
+- [后台块 schema 与纯投影](background-calls.spec.ts)。
+- [公开 RC 协议消费与撤除边界](background-calls-rc.spec.ts)，使用非耐久替身。
+- [后台块测试原事实](background-calls-fixture.ts)，不作为生产来源。
+
+- [后台块公开类型消费](background-calls.spec-d.ts)，核对 RC ContextBlocks 与 ProducerRegistration。
+
+- [首次采用一致性与非耐久替身](environment-allocation.spec.ts)。
+
+- [凭据一致性套件的独立违约自证](credentials-conformance.spec.ts)。

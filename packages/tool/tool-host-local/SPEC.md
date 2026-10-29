@@ -17,7 +17,7 @@
 
 协调器的全部记录放在记录仓的 `host` 域，每个租户一个域，键是 `start-coordinator`。每个操作读这个域、做决定、按域修订号条件提交，同一进程内同一租户的操作还经过该租户的串行区。所以同一租户的许可、受理、拒绝、排除与失效有一个共同的先后，它就是提交的先后。排序只在一个租户的域内需要成立，不同租户的操作不互相排队。修订冲突时重读重判，最多 `commitAttempts` 次，用尽后回复 `unavailable`。
 
-已知限制：`src/start-coordinator.ts` 用一个进程级串行区排序全部租户的操作。正确性不受影响，一个租户的慢提交会拖慢其他租户的 `prepare`、`consume` 与 `invalidate`。
+实施状态：租户串行区是本包必须兑现的承诺。仅有进程级串行区的提供者不满足该隔离要求。成员测试与实际 prepare 路径的验证完成前，不能从本条声明推定已实现。
 
 本排序域只在一个进程内验证过。两个进程共用记录仓的装配没有验证，所以本协调器不声明跨进程的启动保证（P04）。
 
@@ -54,6 +54,52 @@
 
 台账不可读回复 `unavailable`（`dependency` 为 `start-ledger`），不回复受理或拒绝，也不读缓存（P04：准入资料不可读时拒绝新的 consume）。台账里出现本协调器没有写过的记录时同样回复 `unavailable`。
 
+## 环境准备的租户调度
+
+调度位于实际 ToolEnvironment.prepare 的宿主协调入口。它消费注入的可替换策略，纯选择逻辑与实际环境获取分开。策略提供正且有限的 quantum 与租户权重、非负整数的队列容量与租户在途上限，以及取消和重试时机。无合法策略值时拒绝配置，不猜生产默认值。策略来源是宿主受信装配配置，provider 继续拥有当前租户与全局配额准入权威。
+
+调度采用 DRR，一次新的 acquire 提交成本为 1，查询、原键认回和结清不计新提交。一个租户等待慢存储、慢 provider 或已占满时，其他租户仍可被尝试。只有全局容量满时才共同等待。每个租户内部的启动资格、许可消费和失效仍按同一事务串行域排序，调度次序不能越过本租户围栏或 FIFO。
+
+prepare 在发出外部获取前保存原准备与原获取引用。取消、pending、unknown 和重试策略沿原记录决定等待、查询、结清，或在查询确认已分配后进入原获取的首次采用/认回。inspect 只刷新事实，不签发租约。后续同键 acquire 必须保持 acquisition、tenant、origin、scope、placement、provider 及全部获取输入不变，并且原登记、guard、ledger 有效且当前准入成立。首次采用不再次调用 provider 获取，也不重新计划、许可或接续。采用失败、已失效或已结清的原记录不复活。策略不能批准更换原键重新获取。确定的零分配配额拒绝是原键终局，合法重新排队必须由调用者明确提供新操作，不能由策略偷偷重发。查询不可用时保留原名额和任务。旧调用已经在途或持有资源时，取消与配额下降不自动返额、回滚效果或清除清理责任。
+
+调度器消费 ToolEnvironment 的 allocated 事实时，先核其原准备绑定。inspectPreparation 只转达事实，不因策略为 recognize 就执行采用。对调用方已经请求的原 prepare，重试策略允许 recognize 且原条目仍有效时，调度器才可在查询后沿完全相同输入再次 prepare；它不新增获取成本或操作身份。wait 或 inspect 只保留或刷新原事实。allocated、pending、unknown 及尚有清理责任的 rejected 都不返额。已确认释放的条目不因迟到分配事实、重试答复或重新获权而恢复排队；每次等待后及转发前仍核原采用和条目未退休。冷恢复的原描述 allocated 不能映射成这条首次采用路径。
+
+
+宿主把调用原适配器 prepare 前的本地预占与已经发出的原请求分开保存。首次派发的当前资格或原采用核验失败，且原 prepare 尚未被调用时，只撤回这次本地预占；不调用适配器释放、不报告资源 released，也不生成零分配证据。资格抛错时亦先撤本地预占，再进入下述资源诊断边界。返还本地预占不等待诊断接收完成。原身份与固定输入的绑定仍保留。
+
+调用者以后显式请求同一原 prepare 时，仍核完整绑定和当前资格，才能重新尝试首次发送；inspect 不代发。原 prepare 一经调用，即使抛错、丢答或结果未知，也不能沿“未发送”路径返额，继续保留原查询与清理责任。已有可靠 excluded 允许同键重新排队时，新一轮预占重新记录是否已发送；该轮派发前失败也先返还本地预占。unknown、allocated 与仍需清理的 rejected 不适用。已确认释放的退休项不因该区分恢复资格。
+
+
+公平性以前提为界：有限参与者、正权重、持续调度、有界 provider 答复与反复有容量。它不保证执行完成或强制回收长期 lease。验证必须通过实际 prepare 路径证明替换策略被消费，并观察 A 租户慢或满时 B 能推进。孤立策略对象的单测不能证明宿主隔离。真实耐久与跨进程提供者另验。
+
+### 环境资源诊断边界
+
+本地环境调度器消费一个受信诊断接收者。它只在执行环境跨拥有者资源操作边界适用 DP-01 的例外。资源操作原错误、封闭操作阶段及原 tenant/call/operation 关联交该接收者。原错误只在受信处理边界内使用；写入任何日志或持久记录前必须去除秘密值、原能力和解析器，访问控制不能免除此要求。保留脱敏后的原错误事实、阶段及原操作关联，查询与导出继续受当前披露权限约束。本调度器不声明诊断已耐久保存。
+
+诊断接收者的 record 成功返回 recorded 或 unavailable。异常也视为 unavailable，但不把接收异常或原资源异常重新抛给普通调用者。接收者自身必须在受信侧处置其失败；本边界仅能通过下表的诊断缺口对外报告不可用，不递归调用同一故障接收者。记录不是释放、补偿、采用或业务提交。
+
+公开错误映射如下，均沿现有 Reply/PreparationProgress/ReleaseProgress 形状，不增加通用结果框架。
+
+| 触发 | 返回 | 对资源与诊断的含义 |
+| --- | --- | --- |
+| 资格正常返回失败 | 保留原闭合失败 | 不调用 prepare；若为派发前预占，立即撤预占。没有捕获异常就不伪造诊断事件 |
+| 原采用核验不成立 | 既有 unavailable，dependency 为 tool-environment-scheduler | 不调用 prepare；若为派发前预占，立即撤预占 |
+| 环境资格检查抛出异常 | failure.kind=unavailable，dependency=tool-environment-scheduler | 原请求未发送时不占额；已发出原请求的责任不因资格未知而消失 |
+| 原 prepare 或原键认回抛异常 | ok.kind=unknown | 保留原获取与清理责任，不能据此返额或另开获取 |
+| 原 inspectPreparation 抛异常 | ok.kind=unknown | 不签发租约，不改变原责任 |
+| 原 release 或 inspectRelease 抛异常 | ok.kind=unknown | 不报告 released，保留清理责任及名额 |
+| 策略 retry/release 在资源操作协调中抛异常 | ok.kind=unknown | 不调用后续效果、不替换原操作；已在途的责任和名额保持 |
+
+捕获异常的上述返回都使用已有 diagnostic 字符串给出固定安全标记。recorded 时为 `environment operation failed; stage=<stage>; diagnostic=recorded`；接收者返回 unavailable 或抛错时为 `environment operation failed; stage=<stage>; diagnostic=unavailable`。stage 必须来自封闭的 `qualify | prepare | retry | inspect-preparation | release-policy | release | inspect-release`，不来自错误消息或调用者文本。diagnostic=recorded 只表示接收，不代表持久化或资源成功。所有原错误消息、堆栈和对象属性均不进入此字符串。
+
+工厂要求装配者显式提供诊断接收者，不能默认 no-op 并声称已记录。该依赖只适用于环境工厂，不改凭据公开面。资源适配器正常给出的闭合失败按现有契约处理，不把其未捕获的业务失败当成新异常事件。
+
+四个环境资源动词读取当前原环境的 `adoption` 抛错时，按 `qualify` 阶段处理，并关联该次公开操作。`release` 与 `inspectRelease` 的内部准备核验也关联原 `release.operation`。正常读取后采用值不匹配仍返回原不可用结果，不产生异常诊断事件。同步 `adoption` 属性本身没有操作上下文，不伪造诊断关联。
+
+## 凭据适配的边界
+
+本包按[Tool 凭据端口](../tool-contract/SPEC.md#第三方凭据端口)接入 settings 秘密保管。适配器核实际秘密绑定，执行使用时重核租户、工具采用、用途与目标。秘密保管端口 `ToolCredentialSecrets.resolve` 每次交出绑定、能力与撤销句柄；适配器在解析时只用能力证明绑定并立即撤销，在 `use` 里把本次能力交给动作，动作结束后一律撤销，再返回或原样重抛。动作成功而撤销失败抛撤销错误，两者都失败抛 `AggregateError([动作错误, 撤销错误])`。撤销句柄缺失按 `unavailable` 处理，能力不交出。解析时的撤销或绑定不符时的撤销失败，撤销错误按未知错误原样上抛，解析不成功，能力也不交出；这时绑定不符的结论不另行报告。撤销后能力不再动作、错误文本不含秘密值，是秘密保管提供者的义务。当前没有真实 vault 的交付证据，接口与替身不得声明真实保管已完成。
+
 文档导航见 [index](index.md)。
 
 ## 绑定登记表与换代协调者（G7）
@@ -63,7 +109,7 @@
 - 本包的绑定登记表在单机、单进程内成立，登记不耐久。跨进程、远端目录与耐久存储不在本包覆盖之内。
 - 两个 fiber 同时首次登记同一个键时，本地排序域决定哪一方成功，另一方得到 `conflict`。
 - 换代协调者 `toolGenerations` 是本包 `./cordis` 的 Service。它是 `ctx.plugin` 句柄的唯一持有者，由 `ensureLoaded` 动态 import 实现包。
-- 进程恢复后，`sweep` 重装未归档会话记下的键。包字节保留，同一 digest 可以重新 import。
+- 进程恢复后，`sweep` 重装持有者采用依据记下的键。包字节保留，同一 digest 可以重新 import。
 - 按键排空与交接依赖契约 [P09](../tool-contract/SPEC.md#p09-账目恢复与退出) 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时 `unload` 停在 `draining`。
 
 ## 实例宿主与普通调用的边界

@@ -124,7 +124,12 @@ export interface ToolCommands<P, B extends ContentBlock> {
     input: Mutation<P> & Readonly<{ instance: ToolInstanceId; continuity: DurableEvidence }>,
   ): Reply<ToolExecutionRef>
   planPreparation(
-    input: WriteContext & Readonly<{ request: FixedToolRequest; purpose: 'initial' | 'resume' }>,
+    input: WriteContext &
+      Readonly<{
+        request: FixedToolRequest
+        purpose: 'initial' | 'resume'
+        environmentAdoption: Adoption
+      }>,
   ): Reply<PreparationRecord>
   prepared(
     input: WriteContext & Readonly<{ preparation: PreparationRecord; resources: DurableEvidence }>,

@@ -1,3 +1,4 @@
+import { checkedPreparationProgress, matchEnvironmentAdoption } from './environment-adoption.ts'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
@@ -129,8 +130,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
 ): ToolDriverHandle<P> {
   const { commands, queues, environments, authority, instances } = dependencies
   const environmentsPrepared = new Map<string, E>()
-  // The calls whose environment the provider answered `pending` or `unknown` in this process: the
-  // next run re-reads the provider's record (P03 `inspectPreparation`) instead of asking again.
+  // Original preparations already sent in this process. Unconfirmed answers retain their query
+  // responsibility; only a matching allocated fact permits one bounded adoption attempt.
   const environmentsAsked = new Set<string>()
   // This driver's observations survive an unknown marker write, but not process loss.
   // Neither this set nor a committed marker grants or revokes another driver's permit.
@@ -323,34 +324,51 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       await commands.planPreparation({
         ...write.ok,
         request: recovery.request,
+        environmentAdoption: environments.adoption,
         purpose: 'initial',
       }),
     )
   }
 
-  /**
-   * Asks the provider for the environment of the call: the first time it is asked to prepare it;
-   * after it answered `pending` or `unknown`, its record is read instead (P03).
-   */
+  const continueAllocation = async (
+    step: Step<P>,
+    request: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
+    read: Outcome<PreparationProgress<E>, ToolFailure>,
+  ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
+    if ('failure' in read) return read
+    const checked = checkedPreparationProgress(read.ok, request.preparation)
+    if ('failure' in checked || checked.ok.kind !== 'allocated' || step.signal.aborted)
+      return checked
+    const current = matchEnvironmentAdoption(environments, request.preparation.adoption)
+    if ('failure' in current) return current
+    const adopted = await environments.prepare(request)
+    return 'failure' in adopted
+      ? adopted
+      : checkedPreparationProgress(adopted.ok, request.preparation)
+  }
+
+  /** One preparation step may continue first adoption once, always with the original input. */
   const askEnvironment = async (
     step: Step<P>,
     task: Extract<ToolTask, { kind: 'prepare' }>,
   ): Promise<Outcome<PreparationProgress<E>, ToolFailure>> => {
-    const key = callKey(step.tenant, step.call)
+    const matching = matchEnvironmentAdoption(environments, task.preparation.adoption)
+    if ('failure' in matching) return matching
+    const key = `${callKey(step.tenant, step.call)}\u0000${task.preparation.operation}`
     const request = {
       principal: step.principal,
       tenant: step.tenant,
       call: step.call,
       preparation: task.preparation,
     }
-    const progress = await (environmentsAsked.has(key)
+    const inspect = environmentsAsked.has(key)
+    environmentsAsked.add(key)
+    const read = await (inspect
       ? environments.inspectPreparation(request)
       : environments.prepare(request))
-    if ('ok' in progress) {
-      const undecided = progress.ok.kind === 'pending' || progress.ok.kind === 'unknown'
-      if (undecided) environmentsAsked.add(key)
-      else environmentsAsked.delete(key)
-    }
+    const progress = await continueAllocation(step, request, read)
+    if ('ok' in progress && ['prepared', 'excluded', 'rejected'].includes(progress.ok.kind))
+      environmentsAsked.delete(key)
     return progress
   }
 
@@ -376,14 +394,22 @@ export function createToolDriver<P, B extends ContentBlock, E>(
         )
       }
       case 'rejected':
-        // The environment cannot be satisfied: the call never starts and never falls back to a
-        // looser host (P03). The environment's evidence proves that no environment exists, not
-        // that no start can follow, so the start authority excludes the invocation first (P04).
+        // Rejection does not prove zero allocation. The adapter retains original cleanup, while
+        // the start authority excludes this Tool invocation before its failure is recorded.
         return excludeAndReject(step, recovery, `environment: ${prepared.reason}`)
       case 'excluded':
         return blocked(
           'the preparation was excluded; the driver does not request it again (P03 reading pending)',
         )
+      case 'allocated':
+        return {
+          kind: 'failed',
+          failure: {
+            kind: 'unavailable',
+            dependency: 'tool-environment',
+            diagnostic: 'the original allocation awaits first adoption',
+          },
+        }
       case 'pending':
       case 'unknown':
         // The provider has not decided: the task stays, and the call is run again after the
@@ -441,6 +467,8 @@ export function createToolDriver<P, B extends ContentBlock, E>(
     step: CallAccess<P>,
     preparation: PreparationRecord,
   ): Promise<Outcome<E, ToolFailure>> => {
+    const matching = matchEnvironmentAdoption(environments, preparation.adoption)
+    if ('failure' in matching) return matching
     const cached = environmentsPrepared.get(callKey(step.tenant, step.call))
     if (cached !== undefined) return succeed(cached)
     const progress = await environments.inspectPreparation({
@@ -450,13 +478,15 @@ export function createToolDriver<P, B extends ContentBlock, E>(
       preparation,
     })
     if ('failure' in progress) return progress
-    if (progress.ok.kind !== 'prepared')
+    const checked = checkedPreparationProgress(progress.ok, preparation)
+    if ('failure' in checked) return checked
+    if (checked.ok.kind !== 'prepared')
       return fail({
         kind: 'unavailable',
         dependency: 'tool-environment',
         diagnostic: `the prepared environment cannot be reconnected: ${progress.ok.kind}`,
       })
-    return succeed(progress.ok.environment.value)
+    return succeed(checked.ok.environment.value)
   }
 
   const binding = createBindingInvoker(dependencies, environmentOf)

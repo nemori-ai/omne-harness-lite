@@ -1,8 +1,11 @@
+import type { SessionWorkEntryIndex } from './work-entry-values.ts'
 // The values of the work snapshot and the fixed inputs of the commands (SPEC「值与结果项的约束」).
 // Session keeps no continuation value: `ExecutionRef` points at the Agent's authoritative record.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { CompactionMessage, Message } from '@omne-harness/message'
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { SessionHistoryIndex } from './history-values.ts'
+import type { SessionCallRecord, SessionCallWait } from './call-values.ts'
 import type {
   Adoption,
   AdvanceRef,
@@ -11,6 +14,7 @@ import type {
   ConsumptionId,
   DurableEvidence,
   InputId,
+  ResidentKey,
   BatchId,
   RunId,
   SessionId,
@@ -112,6 +116,12 @@ export type Waiting =
         decision: DurableEvidence | null
       }>[]
     }>
+  | Readonly<{
+      kind: 'extension-passage'
+      passage: string
+      position: string
+      members: readonly Readonly<{ card: DurableEvidence; decision: DurableEvidence | null }>[]
+    }>
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
@@ -146,13 +156,17 @@ export type ControlIntent =
       decision: DurableEvidence
     }>
   | Readonly<{ kind: 'auto-archive'; idleEvidence: DurableEvidence }>
-/** state: committed = intent saved; propagating = some producer still unconfirmed; reconciled = all confirmed. The superseded `startFence` is not here: the tool start fence is the Agent journal `start-fence` entry (#672 J03). */
+/** committed saves the original intent; propagating retains unknown propagation or responsibility.
+ * reconciled confirms that intent's propagation, producer checks and original handoff duties.
+ * It does not establish a Tool fence, physical stopping, reversed effects or completed archive tasks.
+ * The superseded startFence remains the Agent/Tool J03 responsibility. */
 export type ControlProgress = Readonly<{
   operation: SessionOperationId
   target: ControlTarget
   intent: ControlIntent
   state: 'committed' | 'propagating' | 'reconciled'
   pending: readonly ProducerRef[]
+  pendingUnassociatedWaiting?: readonly SessionCallWait[]
 }>
 export type ScopeReleaseDisposition =
   | 'released'
@@ -225,6 +239,28 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
+  residentAdoption?: ResidentAdoption
+  initialization?: InitializationSources
+}>
+export type InitializationSource = Readonly<{
+  item: string
+  owner: string
+  protocol: Adoption
+}> &
+  (
+    | Readonly<{
+        kind: 'context-registration'
+        input: Omit<
+          Extract<DeclarationChange, { kind: 'context-registration' }>,
+          'kind' | 'registration'
+        >
+      }>
+    | Readonly<{ kind: 'workspace-load' }>
+    | Readonly<{ kind: 'execution-adoption' }>
+  )
+export type InitializationSources = Readonly<{
+  sources: readonly InitializationSource[]
+  results: readonly InitializationResult[]
 }>
 export type InitializationResult = Readonly<{
   item: string
@@ -312,6 +348,7 @@ export type AutoArchivePolicy =
 export type FreezeVerdict = Readonly<{ cause: 'tool-shape-lost'; evidence: DurableEvidence }>
 
 export type WorkSnapshot = Readonly<{
+  workEntryIndex?: SessionWorkEntryIndex
   session: SessionId
   tenant: TenantId
   revision: SessionRevision
@@ -334,4 +371,142 @@ export type WorkSnapshot = Readonly<{
   creation: SessionCreation
   tasks: readonly RecoveryTask[]
   idle: Readonly<{ observation: IdleObservation; commit: DurableEvidence }> | null
+  /** Missing optional projections represent no previously committed facts of that kind. */
+  executions?: readonly RunExecution[]
+  residentKeys?: ResidentAdoption['keys']
+  relation?: Relation
+  children?: readonly SessionId[]
+  autoArchive?: AutoArchivePolicy
+  taken?: readonly InputId[]
+  backgroundPlaceholders?: readonly ConsumptionId[]
+  releasedScopes?: readonly Readonly<{ task: SessionOperationId; scope: string }>[]
+  contextScopes?: readonly ContextScopeBinding[]
+  contextRecords?: readonly Readonly<{ scope: string; declaration: DeclarationChange }>[]
+  changes?: readonly DeclarationChange[]
+  initialization?: InitializationState
+  historyIndex?: SessionHistoryIndex
+  callRegistrations?: readonly SessionCallRecord[]
+  callWaits?: readonly SessionCallWait[]
+}>
+
+/** Optional adoption material: omission preserves the existing resident keys and adds no definitions. */
+export type ResidentAdoption = Readonly<{
+  residents: readonly ResidentTool[]
+  keys: readonly Readonly<{ capability: string; key: ResidentKey }>[]
+}>
+/** A historical execution remains bound to its original Run after successors start. */
+export type RunExecution = Readonly<{
+  run: RunId
+  execution: ExecutionRef
+  terminal: RunTerminal | null
+}>
+export type ContextScopeBinding = Readonly<{
+  generation: string
+  scope: string
+  operation: SessionOperationId
+  ended: DurableEvidence | null
+}>
+
+export type InitializationPlanItem = Readonly<{
+  kind: 'identity' | InitializationSource['kind']
+  owner: string
+  item: string
+  protocol: Adoption
+  originalInput: JsonValue
+}>
+
+export type InitializationRegistration = Readonly<{
+  scope: string
+  tenant: string
+  key: string
+  commit: string
+  basedOn: number
+  revision: number
+  creating: true
+  required: true
+  need: ContextMaterial
+  binding: ContextMaterial
+  parameters: ContextMaterial
+}>
+
+export type InitializationRequirement = Readonly<{
+  kind:
+    | 'entry-contract'
+    | 'identity'
+    | 'context-registration'
+    | 'workspace-load'
+    | 'execution-preparation'
+  key: string
+  requirement: DurableEvidence
+  resolution:
+    | Readonly<{ kind: 'satisfied'; evidence: DurableEvidence }>
+    | Readonly<{ kind: 'planned'; owner: string; item: string }>
+}>
+
+export type InitializationAdoption = Readonly<{
+  definitionName: string
+  adopted: Adoption
+  source: DurableEvidence
+  boundary: DurableEvidence
+  inputSnapshot: ContextMaterial
+  capabilities: ContextMaterial
+  residentBindings: ResidentAdoption['keys']
+  newResidents: ResidentAdoption['residents']
+}>
+export type InitialAdoption = InitializationAdoption & Readonly<{ candidate: Adoption }>
+export type InitializationConsequence =
+  | Readonly<{ kind: 'identity'; evidence: DurableEvidence }>
+  | Readonly<{ kind: 'workspace-load'; evidence: DurableEvidence }>
+  | Readonly<{
+      kind: 'context-registration'
+      prepared: DurableEvidence
+      decision: InitializationRegistration
+    }>
+  | Readonly<{
+      kind: 'execution-ready'
+      evidence: DurableEvidence
+      adoption: InitializationAdoption | null
+    }>
+export type InitializationGuardResult = Readonly<{
+  owner: string
+  item: string
+  result: InitializationResult
+  consequence: InitializationConsequence | null
+}>
+export type InitializationGuardFacts = Readonly<{
+  version: 1
+  command: 'create' | 'completeInitialization'
+  binding: Readonly<{ tenant: string; session: string; operation: string; createOperation: string }>
+  input: JsonValue
+  initialAdoption: InitialAdoption | null
+  requirements: readonly InitializationRequirement[] | null
+  plan: readonly InitializationPlanItem[]
+  results: readonly InitializationGuardResult[]
+}>
+export type InitializationFactReference =
+  | Readonly<{ kind: 'batch'; ordinal: number }>
+  | Readonly<{ kind: 'committed'; entry: DurableEvidence }>
+
+export type InitializationResultRecord = Readonly<{
+  operation: SessionOperationId
+  outcome: InitializationGuardResult
+  facts: readonly InitializationFactReference[]
+  entry: DurableEvidence
+  revision: string
+  range: Readonly<{ first: import('./identity.ts').EntryId; last: import('./identity.ts').EntryId }>
+}>
+export type InitializationState = Readonly<{
+  protocol: 1
+  createOperation: SessionOperationId
+  initialAdoption: InitialAdoption
+  input: JsonValue
+  requirements: readonly InitializationRequirement[]
+  plan: readonly InitializationPlanItem[]
+  results: readonly InitializationResultRecord[]
+  registrations: readonly Readonly<{
+    plan: InitializationPlanItem
+    prepared: DurableEvidence
+    decision: InitializationRegistration
+    entry: DurableEvidence
+  }>[]
 }>

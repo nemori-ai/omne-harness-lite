@@ -795,7 +795,6 @@ it('21 marker: a new driver recalls a committed failure marker whose commit rece
 
 it('21 rejection: catching run rejection leaves no derived unhandled rejection', async () => {
   const { stdout, stderr } = await promisify(execFile)(process.execPath, [
-    '--conditions=source',
     '--experimental-strip-types',
     fileURLToPath(new URL('./caught-rejection.ts', import.meta.url)),
   ])

@@ -17,7 +17,7 @@ pnpm run test:affected --base <基线> --plan-only     # 只列受影响范围�
 pnpm run test:tier slow                             # 先构建，再跑全部成员的某一层
 pnpm run test:triage --run <运行目录>                # 把那次运行里的失败逐条单独重跑并归类（测试或验收的运行都行）
 pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
-pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层再慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
+pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
 ```
 

@@ -16,4 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：`.` �
 
 ## 本包事实
 
-根入口导出公开接口页导航的全部类型、两个派生函数、九个领域服务、`decide`、`reduce` 与 `sessionModesBlock`。`decide` 按 SPEC 判定 M2 首条租户路径的提交种类，其余返回指向 #756 的 `unavailable`；支持范围见 SPEC 状态行。被替代的 `ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）与围栏、Agent 事件副本协议不声明。`./testing` 导出事务端口的一致性套件与非耐久替身、四个构造端口替身与合法测试值。具名维护者由负责人指定。
+根入口导出公开接口页导航的类型、两个操作身份派生函数、九个领域服务、`decide`、`reduce`、`projectSessionLog` 与 `sessionModesBlock`。支持范围与具名限制见 SPEC 状态行。命令编码集中在 `entries.ts`。判定按命令族拆分，归约由 `reduce.ts`、`reduce-extended.ts` 与 `reduce-results.ts` 完成。`result-state.ts` 核对结果的原 Run 归属，并同步参加提交的当前与历史执行引用。`./testing` 提供有效端口的一致性套件、非耐久替身与合法测试值。它们不提供生产存储。
+
+历史材料、调用登记和原条目引用分别在 `history-values.ts`、`call-values.ts`、`work-entry-values.ts`。校验由相应 state/validation 模块供 decide、project 与 reduce 共同调用。当前支持及提供者边界见[同日志纯层](../docs/same-log-pure.md)。

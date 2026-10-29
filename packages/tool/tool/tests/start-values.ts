@@ -1,3 +1,4 @@
+import { adoption } from './runtime-values.ts'
 // A real runtime and ledger over the non-durable store, with controllable ports for the way from
 // an admission to a start: an environment provider, a live-only binding whose start stages a
 // capsule and consumes the permit, a start authority and a clock. The authority here is a small
@@ -249,6 +250,7 @@ function testEnvironments(initial: ReadonlyMap<string, EnvironmentAnswer>): Test
     })
   }
   return {
+    adoption: adoption('environment'),
     prepared,
     inspected,
     answer: (call, next) => void answers.set(call, next),
@@ -729,6 +731,7 @@ export async function toStarting(harness: StartHarness, call: string) {
       ...(await writeContext(harness, call, `${call}/plan`)),
       request: fixedOf(harness.internalRequests, call),
       purpose: 'initial',
+      environmentAdoption: adoption('environment'),
     }),
   )
   ok(

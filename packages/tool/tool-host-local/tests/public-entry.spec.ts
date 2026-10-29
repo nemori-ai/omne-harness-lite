@@ -12,7 +12,9 @@ it('root entry exports the local start coordinator (G5) and its names', async ()
   expect(Object.keys(root).sort()).toEqual([
     'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
+    'createLocalScheduledEnvironment',
     'createLocalStartCoordinator',
+    'createLocalToolCredentials',
     'startCoordinatorAdoption',
   ])
 })

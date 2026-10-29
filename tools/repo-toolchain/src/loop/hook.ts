@@ -47,7 +47,7 @@ export interface HookReadings {
 const site = (at: Pick<ImportSite, 'path' | 'line'> | undefined) =>
   at === undefined ? '' : `（${at.path}:${at.line}）`
 
-function hardLineFinding(kind: string, finding: DependencyFinding): Finding {
+function hardLineFinding(kind: string, finding: DependencyFinding<string>): Finding {
   const edges = finding.edges.map(edge => `${edge.from}→${edge.to}`).join(',')
   return {
     key: `${kind}\u0000${finding.kind}\u0000${edges === '' ? finding.message : edges}`,

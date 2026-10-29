@@ -15,7 +15,7 @@
 | 能力 | 公开契约与对象 | 必要协议 | 最低接受反例 |
 | --- | --- | --- | --- |
 | CAP-TL01 定义呈现取用 | ToolDefinition、ToolGovernance、ToolImplementationFacts、ToolCatalog、ParameterCodec、ToolPresentation | [P02](../SPEC.md#p02-定义准入与队列) | 参数缺说明、重复命令、help与采用不同、未声明programmable、包装来源不可洗白、资产 name 与定义 name 不一致须拒绝装载 |
-| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[会话常驻规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
+| CAP-TL02 动态可用及dummy | ToolConsumerProfile、AvailabilityFacts、ToolAvailability、ToolBindingRegistry、换代协调者 | P02、[常驻持有者规则](../SPEC.md#会话常驻规则r1r5) | 两端模态各不满足、合法转换（含 conversion 为 null）、附件不可读；dummy不解析参数、不分配环境、不启动；Run 中途加入或前进、不同形候选替换常驻项、暂时缺席判冻结，见[动态性的验证义务](#动态性的验证义务) |
 | CAP-TL03 当前准入固定发起 | FixedToolRequest、ToolStartRecord、StartPermit | [P01](../SPEC.md#p01-操作事实与资格)、[P04](../SPEC.md#p04-实际发起围栏) | 同身份异输入、排队撤权、批决定不齐、失效与consume两种先后、延迟旧请求不能再发 |
 | CAP-TL04 设置限额队列 | QueueReservation、QueuePosition、ResourceScope | P02、[P03](../SPEC.md#p03-环境准备和释放) | 两调用争同名额、同工具换实现、scope的grant缺失或属于他方、不同租户同owner同key不共队列、较早准备未完、取消队首、后台/等待不放名额 |
 | CAP-TL05 前后台关系 | ActiveRelation、ForegroundReturn、ControlRecord | [P07](../SPEC.md#p07-计时控制与检查点) | 未许可、Ask和resource转换拒绝、完成与后台化竞争、重复只一个占位、不回前台 |
@@ -47,9 +47,9 @@ ToolOperation 与 ToolImplementation 将各命令的作者和返回契约封闭�
 
 ### 动态性的验证义务
 
-[完全动态目标](../../../../docs/requirements.md#完全动态目标sys-dynamic)列出 Tool 的十条验收判据，判据正文归该页。本节规定承载这些判据的验证资源。规则正文归 SPEC 的 [G7](../SPEC.md#342-契约缺口决定) 与[会话常驻规则](../SPEC.md#会话常驻规则r1r5)。
+[完全动态目标](../../../../docs/requirements.md#完全动态目标sys-dynamic)列出 Tool 的十条验收判据，判据正文归该页。本节规定承载这些判据的验证资源。规则正文归 SPEC 的 [G7](../SPEC.md#342-契约缺口决定) 与[常驻持有者规则](../SPEC.md#会话常驻规则r1r5)。
 
-- 会话常驻规则 R1–R5 与采用点判定表由纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 承载，用表驱动测试逐行验证。`refreshAvailability` 的返回类型不含加入、前进与冻结。
+- 常驻持有者规则 R1–R5 与采用点判定表由纯函数 `shapeOf`、`planAdoption`、`refreshAvailability`、`foldResident` 承载，用表驱动测试逐行验证。`refreshAvailability` 的返回类型不含加入、前进与冻结。
 - 绑定登记表增加 G7 套件，写法同现有登记语义套件。
 - 换代协调者与作者插件在真实 Cordis 4.0.4 `Context` 上用动态性套件 `runToolDynamicsSuite` 验证。fixture 记录稳定提供者的 fiber uid。
 - 根已 ACTIVE 后动态装载并撤除带登记的作者插件，需要 Cordis basis 条目与探针证明。
@@ -293,3 +293,11 @@ MODEL-E01 的共享 ref、消息校验和发送阶段读取仍待实现验证；
 验证单次工具停止不自动结束消费方的工作；withdraw 的 reach 为 foreground-and-unadmitted 时，只撤回控制提交时是前台关系的目标（是否已启动不影响），对程序调用只控制前台子调用及未受理预留；reach 为 all 时撤回目标的前后台执行，都不等物理全停。构造控制与转后台的竞争：目标先按阈值转后台，再提交 reach 为 foreground-and-unadmitted 的撤回，控制结果必须是 rejected，原因 out-of-reach，不形成中断，调用不变；发起即后台、尚未启动的目标同样是后台关系，该 reach 的撤回回 rejected（out-of-reach），要撤回它须用 all；同一目标在 reach 为 all 时形成 interrupted 逻辑终局，没有前台 final。缺失、未知的 reach 以及 stop、background 带多余字段的控制被拒。控制路径尚未实现，这些场景是待执行的反例，不表示已有通过的运行证据。完成与停止竞争、撤回后的真实结果和费用均按原调用追加，不伪报未执行、不复活工作，控制方不重启旧调用。分别故障注入仅调用方退出、查询不可用、Tool 自身确认丢失、外部提交未知、保存失败和消费者替换；认回句柄或原结果、不重发，效果未知不写未发生。
 
 持久验证须覆盖进程崩溃、OS 崩溃和断电及唯一附件副本，资源释放或隔离域退出不替代宿主迟到结果责任。不依赖外部工作对象的程序的查询、停止、恢复与真实归属也须验证。TOOL-M02、TOOL-M03 的精确协议未实现或真实故障环境缺失时，保留未覆盖，不用图、mock 或仅进程重启声称完整兑现。
+
+## 后台状态供给的验证边界
+
+[background-calls.spec.ts](../tests/background-calls.spec.ts)覆盖封闭 schema、引用 tenant/call、原 admission、后台未结清筛选、补充结果交付、完整与部分目录、说明缺失及供值失败。字段检查不证明授权。
+
+[background-calls-rc.spec.ts](../tests/background-calls-rc.spec.ts)经公开 RC 入口消费声明与纯投影，覆盖当前来源重算、撤权、旧 generation、scope 终止和生产者撤除。可信目录、授权与 RC 持有者均是测试输入或非耐久替身。生产目录和可信说明来源尚缺，不能据此宣称生产供给、耐久恢复或完整组合通过。
+
+首次采用事实的共享验证见 [environment-allocation.spec.ts](../tests/environment-allocation.spec.ts) 与 [公共套件](../src/testing-environment-allocation.ts)。消费者反例分别在 [driver](../../tool/tests/driver-allocation.spec.ts) 和 [宿主](../../tool-host-local/tests/environment-allocation.spec.ts)。这些测试不证明真实 EE 的原登记、guard、ledger 或冷恢复映射。

@@ -108,3 +108,5 @@ pnpm --filter @omne-harness/tool run acceptance
 ```
 
 examples 是可读教学与可重复运行的消费检查。正式三条场景由独立验收者维护，入口和判据见 [acceptance/README](../acceptance/README.md)。验收不导入教学装配或既有测试 oracle。单元测试、教程和正式场景分别说明自己的范围，均不证明生产耐久或真实模型接入。
+
+[driver-allocation.spec.ts](driver-allocation.spec.ts) 用独立记录的非耐久环境替身验证分配答复丢失后的一次原键采用、完整绑定拒绝、有界重试和重连禁采用。

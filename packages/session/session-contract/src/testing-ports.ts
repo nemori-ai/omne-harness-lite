@@ -13,6 +13,7 @@ import type {
   SessionCommand,
 } from './ports.ts'
 import { adoption, guard, mintEvidence } from './testing-values.ts'
+import type { MemoryInitializationSource } from './testing-initialization-source.ts'
 
 /** What the scripted identity bridge answers: a material, a refusal, or that the source is unavailable. */
 export type IdentityScript = 'allow' | 'deny' | 'unavailable'
@@ -29,7 +30,7 @@ export interface ScriptedSessionIdentityBridge<P> extends SessionIdentityBridge<
 
 /**
  * An identity bridge that answers by script. `allow` hands over a material that binds the tenant,
- * the session, the operation and the command kind; `deny` refuses the action; `unavailable` names
+ * the session, the operation and the complete command; `deny` refuses the action; `unavailable` names
  * the identity source as the owner that is down.
  */
 export function createScriptedSessionIdentityBridge<P>(
@@ -58,8 +59,7 @@ export function createScriptedSessionIdentityBridge<P>(
               guard('identity-bridge', 'identity', {
                 tenant: input.tenant,
                 session: input.session,
-                operation: command.input.operation,
-                kind: command.kind,
+                command,
               }),
             ),
           )
@@ -89,7 +89,7 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
  * assembly's bridge takes it from the first input's origin, unless scripted to omit it.
  */
 export function createMemorySessionEvidenceBridge(
-  options: Readonly<{ loginEntry?: boolean }> = {},
+  options: Readonly<{ loginEntry?: boolean; initialization?: MemoryInitializationSource }> = {},
 ): MemorySessionEvidenceBridge {
   let down = false
   let loginEntry = options.loginEntry ?? true
@@ -103,6 +103,17 @@ export function createMemorySessionEvidenceBridge(
             owner: 'evidence',
             diagnostic: 'the evidence source is scripted down',
           }),
+        )
+      if (command.kind === 'create' || command.kind === 'completeInitialization')
+        return (
+          options.initialization?.prepare(command) ??
+          Promise.resolve(
+            fail({
+              kind: 'invalid' as const,
+              field: 'initialization',
+              reason: 'no trusted initialization source was configured',
+            }),
+          )
         )
       const materials: GuardCommand[] = [
         guard('evidence-bridge', 'evidence', {

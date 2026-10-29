@@ -1,0 +1,1002 @@
+[
+  {
+    "name": "positive-small",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "window",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-cancel",
+    "constants": {
+      "N": 2,
+      "Mode": "cancel",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-finish",
+    "constants": {
+      "N": 2,
+      "Mode": "finish",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-archive",
+    "constants": {
+      "N": 2,
+      "Mode": "archive",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-ended",
+    "constants": {
+      "N": 2,
+      "Mode": "ended",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-freeze",
+    "constants": {
+      "N": 2,
+      "Mode": "freeze",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-batch",
+    "constants": {
+      "N": 2,
+      "Mode": "cancel",
+      "Shape": "batch",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-successor",
+    "constants": {
+      "N": 2,
+      "Mode": "successor",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-race",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-recovery",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": true,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-plain",
+    "constants": {
+      "N": 1,
+      "Mode": "plain",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": true,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-accept-race",
+    "constants": {
+      "N": 2,
+      "Mode": "freeze",
+      "Shape": "accept-race",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-multiple-relations",
+    "constants": {
+      "N": 2,
+      "Mode": "cancel",
+      "Shape": "multi",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-event-counts",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "events",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-partial-batch",
+    "constants": {
+      "N": 2,
+      "Mode": "successor",
+      "Shape": "batch",
+      "Bug": "partial-batch",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "ExactBatch",
+    "invariants": [
+      "ExactBatch"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-revision-cursor",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "taken",
+      "Bug": "revision-cursor",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "HeadCursorSeparate",
+    "invariants": [
+      "HeadCursorSeparate"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-foreign",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "foreign",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "TenantSeparation",
+    "invariants": [
+      "TenantSeparation"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-history-clear",
+    "constants": {
+      "N": 2,
+      "Mode": "successor",
+      "Shape": "tail",
+      "Bug": "history-clear",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "SuccessorUnaffected",
+    "invariants": [
+      "SuccessorUnaffected"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-no-prefix",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "taken",
+      "Bug": "no-prefix",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "NoFalseRelease",
+    "invariants": [
+      "NoFalseRelease"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-prepare-ended",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "window",
+      "Bug": "prepare-ended",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "CancelWindow",
+    "invariants": [
+      "CancelWindow"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-no-root",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "no-root",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "NoFalseRelease",
+    "invariants": [
+      "NoFalseRelease"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-no-grant",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "no-grant",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "NoPostTerminalTake",
+    "invariants": [
+      "NoPostTerminalTake"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-missing-empty",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "missing-empty",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "HistoryCoverage",
+    "invariants": [
+      "HistoryCoverage"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-cursor-first",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "taken",
+      "Bug": "cursor-first",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "CursorSound",
+    "invariants": [
+      "CursorSound"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-half-batch",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "half-batch",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "WholeReleaseBatch",
+    "invariants": [
+      "WholeReleaseBatch"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-scan-old",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "scan-old",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "RelevantReads",
+    "invariants": [
+      "RelevantReads"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-successor",
+    "constants": {
+      "N": 1,
+      "Mode": "successor",
+      "Shape": "taken",
+      "Bug": "successor",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "AtMostOneTake",
+    "invariants": [
+      "AtMostOneTake"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-cancel",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "window",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoCancelWindowWitness",
+    "invariants": [
+      "NoCancelWindowWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-independent",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "window",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoIndependentWinner",
+    "invariants": [
+      "NoIndependentWinner"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-shrink",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoShrinkWitness",
+    "invariants": [
+      "NoShrinkWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-recovery",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": true,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoRecoveryWitness",
+    "invariants": [
+      "NoRecoveryWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-custody",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoPostCancelCustodyWitness",
+    "invariants": [
+      "NoPostCancelCustodyWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-plain-cancel",
+    "constants": {
+      "N": 1,
+      "Mode": "plain",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoPlainCancelWitness",
+    "invariants": [
+      "NoPlainCancelWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-active-freeze",
+    "constants": {
+      "N": 1,
+      "Mode": "freeze",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoActiveFreezeWitness",
+    "invariants": [
+      "NoActiveFreezeWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-accept-race",
+    "constants": {
+      "N": 2,
+      "Mode": "freeze",
+      "Shape": "accept-race",
+      "Bug": "none",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoAcceptRaceWitness",
+    "invariants": [
+      "NoAcceptRaceWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-two-runs",
+    "constants": {
+      "N": 2,
+      "Mode": "successor",
+      "Shape": "tail",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": true,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoTwoRunsWitness",
+    "invariants": [
+      "NoTwoRunsWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "witness-event-counts",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "events",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "witness",
+    "expected_invariant": "NoEventCountWitness",
+    "invariants": [
+      "NoEventCountWitness"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "negative-drop-captured",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "tail",
+      "Bug": "drop-captured",
+      "Dynamic": false,
+      "Faults": false,
+      "Normal": false,
+      "Broad": false
+    },
+    "kind": "negative",
+    "expected_invariant": "CapturedPrefixRetained",
+    "invariants": [
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-successor-broad",
+    "constants": {
+      "N": 2,
+      "Mode": "successor",
+      "Shape": "taken",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": true,
+      "Broad": true
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  },
+  {
+    "name": "positive-race-broad",
+    "constants": {
+      "N": 1,
+      "Mode": "cancel",
+      "Shape": "empty",
+      "Bug": "none",
+      "Dynamic": true,
+      "Faults": false,
+      "Normal": false,
+      "Broad": true
+    },
+    "kind": "safety",
+    "expected_invariant": null,
+    "invariants": [
+      "TypeOK",
+      "NoFalseRelease",
+      "AtMostOneTake",
+      "ExactBatch",
+      "TerminalStable",
+      "CancelWindow",
+      "NoPostTerminalTake",
+      "WholeReleaseBatch",
+      "CursorSound",
+      "HistoryCoverage",
+      "RelevantReads",
+      "TenantSeparation",
+      "HeadCursorSeparate",
+      "UnknownSound",
+      "SuccessorUnaffected",
+      "CapturedPrefixRetained"
+    ],
+    "module": "Frontier"
+  }
+]

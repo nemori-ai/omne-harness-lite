@@ -29,7 +29,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段、�
     由 Agent 的执行记录提供者提交，Session 参加者在同一事务里写会话事实
 
 迟到的生产者事实、控制回执、子方与作用域释放回执
-    由 Session 的消费适配器读取后调用 receive
+    由 Agent 宿主的结果接收方写入同一会话日志，Session 适配协调者读日志后调用 receive
 
 恢复者调用 claim 或 reload 取得新 attempt
     再从 Agent 的执行恢复服务读取原记录，请 Agent 接续原执行
