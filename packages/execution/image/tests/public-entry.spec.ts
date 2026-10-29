@@ -531,7 +531,7 @@ it('rejects a full reservation and releases a reservation when decode fails befo
 })
 
 it(
-  'keeps the reservation when a 1 ms caller timeout beats a 2048 px decode',
+  'keeps the reservation while a 2048 px decode is still pending and a caller stops waiting',
   { tags: ['slow'], timeout: 30_000 },
   async () => {
     const bytes = await pixels('png', 2048, 2048)
@@ -542,11 +542,9 @@ it(
       maxInFlightBytes: 2048 * 2048 * 4,
     })
     const pending = open({ bytes, budget: gate })
-    const raced = await Promise.race([
-      pending.then(() => 'open' as const),
-      new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 1)),
-    ])
-    expect(raced).toBe('timeout')
+    // The reservation is taken before the decode runs, so it is observable before the first await.
+    // A caller that stops waiting here (a timeout) leaves it held until the handle closes; racing a
+    // 1 ms timer against the decode asserted the same thing but lost on hosts that decode faster.
     expect(gate.heldReservation()).toEqual({ count: 1, bytes: 2048 * 2048 * 4 })
     const opened = await pending
     expect(opened.kind).toBe('opened')
