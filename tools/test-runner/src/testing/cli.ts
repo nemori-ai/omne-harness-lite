@@ -38,6 +38,7 @@ import {
 import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
 import { budgetFor } from './parallelism.ts'
+import { runCheck } from './check.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -59,6 +60,10 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
+  '  check [--admission] [--keep-going] [--list]',
+  '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
+  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志；',
+  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额',
 ].join('\n')
 
 const ROOT = resolve(
@@ -273,7 +278,14 @@ async function main(): Promise<void> {
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
-  else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
+  else if (command === 'check') {
+    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list'])
+    process.exitCode = await runCheck(ROOT, {
+      admission: flags.switches.has('--admission'),
+      keepGoing: flags.switches.has('--keep-going'),
+      list: flags.switches.has('--list'),
+    })
+  } else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }
 
 main().catch((error: unknown) => {

@@ -31,6 +31,10 @@
       "tools/test-runner/src/testing/timing-reporter.ts",
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
+      "tools/test-runner/src/testing/parallelism.ts",
+      "tools/test-runner/src/testing/check.ts",
+      "tools/test-runner/src/testing/check-graph.ts",
+      "tools/test-runner/src/testing/check-steps.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"

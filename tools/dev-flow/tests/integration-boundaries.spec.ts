@@ -2,6 +2,7 @@
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { afterEach, expect, it, vi } from 'vitest'
 import { init, commit, integrationFixture } from './fixtures/integration.ts'
@@ -119,9 +120,8 @@ node() {
   case "$script" in
     */testing/cli.ts)
       case "$3" in
-        baseline) printf '{"targetBase":"%s"}' "$BASELINE" ;;
-        plan) record plan "$@" ;;
-        *) record "$4" "$@" ;;
+        check) record check "$@" ;;
+        *) record "$3" "$@" ;;
       esac ;;
     */src/cli.ts) record rules "$@" ;;
     */change-scope-cli.ts) record change-scope "$@" ;;
@@ -169,23 +169,45 @@ pnpm() { record pnpm "$@"; }
   }
 }
 
-it('runs the ordinary local check even when a subject root is set', () => {
+it('the check wrapper forwards to the runner inside its slot even when a subject root is set', () => {
   const f = wrapperFixture()
   init(f.runner)
-  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh')], {
+  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh'), '--admission'], {
     env: { ...f.env, OMNE_SUBJECT_ROOT: f.subject, OMNE_TEST_SLOT_HELD: 'held' },
     encoding: 'utf8',
   })
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
-  expect(trace).toContain(`plan --base ${f.base}`)
-  expect(trace).toContain(`loop:status --strict --base ${f.base}`)
-  expect(trace).toMatch(/^change-scope\|.*change-scope-cli\.ts$/mu)
-  // The snapshot check runs through dev-flow, after the build, and no longer through pnpm.
-  expect(trace).toMatch(/^contract-check\|.*integration\/cli\.ts contract-check$/mu)
-  expect(trace).not.toContain('contract:api --check')
-  expect(trace.indexOf('contract-check|')).toBeGreaterThan(trace.indexOf('check:declarations'))
+  // Exactly one call: the runner's check command, with the flags passed through and the slot held.
+  expect(trace.trim().split('\n')).toHaveLength(1)
+  expect(trace).toMatch(/^check\|held\|.*testing\/cli\.ts check --admission$/mu)
+  expect(trace).not.toContain('pnpm')
   expect(trace).not.toContain('--scope engineering')
+})
+
+it('the check step table runs both dev-flow entries, the snapshot check after the build', () => {
+  const cli = fileURLToPath(new URL('../../test-runner/src/testing/cli.ts', import.meta.url))
+  const listed = spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', cli, 'check', '--list'],
+    {
+      encoding: 'utf8',
+    },
+  )
+  expect(listed.status, listed.stdout + listed.stderr).toBe(0)
+  const rows = new Map(
+    listed.stdout
+      .trim()
+      .split('\n')
+      .map(line => line.split('\t'))
+      .map(([name, after, , command]) => [name, { after: after ?? '', command: command ?? '' }]),
+  )
+  expect(rows.get('change-scope')?.after).toBe('-')
+  expect(rows.get('change-scope')?.command).toMatch(/delivery\/change-scope-cli\.ts$/u)
+  // The snapshot check runs through dev-flow, after the build, and no longer through pnpm.
+  expect(rows.get('contract-check')?.after).toBe('build')
+  expect(rows.get('contract-check')?.command).toMatch(/integration\/cli\.ts contract-check$/u)
+  expect(listed.stdout).not.toContain('contract:api --check')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {
   const f = fixture()

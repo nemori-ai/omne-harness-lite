@@ -20,6 +20,7 @@
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
     "check": "./scripts/check.sh",
+    "admission": "./scripts/check.sh --admission",
     "check:plan": "node --experimental-strip-types tools/test-runner/src/testing/cli.ts plan",
     "check:agents": "PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check && PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check",
     "check:docs": "uv run --locked omne-docs-check",

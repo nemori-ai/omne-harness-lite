@@ -15,7 +15,7 @@ if [[ "$coverage" == false ]]; then
     exec node_modules/.bin/omne-metrics "$@"
 fi
 if [[ "$plan" == true ]]; then
-    exec ./scripts/with-test-slot.sh node_modules/.bin/omne-metrics "$@"
+    exec ./scripts/with-test-slot.sh bash node_modules/.bin/omne-metrics "$@"
 fi
 base=()
 rest=()
@@ -32,4 +32,4 @@ done
 plan_dir="$(mktemp -d)"
 trap 'rm -rf -- "$plan_dir"' EXIT
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts plan ${base[@]+"${base[@]}"} --json "$plan_dir/plan.json" >&2
-./scripts/with-test-slot.sh node_modules/.bin/omne-metrics --plan "$plan_dir/plan.json" "${rest[@]}"
+./scripts/with-test-slot.sh bash node_modules/.bin/omne-metrics --plan "$plan_dir/plan.json" "${rest[@]}"

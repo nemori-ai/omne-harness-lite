@@ -3,67 +3,28 @@ set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
 main() {
-if (( $# )); then
-    echo "Usage: $0 (optional BASELINE and FULL=1 environment variables)" >&2
-    exit 2
-fi
+for arg in "$@"; do
+    case "$arg" in
+        --admission|--keep-going) ;;
+        *)
+            echo "Usage: $0 [--admission] [--keep-going] (optional BASELINE and FULL=1 environment variables)" >&2
+            exit 2
+            ;;
+    esac
+done
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd -- "$repo_root"
 
 # 整套检查占一个运行名额：同一台机器上别的全量检查在跑时排队，而不是一起把 CPU 压满。
+# 名额脚本用 Node 起命令，Windows 上起不了 shell 脚本本身，所以显式经 bash 再进来。
 if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
-    exec ./scripts/with-test-slot.sh ./scripts/check.sh
+    exec ./scripts/with-test-slot.sh bash ./scripts/check.sh "$@"
 fi
 
-test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
-
-# 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。影响面与回路状态共用它。
-# 规则拒绝这个基线时（例如已绑定任务的树里给了不等于 targetBase 的 BASELINE），命令已在标准错误写出原因，这里直接退出，不再解析空输出。
-baseline_report="$("${test_runs[@]}" baseline)" || exit "$?"
-baseline="$(printf '%s' "$baseline_report" | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase))')"
-export BASELINE="$baseline"
-
-# 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/test-runner/test-runs.config.json）。
-# FULL=1 给全量计划；算不出（基线不存在、取不到改动、规则点名了不存在的成员）就在这里失败，不改判全量。
-# 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 FULL=1 pnpm run check。
-plan_dir=tmp/check-plan
-rm -rf "$plan_dir"
-"${test_runs[@]}" plan --base "$baseline" --json "$plan_dir/plan.json"
-step() {
-    "${test_runs[@]}" step "$1" --plan "$plan_dir/plan.json"
-}
-
-# 常驻：每次都跑。
-pnpm --silent run check:agents
-pnpm --silent run check:docs
-pnpm --silent run check:design
-# 常驻：线归属表的结构校验（重叠、漏掉的成员、轨道登记与契约位置），失败即失败。
-pnpm --silent run check:lines
-# 常驻：本卡自己的改动（沿第一父链逐提交；合并取与每个父提交都不同的文件，加上它带进来的、不在别的远端跟踪分支上的提交；加未提交改动）须在 binding 写范围与本线内；本卡改了契约成员的 api 目录时，快照差异不超过申报的契约变更。没有 task context 时只报告「未绑定」。
-node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts >/dev/null
-# 按计划：Python 工具测试。
-step python
-pnpm run format:check
-pnpm run test:format
-# 按计划：构建（被选中的成员及其依赖，加上常驻检查要的成员）、类型检查、成员测试（快层再慢层）。
-step build
-# 常驻：成员用 TypeScript 7 构建，dist 里的声明要能被 TypeScript 6 读；读的是磁盘上现有的 dist。
-pnpm run check:declarations
-# 常驻：契约成员的 API 快照与现有 dist 核对，经 dev-flow 运行钉住的 omne-contract-api --check。不一致即失败（differs、unreadable、missing、invalid）；没有 dist 的成员只报告；工具缺失或运行失败也失败。
-node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check >/dev/null
-step typecheck
-step test
-# 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。
-pnpm run lint:rules
-# 常驻：oxlint 的正确性规则与 dependency-cruiser 的环和 legacy 规则；tools、scripts、packages 与 apps 违反即失败。
-pnpm run lint:oxlint
-pnpm run lint:deps
-# 按计划：可执行验收，驱动上面构建出来的 dist/；计划里没有带验收的成员时为当前提交记一份「跳过」的账本。
-step acceptance
-
-# 它只读源码、git 与验收的耗时记录，放在最后是让前面的失败先报。产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
-rm -rf tmp/loop-status-check
-pnpm --silent run loop:status --strict --base "$baseline" --out tmp/loop-status-check
+# 正文在测试运行器的 check 命令里：取基线、算计划，再按步骤图跑全部检查（表在 tools/test-runner/src/testing/check-steps.ts：
+# 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查，回路状态最后；一步失败其余终止）。
+# --admission 或 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志。--keep-going 失败后继续跑其余步骤。
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check "$@"
 }
 omne_repository_command main "$@"
