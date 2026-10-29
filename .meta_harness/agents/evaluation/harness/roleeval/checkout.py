@@ -128,8 +128,14 @@ def _within_on_windows(cwd: str, root: str) -> bool:
     """
     if os.name != "nt":
         return False
-    seen, top = os.path.normcase(os.path.abspath(cwd)), os.path.normcase(root)
+    seen, top = os.path.normcase(os.path.abspath(_native_spelling(cwd))), os.path.normcase(root)
     return seen == top or seen.startswith(top.rstrip(os.sep) + os.sep)
+
+
+def _native_spelling(cwd: str) -> str:
+    """``/d/...`` as Git Bash writes a drive path, turned into ``D:/...``; any other spelling unchanged."""
+    match = re.fullmatch(r"/([A-Za-z])(/.*)?", cwd)
+    return f"{match.group(1).upper()}:{match.group(2) or '/'}" if match else cwd
 
 
 def forbidden(main: Path) -> list[str]:

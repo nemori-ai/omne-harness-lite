@@ -692,7 +692,9 @@ def test_the_session_directory_is_read_off_the_first_event(tmp_path: Path) -> No
 @pytest.mark.skipif(sys.platform != "win32", reason="只有 Windows 上一个路径有两种分隔符、不分大小写，Git Bash 还写成 /d/…")
 def test_on_windows_the_main_checkout_is_seen_however_its_path_is_written(tmp_path: Path) -> None:
     main = tmp_path.resolve()
-    for cwd in (str(main), str(main / "member"), (main / "member").as_posix(), str(main / "member").swapcase()):
+    msys_member = "/" + main.drive[0].lower() + (main / "member").as_posix()[2:]
+    for cwd in (str(main), str(main / "member"), (main / "member").as_posix(), str(main / "member").swapcase(),
+                msys_member):
         assert checkout.dispatched_inside(cwd, main), f"在检出内派发：{cwd}"
     assert not checkout.dispatched_inside(str(main.parent / (main.name + "-two")), main)
     msys = "/" + main.drive[0].lower() + (main / "x").as_posix()[2:]
