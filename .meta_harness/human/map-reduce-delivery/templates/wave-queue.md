@@ -1,6 +1,6 @@
 # 当前波队列模板
 
-本模板只列当前波及后一波预案。滚动规划归[负责人状态](../../../../docs/engineering/map-reduce-states.md#2-滚动规划与逐收口等待)，收口顺序归[集成清单](../../../../docs/engineering/integration.md#接受与逐收口续接)。
+本模板只列当前波及后一波预案。滚动规划归[负责人状态](../../../../docs/engineering/map-reduce-states.md#2-滚动规划与逐收口等待)，收口顺序归[集成清单](../../../../docs/engineering/map-reduce-states.md#收口顺序)。
 
 - 当前波：<波号、收口卡 R(w)、F、计划修订>
 - active 线：<各线父卡、任务卡、期限、交回结果>

@@ -103,7 +103,7 @@ binding 齐全且任务卡开放时，你就可以开工。事件接收器的健
 
 ## 6 交回与等待
 
-交回规则归 `docs/engineering/integration.md`「线怎样工作」。
+交回阶段归 `docs/engineering/map-reduce-states.md` 第 4 节，交回物与五节交接报告的格式归 `docs/engineering/integration.md`「线会话记录」。
 
 1. 一张卡做完后，把它合入本线批次分支。在卡上发五节交接报告。五节归 `claim` 技能的 `references/task-pack.md`。
 2. 本线本波全部交完后，开批次 PR。零差异时没有 PR。
