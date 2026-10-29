@@ -20,6 +20,9 @@ export function init(root: string, bare = false): void {
   git(root, ['symbolic-ref', 'HEAD', 'refs/heads/main'])
   for (const key of ['user.name', 'user.email'])
     git(root, ['config', key, git(process.cwd(), ['config', key])])
+  // Checked-out bytes equal committed bytes: Git for Windows defaults to autocrlf=true in its system
+  // configuration and would rewrite checkouts with CRLF. POSIX Git already defaults to false.
+  git(root, ['config', 'core.autocrlf', 'false'])
 }
 /** A registry track entry; tests vary it to probe parsePolicy and the upstream chain. */
 export function trackEntry(
