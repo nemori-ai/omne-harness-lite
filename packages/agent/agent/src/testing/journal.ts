@@ -1157,6 +1157,9 @@ export function createMemoryAgentJournal<P>(
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
+        // The Journal allocates `entry` events itself when it writes an entry (SPEC "日志条目" 6).
+        if (input.events.some(body => (body as AgentEventBody).kind === 'entry'))
+          return answer(fail(invalid('events', 'entry events are allocated by the Journal')))
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))

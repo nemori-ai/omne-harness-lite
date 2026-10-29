@@ -23,7 +23,7 @@ import type {
   ReceivedCommitValue,
   ReceivedEntry,
 } from './receiving.ts'
-import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
+import type { AgentJournalEntriesFixture, RecordFault } from './testing-journal-entries.ts'
 import type { ReceivedCommitFixture } from './testing-received-fixture.ts'
 import { canonicalText, doubleEvidence, tenantText } from './testing-case.ts'
 import {
@@ -90,6 +90,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const custody = new Map<string, AgentExecutionId>()
   const pauses = new Map<string, Pause>()
   const faults = new Map<string, 'before-publish' | 'after-publish'>()
+  const recordFaults: RecordFault[] = []
   let generation = 0
   const stateOf = (input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>) =>
     executions.get(executionKey(input))
@@ -257,6 +258,16 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const record = async (
     input: JournalEntryRecord<P>,
   ): Promise<Outcome<CommandReceipt, Failure>> => {
+    const fault = recordFaults.shift()
+    const outcome = await attemptRecord(input)
+    // The scripted fault: the write took effect as usual, only the reply is lost.
+    return fault !== undefined && 'ok' in outcome
+      ? fail({ kind: 'commit-unknown', operation: input.operation })
+      : outcome
+  }
+  const attemptRecord = async (
+    input: JournalEntryRecord<P>,
+  ): Promise<Outcome<CommandReceipt, Failure>> => {
     const allowed = permitted(input)
     if ('failure' in allowed) return allowed
     const state = allowed.ok
@@ -305,6 +316,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       if (state.ended) return fail({ kind: 'terminal' })
       if (
         !input.authority ||
+        state.detached ||
         input.authority.executionAttachment !== state.authority.executionAttachment ||
         input.authority.generation !== state.authority.generation
       )
@@ -464,6 +476,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       const grant = authority(execution)
       executions.set(key, {
         authority: grant,
+        detached: false,
         ended: false,
         revision: 0,
         entries: [],
@@ -475,11 +488,19 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     },
     async supersede(who, execution) {
       const grant = authority(execution)
-      requireState({ ...who, execution }).authority = grant
+      const state = requireState({ ...who, execution })
+      state.authority = grant
+      state.detached = false
       return grant
+    },
+    async detach(who, execution) {
+      requireState({ ...who, execution }).detached = true
     },
     async end(who, execution) {
       requireState({ ...who, execution }).ended = true
+    },
+    failNextRecord(_who, _execution, fault) {
+      recordFaults.push(fault)
     },
     async read(who, execution) {
       const state = stateOf({ ...who, execution })

@@ -1,5 +1,6 @@
 // Shared parts of the `./testing` entry: the case shape of a conformance suite, the canonical text
 // that compares two plain values, and the evidence that a non-durable double writes.
+import { AssertionError } from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { DurableEvidence } from './identity.ts'
@@ -8,8 +9,28 @@ import type { DurableEvidence } from './identity.ts'
  * One case of a conformance suite. `run` resolves when the provider keeps the rule of the case
  * and rejects with a `node:assert` AssertionError when it does not. A suite does not depend on a
  * test framework.
+ *
+ * `uncovered` is set when the fixture lacks an optional capability that the case needs. The case
+ * then proves nothing about the provider: a runner reports it as not covered, and `run` still
+ * rejects, so a runner that ignores the field shows red instead of a silent pass.
  */
-export type ConformanceCase = Readonly<{ name: string; run: () => Promise<void> }>
+export type ConformanceCase = Readonly<{
+  name: string
+  run: () => Promise<void>
+  uncovered?: string
+}>
+
+/** The case of a rule that the fixture cannot drive because it lacks `capability`. */
+export function uncoveredCase(name: string, capability: string): ConformanceCase {
+  const uncovered = `uncovered: the fixture has no ${capability}`
+  return {
+    name,
+    uncovered,
+    run: async () => {
+      throw new AssertionError({ message: uncovered })
+    },
+  }
+}
 
 /**
  * The canonical text of a plain data value: object keys sorted, array order kept. Two values with

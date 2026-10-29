@@ -814,7 +814,7 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<ControlRecord['stages']['accepted']>().toEqualTypeOf<ControlStageFact>()
   })
 
-  it('AgentEventBody has seven kinds; the ended one is the only one a commit excludes', () => {
+  it('AgentEventBody has seven kinds; a commit carries neither the ended nor the entry kind', () => {
     expectTypeOf<KindOf<AgentEventBody>>().toEqualTypeOf<
       'input-taken' | 'message' | 'producer' | 'entry' | 'waiting' | 'control' | 'ended'
     >()
@@ -825,7 +825,7 @@ describe('the discriminants of the coordination chapter', () => {
       Extract<AgentEventBody, { kind: 'control' }>['stage']
     >().toEqualTypeOf<ControlStage>()
     expectTypeOf<KindOf<JournalCommit<string>['events'][number]>>().toEqualTypeOf<
-      'input-taken' | 'message' | 'producer' | 'entry' | 'waiting' | 'control'
+      'input-taken' | 'message' | 'producer' | 'waiting' | 'control'
     >()
     expectTypeOf<KindOf<JournalCommit<string>['state']>>().toEqualTypeOf<
       'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'

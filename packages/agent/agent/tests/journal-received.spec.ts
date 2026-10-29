@@ -91,6 +91,23 @@ function fixture() {
         }),
       )
     },
+    async detach(who, execution) {
+      const snapshot = ok(await journal.load({ ...who, execution }))
+      const authority = snapshot.executionAttachment
+      if (!authority) throw new Error('expected attachment')
+      ok(
+        await journal.detach({
+          ...who,
+          execution,
+          operation: operation(`detach-${execution}`),
+          authority,
+          reason: evidence('detach'),
+        }),
+      )
+    },
+    failNextRecord(_who, _execution, fault) {
+      memory.failNext('record', fault)
+    },
     async read(who, execution) {
       const loaded = await journal.load({ ...who, execution })
       return 'ok' in loaded ? loaded.ok.entries : undefined
@@ -126,6 +143,9 @@ describe('one memory Journal received provider', () => {
   for (const scenario of agentJournalEntriesConformance(entriesFixture, {
     received: 'required',
     joint,
-  }))
-    it(scenario.name, scenario.run)
+  })) {
+    // A case the fixture cannot drive is reported as skipped with its reason, never as green.
+    if (scenario.uncovered === undefined) it(scenario.name, scenario.run)
+    else it.skip(`${scenario.name} (${scenario.uncovered})`, scenario.run)
+  }
 })

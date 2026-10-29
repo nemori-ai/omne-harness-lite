@@ -492,7 +492,8 @@ describe('received Model result adoption', () => {
 })
 
 it('a live waiting driver whose entry notification is lost rereads receiver-only revisions at its injected check time', async () => {
-  const assembly = await loopAssembly([execution()], losingEntryNotifications)
+  const lost = { pages: 0 }
+  const assembly = await loopAssembly([execution()], d => losingEntryNotifications(d, lost))
   const handle = ok(await invoke(assembly))
   await eventually(async () => assembly.controls.clock.pending().length > 0)
   const before = await load(assembly)
@@ -503,7 +504,10 @@ it('a live waiting driver whose entry notification is lost rereads receiver-only
   expect(received.revision).not.toEqual(before.revision)
   const due = assembly.controls.clock.pending()[0]
   if (!due) throw new Error('injected timer required')
-  ok(assembly.controls.clock.advanceTo(due))
+  // The notification was dropped and no reply exists yet: the check time is the only wake.
+  expect(lost.pages).toBeGreaterThan(0)
+  expect(await eventKinds(assembly)).not.toContain('message')
+  expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
   const events = await eventsOf(handle)
   expect(events.filter(event => event.body.kind === 'message')).toHaveLength(1)
   expect((await load(assembly)).state.kind).toBe('ended')

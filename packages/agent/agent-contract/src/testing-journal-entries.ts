@@ -32,7 +32,13 @@ import type {
   ReceivedEntry,
   StartFenceEntry,
 } from './receiving.ts'
-import { canonicalText, doubleEvidence, tenantText, type ConformanceCase } from './testing-case.ts'
+import {
+  canonicalText,
+  doubleEvidence,
+  tenantText,
+  uncoveredCase,
+  type ConformanceCase,
+} from './testing-case.ts'
 
 import {
   sampleReceivedModelAccount,
@@ -58,6 +64,8 @@ const DOUBLE_EVENT_SCHEMA: Adoption = Object.freeze({
 
 type Execution = {
   authority: Authority
+  /** Whether the current attachment has been detached; it stays the latest established one. */
+  detached: boolean
   ended: boolean
   revision: number
   readonly entries: AgentJournalEntry[]
@@ -73,8 +81,12 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
   open(input: Readonly<{ tenant: TenantId; authority: Authority }>): void
   /** Gives the execution a new current attachment. The previous Authority is superseded. */
   supersede(input: Readonly<{ tenant: TenantId; authority: Authority }>): void
+  /** Detaches the current attachment. It stays the latest established one; advancing stops. */
+  detach(input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>): void
   /** Ends the execution. */
   end(input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>): void
+  /** The next `record` that writes takes effect and answers commit-unknown. */
+  failNextRecord(fault: RecordFault): void
   /** The committed entries in commit order, as `ExecutionSnapshot.entries` gives them. */
   entries(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
@@ -107,6 +119,7 @@ function denied(): Outcome<never, Failure> {
 /** Creates the double. Every execution starts with `open`. */
 export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P> {
   const executions = new Map<string, Execution>()
+  const recordFaults: RecordFault[] = []
 
   const write = (
     execution: Execution,
@@ -142,6 +155,15 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
   }
 
   const record = async (input: JournalEntryRecord<P>) => {
+    const fault = recordFaults.shift()
+    const outcome = await attempt(input)
+    // The scripted fault: the write took effect as usual, only the reply is lost.
+    return fault !== undefined && 'ok' in outcome
+      ? fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
+      : outcome
+  }
+
+  const attempt = async (input: JournalEntryRecord<P>) => {
     const execution = executions.get(keyOf(input.tenant, input.execution))
     // An execution of another tenant and one that does not exist answer the same.
     if (execution === undefined) return denied()
@@ -171,7 +193,11 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       return succeed(receipt)
     }
     if (execution.ended) return fail<Failure>({ kind: 'terminal' })
-    if (input.authority === null || !sameAttachment(input.authority, execution.authority)) {
+    if (
+      input.authority === null ||
+      execution.detached ||
+      !sameAttachment(input.authority, execution.authority)
+    ) {
       return fail<Failure>({ kind: 'stale-advance' })
     }
     return succeed(write(execution, input, text))
@@ -185,6 +211,7 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       if (executions.has(key)) throw new TypeError('the execution is already open')
       executions.set(key, {
         authority,
+        detached: false,
         ended: false,
         revision: 0,
         entries: [],
@@ -197,11 +224,20 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       const execution = executions.get(keyOf(tenant, authority.execution))
       if (execution === undefined) throw new TypeError('the execution is not open')
       execution.authority = authority
+      execution.detached = false
+    },
+    detach({ tenant, execution }) {
+      const record = executions.get(keyOf(tenant, execution))
+      if (record === undefined) throw new TypeError('the execution is not open')
+      record.detached = true
     },
     end({ tenant, execution }) {
       const record = executions.get(keyOf(tenant, execution))
       if (record === undefined) throw new TypeError('the execution is not open')
       record.ended = true
+    },
+    failNextRecord(fault) {
+      recordFaults.push(fault)
     },
     entries({ tenant, execution }) {
       const record = executions.get(keyOf(tenant, execution))
@@ -214,6 +250,9 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
   }
 }
 
+/** The scripted fault of one `record` call: the write takes effect, only the reply is lost. */
+export type RecordFault = Readonly<{ kind: 'commit-unknown'; outcome: 'applied' }>
+
 /**
  * What the suite needs from a provider. `access` and `otherAccess` belong to two different
  * tenants. `open` opens a new execution of the tenant of the access under the given execution
@@ -221,6 +260,12 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
  * ends it, and `read` returns `ExecutionSnapshot.entries` as load gives it. `events` returns
  * every event of the execution in sequence order, as `AgentJournal.read` gives them; the
  * projection cases (SPEC "日志条目" 6) read it, so a provider without it does not pass the suite.
+ *
+ * Two controls are optional. `detach` detaches the current attachment without ending the
+ * execution, as `AgentJournalAttachment.detach` does. `failNextRecord` scripts the next `record`
+ * call: its write takes effect as usual and the call answers commit-unknown; a refused call
+ * answers its refusal. A fixture without one of them gets the case that needs it marked
+ * `uncovered`; that case rejects, it does not pass.
  */
 export interface AgentJournalEntriesFixture<P> {
   readonly entries: AgentJournalEntries<P>
@@ -234,6 +279,8 @@ export interface AgentJournalEntriesFixture<P> {
     execution: AgentExecutionId,
   ): Promise<readonly AgentJournalEntry[] | undefined>
   events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[]>
+  detach?(access: Access<P>, execution: AgentExecutionId): Promise<void>
+  failNextRecord?(access: Access<P>, execution: AgentExecutionId, fault: RecordFault): void
 }
 
 function identity<T>(decoded: Outcome<T, unknown>, what: string): T {
@@ -292,6 +339,16 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
     operation: AgentOperationId,
     entry: ReceivedEntry,
   ) => record({ ...who, execution, operation, authority: null, entry })
+  const unchangedEvents = async (
+    execution: AgentExecutionId,
+    before: readonly AgentEvent[],
+    what: string,
+  ) =>
+    assert.deepEqual(
+      await fixture.events(access, execution),
+      before,
+      `${what} should allocate no event`,
+    )
 
   return [
     ...jointCases,
@@ -339,12 +396,14 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         const execution = executionId('stale')
         const old = await fixture.open(access, execution)
         await fixture.supersede(access, execution)
+        const before = await fixture.events(access, execution)
         await refused(
           advancing(access, execution, old, operationId('stale'), sampleStartFence('stale')),
           'stale-advance',
           'record under a superseded Authority',
         )
         assert.deepEqual(await fixture.read(access, execution), [])
+        await unchangedEvents(execution, before, 'a stale-advance record')
       },
     },
     {
@@ -352,6 +411,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       async run() {
         const execution = executionId('no-authority')
         await fixture.open(access, execution)
+        const before = await fixture.events(access, execution)
         const failure = await refused(
           record({
             ...access,
@@ -364,6 +424,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           'start-fence without an Authority',
         )
         assert.equal(failure.kind === 'invalid' && failure.field, 'authority')
+        await unchangedEvents(execution, before, 'an invalid record')
       },
     },
     {
@@ -371,6 +432,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       async run() {
         const execution = executionId('foreign')
         const authority = await fixture.open(access, execution)
+        const before = await fixture.events(access, execution)
         const foreign = await refused(
           advancing(otherAccess, execution, authority, operationId('f'), sampleStartFence('f')),
           'denied',
@@ -389,6 +451,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         )
         assert.deepEqual(foreign, missing)
         assert.deepEqual(await fixture.read(access, execution), [])
+        await unchangedEvents(execution, before, 'a denied record')
       },
     },
     {
@@ -440,11 +503,13 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           ),
           'received after the end',
         )
+        const before = await fixture.events(access, execution)
         await refused(
           advancing(access, execution, authority, operationId('late'), sampleStartFence('late')),
           'terminal',
           'start-fence after the end',
         )
+        await unchangedEvents(execution, before, 'a terminal record')
       },
     },
     {
@@ -480,6 +545,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
       async run() {
         const execution = executionId('wrong-call')
         await fixture.open(access, execution)
+        const before = await fixture.events(access, execution)
         await refused(
           receiving(
             access,
@@ -491,6 +557,7 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
           'received with a call of another tenant',
         )
         assert.deepEqual(await fixture.read(access, execution), [])
+        await unchangedEvents(execution, before, 'a denied received record')
       },
     },
     {
@@ -675,6 +742,89 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         )
       },
     },
+    // Red when a provider writes the entry and allocates its event in two steps, so that a lost
+    // reply can leave one without the other, or when the replay after the lost reply allocates
+    // a second event. The fixture scripts the lost reply; without that control the case is
+    // uncovered.
+    fixture.failNextRecord === undefined
+      ? uncoveredCase(
+          'keeps the entry and its event together when the record reply is lost',
+          'failNextRecord control',
+        )
+      : {
+          name: 'keeps the entry and its event together when the record reply is lost',
+          async run() {
+            const execution = executionId('lost-reply')
+            await fixture.open(access, execution)
+            const before = await fixture.events(access, execution)
+            const delivery = sampleReceivedModelResult(access.tenant, 'lost-reply')
+            fixture.failNextRecord?.(access, execution, {
+              kind: 'commit-unknown',
+              outcome: 'applied',
+            })
+            await refused(
+              receiving(access, execution, operationId('lost'), delivery),
+              'commit-unknown',
+              'the scripted record',
+            )
+            assert.deepEqual(
+              (await fixture.read(access, execution))?.at(-1),
+              delivery,
+              'the applied write should hold the entry',
+            )
+            const after = await fixture.events(access, execution)
+            assert.equal(after.length, before.length + 1, 'the applied write should hold the event')
+            assert.deepEqual(after.at(-1)?.body, { kind: 'entry', entry: delivery })
+            const recalled = await recorded(
+              receiving(access, execution, operationId('lost'), delivery),
+              'replay of the operation',
+            )
+            assert.deepEqual(
+              after.at(-1)?.cause,
+              recalled.evidence,
+              'the cause should be the evidence of the recalled receipt',
+            )
+            await unchangedEvents(execution, after, 'the replay')
+          },
+        },
+    // Red when a provider refuses the event after a detach, or allocates it under an attachment
+    // other than the latest established one. Without a detach control the case is uncovered.
+    fixture.detach === undefined
+      ? uncoveredCase(
+          'projects a received entry under the latest attachment after a detach',
+          'detach control',
+        )
+      : {
+          name: 'projects a received entry under the latest attachment after a detach',
+          async run() {
+            const execution = executionId('detached')
+            await fixture.open(access, execution)
+            const latest = await fixture.supersede(access, execution)
+            await fixture.detach?.(access, execution)
+            const before = await fixture.events(access, execution)
+            await refused(
+              advancing(access, execution, latest, operationId('d0'), sampleStartFence('d0')),
+              'stale-advance',
+              'start-fence under a detached Authority',
+            )
+            await unchangedEvents(execution, before, 'a stale-advance record after a detach')
+            const delivery = sampleReceivedModelResult(access.tenant, 'detached')
+            const kept = await recorded(
+              receiving(access, execution, operationId('d1'), delivery),
+              'received after a detach',
+            )
+            const after = await fixture.events(access, execution)
+            assert.equal(after.length, before.length + 1, 'received should add one event')
+            const event = after.at(-1)
+            assert.deepEqual(event?.body, { kind: 'entry', entry: delivery })
+            assert.deepEqual(event?.cause, kept.evidence)
+            assert.equal(
+              event?.executionAttachment,
+              latest.executionAttachment,
+              'the event should carry the latest established attachment, also when detached',
+            )
+          },
+        },
   ]
 }
 
@@ -716,5 +866,7 @@ export function memoryAgentJournalEntriesFixture<P>(
     end: async (who, execution) => double.end({ tenant: who.tenant, execution }),
     read: async (who, execution) => double.entries({ tenant: who.tenant, execution }),
     events: async (who, execution) => double.events({ tenant: who.tenant, execution }) ?? [],
+    detach: async (who, execution) => double.detach({ tenant: who.tenant, execution }),
+    failNextRecord: (_who, _execution, fault) => double.failNextRecord(fault),
   }
 }

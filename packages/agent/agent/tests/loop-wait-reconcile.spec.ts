@@ -104,52 +104,56 @@ describe('W0 rereads the original producer', () => {
     let admissions = 0
     let observations = 0
     let closed = 0
+    const lost = { pages: 0 }
     const assembly = await loopAssembly(
       [execution()],
       d =>
-        losingEntryNotifications({
-          ...d,
-          models: {
-            ...d.models,
-            calls: {
-              ...d.models.calls,
-              admit: input => {
-                admissions += 1
-                return d.models.calls.admit(input)
+        losingEntryNotifications(
+          {
+            ...d,
+            models: {
+              ...d.models,
+              calls: {
+                ...d.models.calls,
+                admit: input => {
+                  admissions += 1
+                  return d.models.calls.admit(input)
+                },
               },
-            },
-            instances: {
-              ...d.models.instances,
-              connect: async input => {
-                const route = await d.models.instances.connect(input)
-                if ('failure' in route || route.ok.kind !== 'live') return route
-                return {
-                  ok: {
-                    kind: 'live',
-                    handle: {
-                      ...route.ok.handle,
-                      async *observe(input) {
-                        observations += 1
-                        try {
-                          await new Promise<void>(resolve => {
-                            if (input.signal.aborted) resolve()
-                            else
-                              input.signal.addEventListener('abort', () => resolve(), {
-                                once: true,
-                              })
-                          })
-                          yield { kind: 'ended', reason: 'observer-closed' } as const
-                        } finally {
-                          closed += 1
-                        }
+              instances: {
+                ...d.models.instances,
+                connect: async input => {
+                  const route = await d.models.instances.connect(input)
+                  if ('failure' in route || route.ok.kind !== 'live') return route
+                  return {
+                    ok: {
+                      kind: 'live',
+                      handle: {
+                        ...route.ok.handle,
+                        async *observe(input) {
+                          observations += 1
+                          try {
+                            await new Promise<void>(resolve => {
+                              if (input.signal.aborted) resolve()
+                              else
+                                input.signal.addEventListener('abort', () => resolve(), {
+                                  once: true,
+                                })
+                            })
+                            yield { kind: 'ended', reason: 'observer-closed' } as const
+                          } finally {
+                            closed += 1
+                          }
+                        },
                       },
                     },
-                  },
-                }
+                  }
+                },
               },
             },
           },
-        }),
+          lost,
+        ),
       { texts: ['reply after a lost notification'], pageSize: 10 },
       { reconciliationDelayMs: 1000 },
     )
@@ -182,7 +186,10 @@ describe('W0 rereads the original producer', () => {
     )
     expect(received.checkpoint).toEqual(waiting.checkpoint)
     expect(received.executionAttachment).toEqual(waiting.executionAttachment)
-    ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))
+    // The notification was dropped and the driver has not replied: only the check time remains.
+    expect(lost.pages).toBeGreaterThan(0)
+    expect(await eventKindsSoFar(assembly)).not.toContain('message')
+    expect(ok(assembly.controls.clock.advanceTo('1970-01-01T00:00:01.000Z'))).toBe(1)
     const events = await eventsOf(handle)
     expect(events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
     expect(admissions).toBe(1)
@@ -190,7 +197,51 @@ describe('W0 rereads the original producer', () => {
     expect(closed).toBe(observations)
     expect(assembly.controls.clock.pending()).toEqual([])
   })
+
+  it('an entry event wakes a live waiting driver before its check time', async () => {
+    const assembly = await loopAssembly([execution()])
+    const clockStart = assembly.controls.clock.now()
+    const c = createExecutionCoordinator({
+      ports: assembly.dependencies,
+      binding: options().binding,
+      evaluator: agentEvaluator,
+      access: alice,
+      execution: execution(),
+      operation: operation('invoke-exec-1'),
+      initial: acceptedInput('input-exec-1'),
+      grant: null,
+      idle() {},
+    })
+    ok(await c.accept())
+    ok(await c.runExecution())
+    const controller = new AbortController()
+    const waiting = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    // The check time is installed before the result arrives, so the wake can only come from the
+    // event stream, not from the snapshot read at the start of the wait.
+    await eventually(async () => assembly.controls.clock.pending().length === 1)
+    expect(await eventKindsSoFar(assembly)).not.toContain('entry')
+    assembly.release.open()
+    expect(ok(await waiting)).toBe('ready')
+    expect(await eventKindsSoFar(assembly)).toContain('entry')
+    expect(assembly.controls.clock.pending()).toEqual([])
+    // Nothing moved the clock: the wake did not come from the check time.
+    expect(assembly.controls.clock.now()).toBe(clockStart)
+  })
 })
+
+/** The kinds of the events emitted so far, read from the Journal without waiting for ended. */
+async function eventKindsSoFar(assembly: Awaited<ReturnType<typeof loopAssembly>>) {
+  const page = ok(
+    await assembly.controls.journal.port.output.read({
+      ...alice,
+      execution: execution(),
+      after: null,
+      limit: 100,
+    }),
+  )
+  if (page.kind !== 'page') throw new Error('expected a page')
+  return page.events.map(event => event.body.kind)
+}
 
 describe('the public driver reconciles lost Journal receipts', () => {
   it.each([

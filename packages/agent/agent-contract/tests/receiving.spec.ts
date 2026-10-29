@@ -386,3 +386,28 @@ describe('reference material custody', () => {
     ).toBe(3)
   })
 })
+
+describe('the entries suite reports a case it cannot drive as uncovered, never as passed', () => {
+  it.each(['detach', 'failNextRecord'] as const)(
+    'marks the case that needs %s uncovered and rejects its run',
+    async control => {
+      const { [control]: _absent, ...fixture } = memoryAgentJournalEntriesFixture(
+        access,
+        otherAccess,
+      )
+      const cases = agentJournalEntriesConformance(fixture)
+      const fragment = control === 'detach' ? 'after a detach' : 'record reply is lost'
+      const found = caseNamed(cases, fragment)
+      expect(found.uncovered).toMatch(new RegExp(`uncovered: .*${control}`, 'u'))
+      await expect(found.run()).rejects.toThrow(/uncovered/u)
+      expect(cases.filter(entry => entry.uncovered !== undefined)).toHaveLength(1)
+    },
+  )
+
+  it('leaves no case uncovered when the fixture has every control', () => {
+    const cases = agentJournalEntriesConformance(
+      memoryAgentJournalEntriesFixture(access, otherAccess),
+    )
+    expect(cases.filter(entry => entry.uncovered !== undefined)).toEqual([])
+  })
+})

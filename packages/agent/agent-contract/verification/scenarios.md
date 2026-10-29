@@ -413,3 +413,10 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-240 | 执行有过一次接管。推进者经 `record` 写一条 `start-fence`，结果接收方经 `record` 写一条 `received`，之后同一操作配另一条目被拒绝 | 每次成功写入在事件流末尾多出恰好一个 `entry` 事件，`body.entry` 等于写入的条目，`cause` 等于该次回执的 `evidence`，`executionAttachment` 等于最近建立的挂接，`received` 不带挂接时也如此。序号连续。被拒绝的写入不产生事件 | 写入前后事件数之差等于成功写入数；事件与条目在同一次写入后同时可读；提供者把事件分配移出提交或在拒绝时照发，本场景变红 |
 | SC-AG-241 | 执行已经 ended。结果接收方经 `record` 写一条 `received` | 条目经 load 可读。事件流与写入前相同，ended 仍是最后一个事件 | 写入前后事件列表逐项相等；条目出现在 `ExecutionSnapshot.entries` 末尾 |
 | SC-AG-242 | 同一操作同一条目再次 `record`；同一交付键配另一操作再次推送 | 两次都认回原回执。事件数与第一次写入后相同 | 回执逐字段相等；事件数不变；提供者在重放时再分配事件，本场景变红 |
+| SC-AG-243 | 执行有过一次接管。结果接收方经 `commit` 一次提交一条 `received` 与材料 | 事件流末尾多出恰好一个 `entry` 事件，`body.entry` 等于提交结果里的条目，`cause` 等于该次回执的 `evidence`，`executionAttachment` 等于最近建立的挂接。序号接在前一个事件之后 | 提交前后事件数之差为 1；事件与条目在同一次提交后同时可读；提供者把 `commit` 的事件分配移出提交，本场景变红 |
+| SC-AG-244 | 同一交付经两种路径到达第二次：同一操作再次 `commit`；同一交付换操作再次 `commit`；先 `record` 后 `commit`；先 `commit` 后 `record` | 四种情形都认回原回执或原保管结果。事件数与第一次写入后相同 | 第二次到达前后事件列表逐项相等；提供者在认回时再分配事件，本场景变红 |
+| SC-AG-245 | 执行已经 ended。结果接收方经 `commit` 提交一条 `received` | 条目经 load 可读。事件流与提交前相同，ended 仍是最后一个事件 | 提交前后事件列表逐项相等；条目出现在 `ExecutionSnapshot.entries` 里 |
+| SC-AG-246 | 写入已生效但回执丢失：`commit` 在发布之后答复 commit-unknown；`record` 的答复丢失。另一次 `commit` 在发布之前失败 | 回执丢失时 `query` 为 committed，条目与 `entry` 事件各一，`cause` 等于重放认回的回执的 `evidence`。发布之前失败时条目与事件都没有 | 提供者的测试件能注入“写入生效、答复丢失”；提供者把条目与事件分成两步写入，本场景变红。测试件没有该注入能力时，套件把本场景报告为未覆盖，不报告通过 |
+| SC-AG-247 | 被拒绝的写入：`record` 的 stale-advance、terminal、invalid、denied；`commit` 的 denied 与 conflict | 每种拒绝前后事件列表逐项相等，没有条目 | 提供者在拒绝分支上分配事件，本场景变红 |
+| SC-AG-248 | 执行有过一次接管，之后当前挂接被 detach。推进者经 `record` 写 `start-fence`；结果接收方经 `record` 写 `received` | `start-fence` 返回 stale-advance，不产生事件。`received` 照常写入并产生一个 `entry` 事件，`executionAttachment` 等于被 detach 的那个挂接，即最近建立的挂接 | 提供者在 detach 之后拒绝分配事件，或取 detach 之前的挂接，本场景变红。测试件没有 detach 能力时，套件把本场景报告为未覆盖，不报告通过 |
+| SC-AG-249 | 同一 execution 先经 `commit` 提交一个其他种类的事件，再经 `record` 写一条条目 | `entry` 事件的 `schema` 等于同一 execution 其他事件的 `schema` | 两个事件的 `schema` 逐字段相等 |

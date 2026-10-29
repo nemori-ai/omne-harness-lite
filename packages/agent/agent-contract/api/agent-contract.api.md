@@ -226,6 +226,7 @@
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
+- `RecordFault` · `testing-journal-entries.d.ts`
 - `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
@@ -1489,7 +1490,7 @@ export type JournalCommit<P> = ExecutionMutation<P> & Readonly<{
         kind: 'ended';
     }>;
     events: readonly Exclude<AgentEventBody, {
-        kind: 'ended';
+        kind: 'ended' | 'entry';
     }>[];
     effects: readonly EffectIntent[];
     caller: CallerCommit;
@@ -2365,7 +2366,9 @@ import type { DurableEvidence } from './identity.ts';
 export type ConformanceCase = Readonly<{
     name: string;
     run: () => Promise<void>;
+    uncovered?: string;
 }>;
+export declare function uncoveredCase(name: string, capability: string): ConformanceCase;
 export declare function canonicalText(value: unknown): string;
 export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
@@ -2392,10 +2395,15 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
         tenant: TenantId;
         authority: Authority;
     }>): void;
+    detach(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): void;
     end(input: Readonly<{
         tenant: TenantId;
         execution: AgentExecutionId;
     }>): void;
+    failNextRecord(fault: RecordFault): void;
     entries(input: Readonly<{
         tenant: TenantId;
         execution: AgentExecutionId;
@@ -2406,6 +2414,10 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
     }>): readonly AgentEvent[] | undefined;
 }
 export declare function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P>;
+export type RecordFault = Readonly<{
+    kind: 'commit-unknown';
+    outcome: 'applied';
+}>;
 export interface AgentJournalEntriesFixture<P> {
     readonly entries: AgentJournalEntries<P>;
     readonly access: Access<P>;
@@ -2415,6 +2427,8 @@ export interface AgentJournalEntriesFixture<P> {
     end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
     read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
     events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[]>;
+    detach?(access: Access<P>, execution: AgentExecutionId): Promise<void>;
+    failNextRecord?(access: Access<P>, execution: AgentExecutionId, fault: RecordFault): void;
 }
 export declare function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile?: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
 export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
@@ -2531,6 +2545,7 @@ export type KeptDelivery = {
 };
 export type MemoryExecution = {
     authority: Authority;
+    detached: boolean;
     ended: boolean;
     revision: number;
     entries: AgentJournalEntry[];
@@ -2562,7 +2577,7 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 
 ```ts
 export type { ConformanceCase } from './testing-case.ts';
-export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
+export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';

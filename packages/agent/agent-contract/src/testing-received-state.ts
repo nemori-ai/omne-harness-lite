@@ -37,6 +37,8 @@ export type KeptDelivery = {
 }
 export type MemoryExecution = {
   authority: Authority
+  /** Whether the current attachment has been detached; it stays the latest established one. */
+  detached: boolean
   ended: boolean
   revision: number
   entries: AgentJournalEntry[]

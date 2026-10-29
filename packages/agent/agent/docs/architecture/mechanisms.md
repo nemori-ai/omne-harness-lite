@@ -221,7 +221,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 13. 主回复准入投影：同一 call 与 resultVersion 的重试认回原序号，不增加计数。同一原回复配不同结论返回 conflict。rejected 使连续数与累计数各加一，admitted 使连续数归零，累计数保留。投影带 through 与 rule。来源是公开接口页的[身份、原位置与纯求值](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)与本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影)。
 14. denied 分支：`open` 与 `attach` 的推进资格依据缺失或核对失败返回 denied。`recordResult` 的调用方不是当前合法保管方或处理方时返回 denied。`recordTerminalObservation` 的调用方没有观察与记录资格时返回 denied。denied 不写入任何状态。来源是 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)与[主体资格核验](../../../agent-contract/SPEC.md#主体资格核验)。
 15. terminal 分支：对已 ended 的 execution，`attach` 返回 terminal，`submit` 返回 terminal，`control` 只认回终态。来源是 SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)与逐操作表的 `input.submit`、`control` 行。
-16. 条目的事件投影：`AgentJournalEntries.record` 与 `AgentReceivedCommits.commit` 在写入条目的同一次提交里分配一个 `entry` 事件，挂接取最近建立的挂接，cause 取该次提交回执的 evidence。ended 之后只写条目，不追加事件。同一操作的重放与同一交付的重复推送认回原回执，不重复分配事件。来源是 SPEC 的[日志条目](../../../agent-contract/SPEC.md#日志条目)第 6 条。内存实现在 `journal-receiving.ts` 的两处 `apply()` 内经 `project` 调用 `appendEvents`。
+16. 条目的事件投影：`AgentJournalEntries.record` 与 `AgentReceivedCommits.commit` 在写入条目的同一次提交里分配一个 `entry` 事件，挂接取最近建立的挂接，cause 取该次提交回执的 evidence。ended 之后只写条目，不追加事件。同一操作的重放与同一交付的重复推送认回原回执，不重复分配事件。`AgentJournal.commit` 的 `events` 不含 `entry`；内存实现对带 `entry` 事件体的 commit 返回 invalid，field 为 `events`。来源是 SPEC 的[日志条目](../../../agent-contract/SPEC.md#日志条目)第 6 条。内存实现在 `journal-receiving.ts` 的两处 `apply()` 内经 `project` 调用 `appendEvents`。
 
 下列事实不要求同形。
 
