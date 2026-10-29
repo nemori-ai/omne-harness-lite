@@ -16,6 +16,9 @@ import { join, resolve, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const runsAsRoot = process.getuid?.() === 0
+// Windows cannot make a directory unwritable with chmod: the mode only toggles the read-only
+// attribute, which does not stop a new entry. An ACL deny does not hold in an elevated session.
+const cannotDenyWrite = runsAsRoot || process.platform === 'win32'
 
 let root: string
 beforeEach(() => {
@@ -166,7 +169,7 @@ describe('ensureStateDirectory', () => {
     expect(readFileSync(parent, 'utf8')).toBe('blocking')
   })
 
-  it.skipIf(runsAsRoot)('reports EACCES when the parent is not writable', () => {
+  it.skipIf(cannotDenyWrite)('reports EACCES when the parent is not writable', () => {
     const parent = join(root, 'read-only')
     mkdirSync(parent)
     chmodSync(parent, 0o555)
