@@ -7,7 +7,7 @@ import type {
   ArchitectureGroupCycleException,
 } from '../src/arch/conformance-model.ts'
 import { exceptedLine, judgeGroupCycles } from '../src/arch/group-cycles.ts'
-import type { DependencyFinding } from '../src/deps/graph.ts'
+import type { DependencyFinding, GroupCycleFinding } from '../src/deps/graph.ts'
 import { directionLines } from '../src/loop/run.ts'
 import { hardLineLines, hardLinesBroken } from '../src/loop/status.ts'
 
@@ -65,7 +65,21 @@ describe('groupCycleExceptions 的校验', () => {
   const same = { from: 'packages/context/a', to: 'packages/context/b' }
   const one = { from: 'packages/context/a', to: 'packages/tool/b' }
   const other = { from: 'packages/tool/b', to: 'packages/context/a' }
-  it.each([
+  const badMembers = [
+    'packages/context/**',
+    'apps/**',
+    'apps/x/y',
+    'packages/context/a ',
+    ' packages/context/a',
+    'packages/context/*',
+    'packages/*/a',
+    'packages/context/a\tb',
+  ].map((member): readonly [string, unknown, string | RegExp] => [
+    `边的端点是 ${JSON.stringify(member)}`,
+    [row({ edges: [{ from: member, to: one.to }] })],
+    /member paths|Invalid architecture path/u,
+  ])
+  it.each<readonly [string, unknown, string | RegExp]>([
     ['不是数组', null, 'require arrays'],
     ['多出字段', [row({ source: 'docs/x.md' })], 'unknown fields: source'],
     ['缺理由', [row({ reason: undefined })], 'nonempty strings'],
@@ -95,6 +109,7 @@ describe('groupCycleExceptions 的校验', () => {
       [row({ edges: [{ from: 'packages/context/a/src', to: one.to }] })],
       'member paths',
     ],
+    ...badMembers,
     [
       '边的端点有 ..',
       [row({ edges: [{ from: 'packages/context/..', to: one.to }] })],
@@ -111,6 +126,16 @@ describe('groupCycleExceptions 的校验', () => {
     ['id 重复', [row(), row({ edges: [other] })], 'duplicate identities'],
   ])('%s时拒绝', (_label, rows, message) => {
     expect(() => parseConstraints(document(rows))).toThrow(message)
+  })
+
+  it('成员路径取依赖图的成员形状：packages、apps、examples 的成员都收', () => {
+    const edges = [
+      { from: 'apps/web', to: 'packages/tool/tool-contract' },
+      { from: 'examples/demo', to: 'apps/web' },
+    ]
+    expect(parseConstraints(document([row({ edges })])).groupCycleExceptions?.[0]?.edges).toEqual(
+      edges,
+    )
   })
 
   it('同一对成员的反向边是另一条边，可以分属两条例外', () => {
@@ -139,18 +164,15 @@ describe('groupCycleExceptions 的校验', () => {
 })
 
 const group = (path: string) => path.split('/').slice(0, 2).join('/')
-/** 依赖图会给组环的每条边带上两端的组；这里按夹具的路径形状补出。 */
-const groupCycle = (...edges: readonly ArchitectureGroupCycleEdge[]): DependencyFinding => {
-  const groups = [...new Set(edges.flatMap(item => [group(item.from), group(item.to)]))].sort()
-  return {
-    kind: 'group-cycle',
-    rule: 'group-cycle',
-    message: `组之间成环：${groups.join('、')}`,
-    sites: [],
-    edges: edges.map(item => ({ ...item, fromGroup: group(item.from), toGroup: group(item.to) })),
-    groups,
-  }
-}
+/** 依赖图给出的组环发现：`edges` 是环内全部跨组成员边，`groups` 是环上的组；这里按夹具的路径形状补出。 */
+const groupCycle = (...edges: readonly ArchitectureGroupCycleEdge[]): GroupCycleFinding => ({
+  kind: 'group-cycle',
+  rule: 'group-cycle',
+  message: `组之间成环：${[...new Set(edges.flatMap(item => [group(item.from), group(item.to)]))].sort().join('、')}`,
+  sites: [],
+  edges,
+  groups: [...new Set(edges.flatMap(item => [group(item.from), group(item.to)]))].sort(),
+})
 const memberCycle: DependencyFinding = {
   kind: 'member-cycle',
   rule: 'member-cycle',
@@ -164,29 +186,56 @@ describe('judgeGroupCycles', () => {
   const forth = edge(A1, B1)
   const back = edge(B1, A1)
 
-  it('组环 A↔B，A→B 只有一条成员边且登记了它：放行，记下用到的例外与边', () => {
+  it('组环 A↔B 每个方向各一条成员边，两条都登记：放行，记下用到的例外与边', () => {
     const cycle = groupCycle(forth, back)
-    const only = exception('GCX-ONE', forth)
-    expect(judgeGroupCycles([cycle], [only])).toEqual({
+    const both = exception('GCX-BOTH', forth, back)
+    expect(judgeGroupCycles([cycle], [both])).toEqual({
       findings: [],
-      excepted: [{ finding: cycle, released: [{ edge: forth, exception: only }] }],
+      excepted: [
+        {
+          finding: cycle,
+          released: [
+            { edge: forth, exception: both },
+            { edge: back, exception: both },
+          ],
+        },
+      ],
       unused: [],
     })
   })
 
-  it('A→B 有两条成员边只登记一条：照常失败，登记的边仍算用上', () => {
-    const cycle = groupCycle(forth, edge(A2, B1), back)
+  it('A↔B 各方向各一条、只登记 A→B：照常失败，消息列出没登记的 B→A，edges 仍是全部边', () => {
+    const cycle = groupCycle(forth, back)
     const judged = judgeGroupCycles([cycle], [exception('GCX-ONE', forth)])
-    expect(judged.findings).toEqual([cycle])
     expect(judged.excepted).toEqual([])
     expect(judged.unused).toEqual([])
-    // 两条都登记就放行。
-    const both = judgeGroupCycles([cycle], [exception('GCX-BOTH', forth, edge(A2, B1))])
-    expect(both.findings).toEqual([])
-    expect(both.excepted[0]?.released.map(item => item.edge)).toEqual([forth, edge(A2, B1)])
+    expect(judged.findings).toEqual([
+      { ...cycle, message: expect.stringContaining(`未登记为例外的边：${B1} → ${A1}`) },
+    ])
+    const [failed] = judged.findings
+    expect(failed?.edges).toEqual([forth, back])
+    expect(failed?.message).not.toContain(`${A1} → ${B1}`)
   })
 
-  it('登记的边不在图里：例外算没用上，写明这条边与裁定链接', () => {
+  it('A→B 有两条成员边只登记一条：照常失败，登记的边仍算用上；两条都登记才放行', () => {
+    const cycle = groupCycle(forth, edge(A2, B1), back)
+    const judged = judgeGroupCycles([cycle], [exception('GCX-ONE', forth, back)])
+    expect(judged.excepted).toEqual([])
+    expect(judged.unused).toEqual([])
+    expect(judged.findings).toEqual([
+      { ...cycle, message: expect.stringContaining(`未登记为例外的边：${A2} → ${B1}`) },
+    ])
+    const all = judgeGroupCycles([cycle], [exception('GCX-ALL', forth, edge(A2, B1), back)])
+    expect(all.findings).toEqual([])
+    expect(all.excepted[0]?.released.map(item => item.edge)).toEqual([forth, edge(A2, B1), back])
+  })
+
+  it('没有任何边登记的组环原样失败，消息不变', () => {
+    const cycle = groupCycle(forth, back)
+    expect(judgeGroupCycles([cycle], []).findings).toEqual([cycle])
+  })
+
+  it('登记的边不在图里：例外算没用上，写明这条边与裁定链接，edges 是没用上的边', () => {
     const ghost = edge('packages/a/ghost', B1)
     const judged = judgeGroupCycles([groupCycle(forth, back)], [exception('GCX-GHOST', ghost)])
     expect(judged.findings).toHaveLength(1)
@@ -195,6 +244,7 @@ describe('judgeGroupCycles', () => {
     expect(judged.unused[0]?.message).toContain('GCX-GHOST')
     expect(judged.unused[0]?.message).toContain('packages/a/ghost → packages/b/one')
     expect(judged.unused[0]?.message).toContain(RULING)
+    expect(judged.unused[0]?.edges).toEqual([ghost])
   })
 
   it('登记的边在图里但不在任何组环里（组环已消失）：同样没用上', () => {
@@ -203,68 +253,75 @@ describe('judgeGroupCycles', () => {
     expect(judged.unused.map(finding => finding.message)).toEqual([
       expect.stringContaining(`${A1} → ${B1}`),
     ])
+    expect(judged.unused[0]?.edges).toEqual([forth])
   })
 
   it('一条例外里有的边用上、有的没用上：放行照旧，例外只就没用上的边报一条发现', () => {
     const stale = edge(A1, 'packages/c/gone')
     const judged = judgeGroupCycles(
       [groupCycle(forth, back)],
-      [exception('GCX-HALF', forth, stale)],
+      [exception('GCX-HALF', forth, back, stale)],
     )
     expect(judged.excepted).toHaveLength(1)
     expect(judged.unused).toHaveLength(1)
     expect(judged.unused[0]?.message).toContain('packages/a/one → packages/c/gone')
     expect(judged.unused[0]?.message).not.toContain(`${A1} → ${B1}`)
+    expect(judged.unused[0]?.edges).toEqual([stale])
   })
 
-  it('三个组 A→B→C→A：登记 C→A 即放行；登记与环无关的边不放行', () => {
+  it('三个组 A→B→C→A：登记环内全部三条边才放行；只登记 C→A 照常失败', () => {
     const ring = groupCycle(edge(A1, B1), edge(B1, C1), edge(C1, A1))
-    const released = judgeGroupCycles([ring], [exception('GCX-RING', edge(C1, A1))])
-    expect(released.findings).toEqual([])
-    expect(released.unused).toEqual([])
-    const unrelated = judgeGroupCycles([ring], [exception('GCX-OFF', edge(A2, C1))])
-    expect(unrelated.findings).toEqual([ring])
-    expect(unrelated.excepted).toEqual([])
-    expect(unrelated.unused).toHaveLength(1)
+    const all = judgeGroupCycles(
+      [ring],
+      [exception('GCX-RING', edge(A1, B1), edge(B1, C1), edge(C1, A1))],
+    )
+    expect(all.findings).toEqual([])
+    expect(all.unused).toEqual([])
+    const one = judgeGroupCycles([ring], [exception('GCX-ONE', edge(C1, A1))])
+    expect(one.excepted).toEqual([])
+    expect(one.findings).toEqual([
+      {
+        ...ring,
+        message: expect.stringContaining(`未登记为例外的边：${A1} → ${B1}、${B1} → ${C1}`),
+      },
+    ])
   })
 
-  it('去掉登记的边后还有环：照常失败（两个环共用的边只登记其一）', () => {
-    // A→B→A 与 A→C→A 共一个分量；只登记 A→B 去不掉 A→C→A。
-    const cycle = groupCycle(edge(A1, B1), edge(B1, A1), edge(A1, C1), edge(C1, A1))
-    expect(judgeGroupCycles([cycle], [exception('GCX-AB', edge(A1, B1))]).findings).toEqual([cycle])
-    // 登记 A→B 与 A→C 两条就去掉了。
-    expect(
-      judgeGroupCycles([cycle], [exception('GCX-AB-AC', edge(A1, B1), edge(A1, C1))]).findings,
-    ).toEqual([])
+  it('登记与环无关的边不放行', () => {
+    const ring = groupCycle(edge(A1, B1), edge(B1, C1), edge(C1, A1))
+    const judged = judgeGroupCycles([ring], [exception('GCX-OFF', edge(A2, C1))])
+    expect(judged.findings).toEqual([ring])
+    expect(judged.excepted).toEqual([])
+    expect(judged.unused).toHaveLength(1)
   })
 
   it('一个组环用到两条例外时都记下', () => {
     const cycle = groupCycle(forth, edge(A2, B1), back)
-    const first = exception('GCX-1', forth)
+    const first = exception('GCX-1', forth, back)
     const second = exception('GCX-2', edge(A2, B1))
     const judged = judgeGroupCycles([cycle], [first, second])
     expect(judged.findings).toEqual([])
-    expect(judged.excepted[0]?.released.map(item => item.exception.id)).toEqual(['GCX-1', 'GCX-2'])
+    expect(judged.excepted[0]?.released.map(item => item.exception.id)).toEqual([
+      'GCX-1',
+      'GCX-2',
+      'GCX-1',
+    ])
   })
 
-  it('成员环不受例外影响；缺两端组信息的旧组环无法重判，照常失败', () => {
+  it('成员环不受例外影响', () => {
     const cycle = groupCycle(forth, back)
-    const only = exception('GCX-ONE', forth)
-    expect(judgeGroupCycles([memberCycle, cycle], [only]).findings).toEqual([memberCycle])
-    const legacy: DependencyFinding = {
-      ...cycle,
-      edges: cycle.edges.map(({ from, to }) => ({ from, to })),
-    }
-    expect(judgeGroupCycles([legacy], [only]).findings).toEqual([legacy])
+    const all = exception('GCX-ALL', forth, back)
+    expect(judgeGroupCycles([memberCycle, cycle], [all]).findings).toEqual([memberCycle])
   })
 
   it('放行说明行写出组、例外 id、裁定链接、放行的边与理由', () => {
-    const judged = judgeGroupCycles([groupCycle(forth, back)], [exception('GCX-ONE', forth)])
+    const judged = judgeGroupCycles([groupCycle(forth, back)], [exception('GCX-ONE', forth, back)])
     const line = exceptedLine(judged.excepted[0]!)
     expect(line).toContain('组环 packages/a、packages/b')
     expect(line).toContain('例外 GCX-ONE')
     expect(line).toContain(RULING)
     expect(line).toContain(`${A1} → ${B1}`)
+    expect(line).toContain(`${B1} → ${A1}`)
     expect(line).toContain('上下文组装感知工具')
   })
 })
@@ -272,8 +329,8 @@ describe('judgeGroupCycles', () => {
 describe('回路状态的硬线', () => {
   const forth = edge(A1, B1)
   const back = edge(B1, A1)
-  const only = exception('GCX-ONE', forth)
-  const lines = (findings: readonly DependencyFinding[], exceptions = [only]) => ({
+  const both = exception('GCX-BOTH', forth, back)
+  const lines = (findings: readonly DependencyFinding[], exceptions = [both]) => ({
     ...directionLines({ findings }, exceptions),
     acceptanceLock: { status: 'judged' as const, violations: [] },
     sensors: { status: 'unjudged' as const, reason: '只在严格模式下判' },
@@ -285,7 +342,7 @@ describe('回路状态的硬线', () => {
     expect(hardLinesBroken(judged)).toBe(false)
     const text = hardLineLines(judged).join('\n')
     expect(text).toContain('  环 0')
-    expect(text).toContain('GCX-ONE')
+    expect(text).toContain('GCX-BOTH')
     expect(text).toContain(RULING)
     expect(text).toContain(`${A1} → ${B1}`)
   })
@@ -299,9 +356,9 @@ describe('回路状态的硬线', () => {
     expect(hardLinesBroken(judged)).toBe(true)
   })
 
-  it('没有例外，或登记的边去不掉环时，组环照常是硬线', () => {
+  it('没有例外，或环里有未登记的边时，组环照常是硬线', () => {
     const cycle = groupCycle(forth, edge(A2, B1), back)
-    for (const exceptions of [[], [only]]) {
+    for (const exceptions of [[], [both]]) {
       const judged = lines([cycle], exceptions)
       expect(judged.cycles.map(finding => finding.kind)).toEqual(['group-cycle'])
       expect(judged.exceptedCycles).toEqual([])

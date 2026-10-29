@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // `pnpm run lint:deps`：dependency-cruiser 的规则违规、成员与组之间的环，以及 `constraints.json`（schema 3）方向行的命中。
-// 去掉 `groupCycleExceptions` 登记的成员边后不再成环的组环按例外放行，另写一行说明；登记的边没出现在任何组环里的例外也算一项。
+// 每条跨组成员边都在 `groupCycleExceptions` 登记的组环按例外放行，另写一行说明；登记的边没出现在任何组环里的例外也算一项。
 // 有任何一项退出 1，工具出错退出 2。与 clean loop、`pnpm run metrics` 读同一张图（deps/graph.ts）；
 // 预设与方向行都只从运行检查器的仓库读（core/subject.ts），`--root` 只改变被检查的树。
 import { resolve } from 'node:path'

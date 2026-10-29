@@ -60,15 +60,13 @@ export type DependencyFindingKind =
   | 'member-cycle'
   | 'group-cycle'
 
-/** 发现涉及的成员边；`group-cycle` 的边另带两端成员所在的组，具名组环例外据此去掉登记的边后重判。 */
+/** 发现涉及的成员边。 */
 export interface FindingEdge {
   readonly from: string
   readonly to: string
-  readonly fromGroup?: string
-  readonly toGroup?: string
 }
 
-export interface DependencyFinding<Kind extends string = DependencyFindingKind> {
+interface FindingBase<Kind extends string> {
   readonly kind: Kind
   /** dependency-cruiser 的规则名；成员环与组环是本模块算的，取 kind。 */
   readonly rule: string
@@ -77,9 +75,16 @@ export interface DependencyFinding<Kind extends string = DependencyFindingKind> 
   readonly sites: readonly ImportSite[]
   /** 涉及的成员边；违规不跨成员时为空。 */
   readonly edges: readonly FindingEdge[]
-  /** 只有 `group-cycle` 有：环上的组键，按字典序。 */
-  readonly groups?: readonly string[]
 }
+
+/** 组环：`edges` 是环所在各组之间的全部跨组成员边，`groups` 是环上的组键，按字典序。 */
+export interface GroupCycleFinding extends FindingBase<'group-cycle'> {
+  readonly groups: readonly string[]
+}
+
+/** 本模块与方向规则的发现；`group-cycle` 是带组键的变体，别的种类只有基础字段。 */
+export type DependencyFinding<Kind extends string = DependencyFindingKind> =
+  Kind extends 'group-cycle' ? GroupCycleFinding : FindingBase<Kind>
 
 export interface DependencyGraph {
   readonly members: readonly Member[]
@@ -410,7 +415,7 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
         fromGroup !== toGroup &&
         component.includes(fromGroup) &&
         component.includes(toGroup)
-        ? [{ from: edge.from, to: edge.to, fromGroup, toGroup }]
+        ? [{ from: edge.from, to: edge.to }]
         : []
     })
     findings.push({
@@ -425,7 +430,7 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`，组环的边带两端的组）。 */
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`）。 */
 const GRAPH_FORMAT = 'v5'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */

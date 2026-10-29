@@ -1,8 +1,8 @@
 // 具名组环例外：schema 3 `constraints.json` 的 `groupCycleExceptions` 对依赖图组环发现的判定。
 // `omne-deps` 与回路状态的硬线都从这里算，输入是同一份可信 runner 的例外与同一张依赖图（deps/graph.ts）。
-// 例外登记的是裁定过的成员边，不是组集合：组环去掉登记的边后不再成环才放行；成员环、文件环与规则违规不受影响；
-// 登记的边没有出现在任何组环里，例外本身是一条发现。
-import { cycles, type DependencyFinding } from '../deps/graph.ts'
+// 例外登记的是裁定过的成员边：组环的每一条跨组成员边都登记了才放行，有一条没登记就照常失败；
+// 成员环、文件环与规则违规不受影响；登记的边没有出现在任何组环里，例外本身是一条发现。
+import type { DependencyFinding, FindingEdge, GroupCycleFinding } from '../deps/graph.ts'
 import type {
   ArchitectureGroupCycleEdge,
   ArchitectureGroupCycleException,
@@ -18,9 +18,9 @@ export interface ReleasedEdge {
   readonly exception: ArchitectureGroupCycleException
 }
 
-/** 一个按例外放行的组环：去掉 `released` 里的登记边后，它的组之间不再成环。 */
+/** 一个按例外放行的组环：环上的每条跨组成员边都登记了，`released` 是这些边与登记它们的例外。 */
 export interface ExceptedGroupCycle {
-  readonly finding: DependencyFinding
+  readonly finding: GroupCycleFinding
   readonly released: readonly ReleasedEdge[]
 }
 
@@ -39,23 +39,8 @@ export function runnerGroupCycleExceptions(
   return constraints.kind === 'missing' ? [] : (constraints.value.groupCycleExceptions ?? [])
 }
 
-const edgeKey = (edge: { readonly from: string; readonly to: string }) =>
-  `${edge.from}\u0000${edge.to}`
-const arrow = (edge: { readonly from: string; readonly to: string }) => `${edge.from} → ${edge.to}`
-
-/**
- * 去掉登记的边后，这个组环的组之间还成不成环。组取自发现里每条边两端的组；缺组信息的边（旧缓存）无法重判，
- * 按仍然成环处理，照常失败。
- */
-function stillCyclic(finding: DependencyFinding, released: ReadonlySet<string>): boolean {
-  const groups = finding.groups ?? []
-  const remaining: { from: string; to: string }[] = []
-  for (const edge of finding.edges) {
-    if (edge.fromGroup === undefined || edge.toGroup === undefined) return true
-    if (!released.has(edgeKey(edge))) remaining.push({ from: edge.fromGroup, to: edge.toGroup })
-  }
-  return cycles(groups, remaining).length > 0
-}
+const edgeKey = (edge: FindingEdge) => `${edge.from}\u0000${edge.to}`
+const arrow = (edge: FindingEdge) => `${edge.from} → ${edge.to}`
 
 export function judgeGroupCycles(
   findings: readonly DependencyFinding[],
@@ -72,28 +57,34 @@ export function judgeGroupCycles(
       kept.push(finding)
       continue
     }
-    const inCycle = finding.edges.flatMap(edge => {
+    const released: ReleasedEdge[] = []
+    const unregistered: FindingEdge[] = []
+    for (const edge of finding.edges) {
       appearing.add(edgeKey(edge))
       const hit = registered.get(edgeKey(edge))
-      return hit === undefined ? [] : [hit]
-    })
-    const released = new Set(inCycle.map(item => edgeKey(item.edge)))
-    if (inCycle.length === 0 || stillCyclic(finding, released)) kept.push(finding)
-    else excepted.push({ finding, released: inCycle })
+      if (hit === undefined) unregistered.push(edge)
+      else released.push(hit)
+    }
+    if (released.length === 0) kept.push(finding)
+    else if (unregistered.length > 0)
+      kept.push({
+        ...finding,
+        message: `${finding.message}；环上未登记为例外的边：${unregistered.map(arrow).join('、')}`,
+      })
+    else excepted.push({ finding, released })
   }
-  const unused = exceptions.flatMap((exception): GroupCycleExceptionFinding[] => {
+  const unused: GroupCycleExceptionFinding[] = []
+  for (const exception of exceptions) {
     const lost = exception.edges.filter(edge => !appearing.has(edgeKey(edge)))
-    if (lost.length === 0) return []
-    return [
-      {
+    if (lost.length > 0)
+      unused.push({
         kind: 'unused-group-cycle-exception',
         rule: 'unused-group-cycle-exception',
         message: `组环例外 ${exception.id} 登记的边没有出现在任何组环里：${lost.map(arrow).join('、')}（裁定 ${exception.ruling}）。组环已经消失或这条边不在环上，删掉或改写这条例外`,
         sites: [],
-        edges: [],
-      },
-    ]
-  })
+        edges: lost,
+      })
+  }
   return { findings: kept, excepted, unused }
 }
 
@@ -112,5 +103,5 @@ export function exceptedLine(item: ExceptedGroupCycle): string {
     ({ exception, edges }) =>
       `例外 ${exception.id}（裁定 ${exception.ruling}）放行 ${edges.map(arrow).join('、')}：${exception.reason}`,
   )
-  return `组环 ${(item.finding.groups ?? []).join('、')} 按${used.join('；')}`
+  return `组环 ${item.finding.groups.join('、')} 按${used.join('；')}`
 }

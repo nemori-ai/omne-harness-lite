@@ -52,7 +52,7 @@ export interface ArchitectureGroupCycleEdge {
   readonly to: string
 }
 /**
- * schema 3 的具名组环例外：放行裁定过的那几条成员边，不放行组集合。依赖图的组环去掉登记的边后不再成环才放行；
+ * schema 3 的具名组环例外：放行裁定过的那几条成员边。依赖图的组环的每条跨组成员边都登记了才放行；
  * `ruling` 是裁定的 https 链接，`reason` 是一句理由。一条边在全部例外里只出现一次。
  */
 export interface ArchitectureGroupCycleException {

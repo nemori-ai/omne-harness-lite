@@ -66,11 +66,20 @@ export function safePath(path: string): string {
     throw new Error(`Invalid architecture path: ${path}`)
   return path
 }
-function memberPath(value: unknown): string {
+/** 成员路径的一段：字母数字开头，不含 `*`、空白与 `..`。 */
+const SEGMENT = '[A-Za-z0-9][A-Za-z0-9._-]*'
+const PACKAGE_MEMBER = `packages/${SEGMENT}/${SEGMENT}`
+/** 导入例外的成员：`packages/<组>/<包>`、`apps/<应用>`；`examples/` 不在其内。 */
+const IMPORT_MEMBER = new RegExp(`^(?:${PACKAGE_MEMBER}|apps/${SEGMENT})$`, 'u')
+/** 依赖图的成员，与 deps/graph.ts 的 `memberOf` 给出的 `path` 同形：另含 `examples/<示例>`。 */
+const GRAPH_MEMBER = new RegExp(`^(?:${PACKAGE_MEMBER}|(?:apps|examples)/${SEGMENT})$`, 'u')
+function exactMember(value: unknown, shape: RegExp, failure: string): string {
   const path = safePath(str(value))
-  if (!/^(packages\/[^/]+\/[^/]+|apps\/[^/]+)$/u.test(path))
-    throw new Error(`Architecture exceptions require exact members: ${path}`)
+  if (!shape.test(path)) throw new Error(`${failure}: ${path}`)
   return path
+}
+function memberPath(value: unknown): string {
+  return exactMember(value, IMPORT_MEMBER, 'Architecture exceptions require exact members')
 }
 function importException(value: unknown): ArchitectureImportException {
   const row = obj(value, ['id', 'member', 'target', 'symbols', 'sharedStorage', 'source'])
@@ -214,13 +223,14 @@ function directions(value: unknown, roles: readonly ArchitectureRole[]): Archite
   const byId = new Map(roles.map(declared => [declared.id, declared]))
   return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
 }
-/** 成员路径：与 deps/graph.ts 的 `memberOf` 给出的 `path` 同形（`packages/<组>/<包>`、`apps/<应用>`、`examples/<示例>`）。 */
 function groupCycleMember(value: unknown): { path: string; group: string } {
-  const path = safePath(str(value))
-  const member = memberOf(`${path}/`)
-  if (member?.path !== path)
-    throw new Error(`Architecture group cycle exceptions require member paths: ${path}`)
-  return { path, group: member.group }
+  const path = exactMember(
+    value,
+    GRAPH_MEMBER,
+    'Architecture group cycle exceptions require member paths',
+  )
+  // 与 `memberOf` 的组同形：`packages/<组>`、`apps`、`examples`。
+  return { path, group: path.slice(0, path.lastIndexOf('/')) }
 }
 function ruling(value: unknown): string {
   const text = str(value)

@@ -64,9 +64,9 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 表示（schemaVersion 3）：
 
 - schema 3 另有顶层数组 `groupCycleExceptions`，可以缺省。给了就必须是数组，`null` 等别的值拒绝。schema 1、2 出现这个字段时按未知字段拒绝。
-- 一条是 `{ "id", "edges", "ruling", "reason" }`，字段不多不少。旧的 `groups` 字段不再存在，按未知字段拒绝。
+- 一条是 `{ "id", "edges", "ruling", "reason" }`，字段不多不少。
   - `id` 非空，在 `groupCycleExceptions` 内唯一。
-  - `edges` 至少一条。一条边是 `{ "from", "to" }`，字段不多不少。`from`、`to` 是成员路径，与依赖图 `edges` 的 `from`、`to` 同一种键：`packages/<组>/<包>`、`apps/<应用>` 或 `examples/<示例>`。组键、成员内的子目录与含 `..` 的路径拒绝。
+  - `edges` 至少一条。一条边是 `{ "from", "to" }`，字段不多不少。`from`、`to` 是成员路径，与依赖图 `edges` 的 `from`、`to` 同一种键：`packages/<组>/<包>`、`apps/<应用>` 或 `examples/<示例>`，每一段只含字母、数字、`.`、`_`、`-`，以字母或数字开头。组键、成员内的子目录、通配符、空白与含 `..` 的路径拒绝。
   - 一条边的两端必须在不同的组。同组的边与组环无关，拒绝。
   - 一条边在全部例外里只能出现一次，同一条例外内重复也拒绝。反向的边是另一条边。
   - `ruling` 是裁定的 `https://` 链接。它不是 `source`，不按 Markdown 来源核对文件和锚点，也不进 `sources` 摘要。
@@ -76,11 +76,20 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 判定（`omne-deps` 与回路状态的硬线用同一个函数 `group-cycles.ts` 的 `judgeGroupCycles`、同一份输入）：
 
 - 例外只从可信 runner 的 `constraints.json` 读，不从被检版本读。runner 没有文件或文件是 schema 1、2 时没有例外。
-- 例外放行裁定过的成员边，不放行组集合。一个组环（依赖图组间的强连通分量）由 `deps/graph.ts` 的 `group-cycle` 发现给出：`edges` 是环内全部跨组的成员边，每条边带两端成员所在的组（`fromGroup`、`toGroup`），`groups` 是环上的组。判定从这些信息取组，不从路径猜。
-- 对每个组环，去掉它的成员边里登记为例外的边，用剩下的边在该环的组上重算强连通分量。不再成环时放行：不算失败，记下用到的每条例外与边。仍有环时照常失败。所以组间以后新增的、未登记的成员边会让组环照常失败。
-- 登记的每一条边都必须出现在某个组环发现的 `edges` 里，不论那个组环最后是否放行。没出现的边（边被删、组环已消失、边不在环上）让这条例外产生一条 `unused-group-cycle-exception` 发现，列出没用上的边，照常失败。
+- 例外放行裁定过的成员边。一个组环（依赖图组间的强连通分量）由 `deps/graph.ts` 的 `group-cycle` 发现给出：`edges` 是环内全部跨组的成员边，`groups` 是环上的组。
+- 一个组环放行，当且仅当它的每一条跨组成员边都登记在某条例外的 `edges` 里。放行不算失败，记下用到的每条例外与边。只要有一条边没登记，组环照常失败：发现的 `message` 末尾写「环上未登记为例外的边：…」（环上一条边都没登记时消息不变），机读的 `edges` 仍是环内全部边。所以两个组之间以后新增的任何未登记的成员边都会让组环失败。
+- 登记的每一条边都必须出现在某个组环发现的 `edges` 里，不论那个组环最后是否放行。没出现的边（边被删、组环已消失、边不在环上）让这条例外产生一条 `unused-group-cycle-exception` 发现，`edges` 是没用上的边，`message` 列出它们，照常失败。
 - 例外只作用于 `group-cycle`。成员环、文件环、规则违规和方向发现不受影响。
 - 本报告的符合性行不读例外，结构度量的环也不读。
+
+例：`packages/context` 与 `packages/tool` 之间有三条跨组成员边：`packages/context/a → packages/tool/b`、`packages/tool/b → packages/context/c`、`packages/tool/d → packages/context/c`。它们组成一个组环。
+
+| 登记的边 | 结果 |
+| --- | --- |
+| 三条都登记 | 放行，记下用到的边 |
+| 只登记前两条 | 失败，消息末尾写「环上未登记为例外的边：packages/tool/d → packages/context/c」 |
+| 三条都登记，之后新增 `packages/context/e → packages/tool/b` | 失败，消息末尾写「环上未登记为例外的边：packages/context/e → packages/tool/b」 |
+| 三条都登记，之后 `packages/tool/d → packages/context/c` 被删 | 组环由剩下两条边放行，但被删的边不在任何组环里：例外报 `unused-group-cycle-exception` 而失败 |
 
 ## 机械子集
 

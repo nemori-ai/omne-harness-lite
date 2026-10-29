@@ -39,7 +39,7 @@ interface Status {
   readonly hardLines: {
     readonly cycles: readonly { readonly kind: string; readonly message: string }[]
     readonly exceptedCycles: readonly {
-      readonly finding: { readonly kind: string; readonly groups?: readonly string[] }
+      readonly finding: { readonly kind: string; readonly groups: readonly string[] }
       readonly released: readonly {
         readonly edge: { readonly from: string; readonly to: string }
         readonly exception: { readonly id: string; readonly ruling: string }
@@ -167,11 +167,13 @@ describe('收工钩子的度量读 runner 的组环例外', { timeout: 120_000 }
     expect(hardLinesForHook(subject, runner(null)).cycles).toHaveLength(1)
   })
 
-  it('登记的边去不掉组环（组间另有一条成员边）：组环仍进硬线', () => {
-    const lines = hardLinesForHook(
-      tree({ twoEdges: true }),
-      runner([{ ...CONTEXT_TOOL, edges: [X_TO_Y] }]),
-    )
-    expect(lines.cycles).toEqual([expect.objectContaining({ kind: 'group-cycle' })])
+  it('环里有未登记的边（context → tool 另有一条成员边）：组环仍进硬线', () => {
+    const lines = hardLinesForHook(tree({ twoEdges: true }), runner([CONTEXT_TOOL]))
+    expect(lines.cycles).toEqual([
+      expect.objectContaining({
+        kind: 'group-cycle',
+        message: expect.stringContaining('packages/context/q → packages/tool/y'),
+      }),
+    ])
   })
 })
