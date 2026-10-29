@@ -26,22 +26,13 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 
 1. 环境：`pnpm install --frozen-lockfile --prefer-offline`。生成 agent 投影。`pnpm run check:agents` 退出 0。记录实际的 Node、pnpm、git 版本。
 2. 线级上下文地图主体，按[上下文地图模板](references/context-map.md)的主体部分写到 `tmp/line-<线>/context-map.md`：本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、本线最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。调度者已给地图主体时只核对，不重写。
-3. 线级工程约束 `tmp/line-<线>/constraints.md`：按下表逐项写本线适用的具体条目，不适用的写「不适用，因为……」。每张卡的 `spec.md` 引用它，只补本卡特有的条目。
+3. 线级约束 `tmp/line-<线>/constraints.md`：按[实施规格模板](references/spec-template.md)的「原则与约束」写本线适用的条目，只写一次。每张卡的 `spec.md` 引用它，只补本卡特有的条目。
 
-   | 小节 | 拥有者 |
-   | --- | --- |
-   | 研发品味 | `.meta_harness/agents/roles/engineering-taste.md` |
-   | 演进政策与提交 | `docs/engineering/publication.md`「当前演进与消费者」、`CONTRIBUTING.md`「提交与 PR 表达」 |
-   | 领域边界与依赖方向 | `docs/architecture/layers-and-dependencies.md`「依赖关系与禁止方向」「领域语义依赖与模型边界」 |
-   | SOLID 与 TypeScript 实践 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」。写范围含 `.ts` 时加载 `pstack:typescript-best-practices` |
-   | 防御指导 | `docs/defensive-patterns.md`「当前指导」 |
-   | 验证级别 | `docs/engineering/quality.md`「按风险选择接受实现的看法」 |
-
-4. 方法与角色：按 `docs/engineering/skills.md` 的采用表选本线共用的技能，读它们的正文。
+4. 方法与角色：按 `docs/engineering/skills.md`「三层分工」选本线共用的技能，读它们的正文。写或改代码前读 `ub-mode`。
    - playbook 按主工作类型选：feature 对 feature，bug 对 bug-fix，refactor 对 refactoring，performance 对 perf-issue，investigation 对 investigation，maintenance 对文档或工具维护所用的实际 playbook。没有贴合的 playbook 时才用 `pstack:figure-it-out`。
    - 其他 pstack 技能：改现有代码或要判断落点时加载 `pstack:how`。要查已有决定的理由时加载 `pstack:why`。交付主要是文档时加载 `pstack:technical-writing` 与 `pstack:unslop`。
    - 认领时不加载实施类 playbook，也不加载 Babysit、Shipping 与 Orchestrate。
-   - Matt 补充（`to-spec`、`to-tickets`、`code-review`、`codebase-design`）设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 补充与候选」钉住的 SKILL.md 文件。
+   - Matt `to-spec`、`to-tickets` 设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 补充与候选」钉住的 SKILL.md 文件。
    - 读者角色：从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 为准，然后运行 `uv run --locked omne-documentation context --root . --role <id>`。结果写进线级地图主体。
    - 执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类选 `developer` 并定 `implementation_kind`。产品设计起草选 `product-design-drafter`。不把 `qa`、`implementation-reviewer`、`design-reviewer` 当开工执行者。
 5. 出口：自包含检查四问能答（从哪个提交开工、能改哪些文件、做到什么程度算完成、每条事实出处在哪）。
@@ -57,7 +48,7 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 5. `start` 与读回：在工作树里按 `tools/dev-flow/src/integration/README.md` 运行 `start`（`authority` 是派发评论 URL，`issue`、`revision`、`attempt` 取 binding），再用 `status` 读回：`bound=true`，issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。拒绝时停下，按错误码处理，不手写 context。线内的卡 targetBase 与批次分支分叉是预期结果。云端会话的 `start` 成功后，交付身份会在卡上发一条「开工事实」评论，这是预期结果。
 6. 看板与正文：Stage 改为 In progress。线内的卡由线会话改。不在线内的卡由调度者改，执行者在认卡评论里请求。云端会话用 `delivery-stage`，以 `gh run view` 读到 `Stage: In progress` 才算完成。然后回填卡正文的开工读回表与当前进展。
 7. 本卡附录：在 `tmp/issue-<号>/context-map.md` 按[上下文地图模板](references/context-map.md)只写本卡附录（绑定、本卡依据、缺口、受影响成员），主体引用线级地图。调度者给了任务信息包 `task-pack.md` 时只读不改。
-8. `spec.md`：写本卡实施规格，放 `tmp/issue-<号>/spec.md`。方法用 Matt `to-spec`，格式用[实施规格模板](references/spec-template.md)。工程约束一节引用线级 `constraints.md`，只写本卡新增条目。测试接缝：线内的卡由线会话定并写进 spec。不在线内的卡须经卡负责人确认。接续已有 attempt 的卡只写已采用规格之外的差额。
+8. `spec.md`：写本卡实施规格，放 `tmp/issue-<号>/spec.md`。方法用 Matt `to-spec`，格式用[实施规格模板](references/spec-template.md)。「原则与约束」一节引用线级 `constraints.md`，只写本卡新增条目。测试接缝：线内的卡由线会话定并写进 spec。不在线内的卡须经卡负责人确认。接续已有 attempt 的卡只写已采用规格之外的差额。
 9. `plan.md`：写交付计划，放 `tmp/issue-<号>/plan.md`。方法用 Matt `to-tickets`，格式用[交付计划模板](references/plan-template.md)。开头放进度总览，按模板「进度更新」维护。每个切片写端到端行为与阻塞关系、对应的卡判据与验收勾选项、文件、命令、角色与模型分配、[七步待办](references/card-loop.md#切片的七步)。每条卡判据都要有切片和验收命令。
 10. 待决事项：先按「过度设计 → 自己能定 → 必须上报」筛一遍。只有产品规则、范围变化、新的破坏性契约改动、须接受者本人做的动作才上报。不在线内的卡上报写进卡评论。线内的卡把缺口写进 `line` 技能范式规定的 `tmp/line-<线>/state.md`，并按范式「进度记录：两层，固定格式」把受阻状态写进「本波进度」；不发求方案评论，不等回复。暂停依赖切片，其他工作继续。没有工作可继续时按 `line` 交回 blocked。其余自己具名裁定，写进 `spec.md`「已定事项」。
 11. 核对 `plan.md` 里的依据链接：每个相对链接与锚点都能解析，「第 N 行」的引用指向正确的范围，引号中的节名能在对应文件的标题中找到。`check:docs` 不检查 `tmp/`，这一步要自己做。

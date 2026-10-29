@@ -8,64 +8,51 @@
 
 | 层 | 什么时候做 | 产物（放 `tmp/line-<线>/`） | 什么时候刷新 |
 | --- | --- | --- | --- |
-| 会话级 | 线会话第一次开工，做一次 | 身份与长程目标、方法地图、环境记录、线级上下文地图主体、线级工程约束 | 换会话接续时读回，不重做；delta 写明拥有者正文变了才改对应条目 |
+| 会话级 | 线会话第一次开工，做一次 | 身份与长程目标、方法地图、环境记录、线级上下文地图主体、线级约束 | 换会话接续时读回，不重做；delta 写明拥有者正文变了才改对应条目 |
 | 波级 | 每次读到 delta | 本波变化摘要：新 F、reduce 做过的消费者迁移、外域变化、本波任务 | 每个 delta 一次，只写变化 |
 | 卡级 | 每张卡开工 | 本卡附录、`spec.md`、`plan.md` | 只写本卡相对线级产物的差额 |
 
 判断一项内容放哪一层，只问一句：**它在下一张卡、下一波还成立吗？** 成立就上移一层，只写一次。
 
-反面做法：每张卡重读整套设计正文、重写完整上下文地图、重新选技能、重新整理工程约束。这些都属于会话级，做一次就够。
+反面做法：每张卡重读整套设计正文、重写完整上下文地图、重新选技能、重新整理线级约束。这些都属于会话级，做一次就够。
 
 ## 会话级：开工时一次做好
 
 1. **身份与长程目标。** 写下：本线是谁、父卡、负责的卡与预案队列、里程碑卡的关闭门、本线结果服务哪道门。以后每个局部决定都回到这里核对。
 2. **加载技能。** 先 `line`；每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`。改文档前加载 `asd-ste100`。
-3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 pstack playbook，哪些 Matt 技能会用到，哪些项目规矩最常碰到。
+3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 playbook，三层各用哪些技能，哪些项目规矩最常碰到。
 4. **环境。** 依赖安装、生成 agent 投影、`check:agents` 通过；记下 Node、pnpm、git 版本。
 5. **线级上下文地图主体。** 本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。reduce 已给出时只核对。
-6. **线级工程约束 `constraints.md`。** 按 `claim` 技能「线级一次性准备」的六项表（研发品味、演进政策与提交、领域边界与依赖方向、SOLID 与 TypeScript、防御指导、验证级别）逐项写本线适用条目。
+6. **线级约束 `constraints.md`。** 按 `claim` 技能 spec 模板的「原则与约束」写本线适用条目（ub-mode 加项目独有判断），只写一次。
 
 出口：自包含四问能答：从哪个提交开工、能改哪些文件、做到什么程度算完成、每条事实的出处在哪。
 
 ## 方法地图：什么时候用什么
 
-规则与项目差异归 `docs/engineering/skills.md`，下表只是索引。
+三层分工、来源与项目差异归 `docs/engineering/skills.md`「三层分工」，下表只是索引。
 
-| 场合 | 方法 | 本项目的依据与边界 |
+| 层 | 用在哪 | 方法 |
 | --- | --- | --- |
-| 进入一张卡，按主工作类型走流程 | pstack `poteto-mode` 的 playbook：feature、bug-fix、refactoring、perf-issue、investigation；没有贴合的才用 `figure-it-out` | `skills.md` 采用表；工作类型归 `docs/engineering/work-types.md` |
-| 改现有代码前弄清结构与落点 | `pstack:how`；查已有决定的理由用 `pstack:why` | 不替代拥有者正文 |
-| 写本卡实施输入 | 方法用 Matt `to-spec`（直接读 `skills.md` 钉住的 SKILL.md）；模板用 `claim` 技能的 `references/spec-template.md` | 已明确的输入不重复审批；正式形状归实际拥有者 |
-| 切交付切片 | 方法用 Matt `to-tickets`；模板用 `claim` 技能的 `references/plan-template.md` | 首版前不做 expand–contract 兼容过渡，同波迁移消费者（`publication.md`） |
-| 设计模块、核类型外承诺 | Matt `codebase-design`；pstack `architect` | 不变量、失败、配置与性能承诺 |
-| 写 TypeScript | `pstack:typescript-best-practices` | `docs/architecture/layers-and-dependencies.md` |
-| 定位缺陷 | Matt `diagnosing-bugs`（按需）；pstack bug-fix playbook | 先便宜复现，再怀疑环境（P6） |
-| 评审 | `review-code`、`review-docs`、`review-delivery`；Matt `code-review` 分开判 Standards 与 Spec | 力度按 `quality.md` 风险级别。实现评审在 L2、L3 才派（`implementation-reviewer` 角色定义） |
-| 写文档与报告 | `asd-ste100`；`pstack:technical-writing`、`pstack:unslop` | 保留事实、条件与置信度 |
-| 写给子代理的简报 | Matt `writing-for-agents` | 只给指针、写明完成与停止条件 |
+| 流程 | 进入一张卡，按主工作类型推进 | pstack `poteto-mode` 的 playbook：feature、bug-fix、refactoring、perf-issue、investigation；没有贴合的才用 `figure-it-out`。改代码前用 `pstack:how`，查已有决定的理由用 `pstack:why` |
+| 写法 | 写本卡 `spec.md`、切 `plan.md`、写子代理简报 | Matt `to-spec`、`to-tickets`、`writing-for-agents`；格式用 `claim` 技能的 `references/spec-template.md` 与 `plan-template.md` |
+| 品味 | 写或改代码、写 spec 的「原则与约束」、评审「设计与实践」一面 | `ub-mode`；项目独有判断用 `engineering-taste.md`「维度分解与正交」 |
+| 按需 | 模块承诺、缺陷、评审、TypeScript、文档 | Matt `codebase-design`、`diagnosing-bugs`、`code-review`；`pstack:architect`；`pstack:typescript-best-practices`；`review-code`、`review-docs`、`review-delivery`；`asd-ste100`、`pstack:technical-writing`、`pstack:unslop` |
 
 ### 开发为主的线：工程准则
 
-开发线的产出是代码，质量主要由下列准则决定。准则本身归各拥有者，本表只回答三件事：去哪读、在哪一层落地、由什么检查。检查方式沿整洁回路（`docs/clean-loop.md`）的思路：能量的交给传感器，量不了但能问出后果的交给评审，剩下的交给人。
+准则本身归各拥有者，下表只指路。
 
-| 准则 | 拥有者（先读这里） | 落在哪一层 | 怎样检查 |
-| --- | --- | --- | --- |
-| 顶层架构遵循 | `docs/orientation.md`（领域地图、核心方向、三类顶层图）；`docs/architecture/README.md`；`docs/architecture/structure.md`「三条分解轴」「组合保证由谁承担」；IC 约定 `docs/architecture/cordis-integration-conventions.md` 与 constraints | 会话级：线级地图主体写本线涉及的架构条款与组合承担者。卡级：`spec.md` 写本卡受约束的条款 | `review-code` 正确性一面按已采用架构判；冲突按 `AGENTS.md`「冲突入口」交拥有者，不从实现反推 |
-| 研发品味 | `.meta_harness/agents/roles/engineering-taste.md`「通用判断」「维度分解与正交」「TS/JS 代码」 | 会话级：`constraints.md` 写本线适用条目。卡级：设计前先命名问题所在的轴与拥有者，对照「四种做坏的样子」与「迷失了轴的信号」 | 评审只在规则对应具体后果时形成发现，品味观察不替代验收判据 |
-| 领域边界隔离 | `docs/architecture/layers-and-dependencies.md`「依赖关系与禁止方向」「领域语义依赖与模型边界」「外域概念的进入方式」「隔离语义，不隐藏责任」；`docs/domains/boundaries.md`「关键接缝与组合承担者」 | 卡级：新增或改变跨域概念、公开字段、端口或状态分支时，在 `spec.md` 回答「设计与开发的核对」五问 | `pnpm run lint:deps` 报依赖违规与环；评审查「被集成方是否认识了集成方」「适配器里是否静默补造规则」 |
-| 面向契约实现 | `.meta_harness/agents/roles/developer-contract.md`「采用的接口与行为承诺是实际输入」；成员 SPEC 与 `api/`（`docs/member-documentation.md`）；`integration.md`「里程碑与契约基线」「可加改动」 | 卡级：`spec.md` 列出本卡实现的精确契约条款与版本；卡的 `contract:` 标签决定只许可加还是允许破坏性改动 | change-scope 与 contract-check 在准入里核对快照差异；契约与实现冲突时上报，不改契约迁就实现 |
-| SOLID 与 DDD 方法 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」 | 卡级：用单一职责区分变化原因，用依赖倒置与接口隔离表达消费者所需能力；限界上下文与防腐层用于判断概念归属与转换 | `review-code` 设计与实践一面，问题要指到具体类型、函数或分支；这些方法不替代业务语义与不变量的判断 |
-| TypeScript 最佳实践 | `pstack:typescript-best-practices` 与 `principle-type-system-discipline`；`engineering-taste.md`「TS/JS 代码」；包边界归 `docs/workspace.md` 与 `publication.md` | 写范围含 `.ts` 时会话级加载；实施简报写明适用条目 | `typecheck`、`lint:rules`、`lint:oxlint`；评审查非法状态是否可表示、外部数据是否在边界解析 |
-| 防御与失败语义 | `docs/defensive-patterns.md`「当前指导」；`quality.md`「公开能力、策略与观测」 | 卡级：`spec.md` 写本卡的失败、未知、取消、清理与外部效果；策略做成可配置对象，默认值只是初值 | 评审查错误是否被静默变成成功、disposer 是否被当成可逆 |
-| 结构读数与测试判别力 | `docs/clean-loop.md`「回路怎么转」（四条硬线）；`docs/verification.md` 的声明边界 | 若干切片后集中跑一次，不在每个切片跑 | `pnpm run metrics --base <taskBase> --coverage`（圈复杂度、CRAP）；`pnpm run mutation --base <taskBase>`（差分变异）；红项逐条交代。工具不覆盖的范围写「未测量」，不写零 |
-| 新责任边界 | `harness-design-handbook` 技能（覆盖、性质、Cordis 承载） | 只在出现新的能力或责任边界时加载 | `design-reviewer` 按指定的一种判断评审 |
-
-三层里的复用方式：
-
-- **会话级**写一次：线级地图主体里的架构条款与组合承担者、`constraints.md` 的六项（研发品味、演进政策与提交、领域边界与依赖方向、SOLID 与 TypeScript、防御指导、验证级别）。
-- **卡级**只写差额：本卡实现的契约条款、跨域概念的五问回答、失败语义、新增的约束条目。
-- **实施简报**按 `.meta_harness/agents/roles/developer-task.md` 给 developer 子代理：精确契约与版本、写范围、适用的品味与防御条目、`implementation_kind`、完成与停止条件。不把整套准则抄进简报，只给指针与本卡条目。
-- **交回**时，交接报告逐项交代传感器读数和评审结论，红项写处置。
+| 准则 | 拥有者（先读这里） |
+| --- | --- |
+| 顶层架构遵循 | `docs/orientation.md`；`docs/architecture/README.md`；`docs/architecture/structure.md`「三条分解轴」「组合保证由谁承担」；IC 约定 `docs/architecture/cordis-integration-conventions.md` 与 constraints |
+| 研发品味 | ub-mode（`docs/engineering/skills.md`「ub-mode 研发品味」）；`.meta_harness/agents/roles/engineering-taste.md`「维度分解与正交」 |
+| 领域边界隔离 | `docs/architecture/layers-and-dependencies.md`「依赖关系与禁止方向」「领域语义依赖与模型边界」；`docs/domains/boundaries.md`「关键接缝与组合承担者」 |
+| 面向契约实现 | `.meta_harness/agents/roles/developer-contract.md`「采用的接口与行为承诺是实际输入」；成员 SPEC 与 `api/`；`integration.md`「里程碑与契约基线」「可加改动」 |
+| SOLID 与 DDD 方法 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」 |
+| TypeScript | `pstack:typescript-best-practices`；包边界归 `docs/workspace.md` 与 `publication.md` |
+| 防御与失败语义 | `docs/defensive-patterns.md`「当前指导」；`quality.md`「公开能力、策略与观测」 |
+| 结构读数与测试判别力 | ub-mode 的「做好」一段，用本项目的 `metrics`、`mutation` 与 loop:status 量，阈值归整洁回路（`docs/clean-loop.md`「回路怎么转」）；声明边界归 `docs/verification.md` |
+| 新责任边界 | `harness-design-handbook` 技能 |
 
 文档为主的线把「顶层架构遵循」「领域边界隔离」换成文档治理（`docs/engineering/documentation.md`「位置与唯一源」）与 `asd-ste100`；其余照用。
 
@@ -113,7 +100,7 @@
 
 1. 认卡、核对 binding、建工作树、运行 `start` 并读回（`claim` 技能「卡级增量准备」第 1–6 步）。
 2. 本卡附录：绑定、本卡依据、缺口、受影响成员。主体引用线级地图。一页以内。
-3. `spec.md`：方法按 `to-spec`，格式按 `claim` 技能的 spec 模板。工程约束一节引用线级 `constraints.md`，只写本卡新增条目。
+3. `spec.md`：方法按 `to-spec`，格式按 `claim` 技能的 spec 模板。「原则与约束」一节引用线级 `constraints.md`，只写本卡新增条目。
 4. `plan.md`：方法按 `to-tickets`，格式按 `claim` 技能的 plan 模板。每个切片写端到端行为、对应判据、验收命令、角色与模型分配、七步待办。
 5. 待决事项先筛三层：过度设计删掉 → 自己能定的具名裁定写进 `spec.md` → 只有产品规则、范围变化、新的破坏性契约改动才算缺口。缺口不提问：停依赖部分，继续其余，整波做不下去就交回。
 

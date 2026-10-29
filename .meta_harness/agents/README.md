@@ -2,7 +2,7 @@
 
 本目录维护独有 skills、角色和宿主 hooks 的唯一编译源。实际条目以下表和源目录为准。
 执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。
-通用工程方法从[技能采用入口](../../docs/engineering/skills.md)加载 pstack 与已选 Matt 方法，不复制插件正文。
+通用研发方法按[技能采用入口](../../docs/engineering/skills.md#三层分工)的三层（流程 poteto-mode、写法 Matt、品味 ub-mode）加载，不复制外部技能正文。
 
 | 输入 | 输出（相对显式指定的输出根） |
 |---|---|
@@ -66,7 +66,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `claim` | active Line 或独立任务的卡级准备、实施与五节交回；跨波协调按 line |
 | `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
 | `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |
-| `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、SOLID 与 TypeScript 实践，并固定跑差分变异 |
+| `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、按 ub-mode 判设计与实践，并固定跑差分变异 |
 
 工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
 提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，

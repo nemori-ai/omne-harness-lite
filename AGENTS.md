@@ -54,7 +54,7 @@
 | 隔离并行、接续或交付 | [工作约定](docs/engineering/workflow.md#责任与协作交接)拥有每写者隔离、共享单写与清理条件；[交付边界](docs/engineering/publication.md)拥有保存与权限；[贡献指南](CONTRIBUTING.md)拥有报告和接受 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
 
-任务方法由已采用 pstack 主线与 Matt 补充提供，触发、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md)。派发写者明确检出、分支、写范围、必要输入、完成及停止条件；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
+任务方法分三层：流程用 pstack `poteto-mode`，交付方案与规格的写法用 Matt 加项目模板，研发品味用 ub-mode；分工、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md#三层分工)。派发写者明确检出、分支、写范围、必要输入、完成及停止条件；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
 
 ## Cursor Cloud specific instructions
 

@@ -41,8 +41,9 @@
 
 1. `line` 技能。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
 2. 每张卡按 `claim` 技能推进。
-3. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
-4. 改文档前加载 `asd-ste100`。
+3. 写或改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
+4. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
+5. 改文档前加载 `asd-ste100`。
 
 技能、工具和策略的版本：{{skill_source_ref}}。你只在开工边界采用新版本。
 
@@ -57,22 +58,9 @@
 
 ## 4 方法地图
 
-方法的采用与项目差异归 `docs/engineering/skills.md`。下表只是索引。完整的方法地图在 `line` 技能的 `references/work-paradigm.md`。
-
 本线的主工作类型：{{line_work_kind}}。
 
-| 场合 | 方法 |
-| --- | --- |
-| 进入一张卡 | pstack `poteto-mode` 按主工作类型选 playbook：feature、bug-fix、refactoring、perf-issue、investigation。没有贴合的 playbook 时用 `figure-it-out` |
-| 改代码前弄清结构 | `pstack:how`。查已有决定的理由用 `pstack:why` |
-| 写本卡的 `spec.md` | Matt `to-spec` |
-| 切本卡的 `plan.md` | Matt `to-tickets` |
-| 核对类型以外的承诺 | Matt `codebase-design` |
-| 写 TypeScript | `pstack:typescript-best-practices` |
-| 评审 | `review-code`、`review-docs`、`review-delivery`。Matt `code-review` 分开判断 Standards 与 Spec |
-| 写子代理简报 | Matt `writing-for-agents` |
-
-Matt 的方法，项目自己的模板。`spec.md` 与 `plan.md` 的格式用 `claim` 技能的 `references/spec-template.md` 和 `references/plan-template.md`。
+研发方法分三层：流程用 pstack `poteto-mode` 的 playbook，写法用 Matt `to-spec`、`to-tickets`、`writing-for-agents` 加 `claim` 技能的 spec 与 plan 模板，品味用 `ub-mode`。分工与项目差异归 `docs/engineering/skills.md`「三层分工」，本线的方法地图在 `line` 技能的 `references/work-paradigm.md`。
 
 进度按固定格式记录。格式归下列拥有者，本消息不复述：
 
@@ -105,16 +93,7 @@ Matt 的方法，项目自己的模板。`spec.md` 与 `plan.md` 的格式用 `c
 
 ### 开发为主的线：工程准则
 
-下列准则各有拥有者。本消息不复述规则。各准则落在哪一层、由什么检查，见 `work-paradigm.md`。
-
-- 顶层架构：`docs/orientation.md`、`docs/architecture/README.md`。
-- 研发品味与维度分解：`.meta_harness/agents/roles/engineering-taste.md`「维度分解与正交」。
-- 领域边界：`docs/architecture/layers-and-dependencies.md`「领域语义依赖与模型边界」。
-- 面向契约实现：`.meta_harness/agents/roles/developer-contract.md`「采用的接口与行为承诺是实际输入」。
-- SOLID 与 DDD：`docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」。
-- TypeScript：`pstack:typescript-best-practices`，以及 `engineering-taste.md`「TS/JS 代码」。
-- 防御与失败语义：`docs/defensive-patterns.md`。
-- 结构读数与差分变异：`docs/clean-loop.md`「回路怎么转」。
+准则与拥有者见 `work-paradigm.md`「开发为主的线：工程准则」。本消息不复述规则。
 
 ## 5 当前分工与冻结点
 

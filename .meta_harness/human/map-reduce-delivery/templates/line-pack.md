@@ -34,8 +34,8 @@ Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡�
 
 | 项目 | 本次值 |
 | --- | --- |
-| 主工作类型与 playbook | <开发为主或文档为主，及 pstack playbook> |
-| 本线的工程约束 | <适用的拥有者条目。Line 在会话级写进 `constraints.md`> |
+| 主工作类型与 playbook | <开发为主或文档为主，及 poteto-mode playbook。三层方法归 `docs/engineering/skills.md`「三层分工」> |
+| 本线的约束 | <适用的 ub-mode 条目与项目独有判断。Line 在会话级按 spec 模板「原则与约束」写进 `constraints.md`> |
 | 风险级别与评审 | <`docs/engineering/quality.md` 的级别，及 `review-code`、`review-docs`、`review-delivery` 的力度> |
 | 角色策略 | <策略版本、两宿主的解析结果。requested 与 observed 分开记录> |
 | 线内检查 | <本卡成员的类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。全量准入归 reduce> |

@@ -1,6 +1,6 @@
 # 本卡实施规格模板（spec.md）
 
-方法用 Matt `to-spec`：综合已有输入，不重新访谈；先找测试接缝，越高越好、越少越好。本模板在它的骨架上加入本项目的依据、原则与工程约束。规则本身归各拥有者，本模板只组织一次交付的输入。
+方法用 Matt `to-spec`：综合已有输入，不重新访谈；先找测试接缝，越高越好、越少越好。本模板在它的骨架上加入本项目的依据与「原则与约束」。规则本身归各拥有者，本模板只组织一次交付的输入。
 
 使用规则：
 
@@ -16,7 +16,7 @@
 
 - 卡与派发：<卡链接>；派发 <派发评论链接>；taskBase `<sha>`
 - 上一层：线级地图 `tmp/line-<线>/context-map.md`；线级约束 `tmp/line-<线>/constraints.md`；本卡附录 `tmp/issue-<号>/context-map.md`
-- 主工作类型与 playbook：<feature | bug | refactor | performance | investigation | maintenance> → <pstack playbook>
+- 主工作类型与 playbook：<feature | bug | refactor | performance | investigation | maintenance> → <poteto-mode playbook>
 - 风险级别：<L0–L3>，依据 `docs/engineering/quality.md`「按风险选择接受实现的看法」：<一句理由>
 
 ## Problem Statement
@@ -37,19 +37,28 @@
 
 - <决定>：<理由与依据>
 
-## 设计原则与工程约束
+## 原则与约束
 
-先命名本卡问题所在的轴与拥有者（`engineering-taste.md`「维度分解与正交」），再写本卡相对线级约束的新增条目。
+研发品味、哲学与第一性原理以 ub-mode 为基础（`docs/engineering/skills.md`「ub-mode 研发品味」）。读完 ub-mode 正文，列出本卡适用的条目与理由，不抄原文：
 
-| 轴或准则 | 拥有者 | 本卡的具体条目 |
+| ub-mode 条目 | 本卡为什么适用、落在哪里 |
+| --- | --- |
+| <条目名> | <> |
+
+测试与验证先设计：写出判据、反例与变红验证（每条测试在什么缺陷下变红），再实施。实施可按 TDD 顺序。
+
+项目独有判断与约束。先命名本卡问题所在的轴与拥有者，再写相对线级约束的新增条目：
+
+| 判断或约束 | 拥有者 | 本卡的具体条目 |
 | --- | --- | --- |
 | 问题所在的轴与拥有者 | `engineering-taste.md`「维度分解与正交」 | <轴名；拥有者；有没有让一条轴决定另一条轴> |
 | 顶层架构 | `docs/architecture/` 相应正文；IC 约定 | <受约束的条款与组合承担者，或「无新增」> |
 | 领域边界与依赖方向 | `docs/architecture/layers-and-dependencies.md` | <引入的外域概念与进入方式，或「无新增」> |
 | 面向契约 | 成员 SPEC 与 `api/`；`integration.md`「可加改动」 | <实现的契约条款与版本；`contract:` 级别> |
-| SOLID、DDD 与 TypeScript | `layers-and-dependencies.md`「方法依据与采用范围」；`pstack:typescript-best-practices` | <本卡特有条目，或「无新增」> |
 | 防御与失败语义 | `docs/defensive-patterns.md`；`quality.md`「公开能力、策略与观测」 | <见下一小节> |
 | 演进政策 | `docs/engineering/publication.md`「当前演进与消费者」 | <同批迁移的消费者；删除的被替代实现> |
+
+SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与采用范围」。写范围含 `.ts` 时加载 `pstack:typescript-best-practices`。
 
 ### 跨域概念的五问
 

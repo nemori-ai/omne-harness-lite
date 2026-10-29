@@ -1,7 +1,7 @@
 ---
 name: review-code
 description: >
-  用子代理评审代码变更：对架构与规格的遵守、圈复杂度与 CRAP、SOLID 与 TypeScript 实践，并固定运行差分变异。派发前父会话先在 PR head 上自己复跑类型检查与 lint。
+  用子代理评审代码变更：对架构与规格的遵守、圈复杂度与 CRAP、按 ub-mode 判设计与实践，并固定运行差分变异。派发前父会话先在 PR head 上自己复跑类型检查与 lint。
   agent 在开出 PR 后，若候选含代码变更，主动加载并执行，不等用户点名。
   交付边界另走 review-delivery。
 ---
@@ -23,7 +23,7 @@ description: >
 
 结构读数：在候选工作树运行 `pnpm run lint:deps` 和 `pnpm run metrics --coverage`。给不给 `--base`、给哪个，照简报里「度量与差分变异的基线」一段的判定。`lint:deps` 的依赖违规、成员和组之间的环原样列出。`pnpm run metrics` 只摘这次变更函数的圈复杂度和 CRAP。两者读同一张 dependency-cruiser 依赖图。读数是抽查线索。CRAP 低不表示行为正确。命令失败时交回命令和输出，不手算冒充工具结果。两条命令的量测范围以执行仓库 `docs/verification.md` 为准；当前 `pnpm run metrics` 不量 `tools/` 和 `scripts/`。命令退出 0 但改动不在度量范围内时，这一面写「未覆盖」，不写零发现。逐个列出未覆盖的改动文件，并给出替代证据，例如直接对改动函数算圈复杂度。替代证据标明是手算，不写成工具读数。
 
-设计与实践：是否遵守 SOLID，以及本项目工程约定和 `pstack:typescript-best-practices`。问题要指到具体类型、函数或分支。
+设计与实践：判据是 ub-mode（先做对、再做好，见执行仓库 `docs/engineering/skills.md`「ub-mode 研发品味」）、本项目工程约定和 `pstack:typescript-best-practices`。SOLID 的采用范围归 `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」。问题要指到具体类型、函数或分支。
 
 差分变异：在候选工作树运行 `pnpm run mutation`。给不给 `--base`、给哪个，照简报里「度量与差分变异的基线」一段的判定。这一面固定要跑。该命令只报告，只覆盖改动行和快层。存活与无覆盖原样列出。命令失败时交回命令和输出，不把未跑写成零存活。该命令只量 `packages/` 和 `apps/`。改动不在这个范围内时，这一面写「未覆盖」，逐个列出未覆盖的改动文件，并给出标明是手工的替代证据，例如手工变异。把存活判为等价变异前，先说明能否改夹具或代码让它可判定，作为发现交回。
 

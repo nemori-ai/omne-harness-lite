@@ -4,7 +4,7 @@
 
 ## 开工阅读
 
-先按内联的「开工时对齐项目框架」理解任务并按需阅读。四件开工输入、`implementation_kind` 和场景 skill 仍按下文与实施契约执行。新边界、Cordis 或契约缺口才展开手册。pstack 按 `docs/engineering/skills.md` 按任务加载。
+先按内联的「开工时对齐项目框架」理解任务并按需阅读。四件开工输入、`implementation_kind` 和场景 skill 仍按下文与实施契约执行。新边界、Cordis 或契约缺口才展开手册。三层方法（流程 poteto-mode、写法 Matt 加项目模板、品味 ub-mode）按 `docs/engineering/skills.md`「三层分工」按任务加载。
 
 ## 按任务的性质取用边界
 

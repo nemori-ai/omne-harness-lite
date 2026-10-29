@@ -31,7 +31,7 @@
 
 本区组织现行项目约定及已授权的共享／场景结构。它引用[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)、[源码布局](../workspace.md)、[验证说明](../verification.md)、[防御指导](../defensive-patterns.md)、[整洁回路](../clean-loop.md)和[贡献指南](../../CONTRIBUTING.md)，不替代这些拥有者。
 
-pstack port 0.9.79 是本区实际工程方法来源，Matt 1.3.1 的六项补充按缺口触发，diagnosing-bugs／retro 仍候选。本机 Codex 安装和发现已核对，精确来源及读取方式归[技能引用](skills.md)；原生调用、hook 信任与执行、步骤遵循及行为结果分别判断。
+本区的研发方法分三层：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。分工、精确来源及读取方式归[技能引用](skills.md#三层分工)；宿主发现、步骤遵循及行为结果分别判断。
 
 独立任务隔离并行、cloud 成果及时用 Git 远端保存及相称验证已接受，分别从工作、交付与质量入口展开。TypeScript 与 Node 的自有主题指导不再另设正文；方法转入技能入口，配置、命令、包边界和具体生命周期继续由实际拥有者维护。更完整 TS 政策及运行支持、容量和环境例外仍有具名未决，页面退役不表示这些缺项已解决。宿主实际加载、hooks 观察和行为结果仍分别取证。
 
