@@ -300,7 +300,10 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
 
 
 def _extract(repo: Path, base: str, dest: Path) -> None:
-    archive = subprocess.Popen(["git", "-C", str(repo), "archive", base], stdout=subprocess.PIPE,
+    # The files as the commit holds them: core.autocrlf (true by default in Git for Windows) would turn every LF
+    # into CRLF on the way out, and a seed or a mutant written against the commit would no longer match.
+    archive = subprocess.Popen(["git", "-C", str(repo), "-c", "core.autocrlf=false", "archive", base],
+                               stdout=subprocess.PIPE,
                                env=repository_env(os.environ))
     extract = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout, capture_output=True)
     archive.stdout.close()
