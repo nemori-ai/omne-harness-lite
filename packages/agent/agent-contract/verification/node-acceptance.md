@@ -153,8 +153,8 @@
 | SC-AG-157 | 140 至 159 Loop 节点与控制入口 | 主调用在途时新输入到达：已记录的最终请求不变，回复之后 I8 以新 step 转 I0 承接这条输入，已承接的输入不进入下一个输入批 | NA-I0-2、NA-I2-2、NA-I8-2 |
 | SC-AG-158 | 140 至 159 Loop 节点与控制入口 | E1 的资格核验不可用、I1 的读取端口不可用时都转 W0 且不前进；另一次执行已为终态时 E1 转 F4 | NA-E1-2、NA-E1-3、NA-I1-3 |
 | SC-AG-159 | 140 至 159 Loop 节点与控制入口 | 调模型之后位置的扩展返回 proceed 时 M4 有一个 Passage；返回 inject 时消息经 X5、Q1、Q2、Q4 进入历史一次；取得 stopped 且 terminal 为 failed 时记录控制请求并转 F1 | NA-M4-2、NA-X5-1、NA-X5-2 |
-| SC-AG-138 | 100 至 139 扩展、整批动作与消息准入 | 一个回复含两个完整的工具调用部件：I4 按回复顺序解析两个 Action；官方准入都 allow 并带准入证据；两个判断都到达结论之前 Tool 的发起数为零，之后屏障记 open 并写 `batchDecision` | NA-I4-2、NA-A0-1、NA-A1-1 |
-| SC-AG-139 | 100 至 139 扩展、整批动作与消息准入 | 同一位置有两个扩展：按装配顺序建立扩展调用，每个调用先提交初始迁移再被调用，合法输出经校验写入最终 Conclusion；另一次该位置没有适用扩展时，E3 单独提交 `position` 前移，不产生扩展调用 | NA-X0-3、NA-X1-1、NA-X3-1、NA-E3-3 |
+| SC-AG-250 | 250 至 259 扩展与整批动作的补充 | 一个回复含两个完整的工具调用部件：I4 按回复顺序解析两个 Action；官方准入都 allow 并带准入证据；两个判断都到达结论之前 Tool 的发起数为零，之后屏障记 open 并写 `batchDecision` | NA-I4-2、NA-A0-1、NA-A1-1 |
+| SC-AG-251 | 250 至 259 扩展与整批动作的补充 | 同一位置有两个扩展：按装配顺序建立扩展调用，每个调用先提交初始迁移再被调用，合法输出经校验写入最终 Conclusion；另一次该位置没有适用扩展时，E3 单独提交 `position` 前移，不产生扩展调用 | NA-X0-3、NA-X1-1、NA-X3-1、NA-E3-3 |
 
 ## 与父卡的出入
 
@@ -181,3 +181,14 @@
 | NA-R0-5 | R0 | 2 | 2.4、2.5 | Tool commit-unknown 保存原引用后 lookup，not-accepted 仍沿原 invoke 接续，association-unknown 保留 intent；后来 rejected 不排除历史尝试，当前资格不足保留未知与交接责任 | SC-AG-216、SC-AG-217、SC-AG-222、SC-AG-223 | 待实现 |
 
 已有 NA-R0-4、NA-M0-1、NA-M6-1 的实现证据只覆盖 Model。Tool 另按本表与新增场景验证，不从原 admission 查询推广为 Tool 协议。F0 多前台 Tool 取消对应关系与 Q11/Q13 的其余机制仍属后续工作。
+
+## 契约清理补充目标
+
+本节登记 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) 新增的场景。场景的必须结果只归 [scenarios.md](scenarios.md)。
+
+| 行号 | 节点 | 阶段与部分 | 子卡 | 用例名 | SC-AG | 实现用例 |
+| --- | --- | --- | --- | --- | --- | --- |
+| NA-A0-7 | A0 | 3（扩展链） | 3.4 | 官方准入声明的必需需要读不到时，该调用不开始，没有 `admit` 调用，本批全部动作被拒绝，屏障记 all-denied。可选需要缺席时官方准入照常调用，`permissions` 里没有该名字的条目。作者扩展与受信系统扩展的不可用处置属于声明判断与装配，不在 A0 | SC-AG-139 | 待实现。声明判断的 `needs-not-allowed` 反例已有 agent-contract 的[公开入口测试](../tests/public-entry.spec.ts)，不代表节点通过 |
+| NA-A0-8 | A0 | 3（扩展链） | 3.4 | `admit` 收到按需要名的读取列表：次序按声明次序，`need` 互不相同，空列表表示没有读取而不表示有授权，`decision.answer` 只携带选择或明确拒答 | SC-AG-226 | 待实现。`ActionAdmission` 输入的形状已有[类型测试](../tests/public-api-names.spec-d.ts)与 authorization 的[适配器测试](../../../identity/authorization/tests/port-adapters.spec.ts)，不代表节点通过 |
+
+SC-AG-240 至 SC-AG-249 覆盖 Journal 提供者对 `entry` 事件的投影。它们没有对应的 Loop 节点，不建 NA 行。准绳是 `./testing` 的一致性套件 `agentJournalEntriesConformance`，内存 Journal 经 [journal-received.spec.ts](../../agent/tests/journal-received.spec.ts) 运行它。会话日志一侧的提供者按集成节点的迁移提示运行同一套件。内存 Journal 通过不证明耐久、崩溃与跨进程行为。
