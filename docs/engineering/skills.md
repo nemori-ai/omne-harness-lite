@@ -12,7 +12,7 @@
 | 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents` | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | 项目自己的 spec、plan 模板（`claim` 技能的 `references/`），模板格式归项目 |
 | 研发哲学、品味与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对，再做好，并遵循日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
 
-三层之上，项目独有的判断（维度分解与正交、领域语义依赖、Cordis 承载）归[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)与 `harness-design-handbook`；交付质量的量度归[整洁回路](../clean-loop.md)。测试先行负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
+三层之外，项目独有的判断（维度分解与正交、领域语义依赖、Cordis 承载）归[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)与 `harness-design-handbook`；交付质量的量度归[整洁回路](../clean-loop.md)。先设计的测试与验证负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
 
 采用方法不替代正式语义接受，也不扩大任务权限。
 
@@ -96,7 +96,7 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 
 [Codex 适配](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/poteto-mode/references/codex-tools.md)和[恢复存储](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/poteto-mode/references/resume-storage.md)属于必要参考。实际工具、停止能力、线程容量及定时方式以当前宿主为准。映射中的旧工具名称不能视为本会话能力；vendored scripts 的 gt 泛称不能成为统一安装条件，按具体脚本检查 Node、bun、gh 或其它实际依赖。
 
-## Matt 补充与候选
+## Matt 写法入口
 
 Matt 在本项目只承担「怎样写」：方法用 Matt，模板格式用项目自己的。
 
@@ -114,21 +114,21 @@ Matt 在本项目只承担「怎样写」：方法用 Matt，模板格式用项�
 
 ## ub-mode 研发品味
 
-[ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 是写或改代码时的判断基础。它从 poteto-mode 的原则精简而来，一份正文覆盖三段：先做对、再做好、日常实践。
+[ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 是写或改代码时的判断基础。它的 [README](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/README.md) 说明它松散地基于 poteto 规则（poteto-mode／pstack）的部分内容，并做了精简。一份正文覆盖三段：先做对、再做好、日常实践。
 
 - **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时。每次读完整一份，约 4 KB。
 - **取代原则清单：** poteto-mode 的 Principles 一节（二十个 `pstack:principle-*` 子技能）由 ub-mode 取代。不要求逐个加载这些子技能，也不要求在回复里逐条点名所读原则；某条 ub-mode 写得太短、确实需要展开时，再读对应的 `pstack:principle-*`。poteto-mode 的 playbook、子代理与回复写法照常使用。
-- **TDD：** 先设计好必要的测试与验证。实施可以按 TDD 顺序：先写会失败的测试，看它因预期的原因失败，再写最小的改动。测不诚实时不写坏测试，按 ub-mode 原文。
+- **TDD：** 先设计好必要的测试与验证。实施可以按 TDD 顺序，做法按 ub-mode 的 TDD 一节。
 
 ub-mode 与本项目的差异：
 
 | ub-mode 原文 | 本项目的对应与处置 |
 |---|---|
-| Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --base <taskBase> --coverage` 量圈复杂度、覆盖率与 CRAP；阈值与带归[整洁回路](../clean-loop.md)，不另定 10 |
+| TDD：先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；实施可以按 TDD 顺序，与[整洁回路](../clean-loop.md)互补 |
+| Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --base <taskBase> --coverage` 量圈复杂度、覆盖率与 CRAP；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。度量若干切片后集中跑一次、集中修复，子切片只跑功能门禁 |
 | Dryer：消除相似度 0.8 以上的重复 | 用 loop:status 的重复行读数；阈值归整洁回路 |
-| Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation --base <taskBase>`（差分变异，只量 `packages/`、`apps/`）；等价变异写理由 |
-| 度量与变异 | 若干切片后集中跑一次、集中修复，子切片只跑功能门禁 |
-| Maintain a glossary of domain terms | 术语归统一语言（`.meta_harness/design/ubiquitous_language/`），不另建词表 |
+| Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation --base <taskBase>`（差分变异，只量 `packages/`、`apps/`）；等价变异写理由。变异与度量一起集中跑、集中修复 |
+| ub-mode 的术语表一条 | 术语归统一语言（`.meta_harness/design/ubiquitous_language/`），不另建词表 |
 | Keep a Log 并在完成时报告 | 过程记录留任务 tmp，交付时写交接报告；长任务可用 `pstack:show-me-your-work` |
 | Commit and Push：最后推到主线 | 提交格式与来源 trailer 归 [CONTRIBUTING](../../CONTRIBUTING.md)；主干只经 PR 与 github-gate 进入，见[多层分支集成](integration.md) |
 | Worktree Cleanup | 清理条件归[工作约定](workflow.md#责任与协作交接) |

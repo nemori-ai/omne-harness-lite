@@ -19,7 +19,7 @@
 ## 工作步骤
 
 1. 选定调查或设计终点。pstack Investigation playbook 用 `how` 理解职责；需要查原因或取舍时加 `why`。只读调查在带来源和限制的回答后结束。
-2. 需求、偏好或概念尚不清时，按采用范围用 [Matt grill-with-docs](../skills.md#matt-补充与候选)。其 grilling／domain-modeling 依赖只写回现有语义拥有者，不建立第二词表或中央 ADR。
+2. 需求、偏好或概念尚不清时，按采用范围用 [Matt grill-with-docs](../skills.md#matt-写法入口)。其 grilling／domain-modeling 依赖只写回现有语义拥有者，不建立第二词表或中央 ADR。
 3. 需要接口或边界设计时参考 [pstack architect／arena](../skills.md#pstack-方法入口)，比较有效方案及后果。实际 port 来源及已接受差异沿技能入口；架构方法默认进入实现不能覆盖调查或设计的任务终点。
 4. 综合已讨论内容时用 Matt `to-spec` 形成单次交付规格；验收与依赖明确后用 `to-tickets` 切可交付单元。按[两类规格的承接规则](../documentation.md#单次交付规格与长期规格)引用长期源并写回获准的持续保证。普通任务的结果与验收边界不能被模板复制成另一份权威。已明确的输入不重复访谈，技能自动发 issue 不授予发布权限。
 5. 按判断对象选择相称复核，报告目标、责任、条件、未决及可实施输入。新承诺获得接受且任务包括实施时，再转[新功能](feature.md)或[迁移](refactoring.md)；不要把结论自动变成实现。
