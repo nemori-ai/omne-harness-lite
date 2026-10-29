@@ -6,7 +6,7 @@ description: >
 
 # 派发
 
-规则归 `docs/engineering/integration.md`「集成节点的清单」，其中「集成节点怎样工作」「线会话记录」「接受与逐收口续接」与本技能直接相关。Reduce 的阶段归 `docs/engineering/map-reduce-states.md` 第 3 节，首次消息的派发状态归第 6 节。首次开工和恢复时先读这些节。
+协作规则归 `docs/engineering/integration.md`「集成节点的清单」，其中「线会话记录」「读写交叉的两类」与本技能直接相关。Reduce 的阶段、阶段内的核对、收口顺序与提问前三问归 `docs/engineering/map-reduce-states.md` 第 3 节，首次消息的派发状态归第 6 节。首次开工和恢复时先读这些节。
 
 本技能给 PREPARE、DISPATCH 与 RELEASE_WAVE 的动作顺序。SERVE 与 VERIFY_WAVE 按 `integrate`。人只与唯一的 reduce 会话讨论设计。线开工后没有波中问答通道。
 
@@ -18,7 +18,7 @@ description: >
 
 ## 1. 整理需求，定位已有卡
 
-从有效卡、已接受正文和精确 F 读事实，不从主检出猜当前版本。人已授权且可查清的事项自行决定。向人提问前先过 `integration.md`「提问前三问」。只把剩余的真实冲突或权限决定交人。
+从有效卡、已接受正文和精确 F 读事实，不从主检出猜当前版本。人已授权且可查清的事项自行决定。向人提问前先过 `map-reduce-states.md`「提问前三问」。只把剩余的真实冲突或权限决定交人。
 
 ## 2. 建卡
 
@@ -26,9 +26,9 @@ description: >
 
 ## 3. 波准入
 
-分解当前波前，按 `integration.md`「波段编排的判断原则」权衡关键路径、容量、反馈时延与风险。
+分解当前波前，按[波段编排的判断方法](references/wave-planning.md)权衡关键路径、容量、反馈时延与风险。
 
-按 `integration.md`「不变量」核对：开工依据已接受且合入提交在 F；跨线写集不相交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。在收口点的检出上用 `tools/dev-flow/src/delivery/scope-cli.ts` 对本波绑定求交，同线顺序任务先按线聚合。退出 1 时不开波，改分解，不降低判据。退出 0 时逐条复核 `read-overlap-frozen:` 行，写进线包。
+按 `integration.md`「不变量」核对：开工依据已接受且合入提交在 F；跨线写集不相交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。在收口点的检出上按 `integration.md`「读写交叉的两类」运行 `scope-cli.ts`，对本波绑定求交，同线顺序任务先按线聚合。退出 1 时不开波，改分解，不降低判据。退出 0 时逐条复核 `read-overlap-frozen:` 行，写进线包。
 
 只正式建当前波任务及 R(w)。后一波只做预案，不预建卡。
 
@@ -68,7 +68,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
    - 先加载：`prepare_commands`、`skill_source_ref`。`skill_source_ref` 写明 `docs/engineering/skills.md` 来源表里 pstack、Matt 与 ub-mode 的 revision，或指向该来源表的固定提交。
    - 长程目标：`milestone_close_condition`、`line_later_wave_plan`。
    - 方法：`line_work_kind`、`role_policy_ref`。
-   - 分工：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。
+   - 当前分工与冻结点：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。
    - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_health_command`、`line_state_path`、`final_report_ref`。
 
    分支、taskBase 与写范围只写 binding 的引用。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
@@ -91,15 +91,13 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 ## 放行：发 delta，关闭收口卡
 
-收口顺序归 `integration.md`「接受与逐收口续接」。整波检查由 `integrate` 完成。之后按下列顺序执行：
+收口顺序与放行守卫归 `map-reduce-states.md`「收口顺序」。整波检查由 `integrate` 完成。之后按下列顺序执行：
 
 1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继。
 2. 为每条存续线写一条 delta，idle 线也写。正文按 `.meta_harness/human/map-reduce-delivery/templates/line-delta.md`，首行是 `<!-- line-delta -->`，固定项归「线会话记录」。终态时每条存续线都发 terminal delta。
 3. 用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，然后读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
 4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
-5. 关闭 R(w)，读回关闭状态。关闭 R(w) 是放行动作。
-
-任一存续线缺 delta，非终态时缺后继收口卡，或 R(w) 的接受决定没有读回，都不关闭 R(w)。单卡接受和只观察到的 closed 事件都不能代替整波放行。
+5. 关闭 R(w)，读回关闭状态。守卫不满足时不关闭。
 
 ## 恢复
 

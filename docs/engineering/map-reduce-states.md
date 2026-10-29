@@ -1,6 +1,13 @@
 # Map-Reduce 负责人状态与恢复
 
-本页拥有 Reduce 与 Line 的阶段、两个协调边界和组合不变式。工程责任与记录格式归[集成清单](integration.md#集成节点的清单)，精确命令和编码归 [dev-flow](../../tools/dev-flow/src/delivery/README.md)。本页定义外部里程碑的常驻 Reduce 与 Line。内部 map 节点只持有本次任务，不因此成为常驻线。规则是规范，不表示运行验证已经完成。
+本页拥有 Reduce 与 Line 的阶段、恢复、收口顺序、redo 与接管处置、两个协调边界和组合不变式。协作规则、记录格式、读写交叉、失败处理、等待命令与平台写入归[集成清单](integration.md#集成节点的清单)，精确命令和编码归 [dev-flow](../../tools/dev-flow/src/delivery/README.md)。本页定义外部里程碑的常驻 Reduce 与 Line。线会话为单张卡派出的子代理只持有这一次任务，不因此成为常驻线。规则是规范，不表示运行验证已经完成。本页的公式是人工核对清单，没有工具计算。
+
+## 术语
+
+- 交付线：卡的路线与写入归属的单位，由[线归属表](delivery-lines.json)登记，见[交付线](integration.md#交付线)。
+- 线会话（Line）：推进一条交付线的常驻会话，跨波不换。交付线是归属，线会话是执行者。
+- Reduce（集成节点）：同一里程碑唯一的 reduce 会话，兼调度者。它建卡、派发、集成并收口每一波。
+- 收口点 F(w)：第 w 波收口时实际读回的联调轨道提交。R(w) 是第 w 波的收口卡。下一波从 F(w) 开工。
 
 ## 1 事实与副作用
 
@@ -55,11 +62,11 @@ stateDiagram-v2
 
 | 阶段 | Reduce 的动作 | 离开条件 |
 | --- | --- | --- |
-| PREPARE | 备齐目标、设计、边界和首波输入。用 `scope-cli` 求交，写集相交或产品语义读写交叉时改分解。经[提问前三问](integration.md#提问前三问)处理必要分歧 | 首波任务、R1 与 F0 已建并读回，写集求交通过，进入 DISPATCH。必要输入缺失且不能自主决定时留在 PREPARE，只把真实决定交人 |
+| PREPARE | 备齐目标、设计、边界和首波输入，核对项见[阶段内的核对](#阶段内的核对)。用 `scope-cli` 求交，写集相交或产品语义读写交叉时改分解。经[提问前三问](#提问前三问)处理必要分歧 | 首波任务、R1 与 F0 已建并读回，写集求交通过，进入 DISPATCH。必要输入缺失且不能自主决定时留在 PREPARE，只把真实决定交人 |
 | DISPATCH | 按第 6 节依次生成、演练、校验首次消息，再打开供人转发。挂起[等待](integration.md#等待监督) | 消息已展示且等待已挂起，进入 SERVE。「已展示」不是「人已转发」，更不是「Line 已开工」 |
-| SERVE | 逐个处理批次 PR 与交回记录。blocked 或 failed 交回时发 redo delta 或接管 | WaveReady 成立且没有进行中的轨道写入，进入 VERIFY_WAVE |
-| VERIFY_WAVE | 在联调轨道头运行整波检查与里程碑联调命令 | 通过后进入 RELEASE_WAVE。检查失败或候选变化时回 SERVE，旧证据失效 |
-| RELEASE_WAVE | 按[收口顺序](integration.md#接受与逐收口续接)建下一波卡与 R(w+1)，发布全部存续线 delta，接受并读回 R(w)，关闭 R(w) | R(w) 已关闭且有后续波时回 SERVE，w 加 1，F 取 F(w)。下一波有新线加入时进入 DISPATCH，为新线生成首次消息。最后一波关闭后进入 FINALIZE |
+| SERVE | 逐个处理批次 PR 与交回记录，见[阶段内的核对](#阶段内的核对)。blocked 或 failed 交回时按 [4.1](#41-遇阻交回与处置) 发 redo delta 或接管 | WaveReady 成立且没有进行中的轨道写入，进入 VERIFY_WAVE |
+| VERIFY_WAVE | 在联调轨道头运行整波检查与里程碑联调命令，见[阶段内的核对](#阶段内的核对) | 通过后进入 RELEASE_WAVE。检查失败或候选变化时回 SERVE，旧证据失效 |
+| RELEASE_WAVE | 按[收口顺序](#收口顺序)建下一波卡与 R(w+1)，发布全部存续线 delta，接受并读回 R(w)，关闭 R(w) | R(w) 已关闭且有后续波时回 SERVE，w 加 1，F 取 F(w)。下一波有新线加入时进入 DISPATCH，为新线生成首次消息。最后一波关闭后进入 FINALIZE |
 | FINALIZE | 收各线最终报告，核对里程碑结束条件 | 齐备后进入 DONE。仍有未交项时继续等待既定期限，不伪造完成 |
 | DONE | 只对账和诊断 | 新的里程碑另建工作实例，不复活旧写权 |
 
@@ -85,6 +92,51 @@ control 的转移如下：
 - 人请求暂停或取消时，control 进入 STOPPING。Reduce 停止新派发与写入，确认实际停写后进入 STOPPED。STOPPED 不等于 DONE。
 - 等待人的决定时，Reduce 只冻结依赖该决定的动作，继续处理其他事项。人的决定只改变下一波输入，当前波 Line 的冻结输入不变。
 
+### 阶段内的核对
+
+PREPARE：
+
+1. 只正式建当前波任务及 R(w)。后一波只做预案，不预建更远的卡。
+2. 核对已接受依据、基线、消费者影响、参加交付的线与全部存续线清单、期限，以及 Claude Code 与 Codex 两种宿主的角色模型分配（见 `line` 技能的工作范式）。
+3. 在收口点的检出上做写集求交与读写交叉核对。命令、退出码与复核方法归[读写交叉的两类](integration.md#读写交叉的两类)。
+
+SERVE 一次接管一个批次 PR：
+
+1. 保留原始 head、候选 head、targetBase 和 merge 链。
+2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
+3. 同步后先生成宿主投影并运行 `pnpm run check:agents`，再运行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。
+4. 候选或基线变动后，重做受影响的验证与独立评审。
+5. 按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者，Reduce 不自动批准。
+6. 以实际 PR 与轨道的读回记录 merged。合入被回退时，原结果重新未解决。
+
+VERIFY_WAVE：
+
+1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。
+2. 任一 pending、未知副作用、未解决失败或失效证据都阻止收口。
+3. 检查失败由 Reduce 处置。不把失败标红后仍当成功放行。
+
+### 收口顺序
+
+收口顺序固定：
+
+1. 在联调轨道头完成整波检查，见上一节的 VERIFY_WAVE。
+2. 按真实结果调整后一波预案。继续推进时，建下一波任务卡与收口卡 R(w+1)。里程碑终态时不建虚构后继。
+3. 为每条存续线在线父卡发布 delta，包括 idle 线。终态时为每条存续线发布 terminal delta。delta 的格式归[线会话记录](integration.md#线会话记录)。
+4. R(w) 按自身交付条件接受。Reduce 读回接受决定。
+5. 关闭本波收口卡 R(w)，并读回关闭状态。关闭 R(w) 是放行动作。
+
+任一存续线缺 delta，非终态时缺后继收口卡，或 R(w) 的接受决定没有读回，Reduce 都不能关闭 R(w)。同一次收口的各 delta 中的 F 必须一致。只观察到 R(w) 的 closed 事件不等于放行。放行以前面各步都已读回为前提。轨道提升和 stable 权限仍沿[多层分支集成](integration.md)的原规则。
+
+### 提问前三问
+
+Reduce 向人提设计或方案问题前，先检查三问：
+
+1. 是否当前里程碑所必需。
+2. 方案是否增加不必要的复杂度。
+3. 能否依据现有授权、系统品味、顶层架构、领域责任、当前需求和相邻已接受机制自主决定。
+
+先删除过度设计、简化方案、完成可自行查证的判断。只有真实目标冲突、授权不足、必要信息不可获得或缺少选择依据的实质问题才向人提出。提出时给出证据、最小选项、推荐及后果，说明三问为何未消除问题。Line 不因此获得波中提问例外。
+
 ## 4 Line 状态空间
 
 ```text
@@ -108,9 +160,9 @@ stateDiagram-v2
 | 阶段 | Line 的动作 | 离开条件 |
 | --- | --- | --- |
 | 开工 | 从首次消息取得身份、长程目标、方法地图与分工，从 delta 取得 F 与本波 assignment。核对任务卡上的 binding | active 或 redo：binding 齐全且任务卡开放，进入执行。事件接收器的健康状态和自检结果不阻止开工。idle：进入等待。输入缺失且无法自主解决：进入交回，结果为 blocked |
-| 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审 | 本波完成，或无工作可继续，进入交回 |
-| 交回 | 开 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录 | 交回记录已发布，Line 停写，进入等待 |
-| 等待 | 用低层等待命令等线父卡上的下一条 `line-delta`，不结束会话回合 | 按 delta 的 assignment 转移。超时后用同一起点重跑。等待命令失败时，Line 记录状态，等人转告 |
+| 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审。局部细节在授权内决定，不吸收新评论或新设计 | 本波完成，或无工作可继续，进入交回 |
+| 交回 | 开批次 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录。三样交回物的格式归[线会话记录](integration.md#线会话记录) | 交回记录已发布，Line 停写，进入等待 |
+| 等待 | 用低层等待命令等线父卡上的下一条 `line-delta`，不结束会话回合。命令归[等待监督](integration.md#等待监督) | 按 delta 的 assignment 转移。超时后用同一起点重跑。等待命令失败时，Line 记录状态，等人转告 |
 | 终态 | 交最终报告 | 停止。只清理自己的资源 |
 
 ```text
@@ -121,6 +173,8 @@ ReduceQuestionCommentEffects(Line) = ∅
 ```
 
 开工阶段只做工作树、认领和环境准备，不提前改产品文件。交回阶段只写报告、PR 元数据和交回记录，不继续实现。波中看到的评论和提前返回的等待结果只保存，Line 不跳过交回直接进入下一波。
+
+没有远端通路时，Line 在本机保存交回记录，并打开供人带回。Line 不声称交回记录已发布。
 
 恢复时，Line 读线父卡上最后一条 delta 和自己最后一条交回记录，判断所处阶段。已交回的 Line 回到等待，不重开代码写入。恢复不跳过未读的 idle delta。重复进程不得同时持有同一 Line 执行。
 
@@ -133,7 +187,7 @@ Reduce 收到 blocked 或 failed 后，核对事实和剩余责任，继续处�
 - redo：Reduce 更正输入，在任务卡上登记新 attempt，再发 redo delta。Line 读到后回开工，按新 binding 同波重做。波号不变。
 - 接管：Reduce 完成剩余工作。Line 继续等待下一条 delta。
 
-处置不需要另写认领、替代或处置记录。处置本身不等于 resolved，WaveReady 仍须满足合入或有效范围调整。普通评论、超时和旧 attempt 都不能触发重做。
+处置不需要另写认领、替代或处置记录。Line 不恢复旧执行，也不凭普通评论返工。处置本身不等于 resolved，WaveReady 仍须满足合入或有效范围调整。普通评论、超时和旧 attempt 都不能触发重做。
 
 例：A 在波 2 缺少跨域契约，交回 blocked。Reduce 补齐契约。如果 Reduce 自己完成，A 继续等待下一条 delta。如果 Reduce 发 redo，A 同波按新 attempt 重做。此时 R2 仍未关闭，必须等新结果合入后才能收口。任何路径都不能让 Reduce 等 A 完成，同时 A 只等 R2 关闭。
 
@@ -160,7 +214,7 @@ Reduce 收到 blocked 或 failed 后，核对事实和剩余责任，继续处�
 
 ## 6 初始派发消息的生成与人工转发
 
-初始消息模板见 [Line 首次派发消息](../../.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md)。它面向新 Line 会话，不是本卡内部 map 节点 brief。已有 Line 下一波读取 delta，不重新创建人类会话或重发首次消息。
+初始消息模板见 [Line 首次派发消息](../../.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md)。它面向新 Line 会话，不是线会话给子代理的简报。已有 Line 下一波读取 delta，不重新创建人类会话或重发首次消息。
 
 ```text
 renderInitial(m,l,dispatchRevision,hostProfile,machineBinding) → temporaryFile

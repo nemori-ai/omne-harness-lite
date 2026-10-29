@@ -30,7 +30,7 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 
 4. 方法与角色：按 `docs/engineering/skills.md`「三层分工」选本线共用的技能，读它们的正文。写或改代码前读 `ub-mode`。
    - playbook 与其他 pstack 技能：按 `line` 技能 `references/work-paradigm.md` 的方法地图选。
-   - Matt `to-spec`、`to-tickets` 设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 写法入口」钉住的 SKILL.md 文件。
+   - Matt `to-spec`、`to-tickets` 设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 入口」钉住的 SKILL.md 文件。
    - 读者角色：从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 为准，然后运行 `uv run --locked omne-documentation context --root . --role <id>`。结果写进线级地图主体。
    - 执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类选 `developer` 并定 `implementation_kind`。产品设计起草选 `product-design-drafter`。不把 `qa`、`implementation-reviewer`、`design-reviewer` 当开工执行者。
 5. 出口：自包含检查四问能答（从哪个提交开工、能改哪些文件、做到什么程度算完成、每条事实出处在哪）。
@@ -68,8 +68,8 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 
 1. 把 `plan.md` 进度总览改成最终状态，与提交历史一致。
 2. 推送候选，开 PR。线内的卡 base 是本线批次分支，PR 合入批次分支即完成线内合入。不在线内的卡 base 按 binding 的 route，正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」。署名与 trailer 都按 `CONTRIBUTING.md`。
-3. 在卡评论发五节交接报告，五节归[任务信息包](references/task-pack.md)第 7 节：做了什么、没做什么、发现的冲突、给集成节点的提示、评审闭合。评论同时写 PR 链接与固定 head。「做了什么」逐条对照卡判据写证据与未覆盖，并原样贴进度总览。判据要求的证据贴在卡评论里，只放在任务 tmp 的证据接受者不据它判断。原件太大时贴摘要和关键行，并写明原件位置与哈希。规则归 `agent-delivery.md`「5. 提交成果供接受」。
-4. 回填卡正文「成果交回」，Stage 改为 delivered。线内由线会话运行 `board-cli.ts delivered`。不在线内的卡由调度者改，执行者在交回评论里请求。
+3. 在卡评论发五节交接报告。五节的格式归 `docs/engineering/integration.md`「线会话记录」，[任务信息包](references/task-pack.md)第 7 节给本卡的填写要求。评论同时写 PR 链接与固定 head。「做了什么」逐条对照卡判据写证据与未覆盖，并原样贴进度总览。判据要求的证据贴在卡评论里，只放在任务 tmp 的证据接受者不据它判断。原件太大时贴摘要和关键行，并写明原件位置与哈希。规则归 `agent-delivery.md`「5. 提交成果供接受」。
+4. 回填卡正文「成果交回」，Stage 改为 In review（运行 `board-cli.ts delivered`）。线内的卡由线会话在卡的 PR 合入批次分支时运行。不在线内的卡由调度者运行，执行者在交回评论里请求。
 5. 线内：本线本波的卡全部交完后，批次 PR 与线父卡上的 `<!-- line-handoff -->` 交回记录按 `line` 技能「交回」阶段发布。
 6. 不自己接受，不自己合入批次分支以外的分支。接受归有权者。批次合入轨道归 `integrate` 技能。不在线内的卡进轨道由调度者按 `branch-integration` 技能处理。
 

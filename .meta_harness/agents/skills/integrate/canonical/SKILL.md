@@ -6,7 +6,7 @@ description: >
 
 # 集成
 
-规则归 `docs/engineering/integration.md`「集成节点的清单」，其中「集成节点怎样工作」「线怎样工作」「失败处理」「接受与逐收口续接」「等待监督」与本技能直接相关。Reduce 的阶段归 `docs/engineering/map-reduce-states.md` 第 3 节。首次开工和恢复时先读这些节。工程规则、接受与权限沿拥有者，本技能不另授权限。
+协作规则归 `docs/engineering/integration.md`「集成节点的清单」，其中「线会话记录」「失败处理」「等待监督」与本技能直接相关。Reduce 的阶段、阶段内的核对、收口顺序与提问前三问归 `docs/engineering/map-reduce-states.md` 第 3 节，redo 与接管处置归第 4.1 节。首次开工和恢复时先读这些节。工程规则、接受与权限沿拥有者，本技能不另授权限。
 
 本技能给 SERVE 与 VERIFY_WAVE 的动作顺序，以及 RELEASE_WAVE 的入口。建卡、首次消息与发 delta 按 `dispatch`。
 
@@ -41,7 +41,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 1. 在 reduce 隔离候选上同步目标分支，处理冲突。
 2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。
 3. 验证：生成宿主投影，运行 `pnpm run check:agents`，再运行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。候选或基线变动后，重做受影响的验证与评审。
-4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。发 gate 时对线父卡运行 `board-cli.ts integrating`，规则归 `agent-delivery.md`「4. 推进和更新状态」。
+4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。发 gate 时对线父卡运行 `board-cli.ts integrating`。批次内的各张任务卡停在 In review，按卡接受时再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
 5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
 
 ### blocked 或 failed：redo 或接管
@@ -58,17 +58,11 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
 2. 检查失败或候选变化时回到监督，旧证据失效。
 3. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
-4. 调整后一波预案时，按 `integration.md`「波段编排的判断原则」用本波实际耗时、集成负荷和新事实修正取舍。
+4. 调整后一波预案时，按 `dispatch` 技能的 `references/wave-planning.md` 用本波实际耗时、集成负荷和新事实修正取舍。
 
 ## 提问前三问
 
-向人提任何设计或方案问题前，先检查三问：
-
-1. 是否当前里程碑所必需。
-2. 方案是否增加不必要的复杂度。
-3. 能否依据现有授权、系统品味、顶层架构、领域责任、当前需求和相邻已接受机制自主决定。
-
-先删过度设计、简化方案、完成可自行查证的判断。只有真实目标冲突、授权不足、必要信息不可获得或缺少选择依据时，才给人证据、最小选项、推荐与后果，并说明三问为何没有消除这个问题。其余自行决定并留简短依据。
+向人提任何设计或方案问题前，先按 `map-reduce-states.md`「提问前三问」逐问检查。其余自行决定并留简短依据。
 
 ## 恢复
 
