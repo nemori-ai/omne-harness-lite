@@ -6,12 +6,12 @@
 
 ## 模块与依赖
 
-本成员有两个入口，各一个源文件。现在两个文件都只有模板标记，没有导出。
+本成员有两个入口，各一个源文件。根入口重导出契约类型，`./cordis` 导出服务定义。
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/session-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 模板标记 |
-| `@omne-harness/session-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `SessionService` 与各端口抽象类、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 模板标记 |
+| `@omne-harness/session-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已导出 |
+| `@omne-harness/session-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `SessionService` 与各端口抽象类、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 已导出 |
 
 ```mermaid
 flowchart LR
@@ -41,9 +41,11 @@ flowchart LR
 
 四个面挂在同一个键 `session` 上，因为它们共享同一条权威提交序列与同一组构造依赖。按调用方切分由每个操作允许的调用方类表达，不由服务键表达。代价：一个调用方插件拿到的服务对象上有它用不到的面，核对靠调用方类与调用资格。
 
-### 只有事务端口与内部主体进 `inject`
+### 访问检查、事务端口与内部主体进 `inject`
 
-事务端口缺席时，任何读写都不成立；内部主体缺席时，本组的协调器与调度器不能提交命令。两者缺一，服务停在 `PENDING`。内部主体是应用装配交付的运行时对象，按 IC-16 经服务键提供，不进插件配置。其余端口按调用现取，一个端口缺席只影响需要它的操作。`inject` 没有可选形式，如果把这些端口也放进 `inject`，任何一个缺席都会让整个服务停下（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。
+访问检查缺席时不能执行公开读写；事务端口缺席时，任何读写都不成立；内部主体缺席时，本组的协调器与调度器不能提交命令。三者任一缺席，服务停在 `PENDING`。内部主体是应用装配交付的运行时对象，按 IC-16 经服务键提供，不进插件配置。其余端口按调用现取，一个端口缺席只影响需要它的操作。`inject` 没有可选形式，如果把这些端口也放进 `inject`，任何一个缺席都会让整个服务停下（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)）。
+
+访问检查的 Service 定义与键已导出。真实 Context 测试只覆盖独立检查子类的装卸和委派。生产必需注入及操作检查仍未实现。
 
 ### 调用方类由装配声明
 
@@ -68,8 +70,8 @@ flowchart LR
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 根入口没有运行值 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 类型重导出进入后，仍断言运行导出为空 |
-| `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，改为核对导出集合与键常量 |
-| 不导入实现成员（性质 7） | 没有 | 核对源码、生成声明与产物的导入 |
+| `./cordis` 只有定义 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言导出集合与键常量 | 提供者继续从定义取得键 |
+| 不导入实现成员（性质 7） | public-entry 测试检查源入口 | 核对源码、生成声明与产物的导入 |
 | 调用方类与端口缺席的表现 | 没有 | 提供者的测试，见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：

@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-`index.ts` 以 `export type *` 重导出 `@omne-harness/session-contract` 的类型，没有运行值。`cordis.ts` 导出 `SessionService` 与 `sessionKey`、十个端口抽象 Service 与键常量、`SessionIntercept`、`Context` 与 `Events` 增补。被替代的 `sessionToolStartFence`（已被替代）与 `sessionDeliveryRelease`（已被替代）不定义。具名维护者由负责人指定。
+`index.ts` 以 `export type *` 重导出 `@omne-harness/session-contract` 的类型，没有运行值。`cordis.ts` 导出 `SessionService` 与 `sessionKey`、十一个依赖抽象 Service 与键常量（含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`）、`SessionIntercept`、`Context` 与 `Events` 增补。被替代的 `sessionToolStartFence`（已被替代）与 `sessionDeliveryRelease`（已被替代）不定义。具名维护者由负责人指定。

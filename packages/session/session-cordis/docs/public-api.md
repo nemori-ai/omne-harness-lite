@@ -23,7 +23,7 @@
 
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
-| `SessionService` 的具体子类 | `./cordis` | 类，同时是插件。静态 `inject` 只写事务端口与内部主体的键，不写服务键 `session` | [性质 1、2](../SPEC.md#服务与依赖)、[插件与服务](cordis.md#插件与服务) |
+| `SessionService` 的具体子类 | `./cordis` | 类，同时是插件。静态 `inject` 只写访问检查、事务端口与内部主体的键，不写服务键 `session` | [性质 1、2](../SPEC.md#服务与依赖)、[插件与服务](cordis.md#插件与服务) |
 | 配置 Schema | `./cordis` | 子类的静态 `Config`，Standard Schema。字段 `policy`（`SchedulingPolicy` 的逐字段覆盖）、`disposeWaitMs` 与 `admission`（省略或 `'none'`） | [性质 3](../SPEC.md#服务与依赖)、[配置](cordis.md#配置) |
 
 本成员不导出服务键常量、端口键常量或事件增补，它们只由服务定义成员导出（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11)）。本成员也不转导出工厂、`SchedulingPolicy` 或 `defaultSchedulingPolicy`，它们只由 [session](../../session/docs/public-api.md) 导出，独立宿主从那里取。根入口不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。

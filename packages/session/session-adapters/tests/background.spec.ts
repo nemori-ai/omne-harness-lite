@@ -35,6 +35,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
     producer = { kind: 'tool' as const, call: tool.pending.reference }
   ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'control',
         input: {
@@ -158,6 +159,7 @@ it('a real background slot may predate K, but cannot replace its original propag
     target = operation(deriveDriveOperation({ kind: 'control', execution: s.execution, control }))
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'control',
         input: {

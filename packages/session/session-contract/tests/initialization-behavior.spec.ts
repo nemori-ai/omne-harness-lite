@@ -9,6 +9,7 @@ import {
   refused,
   createMemorySessionEvidenceBridge,
   createMemorySessionTransactions,
+  createPolicySessionAccessCheck,
   initializationFixtureGuard,
   pendingReasonsOf,
   testingWorkspace,
@@ -42,10 +43,16 @@ const attached = {
 describe('trusted initialization admission and atomic creation', () => {
   it('does not equate a candidate, caller JSON or a copied credential with actual adoption', async () => {
     const s = initializationScenario()
-    const unconfigured = createMemorySessionTransactions<string>()
+    const unconfigured = createMemorySessionTransactions<string>({
+      accessCheck: createPolicySessionAccessCheck(() => ({
+        kind: 'allowed',
+        evidence: evidence('access'),
+      })),
+    })
     expect(
       refused(
         await unconfigured.commit({
+          access: s.access,
           command: s.command,
           guards: [initializationFixtureGuard(s.facts())],
         }),
@@ -56,19 +63,25 @@ describe('trusted initialization admission and atomic creation', () => {
     const guards = await s.prepare(s.command)
     expect(
       refused(
-        await s.port.commit({ command: s.command, guards: structuredClone(guards) }),
+        await s.port.commit({
+          access: s.access,
+          command: s.command,
+          guards: structuredClone(guards),
+        }),
         'copied',
       ).kind,
     ).toBe('invalid')
     expect(refused(await s.port.readWork(s.access), 'no publication').kind).toBe('denied')
     s.source.controls.available(false)
-    expect(refused(await s.port.commit({ command: s.command, guards }), 'unavailable').kind).toBe(
-      'unavailable',
-    )
+    expect(
+      refused(await s.port.commit({ access: s.access, command: s.command, guards }), 'unavailable')
+        .kind,
+    ).toBe('unavailable')
     s.source.controls.available(true)
     const bridge = createMemorySessionEvidenceBridge({ initialization: s.source })
     const created = succeeded(
       await s.port.commit({
+        access: s.access,
         command: s.command,
         guards: succeeded(await bridge.prepare(s.command), 'bridge'),
       }),
@@ -80,9 +93,12 @@ describe('trusted initialization admission and atomic creation', () => {
       'session.adoption',
     ])
     s.source.controls.eligible(false)
-    expect(refused(await s.port.commit({ command: s.command, guards }), 'revoked retry').kind).toBe(
-      'denied',
-    )
+    expect(
+      refused(
+        await s.port.commit({ access: s.access, command: s.command, guards }),
+        'revoked retry',
+      ).kind,
+    ).toBe('denied')
   })
 
   it('commits two ordered registrations with ready sources in one batch and rebuilds all original facts', async () => {
@@ -170,6 +186,7 @@ describe('trusted initialization admission and atomic creation', () => {
     const duplicate = s.complete(ready('context', 'a'), 'different-result-operation')
     const receipt = succeeded(
       await s.port.commit({
+        access: s.access,
         command: duplicate,
         guards: await s.prepare(
           duplicate,
@@ -194,13 +211,18 @@ describe('trusted initialization admission and atomic creation', () => {
     })
     const guards = await s.prepare(s.command)
     s.port.controls.failNextInitializationCommit()
-    expect(refused(await s.port.commit({ command: s.command, guards }), 'failed commit').kind).toBe(
-      'unavailable',
-    )
+    expect(
+      refused(
+        await s.port.commit({ access: s.access, command: s.command, guards }),
+        'failed commit',
+      ).kind,
+    ).toBe('unavailable')
     expect(refused(await s.port.readWork(s.access), 'absent').kind).toBe('denied')
     expect(s.port.controls.entriesOf(s.access.tenant, s.access.session)).toEqual([])
     s.port.controls.loseNextInitializationReply()
-    expect(refused(await s.port.commit({ command: s.command, guards }), 'lost reply')).toEqual({
+    expect(
+      refused(await s.port.commit({ access: s.access, command: s.command, guards }), 'lost reply'),
+    ).toEqual({
       kind: 'commit-unknown',
       operation: s.command.input.operation,
     })
@@ -218,7 +240,7 @@ describe('trusted initialization admission and atomic creation', () => {
       last: log.at(-1)?.id,
     })
     const recalled = succeeded(
-      await s.port.commit({ command: s.command, guards }),
+      await s.port.commit({ access: s.access, command: s.command, guards }),
       'same operation',
     )
     expect(recalled).toEqual({ receipt: { ...committed.receipt, recovered: true }, state })
@@ -227,9 +249,12 @@ describe('trusted initialization admission and atomic creation', () => {
       committed,
     )
     s.source.controls.eligible(false)
-    expect(refused(await s.port.commit({ command: s.command, guards }), 'revoked retry').kind).toBe(
-      'denied',
-    )
+    expect(
+      refused(
+        await s.port.commit({ access: s.access, command: s.command, guards }),
+        'revoked retry',
+      ).kind,
+    ).toBe('denied')
     expect(await s.history()).toEqual(log)
     s.source.controls.eligible(true)
     const reordered = {
@@ -248,6 +273,7 @@ describe('trusted initialization admission and atomic creation', () => {
     expect(
       refused(
         await s.port.commit({
+          access: s.access,
           command: reordered,
           guards: await s.prepare(reordered, s.facts(reordered)),
         }),
@@ -292,7 +318,9 @@ describe('persistent source obligations and result identity', () => {
         },
       ]
       for (const command of readinessCommands)
-        expect(refused(await s.port.commit({ command, guards: [] }), 'not ready')).toEqual({
+        expect(
+          refused(await s.port.commit({ access: s.access, command, guards: [] }), 'not ready'),
+        ).toEqual({
           kind: 'not-ready',
         })
       const changes = [
@@ -311,7 +339,9 @@ describe('persistent source obligations and result identity', () => {
             declaration: { kind: 'workspace' as const, ...change, basis: evidence('change') },
           },
         }
-        expect(refused(await s.port.commit({ command, guards: [] }), phase)).toEqual({
+        expect(
+          refused(await s.port.commit({ access: s.access, command, guards: [] }), phase),
+        ).toEqual({
           kind: 'invalid',
           field: 'declaration.value',
           reason: 'the original workspace-load item is not ready',
@@ -327,6 +357,7 @@ describe('persistent source obligations and result identity', () => {
       }
       succeeded(
         await s.port.commit({
+          access: s.access,
           command: {
             kind: 'change',
             input: {
@@ -348,6 +379,7 @@ describe('persistent source obligations and result identity', () => {
       const done = s.complete(ready('workspace', 'load'))
       succeeded(
         await s.port.commit({
+          access: s.access,
           command: done,
           guards: await s.prepare(done, s.facts(done, unchangedWorkspace)),
         }),
@@ -356,6 +388,7 @@ describe('persistent source obligations and result identity', () => {
       for (const [index, change] of changes.entries()) {
         succeeded(
           await s.port.commit({
+            access: s.access,
             command: {
               kind: 'change',
               input: {
@@ -394,6 +427,7 @@ describe('persistent source obligations and result identity', () => {
     const retry = s.complete(failed('workspace', 'load'), 'repeat-failed')
     const old = succeeded(
       await s.port.commit({
+        access: s.access,
         command: retry,
         guards: await s.prepare(retry, s.facts(retry, state)),
       }),
@@ -403,6 +437,7 @@ describe('persistent source obligations and result identity', () => {
     const changed = s.complete(failed('workspace', 'load', 'new failure'), 'new-failure')
     succeeded(
       await s.port.commit({
+        access: s.access,
         command: changed,
         guards: await s.prepare(changed, s.facts(changed, state)),
       }),
@@ -412,6 +447,7 @@ describe('persistent source obligations and result identity', () => {
     const doneState = await s.read()
     const receipt = succeeded(
       await s.port.commit({
+        access: s.access,
         command: done,
         guards: await s.prepare(done, s.facts(done, doneState)),
       }),
@@ -421,7 +457,11 @@ describe('persistent source obligations and result identity', () => {
     const same = s.complete(ready('workspace', 'load'), 'new-operation')
     const current = await s.read()
     const repeat = succeeded(
-      await s.port.commit({ command: same, guards: await s.prepare(same, s.facts(same, current)) }),
+      await s.port.commit({
+        access: s.access,
+        command: same,
+        guards: await s.prepare(same, s.facts(same, current)),
+      }),
       'cross operation recall',
     )
     expect(repeat).toEqual({ ...receipt, recovered: true })
@@ -434,6 +474,7 @@ describe('persistent source obligations and result identity', () => {
     expect(
       refused(
         await s.port.commit({
+          access: s.access,
           command: contradicted,
           guards: await s.prepare(contradicted, s.facts(contradicted, current)),
         }),
@@ -451,12 +492,16 @@ describe('persistent source obligations and result identity', () => {
     const first = s.complete(ready('context', 'a'))
     const firstOutcome = s.registration('a', 0, initial)
     const guards = await s.prepare(first, s.facts(first, initial, [firstOutcome]))
-    succeeded(await s.port.commit({ command: first, guards }), 'first registration')
+    succeeded(
+      await s.port.commit({ access: s.access, command: first, guards }),
+      'first registration',
+    )
     const state = await s.read()
     const second = s.complete(ready('context', 'b'))
     expect(
       refused(
         await s.port.commit({
+          access: s.access,
           command: second,
           guards: await s.prepare(second, s.facts(second, state, [s.registration('b', 0, state)])),
         }),
@@ -466,6 +511,7 @@ describe('persistent source obligations and result identity', () => {
     const next = s.registration('b', 1, state)
     succeeded(
       await s.port.commit({
+        access: s.access,
         command: second,
         guards: await s.prepare(second, s.facts(second, state, [next])),
       }),
@@ -547,6 +593,7 @@ it('keeps ordinary registration changes legal and refuses only a new ready whose
   const firstOutcome = s.registration('a', 0, initial)
   const receipt = succeeded(
     await s.port.commit({
+      access: s.access,
       command: first,
       guards: await s.prepare(first, s.facts(first, initial, [firstOutcome])),
     }),
@@ -578,6 +625,7 @@ it('keeps ordinary registration changes legal and refuses only a new ready whose
   ).toMatchObject({ kind: 'entries' })
   succeeded(
     await s.port.commit({
+      access: s.access,
       command: {
         kind: 'change',
         input: {
@@ -596,6 +644,7 @@ it('keeps ordinary registration changes legal and refuses only a new ready whose
   expect(
     succeeded(
       await s.port.commit({
+        access: s.access,
         command: recalled,
         guards: await s.prepare(recalled, s.facts(recalled, changed, [firstOutcome])),
       }),
@@ -605,6 +654,7 @@ it('keeps ordinary registration changes legal and refuses only a new ready whose
   expect(
     refused(
       await s.port.commit({
+        access: s.access,
         command: next,
         guards: await s.prepare(next, s.facts(next, changed, [nextOutcome])),
       }),

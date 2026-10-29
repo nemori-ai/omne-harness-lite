@@ -33,7 +33,7 @@
 | 助手消息的条目怎样关联原调用（`AdmittedMessage.consumption` 只在工具消息与后台占位消息上非空） | [F-SC11](scenarios.md#f-sc11-时间线投影与在途收敛) | message 包与 Agent 的消息形成 |
 | 中断回复的消息形状与标记 | [F-SC12](scenarios.md#f-sc12-流到日志) | message 包与 Agent 的消息准入 |
 | 在途项的调用键中「本次发出」一级的来源 | [F-SC12](scenarios.md#f-sc12-流到日志) | Model 契约 |
-| Tool 的会话常驻规则、同形判据、采用点判定与两个驻留端口的形状（P-8） | [F-SC14](scenarios.md#f-sc14-会话冻结)、[F-SC15](scenarios.md#f-sc15-引用查询) | Tool 拥有者 |
+| Tool 常驻规则与采用点判定；应用装配的显式 tenant Reader 桥接（P-8） | [F-SC14](scenarios.md#f-sc14-会话冻结)、[F-SC15](scenarios.md#f-sc15-引用查询) | Tool 与应用装配拥有者；Session 只消费候选采用材料 |
 | 执行环境重启到重新释放之间的窗口 | [F-SC16](scenarios.md#f-sc16-作用域释放与换代后重新释放) | 执行环境契约拥有者与工具宿主，见[明确缺项](../../SPEC.md#具名前提与明确缺项) |
 
 条款一侧的前提与缺项见 [具名前提与明确缺项](../../SPEC.md#具名前提与明确缺项)。每条流程对应的验证义务见 [候选的持续验证义务](../../SPEC.md#候选的持续验证义务)与[持续验证义务与未覆盖](../../SPEC.md#持续验证义务与未覆盖)。产品旅程与流程的对应见 [关键旅程对应与验证](../../SPEC.md#关键旅程对应与验证)。

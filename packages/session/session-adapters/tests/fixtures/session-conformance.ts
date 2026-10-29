@@ -6,6 +6,8 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
+  evidence,
   adoptedInitializationFixture,
   initializationFixtureFacts,
   initializationFixtureGuard,
@@ -15,6 +17,7 @@ import {
   operationId,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
+import { tenantEquals } from '@omne-harness/legal-identity'
 import { createMemorySessionJournal } from '../../src/testing.ts'
 import { ok, operation, instance, checkpoint } from './common-journal.ts'
 
@@ -22,11 +25,21 @@ import { ok, operation, instance, checkpoint } from './common-journal.ts'
 export function sessionFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource(),
     access = memoryAccess('tester')
+  // The suite tests transaction semantics; the access policy is one explicit choice: only the
+  // fixture's tenant may touch a session. The double's tenant keying refuses the other tenant as
+  // well, and J40 observes only that both answers are the same, not which one refused; the scene
+  // of participation-access.spec.ts records the check's own conclusion. Tenant and system
+  // directories stay open.
   const backend = createMemorySessionJournal({
     initialization,
-    authorizeCommand: () => 'allowed',
+    accessCheck: createPolicySessionAccessCheck(request =>
+      request.target.kind === 'session' &&
+      'tenant' in request.access &&
+      !tenantEquals(request.access.tenant, access.tenant)
+        ? { kind: 'denied' }
+        : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
+    ),
     authorize: () => 'allowed',
-    authorizeDirectory: () => 'allowed',
   })
   const view = backend.forSession(access)
   return {

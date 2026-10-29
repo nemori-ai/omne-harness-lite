@@ -31,6 +31,7 @@ import {
   createMemorySessionEvidenceBridge,
   createMemorySessionHistorySource,
   createMemorySessionTransactions,
+  createPolicySessionAccessCheck,
   creation,
   initializationFixtureFacts,
   initializationFixtureGuard,
@@ -244,10 +245,22 @@ function trustedInitialization(): MemoryInitializationSource {
  * the port reads original history material from its own history source. */
 export function sessionDoubles() {
   const initialization = trustedInitialization()
+  // The skeleton proves the public path, not an authorization policy: the access check is an
+  // explicit open policy, and the double's tenant keying still refuses a foreign tenant.
+  const accessCheck = createPolicySessionAccessCheck<PathPrincipal>(request => ({
+    kind: 'allowed',
+    evidence: {
+      owner: 'm2-contract-skeleton',
+      record: `access/${request.operation}`,
+      revision: '1',
+      digest: `sha256:access/${request.operation}`,
+    },
+  }))
   return {
     session: createMemorySessionTransactions<PathPrincipal>({
       initialization,
       history: createMemorySessionHistorySource(),
+      accessCheck,
     }),
     evidence: createMemorySessionEvidenceBridge({ initialization }),
   }

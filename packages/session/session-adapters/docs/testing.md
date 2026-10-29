@@ -4,7 +4,7 @@
 
 ## 建立作用域
 
-工厂需要三个明确的依赖：初始化来源 `initialization.verify`、读与 Agent 操作的 `authorize`、Session 变更的 `authorizeCommand`。目录查询另用 `authorizeDirectory`。回调返回 allowed、denied 或 unavailable；暂不可用不折叠为拒绝。这些回调判断当前资格，不能用“操作曾成功”代替当前授权。初始化验证必须绑定完整原命令及可信来源；不能把任意 guard 当作已获准。
+工厂需要三个明确的依赖：初始化来源 `initialization.verify`、Session 公开读写的 `accessCheck`（session-contract 的 `SessionAccessCheck`），以及 Agent Journal 操作的 `authorize`。`accessCheck` 没有默认允许。`transactions.commit` 显式携带本次 `SessionAccess`，每个公开读写在实际执行处调用一次 `check`，denied 与 unavailable 都不写入。`authorize` 回调返回 allowed、denied 或 unavailable；暂不可用不折叠为拒绝。这些依赖判断当前资格，不能用“操作曾成功”代替当前授权。Agent `commit` 或 `recordResult` 带 caller 时派生一个 Session 参加命令（`recordMessage`、`commitDerived`、`preserveResult`、`completeConsumption`）。提供者在共同发布之前按该命令调用一次 `accessCheck`，访问身份取本次 Agent 调用的 principal、tenant 与本会话。`denied` 与 `unavailable` 时两侧都不写入。allowed 的证据随同一次共同提交保存，`controls.decisionOf` 可按派生的 Session operation 读回。裁定的对象是按当前修订推出的 Agent 回执。裁定返回之前，同一 execution 的另一次写入可能已推进修订。这时本次调用两侧都不写入，返回 `unavailable`，owner 为 `session-qualification`，可以重试。本次调用内不再重新裁定。推出回执只读取已发布的根，不推进序号。被拒或被超越的调用不改变后续写入的回执。`controls.reconcile` 的每个 release 事实按 `receive` 各调用一次。接入范围见 session-contract 的[访问检查](../../session-contract/docs/access-check.md)。初始化验证必须绑定完整原命令及可信来源；不能把任意 guard 当作已获准。
 
 先通过 `transactions.commit` 创建 Session、完成所需初始化并启动 Run，再用 `forSession({tenant, session})` 取得该根上的视图。Agent `open` 使用原启动回执的 grant、原 execution 和初始输入；后续 `submit` 使用 Session 已接纳的原输入。`sessionView(session)` 按每次调用的 tenant 路由到该 Session 的根，不改写 execution 或材料标识。
 

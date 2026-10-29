@@ -4,6 +4,8 @@
 
 本页的性质编号是 1 至 11。服务定义成员的性质 1 至 7 写作「定义性质 n」。
 
+访问检查类型与独立脚本替身已由 session-contract 导出。[session-cordis-contract](../session-cordis-contract/docs/public-api.md) 已导出 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../session-contract/docs/access-check.md)）。本成员的生产注入尚未接入。本成员仍无运行实现，生产运行尚未验证。
+
 ## 提供者责任
 
 本成员必须保持下列性质。
@@ -11,9 +13,9 @@
 ### 服务与依赖
 
 1. 服务与键：`./cordis` 导出 `SessionService` 的具体子类与插件。子类不写键，不自己 `ctx.provide` 键 `session`（[IC-2](../../../docs/architecture/cordis-integration-conventions.md#ic-2)、定义性质 1）。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。不装配 Cordis 的宿主直接用 session 的工厂 `createSessionInstance`。一个 isolate 标签下只装一份本插件（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。同一标签下重复装载时第二份失败，不静默覆盖。这一点只有源码读数。
-2. 依赖取得：插件的 `inject` 只写事务端口的键 `sessionTransactions` 与内部主体的键 `sessionPrincipals`，用数组字面量和定义成员导出的键常量（[IC-8](../../../docs/architecture/cordis-integration-conventions.md#ic-8)）。其余端口在每次调用时经 `ctx.get` 现取（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。现取用插件装载时捕获的本插件 Context，不用服务方法里的 `this.ctx`，因为后者是调用方的 Context（[service-method-ctx-is-caller](../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。本成员不跨调用持有端口引用。每个端口怎样交给工厂、缺席或抛出时怎样表现，见下文[端口接线](#端口接线)。
+2. 依赖取得：插件的 `inject` 只写访问检查键 `sessionAccessCheck`、事务端口键 `sessionTransactions` 与内部主体键 `sessionPrincipals`，用数组字面量和定义成员导出的键常量（[IC-8](../../../docs/architecture/cordis-integration-conventions.md#ic-8)）。其余端口在每次调用时经 `ctx.get` 现取（[IC-9](../../../docs/architecture/cordis-integration-conventions.md#ic-9)）。现取用插件装载时捕获的本插件 Context，不用服务方法里的 `this.ctx`，因为后者是调用方的 Context（[service-method-ctx-is-caller](../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。本成员不跨调用持有端口引用。每个端口怎样交给工厂、缺席或抛出时怎样表现，见下文[端口接线](#端口接线)。
 3. 配置：插件配置用 Standard Schema 校验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。字段是调度策略 `policy`、撤除等待上限 `disposeWaitMs` 与受理槽声明 `admission`。`admission` 可以省略，或取 `'none'`，含义见性质 8。`policy` 的每个字段可以省略，省略时取 session 的 `defaultSchedulingPolicy`。默认值只是初值。校验拒绝未知键、负数、零上限、空退避序列与非有限数；`preEvaluation.prewarm` 只接受 `false`。配置错误时插件加载失败，fiber 进入 `FAILED`，不构造实例。Service 子类静态 `Config` 的这条路径没有 basis 核验，是假设。配置不含租户、主体、句柄或回调（[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。
-4. 构造：事务端口与内部主体都在场且配置合法时，插件调用 `createSessionInstance(dependencies, { policy })`，服务实例拥有得到的 `SessionInstance`。工厂对配置的再次校验失败时，插件加载失败，与第 3 条同样处置。共享事务域不成立时，`maintain` 返回 `unavailable`，面上的读写同样返回 `unavailable`，`owner` 为存储参加者。本成员只报告这个结果，不改写它（[P-1](../session-contract/SPEC.md#具名前提与明确缺项)）。
+4. 构造：访问检查、事务端口与内部主体都在场且配置合法时，插件调用 `createSessionInstance(dependencies, { policy })`，服务实例拥有得到的 `SessionInstance`。工厂对配置的再次校验失败时，插件加载失败，与第 3 条同样处置。共享事务域不成立时，`maintain` 返回 `unavailable`，面上的读写同样返回 `unavailable`，`owner` 为存储参加者。本成员只报告这个结果，不改写它（[P-1](../session-contract/SPEC.md#具名前提与明确缺项)）。
 
 ### 端口接线
 
@@ -21,6 +23,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 | 键 | 工厂字段 | 本成员怎样交给工厂 | 缺席时 | 端口抛出时 |
 | --- | --- | --- | --- | --- |
+| `sessionAccessCheck` | `accessCheck` | 插件体 inject 取得，直接交入；每次操作在实际执行处 check 一次 | PENDING，不能沿用旧 allowed | unavailable，不执行原操作 |
 | `sessionTransactions` | `transactions` | 插件体里 `inject` 取得的实现，直接传入 | 插件停在 `PENDING`，服务不在场，`inject` 了 `session` 的调用方插件也停在 `PENDING` | 不包装。失败由事务端口按契约返回 |
 | `sessionPrincipals` | `principals` | 插件体里 `inject` 取得的内部主体，直接传入（性质 8） | 同上。插件停在 `PENDING`，不启动任何协调器与调度器 | 不适用。内部主体是对象，不是端口调用 |
 | `sessionIdentity` | `identity` | 完整接口的代理。每次方法调用时现取 | 该次调用返回 `unavailable`，`owner` 为该端口的服务键 | 该次调用返回 `unavailable`，`diagnostic` 带原因，并记录诊断 |
@@ -30,8 +33,6 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | `sessionClock` | `clock` | 同上。`sample` 按上两列处置 | `sample` 返回 `unavailable`。`waitUntil` 的结果类型没有不可用分支，代理以指明端口缺席的错误拒绝这个 Promise，见[明确缺项](#明确缺项) | `sample` 同上；`waitUntil` 原样拒绝 |
 | `sessionNotifier` | `notifier` 的一部分 | 见第 5 条。本成员组合出的通知者每次提交后现取这个键，存在时转发 | 只派发 Cordis 事件，不转发 | 记录诊断，不回滚提交，不改回执 |
 | `sessionAgentDrive` | `agentDrive` | `Current`：`current()` 现取，缺席时返回 `null` | 出站调用不发出，任务保留，由 session 的调度器重放 | 不包装。结果由 session 的协调器按契约处置 |
-| `sessionToolStartFence` | `startFence` | 同上 | 同上 | 同上 |
-| `sessionDeliveryRelease` | `deliveryRelease` | 同上 | 同上 | 同上 |
 | `sessionScopeRelease` | `scopeRelease` | 同上 | 同上 | 同上 |
 
 代理只把「缺席」与「抛出」映射为 `unavailable`。代理不补默认值，不用系统时间代替时钟采样，也不把缺席报告为成功。已经发出的端口调用不改投新的提供者：端口提供者在调用途中换代时，该次调用以旧实现给出的结果结束。
@@ -52,7 +53,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
    4. 等待超时时记录诊断，然后返回。超时不表示实例已经停止。仍在途的命令以自己的结果结束：提交成功时调用方得到回执，提交未确认时得到 `commit-unknown`，调用方以同一操作身份重试或调用 `queryOperation`。
 
    每一步抛出时本插件捕获它、记录诊断，并继续后续步骤。撤除期间完成的提交不发通知，后续工作由下一个实例的扫描找回。撤除不回滚已提交的事实，不补发未发出的出站调用，不取消任何 Model、Tool、Agent 执行或子会话。外部效果不因 disposer 运行而变得可撤回。依赖丢失不报告为业务成功。
-10. 换代：`sessionTransactions` 或 `sessionPrincipals` 的提供者换代或离开 `ACTIVE` 时，插件体先卸载再重跑（[plugin-body-reruns-on-provider-change](../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。旧实例按第 9 条撤除，新实例重新构造，并在新的通知里重新绑定各租户的扫描者。`inject` 了 `session` 的调用方插件随之重跑，取得新服务。Cordis 4.0.4 重跑插件体之前是否等待旧 fiber 的撤除完成，basis 没有条目，是假设。新旧两个实例因此可能短暂并存。这不影响正确性：并存期间的保护是操作幂等、`expected` 核对与条件提交围栏，不是先后顺序。其他端口的提供者换代时插件体不重跑，下一次调用现取到新的提供者。跨换代要保留的事实不在插件体的闭包里。会话事实在存储里，维护的租户集合是可丢的派生物。
+10. 换代：`sessionAccessCheck`、`sessionTransactions` 或 `sessionPrincipals` 的提供者换代或离开 `ACTIVE` 时，插件体先卸载再重跑（[plugin-body-reruns-on-provider-change](../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。旧实例按第 9 条撤除，新实例重新构造，并在新的通知里重新绑定各租户的扫描者。`inject` 了 `session` 的调用方插件随之重跑，取得新服务。Cordis 4.0.4 重跑插件体之前是否等待旧 fiber 的撤除完成，basis 没有条目，是假设。新旧两个实例因此可能短暂并存。这不影响正确性：并存期间的保护是操作幂等、`expected` 核对与条件提交围栏，不是先后顺序。其他端口的提供者换代时插件体不重跑，下一次调用现取到新的提供者。跨换代要保留的事实不在插件体的闭包里。会话事实在存储里，维护的租户集合是可丢的派生物。
 11. 边界：本成员不导入任何邻域契约，也不导入存储后端（[落位判据](../docs/architecture.md#落位判据)）。租户与会话是每次操作的参数，不从 Context、isolate 标签、插件实例或插件配置推断，不为会话建 fiber 或 isolate（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)、[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
 
 ## 所有权与生命周期
@@ -85,7 +86,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 当前两个入口测试只检查两个入口都没有导出，不证明下列任何一项。下列义务随实现进入 `tests/`，在真实 Cordis 4.0.4 上运行，不用 Cordis 的替身：
 
-1. 事务端口或内部主体缺席时插件停在 `PENDING`，服务不在场。两者都到场后服务在场。
+1. 访问检查、事务端口或内部主体缺席时插件停在 `PENDING`，服务不在场。三者都到场后服务在场。
 2. 其他端口逐个缺席：只有需要它的操作返回 `unavailable`，`owner` 为该端口的服务键；读取与无关操作照常。出站端口缺席时任务保留，端口到场后下一次调用取到它，插件体不重跑。
 3. 端口抛出时该次调用返回 `unavailable`，不返回成功。
 4. 两个声明不同调用方类的插件各自取到自己的配置。没有配置或调用方类不在四类之中时返回 `denied`。调用方类不在操作允许的范围内时返回 `denied`。
@@ -93,6 +94,6 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 6. 外来的提交通知唤醒实例。同一租户只绑定一个扫描者。`maintain` 失败后，该租户的下一条通知再次绑定。
 7. 配置错误时 fiber 进入 `FAILED`。同一 isolate 标签下重复装载失败。
 8. 撤除顺序：撤除开始后面返回 `unavailable`；维护句柄全部释放；`close` 完成或超时；超时时在途命令仍以回执或 `commit-unknown` 结束；撤除期间没有出站调用发出，也没有通知派发。
-9. 事务端口或内部主体换代时插件体重跑，新实例接管扫描，调用方插件取得新服务。新旧实例并存时，同一命令按操作身份认回，不产生第二次效果。
+9. 访问检查、事务端口或内部主体换代时插件体重跑，新实例接管扫描，调用方插件取得新服务。新旧实例并存时，同一命令按操作身份认回，不产生第二次效果。
 
 服务定义成员要求提供者验证的项目（[验证义务](../session-cordis-contract/docs/cordis.md#验证义务)）包含在第 1、2、4、5 项里。机制本身的义务归 [session SPEC 的验证](../session/SPEC.md#验证)。本成员不覆盖：跨进程的每租户单扫描者、持久化与真实邻域的端到端组合。

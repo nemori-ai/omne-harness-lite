@@ -19,11 +19,14 @@ import {
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
+  commandDigest,
   decide,
   reduce,
   deriveSessionOperation,
   judgeCompletion,
+  mutationAccessRequest,
   type SessionAccess,
+  type SessionAccessCheck,
   type SessionId,
   type SessionCommand,
   type SessionTransactionPort,
@@ -37,8 +40,13 @@ import {
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import { operationSemantic, createCell, type JournalCell, type SessionState } from './root.ts'
-import { createJournal, type JournalWrite } from './journal.ts'
-import { createSessionTransactions } from './session.ts'
+import {
+  createJournal,
+  outrunParticipation,
+  type JointDecision,
+  type JournalWrite,
+} from './journal.ts'
+import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
   history,
   grantAttempt,
@@ -53,14 +61,17 @@ import type { SessionDirectory } from './session-directory.ts'
 
 export type MemorySessionJournalOptions<P> = Readonly<{
   initialization: InitializationSource
+  /**
+   * The current access decision of every public Session read and write on `transactions`
+   * (session-contract SPEC「当前操作的访问裁定」). Required; the double has no default permission.
+   */
+  accessCheck: SessionAccessCheck<P>
+  /**
+   * The current qualification of the Agent Journal operations on the same log (open, submit,
+   * commit, load, query, the materials and the testing controls). This is the Agent side of the
+   * double; it does not decide Session public operations.
+   */
   authorize(input: SessionAccess<P>, action: string): 'allowed' | 'denied' | 'unavailable'
-  authorizeCommand(
-    input: Readonly<{ command: SessionCommand; guards: readonly GuardCommand[] }>,
-  ): 'allowed' | 'denied' | 'unavailable'
-  authorizeDirectory?: (
-    input: Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
-    action: string,
-  ) => 'allowed' | 'denied' | 'unavailable'
   budget?: Readonly<{ entries: number; bytes: number; capacityBytes: number }>
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
@@ -94,17 +105,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const publications = publicationHooks()
   const publicationKey = (cell: JournalCell<P>, operation: SessionOperationId) =>
     canonical([cell.namespace, operation])
-  const verifyCommand = (
-    command: SessionCommand,
-    guards: readonly GuardCommand[],
-  ): SessionFailure | null => {
-    const status = options.authorizeCommand({ command, guards })
-    return status === 'allowed'
-      ? null
-      : status === 'denied'
-        ? { kind: 'denied', action: command.kind }
-        : { kind: 'unavailable', owner: 'session-qualification', diagnostic: command.kind }
-  }
   const cells = new Map<string, JournalCell<P>>()
   const views = new Map<string, ReturnType<typeof createJournal<P>>>()
   const keyOf = (tenant: TenantId, session: SessionId) => {
@@ -135,16 +135,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   }
   const base = createSessionTransactions<P>(directory, {
     initialization: options.initialization,
-    verifyCommand,
     capacityBytes: options.budget?.capacityBytes ?? defaultBudget.capacityBytes,
     history: {
       read: (snapshot, _entries, scope, extra, through) =>
         history(cellOf(snapshot.tenant, snapshot.session), snapshot, scope, extra, through),
     },
-    authorize: (access, action) =>
-      'tenant' in access && access.tenant !== undefined && 'session' in access
-        ? options.authorize(access, action)
-        : (options.authorizeDirectory?.(access, action) ?? 'denied'),
+    accessCheck: options.accessCheck,
   })
   function cellOf(tenant: TenantId, session: SessionId): JournalCell<P> {
     const key = keyOf(tenant, session),
@@ -172,9 +168,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           return false
         }
       },
-      participate(input, method, receipt) {
+      participate(input, method, receipt, decision) {
         try {
-          return participant(cell, input, method, receipt)
+          return participant(cell, input, method, receipt, decision)
         } catch (error) {
           if (error instanceof HistoryFailure) {
             if (error.failure.kind === 'quarantined') cell.quarantine(error.failure.diagnostic)
@@ -388,11 +384,139 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     cells.set(key, cell)
     return cell
   }
+  /**
+   * The Session command one `commit` or `recordResult` derives from its caller: `undefined` when
+   * the caller does not participate, otherwise the command or the Agent failure that stops it.
+   */
+  function jointCommand(
+    cell: JournalCell<P>,
+    input: ExecutionMutation<P>,
+    method: JournalWrite,
+    receipt: CommandReceipt,
+  ): Outcome<SessionCommand, Failure> | undefined {
+    let caller: CallerCommit = { kind: 'none' }
+    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
+    if (method === 'recordResult')
+      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
+    if (caller.kind === 'none') return undefined
+    const operation = deriveSessionOperation({
+      kind: 'participation',
+      execution: input.execution,
+      operation: input.operation,
+      joint: caller.kind,
+    })
+    const common = { tenant: cell.tenant, session: cell.session, operation }
+    const participation = {
+      execution: input.execution,
+      operation: input.operation,
+      joint: caller.kind,
+      written: receipt.revision,
+      handover: receipt.evidence,
+    }
+    switch (caller.kind) {
+      case 'message':
+        return succeed({
+          kind: 'recordMessage',
+          input: {
+            ...common,
+            participation,
+            value: {
+              message: caller.message,
+              source: caller.source,
+              admission: caller.admission,
+              consumption: null,
+            },
+          },
+        })
+      case 'context-transition':
+        if (caller.value.message.role !== 'compaction')
+          return fail({ kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' })
+        return succeed({
+          kind: 'commitDerived',
+          input: {
+            ...common,
+            participation,
+            value: { kind: 'compaction', message: caller.value.message },
+            judgment: caller.admission,
+          },
+        })
+      case 'custody':
+      case 'processed': {
+        const execution = cell
+          .state()
+          .agent.executions.get(executionKey(cell.state(), input.execution))
+        if (!execution) return fail(denied(method))
+        const result = normalizedResult(
+          cell.state(),
+          execution,
+          caller.consumption,
+          caller.result,
+        ).result
+        const consumption = String(caller.consumption) as ConsumptionId
+        return succeed(
+          caller.kind === 'custody'
+            ? {
+                kind: 'preserveResult',
+                input: { ...common, participation, consumption, result, custody: caller.retained },
+              }
+            : {
+                kind: 'completeConsumption',
+                input: {
+                  ...common,
+                  participation,
+                  completion: { consumption, result, completion: caller.completion },
+                },
+              },
+        )
+      }
+    }
+  }
+  /**
+   * The current Session decision of the participation this public call derives (session-contract
+   * SPEC「命令表」: every mutation command is decided first). The access is the caller's own
+   * principal and tenant on this cell's session.
+   */
+  async function qualifyJoint(
+    cell: JournalCell<P>,
+    input: ExecutionMutation<P>,
+    method: 'commit' | 'recordResult',
+    receipt: CommandReceipt,
+  ): Promise<Outcome<JointDecision, Failure>> {
+    let derived: Outcome<SessionCommand, Failure> | undefined
+    try {
+      derived = jointCommand(cell, input, method, receipt)
+    } catch (error) {
+      if (error instanceof HistoryFailure) {
+        if (error.failure.kind === 'quarantined') cell.quarantine(error.failure.diagnostic)
+        return fail(agentFailure(error.failure, input.operation))
+      }
+      throw error
+    }
+    if (derived === undefined)
+      return fail({
+        kind: 'unavailable',
+        owner: 'session-qualification',
+        diagnostic: 'qualification of a write without participation',
+      })
+    if ('failure' in derived) return derived
+    const command = derived.ok
+    const qualification = await qualifyAccess(
+      options.accessCheck,
+      mutationAccessRequest(
+        { principal: input.principal, tenant: input.tenant, session: cell.session },
+        command,
+      ),
+    )
+    if ('failure' in qualification)
+      return fail(agentFailure(qualification.failure, input.operation))
+    return succeed({ evidence: qualification.ok, digest: commandDigest(command) })
+  }
   function participant(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
     method: JournalWrite,
     receipt: CommandReceipt,
+    decision: JointDecision | null,
   ): Failure | undefined {
     const state = cell.state().session
     if (!state) return denied(method)
@@ -443,86 +567,23 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       const checked = judgeCompletion(state.snapshot, input.execution)
       if (checked.kind !== 'allowed') return { kind: 'changed' }
     }
-    let caller: CallerCommit = { kind: 'none' }
-    if (method === 'commit') caller = (input as Parameters<AgentJournal<P>['commit']>[0]).caller
-    if (method === 'recordResult')
-      caller = (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-    if (caller.kind === 'none') return undefined
-    const operation = deriveSessionOperation({
-      kind: 'participation',
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-    })
-    const common = { tenant: cell.tenant, session: cell.session, operation }
-    const participation = {
-      execution: input.execution,
-      operation: input.operation,
-      joint: caller.kind,
-      written: receipt.revision,
-      handover: receipt.evidence,
-    }
-    let command: SessionCommand
-    switch (caller.kind) {
-      case 'message':
-        command = {
-          kind: 'recordMessage',
-          input: {
-            ...common,
-            participation,
-            value: {
-              message: caller.message,
-              source: caller.source,
-              admission: caller.admission,
-              consumption: null,
-            },
-          },
-        }
-        break
-      case 'context-transition':
-        if (caller.value.message.role !== 'compaction')
-          return { kind: 'invalid', field: 'caller.value.message', reason: 'not compaction' }
-        command = {
-          kind: 'commitDerived',
-          input: {
-            ...common,
-            participation,
-            value: { kind: 'compaction', message: caller.value.message },
-            judgment: caller.admission,
-          },
-        }
-        break
-      case 'custody':
-      case 'processed': {
-        const execution = cell
-          .state()
-          .agent.executions.get(executionKey(cell.state(), input.execution))
-        if (!execution) return denied(method)
-        const result = normalizedResult(
-          cell.state(),
-          execution,
-          caller.consumption,
-          caller.result,
-        ).result
-        const consumption = String(caller.consumption) as ConsumptionId
-        command =
-          caller.kind === 'custody'
-            ? {
-                kind: 'preserveResult',
-                input: { ...common, participation, consumption, result, custody: caller.retained },
-              }
-            : {
-                kind: 'completeConsumption',
-                input: {
-                  ...common,
-                  participation,
-                  completion: { consumption, result, completion: caller.completion },
-                },
-              }
-        break
+    const derived = jointCommand(cell, input, method, receipt)
+    if (derived === undefined) return undefined
+    if ('failure' in derived) return derived.failure
+    const command = derived.ok
+    // The Session half commits with the decision this public call obtained before publication,
+    // and only for the command that was decided. A write of the same execution that committed
+    // while the decision was outstanding changes the revision the participation names; this call
+    // then commits nothing and is not decided again (one decision per public write), and a retry
+    // decides the participation at the current revision.
+    if (decision === null)
+      return {
+        kind: 'unavailable',
+        owner: 'session-qualification',
+        diagnostic: 'participation without a current Session decision',
       }
-    }
-    const outcome = base.prepareCommand({ command, guards: [] })
+    if (decision.digest !== commandDigest(command)) return outrunParticipation
+    const outcome = base.prepareCommand({ command, guards: [], decision: decision.evidence })
     if (!('failure' in outcome)) return undefined
     if (
       method === 'recordResult' &&
@@ -620,8 +681,15 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       : result
   }
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
+  // Only the public port methods are exposed; the internal `prepareCommand` and
+  // `prepareReconciliation` paths of `base` stay behind this boundary.
   const transactions: SessionTransactionPort<P> = {
-    ...base,
+    readInput: base.readInput,
+    queryOperation: base.queryOperation,
+    history: base.history,
+    pending: base.pending,
+    references: base.references,
+    releasedScopes: base.releasedScopes,
     readWork: async input => {
       try {
         return await base.readWork(input)
@@ -635,39 +703,45 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       }
     },
     commit: (async input => {
-      if (!tenantCodec.encode(input.command.input.tenant).ok)
+      const command: SessionCommand = input.command
+      if (!commitAccessMatches(input.access, command)) return fail(denied(command.kind))
+      if (!tenantCodec.encode(command.input.tenant).ok)
         return fail<SessionFailure>({
           kind: 'invalid',
           field: 'tenant',
           reason: 'not a tenant minted by legal-identity',
         })
-      const cell = cellOf(input.command.input.tenant, input.command.input.session)
+      // One decision for this call, before the frontier interprets anything on this root.
+      const qualification = await qualifyAccess(
+        options.accessCheck,
+        mutationAccessRequest(input.access, command),
+      )
+      if ('failure' in qualification) return fail(qualification.failure)
+      const prepared: Parameters<typeof base.prepareCommand>[0] = {
+        command,
+        guards: input.guards,
+        decision: qualification.ok,
+      }
+      const cell = cellOf(command.input.tenant, command.input.session)
       try {
-        const qualification = verifyCommand(input.command, input.guards)
-        if (qualification) return fail(qualification)
-        if (cell.current().session?.operations.has(input.command.input.operation))
-          return base.prepareCommand(input)
+        if (cell.current().session?.operations.has(command.input.operation))
+          return base.prepareCommand(prepared)
         for (;;) {
-          const prepared = await frontier.prepare(
-            cell,
-            snapshot => commandScope(input.command, snapshot),
-            [],
-            () => verifyCommand(input.command, input.guards),
-          )
-          await publications.wait(publicationKey(cell, input.command.input.operation))
-          if (cell.current() !== prepared) continue
-          const fault = publications.takeFault(publicationKey(cell, input.command.input.operation))
+          const root = await frontier.prepare(cell, snapshot => commandScope(command, snapshot))
+          await publications.wait(publicationKey(cell, command.input.operation))
+          if (cell.current() !== root) continue
+          const fault = publications.takeFault(publicationKey(cell, command.input.operation))
           if (fault === 'before-publish')
             return fail<SessionFailure>({
               kind: 'unavailable',
               owner: 'session-memory-journal',
               diagnostic: 'injected before Session publication',
             })
-          const result = base.prepareCommand(input)
-          return fault === 'after-publish' && cell.current() !== prepared
+          const result = base.prepareCommand(prepared)
+          return fault === 'after-publish' && cell.current() !== root
             ? fail<SessionFailure>({
                 kind: 'commit-unknown',
-                operation: input.command.input.operation,
+                operation: command.input.operation,
               })
             : result
         }
@@ -687,6 +761,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if (!view) {
       view = createJournal(cell, {
         prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
+        qualifyParticipation: (input, method, receipt) =>
+          qualifyJoint(cell, input, method, receipt),
         requireGrant: true,
         participants: ['message', 'context-transition', 'custody', 'processed'],
         grant: input => {
@@ -797,6 +873,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     durability: 'none' as const,
     controls: {
       entriesOf: base.controls.entriesOf,
+      decisionOf: base.controls.decisionOf,
       frontierMetrics: frontier.metrics,
       pauseSession(
         input: Readonly<{ tenant: TenantId; session: SessionId; operation: SessionOperationId }>,
@@ -967,6 +1044,23 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             })
           }
           const releases = toolReleases(root, execution)
+          // Each release the reconciliation would commit is a `receive` write of this caller:
+          // one current decision per fact, before anything is prepared or published.
+          for (const fact of releases) {
+            const qualification = await qualifyAccess(
+              options.accessCheck,
+              mutationAccessRequest(input, {
+                kind: 'receive',
+                input: {
+                  tenant: input.tenant,
+                  session: input.session,
+                  operation: input.operation,
+                  fact,
+                },
+              }),
+            )
+            if ('failure' in qualification) return fail(qualification.failure)
+          }
           const result = base.prepareReconciliation(
             {
               tenant: input.tenant,
@@ -988,21 +1082,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
                 return qualification.kind === 'denied'
                   ? qualification
                   : { kind: 'unavailable', owner: 'session-qualification', diagnostic: 'reconcile' }
-              for (const fact of releases) {
-                const refusal = verifyCommand(
-                  {
-                    kind: 'receive',
-                    input: {
-                      tenant: input.tenant,
-                      session: input.session,
-                      operation: input.operation,
-                      fact,
-                    },
-                  },
-                  [],
-                )
-                if (refusal) return refusal
-              }
               const gap = cell.gate()
               if (gap !== null) return { kind: 'quarantined', diagnostic: gap }
               if (cell.current() !== root)

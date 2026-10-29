@@ -4,6 +4,8 @@
 
 Session 的 Cordis 定义成员，`service-contract` 变体。
 
+`./cordis` 已导出 `SessionAccessCheckService` 与 `sessionAccessCheckKey`，键值取自抽象类的 `provide`。生产注入与 Session 实际执行处检查尚未完成。
+
 ## 职责与状态
 
 本成员只拥有 Session 这一接缝的 Cordis 定义，由这些部分组成：服务键 `session`、抽象类 `SessionService`、端口服务键、intercept 配置 `{ caller }`，以及唤醒事件 `session-cordis-contract/committed`。
@@ -15,10 +17,9 @@ Session 的 Cordis 定义成员，`service-contract` 变体。
 | 导出 | 支持 | 位置 |
 | --- | --- | --- |
 | 带四个面的 `SessionService` 与 `sessionKey` | 已导出 | `src/cordis.ts` |
-| 十个端口 Service 与键：`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease` | 已导出 | `src/cordis.ts` |
+| 十一个依赖 Service 与键：`sessionAccessCheck`、`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease` | 已导出 | `src/cordis.ts` |
 | `SessionIntercept`、`Context` 与 `Events` 增补、事件 `session-cordis-contract/committed` | 已导出 | `src/cordis.ts` |
 | 根入口的类型重导出 | 已导出，没有运行值 | `src/index.ts` |
-| `sessionToolStartFence`、`sessionDeliveryRelease` | 已被替代，不定义 | [session-contract SPEC](../session-contract/SPEC.md#被替代的协议) |
 - 未验证：intercept 配置的 Cordis 机制读数只有源码读数，所以 SPEC 的性质 4 是假设，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 使用
@@ -28,7 +29,7 @@ Session 的 Cordis 定义成员，`service-contract` 变体。
 - 根入口 `@omne-harness/session-cordis-contract` 只重导出契约类型，不导入 Cordis。
 - `@omne-harness/session-cordis-contract/cordis` 承载服务定义。
 
-实现进入后，调用方插件这样声明自己的调用方类：
+调用方插件按契约这样声明自己的调用方类：
 
 ```ts
 import type {} from '@omne-harness/session-cordis-contract/cordis'
@@ -54,7 +55,7 @@ export const inject = {
 
 ## 设计
 
-每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。只有事务端口与内部主体进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
+每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。新契约要求访问检查、事务端口与内部主体进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
@@ -68,7 +69,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-cordis-contract
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口都没有导出，见 [tests/](tests/README.md)。SPEC 生命周期一节的验证义务还没有覆盖，其中大部分由提供者的测试检查。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试检查两个入口的导出集合、键与抽象类 `provide` 一致、根入口不导入 Cordis 或提供者，以及真实 Context 中 Session 与访问检查子类的装卸和检查委派，见[测试索引](tests/index.md)。这些测试不覆盖生产必需注入和实际执行处检查。SPEC 生命周期一节的提供者义务仍须由提供者验证。结构检查通过不表示行为已验证。
 
 ## 维护
 

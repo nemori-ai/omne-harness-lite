@@ -9,6 +9,7 @@ import { SessionService, sessionKey } from '@omne-harness/session-cordis-contrac
 /** The key table of docs/cordis.md: key constant to its class. */
 const documentedPairs = {
   sessionKey: 'SessionService',
+  sessionAccessCheckKey: 'SessionAccessCheckService',
   sessionTransactionsKey: 'SessionTransactionPortService',
   sessionPrincipalsKey: 'SessionInternalPrincipalsService',
   sessionIdentityKey: 'SessionIdentityBridgeService',
@@ -23,6 +24,7 @@ const documentedPairs = {
 
 const documentedKeys = {
   sessionKey: 'session',
+  sessionAccessCheckKey: 'sessionAccessCheck',
   sessionTransactionsKey: 'sessionTransactions',
   sessionPrincipalsKey: 'sessionPrincipals',
   sessionIdentityKey: 'sessionIdentity',
@@ -36,7 +38,7 @@ const documentedKeys = {
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the eleven classes and their keys', () => {
+  it('exports exactly the twelve classes and their keys', () => {
     expect(Object.keys(cordis).sort()).toEqual(
       [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
     )

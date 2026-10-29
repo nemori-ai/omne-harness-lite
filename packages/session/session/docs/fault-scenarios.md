@@ -2,6 +2,8 @@
 
 本页维护本成员的故障场景。每个场景写前置、注入、期望观察与依据的条款。场景是后继实现必须通过的可观察结果，不是已运行的证据。机制归 [SPEC](../SPEC.md)，崩溃矩阵归 [CR 表](../SPEC.md#cr-崩溃矩阵)，契约条款归[会话契约](../../session-contract/SPEC.md)。契约自己的验证义务在 [VC 表](../../session-contract/SPEC.md#候选的持续验证义务)，本页不复制；本页的场景写机制层的注入方式与观察点。
 
+本页未交付的生产提供者、真实重启与装配场景均为「未执行：提供者或装配尚未交付」。规格映射或非耐久替身不证明这些场景已通过。
+
 ## 编号规则
 
 场景编号写作 `FS-<组>-nn`。组 A 是输入绑定与 Agent 终结的共同提交，组 B 是推进映射与重装配交接，组 C 是日志、消费责任与恢复投影，组 F 是会话冻结。编号按加入顺序分配，一经使用不重排、不复用。
@@ -33,12 +35,12 @@
 | --- | --- | --- | --- | --- | --- |
 | FS-B-01 | 候选失败 | Run 为 active，显式 reload 请求到达 | 装配报告候选不合法；另一次 Agent 的采用交接拒绝；另一次证据桥不可用 | 不写 SE08、SE15、SE16；`reload` 返回 `invalid` 或 `unavailable`；原 attempt 继续推进；原采用已不合法时报告不可用，不换定义标识，不以空采用推进 | [PM-03](../../session-contract/SPEC.md#pm-03)、[PM-09](../../session-contract/SPEC.md#pm-09) |
 | FS-B-02 | 撤旧后授新的回执丢失 | 旧 attempt 已 `release`，`claim` 已发出 | 存储在 `claim` 提交后断开，回执丢失；另一次 `queryOperation` 持续返回 `unknown` | `queryOperation` 为 `committed` 时从回执读新 `AdvanceRef` 继续 `resume`；为 `unknown` 时不第二次 `claim`，Run 在认回前没有推进者；序号不跳号也不回填 | [PM-10](../../session-contract/SPEC.md#pm-10)、[S4](../SPEC.md#s4)、CR-10 |
-| FS-B-03 | 授予后接续失败 | `claim` 已提交 SE15 | `resume` 返回 `changed`、`unavailable` 或超时 | SE15 不撤销；同一恢复者或下一次扫描以同一推进资格依据重试；`tasks.start-fence` 保留并重放 `invalidate` | [PM-05](../../session-contract/SPEC.md#pm-05)、CR-11 |
+| FS-B-03 | 授予后接续失败 | `claim` 已提交 SE15 | `resume` 返回 `changed`、`unavailable` 或超时 | SE15 不撤销；同一恢复者或下一次扫描以同一推进资格依据重试；Tool 围栏沿 Agent J03 原责任恢复 | [PM-05](../../session-contract/SPEC.md#pm-05)、CR-11 |
 | FS-B-04 | 旧实例晚到 | attempt n 已被 n+1 取代 | attempt n 的 runtime 依次发起参加提交、`reload`、`claim`、`invoke`，并提交 `custody` 交接与晚到事件 | 参加提交得「冲突」且提交方得 `stale-advance`；`reload` 得 `changed`；`claim` 得 `stale-advance`；`invoke` 得 `denied`；`custody` 与事件照常登记在原调用与实际挂接下 | [PM-11](../../session-contract/SPEC.md#pm-11) |
 | FS-B-05 | 重复重装请求 | Run 为 active | 同一候选同一证明重复 `reload`；同一身份不同候选；两个不同候选先后到达；候选等于当前采用 | 同候选认回原回执；同身份异候选 `conflict`；第二个候选 `changed`，调用方重新准备候选；候选等于当前采用时不写 SE08 | [PM-12](../../session-contract/SPEC.md#pm-12) |
-| FS-B-06 | 没有活体时的取消 | `control(cancel-run)` 已提交 | Agent 一侧没有 active 挂接，runtime 已失联 | 终态在提交时已成立；C3 经 C5 `resume` 取得挂接后送控制，或 `resume` 返回 `terminal` 后按 RS-10 认回；`invalidate` 生效前进度停在 `propagating`；超过上限时报告，不冒充已停 | [PM-13](../../session-contract/SPEC.md#pm-13)、[C3](../SPEC.md#c3) |
+| FS-B-06 | 无活体时取消 | control(cancel-run) 已提交 | 原执行没有 active 挂接 | C3 经 Agent 长期入口送控制，不先 resume；后续接续负责收束。控制受理不等于实际停止，未知保留；超过上限报告。Tool 围栏归 Agent/Tool J03 | [PM-13](../../session-contract/SPEC.md#pm-13)、[C3](../SPEC.md#c3) |
 | FS-B-07 | 失联接管 | Run 为 active，挂接仍 active | 宿主给出失联判断作为证据，恢复者持接管资格；另一次没有失联依据；另一次没有资格 | 有依据有资格：`claim` 接管后 `resume`，旧挂接 superseded，旧 runtime 后续提交得 `stale-advance`。没有依据：等 Agent，不 `claim`。没有资格：报告并保留 | [PM-14](../../session-contract/SPEC.md#pm-14)、[RS-07](../../session-contract/SPEC.md#rs-07) |
-| FS-B-08 | 撤除阶段的两条路径 | Run 为 active，准备换代 | 旧 runtime 可配合；另一次旧 runtime 不可达 | 可配合：`detach` 取得交接依据后 `release` 写 SE16。不可达：跳过撤除，`reload` 同批写 SE16 与 `tasks.start-fence`，`resume` 走接管 | [PM-04](../../session-contract/SPEC.md#pm-04)、[PM-06](../../session-contract/SPEC.md#pm-06)、CR-12 |
+| FS-B-08 | 撤除阶段的两条路径 | Run 为 active，准备换代 | 旧 runtime 可配合；另一次旧 runtime 不可达 | 可配合：`detach` 取得交接依据后 `release` 写 SE16。不可达：跳过撤除，`reload` 同批写 SE16，`resume` 走接管 | [PM-04](../../session-contract/SPEC.md#pm-04)、[PM-06](../../session-contract/SPEC.md#pm-06)、CR-12 |
 | FS-B-09 | 有界收束 | Run 为 active，`advance` 为空 | `inspect` 与 `resume` 持续返回原记录不可读，重试次数达到 `boundedRecovery.maxInspectAttempts`；另一次 `inspect` 返回 `missing` 而 `ExecutionRef.revision` 为空 | 达到上限：`finishRun` 写 SE26 failed，依据为不可解释记录，写明未收尾效果。`missing` 且 `revision` 为空：以同一出站身份重放 `invoke`，不收束。现行 Agent 适配不产生 `missing`，这一分支在 NP-05 闭合之前用替身注入 | [P-5](../../session-contract/SPEC.md#具名前提与明确缺项)、[C5](../SPEC.md#c5)、[NP-05](../../session-adapters/SPEC.md#np-05) |
 
 ## 组 C：日志、消费责任与恢复投影
@@ -47,8 +49,8 @@
 
 | 编号 | 场景 | 前置 | 注入 | 期望观察 | 条款 |
 | --- | --- | --- | --- | --- | --- |
-| FS-C-01 | 日志提交后确认丢失 | 保管或完成的参加提交已成立，SE20 或 SE21 已在 | 交付责任解除发出后回执丢失；另一次解除未发出就崩溃 | 重启后 S3 以 `release` 原因读到该会话并交 C5；C5 读到 `release` 为 `pending` 且保管或完成非空，以同一操作身份调用 `DeliveryReleasePort.release`；生产者返回原确认或首次接受；`receive(release)` 写 confirmed；没有重复调用、重复收费或重新领取全文 | [EC-04](../../session-contract/SPEC.md#ec-04)、[EC-05](../../session-contract/SPEC.md#ec-05)、CR-08 |
-| FS-C-02 | 生产者已确认后恢复 | 生产者已接受解除并清理副本 | Session 的 `receive(release)` 未提交就崩溃 | 重发解除得到原确认；写 confirmed；消费侧接续只用 SE20 的内容或引用、SE21 的完成依据；SE20 引用不可恢复时报告 `unavailable`，`owner` 为保管者，不改写为已处理 | [EC-06](../../session-contract/SPEC.md#ec-06)、CR-09 |
+| FS-C-01 | 原确认已在同日志，Session 投影丢答复 | SE20/21 已提交 | receive(release) 提交前后崩溃 | AD-05 重读 Tool 原确认，按原 Session operation 认回或提交；无确认保持 pending，Model ACK 未决时只报告 | [EC-04](../../session-contract/SPEC.md#ec-04)、[EC-05](../../session-contract/SPEC.md#ec-05) |
+| FS-C-02 | 原确认恢复 | Tool 原确认已写同日志 | Session receive(release) 未提交就崩溃 | AD-05 重读原确认，写 confirmed；消费侧仅用 SE20 内容或引用、SE21 完成依据；材料不可恢复报告 unavailable，Model ACK 未决保持 pending | [EC-06](../../session-contract/SPEC.md#ec-06)、CR-09 |
 | FS-C-03 | 归档后迟到结果 | 会话已归档，SE27 撤销了原调用的投递资格 | 生产者结果与账目迟到；一次 Agent 记录存在，一次已删除 | 记录存在：经 `recordResult(custody)` 参加写 SE20；已删除：Session 提交 `preserveResult`。账目以 `receive(account)` 写 SE32。不进队列、不 `accept(business)`、不创建后继 Run；撤销归档后也不进队列 | [EC-07](../../session-contract/SPEC.md#ec-07) |
 | FS-C-04 | Run 终态后后台结果到达 | Run 已终态，会话未归档，原调用仍有投递资格 | 后台工具最终结果到达 | 先 `receive(execution)` 写 SE19 并经 `recordResult` 保管 SE20；再 `accept(business)` 写 SE11，`tasks.routed-input` 记录交回责任；S1 按 `judgeRunStart` 决定是否开新 Run；原 Run 不复活 | [EC-08](../../session-contract/SPEC.md#ec-08) |
 | FS-C-05 | 长历史读取 | 会话有大量条目与多代模型视图 | 以稀疏过滤读历史；恢复与事件消费并行进行 | 恢复、推进与事件消费不扫描全部历史；`begin`、`next`、`since` 的读取量按条目与字节受控；空页带 `scannedThrough`；提供者不可用返回 `unavailable`，不返回空页 | [EC-10](../../session-contract/SPEC.md#ec-10)、[SL10、SL11](../../session-contract/SPEC.md#日志读取投影及恢复) |
@@ -57,7 +59,7 @@
 | FS-C-08 | 事件缺口 | 事件消费落后于 Agent 的保留窗口 | Agent 读取返回缺口 | 消费者经 `inspect` 读完整快照，结束状态按 `ended`、结果与控制按 `producer` 与 `control` 处理，再从缺口之后继续；没有事件被跳过 | [EC-01](../../session-contract/SPEC.md#ec-01)、RD-05 |
 | FS-C-09 | 过期快照与晚到通知 | 快照缓存命中 | 另一个进程提交后，本进程以缓存快照执行一个带 `expected` 的命令；另一次执行一个不带 `expected` 的命令；另一次提交通知在后来的提交之后晚到 | 带 `expected` 的命令：事务内 `decide` 返回 `changed`，流水线以同一操作身份重做一次后成功，存储参加者开新的尝试代次，不得到 `conflict`。不带 `expected` 的命令：不得到 `changed`，结局按事务内的当前状态裁定。晚到通知带自己的修订，不使缓存变为有效；清空全部缓存后结果不变 | [CA-3](../SPEC.md#ca-3)、[CP-01](../SPEC.md#cp-01)、[尝试代次](../../session-storage-sql/SPEC.md#w1-attempts) |
 | FS-C-10 | 未读事件时裁定空闲与完成 | Run 为 active，Agent 已发出 Session 尚未读到的事件 | S2 到期裁定；Agent 条件终结 | `judgeIdle` 不得出 `due`；`considerAutoArchive` 返回 `not-due`；终态只在读到结束事实后成立 | [EC-03](../../session-contract/SPEC.md#ec-03)、[I-R10](../../session-contract/SPEC.md#i-r10) |
-| FS-C-11 | 交付责任解除的三种发起时点与未确认结果 | 一次：C5 经 `recordResult(custody)` 发起的参加保管已 `committed`；一次：`completeExternalConsumption` 已提交；一次：执行记录提供者发起的 `completeConsumption` 已提交，提交方不回传确认 | 生产者先返回 `not-ready`，再返回 `unavailable`，之后确认；另一次 `DeliveryReleasePort` 缺席；另一次生产者持续返回 `not-ready` | 前两种在提交之后立即调用 `release`；第三种在 S3 的 `release` 扫描之后调用。各次调用的操作身份相同。确认之后 `receive(release)` 恰写一次 SE19。端口缺席时不调用，`release` 保持 pending。持续 `not-ready` 时重发次数达到 `deliveryRelease.maxAttempts` 后保持 pending 并报告，不写 confirmed | [DeliveryReleasePort](../../session-contract/SPEC.md#deliveryreleaseport)、[EC-04](../../session-contract/SPEC.md#ec-04)、[C5](../SPEC.md#c5-release)、CR-08 |
+| FS-C-11 | 确认不可读或版本不符 | 原结果已保管或处理 | 日志 unavailable、未知、saved 未确认或异版本 | 保留 pending；异版本不得解除；不直接调用生产者，不以 saved 证明 ACK | [JC-Release](../../session-contract/SPEC.md#jc-release)、[C5](../SPEC.md#c5-release) |
 
 ## 组 F：会话冻结
 
@@ -66,7 +68,7 @@
 | 编号 | 场景 | 前置 | 注入 | 期望观察 | 条款 |
 | --- | --- | --- | --- | --- | --- |
 | FS-F-01 | 冻结判定到达与两步之间崩溃 | 会话未冻结，有待处理输入，没有 Run | 候选采用材料带回 `FreezeVerdict`；进程在 `startRun` 返回带 `verdict` 的 `frozen` 失败之后、`freeze` 提交之前崩溃 | `startRun` 不提交；重启后 S1 再次触发，候选材料再次带回同一判定，`freeze` 首次提交 SE37，同批 SE38 解除全部待处理输入；只有一条 SE37 | [I-F1](../../session-contract/SPEC.md#i-f1)、[I-F4](../../session-contract/SPEC.md#i-f4)、CR-21 |
-| FS-F-02 | 两条路径先后交来判定 | 会话已冻结 | Tool 宿主协调者经 `ToolResidencyActions` 再次交来判定，证据不同 | `freeze` 返回原回执，`recovered` 为真，不写条目 | [I-F1](../../session-contract/SPEC.md#i-f1) |
+| FS-F-02 | 候选采用再次交来判定 | 会话已冻结 | planAdoption 带回同一或不同证据 | freeze 返回原回执，不写条目；应用桥接未交付，不从 maintainer 切为 coordinator | [I-F1](../../session-contract/SPEC.md#i-f1) |
 | FS-F-03 | 冻结的会话里 Run 终结 | 会话已冻结，Run 为 active，有待处理输入 | Agent 结束事件到达；另一次 `control(cancel-run)` | 待处理输入照常交入该 Run；终态同批写 SE38 解除余下的待处理输入；S1 之后跳过该会话；`startRun` 返回 `frozen` | [I-F3](../../session-contract/SPEC.md#i-f3)、[I-F4](../../session-contract/SPEC.md#i-f4)、[S1](../SPEC.md#s1) |
 | FS-F-04 | 冻结的会话恢复与归档 | 会话已冻结，Run 为 active，挂接丢失 | C5 走恢复路径；之后归档再撤销归档 | `claim` 与 `resume` 照常，原 Run 沿原采用接续；归档照常级联，归档批次同批以 SE26 取消原 Run；撤销归档后 `lifecycle` 为 `frozen`，不为 `dormant` 或 `active`，任何输入不被重新交入 | [I-F2](../../session-contract/SPEC.md#i-f2)、[I-F5](../../session-contract/SPEC.md#i-f5)、[JC-16](../../session-contract/SPEC.md#共同提交与共享事务域)、[C4](../SPEC.md#c4) |
 | FS-F-05 | 冻结的会话自动归档 | 会话已冻结，没有 Run，自动归档已启用，没有常驻标记 | 连续空闲达到时限；另一次之前对该会话调用 `startRun` | `startRun` 返回 `frozen`，`verdict` 为 null，C2 不调用 `freeze`；S2 照常 `recordIdle` 与 `considerAutoArchive`，裁定不读 `frozen`；到期后归档成立并交 C4 | [I-F5](../../session-contract/SPEC.md#i-f5)、[C2](../SPEC.md#c2)、[S2](../SPEC.md#s2) |

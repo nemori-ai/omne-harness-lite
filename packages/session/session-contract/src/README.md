@@ -19,3 +19,5 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：`.` �
 根入口导出公开接口页导航的类型、两个操作身份派生函数、九个领域服务、`decide`、`reduce`、`projectSessionLog` 与 `sessionModesBlock`。支持范围与具名限制见 SPEC 状态行。命令编码集中在 `entries.ts`。判定按命令族拆分，归约由 `reduce.ts`、`reduce-extended.ts` 与 `reduce-results.ts` 完成。`result-state.ts` 核对结果的原 Run 归属，并同步参加提交的当前与历史执行引用。`./testing` 提供有效端口的一致性套件、非耐久替身与合法测试值。它们不提供生产存储。
 
 历史材料、调用登记和原条目引用分别在 `history-values.ts`、`call-values.ts`、`work-entry-values.ts`。校验由相应 state/validation 模块供 decide、project 与 reduce 共同调用。当前支持及提供者边界见[同日志纯层](../docs/same-log-pure.md)。
+
+访问检查的类型在 [access.ts](access.ts)，独立脚本替身在 [testing-access.ts](testing-access.ts)。两者不改变现有事务工厂或 commit 签名。实际执行处接入仍未完成，见[访问检查](../docs/access-check.md)。

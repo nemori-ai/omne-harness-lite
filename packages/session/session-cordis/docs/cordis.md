@@ -6,6 +6,8 @@
 
 现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，两个入口都没有导出。下文是 SPEC 固定的目标形状，不是源码事实。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
+访问检查类型与独立脚本替身已由 session-contract 导出。[session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 已导出 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../../session-contract/docs/access-check.md)）。本成员的生产注入尚未接入。本成员仍无运行实现，生产运行尚未验证。
+
 ## 插件与服务
 
 `./cordis` 导出 `SessionService` 的具体子类，子类本身就是插件。本成员只提供一个键 `session`。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在本插件的 fiber 上，插件撤除时键上就没有服务了。
@@ -19,16 +21,16 @@
 ### inject
 
 ```ts
-static inject = ['sessionTransactions', 'sessionPrincipals']
+static inject = ['sessionAccessCheck', 'sessionTransactions', 'sessionPrincipals']
 ```
 
-元素也可以是从 `@omne-harness/session-cordis-contract/cordis` 导入的键常量，常量名以定义成员的源码为准。不在运行时拼键，也不经变量转手。`inject` 只写事务端口与内部主体。没有事务端口，任何读写都不成立（[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)）。写进 `inject` 等于声明「它换代或不在，本插件就卸载重跑」（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)）。其余端口不进 `inject`，因为 `inject` 没有可选形式（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)），而这些端口缺席时只应影响需要它的操作。
+元素也可以是从 `@omne-harness/session-cordis-contract/cordis` 导入的键常量，常量名以定义成员的源码为准。不在运行时拼键，也不经变量转手。`inject` 只写访问检查、事务端口与内部主体。没有事务端口，任何读写都不成立（[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)）。写进 `inject` 等于声明「它换代或不在，本插件就卸载重跑」（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)）。其余端口不进 `inject`，因为 `inject` 没有可选形式（[inject-has-no-optional-form](../../../../.meta_harness/design/basis/cordis/inject-has-no-optional-form.md)），而这些端口缺席时只应影响需要它的操作。
 
-内部主体经服务键 `sessionPrincipals` 与事务端口一起进 `inject`：没有主体时协调器与调度器不能提交，实例无法构造（性质 8）。两者都在场是插件体运行的条件。
+内部主体经服务键 `sessionPrincipals` 与事务端口一起进 `inject`：没有主体时协调器与调度器不能提交，实例无法构造（性质 8）。三者都在场是插件体运行的条件。
 
 ### 端口的现取
 
-除事务端口与内部主体外，端口都在调用点经 `ctx.get` 现取。`ctx.<键>` 只留给 inject 过的键（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。现取用插件装载时捕获的本插件 Context：
+除访问检查、事务端口与内部主体外，端口都在调用点经 `ctx.get` 现取。`ctx.<键>` 只留给 inject 过的键（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。现取用插件装载时捕获的本插件 Context：
 
 - 服务方法里的 `this.ctx` 是调用方的 Context（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)）。用它现取端口，看到的是调用方所在 isolate 的视图，不是本插件的视图。
 - 协调器与调度器的调用没有调用方，只能用本插件的 Context。
@@ -47,7 +49,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 校验拒绝未知键、类型错误、负数、零上限、空退避序列与非有限数。`preEvaluation.prewarm` 只接受 `false`，与 session 的类型一致：Agent 宿主创建实例的入口定义之前，配置无法打开预热（[配置](../../session/docs/public-api.md#配置)）。`disposeWaitMs` 的初值随实现确定。根关闭的物理等待上界由部署给出，本字段只限制本插件的等待（[必需依赖、局部依赖与有序交接](../../../../docs/architecture/runtime/runtime-contract-integration.md#必需依赖局部依赖与有序交接)）。
 
-配置错误时插件加载失败，fiber 进入 `FAILED`，不提供服务（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。这条 basis 按函数插件核验。Service 子类静态 `Config` 的路径没有单独核验，对本插件还是假设，由本成员的测试补证。缺事务端口或内部主体时 fiber 停在 `PENDING`。两种状态分别诊断。
+配置错误时插件加载失败，fiber 进入 `FAILED`，不提供服务（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。这条 basis 按函数插件核验。Service 子类静态 `Config` 的路径没有单独核验，对本插件还是假设，由本成员的测试补证。缺访问检查、事务端口或内部主体时 fiber 停在 `PENDING`。两种状态分别诊断。
 
 配置只放可序列化的数据。租户、主体、受理槽、句柄与回调不进配置，也不进插件树（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。
 
@@ -55,10 +57,10 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 | 阶段 | 本插件做什么 | 依据 |
 | --- | --- | --- |
-| 装载 | 静态 `Config` 校验配置；事务端口与内部主体都在场后插件体运行；捕获本插件 Context；构造端口代理与组合通知者；调用工厂；用 `ctx.on` 监听提交通知 | 性质 2 至 5 |
+| 装载 | 静态 `Config` 校验配置；访问检查、事务端口与内部主体都在场后插件体运行；捕获本插件 Context；构造端口代理与组合通知者；调用工厂；用 `ctx.on` 监听提交通知 | 性质 2 至 5 |
 | 运行 | 面调用经调用方类核对后转给实例；每条提交通知交给实例，并为新见到的租户绑定扫描者 | 性质 5 至 7 |
 | 其他端口换代 | 插件体不重跑。下一次调用现取到新提供者 | 性质 10 |
-| 事务端口或内部主体换代 | 插件体先卸载再重跑：旧实例按撤除顺序停止，新实例重新构造 | 性质 10 |
+| 访问检查、事务端口或内部主体换代 | 插件体先卸载再重跑：旧实例按撤除顺序停止，新实例重新构造 | 性质 10 |
 | 卸载 | 按[撤除顺序](#撤除顺序)停止 | 性质 9 |
 
 ## 调用方类核对
@@ -133,7 +135,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口不导出任何东西。独立宿主从 session 取工厂 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 |
 | [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖提供者 | 调用方插件只依赖服务定义。本成员不被任何包导入 | 没有源码 |
 | [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 重复装载在 `provide` 时失败 | 源码读数。测试随实现进入 |
-| [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 必需与可选依赖 | 只 `inject` 事务端口与内部主体；其余端口用本插件 Context 现取；不跨调用持有端口引用 | 机制有 basis。测试随实现进入 |
+| [IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)、[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 必需与可选依赖 | 只 `inject` 访问检查、事务端口与内部主体；其余端口用本插件 Context 现取；不跨调用持有端口引用 | 机制有 basis。测试随实现进入 |
 | [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10)、[IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件 | 派发定义成员声明的 `committed`，本成员不增补 `Events` | 没有源码 |
 | [IC-12](../../../../docs/architecture/cordis-integration-conventions.md#ic-12) 通知的失败处理 | `parallel` 的失败在 `await` 外捕获；监听者同步执行；失败只记录诊断 | 没有源码 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 不定义登记。自己的效应落在本插件 fiber 上 | 不适用 |
@@ -161,7 +163,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 本成员的测试随实现进入 `tests/`，在真实 Cordis 4.0.4 上装载插件，不用 Cordis 的替身。端口提供者与调用方插件用测试内的最小插件代替，机制实例用真实的 session 工厂。至少覆盖 SPEC [验证](../SPEC.md#验证)列出的九项：
 
-1. 事务端口或内部主体缺席时 `PENDING`，两者都到场后服务在场。
+1. 访问检查、事务端口或内部主体缺席时 `PENDING`，两者都到场后服务在场。
 2. 其他端口逐个缺席只影响需要它的操作，到场后插件体不重跑。
 3. 端口抛出时返回 `unavailable`。
 4. 调用方类的两层核对。

@@ -34,6 +34,7 @@ it('accepted alone cannot reconcile cancellation and the original independent st
   const control = operationId('cancel')
   ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'control',
         input: {
@@ -284,6 +285,7 @@ it('an original completed Tool slot clears direct stopping only after the corres
     target = operation(deriveDriveOperation({ kind: 'control', execution: s.execution, control }))
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'control',
         input: {
@@ -388,6 +390,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
       target = operation(deriveDriveOperation({ kind: 'control', execution: s.execution, control }))
     ok(
       await s.backend.transactions.commit({
+        access: s.access,
         command: {
           kind: 'control',
           input: {
@@ -481,6 +484,7 @@ it('reconciles each original same-call K independently and requires its own prop
     targets.push(target)
     ok(
       await s.backend.transactions.commit({
+        access: s.access,
         command: {
           kind: 'control',
           input: {
@@ -575,6 +579,7 @@ it('urgent interruption is propagated by the original submit without fabricating
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'interrupt',
         input: {

@@ -69,7 +69,7 @@ Session 只建模会话治理所需的外域事实。外域对象以引用或耐
 | `ProducedResult`、`ResultConsumption` | 值 | 随结果版本 | 结果归生产者；保管与处理事实归 Session | 保管（SE20）、处理（SE21）、解除确认 | 保管、处理与解除分别认回；保管不表示已处理 |
 | `Waiting` | 值，派生 | 随原位置 | Agent 的等待事件给出；Session 保存副本（SE18、SE22）；卡片归 HITL | 等待出现在 Agent 事件到原位置处理、控制或新的等待集合 | 阻塞只针对原位置；没有等待结束事件 |
 | `ControlProgress` | 实体 | `SessionOperationId` | Session | 受理（SE24）到传播与核对完成（SE25） | 请求不等于物理停止；Run 取消生效即唯一被取消终态 |
-| `RecoveryTask` | 值 | 随原操作 | Session | 产生到确认或拒绝 | 五类：初始化、级联、路由输入、作用域释放、启动资格失效 |
+| `RecoveryTask` | 值 | 随原操作 | Session | 产生到确认或拒绝 | 四类：初始化、级联、路由输入、作用域释放 |
 | 日志条目（`HistoryEntry`，身份 `EntryId`） | 实体，记录事件 | `EntryId` 与 `SessionRevision` | Session | 提交后不可变 | 依据与留痕分开；业务写入只经 Session 命令 |
 | `WorkSnapshot` | 投影 | 随 `revision` | Session 归约 | 可丢，可重建 | 来自同一权威提交位置；不是第二份权威 |
 | `OpenWork` | 值，派生 | 随 `revision` | Session 归约 | 随快照 | 待处理、已交入未承接、等待、后台占位、结果未知、未读 Agent 事件六个部分只从快照派生 |
@@ -155,11 +155,11 @@ Session 不保存 Agent 的接续值。Agent 的检查点是执行当前状态�
 | 分类 | 内容 | 决定时点 | 能否序列化 | 与授权的关系 |
 | --- | --- | --- | --- | --- |
 | 单次操作参数 | `SessionAccess`（`Access` 加会话）的主体、租户与会话，`SessionOperationId`，`advance` 与 `expected`，参加材料，业务输入、控制、耐久证据 | 每次操作 | 能 | 每次操作核对租户与资格。对象存在不构成权限证明 |
-| 构造依赖端口 | `SessionTransactionPort`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`，可选 `SessionNotifier` | 构造时交入；除事务端口外按调用现取 | 不能，是能力对象 | 身份桥提供资格材料。其他端口的使用同样受每次操作的资格约束 |
-| 出站端口 | `AgentDrivePort`、`ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）、`ScopeReleasePort` | 按调用现取 | 不能 | 参数只含 Session 自己的值与不透明证据。作用域释放使用装配层维护者签发的恢复授权，不使用会话用户的访问身份 |
+| 构造依赖端口 | `SessionAccessCheck`、`SessionTransactionPort`、`SessionIdentityBridge`、`SessionEvidenceBridge`、`SessionClock`、`SessionIdleInput`、`SessionContextInput`，可选 `SessionNotifier` | 访问检查与事务端口在构造时交入；其余端口按调用现取 | 不能，是能力对象 | 访问检查裁定每次操作的当前资格。身份桥提供共同提交的身份材料，不能代替访问裁定 |
+| 出站端口 | `AgentDrivePort`、`ScopeReleasePort` | 按调用现取 | 不能 | 参数只含本域值与不透明证据。作用域释放使用装配维护者的恢复授权 |
 | 可序列化配置 | `SchedulingPolicy` 等调度策略 | 工厂创建时校验 | 能，不含业务身份、权限或秘密 | 无。配置归 `session` 工厂，不进本成员 |
 
-请求身份、固定采用和原位置作为显式值传递。存储、当前资格判断、时钟、空闲覆盖与 Context 材料通过构造依赖取得。逐操作的必需性与缺席行为沿 [SPEC](../../SPEC.md#构造依赖端口与出站端口) 核对。Cordis 只在[集成主题](../../../session-cordis-contract/docs/cordis.md)中装配这些能力。
+请求身份、固定采用和原位置作为显式值传递。访问检查、事务端口及另行交入的 `SessionInternalPrincipals` 是必需构造依赖，缺席时不构造实例，经 Cordis 时服务停在 `PENDING`。时钟、空闲覆盖与 Context 材料按调用取得。逐操作的必需性与缺席行为沿 [SPEC](../../SPEC.md#构造依赖端口与出站端口) 核对。Cordis 只在[集成主题](../../../session-cordis-contract/docs/cordis.md)中装配这些能力。
 
 ## 领域特有的结果与提交
 

@@ -1,15 +1,21 @@
 import { commandScope } from './frontier.ts'
 import type { ToolRelease } from './result-release.ts'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
   decide,
   commandDigest,
   judgeIdle,
+  mutationAccessRequest,
   projectSessionLog,
+  readAccessRequest,
   reduce,
 } from '@omne-harness/session-contract'
 import type {
+  SessionAccessCheck,
+  SessionAccessDecision,
+  SessionAccessRequest,
+  SessionReadAccessOperation,
   SessionInputScope,
   DurableEvidence,
   EntryId,
@@ -27,7 +33,6 @@ import type {
   SessionFailure,
   SessionHistory,
   GuardCommand,
-  MutationName,
   SessionCommand,
   SessionTransactionPort,
   SessionLogObservation,
@@ -61,7 +66,58 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
   readonly durability: 'none'
   readonly controls: Readonly<{
     entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
+    /** The access decision evidence that the public commit of `operation` recorded; `null` when there is none. */
+    decisionOf(
+      tenant: TenantId,
+      session: SessionId,
+      operation: SessionOperationId,
+    ): DurableEvidence | null
   }>
+}
+
+/**
+ * One current access decision for one public call (session-contract SPEC「当前操作的访问裁定」).
+ * A throwing or unavailable source does not continue; the allowed evidence is only returned to
+ * the call that asked.
+ */
+export async function qualifyAccess<P>(
+  check: SessionAccessCheck<P>,
+  request: SessionAccessRequest<P>,
+): Promise<Outcome<DurableEvidence, SessionFailure>> {
+  let decision: SessionAccessDecision
+  try {
+    decision = await check.check(request)
+  } catch (error) {
+    return fail({
+      kind: 'unavailable',
+      owner: 'session-qualification',
+      diagnostic: `access check threw for ${request.operation}: ${error instanceof Error ? error.message : String(error)}`,
+    })
+  }
+  switch (decision.kind) {
+    case 'allowed':
+      return succeed(decision.evidence)
+    case 'denied':
+      return fail({ kind: 'denied', action: request.operation })
+    case 'unavailable':
+      return fail({
+        kind: 'unavailable',
+        owner: 'session-qualification',
+        diagnostic: `access check unavailable for ${request.operation}: ${decision.diagnostic}`,
+      })
+  }
+}
+
+/** The access of a commit must name the tenant and the session of its command; a mismatch is refused without asking. */
+export function commitAccessMatches<P>(
+  access: SessionAccess<P> | undefined,
+  command: SessionCommand,
+): access is SessionAccess<P> {
+  return (
+    access !== undefined &&
+    tenantEquals(access.tenant, command.input.tenant) &&
+    access.session === command.input.session
+  )
 }
 
 export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
@@ -231,19 +287,22 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
   initialization?: InitializationSource
   history?: HistorySource
   capacityBytes?: number
-  verifyCommand?: (
-    command: SessionCommand,
-    guards: readonly GuardCommand[],
-  ) => SessionFailure | null
-
-  authorize?: (
-    input: SessionAccess<P> | Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
-    action: string,
-  ) => 'allowed' | 'denied' | 'unavailable'
+  /** The current access decision of every public read and write; required, with no default permission. */
+  accessCheck: SessionAccessCheck<P>
+}>
+/**
+ * The internal commit input: the caller has already asked the access check once for this command
+ * (the public `commit`, or the Agent write that derives a participation) and hands the allowed
+ * decision over. No path commits without one.
+ */
+export type PreparedCommit = Readonly<{
+  command: SessionCommand
+  guards: readonly GuardCommand[]
+  decision: DurableEvidence
 }>
 export function createSessionTransactions<P>(
   stores: SessionDirectory,
-  options: MemorySessionTransactionOptions<P> = {},
+  options: MemorySessionTransactionOptions<P>,
 ): MemoryInitializationTransactions<P> & {
   prepareReconciliation(
     observation: SessionLogObservation,
@@ -251,47 +310,32 @@ export function createSessionTransactions<P>(
     releases: readonly ToolRelease[],
     beforePublish: () => SessionFailure | null,
   ): Outcome<CommitReceipt | null, SessionFailure>
-  prepareCommand(input: {
-    command: SessionCommand
-    guards: readonly GuardCommand[]
-  }): Outcome<unknown, SessionFailure>
+  prepareCommand(input: PreparedCommit): Outcome<unknown, SessionFailure>
 } {
   let directoryAvailable = true
   let failInitialization = false
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
 
-  const qualify = (
-    access: Parameters<NonNullable<MemorySessionTransactionOptions<P>['authorize']>>[0],
-    action: string,
-  ): SessionFailure | null => {
-    const status = options.authorize?.(access, action) ?? 'denied'
-    return status === 'allowed'
-      ? null
-      : status === 'denied'
-        ? denied(action)
-        : unavailable(`qualification unavailable: ${action}`)
-  }
-  const storeOf = (access: SessionAccess<P>, action: string): Outcome<Store, SessionFailure> => {
-    const qualification = qualify(access, action)
-    if (qualification) return fail(qualification)
+  const storeOf = async (
+    access: SessionAccess<P>,
+    operation: SessionReadAccessOperation,
+  ): Promise<Outcome<Store, SessionFailure>> => {
+    const qualification = await qualifyAccess(
+      options.accessCheck,
+      readAccessRequest(access, operation),
+    )
+    if ('failure' in qualification) return fail(qualification.failure)
     const key = keyOf(access.tenant, access.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)
     if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
     const store = stores.get(key.ok)
-    return store === undefined ? fail(denied(action)) : succeed(store)
+    return store === undefined ? fail(denied(operation)) : succeed(store)
   }
 
-  const commit = <K extends MutationName>(
-    input: Readonly<{
-      command: Extract<SessionCommand, { kind: K }>
-      guards: readonly GuardCommand[]
-    }>,
-  ): Outcome<unknown, SessionFailure> => {
+  const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
-    const qualification = options.verifyCommand?.(command, input.guards)
-    if (qualification) return fail(qualification)
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)
@@ -372,6 +416,7 @@ export function createSessionTransactions<P>(
             digest: commandDigest(command),
             receipt: original.record.receipt,
           },
+          decision: input.decision,
           recall,
         })
         stores.set(key.ok, { ...store, operations })
@@ -440,6 +485,7 @@ export function createSessionTransactions<P>(
     const operations = new Map(store?.operations)
     operations.set(command.input.operation, {
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
+      decision: input.decision,
       recall,
     })
     const inputs = new Map(store?.inputs)
@@ -464,8 +510,6 @@ export function createSessionTransactions<P>(
       failInitialization = false
       return fail(unavailable('injected failure before initialization publication'))
     }
-    const currentQualification = options.verifyCommand?.(command, input.guards)
-    if (currentQualification) return fail(currentQualification)
     stores.set(key.ok, target)
     if (command.kind === 'create') {
       const current = options.history?.read(target.snapshot, target.entries, {
@@ -527,7 +571,7 @@ export function createSessionTransactions<P>(
 
   const history: SessionHistory<P> = {
     begin: async input => {
-      const store = storeOf(input, 'history.begin')
+      const store = await storeOf(input, 'history.begin')
       if ('failure' in store) return store
       if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
         return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
@@ -555,7 +599,7 @@ export function createSessionTransactions<P>(
       )
     },
     next: async input => {
-      const store = storeOf(input, 'history.next')
+      const store = await storeOf(input, 'history.next')
       if ('failure' in store) return store
       const cursor = decodeCursor(input.cursor)
       const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
@@ -569,7 +613,7 @@ export function createSessionTransactions<P>(
       return succeed(page(store.ok, cursor))
     },
     since: async input => {
-      const store = storeOf(input, 'history.since')
+      const store = await storeOf(input, 'history.since')
       if ('failure' in store) return store
       if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
         return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
@@ -590,7 +634,7 @@ export function createSessionTransactions<P>(
       )
     },
     readModelView: async input => {
-      const store = storeOf(input, 'history.readModelView')
+      const store = await storeOf(input, 'history.readModelView')
       if ('failure' in store) return store
       if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
         return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
@@ -630,9 +674,18 @@ export function createSessionTransactions<P>(
   }
 
   const port: SessionTransactionPort<P> = {
-    commit: (async input => commit(input)) as SessionTransactionPort<P>['commit'],
+    commit: (async input => {
+      const command: SessionCommand = input.command
+      if (!commitAccessMatches(input.access, command)) return fail(denied(command.kind))
+      const qualification = await qualifyAccess(
+        options.accessCheck,
+        mutationAccessRequest(input.access, command),
+      )
+      if ('failure' in qualification) return fail(qualification.failure)
+      return commit({ command, guards: input.guards, decision: qualification.ok })
+    }) as SessionTransactionPort<P>['commit'],
     readWork: async input => {
-      const store = storeOf(input, 'readWork')
+      const store = await storeOf(input, 'readWork')
       if ('failure' in store) return store
       const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
         kind: 'pending',
@@ -644,7 +697,7 @@ export function createSessionTransactions<P>(
       })
     },
     readInput: async input => {
-      const store = storeOf(input, 'readInput')
+      const store = await storeOf(input, 'readInput')
       if ('failure' in store) return store
       const found = store.ok.inputs.get(input.input)
       return found === undefined
@@ -652,7 +705,7 @@ export function createSessionTransactions<P>(
         : succeed(found)
     },
     queryOperation: async input => {
-      const store = storeOf(input, 'queryOperation')
+      const store = await storeOf(input, 'queryOperation')
       if ('failure' in store) return store
       const held = store.ok.operations.get(input.operation)
       const resolution: OperationResolution =
@@ -663,8 +716,12 @@ export function createSessionTransactions<P>(
     },
     history,
     pending: async input => {
-      const qualification = qualify(input, 'pending')
-      if (qualification) return fail(qualification)
+      const qualification = await qualifyAccess(options.accessCheck, {
+        access: { principal: input.principal, tenant: input.tenant },
+        operation: 'pending',
+        target: { kind: 'tenant', tenant: input.tenant },
+      })
+      if ('failure' in qualification) return fail(qualification.failure)
       const text = tenantCodec.encode(input.tenant)
       if (!text.ok)
         return fail({
@@ -693,8 +750,12 @@ export function createSessionTransactions<P>(
       })
     },
     references: async input => {
-      const qualification = qualify(input, 'references')
-      if (qualification) return fail(qualification)
+      const qualification = await qualifyAccess(options.accessCheck, {
+        access: { principal: input.principal, scope: 'system' },
+        operation: 'references',
+        target: { kind: 'resident-references', key: input.key },
+      })
+      if ('failure' in qualification) return fail(qualification.failure)
       if (!directoryAvailable)
         return fail(unavailable('transaction-domain directory is unavailable'))
       if (!Number.isInteger(input.limit) || input.limit < 1)
@@ -732,8 +793,12 @@ export function createSessionTransactions<P>(
       })
     },
     releasedScopes: async input => {
-      const qualification = qualify(input, 'releasedScopes')
-      if (qualification) return fail(qualification)
+      const qualification = await qualifyAccess(options.accessCheck, {
+        access: { principal: input.principal, scope: 'system' },
+        operation: 'releasedScopes',
+        target: { kind: 'released-scopes' },
+      })
+      if ('failure' in qualification) return fail(qualification.failure)
       if (!directoryAvailable)
         return fail(unavailable('transaction-domain directory is unavailable'))
       if (!Number.isInteger(input.limit) || input.limit < 1)
@@ -804,8 +869,6 @@ export function createSessionTransactions<P>(
         kind: 'receive' as const,
         input: { tenant: observation.tenant, session: observation.session, operation, fact },
       }
-      const qualification = options.verifyCommand?.(command, [])
-      if (qualification) return fail(qualification)
       const release = decide(prepared, command, [], null, {
         compaction: null,
         ...(material ? { history: material.reads } : {}),
@@ -871,6 +934,12 @@ export function createSessionTransactions<P>(
       entriesOf: (tenant: TenantId, session: SessionId) => {
         const key = keyOf(tenant, session)
         return 'failure' in key ? [] : [...(stores.get(key.ok)?.entries ?? [])]
+      },
+      decisionOf: (tenant: TenantId, session: SessionId, operation: SessionOperationId) => {
+        const key = keyOf(tenant, session)
+        return 'failure' in key
+          ? null
+          : (stores.get(key.ok)?.operations.get(operation)?.decision ?? null)
       },
     }),
   })

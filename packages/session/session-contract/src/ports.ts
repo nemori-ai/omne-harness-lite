@@ -210,8 +210,14 @@ export interface SessionContextInput<P> {
   ): Reply<readonly GuardCommand[]>
 }
 export interface SessionTransactionPort<P> {
+  /**
+   * Commits one command under the explicit access of this call (SPEC「当前操作的访问裁定」). The
+   * access must name the tenant and session of the command; the provider asks the access check
+   * once before any effect, including the recall of an operation it already holds.
+   */
   commit<K extends MutationName>(
     input: Readonly<{
+      access: SessionAccess<P>
       command: Extract<SessionCommand, { kind: K }>
       guards: readonly GuardCommand[]
     }>,

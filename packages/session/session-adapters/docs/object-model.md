@@ -8,9 +8,9 @@
 
 | 运行对象 | 关联的 Session 对象 | 关联的邻域对象 | 持有什么 |
 | --- | --- | --- | --- |
-| 入站插件（AD-01 至 AD-08、AD-13） | 命令、`ProducerFact`、`ModelViewRead` | `CallerCommit`、同一会话日志里的 Agent 条目与事件正文、`HistorySource`、`SelectedModel` | 上一份已过滤快照、前缀摘要缓存。解释进度不在插件内保存，它在 Session 日志的 `ExecutionRef.readThrough` 里 |
+| 入站插件（AD-01 至 AD-06、AD-08、J06 提供者及显示观察） | 命令、ProducerFact、ModelViewRead | 同日志原条目与材料、HistorySource、消息准入与当前条件、StreamFrame | 可丢快照与缓存；解释进度保存在会话日志 |
 | 构造依赖端口实现（AD-09 至 AD-12） | `GuardCommand`（`participant` 为材料拥有者）、`ContextMaterial`、`FreezeVerdict` | 身份材料、候选采用、`NeedBinding` | 无业务状态 |
-| 出站端口实现（AD-14 至 AD-17） | `AdvanceRef`、`ExecutionRef`、`DurableEvidence`、作用域引用、`ReleasedScope`、`ProducedResult` | `AgentRuntime`、执行句柄、`StartGuard`、`RecoveryAccess`、ACK、`releaseDelivery` 的操作引用 | 执行句柄；恢复授权的引用；Tool 释放操作引用的对应 |
+| 出站端口实现（AD-14、AD-15） | AdvanceRef、ExecutionRef、作用域与原释放任务 | AgentRuntime、长期控制、RecoveryAccess、OriginalAcquisition | 执行句柄与装配交入的恢复授权引用，不保存业务事实 |
 | 翻译函数 | 操作身份、模式值 | 邻域的操作身份、`DecisionMode`、元能力宿主的两个布尔值 | 无。纯函数 |
 
 ```mermaid
@@ -43,7 +43,6 @@ classDiagram
 | Session 一侧 | 邻域一侧 | 对应方式 |
 | --- | --- | --- |
 | `SessionOperationId` 与出站操作身份 | Agent、Model 的操作身份 | 确定编码，不另存映射 |
-| `DeliveryReleasePort.release` 的操作身份 | Tool `releaseDelivery` 的操作引用 | Tool 为每次调用分配新引用。AD-17 在进程内保存对应，丢失时按 AD-06 的认回步骤处理 |
 | `ProducedResult.producer` | Model 的原调用；Tool 的原调用引用 | 按 `kind` 选生产者，`call` 原样交出 |
 | `ModelViewRow.entry` | `RecordEntryRef` | 按 message 包的编码 |
 | `ExecutionRef.execution` | `AgentExecutionId` | 经 Agent 的受信解码 |
@@ -56,7 +55,6 @@ classDiagram
 
 - 插件与端口实现随插件 fiber 装载与卸载。卸载不改变任何会话事实。
 - 执行句柄从 `invoke` 或 `resume` 取得，执行结束、句柄失效或插件卸载时丢弃。
-- Tool 释放操作引用的对应在 `releaseDelivery` 返回时记下，交付确认、插件卸载或进程结束时丢弃。
 - 上一份已过滤快照在每次成功读取后替换，游标作废或进程结束时丢弃。
 - 前缀摘要缓存按 epoch 键入，只淘汰，不失效。
 - 恢复授权的生命周期归签发它的维护拥有者，本成员只持有引用。

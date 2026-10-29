@@ -4,6 +4,8 @@
 
 The Cordis definition member of Session. Variant: `service-contract`.
 
+`./cordis` exports `SessionAccessCheckService` and `sessionAccessCheckKey`. The key comes from the class's `provide`. Production injection and Session execution checks remain unimplemented.
+
 ## Responsibility and status
 
 This package owns only the Cordis definition of the Session seam. The definition has these parts. They are the service key `session`, the abstract class `SessionService`, the port service keys, the intercept configuration `{ caller }`, and the wake-up event `session-cordis-contract/committed`.
@@ -15,10 +17,9 @@ Status: Cordis definition member, `draft`. The [SPEC](SPEC.md) states the proper
 | Export | Support | Where |
 | --- | --- | --- |
 | `SessionService` with the four faces, `sessionKey` | Exported | `src/cordis.ts` |
-| Ten port Services and keys: `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
+| Eleven dependency Services and keys: `sessionAccessCheck`, `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
 | `SessionIntercept`, the `Context` and `Events` augmentations, the event `session-cordis-contract/committed` | Exported | `src/cordis.ts` |
 | Type re-exports of the root entry | Exported, no runtime value | `src/index.ts` |
-| `sessionToolStartFence`, `sessionDeliveryRelease` | Superseded, not defined | [session-contract SPEC](../session-contract/SPEC.md#被替代的协议) |
 - Not verified: the Cordis mechanism reading for the intercept configuration is source reading only. Thus property 4 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
 
 ## Usage
@@ -54,7 +55,7 @@ The package holds no resources. The fiber of the caller plugin owns the life of 
 
 ## Design
 
-Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. Only the transaction port and the internal principals go into `inject`. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
+Each entry has one source file. The outside dependencies are the types of session-contract and `@deepseek-ai/cordis`. The package imports no provider and no mechanism. The service has one key for all four faces. The new contract requires the access check, transaction port, and internal principals in `inject`. Every other port is taken at call time. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) and the [object model](docs/object-model.md) explain why this member has no flows and no domain objects of its own.
 
 ## Configuration and operation
 
@@ -68,7 +69,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-cordis-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The tests check the export sets of both entries, that every key equals the `provide` of its class, that the root entry imports no Cordis and no provider, and that a real `Context` loads a `SessionService` subclass and removes it on unload. See [tests/](tests/README.md). The obligations of the SPEC lifecycle section belong to the provider tests. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests check the export sets of both entries, that every key equals the `provide` of its class, that the root entry imports no Cordis and no provider, and that a real `Context` loads and unloads Session and access-check subclasses. The access-check test also checks delegation. Production injection and execution checks remain unverified. See [tests/](tests/README.md). The obligations of the SPEC lifecycle section belong to the provider tests. A passing structure check does not prove behavior.
 
 ## Maintenance
 

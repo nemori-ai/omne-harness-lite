@@ -23,7 +23,13 @@ import type {
   RoutedInput,
   CommitReceipt,
 } from '@omne-harness/session-contract'
-import type { JournalWrite, MemoryExecution, OperationRecord, JointFact } from './journal.ts'
+import type {
+  JointDecision,
+  JournalWrite,
+  MemoryExecution,
+  OperationRecord,
+  JointFact,
+} from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
 
 export type SessionState = Readonly<{
@@ -37,6 +43,8 @@ export type SessionState = Readonly<{
     {
       record: SessionOperationRecord
       projection?: import('@omne-harness/session-contract').SessionLogObservation
+      /** The access decision evidence of the public commit that recorded this operation; absent for delegated and projected commits. */
+      decision?: import('@omne-harness/session-contract').DurableEvidence
       recall(receipt: CommitReceipt): unknown
     }
   >
@@ -105,6 +113,7 @@ export type JournalHooks<P> = {
     input: ExecutionMutation<P>,
     method: JournalWrite,
     receipt: CommandReceipt,
+    decision: JointDecision | null,
   ): Failure | undefined
   committed(
     input: ExecutionMutation<P>,
@@ -329,6 +338,8 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       notifications.add(execution)
     },
     current: () => root,
+    /** Whether a common-root transaction is open: only then may a preparation write. */
+    writing: () => draft !== null,
     issueEvidence(evidence: import('@omne-harness/agent-contract').DurableEvidence) {
       return activeWrite
         ? (plannedEvidence.get(key(activeWrite.input, activeWrite.method))?.evidence ?? evidence)

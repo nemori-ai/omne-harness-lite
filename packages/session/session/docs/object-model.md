@@ -33,10 +33,10 @@
 | 每会话退避项（S3、C5） | 租户与会话 | 下一次检查时刻与当前间隔 | 租户扫描者 | 该会话的处理返回不可用或失败时 | 处理成功或扫描者消失时 |
 | 待决查询项（S4） | 租户、会话与操作身份 | 查询次数与下一次查询时刻 | 服务实例 | 命令返回 `commit-unknown`，或 S3 交来 `unresolved` 时 | 查询得到 `committed`、`not-committed` 或 `attempt-rejected` 时；超过 `pendingResolution.maxAttempts` 时停止查询并报告，项保留到实例停止 |
 | 控制重放项（S5） | 租户、会话与控制操作身份 | 重放次数 | 服务实例 | 控制进度仍为 `propagating` 时 | 进度变为 `reconciled`，或超过 `controlReplay.maxReplays` 并报告后 |
-| 任务驱动项（S6） | 租户、会话与任务的操作身份 | 驱动次数 | 服务实例 | 级联、作用域释放或启动资格失效任务仍保留时 | 任务解除，或超过 `cascade.maxDrives` 并报告后 |
+| 任务驱动项（S6） | 租户、会话与任务的操作身份 | 驱动次数 | 服务实例 | 级联或作用域释放任务仍保留时 | 任务解除，或超过 `cascade.maxDrives` 并报告后 |
 | 预求值项（S7） | 租户与会话 | 在途预求值的取消信号；本次比对用的计数 | 服务实例 | 变化通知的计数与最近 SE08 的输入快照不同时 | 预求值结束；同会话新的变化通知先取消它再新建 |
 | 推进退避项（C2） | 租户、会话与出站操作身份 | 在 `advance.retryDelaysMs` 序列中的位置 | 服务实例 | Agent 返回 `busy` 或 `unavailable` 时 | 出站调用受理时；序列用尽后交 S3 |
-| 交付解除重发项（C5） | 租户、会话与解除的操作身份 | 重发次数 | 服务实例 | `release` 得到 `not-ready`、`unavailable` 或 `commit-unknown` 时 | 得到 `confirmed` 并提交 `receive(release)` 后；超过 `deliveryRelease.maxAttempts` 时停止重发并报告 |
+| 原确认恢复项（C5） | 租户、会话与原结果版本 | 本轮扫描位置 | 服务实例 | Tool 原确认未投影，或 Model release 仍 pending | 原确认合法投影后结束；Model ACK 未决时只报告，不发生产者解除 |
 | 有界恢复计数（C5） | 租户、会话与执行身份 | 读执行记录或接续的失败次数 | 服务实例 | `inspect` 或接续返回原记录不可读时 | 读取成功时；达到 `boundedRecovery.maxInspectAttempts` 后提交 `finishRun` 时 |
 
 全部计数只在一个进程寿命内有效。重启后计数从零开始，所以每个上限是每个进程寿命内的上限（[S4](../SPEC.md#s4)、[S5](../SPEC.md#s5)、[S6](../SPEC.md#s6)）。
@@ -110,4 +110,4 @@ classDiagram
   ServiceInstance "1" *-- "0..*" SnapshotSlot
 ```
 
-`RetryItem` 在图中合并表示待决查询项、控制重放项、任务驱动项、推进退避项、交付解除重发项与有界恢复计数。它们的身份与上限不同，生灭见上表。
+`RetryItem` 在图中合并表示待决查询项、控制重放项、任务驱动项、推进退避项、原确认恢复项与有界恢复计数。它们的身份与上限不同，生灭见上表。

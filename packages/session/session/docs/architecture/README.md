@@ -30,7 +30,7 @@ flowchart TB
   Sched --> Queue[每会话串行队列]
   Queue --> Coord[协调器 C1 至 C5]
   Coord --> CP
-  Coord --> Out[出站端口：AgentDrivePort、ToolStartFencePort、DeliveryReleasePort、ScopeReleasePort]
+  Coord --> Out[出站端口：AgentDrivePort、ScopeReleasePort]
   Coord --> EX[受理拓展点编排]
   CP --> RD[事件派生读取规则]
   CP --> Cache[缓存 CA-1、CA-3]
@@ -76,7 +76,7 @@ flowchart TB
 
 ### 外部效果在提交之后
 
-对 Agent、Tool 启动围栏、生产者与执行环境的出站调用都在提交确认之后发出，回执作为新事实再提交（[AP-5](../../SPEC.md#ap-应用层六条规矩)）。提交未知期间不发出依赖它的效果（[PA-07](../../../session-contract/SPEC.md#pa-07)）。
+Session 对 Agent、执行环境与子会话的出站调用都在提交确认之后发出，回执作为新事实再提交（[AP-5](../../SPEC.md#ap-应用层六条规矩)）。提交未知期间不发出依赖它的效果（[PA-07](../../../session-contract/SPEC.md#pa-07)）。
 
 理由：出站调用不能放进日志事务。先提交后调用，崩溃时日志里已有要调用的事实，S3 可以找回并以同一身份重放。先调用后提交，崩溃时外部效果已经发生，日志里却没有记录。
 

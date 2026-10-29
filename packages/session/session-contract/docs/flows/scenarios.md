@@ -18,7 +18,7 @@ F-SC 是本页的文档定位号。每条流程细化组根的一条或几条[�
 | [F-SC03](#f-sc03-压缩转换的共同提交与-epoch-新代) | 压缩转换的共同提交与 epoch 新代 | [F-SE06](../../../docs/key-flows.md#f-se06-压缩共同提交与模型视图新代) | JC-09、PA-04、PA-05 |
 | [F-SC04](#f-sc04-结果保管的共同提交) | 结果保管的共同提交 | [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | JC-11、PA-05、EC-04 |
 | [F-SC05](#f-sc05-处理完成的共同提交) | 处理完成的共同提交 | [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | JC-12、PA-05、RS-04、EC-04 |
-| [F-SC06](#f-sc06-交付责任解除与重发) | 交付责任解除与重发 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | EC-04、EC-05、EC-06、DeliveryReleasePort（已被替代）、P-6 |
+| [F-SC06](#f-sc06-交付责任解除与重发) | 原生产者确认的日志恢复 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志) | EC-04/05/06、JC-Release |
 | [F-SC07](#f-sc07-从同日志-agent-条目派生事实) | 从同日志 Agent 条目派生事实 | [F-SE02](../../../docs/key-flows.md#f-se02-agent-事件到日志条目) | EC-01、EC-02、EC-03、JC-24 |
 | [F-SC08](#f-sc08-条件终结与-run-终态) | 条件终结与 Run 终态 | [F-SE03](../../../docs/key-flows.md#f-se03-控制传播)、[F-SE05](../../../docs/key-flows.md#f-se05-恢复) | PA-02、PA-08、PM-13、PM-14、RS-08 至 RS-10、P-5 |
 | [F-SC09](#f-sc09-推进映射与换代) | 推进映射与换代 | [F-SE05](../../../docs/key-flows.md#f-se05-恢复)、[F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定) | PM-03 至 PM-12、JC-07、JC-08、JC-15 |
@@ -262,50 +262,14 @@ sequenceDiagram
 
 ## F-SC06 交付责任解除与重发
 
-细化 [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志)的确认步与 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的 `release` 项。依据：[EC-04](../../SPEC.md#ec-04)、[EC-05](../../SPEC.md#ec-05)、[EC-06](../../SPEC.md#ec-06)、[DeliveryReleasePort（已被替代）](../../SPEC.md#deliveryreleaseport)、[PM-14](../../SPEC.md#pm-14) 的 `release` 行、`PendingReason` 的 `release`（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[P-6](../../SPEC.md#具名前提与明确缺项)。
+本流程按 [JC-Release](../../SPEC.md#jc-release)、[EC-04](../../SPEC.md#ec-04)、[EC-05](../../SPEC.md#ec-05) 与 [EC-06](../../SPEC.md#ec-06) 展开原确认恢复。
 
-交付责任解除是提交后的外部动作，数据库事务不包含它。发出者是当前合格消费者，不要求旧 attempt 有效，也不要求 Agent 在场。
+1. 保管或处理须已提交，提交未知先认回。生产者解除由 Agent 宿主结果接收方按原协议发出。
+2. Tool 原确认经 AgentJournal.recordResult 写入同一日志。AD-05 核当前资格、租户、原 execution/Run、consumption 与完整结果版本后，提交 receive(release) 写 SE19。
+3. 确认已在而 Session 后果未提交时，按同一来源身份重读，Session 提交未知先认原 operation。确认未到保持 pending，不重调生产者执行或重新领取全文。
+4. Model ACK 到达仍未决，扫描只报告、不执行动作。received、材料与 saved 不构成 ACK；异版本不能解除。
 
-```mermaid
-sequenceDiagram
-    participant S as Session 协调
-    participant D as 存储事务域
-    participant R as DeliveryReleasePort（已被替代）
-    participant P as 生产者 Model 或 Tool
-    Note over S,D: SE20 或 SE21 已提交并认回为 committed
-    S->>R: release(操作身份从 consumption 与结果版本派生，consumption，ProducedResult，保管或完成证据)
-    R->>P: Model 的 ACK，或 Tool 的交付释放
-    alt 生产者确认
-        P-->>R: 确认与当前清理状态
-        R-->>S: confirmed，带确认来源
-        S->>D: receive(release) 写 SE19，release 派生为 confirmed
-    else not-ready
-        R-->>S: 生产者尚不具备确认条件
-        Note over S: release 保持 pending
-    else unavailable 或 commit-unknown
-        R-->>S: 未得到确认
-        Note over S: release 保持 pending，不换身份
-    end
-    Note over S,P: 恢复协调经 pending(reason 为 release) 找回仍为 pending 的结果版本
-    S->>R: 以同一操作身份重发 release
-    R->>P: 重复的 ACK 或交付释放
-    P-->>R: 原确认与当前清理状态，首次接受时为新确认
-    R-->>S: confirmed
-    S->>D: receive(release) 写 confirmed
-```
-
-数据去向：确认写入 SE19，`ResultConsumption.release` 由 pending 变为 confirmed。生产者一侧的条件见 [Model 的 ACK](../../../../model/model-contract/SPEC.md#ack-的前提与效果)与 [Tool 的两条交接路径](../../../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)。
-
-失败分支：
-
-| 情形 | 行为 | 条款 |
-| --- | --- | --- |
-| 解除发出后回执丢失，或解除未发出就崩溃 | 恢复协调读到 `release` 为 pending 且保管或完成非空，以同一操作身份重发。没有重复调用、重复收费，也不重新领取全文 | EC-05 |
-| 生产者已确认并清理，Session 的 `receive(release)` 未提交 | 重发后生产者返回原确认，写 confirmed。消费侧接续只用 SE20 的内容或引用，或 SE21 的完成依据 | EC-06、P-6 |
-| 同一结果版本的解除也由 Agent 的在线路径发出 | 生产者认回同一确认，不按发起者区分 | EC-04、P-6 |
-| SE20 引用的内容不可恢复 | 保管缺陷，报告 `unavailable`，`owner` 为保管者，不改写为已处理 | EC-06 |
-| 没有生产者确认的 `receive(release)` | `invalid`，写入被拒 | I-R7、`receive` 的操作表行 |
-| 重发超过策略上限 | `release` 保持 pending 并报告维护者 | PA-07 |
+内容不可恢复时报告保管者 unavailable，不能改成已处理。真实结果接收方恢复与生产插件未验证。
 
 <a id="f-sc07-从-agent-事件派生事实"></a>
 
@@ -372,11 +336,9 @@ flowchart TD
     R -->|完成或失败先成立| T["返回 terminal，带回既有终态"]
     W --> P["控制传播，终态不等传播"]
     P -->|挂接存活| P1["经出站端口 control 送到原执行"]
-    P -->|没有挂接| P2["resume 取得挂接后送控制，挂接以取消授权终结"]
-    P -->|Tool| P3["ToolStartFencePort（已被替代）.invalidate，等到 effective"]
+    P -->|没有挂接| P2["经长期控制入口送达，后续接续负责收束"]
     P1 --> E["之后读到的 ended 事件只认回"]
     P2 --> E
-    P3 --> Q["receive(start-fence) 计入对账进度"]
     B["恢复者读执行记录到策略上限仍不可解释"] --> F["finishRun(uninterpretable)"]
     F --> G["写 SE26 failed、SE16，写明未收尾效果"]
     N["Agent 尚无该执行的记录"] -->|不是有界收束| M["按 PA-06 重放 invoke"]
@@ -391,15 +353,15 @@ flowchart TD
 | `accept` 先于取消 | 输入保留待处理资格。Run 取消不撤销它，由新 Run 承接。归档同批撤销待处理资格并记录取消范围（SE27）。已交入而未承接的输入在 Session 一侧没有 SE14，由后继 Run 以同一 `InputId` 重新交入，SE13 记录前继 Run |
 | 取消先于条件终结 | 参加者响应「冲突」，Agent 以取消依据再次终结。之后的结束事件按 RS-10 认回 |
 | 条件终结先于取消 | Session 的结束事实解释提交已成立时 `control` 返回 `terminal`。解释提交尚未成立时照常提交 SE26 cancelled，之后的结束事件按 RS-08 认回，Agent 的结论作为引用保留 |
-| 取消已提交而没有活体挂接 | 按 PM-13 三条路径传播。`ControlProgress` 停在 propagating 直到核对完成，超过上限时报告，不冒充已停 |
+| 取消已提交而没有活体挂接 | 按 PM-13 经长期控制入口传播，后续接续负责收束。`ControlProgress` 在传播或原责任未知时保持 propagating，全部对账后才为 reconciled；Tool 围栏不计入该进度，超过上限时报告，不冒充已停 |
 
 失败分支：首次 Agent 提交中的参加者读权威状态失败时响应「失败」，该次共同提交两侧都不保存。后续 Session 解释提交失败时，Agent 已发布事实仍保留，解释进度不推进；解释提交未知时先认回该次操作。`control` 未知时 `queryOperation`，认回为 `committed` 之后才开始传播。`finishRun` 与既有终态冲突时返回 `terminal`。
 
-契约未定：无。P-5 是具名前提，有界收束的边界由 Agent 拥有者确认。
+契约未定：Agent J03 的 #502 仍未决定哪些控制触发 Tool 启动失效及特定失败怎样恢复。取消不因此必然产生 start-fence，也不以围栏作为本域 reconciled 条件。P-5 是具名前提，有界收束的边界由 Agent 拥有者确认。
 
 ## F-SC09 推进映射与换代
 
-细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)、[ToolStartFencePort（已被替代）](../../SPEC.md#toolstartfenceport)。Agent 一侧沿[恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../../../agent/agent-contract/SPEC.md#采用交接)。
+细化 [F-SE05](../../../docs/key-flows.md#f-se05-恢复)的接续部分与 [F-SE10](../../../docs/key-flows.md#f-se10-新-run-开始的求值与重装判定)的 reload 入口。依据：[PM-01](../../SPEC.md#pm-01) 至 [PM-12](../../SPEC.md#pm-12)、JC-07、JC-08、JC-15、[RS-05](../../SPEC.md#rs-05) 至 [RS-07](../../SPEC.md#rs-07)、[I-R2](../../SPEC.md#i-r2)、[I-R8](../../SPEC.md#i-r8)。Agent 一侧沿[恢复与接管](../../../../agent/agent-contract/SPEC.md#恢复与接管)与[采用交接](../../../../agent/agent-contract/SPEC.md#采用交接)。
 
 Run 与 Agent 执行一一对应，attempt 与执行挂接一一对应。Session 不保存接续值。`claim.continuity` 与 `reload.handover` 都是耐久证据。
 
@@ -410,7 +372,6 @@ sequenceDiagram
     participant J as 执行记录提供者
     participant S as Session 参加者
     participant D as 存储事务域
-    participant T as ToolStartFencePort（已被替代）
     opt reload 第一阶段，候选准备
         R->>G: 求值候选，取 Agent 采用交接的证明
         G-->>R: 交接证明，绑定执行、修订与目标采用。本阶段不写条目
@@ -422,10 +383,10 @@ sequenceDiagram
     end
     alt claim
         R->>D: claim(run，实例，continuity)，judgeAdvance 核对旧 attempt 已交还或可信排除
-        D-->>R: SE15 序号加一，旧 attempt 尚无 SE16 时同批写 SE16 并产生 tasks.start-fence
+        D-->>R: SE15 序号加一，旧 attempt 尚无 SE16 时同批写 SE16
     else reload
         R->>D: reload(run，候选，expected，handover)，核对同一定义标识与候选等于证明的目标采用
-        D-->>R: SE15 与旧 attempt 的 SE16，采用变化时 SE08，必要时 tasks.start-fence
+        D-->>R: SE15 与旧 attempt 的 SE16，采用变化时 SE08
     end
     R->>J: resume(恢复依据，推进资格依据为新 attempt 的 SE15 证据)
     J->>S: 授予挂接的条件提交内交来推进资格依据
@@ -436,11 +397,7 @@ sequenceDiagram
         J-->>R: 同一次条件提交内旧挂接 superseded，新挂接 active
         Note over J: 旧 runtime 的后续提交得到 stale-advance
     end
-    opt tasks.start-fence 存在
-        R->>T: invalidate(范围为旧 attempt，以 claim 或 reload 的操作身份)
-        T-->>R: effective、pending、unavailable 或 commit-unknown
-        R->>D: effective 时 receive(start-fence) 写 SE25，解除任务
-    end
+    Note over R,J: Tool 围栏归 Agent J03，哪些挂接变化触发失效仍未决
 ```
 
 失联接管：恢复者读执行记录（`inspect`）显示挂接仍 active，恢复者持接管资格，并有宿主的失联判断作证据时，`claim`（接管）后 `resume`。没有失联依据时等 Agent，没有资格时报告并保留（PM-14）。宿主的失联判断不代替接管资格。
@@ -470,7 +427,7 @@ sequenceDiagram
 | `claim` 或 `reload` 回执丢失 | `queryOperation`。`committed` 读新 `AdvanceRef` 继续，`unknown` 时不第二次 `claim` | PM-10 |
 | 重复 reload | 同候选同证明认回，同身份异候选 `conflict`，不同候选的第二个 `changed` | PM-12 |
 | 各阶段由另一进程接手 | 谁读到 `advance` 并能出示它的 SE15 证据，谁就能继续映射提交 | PM-07 |
-| 启动资格失效未生效 | `tasks.start-fence`（已被替代） 保留并重放。`resume` 不等生效。生效前不声称新发起已被阻止 | ToolStartFencePort（已被替代） |
+| Tool 围栏状态未知 | 按 Agent J03 保留原事实与未知；哪些挂接变化触发失效及特定失败恢复仍属 #502。Session 不以本域撤销或控制受理宣称已阻止新发起 | PM-05/06、Agent J03 |
 
 契约未定：宿主失联判断的证据形状归 Agent 宿主。「推进资格已被取代」的参加者冲突映射为 `stale-advance` 归 Agent 拥有者，补上之前旧 runtime 在 `claim` 与接续之间得到 `changed`，见[明确缺项](../../SPEC.md#具名前提与明确缺项)。
 
@@ -687,7 +644,7 @@ epoch 视图是两次压缩之间的模型可见序列。它在压缩提交时�
 ```mermaid
 sequenceDiagram
     participant Q as Request Context 历史源读口
-    participant X as session-adapters 历史持有者
+    participant X as session-adapters AD-04 历史持有者
     participant H as SessionHistory
     participant D as 存储读路径
     Q->>X: HistorySource.read，带历史依据、位置与预算
@@ -721,34 +678,28 @@ sequenceDiagram
 
 ## F-SC14 会话冻结
 
-没有对应的组根流程。依据：[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)、JC-28、[I-F1](../../SPEC.md#i-f1) 至 [I-F5](../../SPEC.md#i-f5)、`freeze` 的操作表行（[SessionManagement](../../SPEC.md#sessionmanagement)）、`startRun` 与 `reload` 的 `frozen` 失败、[守卫条款](../../SPEC.md#守卫条款)并入 ST03、ST06、ST20、ST22 的冻结分支、ST27、[由本组实现的 Tool 端口](../../SPEC.md#由本组实现的-tool-端口)、[P-8](../../SPEC.md#具名前提与明确缺项)。生命周期视图见[五个生命周期视图](../object-model/session-state-transitions.md#五个生命周期视图)。
+没有对应的组根流程。依据：[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)、JC-28、[I-F1](../../SPEC.md#i-f1) 至 [I-F5](../../SPEC.md#i-f5)、`freeze` 的操作表行（[SessionManagement](../../SPEC.md#sessionmanagement)）、`startRun` 与 `reload` 的 `frozen` 失败、[守卫条款](../../SPEC.md#守卫条款)并入 ST03、ST06、ST20、ST22 的冻结分支、ST27、[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)、[P-8](../../SPEC.md#具名前提与明确缺项)。生命周期视图见[五个生命周期视图](../object-model/session-state-transitions.md#五个生命周期视图)。
 
-Tool 只在采用点判定冻结。冻结只经 `freeze` 提交。判定有两条到达路径，对同一会话只成立一次冻结。
+冻结判定只经新 Run 或显式 reload 的候选采用材料到达。会话初始化不判冻结。Tool 的 planAdoption 归 Tool，Session 协调器只消费其真实判定。
 
 ```mermaid
 sequenceDiagram
-    participant G as 证据桥与候选采用材料
-    participant S as Session 协调
+    participant G as 装配协调与证据桥
+    participant S as Session coordinator
     participant D as 存储事务域
-    participant T as Tool 宿主协调者
-    participant X as session-adapters
-    alt 第一条路径，采用点带回判定
-        S->>G: startRun 或 reload 取候选采用材料
-        G-->>S: 材料带 FreezeVerdict，原因 tool-shape-lost 与耐久证据
-        S-->>S: judgeRunStart 为 frozen，命令返回 frozen 带 verdict，不提交
-        S->>D: 推进协调以该判定调用 freeze
-    else 第二条路径，Tool 宿主交来判定
-        T->>X: ToolResidencyActions.freeze(session，cause，evidence)
-        X->>X: 取得租户，以 coordinator 调用方类
-        X->>D: freeze(verdict)
-    end
-    alt 会话尚未冻结
-        D-->>S: JC-28 写 SE37，frozen 非空
-        Note over D: 没有未终结 Run 时，pending 的全部输入同批写 SE38 解除待处理资格
-    else 会话已冻结
-        D-->>S: 原回执，recovered 为真，不写条目，不论证据是否相同
+    S->>G: startRun 或 reload 取候选采用材料
+    G->>G: 原采用点调用 Tool planAdoption
+    G-->>S: FreezeVerdict 与原耐久证据
+    S->>S: 返回 frozen，不提交采用
+    S->>D: 同一 SessionAccess、同一判定调用 freeze
+    alt 尚未冻结
+        D-->>S: SE37，必要时同批 SE38
+    else 已冻结
+        D-->>S: 原回执，不写新条目
     end
 ```
+
+maintainer 发起 startRun 得到 frozen 时不开 Run，不切换为 coordinator 提交冻结。下一个合法采用点重新判断，由 coordinator 提交。租户来自原 SessionAccess，不反查会话目录。
 
 冻结后的行为：
 
@@ -771,24 +722,24 @@ sequenceDiagram
 | 初始化未完成 | `not-ready` |
 | 资格不足 | `denied` |
 | 提交未知 | `commit-unknown`，按 `queryOperation` 认回 |
-| 第一条路径两步之间崩溃 | 下一次推进触发重新取候选材料，Tool 再次给出判定，`freeze` 首次提交或认回 |
+| 候选返回与冻结提交之间崩溃 | 下一次推进触发重新取候选材料，Tool 再次给出判定，`freeze` 首次提交或认回 |
 | 常驻工具暂时缺席、状态未知或被撤权 | Tool 以同形的不可用件替代，不给出冻结判定 |
 
-契约未定：Tool 的会话常驻规则、同形判据、采用点判定表与两个驻留端口的形状（P-8）归 Tool 拥有者。P-8 闭合之前，本成员不写 SE36、SE37，session-adapters 不登记两个端口的提供者。
+常驻规则及采用点判定归 Tool。引用读取桥接归应用装配并显式限定 tenant，Session 组不提供驻留动作端口。冻结判定在新 Run/reload 候选采用时返回，精确生产桥仍见 P-8；未交付时 unavailable，不能伪造冻结。
 
 ## F-SC15 引用查询
 
-没有对应的组根流程。依据：[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)的引用查询段、`references` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[由本组实现的 Tool 端口](../../SPEC.md#由本组实现的-tool-端口)、[VC-F07](../../SPEC.md#候选的持续验证义务)。
+没有对应的组根流程。依据：[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)的引用查询段、`references` 的操作表行（[SessionReconciliation](../../SPEC.md#sessionreconciliation)）、[常驻工具与会话冻结](../../SPEC.md#常驻工具与会话冻结)、[VC-F07](../../SPEC.md#候选的持续验证义务)。
 
-`references` 回答哪些会话还在引用一个登记键。它是系统作用域读取，不用 `Access<P>`，跨租户返回。
+`references` 本身是具备系统资格的 maintainer 读取，不用租户 Access。应用装配的 Tool Reader 另带显式 tenant；桥接在系统结果上筛选该租户后才返回，不把跨租户目录暴露给普通租户调用方。目录或授权不可用时 unavailable，不交空页。
 
 ```mermaid
 sequenceDiagram
     participant T as Tool 宿主协调者
-    participant X as session-adapters
+    participant X as 应用装配桥接
     participant S as SessionReconciliation
     participant D as 存储派生索引
-    T->>X: ToolResidencyReader.referencing(scope 为 system，key)
+    T->>X: ToolResidencyReader.referencing(显式 tenant，key)
     X->>X: 把 Tool 的登记键编码为 ResidentKey
     loop 逐页
         X->>S: references(scope 为 system，key，after，limit)
@@ -800,7 +751,8 @@ sequenceDiagram
             S-->>X: unavailable，不返回空页
         end
     end
-    X-->>T: 会话身份与 shape，不返回定义正文
+    X->>X: 按原显式 tenant 筛选当前页
+    X-->>T: 仅该租户的会话身份与 shape，不返回定义正文
 ```
 
 引用的定义：会话当前记下的登记键含该键，并且会话未归档。冻结而未归档的会话算引用。已归档的会话不算：归档在同一批里取消未终结 Run（JC-16），已归档会话没有未终结 Run。存储提供者在提交 SE08、SE26、SE27 与 SE28 时维护索引。

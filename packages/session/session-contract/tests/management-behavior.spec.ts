@@ -15,6 +15,7 @@ import {
   creation,
   createMemorySessionTransactions,
   createMemoryInitializationSource,
+  createScriptedSessionAccessCheck,
   memoryAccess,
   evidence,
   operationId,
@@ -522,9 +523,16 @@ it('failed initialization blocks start and freeze until the same required item b
 })
 
 it('each history page and model-view read rechecks current authorization', async () => {
-  let allowed = true
+  const allowed = { kind: 'allowed', evidence: evidence('access') } as const
   const initialization = createMemoryInitializationSource()
-  const port = createMemorySessionTransactions<string>({ authorize: () => allowed, initialization })
+  const accessCheck = createScriptedSessionAccessCheck<string>([
+    allowed,
+    allowed,
+    allowed,
+    { kind: 'denied' },
+    { kind: 'denied' },
+  ])
+  const port = createMemorySessionTransactions<string>({ accessCheck, initialization })
   const access = memoryAccess('tester')
   const command = {
     kind: 'create' as const,
@@ -540,6 +548,7 @@ it('each history page and model-view read rechecks current authorization', async
   initialization.controls.register(command, material)
   succeeded(
     await port.commit({
+      access,
       command,
       guards: succeeded(await initialization.prepare(command), 'prepare'),
     }),
@@ -561,7 +570,6 @@ it('each history page and model-view read rechecks current authorization', async
     'view',
   )
   if (view.kind !== 'page') throw new Error('view missing')
-  allowed = false
   expect(
     refused(await port.history.next({ ...access, cursor: page.next }), 'revoked page').kind,
   ).toBe('denied')

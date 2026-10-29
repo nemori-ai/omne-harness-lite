@@ -210,7 +210,6 @@ Tool 给出的事实：
 | 作用域持有者            | 注册决定、步提交、变化提醒                                           | SE07、SE09、SE10 系统提醒                                          | `change`、`commitDerived`                                                         |
 | 执行环境                | 作用域释放回执                                                       | SE25，解除或保留作用域释放恢复任务                                 | `receive`                                                                         |
 | 子会话                  | 级联回执                                                             | SE25，解除级联恢复任务                                             | `receive`                                                                         |
-| Tool 启动围栏           | 启动资格失效已生效                                                   | SE25，解除启动资格失效任务                                         | `receive`                                                                         |
 | 时钟与空闲输入          | 空闲观察                                                             | SE31                                                               | `recordIdle`                                                                      |
 | 初始化项的负责方        | 初始化结果                                                           | SE02                                                               | `completeInitialization`                                                          |
 

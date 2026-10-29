@@ -4,6 +4,7 @@ import { scene, ok, operation, operationId, evidence, instance } from './common-
 export type Scene = Awaited<ReturnType<typeof scene>>
 export async function handed(s: Scene) {
   return s.backend.transactions.commit({
+    access: s.access,
     command: {
       kind: 'receive',
       input: {
@@ -25,6 +26,7 @@ export async function accept(s: Scene, id: string) {
   const value = ordinaryInput(id)
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'accept',
         input: {
@@ -80,6 +82,7 @@ export async function cancel(s: Scene, name = 'cancel') {
   const snapshot = ok(await s.backend.transactions.readWork(s.access))
   if (snapshot.run.kind !== 'active') throw new Error('active Run expected')
   return s.backend.transactions.commit({
+    access: s.access,
     command: {
       kind: 'control',
       input: {
@@ -94,6 +97,7 @@ export async function cancel(s: Scene, name = 'cancel') {
 }
 export async function freeze(s: Scene) {
   return s.backend.transactions.commit({
+    access: s.access,
     command: {
       kind: 'freeze',
       input: {
@@ -119,6 +123,7 @@ export async function start(s: Scene, name = 'second') {
     },
   }
   const result = await s.backend.transactions.commit({
+    access: s.access,
     command,
     guards: [
       guard('evidence-bridge', 'login-entry', {

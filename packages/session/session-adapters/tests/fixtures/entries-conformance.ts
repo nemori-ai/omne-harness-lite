@@ -12,6 +12,7 @@ import {
 import { type SessionId } from '@omne-harness/session-contract'
 import {
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
   sessionId,
   memoryAccess,
   memoryOtherAccess,
@@ -31,7 +32,10 @@ export function entriesFixture() {
     otherAccess = memoryOtherAccess('bob')
   const backend = createMemorySessionJournal({
     initialization,
-    authorizeCommand: () => 'allowed',
+    accessCheck: createPolicySessionAccessCheck(request => ({
+      kind: 'allowed',
+      evidence: evidence(`access/${request.operation}`),
+    })),
     authorize: () => 'allowed',
   })
   const scopes = new Map<string, SessionId>(),

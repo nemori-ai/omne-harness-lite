@@ -48,6 +48,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
   const value = ordinaryInput('input-2')
   ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'accept',
         input: {
@@ -103,6 +104,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
   })
   ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'freeze',
         input: {
@@ -125,6 +127,6 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       intent: { kind: 'cancel-run' as const, run: before.run.run, urgency: 'force' as const },
     },
   }
-  const final = await backend.transactions.commit({ command, guards: [] })
+  const final = await backend.transactions.commit({ access, command, guards: [] })
   expect(final).toHaveProperty('ok')
 })

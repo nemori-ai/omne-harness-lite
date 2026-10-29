@@ -2,6 +2,7 @@ import { it, expect } from 'vitest'
 import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
 import {
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
   memoryAccess,
   memoryOtherAccess,
   sessionId,
@@ -14,8 +15,11 @@ it('keeps identical original execution, input and operation IDs isolated in thre
   const initialization = createMemoryInitializationSource(),
     backend = createMemorySessionJournal({
       initialization,
+      accessCheck: createPolicySessionAccessCheck(request => ({
+        kind: 'allowed',
+        evidence: evidence(`access/${request.operation}`),
+      })),
       authorize: () => 'allowed',
-      authorizeCommand: () => 'allowed',
     }),
     execution = ok(decodeAgentExecutionId('same-execution'))
   const scopes = [
@@ -86,8 +90,11 @@ it('trusted original history cannot overwrite a root or admit incomplete and for
   const initialization = createMemoryInitializationSource(),
     backend = createMemorySessionJournal({
       initialization,
+      accessCheck: createPolicySessionAccessCheck(request => ({
+        kind: 'allowed',
+        evidence: evidence(`access/${request.operation}`),
+      })),
       authorize: () => 'allowed',
-      authorizeCommand: () => 'allowed',
     }),
     access = memoryAccess('one', 'seed'),
     execution = ok(decodeAgentExecutionId('seed'))
@@ -111,8 +118,11 @@ it('a preselected evidence strategy is bound to full input and scope before actu
   const initialization = createMemoryInitializationSource(),
     backend = createMemorySessionJournal({
       initialization,
+      accessCheck: createPolicySessionAccessCheck(request => ({
+        kind: 'allowed',
+        evidence: evidence(`access/${request.operation}`),
+      })),
       authorize: () => 'allowed',
-      authorizeCommand: () => 'allowed',
     }),
     execution = ok(decodeAgentExecutionId('planned'))
   for (const access of [memoryAccess('one', 'plan-one'), memoryAccess('one', 'plan-two')]) {

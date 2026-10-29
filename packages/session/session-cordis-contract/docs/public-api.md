@@ -7,9 +7,9 @@
 | 入口 | 导出 | 源文件 |
 | --- | --- | --- |
 | `@omne-harness/session-cordis-contract` | 契约类型的重导出（`export type *`），没有运行值，不导入 Cordis | [src/index.ts](../src/index.ts) |
-| `@omne-harness/session-cordis-contract/cordis` | `SessionService` 与 `sessionKey`；`SessionTransactionPortService`、`SessionInternalPrincipalsService`、`SessionIdentityBridgeService`、`SessionEvidenceBridgeService`、`SessionClockService`、`SessionIdleInputService`、`SessionContextInputService`、`SessionNotifierService`、`AgentDrivePortService`、`ScopeReleasePortService` 与各自的键常量；`SessionIntercept`；`Context` 与 `Events` 增补，事件 `session-cordis-contract/committed` | [src/cordis.ts](../src/cordis.ts) |
+| `@omne-harness/session-cordis-contract/cordis` | `SessionService` 与 `sessionKey`；`SessionAccessCheckService`、`SessionTransactionPortService`、`SessionInternalPrincipalsService`、`SessionIdentityBridgeService`、`SessionEvidenceBridgeService`、`SessionClockService`、`SessionIdleInputService`、`SessionContextInputService`、`SessionNotifierService`、`AgentDrivePortService`、`ScopeReleasePortService` 与各自的键常量；`SessionIntercept`；`Context` 与 `Events` 增补，事件 `session-cordis-contract/committed` | [src/cordis.ts](../src/cordis.ts) |
 
-两个入口的导出集合由 [public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言。被替代的 `sessionToolStartFence`（已被替代）与 `sessionDeliveryRelease`（已被替代）不定义，见 [session-contract SPEC 的被替代的协议](../../session-contract/SPEC.md#被替代的协议)。
+两个入口的导出集合由 [public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言。`sessionAccessCheckKey` 已从 `SessionAccessCheckService.provide` 导出。其真实 Context 装卸与检查委派由 [access-check.spec.ts](../tests/access-check.spec.ts) 覆盖，生产必需注入仍未交付，见 [SPEC 当前访问检查装配](../SPEC.md#当前访问检查的装配)。
 
 ## 消费者怎样导入
 

@@ -5,6 +5,7 @@ async function frozen(name: string) {
   const s = await scene(name)
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'freeze',
         input: {
@@ -34,7 +35,11 @@ async function frozen(name: string) {
 it('a taken publication wins against paused final preparation and forces a fresh complete prefix', async () => {
   const s = await frozen('taken-wins'),
     pause = s.backend.controls.pauseSession(s.command.input)
-  const finishing = s.backend.transactions.commit({ command: s.command, guards: [] })
+  const finishing = s.backend.transactions.commit({
+    access: s.access,
+    command: s.command,
+    guards: [],
+  })
   await pause.reached
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution })),
     page = ok(
@@ -70,7 +75,11 @@ it('a taken publication wins against paused final preparation and forces a fresh
 it('a shared quarantine gate blocks the final publication even without a root revision change', async () => {
   const s = await frozen('gate-wins'),
     pause = s.backend.controls.pauseSession(s.command.input)
-  const finishing = s.backend.transactions.commit({ command: s.command, guards: [] })
+  const finishing = s.backend.transactions.commit({
+    access: s.access,
+    command: s.command,
+    guards: [],
+  })
   await pause.reached
   const root = s.view.controls.root()
   s.view.controls.quarantine('confirmed independent gap')
@@ -88,13 +97,16 @@ it('a shared quarantine gate blocks the final publication even without a root re
 it('a Session publication with a lost reply is recognized before another preparation', async () => {
   const s = await frozen('lost-final')
   s.backend.controls.faultSession(s.command.input, 'after-publish')
-  expect(await s.backend.transactions.commit({ command: s.command, guards: [] })).toMatchObject({
+  expect(
+    await s.backend.transactions.commit({ access: s.access, command: s.command, guards: [] }),
+  ).toMatchObject({
     failure: { kind: 'commit-unknown', operation: s.command.input.operation },
   })
   const root = s.view.controls.root(),
     metrics = s.backend.controls.frontierMetrics()
   expect(
-    ok(await s.backend.transactions.commit({ command: s.command, guards: [] })).receipt.recovered,
+    ok(await s.backend.transactions.commit({ access: s.access, command: s.command, guards: [] }))
+      .receipt.recovered,
   ).toBe(true)
   expect(s.view.controls.root()).toBe(root)
   expect(s.backend.controls.frontierMetrics()).toEqual(metrics)
@@ -136,15 +148,18 @@ it('revoked Agent qualification is checked again after a publication pause', asy
 import { createMemorySessionJournal } from '../src/testing.ts'
 import {
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
   memoryAccess,
 } from '@omne-harness/session-contract/testing'
 
 it('preserves unavailable qualification on Session reads and system directories', async () => {
   const backend = createMemorySessionJournal({
       initialization: createMemoryInitializationSource(),
+      accessCheck: createPolicySessionAccessCheck(() => ({
+        kind: 'unavailable',
+        diagnostic: 'qualification source down',
+      })),
       authorize: () => 'unavailable',
-      authorizeCommand: () => 'unavailable',
-      authorizeDirectory: () => 'unavailable',
     }),
     access = memoryAccess('tester', 'unavailable')
   expect(await backend.transactions.readWork(access)).toMatchObject({

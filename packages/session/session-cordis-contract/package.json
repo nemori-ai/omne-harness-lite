@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Cordis service definitions of Session: the session service, the ten port services, keys and the committed event",
+  "description": "Cordis service definitions of Session: the session service, the eleven dependency services, keys and the committed event",
   "engines": {
     "node": ">=24"
   },

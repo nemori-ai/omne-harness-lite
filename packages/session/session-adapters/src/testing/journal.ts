@@ -98,11 +98,42 @@ export type JointFact = Readonly<{
 
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
+/**
+ * The current decision of the joint participation one public `commit` or `recordResult` derives:
+ * the evidence of the allowed decision and the digest of the command it decided. The journal
+ * hands it to the participant of the same call only.
+ */
+export type JointDecision = Readonly<{ evidence: DurableEvidence; digest: string }>
+
+/**
+ * The answer of a public write whose participation was decided for a revision that a concurrent
+ * write of the same execution has since passed: nothing of this call is committed, the decision is
+ * not asked again within the call, and a retry decides the participation at the current revision.
+ */
+export const outrunParticipation: Failure = {
+  kind: 'unavailable',
+  owner: 'session-qualification',
+  diagnostic:
+    'the execution revision advanced after the Session decision; this call committed nothing and can be retried',
+}
+
 export type MemoryAgentJournalOptions<P> = Readonly<{
   prepareResult?: (
     input: ExecutionMutation<P>,
     method: 'commit' | 'recordResult',
   ) => Promise<Failure | undefined>
+
+  /**
+   * Asked once per public `commit` or `recordResult` whose caller participates, after the Agent
+   * qualification and before any Session preparation or the joint publication. `receipt` is the
+   * receipt this call will issue: the same operation at the same revision issues the same evidence,
+   * so the decided command and the published command carry the same participation.
+   */
+  qualifyParticipation?: (
+    input: ExecutionMutation<P>,
+    method: 'commit' | 'recordResult',
+    receipt: CommandReceipt,
+  ) => Promise<Outcome<JointDecision, Failure>>
 
   retainedToolInvocationFaults?: boolean
 
@@ -570,10 +601,44 @@ export function createJournal<P>(
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
+  /**
+   * The evidence of the next write of `execution`. Inside a common-root transaction it advances the
+   * serial of the transaction's copy, which a refused transaction discards. Outside one (the
+   * reservation and the preview before a result preparation) it only reads: the published root
+   * is not written.
+   */
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
-    execution.serial += 1
+    const serial = execution.serial + 1
+    if (cell.writing()) execution.serial = serial
     return cell.issueEvidence(
-      journalEvidence(`${cell.namespace}/${execution.id}/${what}/${execution.serial}`, revision),
+      journalEvidence(`${cell.namespace}/${execution.id}/${what}/${serial}`, revision),
+    )
+  }
+
+  /**
+   * The receipt a public write would issue if it committed now, or the one it recognizes, before
+   * its transaction. It runs outside any transaction, so it only reads the published root; the
+   * transaction's own preparation advances the serial, and a refused or outrun call leaves
+   * nothing behind.
+   */
+  function reservedReceipt(
+    method: 'commit' | 'recordResult',
+    input: ExecutionMutation<P>,
+    key: string,
+  ): CommandReceipt | undefined {
+    const at = operationKey(input.tenant, input.execution, input.operation)
+    const record = at === undefined ? undefined : state().operations.get(at)
+    if (record?.kind === 'committed' && record.key === key) return copy(record.receipt)
+    const execution = state().executions.get(executionKey(input.tenant, input.execution))
+    if (execution === undefined) return undefined
+    const revision = execution.revision + 1
+    const what = method === 'commit' ? 'commit' : 'result'
+    return receiptOf(
+      execution,
+      input.operation,
+      revision,
+      nextEvidence(execution, what, revision),
+      'applied',
     )
   }
 
@@ -645,19 +710,42 @@ export function createJournal<P>(
   ): Promise<Outcome<R, Failure>> {
     const entered = enter(method, input)
     if ('failure' in entered) return entered
-    if (options.prepareResult && (method === 'commit' || method === 'recordResult')) {
+    // The pause point of the testing controls: everything this call does on the Session side
+    // (the participation decision, result preparation, the joint publication) comes after it.
+    await cell.wait(input, method)
+    let decision: JointDecision | null = null
+    if (method === 'commit' || method === 'recordResult') {
       const caller =
         method === 'commit'
           ? (input as Parameters<AgentJournal<P>['commit']>[0]).caller
           : (input as Parameters<AgentJournal<P>['recordResult']>[0]).transfer
-      if (caller.kind === 'custody' || caller.kind === 'processed') {
+      if (caller.kind !== 'none' && options.qualifyParticipation) {
+        // The Session decision of the derived participation: once per public call, before any
+        // Session preparation, the pause point and the joint publication; a recognized operation
+        // is decided again with its original receipt.
+        const receipt = reservedReceipt(method, input, key)
+        if (receipt === undefined) return fail(denied(method))
+        const qualified = await options.qualifyParticipation(input, method, receipt)
+        if ('failure' in qualified) return qualified
+        // A write of the same execution committed while the decision was outstanding: stop before
+        // any Session preparation. The joint publication checks the decided command again.
+        const current = reservedReceipt(method, input, key)
+        if (
+          current === undefined ||
+          current.revision !== receipt.revision ||
+          !sameEvidence(current.evidence, receipt.evidence)
+        )
+          return fail(outrunParticipation)
+        decision = qualified.ok
+      }
+      if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
         const refused = beforeRecognition?.()
         if (refused) return fail(refused)
         // The same validator handles both initial requests and retries. A held answer never prepares history.
         const preview = prepare()
         if (preview.kind === 'answer')
           return cell.transact(input, method, () =>
-            run(method, entered.ok.fault, input, key, prepare, beforeRecognition),
+            run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision),
           )
         if (preview.kind === 'unknown')
           return fail({ kind: 'commit-unknown', operation: input.operation })
@@ -665,9 +753,8 @@ export function createJournal<P>(
         if (failure) return fail(failure)
       }
     }
-    await cell.wait(input, method)
     return cell.transact(input, method, () =>
-      run(method, entered.ok.fault, input, key, prepare, beforeRecognition),
+      run(method, entered.ok.fault, input, key, prepare, beforeRecognition, decision),
     )
   }
 
@@ -691,6 +778,7 @@ export function createJournal<P>(
     key: string,
     prepare: () => Attempt<R>,
     beforeRecognition?: () => Failure | undefined,
+    decision: JointDecision | null = null,
   ): Outcome<R, Failure> {
     const at = operationKey(input.tenant, input.execution, input.operation)
     if (at === undefined) return fail(denied(method))
@@ -738,7 +826,7 @@ export function createJournal<P>(
       prepared.apply()
       const captured = cell.committed(input, method, prepared.receipt)
       if (captured) return { kind: 'answered', value: fail(captured) }
-      const participation = cell.participate(input, method, prepared.receipt)
+      const participation = cell.participate(input, method, prepared.receipt, decision)
       if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
       cell.touch()
       state().operations.set(at, {

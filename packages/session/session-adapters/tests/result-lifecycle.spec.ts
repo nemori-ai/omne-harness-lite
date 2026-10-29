@@ -82,6 +82,7 @@ async function lifecycle(
     if (state === 'archived')
       ok(
         await s.backend.transactions.commit({
+          access: s.access,
           command: {
             kind: 'control',
             input: { ...s.access, operation: operationId('archive'), intent: { kind: 'archive' } },
@@ -184,6 +185,7 @@ for (const kind of ['custody', 'processed'] as const)
     if (before.run.kind !== 'active') throw new Error('active Run required')
     const claimed = ok(
       await s.backend.transactions.commit({
+        access: s.access,
         command: {
           kind: 'claim',
           input: {
@@ -288,6 +290,9 @@ for (const point of ['before-publish', 'after-publish'] as const)
     expect(recovered.work.run).toEqual(before.work.run)
   })
 
+// The Session half of a `custody`/`processed` participation is a Session mutation of its own: after
+// the pause, the Session access check decides it once before anything is prepared, and the Agent
+// qualification and the gap gate are checked again at the publication point.
 for (const kind of ['custody', 'processed'] as const)
   for (const boundary of ['agent', 'session', 'gap'] as const)
     it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {
@@ -295,6 +300,7 @@ for (const kind of ['custody', 'processed'] as const)
         s = await lifecycle(`late-${kind}-${boundary}`, 'ended', qualification),
         request = lateRequest(s, kind),
         before = await observed(s, request),
+        asked = s.accessCheck.controls.asked().length,
         pause = s.view.controls.pauseWrite(request, 'recordResult'),
         writing = s.view.journal.recordResult(request)
       await pause.reached
@@ -304,6 +310,13 @@ for (const kind of ['custody', 'processed'] as const)
       expect(await writing).toMatchObject({
         failure: { kind: boundary === 'gap' ? 'unavailable' : 'denied' },
       })
+      if (boundary === 'session')
+        expect(
+          s.accessCheck.controls
+            .asked()
+            .slice(asked)
+            .map(item => item.operation),
+        ).toEqual([kind === 'custody' ? 'preserveResult' : 'completeConsumption'])
       qualification.agent = true
       qualification.session = true
       expect(s.view.controls.root()).toBe(before.root)

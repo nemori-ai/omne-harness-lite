@@ -232,7 +232,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 各阶段的原操作查询与责任接管 | [PM-07](../../../session-contract/SPEC.md#pm-07) |
 | 取消优先 | [PM-08](../../../session-contract/SPEC.md#pm-08) |
 | 候选失败、撤旧后授新回执丢失、旧实例晚到、重复重装请求、无活体取消 | 契约 [VC-B01 至 VC-B15](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[C5](../../SPEC.md#c5)、[CR-10 至 CR-13](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-B-01 至 FS-B-09](../fault-scenarios.md#组-b推进映射与重装配交接) |
-| 实际发出的围栏 | Tool 经[ToolStartFencePort](../../../session-contract/SPEC.md#toolstartfenceport)；Session 不参加 Model 的受理点守卫 |
+| 实际发出的围栏 | Agent 日志 start-fence 条目在 Tool 排序域生效，见 [Agent J03](../../../../agent/agent-contract/SPEC.md#tool-启动围栏)。Session 不拥有另一套 Tool 围栏，也不参加 Model 受理点守卫 |
 | 何时重装 | 系统页[何时重装](../../../../../docs/architecture/runtime/assembly-and-change.md#何时重装) |
 
 ### SW-M01-C 日志、消费责任与恢复投影的集成

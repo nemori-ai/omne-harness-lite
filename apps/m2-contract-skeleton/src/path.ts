@@ -354,7 +354,7 @@ function sessionScene(
     ): Promise<Commit<K>> {
       const guards = await bridge.prepare(command)
       if ('failure' in guards) return guards as Commit<K>
-      return (await port.commit<K>({ command, guards: guards.ok })) as Commit<K>
+      return (await port.commit<K>({ access, command, guards: guards.ok })) as Commit<K>
     },
     async history() {
       const page = okOf(

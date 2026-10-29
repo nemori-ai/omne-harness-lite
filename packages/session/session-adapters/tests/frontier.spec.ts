@@ -35,6 +35,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
   )
   ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'freeze',
         input: {
@@ -58,7 +59,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
       intent: { kind: 'cancel-run' as const, run: state.run.run, urgency: 'force' as const },
     },
   }
-  ok(await backend.transactions.commit({ command, guards: [] }))
+  ok(await backend.transactions.commit({ access, command, guards: [] }))
   const rows = backend.controls.entriesOf(access.tenant, access.session),
     kinds = rows.map(row => row.kind)
   expect(kinds.indexOf('run.batch-taken')).toBeGreaterThan(kinds.indexOf('session.frozen'))
@@ -67,6 +68,6 @@ it('frozen cancellation first interprets the complete captured suffix, including
   expect(ok(await backend.transactions.readWork(access)).pending).toEqual([])
   expect(backend.controls.frontierMetrics().yields).toBeGreaterThan(0)
   const count = rows.length
-  ok(await backend.transactions.commit({ command, guards: [] }))
+  ok(await backend.transactions.commit({ access, command, guards: [] }))
   expect(backend.controls.entriesOf(access.tenant, access.session)).toHaveLength(count)
 })

@@ -81,7 +81,7 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 | `DriveFailure`、`DriveReply`、`DriveTarget`、`DriveReceipt`、`ExecutionStatus`、`AgentDrivePort`、`ScopeReleaseReadback`、`ScopeReleasePort` | [ports.ts](../src/ports.ts)                              |
 | `SessionBlockDeclaration`、`sessionModesBlock`                                                                                               | [ports.ts](../src/ports.ts)、[block.ts](../src/block.ts) |
 
-`ToolStartFencePort`（已被替代）与 `DeliveryReleasePort`（已被替代）不声明，见[被替代的协议](../SPEC.md#被替代的协议)。
+启动围栏与生产者交付解除由各原拥有者承担，见[被替代的协议](../SPEC.md#被替代的协议)和 [JC-Release](../SPEC.md#jc-release)。`SessionAccessCheck`、关联请求、裁定，以及拼装请求的 `readAccessRequest` 与 `mutationAccessRequest` 已从根入口导出，定义归 [access.ts](../src/access.ts)。`SessionTransactionPort.commit` 显式携带本次 `SessionAccess`。`./testing` 的 `createScriptedSessionAccessCheck`、`createPolicySessionAccessCheck`、`ScriptedSessionAccessCheck` 和 `SessionAccessScript` 归 [testing-access.ts](../src/testing-access.ts)；`createMemorySessionTransactions` 必需 `accessCheck`。接入范围与未覆盖部分见[访问检查](access-check.md)。
 
 ## 构造依赖端口、出站端口与纯函数
 

@@ -4,6 +4,8 @@
 
 Session 的纯契约成员，不依赖 Cordis。
 
+根入口已导出 `SessionAccessCheck` 及关联请求、裁定类型，`./testing` 已导出显式脚本替身。实际执行处检查和事务工厂的必需依赖尚未接入。参考适配器范围与剩余接入见[访问检查](docs/access-check.md)。
+
 ## 职责与状态
 
 本成员拥有 Session 治理的公开契约：工作、管理、对账、历史四个调用方面；构造时由提供者提供的依赖端口，以及 Session 向外调用的出站端口；会话日志的事件目录；纯领域服务的签名、决定函数 `decide` 与归约函数 `reduce`；块声明 `session.modes`。
@@ -20,11 +22,10 @@ Session 的纯契约成员，不依赖 Cordis。
 | `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation`                                                                                                                                                                                                                                 | 已实现                                                                       | `src/judgments.ts`                        |
 | `resolveControlScope`、`judgeIdle`、`resolveCascade`                                                                                                                                                                                                                                                                             | 已实现为纯判定                                                               | `src/judgments.ts`                        |
 | `./testing`：`SessionTransactionPort` 的一致性套件与非耐久替身，身份桥、证据桥、Context 输入、时钟、空闲输入、通知、推进与作用域释放的套件和替身                                                                                                                                                                                 | 已导出；替身通过套件                                                         | `src/testing*.ts`                         |
-| `ToolStartFencePort`、`DeliveryReleasePort`、`ControlProgress.startFence`、`start-fence` 与 `agent-event` 事实                                                                                                                                                                                                                   | 已被替代，不声明                                                             | [SPEC 被替代的协议](SPEC.md#被替代的协议) |
 
 未验证：耐久、跨进程并发、对真实存储的恢复、真实身份源与时钟。替身只在内存里证明判定。
 
-组内 session、session-cordis-contract、session-cordis 三个成员在 `package.json` 里依赖本成员。`session` 与 `session-cordis` 当前只声明依赖，尚未导入本成员；`session-cordis-contract` 在其 Cordis 服务定义下转出这些类型。
+组内 session、session-cordis-contract、session-cordis、session-adapters 四个成员声明依赖本成员。`session` 与 `session-cordis` 的生产入口仍为空；session-cordis-contract 在服务定义中使用契约类型，session-adapters 的测试实现使用这些类型。组外 m2-contract-skeleton 消费契约与 testing 入口，authorization 测试已实现公开 `SessionAccessCheck`。这些依赖不证明生产接入，授权测试的限定范围见[访问检查](docs/access-check.md#授权参考范围)。
 
 初始化已支持可选注册、工作区加载及执行准备来源，严格初始采用守卫、同批结果事实和原回执认回。当前解释器支持当前精确 revision 3 采用。接线、摘要及验证导航见[初始化实现](docs/initialization.md)。真实采用提供者、加载器及 Context replay 尚未由内存证据证明。
 

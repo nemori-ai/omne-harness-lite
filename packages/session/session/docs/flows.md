@@ -4,7 +4,7 @@
 
 ## 构造与调用
 
-工厂以依赖聚合与配置构造服务。构造顺序：核对 `SessionTransactionPort` 在场，否则服务停在不可用，不启动任何协调器与调度器；装入 `SchedulingPolicy`；注册五个协调器与七个调度器；S3 做一次启动扫描。宿主把框架服务适配为端口，本成员经端口调用依赖。
+工厂以依赖聚合与配置构造服务。构造顺序：核对当前访问检查、事务端口与内部主体在场，否则服务停在不可用，不启动任何协调器与调度器；装入 `SchedulingPolicy`；注册五个协调器与七个调度器；S3 做一次启动扫描。宿主把框架服务适配为端口，本成员经端口调用依赖。
 
 ### 命令处理器的一次提交
 
@@ -146,7 +146,6 @@ flowchart TD
     Q -->|advance 为空| Cl
     T --> Rs[resume，带 SE15 证据]
     Cl --> Rs
-    Cl --> F[invalidate 旧 attempt 的启动资格]
     Rs -->|挂接回执| Done[等 Agent 推进]
     Rs -->|changed 或 unavailable| Retry[同一依据重试，不第二次 claim]
     Rs -->|terminal| End[读结束事实，按 Agent 结论写终态]
@@ -156,7 +155,6 @@ flowchart TD
     Cand -->|成功| Det[detach 后 release，或旧 runtime 失联则跳过]
     Det --> Rl[reload 写 SE08、SE15、SE16]
     Rl --> Rs2[resume，绑定交接证明]
-    Rl --> F
     Rs2 -->|changed| Re[重取交接证明，同一 attempt 接续]
 ```
 
@@ -183,32 +181,13 @@ sequenceDiagram
 
 ### C3 控制传播协调器
 
-对应 [C3](../SPEC.md#c3)，依据 [PM-13](../../session-contract/SPEC.md#pm-13)、[ToolStartFencePort](../../session-contract/SPEC.md#toolstartfenceport)。细化组根的 [F-SE03](../../docs/key-flows.md#f-se03-控制传播)。
+对应 [C3](../SPEC.md#c3) 与 [PM-13](../../session-contract/SPEC.md#pm-13)。
 
-```mermaid
-sequenceDiagram
-    participant CP as 命令处理器
-    participant C3 as C3 控制传播
-    participant AD as AgentDrivePort
-    participant TF as ToolStartFencePort
-    participant S5 as S5 控制重放
-    CP-->>C3: control 提交成功，进度 propagating
-    alt 挂接存活
-        C3->>AD: control(execution, 控制身份)
-    else 没有挂接
-        Note over C3: 请 C5 先 resume 取得挂接，再送控制
-    end
-    C3->>TF: invalidate(范围, 资格版本)，以控制的操作身份
-    TF-->>C3: effective、pending、unavailable 或 commit-unknown
-    C3->>CP: receive(start-fence) 只在 effective 时写 SE25
-    AD-->>C3: 生产者确认或未知
-    C3->>CP: receive(control) 写 SE25
-    alt pending 为空且 startFence 不为 pending
-        Note over CP: 进度 reconciled
-    else 仍有未核对
-        S5->>C3: 按 controlReplay.intervalMs 重放，超过上限停在 propagating 并报告
-    end
-```
+1. 控制提交成功后，协调器按原 operation 经 AgentDrivePort.control 送到 Agent 长期控制入口，不先取得挂接。
+2. Agent 的控制结果、收束与 resume 顺序按 [J07 映射](../../session-adapters/SPEC.md#ad-14)。受理与实际停止分别核对，未知保留责任。
+3. S5 以原身份重放未核对责任。超过上限仍保留 propagating 并报告。原控制的传播、生产者核对与原责任交接全部对账后才成为 reconciled。
+
+Tool 围栏归 Agent/Tool J03，不计入该进度。取消或 claim 不必然触发 start-fence，触发政策仍属 #502 未决项。Session 不发失效调用，也不生成另一套围栏任务。
 
 ### C4 归档与级联协调器
 
@@ -223,7 +202,7 @@ sequenceDiagram
     participant SR as ScopeReleasePort
     participant S6 as S6 级联推进
     CP-->>C4: archive 提交成功：SE27、任务
-    C4->>C3: 传播控制，invalidate 整个会话
+    C4->>C3: 传播原控制
     loop 每个 tasks.cascade
         C4->>Child: control(archive)，固定 childOperation
         Child-->>C4: 回执、denied 或 commit-unknown
@@ -246,11 +225,11 @@ flowchart TD
     L --> U[unresolved 非空] --> S4[S4 待决认回]
     L --> I[tasks.initialization] --> Init[重新驱动负责方，completeInitialization]
     L --> RI[tasks.routed-input] --> Re[重投拥有者，receive]
-    L --> TK[tasks.cascade、scope-release、start-fence] --> C4C3[C4 或 C3]
+    L --> TK[tasks.cascade、scope-release] --> C4C3[C4 或 C3]
     L --> Ctl[controls 为 propagating] --> C3[C3 控制传播]
     L --> Run[run.active 的各行] --> C2[C2：重放 invoke、补交 submit、release、claim 后 resume、读结束事实]
     L --> Cons[结果已报告而未保管] --> Cust["recordResult(custody) 参加写 SE20；记录已删除时 preserveResult"]
-    L --> Rel[release 为 pending] --> Ack["以同一身份调用 DeliveryReleasePort.release，confirmed 后 receive(release)"]
+    L --> Rel[release 为 pending] --> Ack["Tool 原确认从同日志恢复；Model ACK 未决时只报告"]
     Run --> B{记录持续不可读，达到上限}
     B -->|是| FR[finishRun 有界收束 failed]
     B -->|否| C2
@@ -260,35 +239,11 @@ flowchart TD
 
 任一拥有者返回 `unavailable` 时保留该项，退避归 S3。
 
-### C5 交付责任解除
+### C5 原生产者确认的恢复
 
-对应 [C5](../SPEC.md#c5-release) 的交付责任解除行，依据 [EC-04](../../session-contract/SPEC.md#ec-04)、[EC-05](../../session-contract/SPEC.md#ec-05)、[DeliveryReleasePort](../../session-contract/SPEC.md#deliveryreleaseport)。契约层的协议流程见[契约流程](../../session-contract/docs/flows/README.md)。
+对应 [C5](../SPEC.md#c5-release)，依据 [JC-Release](../../session-contract/SPEC.md#jc-release) 与 EC-04/05。
 
-```mermaid
-sequenceDiagram
-    participant Src as 发起时点
-    participant C5 as C5 恢复协调器
-    participant DR as DeliveryReleasePort
-    participant CP as 命令处理器
-    participant S3 as S3 恢复扫描
-    alt C5 发起的 preserveResult 或参加保管
-        Src->>C5: 回执为 committed
-    else completeExternalConsumption
-        Src->>C5: 命令处理器交来回执
-    else 执行记录提供者发起的参加提交
-        Src->>C5: 提交通知，或 S3 的 pending(release)
-    end
-    C5->>DR: release，身份从 consumption 与结果版本派生
-    alt confirmed
-        DR-->>C5: 生产者确认的来源
-        C5->>CP: receive(release) 写 SE19，release 为 confirmed
-    else not-ready、unavailable 或 commit-unknown
-        DR-->>C5: 未得到确认
-        Note over C5: release 保持 pending，按 deliveryRelease.retryIntervalMs 以同一身份重发
-    end
-    S3->>C5: 重启后以 release 原因找回
-    Note over C5: 超过 deliveryRelease.maxAttempts 时保持 pending 并报告维护者
-```
+Tool 原确认由 Agent 宿主结果接收方写入同一日志，AD-05 核对原版本后 receive(release)。确认未到保持 pending，由结果接收方按生产者原协议接续；Session 扫描不代发解除。Session 提交未知先查询原 operation。Model ACK 未决时只报告，不执行动作，不以 received/saved 写 confirmed。
 
 ### 调度器与协调器的接续
 
@@ -317,7 +272,6 @@ flowchart LR
     S4 -->|committed 回执| Orig[原协调器]
     S5 --> C3[C3 控制传播]
     S6 --> C4
-    S6 -->|start-fence| C3
     S7 --> Asm[装配协调者预求值]
 ```
 
@@ -396,7 +350,6 @@ flowchart LR
 flowchart LR
     T[时钟间隔] --> S5[S5：controls 中 propagating] --> C3[C3 传播]
     T --> S6[S6：tasks 中 pending 或 unknown] --> C4[C4 级联与释放]
-    S6 -->|start-fence| C3
     C3 -->|超过 maxReplays| R1[停在 propagating 并报告]
     C4 -->|超过 maxDrives| R2[任务保持未结并报告]
 ```

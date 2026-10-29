@@ -12,6 +12,7 @@ import {
   createMemorySessionHistorySource,
   createMemorySessionTransactions,
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
   memoryAccess,
   memoryOtherAccess,
   evidence,
@@ -27,7 +28,13 @@ import { initializationGuards } from './initialization-fixture.ts'
 
 async function initial(access: SessionAccess<string>) {
   const initialization = createMemoryInitializationSource()
-  const port = createMemorySessionTransactions<string>({ initialization })
+  const port = createMemorySessionTransactions<string>({
+    initialization,
+    accessCheck: createPolicySessionAccessCheck(() => ({
+      kind: 'allowed',
+      evidence: evidence('access'),
+    })),
+  })
   const command = {
     kind: 'create' as const,
     input: {
@@ -40,6 +47,7 @@ async function initial(access: SessionAccess<string>) {
   initialization.controls.register(command, initializationGuards(command, null)[0]!)
   succeeded(
     await port.commit({
+      access,
       command,
       guards: succeeded(await initialization.prepare(command), 'prepare'),
     }),
@@ -47,6 +55,7 @@ async function initial(access: SessionAccess<string>) {
   )
   succeeded(
     await port.commit({
+      access,
       command: {
         kind: 'accept',
         input: {

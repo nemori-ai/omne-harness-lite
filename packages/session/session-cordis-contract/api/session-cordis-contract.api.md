@@ -112,6 +112,11 @@
 - `ScopeReleasePort` · 包 `@omne-harness/session-contract`
 - `ScopeReleaseReadback` · 包 `@omne-harness/session-contract`
 - `SessionAccess` · 包 `@omne-harness/session-contract`
+- `SessionAccessCheck` · 包 `@omne-harness/session-contract`
+- `SessionAccessDecision` · 包 `@omne-harness/session-contract`
+- `SessionAccessOperation` · 包 `@omne-harness/session-contract`
+- `SessionAccessRequest` · 包 `@omne-harness/session-contract`
+- `SessionAccessTarget` · 包 `@omne-harness/session-contract`
 - `SessionAttemptRecord` · 包 `@omne-harness/session-contract`
 - `SessionBatchRecord` · 包 `@omne-harness/session-contract`
 - `SessionBlockDeclaration` · 包 `@omne-harness/session-contract`
@@ -149,6 +154,7 @@
 - `SessionOperationElements` · 包 `@omne-harness/session-contract`
 - `SessionOperationId` · 包 `@omne-harness/session-contract`
 - `SessionPrefixFact` · 包 `@omne-harness/session-contract`
+- `SessionReadAccessOperation` · 包 `@omne-harness/session-contract`
 - `SessionReconciliation` · 包 `@omne-harness/session-contract`
 - `SessionRevision` · 包 `@omne-harness/session-contract`
 - `SessionTakenRecord` · 包 `@omne-harness/session-contract`
@@ -168,8 +174,10 @@
 - `judgeCompletion` · 包 `@omne-harness/session-contract`
 - `judgeIdle` · 包 `@omne-harness/session-contract`
 - `judgeRunStart` · 包 `@omne-harness/session-contract`
+- `mutationAccessRequest` · 包 `@omne-harness/session-contract`
 - `openWork` · 包 `@omne-harness/session-contract`
 - `projectSessionLog` · 包 `@omne-harness/session-contract`
+- `readAccessRequest` · 包 `@omne-harness/session-contract`
 - `reduce` · 包 `@omne-harness/session-contract`
 - `resolveCascade` · 包 `@omne-harness/session-contract`
 - `resolveControlScope` · 包 `@omne-harness/session-contract`
@@ -181,6 +189,7 @@
 
 - `AgentDrivePortService` · `cordis.d.ts`
 - `ScopeReleasePortService` · `cordis.d.ts`
+- `SessionAccessCheckService` · `cordis.d.ts`
 - `SessionClockService` · `cordis.d.ts`
 - `SessionContextInputService` · `cordis.d.ts`
 - `SessionEvidenceBridgeService` · `cordis.d.ts`
@@ -191,6 +200,7 @@
 - `SessionNotifierService` · `cordis.d.ts`
 - `SessionService` · `cordis.d.ts`
 - `SessionTransactionPortService` · `cordis.d.ts`
+- `sessionAccessCheckKey` · `cordis.d.ts`
 - `sessionAgentDriveKey` · `cordis.d.ts`
 - `sessionClockKey` · `cordis.d.ts`
 - `sessionContextInputKey` · `cordis.d.ts`
@@ -208,7 +218,7 @@
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { AgentDrivePort, DurableEvidence, ScopeReleasePort, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
+import type { AgentDrivePort, DurableEvidence, ScopeReleasePort, SessionAccessCheck, SessionCallerClass, SessionClock, SessionContextInput, SessionEvidenceBridge, SessionFaces, SessionId, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionRevision, SessionTransactionPort } from '@omne-harness/session-contract';
 export type SessionIntercept = Readonly<{
     caller: SessionCallerClass;
 }>;
@@ -221,6 +231,12 @@ export declare abstract class SessionService<P = unknown> extends Service<Sessio
     abstract readonly history: SessionFaces<P>['history'];
 }
 export declare const sessionKey = "session";
+export declare abstract class SessionAccessCheckService<P = unknown> extends Service implements SessionAccessCheck<P> {
+    static readonly provide = "sessionAccessCheck";
+    constructor(ctx: Context);
+    abstract readonly check: SessionAccessCheck<P>['check'];
+}
+export declare const sessionAccessCheckKey = "sessionAccessCheck";
 export declare abstract class SessionTransactionPortService<P = unknown> extends Service implements SessionTransactionPort<P> {
     static readonly provide = "sessionTransactions";
     constructor(ctx: Context);
@@ -302,6 +318,7 @@ export declare const sessionScopeReleaseKey = "sessionScopeRelease";
 declare module '@deepseek-ai/cordis' {
     interface Context {
         session: SessionService<unknown>;
+        sessionAccessCheck: SessionAccessCheckService<unknown>;
         sessionTransactions: SessionTransactionPortService<unknown>;
         sessionPrincipals: SessionInternalPrincipalsService<unknown>;
         sessionIdentity: SessionIdentityBridgeService<unknown>;
