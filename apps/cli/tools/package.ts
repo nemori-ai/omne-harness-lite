@@ -24,7 +24,7 @@ function commandLine(step: Step): [string, string[]] {
     if (directory !== '' && existsSync(join(directory, 'pnpm.cmd')) && existsSync(entry))
       return [process.execPath, [entry, ...step.args]]
   }
-  return [step.command, step.args]
+  throw new Error('pnpm.cjs not found next to pnpm.cmd on PATH')
 }
 
 // The same steps as the member's `build` script, with the output moved to staging; change both together.

@@ -308,7 +308,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.
 node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts health --repo <owner/name> --file <事件文件>
 ```
 
-init 创建频道并保存本地配置，serve 建立或恢复精确 hook。配置、进程身份和健康记录保存在事件文件同目录。频道地址属于秘密，只保存在权限受限的配置中，不放进卡片、日志或错误文本。在 POSIX 上，组或其他用户可访问的配置和频道地址文件被拒绝。在 Windows 上这项检查不适用：文件模式位不反映 ACL，工具不检查模式位，私有性取决于事件目录所在位置的 ACL。一个事件目录只有一个写者，频道与 legacy 共用本地排他守卫。健康检查每 5 秒检查本机进程身份、连接和日志，不扫描 GitHub 业务状态。
+init 创建频道并保存本地配置，serve 建立或恢复精确 hook。配置、进程身份和健康记录保存在事件文件同目录。频道地址属于秘密，只保存在权限受限的配置中，不放进卡片、日志或错误文本。在 POSIX 上，组或其他用户可访问的配置和频道地址文件被拒绝。在 Windows 上不检查模式位，也不设 ACL：文件模式位不反映 ACL，目录私有由操作者保证（把事件目录放在只有本人可访问的位置）。一个事件目录只有一个写者，频道与 legacy 共用本地排他守卫。健康检查每 5 秒检查本机进程身份、连接和日志，不扫描 GitHub 业务状态。
 
 借用已有频道时，由拥有者提供权限受限的频道地址文件及 hook ID。运行 init 时同时传入 `--channel-file <文件> --hook <ID>`。借用实例不创建或删除 hook。受限云端可用这种模式。借用实例也运行端到端自检。自检结果只报告事实，不阻止 Line 开工。
 

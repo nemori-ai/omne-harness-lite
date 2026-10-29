@@ -38,11 +38,11 @@ const SYSTEM_BASH = WINDOWS ? gitBash() : '/bin/bash'
  * 执行名额脚本的命令行：POSIX 上直接执行它；Windows 上 Node 不能直接起 `.sh`（spawn EFTYPE），
  * 经系统 bash 起同一个脚本。
  */
-const LAUNCH: readonly string[] = WINDOWS ? [SYSTEM_BASH, SCRIPT] : [SCRIPT]
+const LAUNCH: readonly [string, ...string[]] = WINDOWS ? [SYSTEM_BASH, SCRIPT] : [SCRIPT]
 
 /** 经名额脚本执行 `args` 的可执行文件与参数。 */
 function launch(args: readonly string[]): [string, string[]] {
-  const [file = SCRIPT, ...rest] = LAUNCH
+  const [file, ...rest] = LAUNCH
   return [file, [...rest, ...args]]
 }
 
