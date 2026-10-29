@@ -158,7 +158,7 @@ def verify(flow: Flow, material: Material, *, source: Path, work: Path, tag: str
             brief(flow, material, workdir=str(dest), rep=0)
         except checkout.BriefError as error:
             problems.append(f"{material.id}: brief - {error}")
-        truth = workspace.run(["bash", str(flow.root / flow.oracle["ground_truth"]), str(dest)], dest,
+        truth = workspace.run([workspace.bash(), str(flow.root / flow.oracle["ground_truth"]), str(dest)], dest,
                               log=where / "ground-truth.log").output
         lines = truth.splitlines()
         either = set((material.expected or {}).get("either", ()))

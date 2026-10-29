@@ -67,6 +67,21 @@ def run(command: list[str], cwd: Path, *, timeout: float | None = None, log: Pat
     return ran
 
 
+def bash() -> str:
+    """The bash a suite's shell script runs under.
+
+    On Windows a bare ``bash`` is looked up in System32 before PATH and is the WSL launcher, which cannot read a
+    Windows path; there it is Git for Windows' bash, found from ``git --exec-path``.
+    """
+    if os.name != "nt":
+        return "bash"
+    core = git(Path.cwd(), "--exec-path")
+    found = Path(core).resolve().parents[2] / "bin" / "bash.exe"
+    if not found.is_file():
+        raise WorkspaceError(f"no Git for Windows bash at {found} (from git --exec-path {core})")
+    return str(found)
+
+
 def tree_hash(root: Path) -> str:
     """Content hash of every file under ``root`` outside ``.git``."""
     digest = hashlib.sha256()
