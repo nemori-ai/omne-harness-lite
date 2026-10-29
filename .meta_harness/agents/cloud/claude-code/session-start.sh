@@ -100,4 +100,14 @@ claude plugin marketplace update pstack-claude >/dev/null || warn "pstack market
 claude plugin marketplace update mattpocock >/dev/null || warn "mattpocock marketplace update failed"
 claude plugin update pstack@pstack-claude --scope user >/dev/null || warn "pstack update failed"
 claude plugin update mattpocock-skills@mattpocock --scope user >/dev/null || warn "mattpocock-skills update failed"
+# ub-mode is one SKILL.md, not a plugin. Replace it only after a complete download.
+ub_mode_dir="$HOME/.claude/skills/ub-mode"
+if mkdir -p "$ub_mode_dir" \
+    && curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/master/SKILL.md -o "$ub_mode_dir/SKILL.md.tmp" \
+    && mv "$ub_mode_dir/SKILL.md.tmp" "$ub_mode_dir/SKILL.md"; then
+    :
+else
+    rm -f "$ub_mode_dir/SKILL.md.tmp"
+    warn "ub-mode update failed"
+fi
 exit 0

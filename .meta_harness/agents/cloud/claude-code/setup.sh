@@ -55,13 +55,23 @@ if ! uv --version 2>/dev/null | grep -q "^uv ${UV_VERSION}\b"; then
 fi
 /root/.local/bin/uv --version | grep -q "^uv ${UV_VERSION}\b"
 
-# pstack and Matt track the upstream default branch. session-start.sh updates them.
+# pstack, Matt and ub-mode track the upstream default branch. session-start.sh updates them.
 claude plugin marketplace list 2>/dev/null | grep -q pstack-claude \
     || claude plugin marketplace add michael-denyer/pstack-claude
 claude plugin marketplace list 2>/dev/null | grep -q mattpocock \
     || claude plugin marketplace add mattpocock/skills
 claude plugin install pstack@pstack-claude --scope user
 claude plugin install mattpocock-skills@mattpocock --scope user
+# ub-mode is one SKILL.md, not a plugin. A failed download prints a diagnostic and
+# setup continues; session-start.sh retries it.
+ub_mode_dir="$HOME/.claude/skills/ub-mode"
+mkdir -p "$ub_mode_dir"
+if curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/master/SKILL.md -o "$ub_mode_dir/SKILL.md.tmp"; then
+    mv "$ub_mode_dir/SKILL.md.tmp" "$ub_mode_dir/SKILL.md"
+else
+    rm -f "$ub_mode_dir/SKILL.md.tmp"
+    printf 'setup: ub-mode download failed\n' >&2
+fi
 
 # Register the per-session bootstrap as a user-level SessionStart hook. The hook
 # runs the script from the checkout, so it follows the branch that is checked out.

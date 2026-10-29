@@ -21,3 +21,7 @@ author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.
 技能正文在 ubuntu 用户的 `~/.agents/skills`。每个目录再链接到 `~/.cursor/skills`。镜像不运行 `setup-matt-pocock-skills`。安装完整插件不扩大方法采用范围。
 
 环境构建如果复用已有基础镜像，就只运行 `install.sh`。这时脚本在当前用户是 ubuntu 且 `sudo` 不询问密码时，从投影的 Dockerfile 取出同一段包装脚本和同一个 revision，再安装一次。其他账户不改。
+
+## ub-mode
+
+镜像按技能来源表的固定提交 `UB_MODE_REVISION`，把 ub-mode 的 `SKILL.md` 下载到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`，并在 `~/.cursor/ub-mode-revision` 记下已装的提交。它只有一份文件，不经过 `npx skills`，也不计入 Matt 的目录数。`install.sh` 在同样的条件下读 Dockerfile 的同一个提交，记录不一致或文件缺失时重新下载。

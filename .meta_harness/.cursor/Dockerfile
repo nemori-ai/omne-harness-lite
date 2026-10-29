@@ -13,6 +13,8 @@ ARG PNPM_VERSION=10.28.1
 ARG UV_VERSION=0.13.0
 # Matt skills revision is owned by docs/engineering/skills.md. Do not float latest.
 ARG MATT_SKILLS_REVISION=b0618bc436ad893b3c5e84e55fba86586d34a404
+# ub-mode revision is owned by docs/engineering/skills.md. It is one SKILL.md.
+ARG UB_MODE_REVISION=57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f
 # skills CLI that copies a local tree for Cursor. 1.7.2 installs global Cursor skills
 # under ~/.agents/skills. A tree URL is not used: that CLI treats the revision as a branch.
 ARG SKILLS_CLI_VERSION=1.7.2
@@ -114,3 +116,10 @@ RUN git init /tmp/mattpocock-skills \
     && git config --global --get user.name | grep -Fqx "$GIT_HUMAN_NAME" \
     && git config --global --get user.email | grep -Fqx "$GIT_HUMAN_EMAIL" \
     && git config --global --bool --get commit.gpgsign | grep -Fqx false
+
+# Install the pinned ub-mode SKILL.md for Cursor. It is not part of the Matt tree.
+RUN mkdir -p "$HOME/.cursor/skills/ub-mode" \
+    && curl -fsSL "https://raw.githubusercontent.com/unclebob/ub-mode/${UB_MODE_REVISION}/SKILL.md" \
+        -o "$HOME/.cursor/skills/ub-mode/SKILL.md" \
+    && grep -q '^name: ub-mode$' "$HOME/.cursor/skills/ub-mode/SKILL.md" \
+    && printf '%s\n' "$UB_MODE_REVISION" > "$HOME/.cursor/ub-mode-revision"
