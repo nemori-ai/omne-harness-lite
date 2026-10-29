@@ -106,31 +106,42 @@ it('answers notFound when the parent directory of a create does not exist', asyn
   expect(result).toEqual(refused('orphan', 'notFound'))
 })
 
-it('answers notAuthorized when the host denies access, for read and for create', async () => {
-  const { root, path, named } = await namedFile('secret')
-  await chmod(path, 0o000)
-  const files = createHostFiles()
-  expect(await files.read(request(path, named, 'denied'))).toEqual(
-    refused('denied', 'notAuthorized'),
-  )
-  const locked = join(root, 'locked')
-  await mkdir(locked)
-  const lockedToken = await hostObjectToken(locked)
-  await chmod(locked, 0o500)
-  expect(
-    await files.write({
-      ...request(join(locked, 'new.txt'), lockedToken, 'no-write'),
-      bytes: text('x'),
-      mode: 'create',
-    }),
-  ).toEqual(refused('no-write', 'notAuthorized'))
-  await chmod(locked, 0o700)
-})
+// Windows has no portable way to deny this process access: chmod only toggles the read-only
+// attribute, and an ACL deny does not hold in an elevated session, where SeBackupPrivilege is
+// enabled and libuv opens files with backup semantics.
+it.skipIf(process.platform === 'win32')(
+  'answers notAuthorized when the host denies access, for read and for create',
+  async () => {
+    const { root, path, named } = await namedFile('secret')
+    await chmod(path, 0o000)
+    const files = createHostFiles()
+    expect(await files.read(request(path, named, 'denied'))).toEqual(
+      refused('denied', 'notAuthorized'),
+    )
+    const locked = join(root, 'locked')
+    await mkdir(locked)
+    const lockedToken = await hostObjectToken(locked)
+    await chmod(locked, 0o500)
+    expect(
+      await files.write({
+        ...request(join(locked, 'new.txt'), lockedToken, 'no-write'),
+        bytes: text('x'),
+        mode: 'create',
+      }),
+    ).toEqual(refused('no-write', 'notAuthorized'))
+    await chmod(locked, 0o700)
+  },
+)
 
 it('answers unknown for an open error it does not map', async () => {
   const { root } = await namedFile('x')
   const files = createHostFiles()
-  const tooLong = join(root, 'n'.repeat(300))
+  // POSIX refuses a 300-byte name with ENAMETOOLONG. Windows answers ENOENT for it (a mapped code)
+  // and gives ENAMETOOLONG only for a path longer than its 32767-character limit.
+  const tooLong =
+    process.platform === 'win32'
+      ? join(root, ...Array.from({ length: 200 }, () => 'n'.repeat(200)))
+      : join(root, 'n'.repeat(300))
   expect(await files.read(request(tooLong, { token: '1:1' }, 'long'))).toEqual({
     kind: 'unknown',
     requestId: 'long',

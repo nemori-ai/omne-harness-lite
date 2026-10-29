@@ -1,6 +1,6 @@
 import { mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, relative } from 'node:path'
+import { isAbsolute, join, relative } from 'node:path'
 import { afterEach, expect, it } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -16,10 +16,22 @@ afterEach(async () => {
   await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })))
 })
 
-async function tree() {
-  const root = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-env-')))
+async function tree(base = tmpdir()) {
+  const root = await realpath(await mkdtemp(join(base, 'omne-exec-env-')))
   roots.push(root)
   return root
+}
+
+/**
+ * A tree that a relative path from the working directory reaches. On Windows the temporary
+ * directory can be on another drive, where no relative path leads; the tree then goes below the
+ * ignored `tmp/` of the working directory.
+ */
+async function treeReachedRelatively() {
+  if (!isAbsolute(relative(process.cwd(), tmpdir()))) return tree()
+  const base = join(process.cwd(), 'tmp')
+  await mkdir(base, { recursive: true })
+  return tree(base)
 }
 
 const tenant = (() => {
@@ -159,11 +171,12 @@ it('refuses a replace whose expected version no longer matches and leaves the fi
 })
 
 it('refuses a relative path as invalid input without opening or changing the file it would reach', async () => {
-  const root = await tree()
+  const root = await treeReachedRelatively()
   const path = join(root, 'notes.txt')
   await writeFile(path, 'kept')
   const named = await hostObjectToken(path)
   const relativePath = relative(process.cwd(), path)
+  expect(isAbsolute(relativePath)).toBe(false)
   const parentToken = await hostObjectToken(root)
   const files = createHostFiles()
   const refused = (requestId: string) => ({ kind: 'rejected', requestId, reason: 'invalidInput' })
