@@ -106,26 +106,32 @@ it('answers notFound when the parent directory of a create does not exist', asyn
   expect(result).toEqual(refused('orphan', 'notFound'))
 })
 
-it('answers notAuthorized when the host denies access, for read and for create', async () => {
-  const { root, path, named } = await namedFile('secret')
-  await chmod(path, 0o000)
-  const files = createHostFiles()
-  expect(await files.read(request(path, named, 'denied'))).toEqual(
-    refused('denied', 'notAuthorized'),
-  )
-  const locked = join(root, 'locked')
-  await mkdir(locked)
-  const lockedToken = await hostObjectToken(locked)
-  await chmod(locked, 0o500)
-  expect(
-    await files.write({
-      ...request(join(locked, 'new.txt'), lockedToken, 'no-write'),
-      bytes: text('x'),
-      mode: 'create',
-    }),
-  ).toEqual(refused('no-write', 'notAuthorized'))
-  await chmod(locked, 0o700)
-})
+// Windows has no portable way to deny this process access: chmod only toggles the read-only
+// attribute, and an ACL deny does not hold in an elevated session, where SeBackupPrivilege is
+// enabled and libuv opens files with backup semantics.
+it.skipIf(process.platform === 'win32')(
+  'answers notAuthorized when the host denies access, for read and for create',
+  async () => {
+    const { root, path, named } = await namedFile('secret')
+    await chmod(path, 0o000)
+    const files = createHostFiles()
+    expect(await files.read(request(path, named, 'denied'))).toEqual(
+      refused('denied', 'notAuthorized'),
+    )
+    const locked = join(root, 'locked')
+    await mkdir(locked)
+    const lockedToken = await hostObjectToken(locked)
+    await chmod(locked, 0o500)
+    expect(
+      await files.write({
+        ...request(join(locked, 'new.txt'), lockedToken, 'no-write'),
+        bytes: text('x'),
+        mode: 'create',
+      }),
+    ).toEqual(refused('no-write', 'notAuthorized'))
+    await chmod(locked, 0o700)
+  },
+)
 
 it('answers unknown for an open error it does not map', async () => {
   const { root } = await namedFile('x')
