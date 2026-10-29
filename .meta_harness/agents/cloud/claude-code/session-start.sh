@@ -95,7 +95,7 @@ if ! agents --check 2>/dev/null; then
     agents || warn "agent projections failed to build"
 fi
 
-# Plugin updates apply from the next session: this session already loaded plugins.
+# Unverified: if Claude Code loads plugins before this hook, updates apply from the next session.
 claude plugin marketplace update pstack-claude >/dev/null || warn "pstack marketplace update failed"
 claude plugin marketplace update mattpocock >/dev/null || warn "mattpocock marketplace update failed"
 claude plugin update pstack@pstack-claude --scope user >/dev/null || warn "pstack update failed"
