@@ -62,7 +62,9 @@ function branchedFromTrack(root: string): { first: string; tip: string; work: st
 
 /** 流程工具的 start 为本检出写的 task context；这里只给钩子读的字段。 */
 function bind(root: string, taskBase: string, targetBase: string): void {
-  const actual = realpathSync(root)
+  // 和流程工具一样从 git 的顶层目录取真实路径：Windows 的临时目录是 8.3 短名，
+  // 对它直接 realpath 不会展开成 git 回的长名。
+  const actual = realpathSync(git(root, 'rev-parse', '--show-toplevel'))
   writeFileSync(
     taskContextPath(root),
     JSON.stringify({
