@@ -113,7 +113,7 @@
 | 参与者 | Model、Tool 与 Agent 的流；`session-adapters`；`session` |
 | 时序 | 模型回复流、工具内部事件流和 Agent 的 `stream` 事件都不逐块落盘 → 在途内容由生产者保管 → 收场后终态事实与结果消息进日志 → 保管或处理证据成立后确认 |
 | 数据去向 | 收场事实、经准入的消息、保管或处理事实与账目进会话日志 |
-| 失败分支 | 各阶段崩溃时，按生产者已保管的批次与日志已提交的事实对账；迟到结果由消费适配器读生产者事实后补交 |
+| 失败分支 | 各阶段崩溃时，按生产者已保管的批次与日志已提交的事实对账；迟到结果由 Agent 宿主的结果接收方写入同一会话日志，Session 读日志后补交 |
 | 来源成员 | 事件映射：`session-contract`；消费与确认：`session-adapters` |
 | 成员流程 | 契约协议 [F-SC12](../session-contract/docs/flows/scenarios.md#f-sc12-流到日志)；机制见 [session 的机制流程](../session/docs/flows.md) |
 

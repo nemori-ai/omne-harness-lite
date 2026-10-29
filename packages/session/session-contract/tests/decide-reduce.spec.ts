@@ -817,8 +817,15 @@ describe('the pure judgments at their edges', () => {
     expect(late.kind).toBe('entries')
     if (late.kind === 'entries')
       expect(late.entries.map(row => row.kind)).toEqual(['run.attempt-exited'])
-    // With no current advance left, an unindexed Run or attempt is unknown rather than forged.
+    // The index records each attempt once, so the same attempt under another Run is forged.
     expect(exit(ended, forged[0] ?? advance)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'fact.advance' },
+    })
+    // An attempt the index does not record stays unknown after the Run ended.
+    expect(
+      exit(ended, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
+    ).toMatchObject({
       kind: 'rejected',
       failure: { kind: 'unavailable', owner: 'session-history' },
     })

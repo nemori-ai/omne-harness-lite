@@ -1265,7 +1265,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：[P-3](#具名前提与明确缺项)。
 - 动作：
   1. Agent 不在场时，Agent 宿主的结果接收方按原调用身份读取生产者的收场与账目事实，并把它们写入同一会话日志。
-  2. Session 只读日志里的结果与账目。Session 适配协调者（session-adapters 的 AD-05）读到这些事实后，以 `receive(execution)`、`receive(account)` 提交。`receive` 的身份从生产者记录身份与修订派生。
+  2. Session 只读日志里的结果与账目。Model 一侧由 Session 适配协调者（session-adapters 的 AD-05）读到这些事实后，以 `receive(execution)`、`receive(account)` 提交；Tool 一侧按日志读取并提交的适配插件归 #680 随 AD-06 改写指定，在此之前 AD-06 仍直接读取 Tool，是具名偏离。`receive` 的身份从生产者记录身份与修订派生。
   3. Session 不读取生产者，也不持有生产者的读取资格。
 - 结果：账目归原调用与原 attempt。未知费用保持未知。重复报告按身份认回。
 - 失败：P-3 不成立时保持未知，不以查不到当作未发生。
@@ -1613,7 +1613,7 @@ Agent 来源按 EC-01 从同一日志解释；以下 Session 提交路径表示�
 | 挂接交还或被取代                                         | `detach` 回执，或执行记录           | SE16                | `release`、`claim`                                              | 依据     |
 | 实例退出                                                 | 可信实例适配                        | SE17                | `receive(agent-exit)`                                           | 可选留痕 |
 
-`receive(agent-exit)` 核对原关联：退出报告的 attempt 必须是本会话已开始的 attempt。仍持有推进资格的 attempt 按 run、attempt 与实例三项核对。已交还推进资格的 attempt 按历史索引里原 SE15 的 run 与 attempt 核对，原 SE15 不记实例。当前推进资格指向同一 attempt、而 run 或实例不同时返回 `invalid`，不写 SE17。历史索引里没有该 attempt 的原 SE15 时，按 [FR-01](#fr-01)「缺少所需项表示未知」返回 `unavailable`（owner `session-history`），不写 SE17；索引的覆盖范围归历史读取的提供者。SE17 是可选留痕，这样拒绝不影响推进资格或恢复。
+`receive(agent-exit)` 核对原关联：退出报告的 attempt 必须是本会话已开始的 attempt。仍持有推进资格的 attempt 按 run、attempt 与实例三项核对。已交还推进资格的 attempt 按历史索引里原 SE15 的 run 与 attempt 核对，原 SE15 不记实例。当前推进资格指向同一 attempt、而 run 或实例不同时，或历史索引里该 attempt 的原 SE15 属于另一 run 时，返回 `invalid`，不写 SE17。历史索引里没有该 attempt 的原 SE15 时，按 [FR-01](#fr-01)「缺少所需项表示未知」返回 `unavailable`（owner `session-history`），不写 SE17；索引的覆盖范围归历史读取的提供者。SE17 是可选留痕，这样拒绝不影响推进资格或恢复。
 
 Model 来源：
 

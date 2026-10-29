@@ -89,7 +89,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 
 | 入口         | 终态                           | 怎样成立                                                                                                                                                                                                                                |
 | ------------ | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 读到执行结束 | completed、failed 或 cancelled | Session 从同一 Journal 读到 Agent 的结束事件或执行记录的结束状态后，经 `projectSessionLog` 决定后续解释提交，按 Agent 的结论写 SE26 与 SE16，并共同保存解释进度与该次操作答案（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
+| 读到执行结束 | completed、failed 或 cancelled | Session 从同一 Journal 读到 Agent 的结束事件或执行记录的结束状态后，经 `projectSessionLog` 决定后续解释提交，按 Agent 的结论写 completed 或 failed 的 SE26 与 SE16；Agent 的 cancelled 结论在 Session 未提交取消时被拒绝，cancelled 只由 Session 的控制与归档写入（[RS-10](../SPEC.md#rs-10)），并共同保存解释进度与该次操作答案（[RS-08](../SPEC.md#rs-08) 至 [RS-10](../SPEC.md#rs-10)） |
 | 取消         | cancelled                      | `control(cancel-run)`、`control(archive)` 或到期的 `considerAutoArchive` 在提交时同批写 SE26 cancelled，不等传播                                                                                                                        |
 | 有界收束     | failed                         | Session 以 `finishRun` 提交。只有两种依据：Agent 记录不可解释（P-5），或首条输入在 `invoke` 被消息准入拒收（[PM-02](../SPEC.md#pm-02)）                                                                                                 |
 

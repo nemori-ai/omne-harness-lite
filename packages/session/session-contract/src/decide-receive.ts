@@ -102,10 +102,10 @@ export function decideProducerFact(
 
 /**
  * The exit report keeps its original association: the current advance proves run, attempt and
- * instance. An attempt that no longer holds the advance is proved by its original SE15 in the
- * history index, which records run and attempt only.
+ * instance; an attempt that no longer holds the advance is proved by its original SE15 in the
+ * history index, which records each attempt once with its run. A missing index item is unknown
+ * (FR-01), not a forged relation.
  */
-/** A missing index item is unknown (FR-01), so only the current advance can prove a forged relation. */
 function startedAttempt(
   snapshot: WorkSnapshot,
   advance: AdvanceRef,
@@ -113,9 +113,7 @@ function startedAttempt(
   const current = snapshot.run.kind === 'active' ? snapshot.run.advance : null
   if (current !== null && current.attempt === advance.attempt)
     return equalValue(current, advance) ? 'started' : 'forged'
-  return snapshot.historyIndex?.attempts.some(
-    item => item.attempt === advance.attempt && item.run === advance.run,
-  )
-    ? 'started'
-    : 'unknown'
+  const original = snapshot.historyIndex?.attempts.find(item => item.attempt === advance.attempt)
+  if (original === undefined) return 'unknown'
+  return original.run === advance.run ? 'started' : 'forged'
 }
