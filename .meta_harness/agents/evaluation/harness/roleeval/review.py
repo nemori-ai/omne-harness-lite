@@ -11,7 +11,6 @@ file or move HEAD off the delivery commit.
 """
 from __future__ import annotations
 
-import shutil
 from pathlib import Path
 from typing import Any
 
@@ -100,7 +99,7 @@ def verify_delivery(flow: Flow, material: Material, *, source: Path, work: Path,
     except (workspace.WorkspaceError, OSError) as error:
         problems.append(f"{material.id}: {error}")
     finally:
-        shutil.rmtree(where, ignore_errors=True)
+        workspace.discard(where)
     return problems
 
 

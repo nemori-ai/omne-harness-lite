@@ -170,7 +170,7 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
         except (workspace.WorkspaceError, RuntimeError) as error:
             problems.append(f"{material.id}: {error}")
         finally:
-            shutil.rmtree(dest, ignore_errors=True)
+            workspace.discard(dest)
     return problems
 
 
@@ -414,7 +414,7 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     (out / "_state.json").write_text(json.dumps(flow.state(), ensure_ascii=False, indent=1), encoding="utf-8")
     agents = compile_definition(flow, out, variant)
     attempt = work / f"{flow.id}-{variant}-{material.id}-rep{rep}"
-    shutil.rmtree(attempt, ignore_errors=True)
+    workspace.discard(attempt)
     dest = attempt / "workspace"
     copy: dict[str, Any] = {}
     try:
@@ -428,7 +428,7 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
             brief_text = review.brief(flow, material, dest, repo=REPO)
             copy = {"tree_hash": workspace.tree_hash(dest)}
     except (workspace.WorkspaceError, checkout.BriefError, RuntimeError, OSError) as error:
-        shutil.rmtree(attempt, ignore_errors=True)
+        workspace.discard(attempt)
         raise Refused(f"could not prepare {material.id}: {error}") from error
     host = flow.host["claude-code"]
     # The role definition sits beside the copy, outside every checkout, for a dispatch that has to hand it over as a file.
@@ -526,7 +526,7 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
     shutil.copyfile(transcript, evidence / "trajectory.jsonl")
     pending.unlink()
     if not keep:
-        shutil.rmtree(dest.parent, ignore_errors=True)
+        workspace.discard(dest.parent)
     if failure:
         # The attempt keeps its evidence under a name that frees the (material, rep) slot for another run.
         parked = evidence.with_name(f"{evidence.name}.failed-{int(time.time())}")

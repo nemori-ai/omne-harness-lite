@@ -368,6 +368,26 @@ def _place(source: Path, target: Path, *, hard_link: bool, excluded: list[str]) 
         shutil.copy2(source, target)
 
 
+def discard(copy: Path) -> None:
+    """Remove a copy, as far as it can be removed; a copy that is not there is no error.
+
+    Like ``shutil.rmtree(..., ignore_errors=True)``. On Windows Git makes the files under ``.git/objects`` read-only
+    and a read-only file cannot be deleted, so there each entry that refuses is made writable and tried once more.
+    """
+    if os.name != "nt":
+        shutil.rmtree(copy, ignore_errors=True)
+        return
+
+    def writable_then_again(function: Any, name: str, _error: BaseException) -> None:
+        try:
+            os.chmod(name, stat.S_IWRITE)
+            function(name)
+        except OSError:
+            pass
+
+    shutil.rmtree(copy, onexc=writable_then_again)
+
+
 def baseline(dest: Path) -> str:
     """Make the copy a repository on ``main`` whose only commit is everything in it; return that commit."""
     git(dest, "init", "-q")
