@@ -6,6 +6,7 @@
 import { expect, it } from 'vitest'
 import {
   decodeActionId,
+  decodeInputId,
   type AgentJournal,
   type CommandReceipt,
   type Failure,
@@ -13,7 +14,11 @@ import {
 import type { Outcome } from '@omne-harness/operation-result'
 import { judgeMessage } from '@omne-harness/message'
 import { deriveSessionOperation, type SessionAccessRequest } from '@omne-harness/session-contract'
-import { assistantMessage, memoryOtherAccess } from '@omne-harness/session-contract/testing'
+import {
+  assistantMessage,
+  memoryOtherAccess,
+  ordinaryInput,
+} from '@omne-harness/session-contract/testing'
 import {
   evidence,
   ok,
@@ -22,7 +27,7 @@ import {
   type SceneQualification,
 } from './fixtures/common-journal.ts'
 import { resultCall } from './fixtures/result-call.ts'
-import { take } from './fixtures/progression.ts'
+import { accept, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
 type Joint = 'message' | 'context-transition' | 'custody' | 'processed'
@@ -263,15 +268,117 @@ for (const joint of ['message', 'context-transition', 'custody', 'processed'] as
 it('the scene policy itself refuses a Session read of another tenant', async () => {
   const s = await scene('foreign-read'),
     foreign = { ...memoryOtherAccess('stranger'), session: s.access.session },
-    from = s.accessCheck.controls.asked().length
+    from = s.accessCheck.controls.decided().length
   expect(await s.backend.transactions.readWork(foreign)).toEqual({
     failure: { kind: 'denied', action: 'readWork' },
   })
-  expect(s.accessCheck.controls.asked().slice(from)).toEqual([
+  // The conclusion of the check itself, not only the answer of the store: the double's tenant
+  // keying would also refuse the foreign tenant, so the answer alone cannot tell them apart.
+  expect(s.accessCheck.controls.decided().slice(from)).toEqual([
     {
-      access: { principal: foreign.principal, tenant: foreign.tenant },
-      operation: 'readWork',
-      target: { kind: 'session', session: s.access.session },
+      request: {
+        access: { principal: foreign.principal, tenant: foreign.tenant },
+        operation: 'readWork',
+        target: { kind: 'session', session: s.access.session },
+      },
+      answer: { kind: 'denied' },
     },
   ])
+})
+
+it('a participation decided before a concurrent write advanced the execution is not committed and can be retried', async () => {
+  const qualification: SceneQualification = { agent: true, session: true }
+  const s = await resultCall('decided-then-advanced', qualification)
+  const first: ResultRequest = s.request
+  const second: ResultRequest = {
+    ...s.request,
+    operation: operation('result-plain'),
+    transfer: { kind: 'none' },
+  }
+  const reached = Promise.withResolvers<void>(),
+    released = Promise.withResolvers<void>()
+  qualification.hold = request => {
+    if (request.operation !== 'preserveResult') return undefined
+    qualification.hold = undefined
+    reached.resolve()
+    return released.promise
+  }
+  const pending = s.view.journal.recordResult(first)
+  await reached.promise
+  // While the Session decision of the custody hand-over is outstanding, a write that needs no
+  // participation advances the same execution.
+  ok(await s.view.journal.recordResult(second))
+  const before = {
+    root: s.view.controls.root(),
+    rows: s.backend.controls.entriesOf(s.access.tenant, s.access.session),
+    agentAnswer: await s.view.journal.query(first),
+  }
+  released.resolve()
+  expect(await pending).toEqual({
+    failure: {
+      kind: 'unavailable',
+      owner: 'session-qualification',
+      diagnostic: expect.stringContaining('retry'),
+    },
+  })
+  expect({
+    root: s.view.controls.root(),
+    rows: s.backend.controls.entriesOf(s.access.tenant, s.access.session),
+    agentAnswer: await s.view.journal.query(first),
+  }).toEqual(before)
+  const from = s.accessCheck.controls.asked().length
+  const receipt = ok(await s.view.journal.recordResult(first))
+  expect(
+    s.accessCheck.controls
+      .asked()
+      .slice(from)
+      .map(request => request.operation),
+  ).toEqual(['preserveResult'])
+  expect(await s.view.journal.query(first)).toEqual({ ok: { kind: 'committed', receipt } })
+})
+
+for (const answer of ['denied', 'unavailable'] as const)
+  it(`a participation the Session check answers ${answer} leaves the Agent receipts of later writes unchanged`, async () => {
+    // Two scenes over separate backends, the same names: one first refuses a custody hand-over,
+    // the other never asks. The next write of each issues the same receipt.
+    async function later(refuse: boolean) {
+      const qualification: SceneQualification = { agent: true, session: true }
+      const s = await resultCall('refused-receipt', qualification)
+      if (refuse) {
+        qualification.session = answer === 'denied' ? false : 'unavailable'
+        expect(await s.view.journal.recordResult(s.request)).toHaveProperty('failure.kind', answer)
+        qualification.session = true
+      }
+      return ok(
+        await s.view.journal.recordResult({
+          ...s.request,
+          operation: operation('result-plain'),
+          transfer: { kind: 'none' },
+        }),
+      )
+    }
+    expect(await later(true)).toEqual(await later(false))
+  })
+
+it('a write refused inside its transaction and accepted on retry does not reuse its evidence for the next write', async () => {
+  const s = await scene('refused-submit')
+  const value = {
+    id: ok(decodeInputId('input-2')),
+    source: ordinaryInput('input-2').origin,
+    content: ordinaryInput('input-2').message,
+    priority: 'ordinary' as const,
+  }
+  const submit = (name: string, input: typeof value) =>
+    s.view.journal.submit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(name),
+      value: input,
+    })
+  // The Session side has not accepted input-2 yet: the participant refuses inside the transaction.
+  expect(await submit('submit-1', value)).toHaveProperty('failure.kind', 'denied')
+  await accept(s, 'input-2')
+  const first = ok(await submit('submit-1', value))
+  const second = ok(await submit('submit-2', await accept(s, 'input-3')))
+  expect(second.evidence.record).not.toBe(first.evidence.record)
 })

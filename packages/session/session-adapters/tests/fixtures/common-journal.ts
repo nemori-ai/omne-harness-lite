@@ -9,7 +9,11 @@ import {
 } from '@omne-harness/agent-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
-import { type SessionCommand } from '@omne-harness/session-contract'
+import {
+  type SessionAccessDecision,
+  type SessionAccessRequest,
+  type SessionCommand,
+} from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createMemoryInitializationSource,
@@ -50,7 +54,12 @@ export function checkpoint(): AgentCheckpoint {
     priorConditions: null,
   }
 }
-export type SceneQualification = { agent: boolean; session: boolean | 'unavailable' }
+export type SceneQualification = {
+  agent: boolean
+  session: boolean | 'unavailable'
+  /** When set, the Session check holds its answer until the returned promise settles. */
+  hold?: (request: SessionAccessRequest<string>) => Promise<void> | undefined
+}
 export async function scene(
   session = 'journal-session',
   budget?: { entries: number; bytes: number; capacityBytes: number },
@@ -60,9 +69,11 @@ export async function scene(
   const initialization = createMemoryInitializationSource()
   // The Session side: an explicit policy. Only the scene's own tenant may touch a session; the
   // scene's qualification flag decides the rest per request, and every allowed decision gets its
-  // own evidence so a test can tell which call a recorded decision came from.
+  // own evidence so a test can tell which call a recorded decision came from. Every conclusion is
+  // recorded with its request, so a test can tell a refusal of the check from one of the store.
   let decisions = 0
-  const accessCheck = createPolicySessionAccessCheck<string>(request => {
+  const decided: { request: SessionAccessRequest<string>; answer: SessionAccessDecision }[] = []
+  const policy = createPolicySessionAccessCheck<string>(request => {
     if (
       request.target.kind === 'session' &&
       'tenant' in request.access &&
@@ -76,6 +87,16 @@ export async function scene(
       ? { kind: 'allowed', evidence: evidence(`access/${request.operation}/${++decisions}`) }
       : { kind: 'denied' }
   })
+  const accessCheck = {
+    durability: policy.durability,
+    async check(request: SessionAccessRequest<string>) {
+      const answer = await policy.check(request)
+      decided.push({ request, answer })
+      await qualification.hold?.(request)
+      return answer
+    },
+    controls: { asked: policy.controls.asked, decided: () => [...decided] },
+  }
   const backend = createMemorySessionJournal({
     initialization,
     accessCheck,
