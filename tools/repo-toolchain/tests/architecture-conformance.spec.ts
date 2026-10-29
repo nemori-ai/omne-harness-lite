@@ -567,6 +567,8 @@ declare module '@deepseek-ai/cordis' { interface Context { data: ${type} } }
       null,
       [{ ...exception, member: `${ui}/**` }],
       [{ ...exception, target: `${sql}/src/index.ts` }],
+      [{ ...exception, member: 'examples/demo' }],
+      [{ ...exception, target: `${sql} ` }],
       [{ ...exception, symbols: [] }],
       [{ ...exception, symbols: ['*'] }],
       [{ ...exception, symbols: ['value', 'value'] }],

@@ -165,6 +165,17 @@ describe('graphOf', () => {
     expect(byKind('group-cycle').map(finding => finding.message)).toEqual([
       '组之间成环：packages/infra、packages/session',
     ])
+    // 组环发现带环上的组与环内全部跨组成员边；具名组环例外按这些边判。
+    expect(
+      graph.findings.flatMap(finding =>
+        finding.kind === 'group-cycle' ? [{ groups: finding.groups, edges: finding.edges }] : [],
+      ),
+    ).toEqual([
+      {
+        groups: ['packages/infra', 'packages/session'],
+        edges: expect.arrayContaining([{ from: 'packages/session/q', to: 'packages/infra/x' }]),
+      },
+    ])
   })
 })
 
