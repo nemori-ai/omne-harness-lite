@@ -309,7 +309,7 @@ it('a participation decided before a concurrent write advanced the execution sto
     released = Promise.withResolvers<void>()
   qualification.hold = request => {
     if (request.operation !== 'preserveResult') return undefined
-    qualification.hold = undefined
+    delete qualification.hold
     reached.resolve()
     return released.promise
   }
