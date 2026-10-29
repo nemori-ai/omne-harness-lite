@@ -48,6 +48,7 @@
     "@omne-harness/exchange-refs": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

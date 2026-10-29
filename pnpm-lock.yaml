@@ -1419,6 +1419,9 @@ importers:
         specifier: workspace:*
         version: link:../../tool/tool-contract
     devDependencies:
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../../context/runtime-context-contract
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

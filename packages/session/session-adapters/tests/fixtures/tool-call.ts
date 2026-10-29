@@ -11,6 +11,7 @@ import {
 } from '@omne-harness/agent-contract/testing'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { assistantMessage } from '@omne-harness/session-contract/testing'
 import type { TenantId } from '@omne-harness/legal-identity'
 import { ok, evidence } from './common-journal.ts'
@@ -138,7 +139,11 @@ function request(consumer: PendingCall['position']): ToolInvokeRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: {
+      adoption: adoption('environment'),
+      value: { kind: 'string', value: 'declared requirement' },
+    },
+    requesterScope: ok(decodeScopeRef({ ref: 'test-requester-scope' })),
     resources: [],
     scope: { owner: 'test', key: 'scope', grant: evidence('scope') },
     consumer,
