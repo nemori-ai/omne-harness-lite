@@ -40,7 +40,7 @@ export function deriveDefinition(
 }
 
 /** Canonical JSON text of a tree: object entries sorted by key, lexemes and order kept otherwise. */
-function canonicalJsonText(value: JsonValue): string {
+export function canonicalJsonText(value: JsonValue): string {
   return writeJsonText(sortKeys(value))
 }
 

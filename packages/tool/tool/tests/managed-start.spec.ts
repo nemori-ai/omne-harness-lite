@@ -132,6 +132,7 @@ describe('20 preparation and queue (P02, P03)', () => {
       ...(await writeContext(harness, 'c1', 'c1/plan')),
       request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'resume',
+      environmentAdoption: adoption('environment'),
     })
     expect(failure(resume)).toMatchObject({ kind: 'unsupported' })
     const other = {
@@ -144,6 +145,7 @@ describe('20 preparation and queue (P02, P03)', () => {
           ...(await writeContext(harness, 'c1', 'c1/plan')),
           request: other,
           purpose: 'initial',
+          environmentAdoption: adoption('environment'),
         }),
       ),
     ).toEqual({ kind: 'invalid', field: 'request', reason: 'not-the-fixed-request' })
@@ -158,6 +160,7 @@ describe('20 preparation and queue (P02, P03)', () => {
         ...(await writeContext(harness, 'c1', 'c1/plan')),
         request: fixedOf(harness.internalRequests, 'c1'),
         purpose: 'initial',
+        environmentAdoption: adoption('environment'),
       }),
     )
     const resources = { owner: 'o', record: 'env', revision: '1', digest: 'd' }
@@ -557,6 +560,7 @@ describe('19 write commands: boundary and qualification', () => {
           ...input,
           request: fixedRequestForNamedSourceGuard(),
           purpose: 'initial',
+          environmentAdoption: adoption('environment'),
         }),
       prepared: (input: Context) =>
         harness.commands.prepared({
@@ -565,7 +569,7 @@ describe('19 write commands: boundary and qualification', () => {
             tenant: tenantA,
             call: callId('c1'),
             operation: operationId('op-c1/plan'),
-            adoption: request().environment,
+            adoption: adoption('environment'),
             inputDigest: 'sha256:x',
             purpose: 'initial',
             request: fixedRequestForNamedSourceGuard(),
@@ -586,7 +590,7 @@ describe('19 write commands: boundary and qualification', () => {
           invocation: {
             kind: 'start',
             operation: operationId('op-c1/start'),
-            executor: request().environment,
+            executor: adoption('executor'),
             execution: {
               tenant: tenantA as never,
               call: callId('c1'),

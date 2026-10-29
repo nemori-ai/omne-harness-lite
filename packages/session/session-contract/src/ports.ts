@@ -170,7 +170,14 @@ export type Mutations = Pick<
 export type SessionCommand = {
   readonly [K in MutationName]: Readonly<{
     kind: K
-    input: Omit<Parameters<Mutations[K]>[0], 'principal'>
+    input: Omit<Parameters<Mutations[K]>[0], 'principal'> &
+      (K extends 'commitDerived'
+        ? Readonly<{
+            participation?: import('./values.ts').Participation
+            judgment?: DurableEvidence
+            expected?: SessionRevision
+          }>
+        : unknown)
   }>
 }[MutationName]
 export type GuardCommand = Readonly<{

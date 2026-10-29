@@ -139,5 +139,5 @@ export type ToolLedgerFacts<P, B extends ContentBlock> = Readonly<{
 export type ToolLedgerPorts<P> = Readonly<{
   content: Pick<ToolContentReader<P>, 'read'> | null
   custody: Pick<ToolOutputCustody<P>, 'retainResult'>
-  releaseInspection: Pick<ToolEnvironment<P, unknown>, 'inspectRelease'>
+  releaseInspection: Pick<ToolEnvironment<P, unknown>, 'adoption' | 'inspectRelease'>
 }>

@@ -1,6 +1,6 @@
 # @omne-harness/session-adapters 行为规格
 
-状态：适配成员，`draft`，候选技术设计，没有运行实现。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
+状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
 
 ## 范围与依据
 
@@ -45,11 +45,12 @@
 
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | `CallerCommit` 四种；`open`、`submit`、`tryFinish` 的参加 | 登记形状待 [P-1](../session-contract/SPEC.md#具名前提与明确缺项) |
-| [AD-02](#ad-02) | Agent 事件消费 | 入站 | 无 | `coordinator` | `output.events`、`output.read`、`output.acknowledge`、`agentExecutionRecovery.load` | 无活体时的读取待 [NP-03](#np-03) |
+| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现；生产插件未交付 |
+| [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史源与未结工作下界 | 入站 | 无 | `reader`；下界读取为 `coordinator` | `HistorySource.read`；压缩计划的下界输入 | 取得方式待 [NP-02](#np-02) |
-| [AD-05](#ad-05) | Model 消费适配 | 入站 | 无 | `coordinator` | `calls.inspect`、`calls.dispatches`、`consumption.beginRead`、`readNext`、`closeRead`；ACK 的翻译依据 | 可登记 |
+| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | `./testing` 内存提供者已实现；Model ACK 到达未决 |
+| [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现；生产插件未交付 |
 | [AD-06](#ad-06) | Tool 消费适配 | 入站 | 无 | `coordinator` | `queries.lookup`、`queries.readResult`、`queries.account`、`content.read`；交付释放的翻译依据 | 可登记 |
 | [AD-07](#ad-07) | 模型选择端口提供者 | 入站 | `agentModelSelection` | `coordinator` | `ModelSelection.select`；`modelProfiles.resolve` | 可登记 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
@@ -72,7 +73,7 @@
 #### AD-01 Agent 提交参加者
 
 - 注入：`session`，调用方类 `coordinator`。
-- 提供：Session 参加者在执行记录提供者里的登记。执行记录提供者是 Agent 的 `agentJournal` 提供者。登记的形状与组合版本归存储与 Agent 的拥有者联合（[P-1](../session-contract/SPEC.md#具名前提与明确缺项)）。登记的生命周期随本插件的 fiber（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）。
+- 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
 - 参加种类：本插件只声明 `message`、`context-transition`、`custody`、`processed` 四种（[PA-04](../session-contract/SPEC.md#pa-04)）。装配用它比对执行记录提供者的 `capabilities.participants`。
 
 调用方交接到 Session 命令的翻译：
@@ -109,30 +110,129 @@ Session 结果到四种参加者响应的对应：
 
 <a id="ad-02"></a>
 
-#### AD-02 Agent 事件消费
+#### AD-02 Agent 同日志解释
 
-- 注入：`session`，调用方类 `coordinator`。
-- 读取起点：本插件以 `readWork` 读 `ExecutionRef.readThrough`，从该序号之后读取。
-- 读取：执行有活体句柄时，本插件订阅 `output.events`。句柄不在或订阅以不可用结束时，本插件以 `output.read` 按页读取，页限是配置项，不超过提供者声明的上限。
+本插件经本成员同一 AgentJournal 提供者的 output.read / output.events 读取 AgentEvent 正文，按 Session EC-01/EC-02 解释同一日志。load 只读 ExecutionSnapshot 的 entries、results 及其他快照字段，没有 load.events。entries 按提交顺序包含 start-fence 与 received；事件按自身事件序号排序，readThrough 记录事件序号。entries 提交顺序与 results 快照不能充当事件 cursor 或替代 input-taken 的批界。禁止 receive(agent-event) 副本协议不禁止这些现有 output 读口，也不改变 Agent.acknowledge 公共契约。
 
-事件到 Session 命令的翻译沿 [EC-01](../session-contract/SPEC.md#ec-01)：
+解释前核对当前资格、租户、Session 与历史 execution-to-Run 关系。input-taken、producer、waiting、control、ended 分别产生 Session EC-01 规定的后果。message 不重复保存，stream 不逐片写历史。结束事实可形成 completed/failed；迟到结论只认回原 Run，不能更改后继。未知、缺口和不可用不能映射为不存在。
 
-| Agent 事件 | 本插件提交 | 条目 |
+Agent 原事实先提交。解释进度、后果与该次 Session 操作的认回答案在另一笔 Session 提交一次发布，只保存来源身份或引用，不复制 Agent 事件正文。解释发布前失败只有本次解释批次不可见，Agent 已提交事实不撤销，解释进度不推进；解释发布后丢答复按该次 Session 操作查询。Agent ended 已提交而 Session 尚未解释时，cancel 仍可先写 cancelled；随后 ended 只保留原 Run 引用，不反转终态或更改后继。冻结后的终态批次仍解除余下待处理资格。未解释的记录计入未结工作，不能提前完成。它不新增 receive(agent-event) 变体。
+
+##### 同根读取与原记录索引
+
+本成员实现 [FR-01 至 FR-07](../session-contract/SPEC.md#fr-01) 的提供者责任。每个 `(tenant, session)` 只有一个发布根，execution 索引带 tenant，多个 execution 与 Session 投影共同排序。不得包装独立的 createMemorySessionTransactions 或 createMemoryAgentJournal 后再复制结果。组合直接调用 Session 的 decide、projectSessionLog、reduce 与 commandDigest。
+
+在原 Journal 提交的同一发布点维护以下可重建索引。索引只定位原记录，不重新决定业务事实。
+
+| 原记录 | 同根索引及用途 |
+| --- | --- |
+| 原 SE13 与 SE15 | execution-to-Run、attempt 原事实及原 grant。历史解释不能从当前 advance 猜原 attempt。 |
+| open/attach 交来的 grant 与返回 Authority | grant-to-SE15/attempt-to-attachment。该关系在授予挂接前核实，后续消费原 effect Authority 定位发起 attempt。 |
+| open/submit 原受理 | InputId 到全部原 execution 的反向目录、完整 count、有序成员键与版本。即使 Session 尚未收到 SE35，原受理已经同批更新目录。 |
+| Agent 原提交 | execution、head revision、原 CommandReceipt、发出的 event sequences 与各事件原来源。head 和 event cursor 分开。 |
+| 原 pending、effect 与结果 | consumption/action 到完整固定 pending、原 Authority、结果版本与真实来源。后续 checkpoint 前移不得使已发调用失去可恢复的原绑定。 |
+| Session 后续解释 | readThrough、原解释操作答案、SE14 原事件/完整批次与 Session 调用登记。只在实际解释提交成功时推进。 |
+
+对已存在的索引缺项先从同根原记录重建，不能用“尚无 SE35”或空页证明从未交入。原事实暂不可读返回已有 unavailable，权威 gap/损坏/矛盾按 Session SL14/SL18 处理。预算耗尽沿内部接续继续，不作为对外新结果。读取只展开 Q 的完整原关系和 E 的必要前缀；条目/字节预算、完整快照与最终整批容量边界沿 FR-07。
+
+##### head 与原事实来源的翻译
+
+在同根 G 捕获 load 与 output 页。observation.revision 取 load(G).revision，executionEvidence 取该 head 的原 CommandReceipt，source 取原事件/事实来源。sequence 取 event.sequence；快照结果对账为 null。不使用 cause.revision、load.history.revision 或材料 revision 代替 execution revision。不同根的 load/output 只能重读或重新核验，不合成为原子快照。
+
+本提供者在准备 Session 解释提交前确定该提交自己的原 operation，并传入 observation.operation。它沿原操作处理未知认回和重试，不从 Agent 操作、事件来源或 evidence.record 推导身份。纯层的冲突、非法及旧省略分支按 [FR-05](../session-contract/SPEC.md#fr-05) 处理。
+
+每项输入、调用、结果、等待和终态后果保留原 Run/attempt。Session 纯层仍按 FR-01/02/05/06 核本域关系。任何外域 decoder、resolver 或原关系核验失败，都不能先发布部分 Session 后果、cursor、操作答案或 alias。
+
+##### 人工等待的原版本归一
+
+本同日志提供者在发布包含human waiting事件的Agent原提交时，读取该提交的原checkpoint及仍有效的原Passage记录，以waiting.passage定位唯一Passage，完整定位waiting.cards对应的rounds及PassageCard。在同一原发布点保存最小、不可变的原材料片段：tenant/session/execution、原提交revision/receipt、event sequence/source、经过id/position/dimension/action、对应ask的ActionIdentity、原round标识，以及每张被报告卡的identity/card/response/processed。片段按原事件版本绑定；同一经过后来的答复或下一轮ask另有原版本，不覆盖已发布片段。它属于AD-02的同根原记录索引与必要材料，不是第二事实库或新的权威卡片决定。
+
+Session后续解释从该原事件片段重建等待，不要求Agent公开load提供历史checkpoint，也不保留整份旧checkpoint作为前提。Agent仍可按原契约删除旧checkpoint；提供者只保留完成本域解释、历史来源核验和未结交接所需的上述材料。最小片段由同一tenant/session日志保管，具备与原事实相同的可见边界；首次发布前保存失败则该次原提交全无，发布后丢答复沿原操作认回，不另一次补写片段。保存片段不改变Agent动作/卡片的业务合法性判定。
+
+解释完成不立即授予删除片段：尚有未解释原事件、可重放的解释/认回答案，或原等待/未结控制仍引用该来源时，原片段必须可按原版本读取。只有历史持有者按既定压缩与来源保留规则，证明这些责任均已退出或由同等可恢复的原来源承接后，才可回收；本卡内存替身不实现这种回收，保留必要片段到该后端释放。本承诺不要求将所有原checkpoint或Agent事件复制为Session条目。
+
+成员顺序沿waiting.cards；每张卡的引用须与原片段完全一致。后继checkpoint的当前值不能补作原事件版本。原片段暂不可读沿unavailable；权威记录确认应有而丢失、版本矛盾或损坏沿既有隔离规则，不把允许删除旧checkpoint本身视为损坏。
+
+有所属动作时，核对原Passage.action与原ask.ActionIdentity相符，归一为extension-batch，逐成员保留该真实动作身份。无所属动作时，必须同时证明原Passage.action=null、原位置/维度的ActionIdentity不要求动作、原ask不携带动作，并归一为extension-passage。缺失字段、未知记录或冲突不是合法无动作，不能据此选新分支。
+
+每项decision按上表从对应原PassageCard.response取得；不从processed证据、round身份、request.identity、来源opaque record或当前动作推导答复。invalidated时保留原卡成员且decision=null，直到原Agent报告和既定规则决定等待变化；不代替HITL写有效决定。
+
+归一必须覆盖原human等待的全部cards。原卡不存在、属于其它经过、来源有歧义、位置/维度/ask/action互相冲突时，按AD-02现有unavailable/损坏隔离规则返回，不发布部分等待、cursor或答案。Session契约不导入Agent类型，邻域字段翻译只由adapters承担。无动作不是“材料不可读”的降级分支。
+
+
+##### 控制归一
+
+同根读取原ControlRecord、阶段事实、SE24/25、固定selected、原SE18/SE22及关联条目。execution-to-Run/attempt沿原SE13/SE15与grant，不由当前Run猜测。源材料未知、缺失或矛盾分别沿AD-02原失败规则，不能降为observed。
+
+Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
+
+同一Agent事实可涉及多个原K。分别从各K原目标、意图与原选择推导进度，不能只更新第一个匹配项。全部后果及该次解释进度/答案同批发布。
+
+###### 原责任与解除判据
+
+每个K的待办必须回到原SE24责任。当前pending去重只是投影；原来源不同的责任仍逐项核对。各来源均满足后，才能删去合并后的ProducerRef。关联转换不改变原解除判据，也不恢复业务等待。
+
+| 原责任 | 可消费的证据 | 不足以解除的事实 |
 | --- | --- | --- |
-| `input-taken` | `receive(agent-event)` | SE14 |
-| `message`、`stream` | 不提交，游标只在内存里越过它们 | 无 |
-| `producer` | `receive(agent-event)` | SE19，必要时 SE18 |
-| `waiting` | `receive(agent-event)` | SE18、SE22 |
-| `control` | `receive(agent-event)` | SE25 |
-| `ended` | `receive(agent-event)` | SE26、SE16 |
+| 原SE24直接选择的停止请求核对项 | 原请求对应的生产者接受停止/中断的reached事实；或者原调用在中断前已真实收场的合法事实 | accepted、仅意图成立、未知、同execution的其它调用确认 |
+| 原SE24直接选择的工具转后台项 | 原调用已真实转换且有耐久占位；按原Tool引用及原控制核验 | 仅接受转后台请求、另一调用转换 |
+| 原selected U=(consumption,position)，未关联或后来关联为P | 原具名控制或合法交接事实证明该项原结果、费用及适用交接责任被合法接管/结清 | producer-confirmed或physically-stopped本身、空waiting、Run终态、关联成功 |
 
-1. 本插件按执行与序号派生 `receive` 的身份，重放时认回（[EC-02](../session-contract/SPEC.md#ec-02)）。
-2. 游标与它产生的条目在同一次提交里保存。不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进（[EC-02](../session-contract/SPEC.md#ec-02)）。去重与「读到之前计入未结工作」的规则在 Session 的 `receive` 路径里执行，本插件只负责读取、提交与确认。
-3. 提交成功之后，本插件调用 `output.acknowledge`。`through` 是已持久的连续前缀，不超过持久游标，`receipt` 是该次提交的 `CommitReceipt.source`。确认结果未知时，本插件以同一前缀重试。
-4. 读取返回缺口时，本插件以 `agentExecutionRecovery.load` 读完整快照，把快照的结束状态按 `ended` 处理，再从缺口之后继续。快照派生的提交 `sequence` 为 null，`source` 为快照证据。
-5. 提交返回 `commit-unknown` 时，本插件不确认，按身份查询后再继续。
+直接后台核对必须同时拥有原 K 的有效 intent-established、完整原 Tool 调用关联，以及同一原调用真实提交的 ActionSlot.background、placeholder 和 confirmation。生产者只确认接受请求时不成立。最小槽位片段在原 Agent 提交中保存；后来的 checkpoint 替换不改变原版本。后台效果可以先于 K，不由此推断 K 导致转换。效果在原控制事件之后、无新控制事件时，以新的 Session operation 和 sequence=null 快照对账，不改旧事件后果。
 
-无活体 runtime 时按 execution 取得输出视图的入口，Agent 尚未定义（[NP-03](#np-03)）。入口定义之前，句柄不在时本插件只能经 `load` 的快照对账。它不声称已读到快照之后的事件。
+停止核对可消费两类先于原具名中断控制提交的原收场事实：原批准动作上完整绑定 Pending、ToolInvocation、consumption/position、结果、非 no-response 终态及 custody 的 ActionSlot.result；或原 step/action/call/resultVersion/source、Pending、ModelInvocation、consumption/position 完整关联的 ModelReplyAdmission（admitted 或 rejected）。片段由合法原 Journal 提交保存，顺序取原提交回执；当前 checkpoint 或壁钟不补历史。Model 准入 source 保留准入证据角色，不等同结果 source。单独 ProducedResult、后台 placeholder、账目、无准入的失败或无回复均不足。未公开的 Model facts schema 不在本提供者中猜测解释。
+
+这些收场事实只解除直接停止核对，不解除 U 交接、不产生 Model ACK、Tool 物理停止或控制因果。仍须核对 K 的原传播；同 call 的独立控制不能替代。urgent interrupt 继续核原 submit 及完整输入，不虚构不存在的具名 ControlRecord。
+
+原execution E的cancel达到duty-released，可覆盖原U通过SE18→initiatingAttempt→SE15/SE13证明属于E的责任，未取得ProducerRef不妨碍这种覆盖。不得扩大到别的execution或initiatingAttempt=null的Run外责任。原E的单调用interrupt/background的合法duty-released，只覆盖其精确原调用责任；核对原ToolInvocation/Model引用、原binding与consumption关系，不能凭execution相同扩大范围。
+
+同一个P兼有直接停止核对和U交接来源时，必须两种判据均满足。具有足够范围的同一合法事实可以同时满足多项，不要求外域多造回执。Stage.state=unresolved或缺席不产生肯定事实。六阶段不互相推导。
+
+###### 状态与解释
+
+生成ControlProgress保持原operation/target/intent。保留尚未满足的pending及pendingUnassociatedWaiting，禁止扩大原范围或重开reconciled。原state为propagating时不因单个accepted退为committed。
+
+reconciled须同时满足：
+
+1. 按原ControlIntent核对意图的来源：
+   - Session自己的控制意图以原SE24及其已成功的资格核对为准，不由Agent阶段倒推。
+   - cancel-run、archive或auto-archive的Agent直接传播，以及stop-call/background-tool的直接具名传播：按deriveDriveOperation({kind:'control',execution,control:K})定位原ControlRecord，核对原命令/目标并要求intent-established为reached；accepted单独不足。相应原效果已在请求前完成的场景仍保留真实效果，但不以它补造该阶段。
+   - interrupt：Session原SE24/SE11给出K.urgent的完整id、message、origin、原run与decision；由原SE13定位execution。按deriveDriveOperation({kind:'submit',execution,input:K.urgent.input})找到原Journal submit记录及其已提交AcceptedInput回执，核对同tenant/session/execution、InputId、priority=urgent和完整原内容/来源。该输入的可靠受理是本路径的传播受理依据，不要求不存在的urgent ControlRecord，不要求input-taken，不反推后续独立控制由哪次urgent造成。该记录未知时保持propagating。独立控制只按下文判据证明原责任的交接。
+   - unarchive由原Session命令同批产生reconciled，不消费Agent阶段；其原事实保持。
+   这张表只覆盖Session现有ControlIntent。Agent suspend及quiesce不在表中新增Session意图，#730不被采用。
+2. 两类pending为空，并且按全部原来源复核确实无未交接或未核对责任。
+3. cancel-run、archive与auto-archive的本域资格撤销须有原范围对应的SE16等实际提交；需要Agent取消execution推进的直接控制，还核原ControlRecord的qualification-revoked为reached。Session资格撤销不代替Agent阶段事实，Agent阶段也不代替Session提交。stop-call、background-tool及interrupt不撤整个execution推进资格，不套此全范围条件。
+4. reconciled只表示该原控制的传播、生产者核对及FR-06原责任交接已对账。它不表示Tool排序域的全部旧启动已受阻、外部执行已物理停止、效果已撤回或归档任务已完成。Tool启动围栏仍归Agent/Tool的J03事实、验证和恢复，不再作为Session自行调用失效并等待生效的进度条件；本成员不恢复旧startFence字段或完整guard覆盖判定。不能从空pending、SE16、Agent accepted、相同execution、Authority写者或某一真实start-fence推导完整围栏生效。Agent/Tool对围栏的未知与#502恢复缺口继续保持，Session只如实保留和读取原start-fence的所属含义，不因本域reconciled伪造它的成功。
+
+不满足上述条件时，仍可以发布已证明的责任减少与原state保持，不以欠缺一种闭合证据否定其它真实阶段。范围完整但尚无新后果时不单写cursor。相同源与相同后果按原操作认回，解释时不发生产者控制、不撤资格、不触发ACK。
+
+archive的cascade与scope-release保留独立任务及原回执，ControlProgress.reconciled不表示这些任务已完成或整个归档处置已结束，也不把任务完成强塞进该状态。Model结果版本的producer ACK不由duty-released推导；MODEL-ACK-ARRIVAL和#730继续保留。
+
+
+##### 调用归一的公开来源
+
+| Session 所需值 | 原公开字段与核验 |
+| --- | --- |
+| execution、原事件、报告挂接与因果 | AgentEvent.execution、sequence、executionAttachment、cause。核对原记录确属当前 tenant/session 的历史 Run。 |
+| consumption、action、consumer、request | PendingCall.consumption、action、position、fixed。consumer 四字段与 fixed 原证据完整保存，不由名称猜消费位置。 |
+| 原 invocation 与 purpose | Model 的 reference/purpose；Tool 的 association/reference。保留 main/compaction/extension/action；intent 不补 reference。 |
+| 原发起 attempt | EffectIntent.authority 与 load.effects 中的原 effect/pending，结合原 grant-to-attachment 与已成立 SE15。waiting 事件的当前报告 attachment 不替代原发起 attachment。 |
+| 旧 pending 的补找 | checkpoint.calls、checkpoint.batch.actions[].call、checkpoint.passages[].operations[].pending、load.effects[].pending。只按同 consumption/action 与一致固定材料定位，不取第一项、不重发调用。 |
+| 完整结果 | producer 事件的 consumption/result 或 load.results。核对 producer kind/call、version、delivery、source 与原 binding。 |
+
+Model/Tool 的 invocation reference 经各自公开 resolver 核对 tenant 并得到原 call，再与 result.producer.call 比较。通过后，Session result.producer 使用原 binding 的 ProducerRef。禁止字符串切割或 JSON 拆字段猜不透明 reference。Session contract 不导入 Agent、Model 或 Tool 类型。
+
+首次 waiting 先翻译所有缺少的 SessionCallRegistration，再翻译完整等待集合。首次 producer 先取得原 binding；需要时登记 SE18 或把 Tool intent 关联，再解释 SE19。后果在同一 observation 中按顺序交纯层，SE18/22 或 SE18/19 与进度同批。关联前后同 consumption、consumer、action、fixed 与 initiatingAttempt 不变。公开字段和保留原关系不足时，仅停止依赖该材料的后果，不发明新 Agent 查询端口。
+
+##### 准备与终态的排序
+
+凡是后继输入消费及 [FR-04 的 SE38 入口](../session-contract/SPEC.md#fr-04)，先捕获 Q 的完整原交入目录与相关 E，再完成捕获 E 的必要连续前缀，最后重算 Q 并以当前根 CAS 发布。Q 因某段 SE14 缩小不能跳过原 E 剩余前缀。准备停在 ended 前；中间其它适用后果照常解释，不靠摘取 input-taken 推进 cursor。
+
+`finishRun.expected` 不因内部准备而改写。独立解释推进 Session 修订时，新请求可以按原并发规则返回 changed，且不成立该请求的终态、SE38 或成功答案。调用者重读后以新 operation 与新 expected 收束；已提交原操作仍先认回。
+
+已成功的解释段和原 Agent 事实保持成立。取消准备不解释 ended，独立正常 ended 解释仍可在最终 CAS 前先形成 Session 终态，按 PA-08 返回原终态。未冻结普通 cancel 与 active Run 上的 freeze 不新增 SE38 准备门槛。原 grant 的当前业务资格在真正发布点复核，已失效 grant 不再产生新 taken，合法 custody/received 不被旧 grant 误拒。
+
+finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-02 首输入拒收时，同批首条 SE35 rejected 先解除其资格，再为其余仍 pending 的输入写 SE38。P-5 不可解释依据不能证明未 taken，缺必要承接前缀仍不能完成冻结终态。归档保留 SE27 自己的取消范围，不能用它替代 SE38 的原因。
 
 <a id="ad-03"></a>
 
@@ -151,7 +251,7 @@ Session 结果到四种参加者响应的对应：
 
 1. <a id="ad-03-1a"></a>恢复会话（1a）。本插件用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复一个作用域。本插件在下列时点开始恢复会话：创建一个作用域；本插件体在 Runtime Context 提供者换代后重新运行，之后第一次为该作用域签发资格之前；`applyCommit` 返回「顺序不符」时。步骤：
    1. `beginReplay`：输入作用域、租户、检查点与被取代的恢复引用。旧资格与旧读者在这一步失效。
-   2. 构造完整恢复材料，共三部分：按会话日志的提交顺序，经历史读取取出的本会话全部注册提交（SE07，含移除意图）；每个 `checkpointed` 状态块最近一次步提交的全值，从 `change(context-step-commit)` 的条目归约得出，更新清单为空；已经确认的作用域结束。
+   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，本条不补齐 #680 的新 scope 初始化。
    3. `finishReplay`：输入恢复引用与恢复材料。
    4. 重签读取资格。
 
@@ -174,10 +274,10 @@ Session 结果到四种参加者响应的对应：
 
 - 执行开始或建立新的执行挂接时，本插件按读者的消费者类签发资格。资格带块键集合与需要绑定集合。需要绑定来自注册材料（[AD-12](#ad-12)）。
 - 压缩提交之后，本插件对模型类读者重签资格（[RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）。在提交与重签之间崩溃时，恢复先重签，再接续。
-- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在哪个时点产生这一事实，session-contract 尚未规定，归 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
+- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化仍按该条款保留 #680 与 Context 的责任。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
-`change` 的注册决定由 Session 提交。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
+注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。每份确认的决定沿其原 CommitRef 与完整输入应用，批内多个注册按持久顺序应用。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
 
 <a id="ad-04"></a>
 
@@ -208,7 +308,7 @@ Session 结果到四种参加者响应的对应：
 - 缺作用域引用或访问身份时，本插件返回无效，不调用 `readModelView`，也不用构造时的身份代替。
 - epoch 视图由存储提供者在压缩提交时物化。本插件不重算模型视图，也不重算前缀摘要。
 - 前缀摘要缓存（[CA-2](../session/SPEC.md#ca-2)）：本插件可以缓存已读行的前缀摘要。缓存键是 `(tenant, session, epoch, seq)`，`SessionId` 只在租户内唯一，所以键必须带租户。缓存只淘汰，不失效。缓存不是事实源，命中也不代替核权：每页仍经 `readModelView` 按这次传入的访问身份核权，缓存只为已核权页里的行提供摘要。
-- 未结工作下界：本插件以 `readWork` 取快照，调 `openWork`，把六类未结工作映射为条目引用集合（跨边界编码为 `RecordEntryRef`），交给压缩计划作为保留名单的下界。未读的 Agent 事件计入下界（[EC-03](../session-contract/SPEC.md#ec-03)）。权威读失败时，本插件报告不可用，不交空集合。
+- 未结工作下界：本插件以 `readWork` 取快照，调 `openWork`，把各类未结工作映射为条目引用集合（跨边界编码为 `RecordEntryRef`），交给压缩计划作为保留名单的下界。FR-06 的 unassociatedWaiting 按原 consumption/position 定位原 SE18 与生效 SE22，两者均进入下界和 compaction.open 核对；关联后沿同一责任映射并去重。控制解除等待后，尚未交清的 pendingUnassociatedWaiting 仍由同一 openWork 交出，其原 SE18、原 SE22 与承载待办的 SE24/SE25 一并进入下界和核对。其后真实关联使 unassociatedWaiting 移除而 waiting 仍为空时，unsettledControls 仍以原控制操作身份定位原 SE24 的固定选择、生效 SE25、原 SE18/SE22 与关联条目，保留到原责任依证据解除。不以无 ProducerRef 或字段省略交空下界。未读的 Agent 事件计入下界（[EC-03](../session-contract/SPEC.md#ec-03)）。权威读失败时，本插件报告不可用，不交空集合。
 - 压缩参加：压缩转换的共同提交经 [AD-01](#ad-01) 的 `context-transition` 到达 Session。本插件不另写压缩事实。提交之后的重签归 [AD-03](#ad-03)。
 - 人侧投影：读取者需要对人的历史视图时，调用 Request Context 的纯操作 `projectForHuman`。它不分页，不写回。
 
@@ -216,32 +316,13 @@ Request Context 没有为历史源读口定义取得方式（[NP-02](#np-02)）�
 
 <a id="ad-05"></a>
 
-#### AD-05 Model 消费适配
+#### AD-05 Model 日志消费适配
 
-本插件是 Session 作为 Model 消费者拥有者的一侧。Model 的调用、重试与中断由 Agent 发起。本插件做两件事：账目与收场读取、单方保管时的内容读取。它还给出 ACK 的翻译依据。ACK 由 [AD-17](#ad-17) 发出，本插件不发出。
+本插件只读 Agent 宿主结果接收方已经写入同一日志的结果与账目，不 inject modelRuntime。它经同一 AgentJournal 的 `load().entries` 选择 `kind: received` 且 `delivery.producer: model` 的条目。结果交付的 `delivery.accounts` 是冻结时各 dispatch 的账目快照；账目交付的 `delivery.account` 是 `delivery.key` 指定修订的 CallAccount。两者按原生产者交付键认回，不把没有报告写成零。完整结果材料用该条目的 `material` 引用，经同一提供者的 `AgentMaterials.read` 取得，并按 Agent J02 核对既定 schema、租户、原调用、版本与消费绑定。entries 字段缺席表示不支持，返回 unavailable，不能当作空列表；材料缺失或不可读显式失败，不能用 results 或事件补造。`load().results` 只读取原结果责任及下述 Tool 确认，不承担 Model 账目读取。事件正文另经 output.read / output.events 读取，不读取 load.events。每次读与解释均核对当前资格、租户、原 execution/Run、consumption 与完整版本，再翻译为现有 Session 生产者事实。后果、解释进度与该次认回答案按 AD-02 在后续 Session 提交原子保存，不撤销 Agent 先前已发布的 received、材料、绑定或 saved。读取不可用时保持未知，重复读取按原事实身份认回，不重新调用 Model。
 
-- 注入：`modelRuntime`，`session` 调用方类 `coordinator`。
-- 受信证据适配器：本插件为会话的消费者 owner 提供受信证据适配器。ACK 的 `DurableEvidence.owner` 填调用的 `ConsumerRef.owner`，证据其余部分取自 SE20 或 SE21 的 `CommitReceipt.source`。owner 的装配声明由承载受理提交的 `ModelCommands` 实现持有，由应用装配给出。
-- 不参加受理点守卫：Session 不参加 Model 的受理点守卫。会话的消费者 owner 声明为免守卫，免守卫不提供单调失格。控制传播对 Model 只有 [PM-13](../session-contract/SPEC.md#pm-13) 的路径 1 与路径 2。
-- ACK 的翻译依据：`DeliveryReleasePort.release` 的结果来自 Model（`ProducedResult.producer.kind` 为 `model`）时，AD-17 按下表调用 `consumption.acknowledge`（[ACK 的前提与效果](../../model/model-contract/SPEC.md#ack-的前提与效果)）。
+收到 received 与 saved 不能推导 ACK。Model 确认路径是 Session [JC-Release](../session-contract/SPEC.md#jc-release) 的 MODEL-ACK-ARRIVAL 未决义务。冻结 Agent recordResult 排除 Model 采用，接收共同提交不执行 ACK。因此没有已采用的 ACK 记录可读时保持 pending，暂停该 confirmed 投影。不得发明 JournalEntry、Agent 端口或直接 Model ACK 路径。
 
-| `release` 的输入 | `consumption.acknowledge` 的输入 |
-| --- | --- |
-| `operation` | 操作身份，按 [AD-00](#ad-00) 第 4 条确定编码 |
-| `result.producer.call` | 原调用 |
-| `result.version` | 结果版本 |
-| `evidence`（保管或完成证据） | 耐久证据。`owner` 由本插件的受信证据适配器填为调用的 `ConsumerRef.owner` |
-
-| Model 的答复 | `release` 的结果 |
-| --- | --- |
-| ACK 回执，含对重复确认返回的原 ACK（[P-6](../session-contract/SPEC.md#具名前提与明确缺项)） | `confirmed`，`source` 为 ACK 回执的证据 |
-| 不具备确认条件：调用仍在输出、接续或重试，或结果未处理也未可靠保存 | `not-ready` |
-| `unavailable` | `unavailable` |
-| `commit-unknown` | `commit-unknown`。Session 以同一操作身份重发，Model 认回原 ACK |
-| 证据被拒，例如伪造或不属于 owner 的证据 | `unavailable`。诊断标为证据适配缺陷，并报告 |
-| `conflict` 或其他 `invalid` | `unavailable`。诊断标为翻译缺陷，并报告 |
-- 账目与收场：Agent 不在场时，本插件按原调用以 `calls.inspect` 读收场，以 `calls.dispatches` 读账目，再以 `receive(execution)` 与 `receive(account)` 提交（[EC-09](../session-contract/SPEC.md#ec-09)）。`receive` 的身份从生产者记录身份与修订派生。读不到时保持未知，不当作未发生。
-- 内容读取：本插件只在 Session 单方保管结果时（Agent 记录已删除，[EC-07](../session-contract/SPEC.md#ec-07)）以 `consumption.beginRead`、`readNext`、`closeRead` 读原结果。读取断开时不重做 Model 调用。
+Tool 原生产者确认由 Agent 宿主的结果接收方（当前合格保管者）以既有 recordResult 保存，Session 适配协调者（本插件）按 load().results 读取并成为 ProducerFact.release 的写入者。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
 
 <a id="ad-06"></a>
 
@@ -315,12 +396,13 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 ##### AD-10 证据桥
 
-- 提供：`sessionEvidence`，实现 `SessionEvidenceBridge`。
+- 提供：`sessionEvidence`，实现 `SessionEvidenceBridge`。初始化时复用既有 prepare，按 [Session 初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)核初始定义真实采用、完整来源计划、原绑定、结果及必要成功事实。completeInitialization 的注册准备复用 AD-12 的适配函数，不扩 SessionContextInput 的参数联合。编码在可信边界生成，caller JSON 或非空材料不能代替原拥有者证据。
 - 按命令种类取材料：
 
 | 命令 | 材料 |
 | --- | --- |
 | `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料另带 Tool 在采用点给出的三项：新纳入的常驻工具（写 SE36）、为常驻工具记下的登记键（随 SE08）、冻结判定（`FreezeVerdict`） |
+| `completeInitialization` | 按原初始化项核验协议、原绑定、结果及必要成功事实。execution-adoption 纯准备 ready 只写 SE02；确有新增能力实际采用时，材料带完整能力身份/ResidentKey 对和首次纳入的常驻定义，同批写 SE02、SE08 与必要 SE36。沿 [JC-02](../session-contract/SPEC.md#共同提交与共享事务域) 和[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)，不补造初始定义采用，不变更原定义版本 |
 | `preserveResult` | 生产来源与耐久保管 |
 | `completeConsumption`、`completeExternalConsumption` | 原消费位置与投递资格 |
 | `receive` | 原生产记录或 Agent 事件的来源 |
@@ -348,7 +430,11 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 - 提供：`sessionContextInput`，实现 `SessionContextInput.prepare`，用于 `create`、`change`、`startRun`、`reload`。
 - 动作：本插件以 Runtime Context 的 `prepareRegistration` 核对注册材料，再把需要、绑定与参数值编码为带 schema 的 JSON（`ContextMaterial`）。需要绑定带翻译纯函数，翻译见[模式翻译表](#模式翻译表)。
-- 材料是已可靠准备、尚未生效的增加、更新或移除。注册决定的唯一提交点是 Session 的 `change`。拒绝时材料仍只是候选。
+- 材料是已可靠准备、尚未生效的增加、更新或移除。Session 是本会话注册决定的唯一提交拥有者。原初始化计划内的初始增加由 create 或 completeInitialization 提交 SE02/SE07，后续变更由 change 提交。拒绝时材料仍只是候选。
+- 初始注册按原 createOperation、owner、item 固定，既有 creating=true 支持同一 scope 创建过程中的多个提交。原键到 CommitRef 的无碰撞编码、每个 SE07 的 basedOn/revision 链及 same-batch 引用归 [Session 的初始注册条款](../session-contract/SPEC.md#初始注册的身份与修订)。不能将同一 Session operation 直接复用为多个不同注册的 Context 提交身份。
+- prepareRegistration 核对完整输入，prepared 与 currentRevision 只是准备材料。Session 在最终提交的临时注册视图重核整批修订与相容性，原项结果、SE07、结果索引及操作答案同批；确有新增能力采用才另含 SE08、必要 SE36。已存在的同值决定只引用，异材料拒绝。
+- 确认 Session 提交后，按原 SE07 顺序调用现有 applyCommit。未知时先查原操作；失败沿原 CommitRef 和原输入恢复，不改 basedOn、不先应用。注册 ready 不证明块当前有值，生产者内容提交和 Context 首次恢复围栏仍分别受原契约约束。
+- Runtime Context API 保持。生产工作区加载、实际采用的供证能力与首次 scope 恢复分别归原提供者；来源和结果的可核验性须有相应提供者证据。
 - 失败：`prepareRegistration` 拒绝时，本插件交回逐项原因，Session 的命令返回 `invalid`。Runtime Context 不可用时返回不可用。
 
 <a id="ad-13"></a>
@@ -524,7 +610,7 @@ Session 是结果的消费位置拥有者。保管或处理提交之后，Sessio
 | --- | --- | --- |
 | 会话事实、游标、任务与回执 | Session 的会话日志 | 不随本成员结束 |
 | 参加者登记、生产者登记、端口提供 | 登记它的插件 fiber | 插件卸载 |
-| 执行句柄与事件订阅 | AD-14 与 AD-02 的插件 fiber | 插件卸载、执行结束或句柄失效 |
+| 执行句柄与同日志解释缓存 | AD-14 与 AD-02 的插件 fiber | 插件卸载、执行结束或句柄失效 |
 | Session 操作身份到 Tool 释放操作引用的对应 | AD-17 的插件 fiber | 插件卸载或进程结束，按派生物丢弃 |
 | 上一份已过滤快照、前缀摘要缓存 | AD-03 与 AD-04 的插件 fiber | 插件卸载或进程结束，按派生物丢弃 |
 | 恢复授权 | 应用装配层的维护拥有者 | 由签发者撤销 |
@@ -573,11 +659,11 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 | --- | --- | --- | --- |
 | VA-01 | 四种调用方交接与 `none` | 各翻译为对应命令；`none` 不参加；第五种返回「不支持」 | [AD-01](#ad-01) |
 | VA-02 | Session 结果的每一类 | 按表映射为参加、失败、冲突或不支持，冲突带依据 | [AD-01](#ad-01) |
-| VA-03 | 事件重放、缺口与确认未知 | 重放认回；缺口经快照对账；确认只在游标持久后发出 | [AD-02](#ad-02) |
+| VA-03 | 同日志重读、缺口与答复丢失 | 重读认回；缺口隔离或快照对账；解释进度与后果同批发布 | [AD-02](#ad-02) |
 | VA-04 | Runtime Context 重建与 `applyCommit` 顺序不符 | 开始恢复会话，用完整材料结束会话（注册提交顺序、步提交全值、作用域结束），再重签 | [AD-03](#ad-03-1a) |
 | VA-05 | 上一份快照丢失 | 下一次读取取完整快照，不补造提醒 | [AD-03](#ad-03-1b) |
 | VA-06 | 步边界提交与新的历史依据 | 两个时点都完成补拉；提醒落在上界之内 | [AD-03](#ad-03-1c) |
-| VA-07 | 未结工作下界的六类与权威读失败 | 六类都映射为条目引用；失败时报告不可用，不交空集合 | [AD-04](#ad-04) |
+| VA-07 | 各类未结工作下界、未关联等待及权威读失败 | 各类都映射为原条目引用；Tool intent 包含原 SE18 与生效 SE22，关联前后去重；失败时报告不可用，不交空集合 | [AD-04](#ad-04) |
 | VA-08 | 交付责任解除：Model 与 Tool 各自的成功、未就绪、不可用、未知、重复与证据被拒 | 按 `producer` 选生产者；结果只有 `confirmed`（带来源）、`not-ready`、`unavailable`、`commit-unknown` 四种；只有 `confirmed` 之后写 confirmed；重复确认得到原确认 | [AD-17](#ad-17)、[AD-05](#ad-05)、[AD-06](#ad-06) |
 | VA-09 | 模型选择的五种失败 | 返回失败，不改用其他路由 | [AD-07](#ad-07) |
 | VA-10 | `AgentDrivePort` 的每种 Agent 结果 | 按表映射；非准入的 `invalid` 不成为拒收 | [AD-14](#ad-14) |
@@ -592,3 +678,15 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 | VA-19 | 候选采用带回冻结判定；会话已冻结 | `frozen` 的 `verdict` 等于证据桥交出的判定；会话已冻结时为 null | [AD-10](#ad-10) |
 
 本成员不覆盖：邻域自身的行为、真实存储事务域下的共同提交、跨进程部署，以及上表各具名前提闭合之后的行为。
+
+## Agent Journal 提供者与非耐久替身
+
+本节的非耐久实现从 `./testing` 提供。session-adapters 提供 agentJournal，消费冻结 Agent 的完整 Journal 角色组，不修改 Agent 端口。AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会话日志的提交状态，执行索引以租户与 execution 为键。每次提交、重复操作、查询与材料读都核验当前资格；跨租户拒绝，不能通过材料引用绕过绑定。
+
+提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
+
+首次 custody/processed 需要尚未登记的原调用时，先核当前资格、新请求合法性及原 Agent operation 的认回/冲突。已完成原操作不重做准备。新操作仅从此前已提交的 Pending/effect/Authority→grant 关系，以独立稳定 Session operation、sequence=null 解释登记或原关联。准备未知先认原答案，不继续新结果提交。准备后重核根、资格、gap 与完整 binding，再共同发布新结果、参加事实和原答案。旧登记可在后一个 joint 失败时保留；该批不得留下新结果的半边事实，也不得把派生 SE18 塞进新 joint。
+
+第二个发布点是后续 Session 解释提交，共同保存派生后果、解释进度与该次认回答案。解释失败不撤销首次发布，也不推进解释进度。Agent ended 与后续 Session 终态之间允许 PA-08 的取消竞争，不能把二者合并成一个原子提交。各次读取捕获一份已提交状态：output.read / output.events 读事件正文，load 读 entries/results 等快照；事件序号与 entries 提交顺序分别保持，不互作 cursor。复原索引不能改变原 Run 归属。
+
+`./testing` 提供上述角色组的内存会话日志替身，供 CS v2 组合测试。故障注入与提交前暂停只经 testing 句柄暴露，生产根入口不暴露它们。验证义务包括 Agent 自有 entries/received 套件、提交前失败全无、提交后丢答复认回、并发修订复核及跨租户读写拒绝。验证入口及受信夹具前提见 [testing 指南](docs/testing.md)。内存原子可见不证明耐久、进程重启或跨进程同提交。

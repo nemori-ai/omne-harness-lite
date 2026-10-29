@@ -1,5 +1,7 @@
 # 内部架构
 
+本页的插件图描述候选装配；当前已交付的内存测试提供者见下文“共同日志内存提供者”。
+
 本文件说明本成员怎样兑现 [SPEC.md](../SPEC.md)：模块划分、依赖方向、状态与资源归属、关键机制及理由。组级的成员分解与落位判据归[组架构](../../docs/architecture.md)，本页不复述。
 
 ## 模块与依赖
@@ -56,7 +58,22 @@ flowchart LR
 - 本成员依赖 `session-contract` 与 `session-cordis-contract`，不依赖 `session`、`session-cordis` 或 `session-storage-sql`。
 - 本成员与 `session-cordis` 没有编译期依赖。出站端口与构造依赖端口的服务键由装配接上。
 - 本成员不导入邻域的提供者实现，只导入邻域契约与服务定义（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
-- 现在的 `package.json` 只声明 `@deepseek-ai/cordis`，因为两个入口都还没有导出。翻译函数与插件进入源码时，同时加入 `session-contract`、`session-cordis-contract` 与所用邻域的契约和服务定义成员。上面几条是加入依赖时的约束，不是现有依赖的描述。
+- 当前 `package.json` 为 `./testing` 声明 Agent、Session、Model、Tool 与公共值成员的直接依赖。根入口和 Cordis 入口仍无运行插件。上述服务键与插件依赖是候选装配的约束，不是已建立的运行关系。
+
+## 共同日志内存提供者
+
+`testing/factory.ts` 将公开 Session 纯函数、Agent 端口和归一逻辑接到一个 `(tenant, session)` 根。`root.ts` 独占草稿和发布点；`journal.ts`、`journal-receiving.ts` 与 `session.ts` 都在该根提交。没有包装第二个内存 store。调用者只看到已经发布的根，故障注入也位于该发布边界。
+
+| 内部模块 | 责任 |
+| --- | --- |
+| `root.ts` | 同域根、原操作、当前资格与共享 gap 门、发布前后故障和通知 |
+| `journal.ts`、`journal-receiving.ts` | Agent 全端口、原输入和控制、材料/received 交接及原答案 |
+| `session.ts`、`session-sources.ts` | 调用 Session 纯决定/归并、Session 原答案和来源索引 |
+| `history.ts`、`human.ts`、`control.ts`、`background.ts`、`model-settlement.ts` | 从原版本归一，不用当前 checkpoint 补历史 |
+| `frontier.ts` | 捕获全部相关交入关系、预算续读、未知认回和当前根复核 |
+| `result-preparation.ts` | 新结果参加前独立解释此前原 Pending 的登记 |
+
+索引随原事实同批保存，作用域根持有直到内存后端释放。实现没有磁盘持久化或重启恢复。每次发布复制 Map 和相关数组，所以根复制成本仍随保留历史增长；预算和同根索引约束必要读取，不能证明总发布成本为常量。端口、夹具前提与验证边界见 [testing.md](testing.md)，行为承诺归 SPEC 的 AD-01/02/05。
 
 ## 关键机制与理由
 

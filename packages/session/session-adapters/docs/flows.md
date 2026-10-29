@@ -28,17 +28,38 @@ sequenceDiagram
 
 只读核对走同一条路：`open` 与 `submit` 核来源依据，`tryFinish` 核待交输入与取消。核对不写 Session 条目。
 
-### FA-02 Agent 事件到会话事实
+### FA-02 同日志 Agent 事实解释
 
-对应 [AD-02](../SPEC.md#ad-02)。
+对应 [AD-02](../SPEC.md#ad-02)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
 
-1. 插件以 `readWork` 取 `readThrough`。
-2. 插件从 `readThrough` 之后订阅 `output.events`，或以 `output.read` 按页读取。
-3. 对每个产生条目的事件，插件以 `receive(agent-event)` 提交，身份为执行与序号。游标随条目同批保存。
-4. 提交成功后，插件以 `output.acknowledge` 确认已持久的前缀。
-5. 读到缺口时，插件以 `agentExecutionRecovery.load` 取快照，按快照对账后从缺口之后继续。
+1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
+2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读取事件正文，经 load 读取 entries/results 等快照。每次读核对当前资格、租户、execution 与原 Run 绑定。readThrough 是事件序号，entries 提交顺序和 results 快照不能替代它。
+3. 后续另一笔 Session 提交共同保存派生后果、解释进度与该次操作答案。只存原来源身份或引用，不复制事件正文，也不走 receive(agent-event) 副本确认。
+4. 首次发布失败该批全无。后续解释失败不撤销 Agent 已提交事实，不推进解释进度。各批丢答复查询各自原操作。未解释事实计入未结工作。
+5. Agent ended 已发布而 Session 尚未解释时，cancel 可先写 cancelled。后续 ended 只留原 Run 引用，不改终态或后继；冻结后的终态提交仍解除余下待处理资格。
 
-数据去向：承接、登记、等待、控制阶段与终态进会话日志。确认交回 Agent。
+#### FA-02 的相关前缀准备
+
+```mermaid
+sequenceDiagram
+  participant C as 命令协调者
+  participant R as 会话共同根
+  participant N as 归一与纯层
+  C->>R: 认回原操作，捕获 Q、目录与 E
+  loop 完成捕获 E 的必要前缀
+    R->>N: 同根原材料与真实 head
+    N->>R: 后果、进度、操作答案独立发布
+  end
+  C->>R: 重读 G′，重算 Q 和必要差额
+  C->>R: 重核资格及 CAS 完整终态或冻结批
+  R-->>C: 原完整结果或原操作待认回
+```
+
+此流程只用于 [FR-04](../../session-contract/SPEC.md#fr-04) 的后继消费和 SE38 路径。准备不解释 ended，独立正常 ended 解释仍按 PA-08 竞争。Q 缩小时先完成已捕获 E 的剩余前缀。最终 CAS 失败重读重算，前缀成功不授权沿用旧 pending。
+
+首次 waiting/producer 先从原 pending、effect Authority 与 SE15 取得登记，再同批写 SE18/SE22 或 SE18/SE19。observation.source 保留原事实，revision/executionEvidence 取真实 head。Tool intent 先保存无 reference 的登记，后续关联保持原消费身份与固定位置。具体字段与失败见 [AD-02](../SPEC.md#ad-02)。
+
+按相关条目和字节预算 yield，保持内部接续责任；它不是新业务结果。原事实可读而投影落后时主动补齐，真实不可读按 unavailable，已证权威损坏按 quarantined。PM-02 rejected 首输入与剩余 SE38、P-5 缺原前缀的限制均沿 FR-04，不改 finishRun 原准入。
 
 ### FA-03 Runtime Context 的持有、供给与变化提醒
 
@@ -54,11 +75,11 @@ flowchart LR
   Modes[SE03 提交] --> Publish[经生产者句柄发布 session.modes]
 ```
 
-1. 注册：`change` 提交注册决定后，插件以 `applyCommit` 交给 Runtime Context。提交未知时，插件先查询原操作，不先应用。
-2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料：全部注册提交的耐久顺序、每个 `checkpointed` 块的步提交全值、已经确认的作用域结束。然后重签资格。创建作用域时材料为空。
+1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。插件确认提交后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
+2. 恢复会话：Runtime Context 重建后，以及创建作用域时，插件在该作用域第一次签发资格之前用 [RC-09](../../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复作用域。插件先 `beginReplay`，再以 `finishReplay` 交出完整恢复材料。三部分全部限定于本次恢复的原 scope：该 scope 全部注册提交的耐久顺序、该 scope 每个 `checkpointed` 块的步提交全值、该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。然后重签资格。首次恢复前，本 scope 的注册、步提交和已确认结束三部分均无时，只交本 scope 空材料。代次绑定和新 scope 初始化的责任边界见 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实)，本流程不补齐 #680 的新 scope 初始化。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
-5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实的产生时点归 [#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
+5. 压缩提交之后，插件重签模型类读者的资格。会话归档后，插件撤销该作用域的全部资格；作用域结束事实按 Session 契约的 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 在归档同批产生，物理释放仍等待独立读回。结束之后，签发、绑定、读取与发布都答 `scope-ended`。
 
 ### FA-04 历史源读取与未结工作下界
 
@@ -67,18 +88,17 @@ flowchart LR
 1. 一次组装开始时，插件先完成 FA-03 第 4 步的补拉，再以 `basis` 为 null 调 `readModelView` 取当前 epoch 与上界，给出历史依据：epoch、上界、作用域引用与访问身份。
 2. Request Context 以 `HistorySource.read` 带依据、游标与字节预算读取。插件以 `readModelView` 读一页，原样交出每行的序号、条目位置、字节数、前缀摘要与消息。
 3. `readModelView` 返回 `epoch-changed` 时，插件返回 epoch 已变与当前依据。Request Context 用新依据重取。`denied`、`invalid`、`unavailable` 分别交为无资格、无效与不可用。
-4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。
+4. 需要压缩时，插件以 `readWork` 与 `openWork` 求出未结工作的条目引用集合，交给压缩计划作为下界。未关联等待以 consumption/position 定位原 SE18 与生效 SE22，两者均保留并在 compaction.open 核对；真实关联后与 producer waiting 合并去重。业务等待已解除而原控制尚未交清时，沿 unsettledControls 保留原 SE18/SE22/SE24/SE25 及关联条目直到原责任依证据解除。必要材料不可读时报告不可用。
 5. 压缩转换经 FA-01 的 `context-transition` 提交。提交之后的重签见 FA-03 第 5 步。
 
-### FA-05 Model 的账目与收场
+### FA-05 Model 日志结果与账目
 
-对应 [AD-05](../SPEC.md#ad-05)。
+对应 [AD-05](../SPEC.md#ad-05)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
 
-1. Agent 不在场时，插件以 `calls.inspect` 与 `calls.dispatches` 读收场与账目。
-2. 插件以 `receive(execution)` 与 `receive(account)` 提交。读不到时保持未知。
-3. Session 单方保管结果时，插件以 `consumption.beginRead`、`readNext`、`closeRead` 读原结果。
-
-ACK 由 FA-14 发出。Session 不参加 Model 的受理点守卫：会话的 owner 声明为免守卫。
+1. Agent 宿主结果接收方将 received、完整材料、消费绑定与 saved 共同提交到 Session 日志。
+2. 本插件经同一 AgentJournal 的 `load().entries` 选取 Model 的 received 条目。结果交付从 `delivery.accounts` 读取冻结账目快照，账目交付从 `delivery.account` 读取该 key 修订的账目；完整材料按条目的 material 引用经同提供者 AgentMaterials.read 读取并按 Agent J02 校验。entries 缺席返回 unavailable，材料不可读显式失败。load.results 不代替这条路径。事件正文另经 output.read / output.events 读。核对当前资格、原租户、执行、consumption 及版本，以原事实身份解释 Session 后果。
+3. 后续 Session 提交共同保存后果、解释进度与该次答案；失败不撤销第 1 步事实，也不推进解释进度。
+4. 读不到时保持未知。received/saved 不作为 ACK 确认，MODEL-ACK-ARRIVAL 未决期间保持 pending。
 
 ### FA-06 Tool 的查询与后台结果
 
@@ -118,7 +138,7 @@ ACK 由 FA-14 发出。Session 不参加 Model 的受理点守卫：会话的 ow
 3. Session 把材料放进同一次提交。材料不全时，命令不提交。
 4. 端口不可用时，只有需要它的命令返回 `unavailable`。
 
-`GuardCommand.participant` 填材料的拥有者，不填存储参加者。
+`GuardCommand.participant` 填材料的拥有者，不填存储参加者。初始化沿 [Session 自有编码](../../session-contract/SPEC.md#初始化守卫编码)穷举核对真实初始采用、完整计划、原绑定及成功事实，证据桥复用现有 prepare。SessionContextInput.prepare 的四类命令联合保持，不新增 completeInitialization 分支。
 
 证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
 

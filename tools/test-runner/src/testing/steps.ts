@@ -302,7 +302,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
 
 const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason })
 
-/** 合并前的成员测试：计划里的成员的快层，再慢层；各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。
+/** 合并前的成员测试：计划里的成员的快层，快层全部通过才跑慢层；跑了的层各写一份账本。计划为空时说「没有要跑的成员」，不算跑过。
  * `build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
 export async function testStep(root: string, file: PlanFile, build = false): Promise<number> {
   const config = readTestRunsConfig()
@@ -330,11 +330,21 @@ export async function testStep(root: string, file: PlanFile, build = false): Pro
     plan: planSummary(file.plan),
   } as const
   console.log(
-    `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，再慢层`,
+    `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
   )
-  const fast = await recordedRun(root, { ...common, tier: 'fast' })
-  const slow = await recordedRun(root, { ...common, tier: 'slow' })
-  return fast === 0 && slow === 0 ? 0 : 1
+  return fastThenSlow(tier => recordedRun(root, { ...common, tier }), console.log)
+}
+
+/** 快层失败时这一步的结论已定，不再跑慢层，也不写慢层账本；快层通过才跑慢层。 */
+export async function fastThenSlow(
+  run: (tier: 'fast' | 'slow') => Promise<number>,
+  note: (text: string) => void,
+): Promise<number> {
+  if ((await run('fast')) !== 0) {
+    note('快层未通过：慢层没有跑，这一步失败')
+    return 1
+  }
+  return (await run('slow')) === 0 ? 0 : 1
 }
 
 /**

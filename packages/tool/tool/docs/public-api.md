@@ -50,3 +50,10 @@ Tools 的基本调用顺序和 JSON 参数示例见 [README](../README.md#model-
 The controls arm the next corresponding IO: `readUnavailable`, `commitUnavailable`, `unknownApplied`, `unknownDropped` and `throwApplied`. `delayed.arm` holds a commit with an unknown reply. `delayed.land` resolves after all held commits finish their original expected-revision check. `rejectedHostValue` returns a value that this provider explicitly refuses to encode. The probe accepts an exception, `unknown` or `unavailable`, then requires an unchanged complete snapshot and a successful equivalent legal batch. It does not define a common encoding rejection protocol. The probe uses a matching expected revision without competing commits. Any `committed` or `conflict` reply fails the probe.
 
 The cases have stable `name` and `clause` fields. Direct consumption and the evidence limits are described in the [usage guide](../README.md#ledger-store-conformance). This adds a testing API in the G6 owner package. No existing consumer requires migration.
+
+
+## 原环境分配的首次采用
+
+[driver.ts](../src/driver.ts) 消费 [P03](../../tool-contract/SPEC.md#p03-环境准备和释放) 的 allocated 事实。它先比对完整原准备与证据形状，再用同一适配器和原输入追加最多一次 prepare。allocated、pending、unknown 或不可用均保留准备任务，后续运行查询原事实。只有 prepared 写准备完成并进入执行队列。`environmentOf` 只重连 prepared，不通过 allocated 领取租约。原获取与无 E 时的结清仍归适配器，分配证据不能替代独立输出保管依据。
+
+验证使用公开 runtime/ledger 和有独立记录的非耐久环境替身，见 [driver-allocation.spec.ts](../tests/driver-allocation.spec.ts)。没有真实 EE 适配器或跨进程恢复证据，U16 丢失全部原事实的缺口保持。

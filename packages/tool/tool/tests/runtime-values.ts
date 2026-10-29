@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   createMemoryToolEnvironment,
   createMemoryToolOutputCustody,
@@ -168,7 +169,8 @@ export function request(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeR
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant-1') },
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
@@ -823,4 +825,10 @@ export function testSettlementPorts() {
     custody: createMemoryToolOutputCustody<Principal>(),
     releaseInspection: createMemoryToolEnvironment<Principal>(),
   }
+}
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
 }

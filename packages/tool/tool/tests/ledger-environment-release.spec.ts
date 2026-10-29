@@ -30,7 +30,9 @@ function firstPreparation(f: Awaited<ReturnType<typeof settlementFixture>>) {
 
 async function releasedFixture(inspect?: ToolEnvironment<Principal, unknown>['inspectRelease']) {
   const f = await settlementFixture(
-    inspect === undefined ? {} : { wrapReleaseInspection: () => ({ inspectRelease: inspect }) },
+    inspect === undefined
+      ? {}
+      : { wrapReleaseInspection: base => ({ adoption: base.adoption, inspectRelease: inspect }) },
   )
   ok(await f.preserve())
   const recovery = await f.load()
@@ -110,6 +112,34 @@ describe('canonical environment cleanup ledger', () => {
     expect((await f.records()).filter(row => row.kind === 'environment-release')).toHaveLength(1)
     expect((await f.load()).tasks.filter(task => task.kind === 'release')).toEqual([task])
     expect((await f.records()).filter(row => row.kind === 'result')).toEqual(before)
+  })
+
+  it('retains cleanup when the current inspection adapter cannot handle the original adoption', async () => {
+    let inspections = 0
+    const f = await settlementFixture({
+      wrapReleaseInspection: base => ({
+        adoption: { ...base.adoption, revision: 'replacement' },
+        inspectRelease: input => {
+          inspections += 1
+          return base.inspectRelease(input)
+        },
+      }),
+    })
+    ok(await f.preserve())
+    const task = (await f.load()).tasks.find(task => task.kind === 'release')
+    if (task?.kind !== 'release') throw new Error('fixture missing release')
+    const actual = ok(await f.environment.release({ ...f.access, release: task.release }))
+    const answer = await f.ledger.commands.recordRelease({
+      ...f.access,
+      operation: operationId('replacement-inspection'),
+      release: task.release,
+      outcome: actual,
+    })
+    expect(answer).toMatchObject({
+      failure: { kind: 'unavailable', dependency: 'tool-environment' },
+    })
+    expect(inspections).toBe(0)
+    expect((await f.load()).tasks).toContainEqual(task)
   })
 
   it('recognizes one plan across new operations, original replay and completed cleanup', async () => {
@@ -765,6 +795,7 @@ it('requires current write qualification before release inspection and receipt r
       },
     }),
     wrapReleaseInspection: base => ({
+      adoption: base.adoption,
       inspectRelease: inspect.mockImplementation(input => base.inspectRelease(input)),
     }),
   })

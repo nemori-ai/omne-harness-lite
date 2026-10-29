@@ -463,7 +463,7 @@ export function describeCheckPlan(
   if (plan.mode === 'full') {
     lines.push(`  构建：${plan.build.length} 个计划成员，含必要依赖准备`)
     lines.push(`  类型检查：全部 ${plan.typecheck.length} 个在役成员`)
-    lines.push(`  成员测试：全部 ${plan.test.length} 个成员的快、慢两层`)
+    lines.push(`  成员测试：全部 ${plan.test.length} 个成员的快层，快层通过才跑慢层`)
   } else {
     const resident = plan.build.filter(entry => entry.reason === 'resident').map(e => e.path)
     const forTests = plan.build.filter(entry => entry.reason === 'selected').map(e => e.path)
@@ -488,7 +488,7 @@ export function describeCheckPlan(
     lines.push(
       plan.test.length === 0
         ? '  成员测试：没有要跑的成员'
-        : `  成员测试：${plan.test.length} 个成员的快、慢两层`,
+        : `  成员测试：${plan.test.length} 个成员的快层，快层通过才跑慢层`,
     )
   }
   lines.push(

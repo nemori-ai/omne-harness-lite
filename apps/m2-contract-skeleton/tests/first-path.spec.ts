@@ -3,11 +3,7 @@
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
 import type { HistoryPage } from '@omne-harness/session-contract'
-import {
-  createMemorySessionEvidenceBridge,
-  createMemorySessionTransactions,
-  memoryOtherAccess,
-} from '@omne-harness/session-contract/testing'
+import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import { runFirstTenantPath, messageOf, type PathPrincipal } from '../src/path.ts'
 import { runContractSkeleton } from '../src/index.ts'
 import {
@@ -17,6 +13,7 @@ import {
   identityDouble,
   pathDependencies,
   REPLY_TEXT,
+  sessionDoubles,
   skeletonInputs,
 } from './first-path-doubles.ts'
 
@@ -24,7 +21,7 @@ const LATER = ['H03', 'H04', 'H05', 'H06', 'H07', 'H08'] as const
 
 describe('connected first tenant path', () => {
   it('connects every hop and reads the scripted Model reply back from Session history', async () => {
-    const session = createMemorySessionTransactions<PathPrincipal>()
+    const { session, evidence } = sessionDoubles()
     const pages: HistoryPage[] = []
     const watched = {
       ...session,
@@ -37,7 +34,7 @@ describe('connected first tenant path', () => {
         },
       },
     }
-    const observed = await runFirstTenantPath(pathDependencies({ session: watched }))
+    const observed = await runFirstTenantPath(pathDependencies({ session: watched, evidence }))
     for (const hop of ['H01', 'H02', ...LATER] as const) expect(observed[hop].connected).toBe(true)
     const last = pages.at(-1)
     const messages = (last?.entries ?? []).flatMap(entry => {
@@ -49,8 +46,8 @@ describe('connected first tenant path', () => {
   })
 
   it('keeps the session of the first tenant invisible to another tenant', async () => {
-    const session = createMemorySessionTransactions<PathPrincipal>()
-    await runFirstTenantPath(pathDependencies({ session }))
+    const { session, evidence } = sessionDoubles()
+    await runFirstTenantPath(pathDependencies({ session, evidence }))
     const foreign = await session.history.begin({
       ...memoryOtherAccess<PathPrincipal>('stranger', 'session-cs-first'),
       kinds: [],
@@ -81,17 +78,17 @@ describe('connected first tenant path', () => {
   })
 
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
-    const evidence = createMemorySessionEvidenceBridge()
+    const { session, evidence } = sessionDoubles()
     evidence.controls.unavailable(true)
-    const observed = await runFirstTenantPath(pathDependencies({ evidence }))
+    const observed = await runFirstTenantPath(pathDependencies({ session, evidence }))
     expect(observed.H03).toEqual({ connected: false, evidence: ['session-create:unavailable'] })
     expect(observed.H04.connected).toBe(false)
   })
 
   it('refuses startRun with login-required when the evidence bridge gives no login confirmation', async () => {
-    const evidence = createMemorySessionEvidenceBridge()
+    const { session, evidence } = sessionDoubles()
     evidence.controls.loginEntry(false)
-    const observed = await runFirstTenantPath(pathDependencies({ evidence }))
+    const observed = await runFirstTenantPath(pathDependencies({ session, evidence }))
     expect(observed.H03.connected).toBe(true)
     expect(observed.H04).toEqual({
       connected: false,
@@ -113,7 +110,7 @@ describe('connected first tenant path', () => {
   })
 
   it('fails H08 when the Session history does not carry the Model reply text', async () => {
-    const session = createMemorySessionTransactions<PathPrincipal>()
+    const { session, evidence } = sessionDoubles()
     const altered = {
       ...session,
       history: {
@@ -130,7 +127,7 @@ describe('connected first tenant path', () => {
         },
       },
     }
-    const observed = await runFirstTenantPath(pathDependencies({ session: altered }))
+    const observed = await runFirstTenantPath(pathDependencies({ session: altered, evidence }))
     expect(observed.H07.connected).toBe(true)
     expect(observed.H08.connected).toBe(false)
   })
@@ -170,11 +167,11 @@ describe('connected first tenant path', () => {
 
   it('keeps supplier and port free text out of a failing report', async () => {
     const secret = 'private supplier diagnostic text'
-    const evidence = createMemorySessionEvidenceBridge()
+    const { session, evidence } = sessionDoubles()
     evidence.controls.loginEntry(false)
     const identity = identityDouble()
     const refused = await runContractSkeleton(
-      skeletonInputs({ path: pathDependencies({ evidence }) }),
+      skeletonInputs({ path: pathDependencies({ session, evidence }) }),
     )
     expect(refused.hops.find(hop => hop.hopId === 'H04')?.state).toBe('failed')
     const thrown = await runContractSkeleton(

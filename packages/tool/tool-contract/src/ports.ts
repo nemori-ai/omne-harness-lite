@@ -164,6 +164,7 @@ export interface PreparedEnvironment<E> {
   readonly preparation: PreparationRecord
 }
 export interface ToolEnvironment<P, E> {
+  readonly adoption: Adoption
   prepare(
     input: CallAccess<P> & Readonly<{ preparation: PreparationRecord }>,
   ): Reply<PreparationProgress<E>>

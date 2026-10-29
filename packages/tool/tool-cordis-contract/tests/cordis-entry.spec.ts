@@ -1,4 +1,6 @@
 import { readFileSync } from 'node:fs'
+import { succeed } from '@omne-harness/operation-result'
+import { memoryToolBindingRegistryFixture } from '@omne-harness/tool-cordis-contract/testing'
 import { Service } from '@deepseek-ai/cordis'
 import { resolveOptional } from '@omne-harness/kernel-basis/cordis'
 import { startTestAssembly } from '@omne-harness/kernel-basis/testing'
@@ -7,6 +9,8 @@ import { decodeStreamId } from '@omne-harness/stream-arrival'
 import * as cordis from '@omne-harness/tool-cordis-contract/cordis'
 import {
   ToolClockService,
+  ToolResidencyReaderService,
+  type ToolResidencyReader,
   ToolInstancesService,
   toolClockKey,
   toolInstancesKey,
@@ -24,6 +28,7 @@ const documentedPairs = {
   toolBindingsKey: 'ToolBindingsService',
   toolContributionAuthorityKey: 'ToolContributionAuthorityService',
   toolGenerationsKey: 'ToolGenerationsService',
+  toolResidencyReaderKey: 'ToolResidencyReaderService',
   toolEnvironmentsKey: 'ToolEnvironmentService',
   toolDecisionsKey: 'ToolDecisionBridgeService',
   toolInstancesKey: 'ToolInstancesService',
@@ -53,10 +58,10 @@ const serviceClasses = exported.filter(
 )
 
 describe('service keys', () => {
-  it('exports 21 unique keys, one per documented pair', () => {
+  it('exports 22 unique keys, one per documented pair', () => {
     const keys = keyConstants.map(([, value]) => value)
-    expect(keys).toHaveLength(21)
-    expect(new Set(keys).size).toBe(21)
+    expect(keys).toHaveLength(22)
+    expect(new Set(keys).size).toBe(22)
     expect(keyConstants.map(([name]) => name).sort()).toEqual(Object.keys(documentedPairs).sort())
   })
 
@@ -71,8 +76,8 @@ describe('service keys', () => {
   )
 
   it('has one service class per key, no more', () => {
-    expect(serviceClasses).toHaveLength(21)
-    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(21)
+    expect(serviceClasses).toHaveLength(22)
+    expect(new Set(serviceClasses.map(([, type]) => type.provide)).size).toBe(22)
   })
 
   it('names the two G7 keys of RFC-0012 as the docs/cordis.md table does', () => {
@@ -195,3 +200,32 @@ const unsupported = {
   adoption: { owner: 'test', name: 'clock', revision: '1', digest: 'd' },
   reason: 'not used',
 } as const
+
+it('publishes and reads the residency reader through its public Cordis service name', async () => {
+  const source = memoryToolBindingRegistryFixture()
+  const loaded = source.loaded(source.authority, 'reader')
+  const reference = { holder: 'holder', tenant: source.access.tenant, shape: loaded.shape }
+  class Reader extends ToolResidencyReaderService {
+    referencing: ToolResidencyReader['referencing'] = async () =>
+      succeed({ items: [reference], next: null })
+  }
+  const absent = await startTestAssembly([])
+  try {
+    expect(resolveOptional(absent.context, 'toolResidencyReader')).toBeUndefined()
+  } finally {
+    await absent.dispose()
+  }
+  const assembly = await startTestAssembly([{ name: 'reader', apply: ctx => void new Reader(ctx) }])
+  try {
+    const reader = resolveOptional<ToolResidencyReaderService>(
+      assembly.context,
+      'toolResidencyReader',
+    )
+    expect(reader).toBeInstanceOf(Reader)
+    expect(await reader?.referencing({ scope: 'system', key: loaded.key, after: null })).toEqual({
+      ok: { items: [reference], next: null },
+    })
+  } finally {
+    await assembly.dispose()
+  }
+})

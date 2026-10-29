@@ -2,7 +2,7 @@
 
 本页写本成员每个插件的 `inject`、提供的键、登记与撤除，以及它们怎样符合 IC 约定。行为归 [SPEC.md](../SPEC.md)。`session` 服务键、端口服务键与调用方类归 [session-cordis-contract](../../session-cordis-contract/docs/cordis.md)。邻域的服务键归各自的 Cordis 定义。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
 
-现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记。下文是 SPEC 固定的目标形状，不是源码事实。
+现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记。下文是 SPEC 固定的目标形状，不是源码事实。AD-01、AD-02、AD-05 与 Journal 提供者的非耐久实现在 `./testing`，它不经 Cordis 装配。
 
 ## 入口
 
@@ -17,12 +17,12 @@
 | 插件 | `inject` | 提供的键 | 登记 |
 | --- | --- | --- | --- |
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
-| AD-02 Agent 事件消费 | `session: { caller: 'coordinator' }`；`agentExecutionRecovery` | 无 | 事件订阅，落在本插件 fiber 上 |
+| AD-02 Agent 同日志解释 | `session: { caller: 'coordinator' }` | 无 | 不订阅事件。经本成员 Journal 提供者的 `output.read`、`output.events` 与 `load` 读同一会话日志 |
 | AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
 | AD-03 回放子插件 | `session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
 | AD-04 历史源 | `session: { caller: 'reader' }`，读 `readModelView`；下界子插件 `session: { caller: 'coordinator' }` | 无；取得方式待 NP-02 | 不登记 |
-| AD-05 Model 消费适配 | `modelRuntime`；`session: { caller: 'coordinator' }` | 无 | 受信证据适配器由应用装配写进 owner 声明 |
+| AD-05 Model 日志消费适配 | `session: { caller: 'coordinator' }`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 不登记。经本成员 Journal 提供者读 `received` 条目与材料 |
 | AD-06 Tool 消费适配 | `toolRuntime`；`session: { caller: 'coordinator' }` | 无 | 无 |
 | AD-07 模型选择 | `modelProfiles`；`session: { caller: 'coordinator' }` | `agentModelSelection`（`extends ModelSelectionService`） | 服务提供 |
 | AD-08 受理拓展点 | `session: { caller: 'intake' }` | 无 | 不登记，待 NP-07 |
@@ -37,6 +37,7 @@
 | AD-15 重新释放子插件 | `executionEnvironment: { caller: 'maintainer' }`；`session: { caller: 'maintainer' }` | 无 | 无；恢复授权由同一个装配入口交入 |
 | AD-16 `ToolStartFencePort` | `toolStartAuthority` | `sessionToolStartFence` | 服务提供 |
 | AD-17 `DeliveryReleasePort` | `modelRuntime`、`toolRuntime` | `sessionDeliveryRelease` | 服务提供 |
+| Agent Journal 提供者 | 无邻域服务；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供。生产插件未交付；非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
 
 说明：
 
@@ -54,7 +55,8 @@
 | `session.modes` 生产者 | `registerProducer` 在 Runtime Context 服务方法里以 `this.ctx.effect` 登记，效应落在 AD-03 的 fiber。登记带调用方可信主体与租户，生产者槽是租户加块键，为每个租户分别登记 | 每个租户的句柄分别撤除。读取按缺项返回。重跑时新一代先登记，旧一代后撤除 |
 | 模型类绑定读者 | `bind`，随变化提醒子插件 | 读者结束。下一次绑定取完整快照 |
 | Session 参加者 | 向执行记录提供者的组合登记，形状待 P-1 | 执行记录提供者对未登记参加者的共同提交返回 `unsupported`，不保存任何一半 |
-| 事件订阅、执行句柄 | 随 AD-02 与 AD-14 的 fiber | 订阅结束。事件留在 Agent 的执行记录里，之后从 `readThrough` 续读 |
+| 执行句柄 | 随 AD-14 的 fiber | 句柄丢弃。AD-02 不持有订阅：Agent 条目留在会话日志里，换代后从 `ExecutionRef.readThrough` 续读 |
+| Journal 服务提供 | 提供者子类随插件装载登记在本插件 fiber 上 | 静态注入 `agentJournal` 的 Agent 插件随依赖撤除而卸载（[Agent 的 Cordis 页](../../../agent/agent-cordis-contract/docs/cordis.md)）。已提交的 Agent 条目与 Session 事实保留在会话日志里 |
 
 撤除不撤回已提交的会话事实，也不撤回已交给邻域的确认、释放或外部效果。
 
@@ -72,7 +74,7 @@
 
 插件配置经 Standard Schema 校验，配置错误时插件加载失败（[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。可调项是配置字段，默认值只是初值：
 
-- AD-02：每页事件数上限。它不超过 Agent 提供者声明的上限。
+- AD-02：每次 `output.read` 读取的事件数上限。它不超过 Journal 提供者声明的上限。
 - AD-02、AD-05、AD-06、AD-14、AD-15、AD-16、AD-17：邻域调用的超时与重试退避。
 - AD-15 重新释放子插件：`releasedScopes` 的页大小与本轮失败后的重试退避。
 

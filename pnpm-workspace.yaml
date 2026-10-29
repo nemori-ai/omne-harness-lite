@@ -16,7 +16,7 @@ linkWorkspacePackages: false
 catalog:
   # 检查器与配置预设：仓库检查运行 npm 上的这两个精确版本，不运行工作区 tools/ 下的同名成员。
   # 升级先发新版本，再开只改这两行的 PR，见 docs/development.md「仓库工具链的版本」。
-  '@omne-harness/repo-toolchain': 0.0.15
+  '@omne-harness/repo-toolchain': 0.0.16
   '@omne-harness/repo-config': 0.0.3
   '@babel/helper-validator-identifier': 8.0.6
   validate-npm-package-name: 8.0.0

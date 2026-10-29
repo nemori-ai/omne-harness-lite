@@ -17,6 +17,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -30,9 +35,20 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
-    "@deepseek-ai/cordis": "catalog:"
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

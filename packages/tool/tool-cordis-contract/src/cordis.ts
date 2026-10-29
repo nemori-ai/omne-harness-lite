@@ -37,6 +37,7 @@ import {
   type ToolResourceResponses,
   type ToolStartAuthority,
   type ToolStartFence,
+  type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
 /** @owner packages/tool/tool-cordis-contract */
@@ -166,6 +167,33 @@ export abstract class ToolContributionAuthorityService<P>
 }
 export const toolContributionAuthorityKey = ToolContributionAuthorityService.provide
 
+/** A holder is opaque and is identified only within its tenant. */
+export type ToolResidencyReference = Readonly<{
+  holder: string
+  tenant: TenantId
+  shape: ToolShape
+}>
+export type ToolResidencyPage = Readonly<{
+  items: readonly ToolResidencyReference[]
+  next: string | null
+}>
+/** System-scope reads only. Failure never proves that a key has no holders. */
+export interface ToolResidencyReader {
+  referencing(
+    input: Readonly<{ scope: 'system'; key: ToolBindingKey; after: string | null }>,
+  ): Promise<Outcome<ToolResidencyPage, Readonly<{ kind: 'unavailable'; diagnostic: string }>>>
+}
+
+/** @owner packages/tool/tool-cordis-contract */
+export abstract class ToolResidencyReaderService extends Service implements ToolResidencyReader {
+  static readonly provide = 'toolResidencyReader'
+  constructor(ctx: Context) {
+    super(ctx, ToolResidencyReaderService.provide)
+  }
+  abstract readonly referencing: ToolResidencyReader['referencing']
+}
+export const toolResidencyReaderKey = ToolResidencyReaderService.provide
+
 /**
  * Why `ensureLoaded` did not load. `missing` and `rejected` are durable failures and carry the
  * evidence the coordinator minted for the adoption-point judgment; `unavailable` is temporary;
@@ -235,6 +263,7 @@ export abstract class ToolEnvironmentService<P, E>
   constructor(ctx: Context) {
     super(ctx, ToolEnvironmentService.provide)
   }
+  abstract readonly adoption: ToolEnvironment<P, E>['adoption']
   abstract readonly prepare: ToolEnvironment<P, E>['prepare']
   abstract readonly inspectPreparation: ToolEnvironment<P, E>['inspectPreparation']
   abstract readonly release: ToolEnvironment<P, E>['release']
@@ -502,6 +531,7 @@ declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
   interface Context {
+    toolResidencyReader: ToolResidencyReaderService
     toolRuntime: ToolRuntimeService<unknown, ContentBlock>
     toolCommands: ToolCommandsService<unknown, ContentBlock>
     toolBindings: ToolBindingsService<unknown, ContentBlock, unknown>

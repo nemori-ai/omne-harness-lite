@@ -7,6 +7,7 @@ import { resolve } from 'node:path'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { judgeBlockIdentity } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import {
   type DurableEvidence,
   type ToolInvokeRequest,
@@ -223,7 +224,8 @@ export function assembly(scenario: 'S1' | 'S2' | 'S3') {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: ok(decodeScopeRef({ ref: 'tool-acceptance-requester-scope' })),
     resources: [],
     scope: {
       owner: 'tool-acceptance-scope',

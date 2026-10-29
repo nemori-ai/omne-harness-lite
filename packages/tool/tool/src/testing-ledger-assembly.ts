@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import assert from 'node:assert/strict'
 import { judgeContentBlock, type ContentBlock } from '@omne-harness/content-block'
 import { succeed } from '@omne-harness/operation-result'
@@ -88,7 +89,8 @@ function invokeRequest(): ToolInvokeRequest {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: {
       owner: 'conformance-scope',
@@ -265,6 +267,13 @@ export async function ledgerAssembly(
         expected,
         request: input.request,
         purpose: 'initial',
+        environmentAdoption: adoption('environment'),
       }),
   }
+}
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
 }

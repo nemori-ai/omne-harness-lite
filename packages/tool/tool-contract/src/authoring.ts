@@ -11,6 +11,7 @@ import type {
   ToolAssetVersion,
   ToolAvailability,
   ToolDefinition,
+  ToolEnvironmentDeclaration,
   ToolGovernance,
   ToolImplementationFacts,
   ToolInvocation,
@@ -23,7 +24,7 @@ import type { Reply, ToolResult } from './results.ts'
 
 export type ToolDeclarations = Readonly<{
   adoption: Adoption
-  environment: Adoption | null
+  environment: ToolEnvironmentDeclaration | null
   attachments: readonly Readonly<{ store: string; mediaTypes: readonly string[] }>[]
   inputModalities: readonly Modality[]
   outputModalities: readonly Modality[]

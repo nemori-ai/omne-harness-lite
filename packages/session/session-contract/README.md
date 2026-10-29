@@ -10,21 +10,25 @@ This package owns the public contract of Session governance. It defines four cal
 
 The package does not own execution. Agent, Model, and Tool own their own execution lives. The package does not name a neighbor contract. It does not own storage, scheduling, or the plugin that binds a service to Cordis. A Session is a governance service. A Run and an attempt are governed objects, not running instances.
 
-Status: contract member. The [SPEC](SPEC.md) states which parts come from technical acceptance and, in its status line, what the source supports. Card #536 revision 5 limits this delivery to the M2 first tenant path; the rest is card #756.
+Status: contract member. The [SPEC](SPEC.md) states which parts come from technical acceptance and, in its status line, what the source supports. The source includes decisions beyond the first tenant path and non-durable testing providers. The SPEC status line lists the remaining limitations.
 
-| Area | Support | Where |
-| --- | --- | --- |
-| Types of the [API page](docs/public-api.md): values, identities, fixed inputs, results, the four faces, the ports, the signatures of the services, `decide` and `reduce` | Exported | `src/` |
-| `create`, `completeInitialization`, `accept` (ordinary input), `startRun`, `recordMessage`, `receive` (input hand-over), `finishRun` | Decided to the SPEC by `decide` and `reduce` | `src/decide.ts`, `src/reduce.ts` |
-| `accept` (card decision, business input), `claim`, `reload`, `preserveResult`, `completeConsumption`, `completeExternalConsumption`, `bindExternalCall`, `commitDerived`, `release`, `control`, `change`, `setRelation`, `configureAutoArchive`, `considerAutoArchive`, `recordIdle`, `interrupt`, `freeze`; `receive` of every fact other than the hand-over | Not supported: `decide` answers `rejected` with `unavailable` naming #756. `decide` checks the workspace dimension of a `change` after reconciliation and tenant checks, before it refuses with #756. An illegal `value` or `workspaceAttachment` gives `invalid` | `src/decide.ts` |
-| `judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`, `resolveOperation` | Implemented | `src/judgments.ts` |
-| `resolveControlScope`, `judgeIdle`, `resolveCascade` | Not supported: `invalid` or `unavailable` naming #756; `resolveCascade` throws | `src/judgments.ts` |
-| `./testing`: the `SessionTransactionPort` suite, its non-durable double, the doubles of the identity bridge, evidence bridge, Context input and clock | Exported; the double passes the suite | `src/testing*.ts` |
-| `ToolStartFencePort`, `DeliveryReleasePort`, `ControlProgress.startFence`, the `start-fence` and `agent-event` facts | Superseded, not declared | [SPEC, superseded protocols](SPEC.md#被替代的协议) |
+| Area                                                                                                                                                                                                                                                                                                                                                          | Support                                                                                                     | Where                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| Types of the [API page](docs/public-api.md): values, identities, fixed inputs, results, the four faces, the ports, the signatures of the services, `decide` and `reduce`                                                                                                                                                                                      | Exported                                                                                                    | `src/`                                             |
+| `create`, `completeInitialization`, `accept` (ordinary input), `startRun`, `recordMessage`, `receive` (input hand-over), `finishRun`                                                                                                                                                                                                                          | Implemented by `decide` and `reduce`, except rejected ordinary input has no SE12; see SE12-JC03 in the SPEC | `src/decide.ts`, `src/reduce.ts`                   |
+| `accept` (card decision, business input), `claim`, `reload`, `preserveResult`, `completeConsumption`, `completeExternalConsumption`, `bindExternalCall`, `commitDerived`, `release`, `control`, `change`, `setRelation`, `configureAutoArchive`, `considerAutoArchive`, `recordIdle`, `interrupt`, `freeze`; `receive` of every fact other than the hand-over | Implemented. Model release confirmation retains the named MODEL-ACK-ARRIVAL limitation                      | `src/decide.ts`                                    |
+| `judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`, `resolveOperation`                                                                                                                                                                                                                                                              | Implemented                                                                                                 | `src/judgments.ts`                                 |
+| `resolveControlScope`, `judgeIdle`, `resolveCascade`                                                                                                                                                                                                                                                                                                          | Implemented as pure judgments                                                                               | `src/judgments.ts`                                 |
+| `./testing`: the `SessionTransactionPort` suite, its non-durable double, suites and doubles for identity, evidence, Context, clock, idle input, notification, drive and scope release                                                                                                                                                                         | Exported; the double passes the suite                                                                       | `src/testing*.ts`                                  |
+| `ToolStartFencePort`, `DeliveryReleasePort`, `ControlProgress.startFence`, the `start-fence` and `agent-event` facts                                                                                                                                                                                                                                          | Superseded, not declared                                                                                    | [SPEC, superseded protocols](SPEC.md#被替代的协议) |
 
 Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
 
-Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` consume the root types and the runtime functions; `session-cordis-contract` re-exports the types under its Cordis service definitions.
+Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` currently declare the dependency but do not import this package. `session-cordis-contract` re-exports the types under its Cordis service definitions.
+
+Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 3 adoption. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
+
+The same-log pure layer validates original history, complete release batches, call registration, and control reference retention. Its explicit history fixture is non-durable. See [pure-layer support and provider obligations](docs/same-log-pure.md).
 
 ## Usage
 
@@ -64,10 +68,11 @@ The package has no configuration, needs no environment, and reads no resources a
 From the repository root, run:
 
 ```sh
-pnpm turbo run test --filter=@omne-harness/session-contract
+pnpm --filter '@omne-harness/session-contract...' build
+node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The tests cover the export sets, `decide`/`reduce` on the first-path kinds, the pure judgments at their edges, the self-proof of the transaction suite with violating variants, and the dependency direction of the built entries. See [tests/](tests/README.md). The verification obligations of the SPEC beyond the first path are not covered yet. These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests cover the export sets, `decide`/`reduce`, frozen sessions, historical executions, result custody, idle archive and compacted views, the pure judgments at their edges, the self-proof of the transaction suite with violating variants, and the dependency direction of the built entries. See [tests/](tests/README.md). Tests also cover behavior beyond the first path. Real backends and a complete production assembly remain unverified. Finite models and their assumptions are listed in [verification/](verification/README.md). These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -93,11 +98,11 @@ docs/                     Internal design, public use, and integration
 src/                      Public types, judgments, decide, reduce, testing doubles
 tests/                    Export sets, decide/reduce, suite self-proof, dependency walk
 schema/                   Template placeholder
-verification/             models/ and proofs/, template placeholders
+verification/             Finite frontier models and their assumptions; proofs/ is a placeholder
 adr/                      Template placeholder
 examples/                 Template placeholder
 resources/                Template placeholder
 acceptance/               Template placeholder, fixtures/ too
 ```
 
-Each directory has README.md for its role and index.md for navigation. Outside `docs/`, these files are still template placeholders and state no package facts. See [index.md](index.md) for reading paths.
+Each directory has README.md for its role and index.md for navigation. The `src/`, `tests/`, and `verification/` pages describe the current package and its verification resources. The directories marked as placeholders above retain their template status. See [index.md](index.md) for reading paths.

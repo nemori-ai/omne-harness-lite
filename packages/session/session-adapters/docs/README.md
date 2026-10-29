@@ -23,8 +23,8 @@
 | [architecture.md](architecture.md) | 为什么只有本成员导入邻域契约、边界、模块、关键机制与 SOLID 选择 |
 | [flows.md](flows.md) | 每个插件一条流程，以及共同的失败与生命周期 |
 | [object-model.md](object-model.md) | 插件、端口实现与翻译函数三类运行对象；身份对应 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
+| [public-api.md](public-api.md) | 根、Cordis 与 testing 入口；共同日志内存提供者的公开导航 |
 | [context.md](context.md) | 装配步骤、消费者与定位 |
 | [cordis.md](cordis.md) | 每个插件的 `inject`、提供的键、登记与撤除、依赖换代、配置与 IC 符合性 |
 
-当前缺口：两个入口都没有源码。八项具名缺口见 [SPEC](../SPEC.md#具名前提与明确缺项)。具名维护者由负责人指定，见[组入口](../../README.md)。
+[testing.md](testing.md) 说明共同日志内存提供者。根与 Cordis 入口尚无运行插件。八项具名缺口见 [SPEC](../SPEC.md#具名前提与明确缺项)。具名维护者由负责人指定，见[组入口](../../README.md)。
