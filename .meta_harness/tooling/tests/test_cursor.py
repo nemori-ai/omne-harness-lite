@@ -294,6 +294,10 @@ for event, payload in [("subagentStart", {"subagent_type":"developer", "subagent
 print(json.dumps({"type":"result", "subtype":"success"}))
 ''')
     agent.chmod(0o755)
+    if os.name != "posix":
+        # Windows starts no shebang script; a batch file hands it to the same interpreter.
+        script, agent = agent, tmp_path / "fixture-agent.cmd"
+        agent.write_text(f'@"{sys.executable}" "{script}" %*\n')
     output = tmp_path / "evidence"
     arguments = ["--workspace", str(workspace), "--output", str(output), "--agent", str(agent),
                  "--model", "fixture-model", "--prompt-file", str(prompt), "--timeout", "10"]
