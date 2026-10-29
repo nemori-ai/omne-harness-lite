@@ -260,13 +260,12 @@ export function compareAugmentations(
 ): string[] {
   const { program } = openProgram(inventory, declarations)
   const own = `${realpathSync(packageDirectory)}${sep}`
-  const files = program
-    .getSourceFiles()
-    .filter(
-      file =>
-        file.fileName.startsWith(own) &&
-        !file.fileName.slice(own.length).includes(`node_modules${sep}`),
-    )
+  // The compiler names files with `/` on every platform; `resolve` gives them the separator of
+  // `realpathSync` (on Windows `D:/a/b` becomes `D:\a\b`) and leaves POSIX paths unchanged.
+  const files = program.getSourceFiles().filter(file => {
+    const path = resolve(file.fileName)
+    return path.startsWith(own) && !path.slice(own.length).includes(`node_modules${sep}`)
+  })
   const problems: string[] = []
   const listed = new Set(
     inventory.augmentations.map(item => `${item.module}\u0000${item.interface}`),
