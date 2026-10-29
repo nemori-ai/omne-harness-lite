@@ -26,8 +26,10 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource(),
     access = memoryAccess('tester')
   // The suite tests transaction semantics; the access policy is one explicit choice: only the
-  // fixture's tenant may touch a session, so the check itself refuses the other tenant (J40)
-  // before the double's tenant keying would. Tenant and system directories stay open.
+  // fixture's tenant may touch a session. The double's tenant keying refuses the other tenant as
+  // well, and J40 observes only that both answers are the same, not which one refused; the scene
+  // of participation-access.spec.ts records the check's own conclusion. Tenant and system
+  // directories stay open.
   const backend = createMemorySessionJournal({
     initialization,
     accessCheck: createPolicySessionAccessCheck(request =>

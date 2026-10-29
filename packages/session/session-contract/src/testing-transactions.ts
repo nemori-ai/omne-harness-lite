@@ -1726,8 +1726,9 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
   const history = createMemorySessionHistorySource()
   const access = memoryAccess('tester')
   // The suite tests transaction semantics; this fixture states one explicit policy: only the
-  // fixture's tenant may touch a session, so the check itself refuses the other tenant (J40)
-  // before the tenant keying of the double would. Tenant and system directories stay open.
+  // fixture's tenant may touch a session. The tenant keying of the double refuses the other tenant
+  // as well, and J40 observes only that both answers are the same, not which one refused.
+  // Tenant and system directories stay open.
   const accessCheck = createPolicySessionAccessCheck<string>(request =>
     request.target.kind === 'session' &&
     'tenant' in request.access &&
