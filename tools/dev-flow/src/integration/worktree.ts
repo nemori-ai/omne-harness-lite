@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
 import { record } from '../delivery/protocol.ts'
@@ -312,7 +312,8 @@ export function swapWorktree({
     evidence = mkdtempSync(join(tmpdir(), `omne-swap-issue-${binding.issue.number}-`))
     cpSync(source, evidence, {
       recursive: true,
-      filter: path => !/(^|\/)agents-stage[^/]*$/.test(path),
+      // cpSync hands the filter native paths, so the last segment comes from path.basename.
+      filter: path => !basename(path).startsWith('agents-stage'),
     })
   }
   step(run, 'detach old worktree', 'git', ['checkout', '--quiet', '--detach'], old)
