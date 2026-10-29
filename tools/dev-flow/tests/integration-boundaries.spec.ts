@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { afterEach, expect, it, vi } from 'vitest'
 import { init, commit, integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import { git, repository } from '../src/integration/git.ts'
 import { writeContext } from '../src/integration/context.ts'
 import { touchedBase } from '@omne-harness/repo-toolchain/loop/hook-measure'
@@ -22,7 +23,7 @@ afterEach(() => {
 function fixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   return f
 }

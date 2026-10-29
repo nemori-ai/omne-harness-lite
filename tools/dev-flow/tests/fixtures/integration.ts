@@ -1,11 +1,4 @@
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  chmodSync,
-  realpathSync,
-} from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { git } from '../../src/integration/git.ts'
@@ -13,6 +6,7 @@ import { parsePolicy } from '../../src/integration/policy.ts'
 import { BINDING_MARKERS, type TaskBinding } from '../../src/delivery/binding.ts'
 import type { Decision } from '../../src/integration/authority.ts'
 import type { Condition } from '../../src/delivery/protocol.ts'
+import { writeGh } from './gh.ts'
 
 export function commit(root: string, name: string, content: string): string {
   writeFileSync(join(root, name), content)
@@ -218,8 +212,8 @@ export function integrationFixture(
       admissionOnly: options.admissionOnly ?? false,
     }),
   )
-  writeFileSync(
-    join(bin, 'gh'),
+  writeGh(
+    bin,
     String.raw`#!/usr/bin/env node
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -418,7 +412,6 @@ if (args[1] === 'graphql') {
 process.stdout.write(JSON.stringify(result))
 `,
   )
-  chmodSync(join(bin, 'gh'), 0o755)
   function update(
     task: TaskBinding,
     conditions: Condition[] = [],

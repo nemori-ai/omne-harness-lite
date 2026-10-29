@@ -7,6 +7,7 @@ import { spawnSync } from 'node:child_process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { auditRanges } from '@omne-harness/repo-toolchain/core/task-context'
 import { commit, init, integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { contextPath } from '../src/integration/context.ts'
 import { git, repository } from '../src/integration/git.ts'
@@ -31,7 +32,7 @@ function cli(root: string, args: string[]) {
 function fixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   return f
 }

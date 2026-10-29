@@ -10,6 +10,7 @@ import type { GhCommand } from '../src/delivery/github-read.ts'
 import { contextPath, parseContext } from '../src/integration/context.ts'
 import { openIntegration, type BoardEffects } from '../src/integration/engine.ts'
 import { integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -28,7 +29,7 @@ const board = (dispatched: unknown = ['dispatchedAt', 'line'], timeZone = 'UTC')
 function fixture(config: unknown, options: { cloud?: boolean } = {}) {
   const f = integrationFixture({ board: config, admissionOnly: options.cloud ?? false })
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   f.update(f.binding, [], 'open', {
     line: 'integration',
