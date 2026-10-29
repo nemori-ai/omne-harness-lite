@@ -5,6 +5,7 @@ import { join, relative } from 'node:path'
 import { VITEST_MAX_WORKERS_ENV, type RunScript } from './config.ts'
 import type { Failure, VitestJsonReport } from './ledger.ts'
 import { readReport, spawnLogged } from './run.ts'
+import { pnpmCommand } from './support.ts'
 
 export type RerunOutcome = 'passed' | 'failed' | 'not-run'
 
@@ -107,9 +108,12 @@ async function rerun(
   // 经成员自己的脚本跑（它是 `vitest run …`，验收的那份还带着自己的配置），后面的参数原样传给 vitest。
   // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫不在场：选不中时退出码可能是 0，
   // 归类只看 JSON 报告（`outcomeOf`），没选中的记为没跑到。
+  // Windows 上 PATH 里的 pnpm 是 pnpm.cmd，Node 不经 shell 起不了；pnpmCommand 按平台给出起法。
+  const pnpm = pnpmCommand()
   const result = await spawnLogged(
-    'pnpm',
+    pnpm.command,
     [
+      ...pnpm.args,
       'run',
       script,
       relative(memberDir, join(root, failure.file)),

@@ -188,7 +188,8 @@ describe('channel stream and ownership', () => {
     removeChannelHook(ownA, a.path, gh.gh)
     expect([...gh.hooks.keys()]).toEqual([2])
     expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'deleted', hookId: 1 })
-    expect(statSync(a.path).mode & 0o777).toBe(0o600)
+    // Windows mode bits do not reflect the ACL; there the file mode is not the privacy mechanism.
+    if (process.platform !== 'win32') expect(statSync(a.path).mode & 0o777).toBe(0o600)
   })
   it('recovers a lost create response by exact persisted instance URL without another POST', () => {
     const a = saved('https://smee.io/secret-a', true),
@@ -230,7 +231,9 @@ describe('channel stream and ownership', () => {
   it('refuses insecure config, duplicate writers and corrupt logs, and never kills a stale pid', async () => {
     const a = saved('https://smee.io/borrowed')
     chmodSync(a.path, 0o644)
-    expect(() => readChannelConfig(a.path)).toThrow('insecure-config-permissions')
+    // Windows mode bits do not reflect the ACL, so the mode check does not apply there.
+    if (process.platform === 'win32') expect(readChannelConfig(a.path)).toEqual(a.config)
+    else expect(() => readChannelConfig(a.path)).toThrow('insecure-config-permissions')
     chmodSync(a.path, 0o600)
     writeFileSync(receiverPaths(a.file).pid, '99999999\n')
     const own = claimChannelReceiver(a.config)

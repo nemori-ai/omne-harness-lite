@@ -24,3 +24,8 @@ export function ghEnv(bin: string, env: NodeJS.ProcessEnv = process.env): NodeJS
   const options = env['NODE_OPTIONS']
   return { ...path, NODE_OPTIONS: `${options ? `${options} ` : ''}--import ${SHIM}` }
 }
+
+/** Sets the variables of `ghEnv` through `stub`, for cases whose own process starts gh. */
+export function stubGhEnv(bin: string, stub: (name: string, value: string) => void): void {
+  for (const [name, value] of Object.entries(ghEnv(bin))) if (value !== undefined) stub(name, value)
+}

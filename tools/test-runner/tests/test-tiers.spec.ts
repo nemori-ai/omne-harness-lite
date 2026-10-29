@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
-import { tmpdir } from 'node:os'
+import { devNull, tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
@@ -42,7 +42,8 @@ import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/cor
 
 const ROOT_DEFINITION = fileURLToPath(new URL('../../../vitest.tiers.mts', import.meta.url))
 const REPOSITORY = fileURLToPath(new URL('../../../', import.meta.url))
-const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
+// vitest 的 bin 入口本身，由当前 Node 起；`.bin/vitest` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
+const VITEST = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 
 /** vitest 命令行定义里的一个选项（cac 的 Option）：这里用到的字段。带值的选项没有 `isBoolean`。 */
@@ -283,16 +284,17 @@ describe('根上的分层定义', () => {
     const member = join(REPOSITORY, 'packages/common/json-text')
     expect(reportSlug(member)).toBe('packages__common__json-text')
     const tiers = testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '/runs/1' }, member, PLAIN)
+    // 报告路径由 path.join 拼出，期望同样按本机分隔符拼。
     expect(tiers).toMatchObject({
       reporters: [
         'default',
         'json',
         [
           expect.stringMatching(/timing-reporter\.ts$/u),
-          { outputFile: '/runs/1/packages__common__json-text.timing.json' },
+          { outputFile: join('/runs/1', 'packages__common__json-text.timing.json') },
         ],
       ],
-      outputFile: { json: '/runs/1/packages__common__json-text.json' },
+      outputFile: { json: join('/runs/1', 'packages__common__json-text.json') },
       env: { [ROOT_REPORT_DIR_ENV]: '' },
     })
     expect(testTiers('fast', { [ROOT_REPORT_DIR_ENV]: '' }, member, PLAIN)).not.toHaveProperty(
@@ -395,7 +397,8 @@ function project(files: Readonly<Record<string, string>>): string {
   writeFileSync(
     join(root, 'vitest.config.mjs'),
     [
-      `import { testTiers } from ${JSON.stringify(ROOT_DEFINITION)}`,
+      // file URL：Windows 上的绝对路径作 ESM 说明符时，盘符会被当成 URL 协议。
+      `import { testTiers } from ${JSON.stringify(pathToFileURL(ROOT_DEFINITION).href)}`,
       "export default ({ mode }) => ({ test: { ...testTiers(mode), globals: true, include: ['tests/**/*.spec.ts'] } })",
     ].join('\n'),
   )
@@ -411,8 +414,9 @@ function vitest(root: string, tier: string) {
   const env: NodeJS.ProcessEnv = { ...process.env, MARKER: marker }
   delete env[ROOT_REPORT_DIR_ENV]
   const ran = spawnSync(
-    VITEST,
+    process.execPath,
     [
+      VITEST,
       'run',
       ...(tier === '' ? [] : ['--mode', tier]),
       '--reporter=json',
@@ -440,10 +444,16 @@ function vitest(root: string, tier: string) {
   }
 }
 
+/**
+ * 夹具没拿到 MARKER 时（失败归因经成员脚本重跑，不传它）写进的空设备，写成 JS 字符串字面量。
+ * Windows 上没有 `/dev/null`（会解析成当前盘的 `\dev\null`），用 `os.devNull`。
+ */
+const NULL_DEVICE = JSON.stringify(devNull)
+
 /** 被导入时往 MARKER 文件里记一行自己的名字。 */
 const MARK = (name: string) => [
   "import { appendFileSync } from 'node:fs'",
-  `appendFileSync(process.env['MARKER'] ?? '/dev/null', ${JSON.stringify(`${name}\n`)})`,
+  `appendFileSync(process.env['MARKER'] ?? ${NULL_DEVICE}, ${JSON.stringify(`${name}\n`)})`,
 ]
 
 describe('真起 vitest：各层跑了什么、导入了什么', { timeout: 60_000 }, () => {
@@ -505,7 +515,11 @@ function vitestWith(root: string, args: readonly string[]) {
   const env: NodeJS.ProcessEnv = { ...process.env, MARKER: marker, NO_COLOR: '1' }
   delete env[ROOT_REPORT_DIR_ENV]
   delete env['FORCE_COLOR']
-  const ran = spawnSync(VITEST, ['run', ...args], { cwd: root, encoding: 'utf8', env })
+  const ran = spawnSync(process.execPath, [VITEST, 'run', ...args], {
+    cwd: root,
+    encoding: 'utf8',
+    env,
+  })
   return {
     status: ran.status,
     output: `${ran.stdout}${ran.stderr}`,
@@ -516,7 +530,9 @@ function vitestWith(root: string, args: readonly string[]) {
 /** 用例跑起来时往 MARKER 文件里记一行名字。 */
 const RAN = [
   "import { appendFileSync } from 'node:fs'",
-  "const ran = (name: string) => appendFileSync(process.env['MARKER'] ?? '/dev/null', `${name}\\n`)",
+  "const ran = (name: string) => appendFileSync(process.env['MARKER'] ?? " +
+    NULL_DEVICE +
+    ', `${name}\\n`)',
 ].join('\n')
 
 describe('真起 vitest：带过滤的运行要么选中要么失败（#737）', { timeout: 60_000 }, () => {
@@ -632,7 +648,8 @@ describe('真起 vitest：带过滤的运行要么选中要么失败（#737）',
         JSON.stringify({
           name: 'triage-fixture',
           private: true,
-          scripts: { test: `${VITEST} run` },
+          // 两段路径都加双引号：成员脚本经 shell 运行，Windows 路径里的反斜杠在引号里原样保留。
+          scripts: { test: `${JSON.stringify(process.execPath)} ${JSON.stringify(VITEST)} run` },
         }),
       )
       const failures = [

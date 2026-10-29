@@ -1,11 +1,12 @@
 // @module-tag slow
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, realpathSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { afterEach, expect, it, vi } from 'vitest'
 import { init, commit, integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import { git, repository } from '../src/integration/git.ts'
 import { writeContext } from '../src/integration/context.ts'
 import { touchedBase } from '@omne-harness/repo-toolchain/loop/hook-measure'
@@ -22,7 +23,7 @@ afterEach(() => {
 function fixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   return f
 }
@@ -220,8 +221,13 @@ it('reads the hook root and each worktree own immutable task baseline', async ()
   // Without a task context the hook falls back to the merge base with the primary branch;
   // this worktree changed no product source, so there is nothing to measure.
   expect(touchedBase(other, 'main')).toBeUndefined()
-  expect(readWorktrees(f.root, 'main')).toEqual([
-    { path: realpathSync(other), branch: 'human/other', members: ['packages/core/first'] },
+  // The sensor reports the path as `git worktree list` writes it: forward slashes and long names on
+  // Windows. resolve and the native realpath bring both sides to the platform's own form.
+  const worktrees = () =>
+      readWorktrees(f.root, 'main').map(entry => ({ ...entry, path: resolve(entry.path) })),
+    otherPath = realpathSync.native(other)
+  expect(worktrees()).toEqual([
+    { path: otherPath, branch: 'human/other', members: ['packages/core/first'] },
   ])
   const info = repository(other)
   const binding = { ...f.binding, branch: 'human/other', taskBase: newer, attempt: 'other' }
@@ -238,8 +244,8 @@ it('reads the hook root and each worktree own immutable task baseline', async ()
     operation: null,
   })
   expect(touchedBase(other, 'main')).toBe(newer)
-  expect(readWorktrees(f.root, 'main')).toEqual([
-    { path: other, branch: 'human/other', members: ['packages/core/second'] },
+  expect(worktrees()).toEqual([
+    { path: otherPath, branch: 'human/other', members: ['packages/core/second'] },
   ])
 })
 it('rejects unregistered or paused routes and comments from a different actor or revoked authority', async () => {
@@ -295,6 +301,10 @@ it('runs the actual trusted formatter on subject bytes, not its own clean source
     encoding: 'utf8',
   })
   expect(result.status).toBe(1)
-  expect(result.stdout).toContain(`Formatting subject ${f.root}`)
+  // format.sh names the subject by `git rev-parse --show-toplevel`; on Windows that is the form with
+  // forward slashes and long names.
+  expect(result.stdout).toContain(
+    `Formatting subject ${git(f.root, ['rev-parse', '--show-toplevel'])}`,
+  )
   expect(result.stderr + result.stdout).toContain('invalid.ts')
 })

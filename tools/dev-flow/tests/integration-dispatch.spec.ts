@@ -12,6 +12,7 @@ import {
 import { contextPath, parseContext } from '../src/integration/context.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -22,7 +23,7 @@ afterEach(() => {
 it('starts from the dispatch comment that post writes, prose and all', async () => {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   const dispatch = 'https://github.com/owner/repo/issues/1#issuecomment-1'
   const planned: TaskBindingV2 = {

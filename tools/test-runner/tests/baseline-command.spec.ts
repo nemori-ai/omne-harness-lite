@@ -40,7 +40,10 @@ function baseline(root: string, args: string[] = [], env: Record<string, string>
 }
 
 function bind(root: string, targetBase: string): void {
-  const gitDir = join(root, '.git')
+  // 和流程工具一样从 git 的顶层目录取真实路径：Windows 的临时目录是 8.3 短名，
+  // 对它直接 realpath 不会展开成 git 回的长名。
+  const actual = realpathSync(git(root, 'rev-parse', '--show-toplevel'))
+  const gitDir = join(actual, '.git')
   const owner = {
     issue: { url: 'https://github.com/owner/repo/issues/1' },
     revision: 1,
@@ -52,7 +55,7 @@ function bind(root: string, targetBase: string): void {
     join(gitDir, 'omne-integration-context.json'),
     JSON.stringify({
       schemaVersion: 1,
-      root,
+      root: actual,
       gitDir: realpathSync(gitDir),
       branch: 'main',
       targetBase,

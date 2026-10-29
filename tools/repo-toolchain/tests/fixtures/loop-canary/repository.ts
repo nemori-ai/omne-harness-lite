@@ -23,7 +23,8 @@ export function removeTemporaries(): void {
 }
 
 export function temporaryDirectory(prefix: string): string {
-  const path = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
+  // native：Windows 上 tmpdir() 可能是 8.3 短名（ALIENW~1），JS 版 realpath 保留它，git 报的顶层目录却是长名。
+  const path = realpathSync.native(mkdtempSync(join(tmpdir(), prefix)))
   made.push(path)
   return path
 }

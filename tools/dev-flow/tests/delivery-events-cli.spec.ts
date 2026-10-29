@@ -366,18 +366,22 @@ describe('events-receiver-cli serve', () => {
       })
     })
 
-  it('stops the legacy child on SIGHUP and preserves hooks whose ownership is unproven', async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
-    homes.push(home)
-    const bin = join(home, 'bin'),
-      state = join(home, 'hooks.json'),
-      deletions = join(home, 'deleted.log'),
-      file = join(home, 'events', 'events.jsonl')
-    mkdirSync(bin)
-    writeFileSync(state, '[1]')
-    writeGh(
-      bin,
-      `#!/usr/bin/env node
+  // Windows has no SIGHUP to deliver: Node's kill ignores the signal name there and terminates the
+  // process at once, so the receiver never runs its stop path.
+  it.skipIf(process.platform === 'win32')(
+    'stops the legacy child on SIGHUP and preserves hooks whose ownership is unproven',
+    async () => {
+      const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
+      homes.push(home)
+      const bin = join(home, 'bin'),
+        state = join(home, 'hooks.json'),
+        deletions = join(home, 'deleted.log'),
+        file = join(home, 'events', 'events.jsonl')
+      mkdirSync(bin)
+      writeFileSync(state, '[1]')
+      writeGh(
+        bin,
+        `#!/usr/bin/env node
 const fs = require('node:fs')
 const state = ${JSON.stringify(state)}
 const read = () => JSON.parse(fs.readFileSync(state, 'utf8'))
@@ -395,47 +399,51 @@ if (args[0] === 'webhook') {
   process.stdout.write(JSON.stringify([read().map(id => ({ id, name: 'cli', config: { url } }))]))
 }
 `,
-    )
-    const port = await freePort()
-    const child = spawn(
-      process.execPath,
-      [
-        '--experimental-strip-types',
-        receiverCli,
-        'serve',
-        '--mode',
-        'legacy',
-        '--port',
-        String(port),
-        '--file',
-        file,
-        '--repo',
-        'owner/repo',
-      ],
-      { env: { ...process.env, ...ghEnv(bin) }, stdio: 'ignore' },
-    )
-    const exited = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
-    try {
-      await vi.waitFor(
-        () => {
-          expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(true)
-          expect(readFileSync(state, 'utf8')).toBe('[1,7]')
-        },
-        { timeout: 10_000, interval: 50 },
       )
-      child.kill('SIGHUP')
-      expect(await exited).toBe(2)
-      expect(existsSync(deletions)).toBe(false)
-      expect(readFileSync(state, 'utf8')).toBe('[1,7]')
-      expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
-      expect(
-        JSON.parse(readFileSync(join(home, 'events', 'receiver-state.json'), 'utf8')),
-      ).toMatchObject({
-        state: 'recovery-needed',
-        hookId: null,
-      })
-    } finally {
-      child.kill('SIGKILL')
-    }
-  }, 20_000)
+      const port = await freePort()
+      const child = spawn(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          receiverCli,
+          'serve',
+          '--mode',
+          'legacy',
+          '--port',
+          String(port),
+          '--file',
+          file,
+          '--repo',
+          'owner/repo',
+        ],
+        { env: { ...process.env, ...ghEnv(bin) }, stdio: 'ignore' },
+      )
+      const exited = new Promise<number | null>(resolve =>
+        child.once('exit', code => resolve(code)),
+      )
+      try {
+        await vi.waitFor(
+          () => {
+            expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(true)
+            expect(readFileSync(state, 'utf8')).toBe('[1,7]')
+          },
+          { timeout: 10_000, interval: 50 },
+        )
+        child.kill('SIGHUP')
+        expect(await exited).toBe(2)
+        expect(existsSync(deletions)).toBe(false)
+        expect(readFileSync(state, 'utf8')).toBe('[1,7]')
+        expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
+        expect(
+          JSON.parse(readFileSync(join(home, 'events', 'receiver-state.json'), 'utf8')),
+        ).toMatchObject({
+          state: 'recovery-needed',
+          hookId: null,
+        })
+      } finally {
+        child.kill('SIGKILL')
+      }
+    },
+    20_000,
+  )
 })
