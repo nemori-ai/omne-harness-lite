@@ -103,6 +103,17 @@ def navigation_path(root: Path, path: Path) -> Path:
     return path
 
 
+def physical_path(path: Path) -> Path:
+    """The file a POSIX reader opens: each `..` leaves the directory a symlink resolves to.
+    Windows applies `..` to the spelled path before following links, so walk the parts there."""
+    if os.name == "posix":
+        return path.resolve()
+    current = Path(path.anchor)
+    for part in path.parts[1:]:
+        current = current.resolve().parent if part == ".." else current / part
+    return current.resolve()
+
+
 def local_target(source: Path, value: str, root: Path, *, resolve=True):
     if any(unicodedata.category(char) == "Cc" for char in value) or "\\" in value:
         raise ValueError(f"invalid local URI: {value!r}")
@@ -121,7 +132,7 @@ def local_target(source: Path, value: str, root: Path, *, resolve=True):
     # abspath removes dot components but retains the symlink identity for input guards.
     original = source.resolve().parent / raw if raw else source.resolve()
     target = Path(os.path.abspath(original))
-    if original.resolve() != target.resolve():
+    if physical_path(original) != target.resolve():
         raise ValueError(f"ambiguous symlink traversal: {value}")
     if not target.resolve().is_relative_to(root.resolve()):
         raise ValueError(f"link escapes checkout: {value}")
