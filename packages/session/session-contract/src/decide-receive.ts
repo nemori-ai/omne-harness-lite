@@ -1,10 +1,12 @@
 import type { SessionCommand } from './ports.ts'
 import type { WorkSnapshot } from './values.ts'
+import type { AdvanceRef } from './identity.ts'
 import type { Decision } from './judgments.ts'
 import { encodeEntry } from './entries.ts'
 import { completeEvidence, entries, invalid, originOf, rejected } from './decision-support.ts'
 import { digestOf } from './operations.ts'
 import { resultRefusal } from './decide-results.ts'
+import { equalValue } from './session-validation.ts'
 
 export function decideProducerFact(
   snapshot: WorkSnapshot,
@@ -16,6 +18,8 @@ export function decideProducerFact(
   const origin = originOf(fact.source)
   switch (fact.kind) {
     case 'agent-exit':
+      if (!startedAttempt(snapshot, fact.advance))
+        return invalid('fact.advance', 'not an attempt this session started')
       return entries([encodeEntry({ kind: 'run.attempt-exited', advance: fact.advance }, origin)])
     case 'execution':
     case 'account':
@@ -84,4 +88,19 @@ export function decideProducerFact(
       break
   }
   return entries([encodeEntry({ kind: 'control.progress', progress: null, fact }, origin)])
+}
+
+/**
+ * The exit report keeps its original association: the current advance proves run, attempt and
+ * instance. An attempt that no longer holds the advance is proved by its original SE15 in the
+ * history index, which records run and attempt only.
+ */
+function startedAttempt(snapshot: WorkSnapshot, advance: AdvanceRef): boolean {
+  const current = snapshot.run.kind === 'active' ? snapshot.run.advance : null
+  if (current !== null && current.attempt === advance.attempt) return equalValue(current, advance)
+  return (
+    snapshot.historyIndex?.attempts.some(
+      item => item.attempt === advance.attempt && item.run === advance.run,
+    ) ?? false
+  )
 }

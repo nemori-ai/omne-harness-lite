@@ -763,4 +763,56 @@ describe('the pure judgments at their edges', () => {
     })
     expect(rejected.pending).toEqual([])
   })
+
+  it('an exit report must name an attempt this session started, under its own Run and instance', () => {
+    const active = started()
+    if (active.run.kind !== 'active' || active.run.advance === null) throw new Error('no advance')
+    const { advance } = active.run
+    const exit = (snapshot: WorkSnapshot, claimed: typeof advance) =>
+      decide(
+        snapshot,
+        {
+          kind: 'receive',
+          input: {
+            ...base,
+            operation: operationId(`exit-${claimed.run}-${claimed.attempt}`),
+            fact: { kind: 'agent-exit', advance: claimed, source: evidence('exit') },
+          },
+        },
+        [],
+        null,
+        { compaction: null },
+      )
+    const forged: (typeof advance)[] = [
+      { ...advance, attempt: 'never-started' as typeof advance.attempt },
+      { ...advance, run: 'no-such-run' as typeof advance.run },
+      { ...advance, instance: { owner: 'agent', id: 'another-instance' } },
+    ]
+    for (const claimed of forged)
+      expect(exit(active, claimed)).toMatchObject({
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'fact.advance' },
+      })
+    // A late report for an attempt that no longer holds the advance stays an observation of the
+    // original Run: the history index proves the attempt started.
+    const ended = commit(active, {
+      kind: 'finishRun',
+      input: {
+        ...base,
+        operation: operationId('finish-before-exit'),
+        run: advance.run,
+        expected: active.revision,
+        bounded: { kind: 'uninterpretable', evidence: evidence('u') },
+      },
+    })
+    expect(ended.run.kind).toBe('terminal')
+    const late = exit(ended, advance)
+    expect(late.kind).toBe('entries')
+    if (late.kind === 'entries')
+      expect(late.entries.map(row => row.kind)).toEqual(['run.attempt-exited'])
+    expect(exit(ended, forged[0] ?? advance)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'fact.advance' },
+    })
+  })
 })
