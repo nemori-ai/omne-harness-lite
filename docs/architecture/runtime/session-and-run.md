@@ -37,19 +37,19 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 |---|---|---|
 | Agent | 外部协调者、提交参加者、事件消费者、恢复发现者 | [托管协调与运行实例](../../../packages/agent/agent-contract/SPEC.md#托管协调与运行实例)、[外部协调者的前提](../../../packages/agent/agent-contract/docs/context.md#外部协调者的前提) |
 | Model | 消费位置拥有者、结果承接与 ACK 的消费侧、模型选择的保存者。Session 不参加 Model 的受理点守卫 | [ACK 的前提与效果](../../../packages/model/model-contract/SPEC.md#ack-的前提与效果) |
-| Tool | 启动围栏 ToolStartAuthority 的资格版本拥有者：撤销推进资格之后调用 `invalidate`，等到失效已生效；对账与投影的读者 | [P04 实际发起围栏](../../../packages/tool/tool-contract/SPEC.md#p04-实际发起围栏)、[可靠交接与处理的两条路径](../../../packages/tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)、[接续原调用与确认自身失联](../../../packages/tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
+| Tool | 读取同日志结果与账目并形成 Session 后果；启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效 | [Agent J03](../../../packages/agent/agent-contract/SPEC.md#tool-启动围栏)、[P04 实际发起围栏](../../../packages/tool/tool-contract/SPEC.md#p04-实际发起围栏) |
 | Runtime Context | 作用域持有者、会话块的生产者、变化材料的消费者 | [Runtime Context 契约](../../../packages/context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复) |
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，其他模型事实经日志到达。Tool 的调用与控制由 Agent 按工具契约发起。Session 与 Model、Tool 只有两种关系：资格的参加（Tool 启动围栏的资格版本拥有者），以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成，Session 只读日志里的结果与账目。没有一种关系是发起调用或控制。名称与形状的翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)，它是 Session 唯一依赖邻域契约的成员。
+Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果、账目与生产者解除经 Agent 宿主结果接收方完成，Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
 
 ```mermaid
 flowchart LR
     Gov[Session 治理与会话日志] --- Adapters[Session 适配成员]
     Adapters -->|外部协调者 · 提交参加者 · 事件消费者| Agent[Agent]
     Adapters -->|对账读取| Model[Model]
-    Adapters -->|资格版本与 invalidate · 对账读取| Tool[Tool]
+    Adapters -->|只读同日志 Tool 结果与账目| Journal[Agent Journal]
     Adapters -->|作用域持有者 · 块生产者| RC[Runtime Context]
     Adapters -->|历史持有者| RQ[Request Context]
     Adapters -->|维护者发起作用域释放| EE[执行环境]
@@ -275,7 +275,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 2. 一个用例只做一次提交。跨用例的事只能由后一个用例读取前一个用例已经提交的事实。
 3. 幂等只依靠操作身份。协调器与调度器重放同一命令时带同一身份。
 4. 协调器与调度器不持有状态。它们从权威读取重建要做的事，通知只起唤醒作用。
-5. 外部效果与日志分开。对 Agent、Tool（启动资格失效）、Model 与 Tool（交付责任解除）、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。提交成功而调用未发出时，由调度器重放补发。
+5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者交付责任解除归 Agent 宿主的结果接收方，Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。
 6. 能预先算好的派生物在变化时维护。请求到达时只读取与采用。
 
 协调器读取事实后决定发出哪些命令或调用：
@@ -284,8 +284,8 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 |---|---|
 | 受理流水线 | 按受理前拓展点、受理提交、受理后拓展点的顺序处理一次到达。 |
 | Agent 推进 | 决定何时开始、续入输入和恢复 Agent 执行；在消息、压缩转换、保管与处理完成四种交接上担任 Agent 的提交参加者；按序读取同一会话日志中的 Agent 执行记录，派生承接、登记、等待、控制阶段与执行结束的治理事实，并保存读取位置。通知只起唤醒作用，不另建 Agent 权威状态。 |
-| 控制传播 | 把已保存的控制意图传到原执行，收集各生产者的实际结果。撤销推进资格之后调用 Tool 的 `invalidate`，等到失效已生效，这一步计入对账进度。全部核对后标为已对账。 |
-| 归档与级联 | 归档提交之后传播控制，并在撤销资格之后调用 Tool 的 `invalidate`；推进子会话级联，发起作用域释放，把回执作为新事实提交。 |
+| 控制传播 | 经 Agent 长期控制入口送达原执行，不先取得挂接。按原事实收集核对结果，未知保留；Tool 围栏生效归 Agent/Tool，不作为 Session 另一套失效调用的进度条件。 |
+| 归档与级联 | 归档提交后传播原控制，推进子会话级联与作用域释放，读回作为新事实提交。逻辑归档不证明 Tool 已停止或物理资源已释放。 |
 | 恢复 | 读取恢复快照，按类别把未结事项交给对应的协调器或拥有者。 |
 
 调度器只决定什么时候再检查、检查哪个会话，检查结果交给协调器：
@@ -387,7 +387,7 @@ flowchart TD
 | 结果保管与处理完成 | 模型结果由 Agent 外侧的结果接收方保存，Agent 经 Journal 记录处理完成；工具结果按原交接协议承接 | 模型结果和迟到账目经会话日志到达 Agent。Model 依据结果接收方的 saved 证据自己取得 ACK，Agent 不承担 ACK 协议。Tool 的交付责任解除仍按工具契约使用对应回执。 |
 | Agent 条件终结 | Agent | Session 参加者只读核对：有尚未交入的输入或 Run 已被取消时以冲突响应，不写 Run 终态。 |
 | 承接、调用登记、等待、控制阶段与执行结束 | Agent 经 Journal 提交执行记录 | 会话路径上记录直接进入会话日志，不另存 Agent 权威记录。Session 按已提交记录派生治理事实，Run 的完成与失败按 Agent 的结束结论成立。治理投影不能成为第二份 Agent 工作状态。 |
-| Tool 启动资格失效 | Session 先提交撤销资格，Tool 再在自己的启动排序域里使资格失效 | Session 作为 ToolStartAuthority 的资格版本拥有者调用 `invalidate`，等到 Tool 确认失效已生效。这是两次提交，顺序固定。失效生效之前，不能声称 Tool 的新发起已被阻止。 |
+| Tool 启动资格失效 | Session 提交本域资格撤销；Agent 日志的 `start-fence` 条目在 Tool 排序域生效 | 围栏归 [Agent J03](../../../packages/agent/agent-contract/SPEC.md#tool-启动围栏)。Session 不拥有另一套 Tool 资格版本，也不以本域提交或控制受理宣称 Tool 已阻止新发起。 |
 | Runtime Context 注册决定 | Session 单独一次提交 | Runtime Context 只提供材料，不参加这次提交，在提交之后应用已确认的决定。 |
 | 自动归档 | Session | 空闲输入的参加者重新核对全部范围。 |
 

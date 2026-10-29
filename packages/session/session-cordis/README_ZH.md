@@ -38,7 +38,7 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 ## 设计
 
-`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。只有事务端口与内部主体进 `inject`，其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。只有访问检查、事务端口与内部主体进 `inject`，其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

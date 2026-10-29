@@ -33,20 +33,19 @@ flowchart LR
 
 调用方类按操作授权，不按面授权。每个操作允许的调用方类见 SPEC 的[四个面与公开操作](../SPEC.md#四个面与公开操作)。调用方类是装配事实，不授予资格。
 
-Tool 宿主的协调者不导入本成员。它调用 Tool 契约定义的两个驻留端口，session-adapters 把它们翻译为本成员的操作：
+Tool 宿主经应用装配的 Reader 桥读取目标租户的常驻引用。桥接消费本域 references，保持原系统资格和显式目标租户：
 
 | Tool 一侧的调用                   | 本成员的操作 | 调用方类                           | 作用                                                                           |
 | --------------------------------- | ------------ | ---------------------------------- | ------------------------------------------------------------------------------ |
-| `ToolResidencyReader.referencing` | `references` | `maintainer`，系统作用域的读取资格 | 列出仍引用一个登记键的会话，跨租户返回，读不到时返回 `unavailable`，不返回空页 |
-| `ToolResidencyActions.freeze`     | `freeze`     | `coordinator`                      | 以 Tool 的冻结判定提交会话冻结。会话已冻结时认回原回执                         |
+| 应用装配的常驻引用桥 | `references` | `maintainer`，系统作用域读取资格；Tool 端口另带显式 tenant | 只返回目标租户的会话身份与 shape；目录或授权不可用时返回 `unavailable` |
 
-两个端口的形状与服务键归 Tool 契约的会话常驻规则，见 SPEC 的[由本组实现的 Tool 端口](../SPEC.md#由本组实现的-tool-端口)与[具名前提](../SPEC.md#具名前提与明确缺项)的 P-8。
+Reader 的形状与服务键归 Tool；桥接归应用装配，见 [P-8](../SPEC.md#具名前提与明确缺项)。Session 不提供驻留动作端口，冻结只经新 Run/reload 的候选采用材料到达。
 
 会话的 `lifecycle` 由事实归约得出，取值按优先次序为 `archived`、`initializing`、`active`、`frozen`、`dormant`。冻结不可逆，每个会话至多一次，并且独立于归档：冻结的会话可以归档，撤销归档后回到 `frozen` 或 `active`。冻结的会话不开始新 Run，也不采用新版本。冻结时未终结的 Run 不被取消，按原规则收场。规则见 SPEC 的[常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结)。
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 不发起模型调用或工具执行，也不控制它们。它对 Tool 只调用 `invalidate` 与交付责任解除（两者已被替代：整条机制撤回，围栏归 Agent 日志 `start-fence` 条目，交付责任解除归 Agent 宿主的结果接收面）。Tool 一侧没有读 Session 守卫的保护点：Session 是启动围栏的资格版本拥有者，撤销资格后经 `ToolStartFencePort`（已被替代） 调用 `invalidate`。Session 不参加 Model 的受理点守卫。
+Session 不发起模型调用或工具执行。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效。交付责任解除归 Agent 宿主的结果接收方，Session 按 [JC-Release](../SPEC.md#jc-release) 读原确认。Session 不参加 Model 的受理点守卫。
 
 ## 原消费场景的前提
 
@@ -83,7 +82,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 - 先保管：`custody` 交接，Session 参加写 SE20。
 - 生产者继续保管时先处理：`processed` 交接，Session 参加写 SE21。
 
-原生产者确认的当前到达边界见 [JC-Release](../SPEC.md#jc-release)。Tool 的合格 Agent 宿主保管/结果协调者取得原确认后，经 `AgentJournal.recordResult` 写入同一日志，Session 适配协调者读取并核对该投影，再以 `receive(release)` 保存确认。Model 的确认路径仍是具名未决 `MODEL-ACK-ARRIVAL`，无合法公开路径时保持 pending。received、材料与 saved 的同批保存不证明 ACK。EC-04 中旧 DeliveryReleasePort 步骤的同步归 #680，本页不据此增加 ACK 通道。
+原生产者确认的当前到达边界见 [JC-Release](../SPEC.md#jc-release)。Tool 的合格 Agent 宿主保管/结果协调者取得原确认后，经 `AgentJournal.recordResult` 写入同一日志，Session 适配协调者读取并核对该投影，再以 `receive(release)` 保存确认。Model 的确认路径仍是具名未决 `MODEL-ACK-ARRIVAL`，无合法公开路径时保持 pending。received、材料与 saved 的同批保存不证明 ACK。EC-04 与本页均不增加 ACK 通道。
 
 本轮完成候选经 Agent 的终态前判断与条件终结。在条件终结的提交里，Session 参加者只读核对待交输入与已生效的取消（[PA-02](../SPEC.md#pa-02)）。Run 的终态有三个入口，每个 Run 只成立一个终态，成立后不可反转：
 
@@ -107,7 +106,7 @@ sequenceDiagram
   Old->>S: Journal commits waiting; Session interprets in a later commit
   S->>S: claim or reload: new attempt, old attempt released
   S->>Old: detach when reachable
-  S->>M: Tool invalidate for the old attempt
+  Note over S,M: Tool fence follows Agent J03 in the Tool ordering domain
   S->>New: resume with recovery evidence and grant
   New->>M: inspect original call
   M-->>New: real state or unknown
@@ -146,7 +145,7 @@ sequenceDiagram
 
 主体、租户、Session、Run、attempt、原操作与当前动作的参数都显式传入。固定定义归装配，固定请求归生产者与 Agent 的执行记录。Session 只保存指向它们的耐久证据。Session 不保存接续值，只保存指向 Agent 权威记录的 `ExecutionRef`（[值与结果项的约束](../SPEC.md#值与结果项的约束)）。当前权限由参加者在提交时或实际发起点核对。
 
-本成员声明七个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`；`ToolStartFencePort` 与 `DeliveryReleasePort` 已被替代，见 SPEC「被替代的协议」）。`SessionTransactionPort` 与应用装配交付的内部主体 `SessionInternalPrincipals` 是装配的必需依赖。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`（[构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口)）。调度策略是 `session` 工厂的配置，不进本成员。Context 与 Fiber 不进入这份业务数据契约。
+本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`）。`SessionAccessCheck`、`SessionTransactionPort` 与内部主体是必需依赖；访问检查仅有新契约，源码尚未实施。其余端口按调用现取，缺席只使需要它的操作不可用，见[端口表](../SPEC.md#构造依赖端口与出站端口)。Context 与 Fiber 不进入业务数据契约。
 
 本成员没有公开的 `append(events)`，也没有直接修改推进布尔值的方法。同日志中由 EC-01 解释的 Agent 事实须经精确 schema、执行身份与序号核对。未知 JSON 不能得到可信结论。生产者事实同样核对原来源，任意调用方不能自报工具完成或 Model ACK。
 

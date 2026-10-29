@@ -4,6 +4,8 @@
 
 Session 的纯契约成员，不依赖 Cordis。
 
+SessionAccessCheck 已由新契约定义，公开类型、替身与执行边界尚未实施，不属于现有源码支持。
+
 ## 职责与状态
 
 本成员拥有 Session 治理的公开契约：工作、管理、对账、历史四个调用方面；构造时由提供者提供的依赖端口，以及 Session 向外调用的出站端口；会话日志的事件目录；纯领域服务的签名、决定函数 `decide` 与归约函数 `reduce`；块声明 `session.modes`。
@@ -20,7 +22,6 @@ Session 的纯契约成员，不依赖 Cordis。
 | `judgeAdvance`、`routeInput`、`judgeRunStart`、`openWork`、`judgeCompletion`、`resolveOperation`                                                                                                                                                                                                                                 | 已实现                                                                       | `src/judgments.ts`                        |
 | `resolveControlScope`、`judgeIdle`、`resolveCascade`                                                                                                                                                                                                                                                                             | 已实现为纯判定                                                               | `src/judgments.ts`                        |
 | `./testing`：`SessionTransactionPort` 的一致性套件与非耐久替身，身份桥、证据桥、Context 输入、时钟、空闲输入、通知、推进与作用域释放的套件和替身                                                                                                                                                                                 | 已导出；替身通过套件                                                         | `src/testing*.ts`                         |
-| `ToolStartFencePort`、`DeliveryReleasePort`、`ControlProgress.startFence`、`start-fence` 与 `agent-event` 事实                                                                                                                                                                                                                   | 已被替代，不声明                                                             | [SPEC 被替代的协议](SPEC.md#被替代的协议) |
 
 未验证：耐久、跨进程并发、对真实存储的恢复、真实身份源与时钟。替身只在内存里证明判定。
 

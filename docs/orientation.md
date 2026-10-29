@@ -142,20 +142,21 @@ flowchart LR
 - 虚线是运行时交付。Model 和 Tool 按受理时保存的 `ConsumerRef` 交付结果。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存它，不解释它的业务含义。所以运行时有箭头，源码上没有 Model 到 Agent 的依赖。Agent 到 Session 的虚线是 session-adapters 的两个插件在运行时接收 Agent 的事件与提交参加。
 - 末端带叉、标着 `DIR-*` 的线是被禁止的源码依赖。前五条是反向依赖：契约层不得认识外层的状态、生命周期或治理。后两条（`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`）禁止 Session 的两个契约成员导入 Model 或 Tool 的契约成员，类型导入也算；session-adapters 与 session-cordis 不在其中，两者对 Model、Tool 的限制仍靠评审，见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。
 
-Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。[会话与工作](domains/sessions-and-work/README.md#协作与依赖)写两者之间有两种关系：资格的参加，即 Session 是 Tool 启动围栏的资格版本拥有者；以及恢复对账时的查询与内容读取。结果、账目与交付解除经 Agent 宿主的结果接收方完成。
+Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结果、账目与生产者解除经 Agent 宿主结果接收方完成；Session 读取同日志并提交本域后果。Tool 启动围栏归 Agent J03 的 start-fence 条目，在 Tool 排序域生效。
 
 | 状态 | 元素 |
 | --- | --- |
-| 已接受正文 | 除下三行以外的全部元素与关系，包括 Tool、执行环境、`toolRuntime` 与 `toolEnvironments`。首条路径的发行层不含工具与执行环境的行。 |
+| 已接受正文 | 除下表具名状态以外的全部元素与关系，包括 Tool、执行环境、`toolRuntime` 与 `toolEnvironments`。首条路径的发行层不含工具与执行环境的行。 |
 | 首条路径已装载（图中蓝底） | Session、Agent、Model；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
-| 已知冲突待裁 | Session 一侧作 Model 消费者拥有者（K-05） |
-| 已裁定待写回 | Session 契约里按被替代端口写的步骤（K-04）；三条流表中 Agent `stream` 事件一行 |
+| 已写回，仍有具名缺口 | Session 只读同日志结果与账目（K-05）；应用装配页与 Model ACK 到达路径仍待其拥有者处理 |
+| 已写回 | Session 契约与本卡范围内消费者的旧步骤（K-04）；范围外指南仍待同步，见下文 |
+| 已裁定待写回 | 三条流表中 Agent `stream` 事件一行 |
 
 冲突的家是承接卡与拥有者正文。本页只转述，并给出承接卡，不替拥有者裁定。
 
-- K-04，已裁定待写回。[Session 契约](../packages/session/session-contract/SPEC.md)仍在操作步骤里按 `ToolStartFencePort` 与 `DeliveryReleasePort` 两个被替代的端口写，只加了「已被替代」标记。同页[被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)给出替代拥有者：Tool 启动围栏是 Agent 日志的 `start-fence` 条目，交付责任解除经 Agent 宿主的结果接收方发出。具名承接 [#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)、[#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)。
+- K-04，已写回。[Session 契约](../packages/session/session-contract/SPEC.md#被替代的协议)与本卡范围内消费者已移除旧端口步骤。启动围栏归 Agent 日志 `start-fence`，在 Tool 排序域生效；生产者解除归 Agent 宿主结果接收方，Session 依 [JC-Release](../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。session-adapters README 仍有过期插件/驻留说明，绑定范围外，未在本卡同步；应用装配归 [#789](https://github.com/nemori-ai/omne-harness-lite/issues/789)。新访问检查源码及生产运行尚未交付，不能把本次正文同步当作运行完成。
 - 三条流表中 Agent `stream` 事件一行，已裁定待写回。[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)表中这一行写 Agent 的 `stream` 事件转发生产者已保管的批次，给观察者统一入口。[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)的 J04 写观察者经观察端口直接观察生产者，Agent 只写 `stream-reference` 条目，收窄 `stream` 分支归 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)。
-- K-05，已知冲突待裁。[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)的 AD-05 写本插件是 Session 作为 Model 消费者拥有者的一侧，做账目与收场读取，并给出 ACK 的翻译依据。应用装配装载 `session-ad05` 行，它 `inject` 了 `modelRuntime`。[产品包组织](package-organization.md#依赖方向与cordis集成)的来源职责表写 Session 的邻域适配不直接依赖 Model 操作契约做交付解除。[会话与工作](domains/sessions-and-work/README.md#协作与依赖)写结果、账目与交付解除经 Agent 宿主的结果接收方完成，Session 只读日志里的结果与账目。[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680) 承接其中一部分，其余待裁。
+- K-05，日志消费责任已写回。[AD-05](../packages/session/session-adapters/SPEC.md#ad-05) 现按 #756 只读同日志，AD-06 按 #680 同样只读 Tool 日志。Tool release 确认仍由 AD-05 按 JC-Release 投影。尚未闭合的是 [应用装配页](architecture/runtime/application-assembly.md#插件树) 的 `session-ad05` 旧依赖，以及 MODEL-ACK-ARRIVAL 的合法到达路径；Model 未确认时保持 pending，扫描只报告。应用装配改写归 #789，ACK 由原拥有者裁定。
 
 出处如下。
 
@@ -281,7 +282,7 @@ flowchart TB
 | --- | --- |
 | 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace、工具 runtime 与执行环境不在首条路径的发行层里（图中虚线框）。 |
 | 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、runtime-context、request-context、storage |
-| 已知冲突待裁 | session-adapters 中装载的 `session-ad05` 行（K-05，见[核心四项的方向](#核心四项的方向)）。它在插件树里已装载，与方向表的冲突尚未裁定。 |
+| 已写回，装配页待同步 | K-05 的 AD-05/06 日志消费责任已写回；`session-ad05` 装配行及 Model ACK 缺口见[核心四项的方向](#核心四项的方向)，不能据本图声称运行接线完成 |
 | 已裁定待写回 | 无 |
 
 出处如下。

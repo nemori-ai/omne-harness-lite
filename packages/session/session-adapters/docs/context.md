@@ -34,9 +34,8 @@ flowchart LR
 | --- | --- | --- |
 | session-cordis | 按调用经 `ctx.get` 现取出站端口与构造依赖端口，交给 `session` 的协调器 | [SPEC 的出站端口](../SPEC.md#出站端口的实现) |
 | Agent 的执行记录提供者 | 在共同提交里调用 Session 参加者 | [AD-01](../SPEC.md#ad-01) |
-| Agent 的请求准备 | 调用 `agentModelSelection` | [AD-07](../SPEC.md#ad-07) |
+| Agent 会话路径 | 调用消息准入与当前条件两个提供者；模型选择由应用装配适配 | [J06](../SPEC.md#j06-会话路径的两个-agent-提供者) |
 | Request Context 的组装 | 经 `HistorySource` 读会话历史 | [AD-04](../SPEC.md#ad-04) |
-| Tool 宿主的协调者 | 经两个驻留端口查询引用与提交冻结 | [AD-13](../SPEC.md#ad-13) |
 | 应用装配者 | 选择插件、交入恢复授权、写 owner 声明 | 本页与 [cordis.md](cordis.md) |
 
-Session 对六个邻域担任的通用角色见系统页的[邻域角色](../../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。本成员是这些角色在代码中的唯一位置。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。本成员与 Model、Tool 之间只有三种关系：资格的参加、消费侧的确认与账目、对账时的查询与内容读取。
+Session 对六个邻域担任的通用角色见系统页的[邻域角色](../../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。本成员是这些角色在代码中的唯一位置。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。本成员读取同日志的 Model/Tool 结果与账目。原生产者的读取与交付解除归 Agent 宿主结果接收方；Model ACK 仍未决，见 [JC-Release](../../session-contract/SPEC.md#jc-release)。

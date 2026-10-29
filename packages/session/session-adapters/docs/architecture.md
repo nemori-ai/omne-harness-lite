@@ -30,9 +30,9 @@ Session 认识全部邻域，邻域都不认识 Session（[五个锚点](../../s
 ```mermaid
 flowchart LR
   subgraph Adapters[session-adapters]
-    In[入站插件<br/>AD-01 至 AD-08、AD-13]
+    In[入站插件<br/>AD-01 至 AD-06、AD-08 与 J06 提供者]
     Ports[构造依赖端口实现<br/>AD-09 至 AD-12]
-    Out[出站端口实现<br/>AD-14 至 AD-17]
+    Out[出站端口实现<br/>AD-14、AD-15]
     Tr[翻译函数<br/>模式翻译表、身份编码]
   end
   In --> Tr
@@ -50,7 +50,7 @@ flowchart LR
 | --- | --- | --- |
 | 入站插件 | 订阅、句柄、上一份快照、前缀摘要缓存。都是派生物 | `session-contract` 类型；`session-cordis-contract` 的键与增补；邻域的契约与服务定义 |
 | 构造依赖端口实现 | 无业务状态 | 同上，不调用 `session` 的写操作 |
-| 出站端口实现 | 执行句柄；Tool 释放操作引用的对应；恢复授权的引用（由装配交入） | 同上 |
+| 出站端口实现 | 执行句柄；恢复授权的引用（由装配交入） | 同上 |
 | 翻译函数 | 无。纯函数 | 只依赖两方的类型 |
 
 依赖方向：
@@ -79,15 +79,15 @@ flowchart LR
 
 ### 每个插件一个调用方类
 
-调用方类是对象形式 `inject` 的 intercept 配置。一个插件对一个服务键只有一份配置。所以一项适配需要两个调用方类时，拆成两个插件，例如 AD-13 的读取与动作、AD-03 的回放子插件。代价是多一个 fiber。好处是调用方类的核对保持简单，错误的组合在装配时就能看到。
+调用方类是对象形式 `inject` 的 intercept 配置。一个插件对一个服务键只有一份配置。所以一项适配需要两个调用方类时，拆成两个插件，例如 AD-03 的持有者与回放子插件。代价是多一个 fiber。好处是调用方类的核对保持简单，错误的组合在装配时就能看到。
 
 ### 翻译是确定的纯函数
 
 身份编码与模式翻译不读时间、随机数或连接。崩溃前后同一意图得到同一邻域身份，所以邻域能认回原操作，本成员不必保存映射表。模式翻译在模式变化时算好，热路径只读取结果，不在请求时求值。
 
-### 交付责任解除按生产者分派
+### 原生产者确认只从日志投影
 
-Session 只给出一个 `DeliveryReleasePort`，参数不含 Model 或 Tool 的类型。AD-17 按 `ProducedResult.producer` 分派到 Model 的 ACK 或 Tool 的交付释放，翻译表留在 AD-05 与 AD-06。理由：生产者的契约变化只改对应的消费适配，出站端口与 Session 的重发规则不变。代价是 AD-17 同时依赖 `modelRuntime` 与 `toolRuntime`，任一缺席时端口缺席，`release` 保持 pending 直到恢复协调重发。Tool 缺席期间 Model 的 ACK 也停，Model 一侧未确认结果的保留量随之增长；Model 契约是否给这类保留设上界未定，是本成员的设计限制，交 Model 契约拥有者确认。
+生产者解除由 Agent 宿主的结果接收方发出。Tool 原确认经 AgentJournal.recordResult 保存在同一日志，AD-05 按 [JC-Release](../../session-contract/SPEC.md#jc-release) 核对并提交 receive(release)。AD-06 只解释 Tool 收场与账目。Model ACK 缺少合法公开到达路径时保持 pending。Session 不维护另一份释放映射，也不以 saved 冒充 ACK。
 
 ### 结果对应写成封闭表
 
@@ -95,7 +95,7 @@ Session 只给出一个 `DeliveryReleasePort`，参数不含 Model 或 Tool 的�
 
 ### 派生物可丢
 
-上一份快照、前缀摘要、执行句柄与 Tool 释放操作引用只在进程内保存。丢失时，插件取完整快照、重读、以 `resume` 取得新句柄，或按交付状态认回已有释放。这样本成员没有需要迁移或恢复的存储，重启后的正确性只依赖会话日志与邻域的公开读。代价是重启后第一份变化提醒不带前值。
+上一份快照、前缀摘要与执行句柄只在进程内保存。丢失时取完整快照、重读或以 `resume` 取得新句柄。已提交事实与原生产者确认从同一日志恢复；完整 Tool 收场材料缺席则 unavailable，保留任务。
 
 ### 缺口不靠发明补齐
 
@@ -107,7 +107,7 @@ Session 只给出一个 `DeliveryReleasePort`，参数不含 Model 或 Tool 的�
 | --- | --- | --- |
 | 单一职责 | 一个插件只适配一个邻域的一种角色。翻译函数只翻译，不判断允许或拒绝 | 在插件里写 `judgeAdvance` 之类的规则；一个插件同时担任历史持有者与生产者消费侧 |
 | 开闭 | 新的入站邻域是一个新插件，不改 `session-contract`。邻域契约新增操作时，只改对应插件与它的对应表。新增出站方向时，先在 `session-contract` 加出站端口接口，再在本成员加实现 | 为接入新邻域而改 `session-contract` 的命令；在 `session` 里直接导入邻域契约 |
-| 里氏替换 | 每个端口实现与替身返回同一组结果种类。替身不返回真实实现不会给出的结局 | `ToolStartFencePort` 的替身返回 `pending`，而真实实现从不产生它 |
+| 里氏替换 | 每个端口实现与替身返回同一组结果种类 | 用空页或默认允许冒充 unavailable |
 | 接口隔离 | 插件只注入它用到的邻域服务，只以它需要的调用方类调用 `session` | 一个插件注入全部邻域服务，以 `maintainer` 做所有事 |
 | 依赖倒置 | 出站与构造依赖端口的接口在 `session-contract`，键在 `session-cordis-contract`，实现在本成员 | 由本成员定义 Session 端口的形状或服务键 |
 

@@ -2,7 +2,7 @@
 
 本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-现状：`src/cordis.ts` 导出下文的服务定义，`src/index.ts` 只重导出契约类型。被替代的两个端口键不定义，见[被替代的协议](../../session-contract/SPEC.md#被替代的协议)。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已导出原有十个依赖键，根入口只重导出契约类型。新契约另要求 `sessionAccessCheck`，其抽象类、服务键与源码接线尚未实施。下表把现有键与新契约要求分开说明，不能据此调用尚未导出的定义。机制事实按 Cordis 4.0.4 核对。
 
 ## 服务定义
 
@@ -39,10 +39,11 @@ export const inject = {
 
 ## 端口服务键
 
-七个构造依赖端口、两个出站端口与内部主体各有一个服务键，共十个；下表另列两个已被替代、不再定义的键。接口归 `session-contract`；键与抽象类归本成员；抽象类名为端口名加 `Service`，`static readonly provide` 只在定义类声明（性质 3）。
+新契约要求八个构造依赖端口、两个出站端口与内部主体，共十一个依赖键。现有源码为十个；差额是访问检查。接口归 `session-contract`，键与抽象类归本成员。
 
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
+| `sessionAccessCheck` | `SessionAccessCheck` | 授权适配器 | 新契约必需依赖，进 `inject`；缺席时 `PENDING`。源码尚未实施 |
 | `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 进 `inject`，与内部主体同为必需依赖。缺席时 Session 服务停在 `PENDING` |
 | `sessionPrincipals` | `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体 | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
 | `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 按调用现取。缺席时变更操作返回 `unavailable`，读取照常 |
@@ -52,15 +53,13 @@ export const inject = {
 | `sessionContextInput` | `SessionContextInput` | session-adapters | 按调用现取。缺席时创建、声明修改与推进采用返回 `unavailable` |
 | `sessionNotifier` | `SessionNotifier` | 应用装配或 session-cordis | 每次提交后现取。缺席或失败不回滚提交 |
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
-| `sessionDeliveryRelease`（已被替代） | `DeliveryReleasePort`（已被替代）：向 Model 或 Tool 发出交付责任解除 | session-adapters | 按调用现取。缺席时结果的 `release` 保持 pending，恢复协调按 `pending(release)` 找回后重发 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
-| `sessionToolStartFence`（已被替代） | `ToolStartFencePort`（已被替代）：请 Tool 让启动资格失效并读回是否已生效 | session-adapters | 按调用现取。缺席时控制进度保持传播中，启动资格失效任务保留，不声称新发起已被阻止 |
 
-事务端口与内部主体进 `inject`：没有事务端口任何读写都不成立，没有内部主体本组的协调器与调度器不能提交命令。内部主体是应用装配交付的运行时对象，按 [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 经服务键 `sessionPrincipals` 提供，不放进插件配置。其余端口按调用用 `ctx.get` 现取，使一个端口缺席只影响需要它的操作，不让整个服务停下（[ctx-property-is-not-ctx-get](../../../../.meta_harness/design/basis/cordis/ctx-property-is-not-ctx-get.md)）。各端口缺席时的契约表现以 [session-contract SPEC](../../session-contract/SPEC.md) 的端口表为准。
+访问检查、事务端口与内部主体进 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查的源码和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
 
 出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
 
-Tool 宿主协调者调用的 `ToolResidencyReader` 与 `ToolResidencyActions` 不在上表。它们是 Tool 声明的端口，形状与服务键归 Tool 契约，session-adapters 以本组的 `references` 与 `freeze` 实现并登记提供者（[由本组实现的 Tool 端口](../../session-contract/SPEC.md#由本组实现的-tool-端口)）。
+Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 `references`。Session 组不提供驻留动作端口，冻结判定经候选采用路径交回，见[常驻工具与会话冻结](../../session-contract/SPEC.md#常驻工具与会话冻结)。
 
 ## 事件
 
@@ -79,7 +78,7 @@ Tool 宿主协调者调用的 `ToolResidencyReader` 与 `ToolResidencyActions` �
 | 依赖方 | 怎样依赖 | 换代或缺席时 |
 | --- | --- | --- |
 | 调用方插件 | 对象形式 `inject: { session: { caller } }`，用定义包导出的键常量或字符串字面量（[IC-8](../../../../docs/architecture/cordis-integration-conventions.md#ic-8)） | 提供者换代时插件体先卸载再重跑（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。在途操作按原操作身份认回，不因重跑换身份 |
-| 端口提供插件 | `extends` 对应的端口抽象类，不另写键 | 事务端口卸载时 Session 服务停在 `PENDING`；其他端口卸载时只有需要它的操作返回 `unavailable`。已提交的业务事实不变 |
+| 端口提供插件 | `extends` 对应的端口抽象类，不另写键 | 访问检查、事务端口或内部主体卸载时 Session 服务停在 `PENDING`；其他端口卸载时只有需要它的操作返回 `unavailable`。已提交的业务事实不变 |
 | 只监听唤醒的一方 | 不 `inject`。用 `ctx.on` 监听事件，类型增补用 `import type {} from '@omne-harness/session-cordis-contract/cordis'` 取得（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)） | 提供者不在场时没有唤醒。正确性不依赖唤醒 |
 | 提供者 [session-cordis](../../session-cordis/docs/cordis.md) | `extends SessionService`，不另写键，不自己 `ctx.provide` 这个键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)） | 不适用 |
 | 只需要契约类型的包 | 从 [session-contract](../../session-contract/README.md) 根入口 `import type`。不需要本成员 | 不适用 |
@@ -119,4 +118,4 @@ Tool 宿主协调者调用的 `ToolResidencyReader` 与 `ToolResidencyActions` �
 
 本成员自己验证：根入口没有运行导出，也不导入 `@deepseek-ai/cordis`；`./cordis` 不导入任何提供者（性质 7）；每个导出的键常量等于对应抽象类的 `provide`。
 
-继承这些定义的提供者验证：两个调用方类的插件各取到自己的配置，调用方类不在操作允许的范围内时被拒绝；事务端口缺席时服务停在 `PENDING`，其他端口缺席只影响需要它的操作，通知能力缺席不阻止提交；事件载荷不含正文。这些义务归 [session-cordis](../../session-cordis/docs/cordis.md)。
+继承这些定义的提供者验证：两个调用方类的插件各取到自己的配置，调用方类不在操作允许的范围内时被拒绝；访问检查、事务端口或内部主体缺席时服务停在 `PENDING`，其他端口缺席只影响需要它的操作，通知能力缺席不阻止提交；事件载荷不含正文。这些义务归 [session-cordis](../../session-cordis/docs/cordis.md)。

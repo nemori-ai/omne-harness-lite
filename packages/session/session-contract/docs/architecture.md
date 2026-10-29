@@ -12,7 +12,7 @@
 | 值与身份 | 品牌身份（`SessionId`、`RunId`、`AttemptId`、`InputId`、`ResidentKey` 等）、`WorkSnapshot`、`RunState`、`ExecutionRef`、`Consumption`、`CommitReceipt`、`SessionFailure` 与各操作的结果联合 | [公开入口](public-api.md#值当前工作与原位置)、[值与结果项的约束](../SPEC.md#值与结果项的约束) |
 | 四个面 | `SessionWork`、`SessionManagement`、`SessionReconciliation`、`SessionHistory` 的接口，以及聚合它们的 `SessionFaces<P>`；调用方类的取值 | [四个面与公开操作](../SPEC.md#四个面与公开操作) |
 | 会话侧的常驻工具与冻结 | 常驻集合的值（`ResidentTool`）、冻结状态（`SessionFrozen`）、冻结命令 `freeze` 与它的入参 `FreezeVerdict`、引用查询 `references` 与它的结果 `ResidentReference` | [常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结) |
-| 端口接口 | 七个构造依赖端口与两个出站端口（已被替代的两个只保留标记；`AgentDrivePort`、`ToolStartFencePort`（已被替代）、`DeliveryReleasePort`（已被替代）、`ScopeReleasePort`） | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
+| 端口接口 | 八个构造依赖端口与两个出站端口 `AgentDrivePort`、`ScopeReleasePort`。新增访问检查尚未实施 | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
 | 领域服务与归约 | 九个领域服务、`decide`、`reduce`，以及两个操作身份派生函数 `deriveSessionOperation` 与 `deriveDriveOperation` | [领域服务与归约](../SPEC.md#领域服务与归约)、[OP-00](../SPEC.md#op-00) |
 | 事件目录 | 条目的 `kind` 与载荷 `schema`，以及按批次解释版本解释条目的规则 | [事件目录](object-model/session-log-events.md#原生事实类别)、[事件来源与日志准入](../SPEC.md#事件来源与日志准入) |
 | 块声明 | `session.modes` 的声明值 `sessionModesBlock` | [会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点) |
@@ -26,7 +26,7 @@
 - 邻域名称与形状的翻译、入站适配插件与出站端口的实现归 [session-adapters](../../session-adapters/SPEC.md)。
 - 存储介质、权威表与读路径归 [session-storage-sql](../../session-storage-sql/README.md)。
 - Agent 的执行状态、检查点与接续值归 Agent。本成员只定义指向它们的 `ExecutionRef`。
-- 两个驻留端口 `ToolResidencyReader` 与 `ToolResidencyActions` 归 Tool：形状与服务键由 Tool 契约定义，实现由 session-adapters 用 `references` 与 `freeze` 提供。会话常驻规则、同形判据与冻结判定也归 Tool 契约。本成员只定义会话一侧的操作与值，见[由本组实现的 Tool 端口](../SPEC.md#由本组实现的-tool-端口)。
+- 常驻工具桥接归应用装配。Tool 的读取端口带显式 tenant 消费 `references`；冻结判定经候选采用材料交回。Session 组不提供驻留动作端口，见[常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结)。
 
 ## 依赖方向
 
@@ -45,7 +45,7 @@ flowchart LR
 
 本组其他五个成员都依赖本成员，本成员不反向依赖它们。出站端口的接口在本成员声明：Session 用自己的值说明它需要邻域做什么。邻域契约的翻译只在 session-adapters 里发生。所以邻域契约变化时，本成员不变。
 
-两个驻留端口的方向相反：Tool 声明它需要什么，session-adapters 按 Tool 的形状实现。本成员不导入这两个端口的类型。Tool 宿主也不导入本成员。
+常驻引用桥由应用装配依赖 Tool Reader 契约与 Session 的 references，显式限定目标 tenant。冻结判定经候选采用路径交回；Session 不导入 Tool 端口类型，也不提供驻留动作端口。
 
 当前 `package.json` 没有运行依赖。实现时按公开入口的实际导入补齐依赖，范围不超出公共值成员。
 
@@ -70,7 +70,7 @@ flowchart LR
 | 开闭 | 新的控制种类、派生消息、恢复任务类型与事实种类是联合类型与事件目录的新变体。新的入站邻域只增加一个适配插件，本成员不变。新的出站方向在本成员增加一个出站端口接口，这是唯一允许的结构性扩展 | 为接入一个入站邻域而修改本成员的类型；改变已有 `kind` 的含义或复用旧 `kind` |
 | 里氏替换 | 端口接口规定完整结局集合，包括 `unavailable`、`commit-unknown` 与 `changed`。替身与真实实现都只能在这些结局里返回 | 接口只写成功形状，使替身省略未知或冲突结局 |
 | 接口隔离 | 四个面按调用方切分。`SessionHistory` 没有变更操作。`SessionWork` 不含 `create`。调用方类按操作授权 | 一个包含全部操作的面；读取者能取得写入操作 |
-| 依赖倒置 | 出站端口的参数只含本成员的值与不透明证据，不出现 Agent、Tool 或执行环境的类型。Tool 需要的两个驻留端口由 Tool 声明，本成员只提供 `references` 与 `freeze`，由 session-adapters 翻译 | 在本成员导入邻域契约的类型；在端口参数里携带 Agent 的接续值；在本成员声明 `ToolResidencyReader` 或 `ToolResidencyActions` |
+| 依赖倒置 | 出站端口只含本域值与不透明证据。常驻引用由应用装配桥接，候选采用交回冻结判定 | 在本成员导入邻域契约，或将邻域运行对象写入本域端口 |
 
 ## 当前设计限制
 

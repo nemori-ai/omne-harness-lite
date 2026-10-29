@@ -4,6 +4,8 @@
 
 The pure contract member of Session. It has no Cordis dependency.
 
+SessionAccessCheck is defined by the new contract. Its public types, test double, and execution wiring are not implemented yet.
+
 ## Responsibility and status
 
 This package owns the public contract of Session governance. It defines four caller faces: work, management, reconciliation, and history. It defines the ports that a provider supplies for construction, and the ports that Session calls outward. It defines the event catalog of the session log. It defines the signatures of the pure domain services, the decision function `decide`, and the reduction function `reduce`. It defines the block declaration `session.modes`.
@@ -20,7 +22,6 @@ Status: contract member. The [SPEC](SPEC.md) states which parts come from techni
 | `judgeAdvance`, `routeInput`, `judgeRunStart`, `openWork`, `judgeCompletion`, `resolveOperation`                                                                                                                                                                                                                                                              | Implemented                                                                                                 | `src/judgments.ts`                                 |
 | `resolveControlScope`, `judgeIdle`, `resolveCascade`                                                                                                                                                                                                                                                                                                          | Implemented as pure judgments                                                                               | `src/judgments.ts`                                 |
 | `./testing`: the `SessionTransactionPort` suite, its non-durable double, suites and doubles for identity, evidence, Context, clock, idle input, notification, drive and scope release                                                                                                                                                                         | Exported; the double passes the suite                                                                       | `src/testing*.ts`                                  |
-| `ToolStartFencePort`, `DeliveryReleasePort`, `ControlProgress.startFence`, the `start-fence` and `agent-event` facts                                                                                                                                                                                                                                          | Superseded, not declared                                                                                    | [SPEC, superseded protocols](SPEC.md#被替代的协议) |
 
 Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
 

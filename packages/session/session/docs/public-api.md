@@ -26,9 +26,9 @@
 
 ```ts
 import type {
-  SessionTransactionPort, SessionIdentityBridge, SessionEvidenceBridge, SessionClock,
+  SessionAccessCheck, SessionTransactionPort, SessionIdentityBridge, SessionEvidenceBridge, SessionClock,
   SessionIdleInput, SessionContextInput, SessionNotifier,
-  AgentDrivePort, ToolStartFencePort, DeliveryReleasePort, ScopeReleasePort,
+  AgentDrivePort, ScopeReleasePort,
   SessionFaces, SessionCallerClass, SessionInternalPrincipals, SessionId, SessionRevision, DurableEvidence,
   RoutedInput, WorkSnapshot, GuardCommand, Reply,
 } from '@omne-harness/session-contract'
@@ -53,7 +53,8 @@ export type BeforeAdmitSlot = Readonly<{
 }>
 
 export type SessionDependencies<P> = Readonly<{
-  /** The only start condition. */
+  /** Required dependencies. The access-check contract is not implemented yet. */
+  accessCheck: SessionAccessCheck<P>
   transactions: SessionTransactionPort<P>
   identity: SessionIdentityBridge<P>
   evidence: SessionEvidenceBridge
@@ -63,8 +64,6 @@ export type SessionDependencies<P> = Readonly<{
   /** Resolved after each durable commit. */
   notifier: Current<SessionNotifier>
   agentDrive: Current<AgentDrivePort>
-  startFence: Current<ToolStartFencePort>
-  deliveryRelease: Current<DeliveryReleasePort>
   scopeRelease: Current<ScopeReleasePort>
   /** Principals for commands that coordinators and schedulers issue. The identity bridge verifies them. */
   principals: SessionInternalPrincipals<P>
@@ -77,9 +76,11 @@ export type SessionDependencies<P> = Readonly<{
 
 | 类 | 字段 | 怎样传入 | 缺席或失败时 |
 | --- | --- | --- | --- |
-| 启动条件 | `transactions`、`principals` | 直接传入实现与主体 | 任一缺席时不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
+| 启动条件 | `accessCheck`、`transactions`、`principals` | 直接传入实现与主体 | 任一缺席时不构造实例。经 Cordis 时服务停在 `PENDING`，见 [session-cordis](../../session-cordis/README.md) |
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
-| 按调用现取 | `notifier`、`agentDrive`、`startFence`、`deliveryRelease`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
+| 按调用现取 | `notifier`、`agentDrive`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | 通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
+
+公开面与直接事务入口均按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 在实际执行处检查一次，不缓存 allowed。拒绝、不可用或抛错不继续执行。同一公开调用内部委派不重复检查，存储只核租户键与可信裁定证据。新访问类型、工厂接线与运行验证尚未实施。
 
 `principals` 是本成员内部动作使用的主体。协调器以 `coordinator` 调用方类、调度器与恢复以 `maintainer` 调用方类提交命令时，带上对应的主体，由身份桥核实它的可信来源。主体由应用装配的维护拥有者签发，本成员不铸造主体。
 
@@ -101,7 +102,6 @@ export type SchedulingPolicy = Readonly<{
   cascade: Readonly<{ intervalMs: number; maxDrives: number }>
   /** prewarm stays false until the Agent host instance-creation entry exists (contract P-7). */
   preEvaluation: Readonly<{ concurrency: number; prewarm: false }>
-  deliveryRelease: Readonly<{ retryIntervalMs: number; maxAttempts: number }>
   boundedRecovery: Readonly<{ maxInspectAttempts: number; retryIntervalMs: number }>
   cache: Readonly<{ entryBudgetBytes: number; snapshotSessions: number }>
 }>

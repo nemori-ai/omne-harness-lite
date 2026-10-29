@@ -4,6 +4,8 @@
 
 Session 的 Cordis 定义成员，`service-contract` 变体。
 
+新契约已定义 `sessionAccessCheck` 必需依赖；抽象类、键与源码接线尚未实施，不属于下表的现有导出。
+
 ## 职责与状态
 
 本成员只拥有 Session 这一接缝的 Cordis 定义，由这些部分组成：服务键 `session`、抽象类 `SessionService`、端口服务键、intercept 配置 `{ caller }`，以及唤醒事件 `session-cordis-contract/committed`。
@@ -18,7 +20,6 @@ Session 的 Cordis 定义成员，`service-contract` 变体。
 | 十个端口 Service 与键：`sessionTransactions`、`sessionPrincipals`、`sessionIdentity`、`sessionEvidence`、`sessionClock`、`sessionIdleInput`、`sessionContextInput`、`sessionNotifier`、`sessionAgentDrive`、`sessionScopeRelease` | 已导出 | `src/cordis.ts` |
 | `SessionIntercept`、`Context` 与 `Events` 增补、事件 `session-cordis-contract/committed` | 已导出 | `src/cordis.ts` |
 | 根入口的类型重导出 | 已导出，没有运行值 | `src/index.ts` |
-| `sessionToolStartFence`、`sessionDeliveryRelease` | 已被替代，不定义 | [session-contract SPEC](../session-contract/SPEC.md#被替代的协议) |
 - 未验证：intercept 配置的 Cordis 机制读数只有源码读数，所以 SPEC 的性质 4 是假设，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 使用
@@ -54,7 +55,7 @@ export const inject = {
 
 ## 设计
 
-每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。只有事务端口与内部主体进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
+每个入口一个源文件。包外依赖是 session-contract 的类型与 `@deepseek-ai/cordis`。本成员不导入任何提供者或机制。四个面共用一个服务键。新契约要求访问检查、事务端口与内部主体进 `inject`，其余端口按调用现取。模块与理由见[内部架构](docs/architecture.md)。本成员为什么没有自己的流程与领域对象，见[流程](docs/flows.md)与[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

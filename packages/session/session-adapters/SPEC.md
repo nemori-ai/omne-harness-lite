@@ -1,6 +1,6 @@
 # @omne-harness/session-adapters 行为规格
 
-状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
+状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
 
 ## 范围与依据
 
@@ -31,7 +31,7 @@
 1. 每个插件只以一个调用方类调用 `session` 服务。一项适配需要两个调用方类时，拆成两个插件。调用方类按操作授权，核对见 [Cordis 定义](../session-cordis-contract/docs/cordis.md#intercept-配置与调用方类)。
 2. 插件只经邻域的公开契约与服务定义工作，不导入邻域的提供者实现（[IC-5](../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。本页只用邻域契约已有的操作名。邻域缺少的能力写成[具名前提](#具名前提与明确缺项)，不由本成员发明。
 3. 邻域正文不因本成员而点名 Session。邻域只看到通用角色：外部协调者、提交参加者、消费者拥有者、作用域持有者、历史持有者、维护者。
-4. 每次出站调用与每次 Session 命令都带 [OP-00](../session-contract/SPEC.md#op-00) 派生的身份。本成员把 Session 的身份确定地编码为邻域的操作身份，不另存映射，不用时间、随机数或连接参与编码。唯一的例外是 Tool 的 `releaseDelivery`：Tool 为每次调用分配操作引用，AD-17 只在进程内保存对应（[AD-06](#ad-06)）。
+4. 每次出站调用与每次 Session 命令都带 [OP-00](../session-contract/SPEC.md#op-00) 派生的身份。本成员把 Session 的身份确定地编码为邻域的操作身份，不另存映射，不用时间、随机数或连接参与编码。生产者交付解除的身份与认回归 Agent 宿主的结果接收方，本成员不维护另一份释放操作映射。
 5. 租户是每次调用的参数（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。插件不从 Cordis 上下文、isolate 或安装者推断租户。
 6. 未知保持未知。邻域返回结果未知时，插件按原身份查询或把未知原样交给 Session，不改写为成功或失败。邻域的拒绝只在下文写明的对应里成为 Session 的拒绝。其他拒绝按依赖不可用处理并报告，不变成业务拒绝。
 7. 插件不保存业务事实。插件只持有可丢的派生物：活体句柄、订阅、上一份已过滤快照与缓存。派生物丢失时，插件从 Session 的权威读或邻域的公开读重建，不补造事实。
@@ -48,21 +48,19 @@
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
-| [AD-04](#ad-04) | Request Context 历史源与未结工作下界 | 入站 | 无 | `reader`；下界读取为 `coordinator` | `HistorySource.read`；压缩计划的下界输入 | 取得方式待 [NP-02](#np-02) |
+| [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | `reader`；下界读取为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
 | [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | `./testing` 内存提供者已实现；Model ACK 到达未决 |
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现；生产插件未交付 |
-| [AD-06](#ad-06) | Tool 消费适配 | 入站 | 无 | `coordinator` | `queries.lookup`、`queries.readResult`、`queries.account`、`content.read`；交付释放的翻译依据 | 可登记 |
-| [AD-07](#ad-07) | 模型选择端口提供者 | 入站 | `agentModelSelection` | `coordinator` | `ModelSelection.select`；`modelProfiles.resolve` | 可登记 |
+| [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件未交付 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
 | [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | 身份来源与授权域的公开读取 | 待 [ID-11](../../identity/identity/SPEC.md#id-11-公开形状与机制细化) 与 [AU-09](../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护)：身份来源与授权域的公开读取由这两节定义 |
 | [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | 装配采用、生产来源、保管与 Tool 的采用点材料 | 常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-11](#ad-11) | 空闲输入 | 构造依赖 | `sessionIdleInput` | `maintainer` | 子会话读取；`calls.inspect`、`queries.lookup` | 可登记 |
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
-| [AD-13](#ad-13) | Tool 驻留端口提供者 | 入站 | Tool 契约定义的键 | `maintainer` 与 `coordinator` 各一个插件 | `ToolResidencyReader`、`ToolResidencyActions` | 待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项)，不登记 |
-| [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读输入为 `coordinator` | `invoke`、`resume`、`input.submit`、`control`、`agentExecutionRecovery.query`、`load`、`detach`、`reconcile` | `recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
+| [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读输入为 `coordinator` | `invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach`、`reconcile` | `recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
-| [AD-16](#ad-16) | `ToolStartFencePort` | 出站 | `sessionToolStartFence` | 不调用 | `toolStartAuthority.invalidate` | 可登记 |
-| [AD-17](#ad-17) | `DeliveryReleasePort` | 出站 | `sessionDeliveryRelease` | 不调用 | `consumption.acknowledge`；`commands.releaseDelivery`、`queries.queryOperation`、`queries.lookup` | 可登记 |
+| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator` | MessageHandoff.accept；CurrentConditions.read | 生产插件未交付 |
+| [显示适配](#实时显示适配) | 实时流显示 | 观察 | 无 | 读取关联时为 `reader` | 公共 StreamObserver.observe 与 StreamFrame | 只规定消费行为；生产插件未交付 |
 
 「可登记」只说明邻域一侧的入口已经存在。它不表示已经实现或验证。
 
@@ -251,11 +249,21 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 1. <a id="ad-03-1a"></a>恢复会话（1a）。本插件用 [RC-09](../../context/runtime-context-contract/SPEC.md#rc-09-作用域结束恢复会话与恢复后供值) 的恢复会话恢复一个作用域。本插件在下列时点开始恢复会话：创建一个作用域；本插件体在 Runtime Context 提供者换代后重新运行，之后第一次为该作用域签发资格之前；`applyCommit` 返回「顺序不符」时。步骤：
    1. `beginReplay`：输入作用域、租户、检查点与被取代的恢复引用。旧资格与旧读者在这一步失效。
-   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，本条不补齐 #680 的新 scope 初始化。
+   2. 构造完整恢复材料，共三部分，全部限定于本次恢复的原 scope：按会话日志提交顺序，经历史读取取出的该 scope 全部注册提交（SE07，含移除意图）；该 scope 每个 `checkpointed` 状态块最近一次步提交的全值，从该 scope 的 `change(context-step-commit)` 条目归约得出，更新清单为空；该 scope 已经确认的结束。旧 scope 的注册、检查点与结束不得重放到新 scope。代次绑定与新 scope 初始化的责任边界见 [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)，新 scope 的初始化按下文第 1a 项后的顺序进行。
    3. `finishReplay`：输入恢复引用与恢复材料。
-   4. 重签读取资格。
+   4. `ready(open)` 后核当前普通授权、可信绑定及所需注册，重签读取资格并绑定读者。签发不以供给值已经恢复为前提；首个模型请求另等必要输入齐备。
 
-   首次创建作用域时，材料为空，也先完成一次恢复。围栏打开之后，Runtime Context 才接受普通的注册与步提交。「顺序不符」时，本插件以新的检查点开始一个取代旧会话的恢复会话，完整恢复之后，再用原提交的完整输入重试 `applyCommit`。
+   首次创建作用域时，材料为空，也先完成一次恢复。围栏打开之后，Runtime Context 才接受普通的注册与步提交。「顺序不符」时，本插件以新的检查点开始一个取代旧会话的恢复会话，完整恢复之后，若恢复包已覆盖该原提交，只追平投影，不再施加旧增量；若只覆盖其前序且原提交尚未 applied，才用原提交的完整输入重试 `applyCommit`。
+   恢复只接受 `ready(open)` 或 `ready(ended)` 为完成。`ready(ended)` 不签发普通资格。invalid、refused、unavailable、unknown、超时或中断均不开放业务恢复。新检查点显式 supersedes 当前恢复会话；旧 replay 不撤销后继。注册含移除、checkpoint 每个最终 checkpointed 块恰好一次并按原 commit/step 合组；end 与已知结束一致。空数组不证明完整，恢复容量不足不截断材料求成功。
+
+   新 scope 的业务初始化沿 Session [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)。没有本 scope 原记录时，先证明空恢复材料完整，完成 `ready(open)`，再从当前合法声明准备注册，经 `change` 提交 SE07，确认后按原 CommitRef 应用。注册已提交但初始化未完成就重启时，完整恢复本 scope 的原注册与已有检查点，继续尚未完成的初始化，不重复注册。旧 scope 的注册、checkpoint 或结束不迁入。
+
+   普通资格按当前授权、可信绑定与所需注册签发，不等恢复供值完成。恢复仅标记 needsSupply，第一次合法普通读取核读者与逐块权限后触发原生产者供值。生产者仍核本次普通供值授权；必要初值由合法生产者或步提交建立。恢复授权不能充当普通读取或供值身份。必要注册、可信来源或资格缺口阻止依赖它们的读取或动作；首个模型请求所需输入未齐时继续暂停。失败保留待刷新状态与原初始化责任，不用零值或默认值补齐。
+
+   普通 applyCommit 的成功去重绑定原完整输入；当前资格通过后，同值认回，不回退修订，异值为 commit-conflict。out-of-order、invalid、refused、unavailable 和 unknown 不占成功表。恢复包不写入普通增量去重表，不重放 reducer updates 或原业务效果。相同 begin 输入在仍为最新会话时认回原 ReplayRef，已完成也不重关围栏；已完成 finish 的同包重试认回，异包为 replay-conflict。旧引用的拒绝不关闭后继 ready。恢复期间 staging 不对普通读者披露，只有最终核 current、绑定、epoch、end 与 appliedCommits 版本后才原子安装。ReplayRef 是本实例引用，不能耐久复用或当权限。
+
+   `RuntimeContextAuthority` 与 `ScopeBindingSource` 必须从真实作用域绑定、日志检查点和结束记录取依据。其 `current()` 同步核验需要与资格写者和最终动作共用有效序列化边界。首批 authorization 的异步准入不提供这个保证。真实跨进程接线尚未交付，不把本规格当作已实现证明。
+
 2. <a id="ad-03-1b"></a>保留上一份快照（1b）。本插件为每个读者保留上一份已按资格过滤的快照：值与摘要。它是 `diffForReminder` 的前值来源。它是可丢派生物，只在进程内保存。丢失时，下一次读取按完整快照处理，第一份变化材料不带前值，本插件不补造提醒。
 3. <a id="ad-03-1c"></a>补拉的上界（1c）。唤醒只加速补拉。本插件在两个时点必须补拉：
    1. 每次步边界提交（`change(context-step-commit)`）成功之后。
@@ -274,7 +282,8 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 - 执行开始或建立新的执行挂接时，本插件按读者的消费者类签发资格。资格带块键集合与需要绑定集合。需要绑定来自注册材料（[AD-12](#ad-12)）。
 - 压缩提交之后，本插件对模型类读者重签资格（[RC-04](../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）。在提交与重签之间崩溃时，恢复先重签，再接续。
-- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化仍按该条款保留 #680 与 Context 的责任。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
+- 会话归档后，本插件撤销该作用域的全部读取资格。作用域结束按 RC-09 是持有者已经确认的提交事实（只结束作用域，或者注册决定与步提交带结束标记）；Session 在归档成功的同一次提交保存原 scope 的已确认结束事实；撤销归档另铸新代次，不重新开放旧 scope，精确绑定和提交后应用边界见 [Session 的 J18 条款](../session-contract/SPEC.md#j18-作用域引用与结束事实)。新 scope 的实际初始化按本节第 1a 项后的顺序进行。结束之后，签发、绑定、读取与发布都答 `scope-ended`。作用域永不重开。新的业务代次铸造新的作用域引用（[RC-01](../../context/runtime-context-contract/SPEC.md#作用域引用的铸造)）。
+- 纯 scope end 使用 CommitInput 的 scope 分支，不制造空注册或虚假 step；registration/step 带 scopeEnded 时整笔原子应用。executionEnded 只影响原 untracked 块，不等于 scope end。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
 注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。每份确认的决定沿其原 CommitRef 与完整输入应用，批内多个注册按持久顺序应用。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
@@ -283,36 +292,34 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 #### AD-04 Request Context 历史源与未结工作下界
 
-本插件以历史持有者身份实现 `HistorySource`，并给出未结工作下界。
+本插件提供 RQ 的 `HistorySource`，并把它作为同一目标 `ContextSources` 的一部分登记。输入与结果以 [RQ 公开端口](../../context/request-context-contract/src/ports.ts)和[来源协议](../../context/request-context-contract/src/sources.ts)为准，不使用旧位置参数读口。
 
-- 注入：`session`。读历史的子插件以 `reader` 调用；读 `readWork` 求下界的子插件以 `coordinator` 调用。
-- 历史依据：一次组装开始时，本插件给出历史依据：epoch、上界、作用域引用与访问身份。本插件以 `basis` 为 null 调用 `SessionHistory.readModelView`，返回页的 `basis` 就是当前 epoch 与上界。给出新的历史依据之前，本插件先完成 [AD-03](#ad-03-1c) 的补拉，使变化提醒落在上界之内。
-- 读取：本插件用 `readModelView` 实现 `HistorySource.read(evidence, after, budgetBytes)`（[SessionHistory](../session-contract/SPEC.md#sessionhistory)）。
+- 历史读取以 `reader` 调用 Session；下界读取以 `coordinator` 调用 `readWork`。身份来自本次 `Access`，目标来自 `HistoryEvidence.target` 的显式 tenant/scope。scope 必须与可信 Session 绑定一致，不从 scope 文本猜租户。
+- `read({ access, evidence, cursor, budgetBytes })` 读取固定 evidence 的模型历史。`compactionContext({ access, evidence, coverTo })` 读取同一依据的 CM-02 判断窗口，成功返回完整 evidence。两个入口每次都重新核验当前访问资格。
+- `HistoryEvidence` 含 target、epoch 和 upper。upper 是 empty 或 entry(seq)，seq 是规范非负十进制文本，不用 number 或 -1。Session 模型视图使用从 1 开始的 seq，`ModelViewBasis.upper` 为 `"0"` 时转成 empty，正值转成 entry(seq)；after 保留同一序列的位置，不以浮点数往返转换。行 bytes 从已校验的安全字节计数转为规范十进制文本。非规范值、超范围数或缺失目标返回 invalid，不静默截断。
+- cursor 绑定完整 tenant/scope/epoch/upper 与 after。每页保持原依据，epoch-changed 带当前完整 evidence，不能拼接两个 epoch。Session 的 unavailable 保持 unavailable，不返回空页；unknown 不改为空历史或未发生。缺访问身份或可信目标时不调用历史读。
+- 在给出新的历史依据前，先完成 AD-03 的补拉，使提醒落在固定 upper 内。history 组 `readCount/readSource` 的 token 覆盖新输入的可靠保存、固定全部页、压缩窗口和 open 下界。前后 token 相同意味着这些相关事实未变。重启、来源替换或计数回绕换代；RQ 最多两次稳定读取，不把 execution revision 或到达顺序当作跨 execution 的 Session 顺序。
 
-| `HistorySource.read` 的输入 | `readModelView` 的输入 |
-| --- | --- |
-| 历史依据的访问身份（主体与租户） | `principal`、`tenant` |
-| 历史依据的作用域引用 | `session`：按作用域引用解码 |
-| 历史依据的 epoch 与上界 | `basis` |
-| 游标 `after` | `after` |
-| 字节预算 `budgetBytes` | `pageBytes` |
+CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 
-| `readModelView` 的结果 | `HistorySource.read` 的结果 |
-| --- | --- |
-| `page` | 一页。每行的序号、条目位置、字节数、前缀摘要与消息原样交出。条目位置按 message 包编码为 `RecordEntryRef` |
-| `epoch-changed`，带当前依据 | epoch 已变，带当前依据。本插件不拼接两个 epoch 的页 |
-| `denied` | 无资格。资格按这次传入的访问身份核对 |
-| `invalid` | 无效 |
-| `unavailable` | 不可用，不返回空页 |
+1. 无此前合法压缩时交出固定上界内完整窗口。存在最新合法压缩 C 时，交出 C.retained 原件、C 和旧 C.covers.to 之后直至固定 upper 的全部未覆盖尾项。不能按 C 的插入位置截断。e1、e2、e3、C1 中 C1 覆盖 e1-e2 且保留 e2 时，下一窗口仍含 e2、e3、C1。
+2. previous 窗口的有效 Tool 结果带原最近可答调用的引用或 null，以及原 after、pairings 与 open 证据。隐藏调用只给关系材料，不重读已摘要正文代替原判断窗口。完整性、最新合法 C、retained、tail 与 open 都绑定同一 evidence。
+3. assistant 行的 `sourceCall` 只在有真实原 Model 来源时给出，并带原 tenant 与 ModelCallId。其他角色不带 sourceCall。不从 execution、消息作者或到达顺序补造 Model 调用身份。缺完整原前缀及 system/tools/parameters/replay/visibility 的可信不变依据时省略 continues。
+4. `CompactionPlan.basis` 保留原 context、projected、pairings/sourceCall、selection、representation 与 continuation 依据。序列化恢复不读另一份历史来补原依据。非法 basis 不推进进度，但已发出的摘要调用及未知责任保留。trim 只裁剪摘要材料，不改原合法性依据。真正提交压缩仍由 Session 核当前 epoch，经 AD-01 的 context-transition 共同提交。
 
-- 缺作用域引用或访问身份时，本插件返回无效，不调用 `readModelView`，也不用构造时的身份代替。
-- epoch 视图由存储提供者在压缩提交时物化。本插件不重算模型视图，也不重算前缀摘要。
-- 前缀摘要缓存（[CA-2](../session/SPEC.md#ca-2)）：本插件可以缓存已读行的前缀摘要。缓存键是 `(tenant, session, epoch, seq)`，`SessionId` 只在租户内唯一，所以键必须带租户。缓存只淘汰，不失效。缓存不是事实源，命中也不代替核权：每页仍经 `readModelView` 按这次传入的访问身份核权，缓存只为已核权页里的行提供摘要。
+模型视图只给消息页，不能单凭 `readModelView` 伪造完整压缩窗口或来源证据。适配从同一 Session 日志的固定历史读、原关系索引和合法来源取补充材料。必要原材料或来源读口未具备时返回 unavailable，不发布不完整来源集合；生产索引及来源接线尚未交付。
+
 - 未结工作下界：本插件以 `readWork` 取快照，调 `openWork`，把各类未结工作映射为条目引用集合（跨边界编码为 `RecordEntryRef`），交给压缩计划作为保留名单的下界。FR-06 的 unassociatedWaiting 按原 consumption/position 定位原 SE18 与生效 SE22，两者均进入下界和 compaction.open 核对；关联后沿同一责任映射并去重。控制解除等待后，尚未交清的 pendingUnassociatedWaiting 仍由同一 openWork 交出，其原 SE18、原 SE22 与承载待办的 SE24/SE25 一并进入下界和核对。其后真实关联使 unassociatedWaiting 移除而 waiting 仍为空时，unsettledControls 仍以原控制操作身份定位原 SE24 的固定选择、生效 SE25、原 SE18/SE22 与关联条目，保留到原责任依证据解除。不以无 ProducerRef 或字段省略交空下界。未读的 Agent 事件计入下界（[EC-03](../session-contract/SPEC.md#ec-03)）。权威读失败时，本插件报告不可用，不交空集合。
-- 压缩参加：压缩转换的共同提交经 [AD-01](#ad-01) 的 `context-transition` 到达 Session。本插件不另写压缩事实。提交之后的重签归 [AD-03](#ad-03)。
-- 人侧投影：读取者需要对人的历史视图时，调用 Request Context 的纯操作 `projectForHuman`。它不分页，不写回。
 
-Request Context 没有为历史源读口定义取得方式（[NP-02](#np-02)）。这一项闭合之前，本插件不登记。
+来源集合登记与结束：
+
+- 来源适配者以显式 `(tenant, scope)`、owner 与当前来源代次调用 `ContextSourceRegistry.register`，一组发布 groups、adopted、history、conversions、eligibility、preparation。七组中 identity 仍由 RQ 按调用访问身份取值，其余组按公开 `ContextGroupSources` 提供。AD-04 不单独注册半套 history。
+- replace 使用原 RegistrationRef。旧 withdraw 不能删除后继，旧代在途不能发布新结果。withdraw.settled 等待该代实际操作与 Model 租约交还。应用装配负责来源关闭；独立窄 adopted/accounting 读取与 registry 借用分别收口，不能用一边 settled 推定另一边结束。
+- `AdoptedRequestSource.readCount/readSource` 只读已有固定请求权威事实，输入是普通 Access/target。不回调 RC、assemble 或 usage，不制造执行修订为会话采用顺序。合法 adopted=null 与 usage 的非法 value:null 分开。not-fixed、unmeasured、actual、estimate 保持 RQ-14 原状态，required:true 不变。
+- 原账目从 Agent Journal 经 Agent 的 AccountOutlet 交给 Context，不由 Session 转发，不更换其幂等键。系统重建授权、checkFact 与后续追赶归对应来源拥有者，普通 Access 不替代系统授权。
+- 来源齐备与 current 接线是生产提供者的验证义务。NP-02 只保留缺少真实来源材料与生产接线的状态，不再声称 RQ 没有登记入口。
+
+前缀摘要缓存只缓存已核权页，键含 tenant/session/epoch/seq；命中不代替每页核权。人侧视图调用 RQ 纯操作 `projectForHuman`，不写回。
 
 <a id="ad-05"></a>
 
@@ -326,49 +333,34 @@ Tool 原生产者确认由 Agent 宿主的结果接收方（当前合格保管�
 
 <a id="ad-06"></a>
 
-#### AD-06 Tool 消费适配
+#### AD-06 Tool 日志消费适配
 
-- 注入：`toolRuntime`，`session` 调用方类 `coordinator`。
-- 交付释放的翻译依据：`DeliveryReleasePort.release` 的结果来自 Tool（`ProducedResult.producer.kind` 为 `tool`）时，AD-17 按下表调用 `commands.releaseDelivery`（[可靠交接与处理的两条路径](../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)）。本插件不发出交付释放。
+- 注入同一 AgentJournal 提供者的读取与材料视图，并以 `coordinator` 调用 `session`。不注入 `toolRuntime`，不查询 Tool 收场、结果、附件或账目。
+- Agent 宿主结果接收方先把 Tool 结果与账目写入同一会话日志。本插件从 `load().entries` 选择 `received` 且 delivery.producer 为 tool 的条目，并经同一提供者 `AgentMaterials.read` 取得原材料。Tool 结果带 account 或 null，账目交付带原修订的 CallAccount。只有原 Journal 记录可证明的字段才投影；尚无报告保持未知，不填零。原 recordResult 路径的公开结果责任按 load().results 读取，不以条目字段缺席表示空记录。
+- 读取前核当前资格、租户、原 execution/Run、原 Tool 调用、consumption、完整版本及 schema。缺材料、未知 schema 或读不可用按原失败关闭，不直接读生产者补齐，也不发明新 Journal 条目。
+- 当前公开 `ReceivedDelivery` 保留 Tool 的 key 与账目，`Material.tool` 只有 ProducedResult 和结果页，`load().results` 只有结果责任；它们不直接声明 terminal、actualTerminal、effect。Agent J02 第 11 项的完整 facts schema 约定只明确覆盖 Model。Tool 收场解释若缺少原拥有者已经采用且可读的完整材料，返回 unavailable 并保留任务；不能从结果页、release 或“存在 received”推定已收场。完整 Tool 收场材料的生产与 schema 接线仍归原拥有者，不在此处另定协议。
+- 收场与账目分别以 `receive(execution)`、`receive(account)` 提交，身份从原生产者记录与修订确定派生。Session 后果、解释进度与该次答案沿 AD-02 同批发布。重复读取认回；未知先查原操作；失败不撤销已经保存的 Agent 原事实。
+- Tool 的迟到版本归原消费绑定，不创建新 Run 或调用。仍有后续投递资格的后台结果按 EC-08 登记后交受理；归档撤销资格的结果按 EC-07 只保管，不自动进队列。
+- 本插件不发送生产者交付解除，也不写 ProducerFact.release。Tool 原确认的读取与 release 写入者仍为 AD-05，遵循 Session [JC-Release](../session-contract/SPEC.md#jc-release)。Model ACK 未决状态保持。
 
-| `release` 的输入 | `commands.releaseDelivery` 的输入 |
-| --- | --- |
-| `result.producer.call` | 原调用引用 |
-| `result.version` | 结果版本 |
-| `result.delivery` | 交付身份 |
-| `consumption` | 原消费位置，经 Agent 的受信解码 |
-| `evidence` | 交接证据：保管为 retained，完成为 processed |
+模型选择由应用装配一侧的适配器实现 Agent 的 ModelSelection，Session 组不提供 `agentModelSelection`。会话只保存选择及其来源；解析与发送资格仍由各拥有者负责。
 
-| Tool 的答复 | `release` 的结果 |
-| --- | --- |
-| `released`，带原生产者的耐久回执。首次释放与重复释放同形 | `confirmed`，`source` 为该回执 |
-| `rejected`，原因是结果未保存或完成未知，交付仍 pending | `not-ready` |
-| `rejected`，原因是同一调用配另一个消费位置（conflict） | `unavailable`。本插件不改位置重试，诊断标为翻译缺陷，并报告 |
-| 不可用 | `unavailable` |
-| `commit-unknown`，带原操作引用 | 先按下面的认回步骤处理。仍未知时为 `commit-unknown` |
+### J06 会话路径的两个 Agent 提供者
 
-- Tool 为每次 `releaseDelivery` 分配新的操作引用，所以 Session 的操作身份不能直接作为 Tool 的操作引用。AD-17 在进程内保存 Session 操作身份到 Tool 操作引用的对应。这个对应是可丢派生物。
-- 认回步骤：Session 以同一操作身份重发时，AD-17 先认回上一次的未知结果，再决定是否调用 `releaseDelivery`。
-  1. 持有原操作引用时，AD-17 以 `queries.queryOperation` 查询。结果为已提交时，AD-17 以 `queries.lookup` 读交付状态，取已有释放回执，返回 `confirmed`。
-  2. 查询结果为 `not-committed` 或 `rolled-back` 时，这次操作被可靠否定。AD-17 再次调用 `releaseDelivery`。
-  3. 查询结果仍未知或不可读时，AD-17 返回 `commit-unknown`，不调用 `releaseDelivery`。
-  4. 原操作引用已丢失时，AD-17 以 `queries.lookup` 按原调用读交付状态。交付已释放时返回 `confirmed`，带已有释放回执。交付未释放时，AD-17 返回 `commit-unknown`，并报告原操作引用丢失（[NP-09](#np-09)）。
-- 查询与内容读取：本插件以 `queries.lookup` 读调用的当前状态，以 `queries.readResult` 按固定结果版本分页读结果，以 `content.read` 读附件，以 `queries.account` 读账目。读到的收场、转后台确认与账目以 `receive(execution)`、`receive(account)` 提交。
-- 迟到版本：Tool 的迟到版本登记在原消费绑定下，不创建新 Run 或新调用（[值与结果项的约束](../session-contract/SPEC.md#值与结果项的约束)）。
-- Run 终态后到达、仍有投递资格的后台结果，由本插件先登记结果，再以 `accept(business)` 交给受理（[EC-08](../session-contract/SPEC.md#ec-08)）。`accept` 的业务分支允许 `coordinator`。
+本成员在会话路径分别提供 `agentMessageHandoff` 与 `agentConditions`。它们扩展 Agent 已公开的 `MessageHandoffService` 与 `CurrentConditionsService`，不另定义键。每个插件以 `coordinator` 调用 Session，并从同一日志的可信 execution/Authority 到 Session/Run 绑定定位目标，不从全局容器或连接猜会话。
 
-<a id="ad-07"></a>
+| 提供者 | 消费的公开输入 | 本插件责任与结果 |
+| --- | --- | --- |
+| `agentMessageHandoff` | `MessageHandoff.accept` 的 Access、execution、operation、advance、source、candidate | 依 Agent 的[消息准入](../../agent/agent-contract/SPEC.md#消息准入)核六类原来源、候选消息及原位置。允许时返回 accepted 和准入证据。模型完整回复、工具结果、被拒绝动作的拒绝消息、系统提醒与压缩转换消息只因校验失败或保存失败返回 rejected，附原原因及证据。外部输入的内容处理与业务否决由 Session 受理方在交给 Agent 前完成，本端口不追加业务否决。身份或依赖失败沿 Agent Reply 返回，不变成 rejected。证据绑定本次候选及原来源；不在 accept 内写 Session 消息。最终消息仍由 AD-01 的 message 参加写入，拒收不伪造已提交消息。 |
+| `agentConditions` | `CurrentConditions.read` 的 Access、advance、previous | 以原 Authority/grant 定位当前 Session Run，读取当前 Session 事实和实际已采用配置、模型选择、Context 及 bindings，构造公开 RuntimeConditions。source 是这些事实的真实依据。previous 只供比对，不授予资格或允许复用失效条件。缺少任何必要原来源时 unavailable，不用模式词补造推进授权，也不从默认配置填空。 |
 
-#### AD-07 模型选择端口提供者
+两个插件都逐次核当前访问与原租户关系。其当前来源、合法 Authority、配置/Context 采用和受理前内容政策仍由各原拥有者提供，本规格不发布新的政策端口。真实提供者未交付时不能装一个默认允许或空条件的插件冒充就绪。
 
-- 提供：`agentModelSelection`，实现 Agent 的 `ModelSelection.select`（[模型选择](../../agent/agent-contract/SPEC.md#模型选择)）。插件 `extends` Agent 的 `ModelSelectionService`，不另写键。
-- 注入：`modelProfiles`，`session` 调用方类 `coordinator`。
-- 动作：
-  1. 本插件取 `conditions.model` 作为当前选择的采用依据。会话路径上，这个依据来自本会话保存的选择（SE04）。
-  2. 本插件从历史依据取模态要求，与请求准备所用的历史范围一致。
-  3. 本插件以 `modelProfiles.resolve` 按路由与模态要求解析档案，返回 `SelectedModel`。
-- 失败：解析出的档案 `selectable` 为 false、路由已下架、被配置排除、模态不相容或档案来源不可读时，本插件返回失败，不改用其他路由。
-- 选择不写 Session 事实，不授予发送资格。选择变化只影响下一次请求。
+### 实时显示适配
+
+显示适配只消费 `@omne-harness/stream-arrival` 公开的 `StreamObserver` 和 `StreamFrame`。按 Session 日志的稳定原调用关联取得生产者当前 StreamRef，观察请求另带真实 Access 与 AbortSignal。重新挂接重新取得当前引用，引用不带凭据，引用租户与 Access 必须一致。
+
+snapshot 建立显示基线，delta 只接同一流及原 from；gap 明确显示缺口并重新同步，不补造丢失正文。ended 的 source-closed、observer-closed、stale-stream、denied、unavailable、capacity 与 producer-ended 仍保留原区别。显示断开、结束或取消均不能控制执行，不能确认结果保管、处理或交付解除，也不形成 Run 终态。最终历史消息仍来自 Session 的正式提交。显示插件的生产实现尚未交付。
 
 <a id="ad-08"></a>
 
@@ -401,7 +393,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 | 命令 | 材料 |
 | --- | --- |
-| `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料另带 Tool 在采用点给出的三项：新纳入的常驻工具（写 SE36）、为常驻工具记下的登记键（随 SE08）、冻结判定（`FreezeVerdict`） |
+| `startRun`、`reload`、`create` | 当前定义采用、候选采用与登录确认。候选采用材料带新纳入的常驻工具（写 SE36）与登记键（随 SE08）。冻结判定只随 startRun/reload 的材料到达，create 不带冻结判定 |
 | `completeInitialization` | 按原初始化项核验协议、原绑定、结果及必要成功事实。execution-adoption 纯准备 ready 只写 SE02；确有新增能力实际采用时，材料带完整能力身份/ResidentKey 对和首次纳入的常驻定义，同批写 SE02、SE08 与必要 SE36。沿 [JC-02](../session-contract/SPEC.md#共同提交与共享事务域) 和[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)，不补造初始定义采用，不变更原定义版本 |
 | `preserveResult` | 生产来源与耐久保管 |
 | `completeConsumption`、`completeExternalConsumption` | 原消费位置与投递资格 |
@@ -409,7 +401,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 | `change` | 入口、资产与声明条件。执行环境模式变化时，另带会话层目标环境设置声明（见[模式翻译表](#模式翻译表)） |
 | `freeze` | Tool 的冻结判定与耐久证据 |
 
-- 常驻工具的三项材料由 Tool 契约规定（[P-8](../session-contract/SPEC.md#具名前提与明确缺项)）。Tool 一侧定义之前，候选采用材料不带它们，Session 不写 SE36、SE37。
+- 常驻工具的规则与采用点判定由 Tool 契约规定（[P-8](../session-contract/SPEC.md#具名前提与明确缺项)）。装配协调者调用公开 planAdoption，Session 推进触发以原 SessionAccess 交回判定。Session 组不实现 Tool 驻留端口；Reader 由应用装配桥接，租户从 references 每项原样取得。
 - 候选采用材料带回冻结判定时，Session 的 `startRun` 或 `reload` 返回 `frozen`，不提交。失败的 `verdict` 就是本插件放进候选采用材料的这份判定。之后由推进协调以该判定调用 `freeze`（[常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结)）。
 - 会话已冻结时，`frozen` 的 `verdict` 为 null。这个结果来自会话状态，不来自本插件的材料。
 - 失败：材料准备失败时，本插件返回失败并指明拥有者。它不缺一项材料仍交出其余材料。
@@ -437,20 +429,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 - Runtime Context API 保持。生产工作区加载、实际采用的供证能力与首次 scope 恢复分别归原提供者；来源和结果的可核验性须有相应提供者证据。
 - 失败：`prepareRegistration` 拒绝时，本插件交回逐项原因，Session 的命令返回 `invalid`。Runtime Context 不可用时返回不可用。
 
-<a id="ad-13"></a>
 
-#### AD-13 Tool 驻留端口提供者
-
-`ToolResidencyReader` 与 `ToolResidencyActions` 由 Tool 声明，由本成员实现（[由本组实现的 Tool 端口](../session-contract/SPEC.md#由本组实现的-tool-端口)）。端口形状与服务键归 Tool 契约。
-
-| Tool 端口 | 插件与调用方类 | 翻译 |
-| --- | --- | --- |
-| `ToolResidencyReader.referencing({ scope: 'system', key })` | 读取插件，`maintainer` | 把 Tool 的登记键编码为 `ResidentKey`，以 `references` 逐页读取，返回会话身份与 shape。`references` 返回 `unavailable` 时原样交回，不返回空页 |
-| `ToolResidencyActions.freeze({ session, cause: 'tool-shape-lost', evidence })` | 动作插件，`coordinator` | 从引用查询或会话目录取得租户，以 `freeze` 提交。重复调用认回原回执 |
-
-- `references` 是跨租户的系统作用域读取，需要存储的事务域目录。目录缺席时 `references` 返回 `unavailable`，读取插件原样交回 `unavailable`，不返回空页（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)）。
-
-Tool 契约定义这两个端口的形状与服务键之前，本成员不登记它们的提供者（[P-8](../session-contract/SPEC.md#具名前提与明确缺项)）。
 
 ### 出站端口的实现
 
@@ -461,7 +440,7 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 #### AD-14 `AgentDrivePort`
 
 - 提供：`sessionAgentDrive`。插件 `extends` 对应的端口抽象类。
-- 注入：`agentInstances`、`agentExecutionRecovery`；`session` 调用方类 `coordinator`，只用于 `readInput`。
+- 注入：`agentInstances`、`agentExecutionRecovery`、`agentExecutionControl`；`session` 调用方类 `coordinator`，只用于 `readInput`。
 - 主体：出站调用的主体是应用装配为会话协调者签发的主体。Agent 在实际执行处以 `AgentAccessCheck` 核验它。
 
 | 端口操作 | Agent 操作 | 翻译 |
@@ -469,12 +448,25 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 | `invoke` | `agentInstances.resolve` 取 `AgentRuntime`，再 `invoke` | 首条输入经 `readInput` 取内容，组成 `AcceptedInput`；来源依据为 SE13 回执；`grant` 为本 attempt 的 SE15 证据；执行身份为 SE13 所记。本插件保留返回的执行句柄 |
 | `submit` | 执行句柄的 `input.submit` | 输入经 `readInput` 取内容；来源依据为该输入的 SE11 回执 |
 | `resume` | `AgentRuntime.resume` | `recovery` 为恢复依据或交接证明；`grant` 为新 attempt 的 SE15 证据。接管资格由 Agent 按主体核验，本插件不判断 |
-| `control` | 执行句柄的 `control` | `Control` 翻译为 `ExecutionControl` |
+| `control` | `agentExecutionControl.control` | 按下表翻译原控制意图，保留原 operation 与原因依据；不要求句柄或挂接 |
 | `detach` | `agentExecutionRecovery.detach` | 本插件先以 `load` 取目标挂接的 `Authority`，再带原因依据交还 |
 | `recordResult` | 合格保管方经 `reconcile` 内的 `recordResult` | 见 [NP-04](#np-04) |
 | `query` | `agentExecutionRecovery.query` | `excluded` 原样交回，等于 Session 的 `not-committed` |
 | `inspect` | `agentExecutionRecovery.load` | 快照映射为 `ExecutionStatus`：执行状态、挂接状态、修订、结束结论与依据 |
 | `prewarm` | 无 | 不调用 Agent，返回 `unsupported`（[P-7](../session-contract/SPEC.md#具名前提与明确缺项)） |
+
+控制映射以 Agent J07 为准：
+
+| Session 意图 | Agent 操作 | 所需前提 |
+| --- | --- | --- |
+| interrupt-model | control(interrupt-model)，原具名 Model call | 当前控制资格，不要求推进资格 |
+| interrupt-tool / background-tool | control 同名命令，原具名 Tool call | 当前控制资格；Agent 自己核原关联及控制阶段 |
+| cancel-run、归档选中的 execution | control(cancel) | 只对 Session 已固定范围逐一发出，不扩范围；当前控制资格 |
+| suspend | control(suspend) | 当前控制资格；解除挂接次序仍沿 Agent 的未决边界 |
+| 插队输入 | input.submit，priority urgent | 输入准入；插队不是控制，原输入仍先由 Session 接受 |
+| 交还挂接 | agentExecutionRecovery.detach | load 取得目标 Authority；针对仍存活的其他 runtime 另需 takeover |
+
+控制受理不证明六阶段全部完成，也不授予推进资格。active 挂接如何获知长期控制仍归 Agent #502，不由本插件补造通知协议。
 
 结果的对应：
 
@@ -488,7 +480,7 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 | `commit-unknown` | `commit-unknown`，带原操作身份 |
 
 - 结果未知时，Session 先 `query`，不换身份重发。本插件不自行重试未知的调用。
-- `submit` 与 `control` 需要执行句柄。句柄只在本进程从 `invoke` 或 `resume` 取得后存在。句柄不在时，本插件返回 `unavailable`，任务由 Session 保留（[NP-03](#np-03)）。PM-13 的路径 2 以 `resume` 取得新句柄后再送控制。
+- `submit` 仍需要执行句柄；缺席时保留原任务并返回 unavailable（NP-03）。`control` 使用公开长期入口，不因无句柄拒绝。无活体执行的后续收束仍按 Agent 自己的 resume/取消授权规则，不能把控制受理写成已经收场。
 - `inspect` 不能区分「记录不存在」与其他读取失败：`load` 只有 `denied` 与 `unavailable`（[NP-05](#np-05)）。本插件不产生 `missing`。PM-14 的「尚未受理」以 `query` 的 `excluded` 判断。
 - 本插件不调用 `prewarm` 对应的任何 Agent 入口。
 
@@ -496,85 +488,32 @@ Tool 契约定义这两个端口的形状与服务键之前，本成员不登记
 
 #### AD-15 `ScopeReleasePort`
 
-本插件担任执行环境契约里的维护者。应用装配层把这个角色交给本插件。
+本插件实现 `sessionScopeRelease`，以 `executionEnvironment: { caller: 'maintainer' }` 调用公开维护面。恢复授权由应用装配的维护拥有者直接交入端口实现，不进配置或插件树，不使用会话用户身份。用户退出或撤权不阻断合法系统回收。
 
-- 提供：`sessionScopeRelease`。
-- 注入：对象形式 `executionEnvironment: { caller: 'maintainer' }`。
-- 恢复授权：应用装配层的维护拥有者签发恢复授权。装配入口构造本插件的端口实现时交入它，它不进插件树，也不是插件配置（[IC-16](../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。它不是会话用户的访问身份。用户撤权或退出不阻断回收。
-- 动作：本插件把 Session 铸造的作用域引用解码为执行环境的作用域引用，调用 `releaseScope(scope, recoveryAccess)`。释放不发起新的获取。
+原获取描述 `OriginalAcquisition` 由发起获取的集成方在新获取前保存，包含 tenant、acquisition、origin、scope 和完整 placement 指纹。AD-15 只消费该拥有者交来的原描述，不从资源列表或 SessionId 重建。普通查询为 `inspectAcquisition(access, {kind:'local', acquisition} | {kind:'original', original})`；维护查询为 `inspectRecoveryAcquisition(recoveryAccess, original)`。系统恢复为 `recoverOwned(scope, recoveryAccess, known?)`，归档释放使用 `releaseScope(scope, recoveryAccess, known?)`。现有两参数 releaseScope 仍合法。
 
-读回的对应：
+查询只认回原事实，不重新 acquire、plan、permit、adopt，不执行原效果。notAllocated 必须排除原键的迟到成功；曾分配后补偿完成是 settled，不能改成从未分配。allocationFailed 保留原失败与 cleanup 状态，清理不改原工作结果或费用。查询 unknown/unavailable 保持未知，不清空责任。
 
-| 执行环境的读回 | 处置 |
+`OwnedRecovery` 的资源与 acquisition 两路必须同时结清：
+
+| 公开结果或组 | Session 处置 |
 | --- | --- |
-| 全部已停，没有待处置、不支持项或枚举失败 | `released` |
-| 有待处置的资源 | `pending` |
-| 有不支持恢复的提供者或资源 | `unsupported` |
-| 有提供者枚举失败，或以 `unavailable` 拒绝 | `unavailable` |
-| 以 `notAuthorized` 拒绝 | `not-authorized` |
+| 两路枚举完整；stopped 与 settledAcquisitions 已覆盖全部原责任；其他组全空 | released，带真实读回证据 |
+| pending 资源，或 pendingAcquisitions 的 pending/unknown | pending。resources 为空仍保留任务与额度责任 |
+| unsupported 资源/提供者，或 unsupportedAcquisitions | unsupported，保留该项并报告 |
+| unavailable 提供者组；任一路枚举/查询 unavailable 或 unknown | unavailable，保留任务与原诊断，不当空页 |
+| notAuthorized | not-authorized，不换用户身份重试 |
+| LookupUnknown，包括 authority 抛错 | 本次结果未知，保留原释放任务并稍后按原身份接续 |
 
-- 一次读回可以同时落入几类，本插件逐项交出全部处置与读回证据。
-- 调用超时或执行环境抛出时，本插件让 `release` 以异常结束，不编造读回。Session 一侧把任务状态记为 `unknown`，以同一操作身份重试。
-- 枚举失败表示资源未知，不表示没有资源。
+一次读回可以包含多类，逐项保留。原描述 conflict 归 pendingAcquisitions(reason:unknown)，不处置不匹配对象。只有 settledAcquisitions 列表不能证明目录完整。releaseScope 先封本实例新准入、使旧租约失效，再推进原清理；重复调用仍驱动 pending，不返回缓存空成功。调用超时或抛错不编造读回，Session 保留 unknown。
 
-换代后的重新释放由重新释放子插件做（[ScopeReleasePort](../session-contract/SPEC.md#scopereleaseport)）：
+提供者换代后，重新释放子插件以 `maintainer` 调用 Session，使用同一系统恢复授权：
 
-- 注入：对象形式 `executionEnvironment: { caller: 'maintainer' }`，`session` 调用方类 `maintainer`。恢复授权由同一个装配入口交入。
-- 时点：执行环境提供者换代后，子插件体重新运行。这是本成员唯一由插件自己发起的批量工作。
-- 动作：
-  1. 子插件以 `releasedScopes`（`scope` 为 `system`）按页读取已归档会话里释放读回（SE25）记过的作用域。每项带租户、会话、原任务身份与作用域引用。页大小是配置项。
-  2. 对每个作用域，子插件以原任务的操作身份调用 `releaseScope(scope, recoveryAccess)`。重复释放认回。
-  3. 读回按上表对应。重新释放不写新的会话条目，会话日志里原有的 SE25 仍是账本。有待处置、不可用或未获授权的部分时，子插件报告，并在下一轮按策略重试。
-- `releasedScopes` 是跨租户的系统作用域读取，需要存储的事务域目录。目录缺席或读取返回 `unavailable` 时，子插件停止本轮，报告不可用，按策略重试。它不把不可用当作没有作用域（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)）。
-- 执行环境重启到重新释放完成之间，已归档会话的作用域可能尚未释放。这个窗口的拥有者是执行环境契约的拥有者与发起获取的集成方（工具宿主），见 Session 契约的[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)。本成员不消除它。
+1. 以 `releasedScopes` 逐页读取已有 SE25 的原 scope 与任务身份，再沿原任务 releaseScope。目录缺席或任一页失败时停止该轮并报告，不把已读页当完整目录。
+2. 归档已提交而 SE25 尚未形成的原 scope-release 任务不在上一路。Session 调度器另经 tenant 内 `pending(tasks)` 与 `loadRecovery` 恢复这些任务，并调用同一端口。目录不完整时不能宣称所有租户均完成清理。
+3. 重新释放已有 SE25 的作用域不补写新的归档事实。尚未完成的原任务仍按 receive(scope-release) 保存真实读回并决定是否解除。两路不混同。
 
-<a id="ad-16"></a>
-
-#### AD-16 `ToolStartFencePort`
-
-Session 是 Tool 启动排序域里工作资格的版本拥有者（[ToolStartFencePort](../session-contract/SPEC.md#toolstartfenceport)）。
-
-- 提供：`sessionToolStartFence`。
-- 注入：`toolStartAuthority`。
-- 动作：本插件把参数翻译为 `invalidate` 的输入：
-  - `operation`：从 Session 的控制或换代操作身份与资格范围确定地编码。
-  - `guard`：`owner` 为会话的消费者 owner，`resource` 为资格范围（Run、attempt 或整个会话）的编码，`revision` 为撤销后的资格版本，`evidence` 为撤销资格的提交回执，`scope` 为 `resource`。
-
-结果的对应：
-
-| Tool 的结果 | 端口结果 |
-| --- | --- |
-| 成功，带耐久证据 | `effective` |
-| 不可用 | `unavailable` |
-| 结果未知 | `commit-unknown` |
-
-- Tool 的 `invalidate` 没有「已受理、尚未生效」的答复，所以本插件不产生 `pending`。
-- 只有 `effective` 经 `receive(start-fence)` 计入对账进度。其他结果使任务保留，由 Session 按同一操作身份重放。
-- 失效生效之前，本插件与 Session 都不声称新的 Tool 发起已被阻止。
-
-<a id="ad-17"></a>
-
-#### AD-17 `DeliveryReleasePort`
-
-Session 是结果的消费位置拥有者。保管或处理提交之后，Session 的协调经本端口向生产者发出交付责任解除（[DeliveryReleasePort](../session-contract/SPEC.md#deliveryreleaseport)、[EC-04](../session-contract/SPEC.md#ec-04)）。
-
-- 提供：`sessionDeliveryRelease`。插件 `extends` 对应的端口抽象类。
-- 注入：`modelRuntime`、`toolRuntime`。两个都是必需依赖。任一缺席时端口缺席，`release` 保持 pending，由恢复协调按 `pending(release)` 找回后重发。
-- 动作：本插件按 `ProducedResult.producer.kind` 选择生产者。
-  - `model`：调用 `consumption.acknowledge`。输入与结果的对应见 [AD-05](#ad-05)。
-  - `tool`：调用 `commands.releaseDelivery`。输入与结果的对应、认回步骤见 [AD-06](#ad-06)。
-- 结果：本插件只返回四种结果。
-
-| 结果 | 含义 | Session 之后 |
-| --- | --- | --- |
-| `confirmed`，带来源 | 生产者已确认，来源是生产者的确认回执 | 协调以 `receive(release)` 写回，`release` 改为 confirmed |
-| `not-ready` | 生产者尚不具备确认条件 | `release` 保持 pending，按策略以同一操作身份重发 |
-| `unavailable` | 生产者不可用，或本成员的翻译或证据适配有缺陷 | 同上 |
-| `commit-unknown` | 生产者的确认结果未知 | 同上 |
-
-- 本插件不写会话事实。`receive(release)` 由 Session 的协调提交。
-- 调用超时或生产者抛出时，本插件返回 `commit-unknown`，不编造确认。
-- 本插件不重复调用生产者的执行，也不重新领取全文。
+执行环境重启到重新释放完成之间的原窗口仍保留。已知结束的集成方先拒绝新获取，但 Context scope-ended、本实例封口及空资源列表均不证明未知目录没有在途获取或失败关闭责任。消除窗口须由执行环境与发起获取的集成方另行提供采用及实现证据。
 
 ### 模式翻译表
 
@@ -611,7 +550,6 @@ Session 是结果的消费位置拥有者。保管或处理提交之后，Sessio
 | 会话事实、游标、任务与回执 | Session 的会话日志 | 不随本成员结束 |
 | 参加者登记、生产者登记、端口提供 | 登记它的插件 fiber | 插件卸载 |
 | 执行句柄与同日志解释缓存 | AD-14 与 AD-02 的插件 fiber | 插件卸载、执行结束或句柄失效 |
-| Session 操作身份到 Tool 释放操作引用的对应 | AD-17 的插件 fiber | 插件卸载或进程结束，按派生物丢弃 |
 | 上一份已过滤快照、前缀摘要缓存 | AD-03 与 AD-04 的插件 fiber | 插件卸载或进程结束，按派生物丢弃 |
 | 恢复授权 | 应用装配层的维护拥有者 | 由签发者撤销 |
 | 翻译函数的版本 | 本成员 | 随发布 |
@@ -635,18 +573,17 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 
 | 编号 | 缺什么 | 拥有者 | 之前 |
 | --- | --- | --- | --- |
-| <a id="np-02"></a>NP-02 | `HistorySource` 与历史依据属于来源集合 `ContextSources` 的一部分，由来源适配者按目标登记（[RQ-12](../../context/request-context-contract/SPEC.md#rq-12-来源集合与登记面)）；AD-04 怎样作为来源适配者登记、登记材料从哪里取得仍未定义 | Request Context 与协调者一侧的集成包拥有者 | AD-04 不登记。Request Context 读不到会话历史 |
-| <a id="np-03"></a>NP-03 | 无活体 runtime 时按 execution 取得输入、控制与输出视图的入口，见 Agent 开放问题[无活体 runtime 时怎样按 execution 取得执行视图](../../agent/agent/docs/architecture/open-questions.md#无活体-runtime-时怎样按-execution-取得执行视图) | Agent 拥有者 | 句柄不在时，`submit` 与 `control` 返回 `unavailable`，事件只经 `load` 的快照对账 |
+| <a id="np-02"></a>NP-02 | RQ 已有 ContextSourceRegistry；会话的完整原历史、转换、采用来源与 current 生产接线尚未交付 | Session 历史提供者、各来源拥有者与应用装配 | AD-04 仅在整组来源及资格可兑现时登记；缺必要材料返回 unavailable，不发布半套来源 |
+| <a id="np-03"></a>NP-03 | 无句柄时 input.submit 的取得路径；长期 control 已由 J07 定义 | Agent 拥有者 | submit 缺句柄时 unavailable；control 走 agentExecutionControl，不受该缺口阻断 |
 | <a id="np-04"></a>NP-04 | 合格保管方记录迟到结果的公开入口。`reconcile` 的输入只有操作身份，不带结果、交接与释放；`recordResult` 是执行记录端口，只在 Agent 已核验的操作内调用 | Agent 拥有者 | `recordResult` 返回 `unavailable`，任务保留。Agent 记录已删除时，Session 照契约单方保管 |
 | <a id="np-05"></a>NP-05 | `load` 不区分记录不存在与读取失败 | Agent 拥有者 | 本成员不产生 `missing` |
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记；受理按准入不可用返回 `unavailable`，装配声明没有命令域与 hooks 时不经槽 |
-| <a id="np-09"></a>NP-09 | Tool 的 `releaseDelivery` 结果未知、而调用方已丢失原操作引用时，没有按释放意图找回原操作的入口。`lookup` 只能认回已有释放，不能否定在途的操作 | Tool 拥有者 | 交付未释放时 AD-17 返回 `commit-unknown` 并报告，`release` 保持 pending |
-| <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的六个邻域内，AD-01 至 AD-17 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
+| <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的现有邻域适配内，已有插件 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
 | <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉上界是下一次模型请求之前）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 
-- 跨租户的系统作用域读取所需的事务域目录。目录缺席时 `references` 与 `releasedScopes` 返回 `unavailable`。AD-13 的读取插件与 AD-15 的重新释放子插件原样报告不可用，不当作空页。
+- 跨租户的系统作用域读取所需的事务域目录。目录缺席时 `references` 与 `releasedScopes` 返回 `unavailable`。应用装配的常驻引用桥接与 AD-15 的重新释放子插件原样报告不可用，不当作空页。
 - 执行环境重启到重新释放之间的窗口。AD-15 的重新释放子插件缩短这个窗口，不消除它。
 
 ## 组合与验证
@@ -664,17 +601,17 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 | VA-05 | 上一份快照丢失 | 下一次读取取完整快照，不补造提醒 | [AD-03](#ad-03-1b) |
 | VA-06 | 步边界提交与新的历史依据 | 两个时点都完成补拉；提醒落在上界之内 | [AD-03](#ad-03-1c) |
 | VA-07 | 各类未结工作下界、未关联等待及权威读失败 | 各类都映射为原条目引用；Tool intent 包含原 SE18 与生效 SE22，关联前后去重；失败时报告不可用，不交空集合 | [AD-04](#ad-04) |
-| VA-08 | 交付责任解除：Model 与 Tool 各自的成功、未就绪、不可用、未知、重复与证据被拒 | 按 `producer` 选生产者；结果只有 `confirmed`（带来源）、`not-ready`、`unavailable`、`commit-unknown` 四种；只有 `confirmed` 之后写 confirmed；重复确认得到原确认 | [AD-17](#ad-17)、[AD-05](#ad-05)、[AD-06](#ad-06) |
-| VA-09 | 模型选择的五种失败 | 返回失败，不改用其他路由 | [AD-07](#ad-07) |
+| VA-08 | Tool 原确认、重复、异版本、未知，以及 Model saved 未有 ACK | Tool 只由 AD-05 按 JC-Release 写 confirmed；异版本拒绝；Model 保持 pending | [AD-05](#ad-05)、[AD-06](#ad-06) |
+| VA-09 | 消息准入与当前条件的来源缺失、撤权和重复 | 按 J06 公开类型返回；不默认允许、不补默认条件、不在准入中写消息 | [J06 提供者](#j06-会话路径的两个-agent-提供者) |
 | VA-10 | `AgentDrivePort` 的每种 Agent 结果 | 按表映射；非准入的 `invalid` 不成为拒收 | [AD-14](#ad-14) |
 | VA-11 | 释放读回的五类处置及其组合、超时与抛出 | 逐项交出；超时以异常结束；未获授权不改用用户身份 | [AD-15](#ad-15) |
-| VA-12 | `invalidate` 成功、不可用、未知 | 只有成功为 `effective` | [AD-16](#ad-16) |
+| VA-12 | 无活体控制与交还挂接 | control 走长期入口且逐次核权；detach 带原 Authority；不要求推进资格 | [AD-14](#ad-14) |
 | VA-13 | 模式翻译表的每一格 | 结果与表一致并带来源证据；执行环境模式变化同批写设置声明 | [模式翻译表](#模式翻译表) |
 | VA-14 | 插件以错误的调用方类调用 | Session 拒绝；插件不改用另一调用方类重试 | [AD-00](#ad-00) |
 | VA-15 | 插件依赖的服务换代 | 插件体重跑；在途调用按原身份认回；已提交事实不变 | [生命周期](#所有权失败与生命周期) |
-| VA-16 | Tool 释放结果未知后重发：持有原操作引用并查得已提交、可靠否定、仍未知；原操作引用丢失 | 已提交时返回已有回执；可靠否定时才再次释放；仍未知或引用丢失且交付未释放时返回 `commit-unknown` | [AD-06](#ad-06) |
-| VA-17 | `HistorySource.read` 的每种 `readModelView` 结果，缺访问身份或作用域引用 | 按表对应；`epoch-changed` 带当前依据；不可用不返回空页；缺项时返回无效且不调用 `readModelView` | [AD-04](#ad-04) |
-| VA-18 | 执行环境提供者换代：`releasedScopes` 多页、目录缺席 | 每个作用域按原任务身份重新释放；目录缺席时报告不可用，不当作空页 | [AD-15](#ad-15) |
+| VA-16 | Tool 日志结果/账目不可读、未知、重复与迟到 | 保持未知或失败，重复认回原版本；不查询生产者，也不重写 release 写入者 | [AD-06](#ad-06) |
+| VA-17 | RQ 固定 evidence/游标、CM-02 尾项与配对、sourceCall、来源撤除 | 错域拒绝；完整窗口与原来源保留；旧代不发布；全部在途及租约结清后结束 | [AD-04](#ad-04) |
+| VA-18 | 目录第二页失败、end 已提交但无 SE25、空资源 pending acquisition | 不返回空成功；两路原释放任务继续；只有两路枚举完整且全部结清才 released | [AD-15](#ad-15) |
 | VA-19 | 候选采用带回冻结判定；会话已冻结 | `frozen` 的 `verdict` 等于证据桥交出的判定；会话已冻结时为 null | [AD-10](#ad-10) |
 
 本成员不覆盖：邻域自身的行为、真实存储事务域下的共同提交、跨进程部署，以及上表各具名前提闭合之后的行为。
