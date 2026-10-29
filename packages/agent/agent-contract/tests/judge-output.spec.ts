@@ -707,6 +707,27 @@ describe('the seven steps in order', () => {
         'a retry plan with a numeric notBefore',
         { kind: 'retry', plan: { supplier, notBefore: 5, basis: adoption } },
       ],
+      // SPEC "声明判断", `retry`: a text that `parseInstant` does not read is malformed. These go
+      // red when the check is dropped and `notBefore` is accepted as any text (SC-AG-138).
+      [
+        'a retry plan whose notBefore is not an instant text',
+        { kind: 'retry', plan: { supplier, notBefore: 'tomorrow', basis: adoption } },
+      ],
+      [
+        'a retry plan whose notBefore is a local time without Z',
+        { kind: 'retry', plan: { supplier, notBefore: '2026-10-17T08:00:00', basis: adoption } },
+      ],
+      [
+        'a retry plan whose notBefore has a numeric offset',
+        {
+          kind: 'retry',
+          plan: { supplier, notBefore: '2026-10-17T08:00:00+08:00', basis: adoption },
+        },
+      ],
+      [
+        'a retry plan whose notBefore is an impossible date',
+        { kind: 'retry', plan: { supplier, notBefore: '2026-02-30T08:00:00Z', basis: adoption } },
+      ],
       ['a retry plan without a basis', { kind: 'retry', plan: { supplier, notBefore: null } }],
       [
         'a retry basis with three of the four fields',

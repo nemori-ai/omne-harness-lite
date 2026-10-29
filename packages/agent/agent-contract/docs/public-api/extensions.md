@@ -55,7 +55,7 @@
 | `name` | 能力名。同一装配内同一位置可以有多个扩展，名称不是位置身份 |
 | `position`、`dimension` | `after_model_call` 必须带 `dimension.ending`。`after_action` 必须带 `dimension.scope`。其他位置不带 `dimension` |
 | `power` | 声明的干预力上限。任何位置都可以声明三档中的任一档，位置不限制声明。实际能力再按位置输出表与来源收窄，见下文“输出”。来源为工作区的扩展上限是 `observe` |
-| `needs` | 非空的需要声明列表。每项 `NeedDeclaration` 带 `name`（需要名，列表内互不相同）、`schema`（该需要的值形状，精确采用）与 `required`（是否必需，布尔值，没有默认）。装配只按这个列表注入能力，见下文“输入”。官方准入按同一组名字收到读取，见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”第 2 条 |
+| `needs` | 非空的需要声明列表。每项 `NeedDeclaration` 对应装配在调用时交付的一项能力或一项命名读取，带 `name`（交付时的键，列表内互不相同）、`schema`（交付物所遵守的契约的精确采用）与 `required`（是否必需，布尔值，没有默认）。装配只按这个列表注入能力，见下文“输入”。官方准入按同一组名字收到读取，见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”第 2 条。必需性在调用开始之前判定，必需需要缺席与可选需要缺席的处置见 SPEC 的“[声明判断](../../SPEC.md#声明判断)” |
 | `implementation` | `builtin` 由装配按名称解析到受信的内建实现。`command` 由宿主与方言适配器执行，适配器把命令结果转成本页的输出形状。`timeout` 是 ISO 8601 时长 |
 | `onError` | `observe` 只允许 `ignore`。`rewrite` 允许 `ignore` 或 `record`。`veto` 允许三种。省略时，`observe` 按 `ignore`，`rewrite` 按 `record`，`veto` 按 `treat_as_veto`。后置位置的扩展只允许 `ignore`，省略时也按 `ignore`，声明其他值被拒绝 |
 | `unavailability` | 省略时按 `skip`。`veto` 只允许 `power` 为 `veto`、且位置为前置位置的扩展 |
@@ -109,7 +109,7 @@
 - `select_model`：给出路由名。Agent 把它作为改写依据交模型选择端口。选择端口按锁定、模态与外传条件核验，不因此启用被禁用的模型，规则见[模型选择](../../SPEC.md#模型选择)。
 - `veto`：阻止候选状态变化。该链结束。各位置的否决后果见下文“否决、停止与终态”。
 - `stop`：请求停止后续推进。`terminal` 缺省为 `cancelled`。Agent 记录一条以该扩展为真实来源的控制请求，再按[取消、退出与结构变更](../../SPEC.md#取消退出与结构变更)核权与处理。`stop` 不是已取消的回执，也不撤销已发生的动作。
-- `retry`：只在调模型之后的失败分支，并且只在首内容前发出失败的触发中合法。原调用最终失败的触发中返回 `retry` 按不合法输出处理，因为已经没有可以继续的调用。Agent 把计划交回原 Model 调用，由 Model 按其[重试契约](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)作为该调用的重试决定继续发出或收场。`plan` 对应 Model 重试决定的 `retry` 分支。`notBefore` 是 null 或 RFC 3339 的 UTC 时刻文本。文本不能被 `@omne-harness/utc-instant` 的 `parseInstant` 解析时，输出被拒收，原因 `malformed`；解析成功时 Agent 以 `UtcInstantText` 保留原文本，不规范化。`notBefore` 为 null 表示不另设等待，Agent 以该 Conclusion 的 `at` 作为 Model 重试决定的 `notBefore`。主 Loop 不提前消费结果。没有 `retry` 输出时，Model 按不再重试收场。
+- `retry`：只在调模型之后的失败分支，并且只在首内容前发出失败的触发中合法。原调用最终失败的触发中返回 `retry` 按不合法输出处理，因为已经没有可以继续的调用。Agent 把计划交回原 Model 调用，由 Model 按其[重试契约](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)作为该调用的重试决定继续发出或收场。`plan` 对应 Model 重试决定的 `retry` 分支。`notBefore` 是 null 或 RFC 3339 的 UTC 时刻文本。文本不能被 `@omne-harness/utc-instant` 的 `parseInstant` 解析时，输出被拒收，原因 `malformed`；解析成功时 Agent 以 `UtcInstantText` 保留原文本，不规范化。`notBefore` 为 null 表示不另设等待，Agent 以该 Conclusion 的 `at` 作为 Model 重试决定的 `notBefore`；`at` 由 Agent 写入，见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 3 条。主 Loop 不提前消费结果。没有 `retry` 输出时，Model 按不再重试收场。
 - `ask`：请求人处理。`ask` 的 Conclusion 不是最终结论。Agent 保存它，并按卡片草稿出一轮卡片。卡片绑定原 `PassageId`。本轮答复齐备后，Agent 以 `replay` 模式携带答复重新调用原扩展的原精确采用，取得下一个结论。卡片只由 `ask` 输出产生。
 
 ### 按干预力的上限

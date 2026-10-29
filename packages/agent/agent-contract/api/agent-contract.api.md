@@ -145,6 +145,7 @@
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
+- `NeedDeclaration` · `extensions.d.ts`
 - `Next` · `evaluation.d.ts`
 - `OutputRefusalReason` · `judgment.d.ts`
 - `POSITIONS` · `extensions.d.ts`
@@ -190,6 +191,7 @@
 - `Subject` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
+- `UtcInstantText` · `identity.d.ts`
 - `Waiting` · `evaluation.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
@@ -1130,7 +1132,7 @@ export {};
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
-import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
+import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId, UtcInstantText } from './identity.ts';
 import type { CardAnswer, Subject } from './passages.ts';
 export declare const POSITIONS: readonly [
     'execution_started',
@@ -1169,14 +1171,19 @@ export type ExtensionImplementationDeclaration = Readonly<{
     matcher?: string;
     timeout?: string;
 }>;
+export type NeedDeclaration = Readonly<{
+    name: string;
+    schema: Adoption;
+    required: boolean;
+}>;
 export type LoopExtensionDeclaration = Readonly<{
     name: string;
     position: Position;
     dimension?: Dimension;
     power: Power;
     needs?: readonly [
-        string,
-        ...string[]
+        NeedDeclaration,
+        ...NeedDeclaration[]
     ];
     implementation: ExtensionImplementationDeclaration;
     onError?: ErrorPolicy;
@@ -1215,7 +1222,7 @@ export type ExtensionOutput = Readonly<{
     kind: 'retry';
     plan: Readonly<{
         supplier: M.Supplier;
-        notBefore: AgentInstant | null;
+        notBefore: UtcInstantText | null;
         basis: Adoption;
     }>;
 }> | Readonly<{
@@ -1385,6 +1392,10 @@ export type Continuation = Readonly<{
     value: JsonValue;
 }>;
 export type AgentInstant = string;
+declare const utcInstantText: unique symbol;
+export type UtcInstantText = string & {
+    readonly [utcInstantText]: 'UtcInstantText';
+};
 export type IdentityFailure<K extends string = string> = Readonly<{
     field: K;
     reason: 'type' | 'empty' | 'length' | 'character';

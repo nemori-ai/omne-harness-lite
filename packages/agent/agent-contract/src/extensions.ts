@@ -11,6 +11,7 @@ import type {
   CardRoundId,
   DurableEvidence,
   PassageId,
+  UtcInstantText,
 } from './identity.ts'
 import type { CardAnswer, Subject } from './passages.ts'
 
@@ -44,12 +45,18 @@ export type ExtensionImplementationDeclaration =
       matcher?: string
       timeout?: string
     }>
+/**
+ * One need of an extension: one capability or one named read that assembly delivers at the call.
+ * `name` is the key of the delivery, `schema` the exact adoption of the contract the delivered
+ * value follows, `required` whether the call may start without it (SPEC, "声明判断", `needs`).
+ */
+export type NeedDeclaration = Readonly<{ name: string; schema: Adoption; required: boolean }>
 export type LoopExtensionDeclaration = Readonly<{
   name: string
   position: Position
   dimension?: Dimension
   power: Power
-  needs?: readonly [string, ...string[]]
+  needs?: readonly [NeedDeclaration, ...NeedDeclaration[]]
   implementation: ExtensionImplementationDeclaration
   onError?: ErrorPolicy
   unavailability?: UnavailabilityPolicy
@@ -73,7 +80,7 @@ export type ExtensionOutput =
   | Readonly<{ kind: 'stop'; terminal?: 'cancelled' | 'failed'; reason: string }>
   | Readonly<{
       kind: 'retry'
-      plan: Readonly<{ supplier: M.Supplier; notBefore: AgentInstant | null; basis: Adoption }>
+      plan: Readonly<{ supplier: M.Supplier; notBefore: UtcInstantText | null; basis: Adoption }>
     }>
   | Readonly<{ kind: 'ask'; card: DecisionCardDraft }>
 export type DecisionCardDraft = Readonly<{

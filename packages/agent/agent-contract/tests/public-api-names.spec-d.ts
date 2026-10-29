@@ -89,6 +89,7 @@ import type {
   ExecutionSnapshot,
   ExecutionState,
   ExtensionImplementations,
+  ExtensionOutput,
   Failure,
   FailureCandidate,
   FinalRequest,
@@ -105,10 +106,12 @@ import type {
   JournalCapabilities,
   JournalCommit,
   LoopExtensionImplementation,
+  LoopExtensionDeclaration,
   LoopFacts,
   Material,
   MessageHandoff,
   MessageSource,
+  NeedDeclaration,
   ModelContextRead,
   ModelContextReader,
   ModelPurpose,
@@ -142,6 +145,7 @@ import type {
   StepId,
   StructureFailure,
   Subject,
+  UtcInstantText,
   TerminalObservation,
   Waiting,
 } from '@omne-harness/agent-contract'
@@ -313,6 +317,25 @@ describe('the identity brands', () => {
     expectTypeOf<InputId>().toEqualTypeOf<AgentIdentity<'AgentInputId'>>()
     expectTypeOf<ConsumptionId>().toEqualTypeOf<AgentIdentity<'AgentConsumptionId'>>()
     expectTypeOf<AgentInstant>().toEqualTypeOf<string>()
+  })
+
+  it('declare each need with a name, the exact adoption of its contract and whether it is required', () => {
+    expectTypeOf<NeedDeclaration>().toEqualTypeOf<
+      Readonly<{ name: string; schema: Adoption; required: boolean }>
+    >()
+    expectTypeOf<LoopExtensionDeclaration['needs']>().toEqualTypeOf<
+      readonly [NeedDeclaration, ...NeedDeclaration[]] | undefined
+    >()
+  })
+
+  it('brand the UTC instant text that only judgeExtensionOutput mints', () => {
+    expectTypeOf<UtcInstantText>().toExtend<string>()
+    expectTypeOf<string>().not.toExtend<UtcInstantText>()
+    expectTypeOf<AgentInstant>().not.toExtend<UtcInstantText>()
+    expectTypeOf<UtcInstantText>().not.toExtend<ActionId>()
+    expectTypeOf<
+      Extract<ExtensionOutput, { kind: 'retry' }>['plan']['notBefore']
+    >().toEqualTypeOf<UtcInstantText | null>()
   })
 
   it('shape the failures of a decode and of a structure judgment', () => {

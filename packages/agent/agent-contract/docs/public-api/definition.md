@@ -79,7 +79,7 @@ AgentAdoptions 有两个操作。resolve 把精确的 Adoption 解析为定义�
 | resolve | 租户核对。读取该采用所在作用域的资格由适配器核验 | 没有操作身份。同一精确 Adoption 得到同一结果，解析缓存可复用 | 只读，不加锁，不与其他操作排序 | 无 | 值。execution 只保存 Adoption 引用。解析缓存可丢弃重建。换代只影响尚未开始的经过 |
 | handover | 租户核对。快照由调用方经 load 取得，读取资格已在 load 核验。handover 不授予推进权 | 没有操作身份。execution、revision、源采用、目标采用和原 continuation 的摘要相同，得到相同的证明 | 不读取活体 execution。并发的 handover 互不影响。唯一的裁定点是 attach 的条件提交，revision 变化时 attach 返回 changed | 无。reload 的效果由 attach 提交的事件体现 | 证明绑定 revision，revision 变化即失效，不持久保存。新采用只影响尚未开始的经过 |
 
-handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。目标采用的判据与新 execution 的采用同形：只在当时的合法候选内选，定义不带版本，没有固定到某个版本的分支，规则见 SPEC 的“[采用交接](../../SPEC.md#采用交接)”。
+handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。目标采用由调用方按新 execution 的同一选择规则取得：当时的合法胜出者，定义不带版本，没有固定到某个版本的分支；选择归采用协调的拥有者。handover 不核对胜出者，只证明原 execution 能交给该目标接续，规则见 SPEC 的“[采用交接](../../SPEC.md#采用交接)”。
 
 ## 交接结果与验证义务
 
@@ -102,6 +102,6 @@ handover 本身不返回 changed。调用方在 attach 返回 changed 之后，�
 
 ## 旅程与持续验证
 
-本页承接 [J-AG01](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag01)、[J-AG07](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag07) 与 CAP-AG01、CAP-AG02。能力与旅程到设计的追踪见[覆盖矩阵](../../verification/coverage.md)的 CAP-AG01、CAP-AG02 行和 J-AG01、J-AG07 行。验收场景是[持续验证场景](../../verification/scenarios.md)中的 SC-AG-58、SC-AG-76、SC-AG-77、SC-AG-78 与 SC-AG-79。合法候选交接时在途的调用、判断和卡片由 SC-AG-14、SC-AG-48 与 SC-AG-51 覆盖，取消先成立后候选就绪由 SC-AG-52 覆盖。协作顺序见 [F-AG01](../flows/scenarios.md#f-ag01)、[F-AG07](../flows/scenarios.md#f-ag07)。
+本页承接 [J-AG01](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag01)、[J-AG07](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag07) 与 CAP-AG01、CAP-AG02。能力与旅程到设计的追踪见[覆盖矩阵](../../verification/coverage.md)的 CAP-AG01、CAP-AG02 行和 J-AG01、J-AG07 行。验收场景是[持续验证场景](../../verification/scenarios.md)中的 SC-AG-58、SC-AG-76、SC-AG-77、SC-AG-78 与 SC-AG-79。交接到合法胜出者时在途的调用、判断和卡片由 SC-AG-14、SC-AG-48 与 SC-AG-51 覆盖，取消先成立后候选就绪由 SC-AG-52 覆盖。协作顺序见 [F-AG01](../flows/scenarios.md#f-ag01)、[F-AG07](../flows/scenarios.md#f-ag07)。
 
 公开校验、版本读取和采用提交协议仍由定义、assets、assembly 与外部协调者的拥有者对齐。本文不把合法版本选择解释为任意在线升级，也不据文档场景宣称实现通过。

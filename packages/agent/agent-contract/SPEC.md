@@ -334,7 +334,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 位置必须是九处之一，否则得到 `unknown-position`。`power` 必须是三档之一，否则得到 `unknown-power`。任何位置都可以声明三档中的任一档。`source` 为 `workspace` 时 `power` 上限是 `observe`，超过得到 `power-above-ceiling`。`after_model_call` 要求 `dimension.ending`，`after_action` 要求 `dimension.scope`。在这两处位置，`dimension` 缺失、是空对象或是另一种维度都得到 `dimension-missing`。`dimension` 不是对象（包括 null），或维度的取值不合法，得到 `malformed`。其他位置带 `dimension` 得到 `dimension-not-allowed`。
 
-`needs` 是需要声明组成的非空列表。每项需要声明是只含 `name`、`schema`、`required` 三个成员的封闭对象：`name` 是非空字符串，`schema` 是只含 `owner`、`name`、`revision`、`digest` 四个字符串的封闭对象，`required` 是布尔值，没有默认值。列表内任何结构问题，以及两项 `name` 相同，都得到 `needs-not-allowed`。`name` 是装配注入能力与官方准入按需要名交付读取时所用的名字。调用时读不到 `required` 为 true 的需要，本次调用按该扩展不可用处置，后果取它的 `unavailability`（`skip` 或 `veto`）；读不到 `required` 为 false 的需要，扩展照常调用，收到这项需要缺席。`implementation` 缺席得到 `implementation-missing`。它是 `builtin`（带非空 `builtinName`）或 `command`（带 `host`、`dialect`、`event`、`command`，可带 `matcher` 与 ISO 8601 时长文本 `timeout`）。`host` 是 `claude_code` 或 `codex`，`dialect`、`event`、`command` 与 `matcher` 是非空字符串。`implementation` 的其他形状得到 `malformed`。判断只检查时长文本，不把它转成数字。
+`needs` 是需要声明组成的非空列表。每项需要声明是只含 `name`、`schema`、`required` 三个成员的封闭对象：`name` 是非空字符串，`schema` 是只含 `owner`、`name`、`revision`、`digest` 四个字符串的封闭对象，`required` 是布尔值，没有默认值。列表内任何结构问题，以及两项 `name` 相同，都得到 `needs-not-allowed`。一项需要声明对应装配在调用时交付的一项能力或一项命名读取。`name` 是交付时的键：装配注入能力与官方准入按需要名交付读取都用这个名字。`schema` 是交付物所遵守的契约的精确采用，装配按它核对注入物。必需性在 Agent 发起扩展调用之前判定：装配为本次调用绑定能力时，任一 `required` 为 true 的需要绑定不到，调用不开始，本次调用按该扩展不可用处置。不可用的后果分三种：作者扩展取它声明的 `unavailability`（`skip` 或 `veto`）；受信系统扩展按装配方预先指定的处置，可为 `fallback`；官方准入读不到必需需要等同官方准入不可用，本批全部动作被拒绝，见“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 2 条。调用开始之后经能力读取失败是调用中的失败，按报错分支与 `onError` 处置。`required` 为 false 的需要缺席时扩展照常调用：注入的能力集合里没有该名字的条目，官方准入的 `permissions` 列表里没有这一项。`implementation` 缺席得到 `implementation-missing`。它是 `builtin`（带非空 `builtinName`）或 `command`（带 `host`、`dialect`、`event`、`command`，可带 `matcher` 与 ISO 8601 时长文本 `timeout`）。`host` 是 `claude_code` 或 `codex`，`dialect`、`event`、`command` 与 `matcher` 是非空字符串。`implementation` 的其他形状得到 `malformed`。判断只检查时长文本，不把它转成数字。
 
 `onError` 的取值受位置与 `power` 限制。后置位置只允许 `ignore`。前置位置的 `observe` 只允许 `ignore`，`rewrite` 允许 `ignore` 与 `record`，`veto` 允许 `ignore`、`record` 与 `treat_as_veto`。取值不在这些范围内，或不是枚举成员，得到 `error-policy-not-allowed`。`unavailability` 是 `skip` 或 `veto`。`veto` 只允许 `power` 为 `veto` 且位置为前置位置的声明，否则得到 `unavailability-not-allowed`，取值不是枚举成员时同样如此。前置位置是 `before_compaction`、`before_model_call`、`before_action` 与 `before_terminal`。省略的可选字段在成功值里也省略，契约不补缺省值。
 
@@ -637,7 +637,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 判断按下列规则进行。
 
 1. 同一动作的执行动作之前链按声明顺序串行，后一个扩展读到前一个扩展的有效改写。不同动作的链并行，互不等待，也互不读取对方的 Conclusion。
-2. 官方动作准入是每条链末尾的受信系统扩展。它经 ActionAdmission 端口取得当前准入。端口输入的 `permissions` 是按需要名的一组读取 `NamedCapturedRead`：每项的 `need` 是官方准入所声明的需要名，与扩展声明 `needs` 的 `name` 同义，名字互不相同，次序按声明次序。空列表表示没有读取，不表示有授权。读取怎样产生归读面的拥有者，本契约只定形状。端口输入的 `decision.answer` 只携带 `CardAnswer`，附言不进入该端口。准入结果：allow 记为该动作的 allowed 判断并保存准入证据，deny 记为 denied，need-decision 按卡片草稿出一轮卡片，unavailable 使本批全部动作被拒绝。端口返回 denied 或 unavailable 的 Failure 时，按 unavailable 处理。全拒时不放行任何动作，也不出卡。同批其他链已开出但尚未呈现的卡片轮次不再呈现。已呈现的卡片由 Agent 以 DecisionCards.invalidate 作废其中尚无答复的卡片，已有答复保留。这些已询问的扩展调用不再以 `replay` 调用。同批仍在运行的链不再被等待：其中尚未开始的扩展调用不再开始，正在进行的调用结束后其 Conclusion 只记录不采纳，链末不再调用 admit。
+2. 官方动作准入是每条链末尾的受信系统扩展。它经 ActionAdmission 端口取得当前准入。端口输入的 `permissions` 是按需要名的一组读取 `NamedCapturedRead`：每项的 `need` 是官方准入所声明的需要名，与扩展声明 `needs` 的 `name` 同义，名字互不相同，次序按声明次序。空列表表示没有读取，不表示有授权。官方准入声明为必需的需要读不到时，等同官方准入不可用，本批全部动作被拒绝；作者扩展与受信系统扩展的不可用处置和它一起写在“[声明判断](#声明判断)”的 `needs` 一段。读取怎样产生归读面的拥有者，本契约只定形状。端口输入的 `decision.answer` 只携带 `CardAnswer`，附言不进入该端口。准入结果：allow 记为该动作的 allowed 判断并保存准入证据，deny 记为 denied，need-decision 按卡片草稿出一轮卡片，unavailable 使本批全部动作被拒绝。端口返回 denied 或 unavailable 的 Failure 时，按 unavailable 处理。全拒时不放行任何动作，也不出卡。同批其他链已开出但尚未呈现的卡片轮次不再呈现。已呈现的卡片由 Agent 以 DecisionCards.invalidate 作废其中尚无答复的卡片，已有答复保留。这些已询问的扩展调用不再以 `replay` 调用。同批仍在运行的链不再被等待：其中尚未开始的扩展调用不再开始，正在进行的调用结束后其 Conclusion 只记录不采纳，链末不再调用 admit。
 3. 同批每条链都到达最终 Conclusion 或合法等待之后，Agent 才一次呈现本轮全部卡片。呈现前，卡片轮次已经提交为已请求。
 4. 屏障在三个条件同时成立时打开：每条链都有最终 Conclusion，每张卡片都已处理，至少一个动作被允许。卡片所属轮次为 processed 或 present-failed 都计入“已处理”；以呈现失败结束的链计入“有最终 Conclusion”（第 11 条）。屏障状态与打开依据随 checkpoint 提交。屏障打开之前不发起任何已获准的动作，一个动作已经被允许不能越过其他动作尚未完成的判断。
 5. 原扩展消费答复后再次返回 `ask`，或后继扩展返回 `ask`，都开出新一轮卡片。新一轮有新的 round，仍属原批，屏障继续关闭。
@@ -824,7 +824,7 @@ quiesce 是 AgentRuntimeControl 的操作。它使 runtime 进入 draining，此
 
 adoptions.handover 接收完整 ExecutionSnapshot 与 original，核同定义合法采用、原 checkpoint 编码一致及整个原恢复闭包。snapshot 内的原引用须可解析为对应的固定版本，不能只验私有 state 的 JSON。成功证明绑定 execution/revision、源和目标 continuation 摘要及目标采用。attach 核验原版本仍适用并共同保存转换后接续，版本变化时返回 changed。兼容证明不授予推进权。
 
-handover 不读取活体的 execution，也不写入任何状态。它的幂等身份、证明失效与 changed 之后的重读见[定义专题的采用解析与交接](docs/public-api/definition.md#采用解析与交接)。目标采用的判据与新 execution 的采用同形：只在当时的合法候选内选，定义不带版本，没有固定到某个版本的分支。
+handover 不读取活体的 execution，也不写入任何状态。它的幂等身份、证明失效与 changed 之后的重读见[定义专题的采用解析与交接](docs/public-api/definition.md#采用解析与交接)。目标采用由调用方按新 execution 的同一选择规则取得：当时的合法胜出者，定义不带版本，没有固定到某个版本的分支。选择归采用协调的拥有者。handover 不核对胜出者，只证明原 execution 能交给该目标接续；胜出者随时间变化，核对它会破坏“输入相同则证明相同”的规则。handover 的失败集合不因此增加。
 
 活动 Passage 的精确 implementation/schema、原请求、操作次序、已捕获结果、卡片轮次与消费位置必须保留；只允许外层编码适配，不做语义迁移。新采用只影响尚未开始的经过。显式 reload 先准备新实例，再由治理排序撤旧授新；普通恢复用原采用。无法解释原扩展调用时拒绝交接或保留原精确解释器收束，不能套新版判断、重问卡片或改写固定调用。原调用未物理结束不阻止合法的责任交接。
 
@@ -1060,7 +1060,7 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
 
 1. Agent 宿主为 Agent 的消费者 owner 提交 Model 的装配声明 `ModelConsumerOwnerDeclaration`。声明的 work 为 exempt，evidence 是该 owner 的受信证据适配器的采用。声明规则归 Model 的[资格、共同提交与实际发送](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)。
 2. [资格参加者协议闭合之前](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)，Agent 的全部 Model 调用都按免守卫受理。免守卫不提供单调失格的保护。推进资格撤销之后，新的 Model 发出由 Journal 的条件提交（stale-advance）与动作发出围栏阻止。
-3. `retry` 计划的 `notBefore` 是 `UtcInstantText`，即 `judgeExtensionOutput` 以 `parseInstant` 校验过的 UTC 时刻文本。Agent 把它原样交给 Model 的重试决定，Model 不再收到未经校验的时刻文本。
+3. `retry` 计划的 `notBefore` 非 null 时是 `UtcInstantText`，即 `judgeExtensionOutput` 以 `parseInstant` 校验过的 UTC 时刻文本。Agent 把它原样交给 Model 的重试决定，扩展给出的时刻文本不会未经校验地到达 Model。`notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。`at` 由 Agent 在把合法输出包装为 Conclusion 时写入，值是 `AgentClock.now` 返回的 `AgentInstant`；它是 RFC 3339 的 UTC 时刻，依据是时钟端口的契约（“[时钟读取与等待](#时钟读取与等待)”），本契约不对它另做 `parseInstant` 校验。
 4. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。
    - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
    - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。

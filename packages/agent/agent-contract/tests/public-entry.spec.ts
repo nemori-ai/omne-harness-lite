@@ -699,7 +699,7 @@ it('caps a workspace source at observe at every position and drops the source fr
 
 it('keeps an omitted optional field omitted and returns frozen data that shares nothing with the input', async () => {
   const input = declare('before_action', 'veto', {
-    needs: ['history'],
+    needs: [need('history')],
     onError: 'record',
     unavailability: 'veto',
   })
@@ -711,7 +711,12 @@ it('keeps an omitted optional field omitted and returns frozen data that shares 
   expect(Object.isFrozen(judged.value)).toBe(true)
   expect(Object.isFrozen(first)).toBe(true)
   expect(Object.isFrozen(first?.implementation)).toBe(true)
+  // SPEC "声明判断": the needs list, each need and its schema are frozen and shared with nothing.
   expect(Object.isFrozen(first?.needs)).toBe(true)
+  expect(Object.isFrozen(first?.needs?.[0])).toBe(true)
+  expect(Object.isFrozen(first?.needs?.[0].schema)).toBe(true)
+  expect(first?.needs?.[0]).not.toBe(input.needs)
+  expect(first?.needs?.[0].schema).not.toBe(need('history').schema)
   expect(first?.implementation).not.toBe(input.implementation)
   const bare = await judgeOne(declare('before_model_call', 'veto'))
   expect(bare.kind === 'accepted' && Object.keys(bare.value[0] ?? {}).sort()).toEqual([
@@ -799,12 +804,41 @@ it('accepts an ISO 8601 timeout text and refuses any other text', async () => {
   }
 })
 
-it('accepts a list of distinct non-empty needs in order and refuses every other form', async () => {
-  expect(await judgeOne(declare('before_action', 'observe', { needs: ['b', 'a'] }))).toEqual({
+// A need declaration of the SPEC shape: name, the exact adoption of its contract, whether required.
+function need(name: string, required = true): Record<string, unknown> {
+  return { name, schema: { owner: 'o', name: 'n', revision: '1', digest: 'd' }, required }
+}
+
+it('accepts a list of distinctly named need declarations in order and refuses every other form', async () => {
+  const needs = [need('b'), need('a', false)]
+  expect(await judgeOne(declare('before_action', 'observe', { needs }))).toEqual({
     kind: 'accepted',
-    value: [declare('before_action', 'observe', { needs: ['b', 'a'] })],
+    value: [declare('before_action', 'observe', { needs })],
   })
-  const refusedNeeds: unknown[] = [[], ['a', 'a'], [''], ['a', 1], 'history', null, {}, [['a']]]
+  // Each entry is `needs-not-allowed` by SPEC "声明判断": any structure fault inside the list and a
+  // repeated name share the one reason of the field. The entries go red when a check is dropped:
+  // the same name twice when the name set is not compared, a missing or non-boolean `required` when
+  // the member is optional or loose, a fifth or missing schema member when the schema is open.
+  const refusedNeeds: unknown[] = [
+    [],
+    [need('a'), need('a')],
+    [need('a'), { ...need('a'), required: false }],
+    [need('')],
+    [{ name: 'a', schema: need('a').schema }],
+    [{ ...need('a'), required: 'yes' }],
+    [{ ...need('a'), required: null }],
+    [{ ...need('a'), schema: { owner: 'o', name: 'n', revision: '1', digest: 'd', extra: 'x' } }],
+    [{ ...need('a'), schema: { owner: 'o', name: 'n', revision: '1' } }],
+    [{ ...need('a'), schema: { owner: 'o', name: 'n', revision: 1, digest: 'd' } }],
+    [{ ...need('a'), schema: 'o/n@1' }],
+    [{ ...need('a'), extra: 1 }],
+    ['history'],
+    [need('a'), 1],
+    'history',
+    null,
+    {},
+    [[need('a')]],
+  ]
   for (const needs of refusedNeeds) {
     expect(
       await judgeOne(declare('before_action', 'observe', { needs })),

@@ -97,22 +97,26 @@ describe('the accepted value of each output kind', () => {
     })
   })
 
-  it('keeps a retry plan member for member', () => {
-    const plan = {
-      supplier: { adoption, recipient: 'recipient', model: 'model' },
-      notBefore: '2026-10-17T08:00:00Z',
-      basis: adoption,
+  it('keeps a retry plan member for member, the instant text as written', () => {
+    // SPEC "声明判断", `retry`: the accepted `notBefore` is the original text, not normalized. The
+    // fraction digits and the null case go red when a judgment rewrites or drops the text.
+    for (const notBefore of ['2026-10-17T08:00:00Z', '2026-10-17T08:00:00.250Z', null]) {
+      const plan = {
+        supplier: { adoption, recipient: 'recipient', model: 'model' },
+        notBefore,
+        basis: adoption,
+      }
+      const judged = judge({
+        position: 'after_model_call',
+        dimension: { ending: 'failure' },
+        purpose: 'main',
+        power: 'veto',
+        trigger: 'first-content',
+        subject: {} as Subject,
+        output: { kind: 'retry', plan },
+      })
+      expect(judged, String(notBefore)).toStrictEqual(accepted({ kind: 'retry', plan }))
     }
-    const judged = judge({
-      position: 'after_model_call',
-      dimension: { ending: 'failure' },
-      purpose: 'main',
-      power: 'veto',
-      trigger: 'first-content',
-      subject: {} as Subject,
-      output: { kind: 'retry', plan },
-    })
-    expect(judged).toStrictEqual(accepted({ kind: 'retry', plan }))
   })
 
   it('keeps every member of a card that states them all, and leaves out those that it does not state', () => {
