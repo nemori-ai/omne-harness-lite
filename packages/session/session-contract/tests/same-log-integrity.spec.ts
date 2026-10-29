@@ -10,6 +10,7 @@ import {
 } from '@omne-harness/session-contract'
 import { evidence, operationId, succeeded } from '@omne-harness/session-contract/testing'
 import { decodeEntry, encodeEntry } from '../src/entries.ts'
+import { applyExtended } from '../src/reduce-extended.ts'
 import { open } from './scene.ts'
 
 const consumption = 'original-consumption' as ConsumptionId
@@ -338,5 +339,113 @@ describe('atomic interpretation of original Session history', () => {
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'source' },
     })
+  })
+})
+
+describe('one transition for a taken batch', () => {
+  async function handed() {
+    const f = await twoRuns()
+    succeeded(
+      await f.scene.commit({
+        kind: 'receive',
+        input: {
+          ...f.scene.base,
+          operation: operationId('successor-admission'),
+          fact: {
+            kind: 'input-handover',
+            execution: f.current.run.execution.execution,
+            input: f.current.run.first,
+            result: { kind: 'accepted', receipt: evidence('successor-accepted') },
+          },
+        },
+      }),
+      'successor admission',
+    )
+    const taken = (ordered: readonly string[]): SessionLogObservation => ({
+      ...f.observation,
+      source: evidence('successor-taken'),
+      consequences: [
+        {
+          kind: 'input-taken',
+          batch: {
+            id: 'successor-batch' as never,
+            ordered: ordered as never,
+            watermark: evidence('successor-watermark'),
+          },
+        },
+      ],
+    })
+    const selected = async (observation: SessionLogObservation) => {
+      f.scene.history.observe(observation)
+      const snapshot = await f.scene.read()
+      const consequence = observation.consequences[0]
+      if (consequence?.kind !== 'input-taken') throw new Error('taken fixture')
+      const reads = f.scene.history.read(
+        snapshot,
+        f.scene.port.controls.entriesOf(f.scene.access.tenant, f.scene.access.session),
+        { kind: 'selected', inputs: consequence.batch.ordered },
+      ).reads
+      return { snapshot, reads }
+    }
+    return { ...f, first: f.current.run.first, taken, selected }
+  }
+
+  it('the projection and the reducer refuse a batch that repeats a member', async () => {
+    const projected = await handed()
+    const repeated = projected.taken([projected.first, projected.first])
+    const original = await projected.selected(repeated)
+    expect(projectSessionLog(original.snapshot, repeated, original.reads)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid' },
+    })
+
+    const f = await handed()
+    const single = f.taken([f.first])
+    const { snapshot, reads } = await f.selected(single)
+    const valid = batch(snapshot, single, reads)
+    expect(reduce(snapshot, valid, reads)).toMatchObject({
+      kind: 'reduced',
+      snapshot: { taken: [f.first], handed: [], pending: [] },
+    })
+    const doubled = valid.entries.map(row => {
+      const value = decodeEntry(row)
+      if (!('ok' in value) || value.ok.kind !== 'run.batch-taken') return row
+      return {
+        ...encodeEntry(
+          { ...value.ok, batch: { ...value.ok.batch, ordered: [f.first, f.first] } },
+          row.origin,
+        ),
+        id: row.id,
+        revision: row.revision,
+      }
+    })
+    expect(reduce(snapshot, { ...valid, entries: doubled }, reads)).toMatchObject({
+      kind: 'quarantined',
+    })
+  })
+
+  it('the shared transition keeps each input taken at most once in the current Run', async () => {
+    const f = await handed()
+    const { snapshot } = await f.selected(f.taken([f.first]))
+    if (snapshot.run.kind !== 'active') throw new Error('no active Run')
+    const run = snapshot.run.run
+    const entry = (ordered: readonly string[]) => ({
+      kind: 'run.batch-taken' as const,
+      run,
+      batch: {
+        id: 'successor-batch' as never,
+        ordered: ordered as never,
+        watermark: evidence('successor-watermark'),
+      },
+    })
+    const once = { ...snapshot }
+    expect(applyExtended(once, entry([f.first]), evidence('taken'))).toBeNull()
+    expect(once.taken).toEqual([f.first])
+    expect(applyExtended({ ...snapshot }, entry([f.first, f.first]), evidence('t'))).toEqual(
+      expect.any(String),
+    )
+    expect(applyExtended({ ...once }, entry([f.first]), evidence('again'))).toEqual(
+      expect.any(String),
+    )
   })
 })

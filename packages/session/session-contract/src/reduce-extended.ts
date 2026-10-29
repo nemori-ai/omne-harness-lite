@@ -128,10 +128,16 @@ export function applyExtended(
       return null
     }
     case 'run.batch-taken':
+      // I-R3: an input is taken at most once. A repeated member or a second taking in the same
+      // Run is a contradiction to report, not a value to merge.
+      if (new Set(entry.batch.ordered).size !== entry.batch.ordered.length)
+        return 'a taken batch repeats an input'
       if (draft.run.kind !== 'active' || draft.run.run !== entry.run) {
         draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
         return null
       }
+      if (entry.batch.ordered.some(input => (draft.taken ?? []).includes(input)))
+        return 'an input taken twice in the same Run'
       draft.pending = draft.pending.filter(input => !entry.batch.ordered.includes(input))
       draft.handed = draft.handed.filter(input => !entry.batch.ordered.includes(input))
       draft.taken = [...(draft.taken ?? []), ...entry.batch.ordered]

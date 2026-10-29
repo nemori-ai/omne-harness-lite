@@ -141,21 +141,9 @@ function projectObservation(
     switch (consequence.kind) {
       case 'observed':
         break
-      case 'input-taken': {
-        const current = draft.run.kind === 'active' && draft.run.run === observation.run
-        draft.pending = draft.pending.filter(input => !consequence.batch.ordered.includes(input))
-        if (current) {
-          draft.handed = draft.handed.filter(input => !consequence.batch.ordered.includes(input))
-          draft.taken = [...new Set([...(draft.taken ?? []), ...consequence.batch.ordered])]
-        }
-        out.push(
-          encodeEntry(
-            { kind: 'run.batch-taken', run: observation.run, batch: consequence.batch },
-            origin,
-          ),
-        )
+      case 'input-taken':
+        append({ kind: 'run.batch-taken', run: observation.run, batch: consequence.batch })
         break
-      }
       case 'call-registration':
         validateRegistration(draft, consequence.registration, observation.run)
         append({
