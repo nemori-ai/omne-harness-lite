@@ -1,6 +1,7 @@
 // @module-tag slow
 // 回路侧的具名组环例外：runner 与被检树分开的临时仓库，真实跑 loop:status（起子进程）与收工钩子的度量
 // （measureForHook，进程内），所以归慢层。钉住接线：回路读 runner 的例外，不读被检树的，坏例外报工具错误。
+// 登记的边没用上只在被检树就是 runner 自己时算进环，跨树时不判。
 // 例外的判定与校验本身在 group-cycle-exceptions.spec.ts，omne-deps 的行为在 group-cycle-exceptions-cli.spec.ts。
 import { spawnSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -18,6 +19,7 @@ import {
   Y_TO_Z,
   policy,
   runner,
+  selfTree,
   tree,
 } from './fixtures/group-cycle.ts'
 import {
@@ -131,6 +133,23 @@ describe('loop:status 硬线读 runner 的组环例外', { timeout: 120_000 }, (
     }
   })
 
+  it('同一棵树：登记的边没有出现在任何组环里，硬线破，cycles 里有这条例外', () => {
+    const own = selfTree([CONTEXT_TOOL], { broken: true })
+    const { code, status } = loopStatus(own, own)
+    expect(code).toBe(1)
+    expect(status?.hardLines.cycles).toEqual([
+      expect.objectContaining({ kind: 'unused-group-cycle-exception' }),
+    ])
+  })
+
+  it('跨树：runner 登记的边不在被检树的组环里，硬线不破', () => {
+    const { code, stderr, status } = loopStatus(tree({ broken: true }), runner([CONTEXT_TOOL]))
+    expect(stderr).toBe('')
+    expect(code).toBe(0)
+    expect(status?.hardLines.cycles).toEqual([])
+    expect(status?.hardLines.exceptedCycles).toEqual([])
+  })
+
   it('runner 的例外条目不合法时按工具错误退出 2，不当成没有例外', () => {
     const trusted = runner(null)
     write(
@@ -165,6 +184,17 @@ describe('收工钩子的度量读 runner 的组环例外', { timeout: 120_000 }
     const subject = tree()
     write(subject, CONSTRAINTS, policy([CONTEXT_TOOL]))
     expect(hardLinesForHook(subject, runner(null)).cycles).toHaveLength(1)
+  })
+
+  it('同一棵树：登记的边没有出现在任何组环里，进硬线', () => {
+    const own = selfTree([CONTEXT_TOOL], { broken: true })
+    expect(hardLinesForHook(own, own).cycles).toEqual([
+      expect.objectContaining({ kind: 'unused-group-cycle-exception' }),
+    ])
+  })
+
+  it('跨树：runner 登记的边不在被检树的组环里，硬线里没有环', () => {
+    expect(hardLinesForHook(tree({ broken: true }), runner([CONTEXT_TOOL])).cycles).toEqual([])
   })
 
   it('环里有未登记的边（context → tool 另有一条成员边）：组环仍进硬线', () => {
