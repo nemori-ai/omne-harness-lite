@@ -21,8 +21,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 - 每条参加线写一个 `--comment`。
 - 两条等待同时挂着的方法取决于宿主：
-  - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行。任务结束时，宿主唤醒会话。
-  - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时换另一条等待，各自的 `--since` 不变。
+  - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行，同样带 `--timeout`。任务结束时，宿主唤醒会话。
+  - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时先按「等待监督」第 5 步读回，再换另一条等待，各自的 `--since` 不变。
   - 这条宿主差异只适用于 Reduce。线会话的等待一律前台阻塞，没有例外。
 - 命中只是唤醒。唤醒后读回全部参加线父卡的交回记录与待处理的批次 PR，按已处理集合去重后逐条处理，再重挂。读回、去重与重挂起点归 `docs/engineering/integration.md`「等待监督」。处理一项时，另一条等待保持挂起。
 - 本波已处理的每个批次 PR 都累加一条 `--ignore <pr>@<处理时的 head>`，再重挂 `pr-ready`。

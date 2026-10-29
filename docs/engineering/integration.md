@@ -172,7 +172,7 @@ flowchart TD
 1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 2. 提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
 
-提升 PR 的确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。个人分支（含批次分支）进轨道的 PR 不运行 `ri-notes`：两节手写，逐张列本次带入的卡；确认者按上一段人工核对，机器结果是第 1 条卡级核对所在的准入输出。上面三类退出 1 的核对，在该轨道下一次提升时由 `ri-notes` 做。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
+提升 PR 的确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。个人分支（含批次分支）进轨道的 PR 不运行 `ri-notes`：两节手写，逐张列本次带入的卡。确认者按本节开头「第一阶段由确认者核对」一句人工核对；卡级核对的输出在各卡交接报告第 1 节，批次 head 的准入输出在准入证据评论。该轨道下一次提升时，`ri-notes` 对汇总后的申报与快照差异做核对，不逐批次核对。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
 
 多卡 PR 按每个契约成员汇总所含卡对它的变化，按 `none < additive < breaking` 取最高级别，不相互抵消；每张卡对成员的级别仍不超过这张卡的契约变更。breaking 只出现在进入联调轨道或 main 的 PR 中。
 
@@ -414,11 +414,12 @@ Reduce 在波内挂两条等待：
 等待命中只是唤醒，命中的那一条不代表全部待处理事件。Line 与 Reduce 每次被唤醒都这样处理，Line 读到 idle delta 后再等也一样：
 
 1. 读回相关父卡上的全部带标记记录：Line 读本线父卡的 `line-delta`，Reduce 读每条参加线父卡的 `line-handoff`。读法是 `gh api repos/<repo>/issues/<父卡>/comments --paginate`，按首行标记过滤。读回不带时间起点。
-2. 与已处理集合比对，按发布顺序逐条处理尚未处理的记录，不跳过 idle delta。已处理集合记评论 id：Line 记在本线状态文件，Reduce 记在波段队列的「等待」一项。
-3. 重挂的 `--since` 只用来避免立即再次唤醒，不负责不漏事件，不漏由第 1、2 步保证。命中输出的 `delivery` 不为 null 时用这个 delivery id；为 null 时用命中评论的创建时间，读法是 `gh api repos/<repo>/issues/comments/<id> --jq .created_at`，id 是输出 `html_url` 中 `#issuecomment-` 之后的数字。不要用 `receivedAt`，也不要自己加减时间余量。legacy 模式下，对账先找到的评论，其投递随后写进事件文件时会再唤醒一次。这时读回没有新记录，改用这次命中的 delivery id 重挂即可。
-4. `pr-ready` 同样处理：读回联调轨道上全部待处理的批次 PR，`--since` 按第 3 步取，本波已处理的每个批次 PR 都累加一条 `--ignore <pr>@<处理时的 head>`。
+2. 与已处理集合比对，按发布顺序逐条处理尚未处理的记录，不跳过 idle delta。全部处理完才回到等待：Line 只有在最后一条是 idle 时才再等，不能处理完一条 idle 就重挂。已处理集合记评论 id：Line 记在本线状态文件，Reduce 记在波段队列的「等待」一项。
+3. 重挂的 `--since` 只用来避免立即再次唤醒，不负责不漏事件，不漏由第 1、2 步保证。命中输出的 `delivery` 不为 null 时用这个 delivery id；为 null 时用命中评论的创建时间，读法是 `gh api repos/<repo>/issues/comments/<id> --jq .created_at`，id 是输出 `html_url` 中 `#issuecomment-` 之后的数字。不要用 `receivedAt`，也不要自己加减时间余量。重挂后可能对已处理的记录多唤醒有限的几次，例如 legacy 模式下对账先找到的评论其投递随后到达，或多条线时对账返回另一条线上已处理的记录。读回没有新记录时，按这次命中再取起点重挂即可。
+4. `pr-ready` 的对账不受 `--since` 约束，防止立即再唤醒的只有 `--ignore`。唤醒后读回联调轨道上全部开着的 PR，处理待处理的批次 PR；重挂时对当前开着、本次不处理的每个 PR 都写一条 `--ignore <pr>@<当前 head>`，包括 Reduce 推进后换了 head 的批次 PR 和等 gate 的同步 PR。命中来自事件文件时，`--since` 用这次的 delivery id；来自对账时，`--since` 不变。
+5. 每条等待都带 `--timeout`。超时后先做一次读回（交回记录与 delta 按第 1 步，`pr-ready` 按第 4 步），处理新记录，再用同一起点重跑。
 
-已知限制：频道模式下，与命中评论同一秒创建、但晚于第 1 步读回的记录，要到下一个事件才会唤醒等待。工具改进见 [#931](https://github.com/nemori-ai/omne-harness-lite/issues/931)。
+已知限制：与命中记录同一秒创建且晚于第 1 步读回的记录、本机与 GitHub 的时钟差、读回时 GitHub 尚未返回刚创建的记录，都可能让一条记录不唤醒等待。用同一起点重跑补不回它，只靠第 5 步超时后的读回发现；这条记录是一波最后一条时，最长要等一个超时。工具改进见 [#931](https://github.com/nemori-ai/omne-harness-lite/issues/931)。
 
 处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
 
@@ -442,7 +443,7 @@ sequenceDiagram
   G->>R: 投递评论事件
   R->>E: 追加一行事件
   E-->>L: wait-cli comment 命中，退出 0
-  Note over L,D: 退出 3 是超时，用同一 --since 重挂。退出 2 是等待失败，在状态里记 unknown
+  Note over L,D: 退出 3 是超时，先读回再用同一 --since 重挂。退出 2 是等待失败，在状态里记 unknown
 ```
 
 Reduce 自己启动的对象由 Reduce 自己观察，包括 gate 运行与审批、子代理与检查进程，以及约定期限。审批交有权者，Reduce 不自动批准。期限到达时，Reduce 核对事实并决定等待、重排或取消。

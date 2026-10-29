@@ -127,9 +127,9 @@ binding 齐全且任务卡开放时，你就可以开工。事件接收器的健
 1. 用宿主的 shell 或 bash 工具运行等待命令。这是一次前台阻塞的工具调用。
 2. 不加 `nohup`、`&`、`setsid` 或 `disown`。不用任何后台任务模式，例如 Claude Code 的 `run_in_background`。
 3. 等待命令带 `--timeout`。值略小于宿主单次工具调用的时长上限。
-4. 退出码 3 表示超时，不表示条件不成立。在新的前台调用里立即重跑同一条命令。起点 `--since` 不变。
+4. 退出码 3 表示超时，不表示条件不成立。先按第 6 条读回一次；没有未处理的 delta，就在新的前台调用里立即重跑同一条命令，起点 `--since` 不变。
 5. 退出码 2 表示等待失败。在 {{line_state_path}} 写明等待状态是 unknown，然后等人转告。等待失败不算轮空，也不算成功。
-6. 等待返回只是唤醒。先读回本线父卡上的全部 `line-delta`，与 {{line_state_path}} 里已处理的评论 id 比对，按发布顺序逐条处理，不跳过 idle delta。active 开工，idle 再次前台等待，redo 按新 attempt 重开，terminal 交最终报告。重挂起点归 `docs/engineering/integration.md`「等待监督」。
+6. 等待返回只是唤醒。先读回本线父卡上的全部 `line-delta`，与 {{line_state_path}} 里已处理的评论 id 比对，按发布顺序逐条处理，不跳过 idle delta。全部处理完、最后一条是 idle 时才再次前台等待。active 开工，redo 按新 attempt 重开，terminal 交最终报告。重挂起点归 `docs/engineering/integration.md`「等待监督」。
 7. 只有读到明确的 terminal delta 并交完最终报告，你才结束会话。超时、空队列和预案里没有后续任务都不结束会话。
 8. 等自己派出的子代理时，前台没有别的工作就阻塞等它，不结束回合。
 
