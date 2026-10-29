@@ -118,7 +118,7 @@ sequenceDiagram
     C2->>C2: 从快照取 readThrough
     Ev-->>C2: 一页事件，序号大于 readThrough
     loop 每个事件
-        alt message 或 stream
+        alt message 或 entry
             Note over C2: 只推进内存游标
         else 产生条目的事件
             C2->>CP: receive(agent-event)，身份为 execution 与序号，readThrough 设为本序号

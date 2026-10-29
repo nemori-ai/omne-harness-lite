@@ -150,12 +150,11 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 | 首条路径已装载（图中蓝底） | Session、Agent、Model；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
 | 已写回，仍有具名缺口 | Session 只读同日志结果与账目（K-05）；应用装配页与 Model ACK 到达路径仍待其拥有者处理 |
 | 已写回，仍有具名缺口 | Session 契约、机制与 Cordis 公开说明、adapters 规格与使用指南的旧端口步骤（K-04）；session-adapters README 与应用装配页仍待同步，见下文 |
-| 已裁定待写回 | 三条流表中 Agent `stream` 事件一行 |
+| 已裁定待写回 | 无 |
 
 冲突的家是承接卡与拥有者正文。本页只转述，并给出承接卡，不替拥有者裁定。
 
 - K-04，旧端口步骤已写回，仍有具名缺口。[Session 契约](../packages/session/session-contract/SPEC.md#被替代的协议)、[session 公开说明](../packages/session/session/docs/public-api.md)、[session-cordis 公开说明](../packages/session/session-cordis/docs/public-api.md)，以及 [session-adapters 规格](../packages/session/session-adapters/SPEC.md)与[使用指南](../packages/session/session-adapters/docs/context.md)已移除旧端口步骤。启动围栏归 Agent 日志 `start-fence`，在 Tool 排序域生效；生产者解除归 Agent 宿主结果接收方，Session 依 [JC-Release](../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。session-adapters README 的过期插件与驻留说明由该成员拥有者同步，剩余责任见 [#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)；应用装配由 [#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 承接。访问检查类型与独立脚本替身已导出，Cordis 定义也已导出检查 Service 与键。事务 commit 显式 access、工厂必需 accessCheck、实际读写 check 与生产注入仍待 #680 及相应提供者、消费者共同迁移，生产运行尚未验证。
-- 三条流表中 Agent `stream` 事件一行，已裁定待写回。[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)表中这一行写 Agent 的 `stream` 事件转发生产者已保管的批次，给观察者统一入口。[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)的 J04 写观察者经观察端口直接观察生产者，Agent 只写 `stream-reference` 条目，收窄 `stream` 分支归 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673)。
 - K-05，日志消费责任已写回。[AD-05](../packages/session/session-adapters/SPEC.md#ad-05) 现按 #756 只读同日志，AD-06 按 #680 同样只读 Tool 日志。Tool release 确认仍由 AD-05 按 JC-Release 投影。尚未闭合的是 [应用装配页](architecture/runtime/application-assembly.md#插件树) 的 `session-ad05` 旧依赖，以及 MODEL-ACK-ARRIVAL 的合法到达路径；Model 未确认时保持 pending，扫描只报告。应用装配改写归 #789，ACK 由原拥有者裁定。
 
 出处如下。
@@ -167,7 +166,6 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - 服务键名与 Agent 到 Session 的运行时关系：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」；`toolEnvironments` 见 [Tool 的 Cordis 说明](../packages/tool/tool-cordis-contract/docs/cordis.md)。
 - `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
-- 三条流表一行：[流式交付与结果消费](architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)「三条流不逐块进会话日志」；[Agent 契约](../packages/agent/agent-contract/SPEC.md#流引用与自身事件)「流引用与自身事件」。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
 - 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项核对于 `eebb3cc77`。
 

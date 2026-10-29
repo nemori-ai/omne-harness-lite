@@ -140,8 +140,6 @@
 
 求值输入里的能力身份不带版本（能力身份是类别加 name）。带 version 的求值输入在求值之前被拒绝（`malformed`），不形成失败记录。下文失败记录的五种种类不变。版本由来源层的层值决定：资产的「持有固定版本」与「跟随当前版」是层值，不是求值输入（[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)、[产品正文](../../../.meta_harness/design/product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)）。新的求值采用当时的合法胜出者。层值固定的版本不豁免合法性、资格、锁定或撤权。对 AgentDefinition，层值总是解析为该身份最新合法发布版本，不持有固定版本。同一次执行从采用依据读取已记下的正文，不改写该正文。尚未发出的 Tool 或 MCP 调用仍可按合法刷新看到新的定义和可用性。Skill 已记录的正文保持不变。尚未取用的 Skill 正文，后续取用读取当时的合法版本。
 
-规范偏离：本节「求值输入不带版本」先于实现。现行实现与测试仍接受带 version 的求值输入并记为 `pinned`（`tests/definition-entry.spec.ts:8`、`:25`）。Agent 契约三处正文仍写「写明版本的结果是 `pinned`」（`packages/agent/agent-contract/SPEC.md:319`、`docs/public-api/definition.md:52`、`verification/scenarios.md:138`，归 #673）。修复责任：assembly 成员拥有者 PanQiWei，实现卡在 M1.5 波 1 集成报告第 4 节第 8 条登记。依据：PanQiWei 的 [K-08 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/805#issuecomment-6445267480)。
-
 候选失败时不发布新的采用依据。调用方得到失败记录。旧的合法采用保持不变。
 
 失败记录有四项：种类、身份、原因、旧采用是否保持。种类只允许下表五行，不另设成功种类。从未取得必需能力的合法定义，或 runtime 自身必要依赖无法建立，都用第一行。未知类别用最后一行。

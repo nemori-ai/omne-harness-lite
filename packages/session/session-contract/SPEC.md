@@ -1197,7 +1197,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### EC-01 同日志事实及 Session 后果
 
-提供者经同一 AgentJournal 的 output.read / output.events 读取事件正文，经 load 读取 entries、results 与其他公开快照字段。每次读取都绑定当前资格、租户及 execution，并核对其历史 Session/Run 关系。事件按 AgentEvent 的事件序号读取，ExecutionRef.readThrough 只记录该事件序号；entries 的提交顺序与 results 快照不是事件 cursor，不能用它们虚构 input-taken 批界或推进事件进度。`input-taken` 产生 SE14；`producer` 产生 SE19，缺调用登记时同批产生 SE18；`waiting` 产生 SE18/SE22；`control` 产生 SE25；`ended` 按 RS-08 至 RS-10 产生 SE26/SE16。`message` 已经通过 AD-01 写 SE10，不重复写；`stream` 不写历史片段。`start-fence` 只保留 Agent 拥有的围栏含义，`received` 的材料和账目按已保存结果解释，不能推导生产者 ACK。
+提供者经同一 AgentJournal 的 output.read / output.events 读取事件正文，经 load 读取 entries、results 与其他公开快照字段。每次读取都绑定当前资格、租户及 execution，并核对其历史 Session/Run 关系。事件按 AgentEvent 的事件序号读取，ExecutionRef.readThrough 只记录该事件序号；entries 的提交顺序与 results 快照不是事件 cursor，不能用它们虚构 input-taken 批界或推进事件进度。`input-taken` 产生 SE14；`producer` 产生 SE19，缺调用登记时同批产生 SE18；`waiting` 产生 SE18/SE22；`control` 产生 SE25；`ended` 按 RS-08 至 RS-10 产生 SE26/SE16。`message` 已经通过 AD-01 写 SE10，不重复写；`entry` 告知同一 Journal 在同一次提交里已保存的条目，不产生 Session 后果。`start-fence` 只保留 Agent 拥有的围栏含义，`received` 的材料和账目按已保存结果解释，不能推导生产者 ACK。
 
 归一化后果必须核对租户、Session、历史 execution-to-Run 关系、原来源及完整结果版本。没有关系时拒绝推测。权威日志有缺口按 SL14 隔离会话；公开快照只在其字段足以证明具体后果时用于对账，不替代缺失事件的精确批界或事件 cursor。缺失或不可用不能当成不存在。重建不重新调用生产者执行。
 
@@ -1457,7 +1457,7 @@ Waiting保留既有extension-batch形状。该分支members.action保存原所�
 | position           | 原位置文本，非空                                                                      |
 | members            | 按原等待cards顺序保存成员，每项有card及decision，没有action字段                       |
 | members[].card     | 原卡片的完整DurableEvidence                                                           |
-| members[].decision | 原卡有效chosen或declined答复的evidence；尚无有效答复或原response为invalidated时为null |
+| members[].decision | 原卡有效chosen、declined或remark（附言）答复的evidence；尚无有效答复或原response为invalidated时为null |
 
 新分支不含action，不以null或空串补在旧分支。旧extension-batch及其历史字节、导出和有效输入保持。两分支遵循相同的原Run、经过、等待范围、取消、终态和继续资格规则；区别只是是否存在所属动作。extension-passage不是新增HITL状态机、操作或事件。
 
