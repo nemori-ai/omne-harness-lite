@@ -9,6 +9,7 @@ import {
   cardAdmission,
   dispatchComment,
   dispatchDecision,
+  dispatchProse,
   DISPATCH_PLACEHOLDER,
   parseDispatchSpec,
   planDispatch,
@@ -46,8 +47,9 @@ function required(values: ReadonlyMap<string, string>, flag: string): string {
 }
 
 function post(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): number {
+  // Refuse an empty text before any GitHub call: nothing is written for it.
+  const prose = dispatchProse(readFileSync(required(values, '--text'), 'utf8'))
   const spec = parseDispatchSpec(readJson(required(values, '--spec'))),
-    prose = readFileSync(required(values, '--text'), 'utf8'),
     root = resolve(values.get('--root') ?? process.cwd())
   const { policy, config, lines } = taskBaseInputs(root, spec.taskBase)
   const actor = text(

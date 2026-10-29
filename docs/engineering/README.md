@@ -4,7 +4,7 @@
 
 ## 从任务开始
 
-从[场景选择](scenarios/README.md)进入调查与设计、新功能、缺陷、重构、性能、依赖与环境、评审交付或文档技能维护。已有明确依据的局部任务直接工作；新含义或必要依据缺失时，只暂停依赖部分。
+从[场景选择](scenarios/README.md)进入调查与设计、新功能、缺陷、重构、性能、依赖与环境、评审交付或文档技能维护。已有明确依据的局部任务直接工作；新含义或必要依据缺失时，只暂停依赖部分。常驻线会话与 reduce 会话不走场景选择，从下表前两行进入。
 
 实现维护者先确定任务；评审者先确定精确成果与验收；架构和交付负责人先检查目标、证据与未决。十类角色的首轮路径由[读者入口](../README.md)维护，使用者不必为一次公开操作通读工程文档。
 
@@ -12,6 +12,8 @@
 
 | 要回答的问题 | 唯一展开入口 |
 |---|---|
+| 常驻线会话开工、交回、等待与恢复 | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md) 技能，阶段归[Line 状态空间](map-reduce-states.md#4-line-状态空间)，记录格式归[线会话记录](integration.md#线会话记录) |
+| reduce 会话建卡、派发、集成与收口 | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md) 与 [`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) 技能，阶段归[Reduce 状态空间](map-reduce-states.md#3-reduce-状态空间)，协作规则归[集成节点的清单](integration.md#集成节点的清单) |
 | 对话建卡、取任务、更新与恢复 | [agent交付操作](agent-delivery.md)，先核实际启用范围 |
 | 卡、Stage、条件、决定及调度单写 | [交付协议](delivery.md) |
 | 交付线、里程碑、契约基线与卡属性 | [多层分支集成](integration.md#交付线)及[卡属性与合法组合](delivery.md#卡属性与合法组合) |
@@ -29,13 +31,13 @@
 
 ## 现行源与未完成范围
 
-本区组织现行项目约定及已授权的共享／场景结构。它引用[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)、[源码布局](../workspace.md)、[验证说明](../verification.md)、[防御指导](../defensive-patterns.md)、[整洁回路](../clean-loop.md)和[贡献指南](../../CONTRIBUTING.md)，不替代这些拥有者。
+本区组织现行项目约定及已授权的共享／场景结构。它引用[研发品味的项目补充](../../.meta_harness/agents/roles/engineering-taste.md)、[源码布局](../workspace.md)、[验证说明](../verification.md)、[防御指导](../defensive-patterns.md)、[整洁回路](../clean-loop.md)和[贡献指南](../../CONTRIBUTING.md)，不替代这些拥有者。
 
-pstack port 0.9.79 是本区实际工程方法来源，Matt 1.3.1 的六项补充按缺口触发，diagnosing-bugs／retro 仍候选。本机 Codex 安装和发现已核对，精确来源及读取方式归[技能引用](skills.md)；原生调用、hook 信任与执行、步骤遵循及行为结果分别判断。
+本区的研发方法分三层：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。分工、精确来源及读取方式归[技能引用](skills.md#三层分工)；宿主发现、步骤遵循及行为结果分别判断。
 
-独立任务隔离并行、cloud 成果及时用 Git 远端保存及相称验证已接受，分别从工作、交付与质量入口展开。TypeScript 与 Node 的自有主题指导不再另设正文；方法转入技能入口，配置、命令、包边界和具体生命周期继续由实际拥有者维护。更完整 TS 政策及运行支持、容量和环境例外仍有具名未决，页面退役不表示这些缺项已解决。宿主实际加载、hooks 观察和行为结果仍分别取证。
+仍有具名缺项：[TypeScript 政策](skills.md#尚待明确的-typescript-政策)、[运行政策](scenarios/dependencies-and-runtime.md#尚待明确的运行政策)与[宿主加载与行为验证](skills.md#宿主加载与行为验证待补)。
 
-交付协议已采用，日常入口由[配置](github-delivery.json)控制，现存PF与ST不因骨架存在而切换。GitHub内置Status字段承载协议Stage，配置按字段ID定位；不另建可独立编辑的Stage副本。
+GitHub内置Status字段承载协议Stage，配置按字段ID定位；不另建可独立编辑的Stage副本。
 
 ## 检查与维护
 

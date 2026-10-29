@@ -46,7 +46,7 @@ pnpm -r rebuild node-pty
 
 镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。角色评估用 rsync 复制检出副本，因此 `pnpm run test:python` 需要本机有 rsync。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 26.12.0 和 10.28.1。
 
-镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。
+镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。镜像还按来源表的固定提交把 ub-mode 的 `SKILL.md` 装到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`。
 
 Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWei@users.noreply.github.com`。这是 GitHub 账号 PanQiWei 的 noreply 身份。`/usr/local/bin/git` 在每次调用前写回这个姓名和邮箱，并关闭 `commit.gpgsign`。`~/.gitconfig` 里的其他键保留。镜像环境变量 `GIT_AUTHOR_*` 与 `GIT_COMMITTER_*` 使用同一身份。直接调用 `/usr/bin/git` 时，作者仍是这个人。这些变量写在镜像里，不是安装脚本的临时 shell 变量。环境构建如果复用已有基础镜像，就只运行 `install.sh`。脚本在当前用户是 ubuntu 且 `sudo` 不询问密码时，从 Dockerfile 取出同一身份和同一个 revision 再安装一次。其他账户不改。
 
@@ -58,28 +58,31 @@ Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWe
 
 手写源在 [`.meta_harness/agents/cloud/claude-code/`](../.meta_harness/agents/cloud/claude-code/README.md)。把其中 `setup.sh` 的全文粘贴到云端环境设置的 Setup script。平台缓存 setup 的结果，所以每次会话都要做的工作放在 `session-start.sh`。setup 把它登记成 user 作用域的 SessionStart 钩子。
 
-setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，以及 pstack 与 Matt 两个 Claude Code 插件。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
+setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，pstack 与 Matt 两个 Claude Code 插件，以及 ub-mode 技能。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
 
-每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前。Git 作者与提交者优先使用云端环境的 `GIT_AUTHOR_NAME` 与 `GIT_AUTHOR_EMAIL`，各缺值才从开会话的 GitHub 账号补足。脚本还会取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件更新到上游最新版本。插件更新在下一次会话生效。
+每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前。Git 作者与提交者优先使用云端环境的 `GIT_AUTHOR_NAME` 与 `GIT_AUTHOR_EMAIL`，各缺值才从开会话的 GitHub 账号补足。脚本还会取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件和 ub-mode 更新到上游最新版本。Claude Code 如果在钩子运行之前已经加载插件和技能，这些更新要到下一次会话才生效。这一前提没有验证。
 
 `main` 已分叉或不能快进时，脚本只输出诊断，不丢弃本地工作。此环境不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在云端环境设置里，不要写入仓库。
 
 ### 初始化 coding agent 插件
 
-本项目的迭代维护依托pstack主线与已选Matt补充。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用对应插件。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装插件。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
+本项目的迭代维护依托[三层方法](engineering/skills.md#三层分工)：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用pstack与Matt两份插件和ub-mode技能。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
 
 1. 确认实际harness及其版本，打开它的插件管理入口。根据技能来源表选择固定revision，不以原版pstack、同名技能或上游最新版代替项目指定来源。
 2. 注册固定来源并安装两份插件。支持Git revision的宿主直接指定来源表中的revision；支持本地marketplace但不能固定远程revision的宿主，可先在仓库外准备对应revision的检出，再注册其marketplace。按固定源的安装说明操作，避免把插件正文复制到本仓的技能源或同时安装另一份同名技能。
-3. 新开会话，核对两份插件的安装版本、启用状态、发现路径，以及本次需要的技能和参考文件是否可读。安装成功、宿主发现、正文读取与实际行为分别判断，详见[阅读与实际加载](engineering/skills.md#阅读与实际加载)。
-4. 按实际harness完成所用方法的配置。需要pstack子代理流程时沿其 `setup-pstack` 正文选择可用模型和宿主映射；使用SessionStart自动路由时，沿[hooks说明](engineering/skills.md#hooks-与证明层次)核对宿主要求的审阅、信任与实际执行。尚未配置或观察到的功能保留未覆盖，不把安装当作已生效。
+3. 安装ub-mode。它只有一份 `SKILL.md`，没有插件。按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。不把正文复制进本仓库。
+4. 新开会话，核对两份插件的安装版本、启用状态、发现路径，宿主是否发现 `ub-mode`，以及本次需要的技能和参考文件是否可读。安装成功、宿主发现、正文读取与实际行为分别判断，详见[阅读与实际加载](engineering/skills.md#阅读与实际加载)。
+5. 按实际harness完成所用方法的配置。需要pstack子代理流程时沿其 `setup-pstack` 正文选择可用模型和宿主映射。尚未配置或观察到的功能保留未覆盖，不把安装当作已生效。
 
-Codex CLI支持下列命令形态。先将两处revision占位符替换为技能来源表中的完整revision，再执行：
+Codex CLI支持下列命令形态。先将三处revision占位符替换为技能来源表中的完整revision，再执行：
 
 ```sh
 codex plugin marketplace add michael-denyer/pstack-claude --ref <pstack-revision>
 codex plugin add pstack@pstack-claude
 codex plugin marketplace add mattpocock/skills --ref <matt-revision>
 codex plugin add mattpocock-skills@mattpocock
+mkdir -p ~/.codex/skills/ub-mode
+curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md -o ~/.codex/skills/ub-mode/SKILL.md
 ```
 
 命令语法以实际CLI的 `codex plugin --help`、`codex plugin marketplace add --help` 和 `codex plugin add --help` 为准。其他harness沿固定源的宿主安装说明操作，不能把Codex命令直接套用。若当前宿主缺少项目所需插件机制或技能依赖，报告具体缺口并交agent能力维护者处理；已明确且不依赖缺失能力的工作可以继续，不能声称插件初始化已完成。

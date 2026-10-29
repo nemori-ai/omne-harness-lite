@@ -85,86 +85,9 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 验证由 [delivery-pre-admission.spec.ts](../../tests/delivery-pre-admission.spec.ts) 覆盖完整顺序、绑定分支、失败传播、日志隔离和真实子进程退出码。
 
-## 协作工具安装与固定来源
-
-`collaboration-installation.ts` 拥有安装描述符及本地采用记录。描述符支持版本 1、2 和 3，共同必需字段如下。未知字段和版本拒绝。
-
-| 字段               | 含义与约束                                                                                                                                    |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `repository`       | 唯一的目标 `owner/name`                                                                                                                       |
-| `toolCommit`       | 完整 Git SHA。运行工具的独立检出须固定在此提交，且工作树干净                                                                                  |
-| `policySource`     | `commit/path/blob/digest`。路径固定为 `docs/engineering/integration-policy.json`，提交与 blob 为完整 SHA，摘要为原始 UTF-8 文件字节的 SHA-256 |
-| `acceptanceSource` | 同样的四项定位。路径固定为 `docs/engineering/collaboration-acceptance-sources.json`                                                           |
-| `basis`            | 非空的既有 `Evidence` 数组，记录本次安装采用的依据                                                                                            |
-| `facts`            | `{kind:"direct"}` 或 `{kind:"published",workflow,bot}`。两种模式不能混用                                                                      |
-
-版本 1 的 published 模式固定 workflow 的 `id/path/ref/head` 及 Bot 的 `login/nodeId`。path 为 `.github/workflows/delivery-facts.yml`，ref 为 `github-gate`，head 为完整 SHA。Project 从 policy 提交中的 delivery config 派生，不由普通命令传入。config 必须启用，仓库、Project 与单写者配置必须有效。
-
-版本 2 的 published 模式还必须提供 `historicalWorkflows` 数组，可为空。每项使用同样的 `id/path/ref/head` 约束。当前 workflow 与历史项不得重复，历史项之间也不得重复。全部项共用固定仓库、Bot 和 Project。历史项只授予事实读取资格，不授予向旧 workflow 派发的能力。历史事实可以早于安装描述符机制，不要求为其编造旧安装摘要。版本 1 不接受这个字段，也不会自动采用历史版本。
-
-版本 3 保留版本 2 的 facts 语义，并增加必填 `gateWorkflow`。其中 path 固定为 `.github/workflows/gate-publish.yml`，ref 固定为 `github-gate`，head 是已采用 workflow 的完整 SHA。reduce 操作入口要求版本 3；版本 1、2 不能通过普通输入补充这个授权来源。旧安装仍可用于其已支持的读取和恢复。普通安装不自动取得 facts 生产权，既有激活和交接协议同样约束版本 3。
-
-`FactsReadDeployment` 与单个生产 `FactsDeployment` 分开。读取器在一次完整评论快照内逐项匹配唯一采用的 workflow，再对合并后的事实检查负面资格、矛盾、重复、编辑和精确 attempt。同一 run 的当前读取与 attempt 1 必须匹配同一个精确 workflow 身份。未知来源不能忽略，也不能变成 facts 缺失。全部读取保持 GET-only。版本 1 和 2 均须显式激活生产者，不能借新空目录绕过旧未决操作。
-
-`collaboration-install-cli.ts` 是显式操作员采用边界。它接收描述符文件及已核对的 SHA-256，校验后在工具检出的私有 Git 目录原子创建 `omne-collaboration-installation.json`。文件保存原始描述符字节和摘要。临时文件先 fsync，再用不可覆盖的 hard link 发布并 fsync 目录。相同采用可重复；不同采用不能覆盖。未完成或冲突的写入不能返回成功。已有记录损坏、工具提交变化或工作树不干净均拒绝。
-
-本地安装命令记录操作员已经作出的采用，不验证或生成新的外部人类授权。`basis` 的存在不证明依据有效。操作员须按原有具名权限采用配置。接受来源仍须通过后续逐卡责任、账号、里程碑及撤销校验，安装本身不接受成果。拥有本机文件写权限的攻击者、修改过的执行器和依赖供应链不在此安装记录的防篡改保证内。
-
-`collaboration-bootstrap.ts` 从执行模块所在的源工具检出寻找唯一安装记录，与调用者 cwd 无关。当前只支持干净 Git 源检出的 Node 源执行；`dist` 入口拒绝，不能以已生成目录冒充固定源提交。已有 pre-admission 和 release-run 构建入口不受此限制影响。普通 request、Action、line、watch 命令不接受安装路径、policy 路径、来源提交或接受者选项。
-
-bootstrap 通过 GET-only REST 读取固定提交的 policy、delivery config 和 acceptance source。来源 blob 和原文摘要必须一致。加载前后均核对安装与工具状态。加载结果为同一套 request、line 和 watch 端口；published 模式惰性读取精确的当前、历史和任务派发事实，缺失时不回退到 direct。watch 仅持有该安装快照，后续实际卡仍按现有读回协议动态发现。安装更新须在安全操作边界切换到新检出，不能改写运行中会话的安装记录。
-
-源码入口由仓库根及包内的 `collaboration:install`、`integration:request`、`line`、`reduce:watch` scripts 暴露。安装、来源和装配验证归[安装测试](../../tests/delivery-collaboration-installation.spec.ts)。此测试使用真实临时 Git 和文件系统，远端内容为 REST 替身；不证明真实采用或生产部署。
-
-申请 Action 的部署次序为受审工具与来源提交、实际 workflow 提交、环境中的安装描述符。默认分支须先有同名的手动触发入口；实际登记仅在 `github-gate` 执行。`delivery` environment 的描述符原始字节及 SHA-256 在运行开始时各读取一次；检出前核对摘要、仓库、工具完整 SHA、published 模式及采用的 workflow head 等于 `GITHUB_SHA`。后续检出、只读安装与登记使用同一快照。描述符与摘要缺失或冲突时拒绝；环境采用不替代请求的具名授权和证据校验。
-
-## 生产者接管与转移
-
-`collaboration-producer-state.ts` 拥有私有 Git 目录内的生产者状态。`collaboration:install` 默认只采用读取配置。`--initial-producer` 与 `--producer-from OLD_TOOL_ROOT` 互斥。前者明确声明首次接管，要求 journal 没有旧 slot；后者要求旧写者及其启动器已停止，旧固定检出在本机可访问。此命令仅写本地文件，不调用远端写 API。
-
-`omne-facts-adoption.json` 是不可覆盖的采用预留，固定模式、安装证明、前驱和导入清单。`omne-facts-producer.json` 是完成后的激活记录，必须与预留逐字节相同。`omne-facts-producer-retired.json` 将旧生产者绑定到唯一目标 Git 目录、目标安装与转移摘要。普通生产入口只使用与当前安装匹配、未退役且导入清单完整的激活记录。
-
-转移保留全部 slot、intent 和 receipt 原字节。文件类型、命名、JSON 及每个 intent 的原安装和 deployment 均需校验，不能跳过坏记录。前驱描述符的字节和摘要进入新激活记录。bootstrap 从其固定 policy/config 重建原 deployment，要求相同仓库、Project 和 Bot，并独立核对当前描述符已经允许读取该 workflow。导入描述符不能扩大读取信任。
-
-转移先保存目标预留，再复制并 fsync 全部文件和目录，核对完整源清单及采用记录未变，然后持久记录源退役，最后写目标激活。中断可重复同一转移；已有文件须完全一致，冲突目标拒绝。激活后的重试检查原始导入字节并保留后来追加的 generation，不用旧快照覆盖新 journal。没有激活的部分目标不能 POST。退役检查还在准备入口、journal 修改及 POST 前执行。
-
-这一协议要求物理停止旧写者，不是分布式锁。旧二进制不认识退役记录时仍可能写入，工具不会声称已终止它。不得通过清空 journal、删除退役记录或重启旧生产者恢复。保留 request 回执和 line/wait journal。旧工具回退演练仅限首个新 generation 前的原 wait/request 读取与恢复，源退役和目标激活保持不变，不包含旧 facts 生产者重启。
-
-验证资源为[存储测试](../../tests/delivery-producer-state.spec.ts)和[安装装配测试](../../tests/delivery-collaboration-installation.spec.ts)。前者覆盖真实进程并发、进程终止、完整复制、幂等重试及退役；后者经 CLI 安装和 bootstrap 恢复实际生成的 intent。远端响应使用替身，真实断电与跨机排他不在这些测试的证明范围。
-
-[有限行为模型](../../verification/producer-continuity/README.md)检查两个目标的交接及两个调用者的两代 intent。正向配置核对唯一接管、激活前耐久、增长保留、原 binding 和禁止重复 POST；六个负控须命中各自命名不变量。模型只模拟进程崩溃，不证明断电、legacy 写者撤销、跨机互斥或实现精化。模型检查与上述实现测试分别提供证据。
-
-## 持久 facts 准备
-
-`facts:prepare` 与 `facts-preparation-cli.ts` 提供 reduce 的显式生产入口。普通参数只有 repository、精确 dispatch URL 和 `--retry-failed`。bootstrap 固定 published 安装、workflow、Bot、Project 和私有 Git 目录中的 journal。direct 安装拒绝此生产命令。line/watch 的端口不取得生产能力。
-
-每个调用只观察一次，不等待 Actions 完成。默认网络观察预算为 30 秒、最多 128 次请求，单次请求最多 15 秒。预算耗尽保留 unknown。结果为 ready、pending、failed 或 unknown，CLI 退出码分别为 0、3、2、2。ready 仍须由完整只读 facts 读取器认证，不能仅凭运行 success。
-
-程序装配方可向 `openCollaborationInstallation` 或 `deployedCollaboration` 传入 `factsPreparation` 策略，字段为 `networkMs`、`totalMs` 和 `maxCalls`。`createFactsPreparation` 的第二个参数接受同一策略。省略字段沿用上述默认值。毫秒值必须是 1 至 2147483647 的整数，次数必须是正安全整数。未知字段、显式 undefined 字段、null 及其他非法值在任何安装文件或网络读取前拒绝。解析器复制并冻结策略，调用者随后修改原对象不影响现有工厂。CLI 不增加策略选项，采用默认值。
-
-工厂每次调用分别计算截止时间和请求次数。达到次数上限后，下一次请求在发送前拒绝。所有 facts GET 和 dispatch POST 的时限为 `networkMs` 与剩余总时间中的较小值。预算耗尽不清除 journal，不重发未决 dispatch。总预算不强制中断同步本地代码，也不能替代传输实现遵守单次时限的责任。
-
-派发 URL 的 SHA-256 前 128 位经固定 version-8 和 variant 位编码成 journal UUID。键不含调用者 operation ID、安装摘要或派发修订。完整 URL、派发作者账号、正文摘要、更新时间、安装摘要及部署身份保存在每个 intent 中，冲突时拒绝。相同 URL 的编辑或安装变更不能绕过旧操作。
-
-恢复前枚举完整 slot，要求 intent 代号从 1 连续、无孤立 receipt、非法文件或重复 nonce。每代按原始安装摘要和 deployment 校验，观察旧运行及复查失败前驱也使用原部署。其他 ready facts 不能掩盖未决 generation；明确旧失败才可按重试条件创建当前 workflow 的后继。
-
-每代保存独占创建的 `intent-N.json`。只有创建者在文件及目录 fsync 全部成功后可以 POST。其他进程即使读到完整 JSON 也只能观察，不能接管 POST 权。部分文件、落盘错误、进程终止和响应丢失均不允许重发。可用的精确响应写入 `run-N.json`；没有回执时按完整运行标题及固定 workflow 身份恢复。零匹配或不完整分页保持 unknown，多匹配拒绝，禁止按最新运行选择。
-
-工作流标题为 `delivery-facts:<nonce>:<issue>:<authority URL>`，预期标题超过 255 个字符时拒绝派发。恢复核对仓库、head repository、workflow ID/path、ref/head、event、完整标题、当前 attempt 1 和 attempts/1。两个端点的状态和结论须一致，但 `created_at` 是各端点的元数据，可以不同。每个端点分别解析并再次读回，运行身份、状态、结论或创建时间在同一端点发生变化时拒绝。返回及持久前代证据中的 `createdAt` 取当前 run 端点。该标题只证明操作关联，不授予派发资格。
-
-只有公共读取器经完整评论和派发身份读回得到的类型化缺失，才允许初次生产。已存在的有效 facts 可以直接消费。有持久 intent 时，ready 必须包含该代 nonce/run 的认证 observation。负面、冲突、编辑、错误身份和未完成证据不能被解释为缺失。
-
-明确失败的精确运行仍返回 failed，默认不重试。`--retry-failed` 要求 fresh attempt 1 的终止失败及完整 facts 缺失，随后把前代运行证据与新 nonce 保存到唯一后继 intent。并发重试争用同一个后继文件，只允许其持久创建者 POST。它不要求重新发布人的授权。未知派发、rerun、成功但 facts 不可见、资格拒绝及未经采用的安装变化不能创建后继代。
-
-运行结论只接受 `success`、`failure`、`cancelled`、`timed_out`、`action_required`、`neutral`、`skipped`、`stale`、`startup_failure`。`completed` 的结论不得为 null，未完成运行的结论必须为 null。未知值保持 unknown，不能解释为失败并允许重试。持久前代证据使用同一结论解析。取值依据为 GitHub 的[运行状态说明](https://docs.github.com/en/rest/actions/workflow-runs?apiVersion=2026-03-10)和[CLI 运行列表](https://cli.github.com/manual/gh_run_list)，本工具不自动采用新增值。
-
-此 journal 是单持久安装的本地互斥事实，不提供独立机器或独立检出间的互斥。删除 journal 会丢失不确定操作的 fence，因此宿主迁移、升级及清理必须先保留并对账旧记录。工具不能从一个空的新目录证明另一宿主没有未决操作。真实断电、网络分区与生产部署需要独立证据。
-
-验证资源为[准备操作测试](../../tests/integration-prepare-delivery-facts.spec.ts)，包含真实子进程争用、intent 字节可见但未刷盘、文件和目录 fsync 错误、创建者被终止及恢复。GitHub 响应在该测试中为替身，不能替代真实工作流和采用验证。
-
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。`tests/delivery-identifiers.spec.ts` 覆盖严格 JSON 的重复键、畸形、上限拒绝与文件标签，完整 SHA、SHA-256 摘要与 UUID 校验，以及操作日志的独占写入、按操作分目录与越界名称拒绝。远端响应在这些测试中以有限 fixture 提供。
 
 真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
@@ -286,101 +209,13 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 `planDispatch` 在任何写入之前判断并生成版本2 binding，`dispatch` 为占位 URL。拒绝的条件依次为：卡未开放；`actor` 不等于 `responsible`；`dispatchFieldGaps` 非空；准入观察对本卡有偏离；正文属性不合格或交付修订不唯一；卡上已有评论的 `omne-integration-authority:v1` 区块派发同一修订与 attempt，且没有 `force`；`confirmations` 引用卡上没有的条件；某个 start 条件没有 `confirmations` 项；拟写的 binding 有 `attributeRefusals` 选出的属性发现。交付修订、属性、里程碑与条件 ID 取自采集到的卡。每个 start 条件的确认摘要是 `conditionDigest(condition)`，与 `start` 核对时用同一函数和同一解析。
 
+`dispatchProse(text)` 拒绝空的或只含空白的派发正文，抛出 `input-error`。`dispatch-cli post` 读入 `--text` 文件后先调用它，`postDispatch` 在第一个请求之前也调用它。所以空白正文使 `post` 退出 2，不调用 GitHub。
+
 `postDispatch` 串行发三个请求：POST 占位评论，PATCH 把它改成 `dispatchComment(prose, decision)`，GET 读回。决定中 binding 的 `dispatch` 是占位评论的 `html_url`。PATCH 失败时错误给出占位评论 URL，不重试、不删除。PATCH 成功后、GET 之前调用 `onPosted`，交出派发 URL 与 binding；GET 失败时错误给出派发评论 URL。`verified` 表示读回的评论正文等于写入的正文。
 
 `bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
 
-## 协作记录边界
-
-[collaboration-records.ts](collaboration-records.ts) 拥有申请、处置、delta、消费记录、首次 assignment 和 ReleaseRecord 的公开类型及 marker。所有记录使用 schemaVersion 1。首行 marker 区分用途，唯一的 `json omne-collaboration:v1` 围栏保存机器内容。普通评论不进入机器记录集合，marker 本身不授予信任。
-
-[collaboration-comments.ts](collaboration-comments.ts) 编解码评论。[collaboration-json.ts](collaboration-json.ts) 在形状校验前拒绝重复 JSON 键，包括转义后相同的键。单份机器 JSON 上限为 1 MiB，嵌套深度上限为 128。未知版本、未知字段、缺失必需值、无效 UUID、SHA 或 UTC 时间均失败。完整 Git SHA 接受 40 或 64 位十六进制并转为小写。内容摘要使用实际评论 UTF-8 字节的 SHA-256，不先去除空白。
-
-[collaboration-parse.ts](collaboration-parse.ts) 区分形状有效与业务接受。ready 申请必须有 PR、完整 head、验证证据和已停写声明，不能带未完成项。blocked/failed 可没有 PR，但必须列原因和剩余工作。创建 requestId 后，重试保持输入不变。申请回执的 inputDigest 必须等于规范编码后的申请输入摘要。
-
-普通 delta 的 purpose 为 release，active/idle 只能指向同仓库、同里程碑的直接下一波和不同的实际 reduce。terminal 必须带授权依据，不从后继缺失推断。硬阻塞重派的 delta 使用 redispatch，并绑定新的 requestId。它必须保持同一线、同一波及当前 reduce。处置中的 redispatch 还引用该 delta、停写证据、新输入和写权释放证据。记录解析不会自行确认这些证据或执行重派。
-
-[collaboration-read.ts](collaboration-read.ts) 按每页 100 条读取全部评论，读前和读后核对 Issue 身份、正文、更新时间及评论总数。重复页、数量不足或读取期间变化均失败，不返回 empty。这个检查不提供 GitHub 跨请求事务保证。写入、放行或接受前，调用方仍须重新核对所引用的精确记录、摘要和权限。
-
-`readReferencedComment` 按仓库、Issue、评论 ID 和 SHA-256 读取精确引用。返回另一评论、另一卡片或正文摘要变化均失败，空白编辑也不能通过旧摘要。删除和权限错误向调用方传播，不用当前状态替代证据。返回作者供后续权限检查，摘要匹配本身不授予信任。
-
-[collaboration-sequence.ts](collaboration-sequence.ts) 对一个完整记录流排序。revision 从 1 开始，每次增加 1，并引用上一记录 ID。同内容重试可去重，下一项可引用任一相同重试的 ID。同 revision 异文、同 operationId 异文、缺号、错误前项和混入其他流均失败。事件游标不表示业务记录已消费。
-
-line-state 记录具名线负责人已消费的 delta 引用和序号。它不携带任务卡，也不授予任务写权，因此 active、idle 和 terminal 的输入都可记账。任务授权在 active 开工和申请入口核对，轮空线不为消费记录创建虚假任务。
-
-[collaboration-write.ts](collaboration-write.ts) 的 `writeSequencedRecord` 发布 state、delta 或 consumption。调用方固定 operationId、revision、前项和 recordedAt，并提供每个波段的已采用派发输入。工具通过生产授权读取器核对完整记录流，检查当前账号及尚未结束的写者时段，再判断新记录是否恰为下一序号。发布时在授权读取完成后采样本机时间；已结束的历史授权即使仍覆盖偏慢的本机时间也不能写入新记录。历史时段仅用于已发布记录的核对与恢复。已有相同操作只返回精确评论引用，不再次写入；同操作异文或未经授权的同文记录均拒绝。
-
-publish 模式在 POST 前调用必需的同步 checkpoint，交出仓库、卡号、operationId、完整正文和摘要。checkpoint 必须持久保存该操作已经进入尝试状态；失败则不 POST。正式命令须把这个端口接到自己的操作日志，内存回调不满足持久化要求。POST 只执行一次，返回内容不作为成功依据。工具随后完整读取记录流，并再次核对序号和权限。响应丢失但记录已经写入时可通过读回确认；读回不可用或记录仍未出现时返回 unknown。结构、权限或并发冲突保留明确错误，调用方仍须依据已经保存的操作意图恢复。
-
-recover 模式只读，返回已核对的精确引用或 unknown。完整读取后没有找到记录，也不能证明先前 POST 已被服务端拒绝，因此不会重发。崩溃、超时或未知结果后必须使用同一持久意图进入 recover，不得当作新 publish。跨机器接续时移交此日志。该接口不提供 GitHub 比较交换或分布式锁；并发同序号写入在读回时成为冲突。申请 workflow 登记、成果接受、最终 ReleaseRecord 发布和卡片关闭由各自业务入口负责，不能由此接口的 confirmed 推导。
-
-[collaboration-trust.ts](collaboration-trust.ts) 根据调用方已从有效派发决定读回的权限快照校验记录。快照分开保存本波参与线、reduce epoch 历史、线负责人授权时段和采用的 workflow。配置对象存在不代表其权限已验证。重叠 reduce 写者、过期写者、撤销后的编辑、错误卡片或上下文均拒绝。ReleaseRecord 必须包含所有参与线，包括 idle。
-
-申请信任检查同时核对 Actions bot 作者、采用的 workflow 路径/ref/提交，以及精确 runId/runAttempt、原始 actor、重跑 actor、事件和 run-name。run-name 绑定 requestId、原始 head 或 none、规范输入摘要。精确 attempt 未完成返回 pending，失败不形成有效登记。权限判断使用 GitHub 评论及运行时间，不能只相信正文中的 recordedAt。端点与字段依据 [GitHub workflow run API](https://docs.github.com/en/rest/actions/workflow-runs#get-a-workflow-run-attempt)；真实 workflow 部署和回执写入另行验证。
-
-[collaboration-requests.ts](collaboration-requests.ts) 只接收已通过权限校验的记录。业务身份为仓库、里程碑、波、线父卡和 requestId；同一身份的规范输入必须相同。Action 重跑或新运行产生的相同申请合并为一项，保留每个评论和运行定位。不同输入复用同一身份时失败。新 requestId 是新申请，不能被传输去重吞掉。待完成和失败的 workflow 回执不进入有效登记集合，由调用方保留诊断并恢复读取。
-
-### 独立线记录命令
-
-[line-inbox-cli.ts](line-inbox-cli.ts) 的 `inbox|delta|state` 是 `line-cli` 的正式同义入口，根包命令为 `pnpm run line`。三种操作均支持 `--protocol-version 1`，省略时取 1；未知版本、未知或重复选项拒绝。生产授权从固定工具安装读取，命令参数不能替换授权来源。
-
-`inbox --repo owner/name --parent N --milestone N [--since comment-id]` 只读线父卡。它先完整分页读取并验证对应里程碑的 delta/state 流、可信来源、连续序号和消费引用，再筛选尚未消费且评论 ID 大于 since 的 delta。since 指父卡中实际存在的评论 ID，不是 revision 或事件游标；省略时不另加评论位置筛选。普通评论可作位置，但不能提供权限或 delta。读取不会发布 state 或推进消费。结果包含 consumedRevision、去重后的 deltas 及其证据；读取失败不返回空收件箱。
-
-`delta|state --repo owner/name --parent N --input record.json --journal DIR` 分别发布完整的 LineDeltaRecord 或 LineConsumptionRecord，公开形状归 [collaboration-records.ts](collaboration-records.ts)。输入须含稳定 operationId、预期 revision、前项、recordedAt 及匹配的仓库/父卡/context。delta 由已授权 Reduce 发布；state 由已授权 Line 发布，并精确引用已消费 delta 的评论、摘要和序号。state 不得倒退，不授予任务写权。命令验证完整记录流，在 POST 前持久保存意图，写后读回。confirmed 只确认该记录，不代表任务接受或整波放行。
-
-首次调用可发布一次；已有同一持久意图时只读恢复。未知结果、超时或崩溃后重复原命令，保留原 input、operationId 和 journal；跨机器接续移交 journal。同 ID 异文拒绝，读回仍未知时不得换 ID 重发。具体发布与恢复守卫沿上面的共享记录合同。
-
-成功读取或 confirmed 向 stdout 输出一个 schemaVersion 1 JSON 并退出 0；unknown 输出诊断并退出 1。输入、权限或读取错误向 stderr 输出结构化 failed 诊断并退出 2，诊断保留副作用未知与 journal 恢复说明，不表示先前写入未发生。`--help` 输出用法并退出 0。
-
-### 派发授权读回
-
-[collaboration-authority.ts](collaboration-authority.ts) 的 `readCollaborationAuthority` 从实际 reduce 卡的唯一 binding 定位正式派发，复用现有 `readAuthority` 验证资格、精确评论与撤销情况，并要求派发 task 等于当前 binding。完整评论快照同时保存并核对 milestone。读取期间正文、状态、milestone、评论或更新时间变化均失败，不返回部分权限。
-
-正式派发评论中的唯一 `json omne-collaboration-scope:v1` 区块由 [collaboration-scope.ts](collaboration-scope.ts) 解析。它包含 context、epoch、全体参与线与负责人、采用的申请 workflow、前一派发与停写评论的精确引用，以及可空的接受责任声明。未知版本、重复字段或参与线、缺失字段均拒绝。该区块附在既有派发决定内，不从本地 JSON 或任意 marker 取得权限。
-
-每个 epoch 的开始取正式派发评论的 GitHub 更新时间。换 epoch 必须引用前一派发及 `json omne-collaboration-stop:v1` 评论，停写声明绑定旧 context、epoch、写者和非空证据。停止声明须由旧或新执行负责人写入，且不可编辑；结束时间取其 GitHub 创建时间，必须晚于旧派发、不得晚于新派发。它保存责任人的停写声明，不宣称工具已终止远端进程。
-
-历史派发逐条读回摘要，并独立复用派发资格检查，不因当前派发引用就自动可信。循环、重复 epoch、缺失前项、撤销争议、未链接的另一有效派发、时段重叠或相同计划修订的参与线/workflow 冲突均失败。无资格的普通 scope marker 不成为另一有效写者。`recordAuthorityFor` 只返回读回链已覆盖的计划修订；较早计划的 epoch 不能提前授权后来修订。
-
-本地路径按现有 `readAuthority` 查询当前 reviewer 资格，不声称证明该用户在过去某时刻的资格。云端路径通过 `factsFor` 按当前及历史派发 URL 读取可信 facts；CLI 不接受用户提供的 JSON 作为资格证明。当前 facts 的解析发生在外层授权快照捕捉之后，历史 facts 也按实际前序链接惰性读取，不使用提前捕捉的当前值或启动时的任务表。缺少任一对应事实时明确失败，不回退到环境或 GraphQL 查询。
-
-[collaboration-facts.ts](collaboration-facts.ts) 的 `publishedAuthorityReaders` 为已采用的 policy/deployment 提供当前 reduce 的 `authorityFor` 与任务派发的 `taskFactsFor`。每次读取从真实卡的当前 binding 取得派发，历史回调交给既有授权链读取器逐项调用。等待进程因此能识别后来创建的卡及历史链接。此桥接不选择安装来源，不发布 facts，也不把 facts 当作结果接受或整波放行。
-
-返回的 `VerifiedCollaborationAuthority` 只证明上述派发及记录权限。其 `scope.acceptanceResponsibility` 仍是声明，工具只核对它指向正文责任字段的摘要。它不授予接受权，也不证明 ReleaseRecord 已接受；接受授权来源与结果决定须由独立接受读取边界验证。
-
-### 接受来源与决定读回
-
-[collaboration-acceptance-source.ts](collaboration-acceptance-source.ts) 将已明确的人类授权与机器校验分开。`readAcceptanceSources` 只从固定路径 `docs/engineering/collaboration-acceptance-sources.json` 读取调用方已经获准采用的配置提交，并核对 `PolicySource` 的 commit、path、blob 和 digest。它没有 HEAD 默认值，也不从当前工作树读配置。`readAcceptanceSourcesRest` 从同一固定路径及完整提交 SHA 读取 GitHub Contents API，核对文件类型、路径、blob 和解码后字节摘要，再调用相同解析器。REST 读取只使用 GET，供没有本地 Git 对象的宿主使用。
-
-来源 v1 的 `entries` 保持精确逐卡含义，每项保存 Issue 身份、交付 revision、授权声明的精确评论引用及声明者账号 node ID。来源 v2 保留 `entries`，另含显式 `mandates`。每项 mandate 只保存授权源 Issue 身份、精确评论引用和声明者账号 node ID。两个版本均不在配置中重复定义接受者。重复来源、未知字段和版本均拒绝。初始表为空，不授予任何卡接受权。
-
-调用方选择配置提交的依据必须来自既有人的授权及其采用范围。候选分支新增条目、当前 reviewer 身份或本地文件存在均不构成采用。正式命令必须从已接受的任务／工具采用输入取得固定来源，不提供接受者、任意来源 JSON 或任意配置路径选项。加载器核对来源与字节，不机械证明声明者在业务上有权；这项人类决定继续是显式采用的前提。
-
-授权声明在本卡评论内使用 `json omne-collaboration-responsibility:v1`，包含精确 Issue、revision、正文责任字段摘要、owner 和 acceptor 的 login／nodeId，以及非空授权依据。`readAcceptanceResponsibility` 核对当前正文、正式 scope、已采用引用、原始评论和实际作者。仅具名声明或合法派发不能通过。`json omne-collaboration-responsibility-revocation:v1` 引用原声明并给出依据；有权 owner／acceptor 的撤销阻止继续采用，未知作者、编辑或冲突保留错误。历史决定按其 GitHub 创建时间核对当时已采用的声明，历史来源也必须保留在明确采用的配置中；正常换修订不等同撤销历史。
-
-里程碑授权评论使用 `json omne-collaboration-milestone-mandate:v1`，固定 repository、原生 milestone 编号，以及 owner、acceptor、declarationAuthor 的 login／nodeId，并包含非空依据。读取器要求源评论未编辑、字节摘要及作者账号匹配、源 Issue 身份匹配，且源卡和实际 reduce 卡仍属于该原生里程碑。同一里程碑存在多个有效 mandate 时拒绝，不按评论先后选择。有效 mandate 只让匹配的逐卡责任声明取得采用依据，不授予派发权、结果接受或整波放行。逐卡声明仍须存在并通过身份、修订和责任字段校验。当前派发人的账号还必须等于固定 owner。
-
-里程碑授权可以覆盖后来创建的 reduce 卡，等待进程使用同一份已采用来源即可读取它们。账号或里程碑改变时不能沿用这份授权。授权源 Issue 上的精确引用撤销使用既有 `responsibility-revocation` 格式，只接受固定 owner／acceptor。当前读取拒绝已撤销授权；历史读取只使用截止时间前已存在、当时尚未撤销的授权。精确逐卡来源不能绕过同时适用的 mandate 冲突或撤销；mandate 也不能覆盖已明确采用的同卡同 revision 的不同逐卡引用。返回前重新读取各授权源 Issue 的完整快照，期间新增撤销、编辑或移出里程碑均拒绝。该读回不能使 GitHub 多对象读取成为事务。新增能力的替身验证归[里程碑授权测试](../../tests/delivery-collaboration-mandate.spec.ts)及[等待续接测试](../../tests/delivery-reduce-watch.spec.ts)；真实部署采用仍须单独验证。
-
-[collaboration-acceptance.ts](collaboration-acceptance.ts) 定义接受决定与 `readReleaseAcceptance`。接受对象复用 `ReleaseSubject`，即 ReleaseRecord 的 context、finalHead、expectedRequests、results、lines、next，不另建一份清单。决定另含 Issue／revision／attempt、operationId、accept／partial／cancel／revoke、决定账号、授权声明、依据、剩余责任、精确前项及时间。`encodeReleaseAcceptance` 同时生成交付规则的十个人类字段与唯一机器区块；读取要求两者完全一致。未投影或有歧义的自然语言决定保持 unknown，不能从 closed、绿测或正文单词推断接受。
-
-决定链保留跨 revision 前项，逐项核对原文、作者账号及各自已采用授权。新修订撤销可精确引用前一修订并使用其接受授权，即使正文尚未更新也阻止旧接受放行。新接受必须匹配当前 revision、attempt 和责任来源。所有决定及成果读回后，读取器再次核对当前责任及其授权来源；不能用历史截止时间忽略读取期间发生的当前撤销。部分认可、非接受链头、缺失前项、同操作异文、旧引用、编辑过的决定或事后补造授权均拒绝。账号作者可验证，工具不能区分本人键入和使用本人凭证的获授权代笔；代笔依据仍须按交付规则保存。
-
-读取器核对所有参与线，包括 idle；读回结果和 delta 的精确摘要及权限，要求证据先于决定存在。state 须已合入或有明确 superseded 处置，并仍是完整序列的当前结果。delta 须有从首项至被接受项的完整、获授权前序链，且最终 F、continuation 和结果引用与接受对象一致。跨波历史需要相应 reduce 的正式授权；云端使用 factsFor 时，缺少显式 `relatedAuthority` 输入不得回退本地资格查询。读完再次核对来源快照及精确证据，变化即失败；GitHub 多对象读取仍不是事务。
-
-`VerifiedReleaseAcceptance` 证明上述接受决定及所列记录，不证明本波预期请求集合已推导完整、下一波真实卡已经建齐、gate 覆盖当前候选，或本卡已经关闭。reduce 收口入口负责这些装配就绪守卫；等待入口还须核对最终 ReleaseRecord、所有下一步材料与当前卡状态。不得把此读取器单独用作整波放行条件。接受决定单向引用既有成果，最终 ReleaseRecord 再引用接受决定，避免循环引用。
-
-验证入口为 [授权读取测试](../../tests/delivery-collaboration-authority.spec.ts)，使用真实派发校验函数及 REST 替身。覆盖历史资格、云端 facts、停写编辑、计划提前授权、链外写者、卡片变化和撤销；真实 GitHub 采用另行验证。
-
-验证资源为 [schema 测试](../../tests/delivery-collaboration-schema.spec.ts)、[分页与序号测试](../../tests/delivery-collaboration-read.spec.ts)和[信任测试](../../tests/delivery-collaboration-trust.spec.ts)。这些边界函数不自动接受成果、派发任务、创建 PR 或关闭 Issue。
-
 ## 事件等待
-
-`runReduceWatch` 每次消费一张实际 reduce 的完整 release，或一个非成功申请的处置。放行前核对接受决定、全部 delta、下一波实际卡、最终记录及关闭事件；重开、撤销和未知记录不能授予开工。active 任务必须仍归该线负责人及原生线父卡，属于当前里程碑并匹配正式派发与基线。已经登记交接的任务不能通过重放旧 release 或 redispatch 再次取得写权。
-
-历史 active 任务已过期时，只有直接后继也有有效最终 release 与关闭证据，才返回 `recover-next`。返回仍只消费当前这一个节点，不重新开旧任务。重复 operationId 从原目标重新核对权威事实，持久结果本身不授予当前权限。
-
-等待游标保存在本机 JSON journal。获取、残锁恢复和释放共用 Node `node:sqlite` 的本机进程互斥，进程退出释放该互斥；恢复仍须显式指定 `--recover-lock` 并确认旧 marker 属于已停止的本机 PID。释放时只删除本操作的 marker。journal 必须是普通单链接文件，拒绝文件本身为符号链接或硬链接；父目录路径别名不另开并发写权。该保证适用于本机文件系统，不声明网络文件系统上的分布式锁。跨机器业务恢复仍以 GitHub 记录为准。Node 24 的 [DatabaseSync 文档](https://nodejs.org/download/release/latest-v24.x/docs/api/sqlite.html) 是所用运行时接口的依据。
 
 线会话与集成节点阻塞在 GitHub 事件上，不轮询 API。接收器把 webhook 事件追加到本机的事件文件，`wait-cli.ts` 读这个文件。`wait-cli.ts` 不写平台。频道接收器只管理归属已证实的精确 hook。legacy 转发器保留单机用途，不自动删除归属未知的 hook。
 
@@ -434,54 +269,21 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
 
-## 候选与整波验证报告
-
-`collaboration-verification.ts` 读取具名验证报告。它不执行报告中的命令，不重新判断评审结论，也不授予接受。Reduce 负责人必须先取得实际检查与独立评审证据，再形成报告。报告读取器验证归属、精确受测对象、必需类别、成功结果和引用字节。日志摘要通过不单独代表检查适用。
-
-报告位于当前 reduce 卡的一条未编辑评论。首行是 `<!-- omne-collaboration-verification:v1 -->`，其余正文为单一 JSON。JSON 必须包含 `schemaVersion:1`、`subject`、`writer`、`checks` 和 UTC `recordedAt`。评论作者必须是当前具名 reduce 负责人，writer 的 login、epoch、authorization 必须等于当前有效派发。拒绝改过的评论、未来记录时间、旧 epoch 和读取期间的授权变化。新结论使用新评论及摘要，不修改旧证据。
-
-候选 subject 包含 `kind:candidate`、完整 context、lineParent、requestId、requestHead、candidateHead 和 targetBase。它必须与当前请求及待写状态完全相同。candidateHead 和 targetBase 不得为空。状态的 verification 引用中恰有一份正式报告，其余证据仍逐项核对摘要。报告必须覆盖 impact、tests、review 和 admission 四类。
-
-整波 subject 包含 `kind:wave`、完整 context、finalHead、expectedRequests、results、lines 和 next。报告必须覆盖 whole-wave、reduce-work、integration-defects 和 pending-writes 四类。整波报告由装配提供显式引用，不通过“最新评论”猜测。报告本身不替代 roster、delta、后继输入、接受和关闭读回。
-
-每项 check 有唯一 name，且只允许以下一种形状：
-
-- `kind:command`：area 为 tests、admission 或 whole-wave；command 为实际执行的非空 argv；exitCode 必须为0；log 为可读回的 Evidence。命令结果由执行者记录，工具不执行评论内的 argv。
-- `kind:judgment`：area 为 impact、review、reduce-work、integration-defects 或 pending-writes；conclusion 为 pass，只有 review 可用 not-applicable；reason 必填；evidence 至少一项；remaining 必须为空。review 的不适用理由由负责人按现行风险规则判断，不能用它跳过适用独立评审。pending-writes 的证据须来自实际 journal 与远端恢复核对，不能只根据未报错推断。
-
-所有日志及判断依据使用既有 Evidence 定位与摘要格式。缺类别、重复 name、非零退出、未知结论、残留工作、引用变动或 head/base 不一致均拒绝。完整性与行为覆盖的最终判断仍由 reduce 和独立验收承担，结构化报告不能把窄测试扩称整体通过。
-
-验证资源为 [delivery-collaboration-verification.spec.ts](../../tests/delivery-collaboration-verification.spec.ts)。这些确定性测试覆盖精确 subject、四类覆盖、来源身份、旧证据和失败拒绝，不能代替真实运行与独立判断。
-
 ## 首次派发消息具体化
 
 `line-initial-dispatch-cli.ts` 提供 fields、render 和 validate。模板来自工具源码检出的固定模板路径，不从输入 JSON 选择代码或模板。fields 返回模板占位名。输入只含 schemaVersion、milestone、line、revision、fields，未知顶层字段拒绝；字段集合必须与模板完全相同。line 是受限短名，milestone/revision 为正整数，dispatch_revision 必须相同。只输出模板的消息正文，不把填写说明交给 Line。
 
-生成使用独占创建。同修订、同内容重放复用文件；已有不同内容或损坏文件明确拒绝，不能静默覆盖。validate 重新渲染并核对实际文件字节。空字段、残留占位、重复 CLI 选项、常见 token/private key 和 smee 频道地址拒绝。该扫描不是通用秘密证明。输入中的命令始终是消息文本，工具不执行它们。
+输入 JSON 与演练证据先经 [strict-json.ts](strict-json.ts) 解析，重复键（含转义后相同的键）、超过 1 MiB 或嵌套超过 128 层时拒绝，错误以文件路径开头，例如 `<path>: json-invalid`。生成使用独占创建。同修订、同内容重放复用文件；已有不同内容或损坏文件明确拒绝，不能静默覆盖。空字段、残留占位、重复 CLI 选项、子命令不接受的选项、常见 token/private key 和 smee 频道地址拒绝。该扫描不是通用秘密证明。输入中的命令始终是消息文本，工具不执行它们。
 
-工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN、FORWARDED_REPORTED 或 CLAIMED_READBACK。正式消息不改变 binding 的写范围或已有唯一执行。
+validate 必须有 `--rehearsal-evidence`，缺少时退出 2。证据先读 `schemaVersion`（只接受 1），再读其余字段：`messageSha256` 是 64 位十六进制摘要，按小写比较；`commands[]` 每项有 `command`、可选 `executed`、`exitCode`（0 到 255 的整数）和 `outputSummary`，其他字段拒绝。两项的 `command` 合并连续空白后相同时拒绝，一条命令只有一个演练结果。`executed` 只作记录，不参与匹配。validate 依次核对下列各项，任一项不成立就退出 2，不输出 STRUCTURE_CHECKED：
 
-验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更及五事实不混同。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。
+1. 消息文件与按输入重新生成的字节相同。
+2. `messageSha256` 等于消息文件的 SHA-256。
+3. 消息里的代码块都已闭合，且都是 shell 代码块。代码块边界按 CommonMark 识别：开始行缩进不超过 3 个空格，以 3 个以上反引号或 3 个以上 `~` 开头；信息串的第一个词转成小写后是语言。结束行用同一字符，长度不短于开始行，且没有信息串；块内带信息串的边界行仍属于块内容。语言是 `sh`、`bash`、`shell` 或 `zsh` 的块是 shell 代码块。未闭合的块报 `initial-dispatch-fence-unclosed`，其他语言或没有语言标签的块报 `initial-dispatch-non-shell-block`。字段值带入的代码块按同一规则处理。
+4. shell 代码块里的每条命令都有证据项。空行和以 `#` 开头的行跳过，行尾反斜杠连接下一行，比较前去掉首尾空白并合并连续空白。缺证据时报 `initial-dispatch-rehearsal-missing` 并列出命令。
 
+证据里与消息命令都不匹配的项不使 validate 失败。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出，由 reduce 说明。
 
-## Reduce 装配与监督边界
+工具输出 GENERATED 或 STRUCTURE_CHECKED，均不能代表完整 VALIDATED。输出包含路径、SHA-256 及仍须负责人判断与机器证据共同完成的 guards。授权、精确输入可读性、目标机器命令与策略、等待链和秘密/矛盾检查由 reduce 执行并保存证据。工具不伪造 OPENED_FOR_HUMAN 或 FORWARDED_REPORTED。正式消息不改变 binding 的写范围或已有唯一执行。
 
-`reduce-command.ts` 解析 next、claim、record、prepare、check-release 和 release。严格拒绝未知字段、错误记录种类及重复 CLI 选项。`reduce-cli.ts` 另外提供 supervise 和 ack；所有输入先通过共享 JSON 解析，再加载固定安装。CLI 不接收任意 bootstrap 模块、来源文件或 workflow HEAD。根与成员的 `reduce` script 使用同一源入口。
-
-`reduce-bootstrap.ts` 从版本 3 安装取得 gate workflow SHA，并复用当前 authority、接受来源和验证报告 reader。整波报告检查前后均从受信派发 route 和 policy 派生目标轨道，读回精确 ref、commit 类型及 finalHead。报告期间授权变化或轨道移动均拒绝。此检查不授予写权、接受或部署审批。
-
-候选读取采用 REST `2026-03-10`。该版本已删除 PR 响应中的 `merge_commit_sha`。未合入候选的 mergeCommit 为 null，不使用 GitHub 的试合并提交。PR 已合入时，完整读取该 PR 的 Issue events，要求唯一的 `merged` 事件，并核对事件 URL、commit_id 及同仓库 commit_url。缺失、冲突、重复页或读取失败均拒绝。此事件仍须与精确 gate 成功、PR 已合入及提交在目标轨道可达的事实一起核对，不能单独证明交付接受。来源见 [GitHub 版本变更](https://docs.github.com/en/rest/about-the-rest-api/breaking-changes)和[Issue event 类型](https://docs.github.com/en/rest/using-the-rest-api/issue-event-types#merged)。
-
-恢复已接受且已关闭的原 release 时，先通过共享 reader 核对原接受、完整 release、delta 和关闭事实，并确认原操作字节相同，然后返回原回执。后续波推进轨道不使旧完成结果失效。该恢复不重做发布前就绪检查，不重发或重新关闭。未发布、未关闭、记录冲突或重开的波不走此完成路径。
-
-`reduce-supervision-input.ts` 将活动对象解析为已有 RequestInput、RequestStateRecord、WorkflowEvidence 和 ReleaseRecord。输入不接受轮询周期或采用 gate SHA 覆盖。阶段 VERIFY_WAVE、RELEASE_WAVE 和 FINALIZE 必须提供显式收口目标。未知后继不能从缺省 release 推断为终态。
-
-`reduce-supervision.ts` 在主进程安装文件订阅及本地健康检查。每种远端 probe 使用一个持久 worker；同步 REST 和安装来源读取仅在该 worker 中执行。reconcile、runs、deadline 三种 probe 互不串行等待。worker 只能使用 REST GET，不能调用 GraphQL、审批或任何写操作；模块路径由装配固定。IPC 结果重新解析为 ReduceSignal。协议错误、退出或 120 秒 probe 超时使该 worker 失效，不自动重启或把未知当空集合。
-
-活动 run 完成后撤出该 worker 的轮询集合，并重新读取实际回执与当前 owner/epoch。运行未完成时不周期扫描 Issue/PR。新事件、启动恢复与截止重新对账。收口监督只返回已核验的就绪或已放行事实，不创建接受、delta 或后继卡。phase 与业务状态独立，ack 只写本地信号处置回执。
-
-监督返回可处置信号时退出 0，显式超时退出 3，取消退出 130，输入或监督故障退出 2。超时结果保留原 operationId 和 recovery，不表示波已完成。恢复时使用原输入和 journal。
-
-监督结束会停止子进程并释放订阅和计时器。POSIX worker 使用自有进程组，停止和超时终止整组，避免同步 gh 子进程遗留。Windows 目前只终止直接 worker，命令自身仍受读取超时约束；该平台的子进程树清理不在现有验证结论内。
-
-新增验证资源为 delivery-reduce-assembly、delivery-read-worker、delivery-reduce-integration、delivery-reduce-supervise、delivery-collaboration-installation 和 delivery-collaboration-verification 测试。它们区分真实本机进程/文件/CLI 与 REST 替身；不将替身结果声明为真实工作流部署或 W4 宿主接受。
+验证资源为 [delivery-initial-dispatch.spec.ts](../../tests/delivery-initial-dispatch.spec.ts)，覆盖实际 Node CLI、字段和秘密拒绝、重复生成、修订冲突、输出变更、子命令选项、五事实不混同，以及演练覆盖：缺证据、证据针对别的消息、缺命令、重复命令、空白差异、多余证据项、非 0 退出码、CommonMark 代码块边界、未闭合块和非 shell 块。实际材料可达、打开、转发和接收端唯一执行由宿主行为验收分别验证。

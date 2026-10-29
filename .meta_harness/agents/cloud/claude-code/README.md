@@ -14,7 +14,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 2. 安装 Node 26.12.0 到 `/opt/node26`，核对 SHASUMS256。再用 npm 安装 pnpm 10.28.1。
 3. 改写 `/etc/profile.d/nodejs.sh`，并在 `/root/.bashrc` 加一行，让 Node 26 排在镜像自带的 Node 22 之前。
 4. 安装 uv 0.13.0 到 `/root/.local/bin`，替换镜像自带的旧版。
-5. 从 GitHub 添加 `michael-denyer/pstack-claude` 与 `mattpocock/skills` 两个 marketplace，在 user 作用域安装 `pstack` 与 `mattpocock-skills`。
+5. 从 GitHub 添加 `michael-denyer/pstack-claude` 与 `mattpocock/skills` 两个 marketplace，在 user 作用域安装 `pstack` 与 `mattpocock-skills`。再把 `unclebob/ub-mode` 默认分支 `master` 的 `SKILL.md` 下载到 `~/.claude/skills/ub-mode/`。下载完整且文件含 `name: ub-mode` 一行才替换旧文件。否则只输出诊断并保留旧文件，setup 继续。
 6. 在 `~/.claude/settings.json` 登记 SessionStart 钩子。钩子运行检出里的 `session-start.sh`。
 7. 检出已存在时，执行[开发指南](../../../../docs/development.md#准备可用的检出)的三条依赖命令，再生成 agent 投影。
 
@@ -32,11 +32,11 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 3. `git fetch --prune origin`，再把本地 `main` 快进到 `origin/main`。当前分支是 `main` 时用 `git merge --ff-only`。其他分支时只更新 `main` 引用。
 4. HEAD 变化、依赖目录缺失，或锁文件及根依赖配置与上次成功安装的摘要不同时，重新执行三条依赖命令。摘要保存在当前工作树的 Git 私有目录。三条命令全部成功后才记录摘要，失败时清除旧摘要，下次启动重试。首次启动没有摘要，也会同步依赖。
 5. agent 投影与源不一致时，删除被 Git 忽略的投影并重新生成。`.cursor` 下提交的三份文件保留。
-6. 更新两个 marketplace，再把 `pstack` 与 `mattpocock-skills` 更新到上游最新版本。
+6. 更新两个 marketplace，再把 `pstack` 与 `mattpocock-skills` 更新到上游最新版本。再从 `master` 重新下载 ub-mode 的 `SKILL.md`。下载完整且文件含 `name: ub-mode` 一行才替换旧文件，否则删除临时文件、输出诊断并保留旧文件。
 
 脚本不丢弃本地工作。`main` 已分叉、或检出的 `main` 不能快进时，脚本输出诊断并保持原状。任何一步失败都只输出诊断，会话照常启动。
 
-插件更新在下一次会话生效。Claude Code 在钩子运行之前已经加载了插件。
+如果 Claude Code 在钩子运行之前已经加载插件和技能，插件与 ub-mode 的更新要到下一次会话才生效。这一前提没有验证，见[未验证的部分](#未验证的部分)。
 
 ## 网络密钥与对外请求
 
@@ -63,7 +63,7 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 
 ## 与技能来源表的差异
 
-[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用) 固定 pstack port 0.9.79 与 Matt 1.3.1 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开发指南](../../../../docs/development.md#初始化-coding-agent-插件) 核对和报告。跟随最新版本不扩大方法采用范围。
+[技能来源表](../../../../docs/engineering/skills.md#来源与项目采用) 固定 pstack port 0.9.79、Matt 1.3.1 与 ub-mode 的 revision。本宿主按负责人要求跟随上游最新版本，所以实际版本可能比来源表新。版本差异按 [开发指南](../../../../docs/development.md#初始化-coding-agent-插件) 核对和报告。跟随最新版本不扩大方法采用范围。
 
 ## 未验证的部分
 
@@ -71,4 +71,6 @@ Claude Code 不从检出读取环境文件。setup 脚本保存在云端环境�
 
 - setup 脚本运行时检出是否已存在。不存在时，第 7 步跳过，首次会话的 `session-start.sh` 补做依赖与投影。
 - user 作用域的插件与 SessionStart 钩子在云端会话中是否加载。
+- ub-mode 的下载经过代理是否成功，以及云端会话是否发现 `~/.claude/skills/ub-mode/`。
 - 快照恢复之后，检出里被 Git 忽略的依赖与投影是否保留。
+- Claude Code 是否在钩子运行之前已经加载插件和技能。
