@@ -29,10 +29,8 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 3. 线级约束 `tmp/line-<线>/constraints.md`：按[实施规格模板](references/spec-template.md)的「原则与约束」写本线适用的条目，只写一次。每张卡的 `spec.md` 引用它，只补本卡特有的条目。
 
 4. 方法与角色：按 `docs/engineering/skills.md`「三层分工」选本线共用的技能，读它们的正文。写或改代码前读 `ub-mode`。
-   - playbook 按主工作类型选：feature 对 feature，bug 对 bug-fix，refactor 对 refactoring，performance 对 perf-issue，investigation 对 investigation，maintenance 对文档或工具维护所用的实际 playbook。没有贴合的 playbook 时才用 `pstack:figure-it-out`。
-   - 其他 pstack 技能：改现有代码或要判断落点时加载 `pstack:how`。要查已有决定的理由时加载 `pstack:why`。交付主要是文档时加载 `pstack:technical-writing` 与 `pstack:unslop`。
-   - 认领时不加载实施类 playbook，也不加载 Babysit、Shipping 与 Orchestrate。
-   - Matt `to-spec`、`to-tickets` 设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 补充与候选」钉住的 SKILL.md 文件。
+   - playbook 与其他 pstack 技能：按 `line` 技能 `references/work-paradigm.md` 的方法地图选。
+   - Matt `to-spec`、`to-tickets` 设了 `disable-model-invocation`，不能按名加载。直接读 `docs/engineering/skills.md`「Matt 写法入口」钉住的 SKILL.md 文件。
    - 读者角色：从 `docs/README.md` 选，角色 id 以 `docs/documentation.json` 为准，然后运行 `uv run --locked omne-documentation context --root . --role <id>`。结果写进线级地图主体。
    - 执行角色从 `.meta_harness/agents/roles/README.md` 选。实现类选 `developer` 并定 `implementation_kind`。产品设计起草选 `product-design-drafter`。不把 `qa`、`implementation-reviewer`、`design-reviewer` 当开工执行者。
 5. 出口：自包含检查四问能答（从哪个提交开工、能改哪些文件、做到什么程度算完成、每条事实出处在哪）。

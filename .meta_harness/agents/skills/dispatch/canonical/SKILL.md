@@ -65,7 +65,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
 1. **写线包。** 按 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md` 从有效 binding、已接受依据和当前波写线包，发在线父卡上并读回。
 2. **填首次消息的输入。** 模板是 `.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md`。先列出字段，再从有效来源写输入 JSON：schemaVersion=1、milestone 数字、line 短名、revision 数字和 fields 字符串映射。fields 包含全部列出字段，`dispatch_revision` 等于 revision。字段按模板分为六组：
    - 身份：仓库、里程碑卡、线父卡、机器与宿主、工作目录、`binding_refs`、`line_pack_ref`、唯一 reduce 会话。
-   - 先加载：`prepare_commands`、`skill_source_ref`。
+   - 先加载：`prepare_commands`、`skill_source_ref`。`skill_source_ref` 写明 `docs/engineering/skills.md` 来源表里 pstack、Matt 与 ub-mode 的 revision，或指向该来源表的固定提交。
    - 长程目标：`milestone_close_condition`、`line_later_wave_plan`。
    - 方法：`line_work_kind`、`role_policy_ref`。
    - 分工：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。

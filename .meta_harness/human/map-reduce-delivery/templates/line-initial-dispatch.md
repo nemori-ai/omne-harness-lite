@@ -41,7 +41,7 @@
 
 1. `line` 技能。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
 2. 每张卡按 `claim` 技能推进。
-3. 写或改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
+3. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
 4. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
 5. 改文档前加载 `asd-ste100`。
 
@@ -68,18 +68,7 @@
 - 线级：按 `line` 范式的「进度记录」，维护 `tmp/line-<线>/state.md` 开头的「本波进度」。
 - 每个切片完成和每张卡交付时都更新，不攒到交回。
 
-项目规矩各有拥有者：
-
-| 规矩 | 拥有者 |
-| --- | --- |
-| 方法采用与项目差异 | `docs/engineering/skills.md` |
-| 风险级别、评审力度与升级阶梯 | `docs/engineering/quality.md` |
-| 认卡、证据与接受 | `docs/engineering/agent-delivery.md`。证据规则在第 5 节 |
-| 隔离、单写与工作树清理 | `docs/engineering/workflow.md` |
-| 演进政策、提交与权限 | `docs/engineering/publication.md` |
-| 验证能声称什么 | `docs/verification.md` |
-| 署名、分支与来源 trailer | `CONTRIBUTING.md` |
-| 角色模型 | `.meta_harness/agents/roles/README.md`「模型配置与本次派发」 |
+项目规矩与拥有者见 `work-paradigm.md`「最常碰到的项目规矩」。
 
 ### 按宿主选择角色模型
 

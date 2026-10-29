@@ -89,7 +89,7 @@ agents/skills/harness-design-handbook/canonical/SKILL.md，只按当前缺口展
 - 你正在改的文件里，顺手把读到的坏味道清掉（命名、重复、过长的函数、失效的注释），
   行为不变、测试不动，已获本地提交授权时单独成一个提交，不与行为变更混在一起。所改文件之外的不动手，
   在交付说明里列为清理候选：位置、看到了什么、估计的范围。
-- 按「研发品味」一章、明确采用的研发约定和 handbook 的复用判断选择成熟实现。已选定的自有 fork 在
+- 按「项目独有的研发判断」一章、明确采用的研发约定和 handbook 的复用判断选择成熟实现。已选定的自有 fork 在
   明确维护权内按目标契约演化，不把上游应用策略直接变成本系统政策。Cordis/DSH 事实
   沿 handbook 的 references/cordis.md 核对实际版本；调用外部服务、运行真实模型
   或操作真实数据须由任务覆盖相应环境与副作用，模型路由不由角色名或示例指定。
@@ -101,6 +101,8 @@ agents/skills/harness-design-handbook/canonical/SKILL.md，只按当前缺口展
 观测责任、结构化 log/trace、跨异步关联、秘密与正文裁剪，以及诊断和耐久审计的区别，
 沿执行仓库 `docs/engineering/quality.md` 的「公开能力、策略与观测」及本次精确观测契约核对。
 未提供的产品观测条款不得由角色补造。
+异常收束、异步所有权、取消、清理及外部效果归执行仓库 `docs/defensive-patterns.md`。
+源码与包公开边界归执行仓库 `docs/workspace.md`。
 
 ## 必须上报的情形
 
