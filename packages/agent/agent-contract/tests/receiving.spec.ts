@@ -16,6 +16,7 @@ import {
   type AgentAccountOutlet,
   type AgentJournalEntries,
   type Authority,
+  type ExecutionAttachmentId,
   type ReceivedCommitInput,
 } from '@omne-harness/agent-contract'
 import {
@@ -129,6 +130,69 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     })
     await expect(caseNamed(cases, 'by its key').run()).rejects.toThrow(
       /recall the original receipt/u,
+    )
+  })
+
+  it('fails the replay case when a recalled operation allocates another event', async () => {
+    // A provider that projects every call, also the one that only recalls the original receipt.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const calls = new Map<string, number>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      entries: {
+        record: async input => {
+          const answer = await fixture.double.record(input)
+          if ('ok' in answer) calls.set(input.execution, (calls.get(input.execution) ?? 0) + 1)
+          return answer
+        },
+      },
+      events: async (who, execution) => {
+        const events = await fixture.events(who, execution)
+        const extra = (calls.get(execution) ?? 0) - events.length
+        return [...events, ...events.slice(0, Math.max(0, extra))]
+      },
+    })
+    await expect(caseNamed(cases, 'replayed').run()).rejects.toThrow(
+      /replay should allocate no event/u,
+    )
+  })
+
+  it('fails the after-the-end case when an entry event follows the end', async () => {
+    // A provider that keeps projecting entries after ended.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const attachments = new Map<string, ExecutionAttachmentId>()
+    const ended = new Set<string>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      open: async (who, execution) => {
+        const authority = await fixture.open(who, execution)
+        attachments.set(execution, authority.executionAttachment)
+        return authority
+      },
+      end: async (who, execution) => {
+        await fixture.end(who, execution)
+        ended.add(execution)
+      },
+      events: async (who, execution) => {
+        const events = await fixture.events(who, execution)
+        const attachment = attachments.get(execution)
+        if (!ended.has(execution) || attachment === undefined) return events
+        const entries = (await fixture.read(who, execution)) ?? []
+        return [
+          ...events,
+          ...entries.slice(events.length).map(entry => ({
+            execution,
+            sequence: String(events.length + 1),
+            executionAttachment: attachment,
+            schema: { owner: 'test', name: 'x', revision: '1', digest: 'x' },
+            cause: { owner: 'test', record: 'x', revision: '1', digest: 'x' },
+            body: { kind: 'entry' as const, entry },
+          })),
+        ]
+      },
+    })
+    await expect(caseNamed(cases, 'after the end without an event').run()).rejects.toThrow(
+      /no event should follow the end/u,
     )
   })
 })

@@ -96,9 +96,10 @@ const sequences = async (handle: AgentExecutionHandle<Principal>) =>
   (await eventsOf(handle)).map(event => [event.sequence, event.body.kind])
 const ENDED_EVENTS = [
   ['1', 'input-taken'],
-  ['2', 'producer'],
-  ['3', 'message'],
-  ['4', 'ended'],
+  ['2', 'entry'],
+  ['3', 'producer'],
+  ['4', 'message'],
+  ['5', 'ended'],
 ]
 const idle: AgentState = { kind: 'idle', instance: instance() }
 

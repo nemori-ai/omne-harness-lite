@@ -8,12 +8,14 @@ import {
   decodeAgentInstanceId,
   decodeExecutionAttachmentId,
   type Access,
+  type Adoption,
   type AgentExecutionId,
   type DurableEvidence,
 } from './identity.ts'
 import type { AgentMaterials } from './passages.ts'
 import type {
   AgentJournalEntries,
+  AgentJournalEntry,
   JournalEntryRecord,
   ReceivedCommitInput,
   ReceivedCommitQuery,
@@ -44,6 +46,31 @@ import {
 } from './testing-received-state.ts'
 
 type Pause = { reached(source: DurableEvidence): void; released: Promise<void> }
+
+/** The schema of the events the fixture allocates; a provider declares its own. */
+const EVENT_SCHEMA: Adoption = Object.freeze({
+  owner: 'memoryReceivedCommand',
+  name: 'agent-event',
+  revision: '1',
+  digest: 'double:agent-event',
+})
+
+/**
+ * Writes the entry and, in the same step, its `entry` event (SPEC "日志条目" 6). After the end
+ * the entry is written alone: ended stays the last event.
+ */
+function writeEntry(state: MemoryExecution, entry: AgentJournalEntry, receipt: CommandReceipt) {
+  state.entries.push(entry)
+  if (state.ended) return
+  state.events.push({
+    execution: receipt.execution,
+    sequence: String(state.events.length + 1),
+    executionAttachment: state.authority.executionAttachment,
+    schema: EVENT_SCHEMA,
+    cause: receipt.evidence,
+    body: { kind: 'entry', entry: structuredClone(entry) },
+  })
+}
 
 /** Explicit test setup; this is not a full AgentJournal or a production storage provider. */
 export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentBlock>(
@@ -197,7 +224,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       execution: input.execution,
       value: input.material,
     })
-    state.entries.push(entry)
+    writeEntry(state, entry, receipt)
     state.revision += 1
     deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved })
     state.operations.set(input.operation, { kind: 'received', text: semanticText(input), value })
@@ -285,7 +312,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     }
     const receipt = receiptOf(state, input)
     const entry = structuredClone(input.entry)
-    state.entries.push(entry)
+    writeEntry(state, entry, receipt)
     state.revision += 1
     state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
     if (entry.kind === 'received')
@@ -440,6 +467,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
         ended: false,
         revision: 0,
         entries: [],
+        events: [],
         operations: new Map(),
         qualifications: new Map([[who.principal, 'allowed']]),
       })
@@ -458,6 +486,9 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       return state?.qualifications.get(who.principal) === 'allowed'
         ? structuredClone(state.entries)
         : undefined
+    },
+    async events(who, execution) {
+      return structuredClone(requireState({ ...who, execution }).events)
     },
   }
 }

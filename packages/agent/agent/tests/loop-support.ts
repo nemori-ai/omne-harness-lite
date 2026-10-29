@@ -298,6 +298,36 @@ export async function loopAssembly(
 
 export const alice = { principal: 'alice', tenant: tenantA } as const
 
+/**
+ * The same dependencies with a Journal whose `entry` events never reach a stream reader: the
+ * notification of a receiver-only revision is lost, so only the check time wakes a waiting driver.
+ * The entries stay readable through load.
+ */
+export function losingEntryNotifications(
+  dependencies: AgentDependencies<Principal, ContentBlock>,
+): AgentDependencies<Principal, ContentBlock> {
+  const { journal } = dependencies
+  return {
+    ...dependencies,
+    journal: {
+      ...journal,
+      output: {
+        ...journal.output,
+        async *events(input) {
+          for await (const page of journal.output.events(input)) {
+            const lost =
+              'ok' in page &&
+              page.ok.kind === 'page' &&
+              page.ok.events.length > 0 &&
+              page.ok.events.every(event => event.body.kind === 'entry')
+            if (!lost) yield page
+          }
+        },
+      },
+    },
+  }
+}
+
 /** The invoke of execution `id` under operation `invoke-<id>`, with its own input unless `input`. */
 export function invoke(
   assembly: Pick<LoopAssembly, 'provider'>,

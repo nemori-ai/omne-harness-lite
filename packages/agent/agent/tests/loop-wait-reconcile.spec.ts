@@ -5,7 +5,14 @@ import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
 import { acceptedInput, execution, failure, ok, operation } from './journal-support.ts'
-import { alice, eventsOf, eventually, invoke, loopAssembly } from './loop-support.ts'
+import {
+  alice,
+  eventsOf,
+  eventually,
+  invoke,
+  loopAssembly,
+  losingEntryNotifications,
+} from './loop-support.ts'
 
 describe('R0 preserves the original conditional operation', () => {
   it.each(['unknown', 'query-unavailable', 'load-unavailable'] as const)(
@@ -99,47 +106,50 @@ describe('W0 rereads the original producer', () => {
     let closed = 0
     const assembly = await loopAssembly(
       [execution()],
-      d => ({
-        ...d,
-        models: {
-          ...d.models,
-          calls: {
-            ...d.models.calls,
-            admit: input => {
-              admissions += 1
-              return d.models.calls.admit(input)
+      d =>
+        losingEntryNotifications({
+          ...d,
+          models: {
+            ...d.models,
+            calls: {
+              ...d.models.calls,
+              admit: input => {
+                admissions += 1
+                return d.models.calls.admit(input)
+              },
             },
-          },
-          instances: {
-            ...d.models.instances,
-            connect: async input => {
-              const route = await d.models.instances.connect(input)
-              if ('failure' in route || route.ok.kind !== 'live') return route
-              return {
-                ok: {
-                  kind: 'live',
-                  handle: {
-                    ...route.ok.handle,
-                    async *observe(input) {
-                      observations += 1
-                      try {
-                        await new Promise<void>(resolve => {
-                          if (input.signal.aborted) resolve()
-                          else
-                            input.signal.addEventListener('abort', () => resolve(), { once: true })
-                        })
-                        yield { kind: 'ended', reason: 'observer-closed' } as const
-                      } finally {
-                        closed += 1
-                      }
+            instances: {
+              ...d.models.instances,
+              connect: async input => {
+                const route = await d.models.instances.connect(input)
+                if ('failure' in route || route.ok.kind !== 'live') return route
+                return {
+                  ok: {
+                    kind: 'live',
+                    handle: {
+                      ...route.ok.handle,
+                      async *observe(input) {
+                        observations += 1
+                        try {
+                          await new Promise<void>(resolve => {
+                            if (input.signal.aborted) resolve()
+                            else
+                              input.signal.addEventListener('abort', () => resolve(), {
+                                once: true,
+                              })
+                          })
+                          yield { kind: 'ended', reason: 'observer-closed' } as const
+                        } finally {
+                          closed += 1
+                        }
+                      },
                     },
                   },
-                },
-              }
+                }
+              },
             },
           },
-        },
-      }),
+        }),
       { texts: ['reply after a lost notification'], pageSize: 10 },
       { reconciliationDelayMs: 1000 },
     )

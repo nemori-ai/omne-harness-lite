@@ -4,6 +4,7 @@ import type {
   AgentExecutionId,
   AgentInstanceId,
   AgentJournalEntries,
+  AgentJournalEntry,
   AgentMaterials,
   AgentReceivedCommits,
   CommandReceipt,
@@ -69,6 +70,11 @@ type Hooks<P> = {
     state: CommandReceipt['state'],
   ): CommandReceipt
   nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
+  /**
+   * Allocates the `entry` event of a written entry under the same commit (SPEC "日志条目" 6).
+   * The Journal owns the ended rule: after the ended event it appends nothing.
+   */
+  project(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
 }
 const unavailable = (diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -312,6 +318,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               execution.revision = revision
               deliveries.set(deliveryText(input, entry), value)
               aliases.set(operationKey(input), value)
+              hooks.project(execution, entry, receipt.evidence)
               for (const wake of execution.waiters) wake()
             },
           }
@@ -402,6 +409,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               deliveries.set(deliveryText(input, input.entry), kept)
               aliases.set(operationKey(input), kept)
             }
+            hooks.project(execution, input.entry, receipt.evidence)
           },
         }
       })

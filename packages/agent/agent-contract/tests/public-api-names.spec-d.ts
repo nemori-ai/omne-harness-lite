@@ -1,7 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type { Outcome } from '@omne-harness/operation-result'
 import type * as M from '@omne-harness/model-contract'
@@ -45,6 +44,7 @@ import type {
   AgentInstant,
   AgentJournal,
   AgentJournalAttachment,
+  AgentJournalEntry,
   AgentJournalFinishing,
   AgentJournalObservation,
   AgentJournalReading,
@@ -671,7 +671,10 @@ describe('the subject of each position', () => {
   })
 
   it('accepts a start subject and refuses a loose record', () => {
-    expectTypeOf<{ execution: AgentExecutionId; conditions: DurableEvidence }>().toExtend<Subject>()
+    expectTypeOf<{
+      execution: AgentExecutionId
+      conditions: DurableEvidence
+    }>().toExtend<Subject>()
     expectTypeOf<Record<string, unknown>>().not.toExtend<Subject>()
     expectTypeOf<{ purpose: 'other'; preparation: unknown }>().not.toExtend<Subject>()
   })
@@ -813,14 +816,16 @@ describe('the discriminants of the coordination chapter', () => {
 
   it('AgentEventBody has seven kinds; the ended one is the only one a commit excludes', () => {
     expectTypeOf<KindOf<AgentEventBody>>().toEqualTypeOf<
-      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control' | 'ended'
+      'input-taken' | 'message' | 'producer' | 'entry' | 'waiting' | 'control' | 'ended'
     >()
-    expectTypeOf<Extract<AgentEventBody, { kind: 'stream' }>['value']>().toEqualTypeOf<JsonValue>()
+    expectTypeOf<
+      Extract<AgentEventBody, { kind: 'entry' }>['entry']
+    >().toEqualTypeOf<AgentJournalEntry>()
     expectTypeOf<
       Extract<AgentEventBody, { kind: 'control' }>['stage']
     >().toEqualTypeOf<ControlStage>()
     expectTypeOf<KindOf<JournalCommit<string>['events'][number]>>().toEqualTypeOf<
-      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control'
+      'input-taken' | 'message' | 'producer' | 'entry' | 'waiting' | 'control'
     >()
     expectTypeOf<KindOf<JournalCommit<string>['state']>>().toEqualTypeOf<
       'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'

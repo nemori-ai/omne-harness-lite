@@ -724,7 +724,6 @@ export {};
 ## 声明文件 `execution.d.ts`
 
 ```ts
-import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type { Outcome } from '@omne-harness/operation-result';
@@ -897,12 +896,8 @@ export type AgentEventBody = Readonly<{
     result: ProducedResult;
     consumption: ConsumptionId;
 }> | Readonly<{
-    kind: 'stream';
-    producer: ProducedResult['producer'];
-    cursor: string;
-    source: DurableEvidence;
-    schema: Adoption;
-    value: JsonValue;
+    kind: 'entry';
+    entry: AgentJournalEntry;
 }> | Readonly<{
     kind: 'waiting';
     waits: readonly Waiting[];
@@ -2382,6 +2377,7 @@ export declare function doubleEvidence(owner: string, record: string, revision: 
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { RequiredReceivedCommits } from './testing-received-fixture.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
+import type { AgentEvent } from './execution.ts';
 import { type Access, type AgentExecutionId, type Authority } from './identity.ts';
 import type { AgentJournalEntries, AgentJournalEntry } from './receiving.ts';
 import { type ConformanceCase } from './testing-case.ts';
@@ -2404,6 +2400,10 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
         tenant: TenantId;
         execution: AgentExecutionId;
     }>): readonly AgentJournalEntry[] | undefined;
+    events(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): readonly AgentEvent[] | undefined;
 }
 export declare function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P>;
 export interface AgentJournalEntriesFixture<P> {
@@ -2414,6 +2414,7 @@ export interface AgentJournalEntriesFixture<P> {
     supersede(access: Access<P>, execution: AgentExecutionId): Promise<Authority>;
     end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
     read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
+    events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[]>;
 }
 export declare function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile?: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
 export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
@@ -2505,7 +2506,7 @@ export declare function memoryReceivedCommitFixture<P, B extends ContentBlock = 
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Failure } from './evaluation.ts';
-import type { CommandReceipt, ExecutionMutation } from './execution.ts';
+import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.ts';
 import { type Authority, type AgentExecutionId, type DurableEvidence } from './identity.ts';
 import type { Material } from './passages.ts';
 import type { AgentJournalEntry, ReceivedCommitInput, ReceivedCommitValue, ReceivedEntry } from './receiving.ts';
@@ -2533,6 +2534,7 @@ export type MemoryExecution = {
     ended: boolean;
     revision: number;
     entries: AgentJournalEntry[];
+    events: AgentEvent[];
     operations: Map<string, KeptOperation>;
     qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>;
 };

@@ -1,4 +1,5 @@
 import { describe, it } from 'vitest'
+import type { AgentEvent, EventPage } from '@omne-harness/agent-contract'
 import {
   agentJournalEntriesConformance,
   type AgentJournalEntriesFixture,
@@ -93,6 +94,19 @@ function fixture() {
     async read(who, execution) {
       const loaded = await journal.load({ ...who, execution })
       return 'ok' in loaded ? loaded.ok.entries : undefined
+    },
+    async events(who, execution) {
+      const events: AgentEvent[] = []
+      let after: string | null = null
+      for (;;) {
+        const page: EventPage = ok(
+          await journal.output.read({ ...who, execution, after, limit: 100 }),
+        )
+        if (page.kind !== 'page') throw new Error('expected a page')
+        events.push(...page.events)
+        if (page.caughtUp) return events
+        after = page.next
+      }
     },
   }
   const joint = {

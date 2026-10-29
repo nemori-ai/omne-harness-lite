@@ -7,7 +7,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
 import { materialShape } from './testing-received-material.ts'
 import type { Failure } from './evaluation.ts'
-import type { CommandReceipt, ExecutionMutation } from './execution.ts'
+import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.ts'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -40,6 +40,7 @@ export type MemoryExecution = {
   ended: boolean
   revision: number
   entries: AgentJournalEntry[]
+  events: AgentEvent[]
   operations: Map<string, KeptOperation>
   qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>
 }

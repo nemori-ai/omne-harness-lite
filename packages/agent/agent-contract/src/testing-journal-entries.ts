@@ -11,7 +11,7 @@ import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { Failure } from './evaluation.ts'
-import type { CommandReceipt } from './execution.ts'
+import type { AgentEvent, CommandReceipt } from './execution.ts'
 import {
   decodeAgentExecutionId,
   decodeAgentInstanceId,
@@ -19,6 +19,7 @@ import {
   decodeExecutionAttachmentId,
   decodeExecutionRevision,
   type Access,
+  type Adoption,
   type AgentExecutionId,
   type AgentOperationId,
   type Authority,
@@ -47,12 +48,20 @@ export {
 } from './testing-journal-samples.ts'
 
 const OWNER = 'agentJournalEntries'
+/** The schema of the events the double allocates; a provider declares its own. */
+const DOUBLE_EVENT_SCHEMA: Adoption = Object.freeze({
+  owner: OWNER,
+  name: 'agent-event',
+  revision: '1',
+  digest: 'double:agent-event',
+})
 
 type Execution = {
   authority: Authority
   ended: boolean
   revision: number
   readonly entries: AgentJournalEntry[]
+  readonly events: AgentEvent[]
   readonly operations: Map<string, Readonly<{ text: string; receipt: CommandReceipt }>>
   readonly deliveries: Map<string, Readonly<{ text: string; receipt: CommandReceipt }>>
 }
@@ -70,6 +79,10 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
   entries(
     input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
   ): readonly AgentJournalEntry[] | undefined
+  /** The events of the execution in sequence order, as `AgentJournal.read` gives them. */
+  events(
+    input: Readonly<{ tenant: TenantId; execution: AgentExecutionId }>,
+  ): readonly AgentEvent[] | undefined
 }
 
 const keyOf = (tenant: TenantId, execution: AgentExecutionId) =>
@@ -113,6 +126,17 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       state: 'applied',
     })
     execution.entries.push(structuredClone(input.entry))
+    // The entry event belongs to the same write; after the end, the entry is written alone.
+    if (!execution.ended) {
+      execution.events.push({
+        execution: input.execution,
+        sequence: String(execution.events.length + 1),
+        executionAttachment: execution.authority.executionAttachment,
+        schema: DOUBLE_EVENT_SCHEMA,
+        cause: receipt.evidence,
+        body: { kind: 'entry', entry: structuredClone(input.entry) },
+      })
+    }
     execution.operations.set(input.operation, { text, receipt })
     return receipt
   }
@@ -164,6 +188,7 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
         ended: false,
         revision: 0,
         entries: [],
+        events: [],
         operations: new Map(),
         deliveries: new Map(),
       })
@@ -182,6 +207,10 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
       const record = executions.get(keyOf(tenant, execution))
       return record === undefined ? undefined : structuredClone(record.entries)
     },
+    events({ tenant, execution }) {
+      const record = executions.get(keyOf(tenant, execution))
+      return record === undefined ? undefined : structuredClone(record.events)
+    },
   }
 }
 
@@ -189,7 +218,9 @@ export function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<
  * What the suite needs from a provider. `access` and `otherAccess` belong to two different
  * tenants. `open` opens a new execution of the tenant of the access under the given execution
  * text and returns its current Authority. `supersede` gives it a new current attachment, `end`
- * ends it, and `read` returns `ExecutionSnapshot.entries` as load gives it.
+ * ends it, and `read` returns `ExecutionSnapshot.entries` as load gives it. `events` returns
+ * every event of the execution in sequence order, as `AgentJournal.read` gives them; the
+ * projection cases (SPEC "日志条目" 6) read it, so a provider without it does not pass the suite.
  */
 export interface AgentJournalEntriesFixture<P> {
   readonly entries: AgentJournalEntries<P>
@@ -202,6 +233,7 @@ export interface AgentJournalEntriesFixture<P> {
     access: Access<P>,
     execution: AgentExecutionId,
   ): Promise<readonly AgentJournalEntry[] | undefined>
+  events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[]>
 }
 
 function identity<T>(decoded: Outcome<T, unknown>, what: string): T {
@@ -539,6 +571,110 @@ export function agentJournalEntriesConformance<P, B extends ContentBlock = Conte
         assert.deepEqual(await fixture.read(access, execution), [model, tool])
       },
     },
+    {
+      // Red when a provider writes an entry without its `entry` event, allocates the event under
+      // another attachment or another cause, or allocates one for a refused write.
+      name: 'projects each written entry as one entry event of the same commit',
+      async run() {
+        const execution = executionId('projection')
+        await fixture.open(access, execution)
+        const authority = await fixture.supersede(access, execution)
+        const before = await fixture.events(access, execution)
+        const fence = sampleStartFence('projection')
+        const fenced = await recorded(
+          advancing(access, execution, authority, operationId('p1'), fence),
+          'start-fence',
+        )
+        const delivery = sampleReceivedModelResult(access.tenant, 'projection')
+        const kept = await recorded(
+          receiving(access, execution, operationId('p2'), delivery),
+          'received',
+        )
+        const after = await fixture.events(access, execution)
+        assert.equal(after.length, before.length + 2, 'each written entry should add one event')
+        const [first, second] = after.slice(before.length)
+        assert.deepEqual(first?.body, { kind: 'entry', entry: fence })
+        assert.deepEqual(second?.body, { kind: 'entry', entry: delivery })
+        assert.deepEqual(first?.cause, fenced.evidence, 'the cause should be the commit evidence')
+        assert.deepEqual(second?.cause, kept.evidence, 'the cause should be the commit evidence')
+        assert.equal(Number(second?.sequence), Number(first?.sequence) + 1)
+        for (const event of [first, second]) {
+          assert.equal(event?.execution, execution)
+          assert.equal(
+            event?.executionAttachment,
+            authority.executionAttachment,
+            'the event should carry the latest attachment, also for received without one',
+          )
+        }
+        await refused(
+          advancing(access, execution, authority, operationId('p1'), sampleStartFence('other')),
+          'conflict',
+          'same operation with another entry',
+        )
+        assert.equal(
+          (await fixture.events(access, execution)).length,
+          after.length,
+          'a refused record should allocate no event',
+        )
+      },
+    },
+    {
+      // Red when a provider appends an entry event after the end; ended is the last event.
+      name: 'writes a received entry after the end without an event',
+      async run() {
+        const execution = executionId('after-end')
+        await fixture.open(access, execution)
+        await fixture.end(access, execution)
+        const before = await fixture.events(access, execution)
+        const delivery = sampleReceivedModelResult(access.tenant, 'after-end')
+        await recorded(
+          receiving(access, execution, operationId('after-end'), delivery),
+          'received after the end',
+        )
+        assert.deepEqual((await fixture.read(access, execution))?.at(-1), delivery)
+        assert.deepEqual(
+          await fixture.events(access, execution),
+          before,
+          'no event should follow the end',
+        )
+      },
+    },
+    {
+      // Red when a provider allocates a second event on the replay of the same operation or on a
+      // repeated push of the same delivery; both recall the original receipt.
+      name: 'allocates no second event when an operation or a delivery is replayed',
+      async run() {
+        const execution = executionId('replay')
+        const authority = await fixture.open(access, execution)
+        const fence = sampleStartFence('replay')
+        const first = await recorded(
+          advancing(access, execution, authority, operationId('rp1'), fence),
+          'first record',
+        )
+        const delivery = sampleReceivedModelResult(access.tenant, 'replay')
+        const pushed = await recorded(
+          receiving(access, execution, operationId('rp2'), delivery),
+          'first push',
+        )
+        const count = (await fixture.events(access, execution)).length
+        assert.deepEqual(
+          await recorded(
+            advancing(access, execution, authority, operationId('rp1'), fence),
+            'replay of the operation',
+          ),
+          first,
+        )
+        assert.deepEqual(
+          await recorded(receiving(access, execution, operationId('rp3'), delivery), 'repeat'),
+          pushed,
+        )
+        assert.equal(
+          (await fixture.events(access, execution)).length,
+          count,
+          'a replay should allocate no event',
+        )
+      },
+    },
   ]
 }
 
@@ -579,5 +715,6 @@ export function memoryAgentJournalEntriesFixture<P>(
     },
     end: async (who, execution) => double.end({ tenant: who.tenant, execution }),
     read: async (who, execution) => double.entries({ tenant: who.tenant, execution }),
+    events: async (who, execution) => double.events({ tenant: who.tenant, execution }) ?? [],
   }
 }

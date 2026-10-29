@@ -1814,6 +1814,8 @@ export function createMemoryAgentJournal<P>(
     holds,
     receiptOf,
     nextEvidence,
+    project: (execution, entry, cause) =>
+      appendEvents(execution, [{ kind: 'entry', entry }], cause),
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

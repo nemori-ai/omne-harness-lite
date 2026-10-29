@@ -488,7 +488,7 @@ next 是纯函数，不读时钟、当前注册或数据库，不发请求。相
 2. Agent 不为某个模型改写请求内容。请求按实际收件模型由 Context 组装，Model 在受理时再核对一次。
 3. Agent 不理解模态细节。模态转换的时点与失败分类归 [request-context 的 RQ-04](../../context/request-context-contract/SPEC.md#rq-04-模态与可追溯表示) 与 [Model 转换件共同契约](../../model/model-contract/SPEC.md#转换件的共同契约)。转换失败时，Agent 按原用途处理所在路径返回的失败。
 
-一次请求准备消费 Request Context 的七组输入，七组的内容归 [RQ-02](../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)。Agent 经协调者一侧的适配器给出组一，即调用身份与用途：访问身份、用途、消费位置与候选身份。其余六组由 Request Context 按 [RQ-13](../../context/request-context-contract/SPEC.md#rq-13-七组的稳定读取) 从各组读口稳定读取，Agent 不把它们作为一个值传入。Agent 不缓存计量结论，每次准备采用本次的结论。Agent 端口字段到七组的对照归 [request-context-contract 的消费与系统定位](../../context/request-context-contract/docs/context.md)，本页不复制。
+一次请求准备消费 Request Context 的七组输入，七组的内容归 [RQ-02](../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)。Agent 经协调者一侧的适配器给出组一，即调用身份与用途：访问身份、用途、消费位置与候选身份。其余六组的组读口由协调者一侧的适配器实现：适配器把 Agent 端口携带的材料转为各组读口，Request Context 按 [RQ-13](../../context/request-context-contract/SPEC.md#rq-13-七组的稳定读取) 从各组读口稳定读取。Agent 不把它们作为一个值传入。Agent 不缓存计量结论，每次准备采用本次的结论。Agent 端口字段到七组的对照归 [request-context-contract 的消费与系统定位](../../context/request-context-contract/docs/context.md)，本页不复制。
 
 #### 模型选择
 
@@ -834,9 +834,9 @@ handover 不读取活体的 execution，也不写入任何状态。它的幂等�
 
 #### 事件身份与序号
 
-事件由 Journal 在条件提交中分配，身份是 execution 加序号。序号是十进制整数的字符串编码，在同一 execution 内从 1 开始，每个事件加 1。提交成功的事件序号连续，没有空洞。序号按数值比较，不按字典序。序号 0 表示第一个事件之前。重放允许重复交付，同一身份的内容不能变化，原文不被后置改写。事件带有产生它的执行挂接、schema 和因果引用。
+事件由 Journal 在条件提交中分配，身份是 execution 加序号。序号是十进制整数的字符串编码，在同一 execution 内从 1 开始，每个事件加 1。提交成功的事件序号连续，没有空洞。序号按数值比较，不按字典序。序号 0 表示第一个事件之前。重放允许重复交付，同一身份的内容不能变化，原文不被后置改写。事件带有 schema 和因果引用。`entry` 事件的执行挂接、schema 与因果引用按“[日志条目](#日志条目)”第 6 条取值；其他种类的事件带有产生它的执行挂接。
 
-Agent 的事件流只发自身事件，`AgentEventBody` 没有透传生产者内容的种类。生产者的过程流由观察者按稳定调用引用经 Model 的 current 取得 `StreamRef`，再经 stream-arrival 的观察端口直接观察，规则见“[流引用与自身事件](#流引用与自身事件)”。接收面条目以 `entry` 事件投影，规则见“[日志条目](#日志条目)”第 6 条。
+Agent 的事件流只发自身事件，`AgentEventBody` 没有透传生产者内容的种类。Model 调用的过程流由观察者按稳定调用引用经 Model 的 current 取得 `StreamRef`；Tool 调用的过程流由观察者按稳定调用引用经 Tool 契约“[过程帧的观察契约](../../tool/tool-contract/SPEC.md#过程帧的观察契约)”的 `current` 取得 `StreamRef`。两者都再经 stream-arrival 的观察端口直接观察，规则见“[流引用与自身事件](#流引用与自身事件)”。接收面条目以 `entry` 事件投影，规则见“[日志条目](#日志条目)”第 6 条。
 
 #### 读取、游标与缺口
 
@@ -889,8 +889,10 @@ J01 规定一份 Journal 内 Agent 条目的读取形状。Agent 在执行记录
 5. Access 的租户与 execution 所属租户不同时返回 denied，不区分对象不存在与无权访问。
 6. 读取形状是 `ExecutionSnapshot` 与 `AgentEvent`。`ExecutionSnapshot.entries` 是可选字段。提供者支持本端口时，它按提交顺序给出该 execution 的全部已提交条目。字段缺席表示提供者不支持接收面条目，不表示没有条目。需要条目的读方在字段缺席时返回 unavailable，不把缺席当作空列表。条目另以事件种类 `entry` 投影：事件体是 `Readonly<{ kind: 'entry'; entry: AgentJournalEntry }>`。投影按下列规则成立。
    - Journal 在写入条目的同一次原子提交里分配 `entry` 事件。写入条目的入口是 `AgentJournalEntries.record` 与 `AgentReceivedCommits.commit`。条目与事件不会只成立一半。
-   - execution 已经 ended 时，条目照常写入，但不追加事件。ended 仍是最后一个事件。终态之后写入的条目只经 load 与 `ExecutionSnapshot.entries` 读取。
+   - execution 已经 ended 时，ended 之后可写的 `received` 条目照常写入，但不追加事件。ended 仍是最后一个事件。终态之后写入的条目只经 load 与 `ExecutionSnapshot.entries` 读取。
    - 事件的执行挂接取该 execution 最近建立的挂接。结果接收方写 `received` 时不带挂接，这一条同样适用。
+   - 事件的 `schema` 按“[事件身份与序号](#事件身份与序号)”的事件通则取值，与其他种类的事件同一规则。
+   - 事件的 `cause` 取写入该条目的那次提交的耐久证据，即该次 record 或 commit 回执的 `evidence`。
    - 同一操作的重放认回原回执，不重复分配事件。
    - 读事件的一方遇到不认识的 `entry.kind` 时保留原事件，不报错，不对 `entry.kind` 做穷尽断言。
 7. `AgentJournalEntry` 是开放联合。读方遇到不认识的 kind 时保留原条目，不解释它，不报错，也不丢弃。读方不得对 kind 做穷尽断言。今后增加种类按可加改动处理。
@@ -1018,7 +1020,7 @@ J03 规定 Agent 怎样使 Tool 的旧启动失效，以及“已生效”记在
 J04 规定显示投影凭什么观察生产者，以及观察资格由谁签发。
 
 1. Agent 的事件流只发自身事件。生产者的过程流由观察者经 [stream-arrival](../../common/stream-arrival/README.md) 的观察端口直接观察，先快照后增量。观察资格由授权与接入一侧签发，生产者核验。Agent 不签发观察资格。
-2. Agent 不记录生产者流引用。Journal 只保存稳定调用引用。观察者按该引用经 Model 的 current 取得当前 `StreamRef`，重新挂接仍沿 current，不把旧流引用当事实。Agent 实例内可以缓存首次挂接目标，缓存不写进 Journal。`StreamRef` 不带凭据，持有它不是观察资格；观察者另带显式 Access，生产者核对两处租户相同。
+2. Agent 不记录生产者流引用。Journal 只保存稳定调用引用。Model 调用的观察者按该引用经 Model 的 current 取得当前 `StreamRef`；Tool 调用的观察者按该引用经 Tool 契约“[过程帧的观察契约](../../tool/tool-contract/SPEC.md#过程帧的观察契约)”的 `current` 取得当前 `StreamRef`。重新挂接仍沿各自的 current，不把旧流引用当事实。Agent 实例内可以缓存首次挂接目标，缓存不写进 Journal。`StreamRef` 不带凭据，持有它不是观察资格；观察者另带显式 Access，生产者核对两处租户相同。
 3. Agent 不透传生产者的内容。`AgentEventBody` 没有携带生产者内容块、schema 或 cursor 的事件种类，显示投影只凭流引用观察生产者。
 
 #### 账目出站
