@@ -94,6 +94,7 @@ async function modelScene(name: string) {
       target = operation(deriveDriveOperation({ kind: 'control', execution: s.execution, control }))
     ok(
       await s.backend.transactions.commit({
+        access: s.access,
         command: {
           kind: 'control',
           input: {

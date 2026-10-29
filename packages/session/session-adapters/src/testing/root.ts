@@ -37,6 +37,8 @@ export type SessionState = Readonly<{
     {
       record: SessionOperationRecord
       projection?: import('@omne-harness/session-contract').SessionLogObservation
+      /** The access decision evidence of the public commit that recorded this operation; absent for delegated and projected commits. */
+      decision?: import('@omne-harness/session-contract').DurableEvidence
       recall(receipt: CommitReceipt): unknown
     }
   >

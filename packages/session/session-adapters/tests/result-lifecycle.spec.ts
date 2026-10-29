@@ -82,6 +82,7 @@ async function lifecycle(
     if (state === 'archived')
       ok(
         await s.backend.transactions.commit({
+          access: s.access,
           command: {
             kind: 'control',
             input: { ...s.access, operation: operationId('archive'), intent: { kind: 'archive' } },
@@ -184,6 +185,7 @@ for (const kind of ['custody', 'processed'] as const)
     if (before.run.kind !== 'active') throw new Error('active Run required')
     const claimed = ok(
       await s.backend.transactions.commit({
+        access: s.access,
         command: {
           kind: 'claim',
           input: {
@@ -288,8 +290,23 @@ for (const point of ['before-publish', 'after-publish'] as const)
     expect(recovered.work.run).toEqual(before.work.run)
   })
 
+// The Session half of a `custody`/`processed` participation is a delegated same-log commit: the
+// Agent qualification and the gap gate decide it at the execution point, and the Session access
+// check is not asked a second time for the derived participation (session-contract SPEC
+// 「当前操作的访问裁定」, delegated operations share the internal path).
 for (const kind of ['custody', 'processed'] as const)
-  for (const boundary of ['agent', 'session', 'gap'] as const)
+  it(`does not ask the Session access check for the delegated ${kind} participation`, async () => {
+    const s = await lifecycle(`late-${kind}-delegated`, 'ended'),
+      request = lateRequest(s, kind),
+      before = s.accessCheck.controls.asked().length
+    // Whatever the Session half answers (custody is preserved; processed conflicts with the
+    // ended Run), the derived participation never reaches the Session access check.
+    await s.view.journal.recordResult(request)
+    expect(s.accessCheck.controls.asked().slice(before)).toEqual([])
+  })
+
+for (const kind of ['custody', 'processed'] as const)
+  for (const boundary of ['agent', 'gap'] as const)
     it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {
       const qualification = { agent: true, session: true },
         s = await lifecycle(`late-${kind}-${boundary}`, 'ended', qualification),

@@ -122,6 +122,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
   const old = before.run.advance!.attempt
   const claimed = ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'claim',
         input: {

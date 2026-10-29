@@ -12,6 +12,7 @@ import { type SessionCommand } from '@omne-harness/session-contract'
 import {
   adoptedInitializationFixture,
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
   initializationFixtureGuard,
   initializationFixtureFacts,
   creation,
@@ -55,9 +56,15 @@ export async function scene(
 ) {
   const access = memoryAccess('tester', session)
   const initialization = createMemoryInitializationSource()
+  // The Session side: an explicit policy that the scene's qualification flag decides per request.
+  const accessCheck = createPolicySessionAccessCheck<string>(request =>
+    qualification.session
+      ? { kind: 'allowed', evidence: evidence(`access/${request.operation}`) }
+      : { kind: 'denied' },
+  )
   const backend = createMemorySessionJournal({
     initialization,
-    authorizeCommand: () => (qualification.session ? 'allowed' : 'denied'),
+    accessCheck,
     authorize: () => (qualification.agent ? 'allowed' : 'denied'),
     ...(budget ? { budget } : {}),
   })
@@ -77,9 +84,10 @@ export async function scene(
     initializationFixtureGuard(initializationFixtureFacts(command, null, adopted)),
   )
   const guards = ok(await initialization.prepare(command))
-  ok(await backend.transactions.commit({ command, guards }))
+  ok(await backend.transactions.commit({ access, command, guards }))
   const started = ok(
     await backend.transactions.commit({
+      access,
       command: {
         kind: 'startRun',
         input: {
@@ -116,6 +124,6 @@ export async function scene(
     checkpoint: checkpoint(),
   }
   const opened = ok(await view.journal.open(input))
-  return { access, backend, view, execution, opened, input }
+  return { access, accessCheck, backend, view, execution, opened, input }
 }
 export { evidence, operationId }

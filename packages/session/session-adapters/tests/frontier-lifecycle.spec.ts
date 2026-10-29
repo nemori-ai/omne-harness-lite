@@ -85,6 +85,7 @@ it('active freeze and ordinary cancel do not require unreadable old event materi
   if (state.run.kind !== 'active') throw new Error('active expected')
   plain.view.controls.historyAvailable(plain.execution, false)
   const result = await plain.backend.transactions.commit({
+    access: plain.access,
     command: {
       kind: 'control',
       input: {
@@ -207,7 +208,9 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
           bounded: { kind: 'uninterpretable' as const, evidence: evidence('bounded') },
         },
       }
-      expect(await s.backend.transactions.commit({ command, guards: [] })).toMatchObject({
+      expect(
+        await s.backend.transactions.commit({ access: s.access, command, guards: [] }),
+      ).toMatchObject({
         failure: { kind: 'changed' },
       })
       expect(
@@ -218,6 +221,7 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
       const current = ok(await s.backend.transactions.readWork(s.access))
       ok(
         await s.backend.transactions.commit({
+          access: s.access,
           command: {
             ...command,
             input: {
@@ -232,6 +236,7 @@ for (const final of ['cancel', 'finish', 'archive', 'ended'] as const)
     } else if (final === 'archive')
       ok(
         await s.backend.transactions.commit({
+          access: s.access,
           command: {
             kind: 'control',
             input: {
@@ -288,7 +293,9 @@ it('a required missing prefix fails the final decision without a partial release
     },
   }
   s.view.controls.historyAvailable(s.execution, false)
-  expect(await s.backend.transactions.commit({ command, guards: [] })).toMatchObject({
+  expect(
+    await s.backend.transactions.commit({ access: s.access, command, guards: [] }),
+  ).toMatchObject({
     failure: { kind: 'unavailable' },
   })
   expect(
@@ -298,11 +305,14 @@ it('a required missing prefix fails the final decision without a partial release
   ).toBe(false)
   s.view.controls.historyAvailable(s.execution, true)
   s.view.controls.loseEvent(s.execution, '1')
-  expect(await s.backend.transactions.commit({ command, guards: [] })).toMatchObject({
+  expect(
+    await s.backend.transactions.commit({ access: s.access, command, guards: [] }),
+  ).toMatchObject({
     failure: { kind: 'quarantined' },
   })
   expect(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'accept',
         input: {

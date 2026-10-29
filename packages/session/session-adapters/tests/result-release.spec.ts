@@ -387,6 +387,7 @@ it('publishes independently proved control progress and Tool release in one full
     target = operation(deriveDriveOperation({ kind: 'control', execution: s.execution, control }))
   ok(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'control',
         input: {
@@ -453,14 +454,14 @@ it('publishes independently proved control progress and Tool release in one full
   ).toBeUndefined()
 })
 
-it('rechecks a gap raised by the final qualification callback before publishing the release batch', async () => {
+it('rechecks a gap raised during the one access decision of the release before publishing the batch', async () => {
   let armed = false,
     reads = 0,
     closeGate = () => {}
   const qualification = {
       agent: true,
       get session() {
-        if (armed && ++reads === 2) closeGate()
+        if (armed && ++reads === 1) closeGate()
         return true
       },
     },
@@ -471,7 +472,9 @@ it('rechecks a gap raised by the final qualification callback before publishing 
   expect(await s.backend.controls.reconcile(s.reconcile)).toMatchObject({
     failure: { kind: 'quarantined' },
   })
-  expect(reads).toBe(2)
+  // One release, one access decision (session-contract SPEC: once per actual write); the gap
+  // that the decision raised is still caught by the gate before publication.
+  expect(reads).toBe(1)
   expect(s.view.controls.root()).toBe(root)
   expect(releaseRows(s)).toEqual([])
 })
@@ -537,6 +540,7 @@ it('leaves Model confirmation unresolved through reconciliation and the existing
   ).toMatchObject({ failure: { kind: 'conflict' } })
   expect(
     await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'receive',
         input: {

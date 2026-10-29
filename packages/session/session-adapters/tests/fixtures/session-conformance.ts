@@ -6,6 +6,8 @@ import {
 } from '@omne-harness/agent-contract'
 import {
   createMemoryInitializationSource,
+  createPolicySessionAccessCheck,
+  evidence,
   adoptedInitializationFixture,
   initializationFixtureFacts,
   initializationFixtureGuard,
@@ -22,11 +24,15 @@ import { ok, operation, instance, checkpoint } from './common-journal.ts'
 export function sessionFixture(): SessionTransactionsFixture<string> {
   const initialization = createMemoryInitializationSource(),
     access = memoryAccess('tester')
+  // The suite tests transaction semantics; the access policy is stated open and the double's
+  // tenant keying refuses a foreign tenant (J40).
   const backend = createMemorySessionJournal({
     initialization,
-    authorizeCommand: () => 'allowed',
+    accessCheck: createPolicySessionAccessCheck(request => ({
+      kind: 'allowed',
+      evidence: evidence(`access/${request.operation}`),
+    })),
     authorize: () => 'allowed',
-    authorizeDirectory: () => 'allowed',
   })
   const view = backend.forSession(access)
   return {

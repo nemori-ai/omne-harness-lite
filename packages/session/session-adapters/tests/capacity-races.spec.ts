@@ -7,6 +7,7 @@ it('an indivisible final batch exceeding capacity leaves neither freeze nor rele
   ok(await cancel(s))
   const root = s.view.controls.root(),
     result = await s.backend.transactions.commit({
+      access: s.access,
       command: {
         kind: 'freeze',
         input: {

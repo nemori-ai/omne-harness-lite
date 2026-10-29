@@ -23,7 +23,9 @@ import {
   reduce,
   deriveSessionOperation,
   judgeCompletion,
+  mutationAccessRequest,
   type SessionAccess,
+  type SessionAccessCheck,
   type SessionId,
   type SessionCommand,
   type SessionTransactionPort,
@@ -38,7 +40,7 @@ import {
 import type { InitializationSource } from './ports.ts'
 import { operationSemantic, createCell, type JournalCell, type SessionState } from './root.ts'
 import { createJournal, type JournalWrite } from './journal.ts'
-import { createSessionTransactions } from './session.ts'
+import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
   history,
   grantAttempt,
@@ -53,14 +55,17 @@ import type { SessionDirectory } from './session-directory.ts'
 
 export type MemorySessionJournalOptions<P> = Readonly<{
   initialization: InitializationSource
+  /**
+   * The current access decision of every public Session read and write on `transactions`
+   * (session-contract SPEC「当前操作的访问裁定」). Required; the double has no default permission.
+   */
+  accessCheck: SessionAccessCheck<P>
+  /**
+   * The current qualification of the Agent Journal operations on the same log (open, submit,
+   * commit, load, query, the materials and the testing controls). This is the Agent side of the
+   * double; it does not decide Session public operations.
+   */
   authorize(input: SessionAccess<P>, action: string): 'allowed' | 'denied' | 'unavailable'
-  authorizeCommand(
-    input: Readonly<{ command: SessionCommand; guards: readonly GuardCommand[] }>,
-  ): 'allowed' | 'denied' | 'unavailable'
-  authorizeDirectory?: (
-    input: Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
-    action: string,
-  ) => 'allowed' | 'denied' | 'unavailable'
   budget?: Readonly<{ entries: number; bytes: number; capacityBytes: number }>
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
@@ -94,17 +99,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const publications = publicationHooks()
   const publicationKey = (cell: JournalCell<P>, operation: SessionOperationId) =>
     canonical([cell.namespace, operation])
-  const verifyCommand = (
-    command: SessionCommand,
-    guards: readonly GuardCommand[],
-  ): SessionFailure | null => {
-    const status = options.authorizeCommand({ command, guards })
-    return status === 'allowed'
-      ? null
-      : status === 'denied'
-        ? { kind: 'denied', action: command.kind }
-        : { kind: 'unavailable', owner: 'session-qualification', diagnostic: command.kind }
-  }
   const cells = new Map<string, JournalCell<P>>()
   const views = new Map<string, ReturnType<typeof createJournal<P>>>()
   const keyOf = (tenant: TenantId, session: SessionId) => {
@@ -135,16 +129,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   }
   const base = createSessionTransactions<P>(directory, {
     initialization: options.initialization,
-    verifyCommand,
     capacityBytes: options.budget?.capacityBytes ?? defaultBudget.capacityBytes,
     history: {
       read: (snapshot, _entries, scope, extra, through) =>
         history(cellOf(snapshot.tenant, snapshot.session), snapshot, scope, extra, through),
     },
-    authorize: (access, action) =>
-      'tenant' in access && access.tenant !== undefined && 'session' in access
-        ? options.authorize(access, action)
-        : (options.authorizeDirectory?.(access, action) ?? 'denied'),
+    accessCheck: options.accessCheck,
   })
   function cellOf(tenant: TenantId, session: SessionId): JournalCell<P> {
     const key = keyOf(tenant, session),
@@ -522,7 +512,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         break
       }
     }
-    const outcome = base.prepareCommand({ command, guards: [] })
+    // A delegated same-log participation: the Agent side qualified this operation above, and the
+    // Session half shares the internal execution path without a second decision (SPEC「当前操作的访问裁定」).
+    const outcome = base.prepareCommand({ command, guards: [], decision: null })
     if (!('failure' in outcome)) return undefined
     if (
       method === 'recordResult' &&
@@ -620,8 +612,15 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       : result
   }
   const frontier = createFrontier<P>(options.budget ?? defaultBudget, interpretEvent)
+  // Only the public port methods are exposed; the internal `prepareCommand` and
+  // `prepareReconciliation` paths of `base` stay behind this boundary.
   const transactions: SessionTransactionPort<P> = {
-    ...base,
+    readInput: base.readInput,
+    queryOperation: base.queryOperation,
+    history: base.history,
+    pending: base.pending,
+    references: base.references,
+    releasedScopes: base.releasedScopes,
     readWork: async input => {
       try {
         return await base.readWork(input)
@@ -635,39 +634,45 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       }
     },
     commit: (async input => {
-      if (!tenantCodec.encode(input.command.input.tenant).ok)
+      const command: SessionCommand = input.command
+      if (!commitAccessMatches(input.access, command)) return fail(denied(command.kind))
+      if (!tenantCodec.encode(command.input.tenant).ok)
         return fail<SessionFailure>({
           kind: 'invalid',
           field: 'tenant',
           reason: 'not a tenant minted by legal-identity',
         })
-      const cell = cellOf(input.command.input.tenant, input.command.input.session)
+      // One decision for this call, before the frontier interprets anything on this root.
+      const qualification = await qualifyAccess(
+        options.accessCheck,
+        mutationAccessRequest(input.access, command),
+      )
+      if ('failure' in qualification) return fail(qualification.failure)
+      const prepared: Parameters<typeof base.prepareCommand>[0] = {
+        command,
+        guards: input.guards,
+        decision: qualification.ok,
+      }
+      const cell = cellOf(command.input.tenant, command.input.session)
       try {
-        const qualification = verifyCommand(input.command, input.guards)
-        if (qualification) return fail(qualification)
-        if (cell.current().session?.operations.has(input.command.input.operation))
-          return base.prepareCommand(input)
+        if (cell.current().session?.operations.has(command.input.operation))
+          return base.prepareCommand(prepared)
         for (;;) {
-          const prepared = await frontier.prepare(
-            cell,
-            snapshot => commandScope(input.command, snapshot),
-            [],
-            () => verifyCommand(input.command, input.guards),
-          )
-          await publications.wait(publicationKey(cell, input.command.input.operation))
-          if (cell.current() !== prepared) continue
-          const fault = publications.takeFault(publicationKey(cell, input.command.input.operation))
+          const root = await frontier.prepare(cell, snapshot => commandScope(command, snapshot))
+          await publications.wait(publicationKey(cell, command.input.operation))
+          if (cell.current() !== root) continue
+          const fault = publications.takeFault(publicationKey(cell, command.input.operation))
           if (fault === 'before-publish')
             return fail<SessionFailure>({
               kind: 'unavailable',
               owner: 'session-memory-journal',
               diagnostic: 'injected before Session publication',
             })
-          const result = base.prepareCommand(input)
-          return fault === 'after-publish' && cell.current() !== prepared
+          const result = base.prepareCommand(prepared)
+          return fault === 'after-publish' && cell.current() !== root
             ? fail<SessionFailure>({
                 kind: 'commit-unknown',
-                operation: input.command.input.operation,
+                operation: command.input.operation,
               })
             : result
         }
@@ -797,6 +802,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     durability: 'none' as const,
     controls: {
       entriesOf: base.controls.entriesOf,
+      decisionOf: base.controls.decisionOf,
       frontierMetrics: frontier.metrics,
       pauseSession(
         input: Readonly<{ tenant: TenantId; session: SessionId; operation: SessionOperationId }>,
@@ -967,6 +973,23 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             })
           }
           const releases = toolReleases(root, execution)
+          // Each release the reconciliation would commit is a `receive` write of this caller:
+          // one current decision per fact, before anything is prepared or published.
+          for (const fact of releases) {
+            const qualification = await qualifyAccess(
+              options.accessCheck,
+              mutationAccessRequest(input, {
+                kind: 'receive',
+                input: {
+                  tenant: input.tenant,
+                  session: input.session,
+                  operation: input.operation,
+                  fact,
+                },
+              }),
+            )
+            if ('failure' in qualification) return fail(qualification.failure)
+          }
           const result = base.prepareReconciliation(
             {
               tenant: input.tenant,
@@ -988,21 +1011,6 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
                 return qualification.kind === 'denied'
                   ? qualification
                   : { kind: 'unavailable', owner: 'session-qualification', diagnostic: 'reconcile' }
-              for (const fact of releases) {
-                const refusal = verifyCommand(
-                  {
-                    kind: 'receive',
-                    input: {
-                      tenant: input.tenant,
-                      session: input.session,
-                      operation: input.operation,
-                      fact,
-                    },
-                  },
-                  [],
-                )
-                if (refusal) return refusal
-              }
               const gap = cell.gate()
               if (gap !== null) return { kind: 'quarantined', diagnostic: gap }
               if (cell.current() !== root)
