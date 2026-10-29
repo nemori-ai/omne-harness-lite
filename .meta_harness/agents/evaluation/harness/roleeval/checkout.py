@@ -12,6 +12,7 @@ or the templates.
 """
 from __future__ import annotations
 
+import os
 import re
 import shutil
 from pathlib import Path
@@ -114,12 +115,35 @@ def dispatched_inside(cwd: str | None, main: Path) -> str | None:
     if not cwd:
         return "the transcript does not say where the session ran, so it cannot be shown to be outside the repository"
     root = str(main.resolve())
-    if cwd == root or cwd.startswith(root + "/"):
+    if cwd == root or cwd.startswith(root + "/") or _within_on_windows(cwd, root):
         return (f"dispatched from {cwd}, inside a checkout of the repository: the answers are within reach of a "
                 f"relative path")
     return None
 
 
+def _within_on_windows(cwd: str, root: str) -> bool:
+    """On Windows, whether ``cwd`` is ``root`` or under it however it is written: either separator, either case.
+
+    The check above compares text with "/" as the separator, and a Windows session directory is written with "\\".
+    """
+    if os.name != "nt":
+        return False
+    seen, top = os.path.normcase(os.path.abspath(cwd)), os.path.normcase(root)
+    return seen == top or seen.startswith(top.rstrip(os.sep) + os.sep)
+
+
 def forbidden(main: Path) -> list[str]:
-    """What a tool call on a checkout copy may not name: the main checkout (and its worktrees), the templates."""
-    return [str(main.resolve()), TEMPLATE_NEEDLE]
+    """What a tool call on a checkout copy may not name: the main checkout (and its worktrees), the templates.
+
+    On Windows the role's shell is Git Bash, which also names the checkout as ``/d/...``; that spelling is added.
+    (Either separator and either case are matched by ``claude_host``.)
+    """
+    root = main.resolve()
+    return [str(root), TEMPLATE_NEEDLE, *git_bash_spelling(root)]
+
+
+def git_bash_spelling(path: Path) -> list[str]:
+    """How Git Bash writes an absolute Windows path (``/d/...``), when there is such a spelling; nothing elsewhere."""
+    if os.name != "nt" or len(path.drive) != 2 or path.drive[1] != ":":
+        return []
+    return [f"/{path.drive[0].lower()}{path.as_posix()[2:]}"]

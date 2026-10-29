@@ -689,6 +689,23 @@ def test_the_session_directory_is_read_off_the_first_event(tmp_path: Path) -> No
     assert checkout.dispatched_inside("/repo/inside", Path("/repo")) and not checkout.dispatched_inside("/repo-two", Path("/repo"))
 
 
+@pytest.mark.skipif(sys.platform != "win32", reason="只有 Windows 上一个路径有两种分隔符、不分大小写，Git Bash 还写成 /d/…")
+def test_on_windows_the_main_checkout_is_seen_however_its_path_is_written(tmp_path: Path) -> None:
+    main = tmp_path.resolve()
+    for cwd in (str(main), str(main / "member"), (main / "member").as_posix(), str(main / "member").swapcase()):
+        assert checkout.dispatched_inside(cwd, main), f"在检出内派发：{cwd}"
+    assert not checkout.dispatched_inside(str(main.parent / (main.name + "-two")), main)
+    msys = "/" + main.drive[0].lower() + (main / "x").as_posix()[2:]
+    for named in (str(main / "x"), (main / "x").as_posix(), str(main / "x").swapcase(), msys):
+        episode = claude_host.Episode(tool_inputs=[("Read", json.dumps({"file_path": named}, ensure_ascii=False, indent=2))])
+        assert episode.asked(checkout.forbidden(main)), f"工具调用点名了主检出：{named}"
+    truth = str(main / ".meta_harness/agents/evaluation/suites/f/flow.json")
+    episode = claude_host.Episode(tool_inputs=[("Read", json.dumps({"file_path": truth}, ensure_ascii=False))],
+                                  tool_outputs=[str(main / "tmp/role-evals/f/results.jsonl")])
+    assert episode.touched(["evaluation/suites/", "tmp/role-evals"]) == [
+        "Read asked for evaluation/suites/", "a tool result mentions tmp/role-evals"]
+
+
 def test_a_material_flow_is_recorded_wherever_it_was_dispatched_from(wired: dict[str, Any]) -> None:
     evidence = prepare_material(wired)
     path = dispatched(wired["tmp"] / "inside.jsonl", prompt=(evidence / "brief.md").read_text(encoding="utf-8"),
@@ -834,9 +851,8 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
         if flow.family == "implement":
-            # stub_files gives native relative paths; a Git object name takes forward slashes.
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
-                workspace.git(repo, "show", f"{base}:{Path(path).as_posix()}")
+                workspace.git(repo, "show", f"{base}:{path}")
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "write-tests":
             for path in material.task["hidden_tests"]:

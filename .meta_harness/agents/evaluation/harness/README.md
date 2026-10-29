@@ -74,6 +74,10 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
   再施加种入、以 `workspace.delivery` 给的作者与提交信息提交一个交付提交，然后在成员里跑 `workspace.rebuild`。
 - 这一类没有 `material_paths`、`subject_paths`：**整个检出都来自钉住的提交**，包括副本里的 skills、检查工具与文档；只有角色定义取自当前的源。
 - 硬链接的依赖目录与模板共用文件：角色改了 `node_modules` 里的东西会连模板一起改。怀疑模板被动过时删掉它重建。
+- Windows 宿主上没有 `rsync` 与 `cp`。在 Windows 上，运行器用 Python 做同样的拷贝：链接仍是链接，`linked` 里的文件是硬链接。
+  真值脚本由 Git for Windows 的 bash 运行，这个 bash 按 `git --exec-path` 找，不用 PATH 里的 `bash`（它可能是 WSL 的启动器）。
+  隔离检查在 Windows 上不区分分隔符与大小写，也认 Git Bash 的 `/d/…` 写法。
+  `setup` 等命令仍按配置原样启动。Windows 不能直接启动 `pnpm` 这类 `.cmd` 脚本，所以真实套件在 Windows 上还不能建模板。
 
 **隔离前提：从仓库之外的会话派发。**这一类流里被测角色有 shell，而仓库里就有答案（原实现、隐藏测试、种入清单），模板里也有原实现与隐藏测试。
 所以派发这一类运行的主会话，工作目录必须在本仓库的任何检出之外（主检出根及其下的 `.worktrees/` 都不行）；`prepare` 的输出第一行就是这条。
