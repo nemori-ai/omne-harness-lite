@@ -14,6 +14,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { observeDelivery } from '../src/delivery/observe.ts'
@@ -1143,7 +1144,7 @@ describe('retired delivery structures', () => {
     { tags: ['slow'] },
     () => {
       const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
-      const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
+      const cli = fileURLToPath(new URL('../src/delivery/cli.ts', import.meta.url))
       const report = observeDelivery(config(), capture([issue(1)]))
       const cases = [
         { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
