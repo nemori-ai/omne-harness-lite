@@ -1,6 +1,6 @@
 // @module-tag slow
 // Packaging runs a full tsc build and a tar child process.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, type ExecFileSyncOptions } from 'node:child_process'
 import {
   cpSync,
   existsSync,
@@ -19,6 +19,24 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 const repoRoot = resolve(import.meta.dirname, '../../..')
 const scratch: string[] = []
+
+/**
+ * Runs the packaging script. Windows cannot start a shell script directly (EFTYPE); there it runs
+ * under Git for Windows' bash, found from `git --exec-path` rather than PATH, where `bash` may be
+ * the WSL launcher.
+ */
+function runScript(script: string, args: string[], options: ExecFileSyncOptions): void {
+  if (process.platform !== 'win32') {
+    execFileSync(script, args, options)
+    return
+  }
+  const gitCore = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim()
+  execFileSync(
+    join(resolve(gitCore), '..', '..', '..', 'bin', 'bash.exe'),
+    [script, ...args],
+    options,
+  )
+}
 
 function packageFixture(root: string) {
   const checkout = join(root, 'repo')
@@ -75,14 +93,18 @@ describe('package-cli.sh', () => {
     const output = join(dir, 'output')
     mkdirSync(output)
     const target = join(output, 'omne-cli.tar.gz')
-    execFileSync(script, [target], { cwd: checkout, stdio: 'inherit' })
+    runScript(script, [target], { cwd: checkout, stdio: 'inherit' })
     expect(identities(memberDist)).toEqual(before)
-    const names = execFileSync('tar', ['-tzf', target], { encoding: 'utf8' }).split('\n')
+    // A name relative to `output`: GNU tar reads an absolute `C:\…` name as a remote `host:file`.
+    const names = execFileSync('tar', ['-tzf', basename(target)], {
+      cwd: output,
+      encoding: 'utf8',
+    }).split('\n')
     expect(names).toContain('dist/bin.js')
     expect(names).toContain('dist/cli-identity.json')
     expect(names).not.toContain('dist/.packaging-sentinel')
     expect(names.filter(name => name.endsWith('.map'))).toEqual([])
-    expect(() => execFileSync(script, [target], { cwd: checkout, stdio: 'pipe' })).toThrow()
+    expect(() => runScript(script, [target], { cwd: checkout, stdio: 'pipe' })).toThrow()
     expect(readdirSync(output)).toEqual(['omne-cli.tar.gz'])
   })
 })
