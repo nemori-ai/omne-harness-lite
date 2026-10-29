@@ -16,6 +16,7 @@ import {
   initializationFixtureGuard,
   createMemoryInitializationSource,
   createMemorySessionTransactions,
+  createPolicySessionAccessCheck,
   creation,
   memoryAccess,
   operationId,
@@ -80,7 +81,12 @@ export function initializationScenario(value: Partial<SessionCreation> = {}) {
   const access = memoryAccess('tester')
   const base = { tenant: access.tenant, session: access.session }
   const source = createMemoryInitializationSource()
-  const port = createMemorySessionTransactions<string>({ initialization: source })
+  // The scenarios test initialization; the access policy is stated open and every request is logged.
+  const accessCheck = createPolicySessionAccessCheck<string>(() => ({
+    kind: 'allowed',
+    evidence: evidence('access'),
+  }))
+  const port = createMemorySessionTransactions<string>({ initialization: source, accessCheck })
   const command: Extract<InitCommand, { kind: 'create' }> = {
     kind: 'create',
     input: { ...base, operation: operationId('create'), creation: creation(value) },
@@ -120,7 +126,10 @@ export function initializationScenario(value: Partial<SessionCreation> = {}) {
     input: { ...base, operation: operationId(operation), result },
   })
   const create = async (initial = facts()) =>
-    succeeded(await port.commit({ command, guards: await prepare(command, initial) }), 'create')
+    succeeded(
+      await port.commit({ access, command, guards: await prepare(command, initial) }),
+      'create',
+    )
   const preview = () => {
     const withoutResults: typeof command = {
       ...command,

@@ -9,6 +9,7 @@ import type {
 } from '@omne-harness/session-contract'
 import {
   createMemorySessionTransactions,
+  createPolicySessionAccessCheck,
   memoryAccess,
   guard,
   succeeded,
@@ -25,7 +26,12 @@ export function scene() {
   const access = memoryAccess('tester')
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
-  const port = createMemorySessionTransactions<string>({ initialization, history })
+  // The scene tests Session behavior; its access policy is stated open and every request is logged.
+  const accessCheck = createPolicySessionAccessCheck<string>(() => ({
+    kind: 'allowed',
+    evidence: evidence('access'),
+  }))
+  const port = createMemorySessionTransactions<string>({ initialization, history, accessCheck })
   const base = { tenant: access.tenant, session: access.session }
   const commit = async <K extends MutationName>(
     command: Extract<SessionCommand, { kind: K }> & { kind: K },
@@ -103,7 +109,7 @@ export function scene() {
         ...succeeded(await initialization.prepare(complete), 'initialization preparation'),
       )
     }
-    return port.commit<K>({ command, guards })
+    return port.commit<K>({ access, command, guards })
   }
   const read = async () => succeeded(await port.readWork(access), 'read')
   const create = async (value = creation()) =>
@@ -125,6 +131,7 @@ export function scene() {
   const start = async (name = 'start') =>
     succeeded(
       await port.commit({
+        access,
         command: {
           kind: 'startRun',
           input: {

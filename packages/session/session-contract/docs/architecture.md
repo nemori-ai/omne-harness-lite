@@ -12,7 +12,7 @@
 | 值与身份 | 品牌身份（`SessionId`、`RunId`、`AttemptId`、`InputId`、`ResidentKey` 等）、`WorkSnapshot`、`RunState`、`ExecutionRef`、`Consumption`、`CommitReceipt`、`SessionFailure` 与各操作的结果联合 | [公开入口](public-api.md#值当前工作与原位置)、[值与结果项的约束](../SPEC.md#值与结果项的约束) |
 | 四个面 | `SessionWork`、`SessionManagement`、`SessionReconciliation`、`SessionHistory` 的接口，以及聚合它们的 `SessionFaces<P>`；调用方类的取值 | [四个面与公开操作](../SPEC.md#四个面与公开操作) |
 | 会话侧的常驻工具与冻结 | 常驻集合的值（`ResidentTool`）、冻结状态（`SessionFrozen`）、冻结命令 `freeze` 与它的入参 `FreezeVerdict`、引用查询 `references` 与它的结果 `ResidentReference` | [常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结) |
-| 端口接口 | 八个构造依赖端口与两个出站端口 `AgentDrivePort`、`ScopeReleasePort`。访问检查类型与独立测试替身已导出，实际执行处尚未接入 | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
+| 端口接口 | 八个构造依赖端口与两个出站端口 `AgentDrivePort`、`ScopeReleasePort`。访问检查类型与测试替身已导出，`commit` 显式携带 access，内存事务工厂必需 `accessCheck` 并在每个公开读写的执行处检查一次 | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
 | 领域服务与归约 | 九个领域服务、`decide`、`reduce`，以及两个操作身份派生函数 `deriveSessionOperation` 与 `deriveDriveOperation` | [领域服务与归约](../SPEC.md#领域服务与归约)、[OP-00](../SPEC.md#op-00) |
 | 事件目录 | 条目的 `kind` 与载荷 `schema`，以及按批次解释版本解释条目的规则 | [事件目录](object-model/session-log-events.md#原生事实类别)、[事件来源与日志准入](../SPEC.md#事件来源与日志准入) |
 | 块声明 | `session.modes` 的声明值 `sessionModesBlock` | [会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点) |
@@ -74,7 +74,7 @@ flowchart LR
 
 ## 当前设计限制
 
-- 根入口已导出[公开入口](public-api.md)列出的定义与纯函数，包括当前访问检查类型。独立检查替身从 `./testing` 导出。实际执行处检查与事务工厂的必需依赖尚未接入，见[访问检查](access-check.md)。
+- 根入口已导出[公开入口](public-api.md)列出的定义与纯函数，包括当前访问检查类型。检查替身从 `./testing` 导出。内存事务工厂必需 `accessCheck`，每个公开读写在执行处检查一次，接入范围与未覆盖部分见[访问检查](access-check.md)。
 - [运行契约候选](../SPEC.md#运行契约候选)尚未技术接受。它的条款依赖本成员不能单方兑现的具名前提，也列出了明确缺项，见[具名前提与明确缺项](../SPEC.md#具名前提与明确缺项)。
 - 常驻工具与冻结依赖 Tool 契约的会话常驻规则（[具名前提](../SPEC.md#具名前提与明确缺项)的 P-8）。它闭合之前，候选采用材料不带常驻工具与冻结判定，本成员不写常驻工具纳入与冻结的条目。
 - Session 是工作治理服务。Run 与 attempt 是治理记录，不是运行实例。本成员没有每会话的根 Context 或实例目录。

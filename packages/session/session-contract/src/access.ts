@@ -1,7 +1,7 @@
 // Current-operation access requests. Qualification policy belongs to the authorization adapter;
 // the Session execution boundary binds each decision to this operation and its fixed input.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
-import type { DurableEvidence, ResidentKey, SessionId } from './identity.ts'
+import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts'
 import type { MutationName, SessionCommand } from './ports.ts'
 
 export type SessionReadAccessOperation =
@@ -60,4 +60,32 @@ export type SessionAccessDecision =
 /** One current decision. An allowed answer cannot authorize a later operation. */
 export interface SessionAccessCheck<P> {
   check(input: SessionAccessRequest<P>): Promise<SessionAccessDecision>
+}
+
+/** The request of one public read on the session that `access` names. */
+export function readAccessRequest<P>(
+  access: SessionAccess<P>,
+  operation: SessionReadAccessOperation,
+): SessionAccessRequest<P> {
+  return {
+    access: { principal: access.principal, tenant: access.tenant },
+    operation,
+    target: { kind: 'session', session: access.session },
+  }
+}
+
+/**
+ * The request of one commit: the operation is the command kind and the target carries the original
+ * command, so the authorization adapter judges the actual control, setting or mode change. The
+ * caller has already matched `access` to the tenant and session of the command.
+ */
+export function mutationAccessRequest<P>(
+  access: SessionAccess<P>,
+  command: SessionCommand,
+): SessionAccessRequest<P> {
+  return {
+    access: { principal: access.principal, tenant: access.tenant },
+    operation: command.kind,
+    target: { kind: 'session', session: command.input.session, command },
+  } as SessionMutationAccess<P>
 }

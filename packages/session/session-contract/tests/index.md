@@ -34,4 +34,5 @@
 - [history-source-isolation.spec.ts](history-source-isolation.spec.ts)：显式租户与 Session 作用域、同文本身份及独立材料根。
 
 - [access-check.spec.ts](access-check.spec.ts)：关联请求类型、显式逐次裁定、来源异常与脚本耗尽。
+- [transactions-access.spec.ts](transactions-access.spec.ts)：事务工厂必需 `accessCheck`、commit 显式 access、每次公开读写各问一次、denied/unavailable/抛错无副作用、跨租户拒绝与裁定证据进同次提交。
 - [cancelled-projection.spec.ts](cancelled-projection.spec.ts)：当前及历史 Run 取消依据、拒绝后的无部分投影与迟到认回。

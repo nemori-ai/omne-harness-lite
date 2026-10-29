@@ -199,20 +199,27 @@ it('checks current ownership before disclosing results and rejects guard reuse f
   const state = await s.read()
   const command = s.complete(ready('execution', 'prepare'))
   const guards = await s.prepare(command, s.facts(command, state))
-  succeeded(await s.port.commit({ command, guards }), 'ready')
+  succeeded(await s.port.commit({ access: s.access, command, guards }), 'ready')
   const other = memoryOtherAccess('other')
   const foreign = { ...command, input: { ...command.input, tenant: other.tenant } }
-  expect(refused(await s.port.commit({ command: foreign, guards }), 'foreign').kind).toBe('denied')
+  expect(
+    refused(await s.port.commit({ access: s.access, command: foreign, guards }), 'foreign').kind,
+  ).toBe('denied')
   expect(decide(await s.read(), foreign, guards, null, { compaction: null })).toMatchObject({
     kind: 'rejected',
     failure: { kind: 'denied' },
   })
   const changed = { ...command, input: { ...command.input, operation: operationId('other') } }
   expect(
-    refused(await s.port.commit({ command: changed, guards }), 'rebound credential').kind,
+    refused(
+      await s.port.commit({ access: s.access, command: changed, guards }),
+      'rebound credential',
+    ).kind,
   ).toBe('invalid')
   s.source.controls.eligible(false)
-  expect(refused(await s.port.commit({ command, guards }), 'revoked recall').kind).toBe('denied')
+  expect(
+    refused(await s.port.commit({ access: s.access, command, guards }), 'revoked recall').kind,
+  ).toBe('denied')
 })
 
 it('rejects duplicate registration identities, wrong scope, changed input, unsafe revisions and post-prepare edits', async () => {
@@ -259,7 +266,10 @@ it('rejects duplicate registration identities, wrong scope, changed input, unsaf
   if (guard === undefined) throw new Error('missing prepared guard')
   Object.assign(guard, { facts: toJsonValue(s.facts(s.command, null, [b, a])) })
   expect(
-    refused(await s.port.commit({ command: s.command, guards }), 'edited after prepare').kind,
+    refused(
+      await s.port.commit({ access: s.access, command: s.command, guards }),
+      'edited after prepare',
+    ).kind,
   ).toBe('invalid')
   expect(refused(await s.port.readWork(s.access), 'no partial state').kind).toBe('denied')
 })
@@ -294,7 +304,11 @@ it('treats source and result reordering as changed creation input, not same-oper
   }
   expect(
     refused(
-      await s.port.commit({ command: changed, guards: await s.prepare(changed, s.facts(changed)) }),
+      await s.port.commit({
+        access: s.access,
+        command: changed,
+        guards: await s.prepare(changed, s.facts(changed)),
+      }),
       'source reorder',
     ).kind,
   ).toBe('conflict')
@@ -400,6 +414,7 @@ it('ignores object field order while preserving the ordered creation results', a
   }
   const same = succeeded(
     await s.port.commit({
+      access: s.access,
       command: reorderedFields,
       guards: succeeded(await s.source.prepare(reorderedFields), 'same source'),
     }),
@@ -419,6 +434,7 @@ it('ignores object field order while preserving the ordered creation results', a
   expect(
     refused(
       await s.port.commit({
+        access: s.access,
         command: reorderedResults,
         guards: await s.prepare(reorderedResults, s.facts(reorderedResults)),
       }),
@@ -437,9 +453,9 @@ it('publishes completion facts, result index and operation answer together after
   const command = s.complete(ready('context', 'a'))
   const guards = await s.prepare(command, s.facts(command, state, [s.registration('a', 0, state)]))
   s.port.controls.failNextInitializationCommit()
-  expect(refused(await s.port.commit({ command, guards }), 'before publication').kind).toBe(
-    'unavailable',
-  )
+  expect(
+    refused(await s.port.commit({ access: s.access, command, guards }), 'before publication').kind,
+  ).toBe('unavailable')
   expect(await s.history()).toEqual(log)
   expect(await s.read()).toEqual(state)
   const query = { ...s.access, operation: command.input.operation }
@@ -447,7 +463,9 @@ it('publishes completion facts, result index and operation answer together after
     kind: 'unknown',
   })
   s.port.controls.loseNextInitializationReply()
-  expect(refused(await s.port.commit({ command, guards }), 'after publication')).toEqual({
+  expect(
+    refused(await s.port.commit({ access: s.access, command, guards }), 'after publication'),
+  ).toEqual({
     kind: 'commit-unknown',
     operation: command.input.operation,
   })
@@ -467,7 +485,9 @@ it('publishes completion facts, result index and operation answer together after
     last: current.at(-1)?.id,
   })
   const completed = await s.read()
-  expect(succeeded(await s.port.commit({ command, guards }), 'same-operation recall')).toEqual({
+  expect(
+    succeeded(await s.port.commit({ access: s.access, command, guards }), 'same-operation recall'),
+  ).toEqual({
     ...committed.receipt,
     recovered: true,
   })
@@ -477,7 +497,9 @@ it('publishes completion facts, result index and operation answer together after
     committed,
   )
   s.source.controls.eligible(false)
-  expect(refused(await s.port.commit({ command, guards }), 'revoked retry').kind).toBe('denied')
+  expect(
+    refused(await s.port.commit({ access: s.access, command, guards }), 'revoked retry').kind,
+  ).toBe('denied')
   expect(await s.history()).toEqual(current)
 })
 

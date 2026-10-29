@@ -392,6 +392,7 @@ describe('Session governance beyond the first path', () => {
     } as const
     const bound = succeeded(
       await s.port.commit({
+        access: s.access,
         command: {
           kind: 'bindExternalCall',
           input: {

@@ -32,3 +32,25 @@ export function createScriptedSessionAccessCheck<P>(
     controls: Object.freeze({ asked: () => [...asked] }),
   })
 }
+
+/**
+ * An explicit policy for fixtures that run many operations: `policy` answers every request on its
+ * own, and the double records each request. The policy is the fixture's stated choice; the double
+ * adds no default, so a request the policy does not answer is an error of the fixture.
+ */
+export function createPolicySessionAccessCheck<P>(
+  policy: (request: SessionAccessRequest<P>) => SessionAccessScript,
+): ScriptedSessionAccessCheck<P> {
+  const asked: SessionAccessRequest<P>[] = []
+  const check: SessionAccessCheck<P>['check'] = async input => {
+    asked.push(input)
+    const answer = policy(input)
+    if (answer.kind === 'throw') throw answer.error
+    return answer
+  }
+  return Object.freeze({
+    durability: 'none',
+    check,
+    controls: Object.freeze({ asked: () => [...asked] }),
+  })
+}
