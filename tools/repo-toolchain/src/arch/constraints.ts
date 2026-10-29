@@ -8,6 +8,7 @@ import {
   RULE_IDS,
   type ArchitectureConstraints,
   type ArchitectureDirection,
+  type ArchitectureGroupCycleEdge,
   type ArchitectureGroupCycleException,
   type ArchitectureImportException,
   type ArchitectureRole,
@@ -213,13 +214,13 @@ function directions(value: unknown, roles: readonly ArchitectureRole[]): Archite
   const byId = new Map(roles.map(declared => [declared.id, declared]))
   return unique((value === undefined ? [] : list(value)).map(item => direction(item, byId)))
 }
-/** 组键：与 deps/graph.ts 的 `memberOf` 给出的 `group` 同形。 */
-const GROUP_KEY = /^(?:packages\/[^/]+|apps|examples)$/u
-function groupKey(value: unknown): string {
-  const key = safePath(str(value))
-  if (!GROUP_KEY.test(key))
-    throw new Error(`Architecture group cycle exceptions require group keys: ${key}`)
-  return key
+/** 成员路径：与 deps/graph.ts 的 `memberOf` 给出的 `path` 同形（`packages/<组>/<包>`、`apps/<应用>`、`examples/<示例>`）。 */
+function groupCycleMember(value: unknown): { path: string; group: string } {
+  const path = safePath(str(value))
+  const member = memberOf(`${path}/`)
+  if (member?.path !== path)
+    throw new Error(`Architecture group cycle exceptions require member paths: ${path}`)
+  return { path, group: member.group }
 }
 function ruling(value: unknown): string {
   const text = str(value)
@@ -233,27 +234,37 @@ function ruling(value: unknown): string {
     throw new Error(`Architecture group cycle exceptions require an https ruling link: ${text}`)
   return text
 }
+function groupCycleEdge(value: unknown): ArchitectureGroupCycleEdge {
+  const row = obj(value, ['from', 'to'])
+  const from = groupCycleMember(row['from'])
+  const to = groupCycleMember(row['to'])
+  if (from.group === to.group)
+    throw new Error(
+      `Architecture group cycle exceptions require edges across groups: ${from.path} -> ${to.path}`,
+    )
+  return { from: from.path, to: to.path }
+}
 function groupCycleException(value: unknown): ArchitectureGroupCycleException {
-  const row = obj(value, ['id', 'groups', 'ruling', 'reason'])
-  const [first, second, ...rest] = strings(row['groups']).map(groupKey).sort()
-  if (first === undefined || second === undefined)
-    throw new Error('Architecture group cycle exceptions require at least two groups')
+  const row = obj(value, ['id', 'edges', 'ruling', 'reason'])
+  const [first, ...rest] = list(row['edges']).map(groupCycleEdge)
+  if (first === undefined)
+    throw new Error('Architecture group cycle exceptions require at least one edge')
   return {
     id: str(row['id']),
-    groups: [first, second, ...rest],
+    edges: [first, ...rest],
     ruling: ruling(row['ruling']),
     reason: str(row['reason']),
   }
 }
 /**
- * schema 3 的 `groupCycleExceptions`：缺省是没有例外；给了就必须是数组。两条例外的组集合相同时拒绝：
- * 一个组环只能命中一条例外。
+ * schema 3 的 `groupCycleExceptions`：缺省是没有例外；给了就必须是数组。同一条成员边在全部例外里只能出现一次：
+ * 放行哪条边由哪条例外负责，不留两份裁定。
  */
 function groupCycleExceptions(value: unknown): ArchitectureGroupCycleException[] {
   const rows = unique((value === undefined ? [] : list(value)).map(groupCycleException))
-  const sets = rows.map(row => row.groups.join('\u0000'))
-  if (new Set(sets).size !== sets.length)
-    throw new Error('Architecture group cycle exceptions repeat a group set')
+  const keys = rows.flatMap(row => row.edges.map(edge => `${edge.from}\u0000${edge.to}`))
+  if (new Set(keys).size !== keys.length)
+    throw new Error('Architecture group cycle exceptions repeat an edge')
   return rows
 }
 export function parseConstraints(text: string): ArchitectureConstraints {
@@ -537,10 +548,19 @@ function semanticDirections(rows: ArchitectureConstraints['directions']) {
     ),
   }
 }
-/** 语义比较里的组环例外：与方向行相同，没有例外时不出现这个键。 */
+/** 语义比较里的组环例外：与方向行相同，没有例外时不出现这个键；例外内边的书写顺序不是语义。 */
 function semanticGroupCycleExceptions(rows: ArchitectureConstraints['groupCycleExceptions']) {
   if (!rows?.length) return {}
-  return { groupCycleExceptions: sortedById(rows.map(row => ({ ...row }))) }
+  return {
+    groupCycleExceptions: sortedById(
+      rows.map(row => ({
+        ...row,
+        edges: row.edges
+          .map(edge => ({ from: edge.from, to: edge.to }))
+          .sort((a, b) => `${a.from}\u0000${a.to}`.localeCompare(`${b.from}\u0000${b.to}`)),
+      })),
+    ),
+  }
 }
 export function semanticConstraints(value: ArchitectureConstraints | null): string | null {
   if (value === null) return null

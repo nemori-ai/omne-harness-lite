@@ -46,13 +46,18 @@ export interface ArchitectureDirection {
   readonly to: readonly [string, ...string[]]
   readonly source: string
 }
+/** 例外登记的一条成员边：`from`、`to` 是成员路径（依赖图 `edges` 的键），两端在不同的组。 */
+export interface ArchitectureGroupCycleEdge {
+  readonly from: string
+  readonly to: string
+}
 /**
- * schema 3 的具名组环例外：依赖图上组集合与 `groups` 完全相同的组环不算失败。`groups` 是组键
- * （`packages/<组>`、`apps`、`examples`），按字典序；`ruling` 是裁定的 https 链接，`reason` 是一句理由。
+ * schema 3 的具名组环例外：放行裁定过的那几条成员边，不放行组集合。依赖图的组环去掉登记的边后不再成环才放行；
+ * `ruling` 是裁定的 https 链接，`reason` 是一句理由。一条边在全部例外里只出现一次。
  */
 export interface ArchitectureGroupCycleException {
   readonly id: string
-  readonly groups: readonly [string, string, ...string[]]
+  readonly edges: readonly [ArchitectureGroupCycleEdge, ...ArchitectureGroupCycleEdge[]]
   readonly ruling: string
   readonly reason: string
 }

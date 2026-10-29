@@ -10,7 +10,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { readLoopConfig } from '../src/loop/config.ts'
 import { measureForHook } from '../src/loop/hook-measure.ts'
 import { readMetricsConfig } from '../src/metrics/config.ts'
-import { CONSTRAINTS, CONTEXT_TOOL, RULING, policy, runner, tree } from './fixtures/group-cycle.ts'
+import {
+  CONSTRAINTS,
+  CONTEXT_TOOL,
+  RULING,
+  X_TO_Y,
+  Y_TO_Z,
+  policy,
+  runner,
+  tree,
+} from './fixtures/group-cycle.ts'
 import {
   commit,
   git,
@@ -31,7 +40,10 @@ interface Status {
     readonly cycles: readonly { readonly kind: string; readonly message: string }[]
     readonly exceptedCycles: readonly {
       readonly finding: { readonly kind: string; readonly groups?: readonly string[] }
-      readonly exception: { readonly id: string; readonly ruling: string }
+      readonly released: readonly {
+        readonly edge: { readonly from: string; readonly to: string }
+        readonly exception: { readonly id: string; readonly ruling: string }
+      }[]
     }[]
   }
 }
@@ -86,7 +98,7 @@ describe('loop:status 硬线读 runner 的组环例外', { timeout: 120_000 }, (
     expect(status?.hardLines.exceptedCycles).toEqual([])
   })
 
-  it('runner 登记了与被检树组环完全相同的例外：硬线不破，exceptedCycles 列出它、cycles 为空', () => {
+  it('runner 登记了被检树组环的两条成员边：硬线不破，exceptedCycles 列出它、cycles 为空', () => {
     const { code, stderr, status } = loopStatus(tree(), runner([CONTEXT_TOOL]))
     expect(stderr).toBe('')
     expect(code).toBe(0)
@@ -94,7 +106,16 @@ describe('loop:status 硬线读 runner 的组环例外', { timeout: 120_000 }, (
     expect(status?.hardLines.exceptedCycles).toEqual([
       expect.objectContaining({
         finding: expect.objectContaining({ kind: 'group-cycle' }),
-        exception: expect.objectContaining({ id: 'GCX-CONTEXT-TOOL', ruling: RULING }),
+        released: [
+          {
+            edge: X_TO_Y,
+            exception: expect.objectContaining({ id: 'GCX-CONTEXT-TOOL', ruling: RULING }),
+          },
+          {
+            edge: Y_TO_Z,
+            exception: expect.objectContaining({ id: 'GCX-CONTEXT-TOOL', ruling: RULING }),
+          },
+        ],
       }),
     ])
   })
@@ -135,7 +156,7 @@ describe('收工钩子的度量读 runner 的组环例外', { timeout: 120_000 }
     expect(lines.cycles).toEqual([expect.objectContaining({ kind: 'group-cycle' })])
   })
 
-  it('runner 登记了完全相同的例外：放行，硬线里没有环', () => {
+  it('runner 登记了组环的成员边：放行，硬线里没有环', () => {
     const lines = hardLinesForHook(tree(), runner([CONTEXT_TOOL]))
     expect(lines.cycles).toEqual([])
   })
@@ -144,5 +165,13 @@ describe('收工钩子的度量读 runner 的组环例外', { timeout: 120_000 }
     const subject = tree()
     write(subject, CONSTRAINTS, policy([CONTEXT_TOOL]))
     expect(hardLinesForHook(subject, runner(null)).cycles).toHaveLength(1)
+  })
+
+  it('登记的边去不掉组环（组间另有一条成员边）：组环仍进硬线', () => {
+    const lines = hardLinesForHook(
+      tree({ twoEdges: true }),
+      runner([{ ...CONTEXT_TOOL, edges: [X_TO_Y] }]),
+    )
+    expect(lines.cycles).toEqual([expect.objectContaining({ kind: 'group-cycle' })])
   })
 })
