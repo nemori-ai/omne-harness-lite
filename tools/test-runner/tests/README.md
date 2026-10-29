@@ -5,13 +5,16 @@
 | 资源 | 层与范围 |
 | --- | --- |
 | `mutation-guard.spec.ts` | 快层。公开 TestRunner 的 this、参数、结果与生命周期透传；第一次拒绝直接报告 Error；全原始报告的 RuntimeError 使成员无效、不给分数；命中次数超限的原因前缀与 `@stryker-mutator/api` 10.0.0 一致；`RunReporter` 出错或写不出记录时不让运行失败；形状校验。 |
-| `mutation.spec.ts` | 快层检查范围、配置与报告，含超时复核的分类、复核上限（嵌套变异体计入复跑数）、复核的 Stryker 配置、类型测试读数（测到、没测到、不适用）与没有变异体的改动段（列为未覆盖，不报光秃秃的分数）。慢层启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，覆盖普通存活、Killed、文件收集错误与深层 suite 自身错误、预检、static 运行缺席类型测试的读数、可控耗时注入下的复核、复核上限为 0、真的挂起的 static 变异体、多 worker、同 out 重跑、旧报告留存，以及只改 `as const` 声明时 Stryker 不生成变异体、读数报未覆盖。 |
+| `mutation.spec.ts` | 快层。检查范围、配置与报告，含超时复核的分类、复核上限（嵌套变异体计入复跑数）、复核的 Stryker 配置、类型测试读数（测到、没测到、不适用）与没有变异体的改动段（列为未覆盖，不报光秃秃的分数）。 |
+| `mutation-cli.spec.ts` | 变异入口的参数。点名成员只列范围的一条在快层。参数互斥、缺省基线现算计划与读准入检查的计划这三条起真实 CLI 子进程，在慢层。 |
+| `mutation-stryker-*.spec.ts` | 慢层。启动真实 CLI、Stryker 10.0.0 与 Vitest 4.1.11，按场景分成四个文件，让 vitest 按文件并行。`score` 覆盖 sandbox 里的类型检查、普通存活、Killed、多 worker、只由参数化用例守着的改动行，以及只改 `as const` 声明时 Stryker 不生成变异体、读数报未覆盖。`recheck` 覆盖 static 运行缺席类型测试的读数、可控耗时注入下的复核与复核上限为 0。`hang` 只有真的挂起的 static 变异体一条：复核时限另加 `mutation.testTimeoutSeconds`（60 秒），这一条单独就要八十秒上下。`preflight` 覆盖文件收集错误与深层 suite 自身错误、同 out 重跑、旧报告留存与预检。 |
+| `fixtures/mutation.ts` | 上面几份文件共用的夹具：临时目录、CLI 夹具仓库、手写计划、单成员的 Stryker 夹具项目与 `mutate`。 |
 
 在仓库根运行，重验证须通过共享槽：
 
 ```sh
-scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode fast tests/mutation.spec.ts tests/mutation-guard.spec.ts
-scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode slow --typecheck.enabled=false tests/mutation.spec.ts
+scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode fast tests/mutation
+scripts/with-test-slot.sh pnpm --filter @omne-harness/test-runner exec vitest run --mode slow --typecheck.enabled=false tests/mutation
 ```
 
 运行前清除外部 `BASELINE`，并按[开发环境要求](../../../docs/development.md#准备可用的检出)准备 Git 等工具。慢层夹具需要可执行真实仓库操作的 Git。慢层夹具独立创建仓库，不操作产品数据。设置 `OMNE_MUTATION_FIXTURE_EVIDENCE` 可保存静态收集错误的原始报告与 CLI 输出。
