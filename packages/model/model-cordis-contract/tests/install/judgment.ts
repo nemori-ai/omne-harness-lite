@@ -65,10 +65,12 @@ export function judgeTypeFiles(
   consumerRoot: string,
   libraryRoot: string,
 ): TypeFilesVerdict {
-  const root = realpathSync(consumerRoot)
-  const libraries = realpathSync(libraryRoot)
+  // The native realpath also expands Windows 8.3 names (`ALIENW~1` in a temporary directory), which
+  // tsc lists in their long form; on POSIX it resolves the same links as the JavaScript one.
+  const root = realpathSync.native(consumerRoot)
+  const libraries = realpathSync.native(libraryRoot)
   const stray = files.filter(path => {
-    const real = realpathSync(path)
+    const real = realpathSync.native(path)
     return !inside(real, root) && !inside(real, libraries)
   })
   if (files.length === 0) return { ok: false, stray, detail: 'tsc listed no files' }
