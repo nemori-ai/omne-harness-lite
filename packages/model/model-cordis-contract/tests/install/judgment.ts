@@ -44,7 +44,11 @@ export function judgeResolutions(urls: readonly string[], consumerRoot: string):
     if (!url.startsWith('file:')) continue
     const path = realpathSync(fileURLToPath(url))
     if (!inside(path, root)) outside.push(path)
-    else if (/(^|\/)src\//u.test(relative(root, path)) || /(?<!\.d)\.ts$/u.test(path))
+    // The relative path has the separator of the platform; judge its segments with `/`.
+    else if (
+      /(^|\/)src\//u.test(relative(root, path).split(sep).join('/')) ||
+      /(?<!\.d)\.ts$/u.test(path)
+    )
       source.push(path)
   }
   return { outside, source }
