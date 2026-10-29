@@ -136,7 +136,12 @@ it.skipIf(process.platform === 'win32')(
 it('answers unknown for an open error it does not map', async () => {
   const { root } = await namedFile('x')
   const files = createHostFiles()
-  const tooLong = join(root, 'n'.repeat(300))
+  // POSIX refuses a 300-byte name with ENAMETOOLONG. Windows answers ENOENT for it (a mapped code)
+  // and gives ENAMETOOLONG only for a path longer than its 32767-character limit.
+  const tooLong =
+    process.platform === 'win32'
+      ? join(root, ...Array.from({ length: 200 }, () => 'n'.repeat(200)))
+      : join(root, 'n'.repeat(300))
   expect(await files.read(request(tooLong, { token: '1:1' }, 'long'))).toEqual({
     kind: 'unknown',
     requestId: 'long',
