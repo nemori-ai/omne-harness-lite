@@ -12,7 +12,7 @@
 | 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents` | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | 项目自己的 spec、plan 模板（`claim` 技能的 `references/`），模板格式归项目 |
 | 研发哲学、品味与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对，再做好，并遵循日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
 
-三层之外，项目独有的判断（维度分解与正交、领域语义依赖、Cordis 承载）归[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)与 `harness-design-handbook`；交付质量的量度归[整洁回路](../clean-loop.md)。先设计的测试与验证负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
+三层之外，项目独有的判断（维度分解与正交、领域语义依赖、Cordis 承载）归[项目研发品味](../../.meta_harness/agents/roles/engineering-taste.md)与 `harness-design-handbook`；交付质量的量度归[整洁回路](../clean-loop.md)。先设计的测试与验证负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
 
 采用方法不替代正式语义接受，也不扩大任务权限。
 
@@ -114,7 +114,7 @@ Matt 在本项目只承担「怎样写」：方法用 Matt，模板格式用项�
 
 ## ub-mode 研发品味
 
-[ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 是写或改代码时的判断基础。它的 [README](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/README.md) 说明它松散地基于 poteto 规则（poteto-mode／pstack）的部分内容，并做了精简。一份正文覆盖三段：先做对、再做好、日常实践。
+[ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 是写或改代码时的判断基础。本页的「研发品味」指 ub-mode 这一层通用判断；项目独有的判断另见[项目研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。它的 [README](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/README.md) 说明它松散地基于 poteto 规则（poteto-mode／pstack）的部分内容，并做了精简。一份正文覆盖三段：先做对、再做好、日常实践。
 
 - **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时。每次读完整一份，约 4 KB。
 - **取代原则清单：** poteto-mode 的 Principles 一节（二十个 `pstack:principle-*` 子技能）由 ub-mode 取代。不要求逐个加载这些子技能，也不要求在回复里逐条点名所读原则；某条 ub-mode 写得太短、确实需要展开时，再读对应的 `pstack:principle-*`。poteto-mode 的 playbook、子代理与回复写法照常使用。
@@ -157,6 +157,12 @@ ub-mode 与本项目的差异：
 <!-- documentation:placeholder -->
 
 完整的项目 TypeScript 政策及采用例外尚未单独确定，由工程要求负责人补齐。在此之前按 `pstack:typescript-best-practices` 与 type-system-discipline，不据技能名声称项目政策完整。
+
+## 宿主加载与行为验证待补
+
+<!-- documentation:placeholder -->
+
+本机安装和 skills/list 发现已完成，相关正文已按审计范围读取。本批可做入口代表任务走读，不能由此宣称原生调用、自动路由或产品行为验收。ub-mode 在各宿主用户技能目录中的实际发现与加载，同样只有本机核对。Codex SessionStart 自动路由仍需按宿主 /hooks 审阅并信任，本项目未提供其信任与执行完成证据。Windows、压缩恢复、隔离检出的实际 hook 观察及跨机器恢复分别保留未验证；结构可读不会解除这些缺项。
 
 ## 更新与维护传播
 
