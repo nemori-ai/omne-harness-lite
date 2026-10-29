@@ -205,7 +205,7 @@ hook 是提醒，不是合并门禁。未碰适用源码、hook 未启用、重�
 
 ## 开始前准备 coding agent 环境
 
-在实际使用的 coding agent harness 中安装并启用项目[三层方法](engineering/skills.md#三层分工)的来源：pstack 与 Matt 两份插件，以及 ub-mode 技能。ub-mode 按来源表的固定提交，把 `https://raw.githubusercontent.com/unclebob/ub-mode/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md` 放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。精确版本归[技能来源表](engineering/skills.md#来源与项目采用)，操作归[开发初始化](development.md#初始化-coding-agent-插件)，本页只说明人要核对的责任。
+在实际使用的 coding agent harness 中安装并启用项目[三层方法](engineering/skills.md#三层分工)的来源：pstack 与 Matt 两份插件，以及 ub-mode 技能。ub-mode 按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。精确版本归[技能来源表](engineering/skills.md#来源与项目采用)，操作归[开发初始化](development.md#初始化-coding-agent-插件)，本页只说明人要核对的责任。
 
 新机器、cloud 环境或更换 harness 后，确认插件版本、会话发现（含 `ub-mode`）、所需技能和参考，以及实际可用的模型和工具。Matt 完整插件仍只按项目选定子集触发。插件出现在列表中不证明自动路由、hooks 或真实任务遵循已经发生。
 

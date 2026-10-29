@@ -70,7 +70,7 @@ setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，pstack 与 Matt �
 
 1. 确认实际harness及其版本，打开它的插件管理入口。根据技能来源表选择固定revision，不以原版pstack、同名技能或上游最新版代替项目指定来源。
 2. 注册固定来源并安装两份插件。支持Git revision的宿主直接指定来源表中的revision；支持本地marketplace但不能固定远程revision的宿主，可先在仓库外准备对应revision的检出，再注册其marketplace。按固定源的安装说明操作，避免把插件正文复制到本仓的技能源或同时安装另一份同名技能。
-3. 安装ub-mode。它只有一份 `SKILL.md`，没有插件。把来源表固定提交的 `https://raw.githubusercontent.com/unclebob/ub-mode/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md` 放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。不把正文复制进本仓库。
+3. 安装ub-mode。它只有一份 `SKILL.md`，没有插件。按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。不把正文复制进本仓库。
 4. 新开会话，核对两份插件的安装版本、启用状态、发现路径，宿主是否发现 `ub-mode`，以及本次需要的技能和参考文件是否可读。安装成功、宿主发现、正文读取与实际行为分别判断，详见[阅读与实际加载](engineering/skills.md#阅读与实际加载)。
 5. 按实际harness完成所用方法的配置。需要pstack子代理流程时沿其 `setup-pstack` 正文选择可用模型和宿主映射。尚未配置或观察到的功能保留未覆盖，不把安装当作已生效。
 
