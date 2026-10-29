@@ -24,7 +24,7 @@ import {
   type EntrySection,
 } from './api-format.ts'
 import { sameText, statementId } from './api-normalize.ts'
-import { consumerCompilerOptions } from './compat.ts'
+import { consumerCompilerOptions, sharingInstalledDeclarations } from './compat.ts'
 
 export interface CompareTarget {
   readonly entry: string
@@ -129,10 +129,10 @@ function overlayHost(
     overlay.get(file) ?? (existsSync(file) ? readFileSync(file, 'utf8') : undefined)
   return {
     ...host,
-    getSourceFile: (file, language) => {
+    getSourceFile: sharingInstalledDeclarations(options, (file, language) => {
       const text = read(file)
       return text === undefined ? undefined : ts.createSourceFile(file, text, language, true)
-    },
+    }),
     fileExists: file => overlay.has(file) || existsSync(file),
     readFile: read,
     directoryExists: directory =>

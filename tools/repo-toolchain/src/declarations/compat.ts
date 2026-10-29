@@ -69,6 +69,45 @@ export function consumerCompilerOptions(root: string): ts.CompilerOptions {
   }
 }
 
+/** 已安装声明的解析结果，按「解析设置 + 路径」存；只收 lib 与类型根下的文件，集合有限。 */
+const installed = new Map<string, ts.SourceFile>()
+const settingsKey = ts.createDocumentRegistry().getKeyForCompilationSettings
+
+/**
+ * 给 `getSourceFile` 加一层进程内共享：TypeScript 的 lib 目录与 `typeRoots` 下的声明是安装好的、进程内不变，
+ * 同一解析设置下只解析一次，之后的程序拿同一个 SourceFile（语言服务的文档注册表也这样跨程序共用）。
+ * 键用 TypeScript 判断 SourceFile 能否复用的编译选项键（含 target、module 等影响解析与绑定的选项）、
+ * 本次的解析参数与路径；`lib` 只决定读哪些文件，已在路径里。其余文件与要求新建的照旧交给 `read`。
+ */
+export function sharingInstalledDeclarations(
+  options: ts.CompilerOptions,
+  read: ts.CompilerHost['getSourceFile'],
+): ts.CompilerHost['getSourceFile'] {
+  const roots = [dirname(ts.getDefaultLibFilePath(options)), ...(options.typeRoots ?? [])].map(
+    root => root.split(sep).join('/') + '/',
+  )
+  const settings = settingsKey(options)
+  return (file, language, onError, fresh) => {
+    if (fresh === true || !roots.some(root => file.startsWith(root)))
+      return read(file, language, onError, fresh)
+    const parse = typeof language === 'object' ? language : { languageVersion: language }
+    const key = [
+      settings,
+      parse.languageVersion,
+      parse.impliedNodeFormat,
+      parse.jsDocParsingMode,
+      file,
+    ].join('|')
+    const cached = installed.get(key)
+    if (cached !== undefined) return cached
+    const text = ts.sys.readFile(file)
+    if (text === undefined) return read(file, language, onError, fresh)
+    const source = ts.createSourceFile(file, text, language, true)
+    installed.set(key, source)
+    return source
+  }
+}
+
 function flatten(message: string | ts.DiagnosticMessageChain): string {
   return ts.flattenDiagnosticMessageText(message, '\n')
 }
