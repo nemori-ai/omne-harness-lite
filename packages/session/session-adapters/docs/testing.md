@@ -20,6 +20,8 @@ Tool 的原 `release.confirmed.receipt` 由 `recordResult` 保存后，`controls
 
 首次 custody/processed 的调用若尚未登记，提供者先核新请求和原操作，再以独立 operation 解释此前已提交 Pending/effect 的登记。准备未知时停止新结果提交。后续 joint 失败可以留下这笔旧 Pending 登记，但不能留下新结果或其 Session 参加事实。重试已提交的 Agent 操作直接认回原答案。
 
+结果参加按原 execution 读取 SE13/SE15 材料，不依赖当前 pending 输入是否仍包含它。合格 custody 在原 Run ended、后继启动或 Session 归档后仍归原 Consumption，不推进事件解释进度。`recordResult(processed)` 的原 execution 与当前推进位置不相容时返回绑定原 Agent operation 的 conflict。缺材料、资格拒绝和提交未知保留各自结果。同一 active execution 内换 attempt 不改写原调用归属。对应回归在 `tests/result-lifecycle.spec.ts`。
+
 冻结后的终态及后继输入承接先准备相关输入的全部原交入关系和必要前缀，再在当前根决定。原 `ended` 边界、授权、交入目录和解释进度都有同根索引。条目/字节预算耗尽会在内部让出执行；容量不足返回 unavailable，不截短最终释放批次。`finishRun.expected` 保持调用者原值；独立前缀解释若推进 Session 修订，首次请求可以返回 changed。调用者须重读，再以新操作和新 expected 收束。已成功的原操作仍先认回。
 
 ## 受信夹具和故障控制

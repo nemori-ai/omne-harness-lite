@@ -523,7 +523,16 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       }
     }
     const outcome = base.prepareCommand({ command, guards: [] })
-    return 'failure' in outcome ? agentFailure(outcome.failure, input.operation) : undefined
+    if (!('failure' in outcome)) return undefined
+    if (
+      method === 'recordResult' &&
+      command.kind === 'completeConsumption' &&
+      (outcome.failure.kind === 'terminal' ||
+        outcome.failure.kind === 'archived' ||
+        outcome.failure.kind === 'stale-advance')
+    )
+      return { kind: 'conflict', operation: input.operation }
+    return agentFailure(outcome.failure, input.operation)
   }
   async function interpretEvent(
     cell: JournalCell<P>,

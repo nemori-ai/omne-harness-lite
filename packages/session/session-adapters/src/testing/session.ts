@@ -327,6 +327,10 @@ export function createSessionTransactions<P>(
       selected === undefined
         ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
         : { kind: 'selected', inputs: selected }
+    const resultParticipation =
+      command.kind === 'preserveResult' || command.kind === 'completeConsumption'
+        ? command.input.participation
+        : null
     const material =
       store === undefined
         ? undefined
@@ -334,7 +338,7 @@ export function createSessionTransactions<P>(
             store.snapshot,
             store.entries,
             scope,
-            [],
+            resultParticipation === null ? [] : [resultParticipation.execution],
             commandScope(command, store.snapshot) === null ? new Map() : undefined,
           )
     const prepared =

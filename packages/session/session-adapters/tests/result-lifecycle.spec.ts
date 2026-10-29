@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { deriveSessionOperation } from '@omne-harness/session-contract'
-import { evidence, instance, ok, operation, operationId } from './fixtures/common-journal.ts'
+import { evidence, instance, ok, operation, operationId, scene } from './fixtures/common-journal.ts'
+import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import { resultCall } from './fixtures/result-call.ts'
 import { accept, end, start, take } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
@@ -46,8 +47,12 @@ async function observed(s: ResultScene, request: ResultRequest) {
   }
 }
 
-async function lifecycle(name: string, state: Lifecycle) {
-  const s = await resultCall(name)
+async function lifecycle(
+  name: string,
+  state: Lifecycle,
+  qualification = { agent: true, session: true },
+) {
+  const s = await resultCall(name, qualification)
   await take(s)
   ok(
     await s.backend.controls.interpret({
@@ -252,4 +257,154 @@ it('custody does not interpret an unrelated waiting event or advance its readThr
     'call.result-preserved',
   ])
   expect(s.backend.controls.frontierMetrics()).toEqual(metrics)
+})
+
+for (const point of ['before-publish', 'after-publish'] as const)
+  it(`keeps late custody and both operation answers atomic at ${point}`, async () => {
+    const s = await lifecycle(`late-custody-${point}`, 'ended'),
+      request = lateRequest(s, 'custody'),
+      before = await observed(s, request)
+    s.view.controls.faultWrite(request, 'recordResult', point)
+    expect(await s.view.journal.recordResult(request)).toMatchObject({
+      failure: { kind: point === 'before-publish' ? 'unavailable' : 'commit-unknown' },
+    })
+    const after = await observed(s, request)
+    if (point === 'before-publish') expect(after).toEqual(before)
+    else {
+      expect(after.root).toBe(before.root + 1n)
+      expect(after.agent.results[1]?.result).toEqual(request.result)
+      expect(after.work.consumptions[0]?.results[1]?.custody).toEqual(evidence('late-custody'))
+      expect(after.agentAnswer).toMatchObject({ ok: { kind: 'committed' } })
+      expect(after.sessionAnswer).toMatchObject({ ok: { kind: 'committed' } })
+    }
+    const receipt = ok(await s.view.journal.recordResult(request)),
+      recovered = await observed(s, request)
+    expect(recovered.root).toBe(before.root + 1n)
+    expect(recovered.agentAnswer).toEqual({ ok: { kind: 'committed', receipt } })
+    expect(recovered.sessionAnswer).toMatchObject({ ok: { kind: 'committed' } })
+    expect(recovered.rows.slice(before.rows.length).map(row => row.kind)).toEqual([
+      'call.result-preserved',
+    ])
+    expect(recovered.work.run).toEqual(before.work.run)
+  })
+
+for (const kind of ['custody', 'processed'] as const)
+  for (const boundary of ['agent', 'session', 'gap'] as const)
+    it(`preserves the ${boundary} failure when ${kind} is paused before publication`, async () => {
+      const qualification = { agent: true, session: true },
+        s = await lifecycle(`late-${kind}-${boundary}`, 'ended', qualification),
+        request = lateRequest(s, kind),
+        before = await observed(s, request),
+        pause = s.view.controls.pauseWrite(request, 'recordResult'),
+        writing = s.view.journal.recordResult(request)
+      await pause.reached
+      if (boundary === 'gap') s.view.controls.quarantine('confirmed result history gap')
+      else qualification[boundary] = false
+      pause.release()
+      expect(await writing).toMatchObject({
+        failure: { kind: boundary === 'gap' ? 'unavailable' : 'denied' },
+      })
+      qualification.agent = true
+      qualification.session = true
+      expect(s.view.controls.root()).toBe(before.root)
+      expect(s.backend.controls.entriesOf(s.access.tenant, s.access.session)).toEqual(before.rows)
+      if (boundary === 'gap') {
+        expect(await s.view.journal.load(request)).toMatchObject({
+          failure: { kind: 'unavailable', diagnostic: 'confirmed result history gap' },
+        })
+        expect(await s.view.journal.query(request)).toEqual(before.agentAnswer)
+      } else expect(await observed(s, request)).toEqual(before)
+    })
+
+for (const kind of ['custody', 'processed'] as const)
+  it(`rechecks the original ${kind} position after a paused request loses its active Run`, async () => {
+    const s = await lifecycle(`result-root-change-${kind}`, 'active'),
+      request = lateRequest(s, kind),
+      pause = s.view.controls.pauseWrite(request, 'recordResult'),
+      writing = s.view.journal.recordResult(request)
+    await pause.reached
+    expect(ok(await end(s))).toMatchObject({ kind: 'ended' })
+    ok(
+      await s.backend.controls.interpret({
+        ...s.access,
+        execution: s.execution,
+        sequence: '2',
+        operation: operationId('concurrent-ended'),
+      }),
+    )
+    await accept(s, 'successor-input')
+    const successor = ok(await start(s, 'successor')),
+      before = await observed(s, request),
+      successorBefore = ok(
+        await successor.view.journal.load({ ...s.access, execution: successor.execution }),
+      )
+    pause.release()
+    const response = await writing
+    if (kind === 'processed') {
+      expect(response).toEqual({ failure: { kind: 'conflict', operation: request.operation } })
+      expect(await observed(s, request)).toEqual(before)
+    } else {
+      expect(response, JSON.stringify(response)).toHaveProperty('ok')
+      const after = await observed(s, request)
+      expect(after.root).toBe(before.root + 1n)
+      expect(after.work.run).toEqual(before.work.run)
+      expect(after.work.consumptions[0]?.binding).toEqual(s.original.consumptions[0]?.binding)
+      expect(after.agent.results[1]?.result).toEqual(request.result)
+    }
+    expect(
+      ok(await successor.view.journal.load({ ...s.access, execution: successor.execution })),
+    ).toEqual(successorBefore)
+  })
+
+it('does not replace missing original Pending material with the current execution or a claimed result', async () => {
+  const s = await scene('missing-original-pending'),
+    tool = toolCall(s.access.tenant, 'missing-original-pending'),
+    request: ResultRequest = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation('missing-original'),
+      consumption: tool.pending.consumption,
+      result: tool.placeholder,
+      release: { kind: 'pending' },
+      transfer: {
+        kind: 'custody',
+        consumption: tool.pending.consumption,
+        result: tool.placeholder,
+        retained: evidence('claimed-custody'),
+      },
+    },
+    root = s.view.controls.root(),
+    agent = ok(await s.view.journal.load(request)),
+    work = ok(await s.backend.transactions.readWork(s.access))
+  expect(await s.view.journal.recordResult(request)).toMatchObject({
+    failure: { kind: 'unavailable', diagnostic: 'result original pending and invocation' },
+  })
+  expect(s.view.controls.root()).toBe(root)
+  expect(ok(await s.view.journal.load(request))).toEqual(agent)
+  expect(ok(await s.backend.transactions.readWork(s.access))).toEqual(work)
+  expect(await s.view.journal.query(request)).toEqual({ ok: { kind: 'unknown' } })
+})
+
+it('rejects a foreign tenant and an unrelated call without weakening late custody validation', async () => {
+  const s = await lifecycle('late-custody-scope', 'ended'),
+    request = lateRequest(s, 'custody'),
+    before = await observed(s, request),
+    other = toolCall(s.access.tenant, 'unrelated-binding'),
+    mismatched: ResultRequest = {
+      ...request,
+      result: other.placeholder,
+      transfer: {
+        kind: 'custody',
+        consumption: request.consumption,
+        result: other.placeholder,
+        retained: evidence('unrelated-custody'),
+      },
+    }
+  expect(
+    await s.view.journal.recordResult({ ...request, tenant: memoryOtherAccess('tester').tenant }),
+  ).toMatchObject({ failure: { kind: 'denied' } })
+  expect(await s.view.journal.recordResult(mismatched)).toMatchObject({
+    failure: { kind: 'unavailable' },
+  })
+  expect(await observed(s, request)).toEqual(before)
 })
