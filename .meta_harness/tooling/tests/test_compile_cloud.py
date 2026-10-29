@@ -16,6 +16,10 @@ import compile_agents as compiler
 from executable_bits import set_executable, staged_modes
 from projection import compile_sources
 
+# The Cursor cloud image is Ubuntu: its git wrapper is a /bin/sh script that execs /usr/bin/git.
+linux_image = pytest.mark.skipif(
+    sys.platform == "win32", reason="runs the Ubuntu image's /bin/sh git wrapper and /usr/bin/git, which a Windows host lacks")
+
 
 def source_tree(tmp_path: Path) -> Path:
     root = tmp_path / "agents"
@@ -36,11 +40,11 @@ def source_tree(tmp_path: Path) -> Path:
     return root
 
 
+@staged_modes
 def test_cloud_projection_copies_runtime_files_and_keeps_install_executable(tmp_path):
     source = source_tree(tmp_path)
     output = tmp_path / "preview"
     args = ["--source", str(source), "--output", str(output)]
-@staged_modes
     assert compiler.main(args) == 0
     assert compiler.main(args + ["--check"]) == 0
     assert (output / ".cursor/Dockerfile").read_text() == "FROM ubuntu:24.04\n"
@@ -84,11 +88,11 @@ def add_claude_code_setup(source: Path, mode: int = 0o755) -> Path:
     return directory
 
 
+@staged_modes
 def test_claude_code_setup_is_checked_but_not_projected(tmp_path):
     source = source_tree(tmp_path)
     add_claude_code_setup(source)
     output = tmp_path / "preview"
-@staged_modes
     args = ["--source", str(source), "--output", str(output)]
     assert compiler.main(args) == 0
     assert compiler.main(args + ["--check"]) == 0
@@ -126,6 +130,7 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     assert not output.exists()
 
 
+@linux_image
 @pytest.mark.parametrize("configuration", [
     {},
     {"GIT_CONFIG_COUNT": "0"},
@@ -183,6 +188,7 @@ def test_git_wrapper_preserves_caller_configuration_at_exec(tmp_path, configurat
     assert observed["args"] == ["-c", "commit.gpgsign=false", "probe"]
 
 
+@linux_image
 def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     repo = Path(__file__).resolve().parents[3]
     dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")
