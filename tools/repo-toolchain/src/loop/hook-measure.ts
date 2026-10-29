@@ -88,7 +88,7 @@ export function measureForHook(
       conformance,
       assemblyDelta,
     },
-    hardLines: directionLines(report, loopGroupCycleExceptions()),
+    hardLines: directionLines(report, loopGroupCycleExceptions(root)),
     alert: metrics.thresholds.alert,
   }
 }

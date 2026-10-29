@@ -78,7 +78,7 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 - 例外只从可信 runner 的 `constraints.json` 读，不从被检版本读。runner 没有文件或文件是 schema 1、2 时没有例外。
 - 例外放行裁定过的成员边。一个组环（依赖图组间的强连通分量）由 `deps/graph.ts` 的 `group-cycle` 发现给出：`edges` 是环内全部跨组的成员边，`groups` 是环上的组。
 - 一个组环放行，当且仅当它的每一条跨组成员边都登记在某条例外的 `edges` 里。放行不算失败，记下用到的每条例外与边。只要有一条边没登记，组环照常失败：发现的 `message` 末尾写「环上未登记为例外的边：…」（环上一条边都没登记时消息不变），机读的 `edges` 仍是环内全部边。所以两个组之间以后新增的任何未登记的成员边都会让组环失败。
-- 登记的每一条边都必须出现在某个组环发现的 `edges` 里，不论那个组环最后是否放行。没出现的边（边被删、组环已消失、边不在环上）让这条例外产生一条 `unused-group-cycle-exception` 发现，`edges` 是没用上的边，`message` 列出它们，照常失败。
+- 登记的每一条边都必须出现在某个组环发现的 `edges` 里，不论那个组环最后是否放行。没出现的边（边被删、组环已消失、边不在环上）让这条例外产生一条 `unused-group-cycle-exception` 发现，`edges` 是没用上的边，`message` 列出它们，照常失败。只有被检树就是运行检查器的仓库自己时才判这一条：两者解析符号链接后是同一个目录。被检树是另一棵树（`OMNE_RUNNER_ROOT` 指向别处）时，例外登记在 runner 的树里，被检树的组环说明不了例外有没有过期，所以不判没用上。放行规则不变：组环的每条跨组成员边都登记了才放行。`omne-deps`、回路状态与收工钩子用同一个判断（`core/subject.ts` 的 `subjectIsRunner`）。
 - 例外只作用于 `group-cycle`。成员环、文件环、规则违规和方向发现不受影响。
 - 本报告的符合性行不读例外，结构度量的环也不读。
 
@@ -89,7 +89,7 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 | 三条都登记 | 放行，记下用到的边 |
 | 只登记前两条 | 失败，消息末尾写「环上未登记为例外的边：packages/tool/d → packages/context/c」 |
 | 三条都登记，之后新增 `packages/context/e → packages/tool/b` | 失败，消息末尾写「环上未登记为例外的边：packages/context/e → packages/tool/b」 |
-| 三条都登记，之后 `packages/tool/d → packages/context/c` 被删 | 组环由剩下两条边放行，但被删的边不在任何组环里：例外报 `unused-group-cycle-exception` 而失败 |
+| 三条都登记，之后 `packages/tool/d → packages/context/c` 被删 | 组环由剩下两条边放行，但被删的边不在任何组环里：被检树就是 runner 自己时，例外报 `unused-group-cycle-exception` 而失败；跨树检查时不判 |
 
 ## 机械子集
 

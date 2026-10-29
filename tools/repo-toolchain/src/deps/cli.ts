@@ -18,6 +18,7 @@ import {
   runnerGroupCycleExceptions,
   type GroupCycleExceptionFinding,
 } from '../arch/group-cycles.ts'
+import { subjectIsRunner } from '../core/subject.ts'
 import { workingGraph, type DependencyFinding, type DependencyGraph } from './graph.ts'
 
 const USAGE = '用法：[--root <检出目录>]'
@@ -53,7 +54,11 @@ function main(argv: readonly string[]): number {
   const constraints = readRunnerConstraints()
   const graph = workingGraph(root)
   const directions = directionCheck(constraints, graph)
-  const cycles = judgeGroupCycles(graph.findings, runnerGroupCycleExceptions(constraints))
+  const cycles = judgeGroupCycles(
+    graph.findings,
+    runnerGroupCycleExceptions(constraints),
+    subjectIsRunner(root),
+  )
   const findings: readonly (DependencyFinding | DirectionFinding | GroupCycleExceptionFinding)[] = [
     ...cycles.findings,
     ...cycles.unused,
