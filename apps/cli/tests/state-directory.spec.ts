@@ -12,7 +12,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, sep } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 const runsAsRoot = process.getuid?.() === 0
@@ -65,9 +65,11 @@ describe('resolveStateDirectory precedence', () => {
   })
 
   it('defaults to .omne under the home directory', () => {
-    expect(resolveStateDirectory({ flag: undefined, environment: undefined, home: '/h' })).toEqual({
+    // An absolute home in the form of the platform: `/h` on POSIX, `<drive>:\h` on Windows.
+    const home = resolve('/h')
+    expect(resolveStateDirectory({ flag: undefined, environment: undefined, home })).toEqual({
       kind: 'resolved',
-      path: `/h${sep}.omne`,
+      path: `${home}${sep}.omne`,
       source: 'default',
     })
   })
