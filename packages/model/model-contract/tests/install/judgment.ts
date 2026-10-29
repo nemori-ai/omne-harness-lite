@@ -75,9 +75,15 @@ export function judgeTypeFiles(
   return { ok: stray.length === 0, stray, detail: stray.join(', ') || `${files.length} files` }
 }
 
-/** Absolute lines of `tsc --listFiles` output, for both POSIX and drive-letter paths. */
+/**
+ * Absolute lines of `tsc --listFiles` output, for both POSIX and drive-letter paths, as paths of the
+ * platform. On Windows tsc ends its lines with `\r\n` and writes `C:/…` with forward slashes.
+ */
 export function listedFiles(stdout: string): string[] {
-  return stdout.split('\n').filter(line => isAbsolute(line))
+  return stdout
+    .split(/\r?\n/u)
+    .filter(line => isAbsolute(line))
+    .map(line => resolve(line))
 }
 
 export const MARKER = '.install-closure-consumer'
