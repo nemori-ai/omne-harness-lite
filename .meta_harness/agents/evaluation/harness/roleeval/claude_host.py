@@ -8,6 +8,7 @@ that way of running was dropped.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -59,17 +60,31 @@ class Episode:
 
     def touched(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for or got back: where it reached that it should not have."""
-        asked = [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles if needle in args]
         got = [f"a tool result mentions {needle}" for needle in needles
-               if any(needle in text for text in self.tool_outputs)]
-        return asked + got
+               if any(_as_compared(needle) in _as_compared(text) for text in self.tool_outputs)]
+        return self.asked(needles) + got
 
     def asked(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for; what came back is not looked at."""
-        return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles if needle in args]
+        return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles
+                if _as_compared(needle) in _as_compared(args, json_text=True)]
 
     def truncated(self) -> bool:
         return self.stop_reason == "max_tokens"
+
+
+def _as_compared(text: str, *, json_text: bool = False) -> str:
+    """A needle or what a run said, as the two are compared: as written on POSIX.
+
+    On Windows a path may be written with backslashes or slashes and in either case and still name one file, and
+    a tool call's arguments are JSON, which writes each backslash twice; there both sides get one separator (the
+    slash) and one case.
+    """
+    if os.name != "nt":
+        return text
+    if json_text:
+        text = text.replace("\\\\", "\\")
+    return text.replace("\\", "/").casefold()
 
 
 def definition(generated: Path, *, model: str | None = None, tools: list[str] | None = None) -> dict[str, Any]:
