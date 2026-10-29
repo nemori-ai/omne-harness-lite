@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import {
   createIndependentToolScope,
@@ -383,7 +384,8 @@ export function createDemo() {
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'tool-tutorial', key: 'tutorial-slot', grant: scopeGrant },
     consumer: {
@@ -452,3 +454,9 @@ export function createDemo() {
 }
 
 export type Demo = ReturnType<typeof createDemo>
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
+}

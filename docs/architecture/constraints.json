@@ -515,5 +515,17 @@
       "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
       "source": "docs/package-organization.md#依赖方向与cordis集成"
     }
+  ],
+  "groupCycleExceptions": [
+    {
+      "id": "GCX-CONTEXT-TOOL",
+      "edges": [
+        { "from": "packages/context/request-context-contract", "to": "packages/tool/tool-contract" },
+        { "from": "packages/tool/tool-contract", "to": "packages/context/runtime-context-contract" },
+        { "from": "packages/tool/tool", "to": "packages/context/runtime-context-contract" }
+      ],
+      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
+      "reason": "上下文组装要感知工具，工具要感知运行时上下文（PanQiWei 裁定）"
+    }
   ]
 }

@@ -6,6 +6,7 @@
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
+  Adoption,
   ClockSegment,
   DurableEvidence,
   FixedToolRequest,
@@ -410,6 +411,7 @@ function pendingState(
 export type PlanPreparationCommand = WriteCommand &
   Readonly<{
     request: FixedToolRequest
+    environmentAdoption: Adoption
     purpose: 'initial' | 'resume'
     /** The entry the queue domain gave the call before this decision. */
     entry: QueueEntryRecord
@@ -463,7 +465,7 @@ export function decidePlanPreparation<B extends ContentBlock>(
     tenant,
     call,
     operation,
-    adoption: record.request.environment,
+    adoption: command.environmentAdoption,
     inputDigest: command.inputDigest,
     purpose: 'initial',
     request: record.request,

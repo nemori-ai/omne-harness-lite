@@ -17,6 +17,12 @@ export {
   decodeToolWaitId,
 } from './identity.ts'
 export type { CallAccess, Mutation } from './identity.ts'
+export type {
+  ToolCredentialFailure,
+  ToolCredentialRequest,
+  ToolCredentials,
+  ToolCredentialUsage,
+} from './credentials.ts'
 export {
   defaultResultPolicy,
   defaultResultPolicyAdoption,
@@ -44,6 +50,7 @@ export type {
   ToolReloadResult,
 } from './dynamics.ts'
 export { judgeFixedToolRequest, judgeToolInvokeRequest } from './judge-request.ts'
+export { judgePreparationFact } from './judge-preparation.ts'
 export { judgeConsumerRef, judgeHandoff } from './judge-release.ts'
 export { judgeToolState } from './judge-state.ts'
 export { evaluateToolAvailability, presentTool } from './catalog.ts'
@@ -192,3 +199,9 @@ export type {
   ProgramTools,
   ToolChildren,
 } from './program.ts'
+
+export { projectToolBackgroundCalls } from './background-calls-projection.ts'
+export type {
+  ToolBackgroundCallSource,
+  ToolBackgroundCallsSource,
+} from './background-calls-projection.ts'

@@ -1,5 +1,5 @@
 // The local start coordinator (G5): the start ordering domain of P04 for one machine. Every
-// operation runs inside one in-process serial section and reads and writes one `host` domain of
+// operation runs inside its tenant's serial section and reads and writes one `host` domain of
 // the ledger store per tenant, so a permit, an acceptance, a rejection, an exclusion and a guard
 // invalidation are ordered twice: by the section and by the domain revision. A permit is stored
 // when it is issued and carries the revision of each guard it saw; consume accepts only the
@@ -524,15 +524,17 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
   const { store, access, guardsOf, commitAttempts } = input
   if (!Number.isSafeInteger(commitAttempts) || commitAttempts <= 0)
     throw new TypeError('commitAttempts: range')
-  let section: Promise<unknown> = Promise.resolve()
+  const sections = new Map<string, Promise<void>>()
 
-  /** Runs `work` after every earlier operation finished: the in-process serial section. */
-  const serial = <T>(work: () => Promise<T>): Promise<T> => {
-    const turn = section.then(work, work)
-    section = turn.then(
-      () => undefined,
-      () => undefined,
-    )
+  /** Each tenant keeps one queue; an old tail cannot remove a newer queued turn. */
+  const serial = <T>(tenant: TenantId, work: () => Promise<T>): Promise<T> => {
+    const key = JSON.stringify([tenant.organization.text, tenant.account.text])
+    const turn = (sections.get(key) ?? Promise.resolve()).then(work)
+    const release = () => {
+      if (sections.get(key) === tail) sections.delete(key)
+    }
+    const tail = turn.then(release, release)
+    sections.set(key, tail)
     return turn
   }
 
@@ -580,7 +582,7 @@ export function createLocalStartCoordinator<P, B extends ContentBlock = ContentB
     decide: (snapshot: Snapshot, revision: ToolRevision) => Decision<T>,
     unknown: (diagnostic: string) => Outcome<T, ToolFailure>,
   ): Promise<Outcome<T, ToolFailure>> =>
-    serial(async () => {
+    serial(tenant, async () => {
       for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
         const snapshot = await read(tenant)
         if ('failure' in snapshot) return snapshot

@@ -18,7 +18,7 @@ ToolAuthor.waits、返回模式、程序输出协议和验证器随 toolBindings
 
 实现包先构造逐操作 ToolOperation，再由 `createAuthor(construction)` 生成 ToolImplementation。作者插件 fiber 装载并登记它，它不是 toolBindings 提供者的构造依赖。注册与 schema 加载适配在作者插件 fiber 内管理，不为每个 command 新增全局 Cordis 服务键。Catalog 使用装载时派生的 definition；usage 按同一 command 取参数及返回声明。静态元数据和命令说明可序列化，作者函数、SchemaRef 和操作句柄不可序列化。注册构造成功后仍需异步核 schema 一致性，未完成时不公布对应操作可用。
 
-resolve 固定原采用及 command 的操作，不能在 settle 时通过最新服务引用重新选 schema。reload 只影响后续合法采用；会话常驻项只路由到同形实现，见[会话常驻规则](../../tool-contract/SPEC.md#会话常驻规则r1r5)。旧执行及恢复继续使用原绑定或报告不可恢复的缺席。命令所需的额外服务按操作局部注入，不给所有命令并集权限，不向程序执行方暴露 ToolImplementation 或 executor。
+resolve 固定原采用及 command 的操作，不能在 settle 时通过最新服务引用重新选 schema。reload 只影响后续合法采用；常驻项只路由到同形实现，见[常驻持有者规则](../../tool-contract/SPEC.md#会话常驻规则r1r5)。旧执行及恢复继续使用原绑定或报告不可恢复的缺席。命令所需的额外服务按操作局部注入，不给所有命令并集权限，不向程序执行方暴露 ToolImplementation 或 executor。
 
 SchemaProvider 归执行域已有提供者，具体等待/输出阶段适配器注入它并消费根接口。只有需要检查时取得短期 lease，释放 lease 不关闭业务等待；长等待保留原 schema 的可恢复采用。这里不在 Tool 新造 schema 编译缓存或全局服务键，也不将 schema 提供者提升成 Tool 门面的永久必需依赖。准入缺匹配协议时不可用；执行后失去校验能力则保管原返回与 settle 任务。
 
@@ -26,13 +26,13 @@ ToolResult 的 data 与 content 同属原结果保管，退出时一起交接。
 
 ## 作者装载与贡献登记
 
-工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。它不 provide 服务键。它的 inject 是实现包里的静态字面量，含 toolBindings、toolGenerations 与实现需要的服务。它由换代协调者在长期宿主插件的 ctx 下装载，config 为 `{ authority, construction, settings }`。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，经 `toolGenerations.loaderFor(config.authority)` 取得受信 `ToolLoader` 并调用 `load`，再调用 `toolBindings.register`；任一步失败就抛出，fiber 进入 FAILED，由协调者 dispose。ToolLoader 先由实现模块取得实现形状，再派生定义，校验允许配值路径、合法来源及逐命令契约。配置声明沿 [P15](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
+工具作者的声明配置 C 与一次调用 A、环境能力 E 分开。一个工具实现在 Cordis 里是实现包导出的作者插件 fiber。它不 provide 服务键。它的 inject 是实现包里的静态字面量，含 toolBindings、toolGenerations 与实现需要的服务。它由换代协调者在长期宿主插件的 ctx 下装载，config 为 `{ authority, construction, settings }`。插件体只调用 `contributeTool(ctx, config, module)`：校验 config，经 `toolGenerations.loaderFor(config.authority)` 取得受信 `ToolLoader` 并调用 `load`，再调用 `toolBindings.register`；任一步失败就抛出，fiber 进入 FAILED，由协调者 dispose。共享贡献的装载设置只取已核来源层的官方或组织值，Access 只核登记资格。租户设置按调用固定，不进入共享作者闭包。ToolLoader 先由实现模块取得实现形状，再派生定义，校验允许配值路径、合法来源及逐命令契约。配置声明沿 [P15](../../tool-contract/SPEC.md#p15-配置声明与合法装载)，不把治理 settings 写成进程插件树的租户覆盖表。序列化插件配置仍按 IC-14 校验；实际服务、加载器和秘密解析能力通过构造或阶段 DI 注入。
 
 ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与 ToolAuthority，输入见[绑定登记表的登记输入](../../tool-cordis-contract/docs/cordis.md#绑定登记表的登记输入)。`tool-cordis-contract/cordis` 拥有登记语义；具体实现保存调用方 ctx，验证当前加载及贡献资格后，用该 ctx.effect 配对登记和条件撤除。异步核验结束时再次检查调用方生命周期，不能在已撤除 fiber 下遗留贡献。每项回执只撤自己的 token，旧 release 不删除新贡献。根 Context 登记只限测试或装配入口，不能冒充插件贡献的自动归属。
 
 登记提供者不重造资产优先级、持有或发布规则。它按登记键登记，不做候选选择或层序，同键冲突时明确返回 conflict，不默认覆盖。新配置/定义只有完整装载成功才进入后续候选；旧调用的采用及恢复能力由独立执行宿主持有，不能仅因贡献 effect 撤除就丢掉。计划卸载由换代协调者 `toolGenerations` 执行：先关新采用、排空或交接后撤资源，突然失依赖保留未知。
 
-换代协调者是 `ctx.plugin` 句柄的唯一持有者。`ensureLoaded` 动态 import 实现包并装载作者插件。协调者按会话引用保留贡献：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。动词与返回见[换代协调者契约](../../tool-cordis-contract/docs/cordis.md#换代协调者契约)。register 的回执是运行期贡献，不是持久工具调用受理回执。
+换代协调者是 `ctx.plugin` 句柄的唯一持有者。`ensureLoaded` 动态 import 实现包并装载作者插件。协调者按持有者引用保留贡献：有有效持有者引用、且没有同形 serving 替代的贡献，协调者不 dispose。动词与返回见[换代协调者契约](../../tool-cordis-contract/docs/cordis.md#换代协调者契约)。register 的回执是运行期贡献，不是持久工具调用受理回执。
 
 ## 阶段装配与换代
 
@@ -48,7 +48,7 @@ ToolBindingsService.register 在当前资格下接收 ToolLoadedRegistration 与
 | 输出适配 | toolOutputCustody、toolResultPolicy | 原输出先保存，策略缺席不删除原件 |
 | 程序执行方组合适配 | toolChildren、toolRuntime | 程序能力由独立环境提供者注入；仅暴露限权代理 |
 | 作者插件 fiber | toolBindings、toolGenerations 与实现需要的服务，写在实现包的静态字面量里 | 不 provide 服务键；插件体只调用 contributeTool，登记以本 fiber 的 ctx.effect 配对；fiber 撤除时登记随 effect 撤除 |
-| 换代协调者 | toolBindings、toolContributionAuthority、toolResidencyReader、toolResidencyActions | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读会话引用，按保留义务决定是否 dispose |
+| 换代协调者 | toolBindings、toolContributionAuthority、toolResidencyReader | 提供 toolGenerations；唯一持有 ctx.plugin 句柄，作者插件挂在长期宿主 ctx 下，协调者重跑从 snapshot 重建句柄表；经 ToolResidencyReader 读持有者引用，按保留义务决定是否 dispose |
 
 Commands 提供者整体不能把 Catalog 设为静态必需依赖。新准入的定义核验在局部阶段完成；原操作认回、控制及持久事实提交不依赖最新发现。长期 ToolInstanceHost 也不静态依赖目录，实例发布在其独立子 fiber 中 inject 目录和发布资格。Catalog、Directory 与持久 Commands/Reads、长期宿主不得共用一个会连带卸载的提供者 fiber。目录换代只重建发布，不重启业务执行。
 
@@ -63,15 +63,19 @@ Service 方法的 this.ctx 是调用方上下文。host 构造时单独保存自
 ```mermaid
 sequenceDiagram
     participant G as 换代协调者toolGenerations
-    participant R as 会话引用ToolResidencyReader
+    participant R as 持有者引用ToolResidencyReader
     participant B as 绑定登记表
     participant H as 独立Tool宿主
     participant F as 作者插件fiber
-    G->>R: referencing读取会话引用
-    alt 有未归档会话引用且无同形serving替代
-        G-->>G: 返回retained 不做改变
+    G->>B: close登记键
+    loop 逐页直到next为null
+        G->>R: referencing(scope为system,key,after)
+        R-->>G: items含holder tenant shape及next 或unavailable
+    end
+    alt 任意页不可读或有引用且无逐租户同形serving替代
+        G-->>G: reopen原键并返回retained
     else 无引用或有同形替代
-        G->>B: 1 标记draining 新Run不再选它
+        G->>B: 1 保持draining 新采用不再选它
         G->>H: 2 等在途调用收场
         G->>H: 3 按P09交接
         G->>B: 4 release贡献

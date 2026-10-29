@@ -26,15 +26,17 @@
   },
   "dependencies": {
     "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/tool": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
     "@omne-harness/tool-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@typescript/typescript6": "catalog:"
+    "vitest": "catalog:"
   }
 }

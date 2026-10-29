@@ -49,12 +49,18 @@ export async function settlementFixture(
     value?: ToolResult<Block> | ((raw: RawOutput) => ToolResult<Block>)
     wrapReleaseInspection?: (
       environment: ToolEnvironment<Principal, unknown>,
-    ) => Pick<ToolEnvironment<Principal, unknown>, 'inspectRelease'>
+    ) => Pick<ToolEnvironment<Principal, unknown>, 'adoption' | 'inspectRelease'>
     wrapCustody?: (custody: ToolOutputCustody<Principal>) => ToolOutputCustody<Principal>
     wrapAccess?: (access: ToolAccessGuard<Principal>) => ToolAccessGuard<Principal>
   }> = {},
 ) {
-  const harness = startHarness()
+  const ports = {
+    ...testSettlementPorts(),
+    ...(options.custody === undefined ? {} : { custody: options.custody }),
+  }
+  const harness = startHarness({
+    environmentsPort: base => ({ ...base, adoption: ports.releaseInspection.adoption }),
+  })
   const name = options.call ?? 'settlement'
   let access = { principal: principalA, tenant: tenantA, call: callId(name) }
   if (options.tenant === 'b') {
@@ -92,10 +98,6 @@ export async function settlementFixture(
   const recovery = ok(await harness.commands.loadRecovery(access))
   if (recovery.start === null || recovery.execution === null)
     throw new Error('fixture did not start')
-  const ports = {
-    ...testSettlementPorts(),
-    ...(options.custody === undefined ? {} : { custody: options.custody }),
-  }
   const custody = options.wrapCustody?.(ports.custody) ?? ports.custody
   const raw = ok(
     await ports.custody.preserve({

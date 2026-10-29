@@ -2,7 +2,7 @@
 
 [中文](README_ZH.md)
 
-The Cordis service definitions of Tool. The `./cordis` entry exports 20 abstract Service classes and the concrete instance directory `ToolInstancesService`, 21 Service classes in all. It also exports the 21 service keys, the `Context` augmentation and the `tool-cordis-contract/call-changed` and `tool-cordis-contract/binding-changed` event augmentations. The two keys `toolContributionAuthority` and `toolGenerations` and the `binding-changed` event come from [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md). The key `toolStartFence` gives an outer caller only `invalidate` of the start authority; the provider of `toolStartAuthority` serves it in the same ordering domain ([contract SPEC](../tool-contract/SPEC.md#外层调用方的启动围栏)). The `./testing` entry exports the registration-semantics suite of `ToolInstancesService.register`, the G7 suite of the binding registry (input `ToolAuthority`), a non-durable double for each, and the dynamics suite skeleton `runToolDynamicsSuite`. The root entry exports no values.
+The Cordis service definitions of Tool. The `./cordis` entry exports abstract Service classes and the concrete instance directory `ToolInstancesService`. It also exports the service keys, the `Context` augmentation and the `tool-cordis-contract/call-changed` and `tool-cordis-contract/binding-changed` event augmentations. The two keys `toolContributionAuthority` and `toolGenerations` and the `binding-changed` event come from [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md). The key `toolStartFence` gives an outer caller only `invalidate` of the start authority; the provider of `toolStartAuthority` serves it in the same ordering domain ([contract SPEC](../tool-contract/SPEC.md#外层调用方的启动围栏)). The `./testing` entry exports the registration-semantics suite of `ToolInstancesService.register`, the G7 suite of the binding registry (input `ToolAuthority`), a non-durable double for each, and the dynamics suite skeleton `runToolDynamicsSuite`. The root entry exports no values.
 
 ## Responsibility and status
 
@@ -14,7 +14,7 @@ The checkout scope and the cross-package table are in [the group support range](
 
 | Tier | State in this package | Entry | Verification scope |
 | --- | --- | --- | --- |
-| Public types exported | Exported: 20 abstract Service classes and the concrete class `ToolInstancesService`, 21 in all, the 21 service keys, the `Context` augmentation, the `call-changed` and `binding-changed` event augmentations, the registration types and the G7 types (`ToolContributionAuthority`, `ToolGenerations`, `ToolLoadFailure`) | `./cordis`. The root entry exports no values | `tests/public-entry.spec.ts` and `tests/cordis-entry.spec.ts` check each key against its class, the import graph and the manifest. They load the definitions under real Cordis 4.0.4 |
+| Public types exported | Exported: abstract Service classes and the concrete class `ToolInstancesService`, the service keys, the `Context` augmentation, the `call-changed` and `binding-changed` event augmentations, the registration types and the G7 types (`ToolContributionAuthority`, `ToolGenerations`, `ToolLoadFailure`) | `./cordis`. The root entry exports no values | `tests/public-entry.spec.ts` and `tests/cordis-entry.spec.ts` check each key against its class, the import graph and the manifest. They load the definitions under real Cordis 4.0.4 |
 | Pure contract functions implemented | None. The package has no contract function | None | None |
 | Independent execution implemented | None | None | None |
 | Runtime paths implemented | None. The package has no runtime. The one concrete service, `ToolInstancesService`, answers the named failures above | None | Tests cover only the named failures of `ToolInstancesService` |
@@ -47,3 +47,5 @@ The fast tier is `pnpm turbo run test:fast --filter=@omne-harness/tool-cordis-co
 A change to a Service, key or event changes every plugin that extends or listens to it: `tool-host-local` and the Cordis pages of the consumers and the integration page. Keep [docs/cordis.md](docs/cordis.md) and the key table test in step with the source.
 
 ToolRuntimeService projects the ordinary invoke and the queries, commands, instances, content and catalog interfaces. Its source of truth is ToolRuntime in tool-contract. Trusted admission and responses remain on ToolCommandsService. This service definition adds no provider or lifecycle guarantee.
+
+`ToolResidencyReaderService` (`toolResidencyReader`) exposes paged holder, tenant and shape references. See [the service definition](src/cordis.ts).

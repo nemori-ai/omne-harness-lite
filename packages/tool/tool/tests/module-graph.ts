@@ -49,6 +49,7 @@ function relativeTarget(from: string, specifier: string, kind: ModuleKind): stri
   const path = join(dirname(from), specifier)
   if (kind === 'declaration') return path.replace(/\.(ts|js)$/u, '.d.ts')
   if (kind === 'javascript') return path.replace(/\.ts$/u, '.js')
+  if (!existsSync(path) && path.endsWith('.js')) return path.replace(/\.js$/u, '.ts')
   return path
 }
 

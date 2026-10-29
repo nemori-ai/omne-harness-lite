@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-Tool 的 Cordis 服务定义包。`./cordis` 导出 20 个抽象 Service 类和具体实例目录 `ToolInstancesService`，共 21 个 Service 类，另导出 21 个服务键、`Context` 增补与 `tool-cordis-contract/call-changed`、`tool-cordis-contract/binding-changed` 事件增补。`toolContributionAuthority`、`toolGenerations` 两个键与事件 `binding-changed` 来自 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md)。键 `toolStartFence` 只给外层调用方启动排序域的 `invalidate`，由 `toolStartAuthority` 的提供者在同一排序域提供（[契约 SPEC](../tool-contract/SPEC.md#外层调用方的启动围栏)）。`./testing` 导出 `ToolInstancesService.register` 的登记语义套件、绑定登记表的 G7 套件（输入 `ToolAuthority`）、各自守约的非耐久替身，以及动态性套件骨架 `runToolDynamicsSuite`。根入口不导出值。
+Tool 的 Cordis 服务定义包。`./cordis` 导出抽象 Service 类和具体实例目录 `ToolInstancesService`，另导出 服务键、`Context` 增补与 `tool-cordis-contract/call-changed`、`tool-cordis-contract/binding-changed` 事件增补。`toolContributionAuthority`、`toolGenerations` 两个键与事件 `binding-changed` 来自 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md)。键 `toolStartFence` 只给外层调用方启动排序域的 `invalidate`，由 `toolStartAuthority` 的提供者在同一排序域提供（[契约 SPEC](../tool-contract/SPEC.md#外层调用方的启动围栏)）。`./testing` 导出 `ToolInstancesService.register` 的登记语义套件、绑定登记表的 G7 套件（输入 `ToolAuthority`）、各自守约的非耐久替身，以及动态性套件骨架 `runToolDynamicsSuite`。根入口不导出值。
 
 ## 职责与状态
 
@@ -14,7 +14,7 @@ Tool 的 Cordis 服务定义包。`./cordis` 导出 20 个抽象 Service 类和�
 
 | 档 | 本包的状态 | 入口 | 验证范围 |
 | --- | --- | --- | --- |
-| 公开类型已导出 | 已导出：20 个抽象 Service 类与 1 个具体类 `ToolInstancesService`，共 21 个，21 个服务键、`Context` 增补、`call-changed` 与 `binding-changed` 事件增补、登记类型与 G7 类型（`ToolContributionAuthority`、`ToolGenerations`、`ToolLoadFailure`） | `./cordis`。根入口不导出值 | `tests/public-entry.spec.ts` 与 `tests/cordis-entry.spec.ts` 逐对核对键与类、导入图和清单依赖，并在真实 Cordis 4.0.4 下加载定义 |
+| 公开类型已导出 | 已导出：抽象 Service 类与 1 个具体类 `ToolInstancesService`，服务键、`Context` 增补、`call-changed` 与 `binding-changed` 事件增补、登记类型与 G7 类型（`ToolContributionAuthority`、`ToolGenerations`、`ToolLoadFailure`） | `./cordis`。根入口不导出值 | `tests/public-entry.spec.ts` 与 `tests/cordis-entry.spec.ts` 逐对核对键与类、导入图和清单依赖，并在真实 Cordis 4.0.4 下加载定义 |
 | 纯契约函数已实现 | 无。本包没有契约函数 | 无 | 无 |
 | 独立执行已实现 | 无 | 无 | 无 |
 | runtime 已实现的路径 | 无。本包没有 runtime。唯一的具体服务 `ToolInstancesService` 回复上述具名失败 | 无 | 只测了 `ToolInstancesService` 的具名失败 |
@@ -77,3 +77,5 @@ tool-cordis-contract/
 完整文件导航见 [index](index.md)。主题职责见 [docs/README](docs/README.md)。
 
 ToolRuntimeService 投影普通 invoke 及 queries、commands、instances、content 与 catalog，形状以 tool-contract 的 ToolRuntime 为准。受信 admission 和回应保留在 ToolCommandsService。本定义不增加提供者或生命周期保证。
+
+`ToolResidencyReaderService` (`toolResidencyReader`) 提供持有者、租户与 shape 的分页引用查询，见[服务定义](src/cordis.ts)。

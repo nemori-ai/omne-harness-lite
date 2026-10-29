@@ -1,3 +1,4 @@
+import { matchEnvironmentAdoption } from './environment-adoption.ts'
 // The ledger factory (G1): `createToolLedger(store, guards, clock, configuration, settlement)` gives the
 // ToolCommands and ToolReads of this implementation, and the admission entry that the runtime
 // uses. Each entry checks its boundary input, asks the guards, reads the domain, lets a pure
@@ -41,6 +42,7 @@ import {
   judgeHandoff,
   judgeToolArguments,
   type PreparationRecord,
+  type ReleaseRecord,
   type StartProgress,
   type ToolClock,
   type ToolCommands,
@@ -712,7 +714,16 @@ export function createToolLedger<P, B extends ContentBlock>(
       return invalid(`request.${judged.failure.field}`, judged.failure.reason)
     const purpose: unknown = Reflect.get(input, 'purpose')
     if (purpose !== 'initial' && purpose !== 'resume') return invalid('purpose', 'value')
-    const command = writeCommand(context.ok, { request: judged.ok, purpose })
+    const environmentAdoption = judgeAdoptionField(
+      Reflect.get(input, 'environmentAdoption'),
+      'environmentAdoption',
+    )
+    if ('failure' in environmentAdoption) return environmentAdoption
+    const command = writeCommand(context.ok, {
+      request: judged.ok,
+      purpose,
+      environmentAdoption: environmentAdoption.ok,
+    })
     const before = await peek(context.ok)
     if ('failure' in before) return before
     let entry: QueueEntryRecord | null = null
@@ -734,6 +745,7 @@ export function createToolLedger<P, B extends ContentBlock>(
           {
             ...command,
             request: judged.ok,
+            environmentAdoption: environmentAdoption.ok,
             purpose,
             entry: ordinal ?? missingEntry(context.ok.call, command.operation),
             key: queueKeyOf(judged.ok),
@@ -1018,6 +1030,28 @@ export function createToolLedger<P, B extends ContentBlock>(
     return releaseQueue(context.ok, record.ok, settled.ok)
   }
 
+  const confirmEnvironmentRelease = async (
+    context: MutationInput<P>,
+    release: ReleaseRecord,
+    evidence: DurableEvidence,
+  ): Promise<Outcome<void, ToolFailure>> => {
+    try {
+      const matching = matchEnvironmentAdoption(settlement.releaseInspection, release.adoption)
+      if ('failure' in matching) return matching
+      const inspected = await settlement.releaseInspection.inspectRelease({
+        ...context,
+        release: structuredClone(release),
+      })
+      if ('failure' in inspected || inspected.ok.kind !== 'released')
+        return unavailable('environment', 'environment release confirmation is unavailable')
+      return sameFactValue(inspected.ok.evidence, evidence)
+        ? succeed(undefined)
+        : invalid('outcome.evidence', 'environment-release-confirmation-mismatch')
+    } catch {
+      return unavailable('environment', 'environment release confirmation is unavailable')
+    }
+  }
+
   const commands: ToolCommands<P, B> = {
     admit: async input => {
       const admitted = await admissions.admit(input)
@@ -1158,18 +1192,12 @@ export function createToolLedger<P, B extends ContentBlock>(
       if ('failure' in original) return original
       if (original.ok.kind === 'recalled') return succeed(original.ok.evidence)
       if (outcome.ok.kind === 'released') {
-        try {
-          const inspected = await settlement.releaseInspection.inspectRelease({
-            ...context,
-            release: structuredClone(original.ok.release),
-          })
-          if ('failure' in inspected || inspected.ok.kind !== 'released')
-            return unavailable('environment', 'environment release confirmation is unavailable')
-          if (!sameFactValue(inspected.ok.evidence, outcome.ok.evidence))
-            return invalid('outcome.evidence', 'environment-release-confirmation-mismatch')
-        } catch {
-          return unavailable('environment', 'environment release confirmation is unavailable')
-        }
+        const confirmed = await confirmEnvironmentRelease(
+          context,
+          original.ok.release,
+          outcome.ok.evidence,
+        )
+        if ('failure' in confirmed) return confirmed
       }
       return transact(
         callDomain(context),
