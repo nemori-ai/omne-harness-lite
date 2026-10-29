@@ -35,6 +35,7 @@ import type {
   ProducedResult,
   ProducerRef,
   Relation,
+  ResidentAdoption,
   RoutedInput,
   RunTerminal,
   ScopeReleaseDisposition,
@@ -104,7 +105,12 @@ export interface SessionWork<P> {
   ): Reply<Extract<RoutedInput, { kind: 'ordinary' }>>
   startRun(
     input: Mutation<P> &
-      Readonly<{ entry: EntryClass; candidate: Adoption; instance: AgentInstanceRef }>,
+      Readonly<{
+        entry: EntryClass
+        candidate: Adoption
+        instance: AgentInstanceRef
+        residentAdoption?: ResidentAdoption
+      }>,
   ): Reply<StartedRun>
   claim(
     input: Mutation<P> &
@@ -118,6 +124,7 @@ export interface SessionWork<P> {
         instance: AgentInstanceRef
         expected: SessionRevision
         handover: DurableEvidence
+        residentAdoption?: ResidentAdoption
       }>,
   ): Reply<Readonly<{ receipt: CommitReceipt; advance: AdvanceRef }>>
   recordMessage(
@@ -215,12 +222,7 @@ export interface SessionManagement<P> {
   freeze(input: Mutation<P> & Readonly<{ verdict: FreezeVerdict }>): Reply<CommitReceipt>
 }
 
-/**
- * The facts that `receive` writes. The superseded Agent-event copy (`agent-event`) and the tool
- * start fence (`start-fence`) are not here: Agent facts reach Session by the Agent host's
- * receiving surface and the Agent journal `start-fence` entry (#672); the expression of the
- * control, result, recovery and unknown responsibilities they carried is design work of #756.
- */
+/** Producer reports. Agent log interpretation uses the Session-owned projection seam, not an event-copy input. */
 export type ProducerFact =
   | Readonly<{
       kind: 'input-handover'
@@ -260,6 +262,7 @@ export type ProducerFact =
 
 /** Every value is decided from the snapshot alone, so the index stays exact at commit time. unresolved: unknown operations; controls: a control stays propagating; tasks: tasks non-empty; inputs: pending inputs non-empty; run: an unfinished Run exists; idle-armed: auto-archive is enabled, not exempt, and no Run is unfinished, so the scanner asks judgeIdle whether it is due; release: a preserved or processed result still waits for delivery release. */
 export type PendingReason =
+  | 'initialization'
   | 'unresolved'
   | 'controls'
   | 'tasks'

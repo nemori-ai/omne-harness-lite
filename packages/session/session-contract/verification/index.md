@@ -1,9 +1,5 @@
 # verification 索引
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-- [README.md](README.md)：验证资源的范围与现状。现在没有资源
-- [models/](models/index.md)：形式模型，现在为空
-- [proofs/](proofs/index.md)：论证与证明，现在为空
+- [README](README.md)：持续验证资源与声明边界。
+- [models](models/index.md)：形式模型。
+- [proofs](proofs/index.md)：论证与证明，当前没有资源。

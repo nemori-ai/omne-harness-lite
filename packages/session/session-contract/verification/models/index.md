@@ -1,7 +1,6 @@
 # verification/models 索引
 
-本文件列出本目录的文件、子目录与阅读路径。职责说明见 [README.md](README.md)。
-
-## 内容
-
-- [README.md](README.md)：模型清单与前提。现在没有模型
+- [README](README.md)：模型维护边界。
+- [frontier](frontier/README.md)：四个有限模型、运行器与测量自检。
+- [条款与动作映射](frontier/mapping.md)：实现的接续义务。
+- [配置与具名目标](frontier/case-catalog.md)：所有配置的目标。

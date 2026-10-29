@@ -4,6 +4,8 @@
 
 ## 内容
 
+- [testing.md](testing.md)：共同日志内存提供者、受信夹具、故障控制与验证边界
+
 - [architecture.md](architecture.md)：边界、模块、关键机制与理由、SOLID 与扩展边界
 - [flows.md](flows.md)：每个插件一条流程，失败与生命周期
 - [object-model.md](object-model.md)：运行对象、身份对应与生命周期

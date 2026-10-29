@@ -27,6 +27,7 @@
 - `Consumption` · `values.d.ts`
 - `ConsumptionId` · `identity.d.ts`
 - `ContextMaterial` · `values.d.ts`
+- `ContextScopeBinding` · `values.d.ts`
 - `Control` · `values.d.ts`
 - `ControlIntent` · `values.d.ts`
 - `ControlProgress` · `values.d.ts`
@@ -45,6 +46,7 @@
 - `EncodedEntry` · `judgments.d.ts`
 - `EntryClass` · `faces.d.ts`
 - `EntryId` · `identity.d.ts`
+- `ExecutionHistoryBoundary` · `history-values.d.ts`
 - `ExecutionRef` · `values.d.ts`
 - `ExecutionStatus` · `ports.d.ts`
 - `ExternalCompletion` · `faces.d.ts`
@@ -52,10 +54,26 @@
 - `GuardCommand` · `ports.d.ts`
 - `HistoryEntry` · `faces.d.ts`
 - `HistoryPage` · `faces.d.ts`
+- `INITIALIZATION_PROTOCOL` · `initialization-schema.d.ts`
 - `IdleCoverage` · `values.d.ts`
 - `IdleJudgment` · `judgments.d.ts`
 - `IdleObservation` · `values.d.ts`
+- `InitialAdoption` · `values.d.ts`
+- `InitializationAdoption` · `values.d.ts`
+- `InitializationConsequence` · `values.d.ts`
+- `InitializationFactReference` · `values.d.ts`
+- `InitializationGuardFacts` · `values.d.ts`
+- `InitializationGuardResult` · `values.d.ts`
+- `InitializationPlanItem` · `values.d.ts`
+- `InitializationRegistration` · `values.d.ts`
+- `InitializationRequirement` · `values.d.ts`
 - `InitializationResult` · `values.d.ts`
+- `InitializationSource` · `values.d.ts`
+- `InitializationSources` · `values.d.ts`
+- `InitializationState` · `values.d.ts`
+- `InputAdmissionBoundary` · `history-values.d.ts`
+- `InputAdmissionMember` · `history-values.d.ts`
+- `InputAdmissionPage` · `history-values.d.ts`
 - `InputBatch` · `values.d.ts`
 - `InputId` · `identity.d.ts`
 - `ModelViewBasis` · `faces.d.ts`
@@ -78,12 +96,14 @@
 - `Relation` · `values.d.ts`
 - `ReleasedScope` · `faces.d.ts`
 - `Reply` · `faces.d.ts`
+- `ResidentAdoption` · `values.d.ts`
 - `ResidentKey` · `identity.d.ts`
 - `ResidentReference` · `faces.d.ts`
 - `ResidentTool` · `values.d.ts`
 - `ResultConsumption` · `values.d.ts`
 - `RouteJudgment` · `judgments.d.ts`
 - `RoutedInput` · `values.d.ts`
+- `RunExecution` · `values.d.ts`
 - `RunId` · `identity.d.ts`
 - `RunStartJudgment` · `judgments.d.ts`
 - `RunState` · `values.d.ts`
@@ -92,42 +112,64 @@
 - `ScopeReleasePort` · `ports.d.ts`
 - `ScopeReleaseReadback` · `ports.d.ts`
 - `SessionAccess` · `identity.d.ts`
+- `SessionAttemptRecord` · `history-values.d.ts`
+- `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
+- `SessionCallEntryReferences` · `work-entry-values.d.ts`
+- `SessionCallRecord` · `call-values.d.ts`
+- `SessionCallRegistration` · `call-values.d.ts`
+- `SessionCallWait` · `call-values.d.ts`
 - `SessionCallerClass` · `identity.d.ts`
 - `SessionClock` · `ports.d.ts`
 - `SessionCommand` · `ports.d.ts`
 - `SessionContextInput` · `ports.d.ts`
+- `SessionControlEntryReferences` · `work-entry-values.d.ts`
 - `SessionCreation` · `values.d.ts`
 - `SessionEvidenceBridge` · `ports.d.ts`
+- `SessionExecutionPrefix` · `history-values.d.ts`
 - `SessionFaces` · `faces.d.ts`
+- `SessionFactBoundary` · `history-values.d.ts`
 - `SessionFailure` · `faces.d.ts`
 - `SessionFrozen` · `values.d.ts`
 - `SessionHistory` · `faces.d.ts`
+- `SessionHistoryIndex` · `history-values.d.ts`
+- `SessionHistoryReads` · `history-values.d.ts`
 - `SessionId` · `identity.d.ts`
 - `SessionIdentity` · `identity.d.ts`
 - `SessionIdentityBridge` · `ports.d.ts`
 - `SessionIdleInput` · `ports.d.ts`
+- `SessionInputAdmission` · `history-values.d.ts`
+- `SessionInputScope` · `history-values.d.ts`
 - `SessionInternalPrincipals` · `ports.d.ts`
+- `SessionLogConsequence` · `projection.d.ts`
+- `SessionLogObservation` · `projection.d.ts`
+- `SessionLogRoot` · `history-values.d.ts`
 - `SessionManagement` · `faces.d.ts`
 - `SessionNotifier` · `ports.d.ts`
 - `SessionOperationElements` · `operations.d.ts`
 - `SessionOperationId` · `identity.d.ts`
+- `SessionPrefixFact` · `history-values.d.ts`
 - `SessionReconciliation` · `faces.d.ts`
 - `SessionRevision` · `identity.d.ts`
+- `SessionTakenRecord` · `history-values.d.ts`
 - `SessionTransactionPort` · `ports.d.ts`
 - `SessionWork` · `faces.d.ts`
+- `SessionWorkEntryIndex` · `work-entry-values.d.ts`
 - `StartedRun` · `faces.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
 - `WorkspaceAttachment` · `values.d.ts`
+- `commandDigest` · `decide.d.ts`
 - `decide` · `decide.d.ts`
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
+- `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
 - `judgeIdle` · `judgments.d.ts`
 - `judgeRunStart` · `judgments.d.ts`
 - `openWork` · `judgments.d.ts`
+- `projectSessionLog` · `projection.d.ts`
 - `reduce` · `reduce.d.ts`
 - `resolveCascade` · `judgments.d.ts`
 - `resolveControlScope` · `judgments.d.ts`
@@ -140,21 +182,38 @@
 - `CaseVerdict` · `testing-case.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
 - `IdentityScript` · `testing-ports.d.ts`
+- `MemoryAgentDrive` · `testing-providers.d.ts`
+- `MemoryInitializationSource` · `testing-initialization-source.d.ts`
+- `MemoryInitializationTransactions` · `testing-transactions.d.ts`
+- `MemoryScopeRelease` · `testing-providers.d.ts`
 - `MemorySessionClock` · `testing-ports.d.ts`
 - `MemorySessionContextInput` · `testing-ports.d.ts`
 - `MemorySessionEvidenceBridge` · `testing-ports.d.ts`
+- `MemorySessionHistorySource` · `testing-history-source.d.ts`
+- `MemorySessionIdleInput` · `testing-providers.d.ts`
+- `MemorySessionLogTransactions` · `testing-transactions.d.ts`
+- `MemorySessionNotifier` · `testing-providers.d.ts`
+- `MemorySessionTransactionOptions` · `testing-transactions.d.ts`
 - `MemorySessionTransactions` · `testing-transactions.d.ts`
 - `NotApplicable` · `testing-case.d.ts`
 - `ScriptedSessionIdentityBridge` · `testing-ports.d.ts`
 - `SessionTransactionsFixture` · `testing-transactions.d.ts`
 - `TESTING_OWNER` · `testing-values.d.ts`
+- `adoptedInitializationFixture` · `testing-initialization.d.ts`
 - `adoption` · `testing-values.d.ts`
+- `agentDriveConformance` · `testing-provider-conformance.d.ts`
 - `assertIndistinguishable` · `testing-case.d.ts`
 - `assistantMessage` · `testing-values.d.ts`
 - `conformanceCase` · `testing-case.d.ts`
+- `createMemoryAgentDrive` · `testing-providers.d.ts`
+- `createMemoryInitializationSource` · `testing-initialization-source.d.ts`
+- `createMemoryScopeRelease` · `testing-providers.d.ts`
 - `createMemorySessionClock` · `testing-ports.d.ts`
 - `createMemorySessionContextInput` · `testing-ports.d.ts`
 - `createMemorySessionEvidenceBridge` · `testing-ports.d.ts`
+- `createMemorySessionHistorySource` · `testing-history-source.d.ts`
+- `createMemorySessionIdleInput` · `testing-providers.d.ts`
+- `createMemorySessionNotifier` · `testing-providers.d.ts`
 - `createMemorySessionTransactions` · `testing-transactions.d.ts`
 - `createScriptedSessionIdentityBridge` · `testing-ports.d.ts`
 - `creation` · `testing-values.d.ts`
@@ -162,6 +221,8 @@
 - `expectKind` · `testing-case.d.ts`
 - `guard` · `testing-values.d.ts`
 - `handle` · `testing-case.d.ts`
+- `initializationFixtureFacts` · `testing-initialization.d.ts`
+- `initializationFixtureGuard` · `testing-initialization.d.ts`
 - `inputId` · `testing-values.d.ts`
 - `isNotApplicable` · `testing-case.d.ts`
 - `memoryAccess` · `testing-values.d.ts`
@@ -173,7 +234,14 @@
 - `pendingReasonsOf` · `testing-transactions.d.ts`
 - `refused` · `testing-case.d.ts`
 - `runConformanceCase` · `testing-case.d.ts`
+- `scopeReleaseConformance` · `testing-provider-conformance.d.ts`
+- `sessionClockConformance` · `testing-provider-conformance.d.ts`
+- `sessionContextInputConformance` · `testing-provider-conformance.d.ts`
+- `sessionEvidenceBridgeConformance` · `testing-provider-conformance.d.ts`
 - `sessionId` · `testing-values.d.ts`
+- `sessionIdentityBridgeConformance` · `testing-provider-conformance.d.ts`
+- `sessionIdleInputConformance` · `testing-provider-conformance.d.ts`
+- `sessionNotifierConformance` · `testing-provider-conformance.d.ts`
 - `sessionTransactionsConformance` · `testing-transactions.d.ts`
 - `shapeOf` · `testing-case.d.ts`
 - `succeeded` · `testing-case.d.ts`
@@ -186,6 +254,134 @@
 ```ts
 import type { SessionBlockDeclaration } from './ports.ts';
 export declare const sessionModesBlock: SessionBlockDeclaration;
+```
+
+## 声明文件 `call-state.d.ts`
+
+```ts
+import type { ConsumptionId, DurableEvidence, RunId } from './identity.ts';
+import type { CallBinding, WorkSnapshot, Waiting, ProducedResult } from './values.ts';
+import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare class CallConflict extends Error {
+}
+export declare function validateBinding(snapshot: WorkSnapshot, binding: CallBinding, run?: RunId): void;
+export declare function associated(binding: CallBinding, purpose: string): SessionCallRegistration;
+export declare function validateRegistration(snapshot: WorkSnapshot, registration: SessionCallRegistration, run?: RunId): void;
+export declare function legacyRegistration(snapshot: WorkSnapshot, consumption: ConsumptionId, binding: CallBinding): SessionCallRegistration;
+export declare function registerCall(draft: Draft, consumption: ConsumptionId, registration: SessionCallRegistration, source: DurableEvidence, association: DurableEvidence | null): void;
+export declare function registeredWaiting(draft: Draft, run: RunId, calls: readonly SessionCallWait[], other: readonly Waiting[]): void;
+export declare function validateResult(binding: CallBinding, result: ProducedResult): void;
+export declare const waitKey: (wait: SessionCallWait) => string;
+export {};
+```
+
+## 声明文件 `call-values.d.ts`
+
+```ts
+import type { AttemptId, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts';
+import type { CallBinding, ProducerRef } from './values.ts';
+export type SessionCallRegistration = Readonly<{
+    kind: 'associated';
+    binding: CallBinding & Readonly<{
+        producer: Extract<ProducerRef, {
+            kind: 'model';
+        }>;
+    }>;
+    purpose: 'main' | 'compaction' | 'extension';
+}> | Readonly<{
+    kind: 'associated';
+    binding: CallBinding & Readonly<{
+        producer: Extract<ProducerRef, {
+            kind: 'tool';
+        }>;
+    }>;
+    purpose: 'action';
+}> | Readonly<{
+    kind: 'tool-intent';
+    action: string;
+    consumer: ConsumerRef;
+    request: DurableEvidence;
+    initiatingAttempt: AttemptId | null;
+    purpose: 'action';
+}>;
+export type SessionCallRecord = Readonly<{
+    consumption: ConsumptionId;
+    registration: SessionCallRegistration;
+    registered: DurableEvidence;
+    association: DurableEvidence | null;
+}>;
+export type SessionCallWait = Readonly<{
+    consumption: ConsumptionId;
+    position: string;
+}>;
+```
+
+## 声明文件 `control-state.d.ts`
+
+```ts
+import type { ControlProgress, WorkSnapshot } from './values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare function validateControlIdentity(snapshot: WorkSnapshot, progress: ControlProgress): void;
+export declare function validateControlProgress(snapshot: WorkSnapshot, progress: ControlProgress): void;
+export declare function requestControl(draft: Draft, progress: ControlProgress): void;
+export {};
+```
+
+## 声明文件 `decide-initialization.d.ts`
+
+```ts
+import type { SessionCommand, GuardCommand } from './ports.ts';
+import type { Decision, DecideReads } from './judgments.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare function decideInitializationCreate(command: Extract<SessionCommand, {
+    kind: 'create';
+}>, guards: readonly GuardCommand[]): Decision;
+export declare function decideInitializationComplete(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'completeInitialization';
+}>, guards: readonly GuardCommand[], reads: DecideReads): Decision;
+export declare function validateInitializationRecall(previous: WorkSnapshot | null, command: Extract<SessionCommand, {
+    kind: 'create' | 'completeInitialization';
+}>, guards: readonly GuardCommand[]): Decision | null;
+```
+
+## 声明文件 `decide-management.d.ts`
+
+```ts
+import type { SessionCommand } from './ports.ts';
+import type { ContextScopeBinding, ControlIntent, WorkSnapshot } from './values.ts';
+import type { Decision, DecideReads } from './judgments.ts';
+import type { SessionOperationId } from './identity.ts';
+export declare function scopeBinding(snapshot: Pick<WorkSnapshot, 'tenant' | 'session' | 'contextScopes'>, operation: SessionOperationId): ContextScopeBinding;
+export declare function decideControl(snapshot: WorkSnapshot, intent: ControlIntent, operation: SessionOperationId, reads: DecideReads): Decision;
+export declare function decideManagement(snapshot: WorkSnapshot, command: SessionCommand, reads: DecideReads): Decision;
+```
+
+## 声明文件 `decide-receive.d.ts`
+
+```ts
+import type { SessionCommand } from './ports.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { Decision } from './judgments.ts';
+export declare function decideProducerFact(snapshot: WorkSnapshot, command: Extract<SessionCommand, {
+    kind: 'receive';
+}>): Decision;
+```
+
+## 声明文件 `decide-results.d.ts`
+
+```ts
+import type { ConsumptionId } from './identity.ts';
+import type { WorkSnapshot, ProducedResult } from './values.ts';
+import type { SessionCommand } from './ports.ts';
+import { type Decision } from './judgments.ts';
+export declare const consumptionIdOf: (binding: unknown) => ConsumptionId;
+export declare function resultRefusal(snapshot: WorkSnapshot, consumption: ConsumptionId, result: ProducedResult, operation: SessionCommand['input']['operation']): Decision | null;
+export declare function decideResults(snapshot: WorkSnapshot, command: SessionCommand): Decision;
 ```
 
 ## 声明文件 `decide.d.ts`
@@ -209,19 +405,42 @@ export declare function attemptIdOf(run: RunId, ordinal: string): AttemptId;
 export declare function executionIdOf(run: RunId): string;
 export declare const LOGIN_ENTRY_OWNER = "login-entry";
 export declare function commandDigest(command: SessionCommand): string;
-export declare function decide(previous: WorkSnapshot | null, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, _reads: DecideReads): Decision;
+export declare function decide(previous: WorkSnapshot | null, command: SessionCommand, guards: readonly GuardCommand[], record: OperationRecord | null, reads: DecideReads): Decision;
+```
+
+## 声明文件 `decision-support.d.ts`
+
+```ts
+import type { DurableEvidence, SessionOperationId } from './identity.ts';
+import type { WorkSnapshot, ResidentAdoption, RunTerminal } from './values.ts';
+import type { HistoryEntry, SessionFailure } from './faces.ts';
+import type { Decision, EncodedEntry } from './judgments.ts';
+export declare const rejected: (failure: SessionFailure) => Decision;
+export declare const invalid: (field: string, reason: string) => Decision;
+export declare const entries: (values: readonly EncodedEntry[]) => Decision;
+export declare const sourceOf: (operation: SessionOperationId, what: string) => DurableEvidence;
+export declare const originOf: (source: DurableEvidence) => HistoryEntry['origin'];
+export declare const completeEvidence: (source: DurableEvidence) => boolean;
+export declare function residentEntries(snapshot: Pick<WorkSnapshot, 'residents'> | null, material: ResidentAdoption | undefined, source: DurableEvidence): Decision;
+export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTerminal, source: DurableEvidence, interpretation?: Readonly<{
+    sequence: string | null;
+    cause: DurableEvidence | null;
+    disposition: DurableEvidence;
+}>): EncodedEntry[];
 ```
 
 ## 声明文件 `entries.d.ts`
 
 ```ts
 import type { JsonValue } from '@omne-harness/json-text';
-import { type TenantId } from '@omne-harness/legal-identity';
+import { type TenantId, type WorkspaceId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Adoption, AgentInstanceRef, AttemptId, ConsumptionId, DurableEvidence, InputId, RunId, SessionId, SessionOperationId } from './identity.ts';
-import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation } from './values.ts';
+import type { BoundedClose, InitializationResult, Participation, RecoveryTask, RunTerminal, SessionCreation, ResidentAdoption, ResidentTool, DeclarationChange, Relation, AutoArchivePolicy, IdleObservation, ControlProgress, ContextScopeBinding, CallBinding, ProducedResult, InputBatch, Waiting, ExecutionRef } from './values.ts';
 import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { EncodedEntry } from './judgments.ts';
+import type { InitialAdoption, InitializationAdoption, InitializationGuardResult, InitializationFactReference, InitializationPlanItem, InitializationRequirement, InitializationRegistration } from './values.ts';
+import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
 export declare const SESSION_INTERPRETER: Adoption;
 export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
@@ -233,12 +452,31 @@ export type SessionEntry = Readonly<{
     operation: SessionOperationId;
     creation: SessionCreation;
     items: readonly InitializationItem[];
+    initializationProtocol: 1;
+    initialAdoption: InitialAdoption;
+    requirements: readonly InitializationRequirement[];
+    plan: readonly InitializationPlanItem[];
+    input: JsonValue;
 }> | Readonly<{
     kind: 'session.initialization-item';
     result: InitializationResult;
+    createOperation: SessionOperationId;
+    operation: SessionOperationId;
+    plan: InitializationPlanItem;
+    outcome: InitializationGuardResult;
+    facts: readonly InitializationFactReference[];
 }> | Readonly<{
     kind: 'session.adoption';
     adopted: Adoption;
+    residentKeys?: ResidentAdoption['keys'];
+    initialization?: Readonly<{
+        createOperation: SessionOperationId;
+        item: Readonly<{
+            owner: string;
+            item: string;
+        }> | null;
+        adoption: InitializationAdoption;
+    }>;
 }> | Readonly<{
     kind: `message.${Message['role']}`;
     message: Message;
@@ -291,6 +529,123 @@ export type SessionEntry = Readonly<{
     cause: DurableEvidence | null;
     disposition: DurableEvidence | null;
     bounded: BoundedClose | null;
+}> | Readonly<{
+    kind: 'session.tool-resident-admitted';
+    resident: ResidentTool;
+}> | Readonly<{
+    kind: 'session.mode-changed' | 'session.model-selected' | 'session.declaration-adopted' | 'session.context-registration-changed' | 'session.recovery-input-adopted';
+    declaration: DeclarationChange;
+    scope: string | null;
+    initialization?: Readonly<{
+        createOperation: SessionOperationId;
+        plan: InitializationPlanItem;
+        prepared: DurableEvidence;
+        decision: InitializationRegistration;
+    }>;
+}> | Readonly<{
+    kind: 'session.workspace-changed';
+    workspace: WorkspaceId | null;
+    workspaceAttachment: SessionCreation['workspaceAttachment'];
+    basis: DurableEvidence;
+}> | Readonly<{
+    kind: 'session.declaration-adopted';
+    policy: AutoArchivePolicy;
+}> | Readonly<{
+    kind: 'session.relation' | 'session.resident';
+    relation: Relation;
+}> | Readonly<{
+    kind: 'session.idle-evidence';
+    observation: IdleObservation | null;
+}> | Readonly<{
+    kind: 'session.frozen';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'intake.released';
+    inputs: readonly InputId[];
+}> | Readonly<{
+    kind: 'intake.routed';
+    task: Extract<RecoveryTask, {
+        kind: 'routed-input';
+    }>;
+}> | Readonly<{
+    kind: 'hitl.decision';
+    value: Extract<import('./values.ts').RoutedInput, {
+        kind: 'card-decision';
+    }>;
+}> | Readonly<{
+    kind: 'run.attempt-exited';
+    advance: import('./identity.ts').AdvanceRef;
+}> | Readonly<{
+    kind: 'run.batch-taken';
+    run: RunId;
+    batch: InputBatch;
+}> | Readonly<{
+    kind: 'call.bound';
+    consumption: ConsumptionId;
+    registration: SessionCallRegistration;
+    association: DurableEvidence | null;
+}> | Readonly<{
+    kind: 'call.bound';
+    consumption: ConsumptionId;
+    binding: CallBinding;
+    reference: string;
+    purpose: 'main' | 'action';
+}> | Readonly<{
+    kind: 'call.execution-fact' | 'account.linked';
+    fact: import('./faces.ts').ProducerFact;
+    consumption?: ConsumptionId;
+    result?: ProducedResult | null;
+}> | Readonly<{
+    kind: 'call.result-preserved';
+    consumption: ConsumptionId;
+    result: ProducedResult;
+    custody: DurableEvidence;
+    participation: Participation | null;
+}> | Readonly<{
+    kind: 'call.result-processed';
+    consumption: ConsumptionId;
+    result: ProducedResult;
+    completion: DurableEvidence;
+    participation: Participation | null;
+    position: string | null;
+}> | Readonly<{
+    kind: 'extension.passage';
+    run: RunId;
+    waiting: readonly Waiting[];
+}> | Readonly<{
+    kind: 'extension.passage';
+    run: RunId;
+    calls: readonly SessionCallWait[];
+    other: readonly Exclude<Waiting, {
+        kind: 'producer';
+    }>[];
+}> | Readonly<{
+    kind: 'control.requested';
+    progress: ControlProgress;
+}> | Readonly<{
+    kind: 'control.progress';
+    progress: ControlProgress | null;
+    fact: import('./faces.ts').ProducerFact | null;
+}> | Readonly<{
+    kind: 'session.archived';
+    operation: SessionOperationId;
+    scope: ContextScopeBinding;
+    tasks: readonly RecoveryTask[];
+}> | Readonly<{
+    kind: 'session.unarchived';
+    scope: ContextScopeBinding;
+}> | Readonly<{
+    kind: 'history.annotated';
+    targets: readonly string[];
+    source: DurableEvidence;
+}> | Readonly<{
+    kind: 'history.annotated';
+    run: RunId;
+    execution: ExecutionRef;
+}> | Readonly<{
+    kind: 'history.annotated';
+    run: RunId;
+    terminal: RunTerminal;
 }>;
 export type SessionEntryKind = SessionEntry['kind'];
 export declare function toJsonValue(plain: unknown): JsonValue;
@@ -314,7 +669,7 @@ import type { TenantId } from '@omne-harness/legal-identity';
 import type { Message } from '@omne-harness/message';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Adoption, AdvanceRef, AgentInstanceRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
-import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
+import type { AutoArchivePolicy, BoundedClose, CallBinding, Control, ControlProgress, DeclarationChange, DerivedMessage, FreezeVerdict, IdleObservation, InitializationResult, Participation, ProducedResult, ProducerRef, Relation, ResidentAdoption, RoutedInput, RunTerminal, ScopeReleaseDisposition, SessionCreation, WorkSnapshot } from './values.ts';
 export type SessionFailure = Readonly<{
     kind: 'denied';
     action: string;
@@ -412,6 +767,7 @@ export interface SessionWork<P> {
         entry: EntryClass;
         candidate: Adoption;
         instance: AgentInstanceRef;
+        residentAdoption?: ResidentAdoption;
     }>): Reply<StartedRun>;
     claim(input: Mutation<P> & Readonly<{
         run: RunId;
@@ -427,6 +783,7 @@ export interface SessionWork<P> {
         instance: AgentInstanceRef;
         expected: SessionRevision;
         handover: DurableEvidence;
+        residentAdoption?: ResidentAdoption;
     }>): Reply<Readonly<{
         receipt: CommitReceipt;
         advance: AdvanceRef;
@@ -585,7 +942,7 @@ export type ProducerFact = Readonly<{
     dispositions: readonly ScopeReleaseDisposition[];
     source: DurableEvidence;
 }>;
-export type PendingReason = 'unresolved' | 'controls' | 'tasks' | 'inputs' | 'run' | 'idle-armed' | 'release';
+export type PendingReason = 'initialization' | 'unresolved' | 'controls' | 'tasks' | 'inputs' | 'run' | 'idle-armed' | 'release';
 export type ResidentReference = Readonly<{
     tenant: TenantId;
     session: SessionId;
@@ -703,6 +1060,153 @@ export type SessionFaces<P> = Readonly<{
 }>;
 ```
 
+## 声明文件 `frontier-state.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { RunId } from './identity.ts';
+import type { HistoryEntry } from './faces.ts';
+import type { SessionHistoryReads } from './history-values.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare function validateFrontierBatch(snapshot: WorkSnapshot, entries: readonly SessionEntry[], reads?: SessionHistoryReads): void;
+export declare function validateInterpretationEntry(snapshot: WorkSnapshot, entry: SessionEntry, run: RunId | undefined): void;
+export declare function validateReplayHistory(snapshot: WorkSnapshot, entries: readonly SessionEntry[], rows: readonly HistoryEntry[], reads?: SessionHistoryReads): ReadonlyMap<string, RunId>;
+```
+
+## 声明文件 `history-validation.d.ts`
+
+```ts
+import type { AttemptId, DurableEvidence, InputId, RunId } from './identity.ts';
+import type { WorkSnapshot, InputBatch } from './values.ts';
+import type { ExecutionHistoryBoundary, SessionHistoryIndex, SessionHistoryReads, SessionInputAdmission, SessionInputScope, SessionBatchRecord, SessionExecutionPrefix } from './history-values.ts';
+export type HistoryContext = Readonly<{
+    snapshot: WorkSnapshot;
+    index: SessionHistoryIndex;
+    reads: SessionHistoryReads | undefined;
+}>;
+export declare function historyContext(snapshot: WorkSnapshot, reads?: SessionHistoryReads): HistoryContext;
+export declare function executionBoundary(context: HistoryContext, execution: string, run?: RunId): ExecutionHistoryBoundary;
+export declare function originalAttempt(snapshot: WorkSnapshot, attempt: AttemptId, run?: RunId): RunId;
+export declare function inputAdmissions(context: HistoryContext, input: InputId): readonly SessionInputAdmission[];
+export declare function validatePrefix(context: HistoryContext, prefix: SessionExecutionPrefix): void;
+export declare function requirePrepared(context: HistoryContext, scope: SessionInputScope): void;
+export declare function originalBatch(context: HistoryContext, run: RunId, execution: string, sequence: string, source: DurableEvidence, batch: InputBatch): SessionBatchRecord;
+```
+
+## 声明文件 `history-values.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { AttemptId, DurableEvidence, InputId, RunId, SessionId } from './identity.ts';
+import type { InputBatch } from './values.ts';
+import type { SessionLogConsequence } from './projection.ts';
+export type SessionLogRoot = Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    position: string;
+    source: DurableEvidence;
+}>;
+export type InputAdmissionMember = Readonly<{
+    ordinal: string;
+    run: RunId;
+    execution: string;
+    operation: string;
+    accepted: DurableEvidence;
+    attempt: AttemptId;
+}>;
+export type InputAdmissionBoundary = Readonly<{
+    input: InputId;
+    directory: string;
+    version: string;
+    count: string;
+    members: readonly InputAdmissionMember[];
+    source: DurableEvidence;
+}>;
+export type SessionFactBoundary = Readonly<{
+    sequence: string;
+    source: DurableEvidence;
+    kinds: readonly SessionLogConsequence['kind'][];
+}>;
+export type ExecutionHistoryBoundary = Readonly<{
+    run: RunId;
+    execution: string;
+    started: DurableEvidence;
+    revision: string;
+    executionEvidence: DurableEvidence;
+    emittedThrough: string;
+    readThrough: string;
+    interpreted: DurableEvidence | null;
+    ended: Readonly<{
+        sequence: string;
+        source: DurableEvidence;
+    }> | null;
+    facts: readonly SessionFactBoundary[];
+}>;
+export type SessionBatchRecord = Readonly<{
+    run: RunId;
+    execution: string;
+    sequence: string;
+    source: DurableEvidence;
+    batch: InputBatch;
+}>;
+export type SessionAttemptRecord = Readonly<{
+    run: RunId;
+    attempt: AttemptId;
+    execution: string;
+    ordinal: string;
+    started: DurableEvidence;
+}>;
+export type SessionTakenRecord = SessionBatchRecord & Readonly<{
+    commit: DurableEvidence;
+}>;
+export type SessionHistoryIndex = Readonly<{
+    root: SessionLogRoot;
+    inputs: readonly InputAdmissionBoundary[];
+    executions: readonly ExecutionHistoryBoundary[];
+    attempts: readonly SessionAttemptRecord[];
+    batches: readonly SessionBatchRecord[];
+    taken: readonly SessionTakenRecord[];
+}>;
+export type SessionInputScope = Readonly<{
+    kind: 'pending' | 'selected';
+    inputs: readonly InputId[];
+}>;
+export type SessionInputAdmission = InputAdmissionMember & Readonly<{
+    runStarted: DurableEvidence;
+    attemptStarted: DurableEvidence;
+    attachment: string;
+    grant: DurableEvidence;
+}>;
+export type InputAdmissionPage = Readonly<{
+    input: InputId;
+    directory: string;
+    version: string;
+    offset: string;
+    next: string | null;
+    records: readonly SessionInputAdmission[];
+}>;
+export type SessionPrefixFact = Readonly<{
+    sequence: string;
+    source: DurableEvidence;
+    consequences: readonly SessionLogConsequence[];
+}>;
+export type SessionExecutionPrefix = Readonly<{
+    execution: string;
+    run: RunId;
+    after: string;
+    through: string;
+    facts: readonly SessionPrefixFact[];
+}>;
+export type SessionHistoryReads = Readonly<{
+    root: SessionLogRoot;
+    scope: SessionInputScope;
+    admissions: readonly InputAdmissionPage[];
+    prefixes: readonly SessionExecutionPrefix[];
+    attempts: readonly SessionAttemptRecord[];
+    taken: readonly SessionTakenRecord[];
+}>;
+```
+
 ## 声明文件 `identity.d.ts`
 
 ```ts
@@ -744,14 +1248,133 @@ export type AdvanceRef = Readonly<{
 
 ```ts
 export type { Adoption, AdvanceRef, AgentInstanceRef, AttemptId, BatchId, ConsumerRef, ConsumptionId, DurableEvidence, EntryId, InputId, Mutation, ResidentKey, RunId, SessionAccess, SessionCallerClass, SessionId, SessionIdentity, SessionOperationId, SessionRevision, } from './identity.ts';
-export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
+export type { AutoArchivePolicy, BoundedClose, CallBinding, ClockSample, Consumption, ContextMaterial, Control, ControlIntent, ControlProgress, ControlTarget, DeclarationChange, DerivedMessage, ExecutionRef, FreezeVerdict, IdleCoverage, IdleObservation, InitializationResult, InitializationSource, InitializationSources, InputBatch, Modes, Participation, ProducedResult, ProducerRef, RecoveryTask, Relation, ResidentTool, ResultConsumption, RoutedInput, RunState, RunTerminal, ScopeReleaseDisposition, SessionCreation, SessionFrozen, Waiting, WorkSnapshot, WorkspaceAttachment, } from './values.ts';
 export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCompletion, HistoryEntry, HistoryPage, ModelViewBasis, ModelViewRead, ModelViewRow, OperationResolution, PendingReason, ProducerFact, ReleasedScope, Reply, ResidentReference, SessionFaces, SessionFailure, SessionHistory, SessionManagement, SessionReconciliation, SessionWork, StartedRun, } from './faces.ts';
 export { deriveDriveOperation, deriveSessionOperation, type DriveOperationElements, type SessionOperationElements, } from './operations.ts';
 export type { AgentDrivePort, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionTransactionPort, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
-export { decide } from './decide.ts';
+export { decide, commandDigest } from './decide.ts';
 export { reduce } from './reduce.ts';
+export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
+export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts';
+export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts';
+export type { InitialAdoption, InitializationAdoption, InitializationGuardFacts, InitializationGuardResult, InitializationConsequence, InitializationState, InitializationFactReference, } from './initialization-schema.ts';
+export { initializationRegistrationCommit } from './initialization-plan.ts';
+export type { InitializationPlanItem } from './initialization-plan.ts';
+export type { InitializationRegistration } from './initialization-registration.ts';
+export type { InitializationRequirement } from './initialization-requirements.ts';
+export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, } from './history-values.ts';
+export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
+export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
+```
+
+## 声明文件 `initialization-parse.d.ts`
+
+```ts
+import { type JsonValue } from '@omne-harness/json-text';
+import type { Adoption, DurableEvidence } from './identity.ts';
+import type { ContextMaterial, InitializationResult } from './values.ts';
+export declare class InitializationInvalid extends Error {
+}
+export declare function object(value: unknown, keys: readonly string[]): Record<string, unknown>;
+export declare function text(value: unknown): string;
+export declare function list<T>(value: unknown, parse: (item: unknown) => T): readonly T[];
+export declare function adoption(value: unknown): Adoption;
+export declare function evidence(value: unknown): DurableEvidence;
+export declare function json(value: unknown): JsonValue;
+export declare function material(value: unknown): ContextMaterial;
+export declare function result(value: unknown): InitializationResult;
+```
+
+## 声明文件 `initialization-plan.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import { type JsonValue } from '@omne-harness/json-text';
+import type { SessionId, SessionOperationId } from './identity.ts';
+import type { SessionCreation } from './values.ts';
+import type { InitializationPlanItem } from './values.ts';
+export type { InitializationPlanItem } from './values.ts';
+export declare function canonicalInitializationValue(value: unknown): unknown;
+export declare const sameInitializationValue: (left: unknown, right: unknown) => boolean;
+export declare const initializationKey: (item: Readonly<{
+    owner: string;
+    item: string;
+}>) => string;
+export declare function planItem(value: unknown): InitializationPlanItem;
+export declare function tenantText(tenant: TenantId): string;
+export declare function creationInput(creation: SessionCreation): JsonValue;
+export declare function initializationRegistrationCommit(input: Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    createOperation: SessionOperationId;
+    owner: string;
+    item: string;
+}>): string;
+export declare function initializationPlan(creation: SessionCreation): readonly InitializationPlanItem[];
+```
+
+## 声明文件 `initialization-registration.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { SessionId, SessionOperationId } from './identity.ts';
+import { type InitializationPlanItem } from './initialization-plan.ts';
+import type { InitializationRegistration } from './values.ts';
+export type { InitializationRegistration } from './values.ts';
+export declare function registration(value: unknown): InitializationRegistration;
+export declare function registrationInput(value: JsonValue): Pick<InitializationRegistration, 'need' | 'binding' | 'parameters'>;
+export declare function validateRegistrationBinding(decision: InitializationRegistration, plan: InitializationPlanItem, binding: Readonly<{
+    tenant: TenantId;
+    session: SessionId;
+    createOperation: SessionOperationId;
+}>): void;
+```
+
+## 声明文件 `initialization-requirements.d.ts`
+
+```ts
+import type { InitializationPlanItem } from './initialization-plan.ts';
+import type { InitializationRequirement } from './values.ts';
+export type { InitializationRequirement } from './values.ts';
+export declare function requirements(value: unknown): readonly InitializationRequirement[];
+export declare function validateRequirementPlan(values: readonly InitializationRequirement[], plan: readonly InitializationPlanItem[]): void;
+```
+
+## 声明文件 `initialization-schema.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import type { InitializationAdoption, InitialAdoption, InitializationConsequence, InitializationGuardResult, InitializationGuardFacts } from './values.ts';
+import type { Adoption } from './identity.ts';
+import type { GuardCommand, SessionCommand } from './ports.ts';
+export declare const INITIALIZATION_PROTOCOL: Adoption;
+export type { InitializationAdoption, InitialAdoption, InitializationConsequence, InitializationGuardResult, InitializationGuardFacts, InitializationFactReference, } from './values.ts';
+export declare function adoptionMaterial(value: unknown, initial: true): InitialAdoption;
+export declare function adoptionMaterial(value: unknown, initial: false): InitializationAdoption;
+export declare function consequence(value: unknown): InitializationConsequence | null;
+export declare function guardResult(value: unknown): InitializationGuardResult;
+export declare function parseInitializationFacts(guard: GuardCommand): InitializationGuardFacts;
+export declare function initializationCommandInput(command: Extract<SessionCommand, {
+    kind: 'create' | 'completeInitialization';
+}>): JsonValue;
+export type { InitializationResultRecord, InitializationState } from './values.ts';
+```
+
+## 声明文件 `initialization-validation.d.ts`
+
+```ts
+import type { GuardCommand, SessionCommand } from './ports.ts';
+import type { WorkSnapshot } from './values.ts';
+import { type InitializationPlanItem } from './initialization-plan.ts';
+import { type InitialAdoption, type InitializationAdoption, type InitializationGuardFacts, type InitializationGuardResult } from './initialization-schema.ts';
+export declare function validateAdoption(value: InitializationAdoption, original: Pick<InitialAdoption, 'definitionName' | 'adopted'>): void;
+export declare function initializationGuard(previous: WorkSnapshot | null, command: Extract<SessionCommand, {
+    kind: 'create' | 'completeInitialization';
+}>, guards: readonly GuardCommand[]): InitializationGuardFacts;
+export declare function validateResult(value: InitializationGuardResult, plan: InitializationPlanItem): void;
 ```
 
 ## 声明文件 `judgments.d.ts`
@@ -763,6 +1386,8 @@ import type { AutoArchivePolicy, BoundedClose, ControlIntent, IdleCoverage, Idle
 import type { CommitReceipt, EntryClass, HistoryEntry, SessionFailure } from './faces.ts';
 import type { GuardCommand, SessionCommand } from './ports.ts';
 import type { ConsumptionId, DurableEvidence } from './identity.ts';
+import type { SessionHistoryReads } from './history-values.ts';
+import type { SessionCallWait } from './call-values.ts';
 export type AdvanceJudgment = Readonly<{
     kind: 'ok';
 }> | Readonly<{
@@ -811,6 +1436,8 @@ export type RunStartJudgment = Readonly<{
     kind: 'not-ready' | 'archived' | 'frozen' | 'run-active' | 'no-input' | 'login-required';
 }>;
 export type OpenWork = Readonly<{
+    unassociatedWaiting?: readonly SessionCallWait[];
+    unsettledControls?: readonly SessionOperationId[];
     pending: readonly InputId[];
     handed: readonly InputId[];
     taken: readonly InputId[];
@@ -836,6 +1463,7 @@ export type CompletionJudgment = Readonly<{
 }>;
 export type ControlScope = Readonly<{
     kind: 'scope';
+    unassociatedWaiting?: readonly SessionCallWait[];
     producers: readonly ProducerRef[];
     revokes: readonly ('advance' | 'pending' | 'delivery')[];
     cancelsRun: RunId | null;
@@ -891,7 +1519,13 @@ export type Decision = Readonly<{
     failure: SessionFailure;
 }>;
 export type DecideReads = Readonly<{
+    history?: SessionHistoryReads;
     compaction: CompactionContext | null;
+    children?: readonly SessionId[];
+    idleObservation?: IdleObservation;
+    idleCoverage?: IdleCoverage;
+    frozenReceipt?: CommitReceipt;
+    initializationReceipts?: readonly CommitReceipt[];
 }>;
 export declare const OFF_PATH_DIAGNOSTIC = "not on the M2 first tenant path; the judgment lands with #756 (S-1b)";
 export declare const OFF_PATH_FAILURE: Extract<SessionFailure, {
@@ -902,15 +1536,66 @@ export declare function routeInput(snapshot: WorkSnapshot, input: RoutedInput): 
 export declare function judgeRunStart(snapshot: WorkSnapshot, _entry: EntryClass): RunStartJudgment;
 export declare function openWork(snapshot: WorkSnapshot): OpenWork;
 export declare function judgeCompletion(snapshot: WorkSnapshot, execution: string): CompletionJudgment;
-export declare function resolveControlScope(_snapshot: WorkSnapshot, _intent: ControlIntent): ControlScope;
-export declare function resolveCascade(_snapshot: WorkSnapshot, _children: readonly SessionId[]): readonly RecoveryTask[];
-export declare function judgeIdle(_snapshot: WorkSnapshot, _input: Readonly<{
+export declare function resolveControlScope(snapshot: WorkSnapshot, intent: ControlIntent): ControlScope;
+export declare function resolveCascade(snapshot: WorkSnapshot, children: readonly SessionId[]): readonly RecoveryTask[];
+export declare function judgeIdle(snapshot: WorkSnapshot, input: Readonly<{
     observation: IdleObservation;
     policy: AutoArchivePolicy;
     coverage: IdleCoverage;
 }>): IdleJudgment;
 export declare function resolveOperation(record: OperationRecord | null, operation: SessionOperationId, digest: string): OperationJudgment;
 export type { GuardCommand, SessionCommand };
+```
+
+## 声明文件 `model-view.d.ts`
+
+```ts
+import { type CompactionContext } from '@omne-harness/message';
+import type { HistoryEntry, ModelViewRow } from './faces.ts';
+import type { WorkSnapshot } from './values.ts';
+export type MaterializedModelView = Readonly<{
+    epoch: string;
+    rows: readonly ModelViewRow[];
+}>;
+export declare function materializeModelView(previous: MaterializedModelView, committed: readonly HistoryEntry[], history: readonly HistoryEntry[]): MaterializedModelView;
+export declare function compactionReads(entries: readonly HistoryEntry[], snapshot: WorkSnapshot, through: string): CompactionContext | null;
+```
+
+## 声明文件 `observation-validation.d.ts`
+
+```ts
+import type { WorkSnapshot } from './values.ts';
+import type { SessionLogObservation } from './projection.ts';
+import type { SessionHistoryReads } from './history-values.ts';
+export declare function validateObservation(snapshot: WorkSnapshot, observation: SessionLogObservation, reads?: SessionHistoryReads): {
+    context: Readonly<{
+        snapshot: WorkSnapshot;
+        index: import("./history-values.ts").SessionHistoryIndex;
+        reads: SessionHistoryReads | undefined;
+    }>;
+    boundary: Readonly<{
+        run: import("./identity.ts").RunId;
+        execution: string;
+        started: import("@omne-harness/exchange-refs").DurableEvidence;
+        revision: string;
+        executionEvidence: import("@omne-harness/exchange-refs").DurableEvidence;
+        emittedThrough: string;
+        readThrough: string;
+        interpreted: import("@omne-harness/exchange-refs").DurableEvidence | null;
+        ended: Readonly<{
+            sequence: string;
+            source: import("@omne-harness/exchange-refs").DurableEvidence;
+        }> | null;
+        facts: readonly import("./history-values.ts").SessionFactBoundary[];
+    }>;
+    head: Readonly<{
+        owner: string;
+        record: string;
+        revision: string;
+        digest: string;
+    }>;
+    repeated: boolean;
+};
 ```
 
 ## 声明文件 `operations.d.ts`
@@ -1127,7 +1812,11 @@ export type Mutations = Pick<SessionWork<never> & SessionManagement<never> & Ses
 export type SessionCommand = {
     readonly [K in MutationName]: Readonly<{
         kind: K;
-        input: Omit<Parameters<Mutations[K]>[0], 'principal'>;
+        input: Omit<Parameters<Mutations[K]>[0], 'principal'> & (K extends 'commitDerived' ? Readonly<{
+            participation?: import('./values.ts').Participation;
+            judgment?: DurableEvidence;
+            expected?: SessionRevision;
+        }> : unknown);
     }>;
 }[MutationName];
 export type GuardCommand = Readonly<{
@@ -1221,14 +1910,166 @@ export interface SessionNotifier {
 }
 ```
 
+## 声明文件 `projection.d.ts`
+
+```ts
+import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
+import type { SessionHistoryReads } from './history-values.ts';
+import type { DurableEvidence, RunId, SessionAccess, ConsumptionId, SessionOperationId } from './identity.ts';
+import type { CallBinding, ControlProgress, InputBatch, RunTerminal, Waiting, WorkSnapshot, ProducedResult } from './values.ts';
+import type { Decision } from './judgments.ts';
+export type SessionLogConsequence = Readonly<{
+    kind: 'call-registration';
+    consumption: ConsumptionId;
+    registration: SessionCallRegistration;
+}> | Readonly<{
+    kind: 'call-association';
+    consumption: ConsumptionId;
+    binding: CallBinding;
+    source: DurableEvidence;
+}> | Readonly<{
+    kind: 'registered-waiting';
+    calls: readonly SessionCallWait[];
+    other: readonly Exclude<Waiting, {
+        kind: 'producer';
+    }>[];
+}> | Readonly<{
+    kind: 'input-taken';
+    batch: InputBatch;
+}> | Readonly<{
+    kind: 'call';
+    consumption: ConsumptionId;
+    binding: CallBinding;
+}> | Readonly<{
+    kind: 'producer';
+    consumption: ConsumptionId;
+    binding: CallBinding;
+    result: ProducedResult | null;
+}> | Readonly<{
+    kind: 'waiting';
+    waiting: readonly Waiting[];
+}> | Readonly<{
+    kind: 'control';
+    progress: ControlProgress;
+}> | Readonly<{
+    kind: 'ended';
+    outcome: RunTerminal['outcome'];
+    cause: DurableEvidence | null;
+    disposition: DurableEvidence;
+}> | Readonly<{
+    kind: 'observed';
+}>;
+export type SessionLogObservation = Omit<SessionAccess<never>, 'principal'> & Readonly<{
+    run: RunId;
+    execution: string;
+    sequence: string | null;
+    revision: string;
+    executionEvidence?: DurableEvidence;
+    operation?: SessionOperationId;
+    source: DurableEvidence;
+    consequences: readonly SessionLogConsequence[];
+}>;
+export declare function projectSessionLog(snapshot: WorkSnapshot, observation: SessionLogObservation, reads?: SessionHistoryReads): Decision;
+```
+
+## 声明文件 `reduce-extended.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { DurableEvidence } from './identity.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare function applyExtended(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null;
+export {};
+```
+
+## 声明文件 `reduce-initialization.d.ts`
+
+```ts
+import type { CommittedBatch } from './judgments.ts';
+import type { HistoryEntry } from './faces.ts';
+import type { WorkSnapshot } from './values.ts';
+import type { SessionEntry } from './entries.ts';
+export declare function validateInitializationBatch(previous: WorkSnapshot | null, batch: CommittedBatch, decoded: readonly SessionEntry[]): string | null;
+export declare function initializationProjection(snapshot: WorkSnapshot, entry: SessionEntry, row: HistoryEntry, batch: CommittedBatch): WorkSnapshot['initialization'];
+```
+
+## 声明文件 `reduce-results.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { WorkSnapshot } from './values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+type ResultEntry = Extract<SessionEntry, {
+    kind: 'call.result-preserved' | 'call.result-processed';
+}>;
+export declare function applyResult(draft: Draft, entry: ResultEntry): string | null;
+export declare function applyProducerFact(draft: Draft, entry: Extract<SessionEntry, {
+    kind: 'call.execution-fact' | 'account.linked';
+}>): string | null;
+export {};
+```
+
 ## 声明文件 `reduce.d.ts`
 
 ```ts
+import type { SessionHistoryReads } from './history-values.ts';
 import type { DurableEvidence } from './identity.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
 export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
-export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch): ReduceResult;
+export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
+```
+
+## 声明文件 `release-digests.d.ts`
+
+```ts
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:288f03fec0fe2003cddfb56f341cd97ca04b285764babcd04476b07587325e75";
+export declare const SESSION_RELEASE_DIGEST = "sha256:288f03fec0fe2003cddfb56f341cd97ca04b285764babcd04476b07587325e75";
+```
+
+## 声明文件 `replay-validation.d.ts`
+
+```ts
+import type { SessionLogObservation } from './projection.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare function validateReplayedConsequences(snapshot: WorkSnapshot, observation: SessionLogObservation): void;
+```
+
+## 声明文件 `result-state.d.ts`
+
+```ts
+import type { RunId } from './identity.ts';
+import type { CallBinding, Participation, WorkSnapshot } from './values.ts';
+type Draft = {
+    -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
+};
+export declare function bindingRun(snapshot: WorkSnapshot, binding: CallBinding): RunId | null;
+export declare function resultParticipationError(snapshot: WorkSnapshot, binding: CallBinding, participation: Participation): string | null;
+export declare function applyParticipation(draft: Draft, participation: Participation): string | null;
+export {};
+```
+
+## 声明文件 `session-validation.d.ts`
+
+```ts
+import type { SessionFailure } from './faces.ts';
+export declare class SessionValidationFailure extends Error {
+    readonly failure: SessionFailure;
+    constructor(failure: SessionFailure);
+}
+export declare function invalidAt(field: string, reason: string): never;
+export declare function unavailableAt(field: string): never;
+export declare function inconsistent(field: string): never;
+export declare function nonempty(value: unknown, field: string): asserts value is string;
+export declare function decimal(value: unknown, field: string): bigint;
+export declare function evidenceFields(value: unknown, field: string): void;
+export declare const equalValue: (left: unknown, right: unknown) => boolean;
+export declare function unique<T>(items: readonly T[], key: (item: T) => string, field: string): void;
 ```
 
 ## 声明文件 `testing-case.d.ts`
@@ -1269,10 +2110,65 @@ export declare function assertIndistinguishable(answers: Readonly<{
 }>, what: string): void;
 ```
 
+## 声明文件 `testing-history-source.d.ts`
+
+```ts
+import type { HistoryEntry } from './faces.ts';
+import type { SessionHistoryIndex, SessionHistoryReads, SessionInputAdmission, SessionInputScope } from './history-values.ts';
+import type { InputId, SessionAccess } from './identity.ts';
+import type { SessionLogObservation } from './projection.ts';
+import type { WorkSnapshot } from './values.ts';
+export interface MemorySessionHistorySource {
+    observe(observation: SessionLogObservation): void;
+    admit(scope: Pick<SessionAccess<never>, 'tenant' | 'session'>, input: InputId, admission: SessionInputAdmission): void;
+    read(snapshot: WorkSnapshot, entries: readonly HistoryEntry[], scope: SessionInputScope): Readonly<{
+        index: SessionHistoryIndex;
+        reads: SessionHistoryReads;
+    }>;
+}
+export declare function createMemorySessionHistorySource(): MemorySessionHistorySource;
+```
+
+## 声明文件 `testing-initialization-source.d.ts`
+
+```ts
+import type { SessionFailure, Reply } from './faces.ts';
+import type { GuardCommand, SessionCommand } from './ports.ts';
+export type InitializationCommand = Extract<SessionCommand, {
+    kind: 'create' | 'completeInitialization';
+}>;
+export interface MemoryInitializationSource {
+    readonly durability: 'none';
+    prepare(command: InitializationCommand): Reply<readonly GuardCommand[]>;
+    verify(command: InitializationCommand, guards: readonly GuardCommand[]): SessionFailure | null;
+    readonly controls: Readonly<{
+        register(command: InitializationCommand, guard: GuardCommand): void;
+        eligible(value: boolean): void;
+        available(value: boolean): void;
+    }>;
+}
+export declare function createMemoryInitializationSource(): MemoryInitializationSource;
+```
+
+## 声明文件 `testing-initialization.d.ts`
+
+```ts
+import type { WorkSnapshot } from './values.ts';
+import type { GuardCommand } from './ports.ts';
+import type { InitializationCommand } from './testing-initialization-source.ts';
+import { type InitialAdoption, type InitializationGuardFacts, type InitializationGuardResult } from './initialization-schema.ts';
+export declare function adoptedInitializationFixture(command: Extract<InitializationCommand, {
+    kind: 'create';
+}>): InitialAdoption;
+export declare function initializationFixtureFacts(command: InitializationCommand, snapshot: WorkSnapshot | null, initialAdoption: InitialAdoption | null, results?: readonly InitializationGuardResult[]): InitializationGuardFacts;
+export declare function initializationFixtureGuard(facts: InitializationGuardFacts): GuardCommand;
+```
+
 ## 声明文件 `testing-ports.d.ts`
 
 ```ts
 import type { SessionClock, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionCommand } from './ports.ts';
+import type { MemoryInitializationSource } from './testing-initialization-source.ts';
 export type IdentityScript = 'allow' | 'deny' | 'unavailable';
 export interface ScriptedSessionIdentityBridge<P> extends SessionIdentityBridge<P> {
     readonly durability: 'none';
@@ -1291,6 +2187,7 @@ export interface MemorySessionEvidenceBridge extends SessionEvidenceBridge {
 }
 export declare function createMemorySessionEvidenceBridge(options?: Readonly<{
     loginEntry?: boolean;
+    initialization?: MemoryInitializationSource;
 }>): MemorySessionEvidenceBridge;
 export interface MemorySessionContextInput<P> extends SessionContextInput<P> {
     readonly durability: 'none';
@@ -1310,14 +2207,74 @@ export interface MemorySessionClock extends SessionClock {
 export declare function createMemorySessionClock(): MemorySessionClock;
 ```
 
+## 声明文件 `testing-provider-conformance.d.ts`
+
+```ts
+import { type ConformanceCase } from './testing-case.ts';
+import type { MemoryAgentDrive, MemoryScopeRelease, MemorySessionIdleInput, MemorySessionNotifier } from './testing-providers.ts';
+import type { MemorySessionClock, MemorySessionContextInput, MemorySessionEvidenceBridge, ScriptedSessionIdentityBridge } from './testing-ports.ts';
+export declare function sessionIdentityBridgeConformance(): readonly ConformanceCase<ScriptedSessionIdentityBridge<string>>[];
+export declare function sessionEvidenceBridgeConformance(): readonly ConformanceCase<MemorySessionEvidenceBridge>[];
+export declare function sessionContextInputConformance(): readonly ConformanceCase<MemorySessionContextInput<string>>[];
+export declare function sessionClockConformance(): readonly ConformanceCase<MemorySessionClock>[];
+export declare function sessionIdleInputConformance(): readonly ConformanceCase<MemorySessionIdleInput<string>>[];
+export declare function sessionNotifierConformance(): readonly ConformanceCase<MemorySessionNotifier>[];
+export declare function scopeReleaseConformance(): readonly ConformanceCase<MemoryScopeRelease>[];
+export declare function agentDriveConformance(): readonly ConformanceCase<MemoryAgentDrive>[];
+```
+
+## 声明文件 `testing-providers.d.ts`
+
+```ts
+import type { IdleObservation, ScopeReleaseDisposition } from './values.ts';
+import type { AgentDrivePort, DriveTarget, ExecutionStatus, ScopeReleasePort, SessionIdleInput, SessionNotifier } from './ports.ts';
+export interface MemorySessionIdleInput<P> extends SessionIdleInput<P> {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        observation(value: IdleObservation): void;
+        unavailable(value: boolean): void;
+    }>;
+}
+export declare function createMemorySessionIdleInput<P>(initial: IdleObservation): MemorySessionIdleInput<P>;
+export interface MemorySessionNotifier extends SessionNotifier {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        drop(value: boolean): void;
+        notifications(): readonly Parameters<SessionNotifier['committed']>[0][];
+    }>;
+}
+export declare function createMemorySessionNotifier(): MemorySessionNotifier;
+export interface MemoryScopeRelease extends ScopeReleasePort {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        dispositions(values: readonly ScopeReleaseDisposition[]): void;
+        requests(): readonly Parameters<ScopeReleasePort['release']>[0][];
+    }>;
+}
+export declare function createMemoryScopeRelease(): MemoryScopeRelease;
+export interface MemoryAgentDrive extends AgentDrivePort {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        denied(value: boolean): void;
+        unavailable(value: boolean): void;
+        status(input: Omit<DriveTarget, 'operation'>, value: ExecutionStatus): void;
+    }>;
+}
+export declare function createMemoryAgentDrive(): MemoryAgentDrive;
+```
+
 ## 声明文件 `testing-transactions.d.ts`
 
 ```ts
+import { type MemorySessionHistorySource } from './testing-history-source.ts';
+import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
-import type { SessionAccess, SessionId, SessionOperationId } from './identity.ts';
-import type { SessionCreation, WorkSnapshot } from './values.ts';
-import type { HistoryEntry, PendingReason } from './faces.ts';
-import type { SessionTransactionPort } from './ports.ts';
+import type { DurableEvidence, InputId, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
+import type { SessionCreation, WorkSnapshot, Participation } from './values.ts';
+import type { CommitReceipt, AdmittedMessage, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
+import type { GuardCommand, SessionCommand, SessionTransactionPort } from './ports.ts';
+import { type SessionLogObservation } from './projection.ts';
+import { type MemoryInitializationSource } from './testing-initialization-source.ts';
 import { type ConformanceCase } from './testing-case.ts';
 export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
     readonly durability: 'none';
@@ -1325,14 +2282,49 @@ export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> 
         entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[];
     }>;
 }
+export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
+    readonly controls: MemorySessionTransactions<P>['controls'] & Readonly<{
+        project(observation: SessionLogObservation, operation: SessionOperationId): Promise<Outcome<CommitReceipt, SessionFailure>>;
+        directoryAvailable(available: boolean): void;
+    }>;
+}
+export interface MemoryInitializationTransactions<P> extends MemorySessionLogTransactions<P> {
+    readonly controls: MemorySessionLogTransactions<P>['controls'] & Readonly<{
+        failNextInitializationCommit(): void;
+        loseNextInitializationReply(): void;
+    }>;
+}
 export declare function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[];
-export declare function createMemorySessionTransactions<P>(): MemorySessionTransactions<P>;
+export type MemorySessionTransactionOptions<P> = Readonly<{
+    initialization?: MemoryInitializationSource;
+    history?: MemorySessionHistorySource;
+    authorize?: (input: SessionAccess<P> | Readonly<{
+        principal: P;
+        tenant?: TenantId;
+        scope?: 'system';
+    }>, action: string) => boolean;
+}>;
+export declare function createMemorySessionTransactions<P>(options?: MemorySessionTransactionOptions<P>): MemoryInitializationTransactions<P>;
 export interface SessionTransactionsFixture<P> {
     readonly port: SessionTransactionPort<P>;
     readonly access: SessionAccess<P>;
     readonly otherAccess?: SessionAccess<P>;
     readonly creation: SessionCreation;
     operation(name: string): SessionOperationId;
+    prepareInputAdmission?(input: Readonly<{
+        execution: string;
+        input: InputId;
+        operation: SessionOperationId;
+        receipt: DurableEvidence;
+    }>): Promise<void>;
+    publishMessageParticipation?(input: Readonly<{
+        execution: string;
+        operation: string;
+        value: AdmittedMessage;
+    }>): Promise<Participation>;
+    initializationGuards?(command: Extract<SessionCommand, {
+        kind: 'create';
+    }>): Promise<readonly GuardCommand[]>;
 }
 export declare function sessionTransactionsConformance<P>(): readonly ConformanceCase<SessionTransactionsFixture<P>>[];
 export declare function memorySessionTransactionsFixture(): SessionTransactionsFixture<string>;
@@ -1370,18 +2362,27 @@ export declare function guard(participant: string, owner: string, facts: unknown
 
 ```ts
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
-export { createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
+export { createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactions, type MemorySessionLogTransactions, type MemoryInitializationTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
 export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
+export * from './testing-providers.ts';
+export { createMemoryInitializationSource, type MemoryInitializationSource, } from './testing-initialization-source.ts';
+export { adoptedInitializationFixture, initializationFixtureFacts, initializationFixtureGuard, } from './testing-initialization.ts';
+export type { MemorySessionTransactionOptions } from './testing-transactions.ts';
+export { sessionIdentityBridgeConformance, sessionEvidenceBridgeConformance, sessionContextInputConformance, sessionClockConformance, sessionIdleInputConformance, sessionNotifierConformance, scopeReleaseConformance, agentDriveConformance, } from './testing-provider-conformance.ts';
+export { createMemorySessionHistorySource, type MemorySessionHistorySource, } from './testing-history-source.ts';
 ```
 
 ## 声明文件 `values.d.ts`
 
 ```ts
+import type { SessionWorkEntryIndex } from './work-entry-values.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { CompactionMessage, Message } from '@omne-harness/message';
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
-import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
+import type { SessionHistoryIndex } from './history-values.ts';
+import type { SessionCallRecord, SessionCallWait } from './call-values.ts';
+import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 export type ResidentTool = Readonly<{
     capability: string;
     version: string;
@@ -1475,6 +2476,14 @@ export type Waiting = Readonly<{
         decision: DurableEvidence | null;
     }>[];
 }> | Readonly<{
+    kind: 'extension-passage';
+    passage: string;
+    position: string;
+    members: readonly Readonly<{
+        card: DurableEvidence;
+        decision: DurableEvidence | null;
+    }>[];
+}> | Readonly<{
     kind: 'dependency';
     owner: string;
     position: string;
@@ -1541,6 +2550,7 @@ export type ControlProgress = Readonly<{
     intent: ControlIntent;
     state: 'committed' | 'propagating' | 'reconciled';
     pending: readonly ProducerRef[];
+    pendingUnassociatedWaiting?: readonly SessionCallWait[];
 }>;
 export type ScopeReleaseDisposition = 'released' | 'pending' | 'unsupported' | 'unavailable' | 'not-authorized';
 export type RecoveryTask = Readonly<{
@@ -1625,6 +2635,26 @@ export type SessionCreation = Readonly<{
         kind: 'ordinary';
     }> | null;
     entryContract: Adoption;
+    residentAdoption?: ResidentAdoption;
+    initialization?: InitializationSources;
+}>;
+export type InitializationSource = Readonly<{
+    item: string;
+    owner: string;
+    protocol: Adoption;
+}> & (Readonly<{
+    kind: 'context-registration';
+    input: Omit<Extract<DeclarationChange, {
+        kind: 'context-registration';
+    }>, 'kind' | 'registration'>;
+}> | Readonly<{
+    kind: 'workspace-load';
+}> | Readonly<{
+    kind: 'execution-adoption';
+}>);
+export type InitializationSources = Readonly<{
+    sources: readonly InitializationSource[];
+    results: readonly InitializationResult[];
 }>;
 export type InitializationResult = Readonly<{
     item: string;
@@ -1747,6 +2777,7 @@ export type FreezeVerdict = Readonly<{
     evidence: DurableEvidence;
 }>;
 export type WorkSnapshot = Readonly<{
+    workEntryIndex?: SessionWorkEntryIndex;
     session: SessionId;
     tenant: TenantId;
     revision: SessionRevision;
@@ -1778,5 +2809,203 @@ export type WorkSnapshot = Readonly<{
         observation: IdleObservation;
         commit: DurableEvidence;
     }> | null;
+    executions?: readonly RunExecution[];
+    residentKeys?: ResidentAdoption['keys'];
+    relation?: Relation;
+    children?: readonly SessionId[];
+    autoArchive?: AutoArchivePolicy;
+    taken?: readonly InputId[];
+    backgroundPlaceholders?: readonly ConsumptionId[];
+    releasedScopes?: readonly Readonly<{
+        task: SessionOperationId;
+        scope: string;
+    }>[];
+    contextScopes?: readonly ContextScopeBinding[];
+    contextRecords?: readonly Readonly<{
+        scope: string;
+        declaration: DeclarationChange;
+    }>[];
+    changes?: readonly DeclarationChange[];
+    initialization?: InitializationState;
+    historyIndex?: SessionHistoryIndex;
+    callRegistrations?: readonly SessionCallRecord[];
+    callWaits?: readonly SessionCallWait[];
+}>;
+export type ResidentAdoption = Readonly<{
+    residents: readonly ResidentTool[];
+    keys: readonly Readonly<{
+        capability: string;
+        key: ResidentKey;
+    }>[];
+}>;
+export type RunExecution = Readonly<{
+    run: RunId;
+    execution: ExecutionRef;
+    terminal: RunTerminal | null;
+}>;
+export type ContextScopeBinding = Readonly<{
+    generation: string;
+    scope: string;
+    operation: SessionOperationId;
+    ended: DurableEvidence | null;
+}>;
+export type InitializationPlanItem = Readonly<{
+    kind: 'identity' | InitializationSource['kind'];
+    owner: string;
+    item: string;
+    protocol: Adoption;
+    originalInput: JsonValue;
+}>;
+export type InitializationRegistration = Readonly<{
+    scope: string;
+    tenant: string;
+    key: string;
+    commit: string;
+    basedOn: number;
+    revision: number;
+    creating: true;
+    required: true;
+    need: ContextMaterial;
+    binding: ContextMaterial;
+    parameters: ContextMaterial;
+}>;
+export type InitializationRequirement = Readonly<{
+    kind: 'entry-contract' | 'identity' | 'context-registration' | 'workspace-load' | 'execution-preparation';
+    key: string;
+    requirement: DurableEvidence;
+    resolution: Readonly<{
+        kind: 'satisfied';
+        evidence: DurableEvidence;
+    }> | Readonly<{
+        kind: 'planned';
+        owner: string;
+        item: string;
+    }>;
+}>;
+export type InitializationAdoption = Readonly<{
+    definitionName: string;
+    adopted: Adoption;
+    source: DurableEvidence;
+    boundary: DurableEvidence;
+    inputSnapshot: ContextMaterial;
+    capabilities: ContextMaterial;
+    residentBindings: ResidentAdoption['keys'];
+    newResidents: ResidentAdoption['residents'];
+}>;
+export type InitialAdoption = InitializationAdoption & Readonly<{
+    candidate: Adoption;
+}>;
+export type InitializationConsequence = Readonly<{
+    kind: 'identity';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'workspace-load';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'context-registration';
+    prepared: DurableEvidence;
+    decision: InitializationRegistration;
+}> | Readonly<{
+    kind: 'execution-ready';
+    evidence: DurableEvidence;
+    adoption: InitializationAdoption | null;
+}>;
+export type InitializationGuardResult = Readonly<{
+    owner: string;
+    item: string;
+    result: InitializationResult;
+    consequence: InitializationConsequence | null;
+}>;
+export type InitializationGuardFacts = Readonly<{
+    version: 1;
+    command: 'create' | 'completeInitialization';
+    binding: Readonly<{
+        tenant: string;
+        session: string;
+        operation: string;
+        createOperation: string;
+    }>;
+    input: JsonValue;
+    initialAdoption: InitialAdoption | null;
+    requirements: readonly InitializationRequirement[] | null;
+    plan: readonly InitializationPlanItem[];
+    results: readonly InitializationGuardResult[];
+}>;
+export type InitializationFactReference = Readonly<{
+    kind: 'batch';
+    ordinal: number;
+}> | Readonly<{
+    kind: 'committed';
+    entry: DurableEvidence;
+}>;
+export type InitializationResultRecord = Readonly<{
+    operation: SessionOperationId;
+    outcome: InitializationGuardResult;
+    facts: readonly InitializationFactReference[];
+    entry: DurableEvidence;
+    revision: string;
+    range: Readonly<{
+        first: import('./identity.ts').EntryId;
+        last: import('./identity.ts').EntryId;
+    }>;
+}>;
+export type InitializationState = Readonly<{
+    protocol: 1;
+    createOperation: SessionOperationId;
+    initialAdoption: InitialAdoption;
+    input: JsonValue;
+    requirements: readonly InitializationRequirement[];
+    plan: readonly InitializationPlanItem[];
+    results: readonly InitializationResultRecord[];
+    registrations: readonly Readonly<{
+        plan: InitializationPlanItem;
+        prepared: DurableEvidence;
+        decision: InitializationRegistration;
+        entry: DurableEvidence;
+    }>[];
+}>;
+```
+
+## 声明文件 `work-entry-state.d.ts`
+
+```ts
+import type { SessionEntry } from './entries.ts';
+import type { HistoryEntry } from './faces.ts';
+import type { EntryId } from './identity.ts';
+import type { ControlProgress, WorkSnapshot } from './values.ts';
+import type { SessionWorkEntryIndex } from './work-entry-values.ts';
+export declare function unsettled(control: ControlProgress): boolean;
+export declare function requiredWorkEntries(snapshot: WorkSnapshot): readonly EntryId[];
+export declare function projectWorkEntries(before: WorkSnapshot, after: WorkSnapshot, entry: SessionEntry, row: HistoryEntry): SessionWorkEntryIndex | undefined;
+```
+
+## 声明文件 `work-entry-values.d.ts`
+
+```ts
+import type { ConsumptionId, EntryId, SessionOperationId } from './identity.ts';
+export type SessionCallEntryReferences = Readonly<{
+    consumption: ConsumptionId;
+    registered: EntryId;
+    association: EntryId | null;
+    waits: readonly Readonly<{
+        position: string;
+        entry: EntryId;
+    }>[];
+}>;
+export type SessionControlEntryReferences = Readonly<{
+    operation: SessionOperationId;
+    intent: EntryId;
+    progress: EntryId | null;
+    selected: readonly Readonly<{
+        consumption: ConsumptionId;
+        position: string;
+        registered: EntryId;
+        waiting: EntryId;
+        association: EntryId | null;
+    }>[];
+}>;
+export type SessionWorkEntryIndex = Readonly<{
+    calls: readonly SessionCallEntryReferences[];
+    controls: readonly SessionControlEntryReferences[];
 }>;
 ```

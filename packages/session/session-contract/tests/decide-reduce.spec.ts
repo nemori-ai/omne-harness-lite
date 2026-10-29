@@ -1,3 +1,4 @@
+import { createMemorySessionHistorySource } from '@omne-harness/session-contract/testing'
 // `decide` and `reduce` on the first-path kinds, read directly: the creation with required
 // identities, the initialization items, the recall and the conflict of one operation, the
 // tenant check, the quarantine of an unknown entry kind, and the pure judgments at their edges.
@@ -36,27 +37,58 @@ import {
   testingWorkspace,
 } from '@omne-harness/session-contract/testing'
 import { encodeEntry } from '../src/entries.ts'
+import type { SessionEntry } from '../src/entries.ts'
+import { initializationGuards } from './initialization-fixture.ts'
 
 const access = memoryAccess('tester')
+const history = createMemorySessionHistorySource()
+const historyRows: HistoryEntry[] = []
 const base = { tenant: access.tenant, session: access.session }
 
 /** Commits `command` on `previous` through decide and reduce, as a storage participant would. */
 function commit(previous: WorkSnapshot | null, command: SessionCommand): WorkSnapshot {
   const guards =
-    command.kind === 'startRun' ? [guard('evidence-bridge', 'login-entry', 'login')] : []
-  const decision = decide(previous, command, guards, null, { compaction: null })
+    command.kind === 'startRun'
+      ? [guard('evidence-bridge', 'login-entry', 'login')]
+      : initializationGuards(command, previous)
+  if (previous === null) historyRows.length = 0
+  const material =
+    previous === null
+      ? undefined
+      : history.read(
+          previous,
+          historyRows,
+          command.kind === 'startRun'
+            ? { kind: 'selected', inputs: previous.pending.slice(0, 1) }
+            : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+              ? { kind: 'selected', inputs: [command.input.fact.input] }
+              : { kind: 'pending', inputs: previous.pending },
+        )
+  if (previous !== null && material !== undefined)
+    previous = { ...previous, historyIndex: material.index }
+  const decision = decide(previous, command, guards, null, {
+    compaction: null,
+    ...(material === undefined ? {} : { history: material.reads }),
+  })
   if (decision.kind !== 'entries') throw new Error(`decide: ${JSON.stringify(decision)}`)
   const revision = String(
     previous === null ? 1 : Number(previous.revision) + 1,
   ) as WorkSnapshot['revision']
   const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
     ...entry,
-    id: String(index + 1) as HistoryEntry['id'],
+    id: String(historyRows.length + index + 1) as HistoryEntry['id'],
     revision,
   }))
-  const reduced = reduce(previous, { revision, entries })
+  const reduced = reduce(previous, { revision, entries }, material?.reads)
+  historyRows.push(...entries)
   if (reduced.kind !== 'reduced') throw new Error(`reduce: ${reduced.diagnostic}`)
-  return reduced.snapshot
+  return {
+    ...reduced.snapshot,
+    historyIndex: history.read(reduced.snapshot, historyRows, {
+      kind: 'pending',
+      inputs: reduced.snapshot.pending,
+    }).index,
+  }
 }
 
 const createCommand = (overrides: Partial<ReturnType<typeof creation>> = {}): SessionCommand => ({
@@ -117,7 +149,7 @@ describe('create and completeInitialization', () => {
     expect(failed.tasks).toEqual([
       expect.objectContaining({ state: 'failed', diagnostic: 'no login' }),
     ])
-    expect(failed.lifecycle).toBe('dormant')
+    expect(failed.lifecycle).toBe('initializing')
   })
 
   it('an item that is not pending is invalid', () => {
@@ -182,8 +214,12 @@ const WORKSPACE_TEXT = 'wsp_c0nf0rmance000000000000000'
 const workspace = () => testingWorkspace(WORKSPACE_TEXT)
 const workspaceAttachment = { instance: 'host-1:/srv/work', basis: 'git:4f2a9c1' }
 
-function decisionOf(command: SessionCommand, previous: WorkSnapshot | null = null) {
-  return decide(previous, command, [], null, { compaction: null })
+function decisionOf(
+  command: SessionCommand,
+  previous: WorkSnapshot | null = null,
+  guards = initializationGuards(command, previous),
+) {
+  return decide(previous, command, guards, null, { compaction: null })
 }
 
 /** The member `key` of a json-text object tree, or undefined. */
@@ -198,7 +234,7 @@ function createdRows(edit: (payload: JsonValue) => JsonValue): CommittedBatch {
   const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
     ...entry,
     payload: edit(entry.payload),
-    id: String(index + 1) as HistoryEntry['id'],
+    id: String(historyRows.length + index + 1) as HistoryEntry['id'],
     revision: '1' as HistoryEntry['revision'],
   }))
   return { revision: '1' as never, entries }
@@ -298,7 +334,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       items: [],
     }
     expect(() =>
-      encodeEntry(entry, { owner: 'session', via: 'direct', source: evidence('forged') }),
+      encodeEntry(entry as unknown as SessionEntry, {
+        owner: 'session',
+        via: 'direct',
+        source: evidence('forged'),
+      }),
     ).toThrow(TypeError)
   })
 
@@ -313,7 +353,9 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ],
     ['an adoption', adoption('workspace')],
   ])('a creation whose workspace is %s is invalid', (_case, forged) => {
-    expect(decisionOf(createCommand({ workspace: forged as never, workspaceAttachment }))).toEqual({
+    expect(
+      decisionOf(createCommand({ workspace: forged as never, workspaceAttachment }), null, []),
+    ).toEqual({
       kind: 'rejected',
       failure: { kind: 'invalid', field: 'creation.workspace', reason: expect.any(String) },
     })
@@ -342,7 +384,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ],
   ])('a creation with a workspace and %s is invalid', (_case, attached, field) => {
     expect(
-      decisionOf(createCommand({ workspace: workspace(), workspaceAttachment: attached as never })),
+      decisionOf(
+        createCommand({ workspace: workspace(), workspaceAttachment: attached as never }),
+        null,
+        [],
+      ),
     ).toEqual({ kind: 'rejected', failure: { kind: 'invalid', field, reason: expect.any(String) } })
   })
 
@@ -351,7 +397,11 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     ['a missing attachment key', undefined],
   ])('a creation with no workspace and %s is invalid', (_case, attached) => {
     expect(
-      decisionOf(createCommand({ workspace: null, workspaceAttachment: attached as never })),
+      decisionOf(
+        createCommand({ workspace: null, workspaceAttachment: attached as never }),
+        null,
+        [],
+      ),
     ).toEqual({
       kind: 'rejected',
       failure: {
@@ -362,7 +412,7 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
     })
   })
 
-  it('the workspace dimension of change is judged the same way before change is refused naming #756', () => {
+  it('workspace changes use the same validation and valid declarations commit', () => {
     const created = commit(null, createCommand())
     expect(decisionOf(changeWorkspace(WORKSPACE_TEXT, workspaceAttachment), created)).toMatchObject(
       { failure: { kind: 'invalid', field: 'declaration.value' } },
@@ -391,7 +441,7 @@ describe('the workspace selection: a sixth-family WorkspaceId with its attachmen
       } satisfies SessionCommand,
     ])
       expect(decisionOf(legal, created)).toMatchObject({
-        failure: { kind: 'unavailable', diagnostic: expect.stringContaining('#756') },
+        kind: 'entries',
       })
   })
 })
@@ -496,9 +546,8 @@ describe('reduce', () => {
       kind: 'quarantined',
     })
     expect(reduce(null, unknown)).toMatchObject({ kind: 'quarantined' })
-    expect(reduce(created, { revision: created.revision, entries: [] })).toEqual({
-      kind: 'reduced',
-      snapshot: created,
+    expect(reduce(created, { revision: created.revision, entries: [] })).toMatchObject({
+      kind: 'quarantined',
     })
   })
 })
@@ -653,11 +702,11 @@ describe('the pure judgments at their edges', () => {
     })
   })
 
-  it('judgeIdle answers unavailable naming #756; resolveControlScope and resolveCascade throw naming it', () => {
+  it('disabled idle and empty cascade have explicit decisions', () => {
     const snapshot = dormant()
-    expect(() =>
+    expect(
       resolveControlScope(snapshot, { kind: 'control', value: { kind: 'archive' } }),
-    ).toThrow(/#756/u)
+    ).toMatchObject({ kind: 'scope', scopeRelease: true })
     expect(
       judgeIdle(snapshot, {
         observation: {
@@ -675,11 +724,11 @@ describe('the pure judgments at their edges', () => {
           completeScope: evidence('c'),
         },
       }),
-    ).toEqual({ kind: 'unavailable', reason: expect.stringContaining('#756') })
-    expect(() => resolveCascade(snapshot, [])).toThrow(/#756/u)
+    ).toEqual({ kind: 'disabled' })
+    expect(resolveCascade(snapshot, [])).toEqual([])
   })
 
-  it('a rejected hand-over removes the eligibility, and a fact off the path is refused naming #756', () => {
+  it('a rejected hand-over removes eligibility while exit reports remain observations', () => {
     const active = started()
     if (active.run.kind !== 'active') throw new Error('no run')
     const decision = decide(
@@ -697,8 +746,7 @@ describe('the pure judgments at their edges', () => {
       { compaction: null },
     )
     expect(decision).toMatchObject({
-      kind: 'rejected',
-      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('#756') },
+      kind: 'entries',
     })
     const rejected = commit(active, {
       kind: 'receive',
@@ -714,5 +762,72 @@ describe('the pure judgments at their edges', () => {
       },
     })
     expect(rejected.pending).toEqual([])
+  })
+
+  it('an exit report must name an attempt this session started, under its own Run and instance', () => {
+    const active = started()
+    if (active.run.kind !== 'active' || active.run.advance === null) throw new Error('no advance')
+    const { advance } = active.run
+    const exit = (snapshot: WorkSnapshot, claimed: typeof advance) =>
+      decide(
+        snapshot,
+        {
+          kind: 'receive',
+          input: {
+            ...base,
+            operation: operationId(`exit-${claimed.run}-${claimed.attempt}`),
+            fact: { kind: 'agent-exit', advance: claimed, source: evidence('exit') },
+          },
+        },
+        [],
+        null,
+        { compaction: null },
+      )
+    // The current advance names this attempt, so a different Run or instance is a forged relation.
+    const forged: (typeof advance)[] = [
+      { ...advance, run: 'no-such-run' as typeof advance.run },
+      { ...advance, instance: { owner: 'agent', id: 'another-instance' } },
+    ]
+    for (const claimed of forged)
+      expect(exit(active, claimed)).toMatchObject({
+        kind: 'rejected',
+        failure: { kind: 'invalid', field: 'fact.advance' },
+      })
+    // An attempt the history index does not cover is unknown (FR-01), not refused as invalid.
+    expect(
+      exit(active, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'unavailable', owner: 'session-history' },
+    })
+    // A late report for an attempt that no longer holds the advance stays an observation of the
+    // original Run: the history index proves the attempt started.
+    const ended = commit(active, {
+      kind: 'finishRun',
+      input: {
+        ...base,
+        operation: operationId('finish-before-exit'),
+        run: advance.run,
+        expected: active.revision,
+        bounded: { kind: 'uninterpretable', evidence: evidence('u') },
+      },
+    })
+    expect(ended.run.kind).toBe('terminal')
+    const late = exit(ended, advance)
+    expect(late.kind).toBe('entries')
+    if (late.kind === 'entries')
+      expect(late.entries.map(row => row.kind)).toEqual(['run.attempt-exited'])
+    // The index records each attempt once, so the same attempt under another Run is forged.
+    expect(exit(ended, forged[0] ?? advance)).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'invalid', field: 'fact.advance' },
+    })
+    // An attempt the index does not record stays unknown after the Run ended.
+    expect(
+      exit(ended, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'unavailable', owner: 'session-history' },
+    })
   })
 })

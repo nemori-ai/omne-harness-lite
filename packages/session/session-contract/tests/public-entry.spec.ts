@@ -4,16 +4,20 @@ import * as testing from '@omne-harness/session-contract/testing'
 
 // The whole runtime surface of the root entry. Every type is erased, so a new value export has to
 // be added here on purpose; the entry codec and the identity derivations of `decide` stay out.
-it('exports exactly the two derivations, the nine services, decide, reduce and the block', () => {
+it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
+    'INITIALIZATION_PROTOCOL',
+    'commandDigest',
     'decide',
     'deriveDriveOperation',
     'deriveSessionOperation',
+    'initializationRegistrationCommit',
     'judgeAdvance',
     'judgeCompletion',
     'judgeIdle',
     'judgeRunStart',
     'openWork',
+    'projectSessionLog',
     'reduce',
     'resolveCascade',
     'resolveControlScope',
@@ -24,13 +28,7 @@ it('exports exactly the two derivations, the nine services, decide, reduce and t
 })
 
 it('keeps the entry codec and the testing values off the root entry', () => {
-  for (const internal of [
-    'encodeEntry',
-    'decodeEntry',
-    'toJsonValue',
-    'commandDigest',
-    'memoryAccess',
-  ])
+  for (const internal of ['encodeEntry', 'decodeEntry', 'toJsonValue', 'memoryAccess'])
     expect(Object.keys(session)).not.toContain(internal)
 })
 
@@ -38,13 +36,21 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
   expect(Object.keys(testing).sort()).toEqual([
     'NotApplicable',
     'TESTING_OWNER',
+    'adoptedInitializationFixture',
     'adoption',
+    'agentDriveConformance',
     'assertIndistinguishable',
     'assistantMessage',
     'conformanceCase',
+    'createMemoryAgentDrive',
+    'createMemoryInitializationSource',
+    'createMemoryScopeRelease',
     'createMemorySessionClock',
     'createMemorySessionContextInput',
     'createMemorySessionEvidenceBridge',
+    'createMemorySessionHistorySource',
+    'createMemorySessionIdleInput',
+    'createMemorySessionNotifier',
     'createMemorySessionTransactions',
     'createScriptedSessionIdentityBridge',
     'creation',
@@ -52,6 +58,8 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'expectKind',
     'guard',
     'handle',
+    'initializationFixtureFacts',
+    'initializationFixtureGuard',
     'inputId',
     'isNotApplicable',
     'memoryAccess',
@@ -63,7 +71,14 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'pendingReasonsOf',
     'refused',
     'runConformanceCase',
+    'scopeReleaseConformance',
+    'sessionClockConformance',
+    'sessionContextInputConformance',
+    'sessionEvidenceBridgeConformance',
     'sessionId',
+    'sessionIdentityBridgeConformance',
+    'sessionIdleInputConformance',
+    'sessionNotifierConformance',
     'sessionTransactionsConformance',
     'shapeOf',
     'succeeded',

@@ -39,6 +39,8 @@ export type {
   IdleCoverage,
   IdleObservation,
   InitializationResult,
+  InitializationSource,
+  InitializationSources,
   InputBatch,
   Modes,
   Participation,
@@ -138,5 +140,50 @@ export {
   type RouteJudgment,
   type RunStartJudgment,
 } from './judgments.ts'
-export { decide } from './decide.ts'
+export { decide, commandDigest } from './decide.ts'
 export { reduce } from './reduce.ts'
+
+export {
+  projectSessionLog,
+  type SessionLogObservation,
+  type SessionLogConsequence,
+} from './projection.ts'
+export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts'
+export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts'
+export type {
+  InitialAdoption,
+  InitializationAdoption,
+  InitializationGuardFacts,
+  InitializationGuardResult,
+  InitializationConsequence,
+  InitializationState,
+  InitializationFactReference,
+} from './initialization-schema.ts'
+export { initializationRegistrationCommit } from './initialization-plan.ts'
+export type { InitializationPlanItem } from './initialization-plan.ts'
+export type { InitializationRegistration } from './initialization-registration.ts'
+export type { InitializationRequirement } from './initialization-requirements.ts'
+export type {
+  SessionLogRoot,
+  SessionHistoryIndex,
+  InputAdmissionBoundary,
+  InputAdmissionMember,
+  ExecutionHistoryBoundary,
+  SessionFactBoundary,
+  SessionBatchRecord,
+  SessionAttemptRecord,
+  SessionTakenRecord,
+  SessionHistoryReads,
+  SessionInputScope,
+  InputAdmissionPage,
+  SessionInputAdmission,
+  SessionExecutionPrefix,
+  SessionPrefixFact,
+} from './history-values.ts'
+export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts'
+
+export type {
+  SessionWorkEntryIndex,
+  SessionCallEntryReferences,
+  SessionControlEntryReferences,
+} from './work-entry-values.ts'
