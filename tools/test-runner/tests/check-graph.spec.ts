@@ -124,12 +124,24 @@ describe('运行', () => {
     expect(run.skipped).toEqual(['after'])
   })
 
-  it('起不来的命令记 -1，不抛', async () => {
+  it('起不来的命令记 -1 并写明原因，正在跑的别的步骤照常结算，不抛', async () => {
     const run = await runGraph(
-      [{ name: 'missing', command: [join(dir, 'no-such-binary')], after: [], heavy: false }],
-      options(),
+      [
+        { name: 'missing', command: [join(dir, 'no-such-binary')], after: [], heavy: false },
+        step('other', 200),
+      ],
+      { ...options(), keepGoing: true },
     )
-    expect(run.results[0]?.exitCode).toBe(-1)
+    const by = new Map(run.results.map(result => [result.name, result]))
+    expect(by.get('missing')?.exitCode).toBe(-1)
+    expect(by.get('missing')?.reason).toMatch(/起不来/u)
+    expect(readFileSync(join(dir, 'logs', 'missing.log'), 'utf8')).toMatch(/起不来/u)
+    expect(by.get('other')?.exitCode).toBe(0)
+    expect(run.skipped).toEqual([])
+  })
+
+  it('并发为 0 时拒绝，不让步骤永远等', async () => {
+    await expect(runGraph([step('a', 10)], options(0))).rejects.toThrow('至少为 1')
   })
 })
 
@@ -153,20 +165,19 @@ describe('逐步表与关键路径', () => {
     ])
   })
 
-  it('关键路径从最后结束的步骤沿最晚结束的依赖回溯', () => {
-    const steps: CheckStep[] = [
-      { name: 'build', command: [], after: [], heavy: true },
-      { name: 'docs', command: [], after: [], heavy: false },
-      { name: 'test', command: [], after: ['build'], heavy: true },
-      { name: 'loop', command: [], after: ['build', 'docs', 'test'], heavy: false },
-    ]
+  it('关键路径按时间回溯：每步退到它开始前结束得最晚的那一步，重步骤排队也算在内', () => {
+    // typecheck 与 test 都只依赖 build，但重步骤一次一个：test 实际等的是 typecheck。
     const results = [
       result('build', 0, 10),
       result('docs', 0, 30),
-      result('test', 10, 50),
-      result('loop', 50, 60),
+      result('typecheck', 10, 25),
+      result('test', 25, 250),
+      result('acceptance', 250, 260),
+      result('loop', 260, 290),
     ]
-    expect(criticalPath(steps, results)).toEqual(['build', 'test', 'loop'])
+    expect(criticalPath(results)).toEqual(['build', 'typecheck', 'test', 'acceptance', 'loop'])
+    // 轻步骤与关键路径重叠时不进路径。
+    expect(criticalPath([result('build', 0, 10), result('docs', 0, 30)])).toEqual(['docs'])
   })
 
   it('轻步骤并发：核的三分之一，至少 2', () => {

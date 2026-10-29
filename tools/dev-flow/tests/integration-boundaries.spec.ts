@@ -204,8 +204,8 @@ it('the check step table runs both dev-flow entries, the snapshot check after th
   )
   expect(rows.get('change-scope')?.after).toBe('-')
   expect(rows.get('change-scope')?.command).toMatch(/delivery\/change-scope-cli\.ts$/u)
-  // The snapshot check runs through dev-flow, after the build, and no longer through pnpm.
-  expect(rows.get('contract-check')?.after).toBe('build')
+  // The snapshot check runs through dev-flow, after the build and the type check (which may rebuild a dist), and no longer through pnpm.
+  expect(rows.get('contract-check')?.after).toBe('build,typecheck')
   expect(rows.get('contract-check')?.command).toMatch(/integration\/cli\.ts contract-check$/u)
   expect(listed.stdout).not.toContain('contract:api --check')
 })

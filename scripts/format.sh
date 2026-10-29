@@ -92,9 +92,20 @@ run_formatter() {
     fi
     # The scope filter above admits only file types that oxfmt formats; ignorePatterns in the
     # config is a second guard for the same exclusions.
-    # The full target list exceeds the Windows command-line limit (32767 characters); xargs splits
-    # it into runs that fit the platform limit and exits non-zero when any run fails.
-    printf '%s\0' "$@" | xargs -0 "$oxfmt" "--$mode" --config "$config"
+    case "$OSTYPE" in
+        msys*|cygwin*)
+            # The full target list exceeds the Windows command-line limit (32767 characters); xargs splits
+            # it into runs that fit. xargs reports any failing run as 123, which is mapped to 1 so the
+            # caller sees the same "formatting differs" status as on other platforms.
+            local status=0
+            printf '%s\0' "$@" | xargs -0 "$oxfmt" "--$mode" --config "$config" || status=$?
+            (( status == 123 )) && status=1
+            return "$status"
+            ;;
+        *)
+            "$oxfmt" "--$mode" --config "$config" "$@"
+            ;;
+    esac
 }
 
 collect_default_targets() {

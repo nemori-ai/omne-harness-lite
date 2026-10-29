@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
-    "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --concurrency=4 --output-logs=errors-only",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --output-logs=errors-only",
     "test": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all --build",
     "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test",
     "test:affected": "./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run",

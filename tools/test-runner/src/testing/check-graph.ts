@@ -1,15 +1,18 @@
 // `pnpm run check` 的步骤图运行器：步骤只声明「先于我完成的步骤」，没有依赖的就同时跑。
-// 重负载的步骤（构建、类型检查、成员测试、验收、pytest）自己按预算起多进程，不受这里的并发限制；
-// 轻负载的单线程检查受 `lightConcurrency` 限制，免得在核少的机器上把重步骤挤慢。
-// 任一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步。每步的输出落自己的日志。
+// 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程把机器占满，所以同时至多 `heavyConcurrency` 个（缺省 1）；
+// 轻步骤（单线程检查，含 pytest）受 `lightConcurrency` 限制，免得在核少的机器上把重步骤挤慢。
+// 任一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步；`keepGoing` 时其余照跑，依赖失败步骤的不启动。
+// 每步的输出落自己的日志。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
-import { closeSync, mkdirSync, openSync, rmSync } from 'node:fs'
+import { closeSync, mkdirSync, openSync, rmSync, writeSync } from 'node:fs'
 import { join } from 'node:path'
+
+/** 一条命令：可执行文件与参数，至少有可执行文件。 */
+export type Command = readonly [string, ...string[]]
 
 export interface CheckStep {
   readonly name: string
-  /** 可执行文件与参数。 */
-  readonly command: readonly string[]
+  readonly command: Command
   /** 先于本步完成的步骤名。 */
   readonly after: readonly string[]
   /** 自己按预算起多进程的步骤；轻步骤受 `lightConcurrency` 限制。 */
@@ -22,7 +25,7 @@ export interface CheckStep {
 
 export interface StepResult {
   readonly name: string
-  /** -1：起不来或被终止。 */
+  /** -1：起不来或被信号结束，`reason` 写原因。 */
   readonly exitCode: number
   /** 相对整张图开始的毫秒。 */
   readonly startedMs: number
@@ -30,10 +33,12 @@ export interface StepResult {
   readonly logPath: string
   /** 因别的步骤失败而被终止。 */
   readonly cancelled: boolean
+  /** 起不来（spawn 出错、日志打不开、要清的目录删不掉）或被信号结束时的原因；正常退出没有。 */
+  readonly reason?: string
 }
 
 export interface GraphRun {
-  /** 按开始顺序。没开始的步骤不在内。 */
+  /** 按结束顺序。没开始的步骤不在内。 */
   readonly results: readonly StepResult[]
   /** 因失败而没有开始的步骤名。 */
   readonly skipped: readonly string[]
@@ -97,11 +102,16 @@ function terminate(child: ChildProcess): void {
   }
 }
 
+const message = (error: unknown) => (error instanceof Error ? error.message : String(error))
+
 export async function runGraph(
   steps: readonly CheckStep[],
   options: GraphOptions,
 ): Promise<GraphRun> {
   checkGraph(steps)
+  const heavyConcurrency = options.heavyConcurrency ?? 1
+  if (options.lightConcurrency < 1 || heavyConcurrency < 1)
+    throw new Error('轻、重步骤的并发都至少为 1，否则有步骤永远起不了')
   mkdirSync(options.logDir, { recursive: true })
   const started = Date.now()
   const finished = new Map<string, StepResult>()
@@ -113,34 +123,37 @@ export async function runGraph(
   let failed = false
   let lightRunning = 0
   let heavyRunning = 0
-  const heavyConcurrency = options.heavyConcurrency ?? 1
 
   const ready = (step: CheckStep) =>
     step.after.every(name => finished.get(name)?.exitCode === 0) &&
     (step.heavy ? heavyRunning < heavyConcurrency : lightRunning < options.lightConcurrency)
 
+  const terminateAll = () => {
+    for (const [name, child] of running) {
+      terminated.add(name)
+      terminate(child)
+    }
+  }
+  // 运行器自己被打断时把正在跑的整棵树都终止：子进程在 POSIX 上自成进程组，终端的信号到不了它们。
+  const onSignal = () => {
+    terminateAll()
+    process.exitCode = 130
+  }
+  for (const signal of ['SIGINT', 'SIGTERM'] as const) process.on(signal, onSignal)
+
   const launch = (step: CheckStep): Promise<void> => {
     pending.delete(step.name)
     if (step.heavy) heavyRunning += 1
     else lightRunning += 1
-    for (const directory of step.clean ?? [])
-      rmSync(join(options.root, directory), { recursive: true, force: true })
     const logPath = join(options.logDir, logNameOf(step.name))
-    const log = openSync(logPath, 'w')
     const startedMs = Date.now() - started
-    options.onStart?.(step, logPath)
-    const [command, ...args] = step.command
-    const child = spawn(command ?? '', args, {
-      cwd: options.root,
-      env: options.env,
-      stdio: ['ignore', log, log],
-      detached: process.platform !== 'win32',
-    })
-    running.set(step.name, child)
+    let settled = false
     return new Promise(resolve => {
-      const settle = (exitCode: number) => {
+      const settle = (exitCode: number, reason?: string, log?: number) => {
+        if (settled) return
+        settled = true
         running.delete(step.name)
-        closeSync(log)
+        if (log !== undefined) closeSync(log)
         if (step.heavy) heavyRunning -= 1
         else lightRunning -= 1
         const result: StepResult = {
@@ -150,39 +163,65 @@ export async function runGraph(
           endedMs: Date.now() - started,
           logPath,
           cancelled: terminated.has(step.name),
+          ...(reason === undefined ? {} : { reason }),
         }
         finished.set(step.name, result)
         results.push(result)
         options.onFinish?.(result)
         if (exitCode !== 0 && !failed) {
           failed = true
-          if (options.keepGoing !== true)
-            for (const [name, other] of running) {
-              terminated.add(name)
-              terminate(other)
-            }
+          if (options.keepGoing !== true) terminateAll()
         }
         resolve()
       }
-      child.once('error', () => settle(-1))
-      child.once('exit', code => settle(code ?? -1))
+      // 起不来的原因也写进这一步的日志，日志读者不必再找别处。
+      const failToStart = (reason: string, log?: number) => {
+        if (log !== undefined) writeSync(log, `${reason}\n`)
+        settle(-1, reason, log)
+      }
+      let log: number | undefined
+      try {
+        for (const directory of step.clean ?? [])
+          rmSync(join(options.root, directory), { recursive: true, force: true })
+        log = openSync(logPath, 'w')
+        options.onStart?.(step, logPath)
+        const [command, ...args] = step.command
+        const child = spawn(command, args, {
+          cwd: options.root,
+          env: options.env,
+          stdio: ['ignore', log, log],
+          detached: process.platform !== 'win32',
+        })
+        running.set(step.name, child)
+        const opened = log
+        child.once('error', error => failToStart(`起不来：${message(error)}`, opened))
+        child.once('exit', (code, signal) =>
+          settle(code ?? -1, signal === null ? undefined : `被信号 ${signal} 结束`, opened),
+        )
+      } catch (error) {
+        failToStart(`起不来：${message(error)}`, log)
+      }
     })
   }
 
   const inFlight = new Set<Promise<void>>()
-  while (pending.size > 0 || inFlight.size > 0) {
-    if (!failed || options.keepGoing === true)
-      for (const name of pending) {
-        const step = byName.get(name)
-        if (step !== undefined && ready(step)) {
-          const promise = launch(step).then(() => {
-            inFlight.delete(promise)
-          })
-          inFlight.add(promise)
+  try {
+    while (pending.size > 0 || inFlight.size > 0) {
+      if (!failed || options.keepGoing === true)
+        for (const name of pending) {
+          const step = byName.get(name)
+          if (step !== undefined && ready(step)) {
+            const promise = launch(step).then(() => {
+              inFlight.delete(promise)
+            })
+            inFlight.add(promise)
+          }
         }
-      }
-    if (inFlight.size === 0) break
-    await Promise.race(inFlight)
+      if (inFlight.size === 0) break
+      await Promise.race(inFlight)
+    }
+  } finally {
+    for (const signal of ['SIGINT', 'SIGTERM'] as const) process.off(signal, onSignal)
   }
   return { results, skipped: [...pending], wallMs: Date.now() - started }
 }

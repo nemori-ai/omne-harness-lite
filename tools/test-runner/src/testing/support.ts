@@ -76,13 +76,16 @@ export function pnpmCommand(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): Command {
   if (process.platform !== 'win32') return { command: 'pnpm', args: [] }
+  const seen: string[] = []
   for (const directory of (env['PATH'] ?? env['Path'] ?? '').split(delimiter)) {
     if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
     const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
     if (existsSync(entry)) return { command: process.execPath, args: [entry] }
-    throw new Error(
-      `${join(directory, 'pnpm.cmd')} 旁边没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
-    )
+    seen.push(join(directory, 'pnpm.cmd'))
   }
-  throw new Error('PATH 里没有 pnpm.cmd')
+  throw new Error(
+    seen.length === 0
+      ? 'PATH 里没有 pnpm.cmd'
+      : `${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+  )
 }

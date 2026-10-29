@@ -5,7 +5,7 @@ import { coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { appendFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { join, relative } from 'node:path'
-import { runGraph, type CheckStep, type StepResult } from './check-graph.ts'
+import { runGraph, type StepResult } from './check-graph.ts'
 import { checkSteps, describeSteps, PLAN_DIR, PLAN_FILE } from './check-steps.ts'
 import { computePlan, describePlanFile, fullRequested, writePlanFile } from './steps.ts'
 import { timestamp } from './support.ts'
@@ -54,26 +54,36 @@ export function stepsTable(results: readonly StepResult[], skipped: readonly str
 }
 
 /**
- * 实际走过的关键路径：从最后结束的步骤出发，每次退到它依赖里最晚结束的那一步。
+ * 实际走过的关键路径：从最后结束的步骤出发，每次退到「在它开始之前结束、结束得最晚」的那一步。
+ * 一步等的不只是依赖，还有重步骤那条道上的前一个（例如 test 等 typecheck 跑完），所以按时间回溯，不按依赖。
  * 它解释墙钟花在哪条链上；与它重叠的步骤没有拖长总时间。
  */
-export function criticalPath(
-  steps: readonly CheckStep[],
-  results: readonly StepResult[],
-): string[] {
-  const byName = new Map(results.map(result => [result.name, result]))
-  const dependencies = new Map(steps.map(step => [step.name, step.after]))
-  let current = [...results].sort((a, b) => b.endedMs - a.endedMs)[0]
+export function criticalPath(results: readonly StepResult[]): string[] {
+  const byEnd = [...results].sort((a, b) => b.endedMs - a.endedMs)
+  let current = byEnd[0]
   const path: string[] = []
   while (current !== undefined) {
     path.unshift(current.name)
-    const finished = (dependencies.get(current.name) ?? [])
-      .map(name => byName.get(name))
-      .filter((result): result is StepResult => result !== undefined)
-      .sort((a, b) => b.endedMs - a.endedMs)
-    current = finished[0]
+    const startedAt = current.startedMs
+    current = byEnd.find(result => result.endedMs <= startedAt && result !== current)
   }
   return path
+}
+
+/** 重步骤日志里写的预算与并行度那几行，供准入日志保留（`tmp/check-run/` 下一次运行会清掉）。 */
+export function budgetLines(results: readonly StepResult[]): string[] {
+  const lines: string[] = []
+  for (const result of results) {
+    let text: string
+    try {
+      text = readFileSync(result.logPath, 'utf8')
+    } catch {
+      continue
+    }
+    for (const line of text.split('\n'))
+      if (/预算 \d+ 个进程/u.test(line)) lines.push(`${result.name}：${line.trim()}`)
+  }
+  return lines
 }
 
 function tail(path: string, lines: number): string[] {
@@ -151,11 +161,12 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
     onStart: step => say(`▶ ${step.name}`),
     onFinish: result => {
       const took = `${seconds(result.endedMs - result.startedMs)} 秒`
-      if (result.cancelled) say(`⊘ ${result.name} 被终止（${took}）`)
+      const why = result.reason === undefined ? '' : `，${result.reason}`
+      if (result.cancelled) say(`⊘ ${result.name} 被终止（${took}${why}）`)
       else if (result.exitCode === 0) say(`✓ ${result.name} ${took}`)
       else
         say(
-          `✗ ${result.name} ${took}，退出码 ${result.exitCode}，日志 ${relative(root, result.logPath)}`,
+          `✗ ${result.name} ${took}，退出码 ${result.exitCode}${why}，日志 ${relative(root, result.logPath)}`,
         )
     },
   })
@@ -164,8 +175,9 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
   writeFileSync(join(runDir, 'steps.tsv'), `${table.join('\n')}\n`)
   const failed = run.results.filter(result => result.exitCode !== 0 && !result.cancelled)
   say(
-    `总计 ${seconds(run.wallMs)} 秒；关键路径 ${criticalPath(steps, run.results).join(' → ')}；逐步耗时表 ${CHECK_RUN_DIR}/steps.tsv`,
+    `总计 ${seconds(run.wallMs)} 秒；关键路径 ${criticalPath(run.results).join(' → ')}；逐步耗时表 ${CHECK_RUN_DIR}/steps.tsv`,
   )
+  for (const line of budgetLines(run.results)) say(line)
   let exitCode = 0
   if (failed.length > 0) {
     const first = failed.sort((a, b) => a.endedMs - b.endedMs)[0]

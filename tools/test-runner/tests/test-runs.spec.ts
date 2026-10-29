@@ -27,6 +27,7 @@ import {
   ledgerHome,
   parseTestRunsConfig,
   readTestRunsConfig,
+  workerCountOverride,
 } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
@@ -231,6 +232,21 @@ describe('并行度', () => {
         mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
       }),
     ).toThrow('parallel.memberDivisor')
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: { ...POLICY, minimum: 9, maxWorkersPerMember: 8 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+      }),
+    ).toThrow('parallel.minimum 不能大于')
+  })
+
+  it('Stryker 的进程数：VITEST_MAX_WORKERS 已设时以它为准，否则取给的预算', () => {
+    expect(workerCountOverride({}, 19)).toBe(19)
+    expect(workerCountOverride({ VITEST_MAX_WORKERS: '1' }, 19)).toBe(1)
+    expect(() => workerCountOverride({ VITEST_MAX_WORKERS: 'x' }, 19)).toThrow('VITEST_MAX_WORKERS')
   })
 
   it('复核上限（#649）：配置给初值，环境变量覆盖，0 表示不复核；不是非负整数就报错', () => {

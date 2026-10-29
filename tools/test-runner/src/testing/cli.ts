@@ -108,15 +108,15 @@ async function step(argv: readonly string[]): Promise<number> {
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
   const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
-  // 预算在这一步开始时看一次机器：并行跑着的别的检查会降低空闲率，这一步就少占一些。
-  const budget = await budgetFor(readTestRunsConfig().parallel)
+  // 预算在用到它的那一步开始时采样一次机器：并行跑着的别的检查会降低空闲率，这一步就少占一些。
+  const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: () => buildStep(ROOT, file, budget),
-    typecheck: () => typecheckStep(ROOT, file, budget),
-    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己看机器。
+    build: async () => buildStep(ROOT, file, await budget()),
+    typecheck: async () => typecheckStep(ROOT, file, await budget()),
+    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
     test: () => testStep(ROOT, file, planPath === undefined),
-    acceptance: () => acceptanceStep(ROOT, file, budget),
+    acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
   return steps[name as Step]()
 }

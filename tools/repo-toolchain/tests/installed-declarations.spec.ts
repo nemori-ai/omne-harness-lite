@@ -24,6 +24,23 @@ describe('sharing installed declarations', () => {
     expect(es5File?.languageVersion).toBe(ts.ScriptTarget.ES5)
   })
 
+  it('parses again when a compilation setting other than the target differs', () => {
+    // 同一 target、同一解析参数，只换影响绑定的编译选项：键里的设置项要把它们分开。
+    const commonJs = sharingInstalledDeclarations(
+      { ...es2024, module: ts.ModuleKind.CommonJS },
+      unread,
+    )(lib, ts.ScriptTarget.ES2024)
+    const nodeNext = sharingInstalledDeclarations(
+      {
+        ...es2024,
+        module: ts.ModuleKind.NodeNext,
+        moduleResolution: ts.ModuleResolutionKind.NodeNext,
+      },
+      unread,
+    )(lib, ts.ScriptTarget.ES2024)
+    expect(nodeNext).not.toBe(commonJs)
+  })
+
   it('leaves files outside the installed directories to the host', () => {
     // 一个存在、读得到的文件，只是不在 lib 与类型根里。
     const own = fileURLToPath(import.meta.url)

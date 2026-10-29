@@ -44,10 +44,10 @@ def _queue_link(project: Path, name: str, relative: Path, pending: list, check: 
             raise ValueError(f"existing link has another target: {destination}")
         if os.name == "nt" and not _traversable(destination) and (project / relative).is_dir():
             # Git for Windows checks a link out as a file link when its target does not exist yet,
-            # and Windows cannot traverse a file link into a directory. Recreate it as a directory link.
+            # and Windows cannot traverse a file link into a directory. Queue it to be recreated as a
+            # directory link; the unlink happens with the other writes, after every link passed preflight.
             if check:
                 raise ValueError(f"project link is a file link to a directory: {destination}")
-            destination.unlink()
             pending.append((destination, relative))
     elif destination.exists():
         raise ValueError(f"existing real path; migration is required before linking: {destination}")
@@ -88,6 +88,8 @@ def link(project: Path, check=False, hosts=tuple(HOSTS)):
     if not check:
         # Preflight every link first. A concurrent creator still fails rather than being replaced.
         for destination, relative in pending:
+            if destination.is_symlink():
+                destination.unlink()
             destination.symlink_to(relative, target_is_directory=True)
 
 

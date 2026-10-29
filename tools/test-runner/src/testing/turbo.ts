@@ -24,15 +24,14 @@ import {
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
 /**
- * turbo 的平台二进制：`turbo` 包的 `bin/turbo` 按平台在它的可选依赖里找同名二进制，这里照它的规则找。
- * 不经 `node_modules/.bin/turbo`：那是 shell 脚本，Windows 上不能直接 spawn。
+ * turbo 的入口。POSIX 上照旧是 `node_modules/.bin/turbo`。Windows 上那是 shell 脚本，不能直接 spawn，
+ * 改为按 `turbo` 包自己 `bin/turbo` 的规则在它的可选依赖里找平台二进制。
  */
 function turboBinary(): string {
+  if (process.platform !== 'win32') return join(RUNNER, 'node_modules', '.bin', 'turbo')
   const require = createRequire(import.meta.url)
-  const platform = process.platform === 'win32' ? 'windows' : process.platform
   const arch = process.arch === 'x64' ? '64' : process.arch
-  const extension = process.platform === 'win32' ? '.exe' : ''
-  return require.resolve(`@turbo/${platform}-${arch}/bin/turbo${extension}`, {
+  return require.resolve(`@turbo/windows-${arch}/bin/turbo.exe`, {
     paths: [dirname(require.resolve('turbo/package.json', { paths: [RUNNER] }))],
   })
 }

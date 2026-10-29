@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   deriveParallelism,
+  idleBetween,
   observeMachine,
   workerBudget,
   type ParallelPolicy,
@@ -36,6 +37,10 @@ describe('工作进程预算', () => {
     expect(workerBudget(machine(8, 0.01), POLICY).workers).toBe(1)
     expect(workerBudget(machine(4, 1, 1024 * 1024), POLICY).workers).toBe(4)
   })
+
+  it('空闲内存读不到（0）时不按内存封顶', () => {
+    expect(workerBudget(machine(8, 1, 0), POLICY).workers).toBe(8)
+  })
 })
 
 describe('预算怎么分', () => {
@@ -62,6 +67,21 @@ describe('预算怎么分', () => {
       memberConcurrency: 22,
       vitestMaxWorkers: 8,
     })
+  })
+})
+
+describe('空闲率', () => {
+  const sample = (idle: number, user: number) => [{ times: { idle, user, sys: 0 } }]
+
+  it('按两次采样之间的时间差算，不按累计值', () => {
+    expect(idleBetween(sample(900, 100), sample(950, 150))).toBe(0.5)
+    expect(idleBetween(sample(0, 0), sample(100, 0))).toBe(1)
+    expect(idleBetween(sample(0, 0), sample(0, 100))).toBe(0)
+  })
+
+  it('没有核或时间没走时当全闲', () => {
+    expect(idleBetween([], [])).toBe(1)
+    expect(idleBetween(sample(10, 10), sample(10, 10))).toBe(1)
   })
 })
 
