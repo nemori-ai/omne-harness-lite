@@ -15,7 +15,7 @@ MODULE = "omne_harness_lite_spec_tools.documentation_inventory"
 def write(root, path, text):
     target = root / path
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
+    target.write_text(text, encoding="utf-8", newline="")
 
 
 def fixture(root, *, text="# Target\n\nReal instruction.\n", sections=None, **changes):
