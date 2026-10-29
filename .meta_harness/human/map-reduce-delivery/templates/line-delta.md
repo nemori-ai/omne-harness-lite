@@ -1,6 +1,6 @@
 # line-delta 模板
 
-Reduce 在线父卡上为每条存续线发布 delta，idle 线也发。delta 是人读评论。首行标记与固定项归[线会话记录](../../../../docs/engineering/integration.md#线会话记录)，收口顺序归[接受与逐收口续接](../../../../docs/engineering/integration.md#接受与逐收口续接)。本模板只给评论正文的样式。
+Reduce 在线父卡上为每条存续线发布 delta，idle 线也发。delta 是人读评论。首行标记与固定项归[线会话记录](../../../../docs/engineering/integration.md#线会话记录)，收口顺序归[收口顺序](../../../../docs/engineering/map-reduce-states.md#收口顺序)。本模板只给评论正文的样式。
 
 复制下面的代码块作为评论正文。每个占位都替换成实际值。
 

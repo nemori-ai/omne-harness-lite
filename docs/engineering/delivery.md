@@ -1,6 +1,6 @@
 # Issue、Projects与交付协议
 
-协议已采用，日常入口以[GitHub交付配置](github-delivery.json)的实际发布状态为准。PanQiWei已授权启用，接入及首次采用记录归[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)；未发布或未获本任务授权时只形成获准草稿。每项任务按实际需要明确本次身份、结果和接受责任。平台、默认分支模板及实际宿主执行仍须独立验证，本页不授予发布或启用。
+日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布或未获本任务授权时，agent 只形成草稿，不写平台。
 
 本页拥有 Issue、Project、条件、调度与交付决定的共同协议。协议不是 GitHub 原生保证；对话及操作顺序归[agent交付操作](agent-delivery.md)。
 
@@ -89,17 +89,17 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
 | Milestone | 卡所属的里程碑 | Issue 的 milestone 字段 | 调度者。建里程碑与流转用 `milestone-cli.ts` | 建卡时设置。改里程碑用 `carry` | 各里程碑看板的过滤、Active work 与顶层交付卡的分组、路线图、周期 |
 | Dispatched at | 卡第一次开工的日期 | dev-flow 写入的日期。已有值时不覆盖 | 同 Line | 开工时 | 周期 |
-| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered` | 交回候选时 | 现有视图不显示 |
-| Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted` | 接受决定读回后 | 周期 |
+| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线内的卡由线会话运行 | 交回候选时 | 现有视图不显示 |
+| Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted`。批次内的卡由集成节点按卡运行 | 接受决定读回后 | 周期 |
 | Cycle days | Accepted at 与 Dispatched at 相差的天数 | 由两个日期算出 | 同 Accepted at | 同 Accepted at | 周期 |
 
 Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
 
-- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。
-- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。
-- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。一波并行的卡由集成节点运行。
+- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在卡的 PR 合入批次分支时运行。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review。
 - Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
-- Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。
+- Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。批次内的任务卡由集成节点在按卡接受时运行。
 
 标签是正文的投影，不是第二个源。下表列出调度用的标签族：
 
@@ -266,6 +266,4 @@ Project 可由原投影单写者维护可选 Integration target/progress，取�
 
 ## Map-Reduce 交接与整波放行
 
-常驻 Line 与唯一 reduce 的责任、两个协调边界、三问、等待监督及接受顺序归[集成清单](integration.md#集成节点的清单)，完整状态和恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。
-
-整波放行前，非终态必须读回下一波任务与收口卡，并为包括 idle 在内的全部存续线发布 delta；有权终态必须读回终态决定并为每条存续线发布 terminal delta，不建虚构后继。随后本波收口卡按自身交付条件接受并读回，然后关闭。关闭是放行动作。只观察到 closed 事件不等于放行。blocked 或 failed 的交回由 reduce 发 redo delta 或接管，发布 delta 不等于问题已解决。只有显式终态结束 Line；轮空逐收口续接。
+常驻 Line 与唯一 reduce 的协作规则归[集成清单](integration.md#集成节点的清单)。阶段、收口顺序、redo 与接管处置及恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。

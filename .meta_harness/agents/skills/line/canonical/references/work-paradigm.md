@@ -45,7 +45,7 @@
 | 准则 | 拥有者（先读这里） |
 | --- | --- |
 | 顶层架构遵循 | `docs/orientation.md`；`docs/architecture/README.md`；`docs/architecture/structure.md`「三条分解轴」「组合保证由谁承担」；IC 约定 `docs/architecture/cordis-integration-conventions.md` 与 constraints |
-| 研发品味 | ub-mode（`docs/engineering/skills.md`「ub-mode 研发品味」）；`.meta_harness/agents/roles/engineering-taste.md`「维度分解与正交」 |
+| 研发品味 | ub-mode（`docs/engineering/skills.md`「ub-mode 研发品味」）；项目补充见 `.meta_harness/agents/roles/engineering-taste.md`「维度分解与正交」 |
 | 领域边界隔离 | `docs/architecture/layers-and-dependencies.md`「依赖关系与禁止方向」「领域语义依赖与模型边界」；`docs/domains/boundaries.md`「关键接缝与组合承担者」 |
 | 面向契约实现 | `.meta_harness/agents/roles/developer-contract.md`「采用的接口与行为承诺是实际输入」；成员 SPEC 与 `api/`；`integration.md`「里程碑与契约基线」「可加改动」 |
 | SOLID 与 DDD 方法 | `docs/architecture/layers-and-dependencies.md`「方法依据与采用范围」 |
@@ -79,7 +79,11 @@
 
 | 规矩 | 拥有者 |
 | --- | --- |
-| 认卡、交回、证据与接受 | `docs/engineering/agent-delivery.md`（证据规则在第 5 节） |
+| 认卡、交回、证据与接受 | `docs/engineering/agent-delivery.md`（证据贴卡评论的规则在第 5 节） |
+| 线内的卡的 Stage：In progress、In review 由线会话写 | `docs/engineering/agent-delivery.md` 第 4 节；`docs/engineering/delivery.md`「字段总表」 |
+| 批次分支：从 F 切出，波内不同步联调轨道，taskBase 取批次分支头 | `docs/engineering/integration.md`「线轨道的同步与提升」 |
+| 线内的卡对契约成员只做可加改动 | `docs/engineering/integration.md`「里程碑内的规则」第 2 条；`docs/engineering/delivery.md`「契约变更与里程碑类型」 |
+| 交回物：批次 PR、五节交接报告、交回记录 | `docs/engineering/integration.md`「线会话记录」 |
 | 风险级别、评审与升级阶梯 | `docs/engineering/quality.md` |
 | 隔离、单写与工作树清理 | `docs/engineering/workflow.md` |
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
@@ -135,7 +139,7 @@
 
 ## 交回与等待
 
-- 做完：每张卡合入本线批次分支，卡上发五节交接报告（做了什么、没做什么、发现的冲突、给集成节点的提示、评审闭合）。整线本波交完就开批次 PR，在线父卡发交回记录，然后停写。
+- 做完：每张卡合入本线批次分支，卡上发五节交接报告。整线本波交完就开批次 PR，在线父卡发交回记录，然后停写。三样交回物的格式归 `integration.md`「线会话记录」。
 - 做不了：同一个入口交回 blocked，写清原因、已完成部分和剩余工作，然后停写。
 - 等待：一条等待命令等线父卡的下一条 delta。等待本身出问题时写进状态，等人转告，不轮询。
 
@@ -145,13 +149,13 @@
 
 1. **用宿主的 shell 或 bash 工具，作为一次前台阻塞的工具调用来执行。** 不加 `nohup`、`&`、`setsid`、`disown`，不放后台，不用 Claude Code 的 `run_in_background`。
 2. **原因：** 放到后台而前台不阻塞，会话就会结束本回合。Codex 上，后台进程跑完也唤醒不了已结束的会话，线就永远等不到收口。
-3. **单次工具调用有时长上限。** 给等待命令加 `--timeout`，取略小于宿主单次调用上限的值。退出码 3 表示超时，不表示条件不成立：立即用**同一个 `--since`** 在新的前台调用里重跑同一条命令。这是重新挂上事件等待，不是轮询 GitHub（每次启动只做一次有界对账）。
-4. **等待返回后**按 delta 处理：active 开工、idle 再次前台阻塞等待、redo 按新 attempt 重开、terminal 交最终报告。只有读到明确的 terminal delta 并交完最终报告，才可以结束回合。
+3. **单次工具调用有时长上限。** 给等待命令加 `--timeout`，取略小于宿主单次调用上限的值。退出码 3 表示超时，不表示条件不成立：先读回一次本线父卡的 delta（见 `docs/engineering/integration.md`「等待监督」第 5 步），没有未处理的就用**同一个 `--since`** 在新的前台调用里重跑同一条命令。这是重新挂上事件等待，不是轮询 GitHub（每个超时周期只做一次读回和一次有界对账）。
+4. **等待返回后**按 delta 处理：active 开工、idle 再次前台阻塞等待（先读回本线父卡全部 delta 并按已处理集合去重，重挂起点见 `docs/engineering/integration.md`「等待监督」）、redo 按新 attempt 重开、terminal 交最终报告。只有读到明确的 terminal delta 并交完最终报告，才可以结束回合。
 5. **等自己派出的子代理时同理：** 前台没有别的工作就阻塞等它，不结束回合。
 6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。每台机器只有一个接收器。它是常驻服务，要活过会话，由本机第一个开工的会话启动一次。启动方法见 `tools/dev-flow/src/delivery/README.md`「事件等待」。首次消息只给只读的 `health` 命令，不给 `init` 与 `serve`。接收器不是等待命令，等待命令本身仍然前台阻塞。
 7. 每次重挂前后更新 `state.md` 的等待命令与 `--since`，便于替换会话接续。
 
-- 每次交回、停下或压缩上下文前，更新 `tmp/line-<线>/state.md`：本波进度、身份、已消费 delta、当前 attempt 与 head、未完成操作、下一步。替换会话只读它和线父卡就能接上。
+- 每次交回、停下或压缩上下文前，更新 `tmp/line-<线>/state.md`：本波进度、身份、已处理的 delta 评论 id、当前 attempt 与 head、未完成操作、下一步。替换会话只读它和线父卡就能接上。
 
 ## 每波复盘：把教训变成线级资产
 
