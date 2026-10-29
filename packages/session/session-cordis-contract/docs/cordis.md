@@ -2,7 +2,7 @@
 
 本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。根入口只重导出契约类型。访问检查定义与独立测试子类已验证，生产提供者的必需注入和实际执行处检查尚未接入。机制事实按 Cordis 4.0.4 核对。
+现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。根入口只重导出契约类型。访问检查定义与独立测试子类已验证。session-contract 的 `commit` 显式携带 access，内存事务工厂必需 `accessCheck`（见[访问检查](../../session-contract/docs/access-check.md)）。生产 Session 服务的必需注入尚未交付。机制事实按 Cordis 4.0.4 核对。
 
 ## 服务定义
 

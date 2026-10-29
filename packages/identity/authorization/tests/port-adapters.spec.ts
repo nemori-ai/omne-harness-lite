@@ -31,8 +31,14 @@ import type {
   ResidentKey,
 } from '@omne-harness/session-contract'
 import {
+  adoptedInitializationFixture,
   assistantMessage,
+  createMemoryInitializationSource,
+  createMemorySessionTransactions,
+  creation,
   evidence,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
   operationId,
   sessionId,
 } from '@omne-harness/session-contract/testing'
@@ -800,6 +806,60 @@ describe('SessionAccessCheck through the admission check', () => {
       kind: 'unavailable',
       diagnostic: 'the tenant standing source threw an exception; its message is not reported',
     })
+  })
+
+  it('decides each history read of the real transaction port once, at its execution point', async () => {
+    const { principals, table, session } = installed()
+    const initialization = createMemoryInitializationSource()
+    const asked: string[] = []
+    // The port requires one check. `create` is outside this reference policy, so the fixture
+    // answers it itself; every other request goes to the adapter under test.
+    const port = createMemorySessionTransactions<Principal>({
+      initialization,
+      accessCheck: {
+        check: async request => {
+          asked.push(request.operation)
+          return request.operation === 'create'
+            ? { kind: 'allowed', evidence: evidence('fixture/create') }
+            : session.check(request)
+        },
+      },
+    })
+    const access = { principal: principals.actingForAdmin, tenant: adminTenant(), session: SESSION }
+    const command = {
+      kind: 'create',
+      input: {
+        tenant: access.tenant,
+        session: SESSION,
+        operation: operationId('create'),
+        creation: creation(),
+      },
+    } satisfies SessionCommand
+    initialization.controls.register(
+      command,
+      initializationFixtureGuard(
+        initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+      ),
+    )
+    const guards = await initialization.prepare(command)
+    if ('failure' in guards) throw new Error('fixture preparation failed')
+    expect(await port.commit({ access, command, guards: guards.ok })).toHaveProperty('ok')
+    const rows = port.controls.entriesOf(access.tenant, SESSION)
+    const page = { ...access, kinds: [], from: null, direction: 'forward' as const, pageBytes: 1 }
+    const first = await port.history.begin(page)
+    if ('failure' in first || first.ok.next === null) throw new Error('expected a first page')
+    expect(table.reads()).toBe(1)
+    table.leave(adminTenant())
+    expect(await port.history.next({ ...access, cursor: first.ok.next })).toEqual({
+      failure: { kind: 'denied', action: 'history.next' },
+    })
+    table.fail('directory down')
+    expect(await port.history.begin(page)).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: expect.stringContaining('directory down') },
+    })
+    expect(table.reads()).toBe(3)
+    expect(asked).toEqual(['create', 'history.begin', 'history.next', 'history.begin'])
+    expect(port.controls.entriesOf(access.tenant, SESSION)).toEqual(rows)
   })
 })
 

@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-根入口已重导出契约类型，`./cordis` 已导出服务定义与键，含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。下面的用法由 SPEC 与 [Cordis 说明](cordis.md)约束。定义已存在，生产 Session 服务的必需注入与实际操作检查尚未接入。
+根入口已重导出契约类型，`./cordis` 已导出服务定义与键，含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。下面的用法由 SPEC 与 [Cordis 说明](cordis.md)约束。定义已存在。session-contract 的事务端口与内存工厂已按[访问检查](../../session-contract/docs/access-check.md)在执行处检查。生产 Session 服务的必需注入尚未交付。
 
 | 依赖方 | 做法 | 细节所在 |
 | --- | --- | --- |
