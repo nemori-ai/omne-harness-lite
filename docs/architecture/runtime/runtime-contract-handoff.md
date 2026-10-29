@@ -56,7 +56,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | 受理操作身份 | `["session-public/1:accept", 租户文本, 会话文本, acceptId]` |
 | `InputId` | `["session-public/1:input", 租户文本, 会话文本, inputId]` |
 
-租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。摘要怎样成为 Session 的品牌值归 [#685](https://github.com/nemori-ai/omne-harness-lite/issues/685)。
+租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。摘要到 Session 品牌值的转换由服务端接入完成，归 M2 的接入实现。
 
 `create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
 
