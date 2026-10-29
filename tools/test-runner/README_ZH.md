@@ -23,7 +23,7 @@ node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--ad
 ```
 
 **检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`，
-每一步只声明先于它完成的步骤，没有依赖的同时跑；重步骤自己按预算起多进程，轻步骤同时至多 `max(2, 核数 ÷ 3)` 个；一步失败其余终止（`--keep-going` 时照跑，依赖失败步骤的不启动），
+每一步只声明先于它完成的步骤，没有依赖的同时跑；重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个，轻步骤（含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个；一步失败其余终止（`--keep-going` 时照跑，依赖失败步骤的不启动），
 退出码取第一个失败的那一步。每步的输出落 `tmp/check-run/<步骤>.log`，结束写逐步耗时表 `tmp/check-run/steps.tsv` 并打印实际走过的关键路径。
 准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写 `tmp/admission/<时间>-<head>.log`：命令、head、基线、核数、逐步结果与末行 `exit=<码>`。步骤的含义与顺序归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。
 自测：`tests/check-graph.spec.ts` 用假步骤核对依赖顺序、轻步骤并发上限、失败取消与 keep-going、起不来的命令、逐步表与关键路径。
@@ -140,7 +140,7 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
 turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
 
-**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时看一眼机器：核数（`availableParallelism()`）、
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。每一步开始时看一眼机器（成员测试的快层与慢层各看一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟步骤过了启动尖峰再量）：核数（`availableParallelism()`）、
 `parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
 空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。

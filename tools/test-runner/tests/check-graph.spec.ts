@@ -66,21 +66,30 @@ describe('运行', () => {
     expect(readFileSync(join(dir, 'logs', 'b.log'), 'utf8')).toContain('b')
   })
 
-  it('轻步骤受并发上限限制，重步骤不受', async () => {
-    const light = await runGraph([step('x', 150), step('y', 150), step('z', 150)], options(1))
-    const starts = light.results.map(result => result.startedMs).sort((a, b) => a - b)
-    const ends = light.results.map(result => result.endedMs).sort((a, b) => a - b)
-    expect(starts[1]).toBeGreaterThanOrEqual(ends[0] ?? Infinity)
-    expect(starts[2]).toBeGreaterThanOrEqual(ends[1] ?? Infinity)
+  const serialized = (run: Awaited<ReturnType<typeof runGraph>>) => {
+    const starts = run.results.map(result => result.startedMs).sort((a, b) => a - b)
+    const ends = run.results.map(result => result.endedMs).sort((a, b) => a - b)
+    return starts.slice(1).every((start, index) => start >= (ends[index] ?? Infinity))
+  }
 
-    const heavy = await runGraph(
+  it('轻步骤受并发上限限制；重步骤缺省一次一个，不占轻步骤的名额', async () => {
+    expect(
+      serialized(await runGraph([step('x', 150), step('y', 150), step('z', 150)], options(1))),
+    ).toBe(true)
+    const heavyLane = await runGraph(
       [step('x', 150, 0, [], true), step('y', 150, 0, [], true)],
-      options(1),
+      options(8),
     )
-    const heavyStarts = heavy.results.map(result => result.startedMs)
-    expect(Math.max(...heavyStarts)).toBeLessThan(
-      Math.min(...heavy.results.map(result => result.endedMs)),
-    )
+    expect(serialized(heavyLane)).toBe(true)
+    // 轻步骤名额只剩 1 时，重步骤照常起，轻步骤与它同时跑。
+    const mixed = await runGraph([step('heavy', 200, 0, [], true), step('light', 200)], options(1))
+    expect(serialized(mixed)).toBe(false)
+    // 放宽重步骤的并发后两个重步骤同时跑。
+    const twoLanes = await runGraph([step('x', 150, 0, [], true), step('y', 150, 0, [], true)], {
+      ...options(1),
+      heavyConcurrency: 2,
+    })
+    expect(serialized(twoLanes)).toBe(false)
   })
 
   it('一步失败：依赖它的不开始，正在跑的被终止，退出码留在结果里', async () => {

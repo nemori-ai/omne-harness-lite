@@ -140,7 +140,7 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
 
   const steps = checkSteps({ ...STEP_INPUTS, baseline: targetBase })
   say(
-    `${steps.length} 步按依赖并行（轻步骤同时至多 ${lightConcurrency(cores)} 个${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${CHECK_RUN_DIR}/`,
+    `${steps.length} 步按依赖并行（重步骤一次一个、轻步骤同时至多 ${lightConcurrency(cores)} 个${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${CHECK_RUN_DIR}/`,
   )
   const run = await runGraph(steps, {
     root,

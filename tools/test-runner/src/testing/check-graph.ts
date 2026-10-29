@@ -45,6 +45,11 @@ export interface GraphOptions {
   readonly logDir: string
   readonly env: NodeJS.ProcessEnv
   readonly lightConcurrency: number
+  /**
+   * 同时跑几个重步骤，缺省 1：重步骤各自按预算把机器占满，两个一起只会互相挤、让预算采样看到对方的尖峰。
+   * 轻步骤不占这条道。
+   */
+  readonly heavyConcurrency?: number
   /** 一步失败后继续跑别的步骤（依赖失败的仍不启动），用于一次看全部失败；缺省失败即终止其余。 */
   readonly keepGoing?: boolean
   readonly onStart?: (step: CheckStep, logPath: string) => void
@@ -107,14 +112,17 @@ export async function runGraph(
   const terminated = new Set<string>()
   let failed = false
   let lightRunning = 0
+  let heavyRunning = 0
+  const heavyConcurrency = options.heavyConcurrency ?? 1
 
   const ready = (step: CheckStep) =>
     step.after.every(name => finished.get(name)?.exitCode === 0) &&
-    (step.heavy || lightRunning < options.lightConcurrency)
+    (step.heavy ? heavyRunning < heavyConcurrency : lightRunning < options.lightConcurrency)
 
   const launch = (step: CheckStep): Promise<void> => {
     pending.delete(step.name)
-    if (!step.heavy) lightRunning += 1
+    if (step.heavy) heavyRunning += 1
+    else lightRunning += 1
     for (const directory of step.clean ?? [])
       rmSync(join(options.root, directory), { recursive: true, force: true })
     const logPath = join(options.logDir, logNameOf(step.name))
@@ -133,7 +141,8 @@ export async function runGraph(
       const settle = (exitCode: number) => {
         running.delete(step.name)
         closeSync(log)
-        if (!step.heavy) lightRunning -= 1
+        if (step.heavy) heavyRunning -= 1
+        else lightRunning -= 1
         const result: StepResult = {
           name: step.name,
           exitCode,

@@ -61,6 +61,15 @@ export async function observeMachine(sampleMs: number): Promise<Machine> {
   }
 }
 
+/**
+ * 看机器之前先等 `sampleMs`：同一时刻起的兄弟步骤（检查图里一批轻步骤）启动时有一两秒的尖峰，
+ * 紧接着采样会把一台空闲的机器看成忙的；等它们进入稳态再量。
+ */
+export async function observeMachineSettled(sampleMs: number): Promise<Machine> {
+  await new Promise(resolve => setTimeout(resolve, sampleMs))
+  return observeMachine(sampleMs)
+}
+
 const clamp = (value: number, low: number, high: number) => Math.min(Math.max(value, low), high)
 
 /**
@@ -75,7 +84,7 @@ export function workerBudget(machine: Machine, policy: ParallelPolicy): Budget {
 
 /** 看一眼机器，按策略给出这一次运行的预算。 */
 export async function budgetFor(policy: ParallelPolicy): Promise<Budget> {
-  return workerBudget(await observeMachine(policy.sampleMs), policy)
+  return workerBudget(await observeMachineSettled(policy.sampleMs), policy)
 }
 
 /** 预算按策略分成「同时成员数 × 每成员工作进程数」。 */

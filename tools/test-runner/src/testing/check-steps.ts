@@ -50,8 +50,8 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
     resident('check:lines'),
     // 本卡自己的改动须在 binding 写范围与本线内；没有 task context 时只报告「未绑定」。
     { name: 'change-scope', command: node(inputs.devFlowDeliveryCli), after: [], heavy: false },
-    // 按计划：Python 工具测试。单线程但要两分钟，按重步骤对待，不占轻步骤的名额。
-    step('python'),
+    // 按计划：Python 工具测试。单线程、一两分钟，是轻步骤里最长的一个，不占重步骤那条道。
+    { ...step('python'), heavy: false },
     { name: 'format:check', command: run('format:check'), after: [], heavy: false },
     { name: 'test:format', command: run('test:format'), after: [], heavy: false },
     // 按计划：构建被选中的成员及其依赖，加上常驻检查要的成员。
