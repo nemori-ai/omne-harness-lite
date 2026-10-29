@@ -1372,6 +1372,17 @@ def test_case_fixture_prepares_without_a_git_repository(tmp_path: Path) -> None:
     assert (dest / "case/input.md").read_text(encoding="utf-8") == "stable input"
 
 
+def test_the_copy_is_written_with_the_same_line_ends_on_every_platform(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "一行\n两行\n"}}), encoding="utf-8")
+    dest = tmp_path / "copy"
+    workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[])
+    assert (dest / "case/input.md").read_bytes() == "一行\n两行\n".encode(), "夹具原样落盘"
+    workspace.apply(dest, [{"op": "replace", "file": "case/input.md", "find": "两行\n", "replace": "改过\n"},
+                           {"op": "append", "file": "case/input.md", "text": "三行\n"}], suite=tmp_path)
+    assert (dest / "case/input.md").read_bytes() == "一行\n改过\n三行\n".encode(), "种入之后换行不变"
+
+
 @pytest.mark.parametrize("subject", ["../outside", "/outside", ".git/config"])
 def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject: str) -> None:
     fixture = tmp_path / "fixture.json"

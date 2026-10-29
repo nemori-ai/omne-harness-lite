@@ -163,7 +163,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
     dest.mkdir(parents=True)
     for target, content in rendered:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target.write_text(content, encoding="utf-8", newline="\n")
     for relative in subject_paths:
         source, target = repo / relative, dest / relative
         if not source.exists():
@@ -176,7 +176,10 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
 
 
 def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
-    """Edit the copy: seed defects and present the material as the brief describes it."""
+    """Edit the copy: seed defects and present the material as the brief describes it.
+
+    Text is written with the line ends Python reads it with ("\\n") on every platform; Windows would write "\\r\\n".
+    """
     for op in ops:
         kind = op["op"]
         if kind == "replace":
@@ -185,10 +188,10 @@ def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
             if text.count(op["find"]) != 1:
                 raise WorkspaceError(f"{op.get('id', op['file'])}: expected the text to replace exactly once, "
                                      f"found it {text.count(op['find'])} times")
-            target.write_text(text.replace(op["find"], op["replace"]), encoding="utf-8")
+            target.write_text(text.replace(op["find"], op["replace"]), encoding="utf-8", newline="\n")
         elif kind == "append":
             target = dest / op["file"]
-            target.write_text(target.read_text(encoding="utf-8") + op["text"], encoding="utf-8")
+            target.write_text(target.read_text(encoding="utf-8") + op["text"], encoding="utf-8", newline="\n")
         elif kind == "copy":
             target = dest / op["to"]
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -264,7 +267,8 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
             replacement = reader["replace"]
             if match[1] in replacement or "\\" in replacement or "\n" in replacement or "\r" in replacement:
                 raise WorkspaceError("input reader replacement must be a plain quoted path")
-            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8")
+            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8",
+                            newline="\n")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
 
