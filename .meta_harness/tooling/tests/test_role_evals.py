@@ -96,7 +96,7 @@ def headless(directory: Path) -> Path:
 
 def git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@invalid", *args],
-                          check=True, capture_output=True, text=True).stdout.strip()
+                          check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
 
 
 def flow_json(base: str, **over: Any) -> dict[str, Any]:
@@ -1358,7 +1358,7 @@ def test_a_standing_suite_still_fits_the_repository(root: Path) -> None:
 @pytest.mark.parametrize("target", ["../escape", "/escape", ".git/config", ".meta_harness/design/record/decision.md"])
 def test_case_fixture_rejects_escape_and_record(tmp_path: Path, target: str) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {target: "bad"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {target: "bad"}}), encoding="utf-8")
     with pytest.raises(workspace.WorkspaceError, match="invalid fixture target"):
         workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])
     assert not (tmp_path / "copy").exists()
@@ -1366,16 +1366,16 @@ def test_case_fixture_rejects_escape_and_record(tmp_path: Path, target: str) -> 
 
 def test_case_fixture_prepares_without_a_git_repository(tmp_path: Path) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "stable input"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "stable input"}}), encoding="utf-8")
     dest = tmp_path / "copy"
     workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[])
-    assert (dest / "case/input.md").read_text() == "stable input"
+    assert (dest / "case/input.md").read_text(encoding="utf-8") == "stable input"
 
 
 @pytest.mark.parametrize("subject", ["../outside", "/outside", ".git/config"])
 def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject: str) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "input"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "input"}}), encoding="utf-8")
     dest = tmp_path / "copy"
     with pytest.raises(workspace.WorkspaceError, match="subject path escapes"):
         workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[subject])
@@ -1384,6 +1384,6 @@ def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject:
 
 def test_case_fixture_rejects_boolean_format(tmp_path: Path) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": True, "files": {"case/input.md": "input"}}))
+    fixture.write_text(json.dumps({"format": True, "files": {"case/input.md": "input"}}), encoding="utf-8")
     with pytest.raises(workspace.WorkspaceError, match="format=1"):
         workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])
