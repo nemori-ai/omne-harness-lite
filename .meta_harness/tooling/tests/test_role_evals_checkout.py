@@ -239,10 +239,14 @@ def test_fixed_inputs_move_before_old_sources_are_excluded(tiny: dict[str, Any])
 def test_case_input_rejects_unsafe_or_inexact_sources(tmp_path: Path, case: str) -> None:
     write(tmp_path, {"input.json": "{}\n", "reader.ts": "read('original')\n",
                      ".meta_harness/agents/evaluation/truth.json": "answer\n",
-                     ".meta_harness/agents/evaluation/真值.json": "answer-unicode\n",
-                     ".meta_harness/agents/evaluation/truth\nline.json": "answer-newline\n"})
+                     ".meta_harness/agents/evaluation/真值.json": "answer-unicode\n"})
     git(tmp_path, "init", "-q")
     git(tmp_path, "add", "-A")
+    # Windows cannot name a file with a newline (and Git there refuses the path unless protectNTFS is off);
+    # the index holds that path on every platform.
+    blob = subprocess.run(["git", "-C", str(tmp_path), "hash-object", "-w", "--stdin"], input="answer-newline\n",
+                          check=True, capture_output=True, text=True).stdout.strip()
+    git(tmp_path, "-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo", f"100644,{blob},.meta_harness/agents/evaluation/truth\nline.json")
     git(tmp_path, "-c", "user.name=fixture", "-c", "user.email=fixture@invalid", "commit", "-qm", "fixed inputs")
     base = git(tmp_path, "rev-parse", "HEAD")
     source = "input.json"
