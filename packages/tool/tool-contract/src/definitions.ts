@@ -1,6 +1,7 @@
 // Tool definitions, availability, arguments, resource scope and the fixed request.
 import type { JsonValue } from '@omne-harness/json-text'
 import type { OrganizationId, TenantId, WorkspaceId } from '@omne-harness/legal-identity'
+import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type { SchemaRef } from '@omne-harness/schema-provider'
 import type { ToolDeclarations } from './authoring.ts'
 import type { Adoption, ConsumerRef, DurableEvidence } from './identity.ts'
@@ -110,6 +111,7 @@ export type ToolInvocation = Readonly<{
   kind: 'direct' | 'programmatic'
   source: DurableEvidence
 }>
+export type ToolEnvironmentDeclaration = Readonly<{ adoption: Adoption; value: JsonValue }>
 export type FixedToolRequest = Readonly<{
   availability: ToolAvailability
   invocation: ToolInvocation
@@ -118,7 +120,8 @@ export type FixedToolRequest = Readonly<{
   settings: Adoption
   context: Adoption
   workspace: WorkspaceId | null
-  environment: Adoption
+  environment: ToolEnvironmentDeclaration | null
+  requesterScope: ScopeRef
   resources: readonly Adoption[]
   scope: ResourceScope
   consumer: ConsumerRef

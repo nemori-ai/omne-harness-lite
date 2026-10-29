@@ -40,6 +40,7 @@
     "@omne-harness/unix-format": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
     "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",

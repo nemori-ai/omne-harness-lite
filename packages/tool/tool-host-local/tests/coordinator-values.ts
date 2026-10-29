@@ -1,3 +1,4 @@
+import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 // Builders for the start coordinator tests: tenants with the shape of legal-identity's TenantId,
 // a principal that belongs to some tenants, a fixed request, a start record and an access guard
 // that answers by tenant membership. Each builder returns a fresh value.
@@ -101,7 +102,8 @@ export function request(overrides: Partial<FixedToolRequest> = {}): FixedToolReq
     settings: adoption('settings'),
     context: adoption('context'),
     workspace: null,
-    environment: adoption('environment'),
+    environment: null,
+    requesterScope: fixtureScope(),
     resources: [],
     scope: { owner: 'scope-owner', key: 'scope-1', grant: evidence('grant') },
     consumer: { owner: 'consumer', work: 'work-1', position: 'position-1', purpose: 'tool-result' },
@@ -194,4 +196,10 @@ export function failingNextCommit(
       )
     },
   }
+}
+
+function fixtureScope() {
+  const scope = decodeScopeRef({ ref: 'test-requester-scope' })
+  if ('failure' in scope) throw new Error('invalid fixture scope')
+  return scope.ok
 }

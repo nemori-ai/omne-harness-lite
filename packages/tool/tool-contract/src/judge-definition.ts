@@ -148,9 +148,11 @@ const modalities: Check<readonly Modality[]> = (value, at) => {
   return reject(item(at, judged.index ?? 0), judged.rejected)
 }
 
+export const environmentDeclaration = record({ adoption, value: jsonValue })
+
 export const toolDeclarations: Check<ToolDeclarations> = record({
   adoption,
-  environment: nullable(adoption),
+  environment: nullable(environmentDeclaration),
   attachments: list(record({ store: filled, mediaTypes: names(filled) })),
   inputModalities: modalities,
   outputModalities: modalities,

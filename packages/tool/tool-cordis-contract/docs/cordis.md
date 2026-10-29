@@ -4,7 +4,7 @@
 
 ## 服务定义与入口
 
-`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、21 个键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 已进入源码；它们的提供者尚未交付。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
+`@omne-harness/tool-cordis-contract` 的 `./cordis`（`src/cordis.ts`）唯一拥有下列抽象门面及表中本域接缝的服务定义。它依赖纯契约包 `@omne-harness/tool-contract` 的类型，不依赖任何 Tool 实现。单机宿主 `@omne-harness/tool-host-local` 的 `./cordis` 发布限定名具体提供者，并继承这些定义。编写 Cordis 插件的消费者依赖本包与契约包，不依赖实现包。下列代码给出 [src/cordis.ts](../src/cordis.ts) 中这些定义的公开形状，源码是唯一定义；该文件还给出其余服务定义类、服务键常量和事件增补。[RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 采用的两个键 `toolContributionAuthority`、`toolGenerations` 与事件 `binding-changed` 已进入源码；它们的提供者尚未交付。ToolInstancesService 的登记与查询尚未实现，实现前两者返回具名失败。实现不得复制方法形状，索引类型随根契约同步。
 
 ```ts
 import { Context, Service } from '@deepseek-ai/cordis'
@@ -94,26 +94,31 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 `toolGenerations` 是 Tool 宿主的 Service，也是 `ctx.plugin` 句柄的唯一持有者。它有三个动词。每个动词都向目标态收敛，可以重复调用。
 
 - `ensureLoaded({ authority, access })`：返回 `Outcome<{ key, state: 'loaded' | 'recognized' }, ToolLoadFailure>`。调用方有两个：装配协调者在采用点带本租户的 `Access` 调用，这时 `toolContributionAuthority.admits` 核登记资格；`sweep` 以 `{ scope: 'system' }` 调用，这时 `verify` 仍核来源，`admits` 按 IC-18 的系统作用域例外不核。步骤按顺序：`toolContributionAuthority.verify(authority)`（失败为 `denied` 或 `invalid`）；读资产的实现引用与包 digest（缺失为 `missing`）；核 digest（不符为 `rejected`）；动态 import 实现包（抛错或导出不合 `ToolImplementationModule` 为 `rejected`）；在长期宿主插件的 ctx 下 `ctx.plugin` 作者插件，config 为 `{ authority, construction, settings }`；插件体 `contributeTool` 经 `toolGenerations.loaderFor(authority)` 取得受信 `ToolLoader`，调用 `load` 与 `toolBindings.register`。同键已装、digest 相同且非 draining 时认回，state 为 `recognized`；同键 draining 时返回 `draining`。`load` 或 `register` 失败时协调者 dispose 该 fiber，不保留没有贡献的 ACTIVE fiber。失败映射：`ToolLoader.load` 的确定性拒绝（资产 name 与定义 name 不一致、注册投影与契约不符、配置值不合法）为 `rejected`，它的设置读取不可用或必需服务缺席为 `unavailable`；`register` 的 `invalid` 为 `rejected`，`conflict`、`denied`、`unavailable` 原样返回。`missing` 与 `rejected` 是耐久失败，协调者把它们铸造为 Tool 的 `DurableEvidence` 交采用点判定；`unavailable` 是暂时失败，不构成证据；`denied`、`conflict`、`draining` 不是失败证据，采用点按契约[采用点判定](../../tool-contract/SPEC.md#采用点判定)的说明处理。import 之前先核来源：授权前不运行不可信模块的初始化。
-- `unload({ key })`：在登记表的本地排序域里先 `close(key)`，再经 `ToolResidencyReader.referencing({ scope: 'system', key })` 读会话引用。引用不可读（`unavailable`）时 `reopen(key)` 并返回 `retained`，不能证明无引用就不撤除。有未归档会话引用、且没有同形 serving 替代时，`reopen(key)` 并返回 `retained`。否则按下列顺序做五步。
+- `unload({ key })`：在登记表的本地排序域里先 `close(key)`，再经 `ToolResidencyReader.referencing({ scope: 'system', key, after })` 逐页读持有者引用。引用不可读（`unavailable`）时 `reopen(key)` 并返回 `retained`，不能证明无引用就不撤除。有有效持有者引用、且没有同形 serving 替代时，`reopen(key)` 并返回 `retained`。否则按下列顺序做五步。
   1. 保持 draining。新 Run 与回退路由不再选它，记下该键的请求仍可解析到它。
   2. 等在途调用收场。
   3. 按 [P09](../../tool-contract/SPEC.md#p09-账目恢复与退出) 交接。
   4. release 贡献。
   5. dispose 作者插件 fiber。
-- `sweep()`：系统作用域操作。恢复后按保留义务重装未归档会话记下的键：authority 取自该会话采用依据记下的 `ToolAuthority`，以 `{ scope: 'system' }` 调用 `ensureLoaded`，`toolContributionAuthority.verify` 仍核来源，`admits` 对系统作用域按 IC-18 例外不核登记资格；重装失败按 `ensureLoaded` 的失败集合记录，等采用点判定，不在 sweep 里判冻结。对无引用、且不再是任何胜出者的贡献调用 `unload`。
+- `sweep()`：系统作用域操作。恢复后按保留义务重装持有者采用依据记下的键：authority 取自相应采用依据记下的 `ToolAuthority`，以 `{ scope: 'system' }` 调用 `ensureLoaded`，`toolContributionAuthority.verify` 仍核来源，`admits` 对系统作用域按 IC-18 例外不核登记资格；重装失败按 `ensureLoaded` 的失败集合记录，等采用点判定，不在 sweep 里判冻结。对无引用、且不再是任何胜出者的贡献调用 `unload`。
 
 `unload` 做完五步返回 `released`。任一步未完成时返回 `draining`。再调用一次时，它从未完成的那一步继续。按键排空与交接依赖 P09 的 `inspectDrain({ executor })` 范围。该范围交付之前，有在途调用时协调者停在 `draining`。
 
-保留义务：有未归档会话引用、且没有同形 serving 替代的贡献，协调者不 dispose。引用从会话事实派生，协调者不建账。包字节保留，同一 digest 可以重新 import。同形 serving 替代的定义归契约的 [ToolBindingRegistry 段](../../tool-contract/SPEC.md#p15-配置声明与合法装载)。
+保留义务：有有效持有者引用、且没有同形 serving 替代的贡献，协调者不 dispose。引用从持有者事实派生，协调者不建账。包字节保留，同一 digest 可以重新 import。同形 serving 替代的定义归契约的 [ToolBindingRegistry 段](../../tool-contract/SPEC.md#p15-配置声明与合法装载)。
 
-驻留端口由本包定义服务键，Session 提供实现：
+常驻引用读取端口由本包定义服务键，应用装配的 `tool-residency` 行提供实现，见[工具运行时](../../../../docs/architecture/runtime/tool-runtime.md#持有者引用由应用装配桥接)。Session 只提供自己的公开 `references` 操作，不提供 Tool 服务。
 
 | 服务键 | 形状 | 缺席时 |
 | --- | --- | --- |
-| toolResidencyReader | `referencing({ scope: 'system', key })` 返回 `Outcome<Page<{ session, tenant, shape }>, unavailable>`，分页，不返回正文，与 Session 契约的 `references` 形状一致；不用 `Access<P>`，是 IC-18 的系统作用域例外 | `unload` 与 `sweep` 返回 `retained` |
-| toolResidencyActions | `freeze({ session, cause: 'tool-shape-lost', evidence })` 返回 `Outcome<Receipt, denied | invalid | unavailable>`，与 Session 契约的 `freeze` 同形：`session` 是会话引用，租户由 Session 按会话目录取得；幂等，会话已冻结时返回原回执。它代表该会话的租户，不属于系统作用域例外 | 显式 reload 的冻结判定不能交付，采用点返回 `unavailable`，不派发 Run |
+| toolResidencyReader | `referencing({ scope: 'system', key, after })` 返回 `Outcome<Page<{ holder, tenant, shape }>, unavailable>`。Page 是 `{ items, next }`，after 与 next 为不透明游标，null 分别表示首页和读完。holder 只在同一 tenant 内区分持有者，Tool 不解析。shape 为已有 ToolShape，不返回正文。不用 Access，是 IC-18 系统作用域例外 | 桥接行缺席或未就绪时协调者停在 PENDING，不提供 toolGenerations，不执行撤除。读取 unavailable 时 unload 与 sweep 返回 retained |
 
-协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`、`toolResidencyActions`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。`toolResidencyReader` 的提供者撤除时尚未返回的读取由它的撤除路径结算为 `unavailable`。协调者按引用不可读处理：`reopen(key)` 并返回 `retained`。协调者重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再按 `unload` 的顺序从 `close(key)` 与引用核对重新开始，不跳过保留义务。
+协调者从 after=null 开始逐页读取，把 next 原样作为下一页 after。它读完全部页后才判断保留，逐项按 tenant 与 shape 核 G7，不能按 holder 文本合并跨租户引用。任一页失败、提供者撤除、租户无效或资格未知均保留原贡献并 reopen，不把已读部分当完整集合。Reader 只有读取动作，没有冻结或登记键目录枚举动作。
+
+独立 Tool 宿主同样必须提供该 Reader，由其装配桥接自己的持有者事实。只有可证明没有任何持有者引用的实现才返回空终页。进程内系统读取依赖受信装配与接线，不能由 inject 推导访问控制或跨进程授权。跨进程读取资格仍须具体装配证明。
+
+重装目录缺项：Reader 只按已知键读引用，不回答持有者记下了哪些键及其 ToolAuthority。当前公开接口没有完整重装目录协议。sweep 只能处理可从原持久采用依据取得的键和 authority，缺项时保留贡献并报告不可用，不能声称完成全量重装，也不能给 Reader 增加动作。该缺口归 Tool 与应用装配拥有者，来源为 [#753 带出 C1](https://github.com/nemori-ai/omne-harness-lite/issues/753#issuecomment-6437595717)。
+
+协调者的 inject 是 `toolBindings`、`toolContributionAuthority`、`toolResidencyReader`。作者插件 fiber 挂在长期宿主插件的 ctx 下，不挂在协调者 fiber 下；协调者因提供者换代重跑时不撤除它们，以系统作用域调用登记表 `snapshot(scope)` 重建句柄表。`toolResidencyReader` 的提供者撤除时尚未返回的读取由它的撤除路径结算为 `unavailable`。协调者按引用不可读处理：`reopen(key)` 并返回 `retained`。协调者重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再按 `unload` 的顺序从 `close(key)` 与引用核对重新开始，不跳过保留义务。
 
 `unload` 与 `sweep` 是系统作用域操作。冻结判定只在采用点由 `planAdoption` 产出，交付路径见契约的[采用点判定](../../tool-contract/SPEC.md#采用点判定)。
 
@@ -132,8 +137,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolInstances | ToolInstancesService | Tool | 具体目录Service；本Tool实例贡献fiber拥有登记 |
 | toolPublicationAuthority | ToolPublicationAuthority | `tool-cordis-contract/cordis` | 目录必需；核当前宿主、原实例资格及authority来源，不能只核字符串相同 |
 | toolContributionAuthority | 绑定登记的来源核验（verify、admits，同步） | `tool-cordis-contract/cordis` | 绑定登记表必需；核 ToolAuthority 的来源并给出来源层，核登记者在该层的登记资格，不以 Access.tenant 定来源层；缺席时 register 返回 unavailable |
-| toolResidencyReader | 会话引用读取（referencing） | `tool-cordis-contract/cordis`，Session 提供 | 协调者必需；系统作用域，缺席时 unload 与 sweep 返回 retained |
-| toolResidencyActions | 冻结判定交付（freeze） | `tool-cordis-contract/cordis`，Session 提供 | 显式 reload 采用点必需；缺席时该采用点不派发 Run |
+| toolResidencyReader | 持有者引用读取（referencing） | `tool-cordis-contract/cordis`，应用装配桥接 | 协调者必需；系统作用域，未就绪时协调者 PENDING；读取失败时 unload 与 sweep 返回 retained |
 | toolInstanceHost | ToolInstanceHost | Tool | 独立宿主必需；原事实/控制可经门面处理，无活体仍可查 |
 | toolClock | ToolClock | Tool | 计时执行段必需；恢复沿具名持续时间来源，不能重新计满 |
 | toolResultPolicy | ResultPolicy | Tool | 结果处理必需；固定B及版本，缺失保留原输出与明确失败，不重做效果 |
@@ -146,7 +150,7 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | toolChildren | ToolChildren | Tool | 程序执行方组合阶段必需；父程序退出后由scanPending/loadRecovery驱动child和program-fence待办 |
 | toolAccounts | ToolAccounts | Tool | 按组织或租户读取执行账，独立授权 |
 | toolOffloader | ToolOffloader | Tool | 单结果卸载适配，不覆盖原结果 |
-| toolGenerations | 换代协调者（ensureLoaded、unload、sweep） | Tool | Tool 宿主的 Service，唯一持有 ctx.plugin 句柄；按会话引用保留贡献，契约见[换代协调者契约](#换代协调者契约)；不进入调用方宿主的 inject |
+| toolGenerations | 换代协调者（ensureLoaded、unload、sweep） | Tool | Tool 宿主的 Service，唯一持有 ctx.plugin 句柄；按持有者引用保留贡献，契约见[换代协调者契约](#换代协调者契约)；不进入调用方宿主的 inject |
 
 Tool 门面只把 Commands/Reads 作为持久操作的静态必需依赖。Catalog 与 Directory 由稳定窄代理在每次调用时 ctx.get 当前服务，接受缺席并返回明确 unavailable；不把取得的服务缓存进门面或长期宿主。根工厂仍消费非空的具名端口，不知道 Cordis Context。准备、环境、Ask 决定与结果策略在各自阶段取得，持续执行保持原合法绑定直到原收场或安全交接。调用方退出不撤这些资源，提供者失效不自动再次 start/resume。
 

@@ -1,3 +1,4 @@
+import { adoption } from './coordinator-values.ts'
 import {
   createMemoryToolEnvironment,
   createMemoryToolOutputCustody,
@@ -189,6 +190,7 @@ function assembly(
         recover: () => Promise.reject(new Error('recovery')),
       },
       environments: {
+        adoption: adoption('environment'),
         prepare: input =>
           Promise.resolve(
             succeed({

@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import { createMemoryToolLedgerStore, type MemoryToolLedgerStore } from '@omne-harness/tool/testing'
 import {
+  adoption,
   admission,
   fixedOf,
   callId,
@@ -153,6 +154,7 @@ describe('22 release memory: a released call never regains an entry', () => {
           ...(await writeContext(harness, 'c1', 'op-c1/plan')),
           request: fixedOf(harness.internalRequests, 'c1'),
           purpose: 'initial',
+          environmentAdoption: adoption('environment'),
         })
         // A creation commit that answers unknown makes the plan unknown; otherwise it is stale.
         const answers = { 'read-fails': 'unavailable', delayed: 'commit-unknown' } as const
@@ -315,6 +317,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
         ...(await writeContext(harness, 'c1', 'c1/plan')),
         request: fixedOf(harness.internalRequests, 'c1'),
         purpose: 'initial',
+        environmentAdoption: adoption('environment'),
       }),
     )
     ok(
@@ -373,6 +376,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
           ...(await writeContext(harness, 'c1', 'A/plan')),
           request: fixedOf(harness.internalRequests, 'c1'),
           purpose: 'initial',
+          environmentAdoption: adoption('environment'),
         }),
       )
       ok(
@@ -393,6 +397,7 @@ describe('22 queue step: the operation that moved an entry recalls it', () => {
       ...second,
       request: fixedOf(harness.internalRequests, 'c1'),
       purpose: 'initial',
+      environmentAdoption: adoption('environment'),
     })
     expect(failure(reply)).toEqual({ kind: 'conflict', operation: 'B/plan' })
     expect(await harness.queue()).toEqual([{ call: 'c1', ordinal: '1', stage: 'ready' }])
@@ -440,6 +445,7 @@ describe('22 reconcile: the waiter repairs only what the call domain proves', ()
         ...(await writeContext(harness, 'c1', 'c1/plan')),
         request: fixedOf(harness.internalRequests, 'c1'),
         purpose: 'initial',
+        environmentAdoption: adoption('environment'),
       }),
     )
     ok(
