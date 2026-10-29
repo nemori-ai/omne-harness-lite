@@ -347,8 +347,9 @@ describe('locally required ports', () => {
     expect(ok(await reads.port.lookup(input))).toEqual({ kind: 'unknown' })
   })
 
-  // Red when the card port cannot hand back a remark, or when a remark is read as a choice.
-  it('the card double hands back a remark as its own kind, not as chosen', async () => {
+  // Red when the scripted card port cannot carry a `remark` reply unchanged. How the Agent reads
+  // a remark is not exercised here: no product code consumes `CardReply` yet (#502 stage 2).
+  it('the card double hands back a scripted remark unchanged', async () => {
     const cards = createScriptedDecisionCards<string>()
     const input = stub<never>({ ...access, card: testEvidence('card') })
     const remark: CardReply = {
@@ -357,11 +358,7 @@ describe('locally required ports', () => {
       evidence: testEvidence('remark'),
     }
     cards.read.once(() => succeed(remark))
-    const reply = ok(await cards.port.read(input))
-    expect(reply).toEqual(remark)
-    expect(reply.kind).toBe('remark')
-    expect(reply.kind).not.toBe('chosen')
-    expect('option' in reply).toBe(false)
+    expect(ok(await cards.port.read(input))).toEqual(remark)
   })
 })
 

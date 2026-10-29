@@ -152,6 +152,10 @@ import type {
   TerminalObservation,
   Waiting,
 } from '@omne-harness/agent-contract'
+// J09: the definition has no version, so the entry no longer names a version choice. The import
+// is the assertion; the name is not used.
+// @ts-expect-error `VersionChoice` left the entry with `AgentDefinition.version`.
+import type { VersionChoice as _VersionChoice } from '@omne-harness/agent-contract'
 
 type Landed = {
   Access: Access<string>

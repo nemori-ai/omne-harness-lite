@@ -24,7 +24,7 @@
 | 216 至 225 | Tool 关联与控制引用 |
 | 226 至 239 | 官方准入的命名读取 |
 | 240 至 249 | 日志条目的事件投影 |
-| 250 至 259 | 扩展与整批动作的补充（100 至 139 已满） |
+| 250 至 259 | 扩展与整批动作的补充 |
 
 每个场景的“后继验证观察点”写实现测试必须读到的事实。读不到该事实的测试不算覆盖该场景。
 
@@ -41,7 +41,7 @@
 | SC-AG-05 | 确认回执丢失后重试，以及用更小的序号确认 | 重试认回原确认。更小的序号不回退已确认前缀，超出已发出序号的确认被拒绝 | 已确认前缀单调不减；处理依据为 null 时确认照常成立；Agent 不因处理依据的内容拒绝确认 |
 | SC-AG-06 | 读取方在终态事件到达前一直离线 | Agent 自行条件终结，已可靠交接的事件保留，读取方上线后从原游标读到终态事件 | 执行不等待读取方；runtime 回 idle；事件与结果责任仍可认回 |
 | SC-AG-07 | 仓库外只安装打包后的 agent-contract 并写调用方 | 类型可编译，生产依赖闭包不含 Cordis、具体宿主、模型或工具的实现包；没有从内部文件导入类型 | 完整生产安装闭包；移除 monorepo 路径别名后仍通过；包清单声明了契约文档引用的类型依赖 |
-| SC-AG-08 | 推进者经 `AgentJournalEntries.record` 写一条 `start-fence`，结果接收方经 `AgentReceivedCommits.commit` 写一条 `received`。一次 execution 仍在推进；一次 execution 已 ended；一次同一操作在回执丢失后重放 | 推进中：每条条目在同一次提交里投影为一个 `entry` 事件，事件的 `entry` 等于条目，挂接取该 execution 最近建立的挂接。ended 之后：`received` 照常写入，事件流不追加事件，ended 仍是最后一个事件，条目只经 load 与 `ExecutionSnapshot.entries` 读取。重放：认回原回执，不追加第二个事件。读事件的一方遇到不认识的 `entry.kind` 时保留原事件 | 条目与 `entry` 事件要么都成立要么都不成立；ended 之后 `entries` 增加而事件序号不变；重放前后事件总数相同；不认识的 `entry.kind` 不使读取方报错 |
+| SC-AG-08 | 推进者经 `AgentJournalEntries.record` 写一条 `start-fence`，结果接收方经 `AgentReceivedCommits.commit` 写一条 `received`。一次 execution 仍在推进；一次 execution 已 ended；一次同一操作在回执丢失后重放；一次读事件的一方遇到不认识的 `entry.kind` | 前三种情形的必须结果以[日志条目的事件投影](#日志条目的事件投影)为准：推进中见 SC-AG-240 与 SC-AG-243，ended 之后见 SC-AG-241 与 SC-AG-245，重放见 SC-AG-242、SC-AG-244 与 SC-AG-246。第四种情形：读事件的一方保留原事件，不报错 | 前三种情形的观察点见对应场景；不认识的 `entry.kind` 不使读取方报错 |
 
 ## 对象与生命周期
 
@@ -282,7 +282,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | --- | --- | --- | --- |
 | SC-AG-165 | Model 的接收窗口：窗口提交前接收被拒绝，窗口打开后接收首片即崩溃，预读缓冲尚未纳入，批次保存回执丢失。切点归 Model | Agent 在 M1 等待 Model 按其协议收场。首内容为 observed 或 uncertain 时 Agent 不产生新的调用。Model 以 none-proven 且其他前提成立恢复发出时，Agent 仍等待同一调用。收场后 M3 保管 | Agent 没有新的 PendingCall；Model 的 call 身份不变；节点序列为 M1、M3；Agent 不读取窗口内部状态，只消费收场 |
 | SC-AG-166 | 文本、语音、工具参数与整交媒体分别在首内容后失败 | M3 保管原部分内容、失败事实与费用。M4 经过 failure 维度的最终失败触发，retry 在这里不合法。主请求回 I3，以部分结果处理转 I8，不解析未完整到达的工具建议。不拼接新生成的内容，不重发同一逻辑回复。观察者经 Model 的 current 重新订阅，区分快照与增量，原序号不重复应用，不按文本相同丢弃合法的新片段 | 费用记录一笔且保留；同一回复没有第二个主调用；M4 的 retry 按不合法输出依报错处置；观察者读到的生产者序号连续无重复，Agent 的事件流没有生产者内容；I3 之后没有 A0 |
-| SC-AG-167 | 流批次保存回执未知、尚未发布。另一次原内容已发布，观察者断线或崩溃后重连 | 第一次生产者查原保存操作，确认后发布。观察者只读已发布的事实，未确认不展示，Agent 不发 stream 事件。第二次观察者按稳定调用引用经 Model 的 current 取当前 `StreamRef`，再取快照与后续游标。Agent 事件的读取方以已处理序号重连，边界重复按事件身份去重。累计快照不再次追加。观察失败不是执行失败 | 观察者读到的内容都已发布；重连后观察者的游标与 Agent 事件的序号各自连续；原调用状态不变；没有重新运行生产者；Agent 的事件流没有生产者内容 |
+| SC-AG-167 | 流批次保存回执未知、尚未发布。另一次原内容已发布，观察者断线或崩溃后重连 | 第一次生产者查原保存操作，确认后发布。观察者只读已发布的事实，未确认不展示，Agent 的事件流不含生产者的过程流。第二次观察者按稳定调用引用经 Model 的 current 取当前 `StreamRef`，再取快照与后续游标。Agent 事件的读取方以已处理序号重连，边界重复按事件身份去重。累计快照不再次追加。观察失败不是执行失败 | 观察者读到的内容都已发布；重连后观察者的游标与 Agent 事件的序号各自连续；原调用状态不变；没有重新运行生产者；Agent 的事件流没有生产者内容 |
 | SC-AG-168 | Tool 在首次 emit 前已完成外部修改。另一次 emit 后执行失败。另一次只有观察发送失败 | 三次都不自动重跑。第一次按原执行与效果证据核实，效果 occurred 或 unknown 保留。第二次 T1 保管 failed 结果与已知效果，T2、T5 照常。第三次原执行继续，必要的过程保存失败可见 | Tool 受理记录为一；槽位 result 的 terminal 与效果与 Tool 的报告一致；没有第二次 Tool 调用；观察失败没有产生 failed 结果 |
 | SC-AG-169 | 消费者外部动作成功后、本地完成保存前崩溃。另一次回执与完成提交分别未知。切点归消费者 | Agent 的事件只在耐久提交后出口。确认只表示消费者处理，不表示外部动作完成。Agent 不为消费者重发事件，也不把确认当作业务接受。消费者按原动作身份对账，Agent 不参与 | Agent 的事件身份与内容不变；确认前缀单调；Agent 一侧没有重发或新效果 |
 
@@ -412,13 +412,13 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
-| SC-AG-240 | 执行有过一次接管。推进者经 `record` 写一条 `start-fence`，结果接收方经 `record` 写一条 `received`，之后同一操作配另一条目被拒绝 | 每次成功写入在事件流末尾多出恰好一个 `entry` 事件，`body.entry` 等于写入的条目，`cause` 等于该次回执的 `evidence`，`executionAttachment` 等于最近建立的挂接，`received` 不带挂接时也如此。序号连续。被拒绝的写入不产生事件 | 写入前后事件数之差等于成功写入数；事件与条目在同一次写入后同时可读；提供者把事件分配移出提交或在拒绝时照发，本场景变红 |
+| SC-AG-240 | 执行有过一次接管。推进者经 `record` 写一条 `start-fence`，结果接收方经 `record` 写一条 `received`，之后同一操作配另一条目被拒绝 | 每次成功写入在事件流末尾多出恰好一个 `entry` 事件，`body.entry` 等于写入的条目，`cause` 等于该次回执的 `evidence`，`executionAttachment` 等于最近建立的挂接，`received` 不带挂接时也如此。序号连续。被拒绝的写入不分配事件 | 写入前后事件数之差等于成功写入数；事件与条目在同一次写入后同时可读；提供者把事件分配移出提交或在拒绝时照发，本场景变红 |
 | SC-AG-241 | 执行已经 ended。结果接收方经 `record` 写一条 `received` | 条目经 load 可读。事件流与写入前相同，ended 仍是最后一个事件 | 写入前后事件列表逐项相等；条目出现在 `ExecutionSnapshot.entries` 末尾 |
 | SC-AG-242 | 同一操作同一条目再次 `record`；同一交付键配另一操作再次推送 | 两次都认回原回执。事件数与第一次写入后相同 | 回执逐字段相等；事件数不变；提供者在重放时再分配事件，本场景变红 |
 | SC-AG-243 | 执行有过一次接管。结果接收方经 `commit` 一次提交一条 `received` 与材料 | 事件流末尾多出恰好一个 `entry` 事件，`body.entry` 等于提交结果里的条目，`cause` 等于该次回执的 `evidence`，`executionAttachment` 等于最近建立的挂接。序号接在前一个事件之后 | 提交前后事件数之差为 1；事件与条目在同一次提交后同时可读；提供者把 `commit` 的事件分配移出提交，本场景变红 |
 | SC-AG-244 | 同一交付经两种路径到达第二次：同一操作再次 `commit`；同一交付换操作再次 `commit`；先 `record` 后 `commit`；先 `commit` 后 `record` | 四种情形都认回原回执或原保管结果。事件数与第一次写入后相同 | 第二次到达前后事件列表逐项相等；提供者在认回时再分配事件，本场景变红 |
 | SC-AG-245 | 执行已经 ended。结果接收方经 `commit` 提交一条 `received` | 条目经 load 可读。事件流与提交前相同，ended 仍是最后一个事件 | 提交前后事件列表逐项相等；条目出现在 `ExecutionSnapshot.entries` 里 |
 | SC-AG-246 | 写入已生效但回执丢失：`commit` 在发布之后答复 commit-unknown；`record` 的答复丢失。另一次 `commit` 在发布之前失败 | 回执丢失时 `query` 为 committed，条目与 `entry` 事件各一，`cause` 等于重放认回的回执的 `evidence`。发布之前失败时条目与事件都没有 | 提供者的测试件能注入“写入生效、答复丢失”；提供者把条目与事件分成两步写入，本场景变红。测试件没有该注入能力时，套件把本场景报告为未覆盖，不报告通过 |
-| SC-AG-247 | 被拒绝的写入：`record` 的 stale-advance、terminal、invalid、denied；`commit` 的 denied 与 conflict | 每种拒绝前后事件列表逐项相等，没有条目 | 提供者在拒绝分支上分配事件，本场景变红 |
-| SC-AG-248 | 执行有过一次接管，之后当前挂接被 detach。推进者经 `record` 写 `start-fence`；结果接收方经 `record` 写 `received` | `start-fence` 返回 stale-advance，不产生事件。`received` 照常写入并产生一个 `entry` 事件，`executionAttachment` 等于被 detach 的那个挂接，即最近建立的挂接 | 提供者在 detach 之后拒绝分配事件，或取 detach 之前的挂接，本场景变红。测试件没有 detach 能力时，套件把本场景报告为未覆盖，不报告通过 |
+| SC-AG-247 | 被拒绝的写入：`record` 的 stale-advance、terminal、invalid、denied；`commit` 的 denied 与 conflict；`AgentJournal.commit` 的 `events` 绕过类型带 `entry` 或 `ended` 事件体 | 每种拒绝前后事件列表逐项相等，没有条目。带 `entry` 或 `ended` 事件体的 `AgentJournal.commit` 返回 invalid，field 为 `events`，reason 写明哪一种事件体由 Journal 分配，快照与原操作查询都不变 | 提供者在拒绝分支上分配事件，或让带这两种事件体的 commit 通过，本场景变红 |
+| SC-AG-248 | 执行有过一次接管，之后当前挂接被 detach。推进者经 `record` 写 `start-fence`；结果接收方经 `record` 写 `received` | `start-fence` 返回 stale-advance，不分配事件。`received` 照常写入并产生一个 `entry` 事件，`executionAttachment` 等于被 detach 的那个挂接，即最近建立的挂接 | 提供者在 detach 之后拒绝分配事件，或取 detach 之前的挂接，本场景变红。测试件没有 detach 能力时，套件把本场景报告为未覆盖，不报告通过 |
 | SC-AG-249 | 同一 execution 先经 `commit` 提交一个其他种类的事件，再经 `record` 写一条条目 | `entry` 事件的 `schema` 等于同一 execution 其他事件的 `schema` | 两个事件的 `schema` 逐字段相等 |

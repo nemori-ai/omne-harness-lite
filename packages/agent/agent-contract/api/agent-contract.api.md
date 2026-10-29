@@ -253,7 +253,13 @@ export declare function agentBodyContract(): BodyContract;
 ```ts
 import { type JsonLimits } from '@omne-harness/json-text';
 import { type SchemaIssue, type SchemaProvider } from '@omne-harness/schema-provider';
-import type { z } from 'zod';
+import { z } from 'zod';
+export declare const adoptionShape: z.ZodObject<{
+    owner: z.ZodString;
+    name: z.ZodString;
+    revision: z.ZodString;
+    digest: z.ZodString;
+}, z.core.$strict>;
 export type Checked<T> = {
     readonly kind: 'valid';
     readonly value: T;
@@ -2362,13 +2368,25 @@ export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, ot
 
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
-import type { DurableEvidence } from './identity.ts';
+import type { AgentEvent, CommandReceipt } from './execution.ts';
+import type { Adoption, Authority, DurableEvidence } from './identity.ts';
+import type { AgentJournalEntry } from './receiving.ts';
 export type ConformanceCase = Readonly<{
     name: string;
     run: () => Promise<void>;
-    uncovered?: string;
+}> | Readonly<{
+    name: string;
+    uncovered: string;
+    run: () => Promise<never>;
 }>;
 export declare function uncoveredCase(name: string, capability: string): ConformanceCase;
+export declare const DOUBLE_EVENT_SCHEMA: Adoption;
+export type ProjectingExecution = Readonly<{
+    authority: Authority;
+    ended: boolean;
+    events: AgentEvent[];
+}>;
+export declare function projectEntryEvent(execution: ProjectingExecution, entry: AgentJournalEntry, receipt: CommandReceipt): void;
 export declare function canonicalText(value: unknown): string;
 export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
@@ -2403,7 +2421,10 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
         tenant: TenantId;
         execution: AgentExecutionId;
     }>): void;
-    failNextRecord(fault: RecordFault): void;
+    failNextRecord(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>, fault: RecordFault): void;
     entries(input: Readonly<{
         tenant: TenantId;
         execution: AgentExecutionId;
@@ -2417,6 +2438,8 @@ export declare function createMemoryAgentJournalEntries<P>(): MemoryAgentJournal
 export type RecordFault = Readonly<{
     kind: 'commit-unknown';
     outcome: 'applied';
+}> | Readonly<{
+    kind: 'unavailable';
 }>;
 export interface AgentJournalEntriesFixture<P> {
     readonly entries: AgentJournalEntries<P>;
@@ -2426,9 +2449,9 @@ export interface AgentJournalEntriesFixture<P> {
     supersede(access: Access<P>, execution: AgentExecutionId): Promise<Authority>;
     end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
     read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
-    events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[]>;
+    events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[] | undefined>;
     detach?(access: Access<P>, execution: AgentExecutionId): Promise<void>;
-    failNextRecord?(access: Access<P>, execution: AgentExecutionId, fault: RecordFault): void;
+    failNextRecord?(access: Access<P>, execution: AgentExecutionId, fault: RecordFault): Promise<void>;
 }
 export declare function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile?: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
 export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
@@ -2524,6 +2547,7 @@ import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.
 import { type Authority, type AgentExecutionId, type DurableEvidence } from './identity.ts';
 import type { Material } from './passages.ts';
 import type { AgentJournalEntry, ReceivedCommitInput, ReceivedCommitValue, ReceivedEntry } from './receiving.ts';
+import type { RecordFault } from './testing-journal-entries.ts';
 export type KeptOperation = {
     kind: 'record';
     text: string;
@@ -2552,6 +2576,7 @@ export type MemoryExecution = {
     events: AgentEvent[];
     operations: Map<string, KeptOperation>;
     qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>;
+    recordFaults: RecordFault[];
 };
 export type KeptMaterial<B extends ContentBlock> = {
     tenant: string;

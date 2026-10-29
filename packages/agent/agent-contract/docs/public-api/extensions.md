@@ -300,6 +300,22 @@ Agent 保证以下几点。
 | 前置位置的 `veto` 扩展报错，`onError` 为 `treat_as_veto` 或省略 | 实际干预力为 `veto` 时按否决处理，输出为 `veto`。实际干预力被收窄时按 `record` 处理 |
 | 后置位置的扩展报错 | 不论干预力与 `onError`，按 `ignore` 处理：不改变推进，Conclusion 记报错分支，输出为 `observed` |
 
+必需需要的判断发生在每次调用开始之前，`fresh` 与 `replay` 都判定一次。规则归 SPEC 的“[声明判断](../../SPEC.md#声明判断)”的 `needs` 一段，下图只画处置的走向：
+
+```mermaid
+flowchart TD
+    B[装配为本次调用绑定 needs] --> R{有 required 为 true 的需要绑定不到？}
+    R -->|否| C[调用开始；可选需要缺席时能力集合里没有该名字]
+    R -->|是，官方准入的 fresh 或 replay| D[等同官方准入不可用：本批全部动作被拒绝]
+    R -->|是，受信系统扩展 fresh| F[按装配方预先指定的处置，可为 fallback]
+    R -->|是，作者扩展 fresh| U{unavailability}
+    U -->|skip 或省略| S[跳过，Conclusion 记不可用分支]
+    U -->|veto| V{实际干预力仍为 veto？}
+    V -->|是| X[按否决处理]
+    V -->|否| S
+    R -->|是，作者或受信系统扩展 replay| W[Passage 保持原状态，下一次合法推进重试 replay]
+```
+
 `execution_started` 按位置名属于后置位置：该执行已经开始，所以它的扩展报错只按 `ignore` 处理，`onError` 只允许 `ignore`。这不限制它的合法输出。`stop` 与 `ask` 是调用成功时作者给出的显式输出，不是报错的替代输出，两者互不影响。
 
 每一种处置都可查。缺少记录不能伪装为扩展通过。依赖恢复后扩展重新可用，但已有最终 Conclusion 的扩展调用不重跑。受信系统扩展采用兜底时，Conclusion 的不可用分支记为 `fallback`，作者不能声明兜底。

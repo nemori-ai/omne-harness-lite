@@ -108,8 +108,13 @@ sequenceDiagram
         Note over A,H: 卡片已呈现，尚无答复也可释放推进资源
         U->>H: 答复原卡片，含明确拒答
         A->>H: read 各卡片的唯一有效答复
-        H-->>A: chosen 或 declined
-        A->>E: 以 replay 携带全部轮次的答复调用原精确采用
+        alt 卡片来自作者扩展且答复是 remark
+            H-->>A: remark，带人的原话
+            A->>E: 以 replay 把附言原样交给原扩展，后果由原扩展决定
+        else
+            H-->>A: chosen 或 declined
+            A->>E: 以 replay 携带全部轮次的答复调用原精确采用
+        end
         E->>Z: 携带答复再次请求准入
         alt 原扩展或后继扩展再出卡
             E-->>A: 新一轮卡片，仍属原批
@@ -280,7 +285,7 @@ sequenceDiagram
         S->>O: 有效暂停，保存接续并 detach（E9）
         O-->>S: 交接依据，runtime 回 idle
         S->>N: resume，恢复依据含 handover 证明，带推进资格依据（E0）
-        N->>N: attach 核原修订仍适用并保存转换后的接续，版本变化返回 changed
+        N->>N: attach 核原修订仍适用并保存转换后的接续，修订变化返回 changed
         N->>X: 对账原调用、判断与卡片（E2）
         X-->>N: 已得结论、等待或未知
         N->>N: E4 回原位置，未发动作核当前条件

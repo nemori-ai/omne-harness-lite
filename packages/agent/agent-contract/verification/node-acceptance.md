@@ -182,13 +182,13 @@
 
 已有 NA-R0-4、NA-M0-1、NA-M6-1 的实现证据只覆盖 Model。Tool 另按本表与新增场景验证，不从原 admission 查询推广为 Tool 协议。F0 多前台 Tool 取消对应关系与 Q11/Q13 的其余机制仍属后续工作。
 
-## 契约清理补充目标
+## 需要声明、命名读取与条目投影的补充目标
 
-本节登记 [#673](https://github.com/nemori-ai/omne-harness-lite/issues/673) 新增的场景。场景的必须结果只归 [scenarios.md](scenarios.md)。
+本节登记需要声明、按需要名的读取与日志条目事件投影的场景。场景的必须结果只归 [scenarios.md](scenarios.md)。
 
 | 行号 | 节点 | 阶段与部分 | 子卡 | 用例名 | SC-AG | 实现用例 |
 | --- | --- | --- | --- | --- | --- | --- |
 | NA-A0-7 | A0 | 3（扩展链） | 3.4 | 官方准入声明的必需需要读不到时，该调用不开始，没有 `admit` 调用，本批全部动作被拒绝，屏障记 all-denied。可选需要缺席时官方准入照常调用，`permissions` 里没有该名字的条目。作者扩展与受信系统扩展的不可用处置属于声明判断与装配，不在 A0 | SC-AG-139 | 待实现。声明判断的 `needs-not-allowed` 反例已有 agent-contract 的[公开入口测试](../tests/public-entry.spec.ts)，不代表节点通过 |
 | NA-A0-8 | A0 | 3（扩展链） | 3.4 | `admit` 收到按需要名的读取列表：次序按声明次序，`need` 互不相同，空列表表示没有读取而不表示有授权，`decision.answer` 只携带选择或明确拒答 | SC-AG-226 | 待实现。`ActionAdmission` 输入的形状已有[类型测试](../tests/public-api-names.spec-d.ts)与 authorization 的[适配器测试](../../../identity/authorization/tests/port-adapters.spec.ts)，不代表节点通过 |
 
-SC-AG-240 至 SC-AG-249 覆盖 Journal 提供者对 `entry` 事件的投影。它们没有对应的 Loop 节点，不建 NA 行。准绳是 `./testing` 的一致性套件 `agentJournalEntriesConformance`，内存 Journal 经 [journal-received.spec.ts](../../agent/tests/journal-received.spec.ts) 运行它。会话日志一侧的提供者按集成节点的迁移提示运行同一套件。内存 Journal 通过不证明耐久、崩溃与跨进程行为。
+SC-AG-240 至 SC-AG-249 覆盖 Journal 提供者对 `entry` 事件的投影。它们没有对应的 Loop 节点，不建 NA 行。准绳是 `./testing` 的一致性套件 `agentJournalEntriesConformance`，内存 Journal 经 [journal-received.spec.ts](../../agent/tests/journal-received.spec.ts) 运行它。会话日志一侧的提供者运行同一套件。内存 Journal 通过不证明耐久、崩溃与跨进程行为。

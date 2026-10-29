@@ -71,10 +71,11 @@ type Hooks<P> = {
   ): CommandReceipt
   nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
   /**
-   * Allocates the `entry` event of a written entry under the same commit (SPEC "日志条目" 6).
-   * The Journal owns the ended rule: after the ended event it appends nothing.
+   * Writes the entry and, in the same step, allocates its `entry` event under the same commit
+   * (SPEC "日志条目" 6). The Journal owns the sequence, the attachment and the ended rule: after
+   * the ended event it appends no event, and it wakes the readers of the event stream itself.
    */
-  project(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
+  writeEntry(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
 }
 const unavailable = (diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -314,12 +315,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
                 execution: input.execution,
                 value: input.material,
               })
-              execution.entries.push(entry)
               execution.revision = revision
               deliveries.set(deliveryText(input, entry), value)
               aliases.set(operationKey(input), value)
-              hooks.project(execution, entry, receipt.evidence)
-              for (const wake of execution.waiters) wake()
+              hooks.writeEntry(execution, entry, receipt.evidence)
             },
           }
         },
@@ -402,14 +401,13 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
           receipt,
           value: structuredClone(receipt),
           apply() {
-            execution.entries.push(input.entry)
             execution.revision = revision
             if (input.entry.kind === 'received') {
               const kept = { entry: input.entry, receipt, saved: null }
               deliveries.set(deliveryText(input, input.entry), kept)
               aliases.set(operationKey(input), kept)
             }
-            hooks.project(execution, input.entry, receipt.evidence)
+            hooks.writeEntry(execution, input.entry, receipt.evidence)
           },
         }
       })

@@ -187,7 +187,7 @@ flowchart TB
 
 ## 节点表
 
-每个节点一行。“写什么”列含该节点写出的事件，事件种类只取 SPEC [事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)与公开接口页 `AgentEventBody` 的七种：input-taken、message、producer、stream、waiting、control、ended。执行记录操作只取公开接口页[执行记录端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)的五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。终态提交只用 `tryFinish`。最终请求的记录是 M0 的一次执行记录提交。
+每个节点一行。“写什么”列含该节点写出的事件，事件种类只取 SPEC [事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)与公开接口页 `AgentEventBody` 的七种：input-taken、message、producer、entry、waiting、control、ended。执行记录操作只取公开接口页[执行记录端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)的五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。终态提交只用 `tryFinish`。最终请求的记录是 M0 的一次执行记录提交。
 
 | 节点 | 读什么 | 写什么 | 何时提交 | 何时等待 | 如何返回 | 并发与次序 | 终止或进展条件 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -210,7 +210,7 @@ flowchart TB
 | C2 | `derive` 返回的 PreparedContextTransition | 不写 | 不提交 | 不等待 | 转 C3 | 串行 | 转换消息与 commitment 绑定 |
 | C3 | 转换消息、Context 的 commitment | Q2 以 context-transition 共同提交消息、范围转换与接续。事件 message | 共同提交成功才算压缩完成 | 不等待 | 成功转 C4。消息被拒收转 F1，失败候选为 cannot-fit（after-compaction），`rejection` 为拒收依据。转换非法转 F1，失败候选为 compaction-invalid | 与 Journal.commit 同一排序 | 提交未知先查原操作，不用未提交的派生冒充已压缩 |
 | C4 | 已提交的转换 | 该位置的 Passage。`compaction.ended` 记 committed | 随 X 协议提交 | X4 等待 | 转 I1：先经 `CurrentConditions.read` 读当前条件，再重新选择，再带转换依据读取，再 `resume` | 一次计划只经过一次 | 只面对已提交事实，不改写摘要与范围 |
-| A0 | 每个动作的生效参数、定义采用、私有权限输入 | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
+| A0 | 每个动作的生效参数、定义采用、按需要名的一组读取（`permissions`，空列表表示没有读取） | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `ActionBarrier` 的 judging 与 asked 列表、每轮卡片状态 | checkpoint 的 `batch.barrier`。open 时另写 `batchDecision` 依据 | 屏障状态变化时提交 | 有链在判断或在等人时转 W0 | all-denied 转 A3。open 转 A2 | 本轮卡片在每条链到达最终 Conclusion 或合法等待后一次呈现 | 打开与全拒的条件只由 SPEC 同节第 4、9 条拥有，本页不另写 |
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
 | A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |

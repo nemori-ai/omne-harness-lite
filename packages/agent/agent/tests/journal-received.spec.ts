@@ -105,7 +105,9 @@ function fixture() {
         }),
       )
     },
-    failNextRecord(_who, _execution, fault) {
+    // The memory Journal scripts the next `record` call of any execution; the suite only scripts
+    // one execution at a time, so the two readings meet.
+    async failNextRecord(_who, _execution, fault) {
       memory.failNext('record', fault)
     },
     async read(who, execution) {
@@ -145,7 +147,7 @@ describe('one memory Journal received provider', () => {
     joint,
   })) {
     // A case the fixture cannot drive is reported as skipped with its reason, never as green.
-    if (scenario.uncovered === undefined) it(scenario.name, scenario.run)
-    else it.skip(`${scenario.name} (${scenario.uncovered})`, scenario.run)
+    if ('uncovered' in scenario) it.skip(`${scenario.name} (${scenario.uncovered})`, scenario.run)
+    else it(scenario.name, scenario.run)
   }
 })

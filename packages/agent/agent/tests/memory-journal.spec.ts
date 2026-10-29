@@ -1759,9 +1759,10 @@ describe('fact 16: entry event projection', () => {
         } as unknown as JournalCommit<string>['events'][number],
       ],
     })
-    expect(failure(await journal.commit(forged))).toMatchObject({
+    expect(failure(await journal.commit(forged))).toEqual({
       kind: 'invalid',
       field: 'events',
+      reason: 'entry events are allocated by the Journal',
     })
     expect(await load(journal, opened.execution)).toEqual(before)
     expect(
@@ -1773,6 +1774,43 @@ describe('fact 16: entry event projection', () => {
         }),
       ),
     ).toEqual({ kind: 'unknown' })
+  })
+
+  // Red when the guard lets an `ended` body through: the execution would then stop projecting
+  // entries while it is still open.
+  it('fact 16: a commit that carries an ended event body is invalid at events, and a later entry still has its event', async () => {
+    const { port: journal, provider } = memory()
+    const opened = await open(journal)
+    const before = await load(journal, opened.execution)
+    const forged = commitAt(before, opened.authority, 'forged-ended', {
+      events: [
+        {
+          kind: 'ended',
+          conclusion: { kind: 'complete' },
+          disposition: evidence('forged'),
+        } as unknown as JournalCommit<string>['events'][number],
+      ],
+    })
+    expect(failure(await journal.commit(forged))).toEqual({
+      kind: 'invalid',
+      field: 'events',
+      reason: 'ended events are allocated by the Journal',
+    })
+    expect(await load(journal, opened.execution)).toEqual(before)
+    ok(
+      await provider.entries.record({
+        ...access,
+        execution: opened.execution,
+        operation: operation('after-forged-ended'),
+        authority: opened.authority,
+        entry: sampleStartFence('after-forged-ended'),
+      }),
+    )
+    const page = ok(
+      await journal.output.read({ ...access, execution: opened.execution, after: null, limit: 10 }),
+    )
+    if (page.kind !== 'page') throw new Error('expected a page')
+    expect(page.events.map(event => event.body.kind)).toEqual(['entry'])
   })
 })
 

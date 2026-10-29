@@ -2,7 +2,7 @@ import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/j
 import type * as M from '@omne-harness/model-contract'
 import { parseInstant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
-import { copyPlain, isRecord } from './check.ts'
+import { adoptionShape, copyPlain, isRecord } from './check.ts'
 import {
   POSITIONS,
   POWERS,
@@ -245,12 +245,7 @@ const outputSchema = z.discriminatedUnion('kind', [
     plan: z.strictObject({
       supplier: data,
       notBefore: utcInstantText.nullable(),
-      basis: z.strictObject({
-        owner: z.string(),
-        name: z.string(),
-        revision: z.string(),
-        digest: z.string(),
-      }),
+      basis: adoptionShape,
     }),
   }),
   z.strictObject({ kind: z.literal('ask'), card }),

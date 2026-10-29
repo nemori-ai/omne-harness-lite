@@ -204,6 +204,8 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 
 `./testing` 入口由 [testing.ts](../../src/testing.ts) 定义：`agentJournalEntriesConformance` 与 `agentAccountOutletConformance` 两个一致性套件，非耐久替身 `createMemoryAgentJournalEntries` 与 `createMemoryAgentAccountOutlet`，各自的夹具工厂，以及套件用的样例值。套件返回用例列表，不依赖测试框架，用例以 `node:assert` 的 AssertionError 失败。替身声明 `durability: 'none'`，不证明耐久、跨进程行为或真实 runtime。
 
+条目套件的测试件 `AgentJournalEntriesFixture` 必须提供 `events` 读口：按序号给出一个 execution 的全部事件，execution 不存在时给 `undefined`。`entry` 事件的投影用例（SC-AG-240 至 SC-AG-249）读它核对条目与事件同一次写入成立、序号、`schema`、ended 之后不分配、重放不重复分配与拒绝不分配。两个控制可选：`detach` 与 `failNextRecord`（返回 Promise，故障按 execution 布置，只由该 execution 下一次走到写入步骤的 `record` 消耗，`RecordFault` 有 `commit-unknown` 与 `unavailable` 两种）。测试件缺少某个控制时，需要它的用例带 `uncovered` 且 `run` 必定拒绝；运行方按未覆盖报告，不当作通过。`ConformanceCase` 因此是判别联合，运行方以 `'uncovered' in case` 区分。两个替身用同一条投影规则与同一个事件格式采用，提供者声明自己的。
+
 ### 接收共同提交的使用与验证
 
 结果接收方先检查 `provider.received` 非空，再调用 `commit`。调用方提供不含材料证据的条目草稿和完整 `Material`。committed 后使用 `value.saved` 返回生产者保存回执。`value.receipt.evidence`、`value.entry.material` 和 `value.saved` 分别是命令、材料和保存依据，不互相替换。响应未知时按原 operation 调用 `query`。unknown 或查询失败不表示未提交。详细规则归 [接收共同提交](../../SPEC.md#接收共同提交)。

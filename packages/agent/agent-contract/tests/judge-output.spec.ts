@@ -728,6 +728,14 @@ describe('the seven steps in order', () => {
         'a retry plan whose notBefore is an impossible date',
         { kind: 'retry', plan: { supplier, notBefore: '2026-02-30T08:00:00Z', basis: adoption } },
       ],
+      // Red when the text check is dropped and a non-string that reads as an instant passes.
+      [
+        'a retry plan whose notBefore is an array holding an instant text',
+        {
+          kind: 'retry',
+          plan: { supplier, notBefore: ['2026-10-17T08:00:00Z'], basis: adoption },
+        },
+      ],
       ['a retry plan without a basis', { kind: 'retry', plan: { supplier, notBefore: null } }],
       [
         'a retry basis with three of the four fields',

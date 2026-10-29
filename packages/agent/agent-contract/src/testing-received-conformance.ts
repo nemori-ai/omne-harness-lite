@@ -3,10 +3,12 @@ import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Failure, Reply } from './evaluation.ts'
+import type { AgentEvent } from './execution.ts'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
+  judgeAdoption,
   type Access,
   type DurableEvidence,
 } from './identity.ts'
@@ -92,7 +94,12 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
     return input
   }
   const stats = (input: ReceivedCommitInput<P, B>) => joint.inspect(input, input.execution)
-  const events = (input: ReceivedCommitInput<P, B>) => fixture.events(input, input.execution)
+  /** The events of an execution the suite opened; an absent list is a defect of the fixture. */
+  const events = async (input: ReceivedCommitInput<P, B>): Promise<readonly AgentEvent[]> => {
+    const listed = await fixture.events(input, input.execution)
+    assert.ok(listed !== undefined, 'the fixture must list the events of an open execution')
+    return listed
+  }
   const assertVisible = async (input: ReceivedCommitInput<P, B>, value: ReceivedCommitValue) => {
     assert.deepEqual(
       await fixture.read(input, input.execution),
@@ -835,12 +842,24 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
     },
     {
       // Red when commit writes the entry without its `entry` event, allocates the event under
-      // another cause or another attachment, or gives it a sequence out of order.
+      // another cause, another attachment or another schema, or gives it a sequence out of order.
       name: 'received commit projects the entry as one entry event of the same commit',
       async run() {
         const input = await prepare('entry-event')
         const latest = await fixture.supersede(input, input.execution)
+        // An earlier event, so that the sequence and the schema of the commit's event have a
+        // predecessor to compare with.
+        await ok(
+          fixture.entries.record({
+            ...input,
+            operation: operation('entry-event-fence'),
+            authority: latest,
+            entry: sampleStartFence('entry-event'),
+          }),
+        )
         const before = await events(input)
+        const previous = before.at(-1)
+        assert.ok(previous !== undefined, 'the start-fence must have added an event')
         const value = await committed(joint.received.commit(input))
         const after = await events(input)
         assert.equal(after.length, before.length + 1, 'one commit must add exactly one event')
@@ -853,9 +872,16 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
           latest.executionAttachment,
           'the event must carry the latest established attachment',
         )
-        const previous = before.at(-1)
-        if (previous !== undefined)
-          assert.equal(Number(event?.sequence), Number(previous.sequence) + 1)
+        assert.equal(Number(event?.sequence), Number(previous.sequence) + 1)
+        assert.ok(
+          'ok' in judgeAdoption(event?.schema),
+          'the schema of the entry event must be a complete Adoption',
+        )
+        assert.deepEqual(
+          event?.schema,
+          previous.schema,
+          'every event of one execution must carry the same schema',
+        )
       },
     },
     {

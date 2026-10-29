@@ -8,7 +8,6 @@ import {
   decodeAgentInstanceId,
   decodeExecutionAttachmentId,
   type Access,
-  type Adoption,
   type AgentExecutionId,
   type DurableEvidence,
 } from './identity.ts'
@@ -23,9 +22,9 @@ import type {
   ReceivedCommitValue,
   ReceivedEntry,
 } from './receiving.ts'
-import type { AgentJournalEntriesFixture, RecordFault } from './testing-journal-entries.ts'
+import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
 import type { ReceivedCommitFixture } from './testing-received-fixture.ts'
-import { canonicalText, doubleEvidence, tenantText } from './testing-case.ts'
+import { canonicalText, doubleEvidence, projectEntryEvent, tenantText } from './testing-case.ts'
 import {
   conflict,
   deliveryKey,
@@ -47,29 +46,10 @@ import {
 
 type Pause = { reached(source: DurableEvidence): void; released: Promise<void> }
 
-/** The schema of the events the fixture allocates; a provider declares its own. */
-const EVENT_SCHEMA: Adoption = Object.freeze({
-  owner: 'memoryReceivedCommand',
-  name: 'agent-event',
-  revision: '1',
-  digest: 'double:agent-event',
-})
-
-/**
- * Writes the entry and, in the same step, its `entry` event (SPEC "日志条目" 6). After the end
- * the entry is written alone: ended stays the last event.
- */
+/** Writes the entry and, in the same step, its `entry` event (SPEC "日志条目" 6). */
 function writeEntry(state: MemoryExecution, entry: AgentJournalEntry, receipt: CommandReceipt) {
   state.entries.push(entry)
-  if (state.ended) return
-  state.events.push({
-    execution: receipt.execution,
-    sequence: String(state.events.length + 1),
-    executionAttachment: state.authority.executionAttachment,
-    schema: EVENT_SCHEMA,
-    cause: receipt.evidence,
-    body: { kind: 'entry', entry: structuredClone(entry) },
-  })
+  projectEntryEvent(state, entry, receipt)
 }
 
 /** Explicit test setup; this is not a full AgentJournal or a production storage provider. */
@@ -90,7 +70,6 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
   const custody = new Map<string, AgentExecutionId>()
   const pauses = new Map<string, Pause>()
   const faults = new Map<string, 'before-publish' | 'after-publish'>()
-  const recordFaults: RecordFault[] = []
   let generation = 0
   const stateOf = (input: Pick<ExecutionMutation<P>, 'tenant' | 'execution'>) =>
     executions.get(executionKey(input))
@@ -255,17 +234,30 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       ? value
       : succeed(structuredClone({ kind: 'committed', value: value.ok }))
   }
-  const record = async (
+  /**
+   * The write step of a record call. The scripted fault of the execution is used here and nowhere
+   * else: `unavailable` fails before anything is written, `commit-unknown` writes as usual and
+   * loses only the reply.
+   */
+  const writeRecord = (
+    state: MemoryExecution,
     input: JournalEntryRecord<P>,
-  ): Promise<Outcome<CommandReceipt, Failure>> => {
-    const fault = recordFaults.shift()
-    const outcome = await attemptRecord(input)
-    // The scripted fault: the write took effect as usual, only the reply is lost.
-    return fault !== undefined && 'ok' in outcome
-      ? fail({ kind: 'commit-unknown', operation: input.operation })
-      : outcome
+    text: string,
+  ): Outcome<CommandReceipt, Failure> => {
+    const fault = state.recordFaults.shift()
+    if (fault?.kind === 'unavailable') return fail(unavailable('scripted before the write'))
+    const receipt = receiptOf(state, input)
+    const entry = structuredClone(input.entry)
+    writeEntry(state, entry, receipt)
+    state.revision += 1
+    state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
+    if (entry.kind === 'received')
+      deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved: null })
+    return fault === undefined
+      ? succeed(structuredClone(receipt))
+      : fail({ kind: 'commit-unknown', operation: input.operation })
   }
-  const attemptRecord = async (
+  const record = async (
     input: JournalEntryRecord<P>,
   ): Promise<Outcome<CommandReceipt, Failure>> => {
     const allowed = permitted(input)
@@ -322,14 +314,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       )
         return fail({ kind: 'stale-advance' })
     }
-    const receipt = receiptOf(state, input)
-    const entry = structuredClone(input.entry)
-    writeEntry(state, entry, receipt)
-    state.revision += 1
-    state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
-    if (entry.kind === 'received')
-      deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved: null })
-    return succeed(structuredClone(receipt))
+    return writeRecord(state, input, text)
   }
   const entries: AgentJournalEntries<P> = { record }
   const materialPort: AgentMaterials<P, B> = {
@@ -483,6 +468,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
         events: [],
         operations: new Map(),
         qualifications: new Map([[who.principal, 'allowed']]),
+        recordFaults: [],
       })
       return grant
     },
@@ -499,8 +485,8 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     async end(who, execution) {
       requireState({ ...who, execution }).ended = true
     },
-    failNextRecord(_who, _execution, fault) {
-      recordFaults.push(fault)
+    async failNextRecord(who, execution, fault) {
+      requireState({ ...who, execution }).recordFaults.push(fault)
     },
     async read(who, execution) {
       const state = stateOf({ ...who, execution })
@@ -509,7 +495,8 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
         : undefined
     },
     async events(who, execution) {
-      return structuredClone(requireState({ ...who, execution }).events)
+      const state = stateOf({ ...who, execution })
+      return state === undefined ? undefined : structuredClone(state.events)
     },
   }
 }

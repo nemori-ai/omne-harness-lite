@@ -10,11 +10,16 @@ import {
   type TenantId,
 } from '@omne-harness/legal-identity'
 import {
+  decodeExecutionAttachmentId,
   decodeExecutionRevision,
   decodeAgentExecutionId,
   decodeAgentOperationId,
+  type Access,
   type AgentAccountOutlet,
+  type AgentEvent,
+  type AgentExecutionId,
   type AgentJournalEntries,
+  type AgentJournalEntry,
   type Authority,
   type ExecutionAttachmentId,
   type ReceivedCommitInput,
@@ -26,6 +31,8 @@ import {
   memoryAgentJournalEntriesFixture,
   memoryReceivedCommitFixture,
   sampleReceivedModelResult,
+  sampleStartFence,
+  type AgentJournalEntriesFixture,
   type ReceivedCommitFixture,
   type ConformanceCase,
 } from '@omne-harness/agent-contract/testing'
@@ -44,6 +51,39 @@ function caseNamed(cases: readonly ConformanceCase[], fragment: string): Conform
   const found = cases.find(entry => entry.name.includes(fragment))
   if (found === undefined) throw new Error(`no case named like ${fragment}`)
   return found
+}
+
+/** The events of an execution the suite opened, from a fixture that knows the execution. */
+async function eventsOf(
+  fixture: Pick<AgentJournalEntriesFixture<string>, 'events'>,
+  who: Access<string>,
+  execution: AgentExecutionId,
+): Promise<readonly AgentEvent[]> {
+  const events = await fixture.events(who, execution)
+  if (events === undefined) throw new Error('the double should know the execution')
+  return events
+}
+
+const staleAttachment = (() => {
+  const decoded = decodeExecutionAttachmentId('attachment-stale')
+  if (!('ok' in decoded)) throw new Error('the test attachment is invalid')
+  return decoded.ok
+})()
+
+/** An `entry` event that a broken provider invents: wrong attachment, schema and cause. */
+function inventedEvent(
+  execution: AgentExecutionId,
+  sequence: number,
+  entry: AgentJournalEntry,
+): AgentEvent {
+  return {
+    execution,
+    sequence: String(sequence),
+    executionAttachment: staleAttachment,
+    schema: { owner: 'test', name: 'x', revision: '1', digest: 'x' },
+    cause: { owner: 'test', record: 'x', revision: '1', digest: 'x' },
+    body: { kind: 'entry', entry },
+  }
 }
 
 /** Runs every case of a suite and names the first case that fails. */
@@ -147,7 +187,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
         },
       },
       events: async (who, execution) => {
-        const events = await fixture.events(who, execution)
+        const events = await eventsOf(fixture, who, execution)
         const extra = (calls.get(execution) ?? 0) - events.length
         return [...events, ...events.slice(0, Math.max(0, extra))]
       },
@@ -174,7 +214,7 @@ describe('the entries suite fails a provider that breaks a rule', () => {
         ended.add(execution)
       },
       events: async (who, execution) => {
-        const events = await fixture.events(who, execution)
+        const events = await eventsOf(fixture, who, execution)
         const attachment = attachments.get(execution)
         if (!ended.has(execution) || attachment === undefined) return events
         const entries = (await fixture.read(who, execution)) ?? []
@@ -193,6 +233,272 @@ describe('the entries suite fails a provider that breaks a rule', () => {
     })
     await expect(caseNamed(cases, 'after the end without an event').run()).rejects.toThrow(
       /no event should follow the end/u,
+    )
+  })
+
+  it('fails the projection case when an entry is written without its event', async () => {
+    // A provider that writes entries but never allocates their events.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      events: async (who, execution) =>
+        (await eventsOf(fixture, who, execution)).filter(event => event.body.kind !== 'entry'),
+    })
+    await expect(caseNamed(cases, 'projects each written entry').run()).rejects.toThrow(
+      /each written entry should add one event/u,
+    )
+  })
+
+  it('fails the stale-advance case when a refused record allocates an event', async () => {
+    // A provider that allocates an event on the refusal branch as well.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const refusals = new Map<string, AgentJournalEntry[]>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      entries: {
+        record: async input => {
+          const answer = await fixture.double.record(input)
+          if ('failure' in answer)
+            refusals.set(input.execution, [...(refusals.get(input.execution) ?? []), input.entry])
+          return answer
+        },
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        return [
+          ...events,
+          ...(refusals.get(execution) ?? []).map((entry, index) =>
+            inventedEvent(execution, events.length + index + 1, entry),
+          ),
+        ]
+      },
+    })
+    await expect(caseNamed(cases, 'stale-advance').run()).rejects.toThrow(
+      /a stale-advance record should allocate no event/u,
+    )
+  })
+
+  it('fails the lost-reply case when the applied write holds the entry but not its event', async () => {
+    // A provider that writes the entry and the event in two steps: the lost reply leaves the
+    // entry without its event.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const lost = new Set<string>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      entries: {
+        record: async input => {
+          const answer = await fixture.double.record(input)
+          if ('failure' in answer && answer.failure.kind === 'commit-unknown')
+            lost.add(input.execution)
+          return answer
+        },
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        return lost.has(execution) ? events.slice(0, -1) : events
+      },
+    })
+    await expect(caseNamed(cases, 'record reply is lost').run()).rejects.toThrow(
+      /the applied write should hold the event/u,
+    )
+  })
+
+  it('fails the failed-write case when a failure before publication leaves an event', async () => {
+    // A provider that allocates the event before it finds out that the write fails.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const failed = new Map<string, AgentJournalEntry>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      entries: {
+        record: async input => {
+          const answer = await fixture.double.record(input)
+          if ('failure' in answer && answer.failure.kind === 'unavailable')
+            failed.set(input.execution, input.entry)
+          return answer
+        },
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        const entry = failed.get(execution)
+        return entry === undefined
+          ? events
+          : [...events, inventedEvent(execution, events.length + 1, entry)]
+      },
+    })
+    await expect(caseNamed(cases, 'fails before publication').run()).rejects.toThrow(
+      /a failure before publication should allocate no event/u,
+    )
+  })
+
+  it('fails the detach case when the event after a detach carries another attachment', async () => {
+    // A provider that allocates the event of a detached execution under a stale attachment.
+    const fixture = memoryAgentJournalEntriesFixture(access, otherAccess)
+    const detached = new Set<string>()
+    const cases = agentJournalEntriesConformance({
+      ...fixture,
+      detach: async (who, execution) => {
+        await fixture.detach?.(who, execution)
+        detached.add(execution)
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        return detached.has(execution)
+          ? events.map(event => ({ ...event, executionAttachment: staleAttachment }))
+          : events
+      },
+    })
+    await expect(caseNamed(cases, 'after a detach').run()).rejects.toThrow(
+      /latest established attachment, also when detached/u,
+    )
+  })
+})
+
+describe('the commit cases of the suite fail a provider that breaks a rule', () => {
+  type Fixture = ReturnType<typeof memoryReceivedCommitFixture<string, ContentBlock>>
+  /** The required cases against the double, with the fixture replaced by `broken(fixture)`. */
+  function brokenCases(broken: (fixture: Fixture) => Partial<Fixture>): readonly ConformanceCase[] {
+    const fixture = memoryReceivedCommitFixture<string, ContentBlock>(access, otherAccess)
+    const replaced = { ...fixture, ...broken(fixture) }
+    return agentJournalEntriesConformance(replaced, { received: 'required', joint: replaced.joint })
+  }
+  /** `commit` of the double, with `after` run on each reply. */
+  function observedCommit(
+    fixture: Fixture,
+    after: (input: ReceivedCommitInput<string, ContentBlock>, reply: unknown) => void,
+  ): Fixture['joint'] {
+    return {
+      ...fixture.joint,
+      received: {
+        ...fixture.joint.received,
+        async commit(input: ReceivedCommitInput<string, ContentBlock>) {
+          const reply = await fixture.joint.received.commit(input)
+          after(input, reply)
+          return reply
+        },
+      },
+    }
+  }
+  const committedOperation = (reply: unknown): string | undefined => {
+    const value = reply as { ok?: { kind?: string; value?: { receipt?: { operation?: string } } } }
+    return value.ok?.kind === 'committed' ? value.ok.value?.receipt?.operation : undefined
+  }
+
+  it('fails the commit projection case when commit writes the entry without its event', async () => {
+    const cases = brokenCases(fixture => ({
+      events: async (who, execution) =>
+        (await eventsOf(fixture, who, execution)).filter(
+          event => event.body.kind !== 'entry' || event.body.entry.kind !== 'received',
+        ),
+    }))
+    await expect(caseNamed(cases, 'commit projects the entry').run()).rejects.toThrow(
+      /one commit must add exactly one event/u,
+    )
+  })
+
+  it('fails the commit replay case when a replayed commit allocates another event', async () => {
+    const replies = new Map<string, number>()
+    const cases = brokenCases(fixture => ({
+      joint: observedCommit(fixture, (input, reply) => {
+        if (committedOperation(reply) !== undefined)
+          replies.set(input.execution, (replies.get(input.execution) ?? 0) + 1)
+      }),
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        const extra = (replies.get(execution) ?? 0) - events.length
+        return [...events, ...events.slice(0, Math.max(0, extra))]
+      },
+    }))
+    await expect(caseNamed(cases, 'replays and operation aliases').run()).rejects.toThrow(
+      /a replay must allocate no event/u,
+    )
+  })
+
+  it('fails the cross-entry case when commit recognizing a recorded delivery allocates an event', async () => {
+    const recognized = new Map<string, number>()
+    const cases = brokenCases(fixture => ({
+      joint: observedCommit(fixture, (input, reply) => {
+        const original = committedOperation(reply)
+        if (original !== undefined && original !== input.operation)
+          recognized.set(input.execution, (recognized.get(input.execution) ?? 0) + 1)
+      }),
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        const last = events.at(-1)
+        const extra = recognized.get(execution) ?? 0
+        return last === undefined ? events : [...events, ...Array<AgentEvent>(extra).fill(last)]
+      },
+    }))
+    await expect(
+      caseNamed(cases, 'record then commit and commit then record').run(),
+    ).rejects.toThrow(/commit recognizing a recorded delivery must allocate no event/u)
+  })
+
+  it('fails the commit-after-end case when an entry event follows the end', async () => {
+    const ended = new Set<string>()
+    const cases = brokenCases(fixture => ({
+      end: async (who, execution) => {
+        await fixture.end(who, execution)
+        ended.add(execution)
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        if (!ended.has(execution)) return events
+        const entries = (await fixture.read(who, execution)) ?? []
+        return [
+          ...events,
+          ...entries
+            .slice(events.length)
+            .map((entry, index) => inventedEvent(execution, events.length + index + 1, entry)),
+        ]
+      },
+    }))
+    await expect(caseNamed(cases, 'commit after the end').run()).rejects.toThrow(
+      /no event may follow the end/u,
+    )
+  })
+
+  it('fails the failed-commit case when a failure before publication leaves an event', async () => {
+    const failed = new Set<string>()
+    const cases = brokenCases(fixture => ({
+      joint: {
+        ...fixture.joint,
+        fault(input, point) {
+          if (point === 'before-publish') failed.add(input.execution)
+          fixture.joint.fault(input, point)
+        },
+      },
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        return failed.has(execution)
+          ? [...events, inventedEvent(execution, events.length + 1, sampleStartFence('invented'))]
+          : events
+      },
+    }))
+    await expect(
+      caseNamed(cases, 'failure before publication leaves neither').run(),
+    ).rejects.toThrow(/a failed commit allocates no event/u)
+  })
+
+  it('fails the refused-commit case when a denied commit allocates an event', async () => {
+    const refused = new Map<string, number>()
+    const cases = brokenCases(fixture => ({
+      joint: observedCommit(fixture, (input, reply) => {
+        if ('failure' in (reply as object))
+          refused.set(input.execution, (refused.get(input.execution) ?? 0) + 1)
+      }),
+      events: async (who, execution) => {
+        const events = await eventsOf(fixture, who, execution)
+        const extra = refused.get(execution) ?? 0
+        return [
+          ...events,
+          ...Array.from({ length: extra }, (_, index) =>
+            inventedEvent(execution, events.length + index + 1, sampleStartFence('refused')),
+          ),
+        ]
+      },
+    }))
+    await expect(caseNamed(cases, 'denied and conflicting commits').run()).rejects.toThrow(
+      /a refused commit allocates no event/u,
     )
   })
 })
@@ -398,9 +704,12 @@ describe('the entries suite reports a case it cannot drive as uncovered, never a
       const cases = agentJournalEntriesConformance(fixture)
       const fragment = control === 'detach' ? 'after a detach' : 'record reply is lost'
       const found = caseNamed(cases, fragment)
-      expect(found.uncovered).toMatch(new RegExp(`uncovered: .*${control}`, 'u'))
+      expect('uncovered' in found && found.uncovered).toMatch(
+        new RegExp(`uncovered: .*${control}`, 'u'),
+      )
       await expect(found.run()).rejects.toThrow(/uncovered/u)
-      expect(cases.filter(entry => entry.uncovered !== undefined)).toHaveLength(1)
+      const expected = control === 'detach' ? 1 : 2
+      expect(cases.filter(entry => 'uncovered' in entry)).toHaveLength(expected)
     },
   )
 
@@ -408,6 +717,6 @@ describe('the entries suite reports a case it cannot drive as uncovered, never a
     const cases = agentJournalEntriesConformance(
       memoryAgentJournalEntriesFixture(access, otherAccess),
     )
-    expect(cases.filter(entry => entry.uncovered !== undefined)).toEqual([])
+    expect(cases.filter(entry => 'uncovered' in entry)).toEqual([])
   })
 })

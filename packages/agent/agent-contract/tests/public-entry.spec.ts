@@ -698,8 +698,9 @@ it('caps a workspace source at observe at every position and drops the source fr
 })
 
 it('keeps an omitted optional field omitted and returns frozen data that shares nothing with the input', async () => {
+  const history = need('history')
   const input = declare('before_action', 'veto', {
-    needs: [need('history')],
+    needs: [history],
     onError: 'record',
     unavailability: 'veto',
   })
@@ -715,8 +716,9 @@ it('keeps an omitted optional field omitted and returns frozen data that shares 
   expect(Object.isFrozen(first?.needs)).toBe(true)
   expect(Object.isFrozen(first?.needs?.[0])).toBe(true)
   expect(Object.isFrozen(first?.needs?.[0].schema)).toBe(true)
-  expect(first?.needs?.[0]).not.toBe(input.needs)
-  expect(first?.needs?.[0].schema).not.toBe(need('history').schema)
+  expect(first?.needs).not.toBe(input.needs)
+  expect(first?.needs?.[0]).not.toBe(history)
+  expect(first?.needs?.[0].schema).not.toBe(history.schema)
   expect(first?.implementation).not.toBe(input.implementation)
   const bare = await judgeOne(declare('before_model_call', 'veto'))
   expect(bare.kind === 'accepted' && Object.keys(bare.value[0] ?? {}).sort()).toEqual([

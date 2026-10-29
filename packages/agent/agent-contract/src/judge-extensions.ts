@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  adoptionShape,
   checkJson,
   closeCheckDomain,
   copyPlain,
@@ -58,16 +59,11 @@ const implementation = z.discriminatedUnion('kind', [
   }),
 ])
 
-/** The exact adoption of the contract a delivered need follows: the four texts, nothing else. */
-const needSchema = z.strictObject({
-  owner: z.string(),
-  name: z.string(),
-  revision: z.string(),
-  digest: z.string(),
-})
-
-/** One need declaration. Every member is required; `required` has no default. */
-const need = z.strictObject({ name: text, schema: needSchema, required: z.boolean() })
+/**
+ * One need declaration. Every member is required; `required` has no default. `schema` is the
+ * exact adoption of the contract the delivered need follows.
+ */
+const need = z.strictObject({ name: text, schema: adoptionShape, required: z.boolean() })
 
 const declaration = z.strictObject({
   name: text,

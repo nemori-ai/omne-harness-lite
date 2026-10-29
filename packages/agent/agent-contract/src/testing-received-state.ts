@@ -25,6 +25,7 @@ import type {
   ReceivedEntry,
 } from './receiving.ts'
 import { canonicalText, doubleEvidence, tenantText } from './testing-case.ts'
+import type { RecordFault } from './testing-journal-entries.ts'
 
 export type KeptOperation =
   | { kind: 'record'; text: string; receipt: CommandReceipt; entry: AgentJournalEntry }
@@ -45,6 +46,8 @@ export type MemoryExecution = {
   events: AgentEvent[]
   operations: Map<string, KeptOperation>
   qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>
+  /** The scripted faults of this execution, used in order by the record calls that write. */
+  recordFaults: RecordFault[]
 }
 export type KeptMaterial<B extends ContentBlock> = {
   tenant: string

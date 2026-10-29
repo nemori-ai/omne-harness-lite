@@ -1,24 +1,25 @@
 // Shared parts of the `./testing` entry: the case shape of a conformance suite, the canonical text
-// that compares two plain values, and the evidence that a non-durable double writes.
+// that compares two plain values, the evidence that a non-durable double writes, and the rule by
+// which a double projects a written entry as its `entry` event.
 import { AssertionError } from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
-import type { DurableEvidence } from './identity.ts'
+import type { AgentEvent, CommandReceipt } from './execution.ts'
+import type { Adoption, Authority, DurableEvidence } from './identity.ts'
+import type { AgentJournalEntry } from './receiving.ts'
 
 /**
  * One case of a conformance suite. `run` resolves when the provider keeps the rule of the case
  * and rejects with a `node:assert` AssertionError when it does not. A suite does not depend on a
  * test framework.
  *
- * `uncovered` is set when the fixture lacks an optional capability that the case needs. The case
- * then proves nothing about the provider: a runner reports it as not covered, and `run` still
- * rejects, so a runner that ignores the field shows red instead of a silent pass.
+ * A case the fixture cannot drive, because it lacks an optional control the case needs, carries
+ * `uncovered`. It proves nothing about the provider: a runner reports it as not covered, and its
+ * `run` always rejects, so a runner that ignores the field shows red instead of a silent pass.
  */
-export type ConformanceCase = Readonly<{
-  name: string
-  run: () => Promise<void>
-  uncovered?: string
-}>
+export type ConformanceCase =
+  | Readonly<{ name: string; run: () => Promise<void> }>
+  | Readonly<{ name: string; uncovered: string; run: () => Promise<never> }>
 
 /** The case of a rule that the fixture cannot drive because it lacks `capability`. */
 export function uncoveredCase(name: string, capability: string): ConformanceCase {
@@ -30,6 +31,47 @@ export function uncoveredCase(name: string, capability: string): ConformanceCase
       throw new AssertionError({ message: uncovered })
     },
   }
+}
+
+/**
+ * The schema of every event a double allocates. A double fixes it when it is created, before any
+ * execution exists, so every event of every execution carries the same one (SPEC "事件身份与序号").
+ * A provider declares its own.
+ */
+export const DOUBLE_EVENT_SCHEMA: Adoption = Object.freeze({
+  owner: 'double',
+  name: 'agent-event',
+  revision: '1',
+  digest: 'double:agent-event',
+})
+
+/** The part of a double's execution record that the projection of an entry reads and writes. */
+export type ProjectingExecution = Readonly<{
+  /** The latest established attachment, also when it has been detached. */
+  authority: Authority
+  ended: boolean
+  events: AgentEvent[]
+}>
+
+/**
+ * Projects a written entry as one `entry` event of the same write (SPEC "日志条目" 6): the next
+ * sequence, the latest established attachment, the schema of the double, and the evidence of the
+ * receipt as cause. After the end the entry is written alone: ended stays the last event.
+ */
+export function projectEntryEvent(
+  execution: ProjectingExecution,
+  entry: AgentJournalEntry,
+  receipt: CommandReceipt,
+): void {
+  if (execution.ended) return
+  execution.events.push({
+    execution: receipt.execution,
+    sequence: String(execution.events.length + 1),
+    executionAttachment: execution.authority.executionAttachment,
+    schema: DOUBLE_EVENT_SCHEMA,
+    cause: receipt.evidence,
+    body: { kind: 'entry', entry: structuredClone(entry) },
+  })
 }
 
 /**
