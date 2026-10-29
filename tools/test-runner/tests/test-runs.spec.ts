@@ -145,17 +145,18 @@ describe('与回路配置一致', () => {
   })
 })
 
+// 路径期望经 path.join 写成本机分隔符（Windows 上是反斜杠），结构与 POSIX 上相同。
 describe('账本根', () => {
   it('测试与验收各放一处；环境变量给了用它，给空串当没给', () => {
-    expect(ledgerHome('test', '/repo', {})).toBe('/repo/tmp/test-ledger')
-    expect(ledgerHome('acceptance', '/repo', {})).toBe('/repo/tmp/acceptance-ledger')
+    expect(ledgerHome('test', '/repo', {})).toBe(join('/repo/tmp/test-ledger'))
+    expect(ledgerHome('acceptance', '/repo', {})).toBe(join('/repo/tmp/acceptance-ledger'))
     expect(ledgerHome('test', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe('/x')
     expect(ledgerHome('acceptance', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe(
-      '/repo/tmp/acceptance-ledger',
+      join('/repo/tmp/acceptance-ledger'),
     )
     expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '/y' })).toBe('/y')
     expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '' })).toBe(
-      '/repo/tmp/acceptance-ledger',
+      join('/repo/tmp/acceptance-ledger'),
     )
   })
 })
