@@ -710,7 +710,8 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
         const attributes = join(directory, 'attributes')
         const global = join(directory, 'gitconfig')
         writeFileSync(attributes, '*.md diff=markdown\n')
-        writeFileSync(global, `[core]\n\tattributesFile = ${attributes}\n`)
+        // Git 配置值里的 `\` 是转义符；Windows 路径换成 `/` 写进去，Git 照样认。
+        writeFileSync(global, `[core]\n\tattributesFile = ${attributes.replaceAll('\\', '/')}\n`)
         return { ...process.env, GIT_CONFIG_GLOBAL: global }
       },
     ],
