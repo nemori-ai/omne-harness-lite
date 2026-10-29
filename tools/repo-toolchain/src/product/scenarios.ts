@@ -1,5 +1,5 @@
 import { lstatSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { isAbsolute, join, relative } from 'node:path'
+import { isAbsolute, join, relative, sep } from 'node:path'
 import { parse } from 'yaml'
 import { isLegacyDirectory } from '../core/check-scope.ts'
 
@@ -51,7 +51,8 @@ export function readProductTopics(productRoot: string): ProductTopic[] {
   const inside = (path: string): string => {
     const actual = realpathSync(path)
     const rel = relative(root, actual)
-    if (rel === '..' || rel.startsWith('../') || isAbsolute(rel))
+    // `relative` 用平台分隔符：Windows 上越界是 `..\x`，不是 `../x`。
+    if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel))
       throw new Error(`产品路径越界：${path}`)
     return actual
   }
