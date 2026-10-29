@@ -123,7 +123,7 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
 function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
   return {
     admit: async input => {
-      if (input.permissions !== null || input.decision !== null)
+      if (input.permissions.length > 0 || input.decision !== null)
         return succeed({
           kind: 'unavailable',
           diagnostic: 'permission and decision interpreters are not installed',
@@ -326,7 +326,7 @@ function admitInput(principal: Principal, tenant: TenantId, effectiveArguments =
     original,
     effectiveArguments,
     definition: { owner: 'assets', name: 'bash', revision: '1', digest: 'd' },
-    permissions: null,
+    permissions: [],
     decision: null,
   }
 }
@@ -420,11 +420,14 @@ describe('ActionAdmission through the admission check', () => {
     {
       name: 'permissions without an interpreter',
       patch: {
-        permissions: {
-          schema: { owner: 'assets', name: 'permissions', revision: '1', digest: 'd' },
-          value: { kind: 'object', entries: [] },
-          source: EVIDENCE,
-        },
+        permissions: [
+          {
+            need: 'permissions',
+            schema: { owner: 'assets', name: 'permissions', revision: '1', digest: 'd' },
+            value: { kind: 'object', entries: [] },
+            source: EVIDENCE,
+          },
+        ],
       },
     },
     {

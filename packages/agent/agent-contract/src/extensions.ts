@@ -13,7 +13,7 @@ import type {
   PassageId,
   UtcInstantText,
 } from './identity.ts'
-import type { CardAnswer, Subject } from './passages.ts'
+import type { CardAnswer, CardRemark, Subject } from './passages.ts'
 
 export const POSITIONS = [
   'execution_started',
@@ -161,7 +161,7 @@ export type ExtensionReplayBinding = Readonly<{
     cards: readonly Readonly<{
       identity: string
       card: DurableEvidence
-      response: Readonly<{ evidence: DurableEvidence; answer: CardAnswer }> | null
+      response: Readonly<{ evidence: DurableEvidence; answer: CardAnswer | CardRemark }> | null
     }>[]
   }>[]
   control: 'valid' | 'replayInconsistent' | 'unavailable'

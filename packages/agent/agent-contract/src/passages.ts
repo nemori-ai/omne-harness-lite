@@ -43,12 +43,17 @@ import type {
 import type { CompactionProgress, Preparation } from './request.ts'
 
 export type CapturedRead = Readonly<{ schema: Adoption; value: JsonValue; source: DurableEvidence }>
+/** One read handed to action admission under the need name the official admission declared. */
+export type NamedCapturedRead = CapturedRead & Readonly<{ need: string }>
 export type CardRequest = Readonly<{ identity: string; schema: Adoption; value: JsonValue }>
 export type CardAnswer =
   | Readonly<{ kind: 'chosen'; option: string; value: JsonValue | null; evidence: DurableEvidence }>
   | Readonly<{ kind: 'declined'; evidence: DurableEvidence }>
+/** The person spoke without granting or refusing; `text` is the non-empty verbatim remark. */
+export type CardRemark = Readonly<{ kind: 'remark'; text: string; evidence: DurableEvidence }>
 export type CardReply =
   | CardAnswer
+  | CardRemark
   | Readonly<{ kind: 'pending' }>
   | Readonly<{ kind: 'invalidated'; evidence: DurableEvidence }>
 export type PassageCard = Readonly<{
@@ -234,7 +239,8 @@ export interface ActionAdmission<P> {
         original: Action['original']
         effectiveArguments: string
         definition: Adoption
-        permissions: CapturedRead | null
+        /** Reads by need name in declaration order; an empty list is "no read", not a grant. */
+        permissions: readonly NamedCapturedRead[]
         decision: Readonly<{ card: DurableEvidence; answer: CardAnswer }> | null
       }>,
   ): Reply<AdmissionDecision>

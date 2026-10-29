@@ -21,6 +21,7 @@
 | 140 至 159 | Loop 节点与控制入口 |
 | 160 至 199 | 流式失败、崩溃与控制竞争后接续 |
 | 200 至 219 | 装配与 Cordis 集成 |
+| 226 至 239 | 官方准入的命名读取 |
 
 每个场景的“后继验证观察点”写实现测试必须读到的事实。读不到该事实的测试不算覆盖该场景。
 
@@ -211,7 +212,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-118 | 同一张卡片收到重复答复或两个入口的并发答复 | 只有一个有效答复。重复提交返回实际结果，不产生额外许可，不重复后续效果 | read 在任何时刻只返回一个答复；replay 绑定中该卡片只有一个 response；admit 对该答复只有一次有效消费 |
 | SC-AG-119 | 执行已终结之后，答复到达 | 卡片已作废。答复不恢复执行，不触发回放，不授予动作。终结前已有的答复保留 | invalidate 在终结时已作用于尚无答复的卡片；晚到答复对应的 read 返回 invalidated；没有新的 Passage 状态变化 |
 | SC-AG-128 | 同批两条链：动作一的作者扩展已出卡。一次在卡片呈现之前，一次在卡片已呈现、尚无答复时，动作二的官方准入返回 unavailable | 本批全部动作被拒绝。尚未呈现的卡片轮次不再呈现。已呈现且尚无答复的卡片被作废，已有答复保留。动作一的已询问扩展调用不再被回放 | 第一次没有 present 调用；第二次 invalidate 作用于该卡片，read 返回 invalidated；动作一的 Passage 没有 replay 调用；同批仍在运行的链结束后其 Conclusion 只记录不采纳，没有新的 admit 调用；屏障为 all-denied；`slots` 中两个动作都是 denied |
-| SC-AG-129 | 一次人对作者扩展的卡片有话说但没有给出准驳。一次人对官方准入的卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 返回 remark，带原话与依据，该轮计入已答复，原扩展以 replay 收到 `answer.kind` 为 remark 的答复并决定后果，Agent 不合成人的同意或不同意。第二次该动作记为 denied，原因 `human-guidance`，拒绝依据保留附言，附言不交给 ActionAdmission.admit。第三次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 为 answered，replay 的回放绑定里该卡片的 `answer.kind` 为 remark 且 `text` 等于原话，没有 chosen 或 declined 的答复记录；第二次该动作的判断为 denied 且原因为 `human-guidance`，admit 没有收到该附言；第三次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；第三次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
+| SC-AG-129 | 一次人对作者扩展的卡片有话说但没有给出准驳。一次人对官方准入的卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 返回 remark，带原话与依据，该轮计入已答复，原扩展以 replay 收到 `answer.kind` 为 remark 的答复并决定后果，Agent 不合成人的同意或不同意。第二次 Agent 代写该动作的 Conclusion，`output` 为 veto 且 `reason` 为 `human-guidance`，该动作记为 denied，依据指向该轮附言答复，不调用 `admit`，拒绝消息携带附言原话。第三次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 为 answered，replay 的回放绑定里该卡片的 `answer.kind` 为 remark 且 `text` 等于原话，没有 chosen 或 declined 的答复记录；第二次该动作的判断为 denied 且 `evidence` 指向该轮附言答复，Agent 代写的 Conclusion 取输出分支且 `output.reason` 为 `human-guidance`，该轮没有 `admit` 调用，该轮 CardRound 为 processed，该动作的 `action-denied` 拒绝消息含附言原话；第三次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；第三次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
 
 ### 工具并行与后台
 
@@ -393,3 +394,11 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-223 | SC-AG-222 的恢复资格不可得或被撤销，原 Tool 接口不能证明解决 | 保留未知及交接、结算责任，不绕过资格、不伪造重入权限，不引入 Tool 否定证明。已知原受理或结果不被覆盖 | 无越权 invoke、无新 denied 槽位、无虚构完成或解除。原材料、consumer、调用引用及未决责任保留 |
 | SC-AG-224 | 原 recording R 已成立，重试提供允许空白变化但规范身份相同的附件；随后改变输入，分别增加合法附件、给非 Tool target 增加附件、增加畸形或外租户附件，并改变当前 target/stage 或损坏保留引用 | 当前资格先核。外租户先 denied(action recordControl)，其他异输入先 conflict(R)，不被 target/stage/保留引用校验改成 invalid 或 unavailable。相同规范完整输入认回原 R 结果，即使当前 target、stage 或保留引用不再适用 | 经 recordControl、query、load 对比原结果、revision、事件，无新写入或 Tool 调用；不存在 target 与外租户 target 不可区分；新 R 的各失败次序另按 SC-AG-219 |
 | SC-AG-225 | 原 Tool control C 已受理，checkpoint 前进使原 pending 消失或改变；另以新 C 扫描匹配 kind 的畸形或外租户引用 | 当前所有权与访问先核，原 C 同输入认回原接受，异输入 conflict，均先于当前 pending 扫描。新 C 的畸形引用 invalid(command.call, invalid-tool-invocation-reference)，外租户引用 denied(action control) | 现有 testing Journal control/load/query 返回原 C、原 toolInvocation 与 accepted 阶段，无重复接受事件。新 C 精确 Failure 且记录/revision 不变 |
+
+## 官方准入的命名读取
+
+本组场景覆盖官方准入经 ActionAdmission 端口收到的按需要名的读取。行为见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 2 条与“[声明判断](../SPEC.md#声明判断)”的 `needs` 一段。读取怎样产生归读面的拥有者，本组只核端口收到的形状。
+
+| 编号 | 场景 | 必须结果 | 后继验证观察点 |
+| --- | --- | --- | --- |
+| SC-AG-226 | 官方准入声明了两项需要，第一项 `required` 为 true，第二项为 false。一次两项都读到；一次只有第二项缺席；一次官方准入没有声明任何需要 | 第一次 `admit` 收到两项 `NamedCapturedRead`，`need` 分别等于两项声明的 `name`，次序按声明次序，每项带该读取的 `schema`、`value` 与 `source`。第二次 `admit` 收到一项，列表里没有第二项的名字。第三次 `admit` 收到空列表，空列表表示没有读取，不表示有授权，授权领域仍按当前准入判断。三次 `decision.answer` 都只能是 `CardAnswer` | `admit` 输入的 `permissions` 是列表，不是 null；每项的 `need` 与声明的 `name` 一致且互不相同；缺席的可选需要在列表里没有条目；空列表的那次 `admit` 仍被调用，结果由授权领域返回，没有因空列表而记为 allowed；`permissions` 里没有附言 |

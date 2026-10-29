@@ -77,6 +77,7 @@
 - `CapturedRead` · `passages.d.ts`
 - `CardAnswer` · `passages.d.ts`
 - `CardOption` · `extensions.d.ts`
+- `CardRemark` · `passages.d.ts`
 - `CardReply` · `passages.d.ts`
 - `CardRequest` · `passages.d.ts`
 - `CardRound` · `passages.d.ts`
@@ -145,6 +146,7 @@
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
+- `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
 - `Next` · `evaluation.d.ts`
 - `OutputRefusalReason` · `judgment.d.ts`
@@ -1133,7 +1135,7 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId, UtcInstantText } from './identity.ts';
-import type { CardAnswer, Subject } from './passages.ts';
+import type { CardAnswer, CardRemark, Subject } from './passages.ts';
 export declare const POSITIONS: readonly [
     'execution_started',
     'before_compaction',
@@ -1325,7 +1327,7 @@ export type ExtensionReplayBinding = Readonly<{
             card: DurableEvidence;
             response: Readonly<{
                 evidence: DurableEvidence;
-                answer: CardAnswer;
+                answer: CardAnswer | CardRemark;
             }> | null;
         }>[];
     }>[];
@@ -1680,6 +1682,9 @@ export type CapturedRead = Readonly<{
     value: JsonValue;
     source: DurableEvidence;
 }>;
+export type NamedCapturedRead = CapturedRead & Readonly<{
+    need: string;
+}>;
 export type CardRequest = Readonly<{
     identity: string;
     schema: Adoption;
@@ -1694,7 +1699,12 @@ export type CardAnswer = Readonly<{
     kind: 'declined';
     evidence: DurableEvidence;
 }>;
-export type CardReply = CardAnswer | Readonly<{
+export type CardRemark = Readonly<{
+    kind: 'remark';
+    text: string;
+    evidence: DurableEvidence;
+}>;
+export type CardReply = CardAnswer | CardRemark | Readonly<{
     kind: 'pending';
 }> | Readonly<{
     kind: 'invalidated';
@@ -1932,7 +1942,7 @@ export interface ActionAdmission<P> {
         original: Action['original'];
         effectiveArguments: string;
         definition: Adoption;
-        permissions: CapturedRead | null;
+        permissions: readonly NamedCapturedRead[];
         decision: Readonly<{
             card: DurableEvidence;
             answer: CardAnswer;

@@ -61,6 +61,7 @@ import type {
   CallerCommit,
   CapturedRead,
   CardAnswer,
+  CardRemark,
   CardReply,
   CardRequest,
   CardRound,
@@ -90,6 +91,7 @@ import type {
   ExecutionState,
   ExtensionImplementations,
   ExtensionOutput,
+  ExtensionReplayBinding,
   Failure,
   FailureCandidate,
   FinalRequest,
@@ -111,6 +113,7 @@ import type {
   Material,
   MessageHandoff,
   MessageSource,
+  NamedCapturedRead,
   NeedDeclaration,
   ModelContextRead,
   ModelContextReader,
@@ -176,6 +179,7 @@ type Landed = {
   Authority: Authority
   CapturedRead: CapturedRead
   CardAnswer: CardAnswer
+  CardRemark: CardRemark
   CardReply: CardReply
   CardRequest: CardRequest
   CardRound: CardRound
@@ -214,6 +218,7 @@ type Landed = {
   ModelRecipient: ModelRecipient
   ModelReplyAdmission: ModelReplyAdmission
   ModelSelection: ModelSelection<string>
+  NamedCapturedRead: NamedCapturedRead
   Next: Next
   Passage: Passage
   PassageCard: PassageCard
@@ -685,8 +690,9 @@ describe('the discriminants of the passage ledger', () => {
       'requested' | 'resolved' | 'applied'
     >()
     expectTypeOf<KindOf<CardAnswer>>().toEqualTypeOf<'chosen' | 'declined'>()
+    expectTypeOf<KindOf<CardRemark>>().toEqualTypeOf<'remark'>()
     expectTypeOf<KindOf<CardReply>>().toEqualTypeOf<
-      'chosen' | 'declined' | 'pending' | 'invalidated'
+      'chosen' | 'declined' | 'remark' | 'pending' | 'invalidated'
     >()
     expectTypeOf<Passage['purpose']>().toEqualTypeOf<'main' | 'compaction' | null>()
   })
@@ -705,6 +711,32 @@ describe('the discriminants of the passage ledger', () => {
     >()
     expectTypeOf<KindOf<HandoffResult>>().toEqualTypeOf<'accepted' | 'rejected'>()
     expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
+  })
+
+  it('carry a remark to the original extension but never into action admission', () => {
+    expectTypeOf<CardRemark>().toEqualTypeOf<
+      Readonly<{ kind: 'remark'; text: string; evidence: DurableEvidence }>
+    >()
+    expectTypeOf<
+      NonNullable<ExtensionReplayBinding['rounds'][number]['cards'][number]['response']>['answer']
+    >().toEqualTypeOf<CardAnswer | CardRemark>()
+    expectTypeOf<
+      NonNullable<Parameters<ActionAdmission<string>['admit']>[0]['decision']>['answer']
+    >().toEqualTypeOf<CardAnswer>()
+  })
+
+  it('hand action admission the reads by need name, an empty list meaning no read', () => {
+    expectTypeOf<NamedCapturedRead>().toEqualTypeOf<CapturedRead & Readonly<{ need: string }>>()
+    expectTypeOf<Parameters<ActionAdmission<string>['admit']>[0]['permissions']>().toEqualTypeOf<
+      readonly NamedCapturedRead[]
+    >()
+    expectTypeOf<readonly []>().toExtend<
+      Parameters<ActionAdmission<string>['admit']>[0]['permissions']
+    >()
+    expectTypeOf<null>().not.toExtend<
+      Parameters<ActionAdmission<string>['admit']>[0]['permissions']
+    >()
+    expectTypeOf<CapturedRead>().not.toExtend<NamedCapturedRead>()
   })
 
   it('give the ports their reply types', () => {
