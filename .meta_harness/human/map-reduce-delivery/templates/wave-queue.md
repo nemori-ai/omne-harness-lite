@@ -6,6 +6,6 @@
 - active 线：<各线父卡、任务卡、期限、交回结果>
 - 全部存续线：<active、idle 与 terminal 名单及父卡。收口时每条线都要有 delta>
 - 当前轨道写入：<正在处理的批次 PR、原 head、候选 head、targetBase。一次只有一个>
-- 等待：<`wait-cli` 的 pr-ready 与交回记录两条等待，及上次命中评论的创建时间或 delivery id>
+- 等待：<`wait-cli` 的 pr-ready 与交回记录两条等待当前的 `--since` 与 `--ignore`；已处理的交回记录评论 id 与批次 PR>
 - 后一波预案：<暂不建卡的目标、依赖、消费者影响与待验证假设>
 - 收口进度：<整波检查、下一波卡与 R(w+1)、全部 delta、关闭 R(w)，各步的读回链接>

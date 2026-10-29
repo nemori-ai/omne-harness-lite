@@ -24,8 +24,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
   - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行。任务结束时，宿主唤醒会话。
   - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时换另一条等待，各自的 `--since` 不变。
   - 这条宿主差异只适用于 Reduce。线会话的等待一律前台阻塞，没有例外。
-- 命中后先处理，再重挂。下一次 `--since` 的取法归 `docs/engineering/integration.md`「等待监督」：看输出的 `delivery` 是否为 null，多条线时先读回全部未处理的交回记录。处理一项时，另一条等待保持挂起。
-- 处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂 `pr-ready`。
+- 命中只是唤醒。唤醒后读回全部参加线父卡的交回记录与待处理的批次 PR，按已处理集合去重后逐条处理，再重挂。读回、去重与重挂起点归 `docs/engineering/integration.md`「等待监督」。处理一项时，另一条等待保持挂起。
+- 本波已处理的每个批次 PR 都累加一条 `--ignore <pr>@<处理时的 head>`，再重挂 `pr-ready`。
 - 等待命中只表示有事件。Issue 关闭或评论命中不代表整波已放行。
 - 等待命令退出 2 时诊断并恢复，恢复后先对账，不报告空队列成功。
 - Reduce 自己启动的 gate 运行与审批、子代理、检查进程和约定期限由 Reduce 自己观察。审批交有权者，不自动批准。期限到达时核对事实，再决定等待、重排或取消。沉默保持 unknown，不判线失联。
