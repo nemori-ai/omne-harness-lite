@@ -1,6 +1,6 @@
 // @module-tag slow
 import { spawnSync } from 'node:child_process'
-import { realpathSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { realpathSync, existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
