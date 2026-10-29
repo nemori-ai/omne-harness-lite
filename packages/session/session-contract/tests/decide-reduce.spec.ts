@@ -783,8 +783,8 @@ describe('the pure judgments at their edges', () => {
         null,
         { compaction: null },
       )
+    // The current advance names this attempt, so a different Run or instance is a forged relation.
     const forged: (typeof advance)[] = [
-      { ...advance, attempt: 'never-started' as typeof advance.attempt },
       { ...advance, run: 'no-such-run' as typeof advance.run },
       { ...advance, instance: { owner: 'agent', id: 'another-instance' } },
     ]
@@ -793,6 +793,13 @@ describe('the pure judgments at their edges', () => {
         kind: 'rejected',
         failure: { kind: 'invalid', field: 'fact.advance' },
       })
+    // An attempt the history index does not cover is unknown (FR-01), not refused as invalid.
+    expect(
+      exit(active, { ...advance, attempt: 'never-started' as typeof advance.attempt }),
+    ).toMatchObject({
+      kind: 'rejected',
+      failure: { kind: 'unavailable', owner: 'session-history' },
+    })
     // A late report for an attempt that no longer holds the advance stays an observation of the
     // original Run: the history index proves the attempt started.
     const ended = commit(active, {
@@ -810,9 +817,10 @@ describe('the pure judgments at their edges', () => {
     expect(late.kind).toBe('entries')
     if (late.kind === 'entries')
       expect(late.entries.map(row => row.kind)).toEqual(['run.attempt-exited'])
+    // With no current advance left, an unindexed Run or attempt is unknown rather than forged.
     expect(exit(ended, forged[0] ?? advance)).toMatchObject({
       kind: 'rejected',
-      failure: { kind: 'invalid', field: 'fact.advance' },
+      failure: { kind: 'unavailable', owner: 'session-history' },
     })
   })
 })

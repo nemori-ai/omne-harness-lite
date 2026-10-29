@@ -1613,7 +1613,7 @@ Agent 来源按 EC-01 从同一日志解释；以下 Session 提交路径表示�
 | 挂接交还或被取代                                         | `detach` 回执，或执行记录           | SE16                | `release`、`claim`                                              | 依据     |
 | 实例退出                                                 | 可信实例适配                        | SE17                | `receive(agent-exit)`                                           | 可选留痕 |
 
-`receive(agent-exit)` 核对原关联：退出报告的 attempt 必须是本会话已开始的 attempt。仍持有推进资格的 attempt 按 run、attempt 与实例三项核对。已交还推进资格的 attempt 按历史索引里原 SE15 的 run 与 attempt 核对，原 SE15 不记实例。不满足时返回 `invalid`，不写 SE17。历史索引未覆盖该 attempt 的原 SE15 时，当前也返回 `invalid`。索引的覆盖范围归历史读取的提供者（[FR-01](#fr-01)）。SE17 是可选留痕，这样拒绝不影响推进资格或恢复。
+`receive(agent-exit)` 核对原关联：退出报告的 attempt 必须是本会话已开始的 attempt。仍持有推进资格的 attempt 按 run、attempt 与实例三项核对。已交还推进资格的 attempt 按历史索引里原 SE15 的 run 与 attempt 核对，原 SE15 不记实例。当前推进资格指向同一 attempt、而 run 或实例不同时返回 `invalid`，不写 SE17。历史索引里没有该 attempt 的原 SE15 时，按 [FR-01](#fr-01)「缺少所需项表示未知」返回 `unavailable`（owner `session-history`），不写 SE17；索引的覆盖范围归历史读取的提供者。SE17 是可选留痕，这样拒绝不影响推进资格或恢复。
 
 Model 来源：
 

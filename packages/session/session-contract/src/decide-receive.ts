@@ -18,8 +18,18 @@ export function decideProducerFact(
   const origin = originOf(fact.source)
   switch (fact.kind) {
     case 'agent-exit':
-      if (!startedAttempt(snapshot, fact.advance))
-        return invalid('fact.advance', 'not an attempt this session started')
+      switch (startedAttempt(snapshot, fact.advance)) {
+        case 'forged':
+          return invalid('fact.advance', 'not an attempt this session started')
+        case 'unknown':
+          return rejected({
+            kind: 'unavailable',
+            owner: 'session-history',
+            diagnostic: 'the history index does not cover this attempt',
+          })
+        case 'started':
+          break
+      }
       return entries([encodeEntry({ kind: 'run.attempt-exited', advance: fact.advance }, origin)])
     case 'execution':
     case 'account':
@@ -95,12 +105,17 @@ export function decideProducerFact(
  * instance. An attempt that no longer holds the advance is proved by its original SE15 in the
  * history index, which records run and attempt only.
  */
-function startedAttempt(snapshot: WorkSnapshot, advance: AdvanceRef): boolean {
+/** A missing index item is unknown (FR-01), so only the current advance can prove a forged relation. */
+function startedAttempt(
+  snapshot: WorkSnapshot,
+  advance: AdvanceRef,
+): 'started' | 'forged' | 'unknown' {
   const current = snapshot.run.kind === 'active' ? snapshot.run.advance : null
-  if (current !== null && current.attempt === advance.attempt) return equalValue(current, advance)
-  return (
-    snapshot.historyIndex?.attempts.some(
-      item => item.attempt === advance.attempt && item.run === advance.run,
-    ) ?? false
+  if (current !== null && current.attempt === advance.attempt)
+    return equalValue(current, advance) ? 'started' : 'forged'
+  return snapshot.historyIndex?.attempts.some(
+    item => item.attempt === advance.attempt && item.run === advance.run,
   )
+    ? 'started'
+    : 'unknown'
 }
