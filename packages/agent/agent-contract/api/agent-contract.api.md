@@ -190,7 +190,6 @@
 - `Subject` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
-- `VersionChoice` · `definition.d.ts`
 - `Waiting` · `evaluation.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
@@ -300,16 +299,9 @@ export type AssetReference = {
 export type AttributeDeclaration = {
     readonly item: AttributeItem;
 };
-export type VersionChoice = {
-    readonly kind: 'pinned';
-    readonly version: string;
-} | {
-    readonly kind: 'then-legal-winner';
-};
 export type AgentDefinition = {
     readonly category: 'AgentDefinition';
     readonly name: string;
-    readonly version: VersionChoice;
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
 };
@@ -1433,7 +1425,7 @@ export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
-export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, VersionChoice, } from './definition.ts';
+export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, } from './definition.ts';
 export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './execution.ts';

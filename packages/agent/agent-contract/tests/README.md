@@ -6,7 +6,7 @@
 
 ## 覆盖
 
-[public-entry.spec.ts](public-entry.spec.ts) 检查合法声明、版本选择、拒绝原因的分类、九处扩展位置与三档干预力、`needs`、`implementation`、`onError`、`unavailability` 及其合法组合、两个声明判定的成功值逐层冻结且不与输入共享对象、输入副作用、Schema 校验，以及依赖约束：清单声明资产包，不声明装配、`agent`、`agent-host-local` 和任何 Cordis 包。[import-cache.spec.ts](import-cache.spec.ts) 检查导入不分配缓存、一次批次共用校验域及退出释放。
+[public-entry.spec.ts](public-entry.spec.ts) 检查合法声明、定义不带版本（带 `version` 得到 `malformed`）、拒绝原因的分类、九处扩展位置与三档干预力、`needs`、`implementation`、`onError`、`unavailability` 及其合法组合、两个声明判定的成功值逐层冻结且不与输入共享对象、输入副作用、Schema 校验，以及依赖约束：清单声明资产包，不声明装配、`agent`、`agent-host-local` 和任何 Cordis 包。[import-cache.spec.ts](import-cache.spec.ts) 检查导入不分配缓存、一次批次共用校验域及退出释放。
 
 [judge-output.spec.ts](judge-output.spec.ts) 检查 `judgeExtensionOutput` 的位置输出表逐格（12 行乘三档干预力）、十种拒收原因、七步判定顺序、`retry` 的两种触发、`ask` 在 `after_terminal` 和改写字段的限制。
 

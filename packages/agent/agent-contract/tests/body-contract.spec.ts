@@ -34,7 +34,6 @@ const ref = (category: string, name: string, resident?: unknown) =>
 
 const legal = {
   name: 'reviewer',
-  version: 'v2',
   references: [ref('skill', 'review', true), ref('tool', 'read_file')],
   attributes: [{ item: 'model' }, { item: 'first_token_wait_limit' }],
 }
@@ -72,19 +71,10 @@ const rows: readonly Row[] = [
     rejected: 'incomplete-reference',
   },
   {
-    label: 'empty version',
-    content: { name: 'a', version: '', references: [], attributes: [] },
-    rejected: 'invalid-version',
-  },
-  {
-    label: 'numeric version',
-    content: { name: 'a', version: 3, references: [], attributes: [] },
-    rejected: 'invalid-version',
-  },
-  {
-    label: 'null version',
-    content: { name: 'a', version: null, references: [], attributes: [] },
-    rejected: 'invalid-version',
+    // A definition carries no version (SPEC "声明判断"), so `version` is a key neither entry lists.
+    label: 'stated version',
+    content: { name: 'a', version: 'v2', references: [], attributes: [] },
+    rejected: 'unknown-field',
   },
   {
     label: 'references missing',
@@ -291,7 +281,6 @@ describe('judge agrees with judgeAgentDefinition', () => {
         'duplicate-capability',
         'incomplete-reference',
         'invalid-resident',
-        'invalid-version',
         'unknown-attribute',
         'unknown-field',
       ].sort(),

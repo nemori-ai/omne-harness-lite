@@ -11,32 +11,31 @@ const legalDefinition = {
   attributes: [],
 }
 
-it('accepts an empty definition and records an unpinned version', async () => {
+it('accepts an empty definition, and its value carries no version', async () => {
   const judged = await judgeAgentDefinition(legalDefinition)
   expect(judged).toEqual({
     kind: 'accepted',
     value: {
       category: 'AgentDefinition',
       name: 'coding',
-      version: { kind: 'then-legal-winner' },
       references: [],
       attributes: [],
     },
   })
 })
 
-it('pins a stated version', async () => {
-  const judged = await judgeAgentDefinition({ ...legalDefinition, version: 'v2' })
-  expect(judged.kind === 'accepted' && judged.value.version).toEqual({
-    kind: 'pinned',
-    version: 'v2',
+// Goes red when `version` returns to the declaration table (SPEC "声明判断": a definition carries
+// no version; a `version` member is one the table does not list, so it is `malformed`).
+it('refuses a definition that states a version as malformed', async () => {
+  expect(await judgeAgentDefinition({ ...legalDefinition, version: 'v2' })).toEqual({
+    kind: 'refused',
+    reason: 'malformed',
   })
 })
 
 it('returns a definition that is frozen at every level and shares no object with the input', async () => {
   const input = {
     ...legalDefinition,
-    version: 'v2',
     references: [
       { capability: { category: 'Tool', name: 'read' }, resident: true },
       { capability: { category: 'Skill', name: 'review' } },
@@ -49,7 +48,6 @@ it('returns a definition that is frozen at every level and shares no object with
   const { value } = judged
   const [first, second] = value.references
   expect(Object.isFrozen(value)).toBe(true)
-  expect(Object.isFrozen(value.version)).toBe(true)
   expect(Object.isFrozen(value.references)).toBe(true)
   expect(Object.isFrozen(first)).toBe(true)
   expect(Object.isFrozen(first?.capability)).toBe(true)
@@ -209,7 +207,6 @@ it('lets an assembly caller and an asset caller share the public entry', async (
   const declaration = {
     category: 'AgentDefinition',
     name: 'coding',
-    version: 'v2',
     references: [{ capability: { category: 'Tool', name: 'read_file' } }],
     attributes: [],
   }
@@ -225,10 +222,7 @@ it('lets an assembly caller and an asset caller share the public entry', async (
     extensions: await judgeLoopExtensions(extensions),
   }
   expect(assembly).toEqual(assets)
-  expect(assembly.definition).toMatchObject({
-    kind: 'accepted',
-    value: { version: { kind: 'pinned', version: 'v2' } },
-  })
+  expect(assembly.definition).toMatchObject({ kind: 'accepted', value: { name: 'coding' } })
 })
 
 it('refuses host objects, hidden functions, and colliding capability text', async () => {
@@ -241,12 +235,12 @@ it('refuses host objects, hidden functions, and colliding capability text', asyn
     reason: 'executable',
   })
   expect(
-    await judgeAgentDefinition({ ...base, version: new Date('2020-01-01T00:00:00.000Z') }),
+    await judgeAgentDefinition({ ...base, name: new Date('2020-01-01T00:00:00.000Z') }),
   ).toMatchObject({
     kind: 'refused',
     reason: 'malformed',
   })
-  expect(await judgeAgentDefinition({ ...base, version: new String('v2') })).toMatchObject({
+  expect(await judgeAgentDefinition({ ...base, name: new String('coding') })).toMatchObject({
     kind: 'refused',
     reason: 'malformed',
   })

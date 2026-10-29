@@ -412,13 +412,12 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 
 正文规则与 `judgeAgentDefinition` 同源，同一组夹具在两个入口上得到相同的接受与拒绝。差别有三处。第一，正文不带 `category` 键，因为注册表的键给出类别，带它得到 `unknown-field`。第二，`context.capabilityName` 给出时，正文 `name` 必须与它相等。第三，`judgeAgentDefinition` 按上文的声明限额检查输入，正文契约不另设限额，读树的限额由调用 `readBodyText` 的一方给出。
 
-正文判断的拒绝原因共八个，与 `RefusalReason` 分开，条件见下表。
+正文判断的拒绝原因共七个，与 `RefusalReason` 分开，条件见下表。正文与定义同样不带版本：`version` 是未列出的键，得到 `unknown-field`。
 
 | 拒绝原因 | 条件 |
 | --- | --- |
 | `incomplete-reference` | 正文不是对象，`name` 缺失、为空或不是字符串，`references` 缺失或不是数组，引用不是对象，引用缺 `capability` 或 `capability` 不是对象，或能力的 category、name 不被资产包接受 |
 | `name-mismatch` | 注册表调用方给出能力名，且与正文 `name` 不同 |
-| `invalid-version` | `version` 存在，但不是非空字符串 |
 | `duplicate-capability` | 同一 category 与 name 的引用出现多次 |
 | `invalid-resident` | 引用的 `resident` 存在，但不是布尔值 |
 | `unknown-attribute` | `attributes` 缺失或不是数组，某项不是对象，或某项的 `item` 不在 `ATTRIBUTE_ITEMS` 里 |
@@ -428,7 +427,7 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 一份正文有多处不合法时，`judge` 按下面的次序返回第一处。
 
 1. 正文不是对象。
-2. `name`，然后是 `name-mismatch`，然后是 `version`。
+2. `name`，然后是 `name-mismatch`。
 3. `references`：先查它是不是数组，再逐个引用依次查 `capability`、`resident`、引用与能力里的未知键。全部引用通过后查重复的 capability。
 4. `attributes`：先查它是不是数组，再逐项依次查 `item`、属性项里的未知键、重复的 `item`。
 5. 正文顶层的未知键。
