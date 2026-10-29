@@ -118,6 +118,15 @@ def is_ancestor(repo: Path, commit: str) -> bool:
     return done.returncode == 0
 
 
+def rooted(relative: str) -> bool:
+    """Whether a path that should be relative to the copy starts from a root or a drive instead.
+
+    On POSIX that is ``is_absolute``. On Windows ``/x`` is not absolute (it has no drive) and ``C:x`` is not either
+    (it has no root), but both leave the copy; any anchor counts there.
+    """
+    return bool(Path(relative).anchor)
+
+
 def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) -> None:
     """Prepare explicit case inputs without historical Git objects or process records."""
     if dest.exists():
@@ -132,7 +141,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
         raise WorkspaceError("case fixture needs format=1 and a non-empty files map")
     rendered: list[tuple[Path, str]] = []
     for relative, content in data["files"].items():
-        if (not isinstance(relative, str) or not relative or Path(relative).is_absolute()
+        if (not isinstance(relative, str) or not relative or rooted(relative)
                 or any(part in {"..", ".git"} for part in Path(relative).parts)
                 or Path(relative).is_relative_to(".meta_harness/design/record")
                 or not isinstance(content, str)):
@@ -144,7 +153,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
     for relative in subject_paths:
         source = repo / relative
         target = dest / relative
-        if (Path(relative).is_absolute() or ".." in Path(relative).parts or ".git" in Path(relative).parts
+        if (rooted(relative) or ".." in Path(relative).parts or ".git" in Path(relative).parts
                 or not source.resolve().is_relative_to(repo.resolve())
                 or not target.resolve().is_relative_to(dest.resolve())):
             raise WorkspaceError(f"subject path escapes repository or copy: {relative}")
@@ -211,7 +220,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
     """Load fixed Git blobs and redirect unique string literals identified by SHA-256."""
     def path(relative: str) -> Path:
         item = Path(relative)
-        if item.is_absolute() or not item.parts or any(p in (".", "..") for p in item.parts):
+        if rooted(relative) or not item.parts or any(p in (".", "..") for p in item.parts):
             raise WorkspaceError(f"invalid input path: {relative}")
         target = dest / item
         if any(p.is_symlink() for p in [target, *target.parents] if p.is_relative_to(dest)):
