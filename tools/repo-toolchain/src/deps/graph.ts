@@ -554,7 +554,9 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
   try {
     if (paths.length > 0) {
       const archive = git(root, ['archive', '--format=tar', commit, '--', ...paths])
-      const untar = spawnSync('tar', ['-x', '-C', tree], {
+      // 以 cwd 定位目标目录：Windows 的 tar 把 `D:\…` 这样带冒号的 `-C` 参数当作远程主机。
+      const untar = spawnSync('tar', ['-x'], {
+        cwd: tree,
         input: archive,
         maxBuffer: 64 * 1024 * 1024,
       })
