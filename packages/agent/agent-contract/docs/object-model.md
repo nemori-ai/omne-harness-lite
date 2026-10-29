@@ -375,7 +375,7 @@ stateDiagram-v2
 | Passage | resolved | Loop 采纳该链的最终效果 | applied | 效果已提交 |
 | CardRound | 无 | 扩展调用进入 asked | requested | 卡片草稿已入台账 |
 | CardRound | requested | DecisionCards.present 成功，或 lookup 返回 presented | presented | 卡片与请求逐项对应 |
-| CardRound | presented | 每张卡片 read 返回 chosen 或 declined | answered | 答复唯一且有效 |
+| CardRound | presented | 每张卡片 read 返回 chosen、declined 或 remark | answered | 答复唯一且有效。remark 是附言，计入已答复 |
 | CardRound | answered | 原扩展以 replay 消费答复并得到最终 Conclusion | processed | 同一扩展调用的全部轮次一起进入 processed |
 | CardRound | requested | present 返回 denied 或 conflict | present-failed | 失败原因已保存；屏障条件把它计为已处理 |
 | CardRound | answered | 同一扩展调用后来的一轮 present 确定失败 | processed | 以该拒绝 Conclusion 为处理依据，全部早先轮次一起进入 processed |

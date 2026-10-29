@@ -49,7 +49,7 @@ Skill、Tool 和 MCP 的选入按下面的行为顺序成立。
 
 ## 版本采用与实际变化
 
-调用方固定定义身份。每个新的 execution 在采用时求值：没有写明版本的身份，采用当时的合法胜出者；写明版本的身份固定为该版本。合法胜出者是多层来源求值完成资格筛选和层序选择后，该身份的结果，规则见[装配与变更](../../../../../docs/architecture/runtime/assembly-and-change.md#定义清单与实例)。内容没有变化且旧清单仍有效时可复用。普通恢复使用当前已生效清单，不静默升级定义或工作区文件。
+调用方固定定义身份。定义不带版本：`judgeAgentDefinition` 的输入带 `version` 时得到 `malformed`。每个新的 execution 在采用时求值，采用当时的合法胜出者。合法胜出者是多层来源求值完成资格筛选和层序选择后，该身份的结果，规则见[装配与变更](../../../../../docs/architecture/runtime/assembly-and-change.md#定义清单与实例)。内容没有变化且旧清单仍有效时可复用。普通恢复使用当前已生效清单，不静默升级定义或工作区文件。
 
 显式 reload 可更新依赖、继承声明、Loop 和 extensions，通过安全交接采用同身份新版本。调用方固定的执行类型和必需身份不变。定义身份、租户身份或调用方关联身份的变更不是合法 reload。
 
@@ -79,7 +79,7 @@ AgentAdoptions 有两个操作。resolve 把精确的 Adoption 解析为定义�
 | resolve | 租户核对。读取该采用所在作用域的资格由适配器核验 | 没有操作身份。同一精确 Adoption 得到同一结果，解析缓存可复用 | 只读，不加锁，不与其他操作排序 | 无 | 值。execution 只保存 Adoption 引用。解析缓存可丢弃重建。换代只影响尚未开始的经过 |
 | handover | 租户核对。快照由调用方经 load 取得，读取资格已在 load 核验。handover 不授予推进权 | 没有操作身份。execution、revision、源采用、目标采用和原 continuation 的摘要相同，得到相同的证明 | 不读取活体 execution。并发的 handover 互不影响。唯一的裁定点是 attach 的条件提交，revision 变化时 attach 返回 changed | 无。reload 的效果由 attach 提交的事件体现 | 证明绑定 revision，revision 变化即失效，不持久保存。新采用只影响尚未开始的经过 |
 
-handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。
+handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。目标采用的判据与新 execution 的采用同形：只在当时的合法候选内选，定义不带版本，没有固定到某个版本的分支，规则见 SPEC 的“[采用交接](../../SPEC.md#采用交接)”。
 
 ## 交接结果与验证义务
 

@@ -37,6 +37,7 @@
 | SC-AG-05 | 确认回执丢失后重试，以及用更小的序号确认 | 重试认回原确认。更小的序号不回退已确认前缀，超出已发出序号的确认被拒绝 | 已确认前缀单调不减；处理依据为 null 时确认照常成立；Agent 不因处理依据的内容拒绝确认 |
 | SC-AG-06 | 读取方在终态事件到达前一直离线 | Agent 自行条件终结，已可靠交接的事件保留，读取方上线后从原游标读到终态事件 | 执行不等待读取方；runtime 回 idle；事件与结果责任仍可认回 |
 | SC-AG-07 | 仓库外只安装打包后的 agent-contract 并写调用方 | 类型可编译，生产依赖闭包不含 Cordis、具体宿主、模型或工具的实现包；没有从内部文件导入类型 | 完整生产安装闭包；移除 monorepo 路径别名后仍通过；包清单声明了契约文档引用的类型依赖 |
+| SC-AG-08 | 推进者经 `AgentJournalEntries.record` 写一条 `start-fence`，结果接收方经 `AgentReceivedCommits.commit` 写一条 `received`。一次 execution 仍在推进；一次 execution 已 ended；一次同一操作在回执丢失后重放 | 推进中：每条条目在同一次提交里投影为一个 `entry` 事件，事件的 `entry` 等于条目，挂接取该 execution 最近建立的挂接。ended 之后：`received` 照常写入，事件流不追加事件，ended 仍是最后一个事件，条目只经 load 与 `ExecutionSnapshot.entries` 读取。重放：认回原回执，不追加第二个事件。读事件的一方遇到不认识的 `entry.kind` 时保留原事件 | 条目与 `entry` 事件要么都成立要么都不成立；ended 之后 `entries` 增加而事件序号不变；重放前后事件总数相同；不认识的 `entry.kind` 不使读取方报错 |
 
 ## 对象与生命周期
 
@@ -135,7 +136,7 @@
 | SC-AG-75 | 模型请求的 Runtime Context 读取，其中存在只给工具和扩展的私有权限块。读取分别发生在新 execution、新挂接、同一 execution 闲置后恢复、历史空闲后的新 execution、模型切换之后与压缩提交之后六种情形 | 请求只含模型可读且当前资格允许的块。私有权限块不进入请求、事件、失败诊断和遥测，它们只经动作准入与扩展各自的注入能力读取。full 或 incremental 由 Context 决定，Agent 不要求某一种，六种情形的传入与期望返回见表下的情形表。读到的快照在最终请求记录之前不算已采用。压缩提交之后的读取带压缩转换依据，Context 按其规则返回 full | 读取端口的调用序列与传入；私有块内容的指纹不出现在请求、事件、诊断和遥测；已采用覆盖只在最终请求记录之后变化；RequestPreparation.resume 之前有一次带压缩转换依据的读取，且返回 full；模型切换后的读取绑定新的实际收件模型；读取端口没有选择其他消费者或指定 full 与 incremental 的参数 |
 | SC-AG-76 | 合法定义要求的某项能力，其实现暂时不可用 | 定义与已知身份保持合法，请求仍携带该能力的声明。模型调用它时，由 Tool 的逻辑调用契约返回不可用应答，不启动真实执行，不虚构用量。必需绑定不因此使采用或请求失败 | 采用结果不变；请求的工具声明含该能力；返回的是逻辑不可用应答；没有真实的 Tool 执行；没有虚构的用量 |
 | SC-AG-77 | 初次采用、显式 reload、后续装配分别缺少必需的合法定义 | 三种情形都拒绝该候选。只保留仍合法的旧采用，不发布混合构成 | 三个时点各有带具体原因的拒绝；旧采用仍可解析；没有半份新构成 |
-| SC-AG-78 | 新的 execution、普通恢复和显式 reload 读取同标识的不同版本 | 新的 execution 采用当时的合法胜出者，写明版本时固定为该版本。普通恢复不升级。合法 reload 经 handover 与 attach 采用，标识不变，执行类型和必需身份不变。revision 在 handover 与 attach 之间变化时，attach 返回 changed，调用方重读快照后重新 handover。定义身份或租户身份变更被拒绝为非法 reload | 三条路径各自的采用摘要；恢复前后的 Adoption 相同；handover 的证明绑定 revision；旧证明没有被重试；非法 reload 的拒绝结果 |
+| SC-AG-78 | 新的 execution、普通恢复和显式 reload 读取同标识的不同版本。另一次装配方给 `judgeAgentDefinition` 一份带 `version` 的定义 | 新的 execution 采用当时的合法胜出者，定义不带版本，带 `version` 的定义得到 `malformed`。普通恢复不升级。合法 reload 经 handover 与 attach 采用，标识不变，执行类型和必需身份不变。revision 在 handover 与 attach 之间变化时，attach 返回 changed，调用方重读快照后重新 handover。定义身份或租户身份变更被拒绝为非法 reload | 三条路径各自的采用摘要；恢复前后的 Adoption 相同；handover 的证明绑定 revision；旧证明没有被重试；非法 reload 的拒绝结果；带 `version` 的定义的判断结果为 `malformed`，成功值没有版本字段 |
 | SC-AG-79 | 已知能力被撤权后恢复 execution，之后又再度合法可用 | 已知身份持续可解释，撤权期间没有对新正文的读取。再度可用时重新核当前选择与依赖。身份记忆不冻结正文、schema 或实现 | 调用方的已知能力记录不变；撤权期间没有内容读取；重新可用后重新解析了当前实现 |
 
 SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置、实际收件模型和历史依据；只有最后一种带压缩转换依据。期望返回由 Context 按 [Runtime Context 的 RC-04](../../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料) 决定，下表写这条规则在各情形下的结果。
@@ -192,6 +193,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-107 | 声明 `power: 'observe'` 的扩展返回 `stop` | 拒收，原因 `output_not_allowed_for_power`。不产生控制请求，推进不变 |
 | SC-AG-108 | `after_terminal` 的扩展返回 `ask` | 拒收，原因 `ask_at_forbidden_position`。不出卡，不登记等待，终态不变 |
 | SC-AG-109 | `before_model_call` 的扩展改写 `preparation.recipient` | 拒收，原因 `rewrite_touches_immutable`。实际收件模型只由模型选择决定 |
+| SC-AG-138 | 调模型之后的 `failure` 维度、首内容前发出失败的触发中，扩展返回 `retry`，`notBefore` 分别为 `tomorrow` 与缺 `Z` 的本地时刻文本。另一次 `notBefore` 为合法的 RFC 3339 UTC 时刻文本 | 前两次拒收，原因 `malformed`，分类 `bad_output`，按报错处置形成最终 Conclusion，Model 没有收到重试决定。第三次接受，成功值的 `notBefore` 与原文本逐字相同 |
 | SC-AG-110 | 方言不能携带回放绑定的 `command` 扩展返回 `ask`。另一次，这类实现在结果未知之后被 `replay` 调用 | 第一种：`ask` 按不合法输出处理，不出卡，没有人的答复，按报错依 `onError` 形成最终 Conclusion。第二种：适配器对 `replay` 调用返回 `replayInconsistent`，按报错依 `onError` 形成最终 Conclusion，原扩展不会再执行一次 |
 
 ### 整批判断屏障与卡片
@@ -208,7 +210,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-118 | 同一张卡片收到重复答复或两个入口的并发答复 | 只有一个有效答复。重复提交返回实际结果，不产生额外许可，不重复后续效果 | read 在任何时刻只返回一个答复；replay 绑定中该卡片只有一个 response；admit 对该答复只有一次有效消费 |
 | SC-AG-119 | 执行已终结之后，答复到达 | 卡片已作废。答复不恢复执行，不触发回放，不授予动作。终结前已有的答复保留 | invalidate 在终结时已作用于尚无答复的卡片；晚到答复对应的 read 返回 invalidated；没有新的 Passage 状态变化 |
 | SC-AG-128 | 同批两条链：动作一的作者扩展已出卡。一次在卡片呈现之前，一次在卡片已呈现、尚无答复时，动作二的官方准入返回 unavailable | 本批全部动作被拒绝。尚未呈现的卡片轮次不再呈现。已呈现且尚无答复的卡片被作废，已有答复保留。动作一的已询问扩展调用不再被回放 | 第一次没有 present 调用；第二次 invalidate 作用于该卡片，read 返回 invalidated；动作一的 Passage 没有 replay 调用；同批仍在运行的链结束后其 Conclusion 只记录不采纳，没有新的 admit 调用；屏障为 all-denied；`slots` 中两个动作都是 denied |
-| SC-AG-129 | 一次人对卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 对 Agent 返回 pending，原话归人在回路领域，该轮保持已呈现，原扩展不被回放，屏障保持关闭。第二次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 保持 presented，没有 replay；第二次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；没有 declined 的答复记录；第二次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
+| SC-AG-129 | 一次人对作者扩展的卡片有话说但没有给出准驳。一次人对官方准入的卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 返回 remark，带原话与依据，该轮计入已答复，原扩展以 replay 收到 `answer.kind` 为 remark 的答复并决定后果，Agent 不合成人的同意或不同意。第二次该动作记为 denied，原因 `human-guidance`，拒绝依据保留附言，附言不交给 ActionAdmission.admit。第三次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 为 answered，replay 的回放绑定里该卡片的 `answer.kind` 为 remark 且 `text` 等于原话，没有 chosen 或 declined 的答复记录；第二次该动作的判断为 denied 且原因为 `human-guidance`，admit 没有收到该附言；第三次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；第三次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
 
 ### 工具并行与后台
 
@@ -274,8 +276,8 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
 | SC-AG-165 | Model 的接收窗口：窗口提交前接收被拒绝，窗口打开后接收首片即崩溃，预读缓冲尚未纳入，批次保存回执丢失。切点归 Model | Agent 在 M1 等待 Model 按其协议收场。首内容为 observed 或 uncertain 时 Agent 不产生新的调用。Model 以 none-proven 且其他前提成立恢复发出时，Agent 仍等待同一调用。收场后 M3 保管 | Agent 没有新的 PendingCall；Model 的 call 身份不变；节点序列为 M1、M3；Agent 不读取窗口内部状态，只消费收场 |
-| SC-AG-166 | 文本、语音、工具参数与整交媒体分别在首内容后失败 | M3 保管原部分内容、失败事实与费用。M4 经过 failure 维度的最终失败触发，retry 在这里不合法。主请求回 I3，以部分结果处理转 I8，不解析未完整到达的工具建议。不拼接新生成的内容，不重发同一逻辑回复。重新订阅区分快照与增量，原序号不重复应用，不按文本相同丢弃合法的新片段 | 费用记录一笔且保留；同一回复没有第二个主调用；M4 的 retry 按不合法输出依报错处置；stream 事件序号连续无重复；I3 之后没有 A0 |
-| SC-AG-167 | 流批次保存回执未知、尚未发布。另一次原内容已发布，观察者断线或崩溃后重连 | 第一次生产者查原保存操作，确认后发布。Agent 的 stream 事件只投影已发布的事实，未确认不展示。第二次观察者按原流身份取当前快照与后续游标。Agent 的读取方以已处理序号重连，边界重复按事件身份去重。累计快照不再次追加。观察失败不是执行失败 | 发布早于 stream 事件；重连后事件序号连续；原调用状态不变；没有重新运行生产者 |
+| SC-AG-166 | 文本、语音、工具参数与整交媒体分别在首内容后失败 | M3 保管原部分内容、失败事实与费用。M4 经过 failure 维度的最终失败触发，retry 在这里不合法。主请求回 I3，以部分结果处理转 I8，不解析未完整到达的工具建议。不拼接新生成的内容，不重发同一逻辑回复。观察者经 Model 的 current 重新订阅，区分快照与增量，原序号不重复应用，不按文本相同丢弃合法的新片段 | 费用记录一笔且保留；同一回复没有第二个主调用；M4 的 retry 按不合法输出依报错处置；观察者读到的生产者序号连续无重复，Agent 的事件流没有生产者内容；I3 之后没有 A0 |
+| SC-AG-167 | 流批次保存回执未知、尚未发布。另一次原内容已发布，观察者断线或崩溃后重连 | 第一次生产者查原保存操作，确认后发布。观察者只读已发布的事实，未确认不展示，Agent 不发 stream 事件。第二次观察者按稳定调用引用经 Model 的 current 取当前 `StreamRef`，再取快照与后续游标。Agent 事件的读取方以已处理序号重连，边界重复按事件身份去重。累计快照不再次追加。观察失败不是执行失败 | 观察者读到的内容都已发布；重连后观察者的游标与 Agent 事件的序号各自连续；原调用状态不变；没有重新运行生产者；Agent 的事件流没有生产者内容 |
 | SC-AG-168 | Tool 在首次 emit 前已完成外部修改。另一次 emit 后执行失败。另一次只有观察发送失败 | 三次都不自动重跑。第一次按原执行与效果证据核实，效果 occurred 或 unknown 保留。第二次 T1 保管 failed 结果与已知效果，T2、T5 照常。第三次原执行继续，必要的过程保存失败可见 | Tool 受理记录为一；槽位 result 的 terminal 与效果与 Tool 的报告一致；没有第二次 Tool 调用；观察失败没有产生 failed 结果 |
 | SC-AG-169 | 消费者外部动作成功后、本地完成保存前崩溃。另一次回执与完成提交分别未知。切点归消费者 | Agent 的事件只在耐久提交后出口。确认只表示消费者处理，不表示外部动作完成。Agent 不为消费者重发事件，也不把确认当作业务接受。消费者按原动作身份对账，Agent 不参与 | Agent 的事件身份与内容不变；确认前缀单调；Agent 一侧没有重发或新效果 |
 

@@ -8,7 +8,7 @@
 
 定义、判断结果与判断函数的源码如下。规则见 [SPEC 的声明判断](../../SPEC.md#声明判断)。
 
-- [definition.ts](../../src/definition.ts)：`AgentDefinition`、`AssetReference`、`CapabilityRef`、`AttributeDeclaration`、`AttributeItem` 与 `VersionChoice`，常量 `ATTRIBUTE_ITEMS`。
+- [definition.ts](../../src/definition.ts)：`AgentDefinition`、`AssetReference`、`CapabilityRef`、`AttributeDeclaration` 与 `AttributeItem`，常量 `ATTRIBUTE_ITEMS`。定义不带版本，每个新 execution 采用当时的合法胜出者，见[定义专题](definition.md#版本采用与实际变化)。
 - [judgment.ts](../../src/judgment.ts)：判断结果 `Judgment` 与 `BatchJudgment`，声明判断的拒绝原因 `RefusalReason`，扩展输出判断的拒收原因 `OutputRefusalReason`。
 - [judge-definition.ts](../../src/judge-definition.ts)：`judgeAgentDefinition`。
 - [judge-extensions.ts](../../src/judge-extensions.ts)：`judgeLoopExtensions`。
@@ -21,7 +21,7 @@
 
 源码中以 `M.*` 引用的名称（ModelCallId、ModelOperationId、AssembledModelInput、FixedModelRequest、ResultCapacity、ResultPage、ModelRuntime、ProfileResolution、Parameter、Supplier、Termination、ModelFault、DispatchRecord、RetryResolution）来自 [Model 契约](../../../../model/model-contract/docs/public-api.md)，由 `@omne-harness/model-contract` 的根入口导出。`T.*` 引用的名称由 `@omne-harness/tool-contract` 的根入口导出。消息中的工具部件使用 `@omne-harness/message` 导出的 `ToolPart`。`Action.original` 把 `ToolPart` 收窄到 `kind: 'tool_call'`：动作只来自工具调用部件，不来自工具结果部件。
 
-- [identity.ts](../../src/identity.ts)：品牌身份的泛型 `AgentIdentity`，十四个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`）、`Authority`、`Continuation` 与 `AgentInstant`，再导出的 `Adoption`、`DurableEvidence`、`ConsumerRef`（唯一定义在 [exchange-refs](../../../../common/exchange-refs/SPEC.md)）与 `Access`（唯一定义在 legal-identity），常量 `AGENT_IDENTITY_MAX_LENGTH`，十四个 `decode*` 解码函数，结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)。
+- [identity.ts](../../src/identity.ts)：品牌身份的泛型 `AgentIdentity`，十四个品牌身份（`AgentInstanceId`、`StepId`、`ActionId`、`PassageId`、`CardRoundId`、`ActionBatchId`、`AgentExecutionId`、`ExecutionAttachmentId`、`AgentRegistrationId`、`AgentOperationId`、`ExecutionRevision`、`InputId`、`InputBatchId`、`ConsumptionId`）、`Authority`、`Continuation`、`AgentInstant` 与品牌时刻文本 `UtcInstantText`，再导出的 `Adoption`、`DurableEvidence`、`ConsumerRef`（唯一定义在 [exchange-refs](../../../../common/exchange-refs/SPEC.md)）与 `Access`（唯一定义在 legal-identity），常量 `AGENT_IDENTITY_MAX_LENGTH`，十四个 `decode*` 解码函数，结构判定 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`，以及它们的失败类型 `IdentityFailure` 与 `StructureFailure`。规则见 [SPEC 的身份解码与结构判定](../../SPEC.md#身份解码与结构判定)。
 - [evaluation.ts](../../src/evaluation.ts)：纯求值的值与端口。有 `ProducedResult`、`InputBatch`、`ProgressionDirective`、`Waiting`、`AgentConclusion`、`FailureCandidate`、`PreparedContextTransition`、`Failure` 与 `Reply`，原调用的 `ModelPurpose`、`PendingCall`、`ActionJudgment`、`Action`、`ActionBarrier`、`ActionSlot`、`ActionBatch`，回复准入的 `ModelReplyAdmission`、`ReplyAdmissionProjection`、`ReplyAdmissionPage`，守卫的 `GuardLevel` 与 `GuardFact`，`AgentCheckpoint`、`RuntimeConditions`、`ProducerDecisionView`、`AdvancementFact`、`LoopFacts`、`Next` 与 `AgentEvaluator`。
 - [execution.ts](../../src/execution.ts)：`LoopFacts` 引用的执行记录类型 `ExecutionControl`、`ControlStage`、`ControlStageFact`、`ControlRecord` 与 `ResultResponsibility`，与“托管协调与运行实例”一节的类型同在这个文件。
 
@@ -99,7 +99,7 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 
 | 类型 | 声明位置 |
 | --- | --- |
-| `Position`、`Dimension`、`Power`、`ErrorPolicy`、`UnavailabilityPolicy`、`ExtensionImplementationDeclaration`、`LoopExtensionDeclaration` | [声明](extensions.md#声明) |
+| `Position`、`Dimension`、`Power`、`ErrorPolicy`、`UnavailabilityPolicy`、`NeedDeclaration`、`ExtensionImplementationDeclaration`、`LoopExtensionDeclaration` | [声明](extensions.md#声明) |
 | `ExtensionInput` | [输入](extensions.md#输入) |
 | `ExtensionOutput`、`DecisionCardDraft`、`CardOption` | [输出](extensions.md#输出) |
 | `ActionIdentity`、`Conclusion` | [Conclusion](extensions.md#conclusion) |
@@ -108,7 +108,7 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 位置集合是九处，`Power` 是 `observe`、`rewrite`、`veto` 三档。源码的声明含 `needs`、`implementation`、`onError` 与 `unavailability`，声明判断不按位置限制 `power`，实际输出权限由声明上限与位置输出表共同裁定，见[扩展作者协议](extensions.md#声明)。`Passage.declaration`、`ExtensionInput.position`、`DecisionCardDraft.about` 与 `ActionIdentity` 使用同一份九处位置。
 
 - [extensions.ts](../../src/extensions.ts)：上表的作者接口类型，常量 `POSITIONS` 与 `POWERS`。
-- [passages.ts](../../src/passages.ts)：扩展调用台账与人工卡片，有 `CapturedRead`、`CardRequest`、`CardAnswer`、`CardReply`、`PassageCard`、`PassageOperationProgress`、`CardRoundProgress`、`CardRound`、`PassageOperation`、`PassageProgress` 与 `Passage`。还有按位置的 `Subject`，端口 `ExtensionImplementations`、`DecisionCards`、`ActionAdmission`、`MessageHandoff`、`AgentMaterials` 与 `RegisteredReads`，以及 `AdmissionDecision`、`MessageSource`、`HandoffResult` 与 `Material`。
+- [passages.ts](../../src/passages.ts)：扩展调用台账与人工卡片，有 `CapturedRead`、`NamedCapturedRead`、`CardRequest`、`CardAnswer`、`CardRemark`、`CardReply`、`PassageCard`、`PassageOperationProgress`、`CardRoundProgress`、`CardRound`、`PassageOperation`、`PassageProgress` 与 `Passage`。还有按位置的 `Subject`，端口 `ExtensionImplementations`、`DecisionCards`、`ActionAdmission`、`MessageHandoff`、`AgentMaterials` 与 `RegisteredReads`，以及 `AdmissionDecision`、`MessageSource`、`HandoffResult` 与 `Material`。
 - [judge-output.ts](../../src/judge-output.ts)：按位置输出表判断作者返回值的 `judgeExtensionOutput`，位置输出表的机读形式 `POSITION_OUTPUTS`，以及类型 `ExtensionOutputJudgeInput`、`PositionOutputKey` 与 `PositionOutputs`。规则见[位置输出表](extensions.md#位置输出表)与 [SPEC 的声明判断](../../SPEC.md#声明判断)。
 
 Passage 是一次扩展调用的台账，不是一次经过的台账。一次经过是 Loop 到达一个位置的一次，同一次经过里每个扩展各有一个 Passage。两个词的定义见[扩展作者协议](extensions.md)页首。
@@ -127,9 +127,9 @@ RegisteredReads 只承接已登记只读协议。read 在返回 captured 前耐�
 
 CardRound 保存整轮有序请求。present/lookup 必须携原 round 和完整请求身份集合；同 round 异集合冲突，部分已创建时保持 unknown。返回卡片与请求逐项对应。answered 不等于 processed，processed 以原扩展的 `replay` 调用得到最终 Conclusion 为准，行为见 SPEC 同节。
 
-DecisionCards 是 Agent 定义的卡片端口，由人在回路领域的适配器实现。人在回路领域的公开契约尚未定义，这个端口写的是 Agent 所需的保证。`read` 返回一张卡片的唯一有效答复，四类结果是：chosen（明确选择一个选项）、declined（明确拒答）、pending（尚无答复）、invalidated（卡片已作废）。declined 与 pending 都不是批准，也不等于人不同意。卡片来自作者扩展时，由原扩展决定后果；卡片来自官方准入时，由授权领域按 AU-05 判定。人有话说但没有给出准驳时，`read` 对 Agent 返回 pending，原话归人在回路领域。`CardAnswer` 是 chosen 与 declined 两类，回放绑定的 `response.answer` 与 `ActionAdmission.admit` 的 `decision.answer` 只携带它。`invalidate` 只作废尚无答复的卡片，已有答复的卡片在返回值中保留原答复。幂等身份是 passage 加 round 加完整请求身份集合，`invalidate` 另带操作身份。逐操作的要素见 SPEC 的“[卡片与准入端口的逐操作要素](../../SPEC.md#卡片与准入端口的逐操作要素)”。
+DecisionCards 是 Agent 定义的卡片端口，由人在回路领域的适配器实现。人在回路领域的公开契约尚未定义，这个端口写的是 Agent 所需的保证。`read` 返回一张卡片的唯一有效答复，五类结果是：chosen（明确选择一个选项）、declined（明确拒答）、remark（附言：人有话说，没有给出准驳，`text` 是非空的原话）、pending（尚无答复）、invalidated（卡片已作废）。declined、remark 与 pending 都不是批准，也不等于人不同意。chosen 与 declined 的后果：卡片来自作者扩展时，由原扩展决定；卡片来自官方准入时，由授权领域按 AU-05 判定。remark 的后果：卡片来自作者扩展时，附言原样交给原扩展，由原扩展决定；卡片来自官方准入时，Agent 把该动作记为 denied，原因 `human-guidance`，附言不交给授权领域。原话的保存归人在回路领域。`CardAnswer` 是 chosen 与 declined 两类，`CardRemark` 是 remark。回放绑定的 `response.answer` 携带 `CardAnswer | CardRemark`，`ActionAdmission.admit` 的 `decision.answer` 只携带 `CardAnswer`。`invalidate` 只作废尚无答复的卡片，已有答复的卡片在返回值中保留原答复。幂等身份是 passage 加 round 加完整请求身份集合，`invalidate` 另带操作身份。逐操作的要素见 SPEC 的“[卡片与准入端口的逐操作要素](../../SPEC.md#卡片与准入端口的逐操作要素)”。
 
-ActionAdmission 是 Agent 定义的动作准入端口，由授权领域的适配器实现，对应授权的 [AU-04](../../../../identity/authorization/SPEC.md#au-04-当前准入与结果) 与 [AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)。输入是原动作、生效参数、工具定义的精确采用引用、Runtime Context 私有块中的权限输入，以及人对本动作卡片的答复（没有时为 null）。四类结果与 AU-04 的四类对应：allow 带准入证据，deny 带原因与依据，need-decision 带卡片草稿，unavailable 不放行。allow 的 `evidence` 是 ActionJudgment allowed 分支的 `evidence`，Tool 在发起前按它与当前权限再核。该端口由执行动作之前这条链末尾的受信系统扩展消费，作者不直接调用它。行为见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”。
+ActionAdmission 是 Agent 定义的动作准入端口，由授权领域的适配器实现，对应授权的 [AU-04](../../../../identity/authorization/SPEC.md#au-04-当前准入与结果) 与 [AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)。输入是原动作、生效参数、工具定义的精确采用引用、按需要名的一组读取 `permissions`（`readonly NamedCapturedRead[]`，每项的 `need` 是官方准入声明的需要名，名字互不相同，空列表表示没有读取），以及人对本动作卡片的答复（只有 chosen 与 declined，没有时为 null）。四类结果与 AU-04 的四类对应：allow 带准入证据，deny 带原因与依据，need-decision 带卡片草稿，unavailable 不放行。allow 的 `evidence` 是 ActionJudgment allowed 分支的 `evidence`，Tool 在发起前按它与当前权限再核。该端口由执行动作之前这条链末尾的受信系统扩展消费，作者不直接调用它。行为见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”。
 
 MessageHandoff 是 Agent 定义的消息准入端口，由外部协调者或独立调用方的提供者实现。`accept` 按来源校验候选消息，返回接纳回执或拒收结果。来源有六种。外部输入的拒收后果由产品规定。模型完整回复、工具结果、被拒绝的动作、系统提醒与压缩转换消息只因校验失败或保存失败被拒收，提供者不在本端口做业务否决，拒收后果归 Agent 自己。`action-denied` 是判断阶段或 Tool 受理时确定拒绝、且保留事实证明没有已受理或未决尝试的动作，它没有 Tool 调用，也没有结果，`evidence` 是拒绝依据。外部输入由 Agent 在 invoke 或 submit 的受理之内调用，`advance` 为 null。其他来源带当前执行挂接。提供者在接纳之前完成必要的模态转换。accepted 的 `admission` 就是 CallerCommit message 分支与 ModelReplyAdmission 的 source 所用的依据。rejected 的 `reason` 受与 Failure 诊断相同的内容限制。幂等身份是操作身份加来源身份。行为见 SPEC 的“[消息准入](../../SPEC.md#消息准入)”。
 
@@ -148,11 +148,12 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 - 推进资格依据 `grant` 为空表示独立调用，执行挂接由 Journal 提供者授予。外部协调者传入自己的推进资格依据。
 - `AcceptedInput` 携带输入的完整内容 `content`。invoke 的 `initial` 与 submit 的 `value` 都使用它。`source` 是外部协调者一侧的受理依据，独立调用者传 null。
 - acknowledge 的 `receipt` 是读取方自己的处理依据，可以为 null。Agent 不解释它的内容。
+- `AgentEventBody` 的种类是 input-taken、message、producer、entry、waiting、control 与 ended，都是 Agent 自身的事件，没有透传生产者内容的种类。`entry` 投影一条接收面条目 `AgentJournalEntry`，与条目在同一次提交里成立，规则见 SPEC 的“[日志条目](../../SPEC.md#日志条目)”第 6 条。
 - `Registration` 的状态与登记身份由宿主返回。publish 的输入不含运行对象，其中的 `state` 只是登记时的初值。
 - `AgentRegistrationHandle` 由宿主在 reserve 时为该实例提供，是 runtime 唯一需要的登记能力。`report` 只更新活体观察的状态投影，不改变登记，也不是耐久操作。`withdraw` 只作用于本实例当前的登记，本实例当前没有登记时返回 null。
 - `AgentRuntimeControl` 是停用实例的控制面，由 runtime 的提供者交给宿主，不交给执行的调用方。
 - `AgentAccessCheck` 是 Agent 核验主体当前资格的注入端口，由授权领域的适配器实现。`operation` 是被核验的公开操作，`target` 是该操作作用的范围、实例或 execution。`unavailable` 不放行，其 `diagnostic` 受与 Failure 诊断相同的内容限制。`takeover` 是接管仍在推进的 execution 所需的独立资格，不包含在 `resume` 之内。它与动作准入是两个端口：动作准入判断某个 Model 或 Tool 动作能否发起，本端口判断主体能否调用 Agent 的某个公开操作。
-- `AgentInstant` 是 RFC 3339 的 UTC 时刻，例如 `2026-10-17T08:00:00Z`。
+- `AgentInstant` 是 RFC 3339 的 UTC 时刻，例如 `2026-10-17T08:00:00Z`，是普通字符串。`UtcInstantText` 是同一编码的品牌字符串，只由 `judgeExtensionOutput` 以 `@omne-harness/utc-instant` 的 `parseInstant` 校验后产生，用于 `retry` 计划的 `notBefore`，见[扩展作者协议](extensions.md#输出)。
 - `AgentClock` 的 `now` 返回当前 UTC 时刻的 `Reply<AgentInstant>`，`waitUntil` 等待给定时刻或中止。读取失败、候选时刻与重试规则归 [时钟读取与等待](../../SPEC.md#时钟读取与等待)。
 - `ExecutionMutation.operation` 由稳定要素确定派生，不是随机值，崩溃前后对同一帧与同一转移派生同一身份。派生规则与未知结果的查询见[机制页](../../../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。
 - `FinishIntent.beforeTerminal` 是落终态之前位置依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
