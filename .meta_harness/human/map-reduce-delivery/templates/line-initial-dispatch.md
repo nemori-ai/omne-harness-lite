@@ -106,7 +106,7 @@ binding 齐全且任务卡开放时，你就可以开工。事件接收器的健
 交回阶段归 `docs/engineering/map-reduce-states.md` 第 4 节，交回物与五节交接报告的格式归 `docs/engineering/integration.md`「线会话记录」。
 
 1. 一张卡做完后，把它合入本线批次分支。在卡上发五节交接报告。五节格式见上。
-2. 本线本波全部交完后，开批次 PR。零差异时没有 PR。批次 PR 的说明按「进轨道 PR 的说明」写两节，由 `pnpm run ri-notes --track <联调轨道 ID> --format markdown` 生成。
+2. 本线本波全部交完后，开批次 PR。零差异时没有 PR。批次 PR 的说明按「进轨道 PR 的说明」手写两节，逐张列本批次的卡。
 3. 在线父卡发一条交回记录。首行是 `<!-- line-handoff -->`。固定项归 `integration.md`「线会话记录」。
 4. 交回记录发布后，你停写。
 

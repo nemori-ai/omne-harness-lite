@@ -60,13 +60,15 @@ if [ "$(id -un)" = "ubuntu" ] && sudo -n true 2>/dev/null; then
         # A failed run keeps the previous file and the old revision marker.
         mkdir -p "$ub_mode_dir"
         ub_mode_tmp=$(mktemp "$ub_mode_dir/SKILL.md.XXXXXX")
+        # dash skips the EXIT trap on a signal unless a signal trap calls exit.
         trap 'rm -f "$ub_mode_tmp"' EXIT
+        trap 'exit 1' INT TERM HUP
         curl -fsSL "https://raw.githubusercontent.com/unclebob/ub-mode/${ub_mode_revision}/SKILL.md" \
             -o "$ub_mode_tmp"
         grep -q '^name: ub-mode$' "$ub_mode_tmp"
         chmod 644 "$ub_mode_tmp"
         mv "$ub_mode_tmp" "$ub_mode_dir/SKILL.md"
-        trap - EXIT
+        trap - EXIT INT TERM HUP
         printf '%s\n' "$ub_mode_revision" > "$HOME/.cursor/ub-mode-revision"
     fi
     git config --global --get user.name | grep -Fqx "$human_name"

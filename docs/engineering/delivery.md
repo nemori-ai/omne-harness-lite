@@ -1,6 +1,6 @@
 # Issue、Projects与交付协议
 
-日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布或未获本卡授权时，agent 只形成草稿，不写平台。
+日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布或未获本任务授权时，agent 只形成草稿，不写平台。
 
 本页拥有 Issue、Project、条件、调度与交付决定的共同协议。协议不是 GitHub 原生保证；对话及操作顺序归[agent交付操作](agent-delivery.md)。
 

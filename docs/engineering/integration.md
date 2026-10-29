@@ -170,7 +170,7 @@ flowchart TD
 本地核对分两处：
 
 1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
-2. 批次与提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
+2. 提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。个人分支与批次分支进轨道的 PR 手写两节，逐张列本次带入的卡。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
 
 确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
 
@@ -327,7 +327,7 @@ delta 传达已核对的事实，不改写在途卡的 taskBase。新 attempt �
 
 Line 交回时交下列三样。零差异时没有批次 PR，只有报告与交回记录。
 
-- 批次 PR：从本线批次分支进入联调轨道。说明按[进轨道 PR 的说明](#进轨道-pr-的说明)写「所含的卡」与「契约变化」两节，用 `pnpm run ri-notes --track <联调轨道 ID> --format markdown` 生成。
+- 批次 PR：从本线批次分支进入联调轨道。说明按[进轨道 PR 的说明](#进轨道-pr-的说明)手写「所含的卡」与「契约变化」两节，逐张列本批次的卡。`ri-notes` 只汇总已登记轨道上尚未提升的提交，批次分支不是轨道，所以不用它。
 - 交接报告：每张卡一条卡评论，写 PR 链接与 head 提交号。报告只陈述事实，固定五节：
   1. 做了什么：逐条对照验收，写达到或未达到，并给出证据。
   2. 没做什么及原因。
@@ -411,7 +411,14 @@ Reduce 在波内挂两条等待：
 - 批次 PR：`wait-cli.ts pr-ready --base <联调轨道>`。处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂。
 - 交回记录：`wait-cli.ts any --comment <线父卡>:line-handoff ...`。每条参加线写一个 `--comment`。
 
-命中后先处理，再重挂。用命中评论的创建时间作下一次 `--since`（用 `gh api repos/<repo>/issues/comments/<id> --jq .created_at` 读，id 取输出 `html_url` 末尾）；输出里 `delivery` 不为 null 时也可以用 delivery id。不要用 `receivedAt`。处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
+退出 3 是超时，用同一 `--since` 重跑。命中后先处理，再按命中输出取下一次 `--since`。Line 读到 idle delta 后再等下一条，也按这里取：
+
+- 输出的 `delivery` 不为 null：命中来自事件文件，用这个 delivery id。时间型 `--since` 比的是本机收到时间 `receivedAt`，改用评论创建时间会再次命中同一条。
+- `delivery` 为 null：命中来自启动时的对账，用命中评论的创建时间。读法是 `gh api repos/<repo>/issues/comments/<id> --jq .created_at`，id 是输出 `html_url` 中 `#issuecomment-` 之后的数字。对账按评论创建时间严格比较，不会再次命中这一条。不要用 `receivedAt`。
+- Reduce 的交回记录等待有多个 `--comment` 时，对账只返回第一个有命中的线父卡。所以 `delivery` 为 null 时，先读回每条参加线父卡上尚未处理的交回记录，逐条处理，再用已处理记录中最晚的创建时间作下一次 `--since`。
+- `pr-ready` 不按 `--since` 重挂，按上面的 `--ignore` 重挂。
+
+处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
 
 下图是一次交回与下一条 delta 的事件路径。本机接收器把 GitHub 投递写进事件文件，等待命令读这个文件。
 
@@ -428,7 +435,7 @@ sequenceDiagram
   R->>E: 追加一行事件
   E-->>D: wait-cli any 命中，退出 0
   Note over D: 命中只表示有事件，不等于整波放行
-  D->>D: 处理交回，用命中评论的创建时间作 --since 重挂
+  D->>D: 处理交回，按上文取新的 --since 重挂
   D->>G: 在线父卡发 line-delta
   G->>R: 投递评论事件
   R->>E: 追加一行事件

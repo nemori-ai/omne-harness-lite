@@ -150,7 +150,7 @@
 1. **用宿主的 shell 或 bash 工具，作为一次前台阻塞的工具调用来执行。** 不加 `nohup`、`&`、`setsid`、`disown`，不放后台，不用 Claude Code 的 `run_in_background`。
 2. **原因：** 放到后台而前台不阻塞，会话就会结束本回合。Codex 上，后台进程跑完也唤醒不了已结束的会话，线就永远等不到收口。
 3. **单次工具调用有时长上限。** 给等待命令加 `--timeout`，取略小于宿主单次调用上限的值。退出码 3 表示超时，不表示条件不成立：立即用**同一个 `--since`** 在新的前台调用里重跑同一条命令。这是重新挂上事件等待，不是轮询 GitHub（每次启动只做一次有界对账）。
-4. **等待返回后**按 delta 处理：active 开工、idle 再次前台阻塞等待、redo 按新 attempt 重开、terminal 交最终报告。只有读到明确的 terminal delta 并交完最终报告，才可以结束回合。
+4. **等待返回后**按 delta 处理：active 开工、idle 再次前台阻塞等待（新的 `--since` 按 `docs/engineering/integration.md`「等待监督」取）、redo 按新 attempt 重开、terminal 交最终报告。只有读到明确的 terminal delta 并交完最终报告，才可以结束回合。
 5. **等自己派出的子代理时同理：** 前台没有别的工作就阻塞等它，不结束回合。
 6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。每台机器只有一个接收器。它是常驻服务，要活过会话，由本机第一个开工的会话启动一次。启动方法见 `tools/dev-flow/src/delivery/README.md`「事件等待」。首次消息只给只读的 `health` 命令，不给 `init` 与 `serve`。接收器不是等待命令，等待命令本身仍然前台阻塞。
 7. 每次重挂前后更新 `state.md` 的等待命令与 `--since`，便于替换会话接续。

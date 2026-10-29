@@ -93,7 +93,7 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 收口顺序与放行守卫归 `map-reduce-states.md`「收口顺序」。整波检查由 `integrate` 完成。之后按下列顺序执行：
 
-1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继。
+1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继，先读回有权者的终态决定。
 2. 为每条存续线写一条 delta，idle 线也写。正文按 `.meta_harness/human/map-reduce-delivery/templates/line-delta.md`，首行是 `<!-- line-delta -->`，固定项归「线会话记录」。终态时每条存续线都发 terminal delta。
 3. 用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，然后读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
 4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
