@@ -9,7 +9,6 @@
 - `gate/toolchain-paths.txt`：受仓库工具链变更闸门保护的路径，见下文。
 - `.github/workflows/gate-release.yml`：把 `@omne-harness/repo-toolchain` 或 `@omne-harness/repo-config` 经 npm 可信发布发到 npm，见下文。
 - `.github/workflows/delivery-facts.yml` 与 `delivery-stage.yml`：以交付身份为 Claude Code 云端会话读取开工事实、修改 Project Stage，见下文。
-- `.github/workflows/integration-request.yml`：按固定安装描述符校验并登记协作申请，见下文。
 
 派发方式：`gh workflow run gate-publish.yml --ref github-gate -f pr=<PR 号> -f head=<PR head 提交号>`。合入 stable 时还要传 `-f checkpoint=<名称>`。
 
@@ -93,13 +92,3 @@ Claude Code 云端代理拦截 GraphQL、`orgs/` 与 `environments` 路径（#47
 已知风险：交付身份的私钥外泄时，持有者能修改组织内全部 Project，能编辑或关闭本仓库的 Issue（包括卡正文与 binding），也能以交付身份发出伪造的开工事实评论，使云端 `start` 接受没有派发资格的作者。私钥按与 admin 权限同等的级别保管和轮换。
 
 `workflow_dispatch` 要求默认分支上存在同名文件，main 上的对应文件是空壳。
-
-## 协作申请登记
-
-已采用的工具通过 `integration-request.yml` 在本分支登记申请。`delivery` environment 保存 `OMNE_COLLABORATION_DESCRIPTOR` 原始 JSON 与 `OMNE_COLLABORATION_SHA256`。先发布受审工具提交和固定来源，再发布本分支提交，最后采用固定这些身份的描述符。安装与协议归工具提交中的 `tools/dev-flow/src/delivery/README.md` 和 `SPEC.md`。
-
-流程在检出代码前只读取一次描述符快照，核对摘要、仓库、完整工具提交、published 模式和当前 workflow 提交。核对失败就停止；通过后才检出固定工具、按锁文件安装依赖、以只读方式采用安装并校验登记申请。默认分支入口只输出从 github-gate 执行的指导并失败，不登记申请。
-
-更新 workflow 时，版本 2 或 3 描述符须显式保留仍被 journal 引用的旧 facts workflow 身份。安装描述符不授派发权，不指定新的接受者，也不代表接受卡片。reduce 的 facts 生产权须另行明确激活或从已停止的旧生产者完整转移；普通安装不会取得生产权。未知派发按原 operation 和 journal 恢复，不重建请求或从最新运行猜测归属。
-
-版本 3 描述符另行固定 `gate-publish.yml` 的路径、`github-gate` ref 和完整 workflow 提交。运行标题为 `gate-publish:<pr>:<head>:<checkpoint>`，普通集成的 checkpoint 为空。reduce 监督器同时核对这些输入、采用的 workflow 提交和运行 attempt，不能只按 PR 号认领最近运行。更新本分支后，采用者须显式更新当前 workflow 身份并保留原 journal 引用的历史身份。
