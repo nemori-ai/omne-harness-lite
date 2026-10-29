@@ -10,7 +10,7 @@
 |---|---|---|---|
 | 工作流程 | pstack `poteto-mode` | 这类任务按什么顺序推进：选哪个 playbook、何时派子代理、何时验证与收尾 | 任务的待办与推进循环 |
 | 交付方案与实施规格的写法 | Matt `to-spec`、`to-tickets`、`writing-for-agents` | 怎样把已讨论的内容写成实施输入、切成可验证的切片、写给子代理的简报 | 项目自己的 spec、plan 模板（`claim` 技能的 `references/`），模板格式归项目 |
-| 研发哲学、品味与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对（数据形状、测试先行、领域建模、边界与类型、幂等、单写），再做好（根因、可验证单元、测行为、CRAP、重复、变异、重构），以及日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
+| 研发哲学、品味与第一性原理 | Uncle Bob `ub-mode` | 写或改代码时怎样判断：先做对，再做好，并遵循日常实践 | spec 模板的「原则与约束」一节；评审「设计与实践」一面的判据 |
 
 三层之上，项目独有的判断（维度分解与正交、领域语义依赖、Cordis 承载）归[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)与 `harness-design-handbook`；交付质量的量度归[整洁回路](../clean-loop.md)。测试先行负责「做对」，整洁回路的传感器负责「做好」并量出测试的判别力，两者互补。
 
@@ -36,7 +36,7 @@ Claude Code on the web 环境每次会话启动时把 pstack port、Matt 与 ub-
 
 agent 先核对当前宿主实际发现的技能，再读所选 `SKILL.md` 及其必要参考。Codex 的名称为 `pstack:<name>`、`mattpocock-skills:<name>` 与 `ub-mode`；下文 `Matt:<name>` 映射到 `mattpocock-skills:<name>`。不要把插件正文复制进项目 canonical 源。
 
-Matt `to-spec`、`to-tickets` 在固定源中声明 `disable-model-invocation: true`：宿主不会自动触发，按已安装路径直接读正文，并在报告里写明读取方式。缺少入口、正文或宿主能力时报告具体缺口，依赖它的步骤暂停，其余照常推进；技能名出现在提示里不等于已经加载。
+Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声明 `disable-model-invocation: true`：宿主不会自动触发，按已安装路径直接读正文，并在报告里写明读取方式。缺少入口、正文或宿主能力时报告具体缺口，依赖它的步骤暂停，其余照常推进；技能名出现在提示里不等于已经加载。
 
 同名技能写明来源：`pstack:tdd` 与 `Matt:tdd` 是两份不同的正文，默认用 `pstack:tdd`；ub-mode 的 TDD 一节是同一纪律的精简表述。playbook 是 poteto-mode 引用的流程文件，不是独立技能。
 
