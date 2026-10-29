@@ -1,7 +1,8 @@
 // 具名组环例外：schema 3 `constraints.json` 的 `groupCycleExceptions` 对依赖图组环发现的判定。
 // `omne-deps` 与回路状态的硬线都从这里算，输入是同一份可信 runner 的例外与同一张依赖图（deps/graph.ts）。
 // 例外登记的是裁定过的成员边：组环的每一条跨组成员边都登记了才放行，有一条没登记就照常失败；
-// 成员环、文件环与规则违规不受影响；登记的边没有出现在任何组环里，例外本身是一条发现。
+// 成员环、文件环与规则违规不受影响；登记的边没有出现在任何组环里，例外本身是一条发现，
+// 但只在被检树就是登记例外的 runner 自己时判：跨树检查时被检树的组环说明不了例外有没有过期。
 import type { DependencyFinding, FindingEdge, GroupCycleFinding } from '../deps/graph.ts'
 import type {
   ArchitectureGroupCycleEdge,
@@ -42,9 +43,14 @@ export function runnerGroupCycleExceptions(
 const edgeKey = (edge: FindingEdge) => `${edge.from}\u0000${edge.to}`
 const arrow = (edge: FindingEdge) => `${edge.from} → ${edge.to}`
 
+/**
+ * `judgeUnused` 为假时不报没用上的例外：例外登记在 runner 的树里，被检树是另一棵树时，
+ * 登记的边不在被检树的组环里不说明例外过期。放行规则不受影响。
+ */
 export function judgeGroupCycles(
   findings: readonly DependencyFinding[],
   exceptions: readonly ArchitectureGroupCycleException[],
+  judgeUnused: boolean = true,
 ): GroupCycleJudgement {
   const registered = new Map<string, ReleasedEdge>()
   for (const exception of exceptions)
@@ -74,7 +80,7 @@ export function judgeGroupCycles(
     else excepted.push({ finding, released })
   }
   const unused: GroupCycleExceptionFinding[] = []
-  for (const exception of exceptions) {
+  for (const exception of judgeUnused ? exceptions : []) {
     const lost = exception.edges.filter(edge => !appearing.has(edgeKey(edge)))
     if (lost.length > 0)
       unused.push({

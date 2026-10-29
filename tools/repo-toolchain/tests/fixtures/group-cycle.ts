@@ -1,4 +1,5 @@
-// 组环例外测试共用的临时仓库：runner（可信，带预设与可选的 constraints.json）与被检树（组 context ↔ 组 tool 成环）分开建。
+// 组环例外测试共用的临时仓库：runner（可信，带预设与可选的 constraints.json）与被检树（组 context ↔ 组 tool 成环）分开建；
+// `selfTree` 把两者建成同一棵树，用来测被检树就是 runner 自己的形态。
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -97,5 +98,14 @@ export function tree(options: TreeOptions = {}): string {
     write(root, 'packages/context/q/src/index.ts', source(['../../../tool/y/src/index.ts']))
   if (options.extraEdge === true)
     write(root, 'packages/session/s/src/index.ts', source(['../../../tool/y/src/index.ts']))
+  return root
+}
+
+/** runner 与被检树是同一棵树：`tree(options)` 加上预设、回路配置与 `exceptions` 登记的 constraints.json。 */
+export function selfTree(exceptions: readonly ExceptionRow[], options: TreeOptions = {}): string {
+  const root = tree(options)
+  write(root, '.dependency-cruiser.cjs', PRESET)
+  write(root, TOOLCHAIN_CONFIG, readFileSync(join(REPOSITORY_ROOT, TOOLCHAIN_CONFIG), 'utf8'))
+  write(root, CONSTRAINTS, policy(exceptions))
   return root
 }

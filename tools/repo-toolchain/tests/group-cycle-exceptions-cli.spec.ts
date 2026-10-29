@@ -1,10 +1,13 @@
 // @module-tag slow
 // omne-deps 的具名组环例外：runner 与被检树分开的临时仓库上真实跑 dependency-cruiser（起子进程），所以归慢层。
-// 覆盖环内每条成员边都登记才放行并写说明行、登记不全照常失败、登记的边没用上失败、成员环不受影响、被检树自带的例外不生效。
+// 覆盖环内每条成员边都登记才放行并写说明行、登记不全照常失败、成员环不受影响、被检树自带的例外不生效；
+// 登记的边没用上只在被检树就是 runner 自己时失败，跨树检查时不判。
 import { spawnSync } from 'node:child_process'
+import { symlinkSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { removeTemporaries, write } from './fixtures/loop-canary/repository.ts'
+import { removeTemporaries, temporaryDirectory, write } from './fixtures/loop-canary/repository.ts'
 import {
   CONSTRAINTS,
   CONTEXT_TOOL,
@@ -18,6 +21,7 @@ import {
   Z,
   policy,
   runner,
+  selfTree,
   tree,
 } from './fixtures/group-cycle.ts'
 
@@ -89,9 +93,10 @@ describe('omne-deps 的具名组环例外', { timeout: 120_000 }, () => {
     expect(all.stdout).toContain(`放行 ${W} → ${Z}、${X} → ${Y}、${Y} → ${W}`)
   })
 
-  it('登记的边不在图里：例外失败，写明这条边与裁定链接，组环照常失败', () => {
+  it('同一棵树：登记的边不在图里，例外失败，写明这条边与裁定链接，组环照常失败', () => {
     const ghost = { from: 'packages/context/ghost', to: Y }
-    const run = deps(tree(), runner(only(ghost)))
+    const own = selfTree(only(ghost))
+    const run = deps(own, own)
     expect(run.status).toBe(1)
     expect(errors(run.stdout)).toEqual([
       expect.stringContaining('组之间成环：packages/context、packages/tool'),
@@ -101,18 +106,44 @@ describe('omne-deps 的具名组环例外', { timeout: 120_000 }, () => {
     ])
   })
 
-  it('登记的边在图里但不在任何组环里：失败；组环消失后残留的例外也失败', () => {
-    const off = deps(tree({ extraEdge: true }), runner([CONTEXT_TOOL, ...only({ from: S, to: Y })]))
-    expect(off.status).toBe(1)
-    expect(errors(off.stdout)).toEqual([
+  it('同一棵树：登记的边在图里但不在任何组环里失败；组环消失后残留的例外也失败', () => {
+    const rows = [CONTEXT_TOOL, ...only({ from: S, to: Y })]
+    const off = selfTree(rows, { extraEdge: true })
+    const offRun = deps(off, off)
+    expect(offRun.status).toBe(1)
+    expect(errors(offRun.stdout)).toEqual([
       expect.stringContaining(`登记的边没有出现在任何组环里：${S} → ${Y}`),
     ])
-    expect(off.stdout).toContain('按例外 GCX-CONTEXT-TOOL')
-    const gone = deps(tree({ broken: true }), runner([CONTEXT_TOOL]))
-    expect(gone.status).toBe(1)
-    expect(errors(gone.stdout)).toEqual([
+    expect(offRun.stdout).toContain('按例外 GCX-CONTEXT-TOOL')
+    const gone = selfTree([CONTEXT_TOOL], { broken: true })
+    const goneRun = deps(gone, gone)
+    expect(goneRun.status).toBe(1)
+    expect(errors(goneRun.stdout)).toEqual([
       expect.stringContaining('组环例外 GCX-CONTEXT-TOOL 登记的边没有出现在任何组环里'),
     ])
+  })
+
+  it('同一棵树经符号链接给出：仍按同一棵树判没用上的例外', () => {
+    const own = selfTree([CONTEXT_TOOL], { broken: true })
+    const link = join(temporaryDirectory('omne-group-cycle-link-'), 'link')
+    symlinkSync(own, link)
+    const run = deps(link, own)
+    expect(run.status).toBe(1)
+    expect(errors(run.stdout)).toEqual([
+      expect.stringContaining('组环例外 GCX-CONTEXT-TOOL 登记的边没有出现在任何组环里'),
+    ])
+  })
+
+  it('跨树：runner 登记的边不在被检树的图里、不在组环里或组环已不存在，都不判没用上', () => {
+    const ghost = { from: 'packages/context/ghost', to: Y }
+    const rows = [CONTEXT_TOOL, ...only(ghost, { from: S, to: Y })]
+    const cases = [tree(), tree({ extraEdge: true }), tree({ broken: true })]
+    for (const subject of cases) {
+      const run = deps(subject, runner(rows))
+      expect(run.stderr).toBe('')
+      expect(errors(run.stdout)).toEqual([])
+      expect(run.status).toBe(0)
+    }
   })
 
   it('成员之间的环不受例外影响，组环本身仍按例外放行', () => {

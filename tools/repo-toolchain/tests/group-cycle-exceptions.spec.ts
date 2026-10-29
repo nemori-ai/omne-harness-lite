@@ -256,6 +256,19 @@ describe('judgeGroupCycles', () => {
     expect(judged.unused[0]?.edges).toEqual([forth])
   })
 
+  it('不判没用上（跨树检查）：没用上的边不报，放行与登记不全的判定照旧', () => {
+    const ghost = edge('packages/a/ghost', B1)
+    const cycle = groupCycle(forth, back)
+    const released = judgeGroupCycles([cycle], [exception('GCX-GHOST', ghost, forth, back)], false)
+    expect(released.unused).toEqual([])
+    expect(released.findings).toEqual([])
+    expect(released.excepted).toHaveLength(1)
+    expect(judgeGroupCycles([], [exception('GCX-GONE', forth)], false).unused).toEqual([])
+    const partial = judgeGroupCycles([cycle], [exception('GCX-ONE', forth)], false)
+    expect(partial.findings).toHaveLength(1)
+    expect(partial.excepted).toEqual([])
+  })
+
   it('一条例外里有的边用上、有的没用上：放行照旧，例外只就没用上的边报一条发现', () => {
     const stale = edge(A1, 'packages/c/gone')
     const judged = judgeGroupCycles(
@@ -331,7 +344,7 @@ describe('回路状态的硬线', () => {
   const back = edge(B1, A1)
   const both = exception('GCX-BOTH', forth, back)
   const lines = (findings: readonly DependencyFinding[], exceptions = [both]) => ({
-    ...directionLines({ findings }, exceptions),
+    ...directionLines({ findings }, { exceptions, judgeUnused: true }),
     acceptanceLock: { status: 'judged' as const, violations: [] },
     sensors: { status: 'unjudged' as const, reason: '只在严格模式下判' },
   })

@@ -1,6 +1,7 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
 // 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
 // 命令行外壳在 cli.ts。
+import { subjectIsRunner } from '../core/subject.ts'
 import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
@@ -488,11 +489,12 @@ function baselineOf(
  */
 export function directionLines(
   report: Pick<Report, 'findings'>,
-  exceptions: readonly ArchitectureGroupCycleException[],
+  exceptions: LoopGroupCycleExceptions,
 ): Pick<HardLines, 'direction' | 'cycles' | 'exceptedCycles'> {
   const judged = judgeGroupCycles(
     report.findings.filter(finding => finding.rule !== 'no-unresolvable'),
-    exceptions,
+    exceptions.exceptions,
+    exceptions.judgeUnused,
   )
   return {
     cycles: [
@@ -504,9 +506,21 @@ export function directionLines(
   }
 }
 
-/** 回路读的组环例外：与 `lint:deps` 同一份 runner `constraints.json`；文件坏了照常抛错，不当成没有例外。 */
-export function loopGroupCycleExceptions(): readonly ArchitectureGroupCycleException[] {
-  return runnerGroupCycleExceptions(readRunnerConstraints())
+/** 回路读的组环例外，与是否判没用上的例外。 */
+export interface LoopGroupCycleExceptions {
+  readonly exceptions: readonly ArchitectureGroupCycleException[]
+  readonly judgeUnused: boolean
+}
+
+/**
+ * 回路读的组环例外：与 `lint:deps` 同一份 runner `constraints.json`；文件坏了照常抛错，不当成没有例外。
+ * 被检树 `root` 不是 runner 自己时不判没用上的例外，与 `lint:deps` 同一个判断（`subjectIsRunner`）。
+ */
+export function loopGroupCycleExceptions(root: string): LoopGroupCycleExceptions {
+  return {
+    exceptions: runnerGroupCycleExceptions(readRunnerConstraints()),
+    judgeUnused: subjectIsRunner(root),
+  }
 }
 
 function hardLinesOf(
@@ -568,7 +582,7 @@ export async function runLoopStatus(
   )
 
   // 先读 runner 的组环例外：文件坏了直接按工具错误停下，不先量一遍。
-  const groupCycleExceptions = loopGroupCycleExceptions()
+  const groupCycleExceptions = loopGroupCycleExceptions(root)
   const files = collectMemberSources(root)
   const acceptanceConfig = readAcceptanceLockConfig()
   const audits = auditHistory(root, options.base, acceptanceConfig)
