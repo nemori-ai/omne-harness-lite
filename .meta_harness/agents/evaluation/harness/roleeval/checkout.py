@@ -139,7 +139,11 @@ def forbidden(main: Path) -> list[str]:
     (Either separator and either case are matched by ``claude_host``.)
     """
     root = main.resolve()
-    needles = [str(root), TEMPLATE_NEEDLE]
-    if os.name == "nt" and len(root.drive) == 2 and root.drive[1] == ":":
-        needles.append(f"/{root.drive[0].lower()}{root.as_posix()[2:]}")
-    return needles
+    return [str(root), TEMPLATE_NEEDLE, *git_bash_spelling(root)]
+
+
+def git_bash_spelling(path: Path) -> list[str]:
+    """How Git Bash writes an absolute Windows path (``/d/...``), when there is such a spelling; nothing elsewhere."""
+    if os.name != "nt" or len(path.drive) != 2 or path.drive[1] != ":":
+        return []
+    return [f"/{path.drive[0].lower()}{path.as_posix()[2:]}"]

@@ -460,9 +460,21 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
 
 
 def outside_copy(episode: claude_host.Episode, dest: Path, role: str | None) -> list[str]:
-    """Absolute paths the run's tool calls named that are neither inside its copy nor its role definition."""
-    named = {path for _, args in episode.tool_inputs for path in re.findall(r'"(/[^"\s]+)"', args)}
-    return sorted(path for path in named if not path.startswith(str(dest)) and path != role)
+    """Absolute paths the run's tool calls named that are neither inside its copy nor its role definition.
+
+    On Windows a path is also named from a drive (``C:\\...``, ``C:/...``); it is compared with the copy and the role
+    without regard to separator or case, and the copy may also be named as Git Bash writes it.
+    """
+    if os.name != "nt":
+        named = {path for _, args in episode.tool_inputs for path in re.findall(r'"(/[^"\s]+)"', args)}
+        return sorted(path for path in named if not path.startswith(str(dest)) and path != role)
+    found = {path for _, args in episode.tool_inputs
+             for path in re.findall(r'"((?:/|[A-Za-z]:(?:\\\\|/))[^"\s]*)"', args)}
+    named = {path.replace("\\\\", "\\") for path in found}
+    copy = [claude_host.comparable(spelling) for spelling in [str(dest), *checkout.git_bash_spelling(dest)]]
+    return sorted(path for path in named
+                  if not any(claude_host.comparable(path).startswith(prefix) for prefix in copy)
+                  and (role is None or claude_host.comparable(path) != claude_host.comparable(role)))
 
 
 def episode_record(flow: Flow, material: Material, rep: int, variant: str, episode: claude_host.Episode, *,

@@ -61,19 +61,19 @@ class Episode:
     def touched(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for or got back: where it reached that it should not have."""
         got = [f"a tool result mentions {needle}" for needle in needles
-               if any(_as_compared(needle) in _as_compared(text) for text in self.tool_outputs)]
+               if any(comparable(needle) in comparable(text) for text in self.tool_outputs)]
         return self.asked(needles) + got
 
     def asked(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for; what came back is not looked at."""
         return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles
-                if _as_compared(needle) in _as_compared(args, json_text=True)]
+                if comparable(needle) in comparable(args, json_text=True)]
 
     def truncated(self) -> bool:
         return self.stop_reason == "max_tokens"
 
 
-def _as_compared(text: str, *, json_text: bool = False) -> str:
+def comparable(text: str, *, json_text: bool = False) -> str:
     """A needle or what a run said, as the two are compared: as written on POSIX.
 
     On Windows a path may be written with backslashes or slashes and in either case and still name one file, and
