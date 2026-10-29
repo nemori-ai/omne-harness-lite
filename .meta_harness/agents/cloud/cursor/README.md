@@ -25,3 +25,5 @@ author 与 committer 是潘其威(William)，邮箱是 `46810637+PanQiWei@users.
 ## ub-mode
 
 镜像按技能来源表的固定提交 `UB_MODE_REVISION`，把 ub-mode 的 `SKILL.md` 下载到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`，并在 `~/.cursor/ub-mode-revision` 记下已装的提交。它只有一份文件，不经过 `npx skills`，也不计入 Matt 的目录数。`install.sh` 在同样的条件下读 Dockerfile 的同一个提交，记录不一致或文件缺失时重新下载。
+
+下载失败，或下载的文件不含 `name: ub-mode` 一行时，Dockerfile 的这一步或 `install.sh` 以非零状态退出，Build 失败。`install.sh` 这时不写 `~/.cursor/ub-mode-revision`，下一次 Build 重新下载。

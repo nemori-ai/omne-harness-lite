@@ -189,6 +189,9 @@ def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     email = "46810637+PanQiWei@users.noreply.github.com"
     assert f"ARG MATT_SKILLS_REVISION={revision}" in dockerfile
     assert revision in skills
+    ub_mode_revision = "57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f"
+    assert f"ARG UB_MODE_REVISION={ub_mode_revision}" in dockerfile
+    assert f"unclebob/ub-mode@{ub_mode_revision}" in skills
     assert "-a cursor -g -s '*' -y --copy" in dockerfile
     assert f"ARG GIT_HUMAN_NAME={name}" in dockerfile
     assert f"ARG GIT_HUMAN_EMAIL={email}" in dockerfile
