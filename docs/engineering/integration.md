@@ -294,9 +294,9 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 
 等待命令只认评论首行的标记，不按作者过滤。这个做法依据上述前提。出现跨组织、多个账号或互不信任的参与方时，前提失效，须重新设计信任边界。
 
-同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、消费者迁移、跨域实现与联调、集成冲突及交回后的问题。Line 是跨波持续的本域会话，只负责获准本域本波的细化、实现和验证。Line 不是路径归属表里的交付线。线会话为单张卡派出的子代理只持有这一次任务，不替代常驻 Line。轨道写入单写，Reduce 的等待持续挂起。
+同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、消费者迁移、跨域实现与联调、集成冲突及交回后的问题。Line 是跨波持续的本域会话，只负责获准本域本波的细化、实现和验证。Line 不是路径归属表里的交付线。线会话为单张卡派出子代理时，该子代理只持有这一次任务，不替代常驻 Line。轨道写入单写，Reduce 的等待持续挂起。
 
-- 收口点 F 是实际读回的联调提交。波以当前收口卡 R(w) 为界。
+- 收口点 F(w) 见[术语](map-reduce-states.md#术语)。波以当前收口卡 R(w) 为界。
 - 线父卡承载线包、delta 和交回记录。线包引用 binding，branch、taskBase 与写范围不得手抄成第二份权威。
 - 卡在线内顺序合入批次，批次承载本线本波结果。ready、blocked、failed 都必须交回明确结果。零差异不造空 PR。
 - 交回、实际合入和整波放行分别核对。PR ready、单卡接受和队列暂空都不能代替其中任何一步。
@@ -404,14 +404,14 @@ Line 的五个阶段、遇阻交回、redo 与接管处置及恢复归[负责人
 
 Line 在交回后、交 blocked 后和轮空时挂一条等待，作为前台阻塞的命令运行：
 
-- delta：`wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间>`。超时后用同一 `--since` 重跑。等待命令失败时，Line 记录失败状态，然后等人转告。
+- delta：`wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间>`。超时与失败的处置见 [Line 状态空间](map-reduce-states.md#4-line-状态空间)的「等待」一行。
 
 Reduce 在波内挂两条等待：
 
 - 批次 PR：`wait-cli.ts pr-ready --base <联调轨道>`。处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂。
 - 交回记录：`wait-cli.ts any --comment <线父卡>:line-handoff ...`。每条参加线写一个 `--comment`。
 
-命中后先处理，再从命中的 delivery id 用 `--since` 重挂。处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
+命中后先处理，再重挂。用命中评论的创建时间作下一次 `--since`（用 `gh api repos/<repo>/issues/comments/<id> --jq .created_at` 读，id 取输出 `html_url` 末尾）；输出里 `delivery` 不为 null 时也可以用 delivery id。不要用 `receivedAt`。处理一项时，另一条等待保持挂起。宿主不能同时挂两条等待时，Reduce 按 `integrate` 技能让两条等待轮流前台阻塞。这时 [I03](map-reduce-states.md#5-两个负责人的组合不变式) 指轮换中没有遗漏事件。
 
 下图是一次交回与下一条 delta 的事件路径。本机接收器把 GitHub 投递写进事件文件，等待命令读这个文件。
 
@@ -428,7 +428,7 @@ sequenceDiagram
   R->>E: 追加一行事件
   E-->>D: wait-cli any 命中，退出 0
   Note over D: 命中只表示有事件，不等于整波放行
-  D->>D: 处理交回，从命中的 delivery id 用 --since 重挂
+  D->>D: 处理交回，用命中评论的创建时间作 --since 重挂
   D->>G: 在线父卡发 line-delta
   G->>R: 投递评论事件
   R->>E: 追加一行事件

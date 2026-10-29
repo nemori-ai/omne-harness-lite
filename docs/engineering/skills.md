@@ -26,7 +26,7 @@
 | ub-mode | [unclebob/ub-mode@57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f](https://github.com/unclebob/ub-mode/tree/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f) | 研发品味层 |
 | 项目方法 | [.meta_harness/agents](../../.meta_harness/agents/README.md) | 项目独有的技能、角色与模板；canonical 源与宿主生成分别维护 |
 
-参与本项目迭代维护前，人或 agent 须在实际使用的 coding agent 宿主中按宿主装好外部来源，版本取上表：Codex 与 Claude Code 装 pstack port、Matt skills 与 ub-mode；Cursor 装 Cursor 官方 pstack、Matt skills 与 ub-mode。步骤与核对沿[开发初始化](../development.md#初始化-coding-agent-插件)，负责人核对沿[给人的指南](../development_human.md#开始前准备-coding-agent-环境)。一台机器装好不替代新机器、云端环境或新宿主的初始化。
+参与本项目迭代维护前，人或 agent 须在实际使用的 coding agent 宿主中装好外部来源，版本取上表：Codex 与 Claude Code 装 pstack port、Matt skills 与 ub-mode；Cursor 装 Cursor 官方 pstack、Matt skills 与 ub-mode。步骤与核对沿[开发初始化](../development.md#初始化-coding-agent-插件)，负责人核对沿[给人的指南](../development_human.md#开始前准备-coding-agent-环境)。一台机器装好不替代新机器、云端环境或新宿主的初始化。
 
 ub-mode 只有一份 `SKILL.md`，上游没有声明许可证。按固定提交取原文装进宿主的用户技能目录（Claude Code 为 `~/.claude/skills/ub-mode/`，Codex 为 `~/.codex/skills/ub-mode/`，Cursor 为 `~/.cursor/skills/ub-mode/`），不复制进本仓库。
 
@@ -186,14 +186,14 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | [review-code](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md) | PR 候选含代码变更时 | [质量与证据](quality.md)、[整洁回路](../clean-loop.md)、ub-mode |
 | [review-docs](../../.meta_harness/agents/skills/review-docs/canonical/SKILL.md) | PR 候选含正式文档变更时 | [文档治理](documentation.md) |
 | [review-delivery](../../.meta_harness/agents/skills/review-delivery/canonical/SKILL.md) | 开出 PR 后核对交付边界与验收 | 任务卡现行正文、[agent交付操作](agent-delivery.md#5-提交成果供接受) |
-| [asd-ste100](../../.meta_harness/agents/skills/asd-ste100/canonical/SKILL.md) | 新建或修订文档时 | 该技能的文档写作采用范围 |
+| [asd-ste100](../../.meta_harness/agents/skills/asd-ste100/canonical/SKILL.md) | 新建或修订文档时 | [asd-ste100 写作要求](../../.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md) |
 | [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md) | 工作分支同步、FI/RI、checkpoint、主干准入或流程失效恢复 | [多层分支集成](integration.md)与实际 CLI |
 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) | 出现新的能力或责任边界时，核对能力覆盖、性质保护责任和 Cordis 承载 | 风险与升级归[质量与证据](quality.md)，组合证明门槛归[验证说明](../verification.md) |
 
 普通工程、文档归属与交付由三层方法和现有工程拥有者承担，不加载 harness-design-handbook。
 
-加载顺序按会话类型区分，线会话的做法见 `line` 技能 `references/work-paradigm.md` 的「会话级」第 2 步：
+加载顺序按会话类型区分：
 
-- 线会话：先加载 `line`。每张卡按 `claim`。评审用 `review-code`、`review-docs`、`review-delivery`。改文档前加载 `asd-ste100`。
+- 线会话：见 `line` 技能 `references/work-paradigm.md` 的「会话级」第 2 步。
 - reduce 会话：PREPARE、DISPATCH 与 RELEASE_WAVE 用 `dispatch`，SERVE 与 VERIFY_WAVE 用 `integrate`。
 - 单独派发的卡：加载 `claim`。进轨道时由调度者加载 `branch-integration`。

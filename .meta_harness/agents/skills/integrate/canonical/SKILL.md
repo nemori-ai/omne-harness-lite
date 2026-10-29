@@ -15,8 +15,8 @@ description: >
 波内挂两条等待，命令用法归 `tools/dev-flow/src/delivery/README.md`「事件等待」：
 
 ```sh
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<处理时的完整 head> ...] --since <delivery id>
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --comment <线父卡>:line-handoff [--comment <线父卡>:line-handoff ...] --since <delivery id>
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<处理时的完整 head> ...] --since <ISO 时间或 delivery id>
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --comment <线父卡>:line-handoff [--comment <线父卡>:line-handoff ...] --since <ISO 时间或 delivery id>
 ```
 
 - 每条参加线写一个 `--comment`。
@@ -24,7 +24,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
   - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行。任务结束时，宿主唤醒会话。
   - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时换另一条等待，各自的 `--since` 不变。
   - 这条宿主差异只适用于 Reduce。线会话的等待一律前台阻塞，没有例外。
-- 命中后先处理，再从命中的 delivery id 用 `--since` 重挂。处理一项时，另一条等待保持挂起。
+- 命中后先处理，再重挂。用命中评论的创建时间作下一次 `--since`（用 `gh api repos/<repo>/issues/comments/<id> --jq .created_at` 读，id 取输出 `html_url` 末尾）；输出里 `delivery` 不为 null 时也可以用 delivery id。不要用 `receivedAt`。处理一项时，另一条等待保持挂起。
 - 处理完一个批次后，带 `--ignore <pr>@<处理时的 head>` 重挂 `pr-ready`。
 - 等待命中只表示有事件。Issue 关闭或评论命中不代表整波已放行。
 - 等待命令退出 2 时诊断并恢复，恢复后先对账，不报告空队列成功。
@@ -51,7 +51,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 - redo：更正输入，按 `dispatch` 第 5 节为任务卡登记新 attempt，再按 `dispatch`「放行」一节的发布方法发 redo delta。redo 不推进波号。
 - 接管：Reduce 自己完成剩余工作。线会话继续等待下一条 delta。
 
-处置不需要另写认领、替代或处置记录。处置本身不等于已解决：本线本波仍须合入，或经有权者移出本波并写明剩余责任。处理一条交回时，其他事件继续落在等待里。
+处置规则（不另写处置记录、处置不等于已解决）见 `map-reduce-states.md` 4.1。处理一条交回时，其他事件继续落在等待里。
 
 ## 收口一波
 

@@ -40,7 +40,7 @@ description: >
 
 ```sh
 gh issue comment <线父卡> --repo <owner/name> --body-file <交回记录文件>
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间或 delivery id> --timeout <秒>
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <线父卡> --marker line-delta --since <交回时间> --timeout <秒>
 ```
 
 - 交回记录发布的结果未知时，先读回线父卡，确认没有这条评论再重发。

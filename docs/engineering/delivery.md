@@ -1,6 +1,6 @@
 # Issue、Projects与交付协议
 
-日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布时，agent 只形成草稿，不写平台。
+日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布或未获本卡授权时，agent 只形成草稿，不写平台。
 
 本页拥有 Issue、Project、条件、调度与交付决定的共同协议。协议不是 GitHub 原生保证；对话及操作顺序归[agent交付操作](agent-delivery.md)。
 
@@ -97,7 +97,7 @@ Status 按事件由下列角色写入，操作顺序见[推进和更新状态](a
 
 - Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
 - In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在卡的 PR 合入批次分支时运行。
-- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。批次 PR 进入联调轨道时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review。
 - Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
 - Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。批次内的任务卡由集成节点在按卡接受时运行。
 

@@ -56,7 +56,7 @@
 
 协调者先核读取范围与分页完整性、排序、依赖及现存attempt。Ready只是之前的观察，开始前仍核当前必要输入和条件；不能从空列表、closed或Project状态推出资格。返回候选时说明为什么可做、等什么、哪些无法判定。
 
-获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。线包明确授权时，线会话可为线内的卡登记 attempt；它以同一账号作为该卡调度者。派发前，调度者按[合法组合](delivery.md#卡属性与合法组合)核对属性、路线、写范围与交付条件；不合时先修订卡，再派发。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。派发评论与binding写回用 `dispatch-cli.ts post` 与 `bind`，用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#派发命令)。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
+获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。线包明确授权时，线会话可为线内的卡登记 attempt；此时线会话用与 reduce 相同的 GitHub 账号，作为该卡的调度者。派发前，调度者按[合法组合](delivery.md#卡属性与合法组合)核对属性、路线、写范围与交付条件；不合时先修订卡，再派发。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。派发评论与binding写回用 `dispatch-cli.ts post` 与 `bind`，用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#派发命令)。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
 
 接手会话先在本卡评论声明认卡，注明负责的人、宿主及会话或agent实例、当前修订、授权依据和现存执行核对结果。已有派发就引用该决定；尚未派发就向本卡指定调度者请求领取。认卡评论不授执行权，不新增认领Stage，也不代替唯一attempt读回。已获调度或正文单写职责时，在授权内直接完成登记和更新，不重复请示。
 
@@ -88,7 +88,7 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 看板字段的写入如下。命令都只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
 
 - 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。线内的卡由线会话在卡的 PR 合入批次分支时运行。线内的卡的 In progress 也由线会话设置。
-- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。批次 PR 进入联调轨道时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review，直到集成节点按卡接受时运行 `accepted`。gate 失败时，调度者把 Stage 改回 In review。
+- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review，直到集成节点按卡接受时运行 `accepted`。gate 失败时，调度者把 Stage 改回 In review。
 - `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。Dispatched at 与 Wave 已有值时不覆盖，同一张卡的新 attempt 不改它们。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
 - Needs decision 由调度者在 Project 中设置，工具不写。需要人拍板时置 `yes`，决定读回后置 `no`，规则见[契约变更与里程碑类型](delivery.md#契约变更与里程碑类型)。
 
