@@ -37,6 +37,8 @@ import {
 } from './steps.ts'
 import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
+import { budgetFor } from './parallelism.ts'
+import { runCheck } from './check.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -58,6 +60,10 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
+  '  check [--admission] [--keep-going] [--list]',
+  '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
+  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志；',
+  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额',
 ].join('\n')
 
 const ROOT = resolve(
@@ -102,13 +108,15 @@ async function step(argv: readonly string[]): Promise<number> {
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
   const file = planPath === undefined ? planFromFlags(flags) : readPlanFile(ROOT, resolve(planPath))
   if (planPath === undefined) for (const line of describePlanFile(ROOT, file)) console.log(line)
+  // 预算在用到它的那一步开始时采样一次机器：并行跑着的别的检查会降低空闲率，这一步就少占一些。
+  const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: () => buildStep(ROOT, file),
-    typecheck: () => typecheckStep(ROOT, file),
-    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。
+    build: async () => buildStep(ROOT, file, await budget()),
+    typecheck: async () => typecheckStep(ROOT, file, await budget()),
+    // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
     test: () => testStep(ROOT, file, planPath === undefined),
-    acceptance: () => acceptanceStep(ROOT, file),
+    acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
   return steps[name as Step]()
 }
@@ -195,6 +203,7 @@ async function run(request: RunRequest): Promise<number> {
     at: coordinates(ROOT, undefined),
     base: planned === undefined || planned.plan.mode === 'full' ? null : planned.base,
     plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
+    budget: await budgetFor(config.parallel),
   })
 }
 
@@ -269,7 +278,14 @@ async function main(): Promise<void> {
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
-  else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
+  else if (command === 'check') {
+    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list'])
+    process.exitCode = await runCheck(ROOT, {
+      admission: flags.switches.has('--admission'),
+      keepGoing: flags.switches.has('--keep-going'),
+      list: flags.switches.has('--list'),
+    })
+  } else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }
 
 main().catch((error: unknown) => {

@@ -107,7 +107,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | 结构读数 | `pnpm run metrics --base <taskBase> --coverage` | 若干切片后集中一次 |
 | 差分变异 | `pnpm run mutation --base <taskBase>` | 若干切片后集中一次 |
 | 文档与投影 | `pnpm run check:docs`；`pnpm run check:agents` | 改到时 |
-| 全量准入 | `OMNE_ADMISSION=1 pnpm run check` | 线内的卡留给 reduce；不在线内的卡在最终 head 跑一次 |
+| 全量准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 线内的卡留给 reduce；不在线内的卡在最终 head 跑一次 |
 
 - 不能声称的事（`docs/verification.md`）：<本卡验证覆盖不到的范围，写「未执行」或「未测量」及原因>
 

@@ -14,7 +14,12 @@ import {
   type EntrySection,
   type ExportOrigin,
 } from './api-format.ts'
-import { consumerCompilerOptions, declarationsIn, distOf } from './compat.ts'
+import {
+  consumerCompilerOptions,
+  declarationsIn,
+  distOf,
+  sharingInstalledDeclarations,
+} from './compat.ts'
 
 export interface ContractMember {
   /** 仓库相对的成员目录，例如 `packages/common/message`。 */
@@ -105,7 +110,10 @@ export function snapshotContracts(
   // 根文件是成员 dist 里的全部声明文件（与声明兼容检查读的同一批）：只作模块扩充目标的文件不经导入可达，
   // 不放进根就不在程序里，快照里缺了它就还原不出能编译的声明。
   const rootNames = built.flatMap(member => declarationsIn(distOf(realRoot, member.directory)))
-  const program = ts.createProgram({ rootNames, options: consumerCompilerOptions(realRoot) })
+  const options = consumerCompilerOptions(realRoot)
+  const host = ts.createCompilerHost(options)
+  host.getSourceFile = sharingInstalledDeclarations(options, host.getSourceFile)
+  const program = ts.createProgram({ rootNames, options, host })
   for (const member of built) results.push(snapshotMember(program, realRoot, member))
   results.sort((a, b) => byCodeUnit(a.directory, b.directory))
   return { typescript: ts.version, results }

@@ -21,6 +21,7 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
+import { pnpmCommand } from './support.ts'
 import {
   checkMemberTurboConfigs,
   TIER_TASKS,
@@ -137,7 +138,8 @@ async function runMember(
       throw new Error('Invalid archived test scope arguments')
     args.push(...extra)
   }
-  const result = await spawnLogged('pnpm', ['run', script, ...args], {
+  const pnpm = pnpmCommand()
+  const result = await spawnLogged(pnpm.command, [...pnpm.args, 'run', script, ...args], {
     cwd: memberDirectory,
     env,
     logPath: join(runDir, `${slug}.log`),

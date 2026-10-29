@@ -2,14 +2,25 @@
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
 // 严格模式（pnpm run check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { readLoopConfig } from '../src/loop/config.ts'
 import { runLoopStatus } from '../src/loop/run.ts'
 import {
   commit,
+  copyRepository,
   git,
   removeTemporaries,
   repository,
@@ -26,12 +37,17 @@ const run = (root: string, home: string, ...args: string[]) =>
     env: { ...process.env, OMNE_METRICS_HOME: home },
   })
 
+interface Baseline {
+  readonly root: string
+  readonly base: string
+}
+
 /**
  * 每个传感器都能有数据的仓库：两个不同组的成员一起提交过、成员里有带断言的测试、有一个产品 topic。
  * 返回基线（成员都在的那个提交）。
  */
-function complete(): { root: string; home: string; out: string; base: string } {
-  const root = repository()
+function buildComplete(root: string): Baseline {
+  repository(root)
   write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
   write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')
@@ -48,33 +64,57 @@ function complete(): { root: string; home: string; out: string; base: string } {
     'docs/architecture/constraints.json',
     '{"schemaVersion": 1, "domains": [], "roles": [], "rules": []}',
   )
-  const base = commit(root, 'members')
-  return {
-    root,
-    base,
-    home: temporaryDirectory('loop-home-'),
-    out: join(temporaryDirectory('loop-out-'), 'status'),
-  }
+  return { root, base: commit(root, 'members') }
 }
 
-const tangled = Array.from(
-  { length: 8 },
-  (_, n) =>
-    `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
-).join('\n')
-
-function skeleton() {
-  const fixture = complete()
+/** 同样的仓库再删掉全部产品源码与测试，只剩产品骨架；返回骨架那个提交。 */
+function buildSkeleton(root: string): Baseline {
+  buildComplete(root)
   git(
-    fixture.root,
+    root,
     'rm',
     '-q',
     'packages/core/a/src/index.ts',
     'packages/infra/b/src/index.ts',
     'packages/core/a/tests/a.spec.ts',
   )
-  return { ...fixture, base: commit(fixture.root, 'product skeleton') }
+  return { root, base: commit(root, 'product skeleton') }
 }
+
+// 两种基线仓库整个文件只建一次，每条用例复制一份，在自己的临时目录里改动与提交。
+// 基线不进 removeTemporaries 的登记，由 afterAll 删。
+let baselines: string
+let completeBaseline: Baseline
+let skeletonBaseline: Baseline
+beforeAll(() => {
+  baselines = realpathSync(mkdtempSync(join(tmpdir(), 'loop-strict-')))
+  const at = (name: string) => {
+    const root = join(baselines, name)
+    mkdirSync(root)
+    return root
+  }
+  completeBaseline = buildComplete(at('complete'))
+  skeletonBaseline = buildSkeleton(at('skeleton'))
+})
+afterAll(() => rmSync(baselines, { recursive: true, force: true }))
+
+function fixtureFrom(baseline: Baseline): Baseline & { home: string; out: string } {
+  return {
+    root: copyRepository(baseline.root),
+    base: baseline.base,
+    home: temporaryDirectory('loop-home-'),
+    out: join(temporaryDirectory('loop-out-'), 'status'),
+  }
+}
+
+const complete = () => fixtureFrom(completeBaseline)
+const skeleton = () => fixtureFrom(skeletonBaseline)
+
+const tangled = Array.from(
+  { length: 8 },
+  (_, n) =>
+    `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
+).join('\n')
 
 // 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {

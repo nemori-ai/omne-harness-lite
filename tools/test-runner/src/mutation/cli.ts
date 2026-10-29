@@ -9,7 +9,13 @@ import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { changedLines, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
 import { listTestMembers } from '@omne-harness/repo-toolchain/core/workspace'
-import { effectiveParallelism, effectiveRecheckMax, readTestRunsConfig } from '../testing/config.ts'
+import {
+  effectiveRecheckMax,
+  readTestRunsConfig,
+  VITEST_MAX_WORKERS_ENV,
+  workerCountOverride,
+} from '../testing/config.ts'
+import { budgetFor, describeBudget } from '../testing/parallelism.ts'
 import { buildTargets, parseFlags, timestamp, type Flags } from '../testing/support.ts'
 import { computePlan, readPlanFile, writePlanFile, type PlanFile } from '../testing/steps.ts'
 import {
@@ -188,20 +194,27 @@ async function run(request: MutationRequest): Promise<number> {
   const runDir = ledgerDir(request, at)
   mkdirSync(runDir, { recursive: true })
   if (selection.kind === 'planned') writePlanFile(join(runDir, 'plan.json'), selection.plan)
+  const config = readTestRunsConfig()
+  // 成员逐个变异，Stryker 的工作进程各占一个核：整份预算都给它；VITEST_MAX_WORKERS 已设时以它为准（夹具靠它钉成一个进程）。
+  const budget = await budgetFor(config.parallel)
+  const concurrency = workerCountOverride(process.env, budget.workers)
+  console.log(
+    `Stryker 同时 ${concurrency} 个工作进程（${concurrency === budget.workers ? describeBudget(budget) : `环境变量 ${VITEST_MAX_WORKERS_ENV} 指定；${describeBudget(budget)}`}）`,
+  )
   if (
     !buildTargets(
       request.root,
       targets.map(target => target.member),
       runDir,
+      budget.workers,
     )
   )
     return 1
-  const config = readTestRunsConfig()
   const recheckMax = effectiveRecheckMax(config, process.env)
   const strykerRun = {
     root: request.root,
     runDir,
-    concurrency: effectiveParallelism(config, process.env).vitestMaxWorkers,
+    concurrency,
     testTimeoutSeconds: config.mutation.testTimeoutSeconds,
     nonce: `${process.pid}`,
   }

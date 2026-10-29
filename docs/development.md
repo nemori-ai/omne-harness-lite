@@ -26,7 +26,7 @@ git status --short
 完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
 
-支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 WSL2 的 Linux 发行版里检出仓库并运行它们，不支持在 PowerShell 或 cmd 中直接运行。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。
+支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：检查入口在 Windows 上能运行，但部分成员测试与 Python 工具测试本身还不跨平台（路径分隔符、双盘符拼接、短路径等），所以 Windows 上的 `pnpm run check` 目前不能以退出 0 作为准入结论；修复另立卡，进度以该卡为准。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 
@@ -384,21 +384,21 @@ metrics只报告结构与配置范围内的覆盖；mutation只观察其选择�
 
 ```sh
 pnpm run check:plan
-OMNE_ADMISSION=1 pnpm run check
+pnpm run admission
 ```
 
 没有绑定任务的工作树（例如进入 stable 的 PR）显式给同一个基线：
 
 ```sh
 pnpm run check:plan --base "$TASK_BASE"
-OMNE_ADMISSION=1 BASELINE="$TASK_BASE" pnpm run check
+BASELINE="$TASK_BASE" pnpm run admission
 ```
 
-进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。不带这个变量的运行会读缓存，不作为准入检查结论。
+进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。
 
 两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 
-`pnpm run check`先打印影响面，运行常驻检查，再按计划执行Python、构建、类型检查、成员快慢层及可执行验收，最后执行严格回路状态。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
+`pnpm run check`先打印影响面，再按[步骤图](../scripts/README.md#check-的步骤图)跑常驻检查与计划里的 Python、构建、类型检查、成员快慢层及可执行验收：没有依赖的步骤同时跑，构建之后才跑读 dist 的步骤，最后执行严格回路状态；一步失败其余终止。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
 
 四条硬线是依赖方向与环、验收锁、主线所需检查绿、启用传感器有数据。严格回路状态核对第一、第二和第四项，第三项由实际所需检查支撑。若手动组合检查，也须完成这些共同硬线，并确保严格传感器所需账本属于同一候选：
 

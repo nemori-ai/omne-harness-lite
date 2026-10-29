@@ -88,8 +88,9 @@ describe('metrics.sh', () => {
     expect(plan).toMatch(
       /^node\|.*tools\/test-runner\/src\/testing\/cli\.ts plan --base abc --json \S+\/plan\.json$/u,
     )
+    // 名额脚本用 Node 起命令，.bin 里的 shell shim 要显式经 bash。
     expect(slot).toMatch(
-      /^slot\|node_modules\/\.bin\/omne-metrics --plan \S+\/plan\.json --coverage --out o$/u,
+      /^slot\|bash node_modules\/\.bin\/omne-metrics --plan \S+\/plan\.json --coverage --out o$/u,
     )
     expect(metrics).not.toContain('--base')
     expect(present).toBe('plan-file|present')
@@ -100,7 +101,7 @@ describe('metrics.sh', () => {
     const ran = run('metrics.sh', ['--coverage', '--plan', 'p.json'])
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
-      'slot|node_modules/.bin/omne-metrics --coverage --plan p.json',
+      'slot|bash node_modules/.bin/omne-metrics --coverage --plan p.json',
       'omne-metrics|--coverage --plan p.json',
     ])
   })

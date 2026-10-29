@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run build --output-logs=errors-only",
-    "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --concurrency=4 --output-logs=errors-only",
+    "typecheck": "TURBO_TELEMETRY_DISABLED=1 TURBO_NO_UPDATE_NOTIFIER=1 turbo run typecheck --output-logs=errors-only",
     "test": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run --all --build",
     "test:gate": "./scripts/with-test-slot.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts step test",
     "test:affected": "./scripts/slot-unless-plan-only.sh node --experimental-strip-types tools/test-runner/src/testing/cli.ts run",
@@ -20,6 +20,7 @@
     "format:hook:install": "./scripts/install-format-hook.sh",
     "test:format": "./scripts/test-formatting.sh",
     "check": "./scripts/check.sh",
+    "admission": "./scripts/check.sh --admission",
     "check:plan": "node --experimental-strip-types tools/test-runner/src/testing/cli.ts plan",
     "check:agents": "PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check && PYTHONDONTWRITEBYTECODE=1 uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check",
     "check:docs": "uv run --locked omne-docs-check",

@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import argparse
-import stat
 import sys
 from pathlib import Path
 
 import yaml
 
 from host_layout import HOSTS
-from projection import Artifact, DEFAULT_RENDERER, compile_sources, no_symlinks
+from projection import Artifact, DEFAULT_RENDERER, compile_sources, file_mode, no_symlinks
 
 
 def deliver(outputs: dict[Path, Artifact], output: Path, check=False, directories=()):
@@ -35,7 +34,7 @@ def deliver(outputs: dict[Path, Artifact], output: Path, check=False, directorie
         existed = target.exists()
         if existed:
             if (not target.is_file() or target.read_bytes() != artifact.content
-                    or stat.S_IMODE(target.stat().st_mode) != artifact.mode):
+                    or file_mode(target) != artifact.mode):
                 raise ValueError(f"output differs; use a fresh staging directory: {relative}")
         elif check:
             raise ValueError(f"missing generated file: {relative}")

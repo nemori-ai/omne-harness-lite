@@ -12,6 +12,7 @@ import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { pnpmCommand } from '../testing/support.ts'
 import {
   MEMBER_DIR_ENV,
   PREFLIGHT_FAILED_ENV,
@@ -49,7 +50,8 @@ const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts?: Record<string, unknown>
 }
 if (typeof manifest.scripts?.['build'] === 'string') {
-  const built = spawnSync('pnpm', ['run', 'build'], { stdio: 'inherit' })
+  const pnpm = pnpmCommand()
+  const built = spawnSync(pnpm.command, [...pnpm.args, 'run', 'build'], { stdio: 'inherit' })
   if (built.status !== 0) process.exit(built.status ?? 1)
 }
 // 直接用 node 起 vitest：pnpm 的 .bin shim 含相对路径，随 node_modules 软链进 sandbox 后不一定还对。

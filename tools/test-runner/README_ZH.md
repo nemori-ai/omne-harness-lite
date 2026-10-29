@@ -19,7 +19,19 @@ pnpm run test:triage --run <运行目录>                # 把那次运行里的
 pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑
 ```
+
+**检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`。
+
+- 每一步只声明先于它完成的步骤，没有依赖的同时跑。
+- 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个；轻步骤（含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个。
+- 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步。`--keep-going` 时其余照跑，依赖失败步骤的不启动。
+- 产物：每步的输出落 `tmp/check-run/<步骤>.log`（名字里的 `:` 换成 `-`，例如 `check-docs.log`）；结束时写逐步耗时表 `tmp/check-run/steps.tsv`，并打印实际走过的关键路径。
+- 准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写准入日志，内容与位置归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。步骤的含义与顺序也归那里。
+- `--list` 打印步骤表，供别的成员核对自己有没有接进来（dev-flow 的接线测试用它）。
+
+自测：`tests/check-graph.spec.ts` 用假步骤核对依赖顺序、轻重两条道的并发上限、失败取消与 keep-going、起不来的命令、逐步表与关键路径。
 
 **分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
 以及把 vitest 的 mode（`fast`／`slow`，不给为两层）翻成 `tagsFilter`。给了 mode 时，`passWithNoTests` 与 `experimental.preParse`
@@ -127,14 +139,24 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 `pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
 调用方已经构建过时（`pnpm run check` 的测试一步、`run --all` 不带 `--build`）带 `--only`，只跑测试任务；
 否则不带，turbo 按任务的 `dependsOn` 在同一次运行里先构建成员及其上游（准入模式下构建缓存只写不读）。
-构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 取 `parallel.memberConcurrency`，每个成员的 vitest 至多起 `parallel.vitestMaxWorkers` 个工作进程。
+构建失败的成员不跑测试，记为失败并点名失败的构建。`--concurrency` 是同时跑的成员数，每个成员的 vitest 至多起 `VITEST_MAX_WORKERS` 个工作进程；两个数由下面的「并行度」推出来。
 一个成员失败不拦其余的，结束时列全失败；退出码只反映测试是否全过。各成员的退出码与起止时间取自 turbo 的运行摘要（`--summarize`），
 摘要里没有某个成员的执行记录时，这个成员记为失败。turbo 的输出按每行的 `<包名>:<任务>: ` 前缀拆成各成员的日志。
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
-turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。两个并行度可用环境变量
-`OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时覆盖——后者是 vitest 自己认的变量，
-会盖过成员配置里的 `maxWorkers`。初值 2 × 4 是在 8 核主机上量出来的：pnpm 默认的 4 个成员并行、
-每个成员最多 7 个工作进程时，全量要 18 到 22 分钟且有十几条用例被挤过时限；2 × 4 约 13 分钟。
+turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
+
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的，那时再采只会把它们当成别的负载而缩预算：快层曾因此只拿到预算 8、跑 89 秒，改后 43 秒）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
+`parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
+空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
+预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
+构建与类型检查的 turbo 并发、Stryker 的工作进程数直接取预算（tsc 与 Stryker 的进程各占一个核）。
+策略只含比例与上下限，不含任何一台机器的核数。初值 3、4、8、2 的依据（`docs/verification.md` 要求写明负载、平台与超限行为）：负载是全量 73 个成员，平台是一台 24 核 Windows 宿主（空闲 0.8，预算 19），2026-10-29 扫描：
+快层的墙钟 ≈ 各成员 vitest 启动与收集之和 ÷ 同时成员数，到 6 至 8 个成员时碰到 CPU 平台期（91 秒降到 39 至 41 秒），再多只让起子进程的用例贴线；
+慢层的下限是起子进程最多的成员（repo-toolchain，28 个慢文件）：它的文件互相挤，每成员 8 个进程比 5 个只快十几秒而文件耗时总和翻倍，所以每成员进程数的除数取 4。
+同一策略在 8 核上推出 3 × 2，这只是预测，没有在 8 核上复测；之前 8 核上量到的固定配置 2 × 4 与 4 × 2 只差约 1 分钟。超限的表现是起子进程的用例贴近时限，账本的 `nearTimeout` 列出它们。
+`memoryPerWorkerMiB` 是安全上限的估计，不是测量：空闲内存少于它乘预算时才起作用。
+预算可用 `OMNE_WORKER_BUDGET`（正整数，超过核数按核数）钉死，不再采样；两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
+会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存，以及是自己采的还是环境变量给的）。
 
 **耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
 `--out` 可直接指定）留下：
@@ -187,7 +209,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   只留计划里要跑测试的 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
   未跟踪的文件整份变异。`--members <成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`--plan-only` 只列范围。
 - **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（sandbox 里的 vitest 配置以 mode `fast` 展开成员配置）、
-  并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。
+  Stryker 的工作进程数取整份工作进程预算（见「并行度」；每个进程里 vitest 只用一个线程）。
   sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
   拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
   （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。
@@ -328,7 +350,7 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
 - 复核又超时算测出来（见上文「超时的计分」）。机器上别的负载使复核也慢出 60 秒以上时，这个判定不是变异造成的。
 - static 变异体的运行可能没有类型测试（见上文「类型测试缺席」）。读数写明次数，判定不受影响。
 
-自测：`tests/mutation.spec.ts`，其中一条在夹具项目上真起 Stryker（归慢层）：没断言的测试留下存活变异体，
+自测：`tests/mutation*.spec.ts`。在夹具项目上真起 Stryker 的用例归慢层，按场景分在 `tests/mutation-stryker-*.spec.ts`：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox；有测试文件只在 sandbox 里加载失败时，
 预检报错、不出读数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
 `--out` 目录里留着上一次的预检标记时，这一次照常出读数；快层没有用例时预检通过、由 Stryker 报错；
@@ -337,4 +359,4 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
 static 变异体使测试里的循环停不下来时，复核仍超时，算测出来；只改 `as const` 声明时 Stryker 不生成变异体，读数报未覆盖。
 
 公开委托、第一次拒绝、生命周期失败、RuntimeError 使成员无效、命中次数超限原因与钉住版本一致、`RunReporter` 出错不让运行失败的快层验证见 `tests/mutation-guard.spec.ts`。复核上限的配置与环境变量见 `tests/test-runs.spec.ts`。
-超时复核的分类、上限与配置、类型测试读数（含没测到）、未覆盖的改动段与分数的写法、静态部分收集错误、复核、真的挂起、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation.spec.ts`。
+超时复核的分类、上限与配置、类型测试读数（含没测到）、未覆盖的改动段与分数的写法见 `tests/mutation.spec.ts`。静态部分收集错误、复核、真的挂起、多 worker 与同 out 重跑的真实 CLI 回归见 `tests/mutation-stryker-*.spec.ts`。

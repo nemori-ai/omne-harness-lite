@@ -14,6 +14,7 @@ export {
   type RunTier,
 } from '@omne-harness/repo-toolchain/core/test-ledger'
 import type { Parallelism } from '@omne-harness/repo-toolchain/core/test-ledger'
+import { deriveParallelism, type Budget, type ParallelPolicy } from './parallelism.ts'
 
 /**
  * 影响面的路径规则（`src/testing/affected.ts`）。路径模式都相对仓库根：`*` 不跨目录，`**` 跨目录。
@@ -45,7 +46,8 @@ export interface ReaderRule {
 }
 
 export interface TestRunsConfig {
-  readonly parallel: Parallelism
+  /** 并行度策略：并行度本身由机器推出来，见 `parallelism.ts`。 */
+  readonly parallel: ParallelPolicy
   readonly affected: AffectedRules
   readonly ledger: {
     readonly slowFileSeconds: number
@@ -145,23 +147,34 @@ function parseAffected(raw: Record<string, unknown> | undefined): AffectedRules 
 
 export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
   const raw = parsed as {
-    parallel?: { memberConcurrency?: unknown; vitestMaxWorkers?: unknown }
+    parallel?: {
+      memberDivisor?: unknown
+      workerDivisor?: unknown
+      maxWorkersPerMember?: unknown
+      minimum?: unknown
+      memoryPerWorkerMiB?: unknown
+      sampleMs?: unknown
+    }
     affected?: Record<string, unknown>
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
     mutation?: { testTimeoutSeconds?: unknown; recheckMaxMutants?: unknown }
   }
+  const parallel = {
+    memberDivisor: positive(raw.parallel?.memberDivisor, 'parallel.memberDivisor'),
+    workerDivisor: positive(raw.parallel?.workerDivisor, 'parallel.workerDivisor'),
+    maxWorkersPerMember: positiveInteger(
+      raw.parallel?.maxWorkersPerMember,
+      'parallel.maxWorkersPerMember',
+    ),
+    minimum: positiveInteger(raw.parallel?.minimum, 'parallel.minimum'),
+    memoryPerWorkerMiB: positive(raw.parallel?.memoryPerWorkerMiB, 'parallel.memoryPerWorkerMiB'),
+    sampleMs: nonNegativeInteger(raw.parallel?.sampleMs, 'parallel.sampleMs'),
+  }
+  if (parallel.minimum > parallel.maxWorkersPerMember)
+    throw new Error('parallel.minimum 不能大于 parallel.maxWorkersPerMember')
   return {
-    parallel: {
-      memberConcurrency: positiveInteger(
-        raw.parallel?.memberConcurrency,
-        'parallel.memberConcurrency',
-      ),
-      vitestMaxWorkers: positiveInteger(
-        raw.parallel?.vitestMaxWorkers,
-        'parallel.vitestMaxWorkers',
-      ),
-    },
+    parallel,
     affected: parseAffected(raw.affected),
     ledger: {
       slowFileSeconds: positive(raw.ledger?.slowFileSeconds, 'ledger.slowFileSeconds'),
@@ -194,20 +207,40 @@ export const MEMBER_CONCURRENCY_ENV = 'OMNE_TEST_MEMBER_CONCURRENCY'
 /** vitest 自己认的工作进程上限；设了它，各成员配置里的 `maxWorkers` 也被它盖过。 */
 export const VITEST_MAX_WORKERS_ENV = 'VITEST_MAX_WORKERS'
 
-/** 配置给初值，环境变量已设的以环境变量为准。 */
+/** 环境变量 `name` 设了就用它（须为正整数），没设用 `fallback`。 */
+function positiveIntegerOverride(
+  env: Readonly<Record<string, string | undefined>>,
+  name: string,
+  fallback: number,
+): number {
+  const value = env[name]
+  if (value === undefined || value === '') return fallback
+  if (!/^[1-9]\d*$/u.test(value)) throw new Error(`环境变量 ${name} 须为正整数，现在是 ${value}`)
+  return Number(value)
+}
+
+/** 一份运行能起的工作进程数：`VITEST_MAX_WORKERS` 已设时以它为准，否则取 `fallback`（例如整份预算）。 */
+export function workerCountOverride(
+  env: Readonly<Record<string, string | undefined>>,
+  fallback: number,
+): number {
+  return positiveIntegerOverride(env, VITEST_MAX_WORKERS_ENV, fallback)
+}
+
+/** 并行度：按策略从预算推出来；环境变量已设的以环境变量为准。 */
 export function effectiveParallelism(
   config: TestRunsConfig,
   env: Readonly<Record<string, string | undefined>>,
+  budget: Budget,
 ): Parallelism {
-  const override = (name: string, fallback: number) => {
-    const value = env[name]
-    if (value === undefined || value === '') return fallback
-    if (!/^[1-9]\d*$/u.test(value)) throw new Error(`环境变量 ${name} 须为正整数，现在是 ${value}`)
-    return Number(value)
-  }
+  const derived = deriveParallelism(budget, config.parallel)
   return {
-    memberConcurrency: override(MEMBER_CONCURRENCY_ENV, config.parallel.memberConcurrency),
-    vitestMaxWorkers: override(VITEST_MAX_WORKERS_ENV, config.parallel.vitestMaxWorkers),
+    memberConcurrency: positiveIntegerOverride(
+      env,
+      MEMBER_CONCURRENCY_ENV,
+      derived.memberConcurrency,
+    ),
+    vitestMaxWorkers: workerCountOverride(env, derived.vitestMaxWorkers),
   }
 }
 

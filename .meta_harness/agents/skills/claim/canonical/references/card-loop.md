@@ -98,7 +98,7 @@
 ## 准入
 
 1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线内的卡在波内不合并联调轨道，这一条不适用。
-2. 运行 `OMNE_ADMISSION=1 pnpm run check`。卡要求时加 `FULL=1`。按准入锁排队，日志记录 head 并传出真实退出码（P13）。
+2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。它按准入锁排队，并把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。
 3. 准入期间不提交（P11）、不做占 CPU 的事（P12）。可以写交接报告与下一张卡的简报。
 4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。修复后在新的最终 head 上再跑一次。
 
