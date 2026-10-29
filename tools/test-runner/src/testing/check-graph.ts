@@ -1,11 +1,11 @@
 // `pnpm run check` 的步骤图运行器：步骤只声明「先于我完成的步骤」，没有依赖的就同时跑。
 // 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程把机器占满，所以同时至多 `heavyConcurrency` 个（缺省 1）；
-// 轻步骤（单线程检查，含 pytest）受 `lightConcurrency` 限制，免得在核少的机器上把重步骤挤慢。
+// 轻步骤（单线程检查，含 pytest）受 `lightConcurrency` 限制，免得在核少的机器上把重步骤挤慢；两类步骤同等优先级：
+// 把轻步骤降级量过（24 核），pytest 与 check:docs 这些关键路径上的轻步骤被挤慢 40% 到 100%，重步骤早完成的时间全空等。
 // 任一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步；`keepGoing` 时其余照跑，依赖失败步骤的不启动。
 // 每步的输出落自己的日志。
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process'
 import { closeSync, mkdirSync, openSync, rmSync, writeSync } from 'node:fs'
-import { constants, setPriority } from 'node:os'
 import { join } from 'node:path'
 
 /** 一条命令：可执行文件与参数，至少有可执行文件。 */
@@ -194,13 +194,6 @@ export async function runGraph(
           detached: process.platform !== 'win32',
         })
         running.set(step.name, child)
-        // 轻步骤降到低优先级：它们填重步骤留下的空，不和按预算占满机器的重步骤抢核。起不来的进程没有 pid，跳过。
-        if (!step.heavy && child.pid !== undefined)
-          try {
-            setPriority(child.pid, constants.priority.PRIORITY_BELOW_NORMAL)
-          } catch {
-            // 平台不让改优先级时照常跑
-          }
         const opened = log
         child.once('error', error => failToStart(`起不来：${message(error)}`, opened))
         child.once('exit', (code, signal) =>

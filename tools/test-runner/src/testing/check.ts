@@ -151,8 +151,8 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
   writePlanFile(join(root, PLAN_FILE), plan)
 
   const steps = checkSteps({ ...STEP_INPUTS, baseline: targetBase })
-  // 预算在起任何步骤之前、机器安静时采一次，交给各重步骤：重步骤开始时跑着的轻步骤是本图自己的（已降低优先级），
-  // 那时再采样只会把它们当成别的负载。CI 设了 OMNE_WORKER_BUDGET 时原样交下去。
+  // 预算在起任何步骤之前、机器安静时采一次，交给各重步骤：重步骤开始时跑着的轻步骤是本图自己的，
+  // 那时再采样只会把它们当成别的负载而缩预算。CI 设了 OMNE_WORKER_BUDGET 时原样交下去。
   const policy = readTestRunsConfig().parallel
   const budget = await budgetFor(policy, env)
   env[WORKER_BUDGET_ENV] = String(budget.workers)
@@ -161,7 +161,7 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
     `${describeBudget(budget)}；成员测试同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（环境变量已设的以环境变量为准）`,
   )
   say(
-    `${steps.length} 步按依赖并行（重步骤一次一个、轻步骤同时至多 ${lightConcurrency(cores)} 个且降低优先级${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${CHECK_RUN_DIR}/`,
+    `${steps.length} 步按依赖并行（重步骤一次一个、轻步骤同时至多 ${lightConcurrency(cores)} 个${options.keepGoing ? '；失败后继续跑其余步骤' : '；一步失败其余终止'}）；日志在 ${CHECK_RUN_DIR}/`,
   )
   const run = await runGraph(steps, {
     root,

@@ -32,13 +32,13 @@ export interface Machine {
 export interface Budget {
   readonly workers: number
   readonly machine: Machine
-  /** 来历：这一步自己采样推出的，还是调用方经 `OMNE_WORKER_BUDGET` 交下来的（检查图在开始前安静时采一次，交给各重步骤）。 */
+  /** 来历：这一步自己采样推出的，还是调用方经 `OMNE_WORKER_BUDGET` 交下来的（检查图在开始前机器安静时采一次，交给各重步骤）。 */
   readonly source: 'sampled' | 'env'
 }
 
 /**
  * 调用方交下来的预算。`pnpm run check` 在起任何步骤之前采样一次，再经它交给各重步骤：
- * 重步骤开始时机器上跑着的是本图自己的轻步骤（已降低优先级），那时采样会把它们当成别的负载而缩预算。
+ * 重步骤开始时机器上跑着的是本图自己的轻步骤，那时采样会把它们当成别的负载而缩预算。
  * CI 要钉死预算时也设它。
  */
 export const WORKER_BUDGET_ENV = 'OMNE_WORKER_BUDGET'

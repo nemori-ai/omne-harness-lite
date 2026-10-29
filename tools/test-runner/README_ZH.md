@@ -145,7 +145,7 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 报告里出现嵌套归档目录中的测试文件时，这个成员也判失败：成员配置的排除没有生效。
 turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；测试任务不缓存，两者在这里都只决定变量能不能传进去。
 
-**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的、已降到低优先级，那时再采只会把它们当成别的负载而缩预算）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
+**并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的，那时再采只会把它们当成别的负载而缩预算：快层曾因此只拿到预算 8、跑 89 秒，改后 43 秒）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
 `parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。
 空闲率让已经忙着的机器（同时跑着的别的检查步骤、后台程序）少被挤；运行名额挡的是整套检查，挡不住别的负载。
 预算按 `test-runs.config.json` 的 `parallel` 策略分：同时成员数 = ceil(预算 ÷ `memberDivisor`)，每成员工作进程 = ceil(预算 ÷ `workerDivisor`)，两者不低于 `minimum`，后者不高于 `maxWorkersPerMember`。
