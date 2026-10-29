@@ -528,7 +528,7 @@ def test_tracked_intact_allows_untracked_output_only(tiny: dict[str, Any]) -> No
 def test_the_delivery_brief_names_both_commits_and_the_note(tiny: dict[str, Any]) -> None:
     flow = tiny["flows"]["tiny-delivery"]
     text = review.delivery_brief(flow.materials[0], Path("/w"), {"baseline": "b" * 40, "head": "h" * 40})
-    assert text == f"审 `/w`：基线 `{'b' * 40}`，交付 `{'h' * 40}`。\n\n- 只改了 member。\n"
+    assert text == f"审 `{Path('/w')}`：基线 `{'b' * 40}`，交付 `{'h' * 40}`。\n\n- 只改了 member。\n"
 
 
 # --- 用 cli 走一遍：准备、派发、收录 ----------------------------------------------------------------------------
@@ -834,8 +834,9 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
             else:
                 workspace.git(repo, "show", f"{base}:{op['file']}")
         if flow.family == "implement":
+            # stub_files gives native relative paths; a Git object name takes forward slashes.
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
-                workspace.git(repo, "show", f"{base}:{path}")
+                workspace.git(repo, "show", f"{base}:{Path(path).as_posix()}")
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "write-tests":
             for path in material.task["hidden_tests"]:
