@@ -105,6 +105,18 @@ type Qualification<P, X> = (input: Access<P> & X) => boolean
  */
 export type JointDecision = Readonly<{ evidence: DurableEvidence; digest: string }>
 
+/**
+ * The answer of a public write whose participation was decided for a revision that a concurrent
+ * write of the same execution has since passed: nothing of this call is committed, the decision is
+ * not asked again within the call, and a retry decides the participation at the current revision.
+ */
+export const outrunParticipation: Failure = {
+  kind: 'unavailable',
+  owner: 'session-qualification',
+  diagnostic:
+    'the execution revision advanced after the Session decision; this call committed nothing and can be retried',
+}
+
 export type MemoryAgentJournalOptions<P> = Readonly<{
   prepareResult?: (
     input: ExecutionMutation<P>,
@@ -589,28 +601,26 @@ export function createJournal<P>(
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
   }
 
-  // One operation at one revision issues one evidence: a reservation before the transaction and
-  // the preparation inside it name the same receipt.
-  const issued = new Map<string, DurableEvidence>()
-  function nextEvidence(
-    execution: Execution,
-    what: string,
-    operation: AgentOperationId,
-    revision: number,
-  ): DurableEvidence {
-    const at = JSON.stringify([execution.id, what, operation, revision])
-    const prior = issued.get(at)
-    if (prior !== undefined) return cell.issueEvidence(prior)
-    execution.serial += 1
-    const evidence = journalEvidence(
-      `${cell.namespace}/${execution.id}/${what}/${execution.serial}`,
-      revision,
+  /**
+   * The evidence of the next write of `execution`. Inside a common-root transaction it advances the
+   * serial of the transaction's copy, which a refused transaction discards. Outside one (the
+   * reservation and the preview before a result preparation) it only reads: the published root
+   * is not written.
+   */
+  function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
+    const serial = execution.serial + 1
+    if (cell.writing()) execution.serial = serial
+    return cell.issueEvidence(
+      journalEvidence(`${cell.namespace}/${execution.id}/${what}/${serial}`, revision),
     )
-    issued.set(at, evidence)
-    return cell.issueEvidence(evidence)
   }
 
-  /** The receipt a public write will issue, or the one it will recognize, before its transaction. */
+  /**
+   * The receipt a public write would issue if it committed now, or the one it recognizes, before
+   * its transaction. It runs outside any transaction, so it only reads the published root; the
+   * transaction's own preparation advances the serial, and a refused or outrun call leaves
+   * nothing behind.
+   */
   function reservedReceipt(
     method: 'commit' | 'recordResult',
     input: ExecutionMutation<P>,
@@ -627,7 +637,7 @@ export function createJournal<P>(
       execution,
       input.operation,
       revision,
-      nextEvidence(execution, what, input.operation, revision),
+      nextEvidence(execution, what, revision),
       'applied',
     )
   }
@@ -717,6 +727,15 @@ export function createJournal<P>(
         if (receipt === undefined) return fail(denied(method))
         const qualified = await options.qualifyParticipation(input, method, receipt)
         if ('failure' in qualified) return qualified
+        // A write of the same execution committed while the decision was outstanding: stop before
+        // any Session preparation. The joint publication checks the decided command again.
+        const current = reservedReceipt(method, input, key)
+        if (
+          current === undefined ||
+          current.revision !== receipt.revision ||
+          !sameEvidence(current.evidence, receipt.evidence)
+        )
+          return fail(outrunParticipation)
         decision = qualified.ok
       }
       if (options.prepareResult && (caller.kind === 'custody' || caller.kind === 'processed')) {
@@ -1091,7 +1110,7 @@ export function createJournal<P>(
           entries: [],
           serial: 0,
         }
-        const evidence = nextEvidence(execution, 'open', input.operation, 1)
+        const evidence = nextEvidence(execution, 'open', 1)
         const authority: Authority = {
           execution: input.execution,
           executionAttachment: attachmentIdOf(input.execution, 1),
@@ -1132,7 +1151,7 @@ export function createJournal<P>(
         }
         const revision = execution.revision + 1
         const ordinal = execution.attachments.length + 1
-        const evidence = nextEvidence(execution, 'attach', input.operation, revision)
+        const evidence = nextEvidence(execution, 'attach', revision)
         const authority: Authority = {
           execution: execution.id,
           executionAttachment: attachmentIdOf(execution.id, ordinal),
@@ -1174,7 +1193,7 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         const revision = execution.revision + 1
-        const handoff = nextEvidence(execution, 'handoff', input.operation, revision)
+        const handoff = nextEvidence(execution, 'handoff', revision)
         const receipt = receiptOf(execution, input.operation, revision, handoff, 'applied')
         return {
           kind: 'write',
@@ -1259,7 +1278,7 @@ export function createJournal<P>(
           }
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'commit', input.operation, revision)
+        const evidence = nextEvidence(execution, 'commit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const caller = input.caller
         return {
@@ -1311,7 +1330,7 @@ export function createJournal<P>(
           }
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'submit', input.operation, revision)
+        const evidence = nextEvidence(execution, 'submit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
         return {
           kind: 'write',
@@ -1344,7 +1363,7 @@ export function createJournal<P>(
         const target = controlTarget(input.command, pendingCalls(execution), execution.tenant)
         if ('failure' in target) return answer(target)
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'control', input.operation, revision)
+        const evidence = nextEvidence(execution, 'control', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
         return {
           kind: 'write',
@@ -1388,7 +1407,7 @@ export function createJournal<P>(
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'acknowledge', input.operation, revision)
+        const evidence = nextEvidence(execution, 'acknowledge', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',
@@ -1458,7 +1477,7 @@ export function createJournal<P>(
           return rejected
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'result', input.operation, revision)
+        const evidence = nextEvidence(execution, 'result', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const responsibility: ResultResponsibility = {
           result: copy(input.result),
@@ -1551,7 +1570,7 @@ export function createJournal<P>(
             return answer(fail(conflict(input.operation)))
           }
           const revision = execution.revision + 1
-          const evidence = nextEvidence(execution, 'record-control', input.operation, revision)
+          const evidence = nextEvidence(execution, 'record-control', revision)
           const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
           const ended = execution.state.kind === 'ended'
           return {
@@ -1632,7 +1651,7 @@ export function createJournal<P>(
         const blocked = blockedReason(execution, input.operation, authorization.kind)
         if (blocked !== undefined) return answer(succeed(blocked))
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'finish', input.operation, revision)
+        const evidence = nextEvidence(execution, 'finish', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const conclusion = copy(input.intent.conclusion)
         const observations: TerminalObservation[] = execution.checkpoint.passages
@@ -1688,7 +1707,7 @@ export function createJournal<P>(
           if (first !== undefined) return answer(succeed(copy(first)))
         }
         const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'observation', input.operation, revision)
+        const evidence = nextEvidence(execution, 'observation', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',

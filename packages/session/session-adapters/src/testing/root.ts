@@ -338,6 +338,8 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       notifications.add(execution)
     },
     current: () => root,
+    /** Whether a common-root transaction is open: only then may a preparation write. */
+    writing: () => draft !== null,
     issueEvidence(evidence: import('@omne-harness/agent-contract').DurableEvidence) {
       return activeWrite
         ? (plannedEvidence.get(key(activeWrite.input, activeWrite.method))?.evidence ?? evidence)

@@ -30,6 +30,16 @@ import { resultCall } from './fixtures/result-call.ts'
 import { accept, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
+// The answer of a write whose participation decision a concurrent write of the same execution
+// outran: retryable unavailable from the Session qualification, never a failure outside the
+// `recordResult` set.
+const outrun = {
+  failure: {
+    kind: 'unavailable',
+    owner: 'session-qualification',
+    diagnostic: expect.stringContaining('can be retried'),
+  },
+}
 type Joint = 'message' | 'context-transition' | 'custody' | 'processed'
 type CommitRequest = Parameters<AgentJournal<string>['commit']>[0]
 type ResultRequest = Parameters<AgentJournal<string>['recordResult']>[0]
@@ -286,7 +296,7 @@ it('the scene policy itself refuses a Session read of another tenant', async () 
   ])
 })
 
-it('a participation decided before a concurrent write advanced the execution is not committed and can be retried', async () => {
+it('a participation decided before a concurrent write advanced the execution stops before any Session preparation and can be retried', async () => {
   const qualification: SceneQualification = { agent: true, session: true }
   const s = await resultCall('decided-then-advanced', qualification)
   const first: ResultRequest = s.request
@@ -314,13 +324,7 @@ it('a participation decided before a concurrent write advanced the execution is 
     agentAnswer: await s.view.journal.query(first),
   }
   released.resolve()
-  expect(await pending).toEqual({
-    failure: {
-      kind: 'unavailable',
-      owner: 'session-qualification',
-      diagnostic: expect.stringContaining('retry'),
-    },
-  })
+  expect(await pending).toEqual(outrun)
   expect({
     root: s.view.controls.root(),
     rows: s.backend.controls.entriesOf(s.access.tenant, s.access.session),
@@ -335,6 +339,38 @@ it('a participation decided before a concurrent write advanced the execution is 
       .map(request => request.operation),
   ).toEqual(['preserveResult'])
   expect(await s.view.journal.query(first)).toEqual({ ok: { kind: 'committed', receipt } })
+})
+
+it('a participation whose decided command a write during the result preparation outran commits no joint half and can be retried', async () => {
+  const s = await resultCall('prepared-then-advanced')
+  const first: ResultRequest = s.request
+  const second: ResultRequest = {
+    ...s.request,
+    operation: operation('result-plain'),
+    transfer: { kind: 'none' },
+  }
+  const custody = deriveSessionOperation({
+    kind: 'participation',
+    execution: first.execution,
+    operation: first.operation,
+    joint: 'custody',
+  })
+  const pause = s.backend.controls.pauseSession({
+    ...s.access,
+    operation: s.view.controls.resultPreparationOperation(first, 'recordResult'),
+  })
+  const pending = s.view.journal.recordResult(first)
+  await pause.reached
+  // The decision is in hand and the preparation is waiting to publish: a write that needs no
+  // participation advances the execution, so the decided command names a passed revision.
+  ok(await s.view.journal.recordResult(second))
+  pause.release()
+  expect(await pending).toEqual(outrun)
+  expect(await s.view.journal.query(first)).toEqual({ ok: { kind: 'unknown' } })
+  expect(s.backend.controls.decisionOf(s.access.tenant, s.access.session, custody)).toBeNull()
+  const receipt = ok(await s.view.journal.recordResult(first))
+  expect(await s.view.journal.query(first)).toEqual({ ok: { kind: 'committed', receipt } })
+  expect(s.backend.controls.decisionOf(s.access.tenant, s.access.session, custody)).not.toBeNull()
 })
 
 for (const answer of ['denied', 'unavailable'] as const)

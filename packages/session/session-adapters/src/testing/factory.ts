@@ -40,7 +40,12 @@ import {
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import { operationSemantic, createCell, type JournalCell, type SessionState } from './root.ts'
-import { createJournal, type JointDecision, type JournalWrite } from './journal.ts'
+import {
+  createJournal,
+  outrunParticipation,
+  type JointDecision,
+  type JournalWrite,
+} from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
   history,
@@ -567,14 +572,17 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     if ('failure' in derived) return derived.failure
     const command = derived.ok
     // The Session half commits with the decision this public call obtained before publication,
-    // and only for the command that was decided.
+    // and only for the command that was decided. A write of the same execution that committed
+    // while the decision was outstanding changes the revision the participation names; this call
+    // then commits nothing and is not decided again (one decision per public write), and a retry
+    // decides the participation at the current revision.
     if (decision === null)
       return {
         kind: 'unavailable',
         owner: 'session-qualification',
         diagnostic: 'participation without a current Session decision',
       }
-    if (decision.digest !== commandDigest(command)) return { kind: 'changed' }
+    if (decision.digest !== commandDigest(command)) return outrunParticipation
     const outcome = base.prepareCommand({ command, guards: [], decision: decision.evidence })
     if (!('failure' in outcome)) return undefined
     if (
