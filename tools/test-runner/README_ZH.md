@@ -19,7 +19,14 @@ pnpm run test:triage --run <运行目录>                # 把那次运行里的
 pnpm run test                                       # 全量两层：turbo 先构建，再跑全部成员（同 pnpm run test:tier all）
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额
 ```
+
+**检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`，
+每一步只声明先于它完成的步骤，没有依赖的同时跑；重步骤自己按预算起多进程，轻步骤同时至多 `max(2, 核数 ÷ 3)` 个；一步失败其余终止（`--keep-going` 时照跑，依赖失败步骤的不启动），
+退出码取第一个失败的那一步。每步的输出落 `tmp/check-run/<步骤>.log`，结束写逐步耗时表 `tmp/check-run/steps.tsv` 并打印实际走过的关键路径。
+准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写 `tmp/admission/<时间>-<head>.log`：命令、head、基线、核数、逐步结果与末行 `exit=<码>`。步骤的含义与顺序归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。
+自测：`tests/check-graph.spec.ts` 用假步骤核对依赖顺序、轻步骤并发上限、失败取消与 keep-going、起不来的命令、逐步表与关键路径。
 
 **分层。**测试分快慢两层，定义只在仓库根 [`vitest.tiers.mts`](../../vitest.tiers.mts) 写一处：一个 `slow` 标签（带慢层时限 120 秒），
 以及把 vitest 的 mode（`fast`／`slow`，不给为两层）翻成 `tagsFilter`。给了 mode 时，`passWithNoTests` 与 `experimental.preParse`
@@ -196,7 +203,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   只留计划里要跑测试的 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
   未跟踪的文件整份变异。`--members <成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`--plan-only` 只列范围。
 - **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（sandbox 里的 vitest 配置以 mode `fast` 展开成员配置）、
-  并行度取 `test-runs.config.json` 的 `parallel.vitestMaxWorkers`（环境变量 `VITEST_MAX_WORKERS` 可改）。
+  Stryker 的工作进程数取整份工作进程预算（见「并行度」；每个进程里 vitest 只用一个线程）。
   sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
   拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
   （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。

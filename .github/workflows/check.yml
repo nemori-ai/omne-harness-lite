@@ -49,8 +49,8 @@ jobs:
         run: uv run --locked python .meta_harness/tooling/src/initialize_agents.py --project-root .
         env:
           PYTHONDONTWRITEBYTECODE: '1'
-      # 并行度的初值在 tools/test-runner/test-runs.config.json；这两个仓库变量留空即用初值，
-      # runner 主机核数不同时再设。pnpm run check 自己会占一个运行名额，与主机上别的全量检查排队。
+      # 并行度由运行器按 runner 主机的核数、空闲率与内存推出来（策略在 tools/test-runner/test-runs.config.json）；
+      # 这两个仓库变量留空即用推出的值，要钉死时再设。pnpm run check 自己会占一个运行名额，与主机上别的全量检查排队。
       - name: pnpm run check
         run: nice -n 10 pnpm run check
         env:
