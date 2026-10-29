@@ -46,7 +46,7 @@
 
 - 读者角色：<id>。查询命令与输出位置：<路径>
 - 执行角色：<角色>，`implementation_kind`：<product|terminal|verification>
-- 本线共用的 pstack 与 Matt 技能：<名称列表>
+- 本线共用的三层技能（流程、写法、品味，见 `docs/engineering/skills.md`「三层分工」）：<名称列表>
 ```
 
 ## 本卡附录

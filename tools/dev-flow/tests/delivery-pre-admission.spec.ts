@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { preAdmission, preAdmissionSteps } from '../src/delivery/pre-admission.ts'
-import { UUID, NEXT_UUID } from './fixtures/collaboration.ts'
+import { UUID, NEXT_UUID } from './fixtures/identifiers.ts'
 
 const roots: string[] = []
 afterEach(() => roots.splice(0).forEach(root => rmSync(root, { recursive: true, force: true })))

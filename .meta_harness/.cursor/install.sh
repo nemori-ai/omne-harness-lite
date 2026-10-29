@@ -51,6 +51,17 @@ if [ "$(id -un)" = "ubuntu" ] && sudo -n true 2>/dev/null; then
         printf '%s\n' "$revision" > "$HOME/.agents/matt-skills-revision"
         rm -rf "$tmp" "$HOME/.npm"
     fi
+    ub_mode_revision=$(sed -n 's/^ARG UB_MODE_REVISION=//p' "$dockerfile")
+    test -n "$ub_mode_revision"
+    ub_mode_dir="$HOME/.cursor/skills/ub-mode"
+    installed=$(cat "$HOME/.cursor/ub-mode-revision" 2>/dev/null || true)
+    if [ "$installed" != "$ub_mode_revision" ] || [ ! -f "$ub_mode_dir/SKILL.md" ]; then
+        mkdir -p "$ub_mode_dir"
+        curl -fsSL "https://raw.githubusercontent.com/unclebob/ub-mode/${ub_mode_revision}/SKILL.md" \
+            -o "$ub_mode_dir/SKILL.md"
+        grep -q '^name: ub-mode$' "$ub_mode_dir/SKILL.md"
+        printf '%s\n' "$ub_mode_revision" > "$HOME/.cursor/ub-mode-revision"
+    fi
     git config --global --get user.name | grep -Fqx "$human_name"
     git config --global --get user.email | grep -Fqx "$human_email"
 fi

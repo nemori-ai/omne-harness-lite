@@ -1,6 +1,16 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { AdmissionCapture } from '../src/delivery/admission.ts'
 import { readTaskBinding, type TaskBindingV2 } from '../src/delivery/binding.ts'
@@ -318,6 +328,24 @@ describe('posting and binding', () => {
     expect(gh.state.comment).toContain(`"dispatch": "${url}#issuecomment-55"`)
   })
 
+  it.each([
+    ['an empty text', ''],
+    ['a whitespace-only text', ' \n\t\n  '],
+  ])('refuses %s before any GitHub call', (_name, prose) => {
+    const gh = github()
+    const post = () =>
+      postDispatch({
+        repository: 'owner/repo',
+        plan: posted,
+        basis: spec.basis,
+        prose,
+        call: gh.call,
+      })
+    expect(post).toThrow('--text is empty or holds only whitespace')
+    expect(post).toThrow(expect.objectContaining({ name: 'IntegrationError', code: 'input-error' }))
+    expect(gh.calls).toEqual([])
+  })
+
   it('hands over the posted dispatch before a readback that fails, and names it in the error', () => {
     const gh = github()
     const failing: GhCommand = (argv, timeout) => {
@@ -422,6 +450,53 @@ describe('posting and binding', () => {
       bindCard({ repository: 'owner/repo', binding, dryRun: false, call: gh.call }),
     ).toMatchObject({ applied: true, verified: true })
     expect(gh.calls.map(c => c[2])).toEqual(['GET', 'PATCH', 'GET'])
+  })
+})
+
+describe('dispatch-cli post with an empty text', () => {
+  const homes: string[] = []
+  afterAll(() => {
+    for (const home of homes) rmSync(home, { recursive: true, force: true })
+  })
+  const cli = fileURLToPath(new URL('../src/delivery/dispatch-cli.ts', import.meta.url))
+
+  // Slow: each case runs dispatch-cli as a child process with a `gh` stand-in on PATH.
+  it.each([
+    ['an empty file', ''],
+    ['a whitespace-only file', '\n   \n\t\n'],
+  ])('exits 2 for %s and never runs gh', { tags: ['slow'] }, (_name, prose) => {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-dispatch-cli-')))
+    homes.push(home)
+    const bin = join(home, 'bin'),
+      calls = join(home, 'gh-calls.log')
+    mkdirSync(bin)
+    writeFileSync(join(bin, 'gh'), `#!/bin/sh\necho "$@" >> '${calls}'\nexit 1\n`)
+    chmodSync(join(bin, 'gh'), 0o755)
+    writeFileSync(join(home, 'spec.json'), JSON.stringify(spec))
+    writeFileSync(join(home, 'prose.md'), prose)
+    const result = spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        cli,
+        'post',
+        '--spec',
+        join(home, 'spec.json'),
+        '--text',
+        join(home, 'prose.md'),
+        '--root',
+        home,
+      ],
+      { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` } },
+    )
+    expect(result.status).toBe(2)
+    expect(JSON.parse(result.stderr)).toMatchObject({
+      kind: 'dispatch-error',
+      code: 'input-error',
+      message: expect.stringContaining('--text is empty or holds only whitespace'),
+    })
+    expect(result.stdout).toBe('')
+    expect(existsSync(calls)).toBe(false)
   })
 })
 

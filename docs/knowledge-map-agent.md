@@ -30,7 +30,7 @@
 | 目标能力组、包边界、SDK及新增扩展 | [docs/package-organization.md](package-organization.md)、[docs/workspace.md](workspace.md) | 前者维护目标组织，后者维护源码归属与实际工具边界；新目录不批准实施 |
 | 能力组内工程分解、成员依赖、关键流程及共同维护 | [packages/<domain>/](../packages/README.md)的README及按需工程专题 | 与docs领域关系分开；成员未具名时保留承接缺项，不创建组根统一SPEC代替成员 |
 | 公开形状、必要行为、内部机制、使用与持续资源 | 实际[packages](../packages/README.md)、[apps](../apps/README.md)、[tools](../tools/README.md)成员 | 类型/Schema拥有形状；SPEC拥有非类型行为；docs维护机制及使用；verification/tests/acceptance维护相称资源。完整必要行为不受“薄SPEC”篇幅限制 |
-| 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，通用方法引用已采用pstack/Matt技能。精确来源、版本及宿主读取归skills页；技能名字不证明实际加载或遵循 |
+| 工程规则、任务场景、技能采用与交付 | [docs/engineering/](engineering/README.md)、[CONTRIBUTING](../CONTRIBUTING.md)、[development](development.md) | 项目额外约束归工程拥有者，通用方法引用三层方法（poteto-mode、Matt、ub-mode）。精确来源、版本及宿主读取归skills页；技能名字不证明实际加载或遵循 |
 | 正式技术提案与最小决定、写回关系 | [docs/rfcs/](rfcs/README.md) | 正式条目按真实审议产生，初始空骨架不制造历史；提案不是当前完整规范，获准范围须写回实际拥有者 |
 | 一次交付范围、条件、具名接受及恢复定位 | 实际GitHub Issue，入口为[agent-delivery](engineering/agent-delivery.md) | feature/bug/refactor/performance/maintenance/investigation为普通任务类型；不维护专门产品卡。Project为派生调度视图，先读单一配置的启用范围，平台关闭不授予接受 |
 | 统一概念、正式用语及英文名 | [.meta_harness/design/ubiquitous_language/](../.meta_harness/design/ubiquitous_language/README.md) | 用词读取词条，不另建同义词表；改概念加载ubiquitous-language，单纯消费词条不加载治理技能 |

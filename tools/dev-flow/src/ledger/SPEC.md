@@ -34,7 +34,7 @@
 | `map_a`、`map_admit_fail` | 归到该卡的线侧准入运行数，以及其中失败的运行数。见「线侧准入运行归卡」 |
 | `map_S_admit_min` | 归到该卡的线侧准入运行的 `wallSeconds` 之和，单位分钟，一位小数。只来自 `--admission` |
 | `map_admission_evidence` | 有交接报告评论时：任一交接报告评论同时含「准入」与 `exit=0` 或「退出 0」为 `true`，否则为 `false`。没有交接报告评论时为空（评论匹配） |
-| `session_restarts` | 只对带 `level:delivery` 标签、且至少有一条含 `<!-- line-state -->` 的评论的卡（线父卡）：这类评论的条数减一。其他卡为空（评论匹配） |
+| `session_restarts` | 只对带 `level:delivery` 标签、且至少有一条含 `<!-- line-state -->` 的评论的卡（线父卡）：这类评论的条数减一。其他卡为空（评论匹配）。当前的线协作不产生这种评论，没有这种评论的卡此列为空。含这种评论的历史线父卡按原评论计算 |
 | `contract_change_declared` | 「身份与责任」里唯一的「契约变更」值 |
 
 一个时刻缺失时，用到它的差值为空。正文 binding 不合格时，该卡按没有 binding 处理，`ledger-meta.json` 的 `warnings` 记一条；其他卡照常派生。

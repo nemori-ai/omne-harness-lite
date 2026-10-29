@@ -70,6 +70,6 @@
 
 ## 工程方法展开
 
-按[场景选择](engineering/scenarios/README.md)确定主场景，再读其适用共享条款和[技能来源／加载](engineering/skills.md)。实际 pstack port 来源、本机安装发现、Matt 六项采用和各自读取方式沿技能页核对；原生调用、hook 执行及行为结果仍分别取证。独立任务从[隔离交接](engineering/workflow.md#责任与协作交接)展开，长任务从[成果保存](engineering/publication.md#成果保存与跨会话接续)展开。技能名字是指针，缺正文就不声明已调用；已有充分授权与输入不重复审批，关键缺口只停依赖部分。
+按[场景选择](engineering/scenarios/README.md)确定主场景，再读其适用共享条款和[技能来源／加载](engineering/skills.md)。三层方法（流程 poteto-mode、写法 Matt、品味 ub-mode）的来源、宿主发现和读取方式沿技能页核对；原生调用及行为结果仍分别取证。独立任务从[隔离交接](engineering/workflow.md#责任与协作交接)展开，长任务从[成果保存](engineering/publication.md#成果保存与跨会话接续)展开。技能名字是指针，缺正文就不声明已调用；已有充分授权与输入不重复审批，关键缺口只停依赖部分。
 
 集成拥有者负责[工作分支、轨道、main 与 stable 的运输](engineering/integration.md)。任务结果及修订仍归 Issue/交付拥有者；Project 是派生视图，Git 技术回执不授予结果接受。

@@ -6,7 +6,7 @@ import { releaseRun, type ReleaseRunOptions } from '../src/integration/release-r
 import { releaseRunMain } from '../src/integration/release-run-cli.ts'
 import { releaseInputs } from '../src/integration/release-run-protocol.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
-import { HEAD, TOOL, UUID, NEXT_UUID } from './fixtures/collaboration.ts'
+import { HEAD, TOOL, UUID, NEXT_UUID } from './fixtures/identifiers.ts'
 
 const roots: string[] = []
 afterEach(() => {

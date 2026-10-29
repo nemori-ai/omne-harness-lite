@@ -2711,6 +2711,10 @@
       "inspectionProfile": "prose-v1",
       "requiredSections": [
         {
+          "id": "three-layers",
+          "anchor": "三层分工"
+        },
+        {
           "id": "section-1",
           "anchor": "来源与项目采用"
         },
@@ -2724,19 +2728,15 @@
         },
         {
           "id": "section-4",
-          "anchor": "matt-补充与候选"
+          "anchor": "matt-写法入口"
+        },
+        {
+          "id": "ub-mode",
+          "anchor": "ub-mode-研发品味"
         },
         {
           "id": "section-5",
           "anchor": "项目差异与负责边界"
-        },
-        {
-          "id": "section-6",
-          "anchor": "hooks-与证明层次"
-        },
-        {
-          "id": "section-7",
-          "anchor": "完整-port-采用待定"
         },
         {
           "id": "section-8",

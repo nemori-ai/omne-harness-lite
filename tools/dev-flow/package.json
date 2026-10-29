@@ -23,10 +23,6 @@
     "package:template": "node --experimental-strip-types src/package-template/cli.ts",
     "delivery": "node --experimental-strip-types src/delivery/cli.ts",
     "pre-admission": "node --experimental-strip-types src/delivery/pre-admission-cli.ts",
-    "collaboration:install": "node --experimental-strip-types src/delivery/collaboration-install-cli.ts",
-    "integration:request": "node --experimental-strip-types src/delivery/integration-request-cli.ts",
-    "line": "node --experimental-strip-types src/delivery/line-inbox-cli.ts",
-    "reduce:watch": "node --experimental-strip-types src/delivery/reduce-watch-cli.ts",
     "release-run": "node --experimental-strip-types src/integration/release-run-cli.ts",
     "scope-overlap": "node --experimental-strip-types src/delivery/scope-cli.ts",
     "milestone": "node --experimental-strip-types src/delivery/milestone-cli.ts",
@@ -38,9 +34,7 @@
     "worktree": "node --experimental-strip-types src/integration/worktree-cli.ts",
     "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
     "package:exports": "node --experimental-strip-types src/package-exports/cli.ts",
-    "facts:prepare": "node --experimental-strip-types src/delivery/facts-preparation-cli.ts",
-    "initial-dispatch": "node --experimental-strip-types src/delivery/line-initial-dispatch-cli.ts",
-    "reduce": "node --experimental-strip-types src/delivery/reduce-cli.ts"
+    "initial-dispatch": "node --experimental-strip-types src/delivery/line-initial-dispatch-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-toolchain": "catalog:",
