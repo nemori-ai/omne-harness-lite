@@ -66,7 +66,7 @@ HEAD 与 BASE 分别读本版完整 workspace、源码、manifest 和解析配�
 - schema 3 另有顶层数组 `groupCycleExceptions`，可以缺省。给了就必须是数组，`null` 等别的值拒绝。schema 1、2 出现这个字段时按未知字段拒绝。
 - 一条是 `{ "id", "edges", "ruling", "reason" }`，字段不多不少。
   - `id` 非空，在 `groupCycleExceptions` 内唯一。
-  - `edges` 至少一条。一条边是 `{ "from", "to" }`，字段不多不少。`from`、`to` 是成员路径，与依赖图 `edges` 的 `from`、`to` 同一种键：`packages/<组>/<包>`、`apps/<应用>` 或 `examples/<示例>`，每一段只含字母、数字、`.`、`_`、`-`，以字母或数字开头。组键、成员内的子目录、通配符、空白与含 `..` 的路径拒绝。
+  - `edges` 至少一条。一条边是 `{ "from", "to" }`，字段不多不少。`from`、`to` 是成员路径，与依赖图 `edges` 的 `from`、`to` 同一种键：`packages/<组>/<包>`、`apps/<应用>` 或 `examples/<示例>`，每一段只含字母、数字、`.`、`_`、`-`，以字母或数字开头。组键、成员内的子目录、通配符、空白与整段为 `..` 的路径拒绝。
   - 一条边的两端必须在不同的组。同组的边与组环无关，拒绝。
   - 一条边在全部例外里只能出现一次，同一条例外内重复也拒绝。反向的边是另一条边。
   - `ruling` 是裁定的 `https://` 链接。它不是 `source`，不按 Markdown 来源核对文件和锚点，也不进 `sources` 摘要。

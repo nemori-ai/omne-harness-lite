@@ -44,7 +44,7 @@ describe('omne-deps 的具名组环例外', { timeout: 120_000 }, () => {
     ])
   })
 
-  it('登记了 context ↔ tool 的两条成员边：去掉后不再成环就放行，写一行说明例外、裁定与边', () => {
+  it('登记了 context ↔ tool 的两条成员边：环内跨组边全部登记就放行，写一行说明例外、裁定与边', () => {
     const run = deps(tree(), runner([CONTEXT_TOOL]))
     expect(run.stderr).toBe('')
     expect(run.status).toBe(0)

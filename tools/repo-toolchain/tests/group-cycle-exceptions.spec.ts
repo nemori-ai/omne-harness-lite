@@ -1,4 +1,4 @@
-// 具名组环例外（schema 3 `groupCycleExceptions`）：成员边的字段校验、去掉登记边后重判的算法，以及回路状态硬线怎样读它。
+// 具名组环例外（schema 3 `groupCycleExceptions`）：成员边的字段校验、环内跨组边全部登记才放行的判定，以及回路状态硬线怎样读它。
 // omne-deps 在 runner 与被检树分开的临时仓库上的行为在 group-cycle-exceptions-cli.spec.ts。
 import { describe, expect, it } from 'vitest'
 import { parseConstraints, semanticConstraints } from '../src/arch/constraints.ts'
@@ -86,12 +86,12 @@ describe('groupCycleExceptions 的校验', () => {
     ['缺 edges', [row({ edges: undefined })], 'require arrays'],
     ['edges 为空', [row({ edges: [] })], 'at least one edge'],
     [
-      '旧的 groups 字段',
+      '未知字段 groups',
       [row({ groups: ['packages/context', 'packages/tool'] })],
       'unknown fields: groups',
     ],
     [
-      '只有旧的 groups 字段',
+      '只有未知字段 groups、没有 edges',
       [{ ...row({ edges: undefined }), groups: ['apps', 'examples'] }],
       'unknown fields: groups',
     ],
