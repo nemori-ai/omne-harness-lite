@@ -1,4 +1,4 @@
-import { fullSha, uuid } from '../delivery/collaboration-values.ts'
+import { fullSha, uuid } from '../delivery/identifiers.ts'
 import { array, canonical, choice, fields, integer, literal, object, string } from './parse.ts'
 import { InputError } from '../delivery/protocol.ts'
 

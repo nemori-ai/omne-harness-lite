@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { closeSync, existsSync, openSync, readFileSync, realpathSync } from 'node:fs'
 import { constants } from 'node:os'
 import { join, resolve } from 'node:path'
-import { operationJournal } from './line-state-journal.ts'
+import { operationJournal } from './operation-journal.ts'
 
 export type AdmissionStep = { name: string; command: string; args: string[] }
 export function preAdmissionSteps(bound: boolean): AdmissionStep[] {

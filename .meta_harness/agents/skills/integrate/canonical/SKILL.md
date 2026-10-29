@@ -1,70 +1,74 @@
 ---
 name: integrate
 description: >
-  唯一 Reduce 的持续收件、接管、跨域集成、八类监督、整体验证及逐波 release。处理 ready/blocked/failed 或恢复里程碑 reduce 时加载。建卡及首次消息用 dispatch。
+  唯一 Reduce 用 wait-cli 监督批次 PR 与各线交回记录，接管并集成批次，处置 blocked/failed，整波验证后收口。处理交回、集成批次、收口一波或恢复里程碑 reduce 时加载；建卡、首次消息与发 delta 用 dispatch。
 ---
 
 # 集成
 
-首次和恢复先读 `docs/engineering/integration.md`「集成节点的清单」及 `docs/engineering/map-reduce-states.md` 全部 Reduce 状态、请求处理机、全局优先级和组合不变量。先从持久回执确定 phase/control、owner/epoch、当前 F/roster、signalQueue、pendingOps 与每件请求状态。不能按会话记忆认定成功。工程规则、接受与权限沿 integration/delivery，不在本技能另授权限。
+协作规则归 `docs/engineering/integration.md`「集成节点的清单」，其中「线会话记录」「失败处理」「等待监督」与本技能直接相关。Reduce 的阶段、阶段内的核对、收口顺序与提问前三问归 `docs/engineering/map-reduce-states.md` 第 3 节，redo 与接管处置归第 4.1 节。首次开工和恢复时先读这些节。工程规则、接受与权限沿拥有者，本技能不另授权限。
 
-## 阶段、动作和完成事实
+本技能给 SERVE 与 VERIFY_WAVE 的动作顺序，以及 RELEASE_WAVE 的入口。建卡、首次消息与发 delta 按 `dispatch`。
 
-| 阶段及规则 | 输入与允许动作 | guard、输出读回和下一等待 | 失败去向 |
-| --- | --- | --- | --- |
-| PREPARE，R01/R02 | 已接受目标、当前正式波、F、权限、两宿主策略、实际 roster 和期限；按 dispatch 准备输入 | 输入齐备到 DISPATCH，缺口先自主消解，必要决定过三问 | 依赖动作冻结，其他工作继续 |
-| DISPATCH，R03 | binding、线包、首次消息、已验证运行 recipe；启动接收监督 | 分别记录生成/校验/打开/人工转发/认领事实；监督已挂后到 SERVE | 展示 queued 不算打开；派发未知先恢复，不重复执行 |
-| SERVE，R04–R06 | 完整分页收件和持久积压；next 发现 ready/blocked/failed；claim 读回后单写处理 | 请求处理机记录身份/head/base/证据；WaveReady 全满足才到 VERIFY_WAVE；队列空则 supervise | 非成功立即接管并处置；只解决一项不丢其他信号 |
-| VERIFY_WAVE，R07/R08 | 全部预期项有效解决、最终候选和适用验证/评审 | 整体通过并绑定当前 head/F 到 RELEASE_WAVE | 新 head/失败回 SERVE，不能沿旧证据接受 |
-| RELEASE_WAVE，R09–R13 | 调整后一波预案、正式物化后继、全部存续线 delta、接受定位 | 严格按下节顺序读回，release 与 close 均确认后继续 SERVE 或 FINALIZE | 任一缺项不接受；未知先恢复，候选变化退回适用阶段 |
-| FINALIZE，R14/R15 | 明确 terminal、最终报告与剩余责任 | 必要接受及清理条件读回后 DONE | 未齐继续等待，不用空队列代表完成 |
-| DONE，R16 | 重放或新输入 | 只返回原终态；新任务需新授权 | 不隐式重开 |
+## 监督：两条等待一直挂着
 
-## 逐件请求处理
+波内挂两条等待，命令用法归 `tools/dev-flow/src/delivery/README.md`「事件等待」：
 
-按状态正文请求处理机逐件执行：发现并验证来源，按 owner/epoch/预期序号 claim，读回写权后建 reduce 隔离候选，串行同步/修复/迁移，验证与评审，发布精确 gate，读回实际合入并 record。保存原始 head、reduce 候选 head、targetBase、merge SHA 和每次证据。处理 A 期间 B 与其他监督信号持续落盘。
+```sh
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<处理时的完整 head> ...] --since <ISO 时间或 delivery id>
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --comment <线父卡>:line-handoff [--comment <线父卡>:line-handoff ...] --since <ISO 时间或 delivery id>
+```
 
-| 请求 step | 允许动作、guard 与出口读回 | 失败/等待 |
-| --- | --- | --- |
-| QUEUED | 验证登记来源、输入和 outcome；ready 前置齐备才 claim，非成功进入 BLOCKED 接管 | 不完整读取明确报错，不能当空队列 |
-| CLAIMING | 持久 claim 并读回 owner/epoch/序号才进入 PREPARING | 未读回不写候选；未知 RECOVER |
-| PREPARING | 持有唯一写权，在最新 targetBase 形成候选，处理冲突和迁移并记录 candidateHead | 操作明确失败处置；未知恢复，外来 head 冻结 |
-| VALIDATING | 检查/评审绑定 candidateHead/targetBase，齐备才发 gate | 失败回 PREPARING；修改后受影响证据重验 |
-| WAIT_GATE | 保存精确 run/attempt，持续监督审批和其他请求 | 失败/取消由 reduce 处置；需要权限交有权者，不自动批准 |
-| READBACK | PR 实际合并、mergeCommit 在目标可达且头链吻合才记 MERGED | 明确未合入到 BLOCKED；未知 RECOVER |
-| MERGED | 保存回执，继续监测有效性 | 回退/事实失效到 REVERTED 并使 WaveReady=false |
-| BLOCKED | 保存原因、冻结对象及剩余责任，执行有效 takeover/rescope/redispatch | 解除后回适用 step；不能直接跳 merged，其他请求继续 |
-| SUPERSEDED | 读回明确取消/替代及剩余责任 | 不算成功或自动满足 WaveReady |
-| REVERTED | 保留原 merge 历史，形成新候选后回 PREPARING | 不复用旧证据或删除历史 |
+- 每条参加线写一个 `--comment`。
+- 两条等待同时挂着的方法取决于宿主：
+  - Claude Code：两条等待命令都作为宿主跟踪的后台任务运行，同样带 `--timeout`。任务结束时，宿主唤醒会话。
+  - 宿主不能唤醒已结束的回合时（例如 Codex）：能合并的条件合进一条前台阻塞的 `wait-cli any`。`any` 不接受 `pr-ready`，所以 `pr-ready` 与交回记录的等待轮流前台阻塞。每次都带有界的 `--timeout`。退出 3 时先按「等待监督」第 5 步读回，再换另一条等待，各自的 `--since` 不变。
+  - 这条宿主差异只适用于 Reduce。线会话的等待一律前台阻塞，没有例外。
+- 命中只是唤醒。唤醒后读回全部参加线父卡的交回记录与待处理的批次 PR，按已处理集合去重后逐条处理，再重挂。读回、去重与重挂起点归 `docs/engineering/integration.md`「等待监督」。处理一项时，另一条等待保持挂起。
+- 本波已处理的每个批次 PR 都累加一条 `--ignore <pr>@<处理时的 head>`，再重挂 `pr-ready`。
+- 等待命中只表示有事件。Issue 关闭或评论命中不代表整波已放行。
+- 等待命令退出 2 时诊断并恢复，恢复后先对账，不报告空队列成功。
+- Reduce 自己启动的 gate 运行与审批、子代理、检查进程和约定期限由 Reduce 自己观察。审批交有权者，不自动批准。期限到达时核对事实，再决定等待、重排或取消。沉默保持 unknown，不判线失联。
 
-Reduce 负责交出后的全部冲突、全局设计、跨域修改、消费者迁移和改后验证，不将集成缺陷作为普通 line-return 退回。外来 head、目标 base 变化和回退令受影响验证失效。Action 成功、PR 关闭和审批完成均不能单独记录 merged。gate 审批仍要求既有权限，工具不自动批准或扩大授权。
+## 处理一条交回
 
-blocked/failed 立即核对停写、成果与剩余责任。发布并读回有效 disposition：takeover 自己完成；rescope 取得有权决定并说明后续责任；redispatch 先解除阻塞、确认旧执行终止和写权交接，再授权新 attempt 与完整输入。发布处置不等于 resolved，同波重派仍须实际完成后才能收口。Line 不必等 R 关闭才接收有效重派。
+先读交回记录的结果，再读该线各卡上的交接报告。
 
-## 波末与滚动规划
+### ready：集成批次
 
-调整后一波预案时，按 `docs/engineering/integration.md`「波段编排的判断原则」用本波实际耗时、集成负荷和新事实修正取舍。
+一次接管一个批次 PR。保存原始 head、候选 head、targetBase 和 merge 链。
 
-只正式维持当前波与 R(w)，后一波保留可调整预案，更远只留依赖路线图。固定接受顺序：
+1. 在 reduce 隔离候选上同步目标分支，处理冲突。
+2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。
+3. 验证：生成宿主投影，运行 `pnpm run check:agents`，再运行 `OMNE_ADMISSION=1 pnpm run check`。同一台机器上的准入一次只跑一个。候选或基线变动后，重做受影响的验证与评审。
+4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。发 gate 时对线父卡运行 `board-cli.ts integrating`。批次内的各张任务卡停在 In review，按卡接受时再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
+5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
 
-1. 按 integration「集成节点怎样工作」完成候选准入、整波 FULL 准入及里程碑联调，确定 F，按实际结果调整后一波预案。
-2. 继续推进时，创建并读回下一波全部任务与真实 R(w+1)，保持其依赖 R(w) 的放行。有权终态时，读回终态决定，不建虚构后继。
-3. 给全部存续线发布并读回同一计划修订/F 的 delta。继续推进时包含 idle；终态时每条存续线均有 terminal delta。
-4. 继续推进时核对下一输入、任务/验收、消费者迁移、策略和等待链齐备；终态时核对全线终态依据及剩余责任齐备。随后才由有权者接受并读回 R(w)。
-5. 发布并读回最终 ReleaseRecord，最后关闭并读回 R(w)。
+### blocked 或 failed：redo 或接管
 
-非终态缺后继、任一分支缺存续线 delta、未解决请求、旧修订或未知写入都拒绝接受/放行。未知建卡/发布/close 先以原 operationId 对账，不重复制造副作用。单卡接受不唤醒 Line；全部存续线逐 reduce 消费，idle 继续订阅，只有明确 terminal 才结束。
+核对线已停写，读清已完成部分与剩余工作，然后选一种处置：
 
-## 等待监督与提问
+- redo：更正输入，按 `dispatch` 第 5 节为任务卡登记新 attempt，再按 `dispatch`「放行」一节的发布方法发 redo delta。redo 不推进波号。
+- 接管：Reduce 自己完成剩余工作。线会话继续等待下一条 delta。
 
-按 integration「等待监督」同时覆盖八类：交接积压、申请 Action、候选/轨道、发布审批合入、自有代理/检查、接收监督基础设施、预期项期限、收口后继。phase 决定活动对象集合。先挂事件边界再有界对账，先处理持久积压再 sleep。处理一项时不能丢其他事件。只读 next 的等待必须纳入 supervise 任一事件选择。
+处置规则（不另写处置记录、处置不等于已解决）见 `map-reduce-states.md` 4.1。处理一条交回时，其他事件继续落在等待里。
 
-本机健康每 5 秒；业务变化以事件驱动，仅已登记活动 run/审批有界轮询。期限由本波输入明确给出，不猜 Line 死亡。不监视外部 Line 思考、普通评论或波中心跳。父 tool-session 观察监督器自身，权限/连接/游标/日志错误明确进入恢复。可行动信号不是验证通过或整波完成。
+## 收口一波
 
-向人提任何方案问题前完成三问：里程碑必要性、方案复杂度、自主可决策性。先删过度设计、简化、核对已有授权/架构/领域/需求/相邻机制。仍有真实目标冲突、权限缺口或必要未知才给人最小选项、推荐、后果和证据。其余自行决定并留简短依据。
+1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
+2. 检查失败或候选变化时回到监督，旧证据失效。
+3. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
+4. 调整后一波预案时，按 `dispatch` 技能的 `references/wave-planning.md` 用本波实际耗时、集成负荷和新事实修正取舍。
 
-## 恢复与运行入口
+## 提问前三问
 
-RC01–RC09 和全局 G00–G06 优先于正常阶段。未知副作用、写权冲突、基础设施故障进入 RECOVER，保留 pendingOps、接收游标、处置位置和 resumePoint。先读回外部实际事实再恢复阶段，旧执行未终止不得切新 epoch。STOPPED 与 DONE 分开；明确恢复授权后才能重启。重复 operation 返回原结果，同键异文拒绝。
+向人提任何设计或方案问题前，先按 `map-reduce-states.md`「提问前三问」逐问检查。其余自行决定并留简短依据。
 
-固定工具使用 `pnpm run reduce next|claim|record|prepare|check-release|release|supervise|ack --input /absolute/input.json`，每次只选择一个操作。版本 3 安装、输入字段与退出码从 `tools/dev-flow/src/delivery/README.md` 和已采用版本帮助取得，由本波运行绑定提供。supervise 返回后先处置信号，再用 ack 记录处置证据并恢复原监督；返回不自动消费或放行。该输入必须包含 repo、owner/epoch、operation/journal、活动对象、期限、事件文件及原 shell 续接方式；缺入口就是开工缺口，不能发明旗标。申请与 watch/inbox 的既有入口见 line 的 `references/runtime.md`。每次状态推进保存命令、退出码和读回，未执行范围明确报告。
+## 恢复
+
+恢复时从 GitHub 重读事实，不按会话记忆认定成功：
+
+1. 读当前收口卡、本波任务卡与 binding、各线父卡上最后的 delta 与交回记录、联调轨道上开放的批次 PR、在途 gate 运行。
+2. 结果未知的写入、合入或发布先读回实际结果，再决定下一步。结果未知时不重复 POST 或 merge。
+3. 从读回的事件重挂两条等待，再继续处理。
+4. 人请求停止时冻结新写入；STOPPED 不等于 DONE。

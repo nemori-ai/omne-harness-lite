@@ -59,92 +59,6 @@ pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pr
 
 命令依次执行接受锁、affected build、declarations、contract-api、lines、docs、design、deps、rules、oxlint 和 format。任一步失败即停止并返回该步退出码。标准输出包含已执行步骤、各步日志路径和失败日志末 20 行。详细顺序与绑定分支行为见 [SPEC](SPEC.md#预准入执行)。
 
-## 安装协作命令
-
-reduce 负责人准备并按具名权限采用安装描述符。完整字段归[SPEC](SPEC.md#协作工具安装与固定来源)。同一里程碑各负责人复用这一份已采用描述符，不能从候选 HEAD 推断采用。
-
-1. 为工具准备独立的干净源检出，固定在描述符的 `toolCommit`，并按锁文件准备依赖。产品工作树可以继续开发。
-2. 核对描述符及其来自采用决定的 SHA-256。文件留在工具工作树之外，或私有 Git 目录内。
-3. 在工具检出运行安装命令。将下列路径和摘要替换为已经核对的值。
-
-```sh
-pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256>
-```
-
-命令只写本地采用记录，不派发 workflow，也不接受卡片。相同描述符可重复安装。不同描述符须使用新的固定检出，不能覆盖现有采用。
-
-升级 workflow 后需要读取旧 facts 时，使用版本 2 或 3 描述符，并在 `historicalWorkflows` 中显式保留旧 workflow 的精确身份。旧的负面事实仍参与拒绝判断。版本 1 只认可原来的单个 workflow。所有版本的普通安装均不取得生产权；未激活时，`facts:prepare` 返回 `facts-preparation-producer-installation-required`。不要删除旧 journal 或从空目录推断可以重新生产。
-
-只有负责 facts 生产的 reduce 工具检出需要下列一种显式采用方式。Line 和其他只读消费者不加这些选项。
-
-首次生产且从未有旧生产者时，添加 `--initial-producer`。这是操作员对首次接管的明确声明。工具只检查本地没有旧 journal，不能证明其他机器没有生产者。
-
-替换旧生产者时，先停止旧进程并禁用其启动器，再在新工具检出执行：
-
-```sh
-pnpm run collaboration:install --descriptor /absolute/adopted-installation.json --sha256 <reviewed-sha256> --producer-from /absolute/old-tool-checkout
-```
-
-新描述符须显式保留所有旧 journal 所需的 workflow 身份。命令核对旧描述符，完整复制 journal 原字节，持久记录旧端退役，再激活新端。它不终止进程，也不能阻止不认识退役记录的旧二进制或远端写者。保留旧检出和记录。转移中断后重复同一命令；不要改用初始模式、删除部分记录或重启旧生产者。
-
-转移只覆盖 facts 生产 journal。已提交的 request 回执、line 和 wait journal 仍须保留。Line 在波末交接后或下一波开工前切换；已挂 wait 保留原结果，或明确取消后按同一上下文重新挂起。跨机复制和远端进程停止由迁移操作负责人处理，本命令要求旧检出在本机可访问。
-
-新安装产生首个新 generation 前，可停止新写者，核对 journal 未新增，再回旧固定工具进行原 wait 和 request 的读取、恢复演练。保留旧端退役与新端激活记录，不启动旧 facts 生产者。返回新端时重复同一转移命令核对。已有新 generation 后不得恢复旧快照，也不支持不兼容生产者降级。
-
-安装后，使用这个源工具检出的命令。参数帮助分别为：
-
-```sh
-pnpm run integration:request --help
-pnpm run line --help
-pnpm run reduce:watch --help
-pnpm run reduce --help
-```
-
-watch 的 parent、operation ID、journal 和事件文件来自本线实际派发。request 的 JSON 只携带任务输入。line 和 watch 从已采用来源取得资格与接受责任。普通命令没有 policy、facts JSON 或接受者覆盖选项。
-
-在其他工作目录调用时，使用工具源脚本的绝对路径或 `pnpm --dir /absolute/tool-checkout run ...`。来源由工具安装决定，与当前工作目录无关。当前安装合同只支持 Node 源执行，构建后的 `dist` 协作入口拒绝。
-
-缺少安装、摘要不符、工具检出变脏或提交变化时，停止并核对安装。不要通过更换来源来绕过拒绝。升级前收回旧安装上的未决写操作，并在安全的波段边界切换到新检出；保存原 journal，不给不确定操作生成新 ID。
-
-## 读取线输入与发布记录
-
-`pnpm run line` 是 `line-inbox-cli.ts` 的包命令，也是 `line-cli` 的正式同义入口。Line 在开工边界读取 delta，在完成交接或消费边界发布 state；Reduce 发布下一输入。使用实际派发值替换下列占位符：
-
-```sh
-pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone>
-pnpm run line inbox --repo owner/repo --parent <line-parent> --milestone <milestone> --since <comment-id>
-pnpm run line delta --repo owner/repo --parent <line-parent> --input /absolute/delta.json --journal /absolute/line-journal
-pnpm run line state --repo owner/repo --parent <line-parent> --input /absolute/consumption.json --journal /absolute/line-journal
-```
-
-inbox 不推进消费；since 是实际评论 ID，筛选前仍校验完整可信记录流。delta/state 输入使用完整公开记录和稳定 operationId。未知写入重复原输入及 journal 只读恢复，不换 ID 重发。字段、权限、结果和退出码见[独立线记录命令](SPEC.md#独立线记录命令)。
-
-## 部署申请 workflow
-
-默认分支须先存在 `.github/workflows/integration-request.yml`，GitHub 才能登记手动触发入口。只更新 `github-gate` 不足以完成首次安装。默认分支的占位入口不登记申请；实际执行使用 `--ref github-gate`。默认分支和轨道的运输继续遵守[分支准入](../../../../docs/engineering/integration.md#现行准入)。
-
-在 `github-gate` 部署的申请 workflow 使用 `delivery` environment 的 `OMNE_COLLABORATION_DESCRIPTOR` 和 `OMNE_COLLABORATION_SHA256`。先发布受审工具提交 T 及固定来源 S，再发布 workflow 提交 W，最后采用固定 T、S、W 的描述符。环境变量不是接受决定，不替代逐卡授权。
-
-每次运行只取得一份描述符快照及摘要。检出前核对原始字节摘要、仓库、完整工具 SHA、published 模式和当前 workflow HEAD。随后检出该工具 SHA，安装锁定依赖，以默认只读模式采用描述符，再执行申请校验和登记。缺失或不匹配时在检出前失败。所有步骤消费同一份快照，不能各自重读可变配置。
-
-## 准备下一波的派发事实
-
-使用 published 安装的 reduce 负责人，在发布下一波前准备实际 reduce 和任务派发的 facts。每个命令只观察一次，返回后继续处理其他集成申请。
-
-```sh
-pnpm run facts:prepare --repo owner/name --dispatch https://github.com/owner/name/issues/123#issuecomment-456
-```
-
-`ready` 退出 0，`pending` 退出 3，`failed` 或 `unknown` 退出 2。重复原命令会观察同一持久操作。`unknown` 不表示未派发，不能删除 journal 或更换安装来重发。
-
-自有程序装配可通过 `deployedCollaboration(repo, { factsPreparation: { networkMs: 25000, totalMs: 60000, maxCalls: 128 } })` 调整 facts 准备的观察预算。`openCollaborationInstallation` 的第四个参数接受相同选项。仅在实际读取量或网络时延需要时调整。普通 CLI 仍使用单次 15 秒、总计 30 秒和 128 次请求的默认值。该策略只配置 facts 准备，不替换安装身份、权限或 journal。值域、复制和耗尽行为见[规格](SPEC.md)。
-
-只有精确运行的 attempt 1 已明确失败，而且没有该派发的 facts，才可加 `--retry-failed` 创建新的生产代。新代沿用人的派发授权，生成新 nonce 和新运行，不使用 GitHub rerun。资格为负、事实冲突、成功但未读到 facts、运行未知都不能用此选项绕过。
-
-生产 journal 位于工具检出的私有 Git 目录 `omne-facts-preparation`。一个持续 reduce 负责人使用一份持久 journal。移动宿主或升级安装时保留旧 journal，并处理其中未决操作。独立检出之间没有分布式锁；不能让两个安装各自初始化同一派发。已完整转移的旧操作使用其原安装和 workflow 恢复；新 POST 只使用当前 workflow。未显式采用的旧绑定拒绝，不能删除记录来消除冲突。
-
-下一波所需的当前、历史和任务派发集合由 reduce 负责汇总。所有准备结果为 ready 后，发布时仍重新执行资格和接受校验。该命令不接受卡片，也不放行 line。
-
 ## 属性发现
 
 报告的 `attribute` 类别列出开放交付卡的属性发现。属性规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)，线与轨道归[多层分支集成](../../../../docs/engineering/integration.md#交付线)。观察报告中的属性发现只报告，不计入 `deviation`。`stock.attribute` 是这一类的数量。
@@ -355,6 +269,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 调度者用这两个命令派发一张卡的一个 attempt。`post` 发派发评论，`bind` 把 binding 写进卡的正文。两步之间不改卡。
 
+`post` 在任何平台调用之前拒绝空或只含空白的 `--text`，退出2。
+
 `spec.json` 只写调度者的决定，字段全部必填，多余字段拒绝：
 
 | 字段                                                                                      | 内容                                                                       |
@@ -384,7 +300,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 线会话与集成节点用这组命令阻塞在 GitHub 事件上。命令不轮询 API。
 
-频道模式适用于多机。每台机器使用独立频道与 hook，并显式指定业务仓库和事件文件。先初始化，再将 serve 作为原宿主工具的后台进程运行。
+频道模式适用于多机。每台机器使用独立频道与 hook，并显式指定业务仓库和事件文件。先初始化，再用宿主的 shell 工具把 serve 作为后台进程启动。
 
 ```sh
 node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts init --repo <owner/name> --file <事件文件>
@@ -394,7 +310,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.
 
 init 创建频道并保存本地配置，serve 建立或恢复精确 hook。配置、进程身份和健康记录保存在事件文件同目录。频道地址属于秘密，只保存在权限受限的配置中，不放进卡片、日志或错误文本。一个事件目录只有一个写者，频道与 legacy 共用本地排他守卫。健康检查每 5 秒检查本机进程身份、连接和日志，不扫描 GitHub 业务状态。
 
-借用已有频道时，由拥有者提供权限受限的频道地址文件及 hook ID。运行 init 时同时传入 `--channel-file <文件> --hook <ID>`。借用实例不创建或删除 hook。受限云端可用这种模式；端到端自检仍须完成。
+借用已有频道时，由拥有者提供权限受限的频道地址文件及 hook ID。运行 init 时同时传入 `--channel-file <文件> --hook <ID>`。借用实例不创建或删除 hook。受限云端可用这种模式。借用实例也运行端到端自检。自检结果只报告事实，不阻止 Line 开工。
 
 ```sh
 node --experimental-strip-types tools/dev-flow/src/delivery/events-receiver-cli.ts check --repo <owner/name> --file <事件文件> --delivery <真实投递guid> --issue <已关闭Issue>
@@ -434,7 +350,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - 集成节点处理完一个批次后，再等时带上 `--ignore <pr>@<它处理时的 head>`，就不会立刻拿到同一个 PR。
 - `pr-ready` 的输出带 `number` 与 `head`。
 - `any` 接受可重复的 `--issue-closed` 与 `--comment`，任一命中就返回那一行。输出多一个 `matched` 字段，值是 `issue-closed` 或 `comment`。三个单项命令的输出不带 `matched`。
-- 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受，不能替代上层 ReleaseRecord 校验。
+- 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受。
 - 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
 接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
@@ -444,8 +360,6 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 频道模式需要可访问频道服务和 GitHub REST。自建 hook 需要相应仓库权限；借用模式不需要消费者管理 hook。legacy 另需 cli/gh-webhook 扩展。真实多机、宿主续接与采用结论按本次候选验收记录，不以单元测试或旧探路延迟代替。条款见 [SPEC](SPEC.md#事件等待)。
 
 ## 运行模块检查
-
-生产者转移与持久准备的[有限模型检查](../../verification/producer-continuity/README.md)使用已配置的 Java 与 `TLA2TOOLS_JAR`，将完整证据写入新的任务目录。该入口与下列实现检查各自保留覆盖范围。
 
 ```sh
 pnpm --filter @omne-harness/dev-flow exec vitest run \
@@ -464,54 +378,48 @@ pnpm --filter @omne-harness/dev-flow typecheck
 
 ## 首次派发临时消息
 
-Reduce 从有效 binding、线包、计划、宿主策略和目标机配置填写输入。使用 `pnpm initial-dispatch fields` 取得固定模板的完整字段名。JSON 包含 schemaVersion=1、milestone、line、revision 和 fields；line 只允许小写字母、数字及连字符，fields 是全部字段的非空字符串映射。
+Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。
 
 ```sh
 pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
-pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --root <目标检出>
+pnpm initial-dispatch validate --input tmp/<task>/initial-dispatch.json --rehearsal-evidence tmp/<task>/rehearsal.json --root <目标检出>
 ```
 
-消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`。同修订相同内容复用，不同内容拒绝覆盖。修改输出文件后 validate 拒绝。工具不会执行填写的命令、开窗口、转发消息或认领任务。
+render 把消息写到输出检出的 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md`，并返回消息的 sha256。同一修订、相同内容时复用文件。内容不同时拒绝覆盖，需要新修订。工具不执行填写的命令，不开窗口，不转发消息，不认领任务。
 
-GENERATED 仅证明文件已生成。STRUCTURE_CHECKED 仅证明字段、修订、常见敏感模式及字节检查通过。Reduce 按返回的 remainingGuards 逐项读回授权、固定输入、目标机实际命令和当前收口链，并检查秘密及矛盾后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果、人的转发声明和真实认领读回。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+render 之后、validate 之前，reduce 在本机同布局运行消息里的每条命令。演练证据是 validate 的必需输入，用 `--rehearsal-evidence` 传入：
 
-
-## Reduce 操作与后台监督
-
-reduce 负责人使用版本 3 固定安装。描述符中的 `gateWorkflow` 采用精确的发布工作流提交。部署该工作流时，运行标题必须是 `gate-publish:${pr}:${head}:${checkpoint}`。普通输入不能覆盖它。源码或帮助存在不代表安装和工作流已部署。
-
-```sh
-pnpm run reduce next --input /absolute/next.json
-pnpm run reduce claim --input /absolute/claim.json
-pnpm run reduce prepare --input /absolute/pre-push.json
-pnpm run reduce record --input /absolute/state.json
-pnpm run reduce check-release --input /absolute/readiness.json
-pnpm run reduce release --input /absolute/release.json
-pnpm run reduce supervise --input /absolute/supervision.json
-pnpm run reduce ack --input /absolute/handled.json
+```json
+{
+  "schemaVersion": 1,
+  "messageSha256": "<render 返回的 sha256>",
+  "commands": [
+    {
+      "command": "<消息里的命令原文，含占位符>",
+      "executed": "<可选：替换占位符后实际运行的命令>",
+      "exitCode": 0,
+      "outputSummary": "<输出摘要>"
+    }
+  ]
+}
 ```
 
-所有输入含 `schemaVersion:1`。`next` 另外含完整 `context`、`owner` 和可选 `since` 评论 ID。它读取完整当前队列，不因 cursor 跳过更早的未决请求。返回 `idle` 只表示当前没有未决申请，不表示波已完成。
+每条命令只写一个证据项。`command` 合并连续空白后相同的两项被拒绝。`executed` 只作记录，validate 用 `command` 匹配。
 
-`claim`、`prepare` 和 `record` 输入含 canonical `record`、稳定 `journalRoot` 和 `checkpoint` 字符串。没有命名 checkpoint 时显式传空字符串。claim 只接受 claimed 状态；prepare 只保存 integrating 的推送前意图，不执行 Git。冲突修复由 reduce 完成，更新候选后重新取得影响、测试、适用评审与准入证据，再记录精确 gate。合入不能只凭 Action success 判断。
+validate 按下列规则检查，任一项不满足就退出 2，不输出 STRUCTURE_CHECKED：
 
-`check-release` 输入含 release `record` 与 `readinessEvidence`。它检查完整请求、所有线、delta、后继输入、具名整波报告及实际轨道 HEAD，不产生接受或发布。`release` 再加 `journalRoot`，要求已有精确接受决定，按发布读回、关闭、终态读回的顺序推进。unknown 必须沿用原输入、operation ID 和 journal 恢复，不能用新 ID 重发。
+- 缺 `--rehearsal-evidence`，或证据文件格式不符。schemaVersion 先读，只接受 1。messageSha256 是 64 位十六进制摘要。exitCode 是 0 到 255 的整数。不认识的字段被拒绝。JSON 错误以文件路径开头，例如 `tmp/<task>/rehearsal.json: json-invalid`。
+- 消息文件与按输入重新生成的内容不同。
+- `messageSha256` 与消息文件的 sha256 不同。证据必须针对这一份消息。
+- 消息里有未闭合的代码块（`initial-dispatch-fence-unclosed`），或有不是 shell 的代码块（`initial-dispatch-non-shell-block`）。没有语言标签的块也不是 shell 块。字段值带入的代码块同样检查。
+- 消息里有命令没有证据条目（`initial-dispatch-rehearsal-missing`）。命令指 shell 代码块里的每一行。空行和 `#` 注释行跳过，行尾反斜杠连接下一行，比较前合并连续空白。行内代码不算命令。
 
-supervise 的输入字段为：
+代码块边界按 CommonMark 识别：
 
-| 字段 | 内容 |
-| --- | --- |
-| context、owner、epoch | 当前波及当前 reduce 执行身份 |
-| operationId、journalRoot | 原操作 UUID 与绝对日志目录 |
-| phase、deadline、timeoutMs | 当前负责人阶段、UTC 截止时间、可选本次等待毫秒数 |
-| file | 接收器事件文件的绝对路径 |
-| runs | 活动 `request-run` 的 input/workflow，或 `gate` 的 correlation；后者含 repo/pull/candidateHead/checkpoint/workflow，不含 adoptedWorkflowHead |
-| candidates | 每项含登记申请的 request 与当前 state record |
-| local | 每项含 id/pid/processStartedAt/resultFile/deadline。结果文件用绝对路径，进程身份用实际 `processIdentity` 读数 |
-| release | 普通阶段可为 null；VERIFY_WAVE、RELEASE_WAVE、FINALIZE 须提供 record/readinessEvidence |
+- 开始行缩进不超过 3 个空格，以 3 个以上反引号或 3 个以上 `~` 开头。缩进 4 个空格的行不是边界。
+- 信息串的第一个词转成小写后是语言。`sh title=x` 和 `Bash` 都是 shell 块。shell 块的语言是 `sh`、`bash`、`shell` 或 `zsh`。
+- 结束行用开始行的字符，长度不短于开始行，不带信息串。块内的 `` ```bash `` 这类带信息串的行仍是块内容，也算命令。
 
-事件、启动和截止触发权威对账。每 10 秒只观察仍活动的 run/审批；运行结束时重新读回资格与申请回执。每 5 秒检查本机接收器及自有进程。远端 bootstrap 和 REST 在分别持久的只读子进程中执行，不阻塞本机健康检查。不审批、不发布、不代替负责人处理返回信号。
+证据里多出的条目（例如线包里的命令）不报错。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出与消息命令都不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
 
-原 shell tool call 返回 actionable、timeout 或 cancelled。信号先入持久队列，返回不等于消费。处理后执行 ack，其输入含 `schemaVersion:1`、`supervision` 原输入、信号 `id` 和处置 `evidence` 字符串。然后恢复原监督操作；变化的阶段或活动对象须来自当前实际交接。未知远端操作另按其原 journal 恢复。
-
-退出码为 0 已取得结果，1 写结果未知，2 输入冲突或证据不可用，3 等待超时，130 取消。停止监督会终止自有读取进程；POSIX 宿主同时终止这些进程组中的命令子进程。父 tool-session 仍须观察监督器自身的退出和 stderr。这里的自动检查不证明人类转发、宿主续接或完整双机行为。
+GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果和人的转发声明。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。

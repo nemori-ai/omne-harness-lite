@@ -183,11 +183,11 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 ## 持续反馈与交付约束
 
-### 与 pstack 和 clean-loop 的分工
+### 与研发方法和 clean-loop 的分工
 
-本页定义系统保证与证据责任。pstack 提供 agent 的执行方法，clean-loop 提供本仓的持续观察与处置回路。三者通过[工程质量](../engineering/quality.md)衔接，不各自生成一套保证或审批流程。
+本页定义系统保证与证据责任。[三层研发方法](../engineering/skills.md#三层分工)提供 agent 的执行方法，clean-loop 提供本仓的持续观察与处置回路。三者通过[工程质量](../engineering/quality.md)衔接，不各自生成一套保证或审批流程。
 
-- **pstack 方法**按任务触发。`principle-prove-it-works` 用于检查真实产物，`principle-test-behavior-not-implementation` 用于判断测试能否发现相关缺陷，`benchmark-checklist` 用于性能证据，`blast-radius` 用于识别改动的外部影响。版本、可用入口和项目采用差异由[工程技能](../engineering/skills.md#pstack-方法入口)统一维护，不把整个技能集设为每次交付的必跑清单。
+- **研发方法**按任务触发。ub-mode「做好」一段的测试判别要求用于检查真实产物和测试能否发现相关缺陷，pstack `benchmark-checklist` 用于性能证据，`blast-radius` 用于识别改动的外部影响。版本、可用入口和项目采用差异由[工程技能](../engineering/skills.md)统一维护，不把整个技能集设为每次交付的必跑清单。
 - **clean-loop**持续反馈可以测量的事实，区分本次变化和存量，并把问题交给有权处理的人。可确定的规则交给传感器；需要语义判断的性质使用有依据的评审；产品取舍和接受范围归负责人。工具发现与修复建议分别表达。
 - **系统专项验证**补足回路不能直接测出的性质。代码复杂度、依赖检查或测试数量不能证明长期稳定性、租户隔离或跨进程恢复；这些保证继续由上文的场景与实际证据支撑。
 

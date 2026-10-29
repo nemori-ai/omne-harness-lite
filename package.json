@@ -26,10 +26,6 @@
     "check:design": "./scripts/check-design.sh",
     "check:delivery": "node --experimental-strip-types tools/dev-flow/src/delivery/cli.ts",
     "pre-admission": "node --experimental-strip-types tools/dev-flow/src/delivery/pre-admission-cli.ts",
-    "collaboration:install": "node --experimental-strip-types tools/dev-flow/src/delivery/collaboration-install-cli.ts",
-    "integration:request": "node --experimental-strip-types tools/dev-flow/src/delivery/integration-request-cli.ts",
-    "line": "node --experimental-strip-types tools/dev-flow/src/delivery/line-inbox-cli.ts",
-    "reduce:watch": "node --experimental-strip-types tools/dev-flow/src/delivery/reduce-watch-cli.ts",
     "release-run": "node --experimental-strip-types tools/dev-flow/src/integration/release-run-cli.ts",
     "check:lines": "node --experimental-strip-types tools/dev-flow/src/delivery/lines-cli.ts",
     "ri-notes": "node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes",
@@ -50,9 +46,7 @@
     "docs:inventory": "uv run --locked omne-documentation inventory --summary --out tmp/documentation-inventory",
     "role-eval": "PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=.meta_harness/agents/evaluation/harness uv run --locked python -m roleeval",
     "package:template": "node --experimental-strip-types tools/dev-flow/src/package-template/cli.ts",
-    "facts:prepare": "pnpm --filter @omne-harness/dev-flow facts:prepare",
-    "initial-dispatch": "node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts",
-    "reduce": "pnpm --dir tools/dev-flow reduce"
+    "initial-dispatch": "node --experimental-strip-types tools/dev-flow/src/delivery/line-initial-dispatch-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-config": "catalog:",
