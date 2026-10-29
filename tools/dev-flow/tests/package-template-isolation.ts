@@ -27,7 +27,9 @@ export interface IsolatedWorkspace {
 }
 
 export function isolatedProductWorkspace(): IsolatedWorkspace {
-  const root = mkdtempSync(join(realpathSync(tmpdir()), 'omne-package-template-'))
+  // native：Windows 上 tmpdir() 可能是 8.3 短名，JS 版 realpath 保留它；git 报长名，已安装的
+  // repo-toolchain 按字面比较两者。
+  const root = mkdtempSync(join(realpathSync.native(tmpdir()), 'omne-package-template-'))
   // 根 tsconfig.base.json 只是指向共享预设的 extends；隔离工作区里直接放预设本身。
   cpSync(join(repoRoot, 'tools/repo-config/tsconfig.base.json'), join(root, 'tsconfig.base.json'))
   cpSync(join(repoRoot, 'vitest.tiers.mts'), join(root, 'vitest.tiers.mts'))
