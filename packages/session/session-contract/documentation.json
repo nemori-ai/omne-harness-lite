@@ -1168,19 +1168,11 @@
       "requiredSections": [
         {
           "id": "section-1",
-          "anchor": "允许的内容"
-        },
-        {
-          "id": "section-2",
-          "anchor": "边界"
+          "anchor": "本包资源"
         },
         {
           "id": "section-3",
           "anchor": "维护"
-        },
-        {
-          "id": "section-4",
-          "anchor": "本包事实"
         }
       ]
     },
@@ -1197,12 +1189,7 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": [
-        {
-          "id": "section-1",
-          "anchor": "内容"
-        }
-      ]
+      "requiredSections": []
     },
     {
       "id": "verification-models-readme",
@@ -1217,24 +1204,7 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": [
-        {
-          "id": "section-1",
-          "anchor": "允许的内容"
-        },
-        {
-          "id": "section-2",
-          "anchor": "边界"
-        },
-        {
-          "id": "section-3",
-          "anchor": "维护"
-        },
-        {
-          "id": "section-4",
-          "anchor": "本包事实"
-        }
-      ]
+      "requiredSections": []
     },
     {
       "id": "verification-models-index",
@@ -1249,12 +1219,7 @@
         "anchor": "行为契约与完整文档"
       },
       "inspectionProfile": "prose-v1",
-      "requiredSections": [
-        {
-          "id": "section-1",
-          "anchor": "内容"
-        }
-      ]
+      "requiredSections": []
     },
     {
       "id": "verification-proofs-readme",
