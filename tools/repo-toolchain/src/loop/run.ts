@@ -255,12 +255,8 @@ function indicatorValues(
       : []
   return {
     addedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.added.length) },
-    removedAssemblyFacts: {
-      reading: map(sensors.assemblyDelta, result => result.removed.length),
-    },
-    changedAssemblyFacts: {
-      reading: map(sensors.assemblyDelta, result => result.changed.length),
-    },
+    removedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.removed.length) },
+    changedAssemblyFacts: { reading: map(sensors.assemblyDelta, result => result.changed.length) },
     architectureChanges: { reading: map(sensors.architectureChanges, items => items.length) },
     unresolvedServiceNames: {
       reading: map(sensors.architecture, result => result.current.serviceIdentifiers.unresolved),
