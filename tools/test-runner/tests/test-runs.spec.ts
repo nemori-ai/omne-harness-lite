@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
@@ -35,7 +35,8 @@ import type { TimingReport } from '../src/testing/timing-reporter.ts'
 import { classify, namePattern, outcomeOf, triageSummary } from '../src/testing/triage.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
+// vitest 的 bin 入口本身，由当前 Node 起；`.bin/vitest` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
+const VITEST = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 const TIMING_REPORTER = fileURLToPath(new URL('../src/testing/timing-reporter.ts', import.meta.url))
 
 describe('成员清单', () => {
@@ -609,14 +610,15 @@ describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => 
         join(project, 'vitest.config.mjs'),
         `export default { test: { reporters: [[${JSON.stringify(TIMING_REPORTER)}, { outputFile: ${JSON.stringify(timingPath)} }]] } }\n`,
       )
-      const ran = spawnSync(VITEST, ['run', '--root', project, '--globals'], {
+      const ran = spawnSync(process.execPath, [VITEST, 'run', '--root', project, '--globals'], {
         cwd: project,
         encoding: 'utf8',
       })
       expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
       const timing = JSON.parse(readFileSync(timingPath, 'utf8')) as TimingReport
       expect(timing.files).toHaveLength(1)
-      expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts'))
+      // 与 JSON 报告同一拼法：vitest 的 moduleId 在各平台都用正斜杠。
+      expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts').split(sep).join('/'))
       expect(timing.files[0]?.collectSeconds).toBeGreaterThanOrEqual(0)
       expect(timing.files[0]?.tests).toEqual([
         { fullName: '外层 里层 带时限', timeoutSeconds: 1.234, tags: [] },
