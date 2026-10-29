@@ -1388,6 +1388,36 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/agent-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/exchange-refs':
+        specifier: workspace:*
+        version: link:../../common/exchange-refs
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../session-contract
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

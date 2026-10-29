@@ -1409,7 +1409,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `SessionCallWait` | `consumption: ConsumptionId`、`position: string`。其绑定由同一历史或本批前段的 SessionCallRecord 决定，position 与原 consumer 的对应位置一致。 |
 | 新 `call-registration` 后果 | `consumption`、`registration`。生成原 SE18；同消费同值认回，异值 conflict。 |
 | 新 `call-association` 后果 | `consumption`、`binding: CallBinding`、`source: DurableEvidence`。只将已登记 tool-intent 关联到真实 Tool reference，按原关联事实追加 SE18，不重新创建消费身份。 |
-| 新 `registered-waiting` 后果 | `calls: readonly SessionCallWait[]`、`other: readonly Waiting[]`。other 只能是既有 extension-batch 或 dependency 分支。二者合成该事件报告的完整等待集合，不是增量。所有 calls 先定位原或同批前段的登记，再生成 SE22。 |
+| 新 `registered-waiting` 后果 | `calls: readonly SessionCallWait[]`、`other: readonly Waiting[]`。other 可以是 extension-batch、extension-passage 或 dependency 分支。二者合成该事件报告的完整等待集合，不是增量。所有 calls 先定位原或同批前段的登记，再生成 SE22。 |
 
 `WorkSnapshot` 可增加 `callRegistrations: readonly SessionCallRecord[]` 与 `callWaits: readonly SessionCallWait[]` 两个可选投影。已关联记录同时投影为既有 consumptions；其生产者等待同时投影为既有 waiting。未关联 Tool 不制造一个含假 producer 的 Consumption 或 Waiting。两个投影都从同一 SE18/SE22 归约，不另存一套权威事实。下表补齐这些事实的公开消费结果，旧字段、分支与函数签名保留。
 
@@ -1431,6 +1431,28 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 unsettledControls 从同一快照的 controls 按原控制操作身份去重求得，不新增权威状态。它保持从原 SE24 到尚未交清责任的定位。初次保存控制时，原 SE24 固定本次选中的未关联 consumption/position，后继 SE25 不改写该原范围。历史持有者以原控制操作身份定位这份原 SE24、仍生效的 SE25、尚未交清项的原 SE18/SE22 及其真实关联条目，全部纳入 AD-04 下界和 compaction.open 的一致核对。取消先解除业务等待、随后 intent 关联时，unassociatedWaiting 可变空且旧 waiting 仍为空，但原控制仍在 unsettledControls，以上引用仍保留。
 
 转换到 pending 中的真实 producer 核对项不解除原责任；只有原控制责任依证据解除后，才能移出相应引用和 unsettledControls。必要原条目不可取得时沿原 unavailable 处理，不能交空下界。该字段同样按上文省略规则处理，judgeIdle 见非空也不得出 due。
+
+
+##### 扩展经过等待
+
+Session保存扩展原工作等待、经过、位置及卡片引用。HITL继续拥有卡片与有效答复，Agent继续拥有原扩展的replay、处理状态与等待报告。本成员不根据卡片证据重新解释准驳，也不因为有答复就认为处理完成。
+
+Waiting保留既有extension-batch形状。该分支members.action保存原所属动作身份，不接受占位或借用卡片身份。合法扩展经过没有所属动作时，使用新增extension-passage分支：
+
+| 字段 | 规则 |
+| --- | --- |
+| kind | 固定extension-passage |
+| passage | 原经过身份文本，非空 |
+| position | 原位置文本，非空 |
+| members | 按原等待cards顺序保存成员，每项有card及decision，没有action字段 |
+| members[].card | 原卡片的完整DurableEvidence |
+| members[].decision | 原卡有效chosen或declined答复的evidence；尚无有效答复或原response为invalidated时为null |
+
+新分支不含action，不以null或空串补在旧分支。旧extension-batch及其历史字节、导出和有效输入保持。两分支遵循相同的原Run、经过、等待范围、取消、终态和继续资格规则；区别只是是否存在所属动作。extension-passage不是新增HITL状态机、操作或事件。
+
+SE22及registered-waiting.other可以保存extension-passage，既有extension-batch/dependency仍有效。纯层核非空passage/position、完整card/非null decision证据、卡片身份不重复且新分支不携带action，保存原顺序。已有投影和reduce在原Run上解释，不让旧Run报告改变后继Run。新分支仍是未结等待，进入已有waiting/openWork、空闲及收束判据；不能因为没有action就跳过阻塞。
+
+decision非空只表示保存了原答复引用，不表示批准、已processed或已解除等待。invalidated证据不是人的有效答复，不写入decision；原卡片和失效事实继续由Agent/HITL原记录保存和解释。Session从Agent的后续完整等待报告、原有明确取消/终态规则更新本域等待，不自行把一张卡答复/失效当作整批完成。多轮ask或处理期间继续调用模型时，仍按原Agent报告保留等待。
 
 
 ##### 未结工作原条目引用

@@ -1,6 +1,6 @@
 # @omne-harness/session-adapters 行为规格
 
-状态：适配成员，`draft`，候选技术设计，本次 AD-01、AD-02、AD-05 与 Journal/testing 修订为待独立评审的候选，尚未实现。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
+状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为由 `./testing` 内存提供者承载；其余候选插件仍未交付。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成六个邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
 
 ## 范围与依据
 
@@ -142,6 +142,72 @@ Agent 原事实先提交。解释进度、后果与该次 Session 操作的认�
 
 每项输入、调用、结果、等待和终态后果保留原 Run/attempt。Session 纯层仍按 FR-01/02/05/06 核本域关系。任何外域 decoder、resolver 或原关系核验失败，都不能先发布部分 Session 后果、cursor、操作答案或 alias。
 
+##### 人工等待的原版本归一
+
+本同日志提供者在发布包含human waiting事件的Agent原提交时，读取该提交的原checkpoint及仍有效的原Passage记录，以waiting.passage定位唯一Passage，完整定位waiting.cards对应的rounds及PassageCard。在同一原发布点保存最小、不可变的原材料片段：tenant/session/execution、原提交revision/receipt、event sequence/source、经过id/position/dimension/action、对应ask的ActionIdentity、原round标识，以及每张被报告卡的identity/card/response/processed。片段按原事件版本绑定；同一经过后来的答复或下一轮ask另有原版本，不覆盖已发布片段。它属于AD-02的同根原记录索引与必要材料，不是第二事实库或新的权威卡片决定。
+
+Session后续解释从该原事件片段重建等待，不要求Agent公开load提供历史checkpoint，也不保留整份旧checkpoint作为前提。Agent仍可按原契约删除旧checkpoint；提供者只保留完成本域解释、历史来源核验和未结交接所需的上述材料。最小片段由同一tenant/session日志保管，具备与原事实相同的可见边界；首次发布前保存失败则该次原提交全无，发布后丢答复沿原操作认回，不另一次补写片段。保存片段不改变Agent动作/卡片的业务合法性判定。
+
+解释完成不立即授予删除片段：尚有未解释原事件、可重放的解释/认回答案，或原等待/未结控制仍引用该来源时，原片段必须可按原版本读取。只有历史持有者按既定压缩与来源保留规则，证明这些责任均已退出或由同等可恢复的原来源承接后，才可回收；本卡内存替身不实现这种回收，保留必要片段到该后端释放。本承诺不要求将所有原checkpoint或Agent事件复制为Session条目。
+
+成员顺序沿waiting.cards；每张卡的引用须与原片段完全一致。后继checkpoint的当前值不能补作原事件版本。原片段暂不可读沿unavailable；权威记录确认应有而丢失、版本矛盾或损坏沿既有隔离规则，不把允许删除旧checkpoint本身视为损坏。
+
+有所属动作时，核对原Passage.action与原ask.ActionIdentity相符，归一为extension-batch，逐成员保留该真实动作身份。无所属动作时，必须同时证明原Passage.action=null、原位置/维度的ActionIdentity不要求动作、原ask不携带动作，并归一为extension-passage。缺失字段、未知记录或冲突不是合法无动作，不能据此选新分支。
+
+每项decision按上表从对应原PassageCard.response取得；不从processed证据、round身份、request.identity、来源opaque record或当前动作推导答复。invalidated时保留原卡成员且decision=null，直到原Agent报告和既定规则决定等待变化；不代替HITL写有效决定。
+
+归一必须覆盖原human等待的全部cards。原卡不存在、属于其它经过、来源有歧义、位置/维度/ask/action互相冲突时，按AD-02现有unavailable/损坏隔离规则返回，不发布部分等待、cursor或答案。Session契约不导入Agent类型，邻域字段翻译只由adapters承担。无动作不是“材料不可读”的降级分支。
+
+
+##### 控制归一
+
+同根读取原ControlRecord、阶段事实、SE24/25、固定selected、原SE18/SE22及关联条目。execution-to-Run/attempt沿原SE13/SE15与grant，不由当前Run猜测。源材料未知、缺失或矛盾分别沿AD-02原失败规则，不能降为observed。
+
+Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
+
+同一Agent事实可涉及多个原K。分别从各K原目标、意图与原选择推导进度，不能只更新第一个匹配项。全部后果及该次解释进度/答案同批发布。
+
+###### 原责任与解除判据
+
+每个K的待办必须回到原SE24责任。当前pending去重只是投影；原来源不同的责任仍逐项核对。各来源均满足后，才能删去合并后的ProducerRef。关联转换不改变原解除判据，也不恢复业务等待。
+
+| 原责任 | 可消费的证据 | 不足以解除的事实 |
+| --- | --- | --- |
+| 原SE24直接选择的停止请求核对项 | 原请求对应的生产者接受停止/中断的reached事实；或者原调用在中断前已真实收场的合法事实 | accepted、仅意图成立、未知、同execution的其它调用确认 |
+| 原SE24直接选择的工具转后台项 | 原调用已真实转换且有耐久占位；按原Tool引用及原控制核验 | 仅接受转后台请求、另一调用转换 |
+| 原selected U=(consumption,position)，未关联或后来关联为P | 原具名控制或合法交接事实证明该项原结果、费用及适用交接责任被合法接管/结清 | producer-confirmed或physically-stopped本身、空waiting、Run终态、关联成功 |
+
+直接后台核对必须同时拥有原 K 的有效 intent-established、完整原 Tool 调用关联，以及同一原调用真实提交的 ActionSlot.background、placeholder 和 confirmation。生产者只确认接受请求时不成立。最小槽位片段在原 Agent 提交中保存；后来的 checkpoint 替换不改变原版本。后台效果可以先于 K，不由此推断 K 导致转换。效果在原控制事件之后、无新控制事件时，以新的 Session operation 和 sequence=null 快照对账，不改旧事件后果。
+
+停止核对可消费两类先于原具名中断控制提交的原收场事实：原批准动作上完整绑定 Pending、ToolInvocation、consumption/position、结果、非 no-response 终态及 custody 的 ActionSlot.result；或原 step/action/call/resultVersion/source、Pending、ModelInvocation、consumption/position 完整关联的 ModelReplyAdmission（admitted 或 rejected）。片段由合法原 Journal 提交保存，顺序取原提交回执；当前 checkpoint 或壁钟不补历史。Model 准入 source 保留准入证据角色，不等同结果 source。单独 ProducedResult、后台 placeholder、账目、无准入的失败或无回复均不足。未公开的 Model facts schema 不在本提供者中猜测解释。
+
+这些收场事实只解除直接停止核对，不解除 U 交接、不产生 Model ACK、Tool 物理停止或控制因果。仍须核对 K 的原传播；同 call 的独立控制不能替代。urgent interrupt 继续核原 submit 及完整输入，不虚构不存在的具名 ControlRecord。
+
+原execution E的cancel达到duty-released，可覆盖原U通过SE18→initiatingAttempt→SE15/SE13证明属于E的责任，未取得ProducerRef不妨碍这种覆盖。不得扩大到别的execution或initiatingAttempt=null的Run外责任。原E的单调用interrupt/background的合法duty-released，只覆盖其精确原调用责任；核对原ToolInvocation/Model引用、原binding与consumption关系，不能凭execution相同扩大范围。
+
+同一个P兼有直接停止核对和U交接来源时，必须两种判据均满足。具有足够范围的同一合法事实可以同时满足多项，不要求外域多造回执。Stage.state=unresolved或缺席不产生肯定事实。六阶段不互相推导。
+
+###### 状态与解释
+
+生成ControlProgress保持原operation/target/intent。保留尚未满足的pending及pendingUnassociatedWaiting，禁止扩大原范围或重开reconciled。原state为propagating时不因单个accepted退为committed。
+
+reconciled须同时满足：
+
+1. 按原ControlIntent核对意图的来源：
+   - Session自己的控制意图以原SE24及其已成功的资格核对为准，不由Agent阶段倒推。
+   - cancel-run、archive或auto-archive的Agent直接传播，以及stop-call/background-tool的直接具名传播：按deriveDriveOperation({kind:'control',execution,control:K})定位原ControlRecord，核对原命令/目标并要求intent-established为reached；accepted单独不足。相应原效果已在请求前完成的场景仍保留真实效果，但不以它补造该阶段。
+   - interrupt：Session原SE24/SE11给出K.urgent的完整id、message、origin、原run与decision；由原SE13定位execution。按deriveDriveOperation({kind:'submit',execution,input:K.urgent.input})找到原Journal submit记录及其已提交AcceptedInput回执，核对同tenant/session/execution、InputId、priority=urgent和完整原内容/来源。该输入的可靠受理是本路径的传播受理依据，不要求不存在的urgent ControlRecord，不要求input-taken，不反推后续独立控制由哪次urgent造成。该记录未知时保持propagating。独立控制只按下文判据证明原责任的交接。
+   - unarchive由原Session命令同批产生reconciled，不消费Agent阶段；其原事实保持。
+   这张表只覆盖Session现有ControlIntent。Agent suspend及quiesce不在表中新增Session意图，#730不被采用。
+2. 两类pending为空，并且按全部原来源复核确实无未交接或未核对责任。
+3. cancel-run、archive与auto-archive的本域资格撤销须有原范围对应的SE16等实际提交；需要Agent取消execution推进的直接控制，还核原ControlRecord的qualification-revoked为reached。Session资格撤销不代替Agent阶段事实，Agent阶段也不代替Session提交。stop-call、background-tool及interrupt不撤整个execution推进资格，不套此全范围条件。
+4. reconciled只表示该原控制的传播、生产者核对及FR-06原责任交接已对账。它不表示Tool排序域的全部旧启动已受阻、外部执行已物理停止、效果已撤回或归档任务已完成。Tool启动围栏仍归Agent/Tool的J03事实、验证和恢复，不再作为Session自行调用失效并等待生效的进度条件；本成员不恢复旧startFence字段或完整guard覆盖判定。不能从空pending、SE16、Agent accepted、相同execution、Authority写者或某一真实start-fence推导完整围栏生效。Agent/Tool对围栏的未知与#502恢复缺口继续保持，Session只如实保留和读取原start-fence的所属含义，不因本域reconciled伪造它的成功。
+
+不满足上述条件时，仍可以发布已证明的责任减少与原state保持，不以欠缺一种闭合证据否定其它真实阶段。范围完整但尚无新后果时不单写cursor。相同源与相同后果按原操作认回，解释时不发生产者控制、不撤资格、不触发ACK。
+
+archive的cascade与scope-release保留独立任务及原回执，ControlProgress.reconciled不表示这些任务已完成或整个归档处置已结束，也不把任务完成强塞进该状态。Model结果版本的producer ACK不由duty-released推导；MODEL-ACK-ARRIVAL和#730继续保留。
+
+
 ##### 调用归一的公开来源
 
 | Session 所需值 | 原公开字段与核验 |
@@ -160,6 +226,8 @@ Model/Tool 的 invocation reference 经各自公开 resolver 核对 tenant 并�
 ##### 准备与终态的排序
 
 凡是后继输入消费及 [FR-04 的 SE38 入口](../session-contract/SPEC.md#fr-04)，先捕获 Q 的完整原交入目录与相关 E，再完成捕获 E 的必要连续前缀，最后重算 Q 并以当前根 CAS 发布。Q 因某段 SE14 缩小不能跳过原 E 剩余前缀。准备停在 ended 前；中间其它适用后果照常解释，不靠摘取 input-taken 推进 cursor。
+
+`finishRun.expected` 不因内部准备而改写。独立解释推进 Session 修订时，新请求可以按原并发规则返回 changed，且不成立该请求的终态、SE38 或成功答案。调用者重读后以新 operation 与新 expected 收束；已提交原操作仍先认回。
 
 已成功的解释段和原 Agent 事实保持成立。取消准备不解释 ended，独立正常 ended 解释仍可在最终 CAS 前先形成 Session 终态，按 PA-08 返回原终态。未冻结普通 cancel 与 active Run 上的 freeze 不新增 SE38 准备门槛。原 grant 的当前业务资格在真正发布点复核，已失效 grant 不再产生新 taken，合法 custody/received 不被旧 grant 误拒。
 
@@ -612,10 +680,12 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 
 ## Agent Journal 提供者与非耐久替身
 
-本节为待评审候选。session-adapters 提供 agentJournal，消费冻结 Agent 的完整 Journal 角色组，不修改 Agent 端口。AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会话日志的提交状态，执行索引以租户与 execution 为键。每次提交、重复操作、查询与材料读都核验当前资格；跨租户拒绝，不能通过材料引用绕过绑定。
+本节的非耐久实现从 `./testing` 提供。session-adapters 提供 agentJournal，消费冻结 Agent 的完整 Journal 角色组，不修改 Agent 端口。AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会话日志的提交状态，执行索引以租户与 execution 为键。每次提交、重复操作、查询与材料读都核验当前资格；跨租户拒绝，不能通过材料引用绕过绑定。
 
 提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
 
+首次 custody/processed 需要尚未登记的原调用时，先核当前资格、新请求合法性及原 Agent operation 的认回/冲突。已完成原操作不重做准备。新操作仅从此前已提交的 Pending/effect/Authority→grant 关系，以独立稳定 Session operation、sequence=null 解释登记或原关联。准备未知先认原答案，不继续新结果提交。准备后重核根、资格、gap 与完整 binding，再共同发布新结果、参加事实和原答案。旧登记可在后一个 joint 失败时保留；该批不得留下新结果的半边事实，也不得把派生 SE18 塞进新 joint。
+
 第二个发布点是后续 Session 解释提交，共同保存派生后果、解释进度与该次认回答案。解释失败不撤销首次发布，也不推进解释进度。Agent ended 与后续 Session 终态之间允许 PA-08 的取消竞争，不能把二者合并成一个原子提交。各次读取捕获一份已提交状态：output.read / output.events 读事件正文，load 读 entries/results 等快照；事件序号与 entries 提交顺序分别保持，不互作 cursor。复原索引不能改变原 Run 归属。
 
-`./testing` 提供上述角色组的内存会话日志替身，供 CS v2 组合测试。故障注入与提交前暂停只经 testing 句柄暴露，生产根入口不暴露它们。验证义务包括 Agent 自有 entries/received 套件、提交前失败全无、提交后丢答复认回、并发修订复核及跨租户读写拒绝。本候选尚未运行这些验证。内存原子可见不证明耐久、进程重启或跨进程同提交。
+`./testing` 提供上述角色组的内存会话日志替身，供 CS v2 组合测试。故障注入与提交前暂停只经 testing 句柄暴露，生产根入口不暴露它们。验证义务包括 Agent 自有 entries/received 套件、提交前失败全无、提交后丢答复认回、并发修订复核及跨租户读写拒绝。验证入口及受信夹具前提见 [testing 指南](docs/testing.md)。内存原子可见不证明耐久、进程重启或跨进程同提交。

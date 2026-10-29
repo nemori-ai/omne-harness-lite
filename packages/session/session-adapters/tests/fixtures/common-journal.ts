@@ -1,0 +1,121 @@
+import {
+  decodeAgentExecutionId,
+  decodeAgentInstanceId,
+  decodeAgentOperationId,
+  decodeInputId,
+  decodeStepId,
+  type AgentCheckpoint,
+  type AgentJournal,
+} from '@omne-harness/agent-contract'
+import type { Outcome } from '@omne-harness/operation-result'
+import { type SessionCommand } from '@omne-harness/session-contract'
+import {
+  adoptedInitializationFixture,
+  createMemoryInitializationSource,
+  initializationFixtureGuard,
+  initializationFixtureFacts,
+  creation,
+  memoryAccess,
+  operationId,
+  ordinaryInput,
+  guard,
+  evidence,
+} from '@omne-harness/session-contract/testing'
+import { createMemorySessionJournal } from '../../src/testing.ts'
+
+export function ok<T, F>(outcome: Outcome<T, F>): T {
+  if ('failure' in outcome) throw new Error(JSON.stringify(outcome.failure))
+  return outcome.ok
+}
+export const operation = (text: string) => ok(decodeAgentOperationId(text))
+export const instance = (text = 'instance-1') => ok(decodeAgentInstanceId(text))
+export function checkpoint(): AgentCheckpoint {
+  const adoption = { owner: 'test', name: 'checkpoint', revision: '1', digest: 'test:checkpoint' }
+  return {
+    schema: adoption,
+    definition: adoption,
+    step: ok(decodeStepId('step-1')),
+    position: 'E3',
+    calls: [],
+    passages: [],
+    batch: null,
+    inputBatch: null,
+    requestPreparation: null,
+    compaction: null,
+    adoptedContext: null,
+    guard: null,
+    completedPassages: [],
+    priorConditions: null,
+  }
+}
+export async function scene(
+  session = 'journal-session',
+  budget?: { entries: number; bytes: number; capacityBytes: number },
+  qualification = { agent: true, session: true },
+) {
+  const access = memoryAccess('tester', session)
+  const initialization = createMemoryInitializationSource()
+  const backend = createMemorySessionJournal({
+    initialization,
+    authorizeCommand: () => (qualification.session ? 'allowed' : 'denied'),
+    authorize: () => (qualification.agent ? 'allowed' : 'denied'),
+    ...(budget ? { budget } : {}),
+  })
+  const value = creation({ initial: ordinaryInput('input-1') })
+  const command: Extract<SessionCommand, { kind: 'create' }> = {
+    kind: 'create',
+    input: {
+      tenant: access.tenant,
+      session: access.session,
+      operation: operationId('create'),
+      creation: value,
+    },
+  }
+  const adopted = adoptedInitializationFixture(command)
+  initialization.controls.register(
+    command,
+    initializationFixtureGuard(initializationFixtureFacts(command, null, adopted)),
+  )
+  const guards = ok(await initialization.prepare(command))
+  ok(await backend.transactions.commit({ command, guards }))
+  const started = ok(
+    await backend.transactions.commit({
+      command: {
+        kind: 'startRun',
+        input: {
+          tenant: access.tenant,
+          session: access.session,
+          operation: operationId('start'),
+          entry: 'interactive',
+          candidate: value.definition.candidate,
+          instance: { owner: 'agent', id: 'instance-1' },
+        },
+      },
+      guards: [guard('evidence-bridge', 'login-entry', { session, operation: 'start' })],
+    }),
+  )
+  const snapshot = ok(await backend.transactions.readWork(access))
+  if (snapshot.run.kind !== 'active') throw new Error('not active')
+  const execution = ok(decodeAgentExecutionId(snapshot.run.execution.execution))
+  const view = backend.forSession(access)
+  const admitted = ok(
+    await backend.transactions.readInput({ ...access, input: snapshot.run.first }),
+  )
+  const input: Parameters<AgentJournal<string>['open']>[0] = {
+    ...access,
+    execution,
+    operation: operation('open'),
+    instance: instance(),
+    grant: started.receipt.source,
+    initial: {
+      id: ok(decodeInputId(admitted.input)),
+      content: admitted.message,
+      source: admitted.origin,
+      priority: 'ordinary',
+    },
+    checkpoint: checkpoint(),
+  }
+  const opened = ok(await view.journal.open(input))
+  return { access, backend, view, execution, opened, input }
+}
+export { evidence, operationId }

@@ -1,3 +1,4 @@
+import { canonicalText } from './operations.ts'
 import type { ConsumptionId, DurableEvidence, RunId } from './identity.ts'
 import type { CallBinding, WorkSnapshot, Waiting, ProducedResult } from './values.ts'
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts'
@@ -179,9 +180,25 @@ export function registeredWaiting(
       })
   }
   for (const item of other) {
-    if (item.kind !== 'dependency' && item.kind !== 'extension-batch')
+    if (
+      item.kind !== 'dependency' &&
+      item.kind !== 'extension-batch' &&
+      item.kind !== 'extension-passage'
+    )
       invalidAt('waiting.other', 'producer belongs in registered calls')
     nonempty(item.position, 'waiting.other.position')
+    if (item.kind === 'extension-passage') {
+      nonempty(item.passage, 'waiting.other.passage')
+      if ('action' in item) invalidAt('waiting.other.action', 'no action belongs to this passage')
+      unique(item.members, member => canonicalText(member.card), 'waiting.other.members')
+      for (const member of item.members) {
+        if ('action' in member)
+          invalidAt('waiting.other.members.action', 'no action belongs to this passage')
+        evidenceFields(member.card, 'waiting.other.members.card')
+        if (member.decision !== null)
+          evidenceFields(member.decision, 'waiting.other.members.decision')
+      }
+    }
   }
   if (draft.run.kind !== 'active' || draft.run.run !== run) return
   const cancelled = new Set(

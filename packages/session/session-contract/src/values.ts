@@ -116,6 +116,12 @@ export type Waiting =
         decision: DurableEvidence | null
       }>[]
     }>
+  | Readonly<{
+      kind: 'extension-passage'
+      passage: string
+      position: string
+      members: readonly Readonly<{ card: DurableEvidence; decision: DurableEvidence | null }>[]
+    }>
   | Readonly<{ kind: 'dependency'; owner: string; position: string }>
 export type ControlTarget =
   | Readonly<{ kind: 'run'; run: RunId }>
@@ -150,7 +156,10 @@ export type ControlIntent =
       decision: DurableEvidence
     }>
   | Readonly<{ kind: 'auto-archive'; idleEvidence: DurableEvidence }>
-/** state: committed = intent saved; propagating = some producer still unconfirmed; reconciled = all confirmed. The superseded `startFence` is not here: the tool start fence is the Agent journal `start-fence` entry (#672 J03). */
+/** committed saves the original intent; propagating retains unknown propagation or responsibility.
+ * reconciled confirms that intent's propagation, producer checks and original handoff duties.
+ * It does not establish a Tool fence, physical stopping, reversed effects or completed archive tasks.
+ * The superseded startFence remains the Agent/Tool J03 responsibility. */
 export type ControlProgress = Readonly<{
   operation: SessionOperationId
   target: ControlTarget

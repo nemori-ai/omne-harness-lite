@@ -1,0 +1,847 @@
+import { commandScope } from './frontier.ts'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
+import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
+import {
+  decide,
+  commandDigest,
+  judgeIdle,
+  projectSessionLog,
+  reduce,
+} from '@omne-harness/session-contract'
+import type {
+  SessionInputScope,
+  DurableEvidence,
+  EntryId,
+  SessionAccess,
+  SessionId,
+  SessionOperationId,
+  SessionRevision,
+  RoutedInput,
+  WorkSnapshot,
+  CommitReceipt,
+  HistoryEntry,
+  HistoryPage,
+  OperationResolution,
+  PendingReason,
+  SessionFailure,
+  SessionHistory,
+  GuardCommand,
+  MutationName,
+  SessionCommand,
+  SessionTransactionPort,
+  SessionLogObservation,
+} from '@omne-harness/session-contract'
+import type { InitializationSource, HistorySource } from './ports.ts'
+import {
+  canonical as canonicalText,
+  digestOf,
+  decodedRow,
+  materializeModelView,
+  compactionReads,
+} from './session-values.ts'
+import type { SessionState } from './root.ts'
+import type { SessionDirectory } from './session-directory.ts'
+const TESTING_OWNER = '@omne-harness/session-adapters/testing'
+type Recall = (receipt: CommitReceipt) => unknown
+
+type Store = SessionState
+
+type Cursor = Readonly<{
+  tenant: string
+  session: SessionId
+  kinds: readonly string[]
+  direction: 'forward' | 'backward'
+  upper: number
+  scanned: number
+  pageBytes: number
+}>
+
+export interface MemorySessionTransactions<P> extends SessionTransactionPort<P> {
+  readonly durability: 'none'
+  readonly controls: Readonly<{
+    entriesOf(tenant: TenantId, session: SessionId): readonly HistoryEntry[]
+  }>
+}
+
+export interface MemorySessionLogTransactions<P> extends MemorySessionTransactions<P> {
+  readonly controls: MemorySessionTransactions<P>['controls'] &
+    Readonly<{
+      project(
+        observation: SessionLogObservation,
+        operation: SessionOperationId,
+      ): Promise<Outcome<CommitReceipt | null, SessionFailure>>
+      directoryAvailable(available: boolean): void
+    }>
+}
+
+export interface MemoryInitializationTransactions<P> extends MemorySessionLogTransactions<P> {
+  readonly controls: MemorySessionLogTransactions<P>['controls'] &
+    Readonly<{
+      failNextInitializationCommit(): void
+      loseNextInitializationReply(): void
+    }>
+}
+
+const unavailable = (diagnostic: string): Extract<SessionFailure, { kind: 'unavailable' }> => ({
+  kind: 'unavailable',
+  owner: TESTING_OWNER,
+  diagnostic,
+})
+
+const denied = (action: string): Extract<SessionFailure, { kind: 'denied' }> => ({
+  kind: 'denied',
+  action,
+})
+
+function keyOf(tenant: TenantId, session: SessionId): Outcome<string, SessionFailure> {
+  const text = tenantCodec.encode(tenant)
+  if (!text.ok)
+    return fail({
+      kind: 'invalid',
+      field: 'tenant',
+      reason: 'not a tenant that legal-identity minted',
+    })
+  return succeed(`${text.value}\u0000${session}`)
+}
+
+function entryBytes(entry: HistoryEntry): number {
+  return Buffer.byteLength(canonicalText(entry), 'utf8')
+}
+
+function encodeCursor(cursor: Cursor): string {
+  return Buffer.from(JSON.stringify(cursor), 'utf8').toString('base64url')
+}
+
+function decodeCursor(text: string): Cursor | null {
+  try {
+    const parsed: unknown = JSON.parse(Buffer.from(text, 'base64url').toString('utf8'))
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const cursor = parsed as Record<string, unknown>
+    if (typeof cursor['tenant'] !== 'string' || typeof cursor['session'] !== 'string') return null
+    if (!Array.isArray(cursor['kinds']) || typeof cursor['upper'] !== 'number') return null
+    if (typeof cursor['scanned'] !== 'number' || typeof cursor['pageBytes'] !== 'number')
+      return null
+    if (cursor['direction'] !== 'forward' && cursor['direction'] !== 'backward') return null
+    return cursor as Cursor
+  } catch {
+    return null
+  }
+}
+
+export function pendingReasonsOf(snapshot: WorkSnapshot): readonly PendingReason[] {
+  const reasons: PendingReason[] = []
+  if (snapshot.tasks.some(task => task.kind === 'initialization')) reasons.push('initialization')
+  if (snapshot.unresolved.length > 0) reasons.push('unresolved')
+  if (snapshot.controls.some(control => control.state === 'propagating')) reasons.push('controls')
+  if (snapshot.tasks.length > 0) reasons.push('tasks')
+  if (snapshot.pending.length > 0) reasons.push('inputs')
+  if (snapshot.run.kind === 'active') reasons.push('run')
+  else if (
+    snapshot.lifecycle !== 'archived' &&
+    snapshot.autoArchive?.kind === 'enabled' &&
+    !(snapshot.relation?.kind === 'main' && snapshot.relation.resident)
+  )
+    reasons.push('idle-armed')
+  if (snapshot.consumptions.some(item => item.results.some(result => result.release === 'pending')))
+    reasons.push('release')
+  return reasons
+}
+
+function receiptOf(
+  tenant: TenantId,
+  session: SessionId,
+  operation: SessionOperationId,
+  revision: SessionRevision,
+  entries: readonly HistoryEntry[],
+): CommitReceipt {
+  const first = entries[0] as HistoryEntry
+  const last = entries[entries.length - 1] as HistoryEntry
+  const source: DurableEvidence = {
+    owner: TESTING_OWNER,
+    record: `${tenantCodec.encode(tenant).ok ? JSON.stringify(tenantCodec.encode(tenant)) : 'invalid'}/${session}/${operation}`,
+    revision,
+    digest: `sha256:${digestOf({ operation, first: first.id, last: last.id, kinds: entries.map(e => e.kind), payload: entries.map(e => e.payload) })}`,
+  }
+  return { operation, revision, first: first.id, last: last.id, recovered: false, source }
+}
+
+function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
+  const kind = command.kind
+  switch (command.kind) {
+    case 'create':
+      return receipt => ({ receipt, state: snapshot })
+    case 'startRun': {
+      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
+        throw new Error('startRun committed without an active Run')
+      const { advance, adoption, first, execution } = snapshot.run
+      return receipt => ({
+        receipt,
+        advance,
+        adopted: adoption,
+        first,
+        execution: execution.execution,
+      })
+    }
+    case 'claim':
+    case 'reload': {
+      if (snapshot.run.kind !== 'active' || snapshot.run.advance === null)
+        throw new Error(`${kind} committed without an advance`)
+      const { advance } = snapshot.run
+      return receipt => ({ receipt, advance })
+    }
+    case 'finishRun': {
+      if (snapshot.run.kind !== 'terminal')
+        throw new Error('finishRun committed without a terminal')
+      const { terminal } = snapshot.run
+      return receipt => ({ receipt, terminal })
+    }
+    case 'preserveResult':
+    case 'completeConsumption':
+    case 'completeExternalConsumption':
+      return receipt => receipt.source
+    case 'bindExternalCall':
+      return receipt => ({
+        receipt,
+        consumption: snapshot.consumptions.find(
+          item => canonicalText(item.binding) === canonicalText(command.input.binding),
+        )?.id,
+      })
+    case 'control':
+    case 'interrupt': {
+      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
+      return receipt => ({ receipt, progress })
+    }
+    case 'considerAutoArchive':
+      return receipt => ({ result: 'archived', receipt })
+    default:
+      return receipt => receipt
+  }
+}
+
+function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
+  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
+    return command.input.value
+  if (command.kind === 'create') return command.input.creation.initial
+  if (command.kind === 'interrupt') return command.input.urgent
+  return null
+}
+
+export type MemorySessionTransactionOptions<P> = Readonly<{
+  initialization?: InitializationSource
+  history?: HistorySource
+  capacityBytes?: number
+  verifyCommand?: (
+    command: SessionCommand,
+    guards: readonly GuardCommand[],
+  ) => SessionFailure | null
+
+  authorize?: (
+    input: SessionAccess<P> | Readonly<{ principal: P; tenant?: TenantId; scope?: 'system' }>,
+    action: string,
+  ) => 'allowed' | 'denied' | 'unavailable'
+}>
+export function createSessionTransactions<P>(
+  stores: SessionDirectory,
+  options: MemorySessionTransactionOptions<P> = {},
+): MemoryInitializationTransactions<P> & {
+  prepareCommand(input: {
+    command: SessionCommand
+    guards: readonly GuardCommand[]
+  }): Outcome<unknown, SessionFailure>
+} {
+  let directoryAvailable = true
+  let failInitialization = false
+  let loseInitializationReply = false
+  const issuedCursors = new Set<string>()
+
+  const qualify = (
+    access: Parameters<NonNullable<MemorySessionTransactionOptions<P>['authorize']>>[0],
+    action: string,
+  ): SessionFailure | null => {
+    const status = options.authorize?.(access, action) ?? 'denied'
+    return status === 'allowed'
+      ? null
+      : status === 'denied'
+        ? denied(action)
+        : unavailable(`qualification unavailable: ${action}`)
+  }
+  const storeOf = (access: SessionAccess<P>, action: string): Outcome<Store, SessionFailure> => {
+    const qualification = qualify(access, action)
+    if (qualification) return fail(qualification)
+    const key = keyOf(access.tenant, access.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    return store === undefined ? fail(denied(action)) : succeed(store)
+  }
+
+  const commit = <K extends MutationName>(
+    input: Readonly<{
+      command: Extract<SessionCommand, { kind: K }>
+      guards: readonly GuardCommand[]
+    }>,
+  ): Outcome<unknown, SessionFailure> => {
+    const command: SessionCommand = input.command
+    const qualification = options.verifyCommand?.(command, input.guards)
+    if (qualification) return fail(qualification)
+    const key = keyOf(command.input.tenant, command.input.session)
+    if ('failure' in key) return key
+    const blocked = stores.gate(key.ok)
+    if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+    const store = stores.get(key.ok)
+    if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+    if (command.kind === 'create' || command.kind === 'completeInitialization') {
+      const refusal =
+        options.initialization?.verify(command, input.guards) ??
+        (options.initialization === undefined
+          ? {
+              kind: 'invalid' as const,
+              field: 'initialization',
+              reason: 'no trusted initialization source was configured',
+            }
+          : null)
+      if (refusal !== null) return fail(refusal)
+    }
+    const held = store?.operations.get(command.input.operation)
+    const frozen = store?.frozenReceipt
+    if (held !== undefined) {
+      if (held.record.digest !== commandDigest(command))
+        return fail({ kind: 'conflict', operation: command.input.operation })
+      return succeed(held.recall({ ...held.record.receipt, recovered: true }))
+    }
+    const selected =
+      command.kind === 'startRun'
+        ? store?.snapshot.pending.slice(0, 1)
+        : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+          ? [command.input.fact.input]
+          : undefined
+    const scope: SessionInputScope =
+      selected === undefined
+        ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
+        : { kind: 'selected', inputs: selected }
+    const material =
+      store === undefined
+        ? undefined
+        : options.history?.read(
+            store.snapshot,
+            store.entries,
+            scope,
+            [],
+            commandScope(command, store.snapshot) === null ? new Map() : undefined,
+          )
+    const prepared =
+      store === undefined
+        ? null
+        : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
+    const decision = decide(prepared, command, input.guards, null, {
+      ...(material === undefined ? {} : { history: material.reads }),
+      compaction:
+        command.kind === 'commitDerived' &&
+        command.input.value.kind === 'compaction' &&
+        store !== undefined
+          ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
+          : null,
+      ...(frozen == null ? {} : { frozenReceipt: frozen }),
+      initializationReceipts: [
+        ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
+      ].map(value => value.record.receipt),
+    })
+    if (decision.kind === 'rejected') return fail(decision.failure)
+    if (decision.kind === 'recovered') {
+      const original = held ?? store?.operations.get(decision.receipt.operation)
+      if (original === undefined) return fail(unavailable('a recalled operation without a record'))
+      const recall: Recall =
+        command.kind === 'completeInitialization' ? receipt => receipt : original.recall
+      if (held === undefined && store !== undefined && command.kind === 'completeInitialization') {
+        const operations = new Map(store.operations)
+        operations.set(command.input.operation, {
+          record: {
+            operation: command.input.operation,
+            digest: commandDigest(command),
+            receipt: original.record.receipt,
+          },
+          recall,
+        })
+        stores.set(key.ok, { ...store, operations })
+      }
+      return succeed(recall({ ...decision.receipt, recovered: true }))
+    }
+    if (
+      decision.entries.length === 0 &&
+      command.kind === 'considerAutoArchive' &&
+      store !== undefined
+    ) {
+      const snapshot = store.snapshot
+      const observation = snapshot.idle?.observation
+      const result =
+        snapshot.autoArchive?.kind !== 'enabled'
+          ? 'disabled'
+          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+            ? 'exempt'
+            : observation === undefined
+              ? 'not-due'
+              : judgeIdle(snapshot, {
+                  observation,
+                  policy: snapshot.autoArchive,
+                  coverage:
+                    observation.kind === 'interval'
+                      ? observation.coverage
+                      : {
+                          own: observation.source,
+                          relations: observation.source,
+                          calls: [],
+                          children: [],
+                          completeScope: observation.source,
+                        },
+                }).kind
+      return succeed({ result, receipt: null })
+    }
+    const previous = prepared
+    const revision = String(
+      previous === null ? 1n : BigInt(previous.revision) + 1n,
+    ) as SessionRevision
+    const offset = store?.entries.length ?? 0
+    const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+      ...entry,
+      id: String(offset + index + 1) as EntryId,
+      revision,
+    }))
+    if (
+      options.capacityBytes !== undefined &&
+      (Buffer.byteLength(canonicalText(entries)) > options.capacityBytes ||
+        Buffer.byteLength(canonicalText(previous)) > options.capacityBytes)
+    )
+      return fail(unavailable('required final batch or snapshot exceeds capacity'))
+    const reduced = reduce(previous, { revision, entries }, material?.reads)
+    if (reduced.kind === 'quarantined')
+      return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+    const committedSnapshot = reduced.snapshot
+    const receipt = receiptOf(
+      command.input.tenant,
+      command.input.session,
+      command.input.operation,
+      revision,
+      entries,
+    )
+    let publishedSnapshot = committedSnapshot
+    const recall: Recall = receipt => resultOf(command, publishedSnapshot)(receipt)
+    const operations = new Map(store?.operations)
+    operations.set(command.input.operation, {
+      record: { operation: command.input.operation, digest: commandDigest(command), receipt },
+      recall,
+    })
+    const inputs = new Map(store?.inputs)
+    const admitted = admittedInput(command)
+    if (admitted !== null) inputs.set(admitted.input, admitted)
+    const target: Store = {
+      lastCommit: receipt,
+      frozenReceipt: entries.some(entry => entry.kind === 'session.frozen')
+        ? receipt
+        : (store?.frozenReceipt ?? null),
+      snapshot: committedSnapshot,
+      modelView: materializeModelView(store?.modelView ?? { epoch: 'epoch:0', rows: [] }, entries, [
+        ...(store?.entries ?? []),
+        ...entries,
+      ]),
+      entries: [...(store?.entries ?? []), ...entries],
+      operations,
+      inputs,
+    }
+    const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
+    if (initialization && failInitialization) {
+      failInitialization = false
+      return fail(unavailable('injected failure before initialization publication'))
+    }
+    const currentQualification = options.verifyCommand?.(command, input.guards)
+    if (currentQualification) return fail(currentQualification)
+    stores.set(key.ok, target)
+    if (command.kind === 'create') {
+      const current = options.history?.read(target.snapshot, target.entries, {
+        kind: 'pending',
+        inputs: target.snapshot.pending,
+      })
+      if (current) publishedSnapshot = { ...target.snapshot, historyIndex: current.index }
+    }
+    if (initialization && loseInitializationReply) {
+      loseInitializationReply = false
+      return fail({ kind: 'commit-unknown', operation: command.input.operation })
+    }
+    return succeed(recall(receipt))
+  }
+
+  const page = (store: Store, cursor: Cursor): HistoryPage => {
+    const upper = Math.min(cursor.upper, store.entries.length)
+    const forward = cursor.direction === 'forward'
+    const matches = (entry: HistoryEntry): boolean =>
+      cursor.kinds.length === 0 || cursor.kinds.includes(entry.kind)
+    const taken: HistoryEntry[] = []
+    let scanned = cursor.scanned
+    let bytes = 0
+    while (forward ? scanned < upper : scanned < upper) {
+      const index = forward ? scanned : upper - scanned - 1
+      const entry = store.entries[index] as HistoryEntry
+      if (matches(entry)) {
+        const size = entryBytes(entry)
+        if (taken.length > 0 && bytes + size > cursor.pageBytes) break
+        taken.push(entry)
+        bytes += size
+      }
+      scanned += 1
+    }
+    const exhausted = scanned >= upper
+    const next: Cursor = { ...cursor, upper, scanned }
+    const token = encodeCursor(next)
+    if (!exhausted) issuedCursors.add(token)
+    return {
+      source: TESTING_OWNER,
+      interpreter: store.snapshot.interpreter,
+      upper: store.entries[upper - 1]?.revision ?? store.snapshot.revision,
+      entries: taken,
+      scannedThrough: String(scanned),
+      next: exhausted ? null : token,
+      exhausted,
+      annotations: store.entries.slice(0, upper).filter(entry => {
+        const decoded = decodedRow(entry)
+        return (
+          'ok' in decoded &&
+          decoded.ok.kind === 'history.annotated' &&
+          'targets' in decoded.ok &&
+          !taken.includes(entry) &&
+          decoded.ok.targets.some(target => taken.some(row => row.id === target))
+        )
+      }),
+    }
+  }
+
+  const history: SessionHistory<P> = {
+    begin: async input => {
+      const store = storeOf(input, 'history.begin')
+      if ('failure' in store) return store
+      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+      const total = store.ok.entries.length
+      let scanned = 0
+      let upper = total
+      if (input.from !== null) {
+        const at = store.ok.entries.findIndex(entry => entry.id === input.from)
+        if (at === -1)
+          return fail({ kind: 'invalid', field: 'from', reason: 'not an entry of this session' })
+        if (input.direction === 'forward') scanned = at + 1
+        else upper = at
+      }
+      return succeed(
+        page(store.ok, {
+          tenant,
+          session: input.session,
+          kinds: input.kinds,
+          direction: input.direction,
+          upper,
+          scanned,
+          pageBytes: input.pageBytes,
+        }),
+      )
+    },
+    next: async input => {
+      const store = storeOf(input, 'history.next')
+      if ('failure' in store) return store
+      const cursor = decodeCursor(input.cursor)
+      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+      if (
+        !issuedCursors.has(input.cursor) ||
+        cursor === null ||
+        cursor.tenant !== tenant ||
+        cursor.session !== input.session
+      )
+        return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
+      return succeed(page(store.ok, cursor))
+    },
+    since: async input => {
+      const store = storeOf(input, 'history.since')
+      if ('failure' in store) return store
+      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+      const at = store.ok.entries.findIndex(entry => entry.id === input.after)
+      if (at === -1)
+        return fail({ kind: 'invalid', field: 'after', reason: 'not an entry of this session' })
+      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+      return succeed(
+        page(store.ok, {
+          tenant,
+          session: input.session,
+          kinds: input.kinds,
+          direction: 'forward',
+          upper: store.ok.entries.length,
+          scanned: at + 1,
+          pageBytes: input.pageBytes,
+        }),
+      )
+    },
+    readModelView: async input => {
+      const store = storeOf(input, 'history.readModelView')
+      if ('failure' in store) return store
+      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+      const view = store.ok.modelView
+      const key = keyOf(input.tenant, input.session)
+      if ('failure' in key) return key
+      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+      if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
+        return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
+      if (input.basis !== null && input.basis.epoch !== current.epoch)
+        return succeed({ kind: 'epoch-changed', current })
+      const basis = input.basis ?? current
+      const after = input.after === null ? 0 : Number(input.after)
+      const upper = Number(basis.upper)
+      if (
+        !Number.isInteger(after) ||
+        !Number.isInteger(upper) ||
+        after < 0 ||
+        upper > view.rows.length ||
+        after > upper
+      )
+        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+      const rows = []
+      let bytes = 0
+      for (const row of view.rows.slice(after, upper)) {
+        if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
+        rows.push(row)
+        bytes += row.bytes
+      }
+      return succeed({
+        kind: 'page',
+        basis,
+        rows,
+        next: after + rows.length < upper ? String(after + rows.length) : null,
+      })
+    },
+  }
+
+  const port: SessionTransactionPort<P> = {
+    commit: (async input => commit(input)) as SessionTransactionPort<P>['commit'],
+    readWork: async input => {
+      const store = storeOf(input, 'readWork')
+      if ('failure' in store) return store
+      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
+        kind: 'pending',
+        inputs: store.ok.snapshot.pending,
+      })
+      return succeed({
+        ...store.ok.snapshot,
+        ...(material === undefined ? {} : { historyIndex: material.index }),
+      })
+    },
+    readInput: async input => {
+      const store = storeOf(input, 'readInput')
+      if ('failure' in store) return store
+      const found = store.ok.inputs.get(input.input)
+      return found === undefined
+        ? fail({ kind: 'invalid', field: 'input', reason: 'not an ordinary input of this session' })
+        : succeed(found)
+    },
+    queryOperation: async input => {
+      const store = storeOf(input, 'queryOperation')
+      if ('failure' in store) return store
+      const held = store.ok.operations.get(input.operation)
+      const resolution: OperationResolution =
+        held === undefined
+          ? { kind: 'unknown' }
+          : { kind: 'committed', receipt: held.record.receipt }
+      return succeed(resolution)
+    },
+    history,
+    pending: async input => {
+      const qualification = qualify(input, 'pending')
+      if (qualification) return fail(qualification)
+      const text = tenantCodec.encode(input.tenant)
+      if (!text.ok)
+        return fail({
+          kind: 'invalid',
+          field: 'tenant',
+          reason: 'not a tenant that legal-identity minted',
+        })
+      if (!Number.isInteger(input.limit) || input.limit < 1)
+        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+      const prefix = `${text.value}\u0000`
+      const sessions = [...stores.entries()]
+        .filter(([key]) => key.startsWith(prefix))
+        .map(([, store]) => store.snapshot)
+        .filter(snapshot => {
+          const reasons = pendingReasonsOf(snapshot)
+          return input.reason === undefined ? reasons.length > 0 : reasons.includes(input.reason)
+        })
+        .map(snapshot => snapshot.session)
+        .sort()
+        .filter(session => input.after === null || session > input.after)
+      const taken = sessions.slice(0, input.limit)
+      const last = taken[taken.length - 1]
+      return succeed({
+        sessions: taken,
+        next: sessions.length > taken.length && last !== undefined ? last : null,
+      })
+    },
+    references: async input => {
+      const qualification = qualify(input, 'references')
+      if (qualification) return fail(qualification)
+      if (!directoryAvailable)
+        return fail(unavailable('transaction-domain directory is unavailable'))
+      if (!Number.isInteger(input.limit) || input.limit < 1)
+        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+      const scope = `references:${input.key}:`
+      if (input.after !== null && !input.after.startsWith(scope))
+        return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
+      const rows = [...stores.values()].flatMap(store =>
+        store.snapshot.lifecycle === 'archived'
+          ? []
+          : (store.snapshot.residentKeys ?? []).flatMap(pair => {
+              const resident = store.snapshot.residents.find(
+                item => item.capability === pair.capability,
+              )
+              return pair.key === input.key && resident !== undefined
+                ? [
+                    {
+                      tenant: store.snapshot.tenant,
+                      session: store.snapshot.session,
+                      capability: pair.capability,
+                      shape: resident.shape,
+                    },
+                  ]
+                : []
+            }),
+      )
+      const offset = input.after === null ? 0 : Number(input.after.slice(scope.length))
+      if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
+        return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
+      const sessions = rows.slice(offset, offset + input.limit)
+      return succeed({
+        sessions,
+        next:
+          offset + sessions.length < rows.length ? scope + String(offset + sessions.length) : null,
+      })
+    },
+    releasedScopes: async input => {
+      const qualification = qualify(input, 'releasedScopes')
+      if (qualification) return fail(qualification)
+      if (!directoryAvailable)
+        return fail(unavailable('transaction-domain directory is unavailable'))
+      if (!Number.isInteger(input.limit) || input.limit < 1)
+        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+      const prefix = 'released-scopes:'
+      if (input.after !== null && !input.after.startsWith(prefix))
+        return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
+      const rows = [...stores.values()].flatMap(store =>
+        (store.snapshot.releasedScopes ?? []).map(scope => ({
+          tenant: store.snapshot.tenant,
+          session: store.snapshot.session,
+          ...scope,
+        })),
+      )
+      const offset = input.after === null ? 0 : Number(input.after.slice(prefix.length))
+      if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
+        return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
+      const scopes = rows.slice(offset, offset + input.limit)
+      return succeed({
+        scopes,
+        next: offset + scopes.length < rows.length ? prefix + String(offset + scopes.length) : null,
+      })
+    },
+  }
+
+  return Object.freeze({
+    ...port,
+    prepareCommand: commit,
+    durability: 'none' as const,
+    controls: Object.freeze({
+      project: async (
+        observation: SessionLogObservation,
+        operation: SessionOperationId,
+      ): Promise<Outcome<CommitReceipt | null, SessionFailure>> => {
+        const key = keyOf(observation.tenant, observation.session)
+        if ('failure' in key) return key
+        const blocked = stores.gate(key.ok)
+        if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
+        const store = stores.get(key.ok)
+        if (store === undefined) return fail(denied('project'))
+        const held = store.operations.get(operation)
+        const digest = digestOf(observation)
+        if (held !== undefined)
+          return held.record.digest === digest
+            ? succeed({ ...held.record.receipt, recovered: true })
+            : fail({ kind: 'conflict', operation })
+        const selected = observation.consequences.find(item => item.kind === 'input-taken')
+        const material = options.history?.read(
+          store.snapshot,
+          store.entries,
+          selected?.kind === 'input-taken'
+            ? { kind: 'selected', inputs: selected.batch.ordered }
+            : { kind: 'pending', inputs: store.snapshot.pending },
+          [observation.execution],
+          observation.sequence === null
+            ? new Map()
+            : !observation.consequences.some(item => item.kind === 'ended')
+              ? new Map([[observation.execution, observation.sequence]])
+              : undefined,
+        )
+        const prepared = {
+          ...store.snapshot,
+          ...(material === undefined ? {} : { historyIndex: material.index }),
+        }
+        const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
+        if (decision.kind === 'rejected') return fail(decision.failure)
+        if (decision.kind === 'recovered') return succeed(decision.receipt)
+        if (decision.entries.length === 0) return succeed(null)
+        const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+        const entries = decision.entries.map((entry, index) => ({
+          ...entry,
+          id: String(store.entries.length + index + 1) as EntryId,
+          revision,
+        }))
+        if (
+          options.capacityBytes !== undefined &&
+          (Buffer.byteLength(canonicalText(entries)) > options.capacityBytes ||
+            Buffer.byteLength(canonicalText(prepared)) > options.capacityBytes)
+        )
+          return fail(unavailable('required interpretation batch or snapshot exceeds capacity'))
+        const reduced = reduce(prepared, { revision, entries }, material?.reads)
+        if (reduced.kind === 'quarantined')
+          return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+        const receipt = receiptOf(
+          observation.tenant,
+          observation.session,
+          operation,
+          revision,
+          entries,
+        )
+        const operations = new Map(store.operations)
+        operations.set(operation, {
+          record: { operation, digest, receipt },
+          projection: observation,
+          recall: value => value,
+        })
+        stores.set(key.ok, {
+          ...store,
+          snapshot: reduced.snapshot,
+          lastCommit: receipt,
+          entries: [...store.entries, ...entries],
+          operations,
+          modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
+        })
+        return succeed(receipt)
+      },
+      directoryAvailable: (available: boolean) => {
+        directoryAvailable = available
+      },
+      failNextInitializationCommit: () => {
+        failInitialization = true
+      },
+      loseNextInitializationReply: () => {
+        loseInitializationReply = true
+      },
+      entriesOf: (tenant: TenantId, session: SessionId) => {
+        const key = keyOf(tenant, session)
+        return 'failure' in key ? [] : [...(stores.get(key.ok)?.entries ?? [])]
+      },
+    }),
+  })
+}

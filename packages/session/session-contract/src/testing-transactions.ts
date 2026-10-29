@@ -20,9 +20,16 @@ import type {
   SessionOperationId,
   SessionRevision,
 } from './identity.ts'
-import type { BoundedClose, RoutedInput, SessionCreation, WorkSnapshot } from './values.ts'
+import type {
+  BoundedClose,
+  RoutedInput,
+  SessionCreation,
+  WorkSnapshot,
+  Participation,
+} from './values.ts'
 import type {
   CommitReceipt,
+  AdmittedMessage,
   HistoryEntry,
   HistoryPage,
   OperationResolution,
@@ -41,7 +48,7 @@ import { decide, commandDigest, LOGIN_ENTRY_OWNER } from './decide.ts'
 import { judgeCompletion } from './judgments.ts'
 import { SESSION_INTERPRETER } from './entries.ts'
 import { type OperationRecord } from './judgments.ts'
-import { canonicalText, digestOf } from './operations.ts'
+import { canonicalText, digestOf, deriveSessionOperation } from './operations.ts'
 import { projectSessionLog, type SessionLogObservation } from './projection.ts'
 import { consumptionIdOf } from './decide-results.ts'
 import { judgeIdle } from './judgments.ts'
@@ -857,6 +864,14 @@ export interface SessionTransactionsFixture<P> {
       receipt: DurableEvidence
     }>,
   ): Promise<void>
+  /** Publishes the original execution record and Session participation in one real commit. */
+  publishMessageParticipation?(
+    input: Readonly<{
+      execution: string
+      operation: string
+      value: AdmittedMessage
+    }>,
+  ): Promise<Participation>
   initializationGuards?(
     command: Extract<SessionCommand, { kind: 'create' }>,
   ): Promise<readonly GuardCommand[]>
@@ -944,6 +959,82 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
         },
       },
     })
+  const publishMessage = async (execution: string, text: string): Promise<Participation | null> => {
+    if (!fixture.publishMessageParticipation) {
+      succeeded(await message(execution, text), 'recordMessage')
+      return null
+    }
+    const original = `agent-op-${text}`
+    const value: AdmittedMessage = {
+      message: assistantMessage(text),
+      source: evidence(`agent/source/${text}`),
+      admission: evidence(`agent/admission/${text}`),
+      consumption: null,
+    }
+    const participation = await fixture.publishMessageParticipation({
+      execution,
+      operation: original,
+      value,
+    })
+    assert.equal(participation.execution, execution, 'original execution')
+    assert.equal(participation.operation, original, 'original operation')
+    assert.equal(participation.joint, 'message', 'original participation kind')
+    const operation = deriveSessionOperation({
+      kind: 'participation',
+      execution,
+      operation: original,
+      joint: 'message',
+    })
+    const resolution = succeeded(
+      await port.queryOperation({ ...access, operation }),
+      'query before replay',
+    )
+    const committed = expectKind(resolution, 'committed', 'Session half must exist before replay')
+    assert.equal(committed.receipt.operation, operation)
+    const historyInput = {
+      ...access,
+      kinds: [] as const,
+      from: null,
+      direction: 'forward' as const,
+      pageBytes: 1_000_000,
+    }
+    const before = succeeded(await port.history.begin(historyInput), 'history before replay')
+    assert.ok(before.exhausted, 'bounded scenario must fit the history page')
+    const rows = before.entries.filter(
+      row => row.revision === committed.receipt.revision && row.kind === 'message.assistant',
+    )
+    assert.equal(rows.length, 1, 'one original message')
+    const decoded = decodeEntry(rows[0]!)
+    assert.ok('ok' in decoded && decoded.ok.kind === 'message.assistant')
+    if (!('ok' in decoded) || decoded.ok.kind !== 'message.assistant')
+      throw new Error('message decode')
+    assert.deepEqual(decoded.ok.message, value.message)
+    assert.deepEqual(decoded.ok.source, value.source)
+    assert.deepEqual(decoded.ok.admission, value.admission)
+    assert.deepEqual(decoded.ok.participation, participation)
+    const snapshot = succeeded(await port.readWork(access), 'snapshot before replay')
+    const run = expectKind(snapshot.run, 'active', 'participating Run')
+    assert.equal(run.execution.revision, participation.written)
+    assert.deepEqual(run.execution.evidence, participation.handover)
+    const replay = succeeded(
+      await commit<'recordMessage'>({
+        kind: 'recordMessage',
+        input: { ...base, operation, participation, value },
+      }),
+      'replay original participation',
+    )
+    assert.equal(replay.recovered, true)
+    assert.deepEqual({ ...replay, recovered: committed.receipt.recovered }, committed.receipt)
+    assert.equal(
+      succeeded(await port.readWork(access), 'snapshot after replay').revision,
+      snapshot.revision,
+    )
+    assert.deepEqual(
+      succeeded(await port.history.begin(historyInput), 'history after replay').entries,
+      before.entries,
+    )
+    return participation
+  }
   /** Closes the Run by a bounded close of this Session (PM-02): the only terminal on the first path. */
   const finish = async (
     name = 'finish',
@@ -982,6 +1073,7 @@ function scene<P>(fixture: SessionTransactionsFixture<P>) {
     startRun,
     handover,
     message,
+    publishMessage,
     finish,
     readWork,
     openRun,
@@ -1285,10 +1377,14 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         const s = scene(fixture)
         const execution = await s.openRun()
         succeeded(await s.handover(execution, 'input-1'), 'handover')
-        succeeded(await s.message(execution, 'hello'), 'recordMessage')
+        const participation = await s.publishMessage(execution, 'hello')
         let snapshot = await s.readWork()
         let run = expectKind(snapshot.run, 'active', 'run after the message')
-        assert.equal(run.execution.revision, '3', 'the participation revision is kept')
+        assert.equal(
+          run.execution.revision,
+          participation?.written ?? '3',
+          'the participation revision is kept',
+        )
         const stranger = refused(
           await s.message('other-execution', 'stranger'),
           'message of another execution',

@@ -2028,8 +2028,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:b5166ef112cd83a06b980732224eefb291d5d7ebcb2250fe10eaa7604f242302";
-export declare const SESSION_RELEASE_DIGEST = "sha256:b5166ef112cd83a06b980732224eefb291d5d7ebcb2250fe10eaa7604f242302";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:d2df72281922548574dec414c6c0994ccfcc9ab049cdee1b0d235579e06a0c77";
+export declare const SESSION_RELEASE_DIGEST = "sha256:d2df72281922548574dec414c6c0994ccfcc9ab049cdee1b0d235579e06a0c77";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2270,8 +2270,8 @@ import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, InputId, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
-import type { SessionCreation, WorkSnapshot } from './values.ts';
-import type { CommitReceipt, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
+import type { SessionCreation, WorkSnapshot, Participation } from './values.ts';
+import type { CommitReceipt, AdmittedMessage, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
 import type { GuardCommand, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
@@ -2317,6 +2317,11 @@ export interface SessionTransactionsFixture<P> {
         operation: SessionOperationId;
         receipt: DurableEvidence;
     }>): Promise<void>;
+    publishMessageParticipation?(input: Readonly<{
+        execution: string;
+        operation: string;
+        value: AdmittedMessage;
+    }>): Promise<Participation>;
     initializationGuards?(command: Extract<SessionCommand, {
         kind: 'create';
     }>): Promise<readonly GuardCommand[]>;
@@ -2467,6 +2472,14 @@ export type Waiting = Readonly<{
     position: string;
     members: readonly Readonly<{
         action: string;
+        card: DurableEvidence;
+        decision: DurableEvidence | null;
+    }>[];
+}> | Readonly<{
+    kind: 'extension-passage';
+    passage: string;
+    position: string;
+    members: readonly Readonly<{
         card: DurableEvidence;
         decision: DurableEvidence | null;
     }>[];

@@ -38,3 +38,8 @@
 [AD-02](../SPEC.md#ad-02)消费 Session 自有的根、历史目录、原批次、原 attempt 与归一调用登记候选值。该成员负责公开 Agent identity decoder、Model/Tool invocation resolver 与原 effect/pending/Authority 的校验；session-contract 负责其语言内的完整性与不变量。
 
 已有 AgentJournal、AgentJournalEntries、AgentReceivedCommits 与 AgentMaterials 形状保持，不新增 Agent 端口。候选 testing 提供者直接用 Session 的 decide/projectSessionLog/reduce/commandDigest 组合同一个 per-session 根。它不包装第二个独立内存日志。新增 Session 值、第三个可选 reads 与 executionEvidence 的候选导航归 [Session 公开接口页](../../session-contract/docs/public-api.md#同日志历史材料的候选增加)。本页所列能力仍未在本成员实现。
+
+
+## 共同日志内存提供者
+
+`./testing` 导出 `createMemorySessionJournal` 与 `MemorySessionJournalOptions`。公开签名归 [testing.ts](../src/testing.ts)，使用顺序、资格依赖、受信夹具及非耐久边界见 [testing.md](testing.md)。根入口和 Cordis 入口的状态不因该测试提供者改变。
