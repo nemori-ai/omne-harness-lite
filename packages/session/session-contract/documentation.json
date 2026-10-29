@@ -588,6 +588,66 @@
       ]
     },
     {
+      "id": "docs-initialization",
+      "path": "packages/session/session-contract/docs/initialization.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "守卫和提交"
+        },
+        {
+          "id": "section-2",
+          "anchor": "测试来源"
+        },
+        {
+          "id": "section-3",
+          "anchor": "精确发布摘要"
+        },
+        {
+          "id": "section-4",
+          "anchor": "验证导航"
+        }
+      ]
+    },
+    {
+      "id": "docs-same-log-pure",
+      "path": "packages/session/session-contract/docs/same-log-pure.md",
+      "kind": "guide",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "section-1",
+          "anchor": "输入与失败"
+        },
+        {
+          "id": "section-2",
+          "anchor": "登记控制与压缩"
+        },
+        {
+          "id": "section-3",
+          "anchor": "验证资源与提供者交接"
+        }
+      ]
+    },
+    {
       "id": "docs-index",
       "path": "packages/session/session-contract/docs/index.md",
       "kind": "guide",

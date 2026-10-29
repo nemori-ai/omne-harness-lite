@@ -28,7 +28,6 @@ Session 的纯契约成员，不依赖 Cordis。
 
 初始化已支持可选注册、工作区加载及执行准备来源，严格初始采用守卫、同批结果事实和原回执认回。当前解释器支持当前精确 revision 3 采用。接线、摘要及验证导航见[初始化实现](docs/initialization.md)。真实采用提供者、加载器及 Context replay 尚未由内存证据证明。
 
-
 ## 使用
 
 本成员有根入口 `@omne-harness/session-contract` 与只给测试的 `@omne-harness/session-contract/testing`，没有 `./cordis` 入口。只需要类型与纯函数的调用方只安装本成员，不需要 Cordis，也不需要宿主。
@@ -71,7 +70,7 @@ pnpm --filter '@omne-harness/session-contract...' build
 node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖导出集合、命令判定与归约、冻结、历史执行、结果保管、空闲归档、压缩视图和提供者套件，见 [tests/](tests/README.md)。真实后端与完整组合仍未覆盖。持续验证义务见[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。测试覆盖导出集合、命令判定与归约、冻结、历史执行、结果保管、空闲归档、压缩视图和提供者套件，见 [tests/](tests/README.md)。真实后端与完整生产运行组合仍未覆盖。有限模型及其前提见 [verification/](verification/README.md)。持续验证义务见[持续验证义务](SPEC.md#持续验证义务与未覆盖)与[候选的持续验证义务](SPEC.md#候选的持续验证义务)。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -97,13 +96,13 @@ docs/                     内部设计、公开使用与集成说明
 src/                      公开类型、判定、decide、reduce 与测试替身
 tests/                    导出集合、decide/reduce、套件自证、依赖方向
 schema/                   模板占位
-verification/             models/ 与 proofs/，模板占位
+verification/             frontier 有限模型及其前提；proofs/ 仍为模板占位
 adr/                      模板占位
 examples/                 模板占位
 resources/                模板占位
 acceptance/               模板占位，fixtures/ 同
 ```
 
-每个目录的 README.md 说明职责，index.md 负责导航。除 `docs/` 外，这些文件仍是模板占位，没有写本包事实。阅读路径见 [index.md](index.md)。
+每个目录的 README.md 说明职责，index.md 负责导航。`src/`、`tests/` 与 `verification/` 的页面说明当前本包事实和验证资源。上表标为模板占位的目录仍保留该状态。阅读路径见 [index.md](index.md)。
 
 同日志纯层已实现原历史、完整解除批次、调用登记和控制引用校验。显式历史夹具不提供耐久保证。覆盖与提供者交接见[同日志纯层](docs/same-log-pure.md)。

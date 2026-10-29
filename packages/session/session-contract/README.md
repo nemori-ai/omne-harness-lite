@@ -72,7 +72,7 @@ pnpm --filter '@omne-harness/session-contract...' build
 node scripts/with-test-slot.mjs pnpm --filter @omne-harness/session-contract test
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The tests cover the export sets, `decide`/`reduce`, frozen sessions, historical executions, result custody, idle archive and compacted views, the pure judgments at their edges, the self-proof of the transaction suite with violating variants, and the dependency direction of the built entries. See [tests/](tests/README.md). The verification obligations of the SPEC beyond the first path are not covered yet. These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests cover the export sets, `decide`/`reduce`, frozen sessions, historical executions, result custody, idle archive and compacted views, the pure judgments at their edges, the self-proof of the transaction suite with violating variants, and the dependency direction of the built entries. See [tests/](tests/README.md). Tests also cover behavior beyond the first path. Real backends and a complete production assembly remain unverified. Finite models and their assumptions are listed in [verification/](verification/README.md). These are the [continuing obligations](SPEC.md#持续验证义务与未覆盖) and the [candidate obligations](SPEC.md#候选的持续验证义务). A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -98,11 +98,11 @@ docs/                     Internal design, public use, and integration
 src/                      Public types, judgments, decide, reduce, testing doubles
 tests/                    Export sets, decide/reduce, suite self-proof, dependency walk
 schema/                   Template placeholder
-verification/             models/ and proofs/, template placeholders
+verification/             Finite frontier models and their assumptions; proofs/ is a placeholder
 adr/                      Template placeholder
 examples/                 Template placeholder
 resources/                Template placeholder
 acceptance/               Template placeholder, fixtures/ too
 ```
 
-Each directory has README.md for its role and index.md for navigation. Outside `docs/`, these files are still template placeholders and state no package facts. See [index.md](index.md) for reading paths.
+Each directory has README.md for its role and index.md for navigation. The `src/`, `tests/`, and `verification/` pages describe the current package and its verification resources. The directories marked as placeholders above retain their template status. See [index.md](index.md) for reading paths.
