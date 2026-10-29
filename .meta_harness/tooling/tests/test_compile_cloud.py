@@ -13,6 +13,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
+from executable_bits import set_executable, staged_modes
 from projection import compile_sources
 
 
@@ -30,7 +31,7 @@ def source_tree(tmp_path: Path) -> Path:
     }), encoding="utf-8")
     install = cloud / "install.sh"
     install.write_text("#!/bin/sh\nset -eu\n", encoding="utf-8")
-    install.chmod(0o755)
+    set_executable(root, install)
     (cloud / "README.md").write_text("maintainer note\n", encoding="utf-8")
     return root
 
@@ -39,6 +40,7 @@ def test_cloud_projection_copies_runtime_files_and_keeps_install_executable(tmp_
     source = source_tree(tmp_path)
     output = tmp_path / "preview"
     args = ["--source", str(source), "--output", str(output)]
+@staged_modes
     assert compiler.main(args) == 0
     assert compiler.main(args + ["--check"]) == 0
     assert (output / ".cursor/Dockerfile").read_text() == "FROM ubuntu:24.04\n"
@@ -78,7 +80,7 @@ def add_claude_code_setup(source: Path, mode: int = 0o755) -> Path:
     for name in ("setup.sh", "session-start.sh"):
         script = directory / name
         script.write_text("#!/bin/bash\nset -euo pipefail\n", encoding="utf-8")
-        script.chmod(mode)
+        set_executable(source, script, executable=bool(mode & 0o111))
     return directory
 
 
@@ -86,6 +88,7 @@ def test_claude_code_setup_is_checked_but_not_projected(tmp_path):
     source = source_tree(tmp_path)
     add_claude_code_setup(source)
     output = tmp_path / "preview"
+@staged_modes
     args = ["--source", str(source), "--output", str(output)]
     assert compiler.main(args) == 0
     assert compiler.main(args + ["--check"]) == 0
@@ -113,7 +116,7 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     if mutation == "extra":
         (source / "cloud/cursor/notes.txt").write_text("x\n", encoding="utf-8")
     elif mutation == "unexecutable":
-        (source / "cloud/cursor/install.sh").chmod(0o644)
+        set_executable(source, source / "cloud/cursor/install.sh", executable=False)
     else:
         (source / "cloud/cursor/environment.json").write_text(
             '{"build": {"dockerfile": "Other"}, "install": "true"}\n', encoding="utf-8"

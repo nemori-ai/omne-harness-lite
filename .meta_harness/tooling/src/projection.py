@@ -66,12 +66,12 @@ def unique_mapping(loader, node, deep=False):
 UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
 
 
-def _git_toplevel(path: Path) -> Path:
-    """The nearest ancestor holding `.git` (a directory, or the file of a worktree)."""
+def _git_toplevel(path: Path) -> Path | None:
+    """The nearest ancestor holding `.git` (a directory, or the file of a worktree), if any."""
     for item in (path, *path.parents):
         if (item / ".git").exists():
             return item
-    raise ValueError(f"not inside a Git checkout: {path}")
+    return None
 
 
 @lru_cache(maxsize=None)
@@ -90,11 +90,12 @@ def _git_index_modes(top: Path) -> dict[Path, int]:
 
 def file_mode(path: Path) -> int:
     """Permission bits of a file. NTFS keeps no executable bit, so Windows reads the mode Git
-    tracks for the file; an untracked file there counts as 0o644."""
+    tracks for the file; a file that no checkout tracks there counts as 0o644."""
     if os.name == "posix":
         return stat.S_IMODE(path.stat().st_mode)
     resolved = path.resolve()
-    return _git_index_modes(_git_toplevel(resolved.parent)).get(resolved, 0o644)
+    top = _git_toplevel(resolved.parent)
+    return 0o644 if top is None else _git_index_modes(top).get(resolved, 0o644)
 
 
 def no_symlinks(path: Path):

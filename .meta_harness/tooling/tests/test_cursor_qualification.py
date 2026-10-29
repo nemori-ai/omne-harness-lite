@@ -1,4 +1,3 @@
-import shutil
 import sys
 import copy
 import json
@@ -11,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from compile_agents import main
 from cursor_projection import cursor_role_prompt, project_cursor_role
 from cursor_qualification import CLAIMS, digest, require_dispatch
+from executable_bits import copy_tree, staged_modes
 from projection import compile_sources
 from qualification_test_support import adopt, limited_record, pending_record, qualify_roles, write_record
 
@@ -22,7 +22,7 @@ ROLES = {"design-reviewer", "developer", "diagnostician", "implementation-review
 
 
 def test_proved_production_roles_are_formally_dispatchable(tmp_path):
-    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    source = copy_tree(SOURCE, tmp_path / "source")
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     agents = output / ".cursor/agents"
@@ -55,7 +55,7 @@ def test_pending_role_file_stays_out_of_the_dispatch_gate(source, tmp_path):
 
 @pytest.fixture
 def source(tmp_path):
-    root = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    root = copy_tree(SOURCE, tmp_path / "source")
     qualify_roles(root)
     return root
 
@@ -151,8 +151,9 @@ def test_role_native_shared_or_overlay_source_change_reprojects_without_dispatch
             "mode": "interactive", "purpose": "qualification-probe"})
 
 
+@staged_modes
 def test_next_compile_refreshes_every_cursor_agent_and_check_rejects_the_old_tree(tmp_path):
-    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    source = copy_tree(SOURCE, tmp_path / "source")
     first = tmp_path / "first"
     assert main(["--source", str(source), "--output", str(first), "--host", "cursor"]) == 0
     assert {path.name for path in (first / ".cursor/agents").glob("*.md")} == {f"{name}.md" for name in ROLES}

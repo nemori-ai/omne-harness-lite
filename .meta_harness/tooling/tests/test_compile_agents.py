@@ -10,6 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
+from executable_bits import staged_modes
 from qualification_test_support import qualify_roles
 
 
@@ -253,6 +254,7 @@ def test_single_host_does_not_require_other_skill_strategy(source, tmp_path):
     assert not (output / ".claude").exists()
 
 
+@staged_modes
 @pytest.mark.parametrize("host,root", [("codex", ".agents"), ("claude-code", ".claude"), ("cursor", ".cursor")])
 def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_path, host, root):
     script = source / "skills/evidence-reading/canonical/run.sh"
