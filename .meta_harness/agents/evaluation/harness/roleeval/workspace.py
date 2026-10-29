@@ -95,7 +95,8 @@ def tree_hash(root: Path) -> str:
 
 
 def git(repo: Path, *args: str) -> str:
-    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+    # Git writes paths and messages in UTF-8 whatever the locale is (on Windows the locale is a code page).
+    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
                           env=repository_env(os.environ))
     if done.returncode != 0:
         raise WorkspaceError(f"git {' '.join(args)}: {done.stderr.strip()}")
@@ -114,7 +115,7 @@ def dirty(repo: Path, paths: list[str]) -> list[str]:
 def is_ancestor(repo: Path, commit: str) -> bool:
     done = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, "HEAD"],
                           env=repository_env(os.environ),
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8")
     return done.returncode == 0
 
 
@@ -436,7 +437,7 @@ def deliver(dest: Path, *, subject: str, trailers: list[str], author: str) -> st
 def changed_paths(dest: Path) -> list[tuple[str, str]]:
     """(status, path) of every change against HEAD, untracked files one by one."""
     listed = subprocess.run(["git", "-C", str(dest), "status", "--porcelain", "-uall"], capture_output=True, text=True,
-                            env=repository_env(os.environ),
+                            encoding="utf-8", env=repository_env(os.environ),
                             check=True).stdout
     return [(line[:2], line[3:].split(" -> ")[-1].strip('"')) for line in listed.splitlines()]
 

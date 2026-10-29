@@ -89,7 +89,7 @@ def work_root(arg: Path | None) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     inside = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
                             env=repository_env(os.environ),
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8")
     if inside.returncode == 0:
         # A copy inside a checkout would inherit that checkout's instruction files through its parent directories.
         raise Refused(f"work root {root} is inside a git work tree; choose one outside with --work or {WORK_ENV}")
