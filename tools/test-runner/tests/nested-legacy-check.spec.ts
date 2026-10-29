@@ -350,8 +350,9 @@ it(
     }
     const passed = await run('pass')
     expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
+    // vitest 的 JSON 报告按模块 ID 记文件名，各平台都用正斜杠。
     expect(passed?.report?.testResults.map(result => result.name)).toEqual([
-      join(root, 'tests/live.spec.ts'),
+      join(root, 'tests/live.spec.ts').split(sep).join('/'),
     ])
     put(
       active,
@@ -460,9 +461,15 @@ it(
       // 不把运行器的报告目录传给夹具。
       const env: NodeJS.ProcessEnv = { ...process.env }
       delete env['OMNE_TEST_REPORT_DIR']
+      // `.bin/vitest` 链到 vitest 的 Node 入口，由当前 Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
       const ran = spawnSync(
-        join(root, 'node_modules/.bin/vitest'),
-        ['run', '--reporter=json', `--outputFile.json=${report}`],
+        process.execPath,
+        [
+          join(root, 'node_modules/.bin/vitest'),
+          'run',
+          '--reporter=json',
+          `--outputFile.json=${report}`,
+        ],
         { cwd: root, encoding: 'utf8', env },
       )
       return { ran, report: readFileSync(report, 'utf8') }
