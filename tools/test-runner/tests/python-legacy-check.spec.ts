@@ -83,7 +83,8 @@ it.each(['local', 'runner'])(
       process.env['UV_PROJECT'] = pythonToolingRoot
       process.env['UV_PROJECT_ENVIRONMENT'] = join(pythonToolingRoot, '.venv')
       process.env['UV_NO_SYNC'] = '1'
-      process.env['PYTEST_ADDOPTS'] = `--confcutdir=${root}`
+      // pytest 按 shell 规则拆分 PYTEST_ADDOPTS；单引号保住 Windows 路径里的反斜杠。
+      process.env['PYTEST_ADDOPTS'] = `--confcutdir='${root}'`
       expect(pythonStep(root, file)).toBe(0)
       put(
         root,
