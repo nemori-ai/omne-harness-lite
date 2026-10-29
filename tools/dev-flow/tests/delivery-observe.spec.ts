@@ -13,7 +13,7 @@ import {
   realpathSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { delimiter, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
@@ -826,63 +826,70 @@ describe('stock and comparable delta', () => {
 })
 
 describe('actual offline CLI', () => {
-  it.each(['chain', 'reverse', 'two-chains', 'directory-parent'])(
-    'rejects %s dangling output aliases with real target identities',
-    mode => {
-      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
-      try {
-        const cfg = join(dir, 'config.json'),
-          missing = join(dir, 'missing.json'),
-          first = join(dir, 'first.json'),
-          second = join(dir, 'second.json')
-        writeFileSync(cfg, JSON.stringify(config()))
-        const gh = join(dir, 'gh')
-        writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-        chmodSync(gh, 0o755)
-        let saved = missing,
-          reported = first
-        if (mode === 'directory-parent') {
-          mkdirSync(join(dir, 'physical'))
-          mkdirSync(join(dir, 'physical', 'child'))
-          symlinkSync('physical/child', join(dir, 'parent-link'))
-          saved = join(dir, 'physical', 'missing.json')
-          symlinkSync('parent-link/../missing.json', first)
-        } else {
-          symlinkSync('missing.json', second)
-          symlinkSync('second.json', first)
-          if (mode === 'reverse') {
-            saved = first
-            reported = missing
-          }
-          if (mode === 'two-chains') {
-            const third = join(dir, 'third.json')
-            symlinkSync('missing.json', third)
-            saved = first
-            reported = third
-          }
+  const rejectsDanglingAliases = (mode: string) => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
+    try {
+      const cfg = join(dir, 'config.json'),
+        missing = join(dir, 'missing.json'),
+        first = join(dir, 'first.json'),
+        second = join(dir, 'second.json')
+      writeFileSync(cfg, JSON.stringify(config()))
+      const gh = join(dir, 'gh')
+      writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
+      chmodSync(gh, 0o755)
+      let saved = missing,
+        reported = first
+      if (mode === 'directory-parent') {
+        mkdirSync(join(dir, 'physical'))
+        mkdirSync(join(dir, 'physical', 'child'))
+        symlinkSync('physical/child', join(dir, 'parent-link'))
+        saved = join(dir, 'physical', 'missing.json')
+        symlinkSync('parent-link/../missing.json', first)
+      } else {
+        symlinkSync('missing.json', second)
+        symlinkSync('second.json', first)
+        if (mode === 'reverse') {
+          saved = first
+          reported = missing
         }
-        const result = spawnSync(
-          process.execPath,
-          [
-            '--experimental-strip-types',
-            resolve('src/delivery/cli.ts'),
-            '--config',
-            cfg,
-            '--live',
-            '--save-capture',
-            saved,
-            '--report',
-            reported,
-          ],
-          { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
-        )
-        expect(result.status).toBe(2)
-        expect(result.stderr).toContain('overwrite')
-        expect(existsSync(saved)).toBe(false)
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
+        if (mode === 'two-chains') {
+          const third = join(dir, 'third.json')
+          symlinkSync('missing.json', third)
+          saved = first
+          reported = third
+        }
       }
-    },
+      const result = spawnSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          resolve('src/delivery/cli.ts'),
+          '--config',
+          cfg,
+          '--live',
+          '--save-capture',
+          saved,
+          '--report',
+          reported,
+        ],
+        { encoding: 'utf8', env: { ...process.env, PATH: dir + delimiter + process.env.PATH } },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('overwrite')
+      expect(existsSync(saved)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+  it.each(['chain', 'reverse', 'two-chains'])(
+    'rejects %s dangling output aliases with real target identities',
+    rejectsDanglingAliases,
+  )
+  // Windows 按字面处理符号链接目标里的 `..`：`parent-link/../missing.json` 落在链接所在目录，不在 physical 下，
+  // 两个输出在那里本来就不是别名，这个 POSIX 目录语义的用例不适用。
+  it.skipIf(process.platform === 'win32')(
+    'rejects directory-parent dangling output aliases with real target identities',
+    () => rejectsDanglingAliases('directory-parent'),
   )
   it.each(['cycle', 'long-chain'])(
     'rejects %s output symlink resolution before any write',
