@@ -149,8 +149,9 @@ def test_hostile_git_cannot_redirect_adapter_project_or_canonical_commands(insta
     env = {**os.environ, "GIT_DIR": str(foreign / ".git"), "GIT_WORK_TREE": str(foreign),
            "GIT_INDEX_FILE": str(foreign / ".git/index")}
     tool = workspace / "tools/repo-toolchain/src/loop/stop-hook.ts"
-    tool.write_text("import {execFileSync} from 'node:child_process';" + tool.read_text() +
-                   "if(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim()!==process.cwd())process.exit(9);")
+    # Git prints the top level with forward slashes on Windows; resolve() compares it as a path.
+    tool.write_text("import {execFileSync} from 'node:child_process';import {resolve} from 'node:path';" + tool.read_text() +
+                   "if(resolve(execFileSync('git',['rev-parse','--show-toplevel'],{encoding:'utf8'}).trim())!==resolve(process.cwd()))process.exit(9);")
     assert invoke(installed, env=env) == ({"followup_message": "new measured facts"}, "")
     shutil.copytree(package, workspace / ".cursor")
     project = json.loads((workspace / ".cursor/hooks.json").read_text())["hooks"]["stop"][0]["command"]
@@ -281,7 +282,8 @@ if "--version" in sys.argv:
     raise SystemExit(0)
 plugin = pathlib.Path(sys.argv[sys.argv.index("--plugin-dir") + 1])
 assert "--mode" not in sys.argv
-assert subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip() == sys.argv[sys.argv.index("--workspace") + 1]
+top = subprocess.check_output(["git", "rev-parse", "--show-toplevel"], text=True).strip()
+assert pathlib.Path(top).resolve() == pathlib.Path(sys.argv[sys.argv.index("--workspace") + 1]).resolve()
 output = pathlib.Path(os.environ["OMNE_CURSOR_PROBE_OUTPUT"])
 assert os.environ["OMNE_METRICS_HOME"] == str(output / "loop")
 for event, payload in [("subagentStart", {"subagent_type":"developer", "subagent_model":"fixture-model"}),
