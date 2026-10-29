@@ -766,7 +766,10 @@ describe('historical CLI audit with real Git objects', { tags: ['slow'] }, () =>
     expect(result.stdout).toContain('未解决违规 1')
   })
 
-  it.each(['--binary', `${historical.commit}:${historical.path}`])(
+  // Windows 上 Node 按 PATH 找 `git` 只认 .com/.exe，无扩展名的 sh 替身截不住真实 git，故障注不进去。
+  it
+    .skipIf(process.platform === 'win32')
+    .each(['--binary', `${historical.commit}:${historical.path}`])(
     'propagates failed Git read %s as CLI exit 2',
     failedArgument => {
       const root = repository()
