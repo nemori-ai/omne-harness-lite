@@ -112,6 +112,11 @@
 - `ScopeReleasePort` · `ports.d.ts`
 - `ScopeReleaseReadback` · `ports.d.ts`
 - `SessionAccess` · `identity.d.ts`
+- `SessionAccessCheck` · `access.d.ts`
+- `SessionAccessDecision` · `access.d.ts`
+- `SessionAccessOperation` · `access.d.ts`
+- `SessionAccessRequest` · `access.d.ts`
+- `SessionAccessTarget` · `access.d.ts`
 - `SessionAttemptRecord` · `history-values.d.ts`
 - `SessionBatchRecord` · `history-values.d.ts`
 - `SessionBlockDeclaration` · `ports.d.ts`
@@ -149,6 +154,7 @@
 - `SessionOperationElements` · `operations.d.ts`
 - `SessionOperationId` · `identity.d.ts`
 - `SessionPrefixFact` · `history-values.d.ts`
+- `SessionReadAccessOperation` · `access.d.ts`
 - `SessionReconciliation` · `faces.d.ts`
 - `SessionRevision` · `identity.d.ts`
 - `SessionTakenRecord` · `history-values.d.ts`
@@ -196,7 +202,9 @@
 - `MemorySessionTransactionOptions` · `testing-transactions.d.ts`
 - `MemorySessionTransactions` · `testing-transactions.d.ts`
 - `NotApplicable` · `testing-case.d.ts`
+- `ScriptedSessionAccessCheck` · `testing-access.d.ts`
 - `ScriptedSessionIdentityBridge` · `testing-ports.d.ts`
+- `SessionAccessScript` · `testing-access.d.ts`
 - `SessionTransactionsFixture` · `testing-transactions.d.ts`
 - `TESTING_OWNER` · `testing-values.d.ts`
 - `adoptedInitializationFixture` · `testing-initialization.d.ts`
@@ -215,6 +223,7 @@
 - `createMemorySessionIdleInput` · `testing-providers.d.ts`
 - `createMemorySessionNotifier` · `testing-providers.d.ts`
 - `createMemorySessionTransactions` · `testing-transactions.d.ts`
+- `createScriptedSessionAccessCheck` · `testing-access.d.ts`
 - `createScriptedSessionIdentityBridge` · `testing-ports.d.ts`
 - `creation` · `testing-values.d.ts`
 - `evidence` · `testing-values.d.ts`
@@ -248,6 +257,77 @@
 - `testingTenant` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
 - `userMessage` · `testing-values.d.ts`
+
+## 声明文件 `access.d.ts`
+
+```ts
+import type { Access, TenantId } from '@omne-harness/legal-identity';
+import type { DurableEvidence, ResidentKey, SessionId } from './identity.ts';
+import type { MutationName, SessionCommand } from './ports.ts';
+export type SessionReadAccessOperation = 'readWork' | 'readInput' | 'queryOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
+type SessionMutationAccess<P> = {
+    readonly [K in MutationName]: Readonly<{
+        access: Access<P>;
+        operation: K;
+        target: Readonly<{
+            kind: 'session';
+            session: SessionId;
+            command: Extract<SessionCommand, {
+                kind: K;
+            }>;
+        }>;
+    }>;
+}[MutationName];
+export type SessionAccessRequest<P> = SessionMutationAccess<P> | Readonly<{
+    access: Access<P>;
+    operation: SessionReadAccessOperation;
+    target: Readonly<{
+        kind: 'session';
+        session: SessionId;
+    }>;
+}> | Readonly<{
+    access: Access<P>;
+    operation: 'pending';
+    target: Readonly<{
+        kind: 'tenant';
+        tenant: TenantId;
+    }>;
+}> | Readonly<{
+    access: Readonly<{
+        principal: P;
+        scope: 'system';
+    }>;
+    operation: 'references';
+    target: Readonly<{
+        kind: 'resident-references';
+        key: ResidentKey;
+    }>;
+}> | Readonly<{
+    access: Readonly<{
+        principal: P;
+        scope: 'system';
+    }>;
+    operation: 'releasedScopes';
+    target: Readonly<{
+        kind: 'released-scopes';
+    }>;
+}>;
+export type SessionAccessOperation = SessionAccessRequest<unknown>['operation'];
+export type SessionAccessTarget = SessionAccessRequest<unknown>['target'];
+export type SessionAccessDecision = Readonly<{
+    kind: 'allowed';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'denied';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface SessionAccessCheck<P> {
+    check(input: SessionAccessRequest<P>): Promise<SessionAccessDecision>;
+}
+export {};
+```
 
 ## 声明文件 `block.d.ts`
 
@@ -1267,6 +1347,7 @@ export type { InitializationRequirement } from './initialization-requirements.ts
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, } from './history-values.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
+export type { SessionAccessCheck, SessionAccessDecision, SessionAccessOperation, SessionAccessRequest, SessionAccessTarget, SessionReadAccessOperation, } from './access.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -2028,8 +2109,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:288f03fec0fe2003cddfb56f341cd97ca04b285764babcd04476b07587325e75";
-export declare const SESSION_RELEASE_DIGEST = "sha256:288f03fec0fe2003cddfb56f341cd97ca04b285764babcd04476b07587325e75";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:dda523518f3210d074ac176d937fa00e07663d291c549173a64629764587e9f2";
+export declare const SESSION_RELEASE_DIGEST = "sha256:dda523518f3210d074ac176d937fa00e07663d291c549173a64629764587e9f2";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2070,6 +2151,23 @@ export declare function decimal(value: unknown, field: string): bigint;
 export declare function evidenceFields(value: unknown, field: string): void;
 export declare const equalValue: (left: unknown, right: unknown) => boolean;
 export declare function unique<T>(items: readonly T[], key: (item: T) => string, field: string): void;
+```
+
+## 声明文件 `testing-access.d.ts`
+
+```ts
+import type { SessionAccessCheck, SessionAccessDecision, SessionAccessRequest } from './access.ts';
+export type SessionAccessScript = SessionAccessDecision | Readonly<{
+    kind: 'throw';
+    error: unknown;
+}>;
+export interface ScriptedSessionAccessCheck<P> extends SessionAccessCheck<P> {
+    readonly durability: 'none';
+    readonly controls: Readonly<{
+        asked(): readonly SessionAccessRequest<P>[];
+    }>;
+}
+export declare function createScriptedSessionAccessCheck<P>(answers: readonly SessionAccessScript[]): ScriptedSessionAccessCheck<P>;
 ```
 
 ## 声明文件 `testing-case.d.ts`
@@ -2371,6 +2469,7 @@ export { adoptedInitializationFixture, initializationFixtureFacts, initializatio
 export type { MemorySessionTransactionOptions } from './testing-transactions.ts';
 export { sessionIdentityBridgeConformance, sessionEvidenceBridgeConformance, sessionContextInputConformance, sessionClockConformance, sessionIdleInputConformance, sessionNotifierConformance, scopeReleaseConformance, agentDriveConformance, } from './testing-provider-conformance.ts';
 export { createMemorySessionHistorySource, type MemorySessionHistorySource, } from './testing-history-source.ts';
+export { createScriptedSessionAccessCheck, type ScriptedSessionAccessCheck, type SessionAccessScript, } from './testing-access.ts';
 ```
 
 ## 声明文件 `values.d.ts`

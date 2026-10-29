@@ -1,11 +1,11 @@
 // In-process examples of limited consumer mappings on top of the admission check:
 // Agent's AgentAccessCheck and ActionAdmission, Tool's access.qualify (ToolAccessGuard of
 // @omne-harness/tool and StartCoordinatorAccess of tool-host-local), and Session's
-// SessionAccessCheck. The local Session model does not prove compatibility with a public Session
-// interface. StartCoordinatorAccess is declared here with the shape of tool-host-local, which is not
+// SessionAccessCheck. Session maps only the explicitly selected membership-only examples below;
+// it does not implement the complete Session policies. StartCoordinatorAccess is declared here with the shape of tool-host-local, which is not
 // a devDependency.
 import { describe, expect, it } from 'vitest'
-import type { Access, TenantId } from '@omne-harness/legal-identity'
+import { tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import type { Principal } from '@omne-harness/identity'
 import { succeed } from '@omne-harness/operation-result'
 import {
@@ -22,6 +22,20 @@ import {
   type AgentAccessTarget,
   type Authority,
 } from '@omne-harness/agent-contract'
+import type {
+  SessionAccessCheck,
+  SessionAccessDecision,
+  SessionAccessRequest,
+  SessionCommand,
+  DeclarationChange,
+  ResidentKey,
+} from '@omne-harness/session-contract'
+import {
+  assistantMessage,
+  evidence,
+  operationId,
+  sessionId,
+} from '@omne-harness/session-contract/testing'
 import type { AccessVerdict, ToolAccessGuard } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import {
@@ -187,23 +201,6 @@ function startCoordinatorAccess(check: AdmissionCheck): StartCoordinatorAccess<P
   }
 }
 
-/** This task's local Session adapter model. Public Session interface compatibility is still unverified. */
-type SessionAccessOperation = 'read-history' | 'append' | 'change' | 'begin' | 'next'
-type SessionAccessTarget = Readonly<{ kind: 'session'; session: string }>
-type SessionAccessDecision =
-  | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
-  | Readonly<{ kind: 'denied' }>
-  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
-interface SessionAccessCheck<P> {
-  check(
-    input: Readonly<{
-      access: Access<P>
-      operation: SessionAccessOperation
-      target: SessionAccessTarget
-    }>,
-  ): Promise<SessionAccessDecision>
-}
-
 function toSessionDecision(decision: AdmissionDecision): SessionAccessDecision {
   switch (decision.kind) {
     case 'allowed':
@@ -215,19 +212,63 @@ function toSessionDecision(decision: AdmissionDecision): SessionAccessDecision {
   }
 }
 
+type TenantSessionRequest = Exclude<
+  SessionAccessRequest<Principal>,
+  { operation: 'references' | 'releasedScopes' }
+>
+
+function sessionTargetMatches(input: TenantSessionRequest): boolean {
+  const { target, access } = input
+  if (target.kind === 'tenant') return tenantEquals(target.tenant, access.tenant)
+  if (!('command' in target)) return true
+  return (
+    target.command.kind === input.operation &&
+    target.command.input.session === target.session &&
+    tenantEquals(target.command.input.tenant, access.tenant)
+  )
+}
+
+/**
+ * These examples explicitly choose membership-only qualification for history.begin/history.next
+ * and recordMessage. Allowed does not replace caller-class, participation, message admission,
+ * source, or joint-commit checks. Every other operation needs a policy this example does not supply.
+ */
 function sessionAccessCheck(check: AdmissionCheck): SessionAccessCheck<Principal> {
   return {
-    check: async ({ access, operation, target }) =>
-      toSessionDecision(
+    check: async input => {
+      if (input.operation === 'references' || input.operation === 'releasedScopes')
+        return { kind: 'unavailable', diagnostic: 'system authorization is not installed' }
+      if (!sessionTargetMatches(input)) return { kind: 'denied' }
+      if (input.operation === 'change') {
+        const declaration = input.target.command.input.declaration
+        if (
+          declaration.kind === 'permission-mode' ||
+          declaration.kind === 'collaboration-mode' ||
+          declaration.kind === 'environment-mode'
+        )
+          return {
+            kind: 'unavailable',
+            diagnostic: 'the Session mode policy interpreter is not installed',
+          }
+      }
+      if (
+        input.operation !== 'history.begin' &&
+        input.operation !== 'history.next' &&
+        input.operation !== 'recordMessage'
+      )
+        return { kind: 'unavailable', diagnostic: 'the Session operation policy is not installed' }
+      const { access, operation, target } = input
+      return toSessionDecision(
         await check.check({
           access,
           operation: { owner: 'session', name: operation },
           target: { owner: 'session', kind: target.kind, key: target.session },
-          arguments: noArguments(),
+          arguments: 'command' in target ? effectiveArgumentsOf(target.command) : noArguments(),
           requires: [],
           permit: null,
         }),
-      ),
+      )
+    },
   }
 }
 
@@ -510,26 +551,254 @@ describe("Tool's access.qualify through the admission check", () => {
   })
 })
 
-describe('SessionAccessCheck (local adapter model) through the admission check', () => {
-  it('allows the read and write paths, denies after revocation, and is unavailable on an outage', async () => {
+const SESSION = sessionId('ses_1')
+
+function recordMessageRequest(
+  principal: Principal,
+): Extract<SessionAccessRequest<Principal>, { operation: 'recordMessage' }> {
+  const command = {
+    kind: 'recordMessage',
+    input: {
+      tenant: adminTenant(),
+      session: SESSION,
+      operation: operationId('record'),
+      participation: {
+        execution: 'exec_1',
+        operation: 'agent_message_1',
+        joint: 'message',
+        written: 'entry_1',
+        handover: evidence('handover'),
+      },
+      value: {
+        message: assistantMessage('saved message'),
+        source: evidence('source'),
+        admission: evidence('admission'),
+        consumption: null,
+      },
+    },
+  } satisfies SessionCommand
+  return {
+    access: { principal, tenant: command.input.tenant },
+    operation: 'recordMessage',
+    target: { kind: 'session', session: SESSION, command },
+  }
+}
+
+function changeRequest(
+  principal: Principal,
+  declaration: DeclarationChange,
+): Extract<SessionAccessRequest<Principal>, { operation: 'change' }> {
+  return {
+    access: { principal, tenant: adminTenant() },
+    operation: 'change',
+    target: {
+      kind: 'session',
+      session: SESSION,
+      command: {
+        kind: 'change',
+        input: {
+          tenant: adminTenant(),
+          session: SESSION,
+          operation: operationId('change'),
+          declaration,
+        },
+      },
+    },
+  }
+}
+
+describe('SessionAccessCheck through the admission check', () => {
+  it('maps the selected membership-only read/write examples and rechecks after revocation', async () => {
     const { principals, table, session } = installed()
     const access = { principal: principals.actingForAdmin, tenant: adminTenant() }
-    const target: SessionAccessTarget = { kind: 'session', session: 'ses_1' }
-    const read = await session.check({ access, operation: 'read-history', target })
+    const target = { kind: 'session', session: SESSION } as const
+    const read = await session.check({ access, operation: 'history.begin', target })
+    const writeInput = recordMessageRequest(principals.actingForAdmin)
+    const write = await session.check(writeInput)
     expect(read.kind).toBe('allowed')
-    const write = await session.check({ access, operation: 'append', target })
     expect(write.kind).toBe('allowed')
-    if (read.kind !== 'allowed' || write.kind !== 'allowed') return
-    expect(read.evidence.record).toBe('admission/session/read-history')
-    expect(write.evidence.record).toBe('admission/session/append')
+    if (read.kind !== 'allowed' || write.kind !== 'allowed') throw new Error('expected allowed')
+    expect(read.evidence.record).toBe('admission/session/history.begin')
+    expect(write.evidence.record).toBe('admission/session/recordMessage')
+    expect(read.evidence.owner).toBe('authorization')
+    expect(write.evidence.digest).toMatch(/^[0-9a-f]{64}$/)
     table.leave(adminTenant())
-    await expect(session.check({ access, operation: 'change', target })).resolves.toEqual({
+    await expect(session.check({ access, operation: 'history.next', target })).resolves.toEqual({
       kind: 'denied',
     })
+    await expect(session.check(writeInput)).resolves.toEqual({ kind: 'denied' })
     table.fail('directory down')
-    await expect(session.check({ access, operation: 'next', target })).resolves.toEqual({
+    await expect(session.check({ access, operation: 'history.next', target })).resolves.toEqual({
       kind: 'unavailable',
       diagnostic: 'directory down',
+    })
+    expect(table.reads()).toBe(5)
+  })
+
+  it('passes the real access and binds the decision evidence to the original command', async () => {
+    const principals = issued()
+    const table = standingTable()
+    table.join(adminTenant(), DEFAULT_ROLES.member)
+    const check = referenceAdmissionCheck({
+      verifier: principals.authority.verifier,
+      standing: table.source,
+      permits: null,
+    })
+    const received: Parameters<AdmissionCheck['check']>[0][] = []
+    const session = sessionAccessCheck({
+      check: input => {
+        received.push(input)
+        return check.check(input)
+      },
+    })
+    const input = recordMessageRequest(principals.actingForAdmin)
+    const first = await session.check(input)
+    const command = input.target.command
+    const second = await session.check({
+      ...input,
+      target: {
+        ...input.target,
+        command: {
+          ...command,
+          input: {
+            ...command.input,
+            value: { ...command.input.value, message: assistantMessage('changed message') },
+          },
+        },
+      },
+    })
+    expect(received[0]?.access.principal).toBe(input.access.principal)
+    expect(received[0]?.access.tenant).toBe(input.access.tenant)
+    expect(received[0]?.target).toEqual({ owner: 'session', kind: 'session', key: SESSION })
+    expect(received[0]?.arguments).toEqual(effectiveArgumentsOf(command))
+    if (first.kind !== 'allowed' || second.kind !== 'allowed') throw new Error('expected allowed')
+    expect(first.evidence.digest).not.toBe(second.evidence.digest)
+  })
+
+  it('rejects access/target/command mismatches before reading membership', async () => {
+    const { principals, table, session } = installed()
+    const input = recordMessageRequest(principals.actingForAdmin)
+    await expect(
+      session.check({ ...input, target: { ...input.target, session: sessionId('other') } }),
+    ).resolves.toEqual({ kind: 'denied' })
+    await expect(
+      session.check({ ...input, access: { ...input.access, tenant: memberTenant() } }),
+    ).resolves.toEqual({ kind: 'denied' })
+    await expect(
+      session.check({
+        access: input.access,
+        operation: 'pending',
+        target: { kind: 'tenant', tenant: memberTenant() },
+      }),
+    ).resolves.toEqual({ kind: 'denied' })
+    expect(table.reads()).toBe(0)
+  })
+
+  it.each([
+    { kind: 'permission-mode', value: 'never', authorization: EVIDENCE },
+    { kind: 'permission-mode', value: 'auto_permission', authorization: EVIDENCE },
+    { kind: 'permission-mode', value: 'bypass-permissions', authorization: EVIDENCE },
+    { kind: 'collaboration-mode', value: 'co-work', authorization: EVIDENCE },
+    { kind: 'collaboration-mode', value: 'auto-drive', authorization: EVIDENCE },
+    {
+      kind: 'environment-mode',
+      value: { owner: 'environment', name: 'sandbox', revision: '1', digest: 'd' },
+      authorization: EVIDENCE,
+      setting: EVIDENCE,
+    },
+  ] satisfies readonly DeclarationChange[])(
+    'does not infer mode policy for $kind/$value',
+    async declaration => {
+      const { principals, table, session } = installed()
+      const input = changeRequest(principals.actingForAdmin, declaration)
+      await expect(session.check(input)).resolves.toEqual({
+        kind: 'unavailable',
+        diagnostic: 'the Session mode policy interpreter is not installed',
+      })
+      expect(table.reads()).toBe(0)
+    },
+  )
+
+  it('fails closed for an unsupported setting and maintenance operation', async () => {
+    const { principals, table, session } = installed()
+    await expect(
+      session.check(
+        changeRequest(principals.actingForAdmin, { kind: 'model', name: 'model', basis: EVIDENCE }),
+      ),
+    ).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the Session operation policy is not installed',
+    })
+    await expect(
+      session.check({
+        access: { principal: principals.actingForAdmin, tenant: adminTenant() },
+        operation: 'loadRecovery',
+        target: { kind: 'session', session: SESSION },
+      }),
+    ).resolves.toMatchObject({ kind: 'unavailable' })
+    expect(table.reads()).toBe(0)
+  })
+
+  it('does not manufacture tenant access for either system directory', async () => {
+    const { principals, table, session } = installed()
+    const key = 'resident-1' as ResidentKey
+    const access = { principal: principals.coordinator, scope: 'system' } as const
+    const requests = [
+      { access, operation: 'releasedScopes', target: { kind: 'released-scopes' } },
+      { access, operation: 'references', target: { kind: 'resident-references', key } },
+    ] satisfies readonly SessionAccessRequest<Principal>[]
+    for (const request of requests) {
+      await expect(session.check(request)).resolves.toEqual({
+        kind: 'unavailable',
+        diagnostic: 'system authorization is not installed',
+      })
+      expect(request.access).not.toHaveProperty('tenant')
+    }
+    expect(table.reads()).toBe(0)
+  })
+
+  it('rejects the same Session identity under a different real tenant and rejects forged principals', async () => {
+    const { principals, table, session } = installed()
+    table.join(memberTenant(), DEFAULT_ROLES.member)
+    const target = { kind: 'session', session: SESSION } as const
+    await expect(
+      session.check({
+        access: { principal: principals.actingForAdmin, tenant: memberTenant() },
+        operation: 'history.begin',
+        target,
+      }),
+    ).resolves.toEqual({ kind: 'denied' })
+    await expect(
+      session.check({
+        access: { principal: { ...principals.actingForAdmin }, tenant: adminTenant() },
+        operation: 'history.next',
+        target,
+      }),
+    ).resolves.toEqual({ kind: 'denied' })
+  })
+
+  it('keeps source exceptions unavailable and does not disclose the exception message', async () => {
+    const principals = issued()
+    const session = sessionAccessCheck(
+      referenceAdmissionCheck({
+        verifier: principals.authority.verifier,
+        standing: {
+          read: () => {
+            throw new Error('private source detail')
+          },
+        },
+        permits: null,
+      }),
+    )
+    await expect(
+      session.check({
+        access: { principal: principals.actingForAdmin, tenant: adminTenant() },
+        operation: 'history.next',
+        target: { kind: 'session', session: SESSION },
+      }),
+    ).resolves.toEqual({
+      kind: 'unavailable',
+      diagnostic: 'the tenant standing source threw an exception; its message is not reported',
     })
   })
 })
@@ -559,8 +828,8 @@ describe('across the four ports', () => {
       (
         await session.check({
           access: { principal, tenant },
-          operation: 'read-history',
-          target: { kind: 'session', session: 'ses_1' },
+          operation: 'history.begin',
+          target: { kind: 'session', session: SESSION },
         })
       ).kind,
     ).toBe('unavailable')

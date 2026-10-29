@@ -2,7 +2,7 @@
 
 本页是 Session 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、端口服务键、事件、依赖分类，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#唯一性) 的性质 1 至 7。四个面的领域行为归 [session-contract SPEC](../../session-contract/SPEC.md)，机制归 [session](../../session/README.md)，Service 实现、注入与扫描者绑定归 [session-cordis](../../session-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，四个运行成员之间的共同生命周期归[运行契约集成](../../../../docs/architecture/runtime/runtime-contract-integration.md)，本页不复制。
 
-现状：`src/cordis.ts` 已导出原有十个依赖键，根入口只重导出契约类型。新契约另要求 `sessionAccessCheck`，其抽象类、服务键与源码接线尚未实施。下表把现有键与新契约要求分开说明，不能据此调用尚未导出的定义。机制事实按 Cordis 4.0.4 核对。
+现状：`src/cordis.ts` 已导出十一个依赖键，包含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。根入口只重导出契约类型。访问检查定义与独立测试子类已验证，生产提供者的必需注入和实际执行处检查尚未接入。机制事实按 Cordis 4.0.4 核对。
 
 ## 服务定义
 
@@ -39,11 +39,11 @@ export const inject = {
 
 ## 端口服务键
 
-新契约要求八个构造依赖端口、两个出站端口与内部主体，共十一个依赖键。现有源码为十个；差额是访问检查。接口归 `session-contract`，键与抽象类归本成员。
+新契约要求八个构造依赖端口、两个出站端口与内部主体，共十一个依赖键。十一个定义均已导出。接口归 `session-contract`，键与抽象类归本成员。
 
 | 键 | 端口 | 谁提供 | 怎样取得；缺席时 |
 | --- | --- | --- | --- |
-| `sessionAccessCheck` | `SessionAccessCheck` | 授权适配器 | 新契约必需依赖，进 `inject`；缺席时 `PENDING`。源码尚未实施 |
+| `sessionAccessCheck` | `SessionAccessCheck` | 授权适配器 | 抽象类与键已导出。生产提供者仍须将其列为必需 `inject`，缺席时 `PENDING`；该接线未交付 |
 | `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 进 `inject`，与内部主体同为必需依赖。缺席时 Session 服务停在 `PENDING` |
 | `sessionPrincipals` | `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体 | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
 | `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 按调用现取。缺席时变更操作返回 `unavailable`，读取照常 |
@@ -55,7 +55,7 @@ export const inject = {
 | `sessionAgentDrive` | 驱动 Agent 的出站端口 | session-adapters | 按调用现取。缺席时推进、续入、恢复、控制传播与迟到结果记录的出站调用不发出，任务保留，由调度器重放；预热在 Agent 入口定义前不调用 |
 | `sessionScopeRelease` | 作用域释放的出站端口 | session-adapters | 按调用现取。缺席时释放任务保留，按策略重试 |
 
-访问检查、事务端口与内部主体进 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查的源码和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
+访问检查、事务端口与内部主体进 `inject`。访问检查按每次实际操作核当前主体、操作与目标，不缓存 allowed，unavailable 不放行。访问检查类型与 Service 定义已交付，实际执行处检查和系统授权生产提供者尚未交付。内部主体由装配维护者签发，经 `sessionPrincipals` 交入，不放配置。其他端口按调用现取，缺席表现以[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)为准。
 
 出站端口的接口在契约成员（本域只说自己要什么），键在本成员，实现在 session-adapters，由 session-cordis 注入。session-cordis 与 session-adapters 之间没有编译期依赖，靠这两个键在装配时接上。
 

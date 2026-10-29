@@ -21,3 +21,5 @@
 - 修改本成员：[architecture.md](architecture.md)、[public-api.md](public-api.md)，再读 SPEC 的[候选的持续验证义务](../SPEC.md#候选的持续验证义务)。
 
 - [same-log-pure.md](same-log-pure.md)：同日志原历史、登记与控制引用的纯层支持及提供者义务
+
+- [access-check.md](access-check.md)：当前检查定义、独立替身、授权参考范围与未完成接入。

@@ -12,7 +12,7 @@
 | 值与身份 | 品牌身份（`SessionId`、`RunId`、`AttemptId`、`InputId`、`ResidentKey` 等）、`WorkSnapshot`、`RunState`、`ExecutionRef`、`Consumption`、`CommitReceipt`、`SessionFailure` 与各操作的结果联合 | [公开入口](public-api.md#值当前工作与原位置)、[值与结果项的约束](../SPEC.md#值与结果项的约束) |
 | 四个面 | `SessionWork`、`SessionManagement`、`SessionReconciliation`、`SessionHistory` 的接口，以及聚合它们的 `SessionFaces<P>`；调用方类的取值 | [四个面与公开操作](../SPEC.md#四个面与公开操作) |
 | 会话侧的常驻工具与冻结 | 常驻集合的值（`ResidentTool`）、冻结状态（`SessionFrozen`）、冻结命令 `freeze` 与它的入参 `FreezeVerdict`、引用查询 `references` 与它的结果 `ResidentReference` | [常驻工具与会话冻结](../SPEC.md#常驻工具与会话冻结) |
-| 端口接口 | 八个构造依赖端口与两个出站端口 `AgentDrivePort`、`ScopeReleasePort`。新增访问检查尚未实施 | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
+| 端口接口 | 八个构造依赖端口与两个出站端口 `AgentDrivePort`、`ScopeReleasePort`。访问检查类型与独立测试替身已导出，实际执行处尚未接入 | [构造依赖端口与出站端口](../SPEC.md#构造依赖端口与出站端口) |
 | 领域服务与归约 | 九个领域服务、`decide`、`reduce`，以及两个操作身份派生函数 `deriveSessionOperation` 与 `deriveDriveOperation` | [领域服务与归约](../SPEC.md#领域服务与归约)、[OP-00](../SPEC.md#op-00) |
 | 事件目录 | 条目的 `kind` 与载荷 `schema`，以及按批次解释版本解释条目的规则 | [事件目录](object-model/session-log-events.md#原生事实类别)、[事件来源与日志准入](../SPEC.md#事件来源与日志准入) |
 | 块声明 | `session.modes` 的声明值 `sessionModesBlock` | [会话块声明与设置值的固定时点](../SPEC.md#会话块声明与设置值的固定时点) |
@@ -30,7 +30,7 @@
 
 ## 依赖方向
 
-本成员只依赖公共值成员。按[公开入口](public-api.md#值当前工作与原位置)的候选形状，这些成员是 `operation-result`、`legal-identity`、`message` 与 `json-text`。本成员不依赖任何邻域契约，不依赖 Cordis，也不依赖本组的其他成员。
+本成员只依赖公共值成员。按[公开入口](public-api.md#值当前工作与原位置)的候选形状，这些成员是 `operation-result`、`legal-identity`、`message`、`json-text` 与 `exchange-refs`。本成员不依赖任何邻域契约，不依赖 Cordis，也不依赖本组的其他成员。
 
 ```mermaid
 flowchart LR
@@ -43,11 +43,11 @@ flowchart LR
   Consumer[领域调用方] --> Contract
 ```
 
-本组其他五个成员都依赖本成员，本成员不反向依赖它们。出站端口的接口在本成员声明：Session 用自己的值说明它需要邻域做什么。邻域契约的翻译只在 session-adapters 里发生。所以邻域契约变化时，本成员不变。
+上图表示组内目标依赖方向。当前声明依赖本成员的是 session、session-cordis-contract、session-cordis 与 session-adapters 四个成员，session-storage-sql 尚未声明。本成员不反向依赖它们。出站端口的接口在本成员声明：Session 用自己的值说明它需要邻域做什么。邻域契约的翻译只在 session-adapters 里发生。所以邻域契约变化时，本成员不变。
 
 常驻引用桥由应用装配依赖 Tool Reader 契约与 Session 的 references，显式限定目标 tenant。冻结判定经候选采用路径交回；Session 不导入 Tool 端口类型，也不提供驻留动作端口。
 
-当前 `package.json` 没有运行依赖。实现时按公开入口的实际导入补齐依赖，范围不超出公共值成员。
+当前 `package.json` 已声明上述五个公共值依赖。公开访问检查只使用公共身份与本成员值，不导入 authorization 或其他邻域契约。
 
 ## 值与行为
 
@@ -74,7 +74,7 @@ flowchart LR
 
 ## 当前设计限制
 
-- 源码只有模板入口：`src/index.ts` 为 `export {}`。[公开入口](public-api.md)的声明是尚未技术接受、尚未实现的候选。
+- 根入口已导出[公开入口](public-api.md)列出的定义与纯函数，包括当前访问检查类型。独立检查替身从 `./testing` 导出。实际执行处检查与事务工厂的必需依赖尚未接入，见[访问检查](access-check.md)。
 - [运行契约候选](../SPEC.md#运行契约候选)尚未技术接受。它的条款依赖本成员不能单方兑现的具名前提，也列出了明确缺项，见[具名前提与明确缺项](../SPEC.md#具名前提与明确缺项)。
 - 常驻工具与冻结依赖 Tool 契约的会话常驻规则（[具名前提](../SPEC.md#具名前提与明确缺项)的 P-8）。它闭合之前，候选采用材料不带常驻工具与冻结判定，本成员不写常驻工具纳入与冻结的条目。
 - Session 是工作治理服务。Run 与 attempt 是治理记录，不是运行实例。本成员没有每会话的根 Context 或实例目录。

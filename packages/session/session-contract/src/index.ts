@@ -187,3 +187,12 @@ export type {
   SessionCallEntryReferences,
   SessionControlEntryReferences,
 } from './work-entry-values.ts'
+
+export type {
+  SessionAccessCheck,
+  SessionAccessDecision,
+  SessionAccessOperation,
+  SessionAccessRequest,
+  SessionAccessTarget,
+  SessionReadAccessOperation,
+} from './access.ts'

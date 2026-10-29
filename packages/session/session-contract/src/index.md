@@ -7,6 +7,7 @@
 - [README.md](README.md)：源码目录的职责与现状
 - [index.ts](index.ts)：根入口，只做再导出
 - [identity.ts](identity.ts)：品牌身份、`SessionAccess`、`Mutation`、交换值的重导出
+- [access.ts](access.ts)：`SessionAccessCheck`、关联的操作请求与裁定类型
 - [values.ts](values.ts)：快照与固定输入的值类型
 - [faces.ts](faces.ts)：失败、回执、四个面、历史页
 - [operations.ts](operations.ts)：操作身份的派生与规范文本摘要
@@ -17,6 +18,7 @@
 - [decide.ts](decide.ts)：命令到条目批次
 - [reduce.ts](reduce.ts)：批次到快照
 - [testing.ts](testing.ts)：`./testing` 入口
+- [testing-access.ts](testing-access.ts)：显式逐次裁定、请求记录与异常脚本的独立访问检查替身
 - [testing-case.ts](testing-case.ts)：套件的用例形状与断言助手
 - [testing-values.ts](testing-values.ts)：合法测试值
 - [testing-transactions.ts](testing-transactions.ts)：事务端口的替身与一致性套件

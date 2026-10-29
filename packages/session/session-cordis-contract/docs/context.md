@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-本成员现在没有导出。下面的写法是 SPEC 与 [Cordis 说明](cordis.md)固定的目标用法，随 `./cordis` 的实现生效。
+根入口已重导出契约类型，`./cordis` 已导出服务定义与键，含 `SessionAccessCheckService` 与 `sessionAccessCheckKey`。下面的用法由 SPEC 与 [Cordis 说明](cordis.md)约束。定义已存在，生产 Session 服务的必需注入与实际操作检查尚未接入。
 
 | 依赖方 | 做法 | 细节所在 |
 | --- | --- | --- |

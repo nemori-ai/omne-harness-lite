@@ -30,3 +30,4 @@
 当前 `src/` 已导出类型、四个面、端口、纯领域服务及 `decide`、`projectSessionLog`、`reduce`，见[公开接口页](public-api.md)。`./testing` 提供非耐久替身和一致性套件。生产存储、真实外域来源及完整生产运行组合仍须由对应提供者兑现和验证。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
 
 - [same-log-pure.md](same-log-pure.md)：同日志原历史、登记与控制引用的纯层支持及提供者义务
+- [access-check.md](access-check.md)：当前访问检查定义、显式测试替身、授权参考范围与未完成的执行边界接入

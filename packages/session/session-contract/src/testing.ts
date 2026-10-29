@@ -80,3 +80,9 @@ export {
   createMemorySessionHistorySource,
   type MemorySessionHistorySource,
 } from './testing-history-source.ts'
+
+export {
+  createScriptedSessionAccessCheck,
+  type ScriptedSessionAccessCheck,
+  type SessionAccessScript,
+} from './testing-access.ts'

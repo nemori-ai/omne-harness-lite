@@ -981,6 +981,9 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../../session/session-contract
       '@omne-harness/tool':
         specifier: workspace:*
         version: link:../../tool/tool

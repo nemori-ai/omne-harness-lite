@@ -4,7 +4,7 @@
 
 The Cordis definition member of Session. Variant: `service-contract`.
 
-The contract requires `sessionAccessCheck`. Its Service class, key, and wiring are not implemented or exported yet.
+`./cordis` exports `SessionAccessCheckService` and `sessionAccessCheckKey`. The key comes from the class's `provide`. Production injection and Session execution checks remain unimplemented.
 
 ## Responsibility and status
 
@@ -17,7 +17,7 @@ Status: Cordis definition member, `draft`. The [SPEC](SPEC.md) states the proper
 | Export | Support | Where |
 | --- | --- | --- |
 | `SessionService` with the four faces, `sessionKey` | Exported | `src/cordis.ts` |
-| Ten port Services and keys: `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
+| Eleven dependency Services and keys: `sessionAccessCheck`, `sessionTransactions`, `sessionPrincipals`, `sessionIdentity`, `sessionEvidence`, `sessionClock`, `sessionIdleInput`, `sessionContextInput`, `sessionNotifier`, `sessionAgentDrive`, `sessionScopeRelease` | Exported | `src/cordis.ts` |
 | `SessionIntercept`, the `Context` and `Events` augmentations, the event `session-cordis-contract/committed` | Exported | `src/cordis.ts` |
 | Type re-exports of the root entry | Exported, no runtime value | `src/index.ts` |
 - Not verified: the Cordis mechanism reading for the intercept configuration is source reading only. Thus property 4 of the SPEC is an assumption. See the [Cordis page](docs/cordis.md#机制读数与假设).
@@ -69,7 +69,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-cordis-contract
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The tests check the export sets of both entries, that every key equals the `provide` of its class, that the root entry imports no Cordis and no provider, and that a real `Context` loads a `SessionService` subclass and removes it on unload. See [tests/](tests/README.md). The obligations of the SPEC lifecycle section belong to the provider tests. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The tests check the export sets of both entries, that every key equals the `provide` of its class, that the root entry imports no Cordis and no provider, and that a real `Context` loads and unloads Session and access-check subclasses. The access-check test also checks delegation. Production injection and execution checks remain unverified. See [tests/](tests/README.md). The obligations of the SPEC lifecycle section belong to the provider tests. A passing structure check does not prove behavior.
 
 ## Maintenance
 

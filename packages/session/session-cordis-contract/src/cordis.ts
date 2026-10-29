@@ -11,6 +11,7 @@ import type {
   AgentDrivePort,
   DurableEvidence,
   ScopeReleasePort,
+  SessionAccessCheck,
   SessionCallerClass,
   SessionClock,
   SessionContextInput,
@@ -40,6 +41,19 @@ export abstract class SessionService<P = unknown> extends Service<SessionInterce
   abstract readonly history: SessionFaces<P>['history']
 }
 export const sessionKey = SessionService.provide
+
+/** @owner packages/session/session-contract */
+export abstract class SessionAccessCheckService<P = unknown>
+  extends Service
+  implements SessionAccessCheck<P>
+{
+  static readonly provide = 'sessionAccessCheck'
+  constructor(ctx: Context) {
+    super(ctx, SessionAccessCheckService.provide)
+  }
+  abstract readonly check: SessionAccessCheck<P>['check']
+}
+export const sessionAccessCheckKey = SessionAccessCheckService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionTransactionPortService<P = unknown>
@@ -182,6 +196,7 @@ declare module '@deepseek-ai/cordis' {
   // check every input at run time.
   interface Context {
     session: SessionService<unknown>
+    sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
     sessionPrincipals: SessionInternalPrincipalsService<unknown>
     sessionIdentity: SessionIdentityBridgeService<unknown>

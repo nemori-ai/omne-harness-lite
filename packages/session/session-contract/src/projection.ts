@@ -34,6 +34,7 @@ import {
   SessionValidationFailure,
   equalValue,
   evidenceFields,
+  inconsistent,
   invalidAt,
   nonempty,
   unavailableAt,
@@ -125,6 +126,12 @@ function projectObservation(
   reads?: SessionHistoryReads,
 ): Decision {
   const checked = validateObservation(snapshot, observation, reads)
+  if (
+    observation.consequences.some(
+      consequence => consequence.kind === 'ended' && consequence.outcome === 'cancelled',
+    )
+  )
+    requireSessionCancellation(snapshot, observation)
   if (checked.repeated) {
     validateReplayedConsequences(snapshot, observation)
     return entries([])
@@ -250,8 +257,6 @@ function projectObservation(
             encodeEntry({ kind: 'history.annotated', run: observation.run, terminal }, origin),
           )
         else {
-          if (terminal.outcome === 'cancelled')
-            invalidAt('outcome', 'Agent cancellation requires committed Session cancellation')
           out.push(
             ...terminalEntries(draft, terminal, observation.source, {
               sequence: observation.sequence,
@@ -285,4 +290,26 @@ function projectObservation(
     ),
   )
   return entries(out)
+}
+
+function requireSessionCancellation(
+  snapshot: WorkSnapshot,
+  observation: SessionLogObservation,
+): void {
+  const historical = snapshot.executions?.find(
+    item => item.run === observation.run && item.execution.execution === observation.execution,
+  )?.terminal
+  const current =
+    snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === observation.run
+      ? snapshot.run.terminal
+      : null
+  if (
+    historical != null &&
+    (historical.run !== observation.run ||
+      (current !== null && !equalValue(current, historical)) ||
+      (snapshot.run.kind === 'active' && snapshot.run.run === observation.run))
+  )
+    inconsistent('ended.cancelled: conflicting Session terminal')
+  if ((current ?? historical)?.outcome !== 'cancelled')
+    invalidAt('outcome', 'Agent cancellation requires committed Session cancellation')
 }

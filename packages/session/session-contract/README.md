@@ -4,7 +4,7 @@
 
 The pure contract member of Session. It has no Cordis dependency.
 
-SessionAccessCheck is defined by the new contract. Its public types, test double, and execution wiring are not implemented yet.
+The root exports `SessionAccessCheck` and its correlated request and decision types. `./testing` exports an explicit scripted checker. Execution-boundary checks and the required transaction-factory dependency remain unimplemented. See [access checks](docs/access-check.md) for the limited authorization example and remaining integration work.
 
 ## Responsibility and status
 
@@ -25,7 +25,7 @@ Status: contract member. The [SPEC](SPEC.md) states which parts come from techni
 
 Not verified: durability, concurrency across processes, recovery against a real store, the real identity source and clock. The double proves the judgments in memory only.
 
-Three members of the group list this package as a dependency: session, session-cordis-contract, and session-cordis. `session` and `session-cordis` currently declare the dependency but do not import this package. `session-cordis-contract` re-exports the types under its Cordis service definitions.
+Four group members declare this dependency: session, session-cordis-contract, session-cordis, and session-adapters. `session` and `session-cordis` have empty production entries. `session-cordis-contract` uses the types in its service definitions, and session-adapters uses them in its testing implementation. Outside the group, m2-contract-skeleton consumes the contract and testing entries. The authorization tests now implement the public `SessionAccessCheck`; their [reference scope](docs/access-check.md#授权参考范围) does not prove production integration.
 
 Initialization now supports optional registration, workspace-load and execution-adoption sources, trusted initial adoption guards, atomic result facts and original-receipt recovery. The current interpreter supports its exact revision 3 adoption. See [initialization wiring and release digests](docs/initialization.md). Real adoption providers, loaders and Context replay remain outside this in-memory proof.
 
