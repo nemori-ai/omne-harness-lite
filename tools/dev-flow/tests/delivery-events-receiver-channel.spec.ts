@@ -37,6 +37,7 @@ import {
   readReceiverState,
 } from '../src/delivery/events-receiver-state.ts'
 import type { GhText } from '../src/delivery/events-gh.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 const testRoot = resolve('../../tmp/issue-820-N01/tests')
@@ -456,10 +457,9 @@ describe('receiver CLI safety', () => {
       bin = join(directory, 'bin'),
       ledger = join(directory, 'calls')
     mkdirSync(bin)
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node\nrequire('node:fs').appendFileSync(${JSON.stringify(ledger)},process.argv.slice(2).join(' ')+'\\n');process.stderr.write('HTTP 422: Validation Failed secret-channel\\nUsage: gh webhook');process.exit(1)\n`,
-      { mode: 0o755 },
     )
     const result = spawnSync(
       process.execPath,
@@ -479,7 +479,7 @@ describe('receiver CLI safety', () => {
       {
         encoding: 'utf8',
         timeout: 10_000,
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+        env: { ...process.env, ...ghEnv(bin) },
       },
     )
     expect(result.status).toBe(2)

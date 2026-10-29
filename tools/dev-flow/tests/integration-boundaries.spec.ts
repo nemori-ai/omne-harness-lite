@@ -287,7 +287,7 @@ it('rejects unregistered or paused routes and comments from a different actor or
 })
 it('runs the actual trusted formatter on subject bytes, not its own clean source', () => {
   const f = fixture(),
-    runner = new URL('../../../', import.meta.url).pathname
+    runner = fileURLToPath(new URL('../../../', import.meta.url))
   mkdirSync(join(f.root, 'tools/demo/src'), { recursive: true })
   commit(f.root, 'tools/demo/src/invalid.ts', 'export const x={a:1,b:2};\n')
   const result = spawnSync('bash', [join(runner, 'scripts/format.sh'), 'check'], {

@@ -6,7 +6,6 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
-  chmodSync,
   mkdirSync,
   symlinkSync,
   linkSync,
@@ -14,6 +13,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { observeDelivery } from '../src/delivery/observe.ts'
@@ -32,6 +32,7 @@ import type {
   DeliveryCapture,
   DeliveryConfig,
 } from '../src/delivery/protocol.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const at = '2026-10-10T00:00:00Z'
 export function config(): DeliveryConfig {
@@ -825,63 +826,68 @@ describe('stock and comparable delta', () => {
 })
 
 describe('actual offline CLI', () => {
-  it.each(['chain', 'reverse', 'two-chains', 'directory-parent'])(
-    'rejects %s dangling output aliases with real target identities',
-    mode => {
-      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
-      try {
-        const cfg = join(dir, 'config.json'),
-          missing = join(dir, 'missing.json'),
-          first = join(dir, 'first.json'),
-          second = join(dir, 'second.json')
-        writeFileSync(cfg, JSON.stringify(config()))
-        const gh = join(dir, 'gh')
-        writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-        chmodSync(gh, 0o755)
-        let saved = missing,
-          reported = first
-        if (mode === 'directory-parent') {
-          mkdirSync(join(dir, 'physical'))
-          mkdirSync(join(dir, 'physical', 'child'))
-          symlinkSync('physical/child', join(dir, 'parent-link'))
-          saved = join(dir, 'physical', 'missing.json')
-          symlinkSync('parent-link/../missing.json', first)
-        } else {
-          symlinkSync('missing.json', second)
-          symlinkSync('second.json', first)
-          if (mode === 'reverse') {
-            saved = first
-            reported = missing
-          }
-          if (mode === 'two-chains') {
-            const third = join(dir, 'third.json')
-            symlinkSync('missing.json', third)
-            saved = first
-            reported = third
-          }
+  const rejectsDanglingAliases = (mode: string) => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
+    try {
+      const cfg = join(dir, 'config.json'),
+        missing = join(dir, 'missing.json'),
+        first = join(dir, 'first.json'),
+        second = join(dir, 'second.json')
+      writeFileSync(cfg, JSON.stringify(config()))
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
+      let saved = missing,
+        reported = first
+      if (mode === 'directory-parent') {
+        mkdirSync(join(dir, 'physical'))
+        mkdirSync(join(dir, 'physical', 'child'))
+        symlinkSync('physical/child', join(dir, 'parent-link'))
+        saved = join(dir, 'physical', 'missing.json')
+        symlinkSync('parent-link/../missing.json', first)
+      } else {
+        symlinkSync('missing.json', second)
+        symlinkSync('second.json', first)
+        if (mode === 'reverse') {
+          saved = first
+          reported = missing
         }
-        const result = spawnSync(
-          process.execPath,
-          [
-            '--experimental-strip-types',
-            resolve('src/delivery/cli.ts'),
-            '--config',
-            cfg,
-            '--live',
-            '--save-capture',
-            saved,
-            '--report',
-            reported,
-          ],
-          { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
-        )
-        expect(result.status).toBe(2)
-        expect(result.stderr).toContain('overwrite')
-        expect(existsSync(saved)).toBe(false)
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
+        if (mode === 'two-chains') {
+          const third = join(dir, 'third.json')
+          symlinkSync('missing.json', third)
+          saved = first
+          reported = third
+        }
       }
-    },
+      const result = spawnSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          resolve('src/delivery/cli.ts'),
+          '--config',
+          cfg,
+          '--live',
+          '--save-capture',
+          saved,
+          '--report',
+          reported,
+        ],
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('overwrite')
+      expect(existsSync(saved)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+  it.each(['chain', 'reverse', 'two-chains'])(
+    'rejects %s dangling output aliases with real target identities',
+    rejectsDanglingAliases,
+  )
+  // Windows 按字面处理符号链接目标里的 `..`：`parent-link/../missing.json` 落在链接所在目录，不在 physical 下，
+  // 两个输出在那里本来就不是别名，这个 POSIX 目录语义的用例不适用。
+  it.skipIf(process.platform === 'win32')(
+    'rejects directory-parent dangling output aliases with real target identities',
+    () => rejectsDanglingAliases('directory-parent'),
   )
   it.each(['cycle', 'long-chain'])(
     'rejects %s output symlink resolution before any write',
@@ -935,9 +941,7 @@ describe('actual offline CLI', () => {
         alias = join(dir, 'report-link.json')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync('report.json', alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-      chmodSync(gh, 0o755)
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
       const result = spawnSync(
         process.execPath,
         [
@@ -951,7 +955,7 @@ describe('actual offline CLI', () => {
           '--report',
           alias,
         ],
-        { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
       )
       expect(result.status).toBe(0)
       expect(parseCapture(JSON.parse(readFileSync(saved, 'utf8'))).kind).toBe(
@@ -974,12 +978,10 @@ describe('actual offline CLI', () => {
         marker = join(dir, 'gh-called')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync(missing, alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(
-        gh,
+      writeGh(
+        dir,
         '#!/usr/bin/env node\nrequire("node:fs").appendFileSync(process.env.DELIVERY_READ_MARKER, "read\\n"); process.stdout.write("[]")\n',
       )
-      chmodSync(gh, 0o755)
       const result = spawnSync(
         process.execPath,
         [
@@ -995,7 +997,7 @@ describe('actual offline CLI', () => {
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, PATH: dir + ':' + process.env.PATH, DELIVERY_READ_MARKER: marker },
+          env: { ...process.env, ...ghEnv(dir), DELIVERY_READ_MARKER: marker },
         },
       )
       expect(result.status).toBe(2)
@@ -1143,7 +1145,7 @@ describe('retired delivery structures', () => {
     { tags: ['slow'] },
     () => {
       const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
-      const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
+      const cli = fileURLToPath(new URL('../src/delivery/cli.ts', import.meta.url))
       const report = observeDelivery(config(), capture([issue(1)]))
       const cases = [
         { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },

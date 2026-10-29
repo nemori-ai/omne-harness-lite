@@ -1,11 +1,12 @@
 // @module-tag slow
 // Slow: every case runs a delivery CLI as a child process, some with a `gh` stand-in on PATH.
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
@@ -84,8 +85,8 @@ describe('board-cli write failure', () => {
       }),
     )
     // The card has no binding and no line attribute, so Line is skipped; the mutation fails.
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       String.raw`#!/usr/bin/env node
 const args = process.argv.slice(2)
 const query = (args.find(a => a.startsWith('query=')) || '').slice(6)
@@ -103,10 +104,9 @@ else process.exit(94)
 process.stdout.write(JSON.stringify(result))
 `,
     )
-    chmodSync(join(bin, 'gh'), 0o755)
     const result = run('board-cli.ts', ['dispatched', '--issue', '7', '--config', config], {
       ...process.env,
-      PATH: `${bin}:${process.env.PATH}`,
+      ...ghEnv(bin),
     })
     expect(result.status).toBe(2)
     expect(result.stdout).toBe('')

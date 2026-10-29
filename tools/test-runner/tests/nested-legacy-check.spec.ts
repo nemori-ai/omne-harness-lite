@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import { checkTypecheckScopes, typecheckScopeProblem } from '../src/testing/typecheck-scope.ts'
@@ -85,11 +85,15 @@ function excludeArchives(root: string): void {
   config.exclude = [...(config.exclude ?? []), '**/*.legacy/**']
   put(root, 'tsconfig.test.json', JSON.stringify(config))
 }
-/** 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。 */
+/**
+ * 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。`.bin/tsc` 链到 tsc 的 Node 入口，由当前
+ * Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
+ */
 function tsc(root: string): number {
   return (
-    spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.test.json'], { cwd: root })
-      .status ?? 1
+    spawnSync(process.execPath, [join(root, 'node_modules/.bin/tsc'), '-p', 'tsconfig.test.json'], {
+      cwd: root,
+    }).status ?? 1
   )
 }
 function problem(root: string): string | undefined {
@@ -141,9 +145,11 @@ it('preserves project references and existing exclusions in the generated projec
     join(root, 'evidence/project.json'),
   )
   const output = JSON.parse(readFileSync(scoped.path, 'utf8'))
-  expect(output.files).toEqual([join(root, 'src/live.ts')])
+  // files 与 references 是 TypeScript 解析出的路径，各平台都用正斜杠。
+  const parsed = (path: string) => join(root, path).split(sep).join('/')
+  expect(output.files).toEqual([parsed('src/live.ts')])
   expect(output.include).toEqual([])
-  expect(output.references).toEqual([{ path: join(root, 'dependency') }])
+  expect(output.references).toEqual([{ path: parsed('dependency') }])
 })
 
 it.each(['generated', 'tmp', 'dist', 'coverage'])(

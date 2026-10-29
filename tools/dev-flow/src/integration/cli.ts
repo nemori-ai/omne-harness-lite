@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import {
   checkSummary,
   contractCheckExitCode,
@@ -159,10 +160,7 @@ async function main(argv: string[]): Promise<void> {
   const result = await runEngine(kind, parseOptions(args, ['--root', '--base', '--input']))
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
 }
-if (
-  process.argv[1] !== undefined &&
-  resolve(process.argv[1]) === resolve(new URL(import.meta.url).pathname)
-) {
+if (process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   main(process.argv.slice(2)).catch(error => {
     process.stderr.write(
       `${JSON.stringify({ code: error instanceof IntegrationError || error instanceof TaskContextError ? error.code : 'unknown', message: error instanceof Error ? error.message : String(error) })}\n`,

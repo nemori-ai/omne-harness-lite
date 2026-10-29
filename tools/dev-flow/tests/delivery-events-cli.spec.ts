@@ -2,7 +2,6 @@
 // Slow: every case runs wait-cli as a child process with a `gh` stand-in on PATH.
 import { spawn, spawnSync } from 'node:child_process'
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -17,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
@@ -34,8 +34,8 @@ function setup(state: string, pulls?: unknown[], comments: unknown[] = [[]]) {
   homes.push(home)
   const bin = join(home, 'bin')
   mkdirSync(bin)
-  writeFileSync(
-    join(bin, 'gh'),
+  writeGh(
+    bin,
     `#!/usr/bin/env node
 if (process.argv[2] === 'issue' && process.argv[3] === 'view') {
   process.stdout.write(JSON.stringify({ state: ${JSON.stringify(state)} }))
@@ -46,8 +46,7 @@ if (process.argv[2] === 'issue' && process.argv[3] === 'view') {
 } else process.exit(94)
 `,
   )
-  chmodSync(join(bin, 'gh'), 0o755)
-  return { home, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } }
+  return { home, env: { ...process.env, ...ghEnv(bin) } }
 }
 function run(args: string[], env: NodeJS.ProcessEnv) {
   const result = spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
@@ -288,15 +287,14 @@ describe('events-receiver-cli clean', () => {
     homes.push(home)
     const bin = join(home, 'bin')
     mkdirSync(bin)
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node
 require('node:fs').appendFileSync(${JSON.stringify(join(home, 'gh-calls'))}, JSON.stringify(process.argv) + '\\n')
 process.exit(94)
 `,
     )
-    chmodSync(join(bin, 'gh'), 0o755)
-    return { ...process.env, PATH: `${bin}:${process.env.PATH}` }
+    return { ...process.env, ...ghEnv(bin) }
   }
   const runReceiver = (args: string[], env: NodeJS.ProcessEnv) => {
     const result = spawnSync(
@@ -377,8 +375,8 @@ describe('events-receiver-cli serve', () => {
       file = join(home, 'events', 'events.jsonl')
     mkdirSync(bin)
     writeFileSync(state, '[1]')
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node
 const fs = require('node:fs')
 const state = ${JSON.stringify(state)}
@@ -398,7 +396,6 @@ if (args[0] === 'webhook') {
 }
 `,
     )
-    chmodSync(join(bin, 'gh'), 0o755)
     const port = await freePort()
     const child = spawn(
       process.execPath,
@@ -415,7 +412,7 @@ if (args[0] === 'webhook') {
         '--repo',
         'owner/repo',
       ],
-      { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, stdio: 'ignore' },
+      { env: { ...process.env, ...ghEnv(bin) }, stdio: 'ignore' },
     )
     const exited = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
     try {
