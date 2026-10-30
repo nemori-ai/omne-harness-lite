@@ -9,7 +9,7 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 脚本仍执行 `apps/tenancy-host/tools/docker-image.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤 |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的全量准入（只在准入模式下接受） |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
 | [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
@@ -24,9 +24,11 @@
 安装 Bash、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
 在根执行 `pnpm run check` 或 `./scripts/check.sh`，两者等价。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
-`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission` 与 `--keep-going` 两个开关。
+`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission`、`--keep-going` 两个开关与带值的 `--resume-from <H1>`。
 准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[集成规则](../docs/engineering/integration.md#检查责任)）：
-除了构建与类型检查不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。日志是本节的唯一源，别处只链接过来：
+除了构建与类型检查不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。
+日志旁边同名的 `.json` 是同一次运行的机读记录（头、树哈希、模式、每步的退出码、快速失败的步、缓存开关），与日志是同一份事实的两种写法：
+`check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志；形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。日志是本节的唯一源，别处只链接过来：
 
 - 首行：命令、head（有未提交改动时注明）、基线与它的来源、核数、开始时刻。
 - 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。
@@ -54,8 +56,8 @@
 
 产物：
 
-- 每步的输出落 `tmp/check-run/<步骤>.log`，名字里的 `:` 换成 `-`，例如 `check-docs.log`。
-- 结束时写逐步耗时表 `tmp/check-run/steps.tsv`（步骤、退出码、秒数、相对开始的起止秒），并打印实际走过的关键路径。
+- 每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`，名字里的 `:` 换成 `-`，例如 `check-docs.log`；只留最近 5 个头的目录。
+- 结束时写逐步耗时表 `tmp/check-run/<head 短号>/steps.tsv`（步骤、退出码、秒数、相对开始的起止秒）与运行记录 `run.json`（准入运行另在准入日志旁边写一份），并打印实际走过的关键路径。
 
 - 不依赖任何步骤的常驻检查：`check:agents`、`check:docs`、`check:design`、`check:lines`、`format:check`、`test:format`、`lint:oxlint`，以及写范围与线归属的核对 `node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts`（根 `package.json` 没有对应的脚本）。它读本工作树的 task context，逐提交算出本卡自己改过的文件，再加上未提交的改动。不在 binding 写范围内的文件为 `change-outside-scope`，线内的卡改到别的线或联调轨道的文件为 `change-outside-line`。本卡改了契约成员的 `api` 目录时，它用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异，超过 binding 的契约变更时为 `contract-exceeds-declared`。有任一项时退出 1，检查失败。`omne-contract-api` 运行失败时退出 2，检查也失败。标准错误逐项写文件、代码与改法。没有 task context 时只写「未绑定」，检查继续。算法与退出码见 [dev-flow 交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 - 不依赖任何步骤、按计划：`pnpm run test:python`（pytest）与构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）。

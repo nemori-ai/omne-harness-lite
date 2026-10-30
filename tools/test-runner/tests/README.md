@@ -12,6 +12,13 @@
 | `mutation-incremental.spec.ts` | 快层。增量：快照的目录与开关、读不出与指纹对不上按没有快照处理、写不进去不抛、交给 Stryker 的只有被杀的、范围按「整个包含」判、去掉带回的范围外变异体、补回复用的 static 变异体的运行记录、从带颜色码的日志里取复用数。 |
 | `mutation-stryker-incremental.spec.ts` | 慢层。夹具上真起 Stryker：第二次复用被杀的、读数不变；改一处被变异的行只重跑那里；范围缩小时读数与不复用时相同；关掉增量时不读不写快照、配置与以前相同；`--force` 不复用；两个成员并行与逐个跑读数相同。 |
 | `fixtures/mutation.ts` | 上面几份文件共用的夹具：临时目录、CLI 夹具仓库、手写计划、单成员的 Stryker 夹具项目与 `mutate`。 |
+| `pnpm-lockfile.spec.ts` | 快层。读 `pnpm-lock.yaml` 的最小 YAML 解析器：pnpm 9 实际写出的形状、带 peer 后缀的键、错行报行号、结构等价比较。 |
+| `lockfile-impact.spec.ts`、`fixtures/lockfiles.ts` | 快层。锁文件差异到成员的映射（[影响面怎么算](../README_ZH.md#测试运行)第 1 条的锁文件例外）：单成员依赖、被两个成员依赖的包升级、去掉的包按基线图、别名依赖；顶层设置、根依赖、解析失败、解释不了的引用判全量；等价无影响。另用本仓库真实锁文件核对解析器与成员清单对得上。 |
+| `admission-run.spec.ts` | 快层。准入运行记录（[准入](../README_ZH.md#准入运行记录接续与证据核对)）：原子写入、读回相同、坏文件按没有记录；由步骤图运行写成记录时跑完、被终止、没开始各记成什么；完整通过的全量准入的判法；两处收集、挑某个提交最近一次干净的全量。 |
+| `resume.spec.ts` | 快层。`check --resume-from` 的判断：前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步整次／按影响面／常驻、证据文本；另在临时仓库核对取 git 事实（祖先、树哈希、差异、未提交改动）。 |
+| `admission-evidence.spec.ts` | `admission-evidence --for <F>`（[准入](../README_ZH.md#准入运行记录接续与证据核对)）。快层：真实 git 夹具上树相同接受、树不同拒绝，每个接受条件单独就能让记录被拒，缺 `tree` 由头补算，按树找与只读 `tmp/admission`，子命令退出码。慢层：起真实 CLI 子进程核对接受 0、拒绝 1、用法 2。 |
+| `check-resume.spec.ts` | 慢层。夹具仓库上端到端跑 `runCheck`（真实 git、turbo、影响面、步骤图、记录与日志，步骤表换成记下范围的假命令）：只在 oxlint 失败的 `FULL=1` 准入写出记录，被终止的步骤记 `ran: false`；修复后 `--resume-from` 全部步骤都跑、没跑到的整次、通过了的只跑 H1..HEAD 影响到的成员，证据进日志、记录写 `resume`；没有记录的头、不在准入模式以 2 退出且不写日志记录（含真实 CLI 子进程）；差异碰到 `package.json` 时整次全量并写明。 |
+| `entry-scripts.spec.ts` | 快层。`scripts/` 下入口脚本拥有的部分：`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、`check-design.sh` 的参数分派、谁占名额与退出码；`check.sh` 只认 `--admission`、`--keep-going` 与带值的 `--resume-from`，原样交给运行器。 |
 | `test-cache.spec.ts` | 成员级测试结果缓存（[结果缓存](../README_ZH.md#测试运行)）。快层：用真实的 `affected` 规则核对每类改动进谁的键（自己、上游传递、读者规则点名、全局、未归类；成员根目录文档、常驻、Python、退役不进）、键随层／平台／Node／列出的环境变量／任一输入内容而变、进键的环境变量按配置选、读不读的策略、只写完整通过、条目的读写与坏条目。慢层：临时仓库核对工作树快照（索引 blob、改过与未跟踪现算、删掉与忽略不在）；本仓库核对 turbo 包依赖图与 `--filter=...` 一致、每个成员都算得出键；真起 turbo 跑两遍核对命中不执行、来源、改输入／换层／不读时照跑、坏条目按未命中。 |
 
 在仓库根运行，重验证须通过共享槽：
