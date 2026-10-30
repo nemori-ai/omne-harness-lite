@@ -959,9 +959,10 @@ export function agentJournalCoreConformance<P>(
         await ok(journal.commit(prepareCommit(opened, after, 'p2', successor)), 'the successor P')
         const pointed = await load(opened)
         assert.deepEqual(pointed.checkpoint.currentHandoff, successor.reference)
-        // A retire names the H the pointer holds: h1 is not current any more, and a retire whose
-        // checkpoint keeps a pointer is invalid at checkpoint.currentHandoff.
-        await refused(
+        // h1 already has its history disposition (not-applicable), so a second retire of it is
+        // invalid and leaves that history as it is; a retire whose checkpoint keeps a pointer is
+        // invalid at checkpoint.currentHandoff.
+        const retiredAgain = await refused(
           journal.commit(
             commitAt(opened, pointed, 'retire-not-current', opened.authority, {
               checkpoint: { ...pointed.checkpoint, position: 'I3', currentHandoff: null },
@@ -969,7 +970,13 @@ export function agentJournalCoreConformance<P>(
             }),
           ),
           'invalid',
-          'a retire of an H that is not the current one',
+          'a retire of an H that already has its history disposition is invalid',
+        )
+        assert.equal(retiredAgain.kind, 'invalid')
+        assert.deepEqual(
+          handoffOf(await load(opened), request.reference).history,
+          listed.history,
+          'the history of the retired H did not change',
         )
         const kept = await refused(
           journal.commit(
