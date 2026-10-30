@@ -2355,6 +2355,21 @@ export function createJournal<P>(
           return answer(
             fail(invalid('events', `the Journal allocates the ${allocated.kind} event body`)),
           )
+        // The pure shape comes before recognition and the lifecycle (Agent SPEC "判定次序与失败映
+        // 射" 1): only a settling commit carries a candidate, and an admission fact is complete. A
+        // settling commit without any candidate depends on the records and is checked below.
+        if (input.finish !== null && input.state.kind !== 'settling')
+          return answer(fail(invalid('finish', 'only a settling commit carries a candidate')))
+        const fact = input.replyAdmission
+        if (
+          fact !== null &&
+          (!fact.step ||
+            !fact.action ||
+            !fact.call ||
+            !fact.resultVersion ||
+            !completeEvidence(fact.source))
+        )
+          return answer(fail(invalid('replyAdmission', 'incomplete original admission')))
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         // Agent SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
@@ -2367,16 +2382,26 @@ export function createJournal<P>(
         // needs one, its own or the current one.
         const finishing = execution.finishing
         const current = currentCandidate(finishing)
-        if (input.finish !== null && input.state.kind !== 'settling')
-          return answer(fail(invalid('finish', 'only a settling commit carries a candidate')))
         if (input.state.kind === 'settling' && input.finish === null && current === undefined)
           return answer(fail(invalid('state', 'a settling commit before any candidate')))
+        // An effective cancel takes precedence over an ordinary completion or failure (Agent SPEC
+        // "条件终结"): a new candidate that is not cancelled is changed.
+        if (
+          input.finish !== null &&
+          input.finish.conclusion.kind !== 'cancelled' &&
+          effectiveCancels(execution).length > 0
+        )
+          return answer(fail({ kind: 'changed' }))
         // F1: other content than the current candidate establishes a new candidate under this
         // operation, with its author route; the same content keeps the current one. F2: the first
         // plain settling commit after the candidate with no before-terminal passage left open is
         // the proof of the author route.
         const establishes =
-          input.finish !== null && (current === undefined || !sameContent(current, input.finish))
+          input.finish !== null &&
+          (current === undefined ||
+            !sameContent(current, input.finish) ||
+            semanticKey('checkpoint', current.checkpoint) !==
+              semanticKey('checkpoint', input.checkpoint))
         const route = currentRoute(finishing)
         const proves =
           input.state.kind === 'settling' &&
@@ -2396,16 +2421,7 @@ export function createJournal<P>(
           if (known === undefined) newEffect = true
         }
         let admission: Readonly<{ sequence: number; fact: ModelReplyAdmission }> | null = null
-        if (input.replyAdmission !== null) {
-          const fact = input.replyAdmission
-          if (
-            !fact.step ||
-            !fact.action ||
-            !fact.call ||
-            !fact.resultVersion ||
-            !completeEvidence(fact.source)
-          )
-            return answer(fail(invalid('replyAdmission', 'incomplete original admission')))
+        if (fact !== null) {
           const known = execution.admissions.find(
             item => item.fact.call === fact.call && item.fact.resultVersion === fact.resultVersion,
           )
