@@ -72,6 +72,8 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
 - **每次运行的副本**：`rsync` 拷模板的真实文件，`linked` 里的目录（每一层的 `node_modules`）用 `cp -al` 硬链接，删掉 `drop` 里的链接，
   再由这一类流做自己的准备，`git init`、建 `main` 分支、提交 `baseline`。`commit: delivery` 的流（实现评审）先提交基线，
   再施加种入、以 `workspace.delivery` 给的作者与提交信息提交一个交付提交，然后在成员里跑 `workspace.rebuild`。
+- 运行器对副本与模板的 git 命令不受宿主影响：提交的作者与提交者由环境变量给出（基线与评审快照是 `dispatcher <dispatcher@invalid>`，交付是 `workspace.delivery` 的作者），
+  宿主注入的身份与日期、`GIT_CONFIG_*` 一组、`GIT_CONFIG_PARAMETERS`、全局配置文件与 `GIT_TEMPLATE_DIR` 都不传给 git。系统配置保留。套件自己的命令不经此隔离。
 - 这一类没有 `material_paths`、`subject_paths`：**整个检出都来自钉住的提交**，包括副本里的 skills、检查工具与文档；只有角色定义取自当前的源。
 - 硬链接的依赖目录与模板共用文件：角色改了 `node_modules` 里的东西会连模板一起改。怀疑模板被动过时删掉它重建。
 - Windows 宿主上没有 `rsync` 与 `cp`。在 Windows 上，运行器用 Python 做同样的拷贝：链接仍是链接，`linked` 里的文件是硬链接。

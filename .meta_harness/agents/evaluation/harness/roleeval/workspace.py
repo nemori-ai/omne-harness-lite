@@ -29,7 +29,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from .git_environment import repository_env
+from .git_environment import isolated_env, repository_env
 
 READY = ".roleeval-ready"
 TEMPLATES = "_templates"
@@ -94,10 +94,10 @@ def tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
-def git(repo: Path, *args: str) -> str:
+def git(repo: Path, *args: str, identity: tuple[str, str] | None = None) -> str:
     # Git writes paths and messages in UTF-8 whatever the locale is (on Windows the locale is a code page).
     done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
-                          env=repository_env(os.environ))
+                          env=isolated_env(os.environ, identity))
     if done.returncode != 0:
         raise WorkspaceError(f"git {' '.join(args)}: {done.stderr.strip()}")
     return done.stdout.strip()
@@ -114,7 +114,7 @@ def dirty(repo: Path, paths: list[str]) -> list[str]:
 
 def is_ancestor(repo: Path, commit: str) -> bool:
     done = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, "HEAD"],
-                          env=repository_env(os.environ),
+                          env=isolated_env(os.environ),
                           capture_output=True, text=True, encoding="utf-8")
     return done.returncode == 0
 
@@ -204,8 +204,7 @@ def commit(dest: Path) -> None:
     """Give the copy a HEAD, so a brief can name 'this checkout's HEAD' as the snapshot under review."""
     git(dest, "init", "-q")
     git(dest, "add", "-A")
-    git(dest, "-c", "user.name=dispatcher", "-c", "user.email=dispatcher@invalid", "commit", "-qm",
-        "material under review")
+    git(dest, "commit", "-qm", "material under review", identity=BASELINE)
 
 
 # --- checkout copies -----------------------------------------------------------------------------------------
@@ -251,7 +250,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
         if target.exists():
             raise WorkspaceError(f"case input target already exists: {entry['to']}")
         payload = subprocess.run(["git", "-C", str(repo), "cat-file", "blob", identifier],
-                                 env=repository_env(os.environ),
+                                 env=isolated_env(os.environ),
                                  capture_output=True, check=True).stdout
         for reader in entry["consumers"]:
             file = path(reader["file"])
@@ -318,7 +317,7 @@ def _extract(repo: Path, base: str, dest: Path) -> None:
     # into CRLF on the way out, and a seed or a mutant written against the commit would no longer match.
     archive = subprocess.Popen(["git", "-C", str(repo), "-c", "core.autocrlf=false", "archive", base],
                                stdout=subprocess.PIPE,
-                               env=repository_env(os.environ))
+                               env=isolated_env(os.environ))
     extract = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout, capture_output=True)
     archive.stdout.close()
     if archive.wait() != 0 or extract.returncode != 0:
@@ -425,7 +424,7 @@ def baseline(dest: Path) -> str:
     git(dest, "init", "-q")
     git(dest, "symbolic-ref", "HEAD", "refs/heads/main")
     git(dest, "add", "-A")
-    git(dest, "-c", f"user.name={BASELINE[0]}", "-c", f"user.email={BASELINE[1]}", "commit", "-qm", "baseline")
+    git(dest, "commit", "-qm", "baseline", identity=BASELINE)
     return head(dest)
 
 
@@ -433,15 +432,14 @@ def deliver(dest: Path, *, subject: str, trailers: list[str], author: str) -> st
     """Commit what the copy now holds as an implementer's delivery on top of the baseline; return that commit."""
     name, _, email = author.partition(" <")
     git(dest, "add", "-A")
-    git(dest, "-c", f"user.name={name}", "-c", f"user.email={email.rstrip('>')}", "commit", "-qm", subject,
-        "-m", "\n".join(trailers))
+    git(dest, "commit", "-qm", subject, "-m", "\n".join(trailers), identity=(name, email.rstrip(">")))
     return head(dest)
 
 
 def changed_paths(dest: Path) -> list[tuple[str, str]]:
     """(status, path) of every change against HEAD, untracked files one by one."""
     listed = subprocess.run(["git", "-C", str(dest), "status", "--porcelain", "-uall"], capture_output=True, text=True,
-                            encoding="utf-8", env=repository_env(os.environ),
+                            encoding="utf-8", env=isolated_env(os.environ),
                             check=True).stdout
     return [(line[:2], line[3:].split(" -> ")[-1].strip('"')) for line in listed.splitlines()]
 
@@ -451,6 +449,6 @@ def patch(dest: Path) -> bytes:
     git(dest, "add", "-A", "-N")
     try:
         return subprocess.run(["git", "-C", str(dest), "diff"], capture_output=True, check=True,
-                              env=repository_env(os.environ)).stdout
+                              env=isolated_env(os.environ)).stdout
     finally:
         git(dest, "reset", "-q")
