@@ -339,6 +339,19 @@ export function createProvider<P, B extends ContentBlock>(
   }
 
   /**
+   * SPEC "查询的四种结论与持久拒绝": only `recordControl` can be refused durably. A `rejected`
+   * conclusion for the operation of an invoke is a violation by the Journal provider: the slot is
+   * neither free nor busy nor admitted, and a held reservation stays.
+   */
+  function rejectedOpen(operation: InvokeInput<P>['operation']): Failure {
+    return {
+      kind: 'unavailable',
+      owner: 'agentJournal',
+      diagnostic: `query answered rejected for the open operation ${operation}`,
+    }
+  }
+
+  /**
    * The retry of the R0 item: `query` the original operation first. Committed: the same `open`
    * gives the original receipt back and the run goes on at E1. Excluded: the operation is admitted
    * anew under the same identity. Unknown or a failed query: the reservation stays.
@@ -354,13 +367,22 @@ export function createProvider<P, B extends ContentBlock>(
       execution: held.execution,
       operation: input.operation,
     })
-    if ('failure' in found || found.ok.kind === 'unknown') {
+    if ('failure' in found) {
       occupy(held)
-      return 'failure' in found
-        ? found
-        : fail({ kind: 'commit-unknown', operation: input.operation })
+      return found
     }
-    return admit(input, found.ok.kind === 'excluded' ? { kind: 'free' } : held)
+    switch (found.ok.kind) {
+      case 'unknown':
+        occupy(held)
+        return fail({ kind: 'commit-unknown', operation: input.operation })
+      case 'rejected':
+        occupy(held)
+        return fail(rejectedOpen(input.operation))
+      case 'excluded':
+        return admit(input, { kind: 'free' })
+      case 'committed':
+        return admit(input, held)
+    }
   }
 
   /** A held slot cannot hide an earlier admission (SPEC 804 and mechanisms.md). */
@@ -372,9 +394,16 @@ export function createProvider<P, B extends ContentBlock>(
       // SPEC 61 hides absence as denied; after the access guard, this means a new invoke meets a held slot (SPEC 646).
       return found.failure.kind === 'denied' ? fail({ kind: 'busy' }) : found
     }
-    if (found.ok.kind === 'unknown')
-      return fail({ kind: 'commit-unknown', operation: input.operation })
-    if (found.ok.kind === 'excluded') return fail({ kind: 'busy' })
+    switch (found.ok.kind) {
+      case 'unknown':
+        return fail({ kind: 'commit-unknown', operation: input.operation })
+      case 'excluded':
+        return fail({ kind: 'busy' })
+      case 'rejected':
+        return fail(rejectedOpen(input.operation))
+      case 'committed':
+        break
+    }
     const resolved = await dependencies.adoptions.resolve({
       principal: input.principal,
       tenant: input.tenant,

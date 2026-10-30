@@ -483,6 +483,16 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     for (const operation of read.unresolved) {
       const queried = await ports.journal.query({ ...access, execution, operation })
       if ('failure' in queried) return queried
+      switch (queried.ok.kind) {
+        case 'committed':
+        case 'excluded':
+        case 'rejected':
+          // Settled: the snapshot read after it carries the outcome; R0 owns the reconciliation.
+          break
+        case 'unknown':
+          // Still waiting; E2 reads the facts as they are and R0 retries the query.
+          break
+      }
     }
     const inputs = await ports.journal.inputs({
       ...access,
@@ -791,13 +801,33 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       for (const operation of before.unresolved) {
         const queried = await ports.journal.query({ ...access, execution, operation })
         if ('failure' in queried) return queried
-        if (queried.ok.kind !== 'unknown' && pendingCommit?.operation === operation) {
-          excludedNode = queried.ok.kind === 'excluded' ? pendingCommit.node : null
-          resolvedOriginal = true
-        }
-        if (queried.ok.kind === 'unknown') {
-          // A waiting commit must not change the expected revision of the original operation.
-          return fail({ kind: 'commit-unknown', operation })
+        const own = pendingCommit?.operation === operation ? pendingCommit : null
+        switch (queried.ok.kind) {
+          case 'unknown':
+            // A waiting commit must not change the expected revision of the original operation.
+            return fail({ kind: 'commit-unknown', operation })
+          case 'rejected':
+            // Settled for another writer's operation; only recordControl can be refused durably,
+            // so for this coordinator's own commit it is a violation by the Journal provider.
+            if (own !== null)
+              return fail({
+                kind: 'unavailable',
+                owner: 'agentJournal',
+                diagnostic: `query answered rejected for the commit ${operation}`,
+              })
+            break
+          case 'excluded':
+            if (own !== null) {
+              excludedNode = own.node
+              resolvedOriginal = true
+            }
+            break
+          case 'committed':
+            if (own !== null) {
+              excludedNode = null
+              resolvedOriginal = true
+            }
+            break
         }
       }
       const loaded = await load()

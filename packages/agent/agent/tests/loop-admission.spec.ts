@@ -801,3 +801,75 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     assembly.release.open()
   })
 })
+
+// SPEC "查询的四种结论与持久拒绝": consumers branch on all four conclusions. `rejected` only comes
+// from recordControl, so for the operation of an invoke it is a violation of the Journal provider:
+// it is neither a free slot, nor busy, nor a settled admission.
+describe('the admission branches on a rejected query explicitly', () => {
+  type Conclusion = Awaited<ReturnType<Dependencies['journal']['query']>>
+  const rejected = (refused: ReturnType<typeof operation>): Conclusion => ({
+    ok: {
+      kind: 'rejected',
+      failure: { kind: 'conflict', operation: refused },
+      audit: { owner: 'test', record: 'audit', revision: '1', digest: 'test:audit' },
+      revision: '1' as never,
+    },
+  })
+
+  async function withQuery() {
+    let override:
+      | ((input: { operation: ReturnType<typeof operation> }) => Conclusion | null)
+      | null = null
+    const record: Record = { log: [], accepts: [], commits: [] }
+    const assembly = await loopAssembly([execution(), execution('exec-2')], d => {
+      const recordedDependencies = recording(record)(d)
+      return {
+        ...recordedDependencies,
+        journal: {
+          ...recordedDependencies.journal,
+          async query(input) {
+            const forced = override?.(input)
+            return forced ?? recordedDependencies.journal.query(input)
+          },
+        },
+      }
+    })
+    return { ...assembly, record, force: (f: typeof override) => void (override = f) }
+  }
+
+  it('the R0 retry of a reserved open answers unavailable and keeps the reservation', async () => {
+    const assembly = await withQuery()
+    assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'commit-unknown',
+      operation: operation('invoke-exec-1'),
+    })
+    const before = await shown(assembly)
+    const opensBefore = opens(assembly.record)
+    assembly.force(input =>
+      input.operation === operation('invoke-exec-1') ? rejected(input.operation) : null,
+    )
+    expect(failure(await invoke(assembly))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'agentJournal',
+    })
+    expect(await shown(assembly)).toEqual(before)
+    expect(opens(assembly.record)).toBe(opensBefore)
+    assembly.release.open()
+  })
+
+  it('a held slot meeting a rejected query answers unavailable, not busy', async () => {
+    const assembly = await withQuery()
+    ok(await invoke(assembly))
+    const before = await shown(assembly)
+    assembly.force(input =>
+      input.operation === operation('invoke-exec-2') ? rejected(input.operation) : null,
+    )
+    expect(failure(await invoke(assembly, 'exec-2'))).toMatchObject({
+      kind: 'unavailable',
+      owner: 'agentJournal',
+    })
+    expect(await shown(assembly)).toEqual(before)
+    assembly.release.open()
+  })
+})

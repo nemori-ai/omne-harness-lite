@@ -344,6 +344,86 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
+  // SPEC "查询的四种结论与持久拒绝": R0 branches on rejected explicitly. For an unresolved operation of
+  // another writer it is a settled refusal, so R0 goes on; for the coordinator's own commit it is a
+  // violation of the Journal provider, reported as unavailable, never waited on.
+  it.each(['own-commit', 'other-operation'] as const)(
+    'NA-E4-3: R0 treats a rejected %s as settled or as a provider violation, not as unknown',
+    async which => {
+      const other = operation('other-ack')
+      // For `own-commit`, the first commit of the coordinator is held pending and named here.
+      let target: ReturnType<typeof operation> | null = which === 'other-operation' ? other : null
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          commit: input => {
+            if (which === 'own-commit' && target === null) {
+              target = input.operation
+              assembly.controls.journal.failNext('commit', {
+                kind: 'commit-unknown',
+                outcome: 'pending',
+              })
+            }
+            return d.journal.commit(input)
+          },
+          query: async input =>
+            input.operation === target
+              ? {
+                  ok: {
+                    kind: 'rejected',
+                    failure: { kind: 'conflict', operation: input.operation },
+                    audit: evidence('audit'),
+                    revision: '1' as never,
+                  },
+                }
+              : d.journal.query(input),
+        },
+      }))
+      const c = coordinator(
+        assembly,
+        which === 'own-commit'
+          ? {}
+          : {
+              evaluator: {
+                ...agentEvaluator,
+                initial: () => succeed(checkpoint('I0')),
+                next: () => fail(STOP),
+              },
+            },
+      )
+      ok(await c.accept())
+      if (which === 'own-commit') {
+        assembly.release.open()
+        expect(failure(await c.runExecution()).failure).toMatchObject({ kind: 'commit-unknown' })
+        expect(target).not.toBeNull()
+        const before = await load(assembly)
+        expect(failure(await c.runExecution()).failure).toMatchObject({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+        })
+        expect(await load(assembly)).toEqual(before)
+      } else {
+        assembly.controls.journal.failNext('acknowledge', {
+          kind: 'commit-unknown',
+          outcome: 'pending',
+        })
+        expect(
+          failure(
+            await assembly.dependencies.journal.acknowledge({
+              ...alice,
+              execution: execution(),
+              operation: other,
+              through: '1',
+              receipt: null,
+            }),
+          ),
+        ).toMatchObject({ kind: 'commit-unknown' })
+        expect(failure(await c.runExecution())).toEqual({ node: 'E4', failure: STOP })
+      }
+    },
+  )
+
   it('NA-E4-3: recovery of the original main call reaches I3 without another admission', async () => {
     let connects = 0
     let admits = 0
