@@ -33,6 +33,7 @@
 - [journal-finishing.spec.ts](journal-finishing.spec.ts)：会话日志绑定上的条件终结规则：settling commit 的形状与有效取消下的候选、prepareFinish 发行与 tryFinish 重算的责任闭包、作者路线与取消路线的判定次序、`commitSettlement` 的资格名与目标核对
 - [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的 Journal 核心一致性套件，含消息准入的 P、Ja、Rh 与 submit 谱系，以及条件终结的候选、清单、五类阻塞次序与 `commitSettlement` 六变体；夹具装入测试取消政策并登记宿主记录，经内存提供者的 `seedLegacyCandidate` 写入旧协议的取消候选，并按套件的 `qualify` 决定调用方持有 `settle`、`migrate-cancellation`、`reconcile` 中的哪几个资格；夹具在每次首个 submit 成功后记录 Session 一侧的交接，使普通结束不在 Session 一侧受阻
 - [record-fault.spec-d.ts](record-fault.spec-d.ts)：本地 `RecordFault` 与契约测试件的 `RecordFault` 互相可赋值
+- [host-record.spec-d.ts](host-record.spec-d.ts)：本地 `TestHostRecord` 与一致性套件的 `TestHostRecord` 互相可赋值
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入，有 7 个文件
 
 ## 本绑定不可达的分支

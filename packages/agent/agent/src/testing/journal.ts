@@ -70,7 +70,7 @@ import type {
   AgentJournalEntry,
   AgentReceivedProvider,
 } from '@omne-harness/agent-contract'
-import type { SettlementQualification, TestHostRecord } from '@omne-harness/agent-contract/testing'
+import type { SettlementQualification, TestHostRecord } from './host-record.ts'
 import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
