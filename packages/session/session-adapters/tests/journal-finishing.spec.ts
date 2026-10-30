@@ -12,8 +12,16 @@ import {
   type JournalCommit,
   type PendingHandoff,
 } from '@omne-harness/agent-contract'
-import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
+import {
+  testCancellationPolicyInstallation,
+  type TestHostRecord,
+} from '@omne-harness/agent-contract/testing'
 import { decodeModelCallId } from '@omne-harness/model-contract'
+import {
+  decodeToolCallId,
+  decodeToolOperationId,
+  encodeToolInvocationRef,
+} from '@omne-harness/tool-contract'
 import { assistantMessage } from '@omne-harness/session-contract/testing'
 import { scene, ok, operation, evidence, submitInput } from './fixtures/common-journal.ts'
 import { accept, handed, prepareEnd, take } from './fixtures/progression.ts'
@@ -451,5 +459,214 @@ describe('the cancellation route compares its judgment with the current closure'
     expect(await finish(s, ready, 'end', cancelAuthorization(ready, second))).toMatchObject({
       failure: { kind: 'invalid', field: 'authorization.control' },
     })
+  })
+})
+
+describe('the settlement variants check the installation and their qualifications', () => {
+  it('an installation that is not the one this binding holds is changed', async () => {
+    const s = await started('other-installation')
+    const control = operation('cancel-1')
+    await effectiveCancel(s, control)
+    expect(
+      await s.view.journal.commitSettlement({
+        ...(await settlementCommon(s, 'establish', control)),
+        installation: evidence('another-installation'),
+        kind: 'establish-cancellation',
+        predecessor: null,
+      }),
+    ).toEqual({ failure: { kind: 'changed' } })
+  })
+
+  it('a principal allowed settle and refused migrate-cancellation cannot migrate, can establish, and a cancel prepareFinish needs settle', async () => {
+    let refuse = 'migrate-cancellation'
+    const s = await scene('qualifications', undefined, {
+      agent: action => action !== refuse,
+      session: true,
+    })
+    ok(await handed(s))
+    await take(s)
+    const control = operation('cancel-1')
+    await effectiveCancel(s, control)
+    const snapshot = await load(s)
+    expect(
+      await s.view.journal.commitSettlement({
+        ...(await settlementCommon(s, 'migrate', control)),
+        kind: 'migrate-cancellation',
+        candidate: operation('any'),
+        originalRoute: evidence('any-route'),
+        priorExcluded: null,
+      }),
+    ).toEqual({ failure: { kind: 'denied', action: 'migrate-cancellation' } })
+    expect((await load(s)).revision).toBe(snapshot.revision)
+    ok(await establish(s, control))
+    ok(await judge(s, control))
+    refuse = 'settle'
+    expect(await prepare(s, 'prepare', cancelAuthorization(await load(s), control))).toEqual({
+      failure: { kind: 'denied', action: 'settle' },
+    })
+    refuse = 'none'
+    ok(await prepare(s, 'prepare-settled', cancelAuthorization(await load(s), control)))
+    const ready = await load(s)
+    refuse = 'settle'
+    expect(await finish(s, ready, 'end', cancelAuthorization(ready, control))).toEqual({
+      failure: { kind: 'denied', action: 'settle' },
+    })
+  })
+})
+
+describe('message admission keeps currentHandoff on the H that P set', () => {
+  it('a P at another position while an H is current is invalid', async () => {
+    const s = await started('pointer')
+    const before = await load(s)
+    const first = replyRequest(s, before, 'reply-01')
+    ok(
+      await commit(s, 'prepare-1', {
+        checkpoint: { ...before.checkpoint, position: 'Q2', currentHandoff: first.reference },
+        handoff: { kind: 'prepare', request: first },
+      }),
+    )
+    const current = await load(s)
+    const second = {
+      ...replyRequest(s, current, 'reply-02'),
+      position: { ...first.position, slot: 'another-slot' },
+    }
+    expect(
+      await commit(s, 'prepare-2', {
+        checkpoint: { ...current.checkpoint, currentHandoff: second.reference },
+        handoff: { kind: 'prepare', request: second },
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'checkpoint.currentHandoff' } })
+  })
+
+  it('a Ja that moves the pointer to another H instead of clearing it is invalid', async () => {
+    const s = await started('pointer-ja')
+    const before = await load(s)
+    const first = replyRequest(s, before, 'reply-01')
+    ok(
+      await commit(s, 'prepare-1', {
+        checkpoint: { ...before.checkpoint, position: 'Q2', currentHandoff: first.reference },
+        handoff: { kind: 'prepare', request: first },
+      }),
+    )
+    const current = await load(s)
+    const second = replyRequest(s, current, 'reply-02')
+    const source = first.source
+    if (source.kind !== 'model-reply') throw new Error('a model-reply source is expected')
+    const admission = evidence('admission/reply-01')
+    expect(
+      await commit(s, 'resolve-1', {
+        checkpoint: { ...current.checkpoint, position: 'Q4', currentHandoff: second.reference },
+        events: [{ kind: 'message', message: first.candidate, source: admission }],
+        replyAdmission: {
+          step: source.step,
+          action: source.action,
+          call: source.call,
+          resultVersion: source.result.version,
+          decision: 'admitted',
+          source: admission,
+        },
+        handoff: {
+          kind: 'resolve',
+          outcome: {
+            request: first,
+            origin: null,
+            provider: { owner: 'test', name: 'message-handoff', revision: '1', digest: 'test' },
+            qualification: evidence('qualification/reply-01'),
+            record: evidence('record/reply-01'),
+            decision: { kind: 'prepared', message: first.candidate, admission },
+          },
+        },
+      }),
+    ).toMatchObject({ failure: { kind: 'invalid', field: 'checkpoint.currentHandoff' } })
+  })
+})
+
+describe('record-tool-association keeps what the original return proves', () => {
+  async function associated(name: string, records: Map<string, TestHostRecord>) {
+    const s = await scene(name, undefined, undefined, { hostRecords: records })
+    ok(await handed(s))
+    await take(s)
+    const tool = toolCall(s.access.tenant, 'assoc')
+    const loaded = await load(s)
+    const attachment = loaded.executionAttachment ?? s.opened.authority
+    ok(
+      await commit(s, 'intent', {
+        checkpoint: { ...loaded.checkpoint, batch: tool.batch },
+        effects: [{ action: tool.pending.action, pending: tool.pending, authority: attachment }],
+      }),
+    )
+    const key = {
+      intent: operation('intent'),
+      action: tool.pending.action,
+      position: tool.pending.position,
+    }
+    const reference = (call: string) =>
+      ok(
+        encodeToolInvocationRef({
+          tenant: s.access.tenant,
+          call: ok(decodeToolCallId(call)),
+          admission: ok(decodeToolOperationId(`${call}-admission`)),
+        }),
+      )
+    const record = async (
+      label: string,
+      returned: Extract<TestHostRecord, { kind: 'tool-return' }>['returned'],
+    ) => {
+      const source = evidence(`host/${label}`)
+      records.set(source.record, {
+        kind: 'tool-return',
+        intent: key,
+        request: tool.pending.fixed,
+        returned,
+        received: evidence(`received/${label}`),
+        custody: evidence(`custody/${label}`),
+      })
+      return s.view.journal.commitSettlement({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(`associate-${label}`),
+        kind: 'record-tool-association',
+        intent: key,
+        request: tool.pending.fixed,
+        source,
+        priorExcluded: null,
+      })
+    }
+    return { s, reference, record }
+  }
+
+  it('a commit-unknown return leaves the call unknown', async () => {
+    const { s, reference, record } = await associated('assoc-unknown', new Map())
+    const saved = ok(
+      await record('unknown', { kind: 'commit-unknown', reference: reference('call-a') }),
+    )
+    expect(saved).toMatchObject({
+      kind: 'record-tool-association',
+      association: { obligation: { disposition: { kind: 'unknown' } } },
+    })
+    const ready = await prepareEnd(s)
+    expect(
+      ready.finishObligations?.items.find(item => item.kind === 'call')?.disposition,
+    ).toMatchObject({
+      kind: 'unknown',
+    })
+  })
+
+  it('another call or admission for an intent whose reference is known conflicts', async () => {
+    const { reference, record } = await associated('assoc-conflict', new Map())
+    ok(
+      await record('first', {
+        kind: 'accepted',
+        reference: reference('call-a'),
+        receipt: evidence('receipt-a'),
+      }),
+    )
+    expect(
+      await record('second', {
+        kind: 'accepted',
+        reference: reference('call-b'),
+        receipt: evidence('receipt-b'),
+      }),
+    ).toEqual({ failure: { kind: 'conflict', operation: operation('associate-second') } })
   })
 })

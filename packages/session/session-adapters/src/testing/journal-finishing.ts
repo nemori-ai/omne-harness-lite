@@ -410,9 +410,12 @@ export function buildObligations(
   }
   for (const effect of source.effects) {
     const result = source.results.find(item => item.consumption === effect.pending.consumption)
-    const association = source.finishing.toolAssociations.find(
+    // A later unknown return does not take an accepted association back to unknown.
+    const associations = source.finishing.toolAssociations.filter(
       item => item.intent.action === effect.action,
     )
+    const association =
+      associations.find(item => item.association.kind === 'accepted') ?? associations[0]
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     items.push({
@@ -425,17 +428,23 @@ export function buildObligations(
       disposition:
         result !== undefined
           ? settled(result.result.source)
-          : association !== undefined
+          : association?.association.kind === 'accepted'
             ? held(
                 association.source,
                 next('tool-association-retain', association.request, 'reconcile'),
                 custodian ?? SESSION_CUSTODIAN,
               )
-            : callUnknown(
-                effect.action,
-                effect.pending.fixed,
-                next('producer-query', effect.pending.fixed, 'query'),
-              ),
+            : association !== undefined
+              ? callUnknown(
+                  effect.action,
+                  association.source,
+                  next('tool-association-retain', association.request, 'reconcile'),
+                )
+              : callUnknown(
+                  effect.action,
+                  effect.pending.fixed,
+                  next('producer-query', effect.pending.fixed, 'query'),
+                ),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),
