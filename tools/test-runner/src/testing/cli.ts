@@ -37,7 +37,8 @@ import {
 } from './steps.ts'
 import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
-import { budgetFor } from './parallelism.ts'
+import { budgetFor, describeBudget } from './parallelism.ts'
+import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
@@ -60,6 +61,8 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
+  '  coverage-parallel',
+  '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
   '  check [--admission] [--keep-going] [--list]',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
   '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志；',
@@ -223,6 +226,22 @@ function runReplay(argv: readonly string[]): number {
   return 0
 }
 
+/**
+ * 覆盖率跨成员并行的并发度：预算同 `run`（`OMNE_WORKER_BUDGET` 可覆盖），分法见 `coverageParallelism`。
+ * 标准输出只有 `<M>x<W>` 一行，说明写到标准错误。
+ */
+async function coverageParallel(argv: readonly string[]): Promise<number> {
+  parseFlags(argv, [], [])
+  const policy = readTestRunsConfig().parallel
+  const budget = await budgetFor(policy)
+  const { members, workers } = coverageParallelism(budget, policy)
+  console.error(
+    `${describeBudget(budget)}；覆盖率同时 ${members} 个成员，每个至多 ${workers} 个工作进程`,
+  )
+  console.log(`${members}x${workers}`)
+  return 0
+}
+
 async function runTriage(argv: readonly string[]): Promise<number> {
   const flags = parseFlags(argv, ['--run'], [])
   const runDir = flags.values.get('--run')
@@ -278,6 +297,7 @@ async function main(): Promise<void> {
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
+  else if (command === 'coverage-parallel') process.exitCode = await coverageParallel(rest)
   else if (command === 'check') {
     const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list'])
     process.exitCode = await runCheck(ROOT, {

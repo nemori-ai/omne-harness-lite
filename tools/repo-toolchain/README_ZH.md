@@ -270,9 +270,19 @@ architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报
 pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、依赖方向与环
 pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更的成员、函数、导入与提交形状
 omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
+omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖率跨成员并行：同时 3 个成员，每个至多 5 个工作进程
 ```
 
 计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。改过的文件按最长的成员目录前缀归到成员；成员是 `pnpm-workspace.yaml` 的成员模式匹配到、且 `package.json` 有字符串 `name` 的目录。组根文件（`packages/<组>/README.md`、`packages/<组>/docs/**`）没有成员前缀，不算成员，改它们不触发这项检查。
+
+覆盖率缺省逐个成员串行，vitest 的工作进程数由 vitest 自己按核数定。给了 `--coverage-parallel <M>x<W>`（或环境变量 `OMNE_METRICS_COVERAGE_PARALLEL`，参数优先；只在带 `--coverage` 时生效）就跨成员并行：同时至多 M 个成员，每个成员的 vitest 加 `--maxWorkers=W`。本工具不推预算。`pnpm run metrics --coverage` 经 `scripts/metrics.sh` 在占到运行名额后向 test-runner 要并发度（`coverage-parallel`，两数之积不超过本机的工作进程预算，`OMNE_WORKER_BUDGET` 可覆盖），再经环境变量交下来；不认这个变量的旧版本照旧串行。调用方已设变量或给了参数时，脚本不另算。并行时：
+
+- 预计最久的成员先开始。预计耗时取产物目录上级（缺省为主检出的 `tmp/metrics/`）与这次 `--out` 上级里历次 `metrics.json` 的 `meta.coverageSeconds`，同一成员取最新一份的正数；没有记录的按测试文件数，乘上有记录的成员平均每个文件的秒数。顺序只影响墙钟，不影响读数。
+- 各成员的日志、报告目录与退出码与串行时相同，结果按成员原来的顺序合并，不随完成先后变。进度在每个成员跑完时打一行。
+- 静态度量（依赖图、实际架构、符合性）与覆盖率同时进行，它们只读工作树，不读覆盖率。串行时仍先跑完覆盖率。
+- 一个成员起不来时不再开新成员，等已开始的结束，再报错退出。
+
+这里借鉴了 crapper（[unclebob/ub-mode](https://github.com/unclebob/ub-mode) 列出的 CRAP 工具）的两种做法：按核数并行，以及在覆盖报告已经存在时复用它（`--use-existing-coverage`）。只采用了前一种。复用要能判定已有报告的输入与这次相同：成员与它的工作区依赖的 `dist/`、测试、配置与安装状态都不在提交里，同一提交上也可能不同。本工具判定不了，所以不复用，每次重跑。
 
 本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
 
@@ -287,7 +297,7 @@ omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的
 | `actual.json`       | N1 完整实际架构数据及精确两版差分                                                                                                                                      |
 | `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开                                                                                                                   |
 | `plan.json`         | 给 `--plan` 时复制的计划文件                                                                                                                                             |
-| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
+| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误；并行时的耗时含与别的成员争抢 CPU 的时间 |
 
 审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
 

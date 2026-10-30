@@ -158,6 +158,11 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 预算可用 `OMNE_WORKER_BUDGET`（正整数，超过核数按核数）钉死，不再采样；两个并行度可用环境变量 `OMNE_TEST_MEMBER_CONCURRENCY` 与 `VITEST_MAX_WORKERS` 临时盖过——后者是 vitest 自己认的变量，
 会盖过成员配置里的 `maxWorkers`。账本的 `meta` 记下并行度、核数与预算的来历（`budget`：进程数、空闲率、空闲内存，以及是自己采的还是环境变量给的）。
 
+**覆盖率的并发度。**`node --experimental-strip-types tools/test-runner/src/testing/cli.ts coverage-parallel` 打印 `<同时成员数>x<每成员工作进程数>` 一行，说明写到标准错误（`src/testing/coverage-parallel.ts`）。
+`pnpm run metrics --coverage` 经 `scripts/metrics.sh` 在占到运行名额后调用它，把结果经环境变量 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 repo-toolchain 的 omne-metrics（repo-toolchain 不依赖本包，预算只在这里推）。
+预算与成员测试相同（`OMNE_WORKER_BUDGET` 可钉死）。每成员工作进程数按上面的策略取，不超过预算。同时成员数 = floor(预算 ÷ 每成员工作进程数)，至少 1。
+两数之积不超过预算：与成员测试不同，覆盖率这一趟不按名义进程数超订。24 核宿主上预算 19 时是 3x5。
+
 **耗时账本。**每次运行在**主检出**的 `tmp/test-ledger/<提交短号>[-dirty]/<时间>/`（`OMNE_TEST_LEDGER_HOME` 可改根目录，
 `--out` 可直接指定）留下：
 

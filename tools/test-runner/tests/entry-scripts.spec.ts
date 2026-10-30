@@ -43,22 +43,25 @@ function fixture() {
     join(root, 'scripts/with-test-slot.sh'),
     '#!/usr/bin/env bash\nprintf "slot|%s\\n" "$*" >> "$TRACE"\nexec "$@"\n',
   )
-  // omne-metrics 另记下 --plan 指向的文件在它运行时是否存在。
+  // omne-metrics 另记下收到的覆盖率并发度（环境变量）与 --plan 指向的文件在它运行时是否存在。
   executable(
     join(root, 'node_modules/.bin/omne-metrics'),
     `#!/usr/bin/env bash
 printf 'omne-metrics|%s\\n' "$*" >> "$TRACE"
+printf 'parallel|%s\\n' "\${OMNE_METRICS_COVERAGE_PARALLEL-unset}" >> "$TRACE"
 while (( $# )); do
   if [[ "$1" == --plan ]]; then [[ -f "$2" ]] && echo "plan-file|present" >> "$TRACE"; fi
   shift
 done
 `,
   )
-  // node 只认测试运行器的 plan：写出 --json 指向的计划文件；FAIL_NODE 给出退出码。
+  // node 只认测试运行器的 plan 与 coverage-parallel：前者写出 --json 指向的计划文件，FAIL_NODE 给出它的退出码；
+  // 后者打印 PARALLEL（缺省 3x5），FAIL_PARALLEL 给出它的退出码。
   executable(
     join(bin, 'node'),
     `#!/usr/bin/env bash
 printf 'node|%s\\n' "$*" >> "$TRACE"
+if [[ " $* " == *" coverage-parallel "* ]]; then echo "\${PARALLEL:-3x5}"; exit "\${FAIL_PARALLEL:-0}"; fi
 args=("$@")
 for (( i = 0; i < \${#args[@]}; i++ )); do
   if [[ "\${args[i]}" == --json ]]; then echo '{}' > "\${args[i+1]}"; fi
@@ -84,33 +87,66 @@ describe('metrics.sh', () => {
     const { run } = fixture()
     const ran = run('metrics.sh', ['--base', 'abc', '--coverage', '--out', 'o'])
     expect(ran.status, ran.stderr).toBe(0)
-    const [plan, slot, metrics, present] = ran.lines
+    const [plan, slot, parallel, metrics, received, present] = ran.lines
     expect(plan).toMatch(
       /^node\|.*tools\/test-runner\/src\/testing\/cli\.ts plan --base abc --json \S+\/plan\.json$/u,
     )
-    // 名额脚本用 Node 起命令，.bin 里的 shell shim 要显式经 bash。
+    // 名额脚本用 Node 起命令，脚本要显式经 bash；占到名额后才向测试运行器要并发度。
     expect(slot).toMatch(
-      /^slot\|bash node_modules\/\.bin\/omne-metrics --plan \S+\/plan\.json --coverage --out o$/u,
+      /^slot\|bash scripts\/metrics\.sh --in-slot --plan \S+\/plan\.json --coverage --out o$/u,
     )
-    expect(metrics).not.toContain('--base')
+    expect(parallel).toBe(
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts coverage-parallel',
+    )
+    expect(metrics).toMatch(/^omne-metrics\|--plan \S+\/plan\.json --coverage --out o$/u)
+    expect(received).toBe('parallel|3x5')
     expect(present).toBe('plan-file|present')
   })
 
-  it('带 --coverage 与 --plan：不另算计划，参数原样交下去并占名额', () => {
+  it('带 --coverage 与 --plan：不另算计划，参数原样交下去并占名额，并发度经环境变量交给 omne-metrics', () => {
     const { run } = fixture()
-    const ran = run('metrics.sh', ['--coverage', '--plan', 'p.json'])
+    const ran = run('metrics.sh', ['--coverage', '--plan', 'p.json'], { PARALLEL: '4x2' })
     expect(ran.status, ran.stderr).toBe(0)
     expect(ran.lines).toEqual([
-      'slot|bash node_modules/.bin/omne-metrics --coverage --plan p.json',
+      'slot|bash scripts/metrics.sh --in-slot --coverage --plan p.json',
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts coverage-parallel',
       'omne-metrics|--coverage --plan p.json',
+      'parallel|4x2',
     ])
+  })
+
+  it('调用方已给并发度（环境变量或 --coverage-parallel）：不另算，原样交下去', () => {
+    const { run } = fixture()
+    expect(
+      run('metrics.sh', ['--coverage', '--plan', 'p.json'], {
+        OMNE_METRICS_COVERAGE_PARALLEL: '1x1',
+      }).lines,
+    ).toEqual([
+      'slot|bash scripts/metrics.sh --in-slot --coverage --plan p.json',
+      'omne-metrics|--coverage --plan p.json',
+      'parallel|1x1',
+    ])
+    expect(
+      run('metrics.sh', ['--coverage', '--plan', 'p.json', '--coverage-parallel', '2x2']).lines,
+    ).toEqual([
+      'slot|bash scripts/metrics.sh --in-slot --coverage --plan p.json --coverage-parallel 2x2',
+      'omne-metrics|--coverage --plan p.json --coverage-parallel 2x2',
+      'parallel|unset',
+    ])
+  })
+
+  it('要并发度失败：退出非零，不运行 omne-metrics', () => {
+    const { run } = fixture()
+    const ran = run('metrics.sh', ['--coverage', '--plan', 'p.json'], { FAIL_PARALLEL: '2' })
+    expect(ran.status).toBe(2)
+    expect(ran.lines.some(line => line.startsWith('omne-metrics|'))).toBe(false)
   })
 
   it('不带 --coverage：不算计划、不占名额，参数原样交下去', () => {
     const { run } = fixture()
     const ran = run('metrics.sh', ['--base', 'abc', '--out', 'o'])
     expect(ran.status, ran.stderr).toBe(0)
-    expect(ran.lines).toEqual(['omne-metrics|--base abc --out o'])
+    expect(ran.lines).toEqual(['omne-metrics|--base abc --out o', 'parallel|unset'])
   })
 
   it('算计划失败：退出非零，不运行 omne-metrics', () => {
