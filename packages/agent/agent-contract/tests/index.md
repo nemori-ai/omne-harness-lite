@@ -4,6 +4,7 @@
 - [公开行为](public-entry.spec.ts)
 - [扩展输出判断](judge-output.spec.ts)
 - [身份解码与结构判定](identity.spec.ts)
+- [消息准入输入的结构判定](judge-handoff.spec.ts)
 - [声明限额与输出限额的边界](limits.spec.ts)
 - [输入副本的拒绝](input-copy.spec.ts)
 - [声明成功值的成员与文本规则](declarations.spec.ts)

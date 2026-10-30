@@ -21,7 +21,8 @@ import type {
   PassageId,
   StepId,
 } from './identity.ts'
-import type { MessageSource, Passage } from './passages.ts'
+import type { JsonValue } from '@omne-harness/json-text'
+import type { HandoffReference, MessageSource, Passage } from './passages.ts'
 import type { CompactionProgress, CompactionState, Preparation } from './request.ts'
 
 export type ProducedResult = Readonly<{
@@ -78,12 +79,21 @@ export type FailureCandidate = Readonly<{
     | Readonly<{ kind: 'extension-stop'; passage: PassageId; reason: string }>
     | Readonly<{ kind: 'guard'; level: 3; basis: DurableEvidence }>
   )
+/**
+ * The narrow view Agent keeps of a compaction transition (SPEC "请求准备与压缩" 7): the exact
+ * message, the lawful source basis, and, kept apart from that basis, the original candidate, the
+ * plan, the complete versioned basis material, the commitment and the real history epoch.
+ */
 export type PreparedContextTransition = Readonly<{
   preparation: ActionId
   message: Message
   source: DurableEvidence
   derivation: DurableEvidence
   commitment: DurableEvidence
+  candidate: DurableEvidence
+  plan: DurableEvidence
+  basis: Readonly<{ schema: Adoption; value: JsonValue }>
+  epoch: string
 }>
 export type Failure =
   | Readonly<{ kind: 'denied'; action: string }>
@@ -148,7 +158,7 @@ export type ActionSlot = Readonly<{
   action: ActionId
   each: readonly PassageId[] | null
   candidate: Message | null
-  handoff: DurableEvidence | null
+  handoff: HandoffReference | null
 }> &
   (
     | Readonly<{ kind: 'denied'; evidence: DurableEvidence }>
@@ -217,6 +227,8 @@ export type AgentCheckpoint = Readonly<{
   guard: GuardFact | null
   completedPassages: readonly PassageId[]
   priorConditions: DurableEvidence | null
+  /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
+  currentHandoff: HandoffReference | null
 }>
 export type RuntimeConditions = Readonly<{
   source: DurableEvidence

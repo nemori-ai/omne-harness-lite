@@ -29,5 +29,15 @@
 - [transactions-access.spec.ts](transactions-access.spec.ts)：`createMemorySessionJournal` 必需 `accessCheck`、commit 显式 access、每次公开读写各问一次、`readInput` 与 `queryOperation` 的 denied/unavailable 不披露答案、denied/unavailable/抛错无副作用、内部提交路径不暴露
 - [participation-access.spec.ts](participation-access.spec.ts)：Agent 提交派生的四种 Session 参加各问检查一次、denied/unavailable 两侧不写、allowed 证据随同次提交可读回、认回再问一次、裁定后修订被推进时返回可重试的 unavailable 且不写入、被拒调用不改变后续回执、scene 记录每次裁定的结论且外租户由检查本身拒绝
 - [record-fault.spec.ts](record-fault.spec.ts)：`failNextRecord` 只作用于布置它的租户与 execution，被拒的调用不消耗它
+- [journal-coordination.spec.ts](journal-coordination.spec.ts)：coordinated 绑定的声明、`open`/`attach`/`submit` 的参加者冲突译为 denied、取消收束的 attach（取消前最后授予的 attempt）、取消路线的 establish、judge、`prepareFinish` 与 `tryFinish`，以及 `tryFinish` 参加者的 changed 与 PA-02 取消分支；PA-08 第 3 项：SE26 cancelled 之后推进授权的结束为 `stale-advance`，取消路线以取消授权结束，读到的结束事件只认回，全程只有一个 SE26
+- [journal-finishing.spec.ts](journal-finishing.spec.ts)：会话日志绑定上的条件终结规则：settling commit 的形状与有效取消下的候选、prepareFinish 发行与 tryFinish 重算的责任闭包、作者路线与取消路线的判定次序、`commitSettlement` 的资格名与目标核对
+- [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的 Journal 核心一致性套件，含消息准入的 P、Ja、Rh 与 submit 谱系，以及条件终结的候选、清单、五类阻塞次序与 `commitSettlement` 六变体；夹具装入测试取消政策并登记宿主记录，经内存提供者的 `seedLegacyCandidate` 写入旧协议的取消候选，并按套件的 `qualify` 决定调用方持有 `settle`、`migrate-cancellation`、`reconcile` 中的哪几个资格；夹具在每次首个 submit 成功后记录 Session 一侧的交接，使普通结束不在 Session 一侧受阻
 - [record-fault.spec-d.ts](record-fault.spec-d.ts)：本地 `RecordFault` 与契约测试件的 `RecordFault` 互相可赋值
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入，有 7 个文件
+
+## 本绑定不可达的分支
+
+下列分支在会话日志绑定上没有测试，因为 Journal 与 Session 参加者读同一份权威状态，Journal 按 Agent 的判定次序先返回。差分变异在这些行的存活体按等价登记。
+
+- [factory.ts:777](../src/testing/factory.ts#L777)，`tryFinish` 参加者对推进授权的「冲突」（PA-08 第 3 项）：Run 为 SE26 cancelled 时，`advances` 从同一 Run 求出推进资格已撤，Journal 先返回 `stale-advance`，参加者不被调用。该分支的其他情形（例如 Session 已受理而未交入的输入）仍可达，有测试。Journal 与参加者读面分开的绑定会走到该情形。
+- [factory.ts:773](../src/testing/factory.ts#L773)，`tryFinish` 参加者的 PA-02 控制核对：判断输入已带 Session 的参加者事实，控制不是 SE26 引用的控制时判断为 blocked，tryFinish 按判断记录返回；参加者事实在判断之后改变时，Journal 按判断输入与当前闭包不同返回 changed；路线控制与授权控制不同时，Journal 返回 invalid。结论不是 cancelled 时，Journal 按授权种类与候选结论不符返回 denied。判断输入不带参加者事实、或参加者读面与 Journal 分开的绑定会走到该分支。这一论证以已安装的取消政策符合 SPEC 判据为前提，即政策不把参加者的 changed 或 blocked 判为 allowed；测试政策 `agent-contract/src/testing-cancellation.ts` 满足这一前提。换成不符合判据的政策时该分支可达。

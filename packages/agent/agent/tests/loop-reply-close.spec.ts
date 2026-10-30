@@ -12,17 +12,25 @@ import type { JournalCommit } from '@omne-harness/agent-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import {
   acceptedInput,
+  consumption,
+  evidence,
   execution,
+  failure,
   ok,
   operation,
   producedResult,
-  consumption,
-  evidence,
-  failure,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
-import { alice, eventually, invoke, loopAssembly, type LoopAssembly } from './loop-support.ts'
+import {
+  alice,
+  eventually,
+  invoke,
+  loopAssembly,
+  type LoopAssembly,
+  handoffOperationOf,
+} from './loop-support.ts'
 
 function coordinator(assembly: LoopAssembly) {
   return createExecutionCoordinator({
@@ -157,7 +165,9 @@ describe('#515 reply admission and iteration close', () => {
     )
     expect(page.kind === 'page' && page.items.map(item => item.fact)).toEqual([fact])
     expect(
-      assembly.controls.handoff.accept.calls.filter(call => call.source.kind === 'model-reply'),
+      assembly.controls.handoff.prepare.calls.filter(
+        call => call.request.source.kind === 'model-reply',
+      ),
     ).toHaveLength(1)
   })
 
@@ -167,13 +177,14 @@ describe('#515 reply admission and iteration close', () => {
     const assembly = await loopAssembly([execution()], d => ({
       ...recordCommits(commits)(d),
       handoff: {
-        async accept(input) {
-          const accepted = await d.handoff.accept(input)
-          if (input.source.kind === 'model-reply' && lost) {
+        ...d.handoff,
+        async prepare(input) {
+          const prepared = await d.handoff.prepare(input)
+          if (input.request.source.kind === 'model-reply' && lost) {
             lost = false
-            return fail({ kind: 'commit-unknown', operation: input.operation })
+            return fail({ kind: 'commit-unknown', operation: handoffOperationOf(input) })
           }
-          return accepted
+          return prepared
         },
       },
     }))
@@ -181,13 +192,13 @@ describe('#515 reply admission and iteration close', () => {
     ok(await c.accept())
     assembly.release.open()
     expect(failure(await c.runExecution())).toMatchObject({
-      node: 'Q2',
+      node: 'Q1',
       failure: { kind: 'commit-unknown' },
     })
     expect(commits.filter(item => item.replyAdmission !== null)).toHaveLength(0)
     ok(await c.runExecution())
-    const replies = assembly.controls.handoff.accept.calls.filter(
-      call => call.source.kind === 'model-reply',
+    const replies = assembly.controls.handoff.prepare.calls.filter(
+      call => call.request.source.kind === 'model-reply',
     )
     expect(replies).toHaveLength(2)
     expect(replies[1]).toEqual(replies[0])
@@ -252,12 +263,14 @@ describe('#515 reply admission and iteration close', () => {
     const running = c.runExecution()
     await eventually(async () => (await load(assembly)).checkpoint.position === 'M6')
     ok(
-      await assembly.dependencies.journal.submit({
-        ...alice,
-        execution: execution(),
-        operation: operation('second-input'),
-        value: acceptedInput('second', 'another question'),
-      }),
+      await assembly.dependencies.journal.submit(
+        withLineage({
+          ...alice,
+          execution: execution(),
+          operation: operation('second-input'),
+          value: acceptedInput('second', 'another question'),
+        }),
+      ),
     )
     assembly.release.open()
     ok(await running)
@@ -354,17 +367,17 @@ describe('#515 reply admission and iteration close', () => {
     const c = coordinator(assembly)
     ok(await c.accept())
     ok(await c.runExecution())
-    const candidate = commits.find(item => item.state.kind === 'settling')
-    expect(candidate?.state).toMatchObject({
-      kind: 'settling',
-      intent: {
-        conclusion: { kind: 'fail' },
-        failure: { kind: 'no-reply', source: evidence('settled'), step: 'step-1' },
-      },
+    const candidate = commits.find(item => item.finish !== null)
+    expect(candidate?.state).toEqual({ kind: 'settling' })
+    expect(candidate?.finish).toMatchObject({
+      conclusion: { kind: 'fail' },
+      failure: { kind: 'no-reply', source: evidence('settled'), step: 'step-1' },
     })
     expect(commits.some(item => item.operation.startsWith('I8/'))).toBe(false)
     expect(
-      assembly.controls.handoff.accept.calls.filter(call => call.source.kind === 'model-reply'),
+      assembly.controls.handoff.prepare.calls.filter(
+        call => call.request.source.kind === 'model-reply',
+      ),
     ).toEqual([])
   })
 

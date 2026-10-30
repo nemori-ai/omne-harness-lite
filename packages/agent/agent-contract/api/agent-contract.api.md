@@ -73,10 +73,19 @@
 - `Authority` · `identity.d.ts`
 - `BatchJudgment` · `judgment.d.ts`
 - `CallerCommit` · `journal.d.ts`
+- `CancellationBlock` · `finishing.d.ts`
+- `CancellationDecision` · `finishing.d.ts`
+- `CancellationJudgmentInput` · `finishing.d.ts`
+- `CancellationJudgmentRecord` · `finishing.d.ts`
+- `CancellationPolicy` · `finishing.d.ts`
+- `CancellationPolicyInstallation` · `finishing.d.ts`
+- `CancellationUnknown` · `finishing.d.ts`
+- `CandidateSupersession` · `finishing.d.ts`
 - `CapabilityRef` · `definition.d.ts`
 - `CapturedRead` · `passages.d.ts`
 - `CardAnswer` · `passages.d.ts`
 - `CardOption` · `extensions.d.ts`
+- `CardReconciliationRecord` · `finishing.d.ts`
 - `CardRemark` · `passages.d.ts`
 - `CardReply` · `passages.d.ts`
 - `CardRequest` · `passages.d.ts`
@@ -92,9 +101,11 @@
 - `ConsumptionId` · `identity.d.ts`
 - `ContextContent` · `request.d.ts`
 - `Continuation` · `identity.d.ts`
+- `ContinuationRequest` · `finishing.d.ts`
 - `ControlRecord` · `execution.d.ts`
 - `ControlStage` · `execution.d.ts`
 - `ControlStageFact` · `execution.d.ts`
+- `CoverageFacet` · `finishing.d.ts`
 - `CurrentConditions` · `request.d.ts`
 - `DecisionCardDraft` · `extensions.d.ts`
 - `DecisionCards` · `passages.d.ts`
@@ -103,10 +114,13 @@
 - `EffectIntent` · `journal.d.ts`
 - `ErrorPolicy` · `extensions.d.ts`
 - `EventPage` · `execution.d.ts`
+- `ExcludedPredecessor` · `finishing.d.ts`
 - `ExecutionAttachmentId` · `identity.d.ts`
 - `ExecutionControl` · `execution.d.ts`
+- `ExecutionHandoff` · `journal.d.ts`
 - `ExecutionMutation` · `execution.d.ts`
 - `ExecutionRevision` · `identity.d.ts`
+- `ExecutionSettlement` · `finishing.d.ts`
 - `ExecutionSnapshot` · `execution.d.ts`
 - `ExecutionState` · `execution.d.ts`
 - `ExtensionImplementationDeclaration` · `extensions.d.ts`
@@ -121,25 +135,55 @@
 - `FailureCandidate` · `evaluation.d.ts`
 - `FinalRequest` · `request.d.ts`
 - `FinishAuthorization` · `execution.d.ts`
+- `FinishCandidate` · `finishing.d.ts`
+- `FinishCandidateContent` · `finishing.d.ts`
 - `FinishIntent` · `execution.d.ts`
+- `FinishObligation` · `finishing.d.ts`
+- `FinishObligations` · `finishing.d.ts`
 - `FinishResult` · `execution.d.ts`
+- `FinishRoute` · `finishing.d.ts`
 - `GuardFact` · `evaluation.d.ts`
 - `GuardLevel` · `evaluation.d.ts`
-- `HandoffResult` · `passages.d.ts`
+- `HandoffChange` · `journal.d.ts`
+- `HandoffCustody` · `journal.d.ts`
+- `HandoffCustodyAttempt` · `journal.d.ts`
+- `HandoffDecision` · `passages.d.ts`
+- `HandoffExclusionRecord` · `journal.d.ts`
+- `HandoffFactSource` · `journal.d.ts`
+- `HandoffHistory` · `journal.d.ts`
+- `HandoffLookup` · `passages.d.ts`
+- `HandoffOutcome` · `passages.d.ts`
+- `HandoffPosition` · `passages.d.ts`
+- `HandoffPrepare` · `passages.d.ts`
+- `HandoffRecordMaterial` · `finishing.d.ts`
+- `HandoffReference` · `passages.d.ts`
+- `HandoffRequest` · `passages.d.ts`
+- `HandoffResolution` · `passages.d.ts`
+- `HandoffRetirement` · `journal.d.ts`
 - `IdentityFailure` · `identity.d.ts`
 - `InputBatch` · `evaluation.d.ts`
 - `InputBatchId` · `identity.d.ts`
+- `InputEntry` · `passages.d.ts`
+- `InputHandoff` · `passages.d.ts`
 - `InputId` · `identity.d.ts`
+- `InputOrigin` · `passages.d.ts`
+- `InvocationUnresolved` · `extensions.d.ts`
+- `InvokeRuntimeContext` · `passages.d.ts`
 - `JournalCapabilities` · `journal.d.ts`
 - `JournalCommit` · `journal.d.ts`
+- `JournalCommitState` · `journal.d.ts`
 - `JournalEntryRecord` · `receiving.d.ts`
+- `JournalSubmitLineage` · `journal.d.ts`
 - `Judgment` · `judgment.d.ts`
+- `LegacyF2Entry` · `finishing.d.ts`
+- `LegacyInvocationReturn` · `finishing.d.ts`
 - `LoopExtensionDeclaration` · `extensions.d.ts`
 - `LoopExtensionImplementation` · `extensions.d.ts`
 - `LoopFacts` · `evaluation.d.ts`
 - `Material` · `passages.d.ts`
 - `MessageHandoff` · `passages.d.ts`
 - `MessageSource` · `passages.d.ts`
+- `MigrationRecord` · `finishing.d.ts`
 - `ModelContextRead` · `request.d.ts`
 - `ModelContextReader` · `request.d.ts`
 - `ModelPurpose` · `evaluation.d.ts`
@@ -149,6 +193,9 @@
 - `NamedCapturedRead` · `passages.d.ts`
 - `NeedDeclaration` · `extensions.d.ts`
 - `Next` · `evaluation.d.ts`
+- `ObligationCategory` · `finishing.d.ts`
+- `ObligationDisposition` · `finishing.d.ts`
+- `OriginalInputAcceptance` · `journal.d.ts`
 - `OutputRefusalReason` · `judgment.d.ts`
 - `POSITIONS` · `extensions.d.ts`
 - `POSITION_OUTPUTS` · `judge-output.d.ts`
@@ -160,6 +207,8 @@
 - `PassageOperationProgress` · `passages.d.ts`
 - `PassageProgress` · `passages.d.ts`
 - `PendingCall` · `evaluation.d.ts`
+- `PendingHandoff` · `passages.d.ts`
+- `PendingReason` · `finishing.d.ts`
 - `Position` · `extensions.d.ts`
 - `PositionOutputKey` · `judge-output.d.ts`
 - `PositionOutputs` · `judge-output.d.ts`
@@ -176,6 +225,8 @@
 - `ReceivedCommitValue` · `receiving.d.ts`
 - `ReceivedDelivery` · `receiving.d.ts`
 - `ReceivedEntry` · `receiving.d.ts`
+- `RecoveryAction` · `finishing.d.ts`
+- `RecoveryContinuation` · `finishing.d.ts`
 - `RefusalReason` · `judgment.d.ts`
 - `RegisteredReads` · `passages.d.ts`
 - `Registration` · `execution.d.ts`
@@ -184,14 +235,22 @@
 - `ReplyAdmissionPage` · `evaluation.d.ts`
 - `ReplyAdmissionProjection` · `evaluation.d.ts`
 - `RequestPreparation` · `request.d.ts`
+- `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
 - `RuntimeConditions` · `evaluation.d.ts`
 - `SelectedModel` · `request.d.ts`
+- `SettlementRequest` · `finishing.d.ts`
+- `SettlementResult` · `finishing.d.ts`
 - `StartFenceEntry` · `receiving.d.ts`
 - `StepId` · `identity.d.ts`
 - `StructureFailure` · `identity.d.ts`
 - `Subject` · `passages.d.ts`
+- `SubmitDelivery` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
+- `TerminalParticipantFact` · `finishing.d.ts`
+- `TerminalParticipantFacts` · `finishing.d.ts`
+- `ToolAssociationRecord` · `finishing.d.ts`
+- `ToolIntentKey` · `finishing.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
 - `UtcInstantText` · `identity.d.ts`
 - `Waiting` · `evaluation.d.ts`
@@ -216,11 +275,17 @@
 - `judgeAuthority` · `identity.d.ts`
 - `judgeEvidence` · `identity.d.ts`
 - `judgeExtensionOutput` · `judge-output.d.ts`
+- `judgeHandoffPrepare` · `judge-handoff.d.ts`
+- `judgeInputOrigin` · `judge-handoff.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
+- `obligationCategoryOf` · `finishing.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
 - `AgentAccountOutletFixture` · `testing-account-outlet.d.ts`
+- `AgentJournalCoreFixture` · `testing-journal-helpers.d.ts`
+- `AgentJournalCoreOpenOptions` · `testing-journal-helpers.d.ts`
+- `AgentJournalCoreOpened` · `testing-journal-helpers.d.ts`
 - `AgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
@@ -228,10 +293,17 @@
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
 - `RecordFault` · `testing-journal-entries.d.ts`
 - `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
+- `SettlementQualification` · `testing-journal-helpers.d.ts`
+- `TEST_CANCELLATION_IMPLEMENTATION` · `testing-cancellation.d.ts`
+- `TEST_CANCELLATION_INPUT_SCHEMA` · `testing-cancellation.d.ts`
+- `TEST_CANCELLATION_POLICY` · `testing-cancellation.d.ts`
+- `TestHostRecord` · `testing-cancellation.d.ts`
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
+- `agentJournalCoreConformance` · `testing-journal-core.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
 - `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
+- `createTestCancellationPolicy` · `testing-cancellation.d.ts`
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
@@ -240,6 +312,7 @@
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
 - `sampleReceivedToolAccount` · `testing-journal-samples.d.ts`
 - `sampleStartFence` · `testing-journal-samples.d.ts`
+- `testCancellationPolicyInstallation` · `testing-cancellation.d.ts`
 
 ## 声明文件 `body-contract.d.ts`
 
@@ -328,7 +401,8 @@ import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
 import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, StepId } from './identity.ts';
-import type { MessageSource, Passage } from './passages.ts';
+import type { JsonValue } from '@omne-harness/json-text';
+import type { HandoffReference, MessageSource, Passage } from './passages.ts';
 import type { CompactionProgress, CompactionState, Preparation } from './request.ts';
 export type ProducedResult = Readonly<{
     producer: Readonly<{
@@ -421,6 +495,13 @@ export type PreparedContextTransition = Readonly<{
     source: DurableEvidence;
     derivation: DurableEvidence;
     commitment: DurableEvidence;
+    candidate: DurableEvidence;
+    plan: DurableEvidence;
+    basis: Readonly<{
+        schema: Adoption;
+        value: JsonValue;
+    }>;
+    epoch: string;
 }>;
 export type Failure = Readonly<{
     kind: 'denied';
@@ -513,7 +594,7 @@ export type ActionSlot = Readonly<{
     action: ActionId;
     each: readonly PassageId[] | null;
     candidate: Message | null;
-    handoff: DurableEvidence | null;
+    handoff: HandoffReference | null;
 }> & (Readonly<{
     kind: 'denied';
     evidence: DurableEvidence;
@@ -589,6 +670,7 @@ export type AgentCheckpoint = Readonly<{
     guard: GuardFact | null;
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;
+    currentHandoff: HandoffReference | null;
 }>;
 export type RuntimeConditions = Readonly<{
     source: DurableEvidence;
@@ -739,7 +821,8 @@ import type { AgentDefinition } from './definition.ts';
 import type { AgentCheckpoint, AgentConclusion, AgentEvaluator, Failure, FailureCandidate, InputBatch, ProducedResult, Reply, ReplyAdmissionProjection, Waiting } from './evaluation.ts';
 import type { LoopExtensionDeclaration } from './extensions.ts';
 import type { Access, Adoption, AgentExecutionId, AgentInstanceId, AgentInstant, AgentOperationId, AgentRegistrationId, Authority, ConsumptionId, Continuation, DurableEvidence, ExecutionAttachmentId, ExecutionRevision, InputId, PassageId } from './identity.ts';
-import type { EffectIntent } from './journal.ts';
+import type { ExecutionSettlement, FinishObligations } from './finishing.ts';
+import type { EffectIntent, ExecutionHandoff } from './journal.ts';
 import type { AgentJournalEntry } from './receiving.ts';
 export type ExecutionState = Readonly<{
     kind: 'reconciling' | 'advancing';
@@ -771,6 +854,9 @@ export type ExecutionSnapshot = Readonly<{
     results: readonly ResultResponsibility[];
     effects: readonly EffectIntent[];
     terminalObservations: readonly TerminalObservation[];
+    handoffs: readonly ExecutionHandoff[];
+    finishObligations: FinishObligations | null;
+    settlement: ExecutionSettlement;
     output: Readonly<{
         emittedThrough: string | null;
         acknowledgedThrough: string | null;
@@ -806,9 +892,10 @@ export type TerminalObservation = Readonly<{
     observed: DurableEvidence | null;
 }>;
 export type FinishIntent = Readonly<{
+    candidate: AgentOperationId;
     conclusion: AgentConclusion;
     inputWatermark: DurableEvidence;
-    obligations: DurableEvidence;
+    obligations: DurableEvidence | null;
     beforeTerminal: DurableEvidence | null;
     failure: FailureCandidate | null;
 }>;
@@ -1011,6 +1098,13 @@ export interface AgentExecutionRecovery<P> {
         kind: 'committed';
         receipt: CommandReceipt;
     }> | Readonly<{
+        kind: 'rejected';
+        failure: Extract<Failure, {
+            kind: 'conflict';
+        }>;
+        audit: DurableEvidence;
+        revision: ExecutionRevision;
+    }> | Readonly<{
         kind: 'excluded';
         evidence: DurableEvidence;
     }> | Readonly<{
@@ -1094,7 +1188,7 @@ export interface AgentRuntimeControl<P> {
         reason: DurableEvidence;
     }>): Reply<QuiesceResult>;
 }
-export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result';
+export type AgentAccessOperation = 'invoke' | 'resume' | 'submit' | 'control' | 'read' | 'events' | 'acknowledge' | 'takeover' | 'observe' | 'resolve' | 'connect' | 'reserve' | 'publish' | 'withdraw' | 'quiesce' | 'query' | 'load' | 'reconcile' | 'detach' | 'record-terminal-observation' | 'receive-result' | 'read-message-handoff' | 'record-message-handoff' | 'exclude-message-handoff' | 'settle' | 'migrate-cancellation';
 export type AgentAccessTarget = Readonly<{
     kind: 'scope';
     scope: DurableEvidence;
@@ -1104,8 +1198,11 @@ export type AgentAccessTarget = Readonly<{
     instance: AgentInstanceId;
 }> | Readonly<{
     kind: 'execution';
-    instance: AgentInstanceId;
     execution: AgentExecutionId;
+}> | Readonly<{
+    kind: 'input-entry';
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
 }>;
 export type AgentAccessDecision = Readonly<{
     kind: 'allowed';
@@ -1335,6 +1432,16 @@ export type ExtensionReplayBinding = Readonly<{
     }>[];
     control: 'valid' | 'replayInconsistent' | 'unavailable';
 }>;
+export type InvocationUnresolved = Readonly<{
+    kind: 'invocationUnresolved';
+    start: Readonly<{
+        kind: 'unknown';
+    }> | Readonly<{
+        kind: 'started';
+        evidence: DurableEvidence;
+    }>;
+    recovery: DurableEvidence;
+}>;
 export type ExtensionInvocationResult = Readonly<{
     kind: 'output';
     value: unknown;
@@ -1348,11 +1455,584 @@ export type ExtensionInvocationResult = Readonly<{
     kind: 'replayInconsistent';
 }> | Readonly<{
     kind: 'controlUnavailable';
-}>;
+}> | InvocationUnresolved;
 export interface LoopExtensionImplementation {
     readonly implementation: Adoption;
     invoke(input: ExtensionInput, signal: AbortSignal, mode: ExtensionInvocationMode): Promise<ExtensionInvocationResult>;
 }
+```
+
+## 声明文件 `finishing.d.ts`
+
+```ts
+import type * as T from '@omne-harness/tool-contract';
+import type { AcceptedInput, AgentAccessOperation, ControlRecord, ExecutionMutation, CommandReceipt, FinishAuthorization, ResultResponsibility, TerminalObservation } from './execution.ts';
+import type { AgentCheckpoint, AgentConclusion, FailureCandidate, PendingCall } from './evaluation.ts';
+import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts';
+import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, DurableEvidence, ExecutionRevision, InputBatchId, InputId, PassageId } from './identity.ts';
+import type { ExecutionHandoff, HandoffCustody } from './journal.ts';
+import type { CardRound, HandoffLookup, HandoffReference, HandoffResolution, Passage, PendingHandoff } from './passages.ts';
+import type { ProducedResult } from './evaluation.ts';
+export type FinishCandidateContent = Readonly<{
+    origin: DurableEvidence;
+    conclusion: AgentConclusion;
+    failure: FailureCandidate | null;
+    inputWatermark: DurableEvidence;
+    conditions: DurableEvidence;
+}>;
+export type FinishCandidate = Readonly<{
+    candidate: AgentOperationId;
+    origin: DurableEvidence;
+    conclusion: AgentConclusion;
+    failure: FailureCandidate | null;
+    inputWatermark: DurableEvidence;
+    checkpoint: AgentCheckpoint;
+    conditions: DurableEvidence;
+}>;
+export type LegacyF2Entry = Readonly<{
+    kind: 'not-started';
+    ordinal: number;
+    declaration: DurableEvidence;
+    implementation: Adoption;
+    passage: PassageId | null;
+    exclusion: DurableEvidence;
+}> | Readonly<{
+    kind: 'recorded';
+    passage: Passage;
+    version: DurableEvidence;
+}>;
+export type FinishRoute = Readonly<{
+    kind: 'author';
+    record: DurableEvidence;
+    candidate: AgentOperationId;
+    policy: Adoption;
+    plan: readonly LegacyF2Entry[];
+    beforeTerminal: DurableEvidence | null;
+}> | Readonly<{
+    kind: 'cancellation';
+    record: DurableEvidence;
+    candidate: AgentOperationId;
+    control: AgentOperationId;
+    policy: Adoption;
+    installation: DurableEvidence;
+    origin: Readonly<{
+        kind: 'native';
+        operation: AgentOperationId;
+    }> | Readonly<{
+        kind: 'migration';
+        operation: AgentOperationId;
+    }>;
+}>;
+export type CandidateSupersession = Readonly<{
+    from: AgentOperationId;
+    to: AgentOperationId;
+    control: AgentOperationId | null;
+    revision: ExecutionRevision;
+    route: FinishRoute;
+}>;
+export type PendingReason = 'input-disposition' | 'cancel-intent' | 'qualification-revocation' | 'operation-resolution' | 'call-custody' | 'required-judgment' | 'passage-custody' | 'card-custody' | 'result-custody' | 'material-custody' | 'output-custody' | 'observation-custody' | 'handoff-history';
+export type RecoveryAction = 'original-operation-query' | 'original-invoke-recovery' | 'tool-association-retain' | 'producer-query' | 'producer-receive' | 'producer-release' | 'card-lookup' | 'card-read' | 'card-invalidate' | 'material-read' | 'input-read' | 'output-read-ack' | 'terminal-observe' | 'restore-source' | 'handoff-lookup' | 'handoff-exclude' | 'handoff-record' | 'handoff-source-recovery';
+export type ContinuationRequest<Parameters> = Readonly<{
+    kind: 'parameters';
+    value: Parameters;
+}> | Readonly<{
+    kind: 'record';
+    schema: Adoption;
+    record: DurableEvidence;
+}> | Readonly<{
+    kind: 'unresolved';
+    key: string;
+    missing: DurableEvidence;
+}>;
+type ContinuationHead<K extends RecoveryAction, Parameters, Purpose extends AgentAccessOperation = AgentAccessOperation> = Readonly<{
+    kind: K;
+    request: ContinuationRequest<Parameters>;
+    owner: string;
+    custodian: ConsumerRef | null;
+    purpose: Purpose;
+}>;
+export type HandoffRecordMaterial = Readonly<{
+    kind: 'source-bound-request';
+}> | Readonly<{
+    kind: 'observed-operation';
+    originalCall: DurableEvidence;
+}>;
+export type RecoveryContinuation = ContinuationHead<'original-operation-query', Readonly<{
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+}>, 'query'> | ContinuationHead<'original-invoke-recovery', Readonly<{
+    intent: ToolIntentKey;
+    fixed: DurableEvidence;
+}>> | ContinuationHead<'tool-association-retain', Readonly<{
+    intent: ToolIntentKey;
+    request: DurableEvidence;
+    source: DurableEvidence;
+    priorExcluded: ExcludedPredecessor | null;
+}>, 'reconcile'> | ContinuationHead<'producer-query', Readonly<{
+    pending: PendingCall;
+}>> | ContinuationHead<'producer-receive', Readonly<{
+    result: ProducedResult;
+    consumption: ConsumptionId;
+}>> | ContinuationHead<'producer-release', Readonly<{
+    result: ProducedResult;
+    consumption: ConsumptionId;
+}>> | ContinuationHead<'card-lookup', Readonly<{
+    passage: PassageId;
+    round: CardRoundId;
+}>> | ContinuationHead<'card-read', Readonly<{
+    passage: PassageId;
+    round: CardRoundId;
+}>> | ContinuationHead<'card-invalidate', Readonly<{
+    passage: PassageId;
+    round: CardRoundId;
+    reason: DurableEvidence;
+}>> | ContinuationHead<'material-read', Readonly<{
+    identity: string;
+    consumer: ConsumerRef;
+}>> | ContinuationHead<'input-read', Readonly<{
+    input: InputId;
+}>> | ContinuationHead<'output-read-ack', Readonly<{
+    after: string | null;
+    through: string | null;
+}>> | ContinuationHead<'terminal-observe', Readonly<{
+    passage: PassageId;
+    terminal: DurableEvidence;
+    implementation: Adoption;
+}>, 'record-terminal-observation'> | ContinuationHead<'restore-source', Readonly<{
+    source: DurableEvidence;
+}>> | ContinuationHead<'handoff-lookup', Readonly<{
+    lookup: HandoffLookup;
+    provider: Adoption;
+}>, 'read-message-handoff'> | ContinuationHead<'handoff-exclude', Readonly<{
+    request: PendingHandoff;
+    prepared: DurableEvidence;
+    control: AgentOperationId;
+}>, 'exclude-message-handoff'> | ContinuationHead<'handoff-record', Readonly<{
+    operation: AgentOperationId;
+    handoff: HandoffReference;
+    original: Extract<HandoffResolution, {
+        kind: 'recorded' | 'excluded';
+    }>;
+    provider: Adoption;
+    material: HandoffRecordMaterial;
+    custody: HandoffCustody | null;
+}>, 'record-message-handoff'> | ContinuationHead<'handoff-source-recovery', Readonly<{
+    handoff: Extract<HandoffReference, {
+        kind: 'execution';
+    }>;
+    prepare: AgentOperationId;
+    apply: AgentOperationId | null;
+    request: PendingHandoff;
+    material: DurableEvidence | null;
+}>, 'query'>;
+export type CancellationUnknown = Readonly<{
+    owner: string;
+    key: string;
+    position: DurableEvidence;
+    reason: 'original-operation-unknown' | 'source-unavailable' | 'source-not-authenticated' | 'coverage-incomplete' | 'policy-unavailable' | 'qualification-unavailable';
+}>;
+export type ObligationDisposition = Readonly<{
+    kind: 'settled';
+    completion: DurableEvidence;
+}> | Readonly<{
+    kind: 'held';
+    custodian: ConsumerRef;
+    acceptance: DurableEvidence;
+    retained: DurableEvidence;
+    continuation: RecoveryContinuation;
+}> | Readonly<{
+    kind: 'pending';
+    reason: PendingReason;
+    required: RecoveryContinuation;
+}> | Readonly<{
+    kind: 'unknown';
+    question: CancellationUnknown;
+    required: RecoveryContinuation;
+}>;
+export type ObligationCategory = 'inputs' | 'controls' | 'operations' | 'passages' | 'custody';
+type ObligationHead<K extends string> = Readonly<{
+    kind: K;
+    key: string;
+    source: DurableEvidence;
+    version: DurableEvidence;
+    position: ConsumerRef | null;
+    disposition: ObligationDisposition;
+}>;
+export type FinishObligation = (ObligationHead<'accepted-input'> & Readonly<{
+    input: InputId;
+    value: AcceptedInput;
+    acceptance: AgentOperationId;
+    origin: DurableEvidence;
+    taken: InputBatchId | null;
+}>) | (ObligationHead<'control'> & Readonly<{
+    control: AgentOperationId;
+}>) | (ObligationHead<'operation'> & Readonly<{
+    operation: AgentOperationId;
+    method: string;
+    request: DurableEvidence;
+    resolution: 'committed' | 'rejected' | 'excluded' | 'unknown';
+    result: DurableEvidence | null;
+}>) | (ObligationHead<'handoff'> & Readonly<{
+    handoff: HandoffReference;
+    record: ExecutionHandoff;
+}>) | (ObligationHead<'call'> & Readonly<{
+    action: ActionId;
+    intent: AgentOperationId;
+    pending: PendingCall;
+    started: DurableEvidence | null;
+    outcome: DurableEvidence | null;
+    interruptions: readonly AgentOperationId[];
+    custodian: ConsumerRef | null;
+}>) | (ObligationHead<'passage'> & Readonly<{
+    passage: Passage;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    implementation: Adoption;
+    superseded: boolean;
+}>) | (ObligationHead<'card-round'> & Readonly<{
+    passage: PassageId;
+    round: CardRound;
+    present: DurableEvidence | null;
+    lookups: readonly AgentOperationId[];
+    invalidate: Readonly<{
+        operation: AgentOperationId;
+        reason: DurableEvidence;
+    }> | null;
+}>) | (ObligationHead<'result'> & Readonly<{
+    responsibility: ResultResponsibility;
+    material: DurableEvidence | null;
+}>) | (ObligationHead<'material'> & Readonly<{
+    identity: string;
+    consumer: ConsumerRef;
+    schema: Adoption;
+    resultVersion: DurableEvidence;
+    material: DurableEvidence;
+    custodian: ConsumerRef | null;
+    acceptance: DurableEvidence | null;
+}>) | (ObligationHead<'output'> & Readonly<{
+    emittedThrough: string | null;
+    acknowledgedThrough: string | null;
+    retention: DurableEvidence;
+}>) | (ObligationHead<'terminal-observation'> & Readonly<{
+    observation: TerminalObservation;
+    terminal: DurableEvidence | null;
+}>);
+export declare function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory;
+export type CoverageFacet = Readonly<{
+    owner: string;
+    version: DurableEvidence;
+    read: DurableEvidence;
+}>;
+export type ResponsibilityCoverage = Readonly<{
+    readRevision: ExecutionRevision;
+    inputWatermark: DurableEvidence;
+    operations: CoverageFacet;
+    candidates: CoverageFacet;
+    passages: CoverageFacet;
+    results: CoverageFacet;
+    materials: CoverageFacet;
+    output: CoverageFacet;
+    controls: CoverageFacet;
+    observations: CoverageFacet;
+    handoffs: CoverageFacet;
+}>;
+export type TerminalParticipantFact = Readonly<{
+    owner: string;
+    protocol: Adoption;
+    source: DurableEvidence;
+    version: DurableEvidence;
+    condition: Readonly<{
+        kind: 'ready' | 'changed' | 'unknown';
+    }> | Readonly<{
+        kind: 'blocked';
+        category: ObligationCategory;
+        source: DurableEvidence;
+    }>;
+    purpose: DurableEvidence;
+}>;
+export type TerminalParticipantFacts = Readonly<{
+    kind: 'standalone';
+    basis: DurableEvidence;
+}> | Readonly<{
+    kind: 'coordinated';
+    association: DurableEvidence;
+    participants: readonly TerminalParticipantFact[];
+}>;
+export type FinishObligations = Readonly<{
+    operation: AgentOperationId;
+    revision: ExecutionRevision;
+    evidence: DurableEvidence;
+    candidate: AgentOperationId;
+    conclusion: AgentConclusion;
+    failure: FailureCandidate | null;
+    inputWatermark: DurableEvidence;
+    checkpoint: DurableEvidence;
+    conditions: DurableEvidence;
+    items: readonly FinishObligation[];
+    coverage: ResponsibilityCoverage;
+}>;
+export type CancellationPolicyInstallation = Readonly<{
+    record: DurableEvidence;
+    decision: DurableEvidence;
+    policy: Adoption;
+    inputSchema: Adoption;
+    implementation: Adoption;
+    legacyProtocols: readonly Readonly<{
+        protocol: Adoption;
+        checkpointSchema: Adoption;
+        recognition: DurableEvidence;
+    }>[];
+    admission: DurableEvidence;
+}>;
+export type CancellationJudgmentInput = Readonly<{
+    tenant: Access<unknown>['tenant'];
+    execution: AgentExecutionId;
+    candidate: FinishCandidate;
+    control: ControlRecord;
+    route: Extract<FinishRoute, {
+        kind: 'cancellation';
+    }>;
+    readRevision: ExecutionRevision;
+    coverage: ResponsibilityCoverage;
+    items: readonly FinishObligation[];
+    participants: TerminalParticipantFacts;
+}>;
+export type CancellationBlock = Readonly<{
+    category: ObligationCategory;
+    key: string;
+    reason: PendingReason;
+    source: DurableEvidence;
+    required: RecoveryContinuation;
+}>;
+export type CancellationDecision = Readonly<{
+    kind: 'allowed';
+    basis: readonly DurableEvidence[];
+}> | Readonly<{
+    kind: 'blocked';
+    reasons: readonly [
+        CancellationBlock,
+        ...CancellationBlock[]
+    ];
+}> | Readonly<{
+    kind: 'unknown';
+    questions: readonly [
+        CancellationUnknown,
+        ...CancellationUnknown[]
+    ];
+    knownBlocked: readonly CancellationBlock[];
+}>;
+export interface CancellationPolicy {
+    readonly policy: Adoption;
+    readonly implementation: Adoption;
+    judge(input: CancellationJudgmentInput): CancellationDecision;
+}
+export type CancellationJudgmentRecord = Readonly<{
+    operation: AgentOperationId;
+    receipt: CommandReceipt;
+    evidence: DurableEvidence;
+    policy: Adoption;
+    implementation: Adoption;
+    inputSchema: Adoption;
+    installation: DurableEvidence;
+    qualification: DurableEvidence;
+    candidate: AgentOperationId;
+    control: AgentOperationId;
+    route: DurableEvidence;
+    input: CancellationJudgmentInput;
+    decision: CancellationDecision;
+    revision: ExecutionRevision;
+    supersedes: AgentOperationId | null;
+}>;
+export type ExcludedPredecessor = Readonly<{
+    operation: AgentOperationId;
+    request: DurableEvidence;
+    exclusion: DurableEvidence;
+    chain: readonly AgentOperationId[];
+}>;
+export type MigrationRecord = Readonly<{
+    operation: AgentOperationId;
+    receipt: CommandReceipt;
+    evidence: DurableEvidence;
+    candidate: AgentOperationId;
+    control: AgentOperationId;
+    from: Readonly<{
+        route: Extract<FinishRoute, {
+            kind: 'author';
+        }>;
+        policy: Adoption;
+        definition: Adoption;
+        schema: Adoption;
+        beforeTerminal: DurableEvidence | null;
+        extensions: readonly Adoption[];
+    }>;
+    progress: readonly LegacyF2Entry[];
+    to: Readonly<{
+        policy: Adoption;
+        implementation: Adoption;
+        inputSchema: Adoption;
+        installation: DurableEvidence;
+        admission: DurableEvidence;
+    }>;
+    qualification: Readonly<{
+        attribution: DurableEvidence;
+        target: AgentExecutionId;
+        issuer: DurableEvidence;
+        check: DurableEvidence;
+    }>;
+    fence: DurableEvidence;
+    coverage: ResponsibilityCoverage;
+    obligations: readonly FinishObligation[];
+    supersession: Readonly<{
+        from: DurableEvidence;
+        to: DurableEvidence;
+        candidate: CandidateSupersession | null;
+    }>;
+    priorExcluded: ExcludedPredecessor | null;
+}>;
+export type LegacyInvocationReturn = Readonly<{
+    operation: AgentOperationId;
+    receipt: CommandReceipt;
+    passage: PassageId;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    input: DurableEvidence;
+    mode: ExtensionInvocationMode;
+    implementation: Adoption;
+    source: DurableEvidence;
+    result: ExtensionInvocationResult;
+    received: DurableEvidence;
+    custody: DurableEvidence;
+    revision: ExecutionRevision;
+}>;
+export type ToolIntentKey = Readonly<{
+    intent: AgentOperationId;
+    action: ActionId;
+    position: ConsumerRef;
+}>;
+export type ToolAssociationRecord = Readonly<{
+    operation: AgentOperationId;
+    receipt: CommandReceipt;
+    intent: ToolIntentKey;
+    request: DurableEvidence;
+    source: DurableEvidence;
+    association: Readonly<{
+        kind: 'no-proven-reference';
+    }> | Readonly<{
+        kind: 'commit-unknown';
+        reference: T.ToolInvocationRef;
+    }> | Readonly<{
+        kind: 'accepted';
+        reference: T.ToolInvocationRef;
+        receipt: DurableEvidence;
+    }>;
+    obligation: FinishObligation;
+    priorExcluded: ExcludedPredecessor | null;
+    revision: ExecutionRevision;
+}>;
+export type CardReconciliationRecord = Readonly<{
+    operation: AgentOperationId;
+    receipt: CommandReceipt;
+    passage: PassageId;
+    round: CardRoundId;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    original: DurableEvidence;
+    obligation: Extract<FinishObligation, {
+        kind: 'card-round';
+    }>;
+    revision: ExecutionRevision;
+}>;
+export type ExecutionSettlement = Readonly<{
+    candidate: FinishCandidate | null;
+    route: FinishRoute | null;
+    currentJudgment: AgentOperationId | null;
+    candidates: readonly FinishCandidate[];
+    routes: readonly FinishRoute[];
+    supersessions: readonly CandidateSupersession[];
+    migrations: readonly MigrationRecord[];
+    judgments: readonly CancellationJudgmentRecord[];
+    cardReconciliations: readonly CardReconciliationRecord[];
+    legacyReturns: readonly LegacyInvocationReturn[];
+    toolAssociations: readonly ToolAssociationRecord[];
+}>;
+type CancelAuthorization = Extract<FinishAuthorization, {
+    kind: 'cancel';
+}>;
+export type SettlementRequest<P> = ExecutionMutation<P> & (Readonly<{
+    kind: 'establish-cancellation';
+    authorization: CancelAuthorization;
+    expected: ExecutionRevision;
+    installation: DurableEvidence;
+    predecessor: AgentOperationId | null;
+}> | Readonly<{
+    kind: 'migrate-cancellation';
+    authorization: CancelAuthorization;
+    expected: ExecutionRevision;
+    candidate: AgentOperationId;
+    originalRoute: DurableEvidence;
+    installation: DurableEvidence;
+    priorExcluded: ExcludedPredecessor | null;
+}> | Readonly<{
+    kind: 'judge-cancellation';
+    authorization: CancelAuthorization;
+    expected: ExecutionRevision;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    installation: DurableEvidence;
+}> | Readonly<{
+    kind: 'record-card-reconciliation';
+    passage: PassageId;
+    round: CardRoundId;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    original: DurableEvidence;
+}> | Readonly<{
+    kind: 'record-legacy-return';
+    passage: PassageId;
+    candidate: AgentOperationId;
+    route: DurableEvidence;
+    request: DurableEvidence;
+    source: DurableEvidence;
+}> | Readonly<{
+    kind: 'record-tool-association';
+    intent: ToolIntentKey;
+    request: DurableEvidence;
+    source: DurableEvidence;
+    priorExcluded: ExcludedPredecessor | null;
+}>);
+export type SettlementResult = Readonly<{
+    kind: 'establish-cancellation';
+    receipt: CommandReceipt;
+    candidate: FinishCandidate;
+    route: Extract<FinishRoute, {
+        kind: 'cancellation';
+    }>;
+    supersession: CandidateSupersession | null;
+}> | Readonly<{
+    kind: 'migrate-cancellation';
+    receipt: CommandReceipt;
+    migration: MigrationRecord;
+    route: Extract<FinishRoute, {
+        kind: 'cancellation';
+    }>;
+}> | Readonly<{
+    kind: 'judge-cancellation';
+    receipt: CommandReceipt;
+    judgment: CancellationJudgmentRecord;
+}> | Readonly<{
+    kind: 'record-card-reconciliation';
+    receipt: CommandReceipt;
+    reconciliation: CardReconciliationRecord;
+}> | Readonly<{
+    kind: 'record-legacy-return';
+    receipt: CommandReceipt;
+    legacyReturn: LegacyInvocationReturn;
+}> | Readonly<{
+    kind: 'record-tool-association';
+    receipt: CommandReceipt;
+    association: ToolAssociationRecord;
+}>;
+export {};
 ```
 
 ## 声明文件 `identity.d.ts`
@@ -1434,10 +2114,12 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 
 ```ts
 export { agentBodyContract } from './body-contract.ts';
+export { obligationCategoryOf } from './finishing.ts';
 export { ATTRIBUTE_ITEMS } from './definition.ts';
 export { POSITIONS, POWERS } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
+export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, } from './definition.ts';
@@ -1445,6 +2127,7 @@ export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeA
 export type * from './evaluation.ts';
 export type * from './execution.ts';
 export type * from './extensions.ts';
+export type * from './finishing.ts';
 export type * from './identity.ts';
 export type * from './journal.ts';
 export type * from './passages.ts';
@@ -1459,8 +2142,10 @@ export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from
 import type { ToolOperationRef } from '@omne-harness/tool-contract';
 import type { Message } from '@omne-harness/message';
 import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionPage } from './evaluation.ts';
-import type { AcceptedInput, AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
-import type { Access, ActionId, Adoption, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId } from './identity.ts';
+import type { HandoffOutcome, HandoffReference, HandoffRequest, HandoffResolution, InputEntry, InvokeRuntimeContext, PendingHandoff } from './passages.ts';
+import type { AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
+import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId } from './identity.ts';
+import type { FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts';
 export type CallerCommit = Readonly<{
     kind: 'none';
 }> | Readonly<{
@@ -1488,32 +2173,124 @@ export type EffectIntent = Readonly<{
     pending: PendingCall;
     authority: Authority;
 }>;
+export type HandoffChange = Readonly<{
+    kind: 'prepare';
+    request: PendingHandoff;
+}> | Readonly<{
+    kind: 'resolve';
+    outcome: HandoffOutcome;
+}> | Readonly<{
+    kind: 'retire';
+    excluded: Extract<HandoffResolution, {
+        kind: 'excluded';
+    }>;
+    reason: DurableEvidence;
+}>;
+export type JournalCommitState = Exclude<ExecutionState, {
+    kind: 'ended' | 'settling';
+}> | Readonly<{
+    kind: 'settling';
+}>;
 export type JournalCommit<P> = ExecutionMutation<P> & Readonly<{
     authority: Authority;
     expected: ExecutionRevision;
     checkpoint: AgentCheckpoint;
-    state: Exclude<ExecutionState, {
-        kind: 'ended';
-    }>;
+    state: JournalCommitState;
+    finish: FinishCandidateContent | null;
     events: readonly Exclude<AgentEventBody, {
         kind: 'ended' | 'entry';
     }>[];
     effects: readonly EffectIntent[];
     caller: CallerCommit;
     replyAdmission: ModelReplyAdmission | null;
+    handoff: HandoffChange | null;
+}>;
+export type HandoffHistory = Readonly<{
+    kind: 'pending';
+}> | Readonly<{
+    kind: 'committed';
+    operation: AgentOperationId;
+    revision: ExecutionRevision;
+}> | Readonly<{
+    kind: 'not-applicable';
+}> | Readonly<{
+    kind: 'retained';
+    disposition: DurableEvidence;
+}>;
+export type HandoffRetirement = Readonly<{
+    operation: AgentOperationId;
+    revision: ExecutionRevision;
+    reason: DurableEvidence;
+}>;
+export type HandoffCustodyAttempt = Readonly<{
+    operation: AgentOperationId;
+    predecessor: AgentOperationId | null;
+    state: 'committed' | 'excluded';
+}>;
+export type ExecutionHandoff = Readonly<{
+    handoff: HandoffReference;
+    request: HandoffRequest;
+    prepared: DurableEvidence | null;
+    resolution: Extract<HandoffResolution, {
+        kind: 'recorded' | 'excluded';
+    }> | null;
+    history: HandoffHistory;
+    retirement: HandoffRetirement | null;
+    custody: Readonly<{
+        root: AgentOperationId;
+        chain: readonly HandoffCustodyAttempt[];
+        committed: AgentOperationId | null;
+    }> | null;
+}>;
+export type OriginalInputAcceptance = Readonly<{
+    entry: InputEntry;
+    handoff: Extract<HandoffReference, {
+        kind: 'input';
+    }>;
+    outcome: HandoffOutcome;
+}>;
+export type JournalSubmitLineage = Readonly<{
+    kind: 'new-input';
+    original: OriginalInputAcceptance;
+}> | Readonly<{
+    kind: 'recognize-input';
+    original: OriginalInputAcceptance;
+}>;
+export type HandoffFactSource = Readonly<{
+    owner: string;
+    adoption: Adoption;
+    record: string;
+    version: string;
+}>;
+export type HandoffExclusionRecord = Readonly<{
+    operation: AgentOperationId;
+    method: 'recordHandoff';
+    request: DurableEvidence;
+    predecessor: AgentOperationId | null;
+    authority: DurableEvidence;
+    fence: DurableEvidence;
+}>;
+export type HandoffCustody = Readonly<{
+    protocol: 'hand-off-custody-successor/1';
+    custodyRoot: AgentOperationId;
+    rootRequest: DurableEvidence;
+    factSource: HandoffFactSource;
+    predecessor: Readonly<{
+        operation: AgentOperationId;
+        request: DurableEvidence;
+    }>;
+    priorExcluded: readonly HandoffExclusionRecord[];
 }>;
 export interface AgentJournalAttachment<P> {
     open(input: ExecutionMutation<P> & Readonly<{
-        instance: AgentInstanceId;
-        grant: DurableEvidence | null;
-        initial: AcceptedInput;
-        checkpoint: AgentCheckpoint;
+        original: OriginalInputAcceptance;
+        runtime: InvokeRuntimeContext;
     }>): Reply<Readonly<{
         receipt: CommandReceipt;
         authority: Authority;
     }>>;
     attach(input: ExecutionMutation<P> & Readonly<{
-        instance: AgentInstanceId;
+        instance: InvokeRuntimeContext['instance'];
         grant: DurableEvidence | null;
         recovery: DurableEvidence;
         takeover: DurableEvidence | null;
@@ -1525,7 +2302,9 @@ export interface AgentJournalAttachment<P> {
 }
 export interface AgentJournalRecording<P> {
     commit(input: JournalCommit<P>): Reply<CommandReceipt>;
-    submit(input: Parameters<AgentExecutionInput<P>['submit']>[0]): Reply<CommandReceipt>;
+    submit(input: Parameters<AgentExecutionInput<P>['submit']>[0] & Readonly<{
+        lineage: JournalSubmitLineage;
+    }>): Reply<CommandReceipt>;
     control(input: Parameters<AgentExecutionControl<P>['control']>[0]): Reply<CommandReceipt>;
     acknowledge(input: Parameters<AgentExecutionEvents<P>['acknowledge']>[0]): Reply<CommandReceipt>;
     recordResult(input: ExecutionMutation<P> & Readonly<{
@@ -1550,13 +2329,28 @@ export interface AgentJournalRecording<P> {
         state: 'reached' | 'unresolved';
         source: DurableEvidence;
     }>): Reply<CommandReceipt>;
+    recordHandoff(input: ExecutionMutation<P> & Readonly<{
+        original: Extract<HandoffResolution, {
+            kind: 'recorded' | 'excluded';
+        }>;
+        custody: HandoffCustody | null;
+    }>): Reply<CommandReceipt>;
 }
 export interface AgentJournalFinishing<P> {
+    prepareFinish(input: ExecutionMutation<P> & Readonly<{
+        authorization: FinishAuthorization;
+        expected: ExecutionRevision;
+        candidate: AgentOperationId;
+    }>): Reply<Readonly<{
+        receipt: CommandReceipt;
+        obligations: DurableEvidence;
+    }>>;
     tryFinish(input: ExecutionMutation<P> & Readonly<{
         authorization: FinishAuthorization;
         expected: ExecutionRevision;
         intent: FinishIntent;
     }>): Reply<FinishResult>;
+    commitSettlement(input: SettlementRequest<P>): Reply<SettlementResult>;
 }
 export interface AgentJournalObservation<P> {
     recordTerminalObservation(input: ExecutionMutation<P> & Readonly<{
@@ -1587,6 +2381,7 @@ export interface AgentJournalReading<P> {
     readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>;
 }
 export type JournalCapabilities = Readonly<{
+    coordination: 'standalone' | 'coordinated';
     participants: ReadonlySet<Exclude<CallerCommit['kind'], 'none'>>;
 }>;
 export interface AgentJournal<P> extends AgentJournalAttachment<P>, AgentJournalRecording<P>, AgentJournalFinishing<P>, AgentJournalObservation<P>, AgentJournalReading<P> {
@@ -1608,6 +2403,18 @@ export declare function judgeAgentDefinition(value: unknown): Promise<Judgment<A
 import { type LoopExtensionDeclaration } from './extensions.ts';
 import { type BatchJudgment } from './judgment.ts';
 export declare function judgeLoopExtensions(value: unknown): Promise<BatchJudgment<LoopExtensionDeclaration>>;
+```
+
+## 声明文件 `judge-handoff.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import { type StructureFailure } from './identity.ts';
+import type { HandoffPrepare, InputOrigin } from './passages.ts';
+type Judged<T> = Outcome<T, StructureFailure>;
+export declare function judgeHandoffPrepare(value: unknown): Judged<HandoffPrepare>;
+export declare function judgeInputOrigin(value: unknown): Judged<InputOrigin>;
+export {};
 ```
 
 ## 声明文件 `judge-output.d.ts`
@@ -1675,9 +2482,10 @@ import type { JsonValue } from '@omne-harness/json-text';
 import type { CallAccount } from '@omne-harness/call-account';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
-import type { Action, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
+import type { Action, AgentCheckpoint, AgentConclusion, GuardFact, PendingCall, ProducedResult, Reply, PreparedContextTransition } from './evaluation.ts';
+import type { AcceptedInput } from './execution.ts';
 import type { Conclusion, DecisionCardDraft, Dimension, ExtensionInvocationMode, ExtensionOutput, LoopExtensionDeclaration, LoopExtensionImplementation, Position } from './extensions.ts';
-import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, InputId, PassageId, StepId } from './identity.ts';
+import type { Access, Adoption, ActionBatchId, ActionId, AgentExecutionId, AgentInstanceId, AgentOperationId, Authority, CardRoundId, ConsumerRef, DurableEvidence, ExecutionRevision, InputId, PassageId, StepId } from './identity.ts';
 import type { CompactionProgress, Preparation } from './request.ts';
 export type CapturedRead = Readonly<{
     schema: Adoption;
@@ -1976,22 +2784,146 @@ export type MessageSource = Readonly<{
     kind: 'context-transition';
     transition: PreparedContextTransition;
 }>;
-export type HandoffResult = Readonly<{
-    kind: 'accepted';
+export type InputEntry = Readonly<{
+    kind: 'invoke';
+    operation: AgentOperationId;
+    execution: AgentExecutionId;
+    initial: AcceptedInput;
+    checkpoint: AgentCheckpoint;
+}> | Readonly<{
+    kind: 'submit';
+    operation: AgentOperationId;
+    execution: AgentExecutionId;
+    value: AcceptedInput;
+}>;
+export type InvokeRuntimeContext = Readonly<{
+    instance: AgentInstanceId;
+    scope: DurableEvidence;
+    definition: Adoption;
+    grant: DurableEvidence | null;
+}>;
+export type SubmitDelivery = Readonly<{
+    kind: 'runtime-view';
+    instance: AgentInstanceId;
+}> | Readonly<{
+    kind: 'durable-view';
+}>;
+export type InputOrigin = Readonly<{
+    kind: 'invoke';
+    instance: AgentInstanceId;
+    scope: DurableEvidence;
+    definition: Adoption;
+    grant: DurableEvidence | null;
+}> | Readonly<{
+    kind: 'submit';
+    executionBinding: DurableEvidence;
+    delivery: SubmitDelivery;
+}>;
+export type HandoffPosition = Readonly<{
+    step: StepId;
+    node: string;
+    slot: string | null;
+}>;
+export type HandoffReference = Readonly<{
+    kind: 'execution';
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+}> | Readonly<{
+    kind: 'input';
+    execution: AgentExecutionId;
+    entry: AgentOperationId;
+    input: InputId;
+}>;
+export type PendingHandoff = Readonly<{
+    kind: 'execution';
+    reference: Extract<HandoffReference, {
+        kind: 'execution';
+    }>;
+    predecessor: ExecutionRevision;
+    position: HandoffPosition;
+    source: Exclude<MessageSource, {
+        kind: 'external-input';
+    }>;
+    candidate: Message;
+    originalAdvance: Authority;
+    predecessorHandoff: Extract<HandoffReference, {
+        kind: 'execution';
+    }> | null;
+}>;
+export type InputHandoff = Readonly<{
+    kind: 'input';
+    reference: Extract<HandoffReference, {
+        kind: 'input';
+    }>;
+    entry: InputEntry;
+    source: Extract<MessageSource, {
+        kind: 'external-input';
+    }>;
+}>;
+export type HandoffRequest = PendingHandoff | InputHandoff;
+export type HandoffPrepare = Readonly<{
+    kind: 'execution';
+    request: PendingHandoff;
+    advance: Authority;
+}> | Readonly<{
+    kind: 'invoke';
+    request: InputHandoff;
+    runtime: InvokeRuntimeContext;
+}> | Readonly<{
+    kind: 'submit';
+    request: InputHandoff;
+}>;
+export type HandoffDecision = Readonly<{
+    kind: 'prepared';
+    message: Message;
     admission: DurableEvidence;
 }> | Readonly<{
     kind: 'rejected';
     reason: string;
     evidence: DurableEvidence;
 }>;
+export type HandoffOutcome = Readonly<{
+    request: HandoffRequest;
+    origin: InputOrigin | null;
+    provider: Adoption;
+    qualification: DurableEvidence;
+    record: DurableEvidence;
+    decision: HandoffDecision;
+}>;
+export type HandoffResolution = Readonly<{
+    kind: 'recorded';
+    outcome: HandoffOutcome;
+}> | Readonly<{
+    kind: 'excluded';
+    request: HandoffRequest;
+    origin: InputOrigin | null;
+    exclusion: DurableEvidence;
+}> | Readonly<{
+    kind: 'unknown';
+    original: Readonly<{
+        request: HandoffRequest;
+        origin: InputOrigin | null;
+        record: DurableEvidence;
+    }> | null;
+}>;
+export type HandoffLookup = Readonly<{
+    kind: 'execution';
+    execution: AgentExecutionId;
+    handoff: Extract<HandoffReference, {
+        kind: 'execution';
+    }>;
+}> | Readonly<{
+    kind: 'input-entry';
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+}>;
 export interface MessageHandoff<P> {
-    accept(input: Access<P> & Readonly<{
-        execution: AgentExecutionId;
-        operation: AgentOperationId;
-        advance: Authority | null;
-        source: MessageSource;
-        candidate: Message;
-    }>): Reply<HandoffResult>;
+    prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>;
+    lookup(input: Access<P> & HandoffLookup): Reply<HandoffResolution>;
+    exclude(input: Access<P> & Readonly<{
+        request: PendingHandoff;
+        control: AgentOperationId;
+    }>): Reply<HandoffResolution>;
 }
 export type Material<B extends ContentBlock> = Readonly<{
     kind: 'model';
@@ -2339,6 +3271,22 @@ export interface CurrentConditions<P> {
 }
 ```
 
+## 声明文件 `structure.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { AgentIdentity, IdentityFailure, StructureFailure } from './identity.ts';
+export type OwnMembers = Readonly<Record<string, unknown>>;
+export declare function ownMembers(value: unknown): OwnMembers | undefined;
+export declare const refusal: (field: string, reason: StructureFailure['reason']) => Outcome<never, Readonly<{
+    field: string;
+    reason: 'type' | 'empty' | 'unknown-field' | 'missing' | 'identity';
+}>>;
+export declare function textMember(members: OwnMembers, name: string): Outcome<string, StructureFailure>;
+export declare function unknownMember(members: OwnMembers, known: readonly string[]): string | undefined;
+export declare function identityMember<T extends AgentIdentity<string>>(members: OwnMembers, name: string, decode: (value: unknown) => Outcome<T, IdentityFailure>): Outcome<T, StructureFailure>;
+```
+
 ## 声明文件 `testing-account-outlet.d.ts`
 
 ```ts
@@ -2361,6 +3309,61 @@ export declare function sampleAccountHandoff(tenant: TenantId, name: string, rev
 export declare function agentAccountOutletConformance<P>(fixture: AgentAccountOutletFixture<P>): readonly ConformanceCase[];
 export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentAccountOutletFixture<P> & Readonly<{
     double: MemoryAgentAccountOutlet<P>;
+}>;
+```
+
+## 声明文件 `testing-cancellation.d.ts`
+
+```ts
+import type * as T from '@omne-harness/tool-contract';
+import type { CancellationPolicy, CancellationPolicyInstallation, CancellationUnknown, ToolIntentKey } from './finishing.ts';
+import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts';
+import type { Adoption, AgentOperationId, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
+export declare const TEST_CANCELLATION_POLICY: Adoption;
+export declare const TEST_CANCELLATION_INPUT_SCHEMA: Adoption;
+export declare const TEST_CANCELLATION_IMPLEMENTATION: Adoption;
+export declare const testCancellationPolicyInstallation: CancellationPolicyInstallation;
+export declare function createTestCancellationPolicy(): CancellationPolicy;
+export type TestHostRecord = Readonly<{
+    kind: 'legacy-return';
+    passage: PassageId;
+    input: DurableEvidence;
+    mode: ExtensionInvocationMode;
+    implementation: Adoption;
+    started: DurableEvidence;
+    result: ExtensionInvocationResult;
+    received: DurableEvidence;
+    custody: DurableEvidence;
+}> | Readonly<{
+    kind: 'tool-return';
+    intent: ToolIntentKey;
+    request: DurableEvidence;
+    returned: Readonly<{
+        kind: 'commit-unknown';
+        reference: T.ToolInvocationRef;
+    }> | Readonly<{
+        kind: 'accepted';
+        reference: T.ToolInvocationRef;
+        receipt: DurableEvidence;
+    }>;
+    received: DurableEvidence;
+    custody: DurableEvidence;
+}> | Readonly<{
+    kind: 'card-reconciliation';
+    passage: PassageId;
+    round: CardRoundId;
+    result: Readonly<{
+        kind: 'known';
+        present: DurableEvidence | null;
+        lookups: readonly AgentOperationId[];
+        invalidate: Readonly<{
+            operation: AgentOperationId;
+            reason: DurableEvidence;
+        }> | null;
+    }> | Readonly<{
+        kind: 'unknown';
+        reason: CancellationUnknown['reason'];
+    }>;
 }>;
 ```
 
@@ -2390,6 +3393,15 @@ export declare function projectEntryEvent(execution: ProjectingExecution, entry:
 export declare function canonicalText(value: unknown): string;
 export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
+```
+
+## 声明文件 `testing-journal-core.d.ts`
+
+```ts
+import { type ConformanceCase } from './testing-case.ts';
+import { type AgentJournalCoreFixture } from './testing-journal-helpers.ts';
+export type { AgentJournalCoreFixture, AgentJournalCoreOpenOptions, AgentJournalCoreOpened, SettlementQualification, } from './testing-journal-helpers.ts';
+export declare function agentJournalCoreConformance<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[];
 ```
 
 ## 声明文件 `testing-journal-entries.d.ts`
@@ -2457,6 +3469,246 @@ export declare function agentJournalEntriesConformance<P, B extends ContentBlock
 export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
     double: MemoryAgentJournalEntries<P>;
 }>;
+```
+
+## 声明文件 `testing-journal-finishing.d.ts`
+
+```ts
+import { type ConformanceCase } from './testing-case.ts';
+import { type AgentJournalCoreFixture } from './testing-journal-helpers.ts';
+export declare function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[];
+```
+
+## 声明文件 `testing-journal-helpers.d.ts`
+
+```ts
+import { type Message } from '@omne-harness/message';
+import type { Outcome } from '@omne-harness/operation-result';
+import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts';
+import type { AcceptedInput, AgentEvent, CommandReceipt, ControlRecord, ExecutionSnapshot, FinishAuthorization, FinishIntent } from './execution.ts';
+import type { CancellationPolicyInstallation, FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts';
+import { type Access, type AgentExecutionId, type AgentOperationId, type Authority, type ConsumptionId, type DurableEvidence } from './identity.ts';
+import type { AgentJournal, ExecutionHandoff, JournalCommit, OriginalInputAcceptance } from './journal.ts';
+import type { HandoffOutcome, HandoffReference, HandoffResolution, Passage, PendingHandoff } from './passages.ts';
+import type { TestHostRecord } from './testing-cancellation.ts';
+export interface AgentJournalCoreOpened<P> {
+    readonly journal: AgentJournal<P>;
+    readonly access: Access<P>;
+    readonly execution: AgentExecutionId;
+    readonly receipt: CommandReceipt;
+    readonly authority: Authority;
+    readonly checkpoint: AgentCheckpoint;
+    readonly acceptInput: (name: string) => Promise<AcceptedInput>;
+    readonly produceResult?: (name: string) => Promise<Readonly<{
+        result: ProducedResult;
+        consumption: ConsumptionId;
+        transfer: Parameters<AgentJournal<P>['recordResult']>[0]['transfer'];
+    }>>;
+    readonly faultNext?: (method: 'recordControl' | 'submit' | 'recordHandoff' | 'commit', outcome: 'applied' | 'dropped' | 'pending') => void;
+    readonly takeover?: (name: string) => Promise<Authority>;
+    readonly installation?: CancellationPolicyInstallation | null;
+    readonly hostRecord?: (record: TestHostRecord) => Promise<DurableEvidence>;
+    readonly seedLegacyCandidate?: (name: string) => Promise<Readonly<{
+        candidate: AgentOperationId;
+    }>>;
+    readonly qualify?: (held: readonly SettlementQualification[]) => void;
+}
+export type SettlementQualification = 'settle' | 'migrate-cancellation' | 'reconcile';
+export type AgentJournalCoreOpenOptions = Readonly<{
+    cancellationPolicy?: 'installed' | 'absent';
+}>;
+export interface AgentJournalCoreFixture<P> {
+    open(name: string, options?: AgentJournalCoreOpenOptions): Promise<AgentJournalCoreOpened<P>>;
+}
+export declare function identity<T>(decoded: Outcome<T, unknown>, what: string): T;
+export declare const operation: (name: string) => AgentOperationId;
+export declare const evidence: (record: string) => DurableEvidence;
+export declare const PROVIDER: {
+    owner: string;
+    name: string;
+    revision: string;
+    digest: string;
+};
+export declare function message(text: string, suffix: string, role?: 'user' | 'assistant'): Message;
+export declare function input(id: string, text?: string): AcceptedInput;
+export declare function ok<T>(reply: Reply<T>, what: string): Promise<T>;
+export declare function refused<T>(reply: Reply<T>, kind: Failure['kind'], what: string): Promise<Failure>;
+export declare function notSuccessful<T>(reply: Reply<T>, what: string): Promise<void>;
+export declare function load<P>(opened: AgentJournalCoreOpened<P>): Promise<ExecutionSnapshot>;
+export declare function revision<P>(opened: AgentJournalCoreOpened<P>): Promise<number>;
+export declare function events<P>(opened: AgentJournalCoreOpened<P>): Promise<readonly AgentEvent[]>;
+export declare function query<P>(opened: AgentJournalCoreOpened<P>, id: AgentOperationId): Promise<Readonly<{
+    kind: 'committed';
+    receipt: CommandReceipt;
+}> | Readonly<{
+    kind: 'rejected';
+    failure: Extract<Failure, {
+        kind: 'conflict';
+    }>;
+    audit: DurableEvidence;
+    revision: import("./identity.ts").ExecutionRevision;
+}> | Readonly<{
+    kind: 'excluded';
+    evidence: DurableEvidence;
+}> | Readonly<{
+    kind: 'unknown';
+}>>;
+export declare function commitAt<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, authority?: Authority, overrides?: Partial<JournalCommit<P>>): JournalCommit<P>;
+export declare function submitAcceptance<P>(opened: AgentJournalCoreOpened<P>, name: string, value: AcceptedInput, decision?: HandoffOutcome['decision']): OriginalInputAcceptance;
+export declare function newSubmit<P>(opened: AgentJournalCoreOpened<P>, name: string, value: AcceptedInput): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    value: Readonly<{
+        id: import("./identity.ts").InputId;
+        content: Message;
+        source: DurableEvidence | null;
+        priority: 'ordinary' | 'urgent';
+    }>;
+    lineage: {
+        kind: 'new-input';
+        original: Readonly<{
+            entry: import("./passages.ts").InputEntry;
+            handoff: Extract<HandoffReference, {
+                kind: 'input';
+            }>;
+            outcome: HandoffOutcome;
+        }>;
+    };
+};
+export declare function recognizingSubmit<P>(opened: AgentJournalCoreOpened<P>, name: string, value: AcceptedInput, original: OriginalInputAcceptance): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    value: Readonly<{
+        id: import("./identity.ts").InputId;
+        content: Message;
+        source: DurableEvidence | null;
+        priority: 'ordinary' | 'urgent';
+    }>;
+    lineage: {
+        kind: 'recognize-input';
+        original: Readonly<{
+            entry: import("./passages.ts").InputEntry;
+            handoff: Extract<HandoffReference, {
+                kind: 'input';
+            }>;
+            outcome: HandoffOutcome;
+        }>;
+    };
+};
+export declare function pendingHandoff<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, predecessorHandoff?: PendingHandoff['predecessorHandoff']): PendingHandoff;
+export declare function outcomeOf(request: PendingHandoff, decision: HandoffOutcome['decision']): HandoffOutcome;
+export declare function prepared(request: PendingHandoff): HandoffOutcome;
+export declare function excluded(request: PendingHandoff): Extract<HandoffResolution, {
+    kind: 'excluded';
+}>;
+export declare function prepareCommit<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, request: PendingHandoff): JournalCommit<P>;
+export declare function resolveCommit<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, outcome: HandoffOutcome, overrides?: Partial<JournalCommit<P>>): JournalCommit<P>;
+export declare function handoffOf(snapshot: ExecutionSnapshot, reference: HandoffReference): ExecutionHandoff;
+export declare function takeInputs<P>(opened: AgentJournalCoreOpened<P>, name?: string): Promise<void>;
+export declare function cancelControl<P>(opened: AgentJournalCoreOpened<P>, name?: string): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    command: {
+        kind: 'cancel';
+        reason: Readonly<{
+            owner: string;
+            record: string;
+            revision: string;
+            digest: string;
+        }>;
+    };
+};
+export declare function stage<P>(opened: AgentJournalCoreOpened<P>, name: string, target: AgentOperationId, which: 'intent-established' | 'qualification-revoked' | 'producer-confirmed' | 'physically-stopped' | 'duty-released', state?: 'reached' | 'unresolved', source?: Readonly<{
+    owner: string;
+    record: string;
+    revision: string;
+    digest: string;
+}>): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    target: AgentOperationId;
+    stage: "duty-released" | "intent-established" | "physically-stopped" | "producer-confirmed" | "qualification-revoked";
+    state: "reached" | "unresolved";
+    source: Readonly<{
+        owner: string;
+        record: string;
+        revision: string;
+        digest: string;
+    }>;
+};
+export declare function controlEvents(all: readonly AgentEvent[]): (readonly [
+    AgentOperationId,
+    import("./execution.ts").ControlStage,
+    "reached" | "unresolved"
+])[];
+export declare function afterTerminalPassage(name: string): Passage;
+export declare function advances<P>(opened: AgentJournalCoreOpened<P>, write: () => Promise<unknown>): Promise<readonly [
+    number,
+    number
+]>;
+export declare function candidateContent(snapshot: ExecutionSnapshot, name: string, overrides?: Partial<FinishCandidateContent>): FinishCandidateContent;
+export declare function f1Commit<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, authority?: Authority, finish?: FinishCandidateContent): JournalCommit<P>;
+export declare function f2Commit<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, authority?: Authority): JournalCommit<P>;
+export declare function intentOf(snapshot: ExecutionSnapshot): FinishIntent;
+export declare function candidateOf(snapshot: ExecutionSnapshot): AgentOperationId;
+export declare function advancement(authority: Authority): FinishAuthorization;
+export declare function cancelAuthorization(snapshot: ExecutionSnapshot, control: AgentOperationId): Extract<FinishAuthorization, {
+    kind: 'cancel';
+}>;
+export declare function controlOf(snapshot: ExecutionSnapshot, control: AgentOperationId): ControlRecord;
+export declare function prepareInput<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, authorization?: FinishAuthorization, candidate?: AgentOperationId): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    authorization: FinishAuthorization;
+    expected: import("./identity.ts").ExecutionRevision;
+    candidate: AgentOperationId;
+};
+export declare function finishInput<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, name: string, authorization?: FinishAuthorization, intent?: FinishIntent): {
+    principal: P;
+    tenant: import("@omne-harness/legal-identity").TenantId;
+    execution: AgentExecutionId;
+    operation: AgentOperationId;
+    authorization: FinishAuthorization;
+    expected: import("./identity.ts").ExecutionRevision;
+    intent: Readonly<{
+        candidate: AgentOperationId;
+        conclusion: import("./evaluation.ts").AgentConclusion;
+        inputWatermark: DurableEvidence;
+        obligations: DurableEvidence | null;
+        beforeTerminal: DurableEvidence | null;
+        failure: import("./evaluation.ts").FailureCandidate | null;
+    }>;
+};
+export declare function failedContent(name: string): Partial<FinishCandidateContent>;
+export declare function prepareOrdinaryEnd<P>(opened: AgentJournalCoreOpened<P>, name: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<ExecutionSnapshot>;
+export declare function end<P>(opened: AgentJournalCoreOpened<P>, name?: string, authority?: Authority, content?: Partial<FinishCandidateContent>): Promise<CommandReceipt>;
+export declare function settlement<P, K extends SettlementRequest<P>['kind']>(opened: AgentJournalCoreOpened<P>, name: string, body: Omit<Extract<SettlementRequest<P>, {
+    kind: K;
+}>, keyof Access<P> | 'execution' | 'operation'>): Extract<SettlementRequest<P>, {
+    kind: K;
+}>;
+export declare function installationOf<P>(opened: AgentJournalCoreOpened<P>): CancellationPolicyInstallation;
+export declare function requireInstallation<P>(opened: AgentJournalCoreOpened<P>): Promise<boolean>;
+export declare function effectiveCancel<P>(opened: AgentJournalCoreOpened<P>, name?: string): Promise<AgentOperationId>;
+export declare function establish<P>(opened: AgentJournalCoreOpened<P>, control: AgentOperationId, name?: string): Promise<Extract<SettlementResult, {
+    kind: 'establish-cancellation';
+}>>;
+export declare function judge<P>(opened: AgentJournalCoreOpened<P>, control: AgentOperationId, name?: string): Promise<Extract<SettlementResult, {
+    kind: 'judge-cancellation';
+}>>;
+export declare function endCancelled<P>(opened: AgentJournalCoreOpened<P>, control: AgentOperationId, name?: string, options?: Readonly<{
+    establish?: boolean;
+}>): Promise<CommandReceipt>;
 ```
 
 ## 声明文件 `testing-journal-samples.d.ts`
@@ -2604,6 +3856,8 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
+export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type SettlementQualification, } from './testing-journal-core.ts';
+export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 ```

@@ -98,10 +98,65 @@ import type {
   FinishAuthorization,
   FinishIntent,
   FinishResult,
+  CancellationBlock,
+  CancellationDecision,
+  CancellationJudgmentInput,
+  CancellationJudgmentRecord,
+  CancellationPolicy,
+  CancellationPolicyInstallation,
+  CancellationUnknown,
+  CandidateSupersession,
+  ContinuationRequest,
+  ExecutionSettlement,
+  ExtensionInvocationResult,
+  FinishCandidate,
+  FinishCandidateContent,
+  FinishObligation,
+  FinishObligations,
+  FinishRoute,
+  HandoffRecordMaterial,
+  InvocationUnresolved,
+  JournalCommitState,
+  LegacyF2Entry,
+  LegacyInvocationReturn,
+  MigrationRecord,
+  ObligationCategory,
+  ObligationDisposition,
+  PendingReason,
+  RecoveryAction,
+  RecoveryContinuation,
+  ResponsibilityCoverage,
+  SettlementRequest,
+  SettlementResult,
+  TerminalParticipantFacts,
+  ToolAssociationRecord,
   GuardFact,
   GuardLevel,
-  HandoffResult,
+  HandoffChange,
+  HandoffCustody,
+  HandoffCustodyAttempt,
+  HandoffDecision,
+  HandoffExclusionRecord,
+  HandoffFactSource,
+  HandoffHistory,
+  HandoffLookup,
+  HandoffOutcome,
+  HandoffPosition,
+  HandoffPrepare,
+  HandoffReference,
+  HandoffRequest,
+  HandoffResolution,
+  HandoffRetirement,
+  ExecutionHandoff,
   IdentityFailure,
+  InputEntry,
+  InputHandoff,
+  InputOrigin,
+  InvokeRuntimeContext,
+  JournalSubmitLineage,
+  OriginalInputAcceptance,
+  PendingHandoff,
+  SubmitDelivery,
   InputBatch,
   InputBatchId,
   InputId,
@@ -207,8 +262,31 @@ type Landed = {
   FinalRequest: FinalRequest
   GuardFact: GuardFact
   GuardLevel: GuardLevel
-  HandoffResult: HandoffResult
+  HandoffChange: HandoffChange
+  HandoffCustody: HandoffCustody
+  HandoffCustodyAttempt: HandoffCustodyAttempt
+  HandoffDecision: HandoffDecision
+  HandoffExclusionRecord: HandoffExclusionRecord
+  HandoffFactSource: HandoffFactSource
+  HandoffHistory: HandoffHistory
+  HandoffLookup: HandoffLookup
+  HandoffOutcome: HandoffOutcome
+  HandoffPosition: HandoffPosition
+  HandoffPrepare: HandoffPrepare
+  HandoffReference: HandoffReference
+  HandoffRequest: HandoffRequest
+  HandoffResolution: HandoffResolution
+  HandoffRetirement: HandoffRetirement
+  ExecutionHandoff: ExecutionHandoff
   IdentityFailure: IdentityFailure
+  InputEntry: InputEntry
+  InputHandoff: InputHandoff
+  InputOrigin: InputOrigin
+  InvokeRuntimeContext: InvokeRuntimeContext
+  JournalSubmitLineage: JournalSubmitLineage
+  OriginalInputAcceptance: OriginalInputAcceptance
+  PendingHandoff: PendingHandoff
+  SubmitDelivery: SubmitDelivery
   InputBatch: InputBatch
   InputBatchId: InputBatchId
   InputId: InputId
@@ -289,6 +367,37 @@ type Landed = {
   FinishAuthorization: FinishAuthorization
   FinishIntent: FinishIntent
   FinishResult: FinishResult
+  CancellationBlock: CancellationBlock
+  CancellationDecision: CancellationDecision
+  CancellationJudgmentInput: CancellationJudgmentInput
+  CancellationJudgmentRecord: CancellationJudgmentRecord
+  CancellationPolicy: CancellationPolicy
+  CancellationPolicyInstallation: CancellationPolicyInstallation
+  CancellationUnknown: CancellationUnknown
+  CandidateSupersession: CandidateSupersession
+  ContinuationRequest: ContinuationRequest<unknown>
+  ExecutionSettlement: ExecutionSettlement
+  FinishCandidate: FinishCandidate
+  FinishCandidateContent: FinishCandidateContent
+  FinishObligation: FinishObligation
+  FinishObligations: FinishObligations
+  FinishRoute: FinishRoute
+  HandoffRecordMaterial: HandoffRecordMaterial
+  InvocationUnresolved: InvocationUnresolved
+  JournalCommitState: JournalCommitState
+  LegacyF2Entry: LegacyF2Entry
+  LegacyInvocationReturn: LegacyInvocationReturn
+  MigrationRecord: MigrationRecord
+  ObligationCategory: ObligationCategory
+  ObligationDisposition: ObligationDisposition
+  PendingReason: PendingReason
+  RecoveryAction: RecoveryAction
+  RecoveryContinuation: RecoveryContinuation
+  ResponsibilityCoverage: ResponsibilityCoverage
+  SettlementRequest: SettlementRequest<string>
+  SettlementResult: SettlementResult
+  TerminalParticipantFacts: TerminalParticipantFacts
+  ToolAssociationRecord: ToolAssociationRecord
   JournalCapabilities: JournalCapabilities
   JournalCommit: JournalCommit<string>
   QuiesceResult: QuiesceResult
@@ -716,7 +825,7 @@ describe('the discriminants of the passage ledger', () => {
       | 'reminder'
       | 'context-transition'
     >()
-    expectTypeOf<KindOf<HandoffResult>>().toEqualTypeOf<'accepted' | 'rejected'>()
+    expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
     expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
   })
 
@@ -752,9 +861,59 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<CapturedRead>().not.toExtend<NamedCapturedRead>()
   })
 
+  it('shapes the message admission: three prepare branches, three lookup conclusions, two origins and the entry index', () => {
+    expectTypeOf<keyof MessageHandoff<string>>().toEqualTypeOf<'prepare' | 'lookup' | 'exclude'>()
+    expectTypeOf<KindOf<HandoffPrepare>>().toEqualTypeOf<'execution' | 'invoke' | 'submit'>()
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'execution' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'execution'; request: PendingHandoff; advance: Authority }>
+    >()
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'invoke' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'invoke'; request: InputHandoff; runtime: InvokeRuntimeContext }>
+    >()
+    // The submit branch has no advance, runtime, current or grant member.
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'submit' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'submit'; request: InputHandoff }>
+    >()
+    expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
+    expectTypeOf<KindOf<HandoffResolution>>().toEqualTypeOf<'recorded' | 'excluded' | 'unknown'>()
+    expectTypeOf<
+      Extract<HandoffResolution, { kind: 'unknown' }>['original']
+    >().toEqualTypeOf<Readonly<{
+      request: HandoffRequest
+      origin: InputOrigin | null
+      record: DurableEvidence
+    }> | null>()
+    expectTypeOf<KindOf<HandoffReference>>().toEqualTypeOf<'execution' | 'input'>()
+    expectTypeOf<KindOf<HandoffRequest>>().toEqualTypeOf<'execution' | 'input'>()
+    expectTypeOf<KindOf<HandoffLookup>>().toEqualTypeOf<'execution' | 'input-entry'>()
+    expectTypeOf<KindOf<InputOrigin>>().toEqualTypeOf<'invoke' | 'submit'>()
+    expectTypeOf<KindOf<SubmitDelivery>>().toEqualTypeOf<'runtime-view' | 'durable-view'>()
+    expectTypeOf<KindOf<InputEntry>>().toEqualTypeOf<'invoke' | 'submit'>()
+    expectTypeOf<Extract<InputEntry, { kind: 'submit' }>>().not.toHaveProperty('checkpoint')
+    expectTypeOf<
+      Extract<InputEntry, { kind: 'invoke' }>['checkpoint']
+    >().toEqualTypeOf<AgentCheckpoint>()
+    expectTypeOf<PendingHandoff['source']>().toEqualTypeOf<
+      Exclude<MessageSource, { kind: 'external-input' }>
+    >()
+    expectTypeOf<HandoffOutcome['origin']>().toEqualTypeOf<InputOrigin | null>()
+    expectTypeOf<HandoffPosition>().toEqualTypeOf<
+      Readonly<{ step: StepId; node: string; slot: string | null }>
+    >()
+  })
+
   it('give the ports their reply types', () => {
-    expectTypeOf<ReturnType<MessageHandoff<string>['accept']>>().toEqualTypeOf<
-      Reply<HandoffResult>
+    expectTypeOf<ReturnType<MessageHandoff<string>['prepare']>>().toEqualTypeOf<
+      Reply<HandoffOutcome>
+    >()
+    expectTypeOf<ReturnType<MessageHandoff<string>['lookup']>>().toEqualTypeOf<
+      Reply<HandoffResolution>
+    >()
+    expectTypeOf<ReturnType<MessageHandoff<string>['exclude']>>().toEqualTypeOf<
+      Reply<HandoffResolution>
+    >()
+    expectTypeOf<Parameters<MessageHandoff<string>['exclude']>[0]>().toEqualTypeOf<
+      Access<string> & Readonly<{ request: PendingHandoff; control: AgentOperationId }>
     >()
     expectTypeOf<ReturnType<ActionAdmission<string>['admit']>>().toEqualTypeOf<
       Reply<AdmissionDecision>
@@ -867,9 +1026,23 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<
       Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
     >().toEqualTypeOf<string>()
-    expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<'scope' | 'instance' | 'execution'>()
+    // SPEC "主体资格核验": four target branches; the execution target is the logical execution alone.
+    expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<
+      'scope' | 'instance' | 'execution' | 'input-entry'
+    >()
+    expectTypeOf<Extract<AgentAccessTarget, { kind: 'execution' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
+    >()
+    expectTypeOf<Extract<AgentAccessTarget, { kind: 'input-entry' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+    >()
     expectTypeOf<'takeover'>().toExtend<AgentAccessOperation>()
     expectTypeOf<'record-terminal-observation'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'read-message-handoff'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'record-message-handoff'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'exclude-message-handoff'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'settle'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'migrate-cancellation'>().toExtend<AgentAccessOperation>()
     expectTypeOf<'attach'>().not.toExtend<AgentAccessOperation>()
     expectTypeOf<ReturnType<AgentAccessCheck<string>['check']>>().toEqualTypeOf<
       Promise<AgentAccessDecision>
@@ -918,6 +1091,11 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<JournalCapabilities['participants']>().toEqualTypeOf<
       ReadonlySet<'message' | 'context-transition' | 'custody' | 'processed'>
     >()
+    // SPEC "提交参加者协议": the binding declares its coordination mode; there is no implicit default.
+    expectTypeOf<JournalCapabilities['coordination']>().toEqualTypeOf<
+      'standalone' | 'coordinated'
+    >()
+    expectTypeOf<keyof JournalCapabilities>().toEqualTypeOf<'coordination' | 'participants'>()
     expectTypeOf<EffectIntent['pending']>().toEqualTypeOf<PendingCall>()
   })
 
@@ -931,7 +1109,9 @@ describe('the discriminants of the Journal chapter', () => {
   })
 
   it('the groups keep the capabilities apart: reading holds no write, finishing holds one operation', () => {
-    expectTypeOf<keyof AgentJournalFinishing<string>>().toEqualTypeOf<'tryFinish'>()
+    expectTypeOf<keyof AgentJournalFinishing<string>>().toEqualTypeOf<
+      'tryFinish' | 'prepareFinish' | 'commitSettlement'
+    >()
     expectTypeOf<
       keyof AgentJournalObservation<string>
     >().toEqualTypeOf<'recordTerminalObservation'>()
@@ -948,13 +1128,97 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<AgentJournalReading<string>>().not.toExtend<AgentJournalRecording<string>>()
   })
 
+  it('commits carry the handoff change, open takes the two acceptance parts, submit takes its lineage and the snapshot lists the handoffs', () => {
+    expectTypeOf<JournalCommit<string>['handoff']>().toEqualTypeOf<HandoffChange | null>()
+    expectTypeOf<KindOf<HandoffChange>>().toEqualTypeOf<'prepare' | 'resolve' | 'retire'>()
+    expectTypeOf<Extract<HandoffChange, { kind: 'retire' }>['excluded']>().toEqualTypeOf<
+      Extract<HandoffResolution, { kind: 'excluded' }>
+    >()
+    expectTypeOf<KindOf<HandoffHistory>>().toEqualTypeOf<
+      'pending' | 'committed' | 'not-applicable' | 'retained'
+    >()
+    expectTypeOf<ExecutionSnapshot['handoffs']>().toEqualTypeOf<readonly ExecutionHandoff[]>()
+    expectTypeOf<ExecutionHandoff['resolution']>().toEqualTypeOf<Extract<
+      HandoffResolution,
+      { kind: 'recorded' | 'excluded' }
+    > | null>()
+    expectTypeOf<AgentCheckpoint['currentHandoff']>().toEqualTypeOf<HandoffReference | null>()
+    expectTypeOf<ActionSlot['handoff']>().toEqualTypeOf<HandoffReference | null>()
+    expectTypeOf<Parameters<AgentJournalAttachment<string>['open']>[0]>().toEqualTypeOf<
+      ExecutionMutation<string> &
+        Readonly<{ original: OriginalInputAcceptance; runtime: InvokeRuntimeContext }>
+    >()
+    expectTypeOf<KindOf<JournalSubmitLineage>>().toEqualTypeOf<'new-input' | 'recognize-input'>()
+    expectTypeOf<
+      Parameters<AgentJournalRecording<string>['submit']>[0]['lineage']
+    >().toEqualTypeOf<JournalSubmitLineage>()
+    expectTypeOf<keyof AgentJournalRecording<string>>().toEqualTypeOf<
+      | 'commit'
+      | 'submit'
+      | 'control'
+      | 'acknowledge'
+      | 'recordResult'
+      | 'recordControl'
+      | 'recordHandoff'
+    >()
+    expectTypeOf<Parameters<AgentJournalRecording<string>['recordHandoff']>[0]>().toEqualTypeOf<
+      ExecutionMutation<string> &
+        Readonly<{
+          original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
+          custody: HandoffCustody | null
+        }>
+    >()
+    expectTypeOf<HandoffCustody['protocol']>().toEqualTypeOf<'hand-off-custody-successor/1'>()
+    expectTypeOf<HandoffCustody['priorExcluded']>().toEqualTypeOf<
+      readonly HandoffExclusionRecord[]
+    >()
+    expectTypeOf<HandoffCustody['factSource']>().toEqualTypeOf<HandoffFactSource>()
+    expectTypeOf<HandoffCustodyAttempt['state']>().toEqualTypeOf<'committed' | 'excluded'>()
+    expectTypeOf<ExecutionHandoff['retirement']>().toEqualTypeOf<HandoffRetirement | null>()
+    // Q14: the transition keeps its original candidate, plan, basis material and epoch.
+    expectTypeOf<keyof PreparedContextTransition>().toEqualTypeOf<
+      | 'preparation'
+      | 'message'
+      | 'source'
+      | 'derivation'
+      | 'commitment'
+      | 'candidate'
+      | 'plan'
+      | 'basis'
+      | 'epoch'
+    >()
+  })
+
   it('reuses the handle operations as inputs and answers the query like recovery does', () => {
     expectTypeOf<Parameters<AgentJournalRecording<string>['submit']>[0]>().toEqualTypeOf<
-      Parameters<AgentExecutionInput<string>['submit']>[0]
+      Parameters<AgentExecutionInput<string>['submit']>[0] &
+        Readonly<{ lineage: JournalSubmitLineage }>
     >()
     expectTypeOf<ReturnType<AgentJournalReading<string>['query']>>().toEqualTypeOf<
       ReturnType<AgentExecutionRecovery<string>['query']>
     >()
+    // SPEC "查询的四种结论与持久拒绝": rejected carries the fixed conflict, the audit and its revision.
+    type QueryConclusion =
+      Awaited<ReturnType<AgentExecutionRecovery<string>['query']>> extends Outcome<
+        infer Conclusion,
+        Failure
+      >
+        ? Conclusion
+        : never
+    expectTypeOf<KindOf<QueryConclusion>>().toEqualTypeOf<
+      'committed' | 'rejected' | 'excluded' | 'unknown'
+    >()
+    expectTypeOf<Extract<QueryConclusion, { kind: 'rejected' }>>().toEqualTypeOf<
+      Readonly<{
+        kind: 'rejected'
+        failure: Extract<Failure, { kind: 'conflict' }>
+        audit: DurableEvidence
+        revision: ExecutionRevision
+      }>
+    >()
+    expectTypeOf<
+      Extract<QueryConclusion, { kind: 'committed' }>['receipt']
+    >().toEqualTypeOf<CommandReceipt>()
     expectTypeOf<ReturnType<AgentJournalFinishing<string>['tryFinish']>>().toEqualTypeOf<
       Reply<FinishResult>
     >()
@@ -1037,5 +1301,249 @@ describe('Tool association and control references', () => {
     expectTypeOf<
       Parameters<AgentJournalRecording<string>['recordControl']>[0]['toolOperation']
     >().toEqualTypeOf<T.ToolOperationRef | undefined>()
+  })
+})
+
+describe('S3: the finish projection, the candidate commit, the obligations and the settlement', () => {
+  it('FinishIntent is the projection the Journal maintains: candidate, nullable obligations, nullable beforeTerminal', () => {
+    expectTypeOf<FinishIntent['candidate']>().toEqualTypeOf<AgentOperationId>()
+    expectTypeOf<FinishIntent['obligations']>().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<FinishIntent['beforeTerminal']>().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<FinishIntent['conclusion']>().toEqualTypeOf<AgentConclusion>()
+  })
+  it('a commit writes the candidate content in `finish` and a settling state without the intent', () => {
+    expectTypeOf<JournalCommit<string>['finish']>().toEqualTypeOf<FinishCandidateContent | null>()
+    expectTypeOf<JournalCommit<string>['state']>().toEqualTypeOf<JournalCommitState>()
+    expectTypeOf<Extract<JournalCommitState, { kind: 'settling' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'settling' }>
+    >()
+    expectTypeOf<KindOf<JournalCommitState>>().toEqualTypeOf<
+      'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'
+    >()
+    expectTypeOf<keyof FinishCandidateContent>().toEqualTypeOf<
+      'origin' | 'conclusion' | 'failure' | 'inputWatermark' | 'conditions'
+    >()
+    expectTypeOf<FinishCandidate['checkpoint']>().toEqualTypeOf<AgentCheckpoint>()
+    expectTypeOf<KindOf<FinishRoute>>().toEqualTypeOf<'author' | 'cancellation'>()
+    expectTypeOf<
+      Extract<FinishRoute, { kind: 'author' }>['beforeTerminal']
+    >().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<KindOf<Extract<FinishRoute, { kind: 'cancellation' }>['origin']>>().toEqualTypeOf<
+      'native' | 'migration'
+    >()
+    expectTypeOf<KindOf<LegacyF2Entry>>().toEqualTypeOf<'not-started' | 'recorded'>()
+  })
+  it('the snapshot carries the issued obligations and the settlement projection at one revision', () => {
+    expectTypeOf<ExecutionSnapshot['finishObligations']>().toEqualTypeOf<FinishObligations | null>()
+    expectTypeOf<ExecutionSnapshot['settlement']>().toEqualTypeOf<ExecutionSettlement>()
+    expectTypeOf<ExecutionSettlement['currentJudgment']>().toEqualTypeOf<AgentOperationId | null>()
+    expectTypeOf<ExecutionSettlement['candidate']>().toEqualTypeOf<FinishCandidate | null>()
+    expectTypeOf<ExecutionSettlement['route']>().toEqualTypeOf<FinishRoute | null>()
+    expectTypeOf<ExecutionSettlement['migrations']>().toEqualTypeOf<readonly MigrationRecord[]>()
+    expectTypeOf<ExecutionSettlement['judgments']>().toEqualTypeOf<
+      readonly CancellationJudgmentRecord[]
+    >()
+    expectTypeOf<ExecutionSettlement['supersessions']>().toEqualTypeOf<
+      readonly CandidateSupersession[]
+    >()
+    expectTypeOf<FinishObligations['items']>().toEqualTypeOf<readonly FinishObligation[]>()
+    expectTypeOf<FinishObligations['coverage']>().toEqualTypeOf<ResponsibilityCoverage>()
+    expectTypeOf<KindOf<FinishObligation>>().toEqualTypeOf<
+      | 'accepted-input'
+      | 'control'
+      | 'operation'
+      | 'handoff'
+      | 'call'
+      | 'passage'
+      | 'card-round'
+      | 'result'
+      | 'material'
+      | 'output'
+      | 'terminal-observation'
+    >()
+    expectTypeOf<ObligationCategory>().toEqualTypeOf<
+      'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
+    >()
+    // The category is not a member of the head: the SPEC table fixes it per kind.
+    expectTypeOf<KeysOfUnion<FinishObligation>>().not.toExtend<'category'>()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'operation' }>['result']
+    >().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<Extract<FinishObligation, { kind: 'call' }>['interruptions']>().toEqualTypeOf<
+      readonly AgentOperationId[]
+    >()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'card-round' }>['invalidate']
+    >().toEqualTypeOf<Readonly<{ operation: AgentOperationId; reason: DurableEvidence }> | null>()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'material' }>['acceptance']
+    >().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<FinishObligation['disposition']>().toEqualTypeOf<ObligationDisposition>()
+    expectTypeOf<KindOf<ObligationDisposition>>().toEqualTypeOf<
+      'settled' | 'held' | 'pending' | 'unknown'
+    >()
+    expectTypeOf<
+      Extract<ObligationDisposition, { kind: 'pending' }>['reason']
+    >().toEqualTypeOf<PendingReason>()
+    expectTypeOf<
+      Extract<ObligationDisposition, { kind: 'pending' }>['required']
+    >().toEqualTypeOf<RecoveryContinuation>()
+    expectTypeOf<'required-judgment'>().toExtend<PendingReason>()
+    expectTypeOf<'handoff-history'>().toExtend<PendingReason>()
+    // RecoveryContinuation is a closed union by action (SPEC "终结责任清单"): each variant carries the
+    // request of its original public operation, the owner, the custodian and the purpose.
+    expectTypeOf<KindOf<RecoveryContinuation>>().toEqualTypeOf<RecoveryAction>()
+    expectTypeOf<RecoveryAction>().toEqualTypeOf<
+      | 'original-operation-query'
+      | 'original-invoke-recovery'
+      | 'tool-association-retain'
+      | 'producer-query'
+      | 'producer-receive'
+      | 'producer-release'
+      | 'card-lookup'
+      | 'card-read'
+      | 'card-invalidate'
+      | 'material-read'
+      | 'input-read'
+      | 'output-read-ack'
+      | 'terminal-observe'
+      | 'restore-source'
+      | 'handoff-lookup'
+      | 'handoff-exclude'
+      | 'handoff-record'
+      | 'handoff-source-recovery'
+    >()
+    expectTypeOf<KeysOfUnion<RecoveryContinuation>>().toEqualTypeOf<
+      'kind' | 'request' | 'owner' | 'custodian' | 'purpose'
+    >()
+    expectTypeOf<KindOf<ContinuationRequest<unknown>>>().toEqualTypeOf<
+      'parameters' | 'record' | 'unresolved'
+    >()
+    expectTypeOf<Extract<ContinuationRequest<unknown>, { kind: 'unresolved' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'unresolved'; key: string; missing: DurableEvidence }>
+    >()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'original-operation-query' }>['purpose']
+    >().toEqualTypeOf<'query'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-lookup' }>['purpose']
+    >().toEqualTypeOf<'read-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-exclude' }>['purpose']
+    >().toEqualTypeOf<'exclude-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-record' }>['purpose']
+    >().toEqualTypeOf<'record-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-record' }>['request']
+    >().toEqualTypeOf<
+      ContinuationRequest<
+        Readonly<{
+          operation: AgentOperationId
+          handoff: HandoffReference
+          original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
+          provider: Adoption
+          material: HandoffRecordMaterial
+          custody: HandoffCustody | null
+        }>
+      >
+    >()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'tool-association-retain' }>['purpose']
+    >().toEqualTypeOf<'reconcile'>()
+    expectTypeOf<KindOf<TerminalParticipantFacts>>().toEqualTypeOf<'standalone' | 'coordinated'>()
+  })
+  it('prepareFinish issues the list under an authorization, expected and candidate', () => {
+    expectTypeOf<Parameters<AgentJournalFinishing<string>['prepareFinish']>[0]>().toEqualTypeOf<
+      ExecutionMutation<string> &
+        Readonly<{
+          authorization: FinishAuthorization
+          expected: ExecutionRevision
+          candidate: AgentOperationId
+        }>
+    >()
+    expectTypeOf<ReturnType<AgentJournalFinishing<string>['prepareFinish']>>().toEqualTypeOf<
+      Reply<Readonly<{ receipt: CommandReceipt; obligations: DurableEvidence }>>
+    >()
+  })
+  it('commitSettlement takes the six variants and answers each with its record', () => {
+    expectTypeOf<Parameters<AgentJournalFinishing<string>['commitSettlement']>[0]>().toEqualTypeOf<
+      SettlementRequest<string>
+    >()
+    expectTypeOf<ReturnType<AgentJournalFinishing<string>['commitSettlement']>>().toEqualTypeOf<
+      Reply<SettlementResult>
+    >()
+    expectTypeOf<KindOf<SettlementRequest<string>>>().toEqualTypeOf<
+      | 'establish-cancellation'
+      | 'migrate-cancellation'
+      | 'judge-cancellation'
+      | 'record-card-reconciliation'
+      | 'record-legacy-return'
+      | 'record-tool-association'
+    >()
+    expectTypeOf<KindOf<SettlementResult>>().toEqualTypeOf<KindOf<SettlementRequest<string>>>()
+    expectTypeOf<
+      Extract<SettlementRequest<string>, { kind: 'establish-cancellation' }>['authorization']
+    >().toEqualTypeOf<Extract<FinishAuthorization, { kind: 'cancel' }>>()
+    expectTypeOf<
+      Extract<SettlementRequest<string>, { kind: 'judge-cancellation' }>['expected']
+    >().toEqualTypeOf<ExecutionRevision>()
+    expectTypeOf<
+      KeysOfUnion<Extract<SettlementRequest<string>, { kind: 'record-tool-association' }>>
+    >().not.toExtend<'expected' | 'checkpoint' | 'state' | 'events' | 'effects' | 'caller'>()
+    expectTypeOf<
+      Extract<SettlementResult, { kind: 'migrate-cancellation' }>['migration']
+    >().toEqualTypeOf<MigrationRecord>()
+    expectTypeOf<
+      Extract<SettlementResult, { kind: 'judge-cancellation' }>['judgment']
+    >().toEqualTypeOf<CancellationJudgmentRecord>()
+    expectTypeOf<
+      Extract<SettlementResult, { kind: 'record-legacy-return' }>['legacyReturn']
+    >().toEqualTypeOf<LegacyInvocationReturn>()
+    expectTypeOf<
+      Extract<SettlementResult, { kind: 'record-tool-association' }>['association']
+    >().toEqualTypeOf<ToolAssociationRecord>()
+    expectTypeOf<MigrationRecord['priorExcluded']>().toExtend<object | null>()
+    expectTypeOf<KindOf<CancellationDecision>>().toEqualTypeOf<'allowed' | 'blocked' | 'unknown'>()
+    expectTypeOf<ReturnType<CancellationPolicy['judge']>>().toEqualTypeOf<CancellationDecision>()
+    expectTypeOf<
+      Parameters<CancellationPolicy['judge']>[0]
+    >().toEqualTypeOf<CancellationJudgmentInput>()
+    expectTypeOf<CancellationBlock['category']>().toEqualTypeOf<ObligationCategory>()
+    expectTypeOf<CancellationUnknown['reason']>().toEqualTypeOf<
+      | 'original-operation-unknown'
+      | 'source-unavailable'
+      | 'source-not-authenticated'
+      | 'coverage-incomplete'
+      | 'policy-unavailable'
+      | 'qualification-unavailable'
+    >()
+    expectTypeOf<keyof CancellationPolicyInstallation>().toEqualTypeOf<
+      | 'record'
+      | 'decision'
+      | 'policy'
+      | 'inputSchema'
+      | 'implementation'
+      | 'legacyProtocols'
+      | 'admission'
+    >()
+    expectTypeOf<
+      CancellationJudgmentRecord['supersedes']
+    >().toEqualTypeOf<AgentOperationId | null>()
+  })
+  it('the extension invocation result has the non-final invocationUnresolved branch', () => {
+    expectTypeOf<KindOf<ExtensionInvocationResult>>().toEqualTypeOf<
+      | 'output'
+      | 'errored'
+      | 'notStartedUnavailable'
+      | 'replayInconsistent'
+      | 'controlUnavailable'
+      | 'invocationUnresolved'
+    >()
+    expectTypeOf<
+      Extract<ExtensionInvocationResult, { kind: 'invocationUnresolved' }>
+    >().toEqualTypeOf<InvocationUnresolved>()
+    expectTypeOf<KindOf<InvocationUnresolved['start']>>().toEqualTypeOf<'unknown' | 'started'>()
+    expectTypeOf<InvocationUnresolved['recovery']>().toEqualTypeOf<DurableEvidence>()
   })
 })

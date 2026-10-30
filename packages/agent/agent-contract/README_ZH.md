@@ -12,7 +12,7 @@ Agent 能力的契约：公共值、操作、结果、行为及可替换提供�
 - 资产正文契约 `agentBodyContract`。
 - 十四个 `decode*` 身份解码函数，以及四个结构判定：`judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。
 
-`./testing` 入口导出接收面两个端口 `AgentJournalEntries` 与 `AgentAccountOutlet` 的一致性套件和非耐久替身。替身声明 `durability: 'none'`，不得装进生产。包根不加载 `./testing`。
+`./testing` 入口导出接收面两个端口 `AgentJournalEntries` 与 `AgentAccountOutlet` 的一致性套件和非耐久替身，以及 `agentJournalCoreConformance`：每个 `AgentJournal` 提供者用自己的夹具运行的套件，覆盖执行修订、六个阶段、原操作认回与 `query` 的持久拒绝。替身声明 `durability: 'none'`，不得装进生产。包根不加载 `./testing`。
 
 本包没有实现推进 Loop、评估器、runtime、Journal 提供者和宿主插件。这些部分的接口在包里只有类型，目前没有提供者实现它们。提供者与宿主插件归 [agent](../agent/README.md)、[agent-host-local](../agent-host-local/README.md) 和各提供者包。
 

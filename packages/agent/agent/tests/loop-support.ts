@@ -21,9 +21,12 @@ import {
   type AgentExecutionHandle,
   type AgentExecutionId,
   type AgentObservation,
+  type AgentOperationId,
   type AgentState,
   type ExecutionSnapshot,
   type ControlRecord,
+  type HandoffPrepare,
+  type HandoffRequest,
   type InputBatch,
   type LoopFacts,
   type PendingCall,
@@ -410,4 +413,27 @@ export async function stoppedAt(
   if (state.kind !== 'occupied' || state.execution !== execution())
     throw new Error(`the runtime shows ${state.kind}, not the stopped execution`)
   return snapshot.state
+}
+
+/** The candidate of one prepare call: the internal candidate, or `undefined` for an external input. */
+export function replyCandidate(
+  call: Pick<HandoffPrepare, 'request'> | undefined,
+): Extract<HandoffRequest, { kind: 'execution' }>['candidate'] | undefined {
+  return call?.request.kind === 'execution' ? call.request.candidate : undefined
+}
+
+/** The operation a lost prepare receipt names: the H of an internal request, the entry of an input. */
+export function handoffOperationOf(call: Pick<HandoffPrepare, 'request'>): AgentOperationId {
+  const reference = call.request.reference
+  return reference.kind === 'execution' ? reference.operation : reference.entry
+}
+
+/**
+ * The node of one commit of the coordinator: a node commit is `<node>/commit@<revision>`; the P and
+ * the Ja of a handoff derive from its H with the stages `prepare` (at Q1) and `resolve` (at Q2).
+ */
+export function commitNodeOf(operation: string): string {
+  if (operation.endsWith('/prepare')) return 'Q1'
+  if (operation.endsWith('/resolve')) return 'Q2'
+  return operation.split('/')[0] ?? ''
 }

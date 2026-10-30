@@ -1,5 +1,6 @@
 import {
   decodeActionId,
+  type AcceptedInput,
   decodeAgentExecutionId,
   decodeAgentInstanceId,
   decodeAgentOperationId,
@@ -80,36 +81,71 @@ export async function assembleModelReceiverFixture(
     ],
   })
   if ('rejected' in message) throw new Error('invalid receiver fixture message')
-  const journal = createMemoryAgentJournal<string>()
+  const journal = createMemoryAgentJournal<string>({ coordination: 'standalone' })
+  const open = value(decodeAgentOperationId('receiver-open'))
+  const initial: AcceptedInput = {
+    id: value(decodeInputId('receiver-input')),
+    content: message.ok,
+    source: null,
+    priority: 'ordinary',
+  }
+  const invokeEntry = {
+    kind: 'invoke' as const,
+    operation: open,
+    execution,
+    initial,
+    checkpoint: {
+      schema: testAdoption('checkpoint'),
+      definition: testAdoption('definition'),
+      step: value(decodeStepId('receiver-step')),
+      position: 'M1',
+      calls: [pending],
+      passages: [],
+      batch: null,
+      inputBatch: null,
+      requestPreparation: null,
+      compaction: null,
+      adoptedContext: null,
+      guard: null,
+      completedPassages: [],
+      priorConditions: null,
+      currentHandoff: null,
+    },
+  }
+  const handoff = { kind: 'input' as const, execution, entry: open, input: initial.id }
+  const runtime = {
+    instance,
+    scope: testEvidence('scope'),
+    definition: testAdoption('definition'),
+    grant: null,
+  }
   value(
     await journal.port.open({
       ...access,
       execution,
-      operation: value(decodeAgentOperationId('receiver-open')),
-      instance,
-      grant: null,
-      initial: {
-        id: value(decodeInputId('receiver-input')),
-        content: message.ok,
-        source: null,
-        priority: 'ordinary',
+      operation: open,
+      original: {
+        entry: invokeEntry,
+        handoff,
+        outcome: {
+          request: {
+            kind: 'input',
+            reference: handoff,
+            entry: invokeEntry,
+            source: { kind: 'external-input', input: initial.id },
+          },
+          origin: { kind: 'invoke', ...runtime },
+          provider: testAdoption('message-handoff'),
+          qualification: testEvidence('qualification'),
+          record: testEvidence('handoff/receiver-open'),
+          decision: {
+            kind: 'prepared',
+            message: initial.content,
+            admission: testEvidence('admission/receiver-open'),
+          },
+        },
       },
-      checkpoint: {
-        schema: testAdoption('checkpoint'),
-        definition: testAdoption('definition'),
-        step: value(decodeStepId('receiver-step')),
-        position: 'M1',
-        calls: [pending],
-        passages: [],
-        batch: null,
-        inputBatch: null,
-        requestPreparation: null,
-        compaction: null,
-        adoptedContext: null,
-        guard: null,
-        completedPassages: [],
-        priorConditions: null,
-      },
+      runtime,
     }),
   )
   const sent: AgentAccountHandoff[] = []

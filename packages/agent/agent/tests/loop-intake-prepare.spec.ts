@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
   AgentCheckpoint,
+  FinishCandidateContent,
   FinishIntent,
   JournalCommit,
   Preparation,
@@ -20,6 +21,7 @@ import {
   ok,
   operation,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import { alice, eventsOf, invoke, loopAssembly, type LoopAssembly } from './loop-support.ts'
 
@@ -61,12 +63,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
           if (loads === 2) {
             for (const id of ['second', 'third'])
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation(id),
-                  value: acceptedInput(id),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation(id),
+                    value: acceptedInput(id),
+                  }),
+                ),
               )
           }
           return d.journal.load(input)
@@ -120,12 +124,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
             if (calls === 1) {
               before = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late'),
-                  value: acceptedInput('late'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late'),
+                    value: acceptedInput('late'),
+                  }),
+                ),
               )
               after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
             }
@@ -187,12 +193,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     ok(await c.runExecution())
     before = (await snapshot(assembly)).checkpoint
     ok(
-      await assembly.dependencies.journal.submit({
-        ...alice,
-        execution: execution(),
-        operation: operation('live-input'),
-        value: acceptedInput('live-input'),
-      }),
+      await assembly.dependencies.journal.submit(
+        withLineage({
+          ...alice,
+          execution: execution(),
+          operation: operation('live-input'),
+          value: acceptedInput('live-input'),
+        }),
+      ),
     )
     after = (await snapshot(assembly)).checkpoint
     stopAtI8 = true
@@ -320,12 +328,14 @@ describe('I1 prepares at the fixed input boundary', () => {
             reads += 1
             if (reads === 1)
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late'),
-                  value: acceptedInput('late'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late'),
+                    value: acceptedInput('late'),
+                  }),
+                ),
               )
             return d.models.calls.admit(input)
           },
@@ -569,7 +579,7 @@ describe('I1 preparation outcomes', () => {
   it.each(['applied', 'dropped'] as const)(
     'a cannot-fit F1 commit with an unknown %s result retains the exact candidate',
     async outcome => {
-      const proposals: FinishIntent[] = []
+      const proposals: FinishCandidateContent[] = []
       const finishes: FinishIntent[] = []
       let clockReads = 0
       let currentTime = '2026-10-21T07:00:00.000Z'
@@ -585,8 +595,8 @@ describe('I1 preparation outcomes', () => {
         journal: {
           ...d.journal,
           commit(input) {
-            if (input.operation.startsWith('F1/') && input.state.kind === 'settling') {
-              proposals.push(structuredClone(input.state.intent))
+            if (input.operation.startsWith('F1/') && input.finish !== null) {
+              proposals.push(structuredClone(input.finish))
               if (proposals.length === 1)
                 assembly.controls.journal.failNext('commit', { kind: 'commit-unknown', outcome })
             }
@@ -620,7 +630,7 @@ describe('I1 preparation outcomes', () => {
 
   it('a failed clock read retains the preparation and F1 continuation without a candidate write', async () => {
     let clockReads = 0
-    const writes: FinishIntent[] = []
+    const writes: FinishCandidateContent[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       clock: {
@@ -639,8 +649,8 @@ describe('I1 preparation outcomes', () => {
       journal: {
         ...d.journal,
         commit(input) {
-          if (input.operation.startsWith('F1/') && input.state.kind === 'settling')
-            writes.push(structuredClone(input.state.intent))
+          if (input.operation.startsWith('F1/') && input.finish !== null)
+            writes.push(structuredClone(input.finish))
           return d.journal.commit(input)
         },
       },

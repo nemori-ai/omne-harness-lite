@@ -24,6 +24,7 @@ import {
   ok,
   operation,
   scene,
+  submitInput,
   type SceneQualification,
 } from './fixtures/common-journal.ts'
 import { resultCall } from './fixtures/result-call.ts'
@@ -61,7 +62,7 @@ async function messageScene(name: string, qualification: SceneQualification): Pr
     operation: operation('message-tail'),
     authority: s.opened.authority,
     expected: taken.revision,
-    checkpoint: s.input.checkpoint,
+    checkpoint: s.checkpoint,
     state: { kind: 'advancing' },
     events: [{ kind: 'message', message, source: evidence('message-admission') }],
     effects: [],
@@ -72,6 +73,8 @@ async function messageScene(name: string, qualification: SceneQualification): Pr
       admission: evidence('message-admission'),
     },
     replyAdmission: null,
+    handoff: null,
+    finish: null,
   }
   return {
     s,
@@ -108,11 +111,13 @@ async function compactionScene(name: string, qualification: SceneQualification):
     operation: operation('compact'),
     authority: s.opened.authority,
     expected: s.opened.receipt.revision,
-    checkpoint: s.input.checkpoint,
+    checkpoint: s.checkpoint,
     state: { kind: 'advancing' },
     events: [],
     effects: [],
     replyAdmission: null,
+    handoff: null,
+    finish: null,
     caller: {
       kind: 'context-transition',
       value: {
@@ -121,6 +126,13 @@ async function compactionScene(name: string, qualification: SceneQualification):
         source: evidence('model-summary'),
         derivation: evidence('derivation'),
         commitment: evidence('commitment'),
+        candidate: evidence('transition-candidate'),
+        plan: evidence('transition-plan'),
+        basis: {
+          schema: { owner: 'test', name: 'basis', revision: '1', digest: 'test:basis' },
+          value: { kind: 'null' },
+        },
+        epoch: '1',
       },
       admission: evidence('admitted-summary'),
     },
@@ -405,12 +417,7 @@ it('a write refused inside its transaction and accepted on retry does not reuse 
     priority: 'ordinary' as const,
   }
   const submit = (name: string, input: typeof value) =>
-    s.view.journal.submit({
-      ...s.access,
-      execution: s.execution,
-      operation: operation(name),
-      value: input,
-    })
+    s.view.journal.submit(submitInput(s.access, s.execution, operation(name), input))
   // The Session side has not accepted input-2 yet: the participant refuses inside the transaction.
   expect(await submit('submit-1', value)).toHaveProperty('failure.kind', 'denied')
   await accept(s, 'input-2')

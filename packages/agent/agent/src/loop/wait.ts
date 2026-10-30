@@ -97,8 +97,21 @@ export async function waitForExecutionChange<P>(
       let operationsReady = input.operations.length > 0
       for (const operation of input.operations) {
         const queried = await ports.journal.query({ ...access, execution, operation })
-        if ('failure' in queried || queried.ok.kind === 'unknown') operationsReady = false
-        if ('failure' in queried && queried.failure.kind !== 'unavailable') return queried
+        if ('failure' in queried) {
+          if (queried.failure.kind !== 'unavailable') return queried
+          operationsReady = false
+          continue
+        }
+        switch (queried.ok.kind) {
+          case 'committed':
+          case 'excluded':
+          case 'rejected':
+            // Settled, including a durable refusal: the operation no longer holds the wait.
+            break
+          case 'unknown':
+            operationsReady = false
+            break
+        }
       }
       if (operationsReady && 'ok' in latest) return succeed('ready')
       if ('ok' in latest && input.recheck != null) {

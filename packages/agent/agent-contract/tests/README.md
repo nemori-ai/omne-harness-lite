@@ -12,6 +12,8 @@
 
 [identity.spec.ts](identity.spec.ts) 检查十四个身份解码函数各自的成功与四种失败（类型、空串、过长、字符）及长度边界，`judgeAdoption`、`judgeEvidence`、`judgeAccess`、`judgeAuthority` 的成功、缺失、类型、空串、未知字段与 `identity` 拒绝，访问器不被执行、成功值被冻结，以及 `Access` 的主体判定由调用方注入、租户必须由 legal-identity 铸造。
 
+[judge-handoff.spec.ts](judge-handoff.spec.ts) 检查 `judgeHandoffPrepare` 的三个分支与 `judgeInputOrigin` 的两个分支：接受完整形状并返回不与输入共享的冻结值，`kind` 缺失或未知先于其他成员被拒，另一分支的成员得到 `unknown-field` 而不是改猜分支，嵌套成员的失败带路径（`request.reference.operation`、`advance.source.record`），外部请求的 reference、entry 与 source 三者交叉核验不一致得到 `identity`，访问器不被执行。
+
 [public-api-names.spec-d.ts](public-api-names.spec-d.ts) 是类型测试：设计页五章的每个名字都能从包入口导入，并对 `Next`、`Failure`、`Subject`、`ExecutionState`、`FinishResult`、`ExecutionControl`、`AgentEventBody`、`CallerCommit`、`AgentAccessDecision` 等判别字面量逐项断言，对 `AgentJournal` 逐一断言它可赋给五组端口接口，并断言各组端口的成员集合。它还按[扩展作者协议](../docs/public-api/extensions.md#位置与作者可见的-subject)的 subject 表逐行写出十二种形状，断言每一行恰好等于 `Subject` 联合的一个变体，十二行合起来等于整个联合。
 
 同文件核对 `AgentClock.now` 不接收参数，返回 `Reply<AgentInstant>`。它只证明形状，不证明具体时钟可用或准确。

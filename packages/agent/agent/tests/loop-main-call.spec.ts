@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator, agentModelDeliverySchema } from '@omne-harness/agent'
 import type { AgentDependencies } from '@omne-harness/agent'
-import type { Authority, JournalCommit, FinishIntent } from '@omne-harness/agent-contract'
+import type { Authority, FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeResultVersion,
@@ -20,6 +20,7 @@ import {
   ok,
   operation,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
 import {
@@ -389,7 +390,9 @@ describe('received Model result adoption', () => {
       })
       expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry'])
       expect(
-        assembly.controls.handoff.accept.calls.filter(call => call.source.kind === 'model-reply'),
+        assembly.controls.handoff.prepare.calls.filter(
+          call => call.request.source.kind === 'model-reply',
+        ),
       ).toEqual([])
     },
   )
@@ -483,8 +486,8 @@ describe('received Model result adoption', () => {
         kind: 'ended',
         conclusion: { kind: kind === 'no-reply' ? 'fail' : 'complete' },
       })
-      const replies = assembly.controls.handoff.accept.calls.filter(
-        item => item.source.kind === 'model-reply',
+      const replies = assembly.controls.handoff.prepare.calls.filter(
+        item => item.request.source.kind === 'model-reply',
       )
       expect(replies).toHaveLength(kind === 'reply' ? 1 : 0)
     },
@@ -516,7 +519,7 @@ it('a live waiting driver whose entry notification is lost rereads receiver-only
 it('no-reply waits for injected time and retains one candidate after an excluded F1 commit', async () => {
   let times = 0
   let unknown = true
-  const candidates: FinishIntent[] = []
+  const candidates: FinishCandidateContent[] = []
   const assembly = await settledAssembly([], FINAL_FAILURE, d => ({
     ...d,
     clock: {
@@ -531,8 +534,8 @@ it('no-reply waits for injected time and retains one candidate after an excluded
     journal: {
       ...d.journal,
       commit(input) {
-        if (input.state.kind === 'settling' && input.operation.startsWith('F1/')) {
-          candidates.push(input.state.intent)
+        if (input.finish !== null && input.operation.startsWith('F1/')) {
+          candidates.push(input.finish)
           if (unknown) {
             unknown = false
             assembly.controls.journal.failNext('commit', {
@@ -657,12 +660,14 @@ it('an input submitted during the call leaves the fixed request intact and reach
   ok(await c.runExecution())
   const before = await load(assembly)
   ok(
-    await assembly.dependencies.journal.submit({
-      ...alice,
-      execution: execution(),
-      operation: operation('later'),
-      value: acceptedInput('later'),
-    }),
+    await assembly.dependencies.journal.submit(
+      withLineage({
+        ...alice,
+        execution: execution(),
+        operation: operation('later'),
+        value: acceptedInput('later'),
+      }),
+    ),
   )
   assembly.release.open()
   await pushed(assembly)
@@ -670,7 +675,9 @@ it('an input submitted during the call leaves the fixed request intact and reach
   const after = await load(assembly)
   expect(after.effects[0]).toEqual(before.effects[0])
   expect(
-    assembly.controls.handoff.accept.calls.filter(item => item.source.kind === 'model-reply'),
+    assembly.controls.handoff.prepare.calls.filter(
+      item => item.request.source.kind === 'model-reply',
+    ),
   ).toHaveLength(2)
   expect(after.checkpoint.step).toBe('step-2')
   expect(after.state.kind).toBe('ended')

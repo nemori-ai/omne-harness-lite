@@ -147,7 +147,7 @@ The tests wire the doubles in [first-path-doubles.ts](tests/first-path-doubles.t
 
 The application owns two bridges in [path.ts](src/path.ts). Both bridges find the round of a call by the Agent execution that the call names. They do not read a shared "current round".
 
-- The message bridge is the Agent `MessageHandoff`. It admits the external input. For a Model reply it commits `recordMessage` with a `message` participation. The round driver commits `receive(input-handover)` after the Agent accepted the invoke.
+- The message bridge is the Agent `MessageHandoff`. Its `prepare` fixes the admission of each hand-over (H) and keeps the outcome. For the external input of an invoke it fixes the admitted message. For a Model reply it commits `recordMessage` with a `message` participation and fixes that message. A second `prepare` of the same request answers the original outcome. A different request for the same H is a `conflict`. A submit answers `unsupported`, because the bridge has no trusted migration of the entry index. `lookup` only reads the fixed outcome back, and answers `unknown` without material for an H that it did not decide. `exclude` answers `recorded` for a fixed outcome. For any other H it answers `unsupported`, because the bridge has no trusted Journal resolver for the pending request and no durable fence. The round driver commits `receive(input-handover)` after the Agent accepted the invoke.
 - The context bridge is the Agent `RequestPreparation`. On the first preparation it assembles through Request Context. On the second preparation it fixes the request from the assembled input.
 
 ## Resource lifetime and failure
@@ -302,7 +302,7 @@ Non-blocking for H03, H04 and H08. The session codecs of [#685](https://github.c
 
 ## GAP-SESSION-COORDINATOR
 
-Non-blocking for H04, H07 and H09. No Session implementation supplies the Session faces, the `AgentDrivePort` adapter, or the Session-side `MessageHandoff`. This application orders the port commits, the Agent invoke and the hand-over. Its message bridge stands in for the Session-side hand-over. The application assembly page lists these rows without an owner card. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
+Non-blocking for H04, H07 and H09. No Session implementation supplies the Session faces, the `AgentDrivePort` adapter, or the Session-side `MessageHandoff`. This application orders the port commits, the Agent invoke and the hand-over. Its message bridge stands in for the Session-side hand-over. The stand-in writes the Model reply message when `prepare` fixes the outcome, and not through the Ja commit of the Session-side plugin. It keeps its outcomes in memory and does not check the `read-message-handoff` or `exclude-message-handoff` access of the caller. Its execution `prepare` does not check the advance, so it never returns `stale-advance`. Its `lookup` and `exclude` do not check the tenant, and its outcomes are not keyed by tenant. A Session write that is unavailable or has an unknown result returns the failure and fixes no outcome. Only a validation refusal of the Session write fixes a rejection. The application assembly page lists these rows without an owner card. Owner: [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784).
 
 ## GAP-RUN-COMPLETED
 

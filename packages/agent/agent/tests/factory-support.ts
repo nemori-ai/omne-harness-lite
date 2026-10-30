@@ -34,6 +34,7 @@ export function options(configuration: Partial<AgentConfiguration> = {}): AgentR
       denialBackoffMs: 0,
       toolConcurrency: 1,
       jointCommits: [],
+      coordination: 'standalone',
       loopGuardPolicy: adoption('loop-guard'),
       ...configuration,
     },

@@ -70,7 +70,10 @@ export abstract class AgentJournalService<P> extends Service implements AgentJou
   abstract readonly acknowledge: AgentJournal<P>['acknowledge']
   abstract readonly recordResult: AgentJournal<P>['recordResult']
   abstract readonly recordControl: AgentJournal<P>['recordControl']
+  abstract readonly recordHandoff: AgentJournal<P>['recordHandoff']
+  abstract readonly prepareFinish: AgentJournal<P>['prepareFinish']
   abstract readonly tryFinish: AgentJournal<P>['tryFinish']
+  abstract readonly commitSettlement: AgentJournal<P>['commitSettlement']
   abstract readonly recordTerminalObservation: AgentJournal<P>['recordTerminalObservation']
   abstract readonly load: AgentJournal<P>['load']
   abstract readonly inputs: AgentJournal<P>['inputs']
@@ -143,7 +146,9 @@ export abstract class MessageHandoffService<P> extends Service implements Messag
   constructor(ctx: Context) {
     super(ctx, MessageHandoffService.provide)
   }
-  abstract readonly accept: MessageHandoff<P>['accept']
+  abstract readonly prepare: MessageHandoff<P>['prepare']
+  abstract readonly lookup: MessageHandoff<P>['lookup']
+  abstract readonly exclude: MessageHandoff<P>['exclude']
 }
 export const agentMessageHandoffKey = MessageHandoffService.provide
 

@@ -11,7 +11,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
 import { execution, failure, ok, type Principal } from './journal-support.ts'
-import { invoke, loopAssembly, stoppedAt } from './loop-support.ts'
+import { alice, eventually, invoke, loopAssembly, stoppedAt } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
@@ -95,6 +95,14 @@ function failLoadAt(d: Dependencies, position: string): Dependencies['journal'][
     return 'ok' in loaded && loaded.ok.checkpoint.position === position
       ? fail(PORT_FAILURE)
       : loaded
+  }
+}
+
+/** Inject at the first read after the ended commit: F4's read of the terminal ledger. */
+function failLoadWhenEnded(d: Dependencies): Dependencies['journal']['load'] {
+  return async input => {
+    const loaded = await d.journal.load(input)
+    return 'ok' in loaded && loaded.ok.state.kind === 'ended' ? fail(PORT_FAILURE) : loaded
   }
 }
 
@@ -235,10 +243,13 @@ const CASES: readonly Case[] = [
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('M3')) }),
   ],
   [
+    'Q1',
+    'handoff.prepare',
     'Q2',
-    'handoff.accept',
-    'M4',
-    d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(2)) } }),
+    d => ({
+      ...d,
+      handoff: { ...d.handoff, prepare: failing(d.handoff.prepare, fail(PORT_FAILURE), nth(2)) },
+    }),
   ],
   ['I8', 'journal.load', 'I8', d => journal(d, { load: failLoadAt(d, 'I8') })],
   ['F1', 'journal.load', 'F1', d => journal(d, { load: failLoadAt(d, 'F1') })],
@@ -248,17 +259,28 @@ const CASES: readonly Case[] = [
     'F1',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('F1')) }),
   ],
+  ['F3', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
+  [
+    'F3',
+    'journal.prepareFinish',
+    'F3',
+    d =>
+      journal(d, { prepareFinish: failing(d.journal.prepareFinish, fail(PORT_FAILURE), nth(1)) }),
+  ],
+  // An unavailable tryFinish is not a failure stop at F3: F3 goes to R0, which saves one dependency
+  // wait under the position F3 (SPEC "取消判断与路线"). A tryFinish that stays unavailable keeps the
+  // execution waiting there; a one-shot one is retried on the wake and ends the execution.
   [
     'F3',
     'journal.tryFinish',
     'F3',
-    d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
+    d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), fromNth(1)) }),
   ],
-  ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
+  ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadWhenEnded(d) })],
 ]
 
 describe('a port failure on the normal path stops the run at its node (#502 1.2 limit)', () => {
-  it.each(CASES)('%s: %s fails', async (node, _, position, inject) => {
+  it.each(CASES)('%s: %s fails', async (node, port, position, inject) => {
     const assembly = await loopAssembly([execution(), execution('exec-2')], inject)
     assembly.release.open()
     ok(await invoke(assembly))
@@ -267,6 +289,22 @@ describe('a port failure on the normal path stops the run at its node (#502 1.2 
     const state = await stoppedAt(assembly, position)
     if (node === 'F4' || node === 'O0') expect(state.kind).toBe('ended')
     else expect(state.kind).not.toBe('ended')
+    if (port !== 'journal.tryFinish') return
+    // The wait of an unavailable F3 is in memory: several check times pass, each retries
+    // tryFinish, and none of them writes a revision.
+    const read = async () =>
+      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+    const stopped = await read()
+    for (let check = 0; check < 3; check += 1) {
+      await eventually(async () => assembly.controls.clock.pending().length > 0)
+      const due = assembly.controls.clock.pending()[0]
+      if (due === undefined) throw new Error('the check time is required')
+      ok(assembly.controls.clock.advanceTo(due))
+    }
+    await eventually(async () => assembly.controls.clock.pending().length > 0)
+    const after = await read()
+    expect(after.revision).toBe(stopped.revision)
+    expect(after.state.kind).toBe('settling')
   })
 })
 
@@ -283,8 +321,11 @@ describe('a port failure before open is the answer of invoke, and the slot is gi
       }),
     ],
     [
-      'handoff.accept at Q2',
-      d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(1)) } }),
+      'handoff.prepare at Q1',
+      d => ({
+        ...d,
+        handoff: { ...d.handoff, prepare: failing(d.handoff.prepare, fail(PORT_FAILURE), nth(1)) },
+      }),
     ],
     [
       'journal.open at E0',
