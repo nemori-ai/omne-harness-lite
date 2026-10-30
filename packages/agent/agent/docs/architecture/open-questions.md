@@ -83,6 +83,8 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | U-27 | F3 提交回执未知之后的 R0 等待写不写 waiting：F3 的 tryFinish 回执未知，R0 查得原操作已排除且修订未变，再读事实不可用时，协调者经 W0 提交 waiting（等待位置 R0），执行状态变成 waiting。[Loop 算法](loop-algorithm.md#阶段与节点范围)的状态表里 waiting 不含 F3 与 R0，该节末段又写明「F3 的提交回执未知」进入 R0 保持调用节点所在的状态，读下来应留在 settling、在内存等待。F3 返回 unavailable、changed 或 blocked 之后的同类等待已在内存进行，只有这一条路径还提交 waiting。`loop-terminal.spec.ts` 中「after the memory wait of an unavailable F3」一例按现行行为断言一次 waiting 提交 | Agent 通用实现（协调者的等待写入） | 裁定这一路径在内存等待或提交 waiting，协调者与该例按裁定一致，状态表与末段的说法同步 |
 | U-28 | 两份 Journal 替身不拒绝协议之外的终结输入。第一，候选的 conclusion 与 failure 不要求配对：公开类型允许 fail 不带 FailureCandidate、complete 或 cancelled 带 no-reply 失败，两份替身的 F1 形状检查都不拒绝；协调者只写配对的组合，SPEC 只写了失败候选怎样建立。第二，commit 不核对 Passage 的位置与路线：没有作者路线候选时也能写入 before_terminal 的 Passage，之后有效取消、predecessor 为 null 的 establish-cancellation 与 prepareFinish 会走到替身的缺陷抛出，而不是返回 Reply。这两项关闭之前，替身对应分支上的变异存活体按本项计为等价 | Agent 契约（候选与 checkpoint 的公开类型及 Journal 的拒绝规则） | 第一项：类型把配对写成判别联合，或 F1 对不配对的输入答 invalid；第二项：commit 对位置与路线不符的 Passage 答 invalid，或 SPEC 写明这一状态的回答。各有一致性套件用例 |
 | U-29 | O0 经 Rh 保管 handoff 责任：[Loop 算法](loop-algorithm.md#节点表)的 O0 行与 Q5 行写明，当前不能推进时，`load.handoffs` 的未清 handoff 责任与 rejected 的 HandoffOutcome 由 O0 经 Rh（`recordHandoff`）保管。Journal 一侧的 `recordHandoff` 已由两份替身实现并有一致性套件用例；协调者的 O0 还不调用它，[节点验收表](../../../agent-contract/verification/node-acceptance.md)也没有对应的行 | Agent 通用实现（协调者 O0） | 协调者在 O0 按两行的规则调用 `recordHandoff`，节点验收表补行并由实现用例覆盖 |
+| U-30 | 终结的纯规则只有手抄副本：五类的固定次序、各责任项的目标与投影、判断判据的比较与证据归一，各写在 Agent 内存 Journal、session-adapters 内存 Journal 与 agent-contract 的测试取消政策里，agent-contract 只导出了 `obligationCategoryOf`。副本之间已有分歧：判据比较的证据归一，Agent 一侧保留 owner 与 record，会话一侧只保留 record；当前判断记录属于另一个候选时，Agent 一侧最后答 changed，会话一侧先答 blocked passages，SPEC「条件终结」与「取消判断与路线」没有写明这种情况的次序 | Agent 契约 | agent-contract 导出这些纯函数，两份替身与测试取消政策改用它；SPEC 写明判断记录属于另一个候选时的结果，一致性套件补用例 |
+| U-31 | `judgeHandoffPrepare` 只判内层值是纯数据：`result`、`transition`、`checkpoint` 等内层值没有按各自拥有者的形状判定，返回类型却写成完整的 `ProducedResult`、`PreparedContextTransition` 与 `AgentCheckpoint` | Agent 契约 | 内层值交各自拥有者的判定，或返回类型如实写出未判的部分 |
 
 <a id="agent-m05"></a>
 ## AGENT-M05 生产者的解除回执怎样进入 Journal
@@ -261,7 +263,7 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 <a id="u-15"></a>
 ### U-15 正文先于类型的写入与形状
 
-原 U-15 列出的写入与形状已有源码类型。`commit` 的 `handoff` 带 prepare、resolve 或 retire，`recordHandoff`、`prepareFinish` 与 `commitSettlement` 在 [journal.ts](../../../agent-contract/src/journal.ts)。`MessageHandoff` 的 prepare、lookup 与 exclude 在 [passages.ts](../../../agent-contract/src/passages.ts)。取消判断与路线的形状在 [finishing.ts](../../../agent-contract/src/finishing.ts)，`FinishIntent` 与 `ExecutionSnapshot.settlement` 在 [execution.ts](../../../agent-contract/src/execution.ts)，`invocationUnresolved` 在 [extensions.ts](../../../agent-contract/src/extensions.ts)。Agent 的内存 Journal 替身与协调者按这些类型实现 F1 至 F3 的普通路径。实现中尚未兑现的部分登记为上文的 U-19 至 U-29。
+原 U-15 列出的写入与形状已有源码类型。`commit` 的 `handoff` 带 prepare、resolve 或 retire，`recordHandoff`、`prepareFinish` 与 `commitSettlement` 在 [journal.ts](../../../agent-contract/src/journal.ts)。`MessageHandoff` 的 prepare、lookup 与 exclude 在 [passages.ts](../../../agent-contract/src/passages.ts)。取消判断与路线的形状在 [finishing.ts](../../../agent-contract/src/finishing.ts)，`FinishIntent` 与 `ExecutionSnapshot.settlement` 在 [execution.ts](../../../agent-contract/src/execution.ts)，`invocationUnresolved` 在 [extensions.ts](../../../agent-contract/src/extensions.ts)。Agent 的内存 Journal 替身与协调者按这些类型实现 F1 至 F3 的普通路径。实现中尚未兑现的部分登记为上文的 U-19 至 U-31。
 
 ### Model 与 Tool 的契约源码何时导出 Agent 引用的名称
 
