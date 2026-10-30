@@ -709,6 +709,36 @@ describe('sandbox 与配置', () => {
     })
   })
 
+  it('增量：第一遍开 Stryker 的 incremental，读写给定的文件，--force 时不复用；复核与没给时都不开', () => {
+    const run = {
+      root: '/repo',
+      runDir: '/out',
+      concurrency: 3,
+      testTimeoutSeconds: 60,
+      nonce: '7',
+    }
+    const plain = strykerConfig(TARGET, run)
+    expect(plain).toMatchObject({ incremental: false })
+    expect(plain).not.toHaveProperty('incrementalFile')
+    expect(plain).not.toHaveProperty('force')
+    const incremental = { file: '/out/packages__core__alpha.incremental.json', force: false }
+    expect(strykerConfig(TARGET, { ...run, incremental })).toMatchObject({
+      incremental: true,
+      incrementalFile: '/out/packages__core__alpha.incremental.json',
+      force: false,
+    })
+    expect(
+      strykerConfig(TARGET, { ...run, incremental: { ...incremental, force: true } }),
+    ).toMatchObject({ incremental: true, force: true })
+    const recheck = strykerConfig(
+      TARGET,
+      { ...run, incremental },
+      { mutate: ['src/a.ts:3:2-3:7'], timeoutMS: 1 },
+    )
+    expect(recheck).toMatchObject({ incremental: false })
+    expect(recheck).not.toHaveProperty('incrementalFile')
+  })
+
   it('复核（#649）：只变异给定位置，一个工作进程，时限加 timeoutMS，报告与 sandbox 与第一遍分开', () => {
     const run = {
       root: '/repo',

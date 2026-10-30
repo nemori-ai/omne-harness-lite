@@ -191,13 +191,34 @@ export function staticFixture(): { root: string; memberDir: string } {
   return made
 }
 
-/** 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选这个成员的计划，走准入检查读计划的路径。 */
-export function mutate(root: string, out: string, workers = '2', env: Record<string, string> = {}) {
+/**
+ * 夹具没有本仓库的影响面规则，现算不出计划：手写一份只选 `members` 的计划，走准入检查读计划的路径。
+ * 增量快照缺省放进这次调用自己的临时目录（不在夹具仓库里，也不与别的调用共用），要复用上次的结果时由 `env` 给同一个目录。
+ */
+export function mutate(
+  root: string,
+  out: string,
+  workers = '2',
+  env: Record<string, string> = {},
+  members: readonly string[] = ['packages/core/sign'],
+  args: readonly string[] = [],
+) {
   const head = git(root, 'rev-parse', 'HEAD').trim()
-  const planPath = writePlan(head, head, ['packages/core/sign'])
+  const planPath = writePlan(head, head, [...members])
   const ran = spawnSync(
     process.execPath,
-    ['--experimental-strip-types', CLI, 'run', '--root', root, '--plan', planPath, '--out', out],
+    [
+      '--experimental-strip-types',
+      CLI,
+      'run',
+      '--root',
+      root,
+      '--plan',
+      planPath,
+      '--out',
+      out,
+      ...args,
+    ],
     {
       encoding: 'utf8',
       env: {
@@ -205,6 +226,9 @@ export function mutate(root: string, out: string, workers = '2', env: Record<str
         BASELINE: undefined,
         VITEST_MAX_WORKERS: workers,
         OMNE_MUTATION_RECHECK_MAX: undefined,
+        OMNE_MUTATION_INCREMENTAL: undefined,
+        OMNE_MUTATION_PARALLEL: undefined,
+        OMNE_MUTATION_INCREMENTAL_HOME: temporary('mutation-store-'),
         ...env,
       },
     },
@@ -212,6 +236,7 @@ export function mutate(root: string, out: string, workers = '2', env: Record<str
   const summary = existsSync(join(out, 'summary.json'))
     ? (JSON.parse(readFileSync(join(out, 'summary.json'), 'utf8')) as {
         members: {
+          member: string
           counts: Record<string, number>
           valid: boolean
           score: number | null
@@ -224,6 +249,11 @@ export function mutate(root: string, out: string, workers = '2', env: Record<str
           unmutated: { file: string; start: number; end: number | null }[]
         }[]
         errors: string[]
+        incremental?: {
+          dir: string
+          force: boolean
+          members: { member: string; reused: number | null; notes: string[] }[]
+        }
       })
     : undefined
   return { ran, summary }

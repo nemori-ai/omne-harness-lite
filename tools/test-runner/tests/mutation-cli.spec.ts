@@ -10,17 +10,26 @@ const cli = (...args: string[]) => cliAt(cliRoot, ...args)
 
 describe('入口的参数', () => {
   // 归慢层：起变异入口 CLI 子进程。全量准入快层账本里这条 2.7 秒，超过单条预算 2.5 秒（负载下 7.1 秒）（tools/test-runner/README_ZH.md「归层」）。
-  it('--base、--plan 与 --members 只能给一个；不是产品成员的拒绝', { tags: ['slow'] }, () => {
-    expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
-    expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
-    expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(2)
-    const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
-    expect(tool.status).toBe(2)
-    expect(tool.stderr).toContain('只变异产品源码')
-    expect(cli('run', '--members', 'packages/core/nope', '--plan-only').stderr).toContain(
-      '不是带测试的 workspace 成员',
-    )
-  })
+  it(
+    '--base、--plan 与 --members 只能给一个，--no-incremental 与 --force 也是；不是产品成员的拒绝',
+    { tags: ['slow'] },
+    () => {
+      expect(cli('run', '--base', 'HEAD', '--members', 'apps/cli', '--plan-only').status).toBe(2)
+      expect(cli('run', '--plan', 'plan.json', '--base', 'HEAD', '--plan-only').status).toBe(2)
+      expect(cli('run', '--plan', 'plan.json', '--members', 'apps/cli', '--plan-only').status).toBe(
+        2,
+      )
+      const both = cli('run', '--no-incremental', '--force', '--plan-only')
+      expect(both.status).toBe(2)
+      expect(both.stderr).toContain('--no-incremental 与 --force 只能给一个')
+      const tool = cli('run', '--members', 'tools/repo-toolchain', '--plan-only')
+      expect(tool.status).toBe(2)
+      expect(tool.stderr).toContain('只变异产品源码')
+      expect(cli('run', '--members', 'packages/core/nope', '--plan-only').stderr).toContain(
+        '不是带测试的 workspace 成员',
+      )
+    },
+  )
 
   it('点名成员只列范围：写明跑快层', () => {
     const planned = cli('run', '--members', 'packages/core/canary', '--plan-only')

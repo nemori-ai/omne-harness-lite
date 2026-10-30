@@ -19,17 +19,16 @@ import { budgetFor, describeBudget } from '../testing/parallelism.ts'
 import { buildTargets, parseFlags, timestamp, type Flags } from '../testing/support.ts'
 import { computePlan, readPlanFile, writePlanFile, type PlanFile } from '../testing/steps.ts'
 import {
-  exactEntry,
-  isMutationReport,
-  planRecheck,
-  memberErrors,
-  memberLines,
-  recheckTargets,
-  summarizeMember,
-  type MemberMutation,
-  type MutationReport,
-} from './report.ts'
-import { isRunRecord, type RunRecord } from './run-reporter.ts'
+  incrementalMode,
+  INCREMENTAL_ENV,
+  readStore,
+  storeFingerprint,
+  storePath,
+  type Store,
+} from './incremental.ts'
+import { mutateMember, type MemberContext, type MemberOutcome } from './member.ts'
+import { memberLines } from './report.ts'
+import { runWithinBudget, type MemberWork } from './schedule.ts'
 import {
   changedTargets,
   memberTargets,
@@ -37,8 +36,6 @@ import {
   MUTATION_ROOTS,
   type MutationTarget,
 } from './scope.ts'
-import { runStryker } from './stryker.ts'
-
 const USAGE = [
   '用法：',
   '  run [--base <ref> | --plan <计划文件> | --members <成员目录,…>] [--plan-only] [--root <检出根>] [--out <目录>]',
@@ -47,10 +44,16 @@ const USAGE = [
   '      碰到的、计划里要跑测试的产品成员 src/ 下的源码行',
   '      --plan 读 test-runner 的 plan --json 写出的计划文件（准入检查用的那份），范围同 --base',
   '      --members 变异点名成员 src/ 下的全部源码（逗号分隔的仓库相对目录）',
+  '  [--no-incremental | --force]',
+  '      缺省复用同一分支上次运行里被杀、代码与杀死它的测试都没变的变异体（快照在主检出的 tmp/mutation-incremental/）',
+  `      --no-incremental 或环境变量 ${INCREMENTAL_ENV}=0 不读也不写快照；--force 全部重跑，跑完照样更新快照`,
+  '      成员之间在工作进程预算内并行；环境变量 OMNE_MUTATION_PARALLEL=0 让成员逐个跑，每个成员用整份预算',
 ].join('\n')
 
 const DEFAULT_ROOT = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const LEDGER_HOME_ENV = 'OMNE_MUTATION_LEDGER_HOME'
+/** 设为 `0` 让成员逐个跑，每个成员的 Stryker 用整份预算（并行之前的做法）。 */
+export const PARALLEL_ENV = 'OMNE_MUTATION_PARALLEL'
 
 /** 变异范围从哪来：按基线现算计划、读计划文件，或点名成员。 */
 type MutationScope =
@@ -63,6 +66,8 @@ interface MutationRequest {
   readonly scope: MutationScope
   readonly planOnly: boolean
   readonly out: string | undefined
+  readonly noIncremental: boolean
+  readonly force: boolean
 }
 
 function scopeOf(root: string, flags: Flags): MutationScope {
@@ -87,9 +92,11 @@ function parseRun(argv: readonly string[]): MutationRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--members', '--plan', '--root', '--out'],
-    ['--plan-only'],
+    ['--plan-only', '--no-incremental', '--force'],
     USAGE,
   )
+  if (flags.switches.has('--no-incremental') && flags.switches.has('--force'))
+    throw new Error(`--no-incremental 与 --force 只能给一个\n${USAGE}`)
   const root = resolve(
     flags.values.get('--root') ?? process.env['OMNE_SUBJECT_ROOT'] ?? DEFAULT_ROOT,
   )
@@ -98,6 +105,8 @@ function parseRun(argv: readonly string[]): MutationRequest {
     scope: scopeOf(root, flags),
     planOnly: flags.switches.has('--plan-only'),
     out: flags.values.get('--out'),
+    noIncremental: flags.switches.has('--no-incremental'),
+    force: flags.switches.has('--force'),
   }
 }
 
@@ -144,28 +153,6 @@ function ledgerDir(request: MutationRequest, at: Coordinates): string {
   return join(base, `${at.shortHead}${at.dirty ? '-dirty' : ''}`, timestamp(new Date()))
 }
 
-function readMutationReport(path: string): MutationReport | undefined {
-  try {
-    const report: unknown = JSON.parse(readFileSync(path, 'utf8'))
-    return isMutationReport(report) ? report : undefined
-  } catch {
-    return undefined
-  }
-}
-
-/** 运行记录读不出时为 `unreadable`：读数里的类型测试记作没测到，不影响判定。 */
-function readRunRecords(path: string): RunRecord[] | 'unreadable' {
-  try {
-    const records: unknown[] = readFileSync(path, 'utf8')
-      .split('\n')
-      .filter(line => line !== '')
-      .map(line => JSON.parse(line) as unknown)
-    return records.every(isRunRecord) ? records : 'unreadable'
-  } catch {
-    return 'unreadable'
-  }
-}
-
 async function run(request: MutationRequest): Promise<number> {
   const selection = select(request)
   const { targets } = selection
@@ -195,7 +182,7 @@ async function run(request: MutationRequest): Promise<number> {
   mkdirSync(runDir, { recursive: true })
   if (selection.kind === 'planned') writePlanFile(join(runDir, 'plan.json'), selection.plan)
   const config = readTestRunsConfig()
-  // 成员逐个变异，Stryker 的工作进程各占一个核：整份预算都给它；VITEST_MAX_WORKERS 已设时以它为准（夹具靠它钉成一个进程）。
+  // Stryker 的工作进程各占一个核：成员们合起来用整份预算；VITEST_MAX_WORKERS 已设时以它为准（夹具靠它钉成一个进程）。
   const budget = await budgetFor(config.parallel)
   const concurrency = workerCountOverride(process.env, budget.workers)
   console.log(
@@ -210,101 +197,144 @@ async function run(request: MutationRequest): Promise<number> {
     )
   )
     return 1
-  const recheckMax = effectiveRecheckMax(config, process.env)
-  const strykerRun = {
-    root: request.root,
-    runDir,
-    concurrency,
-    testTimeoutSeconds: config.mutation.testTimeoutSeconds,
-    nonce: `${process.pid}`,
-  }
-  const results: MemberMutation[] = []
-  const isUnchecked = (finding: MemberMutation['invalid'][number]) =>
-    finding.reason === 'timeoutUnchecked'
-  const errors: string[] = []
-  for (const [index, target] of targets.entries()) {
-    const ran = await runStryker(target, strykerRun)
-    const report = readMutationReport(ran.reportPath)
-    const label = `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(ran.wallSeconds)} 秒`
-    if (ran.preflightFailed) {
-      errors.push(
-        `${target.member.path}：sandbox 预检没通过，快层测试在 sandbox 里没跑通，没有做变异，日志 ${ran.logPath}`,
-      )
-      console.log(`${label}，出错`)
-      continue
-    }
-    if (ran.exitCode !== 0 || report === undefined) {
-      errors.push(
-        `${target.member.path}：Stryker 退出码 ${ran.exitCode}${report === undefined ? '，没有写出报告' : ''}，日志 ${ran.logPath}`,
-      )
-      console.log(`${label}，出错`)
-      continue
-    }
-    const runs = readRunRecords(ran.runLogPath)
-    const first = summarizeMember(target, report, { runs })
-    const reports = [ran.reportPath]
-    let result = first
-    let recheckPaths: { logPath: string; reportPath: string } | undefined
-    let seconds = ran.wallSeconds
-    // 只因时限到了而超时的，在上限内单独复核一遍；第一遍已无效（RuntimeError、没跑测试）时不再花这份时间。
-    const pending = recheckTargets(target, report)
-    if (pending.length > 0 && first.runtimeErrors === 0 && first.invalid.every(isUnchecked)) {
-      const plan = planRecheck(report, pending, recheckMax)
-      result = summarizeMember(target, report, { runs, recheckReading: plan.reading })
-      if (plan.chosen.length > 0) {
-        const again = await runStryker(target, strykerRun, {
-          mutate: plan.chosen.map(({ file, mutant }) => exactEntry(file, mutant)),
-          timeoutMS: config.mutation.testTimeoutSeconds * 1000,
-        })
-        seconds += again.wallSeconds
-        const recheck = readMutationReport(again.reportPath)
-        if (again.preflightFailed || again.exitCode !== 0 || recheck === undefined)
-          errors.push(
-            `${target.member.path}：复核的 Stryker ${again.preflightFailed ? 'sandbox 预检没通过' : `退出码 ${again.exitCode}`}` +
-              `${recheck === undefined ? '，没有写出报告' : ''}，日志 ${again.logPath}`,
-          )
-        else {
-          reports.push(again.reportPath)
-          recheckPaths = { logPath: again.logPath, reportPath: again.reportPath }
-          result = summarizeMember(target, report, {
-            recheck,
-            runs,
-            recheckReading: plan.reading,
-          })
-        }
-      }
-    }
-    results.push(result)
-    errors.push(
-      ...memberErrors(result, {
-        logPath: ran.logPath,
-        reports,
-        ...(recheckPaths === undefined ? {} : { recheck: recheckPaths }),
-      }),
-    )
+  const incremental = incrementalMode({
+    disabled: request.noIncremental,
+    force: request.force,
+    mainRoot: at.mainRoot,
+    branch: at.branch,
+    env: process.env,
+  })
+  const fingerprint = storeFingerprint(config.mutation.testTimeoutSeconds)
+  const stores = targets.map(target => {
+    if (incremental.kind === 'off') return { store: undefined, notes: [] }
+    const read = readStore(storePath(incremental.dir, target.member.path), fingerprint)
+    return 'store' in read
+      ? { store: read.store, notes: [] }
+      : { store: undefined, notes: read.miss === '没有快照' ? [] : [read.miss] }
+  })
+  if (incremental.kind === 'on') {
     console.log(
-      `[${index + 1}/${targets.length}] ${target.member.path} ${Math.round(seconds)} 秒` +
-        `${result.valid ? '' : '，测量无效'}，存活 ${result.counts.Survived}、无覆盖 ${result.counts.NoCoverage}` +
-        (result.invalid.length > 0 ? `、不计分 ${result.invalid.length}` : '') +
-        (result.rechecked.length > 0 ? `、复核 ${result.rechecked.length}` : '') +
-        (result.unmutated.length > 0 ? `、没有变异体的改动 ${result.unmutated.length} 段` : ''),
+      `增量：快照在 ${incremental.dir}${incremental.force ? '；--force：全部重跑，跑完更新快照' : ''}`,
     )
+    for (const [index, { notes }] of stores.entries())
+      for (const note of notes) console.log(`  ${targets[index]?.member.path}：${note}，整份重跑`)
+  }
+  const context: MemberContext = {
+    strykerRun: {
+      root: request.root,
+      runDir,
+      testTimeoutSeconds: config.mutation.testTimeoutSeconds,
+      nonce: `${process.pid}`,
+    },
+    recheckMax: effectiveRecheckMax(config, process.env),
+    testTimeoutSeconds: config.mutation.testTimeoutSeconds,
+    incremental,
+    fingerprint,
+  }
+  const label = (index: number) => `[${index + 1}/${targets.length}]`
+  const mutateAt = (index: number, workers: number, store: Store | undefined) => {
+    const target = targets[index]
+    if (target === undefined) throw new Error(`没有第 ${index + 1} 个成员`)
+    return mutateMember(target, workers, context, store, label(index))
+  }
+  let outcomes: MemberOutcome[]
+  if (process.env[PARALLEL_ENV] === '0' || targets.length === 1) {
+    outcomes = []
+    for (const index of targets.keys())
+      outcomes.push(await mutateAt(index, concurrency, stores[index]?.store))
+  } else {
+    const works = memberWorks(request.root, targets, stores, concurrency)
+    console.log(
+      `${targets.length} 个成员并行，合起来不超过 ${concurrency} 个工作进程，按${works.unit}分；工作量大的先开始`,
+    )
+    outcomes = await runWithinBudget(concurrency, works.works, works.order, (index, workers) => {
+      console.log(`  开始 ${label(index)} ${targets[index]?.member.path}：${workers} 个工作进程`)
+      return mutateAt(index, workers, stores[index]?.store)
+    })
   }
 
+  const results = outcomes.flatMap(outcome =>
+    outcome.result === undefined ? [] : [outcome.result],
+  )
+  const errors = outcomes.flatMap(outcome => outcome.errors)
+  const reuse = outcomes.flatMap(outcome =>
+    outcome.incremental === undefined ? [] : [outcome.incremental],
+  )
   const summary = [
     `变异范围：${scope}；只跑快层（vitest 的 mode 为 fast）；提交 ${at.shortHead}${at.dirty ? '（工作树有未提交改动）' : ''}`,
     ...results.flatMap(result => memberLines(result, true)),
     ...errors.map(error => `出错 ${error}`),
+    ...(incremental.kind === 'on'
+      ? [
+          `增量：复用上次被杀的变异体（不重跑）——${reuse.map(item => `${item.member} ${item.reused ?? '个数不明'}`).join('、')}` +
+            `${incremental.force ? '；--force 全部重跑' : ''}；` +
+            `复用只在代码与杀死它的测试都没变时发生，读数与不复用时相同；--no-incremental 或 ${INCREMENTAL_ENV}=0 关闭`,
+        ]
+      : []),
     '存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。',
     `账本与各成员日志：${runDir}`,
   ]
   writeFileSync(
     join(runDir, 'summary.json'),
-    `${JSON.stringify({ head: at.head, dirty: at.dirty, base: at.base ?? null, members: results, errors }, null, 1)}\n`,
+    `${JSON.stringify(
+      {
+        head: at.head,
+        dirty: at.dirty,
+        base: at.base ?? null,
+        members: results,
+        errors,
+        ...(incremental.kind === 'on'
+          ? { incremental: { dir: incremental.dir, force: incremental.force, members: reuse } }
+          : {}),
+      },
+      null,
+      1,
+    )}\n`,
   )
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return errors.length === 0 ? 0 : 1
+}
+
+/** 要变异的行数：整份变异的文件按它的行数算，读不出按 1 行。 */
+function scopeLines(root: string, target: MutationTarget): number {
+  return [...target.lines].reduce(
+    (sum, [path, ranges]) =>
+      sum +
+      ranges.reduce((lines, [start, end]) => {
+        if (end !== Number.POSITIVE_INFINITY) return lines + end - start + 1
+        try {
+          return lines + readFileSync(join(root, path), 'utf8').split('\n').length
+        } catch {
+          return lines + 1
+        }
+      }, 0),
+    0,
+  )
+}
+
+/**
+ * 各成员的工作量：每个成员都有快照时按上次第一遍的耗时，否则按要变异的行数（同一批成员用同一种单位）。
+ * 有快照的成员，工作进程至多给到上次的变异体数。开始的先后按工作量从大到小，相同的按成员顺序。
+ */
+function memberWorks(
+  root: string,
+  targets: readonly MutationTarget[],
+  stores: readonly { readonly store: Store | undefined }[],
+  budget: number,
+): { readonly works: MemberWork[]; readonly order: number[]; readonly unit: string } {
+  const known = stores.every(({ store }) => store !== undefined)
+  const works = targets.map((target, index) => {
+    const meta = stores[index]?.store?.meta
+    return {
+      weight: known && meta !== undefined ? meta.seconds : scopeLines(root, target),
+      cap: meta === undefined ? budget : Math.max(1, meta.mutants),
+    }
+  })
+  const order = [...works.keys()].sort(
+    (a, b) => (works[b]?.weight ?? 0) - (works[a]?.weight ?? 0) || a - b,
+  )
+  return { works, order, unit: known ? '上次的耗时' : '要变异的行数' }
 }
 
 async function main(argv: readonly string[]): Promise<number> {
