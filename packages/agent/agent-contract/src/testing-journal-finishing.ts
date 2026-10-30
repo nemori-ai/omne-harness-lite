@@ -37,6 +37,7 @@ import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
 import {
   advancement,
   advances,
+  afterTerminalPassage,
   cancelAuthorization,
   cancelControl,
   candidateContent,
@@ -3362,6 +3363,135 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
             { passage: second.id, round: sharedRound.round, lookups: [] },
           ].sort(byKey),
         )
+      },
+    },
+    {
+      name: 'MT-10: after a cancel over a complete candidate the passage items name their candidate and route: a before-terminal passage stays with the old candidate and its author route and is superseded, an after-terminal passage belongs to the cancelled candidate and its cancellation route',
+      run: async () => {
+        const opened = await fixture.open('passage-candidate-and-route')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const before = beforeTerminalPassage('closer-m10', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const after = afterTerminalPassage('observer-m10')
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [before, after] } }),
+          'F1 with a before-terminal and an after-terminal passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        const established = await establish(opened, control)
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const items = itemsOf(await load(opened)).flatMap(item =>
+          item.kind === 'passage'
+            ? [
+                {
+                  passage: item.passage.id,
+                  candidate: item.candidate,
+                  route: item.route,
+                  superseded: item.superseded,
+                },
+              ]
+            : [],
+        )
+        const byPassage = (left: { passage: string }, right: typeof left) =>
+          left.passage.localeCompare(right.passage)
+        assert.deepEqual(
+          [...items].sort(byPassage),
+          [
+            {
+              passage: before.id,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              superseded: true,
+            },
+            {
+              passage: after.id,
+              candidate: established.candidate.candidate,
+              route: established.route.record,
+              superseded: false,
+            },
+          ].sort(byPassage),
+        )
+      },
+    },
+    {
+      name: 'MT-11: a before-terminal passage that was requested under a legacy cancelled candidate belongs to that candidate and its author route before and after the migration of the cancellation',
+      run: async () => {
+        const opened = await fixture.open('passage-of-legacy-candidate')
+        if (!(await requireInstallation(opened))) return
+        if (opened.seedLegacyCandidate === undefined) {
+          await uncoveredCase('', 'seedLegacyCandidate control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        // The passage reaches the checkpoint by an ordinary commit; the seam copies it to the legacy candidate.
+        const requested = beforeTerminalPassage('closer-m11', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            commitAt(opened, at, 'with-passage', opened.authority, {
+              checkpoint: { ...at.checkpoint, position: 'with-passage', passages: [requested] },
+            }),
+          ),
+          'the commit that writes the passage',
+        )
+        const control = await effectiveCancel(opened)
+        const legacy = await opened.seedLegacyCandidate('legacy')
+        const seeded = await load(opened)
+        const authorRoute = seeded.settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const passageItem = async (name: string) => {
+          const unprepared = await load(opened)
+          await ok(
+            journal.prepareFinish(
+              prepareInput(opened, unprepared, name, cancelAuthorization(unprepared, control)),
+            ),
+            name,
+          )
+          return itemOf(await load(opened), 'passage')
+        }
+        const first = await passageItem('prepare-legacy')
+        assert.equal(first.passage.id, requested.id)
+        assert.equal(first.candidate, legacy.candidate)
+        assert.deepEqual(first.route, authorRoute.record)
+        const preparing = await load(opened)
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'migrate-cancellation'>(opened, 'migrate', {
+              kind: 'migrate-cancellation',
+              authorization: cancelAuthorization(preparing, control),
+              expected: preparing.revision,
+              candidate: legacy.candidate,
+              originalRoute: authorRoute.record,
+              installation: installationOf(opened).record,
+              priorExcluded: null,
+            }),
+          ),
+          'the migration',
+        )
+        const migrated = (await load(opened)).settlement.route
+        assert.ok(migrated !== null && migrated.kind === 'cancellation', 'the route is switched')
+        await judge(opened, control)
+        const second = await passageItem('prepare-migrated')
+        assert.equal(second.passage.id, requested.id)
+        assert.equal(second.candidate, legacy.candidate)
+        assert.deepEqual(second.route, authorRoute.record, 'the author route the candidate left')
       },
     },
   ]
