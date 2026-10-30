@@ -9,16 +9,20 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  readlinkSync,
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   symlinkSync,
+  unlinkSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { ignoredDirectories, isUnderIgnored } from '../core/git.ts'
+import { ignoredDirectories, isUnderIgnored, nulSeparated } from '../core/git.ts'
 import { isTestPath } from '../core/rule.ts'
 import { runnerRoot } from '../core/subject.ts'
 
@@ -441,11 +445,353 @@ function cacheDirectory(root: string): string {
 }
 
 /**
- * 当前工作树的依赖图（含未提交的改动）。不用 dependency-cruiser 的缓存：按 git 元数据判断变化会漏掉
- * 删掉的未跟踪文件，按内容判断又不比重跑快。
+ * 当前工作树的依赖图（含未提交的改动）。先按指纹（`workingGraphFingerprint`）查 git 公共目录里的缓存，命中就读整张图，
+ * 不起 dependency-cruiser；未命中照常算，算完写缓存。不用 dependency-cruiser 自己的缓存：按 git 元数据判断变化会漏掉
+ * 删掉的未跟踪文件，按内容判断实测也不比重跑快。`OMNE_DEP_GRAPH_CACHE=0` 关掉缓存；缓存读不到、写不进都按未命中，
+ * 既不让检查失败，也不让检查放行。
  */
 export function workingGraph(root: string): DependencyGraph {
-  return graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirectories(root)))
+  const ignoredDirs = ignoredDirectories(root)
+  const key = workingCacheEnabled() ? fingerprintOf(root, ignoredDirs) : undefined
+  let cached: string | undefined
+  if (key !== undefined) {
+    if ('reason' in key) note(`依赖图缓存：不可用（${key.reason}），重算`)
+    else {
+      cached = join(cacheDirectory(root), `working-${key.digest}.json`)
+      const hit = readWorkingCache(cached, key)
+      if (hit !== undefined) {
+        note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
+        return hit
+      }
+      note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
+    }
+  }
+  const graph = graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirs))
+  if (cached !== undefined && key !== undefined && 'digest' in key)
+    writeWorkingCache(cached, key, graph)
+  return graph
+}
+
+// ---- 工作树的图按指纹缓存 ------------------------------------------------------------------
+
+/** 关掉工作树依赖图缓存的开关：设成 `0`。基线图按提交的缓存不受它影响。 */
+export const WORKING_CACHE_SWITCH = 'OMNE_DEP_GRAPH_CACHE'
+/** 缓存目录里最多留几份工作树的图，按最近读写的时间留。 */
+const WORKING_CACHE_KEEP = 10
+
+function workingCacheEnabled(env: Readonly<Record<string, string | undefined>> = process.env) {
+  return env[WORKING_CACHE_SWITCH] !== '0'
+}
+
+/** 命中与否只在 stderr 是终端时打一行：管道里的消费者（测试、turbo）看到的输出与没有缓存时相同。 */
+function note(line: string): void {
+  if (process.stderr.isTTY === true) process.stderr.write(`${line}\n`)
+}
+
+/** 工作树依赖图的指纹：`inputs` 是逐行的输入清单（排好序），`digest` 是它的 sha256。 */
+export interface WorkingFingerprint {
+  readonly digest: string
+  readonly inputs: readonly string[]
+}
+
+/**
+ * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、dependency-cruiser 的版本、
+ * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、扫描根与根
+ * `tsconfig.base.json`、`package.json` 下未提交与未跟踪文件的路径与内容、扫描根下被忽略的路径（目录记存在与否，
+ * 单个文件记内容）、`ignoredDirectories` 的结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
+ * `root` 不在 git 工作树里或没有提交时没有指纹（返回 undefined），这样的树不缓存。
+ */
+export function workingGraphFingerprint(
+  root: string,
+  ignoredDirs: ReadonlySet<string> = ignoredDirectories(root),
+): WorkingFingerprint | undefined {
+  const key = fingerprintOf(root, ignoredDirs)
+  return 'reason' in key ? undefined : key
+}
+
+function fingerprintOf(
+  root: string,
+  ignoredDirs: ReadonlySet<string>,
+): WorkingFingerprint | { readonly reason: string } {
+  try {
+    const inputs = workingInputs(root, ignoredDirs)
+    return { digest: sha256(inputs.join('\n')), inputs }
+  } catch (error) {
+    // 算不出指纹（不在 git 仓库里、没有提交、读不到某个输入）就不缓存，照常出图；出图自己的失败由 cruise 报。
+    return { reason: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex')
+
+/** 文件的内容摘要；没有这个文件记 `absent`，这样文件出现与消失也改变指纹。 */
+function fileDigest(path: string): string {
+  return existsSync(path) ? sha256(readFileSync(path)) : 'absent'
+}
+
+/** dependency-cruiser 的版本：解析器、默认扩展名和输出都随它变。 */
+function cruiserVersion(): string {
+  const manifest = join(dirname(cruiserBin()), '..', 'package.json')
+  return (
+    (JSON.parse(readFileSync(manifest, 'utf8')) as { version?: unknown }).version?.toString() ?? '?'
+  )
+}
+
+/** 规则文件 require 后的结果：根 `.dependency-cruiser.cjs` 只是转到共享预设，预设的内容也要进指纹。 */
+function loadedConfigDigest(): string {
+  const require = createRequire(import.meta.url)
+  return sha256(JSON.stringify(require(cruiseConfig())))
+}
+
+/**
+ * tsconfig 的 `extends` 链上每个文件的内容摘要（从给定文件起）。相对路径按文件所在目录解析；包名按 Node 的
+ * 解析规则（含 exports）从文件所在位置解析，解析不到的记下说明符。文件带注释时只取 `extends` 一项的字面。
+ */
+function tsconfigDigests(file: string, seen: Set<string> = new Set()): string[] {
+  if (seen.has(file)) return []
+  seen.add(file)
+  if (!existsSync(file)) return ['absent']
+  const text = readFileSync(file, 'utf8')
+  const digests = [sha256(text)]
+  for (const value of extendsOf(text)) {
+    const target = resolveExtends(file, value)
+    digests.push(
+      ...(target === undefined ? [`unresolved ${value}`] : tsconfigDigests(target, seen)),
+    )
+  }
+  return digests
+}
+
+function extendsOf(text: string): string[] {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(text)
+  } catch {
+    const literal = /"extends"\s*:\s*"([^"]+)"/u.exec(text)?.[1]
+    return literal === undefined ? [] : [literal]
+  }
+  const value = (parsed as { extends?: unknown } | null)?.extends
+  if (typeof value === 'string') return [value]
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === 'string')
+    : []
+}
+
+function resolveExtends(from: string, value: string): string | undefined {
+  const candidates =
+    value.startsWith('.') || value.startsWith('/') || /^[a-zA-Z]:/u.test(value)
+      ? [resolve(dirname(from), value), resolve(dirname(from), `${value}.json`)]
+      : []
+  for (const candidate of candidates) if (existsSync(candidate)) return candidate
+  if (candidates.length > 0) return undefined
+  const require = createRequire(from)
+  for (const specifier of [value, `${value}.json`, `${value}/tsconfig.json`]) {
+    try {
+      return require.resolve(specifier)
+    } catch {
+      // 换下一种写法。
+    }
+  }
+  return undefined
+}
+
+const SCAN_FILES = ['tsconfig.base.json', 'package.json']
+/** 路径落在 dependency-cruiser 会扫描的范围里：扫描根之下，或根 `tsconfig.base.json`、`package.json`。 */
+function inScanScope(path: string): boolean {
+  return ROOTS.some(dir => path.startsWith(`${dir}/`)) || SCAN_FILES.includes(path)
+}
+
+/** 第 `count` 个空格之后的部分：porcelain v2 的记录里路径在固定个数的字段之后，路径本身可以含空格。 */
+function afterFields(record: string, count: number): string | undefined {
+  let index = -1
+  for (let seen = 0; seen < count; seen += 1) {
+    index = record.indexOf(' ', index + 1)
+    if (index === -1) return undefined
+  }
+  return record.slice(index + 1)
+}
+
+/**
+ * 相对 HEAD 有改动的路径：已跟踪文件的修改、删除、暂存，未跟踪文件（逐个列，不折叠成目录）。
+ * 不认改名（`--no-renames`）：改名拆成一删一增，记录里就没有带两个路径的 `2` 行。
+ */
+function changedPaths(root: string): string[] {
+  const records = nulSeparated(
+    git(root, [
+      'status',
+      '--porcelain=v2',
+      '-z',
+      '--untracked-files=all',
+      '--no-renames',
+    ]).toString(),
+  )
+  const paths: string[] = []
+  for (const record of records) {
+    const path = record.startsWith('1 ')
+      ? afterFields(record, 8)
+      : record.startsWith('u ')
+        ? afterFields(record, 10)
+        : record.startsWith('? ') || record.startsWith('! ')
+          ? record.slice(2)
+          : undefined
+    if (path !== undefined && path !== '') paths.push(path)
+  }
+  return paths
+}
+
+/**
+ * 工作树里各路径的内容标识：普通文件取 git 的对象摘要（`hash-object --no-filters`，按磁盘上的字节），
+ * 符号链接记目标，不存在记 `missing`，其余记类型。一次 `hash-object` 批量算，路径多也只起一个进程；
+ * `--stdin-paths` 按换行分路径（这版 git 的 hash-object 不认 `-z`），名字里带换行的文件在本进程里算 sha256。
+ */
+function contentIds(root: string, paths: readonly string[]): Map<string, string> {
+  const ids = new Map<string, string>()
+  const regular: string[] = []
+  for (const path of paths) {
+    let stat
+    try {
+      stat = lstatSync(join(root, path))
+    } catch {
+      ids.set(path, 'missing')
+      continue
+    }
+    if (stat.isSymbolicLink()) ids.set(path, `link ${readlinkSync(join(root, path))}`)
+    else if (!stat.isFile()) ids.set(path, stat.isDirectory() ? 'directory' : 'special')
+    else if (/[\r\n]/u.test(path)) ids.set(path, `sha256 ${sha256(readFileSync(join(root, path)))}`)
+    else regular.push(path)
+  }
+  if (regular.length > 0) {
+    const hashes = git(
+      root,
+      ['hash-object', '--stdin-paths', '--no-filters'],
+      Buffer.from(`${regular.join('\n')}\n`),
+    )
+      .toString()
+      .split('\n')
+      .filter(line => line !== '')
+    if (hashes.length !== regular.length)
+      throw new DependencyGraphUnavailable(
+        `git hash-object 给了 ${hashes.length} 个摘要，要 ${regular.length} 个`,
+      )
+    regular.forEach((path, index) => ids.set(path, hashes[index] ?? ''))
+  }
+  return ids
+}
+
+/** 指纹的输入清单：每一类输入一组行，组内按路径排序；取掉任何一组都会让对应的失效用例变红。 */
+function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[] {
+  const head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString().trim()
+  const lines = [
+    `format ${GRAPH_FORMAT}`,
+    `cruiser ${cruiserVersion()}`,
+    `config ${sha256(readFileSync(cruiseConfig()))} ${loadedConfigDigest()}`,
+    ...tsconfigDigests(cruiseTsconfig()).map(digest => `tsconfig ${digest}`),
+    `head ${head}`,
+    `roots ${ROOTS.filter(dir => existsSync(join(root, dir))).join(' ')}`,
+    `lock ${fileDigest(join(root, 'pnpm-lock.yaml'))}`,
+    `modules ${fileDigest(join(root, 'node_modules', '.modules.yaml'))}`,
+    `ignored-dirs ${[...ignoredDirs].filter(inScanScope).sort().join(' ')}`,
+  ]
+  const changed = [...new Set(changedPaths(root).filter(inScanScope))].sort()
+  const ignored = nulSeparated(
+    git(root, [
+      'ls-files',
+      '--others',
+      '--ignored',
+      '--exclude-standard',
+      '--directory',
+      '-z',
+    ]).toString(),
+  )
+    .filter(inScanScope)
+    .sort()
+  const ignoredFiles = ignored.filter(path => !path.endsWith('/'))
+  const ids = contentIds(root, [...new Set([...changed, ...ignoredFiles])])
+  for (const path of changed) lines.push(`changed ${path} ${ids.get(path) ?? ''}`)
+  for (const path of ignored)
+    lines.push(
+      path.endsWith('/')
+        ? `ignored-dir ${path.slice(0, -1)}`
+        : `ignored-file ${path} ${ids.get(path) ?? ''}`,
+    )
+  return lines
+}
+
+interface WorkingCacheEntry {
+  readonly format: string
+  readonly fingerprint: string
+  readonly inputs: readonly string[]
+  readonly graph: DependencyGraph
+}
+
+function isGraph(value: unknown): value is DependencyGraph {
+  if (typeof value !== 'object' || value === null) return false
+  const graph = value as Record<string, unknown>
+  return ['members', 'modules', 'edges', 'dependencies', 'findings'].every(key =>
+    Array.isArray(graph[key]),
+  )
+}
+
+/** 读缓存：文件不在、读不出、JSON 坏、格式或指纹对不上都算未命中。命中时摸一下时间，留份时按最近用过算。 */
+function readWorkingCache(path: string, key: WorkingFingerprint): DependencyGraph | undefined {
+  let entry: Partial<WorkingCacheEntry> | undefined
+  try {
+    entry = JSON.parse(readFileSync(path, 'utf8')) as Partial<WorkingCacheEntry>
+  } catch {
+    return undefined
+  }
+  if (
+    typeof entry !== 'object' ||
+    entry === null ||
+    entry.format !== GRAPH_FORMAT ||
+    entry.fingerprint !== key.digest ||
+    !isGraph(entry.graph)
+  )
+    return undefined
+  try {
+    const now = new Date()
+    utimesSync(path, now, now)
+  } catch {
+    // 摸不动时间只影响留哪几份。
+  }
+  return entry.graph
+}
+
+/** 写缓存：先写临时名再改名，别的进程读到的要么是整份要么没有；写不进就算了。写完只留最近 `WORKING_CACHE_KEEP` 份。 */
+function writeWorkingCache(path: string, key: WorkingFingerprint, graph: DependencyGraph): void {
+  const entry: WorkingCacheEntry = {
+    format: GRAPH_FORMAT,
+    fingerprint: key.digest,
+    inputs: key.inputs,
+    graph,
+  }
+  try {
+    mkdirSync(dirname(path), { recursive: true })
+    const staged = `${path}.${process.pid}.tmp`
+    writeFileSync(staged, JSON.stringify(entry))
+    renameSync(staged, path)
+  } catch {
+    return
+  }
+  pruneWorkingCache(dirname(path))
+}
+
+function pruneWorkingCache(directory: string): void {
+  try {
+    const entries = readdirSync(directory)
+      .filter(name => name.startsWith('working-') && name.endsWith('.json'))
+      .map(name => ({ name, mtime: statSync(join(directory, name)).mtimeMs }))
+      .sort((a, b) => b.mtime - a.mtime)
+    for (const entry of entries.slice(WORKING_CACHE_KEEP)) {
+      try {
+        unlinkSync(join(directory, entry.name))
+      } catch {
+        // 正被别的进程读着的那份下次再删。
+      }
+    }
+  } catch {
+    // 列不出目录就不清理。
+  }
 }
 
 /**
