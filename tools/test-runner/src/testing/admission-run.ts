@@ -291,23 +291,6 @@ export function admissionRunFrom(inputs: AdmissionRunInputs): AdmissionRun {
     : { ...common, mode: inputs.origin.mode, resumeFrom: null }
 }
 
-/** 一份记录全部步骤都跑完且通过：`ran: false` 当作没通过。 */
-export function allStepsPassed(run: AdmissionRun): boolean {
-  return run.steps.length > 0 && run.steps.every(step => step.ran && step.exit === 0)
-}
-
-/**
- * 这份记录是不是一次完整通过的全量准入：准入运行、工作树干净、没有失败步骤、全部步骤跑完且通过；
- * 范围是带了 `FULL=1` 的整次运行，或 H1 那次带了 `FULL=1` 的接续。只是计划判了全量的不算。
- */
-export function isCompleteFullAdmission(run: AdmissionRun): boolean {
-  const fullRequested =
-    run.mode === 'resume' ? run.resumeFrom.fullRequested : run.mode === 'full' && run.fullRequested
-  return (
-    run.admission && fullRequested && !run.dirty && run.failedStep === null && allStepsPassed(run)
-  )
-}
-
 function listJson(directory: string): string[] {
   if (!existsSync(directory)) return []
   return readdirSync(directory)
