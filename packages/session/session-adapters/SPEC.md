@@ -166,7 +166,7 @@ Session后续解释从该原事件片段重建等待，不要求Agent公开load�
 
 同根读取原ControlRecord、阶段事实、SE24/25、固定selected、原SE18/SE22及关联条目。execution-to-Run/attempt沿原SE13/SE15与grant，不由当前Run猜测。源材料未知、缺失或矛盾分别沿AD-02原失败规则，不能降为observed。
 
-Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
+本节与下文的 K 指 Session 直接发起的一次控制，即该控制的 Session 操作身份。它与 [J06](#j06-会话路径的两个-agent-提供者) 中 Agent 外部入口索引 Ki 无关。Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
 
 同一Agent事实可涉及多个原K。分别从各K原目标、意图与原选择推导进度，不能只更新第一个匹配项。全部后果及该次解释进度/答案同批发布。
 
