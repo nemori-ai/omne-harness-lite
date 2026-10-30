@@ -935,7 +935,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
   1. 参加种类与协调模式：装配核对执行记录提供者的 `capabilities.participants` 含 `message`、`context-transition`、`custody`、`processed` 四种，并核对其 `capabilities.coordination` 为 `coordinated`、与装配配置 `coordination` 相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。缺一种或模式不相等就拒绝装配。Session 不声明其他参加种类。
   2. 修订：每次参加提交的材料含本次写入的 revision 与回执。提交成功后，参加者把它记入 `ExecutionRef.revision`，把回执记入 `ExecutionRef.evidence`。事件解释按 [FR-05](#fr-05) 取得同根真实 head 及原回执，不以事件序号或事件原来源代替这两项。
 - 结果：`ExecutionRef` 总是指向一次已成立的 Agent 提交。Session 不以 `ExecutionRef.revision` 拒绝 Agent 的提交，因为日志解释进度与参加提交的投影进度可能不同；发布前仍复核权威 Session 修订。
-- 失败：参加种类不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
+- 失败：参加种类或协调模式不符时响应「不支持」。材料缺项时响应「不支持」，不保存任何一半。
 - 未知与认回：没有独立提交。
 - 责任：参加种类声明归 Agent。比对归装配。`ExecutionRef` 的维护归 Session。
 
@@ -1840,7 +1840,7 @@ Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。
 | `control`      | 执行内控制                                                                              | [PM-13](#pm-13)                                   | 受理、`denied`、`conflict`、`terminal`、`unavailable`、`commit-unknown`                                                                   |
 | `detach`       | 经恢复入口交还挂接                                                                      | [PM-04](#pm-04)                                   | 交接依据、`stale-advance`、`denied`、`unavailable`、`commit-unknown`                                                |
 | `recordResult` | 合格保管方记录迟到结果，交接为 `custody`、`processed` 或无                              | [EC-07](#ec-07)、[EC-08](#ec-08)、[PM-14](#pm-14) | 回执、`conflict`、`denied`、`unavailable`、`commit-unknown`                                                         |
-| `query`        | 原操作查询                                                                              | [PA-05](#pa-05)、[PM-07](#pm-07)                  | `committed`、`excluded`（排除证明，等于 Session 的 `not-committed`）、`unknown`、`unavailable`。Agent 的 `rejected` 只来自 `recordControl`，不属于本端口发起的操作；收到时按出站适配的翻译缺陷处置为 `unavailable`，不映成 `not-committed` |
+| `query`        | 原操作查询                                                                              | [PA-05](#pa-05)、[PM-07](#pm-07)                  | `committed`、`excluded`（排除证明，等于 Session 的 `not-committed`）、`unknown`、`unavailable`。Agent 的 `rejected` 只来自 `recordControl`，不属于本端口发起的操作；收到时的处置归出站适配 [AD-14](../session-adapters/SPEC.md#ad-14) |
 | `inspect`      | 读执行记录                                                                              | [PM-14](#pm-14)、[EC-01](#ec-01)                  | 执行状态、挂接状态、修订、结束结论与依据；`missing`（成功状态，记录不存在或已删除）；失败仅 `denied`、`unavailable` |
 | `prewarm`      | 请 Agent 宿主按新采用预建空闲实例；Agent 一侧尚无对应入口（[P-7](#具名前提与明确缺项)） | 预求值与预热                                      | 已请求；失败仅 `denied`、`unsupported`、`unavailable`                                                               |
 
