@@ -101,6 +101,8 @@ flowchart LR
 
 契约消费者不拉入提供者：只依赖 agent-contract 的调用方和只依赖 agent-cordis-contract 的消费插件，都不依赖 agent-host-local。纯契约与通用实现的根入口都不导入 Cordis。
 
+`agentMessageHandoff` 的提供者只固定准入结果，真实历史由 `agentJournal` 绑定的应用操作 J 发布。绑定在工厂开始之前固定它的历史拥有者 Adoption、原准入记录 resolver、共享事务域身份与 message、context-transition 两个提交处理器；没有这个实际组合时工厂返回 unsupported，规则见 SPEC 的“[消息准入](../SPEC.md#消息准入)”。独立装配的 `jointCommits` 为空只表示没有外部 CallerCommit 请求。
+
 ## 原消费场景的前提
 
 本页消费 [Agent 公开接口](public-api/README.md)、[Model 公开接口](../../../model/model-contract/docs/public-api.md)和 [Tool 公开接口](../../../tool/tool-contract/docs/public-api.md)。外部协调者的公开契约由其拥有者维护，本页只写 Agent 一侧的前提。顺序是协议要求。尚未运行生产提供者，不能把图当作耐久或外部效果验证。

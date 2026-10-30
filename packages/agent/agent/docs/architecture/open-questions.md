@@ -42,14 +42,14 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 - M04-1：依据 [Q1/Q1b](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6368831820)，`control` 的受理事实及其 control 事件、`recordControl` 的每个新适用阶段事实及其 control 事件，与可查询的原操作结果在同一原子边界保存，并与 `tryFinish` 共用权威排序；合法 ended 之后只保存三种迟到的责任事实，不追加事件。`recordResult` 不追加 producer 事件，T1 的 producer 事件由第二步的条件提交承载。规则见 SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与机制页的[提交点总表](mechanisms.md#提交点总表)。
 - M04-3：依据 [Q2](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369509929)，Journal 绑定以必填的 `capabilities.coordination` 声明 standalone 或 coordinated，工厂核对配置 `coordination` 严格相等并逐种比对 `jointCommits`；coordinated 绑定在 `open`、`attach`、`submit` 与 `tryFinish` 的同一次提交中完成协调核对。规则见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)与公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。
 - M04-4：依据 [Q3](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369509929)，每次建立新 execution 事实的原子 mutation 分配恰好一个新 revision，只保存认回索引的认回不分配；逐操作的首次新事实、认回与无变化边界见 SPEC 的[执行修订](../../../agent-contract/SPEC.md#执行修订)。新操作认回的回执与保留依据 [Q13](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369723218)，见 SPEC 的[原操作认回与恢复](../../../agent-contract/SPEC.md#原操作认回与恢复)。
+- M04-10：依据 [Q6/Q7/Q14 的 C3E-FM](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373930927) 第 6、7 条，消息准入分为准备记录操作 P、准入原操作 H（`MessageHandoff.prepare`）、应用操作 J（`commit` 带 `handoff.resolve` 或 `retire`）与保管记录操作 R（`recordHandoff`）。每个来源的真实历史在 J 同次提交；提供者声明了对应种类时 `caller` 为 message 或 context-transition，未声明时 `caller` 为 none，且 Journal 在工厂前固定的历史组合在同一事务兑现同样的核心历史义务，缺实际组合时工厂返回 unsupported。规则见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)与[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条；节点表的 Q1、Q2、C3、T5 与提交点总表按此写。Rh 的写入契约依据 [P5E](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6375988640)，见 SPEC 的[准入结果保管](../../../agent-contract/SPEC.md#准入结果保管)。
+- M04-12：依据同一 C3E-FM 第 8 条，H0 不是写入节点：它只读原 recorded 且 rejected 的结果、原来源请求与当前执行事实作纯路由，没有新 operation、决策帧、快照字段或事件；失败候选由 F1 条件提交写入，只保管由 O0 的 `recordHandoff` 承接。规则见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由”；节点表 H0 与提交点总表按此写。
 
 其余未决如下。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
 
 | 编号 | 出入 | 拥有者 | 阻塞 |
 | --- | --- | --- | --- |
-| M04-10 | 节点表 Q2 写“压缩加 context-transition，其他来源加 message”，不区分提供者是否声明了对应种类。独立装配的 `jointCommits` 为空表。SPEC [请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条把转换写成经 Journal 的 context-transition 交接保存，独立装配也是如此，只写由其合法历史拥有者兑现 | Loop 完整算法页与 agent-contract | 独立装配中 C3、T5 与 X5 的提交形状 |
 | M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放。[#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 已采用暂停解除挂接与崩溃恢复协议，写回卡待建，[排在 M2 之后](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6497861221)。写回之前本项保持开放。终结责任清单中责任项与处置的完整公开联合（含 #730 DD1 修订的 control 责任与原 C 受理保存义务）随同一写回卡固定，见 SPEC 的[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) | Loop 完整算法页 | E9 的实施卡补“何时提交” |
-| M04-12 | H0 的“写什么”写“失败候选或只保管的决定”，失败候选由 F1 写入，只保管由 O0 承接。H0 是否为写入节点没有写明 | Loop 完整算法页 | H0 的实施卡与提交点总表的覆盖口径 |
 
 关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中采用的进程内检查计时保持与上文 M04-2 与 M04-6 的关闭记录一致。两种 Journal 实现按裁定结果补同形测试。
 
@@ -64,7 +64,9 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | U-6 | Q14 与 C3E-FM 的外域配对：Request Context 的 decoder、CommittedCompaction 证明与 epoch 映射；Session 的参加查询桥与存储载荷 | Context（request-context-contract）与 Session | 各拥有者在自己的正文采用映射，Request Context 正文登记的“待 Agent 写回后重验”关闭 |
 | U-7 | 真实提供者证据：coordinated 四操作的同提供者事务、控制事实的跨进程原子、多页快照同修订、认回与排除的保留、永久迟到围栏、宿主的耐久接收 | Journal 提供者与宿主的实现与验证 | 真实提供者以故障注入与重启验证取证；内存替身不证明这些性质 |
 | U-8 | Tool 无引用、无副作用的只读认回入口（[Tool 配对回复](https://github.com/nemori-ai/omne-harness-lite/issues/665#issuecomment-6373072576)）；Model 侧生产者与 authority 同时失联的分支 | Tool 主干；Model 主干 | 拥有者采用对应读取能力或明确该分支继续 unknown。在此之前正文按 unknown 处理，不以普通 invoke、lookup 的 not-accepted 或当前快照冒充原结果 |
-| U-11 | 没有活体 runtime 时 submit 的公开入口：SPEC 把 submit 列为经恢复入口的执行记录操作，Cordis 服务键没有对应入口，Session 仍要求执行句柄 | Agent 运行时（#502）或宿主；Session 的 NP-03 随之放宽 | 公开入口与服务键落地，Session 正文取消“submit 仍需要执行句柄”的前提 |
+| U-11 | 没有活体 runtime 时 submit 的公开入口：SPEC 规定 submit 沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，并把它列为经恢复入口的执行记录操作，但 Cordis 服务键没有对应入口，Session 仍要求执行句柄 | Agent 运行时（#502）或宿主；Session 的 NP-03 随之放宽 | 公开入口与服务键落地，Session 正文取消“submit 仍需要执行句柄”的前提 |
+| U-12 | 外部输入逻辑意图的最终撤回：外部 K 不因 I1 失联、旧 grant 失效或一次撤权自动封闭 H，`MessageHandoff.exclude` 只覆盖内部请求的取消围栏；外部输入最终撤回的认定与封闭协议没有拥有者正文 | 原输入拥有者（会话路径为 Session，独立路径为调用方） | 原输入拥有者在自己的正文采用撤回协议，Agent 正文在“[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)”引用它。在此之前 H 保持原状态，入口只 lookup 与保管 |
+| U-13 | 永久 excluded 的原 O 的受控重新受理：SPEC 要求提供者证明怎样区分新受理与旧迟到请求、怎样序列化查询与重试，现有决定没有给出这项证明 | Journal 提供者 | 提供者方案给出区分与排序证明并经验证。在此之前原 O 永久 excluded 后不自动复用或换号 |
 
 <a id="agent-m05"></a>
 ## AGENT-M05 生产者的解除回执怎样进入 Journal

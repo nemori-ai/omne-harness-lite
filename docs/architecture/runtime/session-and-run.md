@@ -437,7 +437,7 @@ Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta
 | 事项 | 拥有者 | 闭合之前本系统怎样表现 |
 |---|---|---|
 | 共享存储事务域 | Agent 与存储拥有者联合 | [共同提交与参加关系](#共同提交与参加关系)以它为前提。没有共享事务域的装配被拒绝。不提供退化为两次提交加对账的方案。 |
-| [压缩转换的协调者一侧](https://github.com/nemori-ai/omne-harness-lite/issues/558) | 压缩转换的协调者拥有者 | Session 只承担持有者一侧的参加。协调者一侧的唯一提交点待定。 |
+| 压缩转换的参加查询桥与载荷配对 | Session 与 Request Context 的拥有者 | 协调者一侧的唯一提交点是 Agent 的应用操作 J：它把准入结果、context-transition 交接与 Session 参加者的事实在同一次提交中保存，并在同一事务建立 committed 的转换依据，见 Agent 的[请求准备与压缩](../../../packages/agent/agent-contract/SPEC.md#请求准备与压缩)第 7 条。Session 只承担持有者一侧的参加；参加查询须桥接原 J，不以派生键查空判未提交。Session 的参加查询桥、存储载荷与 Request Context 的 decoder、epoch 映射仍由各拥有者精确配对，登记为 Agent 开放问题的 [U-6](../../../packages/agent/agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。 |
 | 受理拓展点的语义 | 命令域与 hooks 拥有者 | Session 只规定[受理流水线](#受理流水线与业务流程拓展点)的顺序与提交边界。 |
 | 迟到账目与收场的读取资格 | Model 与 Tool 拥有者 | Agent 外侧的结果接收方须取得生产者读取资格，再把收场与账目写入日志。读取资格或日志交付未闭合时，相应事实保持未知，不以查不到当作未发生，也不要求 Agent 直接查询 Model 或用 Agent 事件代替账目。 |
 | 有界恢复者：Agent 记录不可解释时恢复者以原事实收束失败 | Agent 拥有者 | 恢复者不收束，Run 保持未终结，恢复任务保留并报告。Agent 执行已结束时不在此列，Session 按 Agent 的结论写终态。见[有界恢复者](control-and-recovery.md#有界恢复者)。 |

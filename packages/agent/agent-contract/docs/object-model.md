@@ -74,11 +74,12 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | 对象 | 身份 | 构造 | 状态与合法转换 | 所有者 | 销毁或保留 |
 | --- | --- | --- | --- | --- | --- |
 | AcceptedInput | InputId，由调用方分配 | invoke 或 submit 携带内容、来源依据与优先级，Journal 提供者受理时保存 | 不可变值。受理后进入 execution 的输入集合，按水位线分批承接 | Journal 提供者保存内容 | 随 execution 保留。同一身份配不同内容被拒绝 |
-| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 随建立新 execution 事实的提交保存；一个 revision 标识 execution 的完整已提交事实视图，只保存认回索引的操作不分配新 revision，规则见 SPEC 的“[执行修订](../SPEC.md#执行修订)”。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
+| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 随建立新 execution 事实的提交保存；一个 revision 标识 execution 的完整已提交事实视图，只保存认回索引的操作不分配新 revision，规则见 SPEC 的“[执行修订](../SPEC.md#执行修订)”。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null，`currentHandoff` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零。`currentHandoff` 由 P 设为 H，只由 J 的 resolve 或 retire 清除或移到后继，R 不改它 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
 | ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个合法的 tool_call 一个 Action，调用部件的三种形状见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)” | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
 | ResultResponsibility | ConsumptionId | Tool 结果经 recordResult 登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
 | ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用、accepted 阶段、control 事件与原操作结果在同一原子边界共同保存 | 阶段独立记录 reached 或 unresolved，每个新适用阶段事实与其 control 事件原子保存；后得引用由新 recording operation 附加。合法 ended 之后只接受 producer-confirmed、physically-stopped 与 duty-released 三种真实迟到事实，不追加事件 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照。与已成立阶段或原终结前提矛盾的证据按持久拒绝保存审计 |
+| ExecutionHandoff | HandoffReference：内部 H 由租户、execution、首次冻结候选的 predecessor、来源种类与稳定位置派生；外部 H 由 K（租户、execution、原入口 O）、入口种类与 InputId 派生 | 内部请求由 P 保存完整 PendingHandoff；外部请求由准入提供者的受理前记录建立，成功的 open 或 submit 把它关联进 execution | resolution 为 null、recorded 或 excluded；history 为 pending、committed、not-applicable 或 retained；retirement 只由 J 的 retire 建立。转换见 SPEC 的“[消息准入](../SPEC.md#消息准入)” | Journal 保存闭包与历史处置，准入提供者保存原结果 | 随 execution 保留到原请求、原结果、认回与迟到排除责任都释放；excluded 的 H 永不重用 |
 
 Model 接收不经过上述 ResultResponsibility 的 recordResult/release 状态链。独立接收方共同保存 received 与完整材料，并据此返回 saved；Model 自行推进其确认。Agent Loop 从 received 采用材料。
 
@@ -162,7 +163,7 @@ classDiagram
   EffectCoordinator --> ExtensionImplementations : resolves exact adoption
   EffectCoordinator --> DecisionCards : presents cards, reads replies
   EffectCoordinator --> ActionAdmission : current admission per action
-  EffectCoordinator --> MessageHandoff : per-source message admission
+  EffectCoordinator --> MessageHandoff : prepare per source, lookup and exclude on recovery
   EffectCoordinator --> ModelRuntime : admit and admission reconciliation
   ModelReceiver --> ModelRuntime : validate original admission and dispatches
   ModelReceiver --> AgentJournal : joint received material and receipt
@@ -184,7 +185,7 @@ classDiagram
   TerminalObserver --> AgentJournal : reads and records observations
 ```
 
-AgentExecution 表示逻辑记录，权威数据由 Journal 保存。AgentAccessCheck 与 AgentRegistrationHandle 是注入的端口，前者由授权领域的适配器实现，后者由宿主为每个实例提供。DecisionCards、ActionAdmission 与 MessageHandoff 也是 Agent 定义的注入端口：卡片端口由人在回路领域的适配器实现，动作准入由授权领域的适配器实现，消息准入由外部协调者或独立调用方的提供者实现。三者的形状见[公开接口页](public-api/README.md#扩展人工卡片与材料)。纯 Evaluator 只读 LoopFacts。Model 与 Tool 的调用、查询与确认由协调角色承担。RequestPreparation 交回 Context 的准备结果，Agent 不接管其排除规则。
+AgentExecution 表示逻辑记录，权威数据由 Journal 保存。AgentAccessCheck 与 AgentRegistrationHandle 是注入的端口，前者由授权领域的适配器实现，后者由宿主为每个实例提供。DecisionCards、ActionAdmission 与 MessageHandoff 也是 Agent 定义的注入端口：卡片端口由人在回路领域的适配器实现，动作准入由授权领域的适配器实现，消息准入由外部协调者或独立调用方的提供者实现。消息准入提供者固定准入结果（prepare），长期保管者经它查看原结果（lookup）并以 Journal 的 recordHandoff 保管，取消收束者经它封闭尚未发出的内部准入（exclude）；真实历史只由 Journal 的应用操作 J 发布。三者的形状见[公开接口页](public-api/README.md#扩展人工卡片与材料)。纯 Evaluator 只读 LoopFacts。Model 与 Tool 的调用、查询与确认由协调角色承担。RequestPreparation 交回 Context 的准备结果，Agent 不接管其排除规则。
 
 两种 Journal 提供者按装配选择：独立提供者单独保护输入受理和执行结束，有提交参加者的提供者在同一次提交中同时保护外部协调者的事实。ExternalCoordinator 与 CommitParticipant 属于外部协调者一侧，独立调用者不需要它们。关联不表示 Model 与 Tool 是 Agent 的子资源，Agent 的控制、卸载和空闲回收不自动取消它们。TerminalObserver 由长期宿主承接，其责任不随 runtime 空闲而丢失。
 
@@ -380,7 +381,7 @@ stateDiagram-v2
 | CardRound | answered | 原扩展以 replay 消费答复并得到最终 Conclusion。官方准入的卡片收到附言时，官方准入在 replay 中经 `ActionAdmission.admit` 取得授权对附言的解释结果 | processed | 同一扩展调用的全部轮次一起进入 processed |
 | CardRound | requested | present 返回 denied 或 conflict | present-failed | 失败原因已保存；屏障条件把它计为已处理 |
 | CardRound | answered | 同一扩展调用后来的一轮 present 确定失败 | processed | 以该拒绝 Conclusion 为处理依据，全部早先轮次一起进入 processed |
-| ActionBatch | 无 | 模型完整回复被消息准入接纳且含合法的 tool_call | 屏障 closed | 每个动作的链已建立 |
+| ActionBatch | 无 | 模型完整回复经消息准入 prepared 并由 J 进入历史，且含合法的 tool_call | 屏障 closed | 每个动作的链已建立 |
 | ActionBatch | 屏障 closed | SPEC“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 4 条的打开条件成立 | 屏障 open | 打开依据已随 checkpoint 提交 |
 | ActionBatch | 屏障 closed | 同节第 9 条的全拒条件成立 | 屏障 all-denied | 拒绝原因已保存，不经过整批范围 |
 | ActionBatch | 屏障 closed | 官方准入返回 unavailable，或 admit 返回 denied、unavailable 的 Failure | 屏障 all-denied | 准入不可用的依据已保存。同批未呈现的卡片轮次不再呈现，已呈现且尚无答复的卡片已作废，仍在运行的链不再被等待 |
@@ -392,7 +393,7 @@ stateDiagram-v2
 | ActionSlot | dispatched | Tool 确认转后台并给出耐久占位 | background | 占位已保管，只释放占位的前台交付。最终结果到达时占位不改写 |
 | ActionSlot | 缺槽位或 dispatched、result、background | 较早尝试未决或已知受理，后来 invoke 返回 rejected | 保留原状态、pending、完整请求、consumer 与 effect intent | 原 open 屏障不变。缺槽位是未决，认回原受理后沿原槽位恢复，不产生竞争 denied |
 | ActionBatch | 槽位逐个建立 | 本批每个动作都已有槽位，且全部槽位为 denied、result 或 background | 整批经过可以运行（若至少一个槽位曾为 dispatched） | 等待并发名额的获准动作尚无槽位时不成立 |
-| ActionSlot | denied、result 或 background | 单结果经过结束（后台槽位不经过），候选消息形成，再经消息准入 | 同一状态，`each`、`candidate`、`handoff` 依次记入 | 进度随 checkpoint 提交，恢复时不重复调用与提交 |
+| ActionSlot | denied、result 或 background | 单结果经过结束（后台槽位不经过），候选消息形成，再经消息准入：P 固定候选并记 `handoff` 为 H 的引用，prepare 取得结果，J 把结果与真实历史同次提交 | 同一状态，`each`、`candidate`、`handoff` 依次记入 | 进度随 checkpoint 提交，恢复时不重复调用与提交；完整结果由 `ExecutionSnapshot.handoffs` 解析 |
 
 ### AdvancementFact 与状态的对应
 
@@ -436,6 +437,7 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
 | 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed 或 blocked（inputs、controls、operations、passages、custody） | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
 | 原操作查询 | committed、rejected、excluded、unknown | SPEC 的“并发与提交”的“查询的四种结论与持久拒绝” |
+| 消息准入 | prepare 的 decision 为 prepared 或 rejected；lookup 的结论为 recorded、excluded 或 unknown；J 的 HandoffHistory 为 pending、committed、not-applicable 或 retained | SPEC 的“主干运行契约”的“消息准入”与“托管协调与运行实例”的“准入结果保管” |
 | Journal 绑定 | `coordination` 为 standalone 或 coordinated，使用期内不变 | SPEC 的“提交参加者协议” |
 | ControlRecord | 各阶段 reached 或 unresolved | SPEC 的“取消、退出与结构变更” |
 | 接收面条目 AgentJournalEntry | 一经提交不可变。种类有 start-fence、received，联合事先声明开放 | SPEC 的“生产者接收面”的“日志条目” |

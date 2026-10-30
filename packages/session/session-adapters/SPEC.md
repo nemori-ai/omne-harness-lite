@@ -59,7 +59,7 @@
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
 | [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读输入为 `coordinator` | `invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach`、`reconcile` | `recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
-| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator` | MessageHandoff.accept；CurrentConditions.read | 生产插件未交付 |
+| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator` | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 生产插件未交付 |
 | [显示适配](#实时显示适配) | 实时流显示 | 观察 | 无 | 读取关联时为 `reader` | 公共 StreamObserver.observe 与 StreamFrame | 只规定消费行为；生产插件未交付 |
 
 「可登记」只说明邻域一侧的入口已经存在。它不表示已经实现或验证。
@@ -352,7 +352,7 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 
 | 提供者 | 消费的公开输入 | 本插件责任与结果 |
 | --- | --- | --- |
-| `agentMessageHandoff` | `MessageHandoff.accept` 的 Access、execution、operation、advance、source、candidate | 依 Agent 的[消息准入](../../agent/agent-contract/SPEC.md#消息准入)核六类原来源、候选消息及原位置。允许时返回 accepted 和准入证据。模型完整回复、工具结果、被拒绝动作的拒绝消息、系统提醒与压缩转换消息只因校验失败或保存失败返回 rejected，附原原因及证据。外部输入的内容处理与业务否决由 Session 受理方在交给 Agent 前完成，本端口不追加业务否决。身份或依赖失败沿 Agent Reply 返回，不变成 rejected。证据绑定本次候选及原来源；不在 accept 内写 Session 消息。最终消息仍由 AD-01 的 message 参加写入，拒收不伪造已提交消息。 |
+| `agentMessageHandoff` | `MessageHandoff.prepare` 的 Access 与判别分支（execution 带 PendingHandoff 与 advance；invoke 带 InputHandoff 与 InvokeRuntimeContext；submit 只带 InputHandoff）；`lookup` 的 Access 与 HandoffLookup；`exclude` 的 Access、PendingHandoff 与取消 control | 依 Agent 的[消息准入](../../agent/agent-contract/SPEC.md#消息准入)核六类原来源、候选消息及原位置。prepare 先耐久固定 K 到 H 的映射、完整原 request 与 origin，再固定 prepared（确切消息与准入证据）或 rejected（原原因与证据）后返回；同 K 或 H 配同完整业务输入认回原结果，异输入 conflict。模型完整回复、工具结果、被拒绝动作的拒绝消息、系统提醒与压缩转换消息只因校验失败或保存失败返回 rejected。外部输入的内容处理与业务否决由 Session 受理方在交给 Agent 前完成，本端口不追加业务否决。submit 分支只核原 execution 的当前提交资格，不要求活体 runtime、挂接或槽。lookup 只核当前读取资格，返回 recorded、excluded 或 unknown，不转换、不写历史；exclude 从同一日志的可信 P 与取消 control 核验后封闭尚未发出的内部准入，不写 Session 消息。身份或依赖失败沿 Agent Reply 返回，不变成 rejected。证据绑定本次候选及原来源；prepare 不写 Session 消息。最终消息仍由 Agent 的应用操作 J 经 AD-01 的 message 或 context-transition 参加写入，prepared 不伪造已提交消息。 |
 | `agentConditions` | `CurrentConditions.read` 的 Access、advance、previous | 以原 Authority/grant 定位当前 Session Run，读取当前 Session 事实和实际已采用配置、模型选择、Context 及 bindings，构造公开 RuntimeConditions。source 是这些事实的真实依据。previous 只供比对，不授予资格或允许复用失效条件。缺少任何必要原来源时 unavailable，不用模式词补造推进授权，也不从默认配置填空。 |
 
 两个插件都逐次核当前访问与原租户关系。其当前来源、合法 Authority、配置/Context 采用和受理前内容政策仍由各原拥有者提供，本规格不发布新的政策端口。真实提供者未交付时不能装一个默认允许或空条件的插件冒充就绪。
