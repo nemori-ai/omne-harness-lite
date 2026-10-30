@@ -1,7 +1,9 @@
 // 步骤图运行器：依赖顺序、轻步骤并发上限、一步失败其余终止、日志与退出码；逐步表与关键路径是纯函数。
+import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   checkGraph,
@@ -178,6 +180,64 @@ describe('逐步表与关键路径', () => {
     expect(criticalPath(results)).toEqual(['build', 'typecheck', 'test', 'acceptance', 'loop'])
     // 轻步骤与关键路径重叠时不进路径。
     expect(criticalPath([result('build', 0, 10), result('docs', 0, 30)])).toEqual(['docs'])
+  })
+
+  // criticalPath 是同步函数，挂死时 vitest 的用例超时拦不住；所以放进子进程，由 spawnSync 的 timeout 强杀。
+  const runCriticalPaths = (cases: StepResult[][]): string[][] => {
+    const module = pathToFileURL(join(import.meta.dirname, '../src/testing/check.ts')).href
+    const script = `import(${JSON.stringify(module)}).then(m => {
+      const cases = JSON.parse(require('node:fs').readFileSync(0, 'utf8'))
+      process.stdout.write(JSON.stringify(cases.map(c => m.criticalPath(c))))
+    })`
+    const run = spawnSync(process.execPath, ['-e', script], {
+      input: JSON.stringify(cases),
+      timeout: 10_000,
+      encoding: 'utf8',
+      maxBuffer: 64 * 1024 * 1024,
+    })
+    expect(run.error?.message, '子进程超时或出错（挂死）').toBeUndefined()
+    expect(run.status, run.stderr).toBe(0)
+    return JSON.parse(run.stdout) as string[][]
+  }
+  const expectBounded = (inputs: StepResult[], path: string[]) => {
+    expect(path.length).toBeLessThanOrEqual(inputs.length)
+    expect(new Set(path).size).toBe(path.length)
+  }
+
+  it('关键路径：同一毫秒的两个零时长步骤加一个正常步骤也会返回，路径无重复', () => {
+    const inputs = [result('a', 5, 5), result('b', 5, 5), result('c', 0, 5)]
+    const [path] = runCriticalPaths([inputs])
+    expectBounded(inputs, path!)
+  })
+
+  it('关键路径：全部是同一毫秒的零时长步骤也会返回', () => {
+    const inputs = ['a', 'b', 'c', 'd'].map(name => result(name, 7, 7))
+    const [path] = runCriticalPaths([inputs])
+    expectBounded(inputs, path!)
+  })
+
+  it('关键路径：结束早于开始的坏数据也会返回', () => {
+    const inputs = [result('a', 10, 3), result('b', 8, 2), result('c', 5, 1)]
+    const [path] = runCriticalPaths([inputs])
+    expectBounded(inputs, path!)
+  })
+
+  it('关键路径性质：200 组起止取 0 到 5 的随机结果都返回、不重复、不超过输入长度', () => {
+    // 确定的伪随机数发生器（mulberry32），保证可复现。
+    let seed = 953
+    const random = () => {
+      seed = (seed + 0x6d2b79f5) | 0
+      let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+    }
+    const int = (max: number) => Math.floor(random() * (max + 1))
+    const cases = Array.from({ length: 200 }, () =>
+      Array.from({ length: 1 + int(5) }, (_, index) => result(`s${index}`, int(5), int(5))),
+    )
+    const paths = runCriticalPaths(cases)
+    expect(paths).toHaveLength(200)
+    cases.forEach((inputs, index) => expectBounded(inputs, paths[index]!))
   })
 
   it('轻步骤并发：核的三分之一，至少 2', () => {

@@ -16,15 +16,30 @@ import {
   planCheck,
   RESIDENT_STEPS,
   type CheckPlan,
+  type LockfileJudge,
 } from '../src/testing/scope.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
+import { lockfileImpact } from '../src/testing/lockfile-impact.ts'
+import {
+  BASE as LOCK_BASE,
+  EQUIVALENT,
+  ONE_MEMBER_DEPENDENCY,
+  OVERRIDES,
+  SHARED_UPGRADE,
+  UNPARSABLE,
+} from './fixtures/lockfiles.ts'
 import {
   fileTree,
   listWorkspaceMembers,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
-import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
+import {
+  computePlan,
+  fullRequested,
+  lockfileImpactBetween,
+  readPlanFile,
+} from '../src/testing/steps.ts'
 import { checkSteps, residentStepNames } from '../src/testing/check-steps.ts'
 import { dependentMembers, listedMembers, packageNames } from '../src/testing/turbo.ts'
 
@@ -263,9 +278,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('根清单：全量，理由说出文件与命中的模式', () => {
-    const result = plan(['docs/a.md', 'pnpm-lock.yaml'])
+    const result = plan(['docs/a.md', 'pnpm-workspace.yaml'])
     expect(result.mode).toBe('full')
-    expect(result.reason).toBe('全局文件 pnpm-lock.yaml 有改动（命中 pnpm-lock.yaml）')
+    expect(result.reason).toBe('全局文件 pnpm-workspace.yaml 有改动（命中 pnpm-workspace.yaml）')
     expect(result.test).toEqual(
       MEMBERS.filter(member => !member.path.includes('.legacy/')).map(member => member.path),
     )
@@ -289,8 +304,12 @@ describe('影响面计划（真实规则）', () => {
     }
   })
 
-  it('锁文件：全量', () => {
-    expect(plan(['pnpm-lock.yaml']).mode).toBe('full')
+  it('锁文件单独一类；没有锁文件判定时判全量，理由写明', () => {
+    const result = plan(['pnpm-lock.yaml'])
+    expect(result.mode).toBe('full')
+    expect(result.files[0]?.category).toBe('lockfile')
+    expect(result.reason).toBe('pnpm-lock.yaml 有改动，没有锁文件判定，判为全量')
+    expect(describe_(result)).toContain('锁文件 1 个：pnpm-lock.yaml')
   })
 
   it('选择配置和依赖规则：全量，理由指向全局文件', () => {
@@ -361,7 +380,8 @@ describe('影响面计划（真实规则）', () => {
     const fixture = plan([
       'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
-    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/repo-toolchain' })
+    // 夹具目录同时被 dev-flow、test-runner 的测试读到，读者规则排在成员归属之前；归属仍记着 repo-toolchain。
+    expect(fixture.files[0]).toMatchObject({ category: 'reader', owner: 'tools/repo-toolchain' })
     // 依赖 repo-toolchain 的三个工具成员按 turbo 的下游规则一起选中。
     expect(fixture.test).toEqual([
       'tools/repo-toolchain',
@@ -401,6 +421,200 @@ describe('影响面计划（真实规则）', () => {
 })
 
 // #793 按测量收窄的三条规则：每条有正例与反例；硬线（改代码跑影响面测试、未识别文件全量）不变。
+// 锁文件按 importer 映射（#953 W2-C1）：成员清单加上锁文件夹具里的四个 importer，再加一个依赖 c 的成员 d 看下游；
+// turbo 的 `--affected` 在这里按「成员目录里有文件改动」模拟，所以只改锁文件时它什么都不选，映射到的成员全靠计划并进去。
+const LOCK_MEMBERS = [
+  ...MEMBERS,
+  member('packages/a'),
+  member('packages/b'),
+  member('packages/c'),
+  member('packages/shared'),
+  member('packages/d', ['@x/c']),
+]
+const ACTIVE_LOCK_MEMBERS = LOCK_MEMBERS.filter(entry => !entry.path.includes('.legacy')).map(
+  entry => entry.path,
+)
+function planLock(paths: string[], judge: LockfileJudge | string, dependents = true): CheckPlan {
+  const judgeLockfile: LockfileJudge =
+    typeof judge === 'string' ? () => lockfileImpact(LOCK_BASE, judge, LOCK_MEMBERS) : judge
+  return planCheck(
+    paths,
+    LOCK_MEMBERS,
+    RULES,
+    turboLike(paths, LOCK_MEMBERS),
+    false,
+    dependents ? seeds => dependentsLike(seeds, LOCK_MEMBERS) : undefined,
+    judgeLockfile,
+  )
+}
+
+describe('锁文件按 importer 映射到成员（W2-C1）', () => {
+  it('只改一个成员的依赖：只选那个成员与它的下游；说明写明映射结论与每个成员的原因', () => {
+    const result = planLock(['pnpm-lock.yaml'], ONE_MEMBER_DEPENDENCY)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/c', 'packages/d'])
+    expect(result.members).toEqual([
+      {
+        path: 'packages/c',
+        changed: [],
+        reads: [],
+        lockfile: { importerChanged: true, packages: ['extra@1.0.0'] },
+      },
+      { path: 'packages/d', changed: [], reads: [], downstream: true },
+    ])
+    expect(result.lockfile).toContain('lockfile 改动按 importer 映射到 1 个成员：packages/c')
+    expect(result.reason).toContain('锁文件里依赖变了 1 个、依赖方 1 个')
+    const text = describe_(result)
+    expect(text).toContain('锁文件 1 个：pnpm-lock.yaml')
+    expect(text).toContain('  锁文件：lockfile 改动按 importer 映射到 1 个成员：packages/c')
+    expect(text).toContain('packages/c：锁文件里它依赖的 extra@1.0.0 变了（importer 条目也变了）')
+    expect(text).toContain('packages/d：依赖了改动过代码的成员（turbo --affected）')
+  })
+
+  it('升级一个被两个成员依赖的包：直接与间接依赖它的成员都选中，不相关的不选', () => {
+    const result = planLock(['pnpm-lock.yaml'], SHARED_UPGRADE)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/a', 'packages/b'])
+    expect(result.members.map(entry => entry.path)).toEqual(['packages/a', 'packages/b'])
+    expect(result.members[0]?.lockfile?.importerChanged).toBe(false)
+    expect(describe_(result)).toContain('packages/a：锁文件里它依赖的 ')
+  })
+
+  it('顶层 overrides 有变化：全量，原因原样带出映射模块的结论', () => {
+    const result = planLock(['pnpm-lock.yaml'], OVERRIDES)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toBe('pnpm-lock.yaml 有改动：lockfile 顶层 overrides 有变化，判为全量')
+    expect(result.files[0]?.category).toBe('lockfile')
+  })
+
+  it('解析失败：全量，原因写明哪一份', () => {
+    const result = planLock(['pnpm-lock.yaml'], UNPARSABLE)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toMatch(/^pnpm-lock\.yaml 有改动：HEAD 的 pnpm-lock\.yaml 解析失败/u)
+  })
+
+  it('两份等价：不因锁文件选成员，说明写明等价', () => {
+    const result = planLock(['pnpm-lock.yaml'], EQUIVALENT)
+    expect(result.mode).toBe('scoped')
+    expect(result.members).toEqual([])
+    expect(result.test).toEqual([])
+    expect(result.lockfile).toBe('两份 pnpm-lock.yaml 解析后等价')
+    expect(describe_(result)).toContain('  锁文件：两份 pnpm-lock.yaml 解析后等价')
+  })
+
+  it('锁文件与别的全局文件一起改：不问判定，直接全量，理由提到锁文件', () => {
+    let asked = false
+    const result = planLock(['pnpm-lock.yaml', 'package.json'], () => {
+      asked = true
+      return { kind: 'unchanged', reason: '不该被问' }
+    })
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toBe(
+      '全局文件 package.json 有改动（命中 package.json），另有 pnpm-lock.yaml',
+    )
+  })
+
+  // 引擎改了，这次的计划就是用改过的引擎算的：锁文件判定、接续与运行记录的模块都不能给自己划范围。
+  const ENGINE_FILES = [
+    'tools/test-runner/src/testing/lockfile-impact.ts',
+    'tools/test-runner/src/testing/pnpm-lockfile.ts',
+    'tools/test-runner/src/testing/resume.ts',
+    'tools/test-runner/src/testing/admission-run.ts',
+  ]
+
+  it.each(ENGINE_FILES)('引擎模块 %s 是全局文件：改它判全量', path => {
+    expect(classify(path, LOCK_MEMBERS, RULES)).toMatchObject({ category: 'global', rule: path })
+    expect(planLock([path], () => ({ kind: 'unchanged', reason: '不该被问' })).mode).toBe('full')
+  })
+
+  it('锁文件与解析它的引擎模块一起改：不问映射，直接全量', () => {
+    let asked = false
+    const result = planLock(
+      ['pnpm-lock.yaml', 'tools/test-runner/src/testing/pnpm-lockfile.ts'],
+      () => {
+        asked = true
+        return { kind: 'unchanged', reason: '不该被问' }
+      },
+    )
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toContain('tools/test-runner/src/testing/pnpm-lockfile.ts')
+  })
+
+  it('引擎自己（tools/test-runner）在映射里或在映射成员的下游里：全量', () => {
+    const direct = planLock(['pnpm-lock.yaml'], () => ({
+      kind: 'members',
+      members: [{ path: 'tools/test-runner', importerChanged: true, packages: [] }],
+      reason: '映射到 1 个成员：tools/test-runner',
+    }))
+    expect(direct.mode).toBe('full')
+    expect(direct.reason).toContain('tools/test-runner 自己的依赖变了，引擎不能给自己划范围')
+    // repo-toolchain 的下游里有 test-runner（成员清单里 test-runner 依赖它）。
+    const downstream = planLock(['pnpm-lock.yaml'], () => ({
+      kind: 'members',
+      members: [{ path: 'tools/repo-toolchain', importerChanged: true, packages: [] }],
+      reason: '映射到 1 个成员：tools/repo-toolchain',
+    }))
+    expect(downstream.mode).toBe('full')
+    expect(downstream.reason).toContain('tools/test-runner 自己的依赖变了')
+  })
+
+  it('映射到的成员是合法种子：与只改了文档的成员同时出现时不判「解释不了」，文档种子的下游照拿掉', () => {
+    const result = planLock(['pnpm-lock.yaml', 'packages/core/base/SPEC.md'], ONE_MEMBER_DEPENDENCY)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/c', 'packages/d'])
+    expect(result.documentsOnly).toEqual([
+      { path: 'packages/core/base', files: ['packages/core/base/SPEC.md'] },
+    ])
+    expect(result.reason).toContain('只改了文档、不选的成员 1 个')
+  })
+
+  it('锁文件与别的成员的代码一起改：两边的成员都进来；映射成员自己也改了代码时不算依赖方', () => {
+    const both = planLock(['pnpm-lock.yaml', 'packages/infra/leaf/src/x.ts'], ONE_MEMBER_DEPENDENCY)
+    expect(both.mode).toBe('scoped')
+    expect(both.test).toEqual([
+      'packages/infra/leaf',
+      'tools/product-checks',
+      'packages/c',
+      'packages/d',
+    ])
+    const same = planLock(['pnpm-lock.yaml', 'packages/c/src/x.ts'], ONE_MEMBER_DEPENDENCY)
+    expect(same.members.find(entry => entry.path === 'packages/c')).toEqual({
+      path: 'packages/c',
+      changed: ['packages/c/src/x.ts'],
+      reads: [],
+      lockfile: { importerChanged: true, packages: ['extra@1.0.0'] },
+    })
+    expect(same.reason).toContain('自己改了 1 个、锁文件里依赖变了 1 个、依赖方 1 个')
+  })
+
+  it('映射到了成员却没给依赖图：报错，不照猜的范围少跑', () => {
+    expect(() => planLock(['pnpm-lock.yaml'], ONE_MEMBER_DEPENDENCY, false)).toThrow(
+      '没有给出 turbo 的依赖图',
+    )
+  })
+
+  it('FULL=1 不问判定；全量清单含锁文件夹具的成员', () => {
+    let asked = false
+    const result = planCheck(
+      ['pnpm-lock.yaml'],
+      LOCK_MEMBERS,
+      RULES,
+      new Set(),
+      true,
+      undefined,
+      () => {
+        asked = true
+        return { kind: 'unchanged', reason: '不该被问' }
+      },
+    )
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.test).toEqual(ACTIVE_LOCK_MEMBERS)
+  })
+})
+
 describe('按测量收窄的规则（#793）', () => {
   it('N1：只改 .meta_harness/human/ 下的文件只需常驻检查；.meta_harness 下别的未登记目录仍判全量', () => {
     const human = plan([
@@ -594,6 +808,28 @@ describe('按测量收窄的规则（#793）', () => {
     expect(other.test).toEqual([])
   })
 
+  it('repo-toolchain 的源码与夹具被 dev-flow、test-runner 的测试经相对路径读到：按读者规则选中；无关文档不选', () => {
+    // 真实依赖图里这两个成员装的是 npm 上钉住的 repo-toolchain，没有指向本地成员的边，
+    // 所以这里的成员清单也不给它们依赖，只靠读者规则选中。
+    const members = MEMBERS.map(entry =>
+      entry.path === 'tools/dev-flow' || entry.path === 'tools/test-runner'
+        ? { ...entry, dependencies: [] }
+        : entry,
+    )
+    for (const path of [
+      'tools/repo-toolchain/src/deps/graph.ts',
+      'tools/repo-toolchain/tests/fixtures/loop-canary/repository.ts',
+    ]) {
+      const result = planWith([path], members)
+      expect(result.test, path).toEqual(
+        expect.arrayContaining(['tools/repo-toolchain', 'tools/dev-flow', 'tools/test-runner']),
+      )
+    }
+    const doc = planWith(['tools/repo-toolchain/README.md'], members)
+    expect(doc.test).not.toContain('tools/dev-flow')
+    expect(doc.test).not.toContain('tools/test-runner')
+  })
+
   it('新顶层文件仍判全量；改代码仍选中成员与下游', () => {
     expect(plan(['m793-new.txt']).mode).toBe('full')
     expect(plan(['packages/core/mid/src/a.ts']).test).toEqual([
@@ -646,6 +882,18 @@ describe('真实仓库', () => {
 
   it('基线不存在：引擎报错，不改判全量', () => {
     expect(() => computePlan(ROOT, 'no-such-ref-for-affected-spec', false)).toThrow()
+  })
+
+  it('两边的锁文件从 git 取：同一个提交两边等价；哪一边取不到就判全量并写明', () => {
+    const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+    expect(lockfileImpactBetween(ROOT, 'HEAD', 'HEAD', members)).toEqual({
+      kind: 'unchanged',
+      reason: '两份 pnpm-lock.yaml 解析后等价',
+    })
+    expect(lockfileImpactBetween(ROOT, 'no-such-ref-for-affected-spec', 'HEAD', members)).toEqual({
+      kind: 'full',
+      reason: '基线 no-such-r 上没有 pnpm-lock.yaml，判为全量',
+    })
   })
 })
 

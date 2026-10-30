@@ -162,6 +162,8 @@ describe('账本根', () => {
   })
 })
 
+const CACHE_EMPTY = { env: [], ignoreEnv: [] }
+
 const AFFECTED_EMPTY = {
   excludeRoots: [],
   globalPaths: [],
@@ -188,6 +190,7 @@ describe('并行度', () => {
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
     mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+    cache: CACHE_EMPTY,
   })
   const budget = {
     workers: 20,
@@ -227,6 +230,7 @@ describe('并行度', () => {
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.memberDivisor')
     expect(() =>
@@ -236,6 +240,7 @@ describe('并行度', () => {
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.memberDivisor')
     expect(() =>
@@ -245,6 +250,7 @@ describe('并行度', () => {
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
       }),
     ).toThrow('parallel.minimum 不能大于')
   })
