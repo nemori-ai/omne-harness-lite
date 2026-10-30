@@ -37,7 +37,7 @@ import type {
   InputId,
   PassageId,
 } from './identity.ts'
-import type { EffectIntent } from './journal.ts'
+import type { EffectIntent, ExecutionHandoff } from './journal.ts'
 import type { AgentJournalEntry } from './receiving.ts'
 
 export type ExecutionState =
@@ -60,6 +60,8 @@ export type ExecutionSnapshot = Readonly<{
   results: readonly ResultResponsibility[]
   effects: readonly EffectIntent[]
   terminalObservations: readonly TerminalObservation[]
+  /** Every unsettled handoff responsibility and every record still referenced, at this revision. */
+  handoffs: readonly ExecutionHandoff[]
   output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
   /**
    * The committed receiving entries in commit order, when the provider serves
@@ -371,10 +373,19 @@ export type AgentAccessOperation =
   | 'detach'
   | 'record-terminal-observation'
   | 'receive-result'
+  | 'read-message-handoff'
+  | 'record-message-handoff'
+  | 'exclude-message-handoff'
+/**
+ * What one public operation acts on. The execution target is the logical execution alone, without
+ * an instance; the input-entry target is the execution with the original entry operation O
+ * (SPEC "主体资格核验").
+ */
 export type AgentAccessTarget =
   | Readonly<{ kind: 'scope'; scope: DurableEvidence; definition: Adoption }>
   | Readonly<{ kind: 'instance'; instance: AgentInstanceId }>
-  | Readonly<{ kind: 'execution'; instance: AgentInstanceId; execution: AgentExecutionId }>
+  | Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
+  | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
 export type AgentAccessDecision =
   | Readonly<{ kind: 'allowed'; evidence: DurableEvidence }>
   | Readonly<{ kind: 'denied' }>

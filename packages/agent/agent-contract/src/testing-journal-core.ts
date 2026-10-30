@@ -6,10 +6,14 @@
 // The suite covers: the revision rule of "执行修订" (Q3), the receipts and index of a new
 // operation that recognizes an existing fact ("原操作认回与恢复", Q13), the atomic control facts and
 // the late stages after ended ("六个阶段", Q1 and Q1b), the persistent rejection of contradicting
-// evidence and the four query conclusions ("查询的四种结论与持久拒绝", R2), and the order of
-// "判定次序与失败映射" for ended and superseded attachments (Q11).
+// evidence and the four query conclusions ("查询的四种结论与持久拒绝", R2), the order of
+// "判定次序与失败映射" for ended and superseded attachments (Q11), the admission records of
+// "消息准入" (P, the Ja variants resolve and retire, the handoff projection of `load`), the custody
+// of "准入结果保管" (Rh root, permanent exclusion, the one successor), and the two submit lineages
+// of "输入内容与水位线".
 import assert from 'node:assert/strict'
 import { judgeMessage, type Message } from '@omne-harness/message'
+import { decodeModelCallId } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts'
 import type {
@@ -20,8 +24,10 @@ import type {
   FinishResult,
 } from './execution.ts'
 import {
+  decodeActionId,
   decodeAgentOperationId,
   decodeInputId,
+  decodePassageId,
   type Access,
   type AgentExecutionId,
   type AgentOperationId,
@@ -29,7 +35,20 @@ import {
   type ConsumptionId,
   type DurableEvidence,
 } from './identity.ts'
-import type { AgentJournal, JournalCommit } from './journal.ts'
+import type {
+  AgentJournal,
+  ExecutionHandoff,
+  HandoffCustody,
+  JournalCommit,
+  OriginalInputAcceptance,
+} from './journal.ts'
+import type {
+  HandoffOutcome,
+  HandoffReference,
+  HandoffResolution,
+  Passage,
+  PendingHandoff,
+} from './passages.ts'
 import { canonicalText, uncoveredCase, type ConformanceCase } from './testing-case.ts'
 
 /** One execution the fixture opened, with the handles the suite drives it through. */
@@ -44,7 +63,9 @@ export interface AgentJournalCoreOpened<P> {
   /**
    * An input the coordinator side has accepted for this execution, ready for `submit` under the
    * fixture's binding: with the coordinator's source on a coordinated binding, null on a
-   * standalone one. `name` distinguishes the inputs of one case.
+   * standalone one. `name` distinguishes the inputs of one case. The suite builds the submit entry,
+   * the external H and the prepared outcome of the input itself; a provider that only accepts an
+   * outcome of its own admission provider is the fixture's business.
    */
   readonly acceptInput: (name: string) => Promise<AcceptedInput>
   /**
@@ -61,7 +82,7 @@ export interface AgentJournalCoreOpened<P> {
   >
   /** Scripts the next write of `method` to answer commit-unknown with the given outcome. Optional. */
   readonly faultNext?: (
-    method: 'recordControl' | 'submit',
+    method: 'recordControl' | 'submit' | 'recordHandoff',
     outcome: 'applied' | 'dropped' | 'pending',
   ) => void
   /** Attaches a new attachment that supersedes the current one, under the fixture's rules. Optional. */
@@ -86,11 +107,12 @@ const evidence = (record: string): DurableEvidence => ({
   revision: '1',
   digest: `suite:${record}`,
 })
+const PROVIDER = { owner: 'suite', name: 'message-handoff', revision: '1', digest: 'suite:handoff' }
 
-function message(text: string, suffix: string): Message {
+function message(text: string, suffix: string, role: 'user' | 'assistant' = 'user'): Message {
   const judged = judgeMessage({
     id: `msg_${'c'.repeat(22 - suffix.length)}${suffix}`,
-    role: 'user',
+    role,
     blocks: [
       { kind: 'text', id: `blk_${suffix}`, visibility: { toHuman: true, toModel: true }, text },
     ],
@@ -119,6 +141,11 @@ async function refused<T>(reply: Reply<T>, kind: Failure['kind'], what: string):
   assert.ok('failure' in outcome, `${what} should fail with ${kind}, got success`)
   assert.equal(outcome.failure.kind, kind, `${what} should fail with ${kind}`)
   return outcome.failure
+}
+
+async function notSuccessful<T>(reply: Reply<T>, what: string): Promise<void> {
+  const outcome = await reply
+  assert.ok('failure' in outcome, `${what} should not succeed`)
 }
 
 async function load<P>(opened: AgentJournalCoreOpened<P>): Promise<ExecutionSnapshot> {
@@ -164,14 +191,186 @@ function commitAt<P>(
     operation: operation(name),
     authority,
     expected: snapshot.revision,
-    checkpoint: { ...opened.checkpoint, position: name },
+    checkpoint: { ...snapshot.checkpoint, position: name },
     state: { kind: 'advancing' },
     events: [],
     effects: [],
     caller: { kind: 'none' },
     replyAdmission: null,
+    handoff: null,
     ...overrides,
   }
+}
+
+/** The external submit entry, H and prepared outcome of one accepted input, built by the suite. */
+function submitAcceptance<P>(
+  opened: AgentJournalCoreOpened<P>,
+  name: string,
+  value: AcceptedInput,
+  decision: HandoffOutcome['decision'] = {
+    kind: 'prepared',
+    message: value.content,
+    admission: evidence(`admission/${name}`),
+  },
+): OriginalInputAcceptance {
+  const handoff: Extract<HandoffReference, { kind: 'input' }> = {
+    kind: 'input',
+    execution: opened.execution,
+    entry: operation(name),
+    input: value.id,
+  }
+  return {
+    entry: { kind: 'submit', operation: operation(name), execution: opened.execution, value },
+    handoff,
+    outcome: {
+      request: {
+        kind: 'input',
+        reference: handoff,
+        entry: { kind: 'submit', operation: operation(name), execution: opened.execution, value },
+        source: { kind: 'external-input', input: value.id },
+      },
+      origin: {
+        kind: 'submit',
+        executionBinding: evidence(`binding/${opened.execution}`),
+        delivery: { kind: 'durable-view' },
+      },
+      provider: PROVIDER,
+      qualification: evidence(`qualification/${name}`),
+      record: evidence(`record/${name}`),
+      decision,
+    },
+  }
+}
+
+/** A first submit of `value` under the operation `name`, with its new-input lineage. */
+function newSubmit<P>(opened: AgentJournalCoreOpened<P>, name: string, value: AcceptedInput) {
+  return {
+    ...opened.access,
+    execution: opened.execution,
+    operation: operation(name),
+    value,
+    lineage: { kind: 'new-input' as const, original: submitAcceptance(opened, name, value) },
+  }
+}
+
+/** A new operation `name` that recognizes the acceptance `original` of `value`. */
+function recognizingSubmit<P>(
+  opened: AgentJournalCoreOpened<P>,
+  name: string,
+  value: AcceptedInput,
+  original: OriginalInputAcceptance,
+) {
+  return {
+    ...opened.access,
+    execution: opened.execution,
+    operation: operation(name),
+    value,
+    lineage: { kind: 'recognize-input' as const, original },
+  }
+}
+
+/** The internal request of a model reply at the position I3 of the opened checkpoint's step. */
+function pendingHandoff<P>(
+  opened: AgentJournalCoreOpened<P>,
+  snapshot: ExecutionSnapshot,
+  name: string,
+  predecessorHandoff: PendingHandoff['predecessorHandoff'] = null,
+): PendingHandoff {
+  const call = identity(decodeModelCallId(`mcall_${'0'.repeat(20)}${name.slice(-2)}`), 'call')
+  return {
+    kind: 'execution',
+    reference: { kind: 'execution', execution: opened.execution, operation: operation(name) },
+    predecessor: snapshot.revision,
+    position: { step: snapshot.checkpoint.step, node: 'I3', slot: null },
+    source: {
+      kind: 'model-reply',
+      step: snapshot.checkpoint.step,
+      action: identity(decodeActionId(`core-${name}/action`), name),
+      call,
+      result: {
+        producer: { kind: 'model', call },
+        version: 'v1',
+        delivery: null,
+        source: evidence(`result/${name}`),
+      },
+    },
+    candidate: message(`reply ${name}`, name.padStart(2, '0').slice(-2), 'assistant'),
+    originalAdvance: opened.authority,
+    predecessorHandoff,
+  }
+}
+
+function outcomeOf(
+  request: PendingHandoff,
+  decision: HandoffOutcome['decision'],
+): HandoffOutcome {
+  const name = request.reference.operation
+  return {
+    request,
+    origin: null,
+    provider: PROVIDER,
+    qualification: evidence(`qualification/${name}`),
+    record: evidence(`record/${name}`),
+    decision,
+  }
+}
+
+function prepared(request: PendingHandoff): HandoffOutcome {
+  return outcomeOf(request, {
+    kind: 'prepared',
+    message: request.candidate,
+    admission: evidence(`admission/${request.reference.operation}`),
+  })
+}
+
+function excluded(request: PendingHandoff): Extract<HandoffResolution, { kind: 'excluded' }> {
+  return {
+    kind: 'excluded',
+    request,
+    origin: null,
+    exclusion: evidence(`exclusion/${request.reference.operation}`),
+  }
+}
+
+/** The P commit of `request` at `snapshot`: `handoff.prepare` and `currentHandoff` set to H. */
+function prepareCommit<P>(
+  opened: AgentJournalCoreOpened<P>,
+  snapshot: ExecutionSnapshot,
+  name: string,
+  request: PendingHandoff,
+): JournalCommit<P> {
+  return commitAt(opened, snapshot, name, opened.authority, {
+    checkpoint: { ...snapshot.checkpoint, position: 'Q2', currentHandoff: request.reference },
+    handoff: { kind: 'prepare', request },
+  })
+}
+
+/** The Ja commit of `outcome` at `snapshot`: the message event of a prepared outcome, no event otherwise. */
+function resolveCommit<P>(
+  opened: AgentJournalCoreOpened<P>,
+  snapshot: ExecutionSnapshot,
+  name: string,
+  outcome: HandoffOutcome,
+  overrides: Partial<JournalCommit<P>> = {},
+): JournalCommit<P> {
+  const decision = outcome.decision
+  return commitAt(opened, snapshot, name, opened.authority, {
+    checkpoint: { ...snapshot.checkpoint, position: 'Q4', currentHandoff: null },
+    events:
+      decision.kind === 'prepared'
+        ? [{ kind: 'message', message: decision.message, source: decision.admission }]
+        : [],
+    handoff: { kind: 'resolve', outcome },
+    ...overrides,
+  })
+}
+
+function handoffOf(snapshot: ExecutionSnapshot, reference: HandoffReference): ExecutionHandoff {
+  const found = snapshot.handoffs.find(
+    item => canonicalText(item.handoff) === canonicalText(reference),
+  )
+  assert.ok(found !== undefined, `load.handoffs should list ${JSON.stringify(reference)}`)
+  return found
 }
 
 /** Takes every accepted input into one batch, as I0 would, so an ordinary end is not blocked. */
@@ -270,18 +469,43 @@ function controlEvents(all: readonly AgentEvent[]) {
   )
 }
 
+/** A post-terminal passage that `tryFinish` turns into a pending observation. */
+function afterTerminalPassage(name: string): Passage {
+  return {
+    id: identity(decodePassageId(`core-${name}`), name),
+    position: 'after_terminal',
+    dimension: null,
+    purpose: null,
+    action: null,
+    ordinal: 1,
+    declaration: {
+      name: 'observer',
+      position: 'after_terminal',
+      power: 'observe',
+      implementation: { kind: 'builtin', builtinName: 'observer' },
+    },
+    implementation: PROVIDER,
+    input: evidence(`passage/${name}/input`),
+    effective: evidence(`passage/${name}/effective`),
+    operations: [],
+    progress: { kind: 'requested', mode: { kind: 'fresh' } },
+  }
+}
+
 /**
  * Runs `write` twice and returns how much the revision advanced after the first and after the
  * second call: a new fact advances it by one, and the same operation recognizes without a second.
+ * The second call must answer exactly what the first did (SPEC "判定次序与失败映射" 2).
  */
 async function advances<P>(
   opened: AgentJournalCoreOpened<P>,
   write: () => Promise<unknown>,
 ): Promise<readonly [number, number]> {
   const before = await revision(opened)
-  await write()
+  const first = await write()
   const middle = await revision(opened)
-  await write()
+  const second = await write()
+  assert.deepEqual(second, first, 'the retry of the same operation answers the original result')
   return [middle - before, (await revision(opened)) - middle]
 }
 
@@ -291,19 +515,14 @@ export function agentJournalCoreConformance<P>(
 ): readonly ConformanceCase[] {
   return [
     {
-      name: 'Q3: each atomic mutation that establishes a new fact allocates exactly one revision; the same operation recognizes without another',
+      name: 'Q3: each atomic mutation that establishes a new fact allocates exactly one revision; the same operation recognizes without another and answers the same result',
       run: async () => {
         const opened = await fixture.open('q3-one-revision')
         const { journal } = opened
         const snapshot = await load(opened)
         const commit = commitAt(opened, snapshot, 'commit')
         assert.deepEqual(await advances(opened, () => journal.commit(commit)), [1, 0], 'commit')
-        const submit = {
-          ...opened.access,
-          execution: opened.execution,
-          operation: operation('submit'),
-          value: await opened.acceptInput('2'),
-        }
+        const submit = newSubmit(opened, 'submit', await opened.acceptInput('2'))
         assert.deepEqual(await advances(opened, () => journal.submit(submit)), [1, 0], 'submit')
         const control = cancelControl(opened)
         assert.deepEqual(await advances(opened, () => journal.control(control)), [1, 0], 'control')
@@ -352,28 +571,16 @@ export function agentJournalCoreConformance<P>(
       },
     },
     {
-      name: 'Q13: a new submit of the same input with the same content recognizes the original acceptance: receipt of the new operation at the revision of the input, no new revision, query committed',
+      name: 'Q13: a recognize-input submit of the same input with the same content recognizes the original acceptance: receipt of the new operation at the revision of the input, no new revision, query committed; other content conflicts',
       run: async () => {
         const opened = await fixture.open('q13-submit')
         const { journal } = opened
         const value = await opened.acceptInput('7')
-        const first = await ok(
-          journal.submit({
-            ...opened.access,
-            execution: opened.execution,
-            operation: operation('submit-a'),
-            value,
-          }),
-          'the first submit',
-        )
+        const original = newSubmit(opened, 'submit-a', value)
+        const first = await ok(journal.submit(original), 'the first submit')
         const before = await load(opened)
         const second = await ok(
-          journal.submit({
-            ...opened.access,
-            execution: opened.execution,
-            operation: operation('submit-b'),
-            value,
-          }),
+          journal.submit(recognizingSubmit(opened, 'submit-b', value, original.lineage.original)),
           'the recognizing submit',
         )
         assert.equal(second.operation, operation('submit-b'), 'the receipt names B')
@@ -384,16 +591,75 @@ export function agentJournalCoreConformance<P>(
           receipt: second,
         })
         await refused(
-          journal.submit({
-            ...opened.access,
-            execution: opened.execution,
-            operation: operation('submit-c'),
-            value: { ...value, content: input('7', 'other text').content },
-          }),
+          journal.submit(
+            recognizingSubmit(
+              opened,
+              'submit-c',
+              { ...value, content: input('7', 'other text').content },
+              original.lineage.original,
+            ),
+          ),
           'conflict',
           'the same input with other content',
         )
         assert.deepEqual(await load(opened), before)
+      },
+    },
+    {
+      name: 'new-input submit: the operation must be the original entry, the origin must be a submit, the H must be prepared; the acceptance publishes the external H as committed history',
+      run: async () => {
+        const opened = await fixture.open('submit-new-input')
+        const { journal } = opened
+        const value = await opened.acceptInput('4')
+        const submit = newSubmit(opened, 'submit-4', value)
+        const before = await load(opened)
+        await refused(
+          journal.submit({ ...submit, operation: operation('another') }),
+          'invalid',
+          'a new-input submit under another operation than the entry',
+        )
+        const invokeOrigin: OriginalInputAcceptance = {
+          ...submit.lineage.original,
+          outcome: {
+            ...submit.lineage.original.outcome,
+            origin: {
+              kind: 'invoke',
+              instance: opened.authority.instance,
+              scope: evidence('scope'),
+              definition: PROVIDER,
+              grant: null,
+            },
+          },
+        }
+        await refused(
+          journal.submit({ ...submit, lineage: { kind: 'new-input', original: invokeOrigin } }),
+          'invalid',
+          'a new-input submit whose origin is an invoke',
+        )
+        const rejected = submitAcceptance(opened, 'submit-4', value, {
+          kind: 'rejected',
+          reason: 'no',
+          evidence: evidence('rejected'),
+        })
+        await refused(
+          journal.submit({ ...submit, lineage: { kind: 'new-input', original: rejected } }),
+          'invalid',
+          'a new-input submit whose H is not prepared',
+        )
+        assert.deepEqual(await load(opened), before, 'the refusals wrote nothing')
+        const receipt = await ok(journal.submit(submit), 'the new input')
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(before.revision) + 1)
+        const listed = handoffOf(after, submit.lineage.original.handoff)
+        assert.deepEqual(listed.history, {
+          kind: 'committed',
+          operation: submit.operation,
+          revision: receipt.revision,
+        })
+        assert.deepEqual(listed.resolution, {
+          kind: 'recorded',
+          outcome: submit.lineage.original.outcome,
+        })
       },
     },
     {
@@ -516,6 +782,7 @@ export function agentJournalCoreConformance<P>(
         const opened = await fixture.open('r2-lost-receipt')
         if (opened.faultNext === undefined) {
           await uncoveredCase('', 'faultNext control').run()
+          return
         }
         const { journal } = opened
         const control = cancelControl(opened)
@@ -527,7 +794,7 @@ export function agentJournalCoreConformance<P>(
           operation: operation('contradict'),
           source: evidence('stage/other'),
         }
-        opened.faultNext?.('recordControl', 'applied')
+        opened.faultNext('recordControl', 'applied')
         await refused(journal.recordControl(contradicting), 'commit-unknown', 'the lost receipt')
         const conclusion = await query(opened, contradicting.operation)
         assert.equal(conclusion.kind, 'rejected')
@@ -538,31 +805,78 @@ export function agentJournalCoreConformance<P>(
       },
     },
     {
+      name: 'R2 and Q1b: after ended, evidence that contradicts a reached intent or a reached late stage is persistently rejected, not answered terminal',
+      run: async () => {
+        const opened = await fixture.open('r2-after-ended')
+        const { journal } = opened
+        const control = cancelControl(opened)
+        await ok(journal.control(control), 'control')
+        const intent = stage(
+          opened,
+          'intent',
+          control.operation,
+          'intent-established',
+          'reached',
+          evidence('intent/first'),
+        )
+        await ok(journal.recordControl(intent), 'the intent')
+        const confirmed = stage(
+          opened,
+          'confirmed',
+          control.operation,
+          'producer-confirmed',
+          'reached',
+          evidence('confirmed/first'),
+        )
+        await ok(journal.recordControl(confirmed), 'the confirmation')
+        await end(opened)
+        for (const [name, original] of [
+          ['intent-other', intent],
+          ['confirmed-other', confirmed],
+        ] as const) {
+          const before = await load(opened)
+          const contradicting = {
+            ...original,
+            operation: operation(name),
+            source: evidence(`${name}/source`),
+          }
+          const failure = await refused(
+            journal.recordControl(contradicting),
+            'conflict',
+            `${name} after ended`,
+          )
+          const after = await load(opened)
+          assert.equal(Number(after.revision), Number(before.revision) + 1, 'the audit revision')
+          assert.deepEqual(after.controls, before.controls, 'the stage facts did not change')
+          const conclusion = await query(opened, contradicting.operation)
+          assert.equal(conclusion.kind, 'rejected', `query(${name}) is rejected`)
+          if (conclusion.kind === 'rejected') assert.deepEqual(conclusion.failure, failure)
+        }
+      },
+    },
+    {
       name: 'query: committed carries the original receipt, an operation never seen is unknown, a dropped write is excluded with evidence',
       run: async () => {
         const opened = await fixture.open('query-conclusions')
         if (opened.faultNext === undefined) {
           await uncoveredCase('', 'faultNext control').run()
+          return
         }
         assert.deepEqual(await query(opened, opened.receipt.operation), {
           kind: 'committed',
           receipt: opened.receipt,
         })
         assert.deepEqual(await query(opened, operation('never')), { kind: 'unknown' })
-        opened.faultNext?.('submit', 'dropped')
+        opened.faultNext('submit', 'dropped')
         await refused(
-          opened.journal.submit({
-            ...opened.access,
-            execution: opened.execution,
-            operation: operation('dropped'),
-            value: await opened.acceptInput('3'),
-          }),
+          opened.journal.submit(newSubmit(opened, 'dropped', await opened.acceptInput('3'))),
           'commit-unknown',
           'the dropped write',
         )
-        const excluded = await query(opened, operation('dropped'))
-        assert.equal(excluded.kind, 'excluded')
-        if (excluded.kind === 'excluded') assert.equal(typeof excluded.evidence.record, 'string')
+        const excludedWrite = await query(opened, operation('dropped'))
+        assert.equal(excludedWrite.kind, 'excluded')
+        if (excludedWrite.kind === 'excluded')
+          assert.equal(typeof excludedWrite.evidence.record, 'string')
       },
     },
     {
@@ -603,10 +917,13 @@ export function agentJournalCoreConformance<P>(
       },
     },
     {
-      name: 'Q11: after ended, a new commit, detach, tryFinish, submit and attach return terminal; the original end is recognized',
+      name: 'Q11: after ended, a new commit, detach, tryFinish, submit, a recognizing submit of an accepted input and attach return terminal; the original end is recognized',
       run: async () => {
         const opened = await fixture.open('q11-terminal')
         const { journal } = opened
+        const value = await opened.acceptInput('8')
+        const accepted = newSubmit(opened, 'submit-8', value)
+        await ok(journal.submit(accepted), 'an input accepted before the end')
         await takeInputs(opened)
         const finish = finishInput(opened, await load(opened), 'end')
         const first = await ok(journal.tryFinish(finish), 'the end')
@@ -631,14 +948,22 @@ export function agentJournalCoreConformance<P>(
           'a new tryFinish',
         )
         await refused(
-          journal.submit({
-            ...opened.access,
-            execution: opened.execution,
-            operation: operation('submit-after-end'),
-            value: await opened.acceptInput('9'),
-          }),
+          journal.submit(newSubmit(opened, 'submit-after-end', await opened.acceptInput('9'))),
           'terminal',
           'submit',
+        )
+        // SPEC per-operation table, input.submit: a new operation B after ended is terminal; only
+        // the original successful O is recognized before that check.
+        await refused(
+          journal.submit(
+            recognizingSubmit(opened, 'recognize-after-end', value, accepted.lineage.original),
+          ),
+          'terminal',
+          'a recognizing submit of an accepted input after ended',
+        )
+        assert.deepEqual(
+          await ok(journal.submit(accepted), 'the original O after ended'),
+          await ok(journal.submit(accepted), 'the original O again'),
         )
         await refused(
           journal.attach({
@@ -657,7 +982,24 @@ export function agentJournalCoreConformance<P>(
       },
     },
     {
-      name: 'Q11: a superseded attachment gets stale-advance before terminal for commit, tryFinish and detach',
+      name: 'Q11: after ended, a commit with a stale expected revision returns terminal, not changed',
+      run: async () => {
+        const opened = await fixture.open('q11-terminal-before-changed')
+        const { journal } = opened
+        const stale = await load(opened)
+        await end(opened)
+        const before = await load(opened)
+        assert.notEqual(stale.revision, before.revision)
+        await refused(
+          journal.commit(commitAt(opened, stale, 'stale-after-end')),
+          'terminal',
+          'a stale commit after ended',
+        )
+        assert.deepEqual(await load(opened), before)
+      },
+    },
+    {
+      name: 'Q11: a superseded attachment gets stale-advance before terminal for commit, tryFinish and detach, and before changed for a commit with a stale expected revision',
       run: async () => {
         const opened = await fixture.open('q11-stale-advance')
         if (opened.takeover === undefined) {
@@ -666,9 +1008,17 @@ export function agentJournalCoreConformance<P>(
         }
         const { journal } = opened
         await takeInputs(opened)
+        const stale = await load(opened)
         const successor = await opened.takeover('successor')
+        const current = await load(opened)
+        assert.notEqual(stale.revision, current.revision, 'the takeover advanced the revision')
+        await refused(
+          journal.commit(commitAt(opened, stale, 'stale-old-commit', opened.authority)),
+          'stale-advance',
+          'the old attachment commits with a stale expected revision',
+        )
         const finish = await ok(
-          journal.tryFinish(finishInput(opened, await load(opened), 'end', successor)),
+          journal.tryFinish(finishInput(opened, current, 'end', successor)),
           'the successor ends',
         )
         assert.equal(finish.kind, 'ended')
@@ -695,6 +1045,68 @@ export function agentJournalCoreConformance<P>(
           'the old attachment detaches',
         )
         assert.deepEqual(await load(opened), before)
+      },
+    },
+    {
+      name: 'Q13: a second detach of a detached attachment recognizes the original handoff at its revision; a new operation recognizes a registered terminal observation',
+      run: async () => {
+        const opened = await fixture.open('q13-detach-observation')
+        const { journal } = opened
+        const detach = (name: string) =>
+          journal.detach({
+            ...opened.access,
+            execution: opened.execution,
+            operation: operation(name),
+            authority: opened.authority,
+            reason: evidence('reason'),
+          })
+        const handoff = await ok(detach('detach-a'), 'detach')
+        const detached = await load(opened)
+        assert.equal(detached.state.kind, 'suspended')
+        const again = await ok(detach('detach-b'), 'the second detach')
+        assert.deepEqual(again, handoff, 'the original handoff evidence')
+        assert.deepEqual(await load(opened), detached, 'no new revision')
+        const recognized = await query(opened, operation('detach-b'))
+        assert.equal(recognized.kind, 'committed')
+        if (recognized.kind === 'committed')
+          assert.equal(
+            recognized.receipt.revision,
+            detached.revision,
+            'at the revision of the handoff',
+          )
+        // A terminal observation is pending after an end whose checkpoint carries an after_terminal passage.
+        const reopened = await fixture.open('q13-observation')
+        const passage = afterTerminalPassage('observer')
+        const snapshot = await load(reopened)
+        await ok(
+          reopened.journal.commit(
+            commitAt(reopened, snapshot, 'passage', reopened.authority, {
+              checkpoint: { ...snapshot.checkpoint, position: 'F2', passages: [passage] },
+            }),
+          ),
+          'the passage commit',
+        )
+        const ended = await end(reopened)
+        const record = (name: string, observed: DurableEvidence) =>
+          reopened.journal.recordTerminalObservation({
+            ...reopened.access,
+            execution: reopened.execution,
+            operation: operation(name),
+            terminal: ended.evidence,
+            passage: passage.id,
+            implementation: passage.implementation,
+            observed,
+          })
+        const first = await ok(record('observe-a', evidence('observed')), 'the observation')
+        const after = await load(reopened)
+        const second = await ok(record('observe-b', evidence('observed')), 'the same value again')
+        assert.equal(second.operation, operation('observe-b'))
+        assert.equal(second.revision, first.revision, 'at the revision of the registration')
+        assert.deepEqual(await load(reopened), after, 'no new revision')
+        assert.deepEqual(await query(reopened, operation('observe-b')), {
+          kind: 'committed',
+          receipt: second,
+        })
       },
     },
     {
@@ -768,10 +1180,379 @@ export function agentJournalCoreConformance<P>(
         })
       },
     },
+    {
+      name: 'P: a commit with handoff.prepare saves the complete PendingHandoff, sets currentHandoff to H, lists the H as pending in load.handoffs at the same revision, and a second P at the same position while H is undetermined does not succeed',
+      run: async () => {
+        const opened = await fixture.open('p-prepare')
+        const { journal } = opened
+        const snapshot = await load(opened)
+        const request = pendingHandoff(opened, snapshot, 'h1')
+        await refused(
+          journal.commit(
+            commitAt(opened, snapshot, 'p-without-pointer', opened.authority, {
+              handoff: { kind: 'prepare', request },
+            }),
+          ),
+          'invalid',
+          'a P whose checkpoint does not point at H',
+        )
+        const receipt = await ok(journal.commit(prepareCommit(opened, snapshot, 'p1', request)), 'P')
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(snapshot.revision) + 1)
+        assert.deepEqual(after.checkpoint.currentHandoff, request.reference)
+        const listed = handoffOf(after, request.reference)
+        assert.deepEqual(listed.request, request)
+        assert.deepEqual(listed.history, { kind: 'pending' })
+        assert.equal(listed.resolution, null)
+        assert.ok(listed.prepared !== null, 'the P basis is kept')
+        assert.deepEqual(await query(opened, operation('p1')), { kind: 'committed', receipt })
+        // The same source position cannot take another H while h1 is undetermined.
+        const other = pendingHandoff(opened, after, 'h2')
+        await notSuccessful(
+          journal.commit(prepareCommit(opened, after, 'p2', other)),
+          'a second P at the same position',
+        )
+        assert.deepEqual(await load(opened), after, 'the original H stays')
+      },
+    },
+    {
+      name: 'Ja resolve: a prepared outcome publishes exactly its message with one message event, fixes the history as committed by this Ja, clears currentHandoff and advances one revision; the retry recognizes the receipt; an outcome that does not match P, or a Ja without the message, is invalid',
+      run: async () => {
+        const opened = await fixture.open('ja-resolve')
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const prepared1 = prepared(request)
+        const before = await load(opened)
+        const emitted = (await events(opened)).length
+        const mismatched = prepared(pendingHandoff(opened, before, 'h9'))
+        await refused(
+          journal.commit(resolveCommit(opened, before, 'ja-mismatch', mismatched)),
+          'invalid',
+          'a resolve whose outcome names another request',
+        )
+        await refused(
+          journal.commit(resolveCommit(opened, before, 'ja-no-message', prepared1, { events: [] })),
+          'invalid',
+          'a prepared resolve without its message event',
+        )
+        await refused(
+          journal.commit(
+            resolveCommit(opened, before, 'ja-pointer', prepared1, {
+              checkpoint: { ...before.checkpoint, position: 'Q4' },
+            }),
+          ),
+          'invalid',
+          'a resolve that keeps currentHandoff pointing at H',
+        )
+        assert.deepEqual(await load(opened), before, 'the refusals wrote nothing')
+        const ja = resolveCommit(opened, before, 'ja1', prepared1)
+        const receipt = await ok(journal.commit(ja), 'Ja')
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(before.revision) + 1)
+        assert.equal(after.checkpoint.currentHandoff, null)
+        const all = await events(opened)
+        assert.equal(all.length, emitted + 1, 'one message event')
+        assert.deepEqual(all.at(-1)?.body, {
+          kind: 'message',
+          message: request.candidate,
+          source: evidence(`admission/${request.reference.operation}`),
+        })
+        const listed = handoffOf(after, request.reference)
+        assert.deepEqual(listed.history, {
+          kind: 'committed',
+          operation: ja.operation,
+          revision: receipt.revision,
+        })
+        assert.deepEqual(listed.resolution, { kind: 'recorded', outcome: prepared1 })
+        assert.deepEqual(await ok(journal.commit(ja), 'the retry'), receipt)
+        assert.deepEqual(await load(opened), after, 'the retry wrote nothing')
+        // One H has at most one history application: another Ja for the same H does not succeed.
+        await notSuccessful(
+          journal.commit(resolveCommit(opened, after, 'ja-again', prepared1)),
+          'a second Ja of the same H',
+        )
+      },
+    },
+    {
+      name: 'Ja resolve of a rejected outcome: no message enters the history and no event is written, the history is not-applicable, currentHandoff is cleared and one revision is allocated',
+      run: async () => {
+        const opened = await fixture.open('ja-rejected')
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const before = await load(opened)
+        const emitted = (await events(opened)).length
+        const rejected = outcomeOf(request, {
+          kind: 'rejected',
+          reason: 'malformed',
+          evidence: evidence('rejected/h1'),
+        })
+        await refused(
+          journal.commit(
+            resolveCommit(opened, before, 'ja-published', rejected, {
+              events: [
+                { kind: 'message', message: request.candidate, source: evidence('rejected/h1') },
+              ],
+            }),
+          ),
+          'invalid',
+          'a rejected resolve that publishes the candidate',
+        )
+        const receipt = await ok(
+          journal.commit(resolveCommit(opened, before, 'ja1', rejected)),
+          'the rejected Ja',
+        )
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(before.revision) + 1)
+        assert.equal(receipt.revision, after.revision)
+        assert.equal((await events(opened)).length, emitted, 'no event')
+        assert.equal(after.checkpoint.currentHandoff, null)
+        const listed = handoffOf(after, request.reference)
+        assert.deepEqual(listed.history, { kind: 'not-applicable' })
+        assert.deepEqual(listed.resolution, { kind: 'recorded', outcome: rejected })
+      },
+    },
+    {
+      name: 'Ja retire: a trusted excluded internal H retires with currentHandoff cleared and the position kept at the source node; the retirement names the retire Ja; the history is not-applicable; a retire of an H the Journal did not prepare, or one that moves the position, is invalid',
+      run: async () => {
+        const opened = await fixture.open('ja-retire')
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const before = await load(opened)
+        const retire = (name: string, excludedH: PendingHandoff, position = 'I3') =>
+          commitAt(opened, before, name, opened.authority, {
+            checkpoint: { ...before.checkpoint, position, currentHandoff: null },
+            handoff: { kind: 'retire', excluded: excluded(excludedH), reason: evidence('retire') },
+          })
+        await refused(
+          journal.commit(retire('retire-unknown', pendingHandoff(opened, before, 'h9'))),
+          'invalid',
+          'a retire of an H the Journal did not prepare',
+        )
+        await refused(
+          journal.commit(retire('retire-moved', request, 'I8')),
+          'invalid',
+          'a retire that moves the position',
+        )
+        assert.deepEqual(await load(opened), before)
+        const ja = retire('retire1', request)
+        const receipt = await ok(journal.commit(ja), 'the retire Ja')
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(before.revision) + 1)
+        assert.equal(after.checkpoint.currentHandoff, null)
+        assert.equal(after.checkpoint.position, 'I3')
+        const listed = handoffOf(after, request.reference)
+        assert.deepEqual(listed.history, { kind: 'not-applicable' })
+        assert.deepEqual(listed.resolution, excluded(request))
+        assert.deepEqual(listed.retirement, {
+          operation: ja.operation,
+          revision: receipt.revision,
+          reason: evidence('retire'),
+        })
+        // After the retirement, a successor P at the same position may name h1 as its predecessor.
+        const successor = pendingHandoff(opened, after, 'h2', request.reference)
+        await ok(journal.commit(prepareCommit(opened, after, 'p2', successor)), 'the successor P')
+        assert.deepEqual((await load(opened)).checkpoint.currentHandoff, successor.reference)
+      },
+    },
+    {
+      name: 'Rh root: recordHandoff merges a recorded outcome as the custody root with one new revision, without touching currentHandoff, the checkpoint or the events; the same input again answers the same receipt with no new revision; after ended a prepared result is retained',
+      run: async () => {
+        const opened = await fixture.open('rh-root')
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const before = await load(opened)
+        const emitted = (await events(opened)).length
+        const record = {
+          ...opened.access,
+          execution: opened.execution,
+          operation: operation('rh1'),
+          original: { kind: 'recorded' as const, outcome: prepared(request) },
+          custody: null,
+        }
+        assert.deepEqual(await advances(opened, () => journal.recordHandoff(record)), [1, 0], 'Rh')
+        const receipt = await ok(journal.recordHandoff(record), 'the root')
+        const after = await load(opened)
+        assert.deepEqual(after.checkpoint, before.checkpoint, 'Rh does not change the checkpoint')
+        assert.deepEqual(after.checkpoint.currentHandoff, request.reference)
+        assert.equal((await events(opened)).length, emitted, 'no event')
+        const listed = handoffOf(after, request.reference)
+        assert.deepEqual(listed.resolution, { kind: 'recorded', outcome: prepared(request) })
+        assert.deepEqual(listed.history, { kind: 'pending' }, 'Rh does not publish')
+        assert.deepEqual(listed.custody, {
+          root: record.operation,
+          chain: [{ operation: record.operation, predecessor: null, state: 'committed' }],
+          committed: record.operation,
+        })
+        assert.deepEqual(await query(opened, record.operation), { kind: 'committed', receipt })
+        // The root cannot change its payload: the same operation with the exclusion conflicts.
+        await refused(
+          journal.recordHandoff({ ...record, original: excluded(request) }),
+          'conflict',
+          'the root with another payload',
+        )
+        // After the end, the history of a prepared H that never published is retained.
+        await end(opened)
+        const retained = handoffOf(await load(opened), request.reference)
+        assert.equal(retained.history.kind, 'retained', 'the terminal disposition retains it')
+        const anotherOpened = await fixture.open('rh-after-ended')
+        const unpublished = pendingHandoff(anotherOpened, await load(anotherOpened), 'h3')
+        await ok(
+          anotherOpened.journal.commit(
+            prepareCommit(anotherOpened, await load(anotherOpened), 'p3', unpublished),
+          ),
+          'P',
+        )
+        await end(anotherOpened)
+        const lateRecord = await ok(
+          anotherOpened.journal.recordHandoff({
+            ...anotherOpened.access,
+            execution: anotherOpened.execution,
+            operation: operation('rh3'),
+            original: { kind: 'recorded', outcome: prepared(unpublished) },
+            custody: null,
+          }),
+          'Rh after ended',
+        )
+        const lateListed = handoffOf(await load(anotherOpened), unpublished.reference)
+        assert.equal(lateListed.history.kind, 'retained')
+        assert.equal(lateListed.custody?.committed, lateRecord.operation)
+      },
+    },
+    {
+      name: 'Rh custody chain: a permanently excluded attempt answers invalid(operation, operation-permanently-excluded) forever, only its one direct successor with the exclusion chain can succeed, and a successor that skips the chain or names an attempt that is not excluded is invalid',
+      run: async () => {
+        const opened = await fixture.open('rh-successor')
+        if (opened.faultNext === undefined) {
+          await uncoveredCase('', 'faultNext control').run()
+          return
+        }
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const original = { kind: 'recorded' as const, outcome: prepared(request) }
+        const root = {
+          ...opened.access,
+          execution: opened.execution,
+          operation: operation('rh-root'),
+          original,
+          custody: null,
+        }
+        const custody = (
+          predecessor: AgentOperationId,
+          priorExcluded: HandoffCustody['priorExcluded'],
+        ): HandoffCustody => ({
+          protocol: 'hand-off-custody-successor/1',
+          custodyRoot: root.operation,
+          rootRequest: evidence(`request/${root.operation}`),
+          factSource: { owner: PROVIDER.owner, adoption: PROVIDER, record: 'record/h1', version: '1' },
+          predecessor: { operation: predecessor, request: evidence(`request/${predecessor}`) },
+          priorExcluded,
+        })
+        const exclusionOf = (excludedOperation: AgentOperationId, predecessor: AgentOperationId | null) => ({
+          operation: excludedOperation,
+          method: 'recordHandoff' as const,
+          request: evidence(`request/${excludedOperation}`),
+          predecessor,
+          authority: evidence(`exclusion/${excludedOperation}`),
+          fence: evidence(`fence/${excludedOperation}`),
+        })
+        const successorOf = (name: string, predecessor: AgentOperationId, chain: HandoffCustody['priorExcluded']) => ({
+          ...root,
+          operation: operation(name),
+          custody: custody(predecessor, chain),
+        })
+        // Before the root was attempted, no successor can start.
+        await refused(
+          journal.recordHandoff(successorOf('rh-early', root.operation, [])),
+          'invalid',
+          'a successor of an attempt that was never excluded',
+        )
+        opened.faultNext('recordHandoff', 'dropped')
+        await refused(journal.recordHandoff(root), 'commit-unknown', 'the dropped root')
+        assert.equal((await query(opened, root.operation)).kind, 'excluded')
+        const before = await load(opened)
+        const fence = await refused(
+          journal.recordHandoff(root),
+          'invalid',
+          'the same attempt after its permanent exclusion',
+        )
+        assert.deepEqual(fence, {
+          kind: 'invalid',
+          field: 'operation',
+          reason: 'operation-permanently-excluded',
+        })
+        assert.deepEqual(await load(opened), before, 'the fence writes nothing')
+        assert.equal((await query(opened, root.operation)).kind, 'excluded', 'query keeps excluded')
+        await refused(
+          journal.recordHandoff(successorOf('rh-skip', root.operation, [])),
+          'invalid',
+          'a successor whose chain omits the excluded predecessor',
+        )
+        const successor = successorOf('rh-2', root.operation, [exclusionOf(root.operation, null)])
+        const receipt = await ok(journal.recordHandoff(successor), 'the one successor')
+        const after = await load(opened)
+        assert.equal(Number(after.revision), Number(before.revision) + 1)
+        assert.deepEqual(handoffOf(after, request.reference).custody, {
+          root: root.operation,
+          chain: [
+            { operation: root.operation, predecessor: null, state: 'excluded' },
+            { operation: successor.operation, predecessor: root.operation, state: 'committed' },
+          ],
+          committed: successor.operation,
+        })
+        assert.deepEqual(await ok(journal.recordHandoff(successor), 'the retry'), receipt)
+        assert.deepEqual(await load(opened), after, 'the retry wrote nothing')
+        // Once an attempt succeeded, another successor of the same predecessor cannot succeed.
+        await refused(
+          journal.recordHandoff(successorOf('rh-3', root.operation, [exclusionOf(root.operation, null)])),
+          'invalid',
+          'a second successor of the same excluded predecessor',
+        )
+        await refused(
+          journal.recordHandoff(
+            successorOf('rh-4', successor.operation, [exclusionOf(root.operation, null)]),
+          ),
+          'invalid',
+          'a successor of a committed attempt',
+        )
+      },
+    },
+    {
+      name: 'load: handoffs and checkpoint.currentHandoff are read at one revision, and a commit without a handoff change keeps currentHandoff',
+      run: async () => {
+        const opened = await fixture.open('load-same-revision')
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        const receipt = await ok(
+          journal.commit(prepareCommit(opened, await load(opened), 'p1', request)),
+          'P',
+        )
+        const after = await load(opened)
+        assert.equal(after.revision, receipt.revision)
+        assert.deepEqual(after.checkpoint.currentHandoff, request.reference)
+        assert.equal(handoffOf(after, request.reference).history.kind, 'pending')
+        await refused(
+          journal.commit(
+            commitAt(opened, after, 'drop-pointer', opened.authority, {
+              checkpoint: { ...after.checkpoint, position: 'I8', currentHandoff: null },
+            }),
+          ),
+          'invalid',
+          'a commit without a handoff change that clears currentHandoff',
+        )
+        const kept = await ok(
+          journal.commit(commitAt(opened, after, 'keep-pointer')),
+          'a commit that keeps the pointer',
+        )
+        const later = await load(opened)
+        assert.equal(later.revision, kept.revision)
+        assert.deepEqual(later.checkpoint.currentHandoff, request.reference)
+        assert.equal(handoffOf(later, request.reference).history.kind, 'pending')
+      },
+    },
   ]
-}
-
-/** Two values with the same canonical text; exported for fixtures that compare snapshots. */
-export function sameValue(left: unknown, right: unknown): boolean {
-  return canonicalText(left) === canonicalText(right)
 }

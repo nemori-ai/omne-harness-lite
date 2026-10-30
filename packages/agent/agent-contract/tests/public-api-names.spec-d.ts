@@ -100,8 +100,31 @@ import type {
   FinishResult,
   GuardFact,
   GuardLevel,
-  HandoffResult,
+  HandoffChange,
+  HandoffCustody,
+  HandoffCustodyAttempt,
+  HandoffDecision,
+  HandoffExclusionRecord,
+  HandoffFactSource,
+  HandoffHistory,
+  HandoffLookup,
+  HandoffOutcome,
+  HandoffPosition,
+  HandoffPrepare,
+  HandoffReference,
+  HandoffRequest,
+  HandoffResolution,
+  HandoffRetirement,
+  ExecutionHandoff,
   IdentityFailure,
+  InputEntry,
+  InputHandoff,
+  InputOrigin,
+  InvokeRuntimeContext,
+  JournalSubmitLineage,
+  OriginalInputAcceptance,
+  PendingHandoff,
+  SubmitDelivery,
   InputBatch,
   InputBatchId,
   InputId,
@@ -207,8 +230,31 @@ type Landed = {
   FinalRequest: FinalRequest
   GuardFact: GuardFact
   GuardLevel: GuardLevel
-  HandoffResult: HandoffResult
+  HandoffChange: HandoffChange
+  HandoffCustody: HandoffCustody
+  HandoffCustodyAttempt: HandoffCustodyAttempt
+  HandoffDecision: HandoffDecision
+  HandoffExclusionRecord: HandoffExclusionRecord
+  HandoffFactSource: HandoffFactSource
+  HandoffHistory: HandoffHistory
+  HandoffLookup: HandoffLookup
+  HandoffOutcome: HandoffOutcome
+  HandoffPosition: HandoffPosition
+  HandoffPrepare: HandoffPrepare
+  HandoffReference: HandoffReference
+  HandoffRequest: HandoffRequest
+  HandoffResolution: HandoffResolution
+  HandoffRetirement: HandoffRetirement
+  ExecutionHandoff: ExecutionHandoff
   IdentityFailure: IdentityFailure
+  InputEntry: InputEntry
+  InputHandoff: InputHandoff
+  InputOrigin: InputOrigin
+  InvokeRuntimeContext: InvokeRuntimeContext
+  JournalSubmitLineage: JournalSubmitLineage
+  OriginalInputAcceptance: OriginalInputAcceptance
+  PendingHandoff: PendingHandoff
+  SubmitDelivery: SubmitDelivery
   InputBatch: InputBatch
   InputBatchId: InputBatchId
   InputId: InputId
@@ -716,7 +762,7 @@ describe('the discriminants of the passage ledger', () => {
       | 'reminder'
       | 'context-transition'
     >()
-    expectTypeOf<KindOf<HandoffResult>>().toEqualTypeOf<'accepted' | 'rejected'>()
+    expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
     expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
   })
 
@@ -752,9 +798,57 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<CapturedRead>().not.toExtend<NamedCapturedRead>()
   })
 
+  it('shapes the message admission: three prepare branches, three lookup conclusions, two origins and the entry index', () => {
+    expectTypeOf<keyof MessageHandoff<string>>().toEqualTypeOf<'prepare' | 'lookup' | 'exclude'>()
+    expectTypeOf<KindOf<HandoffPrepare>>().toEqualTypeOf<'execution' | 'invoke' | 'submit'>()
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'execution' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'execution'; request: PendingHandoff; advance: Authority }>
+    >()
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'invoke' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'invoke'; request: InputHandoff; runtime: InvokeRuntimeContext }>
+    >()
+    // The submit branch has no advance, runtime, current or grant member.
+    expectTypeOf<Extract<HandoffPrepare, { kind: 'submit' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'submit'; request: InputHandoff }>
+    >()
+    expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
+    expectTypeOf<KindOf<HandoffResolution>>().toEqualTypeOf<'recorded' | 'excluded' | 'unknown'>()
+    expectTypeOf<Extract<HandoffResolution, { kind: 'unknown' }>['original']>().toEqualTypeOf<
+      Readonly<{
+        request: HandoffRequest
+        origin: InputOrigin | null
+        record: DurableEvidence
+      }> | null
+    >()
+    expectTypeOf<KindOf<HandoffReference>>().toEqualTypeOf<'execution' | 'input'>()
+    expectTypeOf<KindOf<HandoffRequest>>().toEqualTypeOf<'execution' | 'input'>()
+    expectTypeOf<KindOf<HandoffLookup>>().toEqualTypeOf<'execution' | 'input-entry'>()
+    expectTypeOf<KindOf<InputOrigin>>().toEqualTypeOf<'invoke' | 'submit'>()
+    expectTypeOf<KindOf<SubmitDelivery>>().toEqualTypeOf<'runtime-view' | 'durable-view'>()
+    expectTypeOf<KindOf<InputEntry>>().toEqualTypeOf<'invoke' | 'submit'>()
+    expectTypeOf<Extract<InputEntry, { kind: 'submit' }>>().not.toHaveProperty('checkpoint')
+    expectTypeOf<Extract<InputEntry, { kind: 'invoke' }>['checkpoint']>().toEqualTypeOf<AgentCheckpoint>()
+    expectTypeOf<PendingHandoff['source']>().toEqualTypeOf<
+      Exclude<MessageSource, { kind: 'external-input' }>
+    >()
+    expectTypeOf<HandoffOutcome['origin']>().toEqualTypeOf<InputOrigin | null>()
+    expectTypeOf<HandoffPosition>().toEqualTypeOf<
+      Readonly<{ step: StepId; node: string; slot: string | null }>
+    >()
+  })
+
   it('give the ports their reply types', () => {
-    expectTypeOf<ReturnType<MessageHandoff<string>['accept']>>().toEqualTypeOf<
-      Reply<HandoffResult>
+    expectTypeOf<ReturnType<MessageHandoff<string>['prepare']>>().toEqualTypeOf<
+      Reply<HandoffOutcome>
+    >()
+    expectTypeOf<ReturnType<MessageHandoff<string>['lookup']>>().toEqualTypeOf<
+      Reply<HandoffResolution>
+    >()
+    expectTypeOf<ReturnType<MessageHandoff<string>['exclude']>>().toEqualTypeOf<
+      Reply<HandoffResolution>
+    >()
+    expectTypeOf<Parameters<MessageHandoff<string>['exclude']>[0]>().toEqualTypeOf<
+      Access<string> & Readonly<{ request: PendingHandoff; control: AgentOperationId }>
     >()
     expectTypeOf<ReturnType<ActionAdmission<string>['admit']>>().toEqualTypeOf<
       Reply<AdmissionDecision>
@@ -867,9 +961,21 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<
       Extract<AgentAccessDecision, { kind: 'unavailable' }>['diagnostic']
     >().toEqualTypeOf<string>()
-    expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<'scope' | 'instance' | 'execution'>()
+    // SPEC "主体资格核验": four target branches; the execution target is the logical execution alone.
+    expectTypeOf<KindOf<AgentAccessTarget>>().toEqualTypeOf<
+      'scope' | 'instance' | 'execution' | 'input-entry'
+    >()
+    expectTypeOf<Extract<AgentAccessTarget, { kind: 'execution' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'execution'; execution: AgentExecutionId }>
+    >()
+    expectTypeOf<Extract<AgentAccessTarget, { kind: 'input-entry' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+    >()
     expectTypeOf<'takeover'>().toExtend<AgentAccessOperation>()
     expectTypeOf<'record-terminal-observation'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'read-message-handoff'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'record-message-handoff'>().toExtend<AgentAccessOperation>()
+    expectTypeOf<'exclude-message-handoff'>().toExtend<AgentAccessOperation>()
     expectTypeOf<'attach'>().not.toExtend<AgentAccessOperation>()
     expectTypeOf<ReturnType<AgentAccessCheck<string>['check']>>().toEqualTypeOf<
       Promise<AgentAccessDecision>
@@ -953,9 +1059,63 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<AgentJournalReading<string>>().not.toExtend<AgentJournalRecording<string>>()
   })
 
+  it('commits carry the handoff change, open takes the two acceptance parts, submit takes its lineage and the snapshot lists the handoffs', () => {
+    expectTypeOf<JournalCommit<string>['handoff']>().toEqualTypeOf<HandoffChange | null>()
+    expectTypeOf<KindOf<HandoffChange>>().toEqualTypeOf<'prepare' | 'resolve' | 'retire'>()
+    expectTypeOf<Extract<HandoffChange, { kind: 'retire' }>['excluded']>().toEqualTypeOf<
+      Extract<HandoffResolution, { kind: 'excluded' }>
+    >()
+    expectTypeOf<KindOf<HandoffHistory>>().toEqualTypeOf<
+      'pending' | 'committed' | 'not-applicable' | 'retained'
+    >()
+    expectTypeOf<ExecutionSnapshot['handoffs']>().toEqualTypeOf<readonly ExecutionHandoff[]>()
+    expectTypeOf<ExecutionHandoff['resolution']>().toEqualTypeOf<Extract<
+      HandoffResolution,
+      { kind: 'recorded' | 'excluded' }
+    > | null>()
+    expectTypeOf<AgentCheckpoint['currentHandoff']>().toEqualTypeOf<HandoffReference | null>()
+    expectTypeOf<ActionSlot['handoff']>().toEqualTypeOf<HandoffReference | null>()
+    expectTypeOf<Parameters<AgentJournalAttachment<string>['open']>[0]>().toEqualTypeOf<
+      ExecutionMutation<string> &
+        Readonly<{ original: OriginalInputAcceptance; runtime: InvokeRuntimeContext }>
+    >()
+    expectTypeOf<KindOf<JournalSubmitLineage>>().toEqualTypeOf<'new-input' | 'recognize-input'>()
+    expectTypeOf<Parameters<AgentJournalRecording<string>['submit']>[0]['lineage']>().toEqualTypeOf<
+      JournalSubmitLineage
+    >()
+    expectTypeOf<keyof AgentJournalRecording<string>>().toEqualTypeOf<
+      'commit' | 'submit' | 'control' | 'acknowledge' | 'recordResult' | 'recordControl' | 'recordHandoff'
+    >()
+    expectTypeOf<Parameters<AgentJournalRecording<string>['recordHandoff']>[0]>().toEqualTypeOf<
+      ExecutionMutation<string> &
+        Readonly<{
+          original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
+          custody: HandoffCustody | null
+        }>
+    >()
+    expectTypeOf<HandoffCustody['protocol']>().toEqualTypeOf<'hand-off-custody-successor/1'>()
+    expectTypeOf<HandoffCustody['priorExcluded']>().toEqualTypeOf<readonly HandoffExclusionRecord[]>()
+    expectTypeOf<HandoffCustody['factSource']>().toEqualTypeOf<HandoffFactSource>()
+    expectTypeOf<HandoffCustodyAttempt['state']>().toEqualTypeOf<'committed' | 'excluded'>()
+    expectTypeOf<ExecutionHandoff['retirement']>().toEqualTypeOf<HandoffRetirement | null>()
+    // Q14: the transition keeps its original candidate, plan, basis material and epoch.
+    expectTypeOf<keyof PreparedContextTransition>().toEqualTypeOf<
+      | 'preparation'
+      | 'message'
+      | 'source'
+      | 'derivation'
+      | 'commitment'
+      | 'candidate'
+      | 'plan'
+      | 'basis'
+      | 'epoch'
+    >()
+  })
+
   it('reuses the handle operations as inputs and answers the query like recovery does', () => {
     expectTypeOf<Parameters<AgentJournalRecording<string>['submit']>[0]>().toEqualTypeOf<
-      Parameters<AgentExecutionInput<string>['submit']>[0]
+      Parameters<AgentExecutionInput<string>['submit']>[0] &
+        Readonly<{ lineage: JournalSubmitLineage }>
     >()
     expectTypeOf<ReturnType<AgentJournalReading<string>['query']>>().toEqualTypeOf<
       ReturnType<AgentExecutionRecovery<string>['query']>

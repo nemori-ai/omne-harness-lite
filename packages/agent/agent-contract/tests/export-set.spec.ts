@@ -32,6 +32,8 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'judgeAuthority',
     'judgeEvidence',
     'judgeExtensionOutput',
+    'judgeHandoffPrepare',
+    'judgeInputOrigin',
     'judgeLoopExtensions',
   ])
 })

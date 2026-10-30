@@ -3,6 +3,7 @@ export { ATTRIBUTE_ITEMS } from './definition.ts'
 export { POSITIONS, POWERS } from './extensions.ts'
 export { judgeAgentDefinition } from './judge-definition.ts'
 export { judgeLoopExtensions } from './judge-extensions.ts'
+export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts'
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts'
 export type {
   ExtensionOutputJudgeInput,

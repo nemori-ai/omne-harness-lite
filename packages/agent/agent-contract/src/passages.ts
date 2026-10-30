@@ -8,6 +8,7 @@ import type * as M from '@omne-harness/model-contract'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Action,
+  AgentCheckpoint,
   AgentConclusion,
   GuardFact,
   PendingCall,
@@ -15,6 +16,7 @@ import type {
   Reply,
   PreparedContextTransition,
 } from './evaluation.ts'
+import type { AcceptedInput } from './execution.ts'
 import type {
   Conclusion,
   DecisionCardDraft,
@@ -31,11 +33,13 @@ import type {
   ActionBatchId,
   ActionId,
   AgentExecutionId,
+  AgentInstanceId,
   AgentOperationId,
   Authority,
   CardRoundId,
   ConsumerRef,
   DurableEvidence,
+  ExecutionRevision,
   InputId,
   PassageId,
   StepId,
@@ -258,21 +262,157 @@ export type MessageSource =
   | Readonly<{ kind: 'action-denied'; action: ActionId; evidence: DurableEvidence }>
   | Readonly<{ kind: 'reminder'; passage: PassageId }>
   | Readonly<{ kind: 'context-transition'; transition: PreparedContextTransition }>
-export type HandoffResult =
-  | Readonly<{ kind: 'accepted'; admission: DurableEvidence }>
+/**
+ * The complete content of one external command, as the admission provider and the Journal keep
+ * it (SPEC "输入内容与水位线"): the original entry operation O, the execution and the accepted
+ * input, without instance or grant. An invoke entry also keeps the complete initial checkpoint
+ * that the first prepare was given; a submit entry has none.
+ */
+export type InputEntry =
+  | Readonly<{
+      kind: 'invoke'
+      operation: AgentOperationId
+      execution: AgentExecutionId
+      initial: AcceptedInput
+      checkpoint: AgentCheckpoint
+    }>
+  | Readonly<{
+      kind: 'submit'
+      operation: AgentOperationId
+      execution: AgentExecutionId
+      value: AcceptedInput
+    }>
+/** The real runtime binding of one invoke: the instance, its scope, definition and grant. */
+export type InvokeRuntimeContext = Readonly<{
+  instance: AgentInstanceId
+  scope: DurableEvidence
+  definition: Adoption
+  grant: DurableEvidence | null
+}>
+/**
+ * How a submit was actually delivered: through the runtime view of an instance, which does not
+ * claim that the instance is still alive, or through the durable view alone.
+ */
+export type SubmitDelivery =
+  | Readonly<{ kind: 'runtime-view'; instance: AgentInstanceId }>
+  | Readonly<{ kind: 'durable-view' }>
+/**
+ * The immutable provenance of a first admission (SPEC "输入内容与水位线"), written once by the
+ * provider and returned unchanged afterwards. An invoke origin keeps the runtime binding of that
+ * time; a submit origin keeps the reference to the original execution binding record and the
+ * delivery route. Internal sources have no origin.
+ */
+export type InputOrigin =
+  | Readonly<{
+      kind: 'invoke'
+      instance: AgentInstanceId
+      scope: DurableEvidence
+      definition: Adoption
+      grant: DurableEvidence | null
+    }>
+  | Readonly<{ kind: 'submit'; executionBinding: DurableEvidence; delivery: SubmitDelivery }>
+/** The stable source position of an internal candidate: the step, the node and the slot it fills. */
+export type HandoffPosition = Readonly<{
+  step: StepId
+  node: string
+  slot: string | null
+}>
+/**
+ * The identity of one admission (H). An internal H is the operation that P fixed; an external H is
+ * the entry index Ki (execution and original entry operation O) with the input identity, which the
+ * provider maps to its own record.
+ */
+export type HandoffReference =
+  | Readonly<{ kind: 'execution'; execution: AgentExecutionId; operation: AgentOperationId }>
+  | Readonly<{
+      kind: 'input'
+      execution: AgentExecutionId
+      entry: AgentOperationId
+      input: InputId
+    }>
+/** The complete internal request that P saves before any prepare, conversion or external effect. */
+export type PendingHandoff = Readonly<{
+  kind: 'execution'
+  reference: Extract<HandoffReference, { kind: 'execution' }>
+  /** The expected revision of the P commit, which the derivation of H uses. */
+  predecessor: ExecutionRevision
+  position: HandoffPosition
+  source: Exclude<MessageSource, { kind: 'external-input' }>
+  candidate: Message
+  /** Audit only: the advance that prepared the request, never a recovery qualification. */
+  originalAdvance: Authority
+  predecessorHandoff: Extract<HandoffReference, { kind: 'execution' }> | null
+}>
+/** The external request of one invoke or submit entry; the runtime cross-checks its three parts. */
+export type InputHandoff = Readonly<{
+  kind: 'input'
+  reference: Extract<HandoffReference, { kind: 'input' }>
+  entry: InputEntry
+  source: Extract<MessageSource, { kind: 'external-input' }>
+}>
+export type HandoffRequest = PendingHandoff | InputHandoff
+/**
+ * The three branches of `MessageHandoff.prepare`, each a complete shape: an execution branch with
+ * the current advance, an invoke branch with the real runtime context, a submit branch with the
+ * input request alone (SPEC "消息准入").
+ */
+export type HandoffPrepare =
+  | Readonly<{ kind: 'execution'; request: PendingHandoff; advance: Authority }>
+  | Readonly<{ kind: 'invoke'; request: InputHandoff; runtime: InvokeRuntimeContext }>
+  | Readonly<{ kind: 'submit'; request: InputHandoff }>
+/** The fixed admission decision: the exact committable message with its basis, or the rejection. */
+export type HandoffDecision =
+  | Readonly<{ kind: 'prepared'; message: Message; admission: DurableEvidence }>
   | Readonly<{ kind: 'rejected'; reason: string; evidence: DurableEvidence }>
-/** The port that admits a candidate message from one of six sources; see SPEC "消息准入". */
+/** What `prepare` fixed for one H, bound to the complete original request and origin. */
+export type HandoffOutcome = Readonly<{
+  request: HandoffRequest
+  origin: InputOrigin | null
+  provider: Adoption
+  /** The original admission basis, not a current permission for a retry. */
+  qualification: DurableEvidence
+  record: DurableEvidence
+  decision: HandoffDecision
+}>
+/**
+ * What `lookup` and `exclude` answer: the recorded outcome, the permanent exclusion of a request
+ * whose outcome and effects can never happen, or unknown with the original material when it was
+ * durably saved. `null` material means none was obtained, not that nothing was called.
+ */
+export type HandoffResolution =
+  | Readonly<{ kind: 'recorded'; outcome: HandoffOutcome }>
+  | Readonly<{
+      kind: 'excluded'
+      request: HandoffRequest
+      origin: InputOrigin | null
+      exclusion: DurableEvidence
+    }>
+  | Readonly<{
+      kind: 'unknown'
+      original: Readonly<{
+        request: HandoffRequest
+        origin: InputOrigin | null
+        record: DurableEvidence
+      }> | null
+    }>
+/** Which original admission `lookup` reads: an internal H, or the external entry index. */
+export type HandoffLookup =
+  | Readonly<{
+      kind: 'execution'
+      execution: AgentExecutionId
+      handoff: Extract<HandoffReference, { kind: 'execution' }>
+    }>
+  | Readonly<{ kind: 'input-entry'; execution: AgentExecutionId; operation: AgentOperationId }>
+/**
+ * The port that fixes, reads and fences the admission of a candidate message from one of six
+ * sources; see SPEC "消息准入" and "卡片与准入端口的逐操作要素".
+ */
 export interface MessageHandoff<P> {
-  accept(
-    input: Access<P> &
-      Readonly<{
-        execution: AgentExecutionId
-        operation: AgentOperationId
-        advance: Authority | null
-        source: MessageSource
-        candidate: Message
-      }>,
-  ): Reply<HandoffResult>
+  prepare(input: Access<P> & HandoffPrepare): Reply<HandoffOutcome>
+  lookup(input: Access<P> & HandoffLookup): Reply<HandoffResolution>
+  exclude(
+    input: Access<P> & Readonly<{ request: PendingHandoff; control: AgentOperationId }>,
+  ): Reply<HandoffResolution>
 }
 export type Material<B extends ContentBlock> =
   | Readonly<{ kind: 'model'; result: ProducedResult; pages: readonly M.ResultPage[] }>

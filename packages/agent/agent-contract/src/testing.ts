@@ -30,7 +30,6 @@ export {
 
 export {
   agentJournalCoreConformance,
-  sameValue,
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpened,
 } from './testing-journal-core.ts'
