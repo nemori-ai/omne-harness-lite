@@ -28,7 +28,7 @@ description: "为新的能力或责任边界核对已有覆盖、性质保护责
 | 新结果由哪些现有能力覆盖，是否真有剩余责任 | `references/coverage.md` |
 | 性质由谁保护，前提、动作链或组合证据是否闭合 | `references/properties.md` |
 | 既定语义如何由 Cordis 提供者和装配兑现，精确来源是否足够 | `references/cordis.md` |
-| 独立评审对象已明确 | 派发指定的 choice、expression 或 plan 判据页，一次只判一种 |
+| 独立评审对象已明确 | 派发指定的 choice、expression 或 plan 判据页，一次只判一种。派发只做一种评审时，对每一种被排除的评审写明实际派出的是哪一份；没有派的，在报告里写「未覆盖」 |
 
 默认选一个方法页。发现跨页缺口时先点明问题，再按需展开。reviewer 已有明确判据页时直接读取它，不先加载本入口或其他判据。
 
