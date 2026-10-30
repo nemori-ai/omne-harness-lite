@@ -56,7 +56,7 @@ const SCOPE_LINE = /^- `([^`]+)`(（新建）)?(?: — (.*))?$/
 const COMMIT = /^[0-9a-f]{40}$/
 const ABSOLUTE_PATH = /^(?:[A-Za-z]:[\\/]|\\\\|\/)/
 const IDENTIFIER = /^[A-Za-z_$][\w$]*$/
-const REPOSITORY_PATH = /^[\w.@-]+(?:\/[\w.@-]+)+\.[A-Za-z0-9]+$/
+const REPOSITORY_PATH = /^[\p{L}\p{M}\p{N}_.@-]+(?:\/[\p{L}\p{M}\p{N}_.@-]+)+\.[\p{L}\p{N}]+$/u
 const SOURCE_PATHSPEC = ['*.ts', '*.mts', '*.js', '*.mjs']
 const MODULE_EXTENSION = /\.[cm]?[jt]s$/
 
@@ -224,12 +224,39 @@ function definitionLine(content: string, identifier: string): number | undefined
   }
   return found.length === 0 ? undefined : Math.min(...found)
 }
+/** A word that ends in one of these extensions is a file name, not a member access. */
+const FILE_EXTENSIONS = new Set([
+  'ts',
+  'mts',
+  'cts',
+  'tsx',
+  'js',
+  'mjs',
+  'cjs',
+  'jsx',
+  'json',
+  'md',
+  'py',
+  'yaml',
+  'yml',
+])
+/**
+ * The identifier a backtick word names, or undefined. `foo()` and `foo(...)` name `foo`; a dotted
+ * name such as `a.b` names its last segment `b`.
+ */
+function identifierOf(word: string): string | undefined {
+  const name = word.replace(/\(\s*(?:\.\.\.)?\s*\)$/, '')
+  const segments = name.split('.')
+  const last = segments.at(-1) ?? ''
+  if (segments.length > 1 && FILE_EXTENSIONS.has(last)) return undefined
+  return segments.every(segment => IDENTIFIER.test(segment)) ? last : undefined
+}
 function backtickWords(section: Section | undefined): string[] {
   const words: string[] = []
   for (const { text } of section?.body ?? [])
     for (const match of text.matchAll(/`([^`\n]+)`/g)) {
-      const word = match[1] ?? ''
-      if (IDENTIFIER.test(word) && !words.includes(word)) words.push(word)
+      const word = identifierOf(match[1] ?? '')
+      if (word !== undefined && !words.includes(word)) words.push(word)
     }
   return words
 }
