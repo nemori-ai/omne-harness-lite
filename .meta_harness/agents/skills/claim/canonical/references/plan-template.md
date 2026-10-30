@@ -79,7 +79,7 @@
 
 - 结构读数：切片 <N> 之后集中跑一次（命令见 `spec.md`「Testing Decisions」）。差分变异按 `review-code` 技能「差分变异」一段，在最终 head 上跑热点。工具不覆盖的写「未测量」，不写零。
 - 常规评审：全部切片完成后一次，按 `quality.md` 风险级别裁剪（L0、L1 不派实现评审；纯文档仍跑 `review-docs` 与 `review-delivery`；L3 逐行读热点）。
-- 准入：线内的卡只跑本卡成员的类型检查、测试、format、oxlint 与按需的 `check:docs`／`check:agents`，交接写明「全量准入留给集成节点」；不在线内的卡在最终 head 跑一次全量准入，期间不提交、不做占 CPU 的事。
+- 准入：线内的卡只跑本卡成员的类型检查、测试、format、oxlint 与按需的 `check:docs`／`check:agents`，交接写明「整次准入留给集成节点」；不在线内的卡在最终 head 跑一次整次准入，期间不提交、不做占 CPU 的事。
 
 ## 交回清单
 

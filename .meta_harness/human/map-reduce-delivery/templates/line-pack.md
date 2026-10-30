@@ -38,7 +38,7 @@ Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡�
 | 本线的约束 | <适用的 ub-mode 条目与项目独有判断。Line 在会话级按 spec 模板「原则与约束」写进 `constraints.md`> |
 | 风险级别与评审 | <`docs/engineering/quality.md` 的级别，及 `review-code`、`review-docs`、`review-delivery` 的力度> |
 | 角色策略 | <策略版本、两宿主的解析结果。requested 与 observed 分开记录> |
-| 线内检查 | <本卡成员的类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。全量准入归 reduce> |
+| 线内检查 | <本卡成员的类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。整次准入归 reduce> |
 | 线内联调 | <本线负责范围跨几个领域时：交回前在批次分支头运行的命令与判据，例如本线纵切的端到端用例。只有一个领域时写「不适用」> |
 | 证据 | <证据贴在卡评论里。规则归 `docs/engineering/agent-delivery.md` 第 5 节> |
 | 进度记录 | 卡级按 `claim` 技能 plan 模板的「进度更新」维护 `tmp/issue-<号>/plan.md`。线级按 `line` 范式的「进度记录」维护 `tmp/line-<线>/state.md` 开头的「本波进度」。每个切片完成和每张卡交付时都更新，不攒到交回 |

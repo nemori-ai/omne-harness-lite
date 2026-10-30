@@ -438,7 +438,7 @@ log="tmp/<任务>/<检查名>-$(date +%Y%m%dT%H%M%S).log"
 
 **为什么：**准入的 change-scope 只按 binding 判断写范围。接管时授权了更大的范围，但没有写进 binding，超出的改动照样被拒绝。在旧树上再运行 `start` 会报这棵树已经绑定了另一个任务。
 
-**反例形状：**接管时授权了更大的写范围，但没有登记新 attempt。全量准入的 change-scope 仍按旧 binding 拒绝了超出范围的改动。
+**反例形状：**接管时授权了更大的写范围，但没有登记新 attempt。整次准入的 change-scope 仍按旧 binding 拒绝了超出范围的改动。
 
 **怎样核对：**
 
