@@ -31,6 +31,7 @@ import type {
   Failure,
   FinishResult,
   InputBatchId,
+  JournalCapabilities,
   ModelReplyAdmission,
   PendingCall,
   ReplyAdmissionPage,
@@ -131,6 +132,12 @@ export type JointFact = Readonly<{
 type Qualification<P, X> = (input: Access<P> & X) => boolean
 
 export type MemoryAgentJournalOptions<P> = Readonly<{
+  /**
+   * The coordination mode this binding declares (SPEC "提交参加者协议"). Required: a binding has
+   * no implicit mode. A standalone binding refuses a non-null grant or input source before any
+   * write; a coordinated one checks them through the coordinator hooks below.
+   */
+  coordination: JournalCapabilities['coordination']
   /** Explicitly enables retained invocation corruption controls. Default: false. */
   retainedToolInvocationFaults?: boolean
   /** The joint-commit kinds whose participant this provider declares. Default: none. */
@@ -539,8 +546,9 @@ function sameEvidence(left: DurableEvidence | null, right: DurableEvidence | nul
 
 /** Creates an empty memory Journal. Each call has its own records; nothing is shared. */
 export function createMemoryAgentJournal<P>(
-  options: MemoryAgentJournalOptions<P> = {},
+  options: MemoryAgentJournalOptions<P>,
 ): MemoryAgentJournal<P> {
+  const coordination = options.coordination
   const retainedToolInvocationFaults = options.retainedToolInvocationFaults === true
   const retainedToolInvocationBaselines = new Map<string, ToolInvocationRef>()
   const participants = frozenSet(options.participants ?? [])
@@ -1014,7 +1022,7 @@ export function createMemoryAgentJournal<P>(
   // The port
 
   const port: AgentJournal<P> = {
-    capabilities: Object.freeze({ participants }),
+    capabilities: Object.freeze({ coordination, participants }),
 
     open(input) {
       const key = semanticKey('open', input)

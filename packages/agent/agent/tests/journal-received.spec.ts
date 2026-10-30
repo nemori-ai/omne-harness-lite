@@ -17,7 +17,7 @@ import {
 } from './journal-support.ts'
 
 function fixture() {
-  const memory = createMemoryAgentJournal<string>()
+  const memory = createMemoryAgentJournal<string>({ coordination: 'standalone' })
   const journal = memory.port
   const received = memory.provider.received
   if (received === null) throw new Error('joint provider required')

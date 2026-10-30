@@ -106,9 +106,16 @@ export type { Answer, Script } from './script.ts'
 export { createScriptedToolRuntime } from './tools.ts'
 export type { ScriptedToolRuntime } from './tools.ts'
 
+/**
+ * The Journal options of the test assembly. `coordination` is optional here only because this
+ * assembly chooses a standalone binding when it is omitted; the double's own factory has no default.
+ */
+export type TestJournalOptions<P> = Omit<MemoryAgentJournalOptions<P>, 'coordination'> &
+  Readonly<{ coordination?: MemoryAgentJournalOptions<P>['coordination'] }>
+
 export type TestAgentDependenciesOptions<P> = Readonly<{
-  /** Options of the memory Journal, such as its declared participants. */
-  journal?: MemoryAgentJournalOptions<P>
+  /** Options of the memory Journal, such as its mode and declared participants. */
+  journal?: TestJournalOptions<P>
   /** Enables the public Model testing pusher under an explicit tenant principal. */
   receivingPrincipal?: P
   /** The instance of the scripted Model provider. Default: `minst_agent-testing`. */
@@ -162,7 +169,7 @@ export function createTestAgentDependencies<P>(
     instance,
     ...(options.samePrincipal === undefined ? {} : { samePrincipal: options.samePrincipal }),
   })
-  const journal = createMemoryAgentJournal<P>(options.journal)
+  const journal = createMemoryAgentJournal<P>({ coordination: 'standalone', ...options.journal })
   const access = createScriptedAccessCheck<P>()
   const reception =
     options.receivingPrincipal === undefined

@@ -71,9 +71,9 @@ type Recording = Parameters<AgentJournal<string>['recordControl']>[0]
 
 async function setup(
   calls: readonly PendingCall[] = [associated],
-  options: Parameters<typeof createMemoryAgentJournal<string>>[0] = {},
+  options: Partial<Parameters<typeof createMemoryAgentJournal<string>>[0]> = {},
 ) {
-  const memory = createMemoryAgentJournal<string>(options)
+  const memory = createMemoryAgentJournal<string>({ coordination: 'standalone', ...options })
   const journal = memory.port
   const opened = await open(journal)
   ok(
@@ -477,7 +477,7 @@ describe('pending control operation custody', () => {
 
 describe('shared pending recognition prerequisites', () => {
   it('checks participant support before pending commit identity', async () => {
-    const memory = createMemoryAgentJournal<string>()
+    const memory = createMemoryAgentJournal<string>({ coordination: 'standalone' })
     const journal = memory.port
     const opened = await open(journal)
     const original = commitAt(await load(journal, opened.execution), opened.authority, 'pending')
@@ -508,6 +508,7 @@ describe('shared pending recognition prerequisites', () => {
     let allowed = true
     let qualifyingExecution: Recording['execution'] | undefined
     const memory = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
       custodian: input => {
         expect(input).toEqual({
           principal: access.principal,
@@ -596,6 +597,7 @@ describe('shared pending recognition prerequisites', () => {
     let allowed = true
     let qualifyingExecution: Recording['execution'] | undefined
     const memory = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
       observer: input => {
         expect(input).toEqual({
           principal: access.principal,
@@ -1446,6 +1448,7 @@ describe('scripted faults on recordControl', () => {
 it('never asks the custodian about an execution for a tenant that does not own it', async () => {
   const asked: tools.ToolInvocationParts['tenant'][] = []
   const memory = createMemoryAgentJournal<string>({
+    coordination: 'standalone',
     custodian: input => {
       asked.push(input.tenant)
       return true

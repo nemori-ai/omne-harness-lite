@@ -80,7 +80,7 @@ export async function assembleModelReceiverFixture(
     ],
   })
   if ('rejected' in message) throw new Error('invalid receiver fixture message')
-  const journal = createMemoryAgentJournal<string>()
+  const journal = createMemoryAgentJournal<string>({ coordination: 'standalone' })
   value(
     await journal.port.open({
       ...access,

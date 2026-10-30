@@ -1,4 +1,4 @@
-// The creation checks that read nothing but the options: the seven configuration items of
+// The creation checks that read nothing but the options: the eight configuration items of
 // docs/public-api.md "工厂配置" and the four binding fields. A value the type forbids can still come
 // from an untyped caller, so each check judges the value itself. The first failure is returned as
 // `invalid`, with `field` the path of the item, for example `configuration.toolConcurrency`.
@@ -24,6 +24,8 @@ const JOINT_COMMIT_KINDS: readonly unknown[] = [
   'custody',
   'processed',
 ] satisfies readonly JointCommitKind[]
+
+const COORDINATION_MODES: readonly unknown[] = ['standalone', 'coordinated'] satisfies readonly AgentConfiguration['coordination'][]
 
 const POSITIVE_SAFE = [
   'observerBufferBytes',
@@ -70,6 +72,8 @@ function judgeConfiguration(configuration: AgentConfiguration): Failure | undefi
     if (!isPositiveSafeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
   for (const key of NON_NEGATIVE)
     if (!isNonNegativeInteger(configuration[key])) return invalid(`configuration.${key}`, 'range')
+  if (!COORDINATION_MODES.includes(configuration.coordination))
+    return invalid('configuration.coordination', 'unknown-mode')
   return (
     judgeJointCommits(configuration.jointCommits) ??
     structure(

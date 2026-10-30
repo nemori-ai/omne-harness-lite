@@ -60,16 +60,17 @@ function absentDependency<P, B extends ContentBlock>(
 }
 
 /**
- * `unsupported` when the Journal provider declares no participant for one kind of `jointCommits`
- * (SPEC "提交参加者协议"). An independent assembly lists none and passes. 待 #558 M04-3: how an
- * external coordinator declares its participation is not decided, so the refusal of a coordinator
- * assembly is limited to the CallerCommit kinds that `capabilities.participants` can name.
+ * `unsupported` when the Journal binding declares no coordination mode or another one than the
+ * configuration requires, or declares no participant for one kind of `jointCommits` (SPEC
+ * "提交参加者协议"). The comparison is strict and has no default: a binding without the declaration
+ * is refused like a mismatch. An independent assembly lists no joint commit and passes that part.
  */
-function undeclaredJointCommit<P, B extends ContentBlock>(
+function undeclaredCapability<P, B extends ContentBlock>(
   dependencies: AgentDependencies<P, B>,
   configuration: AgentConfiguration,
 ): Failure | undefined {
-  const { participants } = dependencies.journal.capabilities
+  const { coordination, participants } = dependencies.journal.capabilities
+  if (coordination !== configuration.coordination) return { kind: 'unsupported' }
   return configuration.jointCommits.every(kind => participants.has(kind))
     ? undefined
     : { kind: 'unsupported' }
@@ -82,7 +83,8 @@ function undeclaredJointCommit<P, B extends ContentBlock>(
  * 1. configuration and binding fields: `invalid`;
  * 2. the instance of the registration handle against the binding: `denied`;
  * 3. the required dependencies: `unavailable`;
- * 4. `jointCommits` against the Journal's declared participants: `unsupported`.
+ * 4. `coordination` against the Journal binding's declared mode, then `jointCommits` against its
+ *    declared participants: `unsupported`.
  *
  * Two checks of public-api are not here, because nothing the factory receives can decide them
  * (see README_ZH.md "支持范围"). 待拥有者: whether the binding tenant matches the security scope
@@ -98,7 +100,7 @@ export async function createAgentRuntime<P, B extends ContentBlock>(
     judgeOptions(options) ??
     foreignRegistration(dependencies, options) ??
     absentDependency(dependencies) ??
-    undeclaredJointCommit(dependencies, options.configuration)
+    undeclaredCapability(dependencies, options.configuration)
   if (refusal !== undefined) return fail(refusal)
   const { binding } = options
   return succeed(

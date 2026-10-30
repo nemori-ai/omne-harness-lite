@@ -38,8 +38,11 @@ import {
   type Opened,
 } from './journal-support.ts'
 
-function memory(options: Parameters<typeof createMemoryAgentJournal<string>>[0] = {}) {
-  return createMemoryAgentJournal<string>(options)
+type MemoryOptions = Parameters<typeof createMemoryAgentJournal<string>>[0]
+
+/** A memory Journal; a standalone binding unless the test names another mode. */
+function memory(options: Partial<MemoryOptions> = {}) {
+  return createMemoryAgentJournal<string>({ coordination: 'standalone', ...options })
 }
 
 async function takeover(journal: Journal, opened: Opened, name = 'takeover') {
