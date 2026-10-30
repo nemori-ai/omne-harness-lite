@@ -7,7 +7,9 @@
 import { describe, it } from 'vitest'
 import {
   agentJournalCoreConformance,
+  testCancellationPolicyInstallation,
   type AgentJournalCoreFixture,
+  type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
 import { operationId } from '@omne-harness/session-contract/testing'
 import { scene, ok, operation, evidence, instance } from './fixtures/common-journal.ts'
@@ -15,8 +17,13 @@ import { accept, handed } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
 const fixture: AgentJournalCoreFixture<string> = {
-  async open(name) {
-    const s = await scene(`core-${name}`)
+  async open(name, options = {}) {
+    const hostRecords = new Map<string, TestHostRecord>()
+    const installed = options.cancellationPolicy !== 'absent'
+    const s = await scene(`core-${name}`, undefined, undefined, {
+      cancellationPolicy: installed ? 'installed' : 'absent',
+      hostRecords,
+    })
     ok(await handed(s))
     const handedOver = new Set<string>()
     const journal: typeof s.view.journal = {
@@ -41,6 +48,12 @@ const fixture: AgentJournalCoreFixture<string> = {
       receipt: s.opened.receipt,
       authority: s.opened.authority,
       checkpoint: s.checkpoint,
+      installation: installed ? testCancellationPolicyInstallation : null,
+      hostRecord: async record => {
+        const source = evidence(`host/${hostRecords.size + 1}/${record.kind}`)
+        hostRecords.set(source.record, record)
+        return source
+      },
       acceptInput: label => accept(s, `input-${label}`),
       produceResult: async label => {
         const tool = toolCall(s.access.tenant, label)

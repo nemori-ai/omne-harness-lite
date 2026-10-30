@@ -31,6 +31,7 @@ import type {
   JointFact,
 } from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
+import { copyFinishing } from './journal-finishing.ts'
 
 export type SessionState = Readonly<{
   lastCommit: CommitReceipt | null
@@ -154,6 +155,9 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     // is copied, not only the list.
     handoffs: value.handoffs.map(item => ({ ...item })),
     custodyAttempts: new Map(value.custodyAttempts),
+    // F2 replaces an author route at its index and the writes append to the lists, so the lists
+    // and maps are copied; the records themselves are immutable.
+    finishing: copyFinishing(value.finishing),
   }
 }
 function cloneRoot(root: CommonRoot): CommonRoot {
