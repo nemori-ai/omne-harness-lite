@@ -20,9 +20,12 @@ def host_support() -> dict:
     return json.loads((Path(__file__).resolve().parents[1] / "references/model-support.json").read_text())
 
 
+EFFORT_ORDER = ("low", "medium", "high", "xhigh", "max", "ultra")
+
+
 def effort_description(effort: str) -> str:
-    return (f"Default reasoning effort: {effort}; the dispatcher may adjust it to medium, high or xhigh "
-            "for the actual task size and complexity. Use the role dispatch settings to apply the chosen effort.")
+    return (f"Default reasoning effort: {effort}. The dispatcher may adjust it to medium, high or xhigh "
+            "as the role dispatch policy allows. Use the role dispatch settings to apply the chosen effort.")
 
 
 def validate_target(config: dict, host: str, overlay: str, support: dict):
@@ -110,6 +113,16 @@ def dispatch_settings(source: Path, host: str, effort: str | None = None) -> dic
     selected = default if effort is None else effort
     if selected not in ("medium", "high", "xhigh"):
         raise ValueError("dispatch effort must be medium, high or xhigh")
+    policy_path = source.parent / "dispatch-policy.json"
+    if host in ("codex", "claude") and policy_path.is_file():
+        policy = json.loads(policy_path.read_text(encoding="utf-8"))
+        cap = policy.get("top_model_maximum_effort")
+        policy_host = "claude_code" if host == "claude" else host
+        model = native_config(outputs, policy_host).get("model")
+        strongest, _ = policy_model(source, policy_host, policy["tiers"]["top"][policy_host])
+        if cap and model == strongest and EFFORT_ORDER.index(selected) > EFFORT_ORDER.index(cap):
+            raise ValueError(f"effort above {cap} on the top-tier model {model} is reserved for hardest tasks; "
+                             "use --resolve with the work kind")
     if host == "codex":
         config = tomllib.loads(next(v for p, v in outputs.items() if p.suffix == ".toml"))
         support = host_support()
@@ -181,6 +194,57 @@ def policy_model(source: Path, host: str, reference: str) -> tuple[str, str]:
     return required_string(config, "model", reference), reference
 
 
+def validate_policy(policy: dict) -> None:
+    """Reject a dispatch policy whose effort fields name unknown efforts, work kinds or risks."""
+    def known(value, where: str):
+        if value not in EFFORT_ORDER:
+            raise ValueError(f"dispatch policy: {where}: unknown effort {value!r}")
+    if "top_model_maximum_effort" in policy:
+        known(policy["top_model_maximum_effort"], "top_model_maximum_effort")
+    for role, rule in policy["roles"].items():
+        for key in ("minimum_effort", "top_minimum_effort"):
+            if key in rule:
+                known(rule[key], f"{role}.{key}")
+        for kind, value in rule.get("work_minimum_effort", {}).items():
+            if kind not in rule["work"]:
+                raise ValueError(f"dispatch policy: {role}.work_minimum_effort: undeclared work kind {kind!r}")
+            known(value, f"{role}.work_minimum_effort.{kind}")
+        for kind in rule.get("hardest_work", []):
+            if kind not in rule["work"]:
+                raise ValueError(f"dispatch policy: {role}.hardest_work: undeclared work kind {kind!r}")
+        for risk in rule.get("hardest_risks", []):
+            if risk not in rule.get("top_risks", []):
+                raise ValueError(f"dispatch policy: {role}.hardest_risks: {risk!r} is not in top_risks")
+
+
+def effort_bounds(policy: dict, rule: dict, work_kind: str, risks, tier: str, role_default: str | None,
+                  on_top_model: bool) -> dict:
+    """Return the role-work default effort, the floor, the cap and whether the task is hardest.
+
+    Floors only raise: the role floor, the work floor, the top-tier floor, then xhigh for hardest work.
+    On the top-tier model a task that is not hardest may not exceed top_model_maximum_effort, so a
+    higher default or floor drops to that cap.
+    """
+    def higher(a: str | None, b: str) -> str:
+        return b if a is None or EFFORT_ORDER.index(b) > EFFORT_ORDER.index(a) else a
+    default, minimum = role_default, rule.get("minimum_effort", "low")
+    floors = [rule["work_minimum_effort"][work_kind]] if work_kind in rule.get("work_minimum_effort", {}) else []
+    if tier == "top" and "top_minimum_effort" in rule:
+        floors.append(rule["top_minimum_effort"])
+    hardest = work_kind in rule.get("hardest_work", []) or bool(set(risks) & set(rule.get("hardest_risks", [])))
+    if hardest:
+        floors.append("xhigh")
+    for floor in floors:
+        default, minimum = higher(default, floor), higher(minimum, floor)
+    cap = None if hardest or not on_top_model else policy.get("top_model_maximum_effort")
+    if cap:
+        if default is not None and EFFORT_ORDER.index(default) > EFFORT_ORDER.index(cap):
+            default = cap
+        if EFFORT_ORDER.index(minimum) > EFFORT_ORDER.index(cap):
+            minimum = cap
+    return {"default": default, "minimum": minimum, "cap": cap, "hardest": hardest}
+
+
 def resolve_dispatch(source: Path, host: str, work_kind: str, *, policy_version: str,
                      risks: tuple[str, ...] = (), overrides: dict | None = None,
                      pstack_defaults: dict | None = None, host_defaults: dict | None = None) -> dict:
@@ -199,6 +263,7 @@ def resolve_dispatch(source: Path, host: str, work_kind: str, *, policy_version:
     policy = json.loads(policy_raw)
     if policy_version != policy["version"]:
         raise ValueError(f"dispatch policy version mismatch: expected {policy['version']}")
+    validate_policy(policy)
     outputs = render(source)
     config = native_config(outputs, host)
     role = config["name"]
@@ -224,28 +289,31 @@ def resolve_dispatch(source: Path, host: str, work_kind: str, *, policy_version:
         role_defaults["model"], model_reference = policy_model(source, host, variant)
     effort_key = "model_reasoning_effort" if host == "codex" else "effort"
     _, adjustable_effort = assembly_inputs(source)
-    if adjustable_effort:
-        role_defaults["effort"] = adjustable_effort
-    minimum = rule.get("minimum_effort", "low")
-    if tier == "top" and "top_minimum_effort" in rule:
-        minimum = rule["top_minimum_effort"]
-        role_defaults["effort"] = minimum
-    layers = [("task-override", overrides), ("role-work", role_defaults),
-              ("pstack", pstack_defaults), ("host-default", host_defaults)]
     fixed_model = (role_defaults["model"] if variant else
                    None if rule.get("adjustable_model") else config.get("model"))
-    model, model_origin = choose_dispatch_value("model", fixed_model, layers)
+    model, model_origin = choose_dispatch_value(
+        "model", fixed_model, [("task-override", overrides), ("role-work", role_defaults),
+                               ("pstack", pstack_defaults), ("host-default", host_defaults)])
+    strongest_model, _ = policy_model(source, host, policy["tiers"]["top"][host])
+    bounds = effort_bounds(policy, rule, work_kind, risks, tier, adjustable_effort, model == strongest_model)
+    if bounds["hardest"] and model != strongest_model:
+        raise ValueError(f"{role}: hardest work must run on the top-tier model {strongest_model}")
+    effort_defaults = {"effort": bounds["default"]} if bounds["default"] else {}
     fixed_effort = None if adjustable_effort else config.get(effort_key)
-    effort, effort_origin = choose_dispatch_value("effort", fixed_effort, layers)
+    effort, effort_origin = choose_dispatch_value(
+        "effort", fixed_effort, [("task-override", overrides), ("role-work", effort_defaults),
+                                 ("pstack", pstack_defaults), ("host-default", host_defaults)])
     if adjustable_effort and effort not in ("medium", "high", "xhigh"):
         raise ValueError("adjustable role effort must be medium, high or xhigh")
     support = host_support()
     exact_model(model, host, effort, support)
-    effort_order = ("low", "medium", "high", "xhigh", "max", "ultra")
-    if effort_order.index(effort) < effort_order.index(minimum):
-        raise ValueError(f"{role}: effort must be at least {minimum} for this task")
+    if EFFORT_ORDER.index(effort) < EFFORT_ORDER.index(bounds["minimum"]):
+        raise ValueError(f"{role}: effort must be at least {bounds['minimum']} for this task")
+    if bounds["cap"] and EFFORT_ORDER.index(effort) > EFFORT_ORDER.index(bounds["cap"]):
+        raise ValueError(f"{role}: effort above {bounds['cap']} on the top-tier model {model} is reserved for hardest tasks")
     if tier == "top" and rule.get("adjustable_model"):
-        top_model, _ = policy_model(source, host, top_reference)
+        top_model = (strongest_model if top_reference == policy["tiers"]["top"][host]
+                     else policy_model(source, host, top_reference)[0])
         if model != top_model:
             raise ValueError(f"{role}: task requires the top-tier model {top_model}")
     if host == "codex":
@@ -264,6 +332,7 @@ def resolve_dispatch(source: Path, host: str, work_kind: str, *, policy_version:
     return {"harness": host, "role": role, "work_kind": work_kind, "risks": list(risks),
             "policy_version": policy["version"], "policy_revision": hashlib.sha256(policy_raw.encode()).hexdigest(),
             "role_source_revision": revision, "requested": {"model": model, "effort": effort},
+            "effort_rule": {"hardest": bounds["hardest"], "minimum": bounds["minimum"], "cap": bounds["cap"]},
             "selection": {"model": model_origin, "effort": effort_origin,
                           "model_source_role": selected_source, "model_source_revision": model_revision},
             "observed": {"model": "unknown", "effort": "unknown"}, "native": native,

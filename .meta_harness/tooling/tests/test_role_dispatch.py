@@ -1,6 +1,7 @@
 import hashlib
 import importlib.util
 import json
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -25,15 +26,17 @@ def resolve(role, host="codex", work="product", **kwargs):
     ("developer", "product", "gpt-6.1-sol", "claude-opus-5-5", "high"),
     ("qa", "non-interactive", "gpt-6.1-sol", "claude-sonnet-5-5", "high"),
     ("diagnostician", "terminal", "gpt-6.1-sol", "claude-opus-5-5", "high"),
-    ("implementation-reviewer", "implementation", "gpt-6-astra", "claude-fable-5-1", "high"),
+    ("implementation-reviewer", "implementation", "gpt-6-astra", "claude-fable-5-1", "medium"),
     ("design-reviewer", "choice", "gpt-6-astra", "claude-fable-5-1", "xhigh"),
-    ("product-design-drafter", "product", "gpt-6-astra", "claude-opus-5-5", "xhigh"),
-    ("product-design-reviewer", "product", "gpt-6-astra", "claude-fable-5-1", "xhigh"),
+    ("product-design-drafter", "product", "gpt-6-astra", "claude-opus-5-5", {"codex": "high", "claude_code": "xhigh"}),
+    ("product-design-reviewer", "product", "gpt-6-astra", "claude-fable-5-1", "medium"),
 ])
 @pytest.mark.parametrize("host", ["codex", "claude_code"])
 def test_seven_roles_have_exact_models_and_native_parameters(role, work, codex, claude, effort, host):
     result = resolve(role, host, work)
     model = codex if host == "codex" else claude
+    if isinstance(effort, dict):
+        effort = effort[host]
     assert result["requested"] == {"model": model, "effort": effort}
     assert result["observed"] == {"model": "unknown", "effort": "unknown"}
     assert len(result["role_source_revision"]) == 64
@@ -53,32 +56,59 @@ def test_economical_developer_variants(work):
     assert resolve("developer", "codex", work)["requested"] == {"model": "gpt-6.1-sol", "effort": "high"}
 
 
-@pytest.mark.parametrize("role,work,risk", [
-    ("developer", "kernel", None),
-    ("developer", "provider", "security-sensitive"),
-    ("developer", "application", "multi-package"),
-    ("developer", "application", "whole-assembly"),
-    ("developer", "capability", "underspecified-contract"),
-    ("developer", "terminal", "cross-module-lifecycle"),
-    ("developer", "verification", "cross-process-faults"),
-    ("developer", "verification", "release-gate"),
-    ("qa", "terminal", None),
-    ("qa", "non-interactive", "terminal-matrix"),
-    ("qa", "non-interactive", "multi-service"),
-    ("qa", "non-interactive", "release-gate"),
+@pytest.mark.parametrize("work,risk", [
+    ("kernel", None),
+    ("terminal", "cross-module-lifecycle"),
+    ("verification", "cross-process-faults"),
+    ("product", "subtle-algorithm"),
 ])
 @pytest.mark.parametrize("host,model", [("codex", "gpt-6-astra"), ("claude", "claude-fable-5-1")])
-def test_risky_work_uses_top_tier_and_cannot_be_downgraded(role, work, risk, host, model):
-    if role == "qa" and host == "claude":
-        model = "claude-opus-5-5"
+def test_hardest_developer_work_uses_xhigh_on_the_top_tier(work, risk, host, model):
     risks = () if risk is None else (risk,)
-    result = resolve(role, host, work, risks=risks)
+    result = resolve("developer", host, work, risks=risks)
     assert result["requested"] == {"model": model, "effort": "xhigh"}
     with pytest.raises(ValueError, match="at least xhigh"):
-        resolve(role, host, work, risks=risks, overrides={"effort": "high"})
+        resolve("developer", host, work, risks=risks, overrides={"effort": "high"})
     lower = "gpt-6.1-sol" if host == "codex" else "claude-sonnet-5-5"
     with pytest.raises(ValueError, match="top-tier"):
-        resolve(role, host, work, risks=risks, overrides={"model": lower})
+        resolve("developer", host, work, risks=risks, overrides={"model": lower})
+
+
+@pytest.mark.parametrize("work,risk", [
+    ("provider", "security-sensitive"),
+    ("application", "multi-package"),
+    ("application", "whole-assembly"),
+    ("capability", "underspecified-contract"),
+    ("verification", "release-gate"),
+])
+@pytest.mark.parametrize("host,model", [("codex", "gpt-6-astra"), ("claude", "claude-fable-5-1")])
+def test_other_top_tier_developer_work_uses_high_and_rejects_xhigh(work, risk, host, model):
+    result = resolve("developer", host, work, risks=(risk,))
+    assert result["requested"] == {"model": model, "effort": "high"}
+    with pytest.raises(ValueError, match="at least high"):
+        resolve("developer", host, work, risks=(risk,), overrides={"effort": "medium"})
+    with pytest.raises(ValueError, match="reserved for hardest"):
+        resolve("developer", host, work, risks=(risk,), overrides={"effort": "xhigh"})
+
+
+@pytest.mark.parametrize("work,risk", [
+    ("terminal", None),
+    ("non-interactive", "terminal-matrix"),
+    ("non-interactive", "multi-service"),
+    ("non-interactive", "release-gate"),
+])
+def test_qa_top_tier_keeps_xhigh_on_opus_and_caps_astra_at_high(work, risk):
+    risks = () if risk is None else (risk,)
+    claude = resolve("qa", "claude", work, risks=risks)
+    assert claude["requested"] == {"model": "claude-opus-5-5", "effort": "xhigh"}
+    with pytest.raises(ValueError, match="at least xhigh"):
+        resolve("qa", "claude", work, risks=risks, overrides={"effort": "high"})
+    codex = resolve("qa", "codex", work, risks=risks)
+    assert codex["requested"] == {"model": "gpt-6-astra", "effort": "high"}
+    with pytest.raises(ValueError, match="reserved for hardest"):
+        resolve("qa", "codex", work, risks=risks, overrides={"effort": "xhigh"})
+    with pytest.raises(ValueError, match="top-tier"):
+        resolve("qa", "codex", work, risks=risks, overrides={"model": "gpt-6.1-sol"})
 
 
 def test_qa_claude_top_tier_follows_qa_contract():
@@ -91,15 +121,81 @@ def test_expression_review_selects_its_validated_claude_variant():
     assert result["selection"]["model_source_role"] == "product-design-drafter"
     with pytest.raises(ValueError, match="fixed model"):
         resolve("design-reviewer", "claude", "expression", overrides={"model": "claude-fable-5-1"})
+    with pytest.raises(ValueError, match="at least xhigh"):
+        resolve("design-reviewer", "claude", "expression", overrides={"effort": "medium"})
+    codex = resolve("design-reviewer", "codex", "expression")
+    assert codex["requested"] == {"model": "gpt-6-astra", "effort": "high"}
+    assert codex["effort_rule"] == {"hardest": False, "minimum": "high", "cap": "high"}
+
+
+@pytest.mark.parametrize("host", ["codex", "claude"])
+def test_choice_review_is_hardest_and_cannot_be_lowered(host):
+    with pytest.raises(ValueError, match="at least xhigh"):
+        resolve("design-reviewer", host, "choice", overrides={"effort": "high"})
+
+
+@pytest.mark.parametrize("role,work", [("product-design-reviewer", "product"), ("design-reviewer", "plan"),
+                                       ("implementation-reviewer", "implementation")])
+@pytest.mark.parametrize("host,model", [("codex", "gpt-6-astra"), ("claude", "claude-fable-5-1")])
+def test_reviewers_default_to_medium_allow_high_and_reserve_xhigh(role, work, host, model):
+    assert resolve(role, host, work)["requested"] == {"model": model, "effort": "medium"}
+    assert resolve(role, host, work, overrides={"effort": "high"})["requested"]["effort"] == "high"
+    with pytest.raises(ValueError, match="reserved for hardest"):
+        resolve(role, host, work, overrides={"effort": "xhigh"})
 
 
 @pytest.mark.parametrize("role,work", [("product-design-reviewer", "product"), ("design-reviewer", "plan")])
 @pytest.mark.parametrize("host,model", [("codex", "gpt-6.1-sol"), ("claude", "claude-sonnet-5-5")])
-def test_fixed_role_constraints_reject_even_supported_overrides(role, work, host, model):
+def test_reviewer_models_stay_fixed(role, work, host, model):
     with pytest.raises(ValueError, match="fixed model"):
         resolve(role, host, work, overrides={"model": model})
+
+
+def test_fixed_effort_roles_still_reject_effort_overrides():
     with pytest.raises(ValueError, match="fixed effort"):
-        resolve(role, host, work, overrides={"effort": "high"})
+        resolve("product-design-drafter", "claude", "product", overrides={"effort": "high"})
+
+
+def edited_policy(tmp_path, change):
+    shutil.copytree(ROLES, tmp_path / "roles")
+    policy_path = tmp_path / "roles/dispatch-policy.json"
+    policy = json.loads(policy_path.read_text())
+    change(policy)
+    policy_path.write_text(json.dumps(policy))
+    return tmp_path / "roles"
+
+
+@pytest.mark.parametrize("change,message", [
+    (lambda p: p["roles"]["developer"]["hardest_risks"].append("terminal-matrix"), "hardest_risks: 'terminal-matrix' is not in top_risks"),
+    (lambda p: p["roles"]["developer"]["hardest_work"].append("non-interactive"), "hardest_work: undeclared work kind 'non-interactive'"),
+    (lambda p: p["roles"]["design-reviewer"]["hardest_work"].append("kernel"), "hardest_work: undeclared work kind 'kernel'"),
+    (lambda p: p["roles"]["design-reviewer"]["work_minimum_effort"].update(expresion="xhigh"), "work_minimum_effort: undeclared work kind 'expresion'"),
+    (lambda p: p["roles"]["design-reviewer"]["work_minimum_effort"].update(expression="hihg"), "unknown effort 'hihg'"),
+    (lambda p: p.update(top_model_maximum_effort="hihg"), "top_model_maximum_effort: unknown effort"),
+    (lambda p: p["roles"]["qa"].update(top_minimum_effort="extra"), "qa.top_minimum_effort: unknown effort"),
+])
+def test_policy_rejects_undeclared_or_unknown_effort_entries(tmp_path, change, message):
+    roles = edited_policy(tmp_path, change)
+    with pytest.raises(ValueError, match=re.escape(message)):
+        renderer.resolve_dispatch(roles / "diagnostician", "codex", "terminal", policy_version=VERSION)
+
+
+def test_hardest_work_must_run_on_the_top_tier_model(tmp_path):
+    roles = edited_policy(tmp_path, lambda p: p["roles"]["developer"]["hardest_work"].append("product"))
+    with pytest.raises(ValueError, match="hardest work must run on the top-tier model claude-fable-5-1"):
+        renderer.resolve_dispatch(roles / "developer", "claude", "product", policy_version=VERSION)
+
+
+@pytest.mark.parametrize("role,host", [("design-reviewer", "codex"), ("product-design-reviewer", "claude"),
+                                       ("implementation-reviewer", "codex")])
+def test_plain_dispatch_cannot_bypass_the_top_model_cap(role, host):
+    with pytest.raises(ValueError, match="use --resolve"):
+        renderer.dispatch_settings(ROLES / role, host, "xhigh")
+    assert renderer.dispatch_settings(ROLES / role, host, "high")
+
+
+def test_plain_dispatch_keeps_xhigh_for_roles_off_the_top_model():
+    assert renderer.dispatch_settings(ROLES / "developer", "claude", "xhigh")["developer"]["effort"] == "xhigh"
 
 
 def test_legal_overrides_win_over_role_defaults_and_fallbacks():
