@@ -179,7 +179,13 @@ export interface AgentJournalReading<P> {
   query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>
   readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>
 }
+/**
+ * What one Journal binding declares (SPEC "提交参加者协议"): its coordination mode, which the factory
+ * compares with the configured one and which has no implicit default, and the CallerCommit kinds
+ * whose participant it can serve.
+ */
 export type JournalCapabilities = Readonly<{
+  coordination: 'standalone' | 'coordinated'
   participants: ReadonlySet<Exclude<CallerCommit['kind'], 'none'>>
 }>
 /** The durable port of Agent, the union of its five role groups and its joint-commit capabilities; see SPEC "托管协调与运行实例" and "提交参加者协议". */

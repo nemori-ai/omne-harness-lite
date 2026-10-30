@@ -918,6 +918,11 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<JournalCapabilities['participants']>().toEqualTypeOf<
       ReadonlySet<'message' | 'context-transition' | 'custody' | 'processed'>
     >()
+    // SPEC "提交参加者协议": the binding declares its coordination mode; there is no implicit default.
+    expectTypeOf<JournalCapabilities['coordination']>().toEqualTypeOf<
+      'standalone' | 'coordinated'
+    >()
+    expectTypeOf<keyof JournalCapabilities>().toEqualTypeOf<'coordination' | 'participants'>()
     expectTypeOf<EffectIntent['pending']>().toEqualTypeOf<PendingCall>()
   })
 
@@ -955,6 +960,25 @@ describe('the discriminants of the Journal chapter', () => {
     expectTypeOf<ReturnType<AgentJournalReading<string>['query']>>().toEqualTypeOf<
       ReturnType<AgentExecutionRecovery<string>['query']>
     >()
+    // SPEC "查询的四种结论与持久拒绝": rejected carries the fixed conflict, the audit and its revision.
+    type QueryConclusion = Awaited<ReturnType<AgentExecutionRecovery<string>['query']>> extends Outcome<
+      infer Conclusion,
+      Failure
+    >
+      ? Conclusion
+      : never
+    expectTypeOf<KindOf<QueryConclusion>>().toEqualTypeOf<
+      'committed' | 'rejected' | 'excluded' | 'unknown'
+    >()
+    expectTypeOf<Extract<QueryConclusion, { kind: 'rejected' }>>().toEqualTypeOf<
+      Readonly<{
+        kind: 'rejected'
+        failure: Extract<Failure, { kind: 'conflict' }>
+        audit: DurableEvidence
+        revision: ExecutionRevision
+      }>
+    >()
+    expectTypeOf<Extract<QueryConclusion, { kind: 'committed' }>['receipt']>().toEqualTypeOf<CommandReceipt>()
     expectTypeOf<ReturnType<AgentJournalFinishing<string>['tryFinish']>>().toEqualTypeOf<
       Reply<FinishResult>
     >()

@@ -1011,6 +1011,13 @@ export interface AgentExecutionRecovery<P> {
         kind: 'committed';
         receipt: CommandReceipt;
     }> | Readonly<{
+        kind: 'rejected';
+        failure: Extract<Failure, {
+            kind: 'conflict';
+        }>;
+        audit: DurableEvidence;
+        revision: ExecutionRevision;
+    }> | Readonly<{
         kind: 'excluded';
         evidence: DurableEvidence;
     }> | Readonly<{
@@ -1587,6 +1594,7 @@ export interface AgentJournalReading<P> {
     readonly output: Pick<AgentExecutionEvents<P>, 'read' | 'events'>;
 }
 export type JournalCapabilities = Readonly<{
+    coordination: 'standalone' | 'coordinated';
     participants: ReadonlySet<Exclude<CallerCommit['kind'], 'none'>>;
 }>;
 export interface AgentJournal<P> extends AgentJournalAttachment<P>, AgentJournalRecording<P>, AgentJournalFinishing<P>, AgentJournalObservation<P>, AgentJournalReading<P> {
