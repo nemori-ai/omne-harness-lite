@@ -48,7 +48,11 @@ export function sessionView<P>(
         invoke(input, 'journal.recordControl', view => view.journal.recordControl(input)),
       recordHandoff: input =>
         invoke(input, 'journal.recordHandoff', view => view.journal.recordHandoff(input)),
+      prepareFinish: input =>
+        invoke(input, 'journal.prepareFinish', view => view.journal.prepareFinish(input)),
       tryFinish: input => invoke(input, 'journal.tryFinish', view => view.journal.tryFinish(input)),
+      commitSettlement: input =>
+        invoke(input, 'journal.commitSettlement', view => view.journal.commitSettlement(input)),
       recordTerminalObservation: input =>
         invoke(input, 'journal.recordTerminalObservation', view =>
           view.journal.recordTerminalObservation(input),

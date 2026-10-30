@@ -54,6 +54,7 @@ import {
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
+  type MemoryAgentJournalOptions,
 } from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
@@ -97,6 +98,14 @@ export type MemorySessionJournalOptions<P> = Readonly<{
    */
   authorize(input: SessionAccess<P>, action: string): 'allowed' | 'denied' | 'unavailable'
   budget?: Readonly<{ entries: number; bytes: number; capacityBytes: number }>
+  /**
+   * The cancellation policy installation the Agent Journal of every session holds (Agent SPEC
+   * "安装记录与资格"), from the assembly entry. Absent: the candidate, migration and judgment
+   * variants of commitSettlement answer `unavailable`.
+   */
+  cancellation?: MemoryAgentJournalOptions<P>['cancellation']
+  /** The trusted host reads of the custody variants of commitSettlement, by source record text. */
+  hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
 function agentFailure(
@@ -814,6 +823,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           qualifyJoint(cell, input, method, receipt),
         participants: ['message', 'context-transition', 'custody', 'processed'],
         grant: input => grantHoldsFor(cell.state(), input.execution, input.grant, input.method),
+        ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
+        ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
       })
       views.set(key, view)
     }
@@ -1120,7 +1131,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               if (qualification)
                 return qualification.kind === 'denied'
                   ? qualification
-                  : { kind: 'unavailable', owner: 'session-qualification', diagnostic: 'reconcile' }
+                  : {
+                      kind: 'unavailable',
+                      owner: 'session-qualification',
+                      diagnostic: 'reconcile',
+                    }
               const gap = cell.gate()
               if (gap !== null) return { kind: 'quarantined', diagnostic: gap }
               if (cell.current() !== root)

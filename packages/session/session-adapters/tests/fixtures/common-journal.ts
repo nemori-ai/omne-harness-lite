@@ -34,6 +34,11 @@ import {
   guard,
   evidence,
 } from '@omne-harness/session-contract/testing'
+import {
+  createTestCancellationPolicy,
+  testCancellationPolicyInstallation,
+  type TestHostRecord,
+} from '@omne-harness/agent-contract/testing'
 import { createMemorySessionJournal } from '../../src/testing.ts'
 
 export function ok<T, F>(outcome: Outcome<T, F>): T {
@@ -68,10 +73,20 @@ export type SceneQualification = {
   /** When set, the Session check holds its answer until the returned promise settles. */
   hold?: (request: SessionAccessRequest<string>) => Promise<void> | undefined
 }
+/**
+ * The finishing setup of a scene's Agent Journal: the test cancellation policy is installed
+ * unless `cancellationPolicy` is `absent`; `hostRecords` are the trusted host reads of the
+ * custody variants of commitSettlement, read at each call.
+ */
+export type SceneFinishing = Readonly<{
+  cancellationPolicy?: 'installed' | 'absent'
+  hostRecords?: ReadonlyMap<string, TestHostRecord>
+}>
 export async function scene(
   session = 'journal-session',
   budget?: { entries: number; bytes: number; capacityBytes: number },
   qualification: SceneQualification = { agent: true, session: true },
+  finishing: SceneFinishing = {},
 ) {
   const access = memoryAccess('tester', session)
   const initialization = createMemoryInitializationSource()
@@ -110,6 +125,15 @@ export async function scene(
     accessCheck,
     authorize: () => (qualification.agent ? 'allowed' : 'denied'),
     ...(budget ? { budget } : {}),
+    ...(finishing.cancellationPolicy === 'absent'
+      ? {}
+      : {
+          cancellation: {
+            installation: testCancellationPolicyInstallation,
+            policy: createTestCancellationPolicy(),
+          },
+        }),
+    ...(finishing.hostRecords === undefined ? {} : { hostRecords: finishing.hostRecords }),
   })
   const value = creation({ initial: ordinaryInput('input-1') })
   const command: Extract<SessionCommand, { kind: 'create' }> = {
