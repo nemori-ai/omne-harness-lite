@@ -199,12 +199,32 @@ describe('connected tenant path, first round', () => {
         })),
       ),
     )
-    expect(kindAt(observed, 'H04')).toBe('disconnected')
+    // Session refused the hand-over with a named failure: a refusal, not a disconnection.
+    expect(kindAt(observed, 'H04')).toBe('refused')
     expect(evidenceAt(observed, 'H04')).toContain(
       'session-contract:commit(receive input-handover) conflict',
     )
     for (const hop of ['H05', 'H06', 'H07', 'H08', 'H09', 'H10', 'H11', 'H12', 'H13'] as const)
       expect(observed[hop]).toBeUndefined()
+  })
+
+  it('reports the step that stopped a probe session, with the kind that step gave', async () => {
+    const observed = await runFirstTenantPath(
+      pathDependencies(
+        wrappedStore(({ transactions }) => ({
+          ...transactions,
+          commit: (async (input: Parameters<typeof transactions.commit>[0]) =>
+            input.command.kind === 'receive' && String(input.access.session) === 'session-cs-tool'
+              ? { failure: { kind: 'conflict', operation: input.command.input.operation } }
+              : transactions.commit(input)) as typeof transactions.commit,
+        })),
+      ),
+    )
+    expect(kindAt(observed, 'H07')).toBe('connected')
+    expect(observed.H10).toEqual({
+      kind: 'refused',
+      evidence: ['probe-tool:session-contract:commit(receive input-handover) conflict'],
+    })
   })
 
   it('fails H08 when the Session history does not carry the Model reply text', async () => {
@@ -344,7 +364,8 @@ describe('the injected Session access check (#680 B-1)', () => {
 describe('the later rounds, the probes and the Session log (CS v2)', () => {
   it('drives the later rounds until the Session refuses the next Run, and records the submit route', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H09')).not.toBe('connected')
+    // Session refused the Run with a named failure, so H09 is a refusal.
+    expect(kindAt(observed, 'H09')).toBe('refused')
     expect(evidenceAt(observed, 'H09')[0]).toBe('session-contract:1 of 3 rounds replied')
     expect(evidenceAt(observed, 'H09')).toContain('round 2: session-startRun:run-active')
     expect(evidenceAt(observed, 'H09')).toContain('round 2: agent:input.submit unavailable')
@@ -377,7 +398,46 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     )
     expect(kindAt(observed, 'H10')).toBe('disconnected')
     expect(evidenceAt(observed, 'H10')).toContain('agent:the tool-call reply was not handed over')
+    expect(evidenceAt(observed, 'H10')).toContain(
+      'agent:no tool-call reply within 50 event-loop turns',
+    )
+    expect(evidenceAt(observed, 'H10')).toContain(
+      'agent:no second reply within 50 event-loop turns',
+    )
     expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('I4')
+  })
+
+  it('judges the I4 stop of H10 from the last journal snapshot it read', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: async input => {
+          const agent = await original(input)
+          if (input.scenario !== 'tool-call') return agent
+          let loads = 0
+          return {
+            ...agent,
+            journal: {
+              ...agent.journal,
+              // The first read sees the loop before I4; the next one sees it at I4.
+              async load(request) {
+                const snapshot = await agent.journal.load(request)
+                loads += 1
+                if ('failure' in snapshot || loads > 1) return snapshot
+                const checkpoint = { ...snapshot.ok.checkpoint, position: 'I3' }
+                return { ok: { ...snapshot.ok, checkpoint } }
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(kindAt(observed, 'H10')).toBe('refused')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:journal state advancing at I4')
+    expect(evidenceAt(observed, 'H10')).toContain(
+      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+    )
   })
 
   it('runs one Tool invocation as a file read, a file write and one command in the #791 doubles', async () => {
@@ -406,8 +466,60 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
       'agent:recovery.detach unavailable',
       'agent:runtime.resume unavailable',
       'agent:the original driver continued from the received entry after the Model settled',
-      'observation:the re-attachment of a StreamRef after reassembly is not exercised',
+      'observation:no public entry supplies the server-entry observation path; frame continuity on the observation connection after reassembly is not observed (GAP-AGENT-REASSEMBLY)',
     ])
+  })
+
+  it('does not connect H11 without observation continuity, even when the withdrawal and the resume succeed', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        agent: async input => {
+          const agent = await original(input)
+          if (input.scenario !== 'held') return agent
+          const { provider } = agent
+          type Quiesced = Awaited<ReturnType<typeof provider.control.quiesce>>
+          type Resumed = Awaited<ReturnType<typeof provider.runtime.resume>>
+          return {
+            ...agent,
+            provider: {
+              ...provider,
+              control: { quiesce: async () => ({ ok: null }) as unknown as Quiesced },
+              runtime: {
+                ...provider.runtime,
+                resume: async () => ({ ok: null }) as unknown as Resumed,
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(kindAt(observed, 'H11')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H11')).toContain('agent:control.quiesce succeeded')
+    expect(evidenceAt(observed, 'H11')).toContain('agent:runtime.resume succeeded')
+    // After a successful withdrawal the original driver is no longer what the evidence may name.
+    expect(evidenceAt(observed, 'H11')).toContain(
+      'agent:the resumed execution ended from the received entry after the Model settled',
+    )
+    expect(evidenceAt(observed, 'H11').join(' ')).not.toContain('original driver')
+    expect(evidenceAt(observed, 'H11').join(' ')).toContain('frame continuity')
+  })
+
+  it('records the timeout when the reassembly probe gets no reply after the Model was released', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: async input => {
+          const agent = await original(input)
+          return input.scenario === 'held' ? { ...agent, releaseModel: () => {} } : agent
+        },
+      }),
+    )
+    expect(kindAt(observed, 'H11')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H11')).toContain(
+      'agent:no reply within 50 event-loop turns after the Model was released',
+    )
   })
 
   it('answers the withdrawal, the resume and the submit as not implemented by #502, not as an access refusal', async () => {
@@ -466,6 +578,7 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H12')).toEqual([
       'model-contract:the public pusher delivered the reasoning result to the host receiver',
       'agent:journal state waiting at M6',
+      'agent:no reply within 2000 event-loop turns',
       'agent:the loop holds the received result with reasoning parts at M6 and handed over no reply (GAP-REASONING-REPLAY)',
       'agent:no second request was sent',
     ])
@@ -555,7 +668,7 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
         'session-log',
       ),
     )
-    expect(kindAt(observed, 'H04')).toBe('disconnected')
+    expect(kindAt(observed, 'H04')).toBe('refused')
     expect(evidenceAt(observed, 'H04')).toContain(
       'session-contract:commit(receive input-handover) invalid',
     )
@@ -630,8 +743,8 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(rowOf(report, 'H07', 'session-ad01')?.realization).toBe('absent')
     const sessionLog = await runContractSkeleton(skeletonInputs({}, 'session-log'))
     expect(rowOf(sessionLog, 'H07', 'session-ad01')?.realization).toBe('double')
-    // H11 withdraws and resumes on the Agent faces; it does not cross the server entry.
-    expect(report.hops.find(hop => hop.hopId === 'H11')?.rows).not.toContain('server-entry')
+    // H11 needs the observation of the server entry to stay continuous after reassembly.
+    expect(report.hops.find(hop => hop.hopId === 'H11')?.rows).toContain('server-entry')
     const undeclared = await runContractSkeleton(skeletonInputs({ realization: {} }))
     expect(undeclared.hops[0]?.realization[0]?.realization).toBe('undeclared')
   })

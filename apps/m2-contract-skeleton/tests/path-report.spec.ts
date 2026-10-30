@@ -60,7 +60,7 @@ describe('M2 path observations', () => {
       'GAP-RECEIVE-SURFACE': [502, 795],
       'GAP-SECOND-RUN': [784, 502],
       'GAP-TOOL-LOOP': [520, 524, 525, 526, 528],
-      'GAP-AGENT-REASSEMBLY': [502],
+      'GAP-AGENT-REASSEMBLY': [502, 784],
       'GAP-REASONING-REPLAY': [502],
       'GAP-SESSION-LOG-TARGETS': [784],
     })

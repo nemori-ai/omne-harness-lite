@@ -154,10 +154,10 @@ export const HOP_DEFINITIONS = [
     hopId: 'H11',
     publicEntry: '@omne-harness/agent; @omne-harness/model-contract',
     responsibility:
-      'the Agent instance is withdrawn during a Model call and assembled again; the call is not re-sent and the loop continues from the Journal',
+      'the Agent instance is withdrawn during a Model call and assembled again; the call is not re-sent, the loop continues from the Journal, and the observation through the server entry stays continuous',
     ownerCards: [502, 787, 746],
     reason: 'SPEC.md#h11',
-    rows: ['agent-host', 'agent-instances', 'model-host'],
+    rows: ['agent-host', 'agent-instances', 'model-host', 'server-entry'],
   },
   {
     hopId: 'H12',
@@ -251,7 +251,7 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-AGENT-REASSEMBLY',
     hops: ['H11'],
-    owners: [card(502)],
+    owners: [card(502), card(784)],
     blocking: true,
     reason: 'SPEC.md#gap-agent-reassembly',
   },
