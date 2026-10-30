@@ -12,6 +12,7 @@ import {
   recheckTargets,
   summarizeMember,
   type MutationReport,
+  type ReportMutant,
   type SummaryInputs,
 } from '../src/mutation/report.ts'
 import {
@@ -188,6 +189,27 @@ describe('报告汇总', () => {
       },
     },
   }
+
+  it('报告里的变异体按跑完的先后排；读数按生成的先后（id）列，与跑完的先后无关', () => {
+    const mutants = (report.files['src/a.ts']?.mutants ?? []).slice(0, 4)
+    const survivors = (ordered: readonly ReportMutant[]): MutationReport => ({
+      files: {
+        'src/a.ts': {
+          source,
+          mutants: ordered.map(mutant => ({ ...mutant, status: 'Survived' as const })),
+        },
+      },
+    })
+    const forward = summarizeMember(TARGET, survivors(mutants))
+    expect(summarizeMember(TARGET, survivors(mutants.toReversed()))).toEqual(forward)
+    // 按行排；同一行上的按 id。
+    expect(forward.survived.map(finding => finding.mutator)).toEqual([
+      'ArrowFunction',
+      'EqualityOperator',
+      'ConditionalExpression',
+      'StringLiteral',
+    ])
+  })
 
   it('只计落在改动行上的；分数是测出来的占（测出来＋没测出来）', () => {
     const result = summarizeMember(TARGET, report)
