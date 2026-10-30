@@ -1411,33 +1411,33 @@ export function createJournal<P>(
     const fact = options.terminalParticipant?.({ execution: execution.id, control })
     return {
       kind: 'coordinated',
-      association: journalEvidence(`${cell.namespace}/${execution.id}/coordination`, 0),
+      association: coordination(execution),
       participants: fact === undefined ? [] : [copy(fact)],
     }
   }
 
+  /** The association evidence of the coordinated binding of `execution`. */
+  function coordination(execution: Execution): DurableEvidence {
+    return journalEvidence(`${cell.namespace}/${execution.id}/coordination`, 0)
+  }
+
   /**
-   * The checks of a finish authorization that prepareFinish, tryFinish and the candidate,
-   * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): an
-   * advancement under an effective cancel is `changed`; a cancel names a saved control whose
-   * intent is reached (`denied` otherwise) and carries the source of that control (`invalid`
-   * otherwise). Answers the effective control of a cancel.
+   * The checks of a cancel authorization that prepareFinish, tryFinish and the candidate,
+   * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): the
+   * cancel names a saved control whose intent is reached (`denied` otherwise) and carries the
+   * source of that control (`invalid` otherwise). Answers the effective control.
    */
-  function authorizationCheck(
+  function cancelCheck(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     execution: Execution,
-    authorization: FinishAuthorization,
+    authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
     action: string,
   ):
     | Readonly<{ kind: 'failure'; failure: Failure }>
-    | Readonly<{ kind: 'changed' }>
-    | Readonly<{
-        kind: 'held'
-        control: ControlRecord | null
-      }> {
-    const effective = effectiveCancels(execution)
-    if (authorization.kind === 'advancement')
-      return effective.length > 0 ? { kind: 'changed' } : { kind: 'held', control: null }
-    const control = effective.find(record => record.operation === authorization.control)
+    | Readonly<{ kind: 'held'; control: ControlRecord }> {
+    const control = effectiveCancels(execution).find(
+      record => record.operation === authorization.control,
+    )
     if (control === undefined) return { kind: 'failure', failure: denied(action) }
     if (!sameEvidence(control.stages.accepted.source, authorization.source))
       return {
@@ -1447,20 +1447,25 @@ export function createJournal<P>(
     return { kind: 'held', control }
   }
 
-  /** The five blocked categories of `candidate` in their fixed order (Agent SPEC "条件终结"). */
+  /**
+   * The finish check of `candidate` over the closure rebuilt now (Agent SPEC "条件终结"); the
+   * cancellation route compares its judgment with the Session participant fact read now.
+   */
   function blockedReason(
     execution: Execution,
-    operation: AgentOperationId,
     candidate: FinishCandidate,
+    items: readonly FinishObligation[],
+    listed: readonly FinishObligation[],
   ) {
+    const route = currentRoute(execution.finishing)
     return finishCheck(
       {
-        execution: `${cell.namespace}/${execution.id}`,
-        revision: execution.revision,
-        untakenInputs: inputBoundary(execution).from < execution.inputs.length,
-        controls: execution.controls,
-        pendingOperation: pendingWrites(execution, operation)[0]?.operation,
-        results: execution.results,
+        items,
+        listed,
+        participants:
+          route?.kind === 'cancellation'
+            ? participantsOf(execution, route.control)
+            : { kind: 'coordinated', association: coordination(execution), participants: [] },
         finishing: execution.finishing,
       },
       candidate,
@@ -1714,12 +1719,12 @@ export function createJournal<P>(
     if (installed === undefined)
       return answer(fail(damaged('no cancellation policy is installed on this binding')))
     if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-    const checked = authorizationCheck(execution, input.authorization, 'commitSettlement')
-    if (checked.kind === 'changed') return answer(fail({ kind: 'changed' }))
+    const checked = cancelCheck(input, execution, input.authorization, 'commitSettlement')
     if (checked.kind === 'failure') return answer(fail(checked.failure))
     const control = checked.control
-    if (control === null || control.command.kind !== 'cancel')
-      return answer(fail(denied('commitSettlement')))
+    if (control.command.kind !== 'cancel')
+      throw new Error('session Journal defect: an effective cancel without a cancel command')
+    const cause = control.command.reason
     const installation = installed.installation
     if (!sameEvidence(installation.record, input.installation))
       return answer(fail(invalid('installation', 'not the installation this binding holds')))
@@ -1756,7 +1761,7 @@ export function createJournal<P>(
         const candidate: FinishCandidate = {
           candidate: input.operation,
           origin: copy(control.stages.accepted.source),
-          conclusion: { kind: 'cancelled', cause: copy(control.command.reason) },
+          conclusion: { kind: 'cancelled', cause: copy(cause) },
           failure: null,
           inputWatermark: watermarkOf(execution),
           checkpoint: copy(execution.checkpoint),
@@ -1890,6 +1895,10 @@ export function createJournal<P>(
           return answer(fail(invalid('route', 'not a cancellation route')))
         if (route === undefined || route.record.record !== named.record.record)
           return answer(fail({ kind: 'changed' }))
+        if (named.control !== control.operation)
+          return answer(
+            fail(invalid('authorization.control', 'not the control of the judged route')),
+          )
         const built = obligationsOf(execution, candidate, input.operation)
         const judged: CancellationJudgmentInput = {
           tenant: execution.tenant,
@@ -3058,19 +3067,31 @@ export function createJournal<P>(
         const original = recognized<Issued>(input, key)
         if (original !== undefined) return answer(original)
         const authorization = input.authorization
-        // Agent SPEC "判定次序与失败映射" 4 to 6: stale-advance, then terminal, then changed.
+        // Agent SPEC "判定次序与失败映射" 4 to 6 and the prepareFinish row of the judgment order:
+        // stale-advance, terminal, the denied checks of the authorization, then changed, then a
+        // candidate this Journal does not hold.
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const checked = authorizationCheck(execution, authorization, 'prepareFinish')
-        if (checked.kind === 'changed') return answer(fail({ kind: 'changed' }))
-        if (checked.kind === 'failure') return answer(fail(checked.failure))
+        if (authorization.kind === 'cancel') {
+          const checked = cancelCheck(input, execution, authorization, 'prepareFinish')
+          if (checked.kind === 'failure') return answer(fail(checked.failure))
+        }
         const finishing = execution.finishing
         const candidate = candidateOf(finishing, input.candidate)
+        // A cancel issues the list of a cancelled candidate only, an advancement never.
+        if (
+          candidate !== undefined &&
+          (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
+        )
+          return answer(fail(denied('prepareFinish')))
+        if (execution.state.kind !== 'settling') return answer(fail({ kind: 'changed' }))
+        if (input.expected !== revisionOf(execution.revision))
+          return answer(fail({ kind: 'changed' }))
         if (candidate === undefined)
           return answer(fail(invalid('candidate', 'not a candidate of this execution')))
         if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-        if (input.expected !== revisionOf(execution.revision))
+        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
           return answer(fail({ kind: 'changed' }))
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'obligations', revision)
@@ -3118,21 +3139,31 @@ export function createJournal<P>(
           succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
         )
         const authorization = input.authorization
-        // Agent SPEC "判定次序与失败映射": a superseded advancement is stale-advance before terminal.
+        // The tryFinish row of the judgment order: stale-advance, terminal, the cancel checks,
+        // the kind of the authorization, then changed, then the list, then the closure.
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const checked = authorizationCheck(execution, authorization, 'tryFinish')
-        if (checked.kind === 'changed') return changed
-        if (checked.kind === 'failure') return answer(fail(checked.failure))
         const finishing = execution.finishing
+        if (authorization.kind === 'cancel') {
+          const checked = cancelCheck(input, execution, authorization, 'tryFinish')
+          if (checked.kind === 'failure') return answer(fail(checked.failure))
+          const route = currentRoute(finishing)
+          if (route?.kind === 'cancellation' && route.control !== authorization.control)
+            return answer(
+              fail(invalid('authorization.control', 'not the control of the current route')),
+            )
+        } else if (effectiveCancels(execution).length > 0) return changed
         const candidate = currentCandidate(finishing)
+        // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
+        if (
+          candidate !== undefined &&
+          (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
+        )
+          return answer(fail(denied('tryFinish')))
         const intent = intentOf(finishing)
         if (candidate === undefined || intent === undefined || execution.state.kind !== 'settling')
           return changed
-        // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
-        if ((candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel'))
-          return answer(fail(denied('tryFinish')))
         if (input.expected !== revisionOf(execution.revision)) return changed
         // The list must be issued by this Journal for this candidate (Agent SPEC "条件终结").
         const given = input.intent.obligations
@@ -3146,15 +3177,14 @@ export function createJournal<P>(
         // The intent is compared with the projection for equality only.
         if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
           return changed
-        // The list stays usable while the responsibility projection is unchanged.
-        if (
-          projectionOf(obligationsOf(execution, candidate, input.operation).items) !==
-          projectionOf(list.items)
-        )
-          return changed
+        // The closure is rebuilt by the builder prepareFinish used; the list stays usable while
+        // the responsibility projection is unchanged.
+        const closure = obligationsOf(execution, candidate, input.operation).items
+        if (projectionOf(closure) !== projectionOf(list.items)) return changed
         const boundary = cache(execution).watermarks.get(candidate.inputWatermark.record)
         if (boundary === undefined || boundary.to < execution.inputs.length) return changed
-        const check = blockedReason(execution, input.operation, candidate)
+        const check = blockedReason(execution, candidate, closure, list.items)
+        if (check.kind === 'changed') return changed
         if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
         if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
         const revision = execution.revision + 1
