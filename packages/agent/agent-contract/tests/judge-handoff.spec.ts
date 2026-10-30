@@ -224,6 +224,61 @@ describe('judgeHandoffPrepare', () => {
     })
     expect(read).toBe(false)
   })
+
+  it('refuses a nested value that is not plain data at its path, without throwing', () => {
+    const withResult = (result: unknown) => ({
+      ...EXECUTION_PREPARE,
+      request: { ...PENDING, source: { ...PENDING.source, result } },
+    })
+    const fn = () => 1
+    expect(failureOf(judgeHandoffPrepare(withResult({ ...PENDING.source.result, f: fn })))).toEqual(
+      { field: 'request.source.result.f', reason: 'type' },
+    )
+    expect(
+      failureOf(judgeHandoffPrepare(withResult({ ...PENDING.source.result, list: [1, fn] }))),
+    ).toEqual({ field: 'request.source.result.list.1', reason: 'type' })
+    expect(
+      failureOf(judgeHandoffPrepare(withResult({ ...PENDING.source.result, [Symbol('s')]: 1 }))),
+    ).toEqual({ field: 'request.source.result', reason: 'type' })
+    expect(
+      failureOf(judgeHandoffPrepare(withResult({ ...PENDING.source.result, at: new Date(0) }))),
+    ).toEqual({ field: 'request.source.result.at', reason: 'type' })
+    const cyclic: Record<string, unknown> = { ...PENDING.source.result }
+    cyclic['self'] = cyclic
+    expect(failureOf(judgeHandoffPrepare(withResult(cyclic)))).toEqual({
+      field: 'request.source.result.self',
+      reason: 'type',
+    })
+    const checkpoint = { ...INPUT, entry: { ...ENTRY, checkpoint: { position: 'E3', f: fn } } }
+    expect(failureOf(judgeHandoffPrepare({ ...INVOKE_PREPARE, request: checkpoint }))).toEqual({
+      field: 'request.entry.checkpoint.f',
+      reason: 'type',
+    })
+  })
+
+  it('refuses a nested accessor without running it', () => {
+    let read = false
+    const deep = {}
+    Object.defineProperty(deep, 'value', {
+      enumerable: true,
+      get() {
+        read = true
+        return 1
+      },
+    })
+    const trap = {
+      ...EXECUTION_PREPARE,
+      request: {
+        ...PENDING,
+        source: { ...PENDING.source, result: { ...PENDING.source.result, deep } },
+      },
+    }
+    expect(failureOf(judgeHandoffPrepare(trap))).toEqual({
+      field: 'request.source.result.deep',
+      reason: 'type',
+    })
+    expect(read).toBe(false)
+  })
 })
 
 describe('judgeInputOrigin', () => {
