@@ -514,6 +514,33 @@ describe('锁文件按 importer 映射到成员（W2-C1）', () => {
     )
   })
 
+  // 引擎改了，这次的计划就是用改过的引擎算的：锁文件判定、接续与运行记录的模块都不能给自己划范围。
+  const ENGINE_FILES = [
+    'tools/test-runner/src/testing/lockfile-impact.ts',
+    'tools/test-runner/src/testing/pnpm-lockfile.ts',
+    'tools/test-runner/src/testing/resume.ts',
+    'tools/test-runner/src/testing/admission-run.ts',
+  ]
+
+  it.each(ENGINE_FILES)('引擎模块 %s 是全局文件：改它判全量', path => {
+    expect(classify(path, LOCK_MEMBERS, RULES)).toMatchObject({ category: 'global', rule: path })
+    expect(planLock([path], () => ({ kind: 'unchanged', reason: '不该被问' })).mode).toBe('full')
+  })
+
+  it('锁文件与解析它的引擎模块一起改：不问映射，直接全量', () => {
+    let asked = false
+    const result = planLock(
+      ['pnpm-lock.yaml', 'tools/test-runner/src/testing/pnpm-lockfile.ts'],
+      () => {
+        asked = true
+        return { kind: 'unchanged', reason: '不该被问' }
+      },
+    )
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toContain('tools/test-runner/src/testing/pnpm-lockfile.ts')
+  })
+
   it('引擎自己（tools/test-runner）在映射里或在映射成员的下游里：全量', () => {
     const direct = planLock(['pnpm-lock.yaml'], () => ({
       kind: 'members',

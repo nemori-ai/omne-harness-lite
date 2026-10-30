@@ -36,6 +36,10 @@
       "tools/test-runner/src/testing/check-graph.ts",
       "tools/test-runner/src/testing/check-steps.ts",
       "tools/test-runner/src/testing/test-cache.ts",
+      "tools/test-runner/src/testing/lockfile-impact.ts",
+      "tools/test-runner/src/testing/pnpm-lockfile.ts",
+      "tools/test-runner/src/testing/resume.ts",
+      "tools/test-runner/src/testing/admission-run.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
