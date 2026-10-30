@@ -30,6 +30,6 @@
 - [participation-access.spec.ts](participation-access.spec.ts)：Agent 提交派生的四种 Session 参加各问检查一次、denied/unavailable 两侧不写、allowed 证据随同次提交可读回、认回再问一次、裁定后修订被推进时返回可重试的 unavailable 且不写入、被拒调用不改变后续回执、scene 记录每次裁定的结论且外租户由检查本身拒绝
 - [record-fault.spec.ts](record-fault.spec.ts)：`failNextRecord` 只作用于布置它的租户与 execution，被拒的调用不消耗它
 - [journal-coordination.spec.ts](journal-coordination.spec.ts)：coordinated 绑定的声明、`open`/`attach`/`submit` 的参加者冲突译为 denied、取消收束的 attach 与 `tryFinish` 的 changed
-- [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的 Journal 核心一致性套件
+- [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的 Journal 核心一致性套件，含消息准入的 P、Ja、Rh 与 submit 谱系；夹具在每次首个 submit 成功后记录 Session 一侧的交接，使普通结束不在 Session 一侧受阻
 - [record-fault.spec-d.ts](record-fault.spec-d.ts)：本地 `RecordFault` 与契约测试件的 `RecordFault` 互相可赋值
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入，有 7 个文件
