@@ -1444,6 +1444,7 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
           original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
           provider: Adoption
           material: HandoffRecordMaterial
+          custody: HandoffCustody | null
         }>
       >
     >()

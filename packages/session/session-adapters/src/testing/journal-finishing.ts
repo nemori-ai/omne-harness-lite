@@ -40,7 +40,7 @@ import type {
   TerminalParticipantFacts,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
-import { obligationCategoryOf } from '@omne-harness/agent-contract/testing'
+import { obligationCategoryOf } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
 

@@ -1,4 +1,5 @@
 export { agentBodyContract } from './body-contract.ts'
+export { obligationCategoryOf } from './finishing.ts'
 export { ATTRIBUTE_ITEMS } from './definition.ts'
 export { POSITIONS, POWERS } from './extensions.ts'
 export { judgeAgentDefinition } from './judge-definition.ts'

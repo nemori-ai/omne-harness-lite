@@ -37,7 +37,7 @@ import type {
   ResponsibilityCoverage,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
-import { obligationCategoryOf } from '@omne-harness/agent-contract/testing'
+import { obligationCategoryOf } from '@omne-harness/agent-contract'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { MemoryExecution } from './journal.ts'
 import { journalEvidence, JOURNAL_OWNER, revisionOf } from './journal-values.ts'
