@@ -12,7 +12,7 @@ import {
 } from './exports-inventory.ts'
 
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
-const inventory = loadInventory(new URL('./fixtures/exports.json', import.meta.url).pathname)
+const inventory = loadInventory(fileURLToPath(new URL('./fixtures/exports.json', import.meta.url)))
 const declarations = builtDeclarations(packageDirectory, inventory)
 const comparisons = compareEntries(inventory, declarations)
 

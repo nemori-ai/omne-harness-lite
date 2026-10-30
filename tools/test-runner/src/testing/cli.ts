@@ -31,14 +31,18 @@ import {
   pythonStep,
   readPlanFile,
   recordedRun,
+  runCachePolicy,
+  stepTestCache,
   testStep,
   writePlanFile,
   type PlanFile,
 } from './steps.ts'
 import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
-import { budgetFor } from './parallelism.ts'
+import { budgetFor, describeBudget } from './parallelism.ts'
+import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
+import { ADMISSION_EVIDENCE_USAGE, admissionEvidenceCommand } from './admission-evidence.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -51,19 +55,27 @@ const USAGE = [
   '  plan [--base <ref>] [--full] [--json <路径>]',
   '      算基线以来改动的影响面并打印；--json 另写计划文件。基线按 baseline 命令的规则取；',
   '      --full 或环境变量 FULL=1 给全量计划',
-  `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full])`,
-  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层，快层通过才跑慢层，不构建',
-  '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
+  `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full]) [--no-cache]`,
+  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层，快层通过才跑慢层，不构建；',
+  '      成员测试读写结果缓存（主检出 tmp/test-cache/），--no-cache、FULL=1、OMNE_TEST_CACHE=0 或准入模式只写不读',
+  '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>] [--no-cache]',
   '      不给 --all 时按影响面选成员（基线按 baseline 命令的规则取），先构建它们及其依赖（--no-build 跳过），缺省只跑快层',
   '      --all 跑全部成员，缺省两层全跑；测试不构建（调用方先构建），除非给 --build；验收缺省先构建，--no-build 跳过',
   '      --script acceptance 不分层，不接受 --tier',
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
-  '  check [--admission] [--keep-going] [--list]',
+  '  coverage-parallel',
+  '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
+  '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>]',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
-  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志；',
-  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额',
+  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试都不读缓存，并写准入日志与运行记录；',
+  '      --no-cache 成员测试不读结果缓存（同 OMNE_TEST_CACHE=0）；',
+  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额；',
+  '      --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受，与 FULL=1、--list 互斥）：前提不满足以 2 退出，',
+  '      H1..HEAD 碰到全局路径（含锁文件）就按 H1 的范围整次重跑，否则 X、H1 没跑到的步骤与轻步骤按 H1 的范围整次跑，',
+  '      H1 上通过了的重步骤只跑 H1..HEAD 影响到的成员；要在 H1 那次准入的同一棵工作树里跑',
+  ADMISSION_EVIDENCE_USAGE,
 ].join('\n')
 
 const ROOT = resolve(
@@ -102,7 +114,7 @@ async function step(argv: readonly string[]): Promise<number> {
   const [name, ...rest] = argv
   if (!(STEPS as readonly unknown[]).includes(name))
     throw new Error(`step 要给 ${STEPS.join('、')} 之一\n${USAGE}`)
-  const flags = parseFlags(rest, ['--plan', '--base'], ['--full'])
+  const flags = parseFlags(rest, ['--plan', '--base'], ['--full', '--no-cache'])
   const planPath = flags.values.get('--plan')
   if (planPath !== undefined && (flags.values.has('--base') || flags.switches.has('--full')))
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
@@ -112,10 +124,18 @@ async function step(argv: readonly string[]): Promise<number> {
   const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: async () => buildStep(ROOT, file, await budget()),
+    build: async () => buildStep(ROOT, file, await budget(), planPath && resolve(planPath)),
     typecheck: async () => typecheckStep(ROOT, file, await budget()),
     // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
-    test: () => testStep(ROOT, file, planPath === undefined),
+    test: () => {
+      const { policy, builtFrom } = stepTestCache(process.env, {
+        planPath: planPath === undefined ? undefined : resolve(planPath),
+        head: file.head,
+        noCache: flags.switches.has('--no-cache'),
+        full: flags.switches.has('--full') || fullRequested(process.env),
+      })
+      return testStep(ROOT, file, planPath === undefined, policy, builtFrom)
+    },
     acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
   return steps[name as Step]()
@@ -129,6 +149,7 @@ interface RunRequest {
   readonly build: boolean
   readonly planOnly: boolean
   readonly out: string | undefined
+  readonly noCache: boolean
 }
 
 function scriptOf(flags: Flags): RunScript {
@@ -149,7 +170,7 @@ function parseRun(argv: readonly string[]): RunRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--out', '--script', '--tier'],
-    ['--all', '--plan-only', '--no-build', '--build'],
+    ['--all', '--plan-only', '--no-build', '--build', '--no-cache'],
   )
   const all = flags.switches.has('--all')
   if (all && flags.values.has('--base')) throw new Error(`--base 与 --all 二选一\n${USAGE}`)
@@ -166,6 +187,7 @@ function parseRun(argv: readonly string[]): RunRequest {
     build: buildByDefault ? !flags.switches.has('--no-build') : flags.switches.has('--build'),
     planOnly: flags.switches.has('--plan-only'),
     out: flags.values.get('--out'),
+    noCache: flags.switches.has('--no-cache'),
   }
 }
 
@@ -204,6 +226,9 @@ async function run(request: RunRequest): Promise<number> {
     base: planned === undefined || planned.plan.mode === 'full' ? null : planned.base,
     plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
     budget: await budgetFor(config.parallel),
+    ...(script === 'test'
+      ? { cache: runCachePolicy(process.env, { noCache: request.noCache, build: request.build }) }
+      : {}),
   })
 }
 
@@ -220,6 +245,22 @@ function runReplay(argv: readonly string[]): number {
   for (const line of replayTable(rows)) console.log(line)
   const json = flags.values.get('--json')
   if (json !== undefined) writeFileSync(resolve(json), `${JSON.stringify(rows, null, 1)}\n`)
+  return 0
+}
+
+/**
+ * 覆盖率跨成员并行的并发度：预算同 `run`（`OMNE_WORKER_BUDGET` 可覆盖），分法见 `coverageParallelism`。
+ * 标准输出只有 `<M>x<W>` 一行，说明写到标准错误。
+ */
+async function coverageParallel(argv: readonly string[]): Promise<number> {
+  parseFlags(argv, [], [])
+  const policy = readTestRunsConfig().parallel
+  const budget = await budgetFor(policy)
+  const { members, workers } = coverageParallelism(budget, policy)
+  console.error(
+    `${describeBudget(budget)}；覆盖率同时 ${members} 个成员，每个至多 ${workers} 个工作进程`,
+  )
+  console.log(`${members}x${workers}`)
   return 0
 }
 
@@ -278,14 +319,24 @@ async function main(): Promise<void> {
   else if (command === 'run') process.exitCode = await run(parseRun(rest))
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
+  else if (command === 'coverage-parallel') process.exitCode = await coverageParallel(rest)
   else if (command === 'check') {
-    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list'])
+    const flags = parseFlags(
+      rest,
+      ['--resume-from'],
+      ['--admission', '--keep-going', '--list', '--no-cache'],
+    )
+    const resumeFrom = flags.values.get('--resume-from')
     process.exitCode = await runCheck(ROOT, {
       admission: flags.switches.has('--admission'),
       keepGoing: flags.switches.has('--keep-going'),
       list: flags.switches.has('--list'),
+      ...(resumeFrom === undefined ? {} : { resumeFrom }),
+      noCache: flags.switches.has('--no-cache'),
     })
-  } else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
+  } else if (command === 'admission-evidence')
+    process.exitCode = admissionEvidenceCommand(ROOT, rest)
+  else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }
 
 main().catch((error: unknown) => {

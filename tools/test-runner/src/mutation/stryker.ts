@@ -1,5 +1,6 @@
 // 对一个成员调用 Stryker：成员目录为工作目录，vitest runner，只跑快层；sandbox 放在与成员同深度的被忽略目录，跑完删掉。
 // 同深度是因为不少测试用 `import.meta.dirname` 拼相对路径读成员外的文件（规格、根配置），sandbox 换了深度就读不到。
+// Stryker 的输出全进成员日志；其中 `progress-append-only` 的进度行另转到命令的标准输出，行首带成员路径。
 import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
@@ -54,6 +55,11 @@ export interface StrykerRun {
   /** 没写自己时限的用例在变异时的时限。 */
   readonly testTimeoutSeconds: number
   readonly nonce: string
+  /**
+   * 第一遍开 Stryker 的 incremental：`file` 是交给它读、它跑完又写回的 incremental 文件，`force` 时不复用、全部重跑。
+   * 不给时与没有增量时一样（`incremental: false`）。复核不开增量。
+   */
+  readonly incremental?: { readonly file: string; readonly force: boolean }
 }
 
 /**
@@ -97,13 +103,26 @@ export function strykerConfig(
       recheck === undefined ? run.nonce : `${run.nonce}-recheck`,
     ),
     cleanTempDir: true,
-    incremental: false,
+    ...(recheck === undefined && run.incremental !== undefined
+      ? { incremental: true, incrementalFile: run.incremental.file, force: run.incremental.force }
+      : { incremental: false }),
     concurrency: recheck === undefined ? run.concurrency : 1,
     ...(recheck === undefined ? {} : { timeoutMS: recheck.timeoutMS }),
     reporters: ['json', 'progress-append-only'],
     jsonReporter: { fileName: join(run.runDir, `${name}.mutation.json`) },
     thresholds: { high: 80, low: 60, break: null },
   }
+}
+
+/** Stryker 的 `progress-append-only` 报告器每 10 秒写的一行：`Mutation testing 45% (elapsed: …) 10/22 tested (…)`。 */
+const PROGRESS_LINE = /^Mutation testing \d+%/u
+
+/**
+ * 成员日志里的一行要不要转到命令的标准输出：是 Stryker 的进度行就加上成员路径（复核另标），
+ * 成员并行时分得清是谁的；别的行只进日志。
+ */
+export function progressLine(member: string, line: string, recheck: boolean): string | undefined {
+  return PROGRESS_LINE.test(line) ? `${member}${recheck ? '（复核）' : ''} ${line}` : undefined
 }
 
 export interface StrykerResult extends SpawnResult {
@@ -148,6 +167,10 @@ export async function runStryker(
       FORCE_COLOR: '0',
     },
     logPath,
+    onLine: line => {
+      const forwarded = progressLine(target.member.path, line, recheck !== undefined)
+      if (forwarded !== undefined) console.log(forwarded)
+    },
   })
   // Stryker 清掉 sandbox 后留下空的容器目录；被杀时连 sandbox 一起留下。两种都不留。
   const container = config['tempDirName'] as string

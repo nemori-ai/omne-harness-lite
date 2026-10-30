@@ -4,6 +4,7 @@
 // 那之后改过的依赖关系会按现在的算，现在已不存在的成员没有下游。
 // 用来在改规则前后看「判全量的有几个、是不是该全量」，不进 `pnpm run check`。
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
+import { lockfileImpactBetween } from './steps.ts'
 import { planCheck, sample, type CheckPlan } from './scope.ts'
 import { affectedMembers, dependentMembers } from './turbo.ts'
 import type { AffectedRules } from './config.ts'
@@ -83,9 +84,15 @@ export function replay(
               ),
             ].filter(path => known.has(path)),
           ),
+        () => lockfileImpactBetween(root, `${commit}^1`, commit, members),
       )
       const because = plan.files
-        .filter(file => file.category === 'global' || file.category === 'unclassified')
+        .filter(
+          file =>
+            file.category === 'global' ||
+            file.category === 'lockfile' ||
+            file.category === 'unclassified',
+        )
         .map(file => file.path)
       return {
         commit: short,

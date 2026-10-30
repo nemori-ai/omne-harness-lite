@@ -15,7 +15,7 @@
 // 只沿本成员还原的声明走，不进 lib 与外部包：全局作用域的差异不在这里判断。
 // 规则来源与探针见 SPEC.md「分类」。
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, posix, sep } from 'node:path'
 import ts from '@typescript/typescript6'
 import {
   byCodeUnit,
@@ -89,7 +89,7 @@ type Side = 'old' | 'new'
  * 脚本文件只还原新侧一份，旧侧同路径的跳过；跳过的文本与新侧不同时记为问题，结论按 review 计，不静默丢掉。
  */
 export function compareSnapshots(input: CompareInput): CheckerComparison {
-  const base = join(input.root, input.directory, '.omne-contract-api')
+  const base = checkerPath(join(input.root, input.directory, '.omne-contract-api'))
   const scripts = new Map(input.after.files.filter(isScript).map(file => [file.path, file.code]))
   const dropped = input.before.files
     .filter(file => scripts.has(file.path) && scripts.get(file.path) !== file.code)
@@ -98,7 +98,7 @@ export function compareSnapshots(input: CompareInput): CheckerComparison {
     ...restore(base, 'old', input.before.files, new Set(scripts.keys())),
     ...restore(base, 'new', input.after.files, new Set()),
   ])
-  const compareFile = join(base, 'compare.ts')
+  const compareFile = posix.join(base, 'compare.ts')
   overlay.set(compareFile, 'export {};\n')
   const options = compareOptions(input.root)
   const first = ts.createProgram([...overlay.keys()], options, overlayHost(options, overlay, base))
@@ -141,8 +141,16 @@ function overlayHost(
   }
 }
 
+/**
+ * 交给检查器的文件名一律用 `/`：TypeScript 自己把文件名归一成正斜杠再回调 host，
+ * 覆盖表的键和前缀比较都要同一种写法。Windows 上把 `\` 换掉，POSIX 原样。
+ */
+function checkerPath(path: string): string {
+  return sep === '/' ? path : path.split(sep).join('/')
+}
+
 function sidePath(base: string, side: Side, path: string): string {
-  return join(base, side, path)
+  return posix.join(base, side, path)
 }
 
 /** 一个新增名字在旧侧的解析：没有这个符号；已经有了（声明在哪个文件）；或判断不了。 */
@@ -167,7 +175,7 @@ const ANY_MEANING = ts.SymbolFlags.Value | ts.SymbolFlags.Type | ts.SymbolFlags.
  * 建程序或解析抛出时返回 unknown，由白名单按「白名单外」处理，不静默放行。
  */
 export function oldSideScope(input: ScopeInput): (path: string, name: string) => NameResolution {
-  const base = join(input.root, input.directory, '.omne-contract-api')
+  const base = checkerPath(join(input.root, input.directory, '.omne-contract-api'))
   let program: ts.Program | undefined
   return (path, name) => {
     try {
@@ -198,7 +206,8 @@ function whereOf(file: string, base: string, root: string): string {
   const marker = '/node_modules/'
   const modules = file.lastIndexOf(marker)
   if (modules >= 0) return file.slice(modules + marker.length)
-  return file.startsWith(root + '/') ? file.slice(root.length + 1) : file
+  const top = checkerPath(root)
+  return file.startsWith(top + '/') ? file.slice(top.length + 1) : file
 }
 
 function restore(
@@ -413,7 +422,7 @@ function alias(side: Side, path: string): string {
 function planComparisons(program: ts.Program, base: string, input: CompareInput): Plan {
   const plan: Plan = { lines: [], checks: [], pending: new Map() }
   const checker = program.getTypeChecker()
-  const enclosing = program.getSourceFile(join(base, 'compare.ts'))
+  const enclosing = program.getSourceFile(posix.join(base, 'compare.ts'))
   const reach = new Reachability(checker, base)
   const entryFile = (snapshot: ApiSnapshot, subpath: string) =>
     snapshot.entries.find(item => item.subpath === subpath)

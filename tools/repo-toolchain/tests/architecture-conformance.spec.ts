@@ -1,6 +1,6 @@
 // @module-tag slow
 // Real Git commits exercise both version-local resolution and baseline intent protection.
-import { readFileSync, rmSync, symlinkSync } from 'node:fs'
+import { readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 import { join } from 'node:path'
@@ -954,7 +954,10 @@ describe('version-local constraint migration', () => {
   })
   it('rejects a source symlink escaping the worktree', () => {
     const { root } = setup()
-    symlinkSync('/etc/passwd', join(root, 'docs/architecture/escaped.md'))
+    // 链到检出外一个真实存在的文件；`/etc/passwd` 在 Windows 上不存在，realpath 先报 ENOENT。
+    const outside = join(temporaryDirectory('escape-target-'), 'outside.md')
+    writeFileSync(outside, '# outside\n')
+    symlinkSync(outside, join(root, 'docs/architecture/escaped.md'))
     write(
       root,
       CONSTRAINT_PATH,

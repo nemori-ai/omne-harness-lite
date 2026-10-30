@@ -2,7 +2,7 @@
 
 本页给出常驻线会话在多波、多张卡之间反复复用的做法。目标有两个：每次被派发都能快速进入状态；每张卡不重复做重的上下文收集。
 
-本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P17，方法采用归 `docs/engineering/skills.md`。
+本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P29，方法采用归 `docs/engineering/skills.md`。
 
 ## 核心想法：按存续期分三层准备，每层只做差额
 
@@ -19,9 +19,9 @@
 ## 会话级：开工时一次做好
 
 1. **身份与长程目标。** 写下：本线是谁、父卡、负责的卡与预案队列、里程碑卡的关闭门、本线结果服务哪道门。以后每个局部决定都回到这里核对。
-2. **加载技能。** 先 `line`；每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`。改文档前加载 `asd-ste100`。
+2. **加载技能。** 先 `line`；每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`；派子代理时加载 `delegate`。改文档前加载 `asd-ste100`。
 3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 playbook，三层各用哪些技能，哪些项目规矩最常碰到。
-4. **环境。** 依赖安装、生成 agent 投影、`check:agents` 通过；记下 Node、pnpm、git 版本。
+4. **环境。** 依赖安装、生成 agent 投影（`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>`，它最后运行 `check:agents`）、`check:agents` 通过；记下 Node、pnpm、git 版本。
 5. **线级上下文地图主体。** 本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。reduce 已给出时只核对。
 6. **线级约束 `constraints.md`。** 按 `claim` 技能 spec 模板的「原则与约束」写本线适用条目（ub-mode 加项目独有判断），只写一次。
 
@@ -58,22 +58,11 @@
 
 ### 按自己的宿主选择和设置角色模型
 
-线会话的多数实际工作由它派出的子代理完成，模型选错直接影响质量与成本。规则与钉值归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」和 `.meta_harness/agents/roles/dispatch-policy.json`，档位分工归 `claim` 技能的卡推进循环「角色与模型」。
+线会话的多数实际工作由它派出的子代理完成，模型选错直接影响质量与成本。
 
-1. **认清宿主。** 会话级准备时写下自己是 Claude Code 还是 Codex，以及版本。pstack 在 Codex 上按 `skills.md` 引的 Codex 适配说明换算工具名与模型名。
-2. **按卡定工作类型与风险。** 能力与组合、提供者是默认档；规格完整的单模块切片可降到经济档；内核原语与生命周期、安全敏感、跨多个包或整个装配升到顶档。拿不准时上调一档。
-3. **用解析器取值。** 在工作树根运行下面的命令，得到 requested 的 model 与 effort。`--work-kind` 与 `--risk` 的合法值见 `dispatch-policy.json` 中该角色的 `work` 与 `top_risks`。结果存进 `tmp/line-<线>/role-dispatch.json`，同类卡复用。
+**认清宿主。** 会话级准备时写下自己是 Claude Code 还是 Codex，以及版本。pstack 在 Codex 上按 `skills.md` 引的 Codex 适配说明换算工具名与模型名。
 
-   ```sh
-   uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/scripts/render_pair.py \
-     --source .meta_harness/agents/roles/<角色> --resolve <claude_code 或 codex> \
-     --policy-version <版本> --work-kind <类型> [--risk <风险>]
-   ```
-
-4. **按宿主机制设置。**
-   - Claude Code：角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖。
-   - Codex：角色文件的钉值优先于派发值；developer 与 qa 的 `codex.toml` 不钉模型，所以**派发时必须显式给模型**，不给就继承父会话的模型，而且不会报错。
-5. **记录。** requested 与 observed 分开记；宿主不提供运行观测时 observed 写 unknown。固定角色（如 design-reviewer）的钉值不覆盖，判「表达」时按 README 的例外处理。
+派发时按 `delegate`「选模型」；规则、钉值与两种宿主的传值机制归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」与 `.meta_harness/agents/roles/dispatch-policy.json`。
 
 ### 最常碰到的项目规矩
 
@@ -89,7 +78,7 @@
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
 | 署名、分支与 `Harness`／`Agent-Role` trailer | `CONTRIBUTING.md` |
 | 验证能声称什么、不能声称什么 | `docs/verification.md` |
-| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P17 |
+| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P29 |
 
 ## 波级：读 delta，只记变化
 
@@ -106,13 +95,13 @@
 2. 本卡附录：绑定、本卡依据、缺口、受影响成员。主体引用线级地图。一页以内。
 3. `spec.md`：方法按 `to-spec`，格式按 `claim` 技能的 spec 模板。「原则与约束」一节引用线级 `constraints.md`，只写本卡新增条目。
 4. `plan.md`：方法按 `to-tickets`，格式按 `claim` 技能的 plan 模板。每个切片写端到端行为、对应判据、验收命令、角色与模型分配、七步待办。
-5. 待决事项先筛三层：过度设计删掉 → 自己能定的具名裁定写进 `spec.md` → 只有产品规则、范围变化、新的破坏性契约改动才算缺口。缺口不提问：停依赖部分，继续其余，整波做不下去就交回。
+5. 待决事项先筛三层：过度设计删掉 → 从项目要求与产品正文往下逐层核对冻结输入后自己能定的，具名裁定写进 `spec.md` → 只有产品规则、范围变化、新的破坏性契约改动才算缺口。缺口不提问：停依赖部分，继续其余，整波做不下去就交回。
 
 ## 推进循环：每个切片的七步
 
-1. 便宜档子代理补本切片上下文，只补差额。
-2. 写简报（`writing-for-agents`）：命令必须能在当前仓库运行（P8）。
-3. 写者实施；最后一次改动后重跑全部门禁，报告日志时间与提交号（P1）。
+1. 纯读的便宜模型（见 `delegate`「4 选模型」）补本切片上下文，只补差额。
+2. 写闭包规格：按 `delegate`「写规格」。命令必须能在当前仓库运行（P8）。
+3. 写者实施（扇出按 `delegate`）；最后一次改动后重跑全部门禁，报告日志时间与提交号（P1）。
 4. 你复跑功能门禁，核对写范围。
 5. 只有高风险切片当场评审；常规评审集中到实施完成后一次。
 6. 阻断合成一轮集中修复；同类阻断出现两次就整类处理（P3）。
@@ -126,9 +115,10 @@
   - `当前：#<卡号> 切片 <号> 第 <n> 步`；轮空写 `当前：轮空，等待下一条 delta`；受阻写 `当前：受阻：<一句原因>`。
   - 卡队列表：`| 卡 | 状态 | 批次分支上的提交 |`，状态只用 `待做`、`进行中（切片 x/y）`、`已交回`、`受阻（<原因>）`、`跳过（<理由>）`。
 - **线级什么时候改：** 读到 delta 时按新队列重写；每张卡开工、每个切片完成、每张卡交回、受阻、开始等待时改。
+- **本会话派出的闭包：** 已派出、尚未合回的闭包写在 `state.md`「本波进度」之后，格式归 `claim` plan 模板「进度更新」第 4 部分。压缩后恢复时一并读它。
 - 进度与提交历史不一致时，以提交历史为准，先改进度再继续。
 
-结构度量、差分变异和品味核对在若干切片后集中跑一次。全量准入归 reduce，线内只跑本卡成员的类型检查、测试、format、oxlint 和按需的 `check:docs`／`check:agents`。
+结构度量与品味核对在若干切片后集中跑一次；差分变异的时机与范围按 `review-code`「差分变异」，只在最终修复轮留下的头上、只打热点。整次准入归 reduce。每张卡交回前只跑本卡成员的类型检查、测试、format、oxlint 和按需的 `check:docs`／`check:agents`。整线交回前，在批次分支头再跑一次线包「线内联调」一项。
 
 ## 证据：一次做对，接受者不用回头问
 
@@ -139,7 +129,7 @@
 
 ## 交回与等待
 
-- 做完：每张卡合入本线批次分支，卡上发五节交接报告。整线本波交完就开批次 PR，在线父卡发交回记录，然后停写。三样交回物的格式归 `integration.md`「线会话记录」。
+- 做完：每张卡合入本线批次分支，卡上发五节交接报告。整线本波交完后，先在批次分支头跑线包「线内联调」一项并核对判据，再开批次 PR，在线父卡发交回记录，然后停写。三样交回物的格式归 `integration.md`「线会话记录」。
 - 做不了：同一个入口交回 blocked，写清原因、已完成部分和剩余工作，然后停写。
 - 等待：一条等待命令等线父卡的下一条 delta。等待本身出问题时写进状态，等人转告，不轮询。
 
@@ -155,16 +145,17 @@
 6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。每台机器只有一个接收器。它是常驻服务，要活过会话，由本机第一个开工的会话启动一次。启动方法见 `tools/dev-flow/src/delivery/README.md`「事件等待」。首次消息只给只读的 `health` 命令，不给 `init` 与 `serve`。接收器不是等待命令，等待命令本身仍然前台阻塞。
 7. 每次重挂前后更新 `state.md` 的等待命令与 `--since`，便于替换会话接续。
 
+- 压缩上下文后续接时，先重新加载 `line` 技能，并核对技能目录是当前检出的投影，不是旧工作树里的副本。派发过子代理的，另外重载 `delegate`。
 - 每次交回、停下或压缩上下文前，更新 `tmp/line-<线>/state.md`：本波进度、身份、已处理的 delta 评论 id、当前 attempt 与 head、未完成操作、下一步。替换会话只读它和线父卡就能接上。
 
 ## 每波复盘：把教训变成线级资产
 
-波结束时花几分钟：本波哪条规则被反复违反、哪类阻断出现两次、哪个命令写错了。能变成结构手段的变成结构手段（P7）；属于本线的写进 `constraints.md`；属于项目的写进交接报告「给集成节点的提示」，由 reduce 决定是否写回拥有者。
+交回前按 `delegate`「反思」做本波反思，写本会话的台账增量。波结束时花几分钟：本波哪条规则被反复违反、哪类阻断出现两次、哪个命令写错了。能变成结构手段的变成结构手段（P7）；属于本线的写进 `constraints.md`；属于项目的写进交接报告「给集成节点的提示」，由 reduce 决定是否写回拥有者。
 
 ## 不要做的事
 
 - 每张卡重做会话级产物。
 - 波中向人提问、在普通评论向 reduce 求方案、读别线未集成的提交。
-- 自跑全量准入（归 reduce），或在准入期间提交。
-- 轮询 GitHub 等待。
+- 自跑整次准入（归 reduce），或在准入期间提交。
+- 轮询 GitHub 等待，或让子代理用轮询循环等日志（P29）。
 - 把计划说成已交付，把未执行写成通过。

@@ -96,7 +96,7 @@ def headless(directory: Path) -> Path:
 
 def git(repo: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@invalid", *args],
-                          check=True, capture_output=True, text=True).stdout.strip()
+                          check=True, capture_output=True, text=True, encoding="utf-8").stdout.strip()
 
 
 def flow_json(base: str, **over: Any) -> dict[str, Any]:
@@ -388,6 +388,14 @@ def test_a_report_left_as_the_last_message_counts_when_nothing_is_handed_back(tm
 def test_a_run_that_cannot_be_scored_says_why(tmp_path: Path, shape: dict[str, Any], failure_class: str) -> None:
     failure = read_back(tmp_path, **shape).failure(MODEL)
     assert failure is not None and failure[0] == failure_class
+
+
+def test_a_run_at_another_effort_cannot_be_scored(tmp_path: Path) -> None:
+    failure = read_back(tmp_path, effort="medium").failure(MODEL, "xhigh")
+    assert failure is not None and failure[0] == "effort-mismatch"
+    for name, effort in (("same", "xhigh"), ("unrecorded", None)):
+        (tmp_path / name).mkdir()
+        assert read_back(tmp_path / name, effort=effort).failure(MODEL, "xhigh") is None
 
 
 def test_a_clipped_answer_is_truncated_not_wrong(tmp_path: Path) -> None:
@@ -898,6 +906,7 @@ def test_preparing_leaves_a_copy_a_brief_and_what_to_dispatch(wired: dict[str, A
     inline = (evidence / "dispatch.inline.md").read_text(encoding="utf-8")
     assert str(role) in inline and brief in inline and "Read、Glob、Grep" in inline
     assert "subagent type `tiny-reviewer`" in text and f"model {MODEL}" in text and str(evidence / "brief.md") in text
+    assert text.count("effort high") == 2, "both dispatch lines say which effort to pass"
     with pytest.raises(cli.Refused, match="already prepared"):
         prepare(wired)
     prepare(wired, again=True)
@@ -1007,6 +1016,18 @@ def test_a_run_that_changed_its_copy_or_left_its_tools_is_scored_as_not_read_onl
     assert [record["observations"]["read_only"][0] for record in records] == [0, 0]
     assert "被改动" in records[0]["observations"]["read_only"][1] and "Bash" in records[1]["observations"]["read_only"][1]
     assert records[1]["provenance"]["outside_copy"] == ["/etc/hosts"], "副本之外读了什么，记下来"
+
+
+@pytest.mark.skipif(sys.platform != "win32", reason="只有 Windows 上路径从盘符起，且有两种分隔符与 Git Bash 的 /c/… 写法")
+def test_on_windows_what_a_run_named_outside_its_copy_is_read_off_drive_paths(tmp_path: Path) -> None:
+    dest = (tmp_path / "attempt" / "workspace").resolve()
+    role = str(dest.parent / "role.md")
+    inside = [str(dest / "a.md"), (dest / "b.md").as_posix(), str(dest / "c.md").swapcase(),
+              cli.checkout.git_bash_spelling(dest)[0] + "/d.md", role.swapcase()]
+    elsewhere = [str(tmp_path / "main" / "x.md"), (tmp_path / "main" / "y.md").as_posix(), "/etc/hosts"]
+    episode = claude_host.Episode(tool_inputs=[("Read", json.dumps({"file_path": path}, ensure_ascii=False))
+                                               for path in [*inside, *elsewhere]])
+    assert cli.outside_copy(episode, dest, role) == sorted(elsewhere), "副本之外读了什么，盘符写法也记下来"
 
 
 def test_an_inline_dispatch_hands_the_role_over_as_a_file_and_is_kept_apart(wired: dict[str, Any]) -> None:
@@ -1358,7 +1379,7 @@ def test_a_standing_suite_still_fits_the_repository(root: Path) -> None:
 @pytest.mark.parametrize("target", ["../escape", "/escape", ".git/config", ".meta_harness/design/record/decision.md"])
 def test_case_fixture_rejects_escape_and_record(tmp_path: Path, target: str) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {target: "bad"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {target: "bad"}}), encoding="utf-8")
     with pytest.raises(workspace.WorkspaceError, match="invalid fixture target"):
         workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])
     assert not (tmp_path / "copy").exists()
@@ -1366,16 +1387,27 @@ def test_case_fixture_rejects_escape_and_record(tmp_path: Path, target: str) -> 
 
 def test_case_fixture_prepares_without_a_git_repository(tmp_path: Path) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "stable input"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "stable input"}}), encoding="utf-8")
     dest = tmp_path / "copy"
     workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[])
-    assert (dest / "case/input.md").read_text() == "stable input"
+    assert (dest / "case/input.md").read_text(encoding="utf-8") == "stable input"
+
+
+def test_the_copy_is_written_with_the_same_line_ends_on_every_platform(tmp_path: Path) -> None:
+    fixture = tmp_path / "fixture.json"
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "一行\n两行\n"}}), encoding="utf-8")
+    dest = tmp_path / "copy"
+    workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[])
+    assert (dest / "case/input.md").read_bytes() == "一行\n两行\n".encode(), "夹具原样落盘"
+    workspace.apply(dest, [{"op": "replace", "file": "case/input.md", "find": "两行\n", "replace": "改过\n"},
+                           {"op": "append", "file": "case/input.md", "text": "三行\n"}], suite=tmp_path)
+    assert (dest / "case/input.md").read_bytes() == "一行\n改过\n三行\n".encode(), "种入之后换行不变"
 
 
 @pytest.mark.parametrize("subject", ["../outside", "/outside", ".git/config"])
 def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject: str) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "input"}}))
+    fixture.write_text(json.dumps({"format": 1, "files": {"case/input.md": "input"}}), encoding="utf-8")
     dest = tmp_path / "copy"
     with pytest.raises(workspace.WorkspaceError, match="subject path escapes"):
         workspace.build(tmp_path, dest, fixture=fixture, subject_paths=[subject])
@@ -1384,6 +1416,6 @@ def test_material_subject_rejects_escape_before_writing(tmp_path: Path, subject:
 
 def test_case_fixture_rejects_boolean_format(tmp_path: Path) -> None:
     fixture = tmp_path / "fixture.json"
-    fixture.write_text(json.dumps({"format": True, "files": {"case/input.md": "input"}}))
+    fixture.write_text(json.dumps({"format": True, "files": {"case/input.md": "input"}}), encoding="utf-8")
     with pytest.raises(workspace.WorkspaceError, match="format=1"):
         workspace.build(tmp_path, tmp_path / "copy", fixture=fixture, subject_paths=[])

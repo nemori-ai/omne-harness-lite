@@ -3,7 +3,7 @@
 // 运行名额脚本的行为核对：透传退出码、嵌套放行、占满时按先来后到排队并报出位置、
 // 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行；
 // 账本的等待与占用秒数按毫秒差截到整秒，用预载的伪时钟把时刻放到整秒边界两侧核对。
-import { type ChildProcess, spawn, spawnSync } from 'node:child_process'
+import { type ChildProcess, execFileSync, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -23,6 +23,42 @@ const SCRIPT = resolve(
   fileURLToPath(new URL('../../../scripts/with-test-slot.sh', import.meta.url)),
 )
 
+const WINDOWS = process.platform === 'win32'
+
+/** Git for Windows 的 bash：从 `git --exec-path`（`<Git>/mingw64/libexec/git-core`）往上三级找 `bin/bash.exe`。 */
+function gitBash(): string {
+  const exec = execFileSync('git', ['--exec-path'], { encoding: 'utf8' }).trim()
+  return join(resolve(exec), '..', '..', '..', 'bin', 'bash.exe')
+}
+
+/** 系统 bash：POSIX 上是 `/bin/bash`（macOS 上是没有 EPOCHSECONDS 的 3.2）；Windows 上是 Git for Windows 的 bash。 */
+const SYSTEM_BASH = WINDOWS ? gitBash() : '/bin/bash'
+
+/**
+ * 执行名额脚本的命令行：POSIX 上直接执行它；Windows 上 Node 不能直接起 `.sh`（spawn EFTYPE），
+ * 经系统 bash 起同一个脚本。
+ */
+const LAUNCH: readonly [string, ...string[]] = WINDOWS ? [SYSTEM_BASH, SCRIPT] : [SCRIPT]
+
+/** 经名额脚本执行 `args` 的可执行文件与参数。 */
+function launch(args: readonly string[]): [string, string[]] {
+  const [file, ...rest] = LAUNCH
+  return [file, [...rest, ...args]]
+}
+
+/** 杀掉后台起的进程及其子孙：POSIX 上给整个进程组发信号；Windows 没有进程组，用 taskkill 杀整棵树。 */
+function killTree(pid: number): void {
+  if (WINDOWS) {
+    spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' })
+    return
+  }
+  try {
+    process.kill(-pid, 'SIGKILL')
+  } catch {
+    // 整组都已退出
+  }
+}
+
 let dir: string
 /** 后台起的进程组；用例失败、等着放行的命令没被放行时，收尾整组杀掉，不留空转的进程。 */
 let groups: number[] = []
@@ -30,13 +66,7 @@ beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-slot-')))
 })
 afterEach(() => {
-  for (const group of groups) {
-    try {
-      process.kill(-group, 'SIGKILL')
-    } catch {
-      // 整组都已退出
-    }
-  }
+  for (const group of groups) killTree(group)
   groups = []
   rmSync(dir, { recursive: true, force: true })
 })
@@ -85,7 +115,7 @@ function ledger(): LedgerLine[] {
 }
 
 function slot(args: readonly string[], env: Record<string, string> = {}, cwd?: string) {
-  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: slotEnv(env), cwd })
+  return spawnSync(...launch(args), { encoding: 'utf8', env: slotEnv(env), cwd })
 }
 
 /**
@@ -100,7 +130,7 @@ function gitEnv(cwd: string, env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
 
 /** 在 `cwd` 经名额执行命令，git 环境见 `gitEnv`。 */
 function slotIn(cwd: string, args: readonly string[]) {
-  return spawnSync(SCRIPT, args, { encoding: 'utf8', env: gitEnv(cwd, slotEnv({})), cwd })
+  return spawnSync(...launch(args), { encoding: 'utf8', env: gitEnv(cwd, slotEnv({})), cwd })
 }
 
 /** 在 `name` 下建一个 git 仓库，git 目录里写入 `context`（task context 文件的原文）。 */
@@ -153,7 +183,7 @@ const CLOCK_SECOND = 1_700_000_000_000
  * 设了时限：时钟几乎不走，脚本若该放弃而没放弃就会一直排下去。
  */
 function slotWithClock(args: readonly string[], startMs: number, env: Record<string, string> = {}) {
-  return spawnSync(SCRIPT, args, {
+  return spawnSync(...launch(args), {
     encoding: 'utf8',
     timeout: 10_000,
     env: slotEnv({ ...clockEnv(startMs), ...env }),
@@ -178,10 +208,11 @@ function clockShift(): string {
 
 /** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。 */
 function queue(args: readonly string[], env: Record<string, string> = {}): Queued {
-  const child = spawn(SCRIPT, args, {
+  const child = spawn(...launch(args), {
     env: slotEnv({ OMNE_TEST_SLOT_POLL_SECONDS: '1', ...env }),
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: true,
+    // POSIX 上自成进程组，收尾时整组杀掉；Windows 上 detached 只会另开控制台，收尾改用 taskkill。
+    detached: !WINDOWS,
   })
   if (child.pid !== undefined) groups.push(child.pid)
   let stdout = ''
@@ -267,7 +298,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
   })
 
   it('系统 bash 没有 EPOCHSECONDS 时仍执行命令', () => {
-    const result = spawnSync('/bin/bash', [SCRIPT, 'bash', '-c', 'echo ok'], {
+    const result = spawnSync(SYSTEM_BASH, [SCRIPT, 'bash', '-c', 'echo ok'], {
       encoding: 'utf8',
       env: slotEnv({}),
     })
@@ -277,12 +308,13 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
   })
 
   it('命令能看到自己持有名额，嵌套调用直接放行', () => {
-    const result = slot([SCRIPT, 'bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"'])
+    // 嵌套的那次同样经 LAUNCH 起名额脚本：Windows 上名额脚本也不能直接执行 `.sh`。
+    const result = slot([...LAUNCH, 'bash', '-c', 'echo "$OMNE_TEST_SLOT_HELD"'])
     expect(result.status).toBe(0)
     expect(result.stdout.trim()).toBe(join(dir, 'locks', 'slot-1.lock'))
     expect(result.stderr).toBe('')
     expect(ledger().map(line => line.command)).toEqual([
-      `${SCRIPT} bash -c echo "$OMNE_TEST_SLOT_HELD"`,
+      `${LAUNCH.join(' ')} bash -c echo "$OMNE_TEST_SLOT_HELD"`,
     ])
   })
 
@@ -315,7 +347,9 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
       waitSeconds: 0,
       exitCode: 3,
     })
-    expect(line?.cpuSeconds).toBeGreaterThanOrEqual(0.6)
+    // Windows 上没有 /proc 与 /usr/bin/time，名额脚本不量 CPU，记 null；其余平台必须量到命令自己用掉的。
+    if (WINDOWS) expect(line?.cpuSeconds).toBeNull()
+    else expect(line?.cpuSeconds).toBeGreaterThanOrEqual(0.6)
     expect(line?.heldSeconds).toBeGreaterThanOrEqual(0)
     expect(line?.cores).toBeGreaterThanOrEqual(1)
     for (const at of [line?.arrivedAt, line?.acquiredAt, line?.endedAt]) {
@@ -542,7 +576,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     await second.until('排队中')
     const third = appendOrder('C')
     await third.until('前面还有 2 个')
-    second.child.kill('SIGKILL')
+    if (second.child.pid !== undefined) killTree(second.child.pid)
     await second.exited
     await third.until('前面还有 1 个')
     await holder.release()

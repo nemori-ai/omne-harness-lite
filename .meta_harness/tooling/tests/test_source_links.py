@@ -323,5 +323,5 @@ def test_nested_archived_design_material_is_not_scanned(tmp_path):
     save(root / 'topic/archive.legacy-not/broken.md', '[Missing](absent.md)\n')
     errors = check_links(root)
     assert errors
-    assert any('archive.legacy-not/broken.md' in error for error in errors)
+    assert any(str(Path('archive.legacy-not/broken.md')) in error for error in errors)
     assert not any('archive.legacy/broken.md' in error for error in errors)

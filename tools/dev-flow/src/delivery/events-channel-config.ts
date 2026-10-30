@@ -102,10 +102,18 @@ function parseOwnership(value: unknown): HookOwnership {
   }
 }
 
+/**
+ * Whether group or other users may access a file with this mode. On Windows the mode bits do not
+ * reflect the file's access control list, so this check does not apply there and the answer is false.
+ */
+export function sharedMode(mode: number): boolean {
+  return process.platform !== 'win32' && (mode & 0o077) !== 0
+}
+
 export function readChannelConfig(path: string): ChannelConfig {
   try {
     const stat = lstatSync(path)
-    if (!stat.isFile() || (stat.mode & 0o077) !== 0)
+    if (!stat.isFile() || sharedMode(stat.mode))
       throw new ReceiverError('insecure-config-permissions')
     const config = record(JSON.parse(readFileSync(path, 'utf8')), 'receiver config')
     if (config.schemaVersion !== 1 || config.mode !== 'channel')

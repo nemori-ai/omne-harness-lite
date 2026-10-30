@@ -1,4 +1,3 @@
-import shutil
 import sys
 import copy
 import json
@@ -11,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 from compile_agents import main
 from cursor_projection import cursor_role_prompt, project_cursor_role
 from cursor_qualification import CLAIMS, digest, require_dispatch
+from executable_bits import copy_tree, staged_modes
 from projection import compile_sources
 from qualification_test_support import adopt, limited_record, pending_record, qualify_roles, write_record
 
@@ -22,14 +22,14 @@ ROLES = {"design-reviewer", "developer", "diagnostician", "implementation-review
 
 
 def test_proved_production_roles_are_formally_dispatchable(tmp_path):
-    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    source = copy_tree(SOURCE, tmp_path / "source")
     output = tmp_path / "output"
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     agents = output / ".cursor/agents"
     assert {path.name for path in agents.glob("*.md")} == {f"{name}.md" for name in ROLES}
-    assert "Status: proved." in (agents / "developer.md").read_text()
-    assert "accepted-role-duty" in (agents / "developer.md").read_text()
-    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
+    assert "Status: proved." in (agents / "developer.md").read_text(encoding="utf-8")
+    assert "accepted-role-duty" in (agents / "developer.md").read_text(encoding="utf-8")
+    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text(encoding="utf-8"))
     assert set(gate["managed"]) == set(gate["summaries"]) == ROLES
     developer = source / "roles/developer"
     require_dispatch(developer, (developer / "cursor.yaml").read_bytes(), cursor_role_prompt(developer), {
@@ -48,14 +48,14 @@ def test_pending_role_file_stays_out_of_the_dispatch_gate(source, tmp_path):
     assert main(["--source", str(source), "--output", str(output), "--host", "cursor"]) == 0
     names = {path.name for path in (output / ".cursor/agents").glob("*.md")}
     assert names == {f"{name}.md" for name in ROLES}
-    assert "Status: pending." in (output / ".cursor/agents/developer.md").read_text()
-    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text())
+    assert "Status: pending." in (output / ".cursor/agents/developer.md").read_text(encoding="utf-8")
+    gate = json.loads((output / ".cursor/runtime/role-gate.json").read_text(encoding="utf-8"))
     assert "developer" not in gate["summaries"] and "qa" in gate["summaries"]
 
 
 @pytest.fixture
 def source(tmp_path):
-    root = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    root = copy_tree(SOURCE, tmp_path / "source")
     qualify_roles(root)
     return root
 
@@ -138,7 +138,7 @@ def test_scope_or_version_change_invalidates_exact_adoption(source):
 def test_role_native_shared_or_overlay_source_change_reprojects_without_dispatch(source, file):
     path = source / "roles" / file
     marker = "\n# changed native bytes\n" if file.endswith("yaml") else "\nChanged source.\n"
-    path.write_text(path.read_text() + marker)
+    path.write_text(path.read_text(encoding="utf-8") + marker, encoding="utf-8")
     role = source / "roles/developer"
     projected = project_cursor_role(role)
     assert projected.path == Path(".cursor/agents/developer.md")
@@ -151,17 +151,18 @@ def test_role_native_shared_or_overlay_source_change_reprojects_without_dispatch
             "mode": "interactive", "purpose": "qualification-probe"})
 
 
+@staged_modes
 def test_next_compile_refreshes_every_cursor_agent_and_check_rejects_the_old_tree(tmp_path):
-    source = Path(shutil.copytree(SOURCE, tmp_path / "source"))
+    source = copy_tree(SOURCE, tmp_path / "source")
     first = tmp_path / "first"
     assert main(["--source", str(source), "--output", str(first), "--host", "cursor"]) == 0
     assert {path.name for path in (first / ".cursor/agents").glob("*.md")} == {f"{name}.md" for name in ROLES}
     (source / "roles/qa/role.md").write_text(
-        (source / "roles/qa/role.md").read_text() + "\nProjection sync marker.\n")
+        (source / "roles/qa/role.md").read_text(encoding="utf-8") + "\nProjection sync marker.\n", encoding="utf-8")
     assert main(["--source", str(source), "--output", str(first), "--host", "cursor", "--check"]) == 1
     second = tmp_path / "second"
     assert main(["--source", str(source), "--output", str(second), "--host", "cursor"]) == 0
-    assert "Projection sync marker." in (second / ".cursor/agents/qa.md").read_text()
+    assert "Projection sync marker." in (second / ".cursor/agents/qa.md").read_text(encoding="utf-8")
     assert main(["--source", str(source), "--output", str(second), "--host", "cursor", "--check"]) == 0
 
 
@@ -182,14 +183,14 @@ def test_one_late_missing_role_rejects_mixed_build_before_writes(source, tmp_pat
 
 def test_old_hosts_do_not_read_malformed_cursor_qualification(source):
     for path in (source / "roles").glob("*/cursor-qualification.yaml"):
-        path.write_text("broken: [yaml")
+        path.write_text("broken: [yaml", encoding="utf-8")
     old = compile_sources(source, hosts=("codex", "claude-code"))
     assert old and all(path.parts[0] != ".cursor" for path in old)
 
 
 def test_duplicate_keys_are_not_last_writer_wins(source):
     path = source / "roles/developer/cursor-qualification.yaml"
-    path.write_text(path.read_text() + "status: limited\n")
+    path.write_text(path.read_text(encoding="utf-8") + "status: limited\n", encoding="utf-8")
     with pytest.raises(ValueError, match="duplicate"):
         project_cursor_role(path.parent)
 
@@ -209,12 +210,12 @@ def test_proved_fixture_accepts_formal_duty_and_rejects_probe_or_stale_evidence(
     record["scope"]["dispatch"][0]["purpose"] = "accepted-role-duty"
     report = source / "qualification-evidence/fixture.json"
     report.parent.mkdir()
-    report.write_text(json.dumps({"synthetic": True}))
+    report.write_text(json.dumps({"synthetic": True}), encoding="utf-8")
     scope = record["scope"]["dispatch"][0]
     record["evidence"] = [{"reference": "qualification-evidence/fixture.json", "sha256": digest(report.read_bytes()),
                            "claims": ["structure"], "dispatch": [copy.deepcopy(scope)]}]
     write_record(role, adopt(record))
-    report.write_text("changed bytes")
+    report.write_text("changed bytes", encoding="utf-8")
     with pytest.raises(ValueError, match="evidence file.*stale"):
         project_cursor_role(role)
 
@@ -240,7 +241,7 @@ def test_existing_correctly_hashed_evidence_outside_source_is_rejected(source):
     record.update(status="proved", missing=[])
     record["scope"]["dispatch"][0]["purpose"] = "accepted-role-duty"
     outside = source.parent / "outside.json"
-    outside.write_text('{"synthetic": true}')
+    outside.write_text('{"synthetic": true}', encoding="utf-8")
     record["evidence"] = [{"reference": "../outside.json", "sha256": digest(outside.read_bytes()),
                            "claims": sorted(CLAIMS), "dispatch": copy.deepcopy(record["scope"]["dispatch"])}]
     write_record(role, adopt(record))

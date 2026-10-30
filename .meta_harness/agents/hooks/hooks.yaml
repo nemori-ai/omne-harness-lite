@@ -1,6 +1,8 @@
 # 宿主无关的钩子声明；编译工具按宿主生成 .claude/settings.json 与 .codex/hooks.json。
-# 一条钩子：在哪些收工点（Stop、SubagentStop）、对哪些子代理类型、跑什么命令、宿主侧超时几秒。
+# 一条钩子：在哪些事件（Stop、SubagentStop、SessionStart）、给哪些宿主、跑什么命令、宿主侧超时几秒。
+# hosts 省略时给全部宿主。SessionStart 只为 Claude Code 生成，用它的钩子须写 hosts。
 # subagent_types 只收窄 SubagentStop（Stop 在两端都不认 matcher），须是 roles/ 下已有的角色名。
+# session_sources 只收窄 SessionStart，值是 Claude Code 输入里的 source（startup、resume、clear、compact、fork）。
 hooks:
   - id: loop-stop-facts
     events: [Stop, SubagentStop]
@@ -20,3 +22,19 @@ hooks:
       || t="$(cd "$t" && cd "$(git rev-parse --git-common-dir)/.." && pwd)";
       exec node --experimental-strip-types "$t/$s/src/loop/stop-hook.ts"
     timeout: 60
+  - id: stale-skill-copies
+    events: [SessionStart]
+    hosts: [claude-code]
+    # 新会话与压缩之后：会话可能读到 .worktrees/ 下旧工作树里的技能副本，压缩后宿主还会重新附上已调用过的技能。
+    session_sources: [startup, compact]
+    # 脚本只读，打印一行提醒或什么都不打印；普通标准输出由 Claude Code 加进会话上下文。
+    # 当前检出没有这份脚本（停在旧基线的工作树）就跑主检出里的那一份。
+    # 钩子自己出错从不拦人：任何失败都不输出、退出 0。
+    command: >-
+      unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+      GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_SHALLOW_FILE;
+      t="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0;
+      s=.meta_harness/tooling/src/stale-skills.mjs;
+      [ -e "$t/$s" ] || t="$(cd "$t" && cd "$(git rev-parse --git-common-dir)/.." && pwd)";
+      node "$t/$s" 2>/dev/null; exit 0
+    timeout: 10

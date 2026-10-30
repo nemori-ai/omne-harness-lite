@@ -13,7 +13,12 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
+from executable_bits import set_executable, staged_modes
 from projection import compile_sources
+
+# The Cursor cloud image is Ubuntu: its git wrapper is a /bin/sh script that execs /usr/bin/git.
+linux_image = pytest.mark.skipif(
+    sys.platform == "win32", reason="runs the Ubuntu image's /bin/sh git wrapper and /usr/bin/git, which a Windows host lacks")
 
 
 def source_tree(tmp_path: Path) -> Path:
@@ -30,11 +35,12 @@ def source_tree(tmp_path: Path) -> Path:
     }), encoding="utf-8")
     install = cloud / "install.sh"
     install.write_text("#!/bin/sh\nset -eu\n", encoding="utf-8")
-    install.chmod(0o755)
+    set_executable(root, install)
     (cloud / "README.md").write_text("maintainer note\n", encoding="utf-8")
     return root
 
 
+@staged_modes
 def test_cloud_projection_copies_runtime_files_and_keeps_install_executable(tmp_path):
     source = source_tree(tmp_path)
     output = tmp_path / "preview"
@@ -78,10 +84,11 @@ def add_claude_code_setup(source: Path, mode: int = 0o755) -> Path:
     for name in ("setup.sh", "session-start.sh"):
         script = directory / name
         script.write_text("#!/bin/bash\nset -euo pipefail\n", encoding="utf-8")
-        script.chmod(mode)
+        set_executable(source, script, executable=bool(mode & 0o111))
     return directory
 
 
+@staged_modes
 def test_claude_code_setup_is_checked_but_not_projected(tmp_path):
     source = source_tree(tmp_path)
     add_claude_code_setup(source)
@@ -113,7 +120,7 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     if mutation == "extra":
         (source / "cloud/cursor/notes.txt").write_text("x\n", encoding="utf-8")
     elif mutation == "unexecutable":
-        (source / "cloud/cursor/install.sh").chmod(0o644)
+        set_executable(source, source / "cloud/cursor/install.sh", executable=False)
     else:
         (source / "cloud/cursor/environment.json").write_text(
             '{"build": {"dockerfile": "Other"}, "install": "true"}\n', encoding="utf-8"
@@ -123,6 +130,7 @@ def test_invalid_cloud_source_fails_before_writing(tmp_path, mutation):
     assert not output.exists()
 
 
+@linux_image
 @pytest.mark.parametrize("configuration", [
     {},
     {"GIT_CONFIG_COUNT": "0"},
@@ -180,6 +188,7 @@ def test_git_wrapper_preserves_caller_configuration_at_exec(tmp_path, configurat
     assert observed["args"] == ["-c", "commit.gpgsign=false", "probe"]
 
 
+@linux_image
 def test_image_pins_matt_revision_and_resets_cursor_agent_identity(tmp_path):
     repo = Path(__file__).resolve().parents[3]
     dockerfile = (repo / ".meta_harness/agents/cloud/cursor/Dockerfile").read_text(encoding="utf-8")

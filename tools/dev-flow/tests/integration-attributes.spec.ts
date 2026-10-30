@@ -12,6 +12,7 @@ import { contextPath, parseContext } from '../src/integration/context.ts'
 import { git } from '../src/integration/git.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { integrationFixture, type CardAttributeFields } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -84,7 +85,7 @@ function fixture({
     ...(withBoard ? { board } : {}),
   })
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   const binding = (
     version === 1 ? { ...f.binding, ...patch } : { ...f.binding, schemaVersion: 2, ...v2, ...patch }

@@ -18,6 +18,9 @@ import { builtDist, createSandbox, runCli, type Sandbox } from './support/cli-pr
 import { expectedHelp, expectedVersion, identityFailure } from './support/expected.ts'
 
 const runsAsRoot = process.getuid?.() === 0
+// Windows cannot make a file unreadable with chmod: the mode only toggles the read-only attribute.
+// An ACL that denies read does not hold in an elevated session either (icacls /deny (R), then read).
+const cannotDenyRead = runsAsRoot || process.platform === 'win32'
 
 let sandbox: Sandbox
 beforeEach(() => {
@@ -89,20 +92,23 @@ describe('omne --version', () => {
     })
   })
 
-  it.skipIf(runsAsRoot)('exits 1 without a version when the identity file is unreadable', () => {
-    const copy = copyDist()
-    const identity = join(copy, 'cli-identity.json')
-    chmodSync(identity, 0o000)
-    try {
-      expect(runCli(sandbox, ['--version'], { bin: join(copy, 'bin.js') })).toEqual({
-        status: 1,
-        stdout: '',
-        stderr: identityFailure,
-      })
-    } finally {
-      chmodSync(identity, 0o644)
-    }
-  })
+  it.skipIf(cannotDenyRead)(
+    'exits 1 without a version when the identity file is unreadable',
+    () => {
+      const copy = copyDist()
+      const identity = join(copy, 'cli-identity.json')
+      chmodSync(identity, 0o000)
+      try {
+        expect(runCli(sandbox, ['--version'], { bin: join(copy, 'bin.js') })).toEqual({
+          status: 1,
+          stdout: '',
+          stderr: identityFailure,
+        })
+      } finally {
+        chmodSync(identity, 0o644)
+      }
+    },
+  )
 })
 
 describe.each([

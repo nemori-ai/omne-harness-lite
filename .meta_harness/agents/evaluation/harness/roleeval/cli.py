@@ -76,7 +76,7 @@ class Refused(RuntimeError):
 
 
 def main_checkout(repo: Path) -> Path:
-    common = Path(workspace.git(repo, "rev-parse", "--git-common-dir"))
+    common = Path(workspace.source_git(repo, "rev-parse", "--git-common-dir"))
     return (common if common.is_absolute() else repo / common).resolve().parent
 
 
@@ -89,7 +89,7 @@ def work_root(arg: Path | None) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     inside = subprocess.run(["git", "-C", str(root), "rev-parse", "--is-inside-work-tree"],
                             env=repository_env(os.environ),
-                            capture_output=True, text=True)
+                            capture_output=True, text=True, encoding="utf-8")
     if inside.returncode == 0:
         # A copy inside a checkout would inherit that checkout's instruction files through its parent directories.
         raise Refused(f"work root {root} is inside a git work tree; choose one outside with --work or {WORK_ENV}")
@@ -170,7 +170,7 @@ def verify(flow: Flow, work: Path, only: list[str] | None = None, notes: list[st
         except (workspace.WorkspaceError, RuntimeError) as error:
             problems.append(f"{material.id}: {error}")
         finally:
-            shutil.rmtree(dest, ignore_errors=True)
+            workspace.discard(dest)
     return problems
 
 
@@ -414,7 +414,7 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     (out / "_state.json").write_text(json.dumps(flow.state(), ensure_ascii=False, indent=1), encoding="utf-8")
     agents = compile_definition(flow, out, variant)
     attempt = work / f"{flow.id}-{variant}-{material.id}-rep{rep}"
-    shutil.rmtree(attempt, ignore_errors=True)
+    workspace.discard(attempt)
     dest = attempt / "workspace"
     copy: dict[str, Any] = {}
     try:
@@ -428,7 +428,7 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
             brief_text = review.brief(flow, material, dest, repo=REPO)
             copy = {"tree_hash": workspace.tree_hash(dest)}
     except (workspace.WorkspaceError, checkout.BriefError, RuntimeError, OSError) as error:
-        shutil.rmtree(attempt, ignore_errors=True)
+        workspace.discard(attempt)
         raise Refused(f"could not prepare {material.id}: {error}") from error
     host = flow.host["claude-code"]
     # The role definition sits beside the copy, outside every checkout, for a dispatch that has to hand it over as a file.
@@ -440,7 +440,8 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
         INLINE.format(tools="、".join(host["allowed"]), role=role, brief=brief_text), encoding="utf-8")
     pending.write_text(json.dumps({
         "workspace": str(dest), "role": str(role), **copy,
-        "harness_commit": workspace.head(REPO), "dirty": bool(changes), "agent_sha": sha256(agents),
+        "harness_commit": workspace.source_git(REPO, "rev-parse", "HEAD"), "dirty": bool(changes),
+        "agent_sha": sha256(agents),
         "prepared_at": int(time.time()),
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     alias = ALIASES.get(host["model"], host["model"])
@@ -452,17 +453,30 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     return "\n".join([
         *precondition,
         f"{material.id} rep {rep}: prepared. Dispatch ONE subagent, then record its transcript.",
-        f"  registered: subagent type `{flow.role}` (model {alias}); the prompt is the text of {evidence / 'brief.md'}",
-        f"  inline:     a general-purpose subagent (model {alias}); the prompt is the text of "
+        f"  registered: subagent type `{flow.role}` (model {alias}, effort {host['effort']}); "
+        f"the prompt is the text of {evidence / 'brief.md'}",
+        f"  inline:     a general-purpose subagent (model {alias}, effort {host['effort']}); the prompt is the text of "
         f"{evidence / 'dispatch.inline.md'}",
         f"  the role is to run on {host['model']} at {host['effort']}; the copy is {dest}",
     ])
 
 
 def outside_copy(episode: claude_host.Episode, dest: Path, role: str | None) -> list[str]:
-    """Absolute paths the run's tool calls named that are neither inside its copy nor its role definition."""
-    named = {path for _, args in episode.tool_inputs for path in re.findall(r'"(/[^"\s]+)"', args)}
-    return sorted(path for path in named if not path.startswith(str(dest)) and path != role)
+    """Absolute paths the run's tool calls named that are neither inside its copy nor its role definition.
+
+    On Windows a path is also named from a drive (``C:\\...``, ``C:/...``); it is compared with the copy and the role
+    without regard to separator or case, and the copy may also be named as Git Bash writes it.
+    """
+    if os.name != "nt":
+        named = {path for _, args in episode.tool_inputs for path in re.findall(r'"(/[^"\s]+)"', args)}
+        return sorted(path for path in named if not path.startswith(str(dest)) and path != role)
+    found = {path for _, args in episode.tool_inputs
+             for path in re.findall(r'"((?:/|[A-Za-z]:(?:\\\\|/))[^"\s]*)"', args)}
+    named = {path.replace("\\\\", "\\") for path in found}
+    copy = [claude_host.comparable(spelling) for spelling in [str(dest), *checkout.git_bash_spelling(dest)]]
+    return sorted(path for path in named
+                  if not any(claude_host.comparable(path).startswith(prefix) for prefix in copy)
+                  and (role is None or claude_host.comparable(path) != claude_host.comparable(role)))
 
 
 def episode_record(flow: Flow, material: Material, rep: int, variant: str, episode: claude_host.Episode, *,
@@ -514,7 +528,7 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
         inside = checkout.dispatched_inside(episode.cwd, main)
         if inside:
             reached.append(inside)
-    failure = episode.failure(host["model"]) or (("contaminated", "; ".join(reached)) if reached else None)
+    failure = episode.failure(host["model"], host["effort"]) or (("contaminated", "; ".join(reached)) if reached else None)
     observed: dict[str, tuple[float, str]] = {}
     oracle: dict[str, Any] | None = None
     if not failure:
@@ -526,7 +540,7 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
     shutil.copyfile(transcript, evidence / "trajectory.jsonl")
     pending.unlink()
     if not keep:
-        shutil.rmtree(dest.parent, ignore_errors=True)
+        workspace.discard(dest.parent)
     if failure:
         # The attempt keeps its evidence under a name that frees the (material, rep) slot for another run.
         parked = evidence.with_name(f"{evidence.name}.failed-{int(time.time())}")

@@ -1,13 +1,5 @@
 import { spawnSync } from 'node:child_process'
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  realpathSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +16,7 @@ import {
   planDispatch,
   postDispatch,
   recordPosted,
+  reviseCardBody,
   taskBaseInputs,
   type DispatchSpec,
 } from '../src/delivery/dispatch.ts'
@@ -31,8 +24,14 @@ import type { GhCommand } from '../src/delivery/github-read.ts'
 import { dispatchFieldGaps, parseConfig, type CapturedIssue } from '../src/delivery/protocol.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { git } from '../src/integration/git.ts'
-import { commit, init, policyDocument } from './fixtures/integration.ts'
+import {
+  dispatchGhScript,
+  readDispatchGhState,
+  writeDispatchGhState,
+} from './fixtures/dispatch-gh.ts'
+import { commit, init, policyDocument, trackEntry } from './fixtures/integration.ts'
 import { registry, table } from './fixtures/lines.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const url = 'https://github.com/owner/repo/issues/7'
 const config = parseConfig({
@@ -145,6 +144,41 @@ const plan = (
     actor: patch.actor ?? 'human',
     force: patch.force ?? false,
   })
+
+/** A GitHub stand-in that holds one card body and one dispatch comment. */
+function github(body = cardBody()) {
+  const calls: string[][] = []
+  const state = { body, comment: '' }
+  const call: GhCommand = argv => {
+    calls.push([...argv])
+    const method = argv[2],
+      path = argv.find(item => item.startsWith('repos/')) ?? '',
+      value = argv.find(item => item.startsWith('body='))?.slice('body='.length)
+    if (method === 'POST' && path === 'repos/owner/repo/issues/7/comments')
+      return { id: 55, html_url: `${url}#issuecomment-55` }
+    if (method === 'PATCH' && path === 'repos/owner/repo/issues/comments/55') {
+      state.comment = value ?? ''
+      return {}
+    }
+    if (method === 'GET' && path === 'repos/owner/repo/issues/comments/55')
+      return { body: state.comment }
+    if (method === 'PATCH' && path === 'repos/owner/repo/issues/7') {
+      state.body = value ?? ''
+      return {}
+    }
+    if (method === 'GET' && path === 'repos/owner/repo/issues/7')
+      return {
+        number: 7,
+        node_id: 'I_7',
+        html_url: url,
+        body: state.body,
+        labels: [],
+        milestone: null,
+      }
+    throw new Error(`unexpected call ${argv.join(' ')}`)
+  }
+  return { call, calls, state }
+}
 
 describe('dispatch fields', () => {
   it('names each missing kind:, line: label and milestone', () => {
@@ -272,45 +306,16 @@ describe('planning a dispatch', () => {
   it('refuses a spec with a missing or unknown field', () => {
     const { confirmations: _omitted, ...partial } = spec
     expect(() => parseDispatchSpec(partial)).toThrow('confirmations is required')
-    expect(() => parseDispatchSpec({ ...spec, revision: 2 })).toThrow()
+    expect(() => parseDispatchSpec({ ...spec, line: 'engineering-toolchain' })).toThrow(
+      'unknown fields line',
+    )
+    expect(parseDispatchSpec({ ...spec, revision: 3 }).revision).toBe(3)
+    expect(() => parseDispatchSpec({ ...spec, revision: 0 })).toThrow('positive integer')
   })
 })
 
 describe('posting and binding', () => {
   const posted = plan()
-  function github(body = cardBody()) {
-    const calls: string[][] = []
-    const state = { body, comment: '' }
-    const call: GhCommand = argv => {
-      calls.push([...argv])
-      const method = argv[2],
-        path = argv.find(item => item.startsWith('repos/')) ?? '',
-        value = argv.find(item => item.startsWith('body='))?.slice('body='.length)
-      if (method === 'POST' && path === 'repos/owner/repo/issues/7/comments')
-        return { id: 55, html_url: `${url}#issuecomment-55` }
-      if (method === 'PATCH' && path === 'repos/owner/repo/issues/comments/55') {
-        state.comment = value ?? ''
-        return {}
-      }
-      if (method === 'GET' && path === 'repos/owner/repo/issues/comments/55')
-        return { body: state.comment }
-      if (method === 'PATCH' && path === 'repos/owner/repo/issues/7') {
-        state.body = value ?? ''
-        return {}
-      }
-      if (method === 'GET' && path === 'repos/owner/repo/issues/7')
-        return {
-          number: 7,
-          node_id: 'I_7',
-          html_url: url,
-          body: state.body,
-          labels: [],
-          milestone: null,
-        }
-      throw new Error(`unexpected call ${argv.join(' ')}`)
-    }
-    return { call, calls, state }
-  }
 
   it('posts once, edits the placeholder into a dispatch naming its own URL and reads it back', () => {
     const gh = github()
@@ -415,6 +420,33 @@ describe('posting and binding', () => {
     expect(readTaskBinding(again, binding.issue)?.attempt).toBe('7-r2-a2')
   })
 
+  it('adds a「工作树」line at the end of「认领与派发」when the subsection has none', () => {
+    const body = bindBody(cardBody().replace('- 工作树：未创建。\n', ''), binding, 'w')
+    expect(body).toContain(
+      `### 认领与派发\n- 派发情况：已派发，见 ${binding.dispatch}。\n- 工作树：\`w\`。\n### 分支、基线与task context`,
+    )
+    // Without --worktree nothing is added.
+    expect(bindBody(cardBody().replace('- 工作树：未创建。\n', ''), binding)).not.toContain(
+      '- 工作树',
+    )
+  })
+
+  it.each([
+    ['no「认领与派发」', (body: string) => body.replace('### 认领与派发\n', '')],
+    [
+      'two「认领与派发」',
+      (body: string) =>
+        body.replace('### 当前进展', '### 认领与派发\n- 工作树：别处。\n### 当前进展'),
+    ],
+  ])('refuses a worktree when the card has %s, before any write', (_name, edit) => {
+    expect(() => bindBody(edit(cardBody()), binding, 'w')).toThrow('exactly one ### 认领与派发')
+    const gh = github(edit(cardBody()))
+    expect(() =>
+      bindCard({ repository: 'owner/repo', binding, worktree: 'w', dryRun: false, call: gh.call }),
+    ).toThrow('exactly one ### 认领与派发')
+    expect(gh.calls.map(c => c[2])).toEqual(['GET'])
+  })
+
   it('rewrites the dispatch and worktree lines only inside「认领与派发」', () => {
     const body = bindBody(cardBody(START_ROW, '- 派发情况：另一处的说明。'), binding, 'w')
     expect(body).toContain('- 派发情况：另一处的说明。')
@@ -453,6 +485,168 @@ describe('posting and binding', () => {
   })
 })
 
+/** Card 7 after revision 2 was posted as comment 40 and bound: the card a new revision starts from. */
+const BOUND = (() => {
+  const binding = { ...plan().binding, dispatch: `${url}#issuecomment-40` }
+  const { decision } = dispatchDecision(plan(), binding.dispatch, spec.basis)
+  const comment = {
+    url: binding.dispatch,
+    author: 'human',
+    body: dispatchComment('revision 2', decision),
+    updatedAt: '2026-10-26T00:00:00Z',
+  }
+  return { body: bindBody(cardBody(), binding, '.worktrees/issue-7'), binding, comment }
+})()
+const r3: DispatchSpec = {
+  ...spec,
+  attempt: '7-r3-a1',
+  revision: 3,
+  confirmations: [{ condition: 'D-S00', evidence: 'dispatcher approved revision 3' }],
+}
+const bound = (body = BOUND.body) => issue({ body, comments: [BOUND.comment] })
+const PENDING =
+  '未登记 binding。修订 3 待派发，修订 2 的 binding 已撤下；计划集成路线：轨道 `legacy-refactor`，最终终点：track。'
+
+describe('opening a new revision on a bound card', () => {
+  it('checks the rewritten card and plans both body edits', () => {
+    const result = plan({ spec: r3, card: bound() })
+    expect(result.binding).toMatchObject({ revision: 3, attempt: '7-r3-a1' })
+    const revise = result.revise
+    expect(revise).toMatchObject({ from: 2, to: 3, before: BOUND.body })
+    expect(revise?.edits.map(edit => [edit.part, edit.after])).toEqual([
+      ['revision', '- 交付修订：3'],
+      ['binding', PENDING],
+    ])
+    expect(revise?.edits[0]?.before).toBe('- 交付修订：2')
+    // The dispatch line `bind` wrote leaves with its block.
+    expect(revise?.edits[1]?.before).toMatch(
+      /^正式派发：.*\n\n```json omne-integration-binding:v2\n/,
+    )
+    expect(revise?.edits[1]?.before).toMatch(/\n```$/)
+    const body = revise?.body ?? ''
+    expect(readTaskBinding(body, BOUND.binding.issue)).toBeUndefined()
+    expect(body).not.toContain('正式派发：')
+    expect(body).toContain(`### 分支、基线与task context\n\n${PENDING}\n\n### 当前进展`)
+    // Outside the two edits the body is kept.
+    expect(body.replace('交付修订：3', '交付修订：2').replace(PENDING, '')).toBe(
+      BOUND.body.replace(revise?.edits[1]?.before ?? '', ''),
+    )
+  })
+
+  it('leaves a card that already carries the revision unchanged', () => {
+    const result = plan({ spec: { ...spec, revision: 2 } })
+    expect(result.revise).toBeUndefined()
+    expect(result).toEqual(plan())
+  })
+
+  it('changes only the revision line of a card without a binding', () => {
+    const result = plan({ spec: r3 })
+    expect(result.revise?.edits.map(edit => edit.part)).toEqual(['revision'])
+    expect(result.revise?.body).toBe(cardBody().replace('交付修订：2', '交付修订：3'))
+  })
+
+  it.each([
+    ['a revision below the card', { spec: { ...r3, revision: 1 } }, 'below the card'],
+    [
+      'a binding block outside its subsection',
+      {
+        spec: r3,
+        card: issue({
+          body: cardBody(
+            START_ROW,
+            `\`\`\`json omne-integration-binding:v2\n${JSON.stringify(BOUND.binding)}\n\`\`\``,
+          ),
+        }),
+      },
+      'binding block outside',
+    ],
+  ])('refuses %s before any write', (_name, patch, message) => {
+    expect(() => plan(patch)).toThrow(message)
+  })
+
+  it.each([
+    ['a revision below the card', BOUND.body, 1, 'below the card'],
+    [
+      'a binding block that is not closed',
+      BOUND.body.replace('}\n```\n', '}\n'),
+      3,
+      'binding block in 「分支、基线与task context」 is not closed',
+    ],
+    [
+      'a binding block outside its subsection',
+      cardBody(START_ROW, '```json omne-integration-binding:v2\n{}\n```'),
+      3,
+      'binding block outside',
+    ],
+  ])('reviseCardBody refuses %s', (_name, body, revision, message) => {
+    expect(() => reviseCardBody(body, revision, r3.route, r3.completionTarget)).toThrow(message)
+  })
+
+  it('writes the revised body before the comment, and bind then reads the new binding back', () => {
+    const planned = plan({ spec: r3, card: bound() })
+    const gh = github(BOUND.body)
+    const result = postDispatch({
+      repository: 'owner/repo',
+      plan: planned,
+      basis: spec.basis,
+      prose: '## 修订 3 派发\n',
+      call: gh.call,
+    })
+    expect(gh.calls.map(c => `${c[2]} ${c.find(item => item.startsWith('repos/'))}`)).toEqual([
+      'GET repos/owner/repo/issues/7',
+      'PATCH repos/owner/repo/issues/7',
+      'GET repos/owner/repo/issues/7',
+      'POST repos/owner/repo/issues/7/comments',
+      'PATCH repos/owner/repo/issues/comments/55',
+      'GET repos/owner/repo/issues/comments/55',
+    ])
+    expect(result.verified).toBe(true)
+    expect(gh.state.body).toBe(planned.revise?.body)
+    expect(
+      bindCard({ repository: 'owner/repo', binding: result.binding, dryRun: false, call: gh.call }),
+    ).toMatchObject({ applied: true, verified: true })
+    expect(readTaskBinding(gh.state.body, BOUND.binding.issue)).toMatchObject({
+      revision: 3,
+      attempt: '7-r3-a1',
+      dispatch: `${url}#issuecomment-55`,
+    })
+    expect(gh.state.body).toContain(`- 派发情况：已派发，见 ${url}#issuecomment-55。`)
+  })
+
+  it('writes and posts nothing when the card changed after the checks', () => {
+    const gh = github(`${BOUND.body}\n- 最近更新：另一次编辑。`)
+    expect(() =>
+      postDispatch({
+        repository: 'owner/repo',
+        plan: plan({ spec: r3, card: bound() }),
+        basis: spec.basis,
+        prose: 'x',
+        call: gh.call,
+      }),
+    ).toThrow('changed after the checks')
+    expect(gh.calls.map(c => c[2])).toEqual(['GET'])
+  })
+
+  it('posts nothing when the revised body does not read back', () => {
+    const gh = github(BOUND.body)
+    const lossy: GhCommand = (argv, timeout) => {
+      const result = gh.call(argv, timeout)
+      if (argv[2] === 'PATCH') gh.state.body = `${gh.state.body}\n`
+      return result
+    }
+    expect(() =>
+      postDispatch({
+        repository: 'owner/repo',
+        plan: plan({ spec: r3, card: bound() }),
+        basis: spec.basis,
+        prose: 'x',
+        call: lossy,
+      }),
+    ).toThrow('does not read back as revision 3. Nothing was posted')
+    expect(gh.calls.map(c => c[2])).toEqual(['GET', 'PATCH', 'GET'])
+  })
+})
+
 describe('dispatch-cli post with an empty text', () => {
   const homes: string[] = []
   afterAll(() => {
@@ -470,8 +664,7 @@ describe('dispatch-cli post with an empty text', () => {
     const bin = join(home, 'bin'),
       calls = join(home, 'gh-calls.log')
     mkdirSync(bin)
-    writeFileSync(join(bin, 'gh'), `#!/bin/sh\necho "$@" >> '${calls}'\nexit 1\n`)
-    chmodSync(join(bin, 'gh'), 0o755)
+    writeGh(bin, `#!/bin/sh\necho "$@" >> '${calls}'\nexit 1\n`)
     writeFileSync(join(home, 'spec.json'), JSON.stringify(spec))
     writeFileSync(join(home, 'prose.md'), prose)
     const result = spawnSync(
@@ -487,7 +680,7 @@ describe('dispatch-cli post with an empty text', () => {
         '--root',
         home,
       ],
-      { encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${process.env.PATH ?? ''}` } },
+      { encoding: 'utf8', env: { ...process.env, ...ghEnv(bin) } },
     )
     expect(result.status).toBe(2)
     expect(JSON.parse(result.stderr)).toMatchObject({
@@ -498,6 +691,113 @@ describe('dispatch-cli post with an empty text', () => {
     expect(result.stdout).toBe('')
     expect(existsSync(calls)).toBe(false)
   })
+})
+
+describe('dispatch-cli on a bound card that opens a new revision', () => {
+  const homes: string[] = []
+  afterAll(() => {
+    for (const home of homes) rmSync(home, { recursive: true, force: true })
+  })
+  const cli = fileURLToPath(new URL('../src/delivery/dispatch-cli.ts', import.meta.url))
+
+  // Slow: dispatch-cli runs three times as a child process against a task base checkout, with a
+  // `gh` stand-in that keeps card 7 in a state file.
+  it(
+    'dry-runs both edits without a write, then posts, and bind reads the new binding back',
+    { tags: ['slow'] },
+    () => {
+      const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-dispatch-revision-')))
+      homes.push(home)
+      init(home)
+      const base = commit(home, 'README.md', 'fixture\n')
+      mkdirSync(join(home, 'docs/engineering'), { recursive: true })
+      mkdirSync(join(home, 'tools/dev-flow/src/delivery'), { recursive: true })
+      const configPath = join(home, 'docs/engineering/github-delivery.json')
+      writeFileSync(
+        join(home, 'docs/engineering/integration-policy.json'),
+        JSON.stringify(policyDocument(base, 'origin', [trackEntry('legacy-refactor', base)])),
+      )
+      writeFileSync(configPath, JSON.stringify({ ...config, project: { ...config.project } }))
+      writeFileSync(join(home, 'docs/engineering/delivery-lines.json'), JSON.stringify(table()))
+      writeFileSync(
+        join(home, 'tools/dev-flow/src/delivery/binding.ts'),
+        "export const marker = 'omne-integration-binding:v2'\n",
+      )
+      git(home, ['add', '.'])
+      git(home, ['commit', '-m', 'inputs'])
+      const taskBase = git(home, ['rev-parse', 'HEAD'])
+      const bin = join(home, 'bin'),
+        statePath = join(home, 'gh-state.json')
+      mkdirSync(bin)
+      writeGh(bin, dispatchGhScript(statePath))
+      writeDispatchGhState(statePath, {
+        login: 'human',
+        body: BOUND.body,
+        labels: issue().labels,
+        milestone: 'M1',
+        comments: [
+          {
+            id: 40,
+            html_url: BOUND.comment.url,
+            body: BOUND.comment.body,
+            user: { login: 'human' },
+            updated_at: BOUND.comment.updatedAt,
+          },
+        ],
+        calls: [],
+      })
+      writeFileSync(join(home, 'spec.json'), JSON.stringify({ ...r3, taskBase }))
+      writeFileSync(join(home, 'prose.md'), '## 修订 3 派发\n')
+      const env = { ...process.env, ...ghEnv(bin) }
+      const run = (args: string[]) =>
+        spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
+          encoding: 'utf8',
+          env,
+        })
+      const post = ['post', '--spec', join(home, 'spec.json'), '--text', join(home, 'prose.md')]
+      const writes = () =>
+        readDispatchGhState(statePath).calls.filter(c => c[1] === '--method' && c[2] !== 'GET')
+
+      const dry = run([...post, '--root', home, '--dry-run'])
+      expect(dry.stderr).toBe('')
+      expect(dry.status).toBe(0)
+      const preview = JSON.parse(dry.stdout)
+      expect(preview).toMatchObject({ applied: false, cardEdits: { from: 2, to: 3 } })
+      expect(
+        preview.cardEdits.edits.map((edit: { part: string; after: string }) => [
+          edit.part,
+          edit.after,
+        ]),
+      ).toEqual([
+        ['revision', '- 交付修订：3'],
+        ['binding', PENDING],
+      ])
+      expect(preview.binding).toMatchObject({ revision: 3, dispatch: DISPATCH_PLACEHOLDER })
+      expect(writes()).toEqual([])
+      expect(readDispatchGhState(statePath).body).toBe(BOUND.body)
+
+      const out = join(home, 'binding.json')
+      const posted = run([...post, '--root', home, '--out', out])
+      expect(posted.status).toBe(0)
+      expect(JSON.parse(posted.stdout)).toMatchObject({ applied: true, verified: true })
+      const card = readDispatchGhState(statePath).body
+      expect(card).toContain('- 交付修订：3')
+      expect(card).toContain(PENDING)
+      expect(readTaskBinding(card, BOUND.binding.issue)).toBeUndefined()
+
+      const bound = run(['bind', '--binding', out, '--config', configPath])
+      expect(bound.status).toBe(0)
+      expect(JSON.parse(bound.stdout)).toMatchObject({ applied: true, verified: true })
+      expect(
+        readTaskBinding(readDispatchGhState(statePath).body, BOUND.binding.issue),
+      ).toMatchObject({
+        revision: 3,
+        attempt: '7-r3-a1',
+        taskBase,
+        dispatch: `${url}#issuecomment-101`,
+      })
+    },
+  )
 })
 
 describe('task base inputs', () => {

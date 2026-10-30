@@ -8,6 +8,7 @@ import {
   readChannelConfig,
   receiverPaths,
   repositoryName,
+  sharedMode,
   writePrivateJson,
 } from './events-channel-config.ts'
 import { recoverChannelHook, removeChannelHook } from './events-channel-hooks.ts'
@@ -95,7 +96,7 @@ async function main(): Promise<void> {
       hook = values.get('--hook')
     if ((channelFile === undefined) !== (hook === undefined))
       throw new ReceiverError('borrowed-hook-and-channel-required')
-    if (channelFile !== undefined && (lstatSync(channelFile).mode & 0o077) !== 0)
+    if (channelFile !== undefined && sharedMode(lstatSync(channelFile).mode))
       throw new ReceiverError('insecure-channel-file-permissions')
     const channel =
       channelFile === undefined ? await createChannel() : readFileSync(channelFile, 'utf8').trim()

@@ -3,7 +3,6 @@
 // stand-in on PATH. No case reads or writes the real platform.
 import { spawnSync } from 'node:child_process'
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -25,6 +24,7 @@ import {
   type BaselineComment,
 } from '../src/delivery/baseline.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -463,8 +463,8 @@ describe('baseline-cli', () => {
             })),
       ),
     )
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node
 import { appendFileSync, readFileSync } from 'node:fs'
 appendFileSync(${JSON.stringify(join(dir, 'calls'))}, JSON.stringify(process.argv.slice(2)) + '\\n')
@@ -477,7 +477,6 @@ const page = new URLSearchParams(process.argv.at(-1).split('?')[1]).get('page')
 process.stdout.write(page === '1' ? readFileSync(${JSON.stringify(data)}, 'utf8') : '[]')
 `,
     )
-    chmodSync(join(bin, 'gh'), 0o755)
     const config = join(dir, 'github-delivery.json')
     writeFileSync(
       config,
@@ -489,7 +488,7 @@ process.stdout.write(page === '1' ? readFileSync(${JSON.stringify(data)}, 'utf8'
     const run = (...args: string[]) =>
       spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
         encoding: 'utf8',
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+        env: { ...process.env, ...ghEnv(bin) },
       })
     const calls = () =>
       readFileSync(join(dir, 'calls'), 'utf8')

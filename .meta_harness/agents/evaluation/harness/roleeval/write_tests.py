@@ -214,5 +214,5 @@ def verify(flow: Flow, material: Material, *, source: Path, work: Path, tag: str
     except (workspace.WorkspaceError, OSError) as error:
         problems.append(f"{material.id}: {error}")
     finally:
-        shutil.rmtree(where, ignore_errors=True)
+        workspace.discard(where)
     return problems

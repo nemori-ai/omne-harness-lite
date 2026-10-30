@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "implementation-review",
-  "version": 2,
+  "version": 3,
   "family": "review",
   "role": "implementation-reviewer",
   "judgment": "实现",
@@ -10,7 +10,7 @@
   "host": {
     "claude-code": {
       "model": "claude-fable-5-1",
-      "effort": "high",
+      "effort": "medium",
       "allowed": [
         "Read",
         "Glob",

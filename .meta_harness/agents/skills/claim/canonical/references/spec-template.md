@@ -94,7 +94,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 
 ## Testing Decisions
 
-- 测试与验证先设计：写出判据、反例与变红验证（每条测试在什么缺陷下变红），再实施。实施可按 TDD 顺序。
+- 测试与验证先设计：写出判据、反例与变红验证（每条测试在什么缺陷下变红），再实施。写新测试时先确认它变红，再实现（`docs/engineering/skills.md`「ub-mode 研发品味」）。
 - 好的测试只断言外部行为与契约要求的结果，包括必须的「不发生」与固定值。
 - 测试接缝：<优先已有接缝，越高越好，越少越好。线内的卡由线会话定；不在线内的卡经卡负责人确认>
 - 被测成员与先例：<同类测试在仓库里的位置>
@@ -104,10 +104,10 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | --- | --- | --- |
 | 类型与 lint | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint` | 每个切片后 |
 | 依赖方向 | `pnpm run lint:deps` | 若干切片后 |
-| 结构读数 | `pnpm run metrics --base <taskBase> --coverage` | 若干切片后集中一次 |
-| 差分变异 | `pnpm run mutation --base <taskBase>` | 若干切片后集中一次 |
+| 结构读数 | `pnpm run metrics --coverage`，基线按 `review-code` 技能「度量与差分变异的基线」一段 | 若干切片后集中一次 |
+| 差分变异 | `pnpm run mutation`，基线与收窄按 `review-code` 技能「差分变异」一段 | 最终 head 上跑一次，只跑热点 |
 | 文档与投影 | `pnpm run check:docs`；`pnpm run check:agents` | 改到时 |
-| 全量准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 线内的卡留给 reduce；不在线内的卡在最终 head 跑一次 |
+| 整次准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 线内的卡留给 reduce；不在线内的卡在最终 head 跑一次 |
 
 - 不能声称的事（`docs/verification.md`）：<本卡验证覆盖不到的范围，写「未执行」或「未测量」及原因>
 

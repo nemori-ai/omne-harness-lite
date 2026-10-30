@@ -65,6 +65,45 @@ function isHostPath(path: string): boolean {
   return isAbsolute(path) && !path.includes('\0')
 }
 
+/**
+ * `O_NOFOLLOW` where the host has it. Node on Windows has none, and its `open` follows a final
+ * link; there `finalEntryIsOpened` refuses the link after the open instead.
+ */
+const noFollow: number | undefined = constants.O_NOFOLLOW
+
+/**
+ * For a host without `O_NOFOLLOW`: after the open, the final entry of the path must be the opened
+ * object itself. A link answers `unsupported`, as `ELOOP` does on POSIX; another object answers
+ * `conflict`, because the path no longer names what was opened. A path that ends in `.` or `..`
+ * ends in no link on POSIX and resolves only through a directory; Windows folds such a path
+ * before the lookup, so here it must have opened a directory, else it is `unresolved` as
+ * `ENOTDIR` is on POSIX.
+ */
+async function finalEntryIsOpened(
+  path: string,
+  opened: FileStats,
+): Promise<'opened' | 'unresolved' | 'unsupported' | 'conflict'> {
+  const last = path.split(/[\\/]/u).findLast(segment => segment !== '')
+  if (last === '.' || last === '..') return opened.isDirectory() ? 'opened' : 'unresolved'
+  const entry = await lstat(path, { bigint: true })
+  if (entry.isSymbolicLink()) return 'unsupported'
+  return entry.dev === opened.dev && entry.ino === opened.ino ? 'opened' : 'conflict'
+}
+
+/** The refusal a host without `O_NOFOLLOW` owes after the open, or none when the final entry is the opened object. */
+async function refusalAfterOpen(
+  requestId: string,
+  path: string,
+  opened: FileStats,
+): Promise<
+  { readonly kind: 'unresolved'; readonly requestId: string } | FacilityResult<never> | undefined
+> {
+  if (noFollow !== undefined) return undefined
+  const final = await finalEntryIsOpened(path, opened)
+  if (final === 'opened') return undefined
+  return final === 'unresolved' ? { kind: 'unresolved', requestId } : reject(requestId, final)
+}
+
 function pathWithoutTrailingSlash(path: string): string {
   let current = path
   while (current.length > 1 && current.endsWith('/')) current = current.slice(0, -1)
@@ -235,9 +274,10 @@ export function createHostFilesEngine(): HostFilesEngine {
       if (!isHostPath(path)) return reject(requestId, 'invalidInput')
       if (namedToken === '') return reject(requestId, 'notAuthorized')
 
+      const opening = pathWithoutTrailingSlash(path)
       let handle: FileHandle
       try {
-        handle = await open(pathWithoutTrailingSlash(path), flags | constants.O_NOFOLLOW)
+        handle = await open(opening, flags | (noFollow ?? 0))
       } catch (error) {
         return openFailure(requestId, error)
       }
@@ -245,6 +285,12 @@ export function createHostFilesEngine(): HostFilesEngine {
       try {
         const stat = await handle.stat({ bigint: true })
         const object = tokenOf(stat)
+
+        const refused = await refusalAfterOpen(requestId, opening, stat)
+        if (refused !== undefined) {
+          await closeOrTrack(handle)
+          return refused
+        }
 
         if (path.length > 1 && path.endsWith('/') && !stat.isDirectory()) {
           await closeOrTrack(handle)

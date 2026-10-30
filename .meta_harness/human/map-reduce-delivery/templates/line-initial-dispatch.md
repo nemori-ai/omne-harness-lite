@@ -12,7 +12,7 @@
 
 # 消息正文
 
-你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本域本波的细化、实施和验证。全局设计、消费者迁移、跨线联调、集成冲突和交回后的问题归 reduce。
+你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本线本波的细化、实施和验证，包括线内跨领域的集成与联调。全局设计、跨线的消费者迁移与联调、集成冲突和交回后的问题归 reduce。
 
 ## 1 身份与唯一执行
 
@@ -41,9 +41,10 @@
 
 1. `line` 技能。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
 2. 每张卡按 `claim` 技能推进。
-3. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
-4. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
-5. 改文档前加载 `asd-ste100`。
+3. 派发子代理时加载 `delegate`。
+4. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
+5. 交回前加载 `review-code`、`review-docs` 和 `review-delivery`，按风险级别评审。
+6. 改文档前加载 `asd-ste100`。
 
 技能、工具和策略的版本：{{skill_source_ref}}。你只在开工边界采用新版本。
 
@@ -74,11 +75,7 @@
 
 角色策略与解析结果：{{role_policy_ref}}。
 
-1. 先写下自己的宿主与版本。
-2. 按卡的工作类型与风险取角色模型。拿不准时上调一档。
-3. Claude Code：每次调用 Agent 工具都传 `model` 参数。
-4. Codex：developer 与 qa 的角色文件不钉模型。派发这两个角色时，你必须显式给模型。不给模型时，子代理继承父会话的模型，宿主不报错。
-5. requested 与 observed 分开记录。宿主不报告 observed 时写 unknown。
+会话级准备时写下自己的宿主与版本。派发子代理按 `delegate`「选模型」；规则、钉值与宿主传值机制归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」。
 
 ### 开发为主的线：工程准则
 
