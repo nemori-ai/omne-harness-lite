@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-The package has 24 runtime tests and 1 type test. See [tests/](tests/README.md). Two runtime tests check that the root entry and `./cordis` have no exports. The other 22 runtime tests check the memory provider of `./testing`. No test is mapped to the continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) yet. A passing structure check does not prove behavior.
+The package has 27 runtime tests and 2 type tests. See [tests/](tests/README.md). Two runtime tests check that the root entry and `./cordis` have no exports. The other 25 runtime tests check the memory provider of `./testing`. No test is mapped to the continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) yet. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -92,7 +92,7 @@ docs/                     Internal design, public use, and integration
 ├── context.md            Assembly steps and position
 └── cordis.md             inject, keys, registration, IC map
 src/                      index.ts and cordis.ts hold template markers, testing.ts and testing/ hold the memory provider
-tests/                    24 runtime tests and 1 type test, fixtures/ holds 7 shared helper files
+tests/                    27 runtime tests and 2 type tests, fixtures/ holds 7 shared helper files
 schema/                   Template placeholder
 verification/             models/ and proofs/, template placeholders
 adr/                      Template placeholder

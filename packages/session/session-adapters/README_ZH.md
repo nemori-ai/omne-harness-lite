@@ -68,7 +68,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-本包有 24 个运行测试与 1 个类型测试，见 [tests/](tests/README.md)。其中两个运行测试核对根入口与 `./cordis` 没有导出，其余 22 个运行测试检查 `./testing` 的内存提供者。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未逐条对应到测试。结构检查通过不证明行为。
+本包有 27 个运行测试与 2 个类型测试，见 [tests/](tests/README.md)。其中两个运行测试核对根入口与 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未逐条对应到测试。结构检查通过不证明行为。
 
 ## 维护
 
@@ -92,7 +92,7 @@ docs/                     内部设计、公开使用与集成
 ├── context.md            装配步骤与定位
 └── cordis.md             inject、键、登记与 IC 映射
 src/                      index.ts 与 cordis.ts 只有模板标记，testing.ts 与 testing/ 是内存提供者
-tests/                    24 个运行测试与 1 个类型测试，fixtures/ 有 7 个共用构造文件
+tests/                    27 个运行测试与 2 个类型测试，fixtures/ 有 7 个共用构造文件
 schema/                   模板占位
 verification/             models/ 与 proofs/，模板占位
 adr/                      模板占位
