@@ -221,6 +221,8 @@
 ## 入口 `./testing` · `testing.d.ts`
 
 - `AgentAccountOutletFixture` · `testing-account-outlet.d.ts`
+- `AgentJournalCoreFixture` · `testing-journal-core.d.ts`
+- `AgentJournalCoreOpened` · `testing-journal-core.d.ts`
 - `AgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
@@ -229,12 +231,14 @@
 - `RecordFault` · `testing-journal-entries.d.ts`
 - `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
+- `agentJournalCoreConformance` · `testing-journal-core.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
 - `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
+- `sameValue` · `testing-journal-core.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
@@ -2400,6 +2404,37 @@ export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
 ```
 
+## 声明文件 `testing-journal-core.d.ts`
+
+```ts
+import type { AgentCheckpoint, ProducedResult } from './evaluation.ts';
+import type { AcceptedInput, CommandReceipt } from './execution.ts';
+import { type Access, type AgentExecutionId, type Authority, type ConsumptionId } from './identity.ts';
+import type { AgentJournal } from './journal.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface AgentJournalCoreOpened<P> {
+    readonly journal: AgentJournal<P>;
+    readonly access: Access<P>;
+    readonly execution: AgentExecutionId;
+    readonly receipt: CommandReceipt;
+    readonly authority: Authority;
+    readonly checkpoint: AgentCheckpoint;
+    readonly acceptInput: (name: string) => Promise<AcceptedInput>;
+    readonly produceResult?: (name: string) => Promise<Readonly<{
+        result: ProducedResult;
+        consumption: ConsumptionId;
+        transfer: Parameters<AgentJournal<P>['recordResult']>[0]['transfer'];
+    }>>;
+    readonly faultNext?: (method: 'recordControl' | 'submit', outcome: 'applied' | 'dropped' | 'pending') => void;
+    readonly takeover?: (name: string) => Promise<Authority>;
+}
+export interface AgentJournalCoreFixture<P> {
+    open(name: string): Promise<AgentJournalCoreOpened<P>>;
+}
+export declare function agentJournalCoreConformance<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[];
+export declare function sameValue(left: unknown, right: unknown): boolean;
+```
+
 ## 声明文件 `testing-journal-entries.d.ts`
 
 ```ts
@@ -2612,6 +2647,7 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
+export { agentJournalCoreConformance, sameValue, type AgentJournalCoreFixture, type AgentJournalCoreOpened, } from './testing-journal-core.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 ```
