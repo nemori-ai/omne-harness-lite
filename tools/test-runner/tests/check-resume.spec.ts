@@ -2,7 +2,8 @@
 // `check` 的运行记录与 `--resume-from` 的端到端：在一个夹具仓库上真跑 runCheck——真实的 git、turbo、影响面、步骤图、
 // 计划文件、运行记录与准入日志，只把步骤表换成「记下自己跑了什么、读到什么范围」的假命令（真表里的步骤是 pnpm 脚本，
 // 夹具里没有）。核对：只在 oxlint 失败的全量准入写出记录（W2-C2）；修复后接续只跑规定的步骤与成员、证据格式正确（W2-C2）；
-// 前提不满足以 2 退出、差异碰到全局路径时整次全量并写明（W2-C3）；H1 按影响面准入时接续的范围不比 H1 宽、
+// 前提不满足以 2 退出、差异碰到全局路径时整次全量并写明（W2-C3）；记录写明带没带 FULL=1 与工作树，
+// 运行中工作树多出未被忽略的文件时记录记 dirty；H1 按影响面准入时接续的范围不比 H1 宽、
 // 基线合并点不同就拒绝、接续记录不再作 H1。归慢层：每次 runCheck 起 turbo 与十来个 node 子进程。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
@@ -25,6 +26,7 @@ import {
   CHECK_RUN_RECORD_DIR,
   readAdmissionRun,
   RUN_RECORD_FILE,
+  worktreeRoot,
   type AdmissionRun,
 } from '../src/testing/admission-run.ts'
 import type { CheckStep, Command } from '../src/testing/check-graph.ts'
@@ -46,6 +48,7 @@ const ACCEPTING = ['members/a', 'members/c']
 /**
  * 假步骤：把步骤名与它从计划文件里读到的范围追加进 trace.txt；`--fail-if-bad <文件>` 时文件里有 bad 就退出 1；
  * `--sleep-if-bad <文件> <毫秒>` 时文件里有 bad 就先等这么久（让它在 oxlint 失败时还在跑、被终止）。
+ * 环境变量 `FAKE_STRAY` 给了文件名时，回路状态那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
  */
 const FAKE_STEP = `import { appendFileSync, existsSync, readFileSync } from 'node:fs'
 const [name, ...flags] = process.argv.slice(2)
@@ -59,6 +62,7 @@ const lists = plan === undefined ? {} : {
   python: [String(plan.python.run)],
 }
 appendFileSync('trace.txt', name + '\\t' + (lists[name] === undefined ? '-' : lists[name].join(',')) + '\\n')
+if (name === 'loop:status' && process.env.FAKE_STRAY) appendFileSync(process.env.FAKE_STRAY, 'stray\\n')
 const sleepAt = flags.indexOf('--sleep-if-bad')
 if (sleepAt !== -1 && readFileSync(flags[sleepAt + 1], 'utf8').includes('bad'))
   await new Promise(resolve => setTimeout(resolve, Number(flags[sleepAt + 2])))
@@ -267,6 +271,8 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       mode: 'full',
       admission: true,
       dirty: false,
+      worktree: worktreeRoot(fx.root),
+      fullRequested: true,
       head: h1,
       tree: fx.git('rev-parse', 'HEAD^{tree}'),
       base: null,
@@ -310,12 +316,14 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(members(resumed.trace.get('build'))).toEqual(all)
     expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(ACCEPTING))
     expect(members(resumed.trace.get('typecheck'))).toEqual(new Set(['members/c']))
-    expect(resumed.trace.get('python')).toBe('false')
+    // 轻步骤 python 在 H1 上通过了，仍按整次运行的范围跑（H1 全量：跑）；H1..HEAD 没碰 Python 工具。
+    expect(resumed.trace.get('python')).toBe('true')
 
     const record = runRecord(fx.root, h2)
     expect(record).toMatchObject({
       mode: 'resume',
       admission: true,
+      fullRequested: false,
       head: h2,
       base: h1,
       failedStep: null,
@@ -324,6 +332,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
         tree: fx.git('rev-parse', `${h1}^{tree}`),
         failedStep: 'lint:oxlint',
         mode: 'full',
+        fullRequested: true,
       },
     })
     expect(record.steps.every(step => step.ran && step.exit === 0)).toBe(true)
@@ -342,6 +351,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
       `准入证据：${short(h1)} 全量（失败于 lint:oxlint）＋ ${short(h2)} 增量（基线 ${short(h1)}）`,
     )
     expect(log).toMatch(/^ {2}整次：.*test（/mu)
+    expect(log).toMatch(/^ {2}整次：.*python（轻步骤，按整次运行的范围）/mu)
     expect(log).toMatch(/^ {2}按影响面：.*typecheck（/mu)
     expect(log).toMatch(/^ {2}常驻：.*lint:oxlint（/mu)
     expect(log).toContain(`${short(h1)}..${short(h2)} 差异 1 个文件：\n  members/c/lint.txt`)
@@ -349,7 +359,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(log.trimEnd().endsWith('exit=0')).toBe(true)
   })
 
-  it('前提不满足以 2 退出，不写日志与记录：没有记录的头、不在准入模式', async () => {
+  it('前提不满足以 2 退出，不写日志与记录：没有记录的头、不在准入模式、H1 就是当前头、与 --list 同给', async () => {
     const before = recordsIn(fx.root, ADMISSION_RECORD_DIR)
     const noRecord = await check({ resumeFrom: h0 })
     expect(noRecord.code).toBe(2)
@@ -358,8 +368,21 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     const notAdmission = await check({ resumeFrom: h1, admission: false })
     expect(notAdmission.code).toBe(2)
     expect(notAdmission.output.join('\n')).toContain('只用于准入运行')
+    const same = await check({ resumeFrom: h2 })
+    expect(same.code).toBe(2)
+    expect(same.output.join('\n')).toContain('就是当前头，没有修复提交；要重跑请整次准入')
+    printed.length = 0
+    const list = await runCheck(
+      fx.root,
+      { admission: true, keepGoing: false, list: true, resumeFrom: h1 },
+      { steps: fx.steps },
+    )
+    expect(list).toBe(2)
+    expect(printed.join('\n')).toContain('--list 只打印步骤表，不能与 --resume-from 同时给')
     expect(recordsIn(fx.root, ADMISSION_RECORD_DIR)).toEqual(before)
-    expect(noRecord.trace.size + notAdmission.trace.size).toBe(0)
+    expect(noRecord.trace.size + notAdmission.trace.size + same.trace.size + fx.trace().size).toBe(
+      0,
+    )
   })
 
   it('真实 CLI：check --admission --resume-from <没有记录的头> 以 2 退出并写明原因', () => {
@@ -387,11 +410,37 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(members(degraded.trace.get('typecheck'))).toEqual(new Set(TEST_MEMBERS))
     expect(degraded.trace.get('python')).toBe('true')
     const record = runRecord(fx.root, h3)
-    expect(record).toMatchObject({ mode: 'full', resumeFrom: null, base: null, failedStep: null })
+    // 整次重跑的范围同 H1 那次；H1 带了 FULL=1，记录照记。
+    expect(record).toMatchObject({
+      mode: 'full',
+      fullRequested: true,
+      resumeFrom: null,
+      base: null,
+      failedStep: null,
+      dirty: false,
+    })
     const text = degraded.output.join('\n')
     expect(text).toContain('不接续')
     expect(text).toContain('package.json')
     expect(text).toContain('判为全量：FULL=1：要求全量')
+  })
+
+  it('运行中工作树多出没被忽略的文件：记录记 dirty，日志写明；没带 FULL=1 的运行记 fullRequested 为假', async () => {
+    const head = fx.git('rev-parse', 'HEAD')
+    process.env['FAKE_STRAY'] = 'stray.txt'
+    try {
+      const strayed = await check()
+      expect(strayed.code).toBe(0)
+    } finally {
+      delete process.env['FAKE_STRAY']
+    }
+    expect(existsSync(join(fx.root, 'stray.txt'))).toBe(true)
+    expect(runRecord(fx.root, head)).toMatchObject({ dirty: true, fullRequested: false })
+    expect(printed.join('\n')).toContain('记录记 dirty')
+    rmSync(join(fx.root, 'stray.txt'))
+    // 同一个头再跑一次、工作树干净：不是 dirty。trace.txt 与 tmp/ 被忽略，不算。
+    await check()
+    expect(runRecord(fx.root, head).dirty).toBe(false)
   })
 })
 
@@ -414,6 +463,7 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
     expect(first.code).toBe(1)
     expect(runRecord(fa.root, h1)).toMatchObject({
       mode: 'affected',
+      fullRequested: false,
       base: h0,
       failedStep: 'lint:oxlint',
     })
@@ -455,7 +505,7 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
       mode: 'resume',
       base: h1,
       failedStep: null,
-      resumeFrom: { head: h1, failedStep: 'lint:oxlint', mode: 'affected' },
+      resumeFrom: { head: h1, failedStep: 'lint:oxlint', mode: 'affected', fullRequested: false },
     })
     const text = resumed.output.join('\n')
     expect(text).toContain(

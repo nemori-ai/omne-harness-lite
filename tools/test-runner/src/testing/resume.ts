@@ -1,32 +1,26 @@
 // `check --resume-from <H1>`：H1 上跑过一次准入（全量，或按本次基线的影响面）、快速失败在第 X 步，修复后在 HEAD 上接着跑。
 // 这里只做判断，不跑任何步骤：前提校验（哪一条不满足都拒绝）、全局路径退化为整次重跑、增量计划（每一步怎么跑）
-// 与证据文本。全部输入由调用方给（git 事实、记录、步骤表、全局路径、lockfile 判定与影响面函数），
-// 本模块是纯函数；`resumeFacts` 单独取 git 事实。
+// 与证据文本。全部输入由调用方给（git 事实、记录、步骤表、全局路径与影响面函数），
+// 本模块是纯函数；`resumeFacts` 单独取 git 事实。规则归 docs/engineering/integration.md「增量准入」。
 //
-// 增量计划的原则是「H1 没跑到的检查，HEAD 上按 H1 那次的范围整次跑」：没有一个步骤只因为 H1 的记录里没有失败就少跑，
+// 增量计划的原则是「H1 没跑到的检查与全部轻步骤，HEAD 上按 H1 那次的范围整次跑」：没有一个步骤只因为 H1 的记录里没有失败就少跑，
 // 也没有一个步骤比 H1 那次的范围宽。
 // - 常驻步骤（非 `planned`）每次都跑整仓，照旧。
-// - 按计划的步骤（python、build、typecheck、test、acceptance）：X 与 H1 上没跑到的整次跑——H1 全量就选全部成员，
+// - 按计划的轻步骤（python）整次跑。
+// - 按计划的重步骤（build、typecheck、test、acceptance）：X 与 H1 上没跑到的整次跑——H1 全量就选全部成员，
 //   H1 按影响面就选 HEAD 相对本次基线的影响面；H1 上通过了的只跑 H1..HEAD 影响到的成员。整次跑的步骤需要它前面
 //   （`after`，传递）的按计划步骤也整次跑：成员测试与验收读构建出来的 dist，缩了构建范围就会读到旧产物或读不到。
+//   收窄的构建只重建 H1..HEAD 影响到的成员，其余 dist 是 H1 那次留在磁盘上的，所以只在 H1 那次的工作树里接续。
 // - H1 按影响面时，它的基线合并点必须就是本次的：H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来，
 //   才覆盖 HEAD 相对本次基线的影响面（合并点..HEAD）。
-// - H1..HEAD 碰到全局路径时不接续，按 H1 那次的范围整次重跑；`pnpm-lock.yaml` 是唯一命中时交 lockfile 判定决定。
+// - H1..HEAD 碰到全局路径（锁文件也是）时不接续，按 H1 那次的范围整次重跑；锁文件的按 importer 映射只用于普通的影响面计划。
 // - 接续运行的记录（`mode: resume`）不作 H1：接续不链式。
 import { isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts'
 import { latestResumeOrigin } from './admission-run.ts'
 import type { CheckStep } from './check-graph.ts'
-import { LOCKFILE_PATH, patternToRegExp, sample, type CheckPlan } from './scope.ts'
-
-/** lockfile 判定（切片 11 的模块）的结论；只在 `pnpm-lock.yaml` 是唯一命中的全局文件时才问它。 */
-export type LockfileVerdict =
-  | { readonly kind: 'members'; readonly members: ReadonlySet<string>; readonly reason: string }
-  | { readonly kind: 'full'; readonly reason: string }
-  | { readonly kind: 'none'; readonly reason: string }
-
-export type LockfileJudge = () => LockfileVerdict
+import { patternToRegExp, sample, type CheckPlan } from './scope.ts'
 
 /** H1 那次准入的范围：全量，或按本次基线（`ref`，合并点 `mergeBase`）的影响面。 */
 export type OriginScope =
@@ -36,15 +30,11 @@ export type OriginScope =
 /**
  * 向影响面函数要一份计划：
  * - `whole`：HEAD 上按 H1 那次的范围整次算——`full` 是 `FULL=1` 的计划，`affected` 是 HEAD 相对本次基线的影响面；
- * - `since`：只按 H1..HEAD 的改动文件（lockfile 映射到的成员另给）。
+ * - `since`：只按 H1..HEAD 的改动文件（不含全局文件：碰到全局文件时不接续）。
  */
 export type PlanRequest =
   | { readonly kind: 'whole'; readonly mode: OriginScope['mode'] }
-  | {
-      readonly kind: 'since'
-      readonly paths: readonly string[]
-      readonly lockfileMembers: ReadonlySet<string>
-    }
+  | { readonly kind: 'since'; readonly paths: readonly string[] }
 
 export type Planner = (request: PlanRequest) => CheckPlan
 
@@ -54,6 +44,8 @@ export interface ResumeInputs {
   /** `git rev-parse H1^{tree}`，与记录的 `tree` 核对。 */
   readonly fromTree: string
   readonly head: string
+  /** 本次运行所在工作树的根；与 H1 记录的 `worktree` 比，不同就拒绝。 */
+  readonly worktree: string
   /** 本次基线（统一规则取到的）与它和 HEAD 的合并点；H1 按影响面准入时，它记下的基线必须是同一个合并点。 */
   readonly base: { readonly ref: string; readonly mergeBase: string }
   readonly dirty: boolean
@@ -64,12 +56,11 @@ export interface ResumeInputs {
   /** 检出里能找到的全部准入记录；由本模块挑 H1 的。 */
   readonly records: readonly AdmissionRun[]
   readonly globalPaths: readonly string[]
-  readonly judgeLockfile: LockfileJudge
   readonly steps: readonly CheckStep[]
   readonly plan: Planner
 }
 
-/** `whole` 按 H1 那次的范围整次跑；`narrowed` 只跑 H1..HEAD 影响到的成员；`resident` 常驻、整仓。 */
+/** `whole` 按 H1 那次的范围整次跑；`narrowed` 只跑 H1..HEAD 影响到的成员（只有 H1 上通过了的重步骤）；`resident` 常驻、整仓。 */
 export type StepScope = 'whole' | 'narrowed' | 'resident'
 
 export interface ResumeStep {
@@ -98,8 +89,6 @@ export type ResumeVerdict =
       /** 写进 `tmp/check-plan/plan.json` 给各 `step` 命令读的计划：按步骤各取整次或 H1..HEAD 影响面的那一份。 */
       readonly plan: CheckPlan
       readonly changedFiles: readonly string[]
-      /** lockfile 判定给出的说明；没问它时没有。 */
-      readonly lockfile?: string
     }
 
 const short = (sha: string) => sha.slice(0, 9)
@@ -149,6 +138,11 @@ function scopeOf(
 function prerequisites(inputs: ResumeInputs): Prerequisites {
   const from = short(inputs.from)
   if (inputs.dirty) return { kind: 'rejected', reason: '工作树有未提交改动：先提交或清掉，再接续' }
+  if (inputs.from === inputs.head)
+    return {
+      kind: 'rejected',
+      reason: `${from} 就是当前头，没有修复提交；要重跑请整次准入`,
+    }
   if (!inputs.isAncestor)
     return { kind: 'rejected', reason: `${from} 不是 HEAD ${short(inputs.head)} 的祖先` }
   const record = latestResumeOrigin(inputs.records, inputs.from)
@@ -158,6 +152,13 @@ function prerequisites(inputs: ResumeInputs): Prerequisites {
     return {
       kind: 'rejected',
       reason: `${from} 的记录写的树 ${short(record.tree)} 与它实际的树 ${short(inputs.fromTree)} 不符`,
+    }
+  if (record.worktree !== inputs.worktree)
+    return {
+      kind: 'rejected',
+      reason:
+        `${from} 那次准入在工作树 ${record.worktree} 里跑，本次在 ${inputs.worktree}：` +
+        `接续只重建 ${from}..HEAD 影响到的成员，其余构建产物读 ${from} 那次留在磁盘上的，只能在同一棵工作树里接续；否则整次准入`,
     }
   const scope = scopeOf(record, inputs.base)
   if ('rejected' in scope) return { kind: 'rejected', reason: scope.rejected }
@@ -195,7 +196,7 @@ function globalHits(paths: readonly string[], globalPaths: readonly string[]): s
   return paths.filter(path => !isLegacyFile(path) && patterns.some(pattern => pattern.test(path)))
 }
 
-/** 整次跑的按计划步骤，连同它们前面（传递）的按计划步骤。 */
+/** 整次跑的按计划步骤：X、H1 上没跑到的与全部轻步骤，连同它们前面（传递）的按计划步骤。 */
 function wholeScopeSteps(
   steps: readonly CheckStep[],
   record: AdmissionRun,
@@ -206,7 +207,7 @@ function wholeScopeSteps(
   const seeds = steps.filter(step => {
     if (step.planned !== true) return false
     const at = ranAt.get(step.name)
-    return step.name === failedStep || at === undefined || !at.ran
+    return step.name === failedStep || at === undefined || !at.ran || !step.heavy
   })
   const whole = new Set<string>()
   const visit = (name: string) => {
@@ -219,11 +220,12 @@ function wholeScopeSteps(
   return whole
 }
 
-/** 整次跑的理由：自己失败、自己没跑到，或者它之后有整次跑的步骤（它们读它的产物）。 */
-function whyWhole(record: AdmissionRun, failedStep: string, name: string): string {
-  if (name === failedStep) return `${short(record.head)} 上失败`
-  const at = record.steps.find(step => step.name === name)
+/** 整次跑的理由：自己失败、自己没跑到、自己是轻步骤，或者它之后有整次跑的步骤（它们读它的产物）。 */
+function whyWhole(record: AdmissionRun, failedStep: string, step: CheckStep): string {
+  if (step.name === failedStep) return `${short(record.head)} 上失败`
+  const at = record.steps.find(entry => entry.name === step.name)
   if (at === undefined || !at.ran) return `${short(record.head)} 上没跑到`
+  if (!step.heavy) return '轻步骤，按整次运行的范围'
   return `${short(record.head)} 上通过，但整次跑的步骤在它之后`
 }
 
@@ -263,11 +265,7 @@ function composePlan(
     typecheck: pick('typecheck'),
     test: pick('test'),
     acceptance: pick('acceptance'),
-    python: !wholeScope.has('python')
-      ? since.python
-      : whole.python.run
-        ? { run: true, reason: `${from} 上没跑到或失败，整次跑` }
-        : whole.python,
+    python: wholeScope.has('python') ? whole.python : since.python,
     ...(since.documentsOnly === undefined ? {} : { documentsOnly: since.documentsOnly }),
   }
 }
@@ -282,6 +280,7 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     tree: record.tree,
     failedStep,
     mode: scope.mode,
+    fullRequested: record.fullRequested,
   }
   const changedFiles = [...new Set(inputs.changedFiles)].sort()
   const rerun = (reason: string): ResumeVerdict => ({
@@ -292,27 +291,18 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     changedFiles,
   })
 
+  // 锁文件与别的全局文件一样：碰到就不接续。按 importer 映射只用于普通的影响面计划。
   const hits = globalHits(changedFiles, inputs.globalPaths)
-  let paths: readonly string[] = changedFiles
-  let lockfileMembers: ReadonlySet<string> = new Set()
-  let lockfile: string | undefined
-  if (hits.length === 1 && hits[0] === LOCKFILE_PATH) {
-    const verdict = inputs.judgeLockfile()
-    if (verdict.kind === 'full') return rerun(`${LOCKFILE_PATH} 有改动：${verdict.reason}`)
-    lockfile = verdict.reason
-    paths = changedFiles.filter(path => path !== LOCKFILE_PATH)
-    if (verdict.kind === 'members') lockfileMembers = verdict.members
-  } else if (hits.length > 0)
-    return rerun(`${short(origin.head)}..HEAD 改了全局文件 ${sample(hits)}`)
+  if (hits.length > 0) return rerun(`${short(origin.head)}..HEAD 改了全局文件 ${sample(hits)}`)
 
-  const since = inputs.plan({ kind: 'since', paths, lockfileMembers })
+  const since = inputs.plan({ kind: 'since', paths: changedFiles })
   if (since.mode === 'full')
     return rerun(`${short(origin.head)}..HEAD 的影响面判全量：${since.reason}`)
   const wholeScope = wholeScopeSteps(inputs.steps, record, failedStep)
   const steps = inputs.steps.map((step): ResumeStep => {
     if (step.planned !== true) return { name: step.name, scope: 'resident', why: '常驻，整仓' }
     if (wholeScope.has(step.name))
-      return { name: step.name, scope: 'whole', why: whyWhole(record, failedStep, step.name) }
+      return { name: step.name, scope: 'whole', why: whyWhole(record, failedStep, step) }
     return { name: step.name, scope: 'narrowed', why: `${short(record.head)} 上通过` }
   })
   const whole = inputs.plan({ kind: 'whole', mode: scope.mode })
@@ -325,7 +315,6 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     steps,
     plan,
     changedFiles,
-    ...(lockfile === undefined ? {} : { lockfile }),
   }
 }
 
@@ -369,7 +358,6 @@ export function describeResume(verdict: ResumeVerdict, head: string): string[] {
     '步骤：',
     ...groups,
     `${from} 运行时的缓存：测试 ${verdict.caches.test}、依赖图 ${verdict.caches.depGraph}、变异 ${verdict.caches.mutation}`,
-    ...(verdict.lockfile === undefined ? [] : [`lockfile：${verdict.lockfile}`]),
     ...changedLines(range, verdict.changedFiles),
   ]
 }

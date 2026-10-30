@@ -1,7 +1,8 @@
 // `check --resume-from`：用真实步骤表、一份只在 oxlint 失败的 H1 记录（全量或按影响面）与造出来的影响面函数，核对
-// 前提校验的每种拒绝、全局路径与 lockfile 的退化、增量计划里每一步怎么跑、证据文本；另在临时仓库上核对取 git 事实。
+// 前提校验的每种拒绝、全局路径（锁文件也是）的退化、增量计划里每一步怎么跑、证据文本；另在临时仓库上核对取 git 事实
+// 与结束时重新核对现场。
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -12,11 +13,11 @@ import {
   type AdmissionStep,
 } from '../src/testing/admission-run.ts'
 import { checkSteps } from '../src/testing/check-steps.ts'
+import { changedDuringRun } from '../src/testing/check.ts'
 import {
   describeResume,
   resumeFacts,
   resumePlan,
-  type LockfileVerdict,
   type PlanRequest,
   type ResumeInputs,
 } from '../src/testing/resume.ts'
@@ -27,6 +28,8 @@ const HEAD = 'b'.repeat(40)
 const TREE = 'c'.repeat(40)
 /** 本次基线 main 与 HEAD 的合并点。 */
 const MB = 'e'.repeat(40)
+/** H1 那次准入与本次运行所在的工作树。 */
+const WORKTREE = '/work/tree'
 
 const STEPS = checkSteps({
   baseline: 'main',
@@ -35,7 +38,9 @@ const STEPS = checkSteps({
   devFlowIntegrationCli: 'integration.ts',
 })
 const STEP_NAMES = STEPS.map(step => step.name)
-const PLANNED = STEPS.filter(step => step.planned === true).map(step => step.name)
+const HEAVY_PLANNED = STEPS.filter(step => step.planned === true && step.heavy).map(
+  step => step.name,
+)
 const RESIDENT = STEPS.filter(step => step.planned !== true).map(step => step.name)
 
 /** H1 的记录：`failed` 失败，`notRan` 没跑到，其余通过。 */
@@ -54,8 +59,10 @@ function record(
     head: H1,
     tree: TREE,
     dirty: false,
+    worktree: WORKTREE,
     admission: true,
     caches: { test: 'off', depGraph: 'off', mutation: 'unknown' },
+    fullRequested: true,
     mode: 'full',
     base: null,
     resumeFrom: null,
@@ -82,7 +89,11 @@ const AFTER_BUILD = [
 ]
 const OXLINT_FAILED = record('lint:oxlint', AFTER_BUILD)
 /** 同样只在 oxlint 失败，但 H1 那次是按影响面准入，基线就是本次的合并点。 */
-const OXLINT_FAILED_AFFECTED = record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: MB })
+const OXLINT_FAILED_AFFECTED = record('lint:oxlint', AFTER_BUILD, {
+  mode: 'affected',
+  base: MB,
+  fullRequested: false,
+})
 
 const ALL = ['packages/a', 'packages/b', 'tools/c']
 const FULL_PLAN: CheckPlan = {
@@ -130,30 +141,21 @@ const GLOBAL_PATHS = ['package.json', 'pnpm-lock.yaml', 'tsconfig*.json', '**/tu
 interface Harness {
   readonly inputs: ResumeInputs
   readonly requests: PlanRequest[]
-  readonly lockfileAsked: () => boolean
 }
 
-function harness(
-  over: Partial<ResumeInputs> = {},
-  lockfile: LockfileVerdict = { kind: 'none', reason: '没问' },
-  affected: CheckPlan = AFFECTED_PLAN,
-): Harness {
+function harness(over: Partial<ResumeInputs> = {}, affected: CheckPlan = AFFECTED_PLAN): Harness {
   const requests: PlanRequest[] = []
-  let asked = false
   const inputs: ResumeInputs = {
     from: H1,
     fromTree: TREE,
     head: HEAD,
+    worktree: WORKTREE,
     base: { ref: 'main', mergeBase: MB },
     dirty: false,
     isAncestor: true,
     changedFiles: ['packages/b/src/x.ts'],
     records: [OXLINT_FAILED],
     globalPaths: GLOBAL_PATHS,
-    judgeLockfile: () => {
-      asked = true
-      return lockfile
-    },
     steps: STEPS,
     plan: request => {
       requests.push(request)
@@ -162,7 +164,7 @@ function harness(
     },
     ...over,
   }
-  return { inputs, requests, lockfileAsked: () => asked }
+  return { inputs, requests }
 }
 
 const rejected = (inputs: ResumeInputs) => {
@@ -178,6 +180,18 @@ describe('前提校验', () => {
 
   it('H1 不是 HEAD 的祖先：拒绝', () => {
     expect(rejected(harness({ isAncestor: false }).inputs)).toContain('不是 HEAD')
+  })
+
+  it('H1 就是当前头：拒绝，没有修复提交，要重跑就整次准入', () => {
+    const { inputs, requests } = harness({ head: H1, changedFiles: [] })
+    expect(rejected(inputs)).toBe(`${H1.slice(0, 9)} 就是当前头，没有修复提交；要重跑请整次准入`)
+    expect(requests).toEqual([])
+  })
+
+  it('H1 那次准入在别的工作树里跑：拒绝，写明两棵树', () => {
+    const reason = rejected(harness({ worktree: '/other/tree' }).inputs)
+    expect(reason).toContain(`那次准入在工作树 ${WORKTREE} 里跑，本次在 /other/tree`)
+    expect(reason).toContain('只能在同一棵工作树里接续')
   })
 
   it('H1 没有准入记录：别的提交的不算', () => {
@@ -254,6 +268,7 @@ describe('退化为整次全量', () => {
         tree: TREE,
         failedStep: 'lint:oxlint',
         mode: 'full',
+        fullRequested: true,
       })
     }
     expect(requests).toEqual([])
@@ -269,44 +284,30 @@ describe('退化为整次全量', () => {
     )
   })
 
-  it('lockfile 是唯一命中时交 lockfile 判定：判全量就整次全量', () => {
-    const { inputs, lockfileAsked } = harness(
-      { changedFiles: ['pnpm-lock.yaml', 'packages/b/src/x.ts'] },
-      { kind: 'full', reason: 'overrides 有变化' },
-    )
+  it('锁文件是唯一命中的全局文件：也整次重跑，不按 importer 映射、不问影响面', () => {
+    const { inputs, requests } = harness({
+      changedFiles: ['pnpm-lock.yaml', 'packages/b/src/x.ts'],
+    })
     const verdict = resumePlan(inputs)
-    expect(lockfileAsked()).toBe(true)
     expect(verdict.kind).toBe('rerun')
-    if (verdict.kind === 'rerun') expect(verdict.reason).toContain('overrides 有变化')
+    if (verdict.kind === 'rerun') expect(verdict.reason).toContain('改了全局文件 pnpm-lock.yaml')
+    expect(requests).toEqual([])
   })
 
-  it('lockfile 与别的全局文件同时命中：不问 lockfile，直接整次全量', () => {
-    const { inputs, lockfileAsked } = harness(
-      { changedFiles: ['pnpm-lock.yaml', 'package.json'] },
-      { kind: 'none', reason: '不该被问' },
-    )
-    expect(resumePlan(inputs).kind).toBe('rerun')
-    expect(lockfileAsked()).toBe(false)
-  })
-
-  it('lockfile 映射到成员：接续，lockfile 不进影响面路径、成员另给', () => {
-    const { inputs, requests } = harness(
-      { changedFiles: ['pnpm-lock.yaml', 'packages/b/src/x.ts'] },
-      { kind: 'members', members: new Set(['packages/a']), reason: '按 importer 映射到 1 个成员' },
-    )
-    const verdict = resumePlan(inputs)
-    expect(verdict.kind).toBe('resume')
-    if (verdict.kind === 'resume') expect(verdict.lockfile).toBe('按 importer 映射到 1 个成员')
+  it('没碰全局文件时，H1..HEAD 的改动原样交影响面函数', () => {
+    const { inputs, requests } = harness({
+      changedFiles: ['packages/b/src/x.ts', 'packages/b/README.md'],
+    })
+    expect(resumePlan(inputs).kind).toBe('resume')
     expect(requests[0]).toEqual({
       kind: 'since',
-      paths: ['packages/b/src/x.ts'],
-      lockfileMembers: new Set(['packages/a']),
+      paths: ['packages/b/README.md', 'packages/b/src/x.ts'],
     })
   })
 
   it('影响面函数自己判全量（有不认得的路径）：整次全量，带它的原因', () => {
     const verdict = resumePlan(
-      harness({}, undefined, { ...FULL_PLAN, reason: '1 个改动文件不在任何规则里' }).inputs,
+      harness({}, { ...FULL_PLAN, reason: '1 个改动文件不在任何规则里' }).inputs,
     )
     expect(verdict.kind).toBe('rerun')
     if (verdict.kind === 'rerun') expect(verdict.reason).toContain('不在任何规则里')
@@ -314,7 +315,7 @@ describe('退化为整次全量', () => {
 })
 
 describe('增量计划', () => {
-  it('只在 oxlint 失败：常驻全跑；没跑到的按计划步骤整次，构建因它们而整次；H1 通过的 python 按影响面', () => {
+  it('只在 oxlint 失败：常驻全跑；没跑到的按计划步骤整次，构建因它们而整次；轻步骤 python 整次', () => {
     const verdict = resumePlan(harness().inputs)
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
@@ -324,7 +325,8 @@ describe('增量计划', () => {
     expect(scope.get('test')).toBe('whole')
     expect(scope.get('acceptance')).toBe('whole')
     expect(scope.get('build')).toBe('whole')
-    expect(scope.get('python')).toBe('narrowed')
+    expect(scope.get('python')).toBe('whole')
+    expect(verdict.steps.find(step => step.name === 'python')?.why).toBe('轻步骤，按整次运行的范围')
     expect(verdict.steps.find(step => step.name === 'build')?.why).toContain('整次跑的步骤在它之后')
     expect(verdict.steps.find(step => step.name === 'test')?.why).toContain('没跑到')
     // 计划文件按步骤各取一份：整次的取全量清单，按影响面的取影响面那份。
@@ -332,21 +334,24 @@ describe('增量计划', () => {
     expect(verdict.plan.typecheck).toEqual(ALL)
     expect(verdict.plan.test).toEqual(ALL)
     expect(verdict.plan.acceptance).toEqual(['packages/a'])
-    expect(verdict.plan.python).toEqual(AFFECTED_PLAN.python)
+    expect(verdict.plan.python).toEqual(FULL_PLAN.python)
     expect(verdict.plan.mode).toBe('scoped')
     expect(verdict.plan.reason).toContain('失败于 lint:oxlint')
     expect(verdict.steps.map(step => step.name)).toEqual(STEP_NAMES)
   })
 
-  it('失败在最后一步、重步骤都通过了：按计划的步骤全部只跑影响面', () => {
+  it('失败在最后一步、重步骤都通过了：重步骤只跑影响面；python 在 H1 上通过了也整次跑', () => {
     const verdict = resumePlan(harness({ records: [record('loop:status', [])] }).inputs)
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
-    for (const name of PLANNED)
+    expect(HEAVY_PLANNED).toEqual(['build', 'typecheck', 'test', 'acceptance'])
+    for (const name of HEAVY_PLANNED)
       expect(verdict.steps.find(step => step.name === name)?.scope, name).toBe('narrowed')
+    expect(verdict.steps.find(step => step.name === 'python')?.scope).toBe('whole')
     expect(verdict.plan.build).toEqual(AFFECTED_PLAN.build)
     expect(verdict.plan.test).toEqual(['packages/b'])
-    expect(verdict.plan.python.run).toBe(false)
+    // H1..HEAD 没碰 Python 工具（影响面那份不跑）；整次运行的范围要跑，取整次那份。
+    expect(verdict.plan.python).toEqual(FULL_PLAN.python)
     expect(verdict.steps.find(step => step.name === 'loop:status')?.scope).toBe('resident')
   })
 
@@ -397,7 +402,7 @@ describe('H1 按影响面准入', () => {
     expect(verdict.plan.test).toEqual(BASE_PLAN.test)
     expect(verdict.plan.build).toEqual(BASE_PLAN.build)
     expect(verdict.plan.typecheck).toEqual(BASE_PLAN.typecheck)
-    expect(verdict.plan.python).toEqual(AFFECTED_PLAN.python)
+    expect(verdict.plan.python).toEqual(BASE_PLAN.python)
     expect(verdict.plan.reason).toContain('影响面准入（失败于 lint:oxlint）')
     const text = describeResume(verdict, HEAD)
     expect(text[0]).toBe(
@@ -422,15 +427,29 @@ describe('H1 按影响面准入', () => {
   it('记录的基线合并点与本次不同，或没写基线：拒绝并写明两个合并点', () => {
     const other = 'f'.repeat(40)
     const moved = rejected(
-      harness({ records: [record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: other })] })
-        .inputs,
+      harness({
+        records: [
+          record('lint:oxlint', AFTER_BUILD, {
+            mode: 'affected',
+            base: other,
+            fullRequested: false,
+          }),
+        ],
+      }).inputs,
     )
     expect(moved).toContain(other.slice(0, 9))
     expect(moved).toContain(`本次基线 main 的合并点是 ${MB.slice(0, 9)}`)
     expect(
       rejected(
-        harness({ records: [record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: null })] })
-          .inputs,
+        harness({
+          records: [
+            record('lint:oxlint', AFTER_BUILD, {
+              mode: 'affected',
+              base: null,
+              fullRequested: false,
+            }),
+          ],
+        }).inputs,
       ),
     ).toContain('（没写）')
   })
@@ -442,7 +461,14 @@ describe('接续不链式', () => {
     record('check:docs', AFTER_BUILD, {
       mode: 'resume',
       base: 'd'.repeat(40),
-      resumeFrom: { head: 'd'.repeat(40), tree: TREE, failedStep: 'test', mode: 'full' },
+      fullRequested: false,
+      resumeFrom: {
+        head: 'd'.repeat(40),
+        tree: TREE,
+        failedStep: 'test',
+        mode: 'full',
+        fullRequested: true,
+      },
       ...over,
     })
 
@@ -472,7 +498,7 @@ describe('证据文本', () => {
     expect(text).toContain(`${H1.slice(0, 9)}..${HEAD.slice(0, 9)} 差异 2 个文件：`)
     expect(text.slice(-2)).toEqual(['  packages/b/README.md', '  packages/b/src/x.ts'])
     expect(text.find(line => line.startsWith('  整次：'))).toContain('test（')
-    expect(text.find(line => line.startsWith('  按影响面：'))).toContain('python（')
+    expect(text.find(line => line.startsWith('  整次：'))).toContain('python（轻步骤')
     expect(text.find(line => line.startsWith('  常驻：'))).toContain('lint:oxlint（')
     expect(text).toContain(`${H1.slice(0, 9)} 运行时的缓存：测试 off、依赖图 off、变异 unknown`)
   })
@@ -543,6 +569,25 @@ describe('取 git 事实', () => {
     expect(resumeFacts(repo, first, 'main').dirty).toBe(true)
     expect(() => resumeFacts(repo, 'no-such-ref', 'main')).toThrow()
     expect(() => resumeFacts(repo, first, 'no-such-base')).toThrow()
+  })
+
+  it('结束时重新核对现场：头变了或有未提交改动才算变了，被忽略的文件不算', () => {
+    writeFileSync(join(repo, '.gitignore'), 'tmp/\n')
+    run('add', '.')
+    commit('ignore tmp')
+    const start = run('rev-parse', 'HEAD')
+    expect(changedDuringRun(repo, start)).toBe(false)
+    mkdirSync(join(repo, 'tmp'))
+    writeFileSync(join(repo, 'tmp/run.json'), '{}\n')
+    expect(changedDuringRun(repo, start)).toBe(false)
+    writeFileSync(join(repo, 'stray.txt'), 'x\n')
+    expect(changedDuringRun(repo, start)).toBe(true)
+    rmSync(join(repo, 'stray.txt'))
+    writeFileSync(join(repo, 'a.txt'), 'changed\n')
+    expect(changedDuringRun(repo, start)).toBe(true)
+    run('add', '.')
+    commit('during the run')
+    expect(changedDuringRun(repo, start)).toBe(true)
   })
 
   it('另一条分支上的提交不是祖先', () => {

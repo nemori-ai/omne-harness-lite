@@ -1,7 +1,8 @@
 // 准入证据核对：收口点 F 上要有一次完整通过的全量准入。F 的树与某个提交 C 的树相同时，C 上的全量准入就是 F 上的全量准入
 // （integration.md 波末收口的树相同复用）。这里只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
-// 接受条件逐项都要满足：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，全量（`mode: full`，或接续了一次
-// 全量准入的 `mode: resume`——integration.md：用增量准入的证据复用时 H1 必须是全量），运行时工作树干净，
+// 接受条件逐项都要满足：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，带了 `FULL=1` 的全量（`mode: full` 且
+// `fullRequested` 为真，或 `resumeFrom.fullRequested` 为真的 `mode: resume`——integration.md：用增量准入的证据复用时
+// H1 上的整次运行必须带 `FULL=1`；只是计划判了全量的不算），运行时工作树干净，
 // 没有快速失败，步骤表非空且每步都跑完、退出 0，有 `finishedAt`；记录的头在本仓库里，记录写的树与头的树一致；
 // 树（记录缺 `tree` 时由头补算）等于 F 的树。任何一项不满足就拒绝并写明原因，读不出、算不出的一律按拒绝处理，不猜。
 // 命令行形状（接线在 cli.ts）：`admission-evidence --for <F> [--record <路径>]`，接受退出 0、拒绝退出 1、用法错误退出 2。
@@ -21,7 +22,8 @@ import { parseFlags } from './support.ts'
 export const ADMISSION_EVIDENCE_USAGE = [
   '  admission-evidence --for <F> [--record <记录路径>]',
   '      核对 F 上有没有可采用的全量准入：给 --record 时只看那一份记录；不给时在本树 tmp/admission/*.json 里按 F 的树哈希找。',
-  '      记录的树与 F 的树相同、且是一次干净且每步都通过的全量准入时接受（退出 0），否则逐项列出拒绝原因（退出 1）；用法错误退出 2',
+  '      记录的树与 F 的树相同、且是一次干净且每步都通过、带了 FULL=1 的全量准入（或 H1 带了 FULL=1 的接续）时接受（退出 0），',
+  '      否则逐项列出拒绝原因（退出 1）；用法错误退出 2',
 ].join('\n')
 
 // 记录的形状归 admission-run.ts；这里不用它的整份解析（整份通过或不通过给不出逐项原因），只借它的常量与类型，
@@ -40,6 +42,7 @@ export type RejectionKind =
   | 'not-admission'
   | 'schema-version'
   | 'not-full'
+  | 'full-not-requested'
   | 'dirty'
   | 'not-finished'
   | 'fast-failed'
@@ -155,27 +158,38 @@ function stepProblems(steps: unknown): Rejection[] {
   })
 }
 
-/**
- * 范围够不够全量：`full` 够；`resume` 看它接续的 H1——H1 全量，「H1 全量（失败于 X）＋ 头上增量」合起来是全量准入；
- * H1 只按影响面时，组成的证据不是全量准入。
- */
-function modeProblem(mode: unknown, resumeFrom: unknown): Rejection | undefined {
-  if (mode === 'full') return undefined
-  if (mode !== 'resume') return reject('not-full', `不是全量：mode=${JSON.stringify(mode)}`)
-  const from = isObject(resumeFrom) ? resumeFrom['mode'] : undefined
-  if (from === 'full') return undefined
-  if (from === 'affected')
-    return reject('not-full', '接续记录：H1 只按影响面运行，组成的证据不是全量准入')
+/** `fullRequested` 不是真时的原因：假就是没有带 FULL=1，别的写法看不出。 */
+function notRequested(subject: string, value: unknown): Rejection {
   return reject(
-    'not-full',
-    `接续记录看不出 H1 那次的范围：resumeFrom=${JSON.stringify(resumeFrom)}`,
+    'full-not-requested',
+    value === false
+      ? `${subject}没有带 FULL=1：只是计划判了全量的不算全量准入`
+      : `${subject}fullRequested=${JSON.stringify(value)}，看不出有没有带 FULL=1`,
   )
+}
+
+/**
+ * 范围够不够全量：`full` 且带了 `FULL=1` 才够；`resume` 看它接续的 H1——H1 那次带了 `FULL=1`，
+ * 「H1 全量（失败于 X）＋ 头上增量」合起来是全量准入；H1 只按影响面或只是计划判了全量时都不是。
+ */
+function modeProblem(record: Readonly<Record<string, unknown>>): Rejection | undefined {
+  const { mode, fullRequested, resumeFrom } = record
+  if (mode === 'full') return fullRequested === true ? undefined : notRequested('', fullRequested)
+  if (mode !== 'resume') return reject('not-full', `不是全量：mode=${JSON.stringify(mode)}`)
+  if (!isObject(resumeFrom))
+    return reject(
+      'not-full',
+      `接续记录看不出 H1 那次的范围：resumeFrom=${JSON.stringify(resumeFrom)}`,
+    )
+  if (resumeFrom['mode'] === 'affected')
+    return reject('not-full', '接续记录：H1 只按影响面运行，组成的证据不是全量准入')
+  if (resumeFrom['fullRequested'] === true) return undefined
+  return notRequested('接续记录：H1 那次', resumeFrom['fullRequested'])
 }
 
 /** 与树无关的接受条件；每项独立判断，全部列出。 */
 function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
-  const { schemaVersion, kind, admission, mode, resumeFrom, dirty, failedStep, steps, finishedAt } =
-    record
+  const { schemaVersion, kind, admission, dirty, failedStep, steps, finishedAt } = record
   const problems: Rejection[] = []
   if (kind !== RECORD_KIND || admission !== true)
     problems.push(
@@ -191,7 +205,7 @@ function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
         `schemaVersion 是 ${JSON.stringify(schemaVersion)}，只认 ${SCHEMA_VERSION}`,
       ),
     )
-  const scope = modeProblem(mode, resumeFrom)
+  const scope = modeProblem(record)
   if (scope !== undefined) problems.push(scope)
   if (dirty !== false)
     problems.push(

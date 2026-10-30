@@ -27,27 +27,25 @@ import {
   collectAdmissionRuns,
   recordPathBesideLog,
   RUN_RECORD_FILE,
+  worktreeRoot,
   writeAdmissionRun,
   type AdmissionRunInputs,
   type CacheStates,
 } from './admission-run.ts'
 import { runGraph, type CheckStep, type StepResult } from './check-graph.ts'
 import { checkSteps, describeSteps, PLAN_DIR, PLAN_FILE, type StepInputs } from './check-steps.ts'
-import type { LockfileImpact } from './lockfile-impact.ts'
 import {
   describeResume,
   resumeFacts,
   resumePlan,
-  type LockfileVerdict,
   type PlanRequest,
   type ResumeVerdict,
 } from './resume.ts'
-import { LOCKFILE_PATH, planCheck, type CheckPlan } from './scope.ts'
+import { planCheck, type CheckPlan } from './scope.ts'
 import {
   computePlan,
   describePlanFile,
   fullRequested,
-  lockfileImpactBetween,
   writePlanFile,
   type PlanFile,
 } from './steps.ts'
@@ -165,7 +163,7 @@ export interface CheckOptions {
   readonly admission: boolean
   /** 一步失败后继续跑其余步骤，一次看全部失败；退出码仍取第一个失败。 */
   readonly keepGoing: boolean
-  /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑。 */
+  /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；与 `resumeFrom` 同给时以 2 退出。 */
   readonly list: boolean
   /** `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面）。只在准入模式下接受，与 `FULL=1` 互斥。 */
   readonly resumeFrom?: string
@@ -192,23 +190,10 @@ function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   }
 }
 
-/** lockfile-impact 的结论换成 resume.ts 要的形状：成员只取路径。 */
-function lockfileVerdictOf(impact: LockfileImpact): LockfileVerdict {
-  if (impact.kind === 'members')
-    return {
-      kind: 'members',
-      members: new Set(impact.members.map(member => member.path)),
-      reason: impact.reason,
-    }
-  return impact.kind === 'full'
-    ? { kind: 'full', reason: impact.reason }
-    : { kind: 'none', reason: impact.reason }
-}
-
 /**
- * `--resume-from` 的判断：git 事实、本树里的全部记录、全局路径、lockfile 判定、步骤表与影响面函数都交给 resume.ts。
+ * `--resume-from` 的判断：git 事实、本树的根与全部记录、全局路径、步骤表与影响面函数都交给 resume.ts。
  * 影响面函数：整次的按 H1 那次的范围取（H1 全量取 `FULL=1` 的计划，H1 按影响面取 HEAD 相对本次基线的影响面）；
- * 按 H1..HEAD 的用 resume.ts 给的路径（它已把锁文件拿出，映射到成员时再放回，让 planCheck 按同一份判定把它们作为种子带上下游）。
+ * 按 H1..HEAD 的用 resume.ts 给的路径。那里面没有全局文件（碰到就不接续），所以不给锁文件判定。
  */
 function judgeResume(
   root: string,
@@ -222,30 +207,35 @@ function judgeResume(
     fileTree(root),
     config.affected.excludeRoots,
   )
-  let impact: LockfileImpact | undefined
-  const judgeLockfile = () =>
-    (impact ??= lockfileImpactBetween(root, facts.from, facts.head, members))
   const plan = (request: PlanRequest): CheckPlan =>
     request.kind === 'whole'
       ? computePlan(root, targetBase, request.mode === 'full').plan
       : planCheck(
-          [...request.paths, ...(request.lockfileMembers.size > 0 ? [LOCKFILE_PATH] : [])],
+          request.paths,
           members,
           config.affected,
           affectedMembers(root, members, facts.from, facts.head),
           false,
           paths => dependentMembers(root, members, paths),
-          judgeLockfile,
         )
   const verdict = resumePlan({
     ...facts,
+    worktree: worktreeRoot(root),
     records: collectAdmissionRuns(root),
     globalPaths: config.affected.globalPaths,
-    judgeLockfile: () => lockfileVerdictOf(judgeLockfile()),
     steps,
     plan,
   })
   return { facts, verdict }
+}
+
+/**
+ * 结束时这次运行还是不是对开始时那个头的证据：头变了，或工作树有未提交改动（与开始时同一个定义：
+ * `git status --porcelain` 非空，被忽略的文件不算），就不是。
+ */
+export function changedDuringRun(root: string, startHead: string): boolean {
+  const end = coordinates(root, undefined)
+  return end.head !== startHead || end.dirty
 }
 
 /** 接续判断里没被拒绝的两种结论：退化为整次重跑，或增量接续。 */
@@ -271,6 +261,10 @@ export async function runCheck(
   dependencies: CheckDependencies = {},
 ): Promise<number> {
   const stepTable = dependencies.steps ?? checkSteps
+  if (options.list && options.resumeFrom !== undefined) {
+    console.error('--list 只打印步骤表，不能与 --resume-from 同时给')
+    return 2
+  }
   if (options.list) {
     for (const line of describeSteps(stepTable({ ...STEP_INPUTS, baseline: '<基线>' })))
       console.log(line)
@@ -378,6 +372,11 @@ export async function runCheck(
     `总计 ${seconds(run.wallMs)} 秒；关键路径 ${criticalPath(run.results).join(' → ')}；逐步耗时表 ${runDirName}/steps.tsv`,
   )
   for (const line of budgetLines(run.results)) say(line)
+  const changed = changedDuringRun(root, at.head)
+  if (changed)
+    say(
+      `结束时头已不是 ${at.shortHead}，或工作树有未提交改动：记录记 dirty，不作 ${at.shortHead} 的证据`,
+    )
 
   // 运行记录：准入运行写在准入日志旁边（同名 .json），每次运行都在本头的目录里留一份副本。
   const origin: AdmissionRunInputs['origin'] =
@@ -388,10 +387,13 @@ export async function runCheck(
     steps,
     run,
     head: at.head,
-    tree: git(root, ['rev-parse', 'HEAD^{tree}']),
-    dirty: at.dirty,
+    tree: git(root, ['rev-parse', `${at.head}^{tree}`]),
+    dirty: at.dirty || changed,
+    worktree: worktreeRoot(root),
     admission,
     caches,
+    // 退化为整次重跑时范围同 H1 那次，H1 带了 FULL=1 就照记。
+    fullRequested: full || (resume?.kind === 'rerun' && resume.origin.fullRequested),
     base:
       plan.plan.mode === 'full'
         ? null

@@ -1,4 +1,4 @@
-// 准入证据核对：F 的树与 C 的树相同时，C 上一次干净且每步都通过的全量准入就是 F 上的全量准入；其余一律拒绝并写明原因。
+// 准入证据核对：F 的树与 C 的树相同时，C 上一次干净、每步都通过、带了 FULL=1 的全量准入就是 F 上的全量准入；其余一律拒绝并写明原因。
 // 夹具是真实 git 仓库：C 是分支上的提交，F 是把它 `--no-ff` 并回主线的合并提交（树与 C 相同、提交不同），
 // D 是 F 之后又改了文件的提交（树不同）。记录按运行记录的形状手写，每条用例只改一个字段，核对那一项单独就能让它被拒。
 import { execFileSync, spawnSync } from 'node:child_process'
@@ -63,7 +63,7 @@ afterAll(() => {
   for (const path of temporaries) rmSync(path, { recursive: true, force: true })
 })
 
-/** C 上一次干净、全部通过的全量准入记录。 */
+/** C 上一次干净、全部通过、带了 FULL=1 的全量准入记录。 */
 function passingRecord(head = fixture.c): Record<string, unknown> {
   return {
     schemaVersion: 1,
@@ -72,7 +72,9 @@ function passingRecord(head = fixture.c): Record<string, unknown> {
     head,
     tree: fixture.tree(head),
     dirty: false,
+    worktree: fixture.root,
     mode: 'full',
+    fullRequested: true,
     base: null,
     resumeFrom: null,
     steps: [
@@ -123,13 +125,20 @@ describe('给了记录：只看那一份', () => {
     ])
   })
 
-  it('接续了一次全量准入的记录算全量准入：输出写明是 H1 全量＋ C 上增量组成的', () => {
+  it('接续了一次带 FULL=1 的准入的记录算全量准入：输出写明是 H1 全量＋ C 上增量组成的', () => {
     const h1 = 'e'.repeat(40)
     const record = writeRecord('explicit-resume-of-full', {
       ...passingRecord(),
       mode: 'resume',
+      fullRequested: false,
       base: h1,
-      resumeFrom: { head: h1, tree: h1, failedStep: 'lint:oxlint', mode: 'full' },
+      resumeFrom: {
+        head: h1,
+        tree: h1,
+        failedStep: 'lint:oxlint',
+        mode: 'full',
+        fullRequested: true,
+      },
     })
     const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
     expect(evidence).toMatchObject({
@@ -183,6 +192,35 @@ describe('给了记录：只看那一份', () => {
     },
     { name: '不是全量', change: { mode: 'affected' }, expected: ['not-full'], says: '不是全量' },
     {
+      name: '计划判了全量，没带 FULL=1',
+      change: { fullRequested: false },
+      expected: ['full-not-requested'],
+      says: '没有带 FULL=1',
+    },
+    {
+      name: '缺 fullRequested',
+      change: { fullRequested: undefined },
+      expected: ['full-not-requested'],
+      says: '看不出有没有带 FULL=1',
+    },
+    {
+      name: '接续的 H1 只是计划判了全量，没带 FULL=1',
+      change: {
+        mode: 'resume',
+        fullRequested: false,
+        base: 'e'.repeat(40),
+        resumeFrom: {
+          head: 'e'.repeat(40),
+          tree: 'e'.repeat(40),
+          failedStep: 'test',
+          mode: 'full',
+          fullRequested: false,
+        },
+      },
+      expected: ['full-not-requested'],
+      says: '接续记录：H1 那次没有带 FULL=1',
+    },
+    {
       name: '接续记录没写 H1 的范围',
       change: { mode: 'resume' },
       expected: ['not-full'],
@@ -198,6 +236,7 @@ describe('给了记录：只看那一份', () => {
           tree: 'e'.repeat(40),
           failedStep: 'test',
           mode: 'affected',
+          fullRequested: false,
         },
       },
       expected: ['not-full'],

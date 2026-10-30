@@ -7,6 +7,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -21,6 +22,7 @@ import {
   parseAdmissionRun,
   readAdmissionRun,
   recordPathBesideLog,
+  worktreeRoot,
   writeAdmissionRun,
   type AdmissionRun,
 } from '../src/testing/admission-run.ts'
@@ -36,8 +38,10 @@ const BASE = {
   head: H1,
   tree: TREE,
   dirty: false,
+  worktree: '/work/tree',
   admission: true,
   caches: { test: 'off', depGraph: 'off', mutation: 'unknown' },
+  fullRequested: true,
   mode: 'full',
   base: null,
   resumeFrom: null,
@@ -98,8 +102,19 @@ describe('写入与读取', () => {
     ],
     [
       'resume 的来源范围不认得',
-      { mode: 'resume', resumeFrom: { head: H1, tree: TREE, failedStep: 'x', mode: 'resume' } },
+      {
+        mode: 'resume',
+        resumeFrom: { head: H1, tree: TREE, failedStep: 'x', mode: 'resume', fullRequested: true },
+      },
     ],
+    [
+      'resume 的来源没写 H1 带没带 FULL=1',
+      { mode: 'resume', resumeFrom: { head: H1, tree: TREE, failedStep: 'x', mode: 'full' } },
+    ],
+    ['没写带没带 FULL=1', { fullRequested: undefined }],
+    ['带没带 FULL=1 不是布尔', { fullRequested: 'yes' }],
+    ['没写工作树', { worktree: undefined }],
+    ['工作树是空串', { worktree: '' }],
     ['非 resume 模式带来源', { resumeFrom: { head: H1, tree: TREE, failedStep: 'x' } }],
     ['failedStep 是空串', { failedStep: '' }],
     ['没有 admission', { admission: undefined }],
@@ -116,10 +131,25 @@ describe('写入与读取', () => {
   it('resume 模式带完整来源时是记录', () => {
     const resumed = run({
       mode: 'resume',
-      resumeFrom: { head: H1, tree: TREE, failedStep: 'lint:oxlint', mode: 'full' },
+      resumeFrom: {
+        head: H1,
+        tree: TREE,
+        failedStep: 'lint:oxlint',
+        mode: 'full',
+        fullRequested: true,
+      },
       head: H2,
     })
     expect(parseAdmissionRun(JSON.parse(JSON.stringify(resumed)))).toEqual(resumed)
+  })
+
+  it('工作树根记成真实路径：经软链（Windows 上是目录联接）到达同一棵树也相同', () => {
+    const tree = join(dir, 'tree')
+    mkdirSync(tree)
+    const link = join(dir, 'link')
+    symlinkSync(tree, link, 'junction')
+    expect(worktreeRoot(link)).toBe(worktreeRoot(tree))
+    expect(worktreeRoot(link)).not.toBe(worktreeRoot(dir))
   })
 
   it('记录放在文本准入日志旁边、同名换扩展名', () => {
@@ -168,8 +198,10 @@ describe('由步骤图运行写成记录', () => {
       head: H1,
       tree: TREE,
       dirty: false,
+      worktree: '/work/tree',
       admission: true,
       caches: { test: 'off', depGraph: 'off', mutation: 'off' },
+      fullRequested: true,
       base: null,
       startedAt: new Date('2026-10-30T01:00:00Z'),
       finishedAt: new Date('2026-10-30T01:00:09Z'),
@@ -184,6 +216,8 @@ describe('由步骤图运行写成记录', () => {
     ])
     expect(record.failedStep).toBe('lint:oxlint')
     expect(record.mode).toBe('full')
+    expect(record.fullRequested).toBe(true)
+    expect(record.worktree).toBe('/work/tree')
     expect(record.resumeFrom).toBeNull()
     expect(allStepsPassed(record)).toBe(false)
     // 写出去再读回来仍是同一份：记录的形状与解析器对得上。
@@ -199,14 +233,22 @@ describe('由步骤图运行写成记录', () => {
       head: H2,
       tree: TREE,
       dirty: false,
+      worktree: '/work/tree',
       admission: true,
       caches: { test: 'on', depGraph: 'unknown', mutation: 'off' },
+      fullRequested: false,
       base: H1,
       startedAt: new Date(0),
       finishedAt: new Date(10),
       origin: {
         mode: 'resume',
-        from: { head: H1, tree: TREE, failedStep: 'lint:oxlint', mode: 'affected' },
+        from: {
+          head: H1,
+          tree: TREE,
+          failedStep: 'lint:oxlint',
+          mode: 'affected',
+          fullRequested: false,
+        },
       },
     })
     expect(record.failedStep).toBeNull()
@@ -218,6 +260,7 @@ describe('由步骤图运行写成记录', () => {
       tree: TREE,
       failedStep: 'lint:oxlint',
       mode: 'affected',
+      fullRequested: false,
     })
   })
 })
@@ -233,13 +276,23 @@ describe('完整通过的全量准入', () => {
       ...over,
     })
 
-  it('准入、全量、干净、没有失败步骤、全部步骤跑完且通过才算', () => {
+  const resumedFrom = (fullRequested: boolean) => ({
+    mode: 'resume',
+    fullRequested: false,
+    base: H2,
+    resumeFrom: { head: H2, tree: TREE, failedStep: 'test', mode: 'full', fullRequested },
+  })
+
+  it('准入、带了 FULL=1、干净、没有失败步骤、全部步骤跑完且通过才算；H1 带了 FULL=1 的接续也算', () => {
     expect(isCompleteFullAdmission(passed())).toBe(true)
+    expect(isCompleteFullAdmission(passed(resumedFrom(true)))).toBe(true)
   })
 
   it.each([
     ['不是准入运行', { admission: false }],
-    ['影响面模式', { mode: 'affected', base: 'main' }],
+    ['影响面模式', { mode: 'affected', base: 'main', fullRequested: false }],
+    ['计划判了全量、没带 FULL=1', { fullRequested: false }],
+    ['接续的 H1 没带 FULL=1', resumedFrom(false)],
     ['带未提交改动', { dirty: true }],
     ['有步骤没跑到', { steps: [{ name: 'test', ran: false, exit: null, seconds: 0 }] }],
     ['有步骤没通过', { steps: [{ name: 'test', ran: true, exit: 1, seconds: 1 }] }],
@@ -255,7 +308,13 @@ describe('找某个提交能作接续起点的记录', () => {
     run({
       mode: 'resume',
       base: H2,
-      resumeFrom: { head: H2, tree: TREE, failedStep: 'check:docs', mode: 'full' },
+      resumeFrom: {
+        head: H2,
+        tree: TREE,
+        failedStep: 'check:docs',
+        mode: 'full',
+        fullRequested: true,
+      },
       startedAt,
     })
 
