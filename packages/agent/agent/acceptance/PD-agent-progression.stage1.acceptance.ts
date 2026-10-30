@@ -393,12 +393,29 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
               afterTerminalPassage('recorded-observer'),
             ],
           },
-          state: prepared.state,
+          state: { kind: 'settling' },
         }),
       ),
     )
+    // The observation plan changed the responsibility projection: the host issues the list again
+    // and presents the projection the Journal maintains (SPEC "条件终结", "终结责任清单").
     const fixed = await snapshot(journal)
-    const finish = { ...finishing, operation: operation('host-terminal'), expected: fixed.revision }
+    ok(
+      await journal.prepareFinish({
+        ...finishing,
+        operation: operation('host-prepare'),
+        expected: fixed.revision,
+        candidate: prepared.state.intent.candidate,
+      }),
+    )
+    const issued = await snapshot(journal)
+    if (issued.state.kind !== 'settling') throw new Error('The Journal lost the finish projection')
+    const finish = {
+      ...finishing,
+      operation: operation('host-terminal'),
+      expected: issued.revision,
+      intent: issued.state.intent,
+    }
     expect(ok(await journal.tryFinish(finish)).kind).toBe('ended')
     const ended = await snapshot(journal)
     expect(ended.terminalObservations).toHaveLength(2)

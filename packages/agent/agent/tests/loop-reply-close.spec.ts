@@ -367,13 +367,11 @@ describe('#515 reply admission and iteration close', () => {
     const c = coordinator(assembly)
     ok(await c.accept())
     ok(await c.runExecution())
-    const candidate = commits.find(item => item.state.kind === 'settling')
-    expect(candidate?.state).toMatchObject({
-      kind: 'settling',
-      intent: {
-        conclusion: { kind: 'fail' },
-        failure: { kind: 'no-reply', source: evidence('settled'), step: 'step-1' },
-      },
+    const candidate = commits.find(item => item.finish !== null)
+    expect(candidate?.state).toEqual({ kind: 'settling' })
+    expect(candidate?.finish).toMatchObject({
+      conclusion: { kind: 'fail' },
+      failure: { kind: 'no-reply', source: evidence('settled'), step: 'step-1' },
     })
     expect(commits.some(item => item.operation.startsWith('I8/'))).toBe(false)
     expect(
