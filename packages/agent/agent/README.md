@@ -129,7 +129,7 @@ These tests do not authorize a new invoke while the slot is held.
 
 #### Terminal exit and retained responsibilities
 
-F1 fixes the complete FinishIntent only while its decision revision remains current. It retains the intent and timestamp when a commit is excluded.
+F1 commits the business content of the finish candidate only while its decision revision remains current. The Journal builds the candidate and its FinishIntent projection from that content. It retains the intent and timestamp when a commit is excluded.
 F2 binds the terminal passage once. The memory Journal rejects a missing passage or an intent different from the fixed settling candidate.
 An earlier input invalidates the old candidate. R0 reads the latest facts before I8 or a new failure candidate.
 I8 closes the consumed no-reply call continuation; the received material remains retained.
