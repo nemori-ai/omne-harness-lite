@@ -9,6 +9,7 @@ import {
   decodeInputId,
   type AgentOperationId,
   type ExecutionSnapshot,
+  type SettlementRequest,
 } from '@omne-harness/agent-contract'
 import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
 import { deriveDriveOperation } from '@omne-harness/session-contract'
@@ -22,10 +23,16 @@ import {
   openInput,
   submitInput,
 } from './fixtures/common-journal.ts'
-import { accept, cancel, end, handed, prepareEnd, take } from './fixtures/progression.ts'
+import { accept, cancel, end, handed, prepareEnd, start, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
 type Snapshot = ExecutionSnapshot
+type Request = SettlementRequest<string>
+/** The members every candidate and judgment request shares. */
+type Common = Pick<
+  Extract<Request, { kind: 'judge-cancellation' }>,
+  'principal' | 'tenant' | 'execution' | 'operation' | 'authorization' | 'expected' | 'installation'
+>
 
 /** The Agent cancel control the coordinator derives for the Session control `cancel` (PA-02). */
 function sessionCancelControl(s: Scene, name = 'cancel') {
@@ -73,29 +80,33 @@ async function effective(s: Scene, control: AgentOperationId) {
 async function windDown(s: Scene, control: AgentOperationId): Promise<Snapshot> {
   await effective(s, control)
   const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-  const settle = async (name: string, body: object) => {
+  /** One candidate or judgment request: `build` adds the members of its variant to the common ones. */
+  const settle = async (name: string, build: (common: Common) => Request) => {
     const snapshot = await load()
-    return ok(
-      await s.view.journal.commitSettlement({
-        ...s.access,
-        execution: s.execution,
-        operation: operation(name),
-        authorization: cancelAuthorization(snapshot, control),
-        expected: snapshot.revision,
-        installation: testCancellationPolicyInstallation.record,
-        ...body,
-      } as unknown as Parameters<typeof s.view.journal.commitSettlement>[0]),
-    )
+    const common: Common = {
+      ...s.access,
+      execution: s.execution,
+      operation: operation(name),
+      authorization: cancelAuthorization(snapshot, control),
+      expected: snapshot.revision,
+      installation: testCancellationPolicyInstallation.record,
+    }
+    return ok(await s.view.journal.commitSettlement(build(common)))
   }
-  await settle('establish', { kind: 'establish-cancellation', predecessor: null })
+  await settle('establish', common => ({
+    ...common,
+    kind: 'establish-cancellation',
+    predecessor: null,
+  }))
   const established = await load()
   const route = established.settlement.route
   if (route === null) throw new Error('a route is expected')
-  const judged = await settle('judge', {
+  const judged = await settle('judge', common => ({
+    ...common,
     kind: 'judge-cancellation',
-    candidate: established.settlement.candidate?.candidate,
+    candidate: route.candidate,
     route: route.record,
-  })
+  }))
   expect(judged).toMatchObject({ judgment: { decision: { kind: 'allowed' } } })
   const snapshot = await load()
   ok(
@@ -354,6 +365,20 @@ describe('attach follows PA-01 item 3', () => {
     expect(s.view.controls.root()).toBe(root)
     expect(ok(await attach(s, 'last', last.receipt.source)).authority.instance).toBe(
       instance('last'),
+    )
+  })
+  it('cancel wind-down reads the Run of this execution: after the next Run started, the last grant of the cancelled execution still attaches', async () => {
+    const s = await scene('attach-cancel-next-run')
+    ok(await handed(s))
+    await take(s)
+    ok(await cancel(s))
+    await accept(s, 'input-2')
+    // The next Run is active for another execution; the cancelled Run of E1 stays its own Run.
+    const next = await start(s)
+    if ('failure' in next) throw new Error(JSON.stringify(next.failure))
+    expect(next.ok.execution).not.toBe(s.execution)
+    expect(ok(await attach(s, 'wind-down', s.input.runtime.grant)).authority.instance).toBe(
+      instance('wind-down'),
     )
   })
   it('an ended execution answers terminal before the Session check', async () => {

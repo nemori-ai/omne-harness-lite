@@ -549,7 +549,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   }
   /**
    * PA-01 item 1 (open) and item 3 (attach): whether the grant names the attempt that may hold
-   * this execution now. Ordinary advance: the Run is active for this execution and the attempt is
+   * this execution now. The terminal of the execution is read as `judgeCompletion` reads it, from
+   * the Run of this execution, not from the current Run of the session. Ordinary advance: that
+   * Run has no terminal, the current Run is active for this execution and the attempt is
    * `run.active.advance`. Cancel wind-down (attach only): the Run of this execution is the
    * cancelled terminal and the attempt is the last one granted for the execution before the
    * cancel; such an attachment carries cancel authority only, which `advances` denies.
@@ -565,38 +567,57 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     // Only a grant that does not identify SE15 is a refusal; any other error is a defect and throws.
     const attempt = findGrantAttempt(root, execution, grant)
     if (attempt === undefined) return false
-    const run = state.snapshot.run
-    if (run.kind === 'active')
-      return run.execution.execution === execution && run.advance?.attempt === attempt.attempt
-    if (method !== 'attach' || run.kind !== 'terminal' || run.terminal.outcome !== 'cancelled')
-      return false
+    const judged = judgeCompletion(state.snapshot, execution)
+    if (judged.kind === 'terminal') return false
+    if (judged.kind !== 'cancelled') {
+      const run = state.snapshot.run
+      return (
+        run.kind === 'active' &&
+        run.execution.execution === execution &&
+        run.advance?.attempt === attempt.attempt
+      )
+    }
+    if (method !== 'attach') return false
     const original = root.sources.runs.get(execution)
-    if (!original || original.run !== run.terminal.run) return false
+    if (!original || original.run !== judged.terminal.run) return false
     // rulings 7d B-1: the last attempt granted before the cancel (SE26), whose SE16 the cancel
     // batch wrote or an earlier batch wrote; an attempt granted earlier cannot wind down.
-    const cancelled = terminalRow(root, run.terminal.run)
-    if (cancelled === undefined) return false
-    const at = Number(cancelled.revision)
+    const at = Number(cancelBatchRow(root, judged.terminal).revision)
     const last = (root.sources.attemptsByExecution.get(execution) ?? [])
       .filter(item => Number(item.started.revision) <= at)
       .at(-1)
-    if (last === undefined || last.attempt !== attempt.attempt) return false
-    return [...root.sources.rowsById.values()].some(
+    if (last === undefined)
+      throw new Error('session double defect: a cancelled Run without an attempt before the cancel')
+    if (last.attempt !== attempt.attempt) return false
+    // The Session reducer releases the advance before a terminal (SE16 before SE26), so a missing
+    // release is a broken history, not a refusal of this grant.
+    const released = [...root.sources.rowsById.values()].some(
       row =>
         row.kind === 'run.attempt-released' &&
         String(rowData(row)['attempt']) === String(last.attempt) &&
         Number(row.revision) <= at,
     )
+    if (!released)
+      throw new Error('session double defect: the last attempt before the cancel has no SE16')
+    return true
   }
 
-  /** The SE26 row of `run`, or `undefined` while the Run has no terminal. */
-  function terminalRow(root: CommonRoot, run: string): HistoryEntry | undefined {
-    for (const row of root.sources.rowsById.values()) {
-      if (row.kind !== 'run.terminal') continue
-      const terminal = rowData(row)['terminal'] as { run?: unknown } | undefined
-      if (String(terminal?.run) === run) return row
-    }
-    return undefined
+  /** The member `key` of a decoded row value, or `undefined` when the value is not an object. */
+  function fieldOf(value: unknown, key: string): unknown {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? Object.entries(value).find(([name]) => name === key)?.[1]
+      : undefined
+  }
+
+  /** The SE26 row of `terminal`: the run.terminal row of the batch its evidence names. */
+  function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
+    for (const row of root.sources.rowsById.values())
+      if (
+        row.kind === 'run.terminal' &&
+        canonical(row.origin.source) === canonical(terminal.evidence)
+      )
+        return row
+    throw new Error('session double defect: a Run terminal without its SE26 row')
   }
 
   /**
@@ -612,13 +633,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     for (const row of root.sources.rowsById.values()) {
       if (row.kind !== 'control.requested') continue
       if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
-      const progress = rowData(row)['progress'] as { operation?: unknown } | undefined
-      if (typeof progress?.operation !== 'string') return undefined
-      return deriveDriveOperation({
-        kind: 'control',
-        execution,
-        control: progress.operation as SessionOperationId,
-      })
+      const operation = fieldOf(rowData(row)['progress'], 'operation')
+      // The typed identity comes from the reduced projection of the same control.
+      const control = root.session?.snapshot.controls.find(item => item.operation === operation)
+      if (control === undefined) return undefined
+      return deriveDriveOperation({ kind: 'control', execution, control: control.operation })
     }
     return undefined
   }
