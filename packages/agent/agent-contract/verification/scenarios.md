@@ -215,7 +215,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-118 | 同一张卡片收到重复答复或两个入口的并发答复 | 只有一个有效答复。重复提交返回实际结果，不产生额外许可，不重复后续效果 | read 在任何时刻只返回一个答复；replay 绑定中该卡片只有一个 response；admit 对该答复只有一次有效消费 |
 | SC-AG-119 | 执行已终结之后，答复到达 | 卡片已作废。答复不恢复执行，不触发回放，不授予动作。终结前已有的答复保留 | invalidate 在终结时已作用于尚无答复的卡片；晚到答复对应的 read 返回 invalidated；没有新的 Passage 状态变化 |
 | SC-AG-128 | 同批两条链：动作一的作者扩展已出卡。一次在卡片呈现之前，一次在卡片已呈现、尚无答复时，动作二的官方准入返回 unavailable | 本批全部动作被拒绝。尚未呈现的卡片轮次不再呈现。已呈现且尚无答复的卡片被作废，已有答复保留。动作一的已询问扩展调用不再被回放 | 第一次没有 present 调用；第二次 invalidate 作用于该卡片，read 返回 invalidated；动作一的 Passage 没有 replay 调用；同批仍在运行的链结束后其 Conclusion 只记录不采纳，没有新的 admit 调用；屏障为 all-denied；`slots` 中两个动作都是 denied |
-| SC-AG-129 | 一次人对作者扩展的卡片有话说但没有给出准驳。一次人对官方准入的卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 返回 remark，带原话与依据，该轮计入已答复，原扩展以 replay 收到 `answer.kind` 为 remark 的答复并决定后果，Agent 不合成人的同意或不同意。第二次 Agent 代写该动作的 Conclusion，`output` 为 veto 且 `reason` 为 `human-guidance`，该动作记为 denied，依据指向该轮附言答复，不调用 `admit`，拒绝消息携带附言原话。第三次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 为 answered，replay 的回放绑定里该卡片的 `answer.kind` 为 remark 且 `text` 等于原话，没有 chosen 或 declined 的答复记录；第二次该动作的判断为 denied 且 `evidence` 指向该轮附言答复，Agent 代写的 Conclusion 取输出分支且 `output.reason` 为 `human-guidance`，该轮没有 `admit` 调用，该轮 CardRound 为 processed，该动作的 `action-denied` 拒绝消息含附言原话；第三次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；第三次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
+| SC-AG-129 | 一次人对作者扩展的卡片有话说但没有给出准驳。一次人对官方准入的卡片有话说但没有给出准驳。另一次 present 确定失败，返回 denied 或 conflict | 第一次 read 返回 remark，带原话与依据，该轮计入已答复，原扩展以 replay 收到 `answer.kind` 为 remark 的答复并决定后果，Agent 不合成人的同意或不同意。第二次 Agent 以 replay 再调用官方准入，`admit` 的 `decision.answer.kind` 为 remark，授权领域按 AU-05 返回 deny 且 `reason` 为 `human-guidance`，该动作记为 denied，依据为这次准入的证据，拒绝消息携带附言原话。第三次该轮所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因，不登记人工等待，不伪造人的拒答 | 第一次 CardRound 为 answered，replay 的回放绑定里该卡片的 `answer.kind` 为 remark 且 `text` 等于原话，没有 chosen 或 declined 的答复记录；第二次该轮恰有一次 `admit` 调用且其 `decision.answer` 为该附言（`kind` 为 remark、`text` 等于原话），返回 deny 且 `reason` 为 `human-guidance`，该动作的判断为 denied 且 `evidence` 等于这次准入返回的证据，Agent 没有代写 Conclusion，该轮 CardRound 为 processed，该动作的 `action-denied` 拒绝消息含附言原话；第三次该动作的判断为 denied 且依据含准入故障原因；执行没有停在等待该轮答复的人工等待中；第三次该轮 CardRound 为 present-failed、同一扩展调用早先已答复的轮次为 processed、Passage 为 resolved；本批只有该动作时屏障为 all-denied，同批另有获准动作时屏障为 open |
 
 ### 工具并行与后台
 
@@ -404,7 +404,7 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 
 | 编号 | 场景 | 必须结果 | 后继验证观察点 |
 | --- | --- | --- | --- |
-| SC-AG-226 | 官方准入声明了两项需要，第一项 `required` 为 true，第二项为 false。一次两项都读到；一次只有第二项缺席；一次官方准入没有声明任何需要 | 第一次 `admit` 收到两项 `NamedCapturedRead`，`need` 分别等于两项声明的 `name`，次序按声明次序，每项带该读取的 `schema`、`value` 与 `source`。第二次 `admit` 收到一项，列表里没有第二项的名字。第三次 `admit` 收到空列表，空列表表示没有读取，不表示有授权，授权领域仍按当前准入判断。三次 `decision.answer` 都只能是 `CardAnswer` | `admit` 输入的 `permissions` 是列表，不是 null；每项的 `need` 与声明的 `name` 一致且互不相同；缺席的可选需要在列表里没有条目；空列表的那次 `admit` 仍被调用，结果由授权领域返回，没有因空列表而记为 allowed；`permissions` 里没有附言 |
+| SC-AG-226 | 官方准入声明了两项需要，第一项 `required` 为 true，第二项为 false。一次两项都读到；一次只有第二项缺席；一次官方准入没有声明任何需要 | 第一次 `admit` 收到两项 `NamedCapturedRead`，`need` 分别等于两项声明的 `name`，次序按声明次序，每项带该读取的 `schema`、`value` 与 `source`。第二次 `admit` 收到一项，列表里没有第二项的名字。第三次 `admit` 收到空列表，空列表表示没有读取，不表示有授权，授权领域仍按当前准入判断。三次 `decision` 都为 null | `admit` 输入的 `permissions` 是列表，不是 null；每项的 `need` 与声明的 `name` 一致且互不相同；缺席的可选需要在列表里没有条目；空列表的那次 `admit` 仍被调用，结果由授权领域返回，没有因空列表而记为 allowed；`permissions` 里没有附言 |
 
 ## 日志条目的事件投影
 

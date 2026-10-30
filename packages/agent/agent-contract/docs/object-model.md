@@ -213,12 +213,12 @@ stateDiagram-v2
   requested --> present_failed: present returned denied or conflict
   present_failed --> [*]: retained, counted as processed for the barrier
   presented --> answered: every card has its single valid reply
-  answered --> processed: original extension consumed the replies and reached a final Conclusion
+  answered --> processed: original extension or official admission consumed the replies (remark included) and reached a final Conclusion
   answered --> processed: a later round of the same Passage failed to present, denial Conclusion recorded
   processed --> [*]: retained with the Passage
 ```
 
-第一张图是一次扩展调用的状态，第二张图是一轮卡片的状态。两张图都不代替生产者确认或卡片有效性协议。回放返回的卡片草稿与上一轮已答复的草稿相同时，不开新一轮，该扩展调用按 `replayInconsistent` 形成最终 Conclusion。不能携带回放绑定的方言返回 `ask` 时按不合法输出处理，不出卡，所以不产生卡片轮次，规则见 SPEC 的“[扩展、卡片与材料](../SPEC.md#扩展卡片与材料)”。能力操作的 requested、resolved、applied 与前文事件、结果对象的规则相同。原实现不可用时的处置见[扩展作者协议](public-api/extensions.md#结构换代与未完成判断)。主回复准入事实与否决投影的保存规则见 SPEC 的“[身份、原位置与纯求值](../SPEC.md#身份原位置与纯求值)”。
+第一张图是一次扩展调用的状态，第二张图是一轮卡片的状态。附言不另有迁移：它计入 answered，之后与 chosen、declined 一样由 Agent 以 replay 交给原扩展，官方准入的卡片则交回官方准入，规则见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 11 条。两张图都不代替生产者确认或卡片有效性协议。回放返回的卡片草稿与上一轮已答复的草稿相同时，不开新一轮，该扩展调用按 `replayInconsistent` 形成最终 Conclusion。不能携带回放绑定的方言返回 `ask` 时按不合法输出处理，不出卡，所以不产生卡片轮次，规则见 SPEC 的“[扩展、卡片与材料](../SPEC.md#扩展卡片与材料)”。能力操作的 requested、resolved、applied 与前文事件、结果对象的规则相同。原实现不可用时的处置见[扩展作者协议](public-api/extensions.md#结构换代与未完成判断)。主回复准入事实与否决投影的保存规则见 SPEC 的“[身份、原位置与纯求值](../SPEC.md#身份原位置与纯求值)”。
 
 ## 无状态性与有状态性
 
@@ -375,8 +375,8 @@ stateDiagram-v2
 | Passage | resolved | Loop 采纳该链的最终效果 | applied | 效果已提交 |
 | CardRound | 无 | 扩展调用进入 asked | requested | 卡片草稿已入台账 |
 | CardRound | requested | DecisionCards.present 成功，或 lookup 返回 presented | presented | 卡片与请求逐项对应 |
-| CardRound | presented | 每张卡片 read 返回 chosen、declined 或 remark | answered | 答复唯一且有效。remark 是附言，计入已答复 |
-| CardRound | answered | 原扩展以 replay 消费答复并得到最终 Conclusion | processed | 同一扩展调用的全部轮次一起进入 processed |
+| CardRound | presented | 每张卡片 read 返回 chosen、declined 或 remark | answered | 答复唯一且有效。remark 是附言，计入已答复，不是批准 |
+| CardRound | answered | 原扩展以 replay 消费答复并得到最终 Conclusion。官方准入的卡片收到附言时，官方准入在 replay 中经 `ActionAdmission.admit` 得到 deny，原因 `human-guidance` | processed | 同一扩展调用的全部轮次一起进入 processed |
 | CardRound | requested | present 返回 denied 或 conflict | present-failed | 失败原因已保存；屏障条件把它计为已处理 |
 | CardRound | answered | 同一扩展调用后来的一轮 present 确定失败 | processed | 以该拒绝 Conclusion 为处理依据，全部早先轮次一起进入 processed |
 | ActionBatch | 无 | 模型完整回复被消息准入接纳且含工具调用 | 屏障 closed | 每个动作的链已建立 |

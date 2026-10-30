@@ -241,7 +241,7 @@ export interface ActionAdmission<P> {
         definition: Adoption
         /** Reads by need name in declaration order; an empty list is "no read", not a grant. */
         permissions: readonly NamedCapturedRead[]
-        decision: Readonly<{ card: DurableEvidence; answer: CardAnswer }> | null
+        decision: Readonly<{ card: DurableEvidence; answer: CardAnswer | CardRemark }> | null
       }>,
   ): Reply<AdmissionDecision>
 }

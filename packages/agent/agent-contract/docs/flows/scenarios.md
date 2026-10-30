@@ -108,15 +108,14 @@ sequenceDiagram
         Note over A,H: 卡片已呈现，尚无答复也可释放推进资源
         U->>H: 答复原卡片，含明确拒答
         A->>H: read 各卡片的唯一有效答复
-        alt 卡片来自作者扩展且答复是 remark
-            H-->>A: remark，带人的原话
-            A->>E: 以 replay 把附言原样交给原扩展，后果由原扩展决定
-        else
-            H-->>A: chosen 或 declined
-            A->>E: 以 replay 携带全部轮次的答复调用原精确采用
-        end
+        H-->>A: chosen、declined 或 remark（带人的原话）
+        A->>E: 以 replay 携带全部轮次的答复调用原精确采用
+        Note over A,E: 作者扩展的卡片收到 remark 时后果由原扩展决定
         E->>Z: 携带答复再次请求准入
-        alt 原扩展或后继扩展再出卡
+        alt 官方准入的卡片收到 remark
+            Z-->>E: deny，reason 为 human-guidance，附言不形成批准
+            Note over A,E: 该动作记为 denied，拒绝消息带附言原话作为给模型的指导
+        else 原扩展或后继扩展再出卡
             E-->>A: 新一轮卡片，仍属原批
             Note over A,T: 屏障继续关闭，不发已获准部分
         else 本链到达最终结论

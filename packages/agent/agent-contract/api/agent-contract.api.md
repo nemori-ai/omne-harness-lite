@@ -1947,7 +1947,7 @@ export interface ActionAdmission<P> {
         permissions: readonly NamedCapturedRead[];
         decision: Readonly<{
             card: DurableEvidence;
-            answer: CardAnswer;
+            answer: CardAnswer | CardRemark;
         }> | null;
     }>): Reply<AdmissionDecision>;
 }

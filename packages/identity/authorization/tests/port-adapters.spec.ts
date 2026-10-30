@@ -45,6 +45,7 @@ import {
 import type { AccessVerdict, ToolAccessGuard } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import {
+  decisionEvidence,
   noArguments,
   effectiveArgumentsOf,
   referenceAdmissionCheck,
@@ -120,9 +121,29 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
   }
 }
 
+/**
+ * AU-05: a remark on the official admission card is the person's only valid handling, but it is
+ * not an approval. The port answers deny with `human-guidance`; the verbatim text goes back to
+ * the original work owner as guidance, not into the evidence.
+ */
+function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): AgentAdmissionDecision {
+  return {
+    kind: 'deny',
+    reason: 'human-guidance',
+    evidence: decisionEvidence('admission/agent/admit-action', answer.revision, {
+      kind: 'denied',
+      reason: 'human-guidance',
+      card,
+      answer,
+    }),
+  }
+}
+
 function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
   return {
     admit: async input => {
+      if (input.decision?.answer.kind === 'remark')
+        return succeed(denyHumanGuidance(input.decision.card, input.decision.answer.evidence))
       if (input.permissions.length > 0 || input.decision !== null)
         return succeed({
           kind: 'unavailable',
@@ -505,6 +526,29 @@ describe('ActionAdmission through the admission check', () => {
     const { principals, actions } = installed()
     const deny = await actions.admit(admitInput(principals.actingForAdmin, memberTenant()))
     expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'tenant-mismatch' } })
+  })
+
+  // Red when a remark on the official admission card is read as a grant, or is turned away as
+  // "no interpreter": AU-05 says a remark is not an approval, the port answers deny/human-guidance.
+  it('denies with human-guidance when the card reply is a remark, with admission evidence', async () => {
+    const { principals, actions } = installed()
+    const card = { ...EVIDENCE, record: 'card-for-act_1' }
+    const deny = await actions.admit({
+      ...admitInput(principals.actingForAdmin, adminTenant()),
+      decision: {
+        card,
+        answer: {
+          kind: 'remark',
+          text: '先看一下 README',
+          evidence: { ...EVIDENCE, record: 'remark_1' },
+        },
+      },
+    })
+    expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'human-guidance' } })
+    if ('failure' in deny || deny.ok.kind !== 'deny') return
+    expect(deny.ok.evidence.owner).toBe('authorization')
+    expect(deny.ok.evidence.record).toBe('admission/agent/admit-action')
+    expect(deny.ok.evidence.digest).toMatch(/^[0-9a-f]{64}$/)
   })
 })
 

@@ -720,16 +720,22 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
   })
 
-  it('carry a remark to the original extension but never into action admission', () => {
+  it('carry a remark to the original extension and to action admission, never a pending or invalidated reply', () => {
+    type AdmissionAnswer = NonNullable<
+      Parameters<ActionAdmission<string>['admit']>[0]['decision']
+    >['answer']
     expectTypeOf<CardRemark>().toEqualTypeOf<
       Readonly<{ kind: 'remark'; text: string; evidence: DurableEvidence }>
     >()
     expectTypeOf<
       NonNullable<ExtensionReplayBinding['rounds'][number]['cards'][number]['response']>['answer']
     >().toEqualTypeOf<CardAnswer | CardRemark>()
+    expectTypeOf<AdmissionAnswer>().toEqualTypeOf<CardAnswer | CardRemark>()
+    expectTypeOf<CardRemark>().toExtend<AdmissionAnswer>()
+    expectTypeOf<Readonly<{ kind: 'pending' }>>().not.toExtend<AdmissionAnswer>()
     expectTypeOf<
-      NonNullable<Parameters<ActionAdmission<string>['admit']>[0]['decision']>['answer']
-    >().toEqualTypeOf<CardAnswer>()
+      Readonly<{ kind: 'invalidated'; evidence: DurableEvidence }>
+    >().not.toExtend<AdmissionAnswer>()
   })
 
   it('hand action admission the reads by need name, an empty list meaning no read', () => {
