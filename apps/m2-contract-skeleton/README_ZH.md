@@ -53,7 +53,7 @@
 
 ## 验证
 
-[测试](tests)在替身上运行连通路径。它们检查第一轮每跳已连通、会话编解码承载了创建、发送与读历史三种消息、Request Context 取得并释放了 Model 准备租约、历史中的回复带有 Model 回复文本、其他租户读不到该会话。它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查：identity 拒绝登录、Session 登录门没有登录确认、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复时，路径都停在负责的那一跳。它们检查 H09 至 H13 停在哪里、哪一个公开入口拒绝，并检查证据只在路径观察到拒绝时才写出拒绝。它们固定阻断残余缺口背后的上游事实：Agent 的面尚未实现、同日志提供者没有接收目标、脚本 Model 生产者拒绝密封的 `reasoning_state` 部件。它们还检查 `session-log` 存储连通 H13 并停在 H06，以及 Tool 替身在 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 的替身里执行一次文件读、一次文件写和一条命令。报告测试检查跳点、场景与义务的缺失、重复和未执行，以及每一行的实现声明。报告不含凭据、登录证明、消息正文或供应商原始错误。
+[测试](tests)在替身上运行连通路径。它们检查第一轮每跳已连通、会话编解码承载了创建、发送与读历史三种消息、Request Context 取得并释放了 Model 准备租约、历史中的回复带有 Model 回复文本、其他租户读不到该会话。它们检查 Session 访问检查为 `undefined` 时 H03 保持 pending、不构建 Session 存储，检查拒绝时停在 H03。它们还检查：identity 拒绝登录、Session 登录门没有登录确认、Session 证据桥不可用、Session 拒绝交接、Model 不结算、历史没有回复时，路径都停在负责的那一跳。它们检查 H09 至 H13 停在哪里、哪一个公开入口拒绝，并检查证据只在路径观察到拒绝时才写出拒绝。它们固定阻断残余缺口背后的上游事实：Agent 的面尚未实现、同日志提供者没有接收目标、脚本 Model 生产者拒绝密封的 `reasoning_state` 部件。它们还检查 `session-log` 存储连通 H13 并停在 H06，以及 Tool 替身在 [#791](https://github.com/nemori-ai/omne-harness-lite/issues/791) 的替身里执行一次文件读、一次文件写和一条命令。[消息桥测试](tests/message-bridge.spec.ts)直接调用路径的 `MessageHandoff` 端口。它们检查每个 H 只判定一次，同一 H 的并发 prepare 等待第一次调用，只有校验否定才固定 rejected，Session 写入不可用或结果未知时不固定结果，`exclude` 拒绝与已固定结果的请求不同的请求。报告测试检查跳点、场景与义务的缺失、重复和未执行，以及每一行的实现声明。报告不含凭据、登录证明、消息正文或供应商原始错误。
 
 这些测试在受控输入下证明连通。它们不证明耐久的 identity 提供者、耐久的 Session 存储、真实 Model 供应商、HTTP 接入或完整的 M2 部署。独立验收归仓库交付流程。
 
