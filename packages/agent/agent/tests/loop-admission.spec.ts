@@ -5,6 +5,7 @@
 // its row of the node acceptance table (agent-contract verification/node-acceptance.md).
 import { describe, expect, it } from 'vitest'
 import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
+import { testEvidence } from '@omne-harness/agent/testing'
 import type {
   AgentExecutionHandle,
   AgentState,
@@ -13,7 +14,7 @@ import type {
   MessageHandoff,
 } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, type Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   acceptedInput,
   execution,
@@ -832,6 +833,93 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
       execution: execution('exec-2'),
     })
     assembly.release.open()
+  })
+})
+
+describe('NA-Q5-1: a rejected candidate is disposed at Q5 by its source', () => {
+  /** The real `prepare`, with the decision of the request that `rejects` selects turned down. */
+  function rejecting(
+    record: Record,
+    rejects: (input: PrepareInput) => boolean,
+  ): (dependencies: Dependencies) => Dependencies {
+    return dependencies =>
+      recording(record)({
+        ...dependencies,
+        handoff: {
+          ...dependencies.handoff,
+          async prepare(input) {
+            const prepared = await dependencies.handoff.prepare(input)
+            if ('failure' in prepared || !rejects(input)) return prepared
+            return succeed({
+              ...prepared.ok,
+              decision: {
+                kind: 'rejected',
+                reason: 'not for this agent',
+                evidence: testEvidence('no'),
+              },
+            })
+          },
+        },
+      })
+  }
+
+  it('NA-Q5-1: a rejected external input is the invalid answer of invoke; nothing opens and the slot is free', async () => {
+    const record: Record = { log: [], prepares: [], commits: [] }
+    const assembly = await loopAssembly(
+      [execution(), execution('exec-2')],
+      rejecting(record, input => input.request.reference.execution === execution()),
+    )
+    expect(failure(await invoke(assembly))).toEqual({
+      kind: 'invalid',
+      field: 'value',
+      reason: 'not for this agent',
+    })
+    expect(opens(record)).toBe(0)
+    expect(record.commits).toHaveLength(0)
+    expect(await shown(assembly)).toEqual(idle)
+    ok(await invoke(assembly, 'exec-2'))
+    assembly.release.open()
+  })
+
+  it('NA-Q5-1: a rejected Model reply writes its Ja with the rejected admission fact and no message, and I3 goes to I8', async () => {
+    const record: Record = { log: [], prepares: [], commits: [] }
+    let replies = 0
+    const assembly = await loopAssembly(
+      [execution()],
+      rejecting(record, input => input.request.source.kind === 'model-reply' && replies++ === 0),
+    )
+    assembly.release.open()
+    await eventsOf(ok(await invoke(assembly)))
+    const rejected = record.prepares.find(
+      item => 'ok' in item.result && item.result.ok.decision.kind === 'rejected',
+    )
+    const fixed = rejected && 'ok' in rejected.result ? rejected.result.ok : undefined
+    if (fixed === undefined || fixed.decision.kind !== 'rejected')
+      throw new Error('the rejected reply was expected')
+    const handoff = fixed.request.reference.kind === 'execution' ? fixed.request.reference : null
+    const ja = record.commits.find(commit => commit.operation === `${handoff?.operation}/resolve`)
+    expect(ja?.checkpoint.position).toBe('Q4')
+    expect(ja?.checkpoint.currentHandoff).toBeNull()
+    expect(ja?.events).toEqual([])
+    expect(ja?.handoff).toEqual({ kind: 'resolve', outcome: fixed })
+    expect(ja?.replyAdmission).toMatchObject({
+      decision: 'rejected',
+      source: fixed.decision.evidence,
+    })
+    const i3 = record.commits.filter(commit => commitNodeOf(commit.operation) === 'I3')
+    expect(i3[0]?.checkpoint.position).toBe('I8')
+    // The rejected candidate never enters the history: only prepared replies publish a message.
+    const messages = record.commits.flatMap(commit =>
+      commit.events.filter(event => event.kind === 'message'),
+    )
+    expect(messages).toHaveLength(
+      record.prepares.filter(
+        item =>
+          item.input.request.source.kind === 'model-reply' &&
+          'ok' in item.result &&
+          item.result.ok.decision.kind === 'prepared',
+      ).length,
+    )
   })
 })
 

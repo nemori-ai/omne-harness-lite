@@ -902,6 +902,46 @@ describe('the recovered input boundary', () => {
   })
 })
 
+describe('a saved admission position in a new coordinator', () => {
+  // The recovery route names Q2 for a saved P, but no delivered path reaches that resume: a new
+  // coordinator with the same operation recognizes the original open and ends at E1 with
+  // found-existing, and the public resume is not delivered. The admission frame of Q2 is rebuilt
+  // only in memory by the coordinator that wrote the P (#502 stage 5 for a new one).
+  it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
+    let replies = 0
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      handoff: {
+        ...d.handoff,
+        async prepare(input) {
+          if (input.request.source.kind === 'model-reply' && replies++ === 0)
+            return fail({ kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' })
+          return d.handoff.prepare(input)
+        },
+      },
+    }))
+    assembly.release.open()
+    const first = coordinator(assembly)
+    ok(await first.accept())
+    expect(failure(await first.runExecution())).toMatchObject({ node: 'Q1' })
+    const saved = await load(assembly)
+    expect(saved.checkpoint.position).toBe('Q2')
+    expect(saved.checkpoint.currentHandoff).not.toBeNull()
+    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('Q2')
+    const again = coordinator(assembly)
+    ok(await again.accept())
+    ok(await again.runExecution())
+    const after = await load(assembly)
+    expect(after.revision).toBe(saved.revision)
+    expect(after.checkpoint).toEqual(saved.checkpoint)
+    expect(after.state.kind).not.toBe('ended')
+    expect(after.handoffs.map(record => record.history)).toEqual([
+      { kind: 'committed', operation: operation('invoke-exec-1'), revision: '1' },
+      { kind: 'pending' },
+    ])
+  })
+})
+
 describe('checkpoint positions saved by the current assembly', () => {
   it('NA-E4-2: every checkpoint written on the normal path has the specified recovery destination', async () => {
     const saved: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>[] = []
