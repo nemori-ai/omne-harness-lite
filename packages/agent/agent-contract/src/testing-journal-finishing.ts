@@ -226,6 +226,29 @@ function plannedPassages(plan: readonly LegacyF2Entry[]): readonly (string | nul
   return plan.map(entry => (entry.kind === 'recorded' ? entry.passage.id : entry.passage))
 }
 
+/** The saved Tool intent `name`, its key and the reference the invoke of that intent returned. */
+async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string) {
+  const pending = toolIntent(opened, name)
+  const effect = commitAt(opened, await load(opened), `effect-${name}`, opened.authority, {
+    effects: [{ action: pending.action, pending, authority: opened.authority }],
+  })
+  await ok(opened.journal.commit(effect), 'the effect intent')
+  const key: ToolIntentKey = {
+    intent: effect.operation,
+    action: pending.action,
+    position: pending.position,
+  }
+  const reference = identity(
+    encodeToolInvocationRef({
+      tenant: opened.access.tenant,
+      call: identity(decodeToolCallId(`core-call-${name}`), 'call'),
+      admission: identity(decodeToolOperationId(`core-admission-${name}`), 'admission'),
+    }),
+    'reference',
+  )
+  return { pending, key, reference }
+}
+
 /** The cases of the finishing chapter; the core suite appends them. */
 export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
   return [
@@ -2873,6 +2896,130 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         assert.equal(finished.kind === 'denied' ? finished.action : '', 'settle')
         assert.deepEqual(await load(opened), at, 'the refusals wrote nothing')
+      },
+    },
+    {
+      name: 'MT-1: the accepted return of a reference and then a commit-unknown registration of the same reference leave the call held with its custodian: the undecided record does not take the known one back, in the order opposite to the one above',
+      run: async () => {
+        const opened = await fixture.open('tool-association-unknown-after-known')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, key, reference } = await savedToolIntent(opened, 'mt1')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = (name: string, source: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, name, {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          )
+        const accepted = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'accepted', reference, receipt: evidence('tool-receipt-mt1') },
+          received: evidence('received/mt1'),
+          custody: evidence('custody/mt1'),
+        })
+        await ok(record('associate-accepted', accepted), 'the accepted return')
+        const undecided = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'commit-unknown', reference },
+          received: evidence('received/mt1-2'),
+          custody: evidence('custody/mt1-2'),
+        })
+        await ok(
+          record('associate-unknown', undecided),
+          'the commit-unknown return of the same reference',
+        )
+        const judged = await judge(opened, control)
+        assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const item = itemOf(issued, 'call')
+        assert.equal(item.disposition.kind, 'held')
+        if (item.disposition.kind !== 'held') return
+        assert.notEqual(item.custodian, null, 'the accepted return names the custodian')
+        assert.deepEqual(item.disposition.custodian, item.custodian)
+        const finished = await ok(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end', cancelAuthorization(issued, control)),
+          ),
+          'the cancel tryFinish',
+        )
+        assert.equal(finished.kind, 'ended')
+      },
+    },
+    {
+      name: 'MT-2: the commit-unknown return of a Tool invoke is an unknown call obligation that continues with tool-association-retain: the trusted return source and the original registration request, for reconcile',
+      run: async () => {
+        const opened = await fixture.open('tool-association-retain')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, key, reference } = await savedToolIntent(opened, 'mt2')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const source = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'commit-unknown', reference },
+          received: evidence('received/mt2'),
+          custody: evidence('custody/mt2'),
+        })
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, 'associate-unknown', {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          ),
+          'the association of a commit-unknown return',
+        )
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'call')
+        assert.equal(item.disposition.kind, 'unknown')
+        if (item.disposition.kind !== 'unknown') return
+        const required = item.disposition.required
+        assert.equal(required.kind, 'tool-association-retain')
+        if (required.kind !== 'tool-association-retain') return
+        assert.equal(required.request.kind, 'parameters')
+        if (required.request.kind !== 'parameters') return
+        assert.deepEqual(required.request.value.source, source)
+        assert.deepEqual(required.request.value.request, pending.fixed)
+        assert.deepEqual(required.request.value.intent, key)
+        assert.equal(required.purpose, 'reconcile')
       },
     },
   ]
