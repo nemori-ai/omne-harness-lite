@@ -23,6 +23,7 @@ import {
   failure,
   ok,
   operation,
+  otherTenant,
   type Principal,
 } from './journal-support.ts'
 import { options } from './factory-support.ts'
@@ -941,6 +942,58 @@ describe('a saved admission position in a new coordinator', () => {
     expect(after.handoffs.map(record => record.history)).toEqual([
       { kind: 'committed', operation: operation('invoke-exec-1'), revision: '1' },
       { kind: 'pending' },
+    ])
+  })
+})
+
+describe('the Access of the admission calls (#963 N-2)', () => {
+  // Q1 and Q2 hand the Access of the execution's entry to the message handoff. The lost prepare
+  // leaves the same coordinator at Q2 without an outcome, so its next run reads the H back with
+  // lookup and prepares it again. Red when either call carries another tenant than the caller's.
+  it('NA-Q2-2: prepare and the Q2 lookup each carry the tenant of the execution that calls them', async () => {
+    const prepared: (readonly [kind: string, tenant: unknown])[] = []
+    let replies = 0
+    const assembly = await loopAssembly([execution('exec-a'), execution('exec-b')], d => ({
+      ...d,
+      handoff: {
+        ...d.handoff,
+        async prepare(input) {
+          prepared.push([input.kind, input.tenant])
+          if (input.request.source.kind === 'model-reply' && replies++ % 2 === 0)
+            return fail({ kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' })
+          return d.handoff.prepare(input)
+        },
+      },
+    }))
+    assembly.release.open()
+    for (const [access, id] of [
+      [alice, 'exec-a'],
+      [otherTenant, 'exec-b'],
+    ] as const) {
+      const entry = coordinator(assembly, {
+        binding: { ...options().binding, tenant: access.tenant },
+        access,
+        execution: execution(id),
+        operation: operation(`invoke-${id}`),
+        initial: acceptedInput(`input-${id}`, `hello ${id}`),
+      })
+      ok(await entry.accept())
+      expect(failure(await entry.runExecution())).toMatchObject({ node: 'Q1' })
+      ok(await entry.runExecution())
+    }
+    expect(prepared).toEqual([
+      ['invoke', alice.tenant],
+      ['execution', alice.tenant],
+      ['execution', alice.tenant],
+      ['invoke', otherTenant.tenant],
+      ['execution', otherTenant.tenant],
+      ['execution', otherTenant.tenant],
+    ])
+    expect(
+      assembly.controls.handoff.lookup.calls.map(call => [call.kind, call.tenant] as const),
+    ).toEqual([
+      ['execution', alice.tenant],
+      ['execution', otherTenant.tenant],
     ])
   })
 })
