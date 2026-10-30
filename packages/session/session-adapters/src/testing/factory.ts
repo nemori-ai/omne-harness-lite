@@ -39,6 +39,8 @@ import {
   type CommittedBatch,
   type GuardCommand,
   type HistoryEntry,
+  type RunTerminal,
+  deriveDriveOperation,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
 import {
@@ -67,7 +69,7 @@ import {
   executionKey,
   HistoryFailure,
 } from './history.ts'
-import { canonical, materializeModelView } from './session-values.ts'
+import { canonical, materializeModelView, rowData } from './session-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
@@ -570,8 +572,55 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       return false
     const original = root.sources.runs.get(execution)
     if (!original || original.run !== run.terminal.run) return false
-    const last = root.sources.attemptsByExecution.get(execution)?.at(-1)
-    return last !== undefined && last.attempt === attempt.attempt
+    // rulings 7d B-1: the last attempt granted before the cancel (SE26), whose SE16 the cancel
+    // batch wrote or an earlier batch wrote; an attempt granted earlier cannot wind down.
+    const cancelled = terminalRow(root, run.terminal.run)
+    if (cancelled === undefined) return false
+    const at = Number(cancelled.revision)
+    const last = (root.sources.attemptsByExecution.get(execution) ?? [])
+      .filter(item => Number(item.started.revision) <= at)
+      .at(-1)
+    if (last === undefined || last.attempt !== attempt.attempt) return false
+    return [...root.sources.rowsById.values()].some(
+      row =>
+        row.kind === 'run.attempt-released' &&
+        String(rowData(row)['attempt']) === String(last.attempt) &&
+        Number(row.revision) <= at,
+    )
+  }
+
+  /** The SE26 row of `run`, or `undefined` while the Run has no terminal. */
+  function terminalRow(root: CommonRoot, run: string): HistoryEntry | undefined {
+    for (const row of root.sources.rowsById.values()) {
+      if (row.kind !== 'run.terminal') continue
+      const terminal = rowData(row)['terminal'] as { run?: unknown } | undefined
+      if (String(terminal?.run) === run) return row
+    }
+    return undefined
+  }
+
+  /**
+   * The Agent cancel control that SE26 of a cancelled Run refers to (PA-02): the
+   * `control.requested` written by the same Session control as the terminal evidence, mapped to
+   * the Agent operation the coordinator derives for it.
+   */
+  function terminalControl(
+    root: CommonRoot,
+    execution: AgentExecutionId,
+    terminal: RunTerminal,
+  ): string | undefined {
+    for (const row of root.sources.rowsById.values()) {
+      if (row.kind !== 'control.requested') continue
+      if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
+      const progress = rowData(row)['progress'] as { operation?: unknown } | undefined
+      if (typeof progress?.operation !== 'string') return undefined
+      return deriveDriveOperation({
+        kind: 'control',
+        execution,
+        control: progress.operation as SessionOperationId,
+      })
+    }
+    return undefined
   }
 
   function participant(
@@ -618,12 +667,20 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       )
         return { kind: 'terminal' }
     }
-    if (
-      method === 'tryFinish' &&
-      (input as Parameters<AgentJournal<P>['tryFinish']>[0]).authorization.kind === 'advancement'
-    ) {
+    if (method === 'tryFinish') {
+      const finish = input as Parameters<AgentJournal<P>['tryFinish']>[0]
       const checked = judgeCompletion(state.snapshot, input.execution)
-      if (checked.kind !== 'allowed') return { kind: 'changed' }
+      // PA-02: a cancel authorization on the cancelled Run (SE26) participates when the
+      // conclusion is cancelled and its control is the one SE26 refers to; every other answer
+      // that is not allowed is a conflict.
+      if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
+        if (
+          finish.intent.conclusion.kind !== 'cancelled' ||
+          terminalControl(cell.state(), input.execution, checked.terminal) !==
+            String(finish.authorization.control)
+        )
+          return { kind: 'changed' }
+      } else if (checked.kind !== 'allowed') return { kind: 'changed' }
     }
     const derived = jointCommand(cell, input, method, receipt)
     if (derived === undefined) return undefined
