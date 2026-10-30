@@ -46,7 +46,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 1. 在 reduce 隔离候选上同步目标分支，处理冲突。
 2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。
-3. 验证：生成宿主投影，运行 `pnpm run check:agents`，再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后按 `docs/engineering/integration.md`「增量准入」补跑，不整次重跑。候选或基线变动后，重做受影响的验证与评审。
+3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。
 4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。发 gate 时对线父卡运行 `board-cli.ts integrating`。批次内的各张任务卡停在 In review，按卡接受时再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
 5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
 
@@ -92,7 +92,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 ## 收口一波
 
 1. 联调轨道上还有本里程碑以外的写者时（例如独立推进的工具线），开始整波检查之前，请对方暂停往联调轨道合入。在与对方约定的协调卡（对方的线父卡或专门的协调 Issue）上发请求。卡上已有往来标记时沿用它；还没有时，在请求里写明请对方回复用的标记。等待对方确认时用事件等待，不轮询。没有得到确认就开始检查时，放行前再读回联调轨道头，核对它仍等于 F。理由：整波检查的对象是联调轨道头，检查之后轨道头前进，候选就变了，旧证据失效，要回到监督重新检查（P22）。放行后按 `dispatch`「放行」第 6 步通知对方恢复合入。
-2. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。先用 `git rev-parse <提交>^{tree}` 比对 F 与已通过这项检查的头。树相同时不重跑这项检查，证据写法见 `docs/engineering/integration.md`「树相同时复用准入」。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
+2. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。F 与已通过这项检查的头树相同时不重跑：准入部分在那次全量准入所在的工作树里运行 `node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F>` 核对；里程碑联调命令的结果用 `git rev-parse <提交>^{tree}` 比对。证据写法见 `docs/engineering/integration.md`「树相同时复用准入」。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
 3. 检查失败或候选变化时回到监督，旧证据失效。
 4. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
 5. 调整后一波预案时，按 `dispatch` 技能的 `references/wave-planning.md` 用本波实际耗时、集成负荷和新事实修正取舍。

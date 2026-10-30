@@ -21,7 +21,7 @@
 1. **身份与长程目标。** 写下：本线是谁、父卡、负责的卡与预案队列、里程碑卡的关闭门、本线结果服务哪道门。以后每个局部决定都回到这里核对。
 2. **加载技能。** 先 `line`；每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`。改文档前加载 `asd-ste100`。
 3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 playbook，三层各用哪些技能，哪些项目规矩最常碰到。
-4. **环境。** 依赖安装、生成 agent 投影、`check:agents` 通过；记下 Node、pnpm、git 版本。
+4. **环境。** 依赖安装、生成 agent 投影（`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>`，它最后运行 `check:agents`）、`check:agents` 通过；记下 Node、pnpm、git 版本。
 5. **线级上下文地图主体。** 本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。reduce 已给出时只核对。
 6. **线级约束 `constraints.md`。** 按 `claim` 技能 spec 模板的「原则与约束」写本线适用条目（ub-mode 加项目独有判断），只写一次。
 
