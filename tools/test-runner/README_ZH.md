@@ -20,7 +20,7 @@ pnpm run test                                       # 全量两层：turbo 先�
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 OMNE_TEST_CACHE=0 pnpm run check                    # 成员测试不读结果缓存（照常写）；test:affected、test:tier 与 cli.ts 的 run、step、check 另认 --no-cache。缓存见「结果缓存」
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list] [--resume-from <H1>]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的全量准入，见「准入」一节
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list] [--resume-from <H1>]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的准入（全量或按影响面），只在准入模式下可用，见「准入」一节
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F> [--record <路径>]  # 核对 F 上有没有可采用的全量准入（树相同的另一个提交上的也算），见「准入」一节
 ```
 
@@ -227,7 +227,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 | `head`、`tree`               | 40 位提交号与 `git rev-parse HEAD^{tree}` 的树哈希                                                                                                                                                                  |
 | `dirty`                      | 运行时工作树有未提交改动；这样的记录不是对 `head` 的证据                                                                                                                                                            |
 | `admission`                  | 是不是准入运行（`--admission` 或 `OMNE_ADMISSION=1`）；只有准入运行能被接续或复用                                                                                                                                   |
-| `mode`、`base`、`resumeFrom` | `full`（计划判全量：`FULL=1`，或全局文件、未归类路径等让计划判了全量——全部步骤对全部成员跑了）、`affected`（按影响面，`base` 是基线）或 `resume`（接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树与它失败的那一步） |
+| `mode`、`base`、`resumeFrom` | `full`（计划判全量：`FULL=1`，或全局文件、未归类路径等让计划判了全量——全部步骤对全部成员跑了）、`affected`（按影响面，`base` 是本次基线与头的合并点，40 位）或 `resume`（接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树、它失败的那一步与 H1 那次的范围 `mode`：`full` 或 `affected`） |
 | `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（准入只写不读记 `off`，读缓存记 `on`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）、`mutation` 记 `unknown`（`check` 不跑变异）              |
 | `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
 | `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
@@ -235,19 +235,21 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 
 写入先写临时名再改名，读到的要么是完整的旧记录要么是新的；解析失败、形状不对的文件按「没有记录」处理，不猜。`tmp/check-run/` 不再每次清空，只留最近 5 个头的目录。
 
-**`check --admission --resume-from <H1>`**（`src/testing/resume.ts` 判断，`check.ts` 执行）。H1 上跑过一次全量准入、快速失败在步骤 X，修复后在 HEAD 上接着跑，不整次重跑。只在准入模式下接受，与 `FULL=1` 互斥。判断在写任何东西之前，三种结论：
+**`check --admission --resume-from <H1>`**（`src/testing/resume.ts` 判断，`check.ts` 执行）。H1 上跑过一次准入（全量，或按影响面）、快速失败在步骤 X，修复后在 HEAD 上接着跑，不整次重跑。根脚本的写法是 `pnpm run admission --resume-from <H1>` 或 `pnpm run check --admission --resume-from <H1>`，两者相同。`--resume-from` 只在准入模式下可用（`--admission` 或 `OMNE_ADMISSION=1`），不在准入模式时以 2 退出；与 `FULL=1` 互斥。
 
-- **拒绝**（以 2 退出，不留日志、不写记录），哪一条不满足都明说：工作树有未提交改动；H1 不是 HEAD 的祖先；H1 没有干净的、准入模式的、`mode: full` 的记录（`tmp/admission/*.json` 与 `tmp/check-run/*/run.json` 两处都找；按影响面跑的、非准入的、带未提交改动的都不算）；记录写的树与 H1 实际的树不符；记录没有失败步骤（全部通过，或有步骤没跑完却没有失败）；除 X 外还有步骤没通过；记录不自洽；X 不在当前步骤表里。
-- **退化为整次全量**（照常跑 `FULL=1` 的计划，说明写进准入日志，记录是一次 `mode: full`）：H1..HEAD 的差异碰到全局路径（`test-runs.config.json` 的 `affected.globalPaths`，退役目录里的不算）。`pnpm-lock.yaml` 是唯一命中时交上面「影响面怎么算」第 1 条的锁文件映射：映射判全量就整次全量，映射到成员就把它们作为种子接续，等价就当没改。影响面自己判全量（有不认得的路径、turbo 选中了解释不了的成员）时同样整次全量。
-- **接续**：全部步骤都跑，每一步的范围按 H1 的记录定——常驻步骤照旧整仓；按计划的步骤里，X 与 H1 上没跑到的（被终止、没开始、记录里没有这一步）整次跑，连同它们前面（`after`，传递）的按计划步骤也整次跑（成员测试与验收读构建出来的 dist，缩了构建范围就会读到旧产物）；H1 上通过了的只跑 H1..HEAD 影响到的成员。计划文件按步骤各取整次或影响面的那一份，`reason` 写明「接续 H1 的全量准入（失败于 X）：整次 …；按 H1..HEAD 影响面 …」；基线一栏仍是统一规则取到的那一个。
+接续的范围不比 H1 那次宽：H1 全量时，整次跑的步骤选全部成员；H1 按影响面时，整次跑的步骤只选 HEAD 相对本次基线的影响面。依据是 H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来，就是 HEAD 相对本次基线的影响面（合并点..HEAD）。所以 H1 按影响面时，它记录的 `base` 必须等于本次基线与 HEAD 的合并点（`git merge-base <本次基线> HEAD`）。判断在写任何东西之前，三种结论：
 
-证据写进准入日志：「准入证据：H1 全量（失败于 X）＋ HEAD 增量（基线 H1）」，之后按整次／按影响面／常驻分组列出每一步与原因、H1 运行时的缓存状态、锁文件判定（问过时）、H1..HEAD 的差异文件清单。退化时写「H1 全量（失败于 X）不接续，HEAD 整次全量——原因」与差异清单。记录的 `mode` 是 `resume`，`resumeFrom` 指向 H1。
+- **拒绝**（以 2 退出，不留日志、不写记录），哪一条不满足都明说：工作树有未提交改动；H1 不是 HEAD 的祖先；H1 没有干净的、准入模式的、`mode: full` 或 `mode: affected` 的记录（`tmp/admission/*.json` 与 `tmp/check-run/*/run.json` 两处都找；非准入的、带未提交改动的不算）；H1 只有接续运行（`mode: resume`）的记录——接续不链式；记录写的树与 H1 实际的树不符；H1 按影响面时记录的基线合并点与本次的不同；记录没有失败步骤（全部通过，或有步骤没跑完却没有失败）；除 X 外还有步骤没通过；记录不自洽；X 不在当前步骤表里。
+- **退化为整次重跑**（按 H1 那次的范围照常算计划：H1 全量就是 `FULL=1` 的计划，H1 按影响面就是相对本次基线的影响面；说明写进准入日志，记录是一次 `mode: full` 或 `mode: affected`）：H1..HEAD 的差异碰到全局路径（`test-runs.config.json` 的 `affected.globalPaths`，退役目录里的不算）。`pnpm-lock.yaml` 是唯一命中时交上面「影响面怎么算」第 1 条的锁文件映射：映射判全量就整次重跑，映射到成员就把它们作为种子接续，等价就当没改。H1..HEAD 的影响面自己判全量（有不认得的路径、turbo 选中了解释不了的成员）时同样整次重跑。
+- **接续**：全部步骤都跑，每一步的范围按 H1 的记录定——常驻步骤照旧整仓；按计划的步骤里，X 与 H1 上没跑到的（被终止、没开始、记录里没有这一步）按 H1 那次的范围整次跑，连同它们前面（`after`，传递）的按计划步骤也整次跑（成员测试与验收读构建出来的 dist，缩了构建范围就会读到旧产物）；H1 上通过了的只跑 H1..HEAD 影响到的成员。计划文件按步骤各取整次或 H1..HEAD 影响面的那一份，`reason` 写明「接续 H1 的全量准入（失败于 X）：整次 …；按 H1..HEAD 影响面 …」，H1 按影响面时是「接续 H1 的影响面准入（失败于 X）：整次（本次基线的影响面） …」；基线一栏仍是统一规则取到的那一个。
 
-**`admission-evidence --for <F> [--record <路径>]`**（`src/testing/admission-evidence.ts`）。核对 F 上有没有可采用的全量准入：给 `--record` 时只看那一份；不给时在本树 `tmp/admission/*.json` 里按 F 的树哈希找（不读 `tmp/check-run/`），同树且可采用的取最晚结束的那份。接受条件逐项都要满足，任何一项不满足就拒绝并逐项列出原因：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，`mode: full`，`dirty` 为假，`failedStep` 为 null，步骤表非空且每步都 `ran: true`、`exit: 0`，有 `finishedAt`；记录的头在本仓库里，记录写的树与头的树一致；树（记录缺 `tree` 时由头补算）等于 F 的树。接受时一行写明「F 采用 C 的全量准入，树 … 相同；记录 …；缓存 …」，退出 0；拒绝退出 1；用法错误退出 2。只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
+证据写进准入日志：H1 全量时是「准入证据：H1 全量（失败于 X）＋ HEAD 增量（基线 H1）」，H1 按影响面时是「准入证据：H1 影响面准入（失败于 X）＋ HEAD 增量（基线 H1）」，并另起一行写明本次基线与合并点。之后按整次／按影响面／常驻分组列出每一步与原因、H1 运行时的缓存状态、锁文件判定（问过时）、H1..HEAD 的差异文件清单。退化时写「H1 全量（失败于 X）不接续，HEAD 整次全量——原因」，H1 按影响面时写「…不接续，HEAD 整次按本次基线的影响面——原因」，附差异清单。记录的 `mode` 是 `resume`，`resumeFrom` 指向 H1 并写明 H1 那次的范围。
 
-**不能声称**：接续不重跑 H1 上通过了的重步骤的全部成员，只跑 H1..HEAD 影响到的——影响面规则漏掉的读取这里同样漏掉；`admission-evidence` 接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」；记录与日志都在被忽略的 `tmp/` 下，换一棵检出就没有，不是远程或跨机器的证据。
+**`admission-evidence --for <F> [--record <路径>]`**（`src/testing/admission-evidence.ts`）。核对 F 上有没有可采用的全量准入：给 `--record` 时只看那一份；不给时在本树 `tmp/admission/*.json` 里按 F 的树哈希找（不读 `tmp/check-run/`），同树且可采用的取最晚结束的那份。接受条件逐项都要满足，任何一项不满足就拒绝并逐项列出原因：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，`mode: full`，或 `mode: resume` 且 `resumeFrom.mode` 是 `full`（H1 全量＋ HEAD 增量组成的证据是全量准入；H1 只按影响面运行时，组成的证据不是全量准入，拒绝），`dirty` 为假，`failedStep` 为 null，步骤表非空且每步都 `ran: true`、`exit: 0`，有 `finishedAt`；记录的头在本仓库里，记录写的树与头的树一致；树（记录缺 `tree` 时由头补算）等于 F 的树。接受时一行写明「F 采用 C 的全量准入，树 … 相同；记录 …；缓存 …」（接续记录另写明「H1 … 的全量准入＋ C 上的增量准入」），退出 0；拒绝退出 1；用法错误退出 2。只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
 
-自测：`tests/admission-run.spec.ts`（记录的读写、由步骤图运行写成记录、挑 H1 的记录）、`tests/resume.spec.ts`（前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步怎么跑、证据文本、取 git 事实）、`tests/admission-evidence.spec.ts`（逐字段的拒绝、按树找、子命令退出码，慢层起真实 CLI）、`tests/check-resume.spec.ts`（慢层，夹具仓库上端到端：只在 oxlint 失败的准入写出记录，修复后接续只跑规定的步骤与成员，拒绝以 2 退出，碰全局路径整次全量）。
+**不能声称**：接续不重跑 H1 上通过了的重步骤的全部成员，只跑 H1..HEAD 影响到的——影响面规则漏掉的读取这里同样漏掉；H1 按影响面时，整个接续的范围也只是 HEAD 相对本次基线的影响面；`admission-evidence` 接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」；记录与日志都在被忽略的 `tmp/` 下，换一棵检出就没有，不是远程或跨机器的证据。
+
+自测：`tests/admission-run.spec.ts`（记录的读写、由步骤图运行写成记录、挑 H1 的记录）、`tests/resume.spec.ts`（前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步怎么跑、H1 按影响面时的范围与基线核对、接续不链式、证据文本、取 git 事实）、`tests/admission-evidence.spec.ts`（逐字段的拒绝、按树找、子命令退出码，慢层起真实 CLI）、`tests/check-resume.spec.ts`（慢层，夹具仓库上端到端：只在 oxlint 失败的准入写出记录，修复后接续只跑规定的步骤与成员，拒绝以 2 退出，碰全局路径整次全量；H1 按影响面时接续不选影响面外的成员、基线合并点不同拒绝、接续记录不作 H1）。
 
 ## 差分变异
 

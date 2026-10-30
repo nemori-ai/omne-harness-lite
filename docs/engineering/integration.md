@@ -517,7 +517,7 @@ dev-flow 对平台的写入限于下列范围：
 
 证据写成「H1 上的整次准入（失败于步骤 X）＋ H2 上的增量准入（基线 H1）」，并附 H1..H2 的差异。
 
-`pnpm run check --admission --resume-from <H1>` 一次跑完上面这些：它读 H1 那次准入写下的运行记录核对三项前提，不满足就以 2 退出；碰到全局路径时在 H2 上整次重跑并写明；否则按上面四项选步骤与成员，证据写进准入日志。用法见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。H1 上的准入没有留下记录时（例如在写记录之前的版本上跑的），按下面手工组合。
+`pnpm run admission --resume-from <H1>` 一次跑完上面这些，与 `pnpm run check --admission --resume-from <H1>` 相同。`--resume-from` 只在准入模式下可用。它读 H1 那次准入写下的运行记录核对三项前提，不满足就以 2 退出；碰到全局路径时在 H2 上按 H1 那次的范围整次重跑并写明；否则按上面四项选步骤与成员，证据写进准入日志。H1 只按影响面运行时，第 1 至 3 项也按影响面运行，H1 记录的基线合并点必须与本次相同。接续运行的记录不能再作 H1。用法见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。H1 上的准入没有留下记录时（例如在写记录之前的版本上跑的），按下面手工组合。
 
 用 `node --experimental-strip-types tools/test-runner/src/testing/cli.ts` 的三个子命令手工组合上面的步骤，运行时带 `OMNE_ADMISSION=1`：
 

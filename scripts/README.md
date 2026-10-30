@@ -9,7 +9,7 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 脚本仍执行 `apps/tenancy-host/tools/docker-image.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的全量准入（只在准入模式下接受） |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`） |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
 | [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |

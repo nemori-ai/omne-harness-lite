@@ -32,7 +32,7 @@ fi
 # 正文在测试运行器的 check 命令里：取基线、算计划，再按步骤图跑全部检查（表在 tools/test-runner/src/testing/check-steps.ts：
 # 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查，回路状态最后；一步失败其余终止）。
 # --admission 或 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志与运行记录。--keep-going 失败后继续跑其余步骤。
-# --resume-from <H1> 接续 H1 上快速失败的全量准入（只在准入模式下接受），规则见 docs/engineering/integration.md「增量准入」。
+# --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受），规则见 docs/engineering/integration.md「增量准入」。
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts check "$@"
 }
 omne_repository_command main "$@"
