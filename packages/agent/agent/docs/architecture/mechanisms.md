@@ -92,7 +92,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 
 | 节点 | 写入的分面或记录 | 方法 | 提交类型 | 参加者 | 依据 |
 | --- | --- | --- | --- | --- | --- |
-| E0 | 受理输入的内容，初始 checkpoint（`position` 为 E3），新挂接 `executionAttachment`。`open` 不追加事件，execution 的第一个事件由之后首次产生事件的节点在其提交中分配，见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类) | `open` | 挂接 | grant 非空时，外部协调者的提交参加者核对 grant 与来源依据。不是 `CallerCommit` 种类 | SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)、[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
+| E0 | 受理输入的内容，初始 checkpoint（`position` 为 E3），新挂接 `executionAttachment`。`open` 不追加事件，execution 的第一个事件由 open 之后首次产生事件的提交分配，见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类) | `open` | 挂接 | grant 非空时，外部协调者的提交参加者核对 grant 与来源依据。不是 `CallerCommit` 种类 | SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)、[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
 | E0 | 新挂接，恢复依据或 takeover 依据。换代时转换后的接续 | `attach` | 挂接 | 同上 | SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管) |
 | E3 | `passages`（执行开始之后），`position` 前移 | `commit`。有扩展调用时随 X 协议提交，没有时在 E3 结束时单独提交 | 条件提交 | 无 | 节点表 E3 |
 | E9 | `state` 为 suspended 并带交接依据，`executionAttachment` 撤销。被取代时不写。暂停的责任释放阶段不在节点表的“写什么”中，见 AGENT-M04 | `detach` | 挂接 | 无 | SPEC 的[交接与停用](../../../agent-contract/SPEC.md#交接与停用) |
@@ -258,7 +258,7 @@ sequenceDiagram
 - M04-3：外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加没有声明形状。
 - M04-4：按原操作幂等的记录方法是否推进 revision 没有写明。
 - M04-10：节点表 Q2 的 message 与 context-transition 两种交接都不区分装配。
-- M04-11：节点表 E9 的“写什么”缺少暂停的责任释放阶段。#730 已采用，写回卡待建，排在 M2 之后。
+- M04-11：节点表 E9 的“写什么”缺少暂停的责任释放阶段。#730 已采用，写回状态见开放问题页的 AGENT-M04。
 - M04-12：H0 是否为写入节点。
 
 ## 终结与输入排序

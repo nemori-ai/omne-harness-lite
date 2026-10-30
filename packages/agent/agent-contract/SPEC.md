@@ -231,7 +231,7 @@ Model 的 ACK 未知时由 Model 沿原 query 认回，Agent 不再调模型，�
 
 detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管协调与运行实例”定义。本节定义控制的种类、范围和阶段。
 
-暂停时记录控制意图与解除挂接的先后次序，以及两步之间或解除挂接前后崩溃时的恢复，已由 [#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 采用。把它写回本契约的卡待建，[排在 M2 之后](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6497861221)。写回之前，本页凡写到暂停撤销挂接或进入 suspended 的地方，都不承诺这部分行为。实现不得按某一种次序或恢复方式声称已兑现本契约。
+暂停时记录控制意图与解除挂接的先后次序，以及两步之间或解除挂接前后崩溃时的恢复，已由 [#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 采用。写回本契约之前，本页凡写到暂停撤销挂接或进入 suspended 的地方，都不承诺这部分行为。实现不得按某一种次序或恢复方式声称已兑现本契约。
 
 ### 插队
 
@@ -634,7 +634,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 
 模型完整回复先经“[消息准入](#消息准入)”判定结构合法并被接纳，之后其中全部 `tool_call` 部件组成一个 ActionBatch。每个动作有自己的 ActionId、原参数与生效参数。类型形状见[公开接口页](docs/public-api/README.md#身份原位置与纯求值)的 `ActionBarrier`，作者可见的语义见[扩展作者协议](docs/public-api/extensions.md#整批判断屏障与动作准入)。节点次序归 Loop 算法页。
 
-动作的原调用只取合法的 `tool_call` 部件。回复中的 `tool_call_incomplete` 与 `tool_call_unparsed` 部件不可执行，不进入动作批，Agent 也不把它们改标为 `tool_call`。`tool_call` 的 `name` 是非空字符串但工具未知，或 `arguments` 是合法值树但不满足该工具的业务参数规则时，该调用结构合法，照常进入动作批，由本节的判断与屏障拒绝执行，实际参数准入归 Tool。Agent 不猜测工具，不修复调用，也不把这类业务拒绝当作结构非法。结构非法的调用使整条回复在消息准入被拒收，见“[消息准入](#消息准入)”。
+动作的原调用只取合法的 `tool_call` 部件。回复中的 `tool_call_incomplete` 与 `tool_call_unparsed` 部件不可执行，不进入动作批，Agent 也不把它们改标为 `tool_call`。`tool_call` 的 `name` 是非空字符串但工具未知，或 `arguments` 是合法值树但不满足该工具的业务参数规则时，该调用结构合法，照常进入动作批，不被执行。业务参数规则由 Tool 的实际参数准入判断。工具未知时在哪一步拒绝尚未确定，见开放问题[工具未知的调用在哪一步被拒绝](../agent/docs/architecture/open-questions.md#工具未知的调用在哪一步被拒绝)。Agent 不猜测工具，不修复调用，也不把这类业务拒绝当作结构非法。结构非法的调用使整条回复在消息准入被拒收，见“[消息准入](#消息准入)”。
 
 判断按下列规则进行。
 
@@ -694,7 +694,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 
 模型完整回复的结构校验以共享消息的 `judgeMessage` 为准，各部件的规则见 [`@omne-harness/message` 的公开接口](../../common/message/docs/public-api.md#语义)。`judgeMessage` 在第一个非法部件处拒绝整条候选，并给出该部件的 `blockIndex`，不剔除非法部件后接纳其余部件。所以 `tool_call` 部件缺少 `name` 或其他必填键、`name` 为空或不是字符串，或 `arguments` 不是合法值树时，整条回复按上表“模型完整回复”一行拒收。同一回复中合法的工具调用也不形成动作，不被执行。原结果、费用与来源照常保留，不以静默剔除代替拒收。
 
-Model 提供者把这样的调用当作已封闭的调用交出，属于提供者违约。Agent 仍按 `judgeMessage` 判定，不以类型断言代替判定。被中断、没有完整收场或仍含 `partial` 在途内容的 Model 结果不构成模型完整回复，其中的调用不进入动作批。
+Model 提供者把这样的调用当作已封闭的调用交出，属于提供者违约。Agent 仍按 `judgeMessage` 判定，不以类型断言代替判定。被中断、没有完整收场或仍含 `partial` 部件（Model 的 [`ResultPart`](../../model/model-contract/SPEC.md#普通调用面与实例观察)）的 Model 结果不构成模型完整回复，其中的调用不进入动作批。
 
 外部输入的内容政策归输入受理方：它在交给 Agent 之前对外部输入做内容处理，例如展开、脱敏或否决。这些处理在受理边界完成，Agent 只看到受理后的内容。独立调用路径的最小提供者集合尚无拥有者，登记在[开放问题](../agent/docs/architecture/open-questions.md#独立调用路径的最小装配由谁拥有)。Agent 不实现消息的长期保存。Agent 仍保证自己的执行耐久与消息交接前提：接纳回执随 checkpoint 提交，恢复时按原操作身份认回，已接纳的消息不重复提交，拒收的候选不进入历史。
 
@@ -1109,10 +1109,10 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentExecutionRecovery.reconcile | ExecutionMutation | 剩余责任与依据 | denied；unavailable；conflict |
 | AgentExecutionRecovery.detach | ExecutionMutation、挂接资格、原因依据 | 交接依据 | denied；changed；stale-advance（挂接已 superseded）；commit-unknown。挂接已 detached 或失去业务资格时只认回既有交接 |
 | AgentJournal.open、attach | ExecutionMutation、instance、推进资格依据、受理输入或恢复依据、初始 checkpoint；attach 另带 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败；attach 对已 ended 的 execution 返回 terminal |
-| AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；unavailable（提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试，见“[提交参加者协议](#提交参加者协议)”）；unsupported；stale-advance（旧挂接）；invalid（`events` 含 `entry` 或 `ended` 事件体。类型已排除它们，调用方绕过类型时得到这个结果，field 为 `events`，reason 是诊断文本，写明是哪一种事件体由 Journal 分配，不作为契约） |
+| AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；unavailable（含：提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试，见“[提交参加者协议](#提交参加者协议)”）；unsupported；stale-advance（旧挂接）；invalid（`events` 含 `entry` 或 `ended` 事件体。类型已排除它们，调用方绕过类型时得到这个结果，field 为 `events`，reason 是诊断文本，写明是哪一种事件体由 Journal 分配，不作为契约） |
 | AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied；unavailable |
 | AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执 | conflict（原 R 异输入；所供附件的 call、admission 不等于原调用；已有 toolOperation 与所供附件为不同操作身份）；denied（含所供或保留引用外租户）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 或已有 toolOperation 损坏，owner 为 AgentJournal，diagnostic 分别为 invalid-retained-tool-invocation、invalid-retained-tool-operation） |
-| AgentJournal.tryFinish | 完成授权、expected、完成意图 | ended、changed 或 blocked | stale-advance；denied；unavailable（提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
+| AgentJournal.tryFinish | 完成授权、expected、完成意图 | ended、changed 或 blocked | stale-advance；denied；unavailable（含：提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
@@ -1125,9 +1125,9 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 
 | 操作 | 授权 | 幂等身份 | 并发与竞争 | 事件 | 生命周期 |
 | --- | --- | --- | --- | --- | --- |
-| invoke | 租户与 runtime 绑定一致；主体资格（invoke），目标是该实例；推进资格依据由 Journal 提供者核对 | 操作身份加 execution 身份，同输入认回原结果 | 单执行槽；并发的新 invoke 返回 busy | 无。受理不追加事件。execution 的第一个事件由之后首次产生事件的节点在其条件提交中分配，不固定为某一种事件 | 创建 execution，runtime 由 idle 进入 occupied |
+| invoke | 租户与 runtime 绑定一致；主体资格（invoke），目标是该实例；推进资格依据由 Journal 提供者核对 | 操作身份加 execution 身份，同输入认回原结果 | 单执行槽；并发的新 invoke 返回 busy | 无。受理不追加事件。execution 的第一个事件由 open 之后首次产生事件的提交分配，不固定为某一种事件 | 创建 execution，runtime 由 idle 进入 occupied |
 | resume | 主体资格（resume），目标是原 execution；快照显示旧挂接仍 active 时另核主体资格（takeover），目标同上；推进资格依据 | 操作身份 | 单执行槽；attach 按“恢复与接管”选择路径 | 新事件带新挂接身份 | 恢复：execution 由 suspended 回到 reconciling，新挂接 active，旧挂接保持 detached。接管：execution 由 reconciling、advancing、waiting 或 settling 回到 reconciling，新挂接 active，旧挂接 superseded |
-| input.submit | 主体资格（submit），目标是原 execution，不要求持有挂接 | 操作身份加输入身份 | 与 tryFinish、control、attach 同一排序，先成立者决定结果 | 无。可靠受理不表示输入已被取用。input-taken 只由 I0 固定输入批之后的提交追加 | execution 已终态时返回 terminal |
+| input.submit | 主体资格（submit），目标是原 execution，不要求持有挂接 | 操作身份加输入身份 | 与 tryFinish、control、attach 同一排序，先成立者决定结果 | 无。可靠受理不表示输入已被取用。input-taken 只由 I0 固定输入批的那次提交追加 | execution 已终态时返回 terminal |
 | control | 主体资格（control），目标是原 execution；扩展发起的控制标明真实来源，不伪造人的决定 | 操作身份 | 与 tryFinish 同一排序；控制通道独立于输入队列，不被长 I/O 饿死 | 每个阶段事实一个 control 事件 | 见“取消、退出与结构变更”的四种控制、插队与六个阶段 |
 | output.read、output.events | 主体资格（read 或 events），目标是原 execution；读取资格不等于推进资格 | 只读 | 多个读取方互不影响；慢读取方不阻塞推进 | 无 | 保留期内终态后仍可读 |
 | output.acknowledge | 主体资格（acknowledge），目标是原 execution | 操作身份加 through | 单调，不回退 | 无 | 只清理满足保留政策且责任已交清的事件 |
