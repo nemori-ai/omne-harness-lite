@@ -657,3 +657,150 @@ export function modelFragments(report: PathReport): readonly FragmentObservation
     fragment => fragment.fragmentId !== 'H06-connected',
   )
 }
+
+/** A durable evidence record of this file's fixtures. */
+function fixtureEvidence(record: string) {
+  return { owner: 'm2-contract-skeleton', record, revision: '1', digest: `sha256:${record}` }
+}
+
+/**
+ * Wraps the Session transaction port of a store with `wrap`, which sees the whole assembly (its
+ * evidence bridge included), so that a fixture can commit extra Session commands under the same
+ * guards as the path does.
+ */
+export function wrappedSession(
+  wrap: (assembly: SessionAssembly) => SessionAssembly['transactions'],
+  kind: SessionStoreKind = 'contract-memory',
+): PathDependencies['session'] {
+  const build = sessionAssembly(kind)
+  return input => {
+    const assembly = build(input)
+    return { ...assembly, transactions: wrap(assembly) }
+  }
+}
+
+/**
+ * The Session transaction port of an assembly that closes the unfinished Run of a session before
+ * the next `startRun` opens another, by a bounded close that rejects the first input of the closed
+ * Run. The path has no Session coordinator that finishes a Run (GAP-SESSION-COORDINATOR), so the
+ * later rounds meet `run-active`; this port stands in for the closing so that the later rounds run.
+ */
+export function closingRuns({
+  transactions,
+  evidence,
+}: SessionAssembly): SessionAssembly['transactions'] {
+  let closes = 0
+  return {
+    ...transactions,
+    commit: (async (input: Parameters<typeof transactions.commit>[0]) => {
+      if (input.command.kind === 'startRun') {
+        const work = await transactions.readWork(input.access)
+        if ('ok' in work && work.ok.run.kind === 'active') {
+          closes += 1
+          const command = {
+            kind: 'finishRun' as const,
+            input: {
+              tenant: input.access.tenant,
+              session: input.access.session,
+              operation: `sop_cs-close-${closes}` as never,
+              run: work.ok.run.run,
+              expected: work.ok.revision,
+              bounded: {
+                kind: 'admission-rejected' as const,
+                input: work.ok.run.first,
+                rejection: fixtureEvidence(`close/${closes}`),
+              },
+            },
+          }
+          const guards = await evidence.prepare(command)
+          if ('failure' in guards) throw new Error(JSON.stringify(guards.failure))
+          const closed = await transactions.commit({
+            access: input.access,
+            command,
+            guards: guards.ok,
+          })
+          if ('failure' in closed) throw new Error(JSON.stringify(closed.failure))
+        }
+      }
+      return transactions.commit(input)
+    }) as typeof transactions.commit,
+  }
+}
+
+/** A Session store whose Runs are closed before the next one starts (`closingRuns`). */
+export const sessionClosingRuns = (): PathDependencies['session'] => wrappedSession(closingRuns)
+
+/** Request Context assembly that leaves out the assistant rows, which the memory sources cannot take. */
+export const assembleWithoutAssistantRows: PathDependencies['assemble'] = input =>
+  assembleWithMemorySources({
+    ...input,
+    history: input.history.filter(item => item.message.role !== 'assistant'),
+  })
+
+/**
+ * A Session store that accepts another input into the named session before the path accepts its
+ * own, so that `startRun` fixes the earlier pending input and not the input of the round.
+ */
+export function sessionWithEarlierInput(session: string): PathDependencies['session'] {
+  let injected = false
+  return wrappedSession(({ transactions, evidence }) => ({
+    ...transactions,
+    commit: (async (input: Parameters<typeof transactions.commit>[0]) => {
+      if (
+        input.command.kind === 'accept' &&
+        String(input.access.session) === session &&
+        !injected
+      ) {
+        injected = true
+        const command = {
+          kind: 'accept' as const,
+          input: {
+            tenant: input.access.tenant,
+            session: input.access.session,
+            operation: 'sop_cs-earlier-input' as never,
+            value: {
+              kind: 'ordinary' as const,
+              input: 'input-cs-earlier' as never,
+              message: firstRequest('an earlier request', 5),
+              origin: { ...fixtureEvidence('login-entry/input-cs-earlier'), owner: 'login-entry' },
+            },
+          },
+        }
+        const guards = await evidence.prepare(command)
+        if ('failure' in guards) throw new Error(JSON.stringify(guards.failure))
+        const accepted = await transactions.commit({
+          access: input.access,
+          command,
+          guards: guards.ok,
+        })
+        if ('failure' in accepted) throw new Error(JSON.stringify(accepted.failure))
+      }
+      return transactions.commit(input)
+    }) as typeof transactions.commit,
+  }))
+}
+
+/**
+ * An Agent whose `invoke` answers without running the loop, so the Agent never asks the message
+ * hand-over to admit the external input. Session still holds the hand-over of the input.
+ */
+export function agentWithoutAdmission(
+  original: PathDependencies['agent'],
+  scenario?: AgentScenario,
+): PathDependencies['agent'] {
+  return async input => {
+    const agent = await original(input)
+    if (scenario !== undefined && input.scenario !== scenario) return agent
+    const { provider } = agent
+    return {
+      ...agent,
+      provider: {
+        ...provider,
+        runtime: {
+          ...provider.runtime,
+          invoke: async () => ({ ok: {} }) as unknown as ReturnType<typeof provider.runtime.invoke>,
+        },
+      },
+    }
+  }
+}
