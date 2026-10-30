@@ -48,7 +48,7 @@ flowchart TB
 
 ### 状态归属
 
-本成员不持有任何耐久状态。会话事实、操作记录、治理状态、派生索引与消费游标都由事务端口的提供者在同一次提交里保存（[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport)）。本成员内存里的计时、计数、队列与缓存全部可丢。丢失后，S3 的启动扫描从权威读重建要做的事，重复的命令由操作身份认回（[AP-4](../../SPEC.md#ap-应用层六条规矩)）。
+本成员不持有任何耐久状态。会话事实、操作记录、治理状态、派生索引与解释进度都由事务端口的提供者在同一次提交里保存（[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport)）。本成员内存里的计时、计数、队列与缓存全部可丢。丢失后，S3 的启动扫描从权威读重建要做的事，重复的命令由操作身份认回（[AP-4](../../SPEC.md#ap-应用层六条规矩)）。
 
 ### 与 Agent Loop 的分界
 

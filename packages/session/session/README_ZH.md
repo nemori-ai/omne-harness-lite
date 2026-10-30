@@ -16,7 +16,7 @@ PACKAGE_TEMPLATE_DRAFT
 - 条目缓存与快照缓存。
 - 调度策略对象。
 
-本成员不持有任何耐久状态。会话日志、操作记录、治理状态、派生索引与消费游标都归事务端口的提供者。内存里只有计时、重放计数与缓存，进程重启后丢失，由恢复扫描从权威读重建。
+本成员不持有任何耐久状态。会话日志、操作记录、治理状态、派生索引与解释进度都归事务端口的提供者。内存里只有计时、重放计数与缓存，进程重启后丢失，由恢复扫描从权威读重建。
 
 允许与拒绝只来自 session-contract 的纯函数。四个面、端口与事件归 [session-contract](../session-contract/README.md)，服务定义归 [session-cordis-contract](../session-cordis-contract/README_ZH.md)，Cordis 绑定归 [session-cordis](../session-cordis/README_ZH.md)，邻域适配归 [session-adapters](../session-adapters/README_ZH.md)，SQL 存储归 [session-storage-sql](../session-storage-sql/README_ZH.md)。
 
