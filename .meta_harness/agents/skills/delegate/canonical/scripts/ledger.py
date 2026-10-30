@@ -32,6 +32,7 @@ FOUND = ("review", "after-merge")
 MODES = ("takeover", "redo")
 OUTCOMES = ("merged", "discarded", "stopped", "pending")
 SMALL_SAMPLE = 5
+UTC_SUFFIXES = ("Z", "+00:00")
 MAX_LESSONS = 3
 
 ROW_KEYS = ("category", "policy_scope", "cells")
@@ -162,10 +163,10 @@ def flow_errors(row, policy: dict, where: str) -> list[str]:
 
     ts = row["ts"]
     try:
-        if not isinstance(ts, str) or datetime.fromisoformat(ts).tzinfo is None:
+        if not isinstance(ts, str) or not ts.endswith(UTC_SUFFIXES) or datetime.fromisoformat(ts).tzinfo is None:
             raise ValueError
     except ValueError:
-        bad("ts", "必须是带时区的 ISO 时间（UTC 用 Z）")
+        bad("ts", "必须是 UTC 的 ISO 时间，以 Z 或 +00:00 结尾")
     for f in ("task", "closure", "model", "effort", "host", "policy_version"):
         if not is_str(row[f]):
             bad(f, "必须是非空字符串")
@@ -376,6 +377,28 @@ def cell_errors(cell, where: str) -> list[str]:
         errors.append(f"{where}: batches 必须是非空字符串数组")
     elif len(set(batches)) != len(batches):
         errors.append(f"{where}: batches 有重复项")
+    if not errors:
+        errors += consistency_errors(cell, where)
+    return errors
+
+
+def consistency_errors(cell: dict, where: str) -> list[str]:
+    """Counts that cannot all be true at once. Runs on a cell whose fields already have the right types."""
+    errors = []
+    if cell["first_pass"] > cell["first_no_writer_block"]:
+        errors.append(f"{where}: first_pass 不能大于 first_no_writer_block（通过的首轮没有任何阻断，也就没有写者阻断）")
+    if cell["evidence"] != evidence_for(cell["dispatched"]):
+        errors.append(f"{where}: evidence 应为 {evidence_for(cell['dispatched'])!r}（dispatched 为 {cell['dispatched']}）")
+    items = cell["escalations"]
+    for i, item in enumerate(items):
+        if item["success"] > item["n"]:
+            errors.append(f"{where}: escalations[{i}]: success 不能大于 n")
+        if item["n"] > cell["escalated"]:
+            errors.append(f"{where}: escalations[{i}]: n 不能大于 escalated（每个闭包对一个目标至多计一次）")
+    if cell["escalated"] == 0 and items:
+        errors.append(f"{where}: escalated 为 0 时 escalations 必须为空")
+    if cell["escalated"] > sum(item["n"] for item in items):
+        errors.append(f"{where}: escalated 不能大于各 escalations 项 n 之和（每个升级过的闭包至少计入一项）")
     return errors
 
 
@@ -519,15 +542,18 @@ def add_closure(cell: dict, rows: list[Flow]) -> None:
     cell["writer_defects"]["nonblocking"] += sum(d["owner"] == "writer" and not d["blocking"] for d in seen.values())
 
     # Rounds from the first escalated one onward belong to that escalation, not to the starting cell.
-    target = None
+    # A closure counts once per (target, mode), however often it comes back to that target (A -> B -> A).
+    target, counted = None, set()
     for r in rows:
         esc = r.d["escalation"]
         if esc:
             to = f"{esc['to_model']}@{esc['to_effort']}"
             if target is None or (target["to"], target["mode"]) != (to, esc["mode"]):
                 target = escalation_item(cell, to, esc["mode"])
-                target["n"] += 1
-                target["success"] += int(merged)
+                if (to, esc["mode"]) not in counted:
+                    counted.add((to, esc["mode"]))
+                    target["n"] += 1
+                    target["success"] += int(merged)
         holder = target if target is not None else cell
         if r.d["minutes"] is not None:
             holder["minutes_sum"] = round_sum(holder["minutes_sum"] + r.d["minutes"])
