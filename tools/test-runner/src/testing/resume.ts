@@ -14,9 +14,7 @@ import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts'
 import { latestCleanFullRun } from './admission-run.ts'
 import type { CheckStep } from './check-graph.ts'
-import { patternToRegExp, sample, type CheckPlan } from './scope.ts'
-
-export const LOCKFILE_PATH = 'pnpm-lock.yaml'
+import { LOCKFILE_PATH, patternToRegExp, sample, type CheckPlan } from './scope.ts'
 
 /** lockfile 判定（切片 11 的模块）的结论；只在 `pnpm-lock.yaml` 是唯一命中的全局文件时才问它。 */
 export type LockfileVerdict =

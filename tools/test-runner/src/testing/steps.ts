@@ -7,8 +7,14 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { availableParallelism } from 'node:os'
 import { dirname, join, relative, resolve } from 'node:path'
 import { budgetFor, describeBudget, type Budget } from './parallelism.ts'
-import { changedFiles, coordinates, type Coordinates } from '@omne-harness/repo-toolchain/core/git'
-import { describeCheckPlan, planCheck, type CheckPlan } from './scope.ts'
+import {
+  changedFiles,
+  coordinates,
+  fileAt,
+  type Coordinates,
+} from '@omne-harness/repo-toolchain/core/git'
+import { lockfileImpact, type LockfileImpact } from './lockfile-impact.ts'
+import { describeCheckPlan, LOCKFILE_PATH, planCheck, type CheckPlan } from './scope.ts'
 import {
   admissionRequested,
   affectedMembers,
@@ -69,19 +75,51 @@ export interface PlanFile {
   readonly plan: CheckPlan
 }
 
+/**
+ * 基线提交与 HEAD（`head` 为 undefined 时取工作树）两份 `pnpm-lock.yaml` 的影响面（lockfile-impact.ts）。
+ * 哪一边没有锁文件就判全量并写明：没有可比的两份，不猜。
+ */
+export function lockfileImpactBetween(
+  root: string,
+  base: string,
+  head: string | undefined,
+  members: readonly { readonly path: string }[],
+): LockfileImpact {
+  const baseText = fileAt(root, base, LOCKFILE_PATH)
+  if (baseText === undefined)
+    return { kind: 'full', reason: `基线 ${base.slice(0, 9)} 上没有 ${LOCKFILE_PATH}，判为全量` }
+  const headText = head === undefined ? worktreeLockfile(root) : fileAt(root, head, LOCKFILE_PATH)
+  if (headText === undefined)
+    return {
+      kind: 'full',
+      reason: `${head === undefined ? '工作树' : `HEAD ${head.slice(0, 9)}`} 里没有 ${LOCKFILE_PATH}，判为全量`,
+    }
+  return lockfileImpact(baseText, headText, members)
+}
+
+function worktreeLockfile(root: string): string | undefined {
+  try {
+    return readFileSync(join(root, LOCKFILE_PATH), 'utf8')
+  } catch {
+    return undefined
+  }
+}
+
 /** 算这个检出相对基线的计划。基线不存在、取不到改动都抛错（引擎出错不改判全量）。 */
 export function computePlan(root: string, baseRef: string, full: boolean): PlanFile {
   const config = readTestRunsConfig()
   const at = coordinates(root, baseRef)
   if (at.base === undefined) throw new Error(`算不出基线 ${baseRef} 的合并点`)
+  const mergeBase = at.base.mergeBase
   const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
   const plan = planCheck(
-    changedFiles(root, at.base.mergeBase),
+    changedFiles(root, mergeBase),
     members,
     config.affected,
-    affectedMembers(root, members, at.base.mergeBase),
+    affectedMembers(root, members, mergeBase),
     full,
     paths => dependentMembers(root, members, paths),
+    () => lockfileImpactBetween(root, mergeBase, undefined, members),
   )
   return { head: at.head, dirty: at.dirty, base: at.base, plan }
 }
