@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { agentEvaluator } from '@omne-harness/agent'
 import { decodeResultVersion, type ModelInvocationRef } from '@omne-harness/model-contract'
-import type { AgentEvaluator, AgentJournal, JournalCommit } from '@omne-harness/agent-contract'
+import type {
+  AgentEvaluator,
+  AgentJournal,
+  Failure,
+  JournalCommit,
+} from '@omne-harness/agent-contract'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options, registrationHandle } from './factory-support.ts'
 import {
@@ -764,6 +769,44 @@ describe('#516 terminal exit', () => {
     expect((await load(assembly)).state.kind).toBe('ended')
     expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
   })
+  it.each([
+    { kind: 'invalid', field: 'watermark', reason: 'injected' },
+    { kind: 'denied', action: 'read the inputs' },
+  ] as const satisfies readonly Failure[])(
+    'F3 blocked, then a read of R0 fails with %j: the run stops at R0 without a wait and writes no waiting',
+    async cause => {
+      let blocked = false
+      const commits: JournalCommit<Principal>[] = []
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          commit(input) {
+            commits.push(input)
+            return d.journal.commit(input)
+          },
+          tryFinish() {
+            blocked = true
+            return Promise.resolve(
+              succeed({ kind: 'blocked', reason: 'inputs', source: evidence('blocked-finish') }),
+            )
+          },
+          inputs(input) {
+            return blocked ? Promise.resolve(fail(cause)) : d.journal.inputs(input)
+          },
+        },
+      }))
+      const c = coordinator(assembly)
+      ok(await c.accept())
+      assembly.release.open()
+      // Only an unavailable read is a wait; any other failure is a stop of the run at its node.
+      expect(failure(await c.runExecution())).toMatchObject({ node: 'R0', failure: cause })
+      expect((await load(assembly)).state.kind).toBe('settling')
+      expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual(
+        [],
+      )
+    },
+  )
   it.each(['candidate-clock', 'F1-commit'] as const)(
     'B1: a no-reply candidate invalidated at %s consumes new input in the same drive',
     async cut => {
