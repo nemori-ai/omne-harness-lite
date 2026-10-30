@@ -24,10 +24,11 @@ Three unpublished tool members import this package through its subpaths. This pa
   - the ignored paths. The scan roots do not filter them either: a directory counts only by presence, a single file by content.
   - the ignored-directory decision
   - the contents of `pnpm-lock.yaml` and `node_modules/.modules.yaml`
+  - the content digest of the graph code that runs (`src/deps/graph.ts`), so the pinned release and the source version do not hit each other's entries on the same HEAD. The baseline graph cache key includes it too. Changes in other modules that it imports still need a graph format version bump.
 
   A hit does not start dependency-cruiser and returns the same bytes as a fresh run. A file that cannot be read, is not valid JSON or does not match is a miss. Only the 10 most recently used entries are kept.
   - `OMNE_DEP_GRAPH_CACHE=0` turns the cache off.
-  - With `OMNE_ADMISSION=1` the command does not read the cache. It computes the graph as usual and writes it.
+  - With `OMNE_ADMISSION=1` the command does not read the cache. It computes the graph as usual and writes it. An unset or empty value means not admission. Any other value is an error, as in the test runner.
   - After the graph is computed, the command checks the fingerprint again. If an input changed during the run, it does not write the cache. When stderr is a terminal, it prints one line.
   - The graph is reported on stderr as hit or miss only when stderr is a terminal.
   - When the cache is written, the command also records a check list: the imports of modules that are not in an ignored directory and that resolve to a file in an ignored directory (not `node_modules`, which the lock file and `.modules.yaml` cover). The list records the content digest of each file. Before a hit, the command checks each file again. If a file is deleted or its content changed, the command treats the lookup as a miss and computes the graph again.

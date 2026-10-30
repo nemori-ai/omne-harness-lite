@@ -42,7 +42,6 @@ import { triage, triageSummary } from './triage.ts'
 import { budgetFor, describeBudget } from './parallelism.ts'
 import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
-import { TEST_CACHE_ENV } from './test-cache.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -318,11 +317,11 @@ async function main(): Promise<void> {
   else if (command === 'coverage-parallel') process.exitCode = await coverageParallel(rest)
   else if (command === 'check') {
     const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list', '--no-cache'])
-    if (flags.switches.has('--no-cache')) process.env[TEST_CACHE_ENV] = '0'
     process.exitCode = await runCheck(ROOT, {
       admission: flags.switches.has('--admission'),
       keepGoing: flags.switches.has('--keep-going'),
       list: flags.switches.has('--list'),
+      noCache: flags.switches.has('--no-cache'),
     })
   } else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }
