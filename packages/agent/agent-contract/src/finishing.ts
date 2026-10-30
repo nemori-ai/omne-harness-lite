@@ -1,9 +1,9 @@
 // Finishing types of the Agent contract (SPEC "条件终结", "取消判断与路线", "终结责任清单" and
 // "commitSettlement 的变体"): the candidate content a commit fixes, the candidate and route records
 // the Journal keeps, the issued obligations, the settlement projection of the snapshot, the trusted
-// cancellation judgment with its installation, and the six settlement variants. Types only; no
-// function runs here. `FinishIntent`, the projection of the current candidate, lives in
-// execution.ts next to the execution state that carries it.
+// cancellation judgment with its installation, and the six settlement variants. Types, and the one
+// pure rule that derives an obligation's category from its kind. `FinishIntent`, the projection of
+// the current candidate, lives in execution.ts next to the execution state that carries it.
 import type * as T from '@omne-harness/tool-contract'
 import type {
   AcceptedInput,
@@ -37,7 +37,7 @@ import type {
   InputId,
   PassageId,
 } from './identity.ts'
-import type { ExecutionHandoff } from './journal.ts'
+import type { ExecutionHandoff, HandoffCustody } from './journal.ts'
 import type {
   CardRound,
   HandoffLookup,
@@ -266,6 +266,7 @@ export type RecoveryContinuation =
         original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
         provider: Adoption
         material: HandoffRecordMaterial
+        custody: HandoffCustody | null
       }>,
       'record-message-handoff'
     >
@@ -395,6 +396,30 @@ export type FinishObligation =
       }>)
   | (ObligationHead<'terminal-observation'> &
       Readonly<{ observation: TerminalObservation; terminal: DurableEvidence | null }>)
+/**
+ * The category of one obligation kind, as the SPEC "终结责任清单" table fixes it. The category is
+ * not a member of the public head; a Journal and a policy derive it from the kind.
+ */
+export function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory {
+  switch (kind) {
+    case 'accepted-input':
+      return 'inputs'
+    case 'control':
+      return 'controls'
+    case 'operation':
+    case 'handoff':
+    case 'call':
+      return 'operations'
+    case 'passage':
+    case 'card-round':
+      return 'passages'
+    case 'result':
+    case 'material':
+    case 'output':
+    case 'terminal-observation':
+      return 'custody'
+  }
+}
 /** One facet of the responsibility coverage: its owner, fixed version and complete read evidence. */
 export type CoverageFacet = Readonly<{
   owner: string

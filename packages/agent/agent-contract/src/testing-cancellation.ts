@@ -11,10 +11,10 @@ import type {
   CancellationPolicy,
   CancellationPolicyInstallation,
   CancellationUnknown,
-  FinishObligation,
   ObligationCategory,
   ToolIntentKey,
 } from './finishing.ts'
+import { obligationCategoryOf } from './finishing.ts'
 import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts'
 import type {
   Adoption,
@@ -58,31 +58,6 @@ const ORDER: readonly ObligationCategory[] = [
   'passages',
   'custody',
 ]
-
-/**
- * The category of one obligation kind, as the SPEC "终结责任清单" table fixes it. The category is
- * not a member of the public head; a double and a policy derive it from the kind.
- */
-export function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory {
-  switch (kind) {
-    case 'accepted-input':
-      return 'inputs'
-    case 'control':
-      return 'controls'
-    case 'operation':
-    case 'handoff':
-    case 'call':
-      return 'operations'
-    case 'passage':
-    case 'card-round':
-      return 'passages'
-    case 'result':
-    case 'material':
-    case 'output':
-    case 'terminal-observation':
-      return 'custody'
-  }
-}
 
 /**
  * The test policy: a pure judgment over the input the Journal built, in the order of SPEC

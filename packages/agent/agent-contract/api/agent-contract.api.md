@@ -278,6 +278,7 @@
 - `judgeHandoffPrepare` · `judge-handoff.d.ts`
 - `judgeInputOrigin` · `judge-handoff.d.ts`
 - `judgeLoopExtensions` · `judge-extensions.d.ts`
+- `obligationCategoryOf` · `finishing.d.ts`
 
 ## 入口 `./testing` · `testing.d.ts`
 
@@ -306,7 +307,6 @@
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
-- `obligationCategoryOf` · `testing-cancellation.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
@@ -1470,7 +1470,7 @@ import type { AcceptedInput, AgentAccessOperation, ControlRecord, ExecutionMutat
 import type { AgentCheckpoint, AgentConclusion, FailureCandidate, PendingCall } from './evaluation.ts';
 import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts';
 import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, DurableEvidence, ExecutionRevision, InputBatchId, InputId, PassageId } from './identity.ts';
-import type { ExecutionHandoff } from './journal.ts';
+import type { ExecutionHandoff, HandoffCustody } from './journal.ts';
 import type { CardRound, HandoffLookup, HandoffReference, HandoffResolution, Passage, PendingHandoff } from './passages.ts';
 import type { ProducedResult } from './evaluation.ts';
 export type FinishCandidateContent = Readonly<{
@@ -1615,6 +1615,7 @@ export type RecoveryContinuation = ContinuationHead<'original-operation-query', 
     }>;
     provider: Adoption;
     material: HandoffRecordMaterial;
+    custody: HandoffCustody | null;
 }>, 'record-message-handoff'> | ContinuationHead<'handoff-source-recovery', Readonly<{
     handoff: Extract<HandoffReference, {
         kind: 'execution';
@@ -1716,6 +1717,7 @@ export type FinishObligation = (ObligationHead<'accepted-input'> & Readonly<{
     observation: TerminalObservation;
     terminal: DurableEvidence | null;
 }>);
+export declare function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory;
 export type CoverageFacet = Readonly<{
     owner: string;
     version: DurableEvidence;
@@ -2112,6 +2114,7 @@ export declare function judgeAuthority(value: unknown): Outcome<Authority, Struc
 
 ```ts
 export { agentBodyContract } from './body-contract.ts';
+export { obligationCategoryOf } from './finishing.ts';
 export { ATTRIBUTE_ITEMS } from './definition.ts';
 export { POSITIONS, POWERS } from './extensions.ts';
 export { judgeAgentDefinition } from './judge-definition.ts';
@@ -3313,14 +3316,13 @@ export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, ot
 
 ```ts
 import type * as T from '@omne-harness/tool-contract';
-import type { CancellationPolicy, CancellationPolicyInstallation, CancellationUnknown, FinishObligation, ObligationCategory, ToolIntentKey } from './finishing.ts';
+import type { CancellationPolicy, CancellationPolicyInstallation, CancellationUnknown, ToolIntentKey } from './finishing.ts';
 import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts';
 import type { Adoption, AgentOperationId, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
 export declare const TEST_CANCELLATION_POLICY: Adoption;
 export declare const TEST_CANCELLATION_INPUT_SCHEMA: Adoption;
 export declare const TEST_CANCELLATION_IMPLEMENTATION: Adoption;
 export declare const testCancellationPolicyInstallation: CancellationPolicyInstallation;
-export declare function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory;
 export declare function createTestCancellationPolicy(): CancellationPolicy;
 export type TestHostRecord = Readonly<{
     kind: 'legacy-return';
@@ -3855,7 +3857,7 @@ export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type SettlementQualification, } from './testing-journal-core.ts';
-export { createTestCancellationPolicy, obligationCategoryOf, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
+export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
 ```
