@@ -30,7 +30,8 @@ Three unpublished tool members import this package through its subpaths. This pa
   - With `OMNE_ADMISSION=1` the command does not read the cache. It computes the graph as usual and writes it.
   - After the graph is computed, the command checks the fingerprint again. If an input changed during the run, it does not write the cache. When stderr is a terminal, it prints one line.
   - The graph is reported on stderr as hit or miss only when stderr is a terminal.
-  - A hit does not show a file that was added or deleted inside an ignored directory, because such a directory counts only by presence. The graph is then the old graph.
+  - When the cache is written, the command also records a check list: the imports of modules that are not in an ignored directory and that resolve to a file in an ignored directory (not `node_modules`, which the lock file and `.modules.yaml` cover). Before a hit, the command checks that each of these files is still a file. If one is missing, the command treats the lookup as a miss and computes the graph again.
+  - A hit does not show a file that was added or deleted inside an ignored directory, because such a directory counts only by presence. The graph is then the old graph. The check list covers only deletion: if an import could not be resolved before and a file for it appears later in an ignored directory, the cache can still report the old failure. It does not let the import pass.
 
 ## Default baseline
 
