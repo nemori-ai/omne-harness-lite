@@ -604,9 +604,11 @@ function writeRevision(
 /**
  * The card body with the binding written into「分支、基线与task context」: one dispatch line
  * derived from the binding and the binding block replace the whole subsection. Inside
- *「认领与派发」the「派发情况」line, and with `worktree` the「工作树」line, are rewritten when
- * present; lines elsewhere are kept. Refuses a placeholder dispatch URL, a body without exactly
- * one such subsection, and a result whose unique binding does not read back equal to `binding`.
+ *「认领与派发」the「派发情况」line is rewritten when present. With `worktree` the「工作树」line
+ * there is rewritten, or added after the last line of the subsection that is not blank when the
+ * subsection has none. Lines elsewhere are kept. Refuses a placeholder dispatch URL, a body
+ * without exactly one「分支、基线与task context」, a `worktree` with no unique「认领与派发」,
+ * and a result whose unique binding does not read back equal to `binding`.
  */
 export function bindBody(body: string, binding: TaskBindingV2, worktree?: string): string {
   if (binding.dispatch === DISPATCH_PLACEHOLDER)
@@ -631,12 +633,31 @@ export function bindBody(body: string, binding: TaskBindingV2, worktree?: string
   ]
   const written = [...lines.slice(0, start), ...block, ...lines.slice(end)]
   const claim = subsection(written, CLAIM_HEADING)
+  if (worktree !== undefined && claim === undefined)
+    throw new IntegrationError(
+      'input-error',
+      `The body needs exactly one ${CLAIM_HEADING} to record the worktree`,
+    )
+  const inClaim = (index: number) => claim !== undefined && index > claim[0] && index < claim[1]
+  const WORKTREE = /^- 工作树[：:]/
+  const worktreeLine = `- 工作树：\`${worktree}\`。`
   const rewritten = written.map((line, index) => {
-    if (claim === undefined || index <= claim[0] || index >= claim[1]) return line
+    if (!inClaim(index)) return line
     if (/^- 派发情况[：:]/.test(line)) return `- 派发情况：已派发，见 ${binding.dispatch}。`
-    if (worktree !== undefined && /^- 工作树[：:]/.test(line)) return `- 工作树：\`${worktree}\`。`
+    if (worktree !== undefined && WORKTREE.test(line)) return worktreeLine
     return line
   })
+  if (
+    worktree !== undefined &&
+    claim !== undefined &&
+    !written.some((line, index) => inClaim(index) && WORKTREE.test(line))
+  ) {
+    // No「工作树」line yet: add one after the last line of the subsection that is not blank.
+    let last = claim[0]
+    for (let index = claim[0] + 1; index < claim[1]; index++)
+      if ((rewritten[index] ?? '').trim() !== '') last = index
+    rewritten.splice(last + 1, 0, worktreeLine)
+  }
   const result = rewritten.join('\n')
   const read = readTaskBinding(result, binding.issue)
   if (read === undefined || canonical(read) !== canonical(binding))

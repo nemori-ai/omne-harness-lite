@@ -16,6 +16,7 @@ import {
   planDispatch,
   postDispatch,
   recordPosted,
+  reviseCardBody,
   taskBaseInputs,
   type DispatchSpec,
 } from '../src/delivery/dispatch.ts'
@@ -419,6 +420,33 @@ describe('posting and binding', () => {
     expect(readTaskBinding(again, binding.issue)?.attempt).toBe('7-r2-a2')
   })
 
+  it('adds a「工作树」line at the end of「认领与派发」when the subsection has none', () => {
+    const body = bindBody(cardBody().replace('- 工作树：未创建。\n', ''), binding, 'w')
+    expect(body).toContain(
+      `### 认领与派发\n- 派发情况：已派发，见 ${binding.dispatch}。\n- 工作树：\`w\`。\n### 分支、基线与task context`,
+    )
+    // Without --worktree nothing is added.
+    expect(bindBody(cardBody().replace('- 工作树：未创建。\n', ''), binding)).not.toContain(
+      '- 工作树',
+    )
+  })
+
+  it.each([
+    ['no「认领与派发」', (body: string) => body.replace('### 认领与派发\n', '')],
+    [
+      'two「认领与派发」',
+      (body: string) =>
+        body.replace('### 当前进展', '### 认领与派发\n- 工作树：别处。\n### 当前进展'),
+    ],
+  ])('refuses a worktree when the card has %s, before any write', (_name, edit) => {
+    expect(() => bindBody(edit(cardBody()), binding, 'w')).toThrow('exactly one ### 认领与派发')
+    const gh = github(edit(cardBody()))
+    expect(() =>
+      bindCard({ repository: 'owner/repo', binding, worktree: 'w', dryRun: false, call: gh.call }),
+    ).toThrow('exactly one ### 认领与派发')
+    expect(gh.calls.map(c => c[2])).toEqual(['GET'])
+  })
+
   it('rewrites the dispatch and worktree lines only inside「认领与派发」', () => {
     const body = bindBody(cardBody(START_ROW, '- 派发情况：另一处的说明。'), binding, 'w')
     expect(body).toContain('- 派发情况：另一处的说明。')
@@ -534,6 +562,24 @@ describe('opening a new revision on a bound card', () => {
     ],
   ])('refuses %s before any write', (_name, patch, message) => {
     expect(() => plan(patch)).toThrow(message)
+  })
+
+  it.each([
+    ['a revision below the card', BOUND.body, 1, 'below the card'],
+    [
+      'a binding block that is not closed',
+      BOUND.body.replace('}\n```\n', '}\n'),
+      3,
+      'binding block in 「分支、基线与task context」 is not closed',
+    ],
+    [
+      'a binding block outside its subsection',
+      cardBody(START_ROW, '```json omne-integration-binding:v2\n{}\n```'),
+      3,
+      'binding block outside',
+    ],
+  ])('reviseCardBody refuses %s', (_name, body, revision, message) => {
+    expect(() => reviseCardBody(body, revision, r3.route, r3.completionTarget)).toThrow(message)
   })
 
   it('writes the revised body before the comment, and bind then reads the new binding back', () => {

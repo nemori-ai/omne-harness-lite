@@ -87,9 +87,9 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 ## 持续验证与限制
 
-`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、占位 URL 不写回、binding 写回与 dry run、为新修订派发时按改后正文核对与先改正文再发评论（含核对后正文变化与读回不符时不写评论），以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。`tests/delivery-identifiers.spec.ts` 覆盖严格 JSON 的重复键、畸形、上限拒绝与文件标签，完整 SHA、SHA-256 摘要与 UUID 校验，以及操作日志的独占写入、按操作分目录与越界名称拒绝。远端响应在这些测试中以有限 fixture 提供。
+`tests/delivery-observe.spec.ts` 覆盖输入绑定、六类工作、新旧两层级布局、实际模板填卡、缺失与重复章节、布局混用、父关系、决定声明、条件反例、隐藏阶段循环、投影对账、差量、属性类别与真实离线CLI。`tests/delivery-attributes.spec.ts` 覆盖属性读取与每个属性发现代码的正反例。`tests/delivery-binding.spec.ts` 覆盖 binding 两个版本的解析与区块读取。`tests/delivery-lines.spec.ts` 覆盖线归属表校验与 `check:lines`。`tests/delivery-labels.spec.ts` 用记录调用的 GitHub 替身覆盖差异、只改四族、正文主工作类型校验、写后正文漂移、读回核对、拒绝与写入失败。`tests/delivery-scope-overlap.spec.ts` 覆盖写范围求交的前缀判断、不计入的路径、默认排除已关闭的卡、重复来源与 binding 读取。`tests/delivery-dispatch.spec.ts` 覆盖派发字段缺项、摘要按现行条件行计算、写平台前的每项拒绝、同一修订与 attempt 不重复派发、占位评论改写与读回、读回失败时先交出派发 URL、只在「认领与派发」内改写、没有「工作树」行时补一行、给出工作树而「认领与派发」不唯一时拒绝且不写入、占位 URL 不写回、binding 写回与 dry run、为新修订派发时按改后正文核对与先改正文再发评论（含核对后正文变化与读回不符时不写评论）、`reviseCardBody` 对修订号变小、binding 区块没有闭合与小节外有 binding 区块的拒绝，以及在真实 Git 检出中读取 taskBase 的输入。`tests/delivery-milestone.spec.ts` 与 `tests/delivery-board.spec.ts` 用记录调用的 GitHub 替身覆盖里程碑与看板写入的请求参数、写前核对、重跑、读回、写入失败，以及看板设置的校验与旧配置的兼容。`tests/integration-board.spec.ts` 在真实 Git 检出中驱动 `start`，覆盖看板写入失败、配置关闭与重复开工时 context 和结果不变。`tests/delivery-github-read.spec.ts` 验证固定只读请求、物理字段映射、采集错误和分页限制。`tests/integration-delivery-facts.spec.ts` 验证提供 Project 事实时不发 GraphQL 请求，以及 Project ID 不符和 item 为空时拒绝。`tests/delivery-identifiers.spec.ts` 覆盖严格 JSON 的重复键、畸形、上限拒绝与文件标签，完整 SHA、SHA-256 摘要与 UUID 校验，以及操作日志的独占写入、按操作分目录与越界名称拒绝。远端响应在这些测试中以有限 fixture 提供。
 
-真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
+真实权限、语义接受、跨仓等待链、Project 全局写入竞态、跨会话恢复及业务迁移是否完整未由本模块证明。派发命令改卡的正文时还剩一个并发窗口：从核对正文后到 PATCH 之间，别人对卡的改动会被覆盖。GitHub 不支持条件更新，工具关不掉这个窗口。正式配置保持`enabled:false`。平台启用、默认分支模板发布与实际宿主执行仍须独立验证，每项普通任务独立维护本次身份、范围和结果。
 
 ## 集成绑定与目标条件
 
@@ -211,11 +211,20 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 `dispatchProse(text)` 拒绝空的或只含空白的派发正文，抛出 `input-error`。`dispatch-cli post` 读入 `--text` 文件后先调用它，`postDispatch` 在第一个请求之前也调用它。所以空白正文使 `post` 退出 2，不调用 GitHub。
 
-计划带 `revise` 时，`postDispatch` 先 GET 卡，正文须与核对时读到的正文（`revise.before`）相同，不同时以 `refused` 拒绝，不写入。然后 PATCH 卡的正文为 `revise.body`，再 GET 读回。读回的正文等于 `revise.body` 才继续。PATCH 或读回失败、读回不等时以 `unknown` 失败，不发评论。之后 `postDispatch` 串行发三个请求：POST 占位评论，PATCH 把它改成 `dispatchComment(prose, decision)`，GET 读回。决定中 binding 的 `dispatch` 是占位评论的 `html_url`。PATCH 失败时错误给出占位评论 URL，不重试、不删除。PATCH 成功后、GET 之前调用 `onPosted`，交出派发 URL 与 binding；GET 失败时错误给出派发评论 URL。`verified` 表示读回的评论正文等于写入的正文。
+计划带 `revise` 时，`postDispatch` 先改卡的正文。它 GET 卡，正文须与核对时读到的正文（`revise.before`）相同，不同时以 `refused` 拒绝，不写入。然后它 PATCH 卡的正文为 `revise.body`，再 GET 读回。读回的正文等于 `revise.body` 才继续。改正文的 PATCH 失败、读回正文的 GET 失败或读回不等时，以 `unknown` 失败，不发评论。
 
-`reviseCardBody(body, revision, route, completionTarget)` 是纯函数，返回为 `revision` 派发时卡的正文。`revision` 等于卡上的交付修订时返回 undefined。大于时改两处：「- 交付修订：」一行改为新号；「### 分支、基线与task context」小节内的 binding 区块（v1 或 v2），连同 `bind` 写在它上面、之间只隔空行的「正式派发：」一行，换成一行派发前说明。说明写新旧修订号、计划集成路线与最终终点。小节内没有 binding 区块时只改第一处。结果的 `from`、`to`、`before`、`body` 与 `edits` 给出新旧修订号、改前正文、改后正文和按正文顺序的每处改动（`part` 为 `revision` 或 `binding`，带 `before` 与 `after`）。下列情况拒绝：正文没有唯一的交付修订行；`revision` 小于卡上的交付修订；小节内的 binding 区块没有闭合；小节外有 binding 区块。函数只比较修订号，不从正文其他内容推断。`dispatch-cli post` 的 `--dry-run` 与正式输出都以 `cardEdits` 给出 `from`、`to` 与 `edits`。
+之后 `postDispatch` 串行发三个评论请求：POST 占位评论，PATCH 把它改成 `dispatchComment(prose, decision)`，GET 读回。决定中 binding 的 `dispatch` 是占位评论的 `html_url`。改评论的 PATCH 失败时，错误给出占位评论 URL，不重试、不删除。改评论的 PATCH 成功后、读回评论的 GET 之前调用 `onPosted`，交出派发 URL 与 binding。读回评论的 GET 失败时，错误给出派发评论 URL。`verified` 表示读回的评论正文等于写入的正文。
 
-`bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
+`reviseCardBody(body, revision, route, completionTarget)` 是纯函数，返回为 `revision` 派发时卡的正文。`revision` 等于卡上的交付修订时返回 undefined。大于时改两处：「- 交付修订：」一行改为新号；「### 分支、基线与task context」小节内的 binding 区块（v1 或 v2），连同 `bind` 写在它上面、之间只隔空行的「正式派发：」一行，换成一行派发前说明。说明写新旧修订号、计划集成路线与最终终点。小节内没有 binding 区块时只改第一处。结果的 `from`、`to`、`before`、`body` 与 `edits` 给出新旧修订号、改前正文、改后正文和按正文顺序的每处改动（`part` 为 `revision` 或 `binding`，带 `before` 与 `after`）。下列情况拒绝：
+
+- 正文没有唯一的交付修订行。
+- `revision` 小于卡上的交付修订。
+- 小节内的 binding 区块没有闭合。
+- 小节外有 binding 区块。
+
+函数只比较修订号，不从正文其他内容推断。`dispatch-cli post` 的 `--dry-run` 与正式输出都以 `cardEdits` 给出 `from`、`to` 与 `edits`。
+
+`bindBody(body, binding, worktree?)` 是纯函数。正文须恰有一个「### 分支、基线与task context」小节，小节到下一个二级或三级标题为止。整节换成一行派发说明与版本2 binding 区块，说明的 revision、attempt、taskBase 取自 binding。只在「### 认领与派发」小节内，「- 派发情况：」行以及给出 `worktree` 时的「- 工作树：」行被改写。给出 `worktree` 而小节内没有「- 工作树：」行时，在小节最后一个非空行之后补一行。给出 `worktree` 而正文没有恰好一个「### 认领与派发」小节时以 `input-error` 拒绝，`dispatch-cli bind` 退出 2。binding 的 `dispatch` 是占位 URL 时拒绝。结果的唯一 binding 须按 `readTaskBinding` 读回与输入相同，否则拒绝。`bindCard` 读卡，核对 binding 的仓库与 Issue 节点，写入新正文后再读一次。结果是判别联合：`applied: false` 是只读不写的 `dryRun`；`applied: true` 带 `verified`，表示读回的 binding 与输入相同。读卡由 [github-read.ts](github-read.ts) 的 `fetchIssueCard` 完成，求交与工作树命令共用它。
 
 ## 事件等待
 
