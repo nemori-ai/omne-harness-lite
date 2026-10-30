@@ -2,10 +2,10 @@
 // 不能拿它给自己划范围。手工维护的清单会漏，所以这里从入口出发，沿相对路径的静态 import 与 export … from 递归求导入闭包
 // （只算 tools/test-runner/src/ 下的 .ts），逐个核对它归不归全局。
 // 入口：src/testing/cli.ts（根 package.json 的 check:plan、test、test:affected 等脚本，以及 scripts/check.sh、metrics.sh、
-// test-tier.sh 调它）、src/testing/check.ts（check 的运行体，cli.ts 也经它导入）、src/mutation/cli.ts（根 package.json 的
-// mutation 脚本）。tools/test-runner/package.json 没有 bin；「入口没有漏」用例核对这一点。
+// test-tier.sh 调它）、src/testing/check.ts（check 的运行体，cli.ts 也经它导入）。变异工具 src/mutation/cli.ts 不参与 check 的计划，
+// 不算入口，见 NOT_PLAN_ENTRIES。tools/test-runner/package.json 没有 bin；「入口没有漏」用例核对根脚本与 scripts/*.sh 的调用。
 // 按路径加载的引擎文件（`new URL('./x.ts', …)`、路径常量）静态导入看不到，手工列在 PATH_LOADED 里，每条写明加载方与理由；
-// 「防漏」用例扫描 src/ 与根 vitest.tiers.mts 里的 .ts 路径记号，指到的文件必须在闭包里或在 PATH_LOADED 里。
+// 「防漏」用例扫描闭包内文件与根 vitest.tiers.mts 里的 .ts 路径记号，指到的文件必须在闭包里或在 PATH_LOADED 里。
 // 解析只用正则：只认行首的 import / export 语句，子句里不含引号与括号，所以字符串与 `//`、`*` 开头的注释里的 import 行不算；
 // `import type` 也算（判断偏保守）。行首就是 import 的块注释或模板字符串行若指向存在的文件，会多收进闭包；
 // 指向不存在的文件则报错，不会悄悄漏掉。不起子进程，不用 TypeScript 编译器 API。
@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from 'node:fs'
@@ -27,11 +28,14 @@ import { classify } from '../src/testing/scope.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const MEMBER = 'tools/test-runner'
-const ENTRIES = [
-  `${MEMBER}/src/testing/cli.ts`,
-  `${MEMBER}/src/testing/check.ts`,
-  `${MEMBER}/src/mutation/cli.ts`,
-]
+/** 算 check 计划的引擎入口。 */
+const ENTRIES = [`${MEMBER}/src/testing/cli.ts`, `${MEMBER}/src/testing/check.ts`]
+/**
+ * 根脚本直接调用、但不算入口的引擎源码，每条写明理由。变异工具（src/mutation/）只由根 package.json 的 `mutation` 脚本调用：
+ * 它不参与 check 的计划，不会用改过的文件给 check 划范围，所以不进 ENTRIES、不进闭包，也不要求进 globalPaths。
+ * 它用到的计划函数 computePlan 在 steps.ts，那里的改动已经经 testing 闭包判全量。
+ */
+const NOT_PLAN_ENTRIES = [`${MEMBER}/src/mutation/cli.ts`]
 const RULES = readTestRunsConfig().affected
 
 /** 按路径加载的引擎文件：静态导入闭包看不到它们。`loader` 写实际取路径的那一处，`why` 写它改了会影响什么。 */
@@ -44,28 +48,12 @@ const PATH_LOADED: readonly PathLoaded[] = [
   {
     path: `${MEMBER}/src/testing/filter-guard.ts`,
     loader: '根 vitest.tiers.mts 的 FILTER_GUARD：带过滤运行时挂成每个成员 vitest 的报告器',
-    why: '过滤后一条用例都没跑就判失败；它改了，所有成员的测试结果都会变，计划却不判全量',
+    why: '过滤后一条用例都没跑就判失败；它挂在每个成员的 vitest 上，改了所有成员的测试通过与否都会变。它不参与算计划，但改了它，所有成员的测试通过与否都会变，所以留在全局清单里',
   },
   {
     path: `${MEMBER}/src/testing/timing-reporter.ts`,
     loader: '根 vitest.tiers.mts 的 TIMING_REPORTER：运行器设了报告目录时挂成计时报告器',
-    why: '写每个成员的计时报告（文件导入耗时、用例时限与标签），账本与慢文件判断读它',
-  },
-  {
-    path: `${MEMBER}/src/mutation/guarded-vitest.ts`,
-    loader: 'src/mutation/stryker.ts 的 GUARDED_VITEST：作为 Stryker 的 vitest 插件路径（plugins）',
-    why: '每个变异体的 vitest 运行都经它；它改了，变异读数会变',
-  },
-  {
-    path: `${MEMBER}/src/mutation/sandbox-build.ts`,
-    loader: 'src/mutation/stryker.ts 的 SANDBOX_BUILD：作为 Stryker 的 buildCommand 在沙箱里执行',
-    why: '沙箱里的 vitest 配置与快层预检由它写出和运行；它改了，变异体的运行环境会变',
-  },
-  {
-    path: `${MEMBER}/src/mutation/collection-reporter.ts`,
-    loader:
-      'src/mutation/sandbox-build.ts 写出的沙箱 vitest 配置：`new URL` 取路径后按绝对路径 import',
-    why: '文件或 suite 收集出错时在运行结束抛错，预检据此判定测试文件加载失败；它改了，预检的判定会变',
+    why: '写每个成员的计时报告（文件导入耗时、用例时限与标签），账本与慢文件判断读它；run.ts 也类型导入它，本身已在闭包里',
   },
 ]
 
@@ -146,23 +134,47 @@ function sourceFiles(root: string): string[] {
     .sort()
 }
 
+/** 路径的目录部分（仓库相对，/ 分隔）。 */
+const dirOf = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf('/')))
+/** 路径的最后一段。 */
+const nameOf = (path: string) => path.slice(path.lastIndexOf('/') + 1)
+
 /**
- * 扫描文件里的 .ts 路径记号，返回可能指到的 src 文件（相对根，已排序）。
- * 只比文件名：记号的最后一段与 src 下某个文件同名就算引用，同名的都算（偏保守，多报不漏报）。
+ * 一个 .ts 记号指到的 src 文件（相对根）。能精确定的尽量精确，定不了的才放宽：
+ * - `./x.ts`、`../x.ts`：按引用它的文件所在目录解析，只指一个文件；
+ * - 带路径的（`tools/test-runner/src/…/x.ts`、`src/…/x.ts`）：按路径后缀匹配；
+ * - 裸文件名：先找引用方同目录的同名文件，找不到才找所有同名的（偏保守）。
+ */
+function targetsOf(
+  root: string,
+  from: string,
+  token: string,
+  sources: readonly string[],
+): string[] {
+  if (token.startsWith('./') || token.startsWith('../')) {
+    const target = rel(root, resolve(root, dirOf(from), token))
+    return sources.includes(target) ? [target] : []
+  }
+  if (token.includes('/'))
+    return sources.filter(
+      file => file === token || file.endsWith(`/${token}`) || file === `${MEMBER}/${token}`,
+    )
+  const sameDirectory = sources.filter(
+    file => nameOf(file) === token && dirOf(file) === dirOf(from),
+  )
+  return sameDirectory.length > 0 ? sameDirectory : sources.filter(file => nameOf(file) === token)
+}
+
+/**
+ * 扫描文件里的 .ts 路径记号，返回它们可能指到的 src 文件（相对根，已排序）。
  * 拼接出来的路径（`dir + '/' + name`）与按目录读取后再加载认不出来，这是已知的盲区。
  */
 function pathReferences(root: string, scanned: readonly string[]): string[] {
-  const byName = new Map<string, string[]>()
-  for (const file of sourceFiles(root)) {
-    const name = file.split('/').pop() ?? file
-    byName.set(name, [...(byName.get(name) ?? []), file])
-  }
+  const sources = sourceFiles(root)
   const found = new Set<string>()
-  for (const file of scanned)
-    for (const match of readFileSync(join(root, file), 'utf8').matchAll(PATH_TOKEN)) {
-      const name = match[0].split('/').pop() ?? match[0]
-      for (const target of byName.get(name) ?? []) found.add(target)
-    }
+  for (const from of scanned)
+    for (const match of readFileSync(join(root, from), 'utf8').matchAll(PATH_TOKEN))
+      for (const target of targetsOf(root, from, match[0], sources)) found.add(target)
   return [...found].sort()
 }
 
@@ -180,8 +192,10 @@ describe('影响面引擎的导入闭包', () => {
     ).toEqual([])
   })
 
-  it('入口没有漏：根 package.json 与 scripts/*.sh 经 node 调用的引擎源码、以及 test-runner 的 bin 都在入口里', () => {
-    const missing = invokedEngineFiles(ROOT).filter(file => !ENTRIES.includes(file))
+  it('入口没有漏：根 package.json 与 scripts/*.sh 经 node 调用的引擎源码、以及 test-runner 的 bin，要么是入口，要么在 NOT_PLAN_ENTRIES 里写明过', () => {
+    const missing = invokedEngineFiles(ROOT).filter(
+      file => !ENTRIES.includes(file) && !NOT_PLAN_ENTRIES.includes(file),
+    )
     expect(
       missing,
       [
@@ -191,17 +205,17 @@ describe('影响面引擎的导入闭包', () => {
     ).toEqual([])
   })
 
-  it('防漏：src/ 与根 vitest.tiers.mts 里指向引擎文件的 .ts 路径记号，指到的文件都在闭包里或在 PATH_LOADED 里', () => {
-    const closure = new Set(engineClosure(ROOT, ENTRIES))
+  it('防漏：导入闭包内文件与根 vitest.tiers.mts 里指向引擎文件的 .ts 路径记号，指到的文件都在闭包里或在 PATH_LOADED 里', () => {
+    const closure = engineClosure(ROOT, ENTRIES)
+    const inClosure = new Set(closure)
     const listed = new Set(PATH_LOADED.map(entry => entry.path))
-    const scanned = [...sourceFiles(ROOT), 'vitest.tiers.mts']
-    const missing = pathReferences(ROOT, scanned).filter(
-      file => !closure.has(file) && !listed.has(file),
+    const missing = pathReferences(ROOT, [...closure, 'vitest.tiers.mts']).filter(
+      file => !inClosure.has(file) && !listed.has(file),
     )
     expect(
       missing,
       [
-        '以下引擎文件被 src/ 或根 vitest.tiers.mts 按路径指到，却既不在导入闭包里，也不在 PATH_LOADED 里。',
+        '以下引擎文件被导入闭包内文件或根 vitest.tiers.mts 按路径指到，却既不在导入闭包里，也不在 PATH_LOADED 里。',
         '请在 PATH_LOADED 里写明加载方与理由，并把它加进 affected.globalPaths：',
         ...missing.map(file => `  ${file}`),
       ].join('\n'),
@@ -209,7 +223,9 @@ describe('影响面引擎的导入闭包', () => {
   })
 
   it('PATH_LOADED 每条都存在、归全局，并且真有 .ts 路径记号指向它（清单不过时）', () => {
-    const referenced = new Set(pathReferences(ROOT, [...sourceFiles(ROOT), 'vitest.tiers.mts']))
+    const referenced = new Set(
+      pathReferences(ROOT, [...engineClosure(ROOT, ENTRIES), 'vitest.tiers.mts']),
+    )
     const paths = PATH_LOADED.map(entry => entry.path)
     expect(
       paths.filter(path => !existsSync(join(ROOT, path))),
@@ -226,7 +242,7 @@ describe('影响面引擎的导入闭包', () => {
   })
 
   it('解析只认行首的导入语句：import type、多行子句、export … from 与副作用导入都进闭包；字符串与注释里的 import 行不进', () => {
-    const root = mkdtempSync(join(tmpdir(), 'engine-closure-'))
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'engine-closure-')))
     try {
       write(
         root,

@@ -83,8 +83,8 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
 以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh` 与入口脚本 `check-design.sh`、`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、本配置文件、
-   测试运行器与影响面引擎自身的源码（`src/` 下从入口 `src/testing/cli.ts`、`src/testing/check.ts` 与 `src/mutation/cli.ts` 沿静态导入能到的 `.ts` 文件，加上按路径加载的几份，列在 `tests/engine-closure.spec.ts` 的 `PATH_LOADED` 里；清单由该文件守住，新增引擎模块时测试会提示加进 `globalPaths`），以及任何位置的 `turbo.json`）：整份计划判全量——
-   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围。
+   测试运行器与影响面引擎自身的源码（`src/` 下从入口 `src/testing/cli.ts` 与 `src/testing/check.ts` 沿静态导入能到的 `.ts` 文件，加上按路径加载的过滤守卫，列在 `tests/engine-closure.spec.ts` 的 `PATH_LOADED` 里；清单由该文件守住，新增引擎模块时测试会提示加进 `globalPaths`），以及任何位置的 `turbo.json`）：整份计划判全量——
+   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围。变异测试工具（`src/mutation/`）不参与 `check` 的计划，不在这份清单里。
    引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改 `pnpm-workspace.yaml`（全量）与锁文件（按下一条判）。
    **锁文件例外**（`pnpm-lock.yaml`，`src/testing/lockfile-impact.ts`，`src/testing/pnpm-lockfile.ts` 读它）：只用于普通的影响面计划，增量准入（`check --resume-from`）里锁文件按全局文件处理，见下面「准入」一节。
    它是唯一命中的全局文件时不直接全量，而是把基线与工作树两份锁文件的差异按 importer 映射到成员——
