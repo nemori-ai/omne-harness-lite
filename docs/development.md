@@ -312,7 +312,7 @@ turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全�
 - 常驻构建（`residentBuild`）包含 `packages/agent/agent`。`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入。没有它，在没有旧构建产物的检出上，只需常驻检查的计划会在 `lint:deps` 失败。
 
 RFC-0002 的四条约束这样落实：
-- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`。`pnpm-workspace.yaml` 是全局文件。锁文件是唯一命中的全局文件时按 importer 映射到成员：根 importer（`.`，全仓的工具）的依赖变了、`tools/test-runner` 在映射到的成员或其下游里、或顶层设置变了，都判全量，见[测试运行器的影响面规则](../tools/test-runner/README_ZH.md#测试运行)「影响面怎么算」第 1 条。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
 - 准入检查不读缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）；成员测试也不读测试结果缓存，照常写；依赖图缓存同样不读，照常计算并写入。进入任何一条主干之前的检查都带这个变量，规则见[集成规则](engineering/integration.md#检查责任)。

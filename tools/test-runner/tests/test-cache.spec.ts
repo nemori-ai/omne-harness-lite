@@ -183,6 +183,11 @@ describe('输入集与影响面规则同源：每类改动进谁的键', () => {
       expect(keyedBy(file), file).toEqual(MEMBERS.map(entry => entry.path))
   })
 
+  it('锁文件单独一类，仍进每个成员的键：计划按 importer 收窄，键按整份内容取摘要，只多重跑不少跑', () => {
+    expect(classify('pnpm-lock.yaml', MEMBERS, RULES).category).toBe('lockfile')
+    expect(keyedBy('pnpm-lock.yaml')).toEqual(MEMBERS.map(entry => entry.path))
+  })
+
   it('没有规则认得的文件让计划判全量，所以也进每个成员的键', () => {
     expect(classify('.gitignore', MEMBERS, RULES).category).toBe('unclassified')
     expect(keyedBy('.gitignore')).toEqual(MEMBERS.map(entry => entry.path))

@@ -20,7 +20,8 @@ pnpm run test                                       # 全量两层：turbo 先�
 pnpm run test:gate                                  # pnpm run check 的测试一步：按影响面计划跑被选中成员的快层，快层全部通过才跑慢层（基线按统一规则取；FULL=1 全部）；单独运行时由 turbo 先构建
 OMNE_TEST_CACHE=0 pnpm run check                    # 成员测试不读结果缓存（本次有构建时照常写）；test:affected 与 cli.ts 的 run、step、check 另认 --no-cache；test:tier 不认 --no-cache，改用 OMNE_TEST_CACHE=0 或 FULL=1。缓存见「结果缓存」
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
-node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list] [--resume-from <H1>]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的准入（全量或按影响面），只在准入模式下可用，见「准入」一节
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F> [--record <路径>]  # 核对 F 上有没有可采用的全量准入（树相同的另一个提交上的也算），见「准入」一节
 ```
 
 **检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`。
@@ -28,7 +29,7 @@ node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--ad
 - 每一步只声明先于它完成的步骤，没有依赖的同时跑。
 - 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个；轻步骤（含 pytest，pytest 自己按预算的四分之一起 xdist 进程）同时至多 `max(2, 核数 ÷ 3)` 个。
 - 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步。`--keep-going` 时其余照跑，依赖失败步骤的不启动。
-- 产物：每步的输出落 `tmp/check-run/<步骤>.log`（名字里的 `:` 换成 `-`，例如 `check-docs.log`）；结束时写逐步耗时表 `tmp/check-run/steps.tsv`，并打印实际走过的关键路径。
+- 产物：每步的输出落 `tmp/check-run/<head 短号>/<步骤>.log`（名字里的 `:` 换成 `-`，例如 `check-docs.log`），只留最近 5 个头的目录；结束时写逐步耗时表 `tmp/check-run/<head 短号>/steps.tsv` 与运行记录 `run.json`（见「准入」一节），并打印实际走过的关键路径。
 - 准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写准入日志，内容与位置归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。步骤的含义与顺序也归那里。
 - `--list` 打印步骤表，供别的成员核对自己有没有接进来（dev-flow 的接线测试用它）。
 
@@ -82,9 +83,17 @@ vitest 升级后新增或改动布尔选项，表没跟上，这两条就失败�
 以 `.legacy` 结尾目录中的改动先记为排除，不触发未知路径全量回退。其余改动文件按顺序归到第一类命中的：
 
 1. **全局**（`globalPaths`：根清单、锁文件、共享 tsconfig、分层定义 `vitest.tiers.mts`、`scripts/check.sh` 与入口脚本 `check-design.sh`、`metrics.sh`、`slot-unless-plan-only.sh`、`test-tier.sh`、本配置文件、
-   测试运行器与影响面引擎自身的 `cli.ts`／`config.ts`／`run.ts`／`steps.ts`／`support.ts`／`timing-reporter.ts`／`typecheck-scope.ts`／`member-turbo.ts`／`scope.ts`／`turbo.ts`，以及任何位置的 `turbo.json`）：整份计划判全量——
-   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围；
-   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改锁文件与 `pnpm-workspace.yaml`，同样判全量。
+   测试运行器与影响面引擎自身的源码（`src/` 下从入口 `src/testing/cli.ts` 与 `src/testing/check.ts` 沿静态导入能到的 `.ts` 文件，加上按路径加载的过滤守卫，列在 `tests/engine-closure.spec.ts` 的 `PATH_LOADED` 里；清单由该文件守住，新增引擎模块时测试会提示加进 `globalPaths`），以及任何位置的 `turbo.json`）：整份计划判全量——
+   引擎改了，这次的计划就是用改过的引擎算的，不能拿它来给自己划范围。变异测试工具（`src/mutation/`）不参与 `check` 的计划，不在这份清单里。
+   引擎从 repo-toolchain 导入的 `core/workspace`、`core/git` 与根配置的预设来自钉住的 npm 包，改它们的版本就是改 `pnpm-workspace.yaml`（全量）与锁文件（按下一条判）。
+   **锁文件例外**（`pnpm-lock.yaml`，`src/testing/lockfile-impact.ts`，`src/testing/pnpm-lockfile.ts` 读它）：只用于普通的影响面计划，增量准入（`check --resume-from`）里锁文件按全局文件处理，见下面「准入」一节。
+   它是唯一命中的全局文件时不直接全量，而是把基线与工作树两份锁文件的差异按 importer 映射到成员——
+   `importers:` 下有变化的条目对应的成员，加上直接或间接依赖了有变化的 `packages:`／`snapshots:` 条目的成员（沿 snapshot 的 `dependencies`、`optionalDependencies` 反向求传递闭包，去掉的包按基线图、新加的按工作树图）；
+   映射到的成员作为种子，与代码改动的成员一样按 turbo 的依赖图带上下游。下面任一情形仍判全量并写明原因：顶层 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies`、`catalogs` 或别的顶层键有变化；
+   根 importer（`.`，全仓的工具）的依赖直接或间接变了；任一份解析失败，或锁文件里有解释不了的引用（importer 不在成员清单里、依赖指向不存在的 snapshot、变化的包没有任何 importer 依赖它）；
+   `tools/test-runner` 自己在映射到的成员或其下游里（引擎自己的依赖变了）；与别的全局文件一起改（这时不问映射）。两份解析后等价时不因锁文件选成员。
+   计划输出的「锁文件：」一行原样写出映射模块的结论，被选中成员的原因写明锁文件里它哪些依赖变了；`check:plan --json` 的 `plan.lockfile` 是同一句话。
+   测试结果缓存的键不按这条收窄：锁文件仍进每个成员的键，锁文件一变全部条目失效，比计划保守（只多重跑、不少跑），见「结果缓存」。
    `tools/dev-flow/src/integration/**` 不是全局路径，按 dev-flow 的成员文件算，改它跑 dev-flow 的测试：
    `scripts/check.sh` 用本包的 `baseline` 取基线，不执行这里的代码；`check:lines` 导入其中的 `parse.ts`、`policy.ts`，它是常驻检查，每次都跑；
    其他工具成员不导入 dev-flow；
@@ -135,7 +144,7 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 
 **不能声称**：没被选中的成员通过；测试读了某个路径却没写进读者规则，改它时就漏选——规则是查出来的现状，不是机器推导的，
 新增一处这样的读取要同时补一条规则；环境变量、外部服务与时间不在影响面里。合并后没有自动补跑，全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
-自测：`tests/scope.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法（含上面几条收窄的正例与反例），另在临时仓库核对改名与非 ASCII 文件名，在本仓库核对 turbo 的依赖图与读者规则里的路径都存在。
+自测：`tests/scope.spec.ts` 用真实规则与一份造出来的成员清单核对各类改动的判法（含上面几条收窄的正例与反例，以及锁文件按 importer 映射的几种结论与它和文档种子、别的成员改动并存时的选法），另在临时仓库核对改名与非 ASCII 文件名，在本仓库核对 turbo 的依赖图与读者规则里的路径都存在。锁文件差异到成员的映射本身见 `tests/lockfile-impact.spec.ts`，解析器见 `tests/pnpm-lockfile.spec.ts`。
 
 **怎么跑。**`pnpm run test:affected` 先用 turbo 把目标成员连同它们的依赖构建一遍（测试执行的是依赖的 `dist/`；
 `pnpm run check` 则由前面的构建一步按计划构建）。然后运行器调用一次 `turbo run <层的任务> --continue=dependencies-successful`。
@@ -168,6 +177,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 - `members`、各成员的文件、`failures` 与 `nearTimeout`：只有这次跑了的成员。一层的成员全部命中时它们都是空的，这一层算通过。
 
 快层全部通过（含命中）才跑慢层的规则不变。`triage` 与失败归因只读 `failures`：命中的成员没有失败可重跑，跑了的失败照常单独重跑、归类。
+锁文件在键里不按 importer 收窄：计划把锁文件改动映射到受影响的成员，键却取整份锁文件的内容摘要。所以锁文件一变，所有成员的条目都失效，没被映射到的成员也要重跑。这只多重跑、不少跑。
 **什么时候写缓存。**两条都要满足，成员才写：
 
 1. 本次调用为被选中的成员构建过，并且有构建记录（见上）。`run --no-build` 与默认不构建的 `run --all` 不写，因为这两种调用测试可能跑的是旧 `dist/`。`check`、`step test` 在构建一步之后运行，`test:affected` 与 `test:tier` 默认构建，它们可以写。
@@ -242,6 +252,95 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 策略都在 [test-runs.config.json](test-runs.config.json)，不写死在代码里。自测：`tests/test-runs.spec.ts`；
 运行名额脚本的行为核对在 `tests/test-slot.spec.ts`，脚本本身见[自动化入口](../../scripts/README.md#运行名额)。
+
+## 准入：运行记录、接续与证据核对
+
+规则归[集成规则](../../docs/engineering/integration.md#检查责任)的「增量准入」与「树相同时复用准入」两节；这里是执行它们的工具。三样东西：每次 `check` 写的运行记录、`check --resume-from <H1>` 与 `admission-evidence --for <F>`。
+
+**运行记录**（`src/testing/admission-run.ts`，schemaVersion 1，`kind: admission-run`）。JSON 记录的形状归本节，文本准入日志的格式归 [scripts/README.md](../../scripts/README.md) 的准入日志一段。每次 `check` 结束时写一份 JSON，在本头的目录里是 `tmp/check-run/<head 短号>/run.json`；准入运行另在准入日志旁边写一份同名的 `.json`（`tmp/admission/<时间>-<head 短号>.json`），与日志是同一份事实的两种写法：人读日志，工具读记录。栏目：
+
+| 栏                           | 含义                                                                                                                                                                                                                |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `head`、`tree`               | 40 位提交号与 `git rev-parse HEAD^{tree}` 的树哈希                                                                                                                                                                  |
+| `dirty`                      | 开始时或结束时工作树有未提交改动（`git status --porcelain` 非空，或 `git ls-files -v` 里有 assume-unchanged、skip-worktree 的文件；被忽略的文件不算），或结束时头已不是 `head`；这样的记录不是对 `head` 的证据 |
+| `worktree`                   | 运行所在工作树的根，取真实路径。接续只在 H1 那次的同一棵工作树里进行 |
+| `admission`                  | 是不是准入运行（`--admission` 或 `OMNE_ADMISSION=1`）；只有准入运行能被接续或复用                                                                                                                                   |
+| `mode`、`base`、`resumeFrom` | `mode` 说范围：`full`（计划判全量，全部步骤对全部成员跑了：带了 `FULL=1`，或全局文件、未归类路径等让计划判了全量）、`affected`（按影响面，`base` 是本次基线与头的合并点，40 位）或 `resume`（接续，`base` 是 H1，`resumeFrom` 写 H1 的头、树、它失败的那一步、H1 那次的 `mode`（`full` 或 `affected`）与 H1 那次的 `fullRequested`） |
+| `fullRequested`              | 说要求：这次运行带没带 `FULL=1`。计划因全局文件判了全量、没带 `FULL=1` 的，`mode` 是 `full`，这一栏是 `false`。接续退化为整次重跑时照搬 H1 的这一栏（重跑的范围同 H1 那次）；接续运行本身不带 `FULL=1`，记 `false`，H1 的在 `resumeFrom` 里 |
+| `caches`                     | 这次运行时各缓存的状态：`test` 测试结果缓存（准入只写不读记 `off`，读缓存记 `on`）、`depGraph` 依赖图缓存（`OMNE_DEP_GRAPH_CACHE=0` 记 `off`，否则 `on`）、`mutation` 记 `unknown`（`check` 不跑变异）              |
+| `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
+| `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
+| `startedAt`、`finishedAt`    | 起止时刻                                                                                                                                                                                                            |
+
+写入先写临时名再改名，读到的要么是完整的旧记录要么是新的；解析失败、形状不对的文件按「没有记录」处理，不猜。`tmp/check-run/` 只留最近 5 个头的目录。
+
+`dirty` 在结束时再核对一次：各步骤只在被忽略的目录里写东西（`tmp/`、`dist/`、`.turbo/`、`__pycache__/`、`.pytest_cache/` 等），干净的工作树跑完仍是干净的。用 `git update-index --skip-worktree` 或 `--assume-unchanged` 标过的文件，`git status` 看不到它们的改动，所以也算未提交改动。步骤在工作树里留下没被忽略的文件，或运行中有人提交、切换了头，记录就记 `dirty: true`。`tree` 取开始时那个头的树。
+
+**`check --admission --resume-from <H1>`**（`src/testing/resume.ts` 判断，`check.ts` 执行）。H1 上跑过一次准入（全量，或按影响面）、快速失败在步骤 X，修复后在 HEAD 上接着跑，不整次重跑。规则归集成规则的「增量准入」。根脚本的写法是 `pnpm run admission --resume-from <H1>` 或 `pnpm run check --admission --resume-from <H1>`，两者相同。`--resume-from` 只在准入模式下可用（`--admission` 或 `OMNE_ADMISSION=1`），不在准入模式时以 2 退出。它与 `FULL=1` 互斥，与 `--list` 同给时也以 2 退出。
+
+**合并点为什么要求相同。**H1 按影响面运行时，它的影响面是合并点..H1。接续里收窄的重步骤只跑 H1..HEAD 的影响面。两段差异首尾相接时，合并点..H1 ∪ H1..HEAD = 合并点..HEAD，两部分合起来才是 HEAD 相对本次基线的影响面。合并点不同，这两段就接不上。所以 H1 按影响面时，它记录的 `base` 必须等于本次基线与 HEAD 的合并点（`git merge-base <本次基线> HEAD`）。
+
+**只在 H1 那次的工作树里接续。**收窄的构建只重建 H1..HEAD 影响到的成员。常驻步骤与其余成员的测试读的 `dist/` 是 H1 那次留在磁盘上的。记录的 `worktree` 与本次运行的工作树根不同时，以 2 退出。H1 之后在这棵树上构建过别的提交时，磁盘上的 `dist/` 不再是 H1 那次的产物。命令看得出本树上留下记录的运行（准入与否都算；同一工作树、开始时间晚于 H1 记录的结束时间、任何模式，含失败的接续）：它们的头到 HEAD 的改动并进影响面与全局路径的核对，所以它们构建过又被撤回的成员也会补建；其中有带未提交改动的记录，或某个头算不出差异，整次重跑。命令看不出手工构建与没有留下记录的运行，这些情况由运行的人判断，必要时整次重跑。
+
+判断在写任何东西之前，三种结论。
+
+**拒绝**：以 2 退出，不留日志、不写记录，原因逐条写明。下面任一条成立就拒绝：
+
+- 工作树有未提交改动。
+- H1 就是当前头，没有修复提交。要重跑请整次准入。
+- H1 不是 HEAD 的祖先。
+- H1 没有干净的、准入模式的、`mode: full` 或 `mode: affected` 的记录。两处都找：`tmp/admission/*.json` 与 `tmp/check-run/*/run.json`。非准入的、带未提交改动的记录不算。
+- H1 只有接续运行（`mode: resume`）的记录。接续不链式。
+- 记录写的树与 H1 实际的树不符。
+- H1 那次准入的工作树与本次不同。
+- H1 按影响面时，记录的基线合并点与本次的不同。
+- 记录没有失败步骤：全部通过，或有步骤没跑完却没有失败。
+- 除 X 外还有步骤没通过。
+- 记录不自洽：失败步骤在步骤表里没有对应的失败结果。
+- X 不在当前步骤表里。
+
+**退化为整次重跑**：H1..HEAD 的差异碰到全局路径（`test-runs.config.json` 的 `affected.globalPaths`，退役目录里的不算）时，不接续。锁文件 `pnpm-lock.yaml` 也按全局文件处理，不问 importer 映射。H1..HEAD 的影响面自己判全量（有不认得的路径、turbo 选中了解释不了的成员）时，同样整次重跑。重跑按 H1 那次的范围照常算计划：H1 全量就是 `FULL=1` 的计划，H1 按影响面就是相对本次基线的影响面。说明写进准入日志。记录是一次 `mode: full` 或 `mode: affected`，`fullRequested` 照搬 H1 的。
+
+**接续**：全部步骤都跑。每一步在 HEAD 上的范围按下表定。「整次运行的范围」是 HEAD 上按 H1 那次的范围整次运行时这一步的范围：H1 全量时选全部成员，H1 按影响面时选 HEAD 相对本次基线的影响面。
+
+| 步骤类别 | H1 上的状态 | HEAD 上的范围 |
+| --- | --- | --- |
+| 常驻步骤（`check:docs`、`lint:oxlint` 等，不按计划） | 任何状态 | 整仓，与每次运行相同 |
+| 按计划的轻步骤（`python`） | 任何状态 | 整次运行的范围 |
+| 按计划的重步骤（构建、类型检查、成员测试、验收） | 失败（X） | 整次运行的范围 |
+| 按计划的重步骤 | 没跑到：被终止、没开始，或记录里没有这一步 | 整次运行的范围 |
+| 按计划的重步骤 | 通过，且它之后（`after`，传递）有整次跑的步骤 | 整次运行的范围。成员测试与验收读构建出来的 `dist/`，缩了构建范围就会读到旧产物 |
+| 按计划的重步骤 | 通过，其余情况 | 只跑 H1..HEAD 影响到的成员 |
+
+计划文件按步骤各取整次或 H1..HEAD 影响面的那一份。`reason` 写明「接续 H1 的全量准入（失败于 X）：整次 …；按 H1..HEAD 影响面 …」。H1 按影响面时写「接续 H1 的影响面准入（失败于 X）：整次（本次基线的影响面） …」。基线一栏仍是统一规则取到的那一个。
+
+证据写进准入日志：H1 全量时是「准入证据：H1 全量（失败于 X）＋ HEAD 增量（基线 H1）」，H1 按影响面时是「准入证据：H1 影响面准入（失败于 X）＋ HEAD 增量（基线 H1）」，并另起一行写明本次基线与合并点。之后按整次／按影响面／常驻分组列出每一步与原因、H1 运行时的缓存状态、H1..HEAD 的差异文件清单。退化时写「H1 全量（失败于 X）不接续，HEAD 整次全量——原因」，H1 按影响面时写「…不接续，HEAD 整次按本次基线的影响面——原因」，附差异清单。记录的 `mode` 是 `resume`，`resumeFrom` 指向 H1，写明 H1 那次的范围与 H1 带没带 `FULL=1`。
+
+**`admission-evidence --for <F> [--record <路径>]`**（`src/testing/admission-evidence.ts`）。核对 F 上有没有可采用的全量准入，规则归集成规则的「树相同时复用准入」。给 `--record` 时只看那一份；不给时在本树 `tmp/admission/*.json` 里按 F 的树哈希找（不读 `tmp/check-run/`），同树且可采用的取最晚结束的那份。
+
+接受条件如下，每一条都要满足：
+
+- 记录是 schemaVersion 1 的 `admission-run`，`admission` 为真。
+- 范围是带了 `FULL=1` 的全量，二者之一：
+  - `mode: full` 且 `fullRequested` 为真。
+  - `mode: resume` 且 `resumeFrom.fullRequested` 为真：H1 那次带了 `FULL=1`，「H1 全量＋ HEAD 增量」组成的证据是全量准入。
+- `dirty` 为假，`failedStep` 为 null。
+- 步骤表非空，每步都 `ran: true`、`exit: 0`。
+- 有 `finishedAt`。
+- 记录的头在本仓库里，记录写的树与头的树一致。
+- 树（记录缺 `tree` 时由头补算）等于 F 的树。
+
+下面的记录不是全量准入，拒绝：
+
+- `mode: affected`。
+- `mode: full` 但没带 `FULL=1`（`fullRequested` 为假）：只是计划判了全量，原因写「没有带 FULL=1」。
+- 接续记录的 H1 只按影响面运行，或 H1 只是计划判了全量（`resumeFrom.fullRequested` 为假）。
+
+任何一项不满足就拒绝，并逐项列出原因。接受时一行写明「F 采用 C 的全量准入，树 … 相同；记录 …；缓存 …」（接续记录另写明「H1 … 的全量准入＋ C 上的增量准入」），退出 0；拒绝退出 1；用法错误退出 2。只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
+
+**不能声称**：接续不重跑 H1 上通过了的重步骤的全部成员，只跑 H1..HEAD 影响到的——影响面规则漏掉的读取这里同样漏掉；H1 按影响面时，整个接续的范围也只是 HEAD 相对本次基线的影响面；接续读 H1 那次留在磁盘上的 `dist/`，命令只补建本树上留下记录的运行构建过的成员，手工构建或没有留下记录的运行改过的 `dist/` 看不出；pnpm 依赖提升（`hoistPattern`）让成员读到没声明的依赖时，锁文件的 importer 映射看不到这种读取；`admission-evidence` 接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」；记录与日志都在被忽略的 `tmp/` 下，换一棵检出就没有，不是远程或跨机器的证据。
+
+自测：`tests/admission-run.spec.ts`（记录的读写、由步骤图运行写成记录、挑 H1 的记录、工作树根的写法）、`tests/resume.spec.ts`（前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步怎么跑、H1 按影响面时的范围与基线核对、接续不链式、证据文本、取 git 事实、结束时重新核对现场）、`tests/admission-evidence.spec.ts`（逐字段的拒绝、没带 `FULL=1` 的拒绝、按树找、子命令退出码，慢层起真实 CLI）、`tests/check-resume.spec.ts`（慢层，夹具仓库上端到端：只在 oxlint 失败的准入写出记录，修复后接续只跑规定的步骤与成员、轻步骤整次跑，拒绝以 2 退出，碰全局路径整次全量，运行中留下没被忽略的文件时记 dirty；H1 按影响面时接续不选影响面外的成员、基线合并点不同拒绝、接续记录不作 H1）。
 
 ## 差分变异
 

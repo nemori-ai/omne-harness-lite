@@ -160,6 +160,10 @@ export function selects(
     case 'global':
     case 'unclassified':
       return true
+    // 锁文件进每个成员的键。计划按 importer 把锁文件改动映射到受影响的成员（scope.ts），键却取整份锁文件的内容摘要：
+    // 锁文件一变，所有成员的条目都失效。这比计划保守——只多重跑、不少跑；按 importer 把锁文件投影进各成员的键另议。
+    case 'lockfile':
+      return true
     case 'reader':
     case 'member':
     case 'python':
