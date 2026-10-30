@@ -267,11 +267,11 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> [--worktree <路径>] [--dry-run]
 ```
 
-调度者用这两个命令派发一张卡的一个 attempt。`post` 发派发评论，`bind` 把 binding 写进卡的正文。两步之间不改卡。
+调度者用这两个命令派发一张卡的一个 attempt。`post` 发派发评论，`bind` 把 binding 写进卡的正文。两步之间不改卡。为新修订派发时，`post` 在发评论之前先改卡的正文，见下文「为新修订派发」。
 
 `post` 在任何平台调用之前拒绝空或只含空白的 `--text`，退出2。
 
-`spec.json` 只写调度者的决定，字段全部必填，多余字段拒绝：
+`spec.json` 只写调度者的决定。除 `revision` 外的字段都必填，多余字段拒绝：
 
 | 字段                                                                                      | 内容                                                                       |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -279,8 +279,9 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 | `attempt`、`responsible`、`branch`、`taskBase`、`writeScope`、`route`、`completionTarget` | binding 的同名字段                                                         |
 | `basis`                                                                                   | 授权依据 URL，写进评论的 `basis` 与 binding 的 `authorization`             |
 | `confirmations`                                                                           | 每个 start 条件一项：`{"condition": "<条件ID>", "evidence": "<确认依据>"}` |
+| `revision`                                                                                | 可选。本次派发的交付修订，正整数。省略时用卡上的交付修订                   |
 
-交付修订、交付线、性质、契约变更、里程碑与条件 ID 由命令从卡上读取，不由 spec 给出。每个 start 条件的摘要由命令按卡上现行的条件行计算。所以条件行改过之后重跑 `post`，摘要随之更新。
+交付线、性质、契约变更、里程碑与条件 ID 由命令从卡上读取，不由 spec 给出。交付修订也从卡上读取；spec 给出更大的 `revision` 时，按下文「为新修订派发」处理。每个 start 条件的摘要由命令按卡上现行的条件行计算。所以条件行改过之后重跑 `post`，摘要随之更新。
 
 `post` 在写平台之前完成下列核对，任一不满足时退出2，不写入：
 
@@ -293,6 +294,15 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 7. 拟写的 binding 没有 `attributeRefusals` 选出的属性发现，规则与 `start` 相同：路线、写范围归属、跨线条件与 `line:`、`nature:`、`contract:` 标签都与正文一致。标签不一致时先用标签同步命令改正。
 
 核对通过后，`post` 先发一条占位评论，再把它改成正式派发评论。正式评论是 `--text` 的文字加上 `omne-integration-authority:v1` 区块，区块中 binding 的 `dispatch` 是这条评论自己的 URL。改写成功后，命令先向标准错误写一行 `{"kind":"dispatch-posted","dispatch":…}`，再按 `--out` 把 binding 写进文件，供 `bind` 使用；写文件失败时退出2，消息给出派发评论 URL。然后读回评论。读回与写入不同时退出1。读回失败时退出2，消息给出已发的派发评论 URL，不要再派发一次。改写占位评论失败时，错误消息给出占位评论的 URL。调度者改写或删除它，再重新派发，命令不重试。`--dry-run` 完成全部核对，输出拟写的 binding 与评论正文，`dispatch` 为占位 URL，不写平台。
+
+为新修订派发：spec 的 `revision` 大于卡上「- 交付修订：<N>」的 N 时，`post` 把这次派发看作同一张卡的新修订。命令只比较这两个修订号，不从正文的其他内容推断。`post` 改卡的正文两处：
+
+1. 「- 交付修订：<N>」一行改为 spec 的修订号。
+2. 「分支、基线与task context」小节中旧的 binding 区块（`omne-integration-binding:v2`，也包括 v1），连同 `bind` 写在它上面的「正式派发：」一行，换成一行派发前的说明：`未登记 binding。修订 <新> 待派发，修订 <旧> 的 binding 已撤下；计划集成路线：<route>，最终终点：<completionTarget>。`。卡上没有 binding 区块时只改第1处。
+
+上面的七项核对都按改后的正文判断，所以旧 binding 不会造成 `integration-binding-invalid`，旧修订的派发评论也不算重复派发。下列情况退出2，不写入：spec 的 `revision` 小于卡上的修订号；卡上没有唯一的「交付修订」行；binding 区块在这一小节之外。`revision` 等于卡上的修订号或省略时，正文不改，与普通派发相同。
+
+正式运行时，`post` 先重读卡。正文与核对时不同就退出2，不写入，重跑 `post` 即可。然后命令写入改后的正文并读回，读回与写入相同才发派发评论。写正文或读回失败时退出2，消息说明没有发评论；先读卡，再重跑 `post`：正文已是新修订时，重跑按普通派发处理。「认领与派发」中的「派发情况」行这时仍指向旧的派发评论，由随后的 `bind` 改写。输出的 `cardEdits` 给出 `from`、`to` 与每处改动的 `part`（`revision` 或 `binding`）、`before`、`after`。`--dry-run` 同样输出 `cardEdits`，不写平台。不改正文时没有 `cardEdits`。
 
 `bind` 读卡，把「分支、基线与task context」小节整体换成一行派发说明与 binding 区块。说明中的 revision、attempt 与 taskBase 取自 binding，不手写。只在「认领与派发」小节内，「派发情况」一行改为指向派发评论，给出 `--worktree` 时「工作树」一行改为该路径；其他位置的同名行不改。binding 的 `dispatch` 仍是占位 URL、正文没有唯一的这一小节、或新正文的唯一 binding 读回与输入不同时退出2，不写入。写入后命令再读一次卡核对 binding，结果写在 `verified` 中，不符时退出1。`--dry-run` 输出新正文，不写入。`bind` 只写版本2 binding。
 
