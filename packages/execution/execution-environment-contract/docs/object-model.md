@@ -405,4 +405,4 @@ stateDiagram-v2
 | CAP-EE11 落点与痕迹可观察 | 两条块声明、`EnvironmentDescription` | 块的发布与读取 |
 | CAP-EE12 提供者替换与计算回收 | 提供者身份的代与版本、`Retirement` | 装配与插件的换代 |
 
-能力名与范围以产品正文[能力定义与实现状态记录表](../../../../.meta_harness/design/product/execution-environments/design.md#能力定义与实现状态记录表)为准。支持承诺以产品正文的[阶段与版本支持承诺](../../../../.meta_harness/design/product/execution-environments/design.md#阶段与版本支持承诺)为准：0.0.0 → 0.1.0 阶段完整支持全部十二项；其中 M1 交付 CAP-EE01、CAP-EE02、CAP-EE03、CAP-EE04、CAP-EE07、CAP-EE09 与 CAP-EE11，M2 交付 CAP-EE08 与 CAP-EE10，CAP-EE05、CAP-EE06 与 CAP-EE12 在阶段内的后续里程碑交付。验收以 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)为准。本页不写实现已完成。
+能力名与范围以产品正文[能力定义与实现状态记录表](../../../../.meta_harness/design/product/execution-environments/design.md#能力定义与实现状态记录表)为准。支持承诺以产品正文的[阶段与版本支持承诺](../../../../.meta_harness/design/product/execution-environments/design.md#阶段与版本支持承诺)为准：0.0.0 → 0.1.0 阶段完整支持全部十二项；其中 M1 交付 CAP-EE01、CAP-EE02、CAP-EE03、CAP-EE04、CAP-EE07、CAP-EE09 与 CAP-EE11，CAP-EE05、CAP-EE06、CAP-EE08、CAP-EE10 与 CAP-EE12 在阶段内、M2 之后的里程碑交付。验收以 SPEC 的[持续验证义务](../SPEC.md#持续验证义务)为准。本页不写实现已完成。
