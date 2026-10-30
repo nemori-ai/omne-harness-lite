@@ -22,7 +22,7 @@ import {
   incrementalMode,
   INCREMENTAL_ENV,
   readStore,
-  storeFingerprint,
+  memberFingerprint,
   storePath,
   type Store,
 } from './incremental.ts'
@@ -240,10 +240,22 @@ async function run(request: MutationRequest): Promise<number> {
     branch: at.branch,
     env: process.env,
   })
-  const fingerprint = storeFingerprint(config.mutation.testTimeoutSeconds)
+  const fingerprints = new Map(
+    targets.map(target => [
+      target.member.path,
+      memberFingerprint(request.root, target.member.path, config.mutation.testTimeoutSeconds),
+    ]),
+  )
   const stores = targets.map(target => {
     if (incremental.kind === 'off') return { store: undefined, notes: [] }
-    const read = readStore(storePath(incremental.dir, target.member.path), fingerprint)
+    const print = fingerprints.get(target.member.path)
+    if (print === undefined || 'unavailable' in print)
+      return { store: undefined, notes: [print?.unavailable ?? '没有指纹'] }
+    const read = readStore(
+      storePath(incremental.dir, target.member.path),
+      print.fingerprint,
+      print.parts,
+    )
     return 'store' in read
       ? { store: read.store, notes: [] }
       : { store: undefined, notes: read.miss === '没有快照' ? [] : [read.miss] }
@@ -265,7 +277,7 @@ async function run(request: MutationRequest): Promise<number> {
     recheckMax: effectiveRecheckMax(config, process.env),
     testTimeoutSeconds: config.mutation.testTimeoutSeconds,
     incremental,
-    fingerprint,
+    fingerprints,
   }
   const label = (index: number) => `[${index + 1}/${targets.length}]`
   const mutateAt = (index: number, workers: number, store: Store | undefined) => {

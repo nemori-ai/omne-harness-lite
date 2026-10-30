@@ -12,6 +12,7 @@ import {
   withCarriedRuns,
   writeStore,
   type IncrementalMode,
+  type MemberFingerprint,
   type Store,
 } from './incremental.ts'
 import {
@@ -67,7 +68,8 @@ export interface MemberContext {
   readonly recheckMax: number
   readonly testTimeoutSeconds: number
   readonly incremental: IncrementalMode
-  readonly fingerprint: string
+  /** 每个成员（按路径）的指纹；读不出输入的给原因，这个成员这一次不写快照。 */
+  readonly fingerprints: ReadonlyMap<string, MemberFingerprint | { readonly unavailable: string }>
 }
 
 /** 一个成员的增量情况，写进摘要。 */
@@ -204,16 +206,20 @@ export async function mutateMember(
   // 只在测量有效、没有出错时更新快照；否则留着上一份，下次照旧拿它比对。
   if (prepared.run !== undefined && context.incremental.kind === 'on' && errors.length === 0) {
     const written = readJson(prepared.run.file)
+    const print = context.fingerprints.get(path)
     const failure =
-      written === undefined
-        ? 'Stryker 没写出 incremental 文件'
-        : writeStore(
-            storePath(context.incremental.dir, path),
-            nextStore(target, written, runs, {
-              fingerprint: context.fingerprint,
-              workerSeconds: ran.wallSeconds * workers,
-            }),
-          )
+      print === undefined || 'unavailable' in print
+        ? `没有可用的指纹，不写快照${print === undefined ? '' : `（${print.unavailable}）`}`
+        : written === undefined
+          ? 'Stryker 没写出 incremental 文件'
+          : writeStore(
+              storePath(context.incremental.dir, path),
+              nextStore(target, written, runs, {
+                fingerprint: print.fingerprint,
+                parts: print.parts,
+                workerSeconds: ran.wallSeconds * workers,
+              }),
+            )
     if (failure !== undefined) notes.push(`快照没写成，下次整份重跑：${failure}`)
   }
   const reuse = incremental()

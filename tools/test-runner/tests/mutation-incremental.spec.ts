@@ -1,6 +1,7 @@
 // 增量的纯函数部分（incremental.ts）：快照放在哪、怎样关、读不出时按没有快照处理、交给 Stryker 的只有上次被杀的、
 // 去掉 Stryker 带回来的范围外变异体、补回复用的 static 变异体的运行记录。真起 Stryker 的见 mutation-stryker-incremental.spec.ts。
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
@@ -9,6 +10,7 @@ import {
   dropCarriedOver,
   inScope,
   incrementalMode,
+  memberFingerprint,
   nextStore,
   readStore,
   reusedCount,
@@ -17,6 +19,7 @@ import {
   storePath,
   withCarriedRuns,
   writeStore,
+  type MemberFingerprint,
   type Store,
 } from '../src/mutation/incremental.ts'
 import type { MutationReport, ReportMutant } from '../src/mutation/report.ts'
@@ -227,4 +230,95 @@ it('复用数取自 Stryker 的日志，颜色码不碍事；没有那一行时�
     ),
   ).toBe(189)
   expect(reusedCount('No incremental result file found')).toBeUndefined()
+})
+
+describe('成员指纹：Stryker 不比较的三类内容', () => {
+  const touch = (root: string, path: string, content: string) => {
+    mkdirSync(join(root, path, '..'), { recursive: true })
+    writeFileSync(join(root, path), content)
+  }
+  /** 一个 git 仓库：成员有配置、一个夹具、一个 spec，根有分层配置，.gitignore 忽略 tests/ignored/。 */
+  function repo() {
+    const root = temporary('mutation-fp-')
+    execFileSync('git', ['init', '-q'], { cwd: root })
+    touch(root, '.gitignore', 'ignored/\n')
+    touch(root, 'vitest.tiers.mts', 'tiers 1')
+    touch(root, 'm/vitest.config.mts', 'config 1')
+    touch(root, 'm/tests/helper.ts', 'helper 1')
+    touch(root, 'm/tests/a.spec.ts', 'spec 1')
+    touch(root, 'm/tests/ignored/x.ts', 'x 1')
+    return root
+  }
+  const of = (root: string): MemberFingerprint => {
+    const print = memberFingerprint(root, 'm', 60)
+    if ('unavailable' in print) throw new Error(print.unavailable)
+    return print
+  }
+  const storeFor = (print: MemberFingerprint): Store => ({
+    ...STORE,
+    meta: { ...STORE.meta, fingerprint: print.fingerprint, parts: print.parts },
+  })
+  const missAfter = (root: string, change: () => void) => {
+    const before = of(root)
+    const dir = temporary('mutation-store-')
+    const path = storePath(dir, 'm')
+    writeStore(path, storeFor(before))
+    expect(readStore(path, before.fingerprint, before.parts)).toHaveProperty('store')
+    change()
+    const after = of(root)
+    expect(after.fingerprint).not.toBe(before.fingerprint)
+    return readStore(path, after.fingerprint, after.parts)
+  }
+
+  it('夹具与辅助文件变了，整份失效并说明是夹具', () => {
+    const root = repo()
+    expect(missAfter(root, () => touch(root, 'm/tests/helper.ts', 'helper 2'))).toEqual({
+      miss: expect.stringContaining('夹具与辅助文件'),
+    })
+  })
+
+  it('夹具文件新增或删除也失效', () => {
+    const root = repo()
+    expect(missAfter(root, () => touch(root, 'm/tests/extra.ts', 'e'))).toHaveProperty('miss')
+    expect(missAfter(root, () => rmSync(join(root, 'm/tests/helper.ts')))).toHaveProperty('miss')
+  })
+
+  it('成员的 vitest 配置变了，整份失效并说明是成员配置', () => {
+    const root = repo()
+    expect(missAfter(root, () => touch(root, 'm/vitest.config.mts', 'config 2'))).toEqual({
+      miss: expect.stringContaining('成员的 vitest 配置'),
+    })
+  })
+
+  it('根目录的 vitest.tiers.mts 变了，整份失效并说明是它', () => {
+    const root = repo()
+    expect(missAfter(root, () => touch(root, 'vitest.tiers.mts', 'tiers 2'))).toEqual({
+      miss: expect.stringContaining('vitest.tiers.mts'),
+    })
+  })
+
+  it('只改 *.spec.ts 或 Git 忽略的文件，指纹不变：复用交给 Stryker 按测试文件判断', () => {
+    const root = repo()
+    const before = of(root)
+    touch(root, 'm/tests/a.spec.ts', 'spec 2')
+    touch(root, 'm/tests/ignored/x.ts', 'x 2')
+    expect(of(root)).toEqual(before)
+  })
+
+  it('没有分项的旧快照，在带分项读取时按旧格式整份失效', () => {
+    const root = repo()
+    const print = of(root)
+    const dir = temporary('mutation-store-')
+    const path = storePath(dir, 'm')
+    writeStore(path, { ...STORE, meta: { ...STORE.meta, fingerprint: 'old' } })
+    expect(readStore(path, print.fingerprint, print.parts)).toEqual({ miss: '快照来自旧格式' })
+  })
+
+  it('列文件的 git 命令失败时给出原因，不当作内容为空', () => {
+    const notRepo = temporary('mutation-fp-')
+    touch(notRepo, 'm/tests/helper.ts', 'h')
+    expect(memberFingerprint(notRepo, 'm', 60)).toEqual({
+      unavailable: expect.stringContaining('git ls-files'),
+    })
+  })
 })
