@@ -3,7 +3,8 @@
 // 快照只留上次被杀、落在当时变异范围里的变异体：存活、无覆盖、超时、运行错误与不能计分的照样重跑，读数与不开增量时相同。
 // 快照读不出、对不上版本或写不进去，都按没有快照处理：整份重跑，不让入口失败，也不让读数少算。
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
@@ -80,9 +81,86 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
     .digest('hex')
 }
 
+/** 指纹的四类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件。 */
+export interface FingerprintParts {
+  readonly versions: string
+  readonly config: string
+  readonly tiers: string
+  readonly fixtures: string
+}
+
+/** 一个成员的指纹：合并哈希加分项，分项用来在失效时说明是哪一类变了。 */
+export interface MemberFingerprint {
+  readonly fingerprint: string
+  readonly parts: FingerprintParts
+}
+
+const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
+  versions: '快照来自不同的 Stryker、vitest 版本或用例时限',
+  config: '快照之后成员的 vitest 配置变了',
+  tiers: '快照之后根目录的 vitest.tiers.mts 变了',
+  fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
+}
+const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
+
+const sha = (data: string | Buffer) => createHash('sha256').update(data).digest('hex')
+
+/** 读文件内容摘要；文件不存在记作 `absent`（删掉也是一种变化），其他读不出的原因抛出。 */
+function digestOf(path: string): string {
+  try {
+    return sha(readFileSync(path))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent'
+    throw error
+  }
+}
+
+/**
+ * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
+ * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 这三类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
+ */
+export function memberFingerprint(
+  root: string,
+  memberPath: string,
+  testTimeoutSeconds: number,
+): MemberFingerprint | { readonly unavailable: string } {
+  try {
+    const memberDir = join(root, memberPath)
+    const config = readdirSync(memberDir)
+      .filter(name => name.startsWith('vitest.config.'))
+      .sort()
+      .map(name => [name, digestOf(join(memberDir, name))])
+    const listed = spawnSync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', `${memberPath}/tests`],
+      { cwd: root, encoding: 'utf8' },
+    )
+    if (listed.error !== undefined || listed.status !== 0)
+      throw new Error(
+        `git ls-files 失败：${listed.error?.message ?? (listed.stderr.trim() || `退出码 ${listed.status}`)}`,
+      )
+    const fixtures = [...new Set(listed.stdout.split('\0').filter(path => path !== ''))]
+      .filter(path => !path.endsWith('.spec.ts'))
+      .sort()
+      .map(path => [path, digestOf(join(root, path))])
+    const parts: FingerprintParts = {
+      versions: storeFingerprint(testTimeoutSeconds),
+      config: sha(JSON.stringify(config)),
+      tiers: digestOf(join(root, 'vitest.tiers.mts')),
+      fixtures: sha(JSON.stringify(fixtures)),
+    }
+    return { fingerprint: sha(JSON.stringify(parts)), parts }
+  } catch (error) {
+    return { unavailable: `指纹的输入读不出：${(error as Error).message}` }
+  }
+}
+
 /** 快照里与 Stryker 的报告并排放的自己的记录。 */
 export interface StoreMeta {
   readonly fingerprint: string
+  /** 指纹的分项；旧格式的快照没有，带分项的读取按旧格式整份失效。 */
+  readonly parts?: FingerprintParts
   /** 上次第一遍（不含复核）的墙钟秒数乘以它用的工作进程数，排成员并行时当工作量。 */
   readonly workerSeconds: number
   /** 上次落在变异范围里的变异体数，排成员并行时当工作进程的上限。 */
@@ -116,6 +194,11 @@ function isStoreMeta(value: unknown): value is StoreMeta {
   return (
     isRecord(value) &&
     typeof value['fingerprint'] === 'string' &&
+    (value['parts'] === undefined ||
+      (isRecord(value['parts']) &&
+        PART_KEYS.every(
+          key => typeof (value['parts'] as Record<string, unknown>)[key] === 'string',
+        ))) &&
     typeof value['workerSeconds'] === 'number' &&
     typeof value['mutants'] === 'number' &&
     isRecord(value['staticRuns']) &&
@@ -127,6 +210,7 @@ function isStoreMeta(value: unknown): value is StoreMeta {
 export function readStore(
   path: string,
   fingerprint: string,
+  parts?: FingerprintParts,
 ): { readonly store: Store } | { readonly miss: string } {
   let parsed: unknown
   try {
@@ -138,8 +222,15 @@ export function readStore(
   }
   if (!isRecord(parsed) || !isRecord(parsed['files']) || !isStoreMeta(parsed['omne']))
     return { miss: '快照形状不对' }
-  if (parsed['omne'].fingerprint !== fingerprint)
-    return { miss: '快照来自不同的 Stryker、vitest 版本或用例时限' }
+  if (parsed['omne'].fingerprint !== fingerprint) {
+    if (parts === undefined) return { miss: PART_LABELS.versions }
+    const stored = parsed['omne'].parts
+    if (stored === undefined) return { miss: '快照来自旧格式' }
+    const changed = PART_KEYS.filter(key => stored[key] !== parts[key])
+    return {
+      miss: changed.length === 0 ? '快照指纹不符' : changed.map(key => PART_LABELS[key]).join('；'),
+    }
+  }
   const { omne, ...report } = parsed
   return { store: { report, meta: omne } }
 }
@@ -242,7 +333,11 @@ export function nextStore(
   target: MutationTarget,
   written: Readonly<Record<string, unknown>>,
   runs: readonly RunRecord[] | 'unreadable',
-  facts: { readonly fingerprint: string; readonly workerSeconds: number },
+  facts: {
+    readonly fingerprint: string
+    readonly parts?: FingerprintParts
+    readonly workerSeconds: number
+  },
 ): Store {
   const report = filterMutants(
     written,
@@ -270,6 +365,7 @@ export function nextStore(
     report,
     meta: {
       fingerprint: facts.fingerprint,
+      ...(facts.parts === undefined ? {} : { parts: facts.parts }),
       workerSeconds: facts.workerSeconds,
       mutants: generated,
       staticRuns,
