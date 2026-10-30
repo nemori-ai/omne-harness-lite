@@ -8,7 +8,7 @@
 |---|---|
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/`、`.cursor/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`、`cursor.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md`、`.cursor/agents/<name>.md` |
-| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
+| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的钩子声明：收工与 Claude Code 会话开始） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
 | [`cloud/<host>/`](cloud/README.md)（按宿主分的 Cloud Agent 镜像源） | 该宿主 package 根下的 `Dockerfile`、`environment.json`、`install.sh`。现在只有 `cursor/`，投影到 `.cursor/` 并提交；根 `.cursor` 只是指向该目录的软链接 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
