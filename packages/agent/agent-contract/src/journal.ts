@@ -50,6 +50,7 @@ import type {
   ExecutionRevision,
   PassageId,
 } from './identity.ts'
+import type { FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts'
 
 export type CallerCommit =
   | Readonly<{ kind: 'none' }>
@@ -95,12 +96,27 @@ export type HandoffChange =
       excluded: Extract<HandoffResolution, { kind: 'excluded' }>
       reason: DurableEvidence
     }>
+/**
+ * The state a caller commits (SPEC "条件终结"): the non-terminal states, with settling carrying no
+ * intent. The FinishIntent projection of a settling execution is the Journal's; the snapshot
+ * carries it, the commit does not.
+ */
+export type JournalCommitState =
+  | Exclude<ExecutionState, { kind: 'ended' | 'settling' }>
+  | Readonly<{ kind: 'settling' }>
 export type JournalCommit<P> = ExecutionMutation<P> &
   Readonly<{
     authority: Authority
     expected: ExecutionRevision
     checkpoint: AgentCheckpoint
-    state: Exclude<ExecutionState, { kind: 'ended' }>
+    state: JournalCommitState
+    /**
+     * The business content of a finish candidate, written by the F1 commit (SPEC "条件终结" 1);
+     * null on every other commit. The checkpoint of the candidate is this commit's `checkpoint`.
+     * The Journal establishes the FinishCandidate, its author route and the FinishIntent
+     * projection from it; the caller writes neither candidate, obligations nor beforeTerminal.
+     */
+    finish: FinishCandidateContent | null
     /** The `entry` and `ended` kinds are allocated only by the Journal itself (SPEC "日志条目" 6). */
     events: readonly Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>[]
     effects: readonly EffectIntent[]
@@ -260,8 +276,31 @@ export interface AgentJournalRecording<P> {
       }>,
   ): Reply<CommandReceipt>
 }
-/** The role group that ends an execution under an authorization; see SPEC "条件终结". */
+/**
+ * The role group that ends an execution under an authorization; see SPEC "条件终结", "终结责任清单"
+ * and "commitSettlement 的变体". The ordinary order is fixed: F1 and F2 through commit, then
+ * prepareFinish, then load, then tryFinish. The cancellation order is fixed: establish or migrate
+ * the candidate and judge it through commitSettlement, then prepareFinish, load, tryFinish.
+ */
 export interface AgentJournalFinishing<P> {
+  /**
+   * Issues the finish obligations of `candidate` from the complete authoritative closure under the
+   * current qualification and `expected`, saves the list, `FinishIntent.obligations` and the
+   * complete result of this operation in one commit, and advances one revision. It changes neither
+   * the checkpoint, the candidate content nor `beforeTerminal`, and writes no event.
+   */
+  prepareFinish(
+    input: ExecutionMutation<P> &
+      Readonly<{
+        authorization: FinishAuthorization
+        expected: ExecutionRevision
+        candidate: AgentOperationId
+      }>,
+  ): Reply<Readonly<{ receipt: CommandReceipt; obligations: DurableEvidence }>>
+  /**
+   * The one terminal commit. `intent` is compared with the current FinishIntent projection for
+   * equality only; a difference is `FinishResult.changed`.
+   */
   tryFinish(
     input: ExecutionMutation<P> &
       Readonly<{
@@ -270,6 +309,13 @@ export interface AgentJournalFinishing<P> {
         intent: FinishIntent
       }>,
   ): Reply<FinishResult>
+  /**
+   * The six settlement variants: the candidate, migration and judgment variants under a cancel
+   * authorization and `expected`; the three custody variants under the current reconcile
+   * qualification, also after ended. The same operation with the same input answers the same
+   * record; none creates ended.
+   */
+  commitSettlement(input: SettlementRequest<P>): Reply<SettlementResult>
 }
 /** The role group that records what a post-terminal observer saw; see SPEC "条件终结". */
 export interface AgentJournalObservation<P> {

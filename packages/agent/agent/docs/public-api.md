@@ -188,7 +188,7 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 `@omne-harness/agent/testing` 的 `createMemoryAgentJournal` 提供单进程、非耐久的测试 Journal。`MemoryAgentJournalOptions.retainedToolInvocationFaults` 仅在构造时严格为 `true` 才开启故障控制，默认关闭。以后修改 options 不改变开关。`createTestAgentDependencies({ journal: options })` 将同一选项传入，控制句柄为 `controls.journal`。
 
-开启后，控制句柄的同步方法 `setRetainedToolInvocationFault({ tenant, execution, control, fault })` 只更改一个已保存 Tool control 的 `toolInvocation`。`control` 指接受控制 C 的 operation，不是 recording R。公开类型由已有 `MemoryAgentJournal` 导出；调用者可用 `Parameters` 和 `ReturnType` 取得方法类型。此方法不在 `AgentJournal` port 上。
+开启后，控制句柄的同步方法 `setRetainedToolInvocationFault({ tenant, execution, control, fault })` 只更改一个已保存 Tool control 的 `toolInvocation`。`control` 指受理该控制的 control operation，不是 recording operation。公开类型由已有 `MemoryAgentJournal` 导出；调用者可用 `Parameters` 和 `ReturnType` 取得方法类型。此方法不在 `AgentJournal` port 上。
 
 | fault | 对目标字段的操作 |
 | --- | --- |
@@ -202,7 +202,7 @@ facts 材料保存原租户编码与完整 ModelDelivery。精确采用为 owner
 
 验证先用正常公开操作保存 Tool control，并保存完整正常状态 S0。注入后用 `load` 取得 S1，检查仅目标字段改变，再以真实 `resolveToolInvocationRef` 判定损坏。故障 fixture 的 `load` 静态品牌不证明引用合法，resolver 接受 `unknown`；不要用要求合法品牌的 `readToolInvocationRef` 代替检查。旧 load 快照保持不变。
 
-随后调用真实 `port.recordControl` 的新 R，按 [控制接受与迟到引用](../../agent-contract/SPEC.md#控制接受与迟到引用) 观察精确失败，并核对 S2 等于 S1、原 C/R 回执与完整事件不变、新 R 仍 query unknown。原 R 的同输入认回、异输入冲突及外租户附件次序仍按原业务规则。清除后还须验证真实合法写入。设施自身的 `rejected` 不是业务防御证据。
+随后以新的 recording operation 调用真实 `port.recordControl`，按 [控制接受与迟到引用](../../agent-contract/SPEC.md#控制接受与迟到引用) 观察精确失败，并核对 S2 等于 S1、原 control operation 与原 recording operation 的回执及完整事件不变、新 recording operation 仍 query unknown。原 recording operation 的同输入认回、异输入冲突及外租户附件次序仍按原业务规则。清除后还须验证真实合法写入。设施自身的 `rejected` 不是业务防御证据。
 
 行为资源为 [保留引用公开观察](../tests/journal-tool-control.spec.ts) 和 [控制隔离与恢复](../tests/memory-journal.spec.ts)。它们覆盖内存存储故障，不证明生产存储损坏、耐久恢复、跨进程隔离或独立 QA 已接受。
 

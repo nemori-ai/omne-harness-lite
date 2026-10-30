@@ -123,7 +123,7 @@ flowchart TB
         M1 -->|interrupt 作用于具名调用| M1
         M2["M2 调模型之后位置：failure 的重试决定（独立触发通道待实现）"]
         M2 -. 调用 .-> X0
-        M2 -->|retry 结论交 Model 的重试策略| M1
+        M2 -->|策略建议交重试策略协调者| M1
         M2 -->|不再重试：Model 收场| M1
         M1 -->|匹配原 reference、consumer、consumption| M3["M3 读取完整材料并采用结果与费用"]
         M3 --> M4["M4 调模型之后位置：complete_reply 或最终 failure"]
@@ -154,7 +154,7 @@ flowchart TB
         X3 -->|最终 Conclusion：resolved| X5["X5 链内聚合效果，返回原扩展节点"]
         X3 -->|ask：asked，开新一轮| X4["X4 经 DecisionCards 呈现卡片并等待"]
         X3 -->|结果未知：replay 重调| X2
-        X3 -->|controlUnavailable 或 replay 下 notStartedUnavailable| W0
+        X3 -->|controlUnavailable、invocationUnresolved 或 replay 下 notStartedUnavailable| W0
         X4 -->|等待答复| W0
         X4 -->|答复齐备（含附言）：replay 原精确采用| X2
         X4 -->|present 确定失败：Agent 代写的结论| X5
@@ -239,9 +239,9 @@ flowchart TB
 | X4 | CardRound 的状态、`DecisionCards.present`、`lookup`、`read` | 按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)迁移写入。事件 waiting | 呈现条件满足时呈现。受整批屏障约束时等 A1 的呈现条件 | 等待答复转 W0 | 答复齐备以 replay 转 X2。附言也是答复，处置按 SPEC 整批判断屏障第 11 条。present 确定失败以 Agent 代写的结论转 X5，输出按 SPEC 整批判断屏障第 11 条或循环守卫第 5 条确定 | 同一轮只呈现一次 | present 确定失败的处置归 SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 11 条。调模型之后位置上循环判断的卡片见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫)第 5 条 |
 | X5 | 链上实际形成的 Conclusion 前缀、已知的控制处置事实 | 效果采纳后，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交采纳迁移。合法 inject 经 Q 进入历史一次。每个 stop 的处置操作身份在发送前确定并保存，已提交的取消请求经 ControlRecord 认回 | 效果采纳时提交 | 停止请求的受理或核权未知时转 W0，不发受保护的操作或重试 | 返回原扩展节点。stopped 按读图约定三 | 聚合是纯归约；stop 与 retry 不截断链，归约只处理已运行的前缀 | 效果为 proceed、vetoed、stopped、asked、retry 之一。次序：先认回或采用前缀的独立效果，再逐项处置停止请求，最后选路由。有效取消优先；取消请求都被拒绝时合法 failed 形成失败候选，多个以链序最早为主因；没有停止意图成立时保留 veto，或选链序最后一个合法 retry，或 proceed。优先级表见[机制页](mechanisms.md#扩展协议的边界) |
 | F0 | 取消命令、当前资格 | ControlRecord 的阶段事实经 recordControl。事件 control。请求中断前台调用 | 阶段成立时记录 | 不等待生产者物理停止 | 转 F1 | 与 tryFinish 同一排序 | 阶段见[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
-| F1 | 完成、失败或取消的依据；H0 路由来的原 rejected 结果；取消候选另读当前的取消 control、安装记录与前一个当前候选 | complete 与 failed 候选：执行状态 settling 与 FinishIntent 候选，失败候选的 `failure` 记录，经 `commit` 条件提交。cancelled 候选：经 `commitSettlement` 的 establish-cancellation 建立候选与原生 cancellation route，取代 complete 或 failed 候选时保存替代链接；旧 cancelled 候选仍带 author route 时经 migrate-cancellation 保存迁移记录 M 并切换 route | 候选固定后条件提交，另核当前资格与完整 revision；资格在 H0 与 F1 之间失效时不保存失败。取消候选的提交另核取消授权、settle 资格与当前取消的适用性，迁移另核 migrate-cancellation 资格 | 安装记录或来源不可读时转 W0 | 转 F2。提交未知先查 F1 的原 operation，不再造候选；迁移未知只查 M，不另建 M | 串行 | 失败候选形状见公开接口页的 `FailureCandidate`。取消候选的建立与迁移规则见 SPEC 的[取消判断与路线](../../../agent-contract/SPEC.md#取消判断与路线)与[commitSettlement 的变体](../../../agent-contract/SPEC.md#commitsettlement-的变体) |
-| F2 | 候选终态与完整依据；取消候选另读当前 route、安装记录与完整责任闭包 | complete 与 failed 候选：该位置的 Passage，`FinishIntent.beforeTerminal` 依据，随 X 协议提交。cancelled 候选：经 `commitSettlement` 的 judge-cancellation 保存判断记录与当前判断指针，`beforeTerminal` 指向该记录 | 随 X 协议提交；判断记录在同一权威提交保存 | ask 转 W0；判断实现、安装或来源不可读转 W0 | 作者链 proceed 转 F3，veto 转 I8。判断记录已保存（allowed、blocked 或 unknown）转 F3 | 一个候选一次作者经过；判断记录可因新的相关事实再次产生，新记录 supersedes 前一条 | cancelled 候选不调用 X0，不运行作者扩展链；作者扩展不能否决已生效的取消。判断只读权威事实，不发 Model、inject、ask |
-| F3 | FinishIntent（含 candidate）、expected 修订、终结授权 | 先 `prepareFinish` 发行终结责任清单并填入 `intent.obligations`，load 最新完整修订后 `tryFinish`：终态、ended 事件、终局清单与处置、终态后观察责任与原操作结果共同提交 | prepareFinish 推进一个修订；tryFinish 是唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked、unavailable 或 commit-unknown 转 R0；blocked 的类别为 inputs、controls、operations、passages 或 custody | 与 submit、control、attach、recordControl 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结)与[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) |
+| F1 | 完成、失败或取消的依据；H0 路由来的原 rejected 结果；取消候选另读当前的取消 control、安装记录与前一个当前候选 | complete 与 failed 候选：执行状态 settling 与候选的业务内容（origin、conclusion、failure、inputWatermark、checkpoint 与 conditions），经 `commit` 条件提交。Journal 据此建立 FinishCandidate 与 author route，并维护 FinishIntent 投影；candidate、obligations 与 beforeTerminal 由 Journal 填写，调用者不写。cancelled 候选：经 `commitSettlement` 的 establish-cancellation 建立候选与原生 cancellation route，取代 complete 或 failed 候选时保存替代链接；旧 cancelled 候选仍带 author route 时经 migrate-cancellation 保存迁移记录并切换 route | 候选固定后条件提交，另核当前资格与完整 revision；资格在 H0 与 F1 之间失效时不保存失败。取消候选的提交另核取消授权、settle 资格与当前取消的适用性，迁移另核 migrate-cancellation 资格 | 安装记录或来源不可读时转 W0 | 转 F2。提交未知先查 F1 的原 operation，不再造候选；迁移未知只查原迁移记录，不另建迁移记录 | 串行 | 失败候选形状见公开接口页的 `FailureCandidate`。取消候选的建立与迁移规则见 SPEC 的[取消判断与路线](../../../agent-contract/SPEC.md#取消判断与路线)与[commitSettlement 的变体](../../../agent-contract/SPEC.md#commitsettlement-的变体) |
+| F2 | 候选终态与完整依据；取消候选另读当前 route、安装记录与完整责任闭包 | complete 与 failed 候选：该位置的经过以普通 Passage 随 X 协议提交。该经过完成的那次提交成立时，Journal 把当前 author route 的 `beforeTerminal` 设为这次提交的依据，调用者不写。cancelled 候选：经 `commitSettlement` 的 judge-cancellation 保存判断记录与当前判断指针，Journal 使 `beforeTerminal` 指向该记录 | 随 X 协议提交；判断记录在同一权威提交保存 | ask 转 W0；判断实现、安装或来源不可读转 W0 | 作者链 proceed 转 F3，veto 转 I8。判断记录已保存（allowed、blocked 或 unknown）转 F3 | 一个候选一次作者经过；判断记录可因新的相关事实再次产生，新记录 supersedes 前一条 | cancelled 候选不调用 X0，不运行作者扩展链；作者扩展不能否决已生效的取消。判断只读权威事实，不发 Model、inject、ask |
+| F3 | FinishIntent（含 candidate）、expected 修订、终结授权 | 先 `prepareFinish` 发行终结责任清单，Journal 填入 `intent.obligations`，load 最新完整修订后 `tryFinish`。`tryFinish` 输入的 `intent` 只与当前 FinishIntent 投影做相等核对，不写入任何字段，不相等时返回 changed。成功时终态、ended 事件、终局清单与处置、终态后观察责任与原操作结果共同提交 | prepareFinish 推进一个修订；tryFinish 是唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked、unavailable 或 commit-unknown 转 R0；blocked 的类别为 inputs、controls、operations、passages 或 custody | 与 submit、control、attach、recordControl 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结)与[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) |
 | F4 | 已成立终态、TerminalObservation 台账 | recordTerminalObservation 登记完成 | 观察完成时登记 | 不等待人 | 转 O0 | 由长期协调者逐项处理，不要求推进权 | 只 observed。观察故障不撤终态 |
 | O0 | 未确认事件、未交清结果责任、控制回执、终结责任清单的剩余项、`load.handoffs` 的未清 handoff 责任 | recordResult、acknowledge 的处理、迟到的三种控制阶段事实（recordControl，不追加事件）、保管变体（commitSettlement 的卡片对账、迟到返回与 Tool 关联登记）、准入结果保管（经 `MessageHandoff.lookup` 读原结果后以 recordHandoff 保管）、内部 H 的取消围栏（`MessageHandoff.exclude`，不写 Journal） | 各责任交清时记录，每项在自身原子边界更新处置与修订 | 不等待 | 转 E9 | 不运行终态扩展，不改原终态、checkpoint 与末事件 | 原执行未终态时也可独立处理这些责任。剩余职责从 `load.finishObligations` 与 `load.handoffs` 读取，`reconcile.remaining` 只列结果消费 |
 | H0 | 原 recorded 且 rejected 的结果、原来源请求、当前执行事实 | 不写。没有新 operation、决策帧、快照字段或事件 | 不提交 | 不等待 | 仍有推进资格转 F1，由 F1 条件提交失败候选。无推进资格或已终结转 O0，由 Rh 保管原拒收。unknown、unavailable、denied 与 excluded 不是拒收，不进入本节点 | 串行 | 纯路由，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由” |
@@ -288,13 +288,16 @@ runExecution(entry):                                  // E0 至 E4、I8、F1 至
 
 settle(conclusion):                                   // F1 至 F4
   若 conclusion 为 cancelled：                         // 取消路线
-    intent = journal.commitSettlement(establish-cancellation 或 migrate-cancellation)   // F1
+    journal.commitSettlement(establish-cancellation 或 migrate-cancellation)   // F1
     journal.commitSettlement(judge-cancellation)      // F2：受信取消判断，不运行作者链
   否则：
-    intent = fixCandidate(conclusion)                 // F1
-    effect = runPassages(before_terminal, intent)     // F2
+    journal.commit(候选的业务内容)                     // F1：Journal 建立候选，维护 FinishIntent 投影
+    effect = runPassages(before_terminal, 候选)        // F2：经过完成的提交成立时 Journal 设 beforeTerminal
     若 effect 为 vetoed：回 I8
-  result = journal.tryFinish(authorization, expected, intent)   // F3
+  snapshot = journal.load()
+  journal.prepareFinish(authorization, snapshot.revision, snapshot.state.intent.candidate)   // F3：发行终结责任清单
+  snapshot = journal.load()                           // F3：最新完整修订
+  result = journal.tryFinish(authorization, snapshot.revision, snapshot.state.intent)   // F3：intent 只作相等核对
   若 result 为 ended：observeTerminal()               // F4，再转 O0、E9
   否则：回 R0
 
@@ -389,9 +392,9 @@ executeActions(decided):                              // A2、A3、T0 至 T5
 admitMessage(source, candidate):                      // Q1、Q2、Q4、Q5
   内部来源：journal.commit({ handoff: { kind: 'prepare', request } })   // Q1 的 P
   outcome = handoff.prepare(按来源的判别分支)                           // Q1 的 H
-  prepared：journal.commit({ handoff: { kind: 'resolve', original: H, outcome }, caller: 按绑定声明 })，同次写历史与 message 事件，回调用位置   // Q2 的 J、Q4
-  rejected：J 只写原拒收与允许的接续，按来源返回拒收   // Q5
-  回执未知：H 以 lookup 查，P 与 J 以 query 查，不重新 prepare   // R0
+  prepared：journal.commit({ handoff: { kind: 'resolve', original: H, outcome }, caller: 按绑定声明 })，同次写历史与 message 事件，回调用位置   // Q2 的 Ja、Q4
+  rejected：Ja 只写原拒收与允许的接续，按来源返回拒收   // Q5
+  回执未知：H 以 lookup 查，P 与 Ja 以 query 查，不重新 prepare   // R0
 
 runPassages(position, subject):                       // X0 至 X5
   对该位置的每个扩展，按声明顺序：
@@ -570,7 +573,7 @@ checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `A
 | `completedPassages` | 防止同一次经过再次自触发，P0、C0、C4 等位置据此复用 |
 | `priorConditions` | 作为下一次 `CurrentConditions.read` 的 previous 传入 |
 | `guard` | 不决定节点。I8 读它决定 L3 的失败候选；L4 的等待按 `passages` 回 X4。恢复后读到的值与中断前相同，M4 的循环判断不可用时保持原值 |
-| 执行状态 settling | `ExecutionState` 的 `intent` 已在 F1 提交。complete 与 failed 候选：F2 的经过未完成回 F2，已完成回 F3。cancelled 候选：`settlement` 没有当前候选或旧候选仍带 author route 时回 F1（建立或迁移，提交未知先查原 operation 或 M）；`currentJudgment` 为 null 时回 F2（判断）；已有判断记录回 F3。F3 的提交回执未知先经 R0 查原操作 |
+| 执行状态 settling | F1 已提交候选的业务内容，`ExecutionState` 的 `intent` 是 Journal 维护的投影。complete 与 failed 候选：F2 的经过未完成回 F2，已完成回 F3。cancelled 候选：`settlement` 没有当前候选或旧候选仍带 author route 时回 F1（建立或迁移，提交未知先查原 operation 或原迁移操作）；`currentJudgment` 为 null 时回 F2（判断）；已有判断记录回 F3。F3 的提交回执未知先经 R0 查原操作 |
 
 ## 派生简图
 

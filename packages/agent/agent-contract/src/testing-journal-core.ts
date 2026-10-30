@@ -9,539 +9,60 @@
 // evidence and the four query conclusions ("查询的四种结论与持久拒绝", R2), the order of
 // "判定次序与失败映射" for ended and superseded attachments (Q11), the admission records of
 // "消息准入" (P, the Ja variants resolve and retire, the handoff projection of `load`), the custody
-// of "准入结果保管" (Rh root, permanent exclusion, the one successor), and the two submit lineages
-// of "输入内容与水位线".
+// of "准入结果保管" (Rh root, permanent exclusion, the one successor), the two submit lineages
+// of "输入内容与水位线", and the finishing cases of testing-journal-finishing.ts: the candidate
+// and its projection, the obligations, the blocked order, the cancellation route and the six
+// settlement variants.
 import assert from 'node:assert/strict'
-import { judgeMessage, type Message } from '@omne-harness/message'
-import { decodeModelCallId } from '@omne-harness/model-contract'
-import type { Outcome } from '@omne-harness/operation-result'
-import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts'
-import type {
-  AcceptedInput,
-  AgentEvent,
-  CommandReceipt,
-  ExecutionSnapshot,
-  FinishResult,
-} from './execution.ts'
+import type { DurableEvidence } from './identity.ts'
+import type { AgentOperationId } from './identity.ts'
+import type { HandoffCustody, OriginalInputAcceptance } from './journal.ts'
+import type { PendingHandoff } from './passages.ts'
+import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
+import { finishingCases } from './testing-journal-finishing.ts'
 import {
-  decodeActionId,
-  decodeAgentOperationId,
-  decodeInputId,
-  decodePassageId,
-  type Access,
-  type AgentExecutionId,
-  type AgentOperationId,
-  type Authority,
-  type ConsumptionId,
-  type DurableEvidence,
-} from './identity.ts'
-import type {
-  AgentJournal,
-  ExecutionHandoff,
-  HandoffCustody,
-  JournalCommit,
-  OriginalInputAcceptance,
-} from './journal.ts'
-import type {
-  HandoffOutcome,
-  HandoffReference,
-  HandoffResolution,
-  Passage,
-  PendingHandoff,
-} from './passages.ts'
-import { canonicalText, uncoveredCase, type ConformanceCase } from './testing-case.ts'
+  advancement,
+  advances,
+  afterTerminalPassage,
+  cancelControl,
+  commitAt,
+  controlEvents,
+  end,
+  endCancelled,
+  events,
+  evidence,
+  excluded,
+  finishInput,
+  handoffOf,
+  input,
+  intentOf,
+  load,
+  newSubmit,
+  notSuccessful,
+  ok,
+  operation,
+  outcomeOf,
+  pendingHandoff,
+  prepareCommit,
+  prepareOrdinaryEnd,
+  prepared,
+  PROVIDER,
+  query,
+  recognizingSubmit,
+  refused,
+  requireInstallation,
+  resolveCommit,
+  stage,
+  submitAcceptance,
+  takeInputs,
+  type AgentJournalCoreFixture,
+} from './testing-journal-helpers.ts'
 
-/** One execution the fixture opened, with the handles the suite drives it through. */
-export interface AgentJournalCoreOpened<P> {
-  readonly journal: AgentJournal<P>
-  readonly access: Access<P>
-  readonly execution: AgentExecutionId
-  readonly receipt: CommandReceipt
-  readonly authority: Authority
-  /** The checkpoint the execution was opened with; the suite derives every commit from it. */
-  readonly checkpoint: AgentCheckpoint
-  /**
-   * An input the coordinator side has accepted for this execution, ready for `submit` under the
-   * fixture's binding: with the coordinator's source on a coordinated binding, null on a
-   * standalone one. `name` distinguishes the inputs of one case. The suite builds the submit entry,
-   * the external H and the prepared outcome of the input itself; a provider that only accepts an
-   * outcome of its own admission provider is the fixture's business.
-   */
-  readonly acceptInput: (name: string) => Promise<AcceptedInput>
-  /**
-   * A result the provider accepts for `recordResult` on this execution, with a transfer that
-   * establishes custody or completion: the provider may require the producing call to be known
-   * to the execution first. Optional; the recordResult case is uncovered without it.
-   */
-  readonly produceResult?: (name: string) => Promise<
-    Readonly<{
-      result: ProducedResult
-      consumption: ConsumptionId
-      transfer: Parameters<AgentJournal<P>['recordResult']>[0]['transfer']
-    }>
-  >
-  /** Scripts the next write of `method` to answer commit-unknown with the given outcome. Optional. */
-  readonly faultNext?: (
-    method: 'recordControl' | 'submit' | 'recordHandoff',
-    outcome: 'applied' | 'dropped' | 'pending',
-  ) => void
-  /** Attaches a new attachment that supersedes the current one, under the fixture's rules. Optional. */
-  readonly takeover?: (name: string) => Promise<Authority>
-}
-
-/** What a provider gives the core suite. */
-export interface AgentJournalCoreFixture<P> {
-  /** Opens a fresh execution for the case `name`; every call is independent of the others. */
-  open(name: string): Promise<AgentJournalCoreOpened<P>>
-}
-
-function identity<T>(decoded: Outcome<T, unknown>, what: string): T {
-  if (!('ok' in decoded)) throw new TypeError(`the suite value ${what} is invalid`)
-  return decoded.ok
-}
-const operation = (name: string): AgentOperationId =>
-  identity(decodeAgentOperationId(`core-${name}`), name)
-const evidence = (record: string): DurableEvidence => ({
-  owner: 'suite',
-  record,
-  revision: '1',
-  digest: `suite:${record}`,
-})
-const PROVIDER = { owner: 'suite', name: 'message-handoff', revision: '1', digest: 'suite:handoff' }
-
-function message(text: string, suffix: string, role: 'user' | 'assistant' = 'user'): Message {
-  const judged = judgeMessage({
-    id: `msg_${'c'.repeat(22 - suffix.length)}${suffix}`,
-    role,
-    blocks: [
-      { kind: 'text', id: `blk_${suffix}`, visibility: { toHuman: true, toModel: true }, text },
-    ],
-  })
-  if (!('ok' in judged)) throw new TypeError(`the suite message ${text} is invalid`)
-  return judged.ok
-}
-
-function input(id: string, text = id): AcceptedInput {
-  return {
-    id: identity(decodeInputId(`core-${id}`), id),
-    content: message(text, id.padStart(2, '0').slice(-2)),
-    source: null,
-    priority: 'ordinary',
-  }
-}
-
-async function ok<T>(reply: Reply<T>, what: string): Promise<T> {
-  const outcome = await reply
-  assert.ok('ok' in outcome, `${what} should succeed, got ${JSON.stringify(outcome)}`)
-  return outcome.ok
-}
-
-async function refused<T>(reply: Reply<T>, kind: Failure['kind'], what: string): Promise<Failure> {
-  const outcome = await reply
-  assert.ok('failure' in outcome, `${what} should fail with ${kind}, got success`)
-  assert.equal(outcome.failure.kind, kind, `${what} should fail with ${kind}`)
-  return outcome.failure
-}
-
-async function notSuccessful<T>(reply: Reply<T>, what: string): Promise<void> {
-  const outcome = await reply
-  assert.ok('failure' in outcome, `${what} should not succeed`)
-}
-
-async function load<P>(opened: AgentJournalCoreOpened<P>): Promise<ExecutionSnapshot> {
-  return ok(opened.journal.load({ ...opened.access, execution: opened.execution }), 'load')
-}
-
-async function revision<P>(opened: AgentJournalCoreOpened<P>): Promise<number> {
-  return Number((await load(opened)).revision)
-}
-
-async function events<P>(opened: AgentJournalCoreOpened<P>): Promise<readonly AgentEvent[]> {
-  const page = await ok(
-    opened.journal.output.read({
-      ...opened.access,
-      execution: opened.execution,
-      after: null,
-      limit: 100,
-    }),
-    'read',
-  )
-  assert.equal(page.kind, 'page', 'the suite reads within the retained window')
-  return page.kind === 'page' ? page.events : []
-}
-
-function query<P>(opened: AgentJournalCoreOpened<P>, id: AgentOperationId) {
-  return ok(
-    opened.journal.query({ ...opened.access, execution: opened.execution, operation: id }),
-    `query ${id}`,
-  )
-}
-
-/** A conditional commit at the current snapshot, as one coordinator step would write it. */
-function commitAt<P>(
-  opened: AgentJournalCoreOpened<P>,
-  snapshot: ExecutionSnapshot,
-  name: string,
-  authority: Authority = opened.authority,
-  overrides: Partial<JournalCommit<P>> = {},
-): JournalCommit<P> {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    authority,
-    expected: snapshot.revision,
-    checkpoint: { ...snapshot.checkpoint, position: name },
-    state: { kind: 'advancing' },
-    events: [],
-    effects: [],
-    caller: { kind: 'none' },
-    replyAdmission: null,
-    handoff: null,
-    ...overrides,
-  }
-}
-
-/** The external submit entry, H and prepared outcome of one accepted input, built by the suite. */
-function submitAcceptance<P>(
-  opened: AgentJournalCoreOpened<P>,
-  name: string,
-  value: AcceptedInput,
-  decision: HandoffOutcome['decision'] = {
-    kind: 'prepared',
-    message: value.content,
-    admission: evidence(`admission/${name}`),
-  },
-): OriginalInputAcceptance {
-  const handoff: Extract<HandoffReference, { kind: 'input' }> = {
-    kind: 'input',
-    execution: opened.execution,
-    entry: operation(name),
-    input: value.id,
-  }
-  return {
-    entry: { kind: 'submit', operation: operation(name), execution: opened.execution, value },
-    handoff,
-    outcome: {
-      request: {
-        kind: 'input',
-        reference: handoff,
-        entry: { kind: 'submit', operation: operation(name), execution: opened.execution, value },
-        source: { kind: 'external-input', input: value.id },
-      },
-      origin: {
-        kind: 'submit',
-        executionBinding: evidence(`binding/${opened.execution}`),
-        delivery: { kind: 'durable-view' },
-      },
-      provider: PROVIDER,
-      qualification: evidence(`qualification/${name}`),
-      record: evidence(`record/${name}`),
-      decision,
-    },
-  }
-}
-
-/** A first submit of `value` under the operation `name`, with its new-input lineage. */
-function newSubmit<P>(opened: AgentJournalCoreOpened<P>, name: string, value: AcceptedInput) {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    value,
-    lineage: { kind: 'new-input' as const, original: submitAcceptance(opened, name, value) },
-  }
-}
-
-/** A new operation `name` that recognizes the acceptance `original` of `value`. */
-function recognizingSubmit<P>(
-  opened: AgentJournalCoreOpened<P>,
-  name: string,
-  value: AcceptedInput,
-  original: OriginalInputAcceptance,
-) {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    value,
-    lineage: { kind: 'recognize-input' as const, original },
-  }
-}
-
-/** The internal request of a model reply at the position I3 of the opened checkpoint's step. */
-function pendingHandoff<P>(
-  opened: AgentJournalCoreOpened<P>,
-  snapshot: ExecutionSnapshot,
-  name: string,
-  predecessorHandoff: PendingHandoff['predecessorHandoff'] = null,
-): PendingHandoff {
-  const call = identity(decodeModelCallId(`mcall_${'0'.repeat(20)}${name.slice(-2)}`), 'call')
-  return {
-    kind: 'execution',
-    reference: { kind: 'execution', execution: opened.execution, operation: operation(name) },
-    predecessor: snapshot.revision,
-    position: { step: snapshot.checkpoint.step, node: 'I3', slot: null },
-    source: {
-      kind: 'model-reply',
-      step: snapshot.checkpoint.step,
-      action: identity(decodeActionId(`core-${name}/action`), name),
-      call,
-      result: {
-        producer: { kind: 'model', call },
-        version: 'v1',
-        delivery: null,
-        source: evidence(`result/${name}`),
-      },
-    },
-    candidate: message(`reply ${name}`, name.padStart(2, '0').slice(-2), 'assistant'),
-    originalAdvance: opened.authority,
-    predecessorHandoff,
-  }
-}
-
-function outcomeOf(request: PendingHandoff, decision: HandoffOutcome['decision']): HandoffOutcome {
-  const name = request.reference.operation
-  return {
-    request,
-    origin: null,
-    provider: PROVIDER,
-    qualification: evidence(`qualification/${name}`),
-    record: evidence(`record/${name}`),
-    decision,
-  }
-}
-
-function prepared(request: PendingHandoff): HandoffOutcome {
-  return outcomeOf(request, {
-    kind: 'prepared',
-    message: request.candidate,
-    admission: evidence(`admission/${request.reference.operation}`),
-  })
-}
-
-function excluded(request: PendingHandoff): Extract<HandoffResolution, { kind: 'excluded' }> {
-  return {
-    kind: 'excluded',
-    request,
-    origin: null,
-    exclusion: evidence(`exclusion/${request.reference.operation}`),
-  }
-}
-
-/** The P commit of `request` at `snapshot`: `handoff.prepare` and `currentHandoff` set to H. */
-function prepareCommit<P>(
-  opened: AgentJournalCoreOpened<P>,
-  snapshot: ExecutionSnapshot,
-  name: string,
-  request: PendingHandoff,
-): JournalCommit<P> {
-  return commitAt(opened, snapshot, name, opened.authority, {
-    checkpoint: { ...snapshot.checkpoint, position: 'Q2', currentHandoff: request.reference },
-    handoff: { kind: 'prepare', request },
-  })
-}
-
-/** The Ja commit of `outcome` at `snapshot`: the message event of a prepared outcome, no event otherwise. */
-function resolveCommit<P>(
-  opened: AgentJournalCoreOpened<P>,
-  snapshot: ExecutionSnapshot,
-  name: string,
-  outcome: HandoffOutcome,
-  overrides: Partial<JournalCommit<P>> = {},
-): JournalCommit<P> {
-  const decision = outcome.decision
-  const source = outcome.request.source
-  return commitAt(opened, snapshot, name, opened.authority, {
-    checkpoint: { ...snapshot.checkpoint, position: 'Q4', currentHandoff: null },
-    events:
-      decision.kind === 'prepared'
-        ? [{ kind: 'message', message: decision.message, source: decision.admission }]
-        : [],
-    // The Ja of a model reply carries the admission fact of that reply (SPEC "消息准入").
-    replyAdmission:
-      source.kind === 'model-reply'
-        ? {
-            step: source.step,
-            action: source.action,
-            call: source.call,
-            resultVersion: source.result.version,
-            decision: decision.kind === 'prepared' ? 'admitted' : 'rejected',
-            source: decision.kind === 'prepared' ? decision.admission : decision.evidence,
-          }
-        : null,
-    handoff: { kind: 'resolve', outcome },
-    ...overrides,
-  })
-}
-
-function handoffOf(snapshot: ExecutionSnapshot, reference: HandoffReference): ExecutionHandoff {
-  const found = snapshot.handoffs.find(
-    item => canonicalText(item.handoff) === canonicalText(reference),
-  )
-  assert.ok(found !== undefined, `load.handoffs should list ${JSON.stringify(reference)}`)
-  return found
-}
-
-/** Takes every accepted input into one batch, as I0 would, so an ordinary end is not blocked. */
-async function takeInputs<P>(opened: AgentJournalCoreOpened<P>, name = 'take'): Promise<void> {
-  const snapshot = await load(opened)
-  const taken = await ok(
-    opened.journal.inputs({
-      ...opened.access,
-      execution: opened.execution,
-      watermark: snapshot.inputWatermark,
-    }),
-    'inputs',
-  )
-  await ok(
-    opened.journal.commit(
-      commitAt(opened, snapshot, name, opened.authority, {
-        checkpoint: { ...snapshot.checkpoint, inputBatch: taken.batch.id },
-        events: [{ kind: 'input-taken', batch: taken.batch }],
-      }),
-    ),
-    'the I0 commit',
-  )
-}
-
-function finishInput<P>(
-  opened: AgentJournalCoreOpened<P>,
-  snapshot: ExecutionSnapshot,
-  name: string,
-  authority: Authority = opened.authority,
-) {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    authorization: { kind: 'advancement' as const, authority },
-    expected: snapshot.revision,
-    intent: {
-      conclusion: { kind: 'complete' as const },
-      inputWatermark: snapshot.inputWatermark,
-      obligations: evidence(`obligations/${name}`),
-      beforeTerminal: evidence(`before-terminal/${name}`),
-      failure: null,
-    },
-  }
-}
-
-/** Takes the inputs, then ends through `tryFinish` with an ordinary completion. */
-async function end<P>(opened: AgentJournalCoreOpened<P>, name = 'end'): Promise<CommandReceipt> {
-  await takeInputs(opened, `take-${name}`)
-  const finished = await ok(
-    opened.journal.tryFinish(finishInput(opened, await load(opened), name)),
-    'tryFinish',
-  )
-  assert.equal(finished.kind, 'ended', `the ordinary end should succeed, got ${finished.kind}`)
-  return (finished as Extract<FinishResult, { kind: 'ended' }>).receipt
-}
-
-/** Ends through `tryFinish` under the cancel whose intent is reached: the cancelled conclusion. */
-async function endCancelled<P>(
-  opened: AgentJournalCoreOpened<P>,
-  control: AgentOperationId,
-  name = 'end-cancelled',
-): Promise<CommandReceipt> {
-  await takeInputs(opened, `take-${name}`)
-  const snapshot = await load(opened)
-  const ordinary = finishInput(opened, snapshot, name)
-  const finished = await ok(
-    opened.journal.tryFinish({
-      ...ordinary,
-      authorization: { kind: 'cancel', control, source: evidence(`cancel-source/${name}`) },
-      intent: {
-        ...ordinary.intent,
-        conclusion: { kind: 'cancelled', cause: evidence(`cancel-cause/${name}`) },
-      },
-    }),
-    'tryFinish',
-  )
-  assert.equal(finished.kind, 'ended', `the cancelled end should succeed, got ${finished.kind}`)
-  return (finished as Extract<FinishResult, { kind: 'ended' }>).receipt
-}
-
-function cancelControl<P>(opened: AgentJournalCoreOpened<P>, name = 'cancel') {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    command: { kind: 'cancel' as const, reason: evidence(`reason/${name}`) },
-  }
-}
-
-function stage<P>(
-  opened: AgentJournalCoreOpened<P>,
-  name: string,
-  target: AgentOperationId,
-  which:
-    | 'intent-established'
-    | 'qualification-revoked'
-    | 'producer-confirmed'
-    | 'physically-stopped'
-    | 'duty-released',
-  state: 'reached' | 'unresolved' = 'reached',
-  source = evidence(`stage/${which}`),
-) {
-  return {
-    ...opened.access,
-    execution: opened.execution,
-    operation: operation(name),
-    target,
-    stage: which,
-    state,
-    source,
-  }
-}
-
-function controlEvents(all: readonly AgentEvent[]) {
-  return all.flatMap(event =>
-    event.body.kind === 'control'
-      ? [[event.body.operation, event.body.stage, event.body.state] as const]
-      : [],
-  )
-}
-
-/** A post-terminal passage that `tryFinish` turns into a pending observation. */
-function afterTerminalPassage(name: string): Passage {
-  return {
-    id: identity(decodePassageId(`core-${name}`), name),
-    position: 'after_terminal',
-    dimension: null,
-    purpose: null,
-    action: null,
-    ordinal: 1,
-    declaration: {
-      name: 'observer',
-      position: 'after_terminal',
-      power: 'observe',
-      implementation: { kind: 'builtin', builtinName: 'observer' },
-    },
-    implementation: PROVIDER,
-    input: evidence(`passage/${name}/input`),
-    effective: evidence(`passage/${name}/effective`),
-    operations: [],
-    progress: { kind: 'requested', mode: { kind: 'fresh' } },
-  }
-}
-
-/**
- * Runs `write` twice and returns how much the revision advanced after the first and after the
- * second call: a new fact advances it by one, and the same operation recognizes without a second.
- * The second call must answer exactly what the first did (SPEC "判定次序与失败映射" 2).
- */
-async function advances<P>(
-  opened: AgentJournalCoreOpened<P>,
-  write: () => Promise<unknown>,
-): Promise<readonly [number, number]> {
-  const before = await revision(opened)
-  const first = await write()
-  const middle = await revision(opened)
-  const second = await write()
-  assert.deepEqual(second, first, 'the retry of the same operation answers the original result')
-  return [middle - before, (await revision(opened)) - middle]
-}
+export type {
+  AgentJournalCoreFixture,
+  AgentJournalCoreOpenOptions,
+  AgentJournalCoreOpened,
+} from './testing-journal-helpers.ts'
 
 /** The cases that every `AgentJournal` binding passes. */
 export function agentJournalCoreConformance<P>(
@@ -842,6 +363,7 @@ export function agentJournalCoreConformance<P>(
       name: 'R2 and Q1b: after ended, evidence that contradicts a reached intent or a reached late stage is persistently rejected, not answered terminal',
       run: async () => {
         const opened = await fixture.open('r2-after-ended')
+        if (!(await requireInstallation(opened))) return
         const { journal } = opened
         const control = cancelControl(opened)
         await ok(journal.control(control), 'control')
@@ -959,7 +481,8 @@ export function agentJournalCoreConformance<P>(
         const accepted = newSubmit(opened, 'submit-8', value)
         await ok(journal.submit(accepted), 'an input accepted before the end')
         await takeInputs(opened)
-        const finish = finishInput(opened, await load(opened), 'end')
+        const ready = await prepareOrdinaryEnd(opened, 'end')
+        const finish = finishInput(opened, ready, 'end')
         const first = await ok(journal.tryFinish(finish), 'the end')
         assert.equal(first.kind, 'ended')
         const before = await load(opened)
@@ -977,7 +500,7 @@ export function agentJournalCoreConformance<P>(
           'detach',
         )
         await refused(
-          journal.tryFinish(finishInput(opened, before, 'second-end')),
+          journal.tryFinish(finishInput(opened, before, 'second-end', undefined, finish.intent)),
           'terminal',
           'a new tryFinish',
         )
@@ -1051,8 +574,17 @@ export function agentJournalCoreConformance<P>(
           'stale-advance',
           'the old attachment commits with a stale expected revision',
         )
+        const ready = await prepareOrdinaryEnd(opened, 'end', successor)
+        const intent = intentOf(ready)
+        await refused(
+          journal.tryFinish(
+            finishInput(opened, ready, 'old-end-before', advancement(opened.authority)),
+          ),
+          'stale-advance',
+          'the old attachment ends before the successor',
+        )
         const finish = await ok(
-          journal.tryFinish(finishInput(opened, current, 'end', successor)),
+          journal.tryFinish(finishInput(opened, ready, 'end', advancement(successor))),
           'the successor ends',
         )
         assert.equal(finish.kind, 'ended')
@@ -1063,7 +595,9 @@ export function agentJournalCoreConformance<P>(
           'the old attachment commits',
         )
         await refused(
-          journal.tryFinish(finishInput(opened, before, 'old-end', opened.authority)),
+          journal.tryFinish(
+            finishInput(opened, before, 'old-end', advancement(opened.authority), intent),
+          ),
           'stale-advance',
           'the old attachment ends',
         )
@@ -1605,5 +1139,6 @@ export function agentJournalCoreConformance<P>(
         assert.equal(handoffOf(later, request.reference).history.kind, 'pending')
       },
     },
+    ...finishingCases(fixture),
   ]
 }
