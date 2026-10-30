@@ -297,6 +297,11 @@ describe('worktree preparation', () => {
   it('starts uv run --locked without the index variables of the caller', () => {
     const r = runner()
     regenerateProjections(home(), r.run, linux)
+    // check:agents runs `uv run --locked` through its pnpm script.
+    expect(r.steps.find(step => step.args.includes('check:agents'))?.env).toStrictEqual({
+      UV_DEFAULT_INDEX: undefined,
+      UV_INDEX_URL: undefined,
+    })
     const uv = r.steps.filter(step => step.program === 'uv')
     expect(uv).toHaveLength(2)
     // toStrictEqual: a key set to undefined differs from a key that is missing.

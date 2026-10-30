@@ -197,7 +197,7 @@ node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts r
 
 `projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并之后、准入之前一律运行它：候选自己没改 agent 源时，合并进来的轨道头也可能带别的卡的改动。需要 `uv` 与 `pnpm`。
 
-`projections` 起 `uv run --locked` 时，从子进程的环境中去掉 `UV_DEFAULT_INDEX` 与 `UV_INDEX_URL`。锁文件已固定每个包的来源，调用者环境里的镜像索引只会让锁文件核对失败。
+`projections` 起 `uv run --locked` 与 `pnpm run check:agents`（它自己也起 `uv run --locked`）时，从子进程的环境中去掉 `UV_DEFAULT_INDEX` 与 `UV_INDEX_URL`。锁文件已固定每个包的来源，调用者环境里的镜像索引只会让锁文件核对失败。
 
 按内容复制这一步，在 POSIX 上且 `PATH` 里有 `rsync` 时运行 `rsync -rlpc`。其他情况，包括 Windows，由 Node 实现同样的语义：创建目录，软链接按链接复制，内容相同的文件不重写，权限位随源（仅 POSIX），不删除目标里多出的文件。不直接把 `compile_agents.py` 输出到 `.meta_harness/`，因为它遇到内容不同的已有文件会拒绝覆盖，必须先编到新目录。
 

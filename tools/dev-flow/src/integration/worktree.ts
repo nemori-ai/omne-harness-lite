@@ -126,8 +126,9 @@ function pnpmStep(
   args: readonly string[],
   cwd: string,
   pnpm: PnpmCommand,
+  env?: EnvChanges,
 ): string {
-  return step(run, name, pnpm.program, [...pnpm.args, ...args], cwd)
+  return step(run, name, pnpm.program, [...pnpm.args, ...args], cwd, env)
 }
 
 /**
@@ -226,15 +227,13 @@ export const taskDirectory = (binding: TaskBinding) => `tmp/issue-${binding.issu
 
 const CURSOR_RUNTIME = ['Dockerfile', 'environment.json', 'install.sh']
 /**
- * The environment changes for `uv run --locked`. The lock file fixes where each package comes
- * from, so an index from the user's environment (for example a mirror) only makes the lock
- * check fail; both index variables are removed.
+ * Removes the uv index variables. The lock file fixes where each package comes from, so an
+ * index from the user's environment (for example a mirror) only makes `uv … --locked` fail.
+ * Every step that starts `uv … --locked`, itself or through a script, gets this change.
  */
-export const LOCKED_UV_ENV: EnvChanges = {
-  PYTHONDONTWRITEBYTECODE: '1',
-  UV_DEFAULT_INDEX: undefined,
-  UV_INDEX_URL: undefined,
-}
+export const WITHOUT_UV_INDEX: EnvChanges = { UV_DEFAULT_INDEX: undefined, UV_INDEX_URL: undefined }
+/** The environment changes for the `uv run --locked` steps. */
+export const LOCKED_UV_ENV: EnvChanges = { PYTHONDONTWRITEBYTECODE: '1', ...WITHOUT_UV_INDEX }
 /**
  * Regenerates the agent projections of a worktree from its own `.meta_harness/agents` source:
  * compile into a fresh stage directory, copy the stage over `.meta_harness/` by content,
@@ -294,7 +293,8 @@ export function regenerateProjections(
         if (existsSync(path)) chmodSync(path, statSync(path).mode & ~0o020)
       }
     })
-    pnpmStep(run, 'check:agents', ['run', 'check:agents'], tree, pnpm)
+    // check:agents runs `uv run --locked` itself.
+    pnpmStep(run, 'check:agents', ['run', 'check:agents'], tree, pnpm, WITHOUT_UV_INDEX)
   } finally {
     rmSync(stage, { recursive: true, force: true })
   }
