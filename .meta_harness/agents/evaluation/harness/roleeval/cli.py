@@ -76,7 +76,7 @@ class Refused(RuntimeError):
 
 
 def main_checkout(repo: Path) -> Path:
-    common = Path(workspace.git(repo, "rev-parse", "--git-common-dir"))
+    common = Path(workspace.source_git(repo, "rev-parse", "--git-common-dir"))
     return (common if common.is_absolute() else repo / common).resolve().parent
 
 
@@ -440,7 +440,8 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
         INLINE.format(tools="、".join(host["allowed"]), role=role, brief=brief_text), encoding="utf-8")
     pending.write_text(json.dumps({
         "workspace": str(dest), "role": str(role), **copy,
-        "harness_commit": workspace.head(REPO), "dirty": bool(changes), "agent_sha": sha256(agents),
+        "harness_commit": workspace.source_git(REPO, "rev-parse", "HEAD"), "dirty": bool(changes),
+        "agent_sha": sha256(agents),
         "prepared_at": int(time.time()),
     }, ensure_ascii=False, indent=1), encoding="utf-8")
     alias = ALIASES.get(host["model"], host["model"])
