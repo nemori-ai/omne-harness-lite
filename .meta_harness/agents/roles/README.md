@@ -172,19 +172,29 @@ diagnostician 只覆盖终端取证。`surface` 不是 `terminal` 就停止。�
 
 ## 模型配置与本次派发
 
-模型的权威在各角色的 `codex.toml`、`claude.yaml`；档位的权威在固定档位角色的这两个文件、可调角色的 `assembly.toml` 与
-[派发策略](dispatch-policy.json)。只有 product-design-drafter 固定档位；其余角色的默认档位见上表，可按任务选 medium/high/xhigh，
-以 `render_pair.py --resolve` 按策略给出的值为准。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+模型的权威在各角色的 `codex.toml`、`claude.yaml`。档位的权威在三处：固定档位角色的这两个文件、可调角色的 `assembly.toml`，以及
+[派发策略](dispatch-policy.json)。只有 product-design-drafter 固定档位；其余角色的默认档位见上表，按任务取值以
+`render_pair.py --resolve` 按策略给出的结果为准。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
 
-**顶档模型的档位**（负责人 2026-10-30 裁定，#947）：Claude Fable 5.1 与 Codex GPT-6 Astra 默认用 medium，需要时最高用 high；
-只有 hardest 任务才用 xhigh。hardest 取 pstack `poteto-mode` 的说法：跨模块的设计、棘手的并发、精细的算法。
-策略用 `hardest_work` 与 `hardest_risks` 列出本项目认定的 hardest：design-reviewer 的「选择」判断；developer 的内核原语与生命周期、
-跨模块生命周期、跨进程故障。解析器对顶档模型上的非 hardest 任务把默认值和下限压到 `top_model_maximum_effort`（high），
-并拒绝更高的覆盖值。别的模型（Opus、Sonnet、GPT-6.1 Sol）不受这条约束。
+**顶档模型的档位**（负责人 2026-10-30 裁定，见 [#945 评论](https://github.com/nemori-ai/omne-harness-lite/issues/945#issuecomment-6516511972)第 1 条；
+方案经 [#947 评论](https://github.com/nemori-ai/omne-harness-lite/issues/947#issuecomment-6517202642)采用）。顶档模型指 Claude Fable 5.1 与 Codex GPT-6 Astra：
 
-**design-reviewer 判「表达」时可以换成 Opus 5.5**：Claude Code 一端角色文件钉 Fable 5.1，派发时用 Agent 工具的 `model` 参数覆盖
-（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；「表达」在 Opus 5.5 上用 xhigh。判「选择」与「计划」用钉值的模型。
-Codex 一端钉 GPT-6 Astra，三种判断都用它；其中「表达」与「计划」不是 hardest，最高用 high。
+- 只有 hardest 任务用 xhigh，而且 xhigh 是它们的下限。hardest 取 [pstack `poteto-mode`](../../../docs/engineering/skills.md#pstack-方法入口)
+  的说法：横切的设计（cross-cutting design）、棘手的并发（gnarly concurrency）、精细的算法（subtle algorithms）。
+- 本项目认定的 hardest 写在策略的 `hardest_work` 与 `hardest_risks`：design-reviewer 的「选择」判断；developer 的内核原语与生命周期，
+  以及带 `cross-module-lifecycle`、`cross-process-faults`、`subtle-algorithm` 风险的任务。遇到精细算法时，派发者给 developer 加
+  `--risk subtle-algorithm`。
+- 其余任务在顶档模型上最高用 high。解析器把高于 `top_model_maximum_effort`（high）的默认值与下限降为 high，并拒绝更高的覆盖值。
+- 评审类角色默认 medium，多数任务够用，需要时调到 high。developer 的非 hardest 顶档任务（安全敏感、跨多个包或整个装配、
+  契约把失败／诊断／顺序留给判断、发布门禁）下限是 high。
+- 别的模型（Opus、Sonnet、GPT-6.1 Sol）不受这条约束。
+
+因此同一个角色在两种宿主上可能取不同档位：design-reviewer 判「表达」时，Claude Code 一端用 Opus 5.5 xhigh（`work_minimum_effort`
+给的下限），Codex 一端用 GPT-6 Astra，降为 high；qa 的顶档在 Claude Code 一端是 Opus 5.5 xhigh，在 Codex 一端是 GPT-6 Astra high。
+
+**design-reviewer 判「表达」时换成 Opus 5.5**：Claude Code 一端角色文件钉 Fable 5.1，解析器为「表达」选 Opus 5.5，派发时用
+Agent 工具的 `model` 参数覆盖（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）。判「选择」与「计划」
+用钉值的模型。Codex 一端钉 GPT-6 Astra，三种判断都用它。
 
 **developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
 
@@ -193,29 +203,35 @@ Codex 一端钉 GPT-6 Astra，三种判断都用它；其中「表达」与「�
 | 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
 | 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
 | 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 跨模块生命周期、跨进程故障 | Fable 5.1 | GPT-6 Astra | xhigh |
+| 跨模块生命周期、跨进程故障、精细算法 | Fable 5.1 | GPT-6 Astra | xhigh |
 | 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断、发布门禁 | Fable 5.1 | GPT-6 Astra | high |
 
 两端换模型的机制不同：Claude Code 的角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖；
 Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 qa 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，
 不给就继承父会话的模型。diagnostician 继续钉 `gpt-6.1-sol`。
 
-开发者派发参数从源配置取得。在本工作区根、使用具备 Python 3.12+ 和 PyYAML 的解释器：
+档位同样两端不同：Claude Code 上用 Agent 工具的 `effort` 参数传入解析结果，验证见 `design-subagents` 技能
+[模板与生成](../skills/design-subagents/canonical/references/packaging.md)。Codex 上，可调角色的 `codex.toml` 不钉档位，
+派发时必须显式给档位，不给就继承父会话的档位（历史探针里继承到过 low）。
+
+按任务取值在工作区根运行，使用具备 Python 3.12+ 和 PyYAML 的解释器：
 
 ```sh
-python agents/skills/design-subagents/canonical/scripts/render_pair.py \
-  --source agents/roles/developer --dispatch codex --effort high
-python agents/skills/design-subagents/canonical/scripts/render_pair.py \
-  --source agents/roles/developer --dispatch claude --effort high
+uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/scripts/render_pair.py \
+  --source .meta_harness/agents/roles/developer --resolve codex \
+  --policy-version 947.1 --work-kind kernel
+uv run --locked python .meta_harness/agents/skills/design-subagents/canonical/scripts/render_pair.py \
+  --source .meta_harness/agents/roles/design-reviewer --resolve claude_code \
+  --policy-version 947.1 --work-kind plan --effort high
 ```
 
-命令仅打印 JSON。Codex 派发需要显式应用返回的 effort，developer 的输出里 `model` 为空，由派发者按上表填；直接调用角色不保证采用源默认档位。
-`--dispatch` 只给角色默认值与合法档位，不按任务核对 hardest；按任务派发用 `--resolve`，它按策略给出模型与档位。
-Claude Code 上，按次的档位用 Agent 工具的 `effort` 参数传入解析结果：2026-10-30 实测，钉 `effort: xhigh` 的 design-reviewer
-以 `effort: medium` 派发，子代理轨迹记录的实际档位是 medium。要改 effort 以外的字段时，Claude 会话仍应用完整角色 JSON；
-实际调用面和支持范围沿 `design-subagents` skill 核对。固定档位的角色（product-design-drafter）不接受此调档入口。
+命令仅打印 JSON，含 requested 的模型与档位、`effort_rule`（是否 hardest、下限、上限）与选择来源。策略版本变化时重新解析，
+不复用旧结果。`--dispatch` 只给角色默认值与合法档位，不按任务核对 hardest；它对顶档模型上的角色拒绝高于 high 的档位，
+要用 xhigh 时改用 `--resolve`。固定档位的角色（product-design-drafter）两种入口都不接受改档位：`--dispatch` 与 `--resolve`
+都拒绝，派发时也不要用 Agent 工具的 `effort` 参数改它。要改 effort 以外的字段时，Claude 会话仍应用完整角色 JSON；
+实际调用面和支持范围沿 `design-subagents` skill 核对。
 
-Cursor 一端暂不跟随：`cursor.yaml` 仍钉 `claude-fable-5-1-xhigh` 与 `claude-fable-5-1-high`，以保留现有资格。这是已知偏离，
+Cursor 一端暂不跟随：`cursor.yaml` 仍钉 `claude-fable-5-1-xhigh` 与 `claude-fable-5-1-high`，以保留现有资格。这是已知偏离。
 Cursor 派发者按上面的规则选已核对的模型 ID；Cursor 实际使用前，补 `-medium` 的支持证据并重新取得资格。
 
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通

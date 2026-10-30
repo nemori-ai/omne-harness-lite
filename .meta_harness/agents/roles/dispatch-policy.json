@@ -14,10 +14,10 @@
         "application": "default", "single-module-application": "economical",
         "kernel": "top", "terminal": "economical", "verification": "economical"
       },
-      "top_risks": ["security-sensitive", "multi-package", "whole-assembly", "underspecified-contract", "cross-module-lifecycle", "cross-process-faults", "release-gate"],
+      "top_risks": ["security-sensitive", "multi-package", "whole-assembly", "underspecified-contract", "cross-module-lifecycle", "cross-process-faults", "subtle-algorithm", "release-gate"],
       "top_minimum_effort": "high",
       "hardest_work": ["kernel"],
-      "hardest_risks": ["cross-module-lifecycle", "cross-process-faults"]
+      "hardest_risks": ["cross-module-lifecycle", "cross-process-faults", "subtle-algorithm"]
     },
     "qa": {
       "adjustable_model": true,
@@ -30,7 +30,7 @@
     "design-reviewer": {
       "work": {"choice": "source", "expression": "source", "plan": "source"},
       "model_variants": {"expression": {"claude_code": "product-design-drafter"}},
-      "work_effort": {"expression": "xhigh"},
+      "work_minimum_effort": {"expression": "xhigh"},
       "hardest_work": ["choice"]
     },
     "diagnostician": {"work": {"terminal": "source"}},

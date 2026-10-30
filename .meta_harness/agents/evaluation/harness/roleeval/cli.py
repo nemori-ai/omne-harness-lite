@@ -515,7 +515,7 @@ def record(flow: Flow, material: Material, rep: int, *, variant: str, out: Path,
         inside = checkout.dispatched_inside(episode.cwd, main)
         if inside:
             reached.append(inside)
-    failure = episode.failure(host["model"]) or (("contaminated", "; ".join(reached)) if reached else None)
+    failure = episode.failure(host["model"], host["effort"]) or (("contaminated", "; ".join(reached)) if reached else None)
     observed: dict[str, tuple[float, str]] = {}
     oracle: dict[str, Any] | None = None
     if not failure:
