@@ -715,9 +715,10 @@ describe('R0 and W0 coordination', () => {
       ...d,
       journal: {
         ...d.journal,
+        // A refusal stops the run at F3; an unavailable tryFinish would go to R0 instead.
         tryFinish: async input => {
           finish = input
-          return fail({ kind: 'unavailable', owner: 'test', diagnostic: 'pause before terminal' })
+          return fail({ kind: 'denied', action: 'pause before terminal' })
         },
         load: async input => {
           if (reentry && ++loads === 2) {

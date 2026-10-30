@@ -5,16 +5,21 @@
 // that change it live in journal.ts.
 import type {
   AcceptedInput,
+  Adoption,
   AgentCheckpoint,
   AgentOperationId,
+  CancellationJudgmentInput,
   CancellationJudgmentRecord,
+  CancellationUnknown,
   CandidateSupersession,
+  ContinuationRequest,
   CardReconciliationRecord,
   CardRound,
   ConsumerRef,
   ControlRecord,
   CoverageFacet,
   DurableEvidence,
+  EffectIntent,
   ExecutionSettlement,
   FinishCandidate,
   FinishCandidateContent,
@@ -27,10 +32,13 @@ import type {
   MigrationRecord,
   ObligationCategory,
   ObligationDisposition,
+  PendingReason,
   RecoveryContinuation,
   ResponsibilityCoverage,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
+import { obligationCategoryOf } from '@omne-harness/agent-contract/testing'
+import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { MemoryExecution } from './journal.ts'
 import { journalEvidence, JOURNAL_OWNER, revisionOf } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
@@ -108,24 +116,21 @@ export function currentJudgment(records: FinishingRecords): CancellationJudgment
   return records.judgments.find(judgment => judgment.operation === records.currentJudgment)
 }
 
-/** Whether two candidate contents are the same business content (SPEC "条件终结"). */
-export function sameContent(left: FinishCandidateContent, right: FinishCandidateContent): boolean {
-  return (
+/** The content of a candidate with its checkpoint: what "the same business content" compares (SPEC "条件终结"). */
+export type CandidateContent = FinishCandidateContent & Readonly<{ checkpoint: AgentCheckpoint }>
+
+/** Whether two candidate contents are the same business content; the checkpoint is part of it. */
+export function sameContent(left: CandidateContent, right: CandidateContent): boolean {
+  const content = (value: CandidateContent) =>
     canonical({
-      origin: left.origin,
-      conclusion: left.conclusion,
-      failure: left.failure,
-      inputWatermark: left.inputWatermark,
-      conditions: left.conditions,
-    }) ===
-    canonical({
-      origin: right.origin,
-      conclusion: right.conclusion,
-      failure: right.failure,
-      inputWatermark: right.inputWatermark,
-      conditions: right.conditions,
+      origin: value.origin,
+      conclusion: value.conclusion,
+      failure: value.failure,
+      inputWatermark: value.inputWatermark,
+      conditions: value.conditions,
+      checkpoint: value.checkpoint,
     })
-  )
+  return content(left) === content(right)
 }
 
 /**
@@ -183,6 +188,7 @@ export function beforeTerminalPending(checkpoint: AgentCheckpoint): boolean {
 export type ObligationSource = Pick<
   MemoryExecution,
   | 'id'
+  | 'tenant'
   | 'revision'
   | 'checkpoint'
   | 'inputs'
@@ -191,6 +197,7 @@ export type ObligationSource = Pick<
   | 'results'
   | 'effects'
   | 'events'
+  | 'entries'
   | 'acknowledged'
   | 'handoffs'
 > &
@@ -203,14 +210,27 @@ const JOURNAL_CUSTODIAN: ConsumerRef = Object.freeze({
   purpose: 'custody',
 })
 
-function continuation(
-  kind: RecoveryContinuation['kind'],
-  request: DurableEvidence,
-  purpose: RecoveryContinuation['purpose'],
-  owner = JOURNAL_OWNER,
-): RecoveryContinuation {
-  return { kind, request, owner, custodian: null, purpose }
+/** The schema under which this double keeps the record a continuation refers to. */
+const RECORD_SCHEMA: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'journal-record',
+  revision: '1',
+  digest: 'memory:journal-record',
+})
+
+/** The request of a continuation that refers to a record of this Journal under its schema. */
+function ofRecord(
+  record: DurableEvidence,
+): Extract<ContinuationRequest<never>, { kind: 'record' }> {
+  return { kind: 'record', schema: RECORD_SCHEMA, record }
 }
+
+/** The request of a continuation that carries the complete parameters of the original operation. */
+function ofParameters<T>(value: T): Extract<ContinuationRequest<T>, { kind: 'parameters' }> {
+  return { kind: 'parameters', value }
+}
+
+const BY_JOURNAL = Object.freeze({ owner: JOURNAL_OWNER, custodian: null })
 
 function settled(completion: DurableEvidence): ObligationDisposition {
   return { kind: 'settled', completion }
@@ -218,17 +238,32 @@ function settled(completion: DurableEvidence): ObligationDisposition {
 
 function held(
   retained: DurableEvidence,
-  next: RecoveryContinuation,
-  custodian = JOURNAL_CUSTODIAN,
+  continuation: RecoveryContinuation,
+  custodian: ConsumerRef = JOURNAL_CUSTODIAN,
 ): ObligationDisposition {
-  return { kind: 'held', custodian, acceptance: retained, retained, continuation: next }
+  return { kind: 'held', custodian, acceptance: retained, retained, continuation }
 }
 
-function pending(
-  reason: Extract<ObligationDisposition, { kind: 'pending' }>['reason'],
+function pending(reason: PendingReason, required: RecoveryContinuation): ObligationDisposition {
+  return { kind: 'pending', reason, required }
+}
+
+function unknown(
+  key: string,
+  position: DurableEvidence,
+  reason: CancellationUnknown['reason'],
   required: RecoveryContinuation,
 ): ObligationDisposition {
-  return { kind: 'pending', reason, required }
+  return {
+    kind: 'unknown',
+    question: { owner: JOURNAL_OWNER, key, position, reason },
+    required,
+  }
+}
+
+/** A record this double must hold is missing: a defect of the double, never another identity. */
+function defect(what: string): never {
+  throw new Error(`memory Journal defect: ${what}`)
 }
 
 function batchOf(source: ObligationSource, index: number): InputBatchId | null {
@@ -244,6 +279,8 @@ export type PendingOperation = Readonly<{ operation: AgentOperationId; method: s
 /**
  * Builds the obligations of `candidate` from the Journal's own records at the current revision.
  * `pendingOperations` are the writes of the execution still undecided, except the issuing one.
+ * prepareFinish issues the result; tryFinish rebuilds it with the same function to compare the
+ * projection and to read the dispositions (SPEC "终结责任清单").
  */
 export function buildObligations(
   source: ObligationSource,
@@ -251,9 +288,12 @@ export function buildObligations(
   pendingOperations: readonly PendingOperation[],
 ): Readonly<{ items: readonly FinishObligation[]; coverage: ResponsibilityCoverage }> {
   const cancelled = candidate.conclusion.kind === 'cancelled'
-  const revision = source.revision
+  const complete = candidate.conclusion.kind === 'complete'
+  // The fixed evidence of one fact of the closure names the fact, not the revision it was read at:
+  // the same fact reads the same at every revision, so a judgment that read it still applies
+  // (SPEC "取消路线上的 tryFinish": the criteria compare keys, versions and dispositions).
   const fixed = (what: string): DurableEvidence =>
-    journalEvidence(`${source.id}/obligation/${what}`, revision)
+    journalEvidence(`${source.id}/obligation/${what}`, 0)
   const items: FinishObligation[] = []
   // inputs: an ordinary candidate does not pass an input no batch took; a cancelled candidate keeps
   // every accepted input under its original owner (SPEC "条件终结" table, inputs).
@@ -261,9 +301,15 @@ export function buildObligations(
     const taken = batchOf(source, index)
     const key = input.id
     const sourceEvidence = fixed(`input/${key}`)
+    const accepted = acceptanceOf(source, input)
+    const read: RecoveryContinuation = {
+      kind: 'input-read',
+      request: ofParameters({ input: input.id }),
+      ...BY_JOURNAL,
+      purpose: 'load',
+    }
     items.push({
       kind: 'accepted-input',
-      category: 'inputs',
       key,
       source: sourceEvidence,
       version: sourceEvidence,
@@ -272,12 +318,12 @@ export function buildObligations(
         taken !== null
           ? settled(fixed(`input/${key}/taken/${taken}`))
           : cancelled
-            ? held(sourceEvidence, continuation('input-read', sourceEvidence, 'load'))
-            : pending('input-disposition', continuation('input-read', sourceEvidence, 'submit')),
+            ? held(sourceEvidence, read)
+            : pending('input-disposition', read),
       input: input.id,
       value: input,
-      acceptance: acceptanceOf(source, input) ?? candidate.candidate,
-      origin: input.source ?? sourceEvidence,
+      acceptance: accepted.entry,
+      origin: input.source ?? accepted.record,
       taken,
     })
   })
@@ -288,10 +334,14 @@ export function buildObligations(
     const sourceEvidence = control.stages.accepted.source
     const intent = control.stages['intent-established']
     const revoked = control.stages['qualification-revoked']
-    const query = continuation('original-operation-query', sourceEvidence, 'query')
+    const query: RecoveryContinuation = {
+      kind: 'original-operation-query',
+      request: ofParameters({ execution: source.id, operation: control.operation }),
+      ...BY_JOURNAL,
+      purpose: 'query',
+    }
     items.push({
       kind: 'control',
-      category: 'controls',
       key,
       source: sourceEvidence,
       version: fixed(`control/${key}`),
@@ -302,58 +352,65 @@ export function buildObligations(
           : revoked?.state === 'unresolved'
             ? pending('qualification-revocation', query)
             : lateStageUnresolved(control)
-              ? held(sourceEvidence, continuation('producer-query', sourceEvidence, 'query'))
+              ? held(sourceEvidence, {
+                  kind: 'restore-source',
+                  request: ofRecord(sourceEvidence),
+                  ...BY_JOURNAL,
+                  purpose: 'query',
+                })
               : settled(intent?.source ?? sourceEvidence),
       control: control.operation,
     })
   }
-  // operations: a write still undecided may change the candidate (SPEC "条件终结" table, operations).
+  // operations: a write still undecided may change the candidate; it is unknown, not pending
+  // (SPEC "条件终结" table, operations; tryFinish answers unavailable).
   for (const { operation, method } of pendingOperations) {
     const sourceEvidence = fixed(`operation/${operation}`)
     items.push({
       kind: 'operation',
-      category: 'operations',
       key: operation,
       source: sourceEvidence,
       version: sourceEvidence,
       position: null,
-      disposition: {
-        kind: 'unknown',
-        question: {
-          owner: JOURNAL_OWNER,
-          key: operation,
-          position: sourceEvidence,
-          reason: 'original-operation-unknown',
-        },
-        required: continuation('original-operation-query', sourceEvidence, 'query'),
-      },
+      disposition: unknown(operation, sourceEvidence, 'original-operation-unknown', {
+        kind: 'original-operation-query',
+        request: ofParameters({ execution: source.id, operation }),
+        ...BY_JOURNAL,
+        purpose: 'query',
+      }),
       operation,
       method,
       request: sourceEvidence,
       resolution: 'unknown',
+      result: null,
     })
   }
-  // handoffs: a prepared H that no Ja published is retained by the terminal disposition.
+  // handoffs: a prepared H that no Ja published is a pending history of a complete candidate; only
+  // a failed or cancelled candidate may retain it at the end (SPEC "终结责任清单").
   for (const record of source.handoffs) {
     if (record.history.kind !== 'pending') continue
     const key = canonical(record.handoff)
     const sourceEvidence = record.prepared ?? fixed(`handoff/${key}`)
+    const lookup: RecoveryContinuation = {
+      kind: 'handoff-lookup',
+      request: ofRecord(sourceEvidence),
+      ...BY_JOURNAL,
+      purpose: 'read-message-handoff',
+    }
     items.push({
       kind: 'handoff',
-      category: 'operations',
       key,
       source: sourceEvidence,
       version: sourceEvidence,
       position: null,
-      disposition: held(
-        sourceEvidence,
-        continuation('handoff-lookup', sourceEvidence, 'read-message-handoff'),
-      ),
+      disposition: complete ? pending('handoff-history', lookup) : held(sourceEvidence, lookup),
       handoff: record.handoff,
       record: { ...record, custody: null },
     })
   }
-  // calls: every effect intent is a call responsibility until a result or an association holds it.
+  // calls: a call with a result is settled and the custody is the result item's; a final failure
+  // of the producer settles it on that basis; an association keeps it held (accepted) or unknown
+  // (commit-unknown); a call with none of these is unknown (SPEC "终结责任清单" call row).
   for (const effect of source.effects) {
     const key = effect.action
     const sourceEvidence = effect.pending.fixed
@@ -361,37 +418,46 @@ export function buildObligations(
       item => item.intent.action === effect.action,
     )
     const result = source.results.find(item => item.consumption === effect.pending.consumption)
-    const intent = source.finishing.effectOperations.get(effect.action)
+    const received = source.entries.find(
+      entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
+    )
+    const failure = candidate.failure
+    const finalFailure =
+      failure?.kind === 'no-reply' && effect.pending.kind === 'model'
+        ? callOfModel(effect.pending.reference, source) === failure.call
+          ? failure.source
+          : null
+        : null
+    const intent =
+      source.finishing.effectOperations.get(effect.action) ??
+      defect(`the effect ${effect.action} has no establishing operation`)
     items.push({
       kind: 'call',
-      category: 'operations',
       key,
       source: sourceEvidence,
       version: fixed(`call/${key}`),
       position: effect.pending.position,
       disposition:
-        result?.completion !== null && result?.completion !== undefined
-          ? settled(result.completion)
-          : result?.custody !== null && result?.custody !== undefined
-            ? held(
-                result.custody,
-                continuation('producer-receive', sourceEvidence, 'receive-result'),
-              )
-            : association !== undefined
-              ? held(
-                  association.source,
-                  continuation('tool-association-retain', association.request, 'reconcile'),
-                  association.obligation.kind === 'call' &&
-                    association.obligation.custodian !== null
-                    ? association.obligation.custodian
-                    : JOURNAL_CUSTODIAN,
-                )
-              : pending('call-custody', continuation('producer-query', sourceEvidence, 'query')),
+        result !== undefined
+          ? settled(result.result.source)
+          : received?.kind === 'received'
+            ? settled(received.material)
+            : finalFailure !== null
+              ? settled(finalFailure)
+              : association !== undefined
+                ? associationDisposition(association, effect)
+                : unknown(key, sourceEvidence, 'original-operation-unknown', {
+                    kind: 'producer-query',
+                    request: ofParameters({ pending: effect.pending }),
+                    ...BY_JOURNAL,
+                    purpose: 'query',
+                  }),
       action: effect.action,
-      intent: intent ?? candidate.candidate,
+      intent,
       pending: effect.pending,
-      started: null,
-      outcome: null,
+      started: association?.obligation.kind === 'call' ? association.obligation.started : null,
+      outcome: result?.result.source ?? null,
+      interruptions: interruptionsOf(effect, source),
       custodian: association?.obligation.kind === 'call' ? association.obligation.custodian : null,
     })
   }
@@ -402,9 +468,14 @@ export function buildObligations(
     const applied = passage.progress.kind === 'applied'
     const superseded = cancelled && passage.position === 'before_terminal'
     const route = routeOfPassage(source.finishing, candidate, superseded)
+    const lookup: RecoveryContinuation = {
+      kind: 'card-lookup',
+      request: ofRecord(passage.input),
+      ...BY_JOURNAL,
+      purpose: 'reconcile',
+    }
     items.push({
       kind: 'passage',
-      category: 'passages',
       key,
       source: passage.effective,
       version: fixed(`passage/${key}`),
@@ -412,13 +483,13 @@ export function buildObligations(
       disposition: applied
         ? settled(passage.effective)
         : cancelled || passage.position === 'after_terminal'
-          ? held(passage.effective, continuation('card-lookup', passage.input, 'reconcile'))
-          : pending('passage-custody', continuation('card-lookup', passage.input, 'reconcile')),
+          ? held(passage.effective, lookup)
+          : pending('passage-custody', lookup),
       passage,
       candidate: superseded
         ? (supersededCandidate(source.finishing, candidate) ?? candidate.candidate)
         : candidate.candidate,
-      route: route?.record ?? fixed(`route/${key}`),
+      route: route?.record ?? defect(`the passage ${key} belongs to no route`),
       implementation: passage.implementation,
       superseded,
     })
@@ -429,17 +500,22 @@ export function buildObligations(
       )
       const roundKey = `${passage.id}/${round.round}`
       const roundEvidence = fixed(`card-round/${roundKey}`)
+      const roundLookup: RecoveryContinuation = {
+        kind: 'card-lookup',
+        request: ofParameters({ passage: passage.id, round: round.round }),
+        ...BY_JOURNAL,
+        purpose: 'reconcile',
+      }
       items.push(
         reconciled?.obligation ?? {
           kind: 'card-round',
-          category: 'passages',
           key: roundKey,
           source: roundEvidence,
           version: roundEvidence,
           position: null,
           disposition: cancelled
-            ? held(roundEvidence, continuation('card-lookup', passage.input, 'reconcile'))
-            : pending('card-custody', continuation('card-lookup', passage.input, 'reconcile')),
+            ? held(roundEvidence, roundLookup)
+            : pending('card-custody', roundLookup),
           passage: passage.id,
           round,
           present: presentOf(round),
@@ -452,9 +528,9 @@ export function buildObligations(
   // results: each received result has completion, custody or neither (SPEC "条件终结" table, custody).
   for (const responsibility of source.results) {
     const key = `${responsibility.result.producer.kind}/${responsibility.result.producer.call}/${responsibility.result.version}/${responsibility.consumption}`
+    const parameters = { result: responsibility.result, consumption: responsibility.consumption }
     items.push({
       kind: 'result',
-      category: 'custody',
       key,
       source: responsibility.result.source,
       version: fixed(`result/${key}`),
@@ -463,14 +539,18 @@ export function buildObligations(
         responsibility.completion !== null
           ? settled(responsibility.completion)
           : responsibility.custody !== null
-            ? held(
-                responsibility.custody,
-                continuation('producer-release', responsibility.result.source, 'reconcile'),
-              )
-            : pending(
-                'result-custody',
-                continuation('producer-receive', responsibility.result.source, 'reconcile'),
-              ),
+            ? held(responsibility.custody, {
+                kind: 'producer-release',
+                request: ofParameters(parameters),
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              })
+            : pending('result-custody', {
+                kind: 'producer-receive',
+                request: ofParameters(parameters),
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              }),
       responsibility,
       material: null,
     })
@@ -478,15 +558,20 @@ export function buildObligations(
   // output: the emitted events the Journal retains until they are acknowledged.
   if (source.events.length > 0) {
     const retention = fixed('output')
+    const emittedThrough = String(source.events.length)
     items.push({
       kind: 'output',
-      category: 'custody',
       key: `output/1-${source.events.length}`,
       source: retention,
       version: retention,
       position: null,
-      disposition: held(retention, continuation('output-read-ack', retention, 'acknowledge')),
-      emittedThrough: String(source.events.length),
+      disposition: held(retention, {
+        kind: 'output-read-ack',
+        request: ofParameters({ after: null, through: emittedThrough }),
+        ...BY_JOURNAL,
+        purpose: 'acknowledge',
+      }),
+      emittedThrough,
       acknowledgedThrough: source.acknowledged === 0 ? null : String(source.acknowledged),
       retention,
     })
@@ -495,19 +580,25 @@ export function buildObligations(
   for (const passage of source.checkpoint.passages) {
     if (passage.position !== 'after_terminal') continue
     const key = passage.id
+    const terminal = fixed('terminal')
     items.push({
       kind: 'terminal-observation',
-      category: 'custody',
       key,
       source: passage.effective,
       version: fixed(`observation/${key}`),
       position: null,
-      disposition: held(
-        passage.effective,
-        continuation('terminal-observe', passage.input, 'record-terminal-observation'),
-      ),
+      disposition: held(passage.effective, {
+        kind: 'terminal-observe',
+        request: ofParameters({
+          passage: passage.id,
+          terminal,
+          implementation: passage.implementation,
+        }),
+        ...BY_JOURNAL,
+        purpose: 'record-terminal-observation',
+      }),
       observation: {
-        terminal: fixed('terminal'),
+        terminal,
         passage: passage.id,
         implementation: passage.implementation,
         observed: null,
@@ -537,6 +628,61 @@ export function buildObligations(
   }
 }
 
+/** The disposition a saved association gives the call: held for an accepted return, unknown for commit-unknown. */
+function associationDisposition(
+  association: ToolAssociationRecord,
+  effect: EffectIntent,
+): ObligationDisposition {
+  const custodian = association.obligation.kind === 'call' ? association.obligation.custodian : null
+  const retain: RecoveryContinuation = {
+    kind: 'tool-association-retain',
+    request: ofParameters({
+      intent: association.intent,
+      request: association.request,
+      source: association.source,
+      priorExcluded: association.priorExcluded,
+    }),
+    owner: JOURNAL_OWNER,
+    custodian,
+    purpose: 'reconcile',
+  }
+  if (association.association.kind !== 'accepted') {
+    return unknown(effect.action, association.source, 'original-operation-unknown', retain)
+  }
+  return held(
+    association.source,
+    retain,
+    association.obligation.kind === 'call' && association.obligation.custodian !== null
+      ? association.obligation.custodian
+      : JOURNAL_CUSTODIAN,
+  )
+}
+
+/** The call id of a model invocation reference in the tenant of the execution, or null when it does not resolve. */
+function callOfModel(reference: unknown, source: ObligationSource): string | null {
+  const parts = resolveModelInvocationRef(reference, source.tenant)
+  return 'ok' in parts ? parts.ok.call : null
+}
+
+/** The interrupt and background controls that name the call of `effect`. */
+function interruptionsOf(effect: EffectIntent, source: ObligationSource): AgentOperationId[] {
+  const pending = effect.pending
+  return source.controls
+    .filter(control => {
+      const command = control.command
+      if (command.kind === 'interrupt-model')
+        return pending.kind === 'model' && callOfModel(pending.reference, source) === command.call
+      if (command.kind === 'interrupt-tool' || command.kind === 'background-tool')
+        return (
+          pending.kind === 'tool' &&
+          pending.association === 'associated' &&
+          control.toolInvocation === pending.reference
+        )
+      return false
+    })
+    .map(control => control.operation)
+}
+
 function lateStageUnresolved(control: ControlRecord): boolean {
   return (['producer-confirmed', 'physically-stopped', 'duty-released'] as const).some(
     stage => control.stages[stage]?.state === 'unresolved',
@@ -550,16 +696,22 @@ function presentOf(round: CardRound): DurableEvidence | null {
   return progress.cards[0]?.card ?? null
 }
 
-/** The entry operation that accepted an input, from the handoff record of its external H. */
+/**
+ * The acceptance of an input: the entry operation that accepted it and the record of its
+ * admission, from the handoff record of its external H. Every accepted input of this double has
+ * one (open and a new-input submit write it), so a missing one is a defect, never another identity.
+ */
 function acceptanceOf(
   source: ObligationSource,
   input: AcceptedInput,
-): AgentOperationId | undefined {
+): Readonly<{ entry: AgentOperationId; record: DurableEvidence }> {
   for (const record of source.handoffs) {
-    if (record.handoff.kind === 'input' && record.handoff.input === input.id)
-      return record.handoff.entry
+    if (record.handoff.kind !== 'input' || record.handoff.input !== input.id) continue
+    if (record.resolution?.kind !== 'recorded')
+      return defect(`the acceptance of the input ${input.id} has no recorded outcome`)
+    return { entry: record.handoff.entry, record: record.resolution.outcome.record }
   }
-  return undefined
+  return defect(`the input ${input.id} has no acceptance record`)
 }
 
 /** The candidate a cancelled candidate superseded, when one exists. */
@@ -583,6 +735,11 @@ function routeOfPassage(
   return currentRoute(records)
 }
 
+/** The category of an obligation, from its kind (SPEC "终结责任清单" table). */
+export function categoryOf(item: FinishObligation): ObligationCategory {
+  return obligationCategoryOf(item.kind)
+}
+
 /**
  * The responsibility projection of a list: the identity, kind and target of each item, without
  * the dispositions (SPEC "终结责任清单"). Two lists with the same projection are interchangeable.
@@ -593,6 +750,47 @@ export function projectionOf(items: readonly FinishObligation[]): string {
       .map(item => [item.kind, item.key, targetOf(item)])
       .sort((left, right) => (canonical(left) < canonical(right) ? -1 : 1)),
   )
+}
+
+/**
+ * The criteria a judgment read (SPEC "取消路线上的 tryFinish"): the kind, key, target, source
+ * record and disposition of each item, and the owner and condition of each participant. The
+ * evidences compare by record only: the revision an evidence was read at is not a criterion, so
+ * the same fact reads the same at every revision. A judgment whose criteria differ from the
+ * current closure no longer applies.
+ */
+export function criteriaOf(
+  items: readonly FinishObligation[],
+  participants: CancellationJudgmentInput['participants'],
+): string {
+  return canonical(
+    withoutRevisions({
+      items: items
+        .map(item => [item.kind, item.key, targetOf(item), item.source.record, item.disposition])
+        .sort((left, right) => (canonical(left) < canonical(right) ? -1 : 1)),
+      participants:
+        participants.kind === 'coordinated'
+          ? participants.participants.map(fact => [fact.owner, fact.condition])
+          : [],
+    }),
+  )
+}
+
+/**
+ * `value` with every durable evidence reduced to its owner and record, so that the revision and
+ * digest of a read do not compare.
+ */
+function withoutRevisions(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(withoutRevisions)
+  if (value === null || typeof value !== 'object') return value
+  const entries = Object.entries(value)
+  const keys = entries.map(([key]) => key).sort()
+  if (
+    keys.join(',') === 'digest,owner,record,revision' &&
+    entries.every(([, inner]) => typeof inner === 'string')
+  )
+    return Object.fromEntries(entries.filter(([key]) => key === 'owner' || key === 'record'))
+  return Object.fromEntries(entries.map(([key, inner]) => [key, withoutRevisions(inner)]))
 }
 
 function targetOf(item: FinishObligation): unknown {
@@ -626,7 +824,13 @@ function targetOf(item: FinishObligation): unknown {
 export function firstPending(items: readonly FinishObligation[]): FinishObligation | undefined {
   const pendingItems = items.filter(item => item.disposition.kind === 'pending')
   pendingItems.sort(
-    (left, right) => CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category),
+    (left, right) =>
+      CATEGORY_ORDER.indexOf(categoryOf(left)) - CATEGORY_ORDER.indexOf(categoryOf(right)),
   )
   return pendingItems[0]
+}
+
+/** The first unknown obligation, or `undefined`. */
+export function firstUnknown(items: readonly FinishObligation[]): FinishObligation | undefined {
+  return items.find(item => item.disposition.kind === 'unknown')
 }

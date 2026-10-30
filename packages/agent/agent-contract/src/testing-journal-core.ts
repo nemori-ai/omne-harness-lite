@@ -63,6 +63,7 @@ export type {
   AgentJournalCoreFixture,
   AgentJournalCoreOpenOptions,
   AgentJournalCoreOpened,
+  SettlementQualification,
 } from './testing-journal-helpers.ts'
 
 /** The cases that every `AgentJournal` binding passes. */

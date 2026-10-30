@@ -68,9 +68,9 @@
 - 第 7 条：`open` 不追加事件，第一个序号属于之后的一次提交。
 - 第 17 条：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
 
-名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。同文件另以三个只破坏一条规则的装饰器（重试答 conflict、ended 后新 submit 被受理、过期 expected 先于 ended 答 changed）包住内存 Journal，核对套件对每个装饰器至少一例变红。
+名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。同文件另以三个只破坏一条规则的装饰器（重试答 conflict、ended 后新 submit 被受理、过期 expected 先于 ended 答 changed）包住内存 Journal：先核对未装饰的基线没有失败用例，再核对每个装饰器使它所破坏规则所在的那条具名用例变红。夹具另提供 `seedLegacyCandidate`（旧协议留下的 cancelled 候选）、`qualify`（三种结算资格）与提交效果意图的 `produceResult`。
 
-`fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先、取消授权只能结束取消候选、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
+`fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先（有效取消下带 complete 或 failed 候选的 F1 为 changed）、取消授权只能结束取消候选、未定写入为清单的 unknown 项而 tryFinish 为 unavailable、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
 
 `provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 
