@@ -1,7 +1,7 @@
 // 测试运行入口与变异入口共用的几件事：读命令行参数、运行目录的时间戳、先把目标成员连同依赖构建一遍。
 import { admissionRequested, turboBuildCaptured } from './turbo.ts'
 import { existsSync, writeFileSync } from 'node:fs'
-import { delimiter, join } from 'node:path'
+import { join } from 'node:path'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 
 export interface Flags {
@@ -68,24 +68,41 @@ export interface Command {
   readonly args: readonly string[]
 }
 
+/** 起 pnpm 时要看的宿主事实；缺省取本进程的，测试用它注入平台、PATH 与 Node 的路径。 */
+export interface PnpmHost {
+  readonly platform: NodeJS.Platform
+  /** PATH 原文。Windows 上目录之间用 `;` 分隔。 */
+  readonly path: string
+  readonly execPath: string
+}
+
 /**
- * 起 pnpm 的命令。POSIX 上就是 `pnpm`；Windows 上 PATH 里的 `pnpm` 是 `pnpm.cmd`，Node 不经 shell 起不了它，
- * 改为用本进程的 Node 运行同一目录下 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）。找不到就报错，不猜。
+ * 起 pnpm 的命令。POSIX 上就是 `pnpm`。Windows 上 Node 不经 shell 起不了 `.cmd`，所以按 PATH 顺序逐个目录找：
+ * 先遇到 `pnpm.exe` 就直接起它（独立安装的布局）；先遇到旁边有 `node_modules/pnpm/bin/pnpm.cjs` 的 `pnpm.cmd`，
+ * 就用本进程的 Node 运行那个 `pnpm.cjs`（npm 全局安装的布局）；只有 `pnpm.cmd` 而旁边没有 `pnpm.cjs` 的目录跳过。
+ * 都找不到就报错，消息逐个写明找过的目录与各缺什么，不猜。
  */
-export function pnpmCommand(
-  env: Readonly<Record<string, string | undefined>> = process.env,
-): Command {
-  if (process.platform !== 'win32') return { command: 'pnpm', args: [] }
-  const seen: string[] = []
-  for (const directory of (env['PATH'] ?? env['Path'] ?? '').split(delimiter)) {
-    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+export function pnpmCommand(host: Partial<PnpmHost> = {}): Command {
+  const platform = host.platform ?? process.platform
+  if (platform !== 'win32') return { command: 'pnpm', args: [] }
+  const path = host.path ?? process.env['PATH'] ?? process.env['Path'] ?? ''
+  const execPath = host.execPath ?? process.execPath
+  const searched: string[] = []
+  for (const directory of path.split(';')) {
+    if (directory === '') continue
+    const exe = join(directory, 'pnpm.exe')
+    if (existsSync(exe)) return { command: exe, args: [] }
+    if (!existsSync(join(directory, 'pnpm.cmd'))) {
+      searched.push(`${directory}（没有 pnpm.exe，也没有 pnpm.cmd）`)
+      continue
+    }
     const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-    if (existsSync(entry)) return { command: process.execPath, args: [entry] }
-    seen.push(join(directory, 'pnpm.cmd'))
+    if (existsSync(entry)) return { command: execPath, args: [entry] }
+    searched.push(`${directory}（有 pnpm.cmd，旁边没有 node_modules/pnpm/bin/pnpm.cjs）`)
   }
   throw new Error(
-    seen.length === 0
-      ? 'PATH 里没有 pnpm.cmd'
-      : `${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+    searched.length === 0
+      ? 'PATH 里没有可找的目录，起不了 pnpm'
+      : `PATH 里找不到能起的 pnpm，找过的目录：${searched.join('；')}`,
   )
 }
