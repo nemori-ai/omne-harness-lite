@@ -15,6 +15,12 @@ hard-links its dependency directories.
 
 Ground truth never enters a copy: the evaluation directory is not a subject path and
 is excluded from every template.
+
+Two environments run git here. ``source_git`` and the other readers of the checkout under
+evaluation keep the host's configuration (``repository_env``), so ``safe.directory`` and the
+rest apply as they do for the user's own git. ``git`` and every other call on a copy or a
+template run isolated (``isolated_env``), so what a copy holds and commits does not depend
+on the host.
 """
 from __future__ import annotations
 
@@ -75,7 +81,7 @@ def bash() -> str:
     """
     if os.name != "nt":
         return "bash"
-    core = git(Path.cwd(), "--exec-path")
+    core = source_git(Path.cwd(), "--exec-path")
     found = Path(core).resolve().parents[2] / "bin" / "bash.exe"
     if not found.is_file():
         raise WorkspaceError(f"no Git for Windows bash at {found} (from git --exec-path {core})")
@@ -94,27 +100,36 @@ def tree_hash(root: Path) -> str:
     return digest.hexdigest()
 
 
-def git(repo: Path, *args: str, identity: tuple[str, str] | None = None) -> str:
+def _git(repo: Path, args: tuple[str, ...], env: dict[str, str]) -> str:
     # Git writes paths and messages in UTF-8 whatever the locale is (on Windows the locale is a code page).
-    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
-                          env=isolated_env(os.environ, identity))
+    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8", env=env)
     if done.returncode != 0:
         raise WorkspaceError(f"git {' '.join(args)}: {done.stderr.strip()}")
     return done.stdout.strip()
 
 
-def head(repo: Path) -> str:
-    return git(repo, "rev-parse", "HEAD")
+def git(copy: Path, *args: str, identity: tuple[str, str] | None = None) -> str:
+    """Git on an evaluation copy or template, isolated from the host."""
+    return _git(copy, args, isolated_env(os.environ, identity))
+
+
+def source_git(repo: Path, *args: str) -> str:
+    """Git that reads the checkout under evaluation, with the host's configuration."""
+    return _git(repo, args, repository_env(os.environ))
+
+
+def head(copy: Path) -> str:
+    return git(copy, "rev-parse", "HEAD")
 
 
 def dirty(repo: Path, paths: list[str]) -> list[str]:
-    """Tracked or untracked changes under ``paths``, as ``git status`` prints them."""
-    return [line for line in git(repo, "status", "--porcelain", "--", *paths).splitlines() if line.strip()]
+    """Tracked or untracked changes under ``paths`` of the source checkout, as ``git status`` prints them."""
+    return [line for line in source_git(repo, "status", "--porcelain", "--", *paths).splitlines() if line.strip()]
 
 
 def is_ancestor(repo: Path, commit: str) -> bool:
     done = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, "HEAD"],
-                          env=isolated_env(os.environ),
+                          env=repository_env(os.environ),
                           capture_output=True, text=True, encoding="utf-8")
     return done.returncode == 0
 
@@ -233,7 +248,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
     if not inputs:
         return
     origins: dict[str, list[str]] = {}
-    for line in git(repo, "ls-tree", "-r", "-z", base).split("\0"):
+    for line in source_git(repo, "ls-tree", "-r", "-z", base).split("\0"):
         if not line:
             continue
         metadata, relative = line.split("\t", 1)
@@ -250,7 +265,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
         if target.exists():
             raise WorkspaceError(f"case input target already exists: {entry['to']}")
         payload = subprocess.run(["git", "-C", str(repo), "cat-file", "blob", identifier],
-                                 env=isolated_env(os.environ),
+                                 env=repository_env(os.environ),
                                  capture_output=True, check=True).stdout
         for reader in entry["consumers"]:
             file = path(reader["file"])
@@ -314,10 +329,13 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
 
 def _extract(repo: Path, base: str, dest: Path) -> None:
     # The files as the commit holds them: core.autocrlf (true by default in Git for Windows) would turn every LF
-    # into CRLF on the way out, and a seed or a mutant written against the commit would no longer match.
-    archive = subprocess.Popen(["git", "-C", str(repo), "-c", "core.autocrlf=false", "archive", base],
+    # into CRLF on the way out, and a seed or a mutant written against the commit would no longer match. Attribute
+    # files of the host (system and user) could drop files (export-ignore) or convert them on the way out too; the
+    # repository is still read with the host's configuration, so safe.directory applies.
+    archive = subprocess.Popen(["git", "-C", str(repo), "-c", "core.autocrlf=false",
+                                "-c", f"core.attributesFile={os.devnull}", "archive", base],
                                stdout=subprocess.PIPE,
-                               env=isolated_env(os.environ))
+                               env=dict(repository_env(os.environ), GIT_ATTR_NOSYSTEM="1"))
     extract = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout, capture_output=True)
     archive.stdout.close()
     if archive.wait() != 0 or extract.returncode != 0:

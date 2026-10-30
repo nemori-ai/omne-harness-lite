@@ -60,29 +60,46 @@ def _add_script(main: Path) -> None:
 
 
 def test_old_copies_are_named_once_in_one_line(main):
-    merged = _worktree(main, "merged")          # on the old base: strictly behind the main checkout
+    old_base = _worktree(main, "old-base")        # on the old base: strictly behind the main checkout
     _worktree(main, "unprojected", skills=False)  # also behind, but it has no skill projection
     _add_script(main)
-    _worktree(main, "fresh")                    # at the main checkout's HEAD: its copies are current
-    live = _worktree(main, "live")              # has commits of its own
+    _worktree(main, "fresh")                      # at the main checkout's HEAD: its copies are current
+    live = _worktree(main, "live")                # has commits of its own
     _commit(live, "work")
     gone = _worktree(main, "gone")
     _git(main, "update-ref", "-d", "refs/heads/someone/gone")
     _worktree(main, "orphan")
     shutil.rmtree(main / ".git/worktrees/orphan")
 
-    expected = (PREFIX + ".worktrees/gone（分支已删除）、.worktrees/merged（已合入主检出当前分支）、"
+    expected = (PREFIX + ".worktrees/gone（分支已删除）、.worktrees/old-base（分支头是主检出 HEAD 的祖先）、"
                 ".worktrees/orphan（工作树已不在 Git 登记中）\n")
     ran = _session_start(main)
     assert (ran.returncode, ran.stdout, ran.stderr) == (0, expected, "")
     assert gone.is_dir() and (main / ".worktrees/orphan/.claude/skills").is_dir(), "the hook deletes nothing"
 
     # The session's own checkout is never listed, whether the shell or the payload names it.
-    ran = _session_start(merged)  # this tree lacks the script: the main checkout's copy runs
+    ran = _session_start(old_base)  # this tree lacks the script: the main checkout's copy runs
     assert (ran.returncode, ran.stdout) == (0, PREFIX + ".worktrees/gone（分支已删除）、"
                                             ".worktrees/orphan（工作树已不在 Git 登记中）\n"), ran.stderr
     ran = _session_start(main, {"cwd": str(gone)})
-    assert ran.stdout == PREFIX + ".worktrees/merged（已合入主检出当前分支）、.worktrees/orphan（工作树已不在 Git 登记中）\n"
+    assert ran.stdout == PREFIX + ".worktrees/old-base（分支头是主检出 HEAD 的祖先）、.worktrees/orphan（工作树已不在 Git 登记中）\n"
+
+
+def test_the_reason_states_the_ancestry_that_was_checked_not_a_merge(main):
+    _add_script(main)
+    merged = _worktree(main, "merged")            # has a commit of its own, which the main checkout then takes in
+    _commit(merged, "work")
+    _git(main, "merge", "-q", "--no-ff", "--no-edit", "someone/merged")
+    _worktree(main, "never-committed")            # made at the main checkout's HEAD, with no commit of its own
+    _git(main, "worktree", "add", "-q", "--detach", str(main / ".worktrees/detached"), "HEAD~1")
+    (main / ".worktrees/detached/.claude/skills").mkdir(parents=True)
+    _commit(main, "later")
+
+    ran = _session_start(main)
+    assert (ran.returncode, ran.stderr) == (0, "")
+    assert ran.stdout == (PREFIX + ".worktrees/detached（分离的 HEAD 是主检出 HEAD 的祖先）、"
+                          ".worktrees/merged（分支头是主检出 HEAD 的祖先）、"
+                          ".worktrees/never-committed（分支头是主检出 HEAD 的祖先）\n")
 
 
 def test_nothing_is_printed_when_every_copy_is_current(main):
@@ -96,14 +113,14 @@ def test_nothing_is_printed_when_every_copy_is_current(main):
 
 
 def test_a_failing_hook_prints_nothing_and_exits_zero(main, tmp_path):
-    _worktree(main, "merged")
+    _worktree(main, "old-base")
     _add_script(main)
     _worktree(main, "gone")
     _git(main, "update-ref", "-d", "refs/heads/someone/gone")
     assert _session_start(main).stdout == (PREFIX + ".worktrees/gone（分支已删除）、"
-                                           ".worktrees/merged（已合入主检出当前分支）\n")
+                                           ".worktrees/old-base（分支头是主检出 HEAD 的祖先）\n")
 
-    # Git fails after `gone` is found and before `merged` is decided: no partial list.
+    # Git fails after `gone` is found and before `old-base` is decided: no partial list.
     broken = tmp_path / "broken-git.mjs"
     broken.write_text(
         "import cp from 'node:child_process'\nimport { syncBuiltinESMExports } from 'node:module'\n"

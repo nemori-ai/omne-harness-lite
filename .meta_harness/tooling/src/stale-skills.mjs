@@ -5,7 +5,8 @@
 //
 // A worktree is listed when it has a skill projection (`.claude/skills/`) and one of these holds:
 // - its branch no longer exists;
-// - its HEAD is a strict ancestor of the main checkout's HEAD (merged, or created from an older base);
+// - its branch tip (or detached HEAD) is a strict ancestor of the main checkout's HEAD: merged, or created
+//   from an older base with no commits of its own (the printed reason states only the ancestry);
 // - Git no longer registers the directory as a worktree.
 // The session's own checkout is never listed.
 //
@@ -93,14 +94,17 @@ function registeredWorktrees(main) {
 function staleReason(main, mainHead, record) {
   if (!record) return '工作树已不在 Git 登记中'
   let tip = typeof record.HEAD === 'string' ? record.HEAD : undefined
-  if (typeof record.branch === 'string') {
+  const named = typeof record.branch === 'string'
+  if (named) {
     const branch = git(main, ['rev-parse', '--verify', '--quiet', `${record.branch}^{commit}`])
     if (!branch.ok) return '分支已删除'
     tip = branch.out
   }
   if (!mainHead || !tip || tip === mainHead) return undefined
-  const merged = git(main, ['merge-base', '--is-ancestor', tip, mainHead])
-  return merged.ok ? '已合入主检出当前分支' : undefined
+  // An ancestor is either merged or made from an older base with no commits of its own; Git cannot tell which.
+  const behind = git(main, ['merge-base', '--is-ancestor', tip, mainHead])
+  if (!behind.ok) return undefined
+  return named ? '分支头是主检出 HEAD 的祖先' : '分离的 HEAD 是主检出 HEAD 的祖先'
 }
 
 function staleWorktrees(cwd) {

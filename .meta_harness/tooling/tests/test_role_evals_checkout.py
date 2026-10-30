@@ -381,6 +381,73 @@ def test_commits_do_not_depend_on_the_identity_and_configuration_the_host_inject
     assert workspace.git(tmp_path / "injected" / "copy", "show", "-s", "--format=%ad", "--date=format:%Y", "HEAD") != "2001"
 
 
+def _host_user_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, where: str, *, ignore: str,
+                     attributes: str) -> None:
+    """Give the host a user-level git ``ignore`` and ``attributes`` file, found by default through ``where``."""
+    home = tmp_path / "host-home"
+    folder = home / "git" if where == "XDG_CONFIG_HOME" else home / ".config" / "git"
+    write(folder, {"ignore": ignore, "attributes": attributes})
+    host = dict(os.environ)
+    host.pop("XDG_CONFIG_HOME", None)
+    host[where] = str(home)
+    monkeypatch.setattr(os, "environ", host)
+
+
+@pytest.mark.parametrize("where", ["XDG_CONFIG_HOME", "HOME"])
+def test_a_baseline_holds_every_file_whatever_ignore_and_attribute_files_the_user_has(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch, where: str) -> None:
+    _host_user_files(tmp_path, monkeypatch, where, ignore="docs/\n", attributes="*.txt text\n")
+    copy = tmp_path / "copy"
+    write(copy, {"docs/a.md": "kept\n"})
+    (copy / "file.txt").write_bytes(b"one\r\n")
+    workspace.baseline(copy)
+    assert workspace.git(copy, "ls-files").splitlines() == ["docs/a.md", "file.txt"]
+    # The host's own git does read the files: it ignores docs/ there.
+    assert workspace.source_git(copy, "check-ignore", "--no-index", "docs/a.md") == "docs/a.md"
+    assert workspace.git(copy, "cat-file", "-s", "HEAD:file.txt") == "5", "the CRLF stays as written"
+
+
+def test_a_baseline_does_not_read_the_hosts_system_configuration(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    system = tmp_path / "host-system-gitconfig"
+    write(tmp_path, {system.name: "[commit]\n\tgpgSign = true\n[gpg]\n\tprogram = no-such-signer\n"
+                                  "[user]\n\tname = system-name\n\temail = system@host.invalid\n"})
+    monkeypatch.setattr(os, "environ", dict(os.environ, GIT_CONFIG_SYSTEM=str(system), GIT_CONFIG_NOSYSTEM="0"))
+    assert workspace.source_git(tmp_path, "config", "--system", "commit.gpgSign") == "true"
+    commits = _commits_made_in(tmp_path / "copies")
+    assert all("system" not in text for text in commits)
+    assert "gpgsig" not in workspace.git(tmp_path / "copies" / "copy", "cat-file", "commit", "HEAD")
+
+
+def test_the_source_checkout_is_read_with_the_hosts_safe_directory(
+        tiny: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Where the checkout belongs to another user, git reads it only with the host's ``safe.directory``."""
+    root = tiny["repo"]
+    base = git(root, "rev-parse", "HEAD")
+    readme = git(root, "rev-parse", f"{base}:README.md")
+    write(tmp_path, {"host-gitconfig": "[safe]\n\tdirectory = *\n"})
+    monkeypatch.setattr(os, "environ", dict(os.environ, GIT_CONFIG_GLOBAL=str(tmp_path / "host-gitconfig"),
+                                            GIT_TEST_ASSUME_DIFFERENT_OWNER="1"))
+    with pytest.raises(workspace.WorkspaceError, match="dubious ownership"):
+        workspace.git(root, "rev-parse", "HEAD")  # what an isolated git does with such a checkout
+    assert workspace.source_git(root, "rev-parse", "HEAD") == base
+    assert cli.main_checkout(root) == root.resolve()
+    assert workspace.is_ancestor(root, base)
+    assert workspace.dirty(root, ["README.md"]) == []
+    inputs = [{"blob": readme, "to": "fixtures/readme.md", "consumers": []}]
+    made = workspace.template(root, tiny["work"], flow_id="owner", base=base, excludes=[], setup=[], inputs=inputs)
+    assert (made / "README.md").read_text(encoding="utf-8") == (made / "fixtures/readme.md").read_text(encoding="utf-8")
+
+
+def test_a_template_holds_every_file_of_the_commit_whatever_attribute_files_the_user_has(
+        tiny: dict[str, Any], tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    root = tiny["repo"]
+    base = git(root, "rev-parse", "HEAD")
+    _host_user_files(tmp_path, monkeypatch, "XDG_CONFIG_HOME", ignore="", attributes="README.md export-ignore\n")
+    made = workspace.template(root, tiny["work"], flow_id="attributes", base=base, excludes=[], setup=[])
+    assert (made / "README.md").read_text(encoding="utf-8") == "小仓库\n"
+
+
 # --- A3：implement 的判定 ------------------------------------------------------------------------------------
 
 @pytest.fixture
@@ -920,17 +987,17 @@ def test_a_checkout_suite_still_fits_its_pinned_commit(root: Path) -> None:
         edits = [*material.ops(), *[{"op": "replace", **defect} for defect in material.defects]]
         for op in edits:
             if op["op"] == "replace":
-                text = workspace.git(repo, "show", f"{base}:{op['file']}")
+                text = workspace.source_git(repo, "show", f"{base}:{op['file']}")
                 assert text.count(op["find"]) == 1, f"{flow.id}/{material.id}.{op.get('id')}: no longer lands once"
             else:
-                workspace.git(repo, "show", f"{base}:{op['file']}")
+                workspace.source_git(repo, "show", f"{base}:{op['file']}")
         if flow.family == "implement":
             for path in [*material.task["hidden_tests"], *implement.stub_files(flow, material)]:
-                workspace.git(repo, "show", f"{base}:{path}")
+                workspace.source_git(repo, "show", f"{base}:{path}")
             checkout.framed_brief(flow, material, workdir="/w", rep=0)
         if flow.family == "write-tests":
             for path in material.task["hidden_tests"]:
-                workspace.git(repo, "show", f"{base}:{path}")
+                workspace.source_git(repo, "show", f"{base}:{path}")
             module = subprocess.run(["git", "-C", str(repo), "show", f"{base}:{material.task['target']}"],
                                     capture_output=True, text=True, encoding="utf-8", check=True).stdout
             assert write_tests.landing(material, module) == [], f"{flow.id}/{material.id}: mutants no longer land once"

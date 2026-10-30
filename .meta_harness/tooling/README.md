@@ -59,7 +59,12 @@ uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_
 uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
 ```
 
-`tests/test_readme_commands.py` 按 README 里出现的脚本去重，对每个脚本运行 `uv run --locked python <脚本> --help`，脚本名写错或脚本搬走时变红。
+`tests/test_readme_commands.py` 读本 README 代码块里每条 `uv run --locked python <脚本> …` 命令，查两件事：
+
+- 每个脚本的 `--help` 退出 0。脚本名写错或脚本搬走时，用例变红。
+- 每条命令照原样交给脚本的 argparse 解析，解析完立即退出，不执行脚本。参数名写错、缺必填参数或取值不在可选值里时，用例变红。
+
+它不验证脚本收到参数之后做什么，也不验证 `pnpm run`、`pytest` 等其他命令。
 
 它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
@@ -90,12 +95,23 @@ uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <
 
 Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会话>/subagents/agent-<id>.jsonl`。`<项目>` 是检出路径的转写（例如 `D--dev-repos-omne-harness-lite`），`<会话>` 是派发它的会话 ID；`agent-<id>.meta.json` 在同一目录。
 
-报告正文按下面的次序取：
+报告只从当前这一轮取。一轮从最后一条提示开始：提示是一条 user 记录，它不只含工具结果，也不是宿主加的 `isMeta` 记录。报告正文按下面的次序取：
 
-1. 记录里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
+1. 这一轮里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
 2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。已观察到的 Claude Code 2.1 子代理记录以 `end_turn` 消息结束，没有 `SubagentHandback` 调用。
 
-找不到报告时（记录停在工具调用上、被中断、以宿主错误 `stop_sequence` 结束、报告为空白）以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。仍在写入的记录可能以半行结尾，脚本跳过读不出的行。
+找不到报告时以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。以下情形都算找不到：
+
+- 记录停在工具调用上，或被中断。
+- 记录以宿主错误 `stop_sequence` 结束。
+- 报告为空白。
+- 末尾那条 assistant 消息之后还有 user 记录。这时那条消息答的是上一轮，这一轮的报告不在记录里。
+
+记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。
+
+脚本只在换行符（U+000A）处分行。JSON 字符串里可以不转义地出现 U+2028、U+2029 与 U+0085，脚本不在这些字符处分行。
+最后一行以前有任何一行不是 JSON 对象时，脚本以 2 退出，并写明第几行。
+仍在写入的记录可能以半行结尾：最后一行后面没有换行符、又读不成 JSON 时，脚本跳过它，并在标准错误写明跳过了第几行。
 
 脚本只证明「记录里这段文字就是交回的报告」。报告内容对不对，仍由评审流程判断。
 
