@@ -36,10 +36,15 @@ import {
   type RunMeta,
 } from './ledger.ts'
 import {
+  builtFromPath,
   cacheMeta,
   cachePolicy,
+  clearBuiltFrom,
+  readBuiltFrom,
+  currentDigests,
   lookupCache,
   recordCache,
+  writeBuiltFrom,
   type CacheLookup,
   type CachePolicy,
 } from './test-cache.ts'
@@ -198,8 +203,12 @@ export function pythonStep(root: string, file: PlanFile): number {
       ])
 }
 
-/** 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。同时构建的成员数取预算。 */
-export function buildStep(root: string, file: PlanFile, budget: Budget): number {
+/**
+ * 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。同时构建的成员数取预算。
+ * 给了计划文件路径时，构建成功后在它旁边写构建记录（`built-from.json`）：每个被构建成员在构建开始前的输入摘要。
+ * 摘要在构建开始前取，构建期间改动的文件算「这次构建没看到」。构建失败或摘要取不到时不留记录，旧记录先删掉。
+ */
+export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
   if (paths.length === 0) {
     console.log('构建：跳过——没有被选中的成员')
@@ -209,7 +218,54 @@ export function buildStep(root: string, file: PlanFile, budget: Budget): number 
     `构建：${paths.length} 个成员及其上游——${paths.join('、')}（同时 ${budget.workers} 个；${describeBudget(budget)}）`,
   )
   const names = membersAt(root, paths).map(member => member.name)
-  return turboBuild(root, names, admissionRequested(process.env), budget.workers)
+  const recordPath = planPath === undefined ? undefined : builtFromPath(planPath)
+  if (recordPath !== undefined) clearBuiltFrom(recordPath)
+  let digests: ReadonlyMap<string, string> | undefined
+  if (recordPath !== undefined) {
+    try {
+      digests = currentDigests({
+        root,
+        targets: paths,
+        config: readTestRunsConfig(),
+        env: process.env,
+      })
+    } catch (error) {
+      console.log(
+        `构建记录：取不到输入摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
+  }
+  const code = turboBuild(root, names, admissionRequested(process.env), budget.workers)
+  if (code === 0 && recordPath !== undefined && digests !== undefined)
+    writeBuiltFrom(recordPath, file.head, digests)
+  return code
+}
+
+/**
+ * `step test` 的缓存策略与构建记录。带计划文件时，前面的构建一步在另一个进程里构建，并在计划文件旁写了构建记录；
+ * 没有记录（手工 `--plan`、前面没构建、记录是另一个提交的）就不写缓存。不带计划文件时由 turbo 先构建，记录取自这次运行自己。
+ */
+export function stepTestCache(
+  env: Readonly<Record<string, string | undefined>>,
+  options: {
+    readonly planPath: string | undefined
+    readonly head: string
+    readonly noCache: boolean
+    readonly full: boolean
+  },
+): { readonly policy: CachePolicy; readonly builtFrom: ReadonlyMap<string, string> | undefined } {
+  const builtFrom =
+    options.planPath === undefined
+      ? undefined
+      : readBuiltFrom(builtFromPath(options.planPath), options.head)
+  return {
+    policy: cachePolicy(env, {
+      noCache: options.noCache,
+      full: options.full,
+      build: options.planPath === undefined || builtFrom !== undefined,
+    }),
+    builtFrom,
+  }
 }
 
 /** 类型检查：按计划点名，由 turbo 运行；不依赖构建。先核对嵌套归档目录已在成员的 tsconfig 里排除。同时检查的成员数取预算。 */
@@ -247,6 +303,11 @@ export interface RecordedRun {
   readonly scope?: RunMeta['scope']
   /** 这一次运行的工作进程预算：并行度由它推出来（环境变量可盖过），账本记下它的来历。 */
   readonly budget: Budget
+  /**
+   * 构建记录（成员目录到构建时输入摘要）：调用方在别的进程里构建过时给，来自 `built-from.json`。
+   * 不给且 `build` 为真时，本进程的构建由这次运行自己做，记录取开跑前的输入摘要。
+   */
+  readonly builtFrom?: ReadonlyMap<string, string>
   /** 成员测试的结果缓存策略（`test-cache.ts`）；不给就不查也不写（验收不缓存）。 */
   readonly cache?: CachePolicy
 }
@@ -274,7 +335,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     return 1
 
   // 成员测试先查缓存：命中的不跑；查不了（快照、依赖图取不到）就全部照跑、不写。
-  const lookup =
+  const found =
     script === 'test' && run.cache !== undefined
       ? lookupCache({
           root,
@@ -286,6 +347,16 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
           env: process.env,
         })
       : undefined
+  // 构建记录：这次运行自己构建（turbo 在测试前构建）时，开跑前取的键就是「构建开始前」的输入。
+  const builtFrom =
+    found === undefined
+      ? undefined
+      : (run.builtFrom ??
+        (run.build
+          ? new Map([...found.keys].map(([member, { digest }]) => [member, digest]))
+          : undefined))
+  const lookup =
+    found === undefined || builtFrom === undefined ? found : { ...found, built: builtFrom }
   const hits = lookup?.hits ?? new Map<string, never>()
   const toRun = targets.filter(member => !hits.has(member.path))
   if (lookup !== undefined)
@@ -430,6 +501,7 @@ export async function testStep(
   file: PlanFile,
   build: boolean,
   cache: CachePolicy,
+  builtFrom?: ReadonlyMap<string, string>,
 ): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
@@ -454,6 +526,7 @@ export async function testStep(
     at,
     base: file.plan.mode === 'full' ? null : file.base,
     plan: planSummary(file.plan),
+    ...(builtFrom === undefined ? {} : { builtFrom }),
   } as const
   console.log(
     `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,

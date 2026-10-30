@@ -15,8 +15,8 @@
 // 缓存读写失败一律按未命中：既不让检查失败，也不让检查放行。
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
 import {
@@ -228,7 +228,7 @@ export interface KeyInputs {
 
 export const KEY_VERSION = 1
 
-export function cacheKey(inputs: KeyInputs): string {
+function hashInputs(inputs: KeyInputs, task: string | undefined): string {
   const files = [...inputs.files].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
   const env = Object.fromEntries(Object.entries(inputs.env).sort(([a], [b]) => (a < b ? -1 : 1)))
   return createHash('sha256')
@@ -236,7 +236,7 @@ export function cacheKey(inputs: KeyInputs): string {
       JSON.stringify({
         version: KEY_VERSION,
         member: inputs.member,
-        task: TIER_TASKS[inputs.tier],
+        ...(task === undefined ? {} : { task }),
         platform: inputs.platform,
         arch: inputs.arch,
         node: inputs.node,
@@ -245,6 +245,62 @@ export function cacheKey(inputs: KeyInputs): string {
       }),
     )
     .digest('hex')
+}
+
+export function cacheKey(inputs: KeyInputs): string {
+  return hashInputs(inputs, TIER_TASKS[inputs.tier])
+}
+
+/** 输入摘要：与缓存键同源（同样的输入集、平台、Node 与环境变量），不含层；构建记录用它说「这次构建看到的是哪份输入」。 */
+export function inputDigest(inputs: KeyInputs): string {
+  return hashInputs(inputs, undefined)
+}
+
+/**
+ * 构建记录：构建成功后，每个被构建成员在构建开始前的输入摘要。测试跑的是 `dist/`，而键按源码算：
+ * 只有「现在的输入摘要等于构建时的」，这次通过的才说得清是对哪份源码构建出的产物。
+ * `step build --plan` 把它写在计划文件旁边；`run --build` 在同一进程里直接取，不落盘。
+ */
+export const BUILT_FROM_FILE = 'built-from.json'
+
+export function builtFromPath(planPath: string): string {
+  return join(dirname(planPath), BUILT_FROM_FILE)
+}
+
+/** 删掉旧的构建记录：新一轮构建开始前先删，构建失败时不留上一轮的记录。 */
+export function clearBuiltFrom(path: string): void {
+  rmSync(path, { force: true })
+}
+
+export function writeBuiltFrom(
+  path: string,
+  head: string,
+  digests: ReadonlyMap<string, string>,
+): void {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(
+    path,
+    `${JSON.stringify({ head, members: Object.fromEntries([...digests].sort()) }, null, 1)}
+`,
+  )
+}
+
+/** 读构建记录；文件不存在、不是 JSON、形状不对、或记的不是这个提交，都当作没有。 */
+export function readBuiltFrom(path: string, head: string): ReadonlyMap<string, string> | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    return undefined
+  }
+  if (typeof parsed !== 'object' || parsed === null) return undefined
+  const { head: recorded, members } = parsed as Record<string, unknown>
+  if (recorded !== head || typeof members !== 'object' || members === null) return undefined
+  const digests = new Map<string, string>()
+  for (const [member, digest] of Object.entries(members))
+    if (typeof digest === 'string') digests.set(member, digest)
+    else return undefined
+  return digests
 }
 
 /** 缓存里的一个条目：哪次运行、什么输入下，这个成员这一层完整通过了。 */
@@ -347,6 +403,11 @@ export interface CacheLookup {
   readonly hits: ReadonlyMap<string, CacheEntry>
   /** 跑完后重新取快照、重算各成员的键，用来复核开跑前的键；取不到时抛。 */
   readonly rekey: () => ReadonlyMap<string, MemberKey>
+  /**
+   * 构建记录：成员目录到构建时输入摘要的映射。没有它（或没有这个成员的）就不写：
+   * 测试跑的可能是别的源码构建出的 dist。
+   */
+  readonly built?: ReadonlyMap<string, string>
   /** 整个缓存不可用的原因（快照或依赖图取不到）；有它时 `keys` 为空。 */
   readonly unavailable?: string
 }
@@ -363,6 +424,8 @@ export interface LookupOptions {
 
 export interface MemberKey {
   readonly key: string
+  /** 输入摘要（不含层），与构建记录比。 */
+  readonly digest: string
   /** 输入集里的文件数。 */
   readonly inputs: number
 }
@@ -397,8 +460,10 @@ export function memberKeys(
       const inputs = memberInputs(target, files, upstream).map(
         path => [path, snapshot.get(path) ?? ''] as const,
       )
+      const keyInputs = { ...common, member: target, files: inputs }
       keys.set(target, {
-        key: cacheKey({ ...common, member: target, files: inputs }),
+        key: cacheKey(keyInputs),
+        digest: inputDigest(keyInputs),
         inputs: inputs.length,
       })
     } catch (error) {
@@ -406,6 +471,28 @@ export function memberKeys(
     }
   }
   return { keys, uncacheable }
+}
+
+/** 现在这些成员的输入摘要；取不到快照或依赖图时抛。构建开始前取一次，构成构建记录。 */
+export function currentDigests(options: {
+  readonly root: string
+  readonly targets: readonly string[]
+  readonly config: TestRunsConfig
+  readonly env: Readonly<Record<string, string | undefined>>
+}): Map<string, string> {
+  const members = listWorkspaceMembers(fileTree(options.root), options.config.affected.excludeRoots)
+  const { keys } = memberKeys(
+    {
+      ...options,
+      mainRoot: options.root,
+      tier: 'fast',
+      policy: { read: false, reason: '', write: false, writeReason: '' },
+    },
+    members,
+    packageGraph(options.root),
+    snapshotTree(options.root),
+  )
+  return new Map([...keys].map(([member, { digest }]) => [member, digest]))
 }
 
 /** 查缓存：算键，按策略读条目。快照或依赖图取不到时整个缓存不可用，全部成员照常跑、不写。 */
@@ -449,7 +536,7 @@ export function lookupCache(options: LookupOptions): CacheLookup {
 
 /**
  * 运行之后写缓存：完整通过且有键的成员各写一条；返回写了谁、哪些写不进去、哪些因键变了而跳过。
- * 策略不许写时一条不写。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
+ * 策略不许写时一条不写。成员还要有构建记录，且现在的输入摘要等于构建时的，否则跳过。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
  * 重算本身失败时全部跳过。
  */
 export function recordCache(
@@ -480,8 +567,18 @@ export function recordCache(
       skipped.push(`${run.member}：跑完后重算键失败（${freshError}），不写缓存`)
       continue
     }
-    if (fresh.get(run.member)?.key !== found.key) {
+    const now = fresh.get(run.member)
+    if (now?.key !== found.key) {
       skipped.push(`${run.member}：运行期间输入有变化，键与开跑前不一致，不写缓存`)
+      continue
+    }
+    const built = lookup.built?.get(run.member)
+    if (built === undefined) {
+      skipped.push(`${run.member}：这次没有构建记录，测试跑的可能是别的源码构建出的 dist，不写缓存`)
+      continue
+    }
+    if (built !== now.digest) {
+      skipped.push(`${run.member}：构建之后输入变了，通过的是旧源码构建出的 dist，不写缓存`)
       continue
     }
     const problem = writeEntry(lookup.home, {
@@ -520,13 +617,21 @@ export interface CacheMeta {
     readonly tests: number
   }[]
   readonly written: readonly string[]
+  /** 写不写：`mode` 只说读不读；本次不写缓存（没有构建、缓存不可用）时为 `off`。 */
+  readonly write: 'on' | 'off'
+  /** 通过了却因没有构建记录、构建之后输入变了、运行期间输入变了而没写的成员数。 */
+  readonly skipped: number
   readonly uncacheable: readonly { readonly member: string; readonly reason: string }[]
   readonly problems: readonly string[]
 }
 
 export function cacheMeta(
   lookup: CacheLookup,
-  recorded: { readonly written: readonly string[]; readonly problems: readonly string[] },
+  recorded: {
+    readonly written: readonly string[]
+    readonly problems: readonly string[]
+    readonly skipped: readonly string[]
+  },
 ): CacheMeta {
   return {
     mode:
@@ -544,6 +649,8 @@ export function cacheMeta(
       tests: entry.tests,
     })),
     written: recorded.written,
+    write: lookup.unavailable === undefined && lookup.policy.write ? 'on' : 'off',
+    skipped: recorded.skipped.length,
     uncacheable: [...lookup.uncacheable].map(([member, reason]) => ({ member, reason })),
     problems: recorded.problems,
   }
