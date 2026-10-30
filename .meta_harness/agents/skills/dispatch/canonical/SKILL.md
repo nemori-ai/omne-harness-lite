@@ -46,7 +46,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
 ```
 
-定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。写范围要覆盖全部命中所在的成员与正文（P20）。
+定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
 
 为线父卡登记一波的 attempt 时，binding 的契约变更取本波队列各卡的最高级。否则批次带破坏性卡时，`pnpm run check` 的 change-scope 会拦下。线父卡正文的「契约变更」与 `contract:` 标签同步改。每次写入后读回精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
 
@@ -75,7 +75,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
 
    分支、taskBase 与写范围只写 binding 的引用。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
 
-   写命令之前先读工具的实现或帮助输出，不按 README 的字面猜参数（P8）。命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
+   写命令之前先运行工具的帮助或读它的实现，确认参数，不凭印象猜写（P8）。README 与实现不一致时，按冲突报告给工具的拥有者，不在消息里自己选一种写法。命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
 
    命令代码块从行首开始，不放进列表或引用。缩进 4 个以上空格的围栏不算代码块，validate 不要求其中的命令有演练证据。
 3. **生成。** render 写出 `tmp/milestone-<id>/dispatch/<line>-r<revision>.md` 并返回 sha256。同修订相同字节复用文件。内容要变时用新修订。
@@ -97,9 +97,10 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继，先读回有权者的终态决定。
 2. 为每条存续线写一条 delta，idle 线也写。正文按 `.meta_harness/human/map-reduce-delivery/templates/line-delta.md`，首行是 `<!-- line-delta -->`，固定项归「线会话记录」。终态时每条存续线都发 terminal delta。
-3. 发布前读一遍 delta 文件：占位符都已替换，首行是标记，F 正确。生成脚本失败时（例如替换没有生效）不发布，先修好再重新生成。然后用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
+3. 发布前读一遍 delta 文件：占位符都已替换，首行是标记，F 正确。生成 delta 文件的任何一步失败时都不发布，先修好再重新生成。然后用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
 4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
 5. 关闭 R(w)，读回关闭状态。守卫不满足时不关闭。
+6. 收口前请其他写者冻结了联调轨道时（`integrate`「收口一波」第 1 步），在协调卡上发解除冻结的评论，并读回。
 
 ## 恢复
 
