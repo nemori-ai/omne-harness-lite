@@ -127,9 +127,9 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | 来源 | 外部原文或默认 | 本项目的依据与处置 |
 |---|---|---|
 | ub-mode | TDD：先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；实施可以按 TDD 顺序，与[整洁回路](../clean-loop.md)互补 |
-| ub-mode | Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --base <taskBase> --coverage` 量圈复杂度、覆盖率与 CRAP；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。度量的节奏见 [card-loop](../../.meta_harness/agents/skills/claim/canonical/references/card-loop.md#切片的七步) |
+| ub-mode | Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --coverage` 量圈复杂度、覆盖率与 CRAP，基线按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。度量的节奏见 [card-loop](../../.meta_harness/agents/skills/claim/canonical/references/card-loop.md#切片的七步) |
 | ub-mode | Dryer：消除相似度 0.8 以上的重复 | 用 `pnpm run loop:status` 的重复行读数；阈值归整洁回路 |
-| ub-mode | Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation --base <taskBase>`（差分变异，只量 `packages/`、`apps/`）；等价变异写理由。变异的节奏见 card-loop |
+| ub-mode | Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation`（差分变异，只量 `packages/`、`apps/`），基线与 `--since` 收窄按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；等价变异写理由。变异的节奏见 card-loop |
 | ub-mode | 术语表一条 | 术语归统一语言（`.meta_harness/design/ubiquitous_language/`），不另建词表 |
 | ub-mode | Keep a Log 并在完成时报告 | 过程记录留任务 tmp，交付时写交接报告；长任务可用 `pstack:show-me-your-work` |
 | ub-mode | Commit and Push：最后推到主线 | 提交格式与来源 trailer 归 [CONTRIBUTING](../../CONTRIBUTING.md)；主干只经 PR 与 github-gate 进入，见[多层分支集成](integration.md) |

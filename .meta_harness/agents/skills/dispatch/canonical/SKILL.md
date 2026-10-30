@@ -54,6 +54,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按「放行」一节的发布方法发 redo delta。
 
+升修订也走本节。spec 的 `revision` 大于卡上「交付修订」行的值时，`post` 把这次派发当作新修订：先改写卡上的修订号行，卡上有 binding 区块时一并撤下，再发派发评论。修订号行留给 `post` 改：正文单写者只写范围改动，不先改修订号，否则 `post` 按普通派发处理，不撤旧 binding。`--dry-run` 输出的 `cardEdits` 列出每处改动，核对后再正式运行。然后 `bind` 登记新 attempt。同一分支已有工作树时，用 `worktree-cli.ts swap` 给新 attempt 换树。见 `tools/dev-flow/src/delivery/README.md`「为新修订派发」与 `tools/dev-flow/src/integration/README.md`「准备任务工作树」。
+
 ## 6. 建分支与工作树，运行 start
 
 按 `tools/dev-flow/src/integration/README.md` 与 `worktree-cli.ts` 帮助，从 binding 的 taskBase 准备隔离工作树。已有同名分支时核对尖端，不覆盖别的执行。运行 `start` 后用 `status` 读回：issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。不手写 context。

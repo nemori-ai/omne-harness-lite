@@ -105,14 +105,14 @@ SERVE 一次接管一个批次 PR：
 
 1. 保留原始 head、候选 head、targetBase 和 merge 链。
 2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
-3. 同步后先生成宿主投影并运行 `pnpm run check:agents`，再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
+3. 同步后先用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
 4. 候选或基线变动后，重做受影响的验证与独立评审。
 5. 按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者，Reduce 不自动批准。
 6. 以实际 PR 与轨道的读回记录 merged。合入被回退时，原结果重新未解决。
 
 VERIFY_WAVE：
 
-1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。F 的树与一个已通过这项检查的头的树相同时，按[树相同时复用准入](integration.md#树相同时复用准入)复用那次结果，不重跑这项检查。
+1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。F 的树与一个已通过这项检查的头的树相同时，按[树相同时复用准入](integration.md#树相同时复用准入)复用那次结果，不重跑这项检查。准入部分在那次全量准入所在的工作树里用 `admission-evidence --for <F>` 核对，用法见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。
 2. 任一 pending、未知副作用、未解决失败或失效证据都阻止收口。
 3. 检查失败由 Reduce 处置。不把失败标红后仍当成功放行。
 

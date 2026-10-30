@@ -24,7 +24,7 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 
 一条线开工时做一次，产物放 `tmp/line-<线>/`。之后每张卡不重做。
 
-1. 环境：`pnpm install --frozen-lockfile --prefer-offline`。生成 agent 投影。`pnpm run check:agents` 退出 0。记录实际的 Node、pnpm、git 版本。
+1. 环境：`pnpm install --frozen-lockfile --prefer-offline`。用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成 agent 投影，它最后运行 `pnpm run check:agents`，要退出 0。记录实际的 Node、pnpm、git 版本。
 2. 线级上下文地图主体，按[上下文地图模板](references/context-map.md)的主体部分写到 `tmp/line-<线>/context-map.md`：本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、本线最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。调度者已给地图主体时只核对，不重写。
 3. 线级约束 `tmp/line-<线>/constraints.md`：按[实施规格模板](references/spec-template.md)的「原则与约束」写本线适用的条目，只写一次。每张卡的 `spec.md` 引用它，只补本卡特有的条目。
 
