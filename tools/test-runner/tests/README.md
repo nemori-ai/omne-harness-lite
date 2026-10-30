@@ -15,6 +15,7 @@
 | `mutation-stryker-incremental.spec.ts` | 慢层。夹具上真起 Stryker：第二次复用被杀的、读数不变；改一处被变异的行只重跑那里；范围缩小时读数与不复用时相同；关掉增量时不读不写快照、配置与以前相同；`--force` 不复用；两个成员并行与逐个跑读数相同。 |
 | `fixtures/mutation.ts` | 上面几份文件共用的夹具：临时目录、CLI 夹具仓库、手写计划、单成员的 Stryker 夹具项目与 `mutate`。 |
 | `test-cache.spec.ts` | 成员级测试结果缓存（[结果缓存](../README_ZH.md#测试运行)）。快层：用真实的 `affected` 规则核对每类改动进谁的键（自己、上游传递、读者规则点名、全局、未归类；成员根目录文档、常驻、Python、退役不进）、键随层／平台／Node／列出的环境变量／任一输入内容而变、进键的环境变量按配置选、读不读的策略、只写完整通过、条目的读写与坏条目。慢层：临时仓库核对工作树快照（索引 blob、改过与未跟踪现算、删掉与忽略不在）；本仓库核对 turbo 包依赖图与 `--filter=...` 一致、每个成员都算得出键；真起 turbo 跑两遍核对命中不执行、来源、改输入／换层／不读时照跑、坏条目按未命中。 |
+| `pnpm-command.spec.ts` | 快层。`pnpmCommand` 怎样选起 pnpm：Windows 上按 PATH 顺序找 pnpm.exe 与 npm 全局布局（pnpm.cmd 旁边的 pnpm.cjs），同一目录里 pnpm.exe 优先，只有 pnpm.cmd 而缺 pnpm.cjs 的目录跳过，都找不到时报错并写明找过的目录与各缺什么；POSIX 上返回 pnpm。 |
 
 在仓库根运行，重验证须通过共享槽：
 
