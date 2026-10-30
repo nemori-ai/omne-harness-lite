@@ -448,13 +448,14 @@ function cacheDirectory(root: string): string {
  * 当前工作树的依赖图（含未提交的改动）。先按指纹（`workingGraphFingerprint`）查 git 公共目录里的缓存，命中就读整张图，
  * 不起 dependency-cruiser；未命中照常算，算完写缓存。不用 dependency-cruiser 自己的缓存：按 git 元数据判断变化会漏掉
  * 删掉的未跟踪文件，按内容判断实测也不比重跑快。`OMNE_DEP_GRAPH_CACHE=0` 关掉缓存；缓存读不到、写不进都按未命中，
- * 既不让检查失败，也不让检查放行。
+ * 既不让检查失败，也不让检查放行。`OMNE_ADMISSION=1` 时不读只写；算完图复核指纹，运行中输入变了就不写。
  */
-export function workingGraph(root: string): DependencyGraph {
+export function workingGraph(root: string, hooks: WorkingGraphHooks = {}): DependencyGraph {
   const ignoredDirs = ignoredDirectories(root)
   const key = workingCacheEnabled() ? workingCacheKey(root, ignoredDirs) : undefined
   if (key !== undefined) {
-    const hit = readWorkingCache(key.path, key)
+    // 准入不信任缓存：准入时只写不读，与测试结果缓存一致。
+    const hit = admissionMode() ? undefined : readWorkingCache(key.path, key)
     if (hit !== undefined) {
       note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
       return hit
@@ -462,8 +463,25 @@ export function workingGraph(root: string): DependencyGraph {
     note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
   }
   const graph = graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirs))
-  if (key !== undefined) writeWorkingCache(key.path, key, graph)
+  hooks.afterCompute?.()
+  if (key !== undefined) {
+    // 跑的过程中输入变了，这张图对应的指纹已不是开跑前那个，写进去会让旧指纹下读到别的输入的图。
+    const after = fingerprintOf(root, ignoredDirectories(root))
+    if ('reason' in after || after.digest !== key.digest)
+      note('依赖图缓存：运行中输入有变化，这次不写缓存')
+    else writeWorkingCache(key.path, key, graph)
+  }
   return graph
+}
+
+/** 测试用的接缝：算完图、复核指纹之前调用。 */
+export interface WorkingGraphHooks {
+  readonly afterCompute?: () => void
+}
+
+/** 准入模式（`OMNE_ADMISSION=1`）：工作树图的缓存不读。 */
+function admissionMode(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
+  return env.OMNE_ADMISSION === '1'
 }
 
 /** 开着缓存时这棵树的缓存键：指纹加缓存文件的路径。算不出指纹（不在 git 仓库里等）就没有键，说明原因后不缓存。 */
@@ -503,8 +521,8 @@ export interface WorkingFingerprint {
 
 /**
  * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、dependency-cruiser 的版本、
- * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、扫描根与根
- * `tsconfig.base.json`、`package.json` 下未提交与未跟踪文件的路径与内容、扫描根下被忽略的路径（目录记存在与否，
+ * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、全部未提交与未跟踪文件的路径与内容（不按扫描根过滤：
+ * dependency-cruiser 会解析扫描根之外的导入目标）、扫描根下被忽略的路径（目录记存在与否，
  * 单个文件记内容）、`ignoredDirectories` 的结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
  * `root` 不在 git 工作树里或没有提交时没有指纹（返回 undefined），这样的树不缓存。
  */
@@ -699,7 +717,7 @@ function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[]
     `modules ${fileDigest(join(root, 'node_modules', '.modules.yaml'))}`,
     `ignored-dirs ${[...ignoredDirs].filter(inScanScope).sort().join(' ')}`,
   ]
-  const changed = [...new Set(changedPaths(root).filter(inScanScope))].sort()
+  const changed = [...new Set(changedPaths(root))].sort()
   const ignored = nulSeparated(
     git(root, [
       'ls-files',
