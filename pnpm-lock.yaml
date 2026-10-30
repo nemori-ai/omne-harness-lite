@@ -184,9 +184,6 @@ importers:
       '@omne-harness/request-context-contract':
         specifier: workspace:*
         version: link:../../packages/context/request-context-contract
-      '@omne-harness/session-adapters':
-        specifier: workspace:*
-        version: link:../../packages/session/session-adapters
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-contract
@@ -194,6 +191,12 @@ importers:
         specifier: workspace:*
         version: link:../../packages/common/utc-instant
     devDependencies:
+      '@omne-harness/execution-environment-contract':
+        specifier: workspace:*
+        version: link:../../packages/execution/execution-environment-contract
+      '@omne-harness/session-adapters':
+        specifier: workspace:*
+        version: link:../../packages/session/session-adapters
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

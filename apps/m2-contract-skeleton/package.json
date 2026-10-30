@@ -36,11 +36,12 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/public-contract": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*",
-    "@omne-harness/session-adapters": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/session-adapters": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
