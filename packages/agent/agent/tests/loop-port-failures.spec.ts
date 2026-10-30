@@ -98,6 +98,14 @@ function failLoadAt(d: Dependencies, position: string): Dependencies['journal'][
   }
 }
 
+/** Inject at the first read after the ended commit: F4's read of the terminal ledger. */
+function failLoadWhenEnded(d: Dependencies): Dependencies['journal']['load'] {
+  return async input => {
+    const loaded = await d.journal.load(input)
+    return 'ok' in loaded && loaded.ok.state.kind === 'ended' ? fail(PORT_FAILURE) : loaded
+  }
+}
+
 /** Every port call of the normal path after `open`, in path order. E9 calls no port. */
 const CASES: readonly Case[] = [
   [
@@ -251,13 +259,21 @@ const CASES: readonly Case[] = [
     'F1',
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('F1')) }),
   ],
+  ['F3', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
+  [
+    'F3',
+    'journal.prepareFinish',
+    'F3',
+    d =>
+      journal(d, { prepareFinish: failing(d.journal.prepareFinish, fail(PORT_FAILURE), nth(1)) }),
+  ],
   [
     'F3',
     'journal.tryFinish',
     'F3',
     d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
-  ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadAt(d, 'F3') })],
+  ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadWhenEnded(d) })],
 ]
 
 describe('a port failure on the normal path stops the run at its node (#502 1.2 limit)', () => {

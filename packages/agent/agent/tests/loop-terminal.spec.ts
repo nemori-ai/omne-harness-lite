@@ -226,11 +226,24 @@ describe('#516 terminal exit', () => {
           return d.journal.commit(input)
         },
         async tryFinish(input) {
+          // F1 writes the candidate content and settling without an intent; F2 is the plain
+          // settling commit; the Journal fills candidate, obligations and beforeTerminal, and the
+          // coordinator presents the loaded projection (SPEC "条件终结").
           const fixed = commits.find(item => item.operation.startsWith('F1/'))
           const passed = commits.find(item => item.operation.startsWith('F2/'))
-          expect(fixed?.state).toMatchObject({ kind: 'settling', intent: { beforeTerminal: null } })
-          expect(passed?.state).toMatchObject({ kind: 'settling', intent: input.intent })
+          expect(fixed?.state).toEqual({ kind: 'settling' })
+          expect(fixed?.finish).toMatchObject({
+            conclusion: input.intent.conclusion,
+            inputWatermark: input.intent.inputWatermark,
+            failure: null,
+          })
+          expect(passed?.state).toEqual({ kind: 'settling' })
+          expect(passed?.finish).toBeNull()
+          const projected = ok(await d.journal.load(input))
+          expect(projected.state).toEqual({ kind: 'settling', intent: input.intent })
+          expect(input.intent.candidate).toBe(fixed?.operation)
           expect(input.intent.beforeTerminal).not.toBeNull()
+          expect(input.intent.obligations).toEqual(projected.finishObligations?.evidence)
           const ended = ok(await d.journal.tryFinish(input))
           expect(ended.kind).toBe('ended')
           if (ended.kind !== 'ended') throw new Error('no end')
@@ -402,19 +415,45 @@ describe('#516 terminal exit', () => {
       await journal.commit(
         commitAt(before, authority, 'fixed-observer-adoptions', {
           checkpoint: { ...before.checkpoint, passages: [pending, recorded] },
-          state: before.state,
+          state: { kind: 'settling' },
         }),
       ),
     )
+    // The new observation plan changed the responsibility projection: the host issues the list
+    // again, loads the projection and presents it (SPEC "终结责任清单").
     const fixed = await load(assembly)
+    expect(
+      ok(
+        await journal.tryFinish({
+          ...alice,
+          execution: execution(),
+          operation: operation('terminal-with-stale-list'),
+          authorization: { kind: 'advancement', authority },
+          expected: fixed.revision,
+          intent: before.state.intent,
+        }),
+      ).kind,
+    ).toBe('changed')
+    ok(
+      await journal.prepareFinish({
+        ...alice,
+        execution: execution(),
+        operation: operation('host-prepare'),
+        authorization: { kind: 'advancement', authority },
+        expected: fixed.revision,
+        candidate: before.state.intent.candidate,
+      }),
+    )
+    const issued = await load(assembly)
+    if (issued.state.kind !== 'settling') throw new Error('missing projection')
     const ended = ok(
       await journal.tryFinish({
         ...alice,
         execution: execution(),
         operation: operation('terminal-with-observers'),
         authorization: { kind: 'advancement', authority },
-        expected: fixed.revision,
-        intent: before.state.intent,
+        expected: issued.revision,
+        intent: issued.state.intent,
       }),
     )
     expect(ended.kind).toBe('ended')
@@ -524,30 +563,39 @@ describe('#516 terminal exit', () => {
     },
   )
 
-  it('tryFinish refuses an absent terminal passage and an intent different from the fixed candidate', async () => {
+  it('tryFinish refuses an intent without the proof as changed, a forged list as invalid, and an unissued list as invalid', async () => {
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       journal: {
         ...d.journal,
         async tryFinish(input) {
           expect(
-            failure(
+            ok(
               await d.journal.tryFinish({
                 ...input,
                 operation: operation('without-before-terminal'),
                 intent: { ...input.intent, beforeTerminal: null },
               }),
             ),
-          ).toMatchObject({ kind: 'invalid', field: 'intent.beforeTerminal' })
+          ).toMatchObject({ kind: 'changed' })
           expect(
-            ok(
+            failure(
               await d.journal.tryFinish({
                 ...input,
-                operation: operation('different-fixed-intent'),
+                operation: operation('forged-obligations'),
                 intent: { ...input.intent, obligations: evidence('different-obligations') },
               }),
             ),
-          ).toMatchObject({ kind: 'changed' })
+          ).toMatchObject({ kind: 'invalid', field: 'intent.obligations' })
+          expect(
+            failure(
+              await d.journal.tryFinish({
+                ...input,
+                operation: operation('unissued-obligations'),
+                intent: { ...input.intent, obligations: null },
+              }),
+            ),
+          ).toMatchObject({ kind: 'invalid', field: 'intent.obligations' })
           expect(ok(await d.journal.load(input)).state.kind).toBe('settling')
           return d.journal.tryFinish(input)
         },

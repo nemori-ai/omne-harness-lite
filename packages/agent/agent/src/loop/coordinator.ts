@@ -46,9 +46,10 @@ import type {
   ExecutionRevision,
   ExecutionSnapshot,
   ExecutionState,
+  JournalCommitState,
   Failure,
   FailureCandidate,
-  FinishIntent,
+  FinishCandidateContent,
   HandoffChange,
   HandoffOutcome,
   InputBatch,
@@ -143,7 +144,7 @@ export interface ExecutionCoordinator {
 
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
 type ModelPendingCall = Extract<PendingCall, { kind: 'model' }>
-type OpenState = Exclude<ExecutionState, { kind: 'ended' }>
+type OpenState = JournalCommitState
 /** The Journal allocates `ended` and `entry` itself; a node commits none of them. */
 export type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>
 
@@ -151,6 +152,8 @@ export type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>
 type Write = Readonly<{
   checkpoint?: Partial<Omit<AgentCheckpoint, 'position'>>
   state?: OpenState
+  /** The candidate content of the F1 commit (SPEC "条件终结" 1); absent on every other commit. */
+  finish?: FinishCandidateContent
   events?: readonly CommitEvent[]
   effects?: readonly EffectIntent[]
   replyAdmission?: ModelReplyAdmission
@@ -362,12 +365,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
   let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
-  let intent: FinishIntent | null = null
   // Only the identity and original node of this coordinator's uncertain conditional commit.
   // Journal query remains the authority over whether that operation actually committed.
   let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
   let excludedNode: LoopNode | null = null
   let finishRefused = false
+  // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
+  let reissueObligations = false
   let waits: readonly Waiting[] = []
   let waitingAt: LoopNode = 'E1'
   let yieldedWait = false
@@ -410,6 +414,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       caller: { kind: 'none' },
       replyAdmission: write.replyAdmission ?? null,
       handoff: write.handoff ?? null,
+      finish: write.finish ?? null,
     })
     if ('failure' in committed) {
       if (committed.failure.kind === 'changed') {
@@ -486,6 +491,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     if ('failure' in loaded) return loaded
     snapshot = loaded.ok
     return loaded
+  }
+
+  /** The state a commit may write back: a settling snapshot carries the Journal's projection, which no commit writes. */
+  function committedState(read: ExecutionState): OpenState {
+    if (read.kind === 'ended')
+      throw new Error('coordinator defect: an ended state is not committed')
+    if (read.kind === 'waiting') return resumeState
+    if (read.kind === 'settling') return { kind: 'settling' }
+    return read
   }
 
   /** E1's reading of the snapshot: the advancement of this attachment. */
@@ -917,7 +931,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       const to = route.ok
       if (to === 'evaluate')
         return evaluate('E4', { ...required(facts, 'facts'), checkpoint: current })
-      if (state.kind === 'settling' && to !== 'I8' && to !== 'F1') intent = state.intent
       return step(to === 'E3' ? 'passage-pending' : `resume-${to}`, null)
     },
     /** E3: no extension is adopted (invoke refuses one), so the passage ends with a commit alone. */
@@ -1022,8 +1035,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       }
       checkpoint = snapshot.checkpoint
       revision = snapshot.revision
-      if (snapshot.state.kind !== 'ended')
-        state = snapshot.state.kind === 'waiting' ? resumeState : snapshot.state
+      if (snapshot.state.kind !== 'ended') state = committedState(snapshot.state)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       const read = await readFacts(snapshot)
       if ('failure' in read)
@@ -1031,7 +1043,6 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       facts = read.ok
       if (finishRefused) {
         finishRefused = false
-        intent = null
         // Controls and extensions are still owned by their later cards. Never retry an unchanged
         // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
         if (snapshot.controls.length > 0)
@@ -1602,37 +1613,80 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         finishRefused = true
         return step('reconcile', null)
       }
-      intent ??= {
+      // The business content of the candidate (SPEC "条件终结" 1): the origin is the execution
+      // history the evaluation read, the conditions are the record of the conditions read. The
+      // Journal establishes the candidate, its author route and the FinishIntent projection.
+      const finish: FinishCandidateContent = {
+        origin: read.ok.history,
         conclusion: next.conclusion,
-        inputWatermark: read.ok.inputWatermark,
-        obligations: agentEvidence(`${execution}/obligations`, read.ok.revision),
-        beforeTerminal: null,
         failure: next.failure,
+        inputWatermark: read.ok.inputWatermark,
+        conditions: required(facts, 'facts').conditions.source,
       }
       return step('fixed', {
-        state: { kind: 'settling', intent },
+        state: { kind: 'settling' },
+        finish,
         ...(next.failure?.kind === 'no-reply' ? { checkpoint: { calls: [] } } : {}),
       })
     },
-    /** F2: no extension is adopted at before_terminal; the passage proceeds and binds the candidate. */
+    /**
+     * F2: no extension is adopted at before_terminal, so the passage completes with this plain
+     * settling commit; the Journal sets the proof of the author route from it (SPEC "条件终结" 3).
+     */
     async F2() {
-      const fixed = required(intent, 'finish intent')
-      const passed =
-        fixed.beforeTerminal === null
-          ? { ...fixed, beforeTerminal: agentEvidence(`${execution}/before-terminal`, fixed) }
-          : fixed
-      intent = passed
-      return step('proceed', { state: { kind: 'settling', intent: passed } })
+      return step('proceed', { state: { kind: 'settling' } })
     },
-    /** F3: tryFinish, the one terminal commit. */
+    /**
+     * F3: prepareFinish unless the Journal already projects a list for this candidate, load the
+     * complete revision, then tryFinish, the one terminal commit. A list that tryFinish answered
+     * `changed` for is issued again on the next pass.
+     */
     async F3() {
+      const before = await load()
+      if ('failure' in before) return before
+      const candidate = before.ok.settlement.candidate
+      if (before.ok.state.kind !== 'settling' || candidate === null) {
+        finishRefused = true
+        return step('reconcile', null)
+      }
+      const authorization = {
+        kind: 'advancement',
+        authority: required(authority, 'authority'),
+      } as const
+      if (before.ok.state.intent.obligations === null || reissueObligations) {
+        const prepared = await ports.journal.prepareFinish({
+          ...access,
+          execution,
+          operation: journalOperation('F3', 'prepare', before.ok.revision),
+          authorization,
+          expected: before.ok.revision,
+          candidate: candidate.candidate,
+        })
+        if ('failure' in prepared) {
+          if (prepared.failure.kind === 'changed') {
+            finishRefused = true
+            return step('reconcile', null)
+          }
+          if (prepared.failure.kind !== 'commit-unknown') return prepared
+          pendingCommit = { operation: prepared.failure.operation, node: 'F3' }
+          return step('reconcile', null)
+        }
+        reissueObligations = false
+      }
+      const read = await load()
+      if ('failure' in read) return read
+      if (read.ok.state.kind !== 'settling') {
+        finishRefused = true
+        return step('reconcile', null)
+      }
+      revision = read.ok.revision
       const finished = await ports.journal.tryFinish({
         ...access,
         execution,
         operation: journalOperation('F3', 'finish', revision),
-        authorization: { kind: 'advancement', authority: required(authority, 'authority') },
-        expected: required(revision, 'revision'),
-        intent: required(intent, 'finish intent'),
+        authorization,
+        expected: revision,
+        intent: read.ok.state.intent,
       })
       if ('failure' in finished) {
         if (finished.failure.kind !== 'commit-unknown') return finished
@@ -1640,6 +1694,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('reconcile', null)
       }
       if (finished.ok.kind !== 'ended') {
+        // A changed projection or a stale list is issued again after the re-evaluation.
+        if (finished.ok.kind === 'changed') reissueObligations = true
         finishRefused = true
         return step('reconcile', null)
       }

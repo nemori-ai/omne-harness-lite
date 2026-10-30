@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator, agentModelDeliverySchema } from '@omne-harness/agent'
 import type { AgentDependencies } from '@omne-harness/agent'
-import type { Authority, JournalCommit, FinishIntent } from '@omne-harness/agent-contract'
+import type { Authority, FinishCandidateContent, JournalCommit } from '@omne-harness/agent-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
 import {
   decodeResultVersion,
@@ -519,7 +519,7 @@ it('a live waiting driver whose entry notification is lost rereads receiver-only
 it('no-reply waits for injected time and retains one candidate after an excluded F1 commit', async () => {
   let times = 0
   let unknown = true
-  const candidates: FinishIntent[] = []
+  const candidates: FinishCandidateContent[] = []
   const assembly = await settledAssembly([], FINAL_FAILURE, d => ({
     ...d,
     clock: {
@@ -534,8 +534,8 @@ it('no-reply waits for injected time and retains one candidate after an excluded
     journal: {
       ...d.journal,
       commit(input) {
-        if (input.state.kind === 'settling' && input.operation.startsWith('F1/')) {
-          candidates.push(input.state.intent)
+        if (input.finish !== null && input.operation.startsWith('F1/')) {
+          candidates.push(input.finish)
           if (unknown) {
             unknown = false
             assembly.controls.journal.failNext('commit', {

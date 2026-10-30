@@ -1,7 +1,7 @@
 // The memory Journal against the same-shape list of docs/architecture/mechanisms.md
 // "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
-// durable provider unchanged. Tests read only what the port returns. The blocked reasons of
-// `tryFinish` that SPEC leaves open keep the name 「临时做法，待 #558 裁定」 inside fact 10.
+// durable provider unchanged. Tests read only what the port returns. Fact 10 fixes the five
+// blocked categories of `tryFinish` in their order and the cancellation route of SPEC "取消判断与路线".
 import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
@@ -11,7 +11,11 @@ import {
   type EventPage,
   type JournalCommit,
 } from '@omne-harness/agent-contract'
-import { sampleStartFence } from '@omne-harness/agent-contract/testing'
+import {
+  createTestCancellationPolicy,
+  sampleStartFence,
+  testCancellationPolicyInstallation,
+} from '@omne-harness/agent-contract/testing'
 import * as toolReferences from '@omne-harness/tool-contract'
 import {
   acceptedInput,
@@ -24,7 +28,12 @@ import {
   execution,
   failure,
   finish,
+  finishCancelled,
   finishInput,
+  fixCandidate,
+  intentOf,
+  prepareFinish,
+  proveBeforeTerminal,
   instance,
   load,
   modelCall,
@@ -44,9 +53,36 @@ import {
 
 type MemoryOptions = Parameters<typeof createMemoryAgentJournal<string>>[0]
 
-/** A memory Journal; a standalone binding unless the test names another mode. */
+/** The test cancellation policy and its installation (SPEC "安装记录与资格"). */
+const cancellation = {
+  installation: testCancellationPolicyInstallation,
+  policy: createTestCancellationPolicy(),
+}
+
+/** A memory Journal with the test cancellation policy; a standalone binding unless the test names another mode. */
 function memory(options: Partial<MemoryOptions> = {}) {
-  return createMemoryAgentJournal<string>({ coordination: 'standalone', ...options })
+  return createMemoryAgentJournal<string>({ coordination: 'standalone', cancellation, ...options })
+}
+
+function cancelControl(target: ReturnType<typeof execution>, name = 'cancel') {
+  return {
+    ...access,
+    execution: target,
+    operation: operation(name),
+    command: { kind: 'cancel' as const, reason: evidence('reason') },
+  }
+}
+
+function intentReached(target: ReturnType<typeof execution>, control = 'cancel') {
+  return {
+    ...access,
+    execution: target,
+    operation: operation(`${control}/intent`),
+    target: operation(control),
+    stage: 'intent-established' as const,
+    state: 'reached' as const,
+    source: evidence('intent'),
+  }
 }
 
 async function takeover(journal: Journal, opened: Opened, name = 'takeover') {
@@ -721,6 +757,7 @@ describe('fact 6: revision', () => {
         'entries',
         'execution',
         'executionAttachment',
+        'finishObligations',
         'handoffs',
         'history',
         'inputWatermark',
@@ -728,6 +765,7 @@ describe('fact 6: revision', () => {
         'replyAdmissions',
         'results',
         'revision',
+        'settlement',
         'state',
         'terminalObservations',
         'unresolved',
@@ -1215,25 +1253,26 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     )
     const opened = await attachmentOf(journal.port)
     ok(await takeInputs(journal.port, opened))
+    const prepared = await finishInput(journal.port, opened, 'prepared')
     const before = await load(journal.port, execution())
     journal.respond('tryFinish', 'conflict')
     expect(
-      ok(await journal.port.tryFinish(await finishInput(journal.port, opened, 'conflict'))),
+      ok(await journal.port.tryFinish({ ...prepared, operation: operation('conflict') })),
     ).toEqual({
       kind: 'changed',
       revision: before.revision,
     })
     journal.respond('tryFinish', 'fail')
     expect(
-      failure(await journal.port.tryFinish(await finishInput(journal.port, opened, 'fail'))).kind,
+      failure(await journal.port.tryFinish({ ...prepared, operation: operation('fail') })).kind,
     ).toBe('unavailable')
     journal.respond('tryFinish', 'unsupported')
     expect(
-      failure(await journal.port.tryFinish(await finishInput(journal.port, opened, 'unsupported'))),
+      failure(await journal.port.tryFinish({ ...prepared, operation: operation('unsupported') })),
     ).toEqual({ kind: 'unsupported' })
     expect(await load(journal.port, execution())).toEqual(before)
     journal.respond('tryFinish', 'fail-unknown')
-    const unknown = await finishInput(journal.port, opened, 'unknown')
+    const unknown = { ...prepared, operation: operation('unknown') }
     expect(failure(await journal.port.tryFinish(unknown))).toEqual({
       kind: 'commit-unknown',
       operation: unknown.operation,
@@ -1326,7 +1365,8 @@ describe('fact 10: the one terminal commit', () => {
   it('fact 10: an input accepted after the intent watermark makes tryFinish return changed', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
-    const snapshot = await load(journal, opened.execution)
+    ok(await takeInputs(journal, opened))
+    const prepared = await finishInput(journal, opened)
     ok(
       await journal.submit(
         withLineage({
@@ -1338,22 +1378,7 @@ describe('fact 10: the one terminal commit', () => {
       ),
     )
     const current = await load(journal, opened.execution)
-    const result = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('finish'),
-        authorization: { kind: 'advancement', authority: opened.authority },
-        expected: current.revision,
-        intent: {
-          conclusion: { kind: 'complete' },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    const result = ok(await journal.tryFinish({ ...prepared, expected: current.revision }))
     expect(result.kind).toBe('changed')
     expect((await load(journal, opened.execution)).state.kind).not.toBe('ended')
   })
@@ -1397,30 +1422,95 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    expect(ok(await finish(journal, opened, 'complete')).kind).toBe('changed')
-
-    const snapshot = await load(journal, opened.execution)
-    const ended = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    ok(await takeInputs(journal, opened))
+    ok(await fixCandidate(journal, opened, 'complete'))
+    ok(await proveBeforeTerminal(journal, opened, 'complete'))
+    expect(failure(await prepareFinish(journal, opened, 'complete')).kind).toBe('changed')
+    expect(
+      ok(await journal.tryFinish(await finishInput(journal, opened, 'complete-again'))).kind,
+    ).toBe('changed')
+    // The cancel authorization cannot end the complete candidate; the cancelled candidate is
+    // established by commitSettlement and judged before the end (SPEC "取消判断与路线").
+    const complete = await load(journal, opened.execution)
+    expect(
+      failure(
+        await journal.tryFinish({
+          ...access,
+          execution: opened.execution,
+          operation: operation('cancel-complete'),
+          authorization: {
+            kind: 'cancel',
+            control: operation('cancel'),
+            source: complete.controls[0]?.stages.accepted.source ?? evidence('none'),
+          },
+          expected: complete.revision,
+          intent: intentOf(complete),
+        }),
+      ),
+    ).toEqual({ kind: 'denied', action: 'tryFinish' })
+    const ended = ok(await finishCancelled(journal, opened, operation('cancel')))
     expect(ended.kind).toBe('ended')
     expect((await load(journal, opened.execution)).state).toMatchObject({
       kind: 'ended',
       conclusion: { kind: 'cancelled' },
     })
+  })
+
+  it('fact 10: a judgment that answers unknown makes tryFinish unavailable, and no installation makes the cancellation variants unavailable', async () => {
+    const unknown = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
+      cancellation: {
+        installation: testCancellationPolicyInstallation,
+        policy: {
+          ...cancellation.policy,
+          judge: input => ({
+            kind: 'unknown',
+            questions: [
+              {
+                owner: 'test',
+                key: 'participant',
+                position: input.route.record,
+                reason: 'source-unavailable',
+              },
+            ],
+            knownBlocked: [],
+          }),
+        },
+      },
+    })
+    const opened = await open(unknown.port)
+    ok(await takeInputs(unknown.port, opened))
+    ok(await unknown.port.control(cancelControl(opened.execution)))
+    ok(await unknown.port.recordControl(intentReached(opened.execution)))
+    expect(failure(await finishCancelled(unknown.port, opened, operation('cancel')))).toMatchObject(
+      { kind: 'unavailable', owner: 'agentJournal' },
+    )
+    expect((await load(unknown.port, opened.execution)).state.kind).toBe('settling')
+
+    const uninstalled = createMemoryAgentJournal<string>({ coordination: 'standalone' })
+    const reopened = await open(uninstalled.port)
+    ok(await uninstalled.port.control(cancelControl(reopened.execution)))
+    ok(await uninstalled.port.recordControl(intentReached(reopened.execution)))
+    const snapshot = await load(uninstalled.port, reopened.execution)
+    expect(
+      failure(
+        await uninstalled.port.commitSettlement({
+          ...access,
+          execution: reopened.execution,
+          operation: operation('establish'),
+          kind: 'establish-cancellation',
+          authorization: {
+            kind: 'cancel',
+            control: operation('cancel'),
+            source: snapshot.controls[0]?.stages.accepted.source ?? evidence('none'),
+          },
+          expected: snapshot.revision,
+          installation: testCancellationPolicyInstallation.record,
+          predecessor: null,
+        }),
+      ),
+    ).toMatchObject({ kind: 'unavailable', owner: 'agentJournal' })
+    expect(await load(uninstalled.port, reopened.execution)).toEqual(snapshot)
   })
 
   it('fact 10: no event follows the ended event; a later stage fact is recorded without one', async () => {
@@ -1445,23 +1535,7 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    const snapshot = await load(journal, opened.execution)
-    ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    ok(await finishCancelled(journal, opened, operation('cancel')))
     // SPEC 六个阶段: after ended, a late stopping fact is recorded without an event.
     ok(
       await journal.recordControl({
@@ -1514,7 +1588,7 @@ describe('fact 10: the one terminal commit', () => {
     )
   })
 
-  it('fact 10 临时做法，待 #558 裁定：an applicable stage recorded unresolved blocks the end with reason controls', async () => {
+  it('fact 10: a revocation recorded unresolved blocks the end with reason controls', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
@@ -1539,7 +1613,7 @@ describe('fact 10: the one terminal commit', () => {
     expect(ok(await finish(journal, opened))).toMatchObject({ kind: 'blocked', reason: 'controls' })
   })
 
-  it('fact 10 临时做法，待 #558 裁定：untaken inputs block an ordinary end with reason inputs, not a cancel', async () => {
+  it('fact 10: untaken inputs block an ordinary end with reason inputs, not a cancelled end', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect(
@@ -1567,27 +1641,15 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    const snapshot = await load(journal, opened.execution)
-    const cancelled = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    const cancelled = ok(await finishCancelled(journal, opened, operation('cancel')))
     expect(cancelled.kind).toBe('ended')
+    const kept = (await load(journal, opened.execution)).finishObligations?.items.find(
+      item => item.kind === 'accepted-input',
+    )
+    expect(kept?.disposition.kind).toBe('held')
   })
 
-  it('fact 10 临时做法，待 #558 裁定：passages is not checked, so an open before-terminal passage does not block the end', async () => {
+  it('fact 10: an open before-terminal passage keeps the author route unproven, so the end is blocked with reason passages', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const passage = { ...afterTerminalPassage('before'), position: 'before_terminal' } as const
@@ -1598,7 +1660,8 @@ describe('fact 10: the one terminal commit', () => {
         }),
       ),
     )
-    expect(ok(await finish(journal, opened)).kind).toBe('ended')
+    expect(ok(await finish(journal, opened))).toMatchObject({ kind: 'blocked', reason: 'passages' })
+    expect(intentOf(await load(journal, opened.execution)).beforeTerminal).toBeNull()
   })
 })
 
@@ -2184,27 +2247,7 @@ describe('facts 6, 7, 9, 11 and 17 as #558 decided them', () => {
     } as const
     expect(await advances(() => journal.recordControl(stage))).toEqual([1, 0])
 
-    const current = await load(journal, opened.execution)
-    ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: {
-          kind: 'cancel',
-          control: operation('control'),
-          source: evidence('cancel'),
-        },
-        expected: current.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: current.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    ok(await finishCancelled(journal, opened, operation('control')))
     const [item] = (await load(journal, opened.execution)).terminalObservations
     if (item === undefined) throw new Error('expected one observation item')
     const observe = {
