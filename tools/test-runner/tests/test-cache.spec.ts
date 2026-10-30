@@ -25,7 +25,7 @@ import {
 import { parseTestRunsConfig, readTestRunsConfig, type RunTier } from '../src/testing/config.ts'
 import type { MemberRun } from '../src/testing/ledger.ts'
 import { classify } from '../src/testing/scope.ts'
-import { recordedRun } from '../src/testing/steps.ts'
+import { fastThenSlow, recordedRun } from '../src/testing/steps.ts'
 import {
   cacheable,
   cacheHome,
@@ -595,8 +595,11 @@ writeFileSync(
 process.exit(Number(code))
 `
 
-/** 一个小 workspace（已提交）：good 通过，bad 失败；两层脚本相同。 */
-function workspace(): { root: string; targets: TestMember[] } {
+/** 一个小 workspace（已提交）：成员互不依赖，名字以 bad 打头的失败、其余通过；两层脚本相同。 */
+function workspace(names: readonly string[] = ['good', 'bad']): {
+  root: string
+  targets: TestMember[]
+} {
   const root = temporary('test-cache-e2e-')
   const put = (path: string, text: string) => {
     mkdirSync(dirname(join(root, path)), { recursive: true })
@@ -609,8 +612,8 @@ function workspace(): { root: string; targets: TestMember[] } {
   put('pnpm-workspace.yaml', 'packages:\n  - members/*\n')
   put('fake-vitest.mjs', FAKE_VITEST)
   put('.gitignore', 'ran.txt\nrun-*/\n')
-  const targets = (['good', 'bad'] as const).map(name => {
-    const code = name === 'good' ? 0 : 3
+  const targets = names.map(name => {
+    const code = name.startsWith('bad') ? 3 : 0
     const script = `node ../../fake-vitest.mjs members__${name} ${code}`
     put(
       `members/${name}/package.json`,
@@ -744,5 +747,86 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         Object.assign(process.env, saved)
       }
     },
+  )
+
+  /** 在 `root` 上起运行器跑一层（读写缓存，缓存根是 `home`），返回这次谁真跑了与账本。调用方负责环境变量。 */
+  const runner = (root: string, targets: TestMember[]) => {
+    let count = 0
+    return async (tier: RunTier) => {
+      count += 1
+      const out = join(root, `run-${count}`)
+      writeFileSync(join(root, 'ran.txt'), '')
+      const exitCode = await recordedRun(root, {
+        script: 'test',
+        tier,
+        targets,
+        build: false,
+        out,
+        at: coordinates(root, undefined),
+        base: null,
+        plan: null,
+        budget: BUDGET,
+        cache: { read: true, reason: '' },
+      })
+      const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
+      const ran = readFileSync(join(root, 'ran.txt'), 'utf8').split('\n').filter(Boolean).sort()
+      return { out, exitCode, ran, ledger }
+    }
+  }
+  /** 缓存根设成新的临时目录、清掉会改变读不读的变量，跑完恢复环境。 */
+  const withCacheHome = async (body: () => Promise<void>) => {
+    const saved = { ...process.env }
+    process.env[TEST_CACHE_HOME_ENV] = temporary('test-cache-home-')
+    delete process.env['FULL']
+    delete process.env['OMNE_ADMISSION']
+    delete process.env[TEST_CACHE_ENV]
+    try {
+      await body()
+    } finally {
+      for (const key of Object.keys(process.env)) if (!(key in saved)) delete process.env[key]
+      Object.assign(process.env, saved)
+    }
+  }
+
+  it('改了成员 A 只让 A 重跑：无关的成员 B 照样命中，来源是上一次的账本', { tags: ['slow'] }, () =>
+    withCacheHome(async () => {
+      const { root, targets } = workspace(['alpha', 'beta'])
+      const run = runner(root, targets)
+      const first = await run('fast')
+      expect(first.exitCode).toBe(0)
+      expect(first.ledger.meta.cache.written).toEqual(['members/alpha', 'members/beta'])
+
+      writeFileSync(join(root, 'members/alpha/src/index.ts'), 'export const value = 2\n')
+      const second = await run('fast')
+      expect(second.exitCode).toBe(0)
+      expect(second.ran).toEqual(['members__alpha'])
+      expect(second.ledger.meta.cache.hits).toEqual([
+        expect.objectContaining({ member: 'members/beta', source: first.out }),
+      ])
+      expect(second.ledger.meta.cache.written).toEqual(['members/alpha'])
+    }),
+  )
+
+  it('快层的成员全部命中时这一层算通过，慢层照常跑', { tags: ['slow'] }, () =>
+    withCacheHome(async () => {
+      const { root, targets } = workspace(['alpha', 'beta'])
+      const run = runner(root, targets)
+      expect((await run('fast')).exitCode).toBe(0)
+
+      const tiers: string[] = []
+      const notes: string[] = []
+      const code = await fastThenSlow(
+        async tier => {
+          const result = await run(tier)
+          tiers.push(`${tier}: ${result.ran.join(' ')}`)
+          if (tier === 'fast') expect(result.ledger.meta.cache.hits).toHaveLength(2)
+          return result.exitCode
+        },
+        note => notes.push(note),
+      )
+      expect(code).toBe(0)
+      expect(notes).toEqual([])
+      expect(tiers).toEqual(['fast: ', 'slow: members__alpha members__beta'])
+    }),
   )
 })
