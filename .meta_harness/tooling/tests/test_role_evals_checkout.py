@@ -330,17 +330,21 @@ def _host_git_injection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None
                            f"[core]\n\thooksPath = {hooks_that_sign('global')}\n", encoding="utf-8", newline="\n")
     injected = [("core.hooksPath", hooks_that_sign("injected")), ("commit.gpgSign", "true"), ("gpg.program", "no-such-signer"),
                 ("user.name", "injected-name"), ("url.http://gateway.invalid/.insteadOf", "https://github.com/")]
-    monkeypatch.setenv("GIT_CONFIG_COUNT", str(len(injected)))
+    # A copy of the mapping, not ``monkeypatch.setenv``: a real host may have an empty ``GIT_CONFIG_VALUE_n``, and on
+    # Windows putting an empty value back removes the variable from the real environment for every later test.
+    host = dict(os.environ)
+    host["GIT_CONFIG_COUNT"] = str(len(injected))
     for number, (key, value) in enumerate(injected):
-        monkeypatch.setenv(f"GIT_CONFIG_KEY_{number}", key)
-        monkeypatch.setenv(f"GIT_CONFIG_VALUE_{number}", value)
-    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(host_config))
-    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", f"'core.hooksPath={hooks_that_sign('parameters')}'")
-    monkeypatch.setenv("GIT_TEMPLATE_DIR", str(template))
+        host[f"GIT_CONFIG_KEY_{number}"] = key
+        host[f"GIT_CONFIG_VALUE_{number}"] = value
+    host["GIT_CONFIG_GLOBAL"] = str(host_config)
+    host["GIT_CONFIG_PARAMETERS"] = f"'core.hooksPath={hooks_that_sign('parameters')}'"
+    host["GIT_TEMPLATE_DIR"] = str(template)
     for key, value in {"GIT_AUTHOR_NAME": "host-author", "GIT_AUTHOR_EMAIL": "host-author@host.invalid",
                        "GIT_COMMITTER_NAME": "host-committer", "GIT_COMMITTER_EMAIL": "host-committer@host.invalid",
                        "GIT_AUTHOR_DATE": "2001-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2001-01-01T00:00:00Z"}.items():
-        monkeypatch.setenv(key, value)
+        host[key] = value
+    monkeypatch.setattr(os, "environ", host)
 
 
 def _commits_made_in(root: Path) -> list[str]:
