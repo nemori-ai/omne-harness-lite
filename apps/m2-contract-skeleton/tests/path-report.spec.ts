@@ -49,6 +49,21 @@ describe('M2 path observations', () => {
     expect(report.fullPath).toBe('incomplete')
     expect(report.gaps).toEqual([...BLOCKED])
     expect(report.residualGaps).toHaveLength(10)
+    // Owners are open cards only; a gap without an open implementation card names M2 (#784).
+    expect(
+      Object.fromEntries(report.residualGaps.map(gap => [gap.gapId, gap.owners.map(cardOf)])),
+    ).toEqual({
+      'GAP-SESSION-WIRE': [784],
+      'GAP-SESSION-COORDINATOR': [784],
+      'GAP-RUN-COMPLETED': [784],
+      'GAP-AGENT-CONTEXT': [542],
+      'GAP-RECEIVE-SURFACE': [502, 795],
+      'GAP-SECOND-RUN': [784, 502],
+      'GAP-TOOL-LOOP': [520, 524, 525, 526, 528],
+      'GAP-AGENT-REASSEMBLY': [502],
+      'GAP-REASONING-REPLAY': [502],
+      'GAP-SESSION-LOG-TARGETS': [784],
+    })
     expect(report.residualGaps.filter(gap => gap.blocking).map(gap => gap.gapId)).toEqual([
       'GAP-SECOND-RUN',
       'GAP-TOOL-LOOP',

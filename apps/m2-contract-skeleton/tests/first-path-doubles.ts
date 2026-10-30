@@ -9,7 +9,11 @@ import {
   testAdoption,
   testEvidence,
 } from '@omne-harness/agent/testing'
-import { decodeAgentInstanceId, type SelectedModel } from '@omne-harness/agent-contract'
+import {
+  decodeAgentInstanceId,
+  type AgentDefinition,
+  type SelectedModel,
+} from '@omne-harness/agent-contract'
 import type { IdentityOperations } from '@omne-harness/identity'
 import {
   adjustableLoginTerms,
@@ -17,7 +21,23 @@ import {
   manualIdentityClock,
 } from '@omne-harness/identity/testing'
 import { tenantCodec } from '@omne-harness/legal-identity'
-import { judgeMessage, parseRecordEntryRef, type Message } from '@omne-harness/message'
+import { judgeBlockIdentity, type BlockId } from '@omne-harness/content-block'
+import {
+  originRef,
+  type Access,
+  type EnvironmentBinding,
+} from '@omne-harness/execution-environment-contract'
+import {
+  createMemoryFileSystem,
+  createScriptedCommandFacility,
+} from '@omne-harness/execution-environment-contract/testing'
+import {
+  judgeMessage,
+  parseRecordEntryRef,
+  type Message,
+  type ReasoningStatePart,
+  type ToolCallPart,
+} from '@omne-harness/message'
 import {
   decodeDispatchId,
   decodeModelInstanceId,
@@ -28,7 +48,9 @@ import {
   createScriptedConformanceSubject,
   createScriptedModelProvider,
   createScriptedResultPusher,
+  ScriptedModelError,
   type ScriptController,
+  type ScriptedPrincipal,
 } from '@omne-harness/model-contract/testing'
 import { decodeHistorySequence } from '@omne-harness/request-context-contract'
 import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing'
@@ -127,38 +149,45 @@ const selected: SelectedModel = {
   evidence: testEvidence('selected'),
 }
 
+/** A block id of a scripted Model part; the fixed ids of this file are valid block ids. */
+function blockId(raw: string): BlockId {
+  const judged = judgeBlockIdentity({ id: raw, visibility: { toHuman: true, toModel: true } })
+  if ('rejected' in judged) throw new Error(`block id ${raw}: ${judged.rejected}`)
+  return judged.ok.id
+}
+
 function textPart(text: string, ordinal = 0): ResultPart {
   return {
     kind: 'sealed',
     trims: [],
     block: {
       kind: 'text',
-      id: `blk_cs_reply_${ordinal}` as never,
+      id: blockId(`blk_cs_reply_${ordinal}`),
       visibility: { toHuman: true, toModel: true },
       text,
     },
   }
 }
 
+/** A plain text reply. */
+export function replyParts(text: string): readonly ResultPart[] {
+  return [textPart(text)]
+}
+
 /** A reply that asks for the `read_file` tool of the execution environment (H10). */
 export function toolCallParts(): readonly ResultPart[] {
-  return [
-    {
-      kind: 'sealed',
-      trims: [],
-      block: {
-        kind: 'tool_call',
-        id: 'blk_cs_tool_0' as never,
-        visibility: { toHuman: true, toModel: true },
-        callId: 'call-cs-read-file',
-        name: 'read_file',
-        arguments: {
-          kind: 'object',
-          entries: [{ key: 'path', value: { kind: 'string', value: 'notes.txt' } }],
-        },
-      } as never,
+  const call: ToolCallPart = {
+    kind: 'tool_call',
+    id: blockId('blk_cs_tool_0'),
+    visibility: { toHuman: true, toModel: true },
+    callId: 'call-cs-read-file',
+    name: 'read_file',
+    arguments: {
+      kind: 'object',
+      entries: [{ key: 'path', value: { kind: 'string', value: 'notes.txt' } }],
     },
-  ]
+  }
+  return [{ kind: 'sealed', trims: [], block: call }]
 }
 
 /** A reply whose first part is reasoning the next request must replay (H12). */
@@ -169,7 +198,7 @@ export function reasoningParts(): readonly ResultPart[] {
       trims: [],
       block: {
         kind: 'thinking',
-        id: 'blk_cs_thinking_0' as never,
+        id: blockId('blk_cs_thinking_0'),
         visibility: { toHuman: false, toModel: true },
         text: 'scripted reasoning to replay',
       },
@@ -178,13 +207,29 @@ export function reasoningParts(): readonly ResultPart[] {
   ]
 }
 
-/** The scripted parts of the n-th admitted call of an Agent under a scenario; null holds the call. */
+/** A reply that carries a sealed reasoning continuation state, as card #790 item 4 names it. */
+export function reasoningStateParts(): readonly ResultPart[] {
+  const state: ReasoningStatePart = {
+    kind: 'reasoning_state',
+    id: blockId('blk_cs_reasoning_state_0'),
+    visibility: { toHuman: false, toModel: true },
+    payload: 'scripted reasoning continuation state',
+    pairs: [],
+  }
+  return [{ kind: 'sealed', trims: [], block: state }, textPart('reply after reasoning', 1)]
+}
+
+/**
+ * The scripted parts of the n-th admitted call of an Agent under a scenario; null holds the call.
+ * `tool-call` answers the first call with the tool call and a later call, which carries the tool
+ * result once the loop runs tools, with a text reply.
+ */
 function scriptedParts(scenario: AgentScenario, ordinal: number): readonly ResultPart[] | null {
   switch (scenario) {
     case 'reply':
       return [textPart(REPLY_TEXTS[ordinal] ?? `reply ${ordinal + 1} from the scripted model`)]
     case 'tool-call':
-      return toolCallParts()
+      return ordinal === 0 ? toolCallParts() : [textPart('reply after the tool result', ordinal)]
     case 'reasoning':
       return reasoningParts()
     case 'held':
@@ -196,16 +241,71 @@ function scriptedParts(scenario: AgentScenario, ordinal: number): readonly Resul
   }
 }
 
+/**
+ * The execution-environment side of the Tool double (H10): the memory file system and the scripted
+ * command facility of `@omne-harness/execution-environment-contract/testing` (#791). One Tool
+ * invocation reads `notes.txt`, replaces it, and starts one command. `effects` lists each facility
+ * call with the kind of its answer.
+ */
+export function executionEnvironmentDouble(access: Access<PathPrincipal>) {
+  const files = createMemoryFileSystem({ files: { 'notes.txt': 'notes before the tool' } })
+  const command = createScriptedCommandFacility(() => ({
+    kind: 'started',
+    output: [{ stream: 'stdout', data: 'notes after the tool' }],
+  }))
+  const effects: string[] = []
+  const origin = originRef('cs-tool')
+  const binding: EnvironmentBinding = { kind: 'host_machine' }
+  let sequence = 0
+  const request = () => ({ requestId: `cs-tool-${++sequence}`, access, origin, binding })
+  const target = () => ({ path: 'notes.txt', named: files.objectToken('notes.txt') ?? null })
+  return {
+    files,
+    command,
+    effects,
+    async run(): Promise<void> {
+      const before = await files.facility.read({ ...request(), ...target() })
+      effects.push(`files.read:${before.kind}`)
+      const version = before.kind === 'done' ? { expectedVersion: before.value.version } : {}
+      const written = await files.facility.write({
+        ...request(),
+        ...target(),
+        ...version,
+        bytes: new TextEncoder().encode('notes after the tool'),
+        mode: 'replace',
+      })
+      effects.push(`files.write:${written.kind}`)
+      const started = await command.facility.start({
+        ...request(),
+        executable: 'cat',
+        args: ['notes.txt'],
+        cwd: '.',
+        env: {},
+        outputMode: 'separate',
+      })
+      effects.push(`command.start:${started.kind}`)
+    },
+  }
+}
+
 export type AgentDoubleOptions = Readonly<{
   /** The parts the scripted Model settles with; null lets admitted calls stay unsettled. */
   parts?: ((scenario: AgentScenario, ordinal: number) => readonly ResultPart[] | null) | null
+  /**
+   * Takes the reason when the scripted Model producer refuses to settle a call with the scripted
+   * parts. Without it the refusal is thrown and fails the run.
+   */
+  onSettleRefused?: (reason: string) => void
 }>
 
 /**
  * The Agent of one tenant from `createTestAgentDependencies`, with the path's bridges plugged in.
- * With a same-log Journal from the Session store, the Agent reads and writes that Journal; the
- * Model push then has no receiver, because the Session store exposes no reception targets
- * (GAP-SESSION-LOG-TARGETS).
+ * With a same-log Journal from the Session store, the Agent reads and writes that Journal. The
+ * same-log provider of session-adapters/testing exposes no Model reception targets (the test
+ * "finds no Model reception targets…" pins that upstream fact), so no receiver can be built over
+ * the Session log; the pusher of that Agent therefore resolves no receiver
+ * (GAP-SESSION-LOG-TARGETS). The Tool runtime is the scripted one of the Agent test dependencies;
+ * each invocation first runs in the execution-environment double (H10).
  */
 export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies['agent'] {
   const parts = options.parts === undefined ? scriptedParts : options.parts
@@ -223,7 +323,12 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
     })
     const definition = testAdoption('definition-cs')
     controls.adoptions.define(definition, {
-      definition: { category: 'AgentDefinition', name: 'cs' } as never,
+      definition: {
+        category: 'AgentDefinition',
+        name: 'cs',
+        references: [],
+        attributes: [],
+      } satisfies AgentDefinition,
       evaluator: agentEvaluator,
       extensions: [],
     })
@@ -262,7 +367,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
           const ordinal = admitted
           admitted += 1
           const call = { tenant: input.tenant, call: reply.ok.call }
-          const settle = (scripted: readonly ResultPart[]) => {
+          const settleOrThrow = (scripted: readonly ResultPart[]) => {
             controller.start({
               ...call,
               dispatch: ok(decodeDispatchId(`mdisp_cs_${ordinal + 1}`)),
@@ -278,6 +383,15 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
               pageTargetBytes: 65536,
             })
           }
+          const settle = (scripted: readonly ResultPart[]) => {
+            try {
+              settleOrThrow(scripted)
+            } catch (error) {
+              const refused = options.onSettleRefused
+              if (refused === undefined || !(error instanceof ScriptedModelError)) throw error
+              refused(error.reason)
+            }
+          }
           const scripted = parts === null ? null : parts(scenario, ordinal)
           if (scripted === null) held.push(() => settle(scriptedParts('reply', ordinal) ?? []))
           else queueMicrotask(() => settle(scripted))
@@ -285,10 +399,14 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         },
       },
     }
+    const environment = executionEnvironmentDouble({ principal, tenant })
     const tools = {
       ...dependencies.tools,
-      invoke(input: Parameters<typeof dependencies.tools.invoke>[0]) {
+      async invoke(input: Parameters<typeof dependencies.tools.invoke>[0]) {
         toolInvocations += 1
+        await environment.run()
+        // The Tool runtime double of the Agent test dependencies answers the invocation; a Tool
+        // runtime that issues the invocation reference and result pages has no public double.
         return dependencies.tools.invoke(input)
       },
     }
@@ -331,6 +449,7 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
       releaseModel: scenario === 'held' ? () => held.splice(0).forEach(settle => settle()) : null,
       admitted: () => admitted,
       toolInvocations: () => toolInvocations,
+      toolEffects: () => [...environment.effects],
     }
   }
 }
@@ -452,9 +571,12 @@ export function sessionAssembly(
 
 /**
  * The declared realization of each plugin-tree row under the `contract-memory` store. `agent-host`
- * is `real` because the path runs `createAgentRuntime` of `@omne-harness/agent`, the production
- * Agent runtime, over its test dependencies; the `agent-host-local` host plugin that the row names
- * is not loaded.
+ * is `double`: the row names the host plugin of `@omne-harness/agent-host-local`, which is not
+ * loaded; the path runs `createAgentRuntime` of `@omne-harness/agent` over its test dependencies
+ * instead. `session-ad01` is `absent`: the Agent keeps its own memory Journal, so no participant
+ * shares a publication boundary with Session. The Tool runtime is the scripted one of the Agent
+ * test dependencies and runs the file and command facility doubles of #791 directly, without a
+ * Tool executor, an environment adapter or an execution-environment registry.
  */
 export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   'server-entry': 'double',
@@ -462,7 +584,7 @@ export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   authorization: 'double',
   'session-storage': 'double',
   'session-provider': 'double',
-  'session-ad01': 'double',
+  'session-ad01': 'absent',
   'session-ad02': 'absent',
   'session-ad04': 'double',
   'session-ad10': 'double',
@@ -473,19 +595,25 @@ export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   'agent-adoptions': 'double',
   'agent-model-selection': 'double',
   'agent-context': 'double',
-  'agent-host': 'real',
+  'agent-host': 'double',
   'agent-instances': 'absent',
   'model-host': 'double',
   'tool-runtime': 'double',
   'tool-executor': 'absent',
   'tool-environments': 'absent',
   'execution-environment': 'absent',
-  'execution-files': 'absent',
+  'execution-files': 'double',
+  'request-context': 'double',
 }
 
-/** The declared realization under the `session-log` store: the Journal rows move to #756's double. */
+/**
+ * The declared realization under the `session-log` store: one log of #756's double carries the
+ * Session entries and the Agent Journal, so the same-log participant and interpretation rows are
+ * that double.
+ */
 export const SESSION_LOG_REALIZATION: RealizationTable = {
   ...REALIZATION,
+  'session-ad01': 'double',
   'session-ad02': 'double',
 }
 
@@ -509,12 +637,12 @@ export function pathDependencies(
 
 /** The inputs of `runContractSkeleton` with every double of the path and the scripted Model subject. */
 export function skeletonInputs(
-  overrides: Partial<ContractSkeletonInputs<unknown>> = {},
+  overrides: Partial<ContractSkeletonInputs<ScriptedPrincipal>> = {},
   store: SessionStoreKind = 'contract-memory',
-): ContractSkeletonInputs<unknown> {
+): ContractSkeletonInputs<ScriptedPrincipal> {
   return {
     path: pathDependencies({}, store),
-    model: { subject: createScriptedConformanceSubject as never, waitMs: 500 },
+    model: { subject: createScriptedConformanceSubject, waitMs: 500 },
     realization: store === 'session-log' ? SESSION_LOG_REALIZATION : REALIZATION,
     ...overrides,
   }

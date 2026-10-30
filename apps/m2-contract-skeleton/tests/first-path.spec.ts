@@ -3,8 +3,12 @@
 // records the public refusal it meets instead of building the missing behavior.
 import { describe, expect, it } from 'vitest'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { HistoryPage } from '@omne-harness/session-contract'
-import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
+import type { HistoryPage, RunId } from '@omne-harness/session-contract'
+import {
+  createMemoryInitializationSource,
+  memoryOtherAccess,
+} from '@omne-harness/session-contract/testing'
+import { createMemorySessionJournal } from '@omne-harness/session-adapters/testing'
 import {
   evidenceOf,
   NOT_REACHED,
@@ -18,15 +22,20 @@ import {
   type SessionAssembly,
 } from '../src/path.ts'
 import { runContractSkeleton } from '../src/index.ts'
+import type { PathReport } from '../src/path-report.ts'
 import {
   agentDouble,
   assembleWithMemorySources,
+  executionEnvironmentDouble,
   firstRequest,
   identityDouble,
   pathDependencies,
+  reasoningStateParts,
+  replyParts,
   REPLY_TEXT,
   REPLY_TEXTS,
   REQUEST_TEXTS,
+  sessionAccessCheckDouble,
   sessionAssembly,
   skeletonInputs,
 } from './first-path-doubles.ts'
@@ -173,7 +182,29 @@ describe('connected tenant path, first round', () => {
       expect(kindAt(observed, hop)).not.toBe('connected')
     expect(evidenceAt(observed, 'H08').join(' ')).toContain('has no assistant message')
     expect(evidenceAt(observed, 'H06')).toContain('agent:no reply of the journal Model call')
+    expect(evidenceAt(observed, 'H06').join(' ')).not.toContain('MODEL-ACK-ARRIVAL')
+    expect(evidenceAt(observed, 'H07')).toContain('agent:no reply within 50 event-loop turns')
     for (const hop of ['H10', 'H11', 'H12'] as const) expect(observed[hop]).toBeUndefined()
+  })
+
+  it('stops the path at H04 when Session refuses the hand-over of the input', async () => {
+    const observed = await runFirstTenantPath(
+      pathDependencies(
+        wrappedStore(({ transactions }) => ({
+          ...transactions,
+          commit: (async (input: Parameters<typeof transactions.commit>[0]) =>
+            input.command.kind === 'receive'
+              ? { failure: { kind: 'conflict', operation: input.command.input.operation } }
+              : transactions.commit(input)) as typeof transactions.commit,
+        })),
+      ),
+    )
+    expect(kindAt(observed, 'H04')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H04')).toContain(
+      'session-contract:commit(receive input-handover) conflict',
+    )
+    for (const hop of ['H05', 'H06', 'H07', 'H08', 'H09', 'H10', 'H11', 'H12', 'H13'] as const)
+      expect(observed[hop]).toBeUndefined()
   })
 
   it('fails H08 when the Session history does not carry the Model reply text', async () => {
@@ -276,7 +307,7 @@ describe('the injected Session access check (#680 B-1)', () => {
     const build = sessionAssembly()
     const observed = await runFirstTenantPath(
       pathDependencies({
-        sessionAccessCheck: undefined as never,
+        sessionAccessCheck: undefined,
         session: input => {
           built += 1
           return build(input)
@@ -285,7 +316,7 @@ describe('the injected Session access check (#680 B-1)', () => {
     )
     expect(kindAt(observed, 'H02')).toBe('connected')
     expect(observed.H03).toEqual({
-      kind: 'refused',
+      kind: 'disconnected',
       evidence: ['session-assembly:pending:sessionAccessCheck'],
     })
     expect(built).toBe(0)
@@ -321,45 +352,249 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
     expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
-  it('records that the Agent loop refuses the tool-call reply before any Tool invocation', async () => {
+  it('records that the Agent loop stops at I4 with the tool-call reply before any Tool invocation', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H10')).not.toBe('connected')
-    expect(evidenceAt(observed, 'H10')).toContain(
+    expect(kindAt(observed, 'H10')).toBe('refused')
+    expect(evidenceAt(observed, 'H10')).toEqual([
       'agent:the tool-call reply was admitted and handed over to Session',
-    )
-    expect(evidenceAt(observed, 'H10')).toContain(
-      'caller-reported: Tool runtime invocations 0, Model admissions 1',
-    )
-    expect(evidenceAt(observed, 'H10').join(' ')).toContain('agent:journal stopped at I4')
+      'caller-reported: Tool runtime invocations 0, execution-environment effects none, Model admissions 1',
+      'agent:journal state advancing at I4',
+      'agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)',
+      'agent:no Model request carried a tool result',
+    ])
   })
 
-  it('records that quiesce, detach and resume are unavailable during the Model call, with one admission', async () => {
-    const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H11')).not.toBe('connected')
-    expect(evidenceAt(observed, 'H11')).toContain(
-      'caller-reported: Model admissions 1 during the call',
+  it('claims no I4 refusal when the tool-call reply never arrives', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: input =>
+          input.scenario === 'tool-call'
+            ? agentDouble({ parts: () => null })(input)
+            : original(input),
+      }),
     )
-    expect(evidenceAt(observed, 'H11')).toContain('agent:control.quiesce unavailable')
-    expect(evidenceAt(observed, 'H11')).toContain('agent:recovery.detach unavailable')
-    expect(evidenceAt(observed, 'H11')).toContain('agent:runtime.resume unavailable')
-    expect(evidenceAt(observed, 'H11')).toContain(
+    expect(kindAt(observed, 'H10')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H10')).toContain('agent:the tool-call reply was not handed over')
+    expect(evidenceAt(observed, 'H10').join(' ')).not.toContain('I4')
+  })
+
+  it('runs one Tool invocation as a file read, a file write and one command in the #791 doubles', async () => {
+    const environment = executionEnvironmentDouble({
+      principal: 'p',
+      tenant: memoryOtherAccess<PathPrincipal>('p').tenant,
+    })
+    await environment.run()
+    expect(environment.effects).toEqual([
+      'files.read:done',
+      'files.write:done',
+      'command.start:done',
+    ])
+    expect(new TextDecoder().decode(environment.files.peek('notes.txt'))).toBe(
+      'notes after the tool',
+    )
+    expect(environment.command.calls.map(call => call.executable)).toEqual(['cat'])
+  })
+
+  it('records quiesce, detach and resume as unavailable and one Model admission after the Model settled', async () => {
+    const observed = await runFirstTenantPath(pathDependencies())
+    expect(kindAt(observed, 'H11')).toBe('refused')
+    expect(evidenceAt(observed, 'H11')).toEqual([
+      'caller-reported: Model admissions 1 after the Model settled',
+      'agent:control.quiesce unavailable',
+      'agent:recovery.detach unavailable',
+      'agent:runtime.resume unavailable',
       'agent:the original driver continued from the received entry after the Model settled',
-    )
+      'observation:the re-attachment of a StreamRef after reassembly is not exercised',
+    ])
   })
 
-  it('records that the Agent loop refuses a received result with reasoning parts', async () => {
+  it('answers the withdrawal, the resume and the submit as not implemented by #502, not as an access refusal', async () => {
+    const diagnostics: string[] = []
+    const note = <T extends { ok: unknown } | { failure: unknown }>(reply: T): T => {
+      if ('failure' in reply && typeof reply.failure === 'object' && reply.failure !== null)
+        diagnostics.push('diagnostic' in reply.failure ? String(reply.failure.diagnostic) : '')
+      return reply
+    }
+    const original = agentDouble()
+    await runFirstTenantPath(
+      pathDependencies({
+        agent: async input => {
+          const agent = await original(input)
+          const { provider } = agent
+          return {
+            ...agent,
+            provider: {
+              ...provider,
+              control: { quiesce: async request => note(await provider.control.quiesce(request)) },
+              recovery: {
+                ...provider.recovery,
+                detach: async request => note(await provider.recovery.detach(request)),
+              },
+              runtime: {
+                ...provider.runtime,
+                resume: async request => note(await provider.runtime.resume(request)),
+                invoke: async request => {
+                  const invoked = await provider.runtime.invoke(request)
+                  if ('failure' in invoked) return invoked
+                  const handle = invoked.ok
+                  return {
+                    ok: {
+                      ...handle,
+                      input: { submit: async value => note(await handle.input.submit(value)) },
+                    },
+                  }
+                },
+              },
+            },
+          }
+        },
+      }),
+    )
+    expect(diagnostics).toEqual([
+      'submit is not implemented yet; #502 assigns it no stage',
+      'quiesce is not implemented until #502 stage 5',
+      'detach is not implemented until #502 stage 5',
+      'resume is not implemented until #502 stage 5',
+    ])
+  })
+
+  it('records where the Agent loop holds a received result with reasoning parts', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H12')).not.toBe('connected')
-    expect(evidenceAt(observed, 'H12')).toContain(
+    expect(kindAt(observed, 'H12')).toBe('refused')
+    expect(evidenceAt(observed, 'H12')).toEqual([
       'model-contract:the public pusher delivered the reasoning result to the host receiver',
-    )
-    expect(evidenceAt(observed, 'H12').join(' ')).toContain('agent:no reply handed over')
+      'agent:journal state waiting at M6',
+      'agent:the loop holds the received result with reasoning parts at M6 and handed over no reply (GAP-REASONING-REPLAY)',
+      'agent:no second request was sent',
+    ])
   })
 
-  it('reports the Session log hop as a gap while the Agent keeps its own memory Journal', async () => {
+  it('drives round 2 of the reasoning probe once the first reply is handed over, and records where it stops', async () => {
+    const original = agentDouble()
+    const observed = await runFirstTenantPath(
+      pathDependencies({
+        agent: input =>
+          input.scenario === 'reasoning'
+            ? agentDouble({ parts: () => [...replyParts('reply without reasoning')] })(input)
+            : original(input),
+      }),
+    )
+    expect(kindAt(observed, 'H12')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H12')).toContain('agent:the reasoning reply was handed over')
+    expect(evidenceAt(observed, 'H12')).toContain('round 2: session-startRun:run-active')
+  })
+
+  it('cannot carry a sealed reasoning_state part through the scripted Model producer of #683', async () => {
+    const refusals: string[] = []
+    const original = agentDouble()
+    await runFirstTenantPath(
+      pathDependencies({
+        replyTurns: 50,
+        agent: input =>
+          input.scenario === 'reasoning'
+            ? agentDouble({
+                parts: () => reasoningStateParts(),
+                onSettleRefused: reason => refusals.push(reason),
+              })(input)
+            : original(input),
+      }),
+    )
+    expect(refusals).toEqual(['invalid-script'])
+  })
+
+  it('does not probe H13 on a store that keeps the Agent Journal outside the Session log', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(kindAt(observed, 'H13')).not.toBe('connected')
-    expect(evidenceAt(observed, 'H13')[0]).toContain('GAP-SESSION-LOG-TARGETS')
+    expect(observed.H13).toEqual({
+      kind: 'disconnected',
+      evidence: [
+        'agent-journal:this store keeps the Agent Journal outside the Session log, so it does not probe H13 (GAP-SESSION-LOG-TARGETS)',
+      ],
+    })
+  })
+
+  it('finds no Model reception targets on the same-log provider of session-adapters/testing (GAP-SESSION-LOG-TARGETS)', () => {
+    // When #756's successor exposes the targets, this test turns red and the gap must be revisited.
+    const backend = createMemorySessionJournal<PathPrincipal>({
+      initialization: createMemoryInitializationSource(),
+      accessCheck: sessionAccessCheckDouble(),
+      authorize: () => 'allowed',
+    })
+    const access = memoryOtherAccess<PathPrincipal>('p', 'session-cs-first')
+    const view = backend.forSession(access)
+    expect('targets' in view).toBe(false)
+    expect('targets' in view.controls).toBe(false)
+    expect('targets' in backend).toBe(false)
+  })
+
+  it('does not take an invalid hand-over for the Agent taking the input unless Session says the input is not pending', async () => {
+    const build = sessionAssembly('session-log')
+    const observed = await runFirstTenantPath(
+      pathDependencies(
+        {
+          session: input => {
+            const assembly = build(input)
+            const { transactions } = assembly
+            return {
+              ...assembly,
+              transactions: {
+                ...transactions,
+                commit: (async (request: Parameters<typeof transactions.commit>[0]) => {
+                  const committed = await transactions.commit(request)
+                  return request.command.kind === 'receive' && 'failure' in committed
+                    ? {
+                        failure: { kind: 'invalid', field: 'fact.execution', reason: 'other' },
+                      }
+                    : committed
+                }) as typeof transactions.commit,
+              },
+            }
+          },
+        },
+        'session-log',
+      ),
+    )
+    expect(kindAt(observed, 'H04')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H04')).toContain(
+      'session-contract:commit(receive input-handover) invalid',
+    )
+  })
+
+  it('does not take a terminal Run of another execution for the same execution in H13', async () => {
+    const build = sessionAssembly('session-log')
+    const observed = await runFirstTenantPath(
+      pathDependencies(
+        {
+          session: input => {
+            const assembly = build(input)
+            const { transactions } = assembly
+            return {
+              ...assembly,
+              transactions: {
+                ...transactions,
+                readWork: async access => {
+                  const work = await transactions.readWork(access)
+                  if ('failure' in work || work.ok.run.kind !== 'active') return work
+                  // A RunId is minted by Session only; this one names a Run the path never started.
+                  const terminal = {
+                    run: 'run_cs-another' as RunId,
+                    outcome: 'completed' as const,
+                    evidence: { owner: 'cs-test', record: 'terminal', revision: '1', digest: 'x' },
+                  }
+                  return { ok: { ...work.ok, run: { kind: 'terminal' as const, terminal } } }
+                },
+              },
+            }
+          },
+        },
+        'session-log',
+      ),
+    )
+    expect(kindAt(observed, 'H13')).toBe('disconnected')
+    expect(evidenceAt(observed, 'H13')).toContain(
+      'session-contract:readWork binds the Run to another execution',
+    )
   })
 
   it('reads the Agent records from the Session log of #756, and stops at H06 without reception targets', async () => {
@@ -385,14 +620,18 @@ describe('the later rounds, the probes and the Session log (CS v2)', () => {
       expect(hop.realization.map(row => row.row)).toEqual([...hop.rows])
       for (const row of hop.realization) expect(row.realization).not.toBe('undeclared')
     }
-    expect(report.hops.find(hop => hop.hopId === 'H04')?.realization).toContainEqual({
-      row: 'agent-host',
-      realization: 'real',
-    })
-    expect(report.hops.find(hop => hop.hopId === 'H06')?.realization).toContainEqual({
-      row: 'model-host',
-      realization: 'double',
-    })
+    const rowOf = (path: PathReport, hopId: string, row: string) =>
+      path.hops.find(hop => hop.hopId === hopId)?.realization.find(item => item.row === row)
+    // The Agent runtime runs over its test dependencies; the agent-host-local plugin is not loaded.
+    expect(rowOf(report, 'H04', 'agent-host')?.realization).toBe('double')
+    expect(rowOf(report, 'H06', 'model-host')?.realization).toBe('double')
+    expect(rowOf(report, 'H05', 'request-context')?.realization).toBe('double')
+    // The default store has no same-log participant; the Session log store of #756 does.
+    expect(rowOf(report, 'H07', 'session-ad01')?.realization).toBe('absent')
+    const sessionLog = await runContractSkeleton(skeletonInputs({}, 'session-log'))
+    expect(rowOf(sessionLog, 'H07', 'session-ad01')?.realization).toBe('double')
+    // H11 withdraws and resumes on the Agent faces; it does not cross the server entry.
+    expect(report.hops.find(hop => hop.hopId === 'H11')?.rows).not.toContain('server-entry')
     const undeclared = await runContractSkeleton(skeletonInputs({ realization: {} }))
     expect(undeclared.hops[0]?.realization[0]?.realization).toBe('undeclared')
   })

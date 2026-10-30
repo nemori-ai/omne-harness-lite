@@ -96,6 +96,7 @@ export const HOP_DEFINITIONS = [
       'agent-model-selection',
       'session-ad04',
       'agent-context',
+      'request-context',
       'model-host',
     ],
   },
@@ -156,7 +157,7 @@ export const HOP_DEFINITIONS = [
       'the Agent instance is withdrawn during a Model call and assembled again; the call is not re-sent and the loop continues from the Journal',
     ownerCards: [502, 787, 746],
     reason: 'SPEC.md#h11',
-    rows: ['agent-host', 'agent-instances', 'model-host', 'server-entry'],
+    rows: ['agent-host', 'agent-instances', 'model-host'],
   },
   {
     hopId: 'H12',
@@ -186,7 +187,8 @@ export const HOP_DEFINITIONS = [
 /**
  * What the connected path does not include. A blocking gap names a part that the card requires for
  * the hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part
- * that the card lets this application call directly or leave out.
+ * that the card lets this application call directly or leave out. `owners` lists open cards only;
+ * a gap without an open implementation card names the M2 milestone card (#784).
  */
 export type ResidualGap = Readonly<{
   gapId: string
@@ -200,42 +202,42 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-SESSION-WIRE',
     hops: ['H03', 'H04', 'H08'],
-    owners: [card(685)],
+    owners: [card(784)],
     blocking: false,
     reason: 'SPEC.md#gap-session-wire',
   },
   {
     gapId: 'GAP-SESSION-COORDINATOR',
     hops: ['H04', 'H07', 'H09'],
-    owners: [card(536), card(756)],
+    owners: [card(784)],
     blocking: false,
     reason: 'SPEC.md#gap-session-coordinator',
   },
   {
     gapId: 'GAP-RUN-COMPLETED',
     hops: ['H07'],
-    owners: [card(756)],
+    owners: [card(784)],
     blocking: false,
     reason: 'SPEC.md#gap-run-completed',
   },
   {
     gapId: 'GAP-AGENT-CONTEXT',
     hops: ['H05'],
-    owners: [card(542), card(676)],
+    owners: [card(542)],
     blocking: false,
     reason: 'SPEC.md#gap-agent-context',
   },
   {
     gapId: 'GAP-RECEIVE-SURFACE',
     hops: ['H06'],
-    owners: [card(795), card(502)],
+    owners: [card(502), card(795)],
     blocking: false,
     reason: 'SPEC.md#gap-receive-surface',
   },
   {
     gapId: 'GAP-SECOND-RUN',
     hops: ['H09'],
-    owners: [card(756), card(502)],
+    owners: [card(784), card(502)],
     blocking: true,
     reason: 'SPEC.md#gap-second-run',
   },
@@ -249,21 +251,21 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-AGENT-REASSEMBLY',
     hops: ['H11'],
-    owners: [card(502), card(746)],
+    owners: [card(502)],
     blocking: true,
     reason: 'SPEC.md#gap-agent-reassembly',
   },
   {
     gapId: 'GAP-REASONING-REPLAY',
     hops: ['H12'],
-    owners: [card(502), card(683)],
+    owners: [card(502)],
     blocking: true,
     reason: 'SPEC.md#gap-reasoning-replay',
   },
   {
     gapId: 'GAP-SESSION-LOG-TARGETS',
     hops: ['H13'],
-    owners: [card(756)],
+    owners: [card(784)],
     blocking: true,
     reason: 'SPEC.md#gap-session-log-targets',
   },

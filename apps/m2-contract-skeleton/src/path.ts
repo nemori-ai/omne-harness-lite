@@ -49,6 +49,7 @@ import {
   type SessionWork,
   type SessionCreation,
   type SessionEvidenceBridge,
+  type SessionFailure,
   type SessionId,
   type SessionOperationId,
   type SessionTransactionPort,
@@ -171,6 +172,11 @@ export type PathAgent = Readonly<{
   admitted(): number
   /** How many invocations the Tool runtime received from this Agent (caller-reported). */
   toolInvocations(): number
+  /**
+   * The execution-environment facility calls that the Tool runtime made for this Agent, each with
+   * the kind of its answer, such as `files.read:done` (caller-reported).
+   */
+  toolEffects(): readonly string[]
 }>
 
 export type PathDependencies = Readonly<{
@@ -178,10 +184,12 @@ export type PathDependencies = Readonly<{
   /** The login identifier and credential of the first tenant; they never enter the report. */
   login: Readonly<{ loginIdentifier: string; credential: string }>
   /**
-   * The current access decision of every Session read and write. The path hands it to `session`;
-   * without it the assembly stays pending and no Session call is made (#680 ruling B-1, item 4).
+   * The current access decision of every Session read and write. The path hands it to `session`.
+   * The caller must give a value: `undefined` is the explicit absence, under which the assembly
+   * stays pending and no Session call is made (#680 ruling B-1, item 4). The path never
+   * substitutes a default.
    */
-  sessionAccessCheck: SessionAccessCheck<PathPrincipal>
+  sessionAccessCheck: SessionAccessCheck<PathPrincipal> | undefined
   /** Builds the Session store with the injected access check. */
   session(input: Readonly<{ accessCheck: SessionAccessCheck<PathPrincipal> }>): SessionAssembly
   /** The definition-name mapping entry of the session (application assembly page). */
@@ -387,6 +395,39 @@ export async function registerTenant(
   }
 }
 
+type IssuedLogin = Extract<
+  Awaited<ReturnType<IdentityOperations['issueLogin']>>,
+  { kind: 'succeeded' }
+>
+
+/** The `issue-login` response through the governance codec; the login proof it carries, or null. */
+function carryLoginProof(issued: IssuedLogin, messageId: string): string | null {
+  const response = readGovernanceResponse({
+    bytes: encoded(
+      encodeGovernanceResponse({
+        operation: 'issue-login',
+        response: {
+          protocolVersion: GOVERNANCE_VERSION,
+          messageId,
+          outcome: 'succeeded',
+          body: {
+            loginIdentifier: issued.loginIdentifier,
+            issuedAt: issued.issuedAt,
+            tenantId: issued.tenant,
+            loginProof: issued.loginProof,
+          },
+        },
+        limits: PATH_CODEC_LIMITS,
+      }),
+    ),
+    operation: 'issue-login',
+    expectedMessageId: 'cs-login',
+    limits: PATH_CODEC_LIMITS,
+  })
+  if (response.kind !== 'response' || response.response.outcome !== 'succeeded') return null
+  return 'loginProof' in response.response.body ? response.response.body.loginProof : null
+}
+
 export async function logIn(
   deps: Pick<PathDependencies, 'identity' | 'login'>,
   tenant: TenantId,
@@ -410,35 +451,9 @@ export async function logIn(
   const issued = await deps.identity.issueLogin(request.request.body)
   if (issued.kind !== 'succeeded')
     return { observation: refused(`identity-login:${issued.kind}`), identified: null }
-  const response = readGovernanceResponse({
-    bytes: encoded(
-      encodeGovernanceResponse({
-        operation: 'issue-login',
-        response: {
-          protocolVersion: GOVERNANCE_VERSION,
-          messageId: request.request.messageId,
-          outcome: 'succeeded',
-          body: {
-            loginIdentifier: issued.loginIdentifier,
-            issuedAt: issued.issuedAt,
-            tenantId: issued.tenant,
-            loginProof: issued.loginProof,
-          },
-        },
-        limits: PATH_CODEC_LIMITS,
-      }),
-    ),
-    operation: 'issue-login',
-    expectedMessageId: 'cs-login',
-    limits: PATH_CODEC_LIMITS,
-  })
-  if (
-    response.kind !== 'response' ||
-    response.response.outcome !== 'succeeded' ||
-    !('loginProof' in response.response.body)
-  )
+  const loginProof = carryLoginProof(issued, request.request.messageId)
+  if (loginProof === null)
     return { observation: refused('login-response-not-read'), identified: null }
-  const loginProof = response.response.body.loginProof
   const recognized = await deps.identity.recognizeLogin({ loginProof })
   if (recognized.kind !== 'recognized')
     return { observation: refused(`identity-recognize:${recognized.kind}`), identified: null }
@@ -829,6 +844,16 @@ async function createSession(
     },
   })
   if ('failure' in created) return refused(`session-create:${created.failure.kind}`)
+  return confirmCreated(assembly, access, messageId, created.ok.receipt.recovered)
+}
+
+/** The `create-session` response through the session codec, and the session that `readWork` returns. */
+async function confirmCreated(
+  assembly: SessionAssembly,
+  access: SessionAccess<PathPrincipal>,
+  messageId: string,
+  recovered: boolean,
+): Promise<ConnectedObservation> {
   const response = carrySessionResponse(
     {
       operation: 'create-session',
@@ -836,7 +861,7 @@ async function createSession(
         protocolVersion: SESSION_VERSION,
         messageId,
         outcome: 'succeeded',
-        body: { session: wireSessionOf(access.session), recovered: created.ok.receipt.recovered },
+        body: { session: wireSessionOf(access.session), recovered },
       },
       limits: PATH_CODEC_LIMITS,
     },
@@ -1138,7 +1163,7 @@ async function handOver(
     }
   if (
     assembly.agentJournal !== null &&
-    committed.failure.kind === 'invalid' &&
+    inputNoLongerPending(committed.failure) &&
     (await takenOnLog(scene, started.advance.run))
   )
     return {
@@ -1150,6 +1175,14 @@ async function handOver(
     handedOver: false,
     evidence: `session-contract:commit(receive input-handover) ${committed.failure.kind}`,
   }
+}
+
+/**
+ * Whether Session refused the hand-over because the input is no longer pending: `invalid` on the
+ * field `fact.input`. Any other refusal stays a refusal of the hand-over.
+ */
+function inputNoLongerPending(failure: SessionFailure): boolean {
+  return failure.kind === 'invalid' && failure.field === 'fact.input'
 }
 
 /** Whether the Session log holds the batch-taken interpretation of the Run. */
@@ -1272,6 +1305,13 @@ function observeRequest(facts: AgentFacts): ConnectedObservation {
 /** H06: the pushed result became the received entry, and the loop continued from it. */
 function observeReceipt(facts: AgentFacts): ConnectedObservation {
   const sameCall = facts.originalCall !== null && facts.originalCall === facts.log.reply?.call
+  // The ACK deviation is a fact of a delivered result only; without one there is no ACK to account.
+  const deviation =
+    facts.modelResult === null
+      ? []
+      : [
+          'deviation:MODEL-ACK-ARRIVAL: the Model takes its ACK through the pusher after saved; the Session-side accounting of that ACK stays open (M2)',
+        ]
   return observed(facts.modelResult !== null && facts.materialReadable && sameCall, [
     facts.modelResult === null
       ? 'agent:journal has no received Model result'
@@ -1279,18 +1319,21 @@ function observeReceipt(facts: AgentFacts): ConnectedObservation {
     sameCall
       ? 'agent:loop continued from the received entry and handed over the reply of the same Model call'
       : 'agent:no reply of the journal Model call',
-    'deviation:MODEL-ACK-ARRIVAL: the Model takes its ACK through the pusher after saved; the Session-side accounting of that ACK stays open (M2)',
+    ...deviation,
   ])
 }
 
 /** H07: the Agent reply entered the Session journal and the execution ended. */
-function observeReply(facts: AgentFacts): ConnectedObservation {
+function observeReply(facts: AgentFacts, turns: number): ConnectedObservation {
   const state = facts.snapshot?.state.kind ?? 'unread'
+  const waited =
+    facts.log.waited === 'timed-out' ? [`agent:no reply within ${turns} event-loop turns`] : []
   return observed(facts.log.reply !== null && state === 'ended', [
     facts.log.reply === null
       ? 'session-contract:commit(recordMessage) not reached'
       : 'session-contract:commit(recordMessage participation message) committed the Agent reply',
     `agent:journal state ${state}`,
+    ...waited,
   ])
 }
 
@@ -1375,20 +1418,13 @@ async function readSessionLogRecords(
   const { scene, journal } = session
   if (journal === null)
     return disconnected(
-      'agent-journal:the Agent keeps its own memory Journal; the Session log carries no Agent record (GAP-SESSION-LOG-TARGETS)',
+      'agent-journal:this store keeps the Agent Journal outside the Session log, so it does not probe H13 (GAP-SESSION-LOG-TARGETS)',
     )
   const snapshot = await loadSnapshot(journal, scene.access, drive.execution)
   const work = await assembly.transactions.readWork(scene.access)
-  const run = 'ok' in work ? work.ok.run : null
-  const sameExecution =
-    run !== null &&
-    (run.kind === 'active'
-      ? run.execution.execution === String(drive.execution)
-      : run.kind === 'terminal')
+  const sameExecution = 'ok' in work && runOfDrive(work.ok.run, drive)
   const page = await scene.history()
-  const handedOver = page.entries.some(
-    entry => entry.kind === 'intake.handed-over' || entry.kind === 'run.batch-taken',
-  )
+  const handedOver = page.entries.some(entry => handOverOfDrive(entry, drive))
   return observed(snapshot !== null && sameExecution && handedOver, [
     snapshot === null
       ? 'session-adapters:journal.load on the Session log has no execution'
@@ -1400,6 +1436,24 @@ async function readSessionLogRecords(
       ? 'session-contract:history carries the hand-over or batch-taken entry of the execution'
       : 'session-contract:history carries neither the hand-over nor the batch-taken entry',
   ])
+}
+
+type WorkRun = Extract<
+  Awaited<ReturnType<SessionTransactionPort<PathPrincipal>['readWork']>>,
+  { ok: unknown }
+>['ok']['run']
+
+/** Whether the Run that Session reports is the Run of the drive: by execution, or by its terminal. */
+function runOfDrive(run: WorkRun, drive: DrivenRound): boolean {
+  if (run.kind === 'active') return run.execution.execution === String(drive.execution)
+  return run.kind === 'terminal' && run.terminal.run === drive.run
+}
+
+/** Whether a history entry is the hand-over of the drive's input or the batch-taken of its Run. */
+function handOverOfDrive(entry: HistoryEntry, drive: DrivenRound): boolean {
+  if (entry.kind === 'intake.handed-over')
+    return stringField(entry.payload, 'execution') === String(drive.execution)
+  return entry.kind === 'run.batch-taken' && stringField(entry.payload, 'run') === String(drive.run)
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1535,27 +1589,79 @@ async function openProbe(
   return { opened: { session: opened.session, drive } }
 }
 
-/** H10: the Model requests a tool; the Agent must run it and call the Model again. */
+/** A probe observation: connected, refused where the path met the named refusal, else disconnected. */
+function probeObservation(
+  connected: boolean,
+  refusal: boolean,
+  evidence: readonly string[],
+): ConnectedObservation {
+  return { kind: connected ? 'connected' : refusal ? 'refused' : 'disconnected', evidence }
+}
+
+/** The journal state and position of a snapshot, as one evidence label. */
+function stateLabel(snapshot: AgentSnapshot | null): string {
+  return snapshot === null
+    ? 'agent:journal unread'
+    : `agent:journal state ${snapshot.state.kind} at ${snapshot.checkpoint.position}`
+}
+
+/** Whether the loop stopped at I4, the step that refuses a reply with tool calls until #502 stage 2. */
+function atToolRefusal(snapshot: AgentSnapshot | null): boolean {
+  return snapshot?.state.kind === 'advancing' && snapshot.checkpoint.position === 'I4'
+}
+
+/** The facility calls of card #790 item 2: a file read, a file write and one command. */
+const TOOL_EFFECTS = ['files.read:done', 'files.write:done', 'command.start:done'] as const
+
+/**
+ * The H10 criterion: the Tool ran in the execution environment, the Model was called again with
+ * the tool result, and the execution ended.
+ */
+function toolRoundTripClosed(
+  agent: PathAgent,
+  toolResult: boolean,
+  snapshot: AgentSnapshot | null,
+): boolean {
+  const effects = agent.toolEffects()
+  return (
+    agent.toolInvocations() > 0 &&
+    TOOL_EFFECTS.every(effect => effects.includes(effect)) &&
+    agent.admitted() >= 2 &&
+    toolResult &&
+    snapshot?.state.kind === 'ended'
+  )
+}
+
+/**
+ * H10: the Model requests a tool; the Agent runs it in the execution environment and calls the
+ * Model again with the result. The probe waits for the tool-call reply, then for the reply after
+ * the tool result unless the loop already stopped at I4.
+ */
 async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, TOOL_PROBE)
   if ('observation' in probe) return probe.observation
   const { session, drive } = probe.opened
   const { agent } = drive
-  // The Model reply with the tool call reaches the Agent, which stops where it cannot run it.
+  const load = () => loadSnapshot(agent, session.scene.access, drive.execution)
   await waitTurns(context.turns, () => drive.log.reply !== null)
-  const snapshot = await loadSnapshot(agent, session.scene.access, drive.execution)
-  const invoked = agent.toolInvocations()
-  const admitted = agent.admitted()
-  const stopped = snapshot !== null && snapshot.state.kind !== 'ended'
-  return observed(invoked > 0 && admitted >= 2 && snapshot?.state.kind === 'ended', [
+  let snapshot = await load()
+  const refused = atToolRefusal(snapshot)
+  if (!refused) {
+    await waitTurns(context.turns, () => drive.log.replies >= 2)
+    snapshot = await load()
+  }
+  const effects = agent.toolEffects()
+  const toolResult = drive.log.requestBlocks.has('tool_result')
+  return probeObservation(toolRoundTripClosed(agent, toolResult, snapshot), refused, [
     drive.log.reply === null
       ? 'agent:the tool-call reply was not handed over'
       : 'agent:the tool-call reply was admitted and handed over to Session',
-    `caller-reported: Tool runtime invocations ${invoked}, Model admissions ${admitted}`,
-    stopped
-      ? `agent:journal stopped at ${snapshot.checkpoint.position} with state ${snapshot.state.kind}; the loop refuses a reply with tool calls (I4, #502 stage 2)`
-      : 'agent:journal state ended',
-    'execution-environment:files and command facilities not reached (GAP-TOOL-LOOP)',
+    `caller-reported: Tool runtime invocations ${agent.toolInvocations()}, execution-environment effects ${effects.join(',') || 'none'}, Model admissions ${agent.admitted()}`,
+    stateLabel(snapshot),
+    ...(refused ? ['agent:the loop stopped at I4 with the tool-call reply (GAP-TOOL-LOOP)'] : []),
+    toolResult
+      ? 'agent:a later Model request carried the tool result'
+      : 'agent:no Model request carried a tool result',
   ])
 }
 
@@ -1566,14 +1672,19 @@ const replyLabel = (name: string, reply: { ok: unknown } | { failure: unknown } 
       ? `agent:${name} ${kindOf(reply.failure)}`
       : `agent:${name} succeeded`
 
-/** H11: the Agent instance is withdrawn during a Model call and assembled again. */
-async function probeReassembly(context: PathContext): Promise<ConnectedObservation> {
-  const probe = await openProbe(context, REASSEMBLY_PROBE)
-  if ('observation' in probe) return probe.observation
-  const { session, drive } = probe.opened
+type Withdrawal = Readonly<{
+  quiesced: { ok: unknown } | { failure: unknown }
+  detached: { ok: unknown } | { failure: unknown } | null
+  resumed: { ok: unknown } | { failure: unknown }
+}>
+
+/** Withdraws the instance of a drive and resumes its execution through the public Agent faces. */
+async function withdrawAndResume(
+  context: PathContext,
+  session: OpenSession,
+  drive: DrivenRound,
+): Promise<Withdrawal> {
   const { agent, execution } = drive
-  // Wait until the Model call is admitted and the loop waits for its result.
-  await waitTurns(context.turns, () => agent.admitted() > 0)
   const access = { principal: context.identified.principal, tenant: context.identified.tenant }
   const before = await loadSnapshot(agent, session.scene.access, execution)
   const reason = evidence('reassembly/withdraw')
@@ -1582,15 +1693,15 @@ async function probeReassembly(context: PathContext): Promise<ConnectedObservati
     operation: QUIESCE_OPERATION,
     reason,
   })
-  const attachment = before?.executionAttachment ?? null
+  const authority = before?.executionAttachment ?? null
   const detached =
-    attachment === null
+    authority === null
       ? null
       : await agent.provider.recovery.detach({
           ...access,
           execution,
           operation: DETACH_OPERATION,
-          authority: attachment,
+          authority,
           reason,
         })
   const resumed = await agent.provider.runtime.resume({
@@ -1600,23 +1711,50 @@ async function probeReassembly(context: PathContext): Promise<ConnectedObservati
     recovery: reason,
     grant: null,
   })
-  agent.releaseModel?.()
+  return { quiesced, detached, resumed }
+}
+
+/**
+ * H11: the Agent instance is withdrawn during a Model call and assembled again. Connected only
+ * when the withdrawal and the resume succeeded, the Model admitted the call once (no re-send), and
+ * the execution ended from the Journal.
+ */
+async function probeReassembly(context: PathContext): Promise<ConnectedObservation> {
+  const probe = await openProbe(context, REASSEMBLY_PROBE)
+  if ('observation' in probe) return probe.observation
+  const { session, drive } = probe.opened
+  const { agent } = drive
+  // Wait until the Model call is admitted and the loop waits for its result.
+  await waitTurns(context.turns, () => agent.admitted() > 0)
+  let withdrawal: Withdrawal
+  try {
+    withdrawal = await withdrawAndResume(context, session, drive)
+  } finally {
+    agent.releaseModel?.()
+  }
   await waitTurns(context.turns, () => drive.log.reply !== null)
-  const after = await loadSnapshot(agent, session.scene.access, execution)
+  const after = await loadSnapshot(agent, session.scene.access, drive.execution)
   const ended = after?.state.kind === 'ended'
-  return observed('ok' in quiesced && 'ok' in resumed && ended, [
-    `caller-reported: Model admissions ${agent.admitted()} during the call`,
+  const { quiesced, detached, resumed } = withdrawal
+  const withdrawn = 'ok' in quiesced && 'ok' in resumed
+  const admissions = agent.admitted()
+  return probeObservation(withdrawn && admissions === 1 && ended, !withdrawn, [
+    `caller-reported: Model admissions ${admissions} after the Model settled`,
     replyLabel('control.quiesce', quiesced),
     replyLabel('recovery.detach', detached),
     replyLabel('runtime.resume', resumed),
     ended
       ? 'agent:the original driver continued from the received entry after the Model settled'
-      : `agent:journal state ${after?.state.kind ?? 'unread'} after the Model settled`,
-    'observation:the re-attachment of a StreamRef after reassembly is not exercised (#746 server-entry)',
+      : `${stateLabel(after)} after the Model settled`,
+    'observation:the re-attachment of a StreamRef after reassembly is not exercised',
   ])
 }
 
-/** H12: the first reply carries reasoning; the next request must replay it. */
+/**
+ * H12: the first reply carries reasoning; the next request must replay it. When the loop hands
+ * over the first reply, the probe drives the second round on the same Agent and checks that its
+ * request carries the reasoning part again.
+ */
 async function probeReasoningReplay(context: PathContext): Promise<ConnectedObservation> {
   const probe = await openProbe(context, REASONING_PROBE)
   if ('observation' in probe) return probe.observation
@@ -1624,15 +1762,54 @@ async function probeReasoningReplay(context: PathContext): Promise<ConnectedObse
   await waitTurns(context.turns, () => drive.log.reply !== null)
   const snapshot = await loadSnapshot(drive.agent, session.scene.access, drive.execution)
   const received = receivedModelResult(snapshot) !== null
-  return observed(drive.log.reply !== null && snapshot?.state.kind === 'ended', [
+  const head = [
     received
       ? 'model-contract:the public pusher delivered the reasoning result to the host receiver'
       : 'agent:journal has no received Model result',
-    drive.log.reply === null
-      ? `agent:no reply handed over; journal state ${snapshot?.state.kind ?? 'unread'} at ${snapshot?.checkpoint.position ?? 'unread'}; the loop did not consume the result with the thinking part (GAP-REASONING-REPLAY)`
-      : 'agent:the reasoning reply was handed over',
-    'request-context-contract:the second request with the replayed reasoning state is not reached (GAP-REASONING-REPLAY)',
+    stateLabel(snapshot),
+  ]
+  if (drive.log.reply === null) {
+    const held =
+      received && snapshot?.state.kind === 'waiting' && snapshot.checkpoint.position === 'M6'
+    const hold = held
+      ? [
+          'agent:the loop holds the received result with reasoning parts at M6 and handed over no reply (GAP-REASONING-REPLAY)',
+        ]
+      : []
+    return probeObservation(false, held, [...head, ...hold, 'agent:no second request was sent'])
+  }
+  const replay = await replayRound(context, session, drive)
+  return probeObservation(replay.replayed, false, [
+    ...head,
+    'agent:the reasoning reply was handed over',
+    replay.label,
   ])
+}
+
+/** The second round of the reasoning probe, and whether its request replays the reasoning part. */
+async function replayRound(
+  context: PathContext,
+  session: OpenSession,
+  first: DrivenRound,
+): Promise<Readonly<{ replayed: boolean; label: string }>> {
+  const message = context.deps.requests[1]
+  if (message === undefined) return { replayed: false, label: 'path:no second request supplied' }
+  const second = await driveRound(context, session, {
+    round: 2,
+    message,
+    scenario: 'reasoning',
+    instance: first.agent.instance,
+    existing: first.agent,
+  })
+  if (second.kind !== 'driven')
+    return { replayed: false, label: `round 2: ${firstLabel(second.observation)}` }
+  const replayed = second.log.requestBlocks.has('thinking')
+  return {
+    replayed,
+    label: replayed
+      ? 'agent:the second request replays the reasoning part'
+      : 'agent:the second request does not carry the reasoning part',
+  }
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1653,14 +1830,14 @@ async function openMainSession(
   if (login.identified === null) return null
   // #680 B-1 item 4: the Session store derives Session participation from the Agent Journal, so
   // the access check is a required injection. Without it the assembly stays pending.
-  const accessCheck: unknown = deps.sessionAccessCheck
-  if (typeof accessCheck !== 'object' || accessCheck === null) {
-    result.H03 = refused('session-assembly:pending:sessionAccessCheck')
+  const accessCheck = deps.sessionAccessCheck
+  if (accessCheck === undefined) {
+    result.H03 = disconnected('session-assembly:pending:sessionAccessCheck')
     return null
   }
   const context: PathContext = {
     deps,
-    assembly: deps.session({ accessCheck: deps.sessionAccessCheck }),
+    assembly: deps.session({ accessCheck }),
     identified: login.identified,
     turns: deps.replyTurns ?? DEFAULT_REPLY_TURNS,
   }
@@ -1687,12 +1864,13 @@ async function driveFirstRound(
     existing: null,
   })
   result.H04 = drive.observation
-  if (drive.kind !== 'driven') return null
+  // A first round that did not hand the input over stops the path (SPEC「Path」).
+  if (drive.kind !== 'driven' || drive.observation.kind !== 'connected') return null
   const access = { principal: context.identified.principal, tenant: context.identified.tenant }
   const facts = await agentFacts(drive.agent, access, drive.execution, drive.log)
   result.H05 = observeRequest(facts)
   result.H06 = observeReceipt(facts)
-  result.H07 = observeReply(facts)
+  result.H07 = observeReply(facts, context.turns)
   return drive
 }
 
