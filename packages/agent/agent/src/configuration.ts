@@ -25,7 +25,10 @@ const JOINT_COMMIT_KINDS: readonly unknown[] = [
   'processed',
 ] satisfies readonly JointCommitKind[]
 
-const COORDINATION_MODES: readonly unknown[] = ['standalone', 'coordinated'] satisfies readonly AgentConfiguration['coordination'][]
+const COORDINATION_MODES: readonly unknown[] = [
+  'standalone',
+  'coordinated',
+] satisfies readonly AgentConfiguration['coordination'][]
 
 const POSITIVE_SAFE = [
   'observerBufferBytes',

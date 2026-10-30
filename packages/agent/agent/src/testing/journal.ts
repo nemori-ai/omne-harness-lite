@@ -1,13 +1,12 @@
 // The memory `AgentJournal`: a single-process, non-durable Journal provider for tests. It follows
-// the same-shape list of docs/architecture/mechanisms.md "两种实现必须同形的事实" (facts 1 to 15), so
-// the tests written against it carry over to a durable provider. Every write runs synchronously
-// between two awaits, which makes one write atomic and gives all writes of the process one order.
-// Nothing survives the process, and fencing holds only inside it.
+// the same-shape list of docs/architecture/mechanisms.md "两种实现必须同形的事实", so the tests
+// written against it carry over to a durable provider. Every write runs synchronously between two
+// awaits, which makes one write atomic and gives all writes of the process one order. Nothing
+// survives the process, and fencing holds only inside it.
 //
-// Three choices wait for #558 (AGENT-M04). Each is marked "临时做法，待 #558 裁定" where it is made:
-// M04-4 (which writes advance the revision), M04-5 (`recordResult.transfer` without a declared
-// participant) and M04-7 (`open` appends no event). Writes that no contract type carries yet
-// (final request record, backoff and next check instants; M04-2) are not implemented.
+// The binding declares its coordination mode at construction. A standalone binding refuses a
+// non-null grant or input source before any write; a coordinated one asks the coordinator hooks
+// and the scripted participant responses inside the same write (SPEC "提交参加者协议").
 import type {
   AcceptedInput,
   AgentCheckpoint,
@@ -26,11 +25,13 @@ import type {
   DurableEvidence,
   ExecutionControl,
   ExecutionMutation,
+  ExecutionRevision,
   ExecutionSnapshot,
   ExecutionState,
   Failure,
   FinishResult,
   InputBatchId,
+  InputId,
   JournalCapabilities,
   ModelReplyAdmission,
   PendingCall,
@@ -122,6 +123,9 @@ export type ParticipantResponse =
   | 'conflict'
   | 'unsupported'
 
+/** The four operations a coordinated binding checks with the external coordinator (SPEC "提交参加者协议"). */
+export type CoordinatedOperation = 'open' | 'attach' | 'submit' | 'tryFinish'
+
 /** A joint commit that the participant saved together with the Journal's own facts. */
 export type JointFact = Readonly<{
   execution: AgentExecutionId
@@ -143,12 +147,15 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
   /** The joint-commit kinds whose participant this provider declares. Default: none. */
   participants?: Iterable<JointCommitKind>
   /**
-   * Whether a non-null grant of `open` or `attach` holds. Default: no grant holds, because an
-   * assembly without an external coordinator has no participant that can check one.
+   * The coordinator a coordinated binding checks with, in the same write: whether the grant of
+   * `open` or `attach` and the input source of `open` or `submit` hold. A coordinated binding
+   * requires both to be non-null and answers `denied` when a hook is absent or refuses. Ignored by a
+   * standalone binding.
    */
-  grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
-  /** Whether `open` and `attach` need a non-null grant. Default: `false`. */
-  requireGrant?: boolean
+  coordinator?: Readonly<{
+    grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
+    source?: Qualification<P, Readonly<{ execution: AgentExecutionId; source: DurableEvidence }>>
+  }>
   /** Whether the caller of `recordResult` or `received` is the lawful custodian or processor. Default: yes. */
   custodian?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
   /** Whether the caller of `recordTerminalObservation` may observe and record. Default: yes. */
@@ -189,8 +196,11 @@ export type MemoryAgentJournal<P> = Readonly<{
   failNext(method: JournalWrite, fault: WriteFault): void
   /** Makes the next call of one read method return `unavailable`. */
   failNextRead(method: JournalRead): void
-  /** Queues how the participant of `kind` answers the next joint commit. Default: participate. */
-  respond(kind: JointCommitKind, response: ParticipantResponse): void
+  /**
+   * Queues how the participant of `kind` answers the next joint commit, or how the coordinator
+   * answers the next coordinated operation of a coordinated binding. Default: participate.
+   */
+  respond(kind: JointCommitKind | CoordinatedOperation, response: ParticipantResponse): void
   /**
    * Decides a pending write. `applied` runs it now under the checks of that moment; when they fail,
    * the operation is excluded. `dropped` excludes it. Returns `false` when nothing is pending.
@@ -216,6 +226,8 @@ type Attachment = {
   authority: Authority
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
+  /** The revision at which the handoff was established, for a later detach that recognizes it. */
+  handoffRevision: number
 }
 
 type Range = Readonly<{ from: number; to: number }>
@@ -228,14 +240,20 @@ export type MemoryExecution = {
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
   inputs: AcceptedInput[]
+  /** The revision at which each input was accepted, for a later submit that recognizes it. */
+  inputRevisions: Map<InputId, number>
   batches: Map<InputBatchId, Range>
   watermarks: Map<string, Range>
   /** Every event ever written; those before `retainedFrom` are dropped by retention. */
   events: AgentEvent[]
   retainedFrom: number
   acknowledged: number
+  /** The revision at which the acknowledged prefix last advanced. */
+  acknowledgedAt: number
   controls: ControlRecord[]
   results: ResultResponsibility[]
+  /** The revision at which each result responsibility was last established, by result and consumption. */
+  resultRevisions: Map<string, number>
   effects: EffectIntent[]
   observations: TerminalObservation[]
   /** The receipt that first recorded each control stage fact, by target and stage. */
@@ -258,6 +276,14 @@ type Committed = Readonly<{
   receipt: CommandReceipt
 }>
 type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
+/** The persistent rejection of a recordControl (SPEC "查询的四种结论与持久拒绝"). */
+type Rejected = Readonly<{
+  kind: 'rejected'
+  key: string
+  failure: Extract<Failure, { kind: 'conflict' }>
+  audit: DurableEvidence
+  revision: ExecutionRevision
+}>
 type Pending = Readonly<{
   kind: 'pending'
   key: string
@@ -266,7 +292,7 @@ type Pending = Readonly<{
   operation: AgentOperationId
   run: () => void
 }>
-export type OperationRecord = Committed | Excluded | Pending
+export type OperationRecord = Committed | Rejected | Excluded | Pending
 
 /** The outcome of preparing one write: either an answer without a write, or a write to apply. */
 export type Attempt<R> =
@@ -274,6 +300,22 @@ export type Attempt<R> =
   /** A declared participant could not tell whether its part held; nothing is saved yet. */
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
+  /**
+   * A new operation that recognizes an existing fact (SPEC "原操作认回与恢复"): only its index is
+   * saved, with a receipt at the revision of the fact; no execution fact and no revision change.
+   */
+  | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
+  /**
+   * Contradicting evidence (SPEC "查询的四种结论与持久拒绝"): `apply` saves the audit and advances
+   * one revision, the operation is fixed as rejected, and the call answers the conflict.
+   */
+  | Readonly<{
+      kind: 'reject'
+      failure: Extract<Failure, { kind: 'conflict' }>
+      audit: DurableEvidence
+      revision: number
+      apply: () => void
+    }>
 
 /** Which stages apply to which control; SPEC "六个阶段". */
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
@@ -307,7 +349,10 @@ const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage
 
 const answer = <R>(value: Outcome<R, Failure>): Attempt<R> => ({ kind: 'answer', value })
 const denied = (action: string): Failure => ({ kind: 'denied', action })
-const conflict = (operation: AgentOperationId): Failure => ({ kind: 'conflict', operation })
+const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'conflict' }> => ({
+  kind: 'conflict',
+  operation,
+})
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
 function copy<T>(value: T): T {
@@ -573,7 +618,8 @@ export function createMemoryAgentJournal<P>(
   const operations = new Map<string, OperationRecord>()
   const writeFaults = new Map<JournalWrite, WriteFault[]>()
   const readFaults = new Map<JournalRead, number>()
-  const responses = new Map<JointCommitKind, ParticipantResponse[]>()
+  const responses = new Map<JointCommitKind | CoordinatedOperation, ParticipantResponse[]>()
+  const coordinator = options.coordinator ?? {}
   const jointFacts: JointFact[] = []
 
   /**
@@ -611,10 +657,35 @@ export function createMemoryAgentJournal<P>(
   ): Outcome<R, Failure> | undefined {
     const at = operationKey(input.tenant, input.execution, input.operation)
     const record = at === undefined ? undefined : operations.get(at)
+    if (record?.kind === 'rejected') {
+      // A persistent rejection answers its fixed conflict again; another input conflicts too, and
+      // neither writes a second audit (SPEC "查询的四种结论与持久拒绝").
+      return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
+    }
     if (record?.kind !== 'committed') return undefined
     // The record of this operation was written by the same method, whose key starts with its name,
     // so its value has the type R of that method.
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
+  }
+
+  /** The receipt of a new operation that recognizes a fact established at `revision` (SPEC "原操作认回与恢复" 1). */
+  function recognition(
+    execution: Execution,
+    operation: AgentOperationId,
+    revision: number,
+    state: CommandReceipt['state'],
+  ): CommandReceipt {
+    return receiptOf(
+      execution,
+      operation,
+      revision,
+      nextEvidence(execution, 'recognized', revision),
+      state,
+    )
+  }
+
+  function recognize<R>(value: R, receipt: CommandReceipt): Attempt<R> {
+    return { kind: 'recognize', value, receipt }
   }
 
   function nextEvidence(execution: Execution, what: string, revision: number): DurableEvidence {
@@ -741,8 +812,12 @@ export function createMemoryAgentJournal<P>(
     })
     const check = (): Failure | undefined => {
       if (beforeRecognition === undefined) return undefined
-      const found = owned(input, method)
-      return 'failure' in found ? found.failure : beforeRecognition()
+      // `open` creates the execution, so ownership is only checked for the other methods.
+      if (method !== 'open') {
+        const found = owned(input, method)
+        if ('failure' in found) return found.failure
+      }
+      return beforeRecognition()
     }
     const pending = operations.get(at)
     if (pending?.kind === 'pending') {
@@ -755,7 +830,8 @@ export function createMemoryAgentJournal<P>(
       return pending.key === key ? commitUnknown : fail(conflict(input.operation))
     }
     const exclude = (reason: string) => {
-      if (operations.get(at)?.kind === 'committed') return
+      const fixed = operations.get(at)?.kind
+      if (fixed === 'committed' || fixed === 'rejected') return
       operations.set(at, {
         kind: 'excluded',
         key,
@@ -772,7 +848,18 @@ export function createMemoryAgentJournal<P>(
       const prepared = prepare()
       if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
       if (prepared.kind === 'unknown') return prepared
-      prepared.apply()
+      if (prepared.kind === 'reject') {
+        prepared.apply()
+        operations.set(at, {
+          kind: 'rejected',
+          key,
+          failure: prepared.failure,
+          audit: prepared.audit,
+          revision: revisionOf(prepared.revision),
+        })
+        return { kind: 'answered', value: fail(prepared.failure) }
+      }
+      if (prepared.kind === 'write') prepared.apply()
       operations.set(at, {
         kind: 'committed',
         key,
@@ -787,7 +874,8 @@ export function createMemoryAgentJournal<P>(
       if (run.kind === 'unknown') hold()
     }
     const hold = () => {
-      if (operations.get(at)?.kind === 'committed') return
+      const fixed = operations.get(at)?.kind
+      if (fixed === 'committed' || fixed === 'rejected') return
       operations.set(at, {
         kind: 'pending',
         key,
@@ -857,17 +945,82 @@ export function createMemoryAgentJournal<P>(
     }
   }
 
+  // ------------------------------------------------------------------------------------------
+  // The coordination mode (SPEC "提交参加者协议")
+
+  /** A standalone binding refuses a non-null grant or input source before any write. */
+  function standaloneRefusal(...given: readonly (DurableEvidence | null)[]): Failure | undefined {
+    return coordination === 'standalone' && given.some(value => value !== null)
+      ? { kind: 'unsupported' }
+      : undefined
+  }
+
+  /** A coordinated binding requires the grant and asks the coordinator about it; otherwise denied. */
   function grantHolds(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: DurableEvidence | null }>,
   ): boolean {
-    if (input.grant === null) return options.requireGrant !== true
-    if (options.grant === undefined) return false
-    return options.grant({
+    if (coordination === 'standalone') return input.grant === null
+    if (input.grant === null || coordinator.grant === undefined) return false
+    return coordinator.grant({
       principal: input.principal,
       tenant: input.tenant,
       execution: input.execution,
       grant: input.grant,
     })
+  }
+
+  /** A coordinated binding requires the input source and asks the coordinator about it; otherwise denied. */
+  function sourceHolds(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId; source: DurableEvidence | null }>,
+  ): boolean {
+    if (coordination === 'standalone') return input.source === null
+    if (input.source === null || coordinator.source === undefined) return false
+    return coordinator.source({
+      principal: input.principal,
+      tenant: input.tenant,
+      execution: input.execution,
+      source: input.source,
+    })
+  }
+
+  /**
+   * The scripted answer of a participant to one joint commit, or of the coordinator to one
+   * coordinated operation: `undefined` to go on, an attempt that ends the call otherwise. A
+   * conflict of the coordinator on open, attach or submit is the failed co-check of the grant or
+   * source, so it is `denied`; on tryFinish it is FinishResult.changed, which the caller maps.
+   */
+  function participation<R>(
+    kind: JointCommitKind | CoordinatedOperation,
+    conflict: () => Attempt<R>,
+  ): Attempt<R> | undefined {
+    const response = responses.get(kind)?.shift() ?? 'participate'
+    switch (response) {
+      case 'participate':
+        return undefined
+      case 'fail':
+        return answer(
+          fail({
+            kind: 'unavailable',
+            owner: JOURNAL_OWNER,
+            diagnostic: `${kind} participant failed`,
+          }),
+        )
+      case 'fail-unknown':
+        return { kind: 'unknown' }
+      case 'conflict':
+        return conflict()
+      case 'unsupported':
+        return answer(fail({ kind: 'unsupported' }))
+      default: {
+        const _exhaustive: never = response
+        return _exhaustive
+      }
+    }
+  }
+
+  /** The coordinator's answer to a coordinated operation; a standalone binding has none. */
+  function coordinated<R>(kind: CoordinatedOperation, conflict: () => Attempt<R>) {
+    return coordination === 'coordinated' ? participation(kind, conflict) : undefined
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1026,7 +1179,7 @@ export function createMemoryAgentJournal<P>(
 
     open(input) {
       const key = semanticKey('open', input)
-      return write('open', input, key, () => {
+      const prepare = (): Attempt<{ receipt: CommandReceipt; authority: Authority }> => {
         const existing = executions.get(executionKey(input.tenant, input.execution))
         if (existing !== undefined && !tenantEquals(existing.tenant, input.tenant)) {
           return answer(fail(denied('open')))
@@ -1035,7 +1188,14 @@ export function createMemoryAgentJournal<P>(
         if (original !== undefined) return answer(original)
         // Another operation already opened this execution identity: same identity, other input.
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
+        // The co-check of the grant and the input source, in the same write as the acceptance.
         if (!grantHolds(input)) return answer(fail(denied('open')))
+        if (!sourceHolds({ ...input, source: input.initial.source }))
+          return answer(fail(denied('open')))
+        const refused = coordinated<{ receipt: CommandReceipt; authority: Authority }>('open', () =>
+          answer(fail(denied('open'))),
+        )
+        if (refused !== undefined) return refused
         const execution: Execution = {
           id: input.execution,
           tenant: input.tenant,
@@ -1044,13 +1204,16 @@ export function createMemoryAgentJournal<P>(
           checkpoint: copy(input.checkpoint),
           attachments: [],
           inputs: [copy(input.initial)],
+          inputRevisions: new Map([[input.initial.id, 1]]),
           batches: new Map(),
           watermarks: new Map(),
           events: [],
           retainedFrom: 1,
           acknowledged: 0,
+          acknowledgedAt: 0,
           controls: [],
           results: [],
+          resultRevisions: new Map(),
           effects: [],
           observations: [],
           stageReceipts: new Map(),
@@ -1069,10 +1232,14 @@ export function createMemoryAgentJournal<P>(
           generation: '1',
           source: evidence,
         }
-        execution.attachments.push({ authority, status: 'active', handoff: null })
+        execution.attachments.push({
+          authority,
+          status: 'active',
+          handoff: null,
+          handoffRevision: 0,
+        })
         const receipt = receiptOf(execution, input.operation, 1, evidence, 'applied')
-        // 临时做法，待 #558 裁定（M04-7）：open 不追加事件。SPEC 逐操作表的 Journal.open、attach 行写
-        // 事件为无，open 也没有事件输入；第一个事件来自之后的一次提交。
+        // open appends no event: the first event comes from a later commit (SPEC per-operation table).
         return {
           kind: 'write',
           value: { receipt, authority },
@@ -1082,19 +1249,28 @@ export function createMemoryAgentJournal<P>(
             receiving.remember(execution, input.instance)
           },
         }
-      })
+      }
+      return write('open', input, key, prepare, () =>
+        standaloneRefusal(input.grant, input.initial.source),
+      )
     },
 
     attach(input) {
       const key = semanticKey('attach', input)
-      return write('attach', input, key, () => {
+      const prepare = (): Attempt<{ receipt: CommandReceipt; authority: Authority }> => {
         const found = owned(input, 'attach')
         if ('failure' in found) return answer(found)
         const execution = found.ok
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
-        if (!grantHolds(input)) return answer(fail(denied('attach')))
+        // An ended execution answers terminal before the coordinator is asked (SPEC per-operation table).
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        if (!grantHolds(input)) return answer(fail(denied('attach')))
+        const refused = coordinated<{ receipt: CommandReceipt; authority: Authority }>(
+          'attach',
+          () => answer(fail(denied('attach'))),
+        )
+        if (refused !== undefined) return refused
         const old = activeAttachment(execution)
         if (old !== undefined && input.takeover === null) {
           return answer(fail({ kind: 'changed' }))
@@ -1120,12 +1296,18 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             fence(execution)
             if (old !== undefined) old.status = 'superseded'
-            execution.attachments.push({ authority, status: 'active', handoff: null })
+            execution.attachments.push({
+              authority,
+              status: 'active',
+              handoff: null,
+              handoffRevision: 0,
+            })
             execution.state = { kind: 'reconciling' }
             execution.revision = revision
           },
         }
-      })
+      }
+      return write('attach', input, key, prepare, () => standaloneRefusal(input.grant))
     },
 
     detach(input) {
@@ -1142,8 +1324,14 @@ export function createMemoryAgentJournal<P>(
         )
         if (target === undefined) return answer(fail(denied('detach')))
         if (target.status === 'superseded') return answer(fail({ kind: 'stale-advance' }))
-        if (target.handoff !== null) return answer(succeed(copy(target.handoff)))
-        // Without business qualification, detach only recognizes an existing handoff.
+        // A detached target only recognizes the existing handoff: the new operation is indexed at
+        // the revision of that handoff and writes no new position (SPEC "原操作认回与恢复").
+        if (target.handoff !== null) {
+          return recognize(
+            copy(target.handoff),
+            recognition(execution, input.operation, target.handoffRevision, 'applied'),
+          )
+        }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         const revision = execution.revision + 1
@@ -1156,6 +1344,7 @@ export function createMemoryAgentJournal<P>(
           apply: () => {
             target.status = 'detached'
             target.handoff = handoff
+            target.handoffRevision = revision
             execution.state = { kind: 'suspended', handoff }
             execution.revision = revision
           },
@@ -1187,11 +1376,13 @@ export function createMemoryAgentJournal<P>(
         }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        // SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (input.expected !== revisionOf(execution.revision)) {
           return answer(fail({ kind: 'changed' }))
         }
+        let newEffect = false
         for (const effect of input.effects) {
           const known = execution.effects.find(existing => existing.action === effect.action)
           if (
@@ -1200,6 +1391,7 @@ export function createMemoryAgentJournal<P>(
           ) {
             return answer(fail(conflict(input.operation)))
           }
+          if (known === undefined) newEffect = true
         }
         let admission: Readonly<{ sequence: number; fact: ModelReplyAdmission }> | null = null
         if (input.replyAdmission !== null) {
@@ -1215,31 +1407,31 @@ export function createMemoryAgentJournal<P>(
           }
         }
         if (input.caller.kind !== 'none') {
-          const response = responses.get(input.caller.kind)?.shift() ?? 'participate'
-          switch (response) {
-            case 'participate':
-              break
-            case 'fail':
-              return answer(
-                fail({
-                  kind: 'unavailable',
-                  owner: JOURNAL_OWNER,
-                  diagnostic: `${input.caller.kind} participant failed`,
-                }),
-              )
-            case 'fail-unknown':
-              return { kind: 'unknown' }
-            case 'conflict':
-              return answer(fail({ kind: 'changed' }))
-            case 'unsupported':
-              return answer(fail({ kind: 'unsupported' }))
-            default: {
-              const _exhaustive: never = response
-              return _exhaustive
-            }
-          }
+          const refused = participation<CommandReceipt>(input.caller.kind, () =>
+            answer(fail({ kind: 'changed' })),
+          )
+          if (refused !== undefined) return refused
         }
-        // 临时做法，待 #558 裁定（M04-4）：每次成功写入都推进 revision。
+        // A commit that establishes no new fact does not advance the revision and writes no event:
+        // its receipt names the current revision (SPEC "执行修订").
+        const unchanged =
+          semanticKey('checkpoint', execution.checkpoint) ===
+            semanticKey('checkpoint', input.checkpoint) &&
+          semanticKey('state', execution.state) === semanticKey('state', input.state) &&
+          input.events.length === 0 &&
+          !newEffect &&
+          admission === null &&
+          input.caller.kind === 'none'
+        if (unchanged) {
+          const receipt = receiptOf(
+            execution,
+            input.operation,
+            execution.revision,
+            nextEvidence(execution, 'commit', execution.revision),
+            'applied',
+          )
+          return recognize(receipt, receipt)
+        }
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'commit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1279,21 +1471,28 @@ export function createMemoryAgentJournal<P>(
 
     submit(input) {
       const key = semanticKey('submit', input)
-      return write('submit', input, key, () => {
+      const prepare = (): Attempt<CommandReceipt> => {
         const found = owned(input, 'submit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const known = execution.inputs.find(accepted => accepted.id === input.value.id)
         if (known !== undefined) {
-          // Fact 8: the same input identity with the same content is the original acceptance.
+          // The same input identity with other content conflicts; with the same content a new
+          // operation recognizes the original acceptance at its revision (SPEC "输入内容与水位线").
           if (semanticKey('input', known) !== semanticKey('input', input.value)) {
             return answer(fail(conflict(input.operation)))
           }
+          const at = execution.inputRevisions.get(known.id) ?? 1
+          const receipt = recognition(execution, input.operation, at, 'accepted')
+          return recognize(receipt, receipt)
         }
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        if (!sourceHolds({ ...input, source: input.value.source }))
+          return answer(fail(denied('submit')))
+        const refused = coordinated<CommandReceipt>('submit', () => answer(fail(denied('submit'))))
+        if (refused !== undefined) return refused
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'submit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
@@ -1302,11 +1501,13 @@ export function createMemoryAgentJournal<P>(
           value: receipt,
           receipt,
           apply: () => {
-            if (known === undefined) execution.inputs.push(copy(input.value))
+            execution.inputs.push(copy(input.value))
+            execution.inputRevisions.set(input.value.id, revision)
             execution.revision = revision
           },
         }
-      })
+      }
+      return write('submit', input, key, prepare, () => standaloneRefusal(input.value.source))
     },
 
     control(request) {
@@ -1327,7 +1528,6 @@ export function createMemoryAgentJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const target = controlTarget(input.command, execution.checkpoint.calls, execution.tenant)
         if ('failure' in target) return answer(target)
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'control', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
@@ -1342,8 +1542,7 @@ export function createMemoryAgentJournal<P>(
               stages: { accepted: { state: 'reached', source: evidence } },
             })
             execution.revision = revision
-            // 临时做法，待 #558 裁定（M04-1 的读法）：按 SPEC「六个阶段」把受理这一阶段事实投影为
-            // control 事件。
+            // The accepted fact, its control event and the operation result hold at once (SPEC "六个阶段").
             appendEvents(
               execution,
               [
@@ -1374,7 +1573,17 @@ export function createMemoryAgentJournal<P>(
         if (through === undefined || through < 1 || through > execution.events.length) {
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
+        // A `through` within the acknowledged prefix recognizes that prefix at the revision it was
+        // established and never moves it back (SPEC "确认").
+        if (through <= execution.acknowledged) {
+          const receipt = recognition(
+            execution,
+            input.operation,
+            execution.acknowledgedAt,
+            'applied',
+          )
+          return recognize(receipt, receipt)
+        }
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'acknowledge', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1383,8 +1592,8 @@ export function createMemoryAgentJournal<P>(
           value: receipt,
           receipt,
           apply: () => {
-            // A lower `through` recognizes the acknowledged prefix and never moves it back.
-            execution.acknowledged = Math.max(execution.acknowledged, through)
+            execution.acknowledged = through
+            execution.acknowledgedAt = revision
             execution.revision = revision
           },
         }
@@ -1416,8 +1625,8 @@ export function createMemoryAgentJournal<P>(
         ) {
           return rejected
         }
-        // 临时做法，待 #558 裁定（M04-5）：transfer 为 custody 或 processed 时，未声明对应参加者也由
-        // 提供者自行建立保管或完成依据（SPEC「提交与保管」、上下文页交接清单第 3 项）。
+        // transfer custody or processed: the provider establishes the custody or completion evidence
+        // in its own commit boundary; the participant declaration only binds `commit.caller`.
         let custody = known?.custody ?? null
         let completion = known?.completion ?? null
         if (transfer.kind === 'custody') {
@@ -1440,10 +1649,6 @@ export function createMemoryAgentJournal<P>(
         if (input.release.kind === 'confirmed' && custody === null && completion === null) {
           return rejected
         }
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'result', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const responsibility: ResultResponsibility = {
           result: copy(input.result),
           consumption: input.consumption,
@@ -1451,6 +1656,23 @@ export function createMemoryAgentJournal<P>(
           completion,
           release: copy(input.release),
         }
+        const resultKey = semanticKey('responsibility', [
+          input.result.producer,
+          input.result.version,
+          input.consumption,
+        ])
+        // No new responsibility fact: a new operation recognizes the existing one at its revision.
+        if (
+          known !== undefined &&
+          semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
+        ) {
+          const at = execution.resultRevisions.get(resultKey) ?? execution.revision
+          const receipt = recognition(execution, input.operation, at, 'applied')
+          return recognize(receipt, receipt)
+        }
+        const revision = execution.revision + 1
+        const evidence = nextEvidence(execution, 'result', revision)
+        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',
           value: receipt,
@@ -1459,6 +1681,7 @@ export function createMemoryAgentJournal<P>(
             const index = execution.results.indexOf(known ?? responsibility)
             if (index === -1) execution.results.push(responsibility)
             else execution.results[index] = responsibility
+            execution.resultRevisions.set(resultKey, revision)
             execution.revision = revision
           },
         }
@@ -1529,19 +1752,47 @@ export function createMemoryAgentJournal<P>(
           fact.state === input.state &&
           sameEvidence(fact.source, input.source)
         if (sameFact && !referenceAdded) {
-          // SPEC "六个阶段": the same stage fact without a new reference recognizes the first receipt;
-          // it is not recorded twice.
+          // The same stage fact without a new reference is recognized by the new operation at the
+          // revision of the fact; it is not recorded or projected twice (SPEC "六个阶段").
           const first = execution.stageReceipts.get(stageKey)
-          if (first !== undefined) return answer(succeed(copy(first)))
+          if (first !== undefined) {
+            const receipt = recognition(
+              execution,
+              input.operation,
+              Number(first.revision),
+              'applied',
+            )
+            return recognize(receipt, receipt)
+          }
+        }
+        const ended = execution.state.kind === 'ended'
+        // After a lawful ended only the three late duty stages may still be saved; a new intent or
+        // revocation is a pre-terminal effect and answers terminal (SPEC "六个阶段", Q1b).
+        if (
+          ended &&
+          !sameFact &&
+          (input.stage === 'intent-established' || input.stage === 'qualification-revoked')
+        ) {
+          return answer(fail({ kind: 'terminal' }))
         }
         if (!sameFact && fact !== undefined && fact.state === 'reached') {
-          return answer(fail(conflict(input.operation)))
+          // Evidence that contradicts an established stage: the persistent rejection saves an
+          // audit, advances one revision, writes no event and fixes the conflict for query.
+          const revision = execution.revision + 1
+          const audit = nextEvidence(execution, 'rejected-control', revision)
+          return {
+            kind: 'reject',
+            failure: conflict(input.operation),
+            audit,
+            revision,
+            apply: () => {
+              execution.revision = revision
+            },
+          }
         }
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'record-control', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        const ended = execution.state.kind === 'ended'
         return {
           kind: 'write',
           value: receipt,
@@ -1556,10 +1807,8 @@ export function createMemoryAgentJournal<P>(
             }
             if (!sameFact) execution.stageReceipts.set(stageKey, receipt)
             execution.revision = revision
-            // 临时做法，待 #558 裁定：ended 之后 recordControl 照常记录阶段事实，但不投影事件，因为
-            // ended 事件是 execution 的最后一个事件（SPEC「条件终结」「终态后与 ended」）。
+            // A late stage after ended is saved without an event; ended stays the last event.
             if (ended || sameFact) return
-            // 临时做法，待 #558 裁定（M04-1 的读法）：按 SPEC「六个阶段」把阶段事实投影为 control 事件。
             appendEvents(
               execution,
               [
@@ -1589,16 +1838,17 @@ export function createMemoryAgentJournal<P>(
         const changed = answer<FinishResult>(
           succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
         )
-        if (execution.state.kind === 'ended') return changed
         const authorization = input.authorization
+        // SPEC "判定次序与失败映射": a superseded advancement is stale-advance before terminal.
+        if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
+          return answer(fail({ kind: 'stale-advance' }))
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const cancels = execution.controls.filter(
           record =>
             record.command.kind === 'cancel' &&
             record.stages['intent-established']?.state === 'reached',
         )
         if (authorization.kind === 'advancement') {
-          if (!holds(execution, authorization.authority))
-            return answer(fail({ kind: 'stale-advance' }))
           // An effective cancel takes precedence over an ordinary end.
           if (cancels.length > 0) return changed
         } else {
@@ -1622,6 +1872,10 @@ export function createMemoryAgentJournal<P>(
         if (boundary === undefined || boundary.to < execution.inputs.length) return changed
         const blocked = blockedReason(execution, input.operation, authorization.kind)
         if (blocked !== undefined) return answer(succeed(blocked))
+        // The coordinated binding checks the external participant in the same conditional commit;
+        // its conflict is FinishResult.changed, not a failure (SPEC "条件终结").
+        const refused = coordinated<FinishResult>('tryFinish', () => changed)
+        if (refused !== undefined) return refused
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'finish', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1675,11 +1929,18 @@ export function createMemoryAgentJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
-          // Fact 12: the same value recognizes the first registration.
+          // The same value is recognized by the new operation at the revision of the registration.
           const first = execution.observed.get(input.passage)
-          if (first !== undefined) return answer(succeed(copy(first)))
+          if (first !== undefined) {
+            const receipt = recognition(
+              execution,
+              input.operation,
+              Number(first.revision),
+              'applied',
+            )
+            return recognize(receipt, receipt)
+          }
         }
-        // 临时做法，待 #558 裁定（M04-4）：按原操作幂等的记录成功写入时也推进 revision。
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'observation', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1781,6 +2042,14 @@ export function createMemoryAgentJournal<P>(
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
       if (record.kind === 'excluded') {
         return succeed({ kind: 'excluded', evidence: copy(record.evidence) })
+      }
+      if (record.kind === 'rejected') {
+        return succeed({
+          kind: 'rejected',
+          failure: copy(record.failure),
+          audit: copy(record.audit),
+          revision: record.revision,
+        })
       }
       return succeed({ kind: 'committed', receipt: copy(record.receipt) })
     },

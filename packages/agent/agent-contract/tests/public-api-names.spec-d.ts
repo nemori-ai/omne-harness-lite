@@ -961,12 +961,13 @@ describe('the discriminants of the Journal chapter', () => {
       ReturnType<AgentExecutionRecovery<string>['query']>
     >()
     // SPEC "查询的四种结论与持久拒绝": rejected carries the fixed conflict, the audit and its revision.
-    type QueryConclusion = Awaited<ReturnType<AgentExecutionRecovery<string>['query']>> extends Outcome<
-      infer Conclusion,
-      Failure
-    >
-      ? Conclusion
-      : never
+    type QueryConclusion =
+      Awaited<ReturnType<AgentExecutionRecovery<string>['query']>> extends Outcome<
+        infer Conclusion,
+        Failure
+      >
+        ? Conclusion
+        : never
     expectTypeOf<KindOf<QueryConclusion>>().toEqualTypeOf<
       'committed' | 'rejected' | 'excluded' | 'unknown'
     >()
@@ -978,7 +979,9 @@ describe('the discriminants of the Journal chapter', () => {
         revision: ExecutionRevision
       }>
     >()
-    expectTypeOf<Extract<QueryConclusion, { kind: 'committed' }>['receipt']>().toEqualTypeOf<CommandReceipt>()
+    expectTypeOf<
+      Extract<QueryConclusion, { kind: 'committed' }>['receipt']
+    >().toEqualTypeOf<CommandReceipt>()
     expectTypeOf<ReturnType<AgentJournalFinishing<string>['tryFinish']>>().toEqualTypeOf<
       Reply<FinishResult>
     >()

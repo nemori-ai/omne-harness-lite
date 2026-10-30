@@ -257,9 +257,7 @@ export interface AgentDirectory<P> {
 /** The entry that reconciles one execution when no live runtime exists; see SPEC "提交与保管" and "交接与停用". */
 export interface AgentExecutionRecovery<P> {
   /** The four conclusions of SPEC "查询的四种结论与持久拒绝"; `rejected` only comes from recordControl. */
-  query(
-    input: ExecutionMutation<P>,
-  ): Reply<
+  query(input: ExecutionMutation<P>): Reply<
     | Readonly<{ kind: 'committed'; receipt: CommandReceipt }>
     | Readonly<{
         kind: 'rejected'

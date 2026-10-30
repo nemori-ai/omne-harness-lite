@@ -28,5 +28,11 @@ export {
   type MemoryAgentAccountOutlet,
 } from './testing-account-outlet.ts'
 
+export {
+  agentJournalCoreConformance,
+  sameValue,
+  type AgentJournalCoreFixture,
+  type AgentJournalCoreOpened,
+} from './testing-journal-core.ts'
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts'
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts'

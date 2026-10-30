@@ -7,6 +7,7 @@ import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-har
 import {
   decodeActionId,
   type AgentEvent,
+  type DurableEvidence,
   type EventPage,
   type JournalCommit,
 } from '@omne-harness/agent-contract'
@@ -338,10 +339,12 @@ describe('fact 2: idempotence by original operation', () => {
     } as const
     const first = ok(await journal.recordControl(stage))
     const before = await load(journal, opened.execution)
+    // The new operation is recognized with its own receipt at the revision of the fact.
     expect(
       ok(await journal.recordControl({ ...stage, operation: operation('stage-new-attachment') })),
-    ).toEqual(first)
+    ).toMatchObject({ operation: operation('stage-new-attachment'), revision: first.revision })
     expect(await load(journal, opened.execution)).toEqual(before)
+    // Another source for the reached fact is contradicting evidence: conflict with a saved audit.
     expect(
       failure(
         await journal.recordControl({
@@ -351,6 +354,9 @@ describe('fact 2: idempotence by original operation', () => {
         }),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('stage-other-source') })
+    const audited = await load(journal, opened.execution)
+    expect(Number(audited.revision)).toBe(Number(before.revision) + 1)
+    expect(audited.controls).toEqual(before.controls)
   })
 })
 
@@ -975,6 +981,252 @@ describe('fact 9: participant declaration', () => {
   })
 })
 
+describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)', () => {
+  const coordinated = (hooks: Partial<NonNullable<MemoryOptions['coordinator']>> = {}) =>
+    memory({
+      coordination: 'coordinated',
+      coordinator: { grant: () => true, source: () => true, ...hooks },
+    })
+  const openWith = (
+    journal: Journal,
+    overrides: Partial<Parameters<Journal['open']>[0]> = {},
+    name = 'exec-1',
+  ) =>
+    journal.open({
+      ...access,
+      execution: execution(name),
+      operation: operation(`open-${name}`),
+      instance: instance(),
+      grant: null,
+      initial: acceptedInput('input-1'),
+      checkpoint: checkpoint(),
+      ...overrides,
+    })
+  /** The attachment of an execution opened through `openWith`, as `finish` and `takeInputs` need it. */
+  async function attachmentOf(journal: Journal, name = 'exec-1'): Promise<Opened> {
+    const snapshot = await load(journal, execution(name))
+    const found = ok(
+      await journal.query({
+        ...access,
+        execution: execution(name),
+        operation: operation(`open-${name}`),
+      }),
+    )
+    if (found.kind !== 'committed' || snapshot.executionAttachment === null)
+      throw new Error('expected the open and its attachment')
+    return {
+      execution: execution(name),
+      receipt: found.receipt,
+      authority: snapshot.executionAttachment,
+    }
+  }
+
+  it('standalone: a non-null grant or input source is unsupported before any write', async () => {
+    const journal = memory()
+    expect(failure(await openWith(journal.port, { grant: evidence('grant') }))).toEqual({
+      kind: 'unsupported',
+    })
+    expect(
+      failure(
+        await openWith(journal.port, {
+          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    const opened = await open(journal.port)
+    const before = await load(journal.port, opened.execution)
+    expect(
+      failure(
+        await journal.port.submit({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit'),
+          value: { ...acceptedInput('input-2'), source: evidence('source') },
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    expect(
+      failure(
+        await journal.port.attach({
+          ...access,
+          execution: opened.execution,
+          operation: operation('attach'),
+          instance: instance('instance-2'),
+          grant: evidence('grant'),
+          recovery: evidence('recovery'),
+          takeover: evidence('takeover'),
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    expect(await load(journal.port, opened.execution)).toEqual(before)
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit'),
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+    expect(journal.port.capabilities.coordination).toBe('standalone')
+  })
+
+  it('coordinated: open and attach without a grant are denied; the coordinator checks grant and source in the same commit', async () => {
+    const journal = coordinated()
+    expect(journal.port.capabilities.coordination).toBe('coordinated')
+    const sourced = { ...acceptedInput('input-1'), source: evidence('source') }
+    expect(failure(await openWith(journal.port, { initial: sourced }))).toEqual({
+      kind: 'denied',
+      action: 'open',
+    })
+    expect(failure(await openWith(journal.port, { grant: evidence('grant') }))).toEqual({
+      kind: 'denied',
+      action: 'open',
+    })
+    const refusing = coordinated({ grant: () => false })
+    expect(
+      failure(await openWith(refusing.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    const unsourced = coordinated({ source: () => false })
+    expect(
+      failure(await openWith(unsourced.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    journal.respond('open', 'conflict')
+    expect(
+      failure(await openWith(journal.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    const opened = ok(await openWith(journal.port, { grant: evidence('grant'), initial: sourced }))
+    expect(opened.receipt.state).toBe('applied')
+    const attach = {
+      ...access,
+      execution: execution(),
+      operation: operation('attach'),
+      instance: instance('instance-2'),
+      grant: null as DurableEvidence | null,
+      recovery: evidence('recovery'),
+      takeover: evidence('takeover'),
+    }
+    expect(failure(await journal.port.attach(attach))).toEqual({ kind: 'denied', action: 'attach' })
+    ok(await journal.port.attach({ ...attach, grant: evidence('grant-2') }))
+  })
+
+  it('coordinated: submit checks the external source in the same commit; a null source is denied', async () => {
+    const journal = coordinated()
+    const opened = ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const submit = {
+      ...access,
+      execution: execution(),
+      operation: operation('submit'),
+      value: acceptedInput('input-2'),
+    }
+    expect(failure(await journal.port.submit(submit))).toEqual({ kind: 'denied', action: 'submit' })
+    const sourced = { ...submit, value: { ...submit.value, source: evidence('source-2') } }
+    journal.respond('submit', 'conflict')
+    expect(failure(await journal.port.submit(sourced))).toEqual({
+      kind: 'denied',
+      action: 'submit',
+    })
+    journal.respond('submit', 'fail')
+    expect(failure(await journal.port.submit(sourced)).kind).toBe('unavailable')
+    journal.respond('submit', 'unsupported')
+    expect(failure(await journal.port.submit(sourced))).toEqual({ kind: 'unsupported' })
+    expect((await load(journal.port, execution())).revision).toBe(opened.receipt.revision)
+    expect(ok(await journal.port.submit(sourced)).state).toBe('accepted')
+  })
+
+  it('coordinated: attach on an ended execution returns terminal before the coordinator is asked', async () => {
+    let asked = 0
+    const journal = coordinated({
+      grant: () => {
+        asked += 1
+        return true
+      },
+    })
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    ok(await finish(journal.port, await attachmentOf(journal.port)))
+    const before = asked
+    expect(
+      failure(
+        await journal.port.attach({
+          ...access,
+          execution: execution(),
+          operation: operation('attach-after-end'),
+          instance: instance('instance-2'),
+          grant: null,
+          recovery: evidence('recovery'),
+          takeover: evidence('takeover'),
+        }),
+      ),
+    ).toEqual({ kind: 'terminal' })
+    expect(asked).toBe(before)
+  })
+
+  it('coordinated: the participant of tryFinish answers participate, conflict as FinishResult.changed, fail, fail-unknown and unsupported', async () => {
+    const journal = coordinated()
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const opened = await attachmentOf(journal.port)
+    ok(await takeInputs(journal.port, opened))
+    const before = await load(journal.port, execution())
+    journal.respond('tryFinish', 'conflict')
+    expect(
+      ok(await journal.port.tryFinish(await finishInput(journal.port, opened, 'conflict'))),
+    ).toEqual({
+      kind: 'changed',
+      revision: before.revision,
+    })
+    journal.respond('tryFinish', 'fail')
+    expect(
+      failure(await journal.port.tryFinish(await finishInput(journal.port, opened, 'fail'))).kind,
+    ).toBe('unavailable')
+    journal.respond('tryFinish', 'unsupported')
+    expect(
+      failure(await journal.port.tryFinish(await finishInput(journal.port, opened, 'unsupported'))),
+    ).toEqual({ kind: 'unsupported' })
+    expect(await load(journal.port, execution())).toEqual(before)
+    journal.respond('tryFinish', 'fail-unknown')
+    const unknown = await finishInput(journal.port, opened, 'unknown')
+    expect(failure(await journal.port.tryFinish(unknown))).toEqual({
+      kind: 'commit-unknown',
+      operation: unknown.operation,
+    })
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: execution(),
+          operation: unknown.operation,
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+    expect(journal.settle(execution(), unknown.operation, 'applied')).toBe(true)
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: execution(),
+          operation: unknown.operation,
+        }),
+      ).kind,
+    ).toBe('committed')
+    expect((await load(journal.port, execution())).state.kind).toBe('ended')
+  })
+})
+
 describe('fact 10: the one terminal commit', () => {
   it('fact 10: tryFinish ends the execution, and the retry of the same operation recognizes the original end', async () => {
     const { port: journal } = memory()
@@ -1418,7 +1670,10 @@ describe('fact 12: post-terminal observation', () => {
       })
 
     const first = ok(await register('observe-1', 'seen'))
-    expect(ok(await register('observe-2', 'seen'))).toEqual(first)
+    expect(ok(await register('observe-2', 'seen'))).toMatchObject({
+      operation: operation('observe-2'),
+      revision: first.revision,
+    })
     expect(failure(await register('observe-3', 'other')).kind).toBe('conflict')
     const after = await load(journal, opened.execution)
     expect(after.terminalObservations[0]?.observed).toEqual(evidence('seen'))
@@ -1493,30 +1748,35 @@ describe('fact 13: reply admission projection', () => {
 })
 
 describe('fact 14: denied', () => {
-  it('fact 14: open denies a grant that no participant can check, and a missing grant when one is required', async () => {
-    const strict = memory({ requireGrant: true }).port
-    const loose = memory().port
+  it('fact 14: a coordinated open denies a missing grant and a grant the coordinator refuses, and writes nothing', async () => {
+    const strict = memory({
+      coordination: 'coordinated',
+      coordinator: { grant: () => false, source: () => true },
+    }).port
     const input = {
       ...access,
       execution: execution(),
       operation: operation('open'),
       instance: instance(),
-      initial: acceptedInput('input-1'),
+      initial: { ...acceptedInput('input-1'), source: evidence('source') },
       checkpoint: checkpoint(),
     }
     expect(failure(await strict.open({ ...input, grant: null }))).toEqual({
       kind: 'denied',
       action: 'open',
     })
-    expect(failure(await loose.open({ ...input, grant: evidence('grant') }))).toEqual({
+    expect(failure(await strict.open({ ...input, grant: evidence('grant') }))).toEqual({
       kind: 'denied',
       action: 'open',
     })
-    expect(failure(await loose.load({ ...access, execution: execution() })).kind).toBe('denied')
+    expect(failure(await strict.load({ ...access, execution: execution() })).kind).toBe('denied')
   })
 
   it('fact 14: attach denies a grant that fails its check and writes nothing', async () => {
-    const { port: journal } = memory({ grant: input => input.grant.record === 'good' })
+    const { port: journal } = memory({
+      coordination: 'coordinated',
+      coordinator: { grant: input => input.grant.record === 'good', source: () => true },
+    })
     const opened = ok(
       await journal.open({
         ...access,
@@ -1524,7 +1784,7 @@ describe('fact 14: denied', () => {
         operation: operation('open'),
         instance: instance(),
         grant: evidence('good'),
-        initial: acceptedInput('input-1'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
         checkpoint: checkpoint(),
       }),
     )
