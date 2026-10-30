@@ -1,9 +1,5 @@
 import assert from 'node:assert/strict'
-import {
-  decodeAgentExecutionId,
-  decodeInputId,
-  type AgentJournal,
-} from '@omne-harness/agent-contract'
+import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
 import {
   createMemoryInitializationSource,
   createPolicySessionAccessCheck,
