@@ -3,10 +3,12 @@ import { decodeToolResultVersion } from '@omne-harness/tool-contract/provider'
 import type { ContentBlock } from '@omne-harness/content-block'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { Failure, Reply } from './evaluation.ts'
+import type { AgentEvent } from './execution.ts'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeConsumptionId,
+  judgeAdoption,
   type Access,
   type DurableEvidence,
 } from './identity.ts'
@@ -92,6 +94,12 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
     return input
   }
   const stats = (input: ReceivedCommitInput<P, B>) => joint.inspect(input, input.execution)
+  /** The events of an execution the suite opened; an absent list is a defect of the fixture. */
+  const events = async (input: ReceivedCommitInput<P, B>): Promise<readonly AgentEvent[]> => {
+    const listed = await fixture.events(input, input.execution)
+    assert.ok(listed !== undefined, 'the fixture must list the events of an open execution')
+    return listed
+  }
   const assertVisible = async (input: ReceivedCommitInput<P, B>, value: ReceivedCommitValue) => {
     assert.deepEqual(
       await fixture.read(input, input.execution),
@@ -830,6 +838,175 @@ export function receivedCommitConformance<P, B extends ContentBlock>(
           { kind: 'excluded', evidence },
           'delivery recognition must not override operation exclusion',
         )
+      },
+    },
+    {
+      // Red when commit writes the entry without its `entry` event, allocates the event under
+      // another cause, another attachment or another schema, or gives it a sequence out of order.
+      name: 'received commit projects the entry as one entry event of the same commit',
+      async run() {
+        const input = await prepare('entry-event')
+        const latest = await fixture.supersede(input, input.execution)
+        // Two earlier events, so that the sequence and the schema of the commit's event have a
+        // predecessor to compare with, and the commit's event is the last one but not the second.
+        for (const name of ['entry-event-fence', 'entry-event-fence-2']) {
+          await ok(
+            fixture.entries.record({
+              ...input,
+              operation: operation(name),
+              authority: latest,
+              entry: sampleStartFence(name),
+            }),
+          )
+        }
+        const before = await events(input)
+        const previous = before.at(-1)
+        assert.ok(previous !== undefined, 'the start-fence must have added an event')
+        const value = await committed(joint.received.commit(input))
+        const after = await events(input)
+        assert.equal(after.length, before.length + 1, 'one commit must add exactly one event')
+        const event = after.at(-1)
+        assert.deepEqual(event?.body, { kind: 'entry', entry: value.entry })
+        assert.deepEqual(event?.cause, value.receipt.evidence, 'cause must be the commit evidence')
+        assert.equal(event?.execution, input.execution)
+        assert.equal(
+          event?.executionAttachment,
+          latest.executionAttachment,
+          'the event must carry the latest established attachment',
+        )
+        assert.equal(Number(event?.sequence), Number(previous.sequence) + 1)
+        assert.ok(
+          'ok' in judgeAdoption(event?.schema),
+          'the schema of the entry event must be a complete Adoption',
+        )
+        assert.deepEqual(
+          event?.schema,
+          previous.schema,
+          'every event of one execution must carry the same schema',
+        )
+      },
+    },
+    {
+      // Red when a replay of the operation or another operation of the same delivery allocates
+      // a second event.
+      name: 'received commit replays and operation aliases allocate no second event',
+      async run() {
+        const input = await prepare('replay-event')
+        const value = await committed(joint.received.commit(input))
+        const after = await events(input)
+        assert.deepEqual(
+          await committed(joint.received.commit(input)),
+          value,
+          'a replay must recall the original value',
+        )
+        assert.deepEqual(
+          await committed(joint.received.commit({ ...input, operation: operation('alias-event') })),
+          value,
+          'an operation alias must recall the original value',
+        )
+        assert.deepEqual(await events(input), after, 'a replay must allocate no event')
+      },
+    },
+    {
+      // Red when the entry written through one entry port gets a second event when the other
+      // port recognizes the same delivery.
+      name: 'received record then commit and commit then record allocate one event each',
+      async run() {
+        const legacy = await prepare('record-then-commit')
+        const source = await ok(
+          joint.materials.preserve({
+            ...legacy,
+            identity: 'record-then-commit',
+            consumer: legacy.entry.consumer,
+            value: legacy.material,
+          }),
+        )
+        const entry = { ...legacy.entry, material: source }
+        const before = await events(legacy)
+        const receipt = await ok(fixture.entries.record({ ...legacy, authority: null, entry }))
+        const recorded = await events(legacy)
+        assert.equal(recorded.length, before.length + 1, 'record must add one event')
+        assert.deepEqual(recorded.at(-1)?.cause, receipt.evidence)
+        joint.retainSaved(legacy, doubleEvidence(entry.consumer.owner, 'saved-after-record', '1'))
+        await committed(joint.received.commit({ ...legacy, operation: operation('after-record') }))
+        assert.deepEqual(
+          await events(legacy),
+          recorded,
+          'commit recognizing a recorded delivery must allocate no event',
+        )
+        const fresh = await prepare('commit-then-record')
+        const value = await committed(joint.received.commit(fresh))
+        const committedEvents = await events(fresh)
+        assert.deepEqual(
+          await ok(
+            fixture.entries.record({
+              ...fresh,
+              operation: operation('after-commit'),
+              authority: null,
+              entry: value.entry,
+            }),
+          ),
+          value.receipt,
+        )
+        assert.deepEqual(
+          await events(fresh),
+          committedEvents,
+          'record recognizing a committed delivery must allocate no event',
+        )
+      },
+    },
+    {
+      // Red when commit appends an entry event after the end; ended is the last event.
+      name: 'received commit after the end writes the entry without an event',
+      async run() {
+        const input = await prepare('ended-event')
+        await fixture.end(input, input.execution)
+        const before = await events(input)
+        const value = await committed(joint.received.commit(input))
+        assert.deepEqual(await fixture.read(input, input.execution), [value.entry])
+        assert.deepEqual(await events(input), before, 'no event may follow the end')
+      },
+    },
+    {
+      // Red when a commit whose reply is lost after publication holds the entry without its
+      // event, or when a failure before publication leaves either of them.
+      name: 'received lost reply keeps entry and event together and a failure before publication leaves neither',
+      async run() {
+        const lost = await prepare('lost-reply-event')
+        const before = await events(lost)
+        joint.fault(lost, 'after-publish')
+        await refused(joint.received.commit(lost), 'commit-unknown', 'lost reply')
+        const result = await ok(joint.received.query(lost))
+        assert.ok(result.kind === 'committed', 'query must recover the published commit')
+        assert.deepEqual(await fixture.read(lost, lost.execution), [result.value.entry])
+        const after = await events(lost)
+        assert.equal(after.length, before.length + 1, 'the published commit holds one event')
+        assert.deepEqual(after.at(-1)?.body, { kind: 'entry', entry: result.value.entry })
+        assert.deepEqual(after.at(-1)?.cause, result.value.receipt.evidence)
+        const failed = await prepare('failed-event')
+        const untouched = await events(failed)
+        joint.fault(failed, 'before-publish')
+        await refused(joint.received.commit(failed), 'unavailable', 'failure before publication')
+        assert.deepEqual(await fixture.read(failed, failed.execution), [])
+        assert.deepEqual(await events(failed), untouched, 'a failed commit allocates no event')
+      },
+    },
+    {
+      // Red when a denied or conflicting commit allocates an event.
+      name: 'received denied and conflicting commits allocate no event',
+      async run() {
+        const input = await prepare('refused-event')
+        const before = await events(input)
+        joint.qualify(input, input.execution, 'denied')
+        await refused(joint.received.commit(input), 'denied', 'denied qualification')
+        joint.qualify(input, input.execution, 'allowed')
+        await refused(
+          joint.received.commit({ ...input, material: joint.material('changed-event') }),
+          'conflict',
+          'changed material against the frozen binding',
+        )
+        assert.deepEqual(await fixture.read(input, input.execution), [])
+        assert.deepEqual(await events(input), before, 'a refused commit allocates no event')
       },
     },
   ]

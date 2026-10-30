@@ -37,7 +37,7 @@
 | agentExtensions | ExtensionImplementationsService | ExtensionImplementations | 外域适配器：装配领域。尚无提供者 |
 | agentAdoptions | AgentAdoptionsService | AgentAdoptions | 外域适配器：装配与资产领域。尚无提供者 |
 | agentConditions | CurrentConditionsService | CurrentConditions | 外域适配器：协作设置与装配，只投影当前推进要求与采用依据，不计算守卫。尚无提供者 |
-| agentRequests | RequestPreparationService | RequestPreparation | 外域适配器：Context。有限多步压缩计划的接缝缺口见[实施差异](../../agent-contract/verification/coverage.md#实施差异) |
+| agentRequests | RequestPreparationService | RequestPreparation | 外域适配器：Context。Request Context 已有有限多步压缩计划（[RQ-06](../../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。尚无提供者，适配器的字段对照见 [request-context-contract 的消费与系统定位](../../../context/request-context-contract/docs/context.md) |
 | agentMaterials | AgentMaterialsService | AgentMaterials | 外域适配器：材料保管提供者。包尚未建立 |
 | agentReads | RegisteredReadsService | RegisteredReads | 外域适配器：各具名读取协议的拥有者 |
 | agentClock | AgentClockService | AgentClock | 装配者选择的时钟提供者，提供 now 读取与 waitUntil 等待 |

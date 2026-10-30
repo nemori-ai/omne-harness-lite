@@ -25,6 +25,7 @@ import {
 import type {
   AdmissionDecision,
   Authority,
+  CardReply,
   RequestPreparation,
   RuntimeConditions,
 } from '@omne-harness/agent-contract'
@@ -344,6 +345,20 @@ describe('locally required ports', () => {
     expect(ok(await cards.port.read(input))).toEqual({ kind: 'pending' })
     expect(ok(await materials.port.preserve(input))).toEqual(testEvidence('kept'))
     expect(ok(await reads.port.lookup(input))).toEqual({ kind: 'unknown' })
+  })
+
+  // Red when the scripted card port cannot carry a `remark` reply unchanged. How the Agent reads
+  // a remark is not exercised here: no product code consumes `CardReply` yet (#502 stage 2).
+  it('the card double hands back a scripted remark unchanged', async () => {
+    const cards = createScriptedDecisionCards<string>()
+    const input = stub<never>({ ...access, card: testEvidence('card') })
+    const remark: CardReply = {
+      kind: 'remark',
+      text: '先备份再删',
+      evidence: testEvidence('remark'),
+    }
+    cards.read.once(() => succeed(remark))
+    expect(ok(await cards.port.read(input))).toEqual(remark)
   })
 })
 

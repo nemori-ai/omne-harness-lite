@@ -325,6 +325,9 @@ importers:
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       zod:
         specifier: 'catalog:'
         version: 4.6.5

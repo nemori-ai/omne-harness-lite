@@ -25,6 +25,7 @@ import { options } from './factory-support.ts'
 import {
   alice,
   loopAssembly,
+  losingEntryNotifications,
   eventually,
   invoke,
   eventsOf,
@@ -157,7 +158,13 @@ describe('received Model result adoption', () => {
     expect(saved.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
     expect(saved.entries).toHaveLength(1)
     expect(saved.results).toEqual([])
-    expect(await eventKinds(assembly)).toEqual(['input-taken', 'producer', 'message', 'ended'])
+    expect(await eventKinds(assembly)).toEqual([
+      'input-taken',
+      'entry',
+      'producer',
+      'message',
+      'ended',
+    ])
     const delivered = await pushed(assembly)
     expect(delivered.status).toBe('saved')
     expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
@@ -186,6 +193,7 @@ describe('received Model result adoption', () => {
     expect(await eventKinds(assembly)).toEqual([
       'input-taken',
       'waiting',
+      'entry',
       'producer',
       'message',
       'ended',
@@ -314,7 +322,7 @@ describe('received Model result adoption', () => {
     expect(failure(await coordinator(assembly).continueExecution(authority)).failure.kind).toBe(
       'stale-advance',
     )
-    expect(await eventKinds(assembly)).toEqual(['input-taken', 'waiting'])
+    expect(await eventKinds(assembly)).toEqual(['input-taken', 'waiting', 'entry'])
   })
 
   it('rechecks authority after reading a saved material and never publishes under a revoked owner', async () => {
@@ -347,7 +355,7 @@ describe('received Model result adoption', () => {
     authority = ok(await c.accept())
     expect(failure(await c.runExecution()).failure.kind).toBe('stale-advance')
     expect((await load(assembly)).entries).toHaveLength(1)
-    expect(await eventKinds(assembly)).toEqual(['input-taken'])
+    expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry'])
   })
 
   it.each(['schema', 'payload'] as const)(
@@ -379,7 +387,7 @@ describe('received Model result adoption', () => {
         node: 'M3',
         failure: { kind: 'invalid', field: 'received.material' },
       })
-      expect(await eventKinds(assembly)).toEqual(['input-taken'])
+      expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry'])
       expect(
         assembly.controls.handoff.accept.calls.filter(call => call.source.kind === 'model-reply'),
       ).toEqual([])
@@ -408,7 +416,7 @@ describe('received Model result adoption', () => {
       expect((await load(assembly)).entries).toHaveLength(1)
       expect((await load(assembly)).results).toEqual([])
       expect((await pushed(assembly)).delivery).toMatchObject({ parts })
-      expect(await eventKinds(assembly)).toEqual(['input-taken', 'producer', 'ended'])
+      expect(await eventKinds(assembly)).toEqual(['input-taken', 'entry', 'producer', 'ended'])
     },
   )
 
@@ -483,8 +491,9 @@ describe('received Model result adoption', () => {
   )
 })
 
-it('a live waiting driver rereads receiver-only revisions at its injected check time', async () => {
-  const assembly = await loopAssembly([execution()])
+it('a live waiting driver whose entry notification is lost rereads receiver-only revisions at its injected check time', async () => {
+  const lost = { pages: 0 }
+  const assembly = await loopAssembly([execution()], d => losingEntryNotifications(d, lost))
   const handle = ok(await invoke(assembly))
   await eventually(async () => assembly.controls.clock.pending().length > 0)
   const before = await load(assembly)
@@ -495,7 +504,10 @@ it('a live waiting driver rereads receiver-only revisions at its injected check 
   expect(received.revision).not.toEqual(before.revision)
   const due = assembly.controls.clock.pending()[0]
   if (!due) throw new Error('injected timer required')
-  ok(assembly.controls.clock.advanceTo(due))
+  // The notification was dropped and no reply exists yet: the check time is the only wake.
+  expect(lost.pages).toBeGreaterThan(0)
+  expect(await eventKinds(assembly)).not.toContain('message')
+  expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
   const events = await eventsOf(handle)
   expect(events.filter(event => event.body.kind === 'message')).toHaveLength(1)
   expect((await load(assembly)).state.kind).toBe('ended')
@@ -756,7 +768,11 @@ it('revocation after recovery proves not-accepted prevents its first real admiss
           attempts++
           return recovering
             ? d.models.calls.admit(input)
-            : fail({ kind: 'unavailable', dependency: 'admission', diagnostic: 'before admission' })
+            : fail({
+                kind: 'unavailable',
+                dependency: 'admission',
+                diagnostic: 'before admission',
+              })
         },
         async inspect(input) {
           const result = await d.models.calls.inspect(input)

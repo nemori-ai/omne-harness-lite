@@ -236,8 +236,10 @@ function normalizeOriginal(
           },
         },
       ]
+    // `message` is already saved by AD-01; `entry` tells of a condition the same Journal saved in
+    // the same commit. Neither has a Session consequence (session-contract EC-01).
     case 'message':
-    case 'stream':
+    case 'entry':
       return [{ kind: 'observed' }]
     case 'ended':
       return [

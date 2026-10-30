@@ -29,7 +29,6 @@ function adopt(
     definition: {
       category: 'AgentDefinition',
       name: 'test',
-      version: { kind: 'then-legal-winner' },
       references: [],
       attributes: [],
     },

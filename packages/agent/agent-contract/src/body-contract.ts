@@ -13,7 +13,7 @@ import { attributeItem, type AttributeItem } from './definition.ts'
 const CATEGORY = 'AgentDefinition'
 
 const schemaRead = readBodyText(
-  '{"kind":"agent-definition-body","properties":{"name":"string","version":"string?","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]"}}',
+  '{"kind":"agent-definition-body","properties":{"name":"string","references":"[{capability:{category,name},resident?}]","attributes":"[{item}]"}}',
   {
     maxBytes: 1000,
     maxDepth: 8,
@@ -30,7 +30,6 @@ const schema: JsonValue = schemaRead.value
 type BodyRefusal =
   | 'incomplete-reference'
   | 'name-mismatch'
-  | 'invalid-version'
   | 'duplicate-capability'
   | 'invalid-resident'
   | 'unknown-attribute'
@@ -95,19 +94,17 @@ function decode(body: unknown, context?: JudgeContext): Decoded {
   if (!references.ok) return references
   const items = decodeAttributes(valueAt(members, 'attributes'))
   if (!items.ok) return items
-  if (!onlyKeys(members, ['name', 'version', 'references', 'attributes']))
-    return reject('unknown-field')
+  // A body carries no version, so `version` is an unknown key like any other.
+  if (!onlyKeys(members, ['name', 'references', 'attributes'])) return reject('unknown-field')
   return { ok: true, references: references.ids, items: items.items }
 }
 
-/** The `name` and `version` rules. `undefined` means both pass. */
+/** The `name` rules. `undefined` means they pass. */
 function checkIdentity(members: readonly Member[], context?: JudgeContext): Refused | undefined {
   const name = textOf(valueAt(members, 'name'))
   if (name === undefined || name === '') return reject('incomplete-reference')
   if (context?.capabilityName !== undefined && name !== context.capabilityName)
     return reject('name-mismatch')
-  const version = valueAt(members, 'version')
-  if (version !== undefined && (textOf(version) ?? '') === '') return reject('invalid-version')
   return undefined
 }
 

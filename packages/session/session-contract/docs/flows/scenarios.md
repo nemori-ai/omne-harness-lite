@@ -573,7 +573,7 @@ sequenceDiagram
 
 细化 [F-SE09](../../../docs/key-flows.md#f-se09-三条流到日志)。依据：[EC-01](../../SPEC.md#ec-01)、[事件来源与日志准入](../../SPEC.md#事件来源与日志准入)的 Model 与 Tool 来源表、JC-06、JC-11、JC-12、[终态与控制](../../SPEC.md#终态与控制)的转后台段。系统层说明见[三条流不逐块进会话日志](../../../../../docs/architecture/runtime/streaming-and-consumption.md#三条流不逐块进会话日志)与[崩溃后的恢复](../../../../../docs/architecture/runtime/streaming-and-consumption.md#崩溃后的恢复)。
 
-模型回复流、工具内部事件流与 Agent 的 `stream` 事件都不逐块写入会话日志。会话日志只在收场、消费与记账三个时点写入。
+模型回复流、工具内部事件流与面向观察者的显示流都不逐块写入会话日志。Agent 不转发生产者的流，观察者按生产者的 StreamRef 观察。会话日志只在收场、消费与记账三个时点写入。
 
 ```mermaid
 sequenceDiagram
@@ -587,9 +587,7 @@ sequenceDiagram
     A->>M: 受理与发出
     loop 在途
         M->>M: 有界批量保管，游标只指向已保存内容
-        M-->>A: 已保管批次
-        A-->>S: stream 事件，不写条目，只推进游标
-        A-->>V: 在途快照与增量，见 F-SC11
+        M-->>V: 在途快照与增量，观察者按 StreamRef 取得，见 F-SC11
     end
     M-->>R: 真实收场：结果交付与账目快照
     R->>J: received、材料、消费绑定与 saved 同提交，写入同一会话日志
@@ -610,7 +608,7 @@ sequenceDiagram
 
 | 编号 | 规则 | 契约位置 |
 | --- | --- | --- |
-| F1 | Session 在流途中零写入。首次写入是收场后 Agent 的同一次提交 | EC-01 的 `stream` 行、JC-06、JC-11、JC-12 |
+| F1 | Session 在流途中零写入。首次写入是收场后 Agent 的同一次提交 | EC-01、JC-06、JC-11、JC-12 |
 | F2 | 「生成中」项以调用键为键。日志里的 SE10 经消费位置回到同一调用，时间线据此替换，不出现两份 | F-SC11 |
 | F3 | 中断：`control(stop-call)` 或 `interrupt` 先成立 SE24。Model 以中断收场，Agent 把已交付内容形成带中断标记的消息。收场写 SE19，控制阶段写 SE25 | [终态与控制](../../SPEC.md#终态与控制)、EC-01 |
 | F4 | 首内容到达之前失败并重试：同一调用的新一次发出。日志没有新条目，SE18 不变 | 事件来源表 |

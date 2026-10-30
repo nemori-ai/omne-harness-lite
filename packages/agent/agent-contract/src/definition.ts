@@ -20,14 +20,13 @@ export type AttributeDeclaration = {
   readonly item: AttributeItem
 }
 
-export type VersionChoice =
-  | { readonly kind: 'pinned'; readonly version: string }
-  | { readonly kind: 'then-legal-winner' }
-
+/**
+ * A definition carries no version. Every new execution adopts the legal winner of its identity at
+ * that moment (SPEC "声明判断"; definition topic "版本采用与实际变化").
+ */
 export type AgentDefinition = {
   readonly category: 'AgentDefinition'
   readonly name: string
-  readonly version: VersionChoice
   readonly references: readonly AssetReference[]
   readonly attributes: readonly AttributeDeclaration[]
 }

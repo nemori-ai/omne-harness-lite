@@ -81,19 +81,21 @@ describe('C2 one input, one reply, ended', () => {
     await eventsOf(handle)
   })
 
-  it('the caller reads input-taken, producer, message and ended, numbered 1 through 4', async () => {
+  it('the caller reads input-taken, entry, producer, message and ended, numbered 1 through 5', async () => {
     const assembly = await loopAssembly([execution()])
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     const events = await eventsOf(handle)
     expect(events.map(event => [event.sequence, event.body.kind])).toEqual([
       ['1', 'input-taken'],
-      ['2', 'producer'],
-      ['3', 'message'],
-      ['4', 'ended'],
+      ['2', 'entry'],
+      ['3', 'producer'],
+      ['4', 'message'],
+      ['5', 'ended'],
     ])
-    const [taken, producer, message, ended] = events.map(event => event.body)
+    const [taken, entry, producer, message, ended] = events.map(event => event.body)
     expect(taken).toMatchObject({ kind: 'input-taken', batch: { ordered: ['input-exec-1'] } })
+    expect(entry).toMatchObject({ kind: 'entry', entry: { kind: 'received' } })
     expect(producer).toMatchObject({ kind: 'producer', result: { version: 'mrver_1' } })
     expect(message).toMatchObject({ kind: 'message', message: { role: 'assistant' } })
     expect(ended).toMatchObject({ kind: 'ended', conclusion: { kind: 'complete' } })
@@ -138,6 +140,7 @@ describe('C2 one input, one reply, ended', () => {
     const second = await eventsOf(ok(await invoke(assembly, 'exec-2')))
     expect(second.map(event => event.body.kind)).toEqual([
       'input-taken',
+      'entry',
       'producer',
       'message',
       'ended',

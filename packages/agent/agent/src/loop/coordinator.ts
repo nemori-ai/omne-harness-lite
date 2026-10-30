@@ -138,7 +138,8 @@ export interface ExecutionCoordinator {
 type ReadyPreparation = Extract<Preparation, { kind: 'ready' }>
 type ModelPendingCall = Extract<PendingCall, { kind: 'model' }>
 type OpenState = Exclude<ExecutionState, { kind: 'ended' }>
-type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' }>
+/** The Journal allocates `ended` and `entry` itself; a node commits none of them. */
+export type CommitEvent = Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>
 
 /** What one node commits besides the move of `position`. */
 type Write = Readonly<{

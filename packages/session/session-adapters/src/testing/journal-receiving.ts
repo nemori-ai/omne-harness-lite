@@ -5,6 +5,7 @@ import type {
   AgentExecutionId,
   AgentInstanceId,
   AgentJournalEntries,
+  AgentJournalEntry,
   AgentMaterials,
   AgentReceivedCommits,
   CommandReceipt,
@@ -43,6 +44,15 @@ export type Stored = {
 }
 type Qualification = 'allowed' | 'denied' | 'unavailable'
 export type JournalReceivingControls<P> = ReturnType<typeof createJournalReceiving<P>>['controls']
+/**
+ * The scripted fault of the next `record` of one execution that reaches its write step; the same
+ * shape as the conformance suite's `RecordFault`. `commit-unknown` with outcome `applied`: the
+ * entry and its event are written, only the reply is lost. `unavailable`: the call fails before
+ * publication and leaves neither.
+ */
+export type RecordFault =
+  | Readonly<{ kind: 'commit-unknown'; outcome: 'applied' }>
+  | Readonly<{ kind: 'unavailable' }>
 type Hooks<P> = {
   authorize(input: Access<P>, action: string): Failure | undefined
   gate(): string | null
@@ -80,6 +90,12 @@ type Hooks<P> = {
     state: CommandReceipt['state'],
   ): CommandReceipt
   nextEvidence(execution: MemoryExecution, what: string, revision: number): DurableEvidence
+  /**
+   * Allocates the `entry` event of a written entry inside the same transaction (SPEC "日志条目"
+   * 6): the next sequence under the latest established attachment, `cause` the evidence of the
+   * receipt; nothing after the execution ended.
+   */
+  projectEntry(execution: MemoryExecution, entry: AgentJournalEntry, cause: DurableEvidence): void
 }
 const unavailable = (diagnostic: string): Failure => ({
   kind: 'unavailable',
@@ -184,6 +200,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     { reached(source: DurableEvidence): void; released: Promise<void> }
   >()
   const faults = new Map<string, 'before-publish' | 'after-publish'>()
+  const recordFaults = new Map<string, RecordFault>()
   const operationKey = (input: ExecutionMutation<P>) =>
     hooks.operationKey(input.tenant, input.execution, input.operation) ?? ''
   const targetKey = (access: Pick<Access<P>, 'tenant'>, reference: string) =>
@@ -361,6 +378,7 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               execution.revision = revision
               hooks.state().deliveries.set(deliveryText(input, entry), value)
               hooks.state().aliases.set(operationKey(input), value)
+              hooks.projectEntry(execution, entry, receipt.evidence)
             },
           }
         },
@@ -390,7 +408,10 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     async record(original) {
       const input = { ...original, entry: structuredClone(original.entry) }
       const text = semanticKey('record', { entry: input.entry, authority: input.authority })
-      return hooks.write('record', input, text, () => {
+      // The scripted fault this call consumed at its write step, if any; a refused call and a
+      // call that recalls an original receipt never reach that step.
+      let scripted: RecordFault | undefined
+      const outcome = await hooks.write('record', input, text, () => {
         const found = qualified(input, input.entry.kind === 'received')
         if ('failure' in found) return { kind: 'answer', value: found }
         const execution = found.ok
@@ -430,6 +451,13 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
             return { kind: 'answer', value: succeed(structuredClone(kept.receipt)) }
           }
         }
+        // The write step: the only place a scripted fault of this execution is consumed.
+        scripted = recordFaults.get(executionText(input))
+        if (scripted !== undefined) {
+          recordFaults.delete(executionText(input))
+          if (scripted.kind === 'unavailable')
+            return { kind: 'answer', value: fail(unavailable('record is scripted unavailable')) }
+        }
         const revision = execution.revision + 1
         const receipt = hooks.receiptOf(
           execution,
@@ -451,9 +479,15 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
               hooks.touch()
               hooks.state().aliases.set(operationKey(input), kept)
             }
+            hooks.projectEntry(execution, input.entry, receipt.evidence)
           },
         }
       })
+      // A lost reply: the write took effect, the caller gets commit-unknown and recalls it by
+      // the same operation.
+      return scripted?.kind === 'commit-unknown' && 'ok' in outcome
+        ? fail({ kind: 'commit-unknown', operation: input.operation })
+        : outcome
     },
   }
   const materialPort: AgentMaterials<P, ContentBlock> = {
@@ -539,6 +573,14 @@ export function createJournalReceiving<P>(hooks: Hooks<P>) {
     },
     fault(input: ExecutionMutation<P>, point: 'before-publish' | 'after-publish') {
       faults.set(operationKey(input), point)
+    },
+    /**
+     * Scripts the next `record` on `execution` that reaches its write step. A refused call and a
+     * call that recalls an original receipt do not consume it; the fault of a later arrangement
+     * replaces an unconsumed one.
+     */
+    failNextRecord(input: Access<P> & { execution: AgentExecutionId }, fault: RecordFault) {
+      recordFaults.set(executionText(input), fault)
     },
     async exclude(input: Input<P>, evidence: DurableEvidence) {
       return hooks.mutate(() => {

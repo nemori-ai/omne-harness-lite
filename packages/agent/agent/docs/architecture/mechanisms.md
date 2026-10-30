@@ -114,7 +114,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | A2 | 完整原 ToolInvokeRequest facts 材料，`calls` 的 Tool intent、fixed、position 及 `effects`。引用已证明后改为 associated | 材料 preserve，再 commit 原意图；关联保存另沿 commit | 条件提交，未知先查原 Journal operation | 无 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求)，节点仍待实现 |
 | A2 | `batch.slots`：accepted 保存 associated 后为 dispatched，rejected 且无历史受理或未决才为 denied，否则保留原 pending、完整请求、consumer、effect intent 与 open 屏障；两类未知先保留原责任并对账 | `commit` | 条件提交 | 无 | 节点表 A2 |
 | T0 | 中断类控制的阶段与可选 toolOperation，原 toolInvocation 已在接受时保存 | recordControl | 相同完整输入按原操作认回，新引用由新 R2 实际写入 | 无 | [Recording operation 与阶段事实](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)，不重复阶段事件 |
-| T0 | 事件 stream：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号) |
+| T0 | 没有事件。Agent 不投影 Tool 的过程流，观察者经 Tool 契约的 `current` 直接观察 | 无写入 | 无 | 无 | SPEC 的[流引用与自身事件](../../../agent-contract/SPEC.md#流引用与自身事件) |
 | T1 | 第一步：`results`（ResultResponsibility 的保管或完成依据） | `recordResult`，transfer 为 custody 或 processed，用自己派生的操作身份 | 按原操作幂等的记录 | 见[提交参加者](#提交参加者)的 custody 与 processed 行 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“Tool 材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | T1 | 事件 producer：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | 节点表 T1 |
@@ -221,6 +221,26 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 13. 主回复准入投影：同一 call 与 resultVersion 的重试认回原序号，不增加计数。同一原回复配不同结论返回 conflict。rejected 使连续数与累计数各加一，admitted 使连续数归零，累计数保留。投影带 through 与 rule。来源是公开接口页的[身份、原位置与纯求值](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)与本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影)。
 14. denied 分支：`open` 与 `attach` 的推进资格依据缺失或核对失败返回 denied。`recordResult` 的调用方不是当前合法保管方或处理方时返回 denied。`recordTerminalObservation` 的调用方没有观察与记录资格时返回 denied。denied 不写入任何状态。来源是 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)与[主体资格核验](../../../agent-contract/SPEC.md#主体资格核验)。
 15. terminal 分支：对已 ended 的 execution，`attach` 返回 terminal，`submit` 返回 terminal，`control` 只认回终态。来源是 SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)与逐操作表的 `input.submit`、`control` 行。
+16. 条目的事件投影：`AgentJournalEntries.record` 与 `AgentReceivedCommits.commit` 在写入条目的同一次提交里分配一个 `entry` 事件，挂接取最近建立的挂接，cause 取该次提交回执的 evidence。ended 之后只写条目，不追加事件。同一操作的重放与同一交付的重复推送认回原回执，不重复分配事件。`AgentJournal.commit` 的 `events` 不含 `entry` 与 `ended`；内存实现对带其中任一种事件体的 commit 返回 invalid，field 为 `events`，reason 写明哪一种由 Journal 分配。事件的 `schema` 由内存 Journal 在创建时按配置 `eventSchema` 或默认值固定一份，所有 execution 的所有事件共用，见 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)。来源是 SPEC 的[日志条目](../../../agent-contract/SPEC.md#日志条目)第 6 条与[逐操作表](../../../agent-contract/SPEC.md#逐操作及输入分类)的 commit 行。
+
+条目与 `entry` 事件在同一次提交里成立的时序：
+
+```mermaid
+sequenceDiagram
+    participant W as 写入方（推进者或结果接收方）
+    participant E as 条目入口（record 或 commit）
+    participant J as Journal 权威排序
+    W->>E: 条目（commit 还带材料）
+    E->>J: 一次条件提交：条目、材料、revision、entry 事件
+    alt 提交成立
+        J-->>E: 回执（evidence）
+        E-->>W: 回执；事件 cause 等于该 evidence
+    else 提交被拒或中途失败
+        J-->>E: 拒绝或失败
+        E-->>W: 失败；没有条目，也没有事件
+    end
+    Note over J: execution 已 ended 时只写条目，不分配事件
+```
 
 下列事实不要求同形。
 
@@ -234,7 +254,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 
 本节发现的出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)，由各自的拥有者裁定。实施时不自行补定。
 
-- M04-1：Tool 的 T0、T1 事件承载仍待裁定。Model M1 不投影 stream，M3 以条件提交发布 producer。
+- M04-1：Tool 的 T1 事件承载仍待裁定；T0 没有事件，Agent 的事件流不含生产者的过程流。Model M1 不投影过程流，M3 以条件提交发布 producer。
 - M04-2 与 M04-6 已按 [#558 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)闭合：ready 的 requestPreparation 保存最终请求，检查与退避时刻只在进程内计算。
 - M04-3：外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加没有声明形状。
 - M04-4：按原操作幂等的记录方法是否推进 revision 没有写明。
@@ -289,7 +309,7 @@ Context 的 derive 返回实际候选消息和具名 commitment（C2）。压缩
 | --- | --- | --- | --- | --- |
 | Model 首内容前的可重试失败 | 原调用、各次真实发出与可能的费用。在首内容为 none-proven、原策略与当前资格都允许时准备下一次发出，仍属原调用 | 在 M1 继续等待同一调用。M2 的 retry 结论交 Model 的重试策略 | 因一次发出失败另建调用。抹去旧发出的可能费用 | Model 的[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容)与[重试与策略](../../../../model/model-contract/SPEC.md#重试与策略) |
 | Model 已有内容，或首内容无法排除 | 原部分内容与失败事实，以 runtime-lost 或真实失败收场 | 宿主共同保存原部分内容、失败事实与费用后，M3 从 received 材料采用。M4 经过 failure 维度。主请求回 I3，以中断或部分结果处理，不解析未完整到达的工具建议 | 透明重发同一逻辑回复。拼接另一份生成内容冒充原流。执行未完成的工具建议 | Model 的[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容)与[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) |
-| Model 或 Tool 的观察连接中断 | 生产者继续保管原流。已发布的内容先经保存确认 | 观察者按原流身份重新取得当前快照与后续游标。Agent 的 stream 事件按原序号与游标去重 | 用观察失败推断执行失败。把累计快照再次当作增量追加。重新生成内容或重新运行工具 | Model 的[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)，Tool 的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) |
+| Model 或 Tool 的观察连接中断 | 生产者继续保管原流。已发布的内容先经保存确认 | 观察者按原流身份重新取得当前快照与后续游标。Agent 的事件流不含生产者内容，没有要按流游标去重的事件 | 用观察失败推断执行失败。把累计快照再次当作增量追加。重新生成内容或重新运行工具 | Model 的[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)，Tool 的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) |
 | Tool 已产生进度或业务效果后失败 | 真实收场与已知或未知的效果 | 在 T1 保管该结果，含 failed 终局与 unknown 效果。T2 经过单结果范围，T5 交消息准入 | 以未得到完整结果或未调用 emit 为由自动重跑 | Tool 的[结果与失败范围](../../../../tool/tool-contract/SPEC.md#结果与失败范围)与[接续原调用与确认自身失联](../../../../tool/tool-contract/SPEC.md#接续原调用与确认自身失联) |
 | 消费者已尝试外部动作，完成回执未知 | 消费者及其外部适配器保存动作身份、原事件范围、接收方与固定输入 | Agent 不消费这类动作。Agent 只保证事件的四个层次与业务接受层的区分 | 换身份重送。把本地没有完成记录解释为外部未发生 | 消费者（外部协调者或独立调用方）。Agent 侧见 SPEC 的[事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次) |
 
@@ -380,7 +400,7 @@ RegisteredReads 的 captured 结果在返回前已耐久保存。返回丢失时
 
 第 3 行与第 5 行需要调用原精确采用。原实现或必要材料不可用时，暂停原扩展调用并报告具体依赖；继续允许合格保管者保存原结果，不默认跳过、重问或作废卡片。适配器声明其方言能否携带回放绑定。不能携带的实现，其 `ask` 按不合法输出处理，不出卡；它的调用结果未知时，`replay` 返回 `replayInconsistent`，按报错处置形成最终 Conclusion，该扩展调用不再运行。这是单一回放模式的代价，恢复表第 5 行对这类实现只走这一条路径。
 
-普通恢复要求原精确采用。显式换代可以更换 runtime 和外层 continuation 编码，handover 取得完整固定版本 ExecutionSnapshot 与原 continuation，验证编码一致、原引用可解析以及目标能解释原活动 Passage 的 `implementation`；任何原调用、卡片、已得判断或输入语义改变都拒绝交接。成功证明绑定源执行版本、源和目标编码摘要及目标采用。attach 在同一条件提交核源版本并保存新接续；期间事实改变则重读重验。这里不提供自动迁移、等价语义猜测或新版重判协议。新版本只用于后续尚未开始的扩展调用，并须符合位置、链顺序与当前合法装配。
+普通恢复要求原精确采用。显式换代可以更换 runtime 和外层 continuation 编码，handover 取得完整的 ExecutionSnapshot 与原 continuation，验证编码一致、原引用可解析为各自的原精确采用以及目标能解释原活动 Passage 的 `implementation`；任何原调用、卡片、已得判断或输入语义改变都拒绝交接。成功证明绑定原 execution 与修订号、源和目标编码摘要及目标采用。attach 在同一条件提交核源修订并保存新接续；期间事实改变则重读重验。这里不提供自动迁移、等价语义猜测或按新采用重判的协议。新的精确采用只用于后续尚未开始的扩展调用，并须符合位置、链顺序与当前合法装配。
 
 缺实现的活动扩展调用不能套用“未开始的可选扩展缺席可跳过”。停止新采用与保留旧材料是不同动作；保留旧版本也不授予当前执行资格。Agent 消费装配方给出的合法可用性，不决定插件保留政策。外部协调者一侧的换代与推进资格协调归该协调者自己的文档。
 
@@ -411,7 +431,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 单调用中断与真实收场 | 中断作用于具名调用。Model 或 Tool 可能在中断到达之前已真实收场。以生产者报告的真实收场为准：先收场则物理停止阶段记为 reached 并带收场依据，中断不改变结果 | 受理、意图成立、生产者确认、物理停止、责任释放各自记录。生产者确认未知时记 unresolved | 把中断请求当作已停止。执行被中断回复中尚未发出的工具建议。把中断记为上游故障 | M1、T0。中断后 I3 以中断或部分结果转 I8 | SC-AG-186 |
 | 取消与普通完成竞争 | tryFinish 与 control 处于同一权威排序。取消意图先成立时，普通完成返回 changed，Agent 以取消授权终结。终态先成立时，control 返回 terminal，只认回终态 | 取消的六个阶段。终态与 ended 事件共同提交 | 落终态之前位置否决已生效的取消。借取消凭据提交 complete。取消复活 ended | E1 转 F0，再 F1、F2、F3。完成先成立时 control 不进入任何节点 | SC-AG-187、SC-AG-196 |
 | 对 suspended 的执行取消 | 没有有效挂接。受理与意图成立照常记录，推进资格撤销已经成立。收束由下一次 attach 的新挂接执行：E1 读到有效取消转 F0 | 受理与意图成立在 suspended 期间记录。其余阶段在恢复后记录 | 设立没有挂接的终结主体。在 suspended 期间写 ended | E0、E1、F0 | SC-AG-26 |
-| 换代与取消竞争 | 取消先成立：新候选 attach 后 E1 读到取消转 F0，不恢复推进。候选先成立：取消经 control 进入新挂接。attach 条件核对原 revision，版本变化返回 changed，旧证明不接管新状态 | 取消的阶段。attach 的恢复依据或 takeover 依据 | 兼容证明授予推进权。较早的候选覆盖较新的选择 | E0（attach）、E1 | SC-AG-188 |
+| 换代与取消竞争 | 取消先成立：新候选 attach 后 E1 读到取消转 F0，不恢复推进。候选先成立：取消经 control 进入新挂接。attach 条件核对原 revision，修订变化返回 changed，旧证明不接管新状态 | 取消的阶段。attach 的恢复依据或 takeover 依据 | 兼容证明授予推进权。较早的候选覆盖较新的选择 | E0（attach）、E1 | SC-AG-188 |
 | 旧挂接晚到写入（stale-advance） | 旧挂接的 commit、tryFinish、detach 等带 advance 的操作返回 stale-advance，这是它得知被取代的唯一途径。它的晚到回执只归原操作，不改变新挂接下的位置。原生产者仍可保存真实的迟到结果 | 不写阶段。旧 runtime 交出本地资源后从 occupied 回 idle。正在停用时留在 draining，该执行不计入剩余的交接 | 旧挂接发新效果。因旧资格无效丢弃真实费用与结果。把取代通知当作前提 | E1（挂接被取代）转 E9 | SC-AG-181、SC-AG-189、SC-AG-196 |
 | 终态竞争：tryFinish 返回 changed 或 blocked，或落终态之前位置否决 | changed 表示输入先受理、控制先成立或候选依据变化。经 R0 回 E4 重读后重新求值，回 I8 或 F1。blocked 带具名的未交清责任：inputs、controls、operations、passages 或 custody。Agent 先交清对应责任（承接输入、记录控制阶段、查原操作、作废尚无答复的卡片、保管结果），再重新提出候选。落终态之前位置否决时回 I8，只有否决之后出现的新依据才算继续依据，没有新依据时 I8 转 W0，不重提被否决的候选，也不当作完成 | 不写阶段 | 把依赖故障或查询未知伪装成 blocked。换操作身份重试。重跑终态前的效果。否决后原样重提同一候选 | F3 转 R0，经 E4 回 I8 或 F1。F2 否决转 I8 | SC-AG-190 |
 | 停用时在途交接未知 | detach 回执未知时，quiesce 返回 unresolved 并列出剩余的 execution，不宣称 drained。同一操作的重试继续交接并返回当前的剩余。被接管的执行不计入剩余 | 停用的阶段由 draining、各执行的 detach 依据与 quiesce 的返回承载 | 宣称 drained。撤登记早于交接完成。停用取消 Model 与 Tool 的独立执行 | E0 拒绝新的 invoke 与 resume。E1 转 E9 | SC-AG-191 |

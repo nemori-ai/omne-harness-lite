@@ -80,7 +80,8 @@ export type JournalCommit<P> = ExecutionMutation<P> &
     expected: ExecutionRevision
     checkpoint: AgentCheckpoint
     state: Exclude<ExecutionState, { kind: 'ended' }>
-    events: readonly Exclude<AgentEventBody, { kind: 'ended' }>[]
+    /** The `entry` and `ended` kinds are allocated only by the Journal itself (SPEC "日志条目" 6). */
+    events: readonly Exclude<AgentEventBody, { kind: 'ended' | 'entry' }>[]
     effects: readonly EffectIntent[]
     caller: CallerCommit
     replyAdmission: ModelReplyAdmission | null

@@ -42,6 +42,7 @@
     "@omne-harness/schema-provider": "workspace:*",
     "@omne-harness/stream-arrival": "workspace:*",
     "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
     "zod": "catalog:"
   },
   "devDependencies": {

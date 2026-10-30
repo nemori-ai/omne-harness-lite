@@ -1,7 +1,6 @@
 import { describe, expectTypeOf, it } from 'vitest'
 import type { CallAccount } from '@omne-harness/call-account'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type { Outcome } from '@omne-harness/operation-result'
 import type * as M from '@omne-harness/model-contract'
@@ -45,6 +44,7 @@ import type {
   AgentInstant,
   AgentJournal,
   AgentJournalAttachment,
+  AgentJournalEntry,
   AgentJournalFinishing,
   AgentJournalObservation,
   AgentJournalReading,
@@ -61,6 +61,7 @@ import type {
   CallerCommit,
   CapturedRead,
   CardAnswer,
+  CardRemark,
   CardReply,
   CardRequest,
   CardRound,
@@ -89,6 +90,8 @@ import type {
   ExecutionSnapshot,
   ExecutionState,
   ExtensionImplementations,
+  ExtensionOutput,
+  ExtensionReplayBinding,
   Failure,
   FailureCandidate,
   FinalRequest,
@@ -105,10 +108,13 @@ import type {
   JournalCapabilities,
   JournalCommit,
   LoopExtensionImplementation,
+  LoopExtensionDeclaration,
   LoopFacts,
   Material,
   MessageHandoff,
   MessageSource,
+  NamedCapturedRead,
+  NeedDeclaration,
   ModelContextRead,
   ModelContextReader,
   ModelPurpose,
@@ -142,9 +148,14 @@ import type {
   StepId,
   StructureFailure,
   Subject,
+  UtcInstantText,
   TerminalObservation,
   Waiting,
 } from '@omne-harness/agent-contract'
+// J09: the definition has no version, so the entry no longer names a version choice. The import
+// is the assertion; the name is not used.
+// @ts-expect-error `VersionChoice` left the entry with `AgentDefinition.version`.
+import type { VersionChoice as _VersionChoice } from '@omne-harness/agent-contract'
 
 type Landed = {
   Access: Access<string>
@@ -172,6 +183,7 @@ type Landed = {
   Authority: Authority
   CapturedRead: CapturedRead
   CardAnswer: CardAnswer
+  CardRemark: CardRemark
   CardReply: CardReply
   CardRequest: CardRequest
   CardRound: CardRound
@@ -210,6 +222,7 @@ type Landed = {
   ModelRecipient: ModelRecipient
   ModelReplyAdmission: ModelReplyAdmission
   ModelSelection: ModelSelection<string>
+  NamedCapturedRead: NamedCapturedRead
   Next: Next
   Passage: Passage
   PassageCard: PassageCard
@@ -313,6 +326,25 @@ describe('the identity brands', () => {
     expectTypeOf<InputId>().toEqualTypeOf<AgentIdentity<'AgentInputId'>>()
     expectTypeOf<ConsumptionId>().toEqualTypeOf<AgentIdentity<'AgentConsumptionId'>>()
     expectTypeOf<AgentInstant>().toEqualTypeOf<string>()
+  })
+
+  it('declare each need with a name, the exact adoption of its contract and whether it is required', () => {
+    expectTypeOf<NeedDeclaration>().toEqualTypeOf<
+      Readonly<{ name: string; schema: Adoption; required: boolean }>
+    >()
+    expectTypeOf<LoopExtensionDeclaration['needs']>().toEqualTypeOf<
+      readonly [NeedDeclaration, ...NeedDeclaration[]] | undefined
+    >()
+  })
+
+  it('brand the UTC instant text that only judgeExtensionOutput mints', () => {
+    expectTypeOf<UtcInstantText>().toExtend<string>()
+    expectTypeOf<string>().not.toExtend<UtcInstantText>()
+    expectTypeOf<AgentInstant>().not.toExtend<UtcInstantText>()
+    expectTypeOf<UtcInstantText>().not.toExtend<ActionId>()
+    expectTypeOf<
+      Extract<ExtensionOutput, { kind: 'retry' }>['plan']['notBefore']
+    >().toEqualTypeOf<UtcInstantText | null>()
   })
 
   it('shape the failures of a decode and of a structure judgment', () => {
@@ -643,7 +675,10 @@ describe('the subject of each position', () => {
   })
 
   it('accepts a start subject and refuses a loose record', () => {
-    expectTypeOf<{ execution: AgentExecutionId; conditions: DurableEvidence }>().toExtend<Subject>()
+    expectTypeOf<{
+      execution: AgentExecutionId
+      conditions: DurableEvidence
+    }>().toExtend<Subject>()
     expectTypeOf<Record<string, unknown>>().not.toExtend<Subject>()
     expectTypeOf<{ purpose: 'other'; preparation: unknown }>().not.toExtend<Subject>()
   })
@@ -662,8 +697,9 @@ describe('the discriminants of the passage ledger', () => {
       'requested' | 'resolved' | 'applied'
     >()
     expectTypeOf<KindOf<CardAnswer>>().toEqualTypeOf<'chosen' | 'declined'>()
+    expectTypeOf<KindOf<CardRemark>>().toEqualTypeOf<'remark'>()
     expectTypeOf<KindOf<CardReply>>().toEqualTypeOf<
-      'chosen' | 'declined' | 'pending' | 'invalidated'
+      'chosen' | 'declined' | 'remark' | 'pending' | 'invalidated'
     >()
     expectTypeOf<Passage['purpose']>().toEqualTypeOf<'main' | 'compaction' | null>()
   })
@@ -682,6 +718,38 @@ describe('the discriminants of the passage ledger', () => {
     >()
     expectTypeOf<KindOf<HandoffResult>>().toEqualTypeOf<'accepted' | 'rejected'>()
     expectTypeOf<KindOf<Material<ContentBlock>>>().toEqualTypeOf<'model' | 'tool' | 'facts'>()
+  })
+
+  it('carry a remark to the original extension and to action admission, never a pending or invalidated reply', () => {
+    type AdmissionAnswer = NonNullable<
+      Parameters<ActionAdmission<string>['admit']>[0]['decision']
+    >['answer']
+    expectTypeOf<CardRemark>().toEqualTypeOf<
+      Readonly<{ kind: 'remark'; text: string; evidence: DurableEvidence }>
+    >()
+    expectTypeOf<
+      NonNullable<ExtensionReplayBinding['rounds'][number]['cards'][number]['response']>['answer']
+    >().toEqualTypeOf<CardAnswer | CardRemark>()
+    expectTypeOf<AdmissionAnswer>().toEqualTypeOf<CardAnswer | CardRemark>()
+    expectTypeOf<CardRemark>().toExtend<AdmissionAnswer>()
+    expectTypeOf<Readonly<{ kind: 'pending' }>>().not.toExtend<AdmissionAnswer>()
+    expectTypeOf<
+      Readonly<{ kind: 'invalidated'; evidence: DurableEvidence }>
+    >().not.toExtend<AdmissionAnswer>()
+  })
+
+  it('hand action admission the reads by need name, an empty list meaning no read', () => {
+    expectTypeOf<NamedCapturedRead>().toEqualTypeOf<CapturedRead & Readonly<{ need: string }>>()
+    expectTypeOf<Parameters<ActionAdmission<string>['admit']>[0]['permissions']>().toEqualTypeOf<
+      readonly NamedCapturedRead[]
+    >()
+    expectTypeOf<readonly []>().toExtend<
+      Parameters<ActionAdmission<string>['admit']>[0]['permissions']
+    >()
+    expectTypeOf<null>().not.toExtend<
+      Parameters<ActionAdmission<string>['admit']>[0]['permissions']
+    >()
+    expectTypeOf<CapturedRead>().not.toExtend<NamedCapturedRead>()
   })
 
   it('give the ports their reply types', () => {
@@ -756,16 +824,18 @@ describe('the discriminants of the coordination chapter', () => {
     expectTypeOf<ControlRecord['stages']['accepted']>().toEqualTypeOf<ControlStageFact>()
   })
 
-  it('AgentEventBody has seven kinds; the ended one is the only one a commit excludes', () => {
+  it('AgentEventBody has seven kinds; a commit carries neither the ended nor the entry kind', () => {
     expectTypeOf<KindOf<AgentEventBody>>().toEqualTypeOf<
-      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control' | 'ended'
+      'input-taken' | 'message' | 'producer' | 'entry' | 'waiting' | 'control' | 'ended'
     >()
-    expectTypeOf<Extract<AgentEventBody, { kind: 'stream' }>['value']>().toEqualTypeOf<JsonValue>()
+    expectTypeOf<
+      Extract<AgentEventBody, { kind: 'entry' }>['entry']
+    >().toEqualTypeOf<AgentJournalEntry>()
     expectTypeOf<
       Extract<AgentEventBody, { kind: 'control' }>['stage']
     >().toEqualTypeOf<ControlStage>()
     expectTypeOf<KindOf<JournalCommit<string>['events'][number]>>().toEqualTypeOf<
-      'input-taken' | 'message' | 'producer' | 'stream' | 'waiting' | 'control'
+      'input-taken' | 'message' | 'producer' | 'waiting' | 'control'
     >()
     expectTypeOf<KindOf<JournalCommit<string>['state']>>().toEqualTypeOf<
       'reconciling' | 'advancing' | 'waiting' | 'settling' | 'suspended'

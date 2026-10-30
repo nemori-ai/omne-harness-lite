@@ -156,7 +156,7 @@ flowchart TB
         X3 -->|结果未知：replay 重调| X2
         X3 -->|controlUnavailable 或 replay 下 notStartedUnavailable| W0
         X4 -->|等待答复| W0
-        X4 -->|答复齐备：replay 原精确采用| X2
+        X4 -->|答复齐备（含附言）：replay 原精确采用| X2
         X4 -->|present 确定失败：Agent 代写的结论| X5
         X5 -. inject 经 Q .-> Q1
         X5 -. stopped，terminal 为 cancelled：记录取消控制 .-> F0
@@ -187,7 +187,7 @@ flowchart TB
 
 ## 节点表
 
-每个节点一行。“写什么”列含该节点写出的事件，事件种类只取 SPEC [事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)与公开接口页 `AgentEventBody` 的七种：input-taken、message、producer、stream、waiting、control、ended。执行记录操作只取公开接口页[执行记录端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)的五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。终态提交只用 `tryFinish`。最终请求的记录是 M0 的一次执行记录提交。
+每个节点一行。“写什么”列含该节点写出的事件，事件种类只取 SPEC [事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)与公开接口页 `AgentEventBody` 的七种：input-taken、message、producer、entry、waiting、control、ended。执行记录操作只取公开接口页[执行记录端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)的五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。终态提交只用 `tryFinish`。最终请求的记录是 M0 的一次执行记录提交。
 
 | 节点 | 读什么 | 写什么 | 何时提交 | 何时等待 | 如何返回 | 并发与次序 | 终止或进展条件 |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -210,11 +210,11 @@ flowchart TB
 | C2 | `derive` 返回的 PreparedContextTransition | 不写 | 不提交 | 不等待 | 转 C3 | 串行 | 转换消息与 commitment 绑定 |
 | C3 | 转换消息、Context 的 commitment | Q2 以 context-transition 共同提交消息、范围转换与接续。事件 message | 共同提交成功才算压缩完成 | 不等待 | 成功转 C4。消息被拒收转 F1，失败候选为 cannot-fit（after-compaction），`rejection` 为拒收依据。转换非法转 F1，失败候选为 compaction-invalid | 与 Journal.commit 同一排序 | 提交未知先查原操作，不用未提交的派生冒充已压缩 |
 | C4 | 已提交的转换 | 该位置的 Passage。`compaction.ended` 记 committed | 随 X 协议提交 | X4 等待 | 转 I1：先经 `CurrentConditions.read` 读当前条件，再重新选择，再带转换依据读取，再 `resume` | 一次计划只经过一次 | 只面对已提交事实，不改写摘要与范围 |
-| A0 | 每个动作的生效参数、定义采用、私有权限输入 | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
+| A0 | 每个动作的生效参数、定义采用、按需要名的一组读取（`permissions`，空列表表示没有读取） | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `ActionBarrier` 的 judging 与 asked 列表、每轮卡片状态 | checkpoint 的 `batch.barrier`。open 时另写 `batchDecision` 依据 | 屏障状态变化时提交 | 有链在判断或在等人时转 W0 | all-denied 转 A3。open 转 A2 | 本轮卡片在每条链到达最终 Conclusion 或合法等待后一次呈现 | 打开与全拒的条件只由 SPEC 同节第 4、9 条拥有，本页不另写 |
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
 | A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
-| T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 事件 stream。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
+| T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 不写事件，不投影 Tool 过程流；观察者按稳定调用引用经 Tool 契约的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约)取得 `StreamRef`。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
 | T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
 | T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
 | T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
@@ -236,7 +236,7 @@ flowchart TB
 | X1 | Passage 的 `progress` 与各轮卡片状态 | 首次调用前，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交该扩展调用的初始迁移 | 提交确认前不调用 | 已询问且未答复时转 X4 | 已有最终 Conclusion 转 X5。无结论提交 requested 后转 X2。已询问且答复齐备以 replay 转 X2 | 恢复次序按作者协议的[结构换代与未完成判断](../../../agent-contract/docs/public-api/extensions.md#结构换代与未完成判断) | 已有最终 Conclusion 的扩展调用永不再调用 |
 | X2 | 回放绑定的 `control`、注入能力 | `operations` 的 producer、read 与 guard 操作，迁移按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)写入：操作先提交再发出，结果先提交再交回 | 每项操作发出前提交 | 能力等待原操作 | 返回转 X3 | 第一次锁存之后能力不再发出新操作 | 能力按经过身份加序号认回原操作，不重复计费 |
 | X3 | 调用结果 | Conclusion，以及按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)对应的迁移。`ask` 的迁移含新一轮 CardRound | 结果校验后提交 | controlUnavailable 或 replay 下 notStartedUnavailable 保持原状态转 W0 | 最终 Conclusion 转 X5。ask 转 X4。结果未知以 replay 转 X2 | 串行 | 处置表见作者协议的[调用协议](../../../agent-contract/docs/public-api/extensions.md#调用协议) |
-| X4 | CardRound 的状态、`DecisionCards.present`、`lookup`、`read` | 按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)迁移写入。事件 waiting | 呈现条件满足时呈现。受整批屏障约束时等 A1 的呈现条件 | 等待答复转 W0 | 答复齐备以 replay 转 X2。present 确定失败以 Agent 代写的结论转 X5，输出按 SPEC 整批判断屏障第 11 条或循环守卫第 5 条确定 | 同一轮只呈现一次 | present 确定失败的处置归 SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 11 条。调模型之后位置上循环判断的卡片见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫)第 5 条 |
+| X4 | CardRound 的状态、`DecisionCards.present`、`lookup`、`read` | 按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)迁移写入。事件 waiting | 呈现条件满足时呈现。受整批屏障约束时等 A1 的呈现条件 | 等待答复转 W0 | 答复齐备以 replay 转 X2，附言也是答复，官方准入的卡片收到附言时 replay 官方准入并经 `admit` 得到 deny。present 确定失败以 Agent 代写的结论转 X5，输出按 SPEC 整批判断屏障第 11 条或循环守卫第 5 条确定 | 同一轮只呈现一次 | present 确定失败的处置归 SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 11 条。调模型之后位置上循环判断的卡片见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫)第 5 条 |
 | X5 | 链上全部 Conclusion | 效果采纳后，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交采纳迁移。合法 inject 经 Q 进入历史一次 | 效果采纳时提交 | 不等待 | 返回原扩展节点。stopped 按读图约定三 | 聚合是纯归约 | 效果为 proceed、vetoed、stopped、asked、retry 之一 |
 | F0 | 取消命令、当前资格 | ControlRecord 的阶段事实经 recordControl。事件 control。请求中断前台调用 | 阶段成立时记录 | 不等待生产者物理停止 | 转 F1 | 与 tryFinish 同一排序 | 阶段见[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | F1 | 完成、失败或取消的依据 | 执行状态 settling 与 FinishIntent 候选，失败候选的 `failure` 记录 | 候选固定后提交 | 不等待 | 转 F2 | 串行 | 失败候选形状见公开接口页的 `FailureCandidate` |

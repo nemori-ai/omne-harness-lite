@@ -14,6 +14,7 @@ import {
 import type { AgentMaterials } from './passages.ts'
 import type {
   AgentJournalEntries,
+  AgentJournalEntry,
   JournalEntryRecord,
   ReceivedCommitInput,
   ReceivedCommitQuery,
@@ -23,7 +24,7 @@ import type {
 } from './receiving.ts'
 import type { AgentJournalEntriesFixture } from './testing-journal-entries.ts'
 import type { ReceivedCommitFixture } from './testing-received-fixture.ts'
-import { canonicalText, doubleEvidence, tenantText } from './testing-case.ts'
+import { canonicalText, doubleEvidence, projectEntryEvent, tenantText } from './testing-case.ts'
 import {
   conflict,
   deliveryKey,
@@ -44,6 +45,12 @@ import {
 } from './testing-received-state.ts'
 
 type Pause = { reached(source: DurableEvidence): void; released: Promise<void> }
+
+/** Writes the entry and, in the same step, its `entry` event (SPEC "日志条目" 6). */
+function writeEntry(state: MemoryExecution, entry: AgentJournalEntry, receipt: CommandReceipt) {
+  state.entries.push(entry)
+  projectEntryEvent(state, entry, receipt)
+}
 
 /** Explicit test setup; this is not a full AgentJournal or a production storage provider. */
 export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentBlock>(
@@ -197,7 +204,7 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       execution: input.execution,
       value: input.material,
     })
-    state.entries.push(entry)
+    writeEntry(state, entry, receipt)
     state.revision += 1
     deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved })
     state.operations.set(input.operation, { kind: 'received', text: semanticText(input), value })
@@ -226,6 +233,29 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
     return 'failure' in value
       ? value
       : succeed(structuredClone({ kind: 'committed', value: value.ok }))
+  }
+  /**
+   * The write step of a record call. The scripted fault of the execution is used here and nowhere
+   * else: `unavailable` fails before anything is written, `commit-unknown` writes as usual and
+   * loses only the reply.
+   */
+  const writeRecord = (
+    state: MemoryExecution,
+    input: JournalEntryRecord<P>,
+    text: string,
+  ): Outcome<CommandReceipt, Failure> => {
+    const fault = state.recordFaults.shift()
+    if (fault?.kind === 'unavailable') return fail(unavailable('scripted before the write'))
+    const receipt = receiptOf(state, input)
+    const entry = structuredClone(input.entry)
+    writeEntry(state, entry, receipt)
+    state.revision += 1
+    state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
+    if (entry.kind === 'received')
+      deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved: null })
+    return fault === undefined
+      ? succeed(structuredClone(receipt))
+      : fail({ kind: 'commit-unknown', operation: input.operation })
   }
   const record = async (
     input: JournalEntryRecord<P>,
@@ -278,19 +308,13 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       if (state.ended) return fail({ kind: 'terminal' })
       if (
         !input.authority ||
+        state.detached ||
         input.authority.executionAttachment !== state.authority.executionAttachment ||
         input.authority.generation !== state.authority.generation
       )
         return fail({ kind: 'stale-advance' })
     }
-    const receipt = receiptOf(state, input)
-    const entry = structuredClone(input.entry)
-    state.entries.push(entry)
-    state.revision += 1
-    state.operations.set(input.operation, { kind: 'record', text, entry, receipt })
-    if (entry.kind === 'received')
-      deliveries.set(scopedDelivery(input, entry), { entry, receipt, saved: null })
-    return succeed(structuredClone(receipt))
+    return writeRecord(state, input, text)
   }
   const entries: AgentJournalEntries<P> = { record }
   const materialPort: AgentMaterials<P, B> = {
@@ -437,27 +461,42 @@ export function memoryReceivedCommitFixture<P, B extends ContentBlock = ContentB
       const grant = authority(execution)
       executions.set(key, {
         authority: grant,
+        detached: false,
         ended: false,
         revision: 0,
         entries: [],
+        events: [],
         operations: new Map(),
         qualifications: new Map([[who.principal, 'allowed']]),
+        recordFaults: [],
       })
       return grant
     },
     async supersede(who, execution) {
       const grant = authority(execution)
-      requireState({ ...who, execution }).authority = grant
+      const state = requireState({ ...who, execution })
+      state.authority = grant
+      state.detached = false
       return grant
+    },
+    async detach(who, execution) {
+      requireState({ ...who, execution }).detached = true
     },
     async end(who, execution) {
       requireState({ ...who, execution }).ended = true
+    },
+    async failNextRecord(who, execution, fault) {
+      requireState({ ...who, execution }).recordFaults.push(fault)
     },
     async read(who, execution) {
       const state = stateOf({ ...who, execution })
       return state?.qualifications.get(who.principal) === 'allowed'
         ? structuredClone(state.entries)
         : undefined
+    },
+    async events(who, execution) {
+      const state = stateOf({ ...who, execution })
+      return state === undefined ? undefined : structuredClone(state.events)
     },
   }
 }

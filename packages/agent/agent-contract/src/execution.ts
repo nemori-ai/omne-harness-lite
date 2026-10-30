@@ -2,7 +2,6 @@
 // the execution record and its snapshot, the control and result-responsibility records, the event
 // stream, the runtime, directory, recovery, adoption and instance-host ports, the access check and
 // the clock. Types only; no function runs here. The Journal ports live in journal.ts.
-import type { JsonValue } from '@omne-harness/json-text'
 import type { Message } from '@omne-harness/message'
 import type * as M from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -176,14 +175,7 @@ export type AgentEventBody =
   | Readonly<{ kind: 'input-taken'; batch: InputBatch }>
   | Readonly<{ kind: 'message'; message: Message; source: DurableEvidence }>
   | Readonly<{ kind: 'producer'; result: ProducedResult; consumption: ConsumptionId }>
-  | Readonly<{
-      kind: 'stream'
-      producer: ProducedResult['producer']
-      cursor: string
-      source: DurableEvidence
-      schema: Adoption
-      value: JsonValue
-    }>
+  | Readonly<{ kind: 'entry'; entry: AgentJournalEntry }>
   | Readonly<{ kind: 'waiting'; waits: readonly Waiting[] }>
   | Readonly<{
       kind: 'control'

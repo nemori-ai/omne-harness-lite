@@ -45,6 +45,7 @@ import {
 import type { AccessVerdict, ToolAccessGuard } from '@omne-harness/tool'
 import { decodeToolCallId, type ToolCallId } from '@omne-harness/tool-contract'
 import {
+  decisionEvidence,
   noArguments,
   effectiveArgumentsOf,
   referenceAdmissionCheck,
@@ -120,31 +121,54 @@ function toAgentAdmissionDecision(decision: AdmissionDecision): AgentAdmissionDe
   }
 }
 
+/**
+ * AU-05: a remark on the official admission card is the person's only valid handling, but it is
+ * not an approval. The port answers deny with `human-guidance`; the verbatim text goes back to
+ * the original work owner as guidance, not into the evidence.
+ */
+function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): AgentAdmissionDecision {
+  return {
+    kind: 'deny',
+    reason: 'human-guidance',
+    evidence: decisionEvidence('admission/agent/admit-action', answer.revision, {
+      kind: 'denied',
+      reason: 'human-guidance',
+      card,
+      answer,
+    }),
+  }
+}
+
 function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
   return {
     admit: async input => {
-      if (input.permissions !== null || input.decision !== null)
+      const remark =
+        input.decision?.answer.kind === 'remark'
+          ? { card: input.decision.card, answer: input.decision.answer.evidence }
+          : null
+      if (remark === null && (input.permissions.length > 0 || input.decision !== null))
         return succeed({
           kind: 'unavailable',
           diagnostic: 'permission and decision interpreters are not installed',
         })
-      return succeed(
-        toAgentAdmissionDecision(
-          await check.check({
-            access: { principal: input.principal, tenant: input.tenant },
-            operation: { owner: 'agent', name: 'admit-action' },
-            target: {
-              owner: 'agent',
-              kind: 'action',
-              key: `${input.execution}/${input.passage}/${input.action}`,
-            },
-            // The fixed text the action will run with; a permit is bound to its digest.
-            arguments: effectiveArgumentsOf(input.effectiveArguments),
-            requires: [],
-            permit: null,
-          }),
-        ),
-      )
+      const decision = await check.check({
+        access: { principal: input.principal, tenant: input.tenant },
+        operation: { owner: 'agent', name: 'admit-action' },
+        target: {
+          owner: 'agent',
+          kind: 'action',
+          key: `${input.execution}/${input.passage}/${input.action}`,
+        },
+        // The fixed text the action will run with; a permit is bound to its digest.
+        arguments: effectiveArgumentsOf(input.effectiveArguments),
+        requires: [],
+        permit: null,
+      })
+      // A remark is read only after the tenant and standing checks: a cross-tenant remark is
+      // still a tenant mismatch, not guidance.
+      if (remark !== null && decision.kind === 'allowed')
+        return succeed(denyHumanGuidance(remark.card, remark.answer))
+      return succeed(toAgentAdmissionDecision(decision))
     },
   }
 }
@@ -326,7 +350,7 @@ function admitInput(principal: Principal, tenant: TenantId, effectiveArguments =
     original,
     effectiveArguments,
     definition: { owner: 'assets', name: 'bash', revision: '1', digest: 'd' },
-    permissions: null,
+    permissions: [],
     decision: null,
   }
 }
@@ -420,11 +444,14 @@ describe('ActionAdmission through the admission check', () => {
     {
       name: 'permissions without an interpreter',
       patch: {
-        permissions: {
-          schema: { owner: 'assets', name: 'permissions', revision: '1', digest: 'd' },
-          value: { kind: 'object', entries: [] },
-          source: EVIDENCE,
-        },
+        permissions: [
+          {
+            need: 'permissions',
+            schema: { owner: 'assets', name: 'permissions', revision: '1', digest: 'd' },
+            value: { kind: 'object', entries: [] },
+            source: EVIDENCE,
+          },
+        ],
       },
     },
     {
@@ -501,6 +528,47 @@ describe('ActionAdmission through the admission check', () => {
   it('denies an acting principal used in another tenant', async () => {
     const { principals, actions } = installed()
     const deny = await actions.admit(admitInput(principals.actingForAdmin, memberTenant()))
+    expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'tenant-mismatch' } })
+  })
+
+  // Red when a remark on the official admission card is read as a grant, or is turned away as
+  // "no interpreter": AU-05 says a remark is not an approval, the port answers deny/human-guidance.
+  it('denies with human-guidance when the card reply is a remark, with admission evidence', async () => {
+    const { principals, actions } = installed()
+    const card = { ...EVIDENCE, record: 'card-for-act_1' }
+    const deny = await actions.admit({
+      ...admitInput(principals.actingForAdmin, adminTenant()),
+      decision: {
+        card,
+        answer: {
+          kind: 'remark',
+          text: '先看一下 README',
+          evidence: { ...EVIDENCE, record: 'remark_1' },
+        },
+      },
+    })
+    expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'human-guidance' } })
+    if ('failure' in deny || deny.ok.kind !== 'deny') return
+    expect(deny.ok.evidence.owner).toBe('authorization')
+    expect(deny.ok.evidence.record).toBe('admission/agent/admit-action')
+    expect(deny.ok.evidence.digest).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  // Red when the remark branch is taken before the tenant check: a remark sent with an acting
+  // principal of another tenant would come back as guidance instead of a tenant mismatch.
+  it('answers tenant-mismatch, not human-guidance, for a remark across tenants', async () => {
+    const { principals, actions } = installed()
+    const deny = await actions.admit({
+      ...admitInput(principals.actingForAdmin, memberTenant()),
+      decision: {
+        card: { ...EVIDENCE, record: 'card-for-act_1' },
+        answer: {
+          kind: 'remark',
+          text: '先看一下 README',
+          evidence: { ...EVIDENCE, record: 'remark_1' },
+        },
+      },
+    })
     expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'tenant-mismatch' } })
   })
 })

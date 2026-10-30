@@ -532,6 +532,7 @@ describe('R0 and W0 coordination', () => {
       )
       expect(page.kind === 'page' && page.events.map(event => event.body.kind)).toEqual([
         'input-taken',
+        'entry',
         'producer',
         'message',
         'ended',

@@ -10,7 +10,19 @@ import {
   type SchemaProvider,
   type SchemaVerdict,
 } from '@omne-harness/schema-provider'
-import type { z } from 'zod'
+import { z } from 'zod'
+
+/**
+ * The shape of an `Adoption` as the judgments read it: exactly `owner`, `name`, `revision` and
+ * `digest`, each a string. `exchange-refs` owns the type and has no schema, so the judgments
+ * share this one instead of each writing the four fields again.
+ */
+export const adoptionShape = z.strictObject({
+  owner: z.string(),
+  name: z.string(),
+  revision: z.string(),
+  digest: z.string(),
+})
 
 const DECLARATION_LIMITS: JsonLimits = {
   maxBytes: 100_000,

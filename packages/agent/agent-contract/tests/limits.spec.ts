@@ -97,17 +97,12 @@ describe('the declaration limits of a definition', () => {
   it('refuses a definition whose own text is longer than 100000 bytes although every value fits', async () => {
     // Four strings of 9000 three-byte characters are 108000 bytes. The copy counts units, not bytes.
     const wide = '中'.repeat(9000)
+    const reference = { capability: { category: wide, name: wide } }
     const refused = await judgeAgentDefinition(
-      definition({
-        name: wide,
-        version: wide,
-        references: [],
-        attributes: [],
-        extra: [wide, wide],
-      }),
+      definition({ name: wide, references: [reference], attributes: [], extra: [wide] }),
     )
     expect(refused).toEqual(malformed)
-    const fits = await judgeAgentDefinition(definition({ name: wide, version: wide }))
+    const fits = await judgeAgentDefinition(definition({ name: wide, references: [reference] }))
     expect(fits).toMatchObject({ kind: 'accepted' })
   })
 })

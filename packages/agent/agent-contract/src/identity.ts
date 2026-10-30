@@ -42,6 +42,13 @@ export type Continuation = Readonly<{
 }>
 /** An RFC 3339 UTC instant, for example `2026-10-17T08:00:00Z`. */
 export type AgentInstant = string
+declare const utcInstantText: unique symbol
+/**
+ * An RFC 3339 UTC instant text that `parseInstant` of `@omne-harness/utc-instant` accepted. The
+ * value is the original text, not normalized. Within this package only `judgeExtensionOutput`
+ * mints it; the package exports no separate decoder (SPEC, "声明判断", `retry`).
+ */
+export type UtcInstantText = string & { readonly [utcInstantText]: 'UtcInstantText' }
 
 /** Why a text is not an Agent identity. `field` names the identity type that the caller asked for. */
 export type IdentityFailure<K extends string = string> = Readonly<{

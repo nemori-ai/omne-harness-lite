@@ -49,15 +49,15 @@ Skill、Tool 和 MCP 的选入按下面的行为顺序成立。
 
 ## 版本采用与实际变化
 
-调用方固定定义身份。每个新的 execution 在采用时求值：没有写明版本的身份，采用当时的合法胜出者；写明版本的身份固定为该版本。合法胜出者是多层来源求值完成资格筛选和层序选择后，该身份的结果，规则见[装配与变更](../../../../../docs/architecture/runtime/assembly-and-change.md#定义清单与实例)。内容没有变化且旧清单仍有效时可复用。普通恢复使用当前已生效清单，不静默升级定义或工作区文件。
+调用方固定定义身份。定义不带版本：`judgeAgentDefinition` 的输入带 `version` 时得到 `malformed`。每个新的 execution 在采用时求值，采用当时的合法胜出者。合法胜出者是多层来源求值完成资格筛选和层序选择后，该身份的结果，规则见[装配与变更](../../../../../docs/architecture/runtime/assembly-and-change.md#定义清单与实例)。内容没有变化且旧清单仍有效时可复用。普通恢复使用当前已生效清单，不静默升级定义或工作区文件。
 
-显式 reload 可更新依赖、继承声明、Loop 和 extensions，通过安全交接采用同身份新版本。调用方固定的执行类型和必需身份不变。定义身份、租户身份或调用方关联身份的变更不是合法 reload。
+显式 reload 可更新依赖、继承声明、Loop 和 extensions，通过安全交接采用同身份的新精确采用。调用方固定的执行类型和必需身份不变。定义身份、租户身份或调用方关联身份的变更不是合法 reload。
 
 以下变化由拥有者分别处理。
 
 | 变化 | 本成员约束 | 不得推断 |
 | --- | --- | --- |
-| AgentDefinition 版本、捕获 Loop 或 extension 结构 | 新候选校验并交接实例，保护原工作 | 改写原清单或原请求 |
+| AgentDefinition 的合法胜出者、捕获 Loop 或 extension 结构 | 校验新的合法胜出者并交接实例，保护原工作 | 改写原清单或原请求 |
 | 稳定入口内的 Tool、Skill、MCP 数据与实现 | 合法更新当前采用，逐使用固定 | 自动更换执行挂接或重建全部 Loop |
 | 模型、权限、模式、Context | 沿各自生效点消费 | 整段 Agent 实例冻结取值 |
 | 工作区文件或 Git 改动 | 实际装配或显式 reload 后采用 | 文件写入即已生效 |
@@ -79,7 +79,7 @@ AgentAdoptions 有两个操作。resolve 把精确的 Adoption 解析为定义�
 | resolve | 租户核对。读取该采用所在作用域的资格由适配器核验 | 没有操作身份。同一精确 Adoption 得到同一结果，解析缓存可复用 | 只读，不加锁，不与其他操作排序 | 无 | 值。execution 只保存 Adoption 引用。解析缓存可丢弃重建。换代只影响尚未开始的经过 |
 | handover | 租户核对。快照由调用方经 load 取得，读取资格已在 load 核验。handover 不授予推进权 | 没有操作身份。execution、revision、源采用、目标采用和原 continuation 的摘要相同，得到相同的证明 | 不读取活体 execution。并发的 handover 互不影响。唯一的裁定点是 attach 的条件提交，revision 变化时 attach 返回 changed | 无。reload 的效果由 attach 提交的事件体现 | 证明绑定 revision，revision 变化即失效，不持久保存。新采用只影响尚未开始的经过 |
 
-handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。
+handover 本身不返回 changed。调用方在 attach 返回 changed 之后，用 Journal.load 重读快照，再重新调用 handover，不重试旧证明。目标采用由调用方按新 execution 的同一选择规则取得：当时的合法胜出者，定义不带版本，没有固定到某个版本的分支；选择归采用协调的拥有者。handover 不核对胜出者，只证明原 execution 能交给该目标接续，规则见 SPEC 的“[采用交接](../../SPEC.md#采用交接)”。
 
 ## 交接结果与验证义务
 
@@ -102,6 +102,6 @@ handover 本身不返回 changed。调用方在 attach 返回 changed 之后，�
 
 ## 旅程与持续验证
 
-本页承接 [J-AG01](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag01)、[J-AG07](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag07) 与 CAP-AG01、CAP-AG02。能力与旅程到设计的追踪见[覆盖矩阵](../../verification/coverage.md)的 CAP-AG01、CAP-AG02 行和 J-AG01、J-AG07 行。验收场景是[持续验证场景](../../verification/scenarios.md)中的 SC-AG-58、SC-AG-76、SC-AG-77、SC-AG-78 与 SC-AG-79。合法候选交接时在途的调用、判断和卡片由 SC-AG-14、SC-AG-48 与 SC-AG-51 覆盖，取消先成立后候选就绪由 SC-AG-52 覆盖。协作顺序见 [F-AG01](../flows/scenarios.md#f-ag01)、[F-AG07](../flows/scenarios.md#f-ag07)。
+本页承接 [J-AG01](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag01)、[J-AG07](../../../../../.meta_harness/design/product/agent-progression/design.md#j-ag07) 与 CAP-AG01、CAP-AG02。能力与旅程到设计的追踪见[覆盖矩阵](../../verification/coverage.md)的 CAP-AG01、CAP-AG02 行和 J-AG01、J-AG07 行。验收场景是[持续验证场景](../../verification/scenarios.md)中的 SC-AG-58、SC-AG-76、SC-AG-77、SC-AG-78 与 SC-AG-79。交接到合法胜出者时在途的调用、判断和卡片由 SC-AG-14、SC-AG-48 与 SC-AG-51 覆盖，取消先成立后候选就绪由 SC-AG-52 覆盖。协作顺序见 [F-AG01](../flows/scenarios.md#f-ag01)、[F-AG07](../flows/scenarios.md#f-ag07)。
 
 公开校验、版本读取和采用提交协议仍由定义、assets、assembly 与外部协调者的拥有者对齐。本文不把合法版本选择解释为任意在线升级，也不据文档场景宣称实现通过。

@@ -7,7 +7,7 @@ import type { Outcome } from '@omne-harness/operation-result'
 import { z } from 'zod'
 import { materialShape } from './testing-received-material.ts'
 import type { Failure } from './evaluation.ts'
-import type { CommandReceipt, ExecutionMutation } from './execution.ts'
+import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.ts'
 import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
@@ -25,6 +25,7 @@ import type {
   ReceivedEntry,
 } from './receiving.ts'
 import { canonicalText, doubleEvidence, tenantText } from './testing-case.ts'
+import type { RecordFault } from './testing-journal-entries.ts'
 
 export type KeptOperation =
   | { kind: 'record'; text: string; receipt: CommandReceipt; entry: AgentJournalEntry }
@@ -37,11 +38,16 @@ export type KeptDelivery = {
 }
 export type MemoryExecution = {
   authority: Authority
+  /** Whether the current attachment has been detached; it stays the latest established one. */
+  detached: boolean
   ended: boolean
   revision: number
   entries: AgentJournalEntry[]
+  events: AgentEvent[]
   operations: Map<string, KeptOperation>
   qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>
+  /** The scripted faults of this execution, used in order by the record calls that write. */
+  recordFaults: RecordFault[]
 }
 export type KeptMaterial<B extends ContentBlock> = {
   tenant: string

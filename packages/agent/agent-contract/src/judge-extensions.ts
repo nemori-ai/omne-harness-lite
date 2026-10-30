@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  adoptionShape,
   checkJson,
   closeCheckDomain,
   copyPlain,
@@ -14,6 +15,7 @@ import {
   type ErrorPolicy,
   type ExtensionImplementationDeclaration,
   type LoopExtensionDeclaration,
+  type NeedDeclaration,
   type Position,
   type Power,
 } from './extensions.ts'
@@ -57,13 +59,19 @@ const implementation = z.discriminatedUnion('kind', [
   }),
 ])
 
+/**
+ * One need declaration. Every member is required; `required` has no default. `schema` is the
+ * exact adoption of the contract the delivered need follows.
+ */
+const need = z.strictObject({ name: text, schema: adoptionShape, required: z.boolean() })
+
 const declaration = z.strictObject({
   name: text,
   position: z.enum(POSITIONS),
   power: z.enum(POWERS),
   source: z.enum(['workspace', 'author']).optional(),
   dimension: dimension.optional(),
-  needs: z.array(text).nonempty().optional(),
+  needs: z.array(need).nonempty().optional(),
   implementation,
   onError: z.enum(['ignore', 'record', 'treat_as_veto']).optional(),
   unavailability: z.enum(['skip', 'veto']).optional(),
@@ -120,10 +128,12 @@ function dimensionRefusal(value: Parsed): RefusalReason | undefined {
   }
 }
 
+/** Two needs with the same name would be one key of the delivery, so the list is refused. */
 function needsRefusal(value: Parsed): RefusalReason | undefined {
   const needs = value.needs
-  if (needs === undefined || new Set(needs).size === needs.length) return undefined
-  return 'needs-not-allowed'
+  if (needs === undefined) return undefined
+  const names = new Set(needs.map(entry => entry.name))
+  return names.size === needs.length ? undefined : 'needs-not-allowed'
 }
 
 function errorPolicyRefusal(value: Parsed): RefusalReason | undefined {
@@ -171,12 +181,23 @@ function copyImplementation(field: Parsed['implementation']): ExtensionImplement
   })
 }
 
-/** The `needs` member of the accepted value: present only when the declaration listed names. */
+function copyNeed(entry: z.output<typeof need>): NeedDeclaration {
+  const { owner, name, revision, digest } = entry.schema
+  return Object.freeze({
+    name: entry.name,
+    schema: Object.freeze({ owner, name, revision, digest }),
+    required: entry.required,
+  })
+}
+
+/** The `needs` member of the accepted value: present only when the declaration listed needs. */
 function needsMember(
-  needs: readonly string[] | undefined,
+  needs: readonly z.output<typeof need>[] | undefined,
 ): Pick<LoopExtensionDeclaration, 'needs'> {
   const [first, ...rest] = needs ?? []
-  return first === undefined ? {} : { needs: Object.freeze([first, ...rest]) }
+  return first === undefined
+    ? {}
+    : { needs: Object.freeze([copyNeed(first), ...rest.map(copyNeed)]) }
 }
 
 /**

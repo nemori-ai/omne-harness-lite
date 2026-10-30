@@ -684,7 +684,12 @@ export function createJournal<P>(
     cause: DurableEvidence,
   ): void {
     const attachment = latestAttachment(execution)
-    if (attachment === undefined) return
+    // `open` establishes the first attachment before anything is written, so an execution without
+    // one is a defect of this Journal, not a case to pass over in silence.
+    if (attachment === undefined) {
+      throw new TypeError('the session Journal has an execution without an attachment')
+    }
+    // The ended event is the last event of an execution; nothing is appended after it.
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
       execution.events.push({
@@ -1215,6 +1220,15 @@ export function createJournal<P>(
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
+        // The type excludes these bodies; a caller that bypasses it gets invalid (SPEC
+        // "AgentJournal.commit" row): `entry` is allocated by the entry ports, `ended` by tryFinish.
+        const allocated = input.events.find(
+          body => (body.kind as string) === 'entry' || (body.kind as string) === 'ended',
+        )
+        if (allocated !== undefined)
+          return answer(
+            fail(invalid('events', `the Journal allocates the ${allocated.kind} event body`)),
+          )
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -1889,6 +1903,8 @@ export function createJournal<P>(
     holds,
     receiptOf,
     nextEvidence,
+    projectEntry: (execution, entry, cause) =>
+      appendEvents(execution, [{ kind: 'entry', entry }], cause),
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

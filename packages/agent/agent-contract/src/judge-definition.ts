@@ -6,7 +6,6 @@ import {
   type AgentDefinition,
   type AssetReference,
   type AttributeItem,
-  type VersionChoice,
 } from './definition.ts'
 import { refused, type Judgment, type RefusalReason } from './judgment.ts'
 
@@ -22,10 +21,10 @@ const attribute = z.strictObject({
   item: z.enum(ATTRIBUTE_ITEMS),
 })
 
+// The declaration table. A member it does not list, `version` among them, is `malformed`.
 const definition = z.strictObject({
   category: z.literal('AgentDefinition'),
   name: z.string().min(1),
-  version: z.string().min(1).optional(),
   references: z.array(reference),
   attributes: z.array(attribute),
 })
@@ -81,18 +80,12 @@ function acceptDefinition(parsed: Parsed): Judgment<AgentDefinition> {
     if (items.has(declaration.item)) return refused('malformed')
     items.add(declaration.item)
   }
-  const version: VersionChoice = Object.freeze(
-    parsed.version === undefined
-      ? { kind: 'then-legal-winner' }
-      : { kind: 'pinned', version: parsed.version },
-  )
   // The accepted value is frozen at every level and shares no object with the input.
   return {
     kind: 'accepted',
     value: Object.freeze({
       category: 'AgentDefinition',
       name: parsed.name,
-      version,
       references: Object.freeze(parsed.references.map(copyReference)),
       attributes: Object.freeze(
         parsed.attributes.map(declaration => Object.freeze({ item: declaration.item })),

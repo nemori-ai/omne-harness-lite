@@ -1,4 +1,5 @@
 import { describe, it } from 'vitest'
+import type { AgentEvent, EventPage } from '@omne-harness/agent-contract'
 import {
   agentJournalEntriesConformance,
   type AgentJournalEntriesFixture,
@@ -90,9 +91,41 @@ function fixture() {
         }),
       )
     },
+    async detach(who, execution) {
+      const snapshot = ok(await journal.load({ ...who, execution }))
+      const authority = snapshot.executionAttachment
+      if (!authority) throw new Error('expected attachment')
+      ok(
+        await journal.detach({
+          ...who,
+          execution,
+          operation: operation(`detach-${execution}`),
+          authority,
+          reason: evidence('detach'),
+        }),
+      )
+    },
+    // The memory Journal scripts the next `record` call of any execution; the suite only scripts
+    // one execution at a time, so the two readings meet.
+    async failNextRecord(_who, _execution, fault) {
+      memory.failNext('record', fault)
+    },
     async read(who, execution) {
       const loaded = await journal.load({ ...who, execution })
       return 'ok' in loaded ? loaded.ok.entries : undefined
+    },
+    async events(who, execution) {
+      const events: AgentEvent[] = []
+      let after: string | null = null
+      for (;;) {
+        const page: EventPage = ok(
+          await journal.output.read({ ...who, execution, after, limit: 100 }),
+        )
+        if (page.kind !== 'page') throw new Error('expected a page')
+        events.push(...page.events)
+        if (page.caughtUp) return events
+        after = page.next
+      }
     },
   }
   const joint = {
@@ -112,6 +145,9 @@ describe('one memory Journal received provider', () => {
   for (const scenario of agentJournalEntriesConformance(entriesFixture, {
     received: 'required',
     joint,
-  }))
-    it(scenario.name, scenario.run)
+  })) {
+    // A case the fixture cannot drive is reported as skipped with its reason, never as green.
+    if ('uncovered' in scenario) it.skip(`${scenario.name} (${scenario.uncovered})`, scenario.run)
+    else it(scenario.name, scenario.run)
+  }
 })

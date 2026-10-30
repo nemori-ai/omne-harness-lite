@@ -15,7 +15,6 @@ export type {
   AttributeDeclaration,
   AttributeItem,
   CapabilityRef,
-  VersionChoice,
 } from './definition.ts'
 export {
   AGENT_IDENTITY_MAX_LENGTH,

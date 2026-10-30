@@ -1,7 +1,8 @@
 import { judgeJsonValue, type JsonLimits, type JsonValue } from '@omne-harness/json-text'
 import type * as M from '@omne-harness/model-contract'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { z } from 'zod'
-import { copyPlain, isRecord } from './check.ts'
+import { adoptionShape, copyPlain, isRecord } from './check.ts'
 import {
   POSITIONS,
   POWERS,
@@ -12,7 +13,7 @@ import {
   type Position,
   type Power,
 } from './extensions.ts'
-import { decodeActionId, type ActionId } from './identity.ts'
+import { decodeActionId, type ActionId, type UtcInstantText } from './identity.ts'
 import type { Subject } from './passages.ts'
 import type { Judgment, OutputRefusalReason } from './judgment.ts'
 
@@ -201,6 +202,13 @@ const data = z.record(z.string(), z.unknown())
 const jsonValue = z.custom<JsonValue>(value => 'ok' in judgeJsonValue(value))
 /** An action identity is judged by its decoder, the one rule of the identity text. */
 const actionId = z.custom<ActionId>(value => 'ok' in decodeActionId(value))
+/**
+ * A UTC instant text is judged by `parseInstant`, the one rule of the text. Only the verdict is
+ * used: the parsed `Instant` is a class and never enters the output, which must stay JSON data.
+ */
+const utcInstantText = z.custom<UtcInstantText>(
+  value => typeof value === 'string' && parseInstant(value).ok,
+)
 
 const option = z.strictObject({ id: text, label: z.string(), effect: jsonValue.optional() })
 
@@ -236,13 +244,8 @@ const outputSchema = z.discriminatedUnion('kind', [
     kind: z.literal('retry'),
     plan: z.strictObject({
       supplier: data,
-      notBefore: z.string().nullable(),
-      basis: z.strictObject({
-        owner: z.string(),
-        name: z.string(),
-        revision: z.string(),
-        digest: z.string(),
-      }),
+      notBefore: utcInstantText.nullable(),
+      basis: adoptionShape,
     }),
   }),
   z.strictObject({ kind: z.literal('ask'), card }),

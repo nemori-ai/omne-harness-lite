@@ -77,6 +77,7 @@
 - `CapturedRead` · `passages.d.ts`
 - `CardAnswer` · `passages.d.ts`
 - `CardOption` · `extensions.d.ts`
+- `CardRemark` · `passages.d.ts`
 - `CardReply` · `passages.d.ts`
 - `CardRequest` · `passages.d.ts`
 - `CardRound` · `passages.d.ts`
@@ -145,6 +146,8 @@
 - `ModelRecipient` · `request.d.ts`
 - `ModelReplyAdmission` · `evaluation.d.ts`
 - `ModelSelection` · `request.d.ts`
+- `NamedCapturedRead` · `passages.d.ts`
+- `NeedDeclaration` · `extensions.d.ts`
 - `Next` · `evaluation.d.ts`
 - `OutputRefusalReason` · `judgment.d.ts`
 - `POSITIONS` · `extensions.d.ts`
@@ -190,7 +193,7 @@
 - `Subject` · `passages.d.ts`
 - `TerminalObservation` · `execution.d.ts`
 - `UnavailabilityPolicy` · `extensions.d.ts`
-- `VersionChoice` · `definition.d.ts`
+- `UtcInstantText` · `identity.d.ts`
 - `Waiting` · `evaluation.d.ts`
 - `agentBodyContract` · `body-contract.d.ts`
 - `decodeActionBatchId` · `identity.d.ts`
@@ -223,6 +226,7 @@
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
+- `RecordFault` · `testing-journal-entries.d.ts`
 - `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
@@ -249,7 +253,13 @@ export declare function agentBodyContract(): BodyContract;
 ```ts
 import { type JsonLimits } from '@omne-harness/json-text';
 import { type SchemaIssue, type SchemaProvider } from '@omne-harness/schema-provider';
-import type { z } from 'zod';
+import { z } from 'zod';
+export declare const adoptionShape: z.ZodObject<{
+    owner: z.ZodString;
+    name: z.ZodString;
+    revision: z.ZodString;
+    digest: z.ZodString;
+}, z.core.$strict>;
 export type Checked<T> = {
     readonly kind: 'valid';
     readonly value: T;
@@ -300,16 +310,9 @@ export type AssetReference = {
 export type AttributeDeclaration = {
     readonly item: AttributeItem;
 };
-export type VersionChoice = {
-    readonly kind: 'pinned';
-    readonly version: string;
-} | {
-    readonly kind: 'then-legal-winner';
-};
 export type AgentDefinition = {
     readonly category: 'AgentDefinition';
     readonly name: string;
-    readonly version: VersionChoice;
     readonly references: readonly AssetReference[];
     readonly attributes: readonly AttributeDeclaration[];
 };
@@ -728,7 +731,6 @@ export {};
 ## 声明文件 `execution.d.ts`
 
 ```ts
-import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type { Outcome } from '@omne-harness/operation-result';
@@ -901,12 +903,8 @@ export type AgentEventBody = Readonly<{
     result: ProducedResult;
     consumption: ConsumptionId;
 }> | Readonly<{
-    kind: 'stream';
-    producer: ProducedResult['producer'];
-    cursor: string;
-    source: DurableEvidence;
-    schema: Adoption;
-    value: JsonValue;
+    kind: 'entry';
+    entry: AgentJournalEntry;
 }> | Readonly<{
     kind: 'waiting';
     waits: readonly Waiting[];
@@ -1138,8 +1136,8 @@ export {};
 import type { JsonValue } from '@omne-harness/json-text';
 import type { Message } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
-import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
-import type { CardAnswer, Subject } from './passages.ts';
+import type { ActionId, Adoption, AgentExecutionId, AgentInstant, CardRoundId, DurableEvidence, PassageId, UtcInstantText } from './identity.ts';
+import type { CardAnswer, CardRemark, Subject } from './passages.ts';
 export declare const POSITIONS: readonly [
     'execution_started',
     'before_compaction',
@@ -1177,14 +1175,19 @@ export type ExtensionImplementationDeclaration = Readonly<{
     matcher?: string;
     timeout?: string;
 }>;
+export type NeedDeclaration = Readonly<{
+    name: string;
+    schema: Adoption;
+    required: boolean;
+}>;
 export type LoopExtensionDeclaration = Readonly<{
     name: string;
     position: Position;
     dimension?: Dimension;
     power: Power;
     needs?: readonly [
-        string,
-        ...string[]
+        NeedDeclaration,
+        ...NeedDeclaration[]
     ];
     implementation: ExtensionImplementationDeclaration;
     onError?: ErrorPolicy;
@@ -1223,7 +1226,7 @@ export type ExtensionOutput = Readonly<{
     kind: 'retry';
     plan: Readonly<{
         supplier: M.Supplier;
-        notBefore: AgentInstant | null;
+        notBefore: UtcInstantText | null;
         basis: Adoption;
     }>;
 }> | Readonly<{
@@ -1326,7 +1329,7 @@ export type ExtensionReplayBinding = Readonly<{
             card: DurableEvidence;
             response: Readonly<{
                 evidence: DurableEvidence;
-                answer: CardAnswer;
+                answer: CardAnswer | CardRemark;
             }> | null;
         }>[];
     }>[];
@@ -1393,6 +1396,10 @@ export type Continuation = Readonly<{
     value: JsonValue;
 }>;
 export type AgentInstant = string;
+declare const utcInstantText: unique symbol;
+export type UtcInstantText = string & {
+    readonly [utcInstantText]: 'UtcInstantText';
+};
 export type IdentityFailure<K extends string = string> = Readonly<{
     field: K;
     reason: 'type' | 'empty' | 'length' | 'character';
@@ -1433,7 +1440,7 @@ export { judgeAgentDefinition } from './judge-definition.ts';
 export { judgeLoopExtensions } from './judge-extensions.ts';
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
-export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, VersionChoice, } from './definition.ts';
+export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, } from './definition.ts';
 export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './execution.ts';
@@ -1489,7 +1496,7 @@ export type JournalCommit<P> = ExecutionMutation<P> & Readonly<{
         kind: 'ended';
     }>;
     events: readonly Exclude<AgentEventBody, {
-        kind: 'ended';
+        kind: 'ended' | 'entry';
     }>[];
     effects: readonly EffectIntent[];
     caller: CallerCommit;
@@ -1677,6 +1684,9 @@ export type CapturedRead = Readonly<{
     value: JsonValue;
     source: DurableEvidence;
 }>;
+export type NamedCapturedRead = CapturedRead & Readonly<{
+    need: string;
+}>;
 export type CardRequest = Readonly<{
     identity: string;
     schema: Adoption;
@@ -1691,7 +1701,12 @@ export type CardAnswer = Readonly<{
     kind: 'declined';
     evidence: DurableEvidence;
 }>;
-export type CardReply = CardAnswer | Readonly<{
+export type CardRemark = Readonly<{
+    kind: 'remark';
+    text: string;
+    evidence: DurableEvidence;
+}>;
+export type CardReply = CardAnswer | CardRemark | Readonly<{
     kind: 'pending';
 }> | Readonly<{
     kind: 'invalidated';
@@ -1929,10 +1944,10 @@ export interface ActionAdmission<P> {
         original: Action['original'];
         effectiveArguments: string;
         definition: Adoption;
-        permissions: CapturedRead | null;
+        permissions: readonly NamedCapturedRead[];
         decision: Readonly<{
             card: DurableEvidence;
-            answer: CardAnswer;
+            answer: CardAnswer | CardRemark;
         }> | null;
     }>): Reply<AdmissionDecision>;
 }
@@ -2353,11 +2368,25 @@ export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, ot
 
 ```ts
 import { type TenantId } from '@omne-harness/legal-identity';
-import type { DurableEvidence } from './identity.ts';
+import type { AgentEvent, CommandReceipt } from './execution.ts';
+import type { Adoption, Authority, DurableEvidence } from './identity.ts';
+import type { AgentJournalEntry } from './receiving.ts';
 export type ConformanceCase = Readonly<{
     name: string;
     run: () => Promise<void>;
+}> | Readonly<{
+    name: string;
+    uncovered: string;
+    run: () => Promise<never>;
 }>;
+export declare function uncoveredCase(name: string, capability: string): ConformanceCase;
+export declare const DOUBLE_EVENT_SCHEMA: Adoption;
+export type ProjectingExecution = Readonly<{
+    authority: Authority;
+    ended: boolean;
+    events: AgentEvent[];
+}>;
+export declare function projectEntryEvent(execution: ProjectingExecution, entry: AgentJournalEntry, receipt: CommandReceipt): void;
 export declare function canonicalText(value: unknown): string;
 export declare function tenantText(tenant: TenantId): string;
 export declare function doubleEvidence(owner: string, record: string, revision: string): DurableEvidence;
@@ -2369,6 +2398,7 @@ export declare function doubleEvidence(owner: string, record: string, revision: 
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { RequiredReceivedCommits } from './testing-received-fixture.ts';
 import type { TenantId } from '@omne-harness/legal-identity';
+import type { AgentEvent } from './execution.ts';
 import { type Access, type AgentExecutionId, type Authority } from './identity.ts';
 import type { AgentJournalEntries, AgentJournalEntry } from './receiving.ts';
 import { type ConformanceCase } from './testing-case.ts';
@@ -2383,16 +2413,34 @@ export interface MemoryAgentJournalEntries<P> extends AgentJournalEntries<P> {
         tenant: TenantId;
         authority: Authority;
     }>): void;
+    detach(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): void;
     end(input: Readonly<{
         tenant: TenantId;
         execution: AgentExecutionId;
     }>): void;
+    failNextRecord(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>, fault: RecordFault): void;
     entries(input: Readonly<{
         tenant: TenantId;
         execution: AgentExecutionId;
     }>): readonly AgentJournalEntry[] | undefined;
+    events(input: Readonly<{
+        tenant: TenantId;
+        execution: AgentExecutionId;
+    }>): readonly AgentEvent[] | undefined;
 }
 export declare function createMemoryAgentJournalEntries<P>(): MemoryAgentJournalEntries<P>;
+export type RecordFault = Readonly<{
+    kind: 'commit-unknown';
+    outcome: 'applied';
+}> | Readonly<{
+    kind: 'unavailable';
+}>;
 export interface AgentJournalEntriesFixture<P> {
     readonly entries: AgentJournalEntries<P>;
     readonly access: Access<P>;
@@ -2401,6 +2449,9 @@ export interface AgentJournalEntriesFixture<P> {
     supersede(access: Access<P>, execution: AgentExecutionId): Promise<Authority>;
     end(access: Access<P>, execution: AgentExecutionId): Promise<void>;
     read(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentJournalEntry[] | undefined>;
+    events(access: Access<P>, execution: AgentExecutionId): Promise<readonly AgentEvent[] | undefined>;
+    detach?(access: Access<P>, execution: AgentExecutionId): Promise<void>;
+    failNextRecord?(access: Access<P>, execution: AgentExecutionId, fault: RecordFault): Promise<void>;
 }
 export declare function agentJournalEntriesConformance<P, B extends ContentBlock = ContentBlock>(fixture: AgentJournalEntriesFixture<P>, profile?: RequiredReceivedCommits<P, B>): readonly ConformanceCase[];
 export declare function memoryAgentJournalEntriesFixture<P>(access: Access<P>, otherAccess: Access<P>): AgentJournalEntriesFixture<P> & Readonly<{
@@ -2492,10 +2543,11 @@ export declare function memoryReceivedCommitFixture<P, B extends ContentBlock = 
 import type { ContentBlock } from '@omne-harness/content-block';
 import type { Outcome } from '@omne-harness/operation-result';
 import type { Failure } from './evaluation.ts';
-import type { CommandReceipt, ExecutionMutation } from './execution.ts';
+import type { AgentEvent, CommandReceipt, ExecutionMutation } from './execution.ts';
 import { type Authority, type AgentExecutionId, type DurableEvidence } from './identity.ts';
 import type { Material } from './passages.ts';
 import type { AgentJournalEntry, ReceivedCommitInput, ReceivedCommitValue, ReceivedEntry } from './receiving.ts';
+import type { RecordFault } from './testing-journal-entries.ts';
 export type KeptOperation = {
     kind: 'record';
     text: string;
@@ -2517,11 +2569,14 @@ export type KeptDelivery = {
 };
 export type MemoryExecution = {
     authority: Authority;
+    detached: boolean;
     ended: boolean;
     revision: number;
     entries: AgentJournalEntry[];
+    events: AgentEvent[];
     operations: Map<string, KeptOperation>;
     qualifications: Map<unknown, 'allowed' | 'denied' | 'unavailable'>;
+    recordFaults: RecordFault[];
 };
 export type KeptMaterial<B extends ContentBlock> = {
     tenant: string;
@@ -2547,7 +2602,7 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 
 ```ts
 export type { ConformanceCase } from './testing-case.ts';
-export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, } from './testing-journal-entries.ts';
+export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';

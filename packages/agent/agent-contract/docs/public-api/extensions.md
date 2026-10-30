@@ -55,7 +55,7 @@
 | `name` | 能力名。同一装配内同一位置可以有多个扩展，名称不是位置身份 |
 | `position`、`dimension` | `after_model_call` 必须带 `dimension.ending`。`after_action` 必须带 `dimension.scope`。其他位置不带 `dimension` |
 | `power` | 声明的干预力上限。任何位置都可以声明三档中的任一档，位置不限制声明。实际能力再按位置输出表与来源收窄，见下文“输出”。来源为工作区的扩展上限是 `observe` |
-| `needs` | 非空的依赖名列表。装配只按这个列表注入能力，见下文“输入” |
+| `needs` | 非空的需要声明列表。每项 `NeedDeclaration` 对应装配在调用时交付的一项能力或一项命名读取，带 `name`（交付时的键，列表内互不相同）、`schema`（交付物所遵守的契约的精确采用）与 `required`（是否必需，布尔值，没有默认）。装配只按这个列表注入能力，见下文“输入”。官方准入按同一组名字收到读取，见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”第 2 条。必需性在调用开始之前判定，必需需要缺席与可选需要缺席的处置见 SPEC 的“[声明判断](../../SPEC.md#声明判断)” |
 | `implementation` | `builtin` 由装配按名称解析到受信的内建实现。`command` 由宿主与方言适配器执行，适配器把命令结果转成本页的输出形状。`timeout` 是 ISO 8601 时长 |
 | `onError` | `observe` 只允许 `ignore`。`rewrite` 允许 `ignore` 或 `record`。`veto` 允许三种。省略时，`observe` 按 `ignore`，`rewrite` 按 `record`，`veto` 按 `treat_as_veto`。后置位置的扩展只允许 `ignore`，省略时也按 `ignore`，声明其他值被拒绝 |
 | `unavailability` | 省略时按 `skip`。`veto` 只允许 `power` 为 `veto`、且位置为前置位置的扩展 |
@@ -109,7 +109,7 @@
 - `select_model`：给出路由名。Agent 把它作为改写依据交模型选择端口。选择端口按锁定、模态与外传条件核验，不因此启用被禁用的模型，规则见[模型选择](../../SPEC.md#模型选择)。
 - `veto`：阻止候选状态变化。该链结束。各位置的否决后果见下文“否决、停止与终态”。
 - `stop`：请求停止后续推进。`terminal` 缺省为 `cancelled`。Agent 记录一条以该扩展为真实来源的控制请求，再按[取消、退出与结构变更](../../SPEC.md#取消退出与结构变更)核权与处理。`stop` 不是已取消的回执，也不撤销已发生的动作。
-- `retry`：只在调模型之后的失败分支，并且只在首内容前发出失败的触发中合法。原调用最终失败的触发中返回 `retry` 按不合法输出处理，因为已经没有可以继续的调用。Agent 把计划交回原 Model 调用，由 Model 按其[重试契约](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)作为该调用的重试决定继续发出或收场。`plan` 对应 Model 重试决定的 `retry` 分支。`notBefore` 为 null 表示不另设等待，Agent 以该 Conclusion 的 `at` 作为 Model 重试决定的 `notBefore`。主 Loop 不提前消费结果。没有 `retry` 输出时，Model 按不再重试收场。
+- `retry`：只在调模型之后的失败分支，并且只在首内容前发出失败的触发中合法。原调用最终失败的触发中返回 `retry` 按不合法输出处理，因为已经没有可以继续的调用。Agent 把计划交回原 Model 调用，由 Model 按其[重试契约](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)作为该调用的重试决定继续发出或收场。`plan` 对应 Model 重试决定的 `retry` 分支。`notBefore` 是 null 或 RFC 3339 的 UTC 时刻文本。文本不能被 `@omne-harness/utc-instant` 的 `parseInstant` 解析时，输出被拒收，原因 `malformed`；解析成功时 Agent 以 `UtcInstantText` 保留原文本，不规范化。`notBefore` 为 null 表示不另设等待，Agent 以该 Conclusion 的 `at` 作为 Model 重试决定的 `notBefore`；`at` 由 Agent 写入，见 SPEC 的“[作为 Model 调用方](../../SPEC.md#作为-model-调用方)”第 3 条。主 Loop 不提前消费结果。没有 `retry` 输出时，Model 按不再重试收场。
 - `ask`：请求人处理。`ask` 的 Conclusion 不是最终结论。Agent 保存它，并按卡片草稿出一轮卡片。卡片绑定原 `PassageId`。本轮答复齐备后，Agent 以 `replay` 模式携带答复重新调用原扩展的原精确采用，取得下一个结论。卡片只由 `ask` 输出产生。
 
 ### 按干预力的上限
@@ -168,7 +168,7 @@ Agent 把校验通过的输出包装为 Conclusion 并保存。作者不返回 C
 回放绑定的内容如下。
 
 - `passage`：原扩展调用的身份。
-- `rounds`：本扩展调用已出的全部卡片轮次，按次序排列，每轮带卡片与已到的答复。结果未知之后的回放带已有的轮次，可以为空。答复到达之后的回放带全部轮次，最后一轮的答复齐备。每张卡片的 `response` 在尚无答复时为 null。有答复时，作者按 `answer` 读取人的决定：`chosen` 带所选选项与可选的值，`declined` 表示人明确拒答。`evidence` 是该答复的依据，作者不解析它。`CardAnswer` 的形状见[公开接口页](README.md#扩展人工卡片与材料)。
+- `rounds`：本扩展调用已出的全部卡片轮次，按次序排列，每轮带卡片与已到的答复。结果未知之后的回放带已有的轮次，可以为空。答复到达之后的回放带全部轮次，最后一轮的答复齐备。每张卡片的 `response` 在尚无答复时为 null。有答复时，作者按 `answer` 读取人的处理：`chosen` 带所选选项与可选的值，`declined` 表示人明确拒答，`remark` 带人的原话 `text`，表示人有话说但没有给出准驳。`evidence` 是该答复的依据，作者不解析它。`CardAnswer` 与 `CardRemark` 的形状见[公开接口页](README.md#扩展人工卡片与材料)。
 - `control`：Agent 在本次调用开始时按台账判定的状态。`valid` 表示原输入依据、已记录的操作与各轮答复都已认回。`unavailable` 表示认回所需的查询暂时不可用。`replayInconsistent` 表示台账中的记录与本次回放的输入不一致。
 
 `control` 不是 `valid` 时，能力只认回已记录的操作，不发出新操作。作者应对 `unavailable` 返回 `controlUnavailable`，对 `replayInconsistent` 返回 `replayInconsistent`。Agent 按 `control` 处置本次调用，不采纳扩展返回的其他结果。调用期间的锁存由能力比对产生，第一次锁存生效，之后能力不再发出新操作，规则见上文“输入”。
@@ -256,7 +256,7 @@ Agent 保证以下几点。
 
 ### 多轮卡片
 
-原扩展消费答复后可以再次返回 `ask`，本链的后继扩展也可以返回 `ask`。两者都开出新一轮卡片。新一轮有新的 `round`，仍属原批，屏障继续关闭。整批不因某一轮答复齐备而部分打开。人明确拒答是答复：原扩展在 `replay` 的回放绑定中读到 `answer.kind` 为 `declined`。它表示没有答案，不是批准，也不等于人不同意。作者据此决定本链的最终 Conclusion。官方准入出的卡片被拒答时，由授权领域按 [AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定后果。人有话说但没有给出准驳时，卡片仍是尚无答复，原扩展不被回放。Agent 不因没有批准而重问同一张卡。
+原扩展消费答复后可以再次返回 `ask`，本链的后继扩展也可以返回 `ask`。两者都开出新一轮卡片。新一轮有新的 `round`，仍属原批，屏障继续关闭。整批不因某一轮答复齐备而部分打开。人明确拒答是答复：原扩展在 `replay` 的回放绑定中读到 `answer.kind` 为 `declined`。它表示没有答案，不是批准，也不等于人不同意。作者据此决定本链的最终 Conclusion。官方准入出的卡片被拒答时，由授权领域按 [AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定后果。人有话说但没有给出准驳时，答复是附言：原扩展在 `replay` 的回放绑定中读到 `answer.kind` 为 `remark`，处置见 SPEC 的“[整批判断屏障与动作准入](../../SPEC.md#整批判断屏障与动作准入)”第 11 条。Agent 不因没有批准而重问同一张卡。
 
 回放必须在 `ask` 之前确定：同一回放绑定与同一能力结果得到同一输出。原扩展回放后返回的卡片草稿与上一轮已答复的草稿相同时，Agent 按 `replayInconsistent` 处置，不开新一轮。所以作者回放的不确定不会让人被重问同一问题。
 
@@ -299,6 +299,22 @@ Agent 保证以下几点。
 | 前置位置的 `veto` 扩展报错，`onError` 为 `record` | 不改变推进。Conclusion 记报错分支，输出为 `observed`，另保存错误原文 |
 | 前置位置的 `veto` 扩展报错，`onError` 为 `treat_as_veto` 或省略 | 实际干预力为 `veto` 时按否决处理，输出为 `veto`。实际干预力被收窄时按 `record` 处理 |
 | 后置位置的扩展报错 | 不论干预力与 `onError`，按 `ignore` 处理：不改变推进，Conclusion 记报错分支，输出为 `observed` |
+
+必需需要的判断发生在每次调用开始之前，`fresh` 与 `replay` 都判定一次。规则归 SPEC 的“[声明判断](../../SPEC.md#声明判断)”的 `needs` 一段，下图只画处置的走向：
+
+```mermaid
+flowchart TD
+    B[装配为本次调用绑定 needs] --> R{有 required 为 true 的需要绑定不到？}
+    R -->|否| C[调用开始；可选需要缺席时能力集合里没有该名字]
+    R -->|是，官方准入的 fresh 或 replay| D[等同官方准入不可用：本批全部动作被拒绝]
+    R -->|是，受信系统扩展 fresh| F[按装配方预先指定的处置，可为 fallback]
+    R -->|是，作者扩展 fresh| U{unavailability}
+    U -->|skip 或省略| S[跳过，Conclusion 记不可用分支]
+    U -->|veto| V{实际干预力仍为 veto？}
+    V -->|是| X[按否决处理]
+    V -->|否| S
+    R -->|是，作者或受信系统扩展 replay| W[Passage 保持原状态，下一次合法推进重试 replay]
+```
 
 `execution_started` 按位置名属于后置位置：该执行已经开始，所以它的扩展报错只按 `ignore` 处理，`onError` 只允许 `ignore`。这不限制它的合法输出。`stop` 与 `ask` 是调用成功时作者给出的显式输出，不是报错的替代输出，两者互不影响。
 

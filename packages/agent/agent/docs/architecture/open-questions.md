@@ -73,6 +73,12 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 独立调用者在类型上只依赖 agent-contract 与 agent，不认识外部协调者。但装配上它要自备工厂表中的全部必需依赖，其中授权、Context、模型选择与消息准入等外域适配器都尚无提供者。没有任何页拥有“最小独立装配”：哪些提供者组成能运行一次独立 invoke 的最小集合，由谁提供默认实现。拥有者定为 agent-host-local。关闭条件是本地宿主装配页给出最小独立装配的提供者清单与候选发行行，或登记为由应用装配拥有。
 
+下面一项是 Agent 自己的 Loop 行为缺口，不依赖外域。
+
+### at 判定失败之后扩展调用怎样接续
+
+拥有者是 agent-contract。调模型之后的失败分支里，扩展的 `retry` 计划 `notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。Agent 把 `at` 交给 Model 之前以 `parseInstant` 判定一次。判定失败时，Agent 不把这次重试交给 Model，按 SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”取时失败一条保留原准备与接续，见“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条。之后该扩展调用怎样接续没有定义：由哪一次推进再判定一次，再次失败时该扩展调用怎样结束，以及这段等待怎样被观察。关闭条件是 SPEC“作为 Model 调用方”第 3 条写出判定失败之后的接续路径，与“时钟读取与等待”和作者协议的[调用结果](../../../agent-contract/docs/public-api/extensions.md#调用协议)一致，并有验证资源覆盖。
+
 ## 外域依赖
 
 本节登记 Agent 依赖、但不归 Agent 拥有的契约与专题。每条写拥有者、Agent 所需的保证、被阻塞的能力、Agent 一侧已经产出的边界和关闭条件。Agent 只写自己需要的保证，不替拥有者写内部实现。拥有者没有兑现时，对应的系统组合不具备相应保证，其余独立设计继续。
@@ -108,10 +114,10 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | Context。涉及[系统页](../../../../../docs/architecture/runtime/runtime-context.md)、[Runtime Context 的 RC-04](../../../../context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)和 [Context 的关键流程](../../../../context/docs/key-flows.md) |
-| Agent 所需保证 | 读取时点已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受为“执行开始或挂接建立”，系统页与 Context 规格按此写回。Agent 在主请求准备、模型选择变化和压缩提交之后再次读取。full 还是 incremental 由 Context 决定。仍需 Context 的请求准备接缝提供有限多步的压缩计划，并接受实际收件模型的选择结果 |
-| 阻塞的能力 | 上下文与模型（CAP-AG04）的压缩计划 |
-| Agent 侧已产出的边界 | SPEC 的“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”写明 Agent 的五个拉取时点，前两个与系统页的时点对应。压缩计划的接缝缺口见[实施差异](../../../agent-contract/verification/coverage.md#实施差异) |
-| 关闭条件 | Context 在请求准备接缝实现有限多步的压缩计划，并接受实际收件模型的选择结果。读取时点的对应关系由系统页与 Agent 正文共同标明 |
+| Agent 所需保证 | 读取时点已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受为“执行开始或挂接建立”，系统页与 Context 规格按此写回。Agent 在主请求准备、模型选择变化和压缩提交之后再次读取。full 还是 incremental 由 Context 决定。Request Context 已有有限多步的压缩计划，并在组五接收实际收件模型的选择结果（[RQ-02](../../../../context/request-context-contract/SPEC.md#rq-02-组装的前置输入)、[RQ-06](../../../../context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)） |
+| 阻塞的能力 | 上下文与模型（CAP-AG04）：Agent 一侧 `RequestPreparation` 端口到 Request Context 操作组的适配器尚未实现 |
+| Agent 侧已产出的边界 | SPEC 的“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”写明 Agent 的五个拉取时点，前两个与系统页的时点对应。适配器的现状见[实施差异](../../../agent-contract/verification/coverage.md#实施差异) |
+| 关闭条件 | Agent 一侧实现 `RequestPreparation` 到 Request Context 操作组的适配器，字段对照按 [request-context-contract 的消费与系统定位](../../../../context/request-context-contract/docs/context.md)。读取时点的对应关系由系统页与 Agent 正文共同标明 |
 
 ### Tool、Skills、MCP 的可用性重算由谁在何时触发
 
@@ -158,10 +164,20 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | Model 主干 |
-| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。Agent 一侧由适配器实现这个端口：以调模型之后位置 failure 维度的扩展调用作为策略拥有者的原位置，decide 与 inspect 按扩展调用身份认回，Agent 挂接失效时由下一个合法推进者回答 inspect。需要 Model 确认下列四点。第一，这一对应合法。第二，`notBefore` 为空时的映射，以及 Agent 的 `AgentInstant` 与 Model 的 `notBefore` 字符串使用同一时刻编码：Model 契约没有写出这个编码，写出之前 Agent 原样传递，不转换。第三，策略协调者的寿命归 Model 宿主：原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用。第四，Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用 |
+| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。Agent 一侧由适配器实现这个端口：以调模型之后位置 failure 维度的扩展调用作为策略拥有者的原位置，decide 与 inspect 按扩展调用身份认回，Agent 挂接失效时由下一个合法推进者回答 inspect。需要 Model 确认下列四点。第一，这一对应合法。第二，`notBefore` 非 null 时已定：它是 `judgeExtensionOutput` 以 `parseInstant` 校验过的 `UtcInstantText`，Agent 原样交给 Model（SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条）；为 null 时取该 Conclusion 的 `at`，`at` 的时刻编码已定：它是 `AgentClock.now` 的成功值，形式见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”，Agent 交给 Model 之前以 `parseInstant` 判定一次，见“作为 Model 调用方”第 3 条。第三，策略协调者的寿命归 Model 宿主：原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用。第四，Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用 |
 | 阻塞的能力 | 首内容前失败的重试决定（CAP-AG08） |
 | Agent 侧已产出的边界 | 作者协议的 `retry` 输出与[位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表) |
-| 关闭条件 | Model 确认对应关系、`notBefore` 的映射与时刻编码、策略寿命和迟到决定的处置，适配器形状写入 Agent 公开接口页 |
+| 关闭条件 | Model 确认对应关系、策略寿命和迟到决定的处置，适配器形状写入 Agent 公开接口页。时刻编码已定，见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”。`at` 判定失败之后的接续是 Agent 自己的开放问题，见“[at 判定失败之后扩展调用怎样接续](#at-判定失败之后扩展调用怎样接续)” |
+
+### 命名读取与注入能力怎样对应需要声明
+
+| 项 | 内容 |
+| --- | --- |
+| 拥有者 | 读面拥有者（授权的命名读取协议）与装配 |
+| Agent 所需保证 | 三点。第一，装配凭需要声明的哪一项认出要注入的能力种类。第二，`NamedCapturedRead` 的 `schema` 与对应需要声明的 `schema` 是什么关系。第三，命名读取里“读不到”包含哪些读取结果。Agent 只按需要名交付与核对，不定义读取怎样产生 |
+| 阻塞的能力 | 官方准入按需要名收到读取时“读不到必需需要”的完整判定，以及装配按 `schema` 核对注入物 |
+| Agent 侧已产出的边界 | SPEC 的“[声明判断](../../../agent-contract/SPEC.md#声明判断)”的 `needs` 段与“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”第 2 条。`NamedCapturedRead` 的形状见公开接口页的[扩展、人工卡片与材料](../../../agent-contract/docs/public-api/README.md#扩展人工卡片与材料) |
+| 关闭条件 | 读面拥有者写明命名读取协议里“读不到”的读取结果集合，以及读取的 `schema` 与需要声明的 `schema` 的对应关系。装配写明凭需要声明的哪一项认出能力种类。SPEC 的 `needs` 段改为引用这些规则 |
 
 ### 端口提供者缺口
 
@@ -170,7 +186,7 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 端口 | 拥有者 | Agent 所需保证 | 阻塞的能力 | Agent 侧已产出的边界 | 关闭条件 |
 | --- | --- | --- | --- | --- | --- |
 | AgentAccessCheck、ActionAdmission | 授权领域。公开入口是空导出，精确形状由其公开形状设计承接（[AU-09](../../../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护)） | check 返回 allowed、denied、unavailable，unavailable 不放行。admit 返回 allow、deny、need-decision、unavailable 四类（[AU-04](../../../../identity/authorization/SPEC.md#au-04-当前准入与结果)）。allow 附准入证据，参数或依据变化时旧批准失效（[AU-05](../../../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)） | 所有公开操作的主体资格核验。工具动作的发起 | SPEC 的“[主体资格核验](../../../agent-contract/SPEC.md#主体资格核验)”和“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”。Cordis 页的[核验调用位置](../../../agent-cordis-contract/docs/cordis.md#主体资格核验的调用位置) | 授权领域发布公开契约和提供者，Agent 的两个端口改为引用或适配该契约 |
-| DecisionCards | 人在回路领域。公开入口是空导出，[Q-HI02](../../../../human-intervention/human-intervention/docs/internals.md#q-hi02-采用公开请求答复及原等待接口) 未定 | 按 passage、round 与完整请求身份集合呈现卡片并去重。按原卡片身份查唯一有效答复，四类结果：chosen、declined、pending、invalidated。作废只作用于尚无答复的卡片（[INV-HI06](../../../../human-intervention/human-intervention/SPEC.md#inv-hi06-一张卡片只有一个有效人的处理)、[INV-HI07](../../../../human-intervention/human-intervention/SPEC.md#inv-hi07-答复和原等待可恢复一致且交接无空档)、[INV-HI10](../../../../human-intervention/human-intervention/SPEC.md#inv-hi10-批次只阻塞其原等待范围)、[INV-HI11](../../../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)、[INV-HI14](../../../../human-intervention/human-intervention/SPEC.md#inv-hi14-未知保持原身份并只接续未完成责任)）。人有话说但未给准驳时，人在回路领域保留原话和“未裁决”的事实，并能把它投影为 pending，Agent 不合成拒答或批准（INV-HI11）。确定生成有效卡片失败时，人在回路领域返回确定失败并给出真实原因，与保存确认未知分开，Agent 据此拒绝相关动作（[INV-HI04](../../../../human-intervention/human-intervention/SPEC.md#inv-hi04-授权决定仅在允许范围与真实资格内生效)、INV-HI14）。作者扩展的卡片 present 确定失败时，处置已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受：不论官方准入还是作者扩展，都以拒绝结束该扩展调用，不改按扩展声明的错误策略 `onError` 处置，见 SPEC 的“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”和扩展规格的“[不可用与报错](../../../agent-contract/docs/public-api/extensions.md#不可用与报错)” | 扩展的 ask 和需要人决定的动作准入 | SPEC 的“[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素)” | 人在回路领域发布公开契约，Agent 端口改为引用或适配 |
+| DecisionCards | 人在回路领域。公开入口是空导出，[Q-HI02](../../../../human-intervention/human-intervention/docs/internals.md#q-hi02-采用公开请求答复及原等待接口) 未定 | 按 passage、round 与完整请求身份集合呈现卡片并去重。按原卡片身份查唯一有效答复，五类结果：chosen、declined、remark、pending、invalidated。作废只作用于尚无答复的卡片（[INV-HI06](../../../../human-intervention/human-intervention/SPEC.md#inv-hi06-一张卡片只有一个有效人的处理)、[INV-HI07](../../../../human-intervention/human-intervention/SPEC.md#inv-hi07-答复和原等待可恢复一致且交接无空档)、[INV-HI10](../../../../human-intervention/human-intervention/SPEC.md#inv-hi10-批次只阻塞其原等待范围)、[INV-HI11](../../../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)、[INV-HI14](../../../../human-intervention/human-intervention/SPEC.md#inv-hi14-未知保持原身份并只接续未完成责任)）。人有话说但没有给准驳时，read 返回 remark，带原话；原话由人在回路领域保存，Agent 不合成拒答或批准（INV-HI11），处置见 SPEC 的“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”第 11 条。确定生成有效卡片失败时，人在回路领域返回确定失败并给出真实原因，与保存确认未知分开，Agent 据此拒绝相关动作（[INV-HI04](../../../../human-intervention/human-intervention/SPEC.md#inv-hi04-授权决定仅在允许范围与真实资格内生效)、INV-HI14）。作者扩展的卡片 present 确定失败时，处置已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受：不论官方准入还是作者扩展，都以拒绝结束该扩展调用，不改按扩展声明的错误策略 `onError` 处置，见 SPEC 的“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”和扩展规格的“[不可用与报错](../../../agent-contract/docs/public-api/extensions.md#不可用与报错)” | 扩展的 ask 和需要人决定的动作准入 | SPEC 的“[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素)” | 人在回路领域发布公开契约，Agent 端口改为引用或适配 |
 | ModelSelection、ModelContextReader、RequestPreparation | Model 与设置的适配器、Context 的适配器 | select 返回可选档案和实际收件模型。read 返回模型可读块，full 或 incremental 由 Context 决定。prepare 与 derive 按有限压缩计划工作 | 主请求准备与压缩（CAP-AG04） | SPEC 的“[模型选择](../../../agent-contract/SPEC.md#模型选择)”“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”和“[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)” | 各适配器存在，Context 一侧的压缩计划接缝缺口关闭 |
 | AgentAdoptions、CurrentConditions、ExtensionImplementations、AgentMaterials、RegisteredReads | 装配与资产领域、协作设置、材料保管提供者、各具名读取协议的拥有者 | 只解析精确采用，不取最新版本。CurrentConditions 只投影当前推进要求与采用依据，不复制权限模式，不计算守卫，守卫由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实。材料不只存在于 Agent 的内存中 | 定义采用、扩展经过、custody 路径、具名读取 | 公开接口页的[扩展、人工卡片与材料](../../../agent-contract/docs/public-api/README.md#扩展人工卡片与材料)和 SPEC 的[采用交接](../../../agent-contract/SPEC.md#采用交接) | 各提供者存在并通过各自的换代与恢复验证 |
 | AgentJournal | 独立提供者由本域建立，带提交参加者的提供者是外部协调者的适配器。两类包都尚未建立 | 条件提交、原操作查询、可靠事件和围栏。声明能兑现的提交参加者 | 所有托管的 execution | SPEC 的“[托管协调与运行实例](../../../agent-contract/SPEC.md#托管协调与运行实例)”和“[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)” | 两类提供者包建立，并通过断电、围栏和共同提交的验证 |

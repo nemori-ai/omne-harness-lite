@@ -4,7 +4,13 @@
 // for #558 have their own `describe` at the end, named 「临时做法，待 #558 裁定」.
 import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
-import { decodeActionId, type AgentEvent, type EventPage } from '@omne-harness/agent-contract'
+import {
+  decodeActionId,
+  type AgentEvent,
+  type EventPage,
+  type JournalCommit,
+} from '@omne-harness/agent-contract'
+import { sampleStartFence } from '@omne-harness/agent-contract/testing'
 import * as toolReferences from '@omne-harness/tool-contract'
 import {
   access,
@@ -1708,6 +1714,103 @@ describe('fact 15: terminal', () => {
       ),
     ).toEqual({ kind: 'terminal' })
     expect(ok(await journal.control(control))).toEqual(accepted)
+  })
+})
+
+describe('fact 16: entry event projection', () => {
+  it('fact 16: an entry event carries the same schema as the other events of its execution', async () => {
+    const { port: journal, provider } = memory()
+    const opened = await open(journal)
+    ok(
+      await journal.commit(
+        commitAt(await load(journal, opened.execution), opened.authority, 'before-entry', {
+          events: [{ kind: 'waiting', waits: [] }],
+        }),
+      ),
+    )
+    ok(
+      await provider.entries.record({
+        ...access,
+        execution: opened.execution,
+        operation: operation('fence'),
+        authority: opened.authority,
+        entry: sampleStartFence('fence'),
+      }),
+    )
+    const page = ok(
+      await journal.output.read({ ...access, execution: opened.execution, after: null, limit: 10 }),
+    )
+    if (page.kind !== 'page') throw new Error('expected a page')
+    const [waiting, entry] = page.events
+    expect(waiting?.body.kind).toBe('waiting')
+    expect(entry?.body.kind).toBe('entry')
+    expect(entry?.schema).toEqual(waiting?.schema)
+  })
+
+  it('fact 16: a commit that carries an entry event body is invalid at events and saves nothing', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    const before = await load(journal, opened.execution)
+    const forged = commitAt(before, opened.authority, 'forged-entry', {
+      events: [
+        {
+          kind: 'entry',
+          entry: sampleStartFence('forged'),
+        } as unknown as JournalCommit<string>['events'][number],
+      ],
+    })
+    expect(failure(await journal.commit(forged))).toEqual({
+      kind: 'invalid',
+      field: 'events',
+      reason: 'entry events are allocated by the Journal',
+    })
+    expect(await load(journal, opened.execution)).toEqual(before)
+    expect(
+      ok(
+        await journal.query({
+          ...access,
+          execution: opened.execution,
+          operation: forged.operation,
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+  })
+
+  // Red when the guard lets an `ended` body through: the execution would then stop projecting
+  // entries while it is still open.
+  it('fact 16: a commit that carries an ended event body is invalid at events, and a later entry still has its event', async () => {
+    const { port: journal, provider } = memory()
+    const opened = await open(journal)
+    const before = await load(journal, opened.execution)
+    const forged = commitAt(before, opened.authority, 'forged-ended', {
+      events: [
+        {
+          kind: 'ended',
+          conclusion: { kind: 'complete' },
+          disposition: evidence('forged'),
+        } as unknown as JournalCommit<string>['events'][number],
+      ],
+    })
+    expect(failure(await journal.commit(forged))).toEqual({
+      kind: 'invalid',
+      field: 'events',
+      reason: 'ended events are allocated by the Journal',
+    })
+    expect(await load(journal, opened.execution)).toEqual(before)
+    ok(
+      await provider.entries.record({
+        ...access,
+        execution: opened.execution,
+        operation: operation('after-forged-ended'),
+        authority: opened.authority,
+        entry: sampleStartFence('after-forged-ended'),
+      }),
+    )
+    const page = ok(
+      await journal.output.read({ ...access, execution: opened.execution, after: null, limit: 10 }),
+    )
+    if (page.kind !== 'page') throw new Error('expected a page')
+    expect(page.events.map(event => event.body.kind)).toEqual(['entry'])
   })
 })
 

@@ -655,7 +655,11 @@ export function createMemoryAgentJournal<P>(
     cause: DurableEvidence,
   ): void {
     const attachment = latestAttachment(execution)
-    if (attachment === undefined) return
+    // `open` establishes the first attachment before anything is written, so an execution without
+    // one is a defect of this Journal, not a case to pass over in silence.
+    if (attachment === undefined) {
+      throw new TypeError('the memory Journal has an execution without an attachment')
+    }
     // The ended event is the last event of an execution; nothing is appended after it.
     if (execution.events.at(-1)?.body.kind === 'ended') return
     for (const body of bodies) {
@@ -1157,6 +1161,22 @@ export function createMemoryAgentJournal<P>(
         const found = owned(input, 'commit')
         if ('failure' in found) return answer(found)
         const execution = found.ok
+        // The Journal allocates `entry` and `ended` events itself: `entry` when it writes an entry
+        // (SPEC "日志条目" 6), `ended` in tryFinish. A commit that carries either is invalid.
+        const forged = input.events.find(body => {
+          const kind = (body as AgentEventBody).kind
+          return kind === 'entry' || kind === 'ended'
+        })
+        if (forged !== undefined) {
+          return answer(
+            fail(
+              invalid(
+                'events',
+                `${(forged as AgentEventBody).kind} events are allocated by the Journal`,
+              ),
+            ),
+          )
+        }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -1814,6 +1834,10 @@ export function createMemoryAgentJournal<P>(
     holds,
     receiptOf,
     nextEvidence,
+    writeEntry: (execution, entry, cause) => {
+      execution.entries.push(entry)
+      appendEvents(execution, [{ kind: 'entry', entry }], cause)
+    },
     ...(options.custodian === undefined ? {} : { custodian: options.custodian }),
   })
   return {

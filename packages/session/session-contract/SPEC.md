@@ -1197,7 +1197,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### EC-01 同日志事实及 Session 后果
 
-提供者经同一 AgentJournal 的 output.read / output.events 读取事件正文，经 load 读取 entries、results 与其他公开快照字段。每次读取都绑定当前资格、租户及 execution，并核对其历史 Session/Run 关系。事件按 AgentEvent 的事件序号读取，ExecutionRef.readThrough 只记录该事件序号；entries 的提交顺序与 results 快照不是事件 cursor，不能用它们虚构 input-taken 批界或推进事件进度。`input-taken` 产生 SE14；`producer` 产生 SE19，缺调用登记时同批产生 SE18；`waiting` 产生 SE18/SE22；`control` 产生 SE25；`ended` 按 RS-08 至 RS-10 产生 SE26/SE16。`message` 已经通过 AD-01 写 SE10，不重复写；`stream` 不写历史片段。`start-fence` 只保留 Agent 拥有的围栏含义，`received` 的材料和账目按已保存结果解释，不能推导生产者 ACK。
+提供者经同一 AgentJournal 的 output.read / output.events 读取事件正文，经 load 读取 entries、results 与其他公开快照字段。每次读取都绑定当前资格、租户及 execution，并核对其历史 Session/Run 关系。事件按 AgentEvent 的事件序号读取，ExecutionRef.readThrough 只记录该事件序号；entries 的提交顺序与 results 快照不是事件 cursor，不能用它们虚构 input-taken 批界或推进事件进度。`input-taken` 产生 SE14；`producer` 产生 SE19，缺调用登记时同批产生 SE18；`waiting` 产生 SE18/SE22；`control` 产生 SE25；`ended` 按 RS-08 至 RS-10 产生 SE26/SE16。`message` 已经通过 AD-01 写 SE10，不重复写；`entry` 告知同一 Journal 在同一次提交里已保存的条目，不产生 Session 后果。`start-fence` 只保留 Agent 拥有的围栏含义，`received` 的材料和账目按已保存结果解释，不能推导生产者 ACK。
 
 归一化后果必须核对租户、Session、历史 execution-to-Run 关系、原来源及完整结果版本。没有关系时拒绝推测。权威日志有缺口按 SL14 隔离会话；公开快照只在其字段足以证明具体后果时用于对账，不替代缺失事件的精确批界或事件 cursor。缺失或不可用不能当成不存在。重建不重新调用生产者执行。
 
@@ -1457,7 +1457,7 @@ Waiting保留既有extension-batch形状。该分支members.action保存原所�
 | position           | 原位置文本，非空                                                                      |
 | members            | 按原等待cards顺序保存成员，每项有card及decision，没有action字段                       |
 | members[].card     | 原卡片的完整DurableEvidence                                                           |
-| members[].decision | 原卡有效chosen或declined答复的evidence；尚无有效答复或原response为invalidated时为null |
+| members[].decision | 原卡有效chosen、declined或remark（附言）答复的evidence；尚无有效答复或原response为invalidated时为null |
 
 新分支不含action，不以null或空串补在旧分支。旧extension-batch及其历史字节、导出和有效输入保持。两分支遵循相同的原Run、经过、等待范围、取消、终态和继续资格规则；区别只是是否存在所属动作。extension-passage不是新增HITL状态机、操作或事件。
 
@@ -1673,7 +1673,7 @@ SE36 的内容（能力身份、资产版本、shape）由 Tool 规定，种类�
 
 - Model 的流片段、受理诊断与重试诊断。
 - Tool 的过程块与内部调度。
-- Agent 的流事件、消息事件（消息已在参加时成立）、内部状态、拓展结论的正文与检查点。
+- Agent 的消息事件（消息已在参加时成立）、内部状态、拓展结论的正文与检查点。
 - 调度器唤醒。
 
 ### 推理续接状态
@@ -1937,7 +1937,7 @@ Runtime Context 作用域的结束与已签发资格的撤销不在本表。它�
 | VC-B13 | 任何推进命令携带接续值                                                                                                                                                              | 类型上不能构造；Session 的状态里没有接续值                                                                       | [PM-01](#pm-01)、[I-R8](#i-r8)                                           |
 | VC-B14 | 执行尝试已授予而 Agent 尚无该执行的记录                                                                                                                                             | 以同一出站操作身份重放 `invoke`；不按有界恢复者收束                                                              | [PM-14](#pm-14)、[P-5](#具名前提与明确缺项)                              |
 | VC-B15 | claim/reload 撤旧后接续 | 本域旧 attempt 失效；不生成另一套 Tool 围栏任务，也不以本域提交宣称 Tool 已阻止发起 | [PM-05](#pm-05)、[PM-06](#pm-06) |
-| VC-C01 | 承接、等待、生产者、控制、结束、消息与流事件到达                                                                                                                                    | 承接、登记、等待、控制阶段与终态各写一次；消息与流事件不写条目；重放认回                                         | [EC-01](#ec-01)                                                          |
+| VC-C01 | 承接、等待、生产者、控制、结束、消息与 `entry` 事件到达                                                                                                                                    | 承接、登记、等待、控制阶段与终态各写一次；消息与 `entry` 事件不写条目；重放认回                                         | [EC-01](#ec-01)                                                          |
 | VC-C02 | 游标丢失后从 `"0"` 重读                                                                                                                                                             | 重放认回，不重复写入；确认只在游标持久后发出                                                                     | [EC-02](#ec-02)                                                          |
 | VC-C03 | Run 未终结、事件尚未完成解释提交时裁定空闲或完成                                                                                                                                    | 不得出 `due`；Agent 结论的终态只在结束事实的解释提交成立后成立                                                   | [EC-03](#ec-03)、[I-R10](#i-r10)                                         |
 | VC-C04 | 保管或完成提交之后，交付责任解除的时刻                                                                                                                                              | 解除只在提交成功之后发出；数据库事务不包含它                                                                     | [EC-04](#ec-04)                                                          |
@@ -1982,7 +1982,7 @@ Runtime Context 作用域的结束与已签发资格的撤销不在本表。它�
 
 ### J04 流观察消费义务
 
-Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，不把流引用写 Journal。当前 AgentEventBody.stream 联合仍保留。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
+Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，不把流引用写 Journal，也不发 `stream` 事件（`AgentEventBody` 只有 Agent 自身的事件）。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
 
 ### J18 作用域引用与结束事实
 

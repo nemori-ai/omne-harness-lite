@@ -3,6 +3,7 @@ import {
   decodeAgentExecutionId,
   decodeInputId,
   type Access,
+  type AgentEvent,
   type AgentExecutionId,
 } from '@omne-harness/agent-contract'
 import {
@@ -84,6 +85,26 @@ export function entriesFixture() {
       ? view.materials.read(input)
       : fail({ kind: 'unavailable', owner: 'material', diagnostic: 'no original material route' })
   }
+  // The events as `AgentJournal.read` pages them; `denied` is the answer for an execution that
+  // does not exist (or belongs to another tenant), any other failure is a defect of the run.
+  const listEvents = async (
+    who: Access<string>,
+    execution: AgentExecutionId,
+  ): Promise<readonly AgentEvent[] | undefined> => {
+    const listed: AgentEvent[] = []
+    let after: string | null = null
+    for (;;) {
+      const page = await provider.journal.output.read({ ...who, execution, after, limit: 100 })
+      if ('failure' in page) {
+        if (page.failure.kind === 'denied') return undefined
+        throw new Error(`fixture read failed: ${JSON.stringify(page.failure)}`)
+      }
+      if (page.ok.kind !== 'page') throw new Error('fixture read met a retention gap')
+      listed.push(...page.ok.events)
+      after = page.ok.next
+      if (page.ok.caughtUp) return listed
+    }
+  }
   const fixture: AgentJournalEntriesFixture<string> = {
     entries: provider.entries,
     access,
@@ -155,13 +176,20 @@ export function entriesFixture() {
           replyAdmission: null,
         }),
       )
+      // The Session hands the pending input over by interpreting the input-taken event; its
+      // sequence depends on what the case wrote before (an entry written after a takeover already
+      // holds an earlier one), so it is looked up by content, not fixed.
+      const taken = (await listEvents(who, execution))?.find(
+        event => event.body.kind === 'input-taken' && event.body.batch.id === page.batch.id,
+      )
+      if (!taken) throw new Error('no input-taken event for the fixture batch')
       ok(
         await backend.controls.interpret({
           ...who,
           session: scopeFor(who, execution),
           execution,
           operation: operationId('fixture-take'),
-          sequence: '1',
+          sequence: taken.sequence,
         }),
       )
       loaded = ok(await provider.journal.load({ ...who, execution }))
@@ -186,6 +214,28 @@ export function entriesFixture() {
     async read(who, execution) {
       const loaded = await provider.journal.load({ ...who, execution })
       return 'ok' in loaded ? loaded.ok.entries : undefined
+    },
+    events: listEvents,
+    // Detaches the current attachment through the public port, as `AgentJournalAttachment.detach`
+    // does; the execution stays open (suspended) and the detached attachment stays the latest one.
+    async detach(who, execution) {
+      const loaded = ok(await provider.journal.load({ ...who, execution }))
+      const authority = loaded.executionAttachment
+      if (!authority) throw new Error('no current attachment to detach')
+      ok(
+        await provider.journal.detach({
+          ...who,
+          execution,
+          operation: operation('fixture-detach'),
+          authority,
+          reason: evidence('detach'),
+        }),
+      )
+    },
+    // Scripts the next `record` of that execution that reaches its write step; see the control of
+    // the same name on the session journal's receiving controls.
+    async failNextRecord(who, execution, fault) {
+      bound({ ...who, execution }).controls.failNextRecord({ ...who, execution }, fault)
     },
   }
   const joint: ReceivedCommitFixture<string, ContentBlock> = {

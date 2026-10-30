@@ -42,7 +42,6 @@ describe('the value of an accepted definition', () => {
       value: {
         category: 'AgentDefinition',
         name: 'coding',
-        version: { kind: 'then-legal-winner' },
         references: [],
         attributes: [{ item: 'model' }, { item: 'first_token_wait_limit' }],
       },
@@ -64,7 +63,6 @@ describe('the value of an accepted definition', () => {
       value: {
         category: 'AgentDefinition',
         name: 'coding',
-        version: { kind: 'then-legal-winner' },
         references: [
           { capability: { category: 'Tool', name: 'plain' } },
           { capability: { category: 'Tool', name: 'pinned' }, resident: false },
