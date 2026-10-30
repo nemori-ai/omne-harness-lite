@@ -514,7 +514,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 ### 身份解码与结构判定
 
-“[身份、范围与归属](#身份范围与归属)”要求所有 ID、DurableEvidence 和 Authority 在边界验证。本包为每个品牌身份导出一个解码函数，另导出四个结构判定，作为这项验证的方法。设计没有给出身份文本规则。身份文本规则与 Tool 契约相同。
+“[身份、范围与归属](#身份范围与归属)”要求所有 ID、DurableEvidence 和 Authority 在边界验证。本包为每个品牌身份导出一个解码函数，另导出六个结构判定，作为这项验证的方法，其中两个属于消息准入，见本节末段。设计没有给出身份文本规则。身份文本规则与 Tool 契约相同。
 
 十四个解码函数是 `decodeAgentInstanceId`、`decodeStepId`、`decodeActionId`、`decodePassageId`、`decodeCardRoundId`、`decodeActionBatchId`、`decodeAgentExecutionId`、`decodeExecutionAttachmentId`、`decodeAgentRegistrationId`、`decodeAgentOperationId`、`decodeExecutionRevision`、`decodeInputId`、`decodeInputBatchId` 与 `decodeConsumptionId`。身份文本是可打印 ASCII，不含空格，长度从 1 到 `AGENT_IDENTITY_MAX_LENGTH`（256 个 UTF-16 码元）。解码函数接受 `unknown`，返回 `Outcome`。失败值是 `{ field, reason }`：`field` 是身份类型名，`reason` 是 `type`（不是字符串）、`empty`、`length` 或 `character`。解码按类型、空串、长度、字符的次序检查，返回第一个失败。成功值只是品牌类型。解码不证明实例、执行或登记存在，也不授予资格。
 
@@ -529,7 +529,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 判定只读普通对象的自有数据成员。数组、其他原型的实例、带访问器或符号键的对象，以及反射时抛出异常的对象，都得到 `type`。判定不执行这些访问器。`judgeAccess` 会执行调用方注入的主体判定，不捕获它抛出的异常。除这一处外，这些函数不抛出异常。成功值是冻结的新对象。`judgeAccess` 成功值中的 `principal` 是注入的主体判定返回的值，`tenant` 是输入中的同一个 `TenantId`。判定只给出形状，不证明记录存在，也不证明来源。
 
-“[消息准入](#消息准入)”的输入另有两个结构判定：`judgeHandoffPrepare` 判定 `MessageHandoff.prepare` 输入的三个分支，`judgeInputOrigin` 判定 `InputOrigin` 的两个分支。它们同样对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。先读 `kind`：缺席得到 `missing`，不是已知分支得到 `type`。别的分支才有的成员得到 `unknown-field`，判定不按已有成员改猜分支。它们只给出形状，不证明记录存在，也不证明调用方有资格。
+“[消息准入](#消息准入)”的输入另有两个结构判定：`judgeHandoffPrepare` 判定 `MessageHandoff.prepare` 输入的三个分支，`judgeInputOrigin` 判定 `InputOrigin` 的两个分支。三个分支各自的成员由“[消息准入](#消息准入)”规定，本节不再列举。它们同样对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。先读 `kind`：缺席得到 `missing`，不是已知分支得到 `type`。别的分支才有的成员得到 `unknown-field`，判定不按已有成员改猜分支。外部请求（invoke 与 submit 分支的 `InputHandoff`）在各成员与封闭字段检查通过之后，另核三部分是否一致：`reference.execution` 等于 `entry` 的 execution，`reference.entry` 等于 `entry` 的原入口操作，`reference.input` 与 `source.input` 都等于 `entry` 受理的输入的 InputId。按这个次序检查，不一致时在不一致的字段上得到 `identity`。它们只给出形状，不证明记录存在，也不证明调用方有资格。
 
 ### 资产正文契约
 
@@ -1052,7 +1052,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 输入水位线指已可靠分配给该 execution 的输入边界，不能只用内存队列长度代替。inputs 返回该位置按规则应承接的完整有序批，内容来自受理时保存的内容。分页属于提供者内部，不改变批次语义。
 
-外部输入的原入口索引 Ki 是（租户、execution、原 invoke 或 submit 操作 O）。准入提供者拥有 Ki 到原 H 的耐久映射。外部 H 由固定版本标签、Ki、入口种类与 InputId 派生，不含 instance、当前 grant、principal、连接、时间或不存在的 execution revision。目标 execution 是请求身份，不证明 execution 已建立。同 Ki 先比较完整原业务请求，再检查 H，所以更换 kind 或 InputId 不能逃到另一个 H；异 source、候选、内容、原入口或优先级都 conflict，原映射与结果不变。InputEntry 完整保存原 operation、execution 与 AcceptedInput，不含 instance 或 grant；invoke 另存首次 prepare 之前按原 definition 生成的完整初始 checkpoint，恢复从原 request 取回它，不用 后继实例的新默认值替换；submit 没有初始 checkpoint。长期适配器、原实例与后继实例使用同一权威 Ki 命名空间与原 provider adoption resolver：新进程的空索引不代表首次调用，Ki 索引可从权威记录完整重建，恢复未就绪为 unavailable，没有可信迁移或原记录读取能力的绑定为 unsupported。
+外部输入的原入口索引 Ki 是（租户、execution、原 invoke 或 submit 操作 O）。准入提供者拥有 Ki 到原 H 的耐久映射。外部 H 由固定版本标签、Ki、入口种类与 InputId 派生，不含 instance、当前 grant、principal、连接、时间或不存在的 execution revision。目标 execution 是请求身份，不证明 execution 已建立。同 Ki 先比较完整原业务请求，再检查 H，所以更换 kind 或 InputId 不能逃到另一个 H；异 source、候选、内容、原入口或优先级都 conflict，原映射与结果不变。InputEntry 完整保存原 operation、execution 与 AcceptedInput，不含 instance 或 grant；invoke 另存首次 prepare 之前按原 definition 生成的完整初始 checkpoint，恢复从原 request 取回它，不用后继实例的新默认值替换；submit 没有初始 checkpoint。长期适配器、原实例与后继实例使用同一权威 Ki 命名空间与原 provider adoption resolver：新进程的空索引不代表首次调用，Ki 索引可从权威记录完整重建，恢复未就绪为 unavailable，没有可信迁移或原记录读取能力的绑定为 unsupported。
 
 InputOrigin 是首次准入的不可变出处，由提供者首次写入，此后 prepare、lookup 与认回都返回原值；调用方不上传 origin。invoke 分支保留当时真实的实例、scope、definition 与 grant。submit 分支由可信 Journal resolver 取得原 execution 绑定：executionBinding 指向含 tenant、execution、scope、精确采用、coordination 与不透明外部关联的原版本记录，该记录受 H 的保留责任保护，不能只留哈希；delivery 记录实际交入路由，runtime-view 的 instance 是原视图的可核验来源，不声称该实例现在存活，durable-view 表示首次交入确实没有 runtime 路由，不是 unknown。提供者从受信入口取得路由事实，不从请求参数、当前挂接或先前的实例猜造；来源不可确定时保留 unavailable，不填 durable-view 掩盖缺证。原实例失联、同一视图改走长期路由或当前主体变化都不覆盖 origin。原主体的稳定身份编码与首次资格依据另存在提供者记录，凭据不进入材料。origin 是历史事实，不授当前主体或后继实例权力。
 

@@ -15,6 +15,8 @@
 - [`./testing` 入口](testing.ts)
 - [一致性用例形状与共享辅助](testing-case.ts)
 - [Journal 核心一致性套件：执行修订、阶段事实、认回、持久拒绝与终结](testing-journal-core.ts)
+- [Journal 核心套件的终结用例：候选、清单、阻塞次序、取消路线、迁移与保管变体](testing-journal-finishing.ts)
+- [Journal 核心套件的共享辅助：身份、证据、写入输入、终结路径与修订探针](testing-journal-helpers.ts)
 - [套件用的取消政策与安装记录](testing-cancellation.ts)
 - [接收面条目端口的套件与替身](testing-journal-entries.ts)
 - [账目出站端口的套件与替身](testing-account-outlet.ts)

@@ -1,6 +1,6 @@
 # Agent 公开入口与定义
 
-根入口 `@omne-harness/agent-contract` 导出全部契约类型、五个常量（`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`AGENT_IDENTITY_MAX_LENGTH`）、三个判定函数（`judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`）、资产正文端口 `agentBodyContract`、十四个品牌身份的解码函数和四个结构判定。包根不导出推进、纯求值、托管协调、Journal 或实例的实现。这些接口在包里只有类型，由[后继的通用实现与提供者](../../../agent/README.md)实现。
+根入口 `@omne-harness/agent-contract` 导出全部契约类型、五个常量（`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`AGENT_IDENTITY_MAX_LENGTH`）、三个判定函数（`judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`）、资产正文端口 `agentBodyContract`、十四个品牌身份的解码函数、六个结构判定（其中 `judgeHandoffPrepare` 与 `judgeInputOrigin` 属于消息准入）与 `obligationCategoryOf`。包根不导出推进、纯求值、托管协调、Journal 或实例的实现。这些接口在包里只有类型，由[后继的通用实现与提供者](../../../agent/README.md)实现。
 
 公开类型的唯一定义在 [src/index.ts](../../src/index.ts) 及其导出模块。本页是源码导航，不保留手写类型声明。这些类型的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。类型存在不表示任何提供者或运行实现已经兑现它们。
 
@@ -143,6 +143,7 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 
 - [execution.ts](../../src/execution.ts)：执行与实例的类型。有 `ExecutionState`、`ExecutionSnapshot`、`AgentState`、`AcceptedInput`、`TerminalObservation`、`FinishIntent`、`FinishResult`、`FinishAuthorization`，控制的 `ExecutionControl`、`ControlStage`、`ControlStageFact` 与 `ControlRecord`，`ResultResponsibility`、`ExecutionMutation`、`CommandReceipt`，事件的 `AgentEventBody`、`AgentEvent` 与 `EventPage`。
 - [finishing.ts](../../src/finishing.ts)：终结的类型。候选与路线的 `FinishCandidateContent`（F1 commit 的 `finish` 字段）、`FinishCandidate`、`FinishRoute`、`LegacyF2Entry` 与 `CandidateSupersession`；终结责任清单的 `FinishObligations`、`FinishObligation`、`ObligationDisposition`、`PendingReason`、`RecoveryContinuation`、`ResponsibilityCoverage` 与 `TerminalParticipantFacts`；受信取消判断的 `CancellationPolicyInstallation`、`CancellationJudgmentInput`、`CancellationDecision`（含 `CancellationBlock` 与 `CancellationUnknown`）、`CancellationPolicy` 与 `CancellationJudgmentRecord`；结算记录的 `MigrationRecord`、`LegacyInvocationReturn`、`ToolAssociationRecord`、`CardReconciliationRecord` 与快照投影 `ExecutionSettlement`；以及 commitSettlement 的 `SettlementRequest` 与 `SettlementResult`。
+- [finishing.ts](../../src/finishing.ts) 还导出函数 `obligationCategoryOf`：由清单项的 `kind` 求出它的类别（inputs、controls、operations、passages 或 custody）。类别不是清单项公共头的成员，对应关系见 SPEC“[终结责任清单](../../SPEC.md#终结责任清单)”中 kind 与类别的表。
 - 运行时端口也在 [execution.ts](../../src/execution.ts)：`AgentExecutionInput`、`AgentExecutionControl`、`AgentExecutionEvents`、`AgentExecutionHandle`、`AgentRuntime`、`AgentObservation`、`AgentHandle`、`AgentDirectory`、`AgentExecutionRecovery`、`AgentAdoptions`，登记的 `RegistrationState`、`Registration`、`AgentRegistrationHandle` 与 `AgentInstanceHost`，停用的 `QuiesceResult` 与 `AgentRuntimeControl`，资格核验的 `AgentAccessOperation`、`AgentAccessTarget`、`AgentAccessDecision` 与 `AgentAccessCheck`，以及 `AgentClock`。
 
 - invoke 返回的 AgentExecutionHandle 是原 execution 的输入、控制和输出视图，不指向 runtime 后来承接的其他 execution。
