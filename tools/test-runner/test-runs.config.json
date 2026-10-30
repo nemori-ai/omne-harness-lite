@@ -40,6 +40,11 @@
       "tools/test-runner/src/testing/pnpm-lockfile.ts",
       "tools/test-runner/src/testing/resume.ts",
       "tools/test-runner/src/testing/admission-run.ts",
+      "tools/test-runner/src/testing/admission-evidence.ts",
+      "tools/test-runner/src/testing/ledger.ts",
+      "tools/test-runner/src/testing/replay.ts",
+      "tools/test-runner/src/testing/triage.ts",
+      "tools/test-runner/src/testing/filter-guard.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
