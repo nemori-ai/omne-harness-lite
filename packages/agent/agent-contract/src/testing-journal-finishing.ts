@@ -7,6 +7,7 @@
 // tenant and the host records of another tenant or execution. Every case reads only what the port
 // returns. testing-journal-core.ts appends these cases to the suite.
 import assert from 'node:assert/strict'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type * as M from '@omne-harness/model-contract'
 import {
   decodeModelCallId,
@@ -36,6 +37,7 @@ import {
 import type { HandoffCustody } from './journal.ts'
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
+import type { TestHostRecord } from './testing-cancellation.ts'
 import {
   advancement,
   advances,
@@ -255,6 +257,41 @@ async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: strin
     'reference',
   )
   return { pending, key, reference }
+}
+
+/**
+ * A host Tool return whose reference belongs to another tenant, for a variant that does not take
+ * Tool returns: no effect stands behind its intent key, because the tenant is denied first.
+ */
+function foreignToolReturn<P>(
+  opened: AgentJournalCoreOpened<P>,
+  tenant: TenantId,
+  name: string,
+): TestHostRecord {
+  const pending = toolIntent(opened, name)
+  return {
+    kind: 'tool-return',
+    intent: {
+      intent: operation(`core-foreign-${name}`),
+      action: pending.action,
+      position: pending.position,
+    },
+    request: pending.fixed,
+    returned: {
+      kind: 'accepted',
+      reference: identity(
+        encodeToolInvocationRef({
+          tenant,
+          call: identity(decodeToolCallId(`core-call-foreign-${name}`), 'call'),
+          admission: identity(decodeToolOperationId(`core-admission-foreign-${name}`), 'admission'),
+        }),
+        'reference',
+      ),
+      receipt: evidence(`tool-receipt-foreign-${name}`),
+    },
+    received: evidence(`received/foreign-${name}`),
+    custody: evidence(`custody/foreign-${name}`),
+  }
 }
 
 /** The cases of the finishing chapter; the core suite appends them. */
@@ -3776,7 +3813,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
       },
     },
     {
-      name: 'record-card-reconciliation: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at original; neither writes; the record of this execution is merged',
+      name: 'record-card-reconciliation: a host record of another tenant is denied with the action commitSettlement before the record is compared, also a Tool return of another tenant, a record of another execution is invalid at original; neither writes; the record of this execution is merged',
       run: async () => {
         const opened = await fixture.open('foreign-card-record')
         if (!(await requireInstallation(opened))) return
@@ -3842,6 +3879,18 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant and another round',
         )
         assert.deepEqual(deniedOtherRound, denied, 'the same answer before the round is compared')
+        // A Tool return of another tenant is denied before its kind is compared, so the answer
+        // does not tell what kind of record the foreign source is.
+        const foreignTool = await opened.hostRecord(foreignToolReturn(opened, other.tenant, 'card'))
+        assert.deepEqual(
+          await refused(
+            journal.commitSettlement({ ...recording, original: foreignTool }),
+            'denied',
+            'a Tool return of another tenant',
+          ),
+          denied,
+          'the same answer before the kind is compared',
+        )
         const invalid = await refused(
           journal.commitSettlement({ ...recording, original: elsewhere }),
           'invalid',
@@ -3855,7 +3904,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
       },
     },
     {
-      name: 'record-legacy-return: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at source, a request that is not the input of the passage is invalid at request; none writes; the return of this execution is saved',
+      name: 'record-legacy-return: a host record of another tenant is denied with the action commitSettlement before the record is compared, also a Tool return of another tenant, a record of another execution is invalid at source, a request that is not the input of the passage is invalid at request; none writes; the return of this execution is saved',
       run: async () => {
         const opened = await fixture.open('foreign-legacy-record')
         if (!(await requireInstallation(opened))) return
@@ -3924,6 +3973,18 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant and another input',
         )
         assert.deepEqual(deniedOtherInput, denied, 'the same answer before the input is compared')
+        const foreignTool = await opened.hostRecord(
+          foreignToolReturn(opened, other.tenant, 'legacy'),
+        )
+        assert.deepEqual(
+          await refused(
+            journal.commitSettlement({ ...recording, source: foreignTool }),
+            'denied',
+            'a Tool return of another tenant',
+          ),
+          denied,
+          'the same answer before the kind is compared',
+        )
         const invalid = await refused(
           journal.commitSettlement({ ...recording, source: elsewhere }),
           'invalid',
