@@ -2052,7 +2052,7 @@ MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 
-1. 它计入未结工作。`PendingReason.release` 保持。`judgeIdle` 为 not-due，空闲到期与自动归档被阻止。
+1. 它阻止空闲：`PendingReason.release` 保持，`judgeIdle` 经 `consumptions` 为 not-due，空闲到期与自动归档被阻止。它不进入 `openWork`，所以不阻塞条件终结，也不计入 Request Context 的未结工作下界。
 2. 恢复扫描对它只报告，不执行动作（[PM-14](#pm-14)）。
 3. 代价：有 Model 结果的会话在 MODEL-ACK-ARRIVAL 闭合前不会自动归档。
 
