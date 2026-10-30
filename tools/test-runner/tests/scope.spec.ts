@@ -34,7 +34,12 @@ import {
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
-import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
+import {
+  computePlan,
+  fullRequested,
+  lockfileImpactBetween,
+  readPlanFile,
+} from '../src/testing/steps.ts'
 import { checkSteps, residentStepNames } from '../src/testing/check-steps.ts'
 import { dependentMembers, listedMembers, packageNames } from '../src/testing/turbo.ts'
 
@@ -827,6 +832,18 @@ describe('真实仓库', () => {
 
   it('基线不存在：引擎报错，不改判全量', () => {
     expect(() => computePlan(ROOT, 'no-such-ref-for-affected-spec', false)).toThrow()
+  })
+
+  it('两边的锁文件从 git 取：同一个提交两边等价；哪一边取不到就判全量并写明', () => {
+    const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+    expect(lockfileImpactBetween(ROOT, 'HEAD', 'HEAD', members)).toEqual({
+      kind: 'unchanged',
+      reason: '两份 pnpm-lock.yaml 解析后等价',
+    })
+    expect(lockfileImpactBetween(ROOT, 'no-such-ref-for-affected-spec', 'HEAD', members)).toEqual({
+      kind: 'full',
+      reason: '基线 no-such-r 上没有 pnpm-lock.yaml，判为全量',
+    })
   })
 })
 
