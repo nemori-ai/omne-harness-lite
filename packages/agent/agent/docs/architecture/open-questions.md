@@ -32,22 +32,47 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 <a id="agent-m04"></a>
 ## AGENT-M04 Journal 契约与节点表的出入
 
-本项的剩余出入尚未闭合。[#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)已关闭 M04-2 与 M04-6：ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelayMs，拒收退避恢复后重新计足。其余未决如下。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
+本项的剩余出入尚未闭合。下列各项已关闭，规则写在各自拥有者的正文中。
+
+- M04-2 与 M04-6：依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)，ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelayMs，拒收退避恢复后重新计足。
+- M04-5：按 [#558 修订稿](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366444012)对现行条款的对账（及其[复核](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366538839)），参加者声明只约束 `commit.caller`，不约束 `recordResult.transfer`。规则见公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
+- M04-7：按同一修订稿对现行条款的对账，`open` 与 `attach` 不追加事件，execution 的第一个事件由 open 之后首次产生事件的提交分配。规则见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)。
+- M04-8：依据阶段 1 决定，`input.submit` 不追加事件，input-taken 只由 I0 固定输入批的那次提交追加。规则见同一节与节点表 I0。
+- M04-9：按同一修订稿对现行条款的对账，逐操作表按 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)列出 `commit` 与 `tryFinish` 的 unavailable，以及 `tryFinish` 的 unsupported；依据 [Q11](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6370175199) 第 5 条，对 ended execution 的新 `commit`、新 `detach` 与新 `tryFinish` 返回 terminal。规则见 SPEC 的[判定次序与失败映射](../../../agent-contract/SPEC.md#判定次序与失败映射)与[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)。
+- M04-1：依据 [Q1/Q1b](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6368831820)，`control` 的受理事实及其 control 事件、`recordControl` 的每个新适用阶段事实及其 control 事件，与可查询的原操作结果在同一原子边界保存，并与 `tryFinish` 共用权威排序；合法 ended 之后只保存三种迟到的责任事实，不追加事件。`recordResult` 不追加 producer 事件，T1 的 producer 事件由第二步的条件提交承载。规则见 SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与机制页的[提交点总表](mechanisms.md#提交点总表)。
+- M04-3：依据 [Q2](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369509929)，Journal 绑定以必填的 `capabilities.coordination` 声明 standalone 或 coordinated，工厂核对配置 `coordination` 严格相等并逐种比对 `jointCommits`；coordinated 绑定在 `open`、`attach`、`submit` 与 `tryFinish` 的同一次提交中完成协调核对。规则见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)与公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。
+- M04-4：依据 [Q3](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369509929)，每次建立新 execution 事实的原子 mutation 分配恰好一个新 revision，只保存认回索引的认回不分配；逐操作的首次新事实、认回与无变化边界见 SPEC 的[执行修订](../../../agent-contract/SPEC.md#执行修订)。新操作认回的回执与保留依据 [Q13](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6369723218)，见 SPEC 的[原操作认回与恢复](../../../agent-contract/SPEC.md#原操作认回与恢复)。
+- M04-10：依据 [Q6/Q7/Q14 的 C3E-FM](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373930927) 第 6、7 条，消息准入分为准备记录操作 P、准入原操作 H（`MessageHandoff.prepare`）、应用操作 Ja（`commit` 带 `handoff.resolve` 或 `retire`）与保管记录操作 Rh（`recordHandoff`）。每个来源的真实历史在 Ja 同次提交；提供者声明了对应种类时 `caller` 为 message 或 context-transition，未声明时 `caller` 为 none，且 Journal 在工厂前固定的历史组合在同一事务兑现同样的核心历史义务，缺实际组合时工厂返回 unsupported。规则见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)与[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条；节点表的 Q1、Q2、C3、T5 与提交点总表按此写。Rh 的写入契约依据 [P5E](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6375988640)，见 SPEC 的[准入结果保管](../../../agent-contract/SPEC.md#准入结果保管)。
+- M04-12：依据同一 C3E-FM 第 8 条，H0 不是写入节点：它只读原 recorded 且 rejected 的结果、原来源请求与当前执行事实作纯路由，没有新 operation、决策帧、快照字段或事件；失败候选由 F1 条件提交写入，只保管由 O0 的 `recordHandoff` 承接。规则见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由”；节点表 H0 与提交点总表按此写。
+
+其余未决如下。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
 
 | 编号 | 出入 | 拥有者 | 阻塞 |
 | --- | --- | --- | --- |
-| M04-1 | Model received 路径已由 J02 明确：M1 等待同一 Journal，M3 条件提交 producer 事件，不投影 Model stream。其余 Tool stream/producer 与 control 的事件承载仍须按原节点和公开 Journal 条款裁定。 | agent-contract | T0、T1 及 control 的事件投影 |
-| M04-3 | 外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加不是 `CallerCommit` 种类，`capabilities.participants` 没有声明它的形状。与[外部协调者怎样与 Agent 共同受理输入和终结](#外部协调者怎样与-agent-共同受理输入和终结)的 SW-M01 同一主题 | agent-contract | 协调者装配在工厂创建时的拒绝条件 |
-| M04-4 | 对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 AgentCheckpoint 行写 checkpoint 每次提交随 execution 修订保存，SPEC [事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次)写事件与 execution 修订一起保存。没有拥有者写明 `submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 是否推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
-| M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
-| M04-7 | SPEC [逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)的第二张表中，invoke 行的事件写受理成功后追加首批事件，`Journal.open、attach` 行的事件写无，`open` 也没有事件输入。首批事件来自 invoke 的受理，还是来自之后的一次提交（例如 I0 的 input-taken），两行的说法不一致 | agent-contract | E0 的提交形状，以及第一个事件序号属于哪个事件 |
-| M04-8 | SPEC 逐操作表把 input-taken 列为 `input.submit` 的事件，但只有 I0 能形成 `InputBatch` | agent-contract | I0 与 submit 的事件测试 |
-| M04-9 | SPEC 提交参加者协议规定参加者失败时返回 unavailable，逐操作表的 `AgentJournal.commit` 行与 `AgentJournal.tryFinish` 行没有列出它。`tryFinish` 行也没有列出 unsupported | agent-contract | 两种 Journal 实现对参加者失败的返回测试 |
-| M04-10 | 节点表 Q2 写“压缩加 context-transition，其他来源加 message”，不区分提供者是否声明了对应种类。独立装配的 `jointCommits` 为空表。SPEC [请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条把转换写成经 Journal 的 context-transition 交接保存，独立装配也是如此，只写由其合法历史拥有者兑现 | Loop 完整算法页与 agent-contract | 独立装配中 C3、T5 与 X5 的提交形状 |
-| M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
-| M04-12 | H0 的“写什么”写“失败候选或只保管的决定”，失败候选由 F1 写入，只保管由 O0 承接。H0 是否为写入节点没有写明 | Loop 完整算法页 | H0 的实施卡与提交点总表的覆盖口径 |
+| M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放。[#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 已采用暂停解除挂接与崩溃恢复协议，写回卡待建，[排在 M2 之后](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6497861221)。写回之前本项保持开放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
 
-关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中采用的进程内检查计时保持与 #558 M04-6 一致。两种 Journal 实现按裁定结果补同形测试。
+关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中采用的进程内检查计时保持与上文 M04-2 与 M04-6 的关闭记录一致。两种 Journal 实现按裁定结果补同形测试。
+
+<a id="journal-联合表达的具名缺口"></a>
+## 待各拥有者闭合的具名缺口
+
+本节不属于 AGENT-M04。下列缺口已有拥有者与关闭条件。U 编号是本页的稳定编号，不重排也不复用。每项阻塞什么，由该行的缺口与关闭条件说明。
+
+| 编号 | 缺口 | 拥有者 | 关闭条件 |
+| --- | --- | --- | --- |
+| U-2 | 重试策略协调者（实现 Model 的 `ModelRetryPolicy`、托管调模型之后失败分支的链）、受信系统重试扩展与两者 manifest 安装的实现位置：manifest 必填完整的链与组件采用、能力声明、正有限的总预算与组件预算、可信时钟、持久记录及来源与资格适配，缺生产值或提供者未就绪时不可安装；语义已由 SPEC 的[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)第 4 条与机制页的[扩展协议的边界](mechanisms.md#扩展协议的边界)固定，依据是 [Q8 采用](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373457058)。另含扩展宿主在启动前持久登记原执行记录并按 execution 或 Passage 认回的实现位置 | Model 主干（协调者与重试决定对 Model 端口的对应，见下文[调模型之后的重试决定怎样对应 Model 的重试策略端口](#调模型之后的重试决定怎样对应-model-的重试策略端口)）；`ExtensionImplementations` 提供者与宿主的装配与资产拥有者，见下文[端口提供者缺口](#端口提供者缺口) | 拥有者给出实现位置与验证（协调者的持久存储、跨重启时钟、来源认证、启动撤回、发送围栏、迟到保管与跨进程故障），正文不预开包。关闭前 Agent 正文按正文语义实现 X5 归约，不含协调者与强制组件 |
+| U-6 | Q14 与 C3E-FM 的外域配对：Request Context 的 decoder、CommittedCompaction 证明与 epoch 映射；Session 的参加查询桥与存储载荷 | Context（request-context-contract）与 Session | 各拥有者在自己的正文采用映射，Request Context 正文登记的“待 Agent 写回后重验”关闭 |
+| U-7 | 真实提供者证据：coordinated 四操作的同提供者事务、控制事实的跨进程原子、多页快照同修订、认回与排除的保留、永久迟到围栏、宿主的耐久接收 | Journal 提供者与宿主的实现与验证 | 真实提供者以故障注入与重启验证取证；内存替身不证明这些性质 |
+| U-8 | 两个分支。Tool 分支：无引用、无副作用的只读认回入口（[Tool 配对回复](https://github.com/nemori-ai/omne-harness-lite/issues/665#issuecomment-6373072576)）。Model 分支：重试策略协调者的采用与记录 authority 整体缺席时的收场（[MP1、MP2 的配对](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373845600)） | Tool 分支：Tool 主干。Model 分支：Model 主干，[#683](https://github.com/nemori-ai/omne-harness-lite/issues/683) 的 M5 | Tool 分支：拥有者采用对应读取能力或明确该分支继续 unknown。在此之前正文按 unknown 处理，不以普通 invoke、lookup 的 not-accepted 或当前快照冒充原结果。Model 分支：#683 采用收场协议。在此之前按 SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 4 项处理 |
+| U-9 | 终结责任清单的 control 责任项：control 项的必需内容与控制受理时的保存义务已由 [#730 DD1](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6443041428) 修订，SPEC 的[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单)只固定其余各项，control 项写为具名缺口 | Agent 契约（agent-contract SPEC），由 [#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 的写回卡承接 | 写回卡把 control 项与控制受理的保存义务写回 SPEC。在此之前实现不能按某一种 control 内容声称已兑现清单联合 |
+| U-11 | 没有活体 runtime 时 submit 的公开入口：SPEC 规定 submit 沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，并把它列为经恢复入口的执行记录操作，但 Cordis 服务键没有对应入口，Session 仍要求执行句柄。按 execution 取得读取视图的入口是另一项缺口，拥有者与关闭条件不同，见“[无活体 runtime 时怎样按 execution 取得执行视图](#无活体-runtime-时怎样按-execution-取得执行视图)” | Agent 运行时（#502）或宿主；Session 的 NP-03 随之放宽 | 公开入口与服务键落地，Session 正文取消“submit 仍需要执行句柄”的前提 |
+| U-12 | 外部输入逻辑意图的最终撤回：外部 Ki 不因原实例 I1 失联、旧 grant 失效或一次撤权自动封闭 H，`MessageHandoff.exclude` 只覆盖内部请求的取消围栏；外部输入最终撤回的认定与封闭协议没有拥有者正文 | 原输入拥有者（会话路径为 Session，独立路径为调用方） | 原输入拥有者在自己的正文采用撤回协议，Agent 正文在“[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)”引用它。在此之前 H 保持原状态，入口只 lookup 与保管 |
+| U-13 | 永久 excluded 的原 O 的受控重新受理：SPEC 要求提供者证明怎样区分新受理与旧迟到请求、怎样序列化查询与重试，现有决定没有给出这项证明 | Journal 提供者 | 提供者方案给出区分与排序证明并经验证。在此之前原 O 永久 excluded 后不自动复用或换号 |
+| U-14 | 压缩提交之后“重签当前读取资格”的承担端口：SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 9 条、节点表 C4 与 SPEC 的[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)要求在原应用操作 Ja 认回 committed 之后先重签当前读取资格，再重读条件、模型与 Runtime Context。这句义务来自 Session 的 AD-03，Agent 契约没有指定由哪个端口承担，Loop 无从调用。本项与 U-6 配对 | Session 与 Context 的拥有者 | 拥有者指定承担这项重签的端口，Agent 正文引用该端口。在此之前 Loop 不能声称已完成重签 |
+| U-15 | 正文先于类型的写入与形状：下列写入已由 SPEC 正文规定，`agent-contract/src` 还没有承载它们的类型：Q1 的 P（`commit` 带 `handoff.prepare`）、Q2 与 E4 退役路径的 Ja（`commit` 带 `handoff.resolve` 或 `handoff.retire`）、O0 的 `recordHandoff`、`prepareFinish` 与 `commitSettlement`，以及 `MessageHandoff` 的 prepare、lookup 与 exclude。取消判断与路线的形状同属此列：`FinishCandidate`、`FinishRoute`、`LegacyF2Entry`、`CancellationPolicyInstallation`、`CancellationJudgmentInput`、`CancellationDecision`、`CancellationBlock`、`CancellationUnknown`、`CancellationPolicy`、`CancellationJudgmentRecord`、`MigrationRecord`、`LegacyInvocationReturn`、`ToolAssociationRecord`、`ExecutionSnapshot.settlement` 与 `FinishIntent.candidate`、`obligations`。作者协议的 `ExtensionInvocationResult` 新增分支 `invocationUnresolved` 也先于类型 | Agent 契约（agent-contract 的 SPEC 与源码类型） | 类型与实现落地，旧联合的默认分支不把新值吞成 errored 或 observed。在此之前机制页[提交点与聚合边界](mechanisms.md#提交点与聚合边界)中这些行以 SPEC 正文为准，作者协议页以正文为准 |
+| U-16 | 工厂从 Journal 绑定的哪个成员读到历史组合登记：SPEC 的[真实历史的提交点](../../../agent-contract/SPEC.md#真实历史的提交点)要求工厂从可信的绑定构造结果核历史拥有者 Adoption、原准入记录 resolver、共享事务域身份与两个提交处理器，绑定上承载这份登记的成员没有公开形状 | Agent 契约（agent-contract 的公开类型） | 公开类型给出该成员的形状，工厂页引用它 |
+| U-17 | 取消 control 未成立时 `MessageHandoff.exclude` 的返回：SPEC 的[内部 H 的排除与退役](../../../agent-contract/SPEC.md#内部-h-的排除与退役)只规定当前有效取消已成立时的调用与结果表，没有写明调用者在取消尚未成立时调用 exclude 得到哪一种失败 | Agent 契约（agent-contract 的 SPEC 与 `MessageHandoff` 的公开类型） | exclude 的结果联合写明该分支并落到公开类型。在此之前提供者不得在取消未成立时封闭 H，也不得返回 excluded |
+| U-18 | 同一来源位置在旧 H 未定时另建 H 的失败映射：SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)规定同一来源位置在旧 H 未定时不能另建 H，`commit` 带 `handoff.prepare` 遇到这种情形返回哪一种失败没有写进逐操作表 | Agent 契约（agent-contract 的 SPEC 逐操作表与 `commit` 的公开类型） | 逐操作表的 commit 行与公开类型写明该失败映射。在此之前提供者拒绝该写入并保留原 H，不返回成功，失败种类由关闭时固定 |
 
 <a id="agent-m05"></a>
 ## AGENT-M05 生产者的解除回执怎样进入 Journal
@@ -82,7 +107,7 @@ SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条�
 
 ### 无活体 runtime 时怎样按 execution 取得执行视图
 
-宿主恢复入口的形状没有定义。无活体 runtime 时，按 execution 取得输入、控制和输出视图的入口，公开接口页只有 `AgentExecutionRecovery` 的四个操作，没有返回 `AgentExecutionHandle` 的操作。[Cordis 页](../../../agent-cordis-contract/docs/cordis.md#服务键与提供者)因此没有为这个入口定义键。关闭条件是公开接口页给出该入口的形状，Cordis 页再补对应的服务定义。
+宿主恢复入口的形状没有定义。无活体 runtime 时，按 execution 取得输入、控制和输出视图的入口，公开接口页只有 `AgentExecutionRecovery` 的四个操作，没有返回 `AgentExecutionHandle` 的操作。[Cordis 页](../../../agent-cordis-contract/docs/cordis.md#服务键与提供者)因此没有为这个入口定义键。关闭条件是公开接口页给出该入口的形状，Cordis 页再补对应的服务定义。无活体 runtime 时 submit 的公开入口是另一项缺口，拥有者与关闭条件不同，见 [U-11](#journal-联合表达的具名缺口)。
 
 ### 宿主怎样创建并持有实例的 AgentProvider
 
@@ -96,11 +121,15 @@ SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条�
 
 独立调用者在类型上只依赖 agent-contract 与 agent，不认识外部协调者。但装配上它要自备工厂表中的全部必需依赖，其中授权、Context、模型选择与消息准入等外域适配器都尚无提供者。没有任何页拥有“最小独立装配”：哪些提供者组成能运行一次独立 invoke 的最小集合，由谁提供默认实现。拥有者定为 agent-host-local。关闭条件是本地宿主装配页给出最小独立装配的提供者清单与候选发行行，或登记为由应用装配拥有。
 
-下面一项是 Agent 自己的 Loop 行为缺口，不依赖外域。
+下面两项是 Agent 自己的 Loop 行为缺口，拥有者是 agent-contract。
 
 ### at 判定失败之后扩展调用怎样接续
 
-拥有者是 agent-contract。调模型之后的失败分支里，扩展的 `retry` 计划 `notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。Agent 把 `at` 交给 Model 之前以 `parseInstant` 判定一次。判定失败时，Agent 不把这次重试交给 Model，按 SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”取时失败一条保留原准备与接续，见“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条。之后该扩展调用怎样接续没有定义：由哪一次推进再判定一次，再次失败时该扩展调用怎样结束，以及这段等待怎样被观察。关闭条件是 SPEC“作为 Model 调用方”第 3 条写出判定失败之后的接续路径，与“时钟读取与等待”和作者协议的[调用结果](../../../agent-contract/docs/public-api/extensions.md#调用协议)一致，并有验证资源覆盖。
+拥有者是 agent-contract。调模型之后的失败分支里，扩展的 `retry` 计划 `notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。Agent 把 `at` 交给重试策略协调者之前以 `parseInstant` 判定一次。判定失败时，Agent 不把这次重试交给协调者，按 SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”取时失败一条保留原准备与接续，见“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条。之后该扩展调用怎样接续没有定义：由哪一次推进再判定一次，再次失败时该扩展调用怎样结束，以及这段等待怎样被观察。关闭条件是 SPEC“作为 Model 调用方”第 3 条写出判定失败之后的接续路径，与“时钟读取与等待”和作者协议的[调用结果](../../../agent-contract/docs/public-api/extensions.md#调用协议)一致，并有验证资源覆盖。
+
+### 工具未知的调用在哪一步被拒绝
+
+拥有者是 agent-contract，`admit` 的输入牵涉授权。模型完整回复中 `tool_call` 的 `name` 非空但工具未知时，该调用结构合法，进入动作批，不被执行（SPEC 的“[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)”）。拒绝落在哪一步还没有确定。可能的落点有三个：官方准入之前按目录判定；在 `admit` 中判定，这时输入的定义采用没有值可填；交 Tool 受理，由 Tool 以 `rejected` 拒绝（该节第 8 条）。三种落点的证据与槽位不同。关闭条件：[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 实现 I4 动作节点之前，agent-contract 的拥有者定下落点，需要时与授权一起定 `admit` 的输入。
 
 ## 外域依赖
 
@@ -127,7 +156,7 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | 外部协调者，它同时是 Journal 端口的实现方。会话路径上的系统关系见[会话与 Run](../../../../../docs/architecture/runtime/session-and-run.md) |
-| Agent 所需保证 | 第一，实现方在自己的日志上实现 Agent 的 Journal 端口。Agent 的执行记录是这份日志里的条目，条目格式归 Agent。输入受理和终结与实现方自己的业务事实在同一次提交中成立。第二，协调者保存自己的业务关联与 Agent 的 execution、执行挂接和操作身份之间的映射。换推进者时用 resume 并带推进资格依据，接管仍在推进的 execution 时另有 takeover 资格。第三，协调者按 Agent 公开的读取形状读同一份日志里的 Agent 条目，不从事件流抄写第二份副本，也不另设已读游标。它自己的外发消息和外部交付的身份、幂等与回执归它自己。单独写入本地完成标志不能消除外部已成功、本地提交前崩溃的窗口，外部渠道没有查询或去重能力时，这类动作保留为未知，见[流式输出后的不可逆边界](mechanisms.md#流式输出后的不可逆边界)。Agent 只保证事件的四个层次与业务接受层的区分 |
+| Agent 所需保证 | 第一，实现方在自己的日志上实现 Agent 的 Journal 端口，并以 `capabilities.coordination` 为 coordinated 的绑定交给装配。Agent 的执行记录是这份日志里的条目，条目格式归 Agent。输入受理、挂接与终结与实现方自己的业务事实在同一次提交中成立，核对义务见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。第二，协调者保存自己的业务关联与 Agent 的 execution、执行挂接和操作身份之间的映射。换推进者时用 resume 并带推进资格依据，接管仍在推进的 execution 时另有 takeover 资格。第三，协调者按 Agent 公开的读取形状读同一份日志里的 Agent 条目，不从事件流抄写第二份副本，也不另设已读游标。它自己的外发消息和外部交付的身份、幂等与回执归它自己。单独写入本地完成标志不能消除外部已成功、本地提交前崩溃的窗口，外部渠道没有查询或去重能力时，这类动作保留为未知，见[流式输出后的不可逆边界](mechanisms.md#流式输出后的不可逆边界)。Agent 只保证事件的四个层次与业务接受层的区分 |
 | 阻塞的能力 | 外部协调者路径上的外部输入拒收（CAP-AG07）、完成与取消（CAP-AG08）、接续与交接（CAP-AG09）。无法兑现共同提交的组合，Agent 拒绝装配 |
 | Agent 侧已产出的边界 | SPEC 的“[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)”“[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)”“[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)”和“[事件流与读取](../../../agent-contract/SPEC.md#事件流与读取)”。协调者一侧的前提见[消费与系统定位](../../../agent-contract/docs/context.md#独立消费与外部协调) |
 | 关闭条件 | Agent 一侧的共同提交边界已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。剩余两项：Agent 契约给出日志中 Agent 条目的公开读取形状；实现方给出 Journal 端口在其日志上的实现、参与者版本和原操作查询。实现方公开接口页中表示整批扩展位置的 `extension-batch` 字符串随九处位置更新。此前 Agent 不宣称该组合已经实现 |
@@ -187,10 +216,10 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | 项 | 内容 |
 | --- | --- |
 | 拥有者 | Model 主干 |
-| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。Agent 一侧由适配器实现这个端口：以调模型之后位置 failure 维度的扩展调用作为策略拥有者的原位置，decide 与 inspect 按扩展调用身份认回，Agent 挂接失效时由下一个合法推进者回答 inspect。需要 Model 确认下列四点。第一，这一对应合法。第二，`notBefore` 非 null 时已定：它是 `judgeExtensionOutput` 以 `parseInstant` 校验过的 `UtcInstantText`，Agent 原样交给 Model（SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 3 条）；为 null 时取该 Conclusion 的 `at`，`at` 的时刻编码已定：它是 `AgentClock.now` 的成功值，形式见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”，Agent 交给 Model 之前以 `parseInstant` 判定一次，见“作为 Model 调用方”第 3 条。第三，策略协调者的寿命归 Model 宿主：原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用。第四，Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用 |
-| 阻塞的能力 | 首内容前失败的重试决定（CAP-AG08） |
-| Agent 侧已产出的边界 | 作者协议的 `retry` 输出与[位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表) |
-| 关闭条件 | Model 确认对应关系、策略寿命和迟到决定的处置，适配器形状写入 Agent 公开接口页。时刻编码已定，见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”。`at` 判定失败之后的接续是 Agent 自己的开放问题，见“[at 判定失败之后扩展调用怎样接续](#at-判定失败之后扩展调用怎样接续)” |
+| Agent 所需保证 | Model 以[重试策略端口](../../../../model/model-contract/docs/public-api.md#重试失联与恢复)拉取重试决定，并要求同一身份可认回、原位置可查询。这个端口由重试策略协调者实现，它是外部装配中消费 Agent 与 Model 公开契约的适配提供者，托管调模型之后失败分支的链，不是 Agent 的扩展调用本身。已采用的配对：`prepareRetry` 的 consumer 编码为 owner 等于协调者 adoption 的 owner、work 等于原 ModelCallId、position 等于原 DispatchId、purpose 为 `model-retry-policy`；Model 的受信适配按原 `position.policy` 解析协调者的 inspect 核验 decided 的来源；协调者的寿命归 Model 宿主或其独立持久依赖，原 Agent 退出不卸载它，Agent 恢复后在等待原调用的节点只等同一个调用；Model 迟到给出重试决定时，Agent 不以 Agent 侧的超时推断策略不可用。规则见 SPEC 的“[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)”第 4 条，依据是 [MP1、MP2 的配对消费](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373845600)与 [Model 一侧的约束](https://github.com/nemori-ai/omne-harness-lite/issues/669#issuecomment-6373671854)。`notBefore` 非 null 时是 `judgeExtensionOutput` 以 `parseInstant` 校验过的 `UtcInstantText`，Agent 原样交给重试策略协调者；为 null 时取胜出 Conclusion 的 `at`，`at` 是 `AgentClock.now` 的成功值，形式见 Agent SPEC 的“[时钟读取与等待](../../../agent-contract/SPEC.md#时钟读取与等待)”，Agent 交给协调者之前以 `parseInstant` 判定一次，见“作为 Model 调用方”第 3 条 |
+| 阻塞的能力 | 首内容前失败的重试决定（CAP-AG08）在协调者实现落地前不可运行 |
+| Agent 侧已产出的边界 | 作者协议的 `retry`、`stop` 输出与链归约规则（[输出](../../../agent-contract/docs/public-api/extensions.md#输出)、[位置输出表](../../../agent-contract/docs/public-api/extensions.md#位置输出表)）；SPEC“作为 Model 调用方”第 4 条；机制页的[扩展协议的边界](mechanisms.md#扩展协议的边界) |
+| 关闭条件 | 协调者、强制组件与 manifest 安装的实现位置落地并经验证（U-2）。协调者的采用与记录 authority 整体缺席时的收场见 [U-8](#journal-联合表达的具名缺口)。`at` 判定失败之后的接续是 Agent 自己的开放问题，见“[at 判定失败之后扩展调用怎样接续](#at-判定失败之后扩展调用怎样接续)” |
 
 ### 命名读取与注入能力怎样对应需要声明
 
@@ -213,6 +242,7 @@ K09 已关闭。本部署按 [F2 应用装配的插件树](../../../../../docs/a
 | ModelSelection、ModelContextReader、RequestPreparation | Model 与设置的适配器、Context 的适配器 | select 返回可选档案和实际收件模型。read 返回模型可读块，full 或 incremental 由 Context 决定。prepare 与 derive 按有限压缩计划工作 | 主请求准备与压缩（CAP-AG04） | SPEC 的“[模型选择](../../../agent-contract/SPEC.md#模型选择)”“[Runtime Context 的消费](../../../agent-contract/SPEC.md#runtime-context-的消费)”和“[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)” | 各适配器存在，Context 一侧的压缩计划接缝缺口关闭 |
 | AgentAdoptions、CurrentConditions、ExtensionImplementations、AgentMaterials、RegisteredReads | 装配与资产领域、协作设置、材料保管提供者、各具名读取协议的拥有者 | 只解析精确采用，不取最新版本。CurrentConditions 只投影当前推进要求与采用依据，不复制权限模式，不计算守卫，守卫由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实。材料不只存在于 Agent 的内存中 | 定义采用、扩展经过、custody 路径、具名读取 | 公开接口页的[扩展、人工卡片与材料](../../../agent-contract/docs/public-api/README.md#扩展人工卡片与材料)和 SPEC 的[采用交接](../../../agent-contract/SPEC.md#采用交接) | 各提供者存在并通过各自的换代与恢复验证 |
 | AgentJournal | 独立提供者由本域建立，带提交参加者的提供者是外部协调者的适配器。两类包都尚未建立 | 条件提交、原操作查询、可靠事件和围栏。声明能兑现的提交参加者 | 所有托管的 execution | SPEC 的“[托管协调与运行实例](../../../agent-contract/SPEC.md#托管协调与运行实例)”和“[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)” | 两类提供者包建立，并通过断电、围栏和共同提交的验证 |
+| CancellationPolicy 与 CancellationPolicyInstallation | 治理（装配与资产领域）。安装记录由治理发行，Journal 提供者在受控装配入口取得 | 安装实际的 policy、inputSchema 与 implementation 四元组、legacyProtocols 的精确旧版本映射与 admission 的当前状态读取来源；判断实现只读求值、不取得 Model、Tool、消息准入或卡片写权限；治理版本可在迁移、判断、prepareFinish 与 tryFinish 的提交点核验 | cancelled 候选的终结（CAP-AG08 的取消部分）与旧取消记录的迁移。安装缺席时 commitSettlement 的候选、迁移与判断变体返回 unavailable | SPEC 的“[取消判断与路线](../../../agent-contract/SPEC.md#取消判断与路线)” | 治理发布安装记录与判断实现，并通过判据纯度、权限隔离与提交点核验的验证 |
 
 ## 已关闭的问题
 

@@ -129,7 +129,7 @@ These tests do not authorize a new invoke while the slot is held.
 
 #### Terminal exit and retained responsibilities
 
-F1 fixes the complete FinishIntent only while its decision revision remains current. It retains the intent and timestamp when a commit is excluded.
+F1 commits the business content of the finish candidate only while its decision revision remains current. The Journal builds the candidate and its FinishIntent projection from that content. It retains the intent and timestamp when a commit is excluded.
 F2 binds the terminal passage once. The memory Journal rejects a missing passage or an intent different from the fixed settling candidate.
 An earlier input invalidates the old candidate. R0 reads the latest facts before I8 or a new failure candidate.
 I8 closes the consumed no-reply call continuation; the received material remains retained.
@@ -256,7 +256,7 @@ The factory does not implement these creation checks, because no input of the fa
 
 - Waiting for the owner (待拥有者): whether the binding tenant matches the security scope (`denied`). The `scope` is a `DurableEvidence` and carries no tenant. No dependency port can decide the match at creation.
 - Waiting for the owner (待拥有者): whether the exact adoptions `binding.definition` and `loopGuardPolicy` resolve (`unavailable`). Through the definition, this also decides whether tools, admission and extensions are required. `AgentAdoptions.resolve` requires an `Access`, and the factory takes no Access. The loop judgment, a trusted system extension, resolves `loopGuardPolicy`. #502 step 3.7 only connects an empty implementation at that position. Step 7.1 (stage 7) implements the real guard.
-- Waiting for #558 M04-3: how an external coordinator declares its participation. The factory compares only the `CallerCommit` kinds that `capabilities.participants` can name. An independent assembly (`jointCommits` empty) is created as before.
+- Not implemented yet: the contract requires the factory to check that the configured `coordination` equals the Journal binding's `capabilities.coordination` and to compare each `jointCommits` kind (SPEC [commit participant protocol](../agent-contract/SPEC.md#提交参加者协议)). The factory currently compares only the `CallerCommit` kinds that `capabilities.participants` can name. An independent assembly (`jointCommits` empty) is created as before.
 - Waiting for the owner (待拥有者): the contract gives `observe` no `invalid` end reason for an Access with a missing or malformed tenant. The current code does not call `access.check` and ends with `denied`, so the failure stays closed.
 
 #### Temporary choices
