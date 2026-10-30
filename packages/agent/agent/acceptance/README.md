@@ -14,7 +14,7 @@
 
 旧进程死亡后，驱动释放切点并等待旧 IPC 请求收尾。before gate 后尚未调用端口的请求被取消，M1 与 F4 的读取也不再执行。after gate 前已经发生的操作保留。新进程启动前，Journal 快照必须与杀进程前相同。I2 仍无效果意图，新进程必须实际提交与原候选相同的 M0 意图。
 
-F4 场景先由真实协调者形成 FinishIntent。合法宿主沿原 Access 与 Authority 固定两个 after-terminal passage，再通过真实 Journal.tryFinish 建立非空台账。宿主保存一项真实观察登记并查询丢失的回执。进程死亡后，原登记被认回，另一项保持 pending，最后由同一长期宿主登记。场景不执行扩展求值，也不虚构 observed。
+F4 场景先由真实协调者提交终结候选，Journal 据此建立 FinishIntent 投影。合法宿主沿原 Access 与 Authority 固定两个 after-terminal passage，再以 prepareFinish 重新发行责任清单，读取投影后通过真实 Journal.tryFinish 建立非空台账。宿主保存一项真实观察登记并查询丢失的回执。进程死亡后，原登记被认回，另一项保持 pending，最后由同一长期宿主登记。场景不执行扩展求值，也不虚构 observed。
 
 这些场景只证明执行进程退出后的受控接续。Journal 宿主存活是前提。生产耐久、公开 resume、attach、detach、control、quiesce、submit、工具、扩展、真实 Context、HITL、授权与外部协调者适配均未验证。Agent stream 也未交付。非终端面，终端验收不适用。
 

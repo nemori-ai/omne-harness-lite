@@ -10,9 +10,10 @@ Agent 能力的契约：公共值、操作、结果、行为及可替换提供�
 - 五个常量：`ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS` 与 `AGENT_IDENTITY_MAX_LENGTH`。
 - 三个判定函数：`judgeAgentDefinition`、`judgeLoopExtensions` 与 `judgeExtensionOutput`。
 - 资产正文契约 `agentBodyContract`。
-- 十四个 `decode*` 身份解码函数，以及四个结构判定：`judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。
+- 十四个 `decode*` 身份解码函数，以及六个结构判定：`judgeAdoption`、`judgeEvidence`、`judgeAccess`、`judgeAuthority`，以及消息准入的 `judgeHandoffPrepare` 与 `judgeInputOrigin`。
+- `obligationCategoryOf`：终结责任清单项的种类所属的类别。
 
-`./testing` 入口导出接收面两个端口 `AgentJournalEntries` 与 `AgentAccountOutlet` 的一致性套件和非耐久替身。替身声明 `durability: 'none'`，不得装进生产。包根不加载 `./testing`。
+`./testing` 入口导出接收面两个端口 `AgentJournalEntries` 与 `AgentAccountOutlet` 的一致性套件和非耐久替身，以及 `agentJournalCoreConformance`：每个 `AgentJournal` 提供者用自己的夹具运行的套件，覆盖执行修订、六个阶段、原操作认回、`query` 的持久拒绝、消息准入（P、Ja、Rh 与两种 submit 谱系）与终结（候选、清单、五类阻塞的次序、取消路线与六个结算变体）。`./testing` 的完整导出见[公开接口](docs/public-api/README.md#生产者接收面)。替身声明 `durability: 'none'`，不得装进生产。包根不加载 `./testing`。
 
 本包没有实现推进 Loop、评估器、runtime、Journal 提供者和宿主插件。这些部分的接口在包里只有类型，目前没有提供者实现它们。提供者与宿主插件归 [agent](../agent/README.md)、[agent-host-local](../agent-host-local/README.md) 和各提供者包。
 

@@ -1,8 +1,33 @@
-import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
+import {
+  decodeAgentExecutionId,
+  decodeInputId,
+  type JournalCommit,
+} from '@omne-harness/agent-contract'
 import { creation, ordinaryInput, guard } from '@omne-harness/session-contract/testing'
-import { scene, ok, operation, operationId, evidence, instance } from './common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  operationId,
+  evidence,
+  instance,
+  openInput,
+} from './common-journal.ts'
 export type Scene = Awaited<ReturnType<typeof scene>>
-export async function handed(s: Scene) {
+/**
+ * Records on the Session side that the Agent accepted an input: by default the initial input
+ * under the open receipt; a submitted input under the receipt of its submit.
+ */
+export async function handed(
+  s: Scene,
+  input: Readonly<{
+    id: string
+    receipt: import('@omne-harness/agent-contract').DurableEvidence
+  }> = {
+    id: s.initial.id,
+    receipt: s.opened.receipt.evidence,
+  },
+) {
   return s.backend.transactions.commit({
     access: s.access,
     command: {
@@ -10,12 +35,12 @@ export async function handed(s: Scene) {
       input: {
         tenant: s.access.tenant,
         session: s.access.session,
-        operation: operationId('handed'),
+        operation: operationId(input.id === s.initial.id ? 'handed' : `handed-${input.id}`),
         fact: {
           kind: 'input-handover',
-          input: s.input.initial.id as unknown as import('@omne-harness/session-contract').InputId,
+          input: input.id as unknown as import('@omne-harness/session-contract').InputId,
           execution: s.execution,
-          result: { kind: 'accepted', receipt: s.opened.receipt.evidence },
+          result: { kind: 'accepted', receipt: input.receipt },
         },
       },
     },
@@ -75,6 +100,8 @@ export async function take(
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
 }
@@ -139,37 +166,91 @@ export async function start(s: Scene, name = 'second') {
     admitted = ok(
       await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
     )
-  const input = {
-    ...s.access,
+  const initial = {
+    id: ok(decodeInputId(admitted.input)),
+    content: admitted.message,
+    source: admitted.origin,
+    priority: 'ordinary' as const,
+  }
+  const input = openInput({
+    access: s.access,
     execution,
     operation: operation(`open-${name}`),
     instance: instance(`instance-${name}`),
     grant: result.ok.receipt.source,
-    initial: {
-      id: ok(decodeInputId(admitted.input)),
-      content: admitted.message,
-      source: admitted.origin,
-      priority: 'ordinary' as const,
-    },
-    checkpoint: s.input.checkpoint,
-  }
+    initial,
+    checkpoint: s.checkpoint,
+  })
   const opened = ok(await s.view.journal.open(input))
-  return { ok: { ...s, execution, input, opened } }
+  return { ok: { ...s, execution, input, opened, initial } }
 }
-export async function end(s: Scene, name = 'end') {
-  const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+/**
+ * F1, F2 and prepareFinish of an ordinary completion under the current attachment, as the
+ * coordinator writes them (Agent SPEC "条件终结"): the F1 commit fixes the candidate content, the
+ * plain settling commit after it is the before-terminal proof, and prepareFinish issues the
+ * obligations. Answers the snapshot whose FinishIntent projection tryFinish presents; the caller
+ * writes neither the obligations nor the proof.
+ */
+export async function prepareEnd(s: Scene, name = 'end') {
+  const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+  const commit = async (step: string, finish: JournalCommit<string>['finish']) => {
+    const loaded = await load()
+    ok(
+      await s.view.journal.commit({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(`${name}-${step}`),
+        authority: loaded.executionAttachment ?? s.opened.authority,
+        expected: loaded.revision,
+        checkpoint: { ...loaded.checkpoint, position: step },
+        state: { kind: 'settling' },
+        events: [],
+        effects: [],
+        caller: { kind: 'none' },
+        replyAdmission: null,
+        handoff: null,
+        finish: finish === null ? null : { ...finish, inputWatermark: loaded.inputWatermark },
+      }),
+    )
+  }
+  await commit('F1', {
+    origin: evidence(`${name}-origin`),
+    conclusion: { kind: 'complete' },
+    failure: null,
+    inputWatermark: evidence('replaced'),
+    conditions: evidence(`${name}-conditions`),
+  })
+  await commit('F2', null)
+  const settling = await load()
+  if (settling.state.kind !== 'settling') throw new Error('settling expected')
+  ok(
+    await s.view.journal.prepareFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`${name}-prepare`),
+      authorization: {
+        kind: 'advancement',
+        authority: settling.executionAttachment ?? s.opened.authority,
+      },
+      expected: settling.revision,
+      candidate: settling.state.intent.candidate,
+    }),
+  )
+  return load()
+}
+/** tryFinish of the projection of `ready` (by default the snapshot `prepareEnd` answers). */
+export async function end(s: Scene, name = 'end', ready?: Awaited<ReturnType<typeof prepareEnd>>) {
+  const loaded = ready ?? (await prepareEnd(s, name))
+  if (loaded.state.kind !== 'settling') throw new Error('settling expected')
   return s.view.journal.tryFinish({
     ...s.access,
     execution: s.execution,
     operation: operation(name),
     expected: loaded.revision,
-    authorization: { kind: 'advancement', authority: s.opened.authority },
-    intent: {
-      conclusion: { kind: 'complete' },
-      inputWatermark: loaded.inputWatermark,
-      obligations: evidence('settled'),
-      beforeTerminal: evidence('before-terminal'),
-      failure: null,
+    authorization: {
+      kind: 'advancement',
+      authority: loaded.executionAttachment ?? s.opened.authority,
     },
+    intent: loaded.state.intent,
   })
 }

@@ -24,7 +24,7 @@
 | 项 | 内容 |
 | --- | --- |
 | 参与者 | Agent；session-adapters 的 Journal 提供者与解释器；Session 日志提交者 |
-| 时序 | 首次发布共同保存 Agent 事实、适用四类 CallerCommit 参加事实及 Agent 操作答案；received、材料、绑定、saved 同批。open/submit/tryFinish 的 Session 参加只读核对。后续经同一提供者 output.read/events 读事件正文，load 读 entries/results 等快照；另一笔 Session 提交共同保存后果、进度与该次答案 |
+| 时序 | 首次发布共同保存 Agent 事实、适用四类 CallerCommit 参加事实及 Agent 操作答案；received、材料、绑定、saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。后续经同一提供者 output.read/events 读事件正文，load 读 entries/results 等快照；另一笔 Session 提交共同保存后果、进度与该次答案 |
 | 数据去向 | 共用会话日志，只存原来源身份或引用，不复制事件正文。事件序号用于 readThrough，entries 提交顺序/results 快照不作事件 cursor。ended 尚未解释时 cancel 可先写 cancelled；后续 ended 只留原 Run 引用，不改终态或后继 |
 | 失败分支 | 首次发布失败该批全无；后续解释失败不撤销 Agent 已提交事实且不推进解释进度，各批未知均认回自身原操作。每次读核对当前资格、租户与 execution/Run；缺口隔离，不可用保持未知，未解释事实计入未结工作 |
 | 来源成员 | 语义归 session-contract；Journal 形状与翻译归 session-adapters；持久实现另行兑现 |

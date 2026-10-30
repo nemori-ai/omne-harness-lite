@@ -101,6 +101,8 @@ flowchart LR
 
 契约消费者不拉入提供者：只依赖 agent-contract 的调用方和只依赖 agent-cordis-contract 的消费插件，都不依赖 agent-host-local。纯契约与通用实现的根入口都不导入 Cordis。
 
+`agentMessageHandoff` 的提供者只固定准入结果。真实历史分三路发布：工具结果、拒绝消息、系统提醒与压缩转换消息由 `agentJournal` 绑定的应用操作 Ja 发布，外部输入随原 open 或 submit 发布，主回复经 Ja 的 replyAdmission 进入历史。绑定在工厂开始之前固定它的历史拥有者 Adoption、原准入记录 resolver、共享事务域身份与 message、context-transition 两个提交处理器；没有这个实际组合时工厂返回 unsupported，规则见 SPEC 的“[消息准入](../SPEC.md#消息准入)”。独立装配的 `jointCommits` 为空只表示没有外部 CallerCommit 请求。
+
 ## 原消费场景的前提
 
 本页消费 [Agent 公开接口](public-api/README.md)、[Model 公开接口](../../../model/model-contract/docs/public-api.md)和 [Tool 公开接口](../../../tool/tool-contract/docs/public-api.md)。外部协调者的公开契约由其拥有者维护，本页只写 Agent 一侧的前提。顺序是协议要求。尚未运行生产提供者，不能把图当作耐久或外部效果验证。
@@ -112,6 +114,7 @@ sequenceDiagram
   participant S as Caller or external coordinator
   participant A as Reusable Agent runtime
   participant J as AgentJournal provider
+  participant R as Result receiver in the Agent host
   participant M as Model host
   participant T as Tool host
   S->>S: an external coordinator first saves the input on its own side
@@ -121,18 +124,27 @@ sequenceDiagram
   A->>J: reconcile original checkpoint and inputs
   A->>J: commit checkpoint and original effect intent
   A->>M: admit original request with current dispatch guards
-  M-->>A: original result and real settlement
-  A->>J: commit processing or durable custody
-  A->>M: acknowledge exact settled result
+  M->>R: push original result and real settlement
+  R->>J: commit received entry, full material and consumption binding together
+  R-->>M: saved
+  Note over R,M: Model obtains its own ACK after saved. The Agent runtime sends no ACK
+  A->>J: read and adopt the received result
   A->>A: finish every action judgment and human decision
   A->>J: commit whole-batch barrier and original intents
-  A->>T: admit allowed actions with current guards
-  T-->>A: result or confirmed background placeholder
+  A->>T: ToolRuntime.invoke for each allowed action with current guards
+  T-->>A: confirmed background placeholder, when a call moves to the background
+  T->>R: push each result version
+  R->>J: commit received entry, full material and consumption binding together
+  R-->>T: saved
+  Note over R,T: The Tool host releases the delivery after saved
+  A->>J: read and adopt the received results
   A->>J: commit original consumption and output events
+  A->>J: prepareFinish issues the finish obligations
+  A->>J: load the latest complete revision
   A->>J: tryFinish with revision, input frontier and intent
   J->>S: joint commit with the commit participant, when present
   S-->>J: shared commit or changed facts
-  J-->>A: ended, changed or blocked
+  J-->>A: ended, changed, blocked or unavailable
   A-->>S: replayable events
   S->>S: persist consumer facts and cursor
   S->>A: acknowledge retained events
@@ -286,7 +298,7 @@ sequenceDiagram
 
 ## 两条交接路径
 
-custody 路径先经 AgentMaterials 独立保管内容或可靠引用，再经 Journal 的 custody 交接，由原拥有者保存原版本、位置和责任，之后才请求解除生产侧交付责任。Model 的交付责任解除生效后，后续读取从材料拥有者取得内容，不再要求 Model 给全文。Tool 结果的 custody 路径可以使用 Tool 自身长期保留的原全文引用，交付责任解除不删除全文。
+两条路径适用于 Tool 等仍使用 recordResult 的结果。Model 的结果与账目由结果接收方按 SPEC 的“[接收共同提交](../SPEC.md#接收共同提交)”一次保存完整材料、条目和原消费责任，不走这两条路径；Model 的交付责任解除生效后，后续读取从材料拥有者取得内容，不再要求 Model 给全文。custody 路径先经 AgentMaterials 独立保管内容或可靠引用，再经 Journal 的 custody 交接，由原拥有者保存原版本、位置和责任，之后才请求解除生产侧交付责任。Tool 结果的 custody 路径可以使用 Tool 自身长期保留的原全文引用，交付责任解除不删除全文。
 
 processed 路径在生产者仍保管结果时完成必要判断和业务处理，Journal 的 processed 交接由原拥有者共同保存完成依据及后续位置，之后才解除交付责任。必要处理尚未完成、保存未知或当前资格失效时不得提前解除。完成依据无需包含业务不再需要的全文。
 
@@ -317,10 +329,11 @@ Tool 的失联结果与晚到原全文是同一 consumption 下的两个结果�
 3. 按事件身份去重：协调者消费事件时，按 execution 加序号去重，把事件事实与消费游标共同保存之后，再确认。
 4. 关联自行保存：协调者保存自己的业务关联与 Agent 返回的 execution、执行挂接和操作身份之间的映射。Agent 不读取这些关联。
 5. 推进资格依据：协调者在 invoke 与 resume 中传入自己的推进资格依据，保证同一 execution 同一时刻至多一个有效推进者。
+6. 协调绑定：协调者作为 Journal 提供者时，交给装配的绑定声明 `capabilities.coordination` 为 coordinated，并在 open、attach、submit 与 tryFinish 的同一次提交中完成 SPEC 的“[提交参加者协议](../SPEC.md#提交参加者协议)”所列的协调核对。装配的配置 `coordination` 与绑定声明严格相等。非空推进资格依据与非空来源依据只能交给 coordinated 绑定。
 
 前提不满足时，Agent 的行为如下。各条的规则分别见 SPEC 的“[提交参加者协议](../SPEC.md#提交参加者协议)”“[恢复与接管](../SPEC.md#恢复与接管)”“[输入内容与水位线](../SPEC.md#输入内容与水位线)”和“[事件流与读取](../SPEC.md#事件流与读取)”，这里只列协调者能观察到的结果。
 
-- 装配不合格：Journal 提供者没有声明协调者需要的共同提交时，创建返回 unsupported。运行时遇到未声明的提交种类也返回 unsupported，并且不保存任何一半。这样的装配不可装配，不退化为只比较 Agent 本地队列。
+- 装配不合格：Journal 绑定的 `coordination` 与配置不相等，或提供者没有声明协调者需要的共同提交时，创建返回 unsupported。运行时遇到未声明的提交种类也返回 unsupported，并且不保存任何一半。standalone 绑定收到非空推进资格依据或非空来源依据时，在写前返回 unsupported，不把请求当作独立路径保存。这样的装配不可装配，不退化为只比较 Agent 本地队列。
 - 推进资格依据缺失或核对失败：invoke 与 resume 返回 denied。
 - 接管仍在推进的 execution 而主体没有 takeover 资格：resume 返回 denied，不写入任何状态。宿主的失联判断可随恢复依据提交，不替代资格核验。
 - 同一输入身份配不同内容：submit 返回 conflict，不保存第二份内容。
@@ -345,9 +358,9 @@ Tool 的失联结果与晚到原全文是同一 consumption 下的两个结果�
 
 1. **调用。** 协调者用 `invoke` 开始新的 execution，用 `submit` 追加输入，用 `resume` 恢复或接管原 execution，用 `control` 发出控制。每次调用交出 Access、操作身份、受理输入（完整内容与来源依据）、推进资格依据和恢复依据。Agent 交还原 execution 的句柄或命令回执。accepted 只表示已可靠保存，applied 或 unresolved 由事件或原操作查询给出。行为见 SPEC 的“[托管协调与运行实例](../SPEC.md#托管协调与运行实例)”和“[四种控制](../SPEC.md#四种控制)”。
 2. **事件。** 协调者用 `output.read` 或 `output.events` 按 execution 与序号读取事件，把事件事实与游标共同保存之后，再用 `output.acknowledge` 确认连续前缀。Agent 交还有序的事件页。读取起点早于保留起点时，Agent 交还缺口与恢复入口，不跳过事件。订阅结束不是终态，协调者不确认也不阻止 Agent 结束。行为见 SPEC 的“[事件流与读取](../SPEC.md#事件流与读取)”。
-3. **结果保管。** 生产者的结果有两条交付责任解除路径。custody 路径先经 `AgentMaterials` 保管内容或可靠引用，再经 Journal 的 custody 交接，才请求生产者解除交付责任。processed 路径在生产者仍保管结果时完成必要处理，经 Journal 的 processed 交接保存完成依据，再请求解除。协调者作为提交参加者时，在这两种交接的同一次提交中登记自己的保管或处理依据。协调者自己的外发消息和外部交付的身份、幂等与回执归协调者，Agent 不解释它们。行为见 SPEC 的“[持久性与交付责任](../SPEC.md#持久性与交付责任)”和“[提交与保管](../SPEC.md#提交与保管)”。
+3. **结果保管。** Tool 的结果有两条交付责任解除路径。custody 路径先经 `AgentMaterials` 保管内容或可靠引用，再经 Journal 的 custody 交接，才请求生产者解除交付责任。processed 路径在生产者仍保管结果时完成必要处理，经 Journal 的 processed 交接保存完成依据，再请求解除。`recordResult` 的 transfer 为 custody 或 processed 时，Journal 提供者在自己的共同提交边界建立保管或处理依据，不以声明了对应提交参加者为前提。Tool 结果已采用推送路径，结果接收方只返回 saved，Tool 宿主收到 saved 后自己解除；本项与推送路径不一致的部分见 Agent 的开放问题 [AGENT-M05](../../agent/docs/architecture/open-questions.md#agent-m05)。协调者作为提交参加者时，在这两种交接的同一次提交中登记自己的保管或处理依据。Model 的结果由结果接收方按 SPEC 的“[接收共同提交](../SPEC.md#接收共同提交)”一次保存，不走这两种交接。协调者自己的外发消息和外部交付的身份、幂等与回执归协调者，Agent 不解释它们。行为见 SPEC 的“[持久性与交付责任](../SPEC.md#持久性与交付责任)”和“[提交与保管](../SPEC.md#提交与保管)”。
 4. **当前资格。** 协调者在每次操作的 Access 中交出主体与租户。Agent 在实际执行处用 `AgentAccessCheck` 核验该主体对这个操作的当前资格，unavailable 不放行。`AgentAccessCheck` 判断主体能否调用 Agent 的某个公开操作。`ActionAdmission` 判断某个 Model 或 Tool 动作能否发起，只由执行动作之前这条链末尾的受信系统扩展使用。两个端口不合并。接管仍在推进的 execution 需要 takeover 资格，它不包含在 resume 之内。行为见 SPEC 的“[主体资格核验](../SPEC.md#主体资格核验)”和“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”。
-5. **恢复。** runtime 失联后，怎样发现需要恢复的 execution、何时扫描、以及候选失败后怎样退避，归外部协调者或装配宿主，Agent 不定义。Agent 为此提供两样能力并要求一项核验：`AgentExecutionRecovery` 的 query 与 load 按 execution 查到并读取原记录，`resume` 为原 execution 取得新的执行挂接（必要时以 takeover 接管）；每一步都以授权领域实现的 `AgentAccessCheck` 核验主体资格。在 Cordis 装配中，恢复入口的服务键是 [`agentExecutionRecovery`](../../agent-cordis-contract/docs/cordis.md#服务键与提供者)。Agent 自己只拥有一次 execution 之内的[等待](../../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)：保存业务等待、进程内计时、唤醒与重读，恢复时立即重读，以及每段处理的限额。执行之内的退避和限额是具名配置项 `denialBackoffMs`、`reconciliationDelayMs` 与 `reconciliationBatchLimit`（[通用工厂的配置](../../agent/docs/public-api.md#工厂配置)），默认值只是配置初值。协调者一侧候选失败后的退避与此无关，归协调者。行为见 SPEC 的“[恢复与接管](../SPEC.md#恢复与接管)”。
+5. **恢复。** runtime 失联后，怎样发现需要恢复的 execution、何时扫描、以及候选失败后怎样退避，归外部协调者或装配宿主，Agent 不定义。Agent 为此提供两样能力并要求一项核验：`AgentExecutionRecovery` 的 query 与 load 按 execution 查到并读取原记录，`resume` 为原 execution 取得新的执行挂接（必要时以 takeover 接管）；每一步都以授权领域实现的 `AgentAccessCheck` 核验主体资格。query 的结论有 committed、rejected、excluded 与 unknown 四种，协调者逐一分支：rejected 只来自被持久拒绝的 recordControl，不映成自己一侧的“未提交”，规则见 SPEC 的“[查询的四种结论与持久拒绝](../SPEC.md#查询的四种结论与持久拒绝)”。在 Cordis 装配中，恢复入口的服务键是 [`agentExecutionRecovery`](../../agent-cordis-contract/docs/cordis.md#服务键与提供者)。Agent 自己只拥有一次 execution 之内的[等待](../../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)：保存业务等待、进程内计时、唤醒与重读，恢复时立即重读，以及每段处理的限额。执行之内的退避和限额是具名配置项 `denialBackoffMs`、`reconciliationDelayMs` 与 `reconciliationBatchLimit`（[通用工厂的配置](../../agent/docs/public-api.md#工厂配置)），默认值只是配置初值。协调者一侧候选失败后的退避与此无关，归协调者。行为见 SPEC 的“[恢复与接管](../SPEC.md#恢复与接管)”。
 
 ### Agent 自有的结束条件
 

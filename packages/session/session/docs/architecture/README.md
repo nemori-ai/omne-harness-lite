@@ -16,7 +16,7 @@
 | 协调器 C1 至 C5 | 读到事实后决定发出哪些命令或出站调用（[C1](../../SPEC.md#c1) 至 [C5](../../SPEC.md#c5)） | 无持久状态；内存里只有退避位置与重发计数 | 不直接写日志，只经命令处理器提交；不在提交事务里发出站调用 |
 | 调度器 S1 至 S7 | 决定什么时候再检查哪个会话（[S1](../../SPEC.md#s1) 至 [S7](../../SPEC.md#s7)、[SR](../../SPEC.md#sr-1)） | 计时、在途标记、扫描游标与重放计数，全在内存 | 不写日志（SR-1）；不裁定资格 |
 | 每会话串行队列 | 同一会话同一时刻只有一个协调动作（[SR-2](../../SPEC.md#sr-2)） | 每会话一个待执行动作的队列 | 不替代跨进程保护；跨进程靠操作幂等、`expected` 与条件提交围栏 |
-| 事件派生读取 | `receive(agent-event)` 的身份派生、游标前进与去重规则（[RD-01](../../SPEC.md#rd-01) 至 RD-07） | 无；持久游标 `ExecutionRef.readThrough` 由存储随条目保存 | 不读 Agent 输出，不向 Agent 确认；读取与确认在 session-adapters |
+| 同日志解释规则 | 解释进度、认回、未结工作、缺口与并发的规则（[RD-01](../../SPEC.md#rd-01) 至 RD-07） | 无；持久进度 `ExecutionRef.readThrough` 由存储随解释提交保存 | 不读 Agent 输出，不向 Agent 确认事件；读取与解释在 session-adapters 的 AD-02 |
 | 缓存 | 条目缓存与快照缓存（[CA-1](../../SPEC.md#ca-1)、[CA-3](../../SPEC.md#ca-3)） | 按字节或会话数淘汰的内存项 | 不使用失效通知保证正确；缓存命中不替代核权 |
 | 策略 | 全部间隔、上限与退避（[SchedulingPolicy](../../SPEC.md#schedulingpolicy)） | 工厂传入的策略对象 | 不改变任何命令的结局集合 |
 | 生命周期 | 停止顺序（[资源与替换](../../SPEC.md#资源与替换)） | 实例状态：运行、停止中、已停止 | 不回滚已提交的事实，不取消外部执行 |
@@ -32,7 +32,7 @@ flowchart TB
   Coord --> CP
   Coord --> Out[出站端口：AgentDrivePort、ScopeReleasePort]
   Coord --> EX[受理拓展点编排]
-  CP --> RD[事件派生读取规则]
+  CP --> RD[同日志解释规则]
   CP --> Cache[缓存 CA-1、CA-3]
   CP --> Pure[session-contract 的 decide 与领域服务]
   CP --> Tx[SessionTransactionPort]
@@ -48,7 +48,7 @@ flowchart TB
 
 ### 状态归属
 
-本成员不持有任何耐久状态。会话事实、操作记录、治理状态、派生索引与消费游标都由事务端口的提供者在同一次提交里保存（[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport)）。本成员内存里的计时、计数、队列与缓存全部可丢。丢失后，S3 的启动扫描从权威读重建要做的事，重复的命令由操作身份认回（[AP-4](../../SPEC.md#ap-应用层六条规矩)）。
+本成员不持有任何耐久状态。会话事实、操作记录、治理状态、派生索引与解释进度都由事务端口的提供者在同一次提交里保存（[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport)）。本成员内存里的计时、计数、队列与缓存全部可丢。丢失后，S3 的启动扫描从权威读重建要做的事，重复的命令由操作身份认回（[AP-4](../../SPEC.md#ap-应用层六条规矩)）。
 
 ### 与 Agent Loop 的分界
 

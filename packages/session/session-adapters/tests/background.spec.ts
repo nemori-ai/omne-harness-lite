@@ -4,7 +4,7 @@ import { scene, ok, operation, operationId, evidence } from './fixtures/common-j
 import { toolCall } from './fixtures/tool-call.ts'
 
 it('reconciles a true background slot through a later snapshot, retaining the original slot after checkpoint replacement', async () => {
-  const { backend, view, access, execution, opened, input } = await scene('background'),
+  const { backend, view, access, execution, opened, checkpoint } = await scene('background'),
     tool = toolCall(access.tenant)
   let receipt = ok(
     await view.journal.commit({
@@ -13,7 +13,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       operation: operation('tool-wait'),
       authority: opened.authority,
       expected: opened.receipt.revision,
-      checkpoint: { ...input.checkpoint, batch: tool.batch },
+      checkpoint: { ...checkpoint, batch: tool.batch },
       state: { kind: 'waiting', waits: [{ kind: 'producer', pending: tool.pending }] },
       events: [{ kind: 'waiting', waits: [{ kind: 'producer', pending: tool.pending }] }],
       effects: [
@@ -21,6 +21,8 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -85,12 +87,14 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       operation: operation('slot'),
       authority: opened.authority,
       expected: receipt.revision,
-      checkpoint: { ...input.checkpoint, batch: tool.background },
+      checkpoint: { ...checkpoint, batch: tool.background },
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   receipt = ok(
@@ -100,12 +104,14 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       operation: operation('replace-checkpoint'),
       authority: opened.authority,
       expected: receipt.revision,
-      checkpoint: input.checkpoint,
+      checkpoint: checkpoint,
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   const before = ok(await backend.transactions.readWork(access)),
@@ -137,7 +143,7 @@ it('a real background slot may predate K, but cannot replace its original propag
       operation: operation('slot-first'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch: tool.background },
+      checkpoint: { ...s.checkpoint, batch: tool.background },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: [
@@ -145,6 +151,8 @@ it('a real background slot may predate K, but cannot replace its original propag
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -254,7 +262,7 @@ for (const variant of [
         operation: operation('bad-slot'),
         authority: s.opened.authority,
         expected: s.opened.receipt.revision,
-        checkpoint: { ...s.input.checkpoint, batch },
+        checkpoint: { ...s.checkpoint, batch },
         state: { kind: 'advancing' },
         events: [],
         effects: [
@@ -262,6 +270,8 @@ for (const variant of [
         ],
         caller: { kind: 'none' },
         replyAdmission: null,
+        handoff: null,
+        finish: null,
       })
     expect(result).toHaveProperty('failure')
     expect(s.view.controls.root()).toBe(root)

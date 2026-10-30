@@ -180,7 +180,7 @@ export function createAgentModelReceiver<P>(
       allowed = await dependencies.access.check({
         access,
         operation: 'receive-result',
-        target: { kind: 'execution', instance: target.instance, execution: target.execution },
+        target: { kind: 'execution', execution: target.execution },
       })
     } catch (error) {
       return failed('access', error)

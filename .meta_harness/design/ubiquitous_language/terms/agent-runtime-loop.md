@@ -407,7 +407,7 @@
 - **形态**：视图
 - **出处**：[现行词义](../index.md)（PM 起草；与前身系统「logical Run / physical attempt」同构）；
   **形态与身份于 2026-09-22 定死**，见 [PF-012 §4 执行尝试](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 25）；
-  会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  会话一侧拥有、Agent 不要求它，见[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)，也不是 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)**——
   后两者是 Agent 一侧的概念；执行尝试是会话一侧「这次运行的第几次推进」。
   **一次尝试对应 Agent 一侧的哪次[执行挂接](#ul-execution-attachment--执行挂接--execution-attachment)或 Agent 执行，由外部协调者维护**，不是本条的内容
@@ -509,7 +509,7 @@
 
 - **形态**：对象
 - **出处**：[现行词义](../index.md)（产品负责人 2026-09-20 直接裁决）；
-  它推进的是 Agent 执行而不是某个执行尝试，见[产品页 使用场景](../../product/agent-progression/design.md#使用场景)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  它推进的是 Agent 执行而不是某个执行尝试，见[产品页 使用场景](../../product/agent-progression/design.md#使用场景)与[扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **它就是 [SYS-COMPOSITION](../../../../docs/requirements.md#定义装配与活体sys-composition) 说的「活体」**——
   那一段描述的计算资源、可回收可重建、因资源治理而生灭，**逐条说的都是协程**
 - **注意 ①**：**会话路径中，[一个会话同时至多一个](#ul-single-active-execution--会话内单活跃--single-active-execution)**；
@@ -532,7 +532,7 @@
 > **EN**: **One logical execution of the agent: from the start of a new advancement until the agent itself ends it once the required checks hold.** Continuing it through a new execution attachment or another agent runtime, including re-attachment and instance replacement, is still the same execution; only a newly started logical execution is a new one. Judgements, effects and answers already obtained stay in use after it continues. **The agent neither requires nor explains any session, run or attempt for it**; on the session path, an external coordinator maintains how it corresponds to a run.
 
 - **形态**：对象
-- **出处**：[产品页 使用场景](../../product/agent-progression/design.md#使用场景) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 使用场景](../../product/agent-progression/design.md#使用场景) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混 ①**：**不是[运行](#ul-run--运行--run)**——运行是会话一侧的一次逻辑执行请求，成本与失败的归属单位，由会话治理；Agent 执行是 Agent 自己的一次推进，Agent 不知道运行存在
 - **别混 ②**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进它的协程，会换；执行是被推进的那一件事，不随协程没而没
 - **别混 ③**：**不是[工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)**——工具执行是一次工具调用，一次 Agent 执行里可以发起多次
@@ -547,7 +547,7 @@
 > **EN**: **One physical taking-up of one agent execution by one agent runtime.** Re-attaching and replacing the instance both give the same execution a new execution attachment. A new execution attachment does not make the execution a new one and does not pass the execution-started position again. It is not a run attempt, which the session side owns.
 
 - **形态**：对象
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐；形态由 Agent 契约的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-59](../conflicts.md#c-59执行挂接的形态)
 - **别混 ①**：**不是[附件](execution-and-outcome.md#ul-attachment--附件--attachment)**——附件是存进存储、agent 自己去取的文件，Tool 结果里的 attachments 也指它；本条只指 agent runtime 对执行的承接
 - **别混 ②**：**不是[执行尝试](#ul-run-attempt--执行尝试--run-attempt)**——尝试是会话一侧的推进记账，执行挂接是 Agent 一侧的概念
 - **注意 ①**：**不许简称 attachment**，英文与代码名都写全称（Execution Attachment、`ExecutionAttachment`、`ExecutionAttachmentId`、`executionAttachment`），因为裸写的 attachment 已指[附件](execution-and-outcome.md#ul-attachment--附件--attachment)；中文同理写「执行挂接」，正文在没有歧义处可以写「挂接」。Agent 契约已按此命名；已接受页的旧写法已回改，见 [C-64](../conflicts.md#c-64执行挂接的候选类型名)
@@ -565,7 +565,7 @@
 > **EN**: **The record a host makes when it publishes one agent runtime instance so that the instance can be discovered and can accept calls.** It has an identity of its own and three states: published, withdrawing and withdrawn. When the host publishes the same live instance again, a successor registration replaces the old one, and the identity of the old registration cannot act on the successor. A withdrawn registration leaves an identity record so that the same withdrawal can be recognized. A registration is a record the host owns. It is not the agent runtime itself and it grants no authority to advance an execution.
 
 - **形态**：对象
-- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 3）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念，见[对象条目的未裁](../../domain_objects/objects.md#ul-agent-registration--agent-登记)
+- **出处**：缺产品原文。[Agent 产品页](../../product/agent-progression/design.md#使用场景)（rev 4）只写用户不需要按实例的生灭重建协作，没有一节定义登记。本条含义来自已接受系统页 [Agent runtime 实例、执行与执行挂接](../../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)（保持空闲和注册）与用户决定（2026-10-17 Agent 扩展继承与边界对齐：agent runtime 保持登记），这两处都不是本词表的合法出处。身份与状态只由已接受的 Agent 契约的[对象模型](../../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给出。出处缺口由产品负责人闭合：在 Agent 产品页写出登记，或裁定登记不是产品概念，见[对象条目的未裁](../../domain_objects/objects.md#ul-agent-registration--agent-登记)
 - **别混 ①**：**不是 [agent runtime](#ul-agent-runtime--agent-runtime--agent-runtime)**——runtime 是推进执行的协程，登记是宿主对它的发布记录。runtime 失联后重新启动的进程是新实例，不继承原登记
 - **别混 ②**：**不是[运行时 context 注册](scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)**——那一条是会话纳入一块 context 来源的声明，与 agent runtime 的发布无关
 - **注意**：登记缺席不证明工作结束。执行的存续与恢复依据在执行记录里，不在登记里，见 [Agent 契约的创建、登记与复用](../../../../packages/agent/agent-contract/SPEC.md#创建登记与复用)
@@ -597,7 +597,7 @@
 > **EN**: **The rule by which the agent, per source, validates and then accepts or rejects an external input, a complete model reply or a tool result before it becomes a message.** It tells the three sources apart: a rejection has a different consequence for each source, and the product page section on model replies and tool results states those consequences. **It is the agent's own rule, not an extension position, and it does not pass through extensions.**
 
 - **形态**：规则
-- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 模型回复与工具结果](../../product/agent-progression/design.md#模型回复与工具结果)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混 ①**：**不是[放行判断](interaction-and-dispatch.md#ul-admission-decision--放行判断--admission-decision)**——放行判断管一个动作能不能发起，站在执行动作之前；消息准入管一条内容能不能成为消息
 - **别混 ②**：**不是[拓展位置](#ul-loop-extension-point--loop-拓展点--loop-extension-point)上的否决**——产品暂不在消息成立前后另设拓展位置，准入不依附任何位置
 - **注意 ①**：产品页也称「消息入口」，指同一件事
@@ -654,7 +654,7 @@
 
 - **形态**：位置
 - **出处**：[PF-012 §4 Loop 拓展点](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#loop-拓展点) · [§5.8](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#58-loop-拓展点)（rev 25）；
-  位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+  位置的个数与各位置的限制见[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **⚠️ 别混**：**它不是[拓展件](capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension)**——
   **拓展点是位置，拓展件是挂上去的东西**（第八类资产）
 - **注意 ①**：**位置由状态点推出，因此数目有限且可穷举**——
@@ -677,7 +677,7 @@
 > **EN**: **One of the loop extension points, passed once after each new agent execution starts.** Re-attachment, instance replacement and continuing an existing execution do not pass it again. An extension cannot use it to grant advancement qualification again to an execution attachment that is no longer valid.
 
 - **形态**：位置
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）；用户决定，2026-10-17 Agent 扩展继承与边界对齐
 - **别混**：**不是以执行尝试开始为触发点的位置**——尝试是会话一侧拥有的关联；换一次执行挂接或换一副 agent runtime 接续，并不新开 Agent 执行，因此不经过这个位置
 - **弃用**：~~「尝试开始之后」~~（~~attempt_started~~）
 - **注意**：九个位置里只有它单独立条：它的触发边界是新的 Agent 执行，不是执行尝试，读错就会与会话一侧的尝试混淆；它也承接弃用说法的登记。其余八个位置的名称已说明所在状态点，集合与触发边界归[系统页](../../../../docs/architecture/runtime/loop-extensions.md#扩展位置与干预力)
@@ -754,7 +754,7 @@
 > **EN**: **One call the agent makes to one extension within a pass, in order to obtain its conclusion.** A call can spend money or raise a card, so on continuation it cannot be re-run like a pure function: a call that already has a final conclusion is not called again, a call without one resumes under its original identity, and judgements, effects and answers already obtained are reused.
 
 - **形态**：过程
-- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 3）
+- **出处**：[产品页 扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限) · [人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 4）
 - **别混 ①**：**不是[一次经过](#ul-extension-point-pass--一次经过--extension-point-pass)**——一次经过是 loop 走到一个位置的那一次，挂在该位置的各件在其中各被调用一次
 - **别混 ②**：**不是[回放](#ul-replay--回放--replay)**——回放是接续时把挂起中的拓展件重新跑到停处的方式，调用是普通的一次
 - **注意 ①**：词表写「拓展」，系统页与成员正文写「扩展调用」，所指相同；见 [C-62](../conflicts.md#c-62拓展与扩展)
@@ -770,7 +770,7 @@
 > **EN**: **The judgement result an extension invocation leaves once the agent has obtained and adopted it. The agent keeps it in its own execution record.** A result that asks a person to decide (`ask` in code) is a non-final conclusion: it does not end the invocation, and once the answers are complete the same extension obtains the next conclusion. Every other conclusion is final. An invocation that already has a final conclusion is read, not called again, on continuation. Code and specifications may shorten it to *Conclusion*.
 
 - **形态**：属性
-- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 3）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
+- **出处**：[产品页 人的决定与等待](../../product/agent-progression/design.md#人的决定与等待)（rev 4）；封存来源 [PF-012 §6.10 能干预的拓展件必须留下结论](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论)（rev 25）；形态由 Agent 契约的[扩展作者协议](../../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)裁定，该契约已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用，见 [C-60](../conflicts.md#c-60拓展结论的形态)
 - **别混 ①**：**不是[干预力](#ul-intervention-power--干预力--intervention-power)**——干预力是拓展件能做到什么的上限，结论是一次调用实际得出的结果
 - **别混 ②**：**不是[运行终态](#ul-run-terminal-state--运行终态--run-terminal-state)**——结论只说一次调用的判断，不结束任何运行或执行
 - **注意**：它是挂在 [Agent 执行](#ul-agent-execution--agent-执行--agent-execution)记录上的一项值，不是会话日志里的条目，也没有独立于所属调用的身份。作者不返回结论，由 Agent 把校验通过的输出包装并保存
@@ -784,7 +784,7 @@
 > **EN**: **The judgements for one batch of actions must all be complete, and any cards needing a person must all be handled, before any approved action in that batch is started.** An action that has already passed cannot overtake judgements still open for other actions. Later extensions may raise further cards, and those stay in the same batch. When every action in the batch is rejected there is no tool execution to wait for, and the agent evaluates again from the facts it already has.
 
 - **形态**：规则
-- **出处**：[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 3）
+- **出处**：[产品页 一次工作怎样推进](../../product/agent-progression/design.md#一次工作怎样推进) · [扩展检查与权限](../../product/agent-progression/design.md#扩展检查与权限)（rev 4）
 - **别混 ①**：**不是执行动作之后的整批范围**——后者是执行动作之后那个位置按「整批齐备」这一维选择拓展件，发生在动作已执行之后；屏障发生在执行之前
 - **别混 ②**：**不是[等待原语](#ul-wait-primitive--等待原语--wait-primitive)**——等待原语是协程停下来等外面应答的办法，屏障规定的是什么时候才可以发起动作
 

@@ -38,11 +38,7 @@ type Operation = Readonly<{
 }>
 
 const onInstance: AgentAccessTarget = { kind: 'instance', instance: instance() }
-const onExecution: AgentAccessTarget = {
-  kind: 'execution',
-  instance: instance(),
-  execution: execution(),
-}
+const onExecution: AgentAccessTarget = { kind: 'execution', execution: execution() }
 
 /** Every public operation of the four faces that answers with a Reply. */
 const operations: readonly Operation[] = [

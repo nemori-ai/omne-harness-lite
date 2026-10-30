@@ -106,9 +106,16 @@ export type { Answer, Script } from './script.ts'
 export { createScriptedToolRuntime } from './tools.ts'
 export type { ScriptedToolRuntime } from './tools.ts'
 
+/**
+ * The Journal options of the test assembly. `coordination` is optional here only because this
+ * assembly chooses a standalone binding when it is omitted; the double's own factory has no default.
+ */
+export type TestJournalOptions<P> = Omit<MemoryAgentJournalOptions<P>, 'coordination'> &
+  Readonly<{ coordination?: MemoryAgentJournalOptions<P>['coordination'] }>
+
 export type TestAgentDependenciesOptions<P> = Readonly<{
-  /** Options of the memory Journal, such as its declared participants. */
-  journal?: MemoryAgentJournalOptions<P>
+  /** Options of the memory Journal, such as its mode and declared participants. */
+  journal?: TestJournalOptions<P>
   /** Enables the public Model testing pusher under an explicit tenant principal. */
   receivingPrincipal?: P
   /** The instance of the scripted Model provider. Default: `minst_agent-testing`. */
@@ -153,6 +160,10 @@ const DEFAULT_MODEL_INSTANCE = 'minst_agent-testing'
  * Builds a fresh, non-durable set of all 17 dependencies of `createAgentRuntime`, with the control
  * handle of each. `registration` is null. `models` is the runtime of the scripted Model provider of
  * `@omne-harness/model-contract/testing`. Two calls share no state.
+ *
+ * A test convenience, not a default of the factory: the Journal binding and the configuration both
+ * take `standalone` here unless `journal` says otherwise. `createAgentRuntime` itself compares the
+ * configuration with the declaration of the binding on every call (SPEC "协调绑定").
  */
 export function createTestAgentDependencies<P>(
   options: TestAgentDependenciesOptions<P> = {},
@@ -162,7 +173,7 @@ export function createTestAgentDependencies<P>(
     instance,
     ...(options.samePrincipal === undefined ? {} : { samePrincipal: options.samePrincipal }),
   })
-  const journal = createMemoryAgentJournal<P>(options.journal)
+  const journal = createMemoryAgentJournal<P>({ coordination: 'standalone', ...options.journal })
   const access = createScriptedAccessCheck<P>()
   const reception =
     options.receivingPrincipal === undefined

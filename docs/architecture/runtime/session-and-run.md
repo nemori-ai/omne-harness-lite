@@ -42,7 +42,7 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果、账目与生产者解除经 Agent 宿主结果接收方完成，Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
+Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果与账目经 Agent 宿主结果接收方写入同一日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
 
 ```mermaid
 flowchart LR
@@ -275,7 +275,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 2. 一个用例只做一次提交。跨用例的事只能由后一个用例读取前一个用例已经提交的事实。
 3. 幂等只依靠操作身份。协调器与调度器重放同一命令时带同一身份。
 4. 协调器与调度器不持有状态。它们从权威读取重建要做的事，通知只起唤醒作用。
-5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者交付责任解除归 Agent 宿主的结果接收方，Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。
+5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认，Tool 确认怎样进入日志见具名偏离 [JC-RELEASE-TOOL-PATH](../../../packages/session/session-contract/SPEC.md#jc-release-tool-path)。
 6. 能预先算好的派生物在变化时维护。请求到达时只读取与采用。
 
 协调器读取事实后决定发出哪些命令或调用：
@@ -367,7 +367,7 @@ flowchart TD
 
 - Model 的流片段、受理诊断与重试诊断。
 - Tool 的过程块与内部调度。
-- Agent 对流片段的转发通知和可重建的内部视图。Agent 执行记录经 Journal 进入同一会话日志，不能因其来自 Agent 而排除。事件通知不另存为第二份权威记录，Session 治理投影按已提交记录派生，见下表。
+- Agent 可重建的内部视图。Agent 不转发生产者的流片段，观察不经过 Agent。Agent 执行记录经 Journal 进入同一会话日志，不能因其来自 Agent 而排除。事件通知不另存为第二份权威记录，Session 治理投影按已提交记录派生，见下表。
 - 调度器唤醒。
 
 条目封套记录事实拥有者与经由方。经由方只供人与诊断使用，不参与治理。事件种类名保持稳定：旧种类永不复用，未知种类先隔离，不跳过。
@@ -437,7 +437,7 @@ Agent 工作推进的产品责任见[Agent 定义与工作推进](../../../.meta
 | 事项 | 拥有者 | 闭合之前本系统怎样表现 |
 |---|---|---|
 | 共享存储事务域 | Agent 与存储拥有者联合 | [共同提交与参加关系](#共同提交与参加关系)以它为前提。没有共享事务域的装配被拒绝。不提供退化为两次提交加对账的方案。 |
-| [压缩转换的协调者一侧](https://github.com/nemori-ai/omne-harness-lite/issues/558) | 压缩转换的协调者拥有者 | Session 只承担持有者一侧的参加。协调者一侧的唯一提交点待定。 |
+| 压缩转换的参加查询桥与载荷配对 | Session 与 Request Context 的拥有者 | Session 只承担持有者一侧的参加。协调者一侧的提交点见 Agent 的[请求准备与压缩](../../../packages/agent/agent-contract/SPEC.md#请求准备与压缩)第 7 条。参加查询桥与载荷的配对登记为 Agent 开放问题的 [U-6](../../../packages/agent/agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。 |
 | 受理拓展点的语义 | 命令域与 hooks 拥有者 | Session 只规定[受理流水线](#受理流水线与业务流程拓展点)的顺序与提交边界。 |
 | 迟到账目与收场的读取资格 | Model 与 Tool 拥有者 | Agent 外侧的结果接收方须取得生产者读取资格，再把收场与账目写入日志。读取资格或日志交付未闭合时，相应事实保持未知，不以查不到当作未发生，也不要求 Agent 直接查询 Model 或用 Agent 事件代替账目。 |
 | 有界恢复者：Agent 记录不可解释时恢复者以原事实收束失败 | Agent 拥有者 | 恢复者不收束，Run 保持未终结，恢复任务保留并报告。Agent 执行已结束时不在此列，Session 按 Agent 的结论写终态。见[有界恢复者](control-and-recovery.md#有界恢复者)。 |

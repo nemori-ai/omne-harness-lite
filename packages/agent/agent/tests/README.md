@@ -37,17 +37,17 @@
 - `loop-main-call.spec.ts` 核对原 received 的 reply/partial/no-reply 解释、未知 schema/缺材料拒绝、M3 producer 后的窄恢复与真实撤权。材料不可读时保留原调用和待办，恢复不生成第二条 producer，不从 Model 查询拼出业务结果。
 - reasoning_state、完整 thinking 和未封 thinking 缺原产出 scope/format 时仍返回 unsupported，不接纳消息。reasoning_state 的合法 envelope 直接送入真实 receiver；Model scripted producer 的旧 sealed 校验不支持该类型，因此这一场景不声明真实 producer 或 pusher ACK 已通过。其余正常结果仍经公开 pusher。
 - `loop-intake-prepare.spec.ts` 核对 NA-I0-1/2 与 NA-I1-1/2/3：完整输入批、batch/step/event 同次提交、下一 step 清旧准备、两次 invoke 无重叠、条件与选择及上下文和准备的顺序、首次 assembled 与 P1 ready、条件来源、初次 adopted 为空与 M0 采用 coverage、四端口不可用各保存一次 W0。另核对非法首次 ready 不调用 Model、真实 cannot-fit 保留原因并经 F1 保存完整候选、I1/F1 未知提交的 committed/excluded 接续、F1 候选与时刻不因重试变化。候选时刻来自注入的 AgentClock.now，同一候选只取一次；取时 unavailable 时零 F1 写入，准备与续点保留，后续取时成功才形成候选。revision 2 的 needs-compaction 保存原准备并答 unsupported，不进入 F1 或压缩调用。输入测试直接调用内存 Journal.submit，不证明公开 submit。真实在途输入保持已固定请求，M3 在 changed 后重读当前挂接并完成原回复准入，用例在 I8 停止。完整 SC-AG-157 的迭代与终结交错仍归后续卡。另一用例在回复保管前受理新输入，单独核对下一 step 只承接新增输入。
-- `loop-admission.spec.ts` 的用例名以节点验收表行号开头。U0 交出的内容经 `Journal.inputs` 读回。Q1 不提交，直接转 Q2。Q2 的模型回复回执随 checkpoint 提交，外部输入回执不另存（#558 S-13）。Q4 按来源返回 U0 或 I3。E0 在预约槽后保存输入与初始 checkpoint。
+- `loop-admission.spec.ts` 的用例名以节点验收表行号开头。U0 交出的内容经 `Journal.inputs` 读回。外部输入在 Q1 不写 P；模型回复在 Q1 先写 P 再 `prepare`。Q2 的 Ja 带 `handoff.resolve`、模型回复的准入事实与 message 事件，并清除 `currentHandoff`；外部输入不写 Ja。Q4 按来源返回 U0 或 I3。E0 在预约槽后保存输入与初始 checkpoint。
 - 同文件核对 C1：最近受理的操作在运行中、停止后与 ended 后均认回原句柄。重复调用不再次 open。事件序号保持为 1 至 4。
-- 同文件核对另一 execution 占槽时的原记录查找。更早操作经 query 与幂等受理认回，当前槽不变，原执行不再推进。定义解析失败原样返回。accept 回执未知时，返回值使用本次 invoke 的操作身份。
+- 同文件核对另一 execution 占槽时的原记录查找。更早操作经 query 与幂等受理认回，当前槽不变，原执行不再推进。定义解析失败原样返回。prepare 回执未知时，返回值使用本次 invoke 的操作身份。
 - 同文件核对新 runtime 认回 Journal 原记录。修订号已推进时，E1 结束协调。修订号未推进时，新 runtime 使用原 Authority 驱动。`loop-coordinator.spec.ts` 另断言前一种路径成功返回，不形成缺少转移行的缺陷。
 - 同文件核对输入冲突。已记住的同一操作与 execution 配另一输入时，原 execution 占槽则直接返回 conflict。该路径不查询 Journal，也不动槽。槽空闲或另一 execution 占槽时，由 Journal 判定 conflict。
 - 同文件核对 busy 与路由。预约中、运行中、已停止、open 未定各有 busy 用例。只有操作与 execution 都匹配 R0 待查项才进入重试查询。查询进行中，预约仍挡住另一 invoke。Journal 查询的 denied 读作 busy，unavailable 原样返回，unknown 返回本次操作的 commit-unknown。
-- 同文件核对 C2：Q2 accept 回执未知时，invoke 返回原操作的 commit-unknown，新受理释放槽。同一操作以同一候选再次调用 accept 即查询，并取得原结果。此测试核对两次 accept 的操作身份与候选相同。
+- 同文件核对 C2：外部输入在 Q1 的 prepare 回执未知时，invoke 返回原操作的 commit-unknown，新受理释放槽。同一操作以同一请求再次调用 prepare 即查询，并取得原结果。此测试核对两次 prepare 的请求相同。
 - 同文件核对 E0 的 R0 路径。pending、applied、dropped 故障配合 settle，覆盖 unknown、committed、excluded 三种查询结果。committed 后重试在 open 前失败保留预约，excluded 后同样的失败释放预约。查询失败原样返回并保留 R0 待查项。
 - `loop-recovery.spec.ts` 的用例名以节点验收表行号开头。表驱动用例核对阶段 1 的已存 position、输入批、assembled/ready 准备、主调用、settling 与未建成节点。E1/E2 不推进修订号。不可用读取与准入投影 gap 保存等待。R0 对 unknown、committed、excluded 均保留原操作身份。9 个真实提交切点分别在再入前或 R0 查询时 settle 为 committed/excluded，核对原受理、received 材料读取、零 Agent Model 消费调用与 producer 事件的次数，以及回复准入事实。E1/E2 之间真实 detach 后不再次连接 Model，本地协调回 idle。E2 读取终态时不再读取业务输入，终态路由优先于未定业务操作。W0 的状态与事件一次提交，失败保持为失败。
 - `canonical.spec.ts` 核对对象键顺序与缺席成员不改变输入。它保留 null、数组顺序与元素边界。字节视图只使用其偏移与长度范围内的字节。
-- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。E1/E2/I1/M1 保存等待，其余受测节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q2 `handoff.accept`、E0 `open`）是 `invoke` 的回答，并释放槽。
+- `loop-port-failures.spec.ts` 记录 #502 1.2 只走正常路径这一限制：对路径上每个调用端口的节点注入一次端口的 `unavailable`。E1/E2/I1/M1 保存等待，F3 的 `tryFinish` unavailable 经 R0 在内存等待，不提交 waiting（`position` 仍是 F3），其余受测节点停止，Journal 的 `position` 停在最后一次提交写下的节点并保持 20 轮，F3 之前 execution 不终结，`observe` 显示 occupied。停止的 `owner` 只保留在协调者内部（#558 S-14）。公开测试不核对停止原因。`open` 之前的端口失败（`adoptions.resolve`、Q1 `handoff.prepare`、E0 `open`）是 `invoke` 的回答，并释放槽。
 - `loop-slot.spec.ts` 核对单执行槽：扩展拒绝在 `open` 之前释放槽；登记句柄的 `report` 抛出不影响 `invoke` 与回 idle；在 `invoke` 之前打开的观察先见 idle、再被唤醒见 occupied；E4 的 stop 与缺少转移行的结果都使运行停在 E4、未终结且仍占槽，后者走协调者的 `#defect` 路径；P1 再选择与第一次不一致时运行停在 P1（#502 1.2 的替代做法；P0/P1 与一致性重试尚未交付）。
 - `provider-access.spec.ts` 对四个面的每个公开操作核对：跨租户 `denied`，缺租户或租户非法 `invalid`（`observe` 以 `denied` 结束），都不调用 `access.check`。`access.check` 的 denied、unavailable、reject 与契约之外的回答都不放行。每次操作恰好调用一次，不缓存 allowed。
 
@@ -55,20 +55,22 @@
 
 ## 维护
 
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。#558 裁定 M04-4、M04-5 或 M04-7 之后，在同一波修改内存 Journal、对应的临时做法用例和成员 README 的支持范围表。同形清单变化时，按新条目号同步 `memory-journal.spec.ts` 的用例名。
+公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。同形清单变化时，按新条目号同步 `memory-journal.spec.ts` 的用例名。
 
 ## 本包事实
 
 `memory-journal.spec.ts` 按同形清单组织：每个 `describe` 对应一条事实，名称以 `fact N` 开头，用例名也带条目号。6.1 与 7.4 可以把这些用例搬到 `agent-journal-local`，两种实现共用同一套断言。
 
-名为「临时做法，待 #558 裁定」的 `describe` 含四条用例：
+名为「facts 6, 7, 9, 11 and 17 as #558 decided them」的 `describe` 含四条用例：
 
-- M04-4：`commit` 与六个记录方法成功写入时推进 revision，同操作重试认回原回执、不推进。
-- M04-5：未声明参加者时，`recordResult.transfer` 的 custody 与 processed 由提供者建立依据；`commit.caller` 的同种类返回 `unsupported`。
-- M04-7：`open` 不追加事件，第一个序号属于之后的一次提交。
-- M04-1 的读法：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
+- 第 6 条：`commit` 与六个记录方法每建立一个新事实推进一次 revision，同操作重试认回原回执、不推进。
+- 第 9、11 条：standalone 绑定下 `recordResult.transfer` 的 custody 与 processed 由提供者建立依据；`commit.caller` 的未声明种类返回 `unsupported`。
+- 第 7 条：`open` 不追加事件，第一个序号属于之后的一次提交。
+- 第 17 条：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
 
-`fact 10` 中名称带「临时做法，待 #558 裁定」的用例固定 `tryFinish` 的 controls 与 inputs 两项 blocked 条件、passages 不检查，以及 ended 之后 `recordControl` 只记录、不投影事件。`journal-support.ts` 的 `finish` 先经 `takeInputs` 取走受理输入，再以普通完成终结。
+名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。同文件另以三个只破坏一条规则的装饰器（重试答 conflict、ended 后新 submit 被受理、过期 expected 先于 ended 答 changed）包住内存 Journal：先核对未装饰的基线没有失败用例，再核对每个装饰器使它所破坏规则所在的那条具名用例变红。夹具另提供 `seedLegacyCandidate`（旧协议留下的 cancelled 候选）、`qualify`（三种结算资格）与提交效果意图的 `produceResult`。
+
+`fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先（有效取消下带 complete 或 failed 候选的 F1 为 changed）、取消授权只能结束取消候选、未定写入为清单的 unknown 项而 tryFinish 为 unavailable、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
 
 `provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 
@@ -89,10 +91,10 @@ O0 窄接续用例保留原 received 与材料，核对零 Agent Model 消费调
 骨架的临时做法在源码注释、下列测试名与[成员 README](../README_ZH.md#支持范围)中写明：
 
 - `loop-invoke.spec.ts` 中「临时简化，1.3–1.9 按节点表收紧」的用例固定骨架的提交次序与 `position` 去向。其余节点尚未全部按节点表收紧。I2 仅构造帧，M0 一次提交，M6、M1 收场、无扩展 M4 与 M5 不提交，对应期望已同步。
-- 同文件「待 #558 M04-1……M04-8……」的用例固定事件的承载：input-taken 随 I0 的提交，producer 随 M3 采用 received 之后的业务提交。M04-7（`open` 不写事件）由事件序号从 1 起即 input-taken 体现。Model 不再用 processed 参加者保存结果；Tool 的既有参加者协议保留。
+- 同文件「the producer event goes with M3 after joint receipt; input-taken goes with I0」的用例固定事件的承载：input-taken 随 I0 的提交，producer 随 M3 采用 received 之后的业务提交。`open` 不写事件由事件序号从 1 起即 input-taken 体现。Model 不再用 processed 参加者保存结果；Tool 的既有参加者协议保留。
 - `loop-transitions.spec.ts` 核对 I1 首次 assembled 转 P0、不可用转 W0、真实 cannot-fit 转 F1。P1 带 previous 复核才返回 ready（#558 S-11）。I3 把回复交 Q1（伪代码 `runIter`、`admitMessage`）。
 - E1 在修订号已超过原 open 回执时返回 `found-existing`，由转移表正常结束协调。这避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向，属于阶段 1 读法。`loop-transitions.spec.ts` 核对转移行，`loop-coordinator.spec.ts` 核对成功结果。
-- Q2 的 commit-unknown 在节点表中转 R0，未定则等待。阶段 1 以 #558 S-13 为依据，由调用方用原操作与原候选再次调用 accept 即查询。invoke 先返回 commit-unknown，新受理释放槽。`loop-admission.spec.ts` 核对此读法，后台等待尚未交付。
+- Q1 的 prepare 回执未知时，由调用方用原操作与原请求再次调用 prepare 即查询。invoke 先返回 commit-unknown，新受理释放槽。模型回复的 Ja 回执未知时转 R0，再入时 Q2 以 lookup 读回同一个 H。`loop-admission.spec.ts` 与 `loop-reply-close.spec.ts` 核对此读法，后台等待尚未交付。
 - `loop-evaluator.spec.ts` 中「stage-temporary (#502 stage 5)」的用例固定 `decode` 返回 `unsupported`。
 
 E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（agent-contract 的 `verification/node-acceptance.md`）的「实现用例」列。公开唤醒与完整失败恢复尚未交付。下表仅列仍待后续卡补齐的骨架用例：
@@ -108,7 +110,6 @@ E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（a
 
 - 待拥有者：绑定租户与安全作用域不一致（`denied`）。
 - 待拥有者：精确采用 `binding.definition` 与 `loopGuardPolicy` 解析不到（`unavailable`），以及依定义判定 tools、admission、extensions 的必需性。
-- 待 #558 M04-3：外部协调者参加的拒绝条件。
 
 工厂只为无类型调用方校验选项的取值。依赖假定满足各自的契约类型，测试不覆盖违反类型的依赖：没有 `capabilities` 的 Journal、抛出异常的 `registration.instance` 读取器、不是对象的选项或依赖都使创建 reject。
 

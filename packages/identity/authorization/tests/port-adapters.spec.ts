@@ -78,7 +78,10 @@ function agentTarget(target: AgentAccessTarget): AdmissionTarget {
     case 'instance':
       return { owner: 'agent', kind: 'instance', key: target.instance }
     case 'execution':
-      return { owner: 'agent', kind: 'execution', key: `${target.instance}/${target.execution}` }
+      // SPEC "主体资格核验": the execution target is the logical execution, without the instance.
+      return { owner: 'agent', kind: 'execution', key: target.execution }
+    case 'input-entry':
+      return { owner: 'agent', kind: 'input-entry', key: `${target.execution}/${target.operation}` }
   }
 }
 
@@ -389,7 +392,6 @@ function installed(): Installed {
 
 const executionTarget = (): AgentAccessTarget => ({
   kind: 'execution',
-  instance: decoded(decodeAgentInstanceId('inst_1'), 'instance'),
   execution: decoded(decodeAgentExecutionId('exec_1'), 'execution'),
 })
 

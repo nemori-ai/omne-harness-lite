@@ -85,11 +85,7 @@ export function createReceptionOutlet<P>(
               allowed = await dependencies.access.check({
                 access,
                 operation: 'receive-result',
-                target: {
-                  kind: 'execution',
-                  instance: item.target.instance,
-                  execution: item.target.execution,
-                },
+                target: { kind: 'execution', execution: item.target.execution },
               })
             } catch (error) {
               qualificationFailure = maintenanceUnavailable('access')

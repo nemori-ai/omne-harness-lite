@@ -211,8 +211,7 @@ agent 必须能感知当前落点及上次痕迹是否仍在；环境过期、�
 | --- | --- | --- | --- |
 | 0.0.0 → 0.1.0 | CAP-EE01 至 CAP-EE12，全部十二项 | 每项完整支持，规则以已接受的运行环境、执行隔离和技术基础为准；不含限额数字、保留期限、密钥存放和具体引擎桥接 | [2026-10-15 选择](https://github.com/nemori-ai/omne-harness-lite/issues/268#issuecomment-6189563335)，[2026-10-25 确认](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6393007334) |
 | 其中 [M1 首次联合验收](https://github.com/nemori-ai/omne-harness-lite/milestone/1) | CAP-EE01、CAP-EE02、CAP-EE03、CAP-EE04、CAP-EE07、CAP-EE09、CAP-EE11 | 在 M1 交付 | [2026-10-25 选择](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6392824476)，[确认](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6393007334) |
-| 其中 [M2 首个租户闭环](https://github.com/nemori-ai/omne-harness-lite/milestone/2) | CAP-EE08 同进程恶意代码设防、CAP-EE10 原身份恢复与效果对账 | 在 M2 交付 | [2026-10-25 选择](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6392824476)，[确认](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6393007334) |
-| 其中后续里程碑 | CAP-EE05、CAP-EE06、CAP-EE12 | 在 0.0.0 → 0.1.0 阶段内的后续里程碑交付 | [2026-10-25 确认](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6393007334) |
+| 其中后续里程碑 | CAP-EE05、CAP-EE06、CAP-EE08、CAP-EE10、CAP-EE12 | 在 0.0.0 → 0.1.0 阶段内、[M2 首个租户闭环](https://github.com/nemori-ai/omne-harness-lite/milestone/2)之后的里程碑交付 | [2026-10-25 确认](https://github.com/nemori-ai/omne-harness-lite/issues/732#issuecomment-6393007334)；CAP-EE08 与 CAP-EE10 不在 M2 交付，见 [2026-10-30 选择](https://github.com/nemori-ai/omne-harness-lite/issues/943#issuecomment-6516256347) |
 
 里程碑只决定交付先后，不改变各项能力的资格、条件和例外。具体提供者及机制版本、设施协议、技术采用和验证方案由具名技术拥有者补足。形成实际支持声明及交付接受时，须再绑定精确版本、适用条件和真实验证范围。所有实现状态仍为未核实。
 

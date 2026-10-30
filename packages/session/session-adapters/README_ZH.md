@@ -19,8 +19,8 @@ Session 的适配成员。模板变体：`cordis-module`。
 
 状态：适配成员，`draft`。[SPEC](SPEC.md) 是候选设计，尚未技术接受。
 
-- 已实现：无。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。
-- 未实现：全部十七个插件与端口提供者。
+- 已实现：`./testing` 入口。它的非耐久内存提供者实现 AD-01、AD-02 与 AD-05，并提供 Agent Journal。根入口（`src/index.ts`）与 `./cordis`（`src/cordis.ts`）仍只有模板标记。
+- 未实现：全部十七个插件与端口提供者的生产实现，以及全部耐久提供者。
 - 受具名前提阻塞：历史源、受理拓展点、两个驻留端口、Agent 记录迟到结果的入口，以及无活体 runtime 时的执行视图。每项前提与闭合前的表现见 [SPEC](SPEC.md#具名前提与明确缺项)。
 
 ## 使用
@@ -44,7 +44,7 @@ export const inject = {
 
 ## 契约
 
-- `src/` 拥有公开形状，现在为空。
+- `src/` 拥有公开形状。根入口与 `./cordis` 现在没有导出，`./testing` 入口导出非耐久内存提供者。
 - [SPEC](SPEC.md) 拥有每个插件的行为、结果对应表、翻译表与具名前提。
 - [Cordis 页](docs/cordis.md) 拥有 `inject`、提供的键、登记与撤除。
 - [公开接口页](docs/public-api.md) 索引导出。
@@ -68,7 +68,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-现有的两个测试只核对模板入口，见 [tests/](tests/README.md)。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未覆盖。结构检查通过不证明行为。
+本包有 27 个运行测试与 2 个类型测试，见 [tests/](tests/README.md)。其中两个运行测试核对根入口与 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未逐条对应到测试。结构检查通过不证明行为。
 
 ## 维护
 
@@ -91,8 +91,8 @@ docs/                     内部设计、公开使用与集成
 ├── public-api.md         导出入口与定义索引
 ├── context.md            装配步骤与定位
 └── cordis.md             inject、键、登记与 IC 映射
-src/                      index.ts 与 cordis.ts，现在只有模板标记
-tests/                    两个入口测试，fixtures/ 现在为空
+src/                      index.ts 与 cordis.ts 只有模板标记，testing.ts 与 testing/ 是内存提供者
+tests/                    27 个运行测试与 2 个类型测试，fixtures/ 有 7 个共用构造文件
 schema/                   模板占位
 verification/             models/ 与 proofs/，模板占位
 adr/                      模板占位
@@ -101,4 +101,4 @@ resources/                模板占位
 acceptance/               模板占位，fixtures/ 同样
 ```
 
-每个目录有 README.md 说明职责，有 index.md 导航。`docs/` 之外的这些文件仍是模板占位，不陈述本包事实。阅读路径见 [index.md](index.md)。
+每个目录有 README.md 说明职责与本包现状，有 index.md 导航。`schema/`、`verification/`、`adr/`、`examples/`、`resources/` 与 `acceptance/` 现在没有本包资源。阅读路径见 [index.md](index.md)。

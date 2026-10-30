@@ -75,7 +75,10 @@ export type LoopNode = (typeof LOOP_NODES)[number]
 
 /**
  * Why a node goes where it goes: one name per outcome of the column 如何返回. At the two decision
- * segments, evaluator outcomes use Next.kind. J5 recovery routes use resume-<node>. `return-U0` and `return-I3` are the fixed call positions that Q4 and M5 go back to.
+ * segments, evaluator outcomes use Next.kind. J5 recovery routes use resume-<node>. `return-U0` and
+ * `return-I3` are the fixed call positions that Q4 and M5 go back to. `prepared` and `rejected` are
+ * the two decisions of `prepare` at Q1, `resolved` the committed Ja at Q2 and `disposed` the
+ * rejected Ja at Q5.
  */
 export type Label =
   | Next['kind']
@@ -85,8 +88,10 @@ export type Label =
   | 'superseded'
   | 'saved-wait'
   | 'candidate'
-  | 'valid'
-  | 'accepted'
+  | 'prepared'
+  | 'rejected'
+  | 'resolved'
+  | 'disposed'
   | 'return-U0'
   | 'return-I3'
   | 'admit'
@@ -123,10 +128,13 @@ export type Transition = Readonly<{ from: LoopNode; on: Label; to: LoopNode | nu
  */
 export const TRANSITIONS: readonly Transition[] = [
   { from: 'U0', on: 'candidate', to: 'Q1' },
-  { from: 'Q1', on: 'valid', to: 'Q2' },
-  { from: 'Q2', on: 'accepted', to: 'Q4' },
+  // Node table Q1: prepared goes to Q2, rejected to Q5; Q5 goes to Q4, which returns to the source.
+  { from: 'Q1', on: 'prepared', to: 'Q2' },
+  { from: 'Q1', on: 'rejected', to: 'Q5' },
+  { from: 'Q5', on: 'disposed', to: 'Q4' },
+  { from: 'Q2', on: 'resolved', to: 'Q4' },
   { from: 'Q4', on: 'return-U0', to: 'U0' },
-  // From the column 终止或进展条件 of U0: 接纳才进入可承接输入.
+  // From the column 终止或进展条件 of U0: 原 open 或 submit 真实受理才进入可承接输入.
   { from: 'U0', on: 'admitted', to: 'E0' },
   { from: 'E0', on: 'authority', to: 'E1' },
   { from: 'E1', on: 'allowed', to: 'E2' },
@@ -195,6 +203,8 @@ export const TRANSITIONS: readonly Transition[] = [
   { from: 'I3', on: 'admit', to: 'Q1' },
   { from: 'Q4', on: 'return-I3', to: 'I3' },
   { from: 'I3', on: 'admitted', to: 'I4' },
+  // Node table I3: a rejected reply goes to I8 for a new step.
+  { from: 'I3', on: 'rejected', to: 'I8' },
   { from: 'I3', on: 'partial', to: 'I8' },
   { from: 'I3', on: 'try-finish', to: 'F1' },
   { from: 'I4', on: 'empty', to: 'I8' },

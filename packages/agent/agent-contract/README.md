@@ -10,9 +10,10 @@ The package exports these items:
 - Five constants: `ATTRIBUTE_ITEMS`, `POSITIONS`, `POWERS`, `POSITION_OUTPUTS`, and `AGENT_IDENTITY_MAX_LENGTH`.
 - Three judgment functions: `judgeAgentDefinition`, `judgeLoopExtensions`, and `judgeExtensionOutput`.
 - The asset body contract `agentBodyContract`.
-- Fourteen identity decoders, named `decode*`, and four structure judgments: `judgeAdoption`, `judgeEvidence`, `judgeAccess`, and `judgeAuthority`.
+- Fourteen identity decoders, named `decode*`, and six structure judgments: `judgeAdoption`, `judgeEvidence`, `judgeAccess`, `judgeAuthority`, and the two message admission judgments `judgeHandoffPrepare` and `judgeInputOrigin`.
+- `obligationCategoryOf`, the category of a finish obligation kind.
 
-The `./testing` entry exports the conformance suites and the non-durable doubles of the two receiving ports, `AgentJournalEntries` and `AgentAccountOutlet`. The doubles declare `durability: 'none'`. Do not assemble them into production. The root entry does not load `./testing`.
+The `./testing` entry exports the conformance suites and the non-durable doubles of the two receiving ports, `AgentJournalEntries` and `AgentAccountOutlet`, and `agentJournalCoreConformance`: the suite every `AgentJournal` provider runs against its own fixture for the execution revision, the six stages, recognition of the original operation, the durable refusal of `query`, message admission (P, Ja, Rh and the two submit lineages) and finishing (the candidate, the obligations, the order of the five blocked categories, the cancellation route and the six settlement variants). The full export list of `./testing` is in the [public API](docs/public-api/README.md#生产者接收面). The doubles declare `durability: 'none'`. Do not assemble them into production. The root entry does not load `./testing`.
 
 The package does not implement the progression Loop, the evaluator, the runtime, the Journal provider, or the host plugin. The interfaces of these parts exist as types only. No provider implements them. Providers and the host plugin belong to [agent](../agent/README.md), [agent-host-local](../agent-host-local/README.md), and the provider packages.
 

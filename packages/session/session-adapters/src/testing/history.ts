@@ -41,15 +41,24 @@ export function executionKey(root: CommonRoot, execution: string): string {
   if (!encoded.ok) corrupt('tenant')
   return JSON.stringify([encoded.value, execution])
 }
+/** The attempt the grant names for `execution`, or `undefined` when it does not identify SE15. */
+export function findGrantAttempt(
+  root: CommonRoot,
+  execution: string,
+  grant: DurableEvidence,
+): SessionAttemptRecord | undefined {
+  const found = root.sources.grants.get(canonical(grant))
+  return found?.execution === execution ? found : undefined
+}
 export function grantAttempt(
   root: CommonRoot,
   execution: string,
   grant: DurableEvidence | null,
 ): SessionAttemptRecord {
   if (grant === null) unavailable('original Session grant')
-  const found = root.sources.grants.get(canonical(grant))
-  if (!found || found.execution !== execution) unavailable('grant does not identify original SE15')
-  return found
+  return (
+    findGrantAttempt(root, execution, grant) ?? unavailable('grant does not identify original SE15')
+  )
 }
 export function authorityAttempt(
   root: CommonRoot,

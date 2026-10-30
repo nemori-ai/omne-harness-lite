@@ -96,7 +96,7 @@ erDiagram
 | `covered_commit` | INTEGER | 物化时的 `commit_seq` |
 | `digest` | TEXT | `snapshot` 的 SHA-256 |
 
-`snapshot` 里的 `ExecutionRef.readThrough` 就是消费游标，没有单独的游标表。
+`snapshot` 里的 `ExecutionRef.readThrough` 就是解释进度，没有单独的进度表（[W5](../SPEC.md#w5)）。
 
 **`sl_blob`** 每段外置载荷一行。
 

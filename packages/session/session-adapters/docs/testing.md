@@ -32,7 +32,7 @@ Tool 的原 `release.confirmed.receipt` 由 `recordResult` 保存后，`controls
 
 entries 夹具为每个 `(tenant, execution)` 分配明确的 Session，材料按原消费绑定和已成立的材料引用路由。它的统计只减去第一次真实 open 后的固定 revision 基线，同时保留原始观测。该套件不证明同一 Session 的多 execution；对应义务由真实 Run 后继组合测试覆盖。
 
-故障句柄只安排暂停、提交前失败、提交后失答复或材料损失。`pauseWrite`/`faultWrite` 针对原 Agent 方法；`pauseSession`/`faultSession` 针对原 Session operation。`resultPreparationOperation` 返回结果参加前准备的独立 operation，供同一故障控制使用。`quarantine` 关闭共享 gap 门，不需要推进根位置；旧准备不能因此继续发布。它们不授予业务资格，也不提供成功事实。
+故障句柄只安排暂停、提交前失败、提交后失答复或材料损失。`pauseWrite`/`faultWrite` 针对原 Agent 方法；`pauseSession`/`faultSession` 针对原 Session operation。`resultPreparationOperation` 返回结果参加前准备的独立 operation，供同一故障控制使用。`quarantine` 关闭共享 gap 门，不需要推进根位置；旧准备不能因此继续发布。`failNextRecord` 为一个租户的一个 execution 安排下一次走到写入步骤的 `record` 的故障：`commit-unknown`（条目与事件已写，只丢失答复）或 `unavailable`（发布前失败，什么也不写）。被拒绝的调用和认回原回执的调用不消耗它，后安排的故障替换尚未消耗的故障。`src` 不导入别的包的 `/testing` 入口，所以本包另建本地 `RecordFault` 类型。它与 agent-contract 一致性套件的同名类型互相可赋值，由 `tests/record-fault.spec-d.ts` 保证。这些故障句柄不授予业务资格，也不提供成功事实。
 
 ## 验证范围与资源成本
 

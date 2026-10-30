@@ -20,7 +20,9 @@
 - [loop/identities.ts](loop/identities.ts)：确定派生的操作身份、调用身份与依据
 - [testing/index.ts](testing/index.ts)：`./testing` 入口与 `createTestAgentDependencies`
 - [testing/journal.ts](testing/journal.ts)：内存 Journal
+- [testing/journal-finishing.ts](testing/journal-finishing.ts)：内存 Journal 的终结记录、投影与责任清单构造
 - [testing/journal-values.ts](testing/journal-values.ts)：内存 Journal 的值辅助
+- [testing/host-record.ts](testing/host-record.ts)：内存 Journal 的夹具输入类型（一致性套件同名类型的本地副本）
 - [testing/fixtures.ts](testing/fixtures.ts)：端口的可编排替身
 - [testing/tools.ts](testing/tools.ts)：`ToolRuntime` 替身
 - [testing/clock.ts](testing/clock.ts)：可控时钟

@@ -19,8 +19,8 @@ The package does not own governance rules, scheduling, or storage. [session-cont
 
 Status: adapter member, `draft`. The [SPEC](SPEC.md) is a candidate design. Technical acceptance has not happened for it.
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers.
-- Not implemented: all seventeen plugins and port providers.
+- Implemented: the `./testing` entry. Its non-durable memory provider implements AD-01, AD-02 and AD-05, and it provides the Agent Journal. The root entry (`src/index.ts`) and `./cordis` (`src/cordis.ts`) still hold only template markers.
+- Not implemented: the production implementations of all seventeen plugins and port providers, and all durable providers.
 - Blocked by named premises: the history source, the intake extension points, and the residency ports. Two Agent entries also block work: the late-result entry and the execution views with no live runtime. The [SPEC](SPEC.md#具名前提与明确缺项) lists each premise and the behavior before it closes.
 
 ## Usage
@@ -44,7 +44,7 @@ Tests and tools that need only a translation function import the root entry. The
 
 ## Contracts
 
-- `src/` owns the public shapes. It is empty now.
+- `src/` owns the public shapes. The root entry and `./cordis` have no exports now. The `./testing` entry exports the non-durable memory provider.
 - The [SPEC](SPEC.md) owns the behavior of each plugin, the result mappings, the translation table, and the named premises.
 - The [Cordis page](docs/cordis.md) owns `inject`, the provided keys, registration, and removal.
 - The [API page](docs/public-api.md) indexes the exports.
@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-The two current tests check only the template entries. See [tests/](tests/README.md). The continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) are not covered yet. A passing structure check does not prove behavior.
+The package has 27 runtime tests and 2 type tests. See [tests/](tests/README.md). Two runtime tests check that the root entry and `./cordis` have no exports. The other 25 runtime tests check the memory provider of `./testing`. No test is mapped to the continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) yet. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -91,8 +91,8 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Export entries and definition index
 ├── context.md            Assembly steps and position
 └── cordis.md             inject, keys, registration, IC map
-src/                      index.ts and cordis.ts, template markers only now
-tests/                    Two entry tests, fixtures/ is empty now
+src/                      index.ts and cordis.ts hold template markers, testing.ts and testing/ hold the memory provider
+tests/                    27 runtime tests and 2 type tests, fixtures/ holds 7 shared helper files
 schema/                   Template placeholder
 verification/             models/ and proofs/, template placeholders
 adr/                      Template placeholder
@@ -101,4 +101,4 @@ resources/                Template placeholder
 acceptance/               Template placeholder, fixtures/ too
 ```
 
-Each directory has README.md for its role and index.md for navigation. Outside `docs/`, these files are still template placeholders and state no package facts. See [index.md](index.md) for reading paths.
+Each directory has README.md for its role and its current package facts, and index.md for navigation. `schema/`, `verification/`, `adr/`, `examples/`, `resources/`, and `acceptance/` hold no package resources yet. See [index.md](index.md) for reading paths.

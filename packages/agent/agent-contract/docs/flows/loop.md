@@ -38,7 +38,7 @@ Context 拥有可发送投影、预算与压缩。本成员提交本步用途与
 
 调模型之前位置之后固定实际模型、参数、提示词、工具声明和模态表示（P0、P1、M0）。扩展改写候选请求时重新组装并复核，同一次经过不再次经过该位置。主请求、压缩步骤和扩展内部调用具有独立的调用身份和不同的消费位置（M5 的返回去处）。
 
-首内容前一次真实发出发生可重试失败时，调模型之后失败分支的重试结论交回原 Model 调用，由 Model 决定继续发出或真实收场（M1、M2）。主 Loop 保持对原调用的等待，不提前形成最终结果、确认或新的逻辑调用。原调用真实收场后才经过调模型之后的最终位置和消息准入（M3、M4、I3）。用户单独中断模型后，该响应中尚未发出的建议不执行，已交付内容和费用保留。
+首内容前一次真实发出发生可重试失败时，调模型之后失败分支的策略建议交给重试策略协调者，协调者形成唯一的重试决定。Model 核验该决定的来源后继续发出原调用，或让原调用真实收场（M1、M2）。主 Loop 保持对原调用的等待，不提前形成最终结果、确认或新的逻辑调用。原调用真实收场后才经过调模型之后的最终位置和消息准入（M3、M4、I3）。用户单独中断模型后，该响应中尚未发出的建议不执行，已交付内容和费用保留。
 
 ## 消息准入
 
@@ -70,4 +70,4 @@ Context 拥有可发送投影、预算与压缩。本成员提交本步用途与
 
 A2 先 preserve 完整 ToolInvokeRequest facts 材料，再 commit intent、fixed、原位置和 effect intent。invoke 的 accepted、commit-unknown、association-unknown、rejected 分别沿 [SPEC 的登记表](../../SPEC.md#两态登记与完整原请求)接续。T0 只观察已关联调用，当前 lookup 不改原受理回执。历史未知后再 rejected 不改原 open 屏障，不建竞争 denied；缺槽位阻止 T3 齐备和 T5 完成。合法认回原受理后沿原槽位处理与解除，资格不可得时保留未知与交接责任。
 
-Tool control 受理时 Journal 保存原 toolInvocation，返回的操作引用之后经 recordControl 附加。迟到记录不依赖当前 checkpoint。control 先核当前资格并认回原 C，再扫描新 C 的 pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 R 或因异输入 conflict，之后才核 target、保留引用与阶段，精确失败归 SPEC。原 recording operation 不可改变输入，新 R2 附引用不重复阶段事件。交付解除未知只有仍持原操作引用才查询，引用丢失且 lookup 未证明释放时继续保留未知。A2、T0 与生产材料提供者仍待实现。
+Tool control 受理时 Journal 保存原 toolInvocation，返回的操作引用之后经 recordControl 附加。迟到记录不依赖当前 checkpoint。control 先核当前资格并认回原 control 操作，再扫描新 control 操作的 pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 recording operation 或因异输入 conflict，之后才核 target、保留引用与阶段，精确失败归 SPEC。原 recording operation 不可改变输入，附引用的新 recording operation 不重复阶段事件。交付解除未知只有仍持原操作引用才查询，引用丢失且 lookup 未证明释放时继续保留未知。A2、T0 与生产材料提供者仍待实现。

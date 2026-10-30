@@ -31,6 +31,7 @@ import type {
   JointFact,
 } from './journal.ts'
 import { emptyReceivingState, type ReceivingState } from './journal-receiving.ts'
+import { copyFinishing } from './journal-finishing.ts'
 
 export type SessionState = Readonly<{
   lastCommit: CommitReceipt | null
@@ -122,6 +123,13 @@ export type JournalHooks<P> = {
   ): Failure | undefined
 }
 export type JournalCell<P> = ReturnType<typeof createCell<P>>
+/**
+ * What one Journal write answers inside a common-root transaction. `rejected` is the persistent
+ * rejection whose audit the write saved: the only failure whose draft is published.
+ */
+export type TransactionAnswer<T> =
+  | Readonly<{ kind: 'answered'; outcome: Outcome<T, Failure> }>
+  | Readonly<{ kind: 'rejected'; failure: Extract<Failure, { kind: 'conflict' }> }>
 
 export function operationSemantic(input: ExecutionMutation<unknown>): string {
   const { principal: _principal, tenant: _tenant, ...value } = input
@@ -132,6 +140,8 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     ...value,
     attachments: value.attachments.map(item => ({ ...item })),
     inputs: [...value.inputs],
+    inputRevisions: new Map(value.inputRevisions),
+    resultRevisions: new Map(value.resultRevisions),
     events: [...value.events],
     controls: [...value.controls],
     results: [...value.results],
@@ -141,6 +151,13 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     observed: new Map(value.observed),
     admissions: [...value.admissions],
     entries: [...value.entries],
+    // A write changes a handoff record in place (resolution, history, retirement), so each record
+    // is copied, not only the list.
+    handoffs: value.handoffs.map(item => ({ ...item })),
+    custodyAttempts: new Map(value.custodyAttempts),
+    // F2 replaces an author route at its index and the writes append to the lists, so the lists
+    // and maps are copied; the records themselves are immutable.
+    finishing: copyFinishing(value.finishing),
   }
 }
 function cloneRoot(root: CommonRoot): CommonRoot {
@@ -269,7 +286,7 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
   const transact = <T>(
     input: ExecutionMutation<P>,
     method: JournalWrite,
-    action: () => Outcome<T, Failure>,
+    action: () => TransactionAnswer<T>,
   ): Outcome<T, Failure> => {
     const rejected = authorize(input, method)
     if (rejected) return fail(rejected)
@@ -299,8 +316,16 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
       draft.agent.executions.set(executionKey, copy)
     }
     try {
-      const result = action()
-      if ('failure' in result && result.failure.kind !== 'commit-unknown') return result
+      const answered = action()
+      // A persistent rejection (Agent SPEC "查询的四种结论与持久拒绝") answers conflict and still
+      // publishes its audit; every other failure discards the draft.
+      const result = answered.kind === 'rejected' ? fail(answered.failure) : answered.outcome
+      if (
+        answered.kind === 'answered' &&
+        'failure' in result &&
+        result.failure.kind !== 'commit-unknown'
+      )
+        return result
       const final = authorize(input, method)
       if (final) return fail(final)
       if (dirty && gate !== null)

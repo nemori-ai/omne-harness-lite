@@ -33,7 +33,7 @@
 | agentModelContext | ModelContextReaderService | ModelContextReader | 外域适配器：Context。尚无提供者 |
 | agentActionAdmission | ActionAdmissionService | ActionAdmission | 外域适配器：授权领域。尚无提供者 |
 | agentDecisionCards | DecisionCardsService | DecisionCards | 外域适配器：人在回路领域。该领域尚无公开契约 |
-| agentMessageHandoff | MessageHandoffService | MessageHandoff | 外部协调者或独立调用方的提供者，由装配者选择 |
+| agentMessageHandoff | MessageHandoffService | MessageHandoff（prepare、lookup、exclude） | 外部协调者或独立调用方的提供者，由装配者选择。提供者只固定准入结果并保管原结果。真实历史分三路发布：工具结果、拒绝消息、系统提醒与压缩转换消息由 agentJournal 的应用操作 Ja 发布，外部输入随原 open 或 submit 发布，主回复经 Ja 的 replyAdmission 进入历史。提供者须能从工厂固定的可信 Journal resolver 核验原 P 与取消 control，并以外部入口索引 Ki 耐久保存外部输入的受理前记录。它静态 inject `agentAccessCheck`，在 lookup 与 exclude 及 prepare 的直接调用处核验主体资格 |
 | agentExtensions | ExtensionImplementationsService | ExtensionImplementations | 外域适配器：装配领域。尚无提供者 |
 | agentAdoptions | AgentAdoptionsService | AgentAdoptions | 外域适配器：装配与资产领域。尚无提供者 |
 | agentConditions | CurrentConditionsService | CurrentConditions | 外域适配器：协作设置与装配，只投影当前推进要求与采用依据，不计算守卫。尚无提供者 |
@@ -217,7 +217,7 @@ sequenceDiagram
 
 局部必需依赖不使宿主插件重跑。依赖不在 runtime 之下热替换：局部必需依赖按阶段在子 fiber 内重新取得，已进入的阶段不换。预检发现提供者缺席时，阶段适配器立即返回 unavailable，不等待 Cordis 的 PENDING。已进入阶段的提供者换代或离场时，阶段适配器不把该阶段转到新提供者上，未完成操作的结果见工厂的[依赖逐项分类](../../agent/docs/public-api.md#依赖逐项分类)。下一阶段在新的子 fiber 内取得当时的提供者。`ctx.inject` 子 fiber 在所注入依赖换代时卸载，这一点按 IC-8 与插件体同一 inject 机制推断，basis 没有子 fiber 的单独条目：未验证。
 
-下列插件之间的依赖不是 Agent 工厂的依赖。目录插件静态 inject `agentPublicationAuthority` 与 `agentAccessCheck`。目录在每次 resolve 与 connect 时，用 `ctx.get(agentInstanceHost)` 取得宿主，再调用 `route`。宿主缺席时返回 unavailable。`route` 只在进程内有效，不是契约操作。
+下列插件之间的依赖不是 Agent 工厂的依赖。目录插件静态 inject `agentPublicationAuthority` 与 `agentAccessCheck`。`agentMessageHandoff` 的提供者插件静态 inject `agentAccessCheck`。目录在每次 resolve 与 connect 时，用 `ctx.get(agentInstanceHost)` 取得宿主，再调用 `route`。宿主缺席时返回 unavailable。`route` 只在进程内有效，不是契约操作。
 
 ### 主体资格核验的调用位置
 
@@ -228,10 +228,11 @@ sequenceDiagram
 | runtime 的公开操作 | invoke、resume、takeover、submit、control、read、events、acknowledge、observe、quiesce。takeover 在 resume 之内，只在快照显示旧挂接仍 active 时另核 |
 | 宿主 `agentInstanceHost` | reserve、publish、withdraw，包括登记句柄的 withdraw |
 | 目录 `agentInstances` | resolve、connect |
-| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验 |
+| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、settle、migrate-cancellation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接。直接调用 `commitSettlement` 时按变体核验：候选与判断变体用 settle，迁移变体用 settle 与 migrate-cancellation，卡片对账、迟到返回与 Tool 关联登记变体用 reconcile，目标都是原 execution。直接调用取消路线上的 `prepareFinish` 与 `tryFinish` 时用 settle，目标是原 execution |
+| `agentMessageHandoff` 提供者 | read-message-handoff（lookup，目标是 input-entry 或原 execution）与 exclude-message-handoff（exclude，目标是原 execution），不论调用方是谁都在这里核验。prepare 的直接调用也在这里核验，invoke 分支用 invoke，submit 分支用 submit。runtime 在已核验的公开操作之内调用 prepare 时不再次核验主体。提供者以静态 inject 取得 `agentAccessCheck` |
 | 宿主的结果接收方 | receive-result。在写 `received` 条目之前核验推送主体，见 SPEC 的“[结果接收](../../agent-contract/SPEC.md#结果接收)” |
 
-runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体。宿主恢复入口和长期保管者直接调用执行记录操作时，由宿主的长期执行记录适配器核验。适配器和宿主以静态 inject 取得 `agentAccessCheck`，不从其他位置传入。授权领域没有提供者时，这些操作都得不到 allowed，系统组合不具备资格核验，该外域依赖登记在[开放问题](../../agent/docs/architecture/open-questions.md#外域依赖)。
+runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体。宿主恢复入口和长期保管者直接调用执行记录操作时，由宿主的长期执行记录适配器核验。适配器、宿主和 `agentMessageHandoff` 提供者以静态 inject 取得 `agentAccessCheck`，不从其他位置传入。授权领域没有提供者时，这些操作都得不到 allowed，系统组合不具备资格核验，该外域依赖登记在[开放问题](../../agent/docs/architecture/open-questions.md#外域依赖)。
 
 ## 配置、通知和撤除
 
@@ -241,7 +242,9 @@ runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体
 
 ### Journal 提供者
 
-同一个 agentJournal 定义可由独立提供者或带提交参加者的提供者兑现。应用装配明确选择实际绑定，不能以有同名 Service 证明后者的共同提交能力。后者的提供者消费外部协调者的提交参加者，在受理时共同登记 Agent 输入引用，在 tryFinish 时共同裁定。这些依赖属于集成适配器，不传给纯 Agent。提供者在 `capabilities.participants` 中声明它能兑现的提交种类，工厂创建时与配置的 `jointCommits` 逐种比对，缺一种返回 unsupported，见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)”和[公开接口页](../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。条件投影和 Context 参加者同样只从原拥有者取得当前事实。
+同一个 agentJournal 定义可由 standalone 绑定或 coordinated 绑定兑现。应用装配明确选择实际绑定，不能以有同名 Service 证明后者的协调能力。coordinated 绑定消费外部协调者的参加，在 open、attach、submit 的受理或接管提交中共同核对来源、资格与关联，在 tryFinish 时共同裁定。这些依赖属于集成适配器，不传给纯 Agent。绑定在 `capabilities.coordination` 中声明自己的模式，在 `capabilities.participants` 中声明它能兑现的 CallerCommit 提交种类；工厂创建时核对配置 `coordination` 与声明严格相等，并与配置的 `jointCommits` 逐种比对，不相等或缺一种返回 unsupported，见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)”和[公开接口页](../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。条件投影和 Context 参加者同样只从原拥有者取得当前事实。
+
+两种绑定都在工厂开始之前固定消息准入的历史组合登记：历史拥有者的精确 Adoption、原准入记录 resolver、实际共享事务域身份，以及 message 与 context-transition 两个提交处理器。工厂从可信的绑定构造结果核这份登记，缺实际组合时返回 unsupported，不创建 runtime。具体存储事务类型留在提供者内，本页不新增服务键，也不导出事务句柄或业务回调。规则见 SPEC 的“[消息准入](../../agent-contract/SPEC.md#消息准入)”。
 
 ### 通知
 

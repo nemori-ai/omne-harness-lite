@@ -69,7 +69,7 @@ Session log 是同一 Session 跨 Run 的记录条目序列。一条 log 的本�
 
 内容可内联，或在提交前由内容拥有者可靠准备并提供有效引用。外部内容与本地事务不自动同提交；依赖内容确认受理前须确保其保管及引用保证成立。未被业务提交引用的准备内容可按保管协议回收，回收必须先排除已提交、在途提交及有效读取引用。
 
-交入由 Session 调度，批次由 Agent 从已交入的输入中取。`startRun` 不扣除任何输入的待处理资格；Session 按会话业务规则，以到达顺序把待处理输入逐个交入执行（[PM-02](../../../session-contract/SPEC.md#pm-02)）。Agent 承接一批输入时，按自己的输入水位线取当时已交入的全部输入。Session 读到承接事件后，保存精确成员、原顺序、所属 Run 与批次身份，并解除这些成员的待处理资格（[Session 与 Agent 的两条通道](../../../session-contract/SPEC.md#session-与-agent-的两条通道)）。Session 不重选批界或顺序。水位线之后交入的输入留给后续批次。工程可以分批搬运或处理，但不改变这次承接可见输入的边界。
+交入由 Session 调度，批次由 Agent 从已交入的输入中取。`startRun` 不扣除任何输入的待处理资格；Session 按会话业务规则，以到达顺序把待处理输入逐个交入执行（[PM-02](../../../session-contract/SPEC.md#pm-02)）。Agent 承接一批输入时，按自己的输入水位线取当时已交入的全部输入。Session 读到承接事件后，保存精确成员、原顺序、所属 Run 与批次身份，并解除这些成员的待处理资格（[Session 与 Agent 的同一日志](../../../session-contract/SPEC.md#session-与-agent-的两条通道)）。Session 不重选批界或顺序。水位线之后交入的输入留给后续批次。工程可以分批搬运或处理，但不改变这次承接可见输入的边界。
 
 提交记录外部发起许可或取消意图，不等于执行已经发出或停止。实际模型/工具发起仍由调用拥有者参加有效推进资格的围栏裁定，避免旧 attempt 在校验后失效却仍发起新效果。跨能力实际发起、控制传播、ACK 及外部副作用不在日志事务中；日志保存原调用及可恢复处置责任，具体协议继续由相应协调者兑现。
 
@@ -218,7 +218,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 
 | 闭合条件 | 位置 |
 | --- | --- |
-| 精确适配契约与参加者协议 | [Session 与 Agent 的两条通道](../../../session-contract/SPEC.md#session-与-agent-的两条通道)、[与 Agent 的参加与核对](../../../session-contract/SPEC.md#与-agent-的参加与核对)（PA-01 至 PA-09）、[共同提交与共享事务域](../../../session-contract/SPEC.md#共同提交与共享事务域)（JC 表） |
+| 精确适配契约与参加者协议 | [Session 与 Agent 的同一日志](../../../session-contract/SPEC.md#session-与-agent-的两条通道)、[与 Agent 的参加与核对](../../../session-contract/SPEC.md#与-agent-的参加与核对)（PA-01 至 PA-09）、[共同提交与共享事务域](../../../session-contract/SPEC.md#共同提交与共享事务域)（JC 表） |
 | 参与者版本 | [PA-04](../../../session-contract/SPEC.md#pa-04)、[P-2](../../../session-contract/SPEC.md#具名前提与明确缺项) |
 | 原操作查询 | [OP-00](../../../session-contract/SPEC.md#op-00)、[PA-05](../../../session-contract/SPEC.md#pa-05) |
 | 受理与终结两种顺序、接受后未唤醒崩溃、提交未知、取消竞争 | 契约 [VC-A01 至 VC-A09](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [C2](../../SPEC.md#c2)、[CR-02 至 CR-07](../../SPEC.md#cr-崩溃矩阵)；场景 [FS-A-01 至 FS-A-10](../fault-scenarios.md#组-a输入绑定与-agent-终结的共同提交) |
@@ -240,7 +240,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 闭合条件 | 位置 |
 | --- | --- |
 | 存储参加者与日志映射 | [事件来源与日志准入](../../../session-contract/SPEC.md#事件来源与日志准入)、[事件目录](../../../session-contract/docs/object-model/session-log-events.md#原生事实类别)、[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport) |
-| 消费游标与确认 | [EC-01](../../../session-contract/SPEC.md#ec-01)、[EC-02](../../../session-contract/SPEC.md#ec-02)；机制 [RD](../../SPEC.md#rd-01) |
+| 同日志解释进度与认回 | [EC-01](../../../session-contract/SPEC.md#ec-01)、[EC-02](../../../session-contract/SPEC.md#ec-02)；机制 [RD](../../SPEC.md#rd-01) |
 | 原操作认回 | [OP-00](../../../session-contract/SPEC.md#op-00)、[EC-04](../../../session-contract/SPEC.md#ec-04) 至 [EC-06](../../../session-contract/SPEC.md#ec-06) |
 | 保留政策与读路径 | [存储成员](../../../session-storage-sql/SPEC.md) |
 | 日志提交后确认丢失、生产者已确认后恢复、归档后迟到结果、长历史读取 | 契约 [VC-C01 至 VC-C10](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [CR-06 至 CR-09](../../SPEC.md#cr-崩溃矩阵)、[CA](../../SPEC.md#ca-1)；场景 [FS-C-01 至 FS-C-10](../fault-scenarios.md#组-c日志消费责任与恢复投影) |
@@ -250,7 +250,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 
 | 缺什么 | 谁来补 | 补上之前怎样表现 |
 | --- | --- | --- |
-| 规模：超长会话的恢复快照读取、事件消费吞吐与分页读取的实际尺度 | 存储提供者与本成员的验证计划 | 不发布统一 SLO。读取量按条目与字节受控的规则已写定，数值待实测后写进存储提供者的声明边界 |
+| 规模：超长会话的恢复快照读取、同日志解释吞吐与分页读取的实际尺度 | 存储提供者与本成员的验证计划 | 不发布统一 SLO。读取量按条目与字节受控的规则已写定，数值待实测后写进存储提供者的声明边界 |
 | 断电耐久：已确认提交在操作系统崩溃与断电下的耐久 | 存储提供者，按声明的部署与介质条件 | 沿[已确认保存的耐久边界](../../../../../docs/architecture/data-and-state.md#已确认保存的耐久边界)。未实测的介质不声称耐久 |
 | 并发：两个进程对同一会话的协调器并发、每租户多扫描者 | 存储拥有者与 Session 的装配，先定义租约协议 | 第一版靠应用装配单实例兑现（[IC-19](../../../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。跨进程的第二道保护是操作幂等与条件提交围栏 |
 | Agent 宿主创建实例的入口（P-7） | Agent 拥有者 | 按契约的[具名前提与明确缺项](../../../session-contract/SPEC.md#具名前提与明确缺项) |

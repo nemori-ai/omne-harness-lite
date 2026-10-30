@@ -4,6 +4,8 @@
 
 本页随 `agent-contract/verification` 维护：阶段 4 至 7 的节点由各阶段首卡补行，实现卡在节点落地时填写「实现用例」列。
 
+模型完整回复的合法性边界（[#558 的 Q9](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6376588455)）由 SPEC 的[消息准入](../SPEC.md#消息准入)规定。它的运行时落实归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)：Q1 的合法性判定、Q5 的拒收路线、I4 的完整动作批，以及混批时不执行任何调用的负例，清单见节点表的[消息准入节点](../../agent/docs/architecture/loop-algorithm.md#消息准入节点)。本表的 NA-I4-2 与 NA-I4-3 承接 I4 的部分。Q5 属于阶段 4，不在本表。
+
 ## 读表方法
 
 - 每个「节点 × 阶段部分」至少一行。一个节点在不同阶段分部分落地时，每个部分各有行。
@@ -19,8 +21,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | NA-U0-1 | U0 | 1 | 1.3（#511） | invoke 交出的输入经 U0、Q1、Q2 接纳后，Journal.inputs 返回的内容与 invoke 交出的内容相同 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-U0-1: Journal.inputs returns the content that invoke handed over` |
 | NA-Q1-1 | Q1 | 1 | 1.3（#511） | 合法的外部输入候选由 Q1 直接转 Q2，Q1 与 Q2 之间没有扩展调用，Q1 不改变 Journal 修订号 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q1-1: Q1 passes a lawful candidate straight to Q2, with no call and no commit between` |
-| NA-Q2-1 | Q2 | 1 | 1.3（#511） | accept 返回 accepted 时，接纳回执随 checkpoint 提交，节点转 Q4 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4`；外部输入部分为 `NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged`，回执不另存，见 #558 S-13 裁决 |
-| NA-Q2-2 | Q2 | 1 | 1.3（#511） | accept 的提交回执未知时，以同一操作身份与同一候选再次调用 accept 得到原回执，没有第二个操作身份 | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on` |
+| NA-Q2-1 | Q2 | 1 | 1.3（#511） | prepare 返回 prepared 时，准入结果随 checkpoint 提交，节点转 Q4 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4`；外部输入部分为 `NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged`，回执不另存，见 #558 S-13 裁决 |
+| NA-Q2-2 | Q2 | 1 | 1.3（#511） | prepare 的提交回执未知时，以同一 H 与同一请求再次调用 prepare 认回原结果，没有第二个操作身份 | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on` |
 | NA-Q4-1 | Q4 | 1 | 1.3（#511） | Q4 把接纳结果交回固定调用位置：外部输入回 U0 的受理方，模型回复回 I3，Q4 不重试 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q4-1: Q4 returns each admission to its call position once: the input to U0 and E0, the reply to I3` |
 | NA-E0-1 | E0 | 1（open） | 1.3（#511） | invoke 先预约单执行槽，再以 open 保存输入内容与初始 checkpoint，取得 Authority 后节点转 E1 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-E0-1: the slot is reserved while open runs; after the Authority the node goes to E1` |
 | NA-E0-2 | E0 | 1（open） | 1.3（#511） | 同一操作身份重复 invoke 认回原执行与原挂接，不再次 open，不新建执行 | SC-AG-40 | `agent/tests/loop-admission.spec.ts`：`NA-E0-2: while the run goes on`、`NA-E0-2: after the execution ended`、`NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven`。进程内重复不再 open；新 runtime 的 open 按幂等查找原记录 |
@@ -54,10 +56,10 @@
 | NA-I8-1 | I8 | 1（去向） | 1.7（#515） | 没有动作、普通队列为空且没有未完等待时，I8 形成完成候选转 F1，不直接写终态 | SC-AG-140 | `agent/tests/loop-reply-close.spec.ts`：`NA-I8-1: an empty queue and no outstanding wait propose completion before terminal commit`，I8 只前移到 F1，终态由后续 tryFinish 写入。 |
 | NA-I8-2 | I8 | 1（去向） | 1.7（#515） | 有新的合格输入时 I8 以新 step 转 I0 | 新增场景 | `agent/tests/loop-reply-close.spec.ts`：两个 `NA-I8-2` 用例分别核对在途 Journal.submit 后同执行 step-2，以及终态释放后新 invoke 的新执行首 step。不证明公开 submit。 |
 | NA-I8-3 | I8 | 1（去向） | 1.7（#515） | 有未完成的等待时 I8 转 W0，不形成完成候选 | SC-AG-140 | `agent/tests/loop-reply-close.spec.ts`：`NA-I8-3: an unprocessed responsibility waits at I8 despite an empty action batch and queue`；`agent/tests/loop-evaluator.spec.ts` 的同号用例核对在途生产与未交清结果。只保存一次等待，不证明真实唤醒。 |
-| NA-F1-1 | F1 | 1（基本） | 1.8（#516） | F1 把执行状态置为 settling 并提交 FinishIntent 候选，之后才调用 tryFinish | SC-AG-140 | `agent/tests/loop-terminal.spec.ts`：`NA-F1-1: candidate and before-terminal evidence are fixed before the one terminal commit`；`loop-intake-prepare.spec.ts` 保留 F1 excluded 的原候选与时刻回归。 |
-| NA-F3-1 | F3 | 1 | 1.8（#516） | tryFinish 一次共同提交终态、ended 事件、终态后观察责任与原操作结果，不等待调用方批准，节点转 F4 | SC-AG-01、SC-AG-60 | `agent/tests/loop-terminal.spec.ts`：NA-F1-1 的原终态、末事件与 query 回执同修订核对；NA-F4-1 的两项固定观察责任共同建账。内存 Journal。 |
+| NA-F1-1 | F1 | 1（基本） | 1.8（#516） | F1 把执行状态置为 settling，并以 `commit` 提交终结候选的业务内容（origin、conclusion、failure、inputWatermark、checkpoint 与 conditions）。Journal 据此建立候选、author route 与 FinishIntent 投影。调用者不写 candidate、obligations 与 beforeTerminal | SC-AG-140 | `agent/tests/loop-terminal.spec.ts`：`NA-F1-1: candidate and before-terminal evidence are fixed before the one terminal commit`；`loop-intake-prepare.spec.ts` 保留 F1 excluded 的原候选与时刻回归。 |
+| NA-F3-1 | F3 | 1 | 1.8（#516） | F3 依次调用 prepareFinish、load 与 tryFinish。prepareFinish 发行终结责任清单，Journal 填入 `intent.obligations`。tryFinish 的 `intent` 取 load 读到的 FinishIntent 投影，只做相等核对，不写入字段。tryFinish 一次共同提交终态、ended 事件、终态后观察责任与原操作结果，不等待调用方批准，节点转 F4 | SC-AG-01、SC-AG-60 | `agent/tests/loop-terminal.spec.ts`：NA-F1-1 的原终态、末事件与 query 回执同修订核对；NA-F4-1 的两项固定观察责任共同建账；`tryFinish refuses an intent without the proof as changed, a forged list as invalid, and an unissued list as invalid`。内存 Journal。 |
 | NA-F3-2 | F3 | 1 | 1.8（#516） | tryFinish 回执丢失时 R0 查询原终结，load 读到 ended 后节点转 F4，ended 事件唯一 | SC-AG-180、SC-AG-64 | `agent/tests/loop-terminal.spec.ts`：`C2: lost %s finish queries the original operation before any further finish`，applied 唯一终态、dropped 原操作重试、pending 原查询；查询/读取 unavailable 零 waiting 提交。 |
-| NA-F3-3 | F3 | 1 | 1.8（#516） | tryFinish 返回 changed 时 R0 回 E4 重读，再回 I8 或 F1；返回 blocked 时先交清保管再重提 | SC-AG-190、SC-AG-61 | `agent/tests/loop-terminal.spec.ts`：C1 的 before-F1/before-F3 新输入竞争；NA-F3-3 的真实 custody blocked 保留与 transfer 后重提；未知不当 blocked。B1 的 no-reply 取时/F1 提交竞争在同次驱动承接新输入，原调用各 admit/read/ACK 一次、零虚假 producer 等待。 |
+| NA-F3-3 | F3 | 1 | 1.8（#516） | tryFinish 返回 changed 时 R0 回 E4 重读，再回 I8 或 F1；返回 blocked 时先交清保管再重提。清单发行后责任投影改变时 tryFinish 返回 changed，F3 重新 prepareFinish | SC-AG-190、SC-AG-61 | `agent/tests/loop-terminal.spec.ts`：C1 的 before-F1/before-F3 新输入竞争；NA-F3-3 的真实 custody blocked 保留与 transfer 后重提；未知不当 blocked。B1 的 no-reply 取时/F1 提交竞争在同次驱动承接新输入，原调用各 admit/read/ACK 一次、零虚假 producer 等待。 |
 | NA-F4-1 | F4 | 1（登记） | 1.8（#516） | 终态后观察未登记完时进程退出，恢复后从终态后责任台账认回，不恢复推进态 | SC-AG-65 | `agent/tests/loop-terminal.spec.ts`：`NA-F4-1: a nonempty terminal ledger survives coordinator loss and recalls the original observation registration`。非空两项台账、原登记丢回执查询、已登记认回与未登记保留、idle 后合法宿主登记。`agent/acceptance/PD-agent-progression.stage1.acceptance.ts` 的 `S2 NA-F4-1` 另在实际 SIGKILL 并确认退出后，从同一宿主 Journal 认回终态、原登记与未登记项；不重复消息、ACK 或终结，保留后续合法宿主登记。只核台账认回，不执行阶段 3 纯观察求值，不证明 Journal 宿主死亡耐久。 |
 | NA-O0-1 | O0 | 1 | 1.8（#516） | O0 不等待读取方，交清本实例的事件与结果责任后转 E9，读取方之后从原游标读到终态事件 | SC-AG-06 | `agent/tests/loop-terminal.spec.ts`：NA-O0-1 的原 Model ACK/completion 认回，无重读/重 ACK；NA-E9-1 / NA-O0-1 的 idle 后原句柄迟读 ended、零读取方代 ACK。其他 custody 保留真实 pending。`agent/acceptance/PD-agent-progression.stage1.acceptance.ts` 的 `SIGKILL at M4` 另核跨执行进程的原 completion/ACK 认回与 release，没有二次读取或 ACK。 |
 | NA-E9-1 | E9 | 1（idle） | 1.8（#516） | 执行终结后 runtime 回 idle 并保持登记，同一 runtime 以新执行身份承接下一次 invoke | SC-AG-10 | `agent/tests/loop-terminal.spec.ts`：`NA-E9-1 / NA-O0-1: idle retains registration and unacknowledged events for the original reader`，原 execution 拒绝重开，新 execution 可复用，登记未撤。 |
@@ -92,7 +94,7 @@
 | NA-T3-3 | T3 | 2 | 2.5（#525） | 获准动作在等并发名额、尚无槽位时，T3 不判为齐备 | SC-AG-132 | 待实现 |
 | NA-T4-1 | T4 | 2（直通） | 2.6（#526） | 至少一个槽位曾为 dispatched 时，全部槽位齐备之后 T4 对本批只经过一次，节点转 T5 | SC-AG-120、SC-AG-132 | 待实现 |
 | NA-T5-1 | T5 | 2 | 2.6（#526） | 两个结果按原动作顺序各经 Q2 接纳为一条消息；历史未知后拒绝不计该动作完成，不产生竞争拒绝消息，全部完成后节点转 I8 | SC-AG-120、SC-AG-132、SC-AG-222 | 待实现 |
-| NA-T5-2 | T5 | 2 | 2.6（#526） | T5 部分提交后崩溃，恢复后只提交尚未接纳的候选，每个候选的 accept 只成立一次 | SC-AG-130、SC-AG-173 | 待实现 |
+| NA-T5-2 | T5 | 2 | 2.6（#526） | T5 部分提交后崩溃，恢复后只提交尚未接纳的候选，每个候选的 prepare 只成立一次 | SC-AG-130、SC-AG-173 | 待实现 |
 | NA-T5-3 | T5 | 2 | 2.6（#526） | 全拒的拒绝消息以 action-denied 来源按原动作顺序交消息准入 | SC-AG-115 | 待实现 |
 | NA-H0-1 | H0 | 2 | 2.6（#526） | 执行仍有推进资格时工具结果被拒收，H0 形成失败候选转 F1，Tool 没有第二次受理 | SC-AG-57、SC-AG-126 | 待实现 |
 | NA-H0-2 | H0 | 2 | 2.6（#526） | 工具结果被拒收之后执行已无推进资格时，H0 只保管原结果转 O0，没有失败候选 | SC-AG-126 | 待实现 |

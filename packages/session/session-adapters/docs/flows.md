@@ -34,7 +34,7 @@ sequenceDiagram
 
 对应 [AD-02](../SPEC.md#ad-02)。本流程由 `./testing` 的内存提供者实现，生产插件尚未交付（见 [SPEC](../SPEC.md) 的状态行）。
 
-1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
+1. Agent 的首次提交共同发布原事实、适用的四类 CallerCommit 参加事实及 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。
 2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读取事件正文，经 load 读取 entries/results 等快照。每次读核对当前资格、租户、execution 与原 Run 绑定。readThrough 是事件序号，entries 提交顺序和 results 快照不能替代它。
 3. 后续另一笔 Session 提交共同保存派生后果、解释进度与该次操作答案。只存原来源身份或引用，不复制事件正文，也不走 receive(agent-event) 副本确认。
 4. 首次发布失败该批全无。后续解释失败不撤销 Agent 已提交事实，不推进解释进度。各批丢答复查询各自原操作。未解释事实计入未结工作。
@@ -202,7 +202,7 @@ flowchart LR
 
 ### FA-14 原生产者确认的日志投影
 
-沿 [JC-Release](../../session-contract/SPEC.md#jc-release)、[EC-04](../../session-contract/SPEC.md#ec-04) 与 EC-05。Tool 原确认由合格结果接收方经 AgentJournal.recordResult 保存，AD-05 核对后提交 receive(release)。原确认未到则 pending，Session 提交未知先认回原 operation。Model ACK 到达未决，扫描只报告，不直接调用生产者。
+沿 [JC-Release](../../session-contract/SPEC.md#jc-release)、[EC-04](../../session-contract/SPEC.md#ec-04) 与 EC-05。Tool 宿主收到 saved 后自己解除交付责任。Tool 原确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](../../session-contract/SPEC.md#jc-release-tool-path)）；日志中已有该确认时，AD-05 核对后提交 receive(release)。原确认未到则 pending，Session 提交未知先认回原 operation。Model ACK 到达未决，扫描只报告，不直接调用生产者。
 
 ## 失败与生命周期
 
