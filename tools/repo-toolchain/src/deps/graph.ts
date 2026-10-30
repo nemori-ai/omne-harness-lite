@@ -451,11 +451,13 @@ function cacheDirectory(root: string): string {
  * 既不让检查失败，也不让检查放行。`OMNE_ADMISSION=1` 时不读只写；算完图复核指纹，运行中输入变了就不写。
  */
 export function workingGraph(root: string, hooks: WorkingGraphHooks = {}): DependencyGraph {
+  // 先核对开关取值：写错的值不悄悄当成「不是准入」读缓存。
+  const admission = admissionMode()
   const ignoredDirs = ignoredDirectories(root)
   const key = workingCacheEnabled() ? workingCacheKey(root, ignoredDirs) : undefined
   if (key !== undefined) {
     // 准入不信任缓存：准入时只写不读，与测试结果缓存一致。
-    const hit = admissionMode() ? undefined : readWorkingCache(key.path, key, root)
+    const hit = admission ? undefined : readWorkingCache(key.path, key, root)
     if (hit?.graph !== undefined) {
       note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
       return hit.graph
@@ -483,9 +485,14 @@ export interface WorkingGraphHooks {
   readonly afterCompute?: () => void
 }
 
-/** 准入模式（`OMNE_ADMISSION=1`）：工作树图的缓存不读。 */
-function admissionMode(env: Readonly<Record<string, string | undefined>> = process.env): boolean {
-  return env.OMNE_ADMISSION === '1'
+/** 准入模式（`OMNE_ADMISSION=1`）：工作树图的缓存不读。不设或空串为否，`1` 为是，别的值报错；与 test-runner 的同名开关同一规则。 */
+export function admissionMode(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  const value = env.OMNE_ADMISSION
+  if (value === undefined || value === '') return false
+  if (value === '1') return true
+  throw new Error(`环境变量 OMNE_ADMISSION 只能是 1 或不设，现在是 ${value}`)
 }
 
 /** 开着缓存时这棵树的缓存键：指纹加缓存文件的路径。算不出指纹（不在 git 仓库里等）就没有键，说明原因后不缓存。 */
@@ -524,7 +531,7 @@ export interface WorkingFingerprint {
 }
 
 /**
- * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、dependency-cruiser 的版本、
+ * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、出图代码（本模块文件）的内容摘要、dependency-cruiser 的版本、
  * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、全部未提交与未跟踪文件的路径与内容（不按扫描根过滤：
  * dependency-cruiser 会解析扫描根之外的导入目标）、被忽略的路径（同样不按扫描根过滤；目录记存在与否，
  * 单个文件记内容）、`ignoredDirectories` 的结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
@@ -533,23 +540,28 @@ export interface WorkingFingerprint {
 export function workingGraphFingerprint(
   root: string,
   ignoredDirs: ReadonlySet<string> = ignoredDirectories(root),
+  codePath: string = THIS_MODULE,
 ): WorkingFingerprint | undefined {
-  const key = fingerprintOf(root, ignoredDirs)
+  const key = fingerprintOf(root, ignoredDirs, codePath)
   return 'reason' in key ? undefined : key
 }
 
 function fingerprintOf(
   root: string,
   ignoredDirs: ReadonlySet<string>,
+  codePath: string = THIS_MODULE,
 ): WorkingFingerprint | { readonly reason: string } {
   try {
-    const inputs = workingInputs(root, ignoredDirs)
+    const inputs = workingInputs(root, ignoredDirs, codePath)
     return { digest: sha256(inputs.join('\n')), inputs }
   } catch (error) {
     // 算不出指纹（不在 git 仓库里、没有提交、读不到某个输入）就不缓存，照常出图；出图自己的失败由 cruise 报。
     return { reason: error instanceof Error ? error.message : String(error) }
   }
 }
+
+/** 当前运行的 `graph` 模块文件。出图代码改了而 `GRAPH_FORMAT` 没跟着加，或同一个头上先后跑着钉住的旧版与源码版，都靠它的内容摘要分开。 */
+const THIS_MODULE = fileURLToPath(import.meta.url)
 
 const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex')
 
@@ -702,10 +714,12 @@ function contentIds(root: string, paths: readonly string[]): Map<string, string>
 }
 
 /** 指纹的输入清单：每一类输入一组行，组内按路径排序；取掉任何一组都会让对应的失效用例变红。 */
-function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[] {
+function workingInputs(root: string, ignoredDirs: ReadonlySet<string>, codePath: string): string[] {
   const head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString().trim()
   const lines = [
     `format ${GRAPH_FORMAT}`,
+    // 读不到出图代码就算不出指纹（fingerprintOf 接住异常），这样的运行不缓存。
+    `code ${sha256(readFileSync(codePath))}`,
     `cruiser ${cruiserVersion()}`,
     `config ${sha256(readFileSync(cruiseConfig()))} ${loadedConfigDigest()}`,
     ...tsconfigDigests(cruiseTsconfig()).map(digest => `tsconfig ${digest}`),
@@ -781,11 +795,38 @@ function changedTarget(
   )?.[0]
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const hasStrings = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
+  isRecord(value) && keys.every(key => typeof value[key] === 'string')
+
+/** 缓存里读出的东西是不是一张图：五个数组都在，且各元素带下游要读的必需字段。 */
 function isGraph(value: unknown): value is DependencyGraph {
-  if (typeof value !== 'object' || value === null) return false
-  const graph = value as Record<string, unknown>
-  return ['members', 'modules', 'edges', 'dependencies', 'findings'].every(key =>
-    Array.isArray(graph[key]),
+  if (!isRecord(value)) return false
+  const { members, modules, edges, dependencies, findings } = value
+  return (
+    Array.isArray(members) &&
+    members.every(member => hasStrings(member, ['path', 'group', 'name'])) &&
+    Array.isArray(modules) &&
+    modules.every(module => typeof module === 'string') &&
+    Array.isArray(edges) &&
+    edges.every(
+      edge =>
+        hasStrings(edge, ['from', 'to']) && Array.isArray((edge as { sites?: unknown }).sites),
+    ) &&
+    Array.isArray(dependencies) &&
+    dependencies.every(
+      dependency =>
+        hasStrings(dependency, ['path', 'specifier', 'resolved']) &&
+        typeof (dependency as { line?: unknown }).line === 'number',
+    ) &&
+    Array.isArray(findings) &&
+    findings.every(
+      finding =>
+        hasStrings(finding, ['kind', 'rule', 'message']) &&
+        Array.isArray((finding as { sites?: unknown }).sites) &&
+        Array.isArray((finding as { edges?: unknown }).edges),
+    )
   )
 }
 
@@ -1013,6 +1054,17 @@ export function sweepStaleTrees(
   return removed
 }
 
+/** 读基线图的缓存：文件不在、JSON 坏或形状不对都按未命中，由调用方重算并覆盖。 */
+function readRevisionCache(path: string): DependencyGraph | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    return undefined
+  }
+  return isGraph(parsed) ? parsed : undefined
+}
+
 /**
  * 某个提交上的依赖图。把提交里的源码导出到 git 目录下的临时树、补上 workspace 链接后跑；
  * 提交不会变，结果按提交与规则文件的摘要缓存，同一基线只算一次。
@@ -1022,12 +1074,16 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
   const commit = git(root, ['rev-parse', '--verify', `${revision}^{commit}`])
     .toString()
     .trim()
-  const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
+  // 键里除规则文件外还有出图代码的摘要：同一个提交上，改了出图代码的版本不读别的版本留下的图。
+  const rules = sha256(
+    `${sha256(readFileSync(cruiseConfig()))} ${sha256(readFileSync(THIS_MODULE))}`,
+  ).slice(0, 12)
   const directory = cacheDirectory(root)
   sweepStaleTrees(directory)
   // 文件名带图的格式版本：旧格式的缓存没有 `dependencies` 或 `modules`，不能当现在的图读。
   const cached = join(directory, `${commit}-${rules}-${GRAPH_FORMAT}.json`)
-  if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph
+  const hit = readRevisionCache(cached)
+  if (hit !== undefined) return hit
 
   const present = new Set(
     git(root, ['ls-tree', '--name-only', commit]).toString().split('\n').filter(Boolean),

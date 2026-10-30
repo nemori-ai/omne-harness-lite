@@ -1,6 +1,7 @@
 // 工作树依赖图的缓存：指纹对每一类能改变图的输入都失效（取掉指纹里的某一类，对应用例变红），
 // 命中读缓存、未命中重算并写缓存、坏文件按未命中、开关关掉后不读不写、只留最近几份。
 // 指纹用例只跑 git，归快层；真起 dependency-cruiser 的用例单条标 slow。
+import { createHash } from 'node:crypto'
 import {
   mkdirSync,
   mkdtempSync,
@@ -13,9 +14,11 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   WORKING_CACHE_SWITCH,
+  revisionGraph,
   workingGraph,
   workingGraphFingerprint,
   type DependencyGraph,
@@ -237,6 +240,23 @@ describe('工作树依赖图的指纹', () => {
     })
   })
 
+  it('出图代码（graph 模块文件）的内容进指纹：换一份代码就变，读不到就没有指纹', () => {
+    const root = copyRepository(template)
+    const self = fileURLToPath(new URL('../src/deps/graph.ts', import.meta.url))
+    const other = fileURLToPath(new URL('./deps-graph-cache.spec.ts', import.meta.url))
+    const codeLine = (key: ReturnType<typeof workingGraphFingerprint>) =>
+      key?.inputs.filter(line => line.startsWith('code '))
+    // 默认取当前运行的 graph 模块文件。
+    expect(codeLine(workingGraphFingerprint(root))).toEqual([
+      `code ${createHash('sha256').update(readFileSync(self)).digest('hex')}`,
+    ])
+    const viaSelf = workingGraphFingerprint(root, undefined, self)
+    const viaOther = workingGraphFingerprint(root, undefined, other)
+    expect(codeLine(viaOther)).not.toEqual(codeLine(viaSelf))
+    expect(viaOther?.digest).not.toBe(viaSelf?.digest)
+    expect(workingGraphFingerprint(root, undefined, join(root, 'no-such-graph.ts'))).toBeUndefined()
+  })
+
   it('换了 HEAD 就变，即使工作树的内容相同', () => {
     const root = copyRepository(template)
     const before = digest(root)
@@ -378,6 +398,18 @@ describe('工作树依赖图的缓存', () => {
     },
   )
 
+  it('OMNE_ADMISSION 只认 1：不设或空串不是准入，别的值（如 true）报错，不悄悄读缓存', () => {
+    const root = copyRepository(template)
+    expect(() => withEnv({ OMNE_ADMISSION: 'true' }, () => workingGraph(root))).toThrow(
+      /OMNE_ADMISSION 只能是 1/u,
+    )
+    expect(() => withEnv({ OMNE_ADMISSION: '0' }, () => workingGraph(root))).toThrow(
+      /OMNE_ADMISSION 只能是 1/u,
+    )
+    // 报错发生在读缓存与出图之前。
+    expect(() => readdirSync(cacheDir(root))).toThrow()
+  })
+
   it(
     '准入时不读缓存：指纹匹配的坏缓存在准入下被重算的图取代，不准入时读到它',
     { tags: ['slow'], timeout: 120_000 },
@@ -417,6 +449,45 @@ describe('工作树依赖图的缓存', () => {
       const cached = rules(workingGraph(root))
       const uncached = rules(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root)))
       expect(cached).toEqual(uncached)
+    },
+  )
+
+  it('工作树图的缓存里图元素缺必需字段按未命中，重算', { tags: ['slow'], timeout: 120_000 }, () => {
+    const root = copyRepository(template)
+    const computed = JSON.stringify(workingGraph(root))
+    const file = join(cacheDir(root), entries(root)[0] ?? '')
+    const entry = JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }
+    const broken = { ...marker, members: [{ name: 'no-path' }] }
+    writeFileSync(file, JSON.stringify({ ...entry, graph: broken }))
+    expect(JSON.stringify(workingGraph(root))).toBe(computed)
+    const noRule = { ...marker, findings: [{ kind: 'dependency-rule' }] }
+    writeFileSync(file, JSON.stringify({ ...entry, graph: noRule }))
+    expect(JSON.stringify(workingGraph(root))).toBe(computed)
+  })
+
+  it(
+    '基线图的缓存：形状合格就命中，坏 JSON 与坏形状按未命中、重算并覆盖',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      const computed = JSON.stringify(revisionGraph(root, 'HEAD'))
+      const cached = readdirSync(cacheDir(root)).filter(
+        name => name.endsWith('.json') && !name.startsWith('working-'),
+      )
+      expect(cached).toHaveLength(1)
+      const file = join(cacheDir(root), cached[0] ?? '')
+      expect(JSON.stringify(JSON.parse(readFileSync(file, 'utf8')))).toBe(computed)
+      writeFileSync(file, JSON.stringify(marker))
+      expect(revisionGraph(root, 'HEAD')).toEqual(marker)
+      for (const bad of [
+        '{"members":',
+        JSON.stringify({ members: [] }),
+        JSON.stringify({ ...marker, members: [{ name: 'no-path' }] }),
+      ]) {
+        writeFileSync(file, bad)
+        expect(JSON.stringify(revisionGraph(root, 'HEAD'))).toBe(computed)
+        expect(readFileSync(file, 'utf8')).toBe(computed)
+      }
     },
   )
 
