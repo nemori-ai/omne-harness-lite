@@ -72,6 +72,15 @@ subagent 还会带着主会话检出的约定文件（`AGENTS.md` 等）启动�
 - **每次运行的副本**：`rsync` 拷模板的真实文件，`linked` 里的目录（每一层的 `node_modules`）用 `cp -al` 硬链接，删掉 `drop` 里的链接，
   再由这一类流做自己的准备，`git init`、建 `main` 分支、提交 `baseline`。`commit: delivery` 的流（实现评审）先提交基线，
   再施加种入、以 `workspace.delivery` 给的作者与提交信息提交一个交付提交，然后在成员里跑 `workspace.rebuild`。
+- 运行器的 git 命令分两种环境（`roleeval/git_environment.py`）：
+  - **副本与模板上的命令**用 `isolated_env`，结果不受宿主影响。提交的作者与提交者由环境变量给出：基线与评审快照是 `dispatcher <dispatcher@invalid>`，交付是 `workspace.delivery` 的作者。
+    宿主的身份与日期、`GIT_CONFIG_*` 一组（含 `GIT_CONFIG_SYSTEM`、`GIT_CONFIG_NOSYSTEM`、`GIT_CONFIG_COUNT` 与各对键值）、`GIT_CONFIG_PARAMETERS`、`GIT_ATTR_NOSYSTEM` 与 `GIT_TEMPLATE_DIR` 都不传给 git。
+    git 不读系统配置与全局配置，也不读系统级与用户级的 ignore、attributes 文件（`$XDG_CONFIG_HOME/git/ignore` 或 `~/.config/git/ignore`，`attributes` 同理）。
+    git 只收到运行器自己的配置：`core.excludesFile` 与 `core.attributesFile` 指向空设备。
+  - **读被评估检出的命令**用 `repository_env`，保留宿主的配置。检出的属主与运行用户不同时，git 要靠宿主的 `safe.directory` 才肯读它。
+    这类命令包括 `git archive`、`ls-tree`、`cat-file`、`merge-base --is-ancestor`、`status`、`rev-parse`。
+    `git archive` 另外不读系统级与用户级的 attributes 文件，所以模板里的文件与提交里的相同。
+  - 两种环境都去掉指定仓库位置的变量（`GIT_DIR` 等），只按 `-C` 找仓库。套件自己的命令（`setup` 等）用 `repository_env`。
 - 这一类没有 `material_paths`、`subject_paths`：**整个检出都来自钉住的提交**，包括副本里的 skills、检查工具与文档；只有角色定义取自当前的源。
 - 硬链接的依赖目录与模板共用文件：角色改了 `node_modules` 里的东西会连模板一起改。怀疑模板被动过时删掉它重建。
 - Windows 宿主上没有 `rsync` 与 `cp`。在 Windows 上，运行器用 Python 做同样的拷贝：链接仍是链接，`linked` 里的文件是硬链接。

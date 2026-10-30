@@ -6,9 +6,11 @@
 
 `check_sources.py` 检查现行设计的本地文件、Markdown 锚点和显式模块拥有者：
 
+从仓库根运行。本仓库的设计树链接到检出里的 docs 与成员，所以要带 `--source-root`，`pnpm run check:design` 的第一步就是这条：
+
 ```sh
-python tooling/src/check_sources.py --root design
-python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root .
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root /explicit/execution-checkout
 ```
 
 `--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
@@ -41,11 +43,28 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 `domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
 并生成派生总表 `design/views/domain-object-map.md`：
 
+在仓库根运行，有两种写法。`pnpm run check:design` 先跑上面的现行源检查，再对账；
+`--stale <值>` 只交给对账：
+
 ```sh
-python tooling/src/domain_objects.py --root design                  # 对账，并核对总表是不是最新
-python tooling/src/domain_objects.py --root design --write          # 重新生成总表
-python tooling/src/domain_objects.py --root design --stale report   # rev 落后只列出，不判失败
+pnpm run check:design
+pnpm run check:design --stale report
 ```
+
+只要对账时，直接调用脚本，由锁定的 uv 环境提供解释器与依赖：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design                  # 对账，并核对总表是不是最新
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --write          # 重新生成总表
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
+```
+
+`tests/test_readme_commands.py` 读本 README 代码块里每条 `uv run --locked python <脚本> …` 命令，查两件事：
+
+- 每个脚本的 `--help` 退出 0。脚本名写错或脚本搬走时，用例变红。
+- 每条命令照原样交给脚本的 argparse 解析，解析完立即退出，不执行脚本。参数名写错、缺必填参数或取值不在可选值里时，用例变红。
+
+它不验证脚本收到参数之后做什么，也不验证 `pnpm run`、`pytest` 等其他命令。
 
 它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
@@ -66,6 +85,36 @@ python tooling/src/domain_objects.py --root design --stale report   # rev 落后
 rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
 
+## 保存只读子代理的交回
+
+design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <子代理记录.jsonl> --out <报告.md>
+```
+
+Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会话>/subagents/agent-<id>.jsonl`。`<项目>` 是检出路径的转写（例如 `D--dev-repos-omne-harness-lite`），`<会话>` 是派发它的会话 ID；`agent-<id>.meta.json` 在同一目录。
+
+报告只从当前这一轮取。一轮从最后一条提示开始：提示是一条 user 记录，它不只含工具结果，也不是宿主加的 `isMeta` 记录。报告正文按下面的次序取：
+
+1. 这一轮里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
+2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。已观察到的 Claude Code 2.1 子代理记录以 `end_turn` 消息结束，没有 `SubagentHandback` 调用。
+
+找不到报告时以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。以下情形都算找不到：
+
+- 记录停在工具调用上，或被中断。
+- 记录以宿主错误 `stop_sequence` 结束。
+- 报告为空白。
+- 末尾那条 assistant 消息之后还有 user 记录。这时那条消息答的是上一轮，这一轮的报告不在记录里。
+
+记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。
+
+脚本只在换行符（U+000A）处分行。JSON 字符串里可以不转义地出现 U+2028、U+2029 与 U+0085，脚本不在这些字符处分行。
+最后一行以前有任何一行不是 JSON 对象时，脚本以 2 退出，并写明第几行。
+仍在写入的记录可能以半行结尾：最后一行后面没有换行符、又读不成 JSON 时，脚本跳过它，并在标准错误写明跳过了第几行。
+
+脚本只证明「记录里这段文字就是交回的报告」。报告内容对不对，仍由评审流程判断。
+
 ## Agent 编译
 
 生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
@@ -74,15 +123,14 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 ## 使用
 
-需要 Python 3.12+ 与 PyYAML；运行测试另需 pytest。选择已准备好这些依赖的解释器，
-以下命令从明确的 `.meta_harness` 工作区根运行。若执行仓库已提供锁定环境，
-可以使用该环境的 `uv run --locked python` / `uv run --locked pytest`，不从父目录猜测环境。
+需要 Python 3.12+ 与 PyYAML；运行测试另需 pytest。执行仓库提供锁定环境。
+以下命令从仓库根运行，用 `uv run --locked` 取得解释器与依赖，不从父目录猜测环境。
 
 ```sh
-python tooling/src/compile_agents.py --source agents --output .
-python tooling/src/compile_agents.py --source agents --output . --check
-PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider \
-  tooling/tests agents/skills/design-subagents/canonical/scripts
+uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
+uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
+PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest -p no:cacheprovider \
+  .meta_harness/tooling/tests .meta_harness/agents/skills/design-subagents/canonical/scripts
 ```
 
 输出根必须显式指定，正常产物留在 `.meta_harness/`。可用 `--host codex` 或
@@ -119,12 +167,15 @@ slots:
 
 ## 宿主钩子
 
-`agents/hooks/hooks.yaml` 存在且列表非空时，编译另产出两端的项目级钩子文件：Claude Code 的
-`.claude/settings.json`（只有 `hooks` 一段）与 Codex 的 `.codex/hooks.json`，内容相同；`--host` 只出所选那端。
-每条声明有 `id`、`events`（只认 `Stop`、`SubagentStop`）、`command`（shell 形式）、`timeout`（正整数秒），
-可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher）。
+`agents/hooks/hooks.yaml` 存在且列表非空时，编译另产出项目级钩子文件：Claude Code 的
+`.claude/settings.json`（只有 `hooks` 一段）与 Codex 的 `.codex/hooks.json`；`--host` 只出所选那端。
+两端文件按各自宿主的声明生成，内容不必相同：没有声明给某个宿主时，不产出那个宿主的文件。
+每条声明有 `id`、`events`（认 `Stop`、`SubagentStop`、`SessionStart`）、`command`（shell 形式）、`timeout`（正整数秒），
+可选 `hosts`（`claude-code`、`codex`、`cursor`；省略为全部）只把这条给所列宿主，`SessionStart` 只为 Claude Code 生成，
+可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher），
+可选 `session_sources`（`startup`、`resume`、`clear`、`compact`、`fork`，只收窄 `SessionStart`，生成为 `|` 连起来的 matcher）。
 未知事件或字段、空命令、非正整数超时、重复 id 都报错并带出那条的 id。输出确定（键排序、两空格缩进、末尾换行），
-`--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出这两个文件，其余产物不变。
+`--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出钩子文件，其余产物不变。
 生成不等于宿主已加载或已信任这条钩子；声明的含义与怎么关见 [agents/hooks](../agents/hooks/README.md)。
 
 ## 根软链接
@@ -132,8 +183,8 @@ slots:
 先生成完整 all 产物，再在允许接入的产品根运行：
 
 ```sh
-python .meta_harness/tooling/src/link_agents.py --project-root .
-python .meta_harness/tooling/src/link_agents.py --project-root . --check
+uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root .
+uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check
 ```
 
 工具预检所选目标后，创建 `.claude`、`.agents`、`.codex`、`.cursor` 到 `.meta_harness/` 内同名目录的
@@ -219,5 +270,5 @@ Task 可覆盖 model，common payload.model 不是子代理模型；subagentStar
 模型自己声称发现或执行不算证据。退出零也不自动成为接受。过程超时会终止该进程组并报告 124。
 单次结果留任务 tmp，IDE/Cloud 真实执行、模型资格和完整付费评估分别报告。
 
-持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py 与 test_link_agents.py。
+持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py、test_link_agents.py、test_stale_skills.py、test_save_handback.py 与 test_readme_commands.py。
 它们覆盖文件、资源、路径、严格字段和子进程协议；真实模型与宿主事件仍由上面的驱动和独立验收取得。

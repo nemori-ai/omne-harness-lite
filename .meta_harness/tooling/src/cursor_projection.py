@@ -115,7 +115,10 @@ def cursor_hooks(source: Path, entries: list, roles: set[str], summaries: dict[s
     isolate = "unset " + " ".join(REPOSITORY_KEYS) + "; "
     seen = set()
     for entry in entries:
-        events, _ = hook_groups(entry, roles)
+        targets, groups = hook_groups(entry, roles)
+        if "cursor" not in targets:
+            continue
+        events = list(groups)
         identity = entry["id"]
         if not re.fullmatch(r"[a-zA-Z0-9_-]+", identity) or identity in seen:
             raise ValueError(f"Cursor hook id must be unique and portable: {identity}")
