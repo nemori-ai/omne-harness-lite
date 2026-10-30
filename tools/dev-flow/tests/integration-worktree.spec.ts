@@ -30,6 +30,8 @@ import {
   removeWorktree,
   copyProjections,
   pnpmCommand,
+  prepareClosures,
+  formatClosures,
   startInput,
   swapWorktree,
   changedEnvironment,
@@ -1029,4 +1031,445 @@ describe('worktree removal', () => {
       },
     )
   })
+})
+
+describe('prepare-closures', () => {
+  const BASE = 'b'.repeat(40)
+  type Forced = (program: string, args: readonly string[], cwd: string) => Answer | undefined
+  type Recorded = { program: string; args: readonly string[]; cwd: string }
+  /**
+   * Stands in for git and the build programs. It keeps the branches and registered worktrees a
+   * run creates, so a second run sees them. `git worktree add` makes the directory like git.
+   */
+  function closureFake(root: string, fail?: Forced) {
+    const branches = new Map<string, string>(),
+      trees = new Map<string, string>(),
+      refs = new Map([
+        [BASE, BASE],
+        ['main', BASE],
+      ]),
+      agents = { tree: 'c'.repeat(40), status: '' },
+      steps: Recorded[] = []
+    const answer = (stdout = '', status = 0) => ({ status, stdout, stderr: '' })
+    const run: Runner = (program, args, { cwd }) => {
+      steps.push({ program, args, cwd })
+      const forced = fail?.(program, args, cwd)
+      if (forced !== undefined)
+        return { status: forced.status, stdout: forced.stdout ?? '', stderr: forced.stderr ?? '' }
+      if (program !== 'git') return answer()
+      const line = args.join(' '),
+        last = args.at(-1) ?? ''
+      const branch = last.startsWith('refs/heads/') ? last.slice('refs/heads/'.length) : ''
+      if (args[0] === 'rev-parse' && last.endsWith('^{commit}')) {
+        const sha = refs.get(last.slice(0, -'^{commit}'.length))
+        return sha === undefined ? answer('', 1) : answer(`${sha}\n`)
+      }
+      if (args[0] === 'show-ref') return answer('', branches.has(branch) ? 0 : 1)
+      if (args[0] === 'rev-parse' && branch !== '') return answer(`${branches.get(branch)}\n`)
+      if (line === 'worktree list --porcelain') {
+        const entries = [[root, 'main'], ...trees].map(
+          ([path, name]) =>
+            `worktree ${(path ?? '').replaceAll('\\', '/')}\nHEAD ${BASE}\nbranch refs/heads/${name}\n`,
+        )
+        return answer(`${entries.join('\n')}\n`)
+      }
+      if (args[0] === 'worktree' && args[1] === 'add') {
+        const [name, tree, from] =
+          args[2] === '-b'
+            ? [args[3] ?? '', args[4] ?? '', args[5] ?? '']
+            : [args[3] ?? '', args[2] ?? '', branches.get(args[3] ?? '') ?? '']
+        mkdirSync(tree, { recursive: true })
+        branches.set(name, from)
+        trees.set(tree, name)
+        return answer()
+      }
+      if (line === 'rev-parse HEAD:.meta_harness/agents') return answer(`${agents.tree}\n`)
+      if (line === 'status --porcelain -- .meta_harness/agents') return answer(agents.status)
+      return answer()
+    }
+    const ran = (program: string, ...args: string[]) =>
+      steps.filter(step => step.program === program && args.every((arg, i) => step.args[i] === arg))
+    return { run, steps, ran, branches, trees, agents }
+  }
+  type Fake = ReturnType<typeof closureFake>
+  const closures = (...names: string[]) => names.map(name => ({ name, branch: `c/${name}` }))
+  const treeOf = (root: string, name: string) => join(root, '.worktrees', name)
+  const input = (root: string, fake: Fake, rest: Record<string, unknown> = {}) => ({
+    root,
+    base: BASE,
+    closures: closures('t1', 't2'),
+    run: fake.run,
+    host: linux,
+    ...rest,
+  })
+  const readyOf = (root: string, name: string) =>
+    JSON.parse(readFileSync(join(treeOf(root, name), 'tmp/closures', name, 'ready.json'), 'utf8'))
+  const has = (steps: readonly Recorded[], text: string, cwd?: string) =>
+    steps.some(s => s.args.join(' ') === text && (cwd === undefined || s.cwd === cwd))
+  const INSTALL = 'install --frozen-lockfile --ignore-scripts',
+    CHECK = 'run check:agents'
+  /** The steps that install, project or build: everything a skipped closure does not run. */
+  const work = (steps: readonly Recorded[]) =>
+    steps.filter(s => s.program === 'uv' || s.program === 'rsync' || s.program === 'pnpm')
+
+  it('P1 adds each closure tree on a new branch from the base, without upstream, and installs and projects', () => {
+    const root = home(),
+      fake = closureFake(root)
+    const result = prepareClosures(input(root, fake))
+    expect(result.ok).toBe(true)
+    expect(result.closures.map(c => [c.name, c.status])).toEqual([
+      ['t1', 'created'],
+      ['t2', 'created'],
+    ])
+    for (const name of ['t1', 't2']) {
+      const tree = treeOf(root, name)
+      expect(fake.ran('git', 'worktree', 'add', '-b', `c/${name}`, tree, BASE)).toHaveLength(1)
+      expect(has(fake.steps, INSTALL, tree)).toBe(true)
+      expect(has(fake.steps, CHECK, tree)).toBe(true)
+      expect(readyOf(root, name)).toMatchObject({
+        base: BASE,
+        branch: `c/${name}`,
+        steps: [
+          { name: 'install', ok: true },
+          { name: 'projections', ok: true },
+        ],
+      })
+      expect(typeof readyOf(root, name).completedAt).toBe('string')
+    }
+    const text = fake.steps.map(s => [s.program, ...s.args].join(' ')).join('\n')
+    expect(text).not.toMatch(/--track|upstream/)
+  })
+
+  it('resolves the base to a 40-digit commit', () => {
+    const root = home(),
+      fake = closureFake(root)
+    expect(prepareClosures(input(root, fake, { base: 'main' })).base).toBe(BASE)
+    expect(fake.ran('git', 'worktree', 'add', '-b', 'c/t1', treeOf(root, 't1'), BASE)).toHaveLength(
+      1,
+    )
+  })
+
+  it('P2 refuses a closure whose branch exists on another commit while its directory is missing', () => {
+    const root = home(),
+      fake = closureFake(root)
+    fake.branches.set('c/t1', 'd'.repeat(40))
+    const result = prepareClosures(input(root, fake))
+    expect(result.ok).toBe(false)
+    expect(result.closures[0]).toMatchObject({ name: 't1', status: 'refused' })
+    expect(result.closures[0]?.message).toContain('c/t1')
+    expect(existsSync(treeOf(root, 't1'))).toBe(false)
+    expect(fake.branches.get('c/t1')).toBe('d'.repeat(40))
+    // The other closure does not depend on the refused one.
+    expect(result.closures[1]).toMatchObject({ name: 't2', status: 'created' })
+  })
+
+  it('uses an existing branch that is at the base when the directory is missing', () => {
+    const root = home(),
+      fake = closureFake(root)
+    fake.branches.set('c/t1', BASE)
+    const result = prepareClosures(input(root, fake, { closures: closures('t1') }))
+    expect(result.closures[0]?.status).toBe('created')
+    expect(fake.ran('git', 'worktree', 'add', treeOf(root, 't1'), 'c/t1')).toHaveLength(1)
+    expect(fake.ran('git', 'worktree', 'add', '-b')).toHaveLength(0)
+  })
+
+  it('refuses a directory that is not a registered worktree on the closure branch', () => {
+    const root = home(),
+      fake = closureFake(root)
+    mkdirSync(treeOf(root, 't1'), { recursive: true })
+    fake.trees.set(treeOf(root, 't2'), 'other/branch')
+    mkdirSync(treeOf(root, 't2'), { recursive: true })
+    const result = prepareClosures(input(root, fake))
+    expect(result.closures.map(c => c.status)).toEqual(['refused', 'refused'])
+    expect(work(fake.steps)).toEqual([])
+  })
+
+  it('P3 skips install, projections and build when the key is unchanged', () => {
+    const root = home(),
+      fake = closureFake(root),
+      builds = ['tools/x']
+    prepareClosures(input(root, fake, { builds }))
+    const before = fake.steps.length
+    const again = prepareClosures(input(root, fake, { builds }))
+    expect(again.ok).toBe(true)
+    expect(again.closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+    expect(work(fake.steps.slice(before))).toEqual([])
+    expect(fake.ran('git', 'worktree', 'add')).toHaveLength(2)
+  })
+
+  it('P4 redoes install and projections, without a new tree, when pnpm-lock.yaml changes', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1') })
+    prepareClosures(one)
+    writeFileSync(join(treeOf(root, 't1'), 'pnpm-lock.yaml'), 'lock: one\n')
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(prepareClosures(one).closures[0]?.status).toBe('skipped')
+    writeFileSync(join(treeOf(root, 't1'), 'pnpm-lock.yaml'), 'lock: two\n')
+    const before = fake.steps.length
+    const result = prepareClosures(one)
+    const added = fake.steps.slice(before)
+    expect(result.closures[0]).toMatchObject({ status: 'reused' })
+    expect(has(added, INSTALL)).toBe(true)
+    expect(has(added, CHECK)).toBe(true)
+    expect(added.some(s => s.args[0] === 'worktree' && s.args[1] === 'add')).toBe(false)
+    expect(fake.ran('git', 'worktree', 'add')).toHaveLength(1)
+  })
+
+  it('P5 projects again when .meta_harness/agents has uncommitted changes or another tree', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1') })
+    prepareClosures(one)
+    fake.agents.status = ' M .meta_harness/agents/skills/x/SKILL.md\n'
+    let before = fake.steps.length
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(has(fake.steps.slice(before), CHECK)).toBe(true)
+    fake.agents.status = ''
+    fake.agents.tree = 'e'.repeat(40)
+    before = fake.steps.length
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(has(fake.steps.slice(before), CHECK)).toBe(true)
+  })
+
+  it('P6 stops at the closure whose install fails, keeps the trees, and gives the same command to resume', () => {
+    const root = home()
+    const failing = treeOf(root, 't2')
+    const fake = closureFake(root, (program, args, cwd) =>
+      program === 'pnpm' && args[0] === 'install' && cwd === failing
+        ? { status: 1, stderr: 'lock mismatch' }
+        : undefined,
+    )
+    const result = prepareClosures(
+      input(root, fake, { closures: closures('t1', 't2', 't3'), builds: ['tools/x'] }),
+    )
+    expect(result.ok).toBe(false)
+    expect(result.closures.map(c => [c.name, c.status])).toEqual([
+      ['t1', 'created'],
+      ['t2', 'failed'],
+    ])
+    expect(result.closures[1]?.message).toContain('install failed (exit 1): lock mismatch')
+    expect(result.closures[1]?.steps).toMatchObject([{ name: 'install', ok: false }])
+    expect(existsSync(join(treeOf(root, 't1'), 'tmp/closures/t1/ready.json'))).toBe(true)
+    expect(existsSync(join(failing, 'tmp/closures/t2/ready.json'))).toBe(false)
+    expect(existsSync(failing)).toBe(true)
+    expect(existsSync(treeOf(root, 't3'))).toBe(false)
+    expect(fake.ran('git', 'worktree', 'remove')).toHaveLength(0)
+    expect(result.resume).toContain('prepare-closures')
+    expect(result.resume).toContain(`--base ${BASE}`)
+    for (const name of ['t1', 't2', 't3'])
+      expect(result.resume).toContain(`--closure ${name}:c/${name}`)
+    expect(result.resume).toContain('--build tools/x')
+    expect(result.resume).toContain(`--root ${root}`)
+  })
+
+  it('removes a ready.json that no longer matches when the redo fails', () => {
+    const root = home()
+    let broken = false
+    const fake = closureFake(root, (program, args) =>
+      broken && program === 'pnpm' && args[0] === 'install' ? { status: 1 } : undefined,
+    )
+    const one = input(root, fake, { closures: closures('t1') })
+    prepareClosures(one)
+    fake.agents.tree = 'e'.repeat(40)
+    broken = true
+    expect(prepareClosures(one).closures[0]?.status).toBe('failed')
+    expect(existsSync(join(treeOf(root, 't1'), 'tmp/closures/t1/ready.json'))).toBe(false)
+    // With the old key back and the failure gone, the missing record means the steps run again.
+    fake.agents.tree = 'c'.repeat(40)
+    broken = false
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+  })
+
+  it('P7 runs one turbo build per --build filter, in order, in each tree', () => {
+    const root = home(),
+      fake = closureFake(root)
+    prepareClosures(input(root, fake, { closures: closures('t1'), builds: ['tools/x', 'tools/y'] }))
+    const builds = fake.steps.filter(s => s.args[0] === 'turbo')
+    expect(builds.map(s => [s.program, ...s.args])).toEqual([
+      ['pnpm', 'turbo', 'run', 'build', '--filter=tools/x'],
+      ['pnpm', 'turbo', 'run', 'build', '--filter=tools/y'],
+    ])
+    expect(builds.every(s => s.cwd === treeOf(root, 't1'))).toBe(true)
+    expect(readyOf(root, 't1').steps.map((s: { name: string }) => s.name)).toEqual([
+      'install',
+      'projections',
+      'build tools/x',
+      'build tools/y',
+    ])
+  })
+
+  it('P8 refuses with an exit-2 error before any change when pnpm cannot start or the base is no commit', () => {
+    const root = home(),
+      fake = closureFake(root)
+    const noPnpm = hostWith('win32', ['pnpm.cmd'])
+    expect(() => prepareClosures(input(root, fake, { host: noPnpm }))).toThrow(
+      'has no node_modules/pnpm',
+    )
+    expect(fake.ran('git', 'worktree', 'add')).toHaveLength(0)
+    expect(existsSync(join(root, '.worktrees'))).toBe(false)
+    expect(() => prepareClosures(input(root, fake, { base: 'f'.repeat(40) }))).toThrow(
+      'resolve base failed',
+    )
+    expect(fake.ran('git', 'worktree', 'add')).toHaveLength(0)
+  })
+
+  it('refuses duplicate or unusable closures before any change', () => {
+    const root = home(),
+      fake = closureFake(root)
+    for (const bad of [
+      [],
+      [...closures('t1'), ...closures('t1')],
+      [
+        { name: 't1', branch: 'c/a' },
+        { name: 't2', branch: 'c/a' },
+      ],
+      [{ name: '../x', branch: 'c/x' }],
+      [{ name: 't1', branch: '' }],
+    ])
+      expect(() => prepareClosures(input(root, fake, { closures: bad }))).toThrow()
+    expect(fake.steps).toEqual([])
+  })
+
+  it('P9 never runs start and never pushes', () => {
+    const root = home(),
+      fake = closureFake(root)
+    prepareClosures(input(root, fake, { builds: ['tools/x'] }))
+    prepareClosures(input(root, fake, { builds: ['tools/x'] }))
+    const lines = fake.steps.map(s => [s.program, ...s.args].join(' '))
+    expect(lines.filter(line => /cli\.ts|execute|\bpush\b/.test(line))).toEqual([])
+    expect(fake.steps.some(s => s.program === 'node')).toBe(false)
+  })
+
+  it('P10 starts pnpm as pnpmCommand says on a Windows host', () => {
+    const host = hostWith('win32', ['pnpm.cmd', 'node_modules/pnpm/bin/pnpm.cjs']),
+      root = home(),
+      fake = closureFake(root)
+    const entry = join(host.env['PATH'] ?? '', 'node_modules/pnpm/bin/pnpm.cjs')
+    prepareClosures(input(root, fake, { host, closures: closures('t1'), builds: ['tools/x'] }))
+    const pnpm = fake.steps.filter(s => s.args[0] === entry)
+    expect(pnpm.map(s => [s.program, ...s.args.slice(1)])).toEqual([
+      ['/node', 'install', '--frozen-lockfile', '--ignore-scripts'],
+      ['/node', 'run', 'check:agents'],
+      ['/node', 'turbo', 'run', 'build', '--filter=tools/x'],
+    ])
+    expect(fake.steps.some(s => s.program === 'pnpm')).toBe(false)
+  })
+
+  it('formats one line per closure and the resume command', () => {
+    const root = home(),
+      fake = closureFake(root, (program, args) =>
+        program === 'pnpm' && args[0] === 'install' ? { status: 1, stderr: 'boom' } : undefined,
+      )
+    const text = formatClosures(prepareClosures(input(root, fake, { closures: closures('t1') })))
+    expect(text).toContain(`t1\tfailed\t${treeOf(root, 't1')}\tc/t1`)
+    expect(text).toContain('install failed (exit 1): boom')
+    expect(text).toContain('resume: ')
+  })
+})
+
+describe('prepare-closures with real git', () => {
+  it('builds trees from the base without an upstream, skips an unchanged rerun and redoes a changed one', () => {
+    const root = home()
+    const git = (cwd: string, ...args: string[]) => {
+      const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+      if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`)
+      return result.stdout.trim()
+    }
+    git(root, 'init', '--quiet', '-b', 'main')
+    mkdirSync(join(root, '.meta_harness/agents'), { recursive: true })
+    writeFileSync(join(root, '.meta_harness/agents/x.md'), 'x\n')
+    writeFileSync(join(root, 'pnpm-lock.yaml'), 'lock\n')
+    git(root, 'add', '.')
+    git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'b')
+    const base = git(root, 'rev-parse', 'HEAD')
+    // Git runs for real; the programs that install and build are recorded.
+    const programs: string[] = []
+    const run: Runner = (program, args, options) => {
+      if (program === 'git') return runProgram(program, args, options)
+      programs.push([program, ...args].join(' '))
+      return { status: 0, stdout: '', stderr: '' }
+    }
+    const request = {
+      root,
+      base,
+      closures: [
+        { name: 't1', branch: 'c/t1' },
+        { name: 't2', branch: 'c/t2' },
+      ],
+      run,
+      host: linux,
+    }
+    const first = prepareClosures(request)
+    expect(first.closures.map(c => c.status)).toEqual(['created', 'created'])
+    for (const name of ['t1', 't2']) {
+      const tree = join(root, '.worktrees', name)
+      expect(git(tree, 'rev-parse', 'HEAD')).toBe(base)
+      expect(git(tree, 'branch', '--show-current')).toBe(`c/${name}`)
+      const upstream = spawnSync('git', ['rev-parse', '--abbrev-ref', `c/${name}@{upstream}`], {
+        cwd: root,
+      })
+      expect(upstream.status).not.toBe(0)
+      expect(existsSync(join(tree, 'tmp/closures', name, 'ready.json'))).toBe(true)
+    }
+    const count = programs.length
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+    expect(programs).toHaveLength(count)
+    writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed\n')
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
+  })
+})
+
+describe('worktree-cli prepare-closures', () => {
+  const cli = fileURLToPath(new URL('../src/integration/worktree-cli.ts', import.meta.url))
+  const closuresCli = (args: string[]) => {
+    const result = spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
+      encoding: 'utf8',
+    })
+    return {
+      status: result.status,
+      error: JSON.parse(result.stderr.trim().split('\n').at(-1) ?? 'null'),
+    }
+  }
+  it(
+    'accepts repeated --closure and --build, and reports a base that is no commit with exit 2',
+    { tags: ['slow'] },
+    () => {
+      const root = home()
+      spawnSync('git', ['init', '--quiet'], { cwd: root })
+      const result = closuresCli([
+        'prepare-closures',
+        '--base',
+        'no-such-ref',
+        '--closure',
+        't1:c/t1',
+        '--closure',
+        't2:c/t2',
+        '--build',
+        'tools/x',
+        '--build',
+        'tools/y',
+        '--root',
+        root,
+      ])
+      expect(result.status).toBe(2)
+      expect(result.error.message).toContain('resolve base failed')
+    },
+  )
+  it(
+    'refuses a closure without name and branch, and unknown options, with exit 2',
+    { tags: ['slow'] },
+    () => {
+      const root = home()
+      for (const args of [
+        ['--base', 'main', '--closure', 'nocolon', '--root', root],
+        ['--closure', 't1:c/t1', '--root', root],
+        ['--base', 'main', '--closure', 't1:c/t1', '--bogus', 'x'],
+      ]) {
+        const result = closuresCli(['prepare-closures', ...args])
+        expect(result.status).toBe(2)
+        expect(result.error.kind).toBe('worktree-error')
+      }
+    },
+  )
 })

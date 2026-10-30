@@ -7,7 +7,9 @@ import { readJson, repositoryFile } from '../delivery/repository-files.ts'
 import { repository } from './git.ts'
 import { IntegrationError } from './parse.ts'
 import {
+  formatClosures,
   issueBinding,
+  prepareClosures,
   prepareWorktree,
   regenerateProjections,
   removeWorktree,
@@ -18,6 +20,7 @@ import {
 const usage = `Usage:
   worktree-cli.ts prepare --issue <N> --tree <dir> [--evidence <dir>] [--root <main checkout>] [--remote <name>] [--config <file>]
   worktree-cli.ts swap --issue <N> --old <dir> --tree <dir> [--root <main checkout>] [--remote <name>] [--config <file>]
+  worktree-cli.ts prepare-closures --base <commit> --closure <name>:<branch> [--closure <name>:<branch> ...] [--build <turbo filter> ...] [--root <main checkout>] [--json]
   worktree-cli.ts projections [--tree <dir>]
   worktree-cli.ts remove --tree <dir> [--root <main checkout>] [--force]`
 
@@ -27,6 +30,8 @@ const ALLOWED = {
     flags: [],
   },
   swap: { values: ['--issue', '--old', '--tree', '--root', '--remote', '--config'], flags: [] },
+  // --closure and --build may repeat; `options` takes them out before the shared parser runs.
+  'prepare-closures': { values: ['--base', '--root'], flags: ['--json'] },
   projections: { values: ['--tree'], flags: [] },
   remove: { values: ['--tree', '--root'], flags: ['--force'] },
 } as const
@@ -34,15 +39,47 @@ type Command = keyof typeof ALLOWED
 function isCommand(value: string | undefined): value is Command {
   return value !== undefined && Object.hasOwn(ALLOWED, value)
 }
+/** The options that `prepare-closures` accepts more than once, with the values in order. */
+const REPEATED = ['--closure', '--build'] as const
+/** `args` without the repeated options, and the values each of them had. */
+function takeRepeated(args: readonly string[]): {
+  rest: string[]
+  lists: Map<string, string[]>
+} {
+  const rest: string[] = [],
+    lists = new Map<string, string[]>()
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index] ?? ''
+    if (!(REPEATED as readonly string[]).includes(arg)) {
+      rest.push(arg)
+      continue
+    }
+    const value = args[index + 1]
+    if (value === undefined || value.startsWith('--')) throw new InputError(usage)
+    lists.set(arg, [...(lists.get(arg) ?? []), value])
+    index += 1
+  }
+  return { rest, lists }
+}
 function options(args: string[]): {
   command: Command
   values: Map<string, string>
   flags: Set<string>
+  lists: Map<string, string[]>
 } {
-  const [first, ...rest] = args
+  const [first, ...others] = args
   if (!isCommand(first)) throw new InputError(usage)
+  const { rest, lists } =
+    first === 'prepare-closures' ? takeRepeated(others) : { rest: others, lists: new Map() }
   const { values, flags } = parseCliOptions(rest, ALLOWED[first], usage)
-  return { command: first, values, flags }
+  return { command: first, values, flags, lists }
+}
+/** A `--closure` value `<name>:<branch>`; the branch may hold `/` but not the first `:`. */
+function closureSpec(value: string): { name: string; branch: string } {
+  const colon = value.indexOf(':')
+  if (colon <= 0 || colon === value.length - 1)
+    throw new InputError(`--closure ${value} must be <name>:<branch>`)
+  return { name: value.slice(0, colon), branch: value.slice(colon + 1) }
 }
 function required(values: ReadonlyMap<string, string>, flag: string): string {
   const value = values.get(flag)
@@ -86,7 +123,12 @@ function cardBinding(values: ReadonlyMap<string, string>) {
     true,
   )
 }
-function run(command: Command, values: ReadonlyMap<string, string>, flags: ReadonlySet<string>) {
+function run(
+  command: Command,
+  values: ReadonlyMap<string, string>,
+  flags: ReadonlySet<string>,
+  lists: ReadonlyMap<string, readonly string[]>,
+) {
   const remote = values.get('--remote') ?? 'origin'
   switch (command) {
     case 'projections': {
@@ -101,6 +143,15 @@ function run(command: Command, values: ReadonlyMap<string, string>, flags: Reado
         force: flags.has('--force'),
       }
       return inPhase('remove', () => removeWorktree(input))
+    }
+    case 'prepare-closures': {
+      const input = {
+        root: resolve(values.get('--root') ?? mainCheckout()),
+        base: required(values, '--base'),
+        closures: (lists.get('--closure') ?? []).map(closureSpec),
+        builds: lists.get('--build') ?? [],
+      }
+      return inPhase('prepare-closures', () => prepareClosures(input))
     }
     case 'prepare': {
       const input = {
@@ -133,9 +184,13 @@ function unexpected(error: unknown): string {
 }
 
 try {
-  const { command, values, flags } = options(process.argv.slice(2))
-  const result = run(command, values, flags)
-  process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+  const { command, values, flags, lists } = options(process.argv.slice(2))
+  const result = run(command, values, flags, lists)
+  // prepare-closures prints lines for a person unless --json asks for the report as JSON.
+  if ('closures' in result && !flags.has('--json')) process.stdout.write(formatClosures(result))
+  else process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
+  // A closure that failed or was refused makes the run exit 1; an error before any change exits 2.
+  if ('closures' in result && !result.ok) process.exitCode = 1
   // Without --force, remove only lists what removal would delete. With --force, `removed` is
   // false when the directory is still on the disk, and the output gives the reason.
   if ('removed' in result && !result.removed) process.exitCode = 1
