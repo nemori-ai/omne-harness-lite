@@ -37,6 +37,7 @@ import { checkSteps, describeSteps, PLAN_DIR, PLAN_FILE, type StepInputs } from 
 import {
   describeResume,
   resumeFacts,
+  workingTreeDirty,
   resumePlan,
   type PlanRequest,
   type ResumeVerdict,
@@ -204,7 +205,9 @@ function judgeResume(
   targetBase: string,
   steps: readonly CheckStep[],
 ) {
-  const facts = resumeFacts(root, fromRef, targetBase)
+  const records = collectAdmissionRuns(root)
+  const worktree = worktreeRoot(root)
+  const facts = resumeFacts(root, fromRef, targetBase, { records, worktree })
   const config = readTestRunsConfig()
   const members: WorkspaceMember[] = listWorkspaceMembers(
     fileTree(root),
@@ -223,8 +226,8 @@ function judgeResume(
         )
   const verdict = resumePlan({
     ...facts,
-    worktree: worktreeRoot(root),
-    records: collectAdmissionRuns(root),
+    worktree,
+    records,
     globalPaths: config.affected.globalPaths,
     steps,
     plan,
@@ -232,12 +235,18 @@ function judgeResume(
   return { facts, verdict }
 }
 
+/** `coordinates`，但 dirty 与接续同一个判法：另认 assume-unchanged 与 skip-worktree 的文件。 */
+function coordinatesAt(root: string, baseRef: string | undefined) {
+  const at = coordinates(root, baseRef)
+  return { ...at, dirty: at.dirty || workingTreeDirty(root) }
+}
+
 /**
  * 结束时这次运行还是不是对开始时那个头的证据：头变了，或工作树有未提交改动（与开始时同一个定义：
- * `git status --porcelain` 非空，被忽略的文件不算），就不是。
+ * `git status --porcelain` 非空，或有 assume-unchanged／skip-worktree 的文件；被忽略的文件不算），就不是。
  */
 export function changedDuringRun(root: string, startHead: string): boolean {
-  const end = coordinates(root, undefined)
+  const end = coordinatesAt(root, undefined)
   return end.head !== startHead || end.dirty
 }
 
@@ -253,7 +262,7 @@ function planFor(
 ): PlanFile {
   if (resume === undefined) return computePlan(root, targetBase, full)
   if (resume.kind === 'rerun') return computePlan(root, targetBase, resume.scope.mode === 'full')
-  const at = coordinates(root, targetBase)
+  const at = coordinatesAt(root, targetBase)
   if (at.base === undefined) throw new Error(`算不出基线 ${targetBase} 的合并点`)
   return { head: at.head, dirty: at.dirty, base: at.base, plan: resume.plan }
 }
@@ -294,7 +303,7 @@ export async function runCheck(
   // 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。规则拒绝时抛错，调用方以 2 退出。
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])
   env['BASELINE'] = targetBase
-  const at = coordinates(root, undefined)
+  const at = coordinatesAt(root, undefined)
   const cores = availableParallelism()
   const steps = stepTable({ ...STEP_INPUTS, baseline: targetBase })
 

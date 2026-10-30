@@ -584,3 +584,66 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
     expect(chained.trace.size).toBe(0)
   })
 })
+
+describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => {
+  // H1（FULL=1）只在最后一步 loop:status 失败，别的步骤都通过，所以接续的构建只重建 H1..HEAD 影响到的成员。
+  // H2 上接续、改了 a 并重建它，又在 loop:status 失败；H3 把 a 撤回。再从 H1 接续：H1..H3 的差异里没有 a，
+  // 磁盘上 a 的 dist 却是 H2 那次的，所以要补建它。
+  let fb: Fixture
+  let on: Fixture
+  let h1 = ''
+  let h2 = ''
+  const short = (sha: string) => sha.slice(0, 9)
+  const gate = join('members', 'd', 'gate.txt')
+
+  beforeAll(() => {
+    fb = fixture()
+    const table = fb.steps()
+    on = {
+      ...fb,
+      steps: () =>
+        table.map(step =>
+          step.name === 'loop:status'
+            ? { ...step, command: [...step.command, '--fail-if-bad', gate] as typeof step.command }
+            : step,
+        ),
+    }
+  })
+
+  afterAll(() => {
+    rmSync(fb.root, { recursive: true, force: true })
+  })
+
+  it('H1 全量只在 loop:status 失败；H2 接续重建 a 又失败', async () => {
+    writeFileSync(join(fb.root, gate), 'bad\n')
+    h1 = fb.commit('card: gate closed')
+    process.env['FULL'] = '1'
+    const first = await check({}, on)
+    delete process.env['FULL']
+    expect(first.code).toBe(1)
+    expect(runRecord(fb.root, h1).failedStep).toBe('loop:status')
+
+    writeFileSync(join(fb.root, 'members/a/src.ts'), 'export const v = 2\n')
+    h2 = fb.commit('card: change a')
+    const second = await check({ resumeFrom: h1 }, on)
+    expect(second.code).toBe(1)
+    expect(members(second.trace.get('build'))).toEqual(new Set(['members/a', 'members/b']))
+    expect(runRecord(fb.root, h2)).toMatchObject({ mode: 'resume', failedStep: 'loop:status' })
+  })
+
+  it('H3 撤回 a 后再从 H1 接续：构建范围含被撤回的 a，证据写明中间运行', async () => {
+    writeFileSync(join(fb.root, 'members/a/src.ts'), 'export const v = 1\n')
+    writeFileSync(join(fb.root, 'members/d/src.ts'), 'export const v = 3\n')
+    writeFileSync(join(fb.root, gate), 'good\n')
+    const h3 = fb.commit('card: revert a, open gate')
+    const third = await check({ resumeFrom: h1 }, on)
+    expect(third.code).toBe(0)
+    const built = members(third.trace.get('build'))
+    expect(built.has('members/a')).toBe(true)
+    expect(built.has('members/d')).toBe(true)
+    const text = third.output.join('\n')
+    expect(text).toContain(`中间运行 1 次（头 ${short(h2)}）`)
+    expect(text).toContain('members/a/src.ts')
+    expect(runRecord(fb.root, h3)).toMatchObject({ mode: 'resume', failedStep: null })
+  })
+})
