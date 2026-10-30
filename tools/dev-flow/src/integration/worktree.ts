@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import {
   chmodSync,
   copyFileSync,
@@ -19,7 +20,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, delimiter, extname, join, relative, sep } from 'node:path'
+import { basename, delimiter, dirname, extname, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
@@ -805,4 +806,312 @@ export function removeWorktree({
   return 'reason' in result
     ? { tree, untracked, removed: false, ...result }
     : { tree, untracked, removed: true, ...result }
+}
+
+/** One closure: its directory name under `.worktrees` and the branch its tree checks out. */
+export type ClosureSpec = { name: string; branch: string }
+export type ClosureStatus = 'created' | 'reused' | 'skipped' | 'failed' | 'refused'
+/** One install, projection or build step of a closure, with its duration in milliseconds. */
+export type ClosureStepRecord = { name: string; ok: boolean; ms: number }
+export type ClosureReport = {
+  name: string
+  tree: string
+  branch: string
+  base: string
+  status: ClosureStatus
+  /** The steps this run took; empty for a skipped or refused closure. */
+  steps: ClosureStepRecord[]
+  /** Why the closure failed or was refused. */
+  message?: string
+}
+export type ClosuresResult = {
+  /** The base as a 40-digit commit. */
+  base: string
+  /** The closures this run processed, in order. A failure stops the run, so later ones are absent. */
+  closures: ClosureReport[]
+  /** True when every processed closure is created, reused or skipped. */
+  ok: boolean
+  /** The command that repeats the run. Present when a closure failed. */
+  resume?: string
+}
+/** What makes the install, projections and builds of a tree current. */
+type ClosureKey = { base: string; lock: string | null; agents: string; agentsClean: boolean }
+
+const CLOSURE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
+const CLOSURE_BRANCH = /^[^\s-]\S*$/
+function checkClosures(closures: readonly ClosureSpec[]): void {
+  if (closures.length === 0) throw new IntegrationError('input-error', 'Give at least one closure')
+  const names = new Set<string>(),
+    branches = new Set<string>()
+  for (const { name, branch } of closures) {
+    if (!CLOSURE_NAME.test(name))
+      throw new IntegrationError(
+        'input-error',
+        `Closure name ${JSON.stringify(name)} is not usable`,
+      )
+    if (!CLOSURE_BRANCH.test(branch))
+      throw new IntegrationError(
+        'input-error',
+        `Branch ${JSON.stringify(branch)} of closure ${name} is not usable`,
+      )
+    if (names.has(name)) throw new IntegrationError('input-error', `Closure ${name} is given twice`)
+    if (branches.has(branch))
+      throw new IntegrationError('input-error', `Branch ${branch} is given twice`)
+    names.add(name)
+    branches.add(branch)
+  }
+}
+/** The path as it compares equal to a path `git worktree list` prints for the same directory. */
+function comparablePath(path: string): string {
+  let full = resolve(path)
+  try {
+    // The native call also expands Windows short names, which git never prints.
+    full = realpathSync.native(full)
+  } catch {
+    // A path that does not exist compares by its text.
+  }
+  return process.platform === 'win32' ? full.replaceAll('\\', '/').toLowerCase() : full
+}
+/** The worktrees `git worktree list --porcelain` reports, with the branch each has checked out. */
+function worktreeEntries(
+  root: string,
+  run: Runner,
+): { path: string; branch: string | undefined }[] {
+  const listing = step(run, 'list worktrees', 'git', ['worktree', 'list', '--porcelain'], root)
+  const entries: { path: string; branch: string | undefined }[] = []
+  for (const line of listing.split(/\r?\n/)) {
+    if (line.startsWith('worktree ')) entries.push({ path: line.slice(9), branch: undefined })
+    else if (line.startsWith('branch refs/heads/')) {
+      const entry = entries.at(-1)
+      if (entry !== undefined) entry.branch = line.slice('branch refs/heads/'.length)
+    }
+  }
+  return entries
+}
+function closureKey(tree: string, base: string, run: Runner): ClosureKey {
+  const lockFile = join(tree, 'pnpm-lock.yaml')
+  const agents = step(
+    run,
+    'read agents tree',
+    'git',
+    ['rev-parse', 'HEAD:.meta_harness/agents'],
+    tree,
+  )
+  const status = step(
+    run,
+    'read agents status',
+    'git',
+    ['status', '--porcelain', '--', '.meta_harness/agents'],
+    tree,
+  )
+  return {
+    base,
+    lock: existsSync(lockFile)
+      ? createHash('sha256').update(readFileSync(lockFile)).digest('hex')
+      : null,
+    agents: agents.trim(),
+    agentsClean: status.trim() === '',
+  }
+}
+/** Whether `file` records a finished run of the same branch with this key. */
+function isReady(file: string, branch: string, key: ClosureKey): boolean {
+  try {
+    const record: unknown = JSON.parse(readFileSync(file, 'utf8'))
+    if (typeof record !== 'object' || record === null) return false
+    const { steps, key: recorded, branch: recordedBranch } = record as Record<string, unknown>
+    return (
+      recordedBranch === branch &&
+      JSON.stringify(recorded) === JSON.stringify(key) &&
+      Array.isArray(steps) &&
+      steps.every(entry => (entry as { ok?: unknown }).ok === true)
+    )
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Prepares one worktree per closure under `<root>/.worktrees/<name>`, all from `base`, so a
+ * dispatcher can start several writers on one baseline. Per closure, in the order given: add the
+ * tree on a new branch at `base` without an upstream, or reuse the registered tree that has the
+ * branch checked out; install with the frozen lock file; regenerate the agent projections; run
+ * `pnpm turbo run build --filter=<filter>` for each of `builds`; write
+ * `tmp/closures/<name>/ready.json` in the tree. A closure whose `ready.json` records the same
+ * key (the base, the SHA-256 of `pnpm-lock.yaml`, the `.meta_harness/agents` tree of HEAD and
+ * whether that directory has uncommitted changes) is skipped. A changed key or a missing file
+ * runs install, projections and builds again in the same tree. Nothing starts a card, pushes,
+ * or sets an upstream.
+ *
+ * A closure that cannot be used is `refused` before any change: its branch is at another commit
+ * while its directory is missing, or its directory is not a registered worktree on its branch.
+ * The other closures still run. A step that fails stops the run at that closure: the trees stay,
+ * later closures are not processed, and `resume` is the command that repeats the run. The base
+ * must be a commit and pnpm must start, else the call throws before any change.
+ */
+export function prepareClosures({
+  root,
+  base,
+  closures,
+  builds = [],
+  run = runProgram,
+  host = realHost(),
+}: {
+  root: string
+  base: string
+  closures: readonly ClosureSpec[]
+  builds?: readonly string[]
+  run?: Runner
+  host?: Host
+}): ClosuresResult {
+  checkClosures(closures)
+  if (base.startsWith('-'))
+    throw new IntegrationError('input-error', `Base ${base} is not a commit`)
+  const commit = step(
+    run,
+    'resolve base',
+    'git',
+    ['rev-parse', '--verify', '--quiet', `${base}^{commit}`],
+    root,
+  ).trim()
+  if (!/^[0-9a-f]{40}$/.test(commit))
+    throw new IntegrationError('input-error', `Base ${base} did not resolve to a commit`)
+  // Decide before anything changes: a host that cannot start pnpm gets no tree.
+  const pnpm = pnpmCommand(host)
+  const reports: ClosureReport[] = []
+  for (const closure of closures) {
+    const report = prepareClosure({ root, commit, closure, builds, run, host, pnpm })
+    reports.push(report)
+    if (report.status === 'failed') break
+  }
+  const failed = reports.some(report => report.status === 'failed')
+  const again = worktreeCommand(
+    [
+      'prepare-closures',
+      `--base ${commit}`,
+      ...closures.map(({ name, branch }) => `--closure ${name}:${branch}`),
+      ...builds.map(filter => `--build ${filter}`),
+      `--root ${root}`,
+    ].join(' '),
+  )
+  return {
+    base: commit,
+    closures: reports,
+    ok: reports.every(report => report.status !== 'failed' && report.status !== 'refused'),
+    ...(failed ? { resume: again } : {}),
+  }
+}
+
+/** Prepares the tree of one closure; a failed step or a refusal is the report, not a throw. */
+function prepareClosure({
+  root,
+  commit,
+  closure: { name, branch },
+  builds,
+  run,
+  host,
+  pnpm,
+}: {
+  root: string
+  commit: string
+  closure: ClosureSpec
+  builds: readonly string[]
+  run: Runner
+  host: Host
+  pnpm: PnpmCommand
+}): ClosureReport {
+  const tree = join(root, '.worktrees', name)
+  const steps: ClosureStepRecord[] = []
+  const report = (status: ClosureStatus, message?: string): ClosureReport => ({
+    name,
+    tree,
+    branch,
+    base: commit,
+    status,
+    steps,
+    ...(message === undefined ? {} : { message }),
+  })
+  const messageOf = (stepName: string, error: unknown) => failureOf(stepName, error).message
+  let created = false
+  try {
+    if (existsSync(tree)) {
+      const entry = worktreeEntries(root, run).find(
+        candidate => comparablePath(candidate.path) === comparablePath(tree),
+      )
+      if (entry === undefined)
+        return report('refused', `${tree} exists but is not a registered worktree`)
+      if (entry.branch !== branch)
+        return report(
+          'refused',
+          `${tree} has ${entry.branch ?? 'a detached HEAD'} checked out, not ${branch}`,
+        )
+    } else {
+      const ref = `refs/heads/${branch}`
+      if (check(run, 'read branch', 'git', ['show-ref', '--quiet', '--verify', ref], root)) {
+        const tip = step(run, 'read branch tip', 'git', ['rev-parse', ref], root).trim()
+        if (tip !== commit)
+          return report('refused', `Branch ${branch} is at ${tip}, not at the base ${commit}`)
+        step(run, 'add worktree', 'git', ['worktree', 'add', tree, branch], root)
+      } else step(run, 'add worktree', 'git', ['worktree', 'add', '-b', branch, tree, commit], root)
+      created = true
+    }
+  } catch (error) {
+    return report('failed', messageOf('add worktree', error))
+  }
+  const ready = join(tree, 'tmp', 'closures', name, 'ready.json')
+  let key: ClosureKey
+  try {
+    key = closureKey(tree, commit, run)
+  } catch (error) {
+    return report('failed', messageOf('read key', error))
+  }
+  if (isReady(ready, branch, key)) return report('skipped')
+  // A record of an older key must not vouch for a run that stops half way.
+  rmSync(ready, { force: true })
+  const timed = (stepName: string, work: () => void) => {
+    const start = Date.now()
+    try {
+      work()
+      steps.push({ name: stepName, ok: true, ms: Date.now() - start })
+    } catch (error) {
+      steps.push({ name: stepName, ok: false, ms: Date.now() - start })
+      throw failureOf(stepName, error)
+    }
+  }
+  try {
+    timed('install', () =>
+      pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, pnpm),
+    )
+    timed('projections', () => regenerateProjections(tree, run, host))
+    for (const filter of builds)
+      timed(`build ${filter}`, () =>
+        pnpmStep(
+          run,
+          `build ${filter}`,
+          ['turbo', 'run', 'build', `--filter=${filter}`],
+          tree,
+          pnpm,
+        ),
+      )
+    localStep('write ready.json', () => {
+      mkdirSync(dirname(ready), { recursive: true })
+      const record = { base: commit, branch, key, steps, completedAt: new Date().toISOString() }
+      writeFileSync(ready, `${JSON.stringify(record, null, 2)}\n`)
+    })
+  } catch (error) {
+    return report('failed', messageOf('prepare closure', error))
+  }
+  return report(created ? 'created' : 'reused')
+}
+
+/** The report as lines for a person: one line per closure, its steps, and the resume command. */
+export function formatClosures(result: ClosuresResult): string {
+  const lines = [`base: ${result.base}`]
+  for (const closure of result.closures) {
+    lines.push(`${closure.name}\t${closure.status}\t${closure.tree}\t${closure.branch}`)
+    for (const entry of closure.steps)
+      lines.push(`  ${entry.name}: ${entry.ok ? 'ok' : 'failed'} (${entry.ms} ms)`)
+    if (closure.message !== undefined) lines.push(`  ${closure.message}`)
+  }
+  if (result.resume !== undefined) lines.push(`resume: ${result.resume}`)
+  return `${lines.join('\n')}\n`
 }
