@@ -370,6 +370,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let pendingCommit: Readonly<{ operation: AgentOperationId; node: LoopNode }> | null = null
   let excludedNode: LoopNode | null = null
   let finishRefused = false
+  // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
+  // F3 row: unavailable goes to R0; R0 waits while the facts are undetermined).
+  let finishUnavailable: Extract<Failure, { kind: 'unavailable' }> | null = null
   // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
   let waits: readonly Waiting[] = []
@@ -586,10 +589,14 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     })
   }
 
+  /**
+   * Saves a dependency wait at `node`. `recheck` reads the dependency again before the driver
+   * sleeps; `null` leaves the wake to a change of the execution or to the check time.
+   */
   function waitFor(
     node: LoopNode,
     failure: Extract<Failure, { kind: 'unavailable' }>,
-    recheck: (read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>,
+    recheck: ((read: ExecutionSnapshot) => Promise<Outcome<unknown, Failure>>) | null,
   ) {
     waitingAt = node
     recheckDependency = recheck
@@ -1043,6 +1050,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       facts = read.ok
       if (finishRefused) {
         finishRefused = false
+        // A tryFinish that could not determine the facts is a dependency to wait on, not a refusal
+        // to re-evaluate: the same terminal would be retried in a tight loop otherwise. The wake
+        // is a change of the execution or the check time; the terminal itself is a write, so
+        // nothing rechecks it inside the wait.
+        if (finishUnavailable !== null) {
+          const failure = finishUnavailable
+          finishUnavailable = null
+          return waitFor('R0', failure, null)
+        }
         // Controls and extensions are still owned by their later cards. Never retry an unchanged
         // refusal in a loop, or mistake an unimplemented responsibility for an empty queue.
         if (snapshot.controls.length > 0)
@@ -1689,6 +1705,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         intent: read.ok.state.intent,
       })
       if ('failure' in finished) {
+        if (finished.failure.kind === 'unavailable') {
+          // The facts, qualification or closure could not be determined (SPEC "条件终结" result
+          // table): nothing was written; R0 waits on the dependency and the terminal is retried.
+          finishUnavailable = finished.failure
+          finishRefused = true
+          return step('reconcile', null)
+        }
         if (finished.failure.kind !== 'commit-unknown') return finished
         pendingCommit = { operation: finished.failure.operation, node: 'F3' }
         return step('reconcile', null)

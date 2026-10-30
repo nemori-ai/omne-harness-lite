@@ -30,6 +30,7 @@ import type {
   AgentOperationId,
   CardRoundId,
   ConsumerRef,
+  ConsumptionId,
   DurableEvidence,
   ExecutionRevision,
   InputBatchId,
@@ -37,7 +38,15 @@ import type {
   PassageId,
 } from './identity.ts'
 import type { ExecutionHandoff } from './journal.ts'
-import type { CardRound, HandoffReference, Passage } from './passages.ts'
+import type {
+  CardRound,
+  HandoffLookup,
+  HandoffReference,
+  HandoffResolution,
+  Passage,
+  PendingHandoff,
+} from './passages.ts'
+import type { ProducedResult } from './evaluation.ts'
 
 // ------------------------------------------------------------------------------------------
 // The candidate and its route (SPEC "候选与路线")
@@ -159,19 +168,118 @@ export type RecoveryAction =
   | 'handoff-record'
   | 'handoff-source-recovery'
 /**
- * The one continuation that completes an obligation: the action, the stable record that holds the
- * complete parameters of the original public operation under its exact schema, the owner now
- * responsible, the custodian that accepted the material when one has, and the public operation
- * whose qualification the continuation uses. A reference that does not resolve keeps the original
- * key and names the missing source in `request`.
+ * The original public operation one continuation runs (SPEC "终结责任清单", RecoveryContinuation):
+ * its complete parameters, a stable record that holds them under its exact schema, or, when that
+ * record does not resolve, the original key with the source that is missing. A continuation is
+ * never an arbitrary command or a callback.
  */
-export type RecoveryContinuation = Readonly<{
-  kind: RecoveryAction
-  request: DurableEvidence
+export type ContinuationRequest<Parameters> =
+  | Readonly<{ kind: 'parameters'; value: Parameters }>
+  | Readonly<{ kind: 'record'; schema: Adoption; record: DurableEvidence }>
+  | Readonly<{ kind: 'unresolved'; key: string; missing: DurableEvidence }>
+/**
+ * The common members of every continuation: the action, the request of the original public
+ * operation, the owner now responsible, the custodian that accepted the material when one has,
+ * and the public operation whose qualification the continuation uses.
+ */
+type ContinuationHead<
+  K extends RecoveryAction,
+  Parameters,
+  Purpose extends AgentAccessOperation = AgentAccessOperation,
+> = Readonly<{
+  kind: K
+  request: ContinuationRequest<Parameters>
   owner: string
   custodian: ConsumerRef | null
-  purpose: AgentAccessOperation
+  purpose: Purpose
 }>
+/** The material branch of a `recordHandoff` request (SPEC "准入结果保管"). */
+export type HandoffRecordMaterial =
+  | Readonly<{ kind: 'source-bound-request' }>
+  | Readonly<{ kind: 'observed-operation'; originalCall: DurableEvidence }>
+/**
+ * The one continuation that completes an obligation, one closed variant per action (SPEC
+ * "终结责任清单", RecoveryContinuation). The four handoff actions carry the parameters and the
+ * qualification of the SPEC handoff table; `original-invoke-recovery` only locates the complete
+ * original request, it is not an unconditional invoke; `tool-association-retain` carries the fixed
+ * trusted return source and the original registration request.
+ */
+export type RecoveryContinuation =
+  | ContinuationHead<
+      'original-operation-query',
+      Readonly<{ execution: AgentExecutionId; operation: AgentOperationId }>,
+      'query'
+    >
+  | ContinuationHead<
+      'original-invoke-recovery',
+      Readonly<{ intent: ToolIntentKey; fixed: DurableEvidence }>
+    >
+  | ContinuationHead<
+      'tool-association-retain',
+      Readonly<{
+        intent: ToolIntentKey
+        request: DurableEvidence
+        source: DurableEvidence
+        priorExcluded: ExcludedPredecessor | null
+      }>,
+      'reconcile'
+    >
+  | ContinuationHead<'producer-query', Readonly<{ pending: PendingCall }>>
+  | ContinuationHead<
+      'producer-receive',
+      Readonly<{ result: ProducedResult; consumption: ConsumptionId }>
+    >
+  | ContinuationHead<
+      'producer-release',
+      Readonly<{ result: ProducedResult; consumption: ConsumptionId }>
+    >
+  | ContinuationHead<'card-lookup', Readonly<{ passage: PassageId; round: CardRoundId }>>
+  | ContinuationHead<'card-read', Readonly<{ passage: PassageId; round: CardRoundId }>>
+  | ContinuationHead<
+      'card-invalidate',
+      Readonly<{ passage: PassageId; round: CardRoundId; reason: DurableEvidence }>
+    >
+  | ContinuationHead<'material-read', Readonly<{ identity: string; consumer: ConsumerRef }>>
+  | ContinuationHead<'input-read', Readonly<{ input: InputId }>>
+  | ContinuationHead<'output-read-ack', Readonly<{ after: string | null; through: string | null }>>
+  | ContinuationHead<
+      'terminal-observe',
+      Readonly<{ passage: PassageId; terminal: DurableEvidence; implementation: Adoption }>,
+      'record-terminal-observation'
+    >
+  | ContinuationHead<'restore-source', Readonly<{ source: DurableEvidence }>>
+  | ContinuationHead<
+      'handoff-lookup',
+      Readonly<{ lookup: HandoffLookup; provider: Adoption }>,
+      'read-message-handoff'
+    >
+  | ContinuationHead<
+      'handoff-exclude',
+      Readonly<{ request: PendingHandoff; prepared: DurableEvidence; control: AgentOperationId }>,
+      'exclude-message-handoff'
+    >
+  | ContinuationHead<
+      'handoff-record',
+      Readonly<{
+        operation: AgentOperationId
+        handoff: HandoffReference
+        original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
+        provider: Adoption
+        material: HandoffRecordMaterial
+      }>,
+      'record-message-handoff'
+    >
+  | ContinuationHead<
+      'handoff-source-recovery',
+      Readonly<{
+        handoff: Extract<HandoffReference, { kind: 'execution' }>
+        prepare: AgentOperationId
+        apply: AgentOperationId | null
+        request: PendingHandoff
+        material: DurableEvidence | null
+      }>,
+      'query'
+    >
 /** One unknown of a judgment: who owns the fact, which obligation it concerns, where it is queried and why it is unknown. */
 export type CancellationUnknown = Readonly<{
   owner: string
@@ -197,15 +305,16 @@ export type ObligationDisposition =
     }>
   | Readonly<{ kind: 'pending'; reason: PendingReason; required: RecoveryContinuation }>
   | Readonly<{ kind: 'unknown'; question: CancellationUnknown; required: RecoveryContinuation }>
+/** The five categories of the SPEC "条件终结" table; the kind of an obligation fixes its category. */
 export type ObligationCategory = 'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
 /**
- * The common head of every obligation: its kind and category, the original identity key the SPEC
- * table names, the fixed source and version, the consumer position when one applies, and the
- * disposition. The key is text built from the existing identities, never a fresh random id.
+ * The common head of every obligation: its kind, the original identity key the SPEC table names,
+ * the fixed source and version, the consumer position when one applies, and the disposition. The
+ * key is text built from the existing identities, never a fresh random id. The category is not a
+ * member: the SPEC table fixes it per kind.
  */
-type ObligationHead<K extends string, C extends ObligationCategory> = Readonly<{
+type ObligationHead<K extends string> = Readonly<{
   kind: K
-  category: C
   key: string
   source: DurableEvidence
   version: DurableEvidence
@@ -218,7 +327,7 @@ type ObligationHead<K extends string, C extends ObligationCategory> = Readonly<{
  * can claim it from one chosen content.
  */
 export type FinishObligation =
-  | (ObligationHead<'accepted-input', 'inputs'> &
+  | (ObligationHead<'accepted-input'> &
       Readonly<{
         input: InputId
         value: AcceptedInput
@@ -226,26 +335,29 @@ export type FinishObligation =
         origin: DurableEvidence
         taken: InputBatchId | null
       }>)
-  | (ObligationHead<'control', 'controls'> & Readonly<{ control: AgentOperationId }>)
-  | (ObligationHead<'operation', 'operations'> &
+  | (ObligationHead<'control'> & Readonly<{ control: AgentOperationId }>)
+  | (ObligationHead<'operation'> &
       Readonly<{
         operation: AgentOperationId
         method: string
         request: DurableEvidence
         resolution: 'committed' | 'rejected' | 'excluded' | 'unknown'
+        /** The original record the result of the operation belongs to; null while it is not committed. */
+        result: DurableEvidence | null
       }>)
-  | (ObligationHead<'handoff', 'operations'> &
-      Readonly<{ handoff: HandoffReference; record: ExecutionHandoff }>)
-  | (ObligationHead<'call', 'operations'> &
+  | (ObligationHead<'handoff'> & Readonly<{ handoff: HandoffReference; record: ExecutionHandoff }>)
+  | (ObligationHead<'call'> &
       Readonly<{
         action: ActionId
         intent: AgentOperationId
         pending: PendingCall
         started: DurableEvidence | null
         outcome: DurableEvidence | null
+        /** The existing interrupt requests of this call: the operations of its interrupt or background controls. */
+        interruptions: readonly AgentOperationId[]
         custodian: ConsumerRef | null
       }>)
-  | (ObligationHead<'passage', 'passages'> &
+  | (ObligationHead<'passage'> &
       Readonly<{
         passage: Passage
         candidate: AgentOperationId
@@ -253,17 +365,18 @@ export type FinishObligation =
         implementation: Adoption
         superseded: boolean
       }>)
-  | (ObligationHead<'card-round', 'passages'> &
+  | (ObligationHead<'card-round'> &
       Readonly<{
         passage: PassageId
         round: CardRound
         present: DurableEvidence | null
         lookups: readonly AgentOperationId[]
-        invalidate: AgentOperationId | null
+        /** The stable invalidate operation of the round with its fixed reason; null while none was issued. */
+        invalidate: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }> | null
       }>)
-  | (ObligationHead<'result', 'custody'> &
+  | (ObligationHead<'result'> &
       Readonly<{ responsibility: ResultResponsibility; material: DurableEvidence | null }>)
-  | (ObligationHead<'material', 'custody'> &
+  | (ObligationHead<'material'> &
       Readonly<{
         identity: string
         consumer: ConsumerRef
@@ -271,14 +384,16 @@ export type FinishObligation =
         resultVersion: DurableEvidence
         material: DurableEvidence
         custodian: ConsumerRef | null
+        /** The basis on which the custodian accepted the material; null while nobody has. */
+        acceptance: DurableEvidence | null
       }>)
-  | (ObligationHead<'output', 'custody'> &
+  | (ObligationHead<'output'> &
       Readonly<{
         emittedThrough: string | null
         acknowledgedThrough: string | null
         retention: DurableEvidence
       }>)
-  | (ObligationHead<'terminal-observation', 'custody'> &
+  | (ObligationHead<'terminal-observation'> &
       Readonly<{ observation: TerminalObservation; terminal: DurableEvidence | null }>)
 /** One facet of the responsibility coverage: its owner, fixed version and complete read evidence. */
 export type CoverageFacet = Readonly<{

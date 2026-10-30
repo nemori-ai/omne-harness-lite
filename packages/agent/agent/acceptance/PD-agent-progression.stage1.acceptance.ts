@@ -349,14 +349,12 @@ it('S2 NA-F4-1: SIGKILL preserves registered and pending terminal observations w
         journalLoads++
         return d.journal.load(input)
       },
+      // The cut is a refusal: an unavailable tryFinish would go to R0 and save a dependency wait
+      // instead of stopping the run at F3 while the host fixes the terminal observations.
       tryFinish(input) {
         finishing = input
         return Promise.resolve(
-          fail({
-            kind: 'unavailable',
-            owner: 'acceptance-cut',
-            diagnostic: 'host fixes terminal observations',
-          }),
+          fail({ kind: 'denied', action: 'host fixes terminal observations before the terminal' }),
         )
       },
     },
