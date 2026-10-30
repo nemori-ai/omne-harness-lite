@@ -83,7 +83,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 共 11 个步骤，始终在指定工作树执行。每步单独保存 stdout/stderr 和退出结果。失败立即停止，命令返回该步骤的退出码，输出已执行步骤、日志路径和失败日志末 20 行。找不到命令返回 127，命令不可执行返回 126，信号退出映射为 128 加信号值。只有全部步骤成功才返回 passed/0。输入或日志创建错误退出 2。该结果是检查结果，不授予交付接受。
 
-验证由 [delivery-pre-admission.spec.ts](../../tests/delivery-pre-admission.spec.ts) 覆盖完整顺序、绑定分支、失败传播、日志隔离和真实子进程退出码。
+验证由 [delivery-pre-admission.spec.ts](../../tests/delivery-pre-admission.spec.ts) 覆盖完整顺序、绑定分支、失败传播、日志隔离和真实子进程退出码。第2步经运行名额脚本起 `pnpm`；[test-slot-launch.spec.ts](../../tests/test-slot-launch.spec.ts) 在所在平台上核对名额脚本起 `pnpm` 与 `.sh` 的方式，Windows 上包括 `pnpm.cjs` 的定位与找不到时以 127 退出。
 
 ## 持续验证与限制
 

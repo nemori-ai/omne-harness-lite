@@ -4,6 +4,7 @@
 // 这里用文件把它们排成队，而不是靠每个调用者自觉。只用 Node 标准库，macOS、Linux、Windows 通用。
 //
 // 用法：node scripts/with-test-slot.mjs <命令> [参数…]（scripts/with-test-slot.sh 转发到这里）
+// 命令不经 shell 执行。Windows 上 `pnpm` 与 `.sh` 脚本另有起法，见 `launch`。
 //
 // 策略都可用环境变量覆盖，下面是初值：
 //   OMNE_TEST_SLOTS                  名额数（1）
@@ -413,7 +414,13 @@ process.exit(status)
  */
 async function run(command, childEnv, measure) {
   const proc = measure ? cpuMeter() : undefined
-  const argv = proc?.wrap(command) ?? command
+  let argv
+  try {
+    argv = launch(proc?.wrap(command) ?? command, childEnv)
+  } catch (error) {
+    process.stderr.write(`with-test-slot: ${command[0]}: ${error.message}\n`)
+    return { status: 127, cpuSeconds: null }
+  }
   const child = spawn(argv[0], argv.slice(1), { stdio: 'inherit', env: childEnv })
   const forward = signal => child.kill(signal)
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, forward)
@@ -428,6 +435,45 @@ async function run(command, childEnv, measure) {
   })
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, forward)
   return { status: code, cpuSeconds: proc?.read() ?? null }
+}
+
+/**
+ * 实际起的程序与参数。POSIX 上原样返回。Windows 上 Node 不经 shell 只能起 `.exe`，所以有两种命令另起：
+ * - `pnpm`（或 `pnpm.cmd`）：PATH 里是 `pnpm.cmd`，直接起报 ENOENT，起 `pnpm.cmd` 报 EINVAL。改为用本进程的 Node
+ *   运行 PATH 中第一个带 `node_modules/pnpm/bin/pnpm.cjs` 的 `pnpm.cmd` 所在目录里的那个文件（npm 全局安装的布局），
+ *   与 test-runner 和 dev-flow 的 `pnpmCommand` 相同。
+ * - 以 `.sh` 结尾的命令：直接起报 EFTYPE。改为经 Git for Windows 的 bash 运行，bash 按 `git --exec-path`
+ *   （`<Git>/<mingw64>/libexec/git-core`）往上三级找 `bin/bash.exe`，不取 PATH 里的 `bash`，因为那可能是 WSL 的启动器。
+ * 找不到时抛错，不猜。其余命令原样返回。
+ */
+function launch(argv, childEnv) {
+  if (process.platform !== 'win32') return argv
+  const [command, ...rest] = argv
+  if (/^pnpm(\.cmd)?$/i.test(command)) {
+    const seen = []
+    for (const directory of (childEnv['PATH'] ?? childEnv['Path'] ?? '').split(';')) {
+      if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+      const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+      if (existsSync(entry)) return [process.execPath, entry, ...rest]
+      seen.push(join(directory, 'pnpm.cmd'))
+    }
+    throw new Error(
+      seen.length === 0
+        ? 'PATH 里没有 pnpm.cmd'
+        : `${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+    )
+  }
+  if (/\.sh$/i.test(command)) {
+    const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8' })
+    const execPath = git.status === 0 ? git.stdout.trim() : ''
+    const bash = execPath === '' ? '' : join(resolve(execPath), '..', '..', '..', 'bin', 'bash.exe')
+    if (bash === '' || !existsSync(bash))
+      throw new Error(
+        `起 .sh 要 Git for Windows 的 bash，没找到（git --exec-path：${execPath || '读不到'}）`,
+      )
+    return [bash, command, ...rest]
+  }
+  return argv
 }
 
 function cpuMeter() {

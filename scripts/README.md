@@ -85,6 +85,13 @@
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
 实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
 `with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
+命令不经 shell 执行。Windows 上 Node 直接起不了 `pnpm` 与 `.sh` 脚本，所以脚本换两种起法，其余命令照原样起：
+
+- 命令是 `pnpm`（或 `pnpm.cmd`）时，脚本用当前 Node 运行 `PATH` 中 `pnpm.cmd` 旁的 `node_modules/pnpm/bin/pnpm.cjs`。
+- 命令以 `.sh` 结尾时，脚本经 Git for Windows 的 bash 运行它。bash 按 `git --exec-path` 定位，不取 `PATH` 里的 `bash`。
+
+找不到 `pnpm.cjs` 或 bash 时，脚本在标准错误写明原因，以 127 退出。所以 `scripts/with-test-slot.sh pnpm …` 在 Windows 上也能直接运行。
+dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这两种起法。
 
 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
 `pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
