@@ -90,6 +90,11 @@
         "why": "dev-flow 的 integration-boundaries.spec.ts 把 with-test-slot.mjs 复制进夹具并执行（预准入的构建一步经它起 turbo）"
       },
       {
+        "paths": ["tools/repo-toolchain/src/**", "tools/repo-toolchain/tests/fixtures/**"],
+        "members": ["tools/dev-flow", "tools/test-runner"],
+        "why": "dev-flow 的 dependency-report.spec.ts、repository-environment.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
+      },
+      {
         "paths": [
           "docs/engineering/github-delivery.json",
           ".github/ISSUE_TEMPLATE/work-item.md",
