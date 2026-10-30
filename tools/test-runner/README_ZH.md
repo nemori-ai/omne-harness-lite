@@ -26,7 +26,7 @@ node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--ad
 **检查步骤图。**`check` 命令是 `pnpm run check` 的正文：步骤表在 `src/testing/check-steps.ts`，运行器在 `src/testing/check-graph.ts`。
 
 - 每一步只声明先于它完成的步骤，没有依赖的同时跑。
-- 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个；轻步骤（含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个。
+- 重步骤（构建、类型检查、成员测试、验收）自己按预算起多进程，一次只跑一个；轻步骤（含 pytest，pytest 自己按预算的四分之一起 xdist 进程）同时至多 `max(2, 核数 ÷ 3)` 个。
 - 一步失败：不再起新步骤，正在跑的整棵进程树终止，退出码取第一个失败的那一步。`--keep-going` 时其余照跑，依赖失败步骤的不启动。
 - 产物：每步的输出落 `tmp/check-run/<步骤>.log`（名字里的 `:` 换成 `-`，例如 `check-docs.log`）；结束时写逐步耗时表 `tmp/check-run/steps.tsv`，并打印实际走过的关键路径。
 - 准入模式（`--admission` 或 `OMNE_ADMISSION=1`）另写准入日志，内容与位置归 [scripts/README.md](../../scripts/README.md#check-的步骤图)。步骤的含义与顺序也归那里。

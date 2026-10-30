@@ -154,6 +154,8 @@ export function pythonStep(root: string, file: PlanFile): number {
   }
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
+  // 与根脚本 test:python 一致：被检查的检出里没有 tooling 的 conftest 时，xdist 退回单进程。
+  process.env['PYTEST_XDIST_AUTO_NUM_WORKERS'] ??= '0'
   return runner === undefined
     ? spawnInherited(root, pnpmCommand().command, [
         ...pnpmCommand().args,
@@ -172,6 +174,10 @@ export function pythonStep(root: string, file: PlanFile): number {
         join(runner, 'pyproject.toml'),
         '--basetemp',
         join(root, 'tmp/test-runs'),
+        '-n',
+        'auto',
+        '--dist',
+        'worksteal',
         ...[
           'tools/spec-tools/tests',
           '.meta_harness/tooling/tests',
