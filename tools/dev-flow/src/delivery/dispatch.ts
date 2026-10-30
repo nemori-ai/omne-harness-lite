@@ -381,8 +381,8 @@ export function recordPosted(
 /**
  * Posts the dispatch comment for a checked plan. A plan that opens a new revision first writes
  * the revised card body and reads it back; nothing is posted when that fails. Then a
- * placeholder comment, then one edit
- * that makes it the formal dispatch whose binding names the comment's own URL. `onPosted`
+ * placeholder comment, then one edit that makes it the formal dispatch whose binding names
+ * the comment's own URL. `onPosted`
  * receives the formal dispatch right after the edit, before the readback, so the caller keeps
  * the URL and binding even when the readback fails. A failure after the placeholder exists
  * names its URL; the tool does not retry or delete.
