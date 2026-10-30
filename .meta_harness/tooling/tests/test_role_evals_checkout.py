@@ -68,7 +68,7 @@ RULES = "import pathlib, sys\nif 'infra' in pathlib.Path('member/src/mod.ts').re
 def write(root: Path, files: dict[str, str]) -> None:
     for relative, text in files.items():
         (root / relative).parent.mkdir(parents=True, exist_ok=True)
-        (root / relative).write_text(text, encoding="utf-8")
+        (root / relative).write_text(text, encoding="utf-8", newline="\n")   # LF on every platform, as the fixtures assume
 
 
 def checkout_workspace(base: str, counter: Path, **over: Any) -> dict[str, Any]:
