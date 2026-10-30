@@ -26,6 +26,8 @@ def test_readme_documents_the_reconciler_and_source_checker_commands():
 @pytest.mark.parametrize("script", documented_scripts())
 def test_documented_uv_run_command_answers_help(script):
     env = {key: value for key, value in os.environ.items() if key != "UV_DEFAULT_INDEX"}
+    # 帮助文字含中文；PYTHONUTF8=0 时子进程按系统代码页输出，这里按 UTF-8 读会解码失败。
+    env["PYTHONIOENCODING"] = "utf-8"
     command = shlex.split(f"uv run --locked python {script} --help")
     result = subprocess.run(command, cwd=REPOSITORY, env=env, capture_output=True, text=True,
                             encoding="utf-8", timeout=300)
