@@ -223,7 +223,7 @@
 
 `ActionAdmission` 是 Agent 契约的一个消费端口，判断某个 Model 或 Tool 动作能否发起（见[整批判断屏障与动作准入](../../agent/agent-contract/SPEC.md#整批判断屏障与动作准入)）。`permissions` 是按需要名的读取列表。`tests/port-adapters.spec.ts` 中的 `ActionAdmission` 示例在 `permissions` 为空列表且 `decision` 为 null 时使用上述映射。`decision` 的答复为附言时，示例先按上述映射核对租户与资格。裁定不是 `allowed` 时返回映射后的结论，裁定为 `allowed` 时改为拒绝，原因为 `human-guidance`（AU-05）。其他输入在必要解释端口未安装时返回 `unavailable`，不得忽略输入后允许。该示例不实现结构化权限、选择、拒答与附言的解释、人工决定的绑定或完整 `invalid` 分类。正式适配器须接续 Agent 契约要求的错动作、错卡片答复校验，并满足实际工作资格守卫等消费前提。
 
-Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释，这些归里程碑 M2。
+Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释。前两项在里程碑 M2 接入；完整的模式解释不在 M2。
 
 ### 首批不覆盖的部分
 

@@ -14,7 +14,7 @@
 
 - [docs/](docs/index.md)：架构、流程、对象模型、公开接口、使用与定位、Cordis 集成
 - [src/](src/index.md)：`index.ts` 与 `cordis.ts`，现在只有模板标记
-- [tests/](tests/index.md)：两个入口测试与固定输入
+- [tests/](tests/index.md)：24 个运行测试、1 个类型测试与共用构造文件
 - [schema/](schema/index.md)：模板占位
 - [verification/](verification/index.md)：模型与证明，模板占位
 - [adr/](adr/index.md)：实现取舍，模板占位

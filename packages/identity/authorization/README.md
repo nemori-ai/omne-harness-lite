@@ -77,7 +77,7 @@ const decision = await check.check({
 | `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；Session 的成员资格示例映射，用 session-contract 的真实 `SessionAccessCheck` 形状与非耐久事务替身 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
-端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/session-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释，这些归里程碑 M2。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
+端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/session-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释。前两项在里程碑 M2 接入；完整的模式解释不在 M2。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 

@@ -112,9 +112,11 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
+    participant C2 as C2 Agent 推进协调器
     participant J as 同一 AgentJournal 提供者（session-adapters）
     participant I as 同日志解释（AD-02）
     participant Tx as 会话日志的解释提交
+    C2->>I: 交来新的 Agent 事件页，或 C5 转来的恢复项
     I->>I: 从快照取 readThrough
     I->>J: output.read 或 output.events，序号大于 readThrough
     J-->>I: 一页事件

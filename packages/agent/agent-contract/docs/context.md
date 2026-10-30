@@ -129,7 +129,7 @@ sequenceDiagram
   A->>J: read and adopt the received result
   A->>A: finish every action judgment and human decision
   A->>J: commit whole-batch barrier and original intents
-  A->>T: admit allowed actions with current guards
+  A->>T: ToolRuntime.invoke for each allowed action with current guards
   T-->>A: confirmed background placeholder, when a call moves to the background
   T->>R: push each result version
   R->>J: commit received entry, full material and consumption binding together

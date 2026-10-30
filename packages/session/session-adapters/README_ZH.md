@@ -68,7 +68,7 @@ export const inject = {
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-现有的两个测试只核对模板入口，见 [tests/](tests/README.md)。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未覆盖。结构检查通过不证明行为。
+本包有 24 个运行测试与 1 个类型测试，见 [tests/](tests/README.md)。其中两个运行测试核对根入口与 `./cordis` 没有导出，其余 22 个运行测试检查 `./testing` 的内存提供者。[SPEC](SPEC.md#组合与验证) 的持续验证义务 VA-01 至 VA-19 尚未逐条对应到测试。结构检查通过不证明行为。
 
 ## 维护
 
@@ -101,4 +101,4 @@ resources/                模板占位
 acceptance/               模板占位，fixtures/ 同样
 ```
 
-每个目录有 README.md 说明职责，有 index.md 导航。`docs/` 之外的这些文件仍是模板占位，不陈述本包事实。阅读路径见 [index.md](index.md)。
+每个目录有 README.md 说明职责与本包现状，有 index.md 导航。`schema/`、`verification/`、`adr/`、`examples/`、`resources/` 与 `acceptance/` 现在没有本包资源。阅读路径见 [index.md](index.md)。

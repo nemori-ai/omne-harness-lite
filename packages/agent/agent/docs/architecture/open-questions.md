@@ -59,7 +59,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 | 生产者 | 现状 | 外部协调者一侧的登记名 |
 | --- | --- | --- |
 | Model | Journal 没有记录 Model ACK 的公开路径。Agent 不执行 Model 的 ACK，也不为此新增 ACK 回调、条目种类或端口 | MODEL-ACK-ARRIVAL |
-| Tool | Tool 结果已采用推送路径，Tool 解除回执怎样进入 Journal 未定。SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)、[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2 条，机制页的[交付责任解除的两条路径](mechanisms.md#交付责任解除的两条路径与保管者更替)，以及上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项，仍按 recordResult 写 Tool 结果的保管与解除，与推送路径不一致 | JC-RELEASE-TOOL-PATH |
+| Tool | Tool 结果已采用推送路径，Tool 解除回执怎样进入 Journal 未定。SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)、[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2 条，机制页的[交付责任解除的两条路径](mechanisms.md#交付责任解除的两条路径与保管者更替)，上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项，对象模型页[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)表的 ResultResponsibility 行，本目录机制页[恢复切点表](mechanisms.md#恢复切点表)的「Tool 确认前后」行，以及 [README_ZH](../../README_ZH.md#临时做法) 与 [README](../../README.md#temporary-choices) 临时做法一节的 M04-5 条，仍按 recordResult 写 Tool 结果的保管与解除，与推送路径不一致 | JC-RELEASE-TOOL-PATH |
 
 关闭条件是拥有者写明 Model 与 Tool 的解除回执怎样进入 Journal，并同步上表列出的 Agent 正文。
 

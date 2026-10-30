@@ -329,7 +329,7 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 
 收到 received 与 saved 不能推导 ACK。Model 确认路径是 Session [JC-Release](../session-contract/SPEC.md#jc-release) 的 MODEL-ACK-ARRIVAL 未决义务。冻结 Agent recordResult 排除 Model 采用，接收共同提交不执行 ACK。因此没有已采用的 ACK 记录可读时保持 pending，暂停该 confirmed 投影。不得发明 JournalEntry、Agent 端口或直接 Model ACK 路径。
 
-Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 saved。Tool 原生产者确认怎样进入同一日志、Tool 一侧 ProducerFact.release 由谁写入，是 Session 的具名偏离 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。日志中已有该确认时，本插件按 load().results 读取并投影。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
+Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 saved。Tool 原生产者确认怎样进入同一日志，是 Session 的具名偏离 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。日志中已有该确认时，本插件按 load().results 读取并投影。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
 
 <a id="ad-06"></a>
 

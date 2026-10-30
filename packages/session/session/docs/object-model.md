@@ -60,9 +60,9 @@
 | 参加调用 | 提交方事务里的一次参加 | 提交方交来的 `Participation` 与载荷；`decide` 的结局 | 提交方调用参加者时创建；参加者响应后消失。提交方提交成功并回传确认后才发通知 |
 | 受理拓展点运行 | 一次 `accept` 之前的槽链运行 | 原提交、各槽的输出与结论 | C1 开始时创建；结论作为材料交给 `accept` 后消失。重复进入时重新运行 |
 
-### 持久游标与内存游标
+### 持久解释进度与内存解释进度
 
-每个执行的持久游标是解释进度 `ExecutionRef.readThrough`。它是契约对象的字段，由存储随解释提交与其后果一起保存（[RD-01](../SPEC.md#rd-01)、[EC-02](../../session-contract/SPEC.md#ec-02)）。本成员不另存游标。只推进内存游标的 `message` 与 `entry` 事件，其内存游标由执行读取循环的一方持有，读取循环在 session-adapters 的 AD-02。空闲与完成的裁定只信持久游标（[RD-04](../SPEC.md#rd-01)）。
+每个执行的持久解释进度是 `ExecutionRef.readThrough`。它是契约对象的字段，由存储随解释提交与其后果一起保存（[RD-01](../SPEC.md#rd-01)、[EC-02](../../session-contract/SPEC.md#ec-02)）。本成员不另存解释进度。`message` 与 `entry` 事件只推进内存解释进度。内存解释进度由读取循环持有，读取循环在 session-adapters 的 AD-02。空闲与完成的裁定只信持久解释进度（[RD-04](../SPEC.md#rd-01)）。
 
 ```mermaid
 classDiagram

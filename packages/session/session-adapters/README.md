@@ -68,7 +68,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/session-adapters
 ```
 
-The two current tests check only the template entries. See [tests/](tests/README.md). The continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) are not covered yet. A passing structure check does not prove behavior.
+The package has 24 runtime tests and 1 type test. See [tests/](tests/README.md). Two runtime tests check that the root entry and `./cordis` have no exports. The other 22 runtime tests check the memory provider of `./testing`. No test is mapped to the continuous obligations VA-01 to VA-19 in the [SPEC](SPEC.md#组合与验证) yet. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -101,4 +101,4 @@ resources/                Template placeholder
 acceptance/               Template placeholder, fixtures/ too
 ```
 
-Each directory has README.md for its role and index.md for navigation. Outside `docs/`, these files are still template placeholders and state no package facts. See [index.md](index.md) for reading paths.
+Each directory has README.md for its role and its current package facts, and index.md for navigation. `schema/`, `verification/`, `adr/`, `examples/`, `resources/`, and `acceptance/` hold no package resources yet. See [index.md](index.md) for reading paths.
