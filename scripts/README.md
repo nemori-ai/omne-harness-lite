@@ -28,7 +28,7 @@
 准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[集成规则](../docs/engineering/integration.md#检查责任)）：
 除了构建与类型检查不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。
 日志旁边同名的 `.json` 是同一次运行的机读记录（头、树哈希、模式、每步的退出码、快速失败的步、缓存开关），与日志是同一份事实的两种写法：
-`check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志；形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。日志是本节的唯一源，别处只链接过来：
+`check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志。JSON 记录的形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。文本日志的格式以本节为唯一源，别处只链接过来：
 
 - 首行：命令、head（有未提交改动时注明）、基线与它的来源、核数、开始时刻。
 - 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。

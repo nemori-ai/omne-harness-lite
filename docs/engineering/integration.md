@@ -517,7 +517,7 @@ dev-flow 对平台的写入限于下列范围：
 
 证据写成「H1 上的整次准入（失败于步骤 X）＋ H2 上的增量准入（基线 H1）」，并附 H1..H2 的差异。
 
-`pnpm run admission --resume-from <H1>` 一次跑完上面这些，与 `pnpm run check --admission --resume-from <H1>` 相同。`--resume-from` 只在准入模式下可用。它读 H1 那次准入写下的运行记录核对三项前提，不满足就以 2 退出；碰到全局路径时在 H2 上按 H1 那次的范围整次重跑并写明；否则按上面四项选步骤与成员，证据写进准入日志。H1 只按影响面运行时，第 1 至 3 项也按影响面运行，H1 记录的基线合并点必须与本次相同。接续运行的记录不能再作 H1。用法见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。H1 上的准入没有留下记录时（例如在写记录之前的版本上跑的），按下面手工组合。
+`pnpm run admission --resume-from <H1>` 一次跑完上面这些，与 `pnpm run check --admission --resume-from <H1>` 相同。`--resume-from` 只在准入模式下可用。命令读 H1 那次准入写下的运行记录，核对前提 1、2 和记录条件，不满足就以 2 退出。H1..H2 碰到全局路径时，命令按前提 3 在 H2 上整次重跑，范围同 H1 那次，并写明原因。否则命令按上面四项选步骤与成员，证据写进准入日志。H1 只按影响面运行时，第 1 至 3 项也按影响面运行，H1 记录的基线合并点必须与本次相同。接续运行的记录不能再作 H1。记录条件与用法见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。H1 上的准入没有留下记录时，按下面手工组合。
 
 用 `node --experimental-strip-types tools/test-runner/src/testing/cli.ts` 的三个子命令手工组合上面的步骤，运行时带 `OMNE_ADMISSION=1`：
 
@@ -529,7 +529,7 @@ dev-flow 对平台的写入限于下列范围：
 
 波末收口要在 F 上做全量准入，即 `OMNE_ADMISSION=1 FULL=1 pnpm run check`，见[负责人状态](map-reduce-states.md#阶段内的核对)的 VERIFY_WAVE 第 1 步。F 的树与一个已通过全量准入的头的树相同时，那次准入就是 F 上的全量准入，不重跑。
 
-- 比对方法：对两个提交分别运行 `git rev-parse <提交>^{tree}`。两个输出相同，两棵树就相同。核对命令：`node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F>`，它在本树 `tmp/admission/*.json` 里找树与 F 相同、干净且每步都通过的全量准入记录，接受时写明两个提交与树哈希（退出 0），否则逐项列出拒绝原因（退出 1）。
+- 比对方法：对两个提交分别运行 `git rev-parse <提交>^{tree}`。两个输出相同，两棵树就相同。核对命令：`node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F>`，它在本树 `tmp/admission/*.json` 里找树与 F 相同、干净且每步都通过的全量准入记录：带 `FULL=1` 的整次准入记录，或 H1 带了 `FULL=1` 的接续记录。接受时写明两个提交与树哈希（退出 0），否则逐项列出拒绝原因（退出 1）。
 - 准入证据写明两个提交与同一个树哈希。
 - 那次准入可以是一次整次运行，也可以是按[增量准入](#增量准入)组成的证据。用增量准入的证据复用时，H1 上的那次整次运行必须带 `FULL=1`。H1 上只按影响面运行时，组成的证据不是全量准入，不能按本条复用。
 - 本条只替代全量准入。里程碑联调命令照常在 F 上运行。
