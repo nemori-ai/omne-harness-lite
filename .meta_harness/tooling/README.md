@@ -80,6 +80,25 @@ uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_
 rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
 
+## 保存只读子代理的交回
+
+design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件，不再临时写 `jq`：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <子代理记录.jsonl> --out <报告.md>
+```
+
+Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会话>/subagents/agent-<id>.jsonl`。`<项目>` 是检出路径的转写（例如 `D--dev-repos-omne-harness-lite`），`<会话>` 是派发它的会话 ID；`agent-<id>.meta.json` 在同一目录。
+
+报告正文按下面的次序取：
+
+1. 记录里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
+2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。2026-10-30 在本机读到的 Claude Code 子代理记录都是这种形状，没有 `SubagentHandback` 调用。
+
+找不到报告时（记录停在工具调用上、被中断、以宿主错误 `stop_sequence` 结束、报告为空白）以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。仍在写入的记录可能以半行结尾，脚本跳过读不出的行。
+
+脚本只证明「记录里这段文字就是交回的报告」。报告内容对不对，仍由评审流程判断。
+
 ## Agent 编译
 
 生成器从一个 `agents/` 源根按固定 host_layout 编译各宿主目录，源里有 `cloud/<host>/` 时一并编译该宿主的三份 Cloud Agent 运行时文件，并提供独立的相对软链接工具。
