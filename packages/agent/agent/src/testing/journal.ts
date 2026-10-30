@@ -1365,9 +1365,10 @@ export function createMemoryAgentJournal<P>(
    * The judgment of the responsibilities at the terminal commit (SPEC "条件终结" result table), read
    * from the current list `items`, rebuilt with the same function prepareFinish used.
    *
-   * - author route: the first pending item in the fixed order inputs, controls, operations,
-   *   passages, custody is blocked, with the source of that item; a route without its proof counts
-   *   as a pending of passages. Without a pending, an unknown item is unavailable.
+   * - author route: a cancelled candidate that did not migrate is blocked with passages at the
+   *   route record. Otherwise the first pending item in the fixed order inputs, controls,
+   *   operations, passages, custody is blocked, with the source of that item; a route without its
+   *   proof counts as a pending of passages. Without a pending, an unknown item is unavailable.
    * - cancellation route: no judgment record is blocked with passages; a judgment whose criteria
    *   (the items with their dispositions and the participant conditions) differ from the current
    *   closure is changed; a blocked judgment is blocked with the first of its reasons; an unknown
@@ -1383,8 +1384,12 @@ export function createMemoryAgentJournal<P>(
       value: { kind: 'blocked', reason, source: copy(source) },
     })
     const route = currentRoute(execution.finishing)
-    if (route === undefined) return { kind: 'changed' }
+    if (route === undefined)
+      throw new Error('memory Journal defect: the current candidate has no current route')
     if (route.kind === 'author') {
+      // A cancelled candidate on an author route did not migrate: it does not end under the cancel
+      // without the trusted judgment of a cancellation route.
+      if (candidate.conclusion.kind === 'cancelled') return blocked('passages', route.record)
       const pending = firstPending(items)
       const pendingCategory = pending === undefined ? undefined : categoryOf(pending)
       const proofMissing = route.beforeTerminal === null
@@ -1467,8 +1472,9 @@ export function createMemoryAgentJournal<P>(
   /**
    * The checks of a cancel authorization shared by prepareFinish, tryFinish and the candidate,
    * migration and judgment variants (SPEC "条件终结", "commitSettlement 的变体" 3): the control must
-   * be saved with its intent reached and the caller must hold `settle` (`denied` otherwise); the
-   * source must be the source of that control (`invalid` otherwise).
+   * be saved with its intent reached (`denied` for `action` otherwise) and the caller must hold
+   * `settle` (`denied` for `settle` otherwise); the source must be the source of that control
+   * (`invalid` otherwise).
    */
   function cancelAuthorizationFailure(
     execution: Execution,
@@ -1478,7 +1484,7 @@ export function createMemoryAgentJournal<P>(
   ): Failure | undefined {
     const control = effectiveCancel(execution, authorization.control)
     if (control === undefined) return denied(action)
-    if (!qualified(input, 'settle')) return denied(action)
+    if (!qualified(input, 'settle')) return denied('settle')
     if (!sameEvidence(control.stages.accepted.source, authorization.source))
       return invalid('authorization.source', 'not the source of the saved control')
     return undefined
@@ -1793,6 +1799,13 @@ export function createMemoryAgentJournal<P>(
     })
     switch (input.kind) {
       case 'establish-cancellation': {
+        // A predecessor that was never a candidate of this execution names the wrong candidate;
+        // one that is no longer current is a candidate that changed (SPEC "commitSettlement 的变体" 4).
+        if (
+          input.predecessor !== null &&
+          !finishing.candidates.some(item => item.candidate === input.predecessor)
+        )
+          return answer(fail(invalid('predecessor', 'not a candidate of this execution')))
         if ((current?.candidate ?? null) !== input.predecessor)
           return answer(fail({ kind: 'changed' }))
         // A cancelled candidate is never superseded by a new one: on an author route it migrates,
@@ -3224,15 +3237,13 @@ export function createMemoryAgentJournal<P>(
         const authorization = input.authorization
         const finishing = execution.finishing
         const named = finishing.candidates.find(item => item.candidate === input.candidate)
-        // The judgment order of rulings-gate-S23 section 3: stale-advance, terminal, the kind of
-        // the authorization against the candidate and the cancel checks (denied, invalid), not
-        // settling (changed), expected (changed), an unknown candidate (invalid), an advancement
-        // under an effective cancel (changed).
+        // The judgment order of rulings-gate-S23 section 3: stale-advance, terminal, the cancel
+        // checks (denied, invalid), the kind of the authorization against the named candidate
+        // (denied; skipped when it names none), an advancement under an effective cancel
+        // (changed), not settling (changed), expected (changed), an unknown candidate (invalid).
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        if (kindMismatch(named ?? currentCandidate(finishing), authorization))
-          return answer(fail(denied('prepareFinish')))
         if (authorization.kind === 'cancel') {
           const refusal = cancelAuthorizationFailure(
             execution,
@@ -3242,6 +3253,9 @@ export function createMemoryAgentJournal<P>(
           )
           if (refusal !== undefined) return answer(fail(refusal))
         }
+        if (kindMismatch(named, authorization)) return answer(fail(denied('prepareFinish')))
+        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+          return answer(fail({ kind: 'changed' }))
         if (execution.state.kind !== 'settling') return answer(fail({ kind: 'changed' }))
         if (input.expected !== revisionOf(execution.revision))
           return answer(fail({ kind: 'changed' }))
@@ -3249,8 +3263,6 @@ export function createMemoryAgentJournal<P>(
         if (candidate === undefined)
           return answer(fail(invalid('candidate', 'not a candidate of this execution')))
         if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
-          return answer(fail({ kind: 'changed' }))
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'obligations', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -3299,8 +3311,8 @@ export function createMemoryAgentJournal<P>(
         const finishing = execution.finishing
         const candidate = currentCandidate(finishing)
         // The judgment order of rulings-gate-S23 section 3: stale-advance, terminal, the cancel
-        // checks (denied, invalid) or an advancement under an effective cancel (changed), the kind
-        // of the authorization against the candidate (denied), not settling (changed), expected
+        // checks (denied, invalid), the kind of the authorization against the candidate (denied),
+        // an advancement under an effective cancel (changed), not settling (changed), expected
         // (changed), the list (invalid), the intent and the projection (changed), then the
         // responsibilities of the route.
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
@@ -3311,8 +3323,10 @@ export function createMemoryAgentJournal<P>(
             cancelAuthorizationFailure(execution, input, authorization, 'tryFinish') ??
             routeControlFailure(currentRoute(finishing), authorization)
           if (refusal !== undefined) return answer(fail(refusal))
-        } else if (effectiveCancels(execution).length > 0) return changed
+        }
         if (kindMismatch(candidate, authorization)) return answer(fail(denied('tryFinish')))
+        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+          return changed
         if (execution.state.kind !== 'settling') return changed
         if (input.expected !== revisionOf(execution.revision)) return changed
         const intent = intentOf(finishing)

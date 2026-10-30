@@ -21,9 +21,11 @@ import {
   acceptedInput,
   access,
   afterTerminalPassage,
+  cancelAuthorization,
   checkpoint,
   commitAt,
   consumption,
+  establishCancellation,
   evidence,
   execution,
   failure,
@@ -35,6 +37,7 @@ import {
   prepareFinish,
   proveBeforeTerminal,
   instance,
+  judgeCancellation,
   load,
   modelCall,
   newInput,
@@ -1297,6 +1300,54 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
       ).kind,
     ).toBe('committed')
     expect((await load(journal.port, execution())).state.kind).toBe('ended')
+  })
+
+  it('coordinated: a blocked participant condition makes the judgment blocked and the cancel tryFinish blocked; once the condition is ready again the judgment no longer applies and tryFinish is changed', async () => {
+    const journal = coordinated()
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const opened = await attachmentOf(journal.port)
+    ok(await takeInputs(journal.port, opened))
+    ok(await journal.port.control(cancelControl(opened.execution)))
+    ok(await journal.port.recordControl(intentReached(opened.execution)))
+    journal.participantCondition({
+      kind: 'blocked',
+      category: 'inputs',
+      source: evidence('participant/blocked'),
+    })
+    ok(await establishCancellation(journal.port, opened, operation('cancel')))
+    const judged = ok(await judgeCancellation(journal.port, opened, operation('cancel')))
+    expect(judged.kind === 'judge-cancellation' ? judged.judgment.decision.kind : '').toBe(
+      'blocked',
+    )
+    const judgedAt = await load(journal.port, opened.execution)
+    ok(
+      await prepareFinish(
+        journal.port,
+        opened,
+        'participant',
+        cancelAuthorization(judgedAt, operation('cancel')),
+      ),
+    )
+    const issued = await load(journal.port, opened.execution)
+    const ending = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('end-blocked'),
+      authorization: cancelAuthorization(issued, operation('cancel')),
+      expected: issued.revision,
+      intent: intentOf(issued),
+    }
+    expect(ok(await journal.port.tryFinish(ending)).kind).toBe('blocked')
+    journal.participantCondition({ kind: 'ready' })
+    expect(
+      ok(await journal.port.tryFinish({ ...ending, operation: operation('end-ready') })).kind,
+    ).toBe('changed')
+    expect((await load(journal.port, opened.execution)).state.kind).toBe('settling')
   })
 })
 

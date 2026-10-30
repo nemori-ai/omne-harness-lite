@@ -410,24 +410,34 @@ export function buildObligations(
   }
   // calls: a call with a result is settled and the custody is the result item's; a final failure
   // of the producer settles it on that basis; an association keeps it held (accepted) or unknown
-  // (commit-unknown); a call with none of these is unknown (SPEC "终结责任清单" call row).
+  // (commit-unknown); a call with none of these is unknown (SPEC "终结责任清单" call row). Of several
+  // associations of one intent the accepted one counts, else the last: a later undecided record
+  // does not take a known one back.
   for (const effect of source.effects) {
     const key = effect.action
     const sourceEvidence = effect.pending.fixed
-    const association = source.finishing.toolAssociations.find(
+    const associations = source.finishing.toolAssociations.filter(
       item => item.intent.action === effect.action,
     )
+    const association =
+      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
     const result = source.results.find(item => item.consumption === effect.pending.consumption)
     const received = source.entries.find(
       entry => entry.kind === 'received' && entry.consumption === effect.pending.consumption,
     )
-    const failure = candidate.failure
+    // The final failure of the producer is read from every candidate, not only the current one: a
+    // cancelled candidate that replaced the no-reply failure does not undo it.
+    const call =
+      effect.pending.kind === 'model' ? callOfModel(effect.pending.reference, source) : null
     const finalFailure =
-      failure?.kind === 'no-reply' && effect.pending.kind === 'model'
-        ? callOfModel(effect.pending.reference, source) === failure.call
-          ? failure.source
-          : null
-        : null
+      call === null
+        ? null
+        : (source.finishing.candidates.find(
+            item =>
+              item.conclusion.kind === 'fail' &&
+              item.failure?.kind === 'no-reply' &&
+              item.failure.call === call,
+          )?.failure?.source ?? null)
     const intent =
       source.finishing.effectOperations.get(effect.action) ??
       defect(`the effect ${effect.action} has no establishing operation`)
@@ -468,6 +478,8 @@ export function buildObligations(
     const applied = passage.progress.kind === 'applied'
     const superseded = cancelled && passage.position === 'before_terminal'
     const route = routeOfPassage(source.finishing, candidate, superseded)
+    // On its own author route (before or after a migration) the passage is the candidate's own.
+    const own = route?.kind === 'author' && route.candidate === candidate.candidate
     const lookup: RecoveryContinuation = {
       kind: 'card-lookup',
       request: ofRecord(passage.input),
@@ -486,18 +498,24 @@ export function buildObligations(
           ? held(passage.effective, lookup)
           : pending('passage-custody', lookup),
       passage,
-      candidate: superseded
-        ? (supersededCandidate(source.finishing, candidate) ?? candidate.candidate)
-        : candidate.candidate,
+      candidate:
+        superseded && !own
+          ? (supersededCandidate(source.finishing, candidate) ??
+            defect(`the cancelled candidate ${candidate.candidate} superseded no candidate`))
+          : candidate.candidate,
       route: route?.record ?? defect(`the passage ${key} belongs to no route`),
       implementation: passage.implementation,
       superseded,
     })
     if (passage.progress.kind !== 'asked') continue
     for (const round of passage.progress.rounds) {
-      const reconciled = source.finishing.cardReconciliations.find(
+      // Of several reconciliations of one round the known result counts, else the last.
+      const reconciliations = source.finishing.cardReconciliations.filter(
         item => item.passage === passage.id && item.round === round.round,
       )
+      const reconciled =
+        reconciliations.find(item => item.obligation.disposition.kind !== 'unknown') ??
+        reconciliations.at(-1)
       const roundKey = `${passage.id}/${round.round}`
       const roundEvidence = fixed(`card-round/${roundKey}`)
       const roundLookup: RecoveryContinuation = {
@@ -722,12 +740,17 @@ function supersededCandidate(
   return records.supersessions.find(link => link.to === candidate.candidate)?.from
 }
 
-/** The route a passage belongs to: the superseded author route of a cancelled candidate, else the current one. */
+/**
+ * The route a passage belongs to: the author route a migrated candidate left, the superseded author
+ * route of a cancelled candidate, else the current one.
+ */
 function routeOfPassage(
   records: FinishingRecords,
   candidate: FinishCandidate,
   superseded: boolean,
 ): FinishRoute | undefined {
+  const migration = records.migrations.find(item => item.candidate === candidate.candidate)
+  if (migration !== undefined) return migration.from.route
   if (superseded) {
     const link = records.supersessions.find(item => item.to === candidate.candidate)
     if (link !== undefined) return link.route
