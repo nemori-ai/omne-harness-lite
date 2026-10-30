@@ -166,6 +166,17 @@ export type ExtensionReplayBinding = Readonly<{
   }>[]
   control: 'valid' | 'replayInconsistent' | 'unavailable'
 }>
+/**
+ * The non-final result of an invocation whose physical start or end the host cannot tell
+ * (extensions.md, "调用协议"): the host handed control back, the Passage stays requested or asked,
+ * and `recovery` binds the original execution, Passage, exact implementation, mode and the host's
+ * execution record for the next lawful replay. `started` only proves real entry.
+ */
+export type InvocationUnresolved = Readonly<{
+  kind: 'invocationUnresolved'
+  start: Readonly<{ kind: 'unknown' }> | Readonly<{ kind: 'started'; evidence: DurableEvidence }>
+  recovery: DurableEvidence
+}>
 export type ExtensionInvocationResult =
   | Readonly<{ kind: 'output'; value: unknown }>
   | Readonly<{
@@ -176,6 +187,7 @@ export type ExtensionInvocationResult =
   | Readonly<{ kind: 'notStartedUnavailable' }>
   | Readonly<{ kind: 'replayInconsistent' }>
   | Readonly<{ kind: 'controlUnavailable' }>
+  | InvocationUnresolved
 export interface LoopExtensionImplementation {
   readonly implementation: Adoption
   invoke(
