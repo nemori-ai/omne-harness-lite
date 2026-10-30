@@ -104,12 +104,90 @@ function judgeMessageMember(members: OwnMembers, name: string): Judged<Message> 
   return 'ok' in judged ? succeed(judged.ok) : refusal(name, 'type')
 }
 
-/** A plain object whose inner shape another owner judges (a checkpoint, a result, a transition). */
+/**
+ * A plain object whose inner shape another owner judges (a checkpoint, a result, a transition),
+ * as a frozen copy. Its inner shape is not judged here, but every value inside it must be plain
+ * data (see `plainData`), so the judgment stays total and never runs the caller's code.
+ */
 function plainMember(members: OwnMembers, name: string): Judged<object> {
   if (!Object.hasOwn(members, name)) return refusal(name, 'missing')
-  const inner = ownMembers(members[name])
-  if (inner === undefined) return refusal(name, 'type')
-  return succeed(members[name] as object)
+  const copied = plainData(members[name], name, [])
+  if ('failure' in copied) return copied
+  const value = copied.ok
+  if (typeof value !== 'object' || value === null || Array.isArray(value))
+    return refusal(name, 'type')
+  return succeed(value)
+}
+
+/**
+ * A frozen copy of a plain data value, judged member by member before anything is copied: a
+ * string, number, boolean, bigint, `undefined` or `null`, an array whose elements are plain data,
+ * or a plain object whose own data members are plain data. Anything else is refused with `type`
+ * at the path of the value: a function, a symbol, an accessor, a symbol key, a hole or an extra
+ * member of an array, another prototype, a value that contains itself, and a value whose
+ * reflection throws. An accessor is refused, never read.
+ */
+function plainData(value: unknown, path: string, ancestors: readonly object[]): Judged<unknown> {
+  switch (typeof value) {
+    case 'string':
+    case 'number':
+    case 'boolean':
+    case 'bigint':
+    case 'undefined':
+      return succeed(value)
+    case 'object':
+      break
+    default:
+      return refusal(path, 'type')
+  }
+  if (value === null) return succeed(null)
+  if (ancestors.includes(value)) return refusal(path, 'type')
+  const within = [...ancestors, value]
+  const elements = arrayElements(value)
+  if (elements !== undefined) {
+    if (elements === null) return refusal(path, 'type')
+    const copied: unknown[] = []
+    for (const [index, element] of elements.entries()) {
+      const inner = plainData(element, `${path}.${index}`, within)
+      if ('failure' in inner) return inner
+      copied.push(inner.ok)
+    }
+    return succeed(Object.freeze(copied))
+  }
+  const members = ownMembers(value)
+  if (members === undefined) return refusal(path, 'type')
+  const copied: [string, unknown][] = []
+  for (const [key, member] of Object.entries(members)) {
+    const inner = plainData(member, `${path}.${key}`, within)
+    if ('failure' in inner) return inner
+    copied.push([key, inner.ok])
+  }
+  // `fromEntries` defines each member, so a member named `__proto__` stays a member.
+  return succeed(Object.freeze(Object.fromEntries(copied)))
+}
+
+/**
+ * The elements of an array with the array prototype, read as data members; `null` for such an
+ * array with an accessor, a hole, an extra member or a reflection that throws; `undefined` for a
+ * value that is not such an array.
+ */
+function arrayElements(value: object): readonly unknown[] | null | undefined {
+  try {
+    if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype) return undefined
+    const length: unknown = Object.getOwnPropertyDescriptor(value, 'length')?.value
+    if (typeof length !== 'number') return null
+    const keys = Reflect.ownKeys(value)
+    if (keys.length !== length + 1) return null
+    const elements: unknown[] = []
+    for (let index = 0; index < length; index += 1) {
+      const description = Object.getOwnPropertyDescriptor(value, String(index))
+      if (description === undefined || !('value' in description)) return null
+      elements.push(description.value)
+    }
+    return elements
+  } catch {
+    return null
+  }
 }
 
 const EXECUTION_REFERENCE_FIELDS = ['kind', 'execution', 'operation'] as const
@@ -199,7 +277,15 @@ function judgeInternalSource(value: unknown): Judged<InternalSource> {
       if ('failure' in result) return result
       const extra = closed(members, ['kind', 'step', 'action', 'call', 'result'])
       if (extra !== undefined) return fail(extra)
-      return succeed(copy(value) as InternalSource)
+      return succeed(
+        Object.freeze({
+          kind: 'model-reply',
+          step: step.ok,
+          action: action.ok,
+          call: call.ok,
+          result: result.ok,
+        }) as InternalSource,
+      )
     }
     case 'tool-result': {
       const action = identityOf(members, 'action', decodeActionId)
@@ -210,7 +296,14 @@ function judgeInternalSource(value: unknown): Judged<InternalSource> {
       if ('failure' in result) return result
       const extra = closed(members, ['kind', 'action', 'call', 'result'])
       if (extra !== undefined) return fail(extra)
-      return succeed(copy(value) as InternalSource)
+      return succeed(
+        Object.freeze({
+          kind: 'tool-result',
+          action: action.ok,
+          call: call.ok,
+          result: result.ok,
+        }) as InternalSource,
+      )
     }
     case 'action-denied': {
       const action = identityOf(members, 'action', decodeActionId)
@@ -219,21 +312,29 @@ function judgeInternalSource(value: unknown): Judged<InternalSource> {
       if ('failure' in evidence) return evidence
       const extra = closed(members, ['kind', 'action', 'evidence'])
       if (extra !== undefined) return fail(extra)
-      return succeed(copy(value) as InternalSource)
+      return succeed(
+        Object.freeze({
+          kind: 'action-denied',
+          action: action.ok,
+          evidence: evidence.ok,
+        }) as InternalSource,
+      )
     }
     case 'reminder': {
       const passage = identityOf(members, 'passage', decodePassageId)
       if ('failure' in passage) return passage
       const extra = closed(members, ['kind', 'passage'])
       if (extra !== undefined) return fail(extra)
-      return succeed(copy(value) as InternalSource)
+      return succeed(Object.freeze({ kind: 'reminder', passage: passage.ok }) as InternalSource)
     }
     case 'context-transition': {
       const transition = plainMember(members, 'transition')
       if ('failure' in transition) return transition
       const extra = closed(members, ['kind', 'transition'])
       if (extra !== undefined) return fail(extra)
-      return succeed(copy(value) as InternalSource)
+      return succeed(
+        Object.freeze({ kind: 'context-transition', transition: transition.ok }) as InternalSource,
+      )
     }
   }
 }
@@ -346,7 +447,7 @@ function judgeInputEntry(value: unknown): Judged<InputEntry> {
         operation: operation.ok,
         execution: execution.ok,
         initial: initial.ok,
-        checkpoint: copy(checkpoint.ok) as InvokeEntry['checkpoint'],
+        checkpoint: checkpoint.ok as InvokeEntry['checkpoint'],
       }),
     )
   }
@@ -513,17 +614,4 @@ export function judgeInputOrigin(value: unknown): Judged<InputOrigin> {
   return succeed(
     Object.freeze({ kind: 'submit', executionBinding: executionBinding.ok, delivery: delivery.ok }),
   )
-}
-
-/** A frozen deep copy of a plain value whose inner shape another owner judges. */
-function copy<T>(value: T): T {
-  return deepFreeze(structuredClone(value))
-}
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null) {
-    for (const inner of Object.values(value)) deepFreeze(inner)
-    Object.freeze(value)
-  }
-  return value
 }
