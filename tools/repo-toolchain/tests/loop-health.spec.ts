@@ -96,25 +96,42 @@ describe('测试耗时', () => {
     expect(parseLedgerRun(tiered('medium'))).toBeUndefined()
   })
 
-  it('含缓存命中的账本不算全量运行，无命中或没有 meta.cache 的照旧', () => {
-    const withCache = (cache: unknown, exitCodes: number[]) => {
-      const base = ledger(null, '2026-10-03T10:00:00Z', 5, exitCodes)
-      return { ...base, meta: { ...base.meta, cache } }
-    }
-    const hit = { member: 'a', key: 'k', source: 's', tests: 3 }
-    const allHit = withCache({ mode: 'read-write', hits: [hit], written: [] }, [])
-    const someHit = withCache({ mode: 'read-write', hits: [hit], written: ['b'] }, [0])
-    const noHit = withCache({ mode: 'read-write', hits: [], written: ['b'] }, [0])
-    expect(parseLedgerRun(allHit)).toEqual({ kind: 'partial' })
-    expect(parseLedgerRun(someHit)).toEqual({ kind: 'partial' })
-    expect(parseLedgerRun(noHit)?.kind).toBe('full')
-    expect(parseLedgerRun(ledger(null, '2026-10-03T10:00:00Z', 600, [0]))?.kind).toBe('full')
+  const withCache = (cache: unknown, exitCodes: number[]) => {
+    const base = ledger(null, '2026-10-03T10:00:00Z', 5, exitCodes)
+    return { ...base, meta: { ...base.meta, cache } }
+  }
+  const hit = { member: 'a', key: 'k', source: 's', tests: 3 }
 
+  it('含命中、members 为空的账本不算全量', () => {
+    expect(parseLedgerRun(withCache({ mode: 'read-write', hits: [hit], written: [] }, []))).toEqual(
+      {
+        kind: 'partial',
+      },
+    )
+  })
+
+  it('含命中、members 有值的账本不算全量', () => {
+    expect(
+      parseLedgerRun(withCache({ mode: 'read-write', hits: [hit], written: ['b'] }, [0])),
+    ).toEqual({ kind: 'partial' })
+  })
+
+  it('无命中的全量账本照旧算全量', () => {
+    expect(
+      parseLedgerRun(withCache({ mode: 'read-write', hits: [], written: ['b'] }, [0]))?.kind,
+    ).toBe('full')
+  })
+
+  it('没有 meta.cache 的旧账本照旧算全量', () => {
+    expect(parseLedgerRun(ledger(null, '2026-10-03T10:00:00Z', 600, [0]))?.kind).toBe('full')
+  })
+
+  it('含命中的账本不进全量序列，计入不计的份数', () => {
     const read = testsBlock(
       [
-        { path: 'x', value: allHit },
-        { path: 'y', value: someHit },
-        { path: 'z', value: noHit },
+        { path: 'x', value: withCache({ hits: [hit] }, []) },
+        { path: 'y', value: withCache({ hits: [hit] }, [0]) },
+        { path: 'z', value: withCache({ hits: [] }, [0]) },
       ],
       10,
       'home',
@@ -132,7 +149,7 @@ describe('测试耗时', () => {
         10,
         'home',
       ),
-    ).toEqual(noData('home 下 1 份账本里没有全量运行（受影响范围 1 份、读不了 0 份）'))
+    ).toEqual(noData('home 下 1 份账本里没有全量运行（受影响范围或含缓存命中 1 份、读不了 0 份）'))
   })
 })
 

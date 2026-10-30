@@ -132,7 +132,7 @@ function commitsHtml(block: CommitsBlock): string {
 
 function testsHtml(block: TestsBlock): string {
   const skipped = [
-    block.partial === 0 ? '' : `受影响范围的运行 ${block.partial} 次不计`,
+    block.partial === 0 ? '' : `受影响范围或含缓存命中的运行 ${block.partial} 次不计`,
     block.unreadable.length === 0
       ? ''
       : `读不了的账本 ${block.unreadable.length} 份：${block.unreadable.join('、')}`,
@@ -147,7 +147,7 @@ function testsHtml(block: TestsBlock): string {
       group => `<div class="meta">${TIER_NAMES[group.tier]}</div>${sparkline(group.seconds, null)}`,
     )
   return (
-    `<div class="meta">最近 ${block.runs.length} 次全量运行的墙钟（秒）${skipped.length === 0 ? '' : `；${esc(skipped.join('；'))}`}</div>` +
+    `<div class="meta">最近 ${block.runs.length} 次全量运行的墙钟（秒；含缓存命中的账本不算全量）${skipped.length === 0 ? '' : `；${esc(skipped.join('；'))}`}</div>` +
     lines.join('') +
     table(
       ['开始', '提交', '层', '秒', '结果'],

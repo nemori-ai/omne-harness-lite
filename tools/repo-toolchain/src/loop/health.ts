@@ -143,7 +143,7 @@ export function testsBlock(
   }
   if (full.length === 0)
     return noData(
-      `${home} 下 ${ledgers.length} 份账本里没有全量运行（受影响范围 ${partial} 份、读不了 ${unreadable.length} 份）`,
+      `${home} 下 ${ledgers.length} 份账本里没有全量运行（受影响范围或含缓存命中 ${partial} 份、读不了 ${unreadable.length} 份）`,
     )
   full.sort((a, b) => Date.parse(a.startedAt) - Date.parse(b.startedAt))
   return data({ runs: full.slice(-runs), partial, unreadable })
