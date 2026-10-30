@@ -1,9 +1,9 @@
-// 差分变异入口的参数：范围参数互斥、点名成员只列范围、缺省基线现算计划、读准入检查的计划。
+// 差分变异入口的参数：范围参数互斥、点名成员只列范围、缺省基线现算计划、读准入检查的计划、`--since` 收窄与拒绝。
 import { execFileSync, spawnSync } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CLI, cliAt, cliFixture, writePlan } from './fixtures/mutation.ts'
+import { CLI, cliAt, cliFixture, git, writePlan } from './fixtures/mutation.ts'
 
 const cliRoot = cliFixture()
 const cli = (...args: string[]) => cliAt(cliRoot, ...args)
@@ -77,6 +77,70 @@ describe('入口的参数', () => {
       const stale = cliAt(root, 'run', '--plan', planFile([], '0'.repeat(40)), '--plan-only')
       expect(stale.status).toBe(2)
       expect(stale.stderr).toContain('重新算计划')
+    },
+  )
+
+  // 归慢层：在临时 git 仓库里多次起变异入口 CLI 子进程（同上一条）。
+  // 取值的各种拒绝原因与改动行的交由 mutation-since.spec.ts 在模块上核对；这里核对入口把它接上了。
+  it(
+    '--since 在计划的范围里收窄到 <ref> 以来的改动，范围说明写明；早于合并点、没有这个提交、与 --members 同给时以 2 退出',
+    { tags: ['slow'] },
+    () => {
+      const root = cliFixture()
+      const commit = (message: string) => {
+        git(root, 'add', '-A')
+        git(
+          root,
+          '-c',
+          'user.name=Fixture',
+          '-c',
+          'user.email=fixture@example.invalid',
+          'commit',
+          '-qm',
+          message,
+        )
+        return git(root, 'rev-parse', 'HEAD').trim()
+      }
+      const before = git(root, 'rev-parse', 'HEAD').trim()
+      const base = commit('基线：canary 的 index.ts')
+      writeFileSync(join(root, 'packages/core/canary/src/index.ts'), 'export const value = 2\n')
+      const first = commit('改 index.ts')
+      writeFileSync(join(root, 'packages/core/canary/src/extra.ts'), 'export const extra = 1\n')
+      const head = commit('加 extra.ts')
+      const plan = writePlan(head, base, ['packages/core/canary'], base)
+      const planned = (...args: string[]) =>
+        cliAt(root, 'run', '--plan', plan, ...args, '--plan-only')
+
+      const whole = planned()
+      expect(whole.status, whole.stderr).toBe(0)
+      expect(whole.stdout).toMatch(/packages\/core\/canary：2 个文件/u)
+      const narrowed = planned('--since', 'HEAD~1')
+      expect(narrowed.status, narrowed.stderr).toBe(0)
+      expect(narrowed.stdout).toContain(`并且自 ${first.slice(0, 9)}（--since HEAD~1）以来`)
+      expect(narrowed.stdout).toMatch(/packages\/core\/canary：1 个文件/u)
+      const nothing = planned('--since', 'HEAD')
+      expect(nothing.status, nothing.stderr).toBe(0)
+      expect(nothing.stdout).toContain(
+        `没有可变异的改动：基线 ${base} 以来、并且自 ${head.slice(0, 9)}（--since HEAD）以来`,
+      )
+
+      const early = planned('--since', before)
+      expect(early.status).toBe(2)
+      expect(early.stderr).toContain('早于基线')
+      const missing = planned('--since', 'no-such-ref')
+      expect(missing.status).toBe(2)
+      expect(missing.stderr).toContain('本仓库里没有这个提交')
+      const members = cliAt(
+        root,
+        'run',
+        '--members',
+        'packages/core/canary',
+        '--since',
+        'HEAD~1',
+        '--plan-only',
+      )
+      expect(members.status).toBe(2)
+      expect(members.stderr).toContain('--since 与 --members 只能给一个')
     },
   )
 })
