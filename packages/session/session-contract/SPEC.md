@@ -983,7 +983,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作与结果：按权威提交顺序裁定，不按时间。
   1. 取消先于 `accept`：Run 已是 cancelled 终态。会话未归档时，输入照 [PA-03](#pa-03) 取得待处理资格，去处为下一个 Run。归档先成立时，`accept` 被拒绝。
   2. `accept` 先于取消：输入保留待处理资格与原归属。Run 取消不撤销待处理资格，由新 Run 承接。归档在同批撤销待处理资格并记录取消范围（SE27）。已交入执行而未承接的输入，在 Agent 一侧保留原归属与处置依据；Session 一侧仍没有 SE14，待处理资格保留，由后继 Run 以同一 `InputId` 重新交入，并在 SE13 记录前继 Run。这不是静默转入。
-  3. 取消先于条件终结：条件终结带推进授权（complete 或 fail）到达时，参加者响应「冲突」，依据为 SE26 cancelled（[PA-02](#pa-02)）。Agent 重读事实，以已保存的取消依据再次条件终结。之后读到的结束事件按 [RS-10](#rs-10) 认回，不新增 SE26。
+  3. 取消先于条件终结：条件终结带推进授权（complete 或 fail）到达时，参加者响应「冲突」，依据为 SE26 cancelled（[PA-02](#pa-02)）。Journal 与参加者读同一份权威状态时，SE26 cancelled 已使推进授权失效，Journal 按 Agent 的判定次序先返回 `stale-advance`，不调用参加者。两种回答的处置相同：Agent 重读事实，以已保存的取消依据再次条件终结。之后读到的结束事件按 [RS-10](#rs-10) 认回，不新增 SE26。
   4. 条件终结先于取消：Agent 执行已结束。Session 按 EC-01 完成结束事实的解释提交后 Run 为 completed 或 failed，`control(cancel-run)` 返回 `terminal`，带回既有终态。Session 尚未完成结束事实的解释提交时，`control(cancel-run)` 照常提交 SE26 cancelled；之后读到的结束事件按 [RS-08](#rs-08) 认回，Agent 的结论作为引用保留，终态不改。
   5. 取消已提交而没有活体挂接：按 [PM-13](#pm-13)。
 - 失败：参加者读权威状态失败时响应「失败」。

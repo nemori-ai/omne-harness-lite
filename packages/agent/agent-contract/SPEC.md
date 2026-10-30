@@ -1114,7 +1114,7 @@ tryFinish 的结果按下表返回。
 | 原操作未知，或当前资格、来源、完整闭包不可确定 | unavailable。保留原查询与责任，不转换为 blocked、已清或 excluded |
 | obligations 未发行、伪造或指向另一个 candidate | invalid。真实的清单在发行后责任投影已改变时按 changed 处理，调用方重新 prepareFinish，规则见“[终结责任清单](#终结责任清单)” |
 | 取消路线上判断记录确定缺失 | blocked，类别为 passages，依据指向当前 route 的 required-judgment 待办。不以空证明结束 |
-| 取消路线上当前判断记录为 blocked，前提未变 | blocked，按该记录给出的具体责任类别返回，source 指向原判断记录与该责任。多项按 inputs、controls、operations、passages、custody 的固定次序选择第一项 |
+| 取消路线上当前判断记录为 blocked，前提未变 | blocked，按该记录给出的具体责任类别返回，source 指向原判断记录；记录里的 `CancellationBlock` 带该责任的 source。多项按 inputs、controls、operations、passages、custody 的固定次序选择第一项 |
 | 取消路线上当前判断记录为 unknown | unavailable。保留原查询与问题，不返回 excluded、blocked 或 ended |
 | 取消路线上当前判断记录为 allowed，清单真实，最终核验发现新的确定前提变化 | changed。旧允许不是永久许可 |
 | 当前资格拒绝 | denied |
