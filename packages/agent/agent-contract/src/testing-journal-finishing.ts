@@ -3,8 +3,9 @@
 // FinishIntent projection the Journal maintains, the before-terminal proof F2 sets, the obligations
 // prepareFinish issues and how tryFinish reads them, the fixed order of the five blocked
 // categories, the cancellation route through establish, judge, prepareFinish and tryFinish, the
-// migration of a legacy cancelled candidate, and the three custody variants. Every case reads
-// only what the port returns. testing-journal-core.ts appends these cases to the suite.
+// migration of a legacy cancelled candidate, the three custody variants, and the calls of another
+// tenant and the host records of another tenant or execution. Every case reads only what the port
+// returns. testing-journal-core.ts appends these cases to the suite.
 import assert from 'node:assert/strict'
 import type * as M from '@omne-harness/model-contract'
 import {
@@ -32,6 +33,7 @@ import {
   decodePassageId,
   type DurableEvidence,
 } from './identity.ts'
+import type { HandoffCustody } from './journal.ts'
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
 import {
@@ -53,11 +55,14 @@ import {
   f2Commit,
   failedContent,
   finishInput,
+  foreignDenied,
+  handoffOf,
   identity,
   installationOf,
   intentOf,
   judge,
   load,
+  MISSING_EXECUTION,
   newSubmit,
   ok,
   operation,
@@ -70,6 +75,7 @@ import {
   query,
   refused,
   requireInstallation,
+  requireOtherAccess,
   resolveCommit,
   settlement,
   stage,
@@ -1328,7 +1334,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.ok(authorRoute !== null && authorRoute.kind === 'author')
         const control = await effectiveCancel(opened)
         await establish(opened, control)
-        const request = evidence('invoke/closer')
+        const request = passage.input
         const source = await opened.hostRecord({
           kind: 'legacy-return',
           tenant: opened.access.tenant,
@@ -3512,6 +3518,518 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.equal(second.passage.id, requested.id)
         assert.equal(second.candidate, legacy.candidate)
         assert.deepEqual(second.route, authorRoute.record, 'the author route the candidate left')
+      },
+    },
+    ...foreignTenantCases(fixture),
+  ]
+}
+
+/** The asked before-terminal passage of the card cases and its one presented round. */
+function askedPassage(name: string): Readonly<{ passage: Passage; round: CardRound }> {
+  const asking = beforeTerminalPassage(name, { kind: 'requested', mode: { kind: 'fresh' } })
+  const round = presentedRound(asking, `${name}-round`)
+  return { passage: { ...asking, progress: { kind: 'asked', rounds: [round] } }, round }
+}
+
+/**
+ * The cases where another tenant reaches the Journal (SPEC "判定次序与失败映射" 1 and
+ * "commitSettlement 的变体" step 1): another tenant's recordHandoff, prepareFinish, tryFinish and
+ * commitSettlement are denied with the action of the operation, before the qualification, the same
+ * for an existing and a missing execution; and a host record or a returned reference of another
+ * tenant is denied to the owner's custody variants, before the record is compared.
+ */
+function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[] {
+  return [
+    {
+      name: 'another tenant: a root recordHandoff is denied with the action recordHandoff, the same for an existing and a missing execution, before any scripted fault; the attempt takes no custody slot, so the owner commits the same operation as the root',
+      run: async () => {
+        const opened = await fixture.open('foreign-rh-root')
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const root = {
+          ...opened.access,
+          execution: opened.execution,
+          operation: operation('rh-root'),
+          original: { kind: 'recorded' as const, outcome: prepared(request) },
+          custody: null,
+        }
+        await foreignDenied(opened, other, 'recordHandoff', root.operation, (access, execution) =>
+          journal.recordHandoff({ ...root, ...access, execution }),
+        )
+        await ok(journal.recordHandoff(root), "the owner's root of the same operation")
+        assert.equal(
+          handoffOf(await load(opened), request.reference).custody?.committed,
+          root.operation,
+        )
+      },
+    },
+    {
+      name: 'another tenant: a successor recordHandoff is denied with the action recordHandoff, the same for an existing and a missing execution, before any scripted fault; the owner commits the one successor of the excluded root afterwards',
+      run: async () => {
+        const opened = await fixture.open('foreign-rh-successor')
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        if (opened.faultNext === undefined) {
+          await uncoveredCase('', 'faultNext control').run()
+          return
+        }
+        const { journal } = opened
+        const request = pendingHandoff(opened, await load(opened), 'h1')
+        await ok(journal.commit(prepareCommit(opened, await load(opened), 'p1', request)), 'P')
+        const root = {
+          ...opened.access,
+          execution: opened.execution,
+          operation: operation('rh-root'),
+          original: { kind: 'recorded' as const, outcome: prepared(request) },
+          custody: null,
+        }
+        opened.faultNext('recordHandoff', 'dropped')
+        await refused(journal.recordHandoff(root), 'commit-unknown', 'the dropped root')
+        assert.equal((await query(opened, root.operation)).kind, 'excluded')
+        const successor = {
+          ...root,
+          operation: operation('rh-2'),
+          custody: {
+            protocol: 'hand-off-custody-successor/1',
+            custodyRoot: root.operation,
+            rootRequest: evidence(`request/${root.operation}`),
+            factSource: {
+              owner: PROVIDER.owner,
+              adoption: PROVIDER,
+              record: 'record/h1',
+              version: '1',
+            },
+            predecessor: {
+              operation: root.operation,
+              request: evidence(`request/${root.operation}`),
+            },
+            priorExcluded: [
+              {
+                operation: root.operation,
+                method: 'recordHandoff' as const,
+                request: evidence(`request/${root.operation}`),
+                predecessor: null,
+                authority: evidence(`exclusion/${root.operation}`),
+                fence: evidence(`fence/${root.operation}`),
+              },
+            ],
+          } satisfies HandoffCustody,
+        }
+        await foreignDenied(
+          opened,
+          other,
+          'recordHandoff',
+          successor.operation,
+          (access, execution) => journal.recordHandoff({ ...successor, ...access, execution }),
+        )
+        await ok(journal.recordHandoff(successor), "the owner's successor of the same operation")
+        assert.equal(
+          handoffOf(await load(opened), request.reference).custody?.committed,
+          successor.operation,
+        )
+      },
+    },
+    {
+      name: 'another tenant: prepareFinish under an advancement and under a cancel is denied with the action prepareFinish, the same for an existing and a missing execution, before the qualification and any scripted fault; the issued lists and FinishIntent.obligations stay; the owner then issues both lists',
+      run: async () => {
+        const opened = await fixture.open('foreign-prepare')
+        if (!(await requireInstallation(opened))) return
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        const advance = prepareInput(opened, await load(opened), 'prepare')
+        await foreignDenied(
+          opened,
+          other,
+          'prepareFinish',
+          advance.operation,
+          (access, execution) => journal.prepareFinish({ ...advance, ...access, execution }),
+        )
+        await ok(journal.prepareFinish(advance), "the owner's prepareFinish")
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        await judge(opened, control)
+        const cancelling = await load(opened)
+        const cancel = prepareInput(
+          opened,
+          cancelling,
+          'prepare-cancel',
+          cancelAuthorization(cancelling, control),
+        )
+        await foreignDenied(opened, other, 'prepareFinish', cancel.operation, (access, execution) =>
+          journal.prepareFinish({ ...cancel, ...access, execution }),
+        )
+        await ok(journal.prepareFinish(cancel), "the owner's prepareFinish under the cancel")
+      },
+    },
+    {
+      name: 'another tenant: tryFinish with a list this execution issued is denied with the action tryFinish, the same for an existing and a missing execution, before any scripted fault; the execution stays settling with no ended event, and the owner then ends it',
+      run: async () => {
+        const opened = await fixture.open('foreign-try')
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const ready = await prepareOrdinaryEnd(opened, 'end')
+        const before = await events(opened)
+        const finish = finishInput(opened, ready, 'end')
+        await foreignDenied(opened, other, 'tryFinish', finish.operation, (access, execution) =>
+          journal.tryFinish({ ...finish, ...access, execution }),
+        )
+        assert.deepEqual(await events(opened), before, 'no ended event')
+        const finished = await ok(journal.tryFinish(finish), "the owner's tryFinish")
+        assert.equal(finished.kind, 'ended')
+      },
+    },
+    {
+      name: 'another tenant: each of the six commitSettlement variants is denied with the action commitSettlement, the same for an existing and a missing execution, before the qualification and any scripted fault, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('foreign-settlement')
+        if (!(await requireInstallation(opened))) return
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const { passage, round } = askedPassage('asker')
+        const { key, pending } = await savedToolIntent(opened, 'call')
+        const at = await load(opened)
+        const f1 = f1Commit(opened, at, 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the asked passage',
+        )
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const snapshot = await load(opened)
+        const route = snapshot.settlement.route
+        assert.ok(route !== null, 'a route is current')
+        const authorization = cancelAuthorization(snapshot, control)
+        const candidate = candidateOf(snapshot)
+        const installation = installationOf(opened).record
+        const requests = [
+          settlement<P, 'establish-cancellation'>(opened, 'foreign-establish', {
+            kind: 'establish-cancellation',
+            authorization,
+            expected: snapshot.revision,
+            installation,
+            predecessor: candidate,
+          }),
+          settlement<P, 'migrate-cancellation'>(opened, 'foreign-migrate', {
+            kind: 'migrate-cancellation',
+            authorization,
+            expected: snapshot.revision,
+            candidate,
+            originalRoute: route.record,
+            installation,
+            priorExcluded: null,
+          }),
+          settlement<P, 'judge-cancellation'>(opened, 'foreign-judge', {
+            kind: 'judge-cancellation',
+            authorization,
+            expected: snapshot.revision,
+            candidate,
+            route: route.record,
+            installation,
+          }),
+          settlement<P, 'record-card-reconciliation'>(opened, 'foreign-card', {
+            kind: 'record-card-reconciliation',
+            passage: passage.id,
+            round: round.round,
+            candidate,
+            route: route.record,
+            original: evidence('host/foreign-card'),
+          }),
+          settlement<P, 'record-legacy-return'>(opened, 'foreign-legacy', {
+            kind: 'record-legacy-return',
+            passage: passage.id,
+            candidate,
+            route: route.record,
+            request: passage.input,
+            source: evidence('host/foreign-legacy'),
+          }),
+          settlement<P, 'record-tool-association'>(opened, 'foreign-tool', {
+            kind: 'record-tool-association',
+            intent: key,
+            request: pending.fixed,
+            source: evidence('host/foreign-tool'),
+            priorExcluded: null,
+          }),
+        ]
+        for (const request of requests) {
+          await foreignDenied(
+            opened,
+            other,
+            'commitSettlement',
+            request.operation,
+            (access, execution) => journal.commitSettlement({ ...request, ...access, execution }),
+          )
+        }
+        // Every scripted fault was spent on a denied call: the owner's judgment is an ordinary write.
+        const judged = await judge(opened, control)
+        assert.equal(judged.kind, 'judge-cancellation')
+      },
+    },
+    {
+      name: 'record-card-reconciliation: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at original; neither writes; the record of this execution is merged',
+      run: async () => {
+        const opened = await fixture.open('foreign-card-record')
+        if (!(await requireInstallation(opened))) return
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { passage, round } = askedPassage('asker')
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the asked passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = {
+          kind: 'card-reconciliation' as const,
+          tenant: opened.access.tenant,
+          execution: opened.execution,
+          passage: passage.id,
+          round: round.round,
+          result: {
+            kind: 'known' as const,
+            present: evidence(`present/${round.round}`),
+            lookups: [operation('lookup')],
+            invalidate: null,
+          },
+        }
+        const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
+        const elsewhere = await opened.hostRecord({ ...record, execution: MISSING_EXECUTION })
+        const own = await opened.hostRecord(record)
+        const recording = settlement<P, 'record-card-reconciliation'>(opened, 'reconcile-card', {
+          kind: 'record-card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          candidate: f1.operation,
+          route: authorRoute.record,
+          original: own,
+        })
+        const before = await load(opened)
+        const denied = await refused(
+          journal.commitSettlement({ ...recording, original: foreign }),
+          'denied',
+          'a host record of another tenant',
+        )
+        assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        const invalid = await refused(
+          journal.commitSettlement({ ...recording, original: elsewhere }),
+          'invalid',
+          'a host record of another execution',
+        )
+        assert.equal(fieldOf(invalid), 'original')
+        assert.deepEqual(await load(opened), before, 'neither wrote')
+        assert.equal((await query(opened, recording.operation)).kind, 'unknown')
+        const result = await ok(journal.commitSettlement(recording), 'the own record')
+        assert.equal(result.kind, 'record-card-reconciliation')
+      },
+    },
+    {
+      name: 'record-legacy-return: a host record of another tenant is denied with the action commitSettlement before the record is compared, a record of another execution is invalid at source, a request that is not the input of the passage is invalid at request; none writes; the return of this execution is saved',
+      run: async () => {
+        const opened = await fixture.open('foreign-legacy-record')
+        if (!(await requireInstallation(opened))) return
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const passage = beforeTerminalPassage('closer', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the requested passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = {
+          kind: 'legacy-return' as const,
+          tenant: opened.access.tenant,
+          execution: opened.execution,
+          passage: passage.id,
+          input: passage.input,
+          mode: { kind: 'fresh' as const },
+          implementation: passage.implementation,
+          started: evidence('started/closer'),
+          result: { kind: 'output' as const, value: { kind: 'observed' as const } },
+          received: evidence('received/closer'),
+          custody: evidence('custody/closer'),
+        }
+        const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
+        const elsewhere = await opened.hostRecord({ ...record, execution: MISSING_EXECUTION })
+        const own = await opened.hostRecord(record)
+        const recording = settlement<P, 'record-legacy-return'>(opened, 'legacy-return', {
+          kind: 'record-legacy-return',
+          passage: passage.id,
+          candidate: f1.operation,
+          route: authorRoute.record,
+          request: passage.input,
+          source: own,
+        })
+        const before = await load(opened)
+        const denied = await refused(
+          journal.commitSettlement({ ...recording, source: foreign }),
+          'denied',
+          'a host record of another tenant',
+        )
+        assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        const invalid = await refused(
+          journal.commitSettlement({ ...recording, source: elsewhere }),
+          'invalid',
+          'a host record of another execution',
+        )
+        assert.equal(fieldOf(invalid), 'source')
+        // The request must be the input record of the passage of this execution, also when the
+        // host record names the same request.
+        const unrelated = evidence('invoke/elsewhere')
+        const mismatched = await opened.hostRecord({ ...record, input: unrelated })
+        const notTheInput = await refused(
+          journal.commitSettlement({ ...recording, request: unrelated, source: mismatched }),
+          'invalid',
+          'a request that is not the input of the passage',
+        )
+        assert.equal(fieldOf(notTheInput), 'request')
+        assert.deepEqual(await load(opened), before, 'none wrote')
+        assert.equal((await query(opened, recording.operation)).kind, 'unknown')
+        const result = await ok(journal.commitSettlement(recording), 'the own return')
+        assert.equal(result.kind, 'record-legacy-return')
+      },
+    },
+    {
+      name: 'record-tool-association: a host return whose reference belongs to another tenant is denied with the action commitSettlement; the association stays',
+      run: async () => {
+        const opened = await fixture.open('foreign-tool-reference')
+        if (!(await requireInstallation(opened))) return
+        const other = await requireOtherAccess(opened)
+        if (other === undefined) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { key, pending } = await savedToolIntent(opened, 'call')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const foreignReference = identity(
+          encodeToolInvocationRef({
+            tenant: other.tenant,
+            call: identity(decodeToolCallId('core-call-foreign'), 'call'),
+            admission: identity(decodeToolOperationId('core-admission-foreign'), 'admission'),
+          }),
+          'reference',
+        )
+        const source = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: {
+            kind: 'accepted',
+            reference: foreignReference,
+            receipt: evidence('tool-receipt-foreign'),
+          },
+          received: evidence('received/call-foreign'),
+          custody: evidence('custody/call-foreign'),
+        })
+        const before = await load(opened)
+        const denied = await refused(
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, 'associate-foreign', {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          ),
+          'denied',
+          'a returned reference of another tenant',
+        )
+        assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        assert.deepEqual(await load(opened), before, 'the association stays')
+      },
+    },
+    {
+      name: 'after ended, a caller without settle is denied with the action settle by tryFinish and prepareFinish under a cancel, before terminal and before the original end is recognized (SPEC "判定次序与失败映射" 1 and 2)',
+      run: async () => {
+        const opened = await fixture.open('ended-without-settle')
+        if (!(await requireInstallation(opened))) return
+        if (opened.qualify === undefined) {
+          await uncoveredCase('', 'qualify control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        await judge(opened, control)
+        const preparing = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, preparing, 'prepare', cancelAuthorization(preparing, control)),
+          ),
+          'prepareFinish',
+        )
+        const ready = await load(opened)
+        const authorization = cancelAuthorization(ready, control)
+        const finish = finishInput(opened, ready, 'end', authorization)
+        const finished = await ok(journal.tryFinish(finish), 'the cancelled end')
+        assert.equal(finished.kind, 'ended')
+        const ended = await load(opened)
+        opened.qualify(['migrate-cancellation', 'reconcile'])
+        const withoutSettle = { kind: 'denied', action: 'settle' }
+        assert.deepEqual(
+          await refused(
+            journal.tryFinish({ ...finish, operation: operation('end-again') }),
+            'denied',
+            'a new tryFinish after ended without settle',
+          ),
+          withoutSettle,
+        )
+        assert.deepEqual(
+          await refused(journal.tryFinish(finish), 'denied', 'the original end without settle'),
+          withoutSettle,
+        )
+        assert.deepEqual(
+          await refused(
+            journal.prepareFinish({
+              ...prepareInput(opened, preparing, 'prepare-again', authorization),
+              expected: ended.revision,
+            }),
+            'denied',
+            'a new prepareFinish after ended without settle',
+          ),
+          withoutSettle,
+        )
+        assert.deepEqual(await load(opened), ended, 'nothing written')
+        opened.qualify(['settle', 'migrate-cancellation', 'reconcile'])
+        assert.deepEqual(await ok(journal.tryFinish(finish), 'the original end'), finished)
       },
     },
   ]

@@ -28,6 +28,7 @@ import {
   ok,
   open,
   operation,
+  otherTenant,
   producedResult,
 } from './journal-support.ts'
 import { decodeActionId } from '@omne-harness/agent-contract'
@@ -63,6 +64,7 @@ const fixture: AgentJournalCoreFixture<string> = {
     return {
       journal: memory.port,
       access,
+      otherAccess: otherTenant,
       execution: opened.execution,
       receipt: opened.receipt,
       authority: opened.authority,

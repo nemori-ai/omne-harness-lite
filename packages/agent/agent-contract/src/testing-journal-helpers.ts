@@ -25,6 +25,7 @@ import type {
 } from './finishing.ts'
 import {
   decodeActionId,
+  decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeInputId,
   decodePassageId,
@@ -82,9 +83,22 @@ export interface AgentJournalCoreOpened<P> {
   >
   /** Scripts the next write of `method` to answer commit-unknown with the given outcome. Optional. */
   readonly faultNext?: (
-    method: 'recordControl' | 'submit' | 'recordHandoff' | 'commit',
+    method:
+      | 'recordControl'
+      | 'submit'
+      | 'recordHandoff'
+      | 'commit'
+      | 'prepareFinish'
+      | 'tryFinish'
+      | 'commitSettlement',
     outcome: 'applied' | 'dropped' | 'pending',
   ) => void
+  /**
+   * The Access of a second tenant that owns no execution of this case, for the cases where another
+   * tenant calls the Journal (SPEC "判定次序与失败映射" 1). Optional; the foreign-tenant cases are
+   * uncovered without it.
+   */
+  readonly otherAccess?: Access<P>
   /** Attaches a new attachment that supersedes the current one, under the fixture's rules. Optional. */
   readonly takeover?: (name: string) => Promise<Authority>
   /**
@@ -852,4 +866,59 @@ export async function endCancelled<P>(
     `the cancelled end should succeed, got ${JSON.stringify(finished)}`,
   )
   return (finished as Extract<FinishResult, { kind: 'ended' }>).receipt
+}
+
+// ------------------------------------------------------------------------------------------
+// Another tenant (SPEC "判定次序与失败映射" 1)
+
+/** An execution that no tenant of any case opens. */
+export const MISSING_EXECUTION: AgentExecutionId = identity(
+  decodeAgentExecutionId('core-missing-execution'),
+  'missing execution',
+)
+
+/** The second tenant's Access of `opened`; resolves the uncovered case when the fixture has none. */
+export async function requireOtherAccess<P>(
+  opened: AgentJournalCoreOpened<P>,
+): Promise<Access<P> | undefined> {
+  if (opened.otherAccess !== undefined) return opened.otherAccess
+  await uncoveredCase('', 'otherAccess control').run()
+  return undefined
+}
+
+/**
+ * Another tenant calls `method` with the operation `id`, once on the opened execution and once on
+ * an execution that does not exist. Both answers are the same `denied` with the action `method`,
+ * so they do not tell whether the execution exists. The caller holds no settlement qualification
+ * during the calls, so the tenant is checked before the qualification. A fault scripted for the
+ * method is spent on the denied call; nothing is written, nothing is left unresolved, and the
+ * owner's query of `id` stays unknown. The caller then makes the owner's own call of the method,
+ * which must not meet the fault.
+ */
+export async function foreignDenied<P>(
+  opened: AgentJournalCoreOpened<P>,
+  other: Access<P>,
+  method: Parameters<NonNullable<AgentJournalCoreOpened<P>['faultNext']>>[0],
+  id: AgentOperationId,
+  call: (access: Access<P>, execution: AgentExecutionId) => Reply<unknown>,
+): Promise<void> {
+  const before = await load(opened)
+  opened.faultNext?.(method, 'pending')
+  opened.qualify?.([])
+  const existing = await call(other, opened.execution)
+  const missing = await call(other, MISSING_EXECUTION)
+  opened.qualify?.(['settle', 'migrate-cancellation', 'reconcile'])
+  assert.ok('failure' in existing, `another tenant's ${method} should fail`)
+  assert.deepEqual(
+    existing.failure,
+    { kind: 'denied', action: method },
+    `another tenant's ${method} is denied with the action ${method}`,
+  )
+  assert.deepEqual(missing, existing, 'the same answer for an existing and a missing execution')
+  assert.deepEqual(await load(opened), before, `another tenant's ${method} wrote nothing`)
+  assert.equal(
+    (await query(opened, id)).kind,
+    'unknown',
+    `another tenant's ${method} left no record of the operation`,
+  )
 }

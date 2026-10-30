@@ -11,7 +11,7 @@ import {
   type AgentJournalCoreFixture,
   type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
-import { operationId } from '@omne-harness/session-contract/testing'
+import { memoryOtherAccess, operationId } from '@omne-harness/session-contract/testing'
 import { scene, ok, operation, evidence, instance } from './fixtures/common-journal.ts'
 import { accept, handed } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
@@ -53,6 +53,7 @@ const fixture: AgentJournalCoreFixture<string> = {
     return {
       journal,
       access: s.access,
+      otherAccess: memoryOtherAccess('intruder', `core-${name}`),
       execution: s.execution,
       receipt: s.opened.receipt,
       authority: s.opened.authority,
