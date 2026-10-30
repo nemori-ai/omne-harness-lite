@@ -24,6 +24,8 @@ description: >
 
 按 `docs/engineering/delivery.md` 与 `docs/engineering/agent-delivery.md` 建卡，按实际 Issue 模板写本次范围、负责人、revision、条件和验收。`kind:` 唯一且与正文主工作类型一致；`line:`、`nature:`、`contract:` 用标签同步命令对齐。Project 是投影，写入失败单列，不写成成功。创建结果未知时先读回，不重复创建。
 
+写验收时，上位正文里的每条验证义务（复杂度上界、基准、规模）都对应到一张卡和一条验收判据，或者具名推迟。卡第一次实现某条按请求执行的热路径时，验收比较第 k 轮与第 k+n 轮的代价。替身配符合性套件只证明形状，联调的代价检查另派，并指定拥有者。方法见[波段编排](references/wave-planning.md)。
+
 ## 3. 波准入
 
 分解当前波前，按[波段编排的判断方法](references/wave-planning.md)权衡关键路径、容量、反馈时延与风险。
@@ -46,7 +48,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
 ```
 
-定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
+定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
 
 为线父卡登记一波的 attempt 时，binding 的契约变更取本波队列各卡的最高级。否则批次带破坏性卡时，`pnpm run check` 的 change-scope 会拦下。线父卡正文的「契约变更」与 `contract:` 标签同步改。每次写入后读回精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
 

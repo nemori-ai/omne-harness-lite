@@ -105,7 +105,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | 类型与 lint | `pnpm run typecheck`；`pnpm run lint:rules`；`pnpm run lint:oxlint` | 每个切片后 |
 | 依赖方向 | `pnpm run lint:deps` | 若干切片后 |
 | 结构读数 | `pnpm run metrics --base <taskBase> --coverage` | 若干切片后集中一次 |
-| 差分变异 | `pnpm run mutation --base <taskBase>` | 若干切片后集中一次 |
+| 差分变异 | `pnpm run mutation`，基线与收窄按 `review-code` 技能「差分变异」一段 | 最终 head 上跑一次，只跑热点 |
 | 文档与投影 | `pnpm run check:docs`；`pnpm run check:agents` | 改到时 |
 | 全量准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 线内的卡留给 reduce；不在线内的卡在最终 head 跑一次 |
 
