@@ -271,7 +271,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 | 文档文字、链接与锚点 | `pnpm run check:docs`；变动涉及应有文件、必要章节或占位时，加`pnpm run docs:inventory`并阅读缺项和unknown |
 | skills、roles、生成输入或宿主适配 | `pnpm run check:agents`；改变工具行为时运行受影响工具测试。源与生成一致不证明宿主发现、加载或模型遵循 |
 | 产品topic、统一语言、领域对象或设计登记 | `pnpm run check:design`；本地待复核队列可用`pnpm run check:design --stale report`。需要模型证据时另行执行实际模型 |
-| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试 |
+| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试。`test:python`用pytest-xdist分进程运行，进程数由`.meta_harness/tooling/tests/conftest.py`决定；设`OMNE_PYTEST_WORKERS=0`时退回单进程，设正整数时用该进程数 |
 | TS或JS源码、测试、配置 | `pnpm format:check`及受影响构建、类型检查和测试；读取或修改TS时加载[pstack TypeScript方法](engineering/skills.md#pstack-方法入口) |
 | 产品行为或公开入口 | 运行受影响快慢层及适用公开消费、组合或验收；构建和类型检查按计划选择，公开入口变化不自动等于全仓检查 |
 | 租户、权限、并发、恢复或资源生命周期 | 从[架构质量场景](architecture/assurance.md#系统级代表场景)和实际契约选行为、故障或交错验证。单组件通过不能代替跨边界责任闭合 |
