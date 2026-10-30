@@ -55,7 +55,7 @@
 - 发现范围、依据或规格冲突时，只暂停依赖它的切片，回到卡级准备裁定。
 - 结构度量与品味核对，在若干切片完成后集中跑一次，不在每个切片跑。工具不覆盖的范围写「未测量」，不写零。
 - 差分变异的时机、范围、名额与进程数按 `review-code` 技能「差分变异」一段，不在切片之间对整卡的改动全量跑。
-- 计划因全局文件（例如 `pnpm-lock.yaml`）的改动判为全量时，中间轮跑不带 `--coverage` 的 `pnpm run metrics`。它只给圈复杂度，不算计划，不占名额。`--coverage` 只在最终 head 上跑。
+- 计划因全局路径（例如 `pnpm-lock.yaml`，清单是 `tools/test-runner/test-runs.config.json` 的 `affected.globalPaths`）的改动判为全量时，中间轮跑不带 `--coverage` 的 `pnpm run metrics`。它只给圈复杂度，不算计划，不占名额。`--coverage` 只在最终 head 上跑。
 - 把两个切片判为串行、或报 ETA 之前，点名每段等待争用的文件、类型或资源。点不出来就并行。点得出来时，先做不争用的部分；写范围交叉时，在正确基线上的未绑定草稿树里做，阻塞方落地后再把提交搬过去。一个切片的核心语义部分和机械部分分开，按各自的档位派给不同写者并行。方法见 `dispatch` 技能的 `references/wave-planning.md`（P27）。
 - 卡上只在关键进展、阻塞与出现可审阅候选时更新事实，不逐次贴日志。
 
@@ -110,7 +110,7 @@
 1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线内的卡在波内不合并联调轨道，这一条不适用。
 2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。它按准入锁排队，并把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。
 3. 准入期间不提交（P11）、不做占 CPU 的事（P12）。可以写交接报告与下一张卡的简报。
-4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。`check --keep-going` 一次报出全部失败。修复后，在最终 head 上按 `docs/engineering/integration.md`「检查责任」的增量准入补跑，基线是失败的那个 head。前提、要跑的步骤、全局路径例外、证据写法与命令都以那一节为准。
+4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。`check --keep-going` 一次报出全部失败。修复后，在最终 head 上按 `docs/engineering/integration.md`「增量准入」（在「检查责任」之下）补跑，基线是失败的那个 head。前提、要跑的步骤、全局路径例外、证据写法与命令都以那一节为准。
 
 ## 准入与评审的节奏
 
