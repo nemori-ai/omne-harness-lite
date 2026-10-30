@@ -12,7 +12,7 @@ description: >
 
 派发前，父会话在 PR head 上自己运行 `pnpm run typecheck`、`pnpm run lint:rules`、`pnpm run lint:oxlint` 和 `pnpm run lint:deps`。不论代码由谁写，都不采用写者报告的结果。有失败时先修复，不派评审。
 
-四面各派一个子代理。子代理不改产品源码。父会话收成一份报告。同一问题只列一次。
+四面各派一个子代理。子代理不改产品源码。父会话收成一份报告。同一问题只列一次。选模型、写简报与汇总的通用做法按 `delegate`「评审派发」；各面判据仍按本技能。
 
 度量与差分变异的基线：父会话在派发结构读数与差分变异两面之前判定基线，并把判定写进给子代理的简报。子代理照简报运行，不自己判定。父会话在候选工作树的根目录运行 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts status`，读输出的 `bound`，然后按下列分支判定。基线的统一规则归 `tools/test-runner/README_ZH.md`「测试运行」一节的第一个命令块。
 
