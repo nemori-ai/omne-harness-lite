@@ -48,7 +48,8 @@
 - 键里另有层、平台与架构、Node 版本与列出的环境变量。
 - 命中不证明不稳定的用例这次也会过。
 - 合并前的准入不读缓存，所以硬线 3 要的运行不含命中。准入模式、`FULL=1`、`--no-cache` 与 `OMNE_TEST_CACHE=0` 只写不读缓存。
-- 细则见 [test-runner 的结果缓存](../tools/test-runner/README_ZH.md#测试运行)。
+- 依赖图也有缓存，它直接决定硬线 1 的方向与环、硬线 4 的读数。准入时它同样不读，所以合并前的硬线判断不含命中；本地非准入的 `pnpm run check` 会读它。
+- 细则见 [test-runner 的结果缓存](../tools/test-runner/README_ZH.md#测试运行)与 [repo-toolchain 的依赖图](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则)。
 
 `--strict --scope engineering` 是 `omne-loop-status` 的工程范围严格模式，需要时显式传入；`pnpm run check` 的严格一步不传 `--scope`。只有当前树、固定 targetBase、实际 merge-base 和每个 taskBase 均无受维护产品源码与测试时，duplication 与 assertions 的无数据读数才标为工程范围不适用。
 原始 no-data 保留，报告给出精确提交与计数。任何一处仍有输入、基线未知、读取失败或其他启用传感器无数据，均不能用此范围放行。
@@ -85,7 +86,7 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
 
-表中的命令都按统一规则取基线：绑定了任务的树不给 `--base`，取任务上下文的 `targetBase`，给了不相等的 `--base` 会被拒绝；没有绑定任务时给 `--base <任务基线>`。规则见 [tools/test-runner](../tools/test-runner/README_ZH.md#测试运行)。
+表中的命令按同一条规则取基线：绑定了任务的树不给 `--base`，取任务上下文的 `targetBase`，给了不相等的 `--base` 会被拒绝；没有绑定任务时给 `--base <任务基线>`。规则见 [tools/test-runner](../tools/test-runner/README_ZH.md#测试运行)。
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。

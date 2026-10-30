@@ -298,7 +298,7 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 
 `check:plan`只输出计划。`test:affected`先构建选中成员及其上游，默认只跑快层；慢层由`--tier slow`选择，`--tier all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
-成员测试的结果有缓存。`pnpm run check`、`test:affected` 与 `test:tier` 默认读缓存：同一台机器上，键与一次完整通过完全相同的成员不再执行，输出写明命中。要让它们重跑，加 `--no-cache` 或设 `OMNE_TEST_CACHE=0`。`test:tier` 经脚本入口运行，用环境变量关闭，不认 `--no-cache`。命中只说明同样的输入曾经完整通过，不说明这次再跑也会通过。键、写入条件与边界见[结果缓存](../tools/test-runner/README_ZH.md#测试运行)。
+成员测试的结果有缓存。`pnpm run check`、`test:affected` 与 `test:tier` 默认读缓存：同一台机器上，键与一次完整通过完全相同的成员不再执行，输出写明命中。要让它们重跑，设 `OMNE_TEST_CACHE=0`；`test:affected` 另认 `--no-cache`。`pnpm run check` 与 `test:tier` 经脚本入口运行，不认 `--no-cache`。命中只说明同样的输入曾经完整通过，不说明这次再跑也会通过。键、写入条件与边界见[结果缓存](../tools/test-runner/README_ZH.md#测试运行)。
 
 按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查由 `turbo run typecheck` 运行，不先构建，按输入缓存（依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；准入时只写不读），运行前由 `tools/test-runner` 核对嵌套归档目录已在成员的 `tsconfig.test.json` 排除。类型检查的缓存键只覆盖成员目录、`workspace:` 依赖的上游成员和根 `turbo.json` 的 `globalDependencies`。成员的类型检查经相对路径读取其他成员的文件时，要把这些文件列入 `globalDependencies`，否则单独运行会命中过时的结果。现在列入的是仓库根的 `vitest.tiers.mts`，以及 `tools/dev-flow`、`tools/test-runner` 测试读取的 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`。成员测试由 `turbo run test:fast`、`test:slow` 或 `test` 运行，层由 vitest 的 mode 选择；`tools/test-runner` 负责计划、调用 turbo，并照旧写出测试耗时账本。可执行验收仍由 `tools/test-runner` 逐成员执行。
 

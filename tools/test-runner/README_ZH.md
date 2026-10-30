@@ -152,7 +152,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 - 构建成功后，运行器为每个被构建的成员记两个摘要。**输入摘要**在构建**开始前**取，与缓存键同源，但不含层。**产物摘要**在构建**完成后**取：本成员与上游成员 `dist/` 里全部文件的路径、字节数与 mtimeMs，排序后取 sha256。只 stat，不读文件内容。
 - `step build --plan` 把这份记录写在计划文件旁的 `built-from.json` 里，带上计划的头号；每个成员项是 `{ input, output }`。取不到产物摘要时不留记录，后面的测试不写缓存。
-- `run --build` 在同一进程里取开跑前的输入摘要。构建紧接测试，中间没有可被改动的间隙，所以这条路径不记产物摘要。
+- `run --build` 在同一进程里取开跑前的输入摘要。构建紧接测试，间隙很短，这条路径不记产物摘要，也不核对：这段间隙里别的进程改写 `dist/`，它看不出。
 - 写缓存前，运行器重算成员当前的输入摘要，必须等于构建记录里的输入摘要。记录来自文件时，还要重算产物摘要，必须等于记录里的产物摘要。任一项不等，就跳过这个成员，并打印原因：「构建之后输入变了」或「构建之后 dist 被改过」。
 - 构建完成之后、测试算键之前有一段间隙：这段间隙里 `dist/` 可能被别的构建换掉。输入摘要看不出这种变化，产物摘要看得出。
 - 整份记录不可用时不写缓存，原因分三种：计划旁边没有构建记录；记录是另一个提交的（原因里写两个头号的前 9 位）；记录是旧格式（成员项不是 `{ input, output }`）。
@@ -177,7 +177,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 | 入口 | 不读缓存的条件 | 写缓存 |
 | --- | --- | --- |
-| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`--full`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 `OMNE_ADMISSION=1` | 构建之后，满足上面两条时写 |
+| `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式 `OMNE_ADMISSION=1`；`pnpm run check` 不认 `--full`、`--no-cache`，`cli.ts check` 与 `step` 另认 | 构建之后，满足上面两条时写 |
 | `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
 | `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
 | `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 不写 |
@@ -483,7 +483,7 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
   `CollectionReporter` 只把文件或 suite 自身的错误判为测量无效，不改判这种情形。
 - 复核又超时算测出来（见上文「超时的计分」）。机器上别的负载使复核也慢出 60 秒以上时，这个判定不是变异造成的。
 - 复用的被杀变异体这一次没有重跑。被变异代码调用的别处代码改了，快照照样复用，也不会失效。
-- 增量指纹不追下面五类读取，它们读到的文件改了，快照不会失效。要量准时用 `--force`：
+- 增量指纹不追下面几类读取，它们读到的文件改了，快照不会失效。要量准时用 `--force`：
   - 包名导入。
   - 拿仓库根或成员祖先目录当锚点、再拼路径读到的文件。
   - 经函数拼出的路径，例如 `join(dirname(fileURLToPath(import.meta.url)), …)`。
