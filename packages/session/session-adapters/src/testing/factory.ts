@@ -29,7 +29,6 @@ import {
   mutationAccessRequest,
   type SessionAccess,
   type SessionAccessCheck,
-  type SessionAttemptRecord,
   type SessionId,
   type SessionCommand,
   type SessionTransactionPort,
@@ -59,6 +58,7 @@ import { commitAccessMatches, createSessionTransactions, qualifyAccess } from '.
 import {
   history,
   grantAttempt,
+  findGrantAttempt,
   authorityAttempt,
   normalizedResult,
   registration,
@@ -550,12 +550,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   ): boolean {
     const state = root.session
     if (!state || grant === null) return false
-    let attempt: SessionAttemptRecord
-    try {
-      attempt = grantAttempt(root, execution, grant)
-    } catch {
-      return false
-    }
+    // Only a grant that does not identify SE15 is a refusal; any other error is a defect and throws.
+    const attempt = findGrantAttempt(root, execution, grant)
+    if (attempt === undefined) return false
     const run = state.snapshot.run
     if (run.kind === 'active')
       return run.execution.execution === execution && run.advance?.attempt === attempt.attempt

@@ -1,6 +1,6 @@
 import { pendingCalls } from './pending.ts'
 import { canonical } from './canonical.ts'
-import type { JournalCell } from './root.ts'
+import type { JournalCell, TransactionAnswer } from './root.ts'
 import type {
   AcceptedInput,
   AgentCheckpoint,
@@ -965,9 +965,13 @@ export function createJournal<P>(
     beforeRecognition?: () => Failure | undefined,
     decision: JointDecision | null = null,
     onDropped?: () => void,
-  ): Outcome<R, Failure> {
+  ): TransactionAnswer<R> {
+    const answered = (outcome: Outcome<R, Failure>): TransactionAnswer<R> => ({
+      kind: 'answered',
+      outcome,
+    })
     const at = operationKey(input.tenant, input.execution, input.operation)
-    if (at === undefined) return fail(denied(method))
+    if (at === undefined) return answered(fail(denied(method)))
     const commitUnknown = fail<Failure>({ kind: 'commit-unknown', operation: input.operation })
     const scriptedUnavailable = fail<Failure>({
       kind: 'unavailable',
@@ -982,10 +986,10 @@ export function createJournal<P>(
     const pending = state().operations.get(at)
     if (pending?.kind === 'pending') {
       if (fault !== undefined)
-        return fault.kind === 'unavailable' ? scriptedUnavailable : commitUnknown
+        return answered(fault.kind === 'unavailable' ? scriptedUnavailable : commitUnknown)
       const rejected = check()
-      if (rejected !== undefined) return fail(rejected)
-      return pending.key === key ? commitUnknown : fail(conflict(input.operation))
+      if (rejected !== undefined) return answered(fail(rejected))
+      return answered(pending.key === key ? commitUnknown : fail(conflict(input.operation)))
     }
     const exclude = (reason: string) => {
       const fixed = state().operations.get(at)?.kind
@@ -1003,6 +1007,8 @@ export function createJournal<P>(
     type Run =
       | Readonly<{ kind: 'wrote'; value: R }>
       | Readonly<{ kind: 'answered'; value: Outcome<R, Failure> }>
+      /** The persistent rejection saved its audit: the transaction publishes it. */
+      | Readonly<{ kind: 'rejected'; failure: Extract<Failure, { kind: 'conflict' }> }>
       | Readonly<{ kind: 'unknown' }>
     const attempt = (): Run => {
       const rejected = check()
@@ -1020,7 +1026,7 @@ export function createJournal<P>(
           audit: prepared.audit,
           revision: revisionOf(prepared.revision),
         })
-        return { kind: 'answered', value: fail(prepared.failure) }
+        return { kind: 'rejected', failure: prepared.failure }
       }
       if (prepared.kind === 'write') {
         prepared.apply()
@@ -1065,24 +1071,25 @@ export function createJournal<P>(
     }
     if (fault === undefined) {
       const run = attempt()
-      if (run.kind === 'wrote') return succeed(run.value)
-      if (run.kind === 'answered') return run.value
+      if (run.kind === 'wrote') return answered(succeed(run.value))
+      if (run.kind === 'answered') return answered(run.value)
+      if (run.kind === 'rejected') return run
       hold()
-      return commitUnknown
+      return answered(commitUnknown)
     }
-    if (fault.kind === 'unavailable') return scriptedUnavailable
+    if (fault.kind === 'unavailable') return answered(scriptedUnavailable)
     switch (fault.outcome) {
       case 'applied':
         decide(attempt())
-        return commitUnknown
+        return answered(commitUnknown)
       case 'dropped':
         // The write reached the provider and was dropped: the attempt exists, nothing applied.
         onDropped?.()
         exclude('dropped')
-        return commitUnknown
+        return answered(commitUnknown)
       case 'pending':
         hold()
-        return commitUnknown
+        return answered(commitUnknown)
       default: {
         const _exhaustive: never = fault.outcome
         return _exhaustive
