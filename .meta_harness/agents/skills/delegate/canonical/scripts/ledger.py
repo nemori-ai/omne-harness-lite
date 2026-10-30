@@ -28,6 +28,7 @@ EVIDENCE = ("field-small-n", "field")
 USAGE_SOURCES = ("notification", "transcript")
 CELL_USAGE_SOURCES = ("notification", "transcript", "mixed")
 OWNERS = ("writer", "spec", "env")
+FOUND = ("review", "after-merge")
 MODES = ("takeover", "redo")
 OUTCOMES = ("merged", "discarded", "stopped", "pending")
 SMALL_SAMPLE = 5
@@ -36,12 +37,12 @@ MAX_LESSONS = 3
 ROW_KEYS = ("category", "policy_scope", "cells")
 CELL_KEYS = (
     "model", "effort", "source", "dispatched", "first_pass", "first_no_writer_block", "within_two",
-    "escalated", "escalations", "appends", "spec_defects", "writer_defects", "minutes_sum",
-    "tokens_reported_sum", "usage_source", "evidence", "batches",
+    "escalated", "escalations", "appends", "spec_defects", "writer_defects", "minutes_sum", "minutes_n",
+    "tokens_reported_sum", "tokens_n", "usage_source", "evidence", "batches",
 )
-LEDGER_KEYS = ("schemaVersion", "rows")
+LEDGER_KEYS = ("schemaVersion", "rows", "batches")
 INCREMENT_KEYS = ("schemaVersion", "batch", "produced_by", "rows", "excluded", "lessons")
-ESCALATION_ITEM_KEYS = ("to", "mode", "n", "success", "minutes_sum", "tokens_reported_sum")
+ESCALATION_ITEM_KEYS = ("to", "mode", "n", "success", "minutes_sum", "minutes_n", "tokens_reported_sum", "tokens_n")
 EXCLUDED_KEYS = ("task", "closure", "round", "report", "reason")
 LESSON_KEYS = ("phenomenon", "evidence", "route")
 FLOW_KEYS = (
@@ -178,11 +179,13 @@ def flow_errors(row, policy: dict, where: str) -> list[str]:
         bad("outcome", f"必须是 {list(OUTCOMES)} 之一")
     if row["experiment"] not in (None, "owner-experiment"):
         bad("experiment", "必须是 null 或 owner-experiment")
-    for f in ("tokens_reported", "tool_calls", "appends"):
-        if not is_int(row[f]) or row[f] < 0:
-            bad(f, "必须是非负整数")
-    if not is_num(row["minutes"]) or row["minutes"] < 0:
-        bad("minutes", "必须是非负数")
+    if not is_int(row["appends"]) or row["appends"] < 0:
+        bad("appends", "必须是非负整数")
+    for f in ("tokens_reported", "tool_calls"):
+        if row[f] is not None and (not is_int(row[f]) or row[f] < 0):
+            bad(f, "必须是非负整数，或 null（未记录）")
+    if row["minutes"] is not None and (not is_num(row["minutes"]) or row["minutes"] < 0):
+        bad("minutes", "必须是非负数，或 null（未记录）")
 
     role = row["role"]
     if not is_str(role) or not is_str(row["work"]) or not is_str(row["risk"]):
@@ -214,7 +217,9 @@ def flow_errors(row, policy: dict, where: str) -> list[str]:
                 if not isinstance(d, dict):
                     errors.append(f"{at} 必须是对象")
                     continue
-                errors += keys_problem(d, ("id", "owner", "blocking", "class"), at)
+                errors += keys_problem({k: v for k, v in d.items() if k != "found"}, ("id", "owner", "blocking", "class"), at)
+                if d.get("found", "review") not in FOUND:
+                    errors.append(f"{at}: found 必须是 {list(FOUND)} 之一（缺省 review）")
                 if not is_str(d.get("id")):
                     errors.append(f"{at}: id 必须是非空字符串")
                 if d.get("owner") not in OWNERS:
@@ -253,7 +258,8 @@ class Flow:
 
     @property
     def blocking(self):
-        return [x for x in self.d["acceptance"]["defects"] if x["blocking"]]
+        """Blocking defects found in review. Defects found after the merge never change a round verdict."""
+        return [x for x in self.d["acceptance"]["defects"] if x["blocking"] and x.get("found", "review") == "review"]
 
     @property
     def passed(self) -> bool:
@@ -301,6 +307,16 @@ def round_errors(flows: list[Flow]) -> list[str]:
 
 # ---------------------------------------------------------------- ledger and increment structure
 
+def usage_tie_errors(holder: dict, where: str) -> list[str]:
+    """A sum above zero needs at least one counted round behind it."""
+    errors = []
+    if holder["minutes_sum"] > 0 and holder["minutes_n"] == 0:
+        errors.append(f"{where}: minutes_sum 大于 0 时 minutes_n 不能是 0")
+    if holder["tokens_reported_sum"] > 0 and holder["tokens_n"] == 0:
+        errors.append(f"{where}: tokens_reported_sum 大于 0 时 tokens_n 不能是 0")
+    return errors
+
+
 def cell_errors(cell, where: str) -> list[str]:
     if not isinstance(cell, dict):
         return [f"{where}: 必须是对象"]
@@ -316,7 +332,7 @@ def cell_errors(cell, where: str) -> list[str]:
         errors.append(f"{where}: evidence 必须是 {list(EVIDENCE)} 之一")
     if cell["usage_source"] not in CELL_USAGE_SOURCES:
         errors.append(f"{where}: usage_source 必须是 {list(CELL_USAGE_SOURCES)} 之一")
-    counts = ("dispatched", "first_pass", "first_no_writer_block", "within_two", "escalated", "appends", "spec_defects", "tokens_reported_sum")
+    counts = ("dispatched", "first_pass", "first_no_writer_block", "within_two", "escalated", "appends", "spec_defects", "tokens_reported_sum", "minutes_n", "tokens_n")
     for f in counts:
         if not is_int(cell[f]) or cell[f] < 0:
             errors.append(f"{where}: {f} 必须是非负整数")
@@ -329,6 +345,7 @@ def cell_errors(cell, where: str) -> list[str]:
         for f in ("first_pass", "first_no_writer_block", "within_two", "escalated"):
             if cell[f] > cell["dispatched"]:
                 errors.append(f"{where}: {f} 不能大于 dispatched")
+        errors += usage_tie_errors(cell, where)
     esc = cell["escalations"]
     if not isinstance(esc, list):
         errors.append(f"{where}: escalations 必须是数组")
@@ -347,11 +364,13 @@ def cell_errors(cell, where: str) -> list[str]:
                 if key in seen:
                     errors.append(f"{at}: （to、mode）重复 {key}")
                 seen.add(key)
-            for f in ("n", "success", "tokens_reported_sum"):
+            for f in ("n", "success", "tokens_reported_sum", "minutes_n", "tokens_n"):
                 if not is_int(item.get(f)) or item[f] < 0:
                     errors.append(f"{at}: {f} 必须是非负整数")
             if not is_num(item.get("minutes_sum")) or item["minutes_sum"] < 0:
                 errors.append(f"{at}: minutes_sum 必须是非负数")
+            if not errors:
+                errors += usage_tie_errors(item, at)
     batches = cell["batches"]
     if not isinstance(batches, list) or not all(is_str(b) for b in batches):
         errors.append(f"{where}: batches 必须是非空字符串数组")
@@ -398,6 +417,23 @@ def rows_errors(rows, policy: dict, where: str) -> list[str]:
     return errors
 
 
+def ledger_batches_errors(doc: dict, where: str) -> list[str]:
+    """The ledger-level `batches` list is the record of applied batches; every cell batch must be in it."""
+    listed = doc.get("batches")
+    if not isinstance(listed, list) or not all(is_str(b) for b in listed):
+        return [f"{where}: batches 必须是非空字符串数组"]
+    errors = [f"{where}: batches 有重复项"] if len(set(listed)) != len(listed) else []
+    rows = doc.get("rows")
+    for i, row in enumerate(rows if isinstance(rows, list) else []):
+        cells = row.get("cells") if isinstance(row, dict) else None
+        for j, cell in enumerate(cells if isinstance(cells, list) else []):
+            cell_batches = cell.get("batches") if isinstance(cell, dict) else None
+            for b in cell_batches if isinstance(cell_batches, list) else []:
+                if b not in listed:
+                    errors.append(f"{where}: rows[{i}].cells[{j}] 的批次 {b!r} 不在顶层 batches 里")
+    return errors
+
+
 def document_errors(doc, policy: dict, where: str) -> list[str]:
     """Check a ledger, or an increment when the document has a `batch` key."""
     if not isinstance(doc, dict):
@@ -408,7 +444,7 @@ def document_errors(doc, policy: dict, where: str) -> list[str]:
         errors.append(f"{where}: schemaVersion 必须是 {SCHEMA_VERSION}")
     errors += rows_errors(doc.get("rows"), policy, where) if "rows" in doc else []
     if not increment:
-        return errors
+        return errors + ledger_batches_errors(doc, where)
     batch = doc.get("batch")
     if not isinstance(batch, str) or not BATCH_ID.match(batch):
         errors.append(f"{where}: batch 必须是 <UTC 日期>-<任务>-<会话简称>")
@@ -444,8 +480,8 @@ def new_cell(model: str, effort: str, source: str) -> dict:
     return {
         "model": model, "effort": effort, "source": source, "dispatched": 0, "first_pass": 0,
         "first_no_writer_block": 0, "within_two": 0, "escalated": 0, "escalations": [], "appends": 0,
-        "spec_defects": 0, "writer_defects": {"blocking": 0, "nonblocking": 0}, "minutes_sum": 0.0,
-        "tokens_reported_sum": 0, "usage_source": "", "evidence": "field-small-n", "batches": [],
+        "spec_defects": 0, "writer_defects": {"blocking": 0, "nonblocking": 0}, "minutes_sum": 0.0, "minutes_n": 0,
+        "tokens_reported_sum": 0, "tokens_n": 0, "usage_source": "", "evidence": "field-small-n", "batches": [],
     }
 
 
@@ -457,7 +493,7 @@ def escalation_item(cell: dict, to: str, mode: str) -> dict:
     for item in cell["escalations"]:
         if (item["to"], item["mode"]) == (to, mode):
             return item
-    item = {"to": to, "mode": mode, "n": 0, "success": 0, "minutes_sum": 0.0, "tokens_reported_sum": 0}
+    item = {"to": to, "mode": mode, "n": 0, "success": 0, "minutes_sum": 0.0, "minutes_n": 0, "tokens_reported_sum": 0, "tokens_n": 0}
     cell["escalations"].append(item)
     return item
 
@@ -493,8 +529,12 @@ def add_closure(cell: dict, rows: list[Flow]) -> None:
                 target["n"] += 1
                 target["success"] += int(merged)
         holder = target if target is not None else cell
-        holder["minutes_sum"] = round_sum(holder["minutes_sum"] + r.d["minutes"])
-        holder["tokens_reported_sum"] += r.d["tokens_reported"]
+        if r.d["minutes"] is not None:
+            holder["minutes_sum"] = round_sum(holder["minutes_sum"] + r.d["minutes"])
+            holder["minutes_n"] += 1
+        if r.d["tokens_reported"] is not None:
+            holder["tokens_reported_sum"] += r.d["tokens_reported"]
+            holder["tokens_n"] += 1
     for r in rows:
         cell["usage_source"] = combine_usage(cell["usage_source"], r.d["usage_source"])
 
@@ -536,23 +576,19 @@ def aggregate(flows: list[Flow], batch: str, produced_by: str) -> dict:
 # ---------------------------------------------------------------- apply
 
 def merge_cell(dst: dict, src: dict) -> None:
-    for f in ("dispatched", "first_pass", "first_no_writer_block", "within_two", "escalated", "appends", "spec_defects", "tokens_reported_sum"):
+    for f in ("dispatched", "first_pass", "first_no_writer_block", "within_two", "escalated", "appends", "spec_defects", "tokens_reported_sum", "minutes_n", "tokens_n"):
         dst[f] += src[f]
     for f in ("blocking", "nonblocking"):
         dst["writer_defects"][f] += src["writer_defects"][f]
     dst["minutes_sum"] = round_sum(dst["minutes_sum"] + src["minutes_sum"])
     for item in src["escalations"]:
         mine = escalation_item(dst, item["to"], item["mode"])
-        for f in ("n", "success", "tokens_reported_sum"):
+        for f in ("n", "success", "tokens_reported_sum", "minutes_n", "tokens_n"):
             mine[f] += item[f]
         mine["minutes_sum"] = round_sum(mine["minutes_sum"] + item["minutes_sum"])
     dst["usage_source"] = combine_usage(dst["usage_source"], src["usage_source"])
     dst["batches"] = sorted(set(dst["batches"]) | set(src["batches"]))
     dst["evidence"] = evidence_for(dst["dispatched"])
-
-
-def known_batches(doc: dict) -> set:
-    return {b for row in doc["rows"] for cell in row["cells"] for b in cell["batches"]}
 
 
 def normalize(doc: dict) -> dict:
@@ -568,7 +604,7 @@ def normalize(doc: dict) -> dict:
 
 def merge_increments(ledger: dict, increments: list[tuple[Path, dict]]) -> tuple[dict, list[str], list[str]]:
     merged, applied, skipped = copy.deepcopy(ledger), [], []
-    known = known_batches(merged)
+    known = set(merged["batches"])
     for _, inc in increments:
         if inc["batch"] in known:
             skipped.append(inc["batch"])
@@ -590,6 +626,7 @@ def merge_increments(ledger: dict, increments: list[tuple[Path, dict]]) -> tuple
                 merge_cell(cells[ck], cell)
         known.add(inc["batch"])
         applied.append(inc["batch"])
+    merged["batches"] = sorted(known)
     return normalize(merged), applied, skipped
 
 

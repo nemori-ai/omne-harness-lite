@@ -112,7 +112,7 @@ def cell_of(inc, role="developer", work="verification", risk="none", clarity="хо
 
 
 def empty_ledger():
-    return {"schemaVersion": 1, "rows": []}
+    return {"schemaVersion": 1, "rows": [], "batches": []}
 
 
 def write_json(path, doc):
@@ -431,14 +431,14 @@ def ledger_from(tmp_path, capsys, policy_file, rows):
 
 def test_check_ledger_accepts_an_aggregate_output_and_an_empty_ledger(capsys, tmp_path, policy_file):
     inc = ledger_from(tmp_path, capsys, policy_file, [flow("c1")])
-    ledg = write_json(tmp_path / "ledger.json", {"schemaVersion": 1, "rows": inc["rows"]})
+    ledg = write_json(tmp_path / "ledger.json", {"schemaVersion": 1, "rows": inc["rows"], "batches": ["2026-10-30-w7-main"]})
     assert run(capsys, "check", "--ledger", ledg, "--policy", policy_file)[0] == 0
     assert run(capsys, "check", "--ledger", write_json(tmp_path / "e.json", empty_ledger()), "--policy", policy_file)[0] == 0
 
 
 def test_check_ledger_rejects_duplicate_rows_cells_and_batches(capsys, tmp_path, policy_file):
     inc = ledger_from(tmp_path, capsys, policy_file, [flow("c1")])
-    base = {"schemaVersion": 1, "rows": inc["rows"]}
+    base = {"schemaVersion": 1, "rows": inc["rows"], "batches": ["2026-10-30-w7-main", "b1"]}
 
     dup_row = copy.deepcopy(base)
     dup_row["rows"].append(copy.deepcopy(dup_row["rows"][0]))
@@ -454,7 +454,7 @@ def test_check_ledger_rejects_duplicate_rows_cells_and_batches(capsys, tmp_path,
 
 def test_check_ledger_rejects_bad_vocabulary_scope_and_unknown_keys(capsys, tmp_path, policy_file):
     inc = ledger_from(tmp_path, capsys, policy_file, [flow("c1")])
-    base = {"schemaVersion": 1, "rows": inc["rows"]}
+    base = {"schemaVersion": 1, "rows": inc["rows"], "batches": ["2026-10-30-w7-main"]}
 
     def mutated(edit):
         doc = copy.deepcopy(base)
@@ -547,7 +547,8 @@ def test_a_merge_that_fails_check_exits_1_and_leaves_the_ledger_bytes(capsys, tm
     seed = json.loads(inc.read_text(encoding="utf-8"))
     broken = copy.deepcopy(seed["rows"])
     broken[0]["category"]["work"] = "kernelish"
-    ledg = write_json(tmp_path / "ledger.json", {"schemaVersion": 1, "rows": broken})
+    broken[0]["cells"][0]["batches"] = ["2026-10-01-z-old"]
+    ledg = write_json(tmp_path / "ledger.json", {"schemaVersion": 1, "rows": broken, "batches": ["2026-10-01-z-old"]})
     before = ledg.read_bytes()
     code, _, err = run(capsys, "apply", "--ledger", ledg, "--increment", inc, "--policy", policy_file)
     assert code == 1 and "work" in err
@@ -617,6 +618,126 @@ def test_missing_input_does_not_create_the_output(capsys, tmp_path, policy_file)
     assert not out.exists()
 
 
+# After-merge defects, ledger-level batches, unrecorded usage -------------
+
+def test_a_writer_block_found_after_merge_counts_as_a_defect_but_keeps_the_first_round_verdict(capsys, tmp_path, policy_file):
+    late = dict(defect("D9", cls="lint"), found="after-merge")
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, [flow("c1", 1, [late, defect("D2", blocking=False)])])
+    cell = cell_of(inc)
+    assert (cell["first_pass"], cell["first_no_writer_block"], cell["within_two"]) == (1, 1, 1)
+    assert cell["writer_defects"] == {"blocking": 1, "nonblocking": 1}
+
+
+def test_a_review_found_block_still_fails_the_round_and_found_review_is_the_default(capsys, tmp_path, policy_file):
+    explicit = dict(defect("D1"), found="review")
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, [flow("c1", 1, [explicit]), flow("c1", 2)])
+    cell = cell_of(inc)
+    assert (cell["first_pass"], cell["first_no_writer_block"], cell["within_two"]) == (0, 0, 1)
+    assert cell["writer_defects"]["blocking"] == 1
+
+
+def test_found_accepts_only_review_or_after_merge(capsys, tmp_path, policy_file):
+    bad = flow("c1", 1, [dict(defect("D1"), found="later")])
+    code, _, err = run(capsys, "check", "--flows", write_flows(tmp_path, [bad]), "--policy", policy_file)
+    assert code == 1 and "found" in err
+
+
+def test_a_spec_owned_after_merge_block_counts_as_a_spec_defect_only(capsys, tmp_path, policy_file):
+    late = dict(defect("S1", owner="spec"), found="after-merge")
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, [flow("c1", 1, [late])])
+    cell = cell_of(inc)
+    assert (cell["spec_defects"], cell["first_pass"], cell["writer_defects"]["blocking"]) == (1, 1, 0)
+
+
+def test_apply_records_the_batch_of_an_increment_with_no_rows(capsys, tmp_path, policy_file):
+    ledg = write_json(tmp_path / "ledger.json", empty_ledger())
+    bad = flow("c1")
+    bad["acceptance"]["report"] = "tmp/only-local.md"
+    inc = make_increment(capsys, tmp_path, policy_file, [bad], "2026-10-30-a-x", "one.json")
+    assert json.loads(inc.read_text(encoding="utf-8"))["rows"] == []
+    code, out, _ = run(capsys, "apply", "--ledger", ledg, "--increment", inc, "--policy", policy_file)
+    assert code == 0 and "already-applied" not in out
+    assert json.loads(ledg.read_text(encoding="utf-8")) == {"schemaVersion": 1, "rows": [], "batches": ["2026-10-30-a-x"]}
+    before = ledg.read_bytes()
+    code, out, _ = run(capsys, "apply", "--ledger", ledg, "--increment", inc, "--policy", policy_file)
+    assert code == 0 and "already-applied 2026-10-30-a-x" in out
+    assert ledg.read_bytes() == before
+
+
+def test_the_ledger_batches_are_sorted_and_hold_every_applied_batch(capsys, tmp_path, policy_file):
+    ledg = write_json(tmp_path / "ledger.json", empty_ledger())
+    later = make_increment(capsys, tmp_path, policy_file, [flow("c1")], "2026-10-31-b-y", "later.json")
+    earlier = make_increment(capsys, tmp_path, policy_file, [flow("c2")], "2026-10-30-a-x", "earlier.json")
+    assert run(capsys, "apply", "--ledger", ledg, "--increment", later, earlier, "--policy", policy_file)[0] == 0
+    assert json.loads(ledg.read_text(encoding="utf-8"))["batches"] == ["2026-10-30-a-x", "2026-10-31-b-y"]
+
+
+def test_check_ledger_ties_cell_batches_to_the_ledger_batches(capsys, tmp_path, policy_file):
+    inc = ledger_from(tmp_path, capsys, policy_file, [flow("c1")])
+    rows = inc["rows"]
+    cases = {
+        "missing": {"schemaVersion": 1, "rows": rows},
+        "not-listed": {"schemaVersion": 1, "rows": rows, "batches": []},
+        "duplicate": {"schemaVersion": 1, "rows": rows, "batches": ["2026-10-30-w7-main", "2026-10-30-w7-main"]},
+        "not-text": {"schemaVersion": 1, "rows": rows, "batches": [1]},
+    }
+    for name, doc in cases.items():
+        code, _, _ = run(capsys, "check", "--ledger", write_json(tmp_path / f"{name}.json", doc), "--policy", policy_file)
+        assert code == 1, name
+    code, _, err = run(capsys, "check", "--ledger", tmp_path / "not-listed.json", "--policy", policy_file)
+    assert "batches" in err
+
+
+@pytest.mark.parametrize("field", ["minutes", "tokens_reported", "tool_calls"])
+def test_unrecorded_usage_may_be_null_but_not_other_non_numbers(capsys, tmp_path, policy_file, field):
+    ok = flow("c1")
+    ok[field] = None
+    assert run(capsys, "check", "--flows", write_flows(tmp_path, [ok]), "--policy", policy_file)[0] == 0
+    for junk in ("n/a", -1, True):
+        bad = flow("c1")
+        bad[field] = junk
+        code, _, err = run(capsys, "check", "--flows", write_flows(tmp_path, [bad]), "--policy", policy_file)
+        assert code == 1 and field in err, junk
+
+
+def test_rounds_without_recorded_usage_are_left_out_of_sums_and_denominators(capsys, tmp_path, policy_file):
+    rows = [
+        flow("c1", 1, [defect("D1")], minutes=None, tokens_reported=100),
+        flow("c1", 2, minutes=6.0, tokens_reported=None, tool_calls=None),
+        flow("c2", minutes=None, tokens_reported=None),
+    ]
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, rows)
+    cell = cell_of(inc)
+    assert (cell["minutes_sum"], cell["minutes_n"]) == (6.0, 1)
+    assert (cell["tokens_reported_sum"], cell["tokens_n"]) == (100, 1)
+
+
+def test_escalated_rounds_keep_their_own_usage_counts(capsys, tmp_path, policy_file):
+    rows = [
+        flow("c1", 1, [defect("D1")], minutes=4.0, tokens_reported=10),
+        flow("c1", 2, model="claude-fable-5-1", minutes=None, tokens_reported=70, escalation=escalation()),
+        flow("c1", 3, model="claude-fable-5-1", minutes=5.0, tokens_reported=None, escalation=escalation()),
+    ]
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, rows)
+    cell = cell_of(inc)
+    item = cell["escalations"][0]
+    assert (cell["minutes_sum"], cell["minutes_n"], cell["tokens_reported_sum"], cell["tokens_n"]) == (4.0, 1, 10, 1)
+    assert (item["minutes_sum"], item["minutes_n"], item["tokens_reported_sum"], item["tokens_n"]) == (5.0, 1, 70, 1)
+
+
+def test_apply_adds_the_usage_counts_and_check_ties_sums_to_counts(capsys, tmp_path, policy_file):
+    ledg = write_json(tmp_path / "ledger.json", empty_ledger())
+    one = make_increment(capsys, tmp_path, policy_file, [flow("c1", minutes=3.0, tokens_reported=None)], "2026-10-30-a-x", "one.json")
+    two = make_increment(capsys, tmp_path, policy_file, [flow("c2", minutes=None, tokens_reported=40)], "2026-10-31-b-y", "two.json")
+    assert run(capsys, "apply", "--ledger", ledg, "--increment", one, two, "--policy", policy_file)[0] == 0
+    merged = json.loads(ledg.read_text(encoding="utf-8"))
+    cell = cell_of(merged)
+    assert (cell["minutes_sum"], cell["minutes_n"], cell["tokens_reported_sum"], cell["tokens_n"]) == (3.0, 1, 40, 1)
+    cell["minutes_n"] = 0
+    code, _, err = run(capsys, "check", "--ledger", write_json(tmp_path / "bad.json", merged), "--policy", policy_file)
+    assert code == 1 and "minutes_n" in err
+
+
 # Drift and entry point ---------------------------------------------------
 
 def test_schema_enumerations_match_the_tool():
@@ -631,6 +752,8 @@ def test_schema_enumerations_match_the_tool():
     assert cell["usage_source"]["enum"] == list(ledger.CELL_USAGE_SOURCES)
     assert set(defs["cell"]["required"]) == set(cell) == set(ledger.CELL_KEYS)
     assert set(defs["row"]["required"]) == set(defs["row"]["properties"]) == set(ledger.ROW_KEYS)
+    assert set(schema["oneOf"][0]["required"]) == set(schema["oneOf"][0]["properties"]) == set(ledger.LEDGER_KEYS)
+    assert set(defs["escalation"]["required"]) == set(defs["escalation"]["properties"]) == set(ledger.ESCALATION_ITEM_KEYS)
     assert schema["oneOf"][1]["properties"]["lessons"]["maxItems"] == ledger.MAX_LESSONS
     assert set(schema["oneOf"][1]["required"]) == set(ledger.INCREMENT_KEYS)
 
