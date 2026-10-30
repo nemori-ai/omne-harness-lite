@@ -218,6 +218,30 @@ describe('the core conformance suite fails a Journal that breaks one of its rule
     )
   })
 
+  it.each([
+    [
+      'recordHandoff',
+      'another tenant: a root recordHandoff is denied with the action recordHandoff, the same for an existing and a missing execution, before any scripted fault; the attempt takes no custody slot, so the owner commits the same operation as the root',
+    ],
+    [
+      'prepareFinish',
+      'another tenant: prepareFinish under an advancement and under a cancel is denied with the action prepareFinish, the same for an existing and a missing execution, before the qualification and any scripted fault; the issued lists and FinishIntent.obligations stay; the owner then issues both lists',
+    ],
+    [
+      'tryFinish',
+      'another tenant: tryFinish with a list this execution issued is denied with the action tryFinish, the same for an existing and a missing execution, before any scripted fault; the execution stays settling with no ended event, and the owner then ends it',
+    ],
+  ] as const)('%s that serves any caller as the owner of the execution', async (method, name) => {
+    const names = await failing(
+      decorated((journal, opened) => ({
+        ...journal,
+        [method]: (input: object) =>
+          (journal[method] as (input: object) => unknown)({ ...input, ...opened.access }),
+      })),
+    )
+    expect(names).toContain(name)
+  })
+
   it('a commit with a stale expected revision answers changed before terminal', async () => {
     const names = await failing(
       decorated((journal, opened) => ({
