@@ -71,9 +71,9 @@
 #### AD-01 Agent 提交参加者
 
 - 注入：`session`，调用方类 `coordinator`。
-- 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
+- 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、挂接、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
 - 参加种类：本插件只声明 `message`、`context-transition`、`custody`、`processed` 四种（[PA-04](../session-contract/SPEC.md#pa-04)）。装配用它比对执行记录提供者的 `capabilities.participants`。
-- 协调模式：会话日志一侧的执行记录提供者是 Agent 的 coordinated Journal 绑定，`capabilities.coordination` 为 `coordinated`，装配配置 `coordination` 与之相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。coordinated 绑定须在 `open`、`attach`、`submit` 与 `tryFinish` 四处完成协调核对。`open`、`submit` 与 `tryFinish` 的核对见下表；`attach` 在同一次接管提交中核对当前外部资格、原关联、恢复或接管条件及适用推进资格效果的条款，Session 正文尚未规定。该条款规定之前，本插件的执行记录提供者不能声明 `coordinated`。
+- 协调模式：会话日志一侧的执行记录提供者是 Agent 的 coordinated Journal 绑定，`capabilities.coordination` 为 `coordinated`，装配配置 `coordination` 与之相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。coordinated 绑定须在 `open`、`attach`、`submit` 与 `tryFinish` 四处完成协调核对，核对见下表。`attach` 的 Session 核对覆盖当前外部资格、原关联与适用推进资格效果；恢复或接管条件由 Agent 按主体核验，本插件不判断。
 
 调用方交接到 Session 命令的翻译：
 
@@ -91,6 +91,7 @@
 | --- | --- | --- |
 | `open`（经 `invoke` 发起） | 来源依据是 SE13 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 1 条 |
 | `submit` | 来源依据是该输入的 SE11 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 2 条 |
+| `attach`（经 `resume` 发起） | 来源依据是推进资格依据所指 attempt 的 SE15 回执，分普通推进与取消收束两种情形 | [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条 |
 | `tryFinish` | 以 `judgeCompletion` 核对待交输入与取消 | [PA-02](../session-contract/SPEC.md#pa-02) |
 
 Session 结果到四种参加者响应的对应：
@@ -103,6 +104,7 @@ Session 结果到四种参加者响应的对应：
 | 读权威状态失败、存储不可用 | 失败 | 无 |
 | 提交种类不在四种之内，或材料缺项 | 不支持 | 无 |
 
+- `attach` 上的「冲突」译为 Agent 的 `denied`：推进资格依据的共同核对失败，恢复者停止并交恢复协调（[PM-05](../session-contract/SPEC.md#pm-05)），不译为 `changed`。
 - 参加提交成功后，本插件把回执与修订交给 Session 记入 `ExecutionRef`（[PA-04](../session-contract/SPEC.md#pa-04) 第 2 项）。
 - 参加提交的结果未知时，由执行记录提供者认回（[PA-05](../session-contract/SPEC.md#pa-05)）。本插件不把它列入 Session 的 `unresolved`。
 - 事务内的流水线（认回、权威读、领域服务、写事实）由 [session](../session/README.md) 与 [session-storage-sql](../session-storage-sql/README.md) 执行。本插件只做翻译与登记。
@@ -622,7 +624,7 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 
 本节的非耐久实现从 `./testing` 提供。session-adapters 提供 agentJournal，消费冻结 Agent 的完整 Journal 角色组，不修改 Agent 端口。AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会话日志的提交状态，执行索引以租户与 execution 为键。每次提交、重复操作、查询与材料读都核验当前资格；跨租户拒绝，不能通过材料引用绕过绑定。
 
-提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
+提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
 
 首次 custody/processed 需要尚未登记的原调用时，先核当前资格、新请求合法性及原 Agent operation 的认回/冲突。已完成原操作不重做准备。新操作仅从此前已提交的 Pending/effect/Authority→grant 关系，以独立稳定 Session operation、sequence=null 解释登记或原关联。准备未知先认原答案，不继续新结果提交。准备后重核根、资格、gap 与完整 binding，再共同发布新结果、参加事实和原答案。旧登记可在后一个 joint 失败时保留；该批不得留下新结果的半边事实，也不得把派生 SE18 塞进新 joint。
 

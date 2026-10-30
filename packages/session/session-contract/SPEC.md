@@ -889,11 +889,16 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### PA-01 来源核对
 
 - 前提：Session 先提交输入与 Run 开始。随后经出站端口发起执行或交入输入，每次带本成员的来源依据。
-- 动作：执行记录提供者在受理的同一次提交内，把来源依据交给 Session 参加者。参加者只读权威状态，按两条规则核对。
+- 动作：执行记录提供者在受理的同一次提交内，把来源依据交给 Session 参加者。参加者只读权威状态，按三条规则核对。
   1. `invoke`：来源依据是 SE13 回执。核对回执指向本会话已提交的 SE13，该执行等于 `run.active.execution.execution`，首条输入等于 SE13 所记的首条输入，推进资格依据指向的 attempt 等于 `run.active.advance`，Run 未终态。
   2. `submit`：来源依据是该输入的 SE11 回执。核对回执指向本会话已提交的 SE11，该 `InputId` 当前有待处理资格，去处是本 Run，该执行等于 `run.active.execution.execution`。
-- 结果：核对成立时响应「参加」，不写 Session 条目。受理成功后，推进协调以 `receive` 提交交入回执（SE35），该输入进入 `handed`。
-- 失败：来源依据不指向已提交条目、输入不属于本会话、去处不是本 Run，或 attempt 已被取代时，响应「冲突」，依据为该输入的当前去处或当前 `advance`。参加者自身依赖故障时响应「失败」。
+  3. `attach`（经出站端口 `resume` 发起）：来源依据是推进资格依据所指 attempt 的 SE15 回执。核对回执指向本会话已提交的 SE15，该执行等于 `run.active.execution.execution`，并满足下列一种情形。
+     - 普通推进：该 attempt 等于 `run.active.advance`，Run 未终态。
+     - 取消收束：Run 已是 cancelled 终态（SE26），该 attempt 是本 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/agent-contract/SPEC.md#条件终结)「终结授权有两种」）。
+
+     执行已经结束时，Agent 先返回 `terminal`，不进入本核对。本条是 attach 核对的唯一规定，[PM-05](#pm-05)、[PM-06](#pm-06)、[PM-08](#pm-08) 与 [PM-13](#pm-13) 引用它。
+- 结果：核对成立时响应「参加」，不写 Session 条目。`invoke` 或 `submit` 受理成功后，推进协调以 `receive` 提交交入回执（SE35），该输入进入 `handed`。
+- 失败：来源依据不指向已提交条目、输入不属于本会话、去处不是本 Run，或 attempt 已被取代且不属于取消收束情形时，响应「冲突」，依据为该输入的当前去处或当前 `advance`。`attach` 上的「冲突」由执行记录提供者译为 Agent 的 `denied`，恢复者停止并交恢复协调，不按 `changed` 重读重试。参加者自身依赖故障时响应「失败」。
 - 未知与认回：受理提交未知时，Session 按出站操作身份 `query`。参加者没有自己的事实，不另立待决项。
 - 责任：输入内容的耐久归执行记录提供者。去处与待处理资格归 Session。
 
@@ -1054,7 +1059,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：`run.active`，并满足下列之一：`advance` 为 null；旧挂接已交还或已被取代；恢复者持有接管资格。`continuity` 是指向 Agent 原记录的耐久证据，绑定读得的修订与来源，不是接续值。
 - 动作：
   1. 第一次提交 `claim`（JC-07）：`judgeAdvance` 核对旧 attempt 已交还或可信排除，写 SE15，序号加一。旧 attempt 尚无 SE16 时同批写 SE16。
-  2. 第二次提交是 `resume`：恢复依据为 `continuity` 加恢复者材料，可以含宿主的失联判断；推进资格依据为新 attempt 的 SE15 证据。执行记录提供者授予挂接的条件提交内，Session 参加者只读核对推进资格依据指向的 attempt 等于当前 `advance`。
+  2. 第二次提交是 `resume`：恢复依据为 `continuity` 加恢复者材料，可以含宿主的失联判断；推进资格依据为新 attempt 的 SE15 证据。执行记录提供者授予挂接的条件提交内，Session 参加者按 [PA-01](#pa-01) 第 3 条只读核对。
 - 结果：恢复路径下，旧挂接保持交还状态，新挂接 active。接管路径下，同一次条件提交内旧挂接被取代、新挂接 active，旧 runtime 的后续提交得到 `stale-advance`。两条路径由执行记录提供者按状态选择，Session 不选择。
 - 失败：
   - `claim` 返回 `stale-advance`（已有其他后继）或 `changed`（旧 attempt 仍有效且未被排除）。
@@ -1072,7 +1077,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：[PM-03](#pm-03) 取得交接证明。旧推进已按 [PM-04](#pm-04) 撤除，或旧 runtime 已失联。
 - 动作：
   1. 第一次提交 `reload`（JC-08）：核对同一定义标识、候选等于交接证明的目标采用、`expected` 等于当前修订、Run 未终态且会话未归档。写 SE15 与旧 attempt 的 SE16，采用变化时写 SE08。
-  2. 第二次提交是 `resume`：恢复依据绑定交接证明，推进资格依据为新 attempt 的证据。执行记录提供者核验原版本仍适用，并共同保存转换后的接续。Session 参加者只读核对推进资格依据。
+  2. 第二次提交是 `resume`：恢复依据绑定交接证明，推进资格依据为新 attempt 的证据。执行记录提供者核验原版本仍适用，并共同保存转换后的接续。Session 参加者按 [PA-01](#pa-01) 第 3 条只读核对。
 - 结果：新 attempt 按新采用推进。原调用、等待与卡片保留。新采用只影响尚未开始的经过。候选等于当前采用时不写 SE08，仍可以写新 attempt。
 - 失败：
   - `resume` 返回 `changed`（原版本已变化）时，`reload` 的 SE15 已经成立。恢复者重新读执行记录、重新取交接证明，再以同一 attempt 的推进资格依据接续，不第二次提交 `reload`。否则序号会无界增长。
@@ -1101,7 +1106,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：换代或恢复的任一阶段与 `control(cancel-run)` 或 `control(archive)` 并发。
 - 动作：
   - 取消在权威序列中先成立时，之后的 `claim`、`reload` 被拒绝，因为 `judgeAdvance` 读到终态或归档。之后的 `startRun` 为下一个 Run 照常裁定（[PA-03](#pa-03)），归档先成立时返回 `archived`。
-  - `resume` 到达 Agent 时执行仍活，挂接可以成功。新挂接的第一次条件终结读到 SE26 cancelled，参加者响应「冲突」，Agent 以取消授权收束（[PA-08](#pa-08) 第 3 项）。
+  - `resume` 到达 Agent 时执行尚未结束，且推进资格依据是本 Run 在取消之前最后授予的 attempt 时，挂接按 [PA-01](#pa-01) 第 3 条的取消收束情形成立，只带取消授权。新挂接的第一次条件终结读到 SE26 cancelled，参加者响应「冲突」，Agent 以取消授权收束（[PA-08](#pa-08) 第 3 项）。
   - `claim` 或 `reload` 先成立时，取消照常提交，SE16 撤销新 attempt，传播到新挂接。
 - 结果：任何顺序下只有一个终态。取消之后没有新授予且存活的推进资格。
 - 责任：排序归存储事务域。传播归控制传播协调。
@@ -1159,7 +1164,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：`control(cancel-run)` 或归档已提交（SE24、SE25、SE26 cancelled、SE16）。Agent 一侧没有 active 挂接，或 runtime 已失联。
 - 动作：控制传播协调按挂接状态处理。
   1. 挂接存活时，控制经出站端口 `control` 送到原执行。
-  2. 没有挂接时，仍先经出站端口 `control` 送到 Agent 的长期控制入口，受理不依赖挂接。后续收束由恢复协调 `resume` 原执行，必要时取得独立接管资格。新挂接读原取消意图，以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事实按 [RS-10](#rs-10) 认回。
+  2. 没有挂接时，仍先经出站端口 `control` 送到 Agent 的长期控制入口，受理不依赖挂接。后续收束由恢复协调 `resume` 原执行，必要时取得独立接管资格，推进资格依据是本 Run 在取消之前最后授予的 attempt 的 SE15 证据，Session 参加者按 [PA-01](#pa-01) 第 3 条的取消收束情形核对。新挂接读原取消意图，以取消授权条件终结，参加者按 [PA-02](#pa-02) 响应「参加」。之后读到的结束事实按 [RS-10](#rs-10) 认回。
 - Tool 启动围栏另按 [Agent J03](../../agent/agent-contract/SPEC.md#tool-启动围栏) 处理。Agent 取得 Tool 的失效证据后才写 `start-fence`，Session 不以取消提交代替该事实。哪些控制触发失效及特定失败的恢复仍属 #502 未决项，本节不规定取消必然产生围栏。失效推进者的新 Model 发出仍由执行记录提供者的条件提交（`stale-advance`）与 Agent 的动作发出围栏阻止。
 - 结果：Session 的终态在提交时已经成立，不等传播。`ControlProgress` 只在原控制的传播、生产者核对与原责任交接均已对账后成为 `reconciled`，精确判据见 [AD-02 的控制对账](../session-adapters/SPEC.md#ad-02)。传播或责任仍未知时保留 `pending`、`pendingUnassociatedWaiting` 与 `propagating`。Tool 围栏不计入该进度，也不生成 Session 失效任务。超过策略上限时仍保留进度并报告。`reconciled` 不证明物理停止、效果撤回或归档任务完成。取不到挂接且 Agent 记录不可解释时，不凭无挂接或 Run 终态解除原责任。
 - 失败：长期控制或后续 `resume` 返回 `terminal` 时，读取原结束状态并按 [RS-10](#rs-10) 认回。控制结果未知时先查原操作，不为取得挂接而重发控制。

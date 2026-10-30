@@ -277,7 +277,7 @@ sequenceDiagram
 
 本流程展开 [EC-01](../../SPEC.md#ec-01) 至 [EC-03](../../SPEC.md#ec-03)。session-contract 的纯层与 session-adapters `./testing` 的内存提供者实现本流程，支持范围以 [SPEC](../../SPEC.md) 开头的状态行为准。它们不证明生产提供者、耐久或完整生产运行组合。
 
-1. Agent 经 Journal 首次发布原事实、适用的四类 CallerCommit 参加事实与 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
+1. Agent 经 Journal 首次发布原事实、适用的四类 CallerCommit 参加事实与 Agent 原操作答案。received、完整材料、消费绑定与 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。
 2. 解释器经同一 AgentJournal 提供者的 output.read / output.events 读事件正文，经 load 读 entries、results 等快照字段，不读取 load.events。readThrough 使用事件序号，entries 提交顺序与 results 快照不能替代事件 cursor。
 3. 解释器核验当前资格、租户、原 execution-to-Run 关系及来源身份。input-taken 派生 SE14，producer 派生 SE19/SE18，waiting 派生 SE18/SE22，control 派生 SE25，ended 派生 SE26/SE16。
 4. 在 Agent 原提交之后的另一笔 Session 提交中，后果、解释进度及该次操作答案一次发布。只保存原来源身份或引用，不复制事件正文。message 不重复写历史，stream 不逐片保存。不执行旧 receive 后确认事件副本的步骤。

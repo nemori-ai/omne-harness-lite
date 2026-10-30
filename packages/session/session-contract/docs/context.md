@@ -61,7 +61,7 @@ Run 与 Agent 执行的对应是下文全部场景的前提。系统层说明见
 | 推进实例身份   | Agent runtime 实例 | 只作追溯。`judgeAdvance` 不比较它                                          |
 | `ExecutionRef` | 执行的权威记录     | Session 只保存执行身份、最后已知修订、耐久证据与事件读取位置，不保存接续值 |
 
-Agent 与 Session 共用会话日志，分为 Agent 原提交和 Session 后续解释两个发布点。边界见 SPEC 的 [Session 与 Agent 的同一日志](../SPEC.md#session-与-agent-的两条通道)。原提交共同保护 Agent 事实、适用的四类 CallerCommit 参加事实与原操作答案；received、完整材料、消费绑定和 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。
+Agent 与 Session 共用会话日志，分为 Agent 原提交和 Session 后续解释两个发布点。边界见 SPEC 的 [Session 与 Agent 的同一日志](../SPEC.md#session-与-agent-的两条通道)。原提交共同保护 Agent 事实、适用的四类 CallerCommit 参加事实与原操作答案；received、完整材料、消费绑定和 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。
 
 ## 一轮正常推进
 
