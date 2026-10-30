@@ -5,11 +5,13 @@
 import { spawnSync } from 'node:child_process'
 import {
   chmodSync,
+  copyFileSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
   realpathSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -129,6 +131,62 @@ describe('with-test-slot 起命令', () => {
     expect(refused.stdout).toBe('')
     expect(refused.stderr).toContain(join(bare.dir, 'pnpm.cmd'))
     expect(refused.stderr).toContain('pnpm.cjs')
+  })
+
+  describe.runIf(WINDOWS)('Windows：PATH 上有 pnpm.exe、npm 全局布局或两者都有', () => {
+    /**
+     * 一个只放 `pnpm.exe` 的 PATH 目录。这个 `pnpm.exe` 就是本进程的 Node（软链接，建不了时复制），
+     * 所以 `pnpm <脚本> …` 直接运行那个脚本：替身输出的 `entry` 是脚本本身，而经 `pnpm.cjs` 起时是 `pnpm.cjs`。
+     */
+    function exePnpm(root: string, name: string): string {
+      const dir = join(root, name)
+      mkdirSync(dir, { recursive: true })
+      try {
+        symlinkSync(process.execPath, join(dir, 'pnpm.exe'), 'file')
+      } catch {
+        copyFileSync(process.execPath, join(dir, 'pnpm.exe'))
+      }
+      return dir
+    }
+    /** 经名额脚本起 `pnpm <替身脚本> x`，返回替身记下的入口与参数。 */
+    function started(root: string, dirs: readonly string[]) {
+      const probe = join(root, 'probe.cjs')
+      writeFileSync(probe, FAKE_PNPM)
+      const result = slot(root, ['pnpm', probe, 'x'], dirs)
+      expect(result.status, result.stderr).toBe(3)
+      return { probe, seen: JSON.parse(result.stdout.trim()) }
+    }
+
+    it('只有 pnpm.exe 时直接起它', () => {
+      const root = home()
+      const { probe, seen } = started(root, [exePnpm(root, 'exe')])
+      expect(seen).toMatchObject({ entry: probe, args: ['x'] })
+    })
+
+    it('两种都有时按 PATH 顺序取先遇到的那个', () => {
+      const root = home()
+      const npm = fakePnpm(root, 'npm')
+      const exe = exePnpm(root, 'exe')
+      const exeFirst = started(root, [exe, npm.dir])
+      expect(exeFirst.seen).toMatchObject({ entry: exeFirst.probe, args: ['x'] })
+      const npmFirst = started(root, [npm.dir, exe])
+      expect(npmFirst.seen).toMatchObject({ entry: npm.entry, args: [npmFirst.probe, 'x'] })
+    })
+  })
+
+  it('.sh 脚本：参数里的通配符、花括号、~ 与引号原样到达脚本', () => {
+    const root = home()
+    // 当前目录里有能被 *.md、?.md、[ab].md 匹配到的文件，展开了就会变成文件名。
+    for (const name of ['a.md', 'b.md']) writeFileSync(join(root, name), '')
+    const probe = join(root, 'probe.sh')
+    writeFileSync(probe, '#!/usr/bin/env bash\nprintf "[%s]\\n" "$@"\nexit 4\n')
+    chmodSync(probe, 0o755)
+    // `a\\b` has two backslashes in a row: MSYS reads `\\` in double quotes as one, so the quoting
+    // must double each. (A leading `\\` would also do, but MSYS then looks up a network share.)
+    const odd = ['*.md', '?.md', '[ab].md', '{a,b}', '~', "it's", 'x"y', 'c:\\dir\\', 'a\\\\b', '']
+    const result = slot(root, [probe, ...odd], [])
+    expect(result.status, result.stderr).toBe(4)
+    expect(result.stdout.split(/\r?\n/).slice(0, -1)).toEqual(odd.map(arg => `[${arg}]`))
   })
 
   it('.sh 脚本：直接交给名额脚本也能起，参数原样、退出码透传', () => {

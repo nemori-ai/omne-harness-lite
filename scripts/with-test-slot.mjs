@@ -414,14 +414,18 @@ process.exit(status)
  */
 async function run(command, childEnv, measure) {
   const proc = measure ? cpuMeter() : undefined
-  let argv
+  let started
   try {
-    argv = launch(proc?.wrap(command) ?? command, childEnv)
+    started = launch(proc?.wrap(command) ?? command, childEnv)
   } catch (error) {
     process.stderr.write(`with-test-slot: ${command[0]}: ${error.message}\n`)
     return { status: 127, cpuSeconds: null }
   }
-  const child = spawn(argv[0], argv.slice(1), { stdio: 'inherit', env: childEnv })
+  const child = spawn(started.file, started.args, {
+    stdio: 'inherit',
+    env: childEnv,
+    ...started.options,
+  })
   const forward = signal => child.kill(signal)
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, forward)
   const code = await new Promise(settle => {
@@ -438,29 +442,34 @@ async function run(command, childEnv, measure) {
 }
 
 /**
- * 实际起的程序与参数。POSIX 上原样返回。Windows 上 Node 不经 shell 只能起 `.exe`，所以有两种命令另起：
- * - `pnpm`（或 `pnpm.cmd`）：PATH 里是 `pnpm.cmd`，直接起报 ENOENT，起 `pnpm.cmd` 报 EINVAL。改为用本进程的 Node
- *   运行 PATH 中第一个带 `node_modules/pnpm/bin/pnpm.cjs` 的 `pnpm.cmd` 所在目录里的那个文件（npm 全局安装的布局），
- *   与 test-runner 和 dev-flow 的 `pnpmCommand` 相同。
+ * 实际起的程序、参数与另加的 spawn 选项。POSIX 上原样起。Windows 上 Node 不经 shell 只能起 `.exe`，所以有两种命令另起：
+ * - `pnpm`（或 `pnpm.cmd`）：按 PATH 顺序找。先遇到 `pnpm.exe` 就直接起它（独立安装的布局）。先遇到旁边有
+ *   `node_modules/pnpm/bin/pnpm.cjs` 的 `pnpm.cmd`（npm 全局安装的布局），就用本进程的 Node 运行那个 `pnpm.cjs`：
+ *   直接起 `pnpm` 报 ENOENT，起 `pnpm.cmd` 报 EINVAL。旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。与 dev-flow 的 `pnpmCommand` 相同。
  * - 以 `.sh` 结尾的命令：直接起报 EFTYPE。改为经 Git for Windows 的 bash 运行，bash 按 `git --exec-path`
  *   （`<Git>/<mingw64>/libexec/git-core`）往上三级找 `bin/bash.exe`，不取 PATH 里的 `bash`，因为那可能是 WSL 的启动器。
- * 找不到时抛错，不猜。其余命令原样返回。
+ *   这个 bash 被非 MSYS 进程起时，自己解析命令行，并展开没加双引号的参数（通配符、花括号、`~`、单引号）。
+ *   所以每个参数都由 `msysQuote` 加上双引号，命令行原样交给 bash（`windowsVerbatimArguments`），参数原样到达脚本。
+ * 找不到时抛错，不尝试其他位置。其余命令原样起。
  */
 function launch(argv, childEnv) {
-  if (process.platform !== 'win32') return argv
   const [command, ...rest] = argv
+  if (process.platform !== 'win32') return { file: command, args: rest, options: {} }
   if (/^pnpm(\.cmd)?$/i.test(command)) {
     const seen = []
     for (const directory of (childEnv['PATH'] ?? childEnv['Path'] ?? '').split(';')) {
-      if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+      if (directory === '') continue
+      const exe = join(directory, 'pnpm.exe')
+      if (existsSync(exe)) return { file: exe, args: rest, options: {} }
+      if (!existsSync(join(directory, 'pnpm.cmd'))) continue
       const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
-      if (existsSync(entry)) return [process.execPath, entry, ...rest]
+      if (existsSync(entry)) return { file: process.execPath, args: [entry, ...rest], options: {} }
       seen.push(join(directory, 'pnpm.cmd'))
     }
     throw new Error(
       seen.length === 0
-        ? 'PATH 里没有 pnpm.cmd'
-        : `${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+        ? 'PATH 里没有 pnpm.exe，也没有 pnpm.cmd'
+        : `PATH 里没有 pnpm.exe，${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
     )
   }
   if (/\.sh$/i.test(command)) {
@@ -471,9 +480,22 @@ function launch(argv, childEnv) {
       throw new Error(
         `起 .sh 要 Git for Windows 的 bash，没找到（git --exec-path：${execPath || '读不到'}）`,
       )
-    return [bash, command, ...rest]
+    // 命令行整条由这里拼好：Node 不再加引号，第一项也要自己加。
+    return {
+      file: bash,
+      args: [[command, ...rest].map(msysQuote).join(' ')],
+      options: { windowsVerbatimArguments: true, argv0: msysQuote(bash) },
+    }
   }
-  return argv
+  return { file: command, args: rest, options: {} }
+}
+
+/**
+ * MSYS 的命令行解析读双引号内的参数时，不展开通配符等，`\\` 读作 `\`，`\"` 读作 `"`，其余字符原样。
+ * 所以把参数里的每个 `\` 与 `"` 前加一个 `\`，再整个加双引号。
+ */
+function msysQuote(value) {
+  return `"${value.replaceAll(/[\\"]/g, '\\$&')}"`
 }
 
 function cpuMeter() {

@@ -19,27 +19,48 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, delimiter, join, relative, sep } from 'node:path'
+import { basename, delimiter, extname, join, relative, sep } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
 import { record } from '../delivery/protocol.ts'
 import { IntegrationError, json } from './parse.ts'
 
 /**
- * Runs one program without a shell and returns its exit status and output. `env` adds to the
+ * Changes to the process environment for one step: a string sets the variable, `undefined`
+ * removes it. On Windows the removal ignores case, as the environment there does.
+ */
+export type EnvChanges = Readonly<Record<string, string | undefined>>
+/**
+ * Runs one program without a shell and returns its exit status and output. `env` changes the
  * process environment. Tests replace it to record the steps.
  */
 export type Runner = (
   program: string,
   args: readonly string[],
-  options: { cwd: string; env?: Record<string, string> },
+  options: { cwd: string; env?: EnvChanges },
 ) => { status: number; stdout: string; stderr: string }
+/** `base` with `changes` applied. */
+export function changedEnvironment(
+  base: Readonly<Record<string, string | undefined>>,
+  changes: EnvChanges,
+  platform: NodeJS.Platform = process.platform,
+): Record<string, string> {
+  const same = (a: string, b: string) =>
+    platform === 'win32' ? a.toUpperCase() === b.toUpperCase() : a === b
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(base))
+    if (value !== undefined && !Object.keys(changes).some(name => same(name, key)))
+      result[key] = value
+  for (const [key, value] of Object.entries(changes)) if (value !== undefined) result[key] = value
+  return result
+}
 export const runProgram: Runner = (program, args, { cwd, env }) => {
   const result = spawnSync(program, [...args], {
     cwd,
     encoding: 'utf8',
     maxBuffer: 32 * 1024 * 1024,
-    env: { ...process.env, ...env },
+    env: changedEnvironment(process.env, env ?? {}),
   })
   return {
     status: result.error === undefined ? (result.status ?? 1) : 1,
@@ -68,12 +89,20 @@ const pathDirectories = (host: Host) =>
     .filter(directory => directory !== '')
 
 /** The program and leading arguments that start pnpm. */
-export function pnpmCommand(host: Host): { program: string; args: string[] } {
+export type PnpmCommand = { program: string; args: string[] }
+/**
+ * How pnpm starts on `host`. POSIX runs `pnpm`. Windows searches `PATH` in order, because Node
+ * cannot start `pnpm.cmd` without a shell. The first directory that holds `pnpm.exe` (the
+ * standalone layout) starts that file. The first directory that holds `pnpm.cmd` with
+ * `node_modules/pnpm/bin/pnpm.cjs` beside it (the npm global layout) runs that file with the
+ * current Node. A `pnpm.cmd` without `pnpm.cjs` is skipped. Throws when no directory qualifies.
+ */
+export function pnpmCommand(host: Host): PnpmCommand {
   if (host.platform !== 'win32') return { program: 'pnpm', args: [] }
-  // PATH holds `pnpm.cmd`, which Node cannot start without a shell. The npm global layout keeps
-  // `pnpm.cjs` beside it, and the current Node runs that file.
   const seen: string[] = []
   for (const directory of pathDirectories(host)) {
+    const exe = join(directory, 'pnpm.exe')
+    if (existsSync(exe)) return { program: exe, args: [] }
     if (!existsSync(join(directory, 'pnpm.cmd'))) continue
     const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
     if (existsSync(entry)) return { program: host.execPath, args: [entry] }
@@ -82,24 +111,23 @@ export function pnpmCommand(host: Host): { program: string; args: string[] } {
   throw new IntegrationError(
     'unknown',
     seen.length === 0
-      ? 'pnpm.cmd is not on PATH'
-      : `${seen.join(', ')} has no node_modules/pnpm/bin/pnpm.cjs beside it, so pnpm cannot start`,
+      ? 'Neither pnpm.exe nor pnpm.cmd is on PATH'
+      : `pnpm.exe is not on PATH, and ${seen.join(', ')} has no node_modules/pnpm/bin/pnpm.cjs beside it, so pnpm cannot start`,
   )
 }
 /** Whether the copy step can use `rsync`: only on POSIX, and only when a `PATH` entry holds it. */
 function hasRsync(host: Host): boolean {
   return host.platform !== 'win32' && pathDirectories(host).some(d => existsSync(join(d, 'rsync')))
 }
-/** One step that runs pnpm with `args`; the host decides how pnpm itself starts. */
+/** One step that runs pnpm with `args`, started as `pnpm` says. */
 function pnpmStep(
   run: Runner,
   name: string,
   args: readonly string[],
   cwd: string,
-  host: Host,
+  pnpm: PnpmCommand,
 ): string {
-  const command = pnpmCommand(host)
-  return step(run, name, command.program, [...command.args, ...args], cwd)
+  return step(run, name, pnpm.program, [...pnpm.args, ...args], cwd)
 }
 
 /**
@@ -152,7 +180,7 @@ function step(
   program: string,
   args: readonly string[],
   cwd: string,
-  env?: Record<string, string>,
+  env?: EnvChanges,
 ): string {
   const result = run(program, args, env === undefined ? { cwd } : { cwd, env })
   if (result.status !== 0)
@@ -198,19 +226,32 @@ export const taskDirectory = (binding: TaskBinding) => `tmp/issue-${binding.issu
 
 const CURSOR_RUNTIME = ['Dockerfile', 'environment.json', 'install.sh']
 /**
+ * The environment changes for `uv run --locked`. The lock file fixes where each package comes
+ * from, so an index from the user's environment (for example a mirror) only makes the lock
+ * check fail; both index variables are removed.
+ */
+export const LOCKED_UV_ENV: EnvChanges = {
+  PYTHONDONTWRITEBYTECODE: '1',
+  UV_DEFAULT_INDEX: undefined,
+  UV_INDEX_URL: undefined,
+}
+/**
  * Regenerates the agent projections of a worktree from its own `.meta_harness/agents` source:
  * compile into a fresh stage directory, copy the stage over `.meta_harness/` by content,
  * relink the root entries, drop group write on the three Cursor runtime files, then run
  * `check:agents`. A failed step stops the run. The stage directory is removed in every case.
  * The copy runs `rsync` on a POSIX host that has it, and `copyProjections` everywhere else.
+ * How pnpm starts is decided before the first step, so a host without pnpm changes nothing.
  */
 export function regenerateProjections(
   tree: string,
   run: Runner = runProgram,
   host: Host = realHost(),
 ): void {
-  const stage = mkdtempSync(join(realpathSync(tmpdir()), 'omne-agents-stage-'))
-  const python = { PYTHONDONTWRITEBYTECODE: '1' }
+  const pnpm = pnpmCommand(host)
+  const stage = localStep('create stage directory', () =>
+    mkdtempSync(join(realpathSync(tmpdir()), 'omne-agents-stage-')),
+  )
   try {
     step(
       run,
@@ -227,11 +268,11 @@ export function regenerateProjections(
         stage,
       ],
       tree,
-      python,
+      LOCKED_UV_ENV,
     )
     if (hasRsync(host))
       step(run, 'copy projections', 'rsync', ['-rlpc', `${stage}/`, '.meta_harness/'], tree)
-    else copyProjections(stage, join(tree, '.meta_harness'))
+    else localStep('copy projections', () => copyProjections(stage, join(tree, '.meta_harness')))
     step(
       run,
       'link agents',
@@ -245,13 +286,15 @@ export function regenerateProjections(
         '.',
       ],
       tree,
-      python,
+      LOCKED_UV_ENV,
     )
-    for (const name of CURSOR_RUNTIME) {
-      const path = join(tree, '.meta_harness/.cursor', name)
-      if (existsSync(path)) chmodSync(path, statSync(path).mode & ~0o020)
-    }
-    pnpmStep(run, 'check:agents', ['run', 'check:agents'], tree, host)
+    localStep('drop group write', () => {
+      for (const name of CURSOR_RUNTIME) {
+        const path = join(tree, '.meta_harness/.cursor', name)
+        if (existsSync(path)) chmodSync(path, statSync(path).mode & ~0o020)
+      }
+    })
+    pnpmStep(run, 'check:agents', ['run', 'check:agents'], tree, pnpm)
   } finally {
     rmSync(stage, { recursive: true, force: true })
   }
@@ -285,13 +328,90 @@ function alignLocalBranch(root: string, branch: string, remote: string, run: Run
 }
 
 /**
+ * `error` as an `IntegrationError`. Another error becomes `unknown` with a message that names
+ * the step `name`, the error type and its message.
+ */
+function failureOf(name: string, error: unknown): IntegrationError {
+  if (error instanceof IntegrationError) return error
+  const type = error instanceof Error ? error.name : typeof error
+  const detail = error instanceof Error ? error.message : String(error)
+  return new IntegrationError('unknown', `${name} failed (${type}): ${detail}`)
+}
+/** Runs the local step `name`; an error from the file system names the step. */
+function localStep<T>(name: string, work: () => T): T {
+  try {
+    return work()
+  } catch (error) {
+    throw failureOf(name, error)
+  }
+}
+/** What a `WorktreeStepError` reports besides the failure. */
+type Progress = {
+  /** The finished changes, in order. */
+  done: readonly string[]
+  /** The commands that finish the run from the failed step, in order. */
+  resume: readonly string[]
+  /** The task directory copy that the run restores, when there is one. */
+  evidence: string | undefined
+}
+/**
+ * A step of `prepare` or `swap` that failed after the run changed the disk. The code and
+ * message are those of the failed step; `done`, `resume` and `evidence` are its `Progress`.
+ */
+export class WorktreeStepError extends IntegrationError {
+  override name = 'WorktreeStepError'
+  readonly done: string[]
+  readonly resume: string[]
+  readonly evidence: string | undefined
+  constructor(failure: IntegrationError, progress: Progress) {
+    super(failure.code, failure.message)
+    this.done = [...progress.done]
+    this.resume = [...progress.resume]
+    this.evidence = progress.evidence
+  }
+}
+/**
+ * Runs the step `name`; a failure becomes a `WorktreeStepError` with `progress`. A
+ * `WorktreeStepError` from inside `work` is kept as it is.
+ */
+function resumable<T>(name: string, progress: Progress, work: () => T): T {
+  try {
+    return work()
+  } catch (error) {
+    if (error instanceof WorktreeStepError) throw error
+    throw new WorktreeStepError(failureOf(name, error), progress)
+  }
+}
+/** The worktree command beside this module, as a resume command starts it. */
+const WORKTREE_CLI = fileURLToPath(
+  new URL(`./worktree-cli${extname(fileURLToPath(import.meta.url))}`, import.meta.url),
+)
+/** The `start` entry of a worktree, relative to it. */
+const START_CLI = 'tools/dev-flow/src/integration/cli.ts'
+const worktreeCommand = (args: string) => `node --experimental-strip-types ${WORKTREE_CLI} ${args}`
+/** The `prepare` command line that repeats a run with these inputs. */
+function prepareCommand(input: {
+  root: string
+  tree: string
+  binding: TaskBinding
+  remote: string
+  evidence: string | undefined
+}): string {
+  const evidence = input.evidence === undefined ? '' : ` --evidence ${input.evidence}`
+  return worktreeCommand(
+    `prepare --issue ${input.binding.issue.number} --tree ${input.tree}${evidence} --root ${input.root} --remote ${input.remote}`,
+  )
+}
+
+/**
  * Prepares a new worktree for a dispatched attempt and runs `start` in it. The branch,
  * dispatch, revision and attempt come from the card's binding. Steps: refuse an existing
- * directory; align the local branch with the remote tip; add the worktree on it (tracking the
- * remote branch when no local branch exists); install with the frozen lock file; restore
- * `evidence` into the task directory; regenerate the agent projections; write the start
- * command into the task directory and run the worktree's own `start`. Nothing is removed on
- * failure.
+ * directory; decide how pnpm starts, and refuse when it cannot; align the local branch with
+ * the remote tip; add the worktree on it (tracking the remote branch when no local branch
+ * exists); restore `evidence` into the task directory and write the start command there;
+ * install with the frozen lock file; regenerate the agent projections; run the worktree's own
+ * `start`. Nothing is removed on failure. A failure after the worktree exists is a
+ * `WorktreeStepError` that names the finished steps and the commands that continue the run.
  */
 export function prepareWorktree({
   root,
@@ -311,6 +431,8 @@ export function prepareWorktree({
   host?: Host
 }): { tree: string; context: Record<string, unknown>; reports: string[] } {
   if (existsSync(tree)) throw new IntegrationError('refused', `${tree} already exists`)
+  // Decide before anything changes: a host that cannot start pnpm gets no tree.
+  const pnpm = pnpmCommand(host)
   const branch = binding.branch
   const local = alignLocalBranch(root, branch, remote, run)
   step(
@@ -322,42 +444,130 @@ export function prepareWorktree({
       : ['worktree', 'add', '--quiet', tree, '-b', branch, '--track', `${remote}/${branch}`],
     root,
   )
-  pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, host)
-  const task = join(tree, taskDirectory(binding))
-  mkdirSync(task, { recursive: true })
-  if (evidence !== undefined) cpSync(evidence, task, { recursive: true })
-  regenerateProjections(tree, run, host)
-  const input = join(task, 'start.json')
-  writeFileSync(input, `${JSON.stringify(startInput(binding), null, 2)}\n`)
+  const task = join(tree, taskDirectory(binding)),
+    input = join(task, 'start.json')
+  const done = [`added worktree ${tree} on ${branch}`]
+  const commands = {
+    install: `pnpm --dir ${tree} install --frozen-lockfile --ignore-scripts`,
+    projections: worktreeCommand(`projections --tree ${tree}`),
+    start: `node --experimental-strip-types ${join(tree, START_CLI)} execute --root ${tree} --input ${input}`,
+  }
+  const progress = (resume: readonly string[]): Progress => ({ done, resume, evidence })
+  resumable(
+    'restore evidence and write start.json',
+    progress([
+      worktreeCommand(`remove --tree ${tree} --root ${root} --force`),
+      prepareCommand({ root, tree, binding, remote, evidence }),
+    ]),
+    () => {
+      mkdirSync(task, { recursive: true })
+      if (evidence !== undefined) cpSync(evidence, task, { recursive: true })
+      // The copy may hold the start command of an earlier attempt; this one replaces it first.
+      writeFileSync(input, `${JSON.stringify(startInput(binding), null, 2)}\n`)
+    },
+  )
+  if (evidence !== undefined) done.push(`restored ${evidence} into ${task}`)
+  done.push(`wrote ${input} for attempt ${binding.attempt}`)
+  resumable('install', progress([commands.install, commands.projections, commands.start]), () =>
+    pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, pnpm),
+  )
+  done.push('installed dependencies')
+  resumable('projections', progress([commands.projections, commands.start]), () =>
+    regenerateProjections(tree, run, host),
+  )
+  done.push('regenerated agent projections')
   const result = run(
     'node',
-    [
-      '--experimental-strip-types',
-      'tools/dev-flow/src/integration/cli.ts',
-      'execute',
-      '--root',
-      tree,
-      '--input',
-      input,
-    ],
+    ['--experimental-strip-types', START_CLI, 'execute', '--root', tree, '--input', input],
     { cwd: tree },
   )
   const reports = result.stderr.split('\n').filter(line => line.trim() !== '')
   if (result.status !== 0)
-    throw new IntegrationError('refused', `start failed in ${tree}: ${reports.join(' | ')}`)
+    throw new WorktreeStepError(
+      new IntegrationError('refused', `start failed in ${tree}: ${reports.join(' | ')}`),
+      progress([commands.start]),
+    )
   return { tree, context: record(json(result.stdout, 'start output'), 'context'), reports }
 }
 
+/** One path `git status --porcelain --ignored` reports beyond tracked changes. */
+type UntrackedEntry = { path: string; ignored: boolean }
 /**
  * The entries `git status --porcelain --ignored` reports beyond tracked changes: untracked
  * (`??`) and ignored (`!!`) paths, minus those under `keep`.
  */
-function untrackedEntries(tree: string, keep: string | undefined, run: Runner): string[] {
+function untrackedEntries(tree: string, keep: string | undefined, run: Runner): UntrackedEntry[] {
   return step(run, 'read untracked files', 'git', ['status', '--porcelain', '--ignored'], tree)
     .split('\n')
     .filter(line => line.startsWith('?? ') || line.startsWith('!! '))
-    .map(line => line.slice(3))
-    .filter(path => keep === undefined || !(path === `${keep}/` || path.startsWith(`${keep}/`)))
+    .map(line => ({ path: line.slice(3), ignored: line.startsWith('!! ') }))
+    .filter(
+      ({ path }) => keep === undefined || !(path === `${keep}/` || path.startsWith(`${keep}/`)),
+    )
+}
+
+/**
+ * The fixed list of ignored paths that a new tree makes again, so `swap` counts them instead of
+ * naming each one. A path is in a category when its last segment is one of `names`, or when it
+ * is one of `prefixes` or lies under one.
+ */
+export const REGENERABLE: readonly {
+  category: string
+  names?: readonly string[]
+  prefixes?: readonly string[]
+  remedy: string
+}[] = [
+  { category: 'node_modules', names: ['node_modules'], remedy: 'pnpm install makes them again' },
+  { category: 'dist', names: ['dist'], remedy: 'a build makes them again' },
+  { category: '.turbo', names: ['.turbo'], remedy: 'turbo makes its cache again' },
+  { category: '.venv', names: ['.venv'], remedy: 'uv makes the environment again' },
+  {
+    category: 'Python caches',
+    names: ['__pycache__', '.pytest_cache'],
+    remedy: 'Python and pytest make them again',
+  },
+  {
+    category: 'agent projections',
+    prefixes: [
+      '.meta_harness/.agents',
+      '.meta_harness/.claude',
+      '.meta_harness/.codex',
+      '.meta_harness/.cursor',
+    ],
+    remedy: 'projections makes them again',
+  },
+]
+/** The category of an ignored path in `REGENERABLE`, or undefined. */
+function regenerableCategory(path: string): (typeof REGENERABLE)[number] | undefined {
+  const bare = path.replace(/\/+$/, '')
+  const last = bare.slice(bare.lastIndexOf('/') + 1)
+  return REGENERABLE.find(
+    entry =>
+      entry.names?.includes(last) === true ||
+      entry.prefixes?.some(prefix => bare === prefix || bare.startsWith(`${prefix}/`)) === true,
+  )
+}
+/**
+ * The `swap` warnings for the paths left in the old tree: each untracked path and each ignored
+ * path outside `REGENERABLE` by name, then one count per regenerable category.
+ */
+export function swapWarnings(entries: readonly UntrackedEntry[]): string[] {
+  const named: string[] = [],
+    counts = new Map<(typeof REGENERABLE)[number], number>()
+  for (const entry of entries) {
+    const category = entry.ignored ? regenerableCategory(entry.path) : undefined
+    if (category === undefined) named.push(entry.path)
+    else counts.set(category, (counts.get(category) ?? 0) + 1)
+  }
+  return [
+    ...named,
+    ...REGENERABLE.flatMap(entry => {
+      const count = counts.get(entry) ?? 0
+      return count === 0
+        ? []
+        : [`${entry.category}: ${count} ignored paths, not copied; ${entry.remedy}`]
+    }),
+  ]
 }
 function trackedChanges(tree: string, run: Runner): string[] {
   return step(
@@ -374,10 +584,13 @@ function trackedChanges(tree: string, run: Runner): string[] {
 /**
  * Moves a card to a new worktree for the attempt now in the binding, on the same branch,
  * without removing the old tree. Refuses when the old tree has uncommitted tracked changes,
- * is on another branch, or has commits the remote branch lacks; it never pushes. Detaches the old tree so the branch is free, copies its task directory,
- * without stage directories, aside, then prepares the new tree from the remote branch tip with
- * that copy as evidence. Untracked and ignored paths of the old tree outside its task directory
- * are listed in `warnings` and left in place; `removeWorktree` deletes the old tree on request.
+ * is on another branch, or has commits the remote branch lacks, and when pnpm cannot start; it
+ * never pushes. Copies the task directory, without stage directories, aside, detaches the old
+ * tree so the branch is free, then prepares the new tree from the remote branch tip with that
+ * copy as evidence. The copy stays in the system temporary directory. Untracked and ignored
+ * paths of the old tree outside its task directory are left in place and reported by
+ * `swapWarnings`; `removeWorktree` deletes the old tree on request. A failure after the old
+ * tree is detached is a `WorktreeStepError` whose `done` starts with the copy and the detach.
  */
 export function swapWorktree({
   root,
@@ -418,26 +631,57 @@ export function swapWorktree({
       'refused',
       `${old} has commits that ${remote}/${branch} lacks; push them first`,
     )
-  // Real git reports an ignored directory as `!! tmp/` or `!! node_modules/`. The task
-  // directory is copied and node_modules is rebuilt, so neither is lost by the swap.
-  const warnings = untrackedEntries(old, taskDirectory(binding), run).filter(
-    path => path !== 'tmp/' && path !== 'node_modules/',
+  // Decide before the old tree changes: a host that cannot start pnpm leaves it attached.
+  pnpmCommand(host)
+  // Real git reports an ignored directory as `!! tmp/`. The task directory under it is copied.
+  const warnings = swapWarnings(
+    untrackedEntries(old, taskDirectory(binding), run).filter(entry => entry.path !== 'tmp/'),
   )
   const source = join(old, taskDirectory(binding))
+  const again = worktreeCommand(
+    `swap --issue ${binding.issue.number} --old ${old} --tree ${tree} --root ${root} --remote ${remote}`,
+  )
+  const done: string[] = []
   let evidence: string | undefined
   if (existsSync(source)) {
-    evidence = mkdtempSync(join(tmpdir(), `omne-swap-issue-${binding.issue.number}-`))
-    cpSync(source, evidence, {
-      recursive: true,
-      // cpSync hands the filter native paths, so the last segment comes from path.basename.
-      filter: path => !basename(path).startsWith('agents-stage'),
-    })
+    evidence = localStep('create the copy directory', () =>
+      mkdtempSync(join(tmpdir(), `omne-swap-issue-${binding.issue.number}-`)),
+    )
+    const copy = evidence
+    // The old tree is unchanged until the detach, so a failure here repeats the whole swap.
+    resumable('copy task directory', { done, resume: [again], evidence }, () =>
+      cpSync(source, copy, {
+        recursive: true,
+        // cpSync hands the filter native paths, so the last segment comes from path.basename.
+        filter: path => !basename(path).startsWith('agents-stage'),
+      }),
+    )
+    done.push(`copied ${source} to ${evidence}`)
   }
-  step(run, 'detach old worktree', 'git', ['checkout', '--quiet', '--detach'], old)
-  return {
-    ...prepareWorktree({ root, tree, binding, remote, evidence, run, host }),
-    evidence,
-    warnings,
+  resumable('detach old worktree', { done, resume: [again], evidence }, () =>
+    step(run, 'detach old worktree', 'git', ['checkout', '--quiet', '--detach'], old),
+  )
+  done.push(`detached ${old}`)
+  try {
+    return {
+      ...prepareWorktree({ root, tree, binding, remote, evidence, run, host }),
+      evidence,
+      warnings,
+    }
+  } catch (error) {
+    // A failure after the new tree exists already carries its own steps and resume commands.
+    if (error instanceof WorktreeStepError)
+      throw new WorktreeStepError(error, {
+        done: [...done, ...error.done],
+        resume: error.resume,
+        evidence,
+      })
+    // Before the new tree exists, prepare with the copy finishes the swap.
+    throw new WorktreeStepError(failureOf('prepare', error), {
+      done,
+      resume: [prepareCommand({ root, tree, binding, remote, evidence })],
+      evidence,
+    })
   }
 }
 
@@ -552,7 +796,7 @@ export function removeWorktree({
 }): WorktreeRemoval {
   if (trackedChanges(tree, run).length > 0)
     throw new IntegrationError('refused', `${tree} has uncommitted tracked changes`)
-  const untracked = untrackedEntries(tree, undefined, run)
+  const untracked = untrackedEntries(tree, undefined, run).map(entry => entry.path)
   if (!force) return { tree, untracked, removed: false }
   step(run, 'remove worktree', 'git', ['worktree', 'remove', '--force', tree], root)
   if (lstatSync(tree, { throwIfNoEntry: false }) === undefined)

@@ -12,6 +12,7 @@ import {
   regenerateProjections,
   removeWorktree,
   swapWorktree,
+  WorktreeStepError,
 } from './worktree.ts'
 
 const usage = `Usage:
@@ -48,52 +49,87 @@ function required(values: ReadonlyMap<string, string>, flag: string): string {
   if (value === undefined) throw new InputError(usage)
   return value
 }
+/**
+ * The phase the command is in. An error that is neither an input error nor an integration error
+ * is reported with the phase name. `github` marks a phase whose error may carry the raw GitHub
+ * API output, which is omitted.
+ */
+let phase: { name: string; github: boolean } = { name: 'read the arguments', github: false }
+/** Runs `work` as the named phase. On an error the phase stays, so the report names it. */
+function inPhase<T>(name: string, work: () => T, github = false): T {
+  const previous = phase
+  phase = { name, github }
+  const result = work()
+  phase = previous
+  return result
+}
 /** The main checkout that owns the current directory's Git common directory. */
 function mainCheckout(): string {
-  const common = repository(process.cwd()).commonDir
-  if (basename(common) !== '.git')
-    throw new InputError('Cannot derive the main checkout; pass --root')
-  return dirname(common)
+  return inPhase('find the main checkout', () => {
+    const common = repository(process.cwd()).commonDir
+    if (basename(common) !== '.git')
+      throw new InputError('Cannot derive the main checkout; pass --root')
+    return dirname(common)
+  })
 }
 function cardBinding(values: ReadonlyMap<string, string>) {
   const number = issueNumberArgument(required(values, '--issue'))
   if (number === undefined) throw new InputError(usage)
-  const config = parseConfig(
-    readJson(values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json')),
+  const config = inPhase('read the delivery config', () =>
+    parseConfig(
+      readJson(values.get('--config') ?? repositoryFile('docs/engineering/github-delivery.json')),
+    ),
   )
-  return issueBinding(config.repository, number, runGhCommand)
+  return inPhase(
+    `read the binding of Issue #${number} from GitHub`,
+    () => issueBinding(config.repository, number, runGhCommand),
+    true,
+  )
 }
 function run(command: Command, values: ReadonlyMap<string, string>, flags: ReadonlySet<string>) {
   const remote = values.get('--remote') ?? 'origin'
   switch (command) {
     case 'projections': {
       const tree = resolve(values.get('--tree') ?? process.cwd())
-      regenerateProjections(tree)
+      inPhase('projections', () => regenerateProjections(tree))
       return { tree, checkAgents: 'pass' }
     }
-    case 'remove':
-      return removeWorktree({
+    case 'remove': {
+      const input = {
         root: resolve(values.get('--root') ?? mainCheckout()),
         tree: resolve(required(values, '--tree')),
         force: flags.has('--force'),
-      })
-    case 'prepare':
-      return prepareWorktree({
+      }
+      return inPhase('remove', () => removeWorktree(input))
+    }
+    case 'prepare': {
+      const input = {
         root: resolve(values.get('--root') ?? mainCheckout()),
         tree: resolve(required(values, '--tree')),
         binding: cardBinding(values),
         remote,
         evidence: values.get('--evidence'),
-      })
-    case 'swap':
-      return swapWorktree({
+      }
+      return inPhase('prepare', () => prepareWorktree(input))
+    }
+    case 'swap': {
+      const input = {
         root: resolve(values.get('--root') ?? mainCheckout()),
         old: resolve(required(values, '--old')),
         tree: resolve(required(values, '--tree')),
         binding: cardBinding(values),
         remote,
-      })
+      }
+      return inPhase('swap', () => swapWorktree(input))
+    }
   }
+}
+/** The message of an error that is neither an input error nor an integration error. */
+function unexpected(error: unknown): string {
+  const type = error instanceof Error ? error.name : typeof error
+  if (phase.github) return `${phase.name} failed (${type}). API output omitted.`
+  const detail = error instanceof Error ? error.message : String(error)
+  return `${phase.name} failed (${type}): ${detail}`
 }
 
 try {
@@ -107,8 +143,14 @@ try {
   const message =
     error instanceof InputError || error instanceof IntegrationError
       ? error.message
-      : 'Cannot read the card or run a step. API output omitted.'
+      : unexpected(error)
   const code = error instanceof IntegrationError ? error.code : 'input-error'
-  process.stderr.write(`${JSON.stringify({ kind: 'worktree-error', code, message })}\n`)
+  // A step that failed after prepare or swap changed the disk also gives the finished steps,
+  // the commands that continue the run, and the copy of the task directory.
+  const steps =
+    error instanceof WorktreeStepError
+      ? { done: error.done, resume: error.resume, evidence: error.evidence ?? null }
+      : {}
+  process.stderr.write(`${JSON.stringify({ kind: 'worktree-error', code, message, ...steps })}\n`)
   process.exitCode = 2
 }

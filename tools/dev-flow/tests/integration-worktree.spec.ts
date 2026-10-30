@@ -32,6 +32,11 @@ import {
   pnpmCommand,
   startInput,
   swapWorktree,
+  changedEnvironment,
+  runProgram,
+  swapWarnings,
+  WorktreeStepError,
+  type EnvChanges,
   type Host,
   type Runner,
 } from '../src/integration/worktree.ts'
@@ -50,12 +55,23 @@ function home(): string {
  * an `rsync` there, so the copy step runs the `rsync` command the recorded steps expect.
  */
 function hostWith(platform: NodeJS.Platform, files: string[] = []): Host {
-  const directory = home()
-  for (const file of files) {
-    mkdirSync(join(directory, file, '..'), { recursive: true })
-    writeFileSync(join(directory, file), '')
+  return hostOnPath(platform, [files])
+}
+/** A host whose `PATH` lists one fresh directory per entry of `directories`, in that order. */
+function hostOnPath(platform: NodeJS.Platform, directories: string[][]): Host {
+  const paths = directories.map(files => {
+    const directory = home()
+    for (const file of files) {
+      mkdirSync(join(directory, file, '..'), { recursive: true })
+      writeFileSync(join(directory, file), '')
+    }
+    return directory
+  })
+  return {
+    platform,
+    env: { PATH: paths.join(platform === 'win32' ? ';' : ':') },
+    execPath: '/node',
   }
-  return { platform, env: { PATH: directory }, execPath: '/node' }
 }
 const linux = hostWith('linux', ['rsync'])
 const url = 'https://github.com/owner/repo/issues/7'
@@ -87,9 +103,9 @@ type Answer = { status: number; stdout?: string; stderr?: string }
  * real command, and start prints a context.
  */
 function runner(answers: Record<string, Answer> = {}) {
-  const steps: { program: string; args: readonly string[]; cwd: string }[] = []
-  const run: Runner = (program, args, { cwd }) => {
-    steps.push({ program, args, cwd })
+  const steps: { program: string; args: readonly string[]; cwd: string; env?: EnvChanges }[] = []
+  const run: Runner = (program, args, { cwd, env }) => {
+    steps.push(env === undefined ? { program, args, cwd } : { program, args, cwd, env })
     if (program === 'git' && args[0] === 'worktree' && args[1] === 'add')
       mkdirSync(args[3] ?? '', { recursive: true })
     const answer =
@@ -102,6 +118,15 @@ function runner(answers: Record<string, Answer> = {}) {
   const ran = (program: string, ...args: string[]) =>
     steps.some(step => step.program === program && args.every((arg, i) => step.args[i] === arg))
   return { run, steps, names, ran }
+}
+/** The error `work` throws; fails the test when it returns. */
+function thrown(work: () => unknown): unknown {
+  try {
+    work()
+  } catch (error) {
+    return error
+  }
+  throw new Error('expected a failure')
 }
 const ancestor = (older: string, newer: string, status: number): Record<string, Answer> => ({
   [`git merge-base --is-ancestor ${older} ${newer}`]: { status },
@@ -208,6 +233,39 @@ describe('worktree preparation', () => {
     expect(r.names().at(-1)).toBe('pnpm install --frozen-lockfile')
   })
 
+  it('writes start.json before installing, and a failed install names what is done and how to continue', () => {
+    const root = home(),
+      evidence = join(root, 'evidence'),
+      tree = join(root, 'tree')
+    mkdirSync(evidence)
+    // The evidence of an earlier attempt carries that attempt's start command.
+    writeFileSync(join(evidence, 'start.json'), '{"attempt":"7-r1-a1"}')
+    const r = runner({
+      [`git show-ref --quiet --verify ${local}`]: { status: 1 },
+      'pnpm install --frozen-lockfile': { status: 1, stderr: 'lock mismatch' },
+    })
+    const failure = thrown(() =>
+      prepareWorktree({ root, tree, binding, evidence, run: r.run, host: linux }),
+    )
+    const input = join(tree, 'tmp/issue-7/start.json')
+    expect(failure).toBeInstanceOf(WorktreeStepError)
+    expect(failure).toMatchObject({
+      code: 'unknown',
+      message: 'install failed (exit 1): lock mismatch',
+      done: [
+        `added worktree ${tree} on ${binding.branch}`,
+        `restored ${evidence} into ${join(tree, 'tmp/issue-7')}`,
+        `wrote ${input} for attempt 7-r1-a2`,
+      ],
+      resume: [
+        `pnpm --dir ${tree} install --frozen-lockfile --ignore-scripts`,
+        expect.stringMatching(/worktree-cli\.ts projections --tree .*tree$/),
+        expect.stringMatching(/cli\.ts execute --root .*tree --input .*start\.json$/),
+      ],
+    })
+    expect(JSON.parse(readFileSync(input, 'utf8'))).toEqual(startInput(binding))
+  })
+
   it('reports a refused start with its report lines', () => {
     const root = home(),
       r = runner({
@@ -234,6 +292,51 @@ describe('worktree preparation', () => {
     const stage = r.steps[0]?.args.at(-1) ?? ''
     expect(stage).toMatch(/omne-agents-stage-/)
     expect(existsSync(stage)).toBe(false)
+  })
+
+  it('starts uv run --locked without the index variables of the caller', () => {
+    const r = runner()
+    regenerateProjections(home(), r.run, linux)
+    const uv = r.steps.filter(step => step.program === 'uv')
+    expect(uv).toHaveLength(2)
+    // toStrictEqual: a key set to undefined differs from a key that is missing.
+    for (const step of uv)
+      expect(step.env).toStrictEqual({
+        PYTHONDONTWRITEBYTECODE: '1',
+        UV_DEFAULT_INDEX: undefined,
+        UV_INDEX_URL: undefined,
+      })
+  })
+
+  it('removes a variable that a step sets to undefined, on Windows in any case', () => {
+    const base = { UV_DEFAULT_INDEX: 'mirror', uv_index_url: 'mirror', KEEP: 'k' }
+    const changes = { UV_DEFAULT_INDEX: undefined, UV_INDEX_URL: undefined, ADD: 'a' }
+    expect(changedEnvironment(base, changes, 'win32')).toEqual({ KEEP: 'k', ADD: 'a' })
+    expect(changedEnvironment(base, changes, 'linux')).toEqual({
+      uv_index_url: 'mirror',
+      KEEP: 'k',
+      ADD: 'a',
+    })
+    // The real runner hands the changed environment to the child process. On Windows the second
+    // variable is set in lower case, and the child still reads it as UV_INDEX_URL unless removed.
+    vi.stubEnv('UV_DEFAULT_INDEX', 'https://mirror.example/simple')
+    vi.stubEnv(
+      process.platform === 'win32' ? 'uv_index_url' : 'UV_INDEX_URL',
+      'https://mirror.example/simple',
+    )
+    try {
+      const result = runProgram(
+        process.execPath,
+        [
+          '-e',
+          'console.log(JSON.stringify([process.env.UV_DEFAULT_INDEX ?? null, process.env.UV_INDEX_URL ?? null, process.env.ADD]))',
+        ],
+        { cwd: home(), env: changes },
+      )
+      expect(JSON.parse(result.stdout)).toEqual([null, null, 'a'])
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('gives the compiler a physical staging path when the temporary directory is a symlink', () => {
@@ -274,8 +377,34 @@ describe('worktree preparation on a host without rsync or with Windows pnpm', ()
     expect(pnpmCommand(linux)).toEqual({ program: 'pnpm', args: [] })
   })
 
-  it('reports a Windows PATH where pnpm.cmd is missing or has no pnpm.cjs beside it', () => {
-    expect(() => pnpmCommand(hostWith('win32'))).toThrow('pnpm.cmd is not on PATH')
+  describe('on a Windows PATH with pnpm.exe, the npm global layout, or both', () => {
+    const NPM = ['pnpm.cmd', 'node_modules/pnpm/bin/pnpm.cjs']
+    const directories = (host: Host) => (host.env['PATH'] ?? '').split(';')
+
+    it('starts pnpm.exe itself when it is the only layout', () => {
+      const host = hostWith('win32', ['pnpm.exe'])
+      expect(pnpmCommand(host)).toEqual({
+        program: join(directories(host)[0] ?? '', 'pnpm.exe'),
+        args: [],
+      })
+    })
+
+    it('takes the first directory in PATH order that can start pnpm', () => {
+      const exeFirst = hostOnPath('win32', [['pnpm.exe'], NPM])
+      expect(pnpmCommand(exeFirst).program).toBe(join(directories(exeFirst)[0] ?? '', 'pnpm.exe'))
+      const npmFirst = hostOnPath('win32', [NPM, ['pnpm.exe']])
+      expect(pnpmCommand(npmFirst)).toEqual({
+        program: '/node',
+        args: [join(directories(npmFirst)[0] ?? '', 'node_modules/pnpm/bin/pnpm.cjs')],
+      })
+      // A pnpm.cmd without pnpm.cjs beside it does not stop the search.
+      const bareFirst = hostOnPath('win32', [['pnpm.cmd'], ['pnpm.exe']])
+      expect(pnpmCommand(bareFirst).program).toBe(join(directories(bareFirst)[1] ?? '', 'pnpm.exe'))
+    })
+  })
+
+  it('reports a Windows PATH where pnpm is missing or pnpm.cmd has no pnpm.cjs beside it', () => {
+    expect(() => pnpmCommand(hostWith('win32'))).toThrow('Neither pnpm.exe nor pnpm.cmd is on PATH')
     expect(() => pnpmCommand(hostWith('win32', ['pnpm.cmd']))).toThrow('has no node_modules/pnpm')
   })
 
@@ -292,19 +421,15 @@ describe('worktree preparation on a host without rsync or with Windows pnpm', ()
     expect(r.steps.some(step => step.program === 'pnpm')).toBe(false)
   })
 
-  it('stops a Windows run before installing when pnpm cannot be found', () => {
+  it('refuses before any step and adds no tree when pnpm cannot start', () => {
     const root = home(),
+      tree = join(root, 'tree'),
       r = runner(noBranch)
     expect(() =>
-      prepareWorktree({
-        root,
-        tree: join(root, 'tree'),
-        binding,
-        run: r.run,
-        host: hostWith('win32'),
-      }),
-    ).toThrow('pnpm.cmd is not on PATH')
-    expect(r.names().at(-1)).toBe('git worktree add')
+      prepareWorktree({ root, tree, binding, run: r.run, host: hostWith('win32', ['pnpm.cmd']) }),
+    ).toThrow('has no node_modules/pnpm')
+    expect(r.steps).toEqual([])
+    expect(existsSync(tree)).toBe(false)
   })
 
   it('copies the stage with Node when no rsync is usable, and never starts rsync', () => {
@@ -455,7 +580,11 @@ describe('worktree swap', () => {
     expect(existsSync(join(oldTree, 'tmp/issue-7/handoff.md'))).toBe(true)
     expect(readFileSync(join(root, 'new/tmp/issue-7/handoff.md'), 'utf8')).toBe('evidence')
     expect(existsSync(join(root, 'new/tmp/issue-7/agents-stage'))).toBe(false)
-    expect(result.warnings).toEqual(['notes.md', 'dist/'])
+    expect(result.warnings).toEqual([
+      'notes.md',
+      'node_modules: 1 ignored paths, not copied; pnpm install makes them again',
+      'dist: 1 ignored paths, not copied; a build makes them again',
+    ])
     // The old tree is detached before the local branch moves.
     const detach = r.steps.findIndex(s => s.args[0] === 'checkout'),
       move = r.steps.findIndex(s => s.args[0] === 'branch' && s.args[1] === '--force')
@@ -496,6 +625,203 @@ describe('worktree swap', () => {
     ).toThrow(message)
     expect(r.ran('git', 'checkout')).toBe(false)
     expect(r.ran('git', 'worktree')).toBe(false)
+  })
+
+  it('refuses a host that cannot start pnpm before the old tree changes', () => {
+    const root = home(),
+      r = runner(clean)
+    expect(() =>
+      swapWorktree({
+        root,
+        old: old(root),
+        tree: join(root, 'new'),
+        binding,
+        run: r.run,
+        host: hostWith('win32'),
+      }),
+    ).toThrow('Neither pnpm.exe nor pnpm.cmd is on PATH')
+    expect(r.ran('git', 'checkout')).toBe(false)
+    expect(existsSync(join(root, 'new'))).toBe(false)
+  })
+
+  it('rewrites start.json for the new attempt before a later step fails, and says how to continue', () => {
+    const root = home(),
+      oldTree = old(root),
+      tree = join(root, 'new')
+    writeFileSync(join(oldTree, 'tmp/issue-7/start.json'), '{"attempt":"7-r1-a1"}')
+    const r = runner({ ...clean, 'uv run --locked': { status: 1, stderr: 'lock check failed' } })
+    const failure = thrown(() =>
+      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+    )
+    const input = join(tree, 'tmp/issue-7/start.json')
+    expect(JSON.parse(readFileSync(input, 'utf8'))).toEqual(startInput(binding))
+    expect(failure).toBeInstanceOf(WorktreeStepError)
+    const { done, resume } = failure as WorktreeStepError
+    expect(done).toEqual([
+      expect.stringMatching(/^copied .*issue-7 to .*omne-swap-issue-7-/),
+      `detached ${oldTree}`,
+      `added worktree ${tree} on ${binding.branch}`,
+      expect.stringMatching(/^restored .*omne-swap-issue-7-/),
+      `wrote ${input} for attempt 7-r1-a2`,
+      'installed dependencies',
+    ])
+    expect(resume).toEqual([
+      expect.stringMatching(/worktree-cli\.ts projections --tree .*new$/),
+      expect.stringMatching(/cli\.ts execute --root .*new --input .*start\.json$/),
+    ])
+    // The copy stays in the temporary directory until the operator deletes it.
+    const copy = /to (.*)$/.exec(done[0] ?? '')?.[1] ?? ''
+    expect((failure as WorktreeStepError).evidence).toBe(copy)
+    expect(readFileSync(join(copy, 'handoff.md'), 'utf8')).toBe('evidence')
+    rmSync(copy, { recursive: true, force: true })
+  })
+
+  it('reports a prepare command with the copy when a step fails before the new tree exists', () => {
+    const root = home(),
+      oldTree = old(root),
+      tree = join(root, 'new')
+    const r = runner({ ...clean, 'git branch --force': { status: 1, stderr: 'locked ref' } })
+    const failure = thrown(() =>
+      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+    )
+    expect(failure).toBeInstanceOf(WorktreeStepError)
+    const { done, resume, message, evidence } = failure as WorktreeStepError
+    expect(message).toContain('move local branch forward failed')
+    expect(done).toEqual([expect.stringMatching(/^copied /), `detached ${oldTree}`])
+    const copy = /to (.*)$/.exec(done[0] ?? '')?.[1] ?? ''
+    expect(evidence).toBe(copy)
+    expect(resume).toEqual([
+      expect.stringContaining(
+        `prepare --issue 7 --tree ${tree} --evidence ${copy} --root ${root} --remote origin`,
+      ),
+    ])
+    expect(existsSync(tree)).toBe(false)
+    rmSync(copy, { recursive: true, force: true })
+  })
+})
+
+describe('a swap whose detach fails', () => {
+  it('keeps the copy, names it, and repeats the swap to continue', () => {
+    const root = home(),
+      oldTree = join(root, 'old'),
+      tree = join(root, 'new')
+    mkdirSync(join(oldTree, 'tmp/issue-7'), { recursive: true })
+    writeFileSync(join(oldTree, 'tmp/issue-7/handoff.md'), 'evidence')
+    const r = runner({
+      'git status --porcelain --untracked-files=no': { status: 0, stdout: '' },
+      'git status --porcelain --ignored': { status: 0, stdout: '' },
+      'git branch --show-current': { status: 0, stdout: `${binding.branch}\n` },
+      [`git merge-base --is-ancestor HEAD ${upstream}`]: { status: 0 },
+      'git checkout --quiet': { status: 1, stderr: 'index.lock exists' },
+    })
+    const failure = thrown(() =>
+      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+    )
+    expect(failure).toBeInstanceOf(WorktreeStepError)
+    const { done, resume, evidence } = failure as WorktreeStepError
+    expect(done).toEqual([`copied ${join(oldTree, 'tmp/issue-7')} to ${evidence}`])
+    expect(resume).toEqual([
+      expect.stringContaining(
+        `swap --issue 7 --old ${oldTree} --tree ${tree} --root ${root} --remote origin`,
+      ),
+    ])
+    expect(readFileSync(join(evidence ?? '', 'handoff.md'), 'utf8')).toBe('evidence')
+    expect(r.ran('git', 'worktree')).toBe(false)
+    rmSync(evidence ?? '', { recursive: true, force: true })
+  })
+})
+
+describe('worktree-cli errors outside the known kinds', () => {
+  const cli = fileURLToPath(new URL('../src/integration/worktree-cli.ts', import.meta.url))
+  /** Runs the CLI with a `PATH` of one empty directory, so `gh` cannot start. */
+  function worktreeCli(args: string[]) {
+    const env: NodeJS.ProcessEnv = {}
+    for (const [key, value] of Object.entries(process.env))
+      if (key.toLowerCase() !== 'path') env[key] = value
+    env['PATH'] = home()
+    const result = spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
+      encoding: 'utf8',
+      env,
+    })
+    return {
+      status: result.status,
+      error: JSON.parse(result.stderr.trim().split('\n').at(-1) ?? ''),
+    }
+  }
+
+  it('names the phase, the error type and its message', { tags: ['slow'] }, () => {
+    const root = home(),
+      config = join(root, 'missing.json')
+    const result = worktreeCli([
+      'prepare',
+      '--issue',
+      '7',
+      '--tree',
+      join(root, 'tree'),
+      '--root',
+      root,
+      '--config',
+      config,
+    ])
+    expect(result.status).toBe(2)
+    expect(result.error.message).toMatch(/^read the delivery config failed \(Error\): ENOENT/)
+    expect(result.error.message).toContain('missing.json')
+  })
+
+  it('names the GitHub phase and the error type, and omits the output', { tags: ['slow'] }, () => {
+    const root = home()
+    const result = worktreeCli([
+      'prepare',
+      '--issue',
+      '7',
+      '--tree',
+      join(root, 'tree'),
+      '--root',
+      root,
+    ])
+    expect(result.status).toBe(2)
+    expect(result.error).toEqual({
+      kind: 'worktree-error',
+      code: 'input-error',
+      message: 'read the binding of Issue #7 from GitHub failed (Error). API output omitted.',
+    })
+  })
+})
+
+describe('swap warnings', () => {
+  it('counts the regenerable ignored paths by category and names every other path', () => {
+    const entries = [
+      ...['node_modules/', 'apps/a/node_modules/', 'tools/b/node_modules/'].map(path => ({
+        path,
+        ignored: true,
+      })),
+      { path: 'tools/b/dist/', ignored: true },
+      { path: 'tools/b/.turbo/', ignored: true },
+      { path: '.venv/', ignored: true },
+      { path: 'tools/c/__pycache__/', ignored: true },
+      { path: '.pytest_cache/', ignored: true },
+      { path: '.meta_harness/.claude/', ignored: true },
+      { path: '.meta_harness/.cursor/hooks.json', ignored: true },
+      // Not on the list: an ignored file, a name that only starts like a listed one, and a
+      // directory whose name is on the list but that git reports as untracked.
+      { path: 'tools/c/generated/', ignored: true },
+      { path: 'distribution/', ignored: true },
+      { path: 'node_modules/', ignored: false },
+      { path: 'notes.md', ignored: false },
+    ]
+    expect(swapWarnings(entries)).toEqual([
+      'tools/c/generated/',
+      'distribution/',
+      'node_modules/',
+      'notes.md',
+      'node_modules: 3 ignored paths, not copied; pnpm install makes them again',
+      'dist: 1 ignored paths, not copied; a build makes them again',
+      '.turbo: 1 ignored paths, not copied; turbo makes its cache again',
+      '.venv: 1 ignored paths, not copied; uv makes the environment again',
+      'Python caches: 2 ignored paths, not copied; Python and pytest make them again',
+      'agent projections: 2 ignored paths, not copied; projections makes them again',
+    ])
+    expect(swapWarnings([])).toEqual([])
   })
 })
 

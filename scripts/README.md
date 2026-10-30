@@ -85,13 +85,18 @@
 `scripts/with-test-slot.sh <命令> [参数…]` 拿到名额才执行命令，并原样返回它的退出码。
 实现在 [with-test-slot.mjs](with-test-slot.mjs)，只用 Node 标准库，macOS、Linux 与 Windows 通用；
 `with-test-slot.sh` 只转发给它。不经 shell 时可直接运行 `node scripts/with-test-slot.mjs <命令> [参数…]`。
-命令不经 shell 执行。Windows 上 Node 直接起不了 `pnpm` 与 `.sh` 脚本，所以脚本换两种起法，其余命令照原样起：
+命令不经 shell 执行。Windows 上 Node 直接起不了 `pnpm` 与 `.sh` 脚本，所以名额脚本对这两种命令换起法，其余命令照原样起：
 
-- 命令是 `pnpm`（或 `pnpm.cmd`）时，脚本用当前 Node 运行 `PATH` 中 `pnpm.cmd` 旁的 `node_modules/pnpm/bin/pnpm.cjs`。
-- 命令以 `.sh` 结尾时，脚本经 Git for Windows 的 bash 运行它。bash 按 `git --exec-path` 定位，不取 `PATH` 里的 `bash`。
+- Windows 上，命令是 `pnpm`（或 `pnpm.cmd`）时，名额脚本按 `PATH` 顺序找第一个能起 pnpm 的目录。目录里有 `pnpm.exe`（独立安装的布局）时，直接起这个 `pnpm.exe`。目录里有 `pnpm.cmd`，旁边还有 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）时，用当前 Node 运行这个 `pnpm.cjs`。旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。
+- Windows 上，命令以 `.sh` 结尾时，名额脚本经 Git for Windows 的 bash 运行它。bash 按 `git --exec-path` 定位，不取 `PATH` 里的 `bash`。
 
-找不到 `pnpm.cjs` 或 bash 时，脚本在标准错误写明原因，以 127 退出。所以 `scripts/with-test-slot.sh pnpm …` 在 Windows 上也能直接运行。
-dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这两种起法。
+因此 `scripts/with-test-slot.sh pnpm …` 在 Windows 上也能直接运行。
+
+Windows 上，找不到能起 pnpm 的目录或找不到 bash 时，名额脚本在标准错误写明原因，以 127 退出。
+
+Windows 上，非 MSYS 进程起的 bash 自己解析命令行，并展开没加双引号的参数：`*.md` 变成文件名，`{a,b}` 与 `~` 也被展开。所以名额脚本给每个参数加双引号，参数里的 `\` 与 `"` 前各加一个 `\`，再把整条命令行原样交给 bash。这样 `*`、`?`、`[`、`{`、`~` 与引号都原样到达脚本。这个办法在 Git for Windows 2.55.0（bash 5.3.15）上实测。
+
+dev-flow 的 `tests/test-slot-launch.spec.ts` 在所在平台上核对这些起法，包括带通配符的参数。
 
 经它执行的入口：根 `pnpm run check`（整套占一个名额）、`pnpm run test`、`pnpm run test:gate`、
 `pnpm run test:affected`、`pnpm run test:tier`、`pnpm run test:triage`、`pnpm run acceptance`、`pnpm run mutation`、`pnpm run metrics --coverage`；
