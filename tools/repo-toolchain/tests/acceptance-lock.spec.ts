@@ -11,6 +11,7 @@ import {
   isAcceptancePath,
   isPlaceholderEntry,
   judge,
+  namesByCommit,
   parseAcceptanceLockConfig,
   readAcceptanceLockConfig,
   render,
@@ -238,6 +239,69 @@ describe('验收锁：读 Git', () => {
     write(root, entry, marked('again'))
     expect(inspect(root, base, config).uncommitted).toEqual([])
   })
+
+  // 归慢层：建一棵带合并与无关根历史的临时仓库，再逐个提交起 diff-tree 作对照，本机空闲时 1.8 秒，负载下会超过单条预算 2.5 秒（tools/test-runner/README_ZH.md「归层」）。
+  it(
+    '一次 git log 读出的每个提交的路径，与逐个提交 diff-tree 列出的相同：合并、根提交、用户配置都一样',
+    { tags: ['slow'] },
+    () => {
+      const { root, base } = repository()
+      // 用户配置想把 -m 改成只比第一父、让 log 列根提交的路径：结果不该跟着变。
+      git(root, 'config', 'log.diffMerges', 'first-parent')
+      git(root, 'config', 'log.showRoot', 'true')
+      const trunk = git(root, 'rev-parse', '--abbrev-ref', 'HEAD')
+      git(root, 'checkout', '-q', '-b', 'side')
+      write(root, SPEC, 'expect(version()).toBeDefined()\n')
+      commit(root, 'side: 改验收\n\nAgent-Role: developer')
+      git(root, 'checkout', '-q', trunk)
+      write(root, 'apps/cli/src/main.ts', 'export const main = 2\n')
+      commit(root, 'trunk: 改源码\n\nAgent-Role: developer')
+      git(root, 'merge', '-q', '--no-ff', '--no-edit', 'side')
+      const clean = git(root, 'rev-parse', 'HEAD')
+      // 一棵无关的根历史并进来：根提交本身不列路径（diff-tree 不加 --root 时就是这样）。
+      git(root, 'checkout', '-q', '--orphan', 'orphan')
+      git(root, 'rm', '-rqf', '.')
+      write(root, 'apps/other/acceptance/a.acceptance.ts', 'orphan\n')
+      const orphan = commit(root, 'orphan root')
+      git(root, 'checkout', '-q', trunk)
+      git(root, 'merge', '-q', '--no-edit', '--allow-unrelated-histories', 'orphan')
+      const range = `${base}..HEAD`
+      const shas = git(root, 'log', '--format=%H', range).split('\n')
+      for (const integration of [false, true]) {
+        const batched = namesByCommit(root, range, integration)
+        const oneByOne = (sha: string) =>
+          [
+            ...new Set(
+              git(
+                root,
+                'diff-tree',
+                '--no-commit-id',
+                '--name-only',
+                '--no-renames',
+                '-r',
+                integration ? '--cc' : '-m',
+                sha,
+              )
+                .split('\n')
+                .filter(Boolean),
+            ),
+          ].sort()
+        for (const sha of shas) expect([...(batched.get(sha) ?? [])].sort()).toEqual(oneByOne(sha))
+      }
+      // 干净的合并：-m 相对第一父列出 side 带进来的验收，--cc 什么也不列；根提交两种都不列。
+      expect([...(namesByCommit(root, range, false).get(clean) ?? [])].sort()).toEqual([
+        SPEC,
+        'apps/cli/src/main.ts',
+      ])
+      expect([...(namesByCommit(root, range, true).get(clean) ?? [])]).toEqual([])
+      expect([...(namesByCommit(root, range, false).get(orphan) ?? [])]).toEqual([])
+      expect(inspect(root, base, config).commits.map(found => found.subject)).toEqual([
+        expect.stringMatching(/^Merge branch 'orphan'/u),
+        expect.stringMatching(/^Merge branch 'side'/u),
+        'side: 改验收',
+      ])
+    },
+  )
 
   it('工作树里未提交、未跟踪的验收改动都算', () => {
     const { root, base } = repository()

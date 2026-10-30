@@ -152,7 +152,8 @@ Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常�
 固定决定编进 `src/acceptance/historical-approvals.data.ts` 的只读列表（核对器 `src/acceptance/historical-approvals.ts` 只读这份列表），每条对应一个提交里的一个受保护路径；一个提交改了几个受保护路径，就登记几条。
 [D010 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
 [#769 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205)批准提交 `19f457a15`、`9f3967cc5`、`69bdedfab`、`837d333fd`、`14b0fcfcb`、`06acd53ca` 中的 27 个路径改动。
-没有任务上下文时，验收锁把合并提交与每个父提交分别比较（`git diff-tree -m`），与任一父提交不同的路径都列出。有任务上下文时它用 `--cc`，只列与所有父提交都不同的路径，干净合并因此不列路径。#769 的六个提交里有四个是这样的合并。
+没有任务上下文时，验收锁把合并提交与每个父提交分别比较（`-m`），与任一父提交不同的路径都列出。有任务上下文时它用 `--cc`，只列与所有父提交都不同的路径，干净合并因此不列路径。#769 的六个提交里有四个是这样的合并。
+每个提交改到的路径由一次 `git log --name-only` 读出，列出的路径与逐个提交运行 `git diff-tree --no-commit-id --name-only --no-renames -r` 相同：调用固定 `log.diffMerges=separate`（用户配置不能把 `-m` 改成只比第一个父提交）与 `log.showRoot=false`（根提交不列路径，与 `diff-tree` 不加 `--root` 相同），并加 `--no-show-signature`。
 登记约定是：合并提交的条目写该路径有变化的那一个父提交。工具不核对这条约定，只核对所写父提交是该提交的父提交之一。
 工具读取真实 Git 对象，核对完整提交、所写父提交确是该提交的父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。某一侧没有这个路径时，blob 记为 Git 的空对象号（40 个 0，与 `git diff --raw` 的写法相同），工具核对该侧的树里确实没有这个路径。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
 调用固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`、`diff.context=3`、`diff.interHunkContext=0`、`diff.suppressBlankEmpty=false`、`diff.srcPrefix=a/`、`diff.dstPrefix=b/`、`core.attributesFile=/dev/null` 与 `attr.tree`（空树），从环境中去掉 `GIT_DIFF_OPTS` 与 `GIT_ATTR_SOURCE`，并设 `GIT_ATTR_NOSYSTEM=1`。仓库大小与这些配置不会改变字节。

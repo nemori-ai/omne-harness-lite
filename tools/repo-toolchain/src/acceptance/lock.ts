@@ -229,6 +229,45 @@ function uncommittedPaths(root: string, config: AcceptanceLockConfig): string[] 
     .sort()
 }
 
+const COMMIT_MARK = '\u001e'
+
+/**
+ * 范围里每个提交改到的路径，一次 `git log` 读完（逐个提交调 `diff-tree` 在 Windows 上一个提交要二三十毫秒）。
+ * 与逐个调 `git diff-tree --name-only --no-renames -r <-m|--cc> <提交>` 列出的路径相同：
+ * `-m` 让合并提交相对每个父提交各列一次（`log.diffMerges=separate` 钉住 `-m` 的含义，免得用户配置把它改成只比第一父），
+ * 同一提交的几段在这里合并；`--cc` 只列与每个父提交都不同的路径。`log.showRoot=false` 让根提交像 `diff-tree`
+ * 不加 `--root` 时那样不列路径；`--no-show-signature` 不让签名校验的输出混进来。
+ */
+export function namesByCommit(
+  root: string,
+  range: string,
+  integration: boolean,
+): Map<string, Set<string>> {
+  const output = git(root, [
+    '-c',
+    'log.showRoot=false',
+    '-c',
+    'log.diffMerges=separate',
+    'log',
+    '--no-show-signature',
+    `--format=${COMMIT_MARK}%H`,
+    '--name-only',
+    '--no-renames',
+    '-r',
+    ...(integration ? ['--cc'] : ['-m']),
+    range,
+  ])
+  const names = new Map<string, Set<string>>()
+  for (const block of output.split(COMMIT_MARK)) {
+    const [sha, ...paths] = block.split('\n')
+    if (sha === undefined || sha === '') continue
+    const seen = names.get(sha) ?? new Set<string>()
+    for (const path of paths) if (path !== '') seen.add(path)
+    names.set(sha, seen)
+  }
+  return names
+}
+
 function touchesSince(
   root: string,
   mergeBase: string,
@@ -237,18 +276,11 @@ function touchesSince(
   integration = false,
 ): CommitTouch[] {
   const touches: CommitTouch[] = []
-  for (const record of readCommits(root, `${mergeBase}..${head}`)) {
-    // `-m` 让合并提交相对每个父提交各列一次，路径去重后即「这个提交带进来的验收改动」。
-    const names = git(root, [
-      'diff-tree',
-      '--no-commit-id',
-      '--name-only',
-      '--no-renames',
-      '-r',
-      ...(integration ? ['--cc'] : ['-m']),
-      record.sha,
-    ])
-    const files = [...new Set(lines(names))]
+  const range = `${mergeBase}..${head}`
+  const names = namesByCommit(root, range, integration)
+  for (const record of readCommits(root, range)) {
+    // 合并提交相对每个父提交的路径已去重，即「这个提交带进来的验收改动」。
+    const files = [...(names.get(record.sha) ?? [])]
       .filter(path => isAcceptancePath(path, config))
       .filter(
         path =>
