@@ -273,7 +273,8 @@ export function exactEntry(file: string, mutant: ReportMutant): string {
   return `${file}:${start.line}:${start.column - 1}-${end.line}:${end.column - 1}`
 }
 
-const identity = (file: string, mutant: ReportMutant) =>
+/** 同一个变异体在两份报告之间的身份：位置、算子与替换（报告里的 id 只在一份报告内唯一）。`file` 是报告里的键。 */
+export const mutantIdentity = (file: string, mutant: ReportMutant) =>
   JSON.stringify([file, mutant.location, mutant.mutatorName, mutant.replacement ?? null])
 
 type Location = ReportMutant['location']
@@ -303,7 +304,7 @@ export function planRecheck(
   const rerun = (target: RecheckTarget) =>
     (report.files[target.file]?.mutants ?? [])
       .filter(mutant => included(target.mutant.location, mutant.location))
-      .map(mutant => identity(target.file, mutant))
+      .map(mutant => mutantIdentity(target.file, mutant))
   const all = new Set(targets.flatMap(rerun))
   const chosenKeys = new Set<string>()
   const chosen: RecheckTarget[] = []
@@ -429,6 +430,16 @@ function unmutatedRanges(target: MutationTarget, report: MutationReport): Unmuta
     .sort((a, b) => a.file.localeCompare(b.file) || a.start - b.start)
 }
 
+/**
+ * Stryker 生成变异体的先后（id 是生成时的序号）。报告里的变异体按跑完的先后排，工作进程多于一个或复用了上次的结果时，
+ * 每次都可能不同；同一行上的几条读数按生成的先后列，同样的输入就给出同样的读数。
+ */
+function byGeneration(a: ReportMutant, b: ReportMutant): number {
+  const [x, y] = [Number(a.id), Number(b.id)]
+  if (Number.isInteger(x) && Number.isInteger(y)) return x - y
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+}
+
 export function summarizeMember(
   target: MutationTarget,
   report: MutationReport,
@@ -441,13 +452,13 @@ export function summarizeMember(
   const rechecked: RecheckedFinding[] = []
   const second = new Map(
     Object.entries(inputs.recheck?.files ?? {}).flatMap(([file, entry]) =>
-      entry.mutants.map(mutant => [identity(file, mutant), mutant] as const),
+      entry.mutants.map(mutant => [mutantIdentity(file, mutant), mutant] as const),
     ),
   )
   let outside = 0
   for (const [local, file] of Object.entries(report.files)) {
     const path = `${target.member.path}/${local}`
-    for (const mutant of file.mutants) {
+    for (const mutant of [...file.mutants].sort(byGeneration)) {
       if (!withinTarget(target, path, mutant.location.start.line, mutant.location.end.line)) {
         outside += 1
         continue
@@ -462,7 +473,7 @@ export function summarizeMember(
       }
       const verdict = classify(
         mutant,
-        inputs.recheck === undefined ? undefined : second.get(identity(local, mutant)),
+        inputs.recheck === undefined ? undefined : second.get(mutantIdentity(local, mutant)),
       )
       if (verdict.kind === 'invalid') {
         invalid.push({ ...finding, reason: verdict.reason })

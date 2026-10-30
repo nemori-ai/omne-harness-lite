@@ -54,6 +54,11 @@ export interface StrykerRun {
   /** 没写自己时限的用例在变异时的时限。 */
   readonly testTimeoutSeconds: number
   readonly nonce: string
+  /**
+   * 第一遍开 Stryker 的 incremental：`file` 是交给它读、它跑完又写回的 incremental 文件，`force` 时不复用、全部重跑。
+   * 不给时与没有增量时一样（`incremental: false`）。复核不开增量。
+   */
+  readonly incremental?: { readonly file: string; readonly force: boolean }
 }
 
 /**
@@ -97,7 +102,9 @@ export function strykerConfig(
       recheck === undefined ? run.nonce : `${run.nonce}-recheck`,
     ),
     cleanTempDir: true,
-    incremental: false,
+    ...(recheck === undefined && run.incremental !== undefined
+      ? { incremental: true, incrementalFile: run.incremental.file, force: run.incremental.force }
+      : { incremental: false }),
     concurrency: recheck === undefined ? run.concurrency : 1,
     ...(recheck === undefined ? {} : { timeoutMS: recheck.timeoutMS }),
     reporters: ['json', 'progress-append-only'],
