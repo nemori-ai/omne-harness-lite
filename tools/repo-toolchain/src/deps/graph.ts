@@ -452,24 +452,31 @@ function cacheDirectory(root: string): string {
  */
 export function workingGraph(root: string): DependencyGraph {
   const ignoredDirs = ignoredDirectories(root)
-  const key = workingCacheEnabled() ? fingerprintOf(root, ignoredDirs) : undefined
-  let cached: string | undefined
+  const key = workingCacheEnabled() ? workingCacheKey(root, ignoredDirs) : undefined
   if (key !== undefined) {
-    if ('reason' in key) note(`依赖图缓存：不可用（${key.reason}），重算`)
-    else {
-      cached = join(cacheDirectory(root), `working-${key.digest}.json`)
-      const hit = readWorkingCache(cached, key)
-      if (hit !== undefined) {
-        note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
-        return hit
-      }
-      note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
+    const hit = readWorkingCache(key.path, key)
+    if (hit !== undefined) {
+      note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
+      return hit
     }
+    note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
   }
   const graph = graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirs))
-  if (cached !== undefined && key !== undefined && 'digest' in key)
-    writeWorkingCache(cached, key, graph)
+  if (key !== undefined) writeWorkingCache(key.path, key, graph)
   return graph
+}
+
+/** 开着缓存时这棵树的缓存键：指纹加缓存文件的路径。算不出指纹（不在 git 仓库里等）就没有键，说明原因后不缓存。 */
+function workingCacheKey(
+  root: string,
+  ignoredDirs: ReadonlySet<string>,
+): (WorkingFingerprint & { readonly path: string }) | undefined {
+  const key = fingerprintOf(root, ignoredDirs)
+  if ('reason' in key) {
+    note(`依赖图缓存：不可用（${key.reason}），重算`)
+    return undefined
+  }
+  return { ...key, path: join(cacheDirectory(root), `working-${key.digest}.json`) }
 }
 
 // ---- 工作树的图按指纹缓存 ------------------------------------------------------------------
