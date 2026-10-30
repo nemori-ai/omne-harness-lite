@@ -532,9 +532,9 @@ describe('tryFinish takes the Session participant into the same conditional comm
       'allowed',
       complete.state.intent.candidate,
     )
-    expect(ok(await s.view.journal.tryFinish(cancelFinish(s, ready, 'cancel-end')))).toMatchObject(
-      { kind: 'ended' },
-    )
+    expect(ok(await s.view.journal.tryFinish(cancelFinish(s, ready, 'cancel-end')))).toMatchObject({
+      kind: 'ended',
+    })
     expect(
       ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state,
     ).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
