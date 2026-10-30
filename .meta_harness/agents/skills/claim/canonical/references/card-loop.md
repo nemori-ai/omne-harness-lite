@@ -10,7 +10,7 @@
 | 验证 | 你在候选 head 上复跑功能门禁的日志 | 日志晚于最后一次改动，退出码 0，未覆盖范围已写明 | P1、P2、P13 |
 | 评审 | 按风险选择的评审报告，存证据目录 | 每条阻断发现都有处置 | P4、P12、P16、P17 |
 | 修复 | 集中修复的提交与复评结果 | 被点名的阻断已闭合，或已按阶梯升级 | P3 |
-| 准入 | 最终 head 上的准入日志 | 退出 0，日志里的 head 等于最终 head | P11、P12、P13 |
+| 准入 | 最终 head 上的准入日志 | 退出 0，日志里的 head 等于最终 head；窄重跑时按「准入」第 4 步 | P11、P12、P13 |
 | gate | 不在线内的卡：调度者的 gate 运行记录 | 运行结论、目标分支和记录标签读回成功 | P5、P9、P10 |
 
 ## 角色与模型
@@ -106,6 +106,7 @@
 2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。它按准入锁排队，并把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。
 3. 准入期间不提交（P11）、不做占 CPU 的事（P12）。可以写交接报告与下一张卡的简报。
 4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。修复后在新的最终 head 上再跑一次。
+   只有一步失败、修复只碰到那一步的输入时，可以按 `docs/engineering/integration.md`「检查责任」窄重跑，不整次重跑：`cli.ts check --list` 列出步骤，`cli.ts plan --json <计划文件>` 写计划，`cli.ts step <步骤> --plan <计划文件>` 只重跑一步，重跑时带 `OMNE_ADMISSION=1`。`cli.ts` 指 `tools/test-runner/src/testing/cli.ts`。`check --keep-going` 一次报出全部失败。
 
 ## 准入与评审的节奏
 
