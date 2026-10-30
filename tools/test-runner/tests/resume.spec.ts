@@ -388,6 +388,108 @@ describe('增量计划', () => {
   })
 })
 
+describe('中间运行', () => {
+  const H2 = 'f'.repeat(40)
+  /** H1 之后在同一棵树上的一次接续运行，失败在 contract-check。 */
+  const middle = (over: Record<string, unknown> = {}) =>
+    record('contract-check', [], {
+      head: H2,
+      tree: 'd'.repeat(40),
+      mode: 'resume',
+      fullRequested: false,
+      base: H1,
+      resumeFrom: {
+        head: H1,
+        tree: TREE,
+        failedStep: 'lint:oxlint',
+        mode: 'full',
+        fullRequested: true,
+      },
+      startedAt: '2026-10-30T02:00:00.000Z',
+      finishedAt: '2026-10-30T02:20:00.000Z',
+      ...over,
+    })
+  /** 影响面函数按路径前缀选成员：看得出交给它的改动集里有没有被撤回的成员。 */
+  const byPaths = (request: PlanRequest): CheckPlan => {
+    if (request.kind === 'whole') return FULL_PLAN
+    const hit = ALL.filter(path => request.paths.some(file => file.startsWith(`${path}/`)))
+    return {
+      ...AFFECTED_PLAN,
+      build: hit.map(path => ({ path, reason: 'selected' as const })),
+      typecheck: hit,
+      test: hit,
+    }
+  }
+  /** 失败在最后一步、重步骤都通过了：构建只重建被改动影响到的成员，所以磁盘上的旧产物才要紧。 */
+  const H1_LATE = record('loop:status', [])
+  const withMiddle = (over: Partial<ResumeInputs>) =>
+    harness({ records: [H1_LATE, middle()], plan: byPaths, ...over }).inputs
+  const resumed = (inputs: ResumeInputs) => {
+    const verdict = resumePlan(inputs)
+    if (verdict.kind !== 'resume') throw new Error(`不是接续：${JSON.stringify(verdict)}`)
+    return verdict
+  }
+
+  it('评审反例：中间运行重建过 a、HEAD 撤回了 a：计划的构建含 a', () => {
+    const verdict = resumed(withMiddle({ intermediateChanges: { [H2]: ['packages/a/src/y.ts'] } }))
+    expect(verdict.plan.build.map(entry => entry.path)).toEqual(['packages/a', 'packages/b'])
+    expect(verdict.intermediate).toEqual({ heads: [H2], added: ['packages/a/src/y.ts'] })
+    expect(verdict.changedFiles).toEqual(['packages/b/src/x.ts'])
+  })
+
+  it('中间运行的头到 HEAD 没改过的成员不补进', () => {
+    const verdict = resumed(withMiddle({ intermediateChanges: { [H2]: ['packages/b/src/x.ts'] } }))
+    expect(verdict.plan.build.map(entry => entry.path)).toEqual(['packages/b'])
+    expect(verdict.intermediate.added).toEqual([])
+  })
+
+  it('中间运行带未提交改动：整次重跑，原因写未提交改动与它的头', () => {
+    const verdict = resumePlan(
+      withMiddle({ records: [H1_LATE, middle({ dirty: true })], intermediateChanges: {} }),
+    )
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') {
+      expect(verdict.reason).toContain('未提交改动')
+      expect(verdict.reason).toContain(H2.slice(0, 9))
+    }
+  })
+
+  it('中间运行的头算不出差异（标「算不出」或没给）：整次重跑，写明头', () => {
+    for (const intermediateChanges of [{ [H2]: 'unknown' as const }, {}]) {
+      const verdict = resumePlan(withMiddle({ intermediateChanges }))
+      expect(verdict.kind).toBe('rerun')
+      if (verdict.kind === 'rerun') expect(verdict.reason).toContain(H2.slice(0, 9))
+    }
+  })
+
+  it('中间运行补进的改动碰到全局路径：整次重跑', () => {
+    const verdict = resumePlan(
+      withMiddle({ intermediateChanges: { [H2]: ['tsconfig.base.json'] } }),
+    )
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') expect(verdict.reason).toContain('tsconfig.base.json')
+  })
+
+  it('没有中间运行（早于 H1 结束、别的工作树的记录都不算）：计划与只有 H1 记录时相同', () => {
+    const before = middle({
+      startedAt: '2026-10-30T00:10:00.000Z',
+      finishedAt: '2026-10-30T00:20:00.000Z',
+    })
+    const elsewhere = middle({ worktree: '/other/tree' })
+    const plain = harness({ records: [H1_LATE], plan: byPaths }).inputs
+    const noisy = harness({ records: [H1_LATE, before, elsewhere], plan: byPaths }).inputs
+    expect(resumePlan(noisy)).toEqual(resumePlan(plain))
+    expect(resumed(plain).intermediate).toEqual({ heads: [], added: [] })
+  })
+
+  it('证据多一行：次数、各自的头与补进的文件', () => {
+    const inputs = withMiddle({ intermediateChanges: { [H2]: ['packages/a/src/y.ts'] } })
+    const text = describeResume(resumePlan(inputs), HEAD).join('\n')
+    expect(text).toContain(`中间运行 1 次（头 ${H2.slice(0, 9)}）`)
+    expect(text).toContain('补进 packages/a/src/y.ts')
+  })
+})
+
 describe('H1 按影响面准入', () => {
   // H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来就是 HEAD 相对本次基线的影响面，所以接续的范围不比 H1 宽。
   it('合并点与本次相同：接受；没跑到的步骤按本次基线的影响面整次跑，不取全量', () => {
@@ -478,8 +580,11 @@ describe('接续不链式', () => {
 
   it('H1 上同时有更晚的接续记录与一次整次准入：取整次准入那份', () => {
     const verdict = resumePlan(
-      harness({ records: [OXLINT_FAILED, resumed({ startedAt: '2026-10-31T00:00:00.000Z' })] })
-        .inputs,
+      harness({
+        records: [OXLINT_FAILED, resumed({ startedAt: '2026-10-31T00:00:00.000Z' })],
+        // 更晚的接续记录是中间运行：它的头到 HEAD 的差异要给。
+        intermediateChanges: { [H1]: [] },
+      }).inputs,
     )
     expect(verdict.kind).toBe('resume')
     if (verdict.kind === 'resume') expect(verdict.origin.failedStep).toBe('lint:oxlint')
@@ -569,6 +674,58 @@ describe('取 git 事实', () => {
     expect(resumeFacts(repo, first, 'main').dirty).toBe(true)
     expect(() => resumeFacts(repo, 'no-such-ref', 'main')).toThrow()
     expect(() => resumeFacts(repo, first, 'no-such-base')).toThrow()
+  })
+
+  it('skip-worktree 与 assume-unchanged 的文件改了内容也算 dirty（status 看不到）', () => {
+    const first = run('rev-parse', 'HEAD')
+    for (const flag of ['--skip-worktree', '--assume-unchanged']) {
+      run('update-index', flag, 'a.txt')
+      writeFileSync(join(repo, 'a.txt'), `changed ${flag}\n`)
+      expect(run('status', '--porcelain')).toBe('')
+      expect(resumeFacts(repo, first, 'main').dirty).toBe(true)
+      expect(changedDuringRun(repo, first)).toBe(true)
+      run('update-index', flag.replace('--', '--no-'), 'a.txt')
+      run('checkout', '--', 'a.txt')
+      expect(resumeFacts(repo, first, 'main').dirty).toBe(false)
+    }
+  })
+
+  it('中间运行的头到 HEAD 的改动从仓库取；头不在仓库里记算不出', () => {
+    const first = run('rev-parse', 'HEAD')
+    writeFileSync(join(repo, 'b.txt'), 'b\n')
+    run('add', '.')
+    commit('two')
+    const second = run('rev-parse', 'HEAD')
+    writeFileSync(join(repo, 'c.txt'), 'c\n')
+    run('add', '.')
+    commit('three')
+    const gone = 'f'.repeat(40)
+    const origin = record('lint:oxlint', [], {
+      head: first,
+      tree: run('rev-parse', `${first}^{tree}`),
+    })
+    const later = (head: string) =>
+      record('contract-check', [], {
+        head,
+        mode: 'resume',
+        fullRequested: false,
+        base: first,
+        resumeFrom: {
+          head: first,
+          tree: TREE,
+          failedStep: 'lint:oxlint',
+          mode: 'full',
+          fullRequested: true,
+        },
+        startedAt: '2026-10-30T02:00:00.000Z',
+        finishedAt: '2026-10-30T02:20:00.000Z',
+      })
+    const facts = resumeFacts(repo, first, 'main', {
+      records: [origin, later(second), later(gone)],
+      worktree: WORKTREE,
+    })
+    expect(facts.intermediateChanges).toEqual({ [second]: ['c.txt'], [gone]: 'unknown' })
+    expect(resumeFacts(repo, first, 'main').intermediateChanges).toEqual({})
   })
 
   it('结束时重新核对现场：头变了或有未提交改动才算变了，被忽略的文件不算', () => {

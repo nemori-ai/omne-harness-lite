@@ -15,6 +15,10 @@
 //   才覆盖 HEAD 相对本次基线的影响面（合并点..HEAD）。
 // - H1..HEAD 碰到全局路径（锁文件也是）时不接续，按 H1 那次的范围整次重跑；锁文件的按 importer 映射只用于普通的影响面计划。
 // - 接续运行的记录（`mode: resume`）不作 H1：接续不链式。
+// - H1 之后在同一棵工作树里留下记录的准入运行（任何 mode，含失败的接续）是「中间运行」：它们可能重建过成员，
+//   后来的提交又把改动撤回，H1..HEAD 的差异里就看不到那些成员，磁盘上的 dist 却停在中间运行那个头。
+//   所以影响面与全局路径核对用的改动集是 H1..HEAD 并上每个中间运行的「它的头..HEAD」；中间运行带未提交改动，
+//   或它的头算不出差异时整次重跑。
 import { isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts'
@@ -53,6 +57,11 @@ export interface ResumeInputs {
   readonly isAncestor: boolean
   /** H1..HEAD 改动的仓库相对路径。 */
   readonly changedFiles: readonly string[]
+  /**
+   * 每个中间运行的头到 HEAD 的改动路径；算不出（头不在本仓库里等）记 `'unknown'`。键缺失同样按算不出处理。
+   * 没有中间运行时可以不给。
+   */
+  readonly intermediateChanges?: Readonly<Record<string, readonly string[] | 'unknown'>>
   /** 检出里能找到的全部准入记录；由本模块挑 H1 的。 */
   readonly records: readonly AdmissionRun[]
   readonly globalPaths: readonly string[]
@@ -69,6 +78,12 @@ export interface ResumeStep {
   readonly why: string
 }
 
+/** 中间运行的摘要：各次运行的头（按开始时间），以及它们补进 H1..HEAD 差异之外的文件。 */
+export interface IntermediateSummary {
+  readonly heads: readonly string[]
+  readonly added: readonly string[]
+}
+
 export type ResumeVerdict =
   | { readonly kind: 'rejected'; readonly reason: string }
   | {
@@ -78,6 +93,7 @@ export type ResumeVerdict =
       readonly origin: ResumeOrigin
       readonly scope: OriginScope
       readonly changedFiles: readonly string[]
+      readonly intermediate: IntermediateSummary
     }
   | {
       readonly kind: 'resume'
@@ -89,6 +105,7 @@ export type ResumeVerdict =
       /** 写进 `tmp/check-plan/plan.json` 给各 `step` 命令读的计划：按步骤各取整次或 H1..HEAD 影响面的那一份。 */
       readonly plan: CheckPlan
       readonly changedFiles: readonly string[]
+      readonly intermediate: IntermediateSummary
     }
 
 const short = (sha: string) => sha.slice(0, 9)
@@ -190,6 +207,29 @@ function prerequisites(inputs: ResumeInputs): Prerequisites {
   return { kind: 'ok', record, failedStep: record.failedStep, scope }
 }
 
+/**
+ * H1 之后、同一工作树里留下记录的准入运行（任何 mode）：`startedAt` 晚于 H1 记录的 `finishedAt`。
+ * 按开始时间排序；`resumeFacts` 与 `resumePlan` 用同一个挑法。
+ */
+export function intermediateRuns(
+  records: readonly AdmissionRun[],
+  origin: AdmissionRun,
+  worktree: string,
+): AdmissionRun[] {
+  const after = Date.parse(origin.finishedAt)
+  // 同一次运行在 tmp/admission 与 tmp/check-run 各留一份记录：按头与开始时间合并。
+  const runs = new Map<string, AdmissionRun>()
+  for (const run of records)
+    if (
+      run !== origin &&
+      run.admission &&
+      run.worktree === worktree &&
+      Date.parse(run.startedAt) > after
+    )
+      runs.set(`${run.head}|${run.startedAt}`, run)
+  return [...runs.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+}
+
 /** 碰到的全局文件（退役目录里的不算）。 */
 function globalHits(paths: readonly string[], globalPaths: readonly string[]): string[] {
   const patterns = globalPaths.map(patternToRegExp)
@@ -283,19 +323,44 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     fullRequested: record.fullRequested,
   }
   const changedFiles = [...new Set(inputs.changedFiles)].sort()
+  let intermediate: IntermediateSummary = { heads: [], added: [] }
   const rerun = (reason: string): ResumeVerdict => ({
     kind: 'rerun',
     reason,
     origin,
     scope,
     changedFiles,
+    intermediate,
   })
 
-  // 锁文件与别的全局文件一样：碰到就不接续。按 importer 映射只用于普通的影响面计划。
-  const hits = globalHits(changedFiles, inputs.globalPaths)
-  if (hits.length > 0) return rerun(`${short(origin.head)}..HEAD 改了全局文件 ${sample(hits)}`)
+  // 中间运行：带未提交改动、或头算不出差异，都说不清磁盘上的产物对应哪份源码，整次重跑。
+  const middle = intermediateRuns(inputs.records, record, inputs.worktree)
+  const dirtyRun = middle.find(run => run.dirty)
+  if (dirtyRun !== undefined)
+    return rerun(
+      `${short(origin.head)} 之后这棵树上跑过带未提交改动的准入（${short(dirtyRun.head)}），磁盘上的产物说不清对应哪份源码，整次重跑`,
+    )
+  const known = new Set(changedFiles)
+  const added = new Set<string>()
+  for (const run of middle) {
+    const paths = inputs.intermediateChanges?.[run.head]
+    if (paths === undefined || paths === 'unknown')
+      return rerun(
+        `${short(origin.head)} 之后的中间运行头 ${short(run.head)} 算不出到 HEAD 的差异，整次重跑`,
+      )
+    for (const path of paths) if (!known.has(path)) added.add(path)
+  }
+  intermediate = { heads: middle.map(run => run.head), added: [...added].sort() }
+  const planned = [...new Set([...changedFiles, ...intermediate.added])].sort()
 
-  const since = inputs.plan({ kind: 'since', paths: changedFiles })
+  // 锁文件与别的全局文件一样：碰到就不接续。按 importer 映射只用于普通的影响面计划。
+  const hits = globalHits(planned, inputs.globalPaths)
+  if (hits.length > 0)
+    return rerun(
+      `${short(origin.head)}..HEAD${intermediate.heads.length > 0 ? '（含中间运行补进的改动）' : ''}改了全局文件 ${sample(hits)}`,
+    )
+
+  const since = inputs.plan({ kind: 'since', paths: planned })
   if (since.mode === 'full')
     return rerun(`${short(origin.head)}..HEAD 的影响面判全量：${since.reason}`)
   const wholeScope = wholeScopeSteps(inputs.steps, record, failedStep)
@@ -315,7 +380,16 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
     steps,
     plan,
     changedFiles,
+    intermediate,
   }
+}
+
+function intermediateLines(summary: IntermediateSummary): string[] {
+  if (summary.heads.length === 0) return []
+  const added = summary.added.length === 0 ? '没有补进文件' : `补进 ${sample(summary.added)}`
+  return [
+    `中间运行 ${summary.heads.length} 次（头 ${summary.heads.map(short).join('、')}），${added}`,
+  ]
 }
 
 function changedLines(label: string, changedFiles: readonly string[]): string[] {
@@ -345,6 +419,7 @@ export function describeResume(verdict: ResumeVerdict, head: string): string[] {
       `准入证据：${started}不接续，${short(head)} ${verdict.scope.mode === 'full' ? '整次全量' : '整次按本次基线的影响面'}——${verdict.reason}`,
       ...baseLine,
       ...changedLines(range, verdict.changedFiles),
+      ...intermediateLines(verdict.intermediate),
     ]
   const groups = (['whole', 'narrowed', 'resident'] as const).flatMap(scope => {
     const names = verdict.steps.filter(step => step.scope === scope)
@@ -359,6 +434,7 @@ export function describeResume(verdict: ResumeVerdict, head: string): string[] {
     ...groups,
     `${from} 运行时的缓存：测试 ${verdict.caches.test}、依赖图 ${verdict.caches.depGraph}、变异 ${verdict.caches.mutation}`,
     ...changedLines(range, verdict.changedFiles),
+    ...intermediateLines(verdict.intermediate),
   ]
 }
 
@@ -371,6 +447,17 @@ export interface ResumeFacts {
   readonly dirty: boolean
   readonly isAncestor: boolean
   readonly changedFiles: readonly string[]
+  /** 每个中间运行的头到 HEAD 的改动；没给记录时为空。 */
+  readonly intermediateChanges: Readonly<Record<string, readonly string[] | 'unknown'>>
+}
+
+/**
+ * 工作树有没有说不清的改动：`git status --porcelain` 非空（被忽略的文件不算），或 `git ls-files -v` 里有
+ * assume-unchanged（小写字母开头）与 skip-worktree（`S`）的文件：它们的改动 status 看不到。
+ */
+export function workingTreeDirty(root: string): boolean {
+  if (git(root, ['status', '--porcelain']) !== '') return true
+  return /^[a-zS] /mu.test(git(root, ['ls-files', '-v']))
 }
 
 /** `git merge-base --is-ancestor`：0 是，1 不是，别的退出码照常抛出。 */
@@ -388,7 +475,12 @@ function isAncestorOf(root: string, ancestor: string, descendant: string): boole
  * 从检出取接续要的 git 事实；`fromRef` 不是提交、`baseRef` 与 HEAD 没有合并点都抛错（调用方以 2 退出）。
  * 改动只看已提交的 H1..HEAD。`baseRef` 是统一规则取到的本次基线。
  */
-export function resumeFacts(root: string, fromRef: string, baseRef: string): ResumeFacts {
+export function resumeFacts(
+  root: string,
+  fromRef: string,
+  baseRef: string,
+  context?: { readonly records: readonly AdmissionRun[]; readonly worktree: string },
+): ResumeFacts {
   const from = git(root, ['rev-parse', '--verify', `${fromRef}^{commit}`])
   const head = git(root, ['rev-parse', 'HEAD'])
   return {
@@ -397,10 +489,33 @@ export function resumeFacts(root: string, fromRef: string, baseRef: string): Res
     head,
     headTree: git(root, ['rev-parse', 'HEAD^{tree}']),
     base: { ref: baseRef, mergeBase: git(root, ['merge-base', baseRef, head]) },
-    dirty: git(root, ['status', '--porcelain']) !== '',
+    dirty: workingTreeDirty(root),
     isAncestor: isAncestorOf(root, from, head),
-    changedFiles: nulSeparated(
-      git(root, ['diff', '--no-renames', '--name-only', '-z', from, head]),
-    ).sort(),
+    changedFiles: diffPaths(root, from, head),
+    intermediateChanges: intermediateChanges(root, from, head, context),
   }
+}
+
+const diffPaths = (root: string, from: string, to: string) =>
+  nulSeparated(git(root, ['diff', '--no-renames', '--name-only', '-z', from, to])).sort()
+
+/** 每个中间运行的头到 HEAD 的改动；git 算不出（头不在本仓库里）记 `'unknown'`。 */
+function intermediateChanges(
+  root: string,
+  from: string,
+  head: string,
+  context: { readonly records: readonly AdmissionRun[]; readonly worktree: string } | undefined,
+): Record<string, readonly string[] | 'unknown'> {
+  const result: Record<string, readonly string[] | 'unknown'> = {}
+  const origin = context === undefined ? undefined : latestResumeOrigin(context.records, from)
+  if (context === undefined || origin === undefined) return result
+  for (const run of intermediateRuns(context.records, origin, context.worktree)) {
+    if (run.head in result) continue
+    try {
+      result[run.head] = diffPaths(root, run.head, head)
+    } catch {
+      result[run.head] = 'unknown'
+    }
+  }
+  return result
 }
