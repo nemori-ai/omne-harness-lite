@@ -244,7 +244,7 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | Tool 的过程块                                    | Tool 的过程保管，按版本读取                                  |
 | Tool 的内部调度、继续与计时段                    | Tool 自己的账本                                              |
 | Tool 内部等待的答复                              | 回到工具自身的等待                                           |
-| Agent 的消息事件                                 | Agent 的事件序列。消息已在参加时成立；Session 只保存消费游标 |
+| Agent 的消息事件                                 | Agent 的事件序列。消息已在参加时成立；Session 不写条目，只推进解释进度 |
 | Agent 内部执行状态与拓展结论的正文               | Agent 检查点与经过记录                                       |
 | Agent 的接续值                                   | Agent 检查点。Session 不保存接续值，只保存 `ExecutionRef`    |
 | 调度器唤醒、提交通知与心跳                       | 不保存                                                       |

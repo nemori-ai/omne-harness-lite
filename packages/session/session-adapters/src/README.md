@@ -16,6 +16,6 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-现在有 `index.ts` 与 `cordis.ts` 两个源文件，内容都是 `export {}` 与一行 `PACKAGE_TEMPLATE_DRAFT` 标记。两个入口都没有导出。根入口随实现承载翻译纯函数，`./cordis` 承载全部插件、端口提供者与 `ContextBlocks` 增补，目标导出清单在[公开接口](../docs/public-api.md#定义索引)。
+根入口 `index.ts` 与 Cordis 入口 `cordis.ts` 的内容都是 `export {}` 与一行 `PACKAGE_TEMPLATE_DRAFT` 标记，这两个入口都没有导出。`testing.ts` 与 `testing/` 目录是 `./testing` 入口，承载 AD-01、AD-02、AD-05 的非耐久内存提供者与 Agent Journal 提供者。根入口随实现承载翻译纯函数，`./cordis` 承载全部插件、端口提供者与 `ContextBlocks` 增补，目标导出清单在[公开接口](../docs/public-api.md#定义索引)。
 
 当前缺口：模式翻译、身份编码与结果对应三类纯函数，以及[插件清单](../SPEC.md#插件清单)里的全部插件都还没有进入源码。具名维护者由负责人指定。

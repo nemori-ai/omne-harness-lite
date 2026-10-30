@@ -39,7 +39,7 @@
 | --- | --- | --- | --- |
 | VS-W01 | 每个 JC 行提交后，派生行与 `sl_state` 与 [W3](../SPEC.md#w3) 一致 | 每个 JC 行一个用例 | [W1](../SPEC.md#w1)、[W3](../SPEC.md#w3) |
 | VS-W02 | 两个进程并发提交同一会话：后到者等前一个提交，在新尾部上裁定。带 `expected` 的命令得到 `changed`；不带 `expected` 的命令按新状态裁定，不得到 `changed`；`sl_journal` 条件更新从不影响 0 行 | SQLite 与 PostgreSQL 各一组交错用例，两类命令各一 | [W1](../SPEC.md#w1) 第 5 步、[W6](../SPEC.md#w6) |
-| VS-W03 | 已处理事件的 `receive` 按事件身份认回，`recovered` 为真，`readThrough` 不回退；游标与条目同一事务 | 重放与乱序事件 | [W5](../SPEC.md#w5) |
+| VS-W03 | 重读序号不大于 `readThrough` 的事件时，后果按原 execution 与事实身份认回，`readThrough` 不回退；`readThrough` 与后果在同一次解释提交中保存；`receive` 不推进 `readThrough` | 重放与乱序事件 | [W5](../SPEC.md#w5) |
 | VS-W04 | 材料缺项或多项时不写任何行 | 缺身份桥材料的 `accept` | [W1](../SPEC.md#w1) 第 3 步 |
 | VS-W05 | 参加者路径下提交方失败时 Session 一侧不保存 | 注入 Agent 参加者语句失败 | [W2](../SPEC.md#w2) |
 | VS-W06 | 压缩提交任一步失败整体回滚，旧 epoch 仍为当前 | 注入新 epoch 写入失败 | [W4](../SPEC.md#w4) |

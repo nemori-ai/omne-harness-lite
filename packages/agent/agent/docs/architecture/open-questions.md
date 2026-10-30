@@ -68,7 +68,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 本项尚未闭合。拥有者是 Agent 契约与宿主拥有者，补采用放在里程碑 M2。
 
-SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条只为 Model 交付规定了 facts 材料分支与具名版本 schema。Tool 交付的完整收场材料（`terminal`、`actualTerminal`、`effect`）没有已采用的 schema，当前公开的 `ReceivedDelivery` 与 `Material.tool` 也不直接声明这三项。所以读取 Journal 的外部协调者不能从材料确定 Tool 调用已经收场，只能返回不可用并保留任务。外部协调者一侧的登记名是 SC-03。
+SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条只为 Model 交付规定了 facts 材料分支与具名版本 schema。Tool 交付的完整收场材料（`terminal`、`actualTerminal`、`effect`）没有已采用的 schema，当前公开的 `ReceivedDelivery` 与 `Material.tool` 也不直接声明这三项。所以读取 Journal 的外部协调者不能从材料确定 Tool 调用已经收场，只能返回不可用并保留任务。外部协调者一侧的登记名是 [TOOL-SETTLEMENT-SCHEMA](../../../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema)。
 
 关闭条件是拥有者为 Tool 交付采用完整收场 schema，并写回 SPEC 的结果接收第 11 条。
 

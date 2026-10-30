@@ -338,10 +338,10 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 - 注入同一 AgentJournal 提供者的读取与材料视图，并以 `coordinator` 调用 `session`。不注入 `toolRuntime`，不查询 Tool 收场、结果、附件或账目。
 - Agent 宿主结果接收方先把 Tool 结果与账目写入同一会话日志。本插件从 `load().entries` 选择 `received` 且 delivery.producer 为 tool 的条目，并经同一提供者 `AgentMaterials.read` 取得原材料。Tool 结果带 account 或 null，账目交付带原修订的 CallAccount。只有原 Journal 记录可证明的字段才投影；尚无报告保持未知，不填零。原 recordResult 路径的公开结果责任按 load().results 读取，不以条目字段缺席表示空记录。
 - 读取前核当前资格、租户、原 execution/Run、原 Tool 调用、consumption、完整版本及 schema。缺材料、未知 schema 或读不可用按原失败关闭，不直接读生产者补齐，也不发明新 Journal 条目。
-- 当前公开 `ReceivedDelivery` 保留 Tool 的 key 与账目，`Material.tool` 只有 ProducedResult 和结果页，`load().results` 只有结果责任；它们不直接声明 terminal、actualTerminal、effect。Agent J02 第 11 项的完整 facts schema 约定只明确覆盖 Model。Tool 收场解释若缺少原拥有者已经采用且可读的完整材料，返回 unavailable 并保留任务；不能从结果页、release 或“存在 received”推定已收场。完整 Tool 收场材料的生产与 schema 接线归 Agent 契约与宿主拥有者，补采用放在里程碑 M2，见[应用装配页的缺口表](../../../docs/architecture/runtime/application-assembly.md#缺口与承接者)的 SC-03 行。本成员不在此处另定协议。
+- 当前公开 `ReceivedDelivery` 保留 Tool 的 key 与账目，`Material.tool` 只有 ProducedResult 和结果页，`load().results` 只有结果责任；它们不直接声明 terminal、actualTerminal、effect。Agent J02 第 11 项的完整 facts schema 约定只明确覆盖 Model。Tool 收场解释若缺少原拥有者已经采用且可读的完整材料，返回 unavailable 并保留任务；不能从结果页、release 或“存在 received”推定已收场。完整 Tool 收场材料的生产与 schema 接线归 Agent 契约与宿主拥有者，补采用放在里程碑 M2，见应用装配页缺口表的 [TOOL-SETTLEMENT-SCHEMA](../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema) 行。本成员不在此处另定协议。
 - 收场与账目分别以 `receive(execution)`、`receive(account)` 提交，身份从原生产者记录与修订确定派生。Session 后果、解释进度与该次答案沿 AD-02 同批发布。重复读取认回；未知先查原操作；失败不撤销已经保存的 Agent 原事实。
 - Tool 的迟到版本归原消费绑定，不创建新 Run 或调用。仍有后续投递资格的后台结果按 EC-08 登记后交受理；归档撤销资格的结果按 EC-07 只保管，不自动进队列。
-- 本插件不发送生产者交付解除，也不写 ProducerFact.release。Tool 原确认的读取归 AD-05，遵循 Session [JC-Release](../session-contract/SPEC.md#jc-release)，release 的写入者见 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。Model ACK 未决状态保持。
+- 本插件不发送生产者交付解除，也不写 ProducerFact.release。Tool 原确认的读取归 AD-05，遵循 Session [JC-Release](../session-contract/SPEC.md#jc-release)，Tool 原确认怎样进入同一日志见 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。Model ACK 未决状态保持。
 
 模型选择由应用装配一侧的适配器实现 Agent 的 ModelSelection，Session 组不提供 `agentModelSelection`。会话只保存选择及其来源；解析与发送资格仍由各拥有者负责。
 

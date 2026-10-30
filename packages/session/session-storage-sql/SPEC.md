@@ -24,7 +24,7 @@
 | 历史面四个读操作、`SessionReconciliation` 的三个读操作 | [SessionHistory](../session-contract/SPEC.md#sessionhistory)、[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation) |
 | 共同提交表 JC-01 至 JC-28、参加者流水线 | [共同提交与共享事务域](../session-contract/SPEC.md#共同提交与共享事务域) |
 | 事件封套、九族 38 类、效力、不进入日志的内容 | [事件目录](../session-contract/docs/object-model/session-log-events.md) |
-| 消费游标随条目同提交 | [EC-02](../session-contract/SPEC.md#ec-02) |
+| 解释进度随解释提交保存 | [EC-02](../session-contract/SPEC.md#ec-02) |
 | 引用查询的索引维护与引用定义 | [常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结) |
 | 已释放作用域的账本 | [ScopeReleasePort](../session-contract/SPEC.md#scopereleaseport) |
 | 推理续接状态不建索引 | [推理续接状态](../session-contract/SPEC.md#推理续接状态) |
@@ -244,7 +244,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 
 <a id="w5"></a>
 
-**W5 消费游标随条目同提交。**`receive` 写条目的同一事务里，快照内对应执行的 `ExecutionRef.readThrough` 设为本事件的序号。不产生条目的事件不单独提交。`receive` 不带 `expected`，不产生 `changed`。序号不大于快照当前 `readThrough` 的产生条目的事件已经随它的条目提交过，`decide` 按事件身份认回原回执，`recovered` 为真，游标不回退。游标与会话状态在 `sl_state` 同一行，没有单独的游标表。
+**W5 解释进度随解释提交保存。**快照内每个执行的 `ExecutionRef.readThrough` 是 Session 对 Agent 事件的解释进度（[EC-02](../session-contract/SPEC.md#ec-02)）。它与同日志解释产生的后果、该次 Session 操作的答案在同一次解释提交中保存。不产生后果的事件不单独提交，持久进度随下一次解释提交前进。`receive` 不接收 Agent 事件，不推进 `readThrough`。序号不大于快照当前 `readThrough` 的事件已经随它的后果提交过，重读时按原 execution 与事实身份认回，`readThrough` 不回退。`readThrough` 与会话状态在 `sl_state` 同一行，没有单独的进度表。
 
 <a id="w6"></a>
 
