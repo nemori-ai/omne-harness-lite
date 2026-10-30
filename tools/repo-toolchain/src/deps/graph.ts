@@ -12,6 +12,7 @@ import {
   realpathSync,
   renameSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from 'node:fs'
@@ -530,9 +531,74 @@ function git(root: string, args: readonly string[], input?: Buffer): Buffer {
   return run.stdout
 }
 
+/** 基线图的临时树：`tree-<提交>-<进程号>`，进程号是建它的进程。 */
+const TREE_NAME = /^tree-[0-9a-f]+-(\d+)$/u
+
+/**
+ * 进程已不在、目录又过了这么久没动，才算别人留下的残留。进程号只在本机本系统里有意义：同一个 git 目录
+ * 也可能被 WSL 里的运行用着，那边的进程这里看不见，宽限期挡住正在跑的那一次（一次导出加 dependency-cruiser 不到一分钟）。
+ */
+export const STALE_TREE_GRACE_MS = 10 * 60 * 1000
+
+/** 进程还在不在：`kill(pid, 0)` 只探测不发信号；没有权限（EPERM）说明进程在。 */
+export function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
+/**
+ * 删一棵临时树。Windows 上刚解开的文件可能还被杀毒或索引程序占着（EBUSY、EPERM、ENOTEMPTY），
+ * 重试几次；仍删不掉就返回错误，由调用方报告，不让它盖过图本身的结果。
+ */
+function removeTree(tree: string): Error | undefined {
+  try {
+    rmSync(tree, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    return undefined
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
+/**
+ * 清掉别的运行留下的临时树：被强行结束（任务超时、关掉终端、杀进程树）的运行来不及走到 `finally`，
+ * 树就留在 git 目录里。只删进程已不在、且过了宽限期的；活着的进程的树不动。返回删掉的目录名。
+ */
+export function sweepStaleTrees(
+  directory: string,
+  alive: (pid: number) => boolean = processAlive,
+  now: number = Date.now(),
+): string[] {
+  let names: string[]
+  try {
+    names = readdirSync(directory)
+  } catch {
+    return []
+  }
+  const removed: string[] = []
+  for (const name of names) {
+    const pid = TREE_NAME.exec(name)?.[1]
+    if (pid === undefined || alive(Number(pid))) continue
+    const tree = join(directory, name)
+    try {
+      if (now - statSync(tree).mtimeMs < STALE_TREE_GRACE_MS) continue
+    } catch {
+      continue
+    }
+    const failed = removeTree(tree)
+    if (failed === undefined) removed.push(name)
+    else process.stderr.write(`旧的基线图临时树 ${tree} 没删掉：${failed.message}\n`)
+  }
+  return removed
+}
+
 /**
  * 某个提交上的依赖图。把提交里的源码导出到 git 目录下的临时树、补上 workspace 链接后跑；
  * 提交不会变，结果按提交与规则文件的摘要缓存，同一基线只算一次。
+ * 开始时顺带清掉别的运行留下的临时树（见 `sweepStaleTrees`）。
  */
 export function revisionGraph(root: string, revision: string): DependencyGraph {
   const commit = git(root, ['rev-parse', '--verify', `${revision}^{commit}`])
@@ -540,6 +606,7 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
     .trim()
   const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
   const directory = cacheDirectory(root)
+  sweepStaleTrees(directory)
   // 文件名带图的格式版本：旧格式的缓存没有 `dependencies` 或 `modules`，不能当现在的图读。
   const cached = join(directory, `${commit}-${rules}-${GRAPH_FORMAT}.json`)
   if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph
@@ -549,7 +616,9 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
   )
   const paths = [...ROOTS, 'tsconfig.base.json', 'package.json'].filter(path => present.has(path))
   const tree = join(directory, `tree-${commit}-${process.pid}`)
-  rmSync(tree, { recursive: true, force: true })
+  const leftover = removeTree(tree)
+  if (leftover !== undefined)
+    throw new DependencyGraphUnavailable(`清不掉 ${tree}：${leftover.message}`)
   mkdirSync(tree, { recursive: true })
   try {
     if (paths.length > 0) {
@@ -575,6 +644,9 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
     renameSync(staged, cached)
     return graph
   } finally {
-    rmSync(tree, { recursive: true, force: true })
+    // 删不掉不改变图的结果，也不盖过前面的错误：报告出来，下次运行时按残留清理。
+    const failed = removeTree(tree)
+    if (failed !== undefined)
+      process.stderr.write(`基线图临时树 ${tree} 没删掉：${failed.message}；下次运行时再清\n`)
   }
 }
