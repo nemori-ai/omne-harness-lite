@@ -20,7 +20,7 @@ import {
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it, vi } from 'vitest'
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
 import {
@@ -127,6 +127,26 @@ function thrown(work: () => unknown): unknown {
     return error
   }
   throw new Error('expected a failure')
+}
+/** Evidence copies `runSwap` reported in the running test; each is removed when the test ends. */
+const evidenceCopies: string[] = []
+afterEach(() => {
+  for (const copy of evidenceCopies.splice(0)) rmSync(copy, { recursive: true, force: true })
+})
+/**
+ * Runs `swapWorktree` and keeps the evidence copy it reports, whether it returns it or throws it
+ * in a `WorktreeStepError`. A run that reports no evidence leaves nothing to remove.
+ */
+function runSwap(input: Parameters<typeof swapWorktree>[0]): ReturnType<typeof swapWorktree> {
+  try {
+    const result = swapWorktree(input)
+    if (result.evidence !== undefined) evidenceCopies.push(result.evidence)
+    return result
+  } catch (error) {
+    if (error instanceof WorktreeStepError && error.evidence !== undefined)
+      evidenceCopies.push(error.evidence)
+    throw error
+  }
 }
 const ancestor = (older: string, newer: string, status: number): Record<string, Answer> => ({
   [`git merge-base --is-ancestor ${older} ${newer}`]: { status },
@@ -570,7 +590,7 @@ describe('worktree swap', () => {
     const root = home(),
       oldTree = old(root),
       r = runner(clean)
-    const result = swapWorktree({
+    const result = runSwap({
       root,
       old: oldTree,
       tree: join(root, 'new'),
@@ -619,7 +639,7 @@ describe('worktree swap', () => {
     const root = home(),
       r = runner(answers)
     expect(() =>
-      swapWorktree({
+      runSwap({
         root,
         old: old(root),
         tree: join(root, 'new'),
@@ -636,7 +656,7 @@ describe('worktree swap', () => {
     const root = home(),
       r = runner(clean)
     expect(() =>
-      swapWorktree({
+      runSwap({
         root,
         old: old(root),
         tree: join(root, 'new'),
@@ -656,7 +676,7 @@ describe('worktree swap', () => {
     writeFileSync(join(oldTree, 'tmp/issue-7/start.json'), '{"attempt":"7-r1-a1"}')
     const r = runner({ ...clean, 'uv run --locked': { status: 1, stderr: 'lock check failed' } })
     const failure = thrown(() =>
-      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+      runSwap({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
     )
     const input = join(tree, 'tmp/issue-7/start.json')
     expect(JSON.parse(readFileSync(input, 'utf8'))).toEqual(startInput(binding))
@@ -674,11 +694,10 @@ describe('worktree swap', () => {
       expect.stringMatching(/worktree-cli\.ts projections --tree .*new$/),
       expect.stringMatching(/cli\.ts execute --root .*new --input .*start\.json$/),
     ])
-    // The copy stays in the temporary directory until the operator deletes it.
+    // The copy stays in the temporary directory for the operator; this test's runSwap removes it.
     const copy = /to (.*)$/.exec(done[0] ?? '')?.[1] ?? ''
     expect((failure as WorktreeStepError).evidence).toBe(copy)
     expect(readFileSync(join(copy, 'handoff.md'), 'utf8')).toBe('evidence')
-    rmSync(copy, { recursive: true, force: true })
   })
 
   it('reports a prepare command with the copy when a step fails before the new tree exists', () => {
@@ -687,7 +706,7 @@ describe('worktree swap', () => {
       tree = join(root, 'new')
     const r = runner({ ...clean, 'git branch --force': { status: 1, stderr: 'locked ref' } })
     const failure = thrown(() =>
-      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+      runSwap({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
     )
     expect(failure).toBeInstanceOf(WorktreeStepError)
     const { done, resume, message, evidence } = failure as WorktreeStepError
@@ -701,7 +720,6 @@ describe('worktree swap', () => {
       ),
     ])
     expect(existsSync(tree)).toBe(false)
-    rmSync(copy, { recursive: true, force: true })
   })
 })
 
@@ -720,7 +738,7 @@ describe('a swap whose detach fails', () => {
       'git checkout --quiet': { status: 1, stderr: 'index.lock exists' },
     })
     const failure = thrown(() =>
-      swapWorktree({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
+      runSwap({ root, old: oldTree, tree, binding, run: r.run, host: linux }),
     )
     expect(failure).toBeInstanceOf(WorktreeStepError)
     const { done, resume, evidence } = failure as WorktreeStepError
@@ -732,7 +750,6 @@ describe('a swap whose detach fails', () => {
     ])
     expect(readFileSync(join(evidence ?? '', 'handoff.md'), 'utf8')).toBe('evidence')
     expect(r.ran('git', 'worktree')).toBe(false)
-    rmSync(evidence ?? '', { recursive: true, force: true })
   })
 })
 
