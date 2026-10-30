@@ -123,6 +123,25 @@ describe('给了记录：只看那一份', () => {
     ])
   })
 
+  it('接续了一次全量准入的记录算全量准入：输出写明是 H1 全量＋ C 上增量组成的', () => {
+    const h1 = 'e'.repeat(40)
+    const record = writeRecord('explicit-resume-of-full', {
+      ...passingRecord(),
+      mode: 'resume',
+      base: h1,
+      resumeFrom: { head: h1, tree: h1, failedStep: 'lint:oxlint', mode: 'full' },
+    })
+    const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
+    expect(evidence).toMatchObject({
+      kind: 'accepted',
+      source: { commit: fixture.c },
+      resumedFrom: h1,
+    })
+    expect(formatEvidence(evidence)[0]).toContain(
+      `采用 C ${fixture.c} 的全量准入（H1 ${h1} 的全量准入＋ C 上的增量准入）`,
+    )
+  })
+
   it('树不同时拒绝，原因里写出两个树哈希', () => {
     const record = writeRecord('explicit-pass', passingRecord())
     const evidence = admissionEvidence(fixture.root, { for: fixture.d, record })
@@ -163,7 +182,27 @@ describe('给了记录：只看那一份', () => {
       says: '只认 1',
     },
     { name: '不是全量', change: { mode: 'affected' }, expected: ['not-full'], says: '不是全量' },
-    { name: '接续模式', change: { mode: 'resume' }, expected: ['not-full'], says: '不是全量' },
+    {
+      name: '接续记录没写 H1 的范围',
+      change: { mode: 'resume' },
+      expected: ['not-full'],
+      says: '看不出 H1 那次的范围',
+    },
+    {
+      name: '接续了一次影响面准入',
+      change: {
+        mode: 'resume',
+        base: 'e'.repeat(40),
+        resumeFrom: {
+          head: 'e'.repeat(40),
+          tree: 'e'.repeat(40),
+          failedStep: 'test',
+          mode: 'affected',
+        },
+      },
+      expected: ['not-full'],
+      says: 'H1 只按影响面运行，组成的证据不是全量准入',
+    },
     {
       name: '有失败步',
       change: {

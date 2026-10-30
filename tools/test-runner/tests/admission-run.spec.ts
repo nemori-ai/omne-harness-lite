@@ -1,5 +1,5 @@
 // 准入运行记录：写入是原子的、读回与写入相同；坏文件按「没有记录」；由步骤图运行写成记录时跑完、被终止、没开始各记成什么；
-// 挑某个提交最近一次干净的全量记录。
+// 挑某个提交能作接续起点的最近一次记录。
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -9,7 +9,7 @@ import {
   allStepsPassed,
   collectAdmissionRuns,
   isCompleteFullAdmission,
-  latestCleanFullRun,
+  latestResumeOrigin,
   parseAdmissionRun,
   readAdmissionRun,
   recordPathBesideLog,
@@ -84,6 +84,14 @@ describe('写入与读取', () => {
     ['head 不是 40 位', { head: 'abcdef' }],
     ['mode 未知', { mode: 'partial' }],
     ['resume 模式没有来源', { mode: 'resume' }],
+    [
+      'resume 的来源没写 H1 的范围',
+      { mode: 'resume', resumeFrom: { head: H1, tree: TREE, failedStep: 'x' } },
+    ],
+    [
+      'resume 的来源范围不认得',
+      { mode: 'resume', resumeFrom: { head: H1, tree: TREE, failedStep: 'x', mode: 'resume' } },
+    ],
     ['非 resume 模式带来源', { resumeFrom: { head: H1, tree: TREE, failedStep: 'x' } }],
     ['failedStep 是空串', { failedStep: '' }],
     ['没有 admission', { admission: undefined }],
@@ -100,7 +108,7 @@ describe('写入与读取', () => {
   it('resume 模式带完整来源时是记录', () => {
     const resumed = run({
       mode: 'resume',
-      resumeFrom: { head: H1, tree: TREE, failedStep: 'lint:oxlint' },
+      resumeFrom: { head: H1, tree: TREE, failedStep: 'lint:oxlint', mode: 'full' },
       head: H2,
     })
     expect(parseAdmissionRun(JSON.parse(JSON.stringify(resumed)))).toEqual(resumed)
@@ -188,13 +196,21 @@ describe('由步骤图运行写成记录', () => {
       base: H1,
       startedAt: new Date(0),
       finishedAt: new Date(10),
-      origin: { mode: 'resume', from: { head: H1, tree: TREE, failedStep: 'lint:oxlint' } },
+      origin: {
+        mode: 'resume',
+        from: { head: H1, tree: TREE, failedStep: 'lint:oxlint', mode: 'affected' },
+      },
     })
     expect(record.failedStep).toBeNull()
     expect(allStepsPassed(record)).toBe(true)
     expect(record.caches).toEqual({ test: 'on', depGraph: 'unknown', mutation: 'off' })
     expect(record.mode).toBe('resume')
-    expect(record.resumeFrom).toEqual({ head: H1, tree: TREE, failedStep: 'lint:oxlint' })
+    expect(record.resumeFrom).toEqual({
+      head: H1,
+      tree: TREE,
+      failedStep: 'lint:oxlint',
+      mode: 'affected',
+    })
   })
 })
 
@@ -226,20 +242,31 @@ describe('完整通过的全量准入', () => {
   })
 })
 
-describe('找某个提交的全量记录', () => {
-  it('取最近一次干净的全量准入；非准入的、带未提交改动的、影响面模式的、别的提交的都不算', () => {
+describe('找某个提交能作接续起点的记录', () => {
+  const resumed = (startedAt: string) =>
+    run({
+      mode: 'resume',
+      base: H2,
+      resumeFrom: { head: H2, tree: TREE, failedStep: 'check:docs', mode: 'full' },
+      startedAt,
+    })
+
+  it('取最近一次干净的准入，全量或按影响面；非准入的、带未提交改动的、接续的、别的提交的都不算', () => {
     const older = run({ startedAt: '2026-10-29T00:00:00.000Z' })
     const newer = run({ startedAt: '2026-10-30T00:00:00.000Z', failedStep: null })
     const runs = [
       run({ head: H2, startedAt: '2026-10-31T00:00:00.000Z' }),
       run({ dirty: true, startedAt: '2026-10-31T00:00:00.000Z' }),
       run({ admission: false, startedAt: '2026-10-31T00:00:00.000Z' }),
-      run({ mode: 'affected', base: 'main', startedAt: '2026-10-31T00:00:00.000Z' }),
+      resumed('2026-10-31T00:00:00.000Z'),
       older,
       newer,
     ]
-    expect(latestCleanFullRun(runs, H1)).toBe(newer)
-    expect(latestCleanFullRun([runs[1] ?? older], H1)).toBeUndefined()
+    expect(latestResumeOrigin(runs, H1)).toBe(newer)
+    expect(latestResumeOrigin([runs[1] ?? older], H1)).toBeUndefined()
+    expect(latestResumeOrigin([resumed('2026-10-31T00:00:00.000Z')], H1)).toBeUndefined()
+    const affected = run({ mode: 'affected', base: H2, startedAt: '2026-10-31T00:00:00.000Z' })
+    expect(latestResumeOrigin([...runs, affected], H1)).toBe(affected)
   })
 
   it('从 tmp/admission 与 tmp/check-run/*/run.json 两处收集，读不出的跳过', () => {

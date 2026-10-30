@@ -49,11 +49,15 @@ export type AdmissionStep =
       readonly seconds: number
     }
 
-/** 接续模式的来源：H1 的头、树与它快速失败的那一步。 */
+/**
+ * 接续模式的来源：H1 的头、树、它快速失败的那一步，以及 H1 那次准入的范围（`full` 或 `affected`）。
+ * 范围决定这份接续记录能不能当全量准入复用：H1 全量才是，H1 只按影响面时组成的证据不是全量准入。
+ */
 export interface ResumeOrigin {
   readonly head: string
   readonly tree: string
   readonly failedStep: string
+  readonly mode: 'full' | 'affected'
 }
 
 interface AdmissionRunCommon {
@@ -68,7 +72,7 @@ interface AdmissionRunCommon {
   /** 这次运行是准入（`OMNE_ADMISSION=1` 或 `--admission`）；只有准入运行写 `tmp/admission/`，也只有它能被接续或复用。 */
   readonly admission: boolean
   readonly caches: CacheStates
-  /** 影响面基线；全量没有。 */
+  /** 影响面的基线提交（40 位）：按影响面是本次基线的合并点，接续是 H1；全量没有。 */
   readonly base: string | null
   readonly steps: readonly AdmissionStep[]
   /** 快速失败的那一步（最早结束的失败步骤）；全部通过为 null。 */
@@ -113,10 +117,11 @@ function parseStep(value: unknown): AdmissionStep | undefined {
 
 function parseOrigin(value: unknown): ResumeOrigin | undefined {
   if (!isRecord(value)) return undefined
-  const { head, tree, failedStep } = value
+  const { head, tree, failedStep, mode } = value
   if (!isSha(head) || !isSha(tree) || typeof failedStep !== 'string' || failedStep === '')
     return undefined
-  return { head, tree, failedStep }
+  if (mode !== 'full' && mode !== 'affected') return undefined
+  return { head, tree, failedStep, mode }
 }
 
 function parseCommon(value: Record<string, unknown>): AdmissionRunCommon | undefined {
@@ -302,13 +307,16 @@ export function collectAdmissionRuns(root: string): AdmissionRun[] {
   })
 }
 
-/** 某个提交最近一次干净的全量准入记录；非准入的、带未提交改动的不算。一个也没有返回 undefined。 */
-export function latestCleanFullRun(
+/**
+ * 能作接续起点（H1）的最近一次记录：这个提交上干净的准入运行，全量或按影响面。非准入的、带未提交改动的不算；
+ * 接续运行（`mode: resume`）也不算——它本身是拼起来的证据，再拿它作起点就成了链式接续。一个也没有返回 undefined。
+ */
+export function latestResumeOrigin(
   runs: readonly AdmissionRun[],
   head: string,
 ): AdmissionRun | undefined {
   return runs
-    .filter(run => run.head === head && run.mode === 'full' && run.admission && !run.dirty)
+    .filter(run => run.head === head && run.mode !== 'resume' && run.admission && !run.dirty)
     .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
     .at(-1)
 }

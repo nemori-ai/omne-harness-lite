@@ -2,7 +2,8 @@
 // `check` 的运行记录与 `--resume-from` 的端到端：在一个夹具仓库上真跑 runCheck——真实的 git、turbo、影响面、步骤图、
 // 计划文件、运行记录与准入日志，只把步骤表换成「记下自己跑了什么、读到什么范围」的假命令（真表里的步骤是 pnpm 脚本，
 // 夹具里没有）。核对：只在 oxlint 失败的全量准入写出记录（W2-C2）；修复后接续只跑规定的步骤与成员、证据格式正确（W2-C2）；
-// 前提不满足以 2 退出、差异碰到全局路径时整次全量并写明（W2-C3）。归慢层：每次 runCheck 起 turbo 与十来个 node 子进程。
+// 前提不满足以 2 退出、差异碰到全局路径时整次全量并写明（W2-C3）；H1 按影响面准入时接续的范围不比 H1 宽、
+// 基线合并点不同就拒绝、接续记录不再作 H1。归慢层：每次 runCheck 起 turbo 与十来个 node 子进程。
 import { execFileSync, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -223,19 +224,22 @@ afterAll(() => {
   rmSync(fx.root, { recursive: true, force: true })
 })
 
-const check = async (options: { resumeFrom?: string; admission?: boolean } = {}) => {
+const check = async (
+  options: { resumeFrom?: string; admission?: boolean } = {},
+  on: Fixture = fx,
+) => {
   printed.length = 0
   const code = await runCheck(
-    fx.root,
+    on.root,
     {
       admission: options.admission ?? true,
       keepGoing: false,
       list: false,
       ...(options.resumeFrom === undefined ? {} : { resumeFrom: options.resumeFrom }),
     },
-    { steps: fx.steps },
+    { steps: on.steps },
   )
-  return { code, output: [...printed], trace: fx.trace() }
+  return { code, output: [...printed], trace: on.trace() }
 }
 
 const members = (scope: string | undefined) => new Set((scope ?? '').split(',').filter(Boolean))
@@ -319,6 +323,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
         head: h1,
         tree: fx.git('rev-parse', `${h1}^{tree}`),
         failedStep: 'lint:oxlint',
+        mode: 'full',
       },
     })
     expect(record.steps.every(step => step.ran && step.exit === 0)).toBe(true)
@@ -349,7 +354,7 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     const noRecord = await check({ resumeFrom: h0 })
     expect(noRecord.code).toBe(2)
     expect(noRecord.output.join('\n')).toContain('拒绝接续：')
-    expect(noRecord.output.join('\n')).toContain('没有全量准入记录')
+    expect(noRecord.output.join('\n')).toContain('没有准入记录')
     const notAdmission = await check({ resumeFrom: h1, admission: false })
     expect(notAdmission.code).toBe(2)
     expect(notAdmission.output.join('\n')).toContain('只用于准入运行')
@@ -387,5 +392,85 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(text).toContain('不接续')
     expect(text).toContain('package.json')
     expect(text).toContain('判为全量：FULL=1：要求全量')
+  })
+})
+
+describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
+  // H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来就是 HEAD 相对本次基线的影响面：
+  // 所以接续的「整次」只按本次基线的影响面跑，不比 H1 宽；合并点变了就合不起来，拒绝。
+  let fa: Fixture
+  let h0 = ''
+  let h1 = ''
+  let h2 = ''
+  const short = (sha: string) => sha.slice(0, 9)
+
+  beforeAll(async () => {
+    fa = fixture()
+    h0 = fa.git('rev-parse', 'HEAD')
+    writeFileSync(join(fa.root, 'members/a/src.ts'), 'export const v = 2\n')
+    writeFileSync(join(fa.root, 'members/c/lint.txt'), 'bad\n')
+    h1 = fa.commit('card: break lint')
+    const first = await check({}, fa)
+    expect(first.code).toBe(1)
+    expect(runRecord(fa.root, h1)).toMatchObject({
+      mode: 'affected',
+      base: h0,
+      failedStep: 'lint:oxlint',
+    })
+    writeFileSync(join(fa.root, 'members/c/lint.txt'), 'good\n')
+    h2 = fa.commit('card: fix lint')
+  }, 240_000)
+
+  afterAll(() => {
+    rmSync(fa.root, { recursive: true, force: true })
+  })
+
+  it('本次基线的合并点与 H1 记录的不同：拒绝，以 2 退出，写明两个合并点', async () => {
+    process.env['BASELINE'] = h1
+    try {
+      const moved = await check({ resumeFrom: h1 }, fa)
+      expect(moved.code).toBe(2)
+      const text = moved.output.join('\n')
+      expect(text).toContain('拒绝接续：')
+      expect(text).toContain(`影响面准入基线是 ${short(h0)}`)
+      expect(text).toContain(`合并点是 ${short(h1)}`)
+      expect(moved.trace.size).toBe(0)
+    } finally {
+      delete process.env['BASELINE']
+    }
+  })
+
+  it('合并点相同：接受；没跑到的步骤按 HEAD 相对本次基线的影响面整次跑（只选 a、b，不取全量），证据写「影响面准入」', async () => {
+    const resumed = await check({ resumeFrom: h1 }, fa)
+    expect(resumed.code).toBe(0)
+    // HEAD 相对本次基线的影响面是 a（改了）与 b（依赖 a）：c 的 lint.txt 已改回基线的内容；全量才会带上 c、d。
+    const affected = new Set(['members/a', 'members/b'])
+    expect(members(resumed.trace.get('test'))).toEqual(affected)
+    expect(members(resumed.trace.get('build'))).toEqual(affected)
+    expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(['members/a']))
+    // 类型检查在 H1 上通过了，只跑 H1..HEAD 影响到的 c。
+    expect(members(resumed.trace.get('typecheck'))).toEqual(new Set(['members/c']))
+
+    expect(runRecord(fa.root, h2)).toMatchObject({
+      mode: 'resume',
+      base: h1,
+      failedStep: null,
+      resumeFrom: { head: h1, failedStep: 'lint:oxlint', mode: 'affected' },
+    })
+    const text = resumed.output.join('\n')
+    expect(text).toContain(
+      `准入证据：${short(h1)} 影响面准入（失败于 lint:oxlint）＋ ${short(h2)} 增量（基线 ${short(h1)}）`,
+    )
+    expect(text).toContain(`的影响面基线与本次相同：main，合并点 ${short(h0)}`)
+    expect(text).toMatch(/^ {2}整次（本次基线的影响面）：.*test（/mu)
+  })
+
+  it('接续运行的记录不作下一次接续的 H1：拒绝，以 2 退出', async () => {
+    writeFileSync(join(fa.root, 'members/d/src.ts'), 'export const v = 3\n')
+    fa.commit('card: touch d')
+    const chained = await check({ resumeFrom: h2 }, fa)
+    expect(chained.code).toBe(2)
+    expect(chained.output.join('\n')).toContain('接续不链式')
+    expect(chained.trace.size).toBe(0)
   })
 })

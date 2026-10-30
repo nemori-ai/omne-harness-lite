@@ -1,6 +1,6 @@
 // `pnpm run check` 的正文：取基线、算计划、按步骤图跑全部检查，写逐步耗时表与运行记录；准入模式另写准入日志。
 // 运行名额由 scripts/check.sh 先取；这里不排队。
-// `--resume-from <H1>`：接续 H1 上快速失败的全量准入（resume.ts 判断；这里只按它的结论取计划、跑步骤、写证据）。
+// `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面；resume.ts 判断，这里只按它的结论取计划、跑步骤、写证据）。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { coordinates, git } from '@omne-harness/repo-toolchain/core/git'
 import {
@@ -167,7 +167,7 @@ export interface CheckOptions {
   readonly keepGoing: boolean
   /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑。 */
   readonly list: boolean
-  /** `--resume-from <H1>`：接续 H1 上快速失败的全量准入。只在准入模式下接受，与 `FULL=1` 互斥。 */
+  /** `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面）。只在准入模式下接受，与 `FULL=1` 互斥。 */
   readonly resumeFrom?: string
 }
 
@@ -207,8 +207,8 @@ function lockfileVerdictOf(impact: LockfileImpact): LockfileVerdict {
 
 /**
  * `--resume-from` 的判断：git 事实、本树里的全部记录、全局路径、lockfile 判定、步骤表与影响面函数都交给 resume.ts。
- * 影响面函数：整次的取 `FULL=1` 的计划；按 H1..HEAD 的用 resume.ts 给的路径（它已把锁文件拿出，映射到成员时再放回，
- * 让 planCheck 按同一份判定把它们作为种子带上下游）。
+ * 影响面函数：整次的按 H1 那次的范围取（H1 全量取 `FULL=1` 的计划，H1 按影响面取 HEAD 相对本次基线的影响面）；
+ * 按 H1..HEAD 的用 resume.ts 给的路径（它已把锁文件拿出，映射到成员时再放回，让 planCheck 按同一份判定把它们作为种子带上下游）。
  */
 function judgeResume(
   root: string,
@@ -216,7 +216,7 @@ function judgeResume(
   targetBase: string,
   steps: readonly CheckStep[],
 ) {
-  const facts = resumeFacts(root, fromRef)
+  const facts = resumeFacts(root, fromRef, targetBase)
   const config = readTestRunsConfig()
   const members: WorkspaceMember[] = listWorkspaceMembers(
     fileTree(root),
@@ -226,8 +226,8 @@ function judgeResume(
   const judgeLockfile = () =>
     (impact ??= lockfileImpactBetween(root, facts.from, facts.head, members))
   const plan = (request: PlanRequest): CheckPlan =>
-    request.full
-      ? computePlan(root, targetBase, true).plan
+    request.kind === 'whole'
+      ? computePlan(root, targetBase, request.mode === 'full').plan
       : planCheck(
           [...request.paths, ...(request.lockfileMembers.size > 0 ? [LOCKFILE_PATH] : [])],
           members,
@@ -248,15 +248,18 @@ function judgeResume(
   return { facts, verdict }
 }
 
-/** 按接续的结论取计划文件：整次全量照常算；接续用 resume.ts 合成的计划，基线仍写统一规则取到的那一个。 */
+/** 接续判断里没被拒绝的两种结论：退化为整次重跑，或增量接续。 */
+type AcceptedResume = Exclude<ResumeVerdict, { readonly kind: 'rejected' }>
+
+/** 按接续的结论取计划文件：退化时按 H1 那次的范围照常算；接续用 resume.ts 合成的计划，基线仍写统一规则取到的那一个。 */
 function planFor(
   root: string,
   targetBase: string,
   full: boolean,
-  resume: ResumeVerdict | undefined,
+  resume: AcceptedResume | undefined,
 ): PlanFile {
   if (resume === undefined) return computePlan(root, targetBase, full)
-  if (resume.kind !== 'resume') return computePlan(root, targetBase, true)
+  if (resume.kind === 'rerun') return computePlan(root, targetBase, resume.scope.mode === 'full')
   const at = coordinates(root, targetBase)
   if (at.base === undefined) throw new Error(`算不出基线 ${targetBase} 的合并点`)
   return { head: at.head, dirty: at.dirty, base: at.base, plan: resume.plan }
@@ -299,7 +302,7 @@ export async function runCheck(
   const steps = stepTable({ ...STEP_INPUTS, baseline: targetBase })
 
   // 接续的判断在写任何东西之前：拒绝就以 2 退出，不留日志、不写记录。
-  let resume: ResumeVerdict | undefined
+  let resume: AcceptedResume | undefined
   if (options.resumeFrom !== undefined) {
     const judged = judgeResume(root, options.resumeFrom, targetBase, steps)
     if (judged.verdict.kind === 'rejected') {
@@ -394,7 +397,7 @@ export async function runCheck(
         ? null
         : resume?.kind === 'resume'
           ? resume.origin.head
-          : targetBase,
+          : plan.base.mergeBase,
     startedAt,
     finishedAt: new Date(),
     origin,

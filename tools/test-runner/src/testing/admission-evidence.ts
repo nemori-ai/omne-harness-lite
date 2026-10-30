@@ -1,6 +1,7 @@
 // 准入证据核对：收口点 F 上要有一次完整通过的全量准入。F 的树与某个提交 C 的树相同时，C 上的全量准入就是 F 上的全量准入
 // （integration.md 波末收口的树相同复用）。这里只核对树相同，不要求 F 是 gate 合并提交，也不看 C 与 F 的祖先关系。
-// 接受条件逐项都要满足：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，全量，运行时工作树干净，
+// 接受条件逐项都要满足：记录是 schemaVersion 1 的 `admission-run`，`admission` 为真，全量（`mode: full`，或接续了一次
+// 全量准入的 `mode: resume`——integration.md：用增量准入的证据复用时 H1 必须是全量），运行时工作树干净，
 // 没有快速失败，步骤表非空且每步都跑完、退出 0，有 `finishedAt`；记录的头在本仓库里，记录写的树与头的树一致；
 // 树（记录缺 `tree` 时由头补算）等于 F 的树。任何一项不满足就拒绝并写明原因，读不出、算不出的一律按拒绝处理，不猜。
 // 命令行形状（接线在 cli.ts）：`admission-evidence --for <F> [--record <路径>]`，接受退出 0、拒绝退出 1、用法错误退出 2。
@@ -71,6 +72,8 @@ export type AdmissionEvidence =
       readonly source: CommitTree
       readonly record: string
       readonly caches: Caches
+      /** 记录是接续了 H1 全量准入的组成证据时，H1 的头；一次整次全量没有。 */
+      readonly resumedFrom?: string
     }
   | {
       readonly kind: 'rejected'
@@ -120,6 +123,8 @@ type Inspected =
       readonly tree: string | undefined
       readonly finishedAt: string
       readonly caches: Caches
+      /** 接续记录写的 H1 的头；不是接续或写得不对时没有（写得不对已进 `problems`）。 */
+      readonly resumedFrom: string | undefined
       readonly problems: readonly Rejection[]
     }
 
@@ -150,9 +155,27 @@ function stepProblems(steps: unknown): Rejection[] {
   })
 }
 
+/**
+ * 范围够不够全量：`full` 够；`resume` 看它接续的 H1——H1 全量，「H1 全量（失败于 X）＋ 头上增量」合起来是全量准入；
+ * H1 只按影响面时，组成的证据不是全量准入。
+ */
+function modeProblem(mode: unknown, resumeFrom: unknown): Rejection | undefined {
+  if (mode === 'full') return undefined
+  if (mode !== 'resume') return reject('not-full', `不是全量：mode=${JSON.stringify(mode)}`)
+  const from = isObject(resumeFrom) ? resumeFrom['mode'] : undefined
+  if (from === 'full') return undefined
+  if (from === 'affected')
+    return reject('not-full', '接续记录：H1 只按影响面运行，组成的证据不是全量准入')
+  return reject(
+    'not-full',
+    `接续记录看不出 H1 那次的范围：resumeFrom=${JSON.stringify(resumeFrom)}`,
+  )
+}
+
 /** 与树无关的接受条件；每项独立判断，全部列出。 */
 function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
-  const { schemaVersion, kind, admission, mode, dirty, failedStep, steps, finishedAt } = record
+  const { schemaVersion, kind, admission, mode, resumeFrom, dirty, failedStep, steps, finishedAt } =
+    record
   const problems: Rejection[] = []
   if (kind !== RECORD_KIND || admission !== true)
     problems.push(
@@ -168,7 +191,8 @@ function problemsOf(record: Readonly<Record<string, unknown>>): Rejection[] {
         `schemaVersion 是 ${JSON.stringify(schemaVersion)}，只认 ${SCHEMA_VERSION}`,
       ),
     )
-  if (mode !== 'full') problems.push(reject('not-full', `不是全量：mode=${JSON.stringify(mode)}`))
+  const scope = modeProblem(mode, resumeFrom)
+  if (scope !== undefined) problems.push(scope)
   if (dirty !== false)
     problems.push(
       reject(
@@ -217,12 +241,18 @@ function inspect(path: string): Inspected {
     return unreadable(
       `caches=${JSON.stringify(parsed['caches'])} 不是 test、depGraph、mutation 各取 on、off、unknown`,
     )
+  const resumeFrom = parsed['resumeFrom']
+  const resumedFrom =
+    parsed['mode'] === 'resume' && isObject(resumeFrom) && isObjectId(resumeFrom['head'])
+      ? resumeFrom['head']
+      : undefined
   return {
     kind: 'read',
     head,
     tree,
     finishedAt: typeof finishedAt === 'string' ? finishedAt : '',
     caches,
+    resumedFrom,
     problems: problemsOf(parsed),
   }
 }
@@ -232,7 +262,12 @@ interface Judged {
   readonly finding: RecordFinding
   readonly tree: string | undefined
   readonly accepted:
-    | { readonly source: CommitTree; readonly caches: Caches; readonly finishedAt: string }
+    | {
+        readonly source: CommitTree
+        readonly caches: Caches
+        readonly finishedAt: string
+        readonly resumedFrom: string | undefined
+      }
     | undefined
 }
 
@@ -271,6 +306,7 @@ function judge(root: string, path: string, target: CommitTree): Judged {
           source: { commit: read.head, tree },
           caches: read.caches,
           finishedAt: read.finishedAt,
+          resumedFrom: read.resumedFrom,
         }
       : undefined
   return { finding: { record, reasons }, tree, accepted }
@@ -295,12 +331,14 @@ function recordsIn(root: string): string[] {
 
 function accept(target: CommitTree, judged: Judged): AdmissionEvidence | undefined {
   if (judged.accepted === undefined) return undefined
+  const { source, caches, resumedFrom } = judged.accepted
   return {
     kind: 'accepted',
     target,
-    source: judged.accepted.source,
+    source,
     record: judged.finding.record,
-    caches: judged.accepted.caches,
+    caches,
+    ...(resumedFrom === undefined ? {} : { resumedFrom }),
   }
 }
 
@@ -367,9 +405,11 @@ export function admissionEvidence(root: string, request: EvidenceRequest): Admis
 /** 给人读的结论：接受时一行；拒绝时先一行结论，再逐项列原因。 */
 export function formatEvidence(evidence: AdmissionEvidence): string[] {
   if (evidence.kind === 'accepted') {
-    const { target, source, record, caches } = evidence
+    const { target, source, record, caches, resumedFrom } = evidence
+    const composed =
+      resumedFrom === undefined ? '' : `（H1 ${resumedFrom} 的全量准入＋ C 上的增量准入）`
     return [
-      `F ${target.commit} 采用 C ${source.commit} 的全量准入，树 ${target.tree} 相同；记录 ${record}；` +
+      `F ${target.commit} 采用 C ${source.commit} 的全量准入${composed}，树 ${target.tree} 相同；记录 ${record}；` +
         `缓存 test=${caches.test}, depGraph=${caches.depGraph}, mutation=${caches.mutation}`,
     ]
   }

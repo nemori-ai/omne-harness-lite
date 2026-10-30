@@ -1,4 +1,4 @@
-// `check --resume-from`：用真实步骤表、一份只在 oxlint 失败的 H1 全量记录与造出来的影响面函数，核对
+// `check --resume-from`：用真实步骤表、一份只在 oxlint 失败的 H1 记录（全量或按影响面）与造出来的影响面函数，核对
 // 前提校验的每种拒绝、全局路径与 lockfile 的退化、增量计划里每一步怎么跑、证据文本；另在临时仓库上核对取 git 事实。
 import { execFileSync } from 'node:child_process'
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
@@ -25,6 +25,8 @@ import type { CheckPlan } from '../src/testing/scope.ts'
 const H1 = 'a'.repeat(40)
 const HEAD = 'b'.repeat(40)
 const TREE = 'c'.repeat(40)
+/** 本次基线 main 与 HEAD 的合并点。 */
+const MB = 'e'.repeat(40)
 
 const STEPS = checkSteps({
   baseline: 'main',
@@ -79,6 +81,8 @@ const AFTER_BUILD = [
   'loop:status',
 ]
 const OXLINT_FAILED = record('lint:oxlint', AFTER_BUILD)
+/** 同样只在 oxlint 失败，但 H1 那次是按影响面准入，基线就是本次的合并点。 */
+const OXLINT_FAILED_AFFECTED = record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: MB })
 
 const ALL = ['packages/a', 'packages/b', 'tools/c']
 const FULL_PLAN: CheckPlan = {
@@ -91,6 +95,22 @@ const FULL_PLAN: CheckPlan = {
   test: ALL,
   acceptance: ['packages/a'],
   python: { run: true, reason: '全量' },
+}
+/** HEAD 相对本次基线的影响面：比全量窄，比 H1..HEAD 的宽。 */
+const BASE_PLAN: CheckPlan = {
+  mode: 'scoped',
+  reason: '按基线影响面',
+  files: [],
+  members: [{ path: 'packages/a', changed: ['packages/a/src/y.ts'], reads: [] }],
+  build: [
+    { path: 'packages/a', reason: 'selected' },
+    { path: 'packages/b', reason: 'selected' },
+  ],
+  typecheck: ['packages/a', 'packages/b'],
+  test: ['packages/a', 'packages/b'],
+  acceptance: ['packages/a'],
+  python: { run: false, reason: '基线影响面不含 Python 工具' },
+  documentsOnly: [],
 }
 const AFFECTED_PLAN: CheckPlan = {
   mode: 'scoped',
@@ -124,6 +144,7 @@ function harness(
     from: H1,
     fromTree: TREE,
     head: HEAD,
+    base: { ref: 'main', mergeBase: MB },
     dirty: false,
     isAncestor: true,
     changedFiles: ['packages/b/src/x.ts'],
@@ -136,7 +157,8 @@ function harness(
     steps: STEPS,
     plan: request => {
       requests.push(request)
-      return request.full ? FULL_PLAN : affected
+      if (request.kind === 'since') return affected
+      return request.mode === 'full' ? FULL_PLAN : BASE_PLAN
     },
     ...over,
   }
@@ -158,20 +180,14 @@ describe('前提校验', () => {
     expect(rejected(harness({ isAncestor: false }).inputs)).toContain('不是 HEAD')
   })
 
-  it('H1 没有全量记录：别的提交的、影响面模式的都不算', () => {
-    expect(rejected(harness({ records: [] }).inputs)).toContain('没有全量准入记录')
+  it('H1 没有准入记录：别的提交的不算', () => {
+    expect(rejected(harness({ records: [] }).inputs)).toContain('没有准入记录')
     expect(
       rejected(harness({ records: [record('lint:oxlint', [], { head: HEAD })] }).inputs),
-    ).toContain('没有全量准入记录')
-    expect(
-      rejected(
-        harness({ records: [record('lint:oxlint', [], { mode: 'affected', base: 'main' })] })
-          .inputs,
-      ),
-    ).toContain('没有全量准入记录')
+    ).toContain('没有准入记录')
   })
 
-  it('H1 的全量记录不是准入运行：拒绝并说明', () => {
+  it('H1 的记录不是准入运行：拒绝并说明', () => {
     expect(
       rejected(
         harness({ records: [record('lint:oxlint', AFTER_BUILD, { admission: false })] }).inputs,
@@ -230,10 +246,15 @@ describe('退化为整次全量', () => {
       changedFiles: ['packages/b/src/x.ts', 'tsconfig.base.json'],
     })
     const verdict = resumePlan(inputs)
-    expect(verdict.kind).toBe('full')
-    if (verdict.kind === 'full') {
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') {
       expect(verdict.reason).toContain('tsconfig.base.json')
-      expect(verdict.origin).toEqual({ head: H1, tree: TREE, failedStep: 'lint:oxlint' })
+      expect(verdict.origin).toEqual({
+        head: H1,
+        tree: TREE,
+        failedStep: 'lint:oxlint',
+        mode: 'full',
+      })
     }
     expect(requests).toEqual([])
   })
@@ -244,7 +265,7 @@ describe('退化为整次全量', () => {
     )
     expect(verdict.kind).toBe('resume')
     expect(resumePlan(harness({ changedFiles: ['packages/x/turbo.json'] }).inputs).kind).toBe(
-      'full',
+      'rerun',
     )
   })
 
@@ -255,8 +276,8 @@ describe('退化为整次全量', () => {
     )
     const verdict = resumePlan(inputs)
     expect(lockfileAsked()).toBe(true)
-    expect(verdict.kind).toBe('full')
-    if (verdict.kind === 'full') expect(verdict.reason).toContain('overrides 有变化')
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') expect(verdict.reason).toContain('overrides 有变化')
   })
 
   it('lockfile 与别的全局文件同时命中：不问 lockfile，直接整次全量', () => {
@@ -264,7 +285,7 @@ describe('退化为整次全量', () => {
       { changedFiles: ['pnpm-lock.yaml', 'package.json'] },
       { kind: 'none', reason: '不该被问' },
     )
-    expect(resumePlan(inputs).kind).toBe('full')
+    expect(resumePlan(inputs).kind).toBe('rerun')
     expect(lockfileAsked()).toBe(false)
   })
 
@@ -277,7 +298,7 @@ describe('退化为整次全量', () => {
     expect(verdict.kind).toBe('resume')
     if (verdict.kind === 'resume') expect(verdict.lockfile).toBe('按 importer 映射到 1 个成员')
     expect(requests[0]).toEqual({
-      full: false,
+      kind: 'since',
       paths: ['packages/b/src/x.ts'],
       lockfileMembers: new Set(['packages/a']),
     })
@@ -287,8 +308,8 @@ describe('退化为整次全量', () => {
     const verdict = resumePlan(
       harness({}, undefined, { ...FULL_PLAN, reason: '1 个改动文件不在任何规则里' }).inputs,
     )
-    expect(verdict.kind).toBe('full')
-    if (verdict.kind === 'full') expect(verdict.reason).toContain('不在任何规则里')
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') expect(verdict.reason).toContain('不在任何规则里')
   })
 })
 
@@ -299,11 +320,11 @@ describe('增量计划', () => {
     if (verdict.kind !== 'resume') return
     const scope = new Map(verdict.steps.map(step => [step.name, step.scope]))
     for (const name of RESIDENT) expect(scope.get(name), name).toBe('resident')
-    expect(scope.get('typecheck')).toBe('full')
-    expect(scope.get('test')).toBe('full')
-    expect(scope.get('acceptance')).toBe('full')
-    expect(scope.get('build')).toBe('full')
-    expect(scope.get('python')).toBe('affected')
+    expect(scope.get('typecheck')).toBe('whole')
+    expect(scope.get('test')).toBe('whole')
+    expect(scope.get('acceptance')).toBe('whole')
+    expect(scope.get('build')).toBe('whole')
+    expect(scope.get('python')).toBe('narrowed')
     expect(verdict.steps.find(step => step.name === 'build')?.why).toContain('整次跑的步骤在它之后')
     expect(verdict.steps.find(step => step.name === 'test')?.why).toContain('没跑到')
     // 计划文件按步骤各取一份：整次的取全量清单，按影响面的取影响面那份。
@@ -322,7 +343,7 @@ describe('增量计划', () => {
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
     for (const name of PLANNED)
-      expect(verdict.steps.find(step => step.name === name)?.scope, name).toBe('affected')
+      expect(verdict.steps.find(step => step.name === name)?.scope, name).toBe('narrowed')
     expect(verdict.plan.build).toEqual(AFFECTED_PLAN.build)
     expect(verdict.plan.test).toEqual(['packages/b'])
     expect(verdict.plan.python.run).toBe(false)
@@ -335,7 +356,7 @@ describe('增量计划', () => {
     if (verdict.kind !== 'resume') return
     expect(verdict.plan.python.run).toBe(true)
     expect(verdict.steps.find(step => step.name === 'python')?.why).toContain('上失败')
-    expect(verdict.steps.find(step => step.name === 'build')?.scope).toBe('affected')
+    expect(verdict.steps.find(step => step.name === 'build')?.scope).toBe('narrowed')
   })
 
   it('失败在 test：test 整次，构建随之整次，typecheck 与验收仍按影响面', () => {
@@ -345,10 +366,10 @@ describe('增量计划', () => {
     expect(verdict.kind).toBe('resume')
     if (verdict.kind !== 'resume') return
     const scope = new Map(verdict.steps.map(step => [step.name, step.scope]))
-    expect(scope.get('test')).toBe('full')
-    expect(scope.get('build')).toBe('full')
-    expect(scope.get('acceptance')).toBe('full')
-    expect(scope.get('typecheck')).toBe('affected')
+    expect(scope.get('test')).toBe('whole')
+    expect(scope.get('build')).toBe('whole')
+    expect(scope.get('acceptance')).toBe('whole')
+    expect(scope.get('typecheck')).toBe('narrowed')
     expect(verdict.plan.typecheck).toEqual(['packages/b'])
   })
 
@@ -359,6 +380,83 @@ describe('增量计划', () => {
     const verdict = resumePlan(harness({ records: [missing] }).inputs)
     expect(verdict.kind).toBe('resume')
     if (verdict.kind === 'resume') expect(verdict.plan.python.run).toBe(true)
+  })
+})
+
+describe('H1 按影响面准入', () => {
+  // H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来就是 HEAD 相对本次基线的影响面，所以接续的范围不比 H1 宽。
+  it('合并点与本次相同：接受；没跑到的步骤按本次基线的影响面整次跑，不取全量', () => {
+    const { inputs, requests } = harness({ records: [OXLINT_FAILED_AFFECTED] })
+    const verdict = resumePlan(inputs)
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind !== 'resume') return
+    expect(verdict.scope).toEqual({ mode: 'affected', ref: 'main', mergeBase: MB })
+    expect(requests).toContainEqual({ kind: 'whole', mode: 'affected' })
+    expect(requests).not.toContainEqual({ kind: 'whole', mode: 'full' })
+    expect(verdict.steps.find(step => step.name === 'test')?.scope).toBe('whole')
+    expect(verdict.plan.test).toEqual(BASE_PLAN.test)
+    expect(verdict.plan.build).toEqual(BASE_PLAN.build)
+    expect(verdict.plan.typecheck).toEqual(BASE_PLAN.typecheck)
+    expect(verdict.plan.python).toEqual(AFFECTED_PLAN.python)
+    expect(verdict.plan.reason).toContain('影响面准入（失败于 lint:oxlint）')
+    const text = describeResume(verdict, HEAD)
+    expect(text[0]).toBe(
+      `准入证据：${H1.slice(0, 9)} 影响面准入（失败于 lint:oxlint）＋ ${HEAD.slice(0, 9)} 增量（基线 ${H1.slice(0, 9)}）`,
+    )
+    expect(text[1]).toContain(`main，合并点 ${MB.slice(0, 9)}`)
+    expect(text.find(line => line.startsWith('  整次（本次基线的影响面）：'))).toContain('test（')
+  })
+
+  it('碰到全局路径时按 H1 的范围整次重跑：按本次基线的影响面，不是整次全量', () => {
+    const verdict = resumePlan(
+      harness({ records: [OXLINT_FAILED_AFFECTED], changedFiles: ['package.json'] }).inputs,
+    )
+    expect(verdict.kind).toBe('rerun')
+    if (verdict.kind === 'rerun') expect(verdict.scope.mode).toBe('affected')
+    const text = describeResume(verdict, HEAD)
+    expect(text[0]).toContain('影响面准入（失败于 lint:oxlint）不接续')
+    expect(text[0]).toContain('整次按本次基线的影响面')
+    expect(text[0]).not.toContain('整次全量')
+  })
+
+  it('记录的基线合并点与本次不同，或没写基线：拒绝并写明两个合并点', () => {
+    const other = 'f'.repeat(40)
+    const moved = rejected(
+      harness({ records: [record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: other })] })
+        .inputs,
+    )
+    expect(moved).toContain(other.slice(0, 9))
+    expect(moved).toContain(`本次基线 main 的合并点是 ${MB.slice(0, 9)}`)
+    expect(
+      rejected(
+        harness({ records: [record('lint:oxlint', AFTER_BUILD, { mode: 'affected', base: null })] })
+          .inputs,
+      ),
+    ).toContain('（没写）')
+  })
+})
+
+describe('接续不链式', () => {
+  // 接续记录本身形状完整、快速失败在 check:docs：被误当 H1 时会接续成功，只是失败步骤不同。
+  const resumed = (over: Record<string, unknown> = {}) =>
+    record('check:docs', AFTER_BUILD, {
+      mode: 'resume',
+      base: 'd'.repeat(40),
+      resumeFrom: { head: 'd'.repeat(40), tree: TREE, failedStep: 'test', mode: 'full' },
+      ...over,
+    })
+
+  it('H1 只有接续运行的记录：拒绝并说明', () => {
+    expect(rejected(harness({ records: [resumed()] }).inputs)).toContain('接续不链式')
+  })
+
+  it('H1 上同时有更晚的接续记录与一次整次准入：取整次准入那份', () => {
+    const verdict = resumePlan(
+      harness({ records: [OXLINT_FAILED, resumed({ startedAt: '2026-10-31T00:00:00.000Z' })] })
+        .inputs,
+    )
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind === 'resume') expect(verdict.origin.failedStep).toBe('lint:oxlint')
   })
 })
 
@@ -430,7 +528,7 @@ describe('取 git 事实', () => {
     writeFileSync(join(repo, 'b.txt'), 'b\n')
     run('add', '.')
     commit('two')
-    const facts = resumeFacts(repo, first.slice(0, 7))
+    const facts = resumeFacts(repo, first.slice(0, 7), first)
     expect(facts.from).toBe(first)
     expect(facts.head).toBe(run('rev-parse', 'HEAD'))
     expect(facts.fromTree).toBe(run('rev-parse', `${first}^{tree}`))
@@ -439,9 +537,12 @@ describe('取 git 事实', () => {
     expect(facts.isAncestor).toBe(true)
     expect(facts.changedFiles).toEqual(['b.txt'])
     expect(facts.dirty).toBe(false)
+    // 本次基线与 HEAD 的合并点：基线是 HEAD 的祖先时就是它自己。
+    expect(facts.base).toEqual({ ref: first, mergeBase: first })
     writeFileSync(join(repo, 'c.txt'), 'c\n')
-    expect(resumeFacts(repo, first).dirty).toBe(true)
-    expect(() => resumeFacts(repo, 'no-such-ref')).toThrow()
+    expect(resumeFacts(repo, first, 'main').dirty).toBe(true)
+    expect(() => resumeFacts(repo, 'no-such-ref', 'main')).toThrow()
+    expect(() => resumeFacts(repo, first, 'no-such-base')).toThrow()
   })
 
   it('另一条分支上的提交不是祖先', () => {
@@ -455,10 +556,12 @@ describe('取 git 事实', () => {
     writeFileSync(join(repo, 'm.txt'), 'm\n')
     run('add', '.')
     commit('main two')
-    expect(resumeFacts(repo, side).isAncestor).toBe(false)
-    expect(resumeFacts(repo, first).isAncestor).toBe(true)
+    expect(resumeFacts(repo, side, 'main').isAncestor).toBe(false)
+    expect(resumeFacts(repo, first, 'main').isAncestor).toBe(true)
+    // 本次基线在另一条分支上：合并点是分叉处。
+    expect(resumeFacts(repo, first, side).base.mergeBase).toBe(first)
     // 同一个提交也算祖先：接续时差异为空。
-    const same = resumeFacts(repo, 'HEAD')
+    const same = resumeFacts(repo, 'HEAD', 'main')
     expect(same.isAncestor).toBe(true)
     expect(same.changedFiles).toEqual([])
   })
