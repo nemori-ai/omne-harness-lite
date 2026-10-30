@@ -452,8 +452,9 @@ def prepare(flow: Flow, material: Material, rep: int, *, variant: str, out: Path
     return "\n".join([
         *precondition,
         f"{material.id} rep {rep}: prepared. Dispatch ONE subagent, then record its transcript.",
-        f"  registered: subagent type `{flow.role}` (model {alias}); the prompt is the text of {evidence / 'brief.md'}",
-        f"  inline:     a general-purpose subagent (model {alias}); the prompt is the text of "
+        f"  registered: subagent type `{flow.role}` (model {alias}, effort {host['effort']}); "
+        f"the prompt is the text of {evidence / 'brief.md'}",
+        f"  inline:     a general-purpose subagent (model {alias}, effort {host['effort']}); the prompt is the text of "
         f"{evidence / 'dispatch.inline.md'}",
         f"  the role is to run on {host['model']} at {host['effort']}; the copy is {dest}",
     ])

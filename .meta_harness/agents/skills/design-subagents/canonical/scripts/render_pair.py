@@ -226,24 +226,41 @@ def resolve_dispatch(source: Path, host: str, work_kind: str, *, policy_version:
     _, adjustable_effort = assembly_inputs(source)
     if adjustable_effort:
         role_defaults["effort"] = adjustable_effort
+    if work_kind in rule.get("work_effort", {}):
+        role_defaults["effort"] = rule["work_effort"][work_kind]
     minimum = rule.get("minimum_effort", "low")
     if tier == "top" and "top_minimum_effort" in rule:
         minimum = rule["top_minimum_effort"]
         role_defaults["effort"] = minimum
+    if not set(rule.get("hardest_work", [])) <= rule["work"].keys() or not set(rule.get("hardest_risks", [])) <= set(rule.get("top_risks", [])):
+        raise ValueError(f"{role}: hardest work and risks must be declared work kinds and top risks")
+    hardest = work_kind in rule.get("hardest_work", []) or bool(set(risks) & set(rule.get("hardest_risks", [])))
+    if hardest:
+        minimum = role_defaults["effort"] = "xhigh"
     layers = [("task-override", overrides), ("role-work", role_defaults),
               ("pstack", pstack_defaults), ("host-default", host_defaults)]
     fixed_model = (role_defaults["model"] if variant else
                    None if rule.get("adjustable_model") else config.get("model"))
     model, model_origin = choose_dispatch_value("model", fixed_model, layers)
+    effort_order = ("low", "medium", "high", "xhigh", "max", "ultra")
+    # On the top-tier model, efforts above the cap are reserved for hardest tasks; lower defaults and floors to the cap.
+    strongest_model, _ = policy_model(source, host, policy["tiers"]["top"][host])
+    cap = None if hardest or model != strongest_model else policy.get("top_model_maximum_effort")
+    if cap:
+        if effort_order.index(role_defaults.get("effort", cap)) > effort_order.index(cap):
+            role_defaults["effort"] = cap
+        if effort_order.index(minimum) > effort_order.index(cap):
+            minimum = cap
     fixed_effort = None if adjustable_effort else config.get(effort_key)
     effort, effort_origin = choose_dispatch_value("effort", fixed_effort, layers)
     if adjustable_effort and effort not in ("medium", "high", "xhigh"):
         raise ValueError("adjustable role effort must be medium, high or xhigh")
     support = host_support()
     exact_model(model, host, effort, support)
-    effort_order = ("low", "medium", "high", "xhigh", "max", "ultra")
     if effort_order.index(effort) < effort_order.index(minimum):
         raise ValueError(f"{role}: effort must be at least {minimum} for this task")
+    if cap and effort_order.index(effort) > effort_order.index(cap):
+        raise ValueError(f"{role}: effort above {cap} on the top-tier model {model} is reserved for hardest tasks")
     if tier == "top" and rule.get("adjustable_model"):
         top_model, _ = policy_model(source, host, top_reference)
         if model != top_model:

@@ -40,7 +40,8 @@ default_effort = "high"
 `default_effort` 仅接受 medium/high/xhigh。启用时，两端源配置不得另设 effort，
 description 必须以生成器的 `effort_description()` 所定义的默认值和可调整说明结尾。
 Codex 输出省略强制 effort，派发者必须显式传入所选值；Claude 文件输出默认 effort，
-调整时使用会话级定义覆盖。两种宿主机制不同，不能靠修改提示词开启推理档位。
+调整时用 Agent 工具的 `effort` 参数，或使用会话级定义覆盖。2026-10-30 在本项目实测：钉 `effort: xhigh` 的角色
+以 `effort: medium` 派发，子代理轨迹记录的实际档位是 medium。两种宿主机制不同，不能靠修改提示词开启推理档位。
 
 [架构设计示例](../assets/examples/architecture-designer/)是已填写的中性源包，
 可用于验证生成器和理解角色边界。它没有注册到项目 agent 目录，没有指定精确模型，

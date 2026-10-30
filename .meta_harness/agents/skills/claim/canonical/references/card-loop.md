@@ -15,7 +15,7 @@
 
 ## 角色与模型
 
-本节的四档划分与分工是调度者约定，不是拥有者正文。具体模型名与档位钉值归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」。两者冲突时，以角色源包为准。派发时显式传模型，需要时传推理档位。
+本节的四档划分与分工是调度者约定，不是拥有者正文。具体模型名与档位钉值归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」。两者冲突时，以角色源包为准。派发时显式传模型，需要时传推理档位。顶档模型（Claude Fable 5.1、Codex GPT-6 Astra）默认用 medium、最高用 high，只有 hardest 任务用 xhigh；档位取 `render_pair.py --resolve` 的结果，规则见该 README。
 
 | 承担 | 做什么 | 为什么 |
 | --- | --- | --- |

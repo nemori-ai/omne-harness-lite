@@ -7,10 +7,10 @@
 
 | 角色 | 当前职责 | 正文 |
 |---|---|---|
-| product-design-drafter | 把一个产品需求做成完整、可被评审的产品设计；配备联网**产品调研**能力，学同类产品的边界与取舍，不做技术调研；维护可观察产品场景，并按任务范围给演示与交接建议；固定 xhigh | [产品设计起草](product-design-drafter/role.md) |
-| product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；核对产品含义归长期正文，不承担任务调度与处置；**不评判品味与方向**；只读，固定 xhigh | [产品设计评审](product-design-reviewer/role.md) |
-| design-reviewer | 设计材料的独立只读评审，**一次派发只做一种判断**：选择（读数、能力边界、契约批次的语义整体、提供者或装配设计）、表达（规格文本）或计划（施工计划）；只读本次那一页判据，不混报、不修复、不接受；固定 xhigh | [设计评审](design-reviewer/role.md) |
-| implementation-reviewer | 一次实现类交付的独立评审，**只在接受级别 L2／L3 或读数里有未交代的红项时派**；先跑执行仓库声明的检查，再按检查表问；每条发现带工具输出或具体反例，不收品味意见；不改受版本管理的文件、不接受；默认 high | [实现评审](implementation-reviewer/role.md) |
+| product-design-drafter | 把一个产品需求做成完整、可被评审的产品设计；配备联网**产品调研**能力，学同类产品的边界与取舍，不做技术调研；维护可观察产品场景，并按任务范围给演示与交接建议；固定档位：Claude Code 一端 xhigh，Codex 一端 high | [产品设计起草](product-design-drafter/role.md) |
+| product-design-reviewer | 评审起草交付的文档本身：逻辑、完整性、明显漏洞，叠加一层可实施性；核对产品含义归长期正文，不承担任务调度与处置；**不评判品味与方向**；只读，默认 medium，最高 high | [产品设计评审](product-design-reviewer/role.md) |
+| design-reviewer | 设计材料的独立只读评审，**一次派发只做一种判断**：选择（读数、能力边界、契约批次的语义整体、提供者或装配设计）、表达（规格文本）或计划（施工计划）；只读本次那一页判据，不混报、不修复、不接受；默认 medium，「选择」判断用 xhigh | [设计评审](design-reviewer/role.md) |
+| implementation-reviewer | 一次实现类交付的独立评审，**只在接受级别 L2／L3 或读数里有未交代的红项时派**；先跑执行仓库声明的检查，再按检查表问；每条发现带工具输出或具体反例，不收品味意见；不改受版本管理的文件、不接受；默认 medium，最高 high | [实现评审](implementation-reviewer/role.md) |
 | developer | 按规格与施工计划实现一个限定切片。派发字段 `implementation_kind` 取 `product`、`terminal` 或 `verification`。四类任务性质仍在正文里。写入范围由任务给。不替代 qa 或 diagnostician。模型与档位按本次任务选，默认 high | [开发](developer/role.md) |
 | diagnostician | 只对 `surface` 为 `terminal` 的异常做取证。缺省或非终端 surface 停止，桌面异常交回任务负责人。不修、不判「修好」。Codex 模型钉 `gpt-6.1-sol`，默认 high | [终端取证](diagnostician/role.md) |
 | qa | 对一个可运行的交付增量按给定验收标准在真实装配上做独立验收。交付面是终端时加载 `terminal-acceptance`。不修、不接受。Codex 模型由派发者传入，默认 high | [独立验收](qa/role.md) |
@@ -172,13 +172,19 @@ diagnostician 只覆盖终端取证。`surface` 不是 `terminal` 就停止。�
 
 ## 模型配置与本次派发
 
-模型与档位的权威在各角色的 `codex.toml`、`claude.yaml` 与开发者的 `assembly.toml`；
-design-reviewer、product-design-reviewer 与 product-design-drafter 固定档位；developer、implementation-reviewer、qa、diagnostician
-默认档位见上表，可按任务选 medium/high/xhigh。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+模型的权威在各角色的 `codex.toml`、`claude.yaml`；档位的权威在固定档位角色的这两个文件、可调角色的 `assembly.toml` 与
+[派发策略](dispatch-policy.json)。只有 product-design-drafter 固定档位；其余角色的默认档位见上表，可按任务选 medium/high/xhigh，
+以 `render_pair.py --resolve` 按策略给出的值为准。这些钉值来自有日期的支持记录，不是对当前账户或新版本宿主的重新核验。
+
+**顶档模型的档位**（负责人 2026-10-30 裁定，#947）：Claude Fable 5.1 与 Codex GPT-6 Astra 默认用 medium，需要时最高用 high；
+只有 hardest 任务才用 xhigh。hardest 取 pstack `poteto-mode` 的说法：跨模块的设计、棘手的并发、精细的算法。
+策略用 `hardest_work` 与 `hardest_risks` 列出本项目认定的 hardest：design-reviewer 的「选择」判断；developer 的内核原语与生命周期、
+跨模块生命周期、跨进程故障。解析器对顶档模型上的非 hardest 任务把默认值和下限压到 `top_model_maximum_effort`（high），
+并拒绝更高的覆盖值。别的模型（Opus、Sonnet、GPT-6.1 Sol）不受这条约束。
 
 **design-reviewer 判「表达」时可以换成 Opus 5.5**：Claude Code 一端角色文件钉 Fable 5.1，派发时用 Agent 工具的 `model` 参数覆盖
-（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；判「选择」与「计划」用钉值。
-Codex 一端钉 GPT-6 Astra，三种判断都用它。
+（原 spec-reviewer 钉的就是 Opus 5.5，合并对照里「表达」那一种也是在它上面跑的）；「表达」在 Opus 5.5 上用 xhigh。判「选择」与「计划」用钉值的模型。
+Codex 一端钉 GPT-6 Astra，三种判断都用它；其中「表达」与「计划」不是 hardest，最高用 high。
 
 **developer 的模型按本次任务选**，不由角色固定。选法写在它的 description 里，依据是角色合一记录：
 
@@ -187,7 +193,8 @@ Codex 一端钉 GPT-6 Astra，三种判断都用它。
 | 能力与组合的行为、具体提供者（默认） | Opus 5.5 | GPT-6.1 Sol | high |
 | 单个模块、规格完整的应用切片 | Sonnet 5.5 | GPT-6.1 Sol | high |
 | 内核原语与生命周期机制 | Fable 5.1 | GPT-6 Astra | xhigh |
-| 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断 | Fable 5.1 | GPT-6 Astra | high 起 |
+| 跨模块生命周期、跨进程故障 | Fable 5.1 | GPT-6 Astra | xhigh |
+| 安全敏感、跨多个包或整个装配、契约把失败／诊断／顺序留给判断、发布门禁 | Fable 5.1 | GPT-6 Astra | high |
 
 两端换模型的机制不同：Claude Code 的角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖；
 Codex 里**角色文件钉的模型优先于派发值**，所以 developer 与 qa 的 `codex.toml` 不钉模型，**Codex 派发必须显式给模型**，
@@ -203,8 +210,13 @@ python agents/skills/design-subagents/canonical/scripts/render_pair.py \
 ```
 
 命令仅打印 JSON。Codex 派发需要显式应用返回的 effort，developer 的输出里 `model` 为空，由派发者按上表填；直接调用角色不保证采用源默认档位。
-Claude 会话覆盖需应用完整角色 JSON，不以单个 effort 字段代替整份定义；实际调用面和支持范围
-沿 `design-subagents` skill 核对。固定档位的评审角色不接受此调档入口。
+`--dispatch` 只给角色默认值与合法档位，不按任务核对 hardest；按任务派发用 `--resolve`，它按策略给出模型与档位。
+Claude Code 上，按次的档位用 Agent 工具的 `effort` 参数传入解析结果：2026-10-30 实测，钉 `effort: xhigh` 的 design-reviewer
+以 `effort: medium` 派发，子代理轨迹记录的实际档位是 medium。要改 effort 以外的字段时，Claude 会话仍应用完整角色 JSON；
+实际调用面和支持范围沿 `design-subagents` skill 核对。固定档位的角色（product-design-drafter）不接受此调档入口。
+
+Cursor 一端暂不跟随：`cursor.yaml` 仍钉 `claude-fable-5-1-xhigh` 与 `claude-fable-5-1-high`，以保留现有资格。这是已知偏离，
+Cursor 派发者按上面的规则选已核对的模型 ID；Cursor 实际使用前，补 `-medium` 的支持证据并重新取得资格。
 
 原生文件存在不说明当前会话已加载。具名角色不可用时，可在已有授权内交接完整生成提示作普通
 agent 试用，并说明未经应用的原生沙箱与权限不能算生效；无可用独立评审能力时保留具体缺口。

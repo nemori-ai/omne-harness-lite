@@ -61,7 +61,7 @@
 线会话的多数实际工作由它派出的子代理完成，模型选错直接影响质量与成本。规则与钉值归 `.meta_harness/agents/roles/README.md`「模型配置与本次派发」和 `.meta_harness/agents/roles/dispatch-policy.json`，档位分工归 `claim` 技能的卡推进循环「角色与模型」。
 
 1. **认清宿主。** 会话级准备时写下自己是 Claude Code 还是 Codex，以及版本。pstack 在 Codex 上按 `skills.md` 引的 Codex 适配说明换算工具名与模型名。
-2. **按卡定工作类型与风险。** 能力与组合、提供者是默认档；规格完整的单模块切片可降到经济档；内核原语与生命周期、安全敏感、跨多个包或整个装配升到顶档。拿不准时上调一档。
+2. **按卡定工作类型与风险。** 能力与组合、提供者是默认档；规格完整的单模块切片可降到经济档；内核原语与生命周期、安全敏感、跨多个包或整个装配升到顶档。拿不准时上调一档。顶档模型上只有 hardest 任务用 xhigh，其余最高用 high；hardest 的范围见 `dispatch-policy.json` 的 `hardest_work` 与 `hardest_risks`。
 3. **用解析器取值。** 在工作树根运行下面的命令，得到 requested 的 model 与 effort。`--work-kind` 与 `--risk` 的合法值见 `dispatch-policy.json` 中该角色的 `work` 与 `top_risks`。结果存进 `tmp/line-<线>/role-dispatch.json`，同类卡复用。
 
    ```sh
@@ -71,9 +71,9 @@
    ```
 
 4. **按宿主机制设置。**
-   - Claude Code：角色文件钉了默认模型，派发时用 Agent 工具的 `model` 参数覆盖。
-   - Codex：角色文件的钉值优先于派发值；developer 与 qa 的 `codex.toml` 不钉模型，所以**派发时必须显式给模型**，不给就继承父会话的模型，而且不会报错。
-5. **记录。** requested 与 observed 分开记；宿主不提供运行观测时 observed 写 unknown。固定角色（如 design-reviewer）的钉值不覆盖，判「表达」时按 README 的例外处理。
+   - Claude Code：角色文件钉了默认模型与档位，派发时用 Agent 工具的 `model` 与 `effort` 参数覆盖为解析结果。
+   - Codex：角色文件的钉值优先于派发值；developer 与 qa 的 `codex.toml` 不钉模型，所以**派发时必须显式给模型**，不给就继承父会话的模型，而且不会报错。可调档位的角色（除 product-design-drafter 外的全部角色）的 `codex.toml` 不钉档位，派发时也要显式给档位。
+5. **记录。** requested 与 observed 分开记；宿主不提供运行观测时 observed 写 unknown。固定档位的角色（product-design-drafter）不覆盖档位；design-reviewer 的模型不覆盖，判「表达」时按 README 的例外处理。
 
 ### 最常碰到的项目规矩
 

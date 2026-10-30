@@ -1,5 +1,6 @@
 {
-  "version": "820.1",
+  "version": "947.1",
+  "top_model_maximum_effort": "high",
   "tiers": {
     "economical": {"codex": "diagnostician", "claude_code": "qa"},
     "default": {"codex": "diagnostician", "claude_code": "developer"},
@@ -14,7 +15,9 @@
         "kernel": "top", "terminal": "economical", "verification": "economical"
       },
       "top_risks": ["security-sensitive", "multi-package", "whole-assembly", "underspecified-contract", "cross-module-lifecycle", "cross-process-faults", "release-gate"],
-      "top_minimum_effort": "xhigh"
+      "top_minimum_effort": "high",
+      "hardest_work": ["kernel"],
+      "hardest_risks": ["cross-module-lifecycle", "cross-process-faults"]
     },
     "qa": {
       "adjustable_model": true,
@@ -26,7 +29,9 @@
     },
     "design-reviewer": {
       "work": {"choice": "source", "expression": "source", "plan": "source"},
-      "model_variants": {"expression": {"claude_code": "product-design-drafter"}}
+      "model_variants": {"expression": {"claude_code": "product-design-drafter"}},
+      "work_effort": {"expression": "xhigh"},
+      "hardest_work": ["choice"]
     },
     "diagnostician": {"work": {"terminal": "source"}},
     "implementation-reviewer": {"work": {"implementation": "source"}},
