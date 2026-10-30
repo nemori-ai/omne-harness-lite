@@ -373,6 +373,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // The unavailable answer of the last tryFinish: R0 waits on it as a dependency (loop-algorithm
   // F3 row: unavailable goes to R0; R0 waits while the facts are undetermined).
   let finishUnavailable: Extract<Failure, { kind: 'unavailable' }> | null = null
+  // Whether the wait R0 entered is the memory wait of F3 (agent README, loop-algorithm R0 row): W0
+  // writes nothing for it, and the wake retries the terminal through E1.
+  let finishWait = false
   // Whether the next F3 issues the obligations again, after a tryFinish answered `changed`.
   let reissueObligations = false
   let waits: readonly Waiting[] = []
@@ -959,6 +962,15 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         pendingCommit?.operation ?? reconciliationOperations[0] ?? snapshot?.unresolved[0]
       if (original !== undefined) return fail({ kind: 'commit-unknown', operation: original })
       resumeState = state.kind === 'waiting' ? resumeState : state
+      // The wait of an unavailable F3 stays in memory: no waiting commit, no event, the execution
+      // stays settling, and the wake retries tryFinish at the check time.
+      if (finishWait) {
+        finishWait = false
+        finishRefused = false
+        finishUnavailable = null
+        yieldedWait = true
+        return step('saved-wait', null)
+      }
       if (
         snapshot?.state.kind === 'waiting' &&
         canonical(snapshot.state.waits) === canonical(waits)
@@ -1045,8 +1057,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       if (snapshot.state.kind !== 'ended') state = committedState(snapshot.state)
       if (advancementOf(snapshot).kind !== 'current') return step('reconciled', null)
       const read = await readFacts(snapshot)
-      if ('failure' in read)
-        return read.failure.kind === 'unavailable' ? waitFor('R0', read.failure, readFacts) : read
+      if ('failure' in read) {
+        if (read.failure.kind !== 'unavailable') return read
+        if (finishRefused) finishWait = true
+        return waitFor('R0', read.failure, readFacts)
+      }
       facts = read.ok
       if (finishRefused) {
         finishRefused = false
@@ -1057,6 +1072,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (finishUnavailable !== null) {
           const failure = finishUnavailable
           finishUnavailable = null
+          finishWait = true
           return waitFor('R0', failure, null)
         }
         // Controls and extensions are still owned by their later cards. Never retry an unchanged
