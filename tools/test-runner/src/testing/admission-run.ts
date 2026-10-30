@@ -291,11 +291,6 @@ export function admissionRunFrom(inputs: AdmissionRunInputs): AdmissionRun {
     : { ...common, mode: inputs.origin.mode, resumeFrom: null }
 }
 
-/** 一份记录全部步骤都跑完且通过：`ran: false` 当作没通过。 */
-export function allStepsPassed(run: AdmissionRun): boolean {
-  return run.steps.length > 0 && run.steps.every(step => step.ran && step.exit === 0)
-}
-
 function listJson(directory: string): string[] {
   if (!existsSync(directory)) return []
   return readdirSync(directory)

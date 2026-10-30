@@ -15,7 +15,6 @@ import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   admissionRunFrom,
-  allStepsPassed,
   collectAdmissionRuns,
   latestResumeOrigin,
   parseAdmissionRun,
@@ -218,7 +217,6 @@ describe('由步骤图运行写成记录', () => {
     expect(record.fullRequested).toBe(true)
     expect(record.worktree).toBe('/work/tree')
     expect(record.resumeFrom).toBeNull()
-    expect(allStepsPassed(record)).toBe(false)
     // 写出去再读回来仍是同一份：记录的形状与解析器对得上。
     const path = join(dir, 'run.json')
     writeAdmissionRun(path, record)
@@ -251,7 +249,6 @@ describe('由步骤图运行写成记录', () => {
       },
     })
     expect(record.failedStep).toBeNull()
-    expect(allStepsPassed(record)).toBe(true)
     expect(record.caches).toEqual({ test: 'on', depGraph: 'unknown', mutation: 'off' })
     expect(record.mode).toBe('resume')
     expect(record.resumeFrom).toEqual({
