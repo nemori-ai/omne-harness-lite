@@ -267,11 +267,14 @@ const CASES: readonly Case[] = [
     d =>
       journal(d, { prepareFinish: failing(d.journal.prepareFinish, fail(PORT_FAILURE), nth(1)) }),
   ],
+  // An unavailable tryFinish is not a failure stop at F3: F3 goes to R0, which saves one dependency
+  // wait under the position F3 (SPEC "取消判断与路线"). A tryFinish that stays unavailable keeps the
+  // execution waiting there; a one-shot one is retried on the wake and ends the execution.
   [
     'F3',
     'journal.tryFinish',
     'F3',
-    d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), nth(1)) }),
+    d => journal(d, { tryFinish: failing(d.journal.tryFinish, fail(PORT_FAILURE), fromNth(1)) }),
   ],
   ['F4', 'journal.load', 'F3', d => journal(d, { load: failLoadWhenEnded(d) })],
 ]

@@ -33,6 +33,7 @@ export {
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpenOptions,
   type AgentJournalCoreOpened,
+  type SettlementQualification,
 } from './testing-journal-core.ts'
 export {
   createTestCancellationPolicy,

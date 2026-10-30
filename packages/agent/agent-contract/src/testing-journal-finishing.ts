@@ -838,7 +838,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'judge',
         )
         await refused(
-          journal.commitSettlement({ ...judging, expected: issued.revision }),
+          journal.commitSettlement({ ...judging, expected: unjudged.revision }),
           'conflict',
           'the same judge operation with another expected',
         )
@@ -913,10 +913,12 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'tryFinish on a blocked judgment',
         )
         assert.deepEqual(blockedOf(blocked), { kind: 'blocked', reason: 'custody' })
+        // On the cancellation route the source of the block is the judgment record; the source
+        // of the responsibility is reachable through the CancellationBlock of that record.
         assert.deepEqual(
           blocked.kind === 'blocked' ? blocked.source : null,
-          first.judgment.decision.reasons[0].source,
-          'the blocked source is the source the judgment names',
+          first.judgment.evidence,
+          'the blocked source is the judgment record',
         )
         await ok(record('result-custody', produced.transfer), 'the custody')
         // The custody changed the disposition the judgment read (SPEC "取消路线上的 tryFinish"):
@@ -943,6 +945,20 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
             stage(opened, 'revoked-unresolved', control, 'qualification-revoked', 'unresolved'),
           ),
           'an unresolved revocation',
+        )
+        // The control event extended the output interval: the list is issued again, so the
+        // changed below comes from the judgment whose criteria no longer hold, not from the list.
+        const revokedAt = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(
+              opened,
+              revokedAt,
+              'prepare-revoked',
+              cancelAuthorization(revokedAt, control),
+            ),
+          ),
+          'prepareFinish after the revocation',
         )
         const revoked = await load(opened)
         const newPending = await ok(
@@ -1287,7 +1303,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'the passage is as it was',
         )
         assert.deepEqual(after.settlement.candidate, before.settlement.candidate)
-        await endCancelled(opened, control)
+        await endCancelled(opened, control, 'end', { establish: false })
         const late = await opened.hostRecord({
           kind: 'legacy-return',
           passage: passage.id,
@@ -1760,6 +1776,11 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
             stage(opened, 'suspend-reached', suspend.operation, 'intent-established', 'reached'),
           ),
           'the intent resolved',
+        )
+        // The control event extended the output interval: the list is stale and issued again.
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare-2b')),
+          'prepare',
         )
         const resolvedIntent = await load(opened)
         const handoffItem = itemOf(resolvedIntent, 'handoff')
