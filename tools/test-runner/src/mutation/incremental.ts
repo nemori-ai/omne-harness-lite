@@ -3,11 +3,24 @@
 // 快照只留上次被杀、落在当时变异范围里的变异体：存活、无覆盖、超时、运行错误与不能计分的照样重跑，读数与不开增量时相同。
 // 快照读不出、对不上版本或写不进去，都按没有快照处理：整份重跑，不让入口失败，也不让读数少算。
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
+import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
+import { readTestRunsConfig } from '../testing/config.ts'
 import { slugOf } from '../testing/run.ts'
+import { distDigest, upstreamOf } from '../testing/test-cache.ts'
+import { packageGraph } from '../testing/turbo.ts'
 import { mutantIdentity, type MutationReport, type ReportMutant } from './report.ts'
 import type { RunRecord } from './run-reporter.ts'
 import type { MutationTarget } from './scope.ts'
@@ -80,9 +93,253 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
     .digest('hex')
 }
 
+/** 指纹的六类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读到的外部输入（成员 src/ 之外的文件，含成员内的测试辅助文件）、上游成员的构建产物。 */
+export interface FingerprintParts {
+  readonly versions: string
+  readonly config: string
+  readonly tiers: string
+  readonly fixtures: string
+  readonly external: string
+  readonly upstream: string
+}
+
+/** 一个成员的指纹：合并哈希加分项，分项用来在失效时说明是哪一类变了。 */
+export interface MemberFingerprint {
+  readonly fingerprint: string
+  readonly parts: FingerprintParts
+}
+
+const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
+  versions: '快照来自不同的 Stryker、vitest 版本或用例时限',
+  config: '快照之后成员的 vitest 配置变了',
+  tiers: '快照之后根目录的 vitest.tiers.mts 变了',
+  fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
+  external: '快照之后测试读到的外部输入变了（成员 src/ 之外的文件，含成员内的测试辅助文件）',
+  upstream: '快照之后上游成员的构建产物变了（测试按包名导入上游成员时执行的是它们的 dist/）',
+}
+const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
+
+const sha = (data: string | Buffer) => createHash('sha256').update(data).digest('hex')
+
+/** 读文件内容摘要；文件不存在记作 `absent`（删掉也是一种变化），其他读不出的原因抛出。 */
+function digestOf(path: string): string {
+  try {
+    return sha(readFileSync(path))
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent'
+    throw error
+  }
+}
+
+/** 测试的外部输入最多追踪的文件数；超过时这一次不复用。 */
+const EXTERNAL_LIMIT = 2000
+const SOURCE_FILE = /\.[cm]?[jt]s$/u
+// 只追相对路径的静态导入：行首的 import／export … from（含 import type 与跨行的名单）、行首的副作用导入、import()。
+const STATIC_IMPORT = /^[ \t]*(?:import|export)\b[^'";]*?\bfrom\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
+const BARE_IMPORT = /^[ \t]*import\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
+const DYNAMIC_IMPORT = /\bimport\s*\(\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1\s*\)/gu
+const REQUIRE_CALL = /\brequire\s*\(\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1\s*\)/gu
+// 只认第二个参数正好是 import.meta.url 的 new URL：第一个参数是字符串字面量或模板字面量。
+const URL_READ = /\bnew\s+URL\s*\(\s*(['"`])((?:(?!\1)[^\n])*)\1\s*,\s*import\.meta\.url\s*\)/gu
+
+function relativeSpecifiers(text: string): string[] {
+  return [STATIC_IMPORT, BARE_IMPORT, DYNAMIC_IMPORT, REQUIRE_CALL].flatMap(pattern =>
+    [...text.matchAll(pattern)].map(match => match[2] ?? ''),
+  )
+}
+
+/** `new URL(<字面量>, import.meta.url)` 的第一个参数；带 `${` 的模板只取第一个 `${` 之前、最后一个 `/` 为止的前缀，当作目录。 */
+function urlTargets(text: string): string[] {
+  return [...text.matchAll(URL_READ)].flatMap(match => {
+    const literal = match[2] ?? ''
+    if (/^[a-z][a-z0-9+.-]*:/iu.test(literal)) return []
+    const template = literal.indexOf('${')
+    if (template < 0) return [literal]
+    const head = literal.slice(0, template)
+    return [head.slice(0, head.lastIndexOf('/') + 1) || './']
+  })
+}
+
+const isFile = (path: string): boolean => {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+const isDirectory = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory()
+  } catch {
+    return false
+  }
+}
+
+/** 相对导入落到哪个文件：原样、`.js` 换 `.ts`、补扩展名、目录的 index；都没有返回 undefined。 */
+function resolveImport(from: string, specifier: string): string | undefined {
+  const base = resolve(dirname(from), specifier)
+  const stem = base.replace(/\.[cm]?js$/u, '')
+  const candidates = [
+    base,
+    ...(stem === base ? [] : [`${stem}.ts`, `${stem}.mts`]),
+    `${base}.ts`,
+    `${base}.mts`,
+    `${base}.js`,
+    join(base, 'index.ts'),
+    join(base, 'index.mts'),
+    join(base, 'index.js'),
+  ]
+  return candidates.find(isFile)
+}
+
+/**
+ * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）读到的、不在成员 `src/` 下的文件（含成员内的 `test-support/` 等辅助文件），排序后取内容摘要。
+ * 读到的方式：相对的 import／require，以及 `new URL(<字面量>, import.meta.url)`；源码文件接着往下追。
+ * 解析不到的目标记作 `missing:<路径>`，删掉文件也会变。成员 `src/` 下的文件照样读、照样往下追，只是自己不进摘要，归 Stryker 比较。
+ * `new URL` 指向目录（含带 `${` 的模板取前缀）时，用 `git ls-files` 列出其中未被忽略的文件逐个进摘要，不追这些文件的导入。
+ * 目标是仓库根或成员目录的祖先目录（含成员目录本身）时不列文件，只记 `dir:<路径>` 表示存在：这样的写法只拿目录当锚点、再拼路径读文件，那些读取不追。
+ * 不追：包名导入、拿仓库根或成员祖先目录当锚点再拼路径读到的文件、经函数拼出的路径（如 `join(dirname(fileURLToPath(import.meta.url)), …)`）、相对当前目录的读取、`__dirname` 拼接。
+ * 访问过的文件超过上限、或目录列不出时抛出。
+ */
+function externalInputs(root: string, memberDir: string, entries: readonly string[]): string[][] {
+  const visited = new Set<string>()
+  const counted = new Set<string>()
+  const found = new Map<string, string>()
+  const srcDir = join(memberDir, 'src') + sep
+  const rel = (path: string) => relative(root, path).split(sep).join('/')
+  const count = (file: string): void => {
+    if (counted.has(file)) return
+    if (counted.size >= EXTERNAL_LIMIT)
+      throw new Error(`测试读到的外部输入超过 ${EXTERNAL_LIMIT} 个文件，追踪不完`)
+    counted.add(file)
+  }
+  const record = (file: string): void => {
+    if (!file.startsWith(srcDir)) found.set(rel(file), digestOf(file))
+  }
+  const listDirectory = (directory: string): void => {
+    const listed = spawnSync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', rel(directory) || '.'],
+      { cwd: root, encoding: 'utf8' },
+    )
+    if (listed.error !== undefined || listed.status !== 0)
+      throw new Error(
+        `git ls-files ${rel(directory)} 失败：${listed.error?.message ?? (listed.stderr.trim() || `退出码 ${listed.status}`)}`,
+      )
+    for (const path of new Set(listed.stdout.split('\0').filter(item => item !== ''))) {
+      const file = join(root, path)
+      // 指向目录的符号链接等不是文件，读不了内容，跳过。
+      if (isDirectory(file)) continue
+      count(file)
+      record(file)
+    }
+  }
+  const visit = (file: string): void => {
+    if (visited.has(file)) return
+    visited.add(file)
+    count(file)
+    if (!SOURCE_FILE.test(file)) return
+    const text = readFileSync(file, 'utf8')
+    const follow = (target: string): void => {
+      record(target)
+      visit(target)
+    }
+    for (const specifier of relativeSpecifiers(text)) {
+      const target = resolveImport(file, specifier)
+      if (target === undefined)
+        found.set(`missing:${rel(resolve(dirname(file), specifier))}`, 'absent')
+      else follow(target)
+    }
+    for (const urlPath of urlTargets(text)) {
+      const target = resolve(dirname(file), urlPath)
+      if (isFile(target)) follow(target)
+      else if (isDirectory(target)) {
+        // 仓库根与成员目录的祖先（含成员目录本身）只当锚点，再拼路径读文件；那样的读取不追，列全仓会让增量永远不复用。
+        if (target === memberDir || memberDir.startsWith(target + sep))
+          found.set(`dir:${rel(target) || '.'}`, 'present')
+        else listDirectory(target)
+      } else found.set(`missing:${rel(target)}`, 'absent')
+    }
+  }
+  for (const entry of entries) visit(entry)
+  return [...found.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
+/**
+ * 上游成员 `dist/` 的产物摘要（`distDigest`，只 stat，按成员目录排序后合并）。不含成员自己的 `dist/`：
+ * 测试导入自己的源码，不读自己的 `dist/`；改了成员的源码，turbo 会重建它的 `dist/`，把它算进来，增量就在每次改源码后整份失效。
+ * 成员不在 workspace 里、依赖图读不出时抛出，不记作空。
+ */
+function upstreamOutputDigest(root: string, memberPath: string): string {
+  const config = readTestRunsConfig()
+  const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
+  const member = members.find(entry => entry.path === memberPath)
+  if (member === undefined)
+    throw new Error(`${memberPath} 不是 workspace 成员，取不到上游成员的构建产物`)
+  const upstream = [...upstreamOf(member, members, packageGraph(root))].sort()
+  return sha(JSON.stringify(upstream.map(path => [path, distDigest(root, path)])))
+}
+
+/**
+ * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
+ * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要，
+ * 测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的、成员 `src/` 之外的文件的摘要（`externalInputs`），
+ * 以及上游成员 `dist/` 的产物摘要（`upstreamOutputDigest`，只 stat）：成员测试按包名导入上游成员时执行的是上游的 `dist/`，
+ * 它被换掉，Stryker 比较的源码与测试文件都没变，被杀的结论却可能不再成立。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 这五类变了它不知道。列文件、读内容或取产物摘要失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
+ * `outputDigest` 给测试注入：缺省经 turbo 的包依赖图取上游成员的摘要，取不到（不是 workspace 成员、图读不出）就抛。
+ */
+export function memberFingerprint(
+  root: string,
+  memberPath: string,
+  testTimeoutSeconds: number,
+  outputDigest: (root: string, memberPath: string) => string = upstreamOutputDigest,
+): MemberFingerprint | { readonly unavailable: string } {
+  try {
+    const memberDir = join(root, memberPath)
+    const config = readdirSync(memberDir)
+      .filter(name => name.startsWith('vitest.config.'))
+      .sort()
+      .map(name => [name, digestOf(join(memberDir, name))])
+    const listed = spawnSync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', `${memberPath}/tests`],
+      { cwd: root, encoding: 'utf8' },
+    )
+    if (listed.error !== undefined || listed.status !== 0)
+      throw new Error(
+        `git ls-files 失败：${listed.error?.message ?? (listed.stderr.trim() || `退出码 ${listed.status}`)}`,
+      )
+    const tracked = [...new Set(listed.stdout.split('\0').filter(path => path !== ''))]
+    const external = externalInputs(
+      root,
+      memberDir,
+      tracked.filter(path => SOURCE_FILE.test(path)).map(path => join(root, path)),
+    )
+    const fixtures = tracked
+      .filter(path => !path.endsWith('.spec.ts'))
+      .sort()
+      .map(path => [path, digestOf(join(root, path))])
+    const parts: FingerprintParts = {
+      versions: storeFingerprint(testTimeoutSeconds),
+      config: sha(JSON.stringify(config)),
+      tiers: digestOf(join(root, 'vitest.tiers.mts')),
+      fixtures: sha(JSON.stringify(fixtures)),
+      external: sha(JSON.stringify(external)),
+      upstream: outputDigest(root, memberPath),
+    }
+    return { fingerprint: sha(JSON.stringify(parts)), parts }
+  } catch (error) {
+    return { unavailable: `指纹的输入读不出：${(error as Error).message}` }
+  }
+}
+
 /** 快照里与 Stryker 的报告并排放的自己的记录。 */
 export interface StoreMeta {
   readonly fingerprint: string
+  /** 指纹的分项；旧格式的快照没有，带分项的读取按旧格式整份失效。 */
+  readonly parts?: FingerprintParts
   /** 上次第一遍（不含复核）的墙钟秒数乘以它用的工作进程数，排成员并行时当工作量。 */
   readonly workerSeconds: number
   /** 上次落在变异范围里的变异体数，排成员并行时当工作进程的上限。 */
@@ -112,10 +369,42 @@ function rawFiles(report: Readonly<Record<string, unknown>>): [string, Record<st
 const rawMutants = (file: Record<string, unknown>): ReportMutant[] =>
   Array.isArray(file['mutants']) ? (file['mutants'] as ReportMutant[]) : []
 
+const isPosition = (value: unknown): boolean =>
+  isRecord(value) && typeof value['line'] === 'number' && typeof value['column'] === 'number'
+
+/** 变异体的必需字段：`inScope`、`seedReport`、`mutantIdentity` 与复用判断读到的那些。形状不对的快照按读不出处理，不让后面抛 TypeError。 */
+function isReportMutant(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['mutatorName'] === 'string' &&
+    typeof value['status'] === 'string' &&
+    (value['replacement'] === undefined || typeof value['replacement'] === 'string') &&
+    isRecord(value['location']) &&
+    isPosition(value['location']['start']) &&
+    isPosition(value['location']['end'])
+  )
+}
+
+/** 快照里每个文件条目的 `mutants` 都是数组，且每个变异体有必需字段。 */
+function hasValidMutants(report: Readonly<Record<string, unknown>>): boolean {
+  const files = report['files']
+  if (!isRecord(files)) return false
+  return Object.values(files).every(
+    entry =>
+      isRecord(entry) && Array.isArray(entry['mutants']) && entry['mutants'].every(isReportMutant),
+  )
+}
+
 function isStoreMeta(value: unknown): value is StoreMeta {
   return (
     isRecord(value) &&
     typeof value['fingerprint'] === 'string' &&
+    (value['parts'] === undefined ||
+      (isRecord(value['parts']) &&
+        PART_KEYS.every(
+          key => typeof (value['parts'] as Record<string, unknown>)[key] === 'string',
+        ))) &&
     typeof value['workerSeconds'] === 'number' &&
     typeof value['mutants'] === 'number' &&
     isRecord(value['staticRuns']) &&
@@ -127,6 +416,7 @@ function isStoreMeta(value: unknown): value is StoreMeta {
 export function readStore(
   path: string,
   fingerprint: string,
+  parts?: FingerprintParts,
 ): { readonly store: Store } | { readonly miss: string } {
   let parsed: unknown
   try {
@@ -136,10 +426,22 @@ export function readStore(
       ? { miss: '没有快照' }
       : { miss: `快照读不出：${(error as Error).message}` }
   }
-  if (!isRecord(parsed) || !isRecord(parsed['files']) || !isStoreMeta(parsed['omne']))
+  if (
+    !isRecord(parsed) ||
+    !isRecord(parsed['files']) ||
+    !hasValidMutants(parsed) ||
+    !isStoreMeta(parsed['omne'])
+  )
     return { miss: '快照形状不对' }
-  if (parsed['omne'].fingerprint !== fingerprint)
-    return { miss: '快照来自不同的 Stryker、vitest 版本或用例时限' }
+  if (parsed['omne'].fingerprint !== fingerprint) {
+    if (parts === undefined) return { miss: PART_LABELS.versions }
+    const stored = parsed['omne'].parts
+    if (stored === undefined) return { miss: '快照来自旧格式' }
+    const changed = PART_KEYS.filter(key => stored[key] !== parts[key])
+    return {
+      miss: changed.length === 0 ? '快照指纹不符' : changed.map(key => PART_LABELS[key]).join('；'),
+    }
+  }
   const { omne, ...report } = parsed
   return { store: { report, meta: omne } }
 }
@@ -242,7 +544,11 @@ export function nextStore(
   target: MutationTarget,
   written: Readonly<Record<string, unknown>>,
   runs: readonly RunRecord[] | 'unreadable',
-  facts: { readonly fingerprint: string; readonly workerSeconds: number },
+  facts: {
+    readonly fingerprint: string
+    readonly parts?: FingerprintParts
+    readonly workerSeconds: number
+  },
 ): Store {
   const report = filterMutants(
     written,
@@ -270,6 +576,7 @@ export function nextStore(
     report,
     meta: {
       fingerprint: facts.fingerprint,
+      ...(facts.parts === undefined ? {} : { parts: facts.parts }),
       workerSeconds: facts.workerSeconds,
       mutants: generated,
       staticRuns,

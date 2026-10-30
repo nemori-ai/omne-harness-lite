@@ -1,6 +1,7 @@
 // 工作树依赖图的缓存：指纹对每一类能改变图的输入都失效（取掉指纹里的某一类，对应用例变红），
 // 命中读缓存、未命中重算并写缓存、坏文件按未命中、开关关掉后不读不写、只留最近几份。
 // 指纹用例只跑 git，归快层；真起 dependency-cruiser 的用例单条标 slow。
+import { createHash } from 'node:crypto'
 import {
   mkdirSync,
   mkdtempSync,
@@ -13,9 +14,11 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest'
 import {
   WORKING_CACHE_SWITCH,
+  revisionGraph,
   workingGraph,
   workingGraphFingerprint,
   type DependencyGraph,
@@ -91,7 +94,7 @@ describe('工作树依赖图的指纹', () => {
     expect(digest(root)).not.toBe(before)
   })
 
-  it('新增未跟踪文件就变，删掉它回到原指纹；扫描根之外的未跟踪文件不算', () => {
+  it('新增未跟踪文件就变，删掉它回到原指纹；扫描根之外的未跟踪文件也算', () => {
     const root = copyRepository(template)
     const before = digest(root)
     write(root, 'packages/model/c/src/extra.ts', 'export const extra = 1\n')
@@ -99,8 +102,62 @@ describe('工作树依赖图的指纹', () => {
     expect(added).not.toBe(before)
     rmSync(join(root, 'packages/model/c/src/extra.ts'))
     expect(digest(root)).toBe(before)
+    // dependency-cruiser 会解析扫描根之外的导入目标，所以根下的未跟踪文件也要进指纹。
     write(root, 'docs/note.md', 'note\n')
+    expect(digest(root)).not.toBe(before)
+  })
+
+  it('扫描根之外的文件被改或被删（未提交）就变：扫描根内的文件导入了它', () => {
+    const root = copyRepository(template)
+    write(root, 'root.mts', 'export const r = 1\n')
+    write(
+      root,
+      'packages/model/c/src/index.ts',
+      "import { r } from '../../../../root.mts'\nexport const c = r\n",
+    )
+    commit(root, 'c imports root.mts')
+    const before = digest(root)
+    write(root, 'root.mts', 'export const r = 2\n')
+    const modified = digest(root)
+    expect(modified).not.toBe(before)
+    rmSync(join(root, 'root.mts'))
+    const removed = digest(root)
+    expect(removed).not.toBe(before)
+    expect(removed).not.toBe(modified)
+  })
+
+  it('扫描根之外、被忽略的文件被扫描根内的文件导入：改了内容或删掉就变', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\ngen.mts\n')
+    write(
+      root,
+      'packages/model/c/src/index.ts',
+      "import { r } from '../../../../gen.mts'\nexport const c = r\n",
+    )
+    commit(root, 'c imports ignored gen.mts')
+    write(root, 'gen.mts', 'export const r = 1\n')
+    const before = digest(root)
+    write(root, 'gen.mts', 'export const r = 2\n')
+    const modified = digest(root)
+    expect(modified).not.toBe(before)
+    rmSync(join(root, 'gen.mts'))
+    const removed = digest(root)
+    expect(removed).not.toBe(before)
+    expect(removed).not.toBe(modified)
+  })
+
+  it('扫描根之外、被忽略的目录里增删文件不变：目录只记存在与否', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\nbuild-out/\n')
+    commit(root, 'ignore build-out')
+    write(root, 'build-out/a.txt', 'a\n')
+    const before = digest(root)
+    write(root, 'build-out/b.txt', 'b\n')
     expect(digest(root)).toBe(before)
+    rmSync(join(root, 'build-out/a.txt'))
+    expect(digest(root)).toBe(before)
+    rmSync(join(root, 'build-out'), { recursive: true })
+    expect(digest(root)).not.toBe(before)
   })
 
   it('被忽略的单个文件进图，所以它的内容改了也变', () => {
@@ -125,6 +182,21 @@ describe('工作树依赖图的指纹', () => {
     expect(digest(root)).toBe(withDist)
     rmSync(join(root, 'packages/model/a/dist'), { recursive: true })
     expect(digest(root)).toBe(before)
+  })
+
+  it('被忽略的路径清单不变、目录从「只忽略里面的文件」改成「整个被忽略」也变：只有 ignoredDirectories 的结果记下了这一差别', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/g.ts\n')
+    commit(root, 'ignore one generated file')
+    write(root, 'packages/model/a/src/gen/g.ts', 'export const g = 1\n')
+    const fileOnly = workingGraphFingerprint(root)
+    // 改 `.git/info/exclude`：它不在 `git status` 里，也不在工作树里，两种写法下 ls-files 列出的被忽略路径相同。
+    write(root, '.git/info/exclude', 'packages/model/a/src/gen/**\n')
+    const wholeDir = workingGraphFingerprint(root)
+    const others = (inputs: readonly string[] = []) =>
+      inputs.filter(line => !line.startsWith('ignored-dirs '))
+    expect(others(wholeDir?.inputs)).toEqual(others(fileOnly?.inputs))
+    expect(wholeDir?.digest).not.toBe(fileOnly?.digest)
   })
 
   it('pnpm-lock.yaml 出现或内容改了就变（它不在扫描根下，只走安装状态这一项）', () => {
@@ -166,6 +238,23 @@ describe('工作树依赖图的指纹', () => {
       write(runner, 'tsconfig.base.json', '{ "extends": "./base.json", "files": [] }\n')
       expect(digest(root)).not.toBe(baseChanged)
     })
+  })
+
+  it('出图代码（graph 模块文件）的内容进指纹：换一份代码就变，读不到就没有指纹', () => {
+    const root = copyRepository(template)
+    const self = fileURLToPath(new URL('../src/deps/graph.ts', import.meta.url))
+    const other = fileURLToPath(new URL('./deps-graph-cache.spec.ts', import.meta.url))
+    const codeLine = (key: ReturnType<typeof workingGraphFingerprint>) =>
+      key?.inputs.filter(line => line.startsWith('code '))
+    // 默认取当前运行的 graph 模块文件。
+    expect(codeLine(workingGraphFingerprint(root))).toEqual([
+      `code ${createHash('sha256').update(readFileSync(self)).digest('hex')}`,
+    ])
+    const viaSelf = workingGraphFingerprint(root, undefined, self)
+    const viaOther = workingGraphFingerprint(root, undefined, other)
+    expect(codeLine(viaOther)).not.toEqual(codeLine(viaSelf))
+    expect(viaOther?.digest).not.toBe(viaSelf?.digest)
+    expect(workingGraphFingerprint(root, undefined, join(root, 'no-such-graph.ts'))).toBeUndefined()
   })
 
   it('换了 HEAD 就变，即使工作树的内容相同', () => {
@@ -264,6 +353,246 @@ describe('工作树依赖图的缓存', () => {
       )
     },
   )
+
+  it(
+    '目录改成整个被忽略后不命中：目录里的模块随之出图，缓存不会交回旧图',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/g.ts\n')
+      commit(root, 'ignore one generated file')
+      write(
+        root,
+        'packages/model/a/src/gen/g.ts',
+        "import { c } from '../../../c/src/index.ts'\nexport const g = c\n",
+      )
+      const fileOnly = workingGraph(root)
+      expect(fileOnly.modules).toContain('packages/model/a/src/gen/g.ts')
+      expect(pairs(fileOnly)).toContain('packages/model/a → packages/model/c')
+      write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/**\n')
+      const wholeDir = workingGraph(root)
+      expect(wholeDir.modules).not.toContain('packages/model/a/src/gen/g.ts')
+      expect(pairs(wholeDir)).toEqual(['packages/model/a → packages/model/b'])
+    },
+  )
+
+  it(
+    '扫描根之外的导入目标被删（未提交）：开缓存与不开缓存都报 no-unresolvable',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      write(root, 'root.mts', 'export const r = 1\n')
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { r } from '../../../../root.mts'\nexport const c = r\n",
+      )
+      commit(root, 'c imports root.mts')
+      const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
+      expect(rules(workingGraph(root))).not.toContain('no-unresolvable')
+      rmSync(join(root, 'root.mts'))
+      const cached = workingGraph(root)
+      const uncached = withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root))
+      expect(rules(uncached)).toContain('no-unresolvable')
+      expect(JSON.stringify(cached)).toBe(JSON.stringify(uncached))
+    },
+  )
+
+  it('OMNE_ADMISSION 只认 1：不设或空串不是准入，别的值（如 true）报错，不悄悄读缓存', () => {
+    const root = copyRepository(template)
+    expect(() => withEnv({ OMNE_ADMISSION: 'true' }, () => workingGraph(root))).toThrow(
+      /OMNE_ADMISSION 只能是 1/u,
+    )
+    expect(() => withEnv({ OMNE_ADMISSION: '0' }, () => workingGraph(root))).toThrow(
+      /OMNE_ADMISSION 只能是 1/u,
+    )
+    // 报错发生在读缓存与出图之前。
+    expect(() => readdirSync(cacheDir(root))).toThrow()
+  })
+
+  it(
+    '准入时不读缓存：指纹匹配的坏缓存在准入下被重算的图取代，不准入时读到它',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      const computed = JSON.stringify(workingGraph(root))
+      const file = join(cacheDir(root), entries(root)[0] ?? '')
+      const entry = JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }
+      writeFileSync(file, JSON.stringify({ ...entry, graph: marker }))
+      expect(withEnv({ OMNE_ADMISSION: undefined }, () => workingGraph(root))).toEqual(marker)
+      expect(JSON.stringify(withEnv({ OMNE_ADMISSION: '1' }, () => workingGraph(root)))).toBe(
+        computed,
+      )
+      // 准入照常写：缓存里的标记图被真图覆盖。
+      expect(
+        (JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }).graph,
+      ).not.toEqual(marker)
+    },
+  )
+
+  it(
+    '扫描根之外、被忽略的导入目标被删：开缓存与不开缓存的 findings 相同',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\ngen.mts\n')
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { r } from '../../../../gen.mts'\nexport const c = r\n",
+      )
+      commit(root, 'c imports ignored gen.mts')
+      write(root, 'gen.mts', 'export const r = 1\n')
+      const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
+      workingGraph(root)
+      rmSync(join(root, 'gen.mts'))
+      const cached = rules(workingGraph(root))
+      const uncached = rules(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root)))
+      expect(cached).toEqual(uncached)
+    },
+  )
+
+  it('工作树图的缓存里图元素缺必需字段按未命中，重算', { tags: ['slow'], timeout: 120_000 }, () => {
+    const root = copyRepository(template)
+    const computed = JSON.stringify(workingGraph(root))
+    const file = join(cacheDir(root), entries(root)[0] ?? '')
+    const entry = JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }
+    const broken = { ...marker, members: [{ name: 'no-path' }] }
+    writeFileSync(file, JSON.stringify({ ...entry, graph: broken }))
+    expect(JSON.stringify(workingGraph(root))).toBe(computed)
+    const noRule = { ...marker, findings: [{ kind: 'dependency-rule' }] }
+    writeFileSync(file, JSON.stringify({ ...entry, graph: noRule }))
+    expect(JSON.stringify(workingGraph(root))).toBe(computed)
+  })
+
+  it(
+    '基线图的缓存：形状合格就命中，坏 JSON 与坏形状按未命中、重算并覆盖',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      const computed = JSON.stringify(revisionGraph(root, 'HEAD'))
+      const cached = readdirSync(cacheDir(root)).filter(
+        name => name.endsWith('.json') && !name.startsWith('working-'),
+      )
+      expect(cached).toHaveLength(1)
+      const file = join(cacheDir(root), cached[0] ?? '')
+      expect(JSON.stringify(JSON.parse(readFileSync(file, 'utf8')))).toBe(computed)
+      writeFileSync(file, JSON.stringify(marker))
+      expect(revisionGraph(root, 'HEAD')).toEqual(marker)
+      for (const bad of [
+        '{"members":',
+        JSON.stringify({ members: [] }),
+        JSON.stringify({ ...marker, members: [{ name: 'no-path' }] }),
+      ]) {
+        writeFileSync(file, bad)
+        expect(JSON.stringify(revisionGraph(root, 'HEAD'))).toBe(computed)
+        expect(readFileSync(file, 'utf8')).toBe(computed)
+      }
+    },
+  )
+
+  describe('被忽略目录里的导入目标', () => {
+    /** c 导入被忽略目录 `packages/model/c/src/gen` 里的 r.mts；目录里另放 keep.txt，删掉 r.mts 后目录仍在。 */
+    const importsIgnoredDirectory = () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\npackages/model/c/src/gen/\n')
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { r } from './gen/r.mts'\nexport const c = r\n",
+      )
+      commit(root, 'c imports a file in an ignored directory')
+      write(root, 'packages/model/c/src/gen/r.mts', 'export const r = 1\n')
+      write(root, 'packages/model/c/src/gen/keep.txt', 'keep\n')
+      return root
+    }
+    const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
+    const cacheFile = (root: string) => join(cacheDir(root), entries(root)[0] ?? '')
+    const targetsOf = (root: string) =>
+      Object.keys(
+        (JSON.parse(readFileSync(cacheFile(root), 'utf8')) as { targets: Record<string, string> })
+          .targets,
+      )
+
+    it(
+      '导入目标在被忽略的目录里，文件被删、目录还在：不命中，findings 与关闭缓存时相同',
+      { tags: ['slow'], timeout: 120_000 },
+      () => {
+        const root = importsIgnoredDirectory()
+        expect(rules(workingGraph(root))).not.toContain('no-unresolvable')
+        expect(targetsOf(root)).toEqual(['packages/model/c/src/gen/r.mts'])
+        rmSync(join(root, 'packages/model/c/src/gen/r.mts'))
+        const cached = rules(workingGraph(root))
+        const uncached = rules(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root)))
+        expect(uncached).toContain('no-unresolvable')
+        expect(cached).toEqual(uncached)
+      },
+    )
+
+    it('导入目标的内容变了：不命中，重算', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = importsIgnoredDirectory()
+      workingGraph(root)
+      const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+      writeFileSync(cacheFile(root), JSON.stringify({ ...entry, graph: marker }))
+      write(root, 'packages/model/c/src/gen/r.mts', "export { c as r } from '../index.ts'\n")
+      expect(workingGraph(root)).not.toEqual(marker)
+    })
+
+    it(
+      '什么都不改就命中：复核不会让正常情形永远不命中',
+      { tags: ['slow'], timeout: 120_000 },
+      () => {
+        const root = importsIgnoredDirectory()
+        workingGraph(root)
+        const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+        writeFileSync(cacheFile(root), JSON.stringify({ ...entry, graph: marker }))
+        expect(workingGraph(root)).toEqual(marker)
+      },
+    )
+
+    it('导入目标在 node_modules 下不进复核清单', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = copyRepository(template)
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { p } from '../../../../node_modules/pkg/index.mjs'\nexport const c = p\n",
+      )
+      commit(root, 'c imports a file in node_modules')
+      write(root, 'node_modules/pkg/index.mjs', 'export const p = 1\n')
+      expect(rules(workingGraph(root))).not.toContain('no-unresolvable')
+      expect(targetsOf(root)).toEqual([])
+    })
+
+    it('旧格式的缓存条目不命中', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = importsIgnoredDirectory()
+      workingGraph(root)
+      const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+      writeFileSync(cacheFile(root), JSON.stringify({ ...entry, format: 'v5', graph: marker }))
+      expect(workingGraph(root)).not.toEqual(marker)
+    })
+  })
+
+  it('算图过程中输入变了就不写缓存', { tags: ['slow'], timeout: 120_000 }, () => {
+    const root = copyRepository(template)
+    const stderr = process.stderr as { isTTY?: boolean }
+    const original = stderr.isTTY
+    const written: string[] = []
+    vi.spyOn(process.stderr, 'write').mockImplementation(chunk => {
+      written.push(String(chunk))
+      return true
+    })
+    try {
+      stderr.isTTY = true
+      workingGraph(root, {
+        afterCompute: () => write(root, 'packages/model/c/src/index.ts', 'export const c = 9\n'),
+      })
+    } finally {
+      if (original === undefined) delete stderr.isTTY
+      else stderr.isTTY = original
+    }
+    expect(() => entries(root)).toThrow()
+    expect(written).toContain('依赖图缓存：运行中输入有变化，这次不写缓存\n')
+  })
 
   it('命中与否只在 stderr 是终端时打一行', { tags: ['slow'], timeout: 120_000 }, () => {
     const root = copyRepository(template)

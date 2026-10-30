@@ -14,7 +14,7 @@
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
 | [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
 | [check-design.sh](check-design.sh) | 根脚本 `check:design` 的入口：先核对设计源，再核对领域对象。`--stale <值>` 只交给第二条 |
-| [metrics.sh](metrics.sh) | 根脚本 `metrics` 的入口：参数原样交给钉住的 `omne-metrics`。带 `--coverage` 时取一个运行名额；没给 `--plan` 时先用测试运行器算一份计划（`--base` 交给计划，`FULL=1` 给全量），再以 `--plan` 交给 `omne-metrics` |
+| [metrics.sh](metrics.sh) | 根脚本 `metrics` 的入口：参数原样交给钉住的 `omne-metrics`。带 `--coverage` 时取一个运行名额；没给 `--plan` 时先用测试运行器算一份计划（`--base` 交给计划，`FULL=1` 给全量），再以 `--plan` 交给 `omne-metrics`。带 `--coverage` 时还调用测试运行器的 `coverage-parallel`，把覆盖率的并发度（`<同时成员数>x<每成员工作进程数>`）经环境变量 `OMNE_METRICS_COVERAGE_PARALLEL` 交给 `omne-metrics` |
 | [format.sh](format.sh) | 用根配置 `.oxfmtrc.json` 和本地锁定的 oxfmt 检查或写入受维护文件；`staged` 模式只检查 Git index blob |
 | [git-environment.sh](git-environment.sh) | 为显式仓库、独立 fixture 和 staged 命令提供各自的 Git 环境边界 |
 | [test-formatting.sh](test-formatting.sh) | 在临时独立 Git 仓库验证格式范围、幂等、部分暂存和 hook 安装边界 |
@@ -26,7 +26,7 @@
 需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
 `BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission`、`--keep-going` 两个开关与带值的 `--resume-from <H1>`。
 准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[集成规则](../docs/engineering/integration.md#检查责任)）：
-除了构建与类型检查不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。
+除了构建、类型检查与成员测试不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。日志是本节的唯一源，别处只链接过来：
 日志旁边同名的 `.json` 是同一次运行的机读记录（头、树哈希、模式、每步的退出码、快速失败的步、缓存开关），与日志是同一份事实的两种写法：
 `check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志。JSON 记录的形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。文本日志的格式以本节为唯一源，别处只链接过来：
 
@@ -47,7 +47,7 @@
 
 - 每一步只声明「先于我完成的步骤」，没有依赖的同时跑。
 - 重步骤（构建、类型检查、成员测试、验收）自己按[并行度](../tools/test-runner/README_ZH.md#测试运行)起多进程把机器占满，所以一次只跑一个：两个一起只会互相挤。工作进程预算在起任何步骤之前、机器安静时采一次，经 `OMNE_WORKER_BUDGET` 交给各重步骤；调用方已设它时原样交下去。
-- 轻步骤（单线程检查，含 pytest）同时至多 `max(2, 核数 ÷ 3)` 个，与重步骤同时跑、填它留下的空，优先级相同：把轻步骤降级量过，pytest 与 check:docs 这些关键路径上的轻步骤被挤慢 40% 到 100%，总墙钟反而变长。
+- 轻步骤同时至多 `max(2, 核数 ÷ 3)` 个。pytest 算一个轻步骤，它自己用 xdist 起的进程数取预算的四分之一。轻步骤与重步骤同时跑、填它留下的空，优先级相同：把轻步骤降级量过，pytest 与 check:docs 这些关键路径上的轻步骤被挤慢 40% 到 100%，总墙钟反而变长。
 
 失败语义：
 
@@ -64,7 +64,7 @@
 - 构建之后：`check:declarations`；契约成员 API 快照与 dist 的核对 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check`（根 `package.json` 没有对应的脚本；它运行钉住的 `omne-contract-api --check --json`。成员为 differs、unreadable、missing 或 invalid 时退出 1，检查失败，标准错误逐个写成员、状态与改法。没有 dist 的成员（unbuilt）只报告：影响面计划没有选中它们，所以没有构建。本卡改了成员的快照或源码时，影响面会选中它。工具缺失、运行失败或输出不合格时退出 2，检查也失败。见 [dev-flow 集成工具说明](../tools/dev-flow/src/integration/README.md#契约快照核对)）；`lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；`lint:deps`（dependency-cruiser 解析验收夹具对 dist 的导入）；按计划的类型检查、成员测试与可执行验收。成员测试跑被选中成员的快层，快层全部通过才跑慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」。可执行验收只跑被选中、带 `acceptance` 脚本的成员，驱动构建出来的 `dist/`，任何一份不过整套检查就失败；耗时记录写进主检出的 `tmp/acceptance-ledger/`，是回路状态里验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。现在只有 `apps/cli` 一份，约 6～16 秒。
 - 其余全部结束之后：`pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。基线就是正文开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。它只读源码、git 与验收的耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `pnpm run acceptance`（或 `pnpm run check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
 
-这样排之后，墙钟由关键路径决定。Linux 上是构建 → 类型检查 → 快层 → 慢层 → 验收 → 回路状态；pytest、文档与设计检查、格式、lint 都与它重叠。Windows 上 pytest 单线程要两到三分钟，常常是它。逐步耗时表每次都写，关键路径由实际起止时间算出。
+这样排之后，墙钟由关键路径决定。Linux 上是构建 → 类型检查 → 快层 → 慢层 → 验收 → 回路状态；pytest、文档与设计检查、格式、lint 都与它重叠。Windows 上 pytest 用 xdist 分进程，在 check 里用时约两分钟，与构建、类型检查重叠。逐步耗时表每次都写，关键路径由实际起止时间算出。
 判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
 合并后没有自动补跑，也没有定时任务：全量由负责人不定时让一个会话手动跑 `FULL=1 pnpm run check`。
 

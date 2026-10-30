@@ -434,8 +434,8 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`）。 */
-const GRAPH_FORMAT = 'v5'
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`；v6：条目带 `targets`；v7：`targets` 记内容摘要）。 */
+const GRAPH_FORMAT = 'v7'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
@@ -448,22 +448,51 @@ function cacheDirectory(root: string): string {
  * 当前工作树的依赖图（含未提交的改动）。先按指纹（`workingGraphFingerprint`）查 git 公共目录里的缓存，命中就读整张图，
  * 不起 dependency-cruiser；未命中照常算，算完写缓存。不用 dependency-cruiser 自己的缓存：按 git 元数据判断变化会漏掉
  * 删掉的未跟踪文件，按内容判断实测也不比重跑快。`OMNE_DEP_GRAPH_CACHE=0` 关掉缓存；缓存读不到、写不进都按未命中，
- * 既不让检查失败，也不让检查放行。
+ * 既不让检查失败，也不让检查放行。`OMNE_ADMISSION=1` 时不读只写；算完图复核指纹，运行中输入变了就不写。
  */
-export function workingGraph(root: string): DependencyGraph {
+export function workingGraph(root: string, hooks: WorkingGraphHooks = {}): DependencyGraph {
+  // 先核对开关取值：写错的值不悄悄当成「不是准入」读缓存。
+  const admission = admissionMode()
   const ignoredDirs = ignoredDirectories(root)
   const key = workingCacheEnabled() ? workingCacheKey(root, ignoredDirs) : undefined
   if (key !== undefined) {
-    const hit = readWorkingCache(key.path, key)
-    if (hit !== undefined) {
+    // 准入不信任缓存：准入时只写不读，与测试结果缓存一致。
+    const hit = admission ? undefined : readWorkingCache(key.path, key, root)
+    if (hit?.graph !== undefined) {
       note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
-      return hit
+      return hit.graph
     }
-    note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
+    if (hit?.changed !== undefined)
+      note(`依赖图缓存：被忽略目录里的导入目标 ${hit.changed} 变了或不在了，重算`)
+    else note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
   }
-  const graph = graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirs))
-  if (key !== undefined) writeWorkingCache(key.path, key, graph)
+  const output = cruise(root)
+  const targets = targetDigests(root, ignoredTargets(output, ignoredDirs))
+  const graph = graphOf(root, withoutIgnoredModules(output, ignoredDirs))
+  hooks.afterCompute?.()
+  if (key !== undefined) {
+    // 跑的过程中输入变了，这张图对应的指纹已不是开跑前那个，写进去会让旧指纹下读到别的输入的图。
+    const after = fingerprintOf(root, ignoredDirectories(root))
+    if ('reason' in after || after.digest !== key.digest || changedTarget(root, targets))
+      note('依赖图缓存：运行中输入有变化，这次不写缓存')
+    else writeWorkingCache(key.path, key, graph, targets)
+  }
   return graph
+}
+
+/** 测试用的接缝：算完图、复核指纹之前调用。 */
+export interface WorkingGraphHooks {
+  readonly afterCompute?: () => void
+}
+
+/** 准入模式（`OMNE_ADMISSION=1`）：工作树图的缓存不读。不设或空串为否，`1` 为是，别的值报错；与 test-runner 的同名开关同一规则。 */
+export function admissionMode(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  const value = env.OMNE_ADMISSION
+  if (value === undefined || value === '') return false
+  if (value === '1') return true
+  throw new Error(`环境变量 OMNE_ADMISSION 只能是 1 或不设，现在是 ${value}`)
 }
 
 /** 开着缓存时这棵树的缓存键：指纹加缓存文件的路径。算不出指纹（不在 git 仓库里等）就没有键，说明原因后不缓存。 */
@@ -502,32 +531,37 @@ export interface WorkingFingerprint {
 }
 
 /**
- * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、dependency-cruiser 的版本、
- * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、扫描根与根
- * `tsconfig.base.json`、`package.json` 下未提交与未跟踪文件的路径与内容、扫描根下被忽略的路径（目录记存在与否，
+ * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、出图代码（本模块文件）的内容摘要、dependency-cruiser 的版本、
+ * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、全部未提交与未跟踪文件的路径与内容（不按扫描根过滤：
+ * dependency-cruiser 会解析扫描根之外的导入目标）、被忽略的路径（同样不按扫描根过滤；目录记存在与否，
  * 单个文件记内容）、`ignoredDirectories` 的结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
  * `root` 不在 git 工作树里或没有提交时没有指纹（返回 undefined），这样的树不缓存。
  */
 export function workingGraphFingerprint(
   root: string,
   ignoredDirs: ReadonlySet<string> = ignoredDirectories(root),
+  codePath: string = THIS_MODULE,
 ): WorkingFingerprint | undefined {
-  const key = fingerprintOf(root, ignoredDirs)
+  const key = fingerprintOf(root, ignoredDirs, codePath)
   return 'reason' in key ? undefined : key
 }
 
 function fingerprintOf(
   root: string,
   ignoredDirs: ReadonlySet<string>,
+  codePath: string = THIS_MODULE,
 ): WorkingFingerprint | { readonly reason: string } {
   try {
-    const inputs = workingInputs(root, ignoredDirs)
+    const inputs = workingInputs(root, ignoredDirs, codePath)
     return { digest: sha256(inputs.join('\n')), inputs }
   } catch (error) {
     // 算不出指纹（不在 git 仓库里、没有提交、读不到某个输入）就不缓存，照常出图；出图自己的失败由 cruise 报。
     return { reason: error instanceof Error ? error.message : String(error) }
   }
 }
+
+/** 当前运行的 `graph` 模块文件。出图代码改了而 `GRAPH_FORMAT` 没跟着加，或同一个头上先后跑着钉住的旧版与源码版，都靠它的内容摘要分开。 */
+const THIS_MODULE = fileURLToPath(import.meta.url)
 
 const sha256 = (data: string | Buffer) => createHash('sha256').update(data).digest('hex')
 
@@ -600,12 +634,6 @@ function resolveExtends(from: string, value: string): string | undefined {
     }
   }
   return undefined
-}
-
-const SCAN_FILES = ['tsconfig.base.json', 'package.json']
-/** 路径落在 dependency-cruiser 会扫描的范围里：扫描根之下，或根 `tsconfig.base.json`、`package.json`。 */
-function inScanScope(path: string): boolean {
-  return ROOTS.some(dir => path.startsWith(`${dir}/`)) || SCAN_FILES.includes(path)
 }
 
 /** 第 `count` 个空格之后的部分：porcelain v2 的记录里路径在固定个数的字段之后，路径本身可以含空格。 */
@@ -686,10 +714,12 @@ function contentIds(root: string, paths: readonly string[]): Map<string, string>
 }
 
 /** 指纹的输入清单：每一类输入一组行，组内按路径排序；取掉任何一组都会让对应的失效用例变红。 */
-function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[] {
+function workingInputs(root: string, ignoredDirs: ReadonlySet<string>, codePath: string): string[] {
   const head = git(root, ['rev-parse', '--verify', 'HEAD^{commit}']).toString().trim()
   const lines = [
     `format ${GRAPH_FORMAT}`,
+    // 读不到出图代码就算不出指纹（fingerprintOf 接住异常），这样的运行不缓存。
+    `code ${sha256(readFileSync(codePath))}`,
     `cruiser ${cruiserVersion()}`,
     `config ${sha256(readFileSync(cruiseConfig()))} ${loadedConfigDigest()}`,
     ...tsconfigDigests(cruiseTsconfig()).map(digest => `tsconfig ${digest}`),
@@ -697,9 +727,9 @@ function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[]
     `roots ${ROOTS.filter(dir => existsSync(join(root, dir))).join(' ')}`,
     `lock ${fileDigest(join(root, 'pnpm-lock.yaml'))}`,
     `modules ${fileDigest(join(root, 'node_modules', '.modules.yaml'))}`,
-    `ignored-dirs ${[...ignoredDirs].filter(inScanScope).sort().join(' ')}`,
+    `ignored-dirs ${[...ignoredDirs].sort().join(' ')}`,
   ]
-  const changed = [...new Set(changedPaths(root).filter(inScanScope))].sort()
+  const changed = [...new Set(changedPaths(root))].sort()
   const ignored = nulSeparated(
     git(root, [
       'ls-files',
@@ -709,9 +739,7 @@ function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[]
       '--directory',
       '-z',
     ]).toString(),
-  )
-    .filter(inScanScope)
-    .sort()
+  ).sort()
   const ignoredFiles = ignored.filter(path => !path.endsWith('/'))
   const ids = contentIds(root, [...new Set([...changed, ...ignoredFiles])])
   for (const path of changed) lines.push(`changed ${path} ${ids.get(path) ?? ''}`)
@@ -728,19 +756,86 @@ interface WorkingCacheEntry {
   readonly format: string
   readonly fingerprint: string
   readonly inputs: readonly string[]
+  /** 复核清单：不在被忽略目录里的模块导入、且解析到被忽略目录里的文件（不含 node_modules），到内容摘要。命中前逐个核对。 */
+  readonly targets: Readonly<Record<string, string>>
   readonly graph: DependencyGraph
 }
 
+/**
+ * 被忽略的目录在指纹里只记存在与否，目录里被导入的文件删了或改了指纹都不变。写缓存时记下这些导入目标的内容摘要，读缓存时复核。
+ * `node_modules` 下的由指纹里的锁文件与 `.modules.yaml` 兜住，不记。
+ */
+function ignoredTargets(output: CruiseOutput, ignoredDirs: ReadonlySet<string>): string[] {
+  if (ignoredDirs.size === 0) return []
+  const found = new Set<string>()
+  for (const module of output.modules) {
+    if (isUnderIgnored(module.source, ignoredDirs)) continue
+    for (const dependency of module.dependencies) {
+      if (dependency.couldNotResolve) continue
+      const target = dependency.resolved
+      if (target.split('/').includes('node_modules')) continue
+      if (isUnderIgnored(target, ignoredDirs)) found.add(target)
+    }
+  }
+  return [...found].sort()
+}
+
+/** 导入目标到内容摘要；文件不在了记 `absent`。 */
+function targetDigests(root: string, targets: readonly string[]): Record<string, string> {
+  return Object.fromEntries(targets.map(target => [target, fileDigest(join(root, target))]))
+}
+
+/** 第一个内容摘要与记下的不同的导入目标；都相同时为 undefined。 */
+function changedTarget(
+  root: string,
+  targets: Readonly<Record<string, string>>,
+): string | undefined {
+  return Object.entries(targets).find(
+    ([target, digest]) => fileDigest(join(root, target)) !== digest,
+  )?.[0]
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+const hasStrings = (value: unknown, keys: readonly string[]): value is Record<string, unknown> =>
+  isRecord(value) && keys.every(key => typeof value[key] === 'string')
+
+/** 缓存里读出的东西是不是一张图：五个数组都在，且各元素带下游要读的必需字段。 */
 function isGraph(value: unknown): value is DependencyGraph {
-  if (typeof value !== 'object' || value === null) return false
-  const graph = value as Record<string, unknown>
-  return ['members', 'modules', 'edges', 'dependencies', 'findings'].every(key =>
-    Array.isArray(graph[key]),
+  if (!isRecord(value)) return false
+  const { members, modules, edges, dependencies, findings } = value
+  return (
+    Array.isArray(members) &&
+    members.every(member => hasStrings(member, ['path', 'group', 'name'])) &&
+    Array.isArray(modules) &&
+    modules.every(module => typeof module === 'string') &&
+    Array.isArray(edges) &&
+    edges.every(
+      edge =>
+        hasStrings(edge, ['from', 'to']) && Array.isArray((edge as { sites?: unknown }).sites),
+    ) &&
+    Array.isArray(dependencies) &&
+    dependencies.every(
+      dependency =>
+        hasStrings(dependency, ['path', 'specifier', 'resolved']) &&
+        typeof (dependency as { line?: unknown }).line === 'number',
+    ) &&
+    Array.isArray(findings) &&
+    findings.every(
+      finding =>
+        hasStrings(finding, ['kind', 'rule', 'message']) &&
+        Array.isArray((finding as { sites?: unknown }).sites) &&
+        Array.isArray((finding as { edges?: unknown }).edges),
+    )
   )
 }
 
 /** 读缓存：文件不在、读不出、JSON 坏、格式或指纹对不上都算未命中。命中时摸一下时间，留份时按最近用过算。 */
-function readWorkingCache(path: string, key: WorkingFingerprint): DependencyGraph | undefined {
+function readWorkingCache(
+  path: string,
+  key: WorkingFingerprint,
+  root: string,
+): { readonly graph?: DependencyGraph; readonly changed?: string } | undefined {
   let entry: Partial<WorkingCacheEntry> | undefined
   try {
     entry = JSON.parse(readFileSync(path, 'utf8')) as Partial<WorkingCacheEntry>
@@ -752,24 +847,36 @@ function readWorkingCache(path: string, key: WorkingFingerprint): DependencyGrap
     entry === null ||
     entry.format !== GRAPH_FORMAT ||
     entry.fingerprint !== key.digest ||
-    !isGraph(entry.graph)
+    !isGraph(entry.graph) ||
+    typeof entry.targets !== 'object' ||
+    entry.targets === null ||
+    Array.isArray(entry.targets) ||
+    !Object.values(entry.targets).every(digest => typeof digest === 'string')
   )
     return undefined
+  const changed = changedTarget(root, entry.targets)
+  if (changed !== undefined) return { changed }
   try {
     const now = new Date()
     utimesSync(path, now, now)
   } catch {
     // 摸不动时间只影响留哪几份。
   }
-  return entry.graph
+  return { graph: entry.graph }
 }
 
 /** 写缓存：先写临时名再改名，别的进程读到的要么是整份要么没有；写不进就算了。写完只留最近 `WORKING_CACHE_KEEP` 份。 */
-function writeWorkingCache(path: string, key: WorkingFingerprint, graph: DependencyGraph): void {
+function writeWorkingCache(
+  path: string,
+  key: WorkingFingerprint,
+  graph: DependencyGraph,
+  targets: Readonly<Record<string, string>>,
+): void {
   const entry: WorkingCacheEntry = {
     format: GRAPH_FORMAT,
     fingerprint: key.digest,
     inputs: key.inputs,
+    targets,
     graph,
   }
   try {
@@ -883,26 +990,109 @@ function git(root: string, args: readonly string[], input?: Buffer): Buffer {
   return run.stdout
 }
 
+/** 基线图的临时树：`tree-<提交>-<进程号>`，进程号是建它的进程。 */
+const TREE_NAME = /^tree-[0-9a-f]+-(\d+)$/u
+
+/**
+ * 进程已不在、目录又过了这么久没动，才算别人留下的残留。进程号只在本机本系统里有意义：同一个 git 目录
+ * 也可能被 WSL 里的运行用着，那边的进程这里看不见，宽限期挡住正在跑的那一次（一次导出加 dependency-cruiser 不到一分钟）。
+ */
+export const STALE_TREE_GRACE_MS = 10 * 60 * 1000
+
+/** 进程还在不在：`kill(pid, 0)` 只探测不发信号；没有权限（EPERM）说明进程在。 */
+export function processAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
+/**
+ * 删一棵临时树。Windows 上刚解开的文件可能还被杀毒或索引程序占着（EBUSY、EPERM、ENOTEMPTY），
+ * 重试几次；仍删不掉就返回错误，由调用方报告，不让它盖过图本身的结果。
+ */
+function removeTree(tree: string): Error | undefined {
+  try {
+    rmSync(tree, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 })
+    return undefined
+  } catch (error) {
+    return error instanceof Error ? error : new Error(String(error))
+  }
+}
+
+/**
+ * 清掉别的运行留下的临时树：被强行结束（任务超时、关掉终端、杀进程树）的运行来不及走到 `finally`，
+ * 树就留在 git 目录里。只删进程已不在、且过了宽限期的；活着的进程的树不动。返回删掉的目录名。
+ */
+export function sweepStaleTrees(
+  directory: string,
+  alive: (pid: number) => boolean = processAlive,
+  now: number = Date.now(),
+): string[] {
+  let names: string[]
+  try {
+    names = readdirSync(directory)
+  } catch {
+    return []
+  }
+  const removed: string[] = []
+  for (const name of names) {
+    const pid = TREE_NAME.exec(name)?.[1]
+    if (pid === undefined || alive(Number(pid))) continue
+    const tree = join(directory, name)
+    try {
+      if (now - statSync(tree).mtimeMs < STALE_TREE_GRACE_MS) continue
+    } catch {
+      continue
+    }
+    const failed = removeTree(tree)
+    if (failed === undefined) removed.push(name)
+    else process.stderr.write(`旧的基线图临时树 ${tree} 没删掉：${failed.message}\n`)
+  }
+  return removed
+}
+
+/** 读基线图的缓存：文件不在、JSON 坏或形状不对都按未命中，由调用方重算并覆盖。 */
+function readRevisionCache(path: string): DependencyGraph | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(readFileSync(path, 'utf8'))
+  } catch {
+    return undefined
+  }
+  return isGraph(parsed) ? parsed : undefined
+}
+
 /**
  * 某个提交上的依赖图。把提交里的源码导出到 git 目录下的临时树、补上 workspace 链接后跑；
  * 提交不会变，结果按提交与规则文件的摘要缓存，同一基线只算一次。
+ * 开始时顺带清掉别的运行留下的临时树（见 `sweepStaleTrees`）。
  */
 export function revisionGraph(root: string, revision: string): DependencyGraph {
   const commit = git(root, ['rev-parse', '--verify', `${revision}^{commit}`])
     .toString()
     .trim()
-  const rules = createHash('sha256').update(readFileSync(cruiseConfig())).digest('hex').slice(0, 12)
+  // 键里除规则文件外还有出图代码的摘要：同一个提交上，改了出图代码的版本不读别的版本留下的图。
+  const rules = sha256(
+    `${sha256(readFileSync(cruiseConfig()))} ${sha256(readFileSync(THIS_MODULE))}`,
+  ).slice(0, 12)
   const directory = cacheDirectory(root)
+  sweepStaleTrees(directory)
   // 文件名带图的格式版本：旧格式的缓存没有 `dependencies` 或 `modules`，不能当现在的图读。
   const cached = join(directory, `${commit}-${rules}-${GRAPH_FORMAT}.json`)
-  if (existsSync(cached)) return JSON.parse(readFileSync(cached, 'utf8')) as DependencyGraph
+  const hit = readRevisionCache(cached)
+  if (hit !== undefined) return hit
 
   const present = new Set(
     git(root, ['ls-tree', '--name-only', commit]).toString().split('\n').filter(Boolean),
   )
   const paths = [...ROOTS, 'tsconfig.base.json', 'package.json'].filter(path => present.has(path))
   const tree = join(directory, `tree-${commit}-${process.pid}`)
-  rmSync(tree, { recursive: true, force: true })
+  const leftover = removeTree(tree)
+  if (leftover !== undefined)
+    throw new DependencyGraphUnavailable(`清不掉 ${tree}：${leftover.message}`)
   mkdirSync(tree, { recursive: true })
   try {
     if (paths.length > 0) {
@@ -928,6 +1118,9 @@ export function revisionGraph(root: string, revision: string): DependencyGraph {
     renameSync(staged, cached)
     return graph
   } finally {
-    rmSync(tree, { recursive: true, force: true })
+    // 删不掉不改变图的结果，也不盖过前面的错误：报告出来，下次运行时按残留清理。
+    const failed = removeTree(tree)
+    if (failed !== undefined)
+      process.stderr.write(`基线图临时树 ${tree} 没删掉：${failed.message}；下次运行时再清\n`)
   }
 }

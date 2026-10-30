@@ -51,7 +51,7 @@ import {
   type PlanFile,
 } from './steps.ts'
 import { timestamp } from './support.ts'
-import { cachePolicy } from './test-cache.ts'
+import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 import { admissionRequested, affectedMembers, dependentMembers } from './turbo.ts'
 import { effectiveParallelism, readTestRunsConfig } from './config.ts'
 import { budgetFor, describeBudget, WORKER_BUDGET_ENV } from './parallelism.ts'
@@ -169,6 +169,8 @@ export interface CheckOptions {
   readonly keepGoing: boolean
   /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；与 `resumeFrom` 同给时以 2 退出。 */
   readonly list: boolean
+  /** 成员测试不读结果缓存：只传给子进程的环境，不改本进程的。 */
+  readonly noCache?: boolean
   /** `--resume-from <H1>`：接续 H1 上快速失败的准入（全量或按影响面）。只在准入模式下接受，与 `FULL=1` 互斥。 */
   readonly resumeFrom?: string
 }
@@ -187,7 +189,7 @@ const STEP_INPUTS = {
 /** 这次运行时各缓存的状态，写进运行记录；`OMNE_TEST_CACHE` 不合法时在这里报错，不等到测试那一步。 */
 function cacheStates(env: NodeJS.ProcessEnv, full: boolean): CacheStates {
   return {
-    test: cachePolicy(env, { noCache: false, full }).read ? 'on' : 'off',
+    test: cachePolicy(env, { noCache: false, full, build: true }).read ? 'on' : 'off',
     depGraph: env[DEP_GRAPH_CACHE_ENV] === '0' ? 'off' : 'on',
     // check 不跑变异，变异增量的状态这里不知道。
     mutation: 'unknown',
@@ -286,6 +288,7 @@ export async function runCheck(
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const name of GIT_ENV) delete env[name]
   if (admission) env['OMNE_ADMISSION'] = '1'
+  if (options.noCache === true) env[TEST_CACHE_ENV] = '0'
   const full = fullRequested(env)
   if (options.resumeFrom !== undefined) {
     // 接续是准入的一种：不带准入模式的运行读缓存，写出的记录也不是任何提交的证据。
