@@ -24,6 +24,8 @@ function gapTable(text: string): readonly GapRow[] {
 }
 
 const cardOf = (url: string) => Number(/\/issues\/(\d+)$/.exec(url)?.[1])
+/** The hops a blocking residual gap names on this track. */
+const BLOCKED: readonly string[] = ['H09', 'H10', 'H11', 'H12', 'H13']
 
 describe('M2 path observations', () => {
   it('keeps the gap tables of README and README_ZH equal to RESIDUAL_GAPS', () => {
@@ -36,16 +38,30 @@ describe('M2 path observations', () => {
       expect(gapTable(readFileSync(new URL(document, import.meta.url), 'utf8'))).toEqual(expected)
   })
 
-  it('reports eight verified hops, a complete path and the non-blocking residual gaps of SPEC and README', async () => {
+  it('reports the first round verified, the probed hops as blocked gaps, and the residual gaps of SPEC and README', async () => {
     const report = await runContractSkeleton(skeletonInputs())
     expect(report.hops.map(hop => hop.hopId)).toEqual([...HOP_IDS])
     expect(report.scenarios.map(result => result.scenarioId)).toEqual([...REQUIRED_SCENARIOS])
-    expect(report.checksPassed).toBe(true)
-    expect(report.hops.map(hop => hop.state)).toEqual(HOP_IDS.map(() => 'verified'))
-    expect(report.fullPath).toBe('complete')
-    expect(report.gaps).toEqual([])
-    expect(report.residualGaps).toHaveLength(5)
-    expect(report.residualGaps.filter(gap => gap.blocking)).toEqual([])
+    expect(report.checksPassed).toBe(false)
+    expect(report.hops.map(hop => hop.state)).toEqual(
+      HOP_IDS.map(hopId => (BLOCKED.includes(hopId) ? 'gap' : 'verified')),
+    )
+    expect(report.fullPath).toBe('incomplete')
+    expect(report.gaps).toEqual([...BLOCKED])
+    expect(report.residualGaps).toHaveLength(10)
+    expect(report.residualGaps.filter(gap => gap.blocking).map(gap => gap.gapId)).toEqual([
+      'GAP-SECOND-RUN',
+      'GAP-TOOL-LOOP',
+      'GAP-AGENT-REASSEMBLY',
+      'GAP-REASONING-REPLAY',
+      'GAP-SESSION-LOG-TARGETS',
+    ])
+    for (const hop of report.hops.filter(hop => BLOCKED.includes(hop.hopId))) {
+      expect(hop.blockedBy.length).toBeGreaterThan(0)
+      // The probe reached the hop and recorded the refusal it met; the evidence is not empty.
+      expect(hop.fragments[0]?.status).toBe('fail')
+      expect(hop.fragments[0]?.evidence).not.toContain('not-reached')
+    }
     const spec = readFileSync(new URL('../SPEC.md', import.meta.url), 'utf8')
     for (const document of ['../README.md', '../README_ZH.md']) {
       const text = readFileSync(new URL(document, import.meta.url), 'utf8')
@@ -101,7 +117,7 @@ describe('M2 path observations', () => {
       state: 'verified' as const,
       fragments:
         hop.fragments.length > 0
-          ? hop.fragments
+          ? hop.fragments.map(fragment => ({ ...fragment, status: 'pass' as const }))
           : [
               {
                 fragmentId: 'hypothetical-connection',
@@ -113,7 +129,7 @@ describe('M2 path observations', () => {
     const unblocked = report.residualGaps.map(gap => ({ ...gap, blocking: false }))
     expect(aggregatePath({ ...report, hops, residualGaps: unblocked }).fullPath).toBe('complete')
     // A supplied observation cannot claim a hop verified while a blocking gap names it.
-    const reblocked = report.residualGaps.map(gap =>
+    const reblocked = unblocked.map(gap =>
       gap.gapId === 'GAP-RECEIVE-SURFACE' ? { ...gap, blocking: true } : gap,
     )
     const claimed = aggregatePath({ ...report, hops, residualGaps: reblocked })

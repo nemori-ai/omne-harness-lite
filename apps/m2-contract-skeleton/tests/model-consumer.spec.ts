@@ -14,12 +14,13 @@ describe('public Model conformance consumer', () => {
     const fragments = modelFragments(report)
     expect(fragments.map(fragment => fragment.fragmentId)).toEqual([...CONFORMANCE_OBLIGATIONS])
     expect(fragments.every(fragment => fragment.status === 'pass')).toBe(true)
-    expect(report.checksPassed).toBe(true)
     expect(report.hops.find(hop => hop.hopId === 'H06')).toMatchObject({
       state: 'verified',
       blockedBy: [],
     })
-    expect(report.fullPath).toBe('complete')
+    // The probed hops of CS v2 stay gaps on this track, so the whole path is incomplete.
+    expect(report.checksPassed).toBe(false)
+    expect(report.fullPath).toBe('incomplete')
   })
 
   it('rejects not-applicable even when the public suite reports ok', async () => {

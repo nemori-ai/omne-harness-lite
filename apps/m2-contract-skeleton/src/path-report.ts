@@ -2,19 +2,45 @@ import { CONFORMANCE_OBLIGATIONS } from '@omne-harness/model-contract/conformanc
 import type { FirstPathObservation } from './path.ts'
 import { GOVERNANCE_SCENARIOS, REQUIRED_SCENARIOS, type ScenarioResult } from './scenarios.ts'
 
-export const HOP_IDS = ['H01', 'H02', 'H03', 'H04', 'H05', 'H06', 'H07', 'H08'] as const
+export const HOP_IDS = [
+  'H01',
+  'H02',
+  'H03',
+  'H04',
+  'H05',
+  'H06',
+  'H07',
+  'H08',
+  'H09',
+  'H10',
+  'H11',
+  'H12',
+  'H13',
+] as const
 export type HopId = (typeof HOP_IDS)[number]
 export type FragmentObservation = Readonly<{
   fragmentId: string
   status: 'pass' | 'fail' | 'not-applicable'
   evidence: string
 }>
+/**
+ * What stands in a plugin-tree row of the application assembly page on this path: the member's
+ * real implementation, a `./testing` double or a stand-in of this application, or nothing.
+ */
+export type Realization = 'real' | 'double' | 'absent'
+/** The caller's declaration of the realization of each plugin-tree row it wired. */
+export type RealizationTable = Readonly<Record<string, Realization>>
+export type RowRealization = Readonly<{ row: string; realization: Realization | 'undeclared' }>
 export type HopObservation = Readonly<{
   hopId: HopId
   publicEntry: string
   responsibility: string
   ownerCards: readonly string[]
   reason: string
+  /** The rows of the plugin tree that the hop crosses, by the row ids of the assembly page. */
+  rows: readonly string[]
+  /** The declared realization of each row on this invocation. */
+  realization: readonly RowRealization[]
   state: 'verified' | 'gap' | 'failed'
   /** The blocking residual gaps that keep this hop a gap although its fragments pass. */
   blockedBy: readonly string[]
@@ -29,6 +55,7 @@ export const HOP_DEFINITIONS = [
     responsibility: 'create the organization and tenant',
     ownerCards: [319, 659],
     reason: 'SPEC.md#h01',
+    rows: ['server-entry', 'identity'],
   },
   {
     hopId: 'H02',
@@ -36,20 +63,31 @@ export const HOP_DEFINITIONS = [
     responsibility: 'log in and recognize the tenant',
     ownerCards: [319, 659],
     reason: 'SPEC.md#h02',
+    rows: ['server-entry', 'identity'],
   },
   {
     hopId: 'H03',
-    publicEntry: '@omne-harness/session-contract',
-    responsibility: 'create the session',
-    ownerCards: [536],
+    publicEntry: '@omne-harness/public-contract; @omne-harness/session-contract',
+    responsibility: 'create the session through the session codec, with the injected access check',
+    ownerCards: [685, 536, 680],
     reason: 'SPEC.md#h03',
+    rows: ['server-entry', 'authorization', 'session-storage', 'session-provider', 'session-ad10'],
   },
   {
     hopId: 'H04',
-    publicEntry: '@omne-harness/session-contract; @omne-harness/agent',
-    responsibility: 'first request, Run start and hand-over to Agent',
-    ownerCards: [536, 502],
+    publicEntry:
+      '@omne-harness/public-contract; @omne-harness/session-contract; @omne-harness/agent',
+    responsibility: 'first request through the session codec, Run start and hand-over to Agent',
+    ownerCards: [685, 536, 502],
     reason: 'SPEC.md#h04',
+    rows: [
+      'server-entry',
+      'session-provider',
+      'session-ad14',
+      'agent-adoptions',
+      'agent-host',
+      'session-handoff',
+    ],
   },
   {
     hopId: 'H05',
@@ -58,13 +96,23 @@ export const HOP_DEFINITIONS = [
     responsibility: 'Agent assembles through Request Context and sends the Model call',
     ownerCards: [502, 676],
     reason: 'SPEC.md#h05',
+    rows: [
+      'agent-host',
+      'session-conditions',
+      'agent-model-selection',
+      'session-ad04',
+      'agent-context',
+      'model-host',
+    ],
   },
   {
     hopId: 'H06',
     publicEntry: '@omne-harness/model-contract; @omne-harness/agent',
-    responsibility: 'Model result reaches the Agent receiver and journal',
-    ownerCards: [502, 673],
+    responsibility:
+      'Model result is pushed to the host receiver, written as a received entry, and the loop continues from it',
+    ownerCards: [683, 787, 502],
     reason: 'SPEC.md#h06',
+    rows: ['model-host', 'agent-host', 'agent-journal'],
   },
   {
     hopId: 'H07',
@@ -72,13 +120,65 @@ export const HOP_DEFINITIONS = [
     responsibility: 'Agent reply enters the Session journal',
     ownerCards: [502, 536],
     reason: 'SPEC.md#h07',
+    rows: ['session-handoff', 'session-ad01'],
   },
   {
     hopId: 'H08',
-    publicEntry: '@omne-harness/session-contract',
-    responsibility: 'history read returns the pure-message reply',
-    ownerCards: [536],
+    publicEntry: '@omne-harness/public-contract; @omne-harness/session-contract',
+    responsibility: 'history read through the session codec returns the pure-message replies',
+    ownerCards: [685, 536],
     reason: 'SPEC.md#h08',
+    rows: ['server-entry', 'session-provider'],
+  },
+  {
+    hopId: 'H09',
+    publicEntry: '@omne-harness/session-contract; @omne-harness/agent',
+    responsibility: 'the later rounds of the session: a Run and a reply for each input',
+    ownerCards: [536, 756, 502],
+    reason: 'SPEC.md#h09',
+    rows: ['session-provider', 'session-ad02', 'session-ad14', 'agent-host'],
+  },
+  {
+    hopId: 'H10',
+    publicEntry:
+      '@omne-harness/agent; @omne-harness/tool-contract; @omne-harness/execution-environment-contract',
+    responsibility:
+      'Model requests a tool, Tool runs it in the execution environment, the result returns to the Model',
+    ownerCards: [502, 791],
+    reason: 'SPEC.md#h10',
+    rows: [
+      'agent-host',
+      'tool-runtime',
+      'tool-executor',
+      'tool-environments',
+      'execution-environment',
+      'execution-files',
+    ],
+  },
+  {
+    hopId: 'H11',
+    publicEntry: '@omne-harness/agent; @omne-harness/model-contract',
+    responsibility:
+      'the Agent instance is withdrawn during a Model call and assembled again; the call is not re-sent and the loop continues from the Journal',
+    ownerCards: [502, 787, 746],
+    reason: 'SPEC.md#h11',
+    rows: ['agent-host', 'agent-instances', 'model-host', 'server-entry'],
+  },
+  {
+    hopId: 'H12',
+    publicEntry: '@omne-harness/model-contract; @omne-harness/agent',
+    responsibility: 'a reply with reasoning is consumed and the next request replays its state',
+    ownerCards: [502, 683],
+    reason: 'SPEC.md#h12',
+    rows: ['model-host', 'agent-host', 'session-ad04'],
+  },
+  {
+    hopId: 'H13',
+    publicEntry: '@omne-harness/session-adapters; @omne-harness/session-contract',
+    responsibility: 'the Agent records of the round are read from the Session log',
+    ownerCards: [756],
+    reason: 'SPEC.md#h13',
+    rows: ['agent-journal', 'session-ad02'],
   },
 ] as const satisfies readonly Readonly<{
   hopId: HopId
@@ -86,12 +186,13 @@ export const HOP_DEFINITIONS = [
   responsibility: string
   ownerCards: readonly number[]
   reason: string
+  rows: readonly string[]
 }>[]
 
 /**
- * What the connected path does not include. A blocking gap names a part that #684 requires for the
- * hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part that
- * #684 lets this application call directly or leave out for G1.
+ * What the connected path does not include. A blocking gap names a part that the card requires for
+ * the hop, so the hop stays a gap even when every fragment passes. A non-blocking gap names a part
+ * that the card lets this application call directly or leave out.
  */
 export type ResidualGap = Readonly<{
   gapId: string
@@ -111,7 +212,7 @@ export const RESIDUAL_GAPS = [
   },
   {
     gapId: 'GAP-SESSION-COORDINATOR',
-    hops: ['H04', 'H07'],
+    hops: ['H04', 'H07', 'H09'],
     owners: [card(536), card(756)],
     blocking: false,
     reason: 'SPEC.md#gap-session-coordinator',
@@ -133,9 +234,44 @@ export const RESIDUAL_GAPS = [
   {
     gapId: 'GAP-RECEIVE-SURFACE',
     hops: ['H06'],
-    owners: [card(502), card(673)],
+    owners: [card(795), card(502)],
     blocking: false,
     reason: 'SPEC.md#gap-receive-surface',
+  },
+  {
+    gapId: 'GAP-SECOND-RUN',
+    hops: ['H09'],
+    owners: [card(756), card(502)],
+    blocking: true,
+    reason: 'SPEC.md#gap-second-run',
+  },
+  {
+    gapId: 'GAP-TOOL-LOOP',
+    hops: ['H10'],
+    owners: [card(520), card(524), card(525), card(526), card(528)],
+    blocking: true,
+    reason: 'SPEC.md#gap-tool-loop',
+  },
+  {
+    gapId: 'GAP-AGENT-REASSEMBLY',
+    hops: ['H11'],
+    owners: [card(502), card(746)],
+    blocking: true,
+    reason: 'SPEC.md#gap-agent-reassembly',
+  },
+  {
+    gapId: 'GAP-REASONING-REPLAY',
+    hops: ['H12'],
+    owners: [card(502), card(683)],
+    blocking: true,
+    reason: 'SPEC.md#gap-reasoning-replay',
+  },
+  {
+    gapId: 'GAP-SESSION-LOG-TARGETS',
+    hops: ['H13'],
+    owners: [card(756)],
+    blocking: true,
+    reason: 'SPEC.md#gap-session-log-targets',
   },
 ] as const satisfies readonly ResidualGap[]
 
@@ -161,26 +297,38 @@ function blockingGaps(
     .map(gap => gap.gapId)
 }
 
+/**
+ * A hop the path did not reach, or that a blocking residual gap names, is a gap; its fragments
+ * keep the evidence of what the path met there. A reached, unblocked hop with a failing fragment
+ * is failed; otherwise it is verified.
+ */
 function stateOf(
   fragments: readonly FragmentObservation[],
   reached: boolean,
   blockedBy: readonly string[],
 ): HopObservation['state'] {
-  if (!reached) return 'gap'
-  if (!fragments.every(fragment => fragment.status === 'pass')) return 'failed'
-  return blockedBy.length > 0 ? 'gap' : 'verified'
+  if (!reached || blockedBy.length > 0) return 'gap'
+  return fragments.every(fragment => fragment.status === 'pass') ? 'verified' : 'failed'
+}
+
+function realizationOf(
+  rows: readonly string[],
+  declared: RealizationTable,
+): readonly RowRealization[] {
+  return rows.map(row => ({ row, realization: declared[row] ?? 'undeclared' }))
 }
 
 /**
  * Builds one observation per hop from the connected path, the governance protocol scenarios and the
  * public Model obligations. A hop that the path did not reach is a gap. A reached hop with any
  * failing fragment is failed. A reached hop whose fragments pass stays a gap while a blocking
- * residual gap names it.
+ * residual gap names it. `realization` is the caller's declaration of what stands in each row.
  */
 export function observeHops(
   path: FirstPathObservation | null,
   governance: readonly ScenarioResult[],
   model: readonly FragmentObservation[],
+  realization: RealizationTable = {},
 ): readonly HopObservation[] {
   return HOP_DEFINITIONS.map(definition => {
     const ids = requiredFragments(definition.hopId)
@@ -214,6 +362,7 @@ export function observeHops(
     return {
       ...definition,
       ownerCards: definition.ownerCards.map(card),
+      realization: realizationOf(definition.rows, realization),
       state: stateOf(fragments, reached, blockedBy),
       blockedBy,
       fragments,
@@ -244,7 +393,8 @@ function hopErrors(hop: HopObservation): readonly string[] {
   const errors: string[] = []
   if (
     [hop.publicEntry, hop.reason, hop.responsibility].some(text => text.length === 0) ||
-    hop.ownerCards.length === 0
+    hop.ownerCards.length === 0 ||
+    hop.rows.length === 0
   )
     errors.push(`incomplete-hop-metadata:${hop.hopId}`)
   if (
@@ -266,6 +416,7 @@ function missingHop(hopId: HopId): HopObservation {
   return {
     ...definition,
     ownerCards: definition.ownerCards.map(card),
+    realization: realizationOf(definition.rows, {}),
     state: 'gap',
     blockedBy: blockingGaps(hopId),
     fragments: [],
