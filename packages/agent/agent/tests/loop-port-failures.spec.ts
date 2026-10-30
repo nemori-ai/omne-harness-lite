@@ -11,7 +11,7 @@ import type { ContentBlock } from '@omne-harness/content-block'
 import type { ModelFailure } from '@omne-harness/model-contract'
 import { fail } from '@omne-harness/operation-result'
 import { execution, failure, ok, type Principal } from './journal-support.ts'
-import { invoke, loopAssembly, stoppedAt } from './loop-support.ts'
+import { alice, eventually, invoke, loopAssembly, stoppedAt } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 
@@ -280,7 +280,7 @@ const CASES: readonly Case[] = [
 ]
 
 describe('a port failure on the normal path stops the run at its node (#502 1.2 limit)', () => {
-  it.each(CASES)('%s: %s fails', async (node, _, position, inject) => {
+  it.each(CASES)('%s: %s fails', async (node, port, position, inject) => {
     const assembly = await loopAssembly([execution(), execution('exec-2')], inject)
     assembly.release.open()
     ok(await invoke(assembly))
@@ -289,6 +289,22 @@ describe('a port failure on the normal path stops the run at its node (#502 1.2 
     const state = await stoppedAt(assembly, position)
     if (node === 'F4' || node === 'O0') expect(state.kind).toBe('ended')
     else expect(state.kind).not.toBe('ended')
+    if (port !== 'journal.tryFinish') return
+    // The wait of an unavailable F3 is in memory: several check times pass, each retries
+    // tryFinish, and none of them writes a revision.
+    const read = async () =>
+      ok(await assembly.controls.journal.port.load({ ...alice, execution: execution() }))
+    const stopped = await read()
+    for (let check = 0; check < 3; check += 1) {
+      await eventually(async () => assembly.controls.clock.pending().length > 0)
+      const due = assembly.controls.clock.pending()[0]
+      if (due === undefined) throw new Error('the check time is required')
+      ok(assembly.controls.clock.advanceTo(due))
+    }
+    await eventually(async () => assembly.controls.clock.pending().length > 0)
+    const after = await read()
+    expect(after.revision).toBe(stopped.revision)
+    expect(after.state.kind).toBe('settling')
   })
 })
 

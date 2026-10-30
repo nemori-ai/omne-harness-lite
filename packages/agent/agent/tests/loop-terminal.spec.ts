@@ -563,7 +563,7 @@ describe('#516 terminal exit', () => {
     },
   )
 
-  it('F3: a tryFinish that answers unavailable goes to R0, which saves one dependency wait; the wake rereads and the next pass ends without a second terminal operation in between', async () => {
+  it('F3: a tryFinish that answers unavailable goes to R0, which waits in memory: no waiting commit, the revision and the settling state stay; at the check time the wake retries tryFinish and ends once the dependency is back', async () => {
     const tryFinishes: string[] = []
     const commits: JournalCommit<Principal>[] = []
     const assembly = await loopAssembly([execution()], d => ({
@@ -590,17 +590,16 @@ describe('#516 terminal exit', () => {
     ok(await c.accept())
     assembly.release.open()
     ok(await c.runExecution())
-    const waiting = commits.filter(item => item.events.some(event => event.kind === 'waiting'))
-    expect(waiting).toHaveLength(1)
-    expect(waiting[0]?.state).toEqual({
-      kind: 'waiting',
-      waits: [{ kind: 'dependency', owner: 'test-journal', position: 'R0' }],
-    })
-    expect((await load(assembly)).state.kind).toBe('waiting')
+    const unavailable = await load(assembly)
+    expect(unavailable.state.kind).toBe('settling')
+    expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
     // Nothing rechecks the terminal inside the wait: the driver sleeps until the check time.
     const controller = new AbortController()
     const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
     await eventually(async () => assembly.controls.clock.pending().length > 0)
+    const waiting = await load(assembly)
+    expect(waiting.revision).toBe(unavailable.revision)
+    expect(waiting.state.kind).toBe('settling')
     const due = assembly.controls.clock.pending()[0]
     if (due === undefined) throw new Error('the check time is required')
     expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
@@ -608,9 +607,7 @@ describe('#516 terminal exit', () => {
     ok(await c.runExecution())
     expect((await load(assembly)).state.kind).toBe('ended')
     expect(tryFinishes).toHaveLength(2)
-    expect(
-      commits.filter(item => item.events.some(event => event.kind === 'waiting')),
-    ).toHaveLength(1)
+    expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
   })
 
   it('tryFinish refuses an intent without the proof as changed, a forged list as invalid, and an unissued list as invalid', async () => {
