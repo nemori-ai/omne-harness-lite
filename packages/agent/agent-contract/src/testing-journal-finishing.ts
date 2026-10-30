@@ -35,6 +35,7 @@ import {
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
 import {
+  advancement,
   advances,
   cancelAuthorization,
   cancelControl,
@@ -3125,6 +3126,89 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'the ordinary tryFinish with an unknown call',
         )
         assert.deepEqual(await load(opened), issued, 'unavailable wrote nothing')
+      },
+    },
+    {
+      name: 'MT-5: prepareFinish that names a candidate of this execution that another F1 has superseded is changed, not invalid, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('prepare-superseded-candidate')
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const kept = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              kept,
+              'f1-b',
+              opened.authority,
+              candidateContent(kept, 'f1-b', { conditions: evidence('conditions/changed') }),
+            ),
+          ),
+          'the F1 of other content',
+        )
+        const at = await load(opened)
+        assert.notEqual(candidateOf(at), first.operation, 'the first candidate is superseded')
+        await refused(
+          journal.prepareFinish(
+            prepareInput(opened, at, 'prepare-old', advancement(opened.authority), first.operation),
+          ),
+          'changed',
+          'prepareFinish of a superseded candidate',
+        )
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'MT-6: establish-cancellation whose predecessor is the current candidate of two succeeds and links the supersession from that candidate',
+      run: async () => {
+        const opened = await fixture.open('establish-over-second-candidate')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const kept = await load(opened)
+        const second = f1Commit(
+          opened,
+          kept,
+          'f1-b',
+          opened.authority,
+          candidateContent(kept, 'f1-b', { conditions: evidence('conditions/changed') }),
+        )
+        await ok(journal.commit(second), 'the F1 of other content')
+        const control = await effectiveCancel(opened)
+        const result = await establish(opened, control)
+        assert.equal(result.candidate.conclusion.kind, 'cancelled')
+        assert.equal(result.supersession?.from, second.operation)
+        assert.equal(result.supersession?.to, result.candidate.candidate)
+        const after = await load(opened)
+        assert.deepEqual(
+          after.settlement.candidates.map(candidate => candidate.candidate),
+          [first.operation, second.operation, result.candidate.candidate],
+        )
+        assert.equal(candidateOf(after), result.candidate.candidate)
+      },
+    },
+    {
+      name: 'MT-7: under an effective cancel an advancement tryFinish of a complete candidate whose list was never issued is changed, not invalid at intent.obligations, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('try-finish-advancement-under-cancel')
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await effectiveCancel(opened)
+        const at = await load(opened)
+        assert.equal(intentOf(at).obligations, null, 'no list is issued')
+        const finished = await ok(
+          journal.tryFinish(finishInput(opened, at, 'end')),
+          'an advancement tryFinish under an effective cancel',
+        )
+        assert.equal(finished.kind, 'changed')
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
       },
     },
   ]
