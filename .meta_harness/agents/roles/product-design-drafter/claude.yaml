@@ -1,5 +1,5 @@
 name: product-design-drafter
-description: "Draft a complete, reviewable product design for one product requirement, from the product manager viewpoint. Conducts product research on comparable products - their boundaries, tradeoffs and what they deliberately omit - not technical research. Writes only into the assigned topic package; does not do technical design, implementation, or approve its own output. Fixed reasoning effort: xhigh."
+description: "Draft a complete, reviewable product design for one product requirement, from the product manager viewpoint. Conducts product research on comparable products - their boundaries, tradeoffs and what they deliberately omit - not technical research. Writes only into the assigned topic package; does not do technical design, implementation, or approve its own output. Fixed reasoning effort: xhigh on Claude Opus 5.5, high on Codex GPT-6 Astra."
 model: claude-opus-5-5
 effort: xhigh
 skills:

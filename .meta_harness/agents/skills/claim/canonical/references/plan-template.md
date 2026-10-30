@@ -42,10 +42,10 @@
 
 本会话宿主：<Claude Code | Codex>，版本 <>。
 
-- Claude Code：派发时用 Agent 工具的 `model` 参数显式给模型。
-- Codex：角色文件钉值优先；developer 与 qa 不钉模型，**派发时必须显式给模型**，否则继承父会话模型。
-- 解析命令：`render_pair.py --resolve <claude_code|codex> --policy-version <版本> --work-kind <类型> [--risk <风险>]`，结果存 `tmp/line-<线>/role-dispatch.json`，同类切片复用。
-- 档位拿不准时上调一档。每次派发用新子代理，简报只给指针（Matt `writing-for-agents`；输入字段按 `.meta_harness/agents/roles/developer-task.md`）。
+- Claude Code：派发时用 Agent 工具的 `model` 与 `effort` 参数显式给模型与档位。
+- Codex：角色文件钉值优先；developer 与 qa 不钉模型，**派发时必须显式给模型**，否则继承父会话模型；可调档位的角色也要显式给档位。
+- 解析命令：`render_pair.py --resolve <claude_code|codex> --policy-version <版本> --work-kind <类型> [--risk <风险>]`，结果存 `tmp/line-<线>/role-dispatch.json`，同类切片复用；策略版本变化时重新解析。
+- 模型档拿不准时上调一档；顶档模型上只有 hardest 任务用 xhigh。每次派发用新子代理，简报只给指针（Matt `writing-for-agents`；输入字段按 `.meta_harness/agents/roles/developer-task.md`）。
 
 | 切片或环节 | 工作性质与复杂度 | 角色与 implementation_kind | 模型与 effort | 理由 |
 | --- | --- | --- | --- | --- |

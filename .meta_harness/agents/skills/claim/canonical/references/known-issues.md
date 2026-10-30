@@ -47,11 +47,16 @@ rm -rf "$stage"
 - 新工作树没有 agent 投影时，`pnpm run check` 报缺少生成目录。umask 让投影文件带组写权限时，`check:agents` 报权限不符，对报错的文件 `chmod g-w`。
 - 有成员的验收夹具从 `dist` 导入时，准入的依赖检查报模块无法解析。准入前先构建该成员及其依赖。
 - 只用离线缓存的测试可能报 `ERR_PNPM_NO_OFFLINE_META`。在临时目录对缺少的包运行 `pnpm install --lockfile-only` 补齐离线元数据，证据里写明这是环境问题。
+- 手动构建后又改了源码时，成员下的旧 `dist` 会被 `check:declarations` 读到，结果反映的是旧产物。准入前删掉手动构建残留的 `dist`，需要时按上面「验收夹具从 `dist` 导入」一条重新构建。
+- git 版本太旧时（实测 2.25），turbo 的 `ls --affected` 报 `Unable to query SCM`。把新版 git 放到 PATH 前面。
+- Claude Code 会话的钩子命令来自会话启动时所在检出的生成物，并在会话期间缓存。主检出落后时，所有工作树的钩子都可能报错。修法是快进主检出、重装依赖、重新生成投影，再重启会话。
+- Claude Code 会话会把 shell 的工作目录重置回会话的主工作目录。在某棵工作树里启动的会话，`cd` 到别的工作树不会保持。要在几棵树之间切换，从主检出根启动会话，或者每条命令都写绝对路径或 `git -C <树>`。
 
 ## 卡与派发
 
 - 卡没有前置条件时，「交付条件」整节正文必须恰好是 `无`，不带句号。否则 `start` 报条件表无法建立完整引用。
 - 派发评论不可再改。编辑过的派发评论使 `start` 以 `unknown` 失败。要改派发内容时发新的派发。
+- 对一张卡运行派发命令时报 `deviation decision-kind-invalid`，或 `start` 报 `Task card has protocol deviations`：先查这张卡的评论里有没有不是交付决定、却写了「决定」列表字段的评论。规则见 `docs/engineering/delivery.md`「4. 接受、取消与重开」（P24）。
 - 卡不在 Project 中时，云端会话的 `start` 等 180 秒后以 `Delivery facts timed out` 失败。云端会话不能添加 Project item，先请有权限的人加。
 - 云端会话的 `gh` GraphQL 请求返回 403。读卡与改卡用 REST：`gh api repos/<仓库>/issues/<号>`，`gh api -X PATCH repos/<仓库>/issues/<号> -F body=@<文件>`。
 - 经云端代理写入 GitHub 的正文里，一段没有空白的文字里出现两个 URL，或 URL 后紧跟反引号内容时，整段会被包成代码段。写入前在每个 Markdown 链接后加一个空格。代理还可能在正文末尾追加一行署名，读回比较时忽略它。
@@ -61,6 +66,15 @@ rm -rf "$stage"
 - `pnpm run check` 开始时算一次计划文件，之后每步读计划时核对计划对应的提交与当前 HEAD。中途提交会让这次准入失败，只能重跑（P11）。
 - `test:triage` 不经过 turbo 的严格环境模式，可能把依赖环境的失败报成「隔离后稳定通过」。用常用命令里的 turbo 命令定向复现。
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
+- 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。负载造成的超时先如实报告，写明当时自己有没有加负载。
+- 同一用户的全部检出共用测试名额。工作树隔离不隔离名额，也不隔离机器的 CPU。起差分变异、`metrics --coverage` 这类长任务前，先看有没有人在排队。写者的检查长时间没有输出时，读名额的锁文件看是谁占着。方法见 `scripts/README.md`「运行名额」（P29）。
+- 本卡任何提交碰过 `pnpm-lock.yaml` 时，锁文件是全局路径，余下的 `metrics --coverage`、`test:affected` 与 `check` 都按全部成员跑。中间轮用不带 `--coverage` 的 `pnpm run metrics`，基线按 `review-code`「度量与差分变异的基线」判定：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
+- 差分变异的工作进程数在启动时按空闲 CPU 定一次，整次运行不变。启动日志写明进程数及其来历，启动后先看这一行。机器忙时启动，数会偏小，这时停掉，用 `VITEST_MAX_WORKERS=<n>` 指定后重启。每个进程的 CPU 占用都很低时，它在等待，缩小范围比加进程有效。日志在构建之后可能一直没有输出，直到结束，看进程表判断进度。
+- 差分变异读工作区，未提交和未跟踪的文件都算进去。变异在跑的那棵树，写者不改，写者另用一棵树。变异沙箱目录 `.stryker-tmp-*` 还在时，`pnpm run check:docs` 以 1 退出。全树检查放在变异结束后，或换一棵树跑。
+- 按命令行匹配进程的写法（`pgrep -f`、`pkill -f`）也会匹配调用它的 shell 自己：前者报出不存在的进程，后者可能杀掉调用它的 shell。查进程时把模式写成 `grep -E '[m]utation/cli\.ts'` 这种形式，避开匹配到自己（POSIX 上配 `ps -eo pid,etime,pcpu,args`）。
 - gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
+- 改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的 PR 要过两道确认：先 `repo-toolchain-review`，再 `publish`。清单里也有 `docs/architecture/constraints.json` 这类正文文件，改动前先读清单。`gate-cli.ts wait` 的 `--environments` 缺省只有 `publish`，这时要写 `--environments repo-toolchain-review,publish`。
+- `gate-release` 的 `npm-release` 确认是不可撤回的发版，不在代确认的授权里。自动模式的权限检查拦下它时不要绕过：把确认命令写成脚本交有权者运行，或请有权者在运行页面确认。
 - 会话的 stop hook 可能要求把提交改成 agent 署名。按贡献指南，作者是负责的人。线会话直接按贡献指南处理，不等人确认。
 - 上下文压缩后的摘要可能把宿主的署名提示记成常设规则。每次压缩后按贡献指南复核一次（P5）。
+- 压缩后只剩摘要，技能正文会淡出，已经写进技能的规矩要人再教一遍。压缩后续接时，重新加载本角色的技能（执行者 `claim`，线会话 `line`，Reduce `integrate`），并核对技能目录是当前检出的投影，不是旧工作树里的副本。

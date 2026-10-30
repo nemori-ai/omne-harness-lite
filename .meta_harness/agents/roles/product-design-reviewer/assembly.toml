@@ -1,1 +1,2 @@
 shared_prompts = ["../project-frame.md"]
+default_effort = "medium"

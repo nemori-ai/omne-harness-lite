@@ -390,6 +390,14 @@ def test_a_run_that_cannot_be_scored_says_why(tmp_path: Path, shape: dict[str, A
     assert failure is not None and failure[0] == failure_class
 
 
+def test_a_run_at_another_effort_cannot_be_scored(tmp_path: Path) -> None:
+    failure = read_back(tmp_path, effort="medium").failure(MODEL, "xhigh")
+    assert failure is not None and failure[0] == "effort-mismatch"
+    for name, effort in (("same", "xhigh"), ("unrecorded", None)):
+        (tmp_path / name).mkdir()
+        assert read_back(tmp_path / name, effort=effort).failure(MODEL, "xhigh") is None
+
+
 def test_a_clipped_answer_is_truncated_not_wrong(tmp_path: Path) -> None:
     episode = read_back(tmp_path, stop="max_tokens", handback=False)
     assert episode.failure(MODEL) is None and episode.truncated()
@@ -898,6 +906,7 @@ def test_preparing_leaves_a_copy_a_brief_and_what_to_dispatch(wired: dict[str, A
     inline = (evidence / "dispatch.inline.md").read_text(encoding="utf-8")
     assert str(role) in inline and brief in inline and "Read、Glob、Grep" in inline
     assert "subagent type `tiny-reviewer`" in text and f"model {MODEL}" in text and str(evidence / "brief.md") in text
+    assert text.count("effort high") == 2, "both dispatch lines say which effort to pass"
     with pytest.raises(cli.Refused, match="already prepared"):
         prepare(wired)
     prepare(wired, again=True)

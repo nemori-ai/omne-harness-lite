@@ -42,7 +42,7 @@ class Episode:
     efforts_observed: list[str] = field(default_factory=list)
     cwd: str | None = None             # the session's working directory, as the first event of the transcript gives it
 
-    def failure(self, requested_model: str) -> tuple[str, str] | None:
+    def failure(self, requested_model: str, requested_effort: str | None = None) -> tuple[str, str] | None:
         """(failure class, detail) when this run produced nothing that may be scored."""
         if self.timed_out:
             return ("timeout", f"wall-clock ceiling hit after {self.wall_seconds:.0f}s")
@@ -54,6 +54,9 @@ class Episode:
             return ("harness", f"host reported {self.terminal}")
         if requested_model not in self.models_observed:
             return ("model-mismatch", f"asked for {requested_model}, host recorded {self.models_observed}")
+        # A transcript without effort events cannot show a mismatch; one that records another effort can.
+        if requested_effort and self.efforts_observed and requested_effort not in self.efforts_observed:
+            return ("effort-mismatch", f"asked for {requested_effort}, host recorded {self.efforts_observed}")
         if not self.final.strip():
             return ("harness", "host reported success with an empty final message")
         return None

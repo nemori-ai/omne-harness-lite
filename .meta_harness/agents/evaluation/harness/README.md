@@ -138,7 +138,7 @@ _calibration/<判官>/                 判官校准：每份校准报告的判�
 没有改动受版本管理的文件、HEAD 仍是交付提交；它没有判据页，不出 `names_page`。
 
 subagent 的运行没有价格。能记下的是：宿主报的用量合计、墙钟时间、工具调用次数、宿主记录的档位。
-档位由宿主按角色定义或会话设置定，派发者管不了；流里写的档位是期望值，`episode.json` 的 `efforts_observed` 是实际值。
+派发者用 Agent 工具的 `effort` 参数传流里写的档位，运行器的派发说明写明该值；流里写的档位是期望值，`episode.json` 的 `efforts_observed` 是实际值。轨迹记录了别的档位时，这次运行记为 `effort-mismatch`，不计分。
 
 ## 汇总怎么读
 
