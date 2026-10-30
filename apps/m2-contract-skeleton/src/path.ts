@@ -1108,25 +1108,32 @@ async function driveRound(
     log.waited = await waitTurns(context.turns, () => log.reply !== null || log.failures.length > 0)
   return {
     kind: 'driven',
-    observation: observed(
-      started.ok.started.first === accepted.ok && log.admitted > 0 && log.handedOver,
-      [
-        'public-contract:send-input request read with the wire session',
-        'session-contract:commit(accept ordinary) committed the request',
-        'session-contract:commit(startRun) fixed the request and opened the Run',
-        'agent:runtime.invoke accepted the Session execution and input',
-        log.admitted > 0
-          ? 'agent:message hand-over admitted the external input'
-          : 'agent:message hand-over did not admit the external input',
-        handedOver.evidence,
-      ],
-    ),
+    observation: handOverObservation(started.ok.started.first === accepted.ok, log, handedOver),
     agent,
     execution: started.ok.execution,
     run: started.ok.started.advance.run,
     handle: invoked.ok,
     log,
   }
+}
+
+/** H04 of a round: Session fixed this input, the Agent admitted it, and Session holds the hand-over. */
+function handOverObservation(
+  fixed: boolean,
+  log: BridgeLog,
+  handedOver: Readonly<{ evidence: string }>,
+): ConnectedObservation {
+  const admitted = log.admitted > 0
+  return observed(fixed && admitted && log.handedOver, [
+    'public-contract:send-input request read with the wire session',
+    'session-contract:commit(accept ordinary) committed the request',
+    'session-contract:commit(startRun) fixed the request and opened the Run',
+    'agent:runtime.invoke accepted the Session execution and input',
+    admitted
+      ? 'agent:message hand-over admitted the external input'
+      : 'agent:message hand-over did not admit the external input',
+    handedOver.evidence,
+  ])
 }
 
 /**
@@ -1623,13 +1630,15 @@ function toolRoundTripClosed(
   snapshot: AgentSnapshot | null,
 ): boolean {
   const effects = agent.toolEffects()
-  return (
-    agent.toolInvocations() > 0 &&
-    TOOL_EFFECTS.every(effect => effects.includes(effect)) &&
-    agent.admitted() >= 2 &&
-    toolResult &&
-    snapshot?.state.kind === 'ended'
-  )
+  // Every condition is evaluated; the criterion holds only when all of them hold.
+  const conditions = [
+    agent.toolInvocations() > 0,
+    TOOL_EFFECTS.every(effect => effects.includes(effect)),
+    agent.admitted() >= 2,
+    toolResult,
+    snapshot?.state.kind === 'ended',
+  ]
+  return conditions.every(Boolean)
 }
 
 /**
