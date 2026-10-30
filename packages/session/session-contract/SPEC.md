@@ -892,9 +892,9 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 动作：执行记录提供者在受理的同一次提交内，把来源依据交给 Session 参加者。参加者只读权威状态，按三条规则核对。
   1. `invoke`：来源依据是 SE13 回执。核对回执指向本会话已提交的 SE13，该执行等于 `run.active.execution.execution`，首条输入等于 SE13 所记的首条输入，推进资格依据指向的 attempt 等于 `run.active.advance`，Run 未终态。
   2. `submit`：来源依据是该输入的 SE11 回执。核对回执指向本会话已提交的 SE11，该 `InputId` 当前有待处理资格，去处是本 Run，该执行等于 `run.active.execution.execution`。
-  3. `attach`（经出站端口 `resume` 发起）：来源依据是推进资格依据所指 attempt 的 SE15 回执。它作为 Agent `Journal.attach` 输入的推进资格依据 `grant` 到达参加者。核对回执指向本会话已提交的 SE15，该执行等于 `run.active.execution.execution`，并满足下列一种情形。
-     - 普通推进：该 attempt 等于 `run.active.advance`，Run 未终态。
-     - 取消收束：Run 已是 cancelled 终态（SE26），该 attempt 是本 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/agent-contract/SPEC.md#条件终结)「终结授权有两种」）。
+  3. `attach`（经出站端口 `resume` 发起）：来源依据是推进资格依据所指 attempt 的 SE15 回执。它作为 Agent `Journal.attach` 输入的推进资格依据 `grant` 到达参加者。核对回执指向本会话已提交的 SE15，并满足下列一种情形。
+     - 普通推进：该执行等于 `run.active.execution.execution`，该 attempt 等于 `run.active.advance`，Run 未终态。
+     - 取消收束：这里的 Run 指该执行所属的 Run，不是会话当前的 Run。该 Run 已是 cancelled 终态（SE26），该 attempt 是该 Run 在取消之前最后授予的 attempt。它的 SE16 由取消批次写入，或在取消之前已经写入。更早授予的 attempt 不能用这条收束。这样取得的挂接只带取消授权，结论只能是 cancelled，不恢复推进权（Agent SPEC [条件终结](../../agent/agent-contract/SPEC.md#条件终结)「终结授权有两种」）。
 
      执行已经结束时，Agent 先返回 `terminal`，不进入本核对。本条是 attach 核对的唯一规定，[PM-05](#pm-05)、[PM-06](#pm-06)、[PM-08](#pm-08) 与 [PM-13](#pm-13) 引用它。
 - 结果：核对成立时响应「参加」，不写 Session 条目。`invoke` 或 `submit` 受理成功后，推进协调以 `receive` 提交交入回执（SE35），该输入进入 `handed`。
