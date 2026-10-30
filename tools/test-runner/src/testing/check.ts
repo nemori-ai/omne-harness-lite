@@ -108,10 +108,13 @@ export function criticalPath(results: readonly StepResult[]): string[] {
   const byEnd = [...results].sort((a, b) => b.endedMs - a.endedMs)
   let current = byEnd[0]
   const path: string[] = []
+  // 零时长的步骤会互相满足「先结束」的条件，所以要排除走过的。
+  const visited = new Set<StepResult>()
   while (current !== undefined) {
+    visited.add(current)
     path.unshift(current.name)
     const startedAt = current.startedMs
-    current = byEnd.find(result => result.endedMs <= startedAt && result !== current)
+    current = byEnd.find(result => result.endedMs <= startedAt && !visited.has(result))
   }
   return path
 }
