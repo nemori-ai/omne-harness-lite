@@ -50,6 +50,7 @@ import {
 } from './root.ts'
 import {
   createJournal,
+  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
@@ -837,7 +838,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         if (
           cell
             .current()
-            .agent.operations.has(JSON.stringify([encoded.value, input.execution, input.operation]))
+            .agent.operations.has(operationText(encoded.value, input.execution, input.operation))
         )
           return action()
         try {

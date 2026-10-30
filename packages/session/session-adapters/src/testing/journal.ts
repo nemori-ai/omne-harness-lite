@@ -440,7 +440,12 @@ type RetainedFaultInput = Parameters<
   MemoryAgentJournal<unknown>['setRetainedToolInvocationFault']
 >[0]
 
-function operationText(tenant: string, execution: AgentExecutionId, operation: AgentOperationId) {
+/** The key of one operation record: the encoded tenant, the execution and the operation. */
+export function operationText(
+  tenant: string,
+  execution: AgentExecutionId,
+  operation: AgentOperationId,
+) {
   return JSON.stringify([tenant, execution, operation])
 }
 
