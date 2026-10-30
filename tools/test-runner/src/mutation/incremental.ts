@@ -165,7 +165,7 @@ function resolveImport(from: string, specifier: string): string | undefined {
 }
 
 /**
- * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）沿相对导入读到的成员目录之外的文件，排序后取内容摘要；
+ * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）沿相对导入读到的、不在成员 `src/` 下的文件（含成员内的 `test-support/` 等辅助文件），排序后取内容摘要；
  * 解析不到的相对导入记作 `missing:<路径>`，删掉文件也会变。成员的 `src/` 不追，归 Stryker 比较；包名导入不追。
  * 访问过的文件超过上限时抛出。
  */
@@ -179,15 +179,16 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
     if (visited.size >= EXTERNAL_LIMIT)
       throw new Error(`测试读的成员外文件超过 ${EXTERNAL_LIMIT} 个，追踪不完`)
     visited.add(file)
-    const outside = relative(memberDir, file).startsWith('..')
-    if (outside) found.set(rel(file), digestOf(file))
     if (!SOURCE_FILE.test(file)) return
     for (const specifier of relativeSpecifiers(readFileSync(file, 'utf8'))) {
       const target = resolveImport(file, specifier)
       if (target === undefined) {
         const missing = rel(resolve(dirname(file), specifier))
         found.set(`missing:${missing}`, 'absent')
-      } else if (!target.startsWith(srcDir)) visit(target)
+      } else if (!target.startsWith(srcDir)) {
+        found.set(rel(target), digestOf(target))
+        visit(target)
+      }
     }
   }
   for (const entry of entries) visit(entry)

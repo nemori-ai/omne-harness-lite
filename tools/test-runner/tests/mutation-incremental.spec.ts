@@ -359,6 +359,20 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       expect(of(root).fingerprint).toMatch(/^[0-9a-f]{64}$/u)
     })
 
+    it('成员内 tests/ 之外的辅助文件被测试导入时，改它指纹变；没人导入时不变', () => {
+      const root = linked()
+      touch(root, 'm/test-support/assert.ts', 'export const strict = true\n')
+      touch(root, 'm/test-support/unused.ts', 'export const u = 1\n')
+      touch(root, 'm/tests/b.spec.ts', "import { strict } from '../test-support/assert.ts'\n")
+      const change = () => touch(root, 'm/test-support/assert.ts', 'export const strict = false\n')
+      expect(missAfter(root, change)).toEqual({
+        miss: expect.stringContaining('测试读的成员外文件'),
+      })
+      const before = of(root)
+      touch(root, 'm/test-support/unused.ts', 'export const u = 2\n')
+      expect(of(root).parts.external).toBe(before.parts.external)
+    })
+
     it('只改成员 src/ 下的文件，这一项不变：src 归 Stryker 比较', () => {
       const root = linked()
       touch(root, 'm/src/code.ts', "import '../../shared/deep.ts'\nexport const c = 1\n")
