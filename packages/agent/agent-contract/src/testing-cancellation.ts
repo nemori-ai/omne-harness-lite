@@ -11,6 +11,7 @@ import type {
   CancellationPolicy,
   CancellationPolicyInstallation,
   CancellationUnknown,
+  FinishObligation,
   ObligationCategory,
   ToolIntentKey,
 } from './finishing.ts'
@@ -59,6 +60,31 @@ const ORDER: readonly ObligationCategory[] = [
 ]
 
 /**
+ * The category of one obligation kind, as the SPEC "终结责任清单" table fixes it. The category is
+ * not a member of the public head; a double and a policy derive it from the kind.
+ */
+export function obligationCategoryOf(kind: FinishObligation['kind']): ObligationCategory {
+  switch (kind) {
+    case 'accepted-input':
+      return 'inputs'
+    case 'control':
+      return 'controls'
+    case 'operation':
+    case 'handoff':
+    case 'call':
+      return 'operations'
+    case 'passage':
+    case 'card-round':
+      return 'passages'
+    case 'result':
+    case 'material':
+    case 'output':
+    case 'terminal-observation':
+      return 'custody'
+  }
+}
+
+/**
  * The test policy: a pure judgment over the input the Journal built, in the order of SPEC
  * "判断输入、判据与记录". It is `unknown` when any obligation is unknown or a participant's condition
  * is unknown, `blocked` when the cancel is not effective or any obligation is pending or a
@@ -86,7 +112,10 @@ export function createTestCancellationPolicy(): CancellationPolicy {
           source: intent?.source ?? input.control.stages.accepted.source,
           required: {
             kind: 'original-operation-query',
-            request: input.control.stages.accepted.source,
+            request: {
+              kind: 'parameters',
+              value: { execution: input.execution, operation: input.control.operation },
+            },
             owner: 'journal',
             custodian: null,
             purpose: 'query',
@@ -102,7 +131,10 @@ export function createTestCancellationPolicy(): CancellationPolicy {
           source: revoked.source,
           required: {
             kind: 'original-operation-query',
-            request: revoked.source,
+            request: {
+              kind: 'parameters',
+              value: { execution: input.execution, operation: input.control.operation },
+            },
             owner: 'journal',
             custodian: null,
             purpose: 'query',
@@ -113,7 +145,7 @@ export function createTestCancellationPolicy(): CancellationPolicy {
         const disposition = item.disposition
         if (disposition.kind === 'pending') {
           blocks.push({
-            category: item.category,
+            category: obligationCategoryOf(item.kind),
             key: item.key,
             reason: disposition.reason,
             source: item.source,
@@ -140,8 +172,8 @@ export function createTestCancellationPolicy(): CancellationPolicy {
               reason: 'input-disposition',
               source: condition.kind === 'blocked' ? condition.source : participant.source,
               required: {
-                kind: 'input-read',
-                request: participant.source,
+                kind: 'restore-source',
+                request: { kind: 'parameters', value: { source: participant.source } },
                 owner: participant.owner,
                 custodian: null,
                 purpose: 'load',
@@ -201,11 +233,19 @@ export type TestHostRecord =
       custody: DurableEvidence
     }>
   | Readonly<{
-      /** The result of an original lookup or invalidate of one card round, as the card owner kept it. */
+      /**
+       * The result of an original lookup or invalidate of one card round, as the card owner kept
+       * it: the known present, lookups and invalidate, or that the owner could not determine it.
+       */
       kind: 'card-reconciliation'
       passage: PassageId
       round: CardRoundId
-      present: DurableEvidence | null
-      lookups: readonly AgentOperationId[]
-      invalidate: AgentOperationId | null
+      result:
+        | Readonly<{
+            kind: 'known'
+            present: DurableEvidence | null
+            lookups: readonly AgentOperationId[]
+            invalidate: Readonly<{ operation: AgentOperationId; reason: DurableEvidence }> | null
+          }>
+        | Readonly<{ kind: 'unknown'; reason: CancellationUnknown['reason'] }>
     }>

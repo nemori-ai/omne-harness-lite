@@ -100,7 +100,26 @@ export interface AgentJournalCoreOpened<P> {
    * the custody cases are uncovered without it.
    */
   readonly hostRecord?: (record: TestHostRecord) => Promise<DurableEvidence>
+  /**
+   * Seeds a legacy cancelled candidate as a writer of the old protocol left it (SPEC "旧取消记录的迁移"):
+   * a candidate whose conclusion is cancelled, on an author route whose before-terminal proof is
+   * set, with one new revision. The fixture writes it through its own seam, not through `commit`:
+   * the protocol fence does not accept such an F1 any more. Optional; the migration case is
+   * uncovered without it.
+   */
+  readonly seedLegacyCandidate?: (
+    name: string,
+  ) => Promise<Readonly<{ candidate: AgentOperationId }>>
+  /**
+   * Scripts which of the three settlement qualifications the caller holds from now on (SPEC
+   * "commitSettlement 的变体": settle, migrate-cancellation, reconcile); all three by default.
+   * Optional; the qualification case is uncovered without it.
+   */
+  readonly qualify?: (held: readonly SettlementQualification[]) => void
 }
+
+/** The three qualifications the settlement operations check (SPEC "commitSettlement 的变体"). */
+export type SettlementQualification = 'settle' | 'migrate-cancellation' | 'reconcile'
 
 /** The options of one `open` of the core fixture. */
 export type AgentJournalCoreOpenOptions = Readonly<{
@@ -649,14 +668,23 @@ export function finishInput<P>(
   }
 }
 
-/** F1, F2 and prepareFinish of an ordinary completion; answers the snapshot to end from. */
+/** The content of a failed candidate: the conclusion `fail` with its cause. */
+export function failedContent(name: string): Partial<FinishCandidateContent> {
+  return { conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) } }
+}
+
+/** F1, F2 and prepareFinish of an ordinary completion or failure; answers the snapshot to end from. */
 export async function prepareOrdinaryEnd<P>(
   opened: AgentJournalCoreOpened<P>,
   name: string,
   authority: Authority = opened.authority,
+  content: Partial<FinishCandidateContent> = {},
 ): Promise<ExecutionSnapshot> {
+  const at = await load(opened)
   await ok(
-    opened.journal.commit(f1Commit(opened, await load(opened), `${name}/F1`, authority)),
+    opened.journal.commit(
+      f1Commit(opened, at, `${name}/F1`, authority, candidateContent(at, `${name}/F1`, content)),
+    ),
     'F1',
   )
   await ok(
@@ -672,14 +700,15 @@ export async function prepareOrdinaryEnd<P>(
   return load(opened)
 }
 
-/** Takes the inputs, then F1, F2, prepareFinish, load and tryFinish of an ordinary completion. */
+/** Takes the inputs, then F1, F2, prepareFinish, load and tryFinish of an ordinary completion or failure. */
 export async function end<P>(
   opened: AgentJournalCoreOpened<P>,
   name = 'end',
   authority: Authority = opened.authority,
+  content: Partial<FinishCandidateContent> = {},
 ): Promise<CommandReceipt> {
   await takeInputs(opened, `take-${name}`)
-  const ready = await prepareOrdinaryEnd(opened, name, authority)
+  const ready = await prepareOrdinaryEnd(opened, name, authority, content)
   const finished = await ok(
     opened.journal.tryFinish(finishInput(opened, ready, name, advancement(authority))),
     'tryFinish',
@@ -792,13 +821,18 @@ export async function judge<P>(
   return result as Extract<SettlementResult, { kind: 'judge-cancellation' }>
 }
 
-/** Ends under the cancel `control`: establish, judge, prepareFinish, load, tryFinish. */
+/**
+ * Ends under the cancel `control`: establish, judge, prepareFinish, load, tryFinish. With
+ * `establish: false` the current candidate is already cancelled (natively or after a migration)
+ * and the end starts at the judgment: establish-cancellation is not a step of that route.
+ */
 export async function endCancelled<P>(
   opened: AgentJournalCoreOpened<P>,
   control: AgentOperationId,
   name = 'end-cancelled',
+  options: Readonly<{ establish?: boolean }> = {},
 ): Promise<CommandReceipt> {
-  await establish(opened, control, `${name}/establish`)
+  if (options.establish !== false) await establish(opened, control, `${name}/establish`)
   await judge(opened, control, `${name}/judge`)
   const prepared = await load(opened)
   await ok(
