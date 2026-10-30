@@ -40,11 +40,32 @@ export type ReceiverState = {
   lastDeliveryAt: string | null
 }
 
+/**
+ * 进程启动时刻，用来识别 pid 是否被复用。POSIX 读 `ps -o lstart=`。Windows 没有这个 `ps`
+ * （Git Bash 的 ps 只认 MSYS 的 pid、也不支持 `-o`），改读 `Get-Process` 的 StartTime（UTC，100ns 精度）；
+ * PowerShell 冷启动较慢，时限放宽。取不到时返回 null，调用方按身份不可得处理。
+ */
+function identityCommand(pid: number): { command: string; args: string[]; timeout: number } {
+  if (process.platform !== 'win32')
+    return { command: 'ps', args: ['-p', String(pid), '-o', 'lstart='], timeout: 2000 }
+  return {
+    command: 'powershell.exe',
+    args: [
+      '-NoProfile',
+      '-NonInteractive',
+      '-Command',
+      `(Get-Process -Id ${pid} -ErrorAction Stop).StartTime.ToUniversalTime().ToString('o')`,
+    ],
+    timeout: 10000,
+  }
+}
+
 export function processIdentity(pid: number): string | null {
   try {
-    const value = execFileSync('ps', ['-p', String(pid), '-o', 'lstart='], {
+    const { command, args, timeout } = identityCommand(pid)
+    const value = execFileSync(command, args, {
       encoding: 'utf8',
-      timeout: 2000,
+      timeout,
       stdio: ['ignore', 'pipe', 'ignore'],
       shell: false,
     }).trim()

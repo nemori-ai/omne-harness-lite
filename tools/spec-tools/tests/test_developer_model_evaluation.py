@@ -12,12 +12,12 @@ DEFAULT_SUITE = Path(__file__).resolve().parents[3] / ".meta_harness/agents/eval
 
 def artifact(directory: Path, name: str, content: str) -> dict:
     path = directory / name
-    path.write_text(content, encoding="utf-8")
+    path.write_text(content, encoding="utf-8", newline="")
     return {"path": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
 
 
 def write_report(directory: Path) -> Path:
-    public = artifact(directory, "public-suite.json", DEFAULT_SUITE.read_text())
+    public = artifact(directory, "public-suite.json", DEFAULT_SUITE.read_text(encoding="utf-8"))
     heldout_document = {"suite_version": "heldout-v1", "tasks": [{
         "id": "heldout-authority", "split": "heldout", "critical_constraints": ["authority"],
         "prompt": "Apply authority resolution to a fresh fixture.", "fixture": {"authoritative_rule": "tenant identity is required"},
@@ -25,7 +25,7 @@ def write_report(directory: Path) -> Path:
     }]}
     heldout = artifact(directory, "heldout-suite.json", json.dumps(heldout_document))
     files = {name: artifact(directory, f"{name}.txt", name) for name in ("base-config", "candidate-config", "reasoning", "harness", "tools", "prompt", "retain", "simplify", "remove", "trajectory", "analysis-plan")}
-    suites = json.loads(DEFAULT_SUITE.read_text())
+    suites = json.loads(DEFAULT_SUITE.read_text(encoding="utf-8"))
     tasks = suites["tasks"] + heldout_document["tasks"]
     runs = []
     for task in tasks:

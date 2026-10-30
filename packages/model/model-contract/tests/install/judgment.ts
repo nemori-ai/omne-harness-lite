@@ -44,7 +44,11 @@ export function judgeResolutions(urls: readonly string[], consumerRoot: string):
     if (!url.startsWith('file:')) continue
     const path = realpathSync(fileURLToPath(url))
     if (!inside(path, root)) outside.push(path)
-    else if (/(^|\/)src\//u.test(relative(root, path)) || /(?<!\.d)\.ts$/u.test(path))
+    // The relative path has the separator of the platform; judge its segments with `/`.
+    else if (
+      /(^|\/)src\//u.test(relative(root, path).split(sep).join('/')) ||
+      /(?<!\.d)\.ts$/u.test(path)
+    )
       source.push(path)
   }
   return { outside, source }
@@ -61,19 +65,27 @@ export function judgeTypeFiles(
   consumerRoot: string,
   libraryRoot: string,
 ): TypeFilesVerdict {
-  const root = realpathSync(consumerRoot)
-  const libraries = realpathSync(libraryRoot)
+  // The native realpath also expands Windows 8.3 names (`ALIENW~1` in a temporary directory), which
+  // tsc lists in their long form; on POSIX it resolves the same links as the JavaScript one.
+  const root = realpathSync.native(consumerRoot)
+  const libraries = realpathSync.native(libraryRoot)
   const stray = files.filter(path => {
-    const real = realpathSync(path)
+    const real = realpathSync.native(path)
     return !inside(real, root) && !inside(real, libraries)
   })
   if (files.length === 0) return { ok: false, stray, detail: 'tsc listed no files' }
   return { ok: stray.length === 0, stray, detail: stray.join(', ') || `${files.length} files` }
 }
 
-/** Absolute lines of `tsc --listFiles` output, for both POSIX and drive-letter paths. */
+/**
+ * Absolute lines of `tsc --listFiles` output, for both POSIX and drive-letter paths, as paths of the
+ * platform. On Windows tsc ends its lines with `\r\n` and writes `C:/…` with forward slashes.
+ */
 export function listedFiles(stdout: string): string[] {
-  return stdout.split('\n').filter(line => isAbsolute(line))
+  return stdout
+    .split(/\r?\n/u)
+    .filter(line => isAbsolute(line))
+    .map(line => resolve(line))
 }
 
 export const MARKER = '.install-closure-consumer'

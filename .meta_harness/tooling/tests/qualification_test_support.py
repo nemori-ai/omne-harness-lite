@@ -35,7 +35,7 @@ def adopt(record: dict) -> dict:
 
 
 def write_record(role: Path, record: dict) -> None:
-    (role / "cursor-qualification.yaml").write_text(yaml.safe_dump(record, allow_unicode=True, sort_keys=False))
+    (role / "cursor-qualification.yaml").write_text(yaml.safe_dump(record, allow_unicode=True, sort_keys=False), encoding="utf-8")
 
 
 def qualify_roles(source: Path) -> None:

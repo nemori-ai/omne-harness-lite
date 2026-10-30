@@ -163,7 +163,8 @@ describe('收工钩子的入口', { timeout: 60_000 }, () => {
     expect(parsed['systemMessage']).toContain(`${home}/hook.log`)
     const lines = logLines(home)
     expect(lines).toHaveLength(before + 1)
-    expect(lines[0]).toContain(root)
+    // 日志记的是 git 顶层目录；Windows 上那是正斜杠、长文件名，与临时目录的 8.3 短名写法不同。
+    expect(lines[0]).toContain(git(root, 'rev-parse', '--show-toplevel'))
   })
 })
 

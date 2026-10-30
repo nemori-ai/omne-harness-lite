@@ -23,7 +23,8 @@ export function removeTemporaries(): void {
 }
 
 export function temporaryDirectory(prefix: string): string {
-  const path = realpathSync(mkdtempSync(join(tmpdir(), prefix)))
+  // native：Windows 上 tmpdir() 可能是 8.3 短名（ALIENW~1），JS 版 realpath 保留它，git 报的顶层目录却是长名。
+  const path = realpathSync.native(mkdtempSync(join(tmpdir(), prefix)))
   made.push(path)
   return path
 }
@@ -55,6 +56,9 @@ export function repository(root: string = temporaryDirectory('loop-repo-')): str
   // 本机 git 可能早于 `init -b`，用 symbolic-ref 定主线分支名。
   git(root, 'init', '-q')
   git(root, 'symbolic-ref', 'HEAD', 'refs/heads/main')
+  // 检出的字节等于提交的字节：Windows 版 Git 的系统配置默认 autocrlf=true，切换提交会把
+  // 工作树改写成 CRLF，与按提交读的结果不同。POSIX 上默认就是 false。
+  git(root, 'config', 'core.autocrlf', 'false')
   write(root, '.git/no-global-excludes', '')
   ignoreGlobalExcludes(root)
   write(root, 'README.md', 'repo\n')

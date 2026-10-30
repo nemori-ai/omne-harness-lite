@@ -317,7 +317,7 @@ it('实际进程：scoped guard 生效时违反者退出1，合法输入退出0'
     writeFileSync(
       runner,
       `
-import { createBodyProjectionInputs } from ${JSON.stringify(fileURLToPath(new URL('../src/rules/index.ts', import.meta.url)))}
+import { createBodyProjectionInputs } from ${JSON.stringify(new URL('../src/rules/index.ts', import.meta.url).href)}
 const rule = createBodyProjectionInputs([{path:${JSON.stringify(bodyPath)},functionName:'declarations',parameterTypes:['ToolDefinition']}])
 const code = process.argv[2] === 'bad' ? 'import { readState } from "./external.ts";' : ''
 const result = rule.check([{path:${JSON.stringify(bodyPath)},text:code + 'function declarations(value: ToolDefinition) { return [] }'}])

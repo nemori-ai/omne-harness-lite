@@ -64,7 +64,7 @@ The root entry has three modules: the host files facility, the host files domain
 
 The Service subclass and `filesFacilityPlugin` accept only an absent value, `null`, or an empty object as configuration. The host files plugin also accepts `drainBoundMs`, a finite number of milliseconds, zero or more. It bounds how long a release, a settlement, or a retirement waits for file operations in flight. The initial value is 10000. A pending result writes one diagnostic error to `ctx.logger`. The quota policy is an option of `createHostFilesDomain`, not plugin configuration; its initial value is 64 unsettled acquisitions per tenant and no global bound. The three ports come as the services `executionEnvironmentAuthority`, `executionScopeBinding`, and `executionRecoveryAuthority`. They do not go into the plugin tree. One isolate label holds one service.
 
-The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. `package.json` declares the engine `>=24`. The platform in the host facts is `process.platform` with `os.release()`. The provider version is the `version` of this package's `package.json`. The prerequisites read as `unknown`, because no probe runs.
+The host files facility runs on Node. It checks the object identity with `O_NOFOLLOW`, the device number, and the inode. On a host without `O_NOFOLLOW` (Node on Windows) it checks the final path segment with `lstat` after the open instead. `package.json` declares the engine `>=24`. The platform in the host facts is `process.platform` with `os.release()`. The provider version is the `version` of this package's `package.json`. The prerequisites read as `unknown`, because no probe runs.
 
 ## Verification
 

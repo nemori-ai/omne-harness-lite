@@ -97,6 +97,54 @@ def test_invalid_declaration_names_the_hook(source, change, message):
     assert message in str(raised.value)
 
 
+SESSION = {"id": "session-note", "events": ["SessionStart"], "hosts": ["claude-code"],
+           "session_sources": ["startup", "compact"], "command": "echo note", "timeout": 10}
+
+
+def test_session_start_goes_only_to_the_hosts_it_names(source, tmp_path):
+    declared = yaml.safe_load((source / "hooks/hooks.yaml").read_text(encoding="utf-8"))["hooks"]
+    declare(source, [*declared, SESSION])
+    output = tmp_path / "out"
+    assert compiler.main(["--source", str(source), "--output", str(output)]) == 0
+    claude = json.loads((output / CLAUDE).read_text(encoding="utf-8"))["hooks"]
+    assert claude["SessionStart"] == [{"matcher": "startup|compact",
+                                       "hooks": [{"command": "echo note", "timeout": 10, "type": "command"}]}]
+    assert {key: claude[key] for key in ("Stop", "SubagentStop")} == EXPECTED["hooks"]
+    assert json.loads((output / CODEX).read_text(encoding="utf-8")) == EXPECTED
+    cursor_runtime = output / ".cursor/runtime"
+    assert (cursor_runtime / "facts.json").is_file()
+    assert not (cursor_runtime / "session-note.json").exists()
+    assert "echo note" not in (output / ".cursor/hooks.json").read_text(encoding="utf-8")
+
+
+def test_a_host_that_no_hook_targets_gets_no_file(source, tmp_path):
+    declare(source, [SESSION])
+    output = tmp_path / "out"
+    assert compiler.main(["--source", str(source), "--output", str(output)]) == 0
+    assert (output / CLAUDE).is_file()
+    assert not (output / CODEX).exists()
+
+
+@pytest.mark.parametrize("change, message", [
+    ({"hosts": ["claude-code", "codex"]}, "hook events ['SessionStart'] are not generated for host codex"),
+    ({"hosts": None}, "hook events ['SessionStart'] are not generated for host codex"),
+    ({"hosts": []}, "hook hosts must be distinct names"),
+    ({"hosts": ["claude-code", "claude-code"]}, "hook hosts must be distinct names"),
+    ({"hosts": ["vim"]}, "hook hosts must be distinct names"),
+    ({"session_sources": ["startup", "boot"]}, "session_sources must be distinct names"),
+    ({"session_sources": []}, "session_sources must be distinct names"),
+    ({"events": ["Stop"]}, "session_sources must be distinct names"),
+])
+def test_invalid_session_declaration_names_the_hook(source, change, message):
+    entry = {**SESSION, "id": "bad-one", **change}
+    if entry["hosts"] is None:
+        del entry["hosts"]
+    declare(source, [entry])
+    with pytest.raises(ValueError, match="bad-one") as raised:
+        compile_sources(source)
+    assert message in str(raised.value)
+
+
 def test_duplicate_id_is_rejected(source):
     entry = {"id": "twice", "events": ["Stop"], "command": COMMAND, "timeout": 60}
     declare(source, [entry, entry])
@@ -110,7 +158,7 @@ def test_check_reports_missing_or_different_hook_files(source, tmp_path, capsys)
     assert compiler.main(args) == 0
     (output / CODEX).unlink()
     assert compiler.main(args + ["--check"]) == 1
-    assert "missing generated file: .codex/hooks.json" in capsys.readouterr().err
+    assert f"missing generated file: {Path('.codex/hooks.json')}" in capsys.readouterr().err
     assert compiler.main(args) == 0
     (output / CLAUDE).write_text('{"hooks": {}}\n')
     assert compiler.main(args + ["--check"]) == 1
@@ -137,7 +185,8 @@ def _install(checkout: Path) -> None:
 
 
 def _stop(cwd: Path) -> subprocess.CompletedProcess:
-    (hook,) = yaml.safe_load(DECLARED.read_text(encoding="utf-8"))["hooks"]
+    (hook,) = [entry for entry in yaml.safe_load(DECLARED.read_text(encoding="utf-8"))["hooks"]
+               if entry["id"] == "loop-stop-facts"]
     return subprocess.run(["sh", "-c", hook["command"]], cwd=cwd, input="{}", capture_output=True, text=True,
                           check=False)
 

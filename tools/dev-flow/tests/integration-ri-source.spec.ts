@@ -3,7 +3,7 @@
 // cases start a Node process with a `gh` stand-in that serves fixed REST responses. The contract
 // check runs the installed `omne-contract-api` against contract members in the same checkout.
 import { spawnSync } from 'node:child_process'
-import { chmodSync, mkdirSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -30,6 +30,7 @@ import {
   setStartTag,
   trackEntry,
 } from './fixtures/integration.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => {
@@ -395,8 +396,8 @@ function server(f: Fixture, responses: Record<string, unknown>) {
   mkdirSync(bin)
   for (const [endpoint, value] of Object.entries(responses))
     writeFileSync(join(dir, `${endpoint.replaceAll('/', '_')}.json`), JSON.stringify(value))
-  writeFileSync(
-    join(bin, 'gh'),
+  writeGh(
+    bin,
     `#!/usr/bin/env node
 import { existsSync, readFileSync } from 'node:fs'
 const file = ${JSON.stringify(dir)} + '/' + process.argv.at(-1).replaceAll('/', '_') + '.json'
@@ -404,11 +405,10 @@ if (!existsSync(file)) { process.stdout.write('{"message":"Not Found","status":"
 process.stdout.write(readFileSync(file, 'utf8'))
 `,
   )
-  chmodSync(join(bin, 'gh'), 0o755)
   return (...args: string[]) =>
     spawnSync(process.execPath, ['--experimental-strip-types', cli, 'ri-notes', ...args], {
       encoding: 'utf8',
-      env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+      env: { ...process.env, ...ghEnv(bin) },
     })
 }
 

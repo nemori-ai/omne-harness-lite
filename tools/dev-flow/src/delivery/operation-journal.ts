@@ -16,7 +16,9 @@ import { uuid } from './identifiers.ts'
 export function operationJournal(root: string, operationId: string) {
   const directory = join(resolve(root), uuid(operationId, 'operationId'))
   mkdirSync(directory, { recursive: true, mode: 0o700 })
+  // Windows 不能对目录句柄 fsync（EPERM）；NTFS 的目录项由文件系统日志落盘，这里只在 POSIX 上同步目录。
   const syncDirectory = (path: string) => {
+    if (process.platform === 'win32') return
     const fd = openSync(path, 'r')
     try {
       fsyncSync(fd)

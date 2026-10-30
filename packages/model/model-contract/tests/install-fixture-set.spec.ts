@@ -1,6 +1,6 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import type { Options, Report } from './install/consumer.ts'
 import { fixtureNames, readRoles, runFixtureSet } from './install/fixture-set.ts'
@@ -67,7 +67,7 @@ function run(directory: string, answer: (options: Options) => Report) {
 
 /** A run that passes every fixture, reporting the role from the last part of the directory. */
 const passAll = (given: Options): Report =>
-  reportOf({ fixture: passing(given.fixtureDirectory?.split('/').pop() ?? '') })
+  reportOf({ fixture: passing(basename(given.fixtureDirectory ?? '')) })
 
 describe('readRoles', () => {
   it('reads the roles of a roles file', () => {

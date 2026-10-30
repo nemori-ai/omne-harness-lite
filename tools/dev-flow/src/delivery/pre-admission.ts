@@ -40,9 +40,28 @@ export function preAdmissionSteps(bound: boolean): AdmissionStep[] {
   ]
 }
 
+/**
+ * Windows 上 Node 不经 shell 起不了 `pnpm`（PATH 里是 `pnpm.cmd` 与 sh 垫片）和 `./scripts/format.sh`。
+ * 那里改由 Git for Windows 的 bash 以 `exec` 起同一条命令：参数原样传递，找不到命令仍是 127、不可执行仍是 126。
+ * bash 按 `git --exec-path`（`<Git>/<mingw64>/libexec/git-core`）定位到 `<Git>/bin/bash.exe`，
+ * 不取 PATH 里的 `bash`——那可能是 WSL 的启动器。
+ */
+function windowsShell(cwd: string): string {
+  const execPath = execFileSync('git', ['--exec-path'], { cwd, encoding: 'utf8' }).trim()
+  const bash = join(resolve(execPath), '..', '..', '..', 'bin', 'bash.exe')
+  if (!existsSync(bash)) throw new Error(`pre-admission-shell-unavailable: ${bash}`)
+  return bash
+}
+
+function spawnArguments(step: AdmissionStep, cwd: string): [string, string[]] {
+  if (process.platform !== 'win32') return [step.command, step.args]
+  return [windowsShell(cwd), ['-c', 'exec "$0" "$@"', step.command, ...step.args]]
+}
+
 export type AdmissionRunner = (step: AdmissionStep, cwd: string, log: number) => number
 const runStep: AdmissionRunner = (step, cwd, log) => {
-  const result = spawnSync(step.command, step.args, {
+  const [command, args] = spawnArguments(step, cwd)
+  const result = spawnSync(command, args, {
     cwd,
     stdio: ['ignore', log, log],
     shell: false,

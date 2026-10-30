@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs'
+import { readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, matchesGlob, relative, resolve } from 'node:path'
 import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 import { git, ignoredDirectories, isUnderIgnored } from '../core/git.ts'
@@ -180,9 +180,17 @@ function membersOf(
     })
     .sort((a, b) => a.path.localeCompare(b.path))
 }
+/**
+ * 两条路径是不是同一个目录。Windows 上 git 回长文件名，调用方给的路径可能是 8.3 短名
+ * （`os.tmpdir()` 就是）或盘符大小写不同；按磁盘上的真实路径再比一次。POSIX 只比字面。
+ */
+function sameDirectory(a: string, b: string): boolean {
+  if (a === b) return true
+  return process.platform === 'win32' && realpathSync.native(a) === realpathSync.native(b)
+}
 export function readArchitectureSource(root: string, revision?: string): ArchitectureSource {
   root = resolve(root)
-  if (resolve(git(root, ['rev-parse', '--show-toplevel'])) !== root)
+  if (!sameDirectory(resolve(git(root, ['rev-parse', '--show-toplevel'])), root))
     throw new Error('Actual architecture root must be the Git repository top-level directory')
   // Resolve once. All subsequent revision reads use this immutable commit, not the caller's ref.
   const commit = git(root, ['rev-parse', '--verify', `${revision ?? 'HEAD'}^{commit}`])

@@ -14,7 +14,7 @@ import {
 // together, so that a name the page forgets, a link to the wrong file and a renamed file turn red.
 // The shapes of the declarations are checked by the probes in `*.spec-d.ts`, which the chapters link.
 const packageDirectory = fileURLToPath(new URL('..', import.meta.url))
-const inventory = loadInventory(new URL('./fixtures/exports.json', import.meta.url).pathname)
+const inventory = loadInventory(fileURLToPath(new URL('./fixtures/exports.json', import.meta.url)))
 const chapters = publicApiChapters(
   readFileSync(join(packageDirectory, 'docs/public-api.md'), 'utf8'),
 )

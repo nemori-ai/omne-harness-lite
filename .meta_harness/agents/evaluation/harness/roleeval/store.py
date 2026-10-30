@@ -15,7 +15,7 @@ from typing import Any, Iterable
 
 VARIANT_RE = re.compile(r"^(baseline|v\d+)$")
 CASE_ID_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
-FAILURE_CLASSES = ("timeout", "harness", "model-mismatch", "budget", "grader", "contaminated")
+FAILURE_CLASSES = ("timeout", "harness", "model-mismatch", "effort-mismatch", "budget", "grader", "contaminated")
 REQUIRED = ("prompt_id", "prompt", "tags", "rep", "status", "grade", "model", "usage", "meta")
 
 

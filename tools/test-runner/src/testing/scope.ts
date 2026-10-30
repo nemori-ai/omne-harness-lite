@@ -14,9 +14,21 @@
 // turbo 的种子里就有这里没认出的改动，影响面未知，判全量。
 // turbo 不认成员目录以外的读取（2026-10-15 在 turbo 2.11.7 上验证：`--affected` 默认不看任务 inputs），
 // 读者规则仍在这里。
+//
+// 锁文件单独一类：`pnpm-lock.yaml` 是唯一命中的全局文件时，交锁文件判定（lockfile-impact.ts）按 importer 映射到成员，
+// 映射到的成员作为种子，与代码改动的成员一样按 turbo 的依赖图带上下游；判不准、没有判定、引擎自己在里面，仍判全量。
+// 它与别的全局文件一起改时不问判定，直接全量。
 import { isLegacyDirectory, isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import type { AffectedRules } from './config.ts'
+import type { LockfileAffectedMember, LockfileImpact } from './lockfile-impact.ts'
 import { ownerOf, type WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
+
+export const LOCKFILE_PATH = 'pnpm-lock.yaml'
+/** 影响面引擎自己所在的成员：它的依赖变了，这次的计划就是用变了依赖的引擎算的，不能拿它给自己划范围。 */
+export const ENGINE_MEMBER = 'tools/test-runner'
+
+/** 锁文件判定：只在 `pnpm-lock.yaml` 是唯一命中的全局文件时才问它；基线与 HEAD 两份锁文件由调用方取。 */
+export type LockfileJudge = () => LockfileImpact
 
 /** `*` 不跨目录；`**` 跨目录，`**\/` 也匹配零层目录。 */
 export function patternToRegExp(pattern: string): RegExp {
@@ -36,6 +48,7 @@ const firstMatch = (path: string, patterns: readonly string[]) =>
 export type FileCategory =
   | 'excluded'
   | 'global'
+  | 'lockfile'
   | 'reader'
   | 'member'
   | 'python'
@@ -66,7 +79,13 @@ export function classify(
 ): ClassifiedFile {
   if (isLegacyFile(path)) return { path, category: 'excluded', reads: [] }
   const global = firstMatch(path, rules.globalPaths)
-  if (global !== undefined) return { path, category: 'global', rule: global, reads: [] }
+  if (global !== undefined)
+    return {
+      path,
+      category: path === LOCKFILE_PATH ? 'lockfile' : 'global',
+      rule: global,
+      reads: [],
+    }
   const reads = rules.readers.flatMap(reader => {
     const pattern = firstMatch(path, reader.paths)
     return pattern === undefined ? [] : [{ pattern, members: reader.members }]
@@ -161,8 +180,10 @@ export interface PlannedMember {
   readonly changed: readonly string[]
   /** 它的测试读、被改了的成员外路径（读者规则）。 */
   readonly reads: readonly { readonly path: string; readonly pattern: string }[]
-  /** 自己没改代码，因依赖了改动过代码的成员而被 turbo 选中。 */
+  /** 自己没改代码，因依赖了改动过代码（或锁文件里依赖变了）的成员而被 turbo 选中。 */
   readonly downstream?: true
+  /** 锁文件里它的依赖变了（lockfile-impact.ts 的映射）：importer 条目变了，或它直接、间接依赖的这些包变了。 */
+  readonly lockfile?: Omit<LockfileAffectedMember, 'path'>
 }
 
 export type BuildReason = 'selected' | 'resident'
@@ -185,6 +206,8 @@ export interface CheckPlan {
    * 可选：手写的计划文件可以不给，读作没有。
    */
   readonly documentsOnly?: readonly DocumentsOnlyMember[]
+  /** 问过锁文件判定时它的结论原文（映射到成员，或两份等价）；判全量时写在 `reason` 里，没问时没有。 */
+  readonly lockfile?: string
 }
 
 /**
@@ -258,6 +281,7 @@ function selectMembers(
   files: readonly ClassifiedFile[],
   members: readonly WorkspaceMember[],
   affected: ReadonlySet<string>,
+  lockfile: ReadonlyMap<string, LockfileAffectedMember>,
 ): PlannedMember[] {
   const changed = new Map<string, string[]>()
   const reads = new Map<string, { path: string; pattern: string }[]>()
@@ -269,18 +293,29 @@ function selectMembers(
         reads.set(member, [...(reads.get(member) ?? []), { path: file.path, pattern: hit.pattern }])
   }
   // 读者不沿反向依赖传播：读文件的是那个成员的测试，依赖它的成员不读。
-  // `affected` 已拿掉文档种子带出的成员，turbo 选中而自己没改代码的，就是代码改动成员的下游。
+  // `affected` 已拿掉文档种子带出的成员，turbo 选中而自己没改代码、锁文件里依赖也没变的，就是种子成员的下游。
   return members.flatMap(member => {
     const own = changed.get(member.path) ?? []
     const read = reads.get(member.path) ?? []
+    const viaLockfile = lockfile.get(member.path)
     const byTurbo = affected.has(member.path)
-    if (own.length === 0 && read.length === 0 && !byTurbo) return []
+    if (own.length === 0 && read.length === 0 && !byTurbo && viaLockfile === undefined) return []
     return [
       {
         path: member.path,
         changed: own,
         reads: read,
-        ...(byTurbo && own.length === 0 ? { downstream: true as const } : {}),
+        ...(viaLockfile === undefined
+          ? {}
+          : {
+              lockfile: {
+                importerChanged: viaLockfile.importerChanged,
+                packages: viaLockfile.packages,
+              },
+            }),
+        ...(byTurbo && own.length === 0 && viaLockfile === undefined
+          ? { downstream: true as const }
+          : {}),
       },
     ]
   })
@@ -320,22 +355,52 @@ function scopedReason(
         : `只需常驻检查：${files.length} 个改动文件都只被常驻检查读`) + documents
     )
   const own = planned.filter(member => member.changed.length > 0).length
-  const readers = planned.filter(member => member.changed.length === 0 && member.reads.length > 0)
+  const viaLockfile = planned.filter(member => member.lockfile !== undefined).length
+  const readers = planned.filter(
+    member =>
+      member.changed.length === 0 && member.lockfile === undefined && member.reads.length > 0,
+  )
   const dependents = planned.filter(
     member => member.downstream === true && member.reads.length === 0,
   )
   return (
     `${files.length} 个改动文件，成员 ${planned.length} 个` +
-    `（自己改了 ${own} 个、依赖方 ${dependents.length} 个、只因读者规则 ${readers.length} 个）` +
+    `（自己改了 ${own} 个、锁文件里依赖变了 ${viaLockfile} 个、依赖方 ${dependents.length} 个、只因读者规则 ${readers.length} 个）` +
     documents +
     `；pytest ${python ? '跑' : '不跑'}`
   )
 }
 
+/** 锁文件判定的结论落到计划上：全量的原因，或作为种子的成员（只取在役的；退役成员不进任何计划）。 */
+type LockfileSeeds =
+  | { readonly full: string }
+  | { readonly members: ReadonlyMap<string, LockfileAffectedMember>; readonly reason: string }
+
+function lockfileSeeds(
+  files: readonly ClassifiedFile[],
+  active: readonly WorkspaceMember[],
+  judge: LockfileJudge | undefined,
+): LockfileSeeds | undefined {
+  if (!files.some(file => file.category === 'lockfile')) return undefined
+  if (judge === undefined) return { full: `${LOCKFILE_PATH} 有改动，没有锁文件判定，判为全量` }
+  const impact = judge()
+  if (impact.kind === 'full') return { full: `${LOCKFILE_PATH} 有改动：${impact.reason}` }
+  if (impact.kind === 'unchanged') return { members: new Map(), reason: impact.reason }
+  const known = new Set(active.map(member => member.path))
+  return {
+    members: new Map(
+      impact.members.filter(member => known.has(member.path)).map(member => [member.path, member]),
+    ),
+    reason: impact.reason,
+  }
+}
+
 /**
  * 由改动过的文件、成员清单、规则、turbo 判为受影响的成员（`--affected`）与 turbo 的依赖图算出执行计划；
- * 除 `dependents` 外不读外部状态。`full` 为真（`FULL=1`）直接给全量计划。规则里点名了不存在的成员就抛错；
- * 有只改了文档的成员而没给 `dependents` 也抛错。turbo 选中了改动解释不了的成员时，不拿文档种子的下游，判全量。
+ * 除 `dependents` 与 `judgeLockfile` 外不读外部状态。`full` 为真（`FULL=1`）直接给全量计划。规则里点名了不存在的成员就抛错；
+ * 有只改了文档的成员或锁文件映射到了成员而没给 `dependents` 也抛错。turbo 选中了改动解释不了的成员时，不拿文档种子的下游，判全量。
+ * `pnpm-lock.yaml` 是唯一命中的全局文件时问 `judgeLockfile`：映射到的成员作为种子带上下游；判全量、没给判定、
+ * 引擎自己（`tools/test-runner`）在种子或其下游里，都判全量。锁文件与别的全局文件一起改时不问，直接全量。
  */
 export function planCheck(
   changedPaths: readonly string[],
@@ -344,6 +409,7 @@ export function planCheck(
   affected: ReadonlySet<string>,
   full = false,
   dependents?: Dependents,
+  judgeLockfile?: LockfileJudge,
 ): CheckPlan {
   checkRuleMembers(members, rules)
   const files = [...new Set(changedPaths)].sort().map(path => classify(path, members, rules))
@@ -355,9 +421,14 @@ export function planCheck(
       members,
       files,
       `全局文件 ${first.path} 有改动（命中 ${first.rule ?? ''}）` +
-        (globals.length > 1 ? `，另有 ${globals.length - 1} 个全局文件` : ''),
+        (globals.length > 1 ? `，另有 ${globals.length - 1} 个全局文件` : '') +
+        (files.some(file => file.category === 'lockfile') ? `，另有 ${LOCKFILE_PATH}` : ''),
       rules,
     )
+  const active = members.filter(member => !isLegacyDirectory(member.path))
+  const lockfile = lockfileSeeds(files, active, judgeLockfile)
+  if (lockfile !== undefined && 'full' in lockfile)
+    return fullPlan(members, files, lockfile.full, rules)
   const unknown = files.filter(file => file.category === 'unclassified').map(file => file.path)
   if (unknown.length > 0)
     return fullPlan(
@@ -367,10 +438,32 @@ export function planCheck(
       rules,
     )
 
-  const active = members.filter(member => !isLegacyDirectory(member.path))
+  const viaLockfile = lockfile?.members ?? new Map<string, LockfileAffectedMember>()
+  if (viaLockfile.size > 0 && dependents === undefined)
+    throw new Error(
+      `锁文件改动映射到 ${sample([...viaLockfile.keys()])}，要按依赖图带上它们的下游，但没有给出 turbo 的依赖图`,
+    )
+  // 锁文件映射到的成员与它们的下游：turbo 的 `--affected` 不一定选中它们，这里并进去；它们是合法种子，不是解释不了的成员。
+  const lockfileClosure =
+    viaLockfile.size > 0 && dependents !== undefined
+      ? dependents([...viaLockfile.keys()])
+      : new Set<string>()
+  if (viaLockfile.has(ENGINE_MEMBER) || lockfileClosure.has(ENGINE_MEMBER))
+    return fullPlan(
+      members,
+      files,
+      `${LOCKFILE_PATH} 有改动：${lockfile?.reason ?? ''}；${ENGINE_MEMBER} 自己的依赖变了，引擎不能给自己划范围，判为全量`,
+      rules,
+    )
   const owners = new Set(files.flatMap(file => (file.owner === undefined ? [] : [file.owner])))
-  const documents = documentsOnlyMembers(files, active, owners)
-  const narrowed = withoutDocumentSeeds(affected, owners, documents, dependents)
+  const seeds = new Set([...owners, ...viaLockfile.keys()])
+  const documents = documentsOnlyMembers(files, active, seeds)
+  const narrowed = withoutDocumentSeeds(
+    new Set([...affected, ...lockfileClosure]),
+    seeds,
+    documents,
+    dependents,
+  )
   if ('unexplained' in narrowed)
     return fullPlan(
       members,
@@ -379,7 +472,7 @@ export function planCheck(
         `影响面未知：${sample(narrowed.unexplained)}`,
       rules,
     )
-  const planned = selectMembers(files, active, narrowed.affected)
+  const planned = selectMembers(files, active, narrowed.affected, viaLockfile)
   const selected = new Set(planned.map(member => member.path))
   const unselected = documents.filter(member => !selected.has(member.path))
   const pythonHits = files.filter(file => file.python !== undefined)
@@ -403,6 +496,7 @@ export function planCheck(
           }
         : { run: false, reason: '没有改动命中 Python 工具的路径' },
     documentsOnly: unselected,
+    ...(lockfile === undefined ? {} : { lockfile: lockfile.reason }),
   }
 }
 
@@ -410,6 +504,7 @@ export function planCheck(
 const CATEGORY_NAMES: Readonly<Record<FileCategory, string>> = {
   excluded: '退役目录，排除',
   global: '全局',
+  lockfile: '锁文件',
   unclassified: '未归类',
   reader: '读者',
   member: '成员文件',
@@ -420,6 +515,13 @@ const CATEGORY_NAMES: Readonly<Record<FileCategory, string>> = {
 function whyMember(member: PlannedMember): string {
   const parts: string[] = []
   if (member.changed.length > 0) parts.push(`自己改了 ${sample(member.changed, 2)}`)
+  if (member.lockfile !== undefined)
+    parts.push(
+      member.lockfile.packages.length === 0
+        ? '锁文件里它的 importer 条目变了'
+        : `锁文件里它依赖的 ${sample(member.lockfile.packages, 2)} 变了` +
+            (member.lockfile.importerChanged ? '（importer 条目也变了）' : ''),
+    )
   if (member.reads.length > 0)
     parts.push(
       `测试读 ${sample(
@@ -450,6 +552,7 @@ export function describeCheckPlan(
     )
   }
   lines.push(`  规则：${configPath} 的 affected`)
+  if (plan.lockfile !== undefined) lines.push(`  锁文件：${plan.lockfile}`)
 
   const residentOnly = plan.mode === 'scoped' && plan.members.length === 0 && !plan.python.run
   if (residentOnly && plan.files.length > 0)

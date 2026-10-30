@@ -45,7 +45,13 @@ function absent(pid: number): boolean {
   }
 }
 
-test('checks the complete result delivery protocol model', async () => {
+// The supervisor reaps the model through its POSIX process group and refuses to start on Windows
+// (tests/protocol-model/README.md); there the second test checks the refusal. The skips are made at
+// run time: vitest's pre-parse drops a slow file whose every test is a static skipIf or runIf.
+const posixGroups = process.platform !== 'win32'
+
+test('checks the complete result delivery protocol model', async ({ skip }) => {
+  skip(!posixGroups, 'POSIX process groups are required')
   const before = sourceSnapshot()
   mkdirSync(evidenceRoot, { recursive: true })
   const directory = realpathSync(mkdtempSync(join(evidenceRoot, 'run-')))
@@ -135,4 +141,31 @@ test('checks the complete result delivery protocol model', async () => {
     }
     if (passed) rmSync(directory, { recursive: true, force: true })
   }
+})
+
+test('refuses to start the model where POSIX process groups are missing', async ({ skip }) => {
+  skip(posixGroups, 'the platform has POSIX process groups')
+  const before = sourceSnapshot()
+  mkdirSync(evidenceRoot, { recursive: true })
+  const directory = realpathSync(mkdtempSync(join(evidenceRoot, 'run-')))
+  const target = join(directory, 'model')
+  const child = fork(supervisor, [source, target], { stdio: ['ignore', 'pipe', 'pipe', 'ipc'] })
+  child.stdout?.resume()
+  child.stderr?.resume()
+  const result = await new Promise<{ code: number | null; signal: string | null }>(
+    (resolve, reject) => {
+      child.once('error', reject)
+      child.once('close', (code, signal) => resolve({ code, signal }))
+    },
+  )
+  assert.deepEqual(result, { code: 1, signal: null })
+  const report: unknown = JSON.parse(readFileSync(`${target}.supervisor.json`, 'utf8'))
+  assert.ok(report && typeof report === 'object' && 'status' in report && 'reason' in report)
+  assert.equal(report.status, 'failed')
+  assert.match(String(report.reason), /POSIX process groups are required/)
+  // It refused before it copied the sources or started the model: no model PID, no target directory.
+  assert.equal('pid' in report, false)
+  assert.equal(existsSync(target), false)
+  assert.deepEqual(sourceSnapshot(), before)
+  rmSync(directory, { recursive: true, force: true })
 })

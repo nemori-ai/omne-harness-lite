@@ -1,7 +1,8 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { delimiter, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
 import { preAdmission, preAdmissionSteps } from '../src/delivery/pre-admission.ts'
 import { UUID, NEXT_UUID } from './fixtures/identifiers.ts'
@@ -98,7 +99,7 @@ process.exitCode = process.env.N10_FAIL_STEP === name ? 29 : 0
         join(input.worktree, 'scripts/format.sh'),
       ])
         writeFileSync(path, source, { mode: 0o755 })
-      const cli = new URL('../src/delivery/pre-admission-cli.ts', import.meta.url).pathname
+      const cli = fileURLToPath(new URL('../src/delivery/pre-admission-cli.ts', import.meta.url))
       const child = spawnSync(
         process.execPath,
         [
@@ -114,7 +115,7 @@ process.exitCode = process.env.N10_FAIL_STEP === name ? 29 : 0
           encoding: 'utf8',
           env: {
             ...process.env,
-            PATH: `${bin}:${process.env.PATH ?? ''}`,
+            PATH: `${bin}${delimiter}${process.env.PATH ?? ''}`,
             N10_FAIL_STEP: failStep,
           },
         },

@@ -135,7 +135,7 @@ def module(case: dict[str, Any]) -> bytes:
 def test_the_copy_takes_the_tests_away_and_keeps_the_module(copy: dict[str, Any]) -> None:
     dest = copy["dest"]
     assert not (dest / "member/tests/mod.spec.ts").exists() and not (dest / "member/dist").exists()
-    assert (dest / "member/src/mod.ts").read_text() == MODULE, "被测模块原样留着"
+    assert (dest / "member/src/mod.ts").read_text(encoding="utf-8") == MODULE, "被测模块原样留着"
     assert (dest / "member/tests/other.spec.ts").is_file(), "别的已有测试留着"
     assert workspace.git(dest, "status", "--porcelain") == "", "删除都在基线提交里"
     assert checkout.answers_left(copy["flow"], copy["material"], dest) == []
@@ -193,9 +193,9 @@ def test_a_red_typecheck_is_recorded_but_does_not_decide(copy: dict[str, Any]) -
 
 def test_only_spec_files_under_the_tests_dir_are_the_role_s_tests(copy: dict[str, Any]) -> None:
     dest = copy["dest"]
-    (dest / "member/tests/helper.ts").write_text("export const x = 1\n")
-    (dest / "member/src/extra.spec.ts").write_text("has alpha='alpha'\n")
-    (dest / "member/tests/other.spec.ts").write_text("exports=export\nhas beta='beta'\n")   # 改了一份已有测试
+    (dest / "member/tests/helper.ts").write_text("export const x = 1\n", encoding="utf-8")
+    (dest / "member/src/extra.spec.ts").write_text("has alpha='alpha'\n", encoding="utf-8")
+    (dest / "member/tests/other.spec.ts").write_text("exports=export\nhas beta='beta'\n", encoding="utf-8")   # 改了一份已有测试
     result = judged(copy, "has alpha='alpha'\n")
     assert result["test_files"] == ["tests/mine.spec.ts", "tests/other.spec.ts"], "改动的已有 spec 也算进来，同原判定"
     assert result["killed"] == ["m1-alpha", "m2-beta"]
@@ -207,7 +207,7 @@ def test_only_spec_files_under_the_tests_dir_are_the_role_s_tests(copy: dict[str
 
 
 def test_mutants_go_into_the_module_as_the_template_has_it(copy: dict[str, Any]) -> None:
-    (copy["dest"] / "member/src/mod.ts").write_text("export const a = 'alpha'\n")   # 角色越界改了被测模块
+    (copy["dest"] / "member/src/mod.ts").write_text("export const a = 'alpha'\n", encoding="utf-8")   # 角色越界改了被测模块
     result = judged(copy, "has alpha='alpha'\n")
     assert result["valid"], "有效性在角色留下的模块上跑，同原判定"
     assert result["killed"] == ["m1-alpha"] and result["survived"] == ["m2-beta"], "m2 仍落在模板那份原文上"
@@ -288,7 +288,7 @@ def wired(small: dict[str, Any], monkeypatch: pytest.MonkeyPatch) -> dict[str, A
 
 def test_a_run_lands_one_row_per_mutant_and_one_for_the_run(wired: dict[str, Any]) -> None:
     said, evidence = run_checkout(wired, "tiny-write-tests", "W1",
-                                  edit=lambda c: (c / "member/tests/mine.spec.ts").write_text("has alpha='alpha'\n"),
+                                  edit=lambda c: (c / "member/tests/mine.spec.ts").write_text("has alpha='alpha'\n", encoding="utf-8"),
                                   calls=[("Write", {"file_path": "member/tests/mine.spec.ts"}, "ok")])
     assert said.startswith("PRECONDITION: dispatch from a session whose working directory is outside")
     assert "scored by the program: success 0" in said

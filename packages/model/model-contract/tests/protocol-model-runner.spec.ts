@@ -16,7 +16,7 @@ import {
 import { join } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
-import { test } from 'vitest'
+import { beforeEach, test } from 'vitest'
 
 const sourceDirectory = fileURLToPath(new URL('./protocol-model/', import.meta.url))
 const supervisorPath = fileURLToPath(
@@ -26,6 +26,12 @@ const evidenceRoot = fileURLToPath(
   new URL('../../../../tmp/model-contract-protocol/', import.meta.url),
 )
 const scripts = ['model.mjs', 'self-test.mjs', 'knowledge-test.mjs', 'boundary-test.mjs', 'run.mjs']
+// The supervisor reaps the model through its POSIX process group and refuses to start on Windows
+// (tests/protocol-model/README.md); protocol-model.spec.ts checks that refusal there. The skip is
+// made at run time: vitest's pre-parse drops a slow file whose every test is a static skipIf.
+beforeEach(({ skip }) => {
+  skip(process.platform === 'win32', 'POSIX process groups are required')
+})
 const limits = {
   pollMs: 20,
   closeMs: 6500,

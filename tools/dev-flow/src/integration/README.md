@@ -130,7 +130,7 @@ Attribute findings refuse a new context (1):
 
 开工成功时，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
 
-```json
+```jsonl
 {"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
 ```
 
@@ -153,26 +153,92 @@ Attribute findings refuse a new context (1):
 ```sh
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree <目录> [--evidence <目录>] [--root <主检出>] [--remote <名称>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts swap --issue <N> --old <旧目录> --tree <新目录> [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare-closures --base <提交> --closure <名称>:<分支> [--closure <名称>:<分支> ...] [--build <turbo 过滤器> ...] [--root <主检出>] [--json]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections [--tree <目录>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts remove --tree <目录> [--root <主检出>] [--force]
 ```
 
-`prepare` 与 `swap` 从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。
+`prepare` 与 `swap` 从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。怎样接续见[中途失败后怎样接续](#中途失败后怎样接续)。
 
 `prepare` 为一张已派发的卡建新工作树并在其中开工：
 
 1. 目录已存在时拒绝。
-2. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。本地分支落后于远端时先快进到远端尖端；本地分支领先于远端或与远端分叉时拒绝。
-3. 用锁文件安装依赖：`pnpm install --frozen-lockfile --ignore-scripts`。
-4. 把 `--evidence` 目录复制进 `tmp/issue-<N>/`。
-5. 按 `projections` 的步骤重生成 agent 投影。
-6. 把 `start` 命令写进 `tmp/issue-<N>/start.json`，用新工作树自己的 dev-flow 运行 `start`。输出 context 与 `start` 写到标准错误的报告行。
+2. 确定 pnpm 怎样起，见 [pnpm 怎样起](#pnpm-怎样起)。起不了时退出2，不建树。
+3. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。本地分支落后于远端时，先快进到远端尖端。本地分支领先于远端或与远端分叉时拒绝。然后在这个分支上建工作树。
+4. 把 `--evidence` 目录复制进 `tmp/issue-<N>/`，再把 `start` 命令写进 `tmp/issue-<N>/start.json`。证据里旧 attempt 的 `start.json` 在这一步被替换。
+5. 用锁文件安装依赖：`pnpm install --frozen-lockfile --ignore-scripts`。
+6. 按 `projections` 的步骤重生成 agent 投影。
+7. 用新工作树自己的 dev-flow 运行 `start`。输出 context 与 `start` 写到标准错误的报告行。
 
-`swap` 在同一分支上换一棵树给新 attempt，不删除旧树。旧树有未提交的已跟踪改动、不在 binding 的分支上、或有远端分支没有的提交时拒绝；命令不代为推送。然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，让旧树 `git checkout --detach` 释放分支，再按 `prepare` 从远端尖端建新树并恢复这份副本。旧树中 `tmp/issue-<N>/` 以外的未跟踪与被忽略路径列在输出的 `warnings` 中，原样保留。
+`prepare` 与 `swap` 不构建成员。运行需要 `dist` 的测试或检查之前，先构建受影响的成员。
 
-`remove` 删除一棵工作树。旧树有未提交的已跟踪改动时总是拒绝。不加 `--force` 时只列出删除会丢掉的未跟踪与被忽略路径，退出1，不删除。加 `--force` 时运行 `git worktree remove --force`。删除前按[工作约定](../../../../docs/engineering/workflow.md)确认清理条件与授权。
+`swap` 在同一分支上换一棵树给新 attempt，不删除旧树。下列情况下命令拒绝，不改动旧树：
 
-`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并之后、准入之前一律运行它：候选自己没改 agent 源时，合并进来的轨道头也可能带别的卡的改动。需要 `uv`、`rsync` 与 `pnpm`。
+- 旧树有未提交的已跟踪改动。
+- 旧树不在 binding 的分支上。
+- 旧树有远端分支没有的提交。命令不代为推送。
+- pnpm 起不了。
+
+然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，让旧树 `git checkout --detach` 释放分支，再按 `prepare` 从远端尖端建新树并恢复这份副本。副本留在系统临时目录，路径见输出的 `evidence` 字段。确认新树已恢复后，由操作者删除副本。
+
+旧树中 `tmp/issue-<N>/` 以外的未跟踪与被忽略路径原样保留，并报告在输出的 `warnings` 中。可重新生成的被忽略路径不逐条列出，每个类别一行计数，例如 `node_modules: 73 ignored paths, not copied; pnpm install makes them again`。名单是固定的：
+
+| 类别 | 路径 | 怎样重新生成 |
+| --- | --- | --- |
+| `node_modules` | 最后一段为 `node_modules` | `pnpm install` |
+| `dist` | 最后一段为 `dist` | 构建 |
+| `.turbo` | 最后一段为 `.turbo` | turbo 的缓存，构建时重建 |
+| `.venv` | 最后一段为 `.venv` | `uv` |
+| Python caches | 最后一段为 `__pycache__` 或 `.pytest_cache` | Python 与 pytest |
+| agent projections | `.meta_harness/` 下的 `.agents`、`.claude`、`.codex`、`.cursor` 及其下的路径 | `projections` |
+
+其余被忽略路径与全部未跟踪路径逐条列出。
+
+`prepare-closures` 在同一个基线上一次建出多棵闭包工作树。它不是卡的开工：不读 binding，不运行 `start`，不推送，不设上游。每个 `--closure <名称>:<分支>` 是一棵树，在 `<主检出>/.worktrees/<名称>`。`--closure` 与 `--build` 可以重复。命令按给定顺序逐棵处理，不并行安装：
+
+1. 把 `--base` 解析成 40 位提交号，再确定 pnpm 怎样起。两者任一失败时退出2，不建树。名称、分支为空、重复或不可用时同样退出2。
+2. 建树：目录与分支都不存在时，运行 `git worktree add -b <分支> <树> <基线>`，不设上游。分支已存在、目录不存在时，分支尖端等于基线才用它建树，否则该闭包为 `refused`。目录已存在时，它必须是登记在册、检出这个分支的工作树，且树的 HEAD 含基线（`git merge-base --is-ancestor <基线> HEAD`），否则该闭包为 `refused`。`refused` 发生在改动之前，不影响其他闭包。HEAD 已越过基线的树可以重用，`ready.json` 与报告里的 `base` 仍写请求的基线。
+3. 跳过键：基线、树中 `pnpm-lock.yaml` 的 SHA-256、HEAD 的 `.meta_harness/agents` 树、该目录未提交改动的 SHA-256，以及排序去重后的 `--build` 过滤器列表。未提交改动的摘要取 `git diff HEAD -- .meta_harness/agents` 的输出，加上该目录下每个未跟踪文件的路径与内容摘要；目录干净时是固定值。`<树>/tmp/closures/<名称>/ready.json` 记录了同一个键、各步成功、每个 `--build` 过滤器各有一条成功的 `build <过滤器>` 记录，且树根的 `node_modules` 还在时，该闭包为 `skipped`，不安装、不投影、不构建。其余情况，包括重跑时新加了 `--build`、改了 agent 源的内容、或 `node_modules` 被删，都在原树里整套重做第4步，状态为 `reused`（新建的树为 `created`）。重做之前先删掉旧的 `ready.json`，所以重做中途失败的树不会被旧记录当成就绪。
+4. 依次安装（`pnpm install --frozen-lockfile --ignore-scripts`）、按 [`projections`](#准备任务工作树) 重生成投影，再对每个 `--build` 运行 `pnpm turbo run build --filter=<过滤器>`。全部成功后写 `ready.json`：`base`、`branch`、`key`、`steps`（`name`、`ok`、`ms`）与 `completedAt`。
+
+某一步失败时，该闭包为 `failed`，命令停在这里：已建的树不删，后面的闭包不处理，输出里的 `resume` 是同一条命令，重跑即接续。没有失败也没有被拒的闭包时退出0。有闭包 `failed` 或 `refused` 时退出1。默认每棵树输出一行 `<名称> <状态> <树> <分支>`，后面缩进列出步骤与原因。`--json` 输出 `base`、`closures`（`name`、`tree`、`branch`、`base`、`status`、`steps`、`message`）、`ok` 与 `resume`。
+
+agent 源的未提交改动按内容进键：再次修改它，下一次运行就会重新投影，不必先提交。键只看 `.meta_harness/agents`；这个目录之外的改动不进键。清理仍用 `remove`。
+
+`remove` 删除一棵工作树。旧树有未提交的已跟踪改动时总是拒绝。不加 `--force` 时只列出删除会丢掉的未跟踪与被忽略路径，退出1，不删除。加 `--force` 时运行 `git worktree remove --force`，再核对目录确实不在磁盘上，只有这时输出 `"removed": true`。Windows 上 git 会留下 pnpm 建的目录联接与空目录，命令只删除链接本身与空目录，不进入链接，所以 pnpm store 与别的树不受影响。剩下的内容里有普通文件时命令不删，输出 `"removed": false`、原因与前几个文件，退出1。删除前按[工作约定](../../../../docs/engineering/workflow.md)确认清理条件与授权。
+
+`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并之后、准入之前一律运行它：候选自己没改 agent 源时，合并进来的轨道头也可能带别的卡的改动。需要 `uv` 与 `pnpm`。
+
+`projections` 起 `uv run --locked` 与 `pnpm run check:agents`（它自己也起 `uv run --locked`）时，从子进程的环境中去掉 `UV_DEFAULT_INDEX` 与 `UV_INDEX_URL`。锁文件已固定每个包的来源，调用者环境里的镜像索引只会让锁文件核对失败。
+
+按内容复制这一步，在 POSIX 上且 `PATH` 里有 `rsync` 时运行 `rsync -rlpc`。其他情况，包括 Windows，由 Node 实现同样的语义：创建目录，软链接按链接复制，内容相同的文件不重写，权限位随源（仅 POSIX），不删除目标里多出的文件。不直接把 `compile_agents.py` 输出到 `.meta_harness/`，因为它遇到内容不同的已有文件会拒绝覆盖，必须先编到新目录。
+
+### pnpm 怎样起
+
+`prepare` 的安装与 `projections` 的 `check:agents` 起 pnpm。其他平台运行 `pnpm`。Windows 上 Node 不经 shell 起不了 `pnpm.cmd`，所以命令按 `PATH` 顺序找第一个能起 pnpm 的目录：
+
+- 目录里有 `pnpm.exe`（独立安装的布局）时，直接起这个 `pnpm.exe`。
+- 目录里有 `pnpm.cmd`，旁边还有 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）时，用当前 Node 运行这个 `pnpm.cjs`。
+
+旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。找不到能起 pnpm 的目录时，命令报错退出，不尝试其他位置。`prepare`、`swap` 与 `projections` 在改动任何东西之前先确定 pnpm 怎样起。
+
+### 中途失败后怎样接续
+
+`prepare` 建好工作树之后，或 `swap` 开始复制任务目录之后，某一步失败时，标准错误的 JSON 除 `code` 与 `message` 外还有三个字段：
+
+- `done`：已完成的步骤，按顺序。
+- `resume`：从失败的那一步接着做完的命令，按顺序。
+- `evidence`：系统临时目录里任务目录副本的路径。没有副本时为 `null`。
+
+按顺序运行 `resume` 中的命令即可接续，不用手工改 `start.json`，因为 `prepare` 在安装之前已把它写成新 attempt。`resume` 按失败的位置不同：
+
+- `swap` 让旧树分离之前失败时，旧树没有改动，`resume` 是同一条 `swap` 命令。
+- 旧树已分离、新工作树还没建好时，`resume` 是一条带 `--evidence <副本>` 的 `prepare` 命令。
+- 新工作树已建好时，`resume` 是剩下的安装、`projections` 与 `start`。复制证据或写 `start.json` 失败时，`resume` 先删除新树，再重跑 `prepare`。
+
+在这些时刻之前失败的命令没有改动工作树，改正原因后重跑同一条命令即可。`prepare` 这时可能已把落后的本地分支快进到远端尖端，重跑不受影响。
+
+其他错误的 `message` 写明出错的阶段、异常的类型与消息。从 GitHub 读卡这一阶段的错误只写阶段与类型，不写 GitHub API 的原始输出。
 
 ## 等待 gate 并代为确认
 
@@ -307,6 +373,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-check`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十七个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 与 `integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-check`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十七个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝，用真实建出的目录联接覆盖 `remove` 对残留的处理，并用注入的平台与 `PATH` 覆盖 Windows 的 pnpm 启动、没有 `rsync` 时的 Node 复制。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 与 `integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

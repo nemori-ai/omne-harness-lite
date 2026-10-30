@@ -586,20 +586,27 @@ it('a creation closes the temporary file and the parent directory it opened', ()
   expect(new Map(fdFlags)).toEqual(openBefore)
 })
 
-it('a failed parent directory fsync still closes the directory it opened', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const first = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const openBefore = new Map(fdFlags)
-  injectedFsyncSync = (fd: number, flags: string | undefined) => {
-    if (flags === 'r') throw new Error('injected dir fsync failure')
-    return globalThis.__actualFs.fsyncSync(fd)
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(/confirmation incomplete/)
-  injectedFsyncSync = undefined
-  expect(new Map(fdFlags)).toEqual(openBefore)
-})
+// The store syncs the parent directory after the rename only on POSIX: Windows cannot fsync a
+// directory handle (EPERM), so there the rename is the last step and no confirmation can fail.
+const postRenameConfirmation = it.skipIf(process.platform === 'win32')
+
+postRenameConfirmation(
+  'a failed parent directory fsync still closes the directory it opened',
+  () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
+    const first = createLocalCustodian({ path: join(dir, 'store.json'), factorySecret: FACTORY })
+    const ref = reference()
+    first.put(ref, SECRET)
+    const openBefore = new Map(fdFlags)
+    injectedFsyncSync = (fd: number, flags: string | undefined) => {
+      if (flags === 'r') throw new Error('injected dir fsync failure')
+      return globalThis.__actualFs.fsyncSync(fd)
+    }
+    expect(() => first.rotate(ref, ROTATED)).toThrow(/confirmation incomplete/)
+    injectedFsyncSync = undefined
+    expect(new Map(fdFlags)).toEqual(openBefore)
+  },
+)
 
 it('a rename that fails still closes the temporary file it opened', () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
@@ -617,31 +624,38 @@ it('a rename that fails still closes the temporary file it opened', () => {
   expect(new Map(fdFlags)).toEqual(openBefore)
 })
 
-it('a post-rename confirmation failure reports the update may be visible', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const first = createLocalCustodian({ path, factorySecret: FACTORY })
-  const ref = reference()
-  first.put(ref, SECRET)
-  const injected = new Error('injected dir fsync failure')
-  injectedFsyncSync = (fd: number, flags: string | undefined) => {
-    if (flags === 'r') throw injected
-    return globalThis.__actualFs.fsyncSync(fd)
-  }
-  expect(() => first.rotate(ref, ROTATED)).toThrow(
-    expect.objectContaining({
-      message: expect.stringMatching(/confirmation incomplete/),
-      cause: injected,
-    }),
-  )
-  injectedFsyncSync = undefined
-  // The rename already published the new snapshot; subsequent reads see it.
-  expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-  const reopenedResult = openLocalCustodian({ path })
-  if (reopenedResult.kind !== 'open') throw new Error('store missing')
-  const reopened = reopenedResult.custodian
-  expect(reopened.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
-})
+postRenameConfirmation(
+  'a post-rename confirmation failure reports the update may be visible',
+  () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
+    const path = join(dir, 'store.json')
+    const first = createLocalCustodian({ path, factorySecret: FACTORY })
+    const ref = reference()
+    first.put(ref, SECRET)
+    const injected = new Error('injected dir fsync failure')
+    injectedFsyncSync = (fd: number, flags: string | undefined) => {
+      if (flags === 'r') throw injected
+      return globalThis.__actualFs.fsyncSync(fd)
+    }
+    expect(() => first.rotate(ref, ROTATED)).toThrow(
+      expect.objectContaining({
+        message: expect.stringMatching(/confirmation incomplete/),
+        cause: injected,
+      }),
+    )
+    injectedFsyncSync = undefined
+    // The rename already published the new snapshot; subsequent reads see it.
+    expect(first.resolve(ref, face())).toEqual({ kind: 'value', scope: 'tenant', value: ROTATED })
+    const reopenedResult = openLocalCustodian({ path })
+    if (reopenedResult.kind !== 'open') throw new Error('store missing')
+    const reopened = reopenedResult.custodian
+    expect(reopened.resolve(ref, face())).toEqual({
+      kind: 'value',
+      scope: 'tenant',
+      value: ROTATED,
+    })
+  },
+)
 
 it('a creation whose first snapshot cannot be published throws with the write error as the cause and leaves no store', () => {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
@@ -665,33 +679,36 @@ it('a creation whose first snapshot cannot be published throws with the write er
   expect(readdirSync(dir)).toEqual([])
 })
 
-it('a creation whose confirmation fails after the rename reports the store may be visible, and it is', () => {
-  const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
-  const path = join(dir, 'store.json')
-  const injected = new Error('injected dir fsync failure')
-  injectedFsyncSync = (fd: number, flags: string | undefined) => {
-    if (flags === 'r') throw injected
-    return globalThis.__actualFs.fsyncSync(fd)
-  }
-  let thrown: unknown
-  try {
-    createLocalCustodian({ path, factorySecret: FACTORY })
-  } catch (error: unknown) {
-    thrown = error
-  }
-  injectedFsyncSync = undefined
-  expect(thrown).toMatchObject({
-    message: expect.stringMatching(
-      /creation .* confirmation incomplete; verify state before retry/,
-    ),
-  })
-  expect(thrown).toHaveProperty('cause', injected)
-  expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
-    closed: false,
-    factorySecret: FACTORY,
-    bindings: [],
-  })
-})
+postRenameConfirmation(
+  'a creation whose confirmation fails after the rename reports the store may be visible, and it is',
+  () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'model-cred-')))
+    const path = join(dir, 'store.json')
+    const injected = new Error('injected dir fsync failure')
+    injectedFsyncSync = (fd: number, flags: string | undefined) => {
+      if (flags === 'r') throw injected
+      return globalThis.__actualFs.fsyncSync(fd)
+    }
+    let thrown: unknown
+    try {
+      createLocalCustodian({ path, factorySecret: FACTORY })
+    } catch (error: unknown) {
+      thrown = error
+    }
+    injectedFsyncSync = undefined
+    expect(thrown).toMatchObject({
+      message: expect.stringMatching(
+        /creation .* confirmation incomplete; verify state before retry/,
+      ),
+    })
+    expect(thrown).toHaveProperty('cause', injected)
+    expect(JSON.parse(readFileSync(path, 'utf8'))).toEqual({
+      closed: false,
+      factorySecret: FACTORY,
+      bindings: [],
+    })
+  },
+)
 
 it(
   'a long-lived synchronous transaction does not let another process steal the lock',

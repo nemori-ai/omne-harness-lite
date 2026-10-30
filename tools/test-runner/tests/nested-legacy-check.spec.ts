@@ -9,7 +9,7 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, expect, it } from 'vitest'
 import { checkTypecheckScopes, typecheckScopeProblem } from '../src/testing/typecheck-scope.ts'
@@ -85,11 +85,15 @@ function excludeArchives(root: string): void {
   config.exclude = [...(config.exclude ?? []), '**/*.legacy/**']
   put(root, 'tsconfig.test.json', JSON.stringify(config))
 }
-/** 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。 */
+/**
+ * 成员的 typecheck 脚本由 turbo 原样运行；这里照样跑一次 tsc。`.bin/tsc` 链到 tsc 的 Node 入口，由当前
+ * Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
+ */
 function tsc(root: string): number {
   return (
-    spawnSync(join(root, 'node_modules/.bin/tsc'), ['-p', 'tsconfig.test.json'], { cwd: root })
-      .status ?? 1
+    spawnSync(process.execPath, [join(root, 'node_modules/.bin/tsc'), '-p', 'tsconfig.test.json'], {
+      cwd: root,
+    }).status ?? 1
   )
 }
 function problem(root: string): string | undefined {
@@ -141,9 +145,11 @@ it('preserves project references and existing exclusions in the generated projec
     join(root, 'evidence/project.json'),
   )
   const output = JSON.parse(readFileSync(scoped.path, 'utf8'))
-  expect(output.files).toEqual([join(root, 'src/live.ts')])
+  // files 与 references 是 TypeScript 解析出的路径，各平台都用正斜杠。
+  const parsed = (path: string) => join(root, path).split(sep).join('/')
+  expect(output.files).toEqual([parsed('src/live.ts')])
   expect(output.include).toEqual([])
-  expect(output.references).toEqual([{ path: join(root, 'dependency') }])
+  expect(output.references).toEqual([{ path: parsed('dependency') }])
 })
 
 it.each(['generated', 'tmp', 'dist', 'coverage'])(
@@ -344,8 +350,9 @@ it(
     }
     const passed = await run('pass')
     expect(passed?.exitCode, readFileSync(join(root, 'evidence/pass/..log'), 'utf8')).toBe(0)
+    // vitest 的 JSON 报告按模块 ID 记文件名，各平台都用正斜杠。
     expect(passed?.report?.testResults.map(result => result.name)).toEqual([
-      join(root, 'tests/live.spec.ts'),
+      join(root, 'tests/live.spec.ts').split(sep).join('/'),
     ])
     put(
       active,
@@ -454,9 +461,15 @@ it(
       // 不把运行器的报告目录传给夹具。
       const env: NodeJS.ProcessEnv = { ...process.env }
       delete env['OMNE_TEST_REPORT_DIR']
+      // `.bin/vitest` 链到 vitest 的 Node 入口，由当前 Node 运行它：Windows 上不经 shell 起不了无扩展名的脚本。
       const ran = spawnSync(
-        join(root, 'node_modules/.bin/vitest'),
-        ['run', '--reporter=json', `--outputFile.json=${report}`],
+        process.execPath,
+        [
+          join(root, 'node_modules/.bin/vitest'),
+          'run',
+          '--reporter=json',
+          `--outputFile.json=${report}`,
+        ],
         { cwd: root, encoding: 'utf8', env },
       )
       return { ran, report: readFileSync(report, 'utf8') }

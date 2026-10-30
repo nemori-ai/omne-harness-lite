@@ -74,10 +74,33 @@ pnpm --filter @omne-harness/repo-toolchain test
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
 - 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
-- 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
+- 临时树叫 `tree-<提交>-<进程号>`，算完就删；Windows 上刚解开的文件可能还被别的程序占着，删除时重试几次，仍删不掉只在标准错误报告，不改变图的结果。运行被强行结束（任务超时、关掉终端、杀进程树）时来不及删，所以每次算基线图开始时清掉进程已不在、且 10 分钟没动过的旧树；活着的进程的树不动。宽限期是为同一个 git 目录被 WSL 里的运行共用的情形：那边的进程这里看不见。
+- 工作树的图：按指纹缓存在同一目录的 `working-<指纹>.json`。指纹（`workingGraphFingerprint`）覆盖所有能改变图的输入：
+  - 图的格式版本与 dependency-cruiser 的版本。
+  - 规则文件（原文与 require 后的结果）、`tsconfig.base.json` 连同 `extends` 链。
+  - HEAD 提交。
+  - 全部未提交与未跟踪文件的路径与内容。不按扫描根过滤，因为 dependency-cruiser 会解析扫描根以外的导入目标。
+  - 被忽略的路径。同样不按扫描根过滤：目录只记存在与否，单个文件记内容。
+  - 被忽略目录的判定结果。
+  - `pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
+  - 当前运行的出图代码（`src/deps/graph.ts`）的内容摘要：钉住的发行版与源码版在同一个头上不会互相命中。基线图的缓存键同样带它。它引用的其他模块变了，仍靠加图格式版本兜底。
+
+  命中时不起 dependency-cruiser，读到的图与重算的逐字节相同。未命中照常算，算完先写临时名再改名，只留最近 10 份。
+  - 缓存读不到、JSON 坏、格式或指纹对不上、写不进都按未命中，既不让检查失败也不让它放行。
+  - `OMNE_DEP_GRAPH_CACHE=0` 关掉缓存：不读不写，行为与没有缓存时相同。
+  - `OMNE_ADMISSION=1` 时不读缓存，照常计算并写入。不设或空串为非准入，其他值报错，与测试运行器的规则相同。
+  - 算完图后复核指纹。运行期间输入变了就不写缓存；stderr 是终端时提示一行。
+  - stderr 是终端时打一行命中与否；管道里不打，输出与没有缓存时相同。
+  - 不在 git 仓库里或没有提交的树没有指纹，照常出图不缓存。
+  - 被忽略的目录只记存在与否，所以写缓存时另记一份复核清单：不在被忽略目录里的模块的导入，且解析到被忽略目录里的文件（不含 `node_modules`，它由锁文件与 `.modules.yaml` 的内容兜住）。清单记下每个文件的内容摘要。命中前逐个核对，文件删了或内容变了就当未命中重算。
+
+  命中不能声称的：复核清单只记已经解析到的文件。原来解析不到的导入，之后在被忽略的目录里出现了文件，指纹不变，缓存可能仍报出旧的失败，不会放行。被忽略的目录里新增一个文件、让已有的导入改为解析到它时，缓存也看不出。
+
+  做法借鉴 ub-mode 列出的 crapper 复用已有覆盖报告（`--use-existing-coverage`）与 mutator 的差分快照：先按输入指纹判没变，没变就不重算。
+- 耗时（Windows 宿主，24 核）：全仓一次 dependency-cruiser 约 14 秒，工作树指纹约 0.7 秒，`lint:deps` 命中缓存约 1.2 秒；基线命中缓存约 10 毫秒。
 - 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。按具名例外放行的组环不算硬线。
 
-自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+自测：`tests/deps-graph.spec.ts`、`tests/deps-graph-cache.spec.ts`（指纹逐类失效，含扫描根之外的未提交文件与被忽略的路径；命中、坏文件、开关、留份、算图期间输入变了不写缓存）、`tests/deps-graph-trees.spec.ts`（过期临时树的清理）、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 
 ### 依赖方向
 
@@ -152,7 +175,8 @@ Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常�
 固定决定编进 `src/acceptance/historical-approvals.data.ts` 的只读列表（核对器 `src/acceptance/historical-approvals.ts` 只读这份列表），每条对应一个提交里的一个受保护路径；一个提交改了几个受保护路径，就登记几条。
 [D010 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
 [#769 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205)批准提交 `19f457a15`、`9f3967cc5`、`69bdedfab`、`837d333fd`、`14b0fcfcb`、`06acd53ca` 中的 27 个路径改动。
-没有任务上下文时，验收锁把合并提交与每个父提交分别比较（`git diff-tree -m`），与任一父提交不同的路径都列出。有任务上下文时它用 `--cc`，只列与所有父提交都不同的路径，干净合并因此不列路径。#769 的六个提交里有四个是这样的合并。
+没有任务上下文时，验收锁把合并提交与每个父提交分别比较（`-m`），与任一父提交不同的路径都列出。有任务上下文时它用 `--cc`，只列与所有父提交都不同的路径，干净合并因此不列路径。#769 的六个提交里有四个是这样的合并。
+每个提交改到的路径由一次 `git log --name-only` 读出，列出的路径与逐个提交运行 `git diff-tree --no-commit-id --name-only --no-renames -r` 相同：调用固定 `log.diffMerges=separate`（用户配置不能把 `-m` 改成只比第一个父提交）与 `log.showRoot=false`（根提交不列路径，与 `diff-tree` 不加 `--root` 相同），并加 `--no-show-signature`。
 登记约定是：合并提交的条目写该路径有变化的那一个父提交。工具不核对这条约定，只核对所写父提交是该提交的父提交之一。
 工具读取真实 Git 对象，核对完整提交、所写父提交确是该提交的父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。某一侧没有这个路径时，blob 记为 Git 的空对象号（40 个 0，与 `git diff --raw` 的写法相同），工具核对该侧的树里确实没有这个路径。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
 调用固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`、`diff.context=3`、`diff.interHunkContext=0`、`diff.suppressBlankEmpty=false`、`diff.srcPrefix=a/`、`diff.dstPrefix=b/`、`core.attributesFile=/dev/null` 与 `attr.tree`（空树），从环境中去掉 `GIT_DIFF_OPTS` 与 `GIT_ATTR_SOURCE`，并设 `GIT_ATTR_NOSYSTEM=1`。仓库大小与这些配置不会改变字节。
@@ -268,9 +292,19 @@ architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报
 pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、依赖方向与环
 pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更的成员、函数、导入与提交形状
 omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
+omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖率跨成员并行：同时 3 个成员，每个至多 5 个工作进程
 ```
 
 计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。改过的文件按最长的成员目录前缀归到成员；成员是 `pnpm-workspace.yaml` 的成员模式匹配到、且 `package.json` 有字符串 `name` 的目录。组根文件（`packages/<组>/README.md`、`packages/<组>/docs/**`）没有成员前缀，不算成员，改它们不触发这项检查。
+
+覆盖率缺省逐个成员串行，vitest 的工作进程数由 vitest 自己按核数定。给了 `--coverage-parallel <M>x<W>`（或环境变量 `OMNE_METRICS_COVERAGE_PARALLEL`，参数优先；只在带 `--coverage` 时生效）就跨成员并行：同时至多 M 个成员，每个成员的 vitest 加 `--maxWorkers=W`。本工具不推预算。`pnpm run metrics --coverage` 经 `scripts/metrics.sh` 在占到运行名额后向 test-runner 要并发度（`coverage-parallel`，两数之积不超过本机的工作进程预算，`OMNE_WORKER_BUDGET` 可覆盖），再经环境变量交下来；不认这个变量的旧版本照旧串行。调用方已设变量或给了参数时，脚本不另算。并行时：
+
+- 预计最久的成员先开始。预计耗时取产物目录上级（缺省为主检出的 `tmp/metrics/`）与这次 `--out` 上级里历次 `metrics.json` 的 `meta.coverageSeconds`，同一成员取最新一份的正数；没有记录的按测试文件数，乘上有记录的成员平均每个文件的秒数。顺序只影响墙钟，不影响读数。
+- 各成员的日志、报告目录与退出码与串行时相同，结果按成员原来的顺序合并，不随完成先后变。进度在每个成员跑完时打一行。
+- 静态度量（依赖图、实际架构、符合性）与覆盖率同时进行，它们只读工作树，不读覆盖率。串行时仍先跑完覆盖率。
+- 一个成员起不来时不再开新成员，等已开始的结束，再报错退出。
+
+这里借鉴了 crapper（[unclebob/ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 列出的 CRAP 工具）的两种做法：按核数并行，以及在覆盖报告已经存在时复用它（`--use-existing-coverage`）。只采用了前一种。复用要能判定已有报告的输入与这次相同：成员与它的工作区依赖的 `dist/`、测试、配置与安装状态都不在提交里，同一提交上也可能不同。本工具判定不了，所以不复用，每次重跑。
 
 本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
 
@@ -285,7 +319,7 @@ omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的
 | `actual.json`       | N1 完整实际架构数据及精确两版差分                                                                                                                                      |
 | `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开                                                                                                                   |
 | `plan.json`         | 给 `--plan` 时复制的计划文件                                                                                                                                             |
-| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
+| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误；并行时的耗时含与别的成员争抢 CPU 的时间 |
 
 审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
 
@@ -611,7 +645,7 @@ pnpm run loop:health # --out 可改产物目录
 | 块                   | 内容                                                                                                                             | 数据来源                                                                                                                                                                                                                                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 提交与合并的大小     | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m`                                                                                                                                                                                                                                                                                       |
-| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
+| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入；含缓存命中（`meta.cache.hits` 非空）的账本只列实际跑了的成员，墙钟不代表一次全量，也不计入 |
 | 债的走向             | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向         | `trend.jsonl`；同一提交多条取最后一条，按提交时间排                                                                                                                                                                                                                                                               |
 | 对照表条数           | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数                                                                       | `docs/clean-loop.md`，与回路状态同一份解析                                                                                                                                                                                                                                                                        |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出                                                         | `trend.jsonl`                                                                                                                                                                                                                                                                                                     |

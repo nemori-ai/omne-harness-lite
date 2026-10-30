@@ -17,8 +17,10 @@ afterEach(removeTemporaries)
 
 it('uses the same source, test, declaration and archive scope for current and historical trees', () => {
   const root = repository()
+  // 当前一侧按工作树数；Windows 文件名不能含制表符，那里换成空格，仍是要 Git 转义的非 ASCII 路径。
+  const quoted = process.platform === 'win32' ? '中文 file.ts' : '中文\tfile.ts'
   for (const path of [
-    'packages/core/demo/src/中文\tfile.ts',
+    `packages/core/demo/src/${quoted}`,
     'packages/core/demo/src/types.d.mts',
     'packages/core/demo/src/types.d.ts',
     'apps/demo/src/index.cts',
