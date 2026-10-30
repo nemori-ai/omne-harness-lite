@@ -127,12 +127,13 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
     "denialBackoffMs": 1000,
     "toolConcurrency": 4,
     "jointCommits": ["message", "context-transition", "custody", "processed"],
+    "coordination": "coordinated",
     "loopGuardPolicy": { "owner": "agent", "name": "loop-guard-default", "revision": "1", "digest": "sha256:…" }
   }
 }
 ```
 
-独立调用的装配把 `jointCommits` 设为空列表，并选择独立 Journal 提供者。有外部协调者的装配列出它需要的共同提交种类，并选择声明了对应参加者的 Journal 提供者。
+独立调用的装配把 `coordination` 设为 `standalone`、`jointCommits` 设为空列表，并选择 standalone 的 Journal 绑定。有外部协调者的装配把 `coordination` 设为 `coordinated`，列出它需要的共同提交种类，并选择声明了 coordinated 模式与对应参加者的 Journal 绑定。两项与绑定声明不符时，宿主插件的创建返回 unsupported，不保存任何状态，见[通用工厂](../../agent/docs/public-api.md#工厂配置)。
 
 ## 实例作用域与复用
 

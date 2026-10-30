@@ -45,7 +45,7 @@
 
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现；生产插件未交付 |
+| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、tryFinish 的只读核对，attach 的核对（[PA-01](../session-contract/SPEC.md#pa-01) 第 3 条）尚未实现；生产插件未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | `reader`；下界读取为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
@@ -59,7 +59,7 @@
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
 | [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读输入为 `coordinator` | `invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach`、`reconcile` | `recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
-| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator` | MessageHandoff.accept；CurrentConditions.read | 生产插件未交付 |
+| [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator` | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 生产插件未交付 |
 | [显示适配](#实时显示适配) | 实时流显示 | 观察 | 无 | 读取关联时为 `reader` | 公共 StreamObserver.observe 与 StreamFrame | 只规定消费行为；生产插件未交付 |
 
 「可登记」只说明邻域一侧的入口已经存在。它不表示已经实现或验证。
@@ -71,8 +71,9 @@
 #### AD-01 Agent 提交参加者
 
 - 注入：`session`，调用方类 `coordinator`。
-- 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
+- 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、挂接、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
 - 参加种类：本插件只声明 `message`、`context-transition`、`custody`、`processed` 四种（[PA-04](../session-contract/SPEC.md#pa-04)）。装配用它比对执行记录提供者的 `capabilities.participants`。
+- 协调模式：会话日志一侧的执行记录提供者是 Agent 的 coordinated Journal 绑定，`capabilities.coordination` 为 `coordinated`，装配配置 `coordination` 与之相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。coordinated 绑定须在 `open`、`attach`、`submit` 与 `tryFinish` 四处完成协调核对，核对见下表。`attach` 的 Session 核对覆盖当前外部资格、原关联与适用推进资格效果；恢复或接管条件由 Agent 按主体核验，本插件不判断。
 
 调用方交接到 Session 命令的翻译：
 
@@ -90,6 +91,7 @@
 | --- | --- | --- |
 | `open`（经 `invoke` 发起） | 来源依据是 SE13 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 1 条 |
 | `submit` | 来源依据是该输入的 SE11 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 2 条 |
+| `attach`（经 `resume` 发起） | 来源依据是推进资格依据所指 attempt 的 SE15 回执，经 attach 输入的 `grant` 到达，分普通推进与取消收束两种情形 | [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条 |
 | `tryFinish` | 以 `judgeCompletion` 核对待交输入与取消 | [PA-02](../session-contract/SPEC.md#pa-02) |
 
 Session 结果到四种参加者响应的对应：
@@ -102,6 +104,7 @@ Session 结果到四种参加者响应的对应：
 | 读权威状态失败、存储不可用 | 失败 | 无 |
 | 提交种类不在四种之内，或材料缺项 | 不支持 | 无 |
 
+- `attach` 上的「冲突」译为 Agent 的 `denied`：推进资格依据的共同核对失败，恢复者停止并交恢复协调（[PM-05](../session-contract/SPEC.md#pm-05)），不译为 `changed`。
 - 参加提交成功后，本插件把回执与修订交给 Session 记入 `ExecutionRef`（[PA-04](../session-contract/SPEC.md#pa-04) 第 2 项）。
 - 参加提交的结果未知时，由执行记录提供者认回（[PA-05](../session-contract/SPEC.md#pa-05)）。本插件不把它列入 Session 的 `unresolved`。
 - 事务内的流水线（认回、权威读、领域服务、写事实）由 [session](../session/README.md) 与 [session-storage-sql](../session-storage-sql/README.md) 执行。本插件只做翻译与登记。
@@ -351,7 +354,7 @@ Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 s
 
 | 提供者 | 消费的公开输入 | 本插件责任与结果 |
 | --- | --- | --- |
-| `agentMessageHandoff` | `MessageHandoff.accept` 的 Access、execution、operation、advance、source、candidate | 依 Agent 的[消息准入](../../agent/agent-contract/SPEC.md#消息准入)核六类原来源、候选消息及原位置。允许时返回 accepted 和准入证据。模型完整回复、工具结果、被拒绝动作的拒绝消息、系统提醒与压缩转换消息只因校验失败或保存失败返回 rejected，附原原因及证据。外部输入的内容处理与业务否决由 Session 受理方在交给 Agent 前完成，本端口不追加业务否决。身份或依赖失败沿 Agent Reply 返回，不变成 rejected。证据绑定本次候选及原来源；不在 accept 内写 Session 消息。最终消息仍由 AD-01 的 message 参加写入，拒收不伪造已提交消息。 |
+| `agentMessageHandoff` | `MessageHandoff.prepare` 的 Access 与判别分支（execution 带 PendingHandoff 与 advance；invoke 带 InputHandoff 与 InvokeRuntimeContext；submit 只带 InputHandoff）；`lookup` 的 Access 与 HandoffLookup；`exclude` 的 Access、PendingHandoff 与取消 control | 依 Agent 的[消息准入](../../agent/agent-contract/SPEC.md#消息准入)核六类原来源、候选消息及原位置。prepare 先耐久固定 Agent 外部入口索引 Ki 到 H 的映射、完整原 request 与 origin，再固定 prepared（确切消息与准入证据）或 rejected（原原因与证据）后返回；同 Ki 或 H 配同完整业务输入认回原结果，异输入 conflict。模型完整回复、工具结果、被拒绝动作的拒绝消息、系统提醒与压缩转换消息只因校验失败或保存失败返回 rejected。外部输入的内容处理与业务否决由 Session 受理方在交给 Agent 前完成，本端口不追加业务否决。submit 分支只核原 execution 的当前提交资格，不要求活体 runtime、挂接或槽。lookup 只核当前读取资格，返回 recorded、excluded 或 unknown，不转换、不写历史；exclude 从同一日志的可信 P 与取消 control 核验后封闭尚未发出的内部准入，不写 Session 消息。身份或依赖失败沿 Agent Reply 返回，不变成 rejected。证据绑定本次候选及原来源；prepare 不写 Session 消息。最终消息分三路写入：工具结果、拒绝消息、系统提醒与压缩转换消息由 Agent 的应用操作 Ja 经 AD-01 的 message 或 context-transition 参加写入；外部输入随原 open 或 submit 写入；主回复经 Ja 的 replyAdmission 写入。prepared 不伪造已提交消息。 |
 | `agentConditions` | `CurrentConditions.read` 的 Access、advance、previous | 以原 Authority/grant 定位当前 Session Run，读取当前 Session 事实和实际已采用配置、模型选择、Context 及 bindings，构造公开 RuntimeConditions。source 是这些事实的真实依据。previous 只供比对，不授予资格或允许复用失效条件。缺少任何必要原来源时 unavailable，不用模式词补造推进授权，也不从默认配置填空。 |
 
 两个插件都逐次核当前访问与原租户关系。其当前来源、合法 Authority、配置/Context 采用和受理前内容政策仍由各原拥有者提供，本规格不发布新的政策端口。真实提供者未交付时不能装一个默认允许或空条件的插件冒充就绪。
@@ -451,7 +454,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 | `control` | `agentExecutionControl.control` | 按下表翻译原控制意图，保留原 operation 与原因依据；不要求句柄或挂接 |
 | `detach` | `agentExecutionRecovery.detach` | 本插件先以 `load` 取目标挂接的 `Authority`，再带原因依据交还 |
 | `recordResult` | 合格保管方经 `reconcile` 内的 `recordResult` | 见 [NP-04](#np-04) |
-| `query` | `agentExecutionRecovery.query` | `excluded` 原样交回，等于 Session 的 `not-committed` |
+| `query` | `agentExecutionRecovery.query` | `committed`、`excluded`、`unknown` 原样交回，`excluded` 等于 Session 的 `not-committed`。`rejected` 按下表「`query` 的 `rejected`」一行处置 |
 | `inspect` | `agentExecutionRecovery.load` | 快照映射为 `ExecutionStatus`：执行状态、挂接状态、修订、结束结论与依据 |
 | `prewarm` | 无 | 不调用 Agent，返回 `unsupported`（[P-7](../session-contract/SPEC.md#具名前提与明确缺项)） |
 
@@ -476,6 +479,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 | `busy`、`denied`、`terminal`、`changed`、`stale-advance`、`unsupported`、`conflict` | 同名的 `DriveFailure` |
 | `invalid`，且是消息准入拒收（字段为 `value`） | `invalid`，带拒收原因与拒收证据 |
 | 其他 `invalid` | `unavailable`，诊断标为翻译缺陷，并报告。它不成为拒收，不产生 SE35 rejected |
+| `query` 的 `rejected` | `unavailable`，诊断标为翻译缺陷，并报告。本端口只查询自己发起的驱动操作，`rejected` 不属于它们；不映成 `not-committed` |
 | `unavailable` | `unavailable` |
 | `commit-unknown` | `commit-unknown`，带原操作身份 |
 
@@ -620,7 +624,7 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 
 本节的非耐久实现从 `./testing` 提供。session-adapters 提供 agentJournal，消费冻结 Agent 的完整 Journal 角色组，不修改 Agent 端口。AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会话日志的提交状态，执行索引以租户与 execution 为键。每次提交、重复操作、查询与材料读都核验当前资格；跨租户拒绝，不能通过材料引用绕过绑定。
 
-提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
+提供者先准备不可变的下一份已提交状态。第一个发布点共同发布 Agent 记录、适用的四类 CallerCommit 参加事实及 Agent 原操作答案；received、完整材料、消费绑定与 saved 同批。open/attach/submit/tryFinish 的 Session 参加只读核对。首次发布失败时该批全无，丢答复按 Agent 原操作认回。
 
 首次 custody/processed 需要尚未登记的原调用时，先核当前资格、新请求合法性及原 Agent operation 的认回/冲突。已完成原操作不重做准备。新操作仅从此前已提交的 Pending/effect/Authority→grant 关系，以独立稳定 Session operation、sequence=null 解释登记或原关联。准备未知先认原答案，不继续新结果提交。准备后重核根、资格、gap 与完整 binding，再共同发布新结果、参加事实和原答案。旧登记可在后一个 joint 失败时保留；该批不得留下新结果的半边事实，也不得把派生 SE18 塞进新 joint。
 
