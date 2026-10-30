@@ -132,7 +132,7 @@ F2 只绑定一次终态前经过。内存 Journal 拒绝缺少经过依据、�
 I8 关闭已消费的 no-reply 调用续点，received 材料继续保留。
 
 F3 只调用 tryFinish 创建终态。Journal 一次保存 ended、最后事件、固定观察责任与原操作结果。
-changed 与 blocked 回 R0。custody 必须真实移交后，下一次完成才能成立。
+changed 与 blocked 回 R0。tryFinish 的 unavailable 也回 R0，R0 保存一次依赖等待；执行变化或到达核对时刻才唤醒，下一遍重试终结。custody 必须真实移交后，下一次完成才能成立。
 终结回执未知时，先查原操作再读取原结果。excluded 才以相同操作重试。
 unknown 或查询不可用保留原责任，不写可能使原终结失效的 waiting checkpoint。
 
@@ -280,7 +280,7 @@ stateDiagram-v2
 终结按 SPEC 的[条件终结](../agent-contract/SPEC.md#条件终结)、[取消判断与路线](../agent-contract/SPEC.md#取消判断与路线)、[终结责任清单](../agent-contract/SPEC.md#终结责任清单)与 [commitSettlement 的变体](../agent-contract/SPEC.md#commitsettlement-的变体)：
 
 - 带 `finish` 的 settling 提交是 F1：Journal 以该操作建立候选（另一操作同内容认回原候选，异内容建新候选并记替代链接）、author route 与 FinishIntent 投影。其后第一次不带 finish、且 checkpoint 没有未 applied 的 before_terminal passage 的 settling 提交是 F2：Journal 据此设 author route 的 `beforeTerminal`。`prepareFinish` 从 Journal 自己的记录（受理输入、控制、未定写入、handoff、调用、passage 与卡片轮次、结果、输出、观察计划）发行清单，新修订、无事件。
-- `tryFinish` 按次序核对：被取代的推进授权（stale-advance）、ended（terminal）、授权（有效取消下的推进授权为 changed；取消授权必须指向已保存且 intent 已 reached 的控制并带该控制的 source）、expected、`intent.obligations` 是本候选已发行的清单（否则 invalid）、intent 与投影相等（否则 changed）、清单的责任投影未变（否则 changed），再按固定次序 inputs（普通候选有未被批次承接的受理输入）、controls（取消 intent 或撤权登记为 unresolved；三种迟到阶段不阻塞）、operations（未定写入）、passages（author route 无 F2 依据、cancellation route 无判断记录、或判断 blocked 按其类别；判断 unknown 为 unavailable）、custody（结果既无保管也无完成）阻塞。
+- `tryFinish` 按次序核对：被取代的推进授权（stale-advance）、ended（terminal）、取消授权（控制未保存或 intent 未 reached、调用者无 `settle` 为 denied；source 不是该控制的 source、控制不是当前路线的控制为 invalid）或有效取消下的推进授权（changed）、授权种类与候选结论不符（denied）、执行不在 settling（changed）、expected（changed）、`intent.obligations` 是本候选已发行的清单（否则 invalid）、intent 与投影相等（否则 changed）、此刻重算的清单的责任投影等于已发行的（否则 changed）。作者路线上再读重算清单的处置：按固定次序 inputs（未被批次承接的受理输入）、controls（取消 intent 或撤权登记为 unresolved；三种迟到阶段不阻塞）、operations（complete 候选下 Ja 未发布的 prepared H）、passages（未 applied 的 passage；路线无 F2 依据也算此类）、custody（结果既无保管也无完成）取第一项 pending，以该项的 source 阻塞；没有 pending 而有 unknown 项（未定写入；既无结果、无 received 交付、无生产者最终失败也无 accepted 关联的调用）为 unavailable。取消路线上：无判断记录以 passages 阻塞；判断记录的判据（各项及其处置、参加者条件）与当前闭包不同为 changed；判断 blocked 按其第一条理由阻塞；判断 unknown 为 unavailable。
 - `commitSettlement` 的候选、迁移与判断变体需要 `cancellation` 选项安装的取消政策，没有安装答 unavailable；三个保管变体按 source 的 record 文本读 `hostRecords` 选项的宿主记录，无记录答 unavailable。协调者的取消路线（F0 与 cancelled 的 F1）未实现（#502 阶段 5）。
 
 内存 Journal 不另存退避时刻与下一检查时刻（#558 M04-6）。最终请求保存在 ready 的 `requestPreparation` 中（#558 M04-2）。它不自动生成 stream 与 producer 事件。producer 事件由 M3 的条件提交携带。任何方法都不在 ended 事件之后追加事件。每个返回 `commit-unknown` 的调用都留下 `query` 可判定的记录：写入生效为 committed，没有写入为 excluded，无人能定时为未定（列在 `unresolved`，由 `attach` 围栏排除或由 `settle` 判定）。操作记录与未定写入都按租户保存：其他租户的写入在任何编排故障之前就返回 denied，不进入未定集合；`unresolved`、`attach` 的围栏、`tryFinish` 的 operations 检查与 `settle` 都只看本 execution 所属租户的记录；`query` 不向其他租户透露 execution 是否存在。

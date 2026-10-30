@@ -106,6 +106,7 @@ import type {
   CancellationPolicyInstallation,
   CancellationUnknown,
   CandidateSupersession,
+  ContinuationRequest,
   ExecutionSettlement,
   ExtensionInvocationResult,
   FinishCandidate,
@@ -113,13 +114,16 @@ import type {
   FinishObligation,
   FinishObligations,
   FinishRoute,
+  HandoffRecordMaterial,
   InvocationUnresolved,
   JournalCommitState,
   LegacyF2Entry,
   LegacyInvocationReturn,
   MigrationRecord,
+  ObligationCategory,
   ObligationDisposition,
   PendingReason,
+  RecoveryAction,
   RecoveryContinuation,
   ResponsibilityCoverage,
   SettlementRequest,
@@ -371,19 +375,23 @@ type Landed = {
   CancellationPolicyInstallation: CancellationPolicyInstallation
   CancellationUnknown: CancellationUnknown
   CandidateSupersession: CandidateSupersession
+  ContinuationRequest: ContinuationRequest<unknown>
   ExecutionSettlement: ExecutionSettlement
   FinishCandidate: FinishCandidate
   FinishCandidateContent: FinishCandidateContent
   FinishObligation: FinishObligation
   FinishObligations: FinishObligations
   FinishRoute: FinishRoute
+  HandoffRecordMaterial: HandoffRecordMaterial
   InvocationUnresolved: InvocationUnresolved
   JournalCommitState: JournalCommitState
   LegacyF2Entry: LegacyF2Entry
   LegacyInvocationReturn: LegacyInvocationReturn
   MigrationRecord: MigrationRecord
+  ObligationCategory: ObligationCategory
   ObligationDisposition: ObligationDisposition
   PendingReason: PendingReason
+  RecoveryAction: RecoveryAction
   RecoveryContinuation: RecoveryContinuation
   ResponsibilityCoverage: ResponsibilityCoverage
   SettlementRequest: SettlementRequest<string>
@@ -1353,9 +1361,23 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
       | 'output'
       | 'terminal-observation'
     >()
-    expectTypeOf<FinishObligation['category']>().toEqualTypeOf<
+    expectTypeOf<ObligationCategory>().toEqualTypeOf<
       'inputs' | 'controls' | 'operations' | 'passages' | 'custody'
     >()
+    // The category is not a member of the head: the SPEC table fixes it per kind.
+    expectTypeOf<KeysOfUnion<FinishObligation>>().not.toExtend<'category'>()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'operation' }>['result']
+    >().toEqualTypeOf<DurableEvidence | null>()
+    expectTypeOf<Extract<FinishObligation, { kind: 'call' }>['interruptions']>().toEqualTypeOf<
+      readonly AgentOperationId[]
+    >()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'card-round' }>['invalidate']
+    >().toEqualTypeOf<Readonly<{ operation: AgentOperationId; reason: DurableEvidence }> | null>()
+    expectTypeOf<
+      Extract<FinishObligation, { kind: 'material' }>['acceptance']
+    >().toEqualTypeOf<DurableEvidence | null>()
     expectTypeOf<FinishObligation['disposition']>().toEqualTypeOf<ObligationDisposition>()
     expectTypeOf<KindOf<ObligationDisposition>>().toEqualTypeOf<
       'settled' | 'held' | 'pending' | 'unknown'
@@ -1368,6 +1390,66 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
     >().toEqualTypeOf<RecoveryContinuation>()
     expectTypeOf<'required-judgment'>().toExtend<PendingReason>()
     expectTypeOf<'handoff-history'>().toExtend<PendingReason>()
+    // RecoveryContinuation is a closed union by action (SPEC "终结责任清单"): each variant carries the
+    // request of its original public operation, the owner, the custodian and the purpose.
+    expectTypeOf<KindOf<RecoveryContinuation>>().toEqualTypeOf<RecoveryAction>()
+    expectTypeOf<RecoveryAction>().toEqualTypeOf<
+      | 'original-operation-query'
+      | 'original-invoke-recovery'
+      | 'tool-association-retain'
+      | 'producer-query'
+      | 'producer-receive'
+      | 'producer-release'
+      | 'card-lookup'
+      | 'card-read'
+      | 'card-invalidate'
+      | 'material-read'
+      | 'input-read'
+      | 'output-read-ack'
+      | 'terminal-observe'
+      | 'restore-source'
+      | 'handoff-lookup'
+      | 'handoff-exclude'
+      | 'handoff-record'
+      | 'handoff-source-recovery'
+    >()
+    expectTypeOf<KeysOfUnion<RecoveryContinuation>>().toEqualTypeOf<
+      'kind' | 'request' | 'owner' | 'custodian' | 'purpose'
+    >()
+    expectTypeOf<KindOf<ContinuationRequest<unknown>>>().toEqualTypeOf<
+      'parameters' | 'record' | 'unresolved'
+    >()
+    expectTypeOf<Extract<ContinuationRequest<unknown>, { kind: 'unresolved' }>>().toEqualTypeOf<
+      Readonly<{ kind: 'unresolved'; key: string; missing: DurableEvidence }>
+    >()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'original-operation-query' }>['purpose']
+    >().toEqualTypeOf<'query'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-lookup' }>['purpose']
+    >().toEqualTypeOf<'read-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-exclude' }>['purpose']
+    >().toEqualTypeOf<'exclude-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-record' }>['purpose']
+    >().toEqualTypeOf<'record-message-handoff'>()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'handoff-record' }>['request']
+    >().toEqualTypeOf<
+      ContinuationRequest<
+        Readonly<{
+          operation: AgentOperationId
+          handoff: HandoffReference
+          original: Extract<HandoffResolution, { kind: 'recorded' | 'excluded' }>
+          provider: Adoption
+          material: HandoffRecordMaterial
+        }>
+      >
+    >()
+    expectTypeOf<
+      Extract<RecoveryContinuation, { kind: 'tool-association-retain' }>['purpose']
+    >().toEqualTypeOf<'reconcile'>()
     expectTypeOf<KindOf<TerminalParticipantFacts>>().toEqualTypeOf<'standalone' | 'coordinated'>()
   })
   it('prepareFinish issues the list under an authorization, expected and candidate', () => {
@@ -1426,7 +1508,7 @@ describe('S3: the finish projection, the candidate commit, the obligations and t
     expectTypeOf<
       Parameters<CancellationPolicy['judge']>[0]
     >().toEqualTypeOf<CancellationJudgmentInput>()
-    expectTypeOf<CancellationBlock['category']>().toEqualTypeOf<FinishObligation['category']>()
+    expectTypeOf<CancellationBlock['category']>().toEqualTypeOf<ObligationCategory>()
     expectTypeOf<CancellationUnknown['reason']>().toEqualTypeOf<
       | 'original-operation-unknown'
       | 'source-unavailable'

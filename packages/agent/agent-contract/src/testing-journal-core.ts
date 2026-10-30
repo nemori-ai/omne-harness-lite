@@ -32,6 +32,7 @@ import {
   events,
   evidence,
   excluded,
+  failedContent,
   finishInput,
   handoffOf,
   input,
@@ -62,6 +63,7 @@ export type {
   AgentJournalCoreFixture,
   AgentJournalCoreOpenOptions,
   AgentJournalCoreOpened,
+  SettlementQualification,
 } from './testing-journal-helpers.ts'
 
 /** The cases that every `AgentJournal` binding passes. */
@@ -783,6 +785,21 @@ export function agentJournalCoreConformance<P>(
           journal.commit(prepareCommit(opened, after, 'p2', other)),
           'a second P at the same position',
         )
+        // Only a Ja clears the pointer: a P at another position cannot move it from h1 to its own H
+        // (SPEC "消息准入": currentHandoff moves only through a successful resolve or retire).
+        const elsewhere: PendingHandoff = {
+          ...pendingHandoff(opened, after, 'h3'),
+          position: { step: after.checkpoint.step, node: 'I8', slot: null },
+        }
+        const overriding = await refused(
+          journal.commit(prepareCommit(opened, after, 'p3', elsewhere)),
+          'invalid',
+          'a P at another position while h1 holds the pointer',
+        )
+        assert.equal(
+          overriding.kind === 'invalid' ? overriding.field : '',
+          'checkpoint.currentHandoff',
+        )
         assert.deepEqual(await load(opened), after, 'the original H stays')
       },
     },
@@ -816,6 +833,21 @@ export function agentJournalCoreConformance<P>(
           'invalid',
           'a resolve that keeps currentHandoff pointing at H',
         )
+        // A Ja clears the pointer; it cannot set it to an H that no P prepared.
+        const moved = await refused(
+          journal.commit(
+            resolveCommit(opened, before, 'ja-moves-pointer', prepared1, {
+              checkpoint: {
+                ...before.checkpoint,
+                position: 'Q4',
+                currentHandoff: pendingHandoff(opened, before, 'h9').reference,
+              },
+            }),
+          ),
+          'invalid',
+          'a resolve that moves the pointer to an H that was never prepared',
+        )
+        assert.equal(moved.kind === 'invalid' ? moved.field : '', 'checkpoint.currentHandoff')
         assert.deepEqual(await load(opened), before, 'the refusals wrote nothing')
         const ja = resolveCommit(opened, before, 'ja1', prepared1)
         const receipt = await ok(journal.commit(ja), 'Ja')
@@ -925,7 +957,36 @@ export function agentJournalCoreConformance<P>(
         // After the retirement, a successor P at the same position may name h1 as its predecessor.
         const successor = pendingHandoff(opened, after, 'h2', request.reference)
         await ok(journal.commit(prepareCommit(opened, after, 'p2', successor)), 'the successor P')
-        assert.deepEqual((await load(opened)).checkpoint.currentHandoff, successor.reference)
+        const pointed = await load(opened)
+        assert.deepEqual(pointed.checkpoint.currentHandoff, successor.reference)
+        // A retire names the H the pointer holds: h1 is not current any more, and a retire whose
+        // checkpoint keeps a pointer is invalid at checkpoint.currentHandoff.
+        await refused(
+          journal.commit(
+            commitAt(opened, pointed, 'retire-not-current', opened.authority, {
+              checkpoint: { ...pointed.checkpoint, position: 'I3', currentHandoff: null },
+              handoff: { kind: 'retire', excluded: excluded(request), reason: evidence('retire') },
+            }),
+          ),
+          'invalid',
+          'a retire of an H that is not the current one',
+        )
+        const kept = await refused(
+          journal.commit(
+            commitAt(opened, pointed, 'retire-keeps-pointer', opened.authority, {
+              checkpoint: { ...pointed.checkpoint, position: 'I3' },
+              handoff: {
+                kind: 'retire',
+                excluded: excluded(successor),
+                reason: evidence('retire'),
+              },
+            }),
+          ),
+          'invalid',
+          'a retire whose checkpoint keeps the pointer',
+        )
+        assert.equal(kept.kind === 'invalid' ? kept.field : '', 'checkpoint.currentHandoff')
+        assert.deepEqual(await load(opened), pointed, 'the refusals wrote nothing')
       },
     },
     {
@@ -965,8 +1026,10 @@ export function agentJournalCoreConformance<P>(
           'conflict',
           'the root with another payload',
         )
-        // After the end, the history of a prepared H that never published is retained.
-        await end(opened)
+        // After the end, the history of a prepared H that never published is retained. Only a
+        // failed or cancelled candidate may retain it: a complete one is blocked by the pending
+        // history (SPEC "终结责任清单"), see the finishing case of the pending H.
+        await end(opened, 'end', opened.authority, failedContent('end'))
         const retained = handoffOf(await load(opened), request.reference)
         assert.equal(retained.history.kind, 'retained', 'the terminal disposition retains it')
         const anotherOpened = await fixture.open('rh-after-ended')
@@ -977,7 +1040,7 @@ export function agentJournalCoreConformance<P>(
           ),
           'P',
         )
-        await end(anotherOpened)
+        await end(anotherOpened, 'end', anotherOpened.authority, failedContent('end'))
         const lateRecord = await ok(
           anotherOpened.journal.recordHandoff({
             ...anotherOpened.access,

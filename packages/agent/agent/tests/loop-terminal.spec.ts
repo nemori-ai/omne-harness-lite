@@ -393,9 +393,9 @@ describe('#516 terminal exit', () => {
         ...d.journal,
         tryFinish(input) {
           finish = input
-          return Promise.resolve(
-            fail({ kind: 'unavailable', owner: 'test', diagnostic: 'stop before terminal' }),
-          )
+          // A refusal stops the coordinator at F3 with the execution left settling; an
+          // unavailable answer would make R0 wait on it instead.
+          return Promise.resolve(fail({ kind: 'denied', action: 'stop before terminal' }))
         },
       },
     }))
@@ -562,6 +562,56 @@ describe('#516 terminal exit', () => {
       )
     },
   )
+
+  it('F3: a tryFinish that answers unavailable goes to R0, which saves one dependency wait; the wake rereads and the next pass ends without a second terminal operation in between', async () => {
+    const tryFinishes: string[] = []
+    const commits: JournalCommit<Principal>[] = []
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        commit(input) {
+          commits.push(input)
+          return d.journal.commit(input)
+        },
+        async tryFinish(input) {
+          tryFinishes.push(input.operation)
+          if (tryFinishes.length === 1)
+            return fail({
+              kind: 'unavailable',
+              owner: 'test-journal',
+              diagnostic: 'facts undetermined',
+            })
+          return d.journal.tryFinish(input)
+        },
+      },
+    }))
+    const c = coordinator(assembly)
+    ok(await c.accept())
+    assembly.release.open()
+    ok(await c.runExecution())
+    const waiting = commits.filter(item => item.events.some(event => event.kind === 'waiting'))
+    expect(waiting).toHaveLength(1)
+    expect(waiting[0]?.state).toEqual({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', owner: 'test-journal', position: 'R0' }],
+    })
+    expect((await load(assembly)).state.kind).toBe('waiting')
+    // Nothing rechecks the terminal inside the wait: the driver sleeps until the check time.
+    const controller = new AbortController()
+    const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    await eventually(async () => assembly.controls.clock.pending().length > 0)
+    const due = assembly.controls.clock.pending()[0]
+    if (due === undefined) throw new Error('the check time is required')
+    expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
+    expect(ok(await wake)).toBe('ready')
+    ok(await c.runExecution())
+    expect((await load(assembly)).state.kind).toBe('ended')
+    expect(tryFinishes).toHaveLength(2)
+    expect(
+      commits.filter(item => item.events.some(event => event.kind === 'waiting')),
+    ).toHaveLength(1)
+  })
 
   it('tryFinish refuses an intent without the proof as changed, a forged list as invalid, and an unissued list as invalid', async () => {
     const assembly = await loopAssembly([execution()], d => ({

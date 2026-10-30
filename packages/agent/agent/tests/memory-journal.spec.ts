@@ -1403,6 +1403,9 @@ describe('fact 10: the one terminal commit', () => {
   it('fact 10: an effective cancel takes precedence, and only the cancel authorization ends with cancelled', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
+    ok(await takeInputs(journal, opened))
+    ok(await fixCandidate(journal, opened, 'complete'))
+    ok(await proveBeforeTerminal(journal, opened, 'complete'))
     ok(
       await journal.control({
         ...access,
@@ -1422,16 +1425,27 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    ok(await takeInputs(journal, opened))
-    ok(await fixCandidate(journal, opened, 'complete'))
-    ok(await proveBeforeTerminal(journal, opened, 'complete'))
+    // The complete candidate fixed before the cancel is not usable any more: a new complete F1
+    // under the effective cancel is changed, as are its prepareFinish and tryFinish.
+    expect(failure(await fixCandidate(journal, opened, 'complete-after-cancel')).kind).toBe(
+      'changed',
+    )
     expect(failure(await prepareFinish(journal, opened, 'complete')).kind).toBe('changed')
+    const complete = await load(journal, opened.execution)
     expect(
-      ok(await journal.tryFinish(await finishInput(journal, opened, 'complete-again'))).kind,
+      ok(
+        await journal.tryFinish({
+          ...access,
+          execution: opened.execution,
+          operation: operation('complete-again'),
+          authorization: { kind: 'advancement', authority: opened.authority },
+          expected: complete.revision,
+          intent: intentOf(complete),
+        }),
+      ).kind,
     ).toBe('changed')
     // The cancel authorization cannot end the complete candidate; the cancelled candidate is
     // established by commitSettlement and judged before the end (SPEC "取消判断与路线").
-    const complete = await load(journal, opened.execution)
     expect(
       failure(
         await journal.tryFinish({
@@ -1566,7 +1580,7 @@ describe('fact 10: the one terminal commit', () => {
     expect(page.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
   })
 
-  it('fact 10: a pending write of the execution blocks the end with reason operations', async () => {
+  it('fact 10: a pending write of the execution is an unknown item of the list, so the end is unavailable, not blocked', async () => {
     const journal = memory()
     const opened = await open(journal.port)
     ok(await takeInputs(journal.port, opened))
@@ -1580,12 +1594,9 @@ describe('fact 10: the one terminal commit', () => {
         receipt: null,
       }),
     )
-    expect(ok(await journal.port.tryFinish(await finishInput(journal.port, opened)))).toMatchObject(
-      {
-        kind: 'blocked',
-        reason: 'operations',
-      },
-    )
+    const input = await finishInput(journal.port, opened)
+    expect(failure(await journal.port.tryFinish(input)).kind).toBe('unavailable')
+    expect((await load(journal.port, opened.execution)).state.kind).toBe('settling')
   })
 
   it('fact 10: a revocation recorded unresolved blocks the end with reason controls', async () => {
