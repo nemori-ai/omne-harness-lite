@@ -67,8 +67,14 @@ rm -rf "$stage"
 - `test:triage` 不经过 turbo 的严格环境模式，可能把依赖环境的失败报成「隔离后稳定通过」。用常用命令里的 turbo 命令定向复现。
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
 - 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。负载造成的超时先如实报告，写明当时自己有没有加负载。
+- 测试名额全机共用，工作树隔离不隔离名额和 CPU。起差分变异、`metrics --coverage` 这类长任务前，先看有没有人在排队。写者的检查长时间没有输出时，读名额的锁文件看是谁占着。方法见 `scripts/README.md`「运行名额」（P29）。
+- 本卡任何提交碰过 `pnpm-lock.yaml` 时，锁文件是全局路径，余下的 `metrics --coverage`、`test:affected` 与 `check` 都按全部成员跑。中间轮用不带 `--coverage` 的 `pnpm run metrics --base <基线>`：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
+- 差分变异的工作进程数在启动时按空闲 CPU 定一次，整次运行不变。启动日志写明进程数与空闲率，启动后先看这一行。机器忙时启动，数会偏小，这时停掉，用 `VITEST_MAX_WORKERS=<n>` 指定后重启。每个进程的 CPU 占用都很低时，它在等待，缩小范围比加进程有效。日志在构建之后可能一直没有输出，直到结束，看进程表判断进度。
+- 差分变异读工作区，未提交和未跟踪的文件都算进去。变异在跑的那棵树，写者不改，写者另用一棵树。变异沙箱目录 `.stryker-tmp-*` 还在时，`pnpm run check:docs` 以 1 退出。全树检查放在变异结束后，或换一棵树跑。
+- 按命令行匹配进程的写法（`pgrep -f`、`pkill -f`）也会匹配调用它的 shell 自己：前者报出不存在的进程，后者可能杀掉调用它的 shell。查进程用 `ps -eo pid,etime,pcpu,args | grep -E '[m]utation/cli\.ts'` 这种写法，停后台任务用宿主的停止工具。
 - gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
 - 改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的 PR 要过两道确认：先 `repo-toolchain-review`，再 `publish`。清单里也有 `docs/architecture/constraints.json` 这类正文文件，改动前先读清单。`gate-cli.ts wait` 的 `--environments` 缺省只有 `publish`，这时要写 `--environments repo-toolchain-review,publish`。
 - `gate-release` 的 `npm-release` 确认是不可撤回的发版，不在代确认的授权里。自动模式的权限检查拦下它时不要绕过：把确认命令写成脚本交有权者运行，或请有权者在运行页面确认。
 - 会话的 stop hook 可能要求把提交改成 agent 署名。按贡献指南，作者是负责的人。线会话直接按贡献指南处理，不等人确认。
 - 上下文压缩后的摘要可能把宿主的署名提示记成常设规则。每次压缩后按贡献指南复核一次（P5）。
+- 压缩后只剩摘要，技能正文会淡出，已经写进技能的规矩要人再教一遍。压缩后续接时，重新加载本角色的技能（执行者 `claim`，线会话 `line`，Reduce `integrate`），并核对技能目录是当前检出的投影，不是旧工作树里的副本。

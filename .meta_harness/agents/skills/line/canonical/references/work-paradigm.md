@@ -89,7 +89,7 @@
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
 | 署名、分支与 `Harness`／`Agent-Role` trailer | `CONTRIBUTING.md` |
 | 验证能声称什么、不能声称什么 | `docs/verification.md` |
-| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P25 |
+| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P29 |
 
 ## 波级：读 delta，只记变化
 
@@ -166,5 +166,5 @@
 - 每张卡重做会话级产物。
 - 波中向人提问、在普通评论向 reduce 求方案、读别线未集成的提交。
 - 自跑全量准入（归 reduce），或在准入期间提交。
-- 轮询 GitHub 等待。
+- 轮询 GitHub 等待，或让子代理用轮询循环等日志（P29）。
 - 把计划说成已交付，把未执行写成通过。
