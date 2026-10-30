@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-现在有 27 个运行测试文件与 2 个类型测试文件，逐个列在 [index.md](index.md)。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。类型测试只有 [record-fault.spec-d.ts](record-fault.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
+现在有 27 个运行测试文件与 2 个类型测试文件，逐个列在 [index.md](index.md)。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出，其余 25 个运行测试检查 `./testing` 的内存提供者。类型测试是 [record-fault.spec-d.ts](record-fault.spec-d.ts) 与 [host-record.spec-d.ts](host-record.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-adapters`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
