@@ -30,10 +30,18 @@ import {
   buildLedger,
   emptyLedger,
   ledgerSummary,
+  testCount,
   type LedgerFile,
   type MemberRun,
   type RunMeta,
 } from './ledger.ts'
+import {
+  cacheMeta,
+  lookupCache,
+  recordCache,
+  type CacheLookup,
+  type CachePolicy,
+} from './test-cache.ts'
 import {
   fileTree,
   listWorkspaceMembers,
@@ -221,6 +229,8 @@ export interface RecordedRun {
   readonly scope?: RunMeta['scope']
   /** 这一次运行的工作进程预算：并行度由它推出来（环境变量可盖过），账本记下它的来历。 */
   readonly budget: Budget
+  /** 成员测试的结果缓存策略（`test-cache.ts`）；不给就不查也不写（验收不缓存）。 */
+  readonly cache?: CachePolicy
 }
 
 function runDirOf(run: RecordedRun): string {
@@ -245,6 +255,24 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir, budget.workers))
     return 1
 
+  // 成员测试先查缓存：命中的不跑；查不了（快照、依赖图取不到）就全部照跑、不写。
+  const lookup =
+    script === 'test' && run.cache !== undefined
+      ? lookupCache({
+          root,
+          mainRoot: run.at.mainRoot,
+          targets: targets.map(member => member.path),
+          tier,
+          policy: run.cache,
+          config,
+          env: process.env,
+        })
+      : undefined
+  const hits = lookup?.hits ?? new Map<string, never>()
+  const toRun = targets.filter(member => !hits.has(member.path))
+  if (lookup !== undefined)
+    for (const line of describeLookup(lookup, targets.length)) console.log(line)
+
   const meta = {
     script,
     tier,
@@ -257,6 +285,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     cores: budget.machine.cores,
     plan: run.plan,
     ...(run.scope === undefined ? {} : { scope: run.scope }),
+    // 这次覆盖的成员：跑了的与缓存命中的；哪些命中、来源在哪见 `cache`，成员一级的读数只有跑了的。
     members: targets.map(member => member.path),
     // 账本类型来自钉住的 repo-toolchain；预算的来历作为额外一栏记下，供按机器比较账本。
     budget: {
@@ -270,17 +299,17 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
       `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（${describeBudget(budget)}）`,
   )
   const started = Date.now()
-  const report = (done: MemberRun, finished: number) => {
-    const tests = done.report?.testResults.reduce(
-      (sum, file) =>
-        sum +
-        file.assertionResults.filter(
-          assertion => assertion.status === 'passed' || assertion.status === 'failed',
-        ).length,
-      0,
-    )
+  let finishedBefore = 0
+  for (const [member, entry] of hits) {
+    finishedBefore += 1
     console.log(
-      `[${finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
+      `[${finishedBefore}/${targets.length}] ✓ ${member} 缓存命中，${entry.tests} 条用例，来源 ${entry.ledger}`,
+    )
+  }
+  const report = (done: MemberRun, finished: number) => {
+    const tests = done.report === undefined ? undefined : testCount(done.report)
+    console.log(
+      `[${finishedBefore + finished}/${targets.length}] ${done.exitCode === 0 ? '✓' : '✗'} ${done.member} ${Math.round(done.wallSeconds)} 秒` +
         (tests === undefined ? '' : `，${tests} 条用例`) +
         (done.exitCode === 0
           ? ''
@@ -288,18 +317,26 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     )
   }
   const runs =
-    script === 'test'
-      ? await runTurboTests(
-          root,
-          targets,
-          runDir,
-          parallel,
-          tier,
-          { build: run.build, admission: admissionRequested(process.env) },
-          report,
-        )
-      : await runMembers(root, targets, runDir, parallel, script, report)
+    script !== 'test'
+      ? await runMembers(root, targets, runDir, parallel, script, report)
+      : toRun.length === 0
+        ? []
+        : await runTurboTests(
+            root,
+            toRun,
+            runDir,
+            parallel,
+            tier,
+            { build: run.build, admission: admissionRequested(process.env) },
+            report,
+          )
   const wallSeconds = (Date.now() - started) / 1000
+  const recorded =
+    lookup === undefined
+      ? undefined
+      : recordCache(lookup, runs, tier, { ledger: runDir, head: run.at.head, dirty: run.at.dirty })
+  const cache =
+    lookup === undefined || recorded === undefined ? {} : { cache: cacheMeta(lookup, recorded) }
 
   const ledger = buildLedger(runs, root, config.ledger.nearTimeoutRatio)
   const summary = ledgerSummary(ledger, {
@@ -308,23 +345,67 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     nearTimeoutRatio: config.ledger.nearTimeoutRatio,
     top: config.ledger.top,
     runDir,
+    ...(hits.size === 0 ? {} : { cachedMembers: hits.size }),
   })
   if (ledger.failures.length > 0)
     summary.push(`对这些失败做隔离重跑：pnpm run test:triage --run ${runDir}`)
+  if (lookup !== undefined && recorded !== undefined)
+    summary.push(...describeCacheResult(lookup, recorded))
   writeFileSync(
     join(runDir, 'ledger.json'),
-    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds) }, ...ledger } satisfies LedgerFile & { meta: { budget: unknown } }, null, 1)}\n`,
+    `${JSON.stringify({ meta: { ...meta, wallSeconds: Math.round(wallSeconds), ...cache }, ...ledger } satisfies LedgerFile & { meta: { budget: unknown; cache?: unknown } }, null, 1)}\n`,
   )
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
   return runs.every(member => member.exitCode === 0) ? 0 : 1
 }
 
+/** 运行前说清缓存怎么用、命中了几个；整个缓存不可用时说原因。 */
+function describeLookup(lookup: CacheLookup, total: number): string[] {
+  if (lookup.unavailable !== undefined)
+    return [`测试缓存：不可用——${lookup.unavailable}；${total} 个成员全部照跑，不写缓存`]
+  const skipped =
+    lookup.uncacheable.size === 0
+      ? ''
+      : `；${lookup.uncacheable.size} 个成员算不出键、不缓存：${[...lookup.uncacheable]
+          .map(([member, reason]) => `${member}（${reason}）`)
+          .join('、')}`
+  if (!lookup.policy.read)
+    return [`测试缓存：只写不读（${lookup.policy.reason}；${lookup.home}）${skipped}`]
+  return [
+    `测试缓存：命中 ${lookup.hits.size} 个成员、跑 ${total - lookup.hits.size} 个` +
+      `（键与影响面规则同源：成员自己、上游、读者规则点名与全局文件的内容摘要；${lookup.home}）${skipped}`,
+  ]
+}
+
+/** 摘要里的缓存一行：命中几个、来源哪些账本、这次写了几个、写不进去的。 */
+function describeCacheResult(
+  lookup: CacheLookup,
+  recorded: { readonly written: readonly string[]; readonly problems: readonly string[] },
+): string[] {
+  if (lookup.unavailable !== undefined) return [`缓存不可用：${lookup.unavailable}`]
+  const sources = [...new Set([...lookup.hits.values()].map(entry => entry.ledger))]
+  const lines = [
+    `缓存命中 ${lookup.hits.size} 个成员` +
+      (sources.length === 0 ? '' : `，来源 ${sources.join('、')}`) +
+      `；本次写入 ${recorded.written.length} 个成员的完整通过` +
+      (lookup.policy.read ? '' : `（只写不读：${lookup.policy.reason}）`),
+  ]
+  if (recorded.problems.length > 0)
+    lines.push(`  缓存写不进去（按未命中处理）：${recorded.problems.join('；')}`)
+  return lines
+}
+
 const planSummary = (plan: CheckPlan) => ({ mode: plan.mode, reason: plan.reason })
 
 /** 合并前的成员测试：计划里的成员的快层，快层全部通过才跑慢层；跑了的层各写一份账本，每层开始时各看一次机器。
  * 计划为空时说「没有要跑的成员」，不算跑过。`build` 为 true 时由 turbo 先构建（单独运行）；准入检查里构建一步已经构建过，不再构建。 */
-export async function testStep(root: string, file: PlanFile, build = false): Promise<number> {
+export async function testStep(
+  root: string,
+  file: PlanFile,
+  build: boolean,
+  cache: CachePolicy,
+): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
   const targets = withScript(
@@ -353,7 +434,8 @@ export async function testStep(root: string, file: PlanFile, build = false): Pro
     `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
   )
   return fastThenSlow(
-    async tier => recordedRun(root, { ...common, tier, budget: await budgetFor(config.parallel) }),
+    async tier =>
+      recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
     console.log,
   )
 }

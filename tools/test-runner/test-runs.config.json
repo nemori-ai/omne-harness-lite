@@ -35,6 +35,7 @@
       "tools/test-runner/src/testing/check.ts",
       "tools/test-runner/src/testing/check-graph.ts",
       "tools/test-runner/src/testing/check-steps.ts",
+      "tools/test-runner/src/testing/test-cache.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
@@ -199,5 +200,9 @@
   "mutation": {
     "testTimeoutSeconds": 60,
     "recheckMaxMutants": 8
+  },
+  "cache": {
+    "env": ["NODE_OPTIONS", "OMNE_RUNNER_ROOT", "VITEST_*"],
+    "ignoreEnv": ["VITEST_MAX_WORKERS"]
   }
 }

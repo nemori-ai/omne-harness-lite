@@ -61,6 +61,14 @@ type FileTiming = TimingReport['files'][number]
 const ranTest = (assertion: { readonly status: string }) =>
   assertion.status === 'passed' || assertion.status === 'failed'
 
+/** 报告里跑了的用例数。 */
+export function testCount(report: VitestJsonReport): number {
+  return report.testResults.reduce(
+    (sum, file) => sum + file.assertionResults.filter(ranTest).length,
+    0,
+  )
+}
+
 /** 慢层的标签名（定义在仓库根 `vitest.tiers.mts`）。 */
 export const SLOW_TAG = 'slow'
 
@@ -206,6 +214,8 @@ export interface LedgerSummaryContext {
   readonly nearTimeoutRatio: number
   readonly top: number
   readonly runDir: string
+  /** 结果缓存命中、因而没有跑的成员数；账本的成员一级读数里没有它们。 */
+  readonly cachedMembers?: number
 }
 
 /** 给人和 agent 看的摘要：事实与数，不带建议。 */
@@ -220,8 +230,9 @@ export function ledgerSummary(ledger: Ledger, context: LedgerSummaryContext): st
     { files: 0, tests: 0, skipped: 0, failed: 0 },
   )
   const red = ledger.members.filter(member => member.exitCode !== 0)
+  const cached = context.cachedMembers ?? 0
   const lines = [
-    `${ledger.members.length} 个成员、${total.files} 个文件、${total.tests} 条用例` +
+    `${ledger.members.length} 个成员${cached === 0 ? '' : `（另有 ${cached} 个成员缓存命中，没有跑）`}、${total.files} 个文件、${total.tests} 条用例` +
       (total.skipped === 0 ? '' : `（另有 ${total.skipped} 条没跑）`) +
       `，墙钟 ${Math.round(context.wallSeconds)} 秒；` +
       (red.length === 0

@@ -39,6 +39,7 @@ import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
 import { budgetFor } from './parallelism.ts'
 import { runCheck } from './check.ts'
+import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -51,18 +52,20 @@ const USAGE = [
   '  plan [--base <ref>] [--full] [--json <路径>]',
   '      算基线以来改动的影响面并打印；--json 另写计划文件。基线按 baseline 命令的规则取；',
   '      --full 或环境变量 FULL=1 给全量计划',
-  `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full])`,
-  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层，快层通过才跑慢层，不构建',
-  '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>]',
+  `  step ${STEPS.join('|')} (--plan <计划文件> | [--base <ref>] [--full]) [--no-cache]`,
+  '      按计划执行一步；没给计划文件就当场算一份（同 plan）。test 跑计划里成员的快层，快层通过才跑慢层，不构建；',
+  '      成员测试读写结果缓存（主检出 tmp/test-cache/），--no-cache、FULL=1、OMNE_TEST_CACHE=0 或准入模式只写不读',
+  '  run [--base <ref> | --all] [--tier fast|slow|all] [--script test|acceptance] [--plan-only] [--no-build | --build] [--out <dir>] [--no-cache]',
   '      不给 --all 时按影响面选成员（基线按 baseline 命令的规则取），先构建它们及其依赖（--no-build 跳过），缺省只跑快层',
   '      --all 跑全部成员，缺省两层全跑；测试不构建（调用方先构建），除非给 --build；验收缺省先构建，--no-build 跳过',
   '      --script acceptance 不分层，不接受 --tier',
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
-  '  check [--admission] [--keep-going] [--list]',
+  '  check [--admission] [--keep-going] [--list] [--no-cache]',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
-  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建与类型检查不读缓存，并写准入日志；',
+  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试都不读缓存，并写准入日志；',
+  '      --no-cache 成员测试不读结果缓存（同 OMNE_TEST_CACHE=0）；',
   '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额',
 ].join('\n')
 
@@ -102,7 +105,7 @@ async function step(argv: readonly string[]): Promise<number> {
   const [name, ...rest] = argv
   if (!(STEPS as readonly unknown[]).includes(name))
     throw new Error(`step 要给 ${STEPS.join('、')} 之一\n${USAGE}`)
-  const flags = parseFlags(rest, ['--plan', '--base'], ['--full'])
+  const flags = parseFlags(rest, ['--plan', '--base'], ['--full', '--no-cache'])
   const planPath = flags.values.get('--plan')
   if (planPath !== undefined && (flags.values.has('--base') || flags.switches.has('--full')))
     throw new Error(`--plan 与 --base、--full 不能同时给\n${USAGE}`)
@@ -115,7 +118,16 @@ async function step(argv: readonly string[]): Promise<number> {
     build: async () => buildStep(ROOT, file, await budget()),
     typecheck: async () => typecheckStep(ROOT, file, await budget()),
     // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
-    test: () => testStep(ROOT, file, planPath === undefined),
+    test: () =>
+      testStep(
+        ROOT,
+        file,
+        planPath === undefined,
+        cachePolicy(process.env, {
+          noCache: flags.switches.has('--no-cache'),
+          full: flags.switches.has('--full') || fullRequested(process.env),
+        }),
+      ),
     acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
   return steps[name as Step]()
@@ -129,6 +141,7 @@ interface RunRequest {
   readonly build: boolean
   readonly planOnly: boolean
   readonly out: string | undefined
+  readonly noCache: boolean
 }
 
 function scriptOf(flags: Flags): RunScript {
@@ -149,7 +162,7 @@ function parseRun(argv: readonly string[]): RunRequest {
   const flags = parseFlags(
     argv,
     ['--base', '--out', '--script', '--tier'],
-    ['--all', '--plan-only', '--no-build', '--build'],
+    ['--all', '--plan-only', '--no-build', '--build', '--no-cache'],
   )
   const all = flags.switches.has('--all')
   if (all && flags.values.has('--base')) throw new Error(`--base 与 --all 二选一\n${USAGE}`)
@@ -166,6 +179,7 @@ function parseRun(argv: readonly string[]): RunRequest {
     build: buildByDefault ? !flags.switches.has('--no-build') : flags.switches.has('--build'),
     planOnly: flags.switches.has('--plan-only'),
     out: flags.values.get('--out'),
+    noCache: flags.switches.has('--no-cache'),
   }
 }
 
@@ -204,6 +218,9 @@ async function run(request: RunRequest): Promise<number> {
     base: planned === undefined || planned.plan.mode === 'full' ? null : planned.base,
     plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
     budget: await budgetFor(config.parallel),
+    ...(script === 'test'
+      ? { cache: cachePolicy(process.env, { noCache: request.noCache, full: false }) }
+      : {}),
   })
 }
 
@@ -279,7 +296,8 @@ async function main(): Promise<void> {
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
   else if (command === 'check') {
-    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list'])
+    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list', '--no-cache'])
+    if (flags.switches.has('--no-cache')) process.env[TEST_CACHE_ENV] = '0'
     process.exitCode = await runCheck(ROOT, {
       admission: flags.switches.has('--admission'),
       keepGoing: flags.switches.has('--keep-going'),
