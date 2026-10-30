@@ -4,7 +4,7 @@
 
 F1 在候选依据的修订未变时提交终结候选的业务内容，Journal 据此建立候选与 FinishIntent 投影；提交被排除后保留原意图与时刻。新输入或其他事实先改变修订时，经 R0 重读再求值。no-reply 候选失效后，I8 依据已消费结果、原 received 材料 关闭该调用的业务续点，不把已收场调用变成 producer 等待；原 received 与账目待办保持。F2 以普通 settling 提交完成落终态之前的经过，Journal 据此设 author route 的 beforeTerminal。F3 先读快照，投影尚无清单或上次 tryFinish 答 changed 时以 prepareFinish 发行终结责任清单，再读最新完整修订，最后以读到的 FinishIntent 投影调用 tryFinish 创建终态。F3 的 tryFinish 返回 unavailable 时，协调者经 R0 在内存等待，按检查时刻重试，不提交 waiting。changed 与 blocked 回 R0，未交清的 custody 保持真实等待；回 R0 之后读事实不可用时同样在内存等待，不提交 waiting；commit-unknown 先查询原操作再读取终态，excluded 才以原操作重试，unknown 或查询不可用不写会使原终结失效的等待提交。内存 Journal 以 prepareFinish 同一函数重算清单，按 SPEC 的五类责任固定次序以第一项 pending 阻塞终结，没有 pending 而有 unknown 项（未定写入、无关联的调用）为 unavailable；核对 obligations 已发行且属本候选，核对 intent 与投影相等。author route 无 beforeTerminal，或 author route 上的候选是未迁移的 cancelled 候选时，以 passages 阻塞。cancellation route 无判断记录时以 passages 阻塞；判断记录的判据与当前闭包不同为 changed；判断为 blocked 时按记录的类别阻塞，判断为 unknown 时为 unavailable。取消候选经 commitSettlement 的 establish、migrate、judge 建立、迁移与判断；有效取消下带 complete 或 failed 候选的 F1 为 changed。协调者的取消路线仍未实现。
 
-F4 从非空终态台账认回已登记观察，并把未登记项保留给长期 Journal 与合法观察者。本阶段不执行扩展求值、不虚构 observed。O0 不执行 Model ACK 或 release 记录；接收状态由宿主持有。未确认输出不由 O0 代为确认，其他合法保管责任继续留在 Journal。终态责任可接续后，E9 释放执行槽并保持登记，旧 execution 仍可读，新 execution 可复用 runtime。这些回归只覆盖同一非耐久内存 Journal 上的新协调者，不证明实际杀进程或跨进程恢复。
+F4 从非空终态台账认回已登记观察，并把未登记项保留给长期 Journal 与合法观察者。本阶段不执行扩展求值、不虚构 observed。O0 不执行 Model ACK 或 release 记录；接收状态由宿主持有。O0 尚不经 Rh 保管 handoff 责任，见开放问题的[具名缺口](docs/architecture/open-questions.md#journal-联合表达的具名缺口) U-29。未确认输出不由 O0 代为确认，其他合法保管责任继续留在 Journal。终态责任可接续后，E9 释放执行槽并保持登记，旧 execution 仍可读，新 execution 可复用 runtime。这些回归只覆盖同一非耐久内存 Journal 上的新协调者，不证明实际杀进程或跨进程恢复。
 
 ## 兑现责任
 
