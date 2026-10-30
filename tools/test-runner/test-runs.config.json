@@ -85,6 +85,11 @@
         "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
       },
       {
+        "paths": ["scripts/with-test-slot.sh", "scripts/with-test-slot.mjs"],
+        "members": ["tools/dev-flow"],
+        "why": "dev-flow 的 integration-boundaries.spec.ts 把 with-test-slot.mjs 复制进夹具并执行（预准入的构建一步经它起 turbo）"
+      },
+      {
         "paths": [
           "docs/engineering/github-delivery.json",
           ".github/ISSUE_TEMPLATE/work-item.md",
