@@ -386,6 +386,77 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       expect(of(root).parts.external).toBe(before.parts.external)
     })
 
+    it('测试经成员 src/ 间接导入成员外文件，改它指纹变：追踪穿过 src/', () => {
+      const root = linked()
+      touch(
+        root,
+        'm/src/code.ts',
+        "import { d } from '../../shared/deep2.ts'\nexport const c = d\n",
+      )
+      touch(root, 'shared/deep2.ts', 'export const d = 1\n')
+      touch(root, 'm/tests/b.spec.ts', "import { c } from '../src/code.ts'\n")
+      expect(missAfter(root, () => touch(root, 'shared/deep2.ts', 'export const d = 2\n'))).toEqual(
+        { miss: expect.stringContaining('测试读的成员外文件') },
+      )
+    })
+
+    it('require 的相对路径同 import：改它指纹变', () => {
+      const root = repo()
+      touch(root, 'm/tests/a.spec.ts', "const { x } = require('../../shared/x.cjs')\n")
+      touch(root, 'shared/x.cjs', 'exports.x = 1\n')
+      expect(missAfter(root, () => touch(root, 'shared/x.cjs', 'exports.x = 2\n'))).toHaveProperty(
+        'miss',
+      )
+    })
+
+    describe('new URL(<字面量>, import.meta.url)', () => {
+      /** spec 里写一个 new URL 表达式；shared/data.json 与 shared/assets/ 下的两个文件在仓库里。 */
+      const withUrl = (expression: string) => {
+        const root = repo()
+        touch(root, 'm/tests/a.spec.ts', `const u = ${expression}\n`)
+        touch(root, 'shared/data.json', '{"a":1}')
+        touch(root, 'shared/assets/one.txt', '1')
+        touch(root, 'shared/assets/ignored/z.txt', 'z')
+        return root
+      }
+      const literal = "new URL('../../shared/data.json', import.meta.url)"
+      const template = 'new URL(`../../shared/assets/pre-${name}`, import.meta.url)'
+
+      it('字面量：改目标、删目标，指纹都变', () => {
+        const root = withUrl(literal)
+        expect(missAfter(root, () => touch(root, 'shared/data.json', '{"a":2}'))).toHaveProperty(
+          'miss',
+        )
+        const other = withUrl(literal)
+        expect(missAfter(other, () => rmSync(join(other, 'shared/data.json')))).toHaveProperty(
+          'miss',
+        )
+      })
+
+      it('模板：取 ${ 之前的目录，改一个文件、加一个文件指纹都变，加被忽略的文件不变', () => {
+        const edited = withUrl(template)
+        expect(missAfter(edited, () => touch(edited, 'shared/assets/one.txt', '2'))).toHaveProperty(
+          'miss',
+        )
+        const added = withUrl(template)
+        expect(missAfter(added, () => touch(added, 'shared/assets/two.txt', '2'))).toHaveProperty(
+          'miss',
+        )
+        const ignored = withUrl(template)
+        const before = of(ignored)
+        touch(ignored, 'shared/assets/ignored/y.txt', 'y')
+        touch(ignored, 'shared/assets/ignored/z.txt', 'z2')
+        expect(of(ignored)).toEqual(before)
+      })
+
+      it('第二个参数不是 import.meta.url 的不追', () => {
+        const root = withUrl("new URL('../../shared/data.json', base)")
+        const before = of(root)
+        touch(root, 'shared/data.json', '{"a":2}')
+        expect(of(root)).toEqual(before)
+      })
+    })
+
     it('文件数超过上限时给出原因，不复用', () => {
       const root = repo()
       const imports = Array.from({ length: 2001 }, (_, i) => `import '../../shared/f${i}.ts'`).join(
