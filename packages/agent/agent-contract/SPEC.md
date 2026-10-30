@@ -294,7 +294,7 @@ output.emittedThrough 随事件的耐久提交建立；出口把既有事件交�
 | --- | --- | --- |
 | 参加 | 参加者的事实与 Agent 的事实在同一次提交中成立 | 提交成功，返回回执 |
 | 失败 | 参加者当前不能完成自己的部分，任何一方的事实都没有保存 | 返回 unavailable，可用同一操作重试。结果无法确定时返回 commit-unknown，先按原操作查询 |
-| 冲突 | 参加者的当前事实与这次提交的前提不一致，例如已受理的新输入先成立，或参加者一方的终态先成立 | 本次提交不成立，返回 changed 并给出依据，Agent 重读事实后重新求值。冲突的原因是本次提交所用挂接的推进资格已被取代或撤销时，返回 stale-advance，不返回 changed。同一操作身份配上不同输入，另返回 conflict |
+| 冲突 | 参加者的当前事实与这次提交的前提不一致，例如已受理的新输入先成立，或参加者一方的终态先成立 | 本次提交不成立，返回 changed 并给出依据，Agent 重读事实后重新求值。冲突的原因是本次提交所用挂接的推进资格已被取代或撤销时，返回 stale-advance，不返回 changed。同一操作身份配上不同输入，另返回 conflict。submit 是例外：它不带 expected 与 advance，不返回 changed 或 stale-advance。参加者一方的终态先成立时 submit 返回 terminal，当前资格丧失时返回 denied，见“[逐操作及输入分类](#逐操作及输入分类)” |
 | 不支持 | 参加者或提供者不能兑现这种共同提交 | 返回 unsupported，不保存任何一半 |
 
 参加者一方的终态先成立时，Agent 允许参加者先记录自己的终态，再以已保存的取消依据收束 execution。此时 Agent 只认回原取消，不重新裁定，也不恢复业务推进。“不重新裁定”只指取消本身是否有效。取消路线照常走：establish-cancellation、judge-cancellation、prepareFinish 与 tryFinish 都不省略，规则见“[取消判断与路线](#取消判断与路线)”。
@@ -396,7 +396,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 同 operation、同语义输入认回原结果，不重复分配事件；同 operation 改输入仍 conflict。已有同事实的认回不产生新事件。unresolved 到 reached 是新的事实迁移，不能用永久唯一的（control, stage）键抹掉它；旧事件保持不可变。不同 operation 的事实等值与冲突仍保持原控制身份、state 与 source 的语义约束。recordResult 不是 control 事件的来源。
 
-合法 ended 之后，当前有资格的处理方可以保存原控制在原责任范围内真实迟到的 producer-confirmed、physically-stopped 与 duty-released 事实。资格不依赖旧挂接仍 active。阶段事实与可查询的原操作结果持久保存，并可经 load 的 controls 读取；这些写入不追加事件、不修改旧 ended 的内容、不重开业务、不恢复推进权、不产生新效果。补记不能新建立取消意图、撤销推进资格、改变原终结前提或重新判定终态：取消仅 accepted 而普通完成先 ended 时，之后不能借 intent-established 或 reached 新建立有效取消或重新解释原完成。对已生效事实的认回不重新施效。证据与原终结前提矛盾时，按“[判定次序与失败映射](#判定次序与失败映射)”第 8 条返回 conflict 并保存审计，不伪装为正常的阶段迁移。这项例外不放宽条件终结的责任要求：必须 blocked 的责任不能先放过，再以终态后补记补救；没有依据的新控制、阶段或效力不在例外内。读者经 controls 读取迟到的变化，不能期待已 ended 的订阅继续推送。
+合法 ended 之后，当前有资格的处理方可以保存原控制在原责任范围内真实迟到的 producer-confirmed、physically-stopped 与 duty-released 事实。资格不依赖旧挂接仍 active。已受理但尚未建立意图的控制也是原控制：ended 之后它的原生产者迟到的这三种阶段事实按原控制保存，不算新建立意图。阶段事实与可查询的原操作结果持久保存，并可经 load 的 controls 读取；这些写入不追加事件、不修改旧 ended 的内容、不重开业务、不恢复推进权、不产生新效果。补记不能新建立取消意图、撤销推进资格、改变原终结前提或重新判定终态：取消仅 accepted 而普通完成先 ended 时，之后不能借 intent-established 或 reached 新建立有效取消或重新解释原完成。对已生效事实的认回不重新施效。证据与原终结前提矛盾时，按“[判定次序与失败映射](#判定次序与失败映射)”第 8 条返回 conflict 并保存审计，不伪装为正常的阶段迁移。这项例外不放宽条件终结的责任要求：必须 blocked 的责任不能先放过，再以终态后补记补救；没有依据的新控制、阶段或效力不在例外内。读者经 controls 读取迟到的变化，不能期待已 ended 的订阅继续推送。
 
 停用不是 ExecutionControl，没有 ControlRecord。它适用的阶段事实由下列记录承载。
 
@@ -893,7 +893,7 @@ excluded 不授权重发。当前执行仍有合法推进时，E4 在确认排�
 
 `handoff.retire` 是 `commit` 的一个具名 Ja 变体，只适用于可信 excluded 的内部 H，在当前 advance、完整 expected、同一来源与 `currentHandoff` 等于 H 下提交。Journal 同次保存原排除与退役依据，令 history 为 not-applicable，清除 `currentHandoff`，保持 `checkpoint.position` 的原来源节点值，由 E4 从该节点重新求值。原 ActionSlot、ProducedResult、Passage 或压缩请求及其结果不变。`ExecutionHandoff.retirement` 保存原 Ja、该次 revision 与退役依据，只有 retire 能从 null 建立它，Rh、prepare 与 lookup 都不写它。retire 不带新 effects、业务事件、replyAdmission 或非 none 的 CallerCommit。只有认回 retire 已 committed 后，E4 才能在新前提下形成后继 P，保存 `predecessorHandoff` 等于 H；H′ 的 predecessor 是新 P 的 expected。新尝试仍消费原已保存的生产者结果。retire 的 ACK 丢失先查 Ja，不凭指针已空猜提交，也不另建 H′。当前已取消、推进权失效或 ended 时不运行 retire，Rh 只保存原排除或结果责任，checkpoint 中的旧 H 可以保留；终结责任清单依据真实 resolution 与合法处置判断该责任已封闭或由谁保管，不从 `currentHandoff` 非空推断仍须业务发布。
 
-内部请求的 origin 为 null。外部请求不因 I1 失联、旧 grant 失效或一次主体撤权自动封闭 H，原业务请求仍可由当前合法的入口接续。外部逻辑意图最终撤回的认定与封闭由原输入拥有者的协议另定，本契约的 exclude 不扩展到该分支，见[开放问题](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
+内部请求的 origin 为 null。外部请求不因原实例失联、旧 grant 失效或一次主体撤权自动封闭 H，原业务请求仍可由当前合法的入口接续。外部逻辑意图最终撤回的认定与封闭由原输入拥有者的协议另定，本契约的 exclude 不扩展到该分支，见[开放问题](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 
 ##### 真实历史的提交点
 
@@ -950,9 +950,9 @@ Journal query 的 rejected 只指 recordControl 的持久审计拒绝。Handoff 
 | H0 读完，F1 之前撤权或 ended | 原拒绝仍保留 | F1 在条件提交拒绝，O0 继续合法保管 |
 | F1 已发，结果未知 | F1 的原 operation 与同一 H | 先查 F1，不再造候选 |
 | C3 已提交，资格重签或 C4 之前崩溃 | 原 Ja、committed 的转换依据与新 epoch | 先认回、重签读取资格并读当前完整快照，再进入压缩之后位置与 resume |
-| 外部 prepare 已拒绝，open 未执行，I1 换为 I2 | Ki 到 H 的映射，原 InputEntry、origin 与拒绝 | 当前合法恢复者按 Ki 认回原 invalid，不重判，不创建第二个 H 或空 execution |
-| submit 已 prepared 或转换在途，I1 失联后无实例，再有 I2 | Ki 到 H 的映射、完整 request、origin 与原转换身份 | 没有实例的阶段也可由当前合法的 submit 入口接续。prepared 认回原结果，在途沿原 H 恢复。I2 不改变原请求 |
-| execution suspended，I1 已 disposed，没有 I2，收到新 submit | 原 execution 的耐久视图、绑定与当前 Access | 原 submit 资格与协调前提成立后受理，不预约槽、不 attach、不改变 suspended。runtime 消失不是拒绝理由 |
+| 外部 prepare 已拒绝，open 未执行，原实例换为后继实例 | Ki 到 H 的映射，原 InputEntry、origin 与拒绝 | 当前合法恢复者按 Ki 认回原 invalid，不重判，不创建第二个 H 或空 execution |
+| submit 已 prepared 或转换在途，原实例失联后无实例，再有后继实例 | Ki 到 H 的映射、完整 request、origin 与原转换身份 | 没有实例的阶段也可由当前合法的 submit 入口接续。prepared 认回原结果，在途沿原 H 恢复。后继实例不改变原请求 |
+| execution suspended，原实例已 disposed，没有后继实例，收到新 submit | 原 execution 的耐久视图、绑定与当前 Access | 原 submit 资格与协调前提成立后受理，不预约槽、不 attach、不改变 suspended。runtime 消失不是拒绝理由 |
 | H 已 excluded，retire 未确认 | 原排除与 Ja 的完整请求 | 查 Ja，committed 后才允许新 P。取消时只由 Rh 保管，不推进 checkpoint |
 | 外部 prepare 已准入，open 结果未知 | 受理前记录的原 H，加 Journal 的原 open 操作 | 先查原 open。committed 返回原受理，unknown 等待。查无 execution 不证明外部准入未发生 |
 
@@ -1013,7 +1013,7 @@ runtime 可顺序承接多个 execution，同一时刻至多一个有效执行�
 
 #### 受理与单执行槽
 
-invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。submit 不预约槽：它沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。首次 invoke 没有 execution 可供 P 或 Rh 写入，准入提供者先保存完整 InputEntry 作为受理前记录；它不占执行槽、不产生输入水位线、不授 advance、不触发开始扩展，也不使 invoke 成功。真正的新 open 才检查真实 runtime 的槽、绑定与适用 grant，并与协调参加者共同建立初始 execution、挂接与原完整结果；I1 与 I2 并发由当前资格与 Journal 排序决定唯一受理，晚到的旧请求不能再分配或重激活旧挂接。原 open 已成功的认回永久返回原 Authority，它只表达旧结果；I2 的新推进权另走 resume 与 attach。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
+invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。submit 不预约槽：它沿原 execution 的耐久视图受理，不要求活体 runtime、advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。首次 invoke 没有 execution 可供 P 或 Rh 写入，准入提供者先保存完整 InputEntry 作为受理前记录；它不占执行槽、不产生输入水位线、不授 advance、不触发开始扩展，也不使 invoke 成功。真正的新 open 才检查真实 runtime 的槽、绑定与适用 grant，并与协调参加者共同建立初始 execution、挂接与原完整结果；原实例与后继实例并发由当前资格与 Journal 排序决定唯一受理，晚到的旧请求不能再分配或重激活旧挂接。原 open 已成功的认回永久返回原 Authority，它只表达旧结果；后继实例的新推进权另走 resume 与 attach。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
 
 open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。Journal 在写入之前核对绑定的协调模式与所需支持，在原子提交点核对当前资格、围栏与 execution 修订号。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在同一次 open 或 attach 提交中核对它，核对失败返回 denied；standalone 绑定收到非空 grant 时在写前返回 unsupported，不把这次请求当作独立路径保存。coordinated 绑定在其授予规则要求 grant 时收到空 grant 返回 denied。某个 execution 首次建立时固定它的模式与不透明的外部关联，后续 attach 核对该关联，不允许经另一个 standalone 绑定降级。
 
@@ -1050,9 +1050,9 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 输入水位线指已可靠分配给该 execution 的输入边界，不能只用内存队列长度代替。inputs 返回该位置按规则应承接的完整有序批，内容来自受理时保存的内容。分页属于提供者内部，不改变批次语义。
 
-外部输入的原入口索引 Ki 是（租户、execution、原 invoke 或 submit 操作 O）。准入提供者拥有 Ki 到原 H 的耐久映射。外部 H 由固定版本标签、Ki、入口种类与 InputId 派生，不含 instance、当前 grant、principal、连接、时间或不存在的 execution revision。目标 execution 是请求身份，不证明 execution 已建立。同 Ki 先比较完整原业务请求，再检查 H，所以更换 kind 或 InputId 不能逃到另一个 H；异 source、候选、内容、原入口或优先级都 conflict，原映射与结果不变。InputEntry 完整保存原 operation、execution 与 AcceptedInput，不含 instance 或 grant；invoke 另存首次 prepare 之前按原 definition 生成的完整初始 checkpoint，恢复从原 request 取回它，不用 I2 的新默认值替换；submit 没有初始 checkpoint。长期适配器、I1 与 I2 使用同一权威 Ki 命名空间与原 provider adoption resolver：新进程的空索引不代表首次调用，Ki 索引可从权威记录完整重建，恢复未就绪为 unavailable，没有可信迁移或原记录读取能力的绑定为 unsupported。
+外部输入的原入口索引 Ki 是（租户、execution、原 invoke 或 submit 操作 O）。准入提供者拥有 Ki 到原 H 的耐久映射。外部 H 由固定版本标签、Ki、入口种类与 InputId 派生，不含 instance、当前 grant、principal、连接、时间或不存在的 execution revision。目标 execution 是请求身份，不证明 execution 已建立。同 Ki 先比较完整原业务请求，再检查 H，所以更换 kind 或 InputId 不能逃到另一个 H；异 source、候选、内容、原入口或优先级都 conflict，原映射与结果不变。InputEntry 完整保存原 operation、execution 与 AcceptedInput，不含 instance 或 grant；invoke 另存首次 prepare 之前按原 definition 生成的完整初始 checkpoint，恢复从原 request 取回它，不用 后继实例的新默认值替换；submit 没有初始 checkpoint。长期适配器、原实例与后继实例使用同一权威 Ki 命名空间与原 provider adoption resolver：新进程的空索引不代表首次调用，Ki 索引可从权威记录完整重建，恢复未就绪为 unavailable，没有可信迁移或原记录读取能力的绑定为 unsupported。
 
-InputOrigin 是首次准入的不可变出处，由提供者首次写入，此后 prepare、lookup 与认回都返回原值；调用方不上传 origin。invoke 分支保留当时真实的 I1、scope、definition 与 grant。submit 分支由可信 Journal resolver 取得原 execution 绑定：executionBinding 指向含 tenant、execution、scope、精确采用、coordination 与不透明外部关联的原版本记录，该记录受 H 的保留责任保护，不能只留哈希；delivery 记录实际交入路由，runtime-view 的 instance 是原视图的可核验来源，不声称该实例现在存活，durable-view 表示首次交入确实没有 runtime 路由，不是 unknown。提供者从受信入口取得路由事实，不从请求参数、当前挂接或先前的 I1 猜造；来源不可确定时保留 unavailable，不填 durable-view 掩盖缺证。I1 失联、同一视图改走长期路由或当前主体变化都不覆盖 origin。原主体的稳定身份编码与首次资格依据另存在提供者记录，凭据不进入材料。origin 是历史事实，不授当前主体或 I2 权力。
+InputOrigin 是首次准入的不可变出处，由提供者首次写入，此后 prepare、lookup 与认回都返回原值；调用方不上传 origin。invoke 分支保留当时真实的实例、scope、definition 与 grant。submit 分支由可信 Journal resolver 取得原 execution 绑定：executionBinding 指向含 tenant、execution、scope、精确采用、coordination 与不透明外部关联的原版本记录，该记录受 H 的保留责任保护，不能只留哈希；delivery 记录实际交入路由，runtime-view 的 instance 是原视图的可核验来源，不声称该实例现在存活，durable-view 表示首次交入确实没有 runtime 路由，不是 unknown。提供者从受信入口取得路由事实，不从请求参数、当前挂接或先前的实例猜造；来源不可确定时保留 unavailable，不填 durable-view 掩盖缺证。原实例失联、同一视图改走长期路由或当前主体变化都不覆盖 origin。原主体的稳定身份编码与首次资格依据另存在提供者记录，凭据不进入材料。origin 是历史事实，不授当前主体或后继实例权力。
 
 Journal.open 的原始受理输入含原 invoke 的 InputEntry、原 H 的引用与本次真实的 InvokeRuntimeContext；首次 open 要求 scope 与 definition 与原 invoke origin 的固定采用一致，并使用原初始 checkpoint。Journal.submit 保留现有 ExecutionMutation 与完整 value，另带谱系判别与 original 关联：new-input 只允许 submit 原入口，Journal 核 operation 等于 `original.entry.operation`、原 origin 确为 submit、原 H 为确切 prepared，随后按新受理协议核协调来源与终结排序，不能把 invoke 的 `entry.initial` 改写成 submit 的 value 伪造首次来源；recognize-input 只表达“[原操作认回与恢复](#原操作认回与恢复)”允许的新 B 认回，Journal 核 B 不等于原 entry 的操作 A，并通过原 O 的权威受理记录证明 A 已可靠受理该 InputId，原 A 可以是 invoke 或 submit。invoke 原输入使用 `entry.initial`，submit 原输入使用 `entry.value`；成功认回要求它与本次 value 的 InputId、完整 content、source、priority 完全一致，并核 tenant 与 execution 归属一致。B 只在自己的权威结果记录中同次固定完整本次语义、B 的回执与真实的 A 来源；不把原事实改署为 B 新建立，不返回原 open 的 Authority，不新建 H、受理前记录、转换、分配、历史、事件或 execution revision。这个判别是内部受理输入，不增加公开 submit 的参数。
 
@@ -1834,7 +1834,7 @@ Agent 提供两个不需推进资格的入口：control 与 detach。
 3. 两个入口都在实际执行处按“[主体资格核验](#主体资格核验)”核验主体。它们不要求调用方持有挂接，也不授予推进资格。
 4. 两个入口的形状以本节和公开接口页为准。实现归 #502。
 5. 未决项（#502）：经 `agentExecutionControl` 受理控制时 execution 仍有 active 挂接，该挂接的 runtime 怎样得知新的控制，本契约尚未规定。
-6. 追加输入不需要活体 runtime：input.submit 沿原 execution 的耐久视图受理，不要求 advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。长期输入适配器从原 execution 的耐久绑定与原 provider 采用解析 coordination、scope、定义与历史组合，不从当前 runtime 内存取得这些事实；它在自身装配及每次所需操作处核相同的支持要求，不以创建一个 runtime 作为能力检查的前置。缺真实组合仍为 unsupported，原来源暂不可读仍为 unavailable，仅 I1 已 disposed 不触发这两种错误。无活体时 submit 的公开入口与服务键尚未落地，登记在[开放问题](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
+6. 追加输入不需要活体 runtime：input.submit 沿原 execution 的耐久视图受理，不要求 advance、grant、槽、resume 或 attach，规则见“[输入内容与水位线](#输入内容与水位线)”。长期输入适配器从原 execution 的耐久绑定与原 provider 采用解析 coordination、scope、定义与历史组合，不从当前 runtime 内存取得这些事实；它在自身装配及每次所需操作处核相同的支持要求，不以创建一个 runtime 作为能力检查的前置。缺真实组合仍为 unsupported，原来源暂不可读仍为 unavailable，仅原实例已 disposed 不触发这两种错误。无活体时 submit 的公开入口与服务键尚未落地，登记在[开放问题](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 
 #### 作为 Model 调用方
 
