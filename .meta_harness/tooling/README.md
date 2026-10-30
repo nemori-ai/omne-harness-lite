@@ -152,10 +152,13 @@ slots:
 
 ## 宿主钩子
 
-`agents/hooks/hooks.yaml` 存在且列表非空时，编译另产出两端的项目级钩子文件：Claude Code 的
-`.claude/settings.json`（只有 `hooks` 一段）与 Codex 的 `.codex/hooks.json`，内容相同；`--host` 只出所选那端。
-每条声明有 `id`、`events`（只认 `Stop`、`SubagentStop`）、`command`（shell 形式）、`timeout`（正整数秒），
-可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher）。
+`agents/hooks/hooks.yaml` 存在且列表非空时，编译另产出项目级钩子文件：Claude Code 的
+`.claude/settings.json`（只有 `hooks` 一段）与 Codex 的 `.codex/hooks.json`；`--host` 只出所选那端。
+两端文件按各自宿主的声明生成，内容不必相同：没有声明给某个宿主时，不产出那个宿主的文件。
+每条声明有 `id`、`events`（认 `Stop`、`SubagentStop`、`SessionStart`）、`command`（shell 形式）、`timeout`（正整数秒），
+可选 `hosts`（`claude-code`、`codex`、`cursor`；省略为全部）只把这条给所列宿主，`SessionStart` 只为 Claude Code 生成，
+可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher），
+可选 `session_sources`（`startup`、`resume`、`clear`、`compact`、`fork`，只收窄 `SessionStart`，生成为 `|` 连起来的 matcher）。
 未知事件或字段、空命令、非正整数超时、重复 id 都报错并带出那条的 id。输出确定（键排序、两空格缩进、末尾换行），
 `--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出这两个文件，其余产物不变。
 生成不等于宿主已加载或已信任这条钩子；声明的含义与怎么关见 [agents/hooks](../agents/hooks/README.md)。
@@ -252,5 +255,5 @@ Task 可覆盖 model，common payload.model 不是子代理模型；subagentStar
 模型自己声称发现或执行不算证据。退出零也不自动成为接受。过程超时会终止该进程组并报告 124。
 单次结果留任务 tmp，IDE/Cloud 真实执行、模型资格和完整付费评估分别报告。
 
-持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py 与 test_link_agents.py。
+持续检查在 tests/test_cursor.py、test_compile_agents.py、test_compile_hooks.py、test_compile_cloud.py、test_link_agents.py、test_stale_skills.py、test_save_handback.py 与 test_readme_commands.py。
 它们覆盖文件、资源、路径、严格字段和子进程协议；真实模型与宿主事件仍由上面的驱动和独立验收取得。
