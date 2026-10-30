@@ -15,6 +15,7 @@ import {
   type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
 import { decodeModelOperationId, encodeModelInvocationRef } from '@omne-harness/model-contract'
+import { encodeToolInvocationRef, resolveToolInvocationRef } from '@omne-harness/tool-contract'
 import {
   acceptedInput,
   access,
@@ -159,6 +160,23 @@ function decorated(
   }
 }
 
+/**
+ * The fixture with every host record the suite registers passed through `rewrite` first: the
+ * memory Journal then serves the rewritten record as the trusted host read.
+ */
+function hostRecordsRewritten(
+  rewrite: (record: TestHostRecord) => TestHostRecord,
+): AgentJournalCoreFixture<string> {
+  return {
+    async open(name, options) {
+      const opened = await fixture.open(name, options)
+      const { hostRecord } = opened
+      if (hostRecord === undefined) throw new Error('the memory fixture offers host records')
+      return { ...opened, hostRecord: record => hostRecord(rewrite(record)) }
+    },
+  }
+}
+
 /** The names of the cases that fail for `fixture`; a case that passes contributes nothing. */
 async function failing(fixture: AgentJournalCoreFixture<string>): Promise<string[]> {
   const names: string[] = []
@@ -231,6 +249,10 @@ describe('the core conformance suite fails a Journal that breaks one of its rule
       'tryFinish',
       'another tenant: tryFinish with a list this execution issued is denied with the action tryFinish, the same for an existing and a missing execution, before any scripted fault; the execution stays settling with no ended event, and the owner then ends it',
     ],
+    [
+      'commitSettlement',
+      'another tenant: each of the six commitSettlement variants is denied with the action commitSettlement, the same for an existing and a missing execution, before the qualification and any scripted fault, and writes nothing',
+    ],
   ] as const)('%s that serves any caller as the owner of the execution', async (method, name) => {
     const names = await failing(
       decorated((journal, opened) => ({
@@ -240,6 +262,24 @@ describe('the core conformance suite fails a Journal that breaks one of its rule
       })),
     )
     expect(names).toContain(name)
+  })
+
+  it('a host read that serves the tool return of another tenant as a return of the owner', async () => {
+    // The reference of a tool-return record is the only place its tenant lives: a host read that
+    // re-homes a foreign reference to the owner's tenant stands for a Journal that does not resolve
+    // the tenant of the returned reference.
+    const names = await failing(
+      hostRecordsRewritten(record => {
+        if (record.kind !== 'tool-return') return record
+        const foreign = resolveToolInvocationRef(record.returned.reference, otherTenant.tenant)
+        if ('failure' in foreign) return record
+        const reference = ok(encodeToolInvocationRef({ ...foreign.ok, tenant: access.tenant }))
+        return { ...record, returned: { ...record.returned, reference } }
+      }),
+    )
+    expect(names).toContain(
+      'record-tool-association: a host return whose reference belongs to another tenant is denied with the action commitSettlement before its intent and request are compared, the same for a return of another intent or another request; the association stays',
+    )
   })
 
   it('a commit with a stale expected revision answers changed before terminal', async () => {
