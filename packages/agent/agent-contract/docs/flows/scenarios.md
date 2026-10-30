@@ -113,7 +113,8 @@ sequenceDiagram
         E->>Z: 携带答复再次请求准入
         alt 官方准入的卡片收到 remark
             Z-->>E: deny，reason 为 human-guidance，附言不形成批准
-            Note over A,E: 该动作记为 denied，本链以 deny 得到最终 Conclusion，拒绝消息带附言原话作为给模型的指导
+            E-->>A: 最终 Conclusion：该动作为 denied
+            Note over A,E: 拒绝消息带附言原话，作为给模型的指导
         else 原扩展或后继扩展再出卡
             E-->>A: 新一轮卡片，仍属原批
             Note over A,T: 屏障继续关闭，不发已获准部分

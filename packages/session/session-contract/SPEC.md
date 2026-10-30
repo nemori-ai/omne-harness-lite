@@ -1982,7 +1982,7 @@ Runtime Context 作用域的结束与已签发资格的撤销不在本表。它�
 
 ### J04 流观察消费义务
 
-Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，不把流引用写 Journal，也不发 `stream` 事件（`AgentEventBody` 只有 Agent 自身的事件）。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
+Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，也不把流引用写 Journal。Agent 的事件只有 Agent 自身的种类（`AgentEventBody`），不带生产者的流内容。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
 
 ### J18 作用域引用与结束事实
 

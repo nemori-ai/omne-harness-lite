@@ -213,12 +213,12 @@ stateDiagram-v2
   requested --> present_failed: present returned denied or conflict
   present_failed --> [*]: retained, counted as processed for the barrier
   presented --> answered: every card has its single valid reply
-  answered --> processed: original extension or official admission consumed the replies (remark included) and reached a final Conclusion
+  answered --> processed: the extension that presented the cards consumed the replies (remark included) and reached a final Conclusion
   answered --> processed: a later round of the same Passage failed to present, denial Conclusion recorded
   processed --> [*]: retained with the Passage
 ```
 
-第一张图是一次扩展调用的状态，第二张图是一轮卡片的状态。附言不另有迁移：它计入 answered，之后与 chosen、declined 一样由 Agent 以 replay 交给原扩展，官方准入的卡片则交回官方准入，规则见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 11 条。两张图都不代替生产者确认或卡片有效性协议。回放返回的卡片草稿与上一轮已答复的草稿相同时，不开新一轮，该扩展调用按 `replayInconsistent` 形成最终 Conclusion。不能携带回放绑定的方言返回 `ask` 时按不合法输出处理，不出卡，所以不产生卡片轮次，规则见 SPEC 的“[扩展、卡片与材料](../SPEC.md#扩展卡片与材料)”。能力操作的 requested、resolved、applied 与前文事件、结果对象的规则相同。原实现不可用时的处置见[扩展作者协议](public-api/extensions.md#结构换代与未完成判断)。主回复准入事实与否决投影的保存规则见 SPEC 的“[身份、原位置与纯求值](../SPEC.md#身份原位置与纯求值)”。
+第一张图是一次扩展调用的状态，第二张图是一轮卡片的状态。附言不另有迁移：它计入 answered，之后与 chosen、declined 一样，由 Agent 以 replay 交回出卡的扩展。官方准入是链末的受信系统扩展，它出的卡片同样交回它。规则见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 11 条。两张图都不代替生产者确认或卡片有效性协议。回放返回的卡片草稿与上一轮已答复的草稿相同时，不开新一轮，该扩展调用按 `replayInconsistent` 形成最终 Conclusion。不能携带回放绑定的方言返回 `ask` 时按不合法输出处理，不出卡，所以不产生卡片轮次，规则见 SPEC 的“[扩展、卡片与材料](../SPEC.md#扩展卡片与材料)”。能力操作的 requested、resolved、applied 与前文事件、结果对象的规则相同。原实现不可用时的处置见[扩展作者协议](public-api/extensions.md#结构换代与未完成判断)。主回复准入事实与否决投影的保存规则见 SPEC 的“[身份、原位置与纯求值](../SPEC.md#身份原位置与纯求值)”。
 
 ## 无状态性与有状态性
 
