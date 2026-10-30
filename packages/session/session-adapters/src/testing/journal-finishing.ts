@@ -7,13 +7,16 @@
 // conformance suite, not to shared code.
 import type {
   AcceptedInput,
+  Adoption,
   AgentCheckpoint,
+  AgentExecutionId,
   AgentOperationId,
   CancellationJudgmentRecord,
   CandidateSupersession,
   CardReconciliationRecord,
   CardRound,
   ConsumerRef,
+  ContinuationRequest,
   ControlRecord,
   CoverageFacet,
   DurableEvidence,
@@ -37,6 +40,7 @@ import type {
   TerminalParticipantFacts,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
+import { obligationCategoryOf } from '@omne-harness/agent-contract/testing'
 import { canonical } from './canonical.ts'
 import { JOURNAL_OWNER, journalEvidence, revisionOf } from './journal-values.ts'
 
@@ -218,6 +222,9 @@ export function beforeTerminalOpen(checkpoint: AgentCheckpoint): boolean {
 
 /** What the builder reads of one execution: its own records, never another owner's. */
 export type ObligationSource = Readonly<{
+  /** The execution the obligations belong to. */
+  id: AgentExecutionId
+  /** The namespaced text the fixed evidence of the obligations is named under. */
   execution: string
   revision: number
   checkpoint: AgentCheckpoint
@@ -229,6 +236,8 @@ export type ObligationSource = Readonly<{
   controls: readonly ControlRecord[]
   results: readonly ResultResponsibility[]
   effects: readonly EffectIntent[]
+  /** The interrupt and background controls that name the call of an effect. */
+  interruptionsOf: (effect: EffectIntent) => readonly AgentOperationId[]
   emitted: number
   acknowledged: number
   /** The handoffs whose prepared message no Ja published yet. */
@@ -245,13 +254,28 @@ const SESSION_CUSTODIAN: ConsumerRef = Object.freeze({
   purpose: 'custody',
 })
 
-function next(
-  kind: RecoveryContinuation['kind'],
-  request: DurableEvidence,
-  purpose: RecoveryContinuation['purpose'],
-): RecoveryContinuation {
-  return { kind, request, owner: JOURNAL_OWNER, custodian: null, purpose }
+/** The schema under which the session log keeps the record a continuation refers to. */
+const RECORD_SCHEMA: Adoption = Object.freeze({
+  owner: JOURNAL_OWNER,
+  name: 'session-log-record',
+  revision: '1',
+  digest: 'session-log:record',
+})
+
+/** The request of a continuation that refers to a record of this Journal under its schema. */
+function ofRecord(
+  record: DurableEvidence,
+): Extract<ContinuationRequest<never>, { kind: 'record' }> {
+  return { kind: 'record', schema: RECORD_SCHEMA, record }
 }
+
+/** The request of a continuation that carries the complete parameters of the original operation. */
+function ofParameters<T>(value: T): Extract<ContinuationRequest<T>, { kind: 'parameters' }> {
+  return { kind: 'parameters', value }
+}
+
+/** The continuation is the Journal's own and no custodian accepted it yet. */
+const BY_JOURNAL = Object.freeze({ owner: JOURNAL_OWNER, custodian: null })
 
 const settled = (completion: DurableEvidence): ObligationDisposition => ({
   kind: 'settled',
@@ -320,9 +344,14 @@ export function buildObligations(
   source.inputs.forEach((input, index) => {
     const taken = source.batchOf(index)
     const origin = fixed(`input/${input.id}`)
+    const read = (purpose: 'load' | 'submit'): RecoveryContinuation => ({
+      kind: 'input-read',
+      request: ofParameters({ input: input.id }),
+      ...BY_JOURNAL,
+      purpose,
+    })
     items.push({
       kind: 'accepted-input',
-      category: 'inputs',
       key: input.id,
       source: origin,
       version: origin,
@@ -331,8 +360,8 @@ export function buildObligations(
         taken !== null
           ? settled(fixed(`input/${input.id}/taken/${taken}`))
           : cancelled
-            ? held(origin, next('input-read', origin, 'load'))
-            : pending('input-disposition', next('input-read', origin, 'submit')),
+            ? held(origin, read('load'))
+            : pending('input-disposition', read('submit')),
       input: input.id,
       value: input,
       acceptance: recorded(source.acceptanceOf(input), `the acceptance of input ${input.id}`),
@@ -344,10 +373,14 @@ export function buildObligations(
     const accepted = control.stages.accepted.source
     const intent = control.stages['intent-established']
     const revoked = control.stages['qualification-revoked']
-    const query = next('original-operation-query', accepted, 'query')
+    const query: RecoveryContinuation = {
+      kind: 'original-operation-query',
+      request: ofParameters({ execution: source.id, operation: control.operation }),
+      ...BY_JOURNAL,
+      purpose: 'query',
+    }
     items.push({
       kind: 'control',
-      category: 'controls',
       key: control.operation,
       source: accepted,
       version: fixed(`control/${control.operation}`),
@@ -358,7 +391,12 @@ export function buildObligations(
           : revoked?.state === 'unresolved'
             ? pending('qualification-revocation', query)
             : LATE_STAGES.some(stage => control.stages[stage]?.state === 'unresolved')
-              ? held(accepted, next('producer-query', accepted, 'query'))
+              ? held(accepted, {
+                  kind: 'restore-source',
+                  request: ofRecord(accepted),
+                  ...BY_JOURNAL,
+                  purpose: 'query',
+                })
               : settled(intent?.source ?? accepted),
       control: control.operation,
     })
@@ -367,7 +405,6 @@ export function buildObligations(
     const at = fixed(`operation/${operation}`)
     items.push({
       kind: 'operation',
-      category: 'operations',
       key: operation,
       source: at,
       version: at,
@@ -380,20 +417,31 @@ export function buildObligations(
           position: at,
           reason: 'original-operation-unknown',
         },
-        required: next('original-operation-query', at, 'query'),
+        required: {
+          kind: 'original-operation-query',
+          request: ofParameters({ execution: source.id, operation }),
+          ...BY_JOURNAL,
+          purpose: 'query',
+        },
       },
       operation,
       method,
       request: at,
       resolution: 'unknown',
+      result: null,
     })
   }
   for (const record of source.unpublished) {
     const key = canonical(record.handoff)
     const prepared = record.prepared ?? fixed(`handoff/${key}`)
+    const lookup: RecoveryContinuation = {
+      kind: 'handoff-lookup',
+      request: ofRecord(prepared),
+      ...BY_JOURNAL,
+      purpose: 'read-message-handoff',
+    }
     items.push({
       kind: 'handoff',
-      category: 'operations',
       key,
       source: prepared,
       version: prepared,
@@ -402,8 +450,8 @@ export function buildObligations(
       // pass it as retained; a failed or cancelled one holds it (Agent SPEC "终结责任清单").
       disposition:
         candidate.conclusion.kind === 'complete'
-          ? pending('handoff-history', next('handoff-lookup', prepared, 'read-message-handoff'))
-          : held(prepared, next('handoff-lookup', prepared, 'read-message-handoff')),
+          ? pending('handoff-history', lookup)
+          : held(prepared, lookup),
       handoff: record.handoff,
       record,
     })
@@ -418,9 +466,19 @@ export function buildObligations(
       associations.find(item => item.association.kind === 'accepted') ?? associations[0]
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
+    const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
+      kind: 'tool-association-retain',
+      request: ofParameters({
+        intent: saved.intent,
+        request: saved.request,
+        source: saved.source,
+        priorExcluded: saved.priorExcluded,
+      }),
+      ...BY_JOURNAL,
+      purpose: 'reconcile',
+    })
     items.push({
       kind: 'call',
-      category: 'operations',
       key: effect.action,
       source: effect.pending.fixed,
       version: fixed(`call/${effect.action}`),
@@ -429,22 +487,15 @@ export function buildObligations(
         result !== undefined
           ? settled(result.result.source)
           : association?.association.kind === 'accepted'
-            ? held(
-                association.source,
-                next('tool-association-retain', association.request, 'reconcile'),
-                custodian ?? SESSION_CUSTODIAN,
-              )
+            ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
             : association !== undefined
-              ? callUnknown(
-                  effect.action,
-                  association.source,
-                  next('tool-association-retain', association.request, 'reconcile'),
-                )
-              : callUnknown(
-                  effect.action,
-                  effect.pending.fixed,
-                  next('producer-query', effect.pending.fixed, 'query'),
-                ),
+              ? callUnknown(effect.action, association.source, retain(association))
+              : callUnknown(effect.action, effect.pending.fixed, {
+                  kind: 'producer-query',
+                  request: ofParameters({ pending: effect.pending }),
+                  ...BY_JOURNAL,
+                  purpose: 'query',
+                }),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),
@@ -453,6 +504,7 @@ export function buildObligations(
       pending: effect.pending,
       started: null,
       outcome: result?.result.source ?? null,
+      interruptions: source.interruptionsOf(effect),
       custodian,
     })
   }
@@ -461,9 +513,14 @@ export function buildObligations(
     const superseded = cancelled && passage.position === 'before_terminal'
     const route =
       superseded && supersession !== undefined ? supersession.route : currentRoute(source.finishing)
+    const lookup: RecoveryContinuation = {
+      kind: 'card-lookup',
+      request: ofRecord(passage.input),
+      ...BY_JOURNAL,
+      purpose: 'reconcile',
+    }
     items.push({
       kind: 'passage',
-      category: 'passages',
       key: passage.id,
       source: passage.effective,
       version: fixed(`passage/${passage.id}`),
@@ -472,8 +529,8 @@ export function buildObligations(
         passage.progress.kind === 'applied'
           ? settled(passage.effective)
           : cancelled || passage.position === 'after_terminal'
-            ? held(passage.effective, next('card-lookup', passage.input, 'reconcile'))
-            : pending('passage-custody', next('card-lookup', passage.input, 'reconcile')),
+            ? held(passage.effective, lookup)
+            : pending('passage-custody', lookup),
       passage,
       candidate: superseded && supersession !== undefined ? supersession.from : candidate.candidate,
       route: route?.record ?? fixed(`route/${passage.id}`),
@@ -491,16 +548,19 @@ export function buildObligations(
       }
       const key = `${passage.id}/${round.round}`
       const at = fixed(`card-round/${key}`)
+      const roundLookup: RecoveryContinuation = {
+        kind: 'card-lookup',
+        request: ofParameters({ passage: passage.id, round: round.round }),
+        ...BY_JOURNAL,
+        purpose: 'reconcile',
+      }
       items.push({
         kind: 'card-round',
-        category: 'passages',
         key,
         source: at,
         version: at,
         position: null,
-        disposition: cancelled
-          ? held(at, next('card-lookup', passage.input, 'reconcile'))
-          : pending('card-custody', next('card-lookup', passage.input, 'reconcile')),
+        disposition: cancelled ? held(at, roundLookup) : pending('card-custody', roundLookup),
         passage: passage.id,
         round,
         present: presentOf(round),
@@ -516,9 +576,12 @@ export function buildObligations(
       responsibility.consumption,
     ])
     const origin = responsibility.result.source
+    const parameters = ofParameters({
+      result: responsibility.result,
+      consumption: responsibility.consumption,
+    })
     items.push({
       kind: 'result',
-      category: 'custody',
       key,
       source: origin,
       version: fixed(`result/${responsibility.consumption}/${responsibility.result.version}`),
@@ -527,42 +590,63 @@ export function buildObligations(
         responsibility.completion !== null
           ? settled(responsibility.completion)
           : responsibility.custody !== null
-            ? held(responsibility.custody, next('producer-release', origin, 'reconcile'))
-            : pending('result-custody', next('producer-receive', origin, 'reconcile')),
+            ? held(responsibility.custody, {
+                kind: 'producer-release',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              })
+            : pending('result-custody', {
+                kind: 'producer-receive',
+                request: parameters,
+                ...BY_JOURNAL,
+                purpose: 'reconcile',
+              }),
       responsibility,
       material: null,
     })
   }
   if (source.emitted > 0) {
     const retention = fixed('output')
+    const emittedThrough = String(source.emitted)
     items.push({
       kind: 'output',
-      category: 'custody',
       key: `output/1-${source.emitted}`,
       source: retention,
       version: retention,
       position: null,
-      disposition: held(retention, next('output-read-ack', retention, 'acknowledge')),
-      emittedThrough: String(source.emitted),
+      disposition: held(retention, {
+        kind: 'output-read-ack',
+        request: ofParameters({ after: null, through: emittedThrough }),
+        ...BY_JOURNAL,
+        purpose: 'acknowledge',
+      }),
+      emittedThrough,
       acknowledgedThrough: source.acknowledged === 0 ? null : String(source.acknowledged),
       retention,
     })
   }
   for (const passage of source.checkpoint.passages) {
     if (passage.position !== 'after_terminal') continue
+    const terminal = fixed('terminal')
     items.push({
       kind: 'terminal-observation',
-      category: 'custody',
       key: passage.id,
       source: passage.effective,
       version: fixed(`observation/${passage.id}`),
       position: null,
-      disposition: held(
-        passage.effective,
-        next('terminal-observe', passage.input, 'record-terminal-observation'),
-      ),
+      disposition: held(passage.effective, {
+        kind: 'terminal-observe',
+        request: ofParameters({
+          passage: passage.id,
+          terminal,
+          implementation: passage.implementation,
+        }),
+        ...BY_JOURNAL,
+        purpose: 'record-terminal-observation',
+      }),
       observation: {
-        terminal: fixed('terminal'),
+        terminal,
         passage: passage.id,
         implementation: passage.implementation,
         observed: null,
@@ -712,7 +796,7 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
     const open: { category: ObligationCategory; source: DurableEvidence }[] = source.items
       .filter(item => item.disposition.kind === 'pending')
       .map(item => ({
-        category: item.category,
+        category: obligationCategoryOf(item.kind),
         source:
           source.listed.find(listed => listed.kind === item.kind && listed.key === item.key)
             ?.source ?? item.source,

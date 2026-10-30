@@ -279,6 +279,19 @@ export type MemoryAgentJournal<P> = Readonly<{
 
   joint(): readonly JointFact[]
 
+  /**
+   * Seeds a legacy cancelled candidate as a writer of the old protocol left it (Agent SPEC
+   * "旧取消记录的迁移"): a candidate whose conclusion is cancelled, on an author route whose
+   * before-terminal proof is set, with one new revision. It writes the Journal records directly,
+   * not through `commit`: the protocol fence does not accept such an F1 any more. Answers false
+   * when the execution is not held or already ended.
+   */
+  seedLegacyCandidate(
+    execution: AgentExecutionId,
+    candidate: AgentOperationId,
+    tenant?: TenantId,
+  ): boolean
+
   applyRetention(execution: AgentExecutionId, tenant?: TenantId): number
 }>
 
@@ -484,6 +497,32 @@ function controlTarget(
   if (ambiguous) return fail(invalid('command.call', 'ambiguous-associated-tool-call'))
   if (matched === undefined) return fail(invalid('command.call', 'no-associated-tool-call'))
   return succeed({ command, toolInvocation: matched.reference, toolOperation: null })
+}
+
+/** The interrupt and background controls that name the call of `effect`, by their operations. */
+function interruptionsOf(
+  effect: EffectIntent,
+  controls: readonly ControlRecord[],
+  tenant: TenantId,
+): AgentOperationId[] {
+  const pending = effect.pending
+  return controls
+    .filter(control => {
+      const command = control.command
+      if (command.kind === 'interrupt-model') {
+        if (pending.kind !== 'model') return false
+        const parts = resolveModelInvocationRef(pending.reference, tenant)
+        return 'ok' in parts && parts.ok.call === command.call
+      }
+      if (isToolControl(control))
+        return (
+          pending.kind === 'tool' &&
+          pending.association === 'associated' &&
+          control.toolInvocation === pending.reference
+        )
+      return false
+    })
+    .map(control => control.operation)
 }
 
 function isToolControl(record: ControlRecord): record is ToolControlRecord {
@@ -1391,6 +1430,7 @@ export function createJournal<P>(
     const batches = cache(execution).batches
     return buildObligations(
       {
+        id: execution.id,
         execution: `${cell.namespace}/${execution.id}`,
         revision: execution.revision,
         checkpoint: execution.checkpoint,
@@ -1408,6 +1448,7 @@ export function createJournal<P>(
         controls: execution.controls,
         results: execution.results,
         effects: execution.effects,
+        interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
         emitted: execution.events.length,
         acknowledged: execution.acknowledged,
         unpublished: handoffsOf(execution, () => null).filter(
@@ -1995,23 +2036,69 @@ export function createJournal<P>(
   }
 
   /**
-   * The three custody variants under the current reconcile qualification, without expected and
-   * also after ended: the source must resolve through the trusted host reads (`unavailable`
-   * otherwise) to a record of the named passage, round or intent, which the Journal must hold
-   * (`invalid` otherwise). None changes the candidate, the route or a passage.
+   * The target of one custody variant (Agent SPEC "commitSettlement 的变体" table): the card round,
+   * the before-terminal passage or the Tool intent of this execution, with the candidate and route
+   * the request names. It is checked before the source is read, so a target the Journal does not
+   * hold is `invalid` whatever the host answers.
    */
-  function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
+  function custodyTargetFailure(execution: Execution, input: CustodyVariant): Failure | undefined {
     const finishing = execution.finishing
-    const source = input.kind === 'record-card-reconciliation' ? input.original : input.source
-    const record = options.hostRecords?.get(source.record)
-    if (record === undefined)
-      return answer(fail(damaged(`the host answers no record for ${source.record}`)))
     const known = (candidate: AgentOperationId, route: DurableEvidence): Failure | undefined =>
       candidateOf(finishing, candidate) === undefined
         ? invalid('candidate', 'not a candidate of this execution')
         : routeOf(finishing, route) === undefined
           ? invalid('route', 'not a route of this execution')
           : undefined
+    switch (input.kind) {
+      case 'record-card-reconciliation': {
+        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
+        const round =
+          passage?.progress.kind === 'asked'
+            ? passage.progress.rounds.find(item => item.round === input.round)
+            : undefined
+        if (passage === undefined || round === undefined)
+          return invalid('round', 'not a card round of this execution')
+        return known(input.candidate, input.route)
+      }
+      case 'record-legacy-return': {
+        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
+        if (passage === undefined || passage.position !== 'before_terminal')
+          return invalid('passage', 'not a before-terminal passage of this execution')
+        return known(input.candidate, input.route)
+      }
+      case 'record-tool-association': {
+        const effect = execution.effects.find(item => item.action === input.intent.action)
+        if (
+          effect === undefined ||
+          effect.pending.kind !== 'tool' ||
+          finishing.effectOperations.get(input.intent.action) !== input.intent.intent ||
+          !sameValue(effect.pending.position, input.intent.position)
+        )
+          return invalid('intent', 'not a Tool intent of this execution')
+        return undefined
+      }
+      default: {
+        const _exhaustive: never = input
+        return _exhaustive
+      }
+    }
+  }
+
+  /**
+   * The three custody variants under the current reconcile qualification, without expected and
+   * also after ended: the target is checked first (`invalid` when the Journal does not hold it),
+   * then the source must resolve through the trusted host reads (`unavailable` otherwise) to a
+   * record of the named passage, round or intent (`invalid` otherwise). None changes the
+   * candidate, the route or a passage.
+   */
+  function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
+    const finishing = execution.finishing
+    const target = custodyTargetFailure(execution, input)
+    if (target !== undefined) return answer(fail(target))
+    const source = input.kind === 'record-card-reconciliation' ? input.original : input.source
+    const record = options.hostRecords?.get(source.record)
+    if (record === undefined)
+      return answer(fail(damaged(`the host answers no record for ${source.record}`)))
     const revision = execution.revision + 1
     const evidence = nextEvidence(execution, input.kind, revision)
     const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -2023,21 +2110,30 @@ export function createJournal<P>(
             ? passage.progress.rounds.find(item => item.round === input.round)
             : undefined
         if (passage === undefined || round === undefined)
-          return answer(fail(invalid('round', 'not a card round of this execution')))
+          throw new Error('session Journal defect: the card round was checked before the source')
         if (
           record.kind !== 'card-reconciliation' ||
           record.passage !== input.passage ||
           record.round !== input.round
         )
           return answer(fail(invalid('original', 'not a reconciliation of this round')))
-        const unknown = known(input.candidate, input.route)
-        if (unknown !== undefined) return answer(fail(unknown))
         const custodian: ConsumerRef = {
           owner: 'cards',
           work: execution.id,
           position: passage.id,
           purpose: 'card-custody',
         }
+        const key = `${passage.id}/${round.round}`
+        const lookup: RecoveryContinuation = {
+          kind: 'card-lookup',
+          request: { kind: 'parameters', value: { passage: passage.id, round: round.round } },
+          owner: 'cards',
+          custodian: null,
+          purpose: 'reconcile',
+        }
+        // A result the card owner could not determine keeps the round unknown under the reason
+        // the host gave; only a known result is held by the card owner.
+        const result = record.result
         const reconciliation: CardReconciliationRecord = {
           operation: input.operation,
           receipt,
@@ -2048,29 +2144,34 @@ export function createJournal<P>(
           original: copy(input.original),
           obligation: {
             kind: 'card-round',
-            category: 'passages',
-            key: `${passage.id}/${round.round}`,
+            key,
             source: copy(source),
             version: evidence,
             position: null,
-            disposition: {
-              kind: 'held',
-              custodian,
-              acceptance: copy(source),
-              retained: copy(source),
-              continuation: {
-                kind: 'card-lookup',
-                request: copy(passage.input),
-                owner: 'cards',
-                custodian: null,
-                purpose: 'reconcile',
-              },
-            },
+            disposition:
+              result.kind === 'known'
+                ? {
+                    kind: 'held',
+                    custodian,
+                    acceptance: copy(source),
+                    retained: copy(source),
+                    continuation: lookup,
+                  }
+                : {
+                    kind: 'unknown',
+                    question: {
+                      owner: 'cards',
+                      key,
+                      position: copy(source),
+                      reason: result.reason,
+                    },
+                    required: lookup,
+                  },
             passage: passage.id,
             round: copy(round),
-            present: copy(record.present),
-            lookups: [...record.lookups],
-            invalidate: record.invalidate,
+            present: result.kind === 'known' ? copy(result.present) : null,
+            lookups: result.kind === 'known' ? [...result.lookups] : [],
+            invalidate: result.kind === 'known' ? copy(result.invalidate) : null,
           },
           revision: revisionOf(revision),
         }
@@ -2085,17 +2186,12 @@ export function createJournal<P>(
         }
       }
       case 'record-legacy-return': {
-        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
-        if (passage === undefined || passage.position !== 'before_terminal')
-          return answer(fail(invalid('passage', 'not a before-terminal passage of this execution')))
         if (
           record.kind !== 'legacy-return' ||
           record.passage !== input.passage ||
           !sameEvidence(record.input, input.request)
         )
           return answer(fail(invalid('source', 'not the return of this invocation')))
-        const unknown = known(input.candidate, input.route)
-        if (unknown !== undefined) return answer(fail(unknown))
         const legacyReturn: LegacyInvocationReturn = {
           operation: input.operation,
           receipt,
@@ -2123,13 +2219,8 @@ export function createJournal<P>(
       }
       case 'record-tool-association': {
         const effect = execution.effects.find(item => item.action === input.intent.action)
-        if (
-          effect === undefined ||
-          effect.pending.kind !== 'tool' ||
-          finishing.effectOperations.get(input.intent.action) !== input.intent.intent ||
-          !sameValue(effect.pending.position, input.intent.position)
-        )
-          return answer(fail(invalid('intent', 'not a Tool intent of this execution')))
+        if (effect === undefined)
+          throw new Error('session Journal defect: the Tool intent was checked before the source')
         if (
           record.kind !== 'tool-return' ||
           !sameValue(record.intent, input.intent) ||
@@ -2166,7 +2257,15 @@ export function createJournal<P>(
         }
         const continuation: RecoveryContinuation = {
           kind: 'tool-association-retain',
-          request: copy(input.request),
+          request: {
+            kind: 'parameters',
+            value: {
+              intent: copy(input.intent),
+              request: copy(input.request),
+              source: copy(input.source),
+              priorExcluded: copy(input.priorExcluded),
+            },
+          },
           owner: 'host',
           custodian,
           purpose: 'reconcile',
@@ -2193,7 +2292,6 @@ export function createJournal<P>(
               }
         const obligation: Extract<FinishObligation, { kind: 'call' }> = {
           kind: 'call',
-          category: 'operations',
           key: input.intent.action,
           source: copy(effect.pending.fixed),
           version: evidence,
@@ -2204,6 +2302,7 @@ export function createJournal<P>(
           pending: copy(effect.pending),
           started: copy(record.received),
           outcome: null,
+          interruptions: interruptionsOf(effect, execution.controls, execution.tenant),
           custodian,
         }
         const association: ToolAssociationRecord = {
@@ -3633,6 +3732,45 @@ export function createJournal<P>(
       })
     },
     joint: () => copy(state().jointFacts),
+    seedLegacyCandidate(id, candidate, tenant) {
+      return cell.mutateExecution(id, () => {
+        const matches = [...state().executions.values()].filter(
+          value => value.id === id && (tenant === undefined || tenantEquals(tenant, value.tenant)),
+        )
+        const execution = matches.length === 1 ? matches[0] : undefined
+        if (execution === undefined || execution.state.kind === 'ended') return false
+        const finishing = execution.finishing
+        const revision = execution.revision + 1
+        const legacy = (what: string): DurableEvidence =>
+          journalEvidence(`${cell.namespace}/${execution.id}/legacy/${candidate}/${what}`, revision)
+        const seeded: FinishCandidate = {
+          candidate,
+          origin: legacy('origin'),
+          conclusion: { kind: 'cancelled', cause: legacy('cause') },
+          failure: null,
+          inputWatermark: watermarkOf(execution),
+          checkpoint: copy(execution.checkpoint),
+          conditions: legacy('conditions'),
+        }
+        const route: FinishRoute = {
+          kind: 'author',
+          record: nextEvidence(execution, 'route', revision),
+          candidate,
+          policy: copy(execution.checkpoint.definition),
+          plan: [],
+          beforeTerminal: nextEvidence(execution, 'legacy-proof', revision),
+        }
+        finishing.candidates.push(seeded)
+        finishing.routes.push(route)
+        finishing.current = candidate
+        finishing.route = route.record.record
+        finishing.currentJudgment = null
+        finishing.obligations = null
+        execution.state = { kind: 'settling' }
+        execution.revision = revision
+        return true
+      })
+    },
     applyRetention(id, tenant) {
       return cell.mutateExecution(id, () => {
         const matches = [...state().executions.values()].filter(
