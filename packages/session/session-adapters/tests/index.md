@@ -40,4 +40,4 @@
 下列分支在会话日志绑定上没有测试，因为 Journal 与 Session 参加者读同一份权威状态，Journal 按 Agent 的判定次序先返回。差分变异在这些行的存活体按等价登记。
 
 - [factory.ts:777](../src/testing/factory.ts#L777)，`tryFinish` 参加者对推进授权的「冲突」（PA-08 第 3 项）：Run 为 SE26 cancelled 时，`advances` 从同一 Run 求出推进资格已撤，Journal 先返回 `stale-advance`，参加者不被调用。该分支的其他情形（例如 Session 已受理而未交入的输入）仍可达，有测试。Journal 与参加者读面分开的绑定会走到该情形。
-- [factory.ts:773](../src/testing/factory.ts#L773)，`tryFinish` 参加者的 PA-02 控制核对：判断输入已带 Session 的参加者事实，控制不是 SE26 引用的控制时判断为 blocked，tryFinish 按判断记录返回；参加者事实在判断之后改变时，Journal 按判断输入与当前闭包不同返回 changed；路线控制与授权控制不同时，Journal 返回 invalid。结论不是 cancelled 时，Journal 按授权种类与候选结论不符返回 denied。判断输入不带参加者事实、或参加者读面与 Journal 分开的绑定会走到该分支。
+- [factory.ts:773](../src/testing/factory.ts#L773)，`tryFinish` 参加者的 PA-02 控制核对：判断输入已带 Session 的参加者事实，控制不是 SE26 引用的控制时判断为 blocked，tryFinish 按判断记录返回；参加者事实在判断之后改变时，Journal 按判断输入与当前闭包不同返回 changed；路线控制与授权控制不同时，Journal 返回 invalid。结论不是 cancelled 时，Journal 按授权种类与候选结论不符返回 denied。判断输入不带参加者事实、或参加者读面与 Journal 分开的绑定会走到该分支。这一论证以已安装的取消政策符合 SPEC 判据为前提，即政策不把参加者的 changed 或 blocked 判为 allowed；测试政策 `agent-contract/src/testing-cancellation.ts` 满足这一前提。换成不符合判据的政策时该分支可达。

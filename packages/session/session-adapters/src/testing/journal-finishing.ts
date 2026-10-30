@@ -238,6 +238,8 @@ export type ObligationSource = Readonly<{
   effects: readonly EffectIntent[]
   /** The interrupt and background controls that name the call of an effect. */
   interruptionsOf: (effect: EffectIntent) => readonly AgentOperationId[]
+  /** The Model call id the reference of a Model effect resolves to, null for any other effect. */
+  modelCallOf: (effect: EffectIntent) => string | null
   emitted: number
   acknowledged: number
   /** The handoffs whose prepared message no Ja published yet. */
@@ -458,12 +460,25 @@ export function buildObligations(
   }
   for (const effect of source.effects) {
     const result = source.results.find(item => item.consumption === effect.pending.consumption)
-    // A later unknown return does not take an accepted association back to unknown.
+    // A later unknown return does not take an accepted association back to unknown; without an
+    // accepted one the last record counts.
     const associations = source.finishing.toolAssociations.filter(
       item => item.intent.action === effect.action,
     )
     const association =
-      associations.find(item => item.association.kind === 'accepted') ?? associations[0]
+      associations.find(item => item.association.kind === 'accepted') ?? associations.at(-1)
+    // A final failure of the producer settles the call; it is read from every candidate, so a
+    // cancelled candidate that replaced the no-reply failure does not undo it.
+    const call = source.modelCallOf(effect)
+    const finalFailure =
+      call === null
+        ? undefined
+        : (source.finishing.candidates.find(
+            item =>
+              item.conclusion.kind === 'fail' &&
+              item.failure?.kind === 'no-reply' &&
+              item.failure.call === call,
+          )?.failure ?? undefined)
     const custodian =
       association?.obligation.kind === 'call' ? association.obligation.custodian : null
     const retain = (saved: ToolAssociationRecord): RecoveryContinuation => ({
@@ -486,16 +501,18 @@ export function buildObligations(
       disposition:
         result !== undefined
           ? settled(result.result.source)
-          : association?.association.kind === 'accepted'
-            ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
-            : association !== undefined
-              ? callUnknown(effect.action, association.source, retain(association))
-              : callUnknown(effect.action, effect.pending.fixed, {
-                  kind: 'producer-query',
-                  request: ofParameters({ pending: effect.pending }),
-                  ...BY_JOURNAL,
-                  purpose: 'query',
-                }),
+          : finalFailure !== undefined
+            ? settled(finalFailure.source)
+            : association?.association.kind === 'accepted'
+              ? held(association.source, retain(association), custodian ?? SESSION_CUSTODIAN)
+              : association !== undefined
+                ? callUnknown(effect.action, association.source, retain(association))
+                : callUnknown(effect.action, effect.pending.fixed, {
+                    kind: 'producer-query',
+                    request: ofParameters({ pending: effect.pending }),
+                    ...BY_JOURNAL,
+                    purpose: 'query',
+                  }),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),
@@ -509,10 +526,18 @@ export function buildObligations(
     })
   }
   const supersession = source.finishing.supersessions.find(link => link.to === candidate.candidate)
+  // A migrated candidate's passages belong to the author route it left (Agent SPEC "终结责任清单").
+  const migration = source.finishing.migrations.find(item => item.candidate === candidate.candidate)
   for (const passage of source.checkpoint.passages) {
     const superseded = cancelled && passage.position === 'before_terminal'
     const route =
-      superseded && supersession !== undefined ? supersession.route : currentRoute(source.finishing)
+      migration !== undefined
+        ? migration.from.route
+        : superseded && supersession !== undefined
+          ? supersession.route
+          : currentRoute(source.finishing)
+    // On its own author route (before or after a migration) the passage is the candidate's own.
+    const own = route?.kind === 'author' && route.candidate === candidate.candidate
     const lookup: RecoveryContinuation = {
       kind: 'card-lookup',
       request: ofRecord(passage.input),
@@ -532,16 +557,26 @@ export function buildObligations(
             ? held(passage.effective, lookup)
             : pending('passage-custody', lookup),
       passage,
-      candidate: superseded && supersession !== undefined ? supersession.from : candidate.candidate,
+      candidate:
+        superseded && !own
+          ? recorded(
+              supersession,
+              `the supersession of the cancelled candidate ${candidate.candidate}`,
+            ).from
+          : candidate.candidate,
       route: route?.record ?? fixed(`route/${passage.id}`),
       implementation: passage.implementation,
       superseded,
     })
     if (passage.progress.kind !== 'asked') continue
     for (const round of passage.progress.rounds) {
-      const reconciled = [...source.finishing.cardReconciliations]
-        .reverse()
-        .find(item => item.passage === passage.id && item.round === round.round)
+      // Of several reconciliations of one round the known result counts, else the last.
+      const reconciliations = source.finishing.cardReconciliations.filter(
+        item => item.passage === passage.id && item.round === round.round,
+      )
+      const reconciled =
+        reconciliations.find(item => item.obligation.disposition.kind !== 'unknown') ??
+        reconciliations.at(-1)
       if (reconciled !== undefined) {
         items.push(reconciled.obligation)
         continue
@@ -776,7 +811,8 @@ export type FinishCheckSource = Readonly<{
 }>
 
 /**
- * The finish check of `candidate` over the current closure. Author route: the first pending item
+ * The finish check of `candidate` over the current closure. Author route: a cancelled candidate that
+ * did not migrate is blocked on passages at the route record; otherwise the first pending item
  * in the fixed order inputs, controls, operations, passages, custody is blocked, with the source
  * of that item in the issued list; a route without its before-terminal proof counts as a pending passage; without a
  * pending item, an unknown one is `unknown`. Cancellation route: no current judgment of this
@@ -793,6 +829,9 @@ export function finishCheck(source: FinishCheckSource, candidate: FinishCandidat
   if (route === undefined || route.candidate !== candidate.candidate)
     throw new Error('session Journal defect: the current candidate has no current route')
   if (route.kind === 'author') {
+    // A cancelled candidate on an author route did not migrate: it does not end under the cancel
+    // without the trusted judgment of a cancellation route.
+    if (candidate.conclusion.kind === 'cancelled') return blocked('passages', route.record)
     const open: { category: ObligationCategory; source: DurableEvidence }[] = source.items
       .filter(item => item.disposition.kind === 'pending')
       .map(item => ({
