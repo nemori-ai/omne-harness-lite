@@ -1281,6 +1281,24 @@ describe('prepare-closures', () => {
     expect(prepareClosures(one).closures[0]?.status).toBe('reused')
   })
 
+  it('does not take a record with a failed step, or one for another branch, as ready', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1') })
+    prepareClosures(one)
+    const file = join(treeOf(root, 't1'), 'tmp/closures/t1/ready.json')
+    const record = readyOf(root, 't1')
+    writeFileSync(
+      file,
+      JSON.stringify({ ...record, steps: [{ name: 'install', ok: false, ms: 1 }] }),
+    )
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    writeFileSync(file, JSON.stringify({ ...readyOf(root, 't1'), branch: 'c/other' }))
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    writeFileSync(file, '{ not json')
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+  })
+
   it('P7 runs one turbo build per --build filter, in order, in each tree', () => {
     const root = home(),
       fake = closureFake(root)
@@ -1454,6 +1472,36 @@ describe('worktree-cli prepare-closures', () => {
       ])
       expect(result.status).toBe(2)
       expect(result.error.message).toContain('resolve base failed')
+    },
+  )
+  it(
+    'exits 1 and reports the closure when one is refused, as lines or as JSON',
+    { tags: ['slow'] },
+    () => {
+      const root = home()
+      const git = (...args: string[]) =>
+        spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.com', ...args], {
+          cwd: root,
+          encoding: 'utf8',
+        })
+      git('init', '--quiet', '-b', 'main')
+      git('commit', '--quiet', '--allow-empty', '-m', 'one')
+      git('branch', 'c/t1')
+      git('commit', '--quiet', '--allow-empty', '-m', 'two')
+      const args = ['prepare-closures', '--base', 'main', '--closure', 't1:c/t1', '--root', root]
+      const run = (extra: string[]) =>
+        spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args, ...extra], {
+          encoding: 'utf8',
+        })
+      const lines = run([])
+      expect(lines.status, lines.stderr).toBe(1)
+      expect(lines.stdout).toContain('t1	refused	')
+      const json = run(['--json'])
+      expect(json.status, json.stderr).toBe(1)
+      expect(JSON.parse(json.stdout)).toMatchObject({
+        ok: false,
+        closures: [{ name: 't1', status: 'refused', branch: 'c/t1' }],
+      })
     },
   )
   it(

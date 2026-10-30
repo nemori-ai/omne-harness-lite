@@ -153,6 +153,7 @@ Attribute findings refuse a new context (1):
 ```sh
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree <目录> [--evidence <目录>] [--root <主检出>] [--remote <名称>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts swap --issue <N> --old <旧目录> --tree <新目录> [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare-closures --base <提交> --closure <名称>:<分支> [--closure <名称>:<分支> ...] [--build <turbo 过滤器> ...] [--root <主检出>] [--json]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections [--tree <目录>]
 node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts remove --tree <目录> [--root <主检出>] [--force]
 ```
@@ -192,6 +193,17 @@ node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts r
 | agent projections | `.meta_harness/` 下的 `.agents`、`.claude`、`.codex`、`.cursor` 及其下的路径 | `projections` |
 
 其余被忽略路径与全部未跟踪路径逐条列出。
+
+`prepare-closures` 在同一个基线上一次建出多棵闭包工作树。它不是卡的开工：不读 binding，不运行 `start`，不推送，不设上游。每个 `--closure <名称>:<分支>` 是一棵树，在 `<主检出>/.worktrees/<名称>`。`--closure` 与 `--build` 可以重复。命令按给定顺序逐棵处理，不并行安装：
+
+1. 把 `--base` 解析成 40 位提交号，再确定 pnpm 怎样起。两者任一失败时退出2，不建树。名称、分支为空、重复或不可用时同样退出2。
+2. 建树：目录与分支都不存在时，运行 `git worktree add -b <分支> <树> <基线>`，不设上游。分支已存在、目录不存在时，分支尖端等于基线才用它建树，否则该闭包为 `refused`。目录已存在时，它必须是登记在册、检出这个分支的工作树，否则该闭包为 `refused`。`refused` 发生在改动之前，不影响其他闭包。
+3. 跳过键：基线、树中 `pnpm-lock.yaml` 的 SHA-256、HEAD 的 `.meta_harness/agents` 树，以及该目录有无未提交改动。`<树>/tmp/closures/<名称>/ready.json` 记录了各步成功与同一个键时，该闭包为 `skipped`，不安装、不投影、不构建。键不同或文件缺失时，在原树里重做第4步，状态为 `reused`（新建的树为 `created`）。重做之前先删掉旧的 `ready.json`，所以重做中途失败的树不会被旧记录当成就绪。
+4. 依次安装（`pnpm install --frozen-lockfile --ignore-scripts`）、按 [`projections`](#准备任务工作树) 重生成投影，再对每个 `--build` 运行 `pnpm turbo run build --filter=<过滤器>`。全部成功后写 `ready.json`：`base`、`branch`、`key`、`steps`（`name`、`ok`、`ms`）与 `completedAt`。
+
+某一步失败时，该闭包为 `failed`，命令停在这里：已建的树不删，后面的闭包不处理，输出里的 `resume` 是同一条命令，重跑即接续。没有失败也没有被拒的闭包时退出0。有闭包 `failed` 或 `refused` 时退出1。默认每棵树输出一行 `<名称> <状态> <树> <分支>`，后面缩进列出步骤与原因。`--json` 输出 `base`、`closures`（`name`、`tree`、`branch`、`base`、`status`、`steps`、`message`）、`ok` 与 `resume`。
+
+跳过键里的“未提交改动”只记有无。树里的 agent 源一直有未提交改动时，键不会随再次修改变化，所以此后改源要重新投影时，先提交，或运行 `projections`。清理仍用 `remove`。
 
 `remove` 删除一棵工作树。旧树有未提交的已跟踪改动时总是拒绝。不加 `--force` 时只列出删除会丢掉的未跟踪与被忽略路径，退出1，不删除。加 `--force` 时运行 `git worktree remove --force`，再核对目录确实不在磁盘上，只有这时输出 `"removed": true`。Windows 上 git 会留下 pnpm 建的目录联接与空目录，命令只删除链接本身与空目录，不进入链接，所以 pnpm store 与别的树不受影响。剩下的内容里有普通文件时命令不删，输出 `"removed": false`、原因与前几个文件，退出1。删除前按[工作约定](../../../../docs/engineering/workflow.md)确认清理条件与授权。
 
