@@ -32,6 +32,7 @@ import {
   readPlanFile,
   recordedRun,
   runCachePolicy,
+  stepTestCache,
   testStep,
   writePlanFile,
   type PlanFile,
@@ -41,7 +42,7 @@ import { triage, triageSummary } from './triage.ts'
 import { budgetFor, describeBudget } from './parallelism.ts'
 import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
-import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
+import { TEST_CACHE_ENV } from './test-cache.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
 type Step = (typeof STEPS)[number]
@@ -119,21 +120,18 @@ async function step(argv: readonly string[]): Promise<number> {
   const budget = () => budgetFor(readTestRunsConfig().parallel)
   const steps: Record<Step, () => number | Promise<number>> = {
     python: () => pythonStep(ROOT, file),
-    build: async () => buildStep(ROOT, file, await budget()),
+    build: async () => buildStep(ROOT, file, await budget(), planPath && resolve(planPath)),
     typecheck: async () => typecheckStep(ROOT, file, await budget()),
     // 带计划文件时在准入检查里，构建一步已经按计划构建；单独运行时由 turbo 先构建。每层开始时自己采样。
-    test: () =>
-      testStep(
-        ROOT,
-        file,
-        planPath === undefined,
-        cachePolicy(process.env, {
-          noCache: flags.switches.has('--no-cache'),
-          full: flags.switches.has('--full') || fullRequested(process.env),
-          // 带计划文件时前面的构建一步已构建；单独运行时由 turbo 先构建。
-          build: true,
-        }),
-      ),
+    test: () => {
+      const { policy, builtFrom } = stepTestCache(process.env, {
+        planPath: planPath === undefined ? undefined : resolve(planPath),
+        head: file.head,
+        noCache: flags.switches.has('--no-cache'),
+        full: flags.switches.has('--full') || fullRequested(process.env),
+      })
+      return testStep(ROOT, file, planPath === undefined, policy, builtFrom)
+    },
     acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
   return steps[name as Step]()
