@@ -35,7 +35,9 @@ import {
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
 import {
+  advancement,
   advances,
+  afterTerminalPassage,
   cancelAuthorization,
   cancelControl,
   candidateContent,
@@ -224,6 +226,29 @@ function itemOf<K extends FinishObligation['kind']>(
 /** The passage ids of a legacy plan, in order; null for a not-started entry without a passage. */
 function plannedPassages(plan: readonly LegacyF2Entry[]): readonly (string | null)[] {
   return plan.map(entry => (entry.kind === 'recorded' ? entry.passage.id : entry.passage))
+}
+
+/** The saved Tool intent `name`, its key and the reference the invoke of that intent returned. */
+async function savedToolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string) {
+  const pending = toolIntent(opened, name)
+  const effect = commitAt(opened, await load(opened), `effect-${name}`, opened.authority, {
+    effects: [{ action: pending.action, pending, authority: opened.authority }],
+  })
+  await ok(opened.journal.commit(effect), 'the effect intent')
+  const key: ToolIntentKey = {
+    intent: effect.operation,
+    action: pending.action,
+    position: pending.position,
+  }
+  const reference = identity(
+    encodeToolInvocationRef({
+      tenant: opened.access.tenant,
+      call: identity(decodeToolCallId(`core-call-${name}`), 'call'),
+      admission: identity(decodeToolOperationId(`core-admission-${name}`), 'admission'),
+    }),
+    'reference',
+  )
+  return { pending, key, reference }
 }
 
 /** The cases of the finishing chapter; the core suite appends them. */
@@ -2873,6 +2898,600 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         assert.equal(finished.kind === 'denied' ? finished.action : '', 'settle')
         assert.deepEqual(await load(opened), at, 'the refusals wrote nothing')
+      },
+    },
+    {
+      name: 'MT-1: the accepted return of a reference and then a commit-unknown registration of the same reference leave the call held with its custodian: the undecided record does not take the known one back, in the order opposite to the one above',
+      run: async () => {
+        const opened = await fixture.open('tool-association-unknown-after-known')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, key, reference } = await savedToolIntent(opened, 'mt1')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = (name: string, source: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, name, {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          )
+        const accepted = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'accepted', reference, receipt: evidence('tool-receipt-mt1') },
+          received: evidence('received/mt1'),
+          custody: evidence('custody/mt1'),
+        })
+        await ok(record('associate-accepted', accepted), 'the accepted return')
+        const undecided = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'commit-unknown', reference },
+          received: evidence('received/mt1-2'),
+          custody: evidence('custody/mt1-2'),
+        })
+        await ok(
+          record('associate-unknown', undecided),
+          'the commit-unknown return of the same reference',
+        )
+        const judged = await judge(opened, control)
+        assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const item = itemOf(issued, 'call')
+        assert.equal(item.disposition.kind, 'held')
+        if (item.disposition.kind !== 'held') return
+        assert.notEqual(item.custodian, null, 'the accepted return names the custodian')
+        assert.deepEqual(item.disposition.custodian, item.custodian)
+        const finished = await ok(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end', cancelAuthorization(issued, control)),
+          ),
+          'the cancel tryFinish',
+        )
+        assert.equal(finished.kind, 'ended')
+      },
+    },
+    {
+      name: 'MT-2: the commit-unknown return of a Tool invoke is an unknown call obligation that continues with tool-association-retain: the trusted return source and the original registration request, for reconcile',
+      run: async () => {
+        const opened = await fixture.open('tool-association-retain')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, key, reference } = await savedToolIntent(opened, 'mt2')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const source = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'commit-unknown', reference },
+          received: evidence('received/mt2'),
+          custody: evidence('custody/mt2'),
+        })
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, 'associate-unknown', {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          ),
+          'the association of a commit-unknown return',
+        )
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'call')
+        assert.equal(item.disposition.kind, 'unknown')
+        if (item.disposition.kind !== 'unknown') return
+        const required = item.disposition.required
+        assert.equal(required.kind, 'tool-association-retain')
+        if (required.kind !== 'tool-association-retain') return
+        assert.equal(required.request.kind, 'parameters')
+        if (required.request.kind !== 'parameters') return
+        assert.deepEqual(required.request.value.source, source)
+        assert.deepEqual(required.request.value.request, pending.fixed)
+        assert.deepEqual(required.request.value.intent, key)
+        assert.equal(required.purpose, 'reconcile')
+      },
+    },
+    {
+      name: 'MT-3: a Model effect intent with no result, no association and no final failure is an unknown call that continues with producer-query of that pending call, and the ordinary tryFinish is unavailable and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('model-intent-unknown')
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending } = modelIntent(opened, 'call-mt3')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const item = itemOf(issued, 'call')
+        assert.equal(item.disposition.kind, 'unknown')
+        if (item.disposition.kind !== 'unknown') return
+        assert.deepEqual(item.disposition.required, {
+          ...item.disposition.required,
+          kind: 'producer-query',
+          request: { kind: 'parameters', value: { pending } },
+          purpose: 'query',
+        })
+        await refused(
+          journal.tryFinish(finishInput(opened, issued, 'end')),
+          'unavailable',
+          'the ordinary tryFinish with an unknown call',
+        )
+        assert.deepEqual(await load(opened), issued, 'unavailable wrote nothing')
+      },
+    },
+    {
+      name: 'MT-4: of two Model effect intents only the call named by the no-reply failure of the candidate is settled on it; the other stays an unknown call and the ordinary tryFinish is unavailable',
+      run: async () => {
+        const opened = await fixture.open('final-failure-names-one-call')
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = modelIntent(opened, 'call-x')
+        const second = modelIntent(opened, 'call-y')
+        for (const [name, { pending }] of [
+          ['effect-x', first],
+          ['effect-y', second],
+        ] as const) {
+          await ok(
+            journal.commit(
+              commitAt(opened, await load(opened), name, opened.authority, {
+                effects: [{ action: pending.action, pending, authority: opened.authority }],
+              }),
+            ),
+            name,
+          )
+        }
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', noReplyContent('f1', second.call)),
+            ),
+          ),
+          'F1 of the no-reply failure of the second call',
+        )
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const calls = itemsOf(issued).filter(
+          (item): item is Extract<FinishObligation, { kind: 'call' }> => item.kind === 'call',
+        )
+        assert.equal(calls.length, 2, 'both calls are listed')
+        const named = calls.find(item => item.action === second.pending.action)
+        const other = calls.find(item => item.action === first.pending.action)
+        assert.ok(named !== undefined && other !== undefined)
+        assert.deepEqual(named.disposition, {
+          kind: 'settled',
+          completion: evidence('failure/f1'),
+        })
+        assert.equal(other.disposition.kind, 'unknown')
+        if (other.disposition.kind !== 'unknown') return
+        assert.equal(other.disposition.required.kind, 'producer-query')
+        assert.deepEqual(other.disposition.required.request, {
+          kind: 'parameters',
+          value: { pending: first.pending },
+        })
+        await refused(
+          journal.tryFinish(finishInput(opened, issued, 'end')),
+          'unavailable',
+          'the ordinary tryFinish with an unknown call',
+        )
+        assert.deepEqual(await load(opened), issued, 'unavailable wrote nothing')
+      },
+    },
+    {
+      name: 'MT-5: prepareFinish that names a candidate of this execution that another F1 has superseded is changed, not invalid, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('prepare-superseded-candidate')
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const kept = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              kept,
+              'f1-b',
+              opened.authority,
+              candidateContent(kept, 'f1-b', { conditions: evidence('conditions/changed') }),
+            ),
+          ),
+          'the F1 of other content',
+        )
+        const at = await load(opened)
+        assert.notEqual(candidateOf(at), first.operation, 'the first candidate is superseded')
+        await refused(
+          journal.prepareFinish(
+            prepareInput(opened, at, 'prepare-old', advancement(opened.authority), first.operation),
+          ),
+          'changed',
+          'prepareFinish of a superseded candidate',
+        )
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'MT-6: establish-cancellation whose predecessor is the current candidate of two succeeds and links the supersession from that candidate',
+      run: async () => {
+        const opened = await fixture.open('establish-over-second-candidate')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const kept = await load(opened)
+        const second = f1Commit(
+          opened,
+          kept,
+          'f1-b',
+          opened.authority,
+          candidateContent(kept, 'f1-b', { conditions: evidence('conditions/changed') }),
+        )
+        await ok(journal.commit(second), 'the F1 of other content')
+        const control = await effectiveCancel(opened)
+        const result = await establish(opened, control)
+        assert.equal(result.candidate.conclusion.kind, 'cancelled')
+        assert.equal(result.supersession?.from, second.operation)
+        assert.equal(result.supersession?.to, result.candidate.candidate)
+        const after = await load(opened)
+        assert.deepEqual(
+          after.settlement.candidates.map(candidate => candidate.candidate),
+          [first.operation, second.operation, result.candidate.candidate],
+        )
+        assert.equal(candidateOf(after), result.candidate.candidate)
+      },
+    },
+    {
+      name: 'MT-7: under an effective cancel an advancement tryFinish of a complete candidate whose list was never issued is changed, not invalid at intent.obligations, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('try-finish-advancement-under-cancel')
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await effectiveCancel(opened)
+        const at = await load(opened)
+        assert.equal(intentOf(at).obligations, null, 'no list is issued')
+        const finished = await ok(
+          journal.tryFinish(finishInput(opened, at, 'end')),
+          'an advancement tryFinish under an effective cancel',
+        )
+        assert.equal(finished.kind, 'changed')
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'MT-8: a known result and then an undetermined result of the same card round leave the card-round obligation known: the known result counts, not the last one',
+      run: async () => {
+        const opened = await fixture.open('card-reconciliation-unknown-after-known')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const asking = beforeTerminalPassage('asker-m8', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const round = presentedRound(asking, 'round-m8')
+        const passage: Passage = { ...asking, progress: { kind: 'asked', rounds: [round] } }
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the asked passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = (name: string, original: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-card-reconciliation'>(opened, name, {
+              kind: 'record-card-reconciliation',
+              passage: passage.id,
+              round: round.round,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              original,
+            }),
+          )
+        const known = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: {
+            kind: 'known',
+            present: evidence(`present/${round.round}`),
+            lookups: [operation('lookup-m8')],
+            invalidate: null,
+          },
+        })
+        await ok(record('reconcile-known', known), 'the known result')
+        const undetermined = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: { kind: 'unknown', reason: 'source-unavailable' },
+        })
+        await ok(record('reconcile-unknown', undetermined), 'the undetermined result of the round')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'card-round')
+        assert.equal(item.disposition.kind, 'held', 'the known result holds the round')
+        assert.deepEqual(item.lookups, [operation('lookup-m8')])
+      },
+    },
+    {
+      name: 'MT-9: a round id shared by two passages names two card-round obligations by passage and round: only the registered round takes the registered result, the others stay default items',
+      run: async () => {
+        const opened = await fixture.open('card-round-identity')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const requested: Passage['progress'] = { kind: 'requested', mode: { kind: 'fresh' } }
+        const firstBase = beforeTerminalPassage('asker-m9a', requested)
+        const secondBase = beforeTerminalPassage('asker-m9b', requested)
+        const firstRound = presentedRound(firstBase, 'round-m9-1')
+        const otherRound = presentedRound(firstBase, 'round-m9-2')
+        // The one round of the second passage has the CardRoundId of the first round of the first.
+        const sharedRound = presentedRound(secondBase, 'round-m9-1')
+        assert.equal(sharedRound.round, firstRound.round)
+        const first: Passage = {
+          ...firstBase,
+          progress: { kind: 'asked', rounds: [firstRound, otherRound] },
+        }
+        const second: Passage = {
+          ...secondBase,
+          ordinal: 2,
+          progress: { kind: 'asked', rounds: [sharedRound] },
+        }
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [first, second] } }),
+          'F1 with two asked passages',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const original = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: first.id,
+          round: firstRound.round,
+          result: {
+            kind: 'known',
+            present: evidence('present/m9'),
+            lookups: [operation('lookup-m9')],
+            invalidate: null,
+          },
+        })
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'record-card-reconciliation'>(opened, 'reconcile-first', {
+              kind: 'record-card-reconciliation',
+              passage: first.id,
+              round: firstRound.round,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              original,
+            }),
+          ),
+          'the known result of the first round of the first passage',
+        )
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const rounds = itemsOf(await load(opened)).flatMap(item =>
+          item.kind === 'card-round'
+            ? [{ passage: item.passage, round: item.round.round, lookups: item.lookups }]
+            : [],
+        )
+        const byKey = (left: { passage: string; round: string }, right: typeof left) =>
+          `${left.passage}/${left.round}`.localeCompare(`${right.passage}/${right.round}`)
+        assert.deepEqual(
+          [...rounds].sort(byKey),
+          [
+            { passage: first.id, round: firstRound.round, lookups: [operation('lookup-m9')] },
+            { passage: first.id, round: otherRound.round, lookups: [] },
+            { passage: second.id, round: sharedRound.round, lookups: [] },
+          ].sort(byKey),
+        )
+      },
+    },
+    {
+      name: 'MT-10: after a cancel over a complete candidate the passage items name their candidate and route: a before-terminal passage stays with the old candidate and its author route and is superseded, an after-terminal passage belongs to the cancelled candidate and its cancellation route',
+      run: async () => {
+        const opened = await fixture.open('passage-candidate-and-route')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const before = beforeTerminalPassage('closer-m10', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const after = afterTerminalPassage('observer-m10')
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [before, after] } }),
+          'F1 with a before-terminal and an after-terminal passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        const established = await establish(opened, control)
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const items = itemsOf(await load(opened)).flatMap(item =>
+          item.kind === 'passage'
+            ? [
+                {
+                  passage: item.passage.id,
+                  candidate: item.candidate,
+                  route: item.route,
+                  superseded: item.superseded,
+                },
+              ]
+            : [],
+        )
+        const byPassage = (left: { passage: string }, right: typeof left) =>
+          left.passage.localeCompare(right.passage)
+        assert.deepEqual(
+          [...items].sort(byPassage),
+          [
+            {
+              passage: before.id,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              superseded: true,
+            },
+            {
+              passage: after.id,
+              candidate: established.candidate.candidate,
+              route: established.route.record,
+              superseded: false,
+            },
+          ].sort(byPassage),
+        )
+      },
+    },
+    {
+      name: 'MT-11: a before-terminal passage that was requested under a legacy cancelled candidate belongs to that candidate and its author route before and after the migration of the cancellation',
+      run: async () => {
+        const opened = await fixture.open('passage-of-legacy-candidate')
+        if (!(await requireInstallation(opened))) return
+        if (opened.seedLegacyCandidate === undefined) {
+          await uncoveredCase('', 'seedLegacyCandidate control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        // The passage reaches the checkpoint by an ordinary commit; the seam copies it to the legacy candidate.
+        const requested = beforeTerminalPassage('closer-m11', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            commitAt(opened, at, 'with-passage', opened.authority, {
+              checkpoint: { ...at.checkpoint, position: 'with-passage', passages: [requested] },
+            }),
+          ),
+          'the commit that writes the passage',
+        )
+        const control = await effectiveCancel(opened)
+        const legacy = await opened.seedLegacyCandidate('legacy')
+        const seeded = await load(opened)
+        const authorRoute = seeded.settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const passageItem = async (name: string) => {
+          const unprepared = await load(opened)
+          await ok(
+            journal.prepareFinish(
+              prepareInput(opened, unprepared, name, cancelAuthorization(unprepared, control)),
+            ),
+            name,
+          )
+          return itemOf(await load(opened), 'passage')
+        }
+        const first = await passageItem('prepare-legacy')
+        assert.equal(first.passage.id, requested.id)
+        assert.equal(first.candidate, legacy.candidate)
+        assert.deepEqual(first.route, authorRoute.record)
+        const preparing = await load(opened)
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'migrate-cancellation'>(opened, 'migrate', {
+              kind: 'migrate-cancellation',
+              authorization: cancelAuthorization(preparing, control),
+              expected: preparing.revision,
+              candidate: legacy.candidate,
+              originalRoute: authorRoute.record,
+              installation: installationOf(opened).record,
+              priorExcluded: null,
+            }),
+          ),
+          'the migration',
+        )
+        const migrated = (await load(opened)).settlement.route
+        assert.ok(migrated !== null && migrated.kind === 'cancellation', 'the route is switched')
+        await judge(opened, control)
+        const second = await passageItem('prepare-migrated')
+        assert.equal(second.passage.id, requested.id)
+        assert.equal(second.candidate, legacy.candidate)
+        assert.deepEqual(second.route, authorRoute.record, 'the author route the candidate left')
       },
     },
   ]

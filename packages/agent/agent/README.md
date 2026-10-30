@@ -136,7 +136,7 @@ I8 closes the consumed no-reply call continuation; the received material remains
 It processes the new input in the same drive. The original release remains with O0.
 
 F3 calls tryFinish as the only terminal commit. The Journal saves ended, the final event, the fixed observation responsibilities and the original operation result together.
-Changed and blocked outcomes return through R0. An unavailable tryFinish also returns through R0, which saves one dependency wait; the wake is a change of the execution or the check time, and the next pass retries the terminal. Custody must actually transfer before another completion succeeds.
+Changed and blocked outcomes return through R0. An unavailable tryFinish also returns through R0. After an unavailable, changed or blocked tryFinish, R0 waits in memory when it cannot read the facts. It writes no waiting checkpoint, and the execution stays settling. The wake is a change of the execution or the check time, and the next pass retries the terminal. Custody must actually transfer before another completion succeeds.
 An uncertain finish queries its original operation before loading its outcome. Excluded permits the same operation to retry.
 Unknown or an unavailable query retains the original responsibility. It does not write a waiting checkpoint that could invalidate the original finish.
 
