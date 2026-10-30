@@ -2010,7 +2010,7 @@ Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `T
 
 <a id="jc-release-tool-path"></a>
 
-具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Agent 契约与宿主拥有者，放在里程碑 M2。
+具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
 
 下图是推送路径上的解除顺序。标「未定」的一步是本偏离。
 
@@ -2037,13 +2037,13 @@ sequenceDiagram
 
 1. `release` 保持 pending，不代发解除，不重调生产者执行（[EC-05](#ec-05)）。恢复扫描保留该项（[PM-14](#pm-14)）。
 2. `judgeIdle` 为 not-due（[FR-06](#fr-06)）。该项不进入 `openWork`。
-3. 闭合之前，推送路径没有把 Tool 解除回执写进日志。由此推出：用过工具的会话都不会自动归档。这一范围由本偏离的拥有者在里程碑 M2 闭合时一并处理。
+3. 闭合之前，推送路径没有把 Tool 解除回执写进日志。由此推出：用过工具的会话都不会自动归档。这一范围由本偏离的拥有者在闭合时一并处理。M2 不闭合本偏离，所以 M2 里用过工具的会话都不自动归档。
 
 这一偏离与下文的 MODEL-ACK-ARRIVAL 并列。
 
 Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
 
-MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在里程碑 M2。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
+MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 

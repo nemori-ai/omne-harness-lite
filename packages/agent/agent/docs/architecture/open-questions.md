@@ -52,7 +52,7 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 <a id="agent-m05"></a>
 ## AGENT-M05 生产者的解除回执怎样进入 Journal
 
-本项尚未闭合。拥有者是 Agent 契约与宿主拥有者，闭合放在里程碑 M2。
+本项尚未闭合。拥有者是 Agent 契约与宿主拥有者，闭合放在 M2 之后的里程碑。
 
 结果接收方保存生产者的交付后只返回 saved，见 SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)。saved 只证明保存，不证明生产者已经解除交付责任。生产者收到 saved 后自己解除：Model 沿专用 ACK operation 取得 ACK，见 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)；Tool 宿主经 `releaseDelivery` 释放，见 Tool 契约的[结果推送与保存](../../../../tool/tool-contract/SPEC.md#结果推送与保存)。所以读取同一 Journal 的外部协调者不能从 Journal 得知解除是否已经成立。
 
