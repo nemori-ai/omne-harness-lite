@@ -15,7 +15,15 @@
 // 缓存读写失败一律按未命中：既不让检查失败，也不让检查放行。
 import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  lstatSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { dirname, join } from 'node:path'
 import { nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
@@ -63,14 +71,23 @@ export interface CachePolicy {
  */
 export function cachePolicy(
   env: Readonly<Record<string, string | undefined>>,
-  options: { readonly noCache: boolean; readonly full: boolean; readonly build: boolean },
+  options: {
+    readonly noCache: boolean
+    readonly full: boolean
+    readonly build: boolean
+    /** 没构建时的原因；不给用默认说法。 */
+    readonly unbuiltReason?: string
+  },
 ): CachePolicy {
   const value = env[TEST_CACHE_ENV]
   if (value !== undefined && value !== '' && value !== '0' && value !== '1')
     throw new Error(`环境变量 ${TEST_CACHE_ENV} 只能是 0、1 或不设，现在是 ${value}`)
   const write = options.build
     ? { write: true, writeReason: '' }
-    : { write: false, writeReason: '本次没有构建，测试可能跑的是旧 dist' }
+    : {
+        write: false,
+        writeReason: options.unbuiltReason ?? '本次没有构建，测试可能跑的是旧 dist',
+      }
   if (options.full) return { read: false, reason: 'FULL=1 要求全量', ...write }
   if (options.noCache) return { read: false, reason: '--no-cache', ...write }
   if (value === '0') return { read: false, reason: `${TEST_CACHE_ENV}=0`, ...write }
@@ -257,11 +274,17 @@ export function inputDigest(inputs: KeyInputs): string {
 }
 
 /**
- * 构建记录：构建成功后，每个被构建成员在构建开始前的输入摘要。测试跑的是 `dist/`，而键按源码算：
- * 只有「现在的输入摘要等于构建时的」，这次通过的才说得清是对哪份源码构建出的产物。
- * `step build --plan` 把它写在计划文件旁边；`run --build` 在同一进程里直接取，不落盘。
+ * 构建记录：构建成功后，每个被构建成员在构建开始前的输入摘要，加构建完成后的产物摘要。测试跑的是 `dist/`，而键按源码算：
+ * 只有「现在的输入摘要等于构建时的」且「现在的产物摘要等于构建完成时的」，这次通过的才说得清是对哪份源码构建出的产物。
+ * `step build --plan` 把它写在计划文件旁边；`run --build` 在同一个进程里直接取（没有产物摘要），不落盘。
  */
 export const BUILT_FROM_FILE = 'built-from.json'
+
+/** 构建记录里一个成员的一项。`output` 只在记录来自文件时有：同进程构建紧接测试，没有可被改动的间隙。 */
+export interface BuiltMember {
+  readonly input: string
+  readonly output?: string
+}
 
 export function builtFromPath(planPath: string): string {
   return join(dirname(planPath), BUILT_FROM_FILE)
@@ -275,32 +298,103 @@ export function clearBuiltFrom(path: string): void {
 export function writeBuiltFrom(
   path: string,
   head: string,
-  digests: ReadonlyMap<string, string>,
+  members: ReadonlyMap<string, Required<BuiltMember>>,
 ): void {
   mkdirSync(dirname(path), { recursive: true })
-  writeFileSync(
-    path,
-    `${JSON.stringify({ head, members: Object.fromEntries([...digests].sort()) }, null, 1)}
-`,
-  )
+  const sorted = [...members].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+  writeFileSync(path, `${JSON.stringify({ head, members: Object.fromEntries(sorted) }, null, 1)}\n`)
 }
 
-/** 读构建记录；文件不存在、不是 JSON、形状不对、或记的不是这个提交，都当作没有。 */
-export function readBuiltFrom(path: string, head: string): ReadonlyMap<string, string> | undefined {
+/** 读构建记录的结果：没有的三种情形分开说，测试一步据此写出不写缓存的原因。 */
+export type BuiltFromRead =
+  | { readonly status: 'ok'; readonly members: ReadonlyMap<string, BuiltMember> }
+  | { readonly status: 'missing' }
+  | { readonly status: 'other-head'; readonly recorded: string }
+  | { readonly status: 'legacy' }
+
+/** 读构建记录：文件不存在或不是 JSON 为 missing；成员项不是 `{ input, output }`（旧格式是字符串）为 legacy；记的不是这个提交为 other-head。 */
+export function readBuiltFrom(path: string, head: string): BuiltFromRead {
   let parsed: unknown
   try {
     parsed = JSON.parse(readFileSync(path, 'utf8'))
   } catch {
+    return { status: 'missing' }
+  }
+  if (typeof parsed !== 'object' || parsed === null) return { status: 'missing' }
+  const { head: recorded, members } = parsed as Record<string, unknown>
+  if (typeof recorded !== 'string' || typeof members !== 'object' || members === null)
+    return { status: 'missing' }
+  const digests = new Map<string, BuiltMember>()
+  for (const [member, entry] of Object.entries(members)) {
+    const { input, output } = (typeof entry === 'object' && entry !== null ? entry : {}) as Record<
+      string,
+      unknown
+    >
+    if (typeof input !== 'string' || typeof output !== 'string') return { status: 'legacy' }
+    digests.set(member, { input, output })
+  }
+  if (recorded !== head) return { status: 'other-head', recorded }
+  return { status: 'ok', members: digests }
+}
+
+/** 递归列出目录下的全部文件：相对路径、字节数、mtimeMs 一行；只 stat，不读内容。目录读不了给 undefined。 */
+function listFiles(dir: string, prefix = ''): string[] | undefined {
+  let names: string[]
+  try {
+    names = readdirSync(dir)
+  } catch {
     return undefined
   }
-  if (typeof parsed !== 'object' || parsed === null) return undefined
-  const { head: recorded, members } = parsed as Record<string, unknown>
-  if (recorded !== head || typeof members !== 'object' || members === null) return undefined
-  const digests = new Map<string, string>()
-  for (const [member, digest] of Object.entries(members))
-    if (typeof digest === 'string') digests.set(member, digest)
-    else return undefined
-  return digests
+  const lines: string[] = []
+  for (const name of names) {
+    const path = join(dir, name)
+    const stat = lstatSync(path)
+    if (stat.isDirectory()) lines.push(...(listFiles(path, `${prefix}${name}/`) ?? []))
+    else lines.push(`${prefix}${name}\t${stat.size}\t${stat.mtimeMs}`)
+  }
+  return lines
+}
+
+/** 一个成员目录下 `dist/` 的产物摘要：全部文件的相对路径、字节数、mtimeMs 排序后取 sha256；没有 `dist/` 记 `absent`。 */
+export function distDigest(root: string, memberPath: string): string {
+  const lines = listFiles(join(root, memberPath, 'dist'))
+  if (lines === undefined) return 'absent'
+  return createHash('sha256').update(lines.sort().join('\n')).digest('hex')
+}
+
+/**
+ * 各成员的产物摘要：本成员与上游成员（与缓存键同源）的 `dist/` 摘要合在一起。
+ * 测试读的不只是本成员的 dist，上游的 dist 被换掉，「通过」同样说不清对应哪次构建。
+ */
+export function outputDigests(options: {
+  readonly root: string
+  readonly targets: readonly string[]
+  readonly config: TestRunsConfig
+}): Map<string, string> {
+  const members = listWorkspaceMembers(fileTree(options.root), options.config.affected.excludeRoots)
+  const graph = packageGraph(options.root)
+  const byPath = new Map(members.map(member => [member.path, member]))
+  const dists = new Map<string, string>()
+  const distOf = (path: string) => {
+    const known = dists.get(path)
+    if (known !== undefined) return known
+    const digest = distDigest(options.root, path)
+    dists.set(path, digest)
+    return digest
+  }
+  const result = new Map<string, string>()
+  for (const target of options.targets) {
+    const member = byPath.get(target)
+    if (member === undefined) continue
+    const paths = [target, ...[...upstreamOf(member, members, graph)].sort()]
+    result.set(
+      target,
+      createHash('sha256')
+        .update(JSON.stringify(paths.map(path => [path, distOf(path)])))
+        .digest('hex'),
+    )
+  }
+  return result
 }
 
 /** 缓存里的一个条目：哪次运行、什么输入下，这个成员这一层完整通过了。 */
@@ -407,7 +501,9 @@ export interface CacheLookup {
    * 构建记录：成员目录到构建时输入摘要的映射。没有它（或没有这个成员的）就不写：
    * 测试跑的可能是别的源码构建出的 dist。
    */
-  readonly built?: ReadonlyMap<string, string>
+  readonly built?: ReadonlyMap<string, BuiltMember>
+  /** 现在这些成员的产物摘要：构建记录带产物摘要（来自文件）时，写缓存前用它核对；取不到时抛。 */
+  readonly outputs?: () => ReadonlyMap<string, string>
   /** 整个缓存不可用的原因（快照或依赖图取不到）；有它时 `keys` 为空。 */
   readonly unavailable?: string
 }
@@ -520,6 +616,8 @@ export function lookupCache(options: LookupOptions): CacheLookup {
       uncacheable,
       hits,
       rekey: () => memberKeys(options, members, graph, snapshotTree(options.root)).keys,
+      outputs: () =>
+        outputDigests({ root: options.root, targets: [...keys.keys()], config: options.config }),
     }
   } catch (error) {
     return {
@@ -536,7 +634,7 @@ export function lookupCache(options: LookupOptions): CacheLookup {
 
 /**
  * 运行之后写缓存：完整通过且有键的成员各写一条；返回写了谁、哪些写不进去、哪些因键变了而跳过。
- * 策略不许写时一条不写。成员还要有构建记录，且现在的输入摘要等于构建时的，否则跳过。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
+ * 策略不许写时一条不写。成员还要有构建记录，且现在的输入摘要等于构建时的；记录带产物摘要时，现在的产物摘要也要相等，否则跳过。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
  * 重算本身失败时全部跳过。
  */
 export function recordCache(
@@ -555,6 +653,8 @@ export function recordCache(
   if (candidates.length === 0) return { written, problems, skipped }
   let fresh: ReadonlyMap<string, MemberKey> | undefined
   let freshError = ''
+  let outputs: ReadonlyMap<string, string> | undefined
+  let outputsError = ''
   try {
     fresh = lookup.rekey()
   } catch (error) {
@@ -577,9 +677,29 @@ export function recordCache(
       skipped.push(`${run.member}：这次没有构建记录，测试跑的可能是别的源码构建出的 dist，不写缓存`)
       continue
     }
-    if (built !== now.digest) {
+    if (built.input !== now.digest) {
       skipped.push(`${run.member}：构建之后输入变了，通过的是旧源码构建出的 dist，不写缓存`)
       continue
+    }
+    if (built.output !== undefined) {
+      if (outputs === undefined) {
+        try {
+          outputs = lookup.outputs?.() ?? new Map()
+        } catch (error) {
+          outputsError = error instanceof Error ? error.message : String(error)
+          outputs = new Map()
+        }
+      }
+      if (outputsError !== '') {
+        skipped.push(`${run.member}：取不到现在的产物摘要（${outputsError}），不写缓存`)
+        continue
+      }
+      if (outputs.get(run.member) !== built.output) {
+        skipped.push(
+          `${run.member}：构建之后 dist 被改过，这次通过不一定对应记录里的构建，不写缓存`,
+        )
+        continue
+      }
     }
     const problem = writeEntry(lookup.home, {
       version: KEY_VERSION,

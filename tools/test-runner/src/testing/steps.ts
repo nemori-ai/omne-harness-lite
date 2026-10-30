@@ -40,11 +40,14 @@ import {
   cacheMeta,
   cachePolicy,
   clearBuiltFrom,
-  readBuiltFrom,
   currentDigests,
+  outputDigests,
+  readBuiltFrom,
   lookupCache,
   recordCache,
   writeBuiltFrom,
+  type BuiltMember,
+  type BuiltFromRead,
   type CacheLookup,
   type CachePolicy,
 } from './test-cache.ts'
@@ -206,7 +209,8 @@ export function pythonStep(root: string, file: PlanFile): number {
 /**
  * 构建：按计划点名，turbo 先构建它们的上游；`OMNE_ADMISSION=1` 时本地缓存只写不读。同时构建的成员数取预算。
  * 给了计划文件路径时，构建成功后在它旁边写构建记录（`built-from.json`）：每个被构建成员在构建开始前的输入摘要。
- * 摘要在构建开始前取，构建期间改动的文件算「这次构建没看到」。构建失败或摘要取不到时不留记录，旧记录先删掉。
+ * 摘要在构建开始前取，构建期间改动的文件算「这次构建没看到」。构建成功后再记产物摘要：本成员与上游成员 `dist/` 里全部文件的路径、字节数与 mtimeMs。
+ * 构建失败或摘要取不到时不留记录，旧记录先删掉。
  */
 export function buildStep(root: string, file: PlanFile, budget: Budget, planPath?: string): number {
   const paths = file.plan.build.map(entry => entry.path)
@@ -237,8 +241,32 @@ export function buildStep(root: string, file: PlanFile, budget: Budget, planPath
   }
   const code = turboBuild(root, names, admissionRequested(process.env), budget.workers)
   if (code === 0 && recordPath !== undefined && digests !== undefined)
-    writeBuiltFrom(recordPath, file.head, digests)
+    try {
+      const outputs = outputDigests({ root, targets: paths, config: readTestRunsConfig() })
+      const members = new Map<string, Required<BuiltMember>>()
+      for (const [member, input] of digests) {
+        const output = outputs.get(member)
+        if (output !== undefined) members.set(member, { input, output })
+      }
+      writeBuiltFrom(recordPath, file.head, members)
+    } catch (error) {
+      console.log(
+        `构建记录：取不到产物摘要，不留记录，后面的测试不写缓存——${error instanceof Error ? error.message : String(error)}`,
+      )
+    }
   return code
+}
+
+/** 没有可用构建记录时不写缓存的原因：没有记录文件、记录是另一个提交的、记录是旧格式，分开写。 */
+function unbuiltReason(read: Exclude<BuiltFromRead, { status: 'ok' }>, head: string): string {
+  switch (read.status) {
+    case 'missing':
+      return '计划旁边没有构建记录，测试可能跑的是旧 dist'
+    case 'other-head':
+      return `构建记录是另一个提交的（记录 ${read.recorded.slice(0, 9)}，现在 ${head.slice(0, 9)}），测试可能跑的是旧 dist`
+    case 'legacy':
+      return '构建记录是旧格式，测试可能跑的是旧 dist'
+  }
 }
 
 /**
@@ -253,16 +281,23 @@ export function stepTestCache(
     readonly noCache: boolean
     readonly full: boolean
   },
-): { readonly policy: CachePolicy; readonly builtFrom: ReadonlyMap<string, string> | undefined } {
-  const builtFrom =
+): {
+  readonly policy: CachePolicy
+  readonly builtFrom: ReadonlyMap<string, BuiltMember> | undefined
+} {
+  const read =
     options.planPath === undefined
       ? undefined
       : readBuiltFrom(builtFromPath(options.planPath), options.head)
+  const builtFrom = read?.status === 'ok' ? read.members : undefined
   return {
     policy: cachePolicy(env, {
       noCache: options.noCache,
       full: options.full,
       build: options.planPath === undefined || builtFrom !== undefined,
+      ...(read === undefined || read.status === 'ok'
+        ? {}
+        : { unbuiltReason: unbuiltReason(read, options.head) }),
     }),
     builtFrom,
   }
@@ -307,7 +342,7 @@ export interface RecordedRun {
    * 构建记录（成员目录到构建时输入摘要）：调用方在别的进程里构建过时给，来自 `built-from.json`。
    * 不给且 `build` 为真时，本进程的构建由这次运行自己做，记录取开跑前的输入摘要。
    */
-  readonly builtFrom?: ReadonlyMap<string, string>
+  readonly builtFrom?: ReadonlyMap<string, BuiltMember>
   /** 成员测试的结果缓存策略（`test-cache.ts`）；不给就不查也不写（验收不缓存）。 */
   readonly cache?: CachePolicy
 }
@@ -353,7 +388,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
       ? undefined
       : (run.builtFrom ??
         (run.build
-          ? new Map([...found.keys].map(([member, { digest }]) => [member, digest]))
+          ? new Map([...found.keys].map(([member, { digest }]) => [member, { input: digest }]))
           : undefined))
   const lookup =
     found === undefined || builtFrom === undefined ? found : { ...found, built: builtFrom }
@@ -501,7 +536,7 @@ export async function testStep(
   file: PlanFile,
   build: boolean,
   cache: CachePolicy,
-  builtFrom?: ReadonlyMap<string, string>,
+  builtFrom?: ReadonlyMap<string, BuiltMember>,
 ): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
