@@ -17,7 +17,6 @@ import {
   admissionRunFrom,
   allStepsPassed,
   collectAdmissionRuns,
-  isCompleteFullAdmission,
   latestResumeOrigin,
   parseAdmissionRun,
   readAdmissionRun,
@@ -262,44 +261,6 @@ describe('由步骤图运行写成记录', () => {
       mode: 'affected',
       fullRequested: false,
     })
-  })
-})
-
-describe('完整通过的全量准入', () => {
-  const passed = (over: Record<string, unknown> = {}) =>
-    run({
-      failedStep: null,
-      steps: [
-        { name: 'check:docs', ran: true, exit: 0, seconds: 1 },
-        { name: 'test', ran: true, exit: 0, seconds: 1 },
-      ],
-      ...over,
-    })
-
-  const resumedFrom = (fullRequested: boolean) => ({
-    mode: 'resume',
-    fullRequested: false,
-    base: H2,
-    resumeFrom: { head: H2, tree: TREE, failedStep: 'test', mode: 'full', fullRequested },
-  })
-
-  it('准入、带了 FULL=1、干净、没有失败步骤、全部步骤跑完且通过才算；H1 带了 FULL=1 的接续也算', () => {
-    expect(isCompleteFullAdmission(passed())).toBe(true)
-    expect(isCompleteFullAdmission(passed(resumedFrom(true)))).toBe(true)
-  })
-
-  it.each([
-    ['不是准入运行', { admission: false }],
-    ['影响面模式', { mode: 'affected', base: 'main', fullRequested: false }],
-    ['计划判了全量、没带 FULL=1', { fullRequested: false }],
-    ['接续的 H1 没带 FULL=1', resumedFrom(false)],
-    ['带未提交改动', { dirty: true }],
-    ['有步骤没跑到', { steps: [{ name: 'test', ran: false, exit: null, seconds: 0 }] }],
-    ['有步骤没通过', { steps: [{ name: 'test', ran: true, exit: 1, seconds: 1 }] }],
-    ['一个步骤都没有', { steps: [] }],
-    ['写了失败步骤', { failedStep: 'check:docs' }],
-  ])('%s 的不算', (_name, over) => {
-    expect(isCompleteFullAdmission(passed(over))).toBe(false)
   })
 })
 

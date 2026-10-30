@@ -221,6 +221,23 @@ describe('给了记录：只看那一份', () => {
       says: '接续记录：H1 那次没有带 FULL=1',
     },
     {
+      name: '接续的 H1 没带 FULL=1，本次带了 FULL=1 也不算',
+      change: {
+        mode: 'resume',
+        fullRequested: true,
+        base: 'e'.repeat(40),
+        resumeFrom: {
+          head: 'e'.repeat(40),
+          tree: 'e'.repeat(40),
+          failedStep: 'test',
+          mode: 'full',
+          fullRequested: false,
+        },
+      },
+      expected: ['full-not-requested'],
+      says: '接续记录：H1 那次没有带 FULL=1',
+    },
+    {
       name: '接续记录没写 H1 的范围',
       change: { mode: 'resume' },
       expected: ['not-full'],
@@ -252,6 +269,17 @@ describe('给了记录：只看那一份', () => {
         failedStep: 'lint:oxlint',
       },
       expected: ['fast-failed', 'step-failed'],
+      says: '步骤 lint:oxlint 失败（退出 1）',
+    },
+    {
+      name: '有步骤失败，但 failedStep 没写',
+      change: {
+        steps: [
+          { name: 'lint:oxlint', exit: 1, seconds: 1.2, ran: true },
+          { name: 'test', exit: 0, seconds: 30.5, ran: true },
+        ],
+      },
+      expected: ['step-failed'],
       says: '步骤 lint:oxlint 失败（退出 1）',
     },
     {
