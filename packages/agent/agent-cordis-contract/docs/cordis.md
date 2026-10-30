@@ -228,7 +228,7 @@ sequenceDiagram
 | runtime 的公开操作 | invoke、resume、takeover、submit、control、read、events、acknowledge、observe、quiesce。takeover 在 resume 之内，只在快照显示旧挂接仍 active 时另核 |
 | 宿主 `agentInstanceHost` | reserve、publish、withdraw，包括登记句柄的 withdraw |
 | 目录 `agentInstances` | resolve、connect |
-| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、settle、migrate-cancellation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接。直接调用 `commitSettlement` 时按变体核验：候选与判断变体用 settle，迁移变体用 settle 与 migrate-cancellation，卡片对账、迟到返回与 Tool 关联登记变体用 reconcile，目标都是原 execution |
+| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、settle、migrate-cancellation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接。直接调用 `commitSettlement` 时按变体核验：候选与判断变体用 settle，迁移变体用 settle 与 migrate-cancellation，卡片对账、迟到返回与 Tool 关联登记变体用 reconcile，目标都是原 execution。直接调用取消路线上的 `prepareFinish` 与 `tryFinish` 时用 settle，目标是原 execution |
 | `agentMessageHandoff` 提供者 | read-message-handoff（lookup，目标是 input-entry 或原 execution）与 exclude-message-handoff（exclude，目标是原 execution），不论调用方是谁都在这里核验。prepare 的直接调用也在这里核验，invoke 分支用 invoke，submit 分支用 submit。runtime 在已核验的公开操作之内调用 prepare 时不再次核验主体。提供者以静态 inject 取得 `agentAccessCheck` |
 | 宿主的结果接收方 | receive-result。在写 `received` 条目之前核验推送主体，见 SPEC 的“[结果接收](../../agent-contract/SPEC.md#结果接收)” |
 
