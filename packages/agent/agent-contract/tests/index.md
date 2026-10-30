@@ -12,6 +12,7 @@
 - [正文契约](body-contract.spec.ts)
 - [公开名称与判别字面量（类型测试）](public-api-names.spec-d.ts)
 - [入口导出集合](export-set.spec.ts)
+- [终结责任类别的对照](obligation-category.spec.ts)
 - [依赖方向](dependency-direction.spec.ts)
 - [生产者接收面的套件与替身](receiving.spec.ts)
 - [生产者接收面的类型（类型测试）](receiving.spec-d.ts)
