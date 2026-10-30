@@ -7,7 +7,14 @@
 import { git } from '@omne-harness/repo-toolchain/core/git'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { isAbsolute, join, relative, resolve } from 'node:path'
-import { ADMISSION_LOG_DIR } from './check.ts'
+import {
+  ADMISSION_RECORD_DIR,
+  ADMISSION_RUN_KIND,
+  ADMISSION_RUN_SCHEMA_VERSION,
+  CACHE_STATES,
+  type CacheState,
+  type CacheStates,
+} from './admission-run.ts'
 import { parseFlags } from './support.ts'
 
 export const ADMISSION_EVIDENCE_USAGE = [
@@ -16,14 +23,13 @@ export const ADMISSION_EVIDENCE_USAGE = [
   '      记录的树与 F 的树相同、且是一次干净且每步都通过的全量准入时接受（退出 0），否则逐项列出拒绝原因（退出 1）；用法错误退出 2',
 ].join('\n')
 
-const SCHEMA_VERSION = 1
-const RECORD_KIND = 'admission-run'
+// 记录的形状归 admission-run.ts；这里不用它的整份解析（整份通过或不通过给不出逐项原因），只借它的常量与类型，
+// 逐字段核对并逐项列出拒绝原因。
+const SCHEMA_VERSION = ADMISSION_RUN_SCHEMA_VERSION
+const RECORD_KIND = ADMISSION_RUN_KIND
 const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/u
 
-export type CacheState = 'on' | 'off' | 'unknown'
-const CACHE_STATES: readonly CacheState[] = ['on', 'off', 'unknown']
-const CACHE_NAMES = ['test', 'depGraph', 'mutation'] as const
-export type Caches = Readonly<Record<(typeof CACHE_NAMES)[number], CacheState>>
+export type Caches = CacheStates
 
 /** 拒绝的一项原因：`kind` 供程序分辨，`message` 给人读。 */
 export type RejectionKind =
@@ -279,7 +285,7 @@ function display(root: string, path: string): string {
 }
 
 function recordsIn(root: string): string[] {
-  const directory = join(root, ADMISSION_LOG_DIR)
+  const directory = join(root, ADMISSION_RECORD_DIR)
   if (!existsSync(directory)) return []
   return readdirSync(directory, { withFileTypes: true })
     .filter(entry => entry.isFile() && entry.name.endsWith('.json'))
@@ -324,7 +330,7 @@ function searchByTree(root: string, forRef: string, target: CommitTree): Admissi
     reasons: [
       reject(
         'no-matching-record',
-        `${ADMISSION_LOG_DIR} 下没有树 ${target.tree} 的记录（共 ${all.length} 份，其中 ${unknownTree.length} 份看不出树）`,
+        `${ADMISSION_RECORD_DIR} 下没有树 ${target.tree} 的记录（共 ${all.length} 份，其中 ${unknownTree.length} 份看不出树）`,
       ),
     ],
     records: unknownTree.map(judged => judged.finding),

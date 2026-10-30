@@ -1,4 +1,4 @@
-// 根脚本背后的四个入口脚本（scripts/ 下）：只核它们拥有的部分——参数怎样分派、谁占运行名额、先后与退出码。
+// 根脚本背后的几个入口脚本（scripts/ 下）：只核它们拥有的部分——参数怎样分派、谁占运行名额、先后与退出码。
 // 真正的命令换成记录参数的假程序：node、uv 放在 PATH 前面，运行名额与钉住的 omne-metrics 放在脚本找它们的位置。
 import { spawnSync } from 'node:child_process'
 import {
@@ -19,7 +19,14 @@ afterEach(() => {
   for (const home of homes.splice(0)) rmSync(home, { recursive: true, force: true })
 })
 
-const SCRIPTS = ['metrics.sh', 'slot-unless-plan-only.sh', 'test-tier.sh', 'check-design.sh']
+const SCRIPTS = [
+  'metrics.sh',
+  'slot-unless-plan-only.sh',
+  'test-tier.sh',
+  'check-design.sh',
+  'check.sh',
+  'git-environment.sh',
+]
 
 function executable(path: string, text: string): void {
   writeFileSync(path, text)
@@ -157,5 +164,26 @@ describe('check-design.sh', () => {
     expect(run('check-design.sh', []).lines[1]).not.toContain('--stale')
     expect(run('check-design.sh', ['--stale']).status).toBe(2)
     expect(run('check-design.sh', ['--bogus']).status).toBe(2)
+  })
+})
+
+describe('check.sh', () => {
+  it('只认 --admission、--keep-going 与带值的 --resume-from，原样交给运行器的 check；别的参数或缺值退出 2', () => {
+    const { run } = fixture()
+    const held = { OMNE_TEST_SLOT_HELD: '1' }
+    const ran = run('check.sh', ['--admission', '--resume-from', 'abc123'], held)
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.lines).toEqual([
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --admission --resume-from abc123',
+    ])
+    expect(run('check.sh', ['--keep-going'], held).lines).toEqual([
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+    ])
+    for (const args of [['--resume-from'], ['--resume-from', ''], ['--bogus'], ['abc']]) {
+      const refused = run('check.sh', args, held)
+      expect(refused.status, args.join(' ')).toBe(2)
+      expect(refused.lines).toEqual([])
+      expect(refused.stderr).toContain('--resume-from <H1>')
+    }
   })
 })

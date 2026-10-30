@@ -1,10 +1,11 @@
 // 准入证据核对：F 的树与 C 的树相同时，C 上一次干净且每步都通过的全量准入就是 F 上的全量准入；其余一律拒绝并写明原因。
 // 夹具是真实 git 仓库：C 是分支上的提交，F 是把它 `--no-ff` 并回主线的合并提交（树与 C 相同、提交不同），
 // D 是 F 之后又改了文件的提交（树不同）。记录按运行记录的形状手写，每条用例只改一个字段，核对那一项单独就能让它被拒。
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import {
   admissionEvidence,
@@ -13,6 +14,8 @@ import {
   type AdmissionEvidence,
   type RejectionKind,
 } from '../src/testing/admission-evidence.ts'
+
+const CLI = fileURLToPath(new URL('../src/testing/cli.ts', import.meta.url))
 
 const git = (cwd: string, ...args: string[]) =>
   execFileSync(
@@ -346,6 +349,37 @@ describe('admission-evidence 子命令', () => {
       expect(result.code).toBe(2)
       expect(result.err).not.toBe('')
       expect(result.out).toBe('')
+    },
+  )
+})
+
+describe('真实 CLI 子进程', () => {
+  const cli = (...args: string[]) =>
+    spawnSync(
+      process.execPath,
+      ['--experimental-strip-types', CLI, 'admission-evidence', ...args],
+      {
+        cwd: fixture.root,
+        encoding: 'utf8',
+        env: { ...process.env, OMNE_SUBJECT_ROOT: fixture.root },
+      },
+    )
+
+  it(
+    '树相同接受（退出 0），树不同拒绝（退出 1），缺 --for 用法错误（退出 2）',
+    // 起真实 CLI 子进程：核对 cli.ts 的接线与 OMNE_SUBJECT_ROOT 的解析，函数级用例测不到。
+    { tags: ['slow'] },
+    () => {
+      const record = writeRecord('cli-pass', passingRecord())
+      const accepted = cli('--for', fixture.f, '--record', record)
+      expect(accepted.status, accepted.stderr).toBe(0)
+      expect(accepted.stdout).toContain(`F ${fixture.f} 采用 C ${fixture.c} 的全量准入`)
+      const rejected = cli('--for', fixture.d, '--record', record)
+      expect(rejected.status).toBe(1)
+      expect(rejected.stdout).toContain('树不同')
+      const usage = cli('--record', record)
+      expect(usage.status).toBe(2)
+      expect(usage.stderr).toContain('admission-evidence 需要 --for <F>')
     },
   )
 })

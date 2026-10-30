@@ -39,6 +39,7 @@ import { parseFlags as parseSharedFlags, type Flags } from './support.ts'
 import { triage, triageSummary } from './triage.ts'
 import { budgetFor } from './parallelism.ts'
 import { runCheck } from './check.ts'
+import { ADMISSION_EVIDENCE_USAGE, admissionEvidenceCommand } from './admission-evidence.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
@@ -62,11 +63,14 @@ const USAGE = [
   '  replay [--ref <ref>] [--count <n>] [--json <路径>]',
   '      对 ref（缺省 main）最近 n 个（缺省 40）first-parent 提交，以父提交为基线逐个算计划，只算不跑',
   '  triage --run <运行目录>',
-  '  check [--admission] [--keep-going] [--list] [--no-cache]',
+  '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>]',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
-  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试都不读缓存，并写准入日志；',
+  '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试都不读缓存，并写准入日志与运行记录；',
   '      --no-cache 成员测试不读结果缓存（同 OMNE_TEST_CACHE=0）；',
-  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额',
+  '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额；',
+  '      --resume-from <H1> 接续 H1 上快速失败的全量准入（只在准入模式下接受，与 FULL=1 互斥）：前提不满足以 2 退出，',
+  '      H1..HEAD 碰到全局路径就整次全量，否则 H1 没跑到的步骤整次跑、通过了的只跑 H1..HEAD 影响到的成员',
+  ADMISSION_EVIDENCE_USAGE,
 ].join('\n')
 
 const ROOT = resolve(
@@ -296,14 +300,22 @@ async function main(): Promise<void> {
   else if (command === 'replay') process.exitCode = runReplay(rest)
   else if (command === 'triage') process.exitCode = await runTriage(rest)
   else if (command === 'check') {
-    const flags = parseFlags(rest, [], ['--admission', '--keep-going', '--list', '--no-cache'])
+    const flags = parseFlags(
+      rest,
+      ['--resume-from'],
+      ['--admission', '--keep-going', '--list', '--no-cache'],
+    )
     if (flags.switches.has('--no-cache')) process.env[TEST_CACHE_ENV] = '0'
+    const resumeFrom = flags.values.get('--resume-from')
     process.exitCode = await runCheck(ROOT, {
       admission: flags.switches.has('--admission'),
       keepGoing: flags.switches.has('--keep-going'),
       list: flags.switches.has('--list'),
+      ...(resumeFrom === undefined ? {} : { resumeFrom }),
     })
-  } else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
+  } else if (command === 'admission-evidence')
+    process.exitCode = admissionEvidenceCommand(ROOT, rest)
+  else throw new Error(`未知命令 ${String(command)}\n${USAGE}`)
 }
 
 main().catch((error: unknown) => {
