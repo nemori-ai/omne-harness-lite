@@ -70,7 +70,7 @@
 
 名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。同文件另以三个只破坏一条规则的装饰器（重试答 conflict、ended 后新 submit 被受理、过期 expected 先于 ended 答 changed）包住内存 Journal，核对套件对每个装饰器至少一例变红。
 
-`fact 10` 中名称带「临时做法，待 #558 裁定」的用例固定 `tryFinish` 的 controls 与 inputs 两项 blocked 条件、passages 不检查。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款，不再是临时做法。`journal-support.ts` 的 `finish` 先经 `takeInputs` 取走受理输入，再以普通完成终结。
+`fact 10` 固定 `tryFinish` 的五类 blocked（inputs、controls、operations、passages、custody）及其次序、有效取消对普通终结的优先、取消授权只能结束取消候选、判断 unknown 为 unavailable、无安装时候选变体为 unavailable。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款。`journal-support.ts` 的 `finishInput` 先提交 F1 与 F2 再 `prepareFinish`，以读到的投影组成 tryFinish 输入；`finish` 先经 `takeInputs` 取走受理输入；`finishCancelled` 以 establish、judge、prepareFinish 结束取消候选。
 
 `provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 

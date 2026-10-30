@@ -17,6 +17,11 @@ import type {
   AgentOperationId,
   Authority,
   CallerCommit,
+  CancellationJudgmentInput,
+  CancellationJudgmentRecord,
+  CancellationPolicy,
+  CancellationPolicyInstallation,
+  CardReconciliationRecord,
   CommandReceipt,
   ControlRecord,
   ControlStage,
@@ -25,10 +30,19 @@ import type {
   DurableEvidence,
   ExecutionControl,
   ExecutionHandoff,
+  FinishAuthorization,
+  FinishCandidate,
+  FinishObligation,
+  FinishObligations,
+  FinishRoute,
   HandoffCustody,
   HandoffReference,
   HandoffRequest,
   HandoffResolution,
+  JournalCommitState,
+  LegacyF2Entry,
+  LegacyInvocationReturn,
+  MigrationRecord,
   OriginalInputAcceptance,
   ExecutionMutation,
   ExecutionRevision,
@@ -44,12 +58,16 @@ import type {
   PendingCall,
   ReplyAdmissionPage,
   ResultResponsibility,
+  SettlementRequest,
+  SettlementResult,
   TerminalObservation,
+  ToolAssociationRecord,
   Adoption,
   Access,
   AgentJournalEntry,
   AgentReceivedProvider,
 } from '@omne-harness/agent-contract'
+import type { TestHostRecord } from '@omne-harness/agent-contract/testing'
 import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
@@ -76,6 +94,23 @@ import {
   JOURNAL_OWNER,
 } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
+import {
+  beforeTerminalPending,
+  buildObligations,
+  CATEGORY_ORDER,
+  currentCandidate,
+  currentJudgment,
+  currentObligations,
+  currentRoute,
+  emptyFinishing,
+  intentOf,
+  projectionOf,
+  routeByRecord,
+  sameContent,
+  settlementOf,
+  type FinishingRecords,
+  type PendingOperation,
+} from './journal-finishing.ts'
 
 export type JointCommitKind = Exclude<CallerCommit['kind'], 'none'>
 
@@ -91,7 +126,9 @@ export type JournalWrite =
   | 'recordResult'
   | 'recordControl'
   | 'recordHandoff'
+  | 'prepareFinish'
   | 'tryFinish'
+  | 'commitSettlement'
   | 'recordTerminalObservation'
   | 'received'
   | 'record'
@@ -175,6 +212,21 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
   eventSchema?: Adoption
   /** The rule of the reply-admission projection. */
   replyAdmissionRule?: Adoption
+  /**
+   * The trusted cancellation judgment this binding holds (SPEC "安装记录与资格"): the installation
+   * governance issued and the pure implementation it names. Absent: the candidate, migration and
+   * judgment variants of commitSettlement answer `unavailable`.
+   */
+  cancellation?: Readonly<{
+    installation: CancellationPolicyInstallation
+    policy: CancellationPolicy
+  }>
+  /**
+   * The records of the trusted host reads that the three custody variants of commitSettlement
+   * resolve a source to, by the record text of the source evidence. A source no record answers is
+   * unreadable: the variant answers `unavailable`.
+   */
+  hostRecords?: ReadonlyMap<string, TestHostRecord>
 }>
 
 export type MemoryAgentJournal<P> = Readonly<{
@@ -245,7 +297,8 @@ export type MemoryExecution = {
   id: AgentExecutionId
   tenant: TenantId
   revision: number
-  state: ExecutionState
+  /** The committed state; the FinishIntent of a settling execution is projected from `finishing`. */
+  state: JournalCommitState | Extract<ExecutionState, { kind: 'ended' }>
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
   inputs: AcceptedInput[]
@@ -276,6 +329,8 @@ export type MemoryExecution = {
   handoffs: HandoffRecord[]
   /** Every Rh attempt that reached the write step, by operation, for the custody chain of its H. */
   custodyAttempts: Map<AgentOperationId, CustodyAttempt>
+  /** The candidate, route, obligation, judgment and custody records (SPEC "条件终结"). */
+  finishing: FinishingRecords
   serial: number
   waiters: Set<() => void>
 }
@@ -1167,7 +1222,7 @@ export function createMemoryAgentJournal<P>(
     return copy({
       execution: execution.id,
       revision: revisionOf(execution.revision),
-      state: execution.state,
+      state: stateOf(execution),
       checkpoint: execution.checkpoint,
       inputWatermark: watermarkOf(execution),
       history: journalEvidence(`${execution.id}/history`, execution.revision),
@@ -1186,11 +1241,44 @@ export function createMemoryAgentJournal<P>(
       effects: execution.effects,
       terminalObservations: execution.observations,
       handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
+      finishObligations: currentObligations(execution.finishing) ?? null,
+      settlement: settlementOf(execution.finishing),
       output: {
         emittedThrough: emitted === 0 ? null : String(emitted),
         acknowledgedThrough: execution.acknowledged === 0 ? null : String(execution.acknowledged),
       },
     })
+  }
+
+  /** The public state: a settling execution carries the FinishIntent projection of its current candidate. */
+  function stateOf(execution: Execution): ExecutionState {
+    if (execution.state.kind !== 'settling') return execution.state
+    const intent = intentOf(execution.finishing)
+    if (intent === undefined)
+      throw new Error('memory Journal defect: a settling execution without a candidate')
+    return { kind: 'settling', intent }
+  }
+
+  /** The writes of the execution still undecided, except `operation` (SPEC "条件终结", operations). */
+  function pendingOperations(
+    execution: Execution,
+    operation: AgentOperationId,
+  ): PendingOperation[] {
+    const pendingWrites: PendingOperation[] = []
+    for (const record of operations.values()) {
+      if (pendingOf(record, execution) && record.operation !== operation)
+        pendingWrites.push({ operation: record.operation, method: record.key.split(':')[0] ?? '' })
+    }
+    return pendingWrites
+  }
+
+  /** The obligations of `candidate` from the Journal's own records at the current revision. */
+  function obligationsOf(
+    execution: Execution,
+    candidate: FinishCandidate,
+    operation: AgentOperationId,
+  ) {
+    return buildObligations(execution, candidate, pendingOperations(execution, operation))
   }
 
   function readPage(
@@ -1222,51 +1310,117 @@ export function createMemoryAgentJournal<P>(
     })
   }
 
+  type Blocked = Extract<FinishResult, { kind: 'blocked' }>
+  type FinishCheck =
+    | Readonly<{ kind: 'clear' }>
+    | Readonly<{ kind: 'blocked'; value: Blocked }>
+    | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
   /**
-   * The first responsibility of its own that the Journal sees still open, in the order operations,
-   * controls, inputs, custody; `undefined` when none is. SPEC "条件终结" names the reasons but not
-   * every condition; where it is not precise, the stricter (blocking) reading is taken.
+   * The five categories of SPEC "条件终结" in their fixed order, inputs, controls, operations,
+   * passages, custody; the first open one is answered. An unknown judgment on the cancellation
+   * route is `unavailable`, not blocked.
    *
+   * - inputs: an ordinary candidate does not pass an accepted input that no taken batch covers; a
+   *   cancelled candidate keeps its inputs under their original owner and is not blocked by them.
+   * - controls: an applicable cancel whose intent, or a revocation, is recorded unresolved. The
+   *   three late stages may be carried by a lawful successor and do not block.
    * - operations: a write of this execution is still pending (listed in `unresolved`).
-   * - controls: an applicable stage of a control is recorded `unresolved`. 临时做法，待 #558 裁定。
-   * - inputs: an ordinary end leaves accepted inputs that no taken batch covers. A cancel keeps its
-   *   unprocessed inputs with their original owner (SPEC "条件终结"), so it is not blocked by them.
-   *   临时做法，待 #558 裁定。
+   * - passages: an ordinary candidate needs the proof of its author route (the F2 commit); a
+   *   cancelled candidate needs a current judgment record that allows.
    * - custody: a result has neither custody nor completion evidence.
-   *
-   * passages is not checked: whether the before-terminal passages are complete and bound to this
-   * candidate is a fact of the coordinator, not of the Journal's own records. 临时做法，待 #558 裁定。
    */
   function blockedReason(
     execution: Execution,
     operation: AgentOperationId,
-    authorization: 'advancement' | 'cancel',
-  ): Extract<FinishResult, { kind: 'blocked' }> | undefined {
+    candidate: FinishCandidate,
+  ): FinishCheck {
     const source = (what: string) =>
       journalEvidence(`${execution.id}/blocked/${what}`, execution.revision)
-    for (const record of operations.values()) {
-      if (pendingOf(record, execution) && record.operation !== operation) {
-        return { kind: 'blocked', reason: 'operations', source: source(record.operation) }
-      }
+    const blocked = (reason: Blocked['reason'], evidence: DurableEvidence): FinishCheck => ({
+      kind: 'blocked',
+      value: { kind: 'blocked', reason, source: evidence },
+    })
+    const cancelled = candidate.conclusion.kind === 'cancelled'
+    if (!cancelled && inputBoundary(execution).from < execution.inputs.length) {
+      return blocked('inputs', source('inputs'))
     }
     for (const control of execution.controls) {
-      const stages = Object.values(control.stages)
-      if (stages.some(fact => fact?.state === 'unresolved')) {
-        return { kind: 'blocked', reason: 'controls', source: source(control.operation) }
+      const intent = control.stages['intent-established']
+      const revoked = control.stages['qualification-revoked']
+      if (intent?.state === 'unresolved' || revoked?.state === 'unresolved') {
+        return blocked('controls', source(control.operation))
       }
     }
-    if (
-      authorization === 'advancement' &&
-      inputBoundary(execution).from < execution.inputs.length
-    ) {
-      return { kind: 'blocked', reason: 'inputs', source: source('inputs') }
+    for (const record of operations.values()) {
+      if (pendingOf(record, execution) && record.operation !== operation) {
+        return blocked('operations', source(record.operation))
+      }
+    }
+    const route = currentRoute(execution.finishing)
+    if (route === undefined) return blocked('passages', source('route'))
+    if (route.kind === 'author') {
+      if (route.beforeTerminal === null) return blocked('passages', route.record)
+    } else {
+      const judgment = currentJudgment(execution.finishing)
+      if (judgment === undefined) return blocked('passages', route.record)
+      const decision = judgment.decision
+      if (decision.kind === 'unknown')
+        return { kind: 'unavailable', diagnostic: `the judgment ${judgment.operation} is unknown` }
+      if (decision.kind === 'blocked') {
+        const ordered = [...decision.reasons].sort(
+          (left, right) =>
+            CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category),
+        )
+        return blocked(ordered[0]?.category ?? 'passages', judgment.evidence)
+      }
     }
     const custody = execution.results.find(
       item => item.custody === null && item.completion === null,
     )
-    if (custody !== undefined) {
-      return { kind: 'blocked', reason: 'custody', source: copy(custody.result.source) }
+    if (custody !== undefined) return blocked('custody', copy(custody.result.source))
+    return { kind: 'clear' }
+  }
+
+  /** The cancel control an authorization names, when it is saved and its intent is reached. */
+  function effectiveCancel(
+    execution: Execution,
+    control: AgentOperationId,
+  ): ControlRecord | undefined {
+    return execution.controls.find(
+      record =>
+        record.operation === control &&
+        record.command.kind === 'cancel' &&
+        record.stages['intent-established']?.state === 'reached',
+    )
+  }
+
+  function effectiveCancels(execution: Execution): readonly ControlRecord[] {
+    return execution.controls.filter(
+      record =>
+        record.command.kind === 'cancel' &&
+        record.stages['intent-established']?.state === 'reached',
+    )
+  }
+
+  /**
+   * The checks of a finish authorization shared by prepareFinish, tryFinish and the candidate,
+   * migration and judgment variants (SPEC "条件终结", "commitSettlement 的变体" 3): an advancement
+   * under an effective cancel is `changed`; a cancel must name a saved control whose intent is
+   * reached (`denied` otherwise) and carry the source of that control (`invalid` otherwise).
+   */
+  function authorizationFailure(
+    execution: Execution,
+    authorization: FinishAuthorization,
+    action: string,
+  ): Failure | 'changed' | undefined {
+    if (authorization.kind === 'advancement') {
+      return effectiveCancels(execution).length > 0 ? 'changed' : undefined
     }
+    const control = effectiveCancel(execution, authorization.control)
+    if (control === undefined) return denied(action)
+    if (!sameEvidence(control.stages.accepted.source, authorization.source))
+      return invalid('authorization.source', 'not the source of the saved control')
     return undefined
   }
 
@@ -1474,6 +1628,485 @@ export function createMemoryAgentJournal<P>(
   // ------------------------------------------------------------------------------------------
   // The port
 
+  // ------------------------------------------------------------------------------------------
+  // The settlement variants (SPEC "commitSettlement 的变体")
+
+  type CandidateVariant = Extract<
+    SettlementRequest<P>,
+    { kind: 'establish-cancellation' | 'migrate-cancellation' | 'judge-cancellation' }
+  >
+  type CustodyVariant = Exclude<SettlementRequest<P>, CandidateVariant>
+
+  /** The candidate, migration and judgment variants, in the judgment order of SPEC "commitSettlement 的变体". */
+  function settleCandidate(
+    execution: Execution,
+    input: CandidateVariant,
+  ): Attempt<SettlementResult> {
+    const installed = options.cancellation
+    if (installed === undefined)
+      return answer(fail(damaged('no cancellation policy is installed on this binding')))
+    if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+    const refusal = authorizationFailure(execution, input.authorization, 'commitSettlement')
+    if (refusal === 'changed') return answer(fail({ kind: 'changed' }))
+    if (refusal !== undefined) return answer(fail(refusal))
+    if (!sameEvidence(installed.installation.record, input.installation))
+      return answer(fail(invalid('installation', 'not the installation this binding holds')))
+    if (input.expected !== revisionOf(execution.revision)) return answer(fail({ kind: 'changed' }))
+    const finishing = execution.finishing
+    const control = effectiveCancel(execution, input.authorization.control)
+    if (control === undefined) return answer(fail(denied('commitSettlement')))
+    const current = currentCandidate(finishing)
+    const route = currentRoute(finishing)
+    const revision = execution.revision + 1
+    const evidence = nextEvidence(execution, input.kind, revision)
+    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    const cancellationRoute = (
+      candidate: AgentOperationId,
+      origin: Extract<FinishRoute, { kind: 'cancellation' }>['origin'],
+    ): Extract<FinishRoute, { kind: 'cancellation' }> => ({
+      kind: 'cancellation',
+      record: nextEvidence(execution, 'route', revision),
+      candidate,
+      control: control.operation,
+      policy: installed.installation.policy,
+      installation: installed.installation.record,
+      origin,
+    })
+    switch (input.kind) {
+      case 'establish-cancellation': {
+        if (
+          current !== undefined &&
+          current.conclusion.kind === 'cancelled' &&
+          route?.kind === 'author'
+        )
+          return answer(
+            fail(invalid('candidate', 'a cancelled candidate on an author route migrates')),
+          )
+        if (
+          input.predecessor !== null &&
+          !finishing.candidates.some(c => c.candidate === input.predecessor)
+        )
+          return answer(fail(invalid('predecessor', 'not a candidate of this execution')))
+        if ((current?.candidate ?? null) !== input.predecessor)
+          return answer(fail({ kind: 'changed' }))
+        const intent = control.stages['intent-established']
+        const candidate: FinishCandidate = {
+          candidate: input.operation,
+          origin: copy(control.stages.accepted.source),
+          conclusion: { kind: 'cancelled', cause: copy(control.command.reason) },
+          failure: null,
+          inputWatermark: watermarkOf(execution),
+          checkpoint: copy(execution.checkpoint),
+          conditions: copy(intent?.source ?? control.stages.accepted.source),
+        }
+        const newRoute = cancellationRoute(candidate.candidate, {
+          kind: 'native',
+          operation: input.operation,
+        })
+        const supersession =
+          current !== undefined && route !== undefined
+            ? {
+                from: current.candidate,
+                to: candidate.candidate,
+                control: control.operation,
+                revision: revisionOf(revision),
+                route: copy(route),
+              }
+            : null
+        const value: SettlementResult = {
+          kind: 'establish-cancellation',
+          receipt,
+          candidate,
+          route: newRoute,
+          supersession,
+        }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            if (supersession !== null) finishing.supersessions.push(supersession)
+            finishing.candidates.push(candidate)
+            finishing.routes.push(newRoute)
+            finishing.current = candidate.candidate
+            finishing.currentRoute = newRoute.record.record
+            finishing.currentJudgment = null
+            finishing.obligations = null
+            execution.state = { kind: 'settling' }
+            execution.revision = revision
+          },
+        }
+      }
+      case 'migrate-cancellation': {
+        const candidate = finishing.candidates.find(item => item.candidate === input.candidate)
+        if (candidate === undefined)
+          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
+        if (candidate.conclusion.kind !== 'cancelled')
+          return answer(fail(invalid('candidate', 'only a cancelled candidate migrates')))
+        const originalRoute = routeByRecord(finishing, input.originalRoute)
+        if (originalRoute === undefined)
+          return answer(fail(invalid('originalRoute', 'not a route of this execution')))
+        if (originalRoute.kind !== 'author')
+          return answer(fail(invalid('originalRoute', 'not an author route')))
+        if (route === undefined || route.record.record !== originalRoute.record.record)
+          return answer(fail({ kind: 'changed' }))
+        const newRoute = cancellationRoute(candidate.candidate, {
+          kind: 'migration',
+          operation: input.operation,
+        })
+        const built = obligationsOf(execution, candidate, input.operation)
+        const progress: LegacyF2Entry[] = execution.checkpoint.passages
+          .filter(passage => passage.position === 'before_terminal')
+          .map(passage => ({
+            kind: 'recorded',
+            passage: copy(passage),
+            version: journalEvidence(`${execution.id}/passage/${passage.id}`, execution.revision),
+          }))
+        const migration: MigrationRecord = {
+          operation: input.operation,
+          receipt,
+          evidence,
+          candidate: candidate.candidate,
+          control: control.operation,
+          from: {
+            route: copy(originalRoute),
+            policy: originalRoute.policy,
+            definition: copy(execution.checkpoint.definition),
+            schema: copy(execution.checkpoint.schema),
+            beforeTerminal: originalRoute.beforeTerminal,
+            extensions: [],
+          },
+          progress,
+          to: {
+            policy: installed.installation.policy,
+            implementation: installed.installation.implementation,
+            inputSchema: installed.installation.inputSchema,
+            installation: installed.installation.record,
+            admission: installed.installation.admission,
+          },
+          qualification: {
+            attribution: copy(input.authorization.source),
+            target: execution.id,
+            issuer: installed.installation.decision,
+            check: evidence,
+          },
+          fence: evidence,
+          coverage: built.coverage,
+          obligations: built.items,
+          supersession: { from: originalRoute.record, to: newRoute.record, candidate: null },
+          priorExcluded: copy(input.priorExcluded),
+        }
+        const value: SettlementResult = {
+          kind: 'migrate-cancellation',
+          receipt,
+          migration,
+          route: newRoute,
+        }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            finishing.migrations.push(migration)
+            finishing.routes.push(newRoute)
+            finishing.currentRoute = newRoute.record.record
+            finishing.currentJudgment = null
+            execution.revision = revision
+          },
+        }
+      }
+      case 'judge-cancellation': {
+        const candidate = finishing.candidates.find(item => item.candidate === input.candidate)
+        if (candidate === undefined)
+          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
+        const named = routeByRecord(finishing, input.route)
+        if (named === undefined)
+          return answer(fail(invalid('route', 'not a route of this execution')))
+        if (named.kind !== 'cancellation')
+          return answer(fail(invalid('route', 'not a cancellation route')))
+        if (route === undefined || route.record.record !== named.record.record)
+          return answer(fail({ kind: 'changed' }))
+        const built = obligationsOf(execution, candidate, input.operation)
+        const judgmentInput: CancellationJudgmentInput = {
+          tenant: execution.tenant,
+          execution: execution.id,
+          candidate: copy(candidate),
+          control: copy(control),
+          route: copy(named),
+          readRevision: revisionOf(execution.revision),
+          coverage: built.coverage,
+          items: built.items,
+          participants:
+            coordination === 'coordinated'
+              ? {
+                  kind: 'coordinated',
+                  association: journalEvidence(`${execution.id}/coordination`, 0),
+                  participants: [],
+                }
+              : { kind: 'standalone', basis: journalEvidence(`${execution.id}/standalone`, 0) },
+        }
+        let decision: CancellationJudgmentRecord['decision']
+        try {
+          decision = copy(installed.policy.judge(copy(judgmentInput)))
+        } catch (error) {
+          return answer(fail(damaged(`the cancellation policy threw: ${String(error)}`)))
+        }
+        if (!['allowed', 'blocked', 'unknown'].includes(decision.kind))
+          return answer(fail(damaged('the cancellation policy answered an unknown decision')))
+        const judgment: CancellationJudgmentRecord = {
+          operation: input.operation,
+          receipt,
+          evidence,
+          policy: installed.installation.policy,
+          implementation: installed.installation.implementation,
+          inputSchema: installed.installation.inputSchema,
+          installation: installed.installation.record,
+          qualification: copy(input.authorization.source),
+          candidate: candidate.candidate,
+          control: control.operation,
+          route: named.record,
+          input: judgmentInput,
+          decision,
+          revision: revisionOf(revision),
+          supersedes: finishing.currentJudgment,
+        }
+        const value: SettlementResult = { kind: 'judge-cancellation', receipt, judgment }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            finishing.judgments.push(judgment)
+            finishing.currentJudgment = judgment.operation
+            execution.revision = revision
+          },
+        }
+      }
+      default: {
+        const _exhaustive: never = input
+        return _exhaustive
+      }
+    }
+  }
+
+  /** The three custody variants: the reconcile qualification, no expected, also after ended. */
+  function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
+    const finishing = execution.finishing
+    const sourceEvidence =
+      input.kind === 'record-card-reconciliation' ? input.original : input.source
+    const record = options.hostRecords?.get(sourceEvidence.record)
+    if (record === undefined)
+      return answer(fail(damaged(`the host answers no record for ${sourceEvidence.record}`)))
+    const revision = execution.revision + 1
+    const evidence = nextEvidence(execution, input.kind, revision)
+    const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+    const knownCandidate = (candidate: AgentOperationId) =>
+      finishing.candidates.some(item => item.candidate === candidate)
+    switch (input.kind) {
+      case 'record-card-reconciliation': {
+        if (
+          record.kind !== 'card-reconciliation' ||
+          record.passage !== input.passage ||
+          record.round !== input.round
+        )
+          return answer(fail(invalid('original', 'not a reconciliation of this round')))
+        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
+        const round =
+          passage?.progress.kind === 'asked'
+            ? passage.progress.rounds.find(item => item.round === input.round)
+            : undefined
+        if (passage === undefined || round === undefined)
+          return answer(fail(invalid('round', 'not a card round of this execution')))
+        if (!knownCandidate(input.candidate))
+          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (routeByRecord(finishing, input.route) === undefined)
+          return answer(fail(invalid('route', 'not a route of this execution')))
+        const obligation: Extract<FinishObligation, { kind: 'card-round' }> = {
+          kind: 'card-round',
+          category: 'passages',
+          key: `${passage.id}/${round.round}`,
+          source: sourceEvidence,
+          version: evidence,
+          position: null,
+          disposition: {
+            kind: 'held',
+            custodian: {
+              owner: 'cards',
+              work: execution.id,
+              position: passage.id,
+              purpose: 'card-custody',
+            },
+            acceptance: sourceEvidence,
+            retained: sourceEvidence,
+            continuation: {
+              kind: 'card-lookup',
+              request: passage.input,
+              owner: 'cards',
+              custodian: null,
+              purpose: 'reconcile',
+            },
+          },
+          passage: passage.id,
+          round: copy(round),
+          present: copy(record.present),
+          lookups: [...record.lookups],
+          invalidate: record.invalidate,
+        }
+        const reconciliation: CardReconciliationRecord = {
+          operation: input.operation,
+          receipt,
+          passage: input.passage,
+          round: input.round,
+          candidate: input.candidate,
+          route: copy(input.route),
+          original: copy(input.original),
+          obligation,
+          revision: revisionOf(revision),
+        }
+        const value: SettlementResult = {
+          kind: 'record-card-reconciliation',
+          receipt,
+          reconciliation,
+        }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            finishing.cardReconciliations.push(reconciliation)
+            execution.revision = revision
+          },
+        }
+      }
+      case 'record-legacy-return': {
+        if (
+          record.kind !== 'legacy-return' ||
+          record.passage !== input.passage ||
+          !sameEvidence(record.input, input.request)
+        )
+          return answer(fail(invalid('source', 'not the return of this invocation')))
+        const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
+        if (passage === undefined || passage.position !== 'before_terminal')
+          return answer(fail(invalid('passage', 'not a before-terminal passage of this execution')))
+        if (!knownCandidate(input.candidate))
+          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (routeByRecord(finishing, input.route) === undefined)
+          return answer(fail(invalid('route', 'not a route of this execution')))
+        const legacyReturn: LegacyInvocationReturn = {
+          operation: input.operation,
+          receipt,
+          passage: input.passage,
+          candidate: input.candidate,
+          route: copy(input.route),
+          input: copy(input.request),
+          mode: copy(record.mode),
+          implementation: copy(record.implementation),
+          source: copy(input.source),
+          result: copy(record.result),
+          received: copy(record.received),
+          custody: copy(record.custody),
+          revision: revisionOf(revision),
+        }
+        const value: SettlementResult = { kind: 'record-legacy-return', receipt, legacyReturn }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            finishing.legacyReturns.push(legacyReturn)
+            execution.revision = revision
+          },
+        }
+      }
+      case 'record-tool-association': {
+        if (
+          record.kind !== 'tool-return' ||
+          !sameValue(record.intent, input.intent) ||
+          !sameEvidence(record.request, input.request)
+        )
+          return answer(fail(invalid('source', 'not the return of this intent')))
+        const effect = execution.effects.find(item => item.action === input.intent.action)
+        const established = finishing.effectOperations.get(input.intent.action)
+        if (
+          effect === undefined ||
+          effect.pending.kind !== 'tool' ||
+          established !== input.intent.intent ||
+          !sameValue(effect.pending.position, input.intent.position)
+        )
+          return answer(fail(invalid('intent', 'not a Tool intent of this execution')))
+        const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
+        if ('failure' in reference)
+          return answer(
+            fail(
+              reference.failure.kind === 'foreign-tenant'
+                ? denied('commitSettlement')
+                : invalid('source', 'the returned reference is malformed'),
+            ),
+          )
+        const custodian = {
+          owner: 'host',
+          work: execution.id,
+          position: input.intent.action,
+          purpose: 'call-custody',
+        }
+        const obligation: Extract<FinishObligation, { kind: 'call' }> = {
+          kind: 'call',
+          category: 'operations',
+          key: input.intent.action,
+          source: effect.pending.fixed,
+          version: evidence,
+          position: effect.pending.position,
+          disposition: {
+            kind: 'held',
+            custodian,
+            acceptance: copy(record.received),
+            retained: copy(record.custody),
+            continuation: {
+              kind: 'tool-association-retain',
+              request: copy(input.request),
+              owner: 'host',
+              custodian,
+              purpose: 'reconcile',
+            },
+          },
+          action: input.intent.action,
+          intent: input.intent.intent,
+          pending: copy(effect.pending),
+          started: copy(record.received),
+          outcome: null,
+          custodian,
+        }
+        const association: ToolAssociationRecord = {
+          operation: input.operation,
+          receipt,
+          intent: copy(input.intent),
+          request: copy(input.request),
+          source: copy(input.source),
+          association: copy(record.returned),
+          obligation,
+          priorExcluded: copy(input.priorExcluded),
+          revision: revisionOf(revision),
+        }
+        const value: SettlementResult = { kind: 'record-tool-association', receipt, association }
+        return {
+          kind: 'write',
+          value,
+          receipt,
+          apply: () => {
+            finishing.toolAssociations.push(association)
+            execution.revision = revision
+          },
+        }
+      }
+      default: {
+        const _exhaustive: never = input
+        return _exhaustive
+      }
+    }
+  }
+
   const port: AgentJournal<P> = {
     capabilities: Object.freeze({ coordination, participants }),
 
@@ -1539,6 +2172,7 @@ export function createMemoryAgentJournal<P>(
           entries: [],
           handoffs: [],
           custodyAttempts: new Map(),
+          finishing: emptyFinishing(),
           serial: 0,
           waiters: new Set(),
         }
@@ -1702,6 +2336,17 @@ export function createMemoryAgentJournal<P>(
             ),
           )
         }
+        // SPEC "条件终结": only a settling commit fixes a candidate, and a settling commit needs one.
+        if (input.finish !== null && input.state.kind !== 'settling') {
+          return answer(fail(invalid('finish', 'only a settling commit carries a candidate')))
+        }
+        if (
+          input.state.kind === 'settling' &&
+          input.finish === null &&
+          currentCandidate(execution.finishing) === undefined
+        ) {
+          return answer(fail(invalid('state', 'settling without a candidate')))
+        }
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
         // SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
@@ -1710,6 +2355,22 @@ export function createMemoryAgentJournal<P>(
         if (input.expected !== revisionOf(execution.revision)) {
           return answer(fail({ kind: 'changed' }))
         }
+        // F1: a settling commit with the candidate content establishes the candidate under this
+        // operation, unless the current candidate already has this content; other content
+        // supersedes the current candidate (SPEC "条件终结" 1). F2: the first plain settling commit
+        // after the candidate, with no before-terminal passage left open, is the proof of the
+        // author route (SPEC "条件终结" 3).
+        const finishing = execution.finishing
+        const current = currentCandidate(finishing)
+        const newCandidate =
+          input.finish !== null && (current === undefined || !sameContent(current, input.finish))
+        const route = currentRoute(finishing)
+        const proves =
+          input.state.kind === 'settling' &&
+          input.finish === null &&
+          route?.kind === 'author' &&
+          route.beforeTerminal === null &&
+          !beforeTerminalPending(input.checkpoint)
         let newEffect = false
         for (const effect of input.effects) {
           const known = execution.effects.find(existing => existing.action === effect.action)
@@ -1750,6 +2411,8 @@ export function createMemoryAgentJournal<P>(
           semanticKey('state', execution.state) === semanticKey('state', input.state) &&
           input.events.length === 0 &&
           !newEffect &&
+          !newCandidate &&
+          !proves &&
           admission === null &&
           input.caller.kind === 'none' &&
           input.handoff === null
@@ -1779,7 +2442,42 @@ export function createMemoryAgentJournal<P>(
             for (const effect of input.effects) {
               if (!execution.effects.some(existing => existing.action === effect.action)) {
                 execution.effects.push(copy(effect))
+                finishing.effectOperations.set(effect.action, input.operation)
               }
+            }
+            if (newCandidate && input.finish !== null) {
+              const candidate: FinishCandidate = {
+                candidate: input.operation,
+                ...copy(input.finish),
+                checkpoint: copy(input.checkpoint),
+              }
+              const authorRoute: FinishRoute = {
+                kind: 'author',
+                record: nextEvidence(execution, 'route', revision),
+                candidate: input.operation,
+                policy: copy(input.checkpoint.definition),
+                plan: [],
+                beforeTerminal: null,
+              }
+              if (current !== undefined && route !== undefined) {
+                finishing.supersessions.push({
+                  from: current.candidate,
+                  to: candidate.candidate,
+                  control: null,
+                  revision: revisionOf(revision),
+                  route: copy(route),
+                })
+              }
+              finishing.candidates.push(candidate)
+              finishing.routes.push(authorRoute)
+              finishing.current = candidate.candidate
+              finishing.currentRoute = authorRoute.record.record
+              finishing.currentJudgment = null
+              finishing.obligations = null
+            }
+            if (proves && route !== undefined && route.kind === 'author') {
+              const index = finishing.routes.indexOf(route)
+              finishing.routes[index] = { ...route, beforeTerminal: evidence }
             }
             if (admission !== null) execution.admissions.push(admission)
             if (caller.kind !== 'none') {
@@ -2309,6 +3007,64 @@ export function createMemoryAgentJournal<P>(
       return write('recordHandoff', input, key, prepare, undefined, dropped)
     },
 
+    prepareFinish(input) {
+      const key = semanticKey('prepareFinish', input)
+      return write('prepareFinish', input, key, () => {
+        const found = owned(input, 'prepareFinish')
+        if ('failure' in found) return answer(found)
+        const execution = found.ok
+        const original = recognized<
+          Readonly<{ receipt: CommandReceipt; obligations: DurableEvidence }>
+        >(input, key)
+        if (original !== undefined) return answer(original)
+        const authorization = input.authorization
+        // SPEC "判定次序与失败映射" 4 and 5: stale-advance before terminal, terminal before changed.
+        if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
+          return answer(fail({ kind: 'stale-advance' }))
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        const refusal = authorizationFailure(execution, authorization, 'prepareFinish')
+        if (refusal === 'changed') return answer(fail({ kind: 'changed' }))
+        if (refusal !== undefined) return answer(fail(refusal))
+        const finishing = execution.finishing
+        const candidate = finishing.candidates.find(item => item.candidate === input.candidate)
+        if (candidate === undefined)
+          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
+        if (input.expected !== revisionOf(execution.revision))
+          return answer(fail({ kind: 'changed' }))
+        const revision = execution.revision + 1
+        const evidence = nextEvidence(execution, 'obligations', revision)
+        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        const built = obligationsOf(execution, candidate, input.operation)
+        const list: FinishObligations = {
+          operation: input.operation,
+          revision: revisionOf(revision),
+          evidence,
+          candidate: candidate.candidate,
+          conclusion: candidate.conclusion,
+          failure: candidate.failure,
+          inputWatermark: candidate.inputWatermark,
+          checkpoint: journalEvidence(
+            `${execution.id}/candidate/${candidate.candidate}/checkpoint`,
+            revision,
+          ),
+          conditions: candidate.conditions,
+          items: built.items,
+          coverage: built.coverage,
+        }
+        return {
+          kind: 'write',
+          value: { receipt, obligations: evidence },
+          receipt,
+          apply: () => {
+            finishing.issued.set(evidence.record, copy(list))
+            finishing.obligations = evidence.record
+            execution.revision = revision
+          },
+        }
+      })
+    },
+
     tryFinish(input) {
       const key = semanticKey('tryFinish', input)
       return write('tryFinish', input, key, () => {
@@ -2325,35 +3081,40 @@ export function createMemoryAgentJournal<P>(
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const cancels = execution.controls.filter(
-          record =>
-            record.command.kind === 'cancel' &&
-            record.stages['intent-established']?.state === 'reached',
-        )
-        if (authorization.kind === 'advancement') {
-          // An effective cancel takes precedence over an ordinary end.
-          if (cancels.length > 0) return changed
-        } else {
-          const cancel = cancels.find(record => record.operation === authorization.control)
-          if (cancel === undefined || input.intent.conclusion.kind !== 'cancelled') {
-            return answer(fail(denied('tryFinish')))
-          }
-        }
+        const refusal = authorizationFailure(execution, authorization, 'tryFinish')
+        if (refusal === 'changed') return changed
+        if (refusal !== undefined) return answer(fail(refusal))
+        const finishing = execution.finishing
+        const candidate = currentCandidate(finishing)
+        const intent = intentOf(finishing)
+        if (candidate === undefined || intent === undefined) return changed
+        // The authorization kind must match the candidate: a cancel ends with cancelled only.
+        if ((candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel'))
+          return answer(fail(denied('tryFinish')))
         if (input.expected !== revisionOf(execution.revision)) return changed
-        if (input.intent.beforeTerminal === null)
-          return answer(
-            fail(invalid('intent.beforeTerminal', 'the terminal passage has not completed')),
-          )
+        // The list must be issued, real and of this candidate (SPEC "条件终结" result table).
+        const given = input.intent.obligations
+        if (given === null)
+          return answer(fail(invalid('intent.obligations', 'the obligations are not issued')))
+        const list = finishing.issued.get(given.record)
+        if (list === undefined || !sameEvidence(list.evidence, given))
+          return answer(fail(invalid('intent.obligations', 'not a list this Journal issued')))
+        if (list.candidate !== candidate.candidate)
+          return answer(fail(invalid('intent.obligations', 'the list of another candidate')))
+        // The intent is compared with the projection for equality only (SPEC "条件终结" 4).
+        if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
+          return changed
+        // The list is usable while the responsibility projection is unchanged (SPEC "终结责任清单").
         if (
-          execution.state.kind === 'settling' &&
-          semanticKey('finish-intent', execution.state.intent) !==
-            semanticKey('finish-intent', input.intent)
+          projectionOf(obligationsOf(execution, candidate, input.operation).items) !==
+          projectionOf(list.items)
         )
           return changed
-        const boundary = execution.watermarks.get(input.intent.inputWatermark.record)
+        const boundary = execution.watermarks.get(candidate.inputWatermark.record)
         if (boundary === undefined || boundary.to < execution.inputs.length) return changed
-        const blocked = blockedReason(execution, input.operation, authorization.kind)
-        if (blocked !== undefined) return answer(succeed(blocked))
+        const check = blockedReason(execution, input.operation, candidate)
+        if (check.kind === 'blocked') return answer(succeed(check.value))
+        if (check.kind === 'unavailable') return answer(fail(damaged(check.diagnostic)))
         // The coordinated binding checks the external participant in the same conditional commit;
         // its conflict is FinishResult.changed, not a failure (SPEC "条件终结").
         const refused = coordinated<FinishResult>('tryFinish', () => changed)
@@ -2361,7 +3122,7 @@ export function createMemoryAgentJournal<P>(
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'finish', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        const conclusion = copy(input.intent.conclusion)
+        const conclusion = copy(candidate.conclusion)
         const observations: TerminalObservation[] = execution.checkpoint.passages
           .filter(passage => passage.position === 'after_terminal')
           .map(passage => ({
@@ -2390,6 +3151,31 @@ export function createMemoryAgentJournal<P>(
               evidence,
             )
           },
+        }
+      })
+    },
+
+    commitSettlement(input) {
+      const key = semanticKey('commitSettlement', input)
+      return write('commitSettlement', input, key, () => {
+        const found = owned(input, 'commitSettlement')
+        if ('failure' in found) return answer(found)
+        const execution = found.ok
+        const original = recognized<SettlementResult>(input, key)
+        if (original !== undefined) return answer(original)
+        switch (input.kind) {
+          case 'establish-cancellation':
+          case 'migrate-cancellation':
+          case 'judge-cancellation':
+            return settleCandidate(execution, input)
+          case 'record-card-reconciliation':
+          case 'record-legacy-return':
+          case 'record-tool-association':
+            return settleCustody(execution, input)
+          default: {
+            const _exhaustive: never = input
+            return _exhaustive
+          }
         }
       })
     },

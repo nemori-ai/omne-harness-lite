@@ -473,7 +473,9 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           { kind: inputs.kind, reason: inputs.kind === 'blocked' ? inputs.reason : null },
           { kind: 'blocked', reason: 'inputs' },
         )
+        // Taking the inputs leaves settling; a new F1 at the new watermark fixes the next candidate.
         await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1-again')), 'F1 again')
         await ok(
           journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare-2')),
           'prepare',
@@ -830,7 +832,7 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
       },
     },
     {
-      name: 'judge-cancellation: an operation whose write is still pending is an unknown judgment, and tryFinish is unavailable, not blocked or ended',
+      name: 'judge-cancellation: an operation whose write is still pending is an unknown judgment that names it; tryFinish is then blocked with operations, which comes before the judgment, and does not end',
       run: async () => {
         const opened = await fixture.open('judge-unknown')
         if (!(await requireInstallation(opened))) return
@@ -850,6 +852,9 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await establish(opened, control)
         const judged = await judge(opened, control)
         assert.equal(judged.judgment.decision.kind, 'unknown')
+        if (judged.judgment.decision.kind !== 'unknown') return
+        assert.equal(judged.judgment.decision.questions[0].key, operation('held'))
+        assert.equal(judged.judgment.decision.questions[0].reason, 'original-operation-unknown')
         const snapshot = await load(opened)
         await ok(
           journal.prepareFinish(
@@ -858,12 +863,15 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'prepareFinish',
         )
         const issued = await load(opened)
-        await refused(
+        const blocked = await ok(
           journal.tryFinish(
             finishInput(opened, issued, 'end', cancelAuthorization(issued, control)),
           ),
-          'unavailable',
-          'tryFinish on an unknown judgment',
+          'tryFinish while the write is pending',
+        )
+        assert.deepEqual(
+          { kind: blocked.kind, reason: blocked.kind === 'blocked' ? blocked.reason : null },
+          { kind: 'blocked', reason: 'operations' },
         )
         assert.notEqual((await load(opened)).state.kind, 'ended')
       },
