@@ -37,9 +37,9 @@
 **四条硬线**（破了不许合并，其余一律只报告）：
 
 1. 依赖方向与环——`pnpm run lint:rules` 的方向规则，`pnpm run loop:status` 也会标出。
-2. 验收没有被实施者改动——`pnpm run acceptance:lock --base <任务基线>`。
+2. 验收没有被实施者改动——`pnpm run acceptance:lock`。
 3. 主线保持绿——合并前，在待合并的提交上计算好影响面，再运行受影响、因此需要执行的检查。检查范围包括所需的构建、类型检查、测试和可执行验收，以及共同硬线检查。交付说明记录基线、提交、范围、依据与结果。准入只有一步失败时按[增量准入](engineering/integration.md#增量准入)提供证据；波末收口的全量准入，在树与一个已通过全量准入的头相同时，按[树相同时复用准入](engineering/integration.md#树相同时复用准入)。`pnpm run check` 按影响面打印计划并执行这些检查；未选中的检查没有运行，交付说明应如实列出。
-4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`pnpm run loop:status --strict --base … --out …`）下，
+4. 传感器有数据——一项指标量不出来不等于它是好的。严格模式（`pnpm run loop:status --strict --out …`）下，
    配置里开着的传感器有哪个没数据就判失败并指名；传感器自己会不会悄悄失灵，由一份种了已知违规的小夹具每次跟着测试跑来守。
 
 **成员测试的结果缓存不属于硬线。**成员测试一步读写结果缓存。一个成员某一层的缓存命中，表示在同一台机器上、同样的输入下有过一次完整通过，这次没有再跑。
@@ -75,15 +75,17 @@ topic 翻动的线、验收耗时的预算）；其余的数仍是起步值，�
 
 | 想知道 | 跑什么 |
 |---|---|
-| 这次改动的结构与度量 | `pnpm run metrics --base <任务基线>`，摘要原样贴进交付说明 |
-| 改动碰到的代码，测试守不守得住 | `pnpm run mutation --base <任务基线>`，**只报告、不画线**：改动行上存活与无覆盖的变异体原样贴进交付说明，读数攒在主检出的 `tmp/mutation-ledger/` |
-| 各项指标的带位、这次变更里要解释的红项、哪些成员超了预算 | `pnpm run loop:status --base <任务基线>` |
-| 验收有没有被动过 | `pnpm run acceptance:lock --base <任务基线>` |
+| 这次改动的结构与度量 | `pnpm run metrics`，摘要原样贴进交付说明 |
+| 改动碰到的代码，测试守不守得住 | `pnpm run mutation`，**只报告、不画线**：改动行上存活与无覆盖的变异体原样贴进交付说明，读数攒在主检出的 `tmp/mutation-ledger/` |
+| 各项指标的带位、这次变更里要解释的红项、哪些成员超了预算 | `pnpm run loop:status` |
+| 验收有没有被动过 | `pnpm run acceptance:lock` |
 | 场景的验收覆盖声明及工具状态标签 | `pnpm run acceptance:scenarios` |
 | 只跑可执行验收 | `pnpm run acceptance`（缺省先构建；`pnpm run check` 里它排在构建之后） |
-| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `pnpm run check` 的最后一步；单独跑是 `pnpm run loop:status --strict --base <基线> --out <目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
+| 合并前三条硬线（方向与环、验收锁、传感器有数据）破没破 | `pnpm run check` 的最后一步；单独跑是 `pnpm run loop:status --strict --out <目录>`，之前要有对应候选的验收运行或影响面显式跳过账本；跳过不表示验收通过，候选绑定的限制见[工具说明](../tools/repo-toolchain/README_ZH.md#验收耗时) |
 | 在主线上留一条趋势 | 干净的主线提交上跑 `pnpm run loop:status`，它自己追加一条快照；别的提交上要留就加 `--snapshot` |
 | 提交大小、测试耗时与结构指标的走向 | `pnpm run loop:health`，出一张离线可开的页面 |
+
+表中的命令都按统一规则取基线：绑定了任务的树不给 `--base`，取任务上下文的 `targetBase`，给了不相等的 `--base` 会被拒绝；没有绑定任务时给 `--base <任务基线>`。规则见 [tools/test-runner](../tools/test-runner/README_ZH.md#测试运行)。
 
 每个入口覆盖什么、**不能声称什么**，在[验证与证据](verification.md#检查入口)；传感器各自的算法、出处与查不出的东西，在
 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md)。这里不抄第二份。
