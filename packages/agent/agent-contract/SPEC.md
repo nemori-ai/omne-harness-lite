@@ -529,6 +529,8 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 判定只读普通对象的自有数据成员。数组、其他原型的实例、带访问器或符号键的对象，以及反射时抛出异常的对象，都得到 `type`。判定不执行这些访问器。`judgeAccess` 会执行调用方注入的主体判定，不捕获它抛出的异常。除这一处外，这些函数不抛出异常。成功值是冻结的新对象。`judgeAccess` 成功值中的 `principal` 是注入的主体判定返回的值，`tenant` 是输入中的同一个 `TenantId`。判定只给出形状，不证明记录存在，也不证明来源。
 
+“[消息准入](#消息准入)”的输入另有两个结构判定：`judgeHandoffPrepare` 判定 `MessageHandoff.prepare` 输入的三个分支，`judgeInputOrigin` 判定 `InputOrigin` 的两个分支。它们同样对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。先读 `kind`：缺席得到 `missing`，不是已知分支得到 `type`。别的分支才有的成员得到 `unknown-field`，判定不按已有成员改猜分支。它们只给出形状，不证明记录存在，也不证明调用方有资格。
+
 ### 资产正文契约
 
 `agentBodyContract()` 返回资产包 `BodyContract`，类别是 `AgentDefinition`。消费者向资产包的类别注册表登记它：`createCategoryRegistry().register(agentBodyContract())`。依赖方向是 agent-contract 依赖 assets，assets 不依赖 agent-contract，注册表不导入本包，沿资产 SPEC 的[类别提供方](../../assets/assets/SPEC.md#category-provider)。登记由装配一侧执行，本包不持有注册表。
