@@ -59,6 +59,7 @@ import type {
   MigrationRecord,
   SettlementRequest,
   SettlementResult,
+  TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
 import type { TestHostRecord } from '@omne-harness/agent-contract/testing'
@@ -223,6 +224,15 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
    * unreadable: the variant answers `unavailable`.
    */
   hostRecords?: ReadonlyMap<string, TestHostRecord>
+
+  /**
+   * The read-only terminal condition of the Session participant of this coordinated binding
+   * (AD-01, PA-02) for the cancel `control`: the participant fact of a judgment input, read again
+   * by tryFinish on the cancellation route. Absent: a judgment carries no participant fact.
+   */
+  terminalParticipant?: (
+    input: Readonly<{ execution: AgentExecutionId; control: AgentOperationId }>,
+  ) => TerminalParticipantFact
 }>
 
 export type MemoryAgentJournal<P> = Readonly<{
@@ -1393,6 +1403,19 @@ export function createJournal<P>(
     )
   }
 
+  /** The coordinated participant facts of a judgment of `execution` under the cancel `control`. */
+  function participantsOf(
+    execution: Execution,
+    control: AgentOperationId,
+  ): CancellationJudgmentInput['participants'] {
+    const fact = options.terminalParticipant?.({ execution: execution.id, control })
+    return {
+      kind: 'coordinated',
+      association: journalEvidence(`${cell.namespace}/${execution.id}/coordination`, 0),
+      participants: fact === undefined ? [] : [copy(fact)],
+    }
+  }
+
   /**
    * The checks of a finish authorization that prepareFinish, tryFinish and the candidate,
    * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): an
@@ -1877,13 +1900,7 @@ export function createJournal<P>(
           readRevision: revisionOf(execution.revision),
           coverage: built.coverage,
           items: built.items,
-          // 具名缺口: the Session participant fact of a coordinated judgment is not read here; the
-          // binding names its association with no participant condition.
-          participants: {
-            kind: 'coordinated',
-            association: journalEvidence(`${cell.namespace}/${execution.id}/coordination`, 0),
-            participants: [],
-          },
+          participants: participantsOf(execution, control.operation),
         }
         let decision: CancellationJudgmentRecord['decision']
         try {

@@ -77,7 +77,11 @@ async function effective(s: Scene, control: AgentOperationId) {
  * 线"): establish the cancelled candidate, judge it with the installed test policy, prepareFinish;
  * answers the snapshot whose projection the cancel end presents.
  */
-async function windDown(s: Scene, control: AgentOperationId): Promise<Snapshot> {
+async function windDown(
+  s: Scene,
+  control: AgentOperationId,
+  decision: 'allowed' | 'blocked' = 'allowed',
+): Promise<Snapshot> {
   await effective(s, control)
   const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   /** One candidate or judgment request: `build` adds the members of its variant to the common ones. */
@@ -107,7 +111,7 @@ async function windDown(s: Scene, control: AgentOperationId): Promise<Snapshot> 
     candidate: route.candidate,
     route: route.record,
   }))
-  expect(judged).toMatchObject({ judgment: { decision: { kind: 'allowed' } } })
+  expect(judged).toMatchObject({ judgment: { decision: { kind: decision } } })
   const snapshot = await load()
   ok(
     await s.view.journal.prepareFinish({
@@ -412,18 +416,63 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ).not.toBe('ended')
   })
 
-  it('PA-02: on the cancelled Run a cancel end under a control that SE26 does not name is FinishResult.changed and writes nothing', async () => {
+  it('PA-02: on the cancelled Run the judgment under a control that SE26 does not name carries the Session fact changed, is blocked, and tryFinish does not end', async () => {
     const s = await scene('finish-cancel-other-control')
     ok(await handed(s))
     await take(s)
     ok(await cancel(s))
     ok(await attach(s, 'wind-down', s.input.runtime.grant))
-    const ready = await windDown(s, operation('agent-only-cancel'))
+    const ready = await windDown(s, operation('agent-only-cancel'), 'blocked')
+    const judgment = ready.settlement.judgments.at(-1)
+    expect(judgment?.input.participants).toMatchObject({
+      kind: 'coordinated',
+      participants: [
+        {
+          owner: 'session',
+          protocol: { name: 'pa-02-terminal-participation' },
+          condition: { kind: 'changed' },
+        },
+      ],
+    })
     const root = s.view.controls.root()
-    expect(await s.view.journal.tryFinish(cancelFinish(s, ready, 'other-end'))).toEqual({
-      ok: { kind: 'changed', revision: ready.revision },
+    expect(await s.view.journal.tryFinish(cancelFinish(s, ready, 'other-end'))).toMatchObject({
+      ok: { kind: 'blocked', reason: 'inputs' },
     })
     expect(s.view.controls.root()).toBe(root)
+  })
+
+  it('a judgment while the Run is active carries the input Session accepted and did not hand over as a blocked participant condition', async () => {
+    const s = await scene('judge-pending-input')
+    ok(await handed(s))
+    await take(s)
+    const pending = await accept(s, 'input-2')
+    const ready = await windDown(s, operation('agent-only-cancel'), 'blocked')
+    const judgment = ready.settlement.judgments.at(-1)
+    expect(judgment?.input.participants).toMatchObject({
+      kind: 'coordinated',
+      participants: [
+        {
+          owner: 'session',
+          condition: { kind: 'blocked', category: 'inputs', source: pending.source },
+        },
+      ],
+    })
+    expect(judgment?.decision).toMatchObject({
+      kind: 'blocked',
+      reasons: [{ category: 'inputs', source: pending.source }],
+    })
+  })
+
+  it('a judgment under the control SE26 names carries the Session fact ready', async () => {
+    const s = await scene('judge-session-cancel')
+    ok(await handed(s))
+    await take(s)
+    ok(await cancel(s))
+    ok(await attach(s, 'wind-down', s.input.runtime.grant))
+    const ready = await windDown(s, sessionCancelControl(s))
+    expect(ready.settlement.judgments.at(-1)?.input.participants).toMatchObject({
+      participants: [{ owner: 'session', condition: { kind: 'ready' } }],
+    })
   })
 
   it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel does not end and writes nothing', async () => {

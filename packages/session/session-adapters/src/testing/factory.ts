@@ -17,6 +17,7 @@ import {
   type ExecutionMutation,
   type Failure,
   type CommandReceipt,
+  type TerminalParticipantFact,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -70,6 +71,7 @@ import {
   HistoryFailure,
 } from './history.ts'
 import { canonical, materializeModelView, rowData } from './session-values.ts'
+import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
 
 type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
@@ -110,6 +112,16 @@ export type MemorySessionJournalOptions<P> = Readonly<{
   hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
+/**
+ * The protocol the Session participant fact of a cancellation judgment follows: the read-only
+ * completion check of session-contract PA-02 (AD-01).
+ */
+const PA02_PROTOCOL = Object.freeze({
+  owner: '@omne-harness/session-contract',
+  name: 'pa-02-terminal-participation',
+  revision: '1',
+  digest: 'memory:pa-02-terminal-participation',
+})
 function agentFailure(
   failure: SessionFailure,
   operation: ExecutionMutation<unknown>['operation'],
@@ -642,6 +654,69 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     return undefined
   }
 
+  /**
+   * The Session terminal condition of a cancelled candidate under the Agent cancel `control`
+   * (AD-01 judge-cancellation row, PA-02): `judgeCompletion` on the Run of this execution, the
+   * same read tryFinish co-checks. allowed is ready; inputs Session accepted for this Run and did
+   * not hand over block it with the SE11 evidence of the first one; a cancelled Run is ready when
+   * its SE26 names `control` and changed otherwise; another terminal is changed; a failed read is
+   * unknown.
+   */
+  function terminalParticipant(
+    cell: JournalCell<P>,
+    execution: AgentExecutionId,
+    control: string,
+  ): TerminalParticipantFact {
+    const fact = (
+      source: DurableEvidence,
+      condition: TerminalParticipantFact['condition'],
+    ): TerminalParticipantFact => ({
+      owner: 'session',
+      protocol: PA02_PROTOCOL,
+      source,
+      version: cell.state().session?.lastCommit?.source ?? source,
+      condition,
+      purpose: journalEvidence(`${cell.namespace}/participant/judge-cancellation`, 0),
+    })
+    const unread = journalEvidence(`${cell.namespace}/participant/unread`, 0)
+    try {
+      const state = cell.state().session
+      if (!state) return fact(unread, { kind: 'unknown' })
+      const read = state.lastCommit?.source ?? unread
+      const judged = judgeCompletion(state.snapshot, execution)
+      switch (judged.kind) {
+        case 'allowed':
+          return fact(read, { kind: 'ready' })
+        case 'blocked': {
+          const first = judged.pendingInputs[0]
+          const admitted = first === undefined ? undefined : state.inputs.get(first)
+          if (admitted === undefined) return fact(read, { kind: 'unknown' })
+          return fact(admitted.origin, {
+            kind: 'blocked',
+            category: 'inputs',
+            source: admitted.origin,
+          })
+        }
+        case 'cancelled':
+          return fact(judged.terminal.evidence, {
+            kind:
+              terminalControl(cell.state(), execution, judged.terminal) === control
+                ? 'ready'
+                : 'changed',
+          })
+        case 'terminal':
+          return fact(judged.terminal.evidence, { kind: 'changed' })
+        default: {
+          const _exhaustive: never = judged
+          return _exhaustive
+        }
+      }
+    } catch (error) {
+      if (error instanceof HistoryFailure) return fact(unread, { kind: 'unknown' })
+      throw error
+    }
+  }
+
   function participant(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -899,6 +974,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           qualifyJoint(cell, input, method, receipt),
         participants: ['message', 'context-transition', 'custody', 'processed'],
         grant: input => grantHoldsFor(cell.state(), input.execution, input.grant, input.method),
+        terminalParticipant: input => terminalParticipant(cell, input.execution, input.control),
         ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
         ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
       })
