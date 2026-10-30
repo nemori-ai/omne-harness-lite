@@ -32,6 +32,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(

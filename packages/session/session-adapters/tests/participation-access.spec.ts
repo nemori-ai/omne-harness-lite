@@ -74,6 +74,7 @@ async function messageScene(name: string, qualification: SceneQualification): Pr
     },
     replyAdmission: null,
     handoff: null,
+    finish: null,
   }
   return {
     s,
@@ -116,6 +117,7 @@ async function compactionScene(name: string, qualification: SceneQualification):
     effects: [],
     replyAdmission: null,
     handoff: null,
+    finish: null,
     caller: {
       kind: 'context-transition',
       value: {

@@ -63,6 +63,7 @@ it('a taken publication wins against paused final preparation and forces a fresh
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   pause.release()
@@ -129,6 +130,7 @@ it('revoked Agent qualification is checked again after a publication pause', asy
     caller: { kind: 'none' as const },
     replyAdmission: null,
     handoff: null,
+    finish: null,
   }
   const pause = s.view.controls.pauseWrite(request, 'commit'),
     writing = s.view.journal.commit(request)

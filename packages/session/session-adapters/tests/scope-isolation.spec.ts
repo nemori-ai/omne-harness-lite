@@ -78,6 +78,7 @@ it('keeps identical original execution, input and operation IDs isolated in thre
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   for (const [i, item] of views.entries())

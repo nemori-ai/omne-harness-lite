@@ -27,6 +27,7 @@ it('accepted alone cannot reconcile cancellation and the original independent st
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -163,6 +164,7 @@ it('producer confirmation and physical stop cannot discharge the selected unasso
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -281,6 +283,7 @@ it('an original completed Tool slot clears direct stopping only after the corres
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -387,6 +390,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     )
     ok(
@@ -448,6 +452,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
           caller: { kind: 'none' },
           replyAdmission: null,
           handoff: null,
+          finish: null,
         }),
       )
     ok(
@@ -480,6 +485,7 @@ it('reconciles each original same-call K independently and requires its own prop
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(

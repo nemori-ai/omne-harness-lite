@@ -23,6 +23,7 @@ export async function resultCall(
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const request = {

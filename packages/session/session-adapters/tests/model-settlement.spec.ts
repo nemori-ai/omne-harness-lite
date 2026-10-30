@@ -45,6 +45,7 @@ async function modelScene(name: string) {
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -89,6 +90,7 @@ async function modelScene(name: string) {
       caller: { kind: 'none' },
       replyAdmission: value,
       handoff: null,
+      finish: null,
     })
   }
   async function stop() {

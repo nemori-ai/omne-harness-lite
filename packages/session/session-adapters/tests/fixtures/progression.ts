@@ -97,6 +97,7 @@ export async function take(
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
 }

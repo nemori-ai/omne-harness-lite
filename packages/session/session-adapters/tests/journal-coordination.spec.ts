@@ -219,6 +219,7 @@ describe('attach follows PA-01 item 3', () => {
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     ).toMatchObject({ failure: { kind: 'stale-advance' } })
     ok(

@@ -72,6 +72,7 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
           effects: [],
           replyAdmission: null,
           handoff: null,
+          finish: null,
           caller: {
             kind: 'message',
             message: input.value.message,

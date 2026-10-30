@@ -22,6 +22,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -93,6 +94,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   receipt = ok(
@@ -109,6 +111,7 @@ it('reconciles a true background slot through a later snapshot, retaining the or
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const before = ok(await backend.transactions.readWork(access)),
@@ -149,6 +152,7 @@ it('a real background slot may predate K, but cannot replace its original propag
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -267,6 +271,7 @@ for (const variant of [
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       })
     expect(result).toHaveProperty('failure')
     expect(s.view.controls.root()).toBe(root)
