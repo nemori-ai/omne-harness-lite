@@ -482,6 +482,17 @@ describe('中间运行', () => {
     expect(resumed(plain).intermediate).toEqual({ heads: [], added: [] })
   })
 
+  it('中间运行是非准入记录（手工 pnpm run check）：同样补建它改过的成员', () => {
+    const verdict = resumed(
+      withMiddle({
+        records: [H1_LATE, middle({ admission: false })],
+        intermediateChanges: { [H2]: ['packages/a/src/y.ts'] },
+      }),
+    )
+    expect(verdict.plan.build.map(entry => entry.path)).toEqual(['packages/a', 'packages/b'])
+    expect(verdict.intermediate.heads).toEqual([H2])
+  })
+
   it('证据多一行：次数、各自的头与补进的文件', () => {
     const inputs = withMiddle({ intermediateChanges: { [H2]: ['packages/a/src/y.ts'] } })
     const text = describeResume(resumePlan(inputs), HEAD).join('\n')

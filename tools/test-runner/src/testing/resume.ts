@@ -15,7 +15,7 @@
 //   才覆盖 HEAD 相对本次基线的影响面（合并点..HEAD）。
 // - H1..HEAD 碰到全局路径（锁文件也是）时不接续，按 H1 那次的范围整次重跑；锁文件的按 importer 映射只用于普通的影响面计划。
 // - 接续运行的记录（`mode: resume`）不作 H1：接续不链式。
-// - H1 之后在同一棵工作树里留下记录的准入运行（任何 mode，含失败的接续）是「中间运行」：它们可能重建过成员，
+// - H1 之后在同一棵工作树里留下记录的运行（任何 mode，含失败的接续，准入与否都算）是「中间运行」：它们可能重建过成员，
 //   后来的提交又把改动撤回，H1..HEAD 的差异里就看不到那些成员，磁盘上的 dist 却停在中间运行那个头。
 //   所以影响面与全局路径核对用的改动集是 H1..HEAD 并上每个中间运行的「它的头..HEAD」；中间运行带未提交改动，
 //   或它的头算不出差异时整次重跑。
@@ -208,7 +208,7 @@ function prerequisites(inputs: ResumeInputs): Prerequisites {
 }
 
 /**
- * H1 之后、同一工作树里留下记录的准入运行（任何 mode）：`startedAt` 晚于 H1 记录的 `finishedAt`。
+ * H1 之后、同一工作树里留下记录的运行（任何 mode，准入与否都算：非准入的 check 同样重建 dist/）：`startedAt` 晚于 H1 记录的 `finishedAt`。
  * 按开始时间排序；`resumeFacts` 与 `resumePlan` 用同一个挑法。
  */
 export function intermediateRuns(
@@ -220,12 +220,7 @@ export function intermediateRuns(
   // 同一次运行在 tmp/admission 与 tmp/check-run 各留一份记录：按头与开始时间合并。
   const runs = new Map<string, AdmissionRun>()
   for (const run of records)
-    if (
-      run !== origin &&
-      run.admission &&
-      run.worktree === worktree &&
-      Date.parse(run.startedAt) > after
-    )
+    if (run !== origin && run.worktree === worktree && Date.parse(run.startedAt) > after)
       runs.set(`${run.head}|${run.startedAt}`, run)
   return [...runs.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt))
 }
