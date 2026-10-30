@@ -31,7 +31,16 @@ export {
 export {
   agentJournalCoreConformance,
   type AgentJournalCoreFixture,
+  type AgentJournalCoreOpenOptions,
   type AgentJournalCoreOpened,
 } from './testing-journal-core.ts'
+export {
+  createTestCancellationPolicy,
+  TEST_CANCELLATION_IMPLEMENTATION,
+  TEST_CANCELLATION_INPUT_SCHEMA,
+  TEST_CANCELLATION_POLICY,
+  testCancellationPolicyInstallation,
+  type TestHostRecord,
+} from './testing-cancellation.ts'
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts'
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts'

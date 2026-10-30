@@ -230,7 +230,7 @@ type InvocationUnresolved = Readonly<{
 | 传输层的 Promise 拒绝，不能判明开始或收场 | 有原恢复责任时为 `invocationUnresolved` | Promise 的类型不决定业务类型，不默认 `errored` |
 | 已知返回，但输出形状或位置不合法 | `errored`，分类 `bad_output` | 按 `judgeExtensionOutput` 与 `onError` |
 | 调用中只撤除登记或发布新采用 | 不据此生成任何结果 | 保留原精确采用与资源，等待原结果。真实的后续失败才按事实分类 |
-| 取消、挂接取代或实例停用使 `signal` 中止 | 按采纳优先级第一条丢弃返回 | 不改成 `controlUnavailable` 或 `errored`，不复活业务 |
+| 取消、挂接取代或实例停用使 `signal` 中止 | 按采纳优先级第一条不采纳返回。返回事实按原身份保存，取消后的落终态之前调用经 record-legacy-return 登记 | 不改成 `controlUnavailable` 或 `errored`，不复活业务 |
 
 `errored` 的最终 Conclusion 终结的是该扩展调用的判断，不证明所有能力调用已经结束，也不证明能力外的效果可撤销；宿主或对应生产者仍保存未交清的结果、费用与操作责任。不能携带回放绑定的方言保持原规则：结果未知后的 `replay` 由适配器返回 `replayInconsistent`，按 `onError` 终结判断，不再次启动命令；`invocationUnresolved` 不赋予这类方言原本没有的回放能力。`replayInconsistent` 是宿主对原方言能力的已知结论，只能在原记录与不支持的事实可核时形成，不能拿查询失败代替。方言连原执行记录、启动排除或迟到保管都不能保留时，装配在新受理前拒绝为 unsupported；已受理而不可恢复的原工作保持具名未交清与人工处理责任，不自动 `fresh` 重启，也不报告没有效果。
 

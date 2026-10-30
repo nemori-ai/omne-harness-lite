@@ -6,6 +6,7 @@ import type {
   AgentExecutionControl,
   AgentExecutionId,
   AgentClock,
+  AgentJournal,
   AgentJournalEntries,
   AgentInstanceHost,
   AgentInstanceId,
@@ -71,6 +72,18 @@ it('types the receiving services on the context with the operations of their por
   >()
   expectTypeOf<AgentExecutionControlService<string>['control']>().toEqualTypeOf<
     AgentExecutionControl<string>['control']
+  >()
+})
+
+it('declares the three finishing operations of the Journal port as abstract members', () => {
+  expectTypeOf<AgentJournalService<string>['prepareFinish']>().toEqualTypeOf<
+    AgentJournal<string>['prepareFinish']
+  >()
+  expectTypeOf<AgentJournalService<string>['tryFinish']>().toEqualTypeOf<
+    AgentJournal<string>['tryFinish']
+  >()
+  expectTypeOf<AgentJournalService<string>['commitSettlement']>().toEqualTypeOf<
+    AgentJournal<string>['commitSettlement']
   >()
 })
 
