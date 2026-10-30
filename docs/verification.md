@@ -54,9 +54,9 @@
 
 | 缓存 | 位置 | 关闭开关 | 准入时读不读 | 命中不等于 |
 |---|---|---|---|---|
-| 测试结果 | 主检出的 `tmp/test-cache/<成员>/<层>-<键>.json`，`OMNE_TEST_CACHE_HOME` 可改根目录 | `--no-cache`（`test:tier` 不认）、`OMNE_TEST_CACHE=0`、`FULL=1`；这些开关只让它不读，本次有构建时照常写 | 不读，照常写 | 这次再跑也会通过：命中只代表对当时构建出的产物跑过；不稳定的用例、外部服务、时间与没列进键的环境变量不在键里；影响面漏选的读取，键同样漏掉 |
-| 依赖图 | git 公共目录的 `omne-dep-graph/working-<指纹>.json`，只留最近 10 份 | `OMNE_DEP_GRAPH_CACHE=0`，不读也不写 | 不读，照常计算并写入 | 读到的图与当前所有输入一致：被忽略的目录只记存在与否，目录里某个被依赖的文件单独增删不改变指纹，这时读到的是旧图 |
-| 变异增量 | 主检出的 `tmp/mutation-incremental/<分支>/<成员 slug>.json`，`OMNE_MUTATION_INCREMENTAL_HOME` 可改根目录 | `--no-incremental` 或 `OMNE_MUTATION_INCREMENTAL=0`，不读也不写；`--force` 不复用，跑完照样更新 | 不适用：变异不在 `pnpm run check` 与准入里 | 复用的被杀变异体这次重新被测过：它们这次没有重跑；被变异代码调用的别处代码，以及增量指纹不追的文件，改了也不会让快照失效 |
+| 测试结果 | 主检出的 `tmp/test-cache/<成员>/<层>-<键>.json`，`OMNE_TEST_CACHE_HOME` 可改根目录 | `--no-cache`（`test:tier` 不认）、`OMNE_TEST_CACHE=0`、`FULL=1`；这些开关只让它不读，本次有构建时照常写 | 不读，照常写 | 这次再跑也会通过：命中只代表对当时构建出的产物跑过，而「是这次构建出的产物」由 stat 得来的 `dist/` 产物摘要核对，改了内容又保持字节数与 mtime 不变的文件发现不了；不稳定的用例、外部服务、时间与没列进键的环境变量不在键里；影响面漏选的读取，键同样漏掉 |
+| 依赖图 | git 公共目录的 `omne-dep-graph/working-<指纹>.json`，只留最近 10 份 | `OMNE_DEP_GRAPH_CACHE=0`，不读也不写 | 不读，照常计算并写入 | 读到的图与当前所有输入一致：被忽略的目录只记存在与否，目录里某个被依赖的文件单独增删不改变指纹，这时读到的是旧图。命中前只复核「被依赖的文件仍在」；原来解析不到、之后文件出现了，缓存可能报出旧的失败，不会放行。细节见 [repo-toolchain](../tools/repo-toolchain/README_ZH.md#依赖图与依赖规则) |
+| 变异增量 | 主检出的 `tmp/mutation-incremental/<分支>/<成员 slug>.json`，`OMNE_MUTATION_INCREMENTAL_HOME` 可改根目录 | `--no-incremental` 或 `OMNE_MUTATION_INCREMENTAL=0`，不读也不写；`--force` 不复用，跑完照样更新 | 不适用：变异不在 `pnpm run check` 与准入里 | 复用的被杀变异体这次重新被测过：它们这次没有重跑；被变异代码调用的别处代码，以及增量指纹不追的读取（包名导入、拿仓库根或成员祖先目录当锚点再拼路径读到的文件、经函数拼出的路径、相对当前目录的读取、`__dirname` 拼接），改了也不会让快照失效 |
 
 产品topic升rev后，词条出处与对象依据须逐条复核。局部迭代可用`pnpm run check:design --stale report`列待复核队列，但不是通过；交付使用默认对账。模型执行独立于导航检查，不由`pnpm run check:design`隐式运行。
 
