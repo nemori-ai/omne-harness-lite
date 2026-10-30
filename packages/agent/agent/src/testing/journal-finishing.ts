@@ -753,11 +753,11 @@ export function projectionOf(items: readonly FinishObligation[]): string {
 }
 
 /**
- * The criteria a judgment read (SPEC "取消路线上的 tryFinish"): the kind, key, target, source
- * record and disposition of each item, and the owner and condition of each participant. The
- * evidences compare by record only: the revision an evidence was read at is not a criterion, so
- * the same fact reads the same at every revision. A judgment whose criteria differ from the
- * current closure no longer applies.
+ * The criteria a judgment read (SPEC "取消路线上的 tryFinish"): the kind, key, target and
+ * disposition of each item, and the owner and condition of each participant. The evidences inside
+ * a disposition compare by owner and record only: the revision an evidence was read at is not a
+ * criterion, so the same fact reads the same at every revision. A judgment whose criteria differ
+ * from the current closure no longer applies.
  */
 export function criteriaOf(
   items: readonly FinishObligation[],
@@ -766,7 +766,7 @@ export function criteriaOf(
   return canonical(
     withoutRevisions({
       items: items
-        .map(item => [item.kind, item.key, targetOf(item), item.source.record, item.disposition])
+        .map(item => [item.kind, item.key, targetOf(item), item.disposition])
         .sort((left, right) => (canonical(left) < canonical(right) ? -1 : 1)),
       participants:
         participants.kind === 'coordinated'
