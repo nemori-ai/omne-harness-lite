@@ -3022,5 +3022,110 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.equal(required.purpose, 'reconcile')
       },
     },
+    {
+      name: 'MT-3: a Model effect intent with no result, no association and no final failure is an unknown call that continues with producer-query of that pending call, and the ordinary tryFinish is unavailable and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('model-intent-unknown')
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending } = modelIntent(opened, 'call-mt3')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const item = itemOf(issued, 'call')
+        assert.equal(item.disposition.kind, 'unknown')
+        if (item.disposition.kind !== 'unknown') return
+        assert.deepEqual(item.disposition.required, {
+          ...item.disposition.required,
+          kind: 'producer-query',
+          request: { kind: 'parameters', value: { pending } },
+          purpose: 'query',
+        })
+        await refused(
+          journal.tryFinish(finishInput(opened, issued, 'end')),
+          'unavailable',
+          'the ordinary tryFinish with an unknown call',
+        )
+        assert.deepEqual(await load(opened), issued, 'unavailable wrote nothing')
+      },
+    },
+    {
+      name: 'MT-4: of two Model effect intents only the call named by the no-reply failure of the candidate is settled on it; the other stays an unknown call and the ordinary tryFinish is unavailable',
+      run: async () => {
+        const opened = await fixture.open('final-failure-names-one-call')
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = modelIntent(opened, 'call-x')
+        const second = modelIntent(opened, 'call-y')
+        for (const [name, { pending }] of [
+          ['effect-x', first],
+          ['effect-y', second],
+        ] as const) {
+          await ok(
+            journal.commit(
+              commitAt(opened, await load(opened), name, opened.authority, {
+                effects: [{ action: pending.action, pending, authority: opened.authority }],
+              }),
+            ),
+            name,
+          )
+        }
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', noReplyContent('f1', second.call)),
+            ),
+          ),
+          'F1 of the no-reply failure of the second call',
+        )
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const calls = itemsOf(issued).filter(
+          (item): item is Extract<FinishObligation, { kind: 'call' }> => item.kind === 'call',
+        )
+        assert.equal(calls.length, 2, 'both calls are listed')
+        const named = calls.find(item => item.action === second.pending.action)
+        const other = calls.find(item => item.action === first.pending.action)
+        assert.ok(named !== undefined && other !== undefined)
+        assert.deepEqual(named.disposition, {
+          kind: 'settled',
+          completion: evidence('failure/f1'),
+        })
+        assert.equal(other.disposition.kind, 'unknown')
+        if (other.disposition.kind !== 'unknown') return
+        assert.equal(other.disposition.required.kind, 'producer-query')
+        assert.deepEqual(other.disposition.required.request, {
+          kind: 'parameters',
+          value: { pending: first.pending },
+        })
+        await refused(
+          journal.tryFinish(finishInput(opened, issued, 'end')),
+          'unavailable',
+          'the ordinary tryFinish with an unknown call',
+        )
+        assert.deepEqual(await load(opened), issued, 'unavailable wrote nothing')
+      },
+    },
   ]
 }
