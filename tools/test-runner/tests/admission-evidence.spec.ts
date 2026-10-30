@@ -260,6 +260,23 @@ describe('给了记录：只看那一份', () => {
       says: 'H1 只按影响面运行，组成的证据不是全量准入',
     },
     {
+      name: '接续了一次影响面准入，但 H1 的 fullRequested 为真',
+      change: {
+        mode: 'resume',
+        fullRequested: true,
+        base: 'e'.repeat(40),
+        resumeFrom: {
+          head: 'e'.repeat(40),
+          tree: 'e'.repeat(40),
+          failedStep: 'test',
+          mode: 'affected',
+          fullRequested: true,
+        },
+      },
+      expected: ['not-full'],
+      says: 'H1 只按影响面运行，组成的证据不是全量准入',
+    },
+    {
       name: '有失败步',
       change: {
         steps: [
