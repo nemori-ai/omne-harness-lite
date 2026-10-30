@@ -164,7 +164,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 命中的成员不执行：运行时打印 `缓存命中，<n> 条用例，来源 <账本目录>`，摘要末尾一行写命中几个成员、来源哪些账本、这次写入了几个。一个成员都不跑时，打印 `<N> 个成员全部命中缓存，没有执行（<层>）`。成员测试的账本（`ledger.json`）因此有以下形状：
 
 - `meta.members`：这次覆盖的全部成员，跑了的加命中的。
-- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）；`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写、`skipped`（通过了、但因为没有构建记录、构建之后输入变了或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。
+- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`：这次读不读缓存）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了、构建之后 dist 被改过或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。`mode` 与 `write` 互相独立，例如 `mode: read-write` 同时 `write: off`，表示这次读了缓存、但不写。
 - `members`、各成员的文件、`failures` 与 `nearTimeout`：只有这次跑了的成员。一层的成员全部命中时它们都是空的，这一层算通过。
 
 快层全部通过（含命中）才跑慢层的规则不变。`triage` 与失败归因只读 `failures`：命中的成员没有失败可重跑，跑了的失败照常单独重跑、归类。
@@ -375,7 +375,7 @@ Stryker 的其余输出只进成员日志。变异阶段不到 10 秒的成员�
   - 成员的 `vitest.config.*`。
   - 仓库根的 `vitest.tiers.mts`。
   - 成员 `tests/` 下未被 Git 忽略的非 spec 文件（夹具与测试辅助文件）。
-  - 测试经相对的 `import`、`require` 与 `new URL(<字面量>, import.meta.url)` 读到的、成员 `src/` 之外的文件（含成员内的测试辅助文件）。成员 `src/` 下的文件照样往下追，但自己不进摘要，归 Stryker 比较。`new URL` 指向目录时，列出其中未被 Git 忽略的文件；指向仓库根或成员的祖先目录时，只记存在，因为这样的写法只拿目录当锚点。
+  - 测试经相对路径的 `import`／`export … from`、`import()`、`require` 与 `new URL(<字面量>, import.meta.url)` 读到的、成员 `src/` 之外的文件（含成员内的测试辅助文件）。成员 `src/` 下的文件照样往下追，但自己不进摘要，归 Stryker 比较。`new URL` 指向目录时，列出其中未被 Git 忽略的文件；指向仓库根或成员的祖先目录时，只记存在，因为这样的写法只拿目录当锚点。
 
   任一项变了，整份快照失效，输出写明是哪一类变了。旧格式的快照同样整份失效。读不出这些内容时，这个成员这一次不复用也不写快照，照常跑全部变异体。
 - **什么时候写快照**：只在成员测量有效、没有出错时写，先写临时文件再改名。测量无效或出错时，留着上一份快照。
@@ -489,6 +489,7 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
   - 经函数拼出的路径，例如 `join(dirname(fileURLToPath(import.meta.url)), …)`。
   - 相对当前目录的读取。
   - `__dirname` 拼接。
+  - 正则认不出的导入写法：`import()` 的参数用反引号写，或参数前有注释（如 `/* @vite-ignore */`）；跨行导入名单的注释里带引号。
 - static 变异体的运行可能没有类型测试（见上文「类型测试缺席」）。读数写明次数，判定不受影响。
 
 自测：`tests/mutation*.spec.ts`。`--since` 的取值核对与改动行的交见 `tests/mutation-since.spec.ts`，入口对它的接线见 `tests/mutation-cli.spec.ts`。进度行的转发与进程数告警见 `tests/mutation-progress.spec.ts`。成员并行的分法与调度见 `tests/mutation-schedule.spec.ts`，增量的快照、范围与开关见 `tests/mutation-incremental.spec.ts`，

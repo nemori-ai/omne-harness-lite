@@ -321,7 +321,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       unavailable: expect.stringContaining('git ls-files'),
     })
   })
-  describe('测试读的成员外文件', () => {
+  describe('测试读到的外部输入', () => {
     /** 成员 m 的 spec 经相对路径导入 shared/helper.ts，它再导入 shared/deep.ts。 */
     function linked() {
       const root = repo()
@@ -336,7 +336,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       expect(
         missAfter(root, () => touch(root, 'shared/helper.ts', 'export const h = 2\n')),
       ).toEqual({
-        miss: expect.stringContaining('测试读的成员外文件'),
+        miss: expect.stringContaining('测试读到的外部输入变了'),
       })
     })
 
@@ -348,7 +348,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
     it('夹具再导入的文件变了也失效：递归追踪', () => {
       const root = linked()
       expect(missAfter(root, () => touch(root, 'shared/deep.ts', 'export const d = 2\n'))).toEqual({
-        miss: expect.stringContaining('测试读的成员外文件'),
+        miss: expect.stringContaining('测试读到的外部输入变了'),
       })
     })
 
@@ -366,7 +366,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       touch(root, 'm/tests/b.spec.ts', "import { strict } from '../test-support/assert.ts'\n")
       const change = () => touch(root, 'm/test-support/assert.ts', 'export const strict = false\n')
       expect(missAfter(root, change)).toEqual({
-        miss: expect.stringContaining('测试读的成员外文件'),
+        miss: expect.stringContaining('测试读到的外部输入变了'),
       })
       const before = of(root)
       touch(root, 'm/test-support/unused.ts', 'export const u = 2\n')
@@ -396,7 +396,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       touch(root, 'shared/deep2.ts', 'export const d = 1\n')
       touch(root, 'm/tests/b.spec.ts', "import { c } from '../src/code.ts'\n")
       expect(missAfter(root, () => touch(root, 'shared/deep2.ts', 'export const d = 2\n'))).toEqual(
-        { miss: expect.stringContaining('测试读的成员外文件') },
+        { miss: expect.stringContaining('测试读到的外部输入变了') },
       )
     })
 
@@ -455,6 +455,14 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
         const before = of(root)
         touch(root, 'other.txt', 'o2')
         touch(root, 'shared/data.json', '{"a":2}')
+        expect(of(root)).toEqual(before)
+      })
+
+      it('指向成员目录本身的只记存在：成员里 tests/ 与 src/ 之外的文件改了，指纹不变', () => {
+        const root = withUrl("new URL('../', import.meta.url)")
+        touch(root, 'm/notes.txt', 'n1')
+        const before = of(root)
+        touch(root, 'm/notes.txt', 'n2')
         expect(of(root)).toEqual(before)
       })
 

@@ -438,7 +438,10 @@ describe('工作树依赖图的缓存', () => {
     const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
     const cacheFile = (root: string) => join(cacheDir(root), entries(root)[0] ?? '')
     const targetsOf = (root: string) =>
-      (JSON.parse(readFileSync(cacheFile(root), 'utf8')) as { targets: string[] }).targets
+      Object.keys(
+        (JSON.parse(readFileSync(cacheFile(root), 'utf8')) as { targets: Record<string, string> })
+          .targets,
+      )
 
     it(
       '导入目标在被忽略的目录里，文件被删、目录还在：不命中，findings 与关闭缓存时相同',
@@ -454,6 +457,15 @@ describe('工作树依赖图的缓存', () => {
         expect(cached).toEqual(uncached)
       },
     )
+
+    it('导入目标的内容变了：不命中，重算', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = importsIgnoredDirectory()
+      workingGraph(root)
+      const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+      writeFileSync(cacheFile(root), JSON.stringify({ ...entry, graph: marker }))
+      write(root, 'packages/model/c/src/gen/r.mts', "export { c as r } from '../index.ts'\n")
+      expect(workingGraph(root)).not.toEqual(marker)
+    })
 
     it(
       '什么都不改就命中：复核不会让正常情形永远不命中',

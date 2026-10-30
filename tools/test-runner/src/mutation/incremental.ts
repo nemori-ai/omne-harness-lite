@@ -89,7 +89,7 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
     .digest('hex')
 }
 
-/** 指纹的五类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读的成员外文件。 */
+/** 指纹的五类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读到的外部输入（成员 src/ 之外的文件，含成员内的测试辅助文件）。 */
 export interface FingerprintParts {
   readonly versions: string
   readonly config: string
@@ -109,7 +109,7 @@ const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
   config: '快照之后成员的 vitest 配置变了',
   tiers: '快照之后根目录的 vitest.tiers.mts 变了',
   fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
-  external: '快照之后测试读的成员外文件变了',
+  external: '快照之后测试读到的外部输入变了（成员 src/ 之外的文件，含成员内的测试辅助文件）',
 }
 const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
 
@@ -205,7 +205,7 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
   const count = (file: string): void => {
     if (counted.has(file)) return
     if (counted.size >= EXTERNAL_LIMIT)
-      throw new Error(`测试读的成员外文件超过 ${EXTERNAL_LIMIT} 个，追踪不完`)
+      throw new Error(`测试读到的外部输入超过 ${EXTERNAL_LIMIT} 个文件，追踪不完`)
     counted.add(file)
   }
   const record = (file: string): void => {
@@ -263,7 +263,7 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
 /**
  * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
  * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要，
- * 以及测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的成员外文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 以及测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的、成员 `src/` 之外的文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
  * 这四类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
  */
 export function memberFingerprint(
