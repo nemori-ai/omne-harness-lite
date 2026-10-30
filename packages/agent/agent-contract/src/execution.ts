@@ -37,6 +37,7 @@ import type {
   InputId,
   PassageId,
 } from './identity.ts'
+import type { ExecutionSettlement, FinishObligations } from './finishing.ts'
 import type { EffectIntent, ExecutionHandoff } from './journal.ts'
 import type { AgentJournalEntry } from './receiving.ts'
 
@@ -62,6 +63,10 @@ export type ExecutionSnapshot = Readonly<{
   terminalObservations: readonly TerminalObservation[]
   /** Every unsettled handoff responsibility and every record still referenced, at this revision. */
   handoffs: readonly ExecutionHandoff[]
+  /** The issued finish obligations of the current candidate; null until prepareFinish issued them (SPEC "终结责任清单"). */
+  finishObligations: FinishObligations | null
+  /** The candidate, route, migration, judgment and custody records at this revision (SPEC "commitSettlement 的变体"). */
+  settlement: ExecutionSettlement
   output: Readonly<{ emittedThrough: string | null; acknowledgedThrough: string | null }>
   /**
    * The committed receiving entries in commit order, when the provider serves
@@ -95,10 +100,19 @@ export type TerminalObservation = Readonly<{
   implementation: Adoption
   observed: DurableEvidence | null
 }>
+/**
+ * The projection of the current finish candidate that the Journal maintains (SPEC "条件终结"). The
+ * caller never writes it: `candidate` is the first F1 operation of an ordinary candidate or the
+ * establishing operation of a cancellation candidate, `obligations` is null until prepareFinish
+ * issued the list, and `beforeTerminal` points at the real before-terminal judgment of the current
+ * route: the F2 commit on the author route, the current judgment record on the cancellation route.
+ * The `intent` of tryFinish is compared with this projection for equality only.
+ */
 export type FinishIntent = Readonly<{
+  candidate: AgentOperationId
   conclusion: AgentConclusion
   inputWatermark: DurableEvidence
-  obligations: DurableEvidence
+  obligations: DurableEvidence | null
   beforeTerminal: DurableEvidence | null
   failure: FailureCandidate | null
 }>
@@ -376,6 +390,8 @@ export type AgentAccessOperation =
   | 'read-message-handoff'
   | 'record-message-handoff'
   | 'exclude-message-handoff'
+  | 'settle'
+  | 'migrate-cancellation'
 /**
  * What one public operation acts on. The execution target is the logical execution alone, without
  * an instance; the input-entry target is the execution with the original entry operation O

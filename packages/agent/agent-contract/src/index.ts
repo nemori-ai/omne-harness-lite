@@ -41,6 +41,7 @@ export {
 export type * from './evaluation.ts'
 export type * from './execution.ts'
 export type * from './extensions.ts'
+export type * from './finishing.ts'
 export type * from './identity.ts'
 export type * from './journal.ts'
 export type * from './passages.ts'

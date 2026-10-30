@@ -86,7 +86,9 @@ export declare abstract class AgentJournalService<P> extends Service implements 
     abstract readonly recordResult: AgentJournal<P>['recordResult'];
     abstract readonly recordControl: AgentJournal<P>['recordControl'];
     abstract readonly recordHandoff: AgentJournal<P>['recordHandoff'];
+    abstract readonly prepareFinish: AgentJournal<P>['prepareFinish'];
     abstract readonly tryFinish: AgentJournal<P>['tryFinish'];
+    abstract readonly commitSettlement: AgentJournal<P>['commitSettlement'];
     abstract readonly recordTerminalObservation: AgentJournal<P>['recordTerminalObservation'];
     abstract readonly load: AgentJournal<P>['load'];
     abstract readonly inputs: AgentJournal<P>['inputs'];
