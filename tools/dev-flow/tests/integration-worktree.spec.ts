@@ -1509,79 +1509,103 @@ describe('prepare-closures', () => {
 })
 
 describe('prepare-closures with real git', () => {
-  it('builds trees from the base without an upstream, skips an unchanged rerun and redoes a changed one', () => {
-    const root = home()
-    const git = (cwd: string, ...args: string[]) => {
-      const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
-      if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`)
-      return result.stdout.trim()
-    }
-    git(root, 'init', '--quiet', '-b', 'main')
-    mkdirSync(join(root, '.meta_harness/agents'), { recursive: true })
-    writeFileSync(join(root, '.meta_harness/agents/x.md'), 'x\n')
-    writeFileSync(join(root, 'pnpm-lock.yaml'), 'lock\n')
-    git(root, 'add', '.')
-    git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'b')
-    const base = git(root, 'rev-parse', 'HEAD')
-    // Git runs for real; the programs that install and build are recorded.
-    const programs: string[] = []
-    const run: Runner = (program, args, options) => {
-      if (program === 'git') return runProgram(program, args, options)
-      programs.push([program, ...args].join(' '))
-      if (args[0] === 'install') mkdirSync(join(options.cwd, 'node_modules'), { recursive: true })
-      return { status: 0, stdout: '', stderr: '' }
-    }
-    const request = {
-      root,
-      base,
-      closures: [
-        { name: 't1', branch: 'c/t1' },
-        { name: 't2', branch: 'c/t2' },
-      ],
-      run,
-      host: linux,
-    }
-    const first = prepareClosures(request)
-    expect(first.closures.map(c => c.status)).toEqual(['created', 'created'])
-    for (const name of ['t1', 't2']) {
-      const tree = join(root, '.worktrees', name)
-      expect(git(tree, 'rev-parse', 'HEAD')).toBe(base)
-      expect(git(tree, 'branch', '--show-current')).toBe(`c/${name}`)
-      const upstream = spawnSync('git', ['rev-parse', '--abbrev-ref', `c/${name}@{upstream}`], {
-        cwd: root,
-      })
-      expect(upstream.status).not.toBe(0)
-      expect(existsSync(join(tree, 'tmp/closures', name, 'ready.json'))).toBe(true)
-    }
-    const count = programs.length
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
-    expect(programs).toHaveLength(count)
-    writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed\n')
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
-    // Real git: the same uncommitted change is the same key, another content is not.
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
-    writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed again\n')
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
-    // An untracked file in the agent source counts by its content.
-    const added = join(root, '.worktrees/t2/.meta_harness/agents/new.md')
-    writeFileSync(added, 'one\n')
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
-    writeFileSync(added, 'two\n')
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
-    // A later base is refused for a tree whose HEAD does not contain it; an older one is not.
-    writeFileSync(join(root, 'later.txt'), 'later\n')
-    git(root, 'add', 'later.txt')
-    git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'l')
-    const later = git(root, 'rev-parse', 'HEAD')
-    expect(
-      prepareClosures({ ...request, base: later }).closures.map(c => [c.status, c.base]),
-    ).toEqual([
-      ['refused', later],
-      ['refused', later],
-    ])
-    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
-  })
+  it(
+    'builds trees from the base without an upstream, skips an unchanged rerun and redoes a changed one',
+    { tags: ['slow'] },
+    () => {
+      const root = home()
+      const git = (cwd: string, ...args: string[]) => {
+        const result = spawnSync('git', args, { cwd, encoding: 'utf8' })
+        if (result.status !== 0) throw new Error(`git ${args.join(' ')}: ${result.stderr}`)
+        return result.stdout.trim()
+      }
+      git(root, 'init', '--quiet', '-b', 'main')
+      mkdirSync(join(root, '.meta_harness/agents'), { recursive: true })
+      writeFileSync(join(root, '.meta_harness/agents/x.md'), 'x\n')
+      writeFileSync(join(root, 'pnpm-lock.yaml'), 'lock\n')
+      git(root, 'add', '.')
+      git(
+        root,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@example.com',
+        'commit',
+        '--quiet',
+        '-m',
+        'b',
+      )
+      const base = git(root, 'rev-parse', 'HEAD')
+      // Git runs for real; the programs that install and build are recorded.
+      const programs: string[] = []
+      const run: Runner = (program, args, options) => {
+        if (program === 'git') return runProgram(program, args, options)
+        programs.push([program, ...args].join(' '))
+        if (args[0] === 'install') mkdirSync(join(options.cwd, 'node_modules'), { recursive: true })
+        return { status: 0, stdout: '', stderr: '' }
+      }
+      const request = {
+        root,
+        base,
+        closures: [
+          { name: 't1', branch: 'c/t1' },
+          { name: 't2', branch: 'c/t2' },
+        ],
+        run,
+        host: linux,
+      }
+      const first = prepareClosures(request)
+      expect(first.closures.map(c => c.status)).toEqual(['created', 'created'])
+      for (const name of ['t1', 't2']) {
+        const tree = join(root, '.worktrees', name)
+        expect(git(tree, 'rev-parse', 'HEAD')).toBe(base)
+        expect(git(tree, 'branch', '--show-current')).toBe(`c/${name}`)
+        const upstream = spawnSync('git', ['rev-parse', '--abbrev-ref', `c/${name}@{upstream}`], {
+          cwd: root,
+        })
+        expect(upstream.status).not.toBe(0)
+        expect(existsSync(join(tree, 'tmp/closures', name, 'ready.json'))).toBe(true)
+      }
+      const count = programs.length
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+      expect(programs).toHaveLength(count)
+      writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed\n')
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
+      // Real git: the same uncommitted change is the same key, another content is not.
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+      writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed again\n')
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
+      // An untracked file in the agent source counts by its content.
+      const added = join(root, '.worktrees/t2/.meta_harness/agents/new.md')
+      writeFileSync(added, 'one\n')
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
+      writeFileSync(added, 'two\n')
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+      // A later base is refused for a tree whose HEAD does not contain it; an older one is not.
+      writeFileSync(join(root, 'later.txt'), 'later\n')
+      git(root, 'add', 'later.txt')
+      git(
+        root,
+        '-c',
+        'user.name=t',
+        '-c',
+        'user.email=t@example.com',
+        'commit',
+        '--quiet',
+        '-m',
+        'l',
+      )
+      const later = git(root, 'rev-parse', 'HEAD')
+      expect(
+        prepareClosures({ ...request, base: later }).closures.map(c => [c.status, c.base]),
+      ).toEqual([
+        ['refused', later],
+        ['refused', later],
+      ])
+      expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+    },
+  )
 })
 
 describe('worktree-cli prepare-closures', () => {
