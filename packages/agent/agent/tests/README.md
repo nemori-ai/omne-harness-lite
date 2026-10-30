@@ -68,7 +68,7 @@
 - 第 7 条：`open` 不追加事件，第一个序号属于之后的一次提交。
 - 第 17 条：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
 
-名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。
+名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。同文件另以三个只破坏一条规则的装饰器（重试答 conflict、ended 后新 submit 被受理、过期 expected 先于 ended 答 changed）包住内存 Journal，核对套件对每个装饰器至少一例变红。
 
 `fact 10` 中名称带「临时做法，待 #558 裁定」的用例固定 `tryFinish` 的 controls 与 inputs 两项 blocked 条件、passages 不检查。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款，不再是临时做法。`journal-support.ts` 的 `finish` 先经 `takeInputs` 取走受理输入，再以普通完成终结。
 

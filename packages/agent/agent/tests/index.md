@@ -28,7 +28,7 @@
 - [factory-support.ts](factory-support.ts)：工厂测试共用的选项、调用记录与登记句柄替身
 - [fixtures.spec.ts](fixtures.spec.ts)：每个替身的编排接口
 - [memory-journal.spec.ts](memory-journal.spec.ts)：内存 Journal 的同形清单各条、绑定的 coordination 模式与 `tryFinish` blocked 的临时做法
-- [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：内存 Journal 运行 agent-contract `./testing` 的 Journal 核心一致性套件（Q1、Q1b、Q3、Q11、Q13、R2）
+- [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：内存 Journal 运行 agent-contract `./testing` 的 Journal 核心一致性套件（Q1、Q1b、Q3、Q11、Q13、R2、P、Ja、Rh）；三个只破坏一条规则的装饰器各使套件至少一例变红
 - [journal-support.ts](journal-support.ts)：测试共用的契约值与步骤
 - [module-graph.ts](module-graph.ts)：导入图遍历
 - [fixtures/](fixtures/index.md)：测试固定输入
