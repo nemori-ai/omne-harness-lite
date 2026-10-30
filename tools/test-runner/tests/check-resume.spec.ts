@@ -451,6 +451,7 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
   let h0 = ''
   let h1 = ''
   let h2 = ''
+  let firstCode: number | undefined
   const short = (sha: string) => sha.slice(0, 9)
 
   beforeAll(async () => {
@@ -459,20 +460,23 @@ describe('H1 按影响面准入时的接续', { timeout: 240_000 }, () => {
     writeFileSync(join(fa.root, 'members/a/src.ts'), 'export const v = 2\n')
     writeFileSync(join(fa.root, 'members/c/lint.txt'), 'bad\n')
     h1 = fa.commit('card: break lint')
-    const first = await check({}, fa)
-    expect(first.code).toBe(1)
-    expect(runRecord(fa.root, h1)).toMatchObject({
-      mode: 'affected',
-      fullRequested: false,
-      base: h0,
-      failedStep: 'lint:oxlint',
-    })
+    firstCode = (await check({}, fa)).code
     writeFileSync(join(fa.root, 'members/c/lint.txt'), 'good\n')
     h2 = fa.commit('card: fix lint')
   }, 240_000)
 
   afterAll(() => {
     rmSync(fa.root, { recursive: true, force: true })
+  })
+
+  it('H1 那次按影响面的准入：记录写 affected、base 是本次基线与头的合并点、没带 FULL=1', () => {
+    expect(firstCode).toBe(1)
+    expect(runRecord(fa.root, h1)).toMatchObject({
+      mode: 'affected',
+      fullRequested: false,
+      base: h0,
+      failedStep: 'lint:oxlint',
+    })
   })
 
   it('本次基线的合并点与 H1 记录的不同：拒绝，以 2 退出，写明两个合并点', async () => {
