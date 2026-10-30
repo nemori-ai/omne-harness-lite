@@ -74,7 +74,10 @@ pnpm --filter @omne-harness/repo-toolchain test
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
 - 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
-- 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
+- 工作树的图：按指纹缓存在同一目录的 `working-<指纹>.json`。指纹（`workingGraphFingerprint`）覆盖所有能改变图的输入：图的格式版本、dependency-cruiser 的版本、规则文件（原文与 require 后的结果）、`tsconfig.base.json` 连同 `extends` 链、HEAD 提交、扫描根与根 `tsconfig.base.json`、`package.json` 下未提交与未跟踪文件的路径与内容、扫描根下被忽略的路径（目录只记存在与否，单个文件记内容）、被忽略目录的判定结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。命中时不起 dependency-cruiser，读到的图与重算的逐字节相同；未命中照常算，算完先写临时名再改名，只留最近 10 份。缓存读不到、JSON 坏、格式或指纹对不上、写不进都按未命中，既不让检查失败也不让它放行。`OMNE_DEP_GRAPH_CACHE=0` 关掉（不读不写，行为与没有缓存时相同）。stderr 是终端时打一行命中与否；管道里不打，输出与没有缓存时相同。不在 git 仓库里或没有提交的树没有指纹，照常出图不缓存。做法借鉴 ub-mode 列出的 crapper 复用已有覆盖报告（`--use-existing-coverage`）与 mutator 的差分快照：先按输入指纹判没变，没变就不重算。
+- 耗时（Windows 宿主，24 核）：全仓一次 dependency-cruiser 约 14 秒，工作树指纹约 0.7 秒，`lint:deps` 命中缓存约 1.2 秒；基线命中缓存约 10 毫秒。
+
+自测：`tests/deps-graph.spec.ts`、`tests/deps-graph-cache.spec.ts`（指纹逐类失效、命中、坏文件、开关、留份）、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 - 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。按具名例外放行的组环不算硬线。
 
 自测：`tests/deps-graph.spec.ts`、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
