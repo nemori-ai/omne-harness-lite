@@ -19,7 +19,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import { createMemorySessionJournal } from '../../src/testing.ts'
-import { ok, operation, instance, checkpoint } from './common-journal.ts'
+import { ok, operation, instance, checkpoint, openInput, submitInput } from './common-journal.ts'
 
 /** Suite evidence is preselected before the actual original Journal publication. */
 export function sessionFixture(): SessionTransactionsFixture<string> {
@@ -75,6 +75,7 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
           events: [{ kind: 'message', message: input.value.message, source: input.value.source }],
           effects: [],
           replyAdmission: null,
+          handoff: null,
           caller: {
             kind: 'message',
             message: input.value.message,
@@ -117,24 +118,24 @@ export function sessionFixture(): SessionTransactionsFixture<string> {
       }
       const loaded = await view.journal.load({ ...access, execution })
       if ('failure' in loaded) {
-        const original: Parameters<AgentJournal<string>['open']>[0] = {
-          ...access,
+        const original = openInput({
+          access,
           execution,
           operation: operation(`fixture-open:${input.operation}`),
           instance: instance(),
           grant: ok(backend.controls.originalGrant({ ...access, execution })),
           initial: value,
           checkpoint: checkpoint(),
-        }
+        })
         ok(view.controls.planEvidence(original, 'open', input.receipt))
         ok(await view.journal.open(original))
       } else {
-        const original = {
-          ...access,
+        const original = submitInput(
+          access,
           execution,
-          operation: operation(`fixture-submit:${input.operation}`),
+          operation(`fixture-submit:${input.operation}`),
           value,
-        }
+        )
         ok(view.controls.planEvidence(original, 'submit', input.receipt))
         ok(await view.journal.submit(original))
       }

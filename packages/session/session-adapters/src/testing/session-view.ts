@@ -46,6 +46,8 @@ export function sessionView<P>(
         invoke(input, 'journal.recordResult', view => view.journal.recordResult(input)),
       recordControl: input =>
         invoke(input, 'journal.recordControl', view => view.journal.recordControl(input)),
+      recordHandoff: input =>
+        invoke(input, 'journal.recordHandoff', view => view.journal.recordHandoff(input)),
       tryFinish: input => invoke(input, 'journal.tryFinish', view => view.journal.tryFinish(input)),
       recordTerminalObservation: input =>
         invoke(input, 'journal.recordTerminalObservation', view =>

@@ -14,7 +14,7 @@ export async function resultCall(
       operation: operation('original-pending'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch: tool.batch },
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
       state: { kind: 'advancing' },
       events: [],
       effects: [
@@ -22,6 +22,7 @@ export async function resultCall(
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const request = {

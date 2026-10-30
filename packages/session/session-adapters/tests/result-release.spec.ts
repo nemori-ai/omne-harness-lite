@@ -183,6 +183,7 @@ it('keeps multiple Tool versions and consumptions distinct in one Session public
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const otherRequest = {
@@ -514,6 +515,7 @@ it('leaves Model confirmation unresolved through reconciliation and the existing
       effects: [{ pending, action: pending.action, authority: s.opened.authority }],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const request = {

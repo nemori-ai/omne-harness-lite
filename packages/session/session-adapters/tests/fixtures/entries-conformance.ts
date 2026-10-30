@@ -25,7 +25,7 @@ import { fail } from '@omne-harness/operation-result'
 import { canonical } from '../../src/testing/canonical.ts'
 import { sessionView } from '../../src/testing/session-view.ts'
 import { createMemorySessionJournal } from '../../src/testing.ts'
-import { ok, operation, instance, checkpoint, evidence } from './common-journal.ts'
+import { ok, operation, instance, checkpoint, evidence, openInput } from './common-journal.ts'
 
 export function entriesFixture() {
   const initialization = createMemoryInitializationSource(),
@@ -117,20 +117,22 @@ export function entriesFixture() {
       ok(backend.controls.loadHistory(seed))
       const grant = ok(backend.controls.originalGrant({ ...who, session, execution }))
       const opened = ok(
-        await provider.journal.open({
-          ...who,
-          execution,
-          operation: operation('fixture-open'),
-          instance: instance(),
-          grant,
-          initial: {
-            id: ok(decodeInputId(initial.input)),
-            content: initial.message,
-            source: initial.origin,
-            priority: 'ordinary',
-          },
-          checkpoint: checkpoint(),
-        }),
+        await provider.journal.open(
+          openInput({
+            access: who,
+            execution,
+            operation: operation('fixture-open'),
+            instance: instance(),
+            grant,
+            initial: {
+              id: ok(decodeInputId(initial.input)),
+              content: initial.message,
+              source: initial.origin,
+              priority: 'ordinary',
+            },
+            checkpoint: checkpoint(),
+          }),
+        ),
       )
       baselines.set(scopeKey(who, execution), Number(opened.receipt.revision))
       return opened.authority
@@ -174,6 +176,7 @@ export function entriesFixture() {
           effects: [],
           caller: { kind: 'none' },
           replyAdmission: null,
+          handoff: null,
         }),
       )
       // The Session hands the pending input over by interpreting the input-taken event; its

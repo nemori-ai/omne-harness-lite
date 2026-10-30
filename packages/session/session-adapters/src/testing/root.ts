@@ -143,6 +143,10 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     observed: new Map(value.observed),
     admissions: [...value.admissions],
     entries: [...value.entries],
+    // A write changes a handoff record in place (resolution, history, retirement), so each record
+    // is copied, not only the list.
+    handoffs: value.handoffs.map(item => ({ ...item })),
+    custodyAttempts: new Map(value.custodyAttempts),
   }
 }
 function cloneRoot(root: CommonRoot): CommonRoot {

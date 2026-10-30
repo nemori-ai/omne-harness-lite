@@ -9,6 +9,7 @@ import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
 import { captureHuman } from './human.ts'
 import {
+  type AcceptedInput,
   type AgentJournal,
   type AgentExecutionId,
   type DurableEvidence,
@@ -66,6 +67,20 @@ import {
 } from './history.ts'
 import { canonical, materializeModelView } from './session-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
+
+type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
+type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
+
+/** The grant of an open or attach: an open carries it in the runtime context of its invoke. */
+function grantOf<P>(input: OpenInput<P> | AttachInput<P>): DurableEvidence | null {
+  return 'runtime' in input ? input.runtime.grant : input.grant
+}
+
+/** The initial input of an open: the accepted input of the invoke entry of its acceptance. */
+function initialOf<P>(input: OpenInput<P>): AcceptedInput {
+  const entry = input.original.entry
+  return entry.kind === 'invoke' ? entry.initial : entry.value
+}
 
 export type MemorySessionJournalOptions<P> = Readonly<{
   initialization: InitializationSource
@@ -210,12 +225,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             root.agent.originals.get(input.execution)!.at(-1)!,
           )
           if ((method === 'open' || method === 'attach') && execution) {
-            const value = input as Parameters<AgentJournal<P>['open']>[0]
+            const value = input as OpenInput<P> | AttachInput<P>
             const authority = execution.attachments.at(-1)?.authority
             if (authority)
               root.agent.authorities.set(
                 `${input.execution}\0${canonical(authority)}`,
-                grantAttempt(root, input.execution, value.grant),
+                grantAttempt(root, input.execution, grantOf(value)),
               )
           }
 
@@ -344,9 +359,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             root.agent.indexedEvents.set(input.execution, execution.events.length)
           }
           if (method === 'open' || method === 'submit') {
-            const value = input as Parameters<AgentJournal<P>['open']>[0] &
-              Parameters<AgentJournal<P>['submit']>[0]
-            const admitted = method === 'open' ? value.initial : value.value
+            const admitted =
+              method === 'open'
+                ? initialOf(input as OpenInput<P>)
+                : (input as Parameters<AgentJournal<P>['submit']>[0]).value
             const root = cell.state(),
               state = root.session
             if (!state) throw new Error('admission without Session')
@@ -354,10 +370,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const attachment = execution?.attachments.at(-1)?.authority
             const prior =
               method === 'open'
-                ? value
+                ? (input as OpenInput<P>)
                 : (records.findLast(item => item.method === 'open' || item.method === 'attach')
-                    ?.input as Parameters<AgentJournal<P>['attach']>[0] | undefined)
-            const grant = prior?.grant
+                    ?.input as OpenInput<P> | AttachInput<P> | undefined)
+            const grant = prior === undefined ? undefined : grantOf(prior)
             if (!attachment || !grant) throw new Error('admission without original grant')
             const attempt = grantAttempt(cell.state(), input.execution, grant)
             const run = root.sources.runs.get(input.execution)
@@ -561,20 +577,19 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     const state = cell.state().session
     if (!state) return denied(method)
     if (method === 'open' || method === 'attach') {
-      const value = input as
-        | Parameters<AgentJournal<P>['open']>[0]
-        | Parameters<AgentJournal<P>['attach']>[0]
+      const value = input as OpenInput<P> | AttachInput<P>
       // PA-01 items 1 and 3: a conflict of the grant co-check is Agent's denied (AD-01).
-      if (!grantHoldsFor(cell.state(), input.execution, value.grant, method)) return denied(method)
+      if (!grantHoldsFor(cell.state(), input.execution, grantOf(value), method))
+        return denied(method)
       if (method === 'open') {
-        const original = value as Parameters<AgentJournal<P>['open']>[0]
+        const initial = initialOf(value as OpenInput<P>)
         const admitted = state.inputs.get(
-          String(original.initial.id) as import('@omne-harness/session-contract').InputId,
+          String(initial.id) as import('@omne-harness/session-contract').InputId,
         )
         if (
           !admitted ||
-          canonical(admitted.origin) !== canonical(original.initial.source) ||
-          canonical(admitted.message) !== canonical(original.initial.content)
+          canonical(admitted.origin) !== canonical(initial.source) ||
+          canonical(admitted.message) !== canonical(initial.content)
         )
           return denied(method)
       }
@@ -853,7 +868,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     }
     const journal: AgentJournal<P> = {
       ...view.provider.journal,
-      open: input => admitted(input, input.initial.id, () => view!.port.open(input)),
+      open: input => admitted(input, initialOf(input).id, () => view!.port.open(input)),
       submit: input => admitted(input, input.value.id, () => view!.port.submit(input)),
     }
     return {

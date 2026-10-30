@@ -2,7 +2,14 @@ import { ordinaryInput, assistantMessage } from '@omne-harness/session-contract/
 import { decodeInputId } from '@omne-harness/agent-contract'
 import { sampleStartFence } from '@omne-harness/agent-contract/testing'
 import { describe, it, expect } from 'vitest'
-import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  operationId,
+  evidence,
+  submitInput,
+} from './fixtures/common-journal.ts'
 
 describe('common Session log', () => {
   it('creates Session and opens Agent from its original grant', async () => {
@@ -18,7 +25,7 @@ describe('common Session log', () => {
 })
 
 it('can finalize after scanning an observed-only tail without a cursor-only write', async () => {
-  const { backend, view, access, execution, opened, input } = await scene('observed-tail')
+  const { backend, view, access, execution, opened, checkpoint } = await scene('observed-tail')
   const loaded = ok(await view.journal.load({ ...access, execution }))
   const batch = ok(
     await view.journal.inputs({ ...access, execution, watermark: loaded.inputWatermark }),
@@ -30,12 +37,13 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       operation: operation('take'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...input.checkpoint, inputBatch: batch.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: batch.batch.id },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: batch.batch }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   ok(
@@ -63,17 +71,14 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
     }),
   )
   const submitted = ok(
-    await view.journal.submit({
-      ...access,
-      execution,
-      operation: operation('submit-2'),
-      value: {
+    await view.journal.submit(
+      submitInput(access, execution, operation('submit-2'), {
         id: ok(decodeInputId(value.input)),
         source: value.origin,
         content: value.message,
         priority: 'ordinary',
-      },
-    }),
+      }),
+    ),
   )
   const message = assistantMessage('answer')
   ok(
@@ -83,7 +88,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       operation: operation('message-tail'),
       authority: opened.authority,
       expected: submitted.revision,
-      checkpoint: { ...input.checkpoint, inputBatch: batch.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: batch.batch.id },
       state: { kind: 'advancing' },
       events: [{ kind: 'message', message, source: evidence('message-admission') }],
       effects: [],
@@ -94,6 +99,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
         admission: evidence('message-admission'),
       },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const before = ok(await backend.transactions.readWork(access))

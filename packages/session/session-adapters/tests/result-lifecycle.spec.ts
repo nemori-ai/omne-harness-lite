@@ -243,6 +243,7 @@ it('custody does not interpret an unrelated waiting event or advance its readThr
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const request = lateRequest(s, 'custody'),

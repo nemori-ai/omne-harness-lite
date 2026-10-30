@@ -2,7 +2,7 @@ import { it, expect } from 'vitest'
 import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
 
 it('frozen cancellation first interprets the complete captured suffix, including waiting after Q disappears', async () => {
-  const { backend, view, access, execution, opened, input } = await scene('frontier', {
+  const { backend, view, access, execution, opened, checkpoint } = await scene('frontier', {
     entries: 1,
     bytes: 512,
     capacityBytes: 1024 * 1024,
@@ -16,7 +16,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
       operation: operation('taken-and-wait'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...input.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: page.batch.id },
       state: {
         kind: 'waiting',
         waits: [{ kind: 'dependency', owner: 'test', position: 'before_model' }],
@@ -31,6 +31,7 @@ it('frozen cancellation first interprets the complete captured suffix, including
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   ok(

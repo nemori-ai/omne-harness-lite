@@ -12,7 +12,7 @@ async function prepared(name: string) {
       operation: operation('original-pending'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch: tool.batch },
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
       state: { kind: 'advancing' },
       events: [],
       effects: [
@@ -20,6 +20,7 @@ async function prepared(name: string) {
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const request = {

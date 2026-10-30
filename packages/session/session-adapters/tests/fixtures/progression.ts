@@ -1,8 +1,29 @@
 import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
 import { creation, ordinaryInput, guard } from '@omne-harness/session-contract/testing'
-import { scene, ok, operation, operationId, evidence, instance } from './common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  operationId,
+  evidence,
+  instance,
+  openInput,
+} from './common-journal.ts'
 export type Scene = Awaited<ReturnType<typeof scene>>
-export async function handed(s: Scene) {
+/**
+ * Records on the Session side that the Agent accepted an input: by default the initial input
+ * under the open receipt; a submitted input under the receipt of its submit.
+ */
+export async function handed(
+  s: Scene,
+  input: Readonly<{
+    id: string
+    receipt: import('@omne-harness/agent-contract').DurableEvidence
+  }> = {
+    id: s.initial.id,
+    receipt: s.opened.receipt.evidence,
+  },
+) {
   return s.backend.transactions.commit({
     access: s.access,
     command: {
@@ -10,12 +31,12 @@ export async function handed(s: Scene) {
       input: {
         tenant: s.access.tenant,
         session: s.access.session,
-        operation: operationId('handed'),
+        operation: operationId(input.id === s.initial.id ? 'handed' : `handed-${input.id}`),
         fact: {
           kind: 'input-handover',
-          input: s.input.initial.id as unknown as import('@omne-harness/session-contract').InputId,
+          input: input.id as unknown as import('@omne-harness/session-contract').InputId,
           execution: s.execution,
-          result: { kind: 'accepted', receipt: s.opened.receipt.evidence },
+          result: { kind: 'accepted', receipt: input.receipt },
         },
       },
     },
@@ -75,6 +96,7 @@ export async function take(
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
 }
@@ -139,22 +161,23 @@ export async function start(s: Scene, name = 'second') {
     admitted = ok(
       await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
     )
-  const input = {
-    ...s.access,
+  const initial = {
+    id: ok(decodeInputId(admitted.input)),
+    content: admitted.message,
+    source: admitted.origin,
+    priority: 'ordinary' as const,
+  }
+  const input = openInput({
+    access: s.access,
     execution,
     operation: operation(`open-${name}`),
     instance: instance(`instance-${name}`),
     grant: result.ok.receipt.source,
-    initial: {
-      id: ok(decodeInputId(admitted.input)),
-      content: admitted.message,
-      source: admitted.origin,
-      priority: 'ordinary' as const,
-    },
-    checkpoint: s.input.checkpoint,
-  }
+    initial,
+    checkpoint: s.checkpoint,
+  })
   const opened = ok(await s.view.journal.open(input))
-  return { ok: { ...s, execution, input, opened } }
+  return { ok: { ...s, execution, input, opened, initial } }
 }
 export async function end(s: Scene, name = 'end') {
   const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))

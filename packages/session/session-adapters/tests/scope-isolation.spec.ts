@@ -9,7 +9,14 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { createMemorySessionJournal } from '../src/testing.ts'
 import { originalScope } from './fixtures/original-scope.ts'
-import { ok, operation, instance, checkpoint, evidence } from './fixtures/common-journal.ts'
+import {
+  ok,
+  operation,
+  instance,
+  checkpoint,
+  evidence,
+  openInput,
+} from './fixtures/common-journal.ts'
 
 it('keeps identical original execution, input and operation IDs isolated in three roots of one backend', async () => {
   const initialization = createMemoryInitializationSource(),
@@ -33,8 +40,9 @@ it('keeps identical original execution, input and operation IDs isolated in thre
     ok(backend.controls.loadHistory(seed))
     const initial = seed.command.input.creation.initial!
     const view = backend.forSession(access)
-    const input = {
-      ...access,
+    const opening = checkpoint()
+    const input = openInput({
+      access,
       execution,
       operation: operation('same-open'),
       instance: instance(),
@@ -45,10 +53,10 @@ it('keeps identical original execution, input and operation IDs isolated in thre
         source: initial.origin,
         priority: 'ordinary' as const,
       },
-      checkpoint: checkpoint(),
-    }
+      checkpoint: opening,
+    })
     const opened = ok(await view.journal.open(input))
-    views.push({ access, view, input, opened })
+    views.push({ access, view, input, opened, checkpoint: opening })
   }
   const before = views.map(item => item.view.controls.root()),
     first = views[0]!
@@ -63,12 +71,13 @@ it('keeps identical original execution, input and operation IDs isolated in thre
       operation: operation('same-commit'),
       authority: first.opened.authority,
       expected: first.opened.receipt.revision,
-      checkpoint: { ...first.input.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...first.checkpoint, inputBatch: page.batch.id },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   for (const [i, item] of views.entries())
@@ -130,8 +139,8 @@ it('a preselected evidence strategy is bound to full input and scope before actu
     ok(backend.controls.loadHistory(seed))
     const original = seed.command.input.creation.initial!,
       view = backend.forSession(access)
-    const input = {
-        ...access,
+    const fields = {
+        access,
         execution,
         operation: operation('open'),
         instance: instance(),
@@ -144,12 +153,16 @@ it('a preselected evidence strategy is bound to full input and scope before actu
         },
         checkpoint: checkpoint(),
       },
+      input = openInput(fields),
       proof = evidence('same-preselected-text')
     ok(view.controls.planEvidence(input, 'open', proof))
     expect(
       view.controls.planEvidence({ ...input, operation: operation('other') }, 'open', proof),
     ).toMatchObject({ failure: { kind: 'conflict' } })
-    const changed = { ...input, initial: { ...input.initial, source: evidence('different') } }
+    const changed = openInput({
+      ...fields,
+      initial: { ...fields.initial, source: evidence('different') },
+    })
     expect(view.controls.planEvidence(changed, 'open', proof)).toMatchObject({
       failure: { kind: 'conflict' },
     })

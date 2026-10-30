@@ -13,7 +13,7 @@ it('receives a Tool account using the actual committed Pending binding without t
       operation: operation('pending'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch: tool.batch },
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
       state: { kind: 'advancing' },
       events: [],
       effects: [
@@ -21,12 +21,13 @@ it('receives a Tool account using the actual committed Pending binding without t
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   const { material: _material, ...entry } = tool.entry,
     material = {
       kind: 'facts' as const,
-      schema: s.input.checkpoint.schema,
+      schema: s.checkpoint.schema,
       value: { kind: 'string' as const, value: 'complete Tool account fixture' },
     },
     request = {
@@ -65,11 +66,12 @@ it('live output wakes only after the joint root is published and abort releases 
       operation: operation('message'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' as const },
       events: [{ kind: 'message' as const, message, source: evidence('message') }],
       effects: [],
       replyAdmission: null,
+      handoff: null,
       caller: {
         kind: 'message' as const,
         message,

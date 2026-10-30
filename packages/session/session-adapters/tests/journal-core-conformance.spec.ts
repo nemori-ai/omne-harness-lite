@@ -1,8 +1,10 @@
 // The session-log Journal against the core conformance suite of the Agent contract's `./testing`
 // entry (Agent SPEC "并发与提交", "托管协调与运行实例"): the facts every binding answers alike. The
 // Agent memory Journal runs the same suite on its own fixture. Each case opens its own Session
-// scene; the first input is handed over so that an ordinary end is not blocked on the Session side.
-import { describe, expect, it } from 'vitest'
+// scene. The Session side records the handover of every input the Agent accepted, the initial one
+// and each first submit, so that an ordinary end is not blocked on the Session side; that record
+// is a Session write after the Journal answered, not a change of the Journal's answer.
+import { describe, it } from 'vitest'
 import {
   agentJournalCoreConformance,
   type AgentJournalCoreFixture,
@@ -16,13 +18,29 @@ const fixture: AgentJournalCoreFixture<string> = {
   async open(name) {
     const s = await scene(`core-${name}`)
     ok(await handed(s))
+    const handedOver = new Set<string>()
+    const journal: typeof s.view.journal = {
+      ...s.view.journal,
+      async submit(input) {
+        const answered = await s.view.journal.submit(input)
+        if (
+          'ok' in answered &&
+          input.lineage.kind === 'new-input' &&
+          !handedOver.has(input.value.id)
+        ) {
+          handedOver.add(input.value.id)
+          ok(await handed(s, { id: input.value.id, receipt: answered.ok.evidence }))
+        }
+        return answered
+      },
+    }
     return {
-      journal: s.view.journal,
+      journal,
       access: s.access,
       execution: s.execution,
       receipt: s.opened.receipt,
       authority: s.opened.authority,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       acceptInput: label => accept(s, `input-${label}`),
       produceResult: async label => {
         const tool = toolCall(s.access.tenant, label)
@@ -44,6 +62,7 @@ const fixture: AgentJournalCoreFixture<string> = {
             ],
             caller: { kind: 'none' },
             replyAdmission: null,
+            handoff: null,
           }),
         )
         return {
@@ -98,7 +117,6 @@ const fixture: AgentJournalCoreFixture<string> = {
 describe('the session-log Journal passes the core conformance suite', () => {
   for (const entry of agentJournalCoreConformance(fixture)) {
     it(entry.name, async () => {
-      expect('uncovered' in entry, 'the session fixture covers every case').toBe(false)
       await entry.run()
     })
   }

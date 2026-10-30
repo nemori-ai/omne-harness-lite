@@ -4,8 +4,15 @@ import {
   decodeAgentOperationId,
   decodeInputId,
   decodeStepId,
+  type AcceptedInput,
+  type Access,
   type AgentCheckpoint,
+  type AgentExecutionId,
+  type AgentInstanceId,
   type AgentJournal,
+  type AgentOperationId,
+  type DurableEvidence,
+  type OriginalInputAcceptance,
 } from '@omne-harness/agent-contract'
 import { tenantEquals } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
@@ -52,6 +59,7 @@ export function checkpoint(): AgentCheckpoint {
     guard: null,
     completedPassages: [],
     priorConditions: null,
+    currentHandoff: null,
   }
 }
 export type SceneQualification = {
@@ -144,21 +152,152 @@ export async function scene(
   const admitted = ok(
     await backend.transactions.readInput({ ...access, input: snapshot.run.first }),
   )
-  const input: Parameters<AgentJournal<string>['open']>[0] = {
-    ...access,
+  const opening = checkpoint()
+  const initial: AcceptedInput = {
+    id: ok(decodeInputId(admitted.input)),
+    content: admitted.message,
+    source: admitted.origin,
+    priority: 'ordinary',
+  }
+  const input = openInput({
+    access,
     execution,
     operation: operation('open'),
     instance: instance(),
     grant: started.receipt.source,
-    initial: {
-      id: ok(decodeInputId(admitted.input)),
-      content: admitted.message,
-      source: admitted.origin,
-      priority: 'ordinary',
-    },
-    checkpoint: checkpoint(),
-  }
+    initial,
+    checkpoint: opening,
+  })
   const opened = ok(await view.journal.open(input))
-  return { access, accessCheck, backend, view, execution, opened, input }
+  return {
+    access,
+    accessCheck,
+    backend,
+    view,
+    execution,
+    opened,
+    input,
+    initial,
+    checkpoint: opening,
+  }
+}
+
+const HANDOFF_PROVIDER = {
+  owner: 'test',
+  name: 'message-handoff',
+  revision: '1',
+  digest: 'test:message-handoff',
+}
+const DEFINITION = { owner: 'test', name: 'definition', revision: '1', digest: 'test:definition' }
+
+/**
+ * The open of one invoke, as the coordinator gives it after `MessageHandoff.prepare`: the invoke
+ * entry with the initial input and checkpoint, the external H and its prepared outcome, and the
+ * runtime context with the instance and the Session grant.
+ */
+export function openInput(
+  fields: Readonly<{
+    access: Access<string>
+    execution: AgentExecutionId
+    operation: AgentOperationId
+    instance: AgentInstanceId
+    grant: DurableEvidence | null
+    initial: AcceptedInput
+    checkpoint: AgentCheckpoint
+  }>,
+): Parameters<AgentJournal<string>['open']>[0] {
+  const { access, execution, operation: entry, initial, checkpoint: initialCheckpoint } = fields
+  const runtime = {
+    instance: fields.instance,
+    scope: evidence(`scope/${execution}`),
+    definition: DEFINITION,
+    grant: fields.grant,
+  }
+  const invoke = {
+    kind: 'invoke' as const,
+    operation: entry,
+    execution,
+    initial,
+    checkpoint: initialCheckpoint,
+  }
+  const handoff = { kind: 'input' as const, execution, entry, input: initial.id }
+  return {
+    ...access,
+    execution,
+    operation: entry,
+    original: {
+      entry: invoke,
+      handoff,
+      outcome: {
+        request: {
+          kind: 'input',
+          reference: handoff,
+          entry: invoke,
+          source: { kind: 'external-input', input: initial.id },
+        },
+        origin: { kind: 'invoke', ...runtime },
+        provider: HANDOFF_PROVIDER,
+        qualification: evidence(`qualification/${entry}`),
+        record: evidence(`record/${entry}`),
+        decision: {
+          kind: 'prepared',
+          message: initial.content,
+          admission: evidence(`admission/${entry}`),
+        },
+      },
+    },
+    runtime,
+  }
+}
+
+/** The original acceptance of a submit entry: the entry, the external H and its prepared outcome. */
+export function submitAcceptance(
+  execution: AgentExecutionId,
+  entry: AgentOperationId,
+  value: AcceptedInput,
+): OriginalInputAcceptance {
+  const submit = { kind: 'submit' as const, operation: entry, execution, value }
+  const handoff = { kind: 'input' as const, execution, entry, input: value.id }
+  return {
+    entry: submit,
+    handoff,
+    outcome: {
+      request: {
+        kind: 'input',
+        reference: handoff,
+        entry: submit,
+        source: { kind: 'external-input', input: value.id },
+      },
+      origin: {
+        kind: 'submit',
+        executionBinding: evidence(`binding/${execution}`),
+        delivery: { kind: 'durable-view' },
+      },
+      provider: HANDOFF_PROVIDER,
+      qualification: evidence(`qualification/${entry}`),
+      record: evidence(`record/${entry}`),
+      decision: {
+        kind: 'prepared',
+        message: value.content,
+        admission: evidence(`admission/${entry}`),
+      },
+    },
+  }
+}
+
+/** A first submit of `value` under `operation`: the new-input lineage of its own acceptance. */
+export function submitInput(
+  access: Access<string>,
+  execution: AgentExecutionId,
+  entry: AgentOperationId,
+  value: AcceptedInput,
+): Parameters<AgentJournal<string>['submit']>[0] {
+  return {
+    ...access,
+    execution,
+    operation: entry,
+    value,
+    lineage: { kind: 'new-input', original: submitAcceptance(execution, entry, value) },
+  }
 }
 export { evidence, operationId }

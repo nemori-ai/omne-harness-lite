@@ -1,6 +1,13 @@
 import { ordinaryInput } from '@omne-harness/session-contract/testing'
 import { it, expect } from 'vitest'
-import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  operationId,
+  evidence,
+  submitInput,
+} from './fixtures/common-journal.ts'
 import { take, cancel, start, freeze, accept, end, handed } from './fixtures/progression.ts'
 
 it('interprets an old taken before selecting a successor and never admits the same input twice', async () => {
@@ -11,7 +18,7 @@ it('interprets an old taken before selecting a successor and never admits the sa
   const successor = ok(await start(s)),
     snapshot = ok(await s.backend.transactions.readWork(s.access))
   expect(successor.execution).not.toBe(s.execution)
-  expect(successor.input.initial.id).toBe('input-2')
+  expect(successor.initial.id).toBe('input-2')
   expect(snapshot.pending).toEqual(['input-2'])
   expect(
     s.backend.controls
@@ -33,7 +40,7 @@ it('hands the original untaken input to a successor with a second actual admissi
   const s = await scene('old-untaken')
   ok(await cancel(s))
   const successor = ok(await start(s))
-  expect(successor.input.initial).toEqual(s.input.initial)
+  expect(successor.initial).toEqual(s.initial)
   const snapshot = ok(await s.backend.transactions.readWork(s.access)),
     directory = snapshot.historyIndex?.inputs.find(item => item.input === 'input-1')
   expect(directory?.members.map(item => item.execution)).toEqual([s.execution, successor.execution])
@@ -55,12 +62,13 @@ it('hands the original untaken input to a successor with a second actual admissi
       operation: operation('stale-old'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   ).toMatchObject({ failure: { kind: 'stale-advance' } })
   expect(s.view.controls.root()).toBe(root)
@@ -114,12 +122,9 @@ for (const taken of [false, true])
     ok(await freeze(s))
     const value = await accept(s, 'input-2')
     ok(
-      await s.view.journal.submit({
-        ...s.access,
-        execution: s.execution,
-        operation: operation('submit-new'),
-        value,
-      }),
+      await s.view.journal.submit(
+        submitInput(s.access, s.execution, operation('submit-new'), value),
+      ),
     )
     if (taken) await take(s, 'take-new')
     ok(await cancel(s))

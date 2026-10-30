@@ -56,12 +56,13 @@ it('a taken publication wins against paused final preparation and forces a fresh
       operation: operation('late-taken'),
       authority: s.opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...s.input.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...s.checkpoint, inputBatch: page.batch.id },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   pause.release()
@@ -121,12 +122,13 @@ it('revoked Agent qualification is checked again after a publication pause', asy
     operation: operation('paused'),
     authority: s.opened.authority,
     expected: s.opened.receipt.revision,
-    checkpoint: s.input.checkpoint,
+    checkpoint: s.checkpoint,
     state: { kind: 'advancing' as const },
     events: [],
     effects: [],
     caller: { kind: 'none' as const },
     replyAdmission: null,
+    handoff: null,
   }
   const pause = s.view.controls.pauseWrite(request, 'commit'),
     writing = s.view.journal.commit(request)

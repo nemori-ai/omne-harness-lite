@@ -5,7 +5,15 @@
 import { describe, expect, it } from 'vitest'
 import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
 import { creation, guard, operationId } from '@omne-harness/session-contract/testing'
-import { scene, ok, operation, evidence, instance } from './fixtures/common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  evidence,
+  instance,
+  openInput,
+  submitInput,
+} from './fixtures/common-journal.ts'
 import { accept, cancel, end, handed, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
@@ -63,7 +71,7 @@ async function startWithoutOpen(s: Scene) {
     await s.backend.transactions.readInput({ ...s.access, input: snapshot.run.first }),
   )
   return {
-    ...s.access,
+    access: s.access,
     execution: ok(decodeAgentExecutionId(snapshot.run.execution.execution)),
     instance: instance('instance-next'),
     grant: started.receipt.source,
@@ -73,7 +81,7 @@ async function startWithoutOpen(s: Scene) {
       source: admitted.origin,
       priority: 'ordinary' as const,
     },
-    checkpoint: s.input.checkpoint,
+    checkpoint: s.checkpoint,
   }
 }
 
@@ -127,14 +135,18 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
     // PA-03: the next Run gives a fresh execution, not yet opened on the Agent side.
     const fresh = await startWithoutOpen(s)
     expect(
-      await s.view.journal.open({ ...fresh, operation: operation('open-no-grant'), grant: null }),
+      await s.view.journal.open(
+        openInput({ ...fresh, operation: operation('open-no-grant'), grant: null }),
+      ),
     ).toMatchObject({ failure: { kind: 'denied', action: 'open' } })
     expect(
-      await s.view.journal.open({
-        ...fresh,
-        operation: operation('open-no-source'),
-        initial: { ...fresh.initial, source: null },
-      }),
+      await s.view.journal.open(
+        openInput({
+          ...fresh,
+          operation: operation('open-no-source'),
+          initial: { ...fresh.initial, source: null },
+        }),
+      ),
     ).toMatchObject({ failure: { kind: 'denied', action: 'open' } })
     expect(
       await s.view.journal.query({
@@ -144,7 +156,8 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
       }),
     ).toMatchObject({ failure: { kind: 'denied' } })
     expect(
-      ok(await s.view.journal.open({ ...fresh, operation: operation('open-fresh') })).receipt.state,
+      ok(await s.view.journal.open(openInput({ ...fresh, operation: operation('open-fresh') })))
+        .receipt.state,
     ).toBe('applied')
   })
 
@@ -152,21 +165,18 @@ describe('the binding declares coordinated and co-checks open and submit', () =>
     const s = await scene('submit-denied')
     const value = await accept(s, 'input-2')
     expect(
-      await s.view.journal.submit({
-        ...s.access,
-        execution: s.execution,
-        operation: operation('submit-no-source'),
-        value: { ...value, source: null },
-      }),
+      await s.view.journal.submit(
+        submitInput(s.access, s.execution, operation('submit-no-source'), {
+          ...value,
+          source: null,
+        }),
+      ),
     ).toMatchObject({ failure: { kind: 'denied', action: 'submit' } })
     expect(
       ok(
-        await s.view.journal.submit({
-          ...s.access,
-          execution: s.execution,
-          operation: operation('submit-sourced'),
-          value,
-        }),
+        await s.view.journal.submit(
+          submitInput(s.access, s.execution, operation('submit-sourced'), value),
+        ),
       ).state,
     ).toBe('accepted')
   })
@@ -193,7 +203,7 @@ describe('attach follows PA-01 item 3', () => {
     ok(await cancel(s))
     const work = ok(await s.backend.transactions.readWork(s.access))
     expect(work.run).toMatchObject({ kind: 'terminal', terminal: { outcome: 'cancelled' } })
-    const attached = ok(await attach(s, 'wind-down', s.input.grant))
+    const attached = ok(await attach(s, 'wind-down', s.input.runtime.grant))
     // The wind-down attachment carries no advance power (Agent SPEC "条件终结": two authorizations).
     expect(
       await s.view.journal.commit({
@@ -202,12 +212,13 @@ describe('attach follows PA-01 item 3', () => {
         operation: operation('advance-after-cancel'),
         authority: attached.authority,
         expected: attached.receipt.revision,
-        checkpoint: s.input.checkpoint,
+        checkpoint: s.checkpoint,
         state: { kind: 'advancing' },
         events: [],
         effects: [],
         caller: { kind: 'none' },
         replyAdmission: null,
+        handoff: null,
       }),
     ).toMatchObject({ failure: { kind: 'stale-advance' } })
     ok(
@@ -256,7 +267,7 @@ describe('attach follows PA-01 item 3', () => {
     expect(ok(await end(s)).kind).toBe('ended')
     const root = s.view.controls.root()
     expect(await attach(s, 'late', null)).toMatchObject({ failure: { kind: 'terminal' } })
-    expect(await attach(s, 'late-granted', s.input.grant)).toMatchObject({
+    expect(await attach(s, 'late-granted', s.input.runtime.grant)).toMatchObject({
       failure: { kind: 'terminal' },
     })
     expect(s.view.controls.root()).toBe(root)

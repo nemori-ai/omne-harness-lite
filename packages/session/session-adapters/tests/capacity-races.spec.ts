@@ -44,12 +44,13 @@ it('oversized required original material fails preparation without releasing its
       operation: operation('large-wait'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
     }),
   )
   ok(await freeze(s))
@@ -84,6 +85,7 @@ it('Session final publication wins before a paused business taken and the old gr
     effects: [],
     caller: { kind: 'none' as const },
     replyAdmission: null,
+    handoff: null,
   }
   const pause = s.view.controls.pauseWrite(request, 'commit'),
     write = s.view.journal.commit(request)
