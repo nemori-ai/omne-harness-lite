@@ -192,7 +192,7 @@ runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时
 
 每个带操作身份的写操作按下列次序判定，返回第一个成立的结果。错误名称是 Failure 的种类，本节不新增 Failure 成员。各操作的精确映射见“[逐操作及输入分类](#逐操作及输入分类)”。
 
-1. 先校验请求形状、租户与本次操作的资格。跨租户或当前资格拒绝返回 denied，核验不可用返回 unavailable。两者都不披露原对象或原操作是否存在。denied 的 action：跨租户的拒绝为本次操作名，当前资格的拒绝为所缺资格的名称（如 `settle`、`reconcile`）。
+1. 先校验请求形状、租户与本次操作的资格。跨租户或当前资格拒绝返回 denied，核验不可用返回 unavailable。两者都不披露原对象或原操作是否存在。denied 的 action：跨租户的拒绝为本次操作名；缺结算资格（`settle`、`migrate-cancellation` 或 `reconcile`）的拒绝为所缺资格的名称。其余资格拒绝的 action 尚未写定，见 [U-32](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。
 2. 通过核验后，原 operation 配同语义输入认回原结果，配不同语义输入返回 conflict。原操作结果未定时沿原 operation 查询，不以新的生命周期检查代替它的历史结果。当前资格拒绝先于历史结果认回；认回原结果不恢复旧推进权。
 3. 只有本契约明确允许的同事实认回进入“[原操作认回与恢复](#原操作认回与恢复)”的规则。不同 operation 的普通 commit、attach、control 与 tryFinish 不因内容相似而认回。输入身份、确认前缀、既有观察与控制阶段事实各保留自己的等值约束。
 4. 对真正的新、需要推进授权的写入，已 superseded 的 Authority 返回 stale-advance。带推进授权的 prepareFinish 也属于这类写入。这项判定先于 ended 与 expected 过期。它不适用于合法的保管或观察操作。
@@ -529,7 +529,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 判定只读普通对象的自有数据成员。数组、其他原型的实例、带访问器或符号键的对象，以及反射时抛出异常的对象，都得到 `type`。判定不执行这些访问器。`judgeAccess` 会执行调用方注入的主体判定，不捕获它抛出的异常。除这一处外，这些函数不抛出异常。成功值是冻结的新对象。`judgeAccess` 成功值中的 `principal` 是注入的主体判定返回的值，`tenant` 是输入中的同一个 `TenantId`。判定只给出形状，不证明记录存在，也不证明来源。
 
-“[消息准入](#消息准入)”的输入另有两个结构判定：`judgeHandoffPrepare` 判定 `MessageHandoff.prepare` 输入的三个分支，`judgeInputOrigin` 判定 `InputOrigin` 的两个分支。三个分支各自的成员由“[消息准入](#消息准入)”规定，本节不再列举。它们同样对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`，并遵守上一段的读取规则：只读自有数据成员，不执行访问器，不抛出异常。`judgeHandoffPrepare` 把这条规则递归用于每个内层值：内层值中的函数、访问器、符号键、其他原型的实例、数组空位或包含自身的值都得到 `type`。field 是从输入根起以点连接的路径（如 `request.reference.operation`），数组元素以下标为一段。先读 `kind`：缺席得到 `missing`，不是已知分支得到 `type`。别的分支才有的成员得到 `unknown-field`，判定不按已有成员改猜分支。外部请求（invoke 与 submit 分支的 `InputHandoff`）在各成员与封闭字段检查通过之后，另核三部分是否一致：`reference.execution` 等于 `entry` 的 execution，`reference.entry` 等于 `entry` 的原入口操作，`reference.input` 与 `source.input` 都等于 `entry` 受理的输入的 InputId。按这个次序检查，不一致时在不一致的字段上得到 `identity`。它们只给出形状，不证明记录存在，也不证明调用方有资格。
+“[消息准入](#消息准入)”的输入另有两个结构判定：`judgeHandoffPrepare` 判定 `MessageHandoff.prepare` 输入的三个分支，`judgeInputOrigin` 判定 `InputOrigin` 的两个分支。三个分支各自的成员由“[消息准入](#消息准入)”规定，本节不再列举。它们同样对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`，并遵守上一段的读取规则：只读自有数据成员，不执行访问器，不抛出异常。`judgeHandoffPrepare` 把这条规则递归用于每个内层值：内层值中的函数、访问器、符号键、其他原型的实例、数组空位或包含自身的值都得到 `type`，field 是该值从输入根起以点连接的路径（如 `request.reference.operation`），数组元素以下标为一段。交给消息判定的成员（Message）判定失败时，field 是该成员名，不细到 Message 内部。先读 `kind`：缺席得到 `missing`，不是已知分支得到 `type`。别的分支才有的成员得到 `unknown-field`，判定不按已有成员改猜分支。外部请求（invoke 与 submit 分支的 `InputHandoff`）在各成员与封闭字段检查通过之后，另核三部分是否一致：`reference.execution` 等于 `entry` 的 execution，`reference.entry` 等于 `entry` 的原入口操作，`reference.input` 与 `source.input` 都等于 `entry` 受理的输入的 InputId。按这个次序检查，不一致时在不一致的字段上得到 `identity`。它们只给出形状，不证明记录存在，也不证明调用方有资格。
 
 ### 资产正文契约
 
@@ -1458,7 +1458,7 @@ Journal 在清单中保存每项的完成或未定结果。`reconcile` 返回的
 | record-legacy-return | 原 PassageId、原 candidate 与 route、原 invoke 的固定请求依据、原执行宿主保存的返回记录依据 | 核验该调用在取消围栏前已开始，追加真实迟到返回及其材料保管引用。保留旧 progress，不采纳输出 | receipt、完整的 LegacyInvocationReturn，内容见“[取消判断与路线](#取消判断与路线)” |
 | record-tool-association | 原 Tool intent 键、固定原请求依据、原宿主的不可变返回 source、priorExcluded 或 null | 只读取并核验 accepted 或 commit-unknown 的原返回，保存既有引用及来源，合入原 call 责任。没有 ProducedResult 也可登记 | receipt、完整 ToolAssociationRecord，含原 Tool 返回和本次固定的责任投影 |
 
-宿主保管的卡片对账与旧调用返回记录写明原租户与原 execution。记录属于另一租户时返回 denied，action 为 commitSettlement，在比较原责任之前处理；属于本租户的另一个 execution 时返回 invalid，field 为 original（record-card-reconciliation）或 source（record-legacy-return）。record-legacy-return 的 request 必须是本 execution 该 Passage 的输入记录，否则返回 invalid，field 为 request。Tool 的返回记录属于另一租户时，在比较 intent 与 request 之前返回 denied，action 为 commitSettlement。
+宿主保管的卡片对账与旧调用返回记录写明原租户与原 execution。记录属于另一租户时返回 denied，action 为 commitSettlement，在比较原责任之前处理；属于本租户的另一个 execution 时返回 invalid，field 为 original（record-card-reconciliation）或 source（record-legacy-return）。record-legacy-return 的 request 必须是本 execution 该 Passage 的输入记录，否则返回 invalid，field 为 request。Tool 的返回记录属于另一租户时，三个保管变体都在比较记录种类、intent 与 request 之前返回 denied，action 为 commitSettlement。
 
 候选、迁移与判断变体不接受调用者给出的判断结果、beforeTerminal 或迁移进度。source 不可读取时返回 unavailable。establish-cancellation 从当前权威读取构造候选，不给调用者任意业务快照的写口；需要新候选时，新建立请求必须指出真实的当前前驱 candidate。establish-cancellation 不能取代“旧 cancelled 候选加作者 route”的情形，该情形只能 migrate-cancellation。judge-cancellation 成功回执的 state 为 applied，表示判断记录已保存，不表示判定为 allowed。保管变体使用当前 reconcile 资格，不用取消授权，不要求旧 advance，允许合法 ended 后调用，合并原事实而不带 expected 的整快照替换。它们的回执只表明各自事实已保存，不能据此推断 execution 已 ended。record-card-reconciliation 只认回旧 lookup、read 与 invalidate，不调用 present，不生成人的答复，不运行扩展；未知结果只能登记为原责任的 unknown。record-legacy-return 不接受调用者直接上传新的 Conclusion；返回源不能验证时保持未定，恢复不能重调作者补造它。生产者、结果、控制和观察仍走已有专用方法。
 
