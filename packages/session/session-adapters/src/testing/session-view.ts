@@ -31,6 +31,7 @@ export function sessionView<P>(
   return {
     journal: {
       capabilities: {
+        coordination: 'coordinated',
         participants: new Set(['message', 'context-transition', 'custody', 'processed']),
       },
       open: input => invoke(input, 'journal.open', view => view.journal.open(input)),

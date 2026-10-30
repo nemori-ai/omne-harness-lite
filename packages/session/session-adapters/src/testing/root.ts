@@ -132,6 +132,8 @@ function copyExecution(value: MemoryExecution): MemoryExecution {
     ...value,
     attachments: value.attachments.map(item => ({ ...item })),
     inputs: [...value.inputs],
+    inputRevisions: new Map(value.inputRevisions),
+    resultRevisions: new Map(value.resultRevisions),
     events: [...value.events],
     controls: [...value.controls],
     results: [...value.results],
@@ -300,7 +302,14 @@ export function createCell<P>(tenant: TenantId, session: SessionId, hooks: Journ
     }
     try {
       const result = action()
-      if ('failure' in result && result.failure.kind !== 'commit-unknown') return result
+      // A persistent rejection (Agent SPEC "查询的四种结论与持久拒绝") answers conflict and still
+      // publishes its audit; every other failure discards the draft.
+      const audited =
+        'failure' in result &&
+        result.failure.kind === 'conflict' &&
+        draft.agent.operations.get(JSON.stringify([text.value, input.execution, input.operation]))
+          ?.kind === 'rejected'
+      if ('failure' in result && result.failure.kind !== 'commit-unknown' && !audited) return result
       const final = authorize(input, method)
       if (final) return fail(final)
       if (dirty && gate !== null)

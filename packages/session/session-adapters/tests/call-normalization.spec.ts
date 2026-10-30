@@ -53,7 +53,10 @@ it('registers multiple producers with their original purposes and keeps event se
       replyAdmission: null,
     }),
   )
-  for (let i = 0; i < 3; i++)
+  // The first head commit moves the checkpoint back and writes; the next two establish no new
+  // fact, so they recognize the current revision without a write (Agent SPEC "执行修订").
+  let written = receipt
+  for (let i = 0; i < 3; i++) {
     receipt = ok(
       await s.view.journal.commit({
         ...s.access,
@@ -69,6 +72,9 @@ it('registers multiple producers with their original purposes and keeps event se
         replyAdmission: null,
       }),
     )
+    if (i === 0) written = receipt
+    else expect(receipt.revision).toBe(written.revision)
+  }
   ok(
     await s.backend.controls.interpret({
       ...s.access,
@@ -83,9 +89,9 @@ it('registers multiple producers with their original purposes and keeps event se
     'extension',
   ])
   expect(snapshot.run.kind === 'active' && snapshot.run.execution).toMatchObject({
-    revision: '5',
+    revision: '3',
     readThrough: '1',
-    evidence: receipt.evidence,
+    evidence: written.evidence,
   })
   const rows = s.backend.controls
     .entriesOf(s.access.tenant, s.access.session)

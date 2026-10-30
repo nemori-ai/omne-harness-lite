@@ -7,7 +7,18 @@ import {
   agentJournalCoreConformance,
   type AgentJournalCoreFixture,
 } from '@omne-harness/agent-contract/testing'
-import { access, checkpoint, evidence, instance, ok, open, operation } from './journal-support.ts'
+import {
+  acceptedInput,
+  access,
+  checkpoint,
+  consumption,
+  evidence,
+  instance,
+  ok,
+  open,
+  operation,
+  producedResult,
+} from './journal-support.ts'
 
 const fixture: AgentJournalCoreFixture<string> = {
   async open(name) {
@@ -20,6 +31,16 @@ const fixture: AgentJournalCoreFixture<string> = {
       receipt: opened.receipt,
       authority: opened.authority,
       checkpoint: checkpoint(),
+      acceptInput: async label => acceptedInput(`input-${label}`),
+      produceResult: async label => {
+        const result = producedResult(label)
+        const owned = consumption(`consumption-${label}`)
+        return {
+          result,
+          consumption: owned,
+          transfer: { kind: 'processed', result, consumption: owned, completion: evidence('done') },
+        }
+      },
       faultNext: (method, outcome) => memory.failNext(method, { kind: 'commit-unknown', outcome }),
       takeover: async label =>
         ok(

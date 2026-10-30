@@ -342,7 +342,8 @@ it('projects late custody release on an ended execution and its original Run aft
   const s = await resultCall('release-old-run')
   ok(await s.view.journal.recordResult(s.request))
   await take(s)
-  expect(await end(s)).toMatchObject({ failure: { kind: 'changed' } })
+  // The Session participant's conflict is FinishResult.changed (Agent SPEC "条件终结", PA-02).
+  expect(await end(s)).toMatchObject({ ok: { kind: 'changed' } })
   expect(ok(await s.view.journal.load(s.request)).state.kind).not.toBe('ended')
   ok(
     await s.backend.controls.interpret({

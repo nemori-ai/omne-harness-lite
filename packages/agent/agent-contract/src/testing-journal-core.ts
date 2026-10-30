@@ -10,7 +10,6 @@
 // "判定次序与失败映射" for ended and superseded attachments (Q11).
 import assert from 'node:assert/strict'
 import { judgeMessage, type Message } from '@omne-harness/message'
-import { decodeModelCallId } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts'
 import type {
@@ -22,12 +21,12 @@ import type {
 } from './execution.ts'
 import {
   decodeAgentOperationId,
-  decodeConsumptionId,
   decodeInputId,
   type Access,
   type AgentExecutionId,
   type AgentOperationId,
   type Authority,
+  type ConsumptionId,
   type DurableEvidence,
 } from './identity.ts'
 import type { AgentJournal, JournalCommit } from './journal.ts'
@@ -42,6 +41,24 @@ export interface AgentJournalCoreOpened<P> {
   readonly authority: Authority
   /** The checkpoint the execution was opened with; the suite derives every commit from it. */
   readonly checkpoint: AgentCheckpoint
+  /**
+   * An input the coordinator side has accepted for this execution, ready for `submit` under the
+   * fixture's binding: with the coordinator's source on a coordinated binding, null on a
+   * standalone one. `name` distinguishes the inputs of one case.
+   */
+  readonly acceptInput: (name: string) => Promise<AcceptedInput>
+  /**
+   * A result the provider accepts for `recordResult` on this execution, with a transfer that
+   * establishes custody or completion: the provider may require the producing call to be known
+   * to the execution first. Optional; the recordResult case is uncovered without it.
+   */
+  readonly produceResult?: (name: string) => Promise<
+    Readonly<{
+      result: ProducedResult
+      consumption: ConsumptionId
+      transfer: Parameters<AgentJournal<P>['recordResult']>[0]['transfer']
+    }>
+  >
   /** Scripts the next write of `method` to answer commit-unknown with the given outcome. Optional. */
   readonly faultNext?: (
     method: 'recordControl' | 'submit',
@@ -88,15 +105,6 @@ function input(id: string, text = id): AcceptedInput {
     content: message(text, id.padStart(2, '0').slice(-2)),
     source: null,
     priority: 'ordinary',
-  }
-}
-
-function result(call: string): ProducedResult {
-  return {
-    producer: { kind: 'model', call: identity(decodeModelCallId(`mcall_core-${call}`), call) },
-    version: 'v1',
-    delivery: null,
-    source: evidence(`result/${call}`),
   }
 }
 
@@ -294,7 +302,7 @@ export function agentJournalCoreConformance<P>(
           ...opened.access,
           execution: opened.execution,
           operation: operation('submit'),
-          value: input('2'),
+          value: await opened.acceptInput('2'),
         }
         assert.deepEqual(await advances(opened, () => journal.submit(submit)), [1, 0], 'submit')
         const control = cancelControl(opened)
@@ -310,26 +318,6 @@ export function agentJournalCoreConformance<P>(
           await advances(opened, () => journal.acknowledge(acknowledge)),
           [1, 0],
           'acknowledge',
-        )
-        const produced = result('r1')
-        const record = {
-          ...opened.access,
-          execution: opened.execution,
-          operation: operation('result'),
-          result: produced,
-          consumption: identity(decodeConsumptionId('core-k1'), 'k1'),
-          transfer: {
-            kind: 'processed' as const,
-            result: produced,
-            consumption: identity(decodeConsumptionId('core-k1'), 'k1'),
-            completion: evidence('done'),
-          },
-          release: { kind: 'pending' as const },
-        }
-        assert.deepEqual(
-          await advances(opened, () => journal.recordResult(record)),
-          [1, 0],
-          'recordResult',
         )
         const intent = stage(opened, 'intent', control.operation, 'intent-established')
         assert.deepEqual(
@@ -368,7 +356,7 @@ export function agentJournalCoreConformance<P>(
       run: async () => {
         const opened = await fixture.open('q13-submit')
         const { journal } = opened
-        const value = input('7')
+        const value = await opened.acceptInput('7')
         const first = await ok(
           journal.submit({
             ...opened.access,
@@ -567,7 +555,7 @@ export function agentJournalCoreConformance<P>(
             ...opened.access,
             execution: opened.execution,
             operation: operation('dropped'),
-            value: input('3'),
+            value: await opened.acceptInput('3'),
           }),
           'commit-unknown',
           'the dropped write',
@@ -647,7 +635,7 @@ export function agentJournalCoreConformance<P>(
             ...opened.access,
             execution: opened.execution,
             operation: operation('submit-after-end'),
-            value: input('9'),
+            value: await opened.acceptInput('9'),
           }),
           'terminal',
           'submit',
@@ -710,7 +698,7 @@ export function agentJournalCoreConformance<P>(
       },
     },
     {
-      name: 'Q13: acknowledge of a through within the acknowledged prefix, and recordResult without a new responsibility, recognize without a new revision',
+      name: 'Q13: acknowledge of a through within the acknowledged prefix recognizes the prefix without a new revision',
       run: async () => {
         const opened = await fixture.open('q13-ack-result')
         const { journal } = opened
@@ -745,29 +733,34 @@ export function agentJournalCoreConformance<P>(
           kind: 'committed',
           receipt: lower,
         })
-
-        const produced = result('r2')
-        const consumption = identity(decodeConsumptionId('core-k2'), 'k2')
+      },
+    },
+    {
+      name: 'Q3 and Q13: recordResult advances one revision for a new responsibility fact; the same operation, and a new operation without a new fact, recognize it without another',
+      run: async () => {
+        const opened = await fixture.open('q13-result')
+        if (opened.produceResult === undefined) {
+          await uncoveredCase('', 'produceResult control').run()
+          return
+        }
+        const { journal } = opened
+        const produced = await opened.produceResult('r1')
         const record = (name: string) =>
           journal.recordResult({
             ...opened.access,
             execution: opened.execution,
             operation: operation(name),
-            result: produced,
-            consumption,
-            transfer: {
-              kind: 'processed',
-              result: produced,
-              consumption,
-              completion: evidence('done'),
-            },
+            result: produced.result,
+            consumption: produced.consumption,
+            transfer: produced.transfer,
             release: { kind: 'pending' },
           })
+        assert.deepEqual(await advances(opened, () => record('result-a')), [1, 0], 'recordResult')
         const recorded = await ok(record('result-a'), 'the responsibility')
         const after = await load(opened)
         const again = await ok(record('result-b'), 'the same responsibility under a new operation')
         assert.equal(again.operation, operation('result-b'))
-        assert.equal(again.revision, recorded.revision)
+        assert.equal(again.revision, recorded.revision, 'at the revision of the responsibility')
         assert.deepEqual(await load(opened), after, 'no new revision')
         assert.deepEqual(await query(opened, operation('result-b')), {
           kind: 'committed',

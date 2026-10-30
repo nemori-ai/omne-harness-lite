@@ -18,11 +18,13 @@ import type {
   DurableEvidence,
   ExecutionControl,
   ExecutionMutation,
+  ExecutionRevision,
   ExecutionSnapshot,
   ExecutionState,
   Failure,
   FinishResult,
   InputBatchId,
+  InputId,
   ModelReplyAdmission,
   PendingCall,
   ReplyAdmissionPage,
@@ -139,9 +141,14 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
 
   participants?: Iterable<JointCommitKind>
 
-  grant?: Qualification<P, Readonly<{ execution: AgentExecutionId; grant: DurableEvidence }>>
-
-  requireGrant?: boolean
+  /**
+   * The Session co-check of the grant of `open` or `attach` (PA-01 items 1 and 3), run in the same
+   * write. This binding is coordinated: a null grant, or a grant the check refuses, is denied.
+   */
+  grant?: Qualification<
+    P,
+    Readonly<{ execution: AgentExecutionId; grant: DurableEvidence; method: 'open' | 'attach' }>
+  >
 
   custodian?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
 
@@ -203,6 +210,8 @@ type Attachment = {
   authority: Authority
   status: 'active' | 'detached' | 'superseded'
   handoff: DurableEvidence | null
+  /** The revision at which the handoff was established, for a later detach that recognizes it. */
+  handoffRevision: number
 }
 
 type Range = Readonly<{ from: number; to: number }>
@@ -215,12 +224,18 @@ export type MemoryExecution = {
   checkpoint: AgentCheckpoint
   attachments: Attachment[]
   inputs: AcceptedInput[]
+  /** The revision at which each input was accepted, for a later submit that recognizes it. */
+  inputRevisions: Map<InputId, number>
 
   events: AgentEvent[]
   retainedFrom: number
   acknowledged: number
+  /** The revision at which the acknowledged prefix last advanced. */
+  acknowledgedAt: number
   controls: ControlRecord[]
   results: ResultResponsibility[]
+  /** The revision at which each result responsibility was last established, by result and consumption. */
+  resultRevisions: Map<string, number>
   effects: EffectIntent[]
   observations: TerminalObservation[]
 
@@ -241,6 +256,14 @@ type Committed = Readonly<{
   receipt: CommandReceipt
 }>
 type Excluded = Readonly<{ kind: 'excluded'; key: string; evidence: DurableEvidence }>
+/** The persistent rejection of a recordControl (Agent SPEC "查询的四种结论与持久拒绝"). */
+type Rejected = Readonly<{
+  kind: 'rejected'
+  key: string
+  failure: Extract<Failure, { kind: 'conflict' }>
+  audit: DurableEvidence
+  revision: ExecutionRevision
+}>
 type Pending = Readonly<{
   kind: 'pending'
   key: string
@@ -249,12 +272,22 @@ type Pending = Readonly<{
   operation: AgentOperationId
   run: () => void
 }>
-export type OperationRecord = Committed | Excluded | Pending
+export type OperationRecord = Committed | Rejected | Excluded | Pending
 
 export type Attempt<R> =
   | Readonly<{ kind: 'answer'; value: Outcome<R, Failure> }>
   | Readonly<{ kind: 'unknown' }>
   | Readonly<{ kind: 'write'; value: R; receipt: CommandReceipt; apply: () => void }>
+  /** A new operation that recognizes an existing fact: only its index is saved, at the fact's revision. */
+  | Readonly<{ kind: 'recognize'; value: R; receipt: CommandReceipt }>
+  /** Contradicting evidence: the audit is saved with one new revision and the conflict is fixed. */
+  | Readonly<{
+      kind: 'reject'
+      failure: Extract<Failure, { kind: 'conflict' }>
+      audit: DurableEvidence
+      revision: number
+      apply: () => void
+    }>
 
 const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage>>> = {
   'interrupt-model': new Set([
@@ -287,7 +320,10 @@ const STAGES: Readonly<Record<ExecutionControl['kind'], ReadonlySet<ControlStage
 
 const answer = <R>(value: Outcome<R, Failure>): Attempt<R> => ({ kind: 'answer', value })
 const denied = (action: string): Failure => ({ kind: 'denied', action })
-const conflict = (operation: AgentOperationId): Failure => ({ kind: 'conflict', operation })
+const conflict = (operation: AgentOperationId): Extract<Failure, { kind: 'conflict' }> => ({
+  kind: 'conflict',
+  operation,
+})
 const invalid = (field: string, reason: string): Failure => ({ kind: 'invalid', field, reason })
 
 function copy<T>(value: T): T {
@@ -597,8 +633,33 @@ export function createJournal<P>(
   ): Outcome<R, Failure> | undefined {
     const at = operationKey(input.tenant, input.execution, input.operation)
     const record = at === undefined ? undefined : state().operations.get(at)
+    if (record?.kind === 'rejected') {
+      // A persistent rejection answers its fixed conflict again; another input conflicts too, and
+      // neither writes a second audit.
+      return fail(record.key === key ? copy(record.failure) : conflict(input.operation))
+    }
     if (record?.kind !== 'committed') return undefined
     return record.key === key ? succeed(copy(record.value) as R) : fail(conflict(input.operation))
+  }
+
+  /** The receipt of a new operation that recognizes a fact established at `revision`. */
+  function recognition(
+    execution: Execution,
+    operation: AgentOperationId,
+    revision: number,
+    state: CommandReceipt['state'],
+  ): CommandReceipt {
+    return receiptOf(
+      execution,
+      operation,
+      revision,
+      nextEvidence(execution, 'recognized', revision),
+      state,
+    )
+  }
+
+  function recognize<R>(value: R, receipt: CommandReceipt): Attempt<R> {
+    return { kind: 'recognize', value, receipt }
   }
 
   /**
@@ -807,7 +868,8 @@ export function createJournal<P>(
       return pending.key === key ? commitUnknown : fail(conflict(input.operation))
     }
     const exclude = (reason: string) => {
-      if (state().operations.get(at)?.kind === 'committed') return
+      const fixed = state().operations.get(at)?.kind
+      if (fixed === 'committed' || fixed === 'rejected') return
       cell.touch()
       state().operations.set(at, {
         kind: 'excluded',
@@ -828,11 +890,28 @@ export function createJournal<P>(
       const prepared = prepare()
       if (prepared.kind === 'answer') return { kind: 'answered', value: prepared.value }
       if (prepared.kind === 'unknown') return prepared
-      prepared.apply()
-      const captured = cell.committed(input, method, prepared.receipt)
-      if (captured) return { kind: 'answered', value: fail(captured) }
-      const participation = cell.participate(input, method, prepared.receipt, decision)
-      if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+      if (prepared.kind === 'reject') {
+        prepared.apply()
+        cell.touch()
+        state().operations.set(at, {
+          kind: 'rejected',
+          key,
+          failure: prepared.failure,
+          audit: prepared.audit,
+          revision: revisionOf(prepared.revision),
+        })
+        return { kind: 'answered', value: fail(prepared.failure) }
+      }
+      if (prepared.kind === 'write') {
+        prepared.apply()
+        const captured = cell.committed(input, method, prepared.receipt)
+        if (captured) return { kind: 'answered', value: fail(captured) }
+        // tryFinish asked the participant before preparing its write (see the port).
+        if (method !== 'tryFinish') {
+          const participation = cell.participate(input, method, prepared.receipt, decision)
+          if (participation !== undefined) return { kind: 'answered', value: fail(participation) }
+        }
+      }
       cell.touch()
       state().operations.set(at, {
         kind: 'committed',
@@ -848,7 +927,8 @@ export function createJournal<P>(
       if (run.kind === 'unknown') hold()
     }
     const hold = () => {
-      if (state().operations.get(at)?.kind === 'committed') return
+      const fixed = state().operations.get(at)?.kind
+      if (fixed === 'committed' || fixed === 'rejected') return
       cell.touch()
       state().operations.set(at, {
         kind: 'pending',
@@ -920,16 +1000,18 @@ export function createJournal<P>(
     }
   }
 
+  /** This binding is coordinated: the grant is required and the Session check decides it. */
   function grantHolds(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; grant: DurableEvidence | null }>,
+    method: 'open' | 'attach',
   ): boolean {
-    if (input.grant === null) return options.requireGrant !== true
-    if (options.grant === undefined) return false
+    if (input.grant === null || options.grant === undefined) return false
     return options.grant({
       principal: input.principal,
       tenant: input.tenant,
       execution: input.execution,
       grant: input.grant,
+      method,
     })
   }
 
@@ -1081,7 +1163,8 @@ export function createJournal<P>(
   }
 
   const port: AgentJournal<P> = {
-    capabilities: Object.freeze({ participants }),
+    // The session-log binding is Agent's coordinated binding (AD-01, PA-04).
+    capabilities: Object.freeze({ coordination: 'coordinated' as const, participants }),
 
     open(input) {
       const key = semanticKey('open', input)
@@ -1093,7 +1176,10 @@ export function createJournal<P>(
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
         if (existing !== undefined) return answer(fail(conflict(input.operation)))
-        if (!grantHolds(input)) return answer(fail(denied('open')))
+        if (!grantHolds(input, 'open')) return answer(fail(denied('open')))
+        // The Session source (SE13) is co-checked by the participant in the same write; a null
+        // source cannot pass it (PA-01 item 1).
+        if (input.initial.source === null) return answer(fail(denied('open')))
         const execution: Execution = {
           id: input.execution,
           tenant: input.tenant,
@@ -1102,11 +1188,14 @@ export function createJournal<P>(
           checkpoint: copy(input.checkpoint),
           attachments: [],
           inputs: [copy(input.initial)],
+          inputRevisions: new Map([[input.initial.id, 1]]),
           events: [],
           retainedFrom: 1,
           acknowledged: 0,
+          acknowledgedAt: 0,
           controls: [],
           results: [],
+          resultRevisions: new Map(),
           effects: [],
           observations: [],
           stageReceipts: new Map(),
@@ -1123,7 +1212,12 @@ export function createJournal<P>(
           generation: '1',
           source: evidence,
         }
-        execution.attachments.push({ authority, status: 'active', handoff: null })
+        execution.attachments.push({
+          authority,
+          status: 'active',
+          handoff: null,
+          handoffRevision: 0,
+        })
         const receipt = receiptOf(execution, input.operation, 1, evidence, 'applied')
         return {
           kind: 'write',
@@ -1145,8 +1239,9 @@ export function createJournal<P>(
         const execution = found.ok
         const original = recognized<{ receipt: CommandReceipt; authority: Authority }>(input, key)
         if (original !== undefined) return answer(original)
-        if (!grantHolds(input)) return answer(fail(denied('attach')))
+        // An ended execution answers terminal before the Session check (PA-01 item 3).
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        if (!grantHolds(input, 'attach')) return answer(fail(denied('attach')))
         const old = activeAttachment(execution)
         if (old !== undefined && input.takeover === null) {
           return answer(fail({ kind: 'changed' }))
@@ -1172,7 +1267,12 @@ export function createJournal<P>(
           apply: () => {
             fence(execution)
             if (old !== undefined) old.status = 'superseded'
-            execution.attachments.push({ authority, status: 'active', handoff: null })
+            execution.attachments.push({
+              authority,
+              status: 'active',
+              handoff: null,
+              handoffRevision: 0,
+            })
             execution.state = { kind: 'reconciling' }
             execution.revision = revision
           },
@@ -1194,7 +1294,13 @@ export function createJournal<P>(
         )
         if (target === undefined) return answer(fail(denied('detach')))
         if (target.status === 'superseded') return answer(fail({ kind: 'stale-advance' }))
-        if (target.handoff !== null) return answer(succeed(copy(target.handoff)))
+        // A detached target only recognizes the existing handoff at the revision it was established.
+        if (target.handoff !== null) {
+          return recognize(
+            copy(target.handoff),
+            recognition(execution, input.operation, target.handoffRevision, 'applied'),
+          )
+        }
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
         const revision = execution.revision + 1
@@ -1207,6 +1313,7 @@ export function createJournal<P>(
           apply: () => {
             target.status = 'detached'
             target.handoff = handoff
+            target.handoffRevision = revision
             execution.state = { kind: 'suspended', handoff }
             execution.revision = revision
           },
@@ -1231,11 +1338,13 @@ export function createJournal<P>(
           )
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        // Agent SPEC "判定次序与失败映射": stale-advance before terminal, terminal before changed.
         if (!holds(execution, input.authority)) return answer(fail({ kind: 'stale-advance' }))
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (input.expected !== revisionOf(execution.revision)) {
           return answer(fail({ kind: 'changed' }))
         }
+        let newEffect = false
         for (const effect of input.effects) {
           const known = execution.effects.find(existing => existing.action === effect.action)
           if (
@@ -1244,6 +1353,7 @@ export function createJournal<P>(
           ) {
             return answer(fail(conflict(input.operation)))
           }
+          if (known === undefined) newEffect = true
         }
         let admission: Readonly<{ sequence: number; fact: ModelReplyAdmission }> | null = null
         if (input.replyAdmission !== null) {
@@ -1291,6 +1401,26 @@ export function createJournal<P>(
             }
           }
         }
+        // A commit that establishes no new fact does not advance the revision and writes no event:
+        // its receipt names the current revision (Agent SPEC "执行修订").
+        const unchanged =
+          semanticKey('checkpoint', execution.checkpoint) ===
+            semanticKey('checkpoint', input.checkpoint) &&
+          semanticKey('state', execution.state) === semanticKey('state', input.state) &&
+          input.events.length === 0 &&
+          !newEffect &&
+          admission === null &&
+          input.caller.kind === 'none'
+        if (unchanged) {
+          const receipt = receiptOf(
+            execution,
+            input.operation,
+            execution.revision,
+            nextEvidence(execution, 'commit', execution.revision),
+            'applied',
+          )
+          return recognize(receipt, receipt)
+        }
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'commit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1336,13 +1466,20 @@ export function createJournal<P>(
         const execution = found.ok
         const original = recognized<CommandReceipt>(input, key)
         if (original !== undefined) return answer(original)
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const known = execution.inputs.find(accepted => accepted.id === input.value.id)
         if (known !== undefined) {
+          // Same input identity with other content conflicts; with the same content a new operation
+          // recognizes the original acceptance at its revision (Agent SPEC "输入内容与水位线").
           if (semanticKey('input', known) !== semanticKey('input', input.value)) {
             return answer(fail(conflict(input.operation)))
           }
+          const at = execution.inputRevisions.get(known.id) ?? 1
+          const receipt = recognition(execution, input.operation, at, 'accepted')
+          return recognize(receipt, receipt)
         }
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+        // The Session source (SE11) is co-checked by the participant; a null source cannot pass it.
+        if (input.value.source === null) return answer(fail(denied('submit')))
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'submit', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'accepted')
@@ -1351,7 +1488,8 @@ export function createJournal<P>(
           value: receipt,
           receipt,
           apply: () => {
-            if (known === undefined) execution.inputs.push(copy(input.value))
+            execution.inputs.push(copy(input.value))
+            execution.inputRevisions.set(input.value.id, revision)
             execution.revision = revision
           },
         }
@@ -1420,6 +1558,16 @@ export function createJournal<P>(
         if (through === undefined || through < 1 || through > execution.events.length) {
           return answer(fail(invalid('through', 'beyond the emitted events')))
         }
+        // A `through` within the acknowledged prefix recognizes that prefix and never moves it back.
+        if (through <= execution.acknowledged) {
+          const receipt = recognition(
+            execution,
+            input.operation,
+            execution.acknowledgedAt,
+            'applied',
+          )
+          return recognize(receipt, receipt)
+        }
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'acknowledge', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -1428,7 +1576,8 @@ export function createJournal<P>(
           value: receipt,
           receipt,
           apply: () => {
-            execution.acknowledged = Math.max(execution.acknowledged, through)
+            execution.acknowledged = through
+            execution.acknowledgedAt = revision
             execution.revision = revision
           },
         }
@@ -1490,9 +1639,6 @@ export function createJournal<P>(
         if (input.release.kind === 'confirmed' && custody === null && completion === null) {
           return rejected
         }
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'result', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         const responsibility: ResultResponsibility = {
           result: copy(input.result),
           consumption: input.consumption,
@@ -1500,6 +1646,23 @@ export function createJournal<P>(
           completion,
           release: copy(input.release),
         }
+        const resultKey = semanticKey('responsibility', [
+          input.result.producer,
+          input.result.version,
+          input.consumption,
+        ])
+        // No new responsibility fact: a new operation recognizes the existing one at its revision.
+        if (
+          known !== undefined &&
+          semanticKey('responsibility', known) === semanticKey('responsibility', responsibility)
+        ) {
+          const at = execution.resultRevisions.get(resultKey) ?? execution.revision
+          const receipt = recognition(execution, input.operation, at, 'applied')
+          return recognize(receipt, receipt)
+        }
+        const revision = execution.revision + 1
+        const evidence = nextEvidence(execution, 'result', revision)
+        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
         return {
           kind: 'write',
           value: receipt,
@@ -1508,6 +1671,7 @@ export function createJournal<P>(
             const index = execution.results.indexOf(known ?? responsibility)
             if (index === -1) execution.results.push(responsibility)
             else execution.results[index] = responsibility
+            execution.resultRevisions.set(resultKey, revision)
             execution.revision = revision
           },
         }
@@ -1577,16 +1741,44 @@ export function createJournal<P>(
             fact.state === input.state &&
             sameEvidence(fact.source, input.source)
           if (sameFact && !referenceAdded) {
+            // The same stage fact is recognized by the new operation at the fact's revision.
             const first = execution.stageReceipts.get(stageKey)
-            if (first !== undefined) return answer(succeed(copy(first)))
+            if (first !== undefined) {
+              const receipt = recognition(
+                execution,
+                input.operation,
+                Number(first.revision),
+                'applied',
+              )
+              return recognize(receipt, receipt)
+            }
+          }
+          const ended = execution.state.kind === 'ended'
+          // After a lawful ended only the three late duty stages may be saved (Agent SPEC "六个阶段").
+          if (
+            ended &&
+            !sameFact &&
+            (input.stage === 'intent-established' || input.stage === 'qualification-revoked')
+          ) {
+            return answer(fail({ kind: 'terminal' }))
           }
           if (!sameFact && fact !== undefined && fact.state === 'reached') {
-            return answer(fail(conflict(input.operation)))
+            // Contradicting evidence: the persistent rejection saves an audit with one revision.
+            const revision = execution.revision + 1
+            const audit = nextEvidence(execution, 'rejected-control', revision)
+            return {
+              kind: 'reject',
+              failure: conflict(input.operation),
+              audit,
+              revision,
+              apply: () => {
+                execution.revision = revision
+              },
+            }
           }
           const revision = execution.revision + 1
           const evidence = nextEvidence(execution, 'record-control', revision)
           const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-          const ended = execution.state.kind === 'ended'
           return {
             kind: 'write',
             value: receipt,
@@ -1632,16 +1824,17 @@ export function createJournal<P>(
         const changed = answer<FinishResult>(
           succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
         )
-        if (execution.state.kind === 'ended') return changed
         const authorization = input.authorization
+        // Agent SPEC "判定次序与失败映射": a superseded advancement is stale-advance before terminal.
+        if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
+          return answer(fail({ kind: 'stale-advance' }))
+        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const cancels = execution.controls.filter(
           record =>
             record.command.kind === 'cancel' &&
             record.stages['intent-established']?.state === 'reached',
         )
         if (authorization.kind === 'advancement') {
-          if (!holds(execution, authorization.authority))
-            return answer(fail({ kind: 'stale-advance' }))
           if (cancels.length > 0) return changed
         } else {
           const cancel = cancels.find(record => record.operation === authorization.control)
@@ -1667,6 +1860,12 @@ export function createJournal<P>(
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'finish', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+        // The Session participant is read-only, so it is asked before the write: its conflict is
+        // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
+        const participation = cell.participate(input, 'tryFinish', receipt, null)
+        if (participation !== undefined) {
+          return participation.kind === 'changed' ? changed : answer(fail(participation))
+        }
         const conclusion = copy(input.intent.conclusion)
         const observations: TerminalObservation[] = execution.checkpoint.passages
           .filter(passage => passage.position === 'after_terminal')
@@ -1717,8 +1916,17 @@ export function createJournal<P>(
         if (item.observed !== null) {
           if (!sameEvidence(item.observed, input.observed))
             return answer(fail(conflict(input.operation)))
+          // The same value is recognized by the new operation at the revision of the registration.
           const first = execution.observed.get(input.passage)
-          if (first !== undefined) return answer(succeed(copy(first)))
+          if (first !== undefined) {
+            const receipt = recognition(
+              execution,
+              input.operation,
+              Number(first.revision),
+              'applied',
+            )
+            return recognize(receipt, receipt)
+          }
         }
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'observation', revision)
@@ -1836,6 +2044,14 @@ export function createJournal<P>(
       if (record === undefined || record.kind === 'pending') return succeed({ kind: 'unknown' })
       if (record.kind === 'excluded') {
         return succeed({ kind: 'excluded', evidence: copy(record.evidence) })
+      }
+      if (record.kind === 'rejected') {
+        return succeed({
+          kind: 'rejected',
+          failure: copy(record.failure),
+          audit: copy(record.audit),
+          revision: record.revision,
+        })
       }
       return succeed({ kind: 'committed', receipt: copy(record.receipt) })
     },

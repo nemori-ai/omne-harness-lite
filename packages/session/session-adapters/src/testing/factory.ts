@@ -11,6 +11,7 @@ import { captureHuman } from './human.ts'
 import {
   type AgentJournal,
   type AgentExecutionId,
+  type DurableEvidence,
   type CallerCommit,
   type ExecutionMutation,
   type Failure,
@@ -27,6 +28,7 @@ import {
   mutationAccessRequest,
   type SessionAccess,
   type SessionAccessCheck,
+  type SessionAttemptRecord,
   type SessionId,
   type SessionCommand,
   type SessionTransactionPort,
@@ -39,7 +41,13 @@ import {
   type HistoryEntry,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
-import { operationSemantic, createCell, type JournalCell, type SessionState } from './root.ts'
+import {
+  operationSemantic,
+  createCell,
+  type CommonRoot,
+  type JournalCell,
+  type SessionState,
+} from './root.ts'
 import {
   createJournal,
   outrunParticipation,
@@ -511,6 +519,38 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       return fail(agentFailure(qualification.failure, input.operation))
     return succeed({ evidence: qualification.ok, digest: commandDigest(command) })
   }
+  /**
+   * PA-01 item 1 (open) and item 3 (attach): whether the grant names the attempt that may hold
+   * this execution now. Ordinary advance: the Run is active for this execution and the attempt is
+   * `run.active.advance`. Cancel wind-down (attach only): the Run of this execution is the
+   * cancelled terminal and the attempt is the last one granted for the execution before the
+   * cancel; such an attachment carries cancel authority only, which `advances` denies.
+   */
+  function grantHoldsFor(
+    root: CommonRoot,
+    execution: AgentExecutionId,
+    grant: DurableEvidence | null,
+    method: 'open' | 'attach',
+  ): boolean {
+    const state = root.session
+    if (!state || grant === null) return false
+    let attempt: SessionAttemptRecord
+    try {
+      attempt = grantAttempt(root, execution, grant)
+    } catch {
+      return false
+    }
+    const run = state.snapshot.run
+    if (run.kind === 'active')
+      return run.execution.execution === execution && run.advance?.attempt === attempt.attempt
+    if (method !== 'attach' || run.kind !== 'terminal' || run.terminal.outcome !== 'cancelled')
+      return false
+    const original = root.sources.runs.get(execution)
+    if (!original || original.run !== run.terminal.run) return false
+    const last = root.sources.attemptsByExecution.get(execution)?.at(-1)
+    return last !== undefined && last.attempt === attempt.attempt
+  }
+
   function participant(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -524,12 +564,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       const value = input as
         | Parameters<AgentJournal<P>['open']>[0]
         | Parameters<AgentJournal<P>['attach']>[0]
-      const attempt = grantAttempt(cell.state(), input.execution, value.grant)
-      if (
-        state.snapshot.run.kind !== 'active' ||
-        state.snapshot.run.advance?.attempt !== attempt.attempt
-      )
-        return { kind: 'stale-advance' }
+      // PA-01 items 1 and 3: a conflict of the grant co-check is Agent's denied (AD-01).
+      if (!grantHoldsFor(cell.state(), input.execution, value.grant, method)) return denied(method)
       if (method === 'open') {
         const original = value as Parameters<AgentJournal<P>['open']>[0]
         const admitted = state.inputs.get(
@@ -763,21 +799,8 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
-        requireGrant: true,
         participants: ['message', 'context-transition', 'custody', 'processed'],
-        grant: input => {
-          const state = cell.state().session
-          if (!state) return false
-          try {
-            const attempt = grantAttempt(cell.state(), input.execution, input.grant)
-            return (
-              state.snapshot.run.kind === 'active' &&
-              state.snapshot.run.advance?.attempt === attempt.attempt
-            )
-          } catch {
-            return false
-          }
-        },
+        grant: input => grantHoldsFor(cell.state(), input.execution, input.grant, input.method),
       })
       views.set(key, view)
     }
@@ -856,6 +879,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           })
         },
         applyRetention: view.applyRetention,
+        failNext: view.failNext,
+        settle: view.settle,
+        respond: view.respond,
         planEvidence: cell.planEvidence,
         pauseWrite: cell.pause,
         faultWrite: cell.fault,
