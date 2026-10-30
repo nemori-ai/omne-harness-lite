@@ -64,6 +64,7 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `integrate` | 唯一 Reduce 用 `wait-cli` 持续收件、接管迁移集成、blocked 交回发 redo delta 或接管、后继、全线 delta 与收口卡接受读回先于关闭收口卡 |
 | `line` | 常驻 Line 开工、自主执行、交回、等待下一条 delta 及 active/idle/redo/terminal 逐收口续接 |
 | `claim` | active Line 或独立任务的卡级准备、实施与五节交回；跨波协调按 line |
+| `delegate` | 任何会话派发写者、评审者或验收者：切闭包、写闭包规格、选模型、备环境、扇出、验收、升级、合回、记流水与反思 |
 | `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
 | `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |
 | `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、按 ub-mode 判设计与实践，并固定跑差分变异 |
