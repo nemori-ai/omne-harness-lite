@@ -2,7 +2,7 @@
 
 本页给出常驻线会话在多波、多张卡之间反复复用的做法。目标有两个：每次被派发都能快速进入状态；每张卡不重复做重的上下文收集。
 
-本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P25，方法采用归 `docs/engineering/skills.md`。
+本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P29，方法采用归 `docs/engineering/skills.md`。
 
 ## 核心想法：按存续期分三层准备，每层只做差额
 
@@ -89,7 +89,7 @@
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
 | 署名、分支与 `Harness`／`Agent-Role` trailer | `CONTRIBUTING.md` |
 | 验证能声称什么、不能声称什么 | `docs/verification.md` |
-| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P25 |
+| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P29 |
 
 ## 波级：读 delta，只记变化
 
@@ -155,6 +155,7 @@
 6. **唯一的后台进程是本机事件接收器**（`events-receiver-cli serve`）。每台机器只有一个接收器。它是常驻服务，要活过会话，由本机第一个开工的会话启动一次。启动方法见 `tools/dev-flow/src/delivery/README.md`「事件等待」。首次消息只给只读的 `health` 命令，不给 `init` 与 `serve`。接收器不是等待命令，等待命令本身仍然前台阻塞。
 7. 每次重挂前后更新 `state.md` 的等待命令与 `--since`，便于替换会话接续。
 
+- 压缩上下文后续接时，先重新加载 `line` 技能，并核对技能目录是当前检出的投影，不是旧工作树里的副本。
 - 每次交回、停下或压缩上下文前，更新 `tmp/line-<线>/state.md`：本波进度、身份、已处理的 delta 评论 id、当前 attempt 与 head、未完成操作、下一步。替换会话只读它和线父卡就能接上。
 
 ## 每波复盘：把教训变成线级资产
@@ -166,5 +167,5 @@
 - 每张卡重做会话级产物。
 - 波中向人提问、在普通评论向 reduce 求方案、读别线未集成的提交。
 - 自跑全量准入（归 reduce），或在准入期间提交。
-- 轮询 GitHub 等待。
+- 轮询 GitHub 等待，或让子代理用轮询循环等日志（P29）。
 - 把计划说成已交付，把未执行写成通过。

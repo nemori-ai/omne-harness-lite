@@ -209,7 +209,8 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   只留计划里要跑测试的 `packages/`、`apps/` 成员 `src/` 下的源码（不含 `*.d.ts`），按成员写成 Stryker 的 `mutate` 条目 `文件:起-止`；
   未跟踪的文件整份变异。`--members <成员目录,…>` 改为变异点名成员 `src/` 下的全部源码。`--plan-only` 只列范围。
 - **运行**：先构建这些成员及其依赖，再逐成员调用 Stryker：成员目录为工作目录、只跑**快层**（sandbox 里的 vitest 配置以 mode `fast` 展开成员配置）、
-  Stryker 的工作进程数取整份工作进程预算（见「并行度」；每个进程里 vitest 只用一个线程）。
+  Stryker 的工作进程数取整份工作进程预算（见「并行度」；每个进程里 vitest 只用一个线程）。预算只在启动时采一次，整次运行不变；
+  已设 `VITEST_MAX_WORKERS` 时以它为准。启动日志写明进程数及其来历。
   sandbox 放在与成员**同深度**的 `.stryker-tmp-*` 目录（被 `.gitignore` 忽略）：不少测试用 `import.meta.dirname`
   拼相对路径读成员外的规格与根配置，换了深度就读不到。sandbox 里先把成员的 `node_modules` 软链进来再构建成员
   （`src/mutation/sandbox-build.ts`），跑完连容器目录一起删掉。不就地改源码。
