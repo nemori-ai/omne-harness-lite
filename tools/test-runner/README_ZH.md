@@ -148,18 +148,26 @@ turbo 的运行条件（根配置取运行检查器仓库的 `turbo.json`、基�
 turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 里三个测试任务的 `env` 列出影响结果的变量（临时目录、`OMNE_RUNNER_ROOT`），`passThroughEnv` 只列不影响结果的（vitest 并行度、报告目录）；turbo 的测试任务不缓存，两者在这里都只决定变量能不能传进去。成员级的结果缓存由运行器自己做，它的键读 `test-runs.config.json` 的 `cache.env`，与 `turbo.json` 的 `env` 是两份各自独立的清单，见下一段。
 
 **结果缓存。**成员测试按成员、按层缓存**完整通过**的运行（`src/testing/test-cache.ts`）：退出码 0、写出了报告、报告里没有失败的文件或用例、运行器自己没判问题。失败、超时、被中断、没写出报告的从不进缓存；验收不缓存。写缓存还要满足下面两条。条目在**主检出**的 `tmp/test-cache/<成员>/<层>-<键>.json`（`OMNE_TEST_CACHE_HOME` 可改根目录），记来源账本的目录、提交、时间、用例数与文件数。
+只有对这次构建出的产物跑出的通过才写缓存。具体规则：
+
+- 构建成功后，运行器为每个被构建的成员记下构建**开始前**的输入摘要。这个摘要与缓存键同源，但不含层。
+- `step build --plan` 把这份记录写在计划文件旁的 `built-from.json` 里，带上计划的头号。
+- `run --build` 在同一进程里取开跑前的摘要。
+- 写缓存时，成员当前的输入摘要必须等于构建记录。没有记录，或者两者不等，就跳过这个成员，并打印原因：「这次没有构建记录」或「构建之后输入变了」。
+- 手工跑 `step test --plan`、前面没有构建这一步时，一律不写。
+- 没有 `build` 脚本的成员不在构建记录里，所以在 `check` 里不写缓存。这是有意的：宁可少命中，也不错命中。
 键与影响面**同源**：一个成员的输入集就是「改了会让计划选中它」的那些文件，由 `scope.ts` 的 `classify` 按 `affected` 规则判，不另写一套——全局文件与没有规则认得的文件（改了计划判全量）进每个成员的键；读者规则点名它的文件、它自己的文件（成员根目录文档除外）、它上游成员的文件（按 turbo 的包依赖图传递，一次 `turbo query` 取整张图，与 `--affected` 走同一张图）进它的键；只需常驻检查的路径、Python 工具、退役目录与别的成员的文件不进。
 每个文件取 git 的 blob id：已跟踪且干净的读索引，改过与未跟踪的用 `git hash-object` 现算（走同一套换行过滤，内容改回去 id 也回去）；工作树里删掉的不在，被忽略的从不在。键里另有层（turbo 任务名）、平台与架构、Node 版本，以及 `test-runs.config.json` 的 `cache.env` 列出的环境变量（`NODE_OPTIONS`、`OMNE_RUNNER_ROOT`、`VITEST_*`；`cache.ignoreEnv` 排除 `VITEST_MAX_WORKERS`——并行度、预算、报告目录这类只影响怎么跑的不进键，否则机器一忙键就变、永远不命中）。锁文件、根清单、分层定义、运行器自身的源码与配置、成员的 vitest 配置与 `package.json` 都已由上面的规则进键，不另列。
 命中的成员不执行：运行时打印 `缓存命中，<n> 条用例，来源 <账本目录>`，摘要末尾一行写命中几个成员、来源哪些账本、这次写入了几个。一个成员都不跑时，打印 `<N> 个成员全部命中缓存，没有执行（<层>）`。成员测试的账本（`ledger.json`）因此有以下形状：
 
 - `meta.members`：这次覆盖的全部成员，跑了的加命中的。
-- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。
+- `meta.cache`：`mode`（`read-write`、`write-only` 或 `unavailable`）、`reason`（只写不读或不可用的原因）、`home`（缓存根）、`hits`（每项有 `member`、`key`、`source` 即来源账本目录、`tests` 即用例数）、`written`（这次写入的成员）、`write`（`on` 或 `off`：这次写不写缓存，`mode` 只说读不读）、`skipped`（通过了、但因为没有构建记录、构建之后输入变了或运行期间输入变了而没写的成员数）、`uncacheable`（算不出键的成员与原因）、`problems`（写不进去的原因）。验收的账本没有这一栏。
 - `members`、各成员的文件、`failures` 与 `nearTimeout`：只有这次跑了的成员。一层的成员全部命中时它们都是空的，这一层算通过。
 
 快层全部通过（含命中）才跑慢层的规则不变。`triage` 与失败归因只读 `failures`：命中的成员没有失败可重跑，跑了的失败照常单独重跑、归类。
 **什么时候写缓存。**两条都要满足，成员才写：
 
-1. 本次调用为被选中的成员构建过。`run --no-build` 与默认不构建的 `run --all` 不写，因为这两种调用测试可能跑的是旧 `dist/`。`check`、`step test` 在构建一步之后运行，`test:affected` 与 `test:tier` 默认构建，它们可以写。
+1. 本次调用为被选中的成员构建过，并且有构建记录（见上）。`run --no-build` 与默认不构建的 `run --all` 不写，因为这两种调用测试可能跑的是旧 `dist/`。`check`、`step test` 在构建一步之后运行，`test:affected` 与 `test:tier` 默认构建，它们可以写。
 2. 跑完后重算键，与开跑前的键一致。运行中输入变了的成员跳过，日志写一行原因。重算本身失败的成员同样跳过。
 
 **什么时候不读缓存（照常算键）。**各入口的读写条件分别是：
@@ -168,12 +176,12 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | --- | --- | --- |
 | `pnpm run check`、`pnpm run test:gate`（`step test`） | `FULL=1`、`--full`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 `OMNE_ADMISSION=1` | 构建之后，满足上面两条时写 |
 | `pnpm run test:affected`（`run --base`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 缺省构建，满足上面两条时写；给 `--no-build` 不写 |
-| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式；不认 `--no-cache` | 带 `--build`，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
+| `pnpm run test:tier`、`pnpm run test`（`run --all --build`） | `FULL=1`、`OMNE_TEST_CACHE=0`、准入模式；不认 `--no-cache` | 带 `--build`，同一进程里有构建记录，满足上面两条时写。所以 `FULL=1 pnpm run test` 不读缓存，但会写 |
 | `cli.ts run --all`（不带 `--build`） | `FULL=1`、`--no-cache`、`OMNE_TEST_CACHE=0`、准入模式 | 不写 |
 
-`run` 与 `check` 都认环境变量 `FULL=1`。准入不读待合并的改动能写入的缓存，与构建、类型检查的 turbo 缓存同一条规则。快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
+本次没有构建记录时同样不写，账本里 `write` 为 `off`。`run` 与 `check` 都认环境变量 `FULL=1`。准入不读待合并的改动能写入的缓存，与构建、类型检查的 turbo 缓存同一条规则。快照或依赖图取不到、条目坏了、写不进去，一律按未命中：既不让检查失败，也不让检查放行。
 做法借鉴 [ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 的 mutator 与 crapper：结果仍有效就复用，只重跑输入变了的。
-命中意味着：同一台机器上，键完全相同（同样的输入文件内容、层、平台与架构、Node 版本、列出的环境变量）的一次完整通过曾经发生过。不意味着：这次再跑也会过——不稳定的用例、外部服务、时间与没列进键的环境变量都不在键里；也不证明那次运行的报告本身可靠。影响面规则漏掉的读取，缓存键同样漏掉：补读者规则，两边一起补上。自测：`tests/test-cache.spec.ts`（每类输入进谁的键、各类失效、只写完整通过、坏条目；慢层在临时仓库核对快照、在本仓库核对依赖图与每个成员都算得出键、真起 turbo 跑两遍看命中）。
+命中意味着：同一台机器上，键完全相同（同样的输入文件内容、层、平台与架构、Node 版本、列出的环境变量）的一次完整通过曾经发生过。不意味着：这次再跑也会过——不稳定的用例、外部服务、时间与没列进键的环境变量都不在键里；也不证明那次运行的报告本身可靠。影响面规则漏掉的读取，缓存键同样漏掉：补读者规则，两边一起补上。自测：`tests/test-cache.spec.ts`（每类输入进谁的键、各类失效、只写完整通过、坏条目；慢层在临时仓库核对快照、在本仓库核对依赖图与每个成员都算得出键、真起 turbo 跑两遍看命中；另在临时仓库里分进程走 `step build --plan`、改源码、`step test --plan`，并起命令行 `run` 核对 `--build` 的接线）。
 
 **并行度。**并行度从机器推出来，不写死（`src/testing/parallelism.ts`）。`pnpm run check` 在起任何步骤之前、机器安静时采样一次，经环境变量 `OMNE_WORKER_BUDGET` 交给各重步骤（重步骤开始时跑着的轻步骤是本图自己的，那时再采会把它们当成别的负载而缩预算，所以只在起步骤之前采一次）；单独运行一步时该步自己采（成员测试的快层与慢层各采一次；先等 `parallel.sampleMs` 毫秒让同时起的兄弟进程过了启动尖峰再量）。采的是核数（`availableParallelism()`）、
 `parallel.sampleMs` 毫秒内实测的 CPU 空闲率与空闲内存，得到**工作进程预算** = 核数 × 空闲率，再按空闲内存 ÷ `parallel.memoryPerWorkerMiB` 封顶，至少 1、至多核数。

@@ -54,7 +54,7 @@
 
 | 缓存 | 位置 | 关闭开关 | 准入时读不读 | 命中不等于 |
 |---|---|---|---|---|
-| 测试结果 | 主检出的 `tmp/test-cache/<成员>/<层>-<键>.json`，`OMNE_TEST_CACHE_HOME` 可改根目录 | `--no-cache`（`test:tier` 不认）、`OMNE_TEST_CACHE=0`、`FULL=1`；这些开关只让它不读，本次有构建时照常写 | 不读，照常写 | 这次再跑也会通过：不稳定的用例、外部服务、时间与没列进键的环境变量不在键里；影响面漏选的读取，键同样漏掉 |
+| 测试结果 | 主检出的 `tmp/test-cache/<成员>/<层>-<键>.json`，`OMNE_TEST_CACHE_HOME` 可改根目录 | `--no-cache`（`test:tier` 不认）、`OMNE_TEST_CACHE=0`、`FULL=1`；这些开关只让它不读，本次有构建时照常写 | 不读，照常写 | 这次再跑也会通过：命中只代表对当时构建出的产物跑过；不稳定的用例、外部服务、时间与没列进键的环境变量不在键里；影响面漏选的读取，键同样漏掉 |
 | 依赖图 | git 公共目录的 `omne-dep-graph/working-<指纹>.json`，只留最近 10 份 | `OMNE_DEP_GRAPH_CACHE=0`，不读也不写 | 不读，照常计算并写入 | 读到的图与当前所有输入一致：被忽略的目录只记存在与否，目录里某个被依赖的文件单独增删不改变指纹，这时读到的是旧图 |
 | 变异增量 | 主检出的 `tmp/mutation-incremental/<分支>/<成员 slug>.json`，`OMNE_MUTATION_INCREMENTAL_HOME` 可改根目录 | `--no-incremental` 或 `OMNE_MUTATION_INCREMENTAL=0`，不读也不写；`--force` 不复用，跑完照样更新 | 不适用：变异不在 `pnpm run check` 与准入里 | 复用的被杀变异体这次重新被测过：它们这次没有重跑；被变异代码调用的别处代码，以及增量指纹不追的文件，改了也不会让快照失效 |
 
