@@ -1367,8 +1367,8 @@ export function createMemoryAgentJournal<P>(
    *
    * - author route: a cancelled candidate that did not migrate is blocked with passages at the
    *   route record. Otherwise the first pending item in the fixed order inputs, controls,
-   *   operations, passages, custody is blocked, with the source of that item; a route without its
-   *   proof counts as a pending of passages. Without a pending, an unknown item is unavailable.
+   *   operations, passages, custody is blocked, with the source of that item in the issued list
+   *   `listed` (rulings-gate-S23 17); a route without its proof counts as a pending of passages. Without a pending, an unknown item is unavailable.
    * - cancellation route: no judgment record is blocked with passages; a judgment whose criteria
    *   (the items with their dispositions and the participant conditions) differ from the current
    *   closure is changed; a blocked judgment is blocked with the first of its reasons; an unknown
@@ -1378,6 +1378,7 @@ export function createMemoryAgentJournal<P>(
     execution: Execution,
     candidate: FinishCandidate,
     items: readonly FinishObligation[],
+    listed: readonly FinishObligation[],
   ): FinishCheck {
     const blocked = (reason: Blocked['reason'], source: DurableEvidence): FinishCheck => ({
       kind: 'blocked',
@@ -1399,7 +1400,11 @@ export function createMemoryAgentJournal<P>(
         (!proofMissing ||
           CATEGORY_ORDER.indexOf(pendingCategory) <= CATEGORY_ORDER.indexOf('passages'))
       )
-        return blocked(pendingCategory, pending.source)
+        return blocked(
+          pendingCategory,
+          listed.find(item => item.kind === pending.kind && item.key === pending.key)?.source ??
+            pending.source,
+        )
       if (proofMissing) return blocked('passages', route.record)
       const unknown = firstUnknown(items)
       if (unknown !== undefined)
@@ -3382,7 +3387,7 @@ export function createMemoryAgentJournal<P>(
           if (projectionOf(current) !== projectionOf(list.items)) return changed
           const boundary = execution.watermarks.get(candidate.inputWatermark.record)
           if (boundary === undefined || boundary.to < execution.inputs.length) return changed
-          const check = finishCheck(execution, candidate, current)
+          const check = finishCheck(execution, candidate, current, list.items)
           if (check.kind === 'changed') return changed
           if (check.kind === 'blocked') return answer(succeed(check.value))
           if (check.kind === 'unavailable') return answer(fail(damaged(check.diagnostic)))
