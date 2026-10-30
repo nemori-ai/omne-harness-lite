@@ -33,7 +33,7 @@ const decision = await check.check({
 // decision.kind 是 'allowed'、'denied' 或 'unavailable'
 ```
 
-消费端口的适配器把端口输入映射为 `AdmissionInput`，把结论映射回端口结论。`tests/port-adapters.spec.ts` 演示 Agent、Tool 的有限映射及本地 Session 适配模型。ActionAdmission 的 `permissions` 是列表。示例在该列表为空且 `decision` 为 null 时，按 [SPEC](SPEC.md#消费端口的适配)「消费端口的适配」的映射裁定。答复为附言时，示例先核对租户与资格，裁定为 `allowed` 时改为拒绝，原因为 `human-guidance`。其他输入在缺少解释端口时返回 `unavailable`。它不实现选择与拒答的解释、结构化权限或人工决定的绑定。真实业务在操作点还须核对原工作资格，缺少必要守卫时不得推进。
+消费端口的适配器把端口输入映射为 `AdmissionInput`，把结论映射回端口结论。`tests/port-adapters.spec.ts` 演示 Agent、Tool 的有限映射及本地 Session 适配模型。ActionAdmission 的 `permissions` 是列表。示例在该列表为空且 `decision` 为 null 时，按 [SPEC](SPEC.md#消费端口的适配)「消费端口的适配」的映射裁定。附言按 [AU-03](SPEC.md#au-03-授权表达与适用范围) 解释，示例没有安装附言的解释器。所以答复为附言时，示例先核对租户与资格，裁定为 `allowed` 时按 [AU-05](SPEC.md#au-05-人工决定参数改写与重新核验) 改为拒绝，原因为 `human-guidance`。其他输入在缺少解释端口时返回 `unavailable`。它不实现选择、拒答与附言的解释、结构化权限或人工决定的绑定。真实业务在操作点还须核对原工作资格，缺少必要守卫时不得推进。
 
 | 导出 | 用途 |
 | --- | --- |
