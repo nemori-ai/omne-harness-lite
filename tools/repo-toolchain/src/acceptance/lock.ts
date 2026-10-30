@@ -62,12 +62,17 @@ export function isAcceptancePath(path: string, config: AcceptanceLockConfig): bo
 export const PLACEHOLDER_MARKER = '<!-- documentation:placeholder -->'
 const ENTRY_NAMES = new Set(['README.md', 'index.md'])
 
+/** 只有 README.md、index.md 可能是占位；别的验收文件判断前不必读内容。 */
+function isEntryName(path: string): boolean {
+  return ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1))
+}
+
 /**
  * 纯函数：这个验收文件在这次变化里是否只是模板占位。`content` 取变化后的内容，删除时取变化前的内容；
  * 读不到内容（undefined）不算占位，照常计入。
  */
 export function isPlaceholderEntry(path: string, content: string | undefined): boolean {
-  if (!ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1)) || content === undefined) return false
+  if (!isEntryName(path) || content === undefined) return false
   return content.split('\n').some(line => line.trim() === PLACEHOLDER_MARKER)
 }
 
@@ -169,6 +174,46 @@ function contentAt(root: string, revision: string, path: string): string | undef
     if (git(root, ['ls-tree', revision, '--', path]) === '') return undefined
     throw error
   }
+}
+
+/**
+ * 一批 `<版本>:<路径>` 的内容，一次 `git cat-file --batch` 读完，与逐个 `contentAt` 相同：不存在的为 undefined，
+ * 读出的去掉末尾空白（同 `git()`；`git show <版本>:<路径>` 给文件的也是原始内容）。不是文件的对象按工具错误报出。
+ */
+function contentsAt(root: string, specs: readonly string[]): Map<string, string | undefined> {
+  const found = new Map<string, string | undefined>()
+  const unique = [...new Set(specs)]
+  if (unique.length === 0) return found
+  const output = execFileSync('git', ['cat-file', '--batch'], {
+    env: repositoryEnv(process.env),
+    cwd: root,
+    input: unique.map(spec => `${spec}\n`).join(''),
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  let offset = 0
+  for (const spec of unique) {
+    const end = output.indexOf(0x0a, offset)
+    if (end < 0) throw new Error(`git cat-file --batch 的输出在 ${spec} 处中断`)
+    const header = output.subarray(offset, end).toString('utf8')
+    offset = end + 1
+    if (header === `${spec} missing`) {
+      found.set(spec, undefined)
+      continue
+    }
+    const object = /^[0-9a-f]+ blob (\d+)$/u.exec(header)
+    if (object === null) throw new Error(`读 ${spec} 时认不出的 git cat-file 输出：${header}`)
+    const size = Number(object[1])
+    found.set(
+      spec,
+      output
+        .subarray(offset, offset + size)
+        .toString('utf8')
+        .trimEnd(),
+    )
+    offset += size + 1
+  }
+  return found
 }
 
 function worktreeContent(root: string, path: string): string | undefined {
@@ -275,24 +320,35 @@ function touchesSince(
   head = 'HEAD',
   integration = false,
 ): CommitTouch[] {
-  const touches: CommitTouch[] = []
   const range = `${mergeBase}..${head}`
   const names = namesByCommit(root, range, integration)
-  for (const record of readCommits(root, range)) {
-    // 合并提交相对每个父提交的路径已去重，即「这个提交带进来的验收改动」。
-    const files = [...(names.get(record.sha) ?? [])]
-      .filter(path => isAcceptancePath(path, config))
-      .filter(
-        path =>
-          !isPlaceholderEntry(
-            path,
-            contentAt(root, record.sha, path) ?? contentAt(root, `${record.sha}^`, path),
-          ),
-      )
+  // 合并提交相对每个父提交的路径已去重，即「这个提交带进来的验收改动」。
+  const touched = readCommits(root, range).map(record => ({
+    record,
+    files: [...(names.get(record.sha) ?? [])].filter(path => isAcceptancePath(path, config)),
+  }))
+  // 占位只看入口文件：变化后的内容，删掉的取父提交里的。两批各一次 git 调用读完。
+  const entries = touched.flatMap(({ record, files }) =>
+    files.filter(isEntryName).map(path => ({ sha: record.sha, path })),
+  )
+  const after = contentsAt(
+    root,
+    entries.map(({ sha, path }) => `${sha}:${path}`),
+  )
+  const before = contentsAt(
+    root,
+    entries
+      .filter(({ sha, path }) => after.get(`${sha}:${path}`) === undefined)
+      .map(({ sha, path }) => `${sha}^:${path}`),
+  )
+  const content = (sha: string, path: string) =>
+    after.get(`${sha}:${path}`) ?? before.get(`${sha}^:${path}`)
+  return touched.flatMap(({ record, files }) => {
+    const kept = files
+      .filter(path => !isEntryName(path) || !isPlaceholderEntry(path, content(record.sha, path)))
       .sort()
-    if (files.length > 0) touches.push({ record, files })
-  }
-  return touches
+    return kept.length > 0 ? [{ record, files: kept }] : []
+  })
 }
 
 /** 读 Git：基线到当前工作树之间，验收文件发生了什么、谁改的。 */
