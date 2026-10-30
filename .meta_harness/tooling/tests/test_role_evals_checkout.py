@@ -309,6 +309,74 @@ def test_a_single_commit_is_one_baseline_and_a_delivery_is_a_second_commit(tiny:
     assert workspace.git(dest, "status", "--porcelain") == ""
 
 
+
+def _host_git_injection(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make the environment look like a host that sets git up for every process: identity, injected configuration,
+    a global file, a hook directory and a signing demand. Every value is made up here."""
+    def hooks_that_sign(name: str) -> str:
+        directory = tmp_path / f"host-hooks-{name}"
+        directory.mkdir()
+        hook = directory / "commit-msg"
+        hook.write_text(f'#!/bin/sh\nprintf "Host-Hook: {name}\\n" >> "$1"\n', encoding="utf-8", newline="\n")
+        hook.chmod(0o755)
+        return directory.as_posix()
+
+    template = tmp_path / "host-template"
+    (template / "hooks").mkdir(parents=True)
+    (template / "hooks" / "prepare-commit-msg").write_text("#!/bin/sh\nexit 1\n", encoding="utf-8", newline="\n")
+    (template / "hooks" / "prepare-commit-msg").chmod(0o755)
+    host_config = tmp_path / "host-gitconfig"
+    host_config.write_text("[user]\n\tname = global-name\n\temail = global@host.invalid\n"
+                           f"[core]\n\thooksPath = {hooks_that_sign('global')}\n", encoding="utf-8", newline="\n")
+    injected = [("core.hooksPath", hooks_that_sign("injected")), ("commit.gpgSign", "true"), ("gpg.program", "no-such-signer"),
+                ("user.name", "injected-name"), ("url.http://gateway.invalid/.insteadOf", "https://github.com/")]
+    monkeypatch.setenv("GIT_CONFIG_COUNT", str(len(injected)))
+    for number, (key, value) in enumerate(injected):
+        monkeypatch.setenv(f"GIT_CONFIG_KEY_{number}", key)
+        monkeypatch.setenv(f"GIT_CONFIG_VALUE_{number}", value)
+    monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(host_config))
+    monkeypatch.setenv("GIT_CONFIG_PARAMETERS", f"'core.hooksPath={hooks_that_sign('parameters')}'")
+    monkeypatch.setenv("GIT_TEMPLATE_DIR", str(template))
+    for key, value in {"GIT_AUTHOR_NAME": "host-author", "GIT_AUTHOR_EMAIL": "host-author@host.invalid",
+                       "GIT_COMMITTER_NAME": "host-committer", "GIT_COMMITTER_EMAIL": "host-committer@host.invalid",
+                       "GIT_AUTHOR_DATE": "2001-01-01T00:00:00Z", "GIT_COMMITTER_DATE": "2001-01-01T00:00:00Z"}.items():
+        monkeypatch.setenv(key, value)
+
+
+def _commits_made_in(root: Path) -> list[str]:
+    """Each commit the three committing calls of the runner make, as author, committer and whole message."""
+    shown = []
+    work = root / "copy"
+    work.mkdir(parents=True)
+    (work / "file.txt").write_text("one\n", encoding="utf-8", newline="\n")
+    shown.append(workspace.baseline(work))
+    (work / "file.txt").write_text("two\n", encoding="utf-8", newline="\n")
+    shown.append(workspace.deliver(work, subject="member: a delivery", trailers=["Harness: x", "Agent-Role: y"],
+                                   author="implementer <implementer@invalid>"))
+    review_copy = root / "review"
+    review_copy.mkdir()
+    (review_copy / "file.txt").write_text("one\n", encoding="utf-8", newline="\n")
+    workspace.commit(review_copy)
+    shown.append(workspace.head(review_copy))
+    repos = [work, work, review_copy]
+    return [workspace.git(repo, "show", "-s", "--format=%an <%ae>|%cn <%ce>|%B", commit)
+            for repo, commit in zip(repos, shown)]
+
+
+def test_commits_do_not_depend_on_the_identity_and_configuration_the_host_injects(
+        tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    clean = _commits_made_in(tmp_path / "clean")
+    _host_git_injection(tmp_path, monkeypatch)
+    injected = _commits_made_in(tmp_path / "injected")
+    assert injected == clean
+    assert clean[0].startswith("dispatcher <dispatcher@invalid>|dispatcher <dispatcher@invalid>|baseline")
+    assert clean[1].startswith("implementer <implementer@invalid>|implementer <implementer@invalid>|member: a delivery")
+    assert clean[2].startswith("dispatcher <dispatcher@invalid>|dispatcher <dispatcher@invalid>|material under review")
+    assert all("Host-Hook" not in text and "host" not in text for text in injected)
+    assert not (tmp_path / "injected" / "copy" / ".git" / "hooks" / "prepare-commit-msg").exists()
+    assert workspace.git(tmp_path / "injected" / "copy", "show", "-s", "--format=%ad", "--date=format:%Y", "HEAD") != "2001"
+
+
 # --- A3：implement 的判定 ------------------------------------------------------------------------------------
 
 @pytest.fixture
