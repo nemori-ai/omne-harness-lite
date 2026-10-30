@@ -132,16 +132,39 @@ const SOURCE_FILE = /\.[cm]?[jt]s$/u
 const STATIC_IMPORT = /^[ \t]*(?:import|export)\b[^'";]*?\bfrom\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
 const BARE_IMPORT = /^[ \t]*import\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
 const DYNAMIC_IMPORT = /\bimport\s*\(\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1\s*\)/gu
+const REQUIRE_CALL = /\brequire\s*\(\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1\s*\)/gu
+// 只认第二个参数正好是 import.meta.url 的 new URL：第一个参数是字符串字面量或模板字面量。
+const URL_READ = /\bnew\s+URL\s*\(\s*(['"`])((?:(?!\1)[^\n])*)\1\s*,\s*import\.meta\.url\s*\)/gu
 
 function relativeSpecifiers(text: string): string[] {
-  return [STATIC_IMPORT, BARE_IMPORT, DYNAMIC_IMPORT].flatMap(pattern =>
+  return [STATIC_IMPORT, BARE_IMPORT, DYNAMIC_IMPORT, REQUIRE_CALL].flatMap(pattern =>
     [...text.matchAll(pattern)].map(match => match[2] ?? ''),
   )
+}
+
+/** `new URL(<字面量>, import.meta.url)` 的第一个参数；带 `${` 的模板只取第一个 `${` 之前、最后一个 `/` 为止的前缀，当作目录。 */
+function urlTargets(text: string): string[] {
+  return [...text.matchAll(URL_READ)].flatMap(match => {
+    const literal = match[2] ?? ''
+    if (/^[a-z][a-z0-9+.-]*:/iu.test(literal)) return []
+    const template = literal.indexOf('${')
+    if (template < 0) return [literal]
+    const head = literal.slice(0, template)
+    return [head.slice(0, head.lastIndexOf('/') + 1) || './']
+  })
 }
 
 const isFile = (path: string): boolean => {
   try {
     return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+const isDirectory = (path: string): boolean => {
+  try {
+    return statSync(path).isDirectory()
   } catch {
     return false
   }
@@ -165,30 +188,72 @@ function resolveImport(from: string, specifier: string): string | undefined {
 }
 
 /**
- * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）沿相对导入读到的、不在成员 `src/` 下的文件（含成员内的 `test-support/` 等辅助文件），排序后取内容摘要；
- * 解析不到的相对导入记作 `missing:<路径>`，删掉文件也会变。成员的 `src/` 不追，归 Stryker 比较；包名导入不追。
- * 访问过的文件超过上限时抛出。
+ * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）读到的、不在成员 `src/` 下的文件（含成员内的 `test-support/` 等辅助文件），排序后取内容摘要。
+ * 读到的方式：相对的 import／require，以及 `new URL(<字面量>, import.meta.url)`；源码文件接着往下追。
+ * 解析不到的目标记作 `missing:<路径>`，删掉文件也会变。成员 `src/` 下的文件照样读、照样往下追，只是自己不进摘要，归 Stryker 比较。
+ * `new URL` 指向目录（含带 `${` 的模板取前缀）时，用 `git ls-files` 列出其中未被忽略的文件逐个进摘要，不追这些文件的导入。
+ * 目标是仓库根或成员目录的祖先目录（含成员目录本身）时不列文件，只记 `dir:<路径>` 表示存在：这样的写法只拿目录当锚点、再拼路径读文件，那些读取不追。
+ * 不追：包名导入、拿仓库根或成员祖先目录当锚点再拼路径读到的文件、经函数拼出的路径（如 `join(dirname(fileURLToPath(import.meta.url)), …)`）、相对当前目录的读取、`__dirname` 拼接。
+ * 访问过的文件超过上限、或目录列不出时抛出。
  */
 function externalInputs(root: string, memberDir: string, entries: readonly string[]): string[][] {
   const visited = new Set<string>()
+  const counted = new Set<string>()
   const found = new Map<string, string>()
   const srcDir = join(memberDir, 'src') + sep
   const rel = (path: string) => relative(root, path).split(sep).join('/')
+  const count = (file: string): void => {
+    if (counted.has(file)) return
+    if (counted.size >= EXTERNAL_LIMIT)
+      throw new Error(`测试读的成员外文件超过 ${EXTERNAL_LIMIT} 个，追踪不完`)
+    counted.add(file)
+  }
+  const record = (file: string): void => {
+    if (!file.startsWith(srcDir)) found.set(rel(file), digestOf(file))
+  }
+  const listDirectory = (directory: string): void => {
+    const listed = spawnSync(
+      'git',
+      ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', rel(directory) || '.'],
+      { cwd: root, encoding: 'utf8' },
+    )
+    if (listed.error !== undefined || listed.status !== 0)
+      throw new Error(
+        `git ls-files ${rel(directory)} 失败：${listed.error?.message ?? (listed.stderr.trim() || `退出码 ${listed.status}`)}`,
+      )
+    for (const path of new Set(listed.stdout.split('\0').filter(item => item !== ''))) {
+      const file = join(root, path)
+      // 指向目录的符号链接等不是文件，读不了内容，跳过。
+      if (isDirectory(file)) continue
+      count(file)
+      record(file)
+    }
+  }
   const visit = (file: string): void => {
     if (visited.has(file)) return
-    if (visited.size >= EXTERNAL_LIMIT)
-      throw new Error(`测试读的成员外文件超过 ${EXTERNAL_LIMIT} 个，追踪不完`)
     visited.add(file)
+    count(file)
     if (!SOURCE_FILE.test(file)) return
-    for (const specifier of relativeSpecifiers(readFileSync(file, 'utf8'))) {
+    const text = readFileSync(file, 'utf8')
+    const follow = (target: string): void => {
+      record(target)
+      visit(target)
+    }
+    for (const specifier of relativeSpecifiers(text)) {
       const target = resolveImport(file, specifier)
-      if (target === undefined) {
-        const missing = rel(resolve(dirname(file), specifier))
-        found.set(`missing:${missing}`, 'absent')
-      } else if (!target.startsWith(srcDir)) {
-        found.set(rel(target), digestOf(target))
-        visit(target)
-      }
+      if (target === undefined)
+        found.set(`missing:${rel(resolve(dirname(file), specifier))}`, 'absent')
+      else follow(target)
+    }
+    for (const urlPath of urlTargets(text)) {
+      const target = resolve(dirname(file), urlPath)
+      if (isFile(target)) follow(target)
+      else if (isDirectory(target)) {
+        // 仓库根与成员目录的祖先（含成员目录本身）只当锚点，再拼路径读文件；那样的读取不追，列全仓会让增量永远不复用。
+        if (target === memberDir || memberDir.startsWith(target + sep))
+          found.set(`dir:${rel(target) || '.'}`, 'present')
+        else listDirectory(target)
+      } else found.set(`missing:${rel(target)}`, 'absent')
     }
   }
   for (const entry of entries) visit(entry)
@@ -198,7 +263,7 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
 /**
  * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
  * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要，
- * 以及测试经相对导入读到的成员外文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 以及测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的成员外文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
  * 这四类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
  */
 export function memberFingerprint(
