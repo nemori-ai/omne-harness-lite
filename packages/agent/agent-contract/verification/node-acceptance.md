@@ -21,8 +21,8 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | NA-U0-1 | U0 | 1 | 1.3（#511） | invoke 交出的输入经 U0、Q1、Q2 接纳后，Journal.inputs 返回的内容与 invoke 交出的内容相同 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-U0-1: Journal.inputs returns the content that invoke handed over` |
 | NA-Q1-1 | Q1 | 1 | 1.3（#511） | 合法的外部输入候选由 Q1 直接转 Q2，Q1 与 Q2 之间没有扩展调用，Q1 不改变 Journal 修订号 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q1-1: Q1 passes a lawful candidate straight to Q2, with no call and no commit between` |
-| NA-Q2-1 | Q2 | 1 | 1.3（#511） | accept 返回 accepted 时，接纳回执随 checkpoint 提交，节点转 Q4 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4`；外部输入部分为 `NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged`，回执不另存，见 #558 S-13 裁决 |
-| NA-Q2-2 | Q2 | 1 | 1.3（#511） | accept 的提交回执未知时，以同一操作身份与同一候选再次调用 accept 得到原回执，没有第二个操作身份 | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on` |
+| NA-Q2-1 | Q2 | 1 | 1.3（#511） | prepare 返回 prepared 时，准入结果随 checkpoint 提交，节点转 Q4 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4`；外部输入部分为 `NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged`，回执不另存，见 #558 S-13 裁决 |
+| NA-Q2-2 | Q2 | 1 | 1.3（#511） | prepare 的提交回执未知时，以同一 H 与同一请求再次调用 prepare 认回原结果，没有第二个操作身份 | SC-AG-163 | `agent/tests/loop-admission.spec.ts`：`NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on` |
 | NA-Q4-1 | Q4 | 1 | 1.3（#511） | Q4 把接纳结果交回固定调用位置：外部输入回 U0 的受理方，模型回复回 I3，Q4 不重试 | 新增场景 | `agent/tests/loop-admission.spec.ts`：`NA-Q4-1: Q4 returns each admission to its call position once: the input to U0 and E0, the reply to I3` |
 | NA-E0-1 | E0 | 1（open） | 1.3（#511） | invoke 先预约单执行槽，再以 open 保存输入内容与初始 checkpoint，取得 Authority 后节点转 E1 | SC-AG-01 | `agent/tests/loop-admission.spec.ts`：`NA-E0-1: the slot is reserved while open runs; after the Authority the node goes to E1` |
 | NA-E0-2 | E0 | 1（open） | 1.3（#511） | 同一操作身份重复 invoke 认回原执行与原挂接，不再次 open，不新建执行 | SC-AG-40 | `agent/tests/loop-admission.spec.ts`：`NA-E0-2: while the run goes on`、`NA-E0-2: after the execution ended`、`NA-E0-2: in a new runtime over the same Journal, open gives the original back and the execution is not driven`。进程内重复不再 open；新 runtime 的 open 按幂等查找原记录 |
@@ -94,7 +94,7 @@
 | NA-T3-3 | T3 | 2 | 2.5（#525） | 获准动作在等并发名额、尚无槽位时，T3 不判为齐备 | SC-AG-132 | 待实现 |
 | NA-T4-1 | T4 | 2（直通） | 2.6（#526） | 至少一个槽位曾为 dispatched 时，全部槽位齐备之后 T4 对本批只经过一次，节点转 T5 | SC-AG-120、SC-AG-132 | 待实现 |
 | NA-T5-1 | T5 | 2 | 2.6（#526） | 两个结果按原动作顺序各经 Q2 接纳为一条消息；历史未知后拒绝不计该动作完成，不产生竞争拒绝消息，全部完成后节点转 I8 | SC-AG-120、SC-AG-132、SC-AG-222 | 待实现 |
-| NA-T5-2 | T5 | 2 | 2.6（#526） | T5 部分提交后崩溃，恢复后只提交尚未接纳的候选，每个候选的 accept 只成立一次 | SC-AG-130、SC-AG-173 | 待实现 |
+| NA-T5-2 | T5 | 2 | 2.6（#526） | T5 部分提交后崩溃，恢复后只提交尚未接纳的候选，每个候选的 prepare 只成立一次 | SC-AG-130、SC-AG-173 | 待实现 |
 | NA-T5-3 | T5 | 2 | 2.6（#526） | 全拒的拒绝消息以 action-denied 来源按原动作顺序交消息准入 | SC-AG-115 | 待实现 |
 | NA-H0-1 | H0 | 2 | 2.6（#526） | 执行仍有推进资格时工具结果被拒收，H0 形成失败候选转 F1，Tool 没有第二次受理 | SC-AG-57、SC-AG-126 | 待实现 |
 | NA-H0-2 | H0 | 2 | 2.6（#526） | 工具结果被拒收之后执行已无推进资格时，H0 只保管原结果转 O0，没有失败候选 | SC-AG-126 | 待实现 |
