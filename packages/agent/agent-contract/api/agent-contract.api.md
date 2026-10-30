@@ -3315,10 +3315,11 @@ export declare function memoryAgentAccountOutletFixture<P>(access: Access<P>, ot
 ## 声明文件 `testing-cancellation.d.ts`
 
 ```ts
+import type { TenantId } from '@omne-harness/legal-identity';
 import type * as T from '@omne-harness/tool-contract';
 import type { CancellationPolicy, CancellationPolicyInstallation, CancellationUnknown, ToolIntentKey } from './finishing.ts';
 import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts';
-import type { Adoption, AgentOperationId, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
+import type { Adoption, AgentExecutionId, AgentOperationId, CardRoundId, DurableEvidence, PassageId } from './identity.ts';
 export declare const TEST_CANCELLATION_POLICY: Adoption;
 export declare const TEST_CANCELLATION_INPUT_SCHEMA: Adoption;
 export declare const TEST_CANCELLATION_IMPLEMENTATION: Adoption;
@@ -3326,6 +3327,8 @@ export declare const testCancellationPolicyInstallation: CancellationPolicyInsta
 export declare function createTestCancellationPolicy(): CancellationPolicy;
 export type TestHostRecord = Readonly<{
     kind: 'legacy-return';
+    tenant: TenantId;
+    execution: AgentExecutionId;
     passage: PassageId;
     input: DurableEvidence;
     mode: ExtensionInvocationMode;
@@ -3350,6 +3353,8 @@ export type TestHostRecord = Readonly<{
     custody: DurableEvidence;
 }> | Readonly<{
     kind: 'card-reconciliation';
+    tenant: TenantId;
+    execution: AgentExecutionId;
     passage: PassageId;
     round: CardRoundId;
     result: Readonly<{
@@ -3504,7 +3509,8 @@ export interface AgentJournalCoreOpened<P> {
         consumption: ConsumptionId;
         transfer: Parameters<AgentJournal<P>['recordResult']>[0]['transfer'];
     }>>;
-    readonly faultNext?: (method: 'recordControl' | 'submit' | 'recordHandoff' | 'commit', outcome: 'applied' | 'dropped' | 'pending') => void;
+    readonly faultNext?: (method: 'recordControl' | 'submit' | 'recordHandoff' | 'commit' | 'prepareFinish' | 'tryFinish' | 'commitSettlement', outcome: 'applied' | 'dropped' | 'pending') => void;
+    readonly otherAccess?: Access<P>;
     readonly takeover?: (name: string) => Promise<Authority>;
     readonly installation?: CancellationPolicyInstallation | null;
     readonly hostRecord?: (record: TestHostRecord) => Promise<DurableEvidence>;
@@ -3709,6 +3715,9 @@ export declare function judge<P>(opened: AgentJournalCoreOpened<P>, control: Age
 export declare function endCancelled<P>(opened: AgentJournalCoreOpened<P>, control: AgentOperationId, name?: string, options?: Readonly<{
     establish?: boolean;
 }>): Promise<CommandReceipt>;
+export declare const MISSING_EXECUTION: AgentExecutionId;
+export declare function requireOtherAccess<P>(opened: AgentJournalCoreOpened<P>): Promise<Access<P> | undefined>;
+export declare function foreignDenied<P>(opened: AgentJournalCoreOpened<P>, other: Access<P>, method: Parameters<NonNullable<AgentJournalCoreOpened<P>['faultNext']>>[0], id: AgentOperationId, call: (access: Access<P>, execution: AgentExecutionId) => Reply<unknown>): Promise<void>;
 ```
 
 ## 声明文件 `testing-journal-samples.d.ts`
