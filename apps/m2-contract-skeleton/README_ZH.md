@@ -26,7 +26,7 @@
 
 路径调用 [public-contract](../../packages/access/public-contract/SPEC.md) 的治理与会话编解码、[identity](../../packages/identity/identity/SPEC.md) 的操作、带注入访问检查的 [Session 契约](../../packages/session/session-contract/SPEC.md)事务端口、[Agent](../../packages/agent/agent/SPEC.md) 运行时与宿主接收方、[Request Context](../../packages/context/request-context-contract/SPEC.md) 的组装，以及 [Model 契约](../../packages/model/model-contract/SPEC.md)的结果推送。Model 义务来自 `@omne-harness/model-contract/conformance`。`src/` 只导入根入口与 `./conformance` 入口，所有 `./testing` 替身都在测试里接入，包括 [session-adapters](../../packages/session/session-adapters/SPEC.md) 的同日志 Journal。替身清单见[公开依赖](SPEC.md#public-dependencies)。
 
-路径证明这些公开入口能为同一租户按次序连通，并证明每一跳交接的值形状。未连通的探测证明它停在哪里：哪一个公开入口拒绝、失败种类是什么，或 Agent 日志显示的 loop 位置。替身不证明持久性、跨进程主体来源、同一事务域的共同提交或真实供应商行为。`checksPassed` 只描述一次调用内的检查；外部测试与 QA 保留各自的结论。
+路径证明这些公开入口能为同一租户按次序连通，并证明每一跳交接的值形状。未连通的探测证明它停在哪里：哪一个公开入口拒绝、失败种类是什么，或 Agent 日志显示的 loop 位置。替身不证明持久性、跨进程主体来源、同一事务域的共同提交或真实供应商行为。`checksPassed` 只描述一次调用内的检查。外部测试与 QA 保留各自的结论。
 
 ## 设计
 
@@ -39,7 +39,7 @@
 | [GAP-SESSION-WIRE](SPEC.md#gap-session-wire) | 否 | [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) | H03、H04、H08 | 会话编解码在进程内运行。映射线上会话标识与识别登录的服务端接入归 M2。 |
 | [GAP-SESSION-COORDINATOR](SPEC.md#gap-session-coordinator) | 否 | [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) | H04、H07、H09 | 没有 Session 的面、推进适配与 Session 一侧的交接，由本应用排定调用次序。 |
 | [GAP-RUN-COMPLETED](SPEC.md#gap-run-completed) | 否 | [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) | H07 | 本路径上 Session 不能形成 completed 的 Run 终态。 |
-| [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | 否 | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) | H05 | 没有 Agent 一侧的 Context 适配；Request Context 取得租约后，由本应用的桥固定请求。 |
+| [GAP-AGENT-CONTEXT](SPEC.md#gap-agent-context) | 否 | [#542](https://github.com/nemori-ai/omne-harness-lite/issues/542) | H05 | 没有 Agent 一侧的 Context 适配。Request Context 取得租约后，由本应用的桥固定请求。 |
 | [GAP-RECEIVE-SURFACE](SPEC.md#gap-receive-surface) | 否 | [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502)、[#795](https://github.com/nemori-ai/omne-harness-lite/issues/795) | H06 | H06 经公开 pusher 与宿主接收方连通。Model ACK 在 Session 一侧的记账仍是具名偏离 `MODEL-ACK-ARRIVAL`。 |
 | [GAP-SECOND-RUN](SPEC.md#gap-second-run) | 是 | [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)、[#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) | H09 | Session 以 `run-active` 拒绝第二个 Run，Agent 对 `input.submit` 答 `unavailable`。 |
 | [GAP-TOOL-LOOP](SPEC.md#gap-tool-loop) | 是 | [#520](https://github.com/nemori-ai/omne-harness-lite/issues/520)、[#524](https://github.com/nemori-ai/omne-harness-lite/issues/524)、[#525](https://github.com/nemori-ai/omne-harness-lite/issues/525)、[#526](https://github.com/nemori-ai/omne-harness-lite/issues/526)、[#528](https://github.com/nemori-ai/omne-harness-lite/issues/528) | H10 | Agent loop 带着工具调用回复停在 I4，没有发起 Tool 调用。 |
