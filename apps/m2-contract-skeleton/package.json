@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Private M1 G1 verification app: connects the M2 first tenant path over public contract exports and their testing doubles, and reports each hop as verified or a named gap",
+  "description": "Private M1 G1 and M1.5 H3 verification app (CS v2): connects the M2 tenant path over public contract exports and their testing doubles, and reports each hop as verified or a named gap",
   "engines": {
     "node": ">=24"
   },
@@ -40,6 +40,8 @@
     "@omne-harness/utc-instant": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/execution-environment-contract": "workspace:*",
+    "@omne-harness/session-adapters": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
