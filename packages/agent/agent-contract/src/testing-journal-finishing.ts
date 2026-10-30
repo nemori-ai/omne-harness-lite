@@ -3812,6 +3812,13 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           },
         }
         const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
+        // The same foreign record of another round: denied before the round is compared, so the
+        // answer does not tell whether the round of the record is the one requested.
+        const foreignOtherRound = await opened.hostRecord({
+          ...record,
+          tenant: other.tenant,
+          round: identity(decodeCardRoundId('core-foreign-round'), 'foreign-round'),
+        })
         const elsewhere = await opened.hostRecord({ ...record, execution: MISSING_EXECUTION })
         const own = await opened.hostRecord(record)
         const recording = settlement<P, 'record-card-reconciliation'>(opened, 'reconcile-card', {
@@ -3829,6 +3836,12 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant',
         )
         assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        const deniedOtherRound = await refused(
+          journal.commitSettlement({ ...recording, original: foreignOtherRound }),
+          'denied',
+          'a host record of another tenant and another round',
+        )
+        assert.deepEqual(deniedOtherRound, denied, 'the same answer before the round is compared')
         const invalid = await refused(
           journal.commitSettlement({ ...recording, original: elsewhere }),
           'invalid',
@@ -3881,6 +3894,13 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           custody: evidence('custody/closer'),
         }
         const foreign = await opened.hostRecord({ ...record, tenant: other.tenant })
+        // The same foreign record of another input: denied before the input is compared, so the
+        // answer does not tell whether the input of the record is the one requested.
+        const foreignOtherInput = await opened.hostRecord({
+          ...record,
+          tenant: other.tenant,
+          input: evidence('invoke/foreign-elsewhere'),
+        })
         const elsewhere = await opened.hostRecord({ ...record, execution: MISSING_EXECUTION })
         const own = await opened.hostRecord(record)
         const recording = settlement<P, 'record-legacy-return'>(opened, 'legacy-return', {
@@ -3898,6 +3918,12 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           'a host record of another tenant',
         )
         assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        const deniedOtherInput = await refused(
+          journal.commitSettlement({ ...recording, source: foreignOtherInput }),
+          'denied',
+          'a host record of another tenant and another input',
+        )
+        assert.deepEqual(deniedOtherInput, denied, 'the same answer before the input is compared')
         const invalid = await refused(
           journal.commitSettlement({ ...recording, source: elsewhere }),
           'invalid',
@@ -3921,7 +3947,7 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
       },
     },
     {
-      name: 'record-tool-association: a host return whose reference belongs to another tenant is denied with the action commitSettlement; the association stays',
+      name: 'record-tool-association: a host return whose reference belongs to another tenant is denied with the action commitSettlement before its intent and request are compared, the same for a return of another intent or another request; the association stays',
       run: async () => {
         const opened = await fixture.open('foreign-tool-reference')
         if (!(await requireInstallation(opened))) return
@@ -3944,33 +3970,64 @@ function foreignTenantCases<P>(fixture: AgentJournalCoreFixture<P>): readonly Co
           }),
           'reference',
         )
-        const source = await opened.hostRecord({
-          kind: 'tool-return',
+        const foreignReturn = {
+          kind: 'tool-return' as const,
           intent: key,
           request: pending.fixed,
           returned: {
-            kind: 'accepted',
+            kind: 'accepted' as const,
             reference: foreignReference,
             receipt: evidence('tool-receipt-foreign'),
           },
           received: evidence('received/call-foreign'),
           custody: evidence('custody/call-foreign'),
+        }
+        const source = await opened.hostRecord(foreignReturn)
+        // The same foreign return of another intent, and of another request: denied before the
+        // intent and the request are compared, so the answer does not tell whether the return is
+        // the one of the requested intent (SPEC "record-tool-association" failure table, the
+        // foreign-tenant row: before the original intent or source is disclosed).
+        const otherIntent = await opened.hostRecord({
+          ...foreignReturn,
+          intent: { ...key, intent: operation('core-foreign-other-intent') },
+        })
+        const otherRequest = await opened.hostRecord({
+          ...foreignReturn,
+          request: evidence('request/foreign-other'),
         })
         const before = await load(opened)
-        const denied = await refused(
+        const associate = (name: string, source: DurableEvidence) =>
           journal.commitSettlement(
-            settlement<P, 'record-tool-association'>(opened, 'associate-foreign', {
+            settlement<P, 'record-tool-association'>(opened, name, {
               kind: 'record-tool-association',
               intent: key,
               request: pending.fixed,
               source,
               priorExcluded: null,
             }),
-          ),
+          )
+        const denied = await refused(
+          associate('associate-foreign', source),
           'denied',
           'a returned reference of another tenant',
         )
         assert.deepEqual(denied, { kind: 'denied', action: 'commitSettlement' })
+        const deniedOtherIntent = await refused(
+          associate('associate-foreign-other-intent', otherIntent),
+          'denied',
+          'a returned reference of another tenant under another intent',
+        )
+        assert.deepEqual(deniedOtherIntent, denied, 'the same answer before the intent is compared')
+        const deniedOtherRequest = await refused(
+          associate('associate-foreign-other-request', otherRequest),
+          'denied',
+          'a returned reference of another tenant under another request',
+        )
+        assert.deepEqual(
+          deniedOtherRequest,
+          denied,
+          'the same answer before the request is compared',
+        )
         assert.deepEqual(await load(opened), before, 'the association stays')
       },
     },
