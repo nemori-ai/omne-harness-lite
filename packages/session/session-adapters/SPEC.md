@@ -45,7 +45,7 @@
 
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、tryFinish 的只读核对，attach 的核对（[PA-01](../session-contract/SPEC.md#pa-01) 第 3 条）尚未实现；生产插件未交付 |
+| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、attach、tryFinish 的只读核对。attach 按 [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条核对普通推进与取消收束，取消收束含 SE16 条件。tryFinish 含 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支。judge-cancellation 的判断输入带 Session 的参加者事实。生产插件未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | `reader`；下界读取为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
@@ -93,13 +93,14 @@
 | `submit` | 来源依据是该输入的 SE11 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 2 条 |
 | `attach`（经 `resume` 发起） | 来源依据是推进资格依据所指 attempt 的 SE15 回执，经 attach 输入的 `grant` 到达，分普通推进与取消收束两种情形 | [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条 |
 | `tryFinish` | 以 `judgeCompletion` 核对待交输入与取消 | [PA-02](../session-contract/SPEC.md#pa-02) |
+| `commitSettlement` 的 judge-cancellation | 以 `judgeCompletion` 读本 execution 所属的 Run，构造 Session 的 `TerminalParticipantFact`，作为判断输入的参加者事实。allowed 记 ready。blocked 记 blocked，类别为 inputs，依据为第一项待交输入的 SE11 依据。cancelled 而 SE26 引用的控制等于判断的取消控制时记 ready，不等时记 changed。其他终态记 changed。读取失败记 unknown。事实的协议 Adoption 是本绑定自定的 `pa-02-terminal-participation`，对应 session-contract 的 PA-02，`purpose` 是本绑定的 judge-cancellation 用途依据。取消路线上的 tryFinish 重读同一事实，与判断记录比较 | [PA-02](../session-contract/SPEC.md#pa-02) |
 
 Session 结果到四种参加者响应的对应：
 
 | Session 一侧的结果 | 参加者响应 | 依据 |
 | --- | --- | --- |
 | 命令或核对成立 | 参加 | 无 |
-| 当前事实与提交前提不一致：`judgeAdvance` 不为 `ok`、`judgeCompletion` 为 `blocked` 或 `cancelled`、执行不是本 Run 的执行、会话已归档 | 冲突 | 当前事实：当前 `advance`、待交输入的 `InputId`、SE26 cancelled、SE27 |
+| 当前事实与提交前提不一致：`judgeAdvance` 不为 `ok`、`judgeCompletion` 为 `blocked` 或 `cancelled`、执行不是本 Run 的执行、会话已归档。例外：`judgeCompletion` 为 `cancelled`、终结带取消授权、结论为 cancelled、取消控制等于 SE26 引用的控制时，按 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支响应「参加」 | 冲突 | 当前事实：当前 `advance`、待交输入的 `InputId`、SE26 cancelled、SE27 |
 | 同一操作身份配不同材料 | 冲突 | 原提交 |
 | 读权威状态失败、存储不可用 | 失败 | 无 |
 | 提交种类不在四种之内，或材料缺项 | 不支持 | 无 |
@@ -165,7 +166,7 @@ Session后续解释从该原事件片段重建等待，不要求Agent公开load�
 
 同根读取原ControlRecord、阶段事实、SE24/25、固定selected、原SE18/SE22及关联条目。execution-to-Run/attempt沿原SE13/SE15与grant，不由当前Run猜测。源材料未知、缺失或矛盾分别沿AD-02原失败规则，不能降为observed。
 
-Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
+本节与下文的 K 指 Session 直接发起的一次控制，即该控制的 Session 操作身份。它与 [J06](#j06-会话路径的两个-agent-提供者) 中 Agent 外部入口索引 Ki 无关。Session直接发起的控制，按既定deriveDriveOperation和完整原命令/目标核对因果，不解析opaque reason/source。独立具名控制可以证明某项原责任已合法交接，不因此证明它由Session K发起。没有任何适用K，且完整同根原关系能证明其不对本Session产生控制后果时，该事件为无Session后果的observed。没有找到K但关系未完整读到时仍是unavailable。不能创建假K。
 
 同一Agent事实可涉及多个原K。分别从各K原目标、意图与原选择推导进度，不能只更新第一个匹配项。全部后果及该次解释进度/答案同批发布。
 

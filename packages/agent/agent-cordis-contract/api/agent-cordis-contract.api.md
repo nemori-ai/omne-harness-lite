@@ -85,7 +85,10 @@ export declare abstract class AgentJournalService<P> extends Service implements 
     abstract readonly acknowledge: AgentJournal<P>['acknowledge'];
     abstract readonly recordResult: AgentJournal<P>['recordResult'];
     abstract readonly recordControl: AgentJournal<P>['recordControl'];
+    abstract readonly recordHandoff: AgentJournal<P>['recordHandoff'];
+    abstract readonly prepareFinish: AgentJournal<P>['prepareFinish'];
     abstract readonly tryFinish: AgentJournal<P>['tryFinish'];
+    abstract readonly commitSettlement: AgentJournal<P>['commitSettlement'];
     abstract readonly recordTerminalObservation: AgentJournal<P>['recordTerminalObservation'];
     abstract readonly load: AgentJournal<P>['load'];
     abstract readonly inputs: AgentJournal<P>['inputs'];
@@ -131,7 +134,9 @@ export declare const agentDecisionCardsKey = "agentDecisionCards";
 export declare abstract class MessageHandoffService<P> extends Service implements MessageHandoff<P> {
     static readonly provide = "agentMessageHandoff";
     constructor(ctx: Context);
-    abstract readonly accept: MessageHandoff<P>['accept'];
+    abstract readonly prepare: MessageHandoff<P>['prepare'];
+    abstract readonly lookup: MessageHandoff<P>['lookup'];
+    abstract readonly exclude: MessageHandoff<P>['exclude'];
 }
 export declare const agentMessageHandoffKey = "agentMessageHandoff";
 export declare abstract class ExtensionImplementationsService<P> extends Service implements ExtensionImplementations<P> {
@@ -241,10 +246,10 @@ export declare const agentInstancesPlugin: {
             version: 1;
             vendor: string;
             validate(value: unknown): {
-                issues?: never;
                 value: {};
+                issues?: never;
             } | {
-                value?: never;
+                value?: {};
                 issues: {
                     message: string;
                 }[];

@@ -4,6 +4,7 @@ import type {
   AgentCheckpoint,
   Authority,
   ExecutionSnapshot,
+  ExecutionState,
   Failure,
 } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -36,6 +37,8 @@ import {
   shown,
   stoppedAt,
   type LoopAssembly,
+  handoffOperationOf,
+  replyCandidate,
 } from './loop-support.ts'
 
 const STOP: Failure = { kind: 'invalid', field: 'test', reason: 'stop at the evaluator' }
@@ -61,6 +64,14 @@ async function load(assembly: LoopAssembly) {
 
 function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
   return recoveryRoute({ checkpoint: at, unresolved: [], state: { kind: 'advancing' }, ...change })
+}
+
+/**
+ * Whether `operation` is the commit of `node` on the normal path: node commits carry the node as
+ * their prefix; the Ja of Q2 derives from its H and the stage `resolve` (SPEC "消息准入").
+ */
+function isCommitOf(node: string, operation: string): boolean {
+  return node === 'Q2' ? operation.endsWith('/resolve') : operation.startsWith(`${node}/commit@`)
 }
 
 describe('E4 recovery routing', () => {
@@ -136,9 +147,10 @@ describe('E4 recovery routing', () => {
 
   it.each(['F2', 'F3'])('NA-E4-2: settling resumes %s from the saved finish intent', position => {
     const intent = {
+      candidate: operation('F1/commit@1'),
       conclusion: { kind: 'complete' as const },
       inputWatermark: evidence('inputs'),
-      obligations: evidence('obligations'),
+      obligations: null,
       beforeTerminal: null,
       failure: null,
     }
@@ -344,6 +356,86 @@ describe('R0 and W0 coordination', () => {
     },
   )
 
+  // SPEC "查询的四种结论与持久拒绝": R0 branches on rejected explicitly. For an unresolved operation of
+  // another writer it is a settled refusal, so R0 goes on; for the coordinator's own commit it is a
+  // violation of the Journal provider, reported as unavailable, never waited on.
+  it.each(['own-commit', 'other-operation'] as const)(
+    'NA-E4-3: R0 treats a rejected %s as settled or as a provider violation, not as unknown',
+    async which => {
+      const other = operation('other-ack')
+      // For `own-commit`, the first commit of the coordinator is held pending and named here.
+      let target: ReturnType<typeof operation> | null = which === 'other-operation' ? other : null
+      const assembly = await loopAssembly([execution()], d => ({
+        ...d,
+        journal: {
+          ...d.journal,
+          commit: input => {
+            if (which === 'own-commit' && target === null) {
+              target = input.operation
+              assembly.controls.journal.failNext('commit', {
+                kind: 'commit-unknown',
+                outcome: 'pending',
+              })
+            }
+            return d.journal.commit(input)
+          },
+          query: async input =>
+            input.operation === target
+              ? {
+                  ok: {
+                    kind: 'rejected',
+                    failure: { kind: 'conflict', operation: input.operation },
+                    audit: evidence('audit'),
+                    revision: '1' as never,
+                  },
+                }
+              : d.journal.query(input),
+        },
+      }))
+      const c = coordinator(
+        assembly,
+        which === 'own-commit'
+          ? {}
+          : {
+              evaluator: {
+                ...agentEvaluator,
+                initial: () => succeed(checkpoint('I0')),
+                next: () => fail(STOP),
+              },
+            },
+      )
+      ok(await c.accept())
+      if (which === 'own-commit') {
+        assembly.release.open()
+        expect(failure(await c.runExecution()).failure).toMatchObject({ kind: 'commit-unknown' })
+        expect(target).not.toBeNull()
+        const before = await load(assembly)
+        expect(failure(await c.runExecution()).failure).toMatchObject({
+          kind: 'unavailable',
+          owner: 'agentJournal',
+        })
+        expect(await load(assembly)).toEqual(before)
+      } else {
+        assembly.controls.journal.failNext('acknowledge', {
+          kind: 'commit-unknown',
+          outcome: 'pending',
+        })
+        expect(
+          failure(
+            await assembly.dependencies.journal.acknowledge({
+              ...alice,
+              execution: execution(),
+              operation: other,
+              through: '1',
+              receipt: null,
+            }),
+          ),
+        ).toMatchObject({ kind: 'commit-unknown' })
+        expect(failure(await c.runExecution())).toEqual({ node: 'E4', failure: STOP })
+      }
+    },
+  )
+
   it('NA-E4-3: recovery of the original main call reaches I3 without another admission', async () => {
     let connects = 0
     let admits = 0
@@ -390,7 +482,7 @@ describe('R0 and W0 coordination', () => {
     )
     ok(await c.runExecution())
     expect(admits).toBe(1)
-    expect(assembly.controls.handoff.accept.calls.at(-1)?.source).toMatchObject({
+    expect(assembly.controls.handoff.prepare.calls.at(-1)?.request.source).toMatchObject({
       kind: 'model-reply',
       call: expect.any(String),
     })
@@ -422,7 +514,7 @@ describe('R0 and W0 coordination', () => {
           ...d.journal,
           commit: input => {
             writes.push(input.operation)
-            if (original === null && input.operation.startsWith(`${target}/commit@`)) {
+            if (original === null && isCommitOf(target, input.operation)) {
               original = input.operation
               assembly.controls.journal.failNext('commit', {
                 kind: 'commit-unknown',
@@ -490,16 +582,17 @@ describe('R0 and W0 coordination', () => {
       expect(acknowledgements).toBe(0)
       expect(processed).toBe(0)
       expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
-      expect(assembly.controls.handoff.accept.calls).toHaveLength(
-        target === 'Q2' && outcome === 'dropped' ? 3 : 2,
+      // The outcome of the reply was fixed by prepare at Q1 (SPEC "消息准入"): the Ja retried
+      // after a dropped commit applies that outcome again and asks the provider nothing new.
+      expect(assembly.controls.handoff.prepare.calls).toHaveLength(2)
+      const replies = assembly.controls.handoff.prepare.calls.filter(
+        call => call.request.source.kind === 'model-reply',
       )
-      const replies = assembly.controls.handoff.accept.calls.filter(
-        call => call.source.kind === 'model-reply',
-      )
-      expect(new Set(replies.map(call => call.operation)).size).toBe(1)
+      expect(new Set(replies.map(handoffOperationOf)).size).toBe(1)
       expect(
         replies.every(
-          call => JSON.stringify(call.candidate) === JSON.stringify(replies[0]?.candidate),
+          call =>
+            JSON.stringify(replyCandidate(call)) === JSON.stringify(replyCandidate(replies[0])),
         ),
       ).toBe(true)
       const saved = await load(assembly)
@@ -622,9 +715,10 @@ describe('R0 and W0 coordination', () => {
       ...d,
       journal: {
         ...d.journal,
+        // A refusal stops the run at F3; an unavailable tryFinish would go to R0 instead.
         tryFinish: async input => {
           finish = input
-          return fail({ kind: 'unavailable', owner: 'test', diagnostic: 'pause before terminal' })
+          return fail({ kind: 'denied', action: 'pause before terminal' })
         },
         load: async input => {
           if (reentry && ++loads === 2) {
@@ -811,6 +905,46 @@ describe('the recovered input boundary', () => {
   })
 })
 
+describe('a saved admission position in a new coordinator', () => {
+  // The recovery route names Q2 for a saved P, but no delivered path reaches that resume: a new
+  // coordinator with the same operation recognizes the original open and ends at E1 with
+  // found-existing, and the public resume is not delivered. The admission frame of Q2 is rebuilt
+  // only in memory by the coordinator that wrote the P (#502 stage 5 for a new one).
+  it('NA-E4-1: a new coordinator over a saved Q2 position recognizes the original open and ends at E1; the P and currentHandoff stay as saved', async () => {
+    let replies = 0
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      handoff: {
+        ...d.handoff,
+        async prepare(input) {
+          if (input.request.source.kind === 'model-reply' && replies++ === 0)
+            return fail({ kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' })
+          return d.handoff.prepare(input)
+        },
+      },
+    }))
+    assembly.release.open()
+    const first = coordinator(assembly)
+    ok(await first.accept())
+    expect(failure(await first.runExecution())).toMatchObject({ node: 'Q1' })
+    const saved = await load(assembly)
+    expect(saved.checkpoint.position).toBe('Q2')
+    expect(saved.checkpoint.currentHandoff).not.toBeNull()
+    expect(ok(recoveryRoute({ ...saved, unresolved: [] }))).toBe('Q2')
+    const again = coordinator(assembly)
+    ok(await again.accept())
+    ok(await again.runExecution())
+    const after = await load(assembly)
+    expect(after.revision).toBe(saved.revision)
+    expect(after.checkpoint).toEqual(saved.checkpoint)
+    expect(after.state.kind).not.toBe('ended')
+    expect(after.handoffs.map(record => record.history)).toEqual([
+      { kind: 'committed', operation: operation('invoke-exec-1'), revision: '1' },
+      { kind: 'pending' },
+    ])
+  })
+})
+
 describe('checkpoint positions saved by the current assembly', () => {
   it('NA-E4-2: every checkpoint written on the normal path has the specified recovery destination', async () => {
     const saved: Pick<ExecutionSnapshot, 'checkpoint' | 'state' | 'unresolved'>[] = []
@@ -819,7 +953,22 @@ describe('checkpoint positions saved by the current assembly', () => {
       journal: {
         ...d.journal,
         commit: input => {
-          saved.push({ checkpoint: input.checkpoint, state: input.state, unresolved: [] })
+          // A committed settling state carries no intent; the route reads only the kind.
+          const state: ExecutionState =
+            input.state.kind === 'settling'
+              ? {
+                  kind: 'settling',
+                  intent: {
+                    candidate: input.operation,
+                    conclusion: { kind: 'complete' },
+                    inputWatermark: evidence('inputs'),
+                    obligations: null,
+                    beforeTerminal: null,
+                    failure: null,
+                  },
+                }
+              : input.state
+          saved.push({ checkpoint: input.checkpoint, state, unresolved: [] })
           return d.journal.commit(input)
         },
       },
@@ -832,6 +981,7 @@ describe('checkpoint positions saved by the current assembly', () => {
       I2: 'P1',
       M6: 'M6',
       M4: 'M4',
+      Q2: 'Q2',
       Q4: 'Q4',
       I3: 'I3',
       I4: 'I4',

@@ -1,8 +1,10 @@
 export { agentBodyContract } from './body-contract.ts'
+export { obligationCategoryOf } from './finishing.ts'
 export { ATTRIBUTE_ITEMS } from './definition.ts'
 export { POSITIONS, POWERS } from './extensions.ts'
 export { judgeAgentDefinition } from './judge-definition.ts'
 export { judgeLoopExtensions } from './judge-extensions.ts'
+export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts'
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts'
 export type {
   ExtensionOutputJudgeInput,
@@ -40,6 +42,7 @@ export {
 export type * from './evaluation.ts'
 export type * from './execution.ts'
 export type * from './extensions.ts'
+export type * from './finishing.ts'
 export type * from './identity.ts'
 export type * from './journal.ts'
 export type * from './passages.ts'

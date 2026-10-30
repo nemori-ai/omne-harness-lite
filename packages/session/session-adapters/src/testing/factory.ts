@@ -9,12 +9,15 @@ import { emptyHistory } from './empty-history.ts'
 import { sessionView } from './session-view.ts'
 import { captureHuman } from './human.ts'
 import {
+  type AcceptedInput,
   type AgentJournal,
   type AgentExecutionId,
+  type DurableEvidence,
   type CallerCommit,
   type ExecutionMutation,
   type Failure,
   type CommandReceipt,
+  type TerminalParticipantFact,
 } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -37,27 +40,53 @@ import {
   type CommittedBatch,
   type GuardCommand,
   type HistoryEntry,
+  type RunTerminal,
+  deriveDriveOperation,
 } from '@omne-harness/session-contract'
 import type { InitializationSource } from './ports.ts'
-import { operationSemantic, createCell, type JournalCell, type SessionState } from './root.ts'
+import {
+  operationSemantic,
+  createCell,
+  type CommonRoot,
+  type JournalCell,
+  type SessionState,
+} from './root.ts'
 import {
   createJournal,
+  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
+  type MemoryAgentJournalOptions,
 } from './journal.ts'
 import { commitAccessMatches, createSessionTransactions, qualifyAccess } from './session.ts'
 import {
   history,
   grantAttempt,
+  findGrantAttempt,
   authorityAttempt,
   normalizedResult,
   registration,
   executionKey,
   HistoryFailure,
 } from './history.ts'
-import { canonical, materializeModelView } from './session-values.ts'
+import { canonical, materializeModelView, rowData } from './session-values.ts'
+import { journalEvidence } from './journal-values.ts'
 import type { SessionDirectory } from './session-directory.ts'
+
+type OpenInput<P> = Parameters<AgentJournal<P>['open']>[0]
+type AttachInput<P> = Parameters<AgentJournal<P>['attach']>[0]
+
+/** The grant of an open or attach: an open carries it in the runtime context of its invoke. */
+function grantOf<P>(input: OpenInput<P> | AttachInput<P>): DurableEvidence | null {
+  return 'runtime' in input ? input.runtime.grant : input.grant
+}
+
+/** The initial input of an open: the accepted input of the invoke entry of its acceptance. */
+function initialOf<P>(input: OpenInput<P>): AcceptedInput {
+  const entry = input.original.entry
+  return entry.kind === 'invoke' ? entry.initial : entry.value
+}
 
 export type MemorySessionJournalOptions<P> = Readonly<{
   initialization: InitializationSource
@@ -73,8 +102,26 @@ export type MemorySessionJournalOptions<P> = Readonly<{
    */
   authorize(input: SessionAccess<P>, action: string): 'allowed' | 'denied' | 'unavailable'
   budget?: Readonly<{ entries: number; bytes: number; capacityBytes: number }>
+  /**
+   * The cancellation policy installation the Agent Journal of every session holds (Agent SPEC
+   * "安装记录与资格"), from the assembly entry. Absent: the candidate, migration and judgment
+   * variants of commitSettlement answer `unavailable`.
+   */
+  cancellation?: MemoryAgentJournalOptions<P>['cancellation']
+  /** The trusted host reads of the custody variants of commitSettlement, by source record text. */
+  hostRecords?: MemoryAgentJournalOptions<P>['hostRecords']
 }>
 const denied = (action: string): Failure => ({ kind: 'denied', action })
+/**
+ * The protocol the Session participant fact of a cancellation judgment follows: the read-only
+ * completion check of session-contract PA-02 (AD-01).
+ */
+const PA02_PROTOCOL = Object.freeze({
+  owner: '@omne-harness/session-contract',
+  name: 'pa-02-terminal-participation',
+  revision: '1',
+  digest: 'memory:pa-02-terminal-participation',
+})
 function agentFailure(
   failure: SessionFailure,
   operation: ExecutionMutation<unknown>['operation'],
@@ -202,12 +249,12 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             root.agent.originals.get(input.execution)!.at(-1)!,
           )
           if ((method === 'open' || method === 'attach') && execution) {
-            const value = input as Parameters<AgentJournal<P>['open']>[0]
+            const value = input as OpenInput<P> | AttachInput<P>
             const authority = execution.attachments.at(-1)?.authority
             if (authority)
               root.agent.authorities.set(
                 `${input.execution}\0${canonical(authority)}`,
-                grantAttempt(root, input.execution, value.grant),
+                grantAttempt(root, input.execution, grantOf(value)),
               )
           }
 
@@ -336,9 +383,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             root.agent.indexedEvents.set(input.execution, execution.events.length)
           }
           if (method === 'open' || method === 'submit') {
-            const value = input as Parameters<AgentJournal<P>['open']>[0] &
-              Parameters<AgentJournal<P>['submit']>[0]
-            const admitted = method === 'open' ? value.initial : value.value
+            const admitted =
+              method === 'open'
+                ? initialOf(input as OpenInput<P>)
+                : (input as Parameters<AgentJournal<P>['submit']>[0]).value
             const root = cell.state(),
               state = root.session
             if (!state) throw new Error('admission without Session')
@@ -346,10 +394,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
             const attachment = execution?.attachments.at(-1)?.authority
             const prior =
               method === 'open'
-                ? value
+                ? (input as OpenInput<P>)
                 : (records.findLast(item => item.method === 'open' || item.method === 'attach')
-                    ?.input as Parameters<AgentJournal<P>['attach']>[0] | undefined)
-            const grant = prior?.grant
+                    ?.input as OpenInput<P> | AttachInput<P> | undefined)
+            const grant = prior === undefined ? undefined : grantOf(prior)
             if (!attachment || !grant) throw new Error('admission without original grant')
             const attempt = grantAttempt(cell.state(), input.execution, grant)
             const run = root.sources.runs.get(input.execution)
@@ -511,6 +559,164 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       return fail(agentFailure(qualification.failure, input.operation))
     return succeed({ evidence: qualification.ok, digest: commandDigest(command) })
   }
+  /**
+   * PA-01 item 1 (open) and item 3 (attach): whether the grant names the attempt that may hold
+   * this execution now. The terminal of the execution is read as `judgeCompletion` reads it, from
+   * the Run of this execution, not from the current Run of the session. Ordinary advance: that
+   * Run has no terminal, the current Run is active for this execution and the attempt is
+   * `run.active.advance`. Cancel wind-down (attach only): the Run of this execution is the
+   * cancelled terminal and the attempt is the last one granted for the execution before the
+   * cancel; such an attachment carries cancel authority only, which `advances` denies.
+   */
+  function grantHoldsFor(
+    root: CommonRoot,
+    execution: AgentExecutionId,
+    grant: DurableEvidence | null,
+    method: 'open' | 'attach',
+  ): boolean {
+    const state = root.session
+    if (!state || grant === null) return false
+    // Only a grant that does not identify SE15 is a refusal; any other error is a defect and throws.
+    const attempt = findGrantAttempt(root, execution, grant)
+    if (attempt === undefined) return false
+    const judged = judgeCompletion(state.snapshot, execution)
+    if (judged.kind === 'terminal') return false
+    if (judged.kind !== 'cancelled') {
+      const run = state.snapshot.run
+      return (
+        run.kind === 'active' &&
+        run.execution.execution === execution &&
+        run.advance?.attempt === attempt.attempt
+      )
+    }
+    if (method !== 'attach') return false
+    const original = root.sources.runs.get(execution)
+    if (!original || original.run !== judged.terminal.run) return false
+    // rulings 7d B-1: the last attempt granted before the cancel (SE26), whose SE16 the cancel
+    // batch wrote or an earlier batch wrote; an attempt granted earlier cannot wind down.
+    const at = Number(cancelBatchRow(root, judged.terminal).revision)
+    const last = (root.sources.attemptsByExecution.get(execution) ?? [])
+      .filter(item => Number(item.started.revision) <= at)
+      .at(-1)
+    if (last === undefined)
+      throw new Error('session double defect: a cancelled Run without an attempt before the cancel')
+    if (last.attempt !== attempt.attempt) return false
+    // The Session reducer releases the advance before a terminal (SE16 before SE26), so a missing
+    // release is a broken history, not a refusal of this grant.
+    const released = [...root.sources.rowsById.values()].some(
+      row =>
+        row.kind === 'run.attempt-released' &&
+        String(rowData(row)['attempt']) === String(last.attempt) &&
+        Number(row.revision) <= at,
+    )
+    if (!released)
+      throw new Error('session double defect: the last attempt before the cancel has no SE16')
+    return true
+  }
+
+  /** The member `key` of a decoded row value, or `undefined` when the value is not an object. */
+  function fieldOf(value: unknown, key: string): unknown {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? Object.entries(value).find(([name]) => name === key)?.[1]
+      : undefined
+  }
+
+  /** The SE26 row of `terminal`: the run.terminal row of the batch its evidence names. */
+  function cancelBatchRow(root: CommonRoot, terminal: RunTerminal): HistoryEntry {
+    for (const row of root.sources.rowsById.values())
+      if (
+        row.kind === 'run.terminal' &&
+        canonical(row.origin.source) === canonical(terminal.evidence)
+      )
+        return row
+    throw new Error('session double defect: a Run terminal without its SE26 row')
+  }
+
+  /**
+   * The Agent cancel control that SE26 of a cancelled Run refers to (PA-02): the
+   * `control.requested` written by the same Session control as the terminal evidence, mapped to
+   * the Agent operation the coordinator derives for it.
+   */
+  function terminalControl(
+    root: CommonRoot,
+    execution: AgentExecutionId,
+    terminal: RunTerminal,
+  ): string | undefined {
+    for (const row of root.sources.rowsById.values()) {
+      if (row.kind !== 'control.requested') continue
+      if (canonical(row.origin.source) !== canonical(terminal.evidence)) continue
+      const operation = fieldOf(rowData(row)['progress'], 'operation')
+      // The typed identity comes from the reduced projection of the same control.
+      const control = root.session?.snapshot.controls.find(item => item.operation === operation)
+      if (control === undefined) return undefined
+      return deriveDriveOperation({ kind: 'control', execution, control: control.operation })
+    }
+    return undefined
+  }
+
+  /**
+   * The Session terminal condition of a cancelled candidate under the Agent cancel `control`
+   * (AD-01 judge-cancellation row, PA-02): `judgeCompletion` on the Run of this execution, the
+   * same read tryFinish co-checks. allowed is ready; inputs Session accepted for this Run and did
+   * not hand over block it with the SE11 evidence of the first one; a cancelled Run is ready when
+   * its SE26 names `control` and changed otherwise; another terminal is changed; a failed read is
+   * unknown.
+   */
+  function terminalParticipant(
+    cell: JournalCell<P>,
+    execution: AgentExecutionId,
+    control: string,
+  ): TerminalParticipantFact {
+    const fact = (
+      source: DurableEvidence,
+      condition: TerminalParticipantFact['condition'],
+    ): TerminalParticipantFact => ({
+      owner: 'session',
+      protocol: PA02_PROTOCOL,
+      source,
+      version: cell.state().session?.lastCommit?.source ?? source,
+      condition,
+      purpose: journalEvidence(`${cell.namespace}/participant/judge-cancellation`, 0),
+    })
+    const unread = journalEvidence(`${cell.namespace}/participant/unread`, 0)
+    try {
+      const state = cell.state().session
+      if (!state) return fact(unread, { kind: 'unknown' })
+      const read = state.lastCommit?.source ?? unread
+      const judged = judgeCompletion(state.snapshot, execution)
+      switch (judged.kind) {
+        case 'allowed':
+          return fact(read, { kind: 'ready' })
+        case 'blocked': {
+          const first = judged.pendingInputs[0]
+          const admitted = first === undefined ? undefined : state.inputs.get(first)
+          if (admitted === undefined) return fact(read, { kind: 'unknown' })
+          return fact(admitted.origin, {
+            kind: 'blocked',
+            category: 'inputs',
+            source: admitted.origin,
+          })
+        }
+        case 'cancelled':
+          return fact(judged.terminal.evidence, {
+            kind:
+              terminalControl(cell.state(), execution, judged.terminal) === control
+                ? 'ready'
+                : 'changed',
+          })
+        case 'terminal':
+          return fact(judged.terminal.evidence, { kind: 'changed' })
+        default: {
+          const _exhaustive: never = judged
+          return _exhaustive
+        }
+      }
+    } catch (error) {
+      if (error instanceof HistoryFailure) return fact(unread, { kind: 'unknown' })
+      throw error
+    }
+  }
+
   function participant(
     cell: JournalCell<P>,
     input: ExecutionMutation<P>,
@@ -521,24 +727,19 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     const state = cell.state().session
     if (!state) return denied(method)
     if (method === 'open' || method === 'attach') {
-      const value = input as
-        | Parameters<AgentJournal<P>['open']>[0]
-        | Parameters<AgentJournal<P>['attach']>[0]
-      const attempt = grantAttempt(cell.state(), input.execution, value.grant)
-      if (
-        state.snapshot.run.kind !== 'active' ||
-        state.snapshot.run.advance?.attempt !== attempt.attempt
-      )
-        return { kind: 'stale-advance' }
+      const value = input as OpenInput<P> | AttachInput<P>
+      // PA-01 items 1 and 3: a conflict of the grant co-check is Agent's denied (AD-01).
+      if (!grantHoldsFor(cell.state(), input.execution, grantOf(value), method))
+        return denied(method)
       if (method === 'open') {
-        const original = value as Parameters<AgentJournal<P>['open']>[0]
+        const initial = initialOf(value as OpenInput<P>)
         const admitted = state.inputs.get(
-          String(original.initial.id) as import('@omne-harness/session-contract').InputId,
+          String(initial.id) as import('@omne-harness/session-contract').InputId,
         )
         if (
           !admitted ||
-          canonical(admitted.origin) !== canonical(original.initial.source) ||
-          canonical(admitted.message) !== canonical(original.initial.content)
+          canonical(admitted.origin) !== canonical(initial.source) ||
+          canonical(admitted.message) !== canonical(initial.content)
         )
           return denied(method)
       }
@@ -560,12 +761,20 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
       )
         return { kind: 'terminal' }
     }
-    if (
-      method === 'tryFinish' &&
-      (input as Parameters<AgentJournal<P>['tryFinish']>[0]).authorization.kind === 'advancement'
-    ) {
+    if (method === 'tryFinish') {
+      const finish = input as Parameters<AgentJournal<P>['tryFinish']>[0]
       const checked = judgeCompletion(state.snapshot, input.execution)
-      if (checked.kind !== 'allowed') return { kind: 'changed' }
+      // PA-02: a cancel authorization on the cancelled Run (SE26) participates when the
+      // conclusion is cancelled and its control is the one SE26 refers to; every other answer
+      // that is not allowed is a conflict.
+      if (finish.authorization.kind === 'cancel' && checked.kind === 'cancelled') {
+        if (
+          finish.intent.conclusion.kind !== 'cancelled' ||
+          terminalControl(cell.state(), input.execution, checked.terminal) !==
+            String(finish.authorization.control)
+        )
+          return { kind: 'changed' }
+      } else if (checked.kind !== 'allowed') return { kind: 'changed' }
     }
     const derived = jointCommand(cell, input, method, receipt)
     if (derived === undefined) return undefined
@@ -763,21 +972,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         prepareResult: resultPreparation(cell, publications, base.controls.project, agentFailure),
         qualifyParticipation: (input, method, receipt) =>
           qualifyJoint(cell, input, method, receipt),
-        requireGrant: true,
         participants: ['message', 'context-transition', 'custody', 'processed'],
-        grant: input => {
-          const state = cell.state().session
-          if (!state) return false
-          try {
-            const attempt = grantAttempt(cell.state(), input.execution, input.grant)
-            return (
-              state.snapshot.run.kind === 'active' &&
-              state.snapshot.run.advance?.attempt === attempt.attempt
-            )
-          } catch {
-            return false
-          }
-        },
+        grant: input => grantHoldsFor(cell.state(), input.execution, input.grant, input.method),
+        terminalParticipant: input => terminalParticipant(cell, input.execution, input.control),
+        ...(options.cancellation === undefined ? {} : { cancellation: options.cancellation }),
+        ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
       })
       views.set(key, view)
     }
@@ -802,7 +1001,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         if (
           cell
             .current()
-            .agent.operations.has(JSON.stringify([encoded.value, input.execution, input.operation]))
+            .agent.operations.has(operationText(encoded.value, input.execution, input.operation))
         )
           return action()
         try {
@@ -830,7 +1029,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
     }
     const journal: AgentJournal<P> = {
       ...view.provider.journal,
-      open: input => admitted(input, input.initial.id, () => view!.port.open(input)),
+      open: input => admitted(input, initialOf(input).id, () => view!.port.open(input)),
       submit: input => admitted(input, input.value.id, () => view!.port.submit(input)),
     }
     return {
@@ -856,6 +1055,10 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           })
         },
         applyRetention: view.applyRetention,
+        failNext: view.failNext,
+        settle: view.settle,
+        seedLegacyCandidate: view.seedLegacyCandidate,
+        respond: view.respond,
         planEvidence: cell.planEvidence,
         pauseWrite: cell.pause,
         faultWrite: cell.fault,
@@ -1081,7 +1284,11 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
               if (qualification)
                 return qualification.kind === 'denied'
                   ? qualification
-                  : { kind: 'unavailable', owner: 'session-qualification', diagnostic: 'reconcile' }
+                  : {
+                      kind: 'unavailable',
+                      owner: 'session-qualification',
+                      diagnostic: 'reconcile',
+                    }
               const gap = cell.gate()
               if (gap !== null) return { kind: 'quarantined', diagnostic: gap }
               if (cell.current() !== root)

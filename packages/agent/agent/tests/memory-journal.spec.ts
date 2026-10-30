@@ -1,45 +1,91 @@
 // The memory Journal against the same-shape list of docs/architecture/mechanisms.md
 // "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
-// durable provider unchanged. Tests read only what the port returns. The three choices that wait
-// for #558 have their own `describe` at the end, named 「临时做法，待 #558 裁定」.
+// durable provider unchanged. Tests read only what the port returns. Fact 10 fixes the five
+// blocked categories of `tryFinish` in their order and the cancellation route of SPEC "取消判断与路线".
 import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
   decodeActionId,
   type AgentEvent,
+  type DurableEvidence,
   type EventPage,
   type JournalCommit,
 } from '@omne-harness/agent-contract'
-import { sampleStartFence } from '@omne-harness/agent-contract/testing'
+import {
+  createTestCancellationPolicy,
+  sampleStartFence,
+  testCancellationPolicyInstallation,
+} from '@omne-harness/agent-contract/testing'
 import * as toolReferences from '@omne-harness/tool-contract'
 import {
-  access,
   acceptedInput,
+  access,
   afterTerminalPassage,
+  cancelAuthorization,
   checkpoint,
   commitAt,
   consumption,
+  establishCancellation,
   evidence,
   execution,
   failure,
   finish,
+  finishCancelled,
   finishInput,
-  takeInputs,
+  fixCandidate,
+  intentOf,
+  prepareFinish,
+  proveBeforeTerminal,
   instance,
+  judgeCancellation,
   load,
   modelCall,
+  newInput,
   ok,
   open,
+  openInput,
   operation,
   otherTenant,
   producedResult,
   replyAdmission,
+  takeInputs,
   type Journal,
   type Opened,
+  withLineage,
 } from './journal-support.ts'
 
-function memory(options: Parameters<typeof createMemoryAgentJournal<string>>[0] = {}) {
-  return createMemoryAgentJournal<string>(options)
+type MemoryOptions = Parameters<typeof createMemoryAgentJournal<string>>[0]
+
+/** The test cancellation policy and its installation (SPEC "安装记录与资格"). */
+const cancellation = {
+  installation: testCancellationPolicyInstallation,
+  policy: createTestCancellationPolicy(),
+}
+
+/** A memory Journal with the test cancellation policy; a standalone binding unless the test names another mode. */
+function memory(options: Partial<MemoryOptions> = {}) {
+  return createMemoryAgentJournal<string>({ coordination: 'standalone', cancellation, ...options })
+}
+
+function cancelControl(target: ReturnType<typeof execution>, name = 'cancel') {
+  return {
+    ...access,
+    execution: target,
+    operation: operation(name),
+    command: { kind: 'cancel' as const, reason: evidence('reason') },
+  }
+}
+
+function intentReached(target: ReturnType<typeof execution>, control = 'cancel') {
+  return {
+    ...access,
+    execution: target,
+    operation: operation(`${control}/intent`),
+    target: operation(control),
+    stage: 'intent-established' as const,
+    state: 'reached' as const,
+    source: evidence('intent'),
+  }
 }
 
 async function takeover(journal: Journal, opened: Opened, name = 'takeover') {
@@ -132,27 +178,31 @@ describe('fact 2: idempotence by original operation', () => {
     expect((await open(journal)).receipt).toEqual(opened.receipt)
     expect(
       failure(
-        await journal.open({
-          ...access,
-          execution: opened.execution,
-          operation: operation('open-exec-1'),
-          instance: instance(),
-          grant: null,
-          initial: acceptedInput('input-other'),
-          checkpoint: checkpoint(),
-        }),
+        await journal.open(
+          openInput({
+            ...access,
+            execution: opened.execution,
+            operation: operation('open-exec-1'),
+            instance: instance(),
+            grant: null,
+            initial: acceptedInput('input-other'),
+            checkpoint: checkpoint(),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('open-exec-1') })
 
-    const submit = {
+    const submit = withLineage({
       ...access,
       execution: opened.execution,
       operation: operation('submit-1'),
       value: acceptedInput('input-2'),
-    }
+    })
     const submitted = ok(await journal.submit(submit))
     expect(ok(await journal.submit(submit))).toEqual(submitted)
-    expect(failure(await journal.submit({ ...submit, value: acceptedInput('input-3') }))).toEqual({
+    expect(
+      failure(await journal.submit(withLineage({ ...submit, value: acceptedInput('input-3') }))),
+    ).toEqual({
       kind: 'conflict',
       operation: submit.operation,
     })
@@ -335,10 +385,12 @@ describe('fact 2: idempotence by original operation', () => {
     } as const
     const first = ok(await journal.recordControl(stage))
     const before = await load(journal, opened.execution)
+    // The new operation is recognized with its own receipt at the revision of the fact.
     expect(
       ok(await journal.recordControl({ ...stage, operation: operation('stage-new-attachment') })),
-    ).toEqual(first)
+    ).toMatchObject({ operation: operation('stage-new-attachment'), revision: first.revision })
     expect(await load(journal, opened.execution)).toEqual(before)
+    // Another source for the reached fact is contradicting evidence: conflict with a saved audit.
     expect(
       failure(
         await journal.recordControl({
@@ -348,6 +400,9 @@ describe('fact 2: idempotence by original operation', () => {
         }),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('stage-other-source') })
+    const audited = await load(journal, opened.execution)
+    expect(Number(audited.revision)).toBe(Number(before.revision) + 1)
+    expect(audited.controls).toEqual(before.controls)
   })
 })
 
@@ -466,7 +521,7 @@ describe('fact 3: unknown result', () => {
   })
 })
 
-describe('fact 4: three conclusions of query', () => {
+describe('fact 4: four conclusions of query', () => {
   it('fact 4: committed carries the original receipt, unknown draws no conclusion, excluded carries evidence', async () => {
     const journal = memory()
     const opened = await open(journal.port)
@@ -477,23 +532,27 @@ describe('fact 4: three conclusions of query', () => {
 
     journal.failNext('submit', { kind: 'commit-unknown', outcome: 'pending' })
     failure(
-      await journal.port.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('pending'),
-        value: acceptedInput('input-2'),
-      }),
+      await journal.port.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('pending'),
+          value: acceptedInput('input-2'),
+        }),
+      ),
     )
     expect(ok(await query('pending'))).toEqual({ kind: 'unknown' })
 
     journal.failNext('submit', { kind: 'commit-unknown', outcome: 'dropped' })
     failure(
-      await journal.port.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('dropped'),
-        value: acceptedInput('input-3'),
-      }),
+      await journal.port.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('dropped'),
+          value: acceptedInput('input-3'),
+        }),
+      ),
     )
     const excluded = ok(await query('dropped'))
     expect(excluded.kind).toBe('excluded')
@@ -669,7 +728,7 @@ describe('fact 5: fence', () => {
 })
 
 describe('fact 6: revision', () => {
-  it('fact 6: the revision increases with every write and is never reused', async () => {
+  it('fact 6: the revision increases with every write of a new fact and is never reused', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const seen = [opened.receipt.revision]
@@ -701,12 +760,15 @@ describe('fact 6: revision', () => {
         'entries',
         'execution',
         'executionAttachment',
+        'finishObligations',
+        'handoffs',
         'history',
         'inputWatermark',
         'output',
         'replyAdmissions',
         'results',
         'revision',
+        'settlement',
         'state',
         'terminalObservations',
         'unresolved',
@@ -851,23 +913,27 @@ describe('fact 8: inputs', () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit'),
-        value: acceptedInput('input-2', 'second'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit'),
+          value: acceptedInput('input-2', 'second'),
+        }),
+      ),
     )
     const watermark = (await load(journal, opened.execution)).inputWatermark
 
     const first = ok(await journal.inputs({ ...access, execution: opened.execution, watermark }))
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-3'),
-        value: acceptedInput('input-3'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-3'),
+          value: acceptedInput('input-3'),
+        }),
+      ),
     )
     const second = ok(await journal.inputs({ ...access, execution: opened.execution, watermark }))
 
@@ -883,30 +949,40 @@ describe('fact 8: inputs', () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const value = acceptedInput('input-2', 'second')
+    const lineage = newInput(opened.execution, operation('submit-a'), value)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-a'),
-        value,
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-a'),
+          value,
+          lineage,
+        }),
+      ),
     )
+    // The second operation recognizes the acceptance of the first (SPEC "消息准入", recognize-input).
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-b'),
-        value,
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-b'),
+          value,
+          lineage: { kind: 'recognize-input', original: lineage.original },
+        }),
+      ),
     )
     expect(
       failure(
-        await journal.submit({
-          ...access,
-          execution: opened.execution,
-          operation: operation('submit-c'),
-          value: acceptedInput('input-2', 'changed'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('submit-c'),
+            value: acceptedInput('input-2', 'changed'),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('submit-c') })
     const watermark = (await load(journal, opened.execution)).inputWatermark
@@ -916,7 +992,7 @@ describe('fact 8: inputs', () => {
   })
 })
 
-describe('fact 9: participant declaration', () => {
+describe('fact 9: binding declaration', () => {
   it('fact 9: the declared participants do not change after construction', () => {
     const declared: ('message' | 'custody')[] = ['message']
     const journal = memory({ participants: declared })
@@ -969,6 +1045,309 @@ describe('fact 9: participant declaration', () => {
     expect(journal.joint()).toEqual([
       { execution: opened.execution, operation: operation('participate'), caller },
     ])
+  })
+})
+
+describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)', () => {
+  const coordinated = (hooks: Partial<NonNullable<MemoryOptions['coordinator']>> = {}) =>
+    memory({
+      coordination: 'coordinated',
+      coordinator: { grant: () => true, source: () => true, ...hooks },
+    })
+  const openWith = (
+    journal: Journal,
+    overrides: Partial<Parameters<typeof openInput>[0]> = {},
+    name = 'exec-1',
+  ) =>
+    journal.open(
+      openInput({
+        ...access,
+        execution: execution(name),
+        operation: operation(`open-${name}`),
+        instance: instance(),
+        grant: null,
+        initial: acceptedInput('input-1'),
+        checkpoint: checkpoint(),
+        ...overrides,
+      }),
+    )
+  /** The attachment of an execution opened through `openWith`, as `finish` and `takeInputs` need it. */
+  async function attachmentOf(journal: Journal, name = 'exec-1'): Promise<Opened> {
+    const snapshot = await load(journal, execution(name))
+    const found = ok(
+      await journal.query({
+        ...access,
+        execution: execution(name),
+        operation: operation(`open-${name}`),
+      }),
+    )
+    if (found.kind !== 'committed' || snapshot.executionAttachment === null)
+      throw new Error('expected the open and its attachment')
+    return {
+      execution: execution(name),
+      receipt: found.receipt,
+      authority: snapshot.executionAttachment,
+    }
+  }
+
+  it('standalone: a non-null grant or input source is unsupported before any write', async () => {
+    const journal = memory()
+    expect(failure(await openWith(journal.port, { grant: evidence('grant') }))).toEqual({
+      kind: 'unsupported',
+    })
+    expect(
+      failure(
+        await openWith(journal.port, {
+          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    const opened = await open(journal.port)
+    const before = await load(journal.port, opened.execution)
+    expect(
+      failure(
+        await journal.port.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('submit'),
+            value: { ...acceptedInput('input-2'), source: evidence('source') },
+          }),
+        ),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    expect(
+      failure(
+        await journal.port.attach({
+          ...access,
+          execution: opened.execution,
+          operation: operation('attach'),
+          instance: instance('instance-2'),
+          grant: evidence('grant'),
+          recovery: evidence('recovery'),
+          takeover: evidence('takeover'),
+        }),
+      ),
+    ).toEqual({ kind: 'unsupported' })
+    expect(await load(journal.port, opened.execution)).toEqual(before)
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit'),
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+    expect(journal.port.capabilities.coordination).toBe('standalone')
+  })
+
+  it('coordinated: open and attach without a grant are denied; the coordinator checks grant and source in the same commit', async () => {
+    const journal = coordinated()
+    expect(journal.port.capabilities.coordination).toBe('coordinated')
+    const sourced = { ...acceptedInput('input-1'), source: evidence('source') }
+    expect(failure(await openWith(journal.port, { initial: sourced }))).toEqual({
+      kind: 'denied',
+      action: 'open',
+    })
+    expect(failure(await openWith(journal.port, { grant: evidence('grant') }))).toEqual({
+      kind: 'denied',
+      action: 'open',
+    })
+    const refusing = coordinated({ grant: () => false })
+    expect(
+      failure(await openWith(refusing.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    const unsourced = coordinated({ source: () => false })
+    expect(
+      failure(await openWith(unsourced.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    journal.respond('open', 'conflict')
+    expect(
+      failure(await openWith(journal.port, { grant: evidence('grant'), initial: sourced })),
+    ).toEqual({ kind: 'denied', action: 'open' })
+    const opened = ok(await openWith(journal.port, { grant: evidence('grant'), initial: sourced }))
+    expect(opened.receipt.state).toBe('applied')
+    const attach = {
+      ...access,
+      execution: execution(),
+      operation: operation('attach'),
+      instance: instance('instance-2'),
+      grant: null as DurableEvidence | null,
+      recovery: evidence('recovery'),
+      takeover: evidence('takeover'),
+    }
+    expect(failure(await journal.port.attach(attach))).toEqual({ kind: 'denied', action: 'attach' })
+    ok(await journal.port.attach({ ...attach, grant: evidence('grant-2') }))
+  })
+
+  it('coordinated: submit checks the external source in the same commit; a null source is denied', async () => {
+    const journal = coordinated()
+    const opened = ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const submit = withLineage({
+      ...access,
+      execution: execution(),
+      operation: operation('submit'),
+      value: acceptedInput('input-2'),
+    })
+    expect(failure(await journal.port.submit(submit))).toEqual({ kind: 'denied', action: 'submit' })
+    const { lineage: _lineage, ...plain } = submit
+    const sourced = withLineage({
+      ...plain,
+      value: { ...plain.value, source: evidence('source-2') },
+    })
+    journal.respond('submit', 'conflict')
+    expect(failure(await journal.port.submit(sourced))).toEqual({
+      kind: 'denied',
+      action: 'submit',
+    })
+    journal.respond('submit', 'fail')
+    expect(failure(await journal.port.submit(sourced)).kind).toBe('unavailable')
+    journal.respond('submit', 'unsupported')
+    expect(failure(await journal.port.submit(sourced))).toEqual({ kind: 'unsupported' })
+    expect((await load(journal.port, execution())).revision).toBe(opened.receipt.revision)
+    expect(ok(await journal.port.submit(sourced)).state).toBe('accepted')
+  })
+
+  it('coordinated: attach on an ended execution returns terminal before the coordinator is asked', async () => {
+    let asked = 0
+    const journal = coordinated({
+      grant: () => {
+        asked += 1
+        return true
+      },
+    })
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    ok(await finish(journal.port, await attachmentOf(journal.port)))
+    const before = asked
+    expect(
+      failure(
+        await journal.port.attach({
+          ...access,
+          execution: execution(),
+          operation: operation('attach-after-end'),
+          instance: instance('instance-2'),
+          grant: null,
+          recovery: evidence('recovery'),
+          takeover: evidence('takeover'),
+        }),
+      ),
+    ).toEqual({ kind: 'terminal' })
+    expect(asked).toBe(before)
+  })
+
+  it('coordinated: the participant of tryFinish answers participate, conflict as FinishResult.changed, fail, fail-unknown and unsupported', async () => {
+    const journal = coordinated()
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const opened = await attachmentOf(journal.port)
+    ok(await takeInputs(journal.port, opened))
+    const prepared = await finishInput(journal.port, opened, 'prepared')
+    const before = await load(journal.port, execution())
+    journal.respond('tryFinish', 'conflict')
+    expect(
+      ok(await journal.port.tryFinish({ ...prepared, operation: operation('conflict') })),
+    ).toEqual({
+      kind: 'changed',
+      revision: before.revision,
+    })
+    journal.respond('tryFinish', 'fail')
+    expect(
+      failure(await journal.port.tryFinish({ ...prepared, operation: operation('fail') })).kind,
+    ).toBe('unavailable')
+    journal.respond('tryFinish', 'unsupported')
+    expect(
+      failure(await journal.port.tryFinish({ ...prepared, operation: operation('unsupported') })),
+    ).toEqual({ kind: 'unsupported' })
+    expect(await load(journal.port, execution())).toEqual(before)
+    journal.respond('tryFinish', 'fail-unknown')
+    const unknown = { ...prepared, operation: operation('unknown') }
+    expect(failure(await journal.port.tryFinish(unknown))).toEqual({
+      kind: 'commit-unknown',
+      operation: unknown.operation,
+    })
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: execution(),
+          operation: unknown.operation,
+        }),
+      ),
+    ).toEqual({ kind: 'unknown' })
+    expect(journal.settle(execution(), unknown.operation, 'applied')).toBe(true)
+    expect(
+      ok(
+        await journal.port.query({
+          ...access,
+          execution: execution(),
+          operation: unknown.operation,
+        }),
+      ).kind,
+    ).toBe('committed')
+    expect((await load(journal.port, execution())).state.kind).toBe('ended')
+  })
+
+  it('coordinated: a blocked participant condition makes the judgment blocked and the cancel tryFinish blocked; once the condition is ready again the judgment no longer applies and tryFinish is changed', async () => {
+    const journal = coordinated()
+    ok(
+      await openWith(journal.port, {
+        grant: evidence('grant'),
+        initial: { ...acceptedInput('input-1'), source: evidence('source') },
+      }),
+    )
+    const opened = await attachmentOf(journal.port)
+    ok(await takeInputs(journal.port, opened))
+    ok(await journal.port.control(cancelControl(opened.execution)))
+    ok(await journal.port.recordControl(intentReached(opened.execution)))
+    journal.participantCondition({
+      kind: 'blocked',
+      category: 'inputs',
+      source: evidence('participant/blocked'),
+    })
+    ok(await establishCancellation(journal.port, opened, operation('cancel')))
+    const judged = ok(await judgeCancellation(journal.port, opened, operation('cancel')))
+    expect(judged.kind === 'judge-cancellation' ? judged.judgment.decision.kind : '').toBe(
+      'blocked',
+    )
+    const judgedAt = await load(journal.port, opened.execution)
+    ok(
+      await prepareFinish(
+        journal.port,
+        opened,
+        'participant',
+        cancelAuthorization(judgedAt, operation('cancel')),
+      ),
+    )
+    const issued = await load(journal.port, opened.execution)
+    const ending = {
+      ...access,
+      execution: opened.execution,
+      operation: operation('end-blocked'),
+      authorization: cancelAuthorization(issued, operation('cancel')),
+      expected: issued.revision,
+      intent: intentOf(issued),
+    }
+    expect(ok(await journal.port.tryFinish(ending)).kind).toBe('blocked')
+    journal.participantCondition({ kind: 'ready' })
+    expect(
+      ok(await journal.port.tryFinish({ ...ending, operation: operation('end-ready') })).kind,
+    ).toBe('changed')
+    expect((await load(journal.port, opened.execution)).state.kind).toBe('settling')
   })
 })
 
@@ -1037,32 +1416,20 @@ describe('fact 10: the one terminal commit', () => {
   it('fact 10: an input accepted after the intent watermark makes tryFinish return changed', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
-    const snapshot = await load(journal, opened.execution)
+    ok(await takeInputs(journal, opened))
+    const prepared = await finishInput(journal, opened)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('late-input'),
-        value: acceptedInput('input-2'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('late-input'),
+          value: acceptedInput('input-2'),
+        }),
+      ),
     )
     const current = await load(journal, opened.execution)
-    const result = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('finish'),
-        authorization: { kind: 'advancement', authority: opened.authority },
-        expected: current.revision,
-        intent: {
-          conclusion: { kind: 'complete' },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    const result = ok(await journal.tryFinish({ ...prepared, expected: current.revision }))
     expect(result.kind).toBe('changed')
     expect((await load(journal, opened.execution)).state.kind).not.toBe('ended')
   })
@@ -1087,6 +1454,9 @@ describe('fact 10: the one terminal commit', () => {
   it('fact 10: an effective cancel takes precedence, and only the cancel authorization ends with cancelled', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
+    ok(await takeInputs(journal, opened))
+    ok(await fixCandidate(journal, opened, 'complete'))
+    ok(await proveBeforeTerminal(journal, opened, 'complete'))
     ok(
       await journal.control({
         ...access,
@@ -1106,25 +1476,44 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    expect(ok(await finish(journal, opened, 'complete')).kind).toBe('changed')
-
-    const snapshot = await load(journal, opened.execution)
-    const ended = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
+    // The complete candidate fixed before the cancel is not usable any more: a new complete F1
+    // under the effective cancel is changed, as are its prepareFinish and tryFinish.
+    expect(failure(await fixCandidate(journal, opened, 'complete-after-cancel')).kind).toBe(
+      'changed',
     )
+    expect(failure(await prepareFinish(journal, opened, 'complete')).kind).toBe('changed')
+    const complete = await load(journal, opened.execution)
+    expect(
+      ok(
+        await journal.tryFinish({
+          ...access,
+          execution: opened.execution,
+          operation: operation('complete-again'),
+          authorization: { kind: 'advancement', authority: opened.authority },
+          expected: complete.revision,
+          intent: intentOf(complete),
+        }),
+      ).kind,
+    ).toBe('changed')
+    // The cancel authorization cannot end the complete candidate; the cancelled candidate is
+    // established by commitSettlement and judged before the end (SPEC "取消判断与路线").
+    expect(
+      failure(
+        await journal.tryFinish({
+          ...access,
+          execution: opened.execution,
+          operation: operation('cancel-complete'),
+          authorization: {
+            kind: 'cancel',
+            control: operation('cancel'),
+            source: complete.controls[0]?.stages.accepted.source ?? evidence('none'),
+          },
+          expected: complete.revision,
+          intent: intentOf(complete),
+        }),
+      ),
+    ).toEqual({ kind: 'denied', action: 'tryFinish' })
+    const ended = ok(await finishCancelled(journal, opened, operation('cancel')))
     expect(ended.kind).toBe('ended')
     expect((await load(journal, opened.execution)).state).toMatchObject({
       kind: 'ended',
@@ -1132,7 +1521,64 @@ describe('fact 10: the one terminal commit', () => {
     })
   })
 
-  it('fact 10 临时做法，待 #558 裁定：no event follows the ended event; a later stage fact is recorded without one', async () => {
+  it('fact 10: a judgment that answers unknown makes tryFinish unavailable, and no installation makes the cancellation variants unavailable', async () => {
+    const unknown = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
+      cancellation: {
+        installation: testCancellationPolicyInstallation,
+        policy: {
+          ...cancellation.policy,
+          judge: input => ({
+            kind: 'unknown',
+            questions: [
+              {
+                owner: 'test',
+                key: 'participant',
+                position: input.route.record,
+                reason: 'source-unavailable',
+              },
+            ],
+            knownBlocked: [],
+          }),
+        },
+      },
+    })
+    const opened = await open(unknown.port)
+    ok(await takeInputs(unknown.port, opened))
+    ok(await unknown.port.control(cancelControl(opened.execution)))
+    ok(await unknown.port.recordControl(intentReached(opened.execution)))
+    expect(failure(await finishCancelled(unknown.port, opened, operation('cancel')))).toMatchObject(
+      { kind: 'unavailable', owner: 'agentJournal' },
+    )
+    expect((await load(unknown.port, opened.execution)).state.kind).toBe('settling')
+
+    const uninstalled = createMemoryAgentJournal<string>({ coordination: 'standalone' })
+    const reopened = await open(uninstalled.port)
+    ok(await uninstalled.port.control(cancelControl(reopened.execution)))
+    ok(await uninstalled.port.recordControl(intentReached(reopened.execution)))
+    const snapshot = await load(uninstalled.port, reopened.execution)
+    expect(
+      failure(
+        await uninstalled.port.commitSettlement({
+          ...access,
+          execution: reopened.execution,
+          operation: operation('establish'),
+          kind: 'establish-cancellation',
+          authorization: {
+            kind: 'cancel',
+            control: operation('cancel'),
+            source: snapshot.controls[0]?.stages.accepted.source ?? evidence('none'),
+          },
+          expected: snapshot.revision,
+          installation: testCancellationPolicyInstallation.record,
+          predecessor: null,
+        }),
+      ),
+    ).toMatchObject({ kind: 'unavailable', owner: 'agentJournal' })
+    expect(await load(uninstalled.port, reopened.execution)).toEqual(snapshot)
+  })
+
+  it('fact 10: no event follows the ended event; a later stage fact is recorded without one', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
@@ -1154,24 +1600,8 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    const snapshot = await load(journal, opened.execution)
-    ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
-    // 临时做法，待 #558 裁定：ended 之后的阶段事实照常记录，不投影事件。
+    ok(await finishCancelled(journal, opened, operation('cancel')))
+    // SPEC 六个阶段: after ended, a late stopping fact is recorded without an event.
     ok(
       await journal.recordControl({
         ...access,
@@ -1201,7 +1631,7 @@ describe('fact 10: the one terminal commit', () => {
     expect(page.events.filter(event => event.body.kind === 'ended')).toHaveLength(1)
   })
 
-  it('fact 10: a pending write of the execution blocks the end with reason operations', async () => {
+  it('fact 10: a pending write of the execution is an unknown item of the list, so the end is unavailable, not blocked', async () => {
     const journal = memory()
     const opened = await open(journal.port)
     ok(await takeInputs(journal.port, opened))
@@ -1215,15 +1645,12 @@ describe('fact 10: the one terminal commit', () => {
         receipt: null,
       }),
     )
-    expect(ok(await journal.port.tryFinish(await finishInput(journal.port, opened)))).toMatchObject(
-      {
-        kind: 'blocked',
-        reason: 'operations',
-      },
-    )
+    const input = await finishInput(journal.port, opened)
+    expect(failure(await journal.port.tryFinish(input)).kind).toBe('unavailable')
+    expect((await load(journal.port, opened.execution)).state.kind).toBe('settling')
   })
 
-  it('fact 10 临时做法，待 #558 裁定：an applicable stage recorded unresolved blocks the end with reason controls', async () => {
+  it('fact 10: a revocation recorded unresolved blocks the end with reason controls', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
@@ -1248,7 +1675,7 @@ describe('fact 10: the one terminal commit', () => {
     expect(ok(await finish(journal, opened))).toMatchObject({ kind: 'blocked', reason: 'controls' })
   })
 
-  it('fact 10 临时做法，待 #558 裁定：untaken inputs block an ordinary end with reason inputs, not a cancel', async () => {
+  it('fact 10: untaken inputs block an ordinary end with reason inputs, not a cancelled end', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect(
@@ -1276,27 +1703,15 @@ describe('fact 10: the one terminal commit', () => {
         source: evidence('intent'),
       }),
     )
-    const snapshot = await load(journal, opened.execution)
-    const cancelled = ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: snapshot.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: snapshot.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    const cancelled = ok(await finishCancelled(journal, opened, operation('cancel')))
     expect(cancelled.kind).toBe('ended')
+    const kept = (await load(journal, opened.execution)).finishObligations?.items.find(
+      item => item.kind === 'accepted-input',
+    )
+    expect(kept?.disposition.kind).toBe('held')
   })
 
-  it('fact 10 临时做法，待 #558 裁定：passages is not checked, so an open before-terminal passage does not block the end', async () => {
+  it('fact 10: an open before-terminal passage keeps the author route unproven, so the end is blocked with reason passages', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const passage = { ...afterTerminalPassage('before'), position: 'before_terminal' } as const
@@ -1307,7 +1722,8 @@ describe('fact 10: the one terminal commit', () => {
         }),
       ),
     )
-    expect(ok(await finish(journal, opened)).kind).toBe('ended')
+    expect(ok(await finish(journal, opened))).toMatchObject({ kind: 'blocked', reason: 'passages' })
+    expect(intentOf(await load(journal, opened.execution)).beforeTerminal).toBeNull()
   })
 })
 
@@ -1415,7 +1831,10 @@ describe('fact 12: post-terminal observation', () => {
       })
 
     const first = ok(await register('observe-1', 'seen'))
-    expect(ok(await register('observe-2', 'seen'))).toEqual(first)
+    expect(ok(await register('observe-2', 'seen'))).toMatchObject({
+      operation: operation('observe-2'),
+      revision: first.revision,
+    })
     expect(failure(await register('observe-3', 'other')).kind).toBe('conflict')
     const after = await load(journal, opened.execution)
     expect(after.terminalObservations[0]?.observed).toEqual(evidence('seen'))
@@ -1490,40 +1909,47 @@ describe('fact 13: reply admission projection', () => {
 })
 
 describe('fact 14: denied', () => {
-  it('fact 14: open denies a grant that no participant can check, and a missing grant when one is required', async () => {
-    const strict = memory({ requireGrant: true }).port
-    const loose = memory().port
+  it('fact 14: a coordinated open denies a missing grant and a grant the coordinator refuses, and writes nothing', async () => {
+    const strict = memory({
+      coordination: 'coordinated',
+      coordinator: { grant: () => false, source: () => true },
+    }).port
     const input = {
       ...access,
       execution: execution(),
       operation: operation('open'),
       instance: instance(),
-      initial: acceptedInput('input-1'),
+      initial: { ...acceptedInput('input-1'), source: evidence('source') },
       checkpoint: checkpoint(),
     }
-    expect(failure(await strict.open({ ...input, grant: null }))).toEqual({
+    expect(failure(await strict.open(openInput({ ...input, grant: null })))).toEqual({
       kind: 'denied',
       action: 'open',
     })
-    expect(failure(await loose.open({ ...input, grant: evidence('grant') }))).toEqual({
+    expect(failure(await strict.open(openInput({ ...input, grant: evidence('grant') })))).toEqual({
       kind: 'denied',
       action: 'open',
     })
-    expect(failure(await loose.load({ ...access, execution: execution() })).kind).toBe('denied')
+    expect(failure(await strict.load({ ...access, execution: execution() })).kind).toBe('denied')
   })
 
   it('fact 14: attach denies a grant that fails its check and writes nothing', async () => {
-    const { port: journal } = memory({ grant: input => input.grant.record === 'good' })
+    const { port: journal } = memory({
+      coordination: 'coordinated',
+      coordinator: { grant: input => input.grant.record === 'good', source: () => true },
+    })
     const opened = ok(
-      await journal.open({
-        ...access,
-        execution: execution(),
-        operation: operation('open'),
-        instance: instance(),
-        grant: evidence('good'),
-        initial: acceptedInput('input-1'),
-        checkpoint: checkpoint(),
-      }),
+      await journal.open(
+        openInput({
+          ...access,
+          execution: execution(),
+          operation: operation('open'),
+          instance: instance(),
+          grant: evidence('good'),
+          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+          checkpoint: checkpoint(),
+        }),
+      ),
     )
     const before = await load(journal, execution())
     expect(
@@ -1584,12 +2010,14 @@ describe('fact 14: denied', () => {
     )
     expect(
       failure(
-        await journal.submit({
-          ...otherTenant,
-          execution: opened.execution,
-          operation: operation('s'),
-          value: acceptedInput('x'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...otherTenant,
+            execution: opened.execution,
+            operation: operation('s'),
+            value: acceptedInput('x'),
+          }),
+        ),
       ).kind,
     ).toBe('denied')
   })
@@ -1611,15 +2039,12 @@ describe('fact 14: denied', () => {
     expect(missing).toEqual(existing)
 
     journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
-    const pendingOpen = {
+    const pendingOpen = openInput({
       ...access,
       execution: execution('exec-pending'),
       operation: operation('open-pending'),
-      instance: instance(),
-      grant: null,
       initial: acceptedInput('input-1'),
-      checkpoint: checkpoint(),
-    }
+    })
     failure(await journal.port.open(pendingOpen))
     const query = { execution: pendingOpen.execution, operation: pendingOpen.operation }
     expect(ok(await journal.port.query({ ...access, ...query }))).toEqual({ kind: 'unknown' })
@@ -1669,12 +2094,14 @@ describe('fact 14: denied', () => {
       initial: acceptedInput('input-1'),
       checkpoint: checkpoint(),
     }
-    expect(failure(await journal.open({ ...input, tenant: { ...access.tenant } }))).toEqual({
+    expect(
+      failure(await journal.open(openInput({ ...input, tenant: { ...access.tenant } }))),
+    ).toEqual({
       kind: 'denied',
       action: 'open',
     })
     // The minted tenant opens the same identity as a first open, not as a recognition or conflict.
-    const opened = ok(await journal.open(input))
+    const opened = ok(await journal.open(openInput(input)))
     expect(opened.authority.generation).toBe('1')
     expect((await load(journal, input.execution)).revision).toBe(opened.receipt.revision)
   })
@@ -1696,12 +2123,14 @@ describe('fact 15: terminal', () => {
     expect(failure(await takeover(journal, opened))).toEqual({ kind: 'terminal' })
     expect(
       failure(
-        await journal.submit({
-          ...access,
-          execution: opened.execution,
-          operation: operation('late'),
-          value: acceptedInput('input-9'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('late'),
+            value: acceptedInput('input-9'),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'terminal' })
     expect(
@@ -1814,8 +2243,8 @@ describe('fact 16: entry event projection', () => {
   })
 })
 
-describe('临时做法，待 #558 裁定', () => {
-  it('M04-4 临时做法，待 #558 裁定：commit 与六个记录方法成功写入时都推进 revision，同操作重试认回原回执、不推进', async () => {
+describe('facts 6, 7, 9, 11 and 17 as #558 decided them', () => {
+  it('fact 6: commit 与六个记录方法每建立一个新事实推进一次 revision，同操作重试认回原回执、不推进', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const revision = async () => Number((await load(journal, opened.execution)).revision)
@@ -1832,12 +2261,12 @@ describe('临时做法，待 #558 裁定', () => {
       checkpoint: checkpoint('F2', [passage]),
     })
     expect(await advances(() => journal.commit(commit))).toEqual([1, 0])
-    const submit = {
+    const submit = withLineage({
       ...access,
       execution: opened.execution,
       operation: operation('submit'),
       value: acceptedInput('input-2'),
-    }
+    })
     expect(await advances(() => journal.submit(submit))).toEqual([1, 0])
     const control = {
       ...access,
@@ -1880,27 +2309,7 @@ describe('临时做法，待 #558 裁定', () => {
     } as const
     expect(await advances(() => journal.recordControl(stage))).toEqual([1, 0])
 
-    const current = await load(journal, opened.execution)
-    ok(
-      await journal.tryFinish({
-        ...access,
-        execution: opened.execution,
-        operation: operation('cancelled'),
-        authorization: {
-          kind: 'cancel',
-          control: operation('control'),
-          source: evidence('cancel'),
-        },
-        expected: current.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: current.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    ok(await finishCancelled(journal, opened, operation('control')))
     const [item] = (await load(journal, opened.execution)).terminalObservations
     if (item === undefined) throw new Error('expected one observation item')
     const observe = {
@@ -1915,7 +2324,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(await advances(() => journal.recordTerminalObservation(observe))).toEqual([1, 0])
   })
 
-  it('M04-5 临时做法，待 #558 裁定：未声明参加者时 recordResult.transfer 的 custody 与 processed 由提供者建立依据，commit.caller 的同种类返回 unsupported', async () => {
+  it('fact 9 and 11: standalone 绑定下 recordResult.transfer 的 custody 与 processed 由提供者建立依据，commit.caller 的未声明种类返回 unsupported', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect(journal.capabilities.participants.size).toBe(0)
@@ -1953,7 +2362,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(await load(journal, opened.execution)).toEqual(snapshot)
   })
 
-  it('M04-7 临时做法，待 #558 裁定：open 不追加事件，第一个序号属于之后的一次提交', async () => {
+  it('fact 7: open 不追加事件，第一个序号属于之后的一次提交', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect((await load(journal, opened.execution)).output.emittedThrough).toBeNull()
@@ -1971,7 +2380,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(page.events.map(event => [event.sequence, event.body.kind])).toEqual([['1', 'waiting']])
   })
 
-  it('M04-1 的读法 临时做法，待 #558 裁定：control 与 recordControl 把阶段事实投影为 control 事件', async () => {
+  it('fact 17: control 与 recordControl 把阶段事实投影为 control 事件', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(

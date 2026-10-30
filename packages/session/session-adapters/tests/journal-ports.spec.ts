@@ -27,7 +27,7 @@ it('detach and attach fence the former Authority while preserving the original o
       execution: s.execution,
       operation: operation('attach'),
       instance: instance('second'),
-      grant: s.input.grant,
+      grant: s.input.runtime.grant,
       recovery: detached,
       takeover: null,
     }),
@@ -40,12 +40,14 @@ it('detach and attach fence the former Authority while preserving the original o
       operation: operation('former'),
       authority: s.opened.authority,
       expected: attached.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   ).toMatchObject({ failure: { kind: 'stale-advance' } })
   ok(
@@ -55,12 +57,14 @@ it('detach and attach fence the former Authority while preserving the original o
       operation: operation('current'),
       authority: attached.authority,
       expected: attached.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   expect(
@@ -87,7 +91,7 @@ it('reply admissions page the actual original decisions and output acknowledgeme
         operation: operation(`reply-${index}`),
         authority: s.opened.authority,
         expected: receipt.revision,
-        checkpoint: s.input.checkpoint,
+        checkpoint: s.checkpoint,
         state: { kind: 'advancing' },
         // One Agent-owned event per commit, so that the acknowledgement below has sequence '3'
         // to reach; the Model reply itself is not an Agent event.
@@ -101,13 +105,15 @@ it('reply admissions page the actual original decisions and output acknowledgeme
         effects: [],
         caller: { kind: 'none' },
         replyAdmission: {
-          step: s.input.checkpoint.step,
+          step: s.checkpoint.step,
           action: ok(decodeActionId(`action-${index}`)),
           call,
           resultVersion: String(index),
           decision: decision as 'admitted' | 'rejected',
           source: evidence(`reply-${index}`),
         },
+        handoff: null,
+        finish: null,
       }),
     )
   const snapshot = ok(await s.view.journal.load({ ...s.access, execution: s.execution })),
@@ -162,13 +168,15 @@ it('commit refuses an entry or ended event body as invalid events, because the J
       operation: operation(`bypass-${body.kind}`),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       // The type already excludes these bodies; the cast is the caller bypassing it.
       events: [body] as unknown as Parameters<typeof s.view.journal.commit>[0]['events'],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     })
     expect(refused).toMatchObject({
       failure: { kind: 'invalid', field: 'events', reason: expect.stringContaining(body.kind) },
@@ -214,11 +222,13 @@ it('a context transition and the original Agent answer publish together and reco
     operation: operation('compact'),
     authority: s.opened.authority,
     expected: s.opened.receipt.revision,
-    checkpoint: s.input.checkpoint,
+    checkpoint: s.checkpoint,
     state: { kind: 'advancing' as const },
     events: [],
     effects: [],
     replyAdmission: null,
+    handoff: null,
+    finish: null,
     caller: {
       kind: 'context-transition' as const,
       value: {
@@ -227,6 +237,13 @@ it('a context transition and the original Agent answer publish together and reco
         source: evidence('model-summary'),
         derivation: evidence('derivation'),
         commitment: evidence('commitment'),
+        candidate: evidence('transition-candidate'),
+        plan: evidence('transition-plan'),
+        basis: {
+          schema: { owner: 'test', name: 'basis', revision: '1', digest: 'test:basis' },
+          value: { kind: 'null' as const },
+        },
+        epoch: '1',
       },
       admission: evidence('admitted-summary'),
     },
@@ -261,7 +278,7 @@ it('terminal observers use the original passage after finish and cannot add exec
       power: 'observe',
       implementation: { kind: 'builtin', builtinName: 'observe' },
     },
-    implementation: s.input.checkpoint.schema,
+    implementation: s.checkpoint.schema,
     input: evidence('observer-input'),
     effective: evidence('observer-effective'),
     operations: [],
@@ -281,6 +298,8 @@ it('terminal observers use the original passage after finish and cannot add exec
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   const terminal = ok(await end(s))

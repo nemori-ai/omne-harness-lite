@@ -41,7 +41,7 @@ it('registers multiple producers with their original purposes and keeps event se
       operation: operation('wait'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls },
+      checkpoint: { ...s.checkpoint, calls },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: calls.map(pending => ({
@@ -51,9 +51,14 @@ it('registers multiple producers with their original purposes and keeps event se
       })),
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
-  for (let i = 0; i < 3; i++)
+  // The first head commit moves the checkpoint back and writes; the next two establish no new
+  // fact, so they recognize the current revision without a write (Agent SPEC "执行修订").
+  let written = receipt
+  for (let i = 0; i < 3; i++) {
     receipt = ok(
       await s.view.journal.commit({
         ...s.access,
@@ -61,14 +66,19 @@ it('registers multiple producers with their original purposes and keeps event se
         operation: operation(`head-${i}`),
         authority: s.opened.authority,
         expected: receipt.revision,
-        checkpoint: s.input.checkpoint,
+        checkpoint: s.checkpoint,
         state: { kind: 'advancing' },
         events: [],
         effects: [],
         caller: { kind: 'none' },
         replyAdmission: null,
+        handoff: null,
+        finish: null,
       }),
     )
+    if (i === 0) written = receipt
+    else expect(receipt.revision).toBe(written.revision)
+  }
   ok(
     await s.backend.controls.interpret({
       ...s.access,
@@ -83,9 +93,9 @@ it('registers multiple producers with their original purposes and keeps event se
     'extension',
   ])
   expect(snapshot.run.kind === 'active' && snapshot.run.execution).toMatchObject({
-    revision: '5',
+    revision: '3',
     readThrough: '1',
-    evidence: receipt.evidence,
+    evidence: written.evidence,
   })
   const rows = s.backend.controls
     .entriesOf(s.access.tenant, s.access.session)
@@ -107,7 +117,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
       operation: operation('original-effect'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls: [model.pending] },
+      checkpoint: { ...s.checkpoint, calls: [model.pending] },
       state: { kind: 'advancing' },
       events: [],
       effects: [
@@ -115,6 +125,8 @@ it('a producer event uses the original effect after checkpoint movement and rema
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   const before = ok(await s.backend.transactions.readWork(s.access))
@@ -155,12 +167,14 @@ it('a producer event uses the original effect after checkpoint movement and rema
       operation: operation('producer'),
       authority: attached.authority,
       expected: attached.receipt.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       events: [{ kind: 'producer', result: model.result, consumption: model.pending.consumption }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -188,12 +202,14 @@ it('an unassociated Tool intent retains its original identity when a later event
       operation: operation('intent'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls: [intent] },
+      checkpoint: { ...s.checkpoint, calls: [intent] },
       state: { kind: 'waiting', waits: [{ kind: 'producer', pending: intent }] },
       events: [{ kind: 'waiting', waits: [{ kind: 'producer', pending: intent }] }],
       effects: [{ pending: intent, action: intent.action, authority: s.opened.authority }],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -212,12 +228,14 @@ it('an unassociated Tool intent retains its original identity when a later event
       operation: operation('associate'),
       authority: s.opened.authority,
       expected: receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls: [tool.pending] },
+      checkpoint: { ...s.checkpoint, calls: [tool.pending] },
       state: { kind: 'waiting', waits: [{ kind: 'producer', pending: tool.pending }] },
       events: [{ kind: 'waiting', waits: [{ kind: 'producer', pending: tool.pending }] }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(

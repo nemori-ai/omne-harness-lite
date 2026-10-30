@@ -66,6 +66,7 @@ function initial(
     guard: null,
     completedPassages: [],
     priorConditions: null,
+    currentHandoff: null,
   })
 }
 

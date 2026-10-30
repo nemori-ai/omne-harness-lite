@@ -1,9 +1,16 @@
 import { it, expect } from 'vitest'
 import { deriveDriveOperation } from '@omne-harness/session-contract'
-import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
+import {
+  scene,
+  ok,
+  operation,
+  operationId,
+  evidence,
+  submitInput,
+} from './fixtures/common-journal.ts'
 
 it('accepted alone cannot reconcile cancellation and the original independent stages remain distinct', async () => {
-  const { backend, view, access, execution, opened, input } = await scene('cancel-stages')
+  const { backend, view, access, execution, opened, checkpoint } = await scene('cancel-stages')
   const loaded = ok(await view.journal.load({ ...access, execution })),
     page = ok(await view.journal.inputs({ ...access, execution, watermark: loaded.inputWatermark }))
   ok(
@@ -13,12 +20,14 @@ it('accepted alone cannot reconcile cancellation and the original independent st
       operation: operation('take'),
       authority: opened.authority,
       expected: loaded.revision,
-      checkpoint: { ...input.checkpoint, inputBatch: page.batch.id },
+      checkpoint: { ...checkpoint, inputBatch: page.batch.id },
       state: { kind: 'advancing' },
       events: [{ kind: 'input-taken', batch: page.batch }],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -144,7 +153,7 @@ it('producer confirmation and physical stop cannot discharge the selected unasso
       operation: operation('intents'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls },
+      checkpoint: { ...s.checkpoint, calls },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: calls.map(pending => ({
@@ -154,6 +163,8 @@ it('producer confirmation and physical stop cannot discharge the selected unasso
       })),
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -263,7 +274,7 @@ it('an original completed Tool slot clears direct stopping only after the corres
       operation: operation('completed'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch },
+      checkpoint: { ...s.checkpoint, batch },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: [
@@ -271,6 +282,8 @@ it('an original completed Tool slot clears direct stopping only after the corres
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -368,7 +381,7 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
         operation: operation('original'),
         authority: s.opened.authority,
         expected: s.opened.receipt.revision,
-        checkpoint: { ...s.input.checkpoint, batch },
+        checkpoint: { ...s.checkpoint, batch },
         state: { kind: 'waiting', waits },
         events: [{ kind: 'waiting', waits }],
         effects: [
@@ -376,6 +389,8 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
         ],
         caller: { kind: 'none' },
         replyAdmission: null,
+        handoff: null,
+        finish: null,
       }),
     )
     ok(
@@ -430,12 +445,14 @@ for (const proof of ['no-response', 'placeholder', 'late'] as const)
           operation: operation('late-result'),
           authority: s.opened.authority,
           expected: receipt.revision,
-          checkpoint: { ...s.input.checkpoint, batch: completed },
+          checkpoint: { ...s.checkpoint, batch: completed },
           state: { kind: 'advancing' },
           events: [],
           effects: [],
           caller: { kind: 'none' },
           replyAdmission: null,
+          handoff: null,
+          finish: null,
         }),
       )
     ok(
@@ -459,7 +476,7 @@ it('reconciles each original same-call K independently and requires its own prop
       operation: operation('pending'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, batch: tool.batch },
+      checkpoint: { ...s.checkpoint, batch: tool.batch },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: [
@@ -467,6 +484,8 @@ it('reconciles each original same-call K independently and requires its own prop
       ],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -602,19 +621,19 @@ it('urgent interruption is propagated by the original submit without fabricating
     }),
   )
   expect(ok(await s.backend.transactions.readWork(s.access)).controls[0]?.state).toBe('propagating')
-  const request = {
-    ...s.access,
-    execution: s.execution,
-    operation: operation(
+  const request = submitInput(
+    s.access,
+    s.execution,
+    operation(
       deriveDriveOperation({ kind: 'submit', execution: s.execution, input: urgent.input }),
     ),
-    value: {
+    {
       id: ok(decodeInputId(urgent.input)),
       content: urgent.message,
       source: urgent.origin,
-      priority: 'urgent' as const,
+      priority: 'urgent',
     },
-  }
+  )
   ok(await s.view.journal.submit(request))
   ok(
     await s.backend.controls.reconcile({

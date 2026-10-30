@@ -4,7 +4,7 @@ import { agentEvaluator } from '@omne-harness/agent'
 import { fail } from '@omne-harness/operation-result'
 import { createExecutionCoordinator } from '../src/loop/coordinator.ts'
 import { options } from './factory-support.ts'
-import { acceptedInput, execution, failure, ok, operation } from './journal-support.ts'
+import { acceptedInput, execution, failure, ok, operation, withLineage } from './journal-support.ts'
 import {
   alice,
   eventsOf,
@@ -559,12 +559,14 @@ it('NA-W0-2: an input arriving as observation starts is reread before sleeping u
           if (!inserted) {
             inserted = true
             ok(
-              await d.journal.submit({
-                ...alice,
-                execution: execution(),
-                operation: operation('observation-window-input'),
-                value: acceptedInput('observation-window-input'),
-              }),
+              await d.journal.submit(
+                withLineage({
+                  ...alice,
+                  execution: execution(),
+                  operation: operation('observation-window-input'),
+                  value: acceptedInput('observation-window-input'),
+                }),
+              ),
             )
           }
           yield* d.journal.output.events(input)
@@ -664,12 +666,14 @@ it('NA-W0-1: an input racing the waiting commit is reread without abandoning the
         if (!inserted && input.operation.startsWith('W0/')) {
           inserted = true
           ok(
-            await d.journal.submit({
-              ...alice,
-              execution: execution(),
-              operation: operation('before-wait-commit'),
-              value: acceptedInput('before-wait-commit'),
-            }),
+            await d.journal.submit(
+              withLineage({
+                ...alice,
+                execution: execution(),
+                operation: operation('before-wait-commit'),
+                value: acceptedInput('before-wait-commit'),
+              }),
+            ),
           )
         }
         return d.journal.commit(input)

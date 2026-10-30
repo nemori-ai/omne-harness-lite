@@ -25,7 +25,7 @@ import { fail } from '@omne-harness/operation-result'
 import { canonical } from '../../src/testing/canonical.ts'
 import { sessionView } from '../../src/testing/session-view.ts'
 import { createMemorySessionJournal } from '../../src/testing.ts'
-import { ok, operation, instance, checkpoint, evidence } from './common-journal.ts'
+import { ok, operation, instance, checkpoint, evidence, openInput } from './common-journal.ts'
 
 export function entriesFixture() {
   const initialization = createMemoryInitializationSource(),
@@ -117,20 +117,22 @@ export function entriesFixture() {
       ok(backend.controls.loadHistory(seed))
       const grant = ok(backend.controls.originalGrant({ ...who, session, execution }))
       const opened = ok(
-        await provider.journal.open({
-          ...who,
-          execution,
-          operation: operation('fixture-open'),
-          instance: instance(),
-          grant,
-          initial: {
-            id: ok(decodeInputId(initial.input)),
-            content: initial.message,
-            source: initial.origin,
-            priority: 'ordinary',
-          },
-          checkpoint: checkpoint(),
-        }),
+        await provider.journal.open(
+          openInput({
+            access: who,
+            execution,
+            operation: operation('fixture-open'),
+            instance: instance(),
+            grant,
+            initial: {
+              id: ok(decodeInputId(initial.input)),
+              content: initial.message,
+              source: initial.origin,
+              priority: 'ordinary',
+            },
+            checkpoint: checkpoint(),
+          }),
+        ),
       )
       baselines.set(scopeKey(who, execution), Number(opened.receipt.revision))
       return opened.authority
@@ -174,6 +176,8 @@ export function entriesFixture() {
           effects: [],
           caller: { kind: 'none' },
           replyAdmission: null,
+          handoff: null,
+          finish: null,
         }),
       )
       // The Session hands the pending input over by interpreting the input-taken event; its
@@ -192,7 +196,52 @@ export function entriesFixture() {
           sequence: taken.sequence,
         }),
       )
+      // F1, F2, prepareFinish, load and tryFinish (Agent SPEC "条件终结"): the Journal fixes the
+      // candidate, sets the proof and issues the obligations; this end writes neither.
+      const settle = async (step: string, finish: boolean) => {
+        const current = ok(await provider.journal.load({ ...who, execution }))
+        ok(
+          await provider.journal.commit({
+            ...who,
+            execution,
+            operation: operation(`fixture-${step}`),
+            authority,
+            expected: current.revision,
+            checkpoint: { ...current.checkpoint, position: step },
+            state: { kind: 'settling' },
+            events: [],
+            effects: [],
+            caller: { kind: 'none' },
+            replyAdmission: null,
+            handoff: null,
+            finish: finish
+              ? {
+                  origin: evidence('fixture-origin'),
+                  conclusion: { kind: 'complete' },
+                  failure: null,
+                  inputWatermark: current.inputWatermark,
+                  conditions: evidence('fixture-conditions'),
+                }
+              : null,
+          }),
+        )
+      }
+      await settle('F1', true)
+      await settle('F2', false)
       loaded = ok(await provider.journal.load({ ...who, execution }))
+      if (loaded.state.kind !== 'settling') throw new Error('settling expected')
+      ok(
+        await provider.journal.prepareFinish({
+          ...who,
+          execution,
+          operation: operation('fixture-prepare'),
+          authorization: { kind: 'advancement', authority },
+          expected: loaded.revision,
+          candidate: loaded.state.intent.candidate,
+        }),
+      )
+      loaded = ok(await provider.journal.load({ ...who, execution }))
+      if (loaded.state.kind !== 'settling') throw new Error('settling expected')
       const result = ok(
         await provider.journal.tryFinish({
           ...who,
@@ -200,13 +249,7 @@ export function entriesFixture() {
           operation: operation('fixture-end'),
           authorization: { kind: 'advancement', authority },
           expected: loaded.revision,
-          intent: {
-            conclusion: { kind: 'complete' },
-            inputWatermark: loaded.inputWatermark,
-            obligations: evidence('obligations'),
-            beforeTerminal: evidence('before-terminal'),
-            failure: null,
-          },
+          intent: loaded.state.intent,
         }),
       )
       if (result.kind !== 'ended') throw new Error(JSON.stringify(result))

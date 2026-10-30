@@ -73,9 +73,29 @@ export function journalOperation(
   return minted(decodeAgentOperationId(text), text)
 }
 
-/** The operation of a derived write of the invoke operation, such as the handoff of its input. */
-export function invokeOperation(invoke: AgentOperationId, node: string): AgentOperationId {
-  const text = `${invoke}/${node}`
+/**
+ * The internal admission operation H (SPEC "消息准入"): derived from the source kind, the stable
+ * source position and the predecessor revision of its P, never from the attachment or a clock.
+ */
+export function handoffOperation(
+  kind: string,
+  position: Readonly<{ step: StepId; node: string; slot: string | null }>,
+  predecessor: ExecutionRevision,
+): AgentOperationId {
+  const slot = position.slot === null ? '' : `/${position.slot}`
+  const text = `H/${kind}/${position.step}/${position.node}${slot}@${predecessor}`
+  return minted(decodeAgentOperationId(text), text)
+}
+
+/**
+ * The P and the first Ja of one H (SPEC "消息准入": each derives from H and its own fixed stage).
+ * A later application attempt after an excluded Ja is #502 stage 5.
+ */
+export function handoffStage(
+  handoff: AgentOperationId,
+  stage: 'prepare' | 'resolve',
+): AgentOperationId {
+  const text = `${handoff}/${stage}`
   return minted(decodeAgentOperationId(text), text)
 }
 

@@ -24,6 +24,7 @@ import type {
   DecisionCards,
   DurableEvidence,
   ExtensionImplementations,
+  JournalCapabilities,
   MessageHandoff,
   ModelContextReader,
   ModelSelection,
@@ -47,6 +48,8 @@ export type AgentConfiguration = Readonly<{
   denialBackoffMs: number
   toolConcurrency: number
   jointCommits: readonly Exclude<CallerCommit['kind'], 'none'>[]
+  /** The coordination mode this assembly requires of the Journal binding; no implicit default. */
+  coordination: JournalCapabilities['coordination']
   loopGuardPolicy: Adoption
 }>
 

@@ -38,12 +38,14 @@ async function modelScene(name: string) {
       operation: operation('pending'),
       authority: s.opened.authority,
       expected: s.opened.receipt.revision,
-      checkpoint: { ...s.input.checkpoint, calls: [pending] },
+      checkpoint: { ...s.checkpoint, calls: [pending] },
       state: { kind: 'waiting', waits },
       events: [{ kind: 'waiting', waits }],
       effects: [{ pending, action: pending.action, authority: s.opened.authority }],
       caller: { kind: 'none' },
       replyAdmission: null,
+      handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -66,7 +68,7 @@ async function modelScene(name: string) {
     }),
   )
   const admission: ModelReplyAdmission = {
-    step: s.input.checkpoint.step,
+    step: s.checkpoint.step,
     action: pending.action,
     call,
     resultVersion: result.version,
@@ -81,12 +83,14 @@ async function modelScene(name: string) {
       operation: operation('admission'),
       authority: s.opened.authority,
       expected: loaded.revision,
-      checkpoint: s.input.checkpoint,
+      checkpoint: s.checkpoint,
       state: { kind: 'advancing' },
       events: [],
       effects: [],
       caller: { kind: 'none' },
       replyAdmission: value,
+      handoff: null,
+      finish: null,
     })
   }
   async function stop() {

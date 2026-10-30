@@ -71,9 +71,9 @@ type Recording = Parameters<AgentJournal<string>['recordControl']>[0]
 
 async function setup(
   calls: readonly PendingCall[] = [associated],
-  options: Parameters<typeof createMemoryAgentJournal<string>>[0] = {},
+  options: Partial<Parameters<typeof createMemoryAgentJournal<string>>[0]> = {},
 ) {
-  const memory = createMemoryAgentJournal<string>(options)
+  const memory = createMemoryAgentJournal<string>({ coordination: 'standalone', ...options })
   const journal = memory.port
   const opened = await open(journal)
   ok(
@@ -232,7 +232,7 @@ describe('public retained invocation faults', () => {
           fault.kind === 'malformed'
             ? {
                 kind: 'unavailable',
-                owner: 'AgentJournal',
+                owner: 'agentJournal',
                 diagnostic: 'invalid-retained-tool-invocation',
               }
             : { kind: 'denied', action: 'recordControl' },
@@ -477,7 +477,7 @@ describe('pending control operation custody', () => {
 
 describe('shared pending recognition prerequisites', () => {
   it('checks participant support before pending commit identity', async () => {
-    const memory = createMemoryAgentJournal<string>()
+    const memory = createMemoryAgentJournal<string>({ coordination: 'standalone' })
     const journal = memory.port
     const opened = await open(journal)
     const original = commitAt(await load(journal, opened.execution), opened.authority, 'pending')
@@ -508,6 +508,7 @@ describe('shared pending recognition prerequisites', () => {
     let allowed = true
     let qualifyingExecution: Recording['execution'] | undefined
     const memory = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
       custodian: input => {
         expect(input).toEqual({
           principal: access.principal,
@@ -587,7 +588,13 @@ describe('shared pending recognition prerequisites', () => {
     })
     const settled = await observe(journal, opened.execution)
     expect(settled.snapshot.unresolved).not.toContain(resumed.operation)
-    expect(Number(settled.snapshot.revision)).toBe(Number(pending.snapshot.revision) + 1)
+    // The same responsibility already holds: the settled operation recognizes it at its revision
+    // and establishes no new fact (SPEC "执行修订").
+    expect(resumedReceipt).toMatchObject({
+      operation: resumed.operation,
+      revision: receipt.revision,
+    })
+    expect(settled.snapshot.revision).toBe(pending.snapshot.revision)
     expect(memory.settle(opened.execution, resumed.operation, 'applied')).toBe(false)
     expect(await observe(journal, opened.execution)).toEqual(settled)
   })
@@ -596,6 +603,7 @@ describe('shared pending recognition prerequisites', () => {
     let allowed = true
     let qualifyingExecution: Recording['execution'] | undefined
     const memory = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
       observer: input => {
         expect(input).toEqual({
           principal: access.principal,
@@ -1168,9 +1176,10 @@ describe('Tool operation attachment', () => {
     expect(after.events).toEqual(before.events)
     expect(after.snapshot.controls[0]).toMatchObject({ toolInvocation: invocation, toolOperation })
     expect(ok(await journal.recordControl(recording))).toEqual(first)
+    // A new operation recognizes the same stage fact: its own receipt at the fact's revision.
     expect(
       ok(await journal.recordControl({ ...recording, operation: operation('same-stage') })),
-    ).toEqual(first)
+    ).toMatchObject({ operation: operation('same-stage'), revision: first.revision })
     expect(
       ok(
         await journal.recordControl({
@@ -1181,7 +1190,7 @@ describe('Tool operation attachment', () => {
     ).toEqual(second)
     expect(
       ok(await journal.recordControl({ ...r2, operation: operation('same-reference') })),
-    ).toEqual(first)
+    ).toMatchObject({ operation: operation('same-reference'), revision: first.revision })
     expect(await observe(journal, opened.execution)).toEqual(after)
     expect(before.snapshot.controls[0]).toMatchObject({ toolOperation: null })
     expect(recording).not.toHaveProperty('toolOperation')
@@ -1248,7 +1257,7 @@ describe('Tool operation attachment', () => {
       'invalid' as tools.ToolInvocationRef,
       {
         kind: 'unavailable',
-        owner: 'AgentJournal',
+        owner: 'agentJournal',
         diagnostic: 'invalid-retained-tool-invocation',
       },
     ],
@@ -1296,6 +1305,8 @@ it('does not attach a reference when the stage is inapplicable or a reached fact
   expect(await observe(journal, opened.execution)).toEqual(before)
   ok(await journal.recordControl(recording))
   const saved = await observe(journal, opened.execution)
+  // Another source for the reached fact is contradicting evidence: the persistent rejection saves
+  // an audit and one revision, attaches nothing and projects no event (SPEC "查询的四种结论与持久拒绝").
   expect(
     failure(
       await journal.recordControl({
@@ -1306,7 +1317,13 @@ it('does not attach a reference when the stage is inapplicable or a reached fact
       }),
     ),
   ).toEqual({ kind: 'conflict', operation: operation('changed-stage') })
-  expect(await observe(journal, opened.execution)).toEqual(saved)
+  const audited = await observe(journal, opened.execution)
+  expect(Number(audited.snapshot.revision)).toBe(Number(saved.snapshot.revision) + 1)
+  expect(audited.snapshot.controls).toEqual(saved.snapshot.controls)
+  expect(audited.events).toEqual(saved.events)
+  expect(
+    ok(await journal.query({ ...recording, operation: operation('changed-stage') })),
+  ).toMatchObject({ kind: 'rejected', revision: audited.snapshot.revision })
 })
 
 describe('retained Tool operation corruption', () => {
@@ -1316,7 +1333,7 @@ describe('retained Tool operation corruption', () => {
   const resolve = tools.resolveToolOperationRef
   const unavailable = {
     kind: 'unavailable',
-    owner: 'AgentJournal',
+    owner: 'agentJournal',
     diagnostic: 'invalid-retained-tool-operation',
   } as const
   const retainedParts = ok(resolve(toolOperation, access.tenant))
@@ -1446,6 +1463,7 @@ describe('scripted faults on recordControl', () => {
 it('never asks the custodian about an execution for a tenant that does not own it', async () => {
   const asked: tools.ToolInvocationParts['tenant'][] = []
   const memory = createMemoryAgentJournal<string>({
+    coordination: 'standalone',
     custodian: input => {
       asked.push(input.tenant)
       return true

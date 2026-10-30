@@ -23,6 +23,7 @@ async function create(
   creation = options(),
   journal: {
     participants?: readonly ('message' | 'context-transition' | 'custody' | 'processed')[]
+    coordination?: 'standalone' | 'coordinated'
   } = {},
 ) {
   const assembly = createTestAgentDependencies<Principal>({ journal })
@@ -61,6 +62,9 @@ describe('C1 invalid: a configuration value out of range', () => {
     ['jointCommits', 'message', 'jointCommits'],
     ['jointCommits', ['none'], 'jointCommits'],
     ['jointCommits', ['message', 'message'], 'jointCommits'],
+    ['coordination', 'both', 'coordination'],
+    ['coordination', undefined, 'coordination'],
+    ['coordination', null, 'coordination'],
     ['loopGuardPolicy', null, 'loopGuardPolicy'],
     ['loopGuardPolicy', { ...adoption('loop-guard'), digest: '' }, 'loopGuardPolicy.digest'],
     ['loopGuardPolicy', { owner: 'o', name: 'n', revision: '1' }, 'loopGuardPolicy.digest'],
@@ -222,6 +226,52 @@ describe('C1 unsupported: a joint commit kind that the Journal does not declare'
       options({ jointCommits: ['message'] }),
     )
     expect(result).toMatchObject({ kind: 'unavailable', owner: OWNER })
+  })
+})
+
+// SPEC "提交参加者协议": the factory compares the configured mode with the binding's declaration
+// strictly, before it creates the runtime, registers or writes any state; there is no default.
+describe('C1 unsupported: the coordination mode of the Journal binding', () => {
+  it('refuses a coordinated binding under a standalone configuration', async () => {
+    const result = await refused(undefined, options({ coordination: 'standalone' }), {
+      coordination: 'coordinated',
+    })
+    expect(result).toEqual({ kind: 'unsupported' })
+  })
+
+  it('refuses a standalone binding under a coordinated configuration', async () => {
+    const result = await refused(undefined, options({ coordination: 'coordinated' }), {
+      coordination: 'standalone',
+    })
+    expect(result).toEqual({ kind: 'unsupported' })
+  })
+
+  it('refuses a binding that declares no coordination mode', async () => {
+    const result = await refused(dependencies => ({
+      ...dependencies,
+      journal: {
+        ...dependencies.journal,
+        capabilities: loose({ participants: dependencies.journal.capabilities.participants }),
+      },
+    }))
+    expect(result).toEqual({ kind: 'unsupported' })
+  })
+
+  it('creates a coordinated runtime when the binding declares coordinated', async () => {
+    const { created, calls } = await create(undefined, options({ coordination: 'coordinated' }), {
+      coordination: 'coordinated',
+    })
+    ok(created)
+    expect(calls).toEqual([])
+  })
+
+  it('checks the mode before the joint commit kinds', async () => {
+    const result = await refused(
+      undefined,
+      options({ coordination: 'coordinated', jointCommits: ['message'] }),
+      { coordination: 'standalone' },
+    )
+    expect(result).toEqual({ kind: 'unsupported' })
   })
 })
 

@@ -26,6 +26,7 @@ import type {
   AdmissionDecision,
   Authority,
   CardReply,
+  HandoffRequest,
   RequestPreparation,
   RuntimeConditions,
 } from '@omne-harness/agent-contract'
@@ -218,17 +219,41 @@ describe('selection, model context and handoff', () => {
     ).toBe('unavailable')
   })
 
-  it('handoff accepts by default and rejects as scripted', async () => {
+  it('handoff prepares the candidate by default and rejects as scripted', async () => {
     const handoff = createScriptedMessageHandoff<string>()
-    const input = stub<Parameters<typeof handoff.port.accept>[0]>({
-      ...access,
-      operation: operation('h'),
+    const candidate = stub<Extract<HandoffRequest, { kind: 'execution' }>['candidate']>({
+      id: 'msg_candidate',
     })
-    expect(ok(await handoff.port.accept(input)).kind).toBe('accepted')
-    handoff.accept.once(() =>
-      succeed({ kind: 'rejected', reason: 'no', evidence: testEvidence('no') }),
+    const input = stub<Parameters<typeof handoff.port.prepare>[0]>({
+      ...access,
+      kind: 'execution',
+      request: {
+        kind: 'execution',
+        reference: { kind: 'execution', execution: execution(), operation: operation('h') },
+        source: { kind: 'model-reply' },
+        candidate,
+      },
+    })
+    const prepared = ok(await handoff.port.prepare(input))
+    expect(prepared.decision).toMatchObject({ kind: 'prepared', message: candidate })
+    expect(prepared.origin).toBeNull()
+    handoff.prepare.once(() =>
+      succeed({
+        ...prepared,
+        decision: { kind: 'rejected', reason: 'no', evidence: testEvidence('no') },
+      }),
     )
-    expect(ok(await handoff.port.accept(input))).toMatchObject({ kind: 'rejected', reason: 'no' })
+    expect(ok(await handoff.port.prepare(input)).decision).toMatchObject({
+      kind: 'rejected',
+      reason: 'no',
+    })
+    expect(ok(await handoff.port.lookup(stub({ ...access })))).toEqual({
+      kind: 'unknown',
+      original: null,
+    })
+    expect(
+      ok(await handoff.port.exclude(stub({ ...access, request: input.request }))),
+    ).toMatchObject({ kind: 'unknown', original: { request: input.request } })
   })
 })
 
