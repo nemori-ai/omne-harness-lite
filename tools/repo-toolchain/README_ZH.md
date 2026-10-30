@@ -75,11 +75,28 @@ pnpm --filter @omne-harness/repo-toolchain test
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
 - 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
 - 临时树叫 `tree-<提交>-<进程号>`，算完就删；Windows 上刚解开的文件可能还被别的程序占着，删除时重试几次，仍删不掉只在标准错误报告，不改变图的结果。运行被强行结束（任务超时、关掉终端、杀进程树）时来不及删，所以每次算基线图开始时清掉进程已不在、且 10 分钟没动过的旧树；活着的进程的树不动。宽限期是为同一个 git 目录被 WSL 里的运行共用的情形：那边的进程这里看不见。
-- 工作树的图：按指纹缓存在同一目录的 `working-<指纹>.json`。指纹（`workingGraphFingerprint`）覆盖所有能改变图的输入：图的格式版本、dependency-cruiser 的版本、规则文件（原文与 require 后的结果）、`tsconfig.base.json` 连同 `extends` 链、HEAD 提交、扫描根与根 `tsconfig.base.json`、`package.json` 下未提交与未跟踪文件的路径与内容、扫描根下被忽略的路径（目录只记存在与否，单个文件记内容）、被忽略目录的判定结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。命中时不起 dependency-cruiser，读到的图与重算的逐字节相同；未命中照常算，算完先写临时名再改名，只留最近 10 份。缓存读不到、JSON 坏、格式或指纹对不上、写不进都按未命中，既不让检查失败也不让它放行。`OMNE_DEP_GRAPH_CACHE=0` 关掉（不读不写，行为与没有缓存时相同）。stderr 是终端时打一行命中与否；管道里不打，输出与没有缓存时相同。不在 git 仓库里或没有提交的树没有指纹，照常出图不缓存。做法借鉴 ub-mode 列出的 crapper 复用已有覆盖报告（`--use-existing-coverage`）与 mutator 的差分快照：先按输入指纹判没变，没变就不重算。
+- 工作树的图：按指纹缓存在同一目录的 `working-<指纹>.json`。指纹（`workingGraphFingerprint`）覆盖所有能改变图的输入：
+  - 图的格式版本与 dependency-cruiser 的版本。
+  - 规则文件（原文与 require 后的结果）、`tsconfig.base.json` 连同 `extends` 链。
+  - HEAD 提交。
+  - 全部未提交与未跟踪文件的路径与内容。不按扫描根过滤，因为 dependency-cruiser 会解析扫描根以外的导入目标。
+  - 被忽略的路径。同样不按扫描根过滤：目录只记存在与否，单个文件记内容。
+  - 被忽略目录的判定结果。
+  - `pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
+
+  命中时不起 dependency-cruiser，读到的图与重算的逐字节相同。未命中照常算，算完先写临时名再改名，只留最近 10 份。
+  - 缓存读不到、JSON 坏、格式或指纹对不上、写不进都按未命中，既不让检查失败也不让它放行。
+  - `OMNE_DEP_GRAPH_CACHE=0` 关掉缓存：不读不写，行为与没有缓存时相同。
+  - `OMNE_ADMISSION=1` 时不读缓存，照常计算并写入。
+  - 算完图后复核指纹。运行期间输入变了就不写缓存；stderr 是终端时提示一行。
+  - stderr 是终端时打一行命中与否；管道里不打，输出与没有缓存时相同。
+  - 不在 git 仓库里或没有提交的树没有指纹，照常出图不缓存。
+
+  命中不能声称的：被忽略的目录里某个被依赖的文件单独增删，不改变指纹，这时读到的是旧图。做法借鉴 ub-mode 列出的 crapper 复用已有覆盖报告（`--use-existing-coverage`）与 mutator 的差分快照：先按输入指纹判没变，没变就不重算。
 - 耗时（Windows 宿主，24 核）：全仓一次 dependency-cruiser 约 14 秒，工作树指纹约 0.7 秒，`lint:deps` 命中缓存约 1.2 秒；基线命中缓存约 10 毫秒。
 - 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。按具名例外放行的组环不算硬线。
 
-自测：`tests/deps-graph.spec.ts`、`tests/deps-graph-cache.spec.ts`（指纹逐类失效、命中、坏文件、开关、留份）、`tests/deps-graph-trees.spec.ts`（过期临时树的清理）、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+自测：`tests/deps-graph.spec.ts`、`tests/deps-graph-cache.spec.ts`（指纹逐类失效，含扫描根之外的未提交文件与被忽略的路径；命中、坏文件、开关、留份、算图期间输入变了不写缓存）、`tests/deps-graph-trees.spec.ts`（过期临时树的清理）、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
 
 ### 依赖方向
 
@@ -283,7 +300,7 @@ omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖
 - 静态度量（依赖图、实际架构、符合性）与覆盖率同时进行，它们只读工作树，不读覆盖率。串行时仍先跑完覆盖率。
 - 一个成员起不来时不再开新成员，等已开始的结束，再报错退出。
 
-这里借鉴了 crapper（[unclebob/ub-mode](https://github.com/unclebob/ub-mode) 列出的 CRAP 工具）的两种做法：按核数并行，以及在覆盖报告已经存在时复用它（`--use-existing-coverage`）。只采用了前一种。复用要能判定已有报告的输入与这次相同：成员与它的工作区依赖的 `dist/`、测试、配置与安装状态都不在提交里，同一提交上也可能不同。本工具判定不了，所以不复用，每次重跑。
+这里借鉴了 crapper（[unclebob/ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 列出的 CRAP 工具）的两种做法：按核数并行，以及在覆盖报告已经存在时复用它（`--use-existing-coverage`）。只采用了前一种。复用要能判定已有报告的输入与这次相同：成员与它的工作区依赖的 `dist/`、测试、配置与安装状态都不在提交里，同一提交上也可能不同。本工具判定不了，所以不复用，每次重跑。
 
 本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
 
@@ -624,7 +641,7 @@ pnpm run loop:health # --out 可改产物目录
 | 块                   | 内容                                                                                                                             | 数据来源                                                                                                                                                                                                                                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 提交与合并的大小     | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m`                                                                                                                                                                                                                                                                                       |
-| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
+| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入；含缓存命中（`meta.cache.hits` 非空）的账本只列实际跑了的成员，墙钟不代表一次全量，也不计入 |
 | 债的走向             | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向         | `trend.jsonl`；同一提交多条取最后一条，按提交时间排                                                                                                                                                                                                                                                               |
 | 对照表条数           | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数                                                                       | `docs/clean-loop.md`，与回路状态同一份解析                                                                                                                                                                                                                                                                        |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出                                                         | `trend.jsonl`                                                                                                                                                                                                                                                                                                     |

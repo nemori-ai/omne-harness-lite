@@ -16,7 +16,21 @@ Three unpublished tool members import this package through its subpaths. This pa
 - The runner repository is `OMNE_RUNNER_ROOT`. When it is not set, it is the checked repository. Dependency rules (`.dependency-cruiser.cjs`, `tsconfig.base.json`), the direction rows of `docs/architecture/constraints.json` (schema 3, see the [conformance contract](src/arch/CONFORMANCE.md#方向行) and [Dependency directions](#dependency-directions)) and configuration come only from the runner repository, so a checked tree cannot change them.
 - Configuration is in [`repo-toolchain.config.json`](../../repo-toolchain.config.json) at the repository root, in the sections `loop`, `metrics`, `acceptanceLock` and `contractApi`. Each command reads only its own section. A missing file, a missing section that a command reads, or an unknown section is an error. No defaults apply. Version 0.0.10 is the first version that accepts the `contractApi` section. Earlier versions reject it.
 - dependency-cruiser needs TypeScript to parse `.ts` files. With pnpm, add `typescript` to dependency-cruiser under `packageExtensions` in `pnpm-workspace.yaml`. If TypeScript is not found, the dependency check exits with an error. It does not pass with the `.ts` files left out.
-- The dependency graph of the working tree is cached in `<git-common-dir>/omne-dep-graph/working-<fingerprint>.json`, next to the per-commit baseline graphs. The fingerprint covers every input that can change the graph: the graph format version, the dependency-cruiser version, the rule file and the loaded rules, `tsconfig.base.json` with its `extends` chain, the HEAD commit, the paths and contents of uncommitted and untracked files under the scan roots, the ignored paths under the scan roots (directories by presence, single files by content), the ignored-directory decision, `pnpm-lock.yaml` and `node_modules/.modules.yaml`. A hit does not start dependency-cruiser and returns the same bytes as a fresh run. A file that cannot be read, is not valid JSON or does not match is a miss. `OMNE_DEP_GRAPH_CACHE=0` turns the cache off. Only the 10 most recently used entries are kept. The graph is reported on stderr as hit or miss only when stderr is a terminal.
+- The dependency graph of the working tree is cached in `<git-common-dir>/omne-dep-graph/working-<fingerprint>.json`, next to the per-commit baseline graphs. The fingerprint covers every input that can change the graph:
+  - the graph format version and the dependency-cruiser version
+  - the rule file and the loaded rules, and `tsconfig.base.json` with its `extends` chain
+  - the HEAD commit
+  - the paths and contents of all uncommitted and untracked files. The scan roots do not filter them, because dependency-cruiser resolves import targets outside the scan roots.
+  - the ignored paths. The scan roots do not filter them either: a directory counts only by presence, a single file by content.
+  - the ignored-directory decision
+  - the contents of `pnpm-lock.yaml` and `node_modules/.modules.yaml`
+
+  A hit does not start dependency-cruiser and returns the same bytes as a fresh run. A file that cannot be read, is not valid JSON or does not match is a miss. Only the 10 most recently used entries are kept.
+  - `OMNE_DEP_GRAPH_CACHE=0` turns the cache off.
+  - With `OMNE_ADMISSION=1` the command does not read the cache. It computes the graph as usual and writes it.
+  - After the graph is computed, the command checks the fingerprint again. If an input changed during the run, it does not write the cache. When stderr is a terminal, it prints one line.
+  - The graph is reported on stderr as hit or miss only when stderr is a terminal.
+  - A hit does not show a file that was added or deleted inside an ignored directory, because such a directory counts only by presence. The graph is then the old graph.
 
 ## Default baseline
 
