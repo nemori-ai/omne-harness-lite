@@ -127,6 +127,21 @@ describe('工作树依赖图的指纹', () => {
     expect(digest(root)).toBe(before)
   })
 
+  it('被忽略的路径清单不变、目录从「只忽略里面的文件」改成「整个被忽略」也变：只有 ignoredDirectories 的结果记下了这一差别', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/g.ts\n')
+    commit(root, 'ignore one generated file')
+    write(root, 'packages/model/a/src/gen/g.ts', 'export const g = 1\n')
+    const fileOnly = workingGraphFingerprint(root)
+    // 根 .gitignore 不在扫描根下，未提交的改动不进「改动的文件」一组；两种写法下 ls-files 列出的被忽略路径相同。
+    write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/**\n')
+    const wholeDir = workingGraphFingerprint(root)
+    const others = (inputs: readonly string[] = []) =>
+      inputs.filter(line => !line.startsWith('ignored-dirs '))
+    expect(others(wholeDir?.inputs)).toEqual(others(fileOnly?.inputs))
+    expect(wholeDir?.digest).not.toBe(fileOnly?.digest)
+  })
+
   it('pnpm-lock.yaml 出现或内容改了就变（它不在扫描根下，只走安装状态这一项）', () => {
     const root = copyRepository(template)
     const before = digest(root)
@@ -262,6 +277,28 @@ describe('工作树依赖图的缓存', () => {
       expect(kept.filter(name => name.startsWith('working-fake'))).toEqual(
         Array.from({ length: 7 }, (_, index) => `working-fake${11 - index}.json`).sort(),
       )
+    },
+  )
+
+  it(
+    '目录改成整个被忽略后不命中：目录里的模块随之出图，缓存不会交回旧图',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/g.ts\n')
+      commit(root, 'ignore one generated file')
+      write(
+        root,
+        'packages/model/a/src/gen/g.ts',
+        "import { c } from '../../../c/src/index.ts'\nexport const g = c\n",
+      )
+      const fileOnly = workingGraph(root)
+      expect(fileOnly.modules).toContain('packages/model/a/src/gen/g.ts')
+      expect(pairs(fileOnly)).toContain('packages/model/a → packages/model/c')
+      write(root, '.gitignore', 'node_modules/\npackages/model/a/src/gen/**\n')
+      const wholeDir = workingGraph(root)
+      expect(wholeDir.modules).not.toContain('packages/model/a/src/gen/g.ts')
+      expect(pairs(wholeDir)).toEqual(['packages/model/a → packages/model/b'])
     },
   )
 
