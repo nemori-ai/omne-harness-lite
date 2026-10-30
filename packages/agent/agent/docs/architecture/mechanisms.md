@@ -45,7 +45,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 
 ## 提交点与聚合边界
 
-本节把 [Loop 完整算法](loop-algorithm.md#节点表)中每个写入节点的提交点集中列出。内存 `AgentJournal` 替身与耐久后端按同一份清单实现，同一套测试适用于两者。按节点补“何时提交”的实施卡也从这里查本节点的方法与分面。本节不新增行为。类型与方法以 [journal.ts](../../../agent-contract/src/journal.ts)、[execution.ts](../../../agent-contract/src/execution.ts)、[evaluation.ts](../../../agent-contract/src/evaluation.ts) 与 [SPEC](../../../agent-contract/SPEC.md) 为准，节点语义以节点表为准。本节与它们不一致时，以它们为准。开放问题页 [U-15](open-questions.md#journal-联合表达的具名缺口) 列出的写入还没有类型承载，在类型落地之前这些行以 SPEC 正文为准。
+本节把 [Loop 完整算法](loop-algorithm.md#节点表)中每个写入节点的提交点集中列出。内存 `AgentJournal` 替身与耐久后端按同一份清单实现，同一套测试适用于两者。按节点补“何时提交”的实施卡也从这里查本节点的方法与分面。本节不新增行为。类型与方法以 [journal.ts](../../../agent-contract/src/journal.ts)、[execution.ts](../../../agent-contract/src/execution.ts)、[evaluation.ts](../../../agent-contract/src/evaluation.ts) 与 [SPEC](../../../agent-contract/SPEC.md) 为准，节点语义以节点表为准。本节与它们不一致时，以它们为准。
 
 ### 聚合与分层
 
@@ -89,7 +89,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 
 ### 提交点总表
 
-下表为 44 个节点逐一列出提交点：节点表中“写什么”不以“不写”开头的 42 个节点，以及“写什么”以“不写”开头但另经 `recordControl` 写入的 T0 与 M1。一个节点写入多处时占多行。“随 X 协议提交”的写入由 X1 至 X5 的 `commit` 承载，Passage 的迁移见对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)。“参加者”一列写 `CallerCommit` 种类或其他参加方式，“无”表示 `caller` 为 none 且不需要参加者。没有类型承载的写入不列为已成立的写入，只指向 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)；U-15 列出的正文先于类型的写入除外。
+下表为 44 个节点逐一列出提交点：节点表中“写什么”不以“不写”开头的 42 个节点，以及“写什么”以“不写”开头但另经 `recordControl` 写入的 T0 与 M1。一个节点写入多处时占多行。“随 X 协议提交”的写入由 X1 至 X5 的 `commit` 承载，Passage 的迁移见对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)。“参加者”一列写 `CallerCommit` 种类或其他参加方式，“无”表示 `caller` 为 none 且不需要参加者。没有类型承载的写入不列为已成立的写入，只指向 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
 
 | 节点 | 写入的分面或记录 | 方法 | 提交类型 | 参加者 | 依据 |
 | --- | --- | --- | --- | --- | --- |
