@@ -306,6 +306,9 @@ describe('the author route reads the closure tryFinish rebuilds', () => {
     s.view.controls.failNext('commit', { kind: 'commit-unknown', outcome: 'pending' })
     expect(await commit(s, 'undecided')).toMatchObject({ failure: { kind: 'commit-unknown' } })
     const ready = await prepareEnd(s)
+    expect(
+      ready.finishObligations?.items.find(item => item.kind === 'operation')?.disposition,
+    ).toMatchObject({ kind: 'unknown' })
     expect(await finish(s, ready, 'end')).toMatchObject({ failure: { kind: 'unavailable' } })
   })
 

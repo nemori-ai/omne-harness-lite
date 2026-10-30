@@ -1449,6 +1449,11 @@ export function createJournal<P>(
         results: execution.results,
         effects: execution.effects,
         interruptionsOf: effect => interruptionsOf(effect, execution.controls, execution.tenant),
+        modelCallOf: effect => {
+          if (effect.pending.kind !== 'model') return null
+          const parts = resolveModelInvocationRef(effect.pending.reference, execution.tenant)
+          return 'ok' in parts ? parts.ok.call : null
+        },
         emitted: execution.events.length,
         acknowledged: execution.acknowledged,
         unpublished: handoffsOf(execution, () => null).filter(
@@ -3235,7 +3240,8 @@ export function createJournal<P>(
         if (original !== undefined) return answer(original)
         const authorization = input.authorization
         // Agent SPEC "判定次序与失败映射" 4 to 6 and the prepareFinish row of the judgment order:
-        // stale-advance, terminal, the denied checks of the authorization, then changed, then a
+        // stale-advance, terminal, the cancel checks, the kind of the authorization against the
+        // named candidate, an advancement under an effective cancel, then changed, then a
         // candidate this Journal does not hold.
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
@@ -3252,14 +3258,14 @@ export function createJournal<P>(
           (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
         )
           return answer(fail(denied('prepareFinish')))
+        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+          return answer(fail({ kind: 'changed' }))
         if (execution.state.kind !== 'settling') return answer(fail({ kind: 'changed' }))
         if (input.expected !== revisionOf(execution.revision))
           return answer(fail({ kind: 'changed' }))
         if (candidate === undefined)
           return answer(fail(invalid('candidate', 'not a candidate of this execution')))
         if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
-          return answer(fail({ kind: 'changed' }))
         const revision = execution.revision + 1
         const evidence = nextEvidence(execution, 'obligations', revision)
         const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -3307,7 +3313,8 @@ export function createJournal<P>(
         )
         const authorization = input.authorization
         // The tryFinish row of the judgment order: stale-advance, terminal, the cancel checks,
-        // the kind of the authorization, then changed, then the list, then the closure.
+        // the kind of the authorization, an advancement under an effective cancel, then changed,
+        // then the list, then the closure.
         if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
@@ -3320,7 +3327,7 @@ export function createJournal<P>(
             return answer(
               fail(invalid('authorization.control', 'not the control of the current route')),
             )
-        } else if (effectiveCancels(execution).length > 0) return changed
+        }
         const candidate = currentCandidate(finishing)
         // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
         if (
@@ -3328,6 +3335,8 @@ export function createJournal<P>(
           (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
         )
           return answer(fail(denied('tryFinish')))
+        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+          return changed
         const intent = intentOf(finishing)
         if (candidate === undefined || intent === undefined || execution.state.kind !== 'settling')
           return changed

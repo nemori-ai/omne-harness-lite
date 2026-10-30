@@ -93,7 +93,7 @@
 | `submit` | 来源依据是该输入的 SE11 回执 | [PA-01](../session-contract/SPEC.md#pa-01) 第 2 条 |
 | `attach`（经 `resume` 发起） | 来源依据是推进资格依据所指 attempt 的 SE15 回执，经 attach 输入的 `grant` 到达，分普通推进与取消收束两种情形 | [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条 |
 | `tryFinish` | 以 `judgeCompletion` 核对待交输入与取消 | [PA-02](../session-contract/SPEC.md#pa-02) |
-| `commitSettlement` 的 judge-cancellation | 以 `judgeCompletion` 读本 execution 所属的 Run，构造 Session 的 `TerminalParticipantFact`，作为判断输入的参加者事实。allowed 记 ready。blocked 记 blocked，类别为 inputs，依据为第一项待交输入的 SE11 依据。cancelled 而 SE26 引用的控制等于判断的取消控制时记 ready，不等时记 changed。其他终态记 changed。读取失败记 unknown。事实的协议 Adoption 是 `@omne-harness/session-contract` 的 `pa-02-terminal-participation`，`purpose` 是本绑定的 judge-cancellation 用途依据。取消路线上的 tryFinish 重读同一事实，与判断记录比较 | [PA-02](../session-contract/SPEC.md#pa-02) |
+| `commitSettlement` 的 judge-cancellation | 以 `judgeCompletion` 读本 execution 所属的 Run，构造 Session 的 `TerminalParticipantFact`，作为判断输入的参加者事实。allowed 记 ready。blocked 记 blocked，类别为 inputs，依据为第一项待交输入的 SE11 依据。cancelled 而 SE26 引用的控制等于判断的取消控制时记 ready，不等时记 changed。其他终态记 changed。读取失败记 unknown。事实的协议 Adoption 是本绑定自定的 `pa-02-terminal-participation`，对应 session-contract 的 PA-02，`purpose` 是本绑定的 judge-cancellation 用途依据。取消路线上的 tryFinish 重读同一事实，与判断记录比较 | [PA-02](../session-contract/SPEC.md#pa-02) |
 
 Session 结果到四种参加者响应的对应：
 
