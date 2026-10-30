@@ -6,6 +6,11 @@ import {
   realpathSync,
   rmSync,
   symlinkSync,
+  chmodSync,
+  lstatSync,
+  readlinkSync,
+  statSync,
+  utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -18,8 +23,11 @@ import {
   prepareWorktree,
   regenerateProjections,
   removeWorktree,
+  copyProjections,
+  pnpmCommand,
   startInput,
   swapWorktree,
+  type Host,
   type Runner,
 } from '../src/integration/worktree.ts'
 
@@ -32,6 +40,19 @@ function home(): string {
   homes.push(path)
   return path
 }
+/**
+ * A host whose `PATH` is one fresh directory holding the given (empty) files. `linux` below has
+ * an `rsync` there, so the copy step runs the `rsync` command the recorded steps expect.
+ */
+function hostWith(platform: NodeJS.Platform, files: string[] = []): Host {
+  const directory = home()
+  for (const file of files) {
+    mkdirSync(join(directory, file, '..'), { recursive: true })
+    writeFileSync(join(directory, file), '')
+  }
+  return { platform, env: { PATH: directory }, execPath: '/node' }
+}
+const linux = hostWith('linux', ['rsync'])
 const url = 'https://github.com/owner/repo/issues/7'
 const binding: TaskBindingV2 = {
   schemaVersion: 2,
@@ -110,7 +131,7 @@ describe('worktree preparation', () => {
     const root = home(),
       tree = join(root, 'tree'),
       r = runner({ [`git show-ref --quiet --verify ${local}`]: { status: 1 } })
-    const result = prepareWorktree({ root, tree, binding, run: r.run })
+    const result = prepareWorktree({ root, tree, binding, run: r.run, host: linux })
     expect(r.names()).toEqual([
       'git fetch --quiet',
       'git show-ref --quiet',
@@ -144,7 +165,7 @@ describe('worktree preparation', () => {
     writeFileSync(join(evidence, 'report.md'), 'kept')
     const tree = join(root, 'tree'),
       r = runner(behind)
-    prepareWorktree({ root, tree, binding, evidence, run: r.run })
+    prepareWorktree({ root, tree, binding, evidence, run: r.run, host: linux })
     expect(r.ran('git', 'branch', '--force', binding.branch, upstream)).toBe(true)
     expect(r.ran('git', 'worktree', 'add', '--quiet', tree, binding.branch)).toBe(true)
     expect(readFileSync(join(tree, 'tmp/issue-7/report.md'), 'utf8')).toBe('kept')
@@ -164,9 +185,9 @@ describe('worktree preparation', () => {
   ])('refuses a local branch %s and adds no tree', (_name, answers, message) => {
     const root = home(),
       r = runner(answers)
-    expect(() => prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run })).toThrow(
-      message,
-    )
+    expect(() =>
+      prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run, host: linux }),
+    ).toThrow(message)
     expect(r.ran('git', 'worktree', 'add')).toBe(false)
   })
 
@@ -176,9 +197,9 @@ describe('worktree preparation', () => {
       'already exists',
     )
     const r = runner({ 'pnpm install --frozen-lockfile': { status: 1, stderr: 'lock mismatch' } })
-    expect(() => prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run })).toThrow(
-      'install failed (exit 1): lock mismatch',
-    )
+    expect(() =>
+      prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run, host: linux }),
+    ).toThrow('install failed (exit 1): lock mismatch')
     expect(r.names().at(-1)).toBe('pnpm install --frozen-lockfile')
   })
 
@@ -190,14 +211,14 @@ describe('worktree preparation', () => {
           stderr: '{"code":"refused","message":"The card lacks a milestone"}',
         },
       })
-    expect(() => prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run })).toThrow(
-      'The card lacks a milestone',
-    )
+    expect(() =>
+      prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run, host: linux }),
+    ).toThrow('The card lacks a milestone')
   })
 
   it('runs check:agents after copying and linking, and removes the stage either way', () => {
     const r = runner({ 'pnpm run check:agents': { status: 1, stderr: 'output differs' } })
-    expect(() => regenerateProjections(home(), r.run)).toThrow(
+    expect(() => regenerateProjections(home(), r.run, linux)).toThrow(
       'check:agents failed (exit 1): output differs',
     )
     expect(r.names().slice(0, 3)).toEqual([
@@ -219,17 +240,175 @@ describe('worktree preparation', () => {
     symlinkSync(physical, alias, 'dir')
     for (const name of ['TMPDIR', 'TMP', 'TEMP']) vi.stubEnv(name, alias)
     try {
-      regenerateProjections(root, (program, args, options) => {
-        if (args.includes('.meta_harness/tooling/src/compile_agents.py')) {
-          const stage = args.at(-1) ?? ''
-          expect(stage).toBe(realpathSync(stage))
-        }
-        return r.run(program, args, options)
-      })
+      regenerateProjections(
+        root,
+        (program, args, options) => {
+          if (args.includes('.meta_harness/tooling/src/compile_agents.py')) {
+            const stage = args.at(-1) ?? ''
+            expect(stage).toBe(realpathSync(stage))
+          }
+          return r.run(program, args, options)
+        },
+        linux,
+      )
       expect(existsSync(r.steps[0]?.args.at(-1) ?? '')).toBe(false)
     } finally {
       vi.unstubAllEnvs()
     }
+  })
+})
+
+describe('worktree preparation on a host without rsync or with Windows pnpm', () => {
+  const windowsPnpm = () => hostWith('win32', ['pnpm.cmd', 'node_modules/pnpm/bin/pnpm.cjs'])
+  const entry = (host: Host) => join(host.env['PATH'] ?? '', 'node_modules/pnpm/bin/pnpm.cjs')
+  const noBranch = { [`git show-ref --quiet --verify ${local}`]: { status: 1 } }
+
+  it('starts pnpm through the current Node on Windows and as pnpm elsewhere', () => {
+    const host = windowsPnpm()
+    expect(pnpmCommand(host)).toEqual({ program: '/node', args: [entry(host)] })
+    expect(pnpmCommand(linux)).toEqual({ program: 'pnpm', args: [] })
+  })
+
+  it('reports a Windows PATH where pnpm.cmd is missing or has no pnpm.cjs beside it', () => {
+    expect(() => pnpmCommand(hostWith('win32'))).toThrow('pnpm.cmd is not on PATH')
+    expect(() => pnpmCommand(hostWith('win32', ['pnpm.cmd']))).toThrow('has no node_modules/pnpm')
+  })
+
+  it('runs install and check:agents with the pnpm.cjs entry on Windows', () => {
+    const host = windowsPnpm(),
+      root = home(),
+      r = runner(noBranch)
+    prepareWorktree({ root, tree: join(root, 'tree'), binding, run: r.run, host })
+    const pnpm = r.steps.filter(step => step.args[0] === entry(host))
+    expect(pnpm.map(step => [step.program, ...step.args.slice(1)])).toEqual([
+      ['/node', 'install', '--frozen-lockfile', '--ignore-scripts'],
+      ['/node', 'run', 'check:agents'],
+    ])
+    expect(r.steps.some(step => step.program === 'pnpm')).toBe(false)
+  })
+
+  it('stops a Windows run before installing when pnpm cannot be found', () => {
+    const root = home(),
+      r = runner(noBranch)
+    expect(() =>
+      prepareWorktree({
+        root,
+        tree: join(root, 'tree'),
+        binding,
+        run: r.run,
+        host: hostWith('win32'),
+      }),
+    ).toThrow('pnpm.cmd is not on PATH')
+    expect(r.names().at(-1)).toBe('git worktree add')
+  })
+
+  it('copies the stage with Node when no rsync is usable, and never starts rsync', () => {
+    const tree = home(),
+      r = runner()
+    mkdirSync(join(tree, '.meta_harness/.claude'), { recursive: true })
+    writeFileSync(join(tree, '.meta_harness/.claude/old.md'), 'not in the stage')
+    const run: Runner = (program, args, options) => {
+      if (args.includes('.meta_harness/tooling/src/compile_agents.py')) {
+        const stage = args.at(-1) ?? ''
+        mkdirSync(join(stage, '.claude/agents'), { recursive: true })
+        writeFileSync(join(stage, '.claude/agents/qa.md'), 'projected')
+      }
+      return r.run(program, args, options)
+    }
+    // A POSIX host whose PATH lacks rsync, and a Windows host whose PATH has one.
+    const hosts = [
+      hostWith('linux'),
+      hostWith('win32', ['pnpm.cmd', 'rsync', 'node_modules/pnpm/bin/pnpm.cjs']),
+    ]
+    for (const host of hosts) {
+      rmSync(join(tree, '.meta_harness/.claude/agents'), { recursive: true, force: true })
+      regenerateProjections(tree, run, host)
+      expect(readFileSync(join(tree, '.meta_harness/.claude/agents/qa.md'), 'utf8')).toBe(
+        'projected',
+      )
+    }
+    expect(r.steps.some(step => step.program === 'rsync')).toBe(false)
+    expect(readFileSync(join(tree, '.meta_harness/.claude/old.md'), 'utf8')).toBe(
+      'not in the stage',
+    )
+  })
+
+  it('still uses rsync on a POSIX host that has it', () => {
+    const r = runner()
+    regenerateProjections(home(), r.run, linux)
+    expect(r.steps.filter(step => step.program === 'rsync')).toHaveLength(1)
+  })
+})
+
+describe('copyProjections', () => {
+  function pair() {
+    const base = home(),
+      source = join(base, 'stage'),
+      destination = join(base, '.meta_harness')
+    mkdirSync(join(source, 'a/b'), { recursive: true })
+    return { source, destination }
+  }
+
+  it('copies nested files, rewrites changed content, and deletes nothing', () => {
+    const { source, destination } = pair()
+    writeFileSync(join(source, 'a/b/new.md'), 'new')
+    writeFileSync(join(source, 'a/same.md'), 'same')
+    writeFileSync(join(source, 'a/changed.md'), 'after')
+    mkdirSync(join(destination, 'a'), { recursive: true })
+    writeFileSync(join(destination, 'a/changed.md'), 'before')
+    writeFileSync(join(destination, 'a/extra.md'), 'kept')
+    copyProjections(source, destination)
+    const read = (path: string) => readFileSync(join(destination, path), 'utf8')
+    expect([
+      read('a/b/new.md'),
+      read('a/same.md'),
+      read('a/changed.md'),
+      read('a/extra.md'),
+    ]).toEqual(['new', 'same', 'after', 'kept'])
+  })
+
+  it('leaves a file with the same content untouched', () => {
+    const { source, destination } = pair()
+    writeFileSync(join(source, 'a/same.md'), 'same')
+    mkdirSync(join(destination, 'a'), { recursive: true })
+    const target = join(destination, 'a/same.md'),
+      marker = new Date(2020, 0, 1)
+    writeFileSync(target, 'same')
+    utimesSync(target, marker, marker)
+    copyProjections(source, destination)
+    expect(statSync(target).mtimeMs).toBe(marker.getTime())
+  })
+
+  it('copies a symbolic link as a link and replaces a stale one', ctx => {
+    const { source, destination } = pair()
+    try {
+      symlinkSync('target-new', join(source, 'a/link'))
+    } catch {
+      ctx.skip()
+    }
+    mkdirSync(join(destination, 'a'), { recursive: true })
+    symlinkSync('target-old', join(destination, 'a/link'))
+    copyProjections(source, destination)
+    expect(lstatSync(join(destination, 'a/link')).isSymbolicLink()).toBe(true)
+    expect(readlinkSync(join(destination, 'a/link'))).toBe('target-new')
+  })
+
+  it.skipIf(process.platform === 'win32')('carries the source permission bits', () => {
+    const { source, destination } = pair()
+    writeFileSync(join(source, 'a/tool.sh'), 'x')
+    chmodSync(join(source, 'a/tool.sh'), 0o750)
+    mkdirSync(join(destination, 'a'), { recursive: true })
+    writeFileSync(join(destination, 'a/tool.sh'), 'x')
+    chmodSync(join(destination, 'a/tool.sh'), 0o600)
+    copyProjections(source, destination)
+    expect(statSync(join(destination, 'a/tool.sh')).mode & 0o777).toBe(0o750)
+  })
+
+  it('refuses a path that is a directory on one side only', () => {
+    const { source, destination } = pair()
+    writeFileSync(join(source, 'a/b.md'), 'file')
+    mkdirSync(join(destination, 'a/b.md'), { recursive: true })
+    expect(() => copyProjections(source, destination)).toThrow('is a directory')
   })
 })
 
@@ -262,6 +441,7 @@ describe('worktree swap', () => {
       tree: join(root, 'new'),
       binding,
       run: r.run,
+      host: linux,
     })
     expect(r.ran('git', 'checkout', '--quiet', '--detach')).toBe(true)
     expect(r.ran('git', 'branch', '--force', binding.branch, upstream)).toBe(true)
@@ -300,7 +480,14 @@ describe('worktree swap', () => {
     const root = home(),
       r = runner(answers)
     expect(() =>
-      swapWorktree({ root, old: old(root), tree: join(root, 'new'), binding, run: r.run }),
+      swapWorktree({
+        root,
+        old: old(root),
+        tree: join(root, 'new'),
+        binding,
+        run: r.run,
+        host: linux,
+      }),
     ).toThrow(message)
     expect(r.ran('git', 'checkout')).toBe(false)
     expect(r.ran('git', 'worktree')).toBe(false)
