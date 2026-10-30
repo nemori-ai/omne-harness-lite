@@ -45,7 +45,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 一次接管一个批次 PR。保存原始 head、候选 head、targetBase 和 merge 链。
 
 1. 在 reduce 隔离候选上同步目标分支，处理冲突。
-2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。
+2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。自己派写者时按 `delegate`。
 3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。
 4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。发 gate 时对线父卡运行 `board-cli.ts integrating`。批次内的各张任务卡停在 In review，按卡接受时再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
 5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
@@ -67,7 +67,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 核对线已停写，读清已完成部分与剩余工作，然后选一种处置：
 
 - redo：更正输入，按 `dispatch` 第 5 节为任务卡登记新 attempt，再按 `dispatch`「放行」一节的发布方法发 redo delta。redo 不推进波号。
-- 接管：Reduce 自己完成剩余工作。线会话继续等待下一条 delta。
+- 接管：Reduce 自己完成剩余工作。线会话继续等待下一条 delta。自己派写者时按 `delegate`。
 
 处置规则（不另写处置记录、处置不等于已解决）见 `map-reduce-states.md` 4.1。处理一条交回时，其他事件继续落在等待里。
 
@@ -96,6 +96,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 3. 检查失败或候选变化时回到监督，旧证据失效。
 4. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
 5. 调整后一波预案时，按 `dispatch` 技能的 `references/wave-planning.md` 用本波实际耗时、集成负荷和新事实修正取舍。
+6. 放行之后，按 `delegate`「反思」做 reduce 提炼并写 `ledger.json`，作为下一波联调轨道上的第一个提交。这个提交随下一波候选接受整波检查。里程碑最后一波没有下一波，经 gate 单独开 PR。
+7. 里程碑完成后，按 `delegate`「反思」做一次里程碑反思。
 
 ## 报 ETA 之前
 
@@ -107,12 +109,12 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 三问也覆盖子代理交回的待定项清单：
 
-- 凡是可能交回待定项的简报，都要求子代理逐项分类：「能自己定，依据是……」，或「只有负责人能定，因为三问去不掉它：……」。简报里不留「交给负责人」一栏。
+- 简报要求子代理逐项分类待定项，格式见 `delegate` 写者共用约定（`writer-conventions.md`）的交回格式。
 - 子代理交回的清单，Reduce 先逐项过三问，再给负责人看。
 
 ## 裁定更正与独立评审
 
-人在波中更正一条裁定后，检索更正之前写成、还没有合入的草稿（P26）。派独立评审或顾问时，简报按 P4 写，不带自己的结论。
+人在波中更正一条裁定后，检索更正之前写成、还没有合入的草稿（P26）。派独立评审或顾问时，简报按 P4 写，不带自己的结论。评审派发的通用做法按 `delegate`「评审派发」。
 
 ## 恢复
 
@@ -123,7 +125,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 1. 读当前收口卡、本波任务卡与 binding、各线父卡上最后的 delta 与交回记录、联调轨道上开放的批次 PR、在途 gate 运行。再读人给本里程碑的授权评论，弄清哪些可以代接受、代确认 gate，哪些仍要问人。
 2. 结果未知的写入、合入或发布先读回实际结果，再决定下一步。结果未知时不重复 POST 或 merge。
 3. 从读回的事件重挂两条等待，再继续处理。
-4. 人请求停止时冻结新写入；STOPPED 不等于 DONE。
+4. 有未合回的闭包时，读任务 tmp 进度记录里的闭包表。
+5. 人请求停止时冻结新写入；STOPPED 不等于 DONE。
 
 会话的目标文本（goal）只写完成条件，外加一个指向现行规则文件的路径。不把派发规则、并发上限、档位这类会变的规则抄进目标文本。抄进去的规则在负责人改了之后，仍会在每次打卡时重新注入旧版。
 
