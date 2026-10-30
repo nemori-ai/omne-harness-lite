@@ -56,7 +56,7 @@ rm -rf "$stage"
 
 - 卡没有前置条件时，「交付条件」整节正文必须恰好是 `无`，不带句号。否则 `start` 报条件表无法建立完整引用。
 - 派发评论不可再改。编辑过的派发评论使 `start` 以 `unknown` 失败。要改派发内容时发新的派发。
-- 卡上任何评论中字段名为「决定」的列表行（`- 决定：`，前面可以有空白）都会被读成交付决定。种类不是 accept、cancel、revoke、partial 之一时，派发命令拒绝并打印 `deviation decision-kind-invalid`；任务卡自身有这类偏离时，`start` 以 `Task card has protocol deviations` 拒绝。范围裁定、接管说明这类评论不写这个字段，需要字段时用 `- 裁定：`（P24）。
+- 对一张卡运行派发命令时报 `deviation decision-kind-invalid`，或 `start` 报 `Task card has protocol deviations`：先查这张卡的评论里有没有不是交付决定、却写了「决定」列表字段的评论。规则见 `docs/engineering/delivery.md`「4. 接受、取消与重开」（P24）。
 - 卡不在 Project 中时，云端会话的 `start` 等 180 秒后以 `Delivery facts timed out` 失败。云端会话不能添加 Project item，先请有权限的人加。
 - 云端会话的 `gh` GraphQL 请求返回 403。读卡与改卡用 REST：`gh api repos/<仓库>/issues/<号>`，`gh api -X PATCH repos/<仓库>/issues/<号> -F body=@<文件>`。
 - 经云端代理写入 GitHub 的正文里，一段没有空白的文字里出现两个 URL，或 URL 后紧跟反引号内容时，整段会被包成代码段。写入前在每个 Markdown 链接后加一个空格。代理还可能在正文末尾追加一行署名，读回比较时忽略它。

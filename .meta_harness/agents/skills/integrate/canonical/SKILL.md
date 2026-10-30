@@ -58,7 +58,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 接管需要的写范围超出该卡 binding 时，准入的 change-scope 只按 binding 的写范围判断，超出的改动照样被拒绝。这时先换 attempt，再换树（P21）：
 
-1. 按 `dispatch` 第 5 节为该卡登记新 attempt。spec 写新的 `writeScope`，分支沿用原分支（`swap` 只在同一分支上换树）。spec 的 `basis` 要一个授权依据 URL：没有现成的派发或授权评论可以引用时，在卡上发一条评论，写明接管对象、写权转移、新写范围与剩余责任，用它的 URL。这条评论不写「决定」列表字段（P24）。
+1. 按 `dispatch` 第 5 节为该卡登记新 attempt。spec 写新的 `writeScope`，分支沿用原分支（`swap` 只在同一分支上换树）。spec 的 `basis` 是授权依据 URL 的列表，其中要有能覆盖新写范围的授权，例如人给本里程碑的授权评论。旧 attempt 的派发评论只授权旧的写范围，不够。需要写明接管对象、写权转移、新写范围与剩余责任时，在卡上发一条评论，把它的 URL 一并列入。这条评论不写「决定」列表字段（P24）。
 2. 先 `post --dry-run`，再用 `scope-cli.ts` 把拟写的 binding 与本波其他 binding 求交，然后 `post` 与 `bind`。
 3. 旧树先提交并推送。然后用 `worktree-cli.ts swap` 换一棵新树，不在旧树上再运行 `start`。`swap` 只复制旧树的 `tmp/issue-<N>/`，其他过程目录自己复制。命令归 `tools/dev-flow/src/integration/README.md`。
 4. 在新树里用 `integration/cli.ts status` 读回新 attempt 与 `relation=current`。
@@ -68,7 +68,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 一张卡的剩余部分要花很长时间，已完成部分可以入轨，而下游卡只依赖已完成部分时：
 
 1. 先准入并合入已完成部分。
-2. 由这张卡的有权接受者，或持有可核对授权的代笔者，按 `docs/engineering/delivery.md`「4. 接受、取消与重开」记一条 partial 决定，写明已认可范围与剩余责任。卡不进入 Accepted，也不关闭。
+2. 由这张卡的有权接受者，或持有可核对授权的代笔者，按 `docs/engineering/delivery.md`「4. 接受、取消与重开」记一条 partial 决定，写明已认可范围与剩余责任。
 3. 剩余部分在本波收口前做不完时，由有权者按 `map-reduce-states.md` 第 3 节的 `resolved` 显式移出本波，写明剩余责任。既没做完也没移出时，本波的 WaveReady 不成立，R(w) 不能收口。
 4. 剩余部分在同一张卡上继续，全部完成后再接受并关闭。
 
@@ -76,7 +76,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 ## 收口一波
 
-1. 联调轨道上还有本里程碑以外的写者时（例如独立推进的工具线），开始整波检查之前，请对方暂停往联调轨道合入。在与对方约定的协调卡（对方的线父卡或专门的协调 Issue）上发请求，读回对方的确认后再收口。卡上已有往来标记时沿用它；还没有时，在请求里写明请对方回复用的标记。放行后按 `dispatch`「放行」第 6 步解除。理由：整波检查的对象是联调轨道头，检查之后轨道头前进，候选就变了，旧证据失效，要回到监督重新检查（P22）。
+1. 联调轨道上还有本里程碑以外的写者时（例如独立推进的工具线），开始整波检查之前，请对方暂停往联调轨道合入。在与对方约定的协调卡（对方的线父卡或专门的协调 Issue）上发请求。卡上已有往来标记时沿用它；还没有时，在请求里写明请对方回复用的标记。等待对方确认时用事件等待，不轮询。没有得到确认就开始检查时，放行前再读回联调轨道头，核对它仍等于 F。理由：整波检查的对象是联调轨道头，检查之后轨道头前进，候选就变了，旧证据失效，要回到监督重新检查（P22）。放行后按 `dispatch`「放行」第 6 步通知对方恢复合入。
 2. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，确定最终 F。没有里程碑联调命令时报告「未运行」。任一未决项、未知写入、未解决失败或失效证据都阻止收口。
 3. 检查失败或候选变化时回到监督，旧证据失效。
 4. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
@@ -84,7 +84,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 ## 提问前三问
 
-向人提任何设计或方案问题前，先按 `map-reduce-states.md`「提问前三问」逐问检查。已采用、只差写回的决定由 Reduce 安排写回，不作为问题交给人（P19）。其余自行决定并留简短依据。
+向人提任何设计或方案问题前，先按 `map-reduce-states.md`「提问前三问」逐问检查，包括第 3 问的各个核对项（P19）。其余自行决定并留简短依据。
 
 ## 恢复
 

@@ -100,7 +100,7 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 3. 发布前读一遍 delta 文件：占位符都已替换，首行是标记，F 正确。生成 delta 文件的任何一步失败时都不发布，先修好再重新生成。然后用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
 4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
 5. 关闭 R(w)，读回关闭状态。守卫不满足时不关闭。
-6. 收口前请其他写者冻结了联调轨道时（`integrate`「收口一波」第 1 步），在协调卡上发解除冻结的评论，并读回。
+6. 收口前请其他写者暂停了往联调轨道合入时（`integrate`「收口一波」第 1 步），在同一张协调卡上用约定的标记通知对方恢复合入，并读回这条评论。
 
 ## 恢复
 
