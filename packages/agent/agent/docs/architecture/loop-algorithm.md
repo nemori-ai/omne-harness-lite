@@ -215,7 +215,7 @@ flowchart TB
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
 | A2 | 原 allowed.request（ToolInvokeRequest）、准入依据与当前资格 | 先 preserve 完整请求 facts，再 commit intent、fixed、position 与 effect intent。accepted 或 commit-unknown 提供引用后 commit associated | 首次 invoke 前保存意图；关联提交未知先查 Journal 原操作 | 并发名额不足按原顺序等待 | accepted 保存关联转 T0。commit-unknown 保存引用转 R0，lookup 的 not-accepted 仍沿原 invoke 接续。association-unknown 保留 intent 转 R0。rejected 仅在无历史受理或未决时建 denied 转 T2，否则保留原 pending、请求与 effect intent 转 R0，不改原 open 屏障 | toolConcurrency 约束在途调用 | consumer 四字段等于 pending.position。A2 尚待实现 |
 | T0 | associated Tool pending 的原引用，Tool 公开 queries、instances、content 及 commands | 不写事件，不投影 Tool 过程流；观察者按稳定调用引用经 Tool 契约的[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约)取得 `StreamRef`。Tool control 的阶段与可选操作引用经 recordControl 保存 | 控制接受先保存原 toolInvocation。迟到附件用原记录校验 | 在途转 W0，查询不可读保留未知 | 认回原受理后沿原槽位继续，真实结果或确认后台占位转 T1，不建竞争 denied | 各槽位独立等待 | intent 只能 unresolved，Tool 内部 Ask 仅投影 waiting human。T0 尚待实现 |
-| T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
+| T1 | 原结果或占位、原动作身份 | `slots` 的 result 或 background 分支。recordResult 的 custody 或 processed。事件 producer 由第二步的条件提交承载，recordResult 自身不追加事件 | 保管依据保存后才解除该结果的生产责任 | 不等待 | 真实结果或拒绝转 T2。后台占位转 T3。迟到结果转 I8 | 逐槽独立 | 后台占位只释放占位这一版本的前台交付。迟到结果不改原槽位、不重开批次 |
 | T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
 | T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
 | T4 | 本批全部 outcomes | `batchPass` 的 Passage。合法 inject 经 Q | 随 X 协议提交 | X4 等待 | 转 T5 | 一批只经过一次 | 只 observed、inject、stop、ask。不修改候选 |
@@ -241,11 +241,11 @@ flowchart TB
 | F0 | 取消命令、当前资格 | ControlRecord 的阶段事实经 recordControl。事件 control。请求中断前台调用 | 阶段成立时记录 | 不等待生产者物理停止 | 转 F1 | 与 tryFinish 同一排序 | 阶段见[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | F1 | 完成、失败或取消的依据 | 执行状态 settling 与 FinishIntent 候选，失败候选的 `failure` 记录 | 候选固定后提交 | 不等待 | 转 F2 | 串行 | 失败候选形状见公开接口页的 `FailureCandidate` |
 | F2 | 候选终态与完整依据 | 该位置的 Passage，`FinishIntent.beforeTerminal` 依据 | 随 X 协议提交 | ask 转 W0 | proceed 转 F3。veto 转 I8 | 一个候选一次经过 | 不能否决已生效取消 |
-| F3 | FinishIntent、expected 修订、终结授权 | `tryFinish`：终态、ended 事件、终态后观察责任与原操作结果共同提交 | 唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked 或 commit-unknown 转 R0 | 与 submit、control、attach 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结) |
+| F3 | FinishIntent（含 candidate）、expected 修订、终结授权 | 先 `prepareFinish` 发行终结责任清单并填入 `intent.obligations`，load 最新完整修订后 `tryFinish`：终态、ended 事件、终局清单与处置、终态后观察责任与原操作结果共同提交 | prepareFinish 推进一个修订；tryFinish 是唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked、unavailable 或 commit-unknown 转 R0；blocked 的类别为 inputs、controls、operations、passages 或 custody | 与 submit、control、attach、recordControl 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结)与[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) |
 | F4 | 已成立终态、TerminalObservation 台账 | recordTerminalObservation 登记完成 | 观察完成时登记 | 不等待人 | 转 O0 | 由长期协调者逐项处理，不要求推进权 | 只 observed。观察故障不撤终态 |
-| O0 | 未确认事件、未交清结果责任、控制回执 | recordResult、acknowledge 的处理、控制回执 | 各责任交清时记录 | 不等待 | 转 E9 | 不运行终态扩展 | 原执行未终态时也可独立处理这些责任 |
+| O0 | 未确认事件、未交清结果责任、控制回执、终结责任清单的剩余项 | recordResult、acknowledge 的处理、迟到的三种控制阶段事实（recordControl，不追加事件）、保管变体（commitSettlement 的卡片对账、迟到返回与 Tool 关联登记） | 各责任交清时记录，每项在自身原子边界更新处置与修订 | 不等待 | 转 E9 | 不运行终态扩展，不改原终态、checkpoint 与末事件 | 原执行未终态时也可独立处理这些责任。剩余职责从 `load.finishObligations` 读取，`reconcile.remaining` 只列结果消费 |
 | H0 | 拒收依据、当前推进资格 | 失败候选或只保管的决定 | 决定形成后提交 | 不等待 | 仍有推进资格转 F1。无推进资格或已终结只保管转 O0 | 串行 | 后果见[消息准入](../../../agent-contract/SPEC.md#消息准入)的工具结果与被拒绝的动作两行 |
-| R0 | 原操作槽、持久帧、返回去处 | 不写 | 不提交 | 原操作未定时等待 | 回原节点，经 E4 | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有 |
+| R0 | 原操作槽、持久帧、返回去处 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待 | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有 |
 | W0 | 等待依据、Journal 修订、生产者与卡片游标 | 执行状态 waiting。事件 waiting | 等待保存后提交 | 登记监听后重读，进度未变才休眠 | 唤醒后转 E1 | 每段处理有限额，之后让出调度 | 超时不是取消或未执行的证明。人的等待没有默认期限 |
 
 ## 九位置与节点

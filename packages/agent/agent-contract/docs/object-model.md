@@ -74,11 +74,11 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | 对象 | 身份 | 构造 | 状态与合法转换 | 所有者 | 销毁或保留 |
 | --- | --- | --- | --- | --- | --- |
 | AcceptedInput | InputId，由调用方分配 | invoke 或 submit 携带内容、来源依据与优先级，Journal 提供者受理时保存 | 不可变值。受理后进入 execution 的输入集合，按水位线分批承接 | Journal 提供者保存内容 | 随 execution 保留。同一身份配不同内容被拒绝 |
-| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 每次提交随 execution 修订保存。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
-| ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个工具调用一个 Action | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
+| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 随建立新 execution 事实的提交保存；一个 revision 标识 execution 的完整已提交事实视图，只保存认回索引的操作不分配新 revision，规则见 SPEC 的“[执行修订](../SPEC.md#执行修订)”。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
+| ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个合法的 tool_call 一个 Action，调用部件的三种形状见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)” | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
 | ResultResponsibility | ConsumptionId | Tool 结果经 recordResult 登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
-| ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用与 accepted 阶段共同保存 | 阶段独立记录 reached 或 unresolved，后得引用由新 recording operation 附加 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照 |
+| ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用、accepted 阶段、control 事件与原操作结果在同一原子边界共同保存 | 阶段独立记录 reached 或 unresolved，每个新适用阶段事实与其 control 事件原子保存；后得引用由新 recording operation 附加。合法 ended 之后只接受 producer-confirmed、physically-stopped 与 duty-released 三种真实迟到事实，不追加事件 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照。与已成立阶段或原终结前提矛盾的证据按持久拒绝保存审计 |
 
 Model 接收不经过上述 ResultResponsibility 的 recordResult/release 状态链。独立接收方共同保存 received 与完整材料，并据此返回 saved；Model 自行推进其确认。Agent Loop 从 received 采用材料。
 
@@ -363,8 +363,9 @@ stateDiagram-v2
 | ResultResponsibility | 依据已保存 | recordResult 的 release 为 confirmed | 已释放 | 含原生产者确认依据 |
 | PendingCall.tool | 无 | 完整原请求材料保存并提交原意图 | intent | fixed、consumer 投影与 effect intent 已保存，无 call/admission/reference |
 | PendingCall.tool | intent | accepted 或 commit-unknown 证明引用并保存 | associated | 原 consumer 与完整请求保持，associated 不证明受理已提交 |
-| ControlRecord | 无 | control 被受理 | accepted 阶段 reached | Tool control 共同保存原 toolInvocation 与初始 null 的 toolOperation，非 Tool 无引用字段 |
-| ControlRecord | 任一阶段未成立 | recordControl | 该阶段 reached 或 unresolved | 阶段适用于该控制，未知可以后来转为 reached |
+| ControlRecord | 无 | control 被受理 | accepted 阶段 reached | 受理事实、control 事件与原操作结果在同一原子边界成立。Tool control 共同保存原 toolInvocation 与初始 null 的 toolOperation，非 Tool 无引用字段 |
+| ControlRecord | 任一阶段未成立 | recordControl，execution 未 ended | 该阶段 reached 或 unresolved | 阶段适用于该控制；阶段事实、control 事件与原结果原子保存，unresolved 到 reached 是新事实 |
+| ControlRecord | producer-confirmed、physically-stopped 或 duty-released 未成立 | recordControl，execution 已合法 ended | 该阶段 reached | 当前处理方有资格，事实在原责任范围内真实迟到。不追加事件，不改终态；新建立意图、撤销资格或其他终态前效力返回 terminal，与原终结前提矛盾的证据返回 conflict 并保存审计 |
 | ControlRecord（Tool） | toolOperation 为 null | 新 recording operation 在相同阶段附原调用的操作引用 | 原阶段不变，操作引用已保存 | 真实写入 revision 与新回执，不重发阶段事件或替换原阶段回执。原 recording operation 改输入 conflict |
 | Passage | 无 | Loop 到达位置，Journal 提交扩展调用的身份与调用模式 | requested | 原实现按精确采用解析成功 |
 | Passage | requested | 调用返回 ask 以外的合法输出，或形成报错分支、不可用分支 | resolved | 最终 Conclusion 已提交 |
@@ -379,7 +380,7 @@ stateDiagram-v2
 | CardRound | answered | 原扩展以 replay 消费答复并得到最终 Conclusion。官方准入的卡片收到附言时，官方准入在 replay 中经 `ActionAdmission.admit` 取得授权对附言的解释结果 | processed | 同一扩展调用的全部轮次一起进入 processed |
 | CardRound | requested | present 返回 denied 或 conflict | present-failed | 失败原因已保存；屏障条件把它计为已处理 |
 | CardRound | answered | 同一扩展调用后来的一轮 present 确定失败 | processed | 以该拒绝 Conclusion 为处理依据，全部早先轮次一起进入 processed |
-| ActionBatch | 无 | 模型完整回复被消息准入接纳且含工具调用 | 屏障 closed | 每个动作的链已建立 |
+| ActionBatch | 无 | 模型完整回复被消息准入接纳且含合法的 tool_call | 屏障 closed | 每个动作的链已建立 |
 | ActionBatch | 屏障 closed | SPEC“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”第 4 条的打开条件成立 | 屏障 open | 打开依据已随 checkpoint 提交 |
 | ActionBatch | 屏障 closed | 同节第 9 条的全拒条件成立 | 屏障 all-denied | 拒绝原因已保存，不经过整批范围 |
 | ActionBatch | 屏障 closed | 官方准入返回 unavailable，或 admit 返回 denied、unavailable 的 Failure | 屏障 all-denied | 准入不可用的依据已保存。同批未呈现的卡片轮次不再呈现，已呈现且尚无答复的卡片已作废，仍在运行的链不再被等待 |
@@ -433,7 +434,9 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | 共同提交 | CallerCommit 的种类：none、message、context-transition、custody、processed。提交参加者以参加、失败、冲突、不支持响应 | SPEC 的“提交参加者协议” |
 | ResultResponsibility | 待释放，依据已保存，已释放 | SPEC 的“托管协调与运行实例”的“提交与保管” |
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
-| 条件终结 | tryFinish 返回 ended、changed 或 blocked | SPEC 的“托管协调与运行实例”的“条件终结” |
+| 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed 或 blocked（inputs、controls、operations、passages、custody） | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
+| 原操作查询 | committed、rejected、excluded、unknown | SPEC 的“并发与提交”的“查询的四种结论与持久拒绝” |
+| Journal 绑定 | `coordination` 为 standalone 或 coordinated，使用期内不变 | SPEC 的“提交参加者协议” |
 | ControlRecord | 各阶段 reached 或 unresolved | SPEC 的“取消、退出与结构变更” |
 | 接收面条目 AgentJournalEntry | 一经提交不可变。种类有 start-fence、received，联合事先声明开放 | SPEC 的“生产者接收面”的“日志条目” |
 

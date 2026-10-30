@@ -145,7 +145,7 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 - 运行时端口也在 [execution.ts](../../src/execution.ts)：`AgentExecutionInput`、`AgentExecutionControl`、`AgentExecutionEvents`、`AgentExecutionHandle`、`AgentRuntime`、`AgentObservation`、`AgentHandle`、`AgentDirectory`、`AgentExecutionRecovery`、`AgentAdoptions`，登记的 `RegistrationState`、`Registration`、`AgentRegistrationHandle` 与 `AgentInstanceHost`，停用的 `QuiesceResult` 与 `AgentRuntimeControl`，资格核验的 `AgentAccessOperation`、`AgentAccessTarget`、`AgentAccessDecision` 与 `AgentAccessCheck`，以及 `AgentClock`。
 
 - invoke 返回的 AgentExecutionHandle 是原 execution 的输入、控制和输出视图，不指向 runtime 后来承接的其他 execution。
-- 推进资格依据 `grant` 为空表示独立调用，执行挂接由 Journal 提供者授予。外部协调者传入自己的推进资格依据。
+- 推进资格依据 `grant` 为空表示独立调用，执行挂接由 Journal 提供者授予。外部协调者传入自己的推进资格依据。非空 `grant` 与非空 `source` 只能交给 coordinated 的 Journal 绑定，standalone 绑定在写前返回 unsupported，规则见 SPEC 的“[受理与单执行槽](../../SPEC.md#受理与单执行槽)”与“[输入内容与水位线](../../SPEC.md#输入内容与水位线)”。
 - `AcceptedInput` 携带输入的完整内容 `content`。invoke 的 `initial` 与 submit 的 `value` 都使用它。`source` 是外部协调者一侧的受理依据，独立调用者传 null。
 - acknowledge 的 `receipt` 是读取方自己的处理依据，可以为 null。Agent 不解释它的内容。
 - `AgentEventBody` 的种类是 input-taken、message、producer、entry、waiting、control 与 ended，都是 Agent 自身的事件，没有透传生产者内容的种类。`entry` 投影一条接收面条目 `AgentJournalEntry`，与条目在同一次提交里成立，规则见 SPEC 的“[日志条目](../../SPEC.md#日志条目)”第 6 条。
@@ -156,10 +156,12 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 - `AgentInstant` 是 RFC 3339 的 UTC 时刻，例如 `2026-10-17T08:00:00Z`，是普通字符串。`UtcInstantText` 是同一编码的品牌字符串，只由 `judgeExtensionOutput` 以 `@omne-harness/utc-instant` 的 `parseInstant` 校验后产生，用于 `retry` 计划的 `notBefore`，见[扩展作者协议](extensions.md#输出)。
 - `AgentClock` 的 `now` 返回当前 UTC 时刻的 `Reply<AgentInstant>`，`waitUntil` 等待给定时刻或中止。读取失败、候选时刻与重试规则归 [时钟读取与等待](../../SPEC.md#时钟读取与等待)。
 - `ExecutionMutation.operation` 由稳定要素确定派生，不是随机值，崩溃前后对同一帧与同一转移派生同一身份。派生规则与未知结果的查询见[机制页](../../../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。
-- `FinishIntent.beforeTerminal` 是落终态之前位置依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
-- `AgentExecutionRecovery` 是无活体 runtime 时按 execution 对账的入口，`reconcile` 的 `remaining` 是交付责任尚未解除的 consumption 列表。行为见 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”与“[交接与停用](../../SPEC.md#交接与停用)”，切点见[机制页](../../../agent/docs/architecture/mechanisms.md#恢复切点表)。
+- `FinishIntent.beforeTerminal` 是落终态之前位置依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。`FinishIntent.candidate` 是首次 F1 操作的 `AgentOperationId`，固定候选；`obligations` 在准备态为 null，由 `prepareFinish` 发行后填入，见 SPEC 的“[终结责任清单](../../SPEC.md#终结责任清单)”。
+- `ExecutionSnapshot.finishObligations` 是已发行的终结责任清单，未发行时为 null；`ExecutionSnapshot.settlement` 是保管变体的同修订投影，含当前候选与 route、替代链、迁移与判断记录、未清责任引用及 Tool 关联记录，见 SPEC 的“[保管变体](../../SPEC.md#保管变体)”。
+- `AgentExecutionRecovery` 是无活体 runtime 时按 execution 对账的入口。`query` 返回 committed、rejected、excluded 或 unknown 四种结论：committed 带原 `CommandReceipt`，rejected 带原固定的 conflict、审计依据与 revision，只来自 recordControl；excluded 带排除依据。消费者对四种结论逐一分支，规则见 SPEC 的“[查询的四种结论与持久拒绝](../../SPEC.md#查询的四种结论与持久拒绝)”。`reconcile` 的 `remaining` 是交付责任尚未解除的 consumption 列表，不列出卡片等其他责任。行为见 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”与“[交接与停用](../../SPEC.md#交接与停用)”，切点见[机制页](../../../agent/docs/architecture/mechanisms.md#恢复切点表)。
+- `CommandReceipt.revision` 是该操作所建立或认回的事实对应的修订，不是查询时的最新 revision。revision 的分配规则见 SPEC 的“[执行修订](../../SPEC.md#执行修订)”，认回的回执规则见“[原操作认回与恢复](../../SPEC.md#原操作认回与恢复)”。
 - `resume` 的 `recovery` 可以含宿主的失联判断与换代时 handover 的证明，它们供追溯与核验，不替代 takeover 的资格核验。行为见 SPEC 的“[恢复与接管](../../SPEC.md#恢复与接管)”。
-- `ControlRecord.stages` 只含已记录的阶段事实，每项为 reached 或 unresolved。行为见 SPEC 的“[六个阶段](../../SPEC.md#六个阶段)”，迁移见[对象模型](../object-model.md#状态与转移)。
+- `ControlRecord.stages` 只含已记录的阶段事实，每项为 reached 或 unresolved。受理事实与每个新适用阶段事实各投影一个 control 事件，与原操作结果在同一原子边界成立；合法 ended 之后只保存三种迟到的责任事实，不追加事件。行为见 SPEC 的“[六个阶段](../../SPEC.md#六个阶段)”，迁移见[对象模型](../object-model.md#状态与转移)。
 - `QuiesceResult` 的 `remaining` 是交接未知的 execution。行为见 SPEC 的“[交接与停用](../../SPEC.md#交接与停用)”，被接管的执行不计入，见“[恢复与接管](../../SPEC.md#恢复与接管)”。
 - 终态的 `disposition` 是终态成立的处置依据：它指向被提交的 FinishIntent，含其中落终态之前位置的依据与终结授权。终态后观察者经它取得这些依据，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
 
@@ -169,26 +171,28 @@ invoke、resume、登记、撤除与停用的行为见 SPEC 的“[托管协调�
 
 Journal 是 Agent 的持久端口，只提供执行记录、输入、checkpoint、事件和原操作结果的操作，不提供外部协调者的业务管理操作。端口按使用角色分为五组：开启与挂接、提交与记录、终结、终态后观察登记、读取。读取组只含读操作，不含任何写入。只承担一种角色的使用者只依赖对应的组，例如长期的终态后观察者只依赖读取与终态后观察登记两组，不取得终结或确认的能力。以下联合限制允许的交接，不能传任意脚本、数据库动作或业务方法名。这些操作的行为见 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”与“[提交参加者协议](../../SPEC.md#提交参加者协议)”。
 
-- [journal.ts](../../src/journal.ts)：`CallerCommit`、`EffectIntent`、`JournalCommit`，按使用角色分的五组端口 `AgentJournalAttachment`、`AgentJournalRecording`、`AgentJournalFinishing`、`AgentJournalObservation` 与 `AgentJournalReading`，`JournalCapabilities`，以及它们的并集 `AgentJournal`。
+- [journal.ts](../../src/journal.ts)：`CallerCommit`、`EffectIntent`、`JournalCommit`，按使用角色分的五组端口 `AgentJournalAttachment`、`AgentJournalRecording`、`AgentJournalFinishing`（tryFinish、prepareFinish 与 commitSettlement）、`AgentJournalObservation` 与 `AgentJournalReading`，`JournalCapabilities`，以及它们的并集 `AgentJournal`。
 
-open 与 attach 返回新授予的 Authority，runtime 用它向 Model、Tool、请求准备和 Journal 的后续操作证明自己的挂接资格。attach 的 `takeover` 是接管路径所需的主体资格依据，取自 AgentAccessCheck 对 takeover 的 allowed 结论，恢复路径传 null。宿主恢复入口与长期保管者直接使用的 Journal 操作，由宿主的适配器以同一端口核验主体，规则见 SPEC 的“[主体资格核验](../../SPEC.md#主体资格核验)”。open 与 submit 收到的 AcceptedInput 内容由提供者在受理时耐久保存，inputs 返回的 messages 来自这些保存的内容。`commit.caller` 的非 none 种类，只能在 Journal 提供者声明了对应提交参加者时使用。这项限制不约束 `recordResult.transfer`：transfer 只复用 CallerCommit 中 custody 与 processed 两个成员的形状，提供者按 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”在自己的共同提交边界建立保管或处理依据。tryFinish 的 `FinishAuthorization` 有两种：`advancement` 对应仍然有效的普通完成或失败，`cancel` 对应已保存且当前适用的取消控制。`TerminalObservation` 的 `observed` 为 null 表示待观察。`ResultResponsibility` 的 `release` 为 `pending` 表示责任尚未解除。
+open 与 attach 返回新授予的 Authority，runtime 用它向 Model、Tool、请求准备和 Journal 的后续操作证明自己的挂接资格。attach 的 `takeover` 是接管路径所需的主体资格依据，取自 AgentAccessCheck 对 takeover 的 allowed 结论，恢复路径传 null。宿主恢复入口与长期保管者直接使用的 Journal 操作，由宿主的适配器以同一端口核验主体，规则见 SPEC 的“[主体资格核验](../../SPEC.md#主体资格核验)”。open 与 submit 收到的 AcceptedInput 内容由提供者在受理时耐久保存，inputs 返回的 messages 来自这些保存的内容。`commit.caller` 的非 none 种类，只能在 Journal 提供者声明了对应提交参加者时使用。这项限制不约束 `recordResult.transfer`：transfer 只复用 CallerCommit 中 custody 与 processed 两个成员的形状，提供者按 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”在自己的共同提交边界建立保管或处理依据。tryFinish 的 `FinishAuthorization` 有两种：`advancement` 对应仍然有效的普通完成或失败，`cancel` 对应已保存且当前适用的取消控制。prepareFinish 带同一种终结授权、`expected` 与 `candidate`，返回命令回执与清单依据 `obligations`；commitSettlement 按 `kind` 判别六个封闭变体，没有 checkpoint、effects、events 或 CallerCommit 字段。两者的行为见 SPEC 的“[终结责任清单](../../SPEC.md#终结责任清单)”与“[保管变体](../../SPEC.md#保管变体)”。`TerminalObservation` 的 `observed` 为 null 表示待观察。`ResultResponsibility` 的 `release` 为 `pending` 表示责任尚未解除。
 
-`capabilities.participants` 是 Journal 提供者声明它能兑现的共同提交种类。`none` 不需要参加者，不在集合内。集合在提供者构造时固定，运行期间不变。工厂创建时把配置 `jointCommits` 的每一种与它比对，缺一种返回 unsupported。行为见 SPEC 的“[提交参加者协议](../../SPEC.md#提交参加者协议)”。下表是这个声明的八个要素。
+`capabilities.coordination` 是 Journal 绑定声明的协调模式，必填，取值为 standalone 或 coordinated。它描述当前注入的绑定，不描述底层提供者能创建的全部绑定；每个绑定在使用期内不可变，没有隐式默认。工厂创建时核对它与配置 `coordination` 严格相等，不相等返回 unsupported。coordinated 绑定必须支持 open、attach、submit 与 tryFinish 的完整协调协议。行为见 SPEC 的“[提交参加者协议](../../SPEC.md#提交参加者协议)”。
+
+`capabilities.participants` 是 Journal 提供者声明它能兑现的 CallerCommit 共同提交种类。`none` 不需要参加者，不在集合内。集合在提供者构造时固定，运行期间不变。工厂创建时把配置 `jointCommits` 的每一种与它比对，缺一种返回 unsupported。空集合不表示没有输入与终态的协调能力，非空集合也不证明协调协议齐全：这两项由 `coordination` 表达。行为见 SPEC 的“[提交参加者协议](../../SPEC.md#提交参加者协议)”。下表是这两项声明的八个要素。
 
 | 要素 | 内容 |
 | --- | --- |
 | 输入 | 无。声明是只读属性，不是操作 |
-| 返回 | `ReadonlySet`，元素取自 message、context-transition、custody、processed |
+| 返回 | `coordination` 为 standalone 或 coordinated；`participants` 为 `ReadonlySet`，元素取自 message、context-transition、custody、processed |
 | 错误 | 无。读取属性不返回错误。比对失败由工厂以 unsupported 报告 |
-| 授权 | 不需要主体资格。声明说明提供者的能力，不授予任何操作的资格 |
-| 幂等 | 构造后不变，重复读取得到同一个集合 |
+| 授权 | 不需要主体资格。声明说明绑定的能力，不授予任何操作的资格 |
+| 幂等 | 构造后不变，重复读取得到同一个值 |
 | 并发 | 不可变值，可并发读取 |
 | 事件 | 无 |
-| 生命周期 | 随 Journal 提供者。提供者换代时，新提供者的声明用于其后创建的 runtime。已创建的 runtime 在运行时遇到未声明的提交种类，在保存任何状态之前返回 unsupported |
+| 生命周期 | 随 Journal 绑定。提供者换代时，新绑定的声明用于其后创建的 runtime。已创建的 runtime 在运行时遇到未声明的提交种类，在保存任何状态之前返回 unsupported；Journal 的每次直接调用在写入前核对绑定模式与所需支持 |
 
-工厂用来比对的“装配会用到的种类”由[通用工厂](../../../agent/docs/public-api.md#工厂配置)的配置 `jointCommits` 给出。
+工厂用来比对的“装配会用到的种类”与协调模式由[通用工厂](../../../agent/docs/public-api.md#工厂配置)的配置 `jointCommits` 与 `coordination` 给出。
 
-commit、open、attach、load、recordResult、recordControl、tryFinish、recordTerminalObservation、detach 与 reconcile 的行为，包括条件提交、未知结果的查询、终结的排序、终态后观察、ended 之后的保留与释放，唯一行为源是 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。共同提交与提交参加者的四种响应见“[提交参加者协议](../../SPEC.md#提交参加者协议)”。本页不重复这些行为。
+commit、open、attach、load、recordResult、recordControl、prepareFinish、tryFinish、commitSettlement、recordTerminalObservation、detach 与 reconcile 的行为，包括条件提交、修订分配、认回与未知结果的查询、终结的排序、终结责任清单、终态后观察、ended 之后的保留与释放，唯一行为源是 SPEC 的“[并发与提交](../../SPEC.md#并发与提交)”与“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。共同提交与提交参加者的四种响应见“[提交参加者协议](../../SPEC.md#提交参加者协议)”。本页不重复这些行为。
 
 ## 生产者接收面
 
@@ -200,7 +204,7 @@ commit、open、attach、load、recordResult、recordControl、tryFinish、recor
 
 接收面类型直接引用原拥有者的定义，不另定回执类型：`ReceivedDelivery` 的键是 `M.ModelDeliveryKey` 与 `T.ToolDeliveryKey`，Model 的账目快照是 `M.ModelAccountSnapshot`，账目是 call-account 的 `CallAccount`，流引用是 stream-arrival 的 `StreamRef` 与 `StreamProducer`，围栏操作号是 Tool 根入口的 `T.ToolOperationId`。Tool 的 `StartGuard` 与 `ToolStartFence` 在 Tool 的 `./provider` 入口，本包不导入，`StartFenceEntry.guard` 只记 Agent 自己拥有的守卫字段。
 
-`AgentAccessOperation` 增加 `receive-result`，供结果接收方在写 `received` 条目之前核验推送主体。这是给闭合联合加成员，属破坏性改动，规则见 SPEC 的“[结果接收](../../SPEC.md#结果接收)”。
+`AgentAccessOperation` 增加 `receive-result`，供结果接收方在写 `received` 条目之前核验推送主体。这是给闭合联合加成员，属破坏性改动，规则见 SPEC 的“[结果接收](../../SPEC.md#结果接收)”。它另含 `settle` 与 `migrate-cancellation`，供 commitSettlement 的候选、判断与迁移变体核验主体，规则见 SPEC 的“[保管变体](../../SPEC.md#保管变体)”。
 
 `./testing` 入口由 [testing.ts](../../src/testing.ts) 定义：`agentJournalEntriesConformance` 与 `agentAccountOutletConformance` 两个一致性套件，非耐久替身 `createMemoryAgentJournalEntries` 与 `createMemoryAgentAccountOutlet`，各自的夹具工厂，以及套件用的样例值。套件返回用例列表，不依赖测试框架，用例以 `node:assert` 的 AssertionError 失败。替身声明 `durability: 'none'`，不证明耐久、跨进程行为或真实 runtime。
 

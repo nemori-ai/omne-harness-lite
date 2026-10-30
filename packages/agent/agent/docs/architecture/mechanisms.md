@@ -24,7 +24,7 @@ AgentDefinition 的能力身份、定义类型和专有继承声明由 Agent 能
 
 每次条件提交、效果意图、结果保管、控制记录与终结都带一个操作身份，公开形状是 `ExecutionMutation.operation`（见[公开接口页](../../../agent-contract/docs/public-api/README.md#托管协调与运行实例)）。操作身份由五项稳定要素确定派生：租户、execution、原持久前驱 revision、转移种类、原帧中的稳定槽位。稳定槽位取自 checkpoint 的既有分面：step、inputBatch、action、call、PassageId 加操作序号、round、consumption，以及压缩计划身份加步序号。语义输入的摘要另行绑定该身份，同一身份配不同输入返回 conflict。身份不依赖尚未保存的随机值、墙钟或调用返回值，所以崩溃前后对同一帧与同一转移派生出同一身份。精确编码、规范化与摘要算法归[通用实现](../public-api.md)的工厂，边界拒绝含运行对象的输入。
 
-结果未知时先按原身份查询（`AgentExecutionRecovery.query`，R0）。committed 时取原结果，回原节点的后继。unknown 时等待原操作，重查间隔是[工厂配置](../public-api.md#工厂配置)的 reconciliationDelayMs。excluded 必须排除原写入与迟到提交，不是查无记录。只有 excluded 才允许以同一帧重新求值。当前事实已变而需要不同语义的请求时，先以独立的重新求值转移条件提交新的帧版本，再从新 revision 派生新身份。不在同一槽位换输入，不用新的随机身份重试，不把查不到当作排除证明。Journal 提供者在 attach 成功时保证旧推进者可能提交的写入已进入可读前缀或已被围栏排除，已受理而未定的操作可以从持久索引枚举并查询。幂等身份只认回逻辑操作，不保证供应商在现实世界只执行一次。规则的行为句见 SPEC 的[并发与提交](../../../agent-contract/SPEC.md#并发与提交)与[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
+结果未知时先按原身份查询（`AgentExecutionRecovery.query`，R0）。committed 时取原结果，回原节点的后继。rejected 只来自 recordControl 的矛盾证据：保留原固定的 conflict、审计与责任，不当作成功、排除或未知。unknown 时等待原操作，重查间隔是[工厂配置](../public-api.md#工厂配置)的 reconciliationDelayMs。excluded 必须排除原写入与迟到提交，不是查无记录。只有 excluded 才允许以同一帧重新求值。当前事实已变而需要不同语义的请求时，先以独立的重新求值转移条件提交新的帧版本，再从新 revision 派生新身份。不在同一槽位换输入，不用新的随机身份重试，不把查不到当作排除证明。Journal 提供者在 attach 成功时保证旧推进者可能提交的写入已进入可读前缀或已被围栏排除，已受理而未定的操作可以从持久索引枚举并查询。幂等身份只认回逻辑操作，不保证供应商在现实世界只执行一次。规则的行为句见 SPEC 的[并发与提交](../../../agent-contract/SPEC.md#并发与提交)与[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
 
 ### Model 独立接收与采用
 
@@ -77,7 +77,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 | 条件终结 | `tryFinish` | 带授权、expected revision 与 FinishIntent。唯一能写 ended 的方法 | SPEC 的[条件终结](../../../agent-contract/SPEC.md#条件终结) |
 | 只读 | `load`、`inputs`、`readReplyAdmissions`、`query`、`output.read`、`output.events`，以及属性 `capabilities` | 不写。读取失败保持未知 | SPEC 的[并发与提交](../../../agent-contract/SPEC.md#并发与提交) |
 
-revision 在保留期内单调递增，不复用。`submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 的一般 revision 推进规则现在没有拥有者写明，登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
+revision 在保留期内单调递增，不复用。每次建立新 execution 事实的原子 mutation 分配恰好一个新 revision，只保存认回索引的操作不分配，逐操作的规则见 SPEC 的[执行修订](../../../agent-contract/SPEC.md#执行修订)。终结责任清单由 `prepareFinish` 发行，保管变体由 `commitSettlement` 承载，两者带 operation，按 SPEC 的[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单)与[保管变体](../../../agent-contract/SPEC.md#保管变体)写入。
 
 四种返回的含义各有唯一来源。
 
@@ -117,7 +117,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | T0 | 没有事件。Agent 不投影 Tool 的过程流，观察者经 Tool 契约的 `current` 直接观察 | 无写入 | 无 | 无 | SPEC 的[流引用与自身事件](../../../agent-contract/SPEC.md#流引用与自身事件) |
 | T1 | 第一步：`results`（ResultResponsibility 的保管或完成依据） | `recordResult`，transfer 为 custody 或 processed，用自己派生的操作身份 | 按原操作幂等的记录 | 见[提交参加者](#提交参加者)的 custody 与 processed 行 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“Tool 材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
-| T1 | 事件 producer：没有拥有者写明由哪次写入承载，见 AGENT-M04 | 未指明 | 未指明 | 无 | 节点表 T1 |
+| T1 | 事件 producer | 第二步的 `commit`。`recordResult` 自身不追加 producer 事件，由后继有资格的条件提交承担投影 | 条件提交 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与[执行修订](../../../agent-contract/SPEC.md#执行修订) |
 | T2 | 每个槽位的 `passages`（each），`batch.slots` 的 `each` 与改写后的 `candidate` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T2 |
 | T4 | `passages`（batch），`batch.batchPass` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T4 |
 | T5 | 候选消息，`batch.slots` 的 `handoff` 记接纳回执，事件 message | `commit`，经 Q2。提供者声明了 message 时 `caller` 为 message。未声明时 `caller` 为 none 是本页的读法，待 AGENT-M04 的 M04-10 裁定 | 条件提交 | 声明时为 message 的参加者 | SPEC 的[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 5 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
@@ -166,7 +166,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | `load` | 读取 | Execution coordinator（E2）。宿主恢复入口经 `AgentExecutionRecovery.load` | Journal 提供者 | 只读 | SPEC 逐操作表的 `AgentExecutionRecovery.load` 行与本页的[事实投影与长期读取](#事实投影与长期读取) |
 | `inputs` | 读取 | Execution coordinator（I0） | Journal 提供者 | 只读，同一水位线返回同一批 | SPEC 逐操作表的 `AgentJournal.inputs、readReplyAdmissions` 行 |
 | `readReplyAdmissions` | 读取 | Execution coordinator（E2） | Journal 提供者 | 只读 | 同上 |
-| `query` | 读取 | Execution coordinator（E2、R0）。宿主恢复入口经 `AgentExecutionRecovery.query` | Journal 提供者 | 只读，返回 committed、excluded 或 unknown | SPEC 逐操作表的 `AgentExecutionRecovery.query` 行与本页的[操作身份的确定派生](#操作身份的确定派生) |
+| `query` | 读取 | Execution coordinator（E2、R0）。宿主恢复入口经 `AgentExecutionRecovery.query` | Journal 提供者 | 只读，返回 committed、rejected、excluded 或 unknown | SPEC 逐操作表的 `AgentExecutionRecovery.query` 行、[查询的四种结论与持久拒绝](../../../agent-contract/SPEC.md#查询的四种结论与持久拒绝)与本页的[操作身份的确定派生](#操作身份的确定派生) |
 | `output.read` | 读取 | 效果协调层，在公开操作 `output.read` 之内。宿主集成层的长期执行记录适配器（经恢复入口） | Journal 提供者 | 只读 | SPEC 逐操作表的 `output.read、output.events` 行与[读取、游标与缺口](../../../agent-contract/SPEC.md#读取游标与缺口) |
 | `output.events` | 读取 | 效果协调层，在公开操作 `output.events` 之内。宿主集成层的长期执行记录适配器（经恢复入口） | Journal 提供者 | 只读 | 同上，另见[订阅、背压与关闭](../../../agent-contract/SPEC.md#订阅背压与关闭) |
 | `capabilities` | 属性 | 工厂在创建时比对。runtime 在保存任何状态之前核对 `commit.caller` 的种类 | Journal 提供者在构造时固定 | 只读，不是操作 | SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)与公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口) |
@@ -191,7 +191,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 - `open` 与 `submit` 受理输入时，装配有提交参加者的提供者在同一次提交中由参加者核对来源依据。见 SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)。
 - `tryFinish` 在同一次条件提交中核对参加者的事实。外部协调者已受理而尚未交给 Agent 的输入，由参加者以冲突响应报告，`tryFinish` 返回 changed。无法兑现共同提交的装配被拒绝，不以先结束一方再结束另一方代替。见 SPEC 的[条件终结](../../../agent-contract/SPEC.md#条件终结)。
 
-这四项参加的声明形状没有写明，见 AGENT-M04。参加者一方的终态先成立时，参加者先记录自己的终态，Agent 再以已保存的取消依据收束 execution，见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。未交清的保管责任使 `tryFinish` 返回 blocked，`reason` 为 custody。终结之后，原结果的保管与释放仍经 `recordResult` 继续（O0）。
+这四项参加由 Journal 绑定的 `capabilities.coordination` 声明：coordinated 绑定支持 `open`、`attach`、`submit` 与 `tryFinish` 的完整协调协议，standalone 绑定收到非空 grant 或来源依据时在写前返回 unsupported；工厂核对配置 `coordination` 与绑定声明严格相等，见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。参加者一方的终态先成立时，参加者先记录自己的终态，Agent 再以已保存的取消依据收束 execution，见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。未交清的保管责任使 `tryFinish` 返回 blocked，`reason` 为 custody。终结之后，原结果的保管与释放仍经 `recordResult` 继续（O0）。
 
 参加者对一次共同提交有四种响应。下表写每种响应由谁产生、谁转换为返回、谁消费。来源是 SPEC 提交参加者协议的响应表。
 
@@ -209,9 +209,9 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 1. 条件提交：`commit` 在 expected 过期时返回 changed，并且不保存本次的任何部分。成功时 checkpoint、执行状态、效果意图、事件与操作结果一起成立。来源是 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
 2. 原操作幂等：同一操作同一语义输入返回原结果，不同输入返回 conflict。这适用于每个带 operation 的写方法。来源同上，另见[操作身份的确定派生](#操作身份的确定派生)。
 3. 结果未知：调用方得到 commit-unknown 后用原操作调用 `query`。两种实现对同一操作给出同一种结论。来源同上。
-4. query 的三种结论：committed 带原回执，unknown 不推导结论，excluded 带依据。excluded 必须排除原写入及迟到提交，不能只是查无记录。来源是[操作身份的确定派生](#操作身份的确定派生)。
+4. query 的四种结论：committed 带原回执，含合法认回的成功；rejected 带原固定的 conflict、审计依据与 revision，只来自 recordControl 的矛盾证据；unknown 不推导结论；excluded 带依据。excluded 必须排除原写入及迟到提交，不能只是查无记录。来源是 SPEC 的[查询的四种结论与持久拒绝](../../../agent-contract/SPEC.md#查询的四种结论与持久拒绝)与[操作身份的确定派生](#操作身份的确定派生)。
 5. 围栏：`attach` 成功时，旧挂接可能提交的写入已进入可读前缀，或已被围栏排除。之后旧挂接的 `commit`、`tryFinish` 与 `detach` 返回 stale-advance。已受理而未定的操作可以枚举并查询。来源同上，另见 SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)。
-6. 修订：revision 在 execution 的保留期内单调递增，不复用。按原操作幂等的六个记录方法是否推进 revision 尚待拥有者裁定，见 AGENT-M04。裁定之后，两种实现按同一条规则推进。`load` 返回同一修订的完整快照，不返回不完整的数组。来源是 SPEC 的[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended)与[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
+6. 修订：revision 在 execution 的保留期内严格递增，不复用。每次建立新 execution 事实的原子 mutation 分配恰好一个新 revision；同操作同输入的认回，以及只增加认回索引的新操作认回，不分配。`load` 返回同一修订的完整快照，不返回不完整的数组，不能完成一致读取时返回 unavailable。来源是 SPEC 的[执行修订](../../../agent-contract/SPEC.md#执行修订)与[原操作认回与恢复](../../../agent-contract/SPEC.md#原操作认回与恢复)。
 7. 事件序号与游标：序号在同一 execution 内从 1 连续编号，没有空洞，按数值比较。`open` 与 `attach` 不追加事件。序号 1 属于 `open` 之后首次产生事件的提交中的第一个事件。`read` 的 after、next、caughtUp 与缺口按 SPEC 的语义返回，缺口不等于空页。确认只接受单调的连续前缀。来源是 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)、[读取、游标与缺口](../../../agent-contract/SPEC.md#读取游标与缺口)与[确认](../../../agent-contract/SPEC.md#确认)。
 8. 输入：同一水位线返回同一批，内容来自受理时保存的内容。同一输入身份配不同内容返回 conflict。来源是 SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)。
 9. 参加者声明：`capabilities.participants` 在构造后不变。`commit.caller` 中未声明的种类返回 unsupported，并且在保存任何状态之前返回。四种响应按上表返回。来源是 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。
@@ -220,7 +220,8 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 12. 终态后观察登记：`recordTerminalObservation` 只为既有待观察项登记，同值认回，异值返回 conflict，不追加事件。来源是 SPEC 的[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended)。
 13. 主回复准入投影：同一 call 与 resultVersion 的重试认回原序号，不增加计数。同一原回复配不同结论返回 conflict。rejected 使连续数与累计数各加一，admitted 使连续数归零，累计数保留。投影带 through 与 rule。来源是公开接口页的[身份、原位置与纯求值](../../../agent-contract/docs/public-api/README.md#身份原位置与纯求值)与本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影)。
 14. denied 分支：`open` 与 `attach` 的推进资格依据缺失或核对失败返回 denied。`recordResult` 的调用方不是当前合法保管方或处理方时返回 denied。`recordTerminalObservation` 的调用方没有观察与记录资格时返回 denied。denied 不写入任何状态。来源是 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)与[主体资格核验](../../../agent-contract/SPEC.md#主体资格核验)。
-15. terminal 分支：对已 ended 的 execution，`attach` 返回 terminal，`submit` 返回 terminal，`control` 只认回终态。来源是 SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)与逐操作表的 `input.submit`、`control` 行。
+15. terminal 分支：对已 ended 的 execution，`attach` 返回 terminal，`submit` 返回 terminal，`control` 只认回终态；没有 supersession 时，新 `commit`、新 `detach`、新 `tryFinish` 与新 `prepareFinish` 返回 terminal；`recordControl` 在 ended 之后只保存三种合法迟到阶段，新建立意图、撤销资格或其他终态前效力返回 terminal。来源是 SPEC 的[判定次序与失败映射](../../../agent-contract/SPEC.md#判定次序与失败映射)与逐操作表。
+17. 控制事实的原子边界：`control` 的受理事实及其 control 事件，`recordControl` 的每个新适用阶段事实及其 control 事件，与可查询的原操作结果在同一原子边界成立；它们与 `tryFinish` 共用权威排序，ended 不越过尚未成立的对应事件。矛盾证据按 SPEC 的持久拒绝保存审计并推进 revision，query 返回 rejected。来源是 SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)与[查询的四种结论与持久拒绝](../../../agent-contract/SPEC.md#查询的四种结论与持久拒绝)。
 16. 条目的事件投影：`AgentJournalEntries.record` 与 `AgentReceivedCommits.commit` 在写入条目的同一次提交里分配一个 `entry` 事件，挂接取最近建立的挂接，cause 取该次提交回执的 evidence。ended 之后只写条目，不追加事件。同一操作的重放与同一交付的重复推送认回原回执，不重复分配事件。`AgentJournal.commit` 的 `events` 不含 `entry` 与 `ended`；内存实现对带其中任一种事件体的 commit 返回 invalid，field 为 `events`，reason 写明哪一种由 Journal 分配。事件的 `schema` 由内存 Journal 在创建时按配置 `eventSchema` 或默认值固定一份，所有 execution 的所有事件共用，见 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)。来源是 SPEC 的[日志条目](../../../agent-contract/SPEC.md#日志条目)第 6 条与[逐操作表](../../../agent-contract/SPEC.md#逐操作及输入分类)的 commit 行。
 
 条目与 `entry` 事件在同一次提交里成立的时序：
@@ -254,9 +255,6 @@ sequenceDiagram
 
 本节发现的出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)，由各自的拥有者裁定。实施时不自行补定。
 
-- M04-1：Tool 的 T1 事件承载仍待裁定；T0 没有事件，Agent 的事件流不含生产者的过程流。Model M1 不投影过程流，M3 以条件提交发布 producer。
-- M04-3：外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加没有声明形状。
-- M04-4：按原操作幂等的记录方法是否推进 revision 没有写明。
 - M04-10：节点表 Q2 的 message 与 context-transition 两种交接都不区分装配。
 - M04-11：节点表 E9 的“写什么”缺少暂停的责任释放阶段。#730 已采用，写回状态见开放问题页的 AGENT-M04。
 - M04-12：H0 是否为写入节点。

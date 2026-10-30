@@ -127,7 +127,7 @@ recordControl 按以下顺序判定，不把 ToolReferenceFailure 直接作为 A
 
 保留引用损坏是提供者不变量失败，不能归为调用者 conflict。原 R 认回之前不检查保留引用。阶段不适用仍按既有 invalid 映射。失败不改变原记录或 revision，不调用 Tool，也不创建阶段事件。这些边界不授予修复记录或绕过资格的权限。
 
-控制接受与记录均共同保存新增字段和原操作结果。现有内存 Journal 只在其原子 apply 边界迁移，不证明生产耐久性。本节只闭合新增引用所需记录。Q11、Q13 的其余认回、终态与事件修订，以及 F0 多前台 Tool 逐调用尝试与总取消记录的对应机制，继续由后续控制设计与实现承接。不得把单个 ToolOperationRef 塞入总 cancel 记录。
+控制接受与记录均共同保存新增字段和原操作结果。现有内存 Journal 只在其原子 apply 边界迁移，不证明生产耐久性。本节只闭合新增引用所需记录。认回、终态与事件的一般规则见“[判定次序与失败映射](#判定次序与失败映射)”“[原操作认回与恢复](#原操作认回与恢复)”与“[六个阶段](#六个阶段)”。F0 多前台 Tool 逐调用尝试与总取消记录的对应机制，继续由后续控制设计与实现承接。不得把单个 ToolOperationRef 塞入总 cancel 记录。
 
 #### Tool 交付解除未知
 
@@ -172,6 +172,98 @@ runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时
 
 写入返回未知时按原操作身份查询，不能直接重复可能产生效果的调用。操作身份由稳定要素确定派生：租户、execution、原持久前驱 revision、转移种类与原帧中的稳定槽位，崩溃前后对同一帧与同一转移派生同一身份，不用新的随机身份重试。派生规则见[机制页](../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。读取或查询失败保持未知，不等于不存在。恢复已确认的事实不依赖结束记录必须成对出现。
 
+### 判定次序与失败映射
+
+每个带操作身份的写操作按下列次序判定，返回第一个成立的结果。错误名称是 Failure 的种类，本节不新增 Failure 成员。各操作的精确映射见“[逐操作及输入分类](#逐操作及输入分类)”。
+
+1. 先校验请求形状、租户与本次操作的资格。跨租户或当前资格拒绝返回 denied，核验不可用返回 unavailable。两者都不披露原对象或原操作是否存在。
+2. 通过核验后，原 operation 配同语义输入认回原结果，配不同语义输入返回 conflict。原操作结果未定时沿原 operation 查询，不以新的生命周期检查代替它的历史结果。当前资格拒绝先于历史结果认回；认回原结果不恢复旧推进权。
+3. 只有本契约明确允许的同事实认回进入“[原操作认回与恢复](#原操作认回与恢复)”的规则。不同 operation 的普通 commit、attach、control 与 tryFinish 不因内容相似而认回。输入身份、确认前缀、既有观察与控制阶段事实各保留自己的等值约束。
+4. 对真正的新、需要推进授权的写入，已 superseded 的 Authority 返回 stale-advance。这项判定先于 ended 与 expected 过期。它不适用于合法的保管或观察操作。
+5. 没有上述取代时，对 ended execution 的新 commit、新 detach、新 tryFinish 返回 terminal。attach、submit 与新 control 的 terminal 按各自条款。提供者不得先返回 changed，诱导调用方持续重算一个已被禁止的业务写入。
+6. execution 尚未 ended 且当前资格成立时，expected 或候选绑定已失效返回 changed。这项检查不能用分离的预读绕过最终权威排序。tryFinish 的 expected 或候选失效以 FinishResult.changed 表达，不以 Failure.changed 代替成功结果联合。
+7. recordTerminalObservation 指向不存在的终态后观察项，返回 invalid，field 为 passage。终态不匹配或终态尚不存在返回 invalid，field 为 terminal；采用不匹配返回 invalid，field 为 implementation。同一项配不同 observed 返回 conflict。读取失败或投影不全返回 unavailable，不推成该项不存在。终态尚不存在时不承诺等待后同一请求自动成立。
+8. recordControl 的阶段不适用于原控制时返回 invalid。阶段适用、但请求在 ended 之后新建立意图、撤销资格或其他终态前效力时返回 terminal。“[六个阶段](#六个阶段)”列出的三种合法迟到责任阶段仍可保存。与已成立事实或原终结前提矛盾的证据返回 conflict，并按“原操作认回与恢复”的持久拒绝规则保存审计。
+9. 当前保管、观察或处理资格失效返回 denied，不因旧挂接失效而返回 stale-advance。失去业务资格后的新 detach 返回 denied；已成立的原交接仍按第 2 条认回，不写新的业务位置。
+
+优先级固定为：当前资格拒绝先于历史结果认回；真正新推进的 stale-advance 先于 ended；ended 先于 expected 过期。
+
+### 原操作认回与恢复
+
+查询结论 committed 表示该 operation 的成功结果已可靠固定，包括本契约允许的合法认回。它不只表示该 operation 新建立了 execution 事实。
+
+原操作 A 已建立某项事实，合法的新操作 B 认回同一事实并成功，而 B 的响应丢失时，按下列规则恢复。
+
+1. B 的 CommandReceipt.operation 为 B，execution 为原 execution。revision 是 B 所认回事实的版本对应的修订，不是查询时的最新 revision。
+2. B 的 receipt.evidence 证明其合法认回及来源。Journal 保存原事实的建立操作、固定版本与原依据，不把 A 的事实改署为 B 新建立。消费者不解析来源。
+3. B 的请求语义绑定、成功回执、原方法的完整结果与来源在同一权威提交固定，之后才答成功。query(B) 与原方法的重试读同一记录。只增加认回索引不改变 execution 快照，不推进 revision，见“[执行修订](#执行修订)”。真正新增责任、事件或其他 execution 事实时按普通合法 mutation 处理并推进 revision，不能伪装为认回。
+4. 每次调用先核当前租户与主体资格，再检查操作与适用的认回资格。同 B 异语义输入 conflict。相同 B 的已成功原结果在新写入的生命周期与 expected 检查之前返回。
+5. 原 A 的结果保持不变。B 的结果不随当前确认、控制阶段或 revision 更新而改写。query(B) 返回 committed 后，完整结果的重试暂不可用或撤权时只保留成功事实，等待合法恢复，不另造 C 重做。
+
+需要原方法的完整返回时，调用方用原方法、B 与原语义输入重试，从同一持久结果记录取回。detach 返回原交接依据；open 与 attach 的原操作恢复原回执与 Authority，恢复不让旧 Authority 重新有效。query 只读，不写认回，也不借查询修复出一次认回成功。仅凭 operation 身份的第三方仍可 query 与 load；本契约不承诺仅凭身份重建原方法的全部参数。
+
+认回索引规则的适用范围如下。认回的准入仍由各方法的现行规则与“[判定次序与失败映射](#判定次序与失败映射)”决定，本节不放宽终态、历史阶段或资格边界。
+
+| 路径 | 适用范围 |
+| --- | --- |
+| submit | 同输入身份、同受理内容的认回。不借相同正文改写原来源、优先级或新增分配 |
+| recordControl | 同控制、同阶段、同状态与同来源的既有合法事实认回。unresolved 到 reached 是新事实。本契约不规定新操作对已被后继阶段取代的历史事实的认回；原 A 的结果仍可恢复 |
+| recordTerminalObservation | 既有固定观察的同值认回。缺失观察项或异值不能靠索引变合法 |
+| detach | 目标已 detached 时认回原交接依据，不创建新位置、挂接或责任。superseded 的新 detach 沿既有拒绝，原操作的成功仍可认回 |
+| acknowledge | 相同确认，以及被已确认前缀覆盖的 through。不回退，不替换原前缀的推进依据 |
+| open、attach | 只恢复原 operation 的完整结果。不新增不同 operation 的同 payload 创建或接管认回 |
+| control、commit、tryFinish | 不新增跨 operation 的等值请求去重。新控制身份是新控制；相同 checkpoint 或终态结论不证明同一次事实 |
+| recordResult | 沿原操作恢复及原保管、处理规则。不新增 transfer 为 none、custody 或 processed 的跨 operation 去重；不以相同 payload 跳过共同提交或当前资格 |
+| reconcile、quiesce、宿主登记 | 各自协议保持，不改成通用的不可变结果模型 |
+| query、load、read 等读取 | 不写认回 |
+
+找到原事实但尚未可靠保存 B 的结果时，不能答 B 成功。B 已稳定保存而响应丢失时，query(B) 必须 committed。查不到 B 不等于 excluded：排除必须证明原写入及延迟提交不能发生，否则为 unknown。“没有新的 execution 事实”不是排除依据。提供者要支持排除之后的受控重新受理时，须在其方案中证明怎样区分新受理与旧延迟请求、怎样序列化查询与重试；只命名一个私有代次不是证明。
+
+#### 查询的四种结论与持久拒绝
+
+AgentExecutionRecovery.query 与 Journal 的同形查询返回四种结论。committed 带原 CommandReceipt。rejected 带原固定的 conflict、耐久审计依据与 revision，它不是成功回执。excluded 带排除依据，必须排除该 operation 的全部写入与迟到写入，不只是“没有当前指针”。unknown 表示未知。query 不重跑原 mutation、判断实现或生产者。消费者对四种结论逐一分支：不把 rejected 落入成功、排除或“已解决”的默认分支，也不把它转成 unknown、excluded、committed 或外部协调者一侧的“未提交”结论。历史的成功记录保持原含义；无法证明拒绝分类的旧记录保持 unknown 或 unavailable，不推测补录。
+
+rejected 只来自 recordControl：新证据与已成立阶段或原终结前提矛盾时，Journal 在同一次提交中按原 operation O 固定语义输入、完整原请求与来源、目标控制与阶段、被冲突的已成立事实或终态处置、被拒绝的事实、固定的 conflict 结果与审计依据，并推进一个 revision。它不推进控制阶段、不施效、不发业务事件、不改终态。其他 conflict、invalid、denied 与 terminal 不进入这项审计。
+
+- 审计事务确定提交后，原 recordControl 才返回固定的 conflict。提交未定返回 commit-unknown，保留 O，不先拒绝再尽力记日志。
+- 原 O 已有成功时认回成功，不改成拒绝。已有持久拒绝、同语义输入时，原方法认回原 conflict，不增 revision 或事件；异输入 conflict，不覆盖旧记录，也不新造审计。
+- 新 O 先完成适用的身份、目标与来源校验，再在权威顺序中判断矛盾。来源保留在审计中，不并入 ControlStageFact。
+- 回执丢失后 query(O) 为 rejected，表示审计已存在且 O 没有成功的阶段写入。恢复者保留拒绝及其责任，不当作成功的控制、不另发业务、不换号绕过 unknown。确定 excluded 则审计、成功写入与迟到写入都不存在，不因此授权复用 O。撤权阻止当前主体披露与认回，不删除责任。
+- 保留期覆盖原请求、被冲突依据、结果与审计。
+
+### 执行修订
+
+一个 revision 标识该 execution 的完整已提交事实视图。第一次 open 建立初始 revision，编码与数值起点不作规定。一次原子 mutation 建立一个或多个新 execution 事实时，恰好分配一个后继 revision。revision 严格递增、不复用、不要求数值连续。不能只凭 checkpoint 字节相等判断没有新事实。
+
+新事实包括输入与输入边界、控制阶段、有效挂接与交接、checkpoint 与执行状态、效果意图、事件、结果责任、确认进度、终态后观察、终结责任清单的发行与处置，以及属于本次 Agent mutation 的共同事实。持久的未定台账成为快照可见事实时，它的变化同样分配新 revision。传输层暂时不知结果本身不制造 execution 事实。
+
+所有快照字段、事件与原成功结果在相同权威提交中成立。事件序号逐事件连续，revision 每提交一次，二者不混用。load 可以返回并发写之前的一份完整视图，但不混合修订，也不跨修订分页；不能完成一致读取时返回 unavailable。历史快照的留存不是承诺。
+
+commit、prepareFinish 与 tryFinish 在提交点按完整 revision 核对 expected。attach 的恢复证明所绑定的 revision 同样因任何新事实失效。无 expected 的窄记录操作在当前事实之上合入自身变化，不能用先前读取的整份快照覆盖别人的写入。确认等无事件更新可能使 finish 或接管重读，这是明确接受的保守冲突。新评估使用新事实；原结果未知的操作仍保留原身份与语义输入。
+
+同一操作同一语义输入认回原成功结果，不再次写事实，不因当前 revision 已更新而改成新提交。同一操作不同语义输入 conflict。恢复先核当前读取或认回资格；旧 Authority 的返回不让它重新有效。允许的新 operation 同事实认回只增加查询索引、不改变任何 execution 事实时，不分配新 revision，该索引不改 history、unresolved 或其他快照字段。
+
+下表的“新修订”指一个新 revision。原操作已成功的同值重试返回原结果，无新修订。拒绝与无写入的 changed、blocked 不产生成功事实；结果未知不是无写入的证明。
+
+| 操作 | 首次建立的新事实 | 认回与无变化边界 | 事件与终态 |
+| --- | --- | --- | --- |
+| open | 初始输入、checkpoint、资格与挂接：初始修订 | 不新增跨 operation 的创建认回；相同内容不授予第二次创建 | 无事件 |
+| attach | 每个真正的新挂接、围栏或转换接续：新修订 | 新 operation 的有效接管是新的权力转换，不按 recovery 字节认回 | 无事件；原结果的恢复不重新激活旧权力 |
+| detach | active 到 detached 及位置与责任交接：新修订 | 已 detached 只认回原交接；superseded 仍 stale-advance；失去资格不写新业务位置 | 无事件 |
+| submit | 新输入及可靠输入边界：新修订 | 同输入身份同内容认回；不忽略其他既有输入约束 | 无事件；input-taken 由后续 I0 保存；ended 后新输入 terminal |
+| control | 新控制身份及 accepted 事实：新修订 | 不同 operation 的相同命令文本是不同控制，不建立隐式去重 | accepted 事实、control 事件与原结果原子保存 |
+| acknowledge | 确认前缀推进等新的可见确认事实：新修订 | 相同确认或较低 through 的既有认回不回退，不产生新前缀 | 无事件，不改 checkpoint；不越过已发出前缀 |
+| recordResult | 新保管、处理或释放责任事实：新修订 | 逐项身份、版本、消费位置、transfer 及确认依据沿既有规则；无新责任只认回 | 无事件、输入、效果或 checkpoint 变化；合法责任可在 ended 后登记 |
+| recordControl | 新适用阶段、unresolved 到 reached：新修订 | 同控制、阶段、状态与来源的认回受既有事实身份约束，不把矛盾证据当同值 | 终态前阶段事实与 control 事件原子保存；终态后只限三种合法迟到责任事实，无新事件或效果 |
+| recordTerminalObservation | 已固定待观察项完成：新修订 | 同值重复认回，异值冲突；不临时添加原本不存在的观察责任 | 无事件、效果、输入或 checkpoint 变化 |
+| prepareFinish | 责任清单的发行与 `FinishIntent.obligations`：新修订 | 同 operation 同输入认回原清单 | 无事件，不改 checkpoint |
+| commit | 新 checkpoint、状态、转换标记、效果、事件或共同贡献：新修订 | 相同 checkpoint 仍可能是新转换；无任何新 execution 或参加者事实才属于无变化 | 原子保存允许的事件；不能创建 ended |
+| tryFinish | 终态、最后事件、固定观察责任及原结果：新修订 | changed 与 blocked 不产生新事实；不同操作不能据相同结论覆盖终态 | 只有本操作创建 ended |
+| commitSettlement | 该变体允许的保管或判断记录与责任处置：新修订 | 同 operation 同输入认回原结果 | 无事件，不改 checkpoint |
+| load、inputs、read、query、订阅等读取 | 无 | 不借读取修复或改写快照事实 | 不推进 revision |
+
+output.emittedThrough 随事件的耐久提交建立；出口把既有事件交给读取方，不改写同一 revision 下的这个字段。确认不自动结清事件保管或其他结果责任。合法 ended 之后的新结果、观察、保管登记与合法迟到控制事实仍分配新修订，但终态结论、checkpoint 与最后事件不变。不能先违规结束，再用迟到事实补合法性。
+
 ### 提交参加者协议
 
 提交参加者是 Agent 之外、需要与 Agent 的一次提交共同成立自己事实的一方。常见的有两类：外部协调者在受理输入和结束工作时登记自己的业务事实，Context 的参加者在压缩转换时保存压缩覆盖范围与保留名单。独立调用者没有提交参加者，Agent 的 Journal 提供者单独保护输入受理和执行结束。
@@ -189,7 +281,22 @@ runtime 的协调角色在已核验的公开操作之内调用 Journal 端口时
 
 参加者一方的终态先成立时，Agent 允许参加者先记录自己的终态，再以已保存的取消依据收束 execution。此时 Agent 只认回原取消，不重新裁定，也不恢复业务推进。
 
-Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities.participants`，见[公开接口页](docs/public-api/README.md#执行记录与调用方交接端口)，装配会用到的共同提交种类由工厂配置 `jointCommits` 给出，见[通用工厂](../agent/docs/public-api.md#工厂配置)。工厂创建时对 `jointCommits` 的每一种比对声明，缺一种返回 unsupported，不创建 runtime，也不保存任何状态，不退化为只比较 Agent 本地队列。运行时遇到未声明的提交种类同样返回 unsupported，并且在保存任何状态之前返回。外部输入关闭与动作发出围栏是两项保护，前者不授权新的 Model 或 Tool 发出。
+Journal 绑定声明固定的协调模式 `capabilities.coordination`，取值为 standalone 或 coordinated。工厂配置 `coordination` 与它同形，见[通用工厂](../agent/docs/public-api.md#工厂配置)。模式描述当前注入的 Journal 绑定，不描述底层提供者能创建的全部绑定：同一提供者可以提供不同的绑定，每个绑定在使用期内不可变。没有隐式的 standalone 默认。`participants` 与 `jointCommits` 只描述 CallerCommit 的外部共同提交种类：空的 participants 不表示没有输入与终态的协调能力，非空的 participants 也不证明协调协议齐全。
+
+coordinated 绑定必须支持 open、attach、submit 与 tryFinish 的完整协议，不能以部分能力冒充。某个 execution 首次建立时固定它的模式与不透明的外部关联。后续写入核对该关联，不允许经另一个 standalone 绑定降级。模式迁移不在本契约内。
+
+| 操作 | coordinated 绑定在 Agent 成功提交中的额外义务 |
+| --- | --- |
+| open | 核对原协调者的输入来源、适用的推进资格依据与关联，把必要的分配、资格与协调事实与 Agent 的初始内容、挂接和原结果共同保存 |
+| attach | 在同一次接管提交中核对当前外部资格、原关联、恢复或接管条件及适用的推进资格效果，不凭旧回执恢复旧挂接的权力 |
+| submit | 在同一次受理提交中核对原来源与分配，保护已受理内容与 execution 归属，不增加推进资格参数 |
+| tryFinish | 在同一次条件提交中核对外部已受理未交入的输入与适用的终态或取消事实，共同建立对应的终结贡献，不只比较 Agent 本地 revision |
+
+协调者可以先在自身的可靠边界受理输入；open 与 submit 不要求把最初的上游受理搬进 Agent 的事务。两次独立写入、回调或队列都不能代替所要求的共同提交。外部终态先成立时沿已保存的取消路线收束，不新增普通完成的旁路。Agent 不新增外部协调者的数据类型、事务句柄或回调登记。外部协调者的适配拥有不透明依据的解释、绑定恢复与共同存储对象的映射；它尚未提供映射时，只能采用 Agent 的要求，不能声称已合格。Agent 自有的主回复提交不因此变成外部参加。
+
+推进资格依据 grant 不证明提供者支持协调能力。非空 grant 是外部协调者的推进资格依据，非空输入来源依据是外部受理来源，两者都必须走所要求的共同核对。standalone 绑定只承接独立路径：收到非空 grant 或非空来源依据时，缺少必要的协调支持在写前返回 unsupported，不把这些请求当作独立输入保存；当前资格核对失败仍返回 denied。coordinated 绑定缺少其授予规则要求的 grant 时返回 denied，不能以空 grant 绕过外部核对或降级既有 execution 的模式。standalone 配置加 standalone 绑定可独立 invoke、submit 与 finish；coordinated 配置加 coordinated 绑定在上述四处强制协调。两种模式都可以有空的 participants。
+
+Agent 拒绝不合格的装配。声明的形状是 `AgentJournal.capabilities`，见[公开接口页](docs/public-api/README.md#执行记录与调用方交接端口)，装配会用到的共同提交种类由工厂配置 `jointCommits` 给出。工厂在创建 runtime、登记或写状态之前核对两处 `coordination` 严格相等，并对 `jointCommits` 的每一种比对 `participants`。缺声明、模式不匹配或缺一种都返回 unsupported，不创建 runtime，也不保存任何状态，不退化为只比较 Agent 本地队列。运行时遇到未声明的提交种类同样返回 unsupported，并且在保存任何状态之前返回。Journal 的每次直接调用也在写入前核对绑定与所需支持，在原子提交点核对当前资格、围栏与条件。权限检查先于存在性、模式与原回执的披露。实际不能兑现共同提交返回 unsupported，暂时的依赖故障返回 unavailable，持久结果不明返回 commit-unknown，参加者事实推翻候选沿既有 changed。外部输入关闭与动作发出围栏是两项保护，前者不授权新的 Model 或 Tool 发出。
 
 `received` 条目与材料的共同提交遵循同一提供者、同一权威提交序列及失败不保存任何一半的约束。它由独立的 `AgentReceivedCommits` 端口声明，不扩展上述只表达 `CallerCommit` 的参加者声明与工厂配置。能力、认回和排除规则见“[接收共同提交](#接收共同提交)”。
 
@@ -266,6 +373,12 @@ detach 与 quiesce 的交接行为，以及撤销登记的结果，由“托管�
 | 停用 | 适用，意图成立表示开始拒绝新的 invoke | 适用，对象是该 runtime 的全部挂接 | 不适用 | 适用，范围是该 runtime 的全部本地责任 |
 
 对 ExecutionControl 的阶段事实由 Journal 的 recordControl 记录，并在事件流中以 control 事件投影。记录核对原控制命令、真实执行方的回执和当前处理资格，记录阶段及适用的 Tool 操作引用，不变更控制范围，也不批准新的效果。推进者崩溃或更换后，新挂接以原 ControlRecord 认回已成立的阶段，不重发控制命令。生产者在中断到达前已真实收场时，以真实收场为准，中断不改变结果。控制与完成、换代、晚到写入的竞争处置见[机制页](../agent/docs/architecture/mechanisms.md#控制与故障交接)。
+
+execution 未 ended 时，control 的受理事实及其 control 事件，以及 recordControl 的每个新适用阶段事实及其 control 事件，由 Journal 提供者在同一个成功的原子边界保存，连同可查询的原操作结果。明确失败不留下半份成功；结果未知时继续按原 operation 查询，不降为 excluded 或失败。它们与 tryFinish 共用同一 execution 的权威排序：阶段已成立之后，ended 不能越过尚未成立的对应事件。跨进程的持久提供者须兑现这一边界，通知和进程内锁不能代替它。内部步骤不暴露半份成功。
+
+同 operation、同语义输入认回原结果，不重复分配事件；同 operation 改输入仍 conflict。已有同事实的认回不产生新事件。unresolved 到 reached 是新的事实迁移，不能用永久唯一的（control, stage）键抹掉它；旧事件保持不可变。不同 operation 的事实等值与冲突仍保持原控制身份、state 与 source 的语义约束。recordResult 不追加 producer 事件，由后继有资格的条件提交承担 producer 投影；recordResult 也不是 control 事件的来源。
+
+合法 ended 之后，当前有资格的处理方可以保存原控制在原责任范围内真实迟到的 producer-confirmed、physically-stopped 与 duty-released 事实。资格不依赖旧挂接仍 active。阶段事实与可查询的原操作结果持久保存，并可经 load 的 controls 读取；这些写入不追加事件、不修改旧 ended 的内容、不重开业务、不恢复推进权、不产生新效果。补记不能新建立取消意图、撤销推进资格、改变原终结前提或重新判定终态：取消仅 accepted 而普通完成先 ended 时，之后不能借 intent-established 或 reached 新建立有效取消或重新解释原完成。对已生效事实的认回不重新施效。证据与原终结前提矛盾时，按“[判定次序与失败映射](#判定次序与失败映射)”第 8 条返回 conflict 并保存审计，不伪装为正常的阶段迁移。这项例外不放宽条件终结的责任要求：必须 blocked 的责任不能先放过，再以终态后补记补救；没有依据的新控制、阶段或效力不在例外内。读者经 controls 读取迟到的变化，不能期待已 ended 的订阅继续推送。
 
 停用不是 ExecutionControl，没有 ControlRecord。它适用的阶段事实由下列记录承载。
 
@@ -723,7 +836,7 @@ Model 提供者把这样的调用当作已封闭的调用交出，属于提供�
 
 ### 托管协调与运行实例
 
-类型形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。本节是输入受理、恢复与接管、Journal 提交、可靠输出、条件终结、共同提交、settling、detach、quiesce 与 handover 的唯一行为源，公开接口页只给类型形状。事件序号、游标与确认的行为在“事件流与读取”。
+类型形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。本节是输入受理、恢复与接管、Journal 提交、可靠输出、条件终结、终结责任清单、保管变体、共同提交、settling、detach、quiesce 与 handover 的唯一行为源，公开接口页只给类型形状。事件序号、游标与确认的行为在“事件流与读取”。
 
 #### 时钟读取与等待
 
@@ -755,7 +868,7 @@ runtime 可顺序承接多个 execution，同一时刻至多一个有效执行�
 
 invoke 先预约 runtime 的单执行槽，再由 Journal.open 幂等受理；resume 先预约，再由 Journal.attach 认回原记录。预约与槽共同防止重入：结果未知时保留预约，不释放槽再接另一项工作，open 明确未提交才释放。Journal 在存储受理边界核对当前围栏和 execution 修订号。并发的新 invoke 返回 busy，不进入隐藏队列，排队属于调用方治理。runtime 处于 draining 或 disposed 时，新的 invoke 与 resume 返回 unavailable，不预约执行槽。撤权与新效果的准入必须有确定的顺序：先读取资格、再发送的做法不成立。撤权先成立时，后续准入被拒绝，已经合法发出的调用沿原身份查询和控制。单机协程或 Cordis disposer 不替代围栏证明。
 
-open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，提供者与协调者的提交参加者共同核对，核对失败返回 denied。装配声明必须有 grant 才能授予挂接的提供者，收到空 grant 时返回 denied。
+open 与 attach 由 Journal 提供者授予执行挂接：挂接身份、围栏代次和授予依据由提供者保存，并以 Authority 返回给 runtime。Journal 在写入之前核对绑定的协调模式与所需支持，在原子提交点核对当前资格、围栏与 execution 修订号。调用方提供的推进资格依据 grant 可以为空。grant 为空时，Journal 提供者单独授予挂接，这是独立调用路径。grant 非空时，它是外部协调者的推进资格依据，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在同一次 open 或 attach 提交中核对它，核对失败返回 denied；standalone 绑定缺少必要的协调支持时在写前返回 unsupported，不把这次请求当作独立路径保存。coordinated 绑定在其授予规则要求 grant 时收到空 grant 返回 denied。某个 execution 首次建立时固定它的模式与不透明的外部关联，后续 attach 核对该关联，不允许经另一个 standalone 绑定降级。
 
 #### 恢复与接管
 
@@ -786,43 +899,176 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 输入的完整内容经 invoke 与 submit 交给 Agent。Journal 提供者在受理时耐久保存内容、输入身份、来源依据和优先级。受理成功后，Agent 的执行耐久不依赖调用方另外保存这份内容。同一输入身份配同一内容时，提供者认回原受理。同一输入身份配不同内容时，返回 conflict。
 
-独立调用者的来源依据为 null。外部协调者先在自己的可靠受理边界保存输入，再以同一内容和自己的来源依据调用 invoke 或 submit。Agent 保存来源依据用于追溯，不解释它的内容。装配有提交参加者时，提供者在受理的同一次提交中由参加者核对来源依据，参加者的响应按“提交参加者协议”处理。外部协调者已受理而尚未交给 Agent 的输入，由提交参加者在条件终结时以冲突响应报告，tryFinish 不越过它们。
+独立调用者的来源依据为 null。外部协调者先在自己的可靠受理边界保存输入，再以同一内容和自己的来源依据调用 invoke 或 submit。Agent 保存来源依据用于追溯，不解释它的内容。非空来源依据是外部受理来源，必须走“[提交参加者协议](#提交参加者协议)”所要求的共同核对：coordinated 绑定在受理的同一次提交中核对原来源与分配，保护已受理内容与 execution 归属，不增加推进资格参数；参加者的响应按该协议处理。standalone 绑定收到非空来源依据时，缺少必要的协调支持在写前返回 unsupported，不把它当作独立输入保存。外部协调者已受理而尚未交给 Agent 的输入，由提交参加者在条件终结时以冲突响应报告，tryFinish 不越过它们。
 
 输入水位线指已可靠分配给该 execution 的输入边界，不能只用内存队列长度代替。inputs 返回该位置按规则应承接的完整有序批，内容来自受理时保存的内容。分页属于提供者内部，不改变批次语义。
 
 #### 提交与保管
 
-AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件和原操作结果。commit 原子覆盖 checkpoint、执行状态、稳定 effect intent、已分配序号的事件和操作结果。需要共同成立的消息、压缩记录及接续、结果保管，通过具名的调用方交接（CallerCommit）与提交参加者共同保存，协议见“并发与提交”。事件订阅与普通保存回执不能代替共同提交。
+AgentJournal 保存带 expected revision 的 checkpoint、effect intent、事件和原操作结果。commit 原子覆盖 checkpoint、执行状态、稳定 effect intent、已分配序号的事件和操作结果。每次建立新 execution 事实的原子 mutation 分配一个新 revision，规则见“[执行修订](#执行修订)”。需要共同成立的消息、压缩记录及接续、结果保管，通过具名的调用方交接（CallerCommit）与提交参加者共同保存，协议见“并发与提交”。事件订阅与普通保存回执不能代替共同提交。
 
-同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。excluded 必须排除原写入及延迟提交，不是简单的查无记录。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存。Model 再用原 admission 受理；Tool 再用完整原 ToolInvokeRequest 经普通 invoke 关联。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
+同一操作同一语义输入返回原结果，同一操作不同输入返回 conflict。本契约允许的新 operation 同事实认回按“[原操作认回与恢复](#原操作认回与恢复)”恢复。changed 表示 expected 已过期且本操作没有提交，调用方重读并重新求值。commit-unknown 保留原操作，先 query 再决定，不换身份重试。query 的结论有 committed、rejected、excluded 与 unknown 四种，见“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)”。excluded 必须排除原写入及延迟提交，不是简单的查无记录。rejected 表示原 recordControl 已被持久拒绝，调用方保留拒绝及其责任，不当作成功、排除或未知。通知只唤醒，不作为恢复事实源。effect intent 先可靠保存。Model 再用原 admission 受理；Tool 再用完整原 ToolInvokeRequest 经普通 invoke 关联。生产者受理及发出点另行核对当前围栏，Journal.commit 不预先授予未来的授权。
 
-load 返回原控制命令、当前完成意图、effect intent、逐结果的责任台账、终态后观察台账和输出进度，恢复不依赖旧命令的调用栈。大记录可以用同一快照修订号的受限分页实现，但不能用不完整数组冒充完整快照。
+load 返回原控制命令、当前完成意图、effect intent、逐结果的责任台账、终态后观察台账、输出进度、已发行的终结责任清单 `finishObligations`（未发行时为 null）与结算投影 `settlement`，恢复不依赖旧命令的调用栈。大记录可以用同一快照修订号的受限分页实现，但不能用不完整数组冒充完整快照。
 
 recordResult 供当前合法的保管方核对原结果版本和交付责任，不要求旧挂接有效。transfer 为 custody 或 processed 时，提供者在自己的共同提交边界建立保管或处理依据并更新结果责任，成功回执才能支持生产者确认。Model 的结果采用与账目接收使用“[结果接收](#结果接收)”规定的共同提交，不以此处的 custody、processed 或 release 路径完成。Agent 不把 saved 填入要求原生产者确认的 confirmed.receipt，也不把 Model 的 ACK 作为 Agent 收场条件。它不能修改 checkpoint、接受输入或发新效果。transfer 为 none 时只核对已有责任与释放结果，confirmed 必须包含原生产者的确认依据。结果项、版本、消费位置与 transfer 逐项一致，冲突则拒绝。执行 ended 之后仍可调用，保管资格与业务推进权分别检查。结果对账不需要活体或新推进权，终态后只保管原事实，不再发起原业务。
 
 #### 条件终结
 
-Evaluator 提出 FinishIntent，协调者调用 Journal.tryFinish 条件终结本 execution。tryFinish 不等待事件消费者返回批准，也不接收调用方的完成批准。它与 submit、control 和 attach 处在同一权威排序中，核对 expected revision、输入边界、有效资格、适用的终态前经过和阻塞责任。有效取消优先于普通完成或失败。新输入先成立，或候选依据变化，返回 changed，调用方重新求值。未交清的本域责任返回具名 blocked。依赖故障或查询未知不伪装成 blocked 或空队列。相同操作的重试认回原提交，未知先 query，再 load 原终结事实。
+Evaluator 提出 FinishIntent，协调者调用 Journal.tryFinish 条件终结本 execution。普通路径的次序固定：先完成真实的候选固定（F1）与落终态之前位置的经过（F2），再以 prepareFinish 发行终结责任清单，再 load 最新的完整 revision，最后 tryFinish。清单的内容与发行规则见“[终结责任清单](#终结责任清单)”。tryFinish 不等待事件消费者返回批准，也不接收调用方的完成批准。它与 submit、control 和 attach 处在同一权威排序中，在最终提交点以同一权威核对当前资格、候选、expected revision、输入边界、责任闭包、适用的终态前经过，以及 coordinated 绑定的外部参加者。有效取消优先于普通完成或失败。依赖故障或查询未知不伪装成 blocked 或空队列。相同操作的重试认回原提交，未知先 query，再 load 原终结事实。
+
+`FinishIntent.candidate` 以首次 F1 操作的 AgentOperationId 固定候选，`obligations` 在准备态为 null。candidate 同身份配不同业务内容返回 conflict。业务前提真正变化时建立新候选并保存旧到新的替代链接，不改写原候选。只发行清单、确认事件或保存与判断无关的迟到事实不修改候选，也不机械重跑 F2；业务前提变化仍须重新核对。
+
+tryFinish 的结果按下表返回。
+
+| 当前事实 | 结果 |
+| --- | --- |
+| expected 过期、候选被替代，或候选依据与实质前提已知变化，含新输入先成立 | FinishResult.changed。调用方重读并重新求值。不以 Failure.changed 代替 |
+| 已确定有必要责任未清 | blocked，按 inputs、controls、operations、passages、custody 分类，指向具体责任。多项时按这一固定次序选择第一项，完整清单仍可经 load 读取 |
+| 原操作未知，或当前资格、来源、完整闭包不可确定 | unavailable。保留原查询与责任，不转换为 blocked、已清或 excluded |
+| obligations 未发行、伪造或指向另一个 candidate | invalid。真实但依据已过期的清单按 changed 处理 |
+| 当前资格拒绝 | denied |
+| 新请求遇已 ended | terminal。原成功的同输入重试先于这项检查认回原终结，不重判 ended |
+| 写入未知 | commit-unknown。沿原 operation 查询，再 load 原终结事实 |
+| 全部资格、候选、责任与参加者条件成立 | ended。同一次提交保存终态、最后事件、终局清单及各项处置、按固定采用生成的终态后观察责任与原操作结果 |
+
+五类责任在 terminal 前须成立的条件，以及终态后可合法延续的责任如下。
+
+| 类别 | terminal 前须成立 | 可合法延续的责任 |
+| --- | --- | --- |
+| inputs | 普通候选不越过待承接输入。取消候选保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
+| controls | 适用的取消与必要撤权已经成立。相关后续职责由合法存续方承接 | “[六个阶段](#六个阶段)”允许的 producer-confirmed、physically-stopped、duty-released 真实迟到阶段 |
+| operations | 可能改变候选的未定操作先恢复，不把 unknown 当未发生 | 已合法发出的调用、结果、费用和回执由原生产者与长期接收者负责 |
+| passages | 必需的 F2 有真实有效结果。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
+| custody | 每项已收到且须交接的结果有真实完成依据或耐久保管，没有无人保管的窗口 | 原消费、释放确认、费用、未确认输出和固定观察按自身协议接续 |
+
+cancelled 候选的落终态之前判断由 [D020](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6371768059) 采用的受信取消判断承担，complete 与 failed 继续使用作者的终态前扩展链。该判断的判据、安装与旧取消记录的迁移政策以该采用为准。判断记录确定缺失时，tryFinish 返回 blocked，类别为 passages；判断为 unknown 时返回 unavailable；判断记录不授予永久许可，前提变化返回 changed。
 
 终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
 
 普通 commit 的状态与事件排除 ended，也不能通过材料、recordResult、recordControl 或 detach 旁路创建终态。只有 tryFinish 能共同创建终态、最后事件、按固定采用生成的终态后观察责任和原操作结果。终态前判断绑定具体结论、输入边界、checkpoint 和条件依据，依据失效不能复用旧允许。FinishIntent 在候选固定时提交，此时落终态之前位置尚未经过，`FinishIntent.beforeTerminal` 为空。该位置的经过完成后才填入依据，tryFinish 核对它非空且绑定本候选。这项依据只记在 FinishIntent，结论本身不另带。终态后判断只读取已提交的终态，不等待人，也不产生新效果。
 
-终结的提交保护由 Journal 提供者承担。独立提供者只裁定 execution 自己的结束，消费者无需提供终态回调，也无需在线确认才能结束。有提交参加者的提供者在同一次条件提交中同时核对参加者的事实，协议见“并发与提交”。外部协调者已受理而尚未交给 Agent 的输入，由参加者以冲突响应报告，tryFinish 返回 changed，不越过它们。终结先提交时，后来的 submit 返回 terminal，新输入由协调者另行路由。无法兑现共同提交的装配被拒绝，不以先结束一方再结束另一方代替。
+终结的提交保护由 Journal 提供者承担。独立提供者只裁定 execution 自己的结束，消费者无需提供终态回调，也无需在线确认才能结束。coordinated 绑定在同一次条件提交中核对外部已受理未交入的输入与适用的终态或取消事实，共同建立对应的终结贡献，不只比较 Agent 本地 revision，协议见“并发与提交”。外部协调者已受理而尚未交给 Agent 的输入，由参加者以冲突响应报告，tryFinish 返回 changed，即使本地 revision 没有变化。终结先提交时，后来的 submit 返回 terminal，新输入由协调者另行路由。无法兑现共同提交的装配被拒绝，不以先结束一方再结束另一方代替。
+
+#### 终结责任清单
+
+Journal 每次接受会产生后续责任的事实时，在同一提交维护该 execution 责任的权威闭包。闭包覆盖原输入、effects 与调用、Passage 与卡片、材料绑定、逐版本结果、控制、未确认输出和终态后观察。checkpoint 替换不能删除未清责任。闭包可以用原记录和可重建索引推导，不要求第二份业务日志。未交入 Agent 的外域输入由 coordinated 绑定的参加者核验；清单不枚举尚未发生的外域事实。
+
+prepareFinish 发行清单。它的形状如下。
+
+```ts
+prepareFinish(input: ExecutionMutation<P> & {
+  authorization: FinishAuthorization
+  expected: ExecutionRevision
+  candidate: AgentOperationId
+}): Reply<Readonly<{ receipt: CommandReceipt; obligations: Evidence }>>
+```
+
+在当前资格和 expected 下，Journal 从完整权威闭包发行清单，在同一提交保存清单、`intent.obligations` 与原 operation 的完整成功结果，并推进一个 revision。它不改 checkpoint、候选业务内容或 `beforeTerminal`，不发事件或效果。原 operation 在当前资格核验后认回原结果。发行成功可以包含待办或 unknown，不授予终结。证明由 Journal 核验原发行记录与精确内容，非空 Evidence 或调用者自述不足。
+
+prepareFinish 的失败如下：资格拒绝为 denied；当前资格、来源或完整闭包不可确定为 unavailable；写入未知为 commit-unknown，沿原 operation 恢复；expected 或实质前提失效为 Failure.changed；candidate 同身份配不同业务内容为 conflict；形状错误为 invalid；新请求遇 ended 为 terminal，原成功认回先于新写入的生命周期检查。
+
+每份清单绑定租户、execution、candidate、发行 operation 与 revision、候选的结论、failure 与 inputWatermark、原 checkpoint 及适用条件依据、完整责任集合的原身份、版本与消费位置、原来源、各项处置，以及权威覆盖边界。原待办保留完整输入或稳定可解析引用，哈希不能替代恢复材料。每项处置是四种之一：原拥有者证明该版本责任已结清；具名长期保管方已承接完整材料和后续动作；已确定尚缺的必要责任及其原因；原事实或原提交结果未定及其问题。确定待办不能只写“等待”。责任项与处置的完整公开联合尚未由本契约固定，固定时不能用 JsonValue 数组隐藏责任；其中 control 责任与原 C 受理保存义务已由 [#730 DD1](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6443041428) 修订，写回本契约之前本页不承诺这些公开形状。
+
+ended 在同一提交保存终局清单、各项处置、最后的 ended 事件、固定的观察集合与原结果。FinishIntent 消失后清单仍可经 load 读取。合法迟到记录在自身原子边界更新处置与 revision，不改原终态，不追加事件。
+
+卡片的终态后接续按“[扩展、卡片与材料](#扩展卡片与材料)”。tryFinish 在同一次提交固定每个尚需处置的 Passage 与 CardRound、原卡片请求集合、已有卡片、已知答复、原 present、lookup 与 invalidate 操作及精确采用。已有答复不能丢。requested 但 present 结果未知时，责任不是“无卡片”，而是沿同一 passage、round、original 与请求身份集合调用现有 lookup。没有 runtime 时，长期 reconcile 按下列规则处理：lookup 返回 presented 后取得原 cards；not-presented 只有排除了原呈现和迟到呈现才可关闭该项；unknown 或 unavailable 保留原待办；对存在的卡片，用稳定派生的同一 invalidate operation 调用现有 invalidate，reason 指向原终态处置；答复与作废在同一排序中裁定，已成立的答复保留，其余卡片作废；返回丢失时以同一 operation 重试 invalidate，不创建新卡片或新的 invalidate 身份。invalidate 同 operation 同输入认回原结果，异输入 conflict，由原提供者保证迟到调用不重复作废。
+
+Journal 在清单中保存每项的完成或未定结果。`reconcile` 返回的 remaining 是 ConsumptionId 列表，不列出全部卡片责任；它的 evidence 可以绑定完整对账轮次，调用者仍须从 `load.finishObligations` 判断剩余的非结果职责。remaining 为空不证明全部交清。
+
+#### 保管变体
+
+`AgentJournalFinishing` 提供 `commitSettlement`。每个请求含 ExecutionMutation；候选、迁移和判断变体另含 expected 与取消 FinishAuthorization。它们没有 checkpoint、effects、events、CallerCommit、replyAdmission 或任意 state 字段。变体的新记录以建立记录的 AgentOperationId 为身份，复用现有租户、execution、operation、revision、Passage、CardRound、消费位置、结果版本、控制身份与 Adoption，不新增 ID 命名空间。迁移记录 M 记录一次政策切换，不作为旧 F2 的调用身份；判断记录 J 记录一次精确输入的只读判断，不作为作者 Passage；卡片事实登记 K 记录一次原卡片责任的对账，不作为呈现身份；旧调用返回登记记录一次已开始作者调用的迟到返回，不作为新的作者调用或输出采纳身份；Tool 关联保管登记 R 保存原 invoke 已返回的身份事实，是 Agent 记录操作，不是 Tool call、admission 或控制操作。
+
+| kind | 调用者的其他输入 | Journal 唯一允许的新事实 | 完整成功结果 |
+| --- | --- | --- | --- |
+| establish-cancellation | installation 依据；前一个当前 candidate 或 null | 从当前权威的取消、checkpoint、输入边界与条件建立固定候选 C，C 等于本 operation。固定新 route；取代 complete 或 failed 候选时保存替代链接及旧责任。beforeTerminal 与 obligations 为 null | receipt、完整 candidate、完整 route、替代记录或 null |
+| migrate-cancellation | candidate C；originalRoute 依据；installation 依据；priorExcluded 的完整前驱记录或 null | 保存 M 和完整旧恢复截面，切换 C 的 route，清空当前证明指针，不改 C 的业务内容 | receipt、完整 MigrationRecord、当前 route |
+| judge-cancellation | candidate C；route 依据；installation 依据 | Journal 构造权威输入，调用已安装的判断实现，保存 J、完整结果及当前判断指针 | receipt、完整判断记录。允许、阻塞与未定都是一次真实判断的成功保存 |
+| record-card-reconciliation | 原 card-round 责任键；原 route 与 candidate；固定的原 lookup 或 invalidate 操作引用 | 经已安装的卡片拥有者适配读取并核验原结果，只合入原卡片责任的新事实和处置 | receipt、该轮完整原责任及当前处置 |
+| record-legacy-return | 原 PassageId、原 candidate 与 route、原 invoke 的固定请求依据、原执行宿主保存的返回记录依据 | 核验该调用在取消围栏前已开始，追加真实迟到返回及其材料保管引用。保留旧 progress，不采纳输出 | receipt、完整迟到返回记录 |
+| record-tool-association | 原 Tool intent 键、固定原请求依据、原宿主的不可变返回 source、priorExcluded 或 null | 只读取并核验 accepted 或 commit-unknown 的原返回，保存既有引用及来源，合入原 call 责任。没有 ProducedResult 也可登记 | receipt、完整 ToolAssociationRecord，含原 Tool 返回和本次固定的责任投影 |
+
+前三个变体不接受调用者给出的判断结果、beforeTerminal 或迁移进度。source 不可读取时返回 unavailable。establish-cancellation 从当前权威读取构造候选，不给调用者任意业务快照的写口；需要新候选时，新建立请求必须指出真实的当前前驱 candidate。establish-cancellation 不能取代“旧 cancelled 候选加作者 route”的情形，该情形只能 migrate-cancellation。judge-cancellation 成功回执的 state 为 applied，表示判断记录已保存，不表示判定为 allowed。后三个变体是保管变体：使用当前 reconcile 资格，不用取消授权，不要求旧 advance，允许合法 ended 后调用，合并原事实而不带 expected 的整快照替换。它们的回执只表明各自事实已保存，不能据此推断 execution 已 ended。record-card-reconciliation 只认回旧 lookup、read 与 invalidate，不调用 present，不生成人的答复，不运行扩展；未知结果只能登记为原责任的 unknown。record-legacy-return 不接受调用者直接上传新的 Conclusion；返回源不能验证时保持未定，恢复不能重调作者补造它。生产者、结果、控制和观察仍走已有专用方法。
+
+`AgentAccessOperation` 增加 settle 与 migrate-cancellation，使用现有 execution 目标。settle 只授取消候选建立、判断和终结收束；migrate-cancellation 另授政策切换。迁移者须同时具备两者。终态后卡片、旧作者返回和 Tool 关联登记使用当前 reconcile 保管资格，不要求旧推进权。取消 control、旧 Authority、旧 allowed 或调用者给出的 source 都不能自行授予这些资格。
+
+commitSettlement 的判定顺序如下。
+
+1. 校验封闭形状、租户及本次操作资格。拒绝为 denied，核验不可用为 unavailable，不披露原记录。
+2. 查原 operation 的绑定。同输入返回原完整结果，异输入返回 conflict。原操作未定时先恢复原 operation，不用新的生命周期检查代替它的历史结果。
+3. 对新的候选、迁移或判断请求，ended 返回 terminal。当前取消必须有效，取消 source 必须匹配原已保存的控制。没有当前收束或迁移资格为 denied，不返回 stale-advance。
+4. 当前 installation 或旧 route 确定不再适用、expected 过期、当前 candidate 已改变时返回 Failure.changed。指错 candidate 或 route 种类、伪造控制关系等形状或目标错误返回 invalid。不可确认来源或完整性返回 unavailable。
+5. 候选同身份配不同固定内容返回 conflict。迁移只接受尚未切换的原 route；另一个 operation 对已迁移 route 不新建第二次迁移，也不冒充认回，返回 changed。
+6. 在同一权威提交中核最终条件，保存新记录、相应指针与责任、完整原操作结果和一个新 revision。提交不能确定时返回 commit-unknown。
+
+本方法不以业务判断 blocked 或 unknown 返回 conflict，也不生成“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)”的持久拒绝审计。invalid、denied、changed 与 terminal 是无写入拒绝；提供者不能证明未写入时只能返回 commit-unknown。原成功认回可以在 ended 后发生，仍需当前认回资格。
+
+M 的身份按“并发与提交”的稳定派生法派生：要素为租户、execution、固定前驱 revision、种类 migrate-cancellation、candidate、原 route 与链位置。首个 M 的链位置为 root，后继位置为 successor 加直接前驱被排除 M 的 operation。即使 revision 没变，successor 与 root 也产生不同身份；相同快照、相同前驱链的恢复者得到相同 M。同 M 异输入 conflict。提交处先核该 route 的完整操作索引，存在任何未定 M 就只恢复它。只有已有迁移请求被可靠排除且不能迟到，才可提出后继，且必须引用被排除 M 的完整原请求、权威排除依据和上一链位置。排除链必须可追溯到 root，不能截断、循环或把 query 的空读写成排除。最多一个 M 能切换当前 route。重启先查完整链和未定槽，不从最新 revision 派生新号绕过它。
+
+MigrationRecord 公开下列字段，不以迁移成功布尔值替代。
+
+| 字段 | 内容 |
+| --- | --- |
+| operation、receipt | M 及其固定成功结果 |
+| candidate、control | 原 C 与适用的 cancel control |
+| from | 原 route 的完整不可变值、旧政策 Adoption、原 definition 与 schema、原 beforeTerminal、每项精确扩展 Adoption |
+| progress | 每项旧 F2 条目的精确已知进度及原记录依据。条目是 not-started 或 recorded 之一：not-started 保存原计划位置、声明、精确 implementation、预定 PassageId（若有）及排除旧发起与迟到发起的权威依据；recorded 保存完整原 Passage 及其不可变版本引用 |
+| to | 新 policy、implementation 与 inputSchema 采用、installation、当前治理准入记录 |
+| qualification | 本次 settle 与 migrate-cancellation 的授权归因、目标、治理签发方、当前检查依据 |
+| fence | 该取消及本次迁移在权威序列中的旧写排除依据，旧挂接与协议版本约束 |
+| coverage、obligations | 本次完整原责任闭包及迁移时各项处置。可以有明确的 pending 或 unknown，不可缺失项 |
+| supersession | 原 route 被 M 替代、新 route 由 M 建立，双向可读；旧 C 被新 C 替代时另保存候选链 |
+| priorExcluded | null 表示 root；否则保存直接前驱被排除 M 的 operation、完整原请求、权威排除依据及可解析到 root 的完整链 |
+
+M 的 progress 是迁移时的截面，不随迟到答复变动。迁移后迟到的事实另按原身份保存，当前责任投影链接到最新拥有者记录。原 Passage 的业务进度不再从 requested 推到 applied。
+
+Tool 未清责任的键是（租户、execution、kind 为 tool、原 effect-intent 建立操作、action、完整 position）。它沿首次持久意图固定，不使用后来得到的 Tool 引用、当前 checkpoint 位置、当前挂接或新随机 ID；原关联出现后也不改键。即使尚无 reference、ProducedResult 或 ActionSlot，该 intent 也占一项 call 责任，并有原 operation 和材料责任；旧 checkpoint 被替换只改变当前位置，不删除该责任。Tool 的关联事实按同一 intent 聚合并保留来源历史：无引用为 no-proven-reference；有引用且原返回为 commit-unknown 时身份已知而受理未定；有 accepted 回执时保存该已受理事实及原回执。后到的 rejected、无引用或 commit-unknown 不把已知引用或已受理事实降回未知。不同 call 或 admission 的引用不合并为同一关联。
+
+record-tool-association 的来源协议如下。调用者只提交原 intent 键、固定请求记录和受信返回 source，不直接上传 ToolInvocationRef 或 ToolInvokeOutcome。Journal 经受控安装的原宿主读取适配取得 source 的完整不可变内容。source 只证明原调用的实际返回，不能是当前调用者自签的 Evidence、只含摘要的日志或重新调用 Tool 的回调。受信宿主记录须包含原 intent 键、完整原请求或可解析固定引用、原租户及主体归因、真实发送依据、完整的 accepted 或 commit-unknown 返回、收到返回的事实版本及耐久保管承接依据。Journal 核完整原请求一致及 consumer 投影，按公开 resolveToolInvocationRef 核规范租户、call 与 admission，并核原真实入口与调用来源。字符串可解码只证明形状，不证明该返回真实。原宿主仍保管 association-unknown 或 rejected 的真实返回，这些返回不提供新引用，不能交本变体伪装成有关联的返回。
+
+接收与交接的顺序如下。
+
+1. 发送原 invoke 前，Journal 已保存原 intent、fixed 和 effect intent。调用宿主固定接收责任，承接原请求和返回保存职责，该承接进入原责任闭包。已有在途旧记录没有此承接证据时，迁移保留缺项，不追认已耐久。
+2. 原 invoke 的在途调用返回时，宿主先把返回和原绑定保存到自己的耐久保管记录，再向上层确认已收到或释放该响应。取消和 runtime 结束只停止新业务，不销毁这个存续保管者。
+3. 当前合格恢复者用固定 source 发出 R。Journal 在同一次权威提交保存关联、来源、原责任投影、R 的完整结果及一个新 revision。它不 invoke、admit、wake、执行 Tool、发控制、写 ActionSlot、推进 checkpoint 或产生事件。
+4. Journal 成功只确认已可靠接收该关联事实。宿主确认 query(R) 为 committed 并认回原完整结果后，才可按保留下限释放自己的冗余副本。
+
+返回进入内存但尚未耐久的瞬间不是可靠接收。宿主在此窗口失效且 Tool 没有可合法查询的来源时，保持原 intent 的具名 unknown，不声明已保存引用。可靠保存之后，超时、撤权或 Journal 不可用都不删除 source。
+
+R 固定原方法、租户、execution、intent、fixed、source 和 priorExcluded；当前 Access 是每次使用时的授权输入，与原主体归因分开。它不带 expected，不用旧整快照替换当前责任。首个 R 由原 intent 键、固定 source 的 owner、record、revision 与 digest、种类 record-tool-association 及 root 槽稳定派生；派生不使用最新 execution revision 或当前 Access。两个恢复者读取同一 source 时得到同一 R。新 source 是新事实，使用新 R。同 R 重试不换 source、不补 accepted.state，也不重新读取当前 Tool 来改写原结果。query(R) 为 committed 后，原方法按同 R 同完整输入返回原 ToolAssociationRecord。R 被可靠 excluded 后，具备当前 reconcile 资格的恢复者可以提交新 R，输入携该 R 的完整原请求与排除链，新 R 的派生加入直接被排除的 R 和同一个 source；这只是原事实的首次可靠保存，不是 Tool 重发或业务重新准入。不同 source 可以记录同一规范引用的另一份真实返回，它是新增观察事实，分配新 revision；已有 accepted 不被后到的 unknown 降级。
+
+| 本次条件 | 返回及继续责任 |
+| --- | --- |
+| 当前 reconcile 或来源读取资格拒绝，或所供目标跨租户 | denied，在披露原 intent、R 或 source 前处理。原宿主继续保管 |
+| 当前资格不能确认，或新 R 的来源读取、材料或可信绑定不可确定 | unavailable，保留原 R、source 和具名缺项。证据缺失不等于无调用。原成功从已保存结果恢复 |
+| 原 R 同完整语义输入已经成功 | 返回原完整结果，先于当前 route、ended 或新写检查。异输入 conflict |
+| 新 R 的本域目标不存在，且读取完整 | invalid，field 为 intent。缺页或损坏不能当不存在。非 Tool 目标 invalid |
+| 新 source 没有 accepted 或 commit-unknown 返回，或不匹配原请求与真实入口 | 可确定的形状或目标错误 invalid；伪造身份或来源 denied；来源真实性不能确定 unavailable。均不写关联 |
+| 原规范引用已知，source 却给出不同的 call 或 admission | conflict。原关联不变，宿主保留矛盾的原返回及恢复责任 |
+| 新 R 不符合稳定派生，或绕过该 source 的未定 R | invalid，field 为 operation。不登记第二份同 source 成功 |
+| 新 source 指向原合法责任，事实可合入 | 同提交保存本次新事实、完整结果与 revision。结束前后均适用，无旧 advance 要求 |
+| 是否已写不能确定 | commit-unknown，只 query 原 R |
+
+原返回记录损坏按 unavailable 暴露具体拥有者诊断，外租户原材料按 denied 保护。上述错误不增加 Failure 成员，不生成持久拒绝审计。
+
+R 与 tryFinish 使用同一个 execution 的权威序列。R 先提交时，新关联、原返回及其责任构成新 revision，旧 expected 的 tryFinish 返回 changed，重读后重新核对。finish 先提交时，必须已把该原 intent 及合法后续接收责任收入最终清单；此时 R 只补原责任事实，不改最终清单原版、候选、判断、终态内容、checkpoint 或末事件，当前责任投影和 revision 可以更新。原未知会影响终结合法性时，finish 本来就必须 unavailable，不能先 ended 再靠 R 补救。返回源先保存而 R 尚未提交时，原宿主仍拥有返回；finish 不能把“Journal 尚未见 reference”当“无调用”，也不能把尚未可靠接收的响应标为 held。ended 后发现新事实与原终结前提冲突时，保留真实源与诊断，交具名拥有者处理，不重写历史或重判 ended。
+
+`ExecutionSnapshot.settlement` 是完整的同 revision 投影，含当前 candidate 与 route、全部存续候选替代链、迁移记录、判断记录、未清责任引用、Tool intent 的稳定键与关联事实历史、ToolAssociationRecord 集合，以及迟到返回记录集合。无引用的 intent 不能从该集合与完整责任清单消失。历史材料可以在同 revision 的受限分页内返回，必须完整或 unavailable。读取不重入 Tool，不制造关联，也不创建新的问题记录或修复迁移。
 
 #### 终态后与 ended
 
-settling 保存本域完成意图、未决操作和交接责任。ended 与最后事件共同提交。长期 Journal 接管全部未确认输出和原结果责任后，runtime 即可释放执行槽并回 idle，不等待最后事件被调用方确认。旧 execution 继续读取、确认和保管原结果。业务终结与事件保管责任的释放分别记录，ended 不删除未确认的事件。
+settling 保存本域完成意图、未决操作和交接责任。ended 与最后事件共同提交。长期 Journal 接管全部未确认输出和原结果责任后，runtime 即可释放执行槽并回 idle，不等待最后事件被调用方确认。旧 execution 继续读取、确认和保管原结果。业务终结与事件保管责任的释放分别记录，ended 不删除未确认的事件。合法 ended 之后迟到的控制阶段事实按“[六个阶段](#六个阶段)”保存，不追加事件；迟到的结果、观察、保管登记与保管变体仍分配新 revision，终态结论、checkpoint 与最后事件不变，见“[执行修订](#执行修订)”。
 
-终态后观察责任使用稳定的 PassageId，与原终态、处置及扩展采用绑定。tryFinish 在提交终态时固定其完整集合，observed 为空表示待观察，调用方不能临时添加。load 返回这份台账，具备当前观察与记录资格的长期协调者逐项处理，不需要旧挂接的推进权。终态后判断只做纯观察，结果未知时按原操作查询。尚无完成记录的观察可对同一事实重新求值，不发外部效果。recordTerminalObservation 只为既有的待观察项登记完成，核对终态、原扩展调用、精确采用和证据。重复的同值登记认回，异值登记冲突。它不改 checkpoint、不追加事件、不重开输入、不创建效果。普通 commit 不得在已 ended 的执行上写回非终态。观察故障保留待办与原因，不撤终态，也不阻止已交清责任的 runtime 回 idle。此责任可交长期协调者，不要求 runtime 一直占用执行槽。EOF、对象退出和队列空都不是终态。
+终态后观察责任使用稳定的 PassageId，与原终态、处置及扩展采用绑定。tryFinish 在提交终态时固定其完整集合，observed 为空表示待观察，调用方不能临时添加。load 返回这份台账，具备当前观察与记录资格的长期协调者逐项处理，不需要旧挂接的推进权。终态后判断只做纯观察，结果未知时按原操作查询。尚无完成记录的观察可对同一事实重新求值，不发外部效果。recordTerminalObservation 只为既有的待观察项登记完成，核对终态、原扩展调用、精确采用和证据。重复的同值登记认回，异值登记冲突。缺目标、终态不匹配或尚不存在、采用不匹配的 invalid 字段，以及读取失败的 unavailable，按“[判定次序与失败映射](#判定次序与失败映射)”第 7 条。它不改 checkpoint、不追加事件、不重开输入、不创建效果。普通 commit 不得在已 ended 的执行上写回非终态。观察故障保留待办与原因，不撤终态，也不阻止已交清责任的 runtime 回 idle。此责任可交长期协调者，不要求 runtime 一直占用执行槽。EOF、对象退出和队列空都不是终态。
 
-确认只清理满足保留政策且责任已交清的事件，不能释放其他结果项的责任。ended 执行的事件与结果保留多久，是 Journal 提供者声明的可配置政策。契约只规定下限：存在未确认的事件、未交清的结果责任、待观察的终态后观察，或未释放的材料保管时，Journal 不得删除对应记录。保留期内，旧 execution 的输出、恢复和结果保管能力继续可用。Journal 与宿主的长期保管者不挂在 runtime 的可撤除 fiber 内。
+确认只清理满足保留政策且责任已交清的事件，不能释放其他结果项的责任。ended 执行的事件与结果保留多久，是 Journal 提供者声明的可配置政策。契约只规定下限：存在未确认的事件、未交清的结果责任、待观察的终态后观察，或未释放的材料保管时，Journal 不得删除对应记录。保留期内，旧 execution 的输出、恢复和结果保管能力继续可用。保留期内，已成功的原操作及获准认回操作的语义绑定、完整原结果与必要来源可以恢复；清理旧 checkpoint 或可清理事件不删除这些记录。存在未交清责任时，恢复它所必需的记录、原请求、迁移与判断记录、旧 route、Passage、卡片请求与答复、材料及排除依据至少受这一下限保护。提供者可以物化结果或压缩来源，但不能留下悬空的认回指针、使原结果漂移或复用旧身份。排除证明及围栏保存到旧尝试永久不能提交为止，普通 TTL 不构成该证明。Journal 与宿主的长期保管者不挂在 runtime 的可撤除 fiber 内。
 
-checkpoint 是 execution 当前状态的权威物化，不是状态历史。Journal 为每个 execution 保留最新已提交的 checkpoint；被后继提交取代的 checkpoint 可以在后继提交成功后立即删除。revision 在 execution 的保留期内单调递增，不复用。公开操作只读取当前 checkpoint；需要在被取代之后仍可解释的事实，由最终请求记录、Passage、结果责任、操作结果、终态观察台账和事件各自承载，不依赖旧 checkpoint。提供者可以为诊断保留历史版本，契约不读取它们。
+checkpoint 是 execution 当前状态的权威物化，不是状态历史。Journal 为每个 execution 保留最新已提交的 checkpoint；被后继提交取代的 checkpoint 可以在后继提交成功后立即删除。revision 的分配与失效规则见“[执行修订](#执行修订)”。公开操作只读取当前 checkpoint；需要在被取代之后仍可解释的事实，由最终请求记录、Passage、结果责任、操作结果、终态观察台账和事件各自承载，不依赖旧 checkpoint。提供者可以为诊断保留历史版本，契约不读取它们。
 
 #### 交接与停用
 
-detach 只适用于 active 的执行挂接。它同时保存原位置与责任并撤销该挂接，返回可核验的交接依据，成功交接后 runtime 才可回 idle。经恢复入口对仍存活的其他 runtime 的 active 挂接做 detach，另需 takeover 资格，见“[恢复与接管](#恢复与接管)”。对 superseded 的挂接发出新的 detach 返回 stale-advance，对已 detached 的挂接只认回既有交接。暂停控制的结果就是一次 detach 交接，execution 进入 suspended。暂停控制与这次 detach 的先后次序及其间崩溃的恢复待 #730 写回，见“[四种控制](#四种控制)”之后的说明。宿主停用实例和换代时的挂接交接同样使用 detach。失去业务资格时，detach 只允许认回既有交接，不写新的业务位置。reconcile 在无活体或 execution 已结束时仍可由合格的保管者处理原结果，不能据此发起新工作。生产者事实的登记与耐久保管由原消费拥有者承担，不能强迫旧的失效挂接重新通过推进检查。
+detach 只适用于 active 的执行挂接。它同时保存原位置与责任并撤销该挂接，返回可核验的交接依据，成功交接后 runtime 才可回 idle。经恢复入口对仍存活的其他 runtime 的 active 挂接做 detach，另需 takeover 资格，见“[恢复与接管](#恢复与接管)”。对 superseded 的挂接发出新的 detach 返回 stale-advance，对已 detached 的挂接只认回既有交接。暂停控制的结果就是一次 detach 交接，execution 进入 suspended。暂停控制与这次 detach 的先后次序及其间崩溃的恢复待 #730 写回，见“[四种控制](#四种控制)”之后的说明。宿主停用实例和换代时的挂接交接同样使用 detach。失去业务资格后的新 detach 返回 denied，不因旧挂接失效而返回 stale-advance；已成立的原交接仍按“[原操作认回与恢复](#原操作认回与恢复)”认回原交接依据，不写新的业务位置、挂接或责任。对 ended execution 的新 detach 返回 terminal。reconcile 在无活体或 execution 已结束时仍可由合格的保管者处理原结果，不能据此发起新工作。生产者事实的登记与耐久保管由原消费拥有者承担，不能强迫旧的失效挂接重新通过推进检查。
 
 quiesce 是 AgentRuntimeControl 的操作。它使 runtime 进入 draining，此后新的 invoke 与 resume 返回 unavailable。对本实例的全部责任完成交接后，它经登记句柄撤销本实例的登记，释放资源，返回 drained。任一交接未知时返回 unresolved 并报告剩余的 execution，不宣称 drained。quiesce 带操作身份：同一操作同一原因的重试认回原结果；已 unresolved 的重试继续交接并返回当前的剩余；对已在停用中的 runtime 发出的新 quiesce，认回进行中的交接，不创建第二个。Model 与 Tool 的独立执行不因 detach 与 quiesce 而取消，已发生的外部效果不声称可逆。
 
@@ -862,7 +1108,7 @@ events 是按需拉取的页序列。读取方消费得慢，只增加它落后�
 
 #### 确认
 
-acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连续前缀。读取方把事件事实与消费游标共同保存之后，才能提交确认。receipt 是读取方自己的处理依据，可以为 null。Agent 保存它用于追溯，不解释它的内容，只核对 through 单调且不超出已发出的序号。确认是单调的：重复的相同确认认回原回执，小于已确认前缀的 through 认回已确认的前缀而不回退，超出已发出序号的 through 被拒绝。确认回执丢失时重试原确认，保存结果未知时先查询原操作。确认只清理满足保留政策且责任已交清的事件。
+acknowledge 的 through 必须是已发出事件的序号，Agent 只确认连续前缀。读取方把事件事实与消费游标共同保存之后，才能提交确认。receipt 是读取方自己的处理依据，可以为 null。Agent 保存它用于追溯，不解释它的内容，只核对 through 单调且不超出已发出的序号。确认是单调的：重复的相同确认认回原回执，小于已确认前缀的 through 认回已确认的前缀而不回退，超出已发出序号的 through 被拒绝。被已确认前缀覆盖的确认按“[原操作认回与恢复](#原操作认回与恢复)”保存自己的请求与认回来源，不替换原前缀的推进依据，也不用自己的依据冒称更高的前缀已被该读取方处理；后来更高的确认成立后，重试原确认仍返回原回执，load 返回当前前缀。同一操作的 receipt 是语义输入的一部分，重试时不得静默换成另一依据。确认回执不公开认回时的前缀数字。确认回执丢失时重试原确认，保存结果未知时先查询原操作。确认只清理满足保留政策且责任已交清的事件，不自动结清事件保管或其他结果责任。
 
 #### 事件交付的四个层次
 
@@ -1091,10 +1337,10 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 
 | 操作 | 输入要点 | 成功返回 | 错误与未知 |
 | --- | --- | --- | --- |
-| AgentRuntime.invoke | Access、操作身份、调用方预先分配的 execution 身份、受理输入（内容、来源依据、优先级）、推进资格依据（可空） | 原 execution 的句柄 | busy；unsupported（装配的提交种类未声明）；unavailable（必需依赖缺席、主体资格核验不可用，或 runtime 处于 draining 或 disposed）；denied（无发起资格，或推进资格依据核对失败）；invalid（首个输入被消息准入拒收，字段为 value，原因为拒收原因；不创建 execution）；conflict（同一操作或同一 execution 身份配不同输入）；commit-unknown，先按原操作查询 |
+| AgentRuntime.invoke | Access、操作身份、调用方预先分配的 execution 身份、受理输入（内容、来源依据、优先级）、推进资格依据（可空） | 原 execution 的句柄 | busy；unsupported（装配的提交种类未声明；standalone 绑定收到非空推进资格依据或非空来源依据而缺少协调支持，写前返回）；unavailable（必需依赖缺席、主体资格核验不可用，或 runtime 处于 draining 或 disposed）；denied（无发起资格、推进资格依据核对失败，或 coordinated 绑定要求 grant 而收到空 grant）；invalid（首个输入被消息准入拒收，字段为 value，原因为拒收原因；不创建 execution）；conflict（同一操作或同一 execution 身份配不同输入）；commit-unknown，先按原操作查询 |
 | AgentRuntime.resume | Access、操作身份、原 execution、恢复依据（可含宿主的失联判断）、推进资格依据（可空） | 原 execution 的句柄 | 同 invoke；另有 changed（原修订已变化，或提交时发现旧挂接仍 active 而没有 takeover 依据）、terminal（原 execution 已终态）、unavailable（原记录或精确采用不可读）；denied 也包括接管时没有 takeover 资格 |
-| input.submit | Access、操作身份、原 execution、受理输入（内容、来源依据、优先级） | 命令回执，accepted 表示内容已可靠保存 | terminal；denied；unavailable；invalid（输入被消息准入拒收，字段为 value，原因为拒收原因；不保存为消息，见“消息准入”）；conflict（同一输入身份配不同内容）；commit-unknown |
-| control | Access、操作身份、原 execution、ExecutionControl 与原因依据；当前资格后先认回原 C，再为新 C 扫描 pending | 命令回执，accepted 只表示受理 | invalid（调用不属于该 execution；Tool 新 C 的畸形、缺少或歧义关联的 command.call 与精确 reason 见“控制接受与迟到引用”）；denied（含 Tool 引用外租户，action 为 control）；terminal（对已终态的 execution 只认回终态，不复活）；conflict；commit-unknown |
+| input.submit | Access、操作身份、原 execution、受理输入（内容、来源依据、优先级） | 命令回执，accepted 表示内容已可靠保存 | terminal（ended 之后的新输入）；denied；unsupported（standalone 绑定收到非空来源依据而缺少协调支持，写前返回）；unavailable；invalid（输入被消息准入拒收，字段为 value，原因为拒收原因；不保存为消息，见“消息准入”）；conflict（同一输入身份配不同内容）；commit-unknown |
+| control | Access、操作身份、原 execution、ExecutionControl 与原因依据；当前资格后先认回原 C，再为新 C 扫描 pending | 命令回执，accepted 只表示受理。受理事实、control 事件与原结果在同一原子边界成立 | invalid（调用不属于该 execution；Tool 新 C 的畸形、缺少或歧义关联的 command.call 与精确 reason 见“控制接受与迟到引用”）；denied（含 Tool 引用外租户，action 为 control）；terminal（对已终态的 execution 只认回终态，不复活）；conflict；commit-unknown，继续按原 operation 查询，不降为 excluded |
 | output.read、output.events | Access、execution、after，以及 limit 或 signal | 事件页或缺口 | invalid（after 不属于该 execution，limit 非正或超过上限）；denied；unavailable |
 | output.acknowledge | Access、操作身份、execution、through、读取方的处理依据（可空） | 命令回执 | invalid（through 超出已发出序号）；denied；unavailable；conflict（同一操作配不同 through）；commit-unknown |
 | AgentHandle.observe | Access、signal | 状态投影序列 | 序列以 ended 结束，原因是 closed、denied、retired 或 unavailable |
@@ -1104,16 +1350,18 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentInstanceHost.withdraw | Access、操作身份、instance、登记身份 | 登记状态，withdrawing 或 withdrawn | denied；conflict；unavailable。已被取代的登记返回 withdrawn，不影响后继 |
 | AgentRegistrationHandle.withdraw | Access、操作身份、原因依据 | 本实例当前登记的状态，本实例当前没有登记时为 null | denied；conflict；unavailable |
 | AgentRegistrationHandle.report | 当前 AgentState | 无 | 不返回错误。宿主不可用时活体观察以 unavailable 结束，不影响执行 |
-| AgentExecutionRecovery.query | 指向被查询原操作的 ExecutionMutation | committed、excluded 或 unknown | denied；unavailable |
-| AgentExecutionRecovery.load | Access、execution | ExecutionSnapshot | denied；unavailable（投影未覆盖原子快照的事实范围） |
-| AgentExecutionRecovery.reconcile | ExecutionMutation | 剩余责任与依据 | denied；unavailable；conflict |
-| AgentExecutionRecovery.detach | ExecutionMutation、挂接资格、原因依据 | 交接依据 | denied；changed；stale-advance（挂接已 superseded）；commit-unknown。挂接已 detached 或失去业务资格时只认回既有交接 |
-| AgentJournal.open、attach | ExecutionMutation、instance、推进资格依据、受理输入或恢复依据、初始 checkpoint；attach 另带 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败；attach 对已 ended 的 execution 返回 terminal |
-| AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；unavailable（含：提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试，见“[提交参加者协议](#提交参加者协议)”）；unsupported；stale-advance（旧挂接）；invalid（`events` 含 `entry` 或 `ended` 事件体。类型已排除它们，调用方绕过类型时得到这个结果，field 为 `events`，reason 是诊断文本，写明是哪一种事件体由 Journal 分配，不作为契约） |
-| AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied；unavailable |
-| AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执 | conflict（原 R 异输入；所供附件的 call、admission 不等于原调用；已有 toolOperation 与所供附件为不同操作身份）；denied（含所供或保留引用外租户）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 或已有 toolOperation 损坏，owner 为 AgentJournal，diagnostic 分别为 invalid-retained-tool-invocation、invalid-retained-tool-operation） |
-| AgentJournal.tryFinish | 完成授权、expected、完成意图 | ended、changed 或 blocked | stale-advance；denied；unavailable（含：提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
-| AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；denied；unavailable |
+| AgentExecutionRecovery.query | 指向被查询原操作的 ExecutionMutation | committed（带原 CommandReceipt）、rejected（带原固定的 conflict、审计依据与 revision，只来自 recordControl）、excluded（带排除依据）或 unknown，见“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)” | denied；unavailable。查询失败保持未知 |
+| AgentExecutionRecovery.load | Access、execution | ExecutionSnapshot，含 finishObligations 与 settlement | denied；unavailable（投影未覆盖原子快照的事实范围，或不能完成同一修订的一致读取） |
+| AgentExecutionRecovery.reconcile | ExecutionMutation | 剩余责任与依据。remaining 只列 ConsumptionId，不列出全部卡片责任 | denied；unavailable；conflict |
+| AgentExecutionRecovery.detach | ExecutionMutation、挂接资格、原因依据 | 交接依据 | denied（含失去业务资格后的新 detach）；changed；stale-advance（新 detach 的挂接已 superseded）；terminal（ended 之后的新 detach）；commit-unknown。挂接已 detached 时只认回原交接依据 |
+| AgentJournal.open、attach | ExecutionMutation、instance、推进资格依据、受理输入或恢复依据、初始 checkpoint；attach 另带 takeover 依据（可空） | 命令回执与新授予的 Authority | 同 invoke 与 resume，但 busy 在 runtime 预约槽时已返回；denied 也包括推进资格依据缺失或核对失败，以及 coordinated 绑定要求 grant 而收到空 grant；unsupported 也包括 standalone 绑定收到非空 grant 或来源依据而缺少协调支持（写前返回）；attach 对已 ended 的 execution 返回 terminal；attach 核对 execution 首次建立时固定的协调关联，不允许经另一个绑定降级 |
+| AgentJournal.commit | 条件提交的全部内容，含调用方交接 | 命令回执 | changed；commit-unknown；conflict；terminal（ended 之后的新 commit）；unavailable（含：核验不可用或暂时的依赖故障；提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试，见“[提交参加者协议](#提交参加者协议)”）；unsupported；stale-advance（旧挂接，先于 terminal 与 changed）；invalid（`events` 含 `entry` 或 `ended` 事件体。类型已排除它们，调用方绕过类型时得到这个结果，field 为 `events`，reason 是诊断文本，写明是哪一种事件体由 Journal 分配，不作为契约）。次序见“[判定次序与失败映射](#判定次序与失败映射)” |
+| AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied（当前保管或处理资格失效，不因旧挂接失效返回 stale-advance）；unavailable。合法责任可在 ended 后登记 |
+| AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执。新适用阶段事实、control 事件与原结果在同一原子边界成立；ended 之后只保存三种合法迟到阶段，不追加事件 | conflict（原 R 异输入；所供附件的 call、admission 不等于原调用；已有 toolOperation 与所供附件为不同操作身份；新证据与已成立阶段或原终结前提矛盾，此时按“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)”保存审计并推进 revision）；denied（含所供或保留引用外租户）；terminal（阶段适用，但在 ended 之后新建立意图、撤销资格或其他终态前效力）；invalid（target 不存在、阶段不适用、新 R 畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 或已有 toolOperation 损坏，owner 为 AgentJournal，diagnostic 分别为 invalid-retained-tool-invocation、invalid-retained-tool-operation）；commit-unknown（含审计提交未定，保留原 operation） |
+| AgentJournal.prepareFinish | ExecutionMutation、终结授权、expected、candidate | 命令回执与清单依据 obligations，同提交保存清单与 `intent.obligations` 并推进一个 revision | denied；unavailable（当前资格、来源或完整闭包不可确定）；changed（expected 或实质前提失效）；conflict（candidate 同身份配不同业务内容）；invalid（形状错误）；terminal（ended 之后的新请求）；commit-unknown。见“[终结责任清单](#终结责任清单)” |
+| AgentJournal.tryFinish | 完成授权、expected、完成意图（含 candidate 与已发行的 obligations） | ended、changed 或 blocked（类别为 inputs、controls、operations、passages 或 custody），见“[条件终结](#条件终结)” | stale-advance；denied；terminal（ended 之后的新请求；原成功的同输入重试先认回）；invalid（obligations 未发行、伪造或指向另一个 candidate）；conflict（candidate 同身份配不同业务内容）；unavailable（含：原操作未知或必要来源不可用；核验不可用或暂时的依赖故障；提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
+| AgentJournal.commitSettlement | ExecutionMutation 与变体输入；候选、迁移与判断变体另带 expected 与取消授权 | 该变体的完整成功结果，见“[保管变体](#保管变体)” | denied；unavailable；conflict；changed；invalid（含 field 为 intent 或 operation）；terminal（新的候选、迁移或判断请求遇 ended）；commit-unknown。次序见同节的判定顺序 |
+| AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；invalid（观察项不存在，field 为 passage；终态不匹配或尚不存在，field 为 terminal；采用不匹配，field 为 implementation）；denied；unavailable（读取失败或投影不全，不推成观察项不存在） |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |
 | AgentRuntimeControl.quiesce | Access、操作身份、原因依据 | drained 或 unresolved，附剩余 execution 与依据 | denied；conflict；unavailable |
 | AgentJournalEntries.record | ExecutionMutation、Authority（`received` 为 null）、接收面条目 | 命令回执 | stale-advance（挂接已被取代或推进资格已撤销）；terminal（ended 之后写 `start-fence`）；invalid（推进者条目缺 Authority，field 为 authority）；conflict（同一操作配不同条目，或同一交付键配不同内容）；denied（跨租户，含调用引用的租户与 Access 不同）；unavailable；commit-unknown。见“[日志条目](#日志条目)” |
@@ -1128,19 +1376,21 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | invoke | 租户与 runtime 绑定一致；主体资格（invoke），目标是该实例；推进资格依据由 Journal 提供者核对 | 操作身份加 execution 身份，同输入认回原结果 | 单执行槽；并发的新 invoke 返回 busy | 无。受理不追加事件。execution 的第一个事件由 open 之后首次产生事件的提交分配，不固定为某一种事件 | 创建 execution，runtime 由 idle 进入 occupied |
 | resume | 主体资格（resume），目标是原 execution；快照显示旧挂接仍 active 时另核主体资格（takeover），目标同上；推进资格依据 | 操作身份 | 单执行槽；attach 按“恢复与接管”选择路径 | 新事件带新挂接身份 | 恢复：execution 由 suspended 回到 reconciling，新挂接 active，旧挂接保持 detached。接管：execution 由 reconciling、advancing、waiting 或 settling 回到 reconciling，新挂接 active，旧挂接 superseded |
 | input.submit | 主体资格（submit），目标是原 execution，不要求持有挂接 | 操作身份加输入身份 | 与 tryFinish、control、attach 同一排序，先成立者决定结果 | 无。可靠受理不表示输入已被取用。input-taken 只由 I0 固定输入批的那次提交追加 | execution 已终态时返回 terminal |
-| control | 主体资格（control），目标是原 execution；扩展发起的控制标明真实来源，不伪造人的决定 | 操作身份 | 与 tryFinish 同一排序；控制通道独立于输入队列，不被长 I/O 饿死 | 每个阶段事实一个 control 事件 | 见“取消、退出与结构变更”的四种控制、插队与六个阶段 |
+| control | 主体资格（control），目标是原 execution；扩展发起的控制标明真实来源，不伪造人的决定 | 操作身份 | 与 tryFinish 同一排序；控制通道独立于输入队列，不被长 I/O 饿死 | 受理事实一个 control 事件，与原结果在同一原子边界成立；同操作同输入认回不重复分配 | 见“取消、退出与结构变更”的四种控制、插队与六个阶段 |
 | output.read、output.events | 主体资格（read 或 events），目标是原 execution；读取资格不等于推进资格 | 只读 | 多个读取方互不影响；慢读取方不阻塞推进 | 无 | 保留期内终态后仍可读 |
 | output.acknowledge | 主体资格（acknowledge），目标是原 execution | 操作身份加 through | 单调，不回退 | 无 | 只清理满足保留政策且责任已交清的事件 |
 | AgentHandle.observe | 主体资格（observe），目标是该实例 | 只读 | 每个订阅的缓冲受字节上界约束，超出时该订阅结束 | 无 | 登记撤除或拒绝时以 ended 结束 |
 | resolve、connect | 目录核验主体资格（resolve 或 connect），目标是该实例；租户一致 | 只读 | 无 | 无 | 只对 published 登记有效 |
 | reserve、publish、withdraw | 宿主核验主体资格（reserve、publish 或 withdraw），reserve 的目标是 scope 与 definition，其余的目标是该实例；租户与实例的租户一致 | 操作身份 | 同一实例的目录条目指向最新登记，被取代的登记转入 withdrawn | 无 | 登记 published、withdrawing、withdrawn；执行结束不改变登记 |
 | 登记句柄的 withdraw 与 report | withdraw 由宿主核验主体资格（withdraw），目标是本实例；report 只接受本实例的状态，不核验主体 | withdraw 带操作身份；report 只更新投影 | 只作用于本实例当前的登记 | 无 | report 不改变登记；withdraw 使登记进入 withdrawing 或 withdrawn |
-| query、load、reconcile | 主体资格（query、load 或 reconcile），目标是原 execution；不要求旧挂接有效 | query 与 load 只读；reconcile 带操作身份 | reconcile 不发起新工作 | 无 | execution ended 之后仍可调用 |
-| detach | 主体资格（detach），目标是原 execution；另核当前挂接是 active，或认回既有交接；经恢复入口且目标挂接属于仍存活的其他 runtime 时，另核主体资格（takeover） | 操作身份 | 与 attach 同一排序 | 无 | 挂接由 active 进入 detached；runtime 交清责任后回 idle。superseded 的挂接返回 stale-advance |
-| Journal.open、attach | 在 invoke 或 resume 之内调用；另核推进资格依据，租户与 runtime 绑定一致；接管路径另核 takeover 依据 | 操作身份 | 单执行槽预约；条件核对修订号与围栏 | 无 | 授予新挂接 active。恢复路径不改变旧的 detached 挂接，接管路径在同一提交中使旧挂接 superseded |
-| Journal.commit | 在已核验的操作之内调用；另核当前挂接的资格与 expected 修订号 | 操作身份，同语义输入返回原结果 | 条件提交；changed 后重读 | 提交内的事件获得连续序号 | 不能写 ended |
-| Journal.recordResult、recordControl | 在已核验的操作或 reconcile 之内调用；另核当前合法保管方或处理方，不要求旧挂接有效 | 操作身份 | 与 commit 同一排序 | 阶段事实投影为 control 事件 | execution ended 之后仍可调用 |
-| Journal.tryFinish | 在已核验的操作之内调用；另核推进授权或取消授权 | 操作身份 | 与 submit、control、attach 同一排序 | 与终态共同提交 ended 事件 | execution 进入 ended，runtime 随后回 idle |
+| query、load、reconcile | 主体资格（query、load 或 reconcile），目标是原 execution；不要求旧挂接有效 | query 与 load 只读，不写认回；reconcile 带操作身份 | reconcile 不发起新工作；load 返回同一修订的完整视图或 unavailable | 无 | execution ended 之后仍可调用。读取不推进 revision |
+| detach | 主体资格（detach），目标是原 execution；另核当前挂接是 active，或认回既有交接；经恢复入口且目标挂接属于仍存活的其他 runtime 时，另核主体资格（takeover） | 操作身份。已 detached 的目标认回原交接依据 | 与 attach 同一排序 | 无 | 挂接由 active 进入 detached，分配新修订；runtime 交清责任后回 idle。superseded 的挂接返回 stale-advance，失去业务资格返回 denied，ended 返回 terminal |
+| Journal.open、attach | 在 invoke 或 resume 之内调用；另核推进资格依据，租户与 runtime 绑定一致；接管路径另核 takeover 依据；coordinated 绑定在同一次提交中核对外部资格、关联与接管条件 | 操作身份。原 operation 恢复原回执与 Authority，不让旧 Authority 重新有效 | 单执行槽预约；条件核对修订号与围栏；写前核对绑定模式 | 无 | 授予新挂接 active。open 建立初始修订；attach 的每个真正的新挂接分配新修订。恢复路径不改变旧的 detached 挂接，接管路径在同一提交中使旧挂接 superseded |
+| Journal.commit | 在已核验的操作之内调用；另核当前挂接的资格与 expected 修订号 | 操作身份，同语义输入返回原结果；不新增跨 operation 的等值去重 | 条件提交；changed 后重读 | 提交内的事件获得连续序号 | 不能写 ended；ended 之后的新 commit 返回 terminal |
+| Journal.recordResult、recordControl | 在已核验的操作或 reconcile 之内调用；另核当前合法保管方或处理方，不要求旧挂接有效 | 操作身份；同控制、阶段、状态与来源的既有事实认回，unresolved 到 reached 是新事实 | 与 commit 同一排序；recordControl 与 tryFinish 共用权威排序，ended 不越过尚未成立的对应事件 | recordResult 无事件，producer 事件由后继有资格的条件提交承担；recordControl 的每个新适用阶段事实一个 control 事件，与原结果原子保存，ended 之后不追加 | execution ended 之后仍可调用：recordResult 登记合法责任，recordControl 只保存 producer-confirmed、physically-stopped 与 duty-released 三种真实迟到事实；矛盾证据返回 conflict 并保存审计 |
+| Journal.prepareFinish | 在已核验的操作之内调用；另核终结授权与 expected 修订号 | 操作身份，同输入认回原清单 | 与 commit 同一排序 | 无，不改 checkpoint | 发行清单与 `intent.obligations`，分配新修订；ended 之后的新请求返回 terminal |
+| Journal.tryFinish | 在已核验的操作之内调用；另核推进授权或取消授权、candidate 与已发行的 obligations | 操作身份 | 与 submit、control、attach、recordControl 同一排序 | 与终态共同提交 ended 事件 | execution 进入 ended，runtime 随后回 idle；之后的新请求返回 terminal |
+| Journal.commitSettlement | 候选、迁移与判断变体以主体资格（settle，迁移另加 migrate-cancellation）核验，另核取消授权与 expected；保管变体以当前 reconcile 资格核验，不要求旧推进权 | 操作身份；M 与 R 按稳定派生，同输入认回原结果 | 与 tryFinish 同一权威序列 | 无事件，不改 checkpoint | 每个成功的新记录分配新修订；保管变体在 ended 之后仍可调用 |
 | Journal.recordTerminalObservation | 长期协调者以主体资格（record-terminal-observation）核验，目标是原 execution；另核观察与记录资格，不要求旧挂接有效 | 操作身份，重复同值认回 | 与 commit 同一排序 | 无，不追加事件 | 只为既有待观察项登记 |
 | Journal.inputs | 在已核验的操作之内调用；另核当前挂接的资格 | 只读，同一水位线返回同一批 | 与 submit 同一排序，只返回水位线以内已受理的输入 | 无 | 返回受理时保存的内容，不读取调用方另存的副本 |
 | Journal.readReplyAdmissions | 在已核验的操作或 load 之内调用；另核读取资格 | 只读，after 与 next 只在同一 execution、同一范围内有效 | 不阻塞推进 | 无 | 范围内缺页返回缺口，不把空页当作完成 |

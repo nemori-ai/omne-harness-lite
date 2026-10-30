@@ -252,7 +252,7 @@ stateDiagram-v2
 
 - 待拥有者：绑定的租户与安全作用域是否一致（`denied`）。`scope` 是 `DurableEvidence`，不携带租户，也没有依赖端口能在创建时判定它。
 - 待拥有者：精确采用 `binding.definition` 与 `loopGuardPolicy` 能否解析（`unavailable`），以及经定义判定 tools、admission 与 extensions 是否必需。`AgentAdoptions.resolve` 要求 `Access`，工厂不接收 Access。`loopGuardPolicy` 由循环判断这一受信系统扩展解析。#502 的 3.7 只在该位置接空实现，真实守卫由 7.1（阶段 7）实现。
-- 待 #558 M04-3：外部协调者的参加怎样声明。工厂只比对 `capabilities.participants` 能表达的 `CallerCommit` 种类。独立装配（`jointCommits` 为空）照常创建。
+- 尚未实现：契约要求工厂核对配置 `coordination` 与 Journal 绑定声明的 `capabilities.coordination` 严格相等，并逐种比对 `jointCommits`（SPEC [提交参加者协议](../agent-contract/SPEC.md#提交参加者协议)）。当前工厂只比对 `capabilities.participants` 能表达的 `CallerCommit` 种类。独立装配（`jointCommits` 为空）照常创建。
 - 待拥有者：`observe` 的 Access 缺租户或租户非法时，契约没有 `invalid` 的结束原因。当前实现不调用 `access.check`，以 `denied` 结束（失败即关闭）。
 
 #### 临时做法

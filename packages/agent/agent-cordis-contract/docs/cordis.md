@@ -241,7 +241,7 @@ runtime 在已核验的公开操作之内调用 Journal 时不再次核验主体
 
 ### Journal 提供者
 
-同一个 agentJournal 定义可由独立提供者或带提交参加者的提供者兑现。应用装配明确选择实际绑定，不能以有同名 Service 证明后者的共同提交能力。后者的提供者消费外部协调者的提交参加者，在受理时共同登记 Agent 输入引用，在 tryFinish 时共同裁定。这些依赖属于集成适配器，不传给纯 Agent。提供者在 `capabilities.participants` 中声明它能兑现的提交种类，工厂创建时与配置的 `jointCommits` 逐种比对，缺一种返回 unsupported，见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)”和[公开接口页](../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。条件投影和 Context 参加者同样只从原拥有者取得当前事实。
+同一个 agentJournal 定义可由 standalone 绑定或 coordinated 绑定兑现。应用装配明确选择实际绑定，不能以有同名 Service 证明后者的协调能力。coordinated 绑定消费外部协调者的参加，在 open、attach、submit 的受理或接管提交中共同核对来源、资格与关联，在 tryFinish 时共同裁定。这些依赖属于集成适配器，不传给纯 Agent。绑定在 `capabilities.coordination` 中声明自己的模式，在 `capabilities.participants` 中声明它能兑现的 CallerCommit 提交种类；工厂创建时核对配置 `coordination` 与声明严格相等，并与配置的 `jointCommits` 逐种比对，不相等或缺一种返回 unsupported，见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)”和[公开接口页](../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)。条件投影和 Context 参加者同样只从原拥有者取得当前事实。
 
 ### 通知
 

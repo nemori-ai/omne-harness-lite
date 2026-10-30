@@ -45,7 +45,7 @@
 
 | 编号 | 插件 | 方向 | 提供的键 | 调用 `session` 的调用方类 | 邻域操作 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- |
-| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现；生产插件未交付 |
+| [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、tryFinish 的只读核对；coordinated 声明待 attach 核对条款（见 AD-01）；生产插件未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | `reader`；下界读取为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
@@ -73,6 +73,7 @@
 - 注入：`session`，调用方类 `coordinator`。
 - 提供：参加 Session 自己的日志提交。AgentJournal 提供者与 Session 参加者共用一个发布边界，不另接一个执行记录事实库。首次发布共同保护 Agent 原事实、适用的四种 CallerCommit 参加事实与 Agent 原操作答案。received 的完整材料、消费绑定与 saved 也在其原提交中共同可见。打开、交入与条件终结的 Session 参加只读核对，并在发布时复核修订。SE14/18/19/22/25/26 等后续解释及其进度不属于此批，按 AD-02 另笔提交。首次发布前失败该批全无，发布后丢答复按 Agent 原操作认回。原有四种交接翻译如下。
 - 参加种类：本插件只声明 `message`、`context-transition`、`custody`、`processed` 四种（[PA-04](../session-contract/SPEC.md#pa-04)）。装配用它比对执行记录提供者的 `capabilities.participants`。
+- 协调模式：会话日志一侧的执行记录提供者是 Agent 的 coordinated Journal 绑定，`capabilities.coordination` 为 `coordinated`，装配配置 `coordination` 与之相等（Agent SPEC 的[提交参加者协议](../../agent/agent-contract/SPEC.md#提交参加者协议)）。coordinated 绑定须在 `open`、`attach`、`submit` 与 `tryFinish` 四处完成协调核对。`open`、`submit` 与 `tryFinish` 的核对见下表；`attach` 在同一次接管提交中核对当前外部资格、原关联、恢复或接管条件及适用推进资格效果的条款，Session 正文尚未规定。该条款规定之前，本插件的执行记录提供者不能声明 `coordinated`。
 
 调用方交接到 Session 命令的翻译：
 
@@ -451,7 +452,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 | `control` | `agentExecutionControl.control` | 按下表翻译原控制意图，保留原 operation 与原因依据；不要求句柄或挂接 |
 | `detach` | `agentExecutionRecovery.detach` | 本插件先以 `load` 取目标挂接的 `Authority`，再带原因依据交还 |
 | `recordResult` | 合格保管方经 `reconcile` 内的 `recordResult` | 见 [NP-04](#np-04) |
-| `query` | `agentExecutionRecovery.query` | `excluded` 原样交回，等于 Session 的 `not-committed` |
+| `query` | `agentExecutionRecovery.query` | `committed`、`excluded`、`unknown` 原样交回，`excluded` 等于 Session 的 `not-committed`。`rejected` 只来自 Agent 的 `recordControl`，本端口不发起 `recordControl`，收到 `rejected` 是提供者违约，按下表“其他 `invalid`”处置为 `unavailable` 并报告翻译缺陷，不映成 `not-committed`、`unknown` 或 `committed` |
 | `inspect` | `agentExecutionRecovery.load` | 快照映射为 `ExecutionStatus`：执行状态、挂接状态、修订、结束结论与依据 |
 | `prewarm` | 无 | 不调用 Agent，返回 `unsupported`（[P-7](../session-contract/SPEC.md#具名前提与明确缺项)） |
 
@@ -476,6 +477,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 | `busy`、`denied`、`terminal`、`changed`、`stale-advance`、`unsupported`、`conflict` | 同名的 `DriveFailure` |
 | `invalid`，且是消息准入拒收（字段为 `value`） | `invalid`，带拒收原因与拒收证据 |
 | 其他 `invalid` | `unavailable`，诊断标为翻译缺陷，并报告。它不成为拒收，不产生 SE35 rejected |
+| `query` 的 `rejected` | `unavailable`，诊断标为翻译缺陷，并报告。本端口只查询自己发起的驱动操作，`rejected` 不属于它们；不映成 `not-committed` |
 | `unavailable` | `unavailable` |
 | `commit-unknown` | `commit-unknown`，带原操作身份 |
 

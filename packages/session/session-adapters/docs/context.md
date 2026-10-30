@@ -12,7 +12,7 @@
 2. 从 `@omne-harness/session-adapters/cordis` 装载需要的插件。插件清单与当前状态见 [SPEC 的插件清单](../SPEC.md#插件清单)。状态为「待」的插件不装载。
 3. 由装配入口构造 AD-15，并交入应用装配层维护拥有者签发的恢复授权。
 4. 在 Agent 宿主外侧装配结果接收方。由它取得 Model 与 Tool 的生产者读取资格，并把结果与账目写入同一会话日志。[AD-05](../SPEC.md#ad-05) 只读日志，不提供 Model owner 的受信证据适配器。Model ACK 到达路径仍按 [JC-Release](../../session-contract/SPEC.md#jc-release) 的未决义务处理，未确认时保持 pending。
-5. 确认同一会话日志的 Journal 提供者（即 PA-04 所说的执行记录提供者）在 `AgentJournal.capabilities.participants` 中声明 AD-01 的四种参加种类（[PA-04](../../session-contract/SPEC.md#pa-04)）。缺一种时，装配被拒绝。这个提供者与 Session 共用一个发布边界，不是另一个执行记录事实库。
+5. 确认同一会话日志的 Journal 提供者（即 PA-04 所说的执行记录提供者）在 `AgentJournal.capabilities.participants` 中声明 AD-01 的四种参加种类，并以 `capabilities.coordination` 为 `coordinated` 的绑定交给装配，装配配置 `coordination` 与之相等（[PA-04](../../session-contract/SPEC.md#pa-04)）。缺一种或模式不相等时，装配被拒绝。这个提供者与 Session 共用一个发布边界，不是另一个执行记录事实库。`attach` 的协调核对条款在 Session 正文规定之前，该提供者不能声明 `coordinated`（[AD-01](../SPEC.md#ad-01)）。
 
 只需要模式翻译或身份编码的测试与工具，从根入口导入纯函数，不装 Cordis。
 
