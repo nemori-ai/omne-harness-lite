@@ -52,6 +52,7 @@ it('registers multiple producers with their original purposes and keeps event se
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   // The first head commit moves the checkpoint back and writes; the next two establish no new
@@ -72,6 +73,7 @@ it('registers multiple producers with their original purposes and keeps event se
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     )
     if (i === 0) written = receipt
@@ -124,6 +126,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const before = ok(await s.backend.transactions.readWork(s.access))
@@ -171,6 +174,7 @@ it('a producer event uses the original effect after checkpoint movement and rema
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -205,6 +209,7 @@ it('an unassociated Tool intent retains its original identity when a later event
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -230,6 +235,7 @@ it('an unassociated Tool intent retains its original identity when a later event
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(

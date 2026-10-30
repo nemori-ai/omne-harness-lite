@@ -44,6 +44,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -100,6 +101,7 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
       },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const before = ok(await backend.transactions.readWork(access))

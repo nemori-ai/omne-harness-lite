@@ -88,6 +88,7 @@ for (const response of [
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     )
     ok(
@@ -104,6 +105,7 @@ for (const response of [
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     )
     expect(ok(await view.journal.load({ ...access, execution })).checkpoint.passages).toEqual([])
@@ -163,6 +165,7 @@ it('registers a remark reply as the decision of the human card, like chosen and 
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -226,6 +229,7 @@ it('retains selected cards from several original rounds without taking later res
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -247,6 +251,7 @@ it('retains selected cards from several original rounds without taking later res
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -319,6 +324,7 @@ it('uses extension-batch for an original before-action ask, retaining the origin
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   ok(
@@ -353,6 +359,7 @@ for (const loss of ['temporary', 'permanent'] as const)
         caller: { kind: 'none' },
         replyAdmission: null,
         handoff: null,
+        finish: null,
       }),
     )
     if (loss === 'temporary') s.view.controls.historyAvailable(s.execution, false)

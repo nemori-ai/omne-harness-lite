@@ -21,6 +21,7 @@ async function prepared(name: string) {
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const request = {

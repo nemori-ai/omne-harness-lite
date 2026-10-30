@@ -63,6 +63,7 @@ const fixture: AgentJournalCoreFixture<string> = {
             caller: { kind: 'none' },
             replyAdmission: null,
             handoff: null,
+            finish: null,
           }),
         )
         return {

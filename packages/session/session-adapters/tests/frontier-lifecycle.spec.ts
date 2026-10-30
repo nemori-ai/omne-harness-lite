@@ -69,6 +69,7 @@ it('hands the original untaken input to a successor with a second actual admissi
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   ).toMatchObject({ failure: { kind: 'stale-advance' } })
   expect(s.view.controls.root()).toBe(root)

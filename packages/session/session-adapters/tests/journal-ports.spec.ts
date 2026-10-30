@@ -47,6 +47,7 @@ it('detach and attach fence the former Authority while preserving the original o
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   ).toMatchObject({ failure: { kind: 'stale-advance' } })
   ok(
@@ -63,6 +64,7 @@ it('detach and attach fence the former Authority while preserving the original o
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   expect(
@@ -111,6 +113,7 @@ it('reply admissions page the actual original decisions and output acknowledgeme
           source: evidence(`reply-${index}`),
         },
         handoff: null,
+        finish: null,
       }),
     )
   const snapshot = ok(await s.view.journal.load({ ...s.access, execution: s.execution })),
@@ -173,6 +176,7 @@ it('commit refuses an entry or ended event body as invalid events, because the J
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     })
     expect(refused).toMatchObject({
       failure: { kind: 'invalid', field: 'events', reason: expect.stringContaining(body.kind) },
@@ -224,6 +228,7 @@ it('a context transition and the original Agent answer publish together and reco
     effects: [],
     replyAdmission: null,
     handoff: null,
+    finish: null,
     caller: {
       kind: 'context-transition' as const,
       value: {
@@ -294,6 +299,7 @@ it('terminal observers use the original passage after finish and cannot add exec
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const terminal = ok(await end(s))

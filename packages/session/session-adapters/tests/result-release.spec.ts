@@ -184,6 +184,7 @@ it('keeps multiple Tool versions and consumptions distinct in one Session public
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const otherRequest = {
@@ -516,6 +517,7 @@ it('leaves Model confirmation unresolved through reconciliation and the existing
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const request = {

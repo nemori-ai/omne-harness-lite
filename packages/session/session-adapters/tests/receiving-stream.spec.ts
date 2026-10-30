@@ -22,6 +22,7 @@ it('receives a Tool account using the actual committed Pending binding without t
       caller: { kind: 'none' },
       replyAdmission: null,
       handoff: null,
+      finish: null,
     }),
   )
   const { material: _material, ...entry } = tool.entry,
@@ -72,6 +73,7 @@ it('live output wakes only after the joint root is published and abort releases 
       effects: [],
       replyAdmission: null,
       handoff: null,
+      finish: null,
       caller: {
         kind: 'message' as const,
         message,

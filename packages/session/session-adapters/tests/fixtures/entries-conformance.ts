@@ -177,6 +177,7 @@ export function entriesFixture() {
           caller: { kind: 'none' },
           replyAdmission: null,
           handoff: null,
+          finish: null,
         }),
       )
       // The Session hands the pending input over by interpreting the input-taken event; its
