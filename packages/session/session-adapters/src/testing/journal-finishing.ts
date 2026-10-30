@@ -34,6 +34,7 @@ import type {
   RecoveryContinuation,
   ResponsibilityCoverage,
   ResultResponsibility,
+  TerminalParticipantFacts,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
 import { canonical } from './canonical.ts'
@@ -272,6 +273,22 @@ function pending(
   return { kind: 'pending', reason, required }
 }
 
+/**
+ * A call whose acceptance is not known (Agent SPEC "Tool 调用关联与控制引用"): no result and no
+ * accepted association, so the original request may still be in flight.
+ */
+function callUnknown(
+  action: string,
+  position: DurableEvidence,
+  required: RecoveryContinuation,
+): ObligationDisposition {
+  return {
+    kind: 'unknown',
+    question: { owner: JOURNAL_OWNER, key: action, position, reason: 'original-operation-unknown' },
+    required,
+  }
+}
+
 const LATE_STAGES = ['producer-confirmed', 'physically-stopped', 'duty-released'] as const
 
 /**
@@ -381,7 +398,12 @@ export function buildObligations(
       source: prepared,
       version: prepared,
       position: null,
-      disposition: held(prepared, next('handoff-lookup', prepared, 'read-message-handoff')),
+      // A prepared message does not complete the pending history: a complete candidate does not
+      // pass it as retained; a failed or cancelled one holds it (Agent SPEC "终结责任清单").
+      disposition:
+        candidate.conclusion.kind === 'complete'
+          ? pending('handoff-history', next('handoff-lookup', prepared, 'read-message-handoff'))
+          : held(prepared, next('handoff-lookup', prepared, 'read-message-handoff')),
       handoff: record.handoff,
       record,
     })
@@ -409,7 +431,11 @@ export function buildObligations(
                 next('tool-association-retain', association.request, 'reconcile'),
                 custodian ?? SESSION_CUSTODIAN,
               )
-            : pending('call-custody', next('producer-query', effect.pending.fixed, 'query')),
+            : callUnknown(
+                effect.action,
+                effect.pending.fixed,
+                next('producer-query', effect.pending.fixed, 'query'),
+              ),
       action: effect.action,
       intent: recorded(
         source.finishing.effectOperations.get(effect.action),
@@ -610,68 +636,109 @@ export function projectionOf(items: readonly FinishObligation[]): string {
 
 export type FinishCheck =
   | Readonly<{ kind: 'clear' }>
+  | Readonly<{ kind: 'changed' }>
   | Readonly<{ kind: 'blocked'; value: Extract<FinishResult, { kind: 'blocked' }> }>
   | Readonly<{ kind: 'unknown'; diagnostic: string }>
 
+/** The value with every evidence in it reduced to its record text, which no revision changes. */
+function recordsOnly(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(recordsOnly)
+  if (value === null || typeof value !== 'object') return value
+  const entries = Object.entries(value)
+  const names = entries.map(([name]) => name).sort()
+  if (canonical(names) === canonical(['digest', 'owner', 'record', 'revision']))
+    return entries.find(([name]) => name === 'record')?.[1]
+  return Object.fromEntries(entries.map(([name, item]) => [name, recordsOnly(item)]))
+}
+
+/**
+ * The judgment basis of a closure (Agent SPEC "取消路线上的 tryFinish"): each item by kind, key,
+ * target and disposition, and the condition of each participant. Evidence is compared by its
+ * record, because the evidence of the closure names the revision it was read at.
+ */
+export function judgmentBasis(
+  items: readonly FinishObligation[],
+  participants: TerminalParticipantFacts,
+): string {
+  return canonical({
+    items: items
+      .map(item => canonical([item.kind, item.key, targetOf(item), recordsOnly(item.disposition)]))
+      .sort(),
+    participants:
+      participants.kind === 'coordinated'
+        ? participants.participants.map(fact => [fact.owner, recordsOnly(fact.condition)])
+        : [],
+  })
+}
+
 /** What the check reads of one execution besides its finishing records. */
 export type FinishCheckSource = Readonly<{
-  execution: string
-  revision: number
-  /** Whether an accepted input lies beyond the taken batch of the checkpoint. */
-  untakenInputs: boolean
-  controls: readonly ControlRecord[]
-  /** The first write of the execution still undecided, except the finishing one. */
-  pendingOperation: AgentOperationId | undefined
-  results: readonly ResultResponsibility[]
+  /** The closure of the candidate rebuilt now, by the builder prepareFinish uses. */
+  items: readonly FinishObligation[]
+  /** The items of the issued list; a blocked answer names the source of the listed item. */
+  listed: readonly FinishObligation[]
+  /** The participant facts the closure is judged with now. */
+  participants: TerminalParticipantFacts
   finishing: FinishingRecords
 }>
 
 /**
- * The first open category in the fixed order inputs, controls, operations, passages, custody.
- * inputs blocks an ordinary candidate only; controls blocks while an intent or a revocation is
- * unresolved, not for the three late stages; passages needs the proof of an author route, or a
- * current judgment of a cancellation route that allows: a blocked judgment answers its first
- * reason's category and an unknown one is `unknown`; custody blocks a result without custody or
- * completion.
+ * The finish check of `candidate` over the current closure. Author route: the first pending item
+ * in the fixed order inputs, controls, operations, passages, custody is blocked, with the source
+ * of that item in the issued list; a route without its before-terminal proof counts as a pending passage; without a
+ * pending item, an unknown one is `unknown`. Cancellation route: no current judgment of this
+ * candidate is blocked on passages; a judgment whose basis is not the current closure is
+ * `changed`; a blocked judgment answers its first reason's category and an unknown one is
+ * `unknown`.
  */
 export function finishCheck(source: FinishCheckSource, candidate: FinishCandidate): FinishCheck {
-  const at = (what: string) =>
-    journalEvidence(`${source.execution}/blocked/${what}`, source.revision)
   const blocked = (
     reason: Extract<FinishResult, { kind: 'blocked' }>['reason'],
     evidence: DurableEvidence,
   ): FinishCheck => ({ kind: 'blocked', value: { kind: 'blocked', reason, source: evidence } })
-  if (candidate.conclusion.kind !== 'cancelled' && source.untakenInputs)
-    return blocked('inputs', at('inputs'))
-  const control = source.controls.find(
-    record =>
-      record.stages['intent-established']?.state === 'unresolved' ||
-      record.stages['qualification-revoked']?.state === 'unresolved',
-  )
-  if (control !== undefined) return blocked('controls', at(control.operation))
-  if (source.pendingOperation !== undefined)
-    return blocked('operations', at(source.pendingOperation))
   const route = currentRoute(source.finishing)
   if (route === undefined || route.candidate !== candidate.candidate)
-    return blocked('passages', at('route'))
+    throw new Error('session Journal defect: the current candidate has no current route')
   if (route.kind === 'author') {
-    if (route.beforeTerminal === null) return blocked('passages', route.record)
-  } else {
-    const judgment = currentJudgment(source.finishing)
-    if (judgment === undefined || judgment.candidate !== candidate.candidate)
-      return blocked('passages', route.record)
-    const decision = judgment.decision
-    if (decision.kind === 'unknown')
-      return { kind: 'unknown', diagnostic: `the judgment ${judgment.operation} is unknown` }
-    if (decision.kind === 'blocked') {
-      const first = [...decision.reasons].sort(
+    const open: { category: ObligationCategory; source: DurableEvidence }[] = source.items
+      .filter(item => item.disposition.kind === 'pending')
+      .map(item => ({
+        category: item.category,
+        source:
+          source.listed.find(listed => listed.kind === item.kind && listed.key === item.key)
+            ?.source ?? item.source,
+      }))
+    if (route.beforeTerminal === null) open.push({ category: 'passages', source: route.record })
+    const first = open
+      .map((item, index) => ({ ...item, index }))
+      .sort(
         (left, right) =>
-          CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category),
+          CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category) ||
+          left.index - right.index,
       )[0]
-      return blocked(first?.category ?? 'passages', judgment.evidence)
-    }
+    if (first !== undefined) return blocked(first.category, first.source)
+    const unknown = source.items.find(item => item.disposition.kind === 'unknown')
+    if (unknown !== undefined)
+      return { kind: 'unknown', diagnostic: `the ${unknown.kind} ${unknown.key} is unknown` }
+    return { kind: 'clear' }
   }
-  const custody = source.results.find(item => item.custody === null && item.completion === null)
-  if (custody !== undefined) return blocked('custody', custody.result.source)
+  const judgment = currentJudgment(source.finishing)
+  if (judgment === undefined || judgment.candidate !== candidate.candidate)
+    return blocked('passages', route.record)
+  if (
+    judgmentBasis(judgment.input.items, judgment.input.participants) !==
+    judgmentBasis(source.items, source.participants)
+  )
+    return { kind: 'changed' }
+  const decision = judgment.decision
+  if (decision.kind === 'unknown')
+    return { kind: 'unknown', diagnostic: `the judgment ${judgment.operation} is unknown` }
+  if (decision.kind === 'blocked') {
+    const first = [...decision.reasons].sort(
+      (left, right) =>
+        CATEGORY_ORDER.indexOf(left.category) - CATEGORY_ORDER.indexOf(right.category),
+    )[0]
+    return blocked(first?.category ?? 'passages', judgment.evidence)
+  }
   return { kind: 'clear' }
 }

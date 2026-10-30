@@ -475,15 +475,14 @@ describe('tryFinish takes the Session participant into the same conditional comm
     })
   })
 
-  it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel does not end and writes nothing', async () => {
+  it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel is denied by the Journal and writes nothing', async () => {
     const s = await scene('finish-cancel-complete')
     ok(await handed(s))
     await take(s)
-    // The complete candidate is fixed and its list issued while the Run is active.
+    // The complete candidate is fixed and its list issued under the original attachment.
     const complete = await prepareEnd(s)
     if (complete.state.kind !== 'settling') throw new Error('settling expected')
     ok(await cancel(s))
-    ok(await attach(s, 'wind-down', s.input.runtime.grant))
     const control = sessionCancelControl(s)
     await effective(s, control)
     const current = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
@@ -496,7 +495,7 @@ describe('tryFinish takes the Session participant into the same conditional comm
       expected: current.revision,
       intent: complete.state.intent,
     })
-    expect(answered).toEqual({ ok: { kind: 'changed', revision: current.revision } })
+    expect(answered).toEqual({ failure: { kind: 'denied', action: 'tryFinish' } })
     expect(s.view.controls.root()).toBe(root)
     expect(
       ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state.kind,
