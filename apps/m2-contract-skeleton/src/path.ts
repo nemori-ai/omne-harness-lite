@@ -18,16 +18,17 @@ import {
   decodeInputId as decodeAgentInputId,
   type AgentExecutionId,
   type AgentExecutionHandle,
+  type InputId as AgentInputId,
   type AgentJournal,
   type AgentMaterials,
+  type AgentOperationId,
   type Access,
-  type DurableEvidence as AgentEvidence,
   type MessageHandoff,
   type RequestPreparation,
 } from '@omne-harness/agent-contract'
 import type { IdentityOperations } from '@omne-harness/identity'
 import { judgeMessage, type Message } from '@omne-harness/message'
-import { readJsonText, writeJsonText } from '@omne-harness/json-text'
+import { readJsonText, writeJsonText, type JsonValue } from '@omne-harness/json-text'
 import type { AssemblyResult } from '@omne-harness/request-context-contract'
 import {
   deriveDriveOperation,
@@ -39,6 +40,7 @@ import {
   type HistoryPage,
   type InputId,
   type MutationName,
+  type RunId,
   type SessionAccess,
   type SessionAccessCheck,
   type SessionCommand,
@@ -68,8 +70,25 @@ import {
   type SessionOperation,
   type SessionRequest,
   type SessionResponse,
+  type SessionResponseEncodeInput,
 } from '@omne-harness/public-contract'
-import { GOVERNANCE_LIMITS } from './governance.ts'
+import {
+  evidenceOf,
+  NOT_REACHED,
+  type ConnectedObservation,
+  type FirstPathHop,
+  type FirstPathObservation,
+} from './hops.ts'
+import { PATH_CODEC_LIMITS } from './limits.ts'
+
+export {
+  evidenceOf,
+  HOP_IDS,
+  NOT_REACHED,
+  type ConnectedObservation,
+  type FirstPathHop,
+  type FirstPathObservation,
+} from './hops.ts'
 
 /** The principal of the path: the account that identity recognized from the login proof. */
 export type PathPrincipal = string
@@ -87,12 +106,32 @@ export const PATH_SESSIONS = {
 } as const
 /** How many rounds the main session drives. */
 export const PATH_ROUNDS = 3
+/** The default bound on waiting for an Agent reply, in event-loop turns. */
+export const DEFAULT_REPLY_TURNS = 2000
+/** The page size of every Session history read of the path, in bytes. */
+const HISTORY_PAGE_BYTES = 1_000_000
 
-/** What one connected hop observed. `connected` is true only when the public calls succeeded in order. */
-export type ConnectedObservation = Readonly<{
-  connected: boolean
-  evidence: readonly string[]
-}>
+const refused = (...evidence: string[]): ConnectedObservation => ({ kind: 'refused', evidence })
+const disconnected = (...evidence: string[]): ConnectedObservation => ({
+  kind: 'disconnected',
+  evidence,
+})
+const observed = (connected: boolean, evidence: readonly string[]): ConnectedObservation => ({
+  kind: connected ? 'connected' : 'disconnected',
+  evidence,
+})
+
+/** The first evidence label of an observation: the step that stopped it. */
+function firstLabel(observation: ConnectedObservation): string {
+  return evidenceOf(observation)[0] ?? 'unknown'
+}
+
+/** The same observation with more evidence labels. */
+function withEvidence(observation: ConnectedObservation, more: readonly string[]) {
+  return observation.kind === 'not-reached' || more.length === 0
+    ? observation
+    : { ...observation, evidence: [...observation.evidence, ...more] }
+}
 
 /** The Agent Journal and materials of one session on the Session log (#756). */
 export type SessionLogAgentJournal = Readonly<{
@@ -187,27 +226,9 @@ export type PathDependencies = Readonly<{
    * budget, coverage). The Agent-side Context adapter that owns them is not supplied (#542).
    */
   preparationFrame: RequestPreparation<PathPrincipal>['prepare']
-  /** Upper bound on waiting for the Agent reply, in event-loop turns. */
+  /** Upper bound on waiting for the Agent reply, in event-loop turns. Default 2000. */
   replyTurns?: number
 }>
-
-export type FirstPathHop =
-  | 'H01'
-  | 'H02'
-  | 'H03'
-  | 'H04'
-  | 'H05'
-  | 'H06'
-  | 'H07'
-  | 'H08'
-  | 'H09'
-  | 'H10'
-  | 'H11'
-  | 'H12'
-  | 'H13'
-export type FirstPathObservation = Readonly<Record<FirstPathHop, ConnectedObservation>>
-
-const none = (reason: string): ConnectedObservation => ({ connected: false, evidence: [reason] })
 
 /**
  * A refusal inside a path step. It carries only the step name that this application mints and the
@@ -244,8 +265,18 @@ function okOf<T>(outcome: { ok: T } | { failure: unknown }, what: string): T {
   return outcome.ok
 }
 
+/** An Agent operation id that this module fixes; decoded once, when the module loads. */
+function fixedOperation(raw: string): AgentOperationId {
+  return okOf(decodeAgentOperationId(raw), `fixed-operation:${raw}`)
+}
+const QUIESCE_OPERATION = fixedOperation('quiesce-cs')
+const DETACH_OPERATION = fixedOperation('detach-cs')
+const RESUME_OPERATION = fixedOperation('resume-cs')
+
 /** A Session operation id minted by the caller for the intake operations of this path. */
 const callerOperation = (name: string): SessionOperationId => `sop_cs-${name}` as SessionOperationId
+/** A Session id of this path; the ids are fixed names of `PATH_SESSIONS`. */
+const pathSession = (name: string): SessionId => name as SessionId
 
 function evidence(record: string): DurableEvidence {
   return { owner: PATH_OWNER, record, revision: '1', digest: `sha256:${record}` }
@@ -257,22 +288,38 @@ function textOf(message: Message): string {
     .join('')
 }
 
-/** The message of a Session message entry, read back from its json-text payload. */
-export function messageOf(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Message | null {
-  if (!entry.kind.startsWith('message.')) return null
-  const plain: unknown = JSON.parse(writeJsonText(entry.payload))
-  const candidate =
-    typeof plain === 'object' && plain !== null && 'message' in plain
-      ? (plain as { message: unknown }).message
-      : null
-  const judged = judgeMessage(candidate)
+/** The value of a member of a json-text object, or null when the value is not an object with it. */
+function fieldOf(value: JsonValue, key: string): JsonValue | null {
+  if (value.kind !== 'object') return null
+  return value.entries.find(entry => entry.key === key)?.value ?? null
+}
+
+/** The string value of a member of a json-text object, or null. */
+function stringField(value: JsonValue, key: string): string | null {
+  const field = fieldOf(value, key)
+  return field?.kind === 'string' ? field.value : null
+}
+
+/** A message judged from a json-text value. */
+function judgedMessage(value: JsonValue): Message | null {
+  const judged = judgeMessage(JSON.parse(writeJsonText(value)))
   return 'ok' in judged ? judged.ok : null
 }
 
+/** The message of a Session message entry, read back from its json-text payload. */
+export function messageOf(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Message | null {
+  if (!entry.kind.startsWith('message.')) return null
+  const message = fieldOf(entry.payload, 'message')
+  return message === null ? null : judgedMessage(message)
+}
+
 /** Waits at most `turns` event-loop turns for `done` to become true. */
-async function waitTurns(turns: number, done: () => boolean): Promise<void> {
-  for (let turn = 0; turn < turns && !done(); turn += 1)
+async function waitTurns(turns: number, done: () => boolean): Promise<'done' | 'timed-out'> {
+  for (let turn = 0; turn < turns; turn += 1) {
+    if (done()) return 'done'
     await new Promise(resolve => setTimeout(resolve, 0))
+  }
+  return done() ? 'done' : 'timed-out'
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -292,16 +339,16 @@ export async function registerTenant(
           operation: 'register-and-activate',
           body: deps.login,
         },
-        limits: GOVERNANCE_LIMITS,
+        limits: PATH_CODEC_LIMITS,
       }),
     ),
-    limits: GOVERNANCE_LIMITS,
+    limits: PATH_CODEC_LIMITS,
   })
   if (request.kind !== 'request' || request.request.operation !== 'register-and-activate')
-    return { observation: none('register-request-not-read'), tenant: null }
+    return { observation: refused('register-request-not-read'), tenant: null }
   const outcome = await deps.identity.registerAndActivate(request.request.body)
   if (outcome.kind !== 'succeeded')
-    return { observation: none(`identity-register:${outcome.kind}`), tenant: null }
+    return { observation: refused(`identity-register:${outcome.kind}`), tenant: null }
   const response = readGovernanceResponse({
     bytes: encoded(
       encodeGovernanceResponse({
@@ -316,29 +363,26 @@ export async function registerTenant(
             tenantId: outcome.tenant,
           },
         },
-        limits: GOVERNANCE_LIMITS,
+        limits: PATH_CODEC_LIMITS,
       }),
     ),
     operation: 'register-and-activate',
     expectedMessageId: 'cs-register',
-    limits: GOVERNANCE_LIMITS,
+    limits: PATH_CODEC_LIMITS,
   })
   if (
     response.kind !== 'response' ||
     response.response.outcome !== 'succeeded' ||
     !('tenantId' in response.response.body)
   )
-    return { observation: none('register-response-not-read'), tenant: null }
+    return { observation: refused('register-response-not-read'), tenant: null }
   const tenant = response.response.body.tenantId
   return {
-    observation: {
-      connected: tenantEquals(tenant, outcome.tenant),
-      evidence: [
-        'public-contract:register-and-activate request read',
-        'identity:registerAndActivate succeeded',
-        'public-contract:register-and-activate response read with the identity tenant',
-      ],
-    },
+    observation: observed(tenantEquals(tenant, outcome.tenant), [
+      'public-contract:register-and-activate request read',
+      'identity:registerAndActivate succeeded',
+      'public-contract:register-and-activate response read with the identity tenant',
+    ]),
     tenant,
   }
 }
@@ -356,16 +400,16 @@ export async function logIn(
           operation: 'issue-login',
           body: deps.login,
         },
-        limits: GOVERNANCE_LIMITS,
+        limits: PATH_CODEC_LIMITS,
       }),
     ),
-    limits: GOVERNANCE_LIMITS,
+    limits: PATH_CODEC_LIMITS,
   })
   if (request.kind !== 'request' || request.request.operation !== 'issue-login')
-    return { observation: none('login-request-not-read'), identified: null }
+    return { observation: refused('login-request-not-read'), identified: null }
   const issued = await deps.identity.issueLogin(request.request.body)
   if (issued.kind !== 'succeeded')
-    return { observation: none(`identity-login:${issued.kind}`), identified: null }
+    return { observation: refused(`identity-login:${issued.kind}`), identified: null }
   const response = readGovernanceResponse({
     bytes: encoded(
       encodeGovernanceResponse({
@@ -381,36 +425,33 @@ export async function logIn(
             loginProof: issued.loginProof,
           },
         },
-        limits: GOVERNANCE_LIMITS,
+        limits: PATH_CODEC_LIMITS,
       }),
     ),
     operation: 'issue-login',
     expectedMessageId: 'cs-login',
-    limits: GOVERNANCE_LIMITS,
+    limits: PATH_CODEC_LIMITS,
   })
   if (
     response.kind !== 'response' ||
     response.response.outcome !== 'succeeded' ||
     !('loginProof' in response.response.body)
   )
-    return { observation: none('login-response-not-read'), identified: null }
+    return { observation: refused('login-response-not-read'), identified: null }
   const loginProof = response.response.body.loginProof
   const recognized = await deps.identity.recognizeLogin({ loginProof })
   if (recognized.kind !== 'recognized')
-    return { observation: none(`identity-recognize:${recognized.kind}`), identified: null }
+    return { observation: refused(`identity-recognize:${recognized.kind}`), identified: null }
   const same = tenantEquals(recognized.tenant, tenant)
   return {
-    observation: {
-      connected: same,
-      evidence: [
-        'public-contract:issue-login request read',
-        'identity:issueLogin succeeded',
-        'public-contract:issue-login response read',
-        same
-          ? 'identity:recognizeLogin recognized the registered tenant'
-          : 'identity:recognizeLogin recognized another tenant',
-      ],
-    },
+    observation: observed(same, [
+      'public-contract:issue-login request read',
+      'identity:issueLogin succeeded',
+      'public-contract:issue-login response read',
+      same
+        ? 'identity:recognizeLogin recognized the registered tenant'
+        : 'identity:recognizeLogin recognized another tenant',
+    ]),
     identified: same ? { tenant, principal: String(recognized.account), loginProof } : null,
   }
 }
@@ -429,26 +470,25 @@ export function wireSessionOf(session: SessionId): string {
 
 /** Encodes a session request, reads it back, and returns the read request of that operation. */
 function carrySessionRequest(request: SessionRequest): SessionRequest | null {
-  const bytes = encodeSessionRequest({ request, limits: GOVERNANCE_LIMITS })
+  const bytes = encodeSessionRequest({ request, limits: PATH_CODEC_LIMITS })
   if (bytes.kind !== 'encoded') return null
-  const read = readSessionRequest({ bytes: bytes.bytes, limits: GOVERNANCE_LIMITS })
+  const read = readSessionRequest({ bytes: bytes.bytes, limits: PATH_CODEC_LIMITS })
   if (read.kind !== 'request' || read.request.operation !== request.operation) return null
   return read.request
 }
 
 /** Encodes a session response, reads it back, and returns the read response. */
 function carrySessionResponse<O extends SessionOperation>(
-  operation: O,
-  response: SessionResponse<O>,
+  input: SessionResponseEncodeInput<O> & Readonly<{ operation: O }>,
   expectedMessageId: string,
 ): SessionResponse<O> | null {
-  const bytes = encodeSessionResponse({ operation, response, limits: GOVERNANCE_LIMITS } as never)
+  const bytes = encodeSessionResponse(input)
   if (bytes.kind !== 'encoded') return null
   const read = readSessionResponse({
     bytes: bytes.bytes,
-    operation,
+    operation: input.operation,
     expectedMessageId,
-    limits: GOVERNANCE_LIMITS,
+    limits: PATH_CODEC_LIMITS,
   })
   return read.kind === 'response' ? read.response : null
 }
@@ -495,7 +535,7 @@ function sessionScene(
           kinds: [...kinds],
           from: null,
           direction: 'forward',
-          pageBytes: 1_000_000,
+          pageBytes: HISTORY_PAGE_BYTES,
         }),
         'history.begin',
       )
@@ -503,200 +543,266 @@ function sessionScene(
   }
 }
 
-/** The Session binding of the current round; the bridges read it on every call. */
-type Binding = { execution: string | null; sessionInput: InputId | null; written: number }
-
+/** What the bridges observed for one round, that is one Agent execution. */
 type BridgeLog = {
   /** External inputs the message hand-over admitted for the Agent. */
   admitted: number
   /** Whether the Session side holds the hand-over of the round's input. */
   handedOver: boolean
+  /** The last Model reply that the message bridge committed to Session. */
   reply: Readonly<{ text: string; call: string; receipt: CommitReceipt }> | null
+  /** How many Model replies the message bridge committed to Session. */
+  replies: number
+  /** Whether the round's wait for the reply ended by its bound. */
+  waited: 'done' | 'timed-out' | null
   assembled: number
   fixed: number
   fixedMessages: number
+  /** The block kinds that the fixed requests of the round carried. */
+  requestBlocks: Set<string>
   historyMessages: number
   lease: Readonly<{ acquired: number; outstanding: number; planned: number }> | null
   failures: string[]
 }
 
-/** The round the bridges serve now. A new round replaces both parts before its Run starts. */
-type Round = { binding: Binding; log: BridgeLog }
+/** The Session binding of one round: its input, and the messages written for its execution. */
+type Round = { sessionInput: InputId; written: number; log: BridgeLog }
 
 function emptyLog(): BridgeLog {
   return {
     admitted: 0,
     handedOver: false,
     reply: null,
+    replies: 0,
+    waited: null,
     assembled: 0,
     fixed: 0,
     fixedMessages: 0,
+    requestBlocks: new Set(),
     historyMessages: 0,
     lease: null,
     failures: [],
   }
 }
 
-function newRound(): Round {
-  return { binding: { execution: null, sessionInput: null, written: 0 }, log: emptyLog() }
+/** The rounds of one session, by the Agent execution of each. The bridges route by execution. */
+type Rounds = Readonly<{
+  get(execution: string): Round | undefined
+  open(execution: string, round: Round): void
+}>
+
+function roundsOf(): Rounds {
+  const rounds = new Map<string, Round>()
+  return {
+    get: execution => rounds.get(execution),
+    open: (execution, round) => {
+      rounds.set(execution, round)
+    },
+  }
 }
 
-/** The commit receipt of a mutation result: the result itself or its `receipt` field. */
-function receiptOf(value: unknown): CommitReceipt | null {
-  if (typeof value !== 'object' || value === null) return null
-  if ('receipt' in value) return (value as { receipt: CommitReceipt }).receipt
-  return 'source' in value && 'operation' in value ? (value as CommitReceipt) : null
+const rejection = (round: Round | undefined, reason: string) => {
+  round?.log.failures.push(reason)
+  return {
+    ok: { kind: 'rejected' as const, reason, evidence: evidence(`handoff/rejected/${reason}`) },
+  }
 }
 
 /**
  * The Agent message hand-over of this application. The external input is admitted here; the
  * Session-side `receive(input-handover)` is committed by the round driver once the Agent accepted
  * the invoke, as the drive adapter of the Session coordinator would (GAP-SESSION-COORDINATOR). A
- * Model reply is committed to Session as a `message` participation.
+ * Model reply is committed to Session as a `message` participation. Each call is routed to its
+ * round by the execution it names.
  */
-function messageBridge(scene: SessionScene, current: () => Round): MessageHandoff<PathPrincipal> {
-  const reject = (log: BridgeLog, reason: string) => {
-    log.failures.push(reason)
-    return {
-      ok: { kind: 'rejected' as const, reason, evidence: evidence(`handoff/rejected/${reason}`) },
-    }
-  }
+function messageBridge(scene: SessionScene, rounds: Rounds): MessageHandoff<PathPrincipal> {
   return {
     async accept(input) {
-      const { binding, log } = current()
-      const execution = binding.execution
-      const sessionInput = binding.sessionInput
-      if (execution === null || sessionInput === null) return reject(log, 'no-session-run')
+      const execution = String(input.execution)
+      const round = rounds.get(execution)
+      if (round === undefined) return rejection(round, 'no-session-run')
       if (input.source.kind === 'external-input') {
-        if (String(input.source.input) !== String(sessionInput))
-          return reject(log, 'external-input:not-the-session-input')
-        log.admitted += 1
+        if (String(input.source.input) !== String(round.sessionInput))
+          return rejection(round, 'external-input:not-the-session-input')
+        round.log.admitted += 1
         return {
           ok: {
             kind: 'accepted',
-            admission: evidence(`handoff/admitted/${String(input.source.input)}`) as AgentEvidence,
+            admission: evidence(`handoff/admitted/${String(input.source.input)}`),
           },
         }
       }
-      if (input.source.kind === 'model-reply') {
-        binding.written += 1
-        const agentOperation = `agent-${String(input.source.call)}`
-        const committed = await scene.commit<'recordMessage'>({
-          kind: 'recordMessage',
-          input: {
-            tenant: scene.access.tenant,
-            session: scene.access.session,
-            operation: deriveSessionOperation({
-              kind: 'participation',
-              execution,
-              operation: agentOperation,
-              joint: 'message',
-            }),
-            participation: {
-              execution,
-              operation: agentOperation,
-              joint: 'message',
-              written: String(binding.written),
-              handover: evidence(`agent/message/${String(input.operation)}`),
-            },
-            value: {
-              message: input.candidate,
-              source: input.source.result.source,
-              admission: evidence(`agent/admission/${String(input.operation)}`),
-              consumption: null,
-            },
+      if (input.source.kind !== 'model-reply')
+        return rejection(round, `unsupported-source:${input.source.kind}`)
+      round.written += 1
+      const agentOperation = `agent-${String(input.source.call)}`
+      const committed = await scene.commit<'recordMessage'>({
+        kind: 'recordMessage',
+        input: {
+          tenant: scene.access.tenant,
+          session: scene.access.session,
+          operation: deriveSessionOperation({
+            kind: 'participation',
+            execution,
+            operation: agentOperation,
+            joint: 'message',
+          }),
+          participation: {
+            execution,
+            operation: agentOperation,
+            joint: 'message',
+            written: String(round.written),
+            handover: evidence(`agent/message/${String(input.operation)}`),
           },
-        })
-        if ('failure' in committed)
-          return reject(log, `session-recordMessage:${committed.failure.kind}`)
-        const receipt = receiptOf(committed.ok)
-        if (receipt === null) return reject(log, 'session-recordMessage:no-receipt')
-        log.reply = { text: textOf(input.candidate), call: String(input.source.call), receipt }
-        return { ok: { kind: 'accepted', admission: receipt.source as AgentEvidence } }
+          value: {
+            message: input.candidate,
+            source: input.source.result.source,
+            admission: evidence(`agent/admission/${String(input.operation)}`),
+            consumption: null,
+          },
+        },
+      })
+      if ('failure' in committed)
+        return rejection(round, `session-recordMessage:${committed.failure.kind}`)
+      round.log.reply = {
+        text: textOf(input.candidate),
+        call: String(input.source.call),
+        receipt: committed.ok,
       }
-      return reject(log, `unsupported-source:${input.source.kind}`)
+      round.log.replies += 1
+      return { ok: { kind: 'accepted', admission: committed.ok.source } }
     },
   }
 }
+
+const unsupported = async () => ({ failure: { kind: 'unsupported' as const } })
 
 function contextBridge(
   scene: SessionScene,
   tenant: TenantId,
   deps: Pick<PathDependencies, 'assemble' | 'preparationFrame'>,
-  current: () => Round,
+  rounds: Rounds,
 ): RequestPreparation<PathPrincipal> {
-  const unsupported = async () => ({ failure: { kind: 'unsupported' as const } })
   return {
     async prepare(input) {
-      const { log } = current()
+      const round = rounds.get(String(input.advance.execution))
+      if (round === undefined)
+        return { failure: { kind: 'unavailable', owner: PATH_OWNER, diagnostic: 'no-session-run' } }
       const frame = await deps.preparationFrame(input)
-      if ('failure' in frame) return frame
-      if (frame.ok.kind !== 'ready') return frame
+      if ('failure' in frame || frame.ok.kind !== 'ready') return frame
       const { request, capacity: _capacity, ...common } = frame.ok
       const previous = input.previous
-      if (previous !== null) {
-        // P1: fix the request from the assembled input of P0, carrying Request Context's content.
-        if (previous.kind !== 'assembled') return frame
-        // The representation and source adoptions stay the frame's: the Request Context testing
-        // policies carry adoption digests that the Model request check refuses (see SPEC H05).
-        const { system, messages, tools, toolChoice } = previous.input
-        log.fixed += 1
-        log.fixedMessages = messages.length
-        return {
-          ok: { ...frame.ok, request: { ...request, system, messages, tools, toolChoice } },
-        }
-      }
-      const page = await scene.history()
-      const history = page.entries.flatMap(entry => {
-        const message = messageOf(entry)
-        return message === null ? [] : [{ entry: entry.id, message }]
-      })
-      const { result: assembled, lease } = await deps.assemble({ tenant, history })
-      log.lease = lease
-      if (
-        assembled.kind !== 'candidate-fixable' &&
-        assembled.kind !== 'candidate-before-extension'
-      ) {
-        log.failures.push(`rq-assemble:${assembled.kind}`)
-        return {
-          failure: {
-            kind: 'unavailable',
-            owner: PATH_OWNER,
-            diagnostic: `request context: ${assembled.kind}`,
-          },
-        }
-      }
-      log.assembled += 1
-      log.historyMessages = history.length
-      return { ok: { ...common, kind: 'assembled', input: assembled.candidate.assembled } }
+      if (previous === null) return assembleRequest(scene, tenant, deps, round.log, common)
+      // P1: fix the request from the assembled input of P0, carrying Request Context's content.
+      if (previous.kind !== 'assembled') return frame
+      // The representation and source adoptions stay the frame's: the Request Context testing
+      // policies carry adoption digests that the Model request check refuses (see SPEC H05).
+      const { system, messages, tools, toolChoice } = previous.input
+      round.log.fixed += 1
+      round.log.fixedMessages = messages.length
+      for (const message of messages)
+        for (const block of message.blocks) round.log.requestBlocks.add(block.kind)
+      return { ok: { ...frame.ok, request: { ...request, system, messages, tools, toolChoice } } }
     },
     derive: unsupported,
     resume: unsupported,
   }
 }
 
-// ---------------------------------------------------------------------------------------------
-// H03: the session, created through the public session codec
+type ReadyFrame = Omit<
+  Extract<
+    Extract<
+      Awaited<ReturnType<RequestPreparation<PathPrincipal>['prepare']>>,
+      { ok: unknown }
+    >['ok'],
+    { kind: 'ready' }
+  >,
+  'request' | 'capacity'
+>
 
-type SessionStart = Readonly<{
-  observation: ConnectedObservation
-  scene: SessionScene | null
+/** P0: assemble the request input through Request Context over the Session history. */
+async function assembleRequest(
+  scene: SessionScene,
+  tenant: TenantId,
+  deps: Pick<PathDependencies, 'assemble'>,
+  log: BridgeLog,
+  common: ReadyFrame,
+): ReturnType<RequestPreparation<PathPrincipal>['prepare']> {
+  const page = await scene.history()
+  const history = page.entries.flatMap(entry => {
+    const message = messageOf(entry)
+    return message === null ? [] : [{ entry: entry.id, message }]
+  })
+  const { result: assembled, lease } = await deps.assemble({ tenant, history })
+  log.lease = lease
+  if (assembled.kind !== 'candidate-fixable' && assembled.kind !== 'candidate-before-extension') {
+    log.failures.push(`rq-assemble:${assembled.kind}`)
+    return {
+      failure: {
+        kind: 'unavailable',
+        owner: PATH_OWNER,
+        diagnostic: `request context: ${assembled.kind}`,
+      },
+    }
+  }
+  log.assembled += 1
+  log.historyMessages = history.length
+  return { ok: { ...common, kind: 'assembled', input: assembled.candidate.assembled } }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The context of the path and of one session
+
+type PathContext = Readonly<{
+  deps: PathDependencies
+  assembly: SessionAssembly
+  identified: Identified
+  /** The bound on each wait for the Agent, in event-loop turns. */
+  turns: number
+}>
+
+/** One session of the path: its Session scene, the bridges of its rounds, and its same-log Journal. */
+type OpenSession = Readonly<{
+  scene: SessionScene
+  rounds: Rounds
+  handoff: MessageHandoff<PathPrincipal>
+  requests: RequestPreparation<PathPrincipal>
+  journal: SessionLogAgentJournal | null
 }>
 
 /** H03: create the session for the recognized tenant and principal through `create-session`. */
-async function createSession(
-  deps: Pick<PathDependencies, 'creation'>,
-  assembly: SessionAssembly,
-  identified: Identified,
+async function openSession(
+  context: PathContext,
   session: SessionId,
-): Promise<SessionStart> {
+): Promise<Readonly<{ observation: ConnectedObservation; session: OpenSession | null }>> {
+  const { deps, assembly, identified } = context
   const access: SessionAccess<PathPrincipal> = {
     principal: identified.principal,
     tenant: identified.tenant,
     session,
   }
   const scene = sessionScene(assembly.transactions, assembly.evidence, access)
-  const messageId = `cs-create-${String(session)}`
+  const created = await createSession(context, scene)
+  if (created.kind !== 'connected') return { observation: created, session: null }
+  const rounds = roundsOf()
+  return {
+    observation: created,
+    session: {
+      scene,
+      rounds,
+      handoff: messageBridge(scene, rounds),
+      requests: contextBridge(scene, identified.tenant, deps, rounds),
+      journal: assembly.agentJournal?.(access) ?? null,
+    },
+  }
+}
+
+async function createSession(
+  { deps, assembly, identified }: PathContext,
+  scene: SessionScene,
+): Promise<ConnectedObservation> {
+  const { access } = scene
+  const messageId = `cs-create-${String(access.session)}`
   const request = carrySessionRequest({
     protocolVersion: SESSION_VERSION,
     messageId,
@@ -704,15 +810,15 @@ async function createSession(
     proof: proofOf(identified),
     actingTenant: identified.tenant,
     body: {
-      createCallId: `create-${String(session)}`,
+      createCallId: `create-${String(access.session)}`,
       definition: deps.creation.definition.name,
       purpose: deps.creation.purpose,
     },
   })
   if (request === null || request.operation !== 'create-session')
-    return { observation: none('session-create-request-not-read'), scene: null }
+    return refused('session-create-request-not-read')
   if (!tenantEquals(request.actingTenant, identified.tenant))
-    return { observation: none('session-create-request-foreign-tenant'), scene: null }
+    return refused('session-create-request-foreign-tenant')
   const created = await scene.commit<'create'>({
     kind: 'create',
     input: {
@@ -722,135 +828,71 @@ async function createSession(
       creation: deps.creation,
     },
   })
-  if ('failure' in created)
-    return { observation: none(`session-create:${created.failure.kind}`), scene: null }
+  if ('failure' in created) return refused(`session-create:${created.failure.kind}`)
   const response = carrySessionResponse(
-    'create-session',
     {
-      protocolVersion: SESSION_VERSION,
-      messageId,
-      outcome: 'succeeded',
-      body: { session: wireSessionOf(session), recovered: created.ok.receipt.recovered },
+      operation: 'create-session',
+      response: {
+        protocolVersion: SESSION_VERSION,
+        messageId,
+        outcome: 'succeeded',
+        body: { session: wireSessionOf(access.session), recovered: created.ok.receipt.recovered },
+      },
+      limits: PATH_CODEC_LIMITS,
     },
     messageId,
   )
   if (response === null || response.outcome !== 'succeeded')
-    return { observation: none('session-create-response-not-read'), scene: null }
+    return refused('session-create-response-not-read')
   const work = await assembly.transactions.readWork(access)
-  const connected =
-    'ok' in work && work.ok.session === access.session && response.body.session.length === 64
-  return {
-    observation: {
-      connected,
-      evidence: [
-        'public-contract:create-session request read with the acting tenant',
-        'session-contract:commit(create) committed for the identity tenant',
-        'public-contract:create-session response read with the wire session',
-        'session-contract:readWork returns the session',
-      ],
-    },
-    scene: connected ? scene : null,
-  }
+  return observed(
+    'ok' in work && work.ok.session === access.session && response.body.session.length === 64,
+    [
+      'public-contract:create-session request read with the acting tenant',
+      'session-contract:commit(create) committed for the identity tenant',
+      'public-contract:create-session response read with the wire session',
+      'session-contract:readWork returns the session',
+    ],
+  )
 }
 
 // ---------------------------------------------------------------------------------------------
 // One round: accept the input through `send-input`, start the Run, invoke the Agent, wait
 
-type Drive = Readonly<{
+/** The step of a round where it stopped. */
+type DriveStage = 'send-input' | 'accept' | 'startRun' | 'identity' | 'readInput' | 'invoke'
+
+/** A round that stopped before the Agent took the input, or one that the Agent took. */
+type Drive =
+  | Readonly<{
+      kind: 'stopped'
+      stage: DriveStage
+      observation: ConnectedObservation
+      log: BridgeLog
+    }>
+  | DrivenRound
+
+type DrivenRound = Readonly<{
+  kind: 'driven'
   observation: ConnectedObservation
-  /** Present once the Agent accepted the invoke; the later hops read its journal. */
-  agent: PathAgent | null
-  execution: AgentExecutionId | null
-  handle: AgentExecutionHandle<PathPrincipal> | null
+  agent: PathAgent
+  execution: AgentExecutionId
+  run: RunId
+  handle: AgentExecutionHandle<PathPrincipal>
   log: BridgeLog
 }>
 
-type RoundBridges = Readonly<{
-  current: () => Round
-  replace: (round: Round) => void
-  handoff: MessageHandoff<PathPrincipal>
-  requests: RequestPreparation<PathPrincipal>
+/** One step of a round: its value, or the stage and label where the round stopped. */
+type Step<T> = Readonly<{ ok: T }> | Readonly<{ stop: DriveStage; label: string }>
+
+type RoundInput = Readonly<{
+  round: number
+  message: Message
+  scenario: AgentScenario
+  instance: string
+  /** The Agent of an earlier round, reused; null builds a new one. */
+  existing: PathAgent | null
 }>
-
-function roundBridges(
-  scene: SessionScene,
-  tenant: TenantId,
-  deps: Pick<PathDependencies, 'assemble' | 'preparationFrame'>,
-): RoundBridges {
-  let round = newRound()
-  const current = () => round
-  return {
-    current,
-    replace: next => {
-      round = next
-    },
-    handoff: messageBridge(scene, current),
-    requests: contextBridge(scene, tenant, deps, current),
-  }
-}
-
-/**
- * The Session-side hand-over of the input once the Agent accepted the invoke, committed as the
- * drive adapter of the Session coordinator would (GAP-SESSION-COORDINATOR). On the Session log of
- * #756 the Agent loop may take the input before this commit lands; the log then already holds the
- * interpretation of that step (`run.batch-taken`, AD-02) and a second hand-over is `invalid`.
- */
-async function handOver(
-  assembly: SessionAssembly,
-  scene: SessionScene,
-  started: StartedRun,
-  sessionInput: InputId,
-): Promise<Readonly<{ handedOver: boolean; evidence: string }>> {
-  const execution = started.execution
-  const committed = await scene.commit<'receive'>({
-    kind: 'receive',
-    input: {
-      tenant: scene.access.tenant,
-      session: scene.access.session,
-      operation: callerOperation(`handover-${sessionInput}`),
-      fact: {
-        kind: 'input-handover',
-        execution,
-        input: sessionInput,
-        result: { kind: 'accepted', receipt: evidence(`agent/accepted/${String(sessionInput)}`) },
-      },
-    },
-  })
-  if (!('failure' in committed))
-    return {
-      handedOver: receiptOf(committed.ok) !== null,
-      evidence:
-        'session-contract:commit(receive input-handover) committed after the Agent accepted the invoke',
-    }
-  if (assembly.agentJournal !== null && committed.failure.kind === 'invalid') {
-    const taken = await takenOnLog(scene, String(started.advance.run))
-    if (taken)
-      return {
-        handedOver: true,
-        evidence:
-          'session-adapters:the Agent took the input before the hand-over commit; the Session log holds run.batch-taken for the execution (AD-02)',
-      }
-  }
-  return {
-    handedOver: false,
-    evidence: `session-contract:commit(receive input-handover) ${committed.failure.kind}`,
-  }
-}
-
-/** Whether the Session log holds the batch-taken interpretation of the Run. */
-async function takenOnLog(scene: SessionScene, run: string): Promise<boolean> {
-  const page = await scene.history()
-  return page.entries.some(entry => {
-    if (entry.kind !== 'run.batch-taken') return false
-    const plain: unknown = JSON.parse(writeJsonText(entry.payload))
-    return (
-      typeof plain === 'object' &&
-      plain !== null &&
-      'run' in plain &&
-      (plain as { run: unknown }).run === run
-    )
-  })
-}
 
 /** The `send-input` carriage of one external input; null when the codec did not carry it. */
 function carryInput(
@@ -859,12 +901,11 @@ function carryInput(
   sessionInput: InputId,
   message: Message,
 ): Message | null {
-  const plain = readJsonText(JSON.stringify(message), GOVERNANCE_LIMITS)
+  const plain = readJsonText(JSON.stringify(message), PATH_CODEC_LIMITS)
   if (plain.kind !== 'ok' || plain.value.kind !== 'object') return null
-  const messageId = `cs-send-${String(sessionInput)}`
   const request = carrySessionRequest({
     protocolVersion: SESSION_VERSION,
-    messageId,
+    messageId: `cs-send-${String(sessionInput)}`,
     operation: 'send-input',
     proof: proofOf(identified),
     body: {
@@ -881,47 +922,23 @@ function carryInput(
     !tenantEquals(request.body.tenant, identified.tenant)
   )
     return null
-  const read = judgeMessage(JSON.parse(writeJsonText(request.body.message)))
-  return 'ok' in read ? read.ok : null
+  return judgedMessage(request.body.message)
 }
 
-/**
- * One round of the session: the input through `send-input`, the Run, the hand-over to Agent, and
- * the wait for the Agent reply. `existing` reuses the Agent of an earlier round.
- */
-async function driveRound(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  scene: SessionScene,
-  identified: Identified,
-  bridges: RoundBridges,
-  input: Readonly<{
-    round: number
-    message: Message
-    scenario: AgentScenario
-    instance: string
-    existing: PathAgent | null
-    journal: SessionLogAgentJournal | null
-  }>,
-): Promise<Drive> {
-  const round = newRound()
-  bridges.replace(round)
-  const { log, binding } = round
-  const stop = (reason: string, agent: PathAgent | null = null): Drive => ({
-    observation: none(reason),
-    agent,
-    execution: null,
-    handle: null,
-    log,
-  })
-  const base = { tenant: scene.access.tenant, session: scene.access.session }
+/** The input of a round through `send-input`, committed as an ordinary request. */
+async function acceptInput(
+  { identified }: PathContext,
+  { scene }: OpenSession,
+  input: RoundInput,
+): Promise<Step<InputId>> {
   const sessionInput = `input-cs-${input.round}` as InputId
   const message = carryInput(identified, scene.access.session, sessionInput, input.message)
-  if (message === null) return stop('session-send-input-not-read')
+  if (message === null) return { stop: 'send-input', label: 'session-send-input-not-read' }
   const accepted = await scene.commit<'accept'>({
     kind: 'accept',
     input: {
-      ...base,
+      tenant: scene.access.tenant,
+      session: scene.access.session,
       operation: callerOperation(`accept-${sessionInput}`),
       value: {
         kind: 'ordinary',
@@ -932,36 +949,62 @@ async function driveRound(
       },
     },
   })
-  if ('failure' in accepted) return stop(`session-accept:${accepted.failure.kind}`)
-  binding.sessionInput = sessionInput
-  const agent =
+  if ('failure' in accepted)
+    return { stop: 'accept', label: `session-accept:${accepted.failure.kind}` }
+  return { ok: sessionInput }
+}
+
+/** The Agent of the round: the one of an earlier round, or a new one with this session's bridges. */
+async function agentOf(
+  { deps, identified }: PathContext,
+  session: OpenSession,
+  input: RoundInput,
+): Promise<PathAgent> {
+  return (
     input.existing ??
-    (await deps.agent({
+    deps.agent({
       principal: identified.principal,
       tenant: identified.tenant,
       instance: input.instance,
       scenario: input.scenario,
-      journal: input.journal,
-      handoff: bridges.handoff,
-      requests: bridges.requests,
-    }))
-  const startedOutcome = await scene.commit<'startRun'>({
+      journal: session.journal,
+      handoff: session.handoff,
+      requests: session.requests,
+    })
+  )
+}
+
+type StartedRound = Readonly<{
+  started: StartedRun
+  execution: AgentExecutionId
+  agentInput: AgentInputId
+  operation: AgentOperationId
+}>
+
+/** `startRun` for the Agent instance, and the Agent identities of the execution it opened. */
+async function startRun(
+  { deps }: PathContext,
+  { scene }: OpenSession,
+  agent: PathAgent,
+  round: number,
+): Promise<Step<StartedRound>> {
+  const outcome = await scene.commit<'startRun'>({
     kind: 'startRun',
     input: {
-      ...base,
-      operation: callerOperation(`start-run-${input.round}`),
+      tenant: scene.access.tenant,
+      session: scene.access.session,
+      operation: callerOperation(`start-run-${round}`),
       entry: 'interactive',
       candidate: deps.creation.definition.candidate,
       instance: { owner: 'agent', id: agent.instance },
     },
   })
-  if ('failure' in startedOutcome)
-    return stop(`session-startRun:${startedOutcome.failure.kind}`, agent)
-  const started = startedOutcome.ok as StartedRun
-  binding.execution = started.execution
+  if ('failure' in outcome)
+    return { stop: 'startRun', label: `session-startRun:${outcome.failure.kind}` }
+  const started = outcome.ok
   const execution = decodeAgentExecutionId(started.execution)
   const agentInput = decodeAgentInputId(String(started.first))
-  const agentOperation = decodeAgentOperationId(
+  const operation = decodeAgentOperationId(
     deriveDriveOperation({
       kind: 'invoke',
       execution: started.execution,
@@ -969,35 +1012,80 @@ async function driveRound(
       started: started.receipt.source,
     }),
   )
-  if ('failure' in execution || 'failure' in agentInput || 'failure' in agentOperation)
-    return stop('session-execution-or-input-not-an-agent-identity', agent)
-  // The Agent receives the input as Session admitted it: its identity, content and origin.
+  if ('failure' in execution || 'failure' in agentInput || 'failure' in operation)
+    return { stop: 'identity', label: 'session-execution-or-input-not-an-agent-identity' }
+  return {
+    ok: { started, execution: execution.ok, agentInput: agentInput.ok, operation: operation.ok },
+  }
+}
+
+/** The Agent invoke with the input as Session admitted it: its identity, content and origin. */
+async function invokeAgent(
+  { assembly, identified }: PathContext,
+  { scene, journal }: OpenSession,
+  agent: PathAgent,
+  { started, execution, agentInput, operation }: StartedRound,
+): Promise<Step<AgentExecutionHandle<PathPrincipal>>> {
   const admitted = await assembly.transactions.readInput({ ...scene.access, input: started.first })
-  if ('failure' in admitted) return stop(`session-readInput:${admitted.failure.kind}`, agent)
+  if ('failure' in admitted)
+    return { stop: 'readInput', label: `session-readInput:${admitted.failure.kind}` }
   const invoked = await agent.provider.runtime.invoke({
     principal: identified.principal,
     tenant: identified.tenant,
-    execution: execution.ok,
-    operation: agentOperation.ok,
+    execution,
+    operation,
     initial: {
-      id: agentInput.ok,
+      id: agentInput,
       content: admitted.ok.message,
-      source: admitted.ok.origin as AgentEvidence,
+      source: admitted.ok.origin,
       priority: 'ordinary',
     },
     // A Journal on the Session log checks the grant of the Run; an independent Journal takes none.
-    grant: input.journal === null ? null : (started.receipt.source as AgentEvidence),
+    grant: journal === null ? null : started.receipt.source,
   })
-  if ('failure' in invoked) return stop(`agent-invoke:${kindOf(invoked.failure)}`, agent)
-  const handedOver = await handOver(assembly, scene, started, sessionInput)
+  if ('failure' in invoked)
+    return { stop: 'invoke', label: `agent-invoke:${kindOf(invoked.failure)}` }
+  return { ok: invoked.ok }
+}
+
+/**
+ * One round of the session: the input through `send-input`, the Run, the hand-over to Agent, and
+ * the wait for the Agent reply.
+ */
+async function driveRound(
+  context: PathContext,
+  session: OpenSession,
+  input: RoundInput,
+): Promise<Drive> {
+  const log = emptyLog()
+  const stopped = (step: Readonly<{ stop: DriveStage; label: string }>): Drive => ({
+    kind: 'stopped',
+    stage: step.stop,
+    observation: refused(step.label),
+    log,
+  })
+  const accepted = await acceptInput(context, session, input)
+  if ('stop' in accepted) return stopped(accepted)
+  const agent = await agentOf(context, session, input)
+  const started = await startRun(context, session, agent, input.round)
+  if ('stop' in started) return stopped(started)
+  session.rounds.open(started.ok.started.execution, { sessionInput: accepted.ok, written: 0, log })
+  const invoked = await invokeAgent(context, session, agent, started.ok)
+  if ('stop' in invoked) return stopped(invoked)
+  const handedOver = await handOver(
+    context.assembly,
+    session.scene,
+    started.ok.started,
+    accepted.ok,
+  )
   log.handedOver = handedOver.handedOver
-  const turns = deps.replyTurns ?? 2000
   if (input.scenario !== 'held')
-    await waitTurns(turns, () => log.reply !== null || log.failures.length > 0)
+    log.waited = await waitTurns(context.turns, () => log.reply !== null || log.failures.length > 0)
   return {
-    observation: {
-      connected: started.first === sessionInput && log.admitted > 0 && log.handedOver,
-      evidence: [
+    kind: 'driven',
+    observation: observed(
+      started.ok.started.first === accepted.ok && log.admitted > 0 && log.handedOver,
+      [
         'public-contract:send-input request read with the wire session',
         'session-contract:commit(accept ordinary) committed the request',
         'session-contract:commit(startRun) fixed the request and opened the Run',
@@ -1007,24 +1095,80 @@ async function driveRound(
           : 'agent:message hand-over did not admit the external input',
         handedOver.evidence,
       ],
-    },
+    ),
     agent,
-    execution: execution.ok,
+    execution: started.ok.execution,
+    run: started.ok.started.advance.run,
     handle: invoked.ok,
     log,
   }
 }
 
+/**
+ * The Session-side hand-over of the input once the Agent accepted the invoke, committed as the
+ * drive adapter of the Session coordinator would (GAP-SESSION-COORDINATOR). On the Session log of
+ * #756 the Agent loop may take the input before this commit lands; the log then already holds the
+ * interpretation of that step (`run.batch-taken`, AD-02) and a second hand-over is `invalid`.
+ */
+async function handOver(
+  assembly: SessionAssembly,
+  scene: SessionScene,
+  started: StartedRun,
+  sessionInput: InputId,
+): Promise<Readonly<{ handedOver: boolean; evidence: string }>> {
+  const committed = await scene.commit<'receive'>({
+    kind: 'receive',
+    input: {
+      tenant: scene.access.tenant,
+      session: scene.access.session,
+      operation: callerOperation(`handover-${sessionInput}`),
+      fact: {
+        kind: 'input-handover',
+        execution: started.execution,
+        input: sessionInput,
+        result: { kind: 'accepted', receipt: evidence(`agent/accepted/${String(sessionInput)}`) },
+      },
+    },
+  })
+  if (!('failure' in committed))
+    return {
+      handedOver: true,
+      evidence:
+        'session-contract:commit(receive input-handover) committed after the Agent accepted the invoke',
+    }
+  if (
+    assembly.agentJournal !== null &&
+    committed.failure.kind === 'invalid' &&
+    (await takenOnLog(scene, started.advance.run))
+  )
+    return {
+      handedOver: true,
+      evidence:
+        'session-adapters:the Agent took the input before the hand-over commit; the Session log holds run.batch-taken for the execution (AD-02)',
+    }
+  return {
+    handedOver: false,
+    evidence: `session-contract:commit(receive input-handover) ${committed.failure.kind}`,
+  }
+}
+
+/** Whether the Session log holds the batch-taken interpretation of the Run. */
+async function takenOnLog(scene: SessionScene, run: RunId): Promise<boolean> {
+  const page = await scene.history()
+  return page.entries.some(
+    entry => entry.kind === 'run.batch-taken' && stringField(entry.payload, 'run') === String(run),
+  )
+}
+
+// ---------------------------------------------------------------------------------------------
+// H05, H06 and H07: what the Agent journal and the bridges observed
+
 type AgentSnapshot = Extract<
   Awaited<ReturnType<AgentJournal<PathPrincipal>['load']>>,
   { ok: unknown }
 >['ok']
-
-function leaseLabel(log: BridgeLog): string {
-  return log.lease === null
-    ? 'caller-reported: no Request Context lease counts'
-    : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`
-}
+type JournalEntry = NonNullable<AgentSnapshot['entries']>[number]
+type ReceivedModelResult = Extract<JournalEntry, { kind: 'received' }>
 
 async function loadSnapshot(
   agent: Pick<PathAgent, 'journal'>,
@@ -1035,83 +1179,123 @@ async function loadSnapshot(
   return 'ok' in loaded ? loaded.ok : null
 }
 
-/** H05, H06 and H07: what the Agent journal and the bridges observed. */
-async function observeAgent(
-  snapshot: AgentSnapshot | null,
-  log: BridgeLog,
-  agent: Pick<PathAgent, 'materials' | 'admitted'>,
+/** The received Model result entry of a snapshot, if the journal holds one. */
+function receivedModelResult(snapshot: AgentSnapshot | null): ReceivedModelResult | null {
+  const entries = snapshot?.entries ?? []
+  for (const entry of entries)
+    if (
+      entry.kind === 'received' &&
+      entry.delivery.producer === 'model' &&
+      entry.delivery.key.kind === 'result'
+    )
+      return entry
+  return null
+}
+
+/** What H05 to H07 read from the Agent journal, its materials and the bridge log of the round. */
+type AgentFacts = Readonly<{
+  snapshot: AgentSnapshot | null
+  log: BridgeLog
+  admitted: number
+  modelResult: ReceivedModelResult | null
+  materialReadable: boolean
+  /** The Model call that the received result names, under its original binding. */
+  originalCall: string | null
+}>
+
+async function agentFacts(
+  agent: Pick<PathAgent, 'journal' | 'materials' | 'admitted'>,
   access: Access<PathPrincipal>,
-): Promise<Readonly<Record<'H05' | 'H06' | 'H07', ConnectedObservation>>> {
-  const { materials } = agent
-  const pendingCall = snapshot?.checkpoint.calls.some(call => call.kind === 'model') ?? false
-  const admitted = agent.admitted()
-  const modelResult =
-    snapshot?.entries?.find(
-      entry =>
-        entry.kind === 'received' &&
-        entry.delivery.producer === 'model' &&
-        entry.delivery.key.kind === 'result',
-    ) ?? null
-  let originalCall: string | null = null
-  let materialReadable = false
-  if (modelResult?.kind === 'received' && modelResult.delivery.producer === 'model') {
-    const { material, ...expected } = modelResult
-    const read = await materials.read({ ...access, source: material })
-    materialReadable = 'ok' in read && readModelDeliveryMaterial(access, read.ok, expected) !== null
-    const ref = resolveModelInvocationRef(modelResult.delivery.key.reference, access.tenant)
-    if ('ok' in ref) originalCall = ref.ok.call
+  execution: AgentExecutionId,
+  log: BridgeLog,
+): Promise<AgentFacts> {
+  const snapshot = await loadSnapshot(agent, access, execution)
+  const modelResult = receivedModelResult(snapshot)
+  const facts = { snapshot, log, admitted: agent.admitted(), modelResult }
+  if (modelResult === null || modelResult.delivery.producer !== 'model')
+    return { ...facts, materialReadable: false, originalCall: null }
+  const { material, ...expected } = modelResult
+  const read = await agent.materials.read({ ...access, source: material })
+  const ref = resolveModelInvocationRef(modelResult.delivery.key.reference, access.tenant)
+  return {
+    ...facts,
+    materialReadable: 'ok' in read && readModelDeliveryMaterial(access, read.ok, expected) !== null,
+    originalCall: 'ok' in ref ? ref.ok.call : null,
   }
-  const leased =
+}
+
+function leaseLabel(log: BridgeLog): string {
+  return log.lease === null
+    ? 'caller-reported: no Request Context lease counts'
+    : `caller-reported: Request Context lease counts acquired=${log.lease.acquired}, planned=${log.lease.planned}, outstanding=${log.lease.outstanding}`
+}
+
+/** Whether Request Context acquired a Model preparation lease, planned with it and released it. */
+function leased(log: BridgeLog): boolean {
+  return (
     log.lease !== null &&
     log.lease.acquired > 0 &&
     log.lease.outstanding === 0 &&
     log.lease.planned > 0
-  const sameCall = originalCall !== null && originalCall === (log.reply?.call ?? null)
-  const ended = snapshot?.state.kind === 'ended'
-  return {
-    H05: {
-      connected:
-        log.assembled > 0 &&
-        log.historyMessages > 0 &&
-        leased &&
-        log.fixedMessages > 0 &&
-        (pendingCall || modelResult !== null) &&
-        admitted > 0,
-      evidence: [
-        `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
-        leaseLabel(log),
-        `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
-        pendingCall || modelResult !== null
-          ? 'agent:journal binds the Model call of the step'
-          : 'agent:journal has no Model call',
-        `caller-reported: Model admissions ${admitted}`,
-      ],
-    },
-    H06: {
-      connected: modelResult !== null && materialReadable && sameCall,
-      evidence: [
-        modelResult === null
-          ? 'agent:journal has no received Model result'
-          : 'model-contract:the public pusher delivered the result to the host receiver, which wrote the received entry and its material',
-        sameCall
-          ? 'agent:loop continued from the received entry and handed over the reply of the same Model call'
-          : 'agent:no reply of the journal Model call',
-        'deviation:MODEL-ACK-ARRIVAL: the Model takes its ACK through the pusher after saved; the Session-side accounting of that ACK stays open (M2)',
-      ],
-    },
-    H07: {
-      connected: log.reply !== null && ended,
-      evidence: [
-        log.reply === null
-          ? 'session-contract:commit(recordMessage) not reached'
-          : 'session-contract:commit(recordMessage participation message) committed the Agent reply',
-        ended
-          ? 'agent:journal state ended'
-          : `agent:journal state ${snapshot?.state.kind ?? 'unread'}`,
-      ],
-    },
-  }
+  )
 }
+
+/** Whether the journal binds the Model call of the step: a pending call or a received result. */
+function bindsModelCall(facts: AgentFacts): boolean {
+  return (
+    facts.modelResult !== null ||
+    (facts.snapshot?.checkpoint.calls.some(call => call.kind === 'model') ?? false)
+  )
+}
+
+/** H05: the Agent assembled through Request Context and sent the Model call. */
+function observeRequest(facts: AgentFacts): ConnectedObservation {
+  const { log } = facts
+  const bound = bindsModelCall(facts)
+  return observed(
+    log.assembled > 0 &&
+      log.historyMessages > 0 &&
+      leased(log) &&
+      log.fixedMessages > 0 &&
+      bound &&
+      facts.admitted > 0,
+    [
+      `request-context-contract:assemble produced the Agent request from ${log.historyMessages} Session history message(s)`,
+      leaseLabel(log),
+      `agent:prepare fixed the request with ${log.fixedMessages} assembled message(s)`,
+      bound ? 'agent:journal binds the Model call of the step' : 'agent:journal has no Model call',
+      `caller-reported: Model admissions ${facts.admitted}`,
+    ],
+  )
+}
+
+/** H06: the pushed result became the received entry, and the loop continued from it. */
+function observeReceipt(facts: AgentFacts): ConnectedObservation {
+  const sameCall = facts.originalCall !== null && facts.originalCall === facts.log.reply?.call
+  return observed(facts.modelResult !== null && facts.materialReadable && sameCall, [
+    facts.modelResult === null
+      ? 'agent:journal has no received Model result'
+      : 'model-contract:the public pusher delivered the result to the host receiver, which wrote the received entry and its material',
+    sameCall
+      ? 'agent:loop continued from the received entry and handed over the reply of the same Model call'
+      : 'agent:no reply of the journal Model call',
+    'deviation:MODEL-ACK-ARRIVAL: the Model takes its ACK through the pusher after saved; the Session-side accounting of that ACK stays open (M2)',
+  ])
+}
+
+/** H07: the Agent reply entered the Session journal and the execution ended. */
+function observeReply(facts: AgentFacts): ConnectedObservation {
+  const state = facts.snapshot?.state.kind ?? 'unread'
+  return observed(facts.log.reply !== null && state === 'ended', [
+    facts.log.reply === null
+      ? 'session-contract:commit(recordMessage) not reached'
+      : 'session-contract:commit(recordMessage participation message) committed the Agent reply',
+    `agent:journal state ${state}`,
+  ])
+}
+
+// ---------------------------------------------------------------------------------------------
+// H08: the history, read through `read-history`
 
 /** H08: the history, read through `read-history`, returns the assistant replies of the rounds. */
 async function readReplies(
@@ -1130,71 +1314,70 @@ async function readReplies(
       session: wireSessionOf(scene.access.session),
       cursor: null,
       direction: 'forward',
-      pageBytes: '1000000',
+      pageBytes: String(HISTORY_PAGE_BYTES),
     },
   })
   if (request === null || request.operation !== 'read-history')
-    return none('session-read-history-request-not-read')
+    return refused('session-read-history-request-not-read')
   const page = await scene.history(DISCLOSED_HISTORY_KINDS)
   const response = carrySessionResponse(
-    'read-history',
     {
-      protocolVersion: SESSION_VERSION,
-      messageId,
-      outcome: 'succeeded',
-      body: {
-        entries: page.entries.map((entry): SessionHistoryEntry => ({
-          entryId: String(entry.id),
-          revision: String(entry.revision),
-          kind: entry.kind,
-          payload: entry.payload,
-        })),
-        next: page.next,
-        exhausted: page.exhausted,
-        scannedThrough: page.scannedThrough,
+      operation: 'read-history',
+      response: {
+        protocolVersion: SESSION_VERSION,
+        messageId,
+        outcome: 'succeeded',
+        body: {
+          entries: page.entries.map((entry): SessionHistoryEntry => ({
+            entryId: String(entry.id),
+            revision: String(entry.revision),
+            kind: entry.kind,
+            payload: entry.payload,
+          })),
+          next: page.next,
+          exhausted: page.exhausted,
+          scannedThrough: page.scannedThrough,
+        },
       },
+      limits: PATH_CODEC_LIMITS,
     },
     messageId,
   )
   if (response === null || response.outcome !== 'succeeded')
-    return none('session-read-history-response-not-read')
-  const assistant = response.body.entries.filter(entry => entry.kind === 'message.assistant')
-  const texts = assistant.flatMap(entry => {
-    const message = messageOf(entry)
-    return message === null ? [] : [textOf(message)]
-  })
+    return refused('session-read-history-response-not-read')
+  const texts = response.body.entries
+    .filter(entry => entry.kind === 'message.assistant')
+    .flatMap(entry => {
+      const message = messageOf(entry)
+      return message === null ? [] : [textOf(message)]
+    })
   const found =
     replies.length > 0 &&
     texts.length === replies.length &&
     texts.every((text, index) => text === replies[index])
-  return {
-    connected: found,
-    evidence: [
-      'public-contract:read-history request and response read with the wire session',
-      `session-contract:history.begin kinds ${page.entries.map(entry => entry.kind).join(',')}`,
-      found
-        ? `session-contract:history returns ${replies.length} assistant message(s) with the Model reply text, in round order`
-        : 'session-contract:history has no assistant message with the Model reply text',
-    ],
-  }
+  return observed(found, [
+    'public-contract:read-history request and response read with the wire session',
+    `session-contract:history.begin kinds ${page.entries.map(entry => entry.kind).join(',')}`,
+    found
+      ? `session-contract:history returns ${replies.length} assistant message(s) with the Model reply text, in round order`
+      : 'session-contract:history has no assistant message with the Model reply text',
+  ])
 }
 
 // ---------------------------------------------------------------------------------------------
 // H13: the Agent records of the round, read from the Session log
 
 async function readSessionLogRecords(
-  assembly: SessionAssembly,
-  scene: SessionScene,
-  drive: Drive,
+  { assembly }: PathContext,
+  session: OpenSession,
+  drive: DrivenRound,
 ): Promise<ConnectedObservation> {
-  const sessionLog = assembly.agentJournal
-  if (sessionLog === null)
-    return none(
+  const { scene, journal } = session
+  if (journal === null)
+    return disconnected(
       'agent-journal:the Agent keeps its own memory Journal; the Session log carries no Agent record (GAP-SESSION-LOG-TARGETS)',
     )
-  if (drive.execution === null) return none('not-reached')
-  const view = sessionLog(scene.access)
-  const snapshot = await loadSnapshot(view, scene.access, drive.execution)
+  const snapshot = await loadSnapshot(journal, scene.access, drive.execution)
   const work = await assembly.transactions.readWork(scene.access)
   const run = 'ok' in work ? work.ok.run : null
   const sameExecution =
@@ -1206,351 +1389,329 @@ async function readSessionLogRecords(
   const handedOver = page.entries.some(
     entry => entry.kind === 'intake.handed-over' || entry.kind === 'run.batch-taken',
   )
-  return {
-    connected: snapshot !== null && sameExecution && handedOver,
-    evidence: [
-      snapshot === null
-        ? 'session-adapters:journal.load on the Session log has no execution'
-        : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${snapshot.entries?.length ?? 0} received entr(ies)`,
-      sameExecution
-        ? 'session-contract:readWork binds the Run to the same execution'
-        : 'session-contract:readWork binds the Run to another execution',
-      handedOver
-        ? 'session-contract:history carries the hand-over or batch-taken entry of the execution'
-        : 'session-contract:history carries neither the hand-over nor the batch-taken entry',
-    ],
-  }
+  return observed(snapshot !== null && sameExecution && handedOver, [
+    snapshot === null
+      ? 'session-adapters:journal.load on the Session log has no execution'
+      : `session-adapters:journal.load on the Session log returns the execution opened under the Run grant, at ${snapshot.checkpoint.position} with ${snapshot.entries?.length ?? 0} received entr(ies)`,
+    sameExecution
+      ? 'session-contract:readWork binds the Run to the same execution'
+      : 'session-contract:readWork binds the Run to another execution',
+    handedOver
+      ? 'session-contract:history carries the hand-over or batch-taken entry of the execution'
+      : 'session-contract:history carries neither the hand-over nor the batch-taken entry',
+  ])
 }
 
 // ---------------------------------------------------------------------------------------------
 // H09: the later rounds of the main session
 
+type LaterRounds = Readonly<{ observation: ConnectedObservation; replies: readonly string[] }>
+
 async function driveLaterRounds(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  scene: SessionScene,
-  identified: Identified,
-  bridges: RoundBridges,
-  first: Drive,
-  journal: SessionLogAgentJournal | null,
-): Promise<Readonly<{ observation: ConnectedObservation; replies: readonly string[] }>> {
+  context: PathContext,
+  session: OpenSession,
+  first: DrivenRound,
+): Promise<LaterRounds> {
   const replies: string[] = first.log.reply === null ? [] : [first.log.reply.text]
-  const evidenceLines: string[] = []
-  if (first.agent === null || first.execution === null)
-    return { observation: none('not-reached'), replies }
-  const messages = deps.requests.slice(1, PATH_ROUNDS)
+  const messages = context.deps.requests.slice(1, PATH_ROUNDS)
   if (messages.length < PATH_ROUNDS - 1)
-    return { observation: none(`path:fewer than ${PATH_ROUNDS} requests supplied`), replies }
-  let connected = true
+    return {
+      observation: disconnected(`path:fewer than ${PATH_ROUNDS} requests supplied`),
+      replies,
+    }
+  const lines: string[] = []
   for (const [index, message] of messages.entries()) {
     const round = index + 2
-    const drive = await driveRound(deps, assembly, scene, identified, bridges, {
+    const drive = await driveRound(context, session, {
       round,
       message,
       scenario: 'reply',
       instance: first.agent.instance,
       existing: first.agent,
-      journal,
     })
-    const reason = drive.observation.evidence[0] ?? 'unknown'
-    if (!drive.observation.connected || drive.log.reply === null) {
-      connected = false
-      evidenceLines.push(`round ${round}: ${reason}`)
-      if (reason.startsWith('session-startRun:')) {
-        // The Run of the earlier round has no completed terminal on this path, so the next Run
-        // cannot start. The other route, a submit to the ended execution, is probed and recorded.
-        const submitted = await first.handle?.input.submit({
-          principal: identified.principal,
-          tenant: identified.tenant,
-          execution: first.execution,
-          operation: okOf(decodeAgentOperationId(`submit-round-${round}`), 'submit-operation'),
-          value: {
-            id: okOf(decodeAgentInputId(`input-cs-${round}`), 'submit-input'),
-            content: message,
-            source: null,
-            priority: 'ordinary',
-          },
-        })
-        evidenceLines.push(
-          submitted === undefined
-            ? `round ${round}: agent:input.submit not reached`
-            : 'failure' in submitted
-              ? `round ${round}: agent:input.submit ${kindOf(submitted.failure)}`
-              : `round ${round}: agent:input.submit accepted`,
-        )
-      }
+    const reply = drive.observation.kind === 'connected' ? drive.log.reply : null
+    if (reply === null) {
+      lines.push(...(await laterRoundStop(context, first, drive, round, message)))
       break
     }
-    replies.push(drive.log.reply.text)
-    evidenceLines.push(`round ${round}: Run started, Agent replied, reply recorded`)
+    replies.push(reply.text)
+    lines.push(`round ${round}: Run started, Agent replied, reply recorded`)
   }
-  return {
-    observation: {
-      connected: connected && replies.length === PATH_ROUNDS,
-      evidence: [
-        `session-contract:${replies.length} of ${PATH_ROUNDS} rounds replied`,
-        ...evidenceLines,
-      ],
-    },
-    replies,
-  }
+  const evidenceLines = [
+    `session-contract:${replies.length} of ${PATH_ROUNDS} rounds replied`,
+    ...lines,
+  ]
+  return { observation: observed(replies.length === PATH_ROUNDS, evidenceLines), replies }
+}
+
+/**
+ * Where a later round stopped. The Run of the earlier round has no completed terminal on this path,
+ * so the next Run cannot start; the other route, a submit to the first execution, is then probed.
+ */
+async function laterRoundStop(
+  context: PathContext,
+  first: DrivenRound,
+  drive: Drive,
+  round: number,
+  message: Message,
+): Promise<readonly string[]> {
+  const stop = `round ${round}: ${firstLabel(drive.observation)}`
+  if (drive.kind !== 'stopped' || drive.stage !== 'startRun') return [stop]
+  return [stop, `round ${round}: ${await submitToFirst(context, first, round, message)}`]
+}
+
+async function submitToFirst(
+  { identified }: PathContext,
+  first: DrivenRound,
+  round: number,
+  message: Message,
+): Promise<string> {
+  const operation = decodeAgentOperationId(`submit-round-${round}`)
+  const input = decodeAgentInputId(`input-cs-${round}`)
+  if ('failure' in operation || 'failure' in input)
+    return 'path:the submit identities are not Agent identities'
+  const submitted = await first.handle.input.submit({
+    principal: identified.principal,
+    tenant: identified.tenant,
+    execution: first.execution,
+    operation: operation.ok,
+    value: { id: input.ok, content: message, source: null, priority: 'ordinary' },
+  })
+  return 'failure' in submitted
+    ? `agent:input.submit ${kindOf(submitted.failure)}`
+    : 'agent:input.submit accepted'
 }
 
 // ---------------------------------------------------------------------------------------------
 // H10, H11, H12: the probes, each in its own session
 
 type Probe = Readonly<{
+  name: string
   session: SessionId
   instance: string
   scenario: AgentScenario
 }>
+const TOOL_PROBE: Probe = {
+  name: 'tool',
+  session: pathSession(PATH_SESSIONS.tool),
+  instance: 'instance-cs-tool',
+  scenario: 'tool-call',
+}
+const REASSEMBLY_PROBE: Probe = {
+  name: 'reassembly',
+  session: pathSession(PATH_SESSIONS.reassembly),
+  instance: 'instance-cs-reassembly',
+  scenario: 'held',
+}
+const REASONING_PROBE: Probe = {
+  name: 'reasoning',
+  session: pathSession(PATH_SESSIONS.reasoning),
+  instance: 'instance-cs-reasoning',
+  scenario: 'reasoning',
+}
 
+type OpenedProbe = Readonly<{ session: OpenSession; drive: DrivenRound }>
+
+/** Opens the session of a probe and drives its first round; the observation says where it stopped. */
 async function openProbe(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  identified: Identified,
+  context: PathContext,
   probe: Probe,
-): Promise<Readonly<{ scene: SessionScene; drive: Drive; bridges: RoundBridges } | string>> {
-  const session = await createSession(deps, assembly, identified, probe.session)
-  if (session.scene === null) return session.observation.evidence[0] ?? 'session-create-failed'
-  const journal = assembly.agentJournal?.(session.scene.access) ?? null
-  const bridges = roundBridges(session.scene, identified.tenant, deps)
-  const message = deps.requests[0]
-  if (message === undefined) return 'path:no request supplied'
-  const drive = await driveRound(deps, assembly, session.scene, identified, bridges, {
+): Promise<Readonly<{ opened: OpenedProbe }> | Readonly<{ observation: ConnectedObservation }>> {
+  const label = (observation: ConnectedObservation) =>
+    refused(`probe-${probe.name}:${firstLabel(observation)}`)
+  const opened = await openSession(context, probe.session)
+  if (opened.session === null) return { observation: label(opened.observation) }
+  const message = context.deps.requests[0]
+  if (message === undefined) return { observation: refused(`probe-${probe.name}:no request`) }
+  const drive = await driveRound(context, opened.session, {
     round: 1,
     message,
     scenario: probe.scenario,
     instance: probe.instance,
     existing: null,
-    journal,
   })
-  if (!drive.observation.connected || drive.agent === null || drive.execution === null)
-    return drive.observation.evidence[0] ?? 'drive-failed'
-  return { scene: session.scene, drive, bridges }
+  if (drive.kind !== 'driven' || drive.observation.kind !== 'connected')
+    return { observation: label(drive.observation) }
+  return { opened: { session: opened.session, drive } }
 }
 
 /** H10: the Model requests a tool; the Agent must run it and call the Model again. */
-async function probeToolRoundTrip(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  identified: Identified,
-): Promise<ConnectedObservation> {
-  const opened = await openProbe(deps, assembly, identified, {
-    session: PATH_SESSIONS.tool as SessionId,
-    instance: 'instance-cs-tool',
-    scenario: 'tool-call',
-  })
-  if (typeof opened === 'string') return none(`probe-tool:${opened}`)
-  const { drive, scene } = opened
-  const agent = drive.agent
-  const execution = drive.execution
-  if (agent === null || execution === null) return none('not-reached')
+async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObservation> {
+  const probe = await openProbe(context, TOOL_PROBE)
+  if ('observation' in probe) return probe.observation
+  const { session, drive } = probe.opened
+  const { agent } = drive
   // The Model reply with the tool call reaches the Agent, which stops where it cannot run it.
-  await waitTurns(deps.replyTurns ?? 2000, () => drive.log.reply !== null)
-  const snapshot = await loadSnapshot(agent, scene.access, execution)
+  await waitTurns(context.turns, () => drive.log.reply !== null)
+  const snapshot = await loadSnapshot(agent, session.scene.access, drive.execution)
   const invoked = agent.toolInvocations()
   const admitted = agent.admitted()
   const stopped = snapshot !== null && snapshot.state.kind !== 'ended'
-  const connected = invoked > 0 && admitted >= 2 && snapshot?.state.kind === 'ended'
-  return {
-    connected,
-    evidence: [
-      drive.log.reply === null
-        ? 'agent:the tool-call reply was not handed over'
-        : 'agent:the tool-call reply was admitted and handed over to Session',
-      `caller-reported: Tool runtime invocations ${invoked}, Model admissions ${admitted}`,
-      stopped
-        ? `agent:journal stopped at ${snapshot.checkpoint.position} with state ${snapshot.state.kind}; the loop refuses a reply with tool calls (I4, #502 stage 2)`
-        : 'agent:journal state ended',
-      'execution-environment:files and command facilities not reached (GAP-TOOL-LOOP)',
-    ],
-  }
+  return observed(invoked > 0 && admitted >= 2 && snapshot?.state.kind === 'ended', [
+    drive.log.reply === null
+      ? 'agent:the tool-call reply was not handed over'
+      : 'agent:the tool-call reply was admitted and handed over to Session',
+    `caller-reported: Tool runtime invocations ${invoked}, Model admissions ${admitted}`,
+    stopped
+      ? `agent:journal stopped at ${snapshot.checkpoint.position} with state ${snapshot.state.kind}; the loop refuses a reply with tool calls (I4, #502 stage 2)`
+      : 'agent:journal state ended',
+    'execution-environment:files and command facilities not reached (GAP-TOOL-LOOP)',
+  ])
 }
 
+const replyLabel = (name: string, reply: { ok: unknown } | { failure: unknown } | null) =>
+  reply === null
+    ? `agent:${name} not reached`
+    : 'failure' in reply
+      ? `agent:${name} ${kindOf(reply.failure)}`
+      : `agent:${name} succeeded`
+
 /** H11: the Agent instance is withdrawn during a Model call and assembled again. */
-async function probeReassembly(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  identified: Identified,
-): Promise<ConnectedObservation> {
-  const opened = await openProbe(deps, assembly, identified, {
-    session: PATH_SESSIONS.reassembly as SessionId,
-    instance: 'instance-cs-reassembly',
-    scenario: 'held',
-  })
-  if (typeof opened === 'string') return none(`probe-reassembly:${opened}`)
-  const { drive, scene } = opened
-  const agent = drive.agent
-  const execution = drive.execution
-  if (agent === null || execution === null) return none('not-reached')
+async function probeReassembly(context: PathContext): Promise<ConnectedObservation> {
+  const probe = await openProbe(context, REASSEMBLY_PROBE)
+  if ('observation' in probe) return probe.observation
+  const { session, drive } = probe.opened
+  const { agent, execution } = drive
   // Wait until the Model call is admitted and the loop waits for its result.
-  await waitTurns(deps.replyTurns ?? 2000, () => agent.admitted() > 0)
-  const access = { principal: identified.principal, tenant: identified.tenant }
-  const before = await loadSnapshot(agent, scene.access, execution)
-  const reason = evidence('reassembly/withdraw') as AgentEvidence
+  await waitTurns(context.turns, () => agent.admitted() > 0)
+  const access = { principal: context.identified.principal, tenant: context.identified.tenant }
+  const before = await loadSnapshot(agent, session.scene.access, execution)
+  const reason = evidence('reassembly/withdraw')
   const quiesced = await agent.provider.control.quiesce({
     ...access,
-    operation: okOf(decodeAgentOperationId('quiesce-cs'), 'quiesce-operation'),
+    operation: QUIESCE_OPERATION,
     reason,
   })
+  const attachment = before?.executionAttachment ?? null
   const detached =
-    before?.executionAttachment === null || before?.executionAttachment === undefined
+    attachment === null
       ? null
       : await agent.provider.recovery.detach({
           ...access,
           execution,
-          operation: okOf(decodeAgentOperationId('detach-cs'), 'detach-operation'),
-          authority: before.executionAttachment,
+          operation: DETACH_OPERATION,
+          authority: attachment,
           reason,
         })
   const resumed = await agent.provider.runtime.resume({
     ...access,
     execution,
-    operation: okOf(decodeAgentOperationId('resume-cs'), 'resume-operation'),
+    operation: RESUME_OPERATION,
     recovery: reason,
     grant: null,
   })
-  const label = (name: string, reply: { ok: unknown } | { failure: unknown } | null) =>
-    reply === null
-      ? `agent:${name} not reached`
-      : 'failure' in reply
-        ? `agent:${name} ${kindOf(reply.failure)}`
-        : `agent:${name} succeeded`
   agent.releaseModel?.()
-  await waitTurns(deps.replyTurns ?? 2000, () => drive.log.reply !== null)
-  const after = await loadSnapshot(agent, scene.access, execution)
-  const connected =
-    'ok' in quiesced && resumed !== null && 'ok' in resumed && after?.state.kind === 'ended'
-  return {
-    connected,
-    evidence: [
-      `caller-reported: Model admissions ${agent.admitted()} during the call`,
-      label('control.quiesce', quiesced),
-      label('recovery.detach', detached),
-      label('runtime.resume', resumed),
-      after?.state.kind === 'ended'
-        ? 'agent:the original driver continued from the received entry after the Model settled'
-        : `agent:journal state ${after?.state.kind ?? 'unread'} after the Model settled`,
-      'observation:the re-attachment of a StreamRef after reassembly is not exercised (#746 server-entry)',
-    ],
-  }
+  await waitTurns(context.turns, () => drive.log.reply !== null)
+  const after = await loadSnapshot(agent, session.scene.access, execution)
+  const ended = after?.state.kind === 'ended'
+  return observed('ok' in quiesced && 'ok' in resumed && ended, [
+    `caller-reported: Model admissions ${agent.admitted()} during the call`,
+    replyLabel('control.quiesce', quiesced),
+    replyLabel('recovery.detach', detached),
+    replyLabel('runtime.resume', resumed),
+    ended
+      ? 'agent:the original driver continued from the received entry after the Model settled'
+      : `agent:journal state ${after?.state.kind ?? 'unread'} after the Model settled`,
+    'observation:the re-attachment of a StreamRef after reassembly is not exercised (#746 server-entry)',
+  ])
 }
 
 /** H12: the first reply carries reasoning; the next request must replay it. */
-async function probeReasoningReplay(
-  deps: PathDependencies,
-  assembly: SessionAssembly,
-  identified: Identified,
-): Promise<ConnectedObservation> {
-  const opened = await openProbe(deps, assembly, identified, {
-    session: PATH_SESSIONS.reasoning as SessionId,
-    instance: 'instance-cs-reasoning',
-    scenario: 'reasoning',
-  })
-  if (typeof opened === 'string') return none(`probe-reasoning:${opened}`)
-  const { drive, scene } = opened
-  const agent = drive.agent
-  const execution = drive.execution
-  if (agent === null || execution === null) return none('not-reached')
-  await waitTurns(deps.replyTurns ?? 2000, () => drive.log.reply !== null)
-  const snapshot = await loadSnapshot(agent, scene.access, execution)
-  const received = snapshot?.entries?.some(
-    entry => entry.kind === 'received' && entry.delivery.producer === 'model',
-  )
-  const connected = drive.log.reply !== null && snapshot?.state.kind === 'ended'
-  return {
-    connected,
-    evidence: [
-      received
-        ? 'model-contract:the public pusher delivered the reasoning result to the host receiver'
-        : 'agent:journal has no received Model result',
-      drive.log.reply === null
-        ? `agent:no reply handed over; journal state ${snapshot?.state.kind ?? 'unread'} at ${snapshot?.checkpoint.position ?? 'unread'}; the loop did not consume the result with the thinking part (GAP-REASONING-REPLAY)`
-        : 'agent:the reasoning reply was handed over',
-      'request-context-contract:the second request with the replayed reasoning state is not reached (GAP-REASONING-REPLAY)',
-    ],
-  }
+async function probeReasoningReplay(context: PathContext): Promise<ConnectedObservation> {
+  const probe = await openProbe(context, REASONING_PROBE)
+  if ('observation' in probe) return probe.observation
+  const { session, drive } = probe.opened
+  await waitTurns(context.turns, () => drive.log.reply !== null)
+  const snapshot = await loadSnapshot(drive.agent, session.scene.access, drive.execution)
+  const received = receivedModelResult(snapshot) !== null
+  return observed(drive.log.reply !== null && snapshot?.state.kind === 'ended', [
+    received
+      ? 'model-contract:the public pusher delivered the reasoning result to the host receiver'
+      : 'agent:journal has no received Model result',
+    drive.log.reply === null
+      ? `agent:no reply handed over; journal state ${snapshot?.state.kind ?? 'unread'} at ${snapshot?.checkpoint.position ?? 'unread'}; the loop did not consume the result with the thinking part (GAP-REASONING-REPLAY)`
+      : 'agent:the reasoning reply was handed over',
+    'request-context-contract:the second request with the replayed reasoning state is not reached (GAP-REASONING-REPLAY)',
+  ])
 }
 
 // ---------------------------------------------------------------------------------------------
 // The path
 
-export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstPathObservation> {
-  const result: Record<FirstPathHop, ConnectedObservation> = {
-    H01: none('not-reached'),
-    H02: none('not-reached'),
-    H03: none('not-reached'),
-    H04: none('not-reached'),
-    H05: none('not-reached'),
-    H06: none('not-reached'),
-    H07: none('not-reached'),
-    H08: none('not-reached'),
-    H09: none('not-reached'),
-    H10: none('not-reached'),
-    H11: none('not-reached'),
-    H12: none('not-reached'),
-    H13: none('not-reached'),
-  }
+type MainSession = Readonly<{ context: PathContext; session: OpenSession }>
+
+/** H01 to H03: the tenant, the login, and the main session with the injected access check. */
+async function openMainSession(
+  deps: PathDependencies,
+  result: Partial<Record<FirstPathHop, ConnectedObservation>>,
+): Promise<MainSession | null> {
   const registered = await registerTenant(deps)
   result.H01 = registered.observation
-  if (registered.tenant === null || !registered.observation.connected) return result
+  if (registered.tenant === null || registered.observation.kind !== 'connected') return null
   const login = await logIn(deps, registered.tenant)
   result.H02 = login.observation
-  if (login.identified === null) return result
-  const identified = login.identified
+  if (login.identified === null) return null
   // #680 B-1 item 4: the Session store derives Session participation from the Agent Journal, so
   // the access check is a required injection. Without it the assembly stays pending.
   const accessCheck: unknown = deps.sessionAccessCheck
   if (typeof accessCheck !== 'object' || accessCheck === null) {
-    result.H03 = none('session-assembly:pending:sessionAccessCheck')
-    return result
+    result.H03 = refused('session-assembly:pending:sessionAccessCheck')
+    return null
   }
-  const assembly = deps.session({ accessCheck: deps.sessionAccessCheck })
-  const session = await createSession(deps, assembly, identified, PATH_SESSIONS.main as SessionId)
-  result.H03 = session.observation
-  if (session.scene === null) return result
-  const scene = session.scene
-  const journal = assembly.agentJournal?.(scene.access) ?? null
-  const bridges = roundBridges(scene, identified.tenant, deps)
-  const first = deps.requests[0]
+  const context: PathContext = {
+    deps,
+    assembly: deps.session({ accessCheck: deps.sessionAccessCheck }),
+    identified: login.identified,
+    turns: deps.replyTurns ?? DEFAULT_REPLY_TURNS,
+  }
+  const opened = await openSession(context, pathSession(PATH_SESSIONS.main))
+  result.H03 = opened.observation
+  return opened.session === null ? null : { context, session: opened.session }
+}
+
+/** H04 to H07: the first round, and what the Agent journal and the bridges observed of it. */
+async function driveFirstRound(
+  { context, session }: MainSession,
+  result: Partial<Record<FirstPathHop, ConnectedObservation>>,
+): Promise<DrivenRound | null> {
+  const first = context.deps.requests[0]
   if (first === undefined) {
-    result.H04 = none('path:no request supplied')
-    return result
+    result.H04 = disconnected('path:no request supplied')
+    return null
   }
-  const drive = await driveRound(deps, assembly, scene, identified, bridges, {
+  const drive = await driveRound(context, session, {
     round: 1,
     message: first,
     scenario: 'reply',
     instance: 'instance-cs-1',
     existing: null,
-    journal,
   })
   result.H04 = drive.observation
-  if (drive.agent === null || drive.execution === null) return result
-  const access = { principal: identified.principal, tenant: identified.tenant }
-  Object.assign(
-    result,
-    await observeAgent(
-      await loadSnapshot(drive.agent, access, drive.execution),
-      drive.log,
-      drive.agent,
-      access,
-    ),
-  )
-  result.H13 = await readSessionLogRecords(assembly, scene, drive)
-  const later = await driveLaterRounds(deps, assembly, scene, identified, bridges, drive, journal)
+  if (drive.kind !== 'driven') return null
+  const access = { principal: context.identified.principal, tenant: context.identified.tenant }
+  const facts = await agentFacts(drive.agent, access, drive.execution, drive.log)
+  result.H05 = observeRequest(facts)
+  result.H06 = observeReceipt(facts)
+  result.H07 = observeReply(facts)
+  return drive
+}
+
+export async function runFirstTenantPath(deps: PathDependencies): Promise<FirstPathObservation> {
+  const result: Partial<Record<FirstPathHop, ConnectedObservation>> = {}
+  const main = await openMainSession(deps, result)
+  if (main === null) return result
+  const drive = await driveFirstRound(main, result)
+  if (drive === null) return result
+  result.H13 = await readSessionLogRecords(main.context, main.session, drive)
+  const later = await driveLaterRounds(main.context, main.session, drive)
   result.H09 = later.observation
-  result.H08 = await readReplies(scene, identified, later.replies)
-  if (drive.log.failures.length > 0)
-    for (const hop of ['H04', 'H05', 'H06', 'H07'] as const)
-      result[hop] = {
-        ...result[hop],
-        evidence: [...result[hop].evidence, ...drive.log.failures.map(f => `bridge:${f}`)],
-      }
-  if (!result.H07.connected) return result
-  result.H10 = await probeToolRoundTrip(deps, assembly, identified)
-  result.H11 = await probeReassembly(deps, assembly, identified)
-  result.H12 = await probeReasoningReplay(deps, assembly, identified)
+  result.H08 = await readReplies(main.session.scene, main.context.identified, later.replies)
+  const bridgeFailures = drive.log.failures.map(failure => `bridge:${failure}`)
+  for (const hop of ['H04', 'H05', 'H06', 'H07'] as const)
+    result[hop] = withEvidence(result[hop] ?? NOT_REACHED, bridgeFailures)
+  if (result.H07?.kind !== 'connected') return result
+  result.H10 = await probeToolRoundTrip(main.context)
+  result.H11 = await probeReassembly(main.context)
+  result.H12 = await probeReasoningReplay(main.context)
   return result
 }

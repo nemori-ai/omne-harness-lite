@@ -6,9 +6,13 @@ import type { JsonValue } from '@omne-harness/json-text'
 import type { HistoryPage } from '@omne-harness/session-contract'
 import { memoryOtherAccess } from '@omne-harness/session-contract/testing'
 import {
+  evidenceOf,
+  NOT_REACHED,
   runFirstTenantPath,
   messageOf,
   wireSessionOf,
+  type FirstPathHop,
+  type FirstPathObservation,
   type PathDependencies,
   type PathPrincipal,
   type SessionAssembly,
@@ -31,6 +35,11 @@ const FIRST_ROUND = ['H01', 'H02', 'H03', 'H04', 'H05', 'H06', 'H07', 'H08'] as 
 const LATER = ['H03', 'H04', 'H05', 'H06', 'H07', 'H08', 'H09', 'H10', 'H11', 'H12', 'H13'] as const
 /** The hops of CS v2 that the upstream public entries refuse on this track. */
 const PROBED = ['H09', 'H10', 'H11', 'H12', 'H13'] as const
+
+const kindAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
+  (observed[hop] ?? NOT_REACHED).kind
+const evidenceAt = (observed: FirstPathObservation, hop: FirstPathHop) =>
+  evidenceOf(observed[hop] ?? NOT_REACHED)
 
 /** A Session store whose transaction port is wrapped by `wrap`; the evidence bridge stays. */
 function wrappedStore(
@@ -63,7 +72,7 @@ describe('connected tenant path, first round', () => {
         })),
       ),
     )
-    for (const hop of FIRST_ROUND) expect(observed[hop].connected).toBe(true)
+    for (const hop of FIRST_ROUND) expect(kindAt(observed, hop)).toBe('connected')
     const main = pages.filter(page =>
       page.entries.some(entry => entry.kind === 'message.assistant'),
     )
@@ -74,13 +83,13 @@ describe('connected tenant path, first round', () => {
     })
     expect(messages.map(message => message.role)).toEqual(['user', 'assistant', 'user'])
     expect(JSON.stringify(messages[1]?.blocks)).toContain(REPLY_TEXT)
-    expect(observed.H03.evidence).toContain(
+    expect(evidenceAt(observed, 'H03')).toContain(
       'public-contract:create-session response read with the wire session',
     )
-    expect(observed.H04.evidence).toContain(
+    expect(evidenceAt(observed, 'H04')).toContain(
       'public-contract:send-input request read with the wire session',
     )
-    expect(observed.H08.evidence).toContain(
+    expect(evidenceAt(observed, 'H08')).toContain(
       'public-contract:read-history request and response read with the wire session',
     )
   })
@@ -123,13 +132,12 @@ describe('connected tenant path, first round', () => {
         },
       }),
     )
-    expect(observed.H01.connected).toBe(true)
+    expect(kindAt(observed, 'H01')).toBe('connected')
     expect(observed.H02).toEqual({
-      connected: false,
+      kind: 'refused',
       evidence: ['identity-login:uniform-auth-failure'],
     })
-    for (const hop of LATER)
-      expect(observed[hop]).toEqual({ connected: false, evidence: ['not-reached'] })
+    for (const hop of LATER) expect(observed[hop]).toBeUndefined()
   })
 
   it('stops at H03 when the Session evidence bridge is unavailable', async () => {
@@ -138,8 +146,8 @@ describe('connected tenant path, first round', () => {
         session: sessionAssembly('contract-memory', bridge => bridge.controls.unavailable(true)),
       }),
     )
-    expect(observed.H03).toEqual({ connected: false, evidence: ['session-create:unavailable'] })
-    expect(observed.H04.connected).toBe(false)
+    expect(observed.H03).toEqual({ kind: 'refused', evidence: ['session-create:unavailable'] })
+    expect(kindAt(observed, 'H04')).not.toBe('connected')
   })
 
   it('refuses startRun with login-required when the evidence bridge gives no login confirmation', async () => {
@@ -148,27 +156,24 @@ describe('connected tenant path, first round', () => {
         session: sessionAssembly('contract-memory', bridge => bridge.controls.loginEntry(false)),
       }),
     )
-    expect(observed.H03.connected).toBe(true)
-    expect(observed.H04).toEqual({
-      connected: false,
-      evidence: ['session-startRun:login-required'],
-    })
+    expect(kindAt(observed, 'H03')).toBe('connected')
+    expect(observed.H04).toEqual({ kind: 'refused', evidence: ['session-startRun:login-required'] })
     for (const hop of ['H05', 'H06', 'H07', 'H08', 'H09', 'H10', 'H11', 'H12', 'H13'] as const)
-      expect(observed[hop]).toEqual({ connected: false, evidence: ['not-reached'] })
+      expect(observed[hop]).toBeUndefined()
   })
 
   it('does not claim a Model result, reply or history entry when the Model never settles', async () => {
     const observed = await runFirstTenantPath(
       pathDependencies({ agent: agentDouble({ parts: null }), replyTurns: 50 }),
     )
-    expect(observed.H04.connected).toBe(true)
+    expect(kindAt(observed, 'H04')).toBe('connected')
     // The call was sent (H05); nothing after it may be claimed.
-    expect(observed.H05.connected).toBe(true)
-    for (const hop of ['H06', 'H07', 'H08'] as const) expect(observed[hop].connected).toBe(false)
-    expect(observed.H08.evidence.join(' ')).toContain('has no assistant message')
-    expect(observed.H06.evidence).toContain('agent:no reply of the journal Model call')
-    for (const hop of ['H10', 'H11', 'H12'] as const)
-      expect(observed[hop]).toEqual({ connected: false, evidence: ['not-reached'] })
+    expect(kindAt(observed, 'H05')).toBe('connected')
+    for (const hop of ['H06', 'H07', 'H08'] as const)
+      expect(kindAt(observed, hop)).not.toBe('connected')
+    expect(evidenceAt(observed, 'H08').join(' ')).toContain('has no assistant message')
+    expect(evidenceAt(observed, 'H06')).toContain('agent:no reply of the journal Model call')
+    for (const hop of ['H10', 'H11', 'H12'] as const) expect(observed[hop]).toBeUndefined()
   })
 
   it('fails H08 when the Session history does not carry the Model reply text', async () => {
@@ -192,8 +197,8 @@ describe('connected tenant path, first round', () => {
         })),
       ),
     )
-    expect(observed.H07.connected).toBe(true)
-    expect(observed.H08.connected).toBe(false)
+    expect(kindAt(observed, 'H07')).toBe('connected')
+    expect(kindAt(observed, 'H08')).not.toBe('connected')
   })
 
   it('reports an incomplete path with the first round verified, without message bodies or credentials', async () => {
@@ -225,8 +230,8 @@ describe('connected tenant path, first round', () => {
         },
       }),
     )
-    expect(observed.H05.connected).toBe(false)
-    expect(observed.H05.evidence).toContain(
+    expect(kindAt(observed, 'H05')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H05')).toContain(
       'caller-reported: Request Context lease counts acquired=0, planned=0, outstanding=0',
     )
   })
@@ -278,14 +283,14 @@ describe('the injected Session access check (#680 B-1)', () => {
         },
       }),
     )
-    expect(observed.H02.connected).toBe(true)
+    expect(kindAt(observed, 'H02')).toBe('connected')
     expect(observed.H03).toEqual({
-      connected: false,
+      kind: 'refused',
       evidence: ['session-assembly:pending:sessionAccessCheck'],
     })
     expect(built).toBe(0)
     for (const hop of ['H04', 'H05', 'H06', 'H07', 'H08', 'H09', 'H13'] as const)
-      expect(observed[hop]).toEqual({ connected: false, evidence: ['not-reached'] })
+      expect(observed[hop]).toBeUndefined()
   })
 
   it('asks the injected check for the session commands and stops at H03 when it denies', async () => {
@@ -301,73 +306,76 @@ describe('the injected Session access check (#680 B-1)', () => {
       }),
     )
     expect(asked).toContain('create')
-    expect(observed.H03).toEqual({ connected: false, evidence: ['session-create:denied'] })
+    expect(observed.H03).toEqual({ kind: 'refused', evidence: ['session-create:denied'] })
   })
 })
 
 describe('the later rounds, the probes and the Session log (CS v2)', () => {
   it('drives the later rounds until the Session refuses the next Run, and records the submit route', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(observed.H09.connected).toBe(false)
-    expect(observed.H09.evidence[0]).toBe('session-contract:1 of 3 rounds replied')
-    expect(observed.H09.evidence).toContain('round 2: session-startRun:run-active')
-    expect(observed.H09.evidence).toContain('round 2: agent:input.submit unavailable')
+    expect(kindAt(observed, 'H09')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H09')[0]).toBe('session-contract:1 of 3 rounds replied')
+    expect(evidenceAt(observed, 'H09')).toContain('round 2: session-startRun:run-active')
+    expect(evidenceAt(observed, 'H09')).toContain('round 2: agent:input.submit unavailable')
     // The second input was accepted by Session before the Run start was refused.
-    expect(observed.H08.evidence[1]).toContain('message.user,')
+    expect(evidenceAt(observed, 'H08')[1]).toContain('message.user,')
   })
 
   it('records that the Agent loop refuses the tool-call reply before any Tool invocation', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(observed.H10.connected).toBe(false)
-    expect(observed.H10.evidence).toContain(
+    expect(kindAt(observed, 'H10')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H10')).toContain(
       'agent:the tool-call reply was admitted and handed over to Session',
     )
-    expect(observed.H10.evidence).toContain(
+    expect(evidenceAt(observed, 'H10')).toContain(
       'caller-reported: Tool runtime invocations 0, Model admissions 1',
     )
-    expect(observed.H10.evidence.join(' ')).toContain('agent:journal stopped at I4')
+    expect(evidenceAt(observed, 'H10').join(' ')).toContain('agent:journal stopped at I4')
   })
 
   it('records that quiesce, detach and resume are unavailable during the Model call, with one admission', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(observed.H11.connected).toBe(false)
-    expect(observed.H11.evidence).toContain('caller-reported: Model admissions 1 during the call')
-    expect(observed.H11.evidence).toContain('agent:control.quiesce unavailable')
-    expect(observed.H11.evidence).toContain('agent:recovery.detach unavailable')
-    expect(observed.H11.evidence).toContain('agent:runtime.resume unavailable')
-    expect(observed.H11.evidence).toContain(
+    expect(kindAt(observed, 'H11')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H11')).toContain(
+      'caller-reported: Model admissions 1 during the call',
+    )
+    expect(evidenceAt(observed, 'H11')).toContain('agent:control.quiesce unavailable')
+    expect(evidenceAt(observed, 'H11')).toContain('agent:recovery.detach unavailable')
+    expect(evidenceAt(observed, 'H11')).toContain('agent:runtime.resume unavailable')
+    expect(evidenceAt(observed, 'H11')).toContain(
       'agent:the original driver continued from the received entry after the Model settled',
     )
   })
 
   it('records that the Agent loop refuses a received result with reasoning parts', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(observed.H12.connected).toBe(false)
-    expect(observed.H12.evidence).toContain(
+    expect(kindAt(observed, 'H12')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H12')).toContain(
       'model-contract:the public pusher delivered the reasoning result to the host receiver',
     )
-    expect(observed.H12.evidence.join(' ')).toContain('agent:no reply handed over')
+    expect(evidenceAt(observed, 'H12').join(' ')).toContain('agent:no reply handed over')
   })
 
   it('reports the Session log hop as a gap while the Agent keeps its own memory Journal', async () => {
     const observed = await runFirstTenantPath(pathDependencies())
-    expect(observed.H13.connected).toBe(false)
-    expect(observed.H13.evidence[0]).toContain('GAP-SESSION-LOG-TARGETS')
+    expect(kindAt(observed, 'H13')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H13')[0]).toContain('GAP-SESSION-LOG-TARGETS')
   })
 
   it('reads the Agent records from the Session log of #756, and stops at H06 without reception targets', async () => {
     const observed = await runFirstTenantPath(pathDependencies({}, 'session-log'))
     for (const hop of ['H01', 'H02', 'H03', 'H04', 'H05', 'H13'] as const)
-      expect(observed[hop].connected).toBe(true)
-    expect(observed.H13.evidence).toContain(
+      expect(kindAt(observed, hop)).toBe('connected')
+    expect(evidenceAt(observed, 'H13')).toContain(
       'session-contract:readWork binds the Run to the same execution',
     )
-    expect(observed.H13.evidence).toContain(
+    expect(evidenceAt(observed, 'H13')).toContain(
       'session-contract:history carries the hand-over or batch-taken entry of the execution',
     )
-    expect(observed.H06.connected).toBe(false)
-    expect(observed.H06.evidence).toContain('agent:journal has no received Model result')
-    for (const hop of ['H07', 'H08', 'H09'] as const) expect(observed[hop].connected).toBe(false)
+    expect(kindAt(observed, 'H06')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H06')).toContain('agent:journal has no received Model result')
+    for (const hop of ['H07', 'H08', 'H09'] as const)
+      expect(kindAt(observed, hop)).not.toBe('connected')
   })
 
   it('declares the realization of every row a hop crosses', async () => {
@@ -435,8 +443,8 @@ it.each([
       },
     }),
   )
-  expect(observed.H06.connected).toBe(false)
-  expect(observed.H06.evidence).toContain('agent:journal has no received Model result')
+  expect(kindAt(observed, 'H06')).not.toBe('connected')
+  expect(evidenceAt(observed, 'H06')).toContain('agent:journal has no received Model result')
 })
 
 it.each(['unreadable', 'wrong-schema'] as const)(
@@ -471,8 +479,8 @@ it.each(['unreadable', 'wrong-schema'] as const)(
         },
       }),
     )
-    expect(observed.H06.connected).toBe(false)
-    expect(observed.H06.evidence).toContain(
+    expect(kindAt(observed, 'H06')).not.toBe('connected')
+    expect(evidenceAt(observed, 'H06')).toContain(
       'model-contract:the public pusher delivered the result to the host receiver, which wrote the received entry and its material',
     )
   },
@@ -510,7 +518,7 @@ it('selects the result after unrelated entries rather than adopting the first en
       },
     }),
   )
-  expect(observed.H06.connected).toBe(true)
+  expect(kindAt(observed, 'H06')).toBe('connected')
 })
 
 it('does not claim H06 when readable received material names another original call', async () => {
@@ -586,8 +594,8 @@ it('does not claim H06 when readable received material names another original ca
       },
     }),
   )
-  expect(observed.H06.connected).toBe(false)
-  expect(observed.H06.evidence).toContain('agent:no reply of the journal Model call')
+  expect(kindAt(observed, 'H06')).not.toBe('connected')
+  expect(evidenceAt(observed, 'H06')).toContain('agent:no reply of the journal Model call')
 })
 
 it('rejects a received reference encoded for another tenant', async () => {
@@ -639,5 +647,5 @@ it('rejects a received reference encoded for another tenant', async () => {
       },
     }),
   )
-  expect(observed.H06.connected).toBe(false)
+  expect(kindAt(observed, 'H06')).not.toBe('connected')
 })

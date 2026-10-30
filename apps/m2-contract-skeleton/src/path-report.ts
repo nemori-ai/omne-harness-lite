@@ -1,23 +1,15 @@
 import { CONFORMANCE_OBLIGATIONS } from '@omne-harness/model-contract/conformance'
-import type { FirstPathObservation } from './path.ts'
+import {
+  evidenceOf,
+  HOP_IDS,
+  NOT_REACHED,
+  type FirstPathHop,
+  type FirstPathObservation,
+} from './hops.ts'
 import { GOVERNANCE_SCENARIOS, REQUIRED_SCENARIOS, type ScenarioResult } from './scenarios.ts'
 
-export const HOP_IDS = [
-  'H01',
-  'H02',
-  'H03',
-  'H04',
-  'H05',
-  'H06',
-  'H07',
-  'H08',
-  'H09',
-  'H10',
-  'H11',
-  'H12',
-  'H13',
-] as const
-export type HopId = (typeof HOP_IDS)[number]
+export { HOP_IDS }
+export type HopId = FirstPathHop
 export type FragmentObservation = Readonly<{
   fragmentId: string
   status: 'pass' | 'fail' | 'not-applicable'
@@ -28,9 +20,11 @@ export type FragmentObservation = Readonly<{
  * real implementation, a `./testing` double or a stand-in of this application, or nothing.
  */
 export type Realization = 'real' | 'double' | 'absent'
+/** A plugin-tree row of the application assembly page that some hop of this path crosses. */
+export type RowId = (typeof HOP_DEFINITIONS)[number]['rows'][number]
 /** The caller's declaration of the realization of each plugin-tree row it wired. */
-export type RealizationTable = Readonly<Record<string, Realization>>
-export type RowRealization = Readonly<{ row: string; realization: Realization | 'undeclared' }>
+export type RealizationTable = Readonly<Partial<Record<RowId, Realization>>>
+export type RowRealization = Readonly<{ row: RowId; realization: Realization | 'undeclared' }>
 export type HopObservation = Readonly<{
   hopId: HopId
   publicEntry: string
@@ -38,7 +32,7 @@ export type HopObservation = Readonly<{
   ownerCards: readonly string[]
   reason: string
   /** The rows of the plugin tree that the hop crosses, by the row ids of the assembly page. */
-  rows: readonly string[]
+  rows: readonly RowId[]
   /** The declared realization of each row on this invocation. */
   realization: readonly RowRealization[]
   state: 'verified' | 'gap' | 'failed'
@@ -312,7 +306,7 @@ function stateOf(
 }
 
 function realizationOf(
-  rows: readonly string[],
+  rows: readonly RowId[],
   declared: RealizationTable,
 ): readonly RowRealization[] {
   return rows.map(row => ({ row, realization: declared[row] ?? 'undeclared' }))
@@ -332,16 +326,16 @@ export function observeHops(
 ): readonly HopObservation[] {
   return HOP_DEFINITIONS.map(definition => {
     const ids = requiredFragments(definition.hopId)
-    const connected = path?.[definition.hopId] ?? null
-    const reached = connected !== null && !connected.evidence.includes('not-reached')
+    const connected = path === null ? null : (path[definition.hopId] ?? NOT_REACHED)
+    const reached = connected !== null && connected.kind !== 'not-reached'
     const own: FragmentObservation[] =
       connected === null
         ? []
         : [
             {
               fragmentId: CONNECTED(definition.hopId),
-              status: connected.connected ? 'pass' : 'fail',
-              evidence: connected.evidence.join(' | '),
+              status: connected.kind === 'connected' ? 'pass' : 'fail',
+              evidence: evidenceOf(connected).join(' | '),
             },
           ]
     const extra: readonly FragmentObservation[] =

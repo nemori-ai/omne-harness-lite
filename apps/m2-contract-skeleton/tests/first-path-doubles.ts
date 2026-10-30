@@ -57,7 +57,13 @@ import type {
   SessionAssembly,
 } from '../src/path.ts'
 import { PATH_ROUNDS } from '../src/path.ts'
-import type { FragmentObservation, PathReport, RealizationTable } from '../src/path-report.ts'
+import type {
+  FragmentObservation,
+  PathReport,
+  Realization,
+  RealizationTable,
+  RowId,
+} from '../src/path-report.ts'
 import type { ContractSkeletonInputs } from '../src/run.ts'
 
 /** The reply texts the scripted Model settles the admitted calls of one Agent with, in order. */
@@ -450,7 +456,7 @@ export function sessionAssembly(
  * Agent runtime, over its test dependencies; the `agent-host-local` host plugin that the row names
  * is not loaded.
  */
-export const REALIZATION: RealizationTable = {
+export const REALIZATION: Readonly<Record<RowId, Realization>> = {
   'server-entry': 'double',
   identity: 'double',
   authorization: 'double',
