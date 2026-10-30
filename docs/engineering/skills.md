@@ -112,13 +112,45 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 
 概念和理由写回项目既有拥有者，不另造 GLOSSARY 或 ADR 权威。
 
+## 派发与编排
+
+本节写主代理派发子代理时采用的上游方法与项目差异。规则归[派发子代理的契约](workflow.md#派发子代理的契约)，做法归 `delegate` 技能。
+
+采用的入口按「阅读与实际加载」加载。`implement-spec` 在固定源中声明 `disable-model-invocation: true`，宿主不会自动触发，直接读已安装路径下的正文。
+
+| 入口 | 采用范围 |
+|---|---|
+| [Matt:implement-spec](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/implement-spec/SKILL.md) | 编排参考：任务图、前沿、指针式沟通、每个实现者一棵工作树。该入口设了 `disable-model-invocation`，按「阅读与实际加载」直接读钉住文件 |
+| [Matt:to-tickets](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/engineering/to-tickets/SKILL.md) | 切闭包前的工单层，只写端到端行为与阻塞边 |
+| [Matt:writing-for-agents](https://github.com/mattpocock/skills/blob/b0618bc436ad893b3c5e84e55fba86586d34a404/skills/productivity/writing-for-agents/SKILL.md) | 闭包规格与简报的写法：「Context pointers」「Steps and completion criteria」 |
+| [pstack:swarm](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/swarm/SKILL.md) | 只读扇出与汇总：「Phase A: Frame」「Phase B: Fan out」「Phase C: Aggregate」 |
+| [pstack:poteto-mode](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/poteto-mode/SKILL.md)「Subagents」 | 新开与续用、读 diff 不转述、在途子代理按事实核对 |
+| [pstack:reflect](https://github.com/michael-denyer/pstack-claude/blob/60ae9e25610744bccd45bd405c211413a471aaf8/plugins/pstack/skills/reflect/SKILL.md) | 只用于里程碑反思里的通用教训 |
+| [delegate](../../.meta_harness/agents/skills/delegate/canonical/SKILL.md) | 派发的动作顺序、产物与门槛 |
+
+下表列出采用时的项目差异，列同「项目差异与负责边界」。
+
+| 来源 | 外部原文或默认 | 本项目的依据与处置 |
+|---|---|---|
+| Matt `implement-spec` | 由合并子代理合回 | 派发者合回。写者分支只含自己的改动，验收者读 diff 更容易。派发者对产出负责，要自己读 diff，见[合回由派发者完成](workflow.md#合回由派发者完成) |
+| Matt `implement-spec` | 实现者把集成分支尖端合进自己的分支再交回 | 写者不合并，只在自己的分支提交，见[developer-contract](../../.meta_harness/agents/roles/developer-contract.md) |
+| Matt `implement-spec` | 实现者调用 `tdd` 技能 | 按 ub-mode 的 TDD 一节，见[ub-mode 研发品味](#ub-mode-研发品味)。不要求加载 `pstack:tdd`，它的描述限定了触发场景 |
+| Matt `implement-spec` | 最后跑 `code-review`，由单个实现者修全部问题 | 评审按 `review-*` 与[质量与证据](quality.md)的风险级别，修复轮按 quality.md |
+| Matt `to-tickets` | 请用户批准切分 | 线与 reduce 内由派发者自定，不向人提问。不在 map-reduce 里、且卡要求先看计划的会话，按 `claim` 的出口门槛停下 |
+| Matt `to-tickets` | 工单不写路径 | 工单不写路径。闭包规格写路径与推出依据，见 [D1](workflow.md#d1-写范围由调用方与消费方推出) |
+| pstack `swarm` | 派 `general-purpose` | 写、评审、验收按项目角色派。只读调查可以用 `general-purpose` 或 `Explore` |
+| pstack `swarm`、`poteto-mode` | 默认后台；`code-review` 前台 | 默认后台。下一步依赖结果、且前台没有别的工作时前台。线会话等自己派的子代理，按[线会话的工作范式](../../.meta_harness/agents/skills/line/canonical/references/work-paradigm.md)「等待：前台阻塞的工具调用」前台阻塞 |
+| pstack `poteto-mode`「Subagents」 | 默认新开；例外是新工作严格依赖原子代理的状态 | 同一闭包的追加与原范围内补做可以续用原写者。只读评审同一轮的追问可以续用原评审者。新一轮修复、换人、升级一律新开，见 `delegate` 步骤 7 与 [D7](workflow.md#d7-追加要求留痕并计入验收) |
+| pstack `swarm`、`poteto-mode` | 「Models」节自带分档 | 按角色源与 `dispatch-policy.json`，见 [D6](workflow.md#d6-按策略选模型按起点档位升级) |
+| pstack `reflect` | 输入是当前会话记录，应用前逐条问用户 | 波段反思不用它。里程碑反思的通用教训部分可以用：输入换成派发流水与验收报告的摘要，改动路由到项目的维护入口，应用由负责人接受 |
+
 ## ub-mode 研发品味
 
 研发品味以 [ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 为基础；项目独有的补充见[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。ub-mode 是写或改代码时的判断基础，一份正文覆盖三段：先做对、再做好、日常实践。Reduce 在应然与实然之间取舍实现做法时，也可以用它思考和设计，见[负责人状态的提问前三问](map-reduce-states.md#提问前三问)。
 
 - **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时；Reduce 核对提问前三问第 3 问、上层正文要求的内容在当前里程碑内不能全部实现时。每次读完整一份，约 4 KB。
 - **取代原则清单：** poteto-mode 的 Principles 一节（二十个 `pstack:principle-*` 子技能）由 ub-mode 取代。不要求逐个加载这些子技能，也不要求在回复里逐条点名所读原则；某条 ub-mode 写得太短、确实需要展开时，再读对应的 `pstack:principle-*`。poteto-mode 的 playbook、子代理与回复写法照常使用。
-- **TDD：** 默认来源是 ub-mode 的 TDD 一节，需要展开时读 `pstack:tdd`。先设计必要的测试与验证；实施可以按 TDD 顺序。
+- **TDD：** 默认来源是 ub-mode 的 TDD 一节，需要展开时读 `pstack:tdd`。先设计必要的测试与验证；全部实现者写新测试时先确认它变红，再实现。
 
 ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mode。
 
@@ -126,7 +158,7 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 
 | 来源 | 外部原文或默认 | 本项目的依据与处置 |
 |---|---|---|
-| ub-mode | TDD：先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；实施可以按 TDD 顺序，与[整洁回路](../clean-loop.md)互补 |
+| ub-mode | TDD：先写会失败的测试 | 先设计必要的测试与验证（判据、反例、变红验证）；写新测试时先确认它变红，再实现（全部实现者），与[整洁回路](../clean-loop.md)互补 |
 | ub-mode | Crapper：每个函数 CRAP 小于 10 | 用 `pnpm run metrics --coverage` 量圈复杂度、覆盖率与 CRAP，基线按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；阈值与带归[整洁回路](../clean-loop.md)，不另定 10。度量的节奏见 [card-loop](../../.meta_harness/agents/skills/claim/canonical/references/card-loop.md#切片的七步) |
 | ub-mode | Dryer：消除相似度 0.8 以上的重复 | 用 `pnpm run loop:status` 的重复行读数；阈值归整洁回路 |
 | ub-mode | Mutator：覆盖未覆盖、杀死存活、删除死代码 | 用 `pnpm run mutation`（差分变异，只量 `packages/`、`apps/`），基线与 `--since` 收窄按 [`review-code`](../../.meta_harness/agents/skills/review-code/canonical/SKILL.md)「度量与差分变异的基线」判定；等价变异写理由。变异的节奏见 card-loop |
@@ -188,6 +220,7 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 | [review-delivery](../../.meta_harness/agents/skills/review-delivery/canonical/SKILL.md) | 开出 PR 后核对交付边界与验收 | 任务卡现行正文、[agent交付操作](agent-delivery.md#5-提交成果供接受) |
 | [asd-ste100](../../.meta_harness/agents/skills/asd-ste100/canonical/SKILL.md) | 新建或修订文档时 | [asd-ste100 写作要求](../../.meta_harness/agents/skills/asd-ste100/canonical/references/documentation.md) |
 | [branch-integration](../../.meta_harness/agents/skills/branch-integration/canonical/SKILL.md) | 工作分支同步、FI/RI、checkpoint、主干准入或流程失效恢复 | [多层分支集成](integration.md)与实际 CLI |
+| [delegate](../../.meta_harness/agents/skills/delegate/canonical/SKILL.md) | 任何会话派发写者、评审者或验收者子代理时 | [派发子代理的契约](workflow.md#派发子代理的契约)、[质量与证据](quality.md)、本页[派发与编排](#派发与编排) |
 | [harness-design-handbook](../../.meta_harness/agents/skills/harness-design-handbook/canonical/SKILL.md) | 出现新的能力或责任边界时，核对能力覆盖、性质保护责任和 Cordis 承载 | 风险与升级归[质量与证据](quality.md)，组合证明门槛归[验证说明](../verification.md) |
 
 普通工程、文档归属与交付由三层方法和现有工程拥有者承担，不加载 harness-design-handbook。
@@ -197,3 +230,4 @@ ub-mode 与本项目的差异列在下一节的差异表中，来源列为 ub-mo
 - 线会话：见 `line` 技能 `references/work-paradigm.md` 的「会话级」第 2 步。
 - reduce 会话：PREPARE、DISPATCH 与 RELEASE_WAVE 用 `dispatch`，SERVE 与 VERIFY_WAVE 用 `integrate`。
 - 单独派发的卡：加载 `claim`。进轨道时由调度者加载 `branch-integration`。
+- 任何会话派发子代理时：加载 `delegate`。
