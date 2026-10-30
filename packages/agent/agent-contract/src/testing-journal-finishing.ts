@@ -3211,5 +3211,158 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
       },
     },
+    {
+      name: 'MT-8: a known result and then an undetermined result of the same card round leave the card-round obligation known: the known result counts, not the last one',
+      run: async () => {
+        const opened = await fixture.open('card-reconciliation-unknown-after-known')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const asking = beforeTerminalPassage('asker-m8', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const round = presentedRound(asking, 'round-m8')
+        const passage: Passage = { ...asking, progress: { kind: 'asked', rounds: [round] } }
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the asked passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = (name: string, original: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-card-reconciliation'>(opened, name, {
+              kind: 'record-card-reconciliation',
+              passage: passage.id,
+              round: round.round,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              original,
+            }),
+          )
+        const known = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: {
+            kind: 'known',
+            present: evidence(`present/${round.round}`),
+            lookups: [operation('lookup-m8')],
+            invalidate: null,
+          },
+        })
+        await ok(record('reconcile-known', known), 'the known result')
+        const undetermined = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: { kind: 'unknown', reason: 'source-unavailable' },
+        })
+        await ok(record('reconcile-unknown', undetermined), 'the undetermined result of the round')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'card-round')
+        assert.equal(item.disposition.kind, 'held', 'the known result holds the round')
+        assert.deepEqual(item.lookups, [operation('lookup-m8')])
+      },
+    },
+    {
+      name: 'MT-9: a round id shared by two passages names two card-round obligations by passage and round: only the registered round takes the registered result, the others stay default items',
+      run: async () => {
+        const opened = await fixture.open('card-round-identity')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const requested: Passage['progress'] = { kind: 'requested', mode: { kind: 'fresh' } }
+        const firstBase = beforeTerminalPassage('asker-m9a', requested)
+        const secondBase = beforeTerminalPassage('asker-m9b', requested)
+        const firstRound = presentedRound(firstBase, 'round-m9-1')
+        const otherRound = presentedRound(firstBase, 'round-m9-2')
+        // The one round of the second passage has the CardRoundId of the first round of the first.
+        const sharedRound = presentedRound(secondBase, 'round-m9-1')
+        assert.equal(sharedRound.round, firstRound.round)
+        const first: Passage = {
+          ...firstBase,
+          progress: { kind: 'asked', rounds: [firstRound, otherRound] },
+        }
+        const second: Passage = {
+          ...secondBase,
+          ordinal: 2,
+          progress: { kind: 'asked', rounds: [sharedRound] },
+        }
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [first, second] } }),
+          'F1 with two asked passages',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const original = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: first.id,
+          round: firstRound.round,
+          result: {
+            kind: 'known',
+            present: evidence('present/m9'),
+            lookups: [operation('lookup-m9')],
+            invalidate: null,
+          },
+        })
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'record-card-reconciliation'>(opened, 'reconcile-first', {
+              kind: 'record-card-reconciliation',
+              passage: first.id,
+              round: firstRound.round,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              original,
+            }),
+          ),
+          'the known result of the first round of the first passage',
+        )
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const rounds = itemsOf(await load(opened)).flatMap(item =>
+          item.kind === 'card-round'
+            ? [{ passage: item.passage, round: item.round.round, lookups: item.lookups }]
+            : [],
+        )
+        const byKey = (left: { passage: string; round: string }, right: typeof left) =>
+          `${left.passage}/${left.round}`.localeCompare(`${right.passage}/${right.round}`)
+        assert.deepEqual(
+          [...rounds].sort(byKey),
+          [
+            { passage: first.id, round: firstRound.round, lookups: [operation('lookup-m9')] },
+            { passage: first.id, round: otherRound.round, lookups: [] },
+            { passage: second.id, round: sharedRound.round, lookups: [] },
+          ].sort(byKey),
+        )
+      },
+    },
   ]
 }
