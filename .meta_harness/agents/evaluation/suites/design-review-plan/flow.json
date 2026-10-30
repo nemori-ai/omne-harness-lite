@@ -1,7 +1,7 @@
 {
   "format": 1,
   "id": "design-review-plan",
-  "version": 2,
+  "version": 3,
   "family": "review",
   "role": "design-reviewer",
   "judgment": "计划",
@@ -10,7 +10,7 @@
   "host": {
     "claude-code": {
       "model": "claude-fable-5-1",
-      "effort": "xhigh",
+      "effort": "medium",
       "allowed": [
         "Read",
         "Glob",

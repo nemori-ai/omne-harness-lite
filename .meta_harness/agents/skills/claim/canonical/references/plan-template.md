@@ -42,10 +42,10 @@
 
 本会话宿主：<Claude Code | Codex>，版本 <>。
 
-- Claude Code：派发时用 Agent 工具的 `model` 参数显式给模型。
-- Codex：角色文件钉值优先；developer 与 qa 不钉模型，**派发时必须显式给模型**，否则继承父会话模型。
-- 解析命令：`render_pair.py --resolve <claude_code|codex> --policy-version <版本> --work-kind <类型> [--risk <风险>]`，结果存 `tmp/line-<线>/role-dispatch.json`，同类切片复用。
-- 档位拿不准时上调一档。每次派发用新子代理，简报只给指针（Matt `writing-for-agents`；输入字段按 `.meta_harness/agents/roles/developer-task.md`）。
+- Claude Code：派发时用 Agent 工具的 `model` 与 `effort` 参数显式给模型与档位。
+- Codex：角色文件钉值优先；developer 与 qa 不钉模型，**派发时必须显式给模型**，否则继承父会话模型；可调档位的角色也要显式给档位。
+- 解析命令：`render_pair.py --resolve <claude_code|codex> --policy-version <版本> --work-kind <类型> [--risk <风险>]`，结果存 `tmp/line-<线>/role-dispatch.json`，同类切片复用；策略版本变化时重新解析。
+- 模型档拿不准时上调一档；顶档模型上只有 hardest 任务用 xhigh。每次派发用新子代理，简报只给指针（Matt `writing-for-agents`；输入字段按 `.meta_harness/agents/roles/developer-task.md`）。
 
 | 切片或环节 | 工作性质与复杂度 | 角色与 implementation_kind | 模型与 effort | 理由 |
 | --- | --- | --- | --- | --- |
@@ -77,9 +77,9 @@
 
 ## 集中检查
 
-- 结构读数与差分变异：切片 <N> 之后集中跑一次（命令见 `spec.md`「Testing Decisions」）。工具不覆盖的写「未测量」，不写零。
+- 结构读数：切片 <N> 之后集中跑一次（命令见 `spec.md`「Testing Decisions」）。差分变异按 `review-code` 技能「差分变异」一段，在最终 head 上跑热点。工具不覆盖的写「未测量」，不写零。
 - 常规评审：全部切片完成后一次，按 `quality.md` 风险级别裁剪（L0、L1 不派实现评审；纯文档仍跑 `review-docs` 与 `review-delivery`；L3 逐行读热点）。
-- 准入：线内的卡只跑本卡成员的类型检查、测试、format、oxlint 与按需的 `check:docs`／`check:agents`，交接写明「全量准入留给集成节点」；不在线内的卡在最终 head 跑一次全量准入，期间不提交、不做占 CPU 的事。
+- 准入：线内的卡只跑本卡成员的类型检查、测试、format、oxlint 与按需的 `check:docs`／`check:agents`，交接写明「整次准入留给集成节点」；不在线内的卡在最终 head 跑一次整次准入，期间不提交、不做占 CPU 的事。
 
 ## 交回清单
 

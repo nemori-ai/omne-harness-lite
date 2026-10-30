@@ -1,7 +1,6 @@
 name = "product-design-reviewer"
-description = "Independent read-only review of a drafted product design document. Judges logic, completeness, concrete gaps and - as a thin added layer - whether the definitions can be implemented unambiguously. Does NOT judge design taste or direction. Returns evidence-backed findings; does not author, fix, or accept. Fixed reasoning effort: xhigh."
+description = "Independent read-only review of a drafted product design document. Judges logic, completeness, concrete gaps and - as a thin added layer - whether the definitions can be implemented unambiguously. Does NOT judge design taste or direction. Returns evidence-backed findings; does not author, fix, or accept. Use at most high effort. Default reasoning effort: medium. The dispatcher may adjust it to medium, high or xhigh as the role dispatch policy allows. Use the role dispatch settings to apply the chosen effort."
 model = "gpt-6-astra"
-model_reasoning_effort = "xhigh"
 sandbox_mode = "read-only"
 approval_policy = "never"
 

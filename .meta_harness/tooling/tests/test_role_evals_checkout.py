@@ -68,7 +68,7 @@ RULES = "import pathlib, sys\nif 'infra' in pathlib.Path('member/src/mod.ts').re
 def write(root: Path, files: dict[str, str]) -> None:
     for relative, text in files.items():
         (root / relative).parent.mkdir(parents=True, exist_ok=True)
-        (root / relative).write_text(text, encoding="utf-8")
+        (root / relative).write_text(text, encoding="utf-8", newline="\n")   # LF on every platform, as the fixtures assume
 
 
 def checkout_workspace(base: str, counter: Path, **over: Any) -> dict[str, Any]:
@@ -734,7 +734,7 @@ def test_the_signed_judge_keeps_its_name_and_implementation_review_has_its_own()
     assert sorted(judge.OUT_OF_KIND) == sorted(["表达", "选择", "计划"]), "已签字的三条规则原样不动"
     for root in sorted((EVALUATION / "suites").glob("design-review-*")):
         flow = suite.load(root)
-        if flow.version == 2:
+        if flow.version >= 2:   # every revision after the first starts unsigned until it is signed again
             assert flow.signoffs == {}, "修订样本不能继承旧版签字"
         else:
             assert flow.signoffs["grading"]["judge"] == SIGNED_JUDGE == judge.identity("claude-sonnet-5-5", flow.judgment)
@@ -812,7 +812,7 @@ def test_the_checkout_suites_are_standing_and_signed_at_their_version() -> None:
     for root in CHECKOUT_SUITES:
         flow = suite.load(root)
         # Revised dispatch inputs do not inherit earlier signatures.
-        if flow.version == 2:
+        if flow.version >= 2:   # every revision after the first starts unsigned until it is signed again
             assert flow.signoffs == {} and flow.unsigned() == ["cases", "grading"], root.name
             continue
         assert flow.unsigned() == [] and flow.version == 1, root.name
