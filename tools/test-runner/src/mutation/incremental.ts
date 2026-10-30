@@ -192,7 +192,8 @@ function resolveImport(from: string, specifier: string): string | undefined {
  * 读到的方式：相对的 import／require，以及 `new URL(<字面量>, import.meta.url)`；源码文件接着往下追。
  * 解析不到的目标记作 `missing:<路径>`，删掉文件也会变。成员 `src/` 下的文件照样读、照样往下追，只是自己不进摘要，归 Stryker 比较。
  * `new URL` 指向目录（含带 `${` 的模板取前缀）时，用 `git ls-files` 列出其中未被忽略的文件逐个进摘要，不追这些文件的导入。
- * 不追：包名导入、经函数拼出的路径（如 `join(dirname(fileURLToPath(import.meta.url)), …)`）、相对当前目录的读取、`__dirname` 拼接。
+ * 目标是仓库根或成员目录的祖先目录（含成员目录本身）时不列文件，只记 `dir:<路径>` 表示存在：这样的写法只拿目录当锚点、再拼路径读文件，那些读取不追。
+ * 不追：包名导入、拿仓库根或成员祖先目录当锚点再拼路径读到的文件、经函数拼出的路径（如 `join(dirname(fileURLToPath(import.meta.url)), …)`）、相对当前目录的读取、`__dirname` 拼接。
  * 访问过的文件超过上限、或目录列不出时抛出。
  */
 function externalInputs(root: string, memberDir: string, entries: readonly string[]): string[][] {
@@ -247,8 +248,12 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
     for (const urlPath of urlTargets(text)) {
       const target = resolve(dirname(file), urlPath)
       if (isFile(target)) follow(target)
-      else if (isDirectory(target)) listDirectory(target)
-      else found.set(`missing:${rel(target)}`, 'absent')
+      else if (isDirectory(target)) {
+        // 仓库根与成员目录的祖先（含成员目录本身）只当锚点，再拼路径读文件；那样的读取不追，列全仓会让增量永远不复用。
+        if (target === memberDir || memberDir.startsWith(target + sep))
+          found.set(`dir:${rel(target) || '.'}`, 'present')
+        else listDirectory(target)
+      } else found.set(`missing:${rel(target)}`, 'absent')
     }
   }
   for (const entry of entries) visit(entry)

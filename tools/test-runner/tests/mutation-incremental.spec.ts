@@ -449,6 +449,15 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
         expect(of(ignored)).toEqual(before)
       })
 
+      it('指向仓库根的只记存在：根下改一个文件，指纹不变', () => {
+        const root = withUrl("new URL('../../', import.meta.url)")
+        touch(root, 'other.txt', 'o1')
+        const before = of(root)
+        touch(root, 'other.txt', 'o2')
+        touch(root, 'shared/data.json', '{"a":2}')
+        expect(of(root)).toEqual(before)
+      })
+
       it('第二个参数不是 import.meta.url 的不追', () => {
         const root = withUrl("new URL('../../shared/data.json', base)")
         const before = of(root)
