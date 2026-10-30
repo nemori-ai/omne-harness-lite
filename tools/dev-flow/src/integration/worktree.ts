@@ -1,17 +1,23 @@
 import { spawnSync } from 'node:child_process'
 import {
   chmodSync,
+  copyFileSync,
   cpSync,
   existsSync,
+  lstatSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
+  readFileSync,
+  readlinkSync,
   realpathSync,
   rmSync,
   statSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, join } from 'node:path'
+import { basename, delimiter, join } from 'node:path'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
 import { record } from '../delivery/protocol.ts'
@@ -39,6 +45,104 @@ export const runProgram: Runner = (program, args, { cwd, env }) => {
     stderr: result.error?.message ?? result.stderr ?? '',
   }
 }
+/**
+ * The parts of the host that decide how programs are started: the platform, the environment
+ * whose `PATH` is searched, and the Node executable. Tests inject one to cover the other
+ * platform or a `PATH` without `rsync`.
+ */
+export type Host = {
+  platform: NodeJS.Platform
+  env: Readonly<Record<string, string | undefined>>
+  execPath: string
+}
+export const realHost = (): Host => ({
+  platform: process.platform,
+  env: process.env,
+  execPath: process.execPath,
+})
+const pathDirectories = (host: Host) =>
+  (host.env['PATH'] ?? host.env['Path'] ?? '')
+    .split(host.platform === 'win32' ? ';' : delimiter)
+    .filter(directory => directory !== '')
+
+/** The program and leading arguments that start pnpm. */
+export function pnpmCommand(host: Host): { program: string; args: string[] } {
+  if (host.platform !== 'win32') return { program: 'pnpm', args: [] }
+  // PATH holds `pnpm.cmd`, which Node cannot start without a shell. The npm global layout keeps
+  // `pnpm.cjs` beside it, and the current Node runs that file.
+  const seen: string[] = []
+  for (const directory of pathDirectories(host)) {
+    if (!existsSync(join(directory, 'pnpm.cmd'))) continue
+    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+    if (existsSync(entry)) return { program: host.execPath, args: [entry] }
+    seen.push(join(directory, 'pnpm.cmd'))
+  }
+  throw new IntegrationError(
+    'unknown',
+    seen.length === 0
+      ? 'pnpm.cmd is not on PATH'
+      : `${seen.join(', ')} has no node_modules/pnpm/bin/pnpm.cjs beside it, so pnpm cannot start`,
+  )
+}
+/** Whether the copy step can use `rsync`: only on POSIX, and only when a `PATH` entry holds it. */
+function hasRsync(host: Host): boolean {
+  return host.platform !== 'win32' && pathDirectories(host).some(d => existsSync(join(d, 'rsync')))
+}
+/** One step that runs pnpm with `args`; the host decides how pnpm itself starts. */
+function pnpmStep(
+  run: Runner,
+  name: string,
+  args: readonly string[],
+  cwd: string,
+  host: Host,
+): string {
+  const command = pnpmCommand(host)
+  return step(run, name, command.program, [...command.args, ...args], cwd)
+}
+
+/**
+ * Copies the files under `source` into `destination` the way `rsync -rlpc source/ destination/`
+ * does: directories are created as needed, symbolic links are copied as links, a file is
+ * rewritten only when its content differs, and permission bits follow the source (POSIX only).
+ * Nothing in `destination` is deleted. A path that is a directory on one side and not on the
+ * other is refused.
+ */
+export function copyProjections(source: string, destination: string): void {
+  mkdirSync(destination, { recursive: true })
+  for (const entry of readdirSync(source, { withFileTypes: true })) {
+    const from = join(source, entry.name),
+      to = join(destination, entry.name),
+      existing = lstatSync(to, { throwIfNoEntry: false })
+    if (entry.isDirectory()) {
+      if (existing !== undefined && !existing.isDirectory())
+        throw new IntegrationError('unknown', `copy projections: ${to} is not a directory`)
+      copyProjections(from, to)
+      continue
+    }
+    if (existing?.isDirectory() === true)
+      throw new IntegrationError('unknown', `copy projections: ${to} is a directory`)
+    if (entry.isSymbolicLink()) {
+      const target = readlinkSync(from)
+      if (existing?.isSymbolicLink() !== true || readlinkSync(to) !== target) {
+        rmSync(to, { force: true })
+        symlinkSync(target, to)
+      }
+    } else if (entry.isFile()) {
+      const mode = statSync(from).mode & 0o7777
+      const same =
+        existing?.isFile() === true &&
+        existing.size === statSync(from).size &&
+        readFileSync(from).equals(readFileSync(to))
+      if (!same) {
+        rmSync(to, { force: true })
+        copyFileSync(from, to)
+      }
+      // Windows keeps no POSIX permission bits, so there is nothing to carry over.
+      if (process.platform !== 'win32' && (statSync(to).mode & 0o7777) !== mode) chmodSync(to, mode)
+    }
+  }
+}
+
 /** One step that must succeed; a failure names the step and keeps the last output lines. */
 function step(
   run: Runner,
@@ -96,8 +200,13 @@ const CURSOR_RUNTIME = ['Dockerfile', 'environment.json', 'install.sh']
  * compile into a fresh stage directory, copy the stage over `.meta_harness/` by content,
  * relink the root entries, drop group write on the three Cursor runtime files, then run
  * `check:agents`. A failed step stops the run. The stage directory is removed in every case.
+ * The copy runs `rsync` on a POSIX host that has it, and `copyProjections` everywhere else.
  */
-export function regenerateProjections(tree: string, run: Runner = runProgram): void {
+export function regenerateProjections(
+  tree: string,
+  run: Runner = runProgram,
+  host: Host = realHost(),
+): void {
   const stage = mkdtempSync(join(realpathSync(tmpdir()), 'omne-agents-stage-'))
   const python = { PYTHONDONTWRITEBYTECODE: '1' }
   try {
@@ -118,7 +227,9 @@ export function regenerateProjections(tree: string, run: Runner = runProgram): v
       tree,
       python,
     )
-    step(run, 'copy projections', 'rsync', ['-rlpc', `${stage}/`, '.meta_harness/'], tree)
+    if (hasRsync(host))
+      step(run, 'copy projections', 'rsync', ['-rlpc', `${stage}/`, '.meta_harness/'], tree)
+    else copyProjections(stage, join(tree, '.meta_harness'))
     step(
       run,
       'link agents',
@@ -138,7 +249,7 @@ export function regenerateProjections(tree: string, run: Runner = runProgram): v
       const path = join(tree, '.meta_harness/.cursor', name)
       if (existsSync(path)) chmodSync(path, statSync(path).mode & ~0o020)
     }
-    step(run, 'check:agents', 'pnpm', ['run', 'check:agents'], tree)
+    pnpmStep(run, 'check:agents', ['run', 'check:agents'], tree, host)
   } finally {
     rmSync(stage, { recursive: true, force: true })
   }
@@ -187,6 +298,7 @@ export function prepareWorktree({
   remote = 'origin',
   evidence,
   run = runProgram,
+  host = realHost(),
 }: {
   root: string
   tree: string
@@ -194,6 +306,7 @@ export function prepareWorktree({
   remote?: string
   evidence?: string | undefined
   run?: Runner
+  host?: Host
 }): { tree: string; context: Record<string, unknown>; reports: string[] } {
   if (existsSync(tree)) throw new IntegrationError('refused', `${tree} already exists`)
   const branch = binding.branch
@@ -207,11 +320,11 @@ export function prepareWorktree({
       : ['worktree', 'add', '--quiet', tree, '-b', branch, '--track', `${remote}/${branch}`],
     root,
   )
-  step(run, 'install', 'pnpm', ['install', '--frozen-lockfile', '--ignore-scripts'], tree)
+  pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, host)
   const task = join(tree, taskDirectory(binding))
   mkdirSync(task, { recursive: true })
   if (evidence !== undefined) cpSync(evidence, task, { recursive: true })
-  regenerateProjections(tree, run)
+  regenerateProjections(tree, run, host)
   const input = join(task, 'start.json')
   writeFileSync(input, `${JSON.stringify(startInput(binding), null, 2)}\n`)
   const result = run(
@@ -271,6 +384,7 @@ export function swapWorktree({
   binding,
   remote = 'origin',
   run = runProgram,
+  host = realHost(),
 }: {
   root: string
   old: string
@@ -278,6 +392,7 @@ export function swapWorktree({
   binding: TaskBinding
   remote?: string
   run?: Runner
+  host?: Host
 }): ReturnType<typeof prepareWorktree> & { evidence: string | undefined; warnings: string[] } {
   const branch = binding.branch
   if (trackedChanges(old, run).length > 0)
@@ -317,7 +432,11 @@ export function swapWorktree({
     })
   }
   step(run, 'detach old worktree', 'git', ['checkout', '--quiet', '--detach'], old)
-  return { ...prepareWorktree({ root, tree, binding, remote, evidence, run }), evidence, warnings }
+  return {
+    ...prepareWorktree({ root, tree, binding, remote, evidence, run, host }),
+    evidence,
+    warnings,
+  }
 }
 
 /**
