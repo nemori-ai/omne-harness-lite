@@ -110,7 +110,7 @@ def test_check_reports_missing_or_different_hook_files(source, tmp_path, capsys)
     assert compiler.main(args) == 0
     (output / CODEX).unlink()
     assert compiler.main(args + ["--check"]) == 1
-    assert "missing generated file: .codex/hooks.json" in capsys.readouterr().err
+    assert f"missing generated file: {Path('.codex/hooks.json')}" in capsys.readouterr().err
     assert compiler.main(args) == 0
     (output / CLAUDE).write_text('{"hooks": {}}\n')
     assert compiler.main(args + ["--check"]) == 1

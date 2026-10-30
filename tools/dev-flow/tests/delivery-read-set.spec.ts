@@ -747,9 +747,11 @@ describe('scope-cli read-overlap kinds', () => {
       )
       const unknown = `cannot read ${REGISTERED_READ_PATTERNS.config} or the tracked files at HEAD: `
       expect(result.status, result.stderr).toBe(1)
+      // The input paths are absolute; on Windows their backslashes are not regular expression text.
+      const literal = (text: string) => text.replaceAll(/[\\^$.*+?()[\]{}|]/gu, '\\$&')
       expect(result.stderr).toMatch(
         new RegExp(
-          `^read-overlap: ${a} docs/development\\.md -> ${b} docs/development\\.md \\(cannot classify: ${unknown.replaceAll('.', '\\.')}.+\\)\\n$`,
+          `^read-overlap: ${literal(a!)} docs/development\\.md -> ${literal(b!)} docs/development\\.md \\(cannot classify: ${literal(unknown)}.+\\)\\n$`,
           'u',
         ),
       )

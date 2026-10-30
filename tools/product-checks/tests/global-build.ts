@@ -5,9 +5,16 @@ import { fileURLToPath } from 'node:url'
 
 export default function setup(): void {
   const root = fileURLToPath(new URL('../../../', import.meta.url))
+  // 由当前 Node 运行 turbo 包的 bin 入口：`.bin/turbo` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
   execFileSync(
-    fileURLToPath(new URL('../../../node_modules/.bin/turbo', import.meta.url)),
-    ['run', 'build', '--filter=@omne-harness/product-checks', '--output-logs=errors-only'],
+    process.execPath,
+    [
+      fileURLToPath(new URL('../../../node_modules/turbo/bin/turbo', import.meta.url)),
+      'run',
+      'build',
+      '--filter=@omne-harness/product-checks',
+      '--output-logs=errors-only',
+    ],
     {
       cwd: root,
       stdio: ['ignore', 'ignore', 'inherit'],

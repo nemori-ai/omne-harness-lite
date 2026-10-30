@@ -14,7 +14,7 @@ sys.path.insert(0, str(SCRIPT.parent))
 spec = importlib.util.spec_from_file_location("dispatch_renderer", SCRIPT)
 renderer = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(renderer)
-VERSION = json.loads((ROLES / "dispatch-policy.json").read_text())["version"]
+VERSION = json.loads((ROLES / "dispatch-policy.json").read_text(encoding="utf-8"))["version"]
 
 
 def resolve(role, host="codex", work="product", **kwargs):
@@ -148,7 +148,7 @@ def test_unknown_role_is_rejected(tmp_path):
     role = tmp_path / "roles/developer"
     for filename in ("codex.toml", "claude.yaml"):
         path = role / filename
-        path.write_text(path.read_text().replace('name = "developer"', 'name = "unknown"').replace("name: developer", "name: unknown"))
+        path.write_text(path.read_text(encoding="utf-8").replace('name = "developer"', 'name = "unknown"').replace("name: developer", "name: unknown"), encoding="utf-8")
     with pytest.raises(ValueError, match="unknown dispatch role"):
         renderer.resolve_dispatch(role, "codex", "product", policy_version=VERSION)
 
@@ -157,7 +157,7 @@ def test_missing_required_model_and_fallback_priority(tmp_path):
     shutil.copytree(ROLES, tmp_path / "roles")
     role = tmp_path / "roles/diagnostician"
     path = role / "codex.toml"
-    path.write_text(path.read_text().replace('model = "gpt-6.1-sol"\n', ""))
+    path.write_text(path.read_text(encoding="utf-8").replace('model = "gpt-6.1-sol"\n', ""), encoding="utf-8")
     with pytest.raises(ValueError, match="nonempty model"):
         renderer.resolve_dispatch(role, "codex", "terminal", policy_version=VERSION)
     result = renderer.resolve_dispatch(role, "codex", "terminal", policy_version=VERSION,
@@ -177,7 +177,7 @@ def test_resolution_is_readonly_and_source_hash_tracks_shared_prompt(tmp_path):
     after = {str(path): hashlib.sha256(path.read_bytes()).hexdigest() for path in role.parent.rglob("*") if path.is_file()}
     assert before == after
     common = role.parent / "project-frame.md"
-    common.write_text(common.read_text() + "\nChanged source input.\n")
+    common.write_text(common.read_text(encoding="utf-8") + "\nChanged source input.\n", encoding="utf-8")
     second = renderer.resolve_dispatch(role, "codex", "product", policy_version=VERSION)
     assert first["role_source_revision"] != second["role_source_revision"]
     assert first["policy_revision"] == second["policy_revision"]

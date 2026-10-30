@@ -37,6 +37,7 @@ import {
   readReceiverState,
 } from '../src/delivery/events-receiver-state.ts'
 import type { GhText } from '../src/delivery/events-gh.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 const testRoot = resolve('../../tmp/issue-820-N01/tests')
@@ -187,7 +188,8 @@ describe('channel stream and ownership', () => {
     removeChannelHook(ownA, a.path, gh.gh)
     expect([...gh.hooks.keys()]).toEqual([2])
     expect(readChannelConfig(a.path).ownership).toEqual({ kind: 'deleted', hookId: 1 })
-    expect(statSync(a.path).mode & 0o777).toBe(0o600)
+    // Windows mode bits do not reflect the ACL; there the file mode is not the privacy mechanism.
+    if (process.platform !== 'win32') expect(statSync(a.path).mode & 0o777).toBe(0o600)
   })
   it('recovers a lost create response by exact persisted instance URL without another POST', () => {
     const a = saved('https://smee.io/secret-a', true),
@@ -229,7 +231,9 @@ describe('channel stream and ownership', () => {
   it('refuses insecure config, duplicate writers and corrupt logs, and never kills a stale pid', async () => {
     const a = saved('https://smee.io/borrowed')
     chmodSync(a.path, 0o644)
-    expect(() => readChannelConfig(a.path)).toThrow('insecure-config-permissions')
+    // Windows mode bits do not reflect the ACL, so the mode check does not apply there.
+    if (process.platform === 'win32') expect(readChannelConfig(a.path)).toEqual(a.config)
+    else expect(() => readChannelConfig(a.path)).toThrow('insecure-config-permissions')
     chmodSync(a.path, 0o600)
     writeFileSync(receiverPaths(a.file).pid, '99999999\n')
     const own = claimChannelReceiver(a.config)
@@ -456,10 +460,9 @@ describe('receiver CLI safety', () => {
       bin = join(directory, 'bin'),
       ledger = join(directory, 'calls')
     mkdirSync(bin)
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node\nrequire('node:fs').appendFileSync(${JSON.stringify(ledger)},process.argv.slice(2).join(' ')+'\\n');process.stderr.write('HTTP 422: Validation Failed secret-channel\\nUsage: gh webhook');process.exit(1)\n`,
-      { mode: 0o755 },
     )
     const result = spawnSync(
       process.execPath,
@@ -479,7 +482,7 @@ describe('receiver CLI safety', () => {
       {
         encoding: 'utf8',
         timeout: 10_000,
-        env: { ...process.env, PATH: `${bin}:${process.env.PATH}` },
+        env: { ...process.env, ...ghEnv(bin) },
       },
     )
     expect(result.status).toBe(2)

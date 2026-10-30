@@ -2,7 +2,6 @@
 // Slow: every case runs wait-cli as a child process with a `gh` stand-in on PATH.
 import { spawn, spawnSync } from 'node:child_process'
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -17,6 +16,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const homes: string[] = []
 afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
@@ -34,8 +34,8 @@ function setup(state: string, pulls?: unknown[], comments: unknown[] = [[]]) {
   homes.push(home)
   const bin = join(home, 'bin')
   mkdirSync(bin)
-  writeFileSync(
-    join(bin, 'gh'),
+  writeGh(
+    bin,
     `#!/usr/bin/env node
 if (process.argv[2] === 'issue' && process.argv[3] === 'view') {
   process.stdout.write(JSON.stringify({ state: ${JSON.stringify(state)} }))
@@ -46,8 +46,7 @@ if (process.argv[2] === 'issue' && process.argv[3] === 'view') {
 } else process.exit(94)
 `,
   )
-  chmodSync(join(bin, 'gh'), 0o755)
-  return { home, env: { ...process.env, PATH: `${bin}:${process.env.PATH}` } }
+  return { home, env: { ...process.env, ...ghEnv(bin) } }
 }
 function run(args: string[], env: NodeJS.ProcessEnv) {
   const result = spawnSync(process.execPath, ['--experimental-strip-types', cli, ...args], {
@@ -288,15 +287,14 @@ describe('events-receiver-cli clean', () => {
     homes.push(home)
     const bin = join(home, 'bin')
     mkdirSync(bin)
-    writeFileSync(
-      join(bin, 'gh'),
+    writeGh(
+      bin,
       `#!/usr/bin/env node
 require('node:fs').appendFileSync(${JSON.stringify(join(home, 'gh-calls'))}, JSON.stringify(process.argv) + '\\n')
 process.exit(94)
 `,
     )
-    chmodSync(join(bin, 'gh'), 0o755)
-    return { ...process.env, PATH: `${bin}:${process.env.PATH}` }
+    return { ...process.env, ...ghEnv(bin) }
   }
   const runReceiver = (args: string[], env: NodeJS.ProcessEnv) => {
     const result = spawnSync(
@@ -368,18 +366,22 @@ describe('events-receiver-cli serve', () => {
       })
     })
 
-  it('stops the legacy child on SIGHUP and preserves hooks whose ownership is unproven', async () => {
-    const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
-    homes.push(home)
-    const bin = join(home, 'bin'),
-      state = join(home, 'hooks.json'),
-      deletions = join(home, 'deleted.log'),
-      file = join(home, 'events', 'events.jsonl')
-    mkdirSync(bin)
-    writeFileSync(state, '[1]')
-    writeFileSync(
-      join(bin, 'gh'),
-      `#!/usr/bin/env node
+  // Windows has no SIGHUP to deliver: Node's kill ignores the signal name there and terminates the
+  // process at once, so the receiver never runs its stop path.
+  it.skipIf(process.platform === 'win32')(
+    'stops the legacy child on SIGHUP and preserves hooks whose ownership is unproven',
+    async () => {
+      const home = realpathSync(mkdtempSync(join(tmpdir(), 'receiver-serve-')))
+      homes.push(home)
+      const bin = join(home, 'bin'),
+        state = join(home, 'hooks.json'),
+        deletions = join(home, 'deleted.log'),
+        file = join(home, 'events', 'events.jsonl')
+      mkdirSync(bin)
+      writeFileSync(state, '[1]')
+      writeGh(
+        bin,
+        `#!/usr/bin/env node
 const fs = require('node:fs')
 const state = ${JSON.stringify(state)}
 const read = () => JSON.parse(fs.readFileSync(state, 'utf8'))
@@ -397,48 +399,51 @@ if (args[0] === 'webhook') {
   process.stdout.write(JSON.stringify([read().map(id => ({ id, name: 'cli', config: { url } }))]))
 }
 `,
-    )
-    chmodSync(join(bin, 'gh'), 0o755)
-    const port = await freePort()
-    const child = spawn(
-      process.execPath,
-      [
-        '--experimental-strip-types',
-        receiverCli,
-        'serve',
-        '--mode',
-        'legacy',
-        '--port',
-        String(port),
-        '--file',
-        file,
-        '--repo',
-        'owner/repo',
-      ],
-      { env: { ...process.env, PATH: `${bin}:${process.env.PATH}` }, stdio: 'ignore' },
-    )
-    const exited = new Promise<number | null>(resolve => child.once('exit', code => resolve(code)))
-    try {
-      await vi.waitFor(
-        () => {
-          expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(true)
-          expect(readFileSync(state, 'utf8')).toBe('[1,7]')
-        },
-        { timeout: 10_000, interval: 50 },
       )
-      child.kill('SIGHUP')
-      expect(await exited).toBe(2)
-      expect(existsSync(deletions)).toBe(false)
-      expect(readFileSync(state, 'utf8')).toBe('[1,7]')
-      expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
-      expect(
-        JSON.parse(readFileSync(join(home, 'events', 'receiver-state.json'), 'utf8')),
-      ).toMatchObject({
-        state: 'recovery-needed',
-        hookId: null,
-      })
-    } finally {
-      child.kill('SIGKILL')
-    }
-  }, 20_000)
+      const port = await freePort()
+      const child = spawn(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          receiverCli,
+          'serve',
+          '--mode',
+          'legacy',
+          '--port',
+          String(port),
+          '--file',
+          file,
+          '--repo',
+          'owner/repo',
+        ],
+        { env: { ...process.env, ...ghEnv(bin) }, stdio: 'ignore' },
+      )
+      const exited = new Promise<number | null>(resolve =>
+        child.once('exit', code => resolve(code)),
+      )
+      try {
+        await vi.waitFor(
+          () => {
+            expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(true)
+            expect(readFileSync(state, 'utf8')).toBe('[1,7]')
+          },
+          { timeout: 10_000, interval: 50 },
+        )
+        child.kill('SIGHUP')
+        expect(await exited).toBe(2)
+        expect(existsSync(deletions)).toBe(false)
+        expect(readFileSync(state, 'utf8')).toBe('[1,7]')
+        expect(existsSync(join(home, 'events', 'receiver.pid'))).toBe(false)
+        expect(
+          JSON.parse(readFileSync(join(home, 'events', 'receiver-state.json'), 'utf8')),
+        ).toMatchObject({
+          state: 'recovery-needed',
+          hookId: null,
+        })
+      } finally {
+        child.kill('SIGKILL')
+      }
+    },
+    20_000,
+  )
 })

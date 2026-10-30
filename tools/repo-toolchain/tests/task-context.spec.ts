@@ -14,7 +14,9 @@ afterEach(removeTemporaries)
 
 /** A task context for this tree as the flow tool's start writes it. */
 function bind(root: string, taskBase: string, targetBase: string, branch = 'main'): void {
-  const actual = realpathSync(root)
+  // 和流程工具一样从 git 的顶层目录取真实路径：Windows 的临时目录是 8.3 短名，
+  // 对它直接 realpath 不会展开成 git 回的长名。
+  const actual = realpathSync(git(root, 'rev-parse', '--show-toplevel'))
   const ownerTask = {
     issue: { url: 'https://github.com/owner/repo/issues/1' },
     revision: 1,

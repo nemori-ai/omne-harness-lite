@@ -28,7 +28,7 @@ def observer() -> dict[Path, Artifact]:
 
 def summarize(output: Path) -> dict:
     receipts = output / "hook-receipts.jsonl"
-    records = [json.loads(line) for line in receipts.read_text().splitlines()] if receipts.exists() else []
+    records = [json.loads(line) for line in receipts.read_text(encoding="utf-8").splitlines()] if receipts.exists() else []
     starts = [record["payload"] for record in records if record["event"] == "subagentStart"]
     stops = [record["payload"] for record in records if record["event"] in {"subagentStop", "stop"}]
     return {"native_receipts": len(records), "subagent_start": starts, "stop": stops,
@@ -53,7 +53,7 @@ def main(argv=None):
         parser.error("output must be a fresh directory")
     if args.plugin_root and (workspace / ".cursor/agents").exists():
         parser.error("plugin and project views must not expose the same assets simultaneously")
-    prompt = args.prompt_file.read_text()
+    prompt = args.prompt_file.read_text(encoding="utf-8")
     deliver(observer(), output / "observer")
     command = [args.agent, "--workspace", str(workspace), "--trust", "-p", "--output-format", "stream-json",
                "--model", args.model, "--plugin-dir", str(output / "observer")]
@@ -62,16 +62,16 @@ def main(argv=None):
     command.append(prompt)
     source_root = Path(__file__).resolve().parents[3]
     metadata = {"command": command, "workspace": str(workspace), "requested_model": args.model,
-                "source_revision": subprocess.check_output(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True, env=repository_env(os.environ)).strip(),
-                "source_dirty": bool(subprocess.check_output(["git", "-C", str(source_root), "status", "--porcelain"], text=True, env=repository_env(os.environ))),
+                "source_revision": subprocess.check_output(["git", "-C", str(source_root), "rev-parse", "HEAD"], text=True, encoding="utf-8", env=repository_env(os.environ)).strip(),
+                "source_dirty": bool(subprocess.check_output(["git", "-C", str(source_root), "status", "--porcelain"], text=True, encoding="utf-8", env=repository_env(os.environ))),
                 "run": args.run}
-    (output / "invocation.json").write_text(json.dumps(metadata, indent=2) + "\n")
+    (output / "invocation.json").write_text(json.dumps(metadata, indent=2) + "\n", encoding="utf-8")
     if not args.run:
         print(f"Prepared {output / 'invocation.json'}; no model request executed.")
         return 0
     env = {**repository_env(os.environ), "OMNE_CURSOR_PROBE_OUTPUT": str(output), "OMNE_METRICS_HOME": str(output / "loop")}
     version = subprocess.run([args.agent, "--version"], capture_output=True, text=True, timeout=args.timeout, env=env)
-    (output / "host-version.txt").write_text(version.stdout + version.stderr)
+    (output / "host-version.txt").write_text(version.stdout + version.stderr, encoding="utf-8")
     try:
         with (output / "stdout.jsonl").open("w") as stdout, (output / "stderr.txt").open("w") as stderr:
             process = subprocess.Popen(command, env=env, cwd=workspace, stdout=stdout, stderr=stderr,
@@ -85,7 +85,7 @@ def main(argv=None):
     except subprocess.TimeoutExpired:
         metadata["timed_out"] = True
         metadata["exit_code"] = 124
-    (output / "result.json").write_text(json.dumps({**metadata, **summarize(output)}, indent=2) + "\n")
+    (output / "result.json").write_text(json.dumps({**metadata, **summarize(output)}, indent=2) + "\n", encoding="utf-8")
     print(f"Recorded native evidence in {output}; acceptance requires independent assertions.")
     return metadata["exit_code"]
 

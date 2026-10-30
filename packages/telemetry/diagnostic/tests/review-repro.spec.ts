@@ -1,5 +1,4 @@
 import { spawnSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
   createDiagnosticPort,
@@ -404,7 +403,8 @@ describe('review counterexamples', () => {
   })
 
   it('returns the close deadline report without another active handle', () => {
-    const entry = fileURLToPath(new URL('../dist/index.js', import.meta.url))
+    // import() takes a URL: a Windows path such as D:\a\b reads as the scheme `d:`.
+    const entry = new URL('../dist/index.js', import.meta.url).href
     const script = `
       const { createDiagnosticPort } = await import(${JSON.stringify(entry)})
       const port = createDiagnosticPort({

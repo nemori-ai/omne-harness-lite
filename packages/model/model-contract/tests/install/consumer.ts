@@ -2,7 +2,7 @@
 // third-party dependencies into an isolated consumer directory, then proves from inside that
 // directory that every entry resolves, imports and type-checks without leaving it.
 import { copyFileSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
-import { basename, dirname, join } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import {
   declaredClosure,
@@ -264,7 +264,9 @@ function packMember(
   report.tarballs.push({ name: member.name, file: info.filename, files })
   const source = sourceFiles(files)
   check(`tarball-no-source:${member.name}`, source.length === 0, source.join(', ') || 'no source')
-  const text = exec('tar', ['-xzOf', info.filename, 'package/package.json'], packs).stdout
+  // A name relative to `packs`: GNU tar reads an absolute `C:\…` name as a remote `host:file` archive.
+  const archive = relative(packs, resolve(packs, info.filename))
+  const text = exec('tar', ['-xzOf', archive, 'package/package.json'], packs).stdout
   const residue = workspaceResidue(JSON.parse(text) as Manifest)
   check(
     `tarball-no-workspace-protocol:${member.name}`,

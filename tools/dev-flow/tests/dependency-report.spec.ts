@@ -1,4 +1,4 @@
-import { cpSync } from 'node:fs'
+import { cpSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -15,7 +15,9 @@ import {
 afterEach(removeTemporaries)
 
 function checkout(): string {
-  const root = repository()
+  // 共享夹具用 realpathSync 取临时目录；Windows 上它保留 8.3 短名（`ALIENW~1`），而 Git 报告的顶层是长名，
+  // 实际架构读取会以“不是 Git 顶层”拒绝。这里取系统的真实路径（POSIX 上与原值相同）。
+  const root = realpathSync.native(repository())
   write(root, 'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - apps/*\n')
   write(root, 'package.json', JSON.stringify({ engines: { node: '>=24 <25' } }))
   cpSync(

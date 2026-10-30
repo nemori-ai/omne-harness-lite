@@ -1,6 +1,6 @@
 import { lstatSync, readFileSync, realpathSync } from 'node:fs'
 import { createHash } from 'node:crypto'
-import { isAbsolute, join, posix, relative } from 'node:path'
+import { isAbsolute, join, posix, relative, sep } from 'node:path'
 import { fileAt, git } from '../core/git.ts'
 import { runnerRoot } from '../core/subject.ts'
 import { memberOf } from '../deps/graph.ts'
@@ -433,7 +433,8 @@ function versionReader(root: string, source: DocumentAt) {
     } else if (lstatSync(join(root, path), { throwIfNoEntry: false }) !== undefined) {
       const actual = realpathSync(join(root, path))
       const contained = relative(realpathSync(root), actual)
-      if (isAbsolute(contained) || contained === '..' || contained.startsWith('../'))
+      // `relative` 用平台分隔符：Windows 上越界是 `..\x`，不是 `../x`。
+      if (isAbsolute(contained) || contained === '..' || contained.startsWith(`..${sep}`))
         throw new Error(`Architecture input escapes checkout: ${path}`)
       text = readFileSync(actual, 'utf8')
     }

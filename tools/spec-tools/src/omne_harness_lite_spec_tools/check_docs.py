@@ -69,11 +69,11 @@ def check(root: Path):
     record = root / ".meta_harness/design/record"
     repository = subprocess.run(["git", "-C", str(root), "rev-parse", "--show-toplevel"],
                                 env=repository_env(os.environ),
-                                capture_output=True, text=True)
+                                capture_output=True, text=True, encoding="utf-8")
     if repository.returncode == 0 and Path(repository.stdout.strip()).resolve() == root:
         tracked = subprocess.run(["git", "-C", str(root), "ls-files", "--", ".meta_harness/design/record"],
                                  env=repository_env(os.environ),
-                                 capture_output=True, text=True, check=True)
+                                 capture_output=True, text=True, encoding="utf-8", check=True)
         if tracked.stdout.strip():
             errors.append("process record files must not be tracked in Git")
     files = collect(root)

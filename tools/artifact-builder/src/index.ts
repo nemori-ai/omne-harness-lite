@@ -121,7 +121,8 @@ export async function packageArtifact(
       { flag: 'wx' },
     )
     const archive = join(staging, 'app.tar.gz')
-    await io.run('tar', ['-czf', archive, '-C', staging, 'app'], root)
+    // Relative names only: GNU tar (Git for Windows ships one) reads `C:\…` as a remote `host:file`.
+    await io.run('tar', ['-czf', 'app.tar.gz', 'app'], staging)
     const sha256 = await digest(archive)
     const after = await Promise.all(inputs.map(p => digest(join(root, p))))
     if (before.some((hash, i) => hash !== after[i])) throw new Error('build-input-changed')

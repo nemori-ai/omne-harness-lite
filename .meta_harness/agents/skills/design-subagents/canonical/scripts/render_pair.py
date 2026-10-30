@@ -17,7 +17,7 @@ from role_source import UniqueLoader, source_text, required_string, assembly_inp
 
 
 def host_support() -> dict:
-    return json.loads((Path(__file__).resolve().parents[1] / "references/model-support.json").read_text())
+    return json.loads((Path(__file__).resolve().parents[1] / "references/model-support.json").read_text(encoding="utf-8"))
 
 
 def effort_description(effort: str) -> str:

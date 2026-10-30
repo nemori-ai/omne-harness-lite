@@ -655,6 +655,7 @@ describe('报告汇总', () => {
   })
 })
 
+// 路径期望经 path.join 写成本机分隔符（Windows 上是反斜杠），结构与 POSIX 上相同。
 describe('sandbox 与配置', () => {
   it('sandbox 与成员同深度：容器在成员的上两级，Stryker 在容器下再建一层', () => {
     for (const path of ['packages/core/alpha', 'apps/cli']) {
@@ -662,7 +663,7 @@ describe('sandbox 与配置', () => {
       expect(relative('/repo', sandbox).split(sep)).toHaveLength(path.split('/').length)
     }
     expect(sandboxContainer('/repo', 'packages/core/alpha', '7')).toBe(
-      '/repo/packages/.stryker-tmp-packages__core__alpha-7',
+      join('/repo/packages/.stryker-tmp-packages__core__alpha-7'),
     )
   })
 
@@ -679,9 +680,9 @@ describe('sandbox 与配置', () => {
       vitest: { configFile: 'vitest.stryker-sandbox.config.mts', related: false },
       mutate: ['src/a.ts:2-3'],
       symlinkNodeModules: false,
-      tempDirName: '/repo/packages/.stryker-tmp-packages__core__alpha-7',
+      tempDirName: join('/repo/packages/.stryker-tmp-packages__core__alpha-7'),
       concurrency: 3,
-      jsonReporter: { fileName: '/out/packages__core__alpha.mutation.json' },
+      jsonReporter: { fileName: join('/out/packages__core__alpha.mutation.json') },
       thresholds: { break: null },
     })
   })
@@ -702,8 +703,8 @@ describe('sandbox 与配置', () => {
       mutate: ['src/a.ts:3:2-3:7'],
       concurrency: 1,
       timeoutMS: 60_000,
-      tempDirName: '/repo/packages/.stryker-tmp-packages__core__alpha-7-recheck',
-      jsonReporter: { fileName: '/out/packages__core__alpha.recheck.mutation.json' },
+      tempDirName: join('/repo/packages/.stryker-tmp-packages__core__alpha-7-recheck'),
+      jsonReporter: { fileName: join('/out/packages__core__alpha.recheck.mutation.json') },
     })
   })
 })

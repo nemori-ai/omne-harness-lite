@@ -66,7 +66,7 @@ def test_source_area_navigation_is_checked(tmp_path, area):
     write(tmp_path / area / "README.md", "[missing](missing.md)")
     result = run(tmp_path)
     assert result.returncode == 1
-    assert f"{area}/README.md: broken link" in result.stdout
+    assert f"{Path(area, 'README.md')}: broken link" in result.stdout
 
 
 def test_dependency_and_build_documentation_is_not_project_navigation(tmp_path):
@@ -196,7 +196,7 @@ def test_nested_legacy_directories_are_not_quality_targets(tmp_path):
     write(tmp_path / "docs/archive.legacy-not/broken.md", "[missing](absent.md)")
     result = run(tmp_path)
     assert result.returncode == 1
-    assert "archive.legacy-not/broken.md" in result.stdout
+    assert str(Path("archive.legacy-not/broken.md")) in result.stdout
     assert "archive.legacy/broken.md" not in result.stdout
 
 
@@ -209,5 +209,5 @@ def test_skill_mirrors_exclude_archived_directories(tmp_path):
     write(tmp_path / ".claude/skills/active/SKILL.md", "Active right")
     result = run(tmp_path)
     assert result.returncode == 1
-    assert "skill mirror differs: active/SKILL.md" in result.stdout
+    assert f"skill mirror differs: {Path('active/SKILL.md')}" in result.stdout
     assert "old.legacy/SKILL.md" not in result.stdout

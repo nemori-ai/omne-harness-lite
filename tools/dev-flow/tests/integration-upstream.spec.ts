@@ -14,6 +14,7 @@ import {
   setStartTag,
   trackEntry,
 } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import type { Route } from '../src/delivery/binding.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { contextPath } from '../src/integration/context.ts'
@@ -39,7 +40,7 @@ const cliPath = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.u
 function chainFixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   branchAt(f.remote, 'child', f.initial)
   branchAt(f.remote, 'grand', f.main)

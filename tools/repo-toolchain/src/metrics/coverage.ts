@@ -14,11 +14,32 @@ import {
   readFileSync,
   statSync,
 } from 'node:fs'
-import { join, relative } from 'node:path'
+import { delimiter, join, relative } from 'node:path'
 import { isLegacyDirectory, isLegacyFile } from '../core/check-scope.ts'
 import { hasArchivedDirectories } from '../core/check-scope.ts'
 import { VITEST_ARCHIVE_ENTRY } from '../archive/archive-project.ts'
 import type { CoverageInput, LineHits } from './report.ts'
+
+/**
+ * 起 pnpm 的可执行文件与前置参数。POSIX 上就是 `pnpm`；Windows 上 PATH 里的 `pnpm` 是 `pnpm.cmd`，
+ * Node 不经 shell 起不了它，改为用本进程的 Node 运行同一目录下 `node_modules/pnpm/bin/pnpm.cjs`
+ * （npm 全局安装的布局）。找不到就报错，不把起不来记成一个退出码。
+ */
+function pnpmCommand(): { command: string; args: string[] } {
+  if (process.platform !== 'win32') return { command: 'pnpm', args: [] }
+  const seen: string[] = []
+  for (const directory of (process.env['PATH'] ?? process.env['Path'] ?? '').split(delimiter)) {
+    if (directory === '' || !existsSync(join(directory, 'pnpm.cmd'))) continue
+    const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+    if (existsSync(entry)) return { command: process.execPath, args: [entry] }
+    seen.push(join(directory, 'pnpm.cmd'))
+  }
+  throw new Error(
+    seen.length === 0
+      ? 'PATH 里没有 pnpm.cmd'
+      : `${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+  )
+}
 
 interface IstanbulFile {
   readonly statementMap: Readonly<Record<string, { readonly start: { readonly line: number } }>>
@@ -121,9 +142,11 @@ export function measureCoverage(
           throw new Error('Invalid archived coverage scope arguments')
         archiveArgs.push(...extra)
       }
+      const pnpm = pnpmCommand()
       const result = spawnSync(
-        'pnpm',
+        pnpm.command,
         [
+          ...pnpm.args,
           'exec',
           'vitest',
           'run',
@@ -144,6 +167,9 @@ export function measureCoverage(
         ],
         { cwd: memberDir, stdio: ['ignore', log, log] },
       )
+      // A vitest that could not start is not a test outcome: the exit code would say "tests failed".
+      if (result.error !== undefined)
+        throw new Error(`覆盖率运行无法启动（${member}）：${result.error.message}`)
       exitCodes.set(member, result.status ?? -1)
     } finally {
       closeSync(log)

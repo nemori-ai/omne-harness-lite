@@ -198,6 +198,9 @@ describe('snapshot difference through the installed omne-contract-api', () => {
   })
 })
 
+// 起不了进程时的错误码：POSIX 上没有执行位的文件是 EACCES；Windows 不看执行位，非可执行映像按找不到报 ENOENT。
+const CANNOT_START = process.platform === 'win32' ? 'ENOENT' : 'EACCES'
+
 describe('snapshot difference failures before the CLI output', () => {
   it('reports a Git failure in the checkout as unavailable', () => {
     const root = temporary()
@@ -214,7 +217,7 @@ describe('snapshot difference failures before the CLI output', () => {
     const sha = 'a'.repeat(40)
     expect(runDiff({ file, args: [] }, { root, base: sha, timeoutMs: TIMEOUT_MS })).toEqual({
       kind: 'unavailable',
-      reason: expect.stringContaining('进程出错（EACCES）'),
+      reason: expect.stringContaining(`进程出错（${CANNOT_START}）`),
     })
   })
 })

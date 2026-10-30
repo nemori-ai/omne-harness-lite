@@ -56,7 +56,7 @@ def project_cursor_role(source: Path) -> ProjectedCursorRole:
     if ": " in description:
         raise ValueError(f"cursor description must not contain colon-space: {source}")
     model = required_string(config, "model", "cursor")
-    support = json.loads((DEFAULT_RENDERER.parent.parent / "references/model-support.json").read_text())
+    support = json.loads((DEFAULT_RENDERER.parent.parent / "references/model-support.json").read_text(encoding="utf-8"))
     if model not in {entry["id"] for entry in support["cursor"]["models"]}:
         raise ValueError(f"cursor: model lacks bundled host-support evidence: {model}")
     for field in ("readonly", "is_background"):
@@ -86,7 +86,7 @@ def project_cursor_package(source: Path, roles: set[str], summaries: dict[str, s
     outputs = {}
     declaration = source / "hooks/hooks.yaml"
     if declaration.is_file():
-        data = yaml.load(declaration.read_text(), Loader=UniqueLoader)
+        data = yaml.load(declaration.read_text(encoding="utf-8"), Loader=UniqueLoader)
         if not isinstance(data, dict) or set(data) != {"hooks"} or not isinstance(data["hooks"], list):
             raise ValueError("hooks source must contain exactly one hooks list")
         if data["hooks"]:
@@ -97,7 +97,7 @@ def project_cursor_package(source: Path, roles: set[str], summaries: dict[str, s
 
 
 def cursor_hooks(source: Path, entries: list, roles: set[str], summaries: dict[str, str]) -> dict[Path, Artifact]:
-    adapter = yaml.load((source / "cursor.yaml").read_text(), Loader=UniqueLoader)
+    adapter = yaml.load((source / "cursor.yaml").read_text(encoding="utf-8"), Loader=UniqueLoader)
     if (not isinstance(adapter, dict) or set(adapter) != {"version", "loop_limit", "timeout_grace"}
             or type(adapter["version"]) is not int or adapter["version"] != 1
             or type(adapter["loop_limit"]) is not int or adapter["loop_limit"] < 1

@@ -40,7 +40,9 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
+  // native: on Windows tmpdir() may be an 8.3 short name that the JS realpath keeps, while Git
+  // reports the long name and the installed repo-toolchain compares the two literally.
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
   roots.push(root)
   mkdirSync(join(root, 'packages'))
   mkdirSync(join(root, 'docs/architecture'), { recursive: true })

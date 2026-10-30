@@ -18,11 +18,13 @@ is excluded from every template.
 """
 from __future__ import annotations
 
+import fnmatch
 import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -65,6 +67,21 @@ def run(command: list[str], cwd: Path, *, timeout: float | None = None, log: Pat
     return ran
 
 
+def bash() -> str:
+    """The bash a suite's shell script runs under.
+
+    On Windows a bare ``bash`` is looked up in System32 before PATH and is the WSL launcher, which cannot read a
+    Windows path; there it is Git for Windows' bash, found from ``git --exec-path``.
+    """
+    if os.name != "nt":
+        return "bash"
+    core = git(Path.cwd(), "--exec-path")
+    found = Path(core).resolve().parents[2] / "bin" / "bash.exe"
+    if not found.is_file():
+        raise WorkspaceError(f"no Git for Windows bash at {found} (from git --exec-path {core})")
+    return str(found)
+
+
 def tree_hash(root: Path) -> str:
     """Content hash of every file under ``root`` outside ``.git``."""
     digest = hashlib.sha256()
@@ -78,7 +95,8 @@ def tree_hash(root: Path) -> str:
 
 
 def git(repo: Path, *args: str) -> str:
-    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True,
+    # Git writes paths and messages in UTF-8 whatever the locale is (on Windows the locale is a code page).
+    done = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, encoding="utf-8",
                           env=repository_env(os.environ))
     if done.returncode != 0:
         raise WorkspaceError(f"git {' '.join(args)}: {done.stderr.strip()}")
@@ -97,8 +115,17 @@ def dirty(repo: Path, paths: list[str]) -> list[str]:
 def is_ancestor(repo: Path, commit: str) -> bool:
     done = subprocess.run(["git", "-C", str(repo), "merge-base", "--is-ancestor", commit, "HEAD"],
                           env=repository_env(os.environ),
-                          capture_output=True, text=True)
+                          capture_output=True, text=True, encoding="utf-8")
     return done.returncode == 0
+
+
+def rooted(relative: str) -> bool:
+    """Whether a path that should be relative to the copy starts from a root or a drive instead.
+
+    On POSIX that is ``is_absolute``. On Windows ``/x`` is not absolute (it has no drive) and ``C:x`` is not either
+    (it has no root), but both leave the copy; any anchor counts there.
+    """
+    return bool(Path(relative).anchor)
 
 
 def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) -> None:
@@ -115,7 +142,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
         raise WorkspaceError("case fixture needs format=1 and a non-empty files map")
     rendered: list[tuple[Path, str]] = []
     for relative, content in data["files"].items():
-        if (not isinstance(relative, str) or not relative or Path(relative).is_absolute()
+        if (not isinstance(relative, str) or not relative or rooted(relative)
                 or any(part in {"..", ".git"} for part in Path(relative).parts)
                 or Path(relative).is_relative_to(".meta_harness/design/record")
                 or not isinstance(content, str)):
@@ -127,7 +154,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
     for relative in subject_paths:
         source = repo / relative
         target = dest / relative
-        if (Path(relative).is_absolute() or ".." in Path(relative).parts or ".git" in Path(relative).parts
+        if (rooted(relative) or ".." in Path(relative).parts or ".git" in Path(relative).parts
                 or not source.resolve().is_relative_to(repo.resolve())
                 or not target.resolve().is_relative_to(dest.resolve())):
             raise WorkspaceError(f"subject path escapes repository or copy: {relative}")
@@ -136,7 +163,7 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
     dest.mkdir(parents=True)
     for target, content in rendered:
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
+        target.write_text(content, encoding="utf-8", newline="\n")
     for relative in subject_paths:
         source, target = repo / relative, dest / relative
         if not source.exists():
@@ -149,7 +176,10 @@ def build(repo: Path, dest: Path, *, fixture: Path, subject_paths: list[str]) ->
 
 
 def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
-    """Edit the copy: seed defects and present the material as the brief describes it."""
+    """Edit the copy: seed defects and present the material as the brief describes it.
+
+    Text is written with the line ends Python reads it with ("\\n") on every platform; Windows would write "\\r\\n".
+    """
     for op in ops:
         kind = op["op"]
         if kind == "replace":
@@ -158,10 +188,10 @@ def apply(dest: Path, ops: list[dict[str, Any]], *, suite: Path) -> None:
             if text.count(op["find"]) != 1:
                 raise WorkspaceError(f"{op.get('id', op['file'])}: expected the text to replace exactly once, "
                                      f"found it {text.count(op['find'])} times")
-            target.write_text(text.replace(op["find"], op["replace"]), encoding="utf-8")
+            target.write_text(text.replace(op["find"], op["replace"]), encoding="utf-8", newline="\n")
         elif kind == "append":
             target = dest / op["file"]
-            target.write_text(target.read_text(encoding="utf-8") + op["text"], encoding="utf-8")
+            target.write_text(target.read_text(encoding="utf-8") + op["text"], encoding="utf-8", newline="\n")
         elif kind == "copy":
             target = dest / op["to"]
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -194,7 +224,7 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
     """Load fixed Git blobs and redirect unique string literals identified by SHA-256."""
     def path(relative: str) -> Path:
         item = Path(relative)
-        if item.is_absolute() or not item.parts or any(p in (".", "..") for p in item.parts):
+        if rooted(relative) or not item.parts or any(p in (".", "..") for p in item.parts):
             raise WorkspaceError(f"invalid input path: {relative}")
         target = dest / item
         if any(p.is_symlink() for p in [target, *target.parents] if p.is_relative_to(dest)):
@@ -237,7 +267,8 @@ def load_case_inputs(repo: Path, dest: Path, base: str, inputs: list[dict[str, A
             replacement = reader["replace"]
             if match[1] in replacement or "\\" in replacement or "\n" in replacement or "\r" in replacement:
                 raise WorkspaceError("input reader replacement must be a plain quoted path")
-            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8")
+            file.write_text(text[:match.start(2)] + replacement + text[match.end(2):], encoding="utf-8",
+                            newline="\n")
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(payload)
 
@@ -283,7 +314,10 @@ def template(repo: Path, work: Path, *, flow_id: str, base: str, excludes: list[
 
 
 def _extract(repo: Path, base: str, dest: Path) -> None:
-    archive = subprocess.Popen(["git", "-C", str(repo), "archive", base], stdout=subprocess.PIPE,
+    # The files as the commit holds them: core.autocrlf (true by default in Git for Windows) would turn every LF
+    # into CRLF on the way out, and a seed or a mutant written against the commit would no longer match.
+    archive = subprocess.Popen(["git", "-C", str(repo), "-c", "core.autocrlf=false", "archive", base],
+                               stdout=subprocess.PIPE,
                                env=repository_env(os.environ))
     extract = subprocess.run(["tar", "-x", "-C", str(dest)], stdin=archive.stdout, capture_output=True)
     archive.stdout.close()
@@ -296,6 +330,19 @@ def checkout(source: Path, dest: Path, *, linked: list[str], drop: list[str]) ->
     if dest.exists():
         raise WorkspaceError(f"{dest} already exists; a run never reuses a copy")
     dest.parent.mkdir(parents=True, exist_ok=True)
+    if os.name == "nt":
+        _checkout_without_posix_tools(source, dest, linked)
+    else:
+        _checkout_with_rsync(source, dest, linked)
+    for relative in drop:
+        target = dest / relative
+        if target.is_symlink() or target.is_file():
+            target.unlink()
+        elif target.is_dir():
+            shutil.rmtree(target)
+
+
+def _checkout_with_rsync(source: Path, dest: Path, linked: list[str]) -> None:
     excluded = [argument for name in [*linked, READY] for argument in ("--exclude", name)]
     copied = subprocess.run(["rsync", "-a", *excluded, f"{source}/", f"{dest}/"], capture_output=True, text=True)
     if copied.returncode != 0:
@@ -307,12 +354,70 @@ def checkout(source: Path, dest: Path, *, linked: list[str], drop: list[str]) ->
             target = dest / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(["cp", "-al", str(source / relative), str(target)], check=True)
-    for relative in drop:
-        target = dest / relative
-        if target.is_symlink() or target.is_file():
-            target.unlink()
-        elif target.is_dir():
-            shutil.rmtree(target)
+
+
+# Windows has neither rsync nor cp, and a bare ``find`` there is find.exe. The same copy is made in Python:
+# the copy is ``rsync -a --exclude`` (links stay links, a name is excluded at any depth), every ``linked``
+# entry is found like ``find -name -prune`` and placed like ``cp -al`` (files hard-linked, links stay links).
+
+def _checkout_without_posix_tools(source: Path, dest: Path, linked: list[str]) -> None:
+    excluded = [*linked, READY]
+    _place(source, dest, hard_link=False, excluded=excluded)
+    for found in _named(source, linked):
+        target = dest / found.relative_to(source)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        _place(found, target, hard_link=True, excluded=[])
+
+
+def _named(root: Path, names: list[str]) -> list[Path]:
+    """Every entry under ``root`` whose name matches one of ``names``, not looking inside a match or a link."""
+    found: list[Path] = []
+    for entry in os.scandir(root):
+        if any(fnmatch.fnmatchcase(entry.name, name) for name in names):
+            found.append(Path(entry.path))
+        elif entry.is_dir(follow_symlinks=False) and not entry.is_junction():
+            found += _named(Path(entry.path), names)
+    return found
+
+
+def _place(source: Path, target: Path, *, hard_link: bool, excluded: list[str]) -> None:
+    """Put ``source`` at ``target``: a link (symbolic or junction) as a link to the same place, a file copied with
+    its times or hard-linked, a directory entry by entry, leaving out names that match ``excluded``."""
+    if source.is_symlink() or source.is_junction():
+        # The link's own directory flag, not its target's: a link is copied as it is, even one that does not resolve.
+        attributes = getattr(os.lstat(source), "st_file_attributes", 0)
+        os.symlink(os.readlink(source), target,
+                   target_is_directory=bool(attributes & stat.FILE_ATTRIBUTE_DIRECTORY))
+    elif source.is_dir():
+        target.mkdir()
+        for entry in os.scandir(source):
+            if not any(fnmatch.fnmatchcase(entry.name, name) for name in excluded):
+                _place(Path(entry.path), target / entry.name, hard_link=hard_link, excluded=excluded)
+        shutil.copystat(source, target)
+    elif hard_link:
+        os.link(source, target)
+    else:
+        shutil.copy2(source, target)
+
+
+def discard(copy: Path) -> None:
+    """Remove a copy, as far as it can be removed; a copy that is not there is no error.
+
+    Like ``shutil.rmtree(..., ignore_errors=True)``. On Windows Git makes the files under ``.git/objects`` read-only
+    and a read-only file cannot be deleted, so there each entry that refuses is made writable and tried once more.
+    """
+    if os.name != "nt":
+        shutil.rmtree(copy, ignore_errors=True)
+        return
+
+    def writable_then_again(function: Any, name: str, _error: BaseException) -> None:
+        try:
+            os.chmod(name, stat.S_IWRITE)
+            function(name)
+        except OSError:
+            pass
+
+    shutil.rmtree(copy, onexc=writable_then_again)
 
 
 def baseline(dest: Path) -> str:
@@ -336,7 +441,7 @@ def deliver(dest: Path, *, subject: str, trailers: list[str], author: str) -> st
 def changed_paths(dest: Path) -> list[tuple[str, str]]:
     """(status, path) of every change against HEAD, untracked files one by one."""
     listed = subprocess.run(["git", "-C", str(dest), "status", "--porcelain", "-uall"], capture_output=True, text=True,
-                            env=repository_env(os.environ),
+                            encoding="utf-8", env=repository_env(os.environ),
                             check=True).stdout
     return [(line[:2], line[3:].split(" -> ")[-1].strip('"')) for line in listed.splitlines()]
 
