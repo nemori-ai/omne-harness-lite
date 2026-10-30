@@ -1188,7 +1188,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `run.active`，读执行记录或接续持续返回原记录不可读或精确采用不可读              | 按策略重试                           | 超过上限后按 [P-5](#具名前提与明确缺项) 提交有界收束，终态为 failed，依据为不可解释记录，写明未收尾效果                                                                               | 不猜默认下一步                               |
 | `consumptions` 中结果已报告，而保管与完成都为空                                 | 生产者原调用                         | 以合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20。Agent 记录已删除时由 Session 提交 `preserveResult`。交付责任由生产者收到 saved 后自己解除（[EC-04](#ec-04)），Tool 解除回执怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path) | 不重发原调用                                 |
 | `release` 为 pending，保管或完成非空，结果来自 Tool                             | 同一日志 `load().results` 的原生产者确认 | 按 [JC-Release](#jc-release) 读到确认后提交 `receive(release)`；未读到时保留该项。确认怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path) | 不写 confirmed 以外的值；Session 不发出交付责任解除 |
-| `release` 为 pending，保管或完成非空，结果来自 Model                            | 无                                   | MODEL-ACK-ARRIVAL 悬置期间只报告，不执行动作。该项计入未结工作（[JC-Release](#jc-release)）                                                                                          | 不写 confirmed；不直接调用 Model              |
+| `release` 为 pending，保管或完成非空，结果来自 Model                            | 无                                   | MODEL-ACK-ARRIVAL 悬置期间只报告，不执行动作。该项使 `judgeIdle` 为 not-due，不进入 `openWork`（[JC-Release](#jc-release)）                                                          | 不写 confirmed；不直接调用 Model              |
 | `controls` 为 propagating                                                       | 原控制操作、待核对生产者与未关联等待责任 | 交控制传播协调                                                                                                                                                                        | 不冒充已停                                   |
 | `tasks` 各类                                                                    | 各拥有者                             | 初始化重驱动、已分流输入重投、级联、作用域释放                                                                                                                          | 不删除待办                                   |
 
@@ -1239,7 +1239,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 - Tool 原确认已经写入日志而 Session 后果未提交时，AD-05 重读原 `ResultResponsibility.release`，按同一来源身份提交 `receive(release)`。Session 提交未知时先查原 Session operation，不换身份。
 - 日志中尚无生产者确认时，Session 保留 pending，不代发解除，不重调生产者执行。Tool 原确认怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。
-- Model 未确认时按 JC-Release 计入未结工作，扫描只报告，不执行动作。不可用、查不到或 saved 均不变成 confirmed。
+- Model 未确认时按 JC-Release 使 `judgeIdle` 为 not-due，不进入 `openWork`，扫描只报告，不执行动作。不可用、查不到或 saved 均不变成 confirmed。
 
 <a id="ec-06"></a>
 
@@ -1943,7 +1943,7 @@ Runtime Context 作用域的结束与已签发资格的撤销不在本表。它�
 | VC-B14 | 执行尝试已授予而 Agent 尚无该执行的记录                                                                                                                                             | 以同一出站操作身份重放 `invoke`；不按有界恢复者收束                                                              | [PM-14](#pm-14)、[P-5](#具名前提与明确缺项)                              |
 | VC-B15 | claim/reload 撤旧后接续 | 本域旧 attempt 失效；不生成另一套 Tool 围栏任务，也不以本域提交宣称 Tool 已阻止发起 | [PM-05](#pm-05)、[PM-06](#pm-06) |
 | VC-C01 | 承接、等待、生产者、控制、结束、消息与 `entry` 事件到达                                                                                                                                    | 承接、登记、等待、控制阶段与终态各写一次；消息与 `entry` 事件不写条目；重放认回                                         | [EC-01](#ec-01)                                                          |
-| VC-C02 | 游标丢失后从 `"0"` 重读                                                                                                                                                             | 重放认回，不重复写入；确认只在游标持久后发出                                                                     | [EC-02](#ec-02)                                                          |
+| VC-C02 | 解释进度之前的同日志事实被再次读到（例如从 `"0"` 重读）                                                                                                                                             | 重放认回，不重复写入；同日志解释不向 Agent `output.acknowledge` 确认                                           | [EC-02](#ec-02)                                                          |
 | VC-C03 | Run 未终结、事件尚未完成解释提交时裁定空闲或完成                                                                                                                                    | 不得出 `due`；Agent 结论的终态只在结束事实的解释提交成立后成立                                                   | [EC-03](#ec-03)、[I-R10](#i-r10)                                         |
 | VC-C04 | 保管或完成提交之后，交付责任解除的时刻                                                                                                                                              | 解除只在提交成功之后发出；数据库事务不包含它                                                                     | [EC-04](#ec-04)                                                          |
 | VC-C05 | 日志提交后交付责任解除的回执丢失                                                                                                                                                    | 以同一操作身份重发；没有重复调用或重复收费                                                                       | [EC-05](#ec-05)                                                          |

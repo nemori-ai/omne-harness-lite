@@ -142,7 +142,7 @@ sequenceDiagram
     end
 ```
 
-数据去向：SE10 由 `recordMessage` 在参加时写入。同日志里的 `message` 事实不再写条目，只推进游标（F-SC07）。工具消息与后台占位消息的 `AdmittedMessage.consumption` 指向原消费位置，其他消息为 null。
+数据去向：SE10 由 `recordMessage` 在参加时写入。同日志里的 `message` 事实不再写条目，只推进解释进度 `readThrough`（F-SC07）。工具消息与后台占位消息的 `AdmittedMessage.consumption` 指向原消费位置，其他消息为 null。
 
 失败分支：
 
