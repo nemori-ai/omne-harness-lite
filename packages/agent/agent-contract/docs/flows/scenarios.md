@@ -180,22 +180,31 @@ sequenceDiagram
     else 取消执行
         A->>J: 记录受理与意图成立，E1 读到有效取消转 F0
         A->>X: 请求中断仍在前台的调用，保留未收尾责任
-        A->>A: F1 固定 cancelled 候选
+        A->>J: F1 经 commitSettlement 的 establish-cancellation 建立 cancelled 候选与 cancellation route
     else 暂停执行
         A->>J: E1 读到有效暂停，E9 以 detach 保存接续并撤销挂接，执行进入 suspended
         Note over A,J: 暂停不经过 F1 至 F3，执行不终结
     end
-    opt F1 已固定完成、失败或取消候选
-        A->>A: F2 落终态之前位置：完成须无应承接输入与阻塞等待且模式允许
-        alt 候选须继续或等待且仍有有效资格
-            A->>A: 回 I8 或 W0
-        else 适用终态候选成立
-            A->>J: F3 tryFinish，附输入水位线、责任与终态前依据
-            J->>P: 有提交参加者时在同一次提交中核对参加者的事实
-            P-->>J: 参加、失败、冲突或不支持
-            J-->>A: ended、changed 或 blocked
-            Note over A,X: F4、O0 终态后只观察与保管，不恢复业务
+    opt 已有完成、失败或取消候选
+        alt 完成或失败候选（作者路线）
+            A->>J: F1 以 commit 写候选的业务内容，Journal 建立候选与 author route
+            A->>J: F2 落终态之前位置的作者经过以普通 Passage 提交
+            Note over A,J: 完成须无应承接输入与阻塞等待且模式允许
+            break 作者链要求继续、等待或否决，且仍有有效资格
+                A->>A: 回 I8 或 W0
+            end
+            Note over A,J: 经过完成的那次提交成立时，Journal 设 author route 的 beforeTerminal
+        else 取消候选（取消路线）
+            A->>J: F2 经 commitSettlement 的 judge-cancellation 保存判断记录
+            Note over A,J: 不运行作者扩展链。受信取消判断只读核对，beforeTerminal 指向该判断记录
         end
+        A->>J: F3 prepareFinish，Journal 发行终结责任清单
+        A->>J: F3 load 最新的完整 revision
+        A->>J: F3 tryFinish，附 expected 修订、FinishIntent 与终结授权
+        J->>P: 有提交参加者时在同一次提交中核对参加者的事实
+        P-->>J: 参加、失败、冲突或不支持
+        J-->>A: ended、changed、blocked 或 unavailable
+        Note over A,X: ended 转 F4、O0，终态后只观察与保管，不恢复业务。changed、blocked 与 unavailable 转 R0
     end
     Note over H,A: 停用是另一个入口，不经 control
     H->>A: quiesce，作用于一个 runtime，不属于单个执行
@@ -204,7 +213,7 @@ sequenceDiagram
     A-->>H: 交清并撤登记后返回 drained，交接未知时返回 unresolved
 ```
 
-落终态之前位置由 Agent 在提交前协调（F2）。完成候选可被要求继续、等待或否决；失败与取消按其适用检查和依据收束，扩展不能借否决恢复已撤销的推进资格。没有活体 runtime 时，已保存的取消意图由下一次合法挂接从 E0 开始收束；外部协调者自己的业务取消与终态由它自己记录。
+落终态之前位置由 Agent 在提交前协调（F2）。完成候选与失败候选可被要求继续、等待或否决；取消候选不经过终态前扩展，由受信取消判断只读核对，见 SPEC 的“[取消判断与路线](../../SPEC.md#取消判断与路线)”。扩展不能借否决恢复已撤销的推进资格。没有活体 runtime 时，已保存的取消意图由下一次合法挂接从 E0 开始收束；外部协调者自己的业务取消与终态由它自己记录。
 
 取消作用于该执行仍在前台的模型与工具调用，不自动停止已确认转后台的工具、同一 runtime 的其他执行或无关调用。真实停止和逻辑取消分别记录。输入与终结的竞争见[消费与系统定位](../context.md#输入与终结的竞争)。验收场景见[持续验证场景](../../verification/scenarios.md)的 SC-AG-20 至 SC-AG-27、SC-AG-60 至 SC-AG-66、SC-AG-140、SC-AG-147 至 SC-AG-152。
 

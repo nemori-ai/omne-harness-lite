@@ -444,7 +444,7 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | 共同提交 | CallerCommit 的种类：none、message、context-transition、custody、processed。提交参加者以参加、失败、冲突、不支持响应 | SPEC 的“提交参加者协议” |
 | ResultResponsibility | 待释放，依据已保存，已释放 | SPEC 的“托管协调与运行实例”的“提交与保管” |
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
-| 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed 或 blocked（inputs、controls、operations、passages、custody），判断记录为 unknown 时 unavailable | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
+| 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed、blocked（inputs、controls、operations、passages、custody）或 unavailable，各结果的条件见“条件终结”的结果表 | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
 | 终态前判断路线 | route 为 author 或 cancellation；取消判断记录的判定为 allowed、blocked 或 unknown；迁移记录只切换 route 指针 | SPEC 的“托管协调与运行实例”的“取消判断与路线”与“commitSettlement 的变体” |
 | 原操作查询 | committed、rejected、excluded、unknown | SPEC 的“并发与提交”的“查询的四种结论与持久拒绝” |
 | 消息准入 | prepare 的 decision 为 prepared 或 rejected；lookup 的结论为 recorded、excluded 或 unknown；Ja 的 HandoffHistory 为 pending、committed、not-applicable 或 retained | SPEC 的“主干运行契约”的“消息准入”与“托管协调与运行实例”的“准入结果保管” |
@@ -464,11 +464,13 @@ sequenceDiagram
   participant J as AgentJournal provider
   participant O as Long-lived terminal observer
   participant C as Output consumer
+  A->>J: prepareFinish issues the finish obligations
+  A->>J: load the latest complete revision
   A->>J: tryFinish with original intent and current evidence
   Note over J: Same ordering as input, control and execution attachment changes
   Note over J: A commit participant, when present, joins the same commit
-  alt changed or blocked
-    J-->>A: current revision or remaining duties
+  alt changed, blocked or unavailable
+    J-->>A: current revision, remaining duties or the undetermined fact
     A->>J: reconcile original facts
   else commit unknown
     J-->>A: commit-unknown with original operation

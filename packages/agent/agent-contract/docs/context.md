@@ -139,10 +139,12 @@ sequenceDiagram
   Note over R,T: The Tool host releases the delivery after saved
   A->>J: read and adopt the received results
   A->>J: commit original consumption and output events
+  A->>J: prepareFinish issues the finish obligations
+  A->>J: load the latest complete revision
   A->>J: tryFinish with revision, input frontier and intent
   J->>S: joint commit with the commit participant, when present
   S-->>J: shared commit or changed facts
-  J-->>A: ended, changed or blocked
+  J-->>A: ended, changed, blocked or unavailable
   A-->>S: replayable events
   S->>S: persist consumer facts and cursor
   S->>A: acknowledge retained events
