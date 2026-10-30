@@ -6,7 +6,7 @@
 
 `@omne-harness/m2-contract-skeleton` 是 M1 首次联合验收（G1）的私有验证应用（CS），也是 M1.5 关闭门 [H3](https://github.com/nemori-ai/omne-harness-lite/issues/783)（CS v2）的证据。它在一个进程内连通 M2 租户路径：创建租户、登录、经会话编解码创建会话、提交第一次请求、Session 把请求交给 Agent、Agent 经 Request Context 组装并调用 Model、Model 把结果推送给宿主接收方、回复写入 Session 日志、从历史读到回复。之后它驱动后续轮次，并探测工具往返、Agent 实例重装配与推理回放。它只使用契约成员的公开导出及其 `./testing` 替身。
 
-路径报告给 H01 至 H13 每一跳一个状态：`verified`、`failed` 或 `gap`。只有十三跳全部 `verified` 时，`fullPath` 才是 `complete`。在采用基线上的状态：H01 至 H08 在替身上全部 `verified`。H09 至 H13 处于 `gap` 状态。路径到达了其中每一跳，并记下上游公开入口在哪里使它停下。`fullPath` 为 `incomplete`。报告另列下文十个残余缺口，其中五个阻断。按 [H3 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392)，五个阻断残余缺口转 M2（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)），仍为阻断。H09 至 H13 的验收在 M2 的首条租户路径上接续。应用没有生产命令或部署角色。[SPEC.md](SPEC.md) 拥有报告行为与残余缺口的详细清单。
+路径报告给 H01 至 H13 每一跳一个状态：`verified`、`failed` 或 `gap`。只有十三跳全部 `verified` 时，`fullPath` 才是 `complete`。在采用基线上的状态：H01 至 H08 在替身上全部 `verified`。H09 至 H13 处于 `gap` 状态。路径到达了 H09 至 H12，并记下上游公开入口在哪里使每一跳停下。默认存储不探测 H13。H13 记为具名缺口，其背后的上游事实由单独的测试固定（GAP-SESSION-LOG-TARGETS）。`fullPath` 为 `incomplete`。报告另列下文十个残余缺口，其中五个阻断。按 [H3 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392)，五个阻断残余缺口转 M2（[#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)），仍为阻断。H09 至 H13 的验收在 M2 的首条租户路径上接续。应用没有生产命令或部署角色。[SPEC.md](SPEC.md) 拥有报告行为与残余缺口的详细清单。
 
 ## 使用
 

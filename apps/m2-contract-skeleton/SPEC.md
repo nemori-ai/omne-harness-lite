@@ -2,7 +2,7 @@
 
 This private application connects the M2 tenant path. It is the CS of the M1 joint acceptance (G1) and the evidence of the M1.5 closing gate [H3](https://github.com/nemori-ai/omne-harness-lite/issues/783) (CS v2). It uses only the public exports of contract members and their `./testing` doubles. Its report belongs to this application. The report is not a shared protocol or a production API.
 
-The adopted scope is [#790 revision 5](https://github.com/nemori-ai/omne-harness-lite/issues/790), section 「目标与范围」, items 1 to 8, on top of [#684 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/684). The [H3 ruling](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392) sets the result of this revision: H01 to H08 connect, and H09 to H13 record the refusal that the upstream public entries give. These five hops move to M2 ([#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)) as blocking residual gaps. They stay blocking. Their acceptance continues on the first tenant path of M2.
+The adopted scope is [#790 revision 5](https://github.com/nemori-ai/omne-harness-lite/issues/790), section 「目标与范围」, items 1 to 8, on top of [#684 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/684). The [H3 ruling](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392) sets the result of this revision: H01 to H08 connect. H09 to H12 record where the upstream public entries stop them. The default store does not probe H13. H13 is recorded as a named gap, and a separate test pins the upstream fact behind it (GAP-SESSION-LOG-TARGETS). These five hops move to M2 ([#784](https://github.com/nemori-ai/omne-harness-lite/issues/784)) as blocking residual gaps. They stay blocking. Their acceptance continues on the first tenant path of M2.
 
 The assembly model is the 「替身与真件」 section of the [application assembly page](../../docs/architecture/runtime/application-assembly.md#替身与真件). This application is the CS that the page names. It is not the application assembly of the first tenant path.
 
@@ -65,9 +65,11 @@ The path uses one tenant and one principal from H02 onward. The tenant comes fro
 The path gives one observation for each hop that it reached. An observation has one of four kinds:
 
 - `not-reached`: the path stopped before the hop. The report gives the evidence `not-reached`.
-- `refused`: a public entry answered with a failure, or the path met a named refusal point, such as the loop position I4. The evidence names the refusal.
-- `disconnected`: the calls answered, but the results do not meet the connection criterion of the hop.
+- `refused`: an upstream public entry refused a call with a named failure, such as `run-active` or `unavailable`, or the Agent journal shows the loop at a named refusal point, such as the loop position I4 or M6. The evidence names the refusal.
+- `disconnected`: the calls answered, but the results do not meet the connection criterion of the hop. This kind also covers a hop that is pending: the path made no call because an input is missing, such as an injection without a value, or because the store does not supply the part that the hop reads, such as H13 on the default store.
 - `connected`: the public calls succeeded in order and met the criterion.
+
+A hop that stops takes the kind of the step that stopped it. For example, Session refusing the hand-over of H04 with `conflict` makes H04 `refused`. A probe that stops in its own session keeps the kind of that step. Its evidence names the step, not an earlier step that succeeded.
 
 `hops` contains one entry for each hop H01 through H13. Each entry records `hopId`, `publicEntry`, `responsibility`, `ownerCards`, `reason`, `rows`, `realization`, `state`, `blockedBy` and `fragments`. A fragment has `fragmentId`, `status`, and `evidence`. Fragment status is `pass`, `fail`, or `not-applicable`. The `<hop>-connected` fragment passes only for a `connected` observation.
 
@@ -96,7 +98,7 @@ The tests declare these rows. The two Session stores differ only in `session-ad0
 | H09, H13 | `session-ad02` | absent | double |
 | H10 | `agent-host`, `tool-runtime`, `execution-files` | double | double |
 | H10 | `tool-executor`, `tool-environments`, `execution-environment` | absent | absent |
-| H11 | `agent-host`, `model-host` | double | double |
+| H11 | `agent-host`, `model-host`, `server-entry` | double | double |
 | H11 | `agent-instances` | absent | absent |
 | H12 | `model-host`, `agent-host`, `session-ad04` | double | double |
 | H13 | `agent-journal` | double | double |
@@ -154,11 +156,18 @@ A failure label holds only the step name that this application mints and the `ki
 
 The path does not call `quiesce` to end a round. On the happy path the Agent execution of each round has ended when the path returns. The H10 and H12 probes leave their Agent execution stopped where the loop refused. The runtime and the memory doubles stay reachable only from the caller, and the process releases them. The H11 probe releases the held Model call in a `finally` step, also when a withdrawal call throws. When the Model does not settle, the admitted call stays open in the scripted provider until the process exits. The Model obligation suite owns its subject disposal and its bounded waits. The default wait bound is 500 ms for each suite operation. Tests use a 15 second outer limit.
 
-The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. When the wait ends at the bound, H07 says so. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
+The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
 
 A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop in the `gap` state. Evidence holds fixed labels, failure kinds, positions, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
 
-Known limitation: the Request Context fixture of the tests throws on an assistant history row, because the fixture cannot name the source call of that row. The throw happens inside the Agent preparation. No round of this path assembles after a reply today, because the second Run is refused (GAP-SECOND-RUN). When M2 removes that gap, the throw does not appear as a named residual gap of H09. M2 must replace it with a Request Context refusal or with a fixture row that names its source call.
+Known limitations of this application, hop by hop. Each item says what the skeleton itself meets first after the upstream entry of the hop is delivered. These items are not residual gaps. M2 must remove them before the hop can connect.
+
+- Request Context fixture. The fixture of the tests throws on an assistant history row, because it cannot name the source call of that row. The Agent loop calls the request preparation with `previous: null` at I1 of every iteration ([coordinator.ts](../../packages/agent/agent/src/loop/coordinator.ts)). The context bridge then assembles over the Session history again. After a reply, that history holds a `message.assistant` row, so the fixture throws inside the Agent preparation, and the loop records a defect. M2 must replace the throw with a Request Context refusal or with a fixture row that names its source call.
+- H09: when GAP-SECOND-RUN closes, rounds 2 and 3 assemble after the reply of round 1 and meet the fixture throw above.
+- H10: when GAP-TOOL-LOOP closes, the second Model call assembles after the tool-call reply and meets the fixture throw above. The message bridge also refuses a `tool-result` source with `unsupported-source:tool-result`, although the Agent contract defines that source. A bridge failure of a probe session does not enter the H10 evidence, because only the main session adds its bridge failures to its hops. The H10 criterion counts the execution-environment effects that the test wrapper of the Tool runtime produces on each invocation, for every tool name. It does not measure a Tool executor, because the rows `tool-executor` and `tool-environments` are `absent`.
+- H11: when GAP-AGENT-REASSEMBLY closes on the Agent side, the probe still has no server-entry observation path. H11 stays `disconnected` until that path exists (see H11).
+- H12: when GAP-REASONING-REPLAY closes, round 2 needs a second Run on the same session and meets GAP-SECOND-RUN and the fixture throw above.
+- H13: the default store does not probe H13. The `session-log` store probes it, but H06 then does not connect (GAP-SESSION-LOG-TARGETS).
 
 ## H01
 
@@ -171,6 +180,8 @@ The governance codec carries an `issue-login` request and its response. Identity
 ## H03
 
 The path hands the injected `sessionAccessCheck` to the caller's Session store builder ([#680 ruling B-1](https://github.com/nemori-ai/omne-harness-lite/issues/680#issuecomment-6498559862), item 4). The dependency is required. Its type is `SessionAccessCheck | undefined`, so a caller must give a value. When the value is `undefined`, the path does not build the store, and H03 stays `session-assembly:pending:sessionAccessCheck`. This matches the `agent-journal` row, which stays `PENDING` without the check. The path never uses a default check.
+
+The card and the `agent-journal` row require the check because the Session store judges the Session participation that it derives from the Agent Journal. This path does not exercise that judgment. The Agent configuration of the tests has no joint commits (`jointCommits` is empty), so no derived participation reaches the injected check. The check sees only the commands of the path. This application therefore has no test of a refused derived participation. The evidence of card item 8 is the pending stop above and the check on each command.
 
 Steps:
 
@@ -248,6 +259,10 @@ The hop is connected when all of these are true (card item 2):
 
 The Tool runtime double of the Agent test dependencies answers each invocation itself. No public double issues the invocation reference and the result pages of a Tool runtime. When the loop reaches the Tool, M2 must check that the Tool result reaches the Model through such a runtime.
 
+Two parts of this application also stop the next step of H10 after GAP-TOOL-LOOP closes: the Request Context fixture throws when the second Model call assembles after the tool-call reply, and the message bridge refuses the `tool-result` source ([path.ts](src/path.ts), the message bridge). The known limitations under 「Resource lifetime and failure」 give the details.
+
+The probe judges the stop at I4 from the last journal snapshot that it read. When a wait ends at its bound, the evidence says so.
+
 ## H11
 
 In the `reassembly` probe session the scripted Model holds the call. After the Model admitted the call, the path calls `control.quiesce`, `recovery.detach` with the current attachment, and `runtime.resume` on the public faces of the Agent provider. Then it releases the Model and waits for the reply.
@@ -257,8 +272,9 @@ The hop is connected when all of these are true (card item 3):
 - The withdrawal and the resume succeeded.
 - The Model admitted the call exactly once, so the call was not sent again.
 - The execution ended from the received entry in the Journal.
+- The observation stayed continuous: after the reassembly, the frames on the same observation connection keep a continuous sequence number, and the observation runs through the observation path of the server entry. This is E4 of the [H3 ruling](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6515275392) and the observation part of card item 3. The 「观察通道」 row of the [assembly page](../../docs/architecture/runtime/application-assembly.md) gives the run continuity evidence to this hop.
 
-The evidence records the answer of each of the three faces and the Model admission count after the Model settled. The re-attachment of observation through a `StreamRef` after reassembly belongs to the server entry, and this path does not exercise it.
+The evidence records the answer of each of the three faces, the Model admission count after the Model settled, and how the execution ended. When the withdrawal failed and the execution ended, the evidence says that the original driver continued. When the withdrawal succeeded, it says that the resumed execution ended. No public entry supplies the observation path of the server entry on this track, so the probe cannot observe the continuity. The evidence says so, and H11 does not connect without it (GAP-AGENT-REASSEMBLY).
 
 ## H12
 
@@ -278,7 +294,7 @@ The hop is connected when all of these are true (card item 5):
 - `readWork` reports the Run of that execution: the active Run with the same execution, or a terminal of the same Run.
 - The history holds the hand-over entry of the execution or the `run.batch-taken` entry of the Run.
 
-On the default `contract-memory` store the Agent keeps its own memory Journal. That store is not the Session log, so the path does not probe H13 on it. The evidence names GAP-SESSION-LOG-TARGETS.
+On the default `contract-memory` store the Agent keeps its own memory Journal. That store is not the Session log, so the path does not probe H13 on it. The report records H13 as a `gap`, and its evidence says that this store does not probe H13 and names GAP-SESSION-LOG-TARGETS. The H13 of the path report therefore holds no upstream refusal. The upstream fact behind the gap comes from a separate test on the real same-log provider.
 
 ## GAP-SESSION-WIRE
 
@@ -313,7 +329,7 @@ The gap closes when a later round can start its Run or submit to the execution, 
 
 ## GAP-TOOL-LOOP
 
-Blocking for H10. The Agent loop does not run the tool calls of a Model reply until #502 stage 2.
+Blocking for H10. The Agent loop of the adopted base does not run the tool calls of a Model reply. Stage 2 of [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) owns that step.
 
 Observed stop: the loop admits the tool-call reply and hands it over to Session. Its journal stays `advancing` at [I4](../../packages/agent/agent/docs/architecture/loop-algorithm.md#节点表), the step that turns the tool-call parts into an action batch. The Tool runtime receives no invocation. The file and command doubles of #791 see no call. The Model admits no second call.
 
@@ -321,11 +337,14 @@ The gap closes when the H10 criteria above hold. Owners: the stage 2 cards [#520
 
 ## GAP-AGENT-REASSEMBLY
 
-Blocking for H11. The public faces that withdraw an instance and continue an execution from the Journal under a new instance are not implemented.
+Blocking for H11. Two parts have no public entry on this track:
 
-Observed stop: `control.quiesce`, `recovery.detach` and `runtime.resume` answer `unavailable`. Each diagnostic says that the face is not implemented until #502 stage 5. The host receiver outside the instance keeps receiving. After the Model settles, the original driver continues from the received entry, with one Model admission.
+- the public faces that withdraw an instance and continue an execution from the Journal under a new instance, and
+- the observation path of the server entry, through which the observation must stay continuous after the reassembly.
 
-The gap closes when the H11 criteria above hold. The re-attachment of observation after reassembly belongs to the server entry and is not part of this gap. Owner: [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502).
+Observed stop: `control.quiesce`, `recovery.detach` and `runtime.resume` answer `unavailable`. Each diagnostic says that the face is not implemented until #502 stage 5. The host receiver outside the instance keeps receiving. After the Model settles, the original driver continues from the received entry, with one Model admission. The probe has no observation path to check.
+
+The gap closes when the H11 criteria above hold, including the observation continuity. Owners: [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) for the Agent faces, and [#784](https://github.com/nemori-ai/omne-harness-lite/issues/784) for the observation continuity, which the access line of M2 takes over.
 
 ## GAP-REASONING-REPLAY
 

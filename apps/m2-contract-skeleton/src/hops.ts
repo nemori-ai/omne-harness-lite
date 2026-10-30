@@ -20,10 +20,11 @@ export const HOP_IDS = [
 export type FirstPathHop = (typeof HOP_IDS)[number]
 
 /**
- * What the path observed at one hop. `not-reached`: the path stopped before the hop. `refused`: a
- * public entry answered with a failure, or the path met a documented refusal point; the evidence
- * names it. `disconnected`: the calls answered, but what they returned does not meet the
- * connection criterion of the hop. `connected`: the public calls succeeded in order and met it.
+ * What the path observed at one hop. `not-reached`: the path stopped before the hop. `refused`: an
+ * upstream public entry refused a call with a named failure, or the Agent journal shows the loop at
+ * a named refusal point (I4, M6); the evidence names it. `disconnected`: the calls answered, but
+ * what they returned does not meet the connection criterion of the hop; this includes a pending
+ * hop that the path could not call. `connected`: the public calls succeeded in order and met it.
  */
 export type ConnectedObservation =
   | Readonly<{ kind: 'not-reached' }>
