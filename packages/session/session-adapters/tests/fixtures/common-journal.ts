@@ -68,7 +68,8 @@ export function checkpoint(): AgentCheckpoint {
   }
 }
 export type SceneQualification = {
-  agent: boolean
+  /** The Agent qualification: one answer for every action, or one per action name. */
+  agent: boolean | ((action: string) => boolean)
   session: boolean | 'unavailable'
   /** When set, the Session check holds its answer until the returned promise settles. */
   hold?: (request: SessionAccessRequest<string>) => Promise<void> | undefined
@@ -123,7 +124,10 @@ export async function scene(
   const backend = createMemorySessionJournal({
     initialization,
     accessCheck,
-    authorize: () => (qualification.agent ? 'allowed' : 'denied'),
+    authorize: (_input, action) => {
+      const agent = qualification.agent
+      return (typeof agent === 'function' ? agent(action) : agent) ? 'allowed' : 'denied'
+    },
     ...(budget ? { budget } : {}),
     ...(finishing.cancellationPolicy === 'absent'
       ? {}

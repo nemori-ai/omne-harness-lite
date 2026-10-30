@@ -59,6 +59,8 @@ import type {
   MigrationRecord,
   SettlementRequest,
   SettlementResult,
+  ObligationDisposition,
+  RecoveryContinuation,
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
@@ -797,12 +799,33 @@ export function createJournal<P>(
     return text.ok ? operationText(text.value, execution, operation) : undefined
   }
 
+  /**
+   * The qualification names one call is checked under (Agent SPEC "commitSettlement 的变体"): the
+   * candidate and judgment variants need settle, a migration needs settle and
+   * migrate-cancellation, the custody variants need reconcile; every other call its own method.
+   */
+  function qualificationsOf(action: string, input: object): readonly string[] {
+    if (action !== 'commitSettlement' || !('kind' in input)) return [action]
+    switch (input.kind) {
+      case 'establish-cancellation':
+      case 'judge-cancellation':
+        return ['settle']
+      case 'migrate-cancellation':
+        return ['settle', 'migrate-cancellation']
+      default:
+        // The request type closes the six kinds, so the rest are the three custody variants.
+        return ['reconcile']
+    }
+  }
+
   function owned(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     action: string,
   ): Outcome<Execution, Failure> {
-    const rejected = cell.authorize(input, action)
-    if (rejected) return fail(rejected)
+    for (const name of qualificationsOf(action, input)) {
+      const rejected = cell.authorize(input, name)
+      if (rejected) return fail(rejected)
+    }
     if (cell.gate() !== null)
       return fail({ kind: 'unavailable', owner: 'session-history', diagnostic: cell.gate()! })
     const execution = state().executions.get(executionKey(input.tenant, input.execution))
@@ -1024,8 +1047,10 @@ export function createJournal<P>(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
   ): Outcome<Readonly<{ fault: WriteFault | undefined }>, Failure> {
     const fault = writeFaults.get(method)?.shift()
-    const refused = cell.authorize(input, method)
-    if (refused) return fail(refused)
+    for (const name of qualificationsOf(method, input)) {
+      const refused = cell.authorize(input, name)
+      if (refused) return fail(refused)
+    }
     const target = state().executions.get(executionKey(input.tenant, input.execution))
     const foreign =
       target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
@@ -1424,14 +1449,16 @@ export function createJournal<P>(
   /**
    * The checks of a cancel authorization that prepareFinish, tryFinish and the candidate,
    * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): the
-   * cancel names a saved control whose intent is reached (`denied` otherwise) and carries the
-   * source of that control (`invalid` otherwise). Answers the effective control.
+   * cancel names a saved control whose intent is reached (`denied` otherwise); prepareFinish and
+   * tryFinish also need the current settle qualification (`denied` otherwise); the cancel carries
+   * the source of that control (`invalid` otherwise). Answers the effective control.
    */
   function cancelCheck(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     execution: Execution,
     authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
     action: string,
+    settle: boolean,
   ):
     | Readonly<{ kind: 'failure'; failure: Failure }>
     | Readonly<{ kind: 'held'; control: ControlRecord }> {
@@ -1439,6 +1466,8 @@ export function createJournal<P>(
       record => record.operation === authorization.control,
     )
     if (control === undefined) return { kind: 'failure', failure: denied(action) }
+    const refused = settle ? cell.authorize(input, 'settle') : undefined
+    if (refused !== undefined) return { kind: 'failure', failure: refused }
     if (!sameEvidence(control.stages.accepted.source, authorization.source))
       return {
         kind: 'failure',
@@ -1516,6 +1545,9 @@ export function createJournal<P>(
     const reference = request.reference
     if (reference.execution !== execution.id)
       return fail(invalid('handoff', 'the request is not of this execution'))
+    // Only a Ja clears or moves the pointer: P needs none set (Agent SPEC "消息准入").
+    if (execution.checkpoint.currentHandoff !== null)
+      return fail(invalid('checkpoint.currentHandoff', 'another H is still the current one'))
     if (!sameValue(input.checkpoint.currentHandoff, reference))
       return fail(invalid('checkpoint.currentHandoff', 'P points the checkpoint at its H'))
     if (request.predecessor !== input.expected)
@@ -1565,8 +1597,10 @@ export function createJournal<P>(
       return fail(invalid('handoff', 'the H already has its history disposition'))
     if (record.resolution !== null && !sameValue(record.resolution, { kind: 'recorded', outcome }))
       return fail(invalid('handoff', 'the outcome differs from the recorded one'))
-    if (sameValue(input.checkpoint.currentHandoff, request.reference))
-      return fail(invalid('checkpoint.currentHandoff', 'a Ja clears or moves the pointer'))
+    if (!sameValue(execution.checkpoint.currentHandoff, request.reference))
+      return fail(invalid('checkpoint.currentHandoff', 'the H is not the current one'))
+    if (input.checkpoint.currentHandoff !== null)
+      return fail(invalid('checkpoint.currentHandoff', 'a Ja clears the pointer'))
     const decision = outcome.decision
     const published = input.events.filter(
       event =>
@@ -1639,6 +1673,8 @@ export function createJournal<P>(
       return fail(invalid('handoff', 'the H already has its history disposition'))
     if (record.resolution !== null && record.resolution.kind !== 'excluded')
       return fail(invalid('handoff', 'a recorded H is not retired'))
+    if (!sameValue(execution.checkpoint.currentHandoff, request.reference))
+      return fail(invalid('checkpoint.currentHandoff', 'the H is not the current one'))
     if (input.checkpoint.currentHandoff !== null)
       return fail(invalid('checkpoint.currentHandoff', 'a retire clears the pointer'))
     if (input.checkpoint.position !== request.position.node)
@@ -1719,15 +1755,18 @@ export function createJournal<P>(
     if (installed === undefined)
       return answer(fail(damaged('no cancellation policy is installed on this binding')))
     if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-    const checked = cancelCheck(input, execution, input.authorization, 'commitSettlement')
+    // The settle and migrate-cancellation qualifications were checked with the request (step 1).
+    const checked = cancelCheck(input, execution, input.authorization, 'commitSettlement', false)
     if (checked.kind === 'failure') return answer(fail(checked.failure))
     const control = checked.control
     if (control.command.kind !== 'cancel')
       throw new Error('session Journal defect: an effective cancel without a cancel command')
     const cause = control.command.reason
+    // Step 4: an installation that no longer applies, a stale expected and a candidate that is no
+    // longer current are changed; a target the variant cannot apply to is invalid after them.
     const installation = installed.installation
     if (!sameEvidence(installation.record, input.installation))
-      return answer(fail(invalid('installation', 'not the installation this binding holds')))
+      return answer(fail({ kind: 'changed' }))
     if (input.expected !== revisionOf(execution.revision)) return answer(fail({ kind: 'changed' }))
     const finishing = execution.finishing
     const current = currentCandidate(finishing)
@@ -1749,15 +1788,16 @@ export function createJournal<P>(
     })
     switch (input.kind) {
       case 'establish-cancellation': {
-        // A legacy cancelled candidate on an author route keeps its candidate and migrates.
-        if (current?.conclusion.kind === 'cancelled' && route?.kind === 'author')
-          return answer(
-            fail(invalid('predecessor', 'a cancelled candidate on an author route migrates')),
-          )
         if (input.predecessor !== null && candidateOf(finishing, input.predecessor) === undefined)
           return answer(fail(invalid('predecessor', 'not a candidate of this execution')))
         if ((current?.candidate ?? null) !== input.predecessor)
           return answer(fail({ kind: 'changed' }))
+        // establish supersedes a complete or failed candidate only: a cancelled one stays, on a
+        // cancellation route, or migrates from an author route (rulings-S3B).
+        if (current?.conclusion.kind === 'cancelled')
+          return answer(
+            fail(invalid('predecessor', 'a cancelled candidate is not superseded by establish')),
+          )
         const candidate: FinishCandidate = {
           candidate: input.operation,
           origin: copy(control.stages.accepted.source),
@@ -1810,9 +1850,9 @@ export function createJournal<P>(
         const candidate = candidateOf(finishing, input.candidate)
         if (candidate === undefined)
           return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
         if (candidate.conclusion.kind !== 'cancelled')
           return answer(fail(invalid('candidate', 'only a cancelled candidate migrates')))
-        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
         const from = routeOf(finishing, input.originalRoute)
         if (from === undefined)
           return answer(fail(invalid('originalRoute', 'not a route of this execution')))
@@ -2105,12 +2145,52 @@ export function createJournal<P>(
                 : invalid('source', 'the returned reference is malformed'),
             ),
           )
+        // A known reference of the same intent with another call or admission conflicts: the
+        // original association stays as it is (Agent SPEC "record-tool-association").
+        const parts = reference.ok
+        const contradicted = finishing.toolAssociations.some(known => {
+          if (known.intent.action !== input.intent.action) return false
+          if (known.association.kind === 'no-proven-reference') return false
+          const prior = resolveToolInvocationRef(known.association.reference, execution.tenant)
+          return (
+            'ok' in prior &&
+            (prior.ok.call !== parts.call || prior.ok.admission !== parts.admission)
+          )
+        })
+        if (contradicted) return answer(fail(conflict(input.operation)))
         const custodian: ConsumerRef = {
           owner: 'host',
           work: execution.id,
           position: input.intent.action,
           purpose: 'call-custody',
         }
+        const continuation: RecoveryContinuation = {
+          kind: 'tool-association-retain',
+          request: copy(input.request),
+          owner: 'host',
+          custodian,
+          purpose: 'reconcile',
+        }
+        // A commit-unknown return names the call but leaves its acceptance unknown.
+        const disposition: ObligationDisposition =
+          record.returned.kind === 'accepted'
+            ? {
+                kind: 'held',
+                custodian,
+                acceptance: copy(record.received),
+                retained: copy(record.custody),
+                continuation,
+              }
+            : {
+                kind: 'unknown',
+                question: {
+                  owner: 'host',
+                  key: input.intent.action,
+                  position: copy(input.source),
+                  reason: 'original-operation-unknown',
+                },
+                required: continuation,
+              }
         const obligation: Extract<FinishObligation, { kind: 'call' }> = {
           kind: 'call',
           category: 'operations',
@@ -2118,19 +2198,7 @@ export function createJournal<P>(
           source: copy(effect.pending.fixed),
           version: evidence,
           position: copy(effect.pending.position),
-          disposition: {
-            kind: 'held',
-            custodian,
-            acceptance: copy(record.received),
-            retained: copy(record.custody),
-            continuation: {
-              kind: 'tool-association-retain',
-              request: copy(input.request),
-              owner: 'host',
-              custodian,
-              purpose: 'reconcile',
-            },
-          },
+          disposition,
           action: input.intent.action,
           intent: input.intent.intent,
           pending: copy(effect.pending),
@@ -3074,7 +3142,7 @@ export function createJournal<P>(
           return answer(fail({ kind: 'stale-advance' }))
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         if (authorization.kind === 'cancel') {
-          const checked = cancelCheck(input, execution, authorization, 'prepareFinish')
+          const checked = cancelCheck(input, execution, authorization, 'prepareFinish', true)
           if (checked.kind === 'failure') return answer(fail(checked.failure))
         }
         const finishing = execution.finishing
@@ -3146,7 +3214,7 @@ export function createJournal<P>(
         if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
         const finishing = execution.finishing
         if (authorization.kind === 'cancel') {
-          const checked = cancelCheck(input, execution, authorization, 'tryFinish')
+          const checked = cancelCheck(input, execution, authorization, 'tryFinish', true)
           if (checked.kind === 'failure') return answer(fail(checked.failure))
           const route = currentRoute(finishing)
           if (route?.kind === 'cancellation' && route.control !== authorization.control)
