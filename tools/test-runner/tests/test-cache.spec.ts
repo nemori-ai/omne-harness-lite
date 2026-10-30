@@ -3,6 +3,7 @@
 // 规则一旦从键里漏掉一类输入（例如上游成员的文件），这里会变红。
 import { execFileSync } from 'node:child_process'
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -14,7 +15,8 @@ import {
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
+import { slugOf } from '../src/testing/run.ts'
 import { coordinates } from '@omne-harness/repo-toolchain/core/git'
 import {
   fileTree,
@@ -25,7 +27,7 @@ import {
 import { parseTestRunsConfig, readTestRunsConfig, type RunTier } from '../src/testing/config.ts'
 import type { MemberRun } from '../src/testing/ledger.ts'
 import { classify } from '../src/testing/scope.ts'
-import { fastThenSlow, recordedRun } from '../src/testing/steps.ts'
+import { fastThenSlow, recordedRun, runCachePolicy } from '../src/testing/steps.ts'
 import {
   cacheable,
   cacheHome,
@@ -33,16 +35,19 @@ import {
   cachePolicy,
   entryPath,
   keyEnvironment,
+  lookupCache,
   KEY_VERSION,
   memberInputs,
   memberKeys,
   readEntry,
+  recordCache,
   snapshotTree,
   TEST_CACHE_ENV,
   TEST_CACHE_HOME_ENV,
   upstreamOf,
   writeEntry,
   type CacheEntry,
+  type CacheLookup,
   type KeyInputs,
 } from '../src/testing/test-cache.ts'
 import {
@@ -333,15 +338,20 @@ describe('缓存键', () => {
 
 describe('读不读', () => {
   it('缺省读；FULL=1、--full、--no-cache、OMNE_TEST_CACHE=0、准入模式都只写不读，并说明原因', () => {
-    const none = { noCache: false, full: false }
-    expect(cachePolicy({}, none)).toEqual({ read: true, reason: '' })
-    expect(cachePolicy({ [TEST_CACHE_ENV]: '1' }, none)).toEqual({ read: true, reason: '' })
-    expect(cachePolicy({ [TEST_CACHE_ENV]: '' }, none)).toEqual({ read: true, reason: '' })
-    expect(cachePolicy({}, { noCache: false, full: true })).toMatchObject({
+    const none = { noCache: false, full: false, build: true }
+    expect(cachePolicy({}, none)).toEqual({
+      read: true,
+      reason: '',
+      write: true,
+      writeReason: '',
+    })
+    expect(cachePolicy({ [TEST_CACHE_ENV]: '1' }, none)).toMatchObject({ read: true })
+    expect(cachePolicy({ [TEST_CACHE_ENV]: '' }, none)).toMatchObject({ read: true })
+    expect(cachePolicy({}, { ...none, full: true })).toMatchObject({
       read: false,
       reason: expect.stringContaining('FULL=1'),
     })
-    expect(cachePolicy({}, { noCache: true, full: false })).toMatchObject({
+    expect(cachePolicy({}, { ...none, noCache: true })).toMatchObject({
       read: false,
       reason: expect.stringContaining('--no-cache'),
     })
@@ -355,10 +365,38 @@ describe('读不读', () => {
     })
   })
 
+  it('本次没有构建就不写，读不受影响；构建过才写', () => {
+    const base = { noCache: false, full: false }
+    expect(cachePolicy({}, { ...base, build: false })).toMatchObject({
+      read: true,
+      write: false,
+      writeReason: expect.stringContaining('没有构建'),
+    })
+    expect(cachePolicy({}, { ...base, build: true })).toMatchObject({ read: true, write: true })
+    // 不读的原因与不写互不牵连。
+    expect(cachePolicy({}, { noCache: true, full: false, build: true })).toMatchObject({
+      read: false,
+      write: true,
+    })
+  })
+
+  it('run 认 FULL=1：不读；不带构建时也不写，所以 `FULL=1 pnpm run test` 既不读也不写', () => {
+    expect(runCachePolicy({ FULL: '1' }, { noCache: false, build: false })).toMatchObject({
+      read: false,
+      write: false,
+    })
+    expect(runCachePolicy({ FULL: '1' }, { noCache: false, build: true })).toMatchObject({
+      read: false,
+      write: true,
+    })
+    expect(runCachePolicy({}, { noCache: false, build: true })).toMatchObject({ read: true })
+    expect(() => runCachePolicy({ FULL: 'yes' }, { noCache: false, build: true })).toThrow()
+  })
+
   it('OMNE_TEST_CACHE 不是 0、1 或空就报错，不猜', () => {
-    expect(() => cachePolicy({ [TEST_CACHE_ENV]: 'off' }, { noCache: false, full: false })).toThrow(
-      'OMNE_TEST_CACHE 只能是 0、1 或不设',
-    )
+    expect(() =>
+      cachePolicy({ [TEST_CACHE_ENV]: 'off' }, { noCache: false, full: false, build: true }),
+    ).toThrow('OMNE_TEST_CACHE 只能是 0、1 或不设')
   })
 
   it('缓存根：环境变量给了用它，给空串当没给，否则在主检出的 tmp/test-cache', () => {
@@ -482,6 +520,64 @@ describe('条目', () => {
 })
 
 // 归慢层：起 git 子进程。
+describe('写缓存：策略与跑完后的键复核', () => {
+  const SOURCE = { ledger: '/runs/1', head: 'abc', dirty: false }
+  /** 一个只有成员 mid 的查询结果；`rekey` 是可注入的钩子：模拟「跑完后重算键」得到什么。 */
+  const lookupFor = (home: string, write: boolean, rekey: CacheLookup['rekey']): CacheLookup => ({
+    home,
+    policy: { read: true, reason: '', write, writeReason: write ? '' : '没有构建' },
+    keys: new Map([['packages/core/mid', { key: 'k-before', inputs: 3 }]]),
+    uncacheable: new Map(),
+    hits: new Map(),
+    rekey,
+  })
+  const same = () => new Map([['packages/core/mid', { key: 'k-before', inputs: 3 }]])
+  const entryFile = (home: string, key: string) => entryPath(home, RUN.member, 'fast', key)
+
+  it('策略允许写、键没变：写', () => {
+    const home = temporary('test-cache-record-')
+    const recorded = recordCache(lookupFor(home, true, same), [RUN], 'fast', SOURCE)
+    expect(recorded).toEqual({ written: [RUN.member], problems: [], skipped: [] })
+    expect(existsSync(entryFile(home, 'k-before'))).toBe(true)
+  })
+
+  it('策略不许写（本次没有构建）：通过的成员也不写，缓存目录里没有条目', () => {
+    const home = temporary('test-cache-record-')
+    const recorded = recordCache(lookupFor(home, false, same), [RUN], 'fast', SOURCE)
+    expect(recorded.written).toEqual([])
+    expect(existsSync(entryFile(home, 'k-before'))).toBe(false)
+    expect(existsSync(join(home, slugOf(RUN.member)))).toBe(false)
+  })
+
+  it('运行期间输入变了（复核的键与开跑前不一致）：这个成员不写，并说明原因', () => {
+    const home = temporary('test-cache-record-')
+    const changed = () => new Map([['packages/core/mid', { key: 'k-after', inputs: 3 }]])
+    const recorded = recordCache(lookupFor(home, true, changed), [RUN], 'fast', SOURCE)
+    expect(recorded.written).toEqual([])
+    expect(recorded.skipped).toEqual([expect.stringContaining('运行期间输入有变化')])
+    expect(recorded.skipped[0]).toContain(RUN.member)
+    expect(existsSync(entryFile(home, 'k-before'))).toBe(false)
+    expect(existsSync(entryFile(home, 'k-after'))).toBe(false)
+  })
+
+  it('复核时算不出键：全部跳过，不当作没变', () => {
+    const home = temporary('test-cache-record-')
+    const broken = () => {
+      throw new Error('git 取不到')
+    }
+    const recorded = recordCache(lookupFor(home, true, broken), [RUN], 'fast', SOURCE)
+    expect(recorded.written).toEqual([])
+    expect(recorded.skipped).toEqual([expect.stringContaining('git 取不到')])
+  })
+
+  it('只对要写的成员复核：没有要写的就不重算', () => {
+    const home = temporary('test-cache-record-')
+    const rekey = vi.fn(same)
+    recordCache(lookupFor(home, true, rekey), [{ ...RUN, exitCode: 1 }], 'fast', SOURCE)
+    expect(rekey).not.toHaveBeenCalled()
+  })
+})
+
 describe('工作树快照（真起 git）', () => {
   it(
     '干净的取索引 blob；改过、暂存过、未跟踪的现算；删掉的不在；被忽略的从不在',
@@ -567,7 +663,7 @@ describe('本仓库', () => {
         mainRoot: ROOT,
         targets: members.map(entry => entry.path),
         tier: 'fast',
-        policy: { read: true, reason: '' },
+        policy: { read: true, reason: '', write: true, writeReason: '' },
         config: CONFIG,
         env: {},
       },
@@ -681,7 +777,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
           base: null,
           plan: null,
           budget: BUDGET,
-          cache: { read, reason: read ? '' : '测试要求不读' },
+          cache: { read, reason: read ? '' : '测试要求不读', write: true, writeReason: '' },
         })
         const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
         const ran = readFileSync(join(root, 'ran.txt'), 'utf8').split('\n').filter(Boolean).sort()
@@ -766,7 +862,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         base: null,
         plan: null,
         budget: BUDGET,
-        cache: { read: true, reason: '' },
+        cache: { read: true, reason: '', write: true, writeReason: '' },
       })
       const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
       const ran = readFileSync(join(root, 'ran.txt'), 'utf8').split('\n').filter(Boolean).sort()
@@ -805,6 +901,88 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
       ])
       expect(second.ledger.meta.cache.written).toEqual(['members/alpha'])
     }),
+  )
+
+  it(
+    '不构建的一次运行（策略不许写）：成员通过也没有新条目；许写的一次有；全部命中时提示行写明没有执行',
+    { tags: ['slow'] },
+    () =>
+      withCacheHome(async () => {
+        const { root, targets } = workspace(['alpha', 'beta'])
+        const home = process.env[TEST_CACHE_HOME_ENV] ?? ''
+        const lines: string[] = []
+        const spy = vi.spyOn(console, 'log').mockImplementation((...parts: unknown[]) => {
+          lines.push(parts.join(' '))
+        })
+        let count = 0
+        const go = async (write: boolean) => {
+          count += 1
+          const out = join(root, `run-${count}`)
+          const exitCode = await recordedRun(root, {
+            script: 'test',
+            tier: 'fast',
+            targets,
+            build: false,
+            out,
+            at: coordinates(root, undefined),
+            base: null,
+            plan: null,
+            budget: BUDGET,
+            cache: { read: true, reason: '', write, writeReason: write ? '' : '没有构建' },
+          })
+          const ledger = JSON.parse(readFileSync(join(out, 'ledger.json'), 'utf8')) as LedgerCache
+          return { exitCode, ledger }
+        }
+        try {
+          const unbuilt = await go(false)
+          expect(unbuilt.exitCode).toBe(0)
+          expect(unbuilt.ledger.meta.cache.written).toEqual([])
+          expect(existsSync(home) ? readdirSync(home) : []).toEqual([])
+          expect(lines.join('\n')).toContain('不写缓存（没有构建')
+
+          const built = await go(true)
+          expect(built.ledger.meta.cache.written).toEqual(['members/alpha', 'members/beta'])
+          expect(readdirSync(home).sort()).toEqual(['members__alpha', 'members__beta'])
+
+          lines.length = 0
+          const hit = await go(true)
+          expect(hit.exitCode).toBe(0)
+          expect(lines).toContain('2 个成员全部命中缓存，没有执行（快层）')
+          expect(lines.join('\n')).not.toContain('个成员的 `test`')
+        } finally {
+          spy.mockRestore()
+        }
+      }),
+  )
+
+  it(
+    '跑完后键复核（真起 git 与 turbo）：运行期间改了成员的源文件，这个成员不写',
+    { tags: ['slow'] },
+    () =>
+      withCacheHome(async () => {
+        const { root, targets } = workspace(['alpha'])
+        const home = process.env[TEST_CACHE_HOME_ENV] ?? ''
+        const lookup = lookupCache({
+          root,
+          mainRoot: root,
+          targets: targets.map(entry => entry.path),
+          tier: 'fast',
+          policy: { read: true, reason: '', write: true, writeReason: '' },
+          config: CONFIG,
+          env: process.env,
+        })
+        expect(lookup.unavailable).toBeUndefined()
+        writeFileSync(join(root, 'members/alpha/src/index.ts'), 'export const value = 2\n')
+        const run: MemberRun = { ...RUN, member: 'members/alpha' }
+        const recorded = recordCache(lookup, [run], 'fast', {
+          ledger: '/runs/1',
+          head: 'abc',
+          dirty: false,
+        })
+        expect(recorded.written).toEqual([])
+        expect(recorded.skipped).toHaveLength(1)
+        expect(existsSync(home) ? readdirSync(home) : []).toEqual([])
+      }),
   )
 
   it('快层的成员全部命中时这一层算通过，慢层照常跑', { tags: ['slow'] }, () =>

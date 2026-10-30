@@ -37,6 +37,7 @@ import {
 } from './ledger.ts'
 import {
   cacheMeta,
+  cachePolicy,
   lookupCache,
   recordCache,
   type CacheLookup,
@@ -52,6 +53,17 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { runMembers, runTurboTests, slugOf } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
+
+/**
+ * `run` 的缓存策略：`FULL=1` 时不读；`build` 为本次调用是否为被选中的成员构建，没构建就不写。
+ * 所以不带 `--build` 的 `FULL=1 pnpm run test`（`run --all`）既不读也不写。
+ */
+export function runCachePolicy(
+  env: Readonly<Record<string, string | undefined>>,
+  options: { readonly noCache: boolean; readonly build: boolean },
+): CachePolicy {
+  return cachePolicy(env, { ...options, full: fullRequested(env) })
+}
 
 /** 环境变量 `FULL`：`1` 要全量，不设或空串不要；别的值报错，不猜。 */
 export function fullRequested(env: Readonly<Record<string, string | undefined>>): boolean {
@@ -300,10 +312,13 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
       freeMemoryMiB: budget.machine.freeMemoryMiB,
     },
   }
-  console.log(
-    `跑 ${targets.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
-      `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（${describeBudget(budget)}）`,
-  )
+  if (script === 'test' && toRun.length === 0)
+    console.log(`${targets.length} 个成员全部命中缓存，没有执行（${TIER_NAMES[tier]}）`)
+  else
+    console.log(
+      `跑 ${toRun.length} 个成员的 \`${script}\`${script === 'test' ? `（${TIER_NAMES[tier]}）` : ''}：` +
+        `同时 ${parallel.memberConcurrency} 个成员、每个至多 ${parallel.vitestMaxWorkers} 个工作进程（${describeBudget(budget)}）`,
+    )
   const started = Date.now()
   let finishedBefore = 0
   for (const [member, entry] of hits) {
@@ -341,6 +356,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
     lookup === undefined
       ? undefined
       : recordCache(lookup, runs, tier, { ledger: runDir, head: run.at.head, dirty: run.at.dirty })
+  for (const line of recorded?.skipped ?? []) console.log(`测试缓存：${line}`)
   const cache =
     lookup === undefined || recorded === undefined ? {} : { cache: cacheMeta(lookup, recorded) }
 
@@ -370,6 +386,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
 function describeLookup(lookup: CacheLookup, total: number): string[] {
   if (lookup.unavailable !== undefined)
     return [`测试缓存：不可用——${lookup.unavailable}；${total} 个成员全部照跑，不写缓存`]
+  const noWrite = lookup.policy.write ? '' : `；不写缓存（${lookup.policy.writeReason}）`
   const skipped =
     lookup.uncacheable.size === 0
       ? ''
@@ -377,10 +394,12 @@ function describeLookup(lookup: CacheLookup, total: number): string[] {
           .map(([member, reason]) => `${member}（${reason}）`)
           .join('、')}`
   if (!lookup.policy.read)
-    return [`测试缓存：只写不读（${lookup.policy.reason}；${lookup.home}）${skipped}`]
+    return [
+      `测试缓存：${lookup.policy.write ? '只写不读' : '不读'}（${lookup.policy.reason}；${lookup.home}）${skipped}${noWrite}`,
+    ]
   return [
     `测试缓存：命中 ${lookup.hits.size} 个成员、跑 ${total - lookup.hits.size} 个` +
-      `（键与影响面规则同源：成员自己、上游、读者规则点名与全局文件的内容摘要；${lookup.home}）${skipped}`,
+      `（键与影响面规则同源：成员自己、上游、读者规则点名与全局文件的内容摘要；${lookup.home}）${skipped}${noWrite}`,
   ]
 }
 

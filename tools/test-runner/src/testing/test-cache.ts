@@ -42,30 +42,41 @@ export function cacheHome(mainRoot: string, env: Readonly<Record<string, string 
   return value === undefined || value === '' ? join(mainRoot, TEST_CACHE_DIR) : value
 }
 
-/** 这次运行读不读缓存；写总是写（失败的运行写不进去，见 `cacheable`）。 */
+/**
+ * 这次运行读不读、写不写缓存，两个开关分开。写还要过 `cacheable`（失败的运行写不进去）和跑完后的键复核。
+ * 很多成员的测试按包名导入自己、执行的是 `dist/`，而键按源码内容算：本次没有为这些成员构建就跑，
+ * 通过的可能是旧 dist，不能记在新源码的键下。
+ */
 export interface CachePolicy {
   readonly read: boolean
   /** 不读时的原因；读时为空串。 */
   readonly reason: string
+  readonly write: boolean
+  /** 不写时的原因；写时为空串。 */
+  readonly writeReason: string
 }
 
 /**
  * `FULL=1`（或 `--full`）、`--no-cache`、`OMNE_TEST_CACHE=0` 不读；准入模式也不读——准入不读待合并的改动能写入的缓存
  * （与构建、类型检查的 turbo 缓存同一条规则）。
+ * 本次调用没有为被选中的成员构建（`build` 为假）时不写：测试可能跑的是旧 dist。
  */
 export function cachePolicy(
   env: Readonly<Record<string, string | undefined>>,
-  options: { readonly noCache: boolean; readonly full: boolean },
+  options: { readonly noCache: boolean; readonly full: boolean; readonly build: boolean },
 ): CachePolicy {
   const value = env[TEST_CACHE_ENV]
   if (value !== undefined && value !== '' && value !== '0' && value !== '1')
     throw new Error(`环境变量 ${TEST_CACHE_ENV} 只能是 0、1 或不设，现在是 ${value}`)
-  if (options.full) return { read: false, reason: 'FULL=1 要求全量' }
-  if (options.noCache) return { read: false, reason: '--no-cache' }
-  if (value === '0') return { read: false, reason: `${TEST_CACHE_ENV}=0` }
+  const write = options.build
+    ? { write: true, writeReason: '' }
+    : { write: false, writeReason: '本次没有构建，测试可能跑的是旧 dist' }
+  if (options.full) return { read: false, reason: 'FULL=1 要求全量', ...write }
+  if (options.noCache) return { read: false, reason: '--no-cache', ...write }
+  if (value === '0') return { read: false, reason: `${TEST_CACHE_ENV}=0`, ...write }
   if (admissionRequested(env))
-    return { read: false, reason: '准入模式不读待合并的改动能写入的缓存' }
-  return { read: true, reason: '' }
+    return { read: false, reason: '准入模式不读待合并的改动能写入的缓存', ...write }
+  return { read: true, reason: '', ...write }
 }
 
 /** 工作树快照：影响面里能出现的每个文件（已跟踪的，加未跟踪、未忽略的）的内容 id。 */
@@ -334,6 +345,8 @@ export interface CacheLookup {
   readonly uncacheable: ReadonlyMap<string, string>
   /** 读缓存时命中的成员。 */
   readonly hits: ReadonlyMap<string, CacheEntry>
+  /** 跑完后重新取快照、重算各成员的键，用来复核开跑前的键；取不到时抛。 */
+  readonly rekey: () => ReadonlyMap<string, MemberKey>
   /** 整个缓存不可用的原因（快照或依赖图取不到）；有它时 `keys` 为空。 */
   readonly unavailable?: string
 }
@@ -413,7 +426,14 @@ export function lookupCache(options: LookupOptions): CacheLookup {
         const entry = readEntry(home, member, options.tier, key)
         if (entry !== undefined) hits.set(member, entry)
       }
-    return { home, policy, keys, uncacheable, hits }
+    return {
+      home,
+      policy,
+      keys,
+      uncacheable,
+      hits,
+      rekey: () => memberKeys(options, members, graph, snapshotTree(options.root)).keys,
+    }
   } catch (error) {
     return {
       home,
@@ -421,23 +441,49 @@ export function lookupCache(options: LookupOptions): CacheLookup {
       keys: new Map(),
       uncacheable: new Map(),
       hits: new Map(),
+      rekey: () => new Map(),
       unavailable: error instanceof Error ? error.message : String(error),
     }
   }
 }
 
-/** 运行之后写缓存：完整通过且有键的成员各写一条；返回写了谁、哪些写不进去。 */
+/**
+ * 运行之后写缓存：完整通过且有键的成员各写一条；返回写了谁、哪些写不进去、哪些因键变了而跳过。
+ * 策略不许写时一条不写。写之前用 `lookup.rekey` 重算键：运行中改过输入的成员，结果属于哪份输入已说不清，跳过；
+ * 重算本身失败时全部跳过。
+ */
 export function recordCache(
   lookup: CacheLookup,
   runs: readonly MemberRun[],
   tier: RunTier,
   source: { readonly ledger: string; readonly head: string; readonly dirty: boolean },
-): { readonly written: string[]; readonly problems: string[] } {
+): { readonly written: string[]; readonly problems: string[]; readonly skipped: string[] } {
   const written: string[] = []
   const problems: string[] = []
-  for (const run of runs) {
+  const skipped: string[] = []
+  if (!lookup.policy.write) return { written, problems, skipped }
+  const candidates = runs.filter(
+    run => lookup.keys.has(run.member) && cacheable(run) && run.report !== undefined,
+  )
+  if (candidates.length === 0) return { written, problems, skipped }
+  let fresh: ReadonlyMap<string, MemberKey> | undefined
+  let freshError = ''
+  try {
+    fresh = lookup.rekey()
+  } catch (error) {
+    freshError = error instanceof Error ? error.message : String(error)
+  }
+  for (const run of candidates) {
     const found = lookup.keys.get(run.member)
-    if (found === undefined || !cacheable(run) || run.report === undefined) continue
+    if (found === undefined || run.report === undefined) continue
+    if (fresh === undefined) {
+      skipped.push(`${run.member}：跑完后重算键失败（${freshError}），不写缓存`)
+      continue
+    }
+    if (fresh.get(run.member)?.key !== found.key) {
+      skipped.push(`${run.member}：运行期间输入有变化，键与开跑前不一致，不写缓存`)
+      continue
+    }
     const problem = writeEntry(lookup.home, {
       version: KEY_VERSION,
       member: run.member,
@@ -459,7 +505,7 @@ export function recordCache(
     if (problem === undefined) written.push(run.member)
     else problems.push(problem)
   }
-  return { written, problems }
+  return { written, problems, skipped }
 }
 
 /** 账本抬头里的 `cache` 一栏：怎么用的缓存、谁命中了、来源在哪、谁写进去了。 */
