@@ -1,6 +1,8 @@
 // 成员之间并行：Stryker 的工作进程总数不超过预算，按各成员的工作量分；一个成员跑完，它的进程交给还没开始的成员。
 // 每个成员的 Stryker 有一段与变异体数无关的固定开销（构建、预检、初跑都只用一个进程），成员挨个跑时这段开销串起来；
-// 同时跑就叠在一起。Stryker 的工作进程数在启动时定下，跑到一半不能加，所以只在成员开始时分。
+// 同时跑就叠在一起。Stryker 的工作进程数在启动时定下，跑到一半不能加，所以只在成员开始时分；预算偏小时启动就告警。
+import { VITEST_MAX_WORKERS_ENV } from '../testing/config.ts'
+import { WORKER_BUDGET_ENV, type Budget } from '../testing/parallelism.ts'
 
 /** 一个成员的工作量估计。 */
 export interface MemberWork {
@@ -137,4 +139,41 @@ export async function runWithinBudget<T>(
   }
   if (failure !== undefined) throw failure.error
   return results
+}
+
+/** 命令行参数在 bash 里原样可贴：只含常见字符的照写，别的加单引号。 */
+function shellWord(arg: string): string {
+  return /^[\w@%+=:,./~^-]+$/u.test(arg) ? arg : `'${arg.replaceAll("'", `'"'"'`)}'`
+}
+
+/**
+ * 启动时的进程数告警：没有设 `VITEST_MAX_WORKERS`，而预算给的进程数不到本机核数的一半时，写明预算从哪来
+ * （取样时的空闲比例与空闲内存，或 `OMNE_WORKER_BUDGET`），以及用 `VITEST_MAX_WORKERS` 重启的命令。
+ * 建议值取核数的一半（向上取整），正好不再告警。`args` 是 `pnpm run mutation` 之后的参数。不该告警时为 undefined。
+ */
+export function workerWarning(
+  budget: Budget,
+  env: Readonly<Record<string, string | undefined>>,
+  args: readonly string[],
+): string | undefined {
+  const given = env[VITEST_MAX_WORKERS_ENV]
+  if (given !== undefined && given !== '') return undefined
+  const { workers, machine } = budget
+  if (workers * 2 >= machine.cores) return undefined
+  const suggested = Math.ceil(machine.cores / 2)
+  const command = [
+    `${VITEST_MAX_WORKERS_ENV}=${suggested}`,
+    'pnpm run mutation',
+    ...args.map(shellWord),
+  ].join(' ')
+  const memoryCapped = workers < Math.floor(machine.cores * machine.idleFraction)
+  const source =
+    budget.source === 'env'
+      ? `预算由环境变量 ${WORKER_BUDGET_ENV} 给定，没有取样`
+      : `取样时空闲 ${Math.round(machine.idleFraction * 100)}%、空闲内存 ${Math.round(machine.freeMemoryMiB / 1024)} GiB` +
+        (memoryCapped ? '，预算受空闲内存所限，加进程前先确认内存够用' : '')
+  return (
+    `告警：Stryker 只分到 ${workers} 个工作进程，不到本机 ${machine.cores} 核的一半（${source}）。` +
+    `机器其实空闲时，停掉这次运行，用 \`${command}\` 重启`
+  )
 }

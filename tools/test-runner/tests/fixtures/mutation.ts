@@ -67,13 +67,13 @@ export function cliFixture(): string {
   return cliRoot
 }
 
-/** 写一份手写计划：基线引用 HEAD，合并点 `mergeBase`，只选 `test` 里的成员。 */
-export function writePlan(head: string, mergeBase: string, test: string[]): string {
+/** 写一份手写计划：基线引用 `ref`（缺省 HEAD），合并点 `mergeBase`，只选 `test` 里的成员。 */
+export function writePlan(head: string, mergeBase: string, test: string[], ref = 'HEAD'): string {
   const path = join(temporary('mutation-plan-'), 'plan.json')
   const file = {
     head,
     dirty: true,
-    base: { ref: 'HEAD', mergeBase },
+    base: { ref, mergeBase },
     plan: {
       mode: 'scoped',
       reason: '',

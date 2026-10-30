@@ -209,7 +209,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 
 ## 差分变异
 
-`pnpm run mutation [--base <基线>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
+`pnpm run mutation [--base <基线>] [--since <ref>]` 回答「这次改动碰到的代码，测试守不守得住」：把改动行上的代码逐处改坏（变异体），
 看有没有测试因此失败。`src/mutation/` 是 [Stryker](https://stryker-mutator.io/) 10 与它的 vitest runner 上面薄薄的一层，
 变异算子、插桩、调度与判定都是 Stryker 的，这里只做三件事：
 
@@ -266,6 +266,23 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
   原件、`summary.md`、`summary.json`、各成员日志、每次运行的类型测试记录（`<成员>.runs.jsonl`）与预检没通过的成员的 `<成员>.preflight-failed` 标记写进
   主检出的 `tmp/mutation-ledger/<提交短号>[-dirty]/<时间>/`（环境变量 `OMNE_MUTATION_LEDGER_HOME` 可改）。
 
+**只变异最近一轮改动（`--since <ref>`）**。评审修复之后要量热点时，给 `--since <上一轮评审的头>`。这就是「只打热点」的做法：
+
+```sh
+pnpm run mutation --since <上一轮评审的头> --plan-only   # 先只列范围，核对后再正式运行
+pnpm run mutation --since <上一轮评审的头>
+```
+
+- 计划仍按基线算（`--base`、`--plan`，或绑定的树里 task context 的 `targetBase`）。`--since` 不改变基线，只收窄范围。所以绑定了 task context 的树里也能用，不必另建未绑定的树。
+- 范围取两份改动行的交：`<ref>` 到工作树（含未提交、未跟踪）的改动行，与合并点到工作树的改动行。两份 diff 的新一侧是同一份工作树，行号可比。
+  取交保证范围只会收窄：`<ref>` 之前改过、之后又改回基线原样的行，不进范围。
+- `<ref>` 必须是 HEAD 的祖先，并且不早于基线与 HEAD 的合并点。合并进来的旁支上的提交也不行。不满足时入口以 2 退出，并写明原因。
+  `<ref>` 等于合并点时，范围与不给 `--since` 相同。`<ref>` 等于 HEAD 时，只剩未提交的改动。
+- 不能与 `--members` 同给，同给时以 2 退出：点名成员变异它的全部源码，没有基线以来的范围可以收窄。
+- 范围说明写「基线 … 以来、并且自 `<ref 短号>`（--since `<ref>`）以来」。`summary.json` 加一节 `since`，写 `ref` 与解析出的 `commit`。
+- `--since` 与增量互不影响：`--since` 定范围，增量照常复用范围里上次被杀的变异体。快照只留这次范围里被杀的变异体，
+  所以一次 `--since` 运行之后，下一次不带 `--since` 的运行复用得少一些。
+
 **成员并行**。每个成员的 Stryker 有一段固定开销：构建、预检与初跑都只用一个进程，小成员约 5～10 秒。成员挨个跑时，这些开销一段接一段。
 所以入口让几个成员同时跑，各成员的 Stryker 工作进程数合起来不超过预算（`VITEST_MAX_WORKERS` 已设时以它为准）。规则如下：
 
@@ -283,6 +300,20 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。三个测试�
 
 只有一个成员时，它用整份预算，与并行之前相同。环境变量 `OMNE_MUTATION_PARALLEL=0` 让成员逐个跑，每个成员用整份预算。
 `src/mutation/schedule.ts` 拥有这套分法。成员之间不共用 sandbox、报告与日志：sandbox 容器名含成员的 slug，运行目录里的文件名都以成员的 slug 开头。
+
+**进度行**。Stryker 的 `progress-append-only` 报告器在变异阶段每 10 秒写一行进度，形如
+`Mutation testing 45% (elapsed: <1m, remaining: ~1m) 10/22 tested (3 survived, 0 timed out)`：已测的与全部变异体数、存活与超时的数。
+入口把这一行从成员日志转到命令的标准输出，行首加成员路径。复核那一遍的进度行在成员路径后标「（复核）」。成员并行时，靠成员路径分清是谁的进度。
+Stryker 的其余输出只进成员日志。变异阶段不到 10 秒的成员没有进度行。
+（以前子进程的输出整个重定向到成员日志文件，所以运行日志在「构建 … 秒」之后没有任何输出。）
+
+**进程数告警**。工作进程预算在启动时取样一次（见「并行度」）。机器在取样时忙，预算就小，整次运行都按这个数跑。
+所以没有设 `VITEST_MAX_WORKERS`、预算又不到本机核数的一半时，入口在「Stryker 同时 N 个工作进程」一行之后打一行告警。告警写明：
+
+- 预算的来历：取样时的空闲比例与空闲内存，或「由环境变量 `OMNE_WORKER_BUDGET` 给定，没有取样」。预算受空闲内存所限时也写明。
+- 重启命令 `VITEST_MAX_WORKERS=<核数的一半，向上取整> pnpm run mutation <这次的参数>`。
+
+机器其实空闲时，停掉这次运行，用这条命令重启。告警不改变预算，也不影响退出码。
 
 **增量**（借鉴 [unclebob/ub-mode](https://github.com/unclebob/ub-mode) 所列 mutator 的差分快照：上次被杀、代码没变的变异体不再跑，只重跑存活的与改过的）。
 入口缺省开 Stryker 的 `incremental` 模式，每个成员一份快照，放在主检出的 `tmp/mutation-incremental/<分支>/<成员 slug>.json`。
@@ -408,7 +439,7 @@ Vitest 4.1.11 的类型测试池只在一个实例第一次运行时报告类型
 - 复核又超时算测出来（见上文「超时的计分」）。机器上别的负载使复核也慢出 60 秒以上时，这个判定不是变异造成的。
 - static 变异体的运行可能没有类型测试（见上文「类型测试缺席」）。读数写明次数，判定不受影响。
 
-自测：`tests/mutation*.spec.ts`。成员并行的分法与调度见 `tests/mutation-schedule.spec.ts`，增量的快照、范围与开关见 `tests/mutation-incremental.spec.ts`，
+自测：`tests/mutation*.spec.ts`。`--since` 的取值核对与改动行的交见 `tests/mutation-since.spec.ts`，入口对它的接线见 `tests/mutation-cli.spec.ts`。进度行的转发与进程数告警见 `tests/mutation-progress.spec.ts`。成员并行的分法与调度见 `tests/mutation-schedule.spec.ts`，增量的快照、范围与开关见 `tests/mutation-incremental.spec.ts`，
 夹具上的复用、改一处只重跑那里、范围缩小、关掉增量、`--force` 与两个成员并行见 `tests/mutation-stryker-incremental.spec.ts`。在夹具项目上真起 Stryker 的用例归慢层，按场景分在 `tests/mutation-stryker-*.spec.ts`：没断言的测试留下存活变异体，
 在只按包名导入自己的测试文件里补上断言后被杀；只变异改动行；跑完不留 sandbox；有测试文件只在 sandbox 里加载失败时，
 预检报错、不出读数，类型断言照常通过也一样；只在 `threads` 池里加载失败的文件同样被拦下；
