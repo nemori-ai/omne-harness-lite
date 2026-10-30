@@ -319,6 +319,44 @@ describe('brief-check', () => {
     expect(check(specText({ acceptance: created })).errors).toEqual([])
   })
 
+  describe('acceptance paths relative to a member directory', () => {
+    const memberRepo = () =>
+      repository({
+        ...BASE_FILES,
+        'tools/m/package.json': '{"scripts":{"typecheck":"tsc"}}\n',
+        'tools/m/src/x.ts': 'export const x = 1\n',
+        'tools/m/tests/x.spec.ts': 'export {}\n',
+      })
+    const command = '`pnpm exec vitest run tests/x.spec.ts`'
+
+    it('B15 resolves a path against the cd directory on the same line', () => {
+      const repo = memberRepo()
+      const withCd = specText({ acceptance: [`- \`cd tools/m\` 后运行 ${command}`] })
+      expect(check(withCd, false, repo).errors).toEqual([])
+      const withoutCd = specText({ acceptance: [`- 运行 ${command}`] })
+      expect(items(check(withoutCd, false, repo).errors)).toEqual([5])
+    })
+
+    it('B16 resolves a path against the member directory of the write scope', () => {
+      const repo = memberRepo()
+      const acceptance = [`- 在成员目录运行 ${command}`]
+      const inMember = specText({ acceptance, scope: ['- `tools/m/src/x.ts` — 改'] })
+      expect(check(inMember, false, repo).errors).toEqual([])
+    })
+
+    it('B17 still reports a relative path that no directory holds', () => {
+      const repo = memberRepo()
+      const acceptance = ['- `cd tools/m` 后运行 `pnpm exec vitest run tests/none.spec.ts`']
+      const report = check(
+        specText({ acceptance, scope: ['- `tools/m/src/x.ts` — 改'] }),
+        false,
+        repo,
+      )
+      expect(items(report.errors)).toEqual([5])
+      expect(report.errors[0]?.message).toContain('tests/none.spec.ts')
+    })
+  })
+
   it('B11 rejects an empty stop-conditions section as item 6', () => {
     expect(items(check(specText({ stop: ['', '<!-- 待补 -->'] })).errors)).toEqual([6])
   })

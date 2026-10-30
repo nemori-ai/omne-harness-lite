@@ -341,7 +341,16 @@ function checkAcceptance(
         .replace(/#.*$/, '')
         .replace(/[,;。，；]+$/, '')
       if (!REPOSITORY_PATH.test(path) || path.startsWith('..') || path.startsWith('tmp/')) continue
-      if (!repository.existsAtBase(path) && !scopePaths.has(path))
+      // A command run from a member directory writes paths relative to it, so try the root, the
+      // directories of `cd` on this line, then the members of the write scope.
+      const candidates = directories.map(directory =>
+        posix.join(directory.replace(/^\.\//, ''), path),
+      )
+      if (
+        !candidates.some(
+          candidate => repository.existsAtBase(candidate) || scopePaths.has(candidate),
+        )
+      )
         out.error(
           5,
           `acceptance-path-missing: ${path} is not on the base commit or in the write scope`,
