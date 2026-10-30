@@ -109,7 +109,7 @@ const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
   config: '快照之后成员的 vitest 配置变了',
   tiers: '快照之后根目录的 vitest.tiers.mts 变了',
   fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
-  external: '快照之后测试读的成员外文件变了',
+  external: '快照之后测试读到的外部输入变了（成员 src/ 之外的文件，含成员内的测试辅助文件）',
 }
 const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
 
