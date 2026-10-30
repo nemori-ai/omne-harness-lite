@@ -1,9 +1,17 @@
 // The coordinated binding of the session-log Journal (Agent SPEC "提交参加者协议"; AD-01; PA-01
 // of session-contract): the declaration, the co-checks of open, attach and submit in the same
 // write, the attach rules of PA-01 item 3 (ordinary advance and cancel wind-down), and the
-// participant answer of tryFinish as FinishResult.changed.
+// participant answer of tryFinish as FinishResult.changed, with the cancel branch of PA-02.
 import { describe, expect, it } from 'vitest'
-import { decodeAgentExecutionId, decodeInputId } from '@omne-harness/agent-contract'
+import {
+  decodeAgentExecutionId,
+  decodeAgentOperationId,
+  decodeInputId,
+  type AgentOperationId,
+  type ExecutionSnapshot,
+} from '@omne-harness/agent-contract'
+import { testCancellationPolicyInstallation } from '@omne-harness/agent-contract/testing'
+import { deriveDriveOperation } from '@omne-harness/session-contract'
 import { creation, guard, operationId } from '@omne-harness/session-contract/testing'
 import {
   scene,
@@ -14,9 +22,112 @@ import {
   openInput,
   submitInput,
 } from './fixtures/common-journal.ts'
-import { accept, cancel, end, handed, take } from './fixtures/progression.ts'
+import { accept, cancel, end, handed, prepareEnd, take } from './fixtures/progression.ts'
 
 type Scene = Awaited<ReturnType<typeof scene>>
+type Snapshot = ExecutionSnapshot
+
+/** The Agent cancel control the coordinator derives for the Session control `cancel` (PA-02). */
+function sessionCancelControl(s: Scene, name = 'cancel') {
+  return ok(
+    decodeAgentOperationId(
+      deriveDriveOperation({ kind: 'control', execution: s.execution, control: operationId(name) }),
+    ),
+  )
+}
+
+function cancelAuthorization(snapshot: Snapshot, control: AgentOperationId) {
+  const record = snapshot.controls.find(item => item.operation === control)
+  if (record === undefined) throw new Error('the control should be saved')
+  return { kind: 'cancel' as const, control, source: record.stages.accepted.source }
+}
+
+/** The Agent cancel `control` accepted and its intent reached: an effective cancel. */
+async function effective(s: Scene, control: AgentOperationId) {
+  ok(
+    await s.view.journal.control({
+      ...s.access,
+      execution: s.execution,
+      operation: control,
+      command: { kind: 'cancel', reason: evidence('cancel') },
+    }),
+  )
+  ok(
+    await s.view.journal.recordControl({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`intent-${control}`),
+      target: control,
+      stage: 'intent-established',
+      state: 'reached',
+      source: evidence('intent'),
+    }),
+  )
+}
+
+/**
+ * The cancellation path up to tryFinish under the Agent cancel `control` (Agent SPEC "取消判断与路
+ * 线"): establish the cancelled candidate, judge it with the installed test policy, prepareFinish;
+ * answers the snapshot whose projection the cancel end presents.
+ */
+async function windDown(s: Scene, control: AgentOperationId): Promise<Snapshot> {
+  await effective(s, control)
+  const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+  const settle = async (name: string, body: object) => {
+    const snapshot = await load()
+    return ok(
+      await s.view.journal.commitSettlement({
+        ...s.access,
+        execution: s.execution,
+        operation: operation(name),
+        authorization: cancelAuthorization(snapshot, control),
+        expected: snapshot.revision,
+        installation: testCancellationPolicyInstallation.record,
+        ...body,
+      } as unknown as Parameters<typeof s.view.journal.commitSettlement>[0]),
+    )
+  }
+  await settle('establish', { kind: 'establish-cancellation', predecessor: null })
+  const established = await load()
+  const route = established.settlement.route
+  if (route === null) throw new Error('a route is expected')
+  const judged = await settle('judge', {
+    kind: 'judge-cancellation',
+    candidate: established.settlement.candidate?.candidate,
+    route: route.record,
+  })
+  expect(judged).toMatchObject({ judgment: { decision: { kind: 'allowed' } } })
+  const snapshot = await load()
+  ok(
+    await s.view.journal.prepareFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('prepare'),
+      authorization: cancelAuthorization(snapshot, control),
+      expected: snapshot.revision,
+      candidate: route.candidate,
+    }),
+  )
+  return load()
+}
+
+/** The cancel tryFinish of the projection of `ready`. */
+function cancelFinish(s: Scene, ready: Snapshot, name: string) {
+  if (ready.state.kind !== 'settling') throw new Error('settling expected')
+  const control =
+    ready.settlement.route?.kind === 'cancellation'
+      ? ready.settlement.route.control
+      : ready.controls.find(item => item.command.kind === 'cancel')?.operation
+  if (control === undefined) throw new Error('a cancel control is expected')
+  return {
+    ...s.access,
+    execution: s.execution,
+    operation: operation(name),
+    authorization: cancelAuthorization(ready, control),
+    expected: ready.revision,
+    intent: ready.state.intent,
+  }
+}
 
 async function claim(s: Scene, label: string) {
   const before = ok(await s.backend.transactions.readWork(s.access))
@@ -196,7 +307,7 @@ describe('attach follows PA-01 item 3', () => {
     expect(attached.authority.instance).toBe(instance('current'))
   })
 
-  it('cancel wind-down: after the Run is cancelled the last attempt attaches with cancel authority only', async () => {
+  it('cancel wind-down: after the Run is cancelled the last attempt granted before the cancel attaches with cancel authority only, and ends cancelled under the control SE26 names', async () => {
     const s = await scene('attach-cancel')
     ok(await handed(s))
     await take(s)
@@ -222,45 +333,29 @@ describe('attach follows PA-01 item 3', () => {
         finish: null,
       }),
     ).toMatchObject({ failure: { kind: 'stale-advance' } })
-    ok(
-      await s.view.journal.control({
-        ...s.access,
-        execution: s.execution,
-        operation: operation('cancel'),
-        command: { kind: 'cancel', reason: evidence('cancel') },
-      }),
-    )
-    ok(
-      await s.view.journal.recordControl({
-        ...s.access,
-        execution: s.execution,
-        operation: operation('intent'),
-        target: operation('cancel'),
-        stage: 'intent-established',
-        state: 'reached',
-        source: evidence('intent'),
-      }),
-    )
-    const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
-    const finished = ok(
-      await s.view.journal.tryFinish({
-        ...s.access,
-        execution: s.execution,
-        operation: operation('cancelled-end'),
-        authorization: { kind: 'cancel', control: operation('cancel'), source: evidence('cancel') },
-        expected: loaded.revision,
-        intent: {
-          conclusion: { kind: 'cancelled', cause: evidence('cause') },
-          inputWatermark: loaded.inputWatermark,
-          obligations: evidence('obligations'),
-          beforeTerminal: evidence('before-terminal'),
-          failure: null,
-        },
-      }),
-    )
+    const ready = await windDown(s, sessionCancelControl(s))
+    if (ready.state.kind !== 'settling') throw new Error('settling expected')
+    const finished = ok(await s.view.journal.tryFinish(cancelFinish(s, ready, 'cancelled-end')))
     expect(finished.kind).toBe('ended')
+    const ended = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+    expect(ended.state).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
   })
 
+  it('cancel wind-down: an attempt granted before the last one is denied, the last one attaches', async () => {
+    const s = await scene('attach-cancel-earlier')
+    ok(await handed(s))
+    await take(s)
+    const last = await claim(s, 'last')
+    ok(await cancel(s))
+    const root = s.view.controls.root()
+    expect(await attach(s, 'earlier', s.input.runtime.grant)).toMatchObject({
+      failure: { kind: 'denied', action: 'attach' },
+    })
+    expect(s.view.controls.root()).toBe(root)
+    expect(ok(await attach(s, 'last', last.receipt.source)).authority.instance).toBe(
+      instance('last'),
+    )
+  })
   it('an ended execution answers terminal before the Session check', async () => {
     const s = await scene('attach-ended')
     ok(await handed(s))
@@ -281,9 +376,53 @@ describe('tryFinish takes the Session participant into the same conditional comm
     ok(await handed(s))
     await take(s)
     await accept(s, 'input-2')
-    const loaded = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+    const loaded = await prepareEnd(s)
     const root = s.view.controls.root()
-    expect(await end(s)).toEqual({ ok: { kind: 'changed', revision: loaded.revision } })
+    expect(await end(s, 'end', loaded)).toEqual({
+      ok: { kind: 'changed', revision: loaded.revision },
+    })
+    expect(s.view.controls.root()).toBe(root)
+    expect(
+      ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state.kind,
+    ).not.toBe('ended')
+  })
+
+  it('PA-02: on the cancelled Run a cancel end under a control that SE26 does not name is FinishResult.changed and writes nothing', async () => {
+    const s = await scene('finish-cancel-other-control')
+    ok(await handed(s))
+    await take(s)
+    ok(await cancel(s))
+    ok(await attach(s, 'wind-down', s.input.runtime.grant))
+    const ready = await windDown(s, operation('agent-only-cancel'))
+    const root = s.view.controls.root()
+    expect(await s.view.journal.tryFinish(cancelFinish(s, ready, 'other-end'))).toEqual({
+      ok: { kind: 'changed', revision: ready.revision },
+    })
+    expect(s.view.controls.root()).toBe(root)
+  })
+
+  it('PA-02: on the cancelled Run a cancel end that presents the complete candidate fixed before the cancel does not end and writes nothing', async () => {
+    const s = await scene('finish-cancel-complete')
+    ok(await handed(s))
+    await take(s)
+    // The complete candidate is fixed and its list issued while the Run is active.
+    const complete = await prepareEnd(s)
+    if (complete.state.kind !== 'settling') throw new Error('settling expected')
+    ok(await cancel(s))
+    ok(await attach(s, 'wind-down', s.input.runtime.grant))
+    const control = sessionCancelControl(s)
+    await effective(s, control)
+    const current = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+    const root = s.view.controls.root()
+    const answered = await s.view.journal.tryFinish({
+      ...s.access,
+      execution: s.execution,
+      operation: operation('complete-end'),
+      authorization: cancelAuthorization(current, control),
+      expected: current.revision,
+      intent: complete.state.intent,
+    })
+    expect(answered).toEqual({ ok: { kind: 'changed', revision: current.revision } })
     expect(s.view.controls.root()).toBe(root)
     expect(
       ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state.kind,
