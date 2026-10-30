@@ -156,7 +156,25 @@ describe('--since 的取值', () => {
   })
 
   it('在合并进来的旁支上（是 HEAD 的祖先，但不在合并点之后）：拒绝', () => {
-    expect(refusal(commits.s)).toContain('不在基线 target 与 HEAD 的合并点')
+    const message = refusal(commits.s)
+    expect(message).toContain('不在基线 target 与 HEAD 的合并点')
+    expect(message).toContain('合并进来的旁支')
+    expect(message).not.toContain('第一父线')
+  })
+
+  it('在 HEAD 的第一父线上、但早于同步合并进来的合并点：拒绝，原因说第一父线而不是旁支', () => {
+    git('checkout', '-q', '-b', 'synced', 'task')
+    try {
+      git('merge', '-q', '--no-ff', '--no-edit', 'target')
+      const message = refusal(commits.r)
+      expect(message).toContain('在 HEAD 的第一父线上')
+      expect(message).toContain(`早于基线 target 与 HEAD 的合并点 ${commits.t1.slice(0, 9)}`)
+      expect(message).toContain('改用合并点之后的提交')
+      expect(message).not.toContain('旁支')
+    } finally {
+      git('checkout', '-q', 'task')
+      git('branch', '-q', '-D', 'synced')
+    }
   })
 
   it('引用不存在、为空、以 - 开头：拒绝', () => {

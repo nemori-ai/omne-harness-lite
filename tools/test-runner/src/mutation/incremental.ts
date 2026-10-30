@@ -13,10 +13,14 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs'
+import { fileTree, listWorkspaceMembers } from '@omne-harness/repo-toolchain/core/workspace'
 import { createRequire } from 'node:module'
 import { dirname, join, relative, resolve, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
+import { readTestRunsConfig } from '../testing/config.ts'
 import { slugOf } from '../testing/run.ts'
+import { distDigest, upstreamOf } from '../testing/test-cache.ts'
+import { packageGraph } from '../testing/turbo.ts'
 import { mutantIdentity, type MutationReport, type ReportMutant } from './report.ts'
 import type { RunRecord } from './run-reporter.ts'
 import type { MutationTarget } from './scope.ts'
@@ -89,13 +93,14 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
     .digest('hex')
 }
 
-/** 指纹的五类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读到的外部输入（成员 src/ 之外的文件，含成员内的测试辅助文件）。 */
+/** 指纹的六类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读到的外部输入（成员 src/ 之外的文件，含成员内的测试辅助文件）、上游成员的构建产物。 */
 export interface FingerprintParts {
   readonly versions: string
   readonly config: string
   readonly tiers: string
   readonly fixtures: string
   readonly external: string
+  readonly upstream: string
 }
 
 /** 一个成员的指纹：合并哈希加分项，分项用来在失效时说明是哪一类变了。 */
@@ -110,6 +115,7 @@ const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
   tiers: '快照之后根目录的 vitest.tiers.mts 变了',
   fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
   external: '快照之后测试读到的外部输入变了（成员 src/ 之外的文件，含成员内的测试辅助文件）',
+  upstream: '快照之后上游成员的构建产物变了（测试按包名导入上游成员时执行的是它们的 dist/）',
 }
 const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
 
@@ -261,15 +267,34 @@ function externalInputs(root: string, memberDir: string, entries: readonly strin
 }
 
 /**
+ * 上游成员 `dist/` 的产物摘要（`distDigest`，只 stat，按成员目录排序后合并）。不含成员自己的 `dist/`：
+ * 测试导入自己的源码，不读自己的 `dist/`；改了成员的源码，turbo 会重建它的 `dist/`，把它算进来，增量就在每次改源码后整份失效。
+ * 成员不在 workspace 里、依赖图读不出时抛出，不记作空。
+ */
+function upstreamOutputDigest(root: string, memberPath: string): string {
+  const config = readTestRunsConfig()
+  const members = listWorkspaceMembers(fileTree(root), config.affected.excludeRoots)
+  const member = members.find(entry => entry.path === memberPath)
+  if (member === undefined)
+    throw new Error(`${memberPath} 不是 workspace 成员，取不到上游成员的构建产物`)
+  const upstream = [...upstreamOf(member, members, packageGraph(root))].sort()
+  return sha(JSON.stringify(upstream.map(path => [path, distDigest(root, path)])))
+}
+
+/**
  * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
  * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要，
- * 以及测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的、成员 `src/` 之外的文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
- * 这四类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
+ * 测试经相对导入、require 与 `new URL(…, import.meta.url)` 读到的、成员 `src/` 之外的文件的摘要（`externalInputs`），
+ * 以及上游成员 `dist/` 的产物摘要（`upstreamOutputDigest`，只 stat）：成员测试按包名导入上游成员时执行的是上游的 `dist/`，
+ * 它被换掉，Stryker 比较的源码与测试文件都没变，被杀的结论却可能不再成立。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 这五类变了它不知道。列文件、读内容或取产物摘要失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
+ * `outputDigest` 给测试注入：缺省经 turbo 的包依赖图取上游成员的摘要，取不到（不是 workspace 成员、图读不出）就抛。
  */
 export function memberFingerprint(
   root: string,
   memberPath: string,
   testTimeoutSeconds: number,
+  outputDigest: (root: string, memberPath: string) => string = upstreamOutputDigest,
 ): MemberFingerprint | { readonly unavailable: string } {
   try {
     const memberDir = join(root, memberPath)
@@ -302,6 +327,7 @@ export function memberFingerprint(
       tiers: digestOf(join(root, 'vitest.tiers.mts')),
       fixtures: sha(JSON.stringify(fixtures)),
       external: sha(JSON.stringify(external)),
+      upstream: outputDigest(root, memberPath),
     }
     return { fingerprint: sha(JSON.stringify(parts)), parts }
   } catch (error) {
@@ -343,6 +369,33 @@ function rawFiles(report: Readonly<Record<string, unknown>>): [string, Record<st
 const rawMutants = (file: Record<string, unknown>): ReportMutant[] =>
   Array.isArray(file['mutants']) ? (file['mutants'] as ReportMutant[]) : []
 
+const isPosition = (value: unknown): boolean =>
+  isRecord(value) && typeof value['line'] === 'number' && typeof value['column'] === 'number'
+
+/** 变异体的必需字段：`inScope`、`seedReport`、`mutantIdentity` 与复用判断读到的那些。形状不对的快照按读不出处理，不让后面抛 TypeError。 */
+function isReportMutant(value: unknown): boolean {
+  return (
+    isRecord(value) &&
+    typeof value['id'] === 'string' &&
+    typeof value['mutatorName'] === 'string' &&
+    typeof value['status'] === 'string' &&
+    (value['replacement'] === undefined || typeof value['replacement'] === 'string') &&
+    isRecord(value['location']) &&
+    isPosition(value['location']['start']) &&
+    isPosition(value['location']['end'])
+  )
+}
+
+/** 快照里每个文件条目的 `mutants` 都是数组，且每个变异体有必需字段。 */
+function hasValidMutants(report: Readonly<Record<string, unknown>>): boolean {
+  const files = report['files']
+  if (!isRecord(files)) return false
+  return Object.values(files).every(
+    entry =>
+      isRecord(entry) && Array.isArray(entry['mutants']) && entry['mutants'].every(isReportMutant),
+  )
+}
+
 function isStoreMeta(value: unknown): value is StoreMeta {
   return (
     isRecord(value) &&
@@ -373,7 +426,12 @@ export function readStore(
       ? { miss: '没有快照' }
       : { miss: `快照读不出：${(error as Error).message}` }
   }
-  if (!isRecord(parsed) || !isRecord(parsed['files']) || !isStoreMeta(parsed['omne']))
+  if (
+    !isRecord(parsed) ||
+    !isRecord(parsed['files']) ||
+    !hasValidMutants(parsed) ||
+    !isStoreMeta(parsed['omne'])
+  )
     return { miss: '快照形状不对' }
   if (parsed['omne'].fingerprint !== fingerprint) {
     if (parts === undefined) return { miss: PART_LABELS.versions }

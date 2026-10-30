@@ -32,7 +32,7 @@ import {
   listWorkspaceMembers,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
-import type { CacheRules, RunTier, TestRunsConfig } from './config.ts'
+import { isRunTier, type CacheRules, type RunTier, type TestRunsConfig } from './config.ts'
 import type { MemberRun } from './ledger.ts'
 import { testCount } from './ledger.ts'
 import { slugOf } from './run.ts'
@@ -419,14 +419,15 @@ export function entryPath(home: string, member: string, tier: RunTier, key: stri
   return join(home, slugOf(member), `${tier}-${key}.json`)
 }
 
-function isEntry(value: unknown): value is CacheEntry {
+/** 条目的形状核对：每个字段的类型，`tier` 是认得的层，`inputs` 的三项各有类型。 */
+export function isEntry(value: unknown): value is CacheEntry {
   if (typeof value !== 'object' || value === null) return false
   const entry = value as Record<string, unknown>
   const inputs = entry['inputs']
   return (
     entry['version'] === KEY_VERSION &&
     typeof entry['member'] === 'string' &&
-    typeof entry['tier'] === 'string' &&
+    isRunTier(entry['tier']) &&
     typeof entry['key'] === 'string' &&
     typeof entry['ledger'] === 'string' &&
     typeof entry['head'] === 'string' &&
@@ -436,7 +437,10 @@ function isEntry(value: unknown): value is CacheEntry {
     typeof entry['files'] === 'number' &&
     typeof entry['wallSeconds'] === 'number' &&
     typeof inputs === 'object' &&
-    inputs !== null
+    inputs !== null &&
+    typeof (inputs as Record<string, unknown>)['files'] === 'number' &&
+    typeof (inputs as Record<string, unknown>)['node'] === 'string' &&
+    typeof (inputs as Record<string, unknown>)['platform'] === 'string'
   )
 }
 
