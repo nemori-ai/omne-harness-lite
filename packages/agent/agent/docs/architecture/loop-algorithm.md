@@ -16,7 +16,7 @@ E0 至 E9 是执行开启与接续，F0 至 F4、O0、H0 是控制、终态与�
 
 1. 所有业务节点在提交和外部发起前重核 E1 的当前资格与控制。E1 的五条非常态边适用于每个节点。
 2. 任一提交回执未知先走 R0。依赖不可用或原等待未满足走 W0。已提交事实、外部效果和原责任不因此回滚。
-3. 任一扩展节点取得 `stopped` 效果时，Agent 记录以该扩展为真实来源的控制请求。`terminal` 为 `cancelled` 时经 E1 转 F0，为 `failed` 时转 F1。图以 X5 到 F0 与 F1 的两条虚线代表这条路径。
+3. 任一扩展节点取得 `stopped` 效果时，Agent 记录以该扩展为真实来源的控制请求。`stop` 与 `retry` 结论不结束链，X5 在链结束后逐项处置停止请求：取消请求的意图实际成立时经 E1 转 F0，合法的 `failed` 请求形成 extension-stop 失败候选转 F1，受理或核权未知时转 W0，不放行受保护的操作或重试。图以 X5 到 F0 与 F1 的两条虚线代表这条路径。
 4. 任一扩展节点取得 `asked` 效果时，等待发生在 X4，唤醒后经 E1、E2、E4、R0 回原扩展节点。
 
 ## 完整图
@@ -164,9 +164,9 @@ flowchart TB
     end
     subgraph F[控制、终态与长期责任]
         F0["F0 取消：保存控制、阻止新效果、通知具名调用"] --> F1["F1 固定具体终态候选与依据"]
-        F1 --> F2["F2 落终态之前位置"]
-        F2 -. 调用 .-> X0
-        F2 -->|proceed| F3["F3 tryFinish：唯一终态提交点"]
+        F1 --> F2["F2 终态前判断：作者扩展链或受信取消判断"]
+        F2 -. complete 或 failed 候选：调用 .-> X0
+        F2 -->|proceed，或取消判断记录已保存| F3["F3 tryFinish：唯一终态提交点"]
         F2 -->|veto：候选不成立，继续| I8
         F2 -->|ask：等人或依赖| W0
         F3 -->|ended| F4["F4 落终态之后位置：只 observed"]
@@ -223,7 +223,7 @@ flowchart TB
 | M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
 | M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | 不等待 | 转 M1 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次 |
 | M1 | 原 PendingCall 与 Journal received 条目 | 不写接收材料；等待提示由 Journal 及 timer 提供 | 不提交 | 尚无匹配 received 时等待 | 匹配原 reference、consumer、consumption 的 result 转 M3 | 不连接 Model observer 或轮询收场 | entries 缺席返回 unavailable |
-| M2 | 失败事实、Model 的重试请求；独立触发通道待实现，M1 不从 observer 取得 | 该位置 failure 维度的 Passage | 随 X 协议提交 | X4 等待 | retry 结论交 Model 的重试策略，回 M1。没有 retry 时 Model 按不再重试收场，回 M1 | 只在首内容前 | 不建新调用。规则见扩展作者协议的[输出](../../../agent-contract/docs/public-api/extensions.md#输出) |
+| M2 | 失败事实、Model 的重试请求；独立触发通道待实现，M1 不从 observer 取得 | 该位置 failure 维度的 Passage | 随 X 协议提交 | X4 等待 | 该分支的链由重试策略协调者托管，X5 归约出的策略建议（链序最后一个合法 retry，或停止）交协调者，协调者保存唯一决定后由 Model 核验来源并继续发出或收场，回 M1。没有合法 retry、停止意图成立或强制系统重试扩展不可用时，协调者保存不再重试，Model 按不再重试收场，回 M1 | 只在首内容前 | 不建新调用。规则见扩展作者协议的[输出](../../../agent-contract/docs/public-api/extensions.md#输出)与 SPEC 的[作为 Model 调用方](../../../agent-contract/SPEC.md#作为-model-调用方)第 4 条；协调者的实现位置是[开放问题 U-2](open-questions.md#journal-联合表达的具名缺口) |
 | M3 | 已提交 received 与同提供者的完整材料 | 核 schema 与原关联，解释结果后条件提交 producer 事件 | 原材料可读且 Authority 有效时 | 不等待 Model ACK | 转 M4 | receiver 推进 revision 时重读再提交 | 最终失败不再进入 M2 |
 | M4 | 结果或最终失败。循环判断另经执行历史读取能力读本执行的原始工作事实 | 该位置 complete_reply 或 failure 维度的 Passage。合法 inject 经 X5 交 Q。循环判断的守卫判断记入其 Passage 的 `guard` 操作，效果采纳时写 checkpoint 的 `guard` | 随 X 协议提交 | X4 等待 | 转 M5 | 一次调用一次 | 用途为 extension 时不经过位置。failure 维度在这里是原调用最终失败的触发，`retry` 输出不合法，按报错处置。循环判断这一受信系统扩展在主请求的 complete_reply 维度运行，按 `loopGuardPolicy` 的策略形成守卫事实。守卫 L1、L2 的干预消息由它返回 inject，经 X5 交 Q 进入历史一次。L4 由它返回 ask，不记为守卫事实，答复到达后以 replay 重新判断；卡片呈现确定失败时它的结论取报错分支、输出 observed，守卫事实保持上一次的值。它不可用时 Conclusion 记不可用，checkpoint 的 `guard` 沿用上一次，不伪造判断。规则见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | M5 | 保存的返回去处，或 M0 的否决 | 不写 | 不提交 | 不等待 | 主请求回 I3。压缩步骤回 C1。扩展能力操作回 X2 | 不隐式进入主回复解析 | 内部用途的结果不进入主回复序列 |
@@ -235,17 +235,17 @@ flowchart TB
 | X0 | 位置、维度、用途、声明、精确采用、输入依据、返回去处 | 不写 | 不提交 | 原实现或材料不可用时具名等待 | 转 X1 | 同位置按装配顺序 | 已开始的扩展调用保留精确采用 |
 | X1 | Passage 的 `progress` 与各轮卡片状态 | 首次调用前，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交该扩展调用的初始迁移 | 提交确认前不调用 | 已询问且未答复时转 X4 | 已有最终 Conclusion 转 X5。无结论提交 requested 后转 X2。已询问且答复齐备以 replay 转 X2 | 恢复次序按作者协议的[结构换代与未完成判断](../../../agent-contract/docs/public-api/extensions.md#结构换代与未完成判断) | 已有最终 Conclusion 的扩展调用永不再调用 |
 | X2 | 回放绑定的 `control`、注入能力 | `operations` 的 producer、read 与 guard 操作，迁移按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)写入：操作先提交再发出，结果先提交再交回 | 每项操作发出前提交 | 能力等待原操作 | 返回转 X3 | 第一次锁存之后能力不再发出新操作 | 能力按经过身份加序号认回原操作，不重复计费 |
-| X3 | 调用结果 | Conclusion，以及按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)对应的迁移。`ask` 的迁移含新一轮 CardRound | 结果校验后提交 | controlUnavailable 或 replay 下 notStartedUnavailable 保持原状态转 W0 | 最终 Conclusion 转 X5。ask 转 X4。结果未知以 replay 转 X2 | 串行 | 处置表见作者协议的[调用协议](../../../agent-contract/docs/public-api/extensions.md#调用协议) |
+| X3 | 调用结果 | Conclusion，以及按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)对应的迁移。`ask` 的迁移含新一轮 CardRound | 结果校验后提交 | controlUnavailable、invocationUnresolved 或 replay 下 notStartedUnavailable 保持原状态转 W0；invocationUnresolved 的恢复依据随接续保存，等待具名依赖 | 最终 Conclusion 转 X5。ask 转 X4。结果未知以 replay 转 X2 | 串行 | 处置表与实际开始的界线见作者协议的[调用协议](../../../agent-contract/docs/public-api/extensions.md#调用协议)。当前推进失效或已终结时不采纳本次返回 |
 | X4 | CardRound 的状态、`DecisionCards.present`、`lookup`、`read` | 按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)迁移写入。事件 waiting | 呈现条件满足时呈现。受整批屏障约束时等 A1 的呈现条件 | 等待答复转 W0 | 答复齐备以 replay 转 X2。附言也是答复，处置按 SPEC 整批判断屏障第 11 条。present 确定失败以 Agent 代写的结论转 X5，输出按 SPEC 整批判断屏障第 11 条或循环守卫第 5 条确定 | 同一轮只呈现一次 | present 确定失败的处置归 SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 11 条。调模型之后位置上循环判断的卡片见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫)第 5 条 |
-| X5 | 链上全部 Conclusion | 效果采纳后，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交采纳迁移。合法 inject 经 Q 进入历史一次 | 效果采纳时提交 | 不等待 | 返回原扩展节点。stopped 按读图约定三 | 聚合是纯归约 | 效果为 proceed、vetoed、stopped、asked、retry 之一 |
+| X5 | 链上实际形成的 Conclusion 前缀、已知的控制处置事实 | 效果采纳后，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交采纳迁移。合法 inject 经 Q 进入历史一次。每个 stop 的处置操作身份在发送前确定并保存，已提交的取消请求经 ControlRecord 认回 | 效果采纳时提交 | 停止请求的受理或核权未知时转 W0，不发受保护的操作或重试 | 返回原扩展节点。stopped 按读图约定三 | 聚合是纯归约；stop 与 retry 不截断链，归约只处理已运行的前缀 | 效果为 proceed、vetoed、stopped、asked、retry 之一。次序：先认回或采用前缀的独立效果，再逐项处置停止请求，最后选路由。有效取消优先；取消请求都被拒绝时合法 failed 形成失败候选，多个以链序最早为主因；没有停止意图成立时保留 veto，或选链序最后一个合法 retry，或 proceed。优先级表见[机制页](mechanisms.md#扩展协议的边界) |
 | F0 | 取消命令、当前资格 | ControlRecord 的阶段事实经 recordControl。事件 control。请求中断前台调用 | 阶段成立时记录 | 不等待生产者物理停止 | 转 F1 | 与 tryFinish 同一排序 | 阶段见[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
-| F1 | 完成、失败或取消的依据；H0 路由来的原 rejected 结果 | 执行状态 settling 与 FinishIntent 候选，失败候选的 `failure` 记录 | 候选固定后条件提交，另核当前资格与完整 revision；资格在 H0 与 F1 之间失效时不保存失败 | 不等待 | 转 F2。提交未知先查 F1 的原 operation，不再造候选 | 串行 | 失败候选形状见公开接口页的 `FailureCandidate` |
-| F2 | 候选终态与完整依据 | 该位置的 Passage，`FinishIntent.beforeTerminal` 依据 | 随 X 协议提交 | ask 转 W0 | proceed 转 F3。veto 转 I8 | 一个候选一次经过 | 不能否决已生效取消 |
+| F1 | 完成、失败或取消的依据；H0 路由来的原 rejected 结果；取消候选另读当前的取消 control、安装记录与前一个当前候选 | complete 与 failed 候选：执行状态 settling 与 FinishIntent 候选，失败候选的 `failure` 记录，经 `commit` 条件提交。cancelled 候选：经 `commitSettlement` 的 establish-cancellation 建立候选与原生 cancellation route，取代 complete 或 failed 候选时保存替代链接；旧 cancelled 候选仍带 author route 时经 migrate-cancellation 保存迁移记录 M 并切换 route | 候选固定后条件提交，另核当前资格与完整 revision；资格在 H0 与 F1 之间失效时不保存失败。取消候选的提交另核取消授权、settle 资格与当前取消的适用性，迁移另核 migrate-cancellation 资格 | 安装记录或来源不可读时转 W0 | 转 F2。提交未知先查 F1 的原 operation，不再造候选；迁移未知只查 M，不另建 M | 串行 | 失败候选形状见公开接口页的 `FailureCandidate`。取消候选的建立与迁移规则见 SPEC 的[取消判断与路线](../../../agent-contract/SPEC.md#取消判断与路线)与[commitSettlement 的变体](../../../agent-contract/SPEC.md#commitsettlement-的变体) |
+| F2 | 候选终态与完整依据；取消候选另读当前 route、安装记录与完整责任闭包 | complete 与 failed 候选：该位置的 Passage，`FinishIntent.beforeTerminal` 依据，随 X 协议提交。cancelled 候选：经 `commitSettlement` 的 judge-cancellation 保存判断记录与当前判断指针，`beforeTerminal` 指向该记录 | 随 X 协议提交；判断记录在同一权威提交保存 | ask 转 W0；判断实现、安装或来源不可读转 W0 | 作者链 proceed 转 F3，veto 转 I8。判断记录已保存（allowed、blocked 或 unknown）转 F3 | 一个候选一次作者经过；判断记录可因新的相关事实再次产生，新记录 supersedes 前一条 | cancelled 候选不调用 X0，不运行作者扩展链；作者扩展不能否决已生效的取消。判断只读权威事实，不发 Model、inject、ask |
 | F3 | FinishIntent（含 candidate）、expected 修订、终结授权 | 先 `prepareFinish` 发行终结责任清单并填入 `intent.obligations`，load 最新完整修订后 `tryFinish`：终态、ended 事件、终局清单与处置、终态后观察责任与原操作结果共同提交 | prepareFinish 推进一个修订；tryFinish 是唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked、unavailable 或 commit-unknown 转 R0；blocked 的类别为 inputs、controls、operations、passages 或 custody | 与 submit、control、attach、recordControl 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结)与[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) |
 | F4 | 已成立终态、TerminalObservation 台账 | recordTerminalObservation 登记完成 | 观察完成时登记 | 不等待人 | 转 O0 | 由长期协调者逐项处理，不要求推进权 | 只 observed。观察故障不撤终态 |
 | O0 | 未确认事件、未交清结果责任、控制回执、终结责任清单的剩余项、`load.handoffs` 的未清 handoff 责任 | recordResult、acknowledge 的处理、迟到的三种控制阶段事实（recordControl，不追加事件）、保管变体（commitSettlement 的卡片对账、迟到返回与 Tool 关联登记）、准入结果保管（经 `MessageHandoff.lookup` 读原结果后以 recordHandoff 保管）、内部 H 的取消围栏（`MessageHandoff.exclude`，不写 Journal） | 各责任交清时记录，每项在自身原子边界更新处置与修订 | 不等待 | 转 E9 | 不运行终态扩展，不改原终态、checkpoint 与末事件 | 原执行未终态时也可独立处理这些责任。剩余职责从 `load.finishObligations` 与 `load.handoffs` 读取，`reconcile.remaining` 只列结果消费 |
 | H0 | 原 recorded 且 rejected 的结果、原来源请求、当前执行事实 | 不写。没有新 operation、决策帧、快照字段或事件 | 不提交 | 不等待 | 仍有推进资格转 F1，由 F1 条件提交失败候选。无推进资格或已终结转 O0，由 Rh 保管原拒收。unknown、unavailable、denied 与 excluded 不是拒收，不进入本节点 | 串行 | 纯路由，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由” |
-| R0 | 原操作槽、持久帧、返回去处；handoff 的 H、P、Ja、Rh 身份 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待。P、Ja、Rh 以 Journal query 查。H 以 `MessageHandoff.lookup` 查，结论按恢复映射的 `currentHandoff` 一行处置：H 的 unknown 由当前合法推进者以同一 H 与同一完整 request 重调 prepare，不只等待。retire 的 ACK 丢失先查 Ja，committed 后才建后继 P | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有，准入的切点见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)” |
+| R0 | 原操作槽、持久帧、返回去处；handoff 的 H、P、Ja、Rh 身份 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待。P、Ja、Rh 以 Journal query 查。H 以 `MessageHandoff.lookup` 查，结论按恢复映射的 `currentHandoff` 一行处置：H 的 unknown 由当前合法推进者以同一 H 与同一完整 request 重调 prepare，不只等待。retire 的 ACK 丢失先查 Ja，committed 后才建后继 P；取消已成立时不运行 retire，该来源不再产生后继 | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有，准入的切点见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)” |
 | W0 | 等待依据、Journal 修订、生产者与卡片游标 | 执行状态 waiting。事件 waiting | 等待保存后提交 | 登记监听后重读，进度未变才休眠 | 唤醒后转 E1 | 每段处理有限额，之后让出调度 | 超时不是取消或未执行的证明。人的等待没有默认期限 |
 
 ## 九位置与节点
@@ -261,7 +261,7 @@ flowchart TB
 | 调模型之后 | M2、M4 | M2 只 failure 维度的重试决定。M4 为 complete_reply 与最终 failure。循环判断这一受信系统扩展在 M4 的主请求 complete_reply 维度运行 | M2：retry 回 M1。M4：proceed 转 M5。循环判断的守卫判断在效果采纳时写入 checkpoint 的 `guard`；它对守卫 L1、L2 返回 inject，干预消息经 X5 交 Q 进入历史，对 L4 返回 ask |
 | 执行动作之前 | A0 | 无 | 链结论进入 A1 |
 | 执行动作之后 | T2、T4 | T2 维度 each。T4 维度 batch | T2 转 T3。T4 转 T5 |
-| 落终态之前 | F2 | 无 | proceed 转 F3。vetoed 转 I8 |
+| 落终态之前 | F2，只对 complete 与 failed 候选运行；cancelled 候选在 F2 走受信取消判断，不经过本位置 | 无 | proceed 转 F3。vetoed 转 I8 |
 | 落终态之后 | F4 | 无 | observed 后转 O0 |
 
 `stopped` 与 `asked` 效果在全部位置的去处按读图约定三与四。
@@ -287,9 +287,13 @@ runExecution(entry):                                  // E0 至 E4、I8、F1 至
       stop             → cancelled 转 F0，terminal 转 F4，superseded 与 suspended 转 E9
 
 settle(conclusion):                                   // F1 至 F4
-  intent = fixCandidate(conclusion)                   // F1
-  effect = runPassages(before_terminal, intent)       // F2
-  若 effect 为 vetoed：回 I8
+  若 conclusion 为 cancelled：                         // 取消路线
+    intent = journal.commitSettlement(establish-cancellation 或 migrate-cancellation)   // F1
+    journal.commitSettlement(judge-cancellation)      // F2：受信取消判断，不运行作者链
+  否则：
+    intent = fixCandidate(conclusion)                 // F1
+    effect = runPassages(before_terminal, intent)     // F2
+    若 effect 为 vetoed：回 I8
   result = journal.tryFinish(authorization, expected, intent)   // F3
   若 result 为 ended：observeTerminal()               // F4，再转 O0、E9
   否则：回 R0
@@ -450,7 +454,7 @@ T0 至 T5 为逐槽结果保管加整批准入。行为归 SPEC 的[工具执行
 | 控制 | 作用节点 | 后续 |
 | --- | --- | --- |
 | interrupt（单调用） | M1 或 T0 的具名原调用 | 不改变执行状态。阶段事实经 recordControl 记录。后续按原调用的真实收场继续：M1 转 M3，T0 转 T1 |
-| cancel（执行） | 任一节点在提交或外部发起前经 E1 核到有效取消 | 转 F0。F0 保存控制、阻止新效果、请求中断前台调用，再经 F1、F2、F3 以取消授权终结。对 suspended 的执行，收束由下一次合法挂接从 E0 开始执行 |
+| cancel（执行） | 任一节点在提交或外部发起前经 E1 核到有效取消 | 转 F0。F0 保存控制、阻止新效果、请求中断前台调用，再经 F1（建立或迁移取消候选）、F2（受信取消判断，不运行作者扩展链）、F3 以取消授权终结。对 suspended 的执行，收束由下一次合法挂接从 E0 开始执行 |
 | suspend | E1 读到有效暂停 | 保存接续后经 E9 以 detach 交还挂接。执行不终结，由合法接手者经 E0 resume |
 | quiesce（实例） | 不属于单个执行的节点。E0 拒绝新 invoke 与 resume | 在途执行经 E1 的暂停路径到 E9 交接，交清后撤登记。行为见[交接与停用](../../../agent-contract/SPEC.md#交接与停用) |
 
@@ -474,6 +478,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 | I10 | 逻辑终态、物理停止、外部效果和非常态交接分别表达 | F0、F3、E9、O0：阶段事实分别记录 | [六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | I11 | 每个事实和操作都沿原租户与合法消费位置 | E0、E1、U0、M6、A2、X2：每次操作核租户与资格，不只在创建时检查 | [租户与作用域绑定](../../../agent-contract/SPEC.md#租户与作用域绑定)、[主体资格核验](../../../agent-contract/SPEC.md#主体资格核验) |
 | I12 | 流内容重交不产生第二次业务执行，外部交付未知不当作未执行 | M1、M3、T0、T1、O0：生产者先保存后发布，消费者按原身份对账 | [事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
+| I13 | 取消生效后不新增业务效果，取消判断只读 | F0、F1、F2（取消候选）、X5、O0：取消候选不运行作者链，判断不发 Model、inject、ask；旧的落终态之前扩展调用不回放，迟到返回只登记不采纳 | [取消判断与路线](../../../agent-contract/SPEC.md#取消判断与路线) |
 
 这是归纳论证的目标。初始状态无外部效果。每个节点只生成符合上表前提的候选变更，提交者在权威边界再次核验前提，效果执行者在发出边界核验当前资格。崩溃只删除内存与观察缓存，不删除已确认的事实。该论证是设计证明草图，不是对实现的机械证明。
 
@@ -544,7 +549,7 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 
 | 入口 | 入口条件 | 回归节点 |
 | --- | --- | --- |
-| R0 | 任一提交回执未知，E4 读到已有续点，F3 返回 changed、blocked 或 commit-unknown，Q2 返回 commit-unknown | 查原操作槽：已提交则采用原结果并回原节点的后继，未定则等待，可靠排除才重新求值。经 E4 回原节点 |
+| R0 | 任一提交回执未知，E4 读到已有续点，F3 返回 changed、blocked、unavailable 或 commit-unknown，Q2 返回 commit-unknown | 查原操作槽：已提交则采用原结果并回原节点的后继，未定则等待，可靠排除才重新求值。经 E4 回原节点 |
 | W0 | E1 资格未知，I8 需等待，A1 未齐，T0 在途，T3 未齐，X3 认回不可用，X4 等答复，F2 等人或依赖 | 保存等待依据，在进程内计算检查时刻，启动监听后重读，进度未变才休眠。唤醒后转 E1，经 E2、E4 回原节点 |
 | E4 | E2 对账完成 | 按 checkpoint 选择原节点，映射见下表 |
 
@@ -557,7 +562,7 @@ checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `A
 | `inputBatch` | 非空且尚未准备时回 I1 |
 | `requestPreparation` | assembled 回 P0。ready 回 P1，由 P1 复核后转 I2。I1 的 `resume` 结果与 P1 的复核结果都按此处理。最终请求已记录时由 `calls` 决定。needs-compaction 且 `compaction` 为空时：C0 的经过尚未结束回 C0，C0 的经过为 vetoed 回 I1 转 F1。needs-compaction 且 `compaction` 非空时按 `compaction` 一行。cannot-fit 回 F1 |
 | `compaction` | 为空表示本 step 尚未进入计划，C1 首次进入计划时才写入。`ended` 为空时回 C1：C1 以已保存的进度与最后一步的保管结果再次调用 `derive`，同一输入得到同一返回。返回 transition 时经 C2 转 C3，C3 的 Ja 回执未知时先经 R0 查原 Ja。`ended` 为 committed 回 C4 之后的 I1，先认回 committed 的转换依据并重签读取资格。`ended` 为 failed 回 F1 |
-| `currentHandoff` | 非空表示原来源位置有未定的 H。R0 先以 `MessageHandoff.lookup` 读原结果，再以 Journal query 查原 P 与 Ja。Ja 已 committed 回该来源节点的后继。prepared 而 Ja 未提交时，在当前合法位置重新提交 Ja。rejected 按来源分流：主回复、压缩与系统提醒先提交该来源的 rejected Ja，再回 I3、C3 或 X5；只有工具结果与拒绝消息（T5）转 H0。excluded 时，retire 未发出则在当前合法位置提交同一个 retire Ja，retire 回执未知则查该 Ja；retire committed 后由 E4 从原来源节点重新求值并建后继 P。unknown 时，当前合法推进者用同一 H 与同一完整 request 重调 prepare；没有 advance 的一方只做 lookup、合法的 exclude 或 Rh 保管，不发 prepare。规则见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)”与来源表 |
+| `currentHandoff` | 非空表示原来源位置有未定的 H。R0 先以 `MessageHandoff.lookup` 读原结果，再以 Journal query 查原 P 与 Ja。Ja 已 committed 回该来源节点的后继。prepared 而 Ja 未提交时，在当前合法位置重新提交 Ja。rejected 按来源分流：主回复、压缩与系统提醒先提交该来源的 rejected Ja，再回 I3、C3 或 X5；只有工具结果与拒绝消息（T5）转 H0。excluded 时，retire 未发出则在当前合法位置提交同一个 retire Ja，retire 回执未知则查该 Ja；retire committed 后由 E4 从原来源节点重新求值并建后继 P。取消已成立、推进权失效或已 ended 时不运行 retire，该来源不再产生后继，Rh 只保存原排除或结果责任。unknown 时，当前合法推进者用同一 H 与同一完整 request 重调 prepare；没有 advance 的一方只做 lookup、合法的 exclude 或 Rh 保管，不发 prepare。规则见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)”与来源表 |
 | `calls` | Model 用途 main 回 M1 经 I3，用途 compaction 回 M1 经 C1，用途 extension 回 X2。Tool 用途 action：intent 或 association-unknown 经 R0 回 A2，以当前合法资格和完整原请求重入 invoke；已有 associated 引用但受理或来源仍未定时，经 R0 沿原 lookup / invoke 认回，lookup 的 not-accepted 不能排除来源继续签发。保存 associated 的 Journal 回执未知时，先查询原 Journal 操作。认回原受理且关联已保存后，才回原 T0 或已有结果、后台责任槽的接续节点；已完成槽位不重新创建或处理 |
 | `passages` | requested 回 X2。asked 回 X4 或 X2。resolved 回 X5。applied 回原扩展节点的后继 |
 | `batch` | 屏障 closed 回 A1。open 回 A2 或 T 子图的原槽位。all-denied 回 T2、T3 或 T5 |
@@ -565,7 +570,7 @@ checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `A
 | `completedPassages` | 防止同一次经过再次自触发，P0、C0、C4 等位置据此复用 |
 | `priorConditions` | 作为下一次 `CurrentConditions.read` 的 previous 传入 |
 | `guard` | 不决定节点。I8 读它决定 L3 的失败候选；L4 的等待按 `passages` 回 X4。恢复后读到的值与中断前相同，M4 的循环判断不可用时保持原值 |
-| 执行状态 settling | `ExecutionState` 的 `intent` 已在 F1 提交。F2 的经过未完成回 F2，已完成回 F3。F3 的提交回执未知先经 R0 查原操作 |
+| 执行状态 settling | `ExecutionState` 的 `intent` 已在 F1 提交。complete 与 failed 候选：F2 的经过未完成回 F2，已完成回 F3。cancelled 候选：`settlement` 没有当前候选或旧候选仍带 author route 时回 F1（建立或迁移，提交未知先查原 operation 或 M）；`currentJudgment` 为 null 时回 F2（判断）；已有判断记录回 F3。F3 的提交回执未知先经 R0 查原操作 |
 
 ## 派生简图
 

@@ -103,7 +103,7 @@ PreparedContextTransition 是 Agent 消费 Request Context 的窄视图。commit
 | `ExtensionInput` | [输入](extensions.md#输入) |
 | `ExtensionOutput`、`DecisionCardDraft`、`CardOption` | [输出](extensions.md#输出) |
 | `ActionIdentity`、`Conclusion` | [Conclusion](extensions.md#conclusion) |
-| `ExtensionInvocationMode`、`ExtensionReplayBinding`、`ExtensionInvocationResult`、`LoopExtensionImplementation` | [调用协议](extensions.md#调用协议) |
+| `ExtensionInvocationMode`、`ExtensionReplayBinding`、`ExtensionInvocationResult`（含非最终的 `invocationUnresolved` 分支，源码类型承载前以作者协议页为准，登记见开放问题页的 [U-15](../../../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)）、`LoopExtensionImplementation` | [调用协议](extensions.md#调用协议) |
 
 位置集合是九处，`Power` 是 `observe`、`rewrite`、`veto` 三档。源码的声明含 `needs`、`implementation`、`onError` 与 `unavailability`，声明判断不按位置限制 `power`，实际输出权限由声明上限与位置输出表共同裁定，见[扩展作者协议](extensions.md#声明)。`Passage.declaration`、`ExtensionInput.position`、`DecisionCardDraft.about` 与 `ActionIdentity` 使用同一份九处位置。
 
@@ -156,14 +156,14 @@ ExtensionImplementations.resolve 只返回匹配原 `implementation` 精确采�
 - `AgentInstant` 是 RFC 3339 的 UTC 时刻，例如 `2026-10-17T08:00:00Z`，是普通字符串。`UtcInstantText` 是同一编码的品牌字符串，只由 `judgeExtensionOutput` 以 `@omne-harness/utc-instant` 的 `parseInstant` 校验后产生，用于 `retry` 计划的 `notBefore`，见[扩展作者协议](extensions.md#输出)。
 - `AgentClock` 的 `now` 返回当前 UTC 时刻的 `Reply<AgentInstant>`，`waitUntil` 等待给定时刻或中止。读取失败、候选时刻与重试规则归 [时钟读取与等待](../../SPEC.md#时钟读取与等待)。
 - `ExecutionMutation.operation` 由稳定要素确定派生，不是随机值，崩溃前后对同一帧与同一转移派生同一身份。派生规则与未知结果的查询见[机制页](../../../agent/docs/architecture/mechanisms.md#操作身份的确定派生)。
-- `FinishIntent.beforeTerminal` 是落终态之前位置依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。`FinishIntent.candidate` 是首次 F1 操作的 `AgentOperationId`，固定候选；`obligations` 在准备态为 null，由 `prepareFinish` 发行后填入，见 SPEC 的“[终结责任清单](../../SPEC.md#终结责任清单)”。
-- `ExecutionSnapshot.finishObligations` 是已发行的终结责任清单，未发行时为 null；`ExecutionSnapshot.settlement` 是 commitSettlement 各变体记录的同修订投影，含当前候选与 route、替代链、迁移与判断记录、未清责任引用、Tool 关联记录及迟到返回记录，见 SPEC 的“[commitSettlement 的变体](../../SPEC.md#commitsettlement-的变体)”。`ExecutionSnapshot.handoffs` 是 handoff 责任的同修订投影，范围见 SPEC 的“[真实历史的提交点](../../SPEC.md#真实历史的提交点)”。
+- `FinishIntent` 是当前候选的投影，调用者不能写它的投影字段。`FinishIntent.beforeTerminal` 是终态前判断依据的唯一字段，`AgentConclusion` 不另带这项依据。它在候选固定时为 null，之后指向当前 route 的实际判断结果：author route 指向落终态之前位置经过的依据，cancellation route 指向当前判断记录；迁移后可以变回 null，直到新的判断记录保存。规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”与“[取消判断与路线](../../SPEC.md#取消判断与路线)”。`FinishIntent.candidate` 固定候选：普通候选是首次 F1 操作的 `AgentOperationId`，取消候选等于建立它的 commitSettlement 操作；`obligations` 在准备态为 null，由 `prepareFinish` 发行后填入，见 SPEC 的“[终结责任清单](../../SPEC.md#终结责任清单)”。
+- `ExecutionSnapshot.finishObligations` 是已发行的终结责任清单，未发行时为 null；`ExecutionSnapshot.settlement` 是 commitSettlement 各变体记录的同修订投影，含当前候选 `FinishCandidate` 与 route `FinishRoute`、当前判断指针 `currentJudgment`（`AgentOperationId | null`）、替代链、迁移记录 `MigrationRecord`、判断记录 `CancellationJudgmentRecord`、未清责任引用、Tool 关联记录 `ToolAssociationRecord` 及迟到返回记录 `LegacyInvocationReturn`，见 SPEC 的“[commitSettlement 的变体](../../SPEC.md#commitsettlement-的变体)”与“[取消判断与路线](../../SPEC.md#取消判断与路线)”。取消判断的安装记录 `CancellationPolicyInstallation`、输入 `CancellationJudgmentInput`、结果 `CancellationDecision`（含 `CancellationBlock` 与 `CancellationUnknown`）与实现接口 `CancellationPolicy` 的形状由同一节固定。这些名称尚未由源码类型承载，承载前以 SPEC 正文为准，登记见开放问题页的 [U-15](../../../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。`ExecutionSnapshot.handoffs` 是 handoff 责任的同修订投影，范围见 SPEC 的“[真实历史的提交点](../../SPEC.md#真实历史的提交点)”。
 - `AgentExecutionRecovery` 是无活体 runtime 时按 execution 对账的入口。`query` 返回 committed、rejected、excluded 或 unknown 四种结论：committed 带原 `CommandReceipt`，rejected 带原固定的 conflict、审计依据与 revision，只来自 recordControl；excluded 带排除依据。消费者对四种结论逐一分支，规则见 SPEC 的“[查询的四种结论与持久拒绝](../../SPEC.md#查询的四种结论与持久拒绝)”。`reconcile` 的 `remaining` 是交付责任尚未解除的 consumption 列表，不列出卡片等其他责任。行为见 SPEC 的“[提交与保管](../../SPEC.md#提交与保管)”与“[交接与停用](../../SPEC.md#交接与停用)”，切点见[机制页](../../../agent/docs/architecture/mechanisms.md#恢复切点表)。
 - `CommandReceipt.revision` 是该操作所建立或认回的事实对应的修订，不是查询时的最新 revision。revision 的分配规则见 SPEC 的“[执行修订](../../SPEC.md#执行修订)”，认回的回执规则见“[原操作认回与恢复](../../SPEC.md#原操作认回与恢复)”。
 - `resume` 的 `recovery` 可以含宿主的失联判断与换代时 handover 的证明，它们供追溯与核验，不替代 takeover 的资格核验。行为见 SPEC 的“[恢复与接管](../../SPEC.md#恢复与接管)”。
 - `ControlRecord.stages` 只含已记录的阶段事实，每项为 reached 或 unresolved。受理事实与每个新适用阶段事实各投影一个 control 事件，与原操作结果在同一原子边界成立；合法 ended 之后只保存三种迟到的责任事实，不追加事件。行为见 SPEC 的“[六个阶段](../../SPEC.md#六个阶段)”，迁移见[对象模型](../object-model.md#状态与转移)。
 - `QuiesceResult` 的 `remaining` 是交接未知的 execution。行为见 SPEC 的“[交接与停用](../../SPEC.md#交接与停用)”，被接管的执行不计入，见“[恢复与接管](../../SPEC.md#恢复与接管)”。
-- 终态的 `disposition` 是终态成立的处置依据：它指向被提交的 FinishIntent，含其中落终态之前位置的依据与终结授权。终态后观察者经它取得这些依据，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
+- 终态的 `disposition` 是终态成立的处置依据：它指向被提交的 FinishIntent，含其中的终态前判断依据（complete 与 failed 为落终态之前位置经过的依据，cancelled 为当前判断记录）与终结授权。终态后观察者经它取得这些依据，规则见 SPEC 的“[条件终结](../../SPEC.md#条件终结)”。
 
 invoke、resume、登记、撤除与停用的行为见 SPEC 的“[托管协调与运行实例](../../SPEC.md#托管协调与运行实例)”。主体资格的核验见“[主体资格核验](../../SPEC.md#主体资格核验)”。事件序号、游标、缺口、背压、重连与确认的行为见“[事件流与读取](../../SPEC.md#事件流与读取)”。控制的种类、范围与六个阶段见“[取消、退出与结构变更](../../SPEC.md#取消退出与结构变更)”。本页只导航到类型所在的源码，不重复这些行为。
 

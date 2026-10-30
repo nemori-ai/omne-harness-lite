@@ -910,7 +910,7 @@ excluded 不授权重发。当前执行仍有合法推进时，E4 在确认排�
 
 ##### H0 的路由
 
-H0 只读和路由。它没有新 operation、决策帧、快照字段或事件。它的输入是已核验的原 recorded 且 decision 为 rejected 的结果、原来源请求与当前执行事实。unknown、unavailable、denied 与 excluded 都不是拒收，不能伪造成 H0 的输入。当前仍可推进时，H0 形成 F1 候选的纯输入，F1 以自己的条件提交再次核当前资格与完整 revision；资格在 H0 与 F1 之间失效时 F1 不能保存失败，长期保管者仍可用 Rh 保存原拒收并对原 Tool 结果执行合法保管。已经 ended 时不调用 prepare、不写 F1，也不新建 execution。新的合法接手者可以在同 execution 继续原来源：它从 H 恢复完整结果，在当前合法位置重新决定是否可提交 F1；先前的只保管路由不是永久禁止，也不是永久授权。F1 未知时先查 F1 的原 operation，不重新构造另一个失败候选。O0 与 reconcile 处理 handoffs 的未清责任，不从 `reconcile.remaining` 为空推出 handoff 已清；终结核验使用原 H、来源、结果与历史处置，原结果仍 unknown 时按“[终结责任清单](#终结责任清单)”保持 unavailable。取消路径不借 prepare、Rh 或 H0 发起新的消息、Model 调用或卡片，也不把旧取消扩展的结果认回改成继续执行，取消收束的政策以 [D020](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6371768059) 为准。
+H0 只读和路由。它没有新 operation、决策帧、快照字段或事件。它的输入是已核验的原 recorded 且 decision 为 rejected 的结果、原来源请求与当前执行事实。unknown、unavailable、denied 与 excluded 都不是拒收，不能伪造成 H0 的输入。当前仍可推进时，H0 形成 F1 候选的纯输入，F1 以自己的条件提交再次核当前资格与完整 revision；资格在 H0 与 F1 之间失效时 F1 不能保存失败，长期保管者仍可用 Rh 保存原拒收并对原 Tool 结果执行合法保管。已经 ended 时不调用 prepare、不写 F1，也不新建 execution。新的合法接手者可以在同 execution 继续原来源：它从 H 恢复完整结果，在当前合法位置重新决定是否可提交 F1；先前的只保管路由不是永久禁止，也不是永久授权。F1 未知时先查 F1 的原 operation，不重新构造另一个失败候选。O0 与 reconcile 处理 handoffs 的未清责任，不从 `reconcile.remaining` 为空推出 handoff 已清；终结核验使用原 H、来源、结果与历史处置，原结果仍 unknown 时按“[终结责任清单](#终结责任清单)”保持 unavailable。取消路径不借 prepare、Rh 或 H0 发起新的消息、Model 调用或卡片，也不把旧取消扩展的结果认回改成继续执行，取消收束的规则见“[取消判断与路线](#取消判断与路线)”。
 
 ##### 准入的结果与并发次序
 
@@ -982,7 +982,7 @@ Journal query 的 rejected 只指 recordControl 的持久审计拒绝。Handoff 
 
 ### 托管协调与运行实例
 
-类型形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。本节是输入受理、恢复与接管、Journal 提交、可靠输出、条件终结、终结责任清单、commitSettlement 的变体、共同提交、settling、detach、quiesce 与 handover 的唯一行为源，公开接口页只给类型形状。事件序号、游标与确认的行为在“事件流与读取”。
+类型形状见[公开接口页](docs/public-api/README.md#托管协调与运行实例)。本节是输入受理、恢复与接管、Journal 提交、可靠输出、条件终结、取消判断与路线、终结责任清单、commitSettlement 的变体、共同提交、settling、detach、quiesce 与 handover 的唯一行为源，公开接口页只给类型形状。事件序号、游标与确认的行为在“事件流与读取”。
 
 #### 时钟读取与等待
 
@@ -1093,7 +1093,7 @@ recordResult 供当前合法的保管方核对原结果版本和交付责任，�
 
 #### 条件终结
 
-Evaluator 提出 FinishIntent，协调者调用 Journal.tryFinish 条件终结本 execution。普通路径的次序固定：先完成真实的候选固定（F1）与落终态之前位置的经过（F2），再以 prepareFinish 发行终结责任清单，再 load 最新的完整 revision，最后 tryFinish。清单的内容与发行规则见“[终结责任清单](#终结责任清单)”。tryFinish 不等待事件消费者返回批准，也不接收调用方的完成批准。它与 submit、control 和 attach 处在同一权威排序中，在最终提交点以同一权威核对当前资格、候选、expected revision、输入边界、责任闭包、适用的终态前经过，以及 coordinated 绑定的外部参加者。有效取消优先于普通完成或失败。依赖故障或查询未知不伪装成 blocked 或空队列。相同操作的重试认回原提交，未知先 query，再 load 原终结事实。
+Evaluator 提出 FinishIntent，协调者调用 Journal.tryFinish 条件终结本 execution。普通路径的次序固定：先完成真实的候选固定（F1）与落终态之前位置的经过（F2），再以 prepareFinish 发行终结责任清单，再 load 最新的完整 revision，最后 tryFinish。取消路径的次序固定：有效取消与必要撤权成立，建立或迁移取消候选，产生真实的判断记录，再 prepareFinish、load 最新的完整 revision，最后 tryFinish；规则见“[取消判断与路线](#取消判断与路线)”。清单的内容与发行规则见“[终结责任清单](#终结责任清单)”。tryFinish 不等待事件消费者返回批准，也不接收调用方的完成批准。它与 submit、control 和 attach 处在同一权威排序中，在最终提交点以同一权威核对当前资格、候选、expected revision、输入边界、责任闭包、适用的终态前判断，以及 coordinated 绑定的外部参加者。适用的终态前判断按候选结论区分：complete 与 failed 候选是落终态之前位置的作者扩展链经过，cancelled 候选是受信取消判断，取消不经过作者的终态前扩展。有效取消优先于普通完成或失败。依赖故障或查询未知不伪装成 blocked 或空队列。相同操作的重试认回原提交，未知先 query，再 load 原终结事实。
 
 `FinishIntent.candidate` 以首次 F1 操作的 AgentOperationId 固定候选，`obligations` 在准备态为 null。candidate 同身份配不同业务内容返回 conflict。业务前提真正变化时建立新候选并保存旧到新的替代链接，不改写原候选。只发行清单、确认事件或保存与判断无关的迟到事实不修改候选，也不机械重跑 F2；业务前提变化仍须重新核对。
 
@@ -1105,6 +1105,10 @@ tryFinish 的结果按下表返回。
 | 已确定有必要责任未清 | blocked，按 inputs、controls、operations、passages、custody 分类，指向具体责任。多项时按这一固定次序选择第一项，完整清单仍可经 load 读取 |
 | 原操作未知，或当前资格、来源、完整闭包不可确定 | unavailable。保留原查询与责任，不转换为 blocked、已清或 excluded |
 | obligations 未发行、伪造或指向另一个 candidate | invalid。真实的清单在发行后责任投影已改变时按 changed 处理，调用方重新 prepareFinish，规则见“[终结责任清单](#终结责任清单)” |
+| 取消路线上判断记录确定缺失 | blocked，类别为 passages，依据指向当前 route 的 required-judgment 待办。不以空证明结束 |
+| 取消路线上当前判断记录为 blocked，前提未变 | blocked，按该记录给出的具体责任类别返回，source 指向原判断记录与该责任。多项按 inputs、controls、operations、passages、custody 的固定次序选择第一项 |
+| 取消路线上当前判断记录为 unknown | unavailable。保留原查询与问题，不返回 excluded、blocked 或 ended |
+| 取消路线上当前判断记录为 allowed，清单真实，最终核验发现新的确定前提变化 | changed。旧允许不是永久许可 |
 | 当前资格拒绝 | denied |
 | 新请求遇已 ended | terminal。原成功的同输入重试先于这项检查认回原终结，不重判 ended |
 | 写入未知 | commit-unknown。沿原 operation 查询，再 load 原终结事实 |
@@ -1117,16 +1121,221 @@ tryFinish 的结果按下表返回。
 | inputs | 普通候选不越过待承接输入。取消候选保留所有 accepted input 的身份、内容、原归属及终局处置 | 按原归属供读取或由原拥有者处置。不自动路由到新 execution |
 | controls | 适用的取消与必要撤权已经成立。相关后续职责由合法存续方承接 | “[六个阶段](#六个阶段)”允许的 producer-confirmed、physically-stopped、duty-released 真实迟到阶段 |
 | operations | 可能改变候选的未定操作先恢复，不把 unknown 当未发生 | 已合法发出的调用、结果、费用和回执由原生产者与长期接收者负责 |
-| passages | 必需的 F2 有真实有效结果。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
+| passages | 必需的终态前判断有真实有效结果：complete 与 failed 候选是落终态之前位置的作者经过，cancelled 候选是当前的判断记录。未定卡片和调用完整保留 | 终态后按原身份 lookup、read、invalidate 和保管，不重跑扩展，不采纳新业务效果 |
 | custody | 每项已收到且须交接的结果有真实完成依据或耐久保管，没有无人保管的窗口 | 原消费、释放确认、费用、未确认输出和固定观察按自身协议接续 |
 
-cancelled 候选的落终态之前判断由 [D020](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6371768059) 采用的受信取消判断承担，complete 与 failed 继续使用作者的终态前扩展链。该判断的判据、安装与旧取消记录的迁移政策以该采用为准。判断记录确定缺失时，tryFinish 返回 blocked，类别为 passages；判断为 unknown 时返回 unavailable；判断记录不授予永久许可，前提变化返回 changed。
+cancelled 候选的终态前判断由具名、精确版本的受信取消判断承担，complete 与 failed 候选继续使用作者的终态前扩展链。判断的判据、安装、记录与旧取消记录的迁移见“[取消判断与路线](#取消判断与路线)”。判断记录不授予永久许可。
 
-终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
+终结授权有两种。推进授权只用于仍然有效的普通完成或失败。取消授权必须对应已保存且当前适用的取消控制，结论只能是 cancelled，它不恢复旧挂接的推进权，也不允许借取消凭据提交 complete 或发新效果。取消授权不授予取消判断与收束资格，这两项资格由主体资格核验的 settle 操作名承担，见“[commitSettlement 的变体](#commitsettlement-的变体)”。两种资格都取不到时，旧实例停止推进并交接，由合法的恢复者沿原记录收束。取消后未处理的输入保留原归属和处置依据，不静默转入后继 execution。
 
-普通 commit 的状态与事件排除 ended，也不能通过材料、recordResult、recordControl 或 detach 旁路创建终态。只有 tryFinish 能共同创建终态、最后事件、按固定采用生成的终态后观察责任和原操作结果。终态前判断绑定具体结论、输入边界、checkpoint 和条件依据，依据失效不能复用旧允许。FinishIntent 在候选固定时提交，此时落终态之前位置尚未经过，`FinishIntent.beforeTerminal` 为空。该位置的经过完成后才填入依据，tryFinish 核对它非空且绑定本候选。这项依据只记在 FinishIntent，结论本身不另带。终态后判断只读取已提交的终态，不等待人，也不产生新效果。
+普通 commit 的状态与事件排除 ended，也不能通过材料、recordResult、recordControl 或 detach 旁路创建终态。只有 tryFinish 能共同创建终态、最后事件、按固定采用生成的终态后观察责任和原操作结果。终态前判断绑定具体结论、输入边界、checkpoint 和条件依据，依据失效不能复用旧允许。FinishIntent 在候选固定时提交，此时 `FinishIntent.beforeTerminal` 为空。`beforeTerminal` 指向当前 route 的实际判断结果：author route 在落终态之前位置的经过完成后填入该经过的依据，cancellation route 在判断记录保存后指向当前判断记录。tryFinish 核对它非空、绑定本候选并属于当前 route；取消路线上判断记录确定缺失时按上表返回 blocked。迁移清空当前证明指针，旧 route 记录中的证明保留。这项依据只记在 FinishIntent，结论本身不另带。终态后判断只读取已提交的终态，不等待人，也不产生新效果。
 
 终结的提交保护由 Journal 提供者承担。独立提供者只裁定 execution 自己的结束，消费者无需提供终态回调，也无需在线确认才能结束。coordinated 绑定在同一次条件提交中核对外部已受理未交入的输入与适用的终态或取消事实，共同建立对应的终结贡献，不只比较 Agent 本地 revision，协议见“并发与提交”。外部协调者已受理而尚未交给 Agent 的输入，由参加者以冲突响应报告，tryFinish 返回 changed，即使本地 revision 没有变化。终结先提交时，后来的 submit 返回 terminal，新输入由协调者另行路由。无法兑现共同提交的装配被拒绝，不以先结束一方再结束另一方代替。
+
+#### 取消判断与路线
+
+cancelled 候选不经过落终态之前位置的作者扩展链。它的终态前判断由具名、精确版本的受信取消判断承担：判断只读各拥有者已核验的权威事实，给出允许、不允许或未定，并把判断耐久记录；它不发起新的 Model 调用、消息注入、卡片或人工问题，也不等待作者 veto。complete 与 failed 候选继续使用作者的终态前扩展链。原作者扩展不能阻止 cancelled 终结；当前事实不明、责任未交清或必要资格缺失仍能阻止终结。空判断、只检查 effects 为空、责任清单存在或非空 Evidence 都不能代替真实判断。取消控制不自行授予判断或收束资格。这条政策的采用依据是 [D020](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6371768059)，技术形状的采用依据是 [C2](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373297399)。
+
+取消路径的次序固定：有效取消与必要撤权成立，建立或迁移取消候选，产生真实的判断记录，再 prepareFinish，load 最新的完整 revision，最后 tryFinish。迁移本身不是判断，也不是允许结果。责任分配如下。
+
+| 责任 | 承载者及公开可核对的事实 |
+| --- | --- |
+| 固定候选的业务内容 | Journal 的候选记录。普通候选的身份复用首次 F1 的 AgentOperationId，取消候选的身份等于建立它的 operation |
+| 选择当前的终态前判断路线 | Journal 的独立 route 记录。迁移只替换 route 指针，不修改候选或旧 Passage |
+| 产生取消判断 | 治理安装的精确 `CancellationPolicy`。它只对 Journal 提供的权威事实投影求值 |
+| 核验来源、当前资格与排序 | Journal 提供者及其可信的授权、治理与原拥有者读取适配。调用者不能安装这些依赖 |
+| 保存新判断与原操作结果 | Journal 在一次权威提交中保存完整输入、结果、当前判断指针、receipt 和新 revision |
+| 保留旧扩展及外部效果 | 原 Passage、生产者、卡片与材料拥有者继续拥有原记录。Journal 保留完整的发现索引与接续责任 |
+| 最终结束与外域协调 | tryFinish 在当前权威边界再次检查本域责任与 coordinated 绑定的参加者。判断记录不代替共同提交 |
+
+Journal 调用受信判断时，不把 Model、Tool、消息准入、卡片呈现、作者 invoke 或一般 Context 写权限交给它。它没有 `ExtensionOutput`，不能返回 inject、ask、veto 或新的业务动作。允许、不允许与未定是取消政策的事实判断，不是作者的干预力。
+
+##### 候选与路线
+
+候选与路线的形状如下。
+
+```ts
+type FinishCandidate = Readonly<{
+  candidate: AgentOperationId
+  origin: Evidence
+  conclusion: AgentConclusion
+  failure: FailureCandidate | null
+  inputWatermark: Evidence
+  checkpoint: AgentCheckpoint
+  conditions: Evidence
+}>
+
+type FinishRoute =
+  | Readonly<{
+      kind: 'author'
+      record: Evidence
+      candidate: AgentOperationId
+      policy: Adoption
+      plan: readonly LegacyF2Entry[]
+      beforeTerminal: Evidence | null
+    }>
+  | Readonly<{
+      kind: 'cancellation'
+      record: Evidence
+      candidate: AgentOperationId
+      control: AgentOperationId
+      policy: Adoption
+      installation: Evidence
+      origin:
+        | Readonly<{ kind: 'native'; operation: AgentOperationId }>
+        | Readonly<{ kind: 'migration'; operation: AgentOperationId }>
+    }>
+```
+
+`LegacyF2Entry` 是 not-started 或 recorded 的封闭联合，内容见“[commitSettlement 的变体](#commitsettlement-的变体)”的 MigrationRecord 字段表。`origin`、`conditions` 与其他 Evidence 都必须解析到原拥有者保存的固定记录，不能只保存摘要。候选保留 `AgentCheckpoint` 的完整值，或使用具有相同读取契约的永久版本引用；当前 checkpoint 被取代后，候选仍可恢复。这里保存的是候选的必要材料，不改变公开操作只读取当前 checkpoint 的既有含义。
+
+候选的 conclusion、failure、inputWatermark、checkpoint 与 conditions 一经建立不变。当前 route 指针、当前判断指针与 obligations 是另外的事实。取消 route 自身不可变，当前判断指针不进入判断记录的绑定输入。`ExecutionSnapshot.settlement.currentJudgment` 是当前判断记录的 AgentOperationId 或 null。`FinishIntent` 是当前候选的投影：`candidate` 固定候选，准备态 `obligations` 为 null，`beforeTerminal` 指向当前 route 的实际判断结果。迁移后该投影可以从旧证明变为 null，旧 route 记录中的证明仍保留。调用者不能写这些投影字段。候选同身份配不同业务内容返回 conflict。业务前提真正变化时建立新候选并保存旧到新的替代链接。只发行清单、确认事件或保存与判断无关的迟到事实不修改候选，也不机械重跑原终态前判断。
+
+##### 旧记录的选择
+
+对未 ended 的旧 cancelled 候选，保留原候选，新增迁移记录 M，把该候选的 author route 替换为 cancellation route。候选原来的业务内容不变。新判断记录与旧 Passage 有不同身份与公开种类。
+
+对取消前的 complete 或 failed 候选，其结论已经失效。必须新建 cancelled 候选，新候选的 `candidate` 等于其建立操作。替代记录保存原候选、新候选、取消 control、发生时的 revision 与旧 route。原候选的原请求、Conclusion、卡片及费用进入新候选的责任发现范围，不进入新候选的允许证明。
+
+旧数据没有 `candidate` 字段时，以真实的首次 F1 操作为候选。迁移须读取其固定成功记录及完整业务内容，不以当前状态位置、最新 checkpoint 或新造 ID 猜原 F1。原 F1 未定时先 query 原操作。找不到原记录且不能证明它不存在时，保持缺证未完。
+
+##### 安装记录与资格
+
+治理拥有一份不可变的 `CancellationPolicyInstallation`。Journal 提供者在受控装配入口取得它及相应实现。调用者的请求只引用该记录，不能提交实现、回调或自签资格。
+
+| 字段 | 类型与约束 |
+| --- | --- |
+| record | Evidence，治理安装记录 |
+| decision | Evidence，解析到取消政策及适用技术协议的具名采用 |
+| policy | Adoption，完整的 owner、name、revision、digest 四项精确匹配 |
+| inputSchema | Adoption，判断输入及判据的精确公开版本 |
+| implementation | Adoption，实际只读判断实现的精确版本 |
+| legacyProtocols | 只读数组，每项含旧协议 Adoption、旧 checkpoint schema Adoption 与原协议识别规则的 Evidence。只映射精确旧版本，不按名称接受最新版本 |
+| admission | Evidence，治理允许新采用与取消专用迁移的范围、签发方及当前状态的读取来源 |
+
+`policy` 是 Agent 产品与技术拥有者固定的受信取消判断协议的采用，不是任意扩展的 Adoption。治理安装实际的四元组、输入规范及实现的固定 digest 后本协议才可运行；运行时缺任一项返回 unavailable，决定评论的文本不能替代可核验的安装。安装的提供者是装配交付的依赖，登记在开放问题页的[端口提供者缺口](../agent/docs/architecture/open-questions.md#端口提供者缺口)。旧策略没有单独保存 policy 字段时，治理的历史发行登记必须能从原 definition、checkpoint schema 与精确扩展采用恢复当时的终态协议；该映射固定版本并保留来源，不把当前扩展配置反推为历史策略。迁移只解释原记录的格式与归属，不执行旧作者代码。
+
+settle 与 migrate-cancellation 两个操作名的资格范围见“[commitSettlement 的变体](#commitsettlement-的变体)”。迁移者须同时具备两者，Journal 还核对治理安装的当前迁移范围包含原精确协议、目标 policy、该租户与该 execution；授权适配器的 allowed 来源、治理准入版本与实际检查目标保存进 M 的 qualification。通过已经核权的 runtime 协调入口调用 Journal 时，继续遵守“[主体资格核验](#主体资格核验)”的不重复核验规则；直接的长期恢复入口必须完成相同的资格核验。Journal 在最终提交点核对授权结果的适用性及治理的当前准入，不只消费远早于提交的本地 allowed。治理撤销或切换政策准入与 execution 写入共用可比较的权威条件：提供者必须能在迁移、判断、prepareFinish 与 tryFinish 的提交点核验其当前状态。这里不为全局治理另造 execution revision；读取到的治理版本是事务条件，治理改变使该条件失效时不提交，重读后按 changed 或资格拒绝处理。没有共同条件检查能力的绑定不能宣称支持本协议。
+
+##### 判断输入、判据与记录
+
+判断的输入、结果与实现接口如下。
+
+```ts
+type CancellationJudgmentInput = Readonly<{
+  tenant: Access<unknown>['tenant']
+  execution: AgentExecutionId
+  candidate: FinishCandidate
+  control: ControlRecord
+  route: Extract<FinishRoute, { kind: 'cancellation' }>
+  readRevision: ExecutionRevision
+  coverage: ResponsibilityCoverage
+  items: readonly FinishObligation[]
+  participants: TerminalParticipantFacts
+}>
+
+type CancellationDecision =
+  | Readonly<{ kind: 'allowed'; basis: readonly Evidence[] }>
+  | Readonly<{ kind: 'blocked'; reasons: readonly [CancellationBlock, ...CancellationBlock[]] }>
+  | Readonly<{
+      kind: 'unknown'
+      questions: readonly [CancellationUnknown, ...CancellationUnknown[]]
+      knownBlocked: readonly CancellationBlock[]
+    }>
+
+interface CancellationPolicy {
+  readonly policy: Adoption
+  readonly implementation: Adoption
+  judge(input: CancellationJudgmentInput): CancellationDecision
+}
+```
+
+`judge` 是纯求值接口，不是作者 invoke。`basis` 可以引用多个权威事实，它的长度不构成允许判据。Journal 校验输入来自自己的完整权威读取，并校验结果属于当前精确 policy 的合法判据。实现抛错、输出非法或来源不能核验时，操作返回 unavailable，不写“空通过”，也不把报错记为 observed。实际的纯度、权限隔离与判据正确性仍须验证，TypeScript 接口不单独提供安全边界。
+
+`CancellationBlock` 保存五类责任之一、原责任键、具体的 PendingReason、权威 source，以及应当完成的 RecoveryContinuation。`CancellationUnknown` 保存 owner、原责任键、source 或 query 的位置与 reason。reason 是封闭枚举：original-operation-unknown、source-unavailable、source-not-authenticated、coverage-incomplete、policy-unavailable、qualification-unavailable。没有查询身份的缺失材料保留原固定引用，不虚构 operation。对 handoff 责任，`CancellationUnknown` 沿同一 reason 分类：owner 是该来源的准入提供者或来源历史的拥有者，原责任键是 H，另标明相关的 P、Ja 或 Rh 原键与准确的查询位置（H 经 `MessageHandoff.lookup`，P、Ja 与 Rh 经 Journal query）。原操作未定用 PendingReason 的 operation-resolution；已具名 H 的来源历史尚未应用且尚无合法保管处置用 handoff-history，它保存 H、来源键、可信结果与负责的 owner。材料未承接继续用 material-custody，历史责任不塞进 call-custody。
+
+“输入事实未定”与“当前操作不具备记录条件”不同。当前调用者的资格核验、安装的可信性或根责任发现范围无法确认时，操作直接 unavailable，不保存判断记录。只有记录资格与根覆盖完整成立，而某项已具名的原事实未定时，才保存真实的 unknown 判定。治理或资格的未定若属于该原事实本身，必须明确指出原控制或原承接者，不冒称当前写入资格已成立。
+
+判据按下列次序执行。
+
+1. 校验取消有效、必要撤权成立、candidate 与 control 匹配，以及当前完整的责任覆盖。
+2. 逐项核验原输入处置、原调用与 unknown、结果及材料的承接、旧 Passage 与卡片的保管、输出与观察的存续责任。
+3. 消费 coordinated 绑定参加者的权威条件。原请求未定或必要来源不可确定时，返回 unknown，并保留同时已知的 blocked 理由。
+4. 没有上述未知，但有确定的必要待办时，返回 blocked。全部必要责任已经 settled 或合法 held，且参加者允许时，返回 allowed。
+
+作者 veto 不是 blocked 理由。尚未物理停止、待生产者确认释放、未确认输出与终态后观察可以由合格的存续方承接，它们不是自动阻塞项。某项原操作未知可能改变候选或终结合法性时，不能只标 held 后结束。已知仍在运行且合法交给长期接收方的调用，与“是否已提交未知”的操作分别表达。
+
+判断记录 `CancellationJudgmentRecord` 的完整记录包含判断记录的 operation、当前操作的 receipt、policy、implementation 与 inputSchema 采用、安装 record、调用资格的归因、原 candidate、control 与 route、完整输入、完整判定与记录 revision。source 来自 Journal 这次提交。旧判断记录永不更新。新的相关事实允许生成新的判断记录，新记录以 supersedes 指向前一条判断记录。
+
+##### 同权威排序与旧写者围栏
+
+顺序保护覆盖 control、挂接与撤权、candidate、迁移、判断、prepareFinish、tryFinish、责任事实及参与终结的外域事实。每次新的 execution 事实恰好分配一个 revision。M、route 指针、旧 route 失效、责任闭包和 M 的成功结果共同提交，任何中间状态都不对 load 或 query 暴露。
+
+部署受信取消判断之前，提供者必须激活一个存储与实际发起边界都承认的协议围栏。该围栏拒绝不理解本协议的写者继续对已取消的 execution 提交旧的终态前扩展经过、接纳新的作者效果或覆盖新 route。旧写者即使带碰巧最新的 expected，也不能绕过这个语义检查；旧二进制不能直接写绕过此边界的表。无法约束这些写者的部署必须先停止并排除它们，才能启用迁移。
+
+取消有效后，旧 advance 不再准许 Model 或 Tool 受理、消息 inject 接纳、卡片 present 或作者的后续效果。所有实际拥有者在自己的发起或接纳处检查当前围栏。迁移成功不靠撤除某个本地 Cordis fiber 取得这一保证。一个在围栏前已经合法开始的外部动作仍可能完成，它的效果、费用和结果沿原身份保管，提供者不能把它宣称为已撤回。对已经在途但尚未作实际发起检查的旧请求，提供者必须能够排除围栏后的新受理；外部协议不能提供这一点时，把请求作为已经开始或未定的原责任保留，不能一边声称 excluded，一边允许它迟到提交。这样的未定请求是否阻止 ended 由真实的终结前提决定，不能用进程内 CAS 直接证明。同权威提交是语义要求，本契约不选择数据库锁、隔离级别、分布式事务或远端 fencing 的实现；实际提供者必须明确共享存储对象、线性化点、事务失败、跨进程认回与旧写排除。coordinated 绑定不允许退回 standalone 来通过迁移或结束。
+
+##### 旧取消记录的迁移
+
+按旧政策开始的 cancelled 终态前扩展经过，不以新政策偷换原精确采用或解释它的答复。首次部署与迁移逐项识别这些记录，规则如下。
+
+1. 已终结的 execution 不重开、不重判。原精确采用、Conclusion、终态、事件与费用保持历史事实。其未清责任按原身份合法接续，不借迁移再调用扩展或发新业务。
+2. 未终结且取消已经成立时，停止旧 cancelled 作者扩展的后续执行。不因等待答复、原调用重试或已得 veto 继续发 Model、inject 或 ask。旧请求、已开始的调用、已有答复与原 Conclusion 全部保留，不改记为 observed、通过或不存在；迟到的事实继续按原身份接收和保管。
+3. 旧判断不能直接转成新政策的允许。已得到的旧 allow、veto、ask 或错误都不能替代新判断。由具备当前收束及迁移资格的执行者在权威排序中登记一次明确的政策迁移（迁移记录 M），绑定原 execution、取消 control、候选、旧 Adoption 与精确的已知进度、新 Adoption、完整的原责任与当前版本。迁移资格由治理安装并核验，调用者不能自授。
+4. 新判断与旧记录可区分且可恢复。迁移后用新的精确政策产生真实的取消判断，保留旧记录及被替代关系。不复用旧 operation 搭配不同的语义输入，也不覆盖旧候选的固定业务内容。需要新的判断身份或候选替代时，按本节与“[commitSettlement 的变体](#commitsettlement-的变体)”的保存与认回协议建立新记录，不以直接编辑存量记录实现。迁移未知沿原迁移 operation 查询，不重复迁移，也不恢复业务推进。
+5. 卡片与在途调用保留真实的收束责任。原已答复的内容不删除；未答复的卡片不再是 cancelled 的作者 veto 门槛，但其原呈现未知、作废与答复的排序和保管责任仍进入清单。按“[扩展、卡片与材料](#扩展卡片与材料)”的终态后卡片规则，用原身份查询或幂等作废，不伪造人的答复，不以 lookup 的 not-presented 掩盖迟到呈现。已发出的调用的结果、费用、许可及未知效果按各自拥有者接续。
+6. 完整性或迁移依据不足时不自动转换。不能识别原政策或候选、无法恢复责任闭包、来源未知或资格缺失的记录保持具名未完及具体原因，交合法恢复者补证。这一分支是事实限制，不是把旧记录永久排除在支持范围外；验收必须验证迁移恢复与缺证补齐后的接续。
+
+取消前某个 complete 或 failed 候选的终态前经过已开始时，保留其精确采用、Conclusion、原调用、卡片与费用。取消使原候选不再适用，不把该经过的已请求改成已采纳。原卡片与调用作为存续责任进入新候选的清单，取消链作新的真实判断。终态后原卡片按“[扩展、卡片与材料](#扩展卡片与材料)”的终态后规则收束，原扩展不为 cancelled 重新调用。普通的未取消恢复仍按原精确采用，取消专用的迁移不推广到一般的扩展热换代。
+
+各种初始情形的唯一合法处理如下。
+
+| 初始情形 | 唯一合法处理 |
+| --- | --- |
+| execution 已 ended | 不迁移、不新判断。保留历史 route、Conclusion、费用和终态。沿原结果、卡片、控制及观察责任接续 |
+| 新取消，无旧候选 | 以 establish-cancellation 建立候选与原生 cancellation route，再产生判断记录 |
+| 新取消，原 complete 或 failed 的终态前经过已开始或完成 | 保存旧候选与完整的终态前经过，以 establish-cancellation 建立新候选和替代链接。停止旧作者的后续，原调用和卡片进入新候选的清单，再产生判断记录 |
+| 旧 cancelled 的终态前经过尚未开始 | 用原候选与旧计划迁移。not-started 必须有旧发起的排除依据，不从没有 Passage 推断 |
+| 旧 cancelled 的终态前经过为 requested | 固定原 requested、mode、operations 与未定调用，迁移后不 replay 作者。原调用继续 query、receive 与保管 |
+| 旧 cancelled 的终态前经过为 asked，卡片未呈现或呈现未知 | 保留完整的 requests、round 与原 present 输入。lookup 原批，不再 present，不等作者答复作为终结门槛 |
+| 旧 cancelled 的终态前经过为 asked，已答复未处理 | 保留人的原答复，不 replay 作者，不转 processed。新判断只检查保管与接续责任 |
+| 旧 cancelled 的终态前经过为 resolved 或 applied，含原 allow、proceed、veto、stop 或报错 | 保留原 Conclusion 与采纳事实。迁移不把其输出当作允许，必须新判断 |
+| 原 F1 或候选身份未知 | 先 query 原操作并恢复原候选，不建立猜测的候选 |
+| 旧经过的某个原操作结果未知，但完整责任已可发现 | 可以迁移并保留该 unknown。判断如实判断它是否阻止当前终结，不丢掉原操作 |
+| 原候选、精确采用或责任闭包缺失 | 不自动迁移。保留原键、缺失记录、负责的 owner 和补证动作。补证后重新走同一迁移准入 |
+| M 的提交结果未知 | 只 query M，committed 后认回原 M，unknown 保持。不另建 M，不 replay 旧经过 |
+
+缺证恢复允许读取原 Journal 操作结果、历史发行登记、原生产者查询、卡片记录、材料副本及已具名的恢复来源。它不允许重跑旧作者扩展来补全旧事实。缺权限由授权拥有者安排当前合法的恢复者。缺精确采用由治理恢复原发行登记。缺完整记录由原存储拥有者恢复耐久备份或可核验的原来源。来源不可恢复时，该具体责任保持未完并可追溯，不宣称无责任，也不宣称永久不支持全部旧记录。
+
+##### 取消后的 Tool 原 invoke 恢复
+
+原 Tool request 的恢复基于完整的规范输入，不以 consumer 单独相等、hash 相同或当前 catalog 内容代替。恢复者先从 fixed 恢复原 ToolInvokeRequest，用精确 schema 与 Tool 的判定校验，再逐字段核对原 consumer 投影。原租户、原主体来源和原调用入口也保留。当前 principal 及资格每次重新核验，不把旧主体的验证材料填作当前授权。
+
+Tool invoke 在来源恢复时可以继续 reserved 到 issued、admission 与补 wake，它不是纯查询。Tool 契约的稳定主体相同条件仍适用，另一当前 Agent 保管者不因此获得 invoke 的重入资格。取消前的合法普通恢复继续按 Tool 原协议与“[Tool 调用关联与控制引用](#tool-调用关联与控制引用)”。取消已经生效时，按下表处理。
+
+| 原事实 | 取消后的合法动作 | 不足以取得的结论 |
+| --- | --- | --- |
+| intent 已保存，原 invoke 尚未发送，权威发起围栏排除全部旧的迟到发送 | 保存排除依据与原责任处置，读取既有记录。不发送 invoke | 仅本进程未见发送不是排除 |
+| 无引用或 association-unknown，原请求可能在途 | 读取原宿主的耐久返回记录，或等待同一在途返回交给 record-tool-association。无合法来源则保持 unknown，按开放问题页的 [U-8](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口) 配对 | 不默认重入 invoke，不按 consumer 猜 call，不称该动作未发生 |
+| 已返回 commit-unknown 加引用 | 先可靠保存该原返回与引用，再用当前合法资格调用既有 lookup。lookup 仍未确定时保留 unknown | not-accepted 不排除原来源继续签发或 admission，不授权取消后 invoke |
+| 已返回 accepted 加引用，尚无 ProducedResult | 经 record-tool-association 保存原 accepted 回执。按当前资格 lookup 原引用，并由存续接收者承接该原调用的结果与费用 | 不因仍 running 而重入 invoke 补 wake，不要求先造 ProducedResult |
+| 仅取得原引用的可信观察，未取得 accepted 原回执 | 保存该来源实际证明的身份事实，须具有另经采用的来源形状。record-tool-association 只消费原 accepted 或 commit-unknown 返回 | lookup 的当前状态不伪造为原 invoke 的 accepted 回执。外域新读法未采用前不接入 |
+| 后来一次 rejected，先前无引用、已关联或受理仍未解决 | 保存本次拒绝的原事实，继续原 intent、原固定请求及已有引用的责任 | 不生成与先前调用竞争的 denied 结果，不按 all-denied 推进 |
+| 当前 Tool 读取或原主体恢复资格失效 | 交当前合法拥有者接续，保留原材料及未知 | Agent 的 reconcile 资格或历史 accepted 不授 Tool 读取或异主体 invoke 权 |
+
+只有另外取得精确的 Tool 拥有者采用，证明某个恢复入口只观察原关联或原回执，且不会签发、admit、wake 或创建新控制，才能把它加入取消后的合法动作。现有 invoke 没有这个保证。本契约不自造 Tool 方法名，不调用受信内部的 SourceIssuer。已知 accepted 并有合法耐久接收者的调用可以作为 held 继续存在。无引用或 admission 未定若可能影响终结合法性，判断保持 unknown，tryFinish 为 unavailable；具名的长期持有材料不能把这种未知改成已解决。原 Tool 调用可能继续产生效果与费用，取消判断只决定当前 execution 是否可结束，不制造物理停止的事实。
+
+##### 迟到的作者调用返回
+
+record-legacy-return 保存的 `LegacyInvocationReturn` 包含原 passage、原 invocation 的 input 与 mode、精确 implementation、原宿主经认证的 source、完整的 `ExtensionInvocationResult` 原结果、接收及保管依据。该结果的原 output 仍是原协议的数据：不执行，不翻译成允许，不把旧 requested 改成 applied。返回源不能验证时保持未定，恢复不能重调作者补造它。宿主必须在可靠交接前保留自己已经接收的返回；宿主在可靠保存前崩溃且结果无法查询时，按具体缺证处理，不宣称存在耐久的作者结果。这个端口只保存围栏前原调用的迟到事实，不授予新调用。`ExecutionSnapshot.settlement` 中的迟到返回记录与旧 Passage 并列可读，保持“旧调用后来返回”与“旧输出已经采纳”的区别；它只合入原责任，不反向改变已经合法结束的依据。
+
+##### 取消路线上的 tryFinish
+
+取消路线上的 tryFinish 先处理当前资格及原 operation 恢复，再按 expected 与 candidate 检查当前状态。它须能解析当前 route、M（若有）、真实的判断记录、精确安装及原输入，核对判断记录的判据输入仍适用，并重新检查所有必要责任及 coordinated 绑定的参加者。判断相关的结果行见“[条件终结](#条件终结)”的结果表。
+
+完整 revision 的任何变化都使旧 expected 失效。调用者 load 最新 revision 后，可以复用仍匹配的判断记录。Journal 比较判断记录所记的具体判据投影，包括原对象键、版本、处置与参加者条件，不只比较总 revision 或一个哈希。纯判断记录、清单记录与无关的确认不自动使判断失效；判断自己的记录操作与 currentJudgment 指针不属于业务判据，所以保存判断记录不会使它自身失效。根覆盖仍核全部新增记录，不能以此省略新增的业务责任。相关的输入、保管、资格、政策或外部参加者变化必须重新核验。无法判断变更是否相关时返回 unavailable，不猜无关。
+
+ended 后保留最终清单的原版及当前责任处置。recordResult、迟到的控制阶段事实、recordTerminalObservation、acknowledge 与三个保管变体可以合法更新自己的责任事实与 revision，不改原终态、判断记录、旧 Conclusion 或末事件。
 
 #### 终结责任清单
 
@@ -1236,7 +1445,7 @@ Journal 在清单中保存每项的完成或未定结果。`reconcile` 返回的
 | migrate-cancellation | 当前 candidate；originalRoute 依据；installation 依据；priorExcluded 的完整前驱记录或 null | 保存 M 和完整旧恢复截面，切换该候选的 route，清空当前证明指针，不改候选的业务内容 | receipt、完整 MigrationRecord、当前 route |
 | judge-cancellation | 当前 candidate；route 依据；installation 依据 | Journal 构造权威输入，调用已安装的判断实现，保存判断记录、完整结果及当前判断指针 | receipt、完整判断记录。允许、阻塞与未定都是一次真实判断的成功保存 |
 | record-card-reconciliation | 原 card-round 责任键；原 route 与 candidate；固定的原 lookup 或 invalidate 操作引用 | 经已安装的卡片拥有者适配读取并核验原结果，只合入原卡片责任的新事实和处置 | receipt、该轮完整原责任及当前处置 |
-| record-legacy-return | 原 PassageId、原 candidate 与 route、原 invoke 的固定请求依据、原执行宿主保存的返回记录依据 | 核验该调用在取消围栏前已开始，追加真实迟到返回及其材料保管引用。保留旧 progress，不采纳输出 | receipt、完整迟到返回记录 |
+| record-legacy-return | 原 PassageId、原 candidate 与 route、原 invoke 的固定请求依据、原执行宿主保存的返回记录依据 | 核验该调用在取消围栏前已开始，追加真实迟到返回及其材料保管引用。保留旧 progress，不采纳输出 | receipt、完整的 LegacyInvocationReturn，内容见“[取消判断与路线](#取消判断与路线)” |
 | record-tool-association | 原 Tool intent 键、固定原请求依据、原宿主的不可变返回 source、priorExcluded 或 null | 只读取并核验 accepted 或 commit-unknown 的原返回，保存既有引用及来源，合入原 call 责任。没有 ProducedResult 也可登记 | receipt、完整 ToolAssociationRecord，含原 Tool 返回和本次固定的责任投影 |
 
 候选、迁移与判断变体不接受调用者给出的判断结果、beforeTerminal 或迁移进度。source 不可读取时返回 unavailable。establish-cancellation 从当前权威读取构造候选，不给调用者任意业务快照的写口；需要新候选时，新建立请求必须指出真实的当前前驱 candidate。establish-cancellation 不能取代“旧 cancelled 候选加作者 route”的情形，该情形只能 migrate-cancellation。judge-cancellation 成功回执的 state 为 applied，表示判断记录已保存，不表示判定为 allowed。保管变体使用当前 reconcile 资格，不用取消授权，不要求旧 advance，允许合法 ended 后调用，合并原事实而不带 expected 的整快照替换。它们的回执只表明各自事实已保存，不能据此推断 execution 已 ended。record-card-reconciliation 只认回旧 lookup、read 与 invalidate，不调用 present，不生成人的答复，不运行扩展；未知结果只能登记为原责任的 unknown。record-legacy-return 不接受调用者直接上传新的 Conclusion；返回源不能验证时保持未定，恢复不能重调作者补造它。生产者、结果、控制和观察仍走已有专用方法。
@@ -1626,7 +1835,12 @@ J08 规定 Agent 作为 Model 调用方时适用的 Model 侧条款。
 1. Agent 宿主为 Agent 的消费者 owner 提交 Model 的装配声明 `ModelConsumerOwnerDeclaration`。声明的 work 为 exempt，evidence 是该 owner 的受信证据适配器的采用。声明规则归 Model 的[资格、共同提交与实际发送](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)。
 2. [资格参加者协议闭合之前](../../model/model-contract/SPEC.md#342-资格共同提交与实际发送)，Agent 的全部 Model 调用都按免守卫受理。免守卫不提供单调失格的保护。推进资格撤销之后，新的 Model 发出由 Journal 的条件提交（stale-advance）与动作发出围栏阻止。
 3. `retry` 计划的 `notBefore` 非 null 时是 `UtcInstantText`，即 `judgeExtensionOutput` 以 `parseInstant` 校验过的 UTC 时刻文本。Agent 把它原样交给 Model 的重试决定，扩展给出的时刻文本不会未经校验地到达 Model。`notBefore` 为 null 时，Model 重试决定的 `notBefore` 取该 Conclusion 的 `at`。`at` 由 Agent 在把合法输出包装为 Conclusion 时写入，值是 `AgentClock.now` 的成功值，形式见“[时钟读取与等待](#时钟读取与等待)”。Agent 把 `at` 交给 Model 之前以 `parseInstant` 判定一次。判定失败时不把这次重试交给 Model，按“[时钟读取与等待](#时钟读取与等待)”取时失败一条保留原准备与接续。这里的原准备与接续是调模型之后失败分支在重试决定之前的状态。判定失败是 Agent 一侧时钟的失败，不是扩展的不合法输出，不记到扩展头上。之后该扩展调用怎样接续未决，见 Agent 的[开放问题](../agent/docs/architecture/open-questions.md#at-判定失败之后扩展调用怎样接续)。
-4. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。
+4. 调模型之后失败分支的 `retry` 与 `stop` 结论只是策略建议。Agent 把首内容前的失败经过交给重试策略协调者，然后在原消费位置等同一个调用。重试策略协调者实现 Model 的 `ModelRetryPolicy`，托管该失败分支的有序扩展链，受信系统重试扩展是链中唯一的强制组件；两者的采用分开，普通作者扩展都是可选组件。协调者沿原 RetryPosition 形成唯一可核验的决定，Model 保存该决定并核验其来源后才可能准备下一次 dispatch。Agent 不提前消费结果，不代替 Model 确认，也不自己发第二个调用。链上没有合法 retry、有效的停止意图成立，或强制组件确定缺席、失败或超时时，协调者保存 stop 并保留原失败 fault；强制组件不可用的 stop 以 `ModelFault.cause` 为 `policy-unavailable` 表达，diagnostic 指向真实原因。只有某次 RPC 超时而没有原启动或结果事实时保持未知，不伪造耐久的不再重试。链内各输出的归约规则见[扩展作者协议](docs/public-api/extensions.md#输出)，实现位置是开放问题页的 [U-2](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。采用依据是 [Q8](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373457058) 与 [MP1、MP2 的配对](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6373845600)。
+   - Model `prepareRetry` 的 consumer 编码：owner 等于协调者 adoption 的 owner，work 等于原 ModelCallId 的完整字符串，position 等于原 DispatchId 的完整字符串，purpose 固定为 `model-retry-policy`，在租户范围内解释。协调者的记录键是租户、call 与完整的 RetryPosition，不同的 policy operation 不因 consumer 相同而合并，operation 保持唯一身份。原 Model 调用的 `CallState.consumer` 仍是 Agent 在调模型之后失败分支的等待，与 `RetryPosition.consumer` 不互换。协调者先耐久固定完整的原 position，恢复不借新的 Agent 挂接。
+   - 决定来源的核验：Model 的受信适配按原 `position.policy` 解析协调者的 inspect，以当前受信 principal 与显式租户读取原 position，核验同一 decided、同一完整 position、同一决定与同一 source，并验证 source 由协调者的耐久记录拥有者签发、摘要与修订对应真实记录。调用者自报 owner 或 digest、指向任意非空 Evidence 都不构成核验。协调者解析不到、来源读权限未知或记录查询不可用时，Model 不保存新的决定。
+   - 协调者的 worker 停用而耐久记录 authority 仍可用时，该 authority 依据原 manifest 的确定生命周期事实记录同一协调者的不可用决定，inspect 仍认回它。协调者的采用与记录 authority 整体缺席时的收场没有采用：原调用保持具名未完，禁止新 retry，不声称已收场，见开放问题页的 [U-8](../agent/docs/architecture/open-questions.md#journal-联合表达的具名缺口)。Settlement 的 source 不能冒充协调者的 decided.source。
+   - 协调者的记录、计时、决定与保管由 Model 宿主或其独立的持久依赖持有，寿命不取决于发起的 Agent 挂接。Agent 的 Journal 持有原 Passage、卡片、输出与该失败分支的等待。旧 Agent 挂接丢失不使原策略不可用，协调者保留状态并等待合法后继。
+5. 下列各点交 Model 拥有者确认。[#682](https://github.com/nemori-ai/omne-harness-lite/issues/682) 已接受的内容没有确认它们，本契约写为未决项。第 4 条的 consumer 编码与来源核验已由 MP1、MP2 的配对确认，不在此列。
    - 证据适配器的端口形状。Model 契约只有装配声明里的 evidence 采用，没有导出该端口的类型。承接卡未定。
    - replay 被拒之后的再次发出怎样由重试决定表达，以及 resent 从哪里来（PM-05）。这一点与 [#446](https://github.com/nemori-ai/omne-harness-lite/issues/446) 的 5.1 同批确认。
    - J08 原文所说交 Model 确认的其余四点，在具名来源中没有找到，本契约不列出。
@@ -1669,7 +1883,7 @@ J40 规定 `AgentExecutionId` 的唯一范围。
 | AgentJournal.recordResult | 结果、消费、交接、释放 | 命令回执 | conflict（结果项、版本、位置与交接不一致）；denied（当前保管或处理资格失效，不因旧挂接失效返回 stale-advance）；unavailable。合法责任可在 ended 后登记 |
 | AgentJournal.recordControl | 目标控制、阶段、来源依据，可选 toolOperation；先核当前资格与附件租户，再认回原 recording operation，之后核新 target、引用与阶段，见“Recording operation 与阶段事实” | 命令回执。新适用阶段事实、control 事件与原结果在同一原子边界成立；ended 之后只保存三种合法迟到阶段，不追加事件 | conflict（原 recording operation 异输入；所供附件的 call、admission 不等于原调用；已有 toolOperation 与所供附件为不同操作身份；新证据与已成立阶段或原终结前提矛盾，此时按“[查询的四种结论与持久拒绝](#查询的四种结论与持久拒绝)”保存审计并推进 revision）；denied（含所供或保留引用外租户）；terminal（阶段适用，但在 ended 之后新建立意图、撤销资格或其他终态前效力）；invalid（target 不存在、阶段不适用、新 recording operation 的畸形附件或非 Tool 附件，精确 field/reason 见引用边界失败表）；unavailable（原 toolInvocation 或已有 toolOperation 损坏，owner 为 AgentJournal，diagnostic 分别为 invalid-retained-tool-invocation、invalid-retained-tool-operation）；commit-unknown（含审计提交未定，保留原 operation） |
 | AgentJournal.prepareFinish | ExecutionMutation、终结授权、expected、candidate | 命令回执与清单依据 obligations，同提交保存清单与 `intent.obligations` 并推进一个 revision | stale-advance（推进授权所属的挂接已 superseded，先于 terminal 与 changed）；denied；unavailable（当前资格、来源或完整闭包不可确定）；changed（expected 或实质前提失效）；conflict（同一操作配不同的 authorization、expected 或 candidate）；invalid（形状错误）；terminal（ended 之后的新请求）；commit-unknown。见“[终结责任清单](#终结责任清单)” |
-| AgentJournal.tryFinish | 完成授权、expected、完成意图（含 candidate 与已发行的 obligations） | ended、changed 或 blocked（类别为 inputs、controls、operations、passages 或 custody），见“[条件终结](#条件终结)” | stale-advance；denied；terminal（ended 之后的新请求；原成功的同输入重试先认回）；invalid（obligations 未发行、伪造或指向另一个 candidate）；conflict（candidate 同身份配不同业务内容）；unavailable（含：原操作未知或必要来源不可用；核验不可用或暂时的依赖故障；提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
+| AgentJournal.tryFinish | 推进授权或取消授权、expected、完成意图（含 candidate 与已发行的 obligations） | ended、changed 或 blocked（类别为 inputs、controls、operations、passages 或 custody；取消路线上判断记录确定缺失为 passages），见“[条件终结](#条件终结)” | stale-advance；denied；terminal（ended 之后的新请求；原成功的同输入重试先认回）；invalid（obligations 未发行、伪造或指向另一个 candidate）；conflict（candidate 同身份配不同业务内容）；unavailable（含：原操作未知或必要来源不可用；取消路线上当前判断记录为 unknown；核验不可用或暂时的依赖故障；提交参加者当前不能完成自己的部分，任何一方的事实都没有保存，可用同一操作重试）；unsupported（参加者或提供者不能兑现这次共同提交，不保存任何一半）；commit-unknown。参加者的响应见“[提交参加者协议](#提交参加者协议)”。依赖故障与查询未知不伪装成 blocked |
 | AgentJournal.commitSettlement | ExecutionMutation 与变体输入；候选、迁移与判断变体另带 expected 与取消授权 | 该变体的完整成功结果，见“[commitSettlement 的变体](#commitsettlement-的变体)” | denied；unavailable；conflict；changed；invalid（含 field 为 intent 或 operation）；terminal（新的候选、迁移或判断请求遇 ended）；commit-unknown。次序见同节的判定顺序 |
 | AgentJournal.recordTerminalObservation | 终态、PassageId、采用、观察依据 | 命令回执 | conflict（同一观察配不同值）；invalid（观察项不存在，field 为 passage；终态不匹配或尚不存在，field 为 terminal；采用不匹配，field 为 implementation）；denied；unavailable（读取失败或投影不全，不推成观察项不存在） |
 | AgentJournal.inputs、readReplyAdmissions | Access、execution、水位线或固定范围、游标、页限 | 有序的输入批，或有序去重的事实页 | unavailable；缺页返回缺口，不把空页当作完成 |

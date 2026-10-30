@@ -80,6 +80,13 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | ResultResponsibility | ConsumptionId | Tool 结果经 recordResult 登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
 | ControlRecord | AgentOperationId，原 command。Tool 另存 toolInvocation 与 nullable toolOperation | control 受理时将原 associated 引用、accepted 阶段、control 事件与原操作结果在同一原子边界共同保存 | 阶段独立记录 reached 或 unresolved，每个新适用阶段事实与其 control 事件原子保存；后得引用由新 recording operation 附加。合法 ended 之后只接受 producer-confirmed、physically-stopped 与 duty-released 三种真实迟到事实，不追加事件 | Journal | 随 execution 保留。checkpoint 前进后仍校验原调用快照。与已成立阶段或原终结前提矛盾的证据按持久拒绝保存审计 |
 | ExecutionHandoff | HandoffReference：内部 H 由租户、execution、本次 P 的 `request.predecessor`、来源种类与稳定位置派生；外部 H 由固定版本标签、Ki（租户、execution、原入口 O）、入口种类与 InputId 派生 | 内部请求由 P 保存完整 PendingHandoff；外部请求由准入提供者的受理前记录建立，成功的 open 或 submit 把它关联进 execution | resolution 为 null、recorded 或 excluded；history 为 pending、committed、not-applicable 或 retained；retirement 只由 Ja 的 retire 建立。转换见 SPEC 的“[消息准入](../SPEC.md#消息准入)” | Journal 保存闭包与历史处置，准入提供者保存原结果 | 随 execution 保留到原请求、原结果、认回与迟到排除责任都释放；excluded 的 H 永不重用 |
+| FinishCandidate（候选） | 普通候选为首次 F1 操作的 AgentOperationId；取消候选为建立它的 commitSettlement 操作 | F1 的条件提交固定普通候选；establish-cancellation 从当前权威的取消、checkpoint、输入边界与条件建立取消候选 | 不可变值。conclusion、failure、inputWatermark、checkpoint 与 conditions 一经建立不变；业务前提变化时建立新候选并保存旧到新的替代链接，取消前的 complete 或 failed 候选被 cancelled 候选替代。同身份异内容 conflict | Journal | 随 execution 保留。旧候选在替代链中保留，不删除 |
+| FinishRoute（路线） | 所属候选加 route 记录 | F1 固定普通候选时建立 author route；establish-cancellation 建立原生 cancellation route；migrate-cancellation 把旧候选的 author route 替换为 cancellation route | 每条 route 自身不可变。候选的当前 route 指针只由建立与迁移改变，至多一个迁移记录能切换它 | Journal | 被替代的 route 记录与其中的证明保留，supersession 双向可读 |
+| MigrationRecord（迁移记录 M） | AgentOperationId，按稳定派生：租户、execution、固定前驱 revision、种类 migrate-cancellation、候选、原 route 与链位置（root 或 successor 加被排除前驱） | migrate-cancellation 在同一提交保存迁移记录、完整旧恢复截面与新 route 指针 | 不可变。提交未知只 query 同一操作；被可靠排除后才可提出后继，后继引用被排除的前驱 | Journal | 随 execution 保留。progress 是迁移时的截面，不随迟到答复变动 |
+| CancellationJudgmentRecord（判断记录） | 建立记录的 AgentOperationId | judge-cancellation 由 Journal 构造权威输入、调用已安装的判断实现后保存 | 不可变。判定为 allowed、blocked 或 unknown 三种之一，都是一次真实判断的成功保存。新的相关事实产生新的判断记录并以 supersedes 指向前一条；`ExecutionSnapshot.settlement.currentJudgment` 指向当前记录 | Journal | 随 execution 保留。旧判断记录永不更新，被取代后仍可读 |
+| LegacyInvocationReturn（迟到返回记录） | 建立记录的 AgentOperationId，绑定原 PassageId | record-legacy-return 核验原调用在取消围栏前已开始后保存 | 不可变。只记录“旧调用后来返回”，不改变原 Passage 的 progress，不采纳输出 | Journal，原宿主在可靠交接前保管返回 | 随 execution 保留。ended 之后仍可登记 |
+| ToolAssociationRecord（关联登记记录） | 关联登记操作的 AgentOperationId，按原 Tool intent 键、固定 source 的 owner、record、revision 与 digest、种类与链槽稳定派生 | record-tool-association 经受控安装的宿主读取适配核验 source 后保存 | 不可变。同一 source 的重试认回原记录；新 source 是新记录；被可靠排除后才可按排除链提交新记录 | Journal，原宿主保管 source | 随 execution 保留。ended 之后仍可登记，引用从未知变为已知不释放原材料 |
+| FinishObligations（终结责任清单） | 发行操作的 AgentOperationId 与发行 revision，绑定候选 | prepareFinish 从完整权威闭包发行 | 清单本身不可变。各项的 disposition 随后续记录在自身原子边界更新；责任投影改变时清单不再可用于 tryFinish，须重新发行。ended 时固定终局清单 | Journal | 随 execution 保留。FinishIntent 消失后仍可经 `load.finishObligations` 读取 |
 
 Model 接收不经过上述 ResultResponsibility 的 recordResult/release 状态链。独立接收方共同保存 received 与完整材料，并据此返回 saved；Model 自行推进其确认。Agent Loop 从 received 采用材料。
 
@@ -340,7 +347,9 @@ stateDiagram-v2
 | AgentExecution | waiting | 唤醒后回到被打断的首次认回 | reconciling | 不是接管，不授予新挂接，挂接状态不变 |
 | AgentExecution | settling | 落终态之前位置返回 ask，或其经过等待依赖 | waiting | 卡片或依赖等待已保存。唤醒后回到该位置的经过 |
 | AgentExecution | waiting | 唤醒后回到被打断的落终态之前位置 | settling | 候选与 FinishIntent 不变 |
-| AgentExecution | settling | 落终态之前位置否决候选 | advancing | 候选不成立。只有否决之后出现的新依据才算继续依据，没有新依据时转 waiting，不重提同一候选 |
+| AgentExecution | settling | 落终态之前位置否决候选 | advancing | 只对 complete 与 failed 候选发生。候选不成立。只有否决之后出现的新依据才算继续依据，没有新依据时转 waiting，不重提同一候选 |
+| AgentExecution | settling | 有效取消成立，当前候选为 complete 或 failed | settling | 原候选被取消候选替代并保存替代链接，原候选的终态前经过停止，其调用与卡片进入新候选的清单 |
+| AgentExecution | settling | 取消候选的判断记录保存为 blocked 或 unknown，或 tryFinish 返回 blocked、unavailable | settling | 继续对账。责任事实变化后产生新的判断记录 |
 | AgentExecution | settling | tryFinish 成功 | ended | 终态、最后事件与观察责任共同提交 |
 | AgentExecution | reconciling、advancing 或 waiting | suspend 或 detach 交接保存成功 | suspended | 原位置与责任已保存 |
 | AgentExecution | settling | 持久交接成功 | suspended | 原位置与责任已保存 |
@@ -435,7 +444,8 @@ AgentDependencies 是具名能力的只读记录，不是服务容器，也不�
 | 共同提交 | CallerCommit 的种类：none、message、context-transition、custody、processed。提交参加者以参加、失败、冲突、不支持响应 | SPEC 的“提交参加者协议” |
 | ResultResponsibility | 待释放，依据已保存，已释放 | SPEC 的“托管协调与运行实例”的“提交与保管” |
 | TerminalObservation | 待观察，已观察 | SPEC 的“托管协调与运行实例”的“终态后与 ended” |
-| 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed 或 blocked（inputs、controls、operations、passages、custody） | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
+| 条件终结 | prepareFinish 发行责任清单；tryFinish 返回 ended、changed 或 blocked（inputs、controls、operations、passages、custody），判断记录为 unknown 时 unavailable | SPEC 的“托管协调与运行实例”的“条件终结”与“终结责任清单” |
+| 终态前判断路线 | route 为 author 或 cancellation；取消判断记录的判定为 allowed、blocked 或 unknown；迁移记录只切换 route 指针 | SPEC 的“托管协调与运行实例”的“取消判断与路线”与“commitSettlement 的变体” |
 | 原操作查询 | committed、rejected、excluded、unknown | SPEC 的“并发与提交”的“查询的四种结论与持久拒绝” |
 | 消息准入 | prepare 的 decision 为 prepared 或 rejected；lookup 的结论为 recorded、excluded 或 unknown；Ja 的 HandoffHistory 为 pending、committed、not-applicable 或 retained | SPEC 的“主干运行契约”的“消息准入”与“托管协调与运行实例”的“准入结果保管” |
 | Journal 绑定 | `coordination` 为 standalone 或 coordinated，使用期内不变 | SPEC 的“提交参加者协议” |
