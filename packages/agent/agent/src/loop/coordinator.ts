@@ -16,8 +16,7 @@
 //   E3); and after F3 the execution is ended, so F4, O0 and E9 use their own records only.
 // - #514: I2 is local; M0 commits PendingCall, the fixed request adoption and the effect together.
 //   M6, M1 settlement, M4 (without extensions) and M5 make no checkpoint commit. M3 carries producer.
-// - M04-8 的读法: the input-taken event is written by the I0 commit.
-// - M04-7: `open` writes no event (the memory Journal's reading of SPEC).
+// - The input-taken event is written by the I0 commit; `open` writes no event (same-shape fact 7).
 //
 // E1/E2 dependency failures save a W0 wait. Unknown R0 operations keep their original revision. Other
 // Unsupported outcomes stop with a named failure. Its owner distinguishes a port failure,
@@ -903,7 +902,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         result: null,
         admission: 'new',
       }
-      // M04-8 的读法: the input-taken event goes with the commit that fixes the batch and the step.
+      // The input-taken event goes with the commit that fixes the batch and the step.
       return step('taken', {
         checkpoint: {
           step: next,

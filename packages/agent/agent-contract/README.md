@@ -12,7 +12,7 @@ The package exports these items:
 - The asset body contract `agentBodyContract`.
 - Fourteen identity decoders, named `decode*`, and four structure judgments: `judgeAdoption`, `judgeEvidence`, `judgeAccess`, and `judgeAuthority`.
 
-The `./testing` entry exports the conformance suites and the non-durable doubles of the two receiving ports, `AgentJournalEntries` and `AgentAccountOutlet`. The doubles declare `durability: 'none'`. Do not assemble them into production. The root entry does not load `./testing`.
+The `./testing` entry exports the conformance suites and the non-durable doubles of the two receiving ports, `AgentJournalEntries` and `AgentAccountOutlet`, and `agentJournalCoreConformance`: the suite every `AgentJournal` provider runs against its own fixture for the execution revision, the six stages, recognition of the original operation and the durable refusal of `query`. The doubles declare `durability: 'none'`. Do not assemble them into production. The root entry does not load `./testing`.
 
 The package does not implement the progression Loop, the evaluator, the runtime, the Journal provider, or the host plugin. The interfaces of these parts exist as types only. No provider implements them. Providers and the host plugin belong to [agent](../agent/README.md), [agent-host-local](../agent-host-local/README.md), and the provider packages.
 

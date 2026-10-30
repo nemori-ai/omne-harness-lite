@@ -55,20 +55,22 @@
 
 ## 维护
 
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。#558 裁定 M04-4、M04-5 或 M04-7 之后，在同一波修改内存 Journal、对应的临时做法用例和成员 README 的支持范围表。同形清单变化时，按新条目号同步 `memory-journal.spec.ts` 的用例名。
+公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。同形清单变化时，按新条目号同步 `memory-journal.spec.ts` 的用例名。
 
 ## 本包事实
 
 `memory-journal.spec.ts` 按同形清单组织：每个 `describe` 对应一条事实，名称以 `fact N` 开头，用例名也带条目号。6.1 与 7.4 可以把这些用例搬到 `agent-journal-local`，两种实现共用同一套断言。
 
-名为「临时做法，待 #558 裁定」的 `describe` 含四条用例：
+名为「facts 6, 7, 9, 11 and 17 as #558 decided them」的 `describe` 含四条用例：
 
-- M04-4：`commit` 与六个记录方法成功写入时推进 revision，同操作重试认回原回执、不推进。
-- M04-5：未声明参加者时，`recordResult.transfer` 的 custody 与 processed 由提供者建立依据；`commit.caller` 的同种类返回 `unsupported`。
-- M04-7：`open` 不追加事件，第一个序号属于之后的一次提交。
-- M04-1 的读法：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
+- 第 6 条：`commit` 与六个记录方法每建立一个新事实推进一次 revision，同操作重试认回原回执、不推进。
+- 第 9、11 条：standalone 绑定下 `recordResult.transfer` 的 custody 与 processed 由提供者建立依据；`commit.caller` 的未声明种类返回 `unsupported`。
+- 第 7 条：`open` 不追加事件，第一个序号属于之后的一次提交。
+- 第 17 条：`control` 与 `recordControl` 把阶段事实投影为 control 事件。
 
-`fact 10` 中名称带「临时做法，待 #558 裁定」的用例固定 `tryFinish` 的 controls 与 inputs 两项 blocked 条件、passages 不检查，以及 ended 之后 `recordControl` 只记录、不投影事件。`journal-support.ts` 的 `finish` 先经 `takeInputs` 取走受理输入，再以普通完成终结。
+名为「Q2: the coordination mode of the binding」的 `describe` 固定绑定声明的 `coordination`：standalone 对非空 grant 或来源写前返回 `unsupported`；coordinated 缺 grant 返回 `denied`，参加者的四种响应各映射一次。`journal-core-conformance.spec.ts` 以内存 Journal 运行 agent-contract `./testing` 的 `agentJournalCoreConformance`，session-adapters 的同名 spec 以 coordinated 替身运行同一套件。
+
+`fact 10` 中名称带「临时做法，待 #558 裁定」的用例固定 `tryFinish` 的 controls 与 inputs 两项 blocked 条件、passages 不检查。ended 之后的迟到阶段事实只记录、不投影事件是 SPEC 六个阶段的正式条款，不再是临时做法。`journal-support.ts` 的 `finish` 先经 `takeInputs` 取走受理输入，再以普通完成终结。
 
 `provider-access.spec.ts` 中名称以「stage-temporary (#502)」开头的用例固定阶段性临时做法：放行之后，`invoke` 与 `observe` 之外的操作本体返回具名的 `unavailable`。`invoke` 放行之后先经 `adoptions.resolve` 取评估器，没有采用时返回其 `unavailable`、不 open。`loop-invoke.spec.ts` 的同名用例固定句柄的 `submit`、`control`、`acknowledge`。实现对应阶段的卡改写这些用例。
 
@@ -89,7 +91,7 @@ O0 窄接续用例保留原 received 与材料，核对零 Agent Model 消费调
 骨架的临时做法在源码注释、下列测试名与[成员 README](../README_ZH.md#支持范围)中写明：
 
 - `loop-invoke.spec.ts` 中「临时简化，1.3–1.9 按节点表收紧」的用例固定骨架的提交次序与 `position` 去向。其余节点尚未全部按节点表收紧。I2 仅构造帧，M0 一次提交，M6、M1 收场、无扩展 M4 与 M5 不提交，对应期望已同步。
-- 同文件「待 #558 M04-1……M04-8……」的用例固定事件的承载：input-taken 随 I0 的提交，producer 随 M3 采用 received 之后的业务提交。M04-7（`open` 不写事件）由事件序号从 1 起即 input-taken 体现。Model 不再用 processed 参加者保存结果；Tool 的既有参加者协议保留。
+- 同文件「the producer event goes with M3 after joint receipt; input-taken goes with I0」的用例固定事件的承载：input-taken 随 I0 的提交，producer 随 M3 采用 received 之后的业务提交。`open` 不写事件由事件序号从 1 起即 input-taken 体现。Model 不再用 processed 参加者保存结果；Tool 的既有参加者协议保留。
 - `loop-transitions.spec.ts` 核对 I1 首次 assembled 转 P0、不可用转 W0、真实 cannot-fit 转 F1。P1 带 previous 复核才返回 ready（#558 S-11）。I3 把回复交 Q1（伪代码 `runIter`、`admitMessage`）。
 - E1 在修订号已超过原 open 回执时返回 `found-existing`，由转移表正常结束协调。这避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向，属于阶段 1 读法。`loop-transitions.spec.ts` 核对转移行，`loop-coordinator.spec.ts` 核对成功结果。
 - Q2 的 commit-unknown 在节点表中转 R0，未定则等待。阶段 1 以 #558 S-13 为依据，由调用方用原操作与原候选再次调用 accept 即查询。invoke 先返回 commit-unknown，新受理释放槽。`loop-admission.spec.ts` 核对此读法，后台等待尚未交付。
@@ -108,7 +110,6 @@ E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（a
 
 - 待拥有者：绑定租户与安全作用域不一致（`denied`）。
 - 待拥有者：精确采用 `binding.definition` 与 `loopGuardPolicy` 解析不到（`unavailable`），以及依定义判定 tools、admission、extensions 的必需性。
-- 待 #558 M04-3：外部协调者参加的拒绝条件。
 
 工厂只为无类型调用方校验选项的取值。依赖假定满足各自的契约类型，测试不覆盖违反类型的依赖：没有 `capabilities` 的 Journal、抛出异常的 `registration.instance` 读取器、不是对象的选项或依赖都使创建 reject。
 

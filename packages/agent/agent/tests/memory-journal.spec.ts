@@ -1,7 +1,7 @@
 // The memory Journal against the same-shape list of docs/architecture/mechanisms.md
 // "两种实现必须同形的事实". Each `describe` names one fact by its number, so the suite can move to a
-// durable provider unchanged. Tests read only what the port returns. The three choices that wait
-// for #558 have their own `describe` at the end, named 「临时做法，待 #558 裁定」.
+// durable provider unchanged. Tests read only what the port returns. The blocked reasons of
+// `tryFinish` that SPEC leaves open keep the name 「临时做法，待 #558 裁定」 inside fact 10.
 import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
@@ -475,7 +475,7 @@ describe('fact 3: unknown result', () => {
   })
 })
 
-describe('fact 4: three conclusions of query', () => {
+describe('fact 4: four conclusions of query', () => {
   it('fact 4: committed carries the original receipt, unknown draws no conclusion, excluded carries evidence', async () => {
     const journal = memory()
     const opened = await open(journal.port)
@@ -678,7 +678,7 @@ describe('fact 5: fence', () => {
 })
 
 describe('fact 6: revision', () => {
-  it('fact 6: the revision increases with every write and is never reused', async () => {
+  it('fact 6: the revision increases with every write of a new fact and is never reused', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const seen = [opened.receipt.revision]
@@ -925,7 +925,7 @@ describe('fact 8: inputs', () => {
   })
 })
 
-describe('fact 9: participant declaration', () => {
+describe('fact 9: binding declaration', () => {
   it('fact 9: the declared participants do not change after construction', () => {
     const declared: ('message' | 'custody')[] = ['message']
     const journal = memory({ participants: declared })
@@ -1387,7 +1387,7 @@ describe('fact 10: the one terminal commit', () => {
     })
   })
 
-  it('fact 10 临时做法，待 #558 裁定：no event follows the ended event; a later stage fact is recorded without one', async () => {
+  it('fact 10: no event follows the ended event; a later stage fact is recorded without one', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
@@ -1426,7 +1426,7 @@ describe('fact 10: the one terminal commit', () => {
         },
       }),
     )
-    // 临时做法，待 #558 裁定：ended 之后的阶段事实照常记录，不投影事件。
+    // SPEC 六个阶段: after ended, a late stopping fact is recorded without an event.
     ok(
       await journal.recordControl({
         ...access,
@@ -2077,8 +2077,8 @@ describe('fact 16: entry event projection', () => {
   })
 })
 
-describe('临时做法，待 #558 裁定', () => {
-  it('M04-4 临时做法，待 #558 裁定：commit 与六个记录方法成功写入时都推进 revision，同操作重试认回原回执、不推进', async () => {
+describe('facts 6, 7, 9, 11 and 17 as #558 decided them', () => {
+  it('fact 6: commit 与六个记录方法每建立一个新事实推进一次 revision，同操作重试认回原回执、不推进', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const revision = async () => Number((await load(journal, opened.execution)).revision)
@@ -2178,7 +2178,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(await advances(() => journal.recordTerminalObservation(observe))).toEqual([1, 0])
   })
 
-  it('M04-5 临时做法，待 #558 裁定：未声明参加者时 recordResult.transfer 的 custody 与 processed 由提供者建立依据，commit.caller 的同种类返回 unsupported', async () => {
+  it('fact 9 and 11: standalone 绑定下 recordResult.transfer 的 custody 与 processed 由提供者建立依据，commit.caller 的未声明种类返回 unsupported', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect(journal.capabilities.participants.size).toBe(0)
@@ -2216,7 +2216,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(await load(journal, opened.execution)).toEqual(snapshot)
   })
 
-  it('M04-7 临时做法，待 #558 裁定：open 不追加事件，第一个序号属于之后的一次提交', async () => {
+  it('fact 7: open 不追加事件，第一个序号属于之后的一次提交', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     expect((await load(journal, opened.execution)).output.emittedThrough).toBeNull()
@@ -2234,7 +2234,7 @@ describe('临时做法，待 #558 裁定', () => {
     expect(page.events.map(event => [event.sequence, event.body.kind])).toEqual([['1', 'waiting']])
   })
 
-  it('M04-1 的读法 临时做法，待 #558 裁定：control 与 recordControl 把阶段事实投影为 control 事件', async () => {
+  it('fact 17: control 与 recordControl 把阶段事实投影为 control 事件', async () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(

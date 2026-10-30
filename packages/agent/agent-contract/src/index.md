@@ -13,6 +13,7 @@
 - [生产者接收面类型](receiving.ts)
 - [`./testing` 入口](testing.ts)
 - [一致性用例形状与共享辅助](testing-case.ts)
+- [Journal 核心一致性套件：执行修订、阶段事实、认回与持久拒绝](testing-journal-core.ts)
 - [接收面条目端口的套件与替身](testing-journal-entries.ts)
 - [账目出站端口的套件与替身](testing-account-outlet.ts)
 - [判断结果与拒绝原因](judgment.ts)
