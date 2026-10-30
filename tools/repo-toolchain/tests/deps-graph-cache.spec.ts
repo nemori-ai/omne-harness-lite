@@ -420,6 +420,75 @@ describe('工作树依赖图的缓存', () => {
     },
   )
 
+  describe('被忽略目录里的导入目标', () => {
+    /** c 导入被忽略目录 `packages/model/c/src/gen` 里的 r.mts；目录里另放 keep.txt，删掉 r.mts 后目录仍在。 */
+    const importsIgnoredDirectory = () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\npackages/model/c/src/gen/\n')
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { r } from './gen/r.mts'\nexport const c = r\n",
+      )
+      commit(root, 'c imports a file in an ignored directory')
+      write(root, 'packages/model/c/src/gen/r.mts', 'export const r = 1\n')
+      write(root, 'packages/model/c/src/gen/keep.txt', 'keep\n')
+      return root
+    }
+    const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
+    const cacheFile = (root: string) => join(cacheDir(root), entries(root)[0] ?? '')
+    const targetsOf = (root: string) =>
+      (JSON.parse(readFileSync(cacheFile(root), 'utf8')) as { targets: string[] }).targets
+
+    it(
+      '导入目标在被忽略的目录里，文件被删、目录还在：不命中，findings 与关闭缓存时相同',
+      { tags: ['slow'], timeout: 120_000 },
+      () => {
+        const root = importsIgnoredDirectory()
+        expect(rules(workingGraph(root))).not.toContain('no-unresolvable')
+        expect(targetsOf(root)).toEqual(['packages/model/c/src/gen/r.mts'])
+        rmSync(join(root, 'packages/model/c/src/gen/r.mts'))
+        const cached = rules(workingGraph(root))
+        const uncached = rules(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root)))
+        expect(uncached).toContain('no-unresolvable')
+        expect(cached).toEqual(uncached)
+      },
+    )
+
+    it(
+      '什么都不改就命中：复核不会让正常情形永远不命中',
+      { tags: ['slow'], timeout: 120_000 },
+      () => {
+        const root = importsIgnoredDirectory()
+        workingGraph(root)
+        const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+        writeFileSync(cacheFile(root), JSON.stringify({ ...entry, graph: marker }))
+        expect(workingGraph(root)).toEqual(marker)
+      },
+    )
+
+    it('导入目标在 node_modules 下不进复核清单', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = copyRepository(template)
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { p } from '../../../../node_modules/pkg/index.mjs'\nexport const c = p\n",
+      )
+      commit(root, 'c imports a file in node_modules')
+      write(root, 'node_modules/pkg/index.mjs', 'export const p = 1\n')
+      expect(rules(workingGraph(root))).not.toContain('no-unresolvable')
+      expect(targetsOf(root)).toEqual([])
+    })
+
+    it('旧格式的缓存条目不命中', { tags: ['slow'], timeout: 120_000 }, () => {
+      const root = importsIgnoredDirectory()
+      workingGraph(root)
+      const entry = JSON.parse(readFileSync(cacheFile(root), 'utf8')) as object
+      writeFileSync(cacheFile(root), JSON.stringify({ ...entry, format: 'v5', graph: marker }))
+      expect(workingGraph(root)).not.toEqual(marker)
+    })
+  })
+
   it('算图过程中输入变了就不写缓存', { tags: ['slow'], timeout: 120_000 }, () => {
     const root = copyRepository(template)
     const stderr = process.stderr as { isTTY?: boolean }

@@ -434,8 +434,8 @@ export function graphOf(root: string, output: CruiseOutput): DependencyGraph {
   return { members: memberList, modules, edges: edgeList, dependencies, findings }
 }
 
-/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`）。 */
-const GRAPH_FORMAT = 'v5'
+/** 缓存的图的格式版本；`DependencyGraph` 的形状或某一项的取法变了就加一（v5：组环发现带 `groups`；v6：条目带 `targets`）。 */
+const GRAPH_FORMAT = 'v6'
 
 /** 按提交缓存的基线图放在各工作树共用的 git 公共目录里：不进工作树，不会让工作树显得不干净。 */
 function cacheDirectory(root: string): string {
@@ -455,21 +455,25 @@ export function workingGraph(root: string, hooks: WorkingGraphHooks = {}): Depen
   const key = workingCacheEnabled() ? workingCacheKey(root, ignoredDirs) : undefined
   if (key !== undefined) {
     // 准入不信任缓存：准入时只写不读，与测试结果缓存一致。
-    const hit = admissionMode() ? undefined : readWorkingCache(key.path, key)
-    if (hit !== undefined) {
+    const hit = admissionMode() ? undefined : readWorkingCache(key.path, key, root)
+    if (hit?.graph !== undefined) {
       note(`依赖图缓存：命中 working-${key.digest.slice(0, 12)}`)
-      return hit
+      return hit.graph
     }
-    note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
+    if (hit?.missing !== undefined)
+      note(`依赖图缓存：被忽略目录里的导入目标 ${hit.missing} 不在了，重算`)
+    else note(`依赖图缓存：未命中 working-${key.digest.slice(0, 12)}，重算`)
   }
-  const graph = graphOf(root, withoutIgnoredModules(cruise(root), ignoredDirs))
+  const output = cruise(root)
+  const targets = ignoredTargets(output, ignoredDirs)
+  const graph = graphOf(root, withoutIgnoredModules(output, ignoredDirs))
   hooks.afterCompute?.()
   if (key !== undefined) {
     // 跑的过程中输入变了，这张图对应的指纹已不是开跑前那个，写进去会让旧指纹下读到别的输入的图。
     const after = fingerprintOf(root, ignoredDirectories(root))
     if ('reason' in after || after.digest !== key.digest)
       note('依赖图缓存：运行中输入有变化，这次不写缓存')
-    else writeWorkingCache(key.path, key, graph)
+    else writeWorkingCache(key.path, key, graph, targets)
   }
   return graph
 }
@@ -738,7 +742,36 @@ interface WorkingCacheEntry {
   readonly format: string
   readonly fingerprint: string
   readonly inputs: readonly string[]
+  /** 复核清单：不在被忽略目录里的模块导入、且解析到被忽略目录里的文件（不含 node_modules）。命中前逐个核对仍是文件。 */
+  readonly targets: readonly string[]
   readonly graph: DependencyGraph
+}
+
+/**
+ * 被忽略的目录在指纹里只记存在与否，目录里被导入的文件删了指纹不变。写缓存时记下这些导入目标，读缓存时复核。
+ * `node_modules` 下的由指纹里的锁文件与 `.modules.yaml` 兜住，不记。
+ */
+function ignoredTargets(output: CruiseOutput, ignoredDirs: ReadonlySet<string>): string[] {
+  if (ignoredDirs.size === 0) return []
+  const found = new Set<string>()
+  for (const module of output.modules) {
+    if (isUnderIgnored(module.source, ignoredDirs)) continue
+    for (const dependency of module.dependencies) {
+      if (dependency.couldNotResolve) continue
+      const target = dependency.resolved
+      if (target.split('/').includes('node_modules')) continue
+      if (isUnderIgnored(target, ignoredDirs)) found.add(target)
+    }
+  }
+  return [...found].sort()
+}
+
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
 }
 
 function isGraph(value: unknown): value is DependencyGraph {
@@ -750,7 +783,11 @@ function isGraph(value: unknown): value is DependencyGraph {
 }
 
 /** 读缓存：文件不在、读不出、JSON 坏、格式或指纹对不上都算未命中。命中时摸一下时间，留份时按最近用过算。 */
-function readWorkingCache(path: string, key: WorkingFingerprint): DependencyGraph | undefined {
+function readWorkingCache(
+  path: string,
+  key: WorkingFingerprint,
+  root: string,
+): { readonly graph?: DependencyGraph; readonly missing?: string } | undefined {
   let entry: Partial<WorkingCacheEntry> | undefined
   try {
     entry = JSON.parse(readFileSync(path, 'utf8')) as Partial<WorkingCacheEntry>
@@ -762,24 +799,34 @@ function readWorkingCache(path: string, key: WorkingFingerprint): DependencyGrap
     entry === null ||
     entry.format !== GRAPH_FORMAT ||
     entry.fingerprint !== key.digest ||
-    !isGraph(entry.graph)
+    !isGraph(entry.graph) ||
+    !Array.isArray(entry.targets) ||
+    !entry.targets.every(target => typeof target === 'string')
   )
     return undefined
+  const missing = entry.targets.find(target => !isFile(join(root, target)))
+  if (missing !== undefined) return { missing }
   try {
     const now = new Date()
     utimesSync(path, now, now)
   } catch {
     // 摸不动时间只影响留哪几份。
   }
-  return entry.graph
+  return { graph: entry.graph }
 }
 
 /** 写缓存：先写临时名再改名，别的进程读到的要么是整份要么没有；写不进就算了。写完只留最近 `WORKING_CACHE_KEEP` 份。 */
-function writeWorkingCache(path: string, key: WorkingFingerprint, graph: DependencyGraph): void {
+function writeWorkingCache(
+  path: string,
+  key: WorkingFingerprint,
+  graph: DependencyGraph,
+  targets: readonly string[],
+): void {
   const entry: WorkingCacheEntry = {
     format: GRAPH_FORMAT,
     fingerprint: key.digest,
     inputs: key.inputs,
+    targets,
     graph,
   }
   try {
