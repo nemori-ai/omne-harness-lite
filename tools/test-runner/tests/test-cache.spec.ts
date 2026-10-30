@@ -48,6 +48,7 @@ import {
   type BuiltMember,
   cachePolicy,
   entryPath,
+  isEntry,
   keyEnvironment,
   lookupCache,
   KEY_VERSION,
@@ -522,10 +523,22 @@ describe('条目', () => {
       JSON.stringify({ ...ENTRY, key: 'other' }),
       JSON.stringify({ ...ENTRY, member: 'apps/top' }),
       JSON.stringify({ ...ENTRY, version: KEY_VERSION + 1 }),
+      JSON.stringify({ ...ENTRY, inputs: { ...ENTRY.inputs, files: '40' } }),
+      JSON.stringify({ ...ENTRY, inputs: { ...ENTRY.inputs, node: 26 } }),
+      JSON.stringify({ ...ENTRY, inputs: { files: 40, node: 'v26.12.0' } }),
     ]) {
       writeFileSync(path, text)
       expect(readEntry(home, ENTRY.member, ENTRY.tier, ENTRY.key), text).toBeUndefined()
     }
+  })
+
+  it('形状核对：认得的层才算条目，inputs 的三项各有类型', () => {
+    expect(isEntry(ENTRY)).toBe(true)
+    expect(isEntry({ ...ENTRY, tier: 'medium' })).toBe(false)
+    expect(isEntry({ ...ENTRY, tier: 7 })).toBe(false)
+    expect(isEntry({ ...ENTRY, inputs: { ...ENTRY.inputs, files: '40' } })).toBe(false)
+    expect(isEntry({ ...ENTRY, inputs: { ...ENTRY.inputs, node: 26 } })).toBe(false)
+    expect(isEntry({ ...ENTRY, inputs: { files: 40, node: 'v26.12.0' } })).toBe(false)
   })
 
   it('写不进去不抛，返回原因', () => {

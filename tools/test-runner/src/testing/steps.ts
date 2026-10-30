@@ -160,9 +160,14 @@ function membersAt(root: string, paths: readonly string[]): WorkspaceMember[] {
   })
 }
 
-function spawnInherited(root: string, command: string, args: readonly string[]): number {
+function spawnInherited(
+  root: string,
+  command: string,
+  args: readonly string[],
+  env: NodeJS.ProcessEnv,
+): number {
   console.log(`$ ${command} ${args.join(' ')}`)
-  const result = spawnSync(command, args, { cwd: root, stdio: 'inherit' })
+  const result = spawnSync(command, args, { cwd: root, env, stdio: 'inherit' })
   if (result.error !== undefined) throw result.error
   return result.status ?? 1
 }
@@ -175,35 +180,41 @@ export function pythonStep(root: string, file: PlanFile): number {
   console.log(`pytest：跑——${file.plan.python.reason}`)
   const runner = process.env['OMNE_RUNNER_ROOT']
   // 与根脚本 test:python 一致：被检查的检出里没有 tooling 的 conftest 时，xdist 退回单进程。
-  process.env['PYTEST_XDIST_AUTO_NUM_WORKERS'] ??= '0'
+  // 只放进子进程的环境，不写本进程的 process.env；调用方已设的值照旧生效。
+  const env: NodeJS.ProcessEnv = { PYTEST_XDIST_AUTO_NUM_WORKERS: '0', ...process.env }
   return runner === undefined
-    ? spawnInherited(root, pnpmCommand().command, [
-        ...pnpmCommand().args,
-        '--silent',
-        'run',
-        'test:python',
-      ])
-    : spawnInherited(root, 'uv', [
-        'run',
-        '--project',
-        runner,
-        '--locked',
-        'pytest',
-        '--ignore-glob=*.legacy',
-        '-c',
-        join(runner, 'pyproject.toml'),
-        '--basetemp',
-        join(root, 'tmp/test-runs'),
-        '-n',
-        'auto',
-        '--dist',
-        'worksteal',
-        ...[
-          'tools/spec-tools/tests',
-          '.meta_harness/tooling/tests',
-          '.meta_harness/agents/skills/design-subagents/canonical/scripts',
-        ].map(path => join(root, path)),
-      ])
+    ? spawnInherited(
+        root,
+        pnpmCommand().command,
+        [...pnpmCommand().args, '--silent', 'run', 'test:python'],
+        env,
+      )
+    : spawnInherited(
+        root,
+        'uv',
+        [
+          'run',
+          '--project',
+          runner,
+          '--locked',
+          'pytest',
+          '--ignore-glob=*.legacy',
+          '-c',
+          join(runner, 'pyproject.toml'),
+          '--basetemp',
+          join(root, 'tmp/test-runs'),
+          '-n',
+          'auto',
+          '--dist',
+          'worksteal',
+          ...[
+            'tools/spec-tools/tests',
+            '.meta_harness/tooling/tests',
+            '.meta_harness/agents/skills/design-subagents/canonical/scripts',
+          ].map(path => join(root, path)),
+        ],
+        env,
+      )
 }
 
 /**

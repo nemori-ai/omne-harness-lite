@@ -59,6 +59,22 @@ function isAncestor(root: string, ancestor: string, descendant: string): boolean
   )
 }
 
+/** `commit` 在 HEAD 的第一父线上（沿每个合并提交的第一个父提交往回走会经过它）。 */
+function onFirstParentLine(root: string, commit: string): boolean {
+  const result = spawnSync('git', ['rev-list', '--first-parent', 'HEAD'], {
+    cwd: root,
+    env: repositoryEnv(process.env),
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  if (result.status !== 0)
+    throw new Error(
+      `git rev-list --first-parent HEAD 失败：${result.stderr.trim() || String(result.error)}`,
+    )
+  return result.stdout.split(/\r?\n/u).includes(commit)
+}
+
 const short = (commit: string) => commit.slice(0, 9)
 
 /**
@@ -80,14 +96,24 @@ export function checkSince(request: SinceRequest): Pick<SinceRange, 'commit' | '
     throw new SinceRefusal(
       `--since ${since}（${short(commit)}）不是 HEAD（${short(head)}）的祖先：只能从当前提交的历史里选一个提交`,
     )
-  if (!isAncestor(root, mergeBase, commit))
+  if (!isAncestor(root, mergeBase, commit)) {
+    const mergePoint = short(mergeBase)
+    if (isAncestor(root, commit, mergeBase))
+      throw new SinceRefusal(
+        `--since ${since}（${short(commit)}）早于基线 ${base} 与 HEAD 的合并点 ${mergePoint}：` +
+          '--since 只收窄变异范围，不扩大；要变异合并点以来的全部改动就不给 --since',
+      )
+    // 既不晚于也不早于合并点：要么在 HEAD 第一父线上、合并点是之后同步合并进来的，要么在合并进来的旁支上。
+    if (onFirstParentLine(root, commit))
+      throw new SinceRefusal(
+        `--since ${since}（${short(commit)}）在 HEAD 的第一父线上，但早于基线 ${base} 与 HEAD 的合并点 ${mergePoint}` +
+          '（同步合并之后，上一轮评审的头落在合并点之前）：改用合并点之后的提交，或不给 --since',
+      )
     throw new SinceRefusal(
-      isAncestor(root, commit, mergeBase)
-        ? `--since ${since}（${short(commit)}）早于基线 ${base} 与 HEAD 的合并点 ${short(mergeBase)}：` +
-            '--since 只收窄变异范围，不扩大；要变异合并点以来的全部改动就不给 --since'
-        : `--since ${since}（${short(commit)}）不在基线 ${base} 与 HEAD 的合并点 ${short(mergeBase)} 之后：` +
-            '它在合并进来的旁支上，不是从合并点到 HEAD 这条线上的提交',
+      `--since ${since}（${short(commit)}）不在基线 ${base} 与 HEAD 的合并点 ${mergePoint} 之后：` +
+        '它在合并进来的旁支上，不是从合并点到 HEAD 这条线上的提交',
     )
+  }
   return { commit, mergeBase }
 }
 

@@ -3,6 +3,7 @@
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import {
@@ -121,6 +122,37 @@ describe('读快照', () => {
     writeFileSync(path, '{ not json')
     expect(readStore(path, 'f')).toEqual({ miss: expect.stringContaining('读不出') })
     writeFileSync(path, JSON.stringify({ files: {}, omne: { fingerprint: 'f' } }))
+    expect(readStore(path, 'f')).toEqual({ miss: '快照形状不对' })
+  })
+
+  it('变异体缺必需字段或形状不对的快照，按读不出处理，不让后面抛 TypeError', () => {
+    const dir = temporary('mutation-store-')
+    const path = storePath(dir, MEMBER.path)
+    const { location: _omitted, ...noLocation } = mutant('1', 3, 'Killed')
+    const bad: unknown[] = [
+      noLocation,
+      {
+        ...mutant('1', 3, 'Killed'),
+        location: { start: { line: 3 }, end: { line: 3, column: 5 } },
+      },
+      {
+        ...mutant('1', 3, 'Killed'),
+        location: { start: { line: '3', column: 1 }, end: { line: 3, column: 5 } },
+      },
+      { ...mutant('1', 3, 'Killed'), status: undefined },
+      { ...mutant('1', 3, 'Killed'), id: 1 },
+      'not a mutant',
+    ]
+    for (const entry of bad) {
+      const report = {
+        ...STORE.report,
+        files: { 'src/a.ts': { language: 'typescript', source: 'a', mutants: [entry] } },
+      }
+      writeFileSync(path, JSON.stringify({ ...report, omne: STORE.meta }))
+      expect(readStore(path, 'f'), JSON.stringify(entry)).toEqual({ miss: '快照形状不对' })
+    }
+    const notArray = { ...STORE.report, files: { 'src/a.ts': { source: 'a', mutants: {} } } }
+    writeFileSync(path, JSON.stringify({ ...notArray, omne: STORE.meta }))
     expect(readStore(path, 'f')).toEqual({ miss: '快照形状不对' })
   })
 
@@ -249,8 +281,11 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
     touch(root, 'm/tests/ignored/x.ts', 'x 1')
     return root
   }
+  /** 夹具仓库不是 turbo 工作区：上游产物的摘要由测试给。 */
+  let outputs = 'dist 1'
+  const outputDigest = () => outputs
   const of = (root: string): MemberFingerprint => {
-    const print = memberFingerprint(root, 'm', 60)
+    const print = memberFingerprint(root, 'm', 60, outputDigest)
     if ('unavailable' in print) throw new Error(print.unavailable)
     return print
   }
@@ -314,10 +349,43 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
     expect(readStore(path, print.fingerprint, print.parts)).toEqual({ miss: '快照来自旧格式' })
   })
 
+  it('上游成员的 dist/ 产物变了，整份失效并说明是上游成员的构建产物', () => {
+    outputs = 'dist 1'
+    const root = repo()
+    expect(
+      missAfter(root, () => {
+        outputs = 'dist 2'
+      }),
+    ).toEqual({ miss: expect.stringContaining('上游成员的构建产物') })
+    outputs = 'dist 1'
+  })
+
+  it('取不到产物摘要时给出原因，这一次不复用也不写快照', () => {
+    const root = repo()
+    expect(
+      memberFingerprint(root, 'm', 60, () => {
+        throw new Error('turbo 没有给出包依赖图')
+      }),
+    ).toEqual({ unavailable: expect.stringContaining('turbo 没有给出包依赖图') })
+    // 缺省取法：夹具仓库没有 pnpm-workspace.yaml，取不到。
+    expect(memberFingerprint(root, 'm', 60)).toEqual({
+      unavailable: expect.stringContaining('pnpm-workspace.yaml'),
+    })
+  })
+
+  it('缺省取法在真实工作区里取得到：同一份 dist 摘要稳定，分项是摘要', { tags: ['slow'] }, () => {
+    const repository = fileURLToPath(new URL('../../../', import.meta.url))
+    const first = memberFingerprint(repository, 'tools/test-runner', 60)
+    const second = memberFingerprint(repository, 'tools/test-runner', 60)
+    if ('unavailable' in first || 'unavailable' in second) throw new Error('取不到指纹')
+    expect(first.parts.upstream).toMatch(/^[0-9a-f]{64}$/u)
+    expect(second.parts.upstream).toBe(first.parts.upstream)
+  })
+
   it('列文件的 git 命令失败时给出原因，不当作内容为空', () => {
     const notRepo = temporary('mutation-fp-')
     touch(notRepo, 'm/tests/helper.ts', 'h')
-    expect(memberFingerprint(notRepo, 'm', 60)).toEqual({
+    expect(memberFingerprint(notRepo, 'm', 60, outputDigest)).toEqual({
       unavailable: expect.stringContaining('git ls-files'),
     })
   })
@@ -481,7 +549,7 @@ describe('成员指纹：Stryker 不比较的四类内容', () => {
       )
       touch(root, 'm/tests/a.spec.ts', imports)
       for (let i = 0; i < 2001; i += 1) touch(root, `shared/f${i}.ts`, 'export {}')
-      expect(memberFingerprint(root, 'm', 60)).toEqual({
+      expect(memberFingerprint(root, 'm', 60, outputDigest)).toEqual({
         unavailable: expect.stringContaining('2000'),
       })
     })
