@@ -37,7 +37,12 @@ const PENDING = {
     step: 'step-1',
     action: 'step-1/main',
     call: 'mcall_1',
-    result: { producer: { kind: 'model', call: 'mcall_1' }, version: 'v1', delivery: null, source: EVIDENCE },
+    result: {
+      producer: { kind: 'model', call: 'mcall_1' },
+      version: 'v1',
+      delivery: null,
+      source: EVIDENCE,
+    },
   },
   candidate: MESSAGE,
   originalAdvance: AUTHORITY,
@@ -100,7 +105,10 @@ describe('judgeHandoffPrepare', () => {
 
   it('refuses a missing or unknown kind before reading any other member', () => {
     const { kind: _kind, ...withoutKind } = EXECUTION_PREPARE
-    expect(failureOf(judgeHandoffPrepare(withoutKind))).toEqual({ field: 'kind', reason: 'missing' })
+    expect(failureOf(judgeHandoffPrepare(withoutKind))).toEqual({
+      field: 'kind',
+      reason: 'missing',
+    })
     expect(failureOf(judgeHandoffPrepare({ ...EXECUTION_PREPARE, kind: 'accept' }))).toEqual({
       field: 'kind',
       reason: 'type',
@@ -174,15 +182,17 @@ describe('judgeHandoffPrepare', () => {
   it('cross-checks the reference, the entry and the source of an external request', () => {
     const mismatched = (request: unknown) =>
       failureOf(judgeHandoffPrepare({ ...INVOKE_PREPARE, request }))
-    expect(
-      mismatched({ ...INPUT, reference: { ...INPUT.reference, entry: 'invoke-2' } }),
-    ).toEqual({ field: 'request.reference.entry', reason: 'identity' })
+    expect(mismatched({ ...INPUT, reference: { ...INPUT.reference, entry: 'invoke-2' } })).toEqual({
+      field: 'request.reference.entry',
+      reason: 'identity',
+    })
     expect(
       mismatched({ ...INPUT, reference: { ...INPUT.reference, execution: 'exec-2' } }),
     ).toEqual({ field: 'request.reference.execution', reason: 'identity' })
-    expect(
-      mismatched({ ...INPUT, reference: { ...INPUT.reference, input: 'input-2' } }),
-    ).toEqual({ field: 'request.reference.input', reason: 'identity' })
+    expect(mismatched({ ...INPUT, reference: { ...INPUT.reference, input: 'input-2' } })).toEqual({
+      field: 'request.reference.input',
+      reason: 'identity',
+    })
     expect(mismatched({ ...INPUT, source: { kind: 'external-input', input: 'input-2' } })).toEqual({
       field: 'request.source.input',
       reason: 'identity',
@@ -250,9 +260,10 @@ describe('judgeInputOrigin', () => {
     expect(
       failureOf(judgeInputOrigin({ ...SUBMIT, delivery: { kind: 'durable-view', instance: 'i' } })),
     ).toEqual({ field: 'delivery.instance', reason: 'unknown-field' })
-    expect(
-      failureOf(judgeInputOrigin({ ...SUBMIT, delivery: { kind: 'runtime-view' } })),
-    ).toEqual({ field: 'delivery.instance', reason: 'missing' })
+    expect(failureOf(judgeInputOrigin({ ...SUBMIT, delivery: { kind: 'runtime-view' } }))).toEqual({
+      field: 'delivery.instance',
+      reason: 'missing',
+    })
     expect(failureOf(judgeInputOrigin({ ...SUBMIT, executionBinding: 'x' }))).toEqual({
       field: 'executionBinding',
       reason: 'type',

@@ -813,13 +813,13 @@ describe('the discriminants of the passage ledger', () => {
     >()
     expectTypeOf<KindOf<HandoffDecision>>().toEqualTypeOf<'prepared' | 'rejected'>()
     expectTypeOf<KindOf<HandoffResolution>>().toEqualTypeOf<'recorded' | 'excluded' | 'unknown'>()
-    expectTypeOf<Extract<HandoffResolution, { kind: 'unknown' }>['original']>().toEqualTypeOf<
-      Readonly<{
-        request: HandoffRequest
-        origin: InputOrigin | null
-        record: DurableEvidence
-      }> | null
-    >()
+    expectTypeOf<
+      Extract<HandoffResolution, { kind: 'unknown' }>['original']
+    >().toEqualTypeOf<Readonly<{
+      request: HandoffRequest
+      origin: InputOrigin | null
+      record: DurableEvidence
+    }> | null>()
     expectTypeOf<KindOf<HandoffReference>>().toEqualTypeOf<'execution' | 'input'>()
     expectTypeOf<KindOf<HandoffRequest>>().toEqualTypeOf<'execution' | 'input'>()
     expectTypeOf<KindOf<HandoffLookup>>().toEqualTypeOf<'execution' | 'input-entry'>()
@@ -827,7 +827,9 @@ describe('the discriminants of the passage ledger', () => {
     expectTypeOf<KindOf<SubmitDelivery>>().toEqualTypeOf<'runtime-view' | 'durable-view'>()
     expectTypeOf<KindOf<InputEntry>>().toEqualTypeOf<'invoke' | 'submit'>()
     expectTypeOf<Extract<InputEntry, { kind: 'submit' }>>().not.toHaveProperty('checkpoint')
-    expectTypeOf<Extract<InputEntry, { kind: 'invoke' }>['checkpoint']>().toEqualTypeOf<AgentCheckpoint>()
+    expectTypeOf<
+      Extract<InputEntry, { kind: 'invoke' }>['checkpoint']
+    >().toEqualTypeOf<AgentCheckpoint>()
     expectTypeOf<PendingHandoff['source']>().toEqualTypeOf<
       Exclude<MessageSource, { kind: 'external-input' }>
     >()
@@ -1080,11 +1082,17 @@ describe('the discriminants of the Journal chapter', () => {
         Readonly<{ original: OriginalInputAcceptance; runtime: InvokeRuntimeContext }>
     >()
     expectTypeOf<KindOf<JournalSubmitLineage>>().toEqualTypeOf<'new-input' | 'recognize-input'>()
-    expectTypeOf<Parameters<AgentJournalRecording<string>['submit']>[0]['lineage']>().toEqualTypeOf<
-      JournalSubmitLineage
-    >()
+    expectTypeOf<
+      Parameters<AgentJournalRecording<string>['submit']>[0]['lineage']
+    >().toEqualTypeOf<JournalSubmitLineage>()
     expectTypeOf<keyof AgentJournalRecording<string>>().toEqualTypeOf<
-      'commit' | 'submit' | 'control' | 'acknowledge' | 'recordResult' | 'recordControl' | 'recordHandoff'
+      | 'commit'
+      | 'submit'
+      | 'control'
+      | 'acknowledge'
+      | 'recordResult'
+      | 'recordControl'
+      | 'recordHandoff'
     >()
     expectTypeOf<Parameters<AgentJournalRecording<string>['recordHandoff']>[0]>().toEqualTypeOf<
       ExecutionMutation<string> &
@@ -1094,7 +1102,9 @@ describe('the discriminants of the Journal chapter', () => {
         }>
     >()
     expectTypeOf<HandoffCustody['protocol']>().toEqualTypeOf<'hand-off-custody-successor/1'>()
-    expectTypeOf<HandoffCustody['priorExcluded']>().toEqualTypeOf<readonly HandoffExclusionRecord[]>()
+    expectTypeOf<HandoffCustody['priorExcluded']>().toEqualTypeOf<
+      readonly HandoffExclusionRecord[]
+    >()
     expectTypeOf<HandoffCustody['factSource']>().toEqualTypeOf<HandoffFactSource>()
     expectTypeOf<HandoffCustodyAttempt['state']>().toEqualTypeOf<'committed' | 'excluded'>()
     expectTypeOf<ExecutionHandoff['retirement']>().toEqualTypeOf<HandoffRetirement | null>()

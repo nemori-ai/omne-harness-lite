@@ -6,14 +6,15 @@ import {
 } from '@omne-harness/agent-contract/testing'
 import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
 import {
-  access,
-  otherTenant,
   acceptedInput,
+  access,
   checkpoint,
-  instance,
-  operation,
   evidence,
+  instance,
   ok,
+  openInput,
+  operation,
+  otherTenant,
 } from './journal-support.ts'
 
 function fixture() {
@@ -27,15 +28,17 @@ function fixture() {
     entries: memory.provider.entries,
     async open(who, execution) {
       return ok(
-        await journal.open({
-          ...who,
-          execution,
-          operation: operation(`open-${execution}`),
-          instance: instance(),
-          grant: null,
-          initial: acceptedInput('initial'),
-          checkpoint: checkpoint(),
-        }),
+        await journal.open(
+          openInput({
+            ...who,
+            execution,
+            operation: operation(`open-${execution}`),
+            instance: instance(),
+            grant: null,
+            initial: acceptedInput('initial'),
+            checkpoint: checkpoint(),
+          }),
+        ),
       ).authority
     },
     async supersede(who, execution) {
@@ -67,6 +70,7 @@ function fixture() {
           expected: snapshot.revision,
           checkpoint: { ...snapshot.checkpoint, inputBatch: inputs.batch.id },
           state: { kind: 'advancing' },
+          handoff: null,
           events: [],
           effects: [],
           caller: { kind: 'none' },

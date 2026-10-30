@@ -3,7 +3,7 @@
 // A double does not implement the semantics of its port: it answers what the test scripted, or its
 // default. Four doubles default to a success, because almost every path of a test passes through
 // them and the test would otherwise script the same answer each time: access answers `allowed`,
-// admission `allow`, handoff `accepted`, and `prepare` a `ready` preparation; model context reads
+// admission `allow`, handoff `prepared`, and request preparation a `ready` preparation; model context reads
 // `full` for the same reason. Each such default is visible in the `calls` log of its script. The
 // other doubles answer `unavailable` until scripted (selection, adoptions and conditions outside
 // their tables, extensions, cards, materials and reads; `derive` and `resume` answer
@@ -24,7 +24,11 @@ import type {
   DurableEvidence,
   ExtensionImplementations,
   Failure,
-  HandoffResult,
+  HandoffOutcome,
+  HandoffPrepare,
+  HandoffRequest,
+  HandoffResolution,
+  InputOrigin,
   MessageHandoff,
   ModelContextReader,
   ModelSelection,
@@ -99,15 +103,95 @@ export function createScriptedActionAdmission<P>(): ScriptedActionAdmission<P> {
 
 export type ScriptedMessageHandoff<P> = Readonly<{
   port: MessageHandoff<P>
-  /** Default: `accepted`, with a test admission evidence. */
-  accept: ScriptOf<MessageHandoff<P>['accept']>
+  /**
+   * Default: `prepared` with the candidate as the exact message and a test admission evidence; the
+   * outcome echoes the request, with an invoke or submit origin for an external request.
+   */
+  prepare: ScriptOf<MessageHandoff<P>['prepare']>
+  /** Default: `unknown` with no original material. */
+  lookup: ScriptOf<MessageHandoff<P>['lookup']>
+  /** Default: `unknown` with the original request. */
+  exclude: ScriptOf<MessageHandoff<P>['exclude']>
 }>
 
+/** A message of the history, named through the contract so this entry needs no message import. */
+type Message = Extract<HandoffOutcome['decision'], { kind: 'prepared' }>['message']
+
+/** The candidate message of a prepare request: the internal candidate or the external input. */
+function candidateOf(request: HandoffRequest): Message {
+  if (request.kind === 'execution') return request.candidate
+  return request.entry.kind === 'invoke'
+    ? request.entry.initial.content
+    : request.entry.value.content
+}
+
+/** The origin a double fixes for a request: the runtime binding of an invoke, the durable view of a submit. */
+function originOf(input: HandoffPrepare): InputOrigin | null {
+  switch (input.kind) {
+    case 'execution':
+      return null
+    case 'invoke':
+      return { kind: 'invoke', ...input.runtime }
+    case 'submit':
+      return {
+        kind: 'submit',
+        executionBinding: testEvidence(`binding/${input.request.reference.execution}`),
+        delivery: { kind: 'durable-view' },
+      }
+  }
+}
+
+/** The identity text of a request's H, for the records a double mints. */
+function handoffText(request: HandoffRequest): string {
+  const reference = request.reference
+  return reference.kind === 'execution'
+    ? reference.operation
+    : `${reference.entry}/${reference.input}`
+}
+
 export function createScriptedMessageHandoff<P>(): ScriptedMessageHandoff<P> {
-  const accept = scriptedMethod<In<MessageHandoff<P>['accept']>, Outcome<HandoffResult, Failure>>(
-    input => succeed({ kind: 'accepted', admission: testEvidence(`handoff/${input.operation}`) }),
+  const prepare = scriptedMethod<
+    In<MessageHandoff<P>['prepare']>,
+    Outcome<HandoffOutcome, Failure>
+  >(input => {
+    const { principal: _principal, tenant: _tenant, ...rest } = input
+    const request = rest.request
+    return succeed({
+      request,
+      origin: originOf(rest),
+      provider: testAdoption('message-handoff'),
+      qualification: testEvidence(`qualification/${handoffText(request)}`),
+      record: testEvidence(`handoff-record/${handoffText(request)}`),
+      decision: {
+        kind: 'prepared',
+        message: candidateOf(request),
+        admission: testEvidence(`handoff/${handoffText(request)}`),
+      },
+    })
+  })
+  const lookup = scriptedMethod<
+    In<MessageHandoff<P>['lookup']>,
+    Outcome<HandoffResolution, Failure>
+  >(() => succeed({ kind: 'unknown', original: null }))
+  const exclude = scriptedMethod<
+    In<MessageHandoff<P>['exclude']>,
+    Outcome<HandoffResolution, Failure>
+  >(input =>
+    succeed({
+      kind: 'unknown',
+      original: {
+        request: input.request,
+        origin: null,
+        record: testEvidence(`handoff-record/${handoffText(input.request)}`),
+      },
+    }),
   )
-  return { port: { accept: accept.call }, accept: accept.script }
+  return {
+    port: { prepare: prepare.call, lookup: lookup.call, exclude: exclude.call },
+    prepare: prepare.script,
+    lookup: lookup.script,
+    exclude: exclude.script,
+  }
 }
 
 // ---------------------------------------------------------------------------------------------

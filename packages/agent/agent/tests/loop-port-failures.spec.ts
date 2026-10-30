@@ -235,10 +235,13 @@ const CASES: readonly Case[] = [
     d => journal(d, { commit: failing(d.journal.commit, fail(PORT_FAILURE), of('M3')) }),
   ],
   [
+    'Q1',
+    'handoff.prepare',
     'Q2',
-    'handoff.accept',
-    'M4',
-    d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(2)) } }),
+    d => ({
+      ...d,
+      handoff: { ...d.handoff, prepare: failing(d.handoff.prepare, fail(PORT_FAILURE), nth(2)) },
+    }),
   ],
   ['I8', 'journal.load', 'I8', d => journal(d, { load: failLoadAt(d, 'I8') })],
   ['F1', 'journal.load', 'F1', d => journal(d, { load: failLoadAt(d, 'F1') })],
@@ -283,8 +286,11 @@ describe('a port failure before open is the answer of invoke, and the slot is gi
       }),
     ],
     [
-      'handoff.accept at Q2',
-      d => ({ ...d, handoff: { accept: failing(d.handoff.accept, fail(PORT_FAILURE), nth(1)) } }),
+      'handoff.prepare at Q1',
+      d => ({
+        ...d,
+        handoff: { ...d.handoff, prepare: failing(d.handoff.prepare, fail(PORT_FAILURE), nth(1)) },
+      }),
     ],
     [
       'journal.open at E0',

@@ -16,7 +16,7 @@ PACKAGE_TEMPLATE_DRAFT
 | 纯契约函数已实现        | 本包没有。契约函数在 `agent-contract`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | 无                           | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | 独立执行已实现          | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | 无                           | 无                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | runtime 已实现的路径    | `createAgentRuntime` 的创建校验：配置七项越界或绑定字段非法返回 `invalid`（`field` 写配置项路径），登记句柄的 instance 与绑定不一致返回 `denied`，十项必需依赖缺席返回 `unavailable`（`diagnostic` 指名缺席的依赖），配置 `coordination` 与 Journal 绑定声明的 `capabilities.coordination` 不同，或 `jointCommits` 有一种未被 Journal 声明，返回 `unsupported`。失败时不创建 runtime，不调用任何依赖的方法。成功得到 idle 的 provider。访问守卫：四个面的每个公开操作先核对 Access 的租户：缺租户或租户不是 legal-identity 签发的 `TenantId` 时返回 `invalid`，跨租户返回 `denied`，都不调用 `access.check`。`observe` 例外：契约没有 `invalid` 的结束原因，缺租户或租户非法都以 `denied` 结束（见下文待拥有者一项），再调用一次 `access.check`，不缓存 allowed，`denied` 与 `unavailable` 不放行。`observe` 放行后给出当前状态，状态变化时给出新状态，signal 中止时以 `closed` 结束。`invoke` 与 `observe` 之外的操作放行后返回 `unavailable`，`diagnostic` 写「<操作> is not implemented until #502 stage N」：这是阶段性临时做法，不是契约结果 | 根入口                       | `tests/factory.spec.ts` 逐项核对四种创建失败与成功的 idle。`tests/provider-access.spec.ts` 对每个公开操作核对租户核对、`access.check` 三态与恰一次。`tests/assembly.spec.ts` 用测试装配得到 idle 的 provider，核对创建没有调用任何依赖。没有覆盖下面列出的未实现校验                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| Loop 正常路径与受理     | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。未支持的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择、I0 输入批、I1 准备、W0 等待与 R0 原操作对账已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 根入口                       | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`accept` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对 E1/E2/I1/M1 的端口失败保存等待，其余受测节点的端口失败使运行停止。`tests/loop-intake-prepare.spec.ts` 核对 I0/I1 与准备失败，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
+| Loop 正常路径与受理     | `invoke` 让一条输入走无工具、无扩展的正常路径，`open` 受理后返回句柄。Loop 随后自行推进到 ended。同一操作以同一输入再次 `invoke` 取回原句柄。已记住的操作配另一输入时，若原 execution 占槽则返回 `conflict`。槽被占用时，新操作返回 `busy`。未支持的结果使运行停止，停止的运行占住执行槽。E1/E2、恢复节点选择、I0 输入批、I1 准备、W0 等待与 R0 原操作对账已实现，见[恢复路由](#恢复路由)。步骤、图、受理、停止与槽的规则见 [Loop 正常路径](#loop-正常路径)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | 根入口                       | `tests/loop-transitions.spec.ts` 核对正常路径与节点表（C1），另核对 E1 的临时 `found-existing` 行。`tests/loop-evaluator.spec.ts` 核对评估器在 E4 与 I8 的决定、编码与正常路径之外的 `unsupported`，并以 500 个种子生成的 `LoopFacts` 核对同事实同结果、不改输入、每个步骤在表中有行（C1）。`tests/loop-invoke.spec.ts` 对脚本化 Model 与内存 Journal 走一条输入到 ended（C2），另核对受守卫的事件读取、多页回复与派生身份。`tests/loop-admission.spec.ts` 核对受理：同一操作再次调用（C1）、`prepare` 回执丢失（C2）、`busy` 与 R0 待查项，用例名以节点验收表的行号开头。`tests/loop-slot.spec.ts` 核对槽的释放、`observe` 与登记投影。`tests/loop-port-failures.spec.ts` 核对 E1/E2/I1/M1 的端口失败保存等待，其余受测节点的端口失败使运行停止。`tests/loop-intake-prepare.spec.ts` 核对 I0/I1 与准备失败，Journal 的 `position` 停在该节点。`tests/loop-recovery.spec.ts` 核对 E1/E2、纯恢复路由、原操作认回与保存等待。公开 resume 与唤醒没有用例 |
 | 主调用接缝              | I2/M0 在首次受理前固定原调用、最终请求与效果意图。M6 正常直接 admit，M1 等待 received，M3 读取完整材料并条件提交 producer。最终失败且无有效回复经 M4/M5/I3 形成 no-reply；部分失败不执行工具建议。Agent stream 与缺元数据的推理结果仍未支持，见[主调用与结果消费](#主调用与结果消费)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `invoke`；窄接续仅为内部入口 | `tests/loop-main-call.spec.ts` 核对原调用身份、受理回执丢失、原 Authority、M1 等待、在途输入、received 采用、独立 pusher ACK 与原调用恢复。`tests/loop-recovery.spec.ts` 保留真实提交点的 committed/excluded 矩阵。只用脚本化 Model 与内存 Journal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | 回复准入与 iter 收口 | I3 接纳事实、message 与接续同 revision。I4 保存空动作批。I8 选择 F1、新 step 或一次等待保存。 | `invoke`；测试直接 Journal.submit | `tests/loop-reply-close.spec.ts` 与 `tests/loop-recovery.spec.ts` 的原操作矩阵。仅脚本化 Model 与内存 Journal。 |
 | 终态出口 | F1 固定意图，F3 对账 changed、blocked 与未知结果。F4 保留观察台账，O0 不承接 Model ACK，E9 回 idle 保持登记。 | `invoke`；Journal 记录与内部协调者 | `tests/loop-terminal.spec.ts`：新输入竞争、原终结查询、custody、非空观察台账恢复与迟读事件。只覆盖同一内存 Journal。 |
@@ -33,7 +33,7 @@ runtime 受理一条输入，再推进 Loop 的正常路径。主调用也处理
 1. 过访问守卫。
 2. 槽被占用时，新的 `invoke` 返回 `busy`（见下文「受理」）。否则预约单执行槽。
 3. 经 `adoptions.resolve` 取绑定定义的评估器。采用了扩展时返回 `unavailable`（扩展属 #502 阶段 3）。
-4. 走 U0、Q1、Q2、Q4、U0、E0：`handoff.accept` 准入输入，`open` 受理 execution。
+4. 走 U0、Q1、Q2、Q4、U0、E0：`handoff.prepare` 固定输入的准入结果，`open` 带这份原始受理记录受理 execution。
 5. 返回句柄，不等 Loop 结束。
 
 Loop 随后自行推进：
@@ -43,7 +43,7 @@ Loop 随后自行推进：
 - E4 按下文的恢复路由选择去向。评估器处理输入边界与 I8 的决定。
 - I2 以契约的 `encodeModelInvocationRef` 编码主调用的 `ModelInvocationRef`，M0 在 M6 首次 admit 之前把它随 PendingCall、最终请求采用与效果意图一次保存。M6、M1、M3 经 `resolveModelInvocationRef` 从它读回调用身份。
 - 协调者受理 Model 调用，等待 Journal 后读取共同提交的 received 材料。ACK 由 Model 自己取得。
-- Q1 不提交（NA-Q1-1）。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次。被拒收的候选（Q5）尚未交付，当前以具名的 `unavailable` 停止。
+- 外部输入在 Q1 不写 P（NA-Q1-1）。模型回复在 `prepare` 之前先在 Q1 写 P：带 `handoff.prepare` 的提交把 `currentHandoff` 设为 H。候选的类型把来源与调用位置绑在一起：外部输入对应 U0，模型回复对应 I3。Q4 把每个接纳结果交回该位置一次。被拒收的外部输入由 `invoke` 返回 `invalid`（字段 `value`）。被拒收的模型回复在 Q5 写带 rejected 准入事实、不带消息的 Ja，I3 转 I8。
 - 句柄的 `output.read` 与 `output.events` 经守卫读 Journal 的事件。正常路径的事件为 input-taken、producer、message、ended，序号从 1 连续。
 
 下图是正常路径。粗边框的节点各写一次提交。Q1、Q2、Q4 走两次：一次在 `open` 之前准入输入，一次准入回复。菱形是决定点 E4 与 I8。
@@ -105,7 +105,7 @@ M1 等待同一 Journal 已提交的 received result。M3 读取完整 facts 材
 
 #### 回复准入与 iter 收口
 
-I3 读取 Journal 绑定的 received 结果。Q2 在同一 revision 提交 admitted 的 ModelReplyAdmission、message 事件与 Q4 接续。
+I3 读取 Journal 绑定的 received 结果。Q2 写 Ja：带 `handoff.resolve` 的提交在同一 revision 携带固定的准入结果、ModelReplyAdmission、message 事件与 Q4 接续，并清除 `currentHandoff`。
 Q4 回 I3 后关闭主调用，再进入 I4。回执保持原操作与原候选关联。
 Journal 回执未知时认回原操作。excluded 后重评不增加第二次逻辑回复。
 I4 在进入 I8 前保存完整空 ActionBatch。工具动作仍属后续阶段。
@@ -200,7 +200,7 @@ W0 在一次提交中保存 waiting 状态和一条 waiting 事件（J2）。
 | 同一操作，另一输入 | 已记住时返回 conflict，不查询 Journal，槽不变。首次受理尚未返回时答 busy，预约不变。 | 走 Journal 查找。原记录输入不同时返回 conflict。当前槽不变。 | 走 Journal 受理。原记录输入不同时返回 conflict，释放临时预约。                                                                                         | 操作与 execution 都匹配时查 R0。查询为 committed 或 excluded 后由 Journal 核对输入。预约见 [R0 重试](#r0-重试)。 |
 | 新操作             | Busy，槽不变。                                                                       | 走 Journal 查找。没有原记录时答 busy，当前槽不变。           | 走 Journal 受理。成功返回 handle，槽变为 running。失败释放预约。open 未知则保留 reserved。                                                             | 本 execution 答 busy。另一 execution 走 Journal 查找。原预约不变。                                               |
 
-Journal 查找先调用 `query`。查询为 committed 时复用幂等 `handoff.accept` 与 `open`，返回原句柄或端口结果。查询为 excluded 或 denied 时答 `busy`。其他失败原样返回。查询为 unknown 时返回带本次 invoke 操作身份的 `commit-unknown`。查找不预约槽，也不驱动原 execution。
+Journal 查找先调用 `query`。查询为 committed 时复用幂等 `handoff.prepare` 与 `open`，返回原句柄或端口结果。查询为 excluded 或 denied 时答 `busy`。其他失败原样返回。查询为 unknown 时返回带本次 invoke 操作身份的 `commit-unknown`。查找不预约槽，也不驱动原 execution。
 
 查找前，访问守卫已核对租户与主体资格。SPEC 第 61 行把对象「不存在」隐藏为 `denied`。这里将其读作没有原记录，新 invoke 遇到占用的槽，按 SPEC 646 答 `busy`。
 
@@ -216,9 +216,9 @@ E0 `open` 未知时留下 R0 待查项，包含操作与 execution 身份。只�
 
 受理前的 open 预约仍由调用方重试。执行内 W0/R0 等待不改变这个受理协议。
 
-Q2 `handoff.accept` 回执未知时，invoke 返回带本次操作身份的 `commit-unknown`。新受理此时尚无 execution，因此释放槽。同一操作再次调用即是查询。U0、Q2 以同一操作身份与同一候选再次调用 `accept`，取回原结果（#558 S-13）。
+外部输入在 Q1 的 `handoff.prepare` 回执未知时，invoke 返回带本次操作身份的 `commit-unknown`。新受理此时尚无 execution，因此释放槽。同一操作再次调用即是查询：U0 以同一请求再次调用 `prepare`，取回原结果。模型回复在 Q2 以 `lookup` 读回同一个 H；仍未知时以同一请求再次 `prepare`。
 
-这是阶段 1 对节点表「Q2 的 commit-unknown 转 R0，未定则等待」的读法。这次执行建立之前的受理由调用方重试。外部输入的接纳回执按 #558 S-13 不另存。
+这是阶段 1 对节点表「Q2 的 commit-unknown 转 R0，未定则等待」的读法。这次执行建立之前的受理由调用方重试。外部输入没有 P 与 Ja，它的真实受理是原 `open`（SPEC「消息准入」）。
 
 停止：
 
@@ -262,7 +262,7 @@ stateDiagram-v2
 - producer 事件由 M3 读取 received 完整材料后的一次条件提交承载。
 - input-taken 只由 I0 的提交承载；`open` 不写事件（同形清单第 7 条）。
 - standalone 绑定下 `recordResult.transfer` 可取 custody 或 processed，没有声明参加者，依据由提供者建立。Model 路径已使用 received 共同提交。
-- Q2 回执采用 [R0 重试](#r0-重试)中的阶段 1 读法。按 #558 S-13，以同一操作与同一候选再次调用 `accept` 即是查询。
+- 外部输入在 Q1 的回执采用 [R0 重试](#r0-重试)中的阶段 1 读法：以同一请求再次调用 `prepare` 即是查询。
 - E1 发现 Journal 修订号已超过原 open 回执时返回 `found-existing`。转移表正常结束本次协调，避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向。这是阶段 1 的读法。
 - 已 open 而修订号尚未推进的 execution，仍会由新 runtime 使用原 Authority 驱动。两个存活 runtime 因此可能同时驱动它。`attach` 围栏尚未交付。
 - 阶段 1 在 free、reserved、running 三种槽状态下，都不将同一操作换 execution 识别为同一次受理。槽空闲时可建立第二个执行。槽被占用时按现有路由处理，通常答 busy。识别这种复用需要跨 execution 的操作索引。索引属 Journal 提供者，不在阶段 1。
@@ -274,7 +274,7 @@ stateDiagram-v2
 - `commit` 与六个记录方法（`submit`、`control`、`acknowledge`、`recordResult`、`recordControl`、`recordTerminalObservation`）每建立一个新的 execution 事实推进恰好一个 revision。同操作的重试与没有变化的 commit 认回原回执或当前回执，不推进（同形清单第 6 条）。
 - standalone 绑定下 `recordResult.transfer` 为 custody 或 processed 时，提供者自行建立保管或完成依据。`commit.caller` 的非 none 种类没有声明时返回 `unsupported`，不保存任何部分。
 - `open` 与 `attach` 不追加事件。第一个事件来自之后的一次提交。
-- `control` 与 `recordControl` 按 SPEC [六个阶段](../agent-contract/SPEC.md#六个阶段)把阶段事实投影为 control 事件。同一阶段以同一依据在新的操作身份下再次登记时，认回原回执，不推进 revision，不重复投影。ended 之后，`recordControl` 只记录 producer-confirmed、physically-stopped、duty-released 且不投影事件；intent-established 与 qualification-revoked 返回 `terminal`。已 reached 的阶段配不同 state 或 source 再次登记时持久拒绝：审计推进一个 revision、不发事件，`query` 以原 conflict 回答 `rejected`。
+- `control` 与 `recordControl` 按 SPEC [六个阶段](../agent-contract/SPEC.md#六个阶段)把阶段事实投影为 control 事件。同一阶段以同一依据在新的操作身份下再次登记时，认回原回执，不推进 revision，不重复投影。ended 之后，`recordControl` 只记录 producer-confirmed、physically-stopped、duty-released 且不投影事件；intent-established 与 qualification-revoked 在该阶段没有 reached 事实时返回 `terminal`。与任一阶段已 reached 的事实矛盾的证据在 ended 之后也走下面的持久拒绝。已 reached 的阶段配不同 state 或 source 再次登记时持久拒绝：审计推进一个 revision、不发事件，`query` 以原 conflict 回答 `rejected`。
 - standalone 绑定对非空 grant 或输入来源写前返回 `unsupported`。coordinated 绑定在同一次写入内询问协调者钩子与参加者的编排响应：冲突在 `open`、`attach`、`submit` 上为 `denied`，在 `tryFinish` 上为 `changed`。
 
 下列做法仍是「临时做法，待 #558 裁定」（S3）：
@@ -307,7 +307,7 @@ stateDiagram-v2
 
 - 公开入口、导入图与清单依赖。
 - 工厂的四种创建失败与 idle，以及四个面的访问守卫。
-- 内存 Journal 的同形清单、三项临时做法及各替身的编排接口。
+- 内存 Journal 的同形清单、一项临时做法（`tryFinish` 的 blocked，S3）及各替身的编排接口。
 - 转移表、评估器与一条输入到 ended 的正常路径。
 - 主调用意图与固定请求的一次提交、原 reference 认回、最终失败、部分结果、received 采用与接收回执未知。
 - 缺原推理回放元数据时保留生产责任，以及 Read 的异常和关闭失败。

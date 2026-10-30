@@ -27,11 +27,11 @@ type Row = readonly [from: LoopNode, on: Label, to: LoopNode | null, source: Sou
 /** The normal path of #502 1.2 in path order, with the words of the node table that decide it. */
 const NORMAL_PATH: readonly Row[] = [
   ['U0', 'candidate', 'Q1', '如何返回', '转 Q1'],
-  ['Q1', 'valid', 'Q2', '如何返回', '合法转 Q2'],
-  ['Q2', 'accepted', 'Q4', '如何返回', 'accepted 转 Q4'],
+  ['Q1', 'prepared', 'Q2', '如何返回', 'prepared 转 Q2'],
+  ['Q2', 'resolved', 'Q4', '如何返回', '成功转 Q4'],
   ['Q4', 'return-U0', 'U0', '如何返回', '回固定调用位置：…U0'],
-  // The admission of the input leads into the acceptance of invoke.
-  ['U0', 'admitted', 'E0', '终止或进展条件', '接纳才进入可承接输入'],
+  // The admission of the input leads into the real acceptance of invoke at E0.
+  ['U0', 'admitted', 'E0', '终止或进展条件', '真实受理才进入可承接输入'],
   ['E0', 'authority', 'E1', '如何返回', '取得 Authority 转 E1'],
   ['E1', 'allowed', 'E2', '如何返回', '允许转 E2'],
   ['E2', 'reconciled', 'E4', '如何返回', '转 E4'],
@@ -112,6 +112,9 @@ describe('C1 the transition table follows the node table on the normal path', ()
       ['I1', 'try-finish', 'F1'],
       ['I3', 'try-finish', 'F1'],
       ['I3', 'partial', 'I8'],
+      ['I3', 'rejected', 'I8'],
+      ['Q1', 'rejected', 'Q5'],
+      ['Q5', 'disposed', 'Q4'],
       ['M6', 'wait', 'W0'],
       ['M1', 'wait', 'W0'],
       ...[
@@ -162,6 +165,15 @@ describe('C1 the transition table follows the node table on the normal path', ()
     expect(cell('I1', '如何返回')).toContain('cannot-fit 或已进入计划后再次 needs-compaction 转 F1')
   })
 
+  it('a rejected prepare goes to Q5, which returns through Q4; a rejected reply goes from I3 to I8', () => {
+    expect(successor('Q1', 'rejected')).toBe('Q5')
+    expect(cell('Q1', '如何返回')).toContain('rejected 转 Q5')
+    expect(successor('Q5', 'disposed')).toBe('Q4')
+    expect(cell('Q5', '如何返回')).toContain('转 Q4')
+    expect(successor('I3', 'rejected')).toBe('I8')
+    expect(cell('I3', '如何返回')).toContain('拒收转 I8')
+  })
+
   it('an outcome without a row has no successor, so the coordinator stops on it', () => {
     expect(successor('E4', 'stop')).toBeUndefined()
     expect(successor('Q2', 'wait')).toBeUndefined()
@@ -178,8 +190,8 @@ describe('C1 the transition table follows the node table on the normal path', ()
     // The outcomes of the one normal run, in order; the table alone must give the nodes.
     const outcomes: readonly Label[] = [
       'candidate',
-      'valid',
-      'accepted',
+      'prepared',
+      'resolved',
       'return-U0',
       'admitted',
       'authority',
@@ -200,8 +212,8 @@ describe('C1 the transition table follows the node table on the normal path', ()
       'proceed',
       'return-I3',
       'admit',
-      'valid',
-      'accepted',
+      'prepared',
+      'resolved',
       'return-I3',
       'admitted',
       'empty',

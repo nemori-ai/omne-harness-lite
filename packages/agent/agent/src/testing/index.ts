@@ -160,6 +160,10 @@ const DEFAULT_MODEL_INSTANCE = 'minst_agent-testing'
  * Builds a fresh, non-durable set of all 17 dependencies of `createAgentRuntime`, with the control
  * handle of each. `registration` is null. `models` is the runtime of the scripted Model provider of
  * `@omne-harness/model-contract/testing`. Two calls share no state.
+ *
+ * A test convenience, not a default of the factory: the Journal binding and the configuration both
+ * take `standalone` here unless `journal` says otherwise. `createAgentRuntime` itself compares the
+ * configuration with the declaration of the binding on every call (SPEC "协调绑定").
  */
 export function createTestAgentDependencies<P>(
   options: TestAgentDependenciesOptions<P> = {},

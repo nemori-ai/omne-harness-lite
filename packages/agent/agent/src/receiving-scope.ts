@@ -37,7 +37,7 @@ export async function qualify<P>(
     const allowed = await dependencies.access.check({
       access,
       operation: 'receive-result',
-      target: { kind: 'execution', instance: target.instance, execution: target.execution },
+      target: { kind: 'execution', execution: target.execution },
     })
     if (allowed.kind === 'denied') return fail(maintenanceDenied())
     if (allowed.kind === 'unavailable') return fail(maintenanceUnavailable('access'))

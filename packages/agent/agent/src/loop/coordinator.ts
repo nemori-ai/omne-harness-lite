@@ -10,8 +10,8 @@
 //
 // - 临时简化，1.3–1.9 按节点表收紧: every node from E3 on writes one commit when it ends, and the
 //   commit moves `position` to the next node. The exact commit points of the node table are not
-//   followed yet. Q1 never writes one (NA-Q1-1). Three groups write no commit: U0 to Q4 run before
-//   the execution exists; E1, E2 and
+//   followed yet. Q1 writes P for an internal source before it calls `prepare` (SPEC "消息准入");
+//   for the external input, U0 to Q4 run before the execution exists and write nothing; E1, E2 and
 //   E4 only read, because a commit there would overwrite the `position` that E4 reads (the initial
 //   E3); and after F3 the execution is ended, so F4, O0 and E9 use their own records only.
 // - #514: I2 is local; M0 commits PendingCall, the fixed request adoption and the effect together.
@@ -49,10 +49,16 @@ import type {
   Failure,
   FailureCandidate,
   FinishIntent,
+  HandoffChange,
+  HandoffOutcome,
   InputBatch,
+  InputHandoff,
+  InvokeRuntimeContext,
   LoopFacts,
   MessageSource,
   ModelContextRead,
+  OriginalInputAcceptance,
+  PendingHandoff,
   ModelReplyAdmission,
   Next,
   PendingCall,
@@ -69,8 +75,9 @@ import type { AgentDependencies, AgentRuntimeBinding } from '../construction.ts'
 import {
   AGENT_OWNER,
   agentEvidence,
+  handoffStage,
+  handoffOperation,
   invocationParts,
-  invokeOperation,
   journalOperation,
   mainAction,
   mainBatch,
@@ -147,6 +154,9 @@ type Write = Readonly<{
   events?: readonly CommitEvent[]
   effects?: readonly EffectIntent[]
   replyAdmission?: ModelReplyAdmission
+  handoff?: HandoffChange
+  /** The operation of the commit, when it is not the node's own; a Ja is derived from its H. */
+  operation?: AgentOperationId
 }>
 
 /** The outcome of one node and the commit it writes; `commit: null` writes no commit. */
@@ -154,17 +164,23 @@ type Step = Readonly<{ on: Label; commit: Write | null }>
 type Handler = () => Promise<Outcome<Step, Failure>>
 
 /**
- * A candidate that Q1 to Q4 admit, and the fixed call position that Q4 returns to. The type ties
- * each source to its call position (Q1): an external input to U0, a Model reply to I3.
+ * A candidate that Q1 to Q5 admit, and the fixed call position that Q4 returns to. The type ties
+ * each source to its call position (Q1): the external input of the invoke to U0, a Model reply to
+ * I3. The external request is complete before Q1; the internal request is fixed by Q1's P.
  */
-type Candidate = Readonly<{
-  candidate: Message
-  operation: (after: ExecutionRevision | null) => AgentOperationId
-}> &
-  (
-    | Readonly<{ source: Extract<MessageSource, { kind: 'external-input' }>; returnTo: 'U0' }>
-    | Readonly<{ source: Extract<MessageSource, { kind: 'model-reply' }>; returnTo: 'I3' }>
-  )
+type Candidate =
+  | Readonly<{
+      kind: 'external-input'
+      request: InputHandoff
+      runtime: InvokeRuntimeContext
+      returnTo: 'U0'
+    }>
+  | Readonly<{
+      kind: 'model-reply'
+      source: Extract<MessageSource, { kind: 'model-reply' }>
+      candidate: Message
+      returnTo: 'I3'
+    }>
 
 /** The facts of one iteration, filled as its nodes run. Each field is set by the node named. */
 type Iteration = {
@@ -340,7 +356,11 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   let facts: LoopFacts | null = null
   let decided: Next | null = null
   let candidate: Candidate | null = null
-  let admission: DurableEvidence | null = null
+  // The admission in progress: the internal request P fixed and the outcome `prepare` returned.
+  let pendingHandoff: PendingHandoff | null = null
+  let outcome: HandoffOutcome | null = null
+  // The acceptance of the external input that U0 admitted, which E0 hands to `open`.
+  let acceptance: OriginalInputAcceptance | null = null
   let iteration: Iteration | null = null
   let intent: FinishIntent | null = null
   // Only the identity and original node of this coordinator's uncertain conditional commit.
@@ -380,7 +400,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     const committed = await ports.journal.commit({
       ...access,
       execution,
-      operation: journalOperation(node, 'commit', after),
+      operation: write.operation ?? journalOperation(node, 'commit', after),
       authority: required(authority, 'authority'),
       expected: after,
       checkpoint: next,
@@ -389,6 +409,7 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       effects: write.effects ?? [],
       caller: { kind: 'none' },
       replyAdmission: write.replyAdmission ?? null,
+      handoff: write.handoff ?? null,
     })
     if ('failure' in committed) {
       if (committed.failure.kind === 'changed') {
@@ -582,64 +603,222 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   }
 
   // ------------------------------------------------------------------------------------------
-  // admitMessage: U0, Q1, Q2, Q4 (Q5 is #502 4.1)
+  // admitMessage: U0, Q1, Q2, Q4, Q5 (SPEC "消息准入"; the Q5 of H0, T5, C3 and X5 comes with them)
+
+  /** The runtime context of this invoke: the real instance, scope, definition and grant. */
+  const runtimeContext: InvokeRuntimeContext = {
+    instance: binding.instance,
+    scope: binding.scope,
+    definition: binding.definition,
+    grant: entry.grant,
+  }
+
+  /** The stable source position of the main reply of one step: the return position I3. */
+  function replyPosition(step: StepId): PendingHandoff['position'] {
+    return { step, node: 'I3', slot: null }
+  }
+
+  /** The handoff record of the main reply of `step` in the latest snapshot, if P saved one. */
+  function replyRecord(step: StepId, call: M.ModelCallId) {
+    return required(snapshot, 'snapshot').handoffs.find(
+      record =>
+        record.request.kind === 'execution' &&
+        record.request.source.kind === 'model-reply' &&
+        record.request.source.call === call &&
+        canonical(record.request.position) === canonical(replyPosition(step)),
+    )
+  }
+
+  /** The outcome of a resolution the Journal recorded, or `undefined` when it holds none. */
+  function recordedOutcome(
+    resolution: ExecutionSnapshot['handoffs'][number]['resolution'],
+  ): HandoffOutcome | undefined {
+    return resolution?.kind === 'recorded' ? resolution.outcome : undefined
+  }
+
+  /** The Ja of the current model reply: the resolve commit with the admission fact of the reply. */
+  function replyApplication(
+    request: PendingHandoff,
+    fixed: HandoffOutcome,
+    source: Extract<MessageSource, { kind: 'model-reply' }>,
+  ): Write {
+    const decision = fixed.decision
+    const basis = decision.kind === 'prepared' ? decision.admission : decision.evidence
+    return {
+      checkpoint: { currentHandoff: null },
+      events:
+        decision.kind === 'prepared'
+          ? [{ kind: 'message', message: decision.message, source: decision.admission }]
+          : [],
+      replyAdmission: {
+        step: source.step,
+        action: source.action,
+        call: source.call,
+        resultVersion: source.result.version,
+        decision: decision.kind === 'prepared' ? 'admitted' : 'rejected',
+        source: basis,
+      },
+      handoff: { kind: 'resolve', outcome: fixed },
+      operation: handoffStage(request.reference.operation, 'resolve'),
+    }
+  }
 
   const admitMessage = {
-    /** U0: the input of invoke becomes a candidate; once admitted it goes to E0. */
+    /**
+     * U0: the input of invoke becomes the external request of this entry; once the provider
+     * prepared it, the real acceptance is E0's `open` (SPEC "消息准入": the external input is
+     * published by the original open). A rejected input returns to the caller from Q5.
+     */
     async U0() {
-      if (admission === null) {
+      if (outcome === null) {
+        const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
+        if ('failure' in initial) return initial
+        const inputEntry = {
+          kind: 'invoke' as const,
+          operation: entry.operation,
+          execution,
+          initial: entry.initial,
+          checkpoint: initial.ok,
+        }
         candidate = {
-          source: { kind: 'external-input', input: entry.initial.id },
-          candidate: entry.initial.content,
-          operation: () => invokeOperation(entry.operation, 'Q2'),
+          kind: 'external-input',
+          request: {
+            kind: 'input',
+            reference: {
+              kind: 'input',
+              execution,
+              entry: entry.operation,
+              input: entry.initial.id,
+            },
+            entry: inputEntry,
+            source: { kind: 'external-input', input: entry.initial.id },
+          },
+          runtime: runtimeContext,
           returnTo: 'U0',
         }
         return step('candidate', null)
       }
-      admission = null
+      if (candidate?.kind !== 'external-input') return fail(defect('U0 without its candidate'))
+      acceptance = {
+        entry: candidate.request.entry,
+        handoff: candidate.request.reference,
+        outcome,
+      }
+      outcome = null
       candidate = null
       return step('admitted', null)
     },
     /**
-     * Q1: a candidate whose source fits its call position (the type of Candidate ensures it) goes
-     * straight to Q2, with no commit. The lawfulness checks that reject to Q5 are #502 4.1.
+     * Q1: the internal request is fixed by P before anything else (SPEC "消息准入"): the commit
+     * with `handoff.prepare` sets `currentHandoff` to H. Then `prepare` fixes the admission
+     * result; prepared goes to Q2, rejected to Q5. The external input writes no P.
      */
     async Q1() {
-      return step('valid', null)
+      const subject = required(candidate, 'candidate')
+      if (subject.kind === 'external-input') {
+        const fixed = await ports.handoff.prepare({
+          ...access,
+          kind: 'invoke',
+          request: subject.request,
+          runtime: subject.runtime,
+        })
+        if ('failure' in fixed) return fixed
+        outcome = fixed.ok
+        return step(fixed.ok.decision.kind, null)
+      }
+      const current = required(iteration, 'iteration')
+      const existing = replyRecord(current.step, subject.source.call)
+      let request: PendingHandoff
+      if (existing?.request.kind === 'execution') {
+        // P already holds this reply: the same H continues (SPEC "准入的恢复切点").
+        request = existing.request
+      } else {
+        const predecessor = required(revision, 'revision')
+        const position = replyPosition(current.step)
+        request = {
+          kind: 'execution',
+          reference: {
+            kind: 'execution',
+            execution,
+            operation: handoffOperation('model-reply', position, predecessor),
+          },
+          predecessor,
+          position,
+          source: subject.source,
+          candidate: subject.candidate,
+          originalAdvance: required(authority, 'authority'),
+          predecessorHandoff: null,
+        }
+        const prepared = await commit('Q1', 'Q2', {
+          checkpoint: { currentHandoff: request.reference },
+          handoff: { kind: 'prepare', request },
+          operation: handoffStage(request.reference.operation, 'prepare'),
+        })
+        if ('failure' in prepared) return prepared
+      }
+      pendingHandoff = request
+      const fixed = await ports.handoff.prepare({
+        ...access,
+        kind: 'execution',
+        request,
+        advance: required(authority, 'authority'),
+      })
+      if ('failure' in fixed) return fixed
+      outcome = fixed.ok
+      return step(fixed.ok.decision.kind, null)
     },
-    /** Q2: MessageHandoff.accept; the main reply's admission fact goes with the commit. */
+    /**
+     * Q2: the Ja of an internal source commits the fixed outcome with the real history in one
+     * conditional commit and clears `currentHandoff`. After a lost receipt the same H is read back
+     * with `lookup`, or prepared again with the same request when it is still unknown. The
+     * external input has its real acceptance at E0.
+     */
     async Q2() {
       const subject = required(candidate, 'candidate')
-      const accepted = await ports.handoff.accept({
-        ...access,
-        execution,
-        operation: subject.operation(revision),
-        advance: authority,
-        source: subject.source,
-        candidate: subject.candidate,
-      })
-      if ('failure' in accepted) return accepted
-      if (accepted.ok.kind !== 'accepted')
-        return fail(notYet('Q2', 'a rejected candidate', 'Q5 (#502 4.1 and 1.7)'))
-      admission = accepted.ok.admission
-      if (subject.source.kind !== 'model-reply') return step('accepted', null)
-      const { step: of, action, call, result } = subject.source
-      return step('accepted', {
-        events: [{ kind: 'message', message: subject.candidate, source: admission }],
-        replyAdmission: {
-          step: of,
-          action,
-          call,
-          resultVersion: result.version,
-          decision: 'admitted',
-          source: admission,
-        },
-      })
+      if (subject.kind === 'external-input') return step('resolved', null)
+      const request = required(pendingHandoff, 'pending handoff')
+      if (outcome === null) {
+        const found = await ports.handoff.lookup({
+          ...access,
+          kind: 'execution',
+          execution,
+          handoff: request.reference,
+        })
+        if ('failure' in found) return found
+        if (found.ok.kind === 'excluded')
+          return fail(notYet('Q2', 'an excluded handoff (retire)', '#502 stage 5'))
+        if (found.ok.kind === 'recorded') outcome = found.ok.outcome
+        else {
+          const fixed = await ports.handoff.prepare({
+            ...access,
+            kind: 'execution',
+            request,
+            advance: required(authority, 'authority'),
+          })
+          if ('failure' in fixed) return fixed
+          outcome = fixed.ok
+        }
+      }
+      return step('resolved', replyApplication(request, outcome, subject.source))
     },
     /** Q4: back to the fixed call position of the source, once; nothing is retried. */
     async Q4() {
       const subject = required(candidate, 'candidate')
       return step(`return-${subject.returnTo}`, authority === null ? null : {})
+    },
+    /**
+     * Q5: the rejected result by source. The external input returns the rejection to the caller
+     * of invoke as invalid; the model reply saves its rejected admission fact with the Ja and no
+     * history (SPEC "消息准入", the source table).
+     */
+    async Q5() {
+      const subject = required(candidate, 'candidate')
+      const fixed = required(outcome, 'outcome')
+      if (fixed.decision.kind !== 'rejected') return fail(defect('Q5 without a rejected outcome'))
+      if (subject.kind === 'external-input')
+        return fail({ kind: 'invalid', field: 'value', reason: fixed.decision.reason })
+      const request = required(pendingHandoff, 'pending handoff')
+      return step('disposed', replyApplication(request, fixed, subject.source))
     },
   } satisfies Partial<Record<LoopNode, Handler>>
 
@@ -647,23 +826,21 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   // runExecution: E0, E1, E2, E3, E4, O0, E9
 
   const runExecutionNodes = {
-    /** E0: `open` saves the input and the initial checkpoint and grants the attachment. */
+    /** E0: `open` saves the original acceptance with the runtime context and grants the attachment. */
     async E0() {
-      const initial = evaluator.initial({ definition: binding.definition, step: stepOf(0) })
-      if ('failure' in initial) return initial
+      const original = required(acceptance, 'acceptance')
       const opened = await ports.journal.open({
         ...access,
         execution,
         operation: entry.operation,
-        instance: binding.instance,
-        grant: entry.grant,
-        initial: entry.initial,
-        checkpoint: initial.ok,
+        original,
+        runtime: runtimeContext,
       })
       if ('failure' in opened) return opened
       authority = opened.ok.authority
       revision = opened.ok.receipt.revision
-      checkpoint = initial.ok
+      checkpoint = original.entry.kind === 'invoke' ? original.entry.checkpoint : null
+      if (checkpoint === null) return fail(defect('E0 without the invoke entry'))
       return step('authority', null)
     },
     /**
@@ -948,31 +1125,42 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         return step('try-finish', null)
       }
       if (result.kind === 'partial') return step('partial', { checkpoint: { calls: [] } })
-      if (admission === null) {
-        const pending = required(current.pending, 'pending call')
-        const produced = result.produced
-        candidate = {
-          source: {
+      const pending = required(current.pending, 'pending call')
+      const call = invocationParts(pending.reference, access.tenant).call
+      if (outcome === null) {
+        // A reply whose Ja already committed is not admitted again (SPEC "消息准入": one H has
+        // at most one history application); one whose P is pending continues through Q1.
+        const record = replyRecord(current.step, call)
+        if (record !== undefined && record.history.kind !== 'pending') {
+          const fixed = recordedOutcome(record.resolution)
+          if (fixed === undefined) return fail(defect('I3: an applied reply without its outcome'))
+          outcome = fixed
+        } else {
+          candidate = {
             kind: 'model-reply',
-            step: current.step,
-            action: current.action,
-            call: invocationParts(pending.reference, access.tenant).call,
-            result: produced,
-          },
-          candidate: result.reply,
-          operation: after => journalOperation('Q2', 'handoff', after),
-          returnTo: 'I3',
+            source: {
+              kind: 'model-reply',
+              step: current.step,
+              action: current.action,
+              call,
+              result: result.produced,
+            },
+            candidate: result.reply,
+            returnTo: 'I3',
+          }
+          return step('admit', null)
         }
-        return step('admit', null)
       }
+      const decision = outcome.decision.kind
+      outcome = null
+      candidate = null
+      pendingHandoff = null
       // Keep the admitted reply until this conditional commit is known to hold. An excluded
       // I3 commit must re-evaluate the same admission rather than admit the reply a second time.
-      return step('admitted', { checkpoint: { calls: [] } })
+      return step(decision === 'prepared' ? 'admitted' : 'rejected', { checkpoint: { calls: [] } })
     },
     /** I4: the tool call parts of the admitted reply. Actions are #502 stage 2. */
     async I4() {
-      admission = null
-      candidate = null
       const result = required(required(iteration, 'iteration').result, 'model result')
       if (result.kind !== 'reply') return fail(defect('I4 without a complete reply'))
       const reply = result.reply

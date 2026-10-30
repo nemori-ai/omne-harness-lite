@@ -14,13 +14,19 @@ import {
   type Adoption,
   type AgentCheckpoint,
   type AgentExecutionId,
+  type AgentInstanceId,
   type AgentJournal,
+  type AgentOperationId,
   type Authority,
   type CommandReceipt,
   type DurableEvidence,
   type ExecutionSnapshot,
+  type HandoffOutcome,
+  type InvokeRuntimeContext,
   type JournalCommit,
+  type JournalSubmitLineage,
   type ModelReplyAdmission,
+  type OriginalInputAcceptance,
   type Passage,
   type ProducedResult,
 } from '@omne-harness/agent-contract'
@@ -105,6 +111,137 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     guard: null,
     completedPassages: [],
     priorConditions: null,
+    currentHandoff: null,
+  }
+}
+
+/** The prepared outcome that the test's admission provider fixed for one external entry. */
+function preparedOutcome(
+  request: Extract<HandoffOutcome['request'], { kind: 'input' }>,
+  origin: HandoffOutcome['origin'],
+): HandoffOutcome {
+  const entry = request.entry
+  const value = entry.kind === 'invoke' ? entry.initial : entry.value
+  return {
+    request,
+    origin,
+    provider: adoption('message-handoff'),
+    qualification: evidence(`qualification/${entry.operation}`),
+    record: evidence(`handoff/${entry.operation}`),
+    decision: {
+      kind: 'prepared',
+      message: value.content,
+      admission: evidence(`admission/${entry.operation}`),
+    },
+  }
+}
+
+/** The runtime context of an invoke: the test instance, scope and definition, and the grant. */
+export function runtimeContext(
+  instanceId: AgentInstanceId = instance(),
+  grant: DurableEvidence | null = null,
+): InvokeRuntimeContext {
+  return {
+    instance: instanceId,
+    scope: evidence('scope'),
+    definition: adoption('definition'),
+    grant,
+  }
+}
+
+/** The original acceptance of one invoke, as `open` receives it: the entry, its H and the prepared outcome. */
+export function invokeAcceptance(
+  id: AgentExecutionId,
+  op: AgentOperationId,
+  initial: AcceptedInput,
+  initialCheckpoint: AgentCheckpoint = checkpoint(),
+  runtime: InvokeRuntimeContext = runtimeContext(),
+): OriginalInputAcceptance {
+  const entry = {
+    kind: 'invoke' as const,
+    operation: op,
+    execution: id,
+    initial,
+    checkpoint: initialCheckpoint,
+  }
+  const handoff = { kind: 'input' as const, execution: id, entry: op, input: initial.id }
+  return {
+    entry,
+    handoff,
+    outcome: preparedOutcome(
+      {
+        kind: 'input',
+        reference: handoff,
+        entry,
+        source: { kind: 'external-input', input: initial.id },
+      },
+      { kind: 'invoke', ...runtime },
+    ),
+  }
+}
+
+/** The new-input lineage of one submit: the entry of this operation, its H and the prepared outcome. */
+export function newInput(
+  id: AgentExecutionId,
+  op: AgentOperationId,
+  value: AcceptedInput,
+): JournalSubmitLineage {
+  const entry = { kind: 'submit' as const, operation: op, execution: id, value }
+  const handoff = { kind: 'input' as const, execution: id, entry: op, input: value.id }
+  return {
+    kind: 'new-input',
+    original: {
+      entry,
+      handoff,
+      outcome: preparedOutcome(
+        {
+          kind: 'input',
+          reference: handoff,
+          entry,
+          source: { kind: 'external-input', input: value.id },
+        },
+        {
+          kind: 'submit',
+          executionBinding: evidence(`binding/${id}`),
+          delivery: { kind: 'durable-view' },
+        },
+      ),
+    },
+  }
+}
+
+type SubmitInput = Parameters<Journal['submit']>[0]
+type PlainSubmit = Omit<SubmitInput, 'lineage'> & Readonly<{ lineage?: JournalSubmitLineage }>
+
+/** A submit input with the new-input lineage of its own operation, unless one is given. */
+export function withLineage(input: PlainSubmit): SubmitInput {
+  const { lineage, ...rest } = input
+  return { ...rest, lineage: lineage ?? newInput(rest.execution, rest.operation, rest.value) }
+}
+
+type OpenInput = Parameters<Journal['open']>[0]
+type PlainOpen = Omit<OpenInput, 'original' | 'runtime'> &
+  Readonly<{
+    instance?: AgentInstanceId
+    grant?: DurableEvidence | null
+    initial?: AcceptedInput
+    checkpoint?: AgentCheckpoint
+  }>
+
+/** An open input from its plain parts: the acceptance of the invoke and the runtime context. */
+export function openInput(input: PlainOpen): OpenInput {
+  const { instance: instanceId, grant, initial, checkpoint: initialCheckpoint, ...rest } = input
+  const runtime = runtimeContext(instanceId ?? instance(), grant ?? null)
+  return {
+    ...rest,
+    original: invokeAcceptance(
+      rest.execution,
+      rest.operation,
+      initial ?? acceptedInput('input-1'),
+      initialCheckpoint ?? checkpoint(),
+      runtime,
+    ),
+    runtime,
   }
 }
 
@@ -164,15 +301,14 @@ export type Opened = Readonly<{
 /** Opens one execution on the independent path (null grant) and returns its first authority. */
 export async function open(journal: Journal, id = 'exec-1', initial = 'input-1'): Promise<Opened> {
   const opened = ok(
-    await journal.open({
-      ...access,
-      execution: execution(id),
-      operation: operation(`open-${id}`),
-      instance: instance(),
-      grant: null,
-      initial: acceptedInput(initial),
-      checkpoint: checkpoint(),
-    }),
+    await journal.open(
+      openInput({
+        ...access,
+        execution: execution(id),
+        operation: operation(`open-${id}`),
+        initial: acceptedInput(initial),
+      }),
+    ),
   )
   return { execution: execution(id), ...opened }
 }
@@ -200,6 +336,7 @@ export function commitAt(
     effects: [],
     caller: { kind: 'none' },
     replyAdmission: null,
+    handoff: null,
     ...overrides,
   }
 }

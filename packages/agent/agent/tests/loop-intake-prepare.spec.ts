@@ -20,6 +20,7 @@ import {
   ok,
   operation,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import { alice, eventsOf, invoke, loopAssembly, type LoopAssembly } from './loop-support.ts'
 
@@ -61,12 +62,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
           if (loads === 2) {
             for (const id of ['second', 'third'])
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation(id),
-                  value: acceptedInput(id),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation(id),
+                    value: acceptedInput(id),
+                  }),
+                ),
               )
           }
           return d.journal.load(input)
@@ -120,12 +123,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
             if (calls === 1) {
               before = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late'),
-                  value: acceptedInput('late'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late'),
+                    value: acceptedInput('late'),
+                  }),
+                ),
               )
               after = ok(await d.journal.load({ ...alice, execution: execution() })).checkpoint
             }
@@ -187,12 +192,14 @@ describe('I0 fixes one batch at a legal input boundary', () => {
     ok(await c.runExecution())
     before = (await snapshot(assembly)).checkpoint
     ok(
-      await assembly.dependencies.journal.submit({
-        ...alice,
-        execution: execution(),
-        operation: operation('live-input'),
-        value: acceptedInput('live-input'),
-      }),
+      await assembly.dependencies.journal.submit(
+        withLineage({
+          ...alice,
+          execution: execution(),
+          operation: operation('live-input'),
+          value: acceptedInput('live-input'),
+        }),
+      ),
     )
     after = (await snapshot(assembly)).checkpoint
     stopAtI8 = true
@@ -320,12 +327,14 @@ describe('I1 prepares at the fixed input boundary', () => {
             reads += 1
             if (reads === 1)
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late'),
-                  value: acceptedInput('late'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late'),
+                    value: acceptedInput('late'),
+                  }),
+                ),
               )
             return d.models.calls.admit(input)
           },

@@ -14,8 +14,8 @@ import {
 import { sampleStartFence } from '@omne-harness/agent-contract/testing'
 import * as toolReferences from '@omne-harness/tool-contract'
 import {
-  access,
   acceptedInput,
+  access,
   afterTerminalPassage,
   checkpoint,
   commitAt,
@@ -25,18 +25,21 @@ import {
   failure,
   finish,
   finishInput,
-  takeInputs,
   instance,
   load,
   modelCall,
+  newInput,
   ok,
   open,
+  openInput,
   operation,
   otherTenant,
   producedResult,
   replyAdmission,
+  takeInputs,
   type Journal,
   type Opened,
+  withLineage,
 } from './journal-support.ts'
 
 type MemoryOptions = Parameters<typeof createMemoryAgentJournal<string>>[0]
@@ -136,27 +139,31 @@ describe('fact 2: idempotence by original operation', () => {
     expect((await open(journal)).receipt).toEqual(opened.receipt)
     expect(
       failure(
-        await journal.open({
-          ...access,
-          execution: opened.execution,
-          operation: operation('open-exec-1'),
-          instance: instance(),
-          grant: null,
-          initial: acceptedInput('input-other'),
-          checkpoint: checkpoint(),
-        }),
+        await journal.open(
+          openInput({
+            ...access,
+            execution: opened.execution,
+            operation: operation('open-exec-1'),
+            instance: instance(),
+            grant: null,
+            initial: acceptedInput('input-other'),
+            checkpoint: checkpoint(),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('open-exec-1') })
 
-    const submit = {
+    const submit = withLineage({
       ...access,
       execution: opened.execution,
       operation: operation('submit-1'),
       value: acceptedInput('input-2'),
-    }
+    })
     const submitted = ok(await journal.submit(submit))
     expect(ok(await journal.submit(submit))).toEqual(submitted)
-    expect(failure(await journal.submit({ ...submit, value: acceptedInput('input-3') }))).toEqual({
+    expect(
+      failure(await journal.submit(withLineage({ ...submit, value: acceptedInput('input-3') }))),
+    ).toEqual({
       kind: 'conflict',
       operation: submit.operation,
     })
@@ -486,23 +493,27 @@ describe('fact 4: four conclusions of query', () => {
 
     journal.failNext('submit', { kind: 'commit-unknown', outcome: 'pending' })
     failure(
-      await journal.port.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('pending'),
-        value: acceptedInput('input-2'),
-      }),
+      await journal.port.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('pending'),
+          value: acceptedInput('input-2'),
+        }),
+      ),
     )
     expect(ok(await query('pending'))).toEqual({ kind: 'unknown' })
 
     journal.failNext('submit', { kind: 'commit-unknown', outcome: 'dropped' })
     failure(
-      await journal.port.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('dropped'),
-        value: acceptedInput('input-3'),
-      }),
+      await journal.port.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('dropped'),
+          value: acceptedInput('input-3'),
+        }),
+      ),
     )
     const excluded = ok(await query('dropped'))
     expect(excluded.kind).toBe('excluded')
@@ -710,6 +721,7 @@ describe('fact 6: revision', () => {
         'entries',
         'execution',
         'executionAttachment',
+        'handoffs',
         'history',
         'inputWatermark',
         'output',
@@ -860,23 +872,27 @@ describe('fact 8: inputs', () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit'),
-        value: acceptedInput('input-2', 'second'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit'),
+          value: acceptedInput('input-2', 'second'),
+        }),
+      ),
     )
     const watermark = (await load(journal, opened.execution)).inputWatermark
 
     const first = ok(await journal.inputs({ ...access, execution: opened.execution, watermark }))
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-3'),
-        value: acceptedInput('input-3'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-3'),
+          value: acceptedInput('input-3'),
+        }),
+      ),
     )
     const second = ok(await journal.inputs({ ...access, execution: opened.execution, watermark }))
 
@@ -892,30 +908,40 @@ describe('fact 8: inputs', () => {
     const { port: journal } = memory()
     const opened = await open(journal)
     const value = acceptedInput('input-2', 'second')
+    const lineage = newInput(opened.execution, operation('submit-a'), value)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-a'),
-        value,
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-a'),
+          value,
+          lineage,
+        }),
+      ),
     )
+    // The second operation recognizes the acceptance of the first (SPEC "消息准入", recognize-input).
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('submit-b'),
-        value,
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('submit-b'),
+          value,
+          lineage: { kind: 'recognize-input', original: lineage.original },
+        }),
+      ),
     )
     expect(
       failure(
-        await journal.submit({
-          ...access,
-          execution: opened.execution,
-          operation: operation('submit-c'),
-          value: acceptedInput('input-2', 'changed'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('submit-c'),
+            value: acceptedInput('input-2', 'changed'),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'conflict', operation: operation('submit-c') })
     const watermark = (await load(journal, opened.execution)).inputWatermark
@@ -989,19 +1015,21 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     })
   const openWith = (
     journal: Journal,
-    overrides: Partial<Parameters<Journal['open']>[0]> = {},
+    overrides: Partial<Parameters<typeof openInput>[0]> = {},
     name = 'exec-1',
   ) =>
-    journal.open({
-      ...access,
-      execution: execution(name),
-      operation: operation(`open-${name}`),
-      instance: instance(),
-      grant: null,
-      initial: acceptedInput('input-1'),
-      checkpoint: checkpoint(),
-      ...overrides,
-    })
+    journal.open(
+      openInput({
+        ...access,
+        execution: execution(name),
+        operation: operation(`open-${name}`),
+        instance: instance(),
+        grant: null,
+        initial: acceptedInput('input-1'),
+        checkpoint: checkpoint(),
+        ...overrides,
+      }),
+    )
   /** The attachment of an execution opened through `openWith`, as `finish` and `takeInputs` need it. */
   async function attachmentOf(journal: Journal, name = 'exec-1'): Promise<Opened> {
     const snapshot = await load(journal, execution(name))
@@ -1037,12 +1065,14 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
     const before = await load(journal.port, opened.execution)
     expect(
       failure(
-        await journal.port.submit({
-          ...access,
-          execution: opened.execution,
-          operation: operation('submit'),
-          value: { ...acceptedInput('input-2'), source: evidence('source') },
-        }),
+        await journal.port.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('submit'),
+            value: { ...acceptedInput('input-2'), source: evidence('source') },
+          }),
+        ),
       ),
     ).toEqual({ kind: 'unsupported' })
     expect(
@@ -1118,14 +1148,18 @@ describe('Q2: the coordination mode of the binding (SPEC 提交参加者协议)'
         initial: { ...acceptedInput('input-1'), source: evidence('source') },
       }),
     )
-    const submit = {
+    const submit = withLineage({
       ...access,
       execution: execution(),
       operation: operation('submit'),
       value: acceptedInput('input-2'),
-    }
+    })
     expect(failure(await journal.port.submit(submit))).toEqual({ kind: 'denied', action: 'submit' })
-    const sourced = { ...submit, value: { ...submit.value, source: evidence('source-2') } }
+    const { lineage: _lineage, ...plain } = submit
+    const sourced = withLineage({
+      ...plain,
+      value: { ...plain.value, source: evidence('source-2') },
+    })
     journal.respond('submit', 'conflict')
     expect(failure(await journal.port.submit(sourced))).toEqual({
       kind: 'denied',
@@ -1294,12 +1328,14 @@ describe('fact 10: the one terminal commit', () => {
     const opened = await open(journal)
     const snapshot = await load(journal, opened.execution)
     ok(
-      await journal.submit({
-        ...access,
-        execution: opened.execution,
-        operation: operation('late-input'),
-        value: acceptedInput('input-2'),
-      }),
+      await journal.submit(
+        withLineage({
+          ...access,
+          execution: opened.execution,
+          operation: operation('late-input'),
+          value: acceptedInput('input-2'),
+        }),
+      ),
     )
     const current = await load(journal, opened.execution)
     const result = ok(
@@ -1761,11 +1797,11 @@ describe('fact 14: denied', () => {
       initial: { ...acceptedInput('input-1'), source: evidence('source') },
       checkpoint: checkpoint(),
     }
-    expect(failure(await strict.open({ ...input, grant: null }))).toEqual({
+    expect(failure(await strict.open(openInput({ ...input, grant: null })))).toEqual({
       kind: 'denied',
       action: 'open',
     })
-    expect(failure(await strict.open({ ...input, grant: evidence('grant') }))).toEqual({
+    expect(failure(await strict.open(openInput({ ...input, grant: evidence('grant') })))).toEqual({
       kind: 'denied',
       action: 'open',
     })
@@ -1778,15 +1814,17 @@ describe('fact 14: denied', () => {
       coordinator: { grant: input => input.grant.record === 'good', source: () => true },
     })
     const opened = ok(
-      await journal.open({
-        ...access,
-        execution: execution(),
-        operation: operation('open'),
-        instance: instance(),
-        grant: evidence('good'),
-        initial: { ...acceptedInput('input-1'), source: evidence('source') },
-        checkpoint: checkpoint(),
-      }),
+      await journal.open(
+        openInput({
+          ...access,
+          execution: execution(),
+          operation: operation('open'),
+          instance: instance(),
+          grant: evidence('good'),
+          initial: { ...acceptedInput('input-1'), source: evidence('source') },
+          checkpoint: checkpoint(),
+        }),
+      ),
     )
     const before = await load(journal, execution())
     expect(
@@ -1847,12 +1885,14 @@ describe('fact 14: denied', () => {
     )
     expect(
       failure(
-        await journal.submit({
-          ...otherTenant,
-          execution: opened.execution,
-          operation: operation('s'),
-          value: acceptedInput('x'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...otherTenant,
+            execution: opened.execution,
+            operation: operation('s'),
+            value: acceptedInput('x'),
+          }),
+        ),
       ).kind,
     ).toBe('denied')
   })
@@ -1874,15 +1914,12 @@ describe('fact 14: denied', () => {
     expect(missing).toEqual(existing)
 
     journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
-    const pendingOpen = {
+    const pendingOpen = openInput({
       ...access,
       execution: execution('exec-pending'),
       operation: operation('open-pending'),
-      instance: instance(),
-      grant: null,
       initial: acceptedInput('input-1'),
-      checkpoint: checkpoint(),
-    }
+    })
     failure(await journal.port.open(pendingOpen))
     const query = { execution: pendingOpen.execution, operation: pendingOpen.operation }
     expect(ok(await journal.port.query({ ...access, ...query }))).toEqual({ kind: 'unknown' })
@@ -1932,12 +1969,14 @@ describe('fact 14: denied', () => {
       initial: acceptedInput('input-1'),
       checkpoint: checkpoint(),
     }
-    expect(failure(await journal.open({ ...input, tenant: { ...access.tenant } }))).toEqual({
+    expect(
+      failure(await journal.open(openInput({ ...input, tenant: { ...access.tenant } }))),
+    ).toEqual({
       kind: 'denied',
       action: 'open',
     })
     // The minted tenant opens the same identity as a first open, not as a recognition or conflict.
-    const opened = ok(await journal.open(input))
+    const opened = ok(await journal.open(openInput(input)))
     expect(opened.authority.generation).toBe('1')
     expect((await load(journal, input.execution)).revision).toBe(opened.receipt.revision)
   })
@@ -1959,12 +1998,14 @@ describe('fact 15: terminal', () => {
     expect(failure(await takeover(journal, opened))).toEqual({ kind: 'terminal' })
     expect(
       failure(
-        await journal.submit({
-          ...access,
-          execution: opened.execution,
-          operation: operation('late'),
-          value: acceptedInput('input-9'),
-        }),
+        await journal.submit(
+          withLineage({
+            ...access,
+            execution: opened.execution,
+            operation: operation('late'),
+            value: acceptedInput('input-9'),
+          }),
+        ),
       ),
     ).toEqual({ kind: 'terminal' })
     expect(
@@ -2095,12 +2136,12 @@ describe('facts 6, 7, 9, 11 and 17 as #558 decided them', () => {
       checkpoint: checkpoint('F2', [passage]),
     })
     expect(await advances(() => journal.commit(commit))).toEqual([1, 0])
-    const submit = {
+    const submit = withLineage({
       ...access,
       execution: opened.execution,
       operation: operation('submit'),
       value: acceptedInput('input-2'),
-    }
+    })
     expect(await advances(() => journal.submit(submit))).toEqual([1, 0])
     const control = {
       ...access,

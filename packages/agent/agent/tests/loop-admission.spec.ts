@@ -8,7 +8,7 @@ import { createAgentRuntime, type AgentDependencies } from '@omne-harness/agent'
 import type {
   AgentExecutionHandle,
   AgentState,
-  HandoffResult,
+  HandoffOutcome,
   JournalCommit,
   MessageHandoff,
 } from '@omne-harness/agent-contract'
@@ -29,20 +29,22 @@ import {
   eventually,
   eventsOf,
   gate,
+  handoffOperationOf,
   invoke,
   loopAssembly,
   shown,
   stoppedAt,
   type LoopAssembly,
+  commitNodeOf,
 } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
-type AcceptInput = Parameters<MessageHandoff<Principal>['accept']>[0]
+type PrepareInput = Parameters<MessageHandoff<Principal>['prepare']>[0]
 
-/** The port calls of one assembly in order, and what `accept` was given and answered. */
+/** The port calls of one assembly in order, and what `prepare` was given and answered. */
 type Record = {
   log: string[]
-  accepts: { input: AcceptInput; result: Outcome<HandoffResult, unknown> }[]
+  prepares: { input: PrepareInput; result: Outcome<HandoffOutcome, unknown> }[]
   commits: JournalCommit<Principal>[]
 }
 
@@ -52,10 +54,11 @@ function recording(record: Record) {
     return {
       ...dependencies,
       handoff: {
-        async accept(input) {
-          record.log.push(`accept ${input.source.kind}`)
-          const result = await handoff.accept(input)
-          record.accepts.push({ input, result })
+        ...handoff,
+        async prepare(input) {
+          record.log.push(`prepare ${input.request.source.kind}`)
+          const result = await handoff.prepare(input)
+          record.prepares.push({ input, result })
           return result
         },
       },
@@ -74,7 +77,7 @@ function recording(record: Record) {
           return journal.load(input)
         },
         commit(input) {
-          record.log.push(`commit ${input.operation.split('/')[0] ?? ''}`)
+          record.log.push(`commit ${commitNodeOf(input.operation)}`)
           record.commits.push(input)
           return journal.commit(input)
         },
@@ -86,7 +89,7 @@ function recording(record: Record) {
 async function recorded(
   executions: readonly string[] = ['exec-1', 'exec-2'],
 ): Promise<LoopAssembly & { record: Record }> {
-  const record: Record = { log: [], accepts: [], commits: [] }
+  const record: Record = { log: [], prepares: [], commits: [] }
   const assembly = await loopAssembly(executions.map(execution), recording(record))
   return { ...assembly, record }
 }
@@ -121,47 +124,72 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
   })
 
-  it('NA-Q1-1: Q1 passes a lawful candidate straight to Q2, with no call and no commit between', async () => {
+  it('NA-Q1-1: the external input has no P; the Model reply has exactly its P between the producer commit and prepare', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
     const { log, commits } = assembly.record
-    // The external input: accept, then open. The Model reply: the M3 producer commit, then accept.
-    expect(log.slice(0, 2)).toEqual(['accept external-input', 'open'])
-    const reply = log.indexOf('accept model-reply')
-    // I3 reads the Journal-bound processed material before Q1. No new write or extension call
-    // intervenes between the producer commit and this reply admission.
+    // The external input: prepare, then open; no P. The Model reply: the M3 producer commit, the
+    // P of Q1 (SPEC "消息准入": P fixes H before prepare), then prepare.
+    expect(log.slice(0, 2)).toEqual(['prepare external-input', 'open'])
+    const reply = log.indexOf('prepare model-reply')
     expect(
       log
         .slice(0, reply)
         .filter(item => item.startsWith('commit '))
-        .at(-1),
-    ).toBe('commit M3')
-    expect(commits.map(commit => commit.operation.split('/')[0])).not.toContain('Q1')
+        .slice(-2),
+    ).toEqual(['commit M3', 'commit Q1'])
+    const p = commits.filter(commit => commitNodeOf(commit.operation) === 'Q1')
+    expect(p).toHaveLength(1)
+    expect(p[0]?.handoff?.kind).toBe('prepare')
+    expect(p[0]?.checkpoint.currentHandoff).toEqual(
+      p[0]?.handoff?.kind === 'prepare' ? p[0].handoff.request.reference : null,
+    )
+    expect(p[0]?.events).toEqual([])
   })
 
   it('NA-Q2-1: an accepted Model reply commits its admission with the checkpoint, and the node goes to Q4', async () => {
     const assembly = await recorded()
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
-    const reply = assembly.record.accepts.find(item => item.input.source.kind === 'model-reply')
-    const admitted = ok(reply?.result ?? fail('no reply was admitted'))
-    if (admitted.kind !== 'accepted') throw new Error('the reply was not accepted')
-    const q2 = assembly.record.commits.find(commit => commit.operation.startsWith('Q2/'))
-    expect(q2?.checkpoint.position).toBe('Q4')
-    expect(q2?.replyAdmission).toMatchObject({ decision: 'admitted', source: admitted.admission })
+    const reply = assembly.record.prepares.find(
+      item => item.input.request.source.kind === 'model-reply',
+    )
+    const fixed = ok(reply?.result ?? fail('no reply was admitted'))
+    if (fixed.decision.kind !== 'prepared') throw new Error('the reply was not prepared')
+    const handoff = fixed.request.reference.kind === 'execution' ? fixed.request.reference : null
+    const ja = assembly.record.commits.find(
+      commit => commit.operation === `${handoff?.operation}/resolve`,
+    )
+    expect(ja?.checkpoint.position).toBe('Q4')
+    expect(ja?.checkpoint.currentHandoff).toBeNull()
+    expect(ja?.replyAdmission).toMatchObject({
+      decision: 'admitted',
+      source: fixed.decision.admission,
+    })
+    expect(ja?.handoff).toEqual({ kind: 'resolve', outcome: fixed })
+    expect(ja?.events).toEqual([
+      { kind: 'message', message: fixed.decision.message, source: fixed.decision.admission },
+    ])
   })
 
   it('NA-Q2-1: an accepted external input saves no receipt of its own (S-13 of #558); it goes to open unchanged', async () => {
     const assembly = await recorded()
     ok(await invoke(assembly))
-    const [external] = assembly.record.accepts
-    expect(external?.input.source).toEqual({
+    const [external] = assembly.record.prepares
+    expect(external?.input.kind).toBe('invoke')
+    expect(external?.input.request.source).toEqual({
       kind: 'external-input',
       input: acceptedInput('input-exec-1').id,
     })
-    expect(external?.result).toMatchObject({ ok: { kind: 'accepted' } })
-    expect(assembly.record.log.slice(0, 2)).toEqual(['accept external-input', 'open'])
+    expect(external?.result).toMatchObject({ ok: { decision: { kind: 'prepared' } } })
+    expect(assembly.record.log.slice(0, 2)).toEqual(['prepare external-input', 'open'])
+    expect(assembly.record.commits.map(commit => commit.handoff)).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'prepare',
+        request: expect.objectContaining({ kind: 'input' }),
+      }),
+    )
     assembly.release.open()
   })
 
@@ -170,9 +198,9 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
     assembly.release.open()
     await eventsOf(ok(await invoke(assembly)))
     const { log, commits } = assembly.record
-    expect(log.filter(entry => entry.startsWith('accept'))).toEqual([
-      'accept external-input',
-      'accept model-reply',
+    expect(log.filter(entry => entry.startsWith('prepare'))).toEqual([
+      'prepare external-input',
+      'prepare model-reply',
     ])
     const positions = commits.map(commit => [
       commit.operation.split('/')[0],
@@ -189,7 +217,7 @@ describe('NA-U0-1, NA-Q1-1, NA-Q2-1, NA-Q4-1: the input of invoke through U0, Q1
 describe('NA-E0-1: invoke reserves the slot, then open saves the input and the initial checkpoint', () => {
   it('NA-E0-1: the slot is reserved while open runs; after the Authority the node goes to E1', async () => {
     const opening = gate()
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     const seen: unknown[] = []
     const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
       const wrapped = recording(record)(dependencies)
@@ -198,7 +226,9 @@ describe('NA-E0-1: invoke reserves the slot, then open saves the input and the i
         journal: {
           ...wrapped.journal,
           async open(input) {
-            seen.push({ initial: input.initial, position: input.checkpoint.position })
+            const entry = input.original.entry
+            if (entry.kind !== 'invoke') throw new Error('an invoke entry was expected')
+            seen.push({ initial: entry.initial, position: entry.checkpoint.position })
             await opening.opened
             return wrapped.journal.open(input)
           },
@@ -250,7 +280,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
 
   it('NA-E0-2: an earlier ended operation is found while another execution holds the slot', async () => {
     const holding = gate()
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
       const wrapped = recording(record)(dependencies)
       return {
@@ -270,14 +300,14 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     ok(await invoke(assembly, 'exec-2'))
     const before = await shown(assembly)
     const commits = record.commits.length
-    const accepts = record.accepts.length
+    const prepares = record.prepares.length
     const again = ok(await invoke(assembly))
     expect(again.execution).toBe(first.execution)
     expect(await sequences(again)).toEqual(ENDED_EVENTS)
-    expect(record.log.slice(-3)).toEqual(['query invoke-exec-1', 'accept external-input', 'open'])
+    expect(record.log.slice(-3)).toEqual(['query invoke-exec-1', 'prepare external-input', 'open'])
     expect(record.commits).toHaveLength(commits)
-    expect(record.accepts).toHaveLength(accepts + 1)
-    expect(record.accepts.at(-1)?.input).toEqual(record.accepts[0]?.input)
+    expect(record.prepares).toHaveLength(prepares + 1)
+    expect(record.prepares.at(-1)?.input).toEqual(record.prepares[0]?.input)
     expect(await shown(assembly)).toEqual(before)
     expect(before).toMatchObject({ kind: 'occupied', execution: execution('exec-2') })
     expect(
@@ -301,7 +331,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
 
   it('NA-E0-2: a new runtime drives an opened execution whose revision did not advance', async () => {
     const loading = gate()
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     let loads = 0
     const assembly = await loopAssembly([execution()], dependencies => {
       const wrapped = recording(record)(dependencies)
@@ -372,7 +402,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
       'query invoke-exec-1',
     ])
     expect(opens(assembly.record)).toBe(1)
-    expect(assembly.record.accepts).toHaveLength(1)
+    expect(assembly.record.prepares).toHaveLength(1)
     expect(await shown(assembly)).toEqual(before)
     assembly.release.open()
     await eventually(async () => (await shown(assembly)).kind === 'idle')
@@ -384,7 +414,7 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
   it('NA-E0-2: a remembered operation with another input queries the Journal while another execution reserves the slot', async () => {
     const opening = gate()
     let reserved = false
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution(), execution('exec-2')], dependencies => {
       const wrapped = recording(record)(dependencies)
       return {
@@ -411,7 +441,11 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
       expect(
         failure(await invoke(assembly, 'exec-1', { input: acceptedInput('other', 'other') })),
       ).toEqual({ kind: 'conflict', operation: operation('invoke-exec-1') })
-      expect(record.log.slice(-3)).toEqual(['query invoke-exec-1', 'accept external-input', 'open'])
+      expect(record.log.slice(-3)).toEqual([
+        'query invoke-exec-1',
+        'prepare external-input',
+        'open',
+      ])
       expect(await shown(assembly)).toEqual(before)
       expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     } finally {
@@ -436,10 +470,10 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     } as const
     assembly.controls.adoptions.resolve.once(() => fail(refused))
     const opened = opens(assembly.record)
-    const accepts = assembly.record.accepts.length
+    const prepares = assembly.record.prepares.length
     expect(failure(await invoke(assembly))).toBe(refused)
     expect(opens(assembly.record)).toBe(opened)
-    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(assembly.record.prepares).toHaveLength(prepares)
     expect(await shown(assembly)).toEqual(before)
   })
 
@@ -453,15 +487,15 @@ describe('NA-E0-2 (C1): the same operation again gets the original handle and ru
     const before = await shown(assembly)
     const opened = opens(assembly.record)
     const lostOperations: string[] = []
-    assembly.controls.handoff.accept.once(input => {
-      lostOperations.push(input.operation)
-      return fail({ kind: 'commit-unknown', operation: input.operation })
+    assembly.controls.handoff.prepare.once(input => {
+      lostOperations.push(handoffOperationOf(input))
+      return fail({ kind: 'commit-unknown', operation: handoffOperationOf(input) })
     })
     expect(failure(await invoke(assembly))).toEqual({
       kind: 'commit-unknown',
       operation: operation('invoke-exec-1'),
     })
-    expect(lostOperations).toEqual(['invoke-exec-1/Q2'])
+    expect(lostOperations).toEqual([operation('invoke-exec-1')])
     expect(opens(assembly.record)).toBe(opened)
     expect(await shown(assembly)).toEqual(before)
   })
@@ -502,7 +536,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke({ provider: other }, 'exec-2')).kind).toBe('commit-unknown')
     const opensBeforeQuery = opens(assembly.record)
-    const accepts = assembly.record.accepts.length
+    const prepares = assembly.record.prepares.length
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({
       kind: 'commit-unknown',
       operation: operation('invoke-exec-2'),
@@ -511,7 +545,7 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
       'query invoke-exec-2',
     ])
     expect(opens(assembly.record)).toBe(opensBeforeQuery)
-    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(assembly.record.prepares).toHaveLength(prepares)
     expect(await shown(assembly)).toEqual(before)
     assembly.release.open()
   })
@@ -533,13 +567,13 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     ).toBe('excluded')
     const before = await shown(assembly)
     const opensBeforeQuery = opens(assembly.record)
-    const accepts = assembly.record.accepts.length
+    const prepares = assembly.record.prepares.length
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     expect(assembly.record.log.filter(entry => entry.startsWith('query'))).toEqual([
       'query invoke-exec-2',
     ])
     expect(opens(assembly.record)).toBe(opensBeforeQuery)
-    expect(assembly.record.accepts).toHaveLength(accepts)
+    expect(assembly.record.prepares).toHaveLength(prepares)
     expect(await shown(assembly)).toEqual(before)
     assembly.release.open()
   })
@@ -573,15 +607,15 @@ describe('NA-E0-3: a slot held by another operation answers busy, never a queue'
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'pending' })
     expect(failure(await invoke(assembly))).toMatchObject({ kind: 'commit-unknown' })
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
-    expect(assembly.record.log.filter(entry => entry.startsWith('accept'))).toHaveLength(1)
+    expect(assembly.record.log.filter(entry => entry.startsWith('prepare'))).toHaveLength(1)
   })
 })
 
-describe('NA-Q2-2 (C2): a lost receipt of accept is found by calling it again', () => {
+describe('NA-Q2-2 (C2): a lost receipt of prepare is found by calling it again with the same request', () => {
   it('NA-Q2-2: invoke answers commit-unknown and frees the slot; the same operation again gets the original result and runs on', async () => {
     const assembly = await recorded()
-    assembly.controls.handoff.accept.once(input =>
-      fail({ kind: 'commit-unknown', operation: input.operation }),
+    assembly.controls.handoff.prepare.once(input =>
+      fail({ kind: 'commit-unknown', operation: handoffOperationOf(input) }),
     )
     expect(failure(await invoke(assembly))).toEqual({
       kind: 'commit-unknown',
@@ -590,10 +624,9 @@ describe('NA-Q2-2 (C2): a lost receipt of accept is found by calling it again', 
     expect(await shown(assembly)).toEqual(idle)
     assembly.release.open()
     expect(await sequences(ok(await invoke(assembly)))).toEqual(ENDED_EVENTS)
-    const [lost, found] = assembly.record.accepts
-    expect(found?.input.operation).toBe(lost?.input.operation)
-    expect(found?.input.candidate).toEqual(lost?.input.candidate)
-    expect(found?.result).toMatchObject({ ok: { kind: 'accepted' } })
+    const [lost, found] = assembly.record.prepares
+    expect(found?.input.request).toEqual(lost?.input.request)
+    expect(found?.result).toMatchObject({ ok: { decision: { kind: 'prepared' } } })
   })
 })
 
@@ -602,7 +635,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
 
   it('NA-E0-4: a reservation without an unresolved open answers busy without querying or retrying', async () => {
     const opening = gate()
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution()], dependencies => {
       const wrapped = recording(record)(dependencies)
       return {
@@ -617,11 +650,11 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
       }
     })
     const first = invoke(assembly)
-    await eventually(async () => record.accepts.length === 1)
+    await eventually(async () => record.prepares.length === 1)
     try {
       expect(failure(await invoke(assembly))).toEqual({ kind: 'busy' })
       expect(record.log.filter(entry => entry.startsWith('query'))).toEqual([])
-      expect(record.accepts).toHaveLength(1)
+      expect(record.prepares).toHaveLength(1)
     } finally {
       opening.open()
       assembly.release.open()
@@ -778,7 +811,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'applied' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     const refused = { kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' } as const
-    assembly.controls.handoff.accept.once(() => fail(refused))
+    assembly.controls.handoff.prepare.once(() => fail(refused))
     expect(failure(await invoke(assembly))).toEqual(refused)
     expect(failure(await invoke(assembly, 'exec-2'))).toEqual({ kind: 'busy' })
     assembly.release.open()
@@ -790,7 +823,7 @@ describe('NA-E0-4: an open whose outcome is unknown keeps the reservation as an 
     assembly.controls.journal.failNext('open', { kind: 'commit-unknown', outcome: 'dropped' })
     expect(failure(await invoke(assembly))).toEqual(unresolved)
     const refused = { kind: 'unavailable', owner: 'test-handoff', diagnostic: 'injected' } as const
-    assembly.controls.handoff.accept.once(() => fail(refused))
+    assembly.controls.handoff.prepare.once(() => fail(refused))
     expect(failure(await invoke(assembly))).toEqual(refused)
     expect(opens(assembly.record)).toBe(1)
     ok(await invoke(assembly, 'exec-2'))
@@ -820,7 +853,7 @@ describe('the admission branches on a rejected query explicitly', () => {
     let override:
       | ((input: { operation: ReturnType<typeof operation> }) => Conclusion | null)
       | null = null
-    const record: Record = { log: [], accepts: [], commits: [] }
+    const record: Record = { log: [], prepares: [], commits: [] }
     const assembly = await loopAssembly([execution(), execution('exec-2')], d => {
       const recordedDependencies = recording(record)(d)
       return {

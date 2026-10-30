@@ -24,11 +24,12 @@ import {
   acceptedInput,
   checkpoint,
   consumption,
+  evidence,
   execution,
   instance,
-  operation,
   ok,
-  evidence,
+  openInput,
+  operation,
   tenantB,
 } from './journal-support.ts'
 import { alice, loopAssembly } from './loop-support.ts'
@@ -632,15 +633,17 @@ it.each(['same', 'different'] as const)(
       [foreign, execution(), { ...later, reference: foreignReference }],
     ] as const)
       ok(
-        await s.dependencies.provider.journal.open({
-          ...who,
-          execution: id,
-          operation: operation(`open-${id}`),
-          instance: instance(),
-          grant: null,
-          initial: acceptedInput(`input-${id}`),
-          checkpoint: { ...checkpoint('M6'), calls: [pending] },
-        }),
+        await s.dependencies.provider.journal.open(
+          openInput({
+            ...who,
+            execution: id,
+            operation: operation(`open-${id}`),
+            instance: instance(),
+            grant: null,
+            initial: acceptedInput(`input-${id}`),
+            checkpoint: { ...checkpoint('M6'), calls: [pending] },
+          }),
+        ),
       )
     const target = ok(
       await s.dependencies.targets.resolve({
@@ -946,15 +949,17 @@ it.each(['retry', 'recover'] as const)(
         position: { ...s.pending.position, work: suffix },
       }
       ok(
-        await s.dependencies.provider.journal.open({
-          ...access,
-          execution: id,
-          operation: operation(`open-${suffix}`),
-          instance: instance(suffix),
-          grant: null,
-          initial: acceptedInput(suffix),
-          checkpoint: { ...checkpoint(), calls: [pending] },
-        }),
+        await s.dependencies.provider.journal.open(
+          openInput({
+            ...access,
+            execution: id,
+            operation: operation(`open-${suffix}`),
+            instance: instance(suffix),
+            grant: null,
+            initial: acceptedInput(suffix),
+            checkpoint: { ...checkpoint(), calls: [pending] },
+          }),
+        ),
       )
       expect(ok(await s.receiver[method]({ access, execution: id, signal: signal() }))).toEqual({
         pending: 0,
@@ -1335,7 +1340,8 @@ it('freezes the original binding workset before authorization and excludes a con
   )
   if (inspected.kind !== 'found') throw new Error('original call required')
   const foreignReads: string[] = [],
-    sends: string[] = []
+    sends: string[] = [],
+    limitedTargets: unknown[] = []
   let first = true
   const receiver = createAgentModelReceiver(
     {
@@ -1344,7 +1350,8 @@ it('freezes the original binding workset before authorization and excludes a con
         async check(input) {
           if (input.access.principal !== 'limited')
             return { kind: 'allowed', evidence: evidence('access') }
-          if (input.target.kind !== 'execution' || input.target.instance !== instance())
+          limitedTargets.push(input.target)
+          if (input.target.kind !== 'execution' || input.target.execution !== execution())
             return { kind: 'denied' }
           if (first) {
             first = false
@@ -1427,6 +1434,7 @@ it('freezes the original binding workset before authorization and excludes a con
       expected: snapshot.revision,
       checkpoint: { ...snapshot.checkpoint, calls: [laterPending] },
       state: { kind: 'advancing' },
+      handoff: null,
       events: [],
       effects: [],
       caller: { kind: 'none' },
@@ -1459,13 +1467,18 @@ it('freezes the original binding workset before authorization and excludes a con
   expect(JSON.stringify(report)).not.toContain('private-later-binding')
   expect(foreignReads).toEqual([])
   expect(sends).toEqual(['alice', 'alice'])
-  expect(
+  // SPEC "主体资格核验": the execution target is the logical execution alone; the later binding
+  // is not a second target of the limited principal, so its retry is not denied by an instance.
+  ok(
     await receiver.retry({
       access: { ...alice, principal: 'limited' },
       execution: execution(),
       signal: signal(),
     }),
-  ).toHaveProperty('failure.kind', 'denied')
+  )
+  expect(new Set(limitedTargets.map(target => JSON.stringify(target)))).toEqual(
+    new Set([JSON.stringify({ kind: 'execution', execution: execution() })]),
+  )
 })
 
 it('does not report success when retry cannot read original Model authority for an unknown commit', async () => {

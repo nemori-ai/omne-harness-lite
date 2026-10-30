@@ -30,6 +30,8 @@ import {
   invoke,
   loopAssembly,
   type LoopAssembly,
+  replyCandidate,
+  commitNodeOf,
 } from './loop-support.ts'
 
 type Dependencies = AgentDependencies<Principal, ContentBlock>
@@ -60,8 +62,7 @@ function recordingCommits(log: [node: string, position: string][]) {
     journal: {
       ...dependencies.journal,
       commit(input: JournalCommit<Principal>) {
-        // The coordinator names each commit `<node>/commit@<revision>`.
-        log.push([input.operation.split('/')[0] ?? '', input.checkpoint.position])
+        log.push([commitNodeOf(input.operation), input.checkpoint.position])
         return dependencies.journal.commit(input)
       },
     },
@@ -123,10 +124,13 @@ describe('C2 one input, one reply, ended', () => {
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    const accepted = assembly.controls.handoff.accept.calls
-    expect(accepted.map(call => call.source.kind)).toEqual(['external-input', 'model-reply'])
-    expect(accepted[0]?.advance).toBeNull()
-    expect(accepted[1]?.candidate).toMatchObject({
+    const accepted = assembly.controls.handoff.prepare.calls
+    expect(accepted.map(call => call.request.source.kind)).toEqual([
+      'external-input',
+      'model-reply',
+    ])
+    expect(accepted[0]?.kind).toBe('invoke')
+    expect(replyCandidate(accepted[1])).toMatchObject({
       role: 'assistant',
       blocks: [{ kind: 'text', text: REPLY_TEXT }],
     })
@@ -155,8 +159,9 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    // U0 to Q4 run before the execution exists, E1, E2 and E4 only read, Q1 never commits
-    // (NA-Q1-1), F3 is tryFinish, and F4, O0 and E9 come after ended: none of them writes a commit.
+    // U0 to Q4 run before the execution exists for the input, E1, E2 and E4 only read, F3 is
+    // tryFinish, and F4, O0 and E9 come after ended: none of them writes a commit. The P of Q1 and
+    // the Ja of Q2 derive from the H of the reply (SPEC "消息准入"), not from their node.
     expect(log).toEqual([
       ['E3', 'E4'],
       ['I0', 'I1'],
@@ -165,6 +170,7 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
       ['P1', 'I2'],
       ['M0', 'M6'],
       ['M3', 'M4'],
+      ['Q1', 'Q2'],
       ['Q2', 'Q4'],
       ['Q4', 'I3'],
       ['I3', 'I4'],
@@ -192,7 +198,7 @@ describe('临时简化，1.3–1.9 按节点表收紧: one commit per node, posi
     await eventsOf(handle)
     const withEvents = commits
       .filter(input => input.events.length > 0)
-      .map(input => [input.operation.split('/')[0], input.events.map(body => body.kind)])
+      .map(input => [commitNodeOf(input.operation), input.events.map(body => body.kind)])
     expect(withEvents).toEqual([
       ['I0', ['input-taken']],
       ['M3', ['producer']],
@@ -340,7 +346,7 @@ describe('the reply and the identities the coordinator mints', () => {
     const handle = ok(await invoke(assembly))
     assembly.release.open()
     await eventsOf(handle)
-    const reply = assembly.controls.handoff.accept.calls[1]?.candidate
+    const reply = replyCandidate(assembly.controls.handoff.prepare.calls[1])
     expect(reply?.blocks.map(block => (block.kind === 'text' ? block.text : block.kind))).toEqual(
       texts,
     )
@@ -369,7 +375,7 @@ describe('the reply and the identities the coordinator mints', () => {
       expect.stringMatching(/^mcall_[0-9a-f]{40}_1$/u),
       expect.stringMatching(/^mop_[0-9a-f]{40}_1_admit$/u),
     ])
-    expect(assembly.controls.handoff.accept.calls[1]?.candidate.id).toMatch(
+    expect(replyCandidate(assembly.controls.handoff.prepare.calls[1])?.id).toMatch(
       /^msg_[0-9a-f]{40}_1_reply$/u,
     )
     const loaded = ok(

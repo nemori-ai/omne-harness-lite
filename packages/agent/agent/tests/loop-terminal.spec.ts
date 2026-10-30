@@ -12,11 +12,12 @@ import {
   consumption,
   evidence,
   execution,
+  failure,
   ok,
   operation,
-  failure,
   producedResult,
   type Principal,
+  withLineage,
 } from './journal-support.ts'
 import {
   alice,
@@ -70,12 +71,14 @@ describe('#516 terminal exit', () => {
             ) {
               injected = true
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late-input'),
-                  value: acceptedInput('late', 'continue'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late-input'),
+                    value: acceptedInput('late', 'continue'),
+                  }),
+                ),
               )
             }
             return saved
@@ -84,12 +87,14 @@ describe('#516 terminal exit', () => {
             if (!injected && cut === 'before-F3') {
               injected = true
               ok(
-                await d.journal.submit({
-                  ...alice,
-                  execution: execution(),
-                  operation: operation('late-input'),
-                  value: acceptedInput('late', 'continue'),
-                }),
+                await d.journal.submit(
+                  withLineage({
+                    ...alice,
+                    execution: execution(),
+                    operation: operation('late-input'),
+                    value: acceptedInput('late', 'continue'),
+                  }),
+                ),
               )
             }
             return d.journal.tryFinish(input)
@@ -199,12 +204,14 @@ describe('#516 terminal exit', () => {
     expect((await eventsOf(next)).filter(event => event.body.kind === 'ended')).toHaveLength(1)
     expect(
       failure(
-        await assembly.dependencies.journal.submit({
-          ...alice,
-          execution: execution(),
-          operation: operation('terminal-submit'),
-          value: acceptedInput('too-late'),
-        }),
+        await assembly.dependencies.journal.submit(
+          withLineage({
+            ...alice,
+            execution: execution(),
+            operation: operation('terminal-submit'),
+            value: acceptedInput('too-late'),
+          }),
+        ),
       ).kind,
     ).toBe('terminal')
   })
@@ -568,12 +575,14 @@ describe('#516 terminal exit', () => {
             })
             const result = await d.journal.tryFinish(input)
             ok(
-              await d.journal.submit({
-                ...alice,
-                execution: execution(),
-                operation: operation('input-before-excluded-query'),
-                value: acceptedInput('new-before-query'),
-              }),
+              await d.journal.submit(
+                withLineage({
+                  ...alice,
+                  execution: execution(),
+                  operation: operation('input-before-excluded-query'),
+                  value: acceptedInput('new-before-query'),
+                }),
+              ),
             )
             return result
           }
@@ -603,12 +612,14 @@ describe('#516 terminal exit', () => {
           if (injected) return
           injected = true
           ok(
-            await d.journal.submit({
-              ...alice,
-              execution: execution(),
-              operation: operation('input-during-no-reply'),
-              value: acceptedInput('late', 'continue after failure'),
-            }),
+            await d.journal.submit(
+              withLineage({
+                ...alice,
+                execution: execution(),
+                operation: operation('input-during-no-reply'),
+                value: acceptedInput('late', 'continue after failure'),
+              }),
+            ),
           )
         }
         return {

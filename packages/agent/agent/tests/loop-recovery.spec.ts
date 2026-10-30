@@ -36,6 +36,8 @@ import {
   shown,
   stoppedAt,
   type LoopAssembly,
+  handoffOperationOf,
+  replyCandidate,
 } from './loop-support.ts'
 
 const STOP: Failure = { kind: 'invalid', field: 'test', reason: 'stop at the evaluator' }
@@ -61,6 +63,14 @@ async function load(assembly: LoopAssembly) {
 
 function route(at: AgentCheckpoint, change: Partial<ExecutionSnapshot> = {}) {
   return recoveryRoute({ checkpoint: at, unresolved: [], state: { kind: 'advancing' }, ...change })
+}
+
+/**
+ * Whether `operation` is the commit of `node` on the normal path: node commits carry the node as
+ * their prefix; the Ja of Q2 derives from its H and the stage `resolve` (SPEC "消息准入").
+ */
+function isCommitOf(node: string, operation: string): boolean {
+  return node === 'Q2' ? operation.endsWith('/resolve') : operation.startsWith(`${node}/commit@`)
 }
 
 describe('E4 recovery routing', () => {
@@ -470,7 +480,7 @@ describe('R0 and W0 coordination', () => {
     )
     ok(await c.runExecution())
     expect(admits).toBe(1)
-    expect(assembly.controls.handoff.accept.calls.at(-1)?.source).toMatchObject({
+    expect(assembly.controls.handoff.prepare.calls.at(-1)?.request.source).toMatchObject({
       kind: 'model-reply',
       call: expect.any(String),
     })
@@ -502,7 +512,7 @@ describe('R0 and W0 coordination', () => {
           ...d.journal,
           commit: input => {
             writes.push(input.operation)
-            if (original === null && input.operation.startsWith(`${target}/commit@`)) {
+            if (original === null && isCommitOf(target, input.operation)) {
               original = input.operation
               assembly.controls.journal.failNext('commit', {
                 kind: 'commit-unknown',
@@ -570,16 +580,17 @@ describe('R0 and W0 coordination', () => {
       expect(acknowledgements).toBe(0)
       expect(processed).toBe(0)
       expect(assembly.controls.pusher?.acknowledgements()).toHaveLength(1)
-      expect(assembly.controls.handoff.accept.calls).toHaveLength(
-        target === 'Q2' && outcome === 'dropped' ? 3 : 2,
+      // The outcome of the reply was fixed by prepare at Q1 (SPEC "消息准入"): the Ja retried
+      // after a dropped commit applies that outcome again and asks the provider nothing new.
+      expect(assembly.controls.handoff.prepare.calls).toHaveLength(2)
+      const replies = assembly.controls.handoff.prepare.calls.filter(
+        call => call.request.source.kind === 'model-reply',
       )
-      const replies = assembly.controls.handoff.accept.calls.filter(
-        call => call.source.kind === 'model-reply',
-      )
-      expect(new Set(replies.map(call => call.operation)).size).toBe(1)
+      expect(new Set(replies.map(handoffOperationOf)).size).toBe(1)
       expect(
         replies.every(
-          call => JSON.stringify(call.candidate) === JSON.stringify(replies[0]?.candidate),
+          call =>
+            JSON.stringify(replyCandidate(call)) === JSON.stringify(replyCandidate(replies[0])),
         ),
       ).toBe(true)
       const saved = await load(assembly)
@@ -912,6 +923,7 @@ describe('checkpoint positions saved by the current assembly', () => {
       I2: 'P1',
       M6: 'M6',
       M4: 'M4',
+      Q2: 'Q2',
       Q4: 'Q4',
       I3: 'I3',
       I4: 'I4',

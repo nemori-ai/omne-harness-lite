@@ -300,10 +300,7 @@ function pendingHandoff<P>(
   }
 }
 
-function outcomeOf(
-  request: PendingHandoff,
-  decision: HandoffOutcome['decision'],
-): HandoffOutcome {
+function outcomeOf(request: PendingHandoff, decision: HandoffOutcome['decision']): HandoffOutcome {
   const name = request.reference.operation
   return {
     request,
@@ -354,12 +351,25 @@ function resolveCommit<P>(
   overrides: Partial<JournalCommit<P>> = {},
 ): JournalCommit<P> {
   const decision = outcome.decision
+  const source = outcome.request.source
   return commitAt(opened, snapshot, name, opened.authority, {
     checkpoint: { ...snapshot.checkpoint, position: 'Q4', currentHandoff: null },
     events:
       decision.kind === 'prepared'
         ? [{ kind: 'message', message: decision.message, source: decision.admission }]
         : [],
+    // The Ja of a model reply carries the admission fact of that reply (SPEC "消息准入").
+    replyAdmission:
+      source.kind === 'model-reply'
+        ? {
+            step: source.step,
+            action: source.action,
+            call: source.call,
+            resultVersion: source.result.version,
+            decision: decision.kind === 'prepared' ? 'admitted' : 'rejected',
+            source: decision.kind === 'prepared' ? decision.admission : decision.evidence,
+          }
+        : null,
     handoff: { kind: 'resolve', outcome },
     ...overrides,
   })
@@ -425,6 +435,30 @@ async function end<P>(opened: AgentJournalCoreOpened<P>, name = 'end'): Promise<
     'tryFinish',
   )
   assert.equal(finished.kind, 'ended', `the ordinary end should succeed, got ${finished.kind}`)
+  return (finished as Extract<FinishResult, { kind: 'ended' }>).receipt
+}
+
+/** Ends through `tryFinish` under the cancel whose intent is reached: the cancelled conclusion. */
+async function endCancelled<P>(
+  opened: AgentJournalCoreOpened<P>,
+  control: AgentOperationId,
+  name = 'end-cancelled',
+): Promise<CommandReceipt> {
+  await takeInputs(opened, `take-${name}`)
+  const snapshot = await load(opened)
+  const ordinary = finishInput(opened, snapshot, name)
+  const finished = await ok(
+    opened.journal.tryFinish({
+      ...ordinary,
+      authorization: { kind: 'cancel', control, source: evidence(`cancel-source/${name}`) },
+      intent: {
+        ...ordinary.intent,
+        conclusion: { kind: 'cancelled', cause: evidence(`cancel-cause/${name}`) },
+      },
+    }),
+    'tryFinish',
+  )
+  assert.equal(finished.kind, 'ended', `the cancelled end should succeed, got ${finished.kind}`)
   return (finished as Extract<FinishResult, { kind: 'ended' }>).receipt
 }
 
@@ -829,7 +863,7 @@ export function agentJournalCoreConformance<P>(
           evidence('confirmed/first'),
         )
         await ok(journal.recordControl(confirmed), 'the confirmation')
-        await end(opened)
+        await endCancelled(opened, control.operation)
         for (const [name, original] of [
           ['intent-other', intent],
           ['confirmed-other', confirmed],
@@ -1196,7 +1230,10 @@ export function agentJournalCoreConformance<P>(
           'invalid',
           'a P whose checkpoint does not point at H',
         )
-        const receipt = await ok(journal.commit(prepareCommit(opened, snapshot, 'p1', request)), 'P')
+        const receipt = await ok(
+          journal.commit(prepareCommit(opened, snapshot, 'p1', request)),
+          'P',
+        )
         const after = await load(opened)
         assert.equal(Number(after.revision), Number(snapshot.revision) + 1)
         assert.deepEqual(after.checkpoint.currentHandoff, request.reference)
@@ -1448,11 +1485,19 @@ export function agentJournalCoreConformance<P>(
           protocol: 'hand-off-custody-successor/1',
           custodyRoot: root.operation,
           rootRequest: evidence(`request/${root.operation}`),
-          factSource: { owner: PROVIDER.owner, adoption: PROVIDER, record: 'record/h1', version: '1' },
+          factSource: {
+            owner: PROVIDER.owner,
+            adoption: PROVIDER,
+            record: 'record/h1',
+            version: '1',
+          },
           predecessor: { operation: predecessor, request: evidence(`request/${predecessor}`) },
           priorExcluded,
         })
-        const exclusionOf = (excludedOperation: AgentOperationId, predecessor: AgentOperationId | null) => ({
+        const exclusionOf = (
+          excludedOperation: AgentOperationId,
+          predecessor: AgentOperationId | null,
+        ) => ({
           operation: excludedOperation,
           method: 'recordHandoff' as const,
           request: evidence(`request/${excludedOperation}`),
@@ -1460,7 +1505,11 @@ export function agentJournalCoreConformance<P>(
           authority: evidence(`exclusion/${excludedOperation}`),
           fence: evidence(`fence/${excludedOperation}`),
         })
-        const successorOf = (name: string, predecessor: AgentOperationId, chain: HandoffCustody['priorExcluded']) => ({
+        const successorOf = (
+          name: string,
+          predecessor: AgentOperationId,
+          chain: HandoffCustody['priorExcluded'],
+        ) => ({
           ...root,
           operation: operation(name),
           custody: custody(predecessor, chain),
@@ -1508,7 +1557,9 @@ export function agentJournalCoreConformance<P>(
         assert.deepEqual(await load(opened), after, 'the retry wrote nothing')
         // Once an attempt succeeded, another successor of the same predecessor cannot succeed.
         await refused(
-          journal.recordHandoff(successorOf('rh-3', root.operation, [exclusionOf(root.operation, null)])),
+          journal.recordHandoff(
+            successorOf('rh-3', root.operation, [exclusionOf(root.operation, null)]),
+          ),
           'invalid',
           'a second successor of the same excluded predecessor',
         )

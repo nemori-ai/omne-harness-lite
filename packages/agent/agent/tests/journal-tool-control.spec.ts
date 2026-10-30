@@ -232,7 +232,7 @@ describe('public retained invocation faults', () => {
           fault.kind === 'malformed'
             ? {
                 kind: 'unavailable',
-                owner: 'AgentJournal',
+                owner: 'agentJournal',
                 diagnostic: 'invalid-retained-tool-invocation',
               }
             : { kind: 'denied', action: 'recordControl' },
@@ -1257,7 +1257,7 @@ describe('Tool operation attachment', () => {
       'invalid' as tools.ToolInvocationRef,
       {
         kind: 'unavailable',
-        owner: 'AgentJournal',
+        owner: 'agentJournal',
         diagnostic: 'invalid-retained-tool-invocation',
       },
     ],
@@ -1333,7 +1333,7 @@ describe('retained Tool operation corruption', () => {
   const resolve = tools.resolveToolOperationRef
   const unavailable = {
     kind: 'unavailable',
-    owner: 'AgentJournal',
+    owner: 'agentJournal',
     diagnostic: 'invalid-retained-tool-operation',
   } as const
   const retainedParts = ok(resolve(toolOperation, access.tenant))

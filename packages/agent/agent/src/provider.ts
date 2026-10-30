@@ -134,9 +134,9 @@ export function createProvider<P, B extends ContentBlock>(
   const { binding, guard, dependencies } = entry
   const instance: AgentInstanceId = binding.instance
   const onInstance: AgentAccessTarget = { kind: 'instance', instance }
+  // SPEC "主体资格核验": the execution target is the logical execution alone, without the instance.
   const onExecution = (execution: AgentExecutionId): AgentAccessTarget => ({
     kind: 'execution',
-    instance,
     execution,
   })
 

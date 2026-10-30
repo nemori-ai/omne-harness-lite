@@ -49,13 +49,6 @@ import type {
 type Judged<T> = Outcome<T, StructureFailure>
 type InvokeEntry = Extract<InputEntry, { kind: 'invoke' }>
 
-/** The failure of a nested judgment, with the path of the member in front of its field. */
-function under<T>(path: string, judged: Judged<T>): Judged<T> {
-  if (!('failure' in judged)) return judged
-  const { field, reason } = judged.failure
-  return refusal(`${path}.${field}`, reason)
-}
-
 /** A nested structure judged under its path; a structure-name failure becomes the member itself. */
 function nested<T>(
   members: OwnMembers,
@@ -91,11 +84,7 @@ function nullable<T>(
 }
 
 /** The closed `kind` member: present, a string, and one of the expected literals. */
-function kindOf<K extends string>(
-  members: OwnMembers,
-  kinds: readonly K[],
-  structure: string,
-): Judged<K> {
+function kindOf<K extends string>(members: OwnMembers, kinds: readonly K[]): Judged<K> {
   if (!Object.hasOwn(members, 'kind')) return refusal('kind', 'missing')
   const kind = members['kind']
   if (typeof kind !== 'string') return refusal('kind', 'type')
@@ -131,7 +120,7 @@ function judgeExecutionReference(
 ): Judged<Extract<HandoffReference, { kind: 'execution' }>> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('HandoffReference', 'type')
-  const kind = kindOf(members, ['execution'], 'HandoffReference')
+  const kind = kindOf(members, ['execution'])
   if ('failure' in kind) return kind
   const execution = identityOf(members, 'execution', decodeAgentExecutionId)
   if ('failure' in execution) return execution
@@ -147,7 +136,7 @@ function judgeExecutionReference(
 function judgeInputReference(value: unknown): Judged<Extract<HandoffReference, { kind: 'input' }>> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('HandoffReference', 'type')
-  const kind = kindOf(members, ['input'], 'HandoffReference')
+  const kind = kindOf(members, ['input'])
   if ('failure' in kind) return kind
   const execution = identityOf(members, 'execution', decodeAgentExecutionId)
   if ('failure' in execution) return execution
@@ -196,7 +185,7 @@ type InternalSource = Exclude<MessageSource, { kind: 'external-input' }>
 function judgeInternalSource(value: unknown): Judged<InternalSource> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('MessageSource', 'type')
-  const kind = kindOf(members, INTERNAL_SOURCE_KINDS, 'MessageSource')
+  const kind = kindOf(members, INTERNAL_SOURCE_KINDS)
   if ('failure' in kind) return kind
   switch (kind.ok) {
     case 'model-reply': {
@@ -254,7 +243,7 @@ function judgeExternalSource(
 ): Judged<Extract<MessageSource, { kind: 'external-input' }>> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('MessageSource', 'type')
-  const kind = kindOf(members, ['external-input'], 'MessageSource')
+  const kind = kindOf(members, ['external-input'])
   if ('failure' in kind) return kind
   const input = identityOf(members, 'input', decodeInputId)
   if ('failure' in input) return input
@@ -277,7 +266,7 @@ const PENDING_FIELDS = [
 function judgePendingHandoff(value: unknown): Judged<PendingHandoff> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('PendingHandoff', 'type')
-  const kind = kindOf(members, ['execution'], 'PendingHandoff')
+  const kind = kindOf(members, ['execution'])
   if ('failure' in kind) return kind
   const reference = nested(members, 'reference', 'HandoffReference', judgeExecutionReference)
   if ('failure' in reference) return reference
@@ -338,7 +327,7 @@ function judgeAcceptedInput(value: unknown): Judged<AcceptedInput> {
 function judgeInputEntry(value: unknown): Judged<InputEntry> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('InputEntry', 'type')
-  const kind = kindOf(members, ['invoke', 'submit'], 'InputEntry')
+  const kind = kindOf(members, ['invoke', 'submit'])
   if ('failure' in kind) return kind
   const operation = identityOf(members, 'operation', decodeAgentOperationId)
   if ('failure' in operation) return operation
@@ -384,7 +373,7 @@ const INPUT_HANDOFF_FIELDS = ['kind', 'reference', 'entry', 'source'] as const
 function judgeInputHandoff(value: unknown): Judged<InputHandoff> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('InputHandoff', 'type')
-  const kind = kindOf(members, ['input'], 'InputHandoff')
+  const kind = kindOf(members, ['input'])
   if ('failure' in kind) return kind
   const reference = nested(members, 'reference', 'HandoffReference', judgeInputReference)
   if ('failure' in reference) return reference
@@ -449,7 +438,7 @@ function judgeBinding(members: OwnMembers): Judged<{
 export function judgeHandoffPrepare(value: unknown): Judged<HandoffPrepare> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('HandoffPrepare', 'type')
-  const kind = kindOf(members, ['execution', 'invoke', 'submit'], 'HandoffPrepare')
+  const kind = kindOf(members, ['execution', 'invoke', 'submit'])
   if ('failure' in kind) return kind
   switch (kind.ok) {
     case 'execution': {
@@ -483,7 +472,7 @@ export function judgeHandoffPrepare(value: unknown): Judged<HandoffPrepare> {
 function judgeDelivery(value: unknown): Judged<SubmitDelivery> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('SubmitDelivery', 'type')
-  const kind = kindOf(members, ['runtime-view', 'durable-view'], 'SubmitDelivery')
+  const kind = kindOf(members, ['runtime-view', 'durable-view'])
   if ('failure' in kind) return kind
   if (kind.ok === 'durable-view') {
     const extra = closed(members, ['kind'])
@@ -506,7 +495,7 @@ function judgeDelivery(value: unknown): Judged<SubmitDelivery> {
 export function judgeInputOrigin(value: unknown): Judged<InputOrigin> {
   const members = ownMembers(value)
   if (members === undefined) return refusal('InputOrigin', 'type')
-  const kind = kindOf(members, ['invoke', 'submit'], 'InputOrigin')
+  const kind = kindOf(members, ['invoke', 'submit'])
   if ('failure' in kind) return kind
   if (kind.ok === 'invoke') {
     const binding = judgeBinding(members)
