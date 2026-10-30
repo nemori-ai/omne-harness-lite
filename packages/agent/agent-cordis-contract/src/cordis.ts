@@ -779,7 +779,11 @@ const emptyConfig = {
   '~standard': {
     version: 1 as const,
     vendor: 'agent-cordis-contract',
-    validate(value: unknown) {
+    // The return type is written out so that the published declaration does not follow the
+    // order in which the compiler meets the two result shapes.
+    validate(
+      value: unknown,
+    ): { issues?: never; value: {} } | { value?: never; issues: { message: string }[] } {
       if (value === undefined || value === null) return { value: {} }
       if (typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length === 0)
         return { value: {} }
