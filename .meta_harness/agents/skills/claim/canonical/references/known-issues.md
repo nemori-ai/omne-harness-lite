@@ -20,7 +20,9 @@
 
 ## 改了 agent 源之后重新生成投影
 
-编译器不覆盖内容或权限不同的既存文件。改了 agent 源之后直接输出到 `.meta_harness` 会报 `ERROR: output differs; use a fresh staging directory`。规则见 `.meta_harness/tooling/README.md`「使用」。顺序：
+运行 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>`。它编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，最后运行 `pnpm run check:agents`。Windows 宿主上也能用。步骤见 `tools/dev-flow/src/integration/README.md`「准备任务工作树」中 `projections` 的说明。
+
+工具不可用时，退回下面的手工步骤。`rsync` 只在 POSIX 上有。编译器不覆盖内容或权限不同的既存文件。改了 agent 源之后直接输出到 `.meta_harness` 会报 `ERROR: output differs; use a fresh staging directory`。规则见 `.meta_harness/tooling/README.md`「使用」。顺序：
 
 ```sh
 set -euo pipefail
@@ -71,8 +73,8 @@ rm -rf "$stage"
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
 - 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。负载造成的超时先如实报告，写明当时自己有没有加负载。
 - 同一用户的全部检出共用测试名额。工作树隔离不隔离名额，也不隔离机器的 CPU。起差分变异、`metrics --coverage` 这类长任务前，先看有没有人在排队。写者的检查长时间没有输出时，读名额的锁文件看是谁占着。方法见 `scripts/README.md`「运行名额」（P29）。
-- 本卡任何提交碰过 `pnpm-lock.yaml` 时，锁文件是全局路径，余下的 `metrics --coverage`、`test:affected` 与 `check` 都按全部成员跑。中间轮用不带 `--coverage` 的 `pnpm run metrics`，基线按 `review-code`「度量与差分变异的基线」判定：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
-- 差分变异的工作进程数在启动时按空闲 CPU 定一次，整次运行不变。启动日志写明进程数及其来历，启动后先看这一行。机器忙时启动，数会偏小，这时停掉，用 `VITEST_MAX_WORKERS=<n>` 指定后重启。每个进程的 CPU 占用都很低时，它在等待，缩小范围比加进程有效。日志在构建之后可能一直没有输出，直到结束，看进程表判断进度。
+- 本卡的提交碰过 `pnpm-lock.yaml` 时，普通的影响面计划把锁文件的差异按 importer 映射到受影响的成员。顶层的 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies` 或 `catalogs` 有变化、锁文件解析失败，或有说明里列出的其他情形时，计划仍判全量，余下的 `metrics --coverage`、`test:affected` 与 `check` 都按全部成员跑。增量准入（`--resume-from`）里锁文件仍按全局路径处理，H1 之后碰过它就整次重跑。规则见 `tools/test-runner/README_ZH.md` 的「影响面怎么算」与「准入：运行记录、接续与证据核对」。计划判全量时，中间轮用不带 `--coverage` 的 `pnpm run metrics`，基线按 `review-code`「度量与差分变异的基线」判定：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
+- 差分变异的工作进程数在启动时按空闲 CPU 定一次，整次运行不变。启动日志写明进程数及其来历，启动后先看这一行。机器忙时启动，数会偏小，这时停掉，用 `VITEST_MAX_WORKERS=<n>` 指定后重启。没有设 `VITEST_MAX_WORKERS`、进程数又不到本机核数的一半时，命令打一行告警，告警里有重启命令。每个进程的 CPU 占用都很低时，它在等待，缩小范围比加进程有效。变异阶段每 10 秒有一行进度转到标准输出，行首是成员路径。变异阶段不到 10 秒的成员没有进度行。规则见 `tools/test-runner/README_ZH.md`「差分变异」。
 - 差分变异读工作区，未提交和未跟踪的文件都算进去。变异在跑的那棵树，写者不改，写者另用一棵树。变异沙箱目录 `.stryker-tmp-*` 还在时，`pnpm run check:docs` 以 1 退出。全树检查放在变异结束后，或换一棵树跑。
 - gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
 - 改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的 PR 要过两道确认：先 `repo-toolchain-review`，再 `publish`。清单里也有 `docs/architecture/constraints.json` 这类正文文件，改动前先读清单。`gate-cli.ts wait` 的 `--environments` 缺省只有 `publish`，这时要写 `--environments repo-toolchain-review,publish`。
