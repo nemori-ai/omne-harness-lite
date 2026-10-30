@@ -64,7 +64,7 @@ import type {
   TerminalParticipantFact,
   ToolAssociationRecord,
 } from '@omne-harness/agent-contract'
-import type { TestHostRecord } from '@omne-harness/agent-contract/testing'
+import type { TestHostRecord } from './host-record.ts'
 import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
