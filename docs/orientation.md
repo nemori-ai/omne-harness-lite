@@ -75,7 +75,7 @@ flowchart TB
   biz ~~~ cordis
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
-  class identity,session,agent,model,context,storage loaded
+  class identity,session,agent,model,context,tool,env,storage loaded
 ```
 
 分解轴怎样交叉、哪些概念必须分开，读[三条分解轴](architecture/structure.md#三条分解轴)。common 的完整成员清单见[产品包组织的目标目录](package-organization.md#目标目录)。
@@ -83,10 +83,9 @@ flowchart TB
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 除下一行以外的全部元素 |
-| 首条路径已装载（图中蓝底） | 身份与授权、会话与工作、Agent 推进、模型调用、Context、存储 |
+| 首条路径已装载（图中蓝底） | 身份与授权、会话与工作、Agent 推进、模型调用、工具执行、Context、执行环境、存储 |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |
-| 待核对 | [应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」已把工具与执行环境各行列入首条路径的发行层。图中工具执行与执行环境的蓝底，以及「首条路径已装载」行，尚未同步 |
 
 出处如下。
 
@@ -97,7 +96,7 @@ flowchart TB
 - 共享成员：[产品包组织](package-organization.md#目标目录)「目标目录」中 `schema` 只放 Schema 提供者、不是 `util` 或 `common` 的一段，以及同段对 `common`、`util` 的说明。
 - Cordis 内核：[总体结构与责任](architecture/structure.md#cordis-集成与作用域)「Cordis 集成与作用域」。
 - 装载状态：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 协作
 
@@ -133,7 +132,7 @@ flowchart LR
   session --x|"DIR-SESSION-TOOL"| tool
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
-  class session,agent,model loaded
+  class session,agent,model,tool,env loaded
   linkStyle 7,8,9,10,11,12,13 stroke:#c62828,stroke-dasharray:4 3
 ```
 
@@ -147,12 +146,11 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 
 | 状态 | 元素 |
 | --- | --- |
-| 已接受正文 | 除下表具名状态以外的全部元素与关系，包括 Tool、执行环境、`toolRuntime` 与 `toolEnvironments`。首条路径的发行层不含工具与执行环境的行。 |
-| 首条路径已装载（图中蓝底） | Session、Agent、Model；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
+| 已接受正文 | 除下表具名状态以外的全部元素与关系 |
+| 首条路径已装载（图中蓝底） | Session、Agent、Model、Tool、执行环境；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；`toolRuntime`（`tool-runtime` 行提供，Agent 在工具阶段按调用现取，不经 `inject`）；`toolEnvironments`（`tool-environments` 行）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
 | 已写回，仍有具名缺口 | Session 只读同日志结果与账目（K-05）；Model ACK 到达（`MODEL-ACK-ARRIVAL`）与 Tool 解除回执进入日志的方式（`JC-RELEASE-TOOL-PATH`）待其拥有者闭合，放在里程碑 M2 |
 | 已写回，仍有具名缺口 | Session 契约、机制与 Cordis 公开说明、adapters 规格与使用指南的旧端口步骤（K-04）；session-adapters README 的其余过期说明（SC-02 余项）仍待同步，见下文 |
 | 已裁定待写回 | 无 |
-| 待核对 | [应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」已把工具与执行环境各行列入首条路径的发行层。图中的装载标记、本表「已接受正文」行与「首条路径已装载」行尚未同步 |
 
 冲突的家是承接卡与拥有者正文。本页只转述，并给出承接卡，不替拥有者裁定。
 
@@ -169,7 +167,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项核对于 `d8121ff11`。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 顶层架构
 
@@ -211,17 +209,16 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 图中全部元素与关系 |
-| 首条路径已装载 | 图中不标。插件树装载的成员是：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员 |
+| 首条路径已装载 | 图中不标。插件树装载的成员包括：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`tool-runtime`、`tool-executor`、`tool-host`、`execution-environment`、`execution-files`、`execution-host-files`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员。全部装载行见[插件树](architecture/runtime/application-assembly.md#插件树) |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |
-| 待核对 | [应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」已把工具与执行环境各行列入首条路径的发行层。「首条路径已装载」行列出的装载行尚未同步 |
 
 出处如下。
 
 - 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ### 单机进程
 
@@ -265,7 +262,7 @@ flowchart TB
 
   client -->|"HTTP JSON"| server
   server -->|"fetch SSE"| client
-  toolRt -.-> env
+  toolRt --> env
   server --> provider
 
   %% 以下 ~~~ 是不可见的排版连线，不表示任何关系
@@ -274,25 +271,23 @@ flowchart TB
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
   classDef absent stroke-dasharray:5 3
-  class entry,identity,authz,sess,agentRt,modelRt,rc,rq,st loaded
-  class assetsWs,toolRt,env absent
-  linkStyle 2 stroke-dasharray:5 3
+  class entry,identity,authz,sess,agentRt,modelRt,toolRt,rc,rq,st,env loaded
+  class assetsWs absent
 ```
 
 | 状态 | 元素 |
 | --- | --- |
-| 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace、工具 runtime 与执行环境不在首条路径的发行层里（图中虚线框）。 |
-| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、runtime-context、request-context、storage |
+| 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace 不在首条路径的发行层里（图中虚线框）。 |
+| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、工具 runtime、runtime-context、request-context、storage、执行环境；工具 runtime 到执行环境的连线（`tool-environments` 行）。执行环境由 `execution-environment`、`execution-files` 与 `execution-host-files` 行装载，只含 `files` 设施和 `host_machine` 的 `files` 提供者。四个工具与 `command` 的真实宿主是 M2 缺口 |
 | 已写回，仍有具名缺口 | K-05 的 AD-05/06 日志消费责任与 `session-ad05` 装配行已写回；Model ACK 与 Tool 解除回执的缺口见[核心四项的方向](#核心四项的方向)，不能据本图声称运行接线完成 |
 | 已裁定待写回 | 无 |
-| 待核对 | [应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」已把工具与执行环境各行列入首条路径的发行层。图中工具 runtime 与执行环境的虚线框、「已接受正文」行与「首条路径已装载」行尚未同步 |
 
 出处如下。
 
 - 部署范围与进程组织：[部署与运行拓扑](architecture/deployment/README.md#部署环境与进程组织)「部署环境与进程组织」。
 - HTTP JSON 与 fetch SSE：[系统技术基础](architecture/technical-foundations.md#共同技术选择)「共同技术选择」。
 - 装配入口、插件树行与供应商适配：[应用装配](architecture/runtime/application-assembly.md#进程与装配入口)「进程与装配入口」「[插件树](architecture/runtime/application-assembly.md#插件树)」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 维护
 
