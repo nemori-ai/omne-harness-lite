@@ -694,6 +694,76 @@ describe('#516 terminal exit', () => {
     expect(finishes[0]?.intent.inputWatermark).not.toEqual(finishes[1]?.intent.inputWatermark)
     expect((await load(assembly)).checkpoint.step).toBe('step-2')
   })
+  it('F3 refused after a new input, then R0 cannot read the facts: waits in memory with the revision and the settling state kept, and ends once the facts are back', async () => {
+    let first = true
+    let factsDown = false
+    let afterInput = ''
+    const commits: JournalCommit<Principal>[] = []
+    const assembly = await loopAssembly([execution()], d => ({
+      ...d,
+      journal: {
+        ...d.journal,
+        commit(input) {
+          commits.push(input)
+          return d.journal.commit(input)
+        },
+        async tryFinish(input) {
+          if (first) {
+            first = false
+            assembly.controls.journal.failNext('tryFinish', {
+              kind: 'commit-unknown',
+              outcome: 'dropped',
+            })
+            const result = await d.journal.tryFinish(input)
+            // A newer input moves the revision, so R0 reads the finish as refused, not as retried.
+            ok(
+              await d.journal.submit(
+                withLineage({
+                  ...alice,
+                  execution: execution(),
+                  operation: operation('input-before-refusal'),
+                  value: acceptedInput('new-before-refusal'),
+                }),
+              ),
+            )
+            afterInput = ok(await d.journal.load(input)).revision
+            factsDown = true
+            return result
+          }
+          return d.journal.tryFinish(input)
+        },
+        inputs(input) {
+          if (!factsDown) return d.journal.inputs(input)
+          return Promise.resolve(
+            fail({ kind: 'unavailable', owner: 'test-journal', diagnostic: 'facts undetermined' }),
+          )
+        },
+      },
+    }))
+    const c = coordinator(assembly)
+    ok(await c.accept())
+    assembly.release.open()
+    // The unavailable read of R0 is a wait, not a stop of the run.
+    ok(await c.runExecution())
+    const unavailable = await load(assembly)
+    expect(unavailable.state.kind).toBe('settling')
+    expect(unavailable.revision).toBe(afterInput)
+    expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
+    const controller = new AbortController()
+    const wake = c.waitForWake({ reconciliationDelayMs: 1000, signal: controller.signal })
+    await eventually(async () => assembly.controls.clock.pending().length > 0)
+    const waiting = await load(assembly)
+    expect(waiting.revision).toBe(afterInput)
+    expect(waiting.state.kind).toBe('settling')
+    const due = assembly.controls.clock.pending()[0]
+    if (due === undefined) throw new Error('the check time is required')
+    factsDown = false
+    expect(ok(assembly.controls.clock.advanceTo(due))).toBe(1)
+    expect(ok(await wake)).toBe('ready')
+    ok(await c.runExecution())
+    expect((await load(assembly)).state.kind).toBe('ended')
+    expect(commits.filter(item => item.events.some(event => event.kind === 'waiting'))).toEqual([])
+  })
   it.each(['candidate-clock', 'F1-commit'] as const)(
     'B1: a no-reply candidate invalidated at %s consumes new input in the same drive',
     async cut => {
