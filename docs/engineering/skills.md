@@ -114,9 +114,9 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 
 ## ub-mode 研发品味
 
-研发品味以 [ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 为基础；项目独有的补充见[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。ub-mode 是写或改代码时的判断基础，一份正文覆盖三段：先做对、再做好、日常实践。
+研发品味以 [ub-mode](https://github.com/unclebob/ub-mode/blob/57a8bdd28e45ed41900ace0bafa2ff76dd9ed70f/SKILL.md) 为基础；项目独有的补充见[研发品味](../../.meta_harness/agents/roles/engineering-taste.md)。ub-mode 是写或改代码时的判断基础，一份正文覆盖三段：先做对、再做好、日常实践。Reduce 在应然与实然之间取舍实现做法时，也可以用它思考和设计，见[负责人状态的提问前三问](map-reduce-states.md#提问前三问)。
 
-- **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时。每次读完整一份，约 4 KB。
+- **何时加载：** 写或改代码、写 spec 的「原则与约束」、做评审「设计与实践」一面时；Reduce 核对提问前三问第 3 问、上层正文要求的内容在当前里程碑内不能全部实现时。每次读完整一份，约 4 KB。
 - **取代原则清单：** poteto-mode 的 Principles 一节（二十个 `pstack:principle-*` 子技能）由 ub-mode 取代。不要求逐个加载这些子技能，也不要求在回复里逐条点名所读原则；某条 ub-mode 写得太短、确实需要展开时，再读对应的 `pstack:principle-*`。poteto-mode 的 playbook、子代理与回复写法照常使用。
 - **TDD：** 默认来源是 ub-mode 的 TDD 一节，需要展开时读 `pstack:tdd`。先设计必要的测试与验证；实施可以按 TDD 顺序。
 
