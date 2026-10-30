@@ -18,4 +18,4 @@ omne-harness-lite-spec-tools = { workspace = true }
 dev = ["omne-harness-lite-spec-tools", "pytest>=8,<9", "PyYAML>=6,<7"]
 
 [tool.pytest.ini_options]
-testpaths = ["tools/spec-tools/tests", ".meta_harness/tooling/tests", ".meta_harness/agents/skills/design-subagents/canonical/scripts"]
+testpaths = ["tools/spec-tools/tests", ".meta_harness/tooling/tests", ".meta_harness/agents/skills/design-subagents/canonical/scripts", ".meta_harness/agents/skills/delegate/canonical/scripts"]
