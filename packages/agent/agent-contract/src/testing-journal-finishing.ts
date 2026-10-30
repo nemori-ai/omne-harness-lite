@@ -6,6 +6,12 @@
 // migration of a legacy cancelled candidate, and the three custody variants. Every case reads
 // only what the port returns. testing-journal-core.ts appends these cases to the suite.
 import assert from 'node:assert/strict'
+import type * as M from '@omne-harness/model-contract'
+import {
+  decodeModelCallId,
+  decodeModelOperationId,
+  encodeModelInvocationRef,
+} from '@omne-harness/model-contract'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -13,12 +19,18 @@ import {
 } from '@omne-harness/tool-contract'
 import type { Failure, PendingCall } from './evaluation.ts'
 import type { ExecutionSnapshot, FinishResult } from './execution.ts'
-import type { FinishObligation, LegacyF2Entry, ToolIntentKey } from './finishing.ts'
+import type {
+  FinishCandidateContent,
+  FinishObligation,
+  LegacyF2Entry,
+  ToolIntentKey,
+} from './finishing.ts'
 import {
   decodeActionId,
   decodeCardRoundId,
   decodeConsumptionId,
   decodePassageId,
+  type DurableEvidence,
 } from './identity.ts'
 import type { CardRound, Passage } from './passages.ts'
 import { uncoveredCase, type ConformanceCase } from './testing-case.ts'
@@ -132,6 +144,51 @@ function toolIntent<P>(opened: AgentJournalCoreOpened<P>, name: string): Pending
     consumption: identity(decodeConsumptionId(`core-${name}`), name),
     position: { owner: 'agent', work: opened.execution, position: 'T0', purpose: 'action' },
     fixed: evidence(`request/${name}`),
+  }
+}
+
+/** A pending Model call whose effect intent is saved, with the call id its reference resolves to. */
+function modelIntent<P>(
+  opened: AgentJournalCoreOpened<P>,
+  name: string,
+): Readonly<{ pending: PendingCall; call: M.ModelCallId }> {
+  const call = identity(decodeModelCallId(`mcall_core_${name}`), name)
+  const pending: PendingCall = {
+    kind: 'model',
+    purpose: 'main',
+    action: identity(decodeActionId(`core-${name}`), name),
+    consumption: identity(decodeConsumptionId(`core-${name}`), name),
+    position: { owner: 'agent', work: opened.execution, position: 'I3', purpose: 'main' },
+    fixed: evidence(`request/${name}`),
+    reference: identity(
+      encodeModelInvocationRef({
+        tenant: opened.access.tenant,
+        call,
+        admission: identity(decodeModelOperationId(`mop_core_${name}`), name),
+      }),
+      'reference',
+    ),
+  }
+  return { pending, call }
+}
+
+/** The content of a candidate that fails because the producer gave no reply to `call`. */
+function noReplyContent(name: string, call: M.ModelCallId): Partial<FinishCandidateContent> {
+  return {
+    conclusion: { kind: 'fail', cause: evidence(`cause/${name}`) },
+    failure: {
+      step: null,
+      at: '2026-10-30T00:00:00Z',
+      source: evidence(`failure/${name}`),
+      kind: 'no-reply',
+      call,
+      result: {
+        producer: { kind: 'model', call },
+        version: 'v1',
+        delivery: null,
+        source: evidence(`result/${name}`),
+      },
+    },
   }
 }
 
@@ -629,6 +686,12 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const issued = await load(opened)
         // A call whose result is recorded is settled; the custody is the result item's (SPEC
         // "终结责任清单" call and result rows).
+        assert.ok(
+          itemsOf(issued).some(
+            item => item.kind === 'call' && item.pending.consumption === produced.consumption,
+          ),
+          'the list carries the call of the result',
+        )
         for (const item of itemsOf(issued)) {
           if (item.kind === 'call' && item.pending.consumption === produced.consumption)
             assert.equal(item.disposition.kind, 'settled', 'the call of the result is settled')
@@ -2216,6 +2279,600 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           'a new prepareFinish after ended',
         )
         assert.deepEqual(await load(opened), after)
+      },
+    },
+    {
+      name: 'F1 again with the same five fields and another checkpoint establishes a new candidate: the checkpoint is part of the content, so the first candidate is not recognized',
+      run: async () => {
+        const opened = await fixture.open('f1-checkpoint')
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const at = await load(opened)
+        const same = f1Commit(opened, at, 'f1-b', opened.authority, first.finish ?? undefined)
+        const moved = { ...same, checkpoint: { ...same.checkpoint, position: 'F1b' } }
+        await ok(journal.commit(moved), 'the same five fields at another checkpoint')
+        const after = await load(opened)
+        assert.equal(after.settlement.candidate?.candidate, moved.operation, 'a new candidate')
+        assert.deepEqual(after.settlement.candidate?.checkpoint, moved.checkpoint)
+        assert.deepEqual(
+          after.settlement.candidates.map(candidate => candidate.candidate),
+          [first.operation, moved.operation],
+        )
+        assert.deepEqual(
+          after.settlement.supersessions.map(link => [link.from, link.to]),
+          [[first.operation, moved.operation]],
+        )
+      },
+    },
+    {
+      name: 'the unknown operation item of a pending write carries the original-operation query of that operation: the execution and the operation as parameters, for query',
+      run: async () => {
+        const opened = await fixture.open('unknown-operation-continuation')
+        if (opened.faultNext === undefined) {
+          await uncoveredCase('', 'faultNext control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        opened.faultNext('submit', 'pending')
+        await refused(
+          journal.submit(newSubmit(opened, 'held', await opened.acceptInput('6'))),
+          'commit-unknown',
+          'the held write',
+        )
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepare',
+        )
+        const item = itemOf(await load(opened), 'operation')
+        assert.equal(item.disposition.kind, 'unknown')
+        if (item.disposition.kind !== 'unknown') return
+        const required = item.disposition.required
+        assert.equal(required.kind, 'original-operation-query')
+        assert.deepEqual(required.request, {
+          kind: 'parameters',
+          value: { execution: opened.execution, operation: operation('held') },
+        })
+        assert.equal(required.purpose, 'query')
+      },
+    },
+    {
+      name: 'record-tool-association: a commit-unknown return and then the accepted return of the same reference leave the call held: the undecided record does not take the known one back, the judgment is not unknown and the cancel tryFinish ends',
+      run: async () => {
+        const opened = await fixture.open('tool-association-known-after-unknown')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const pending = toolIntent(opened, 'call-k')
+        const effect = commitAt(opened, await load(opened), 'effect', opened.authority, {
+          effects: [{ action: pending.action, pending, authority: opened.authority }],
+        })
+        await ok(journal.commit(effect), 'the effect intent')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const key: ToolIntentKey = {
+          intent: effect.operation,
+          action: pending.action,
+          position: pending.position,
+        }
+        const reference = identity(
+          encodeToolInvocationRef({
+            tenant: opened.access.tenant,
+            call: identity(decodeToolCallId('core-call-k'), 'call'),
+            admission: identity(decodeToolOperationId('core-admission-k'), 'admission'),
+          }),
+          'reference',
+        )
+        const record = (name: string, source: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-tool-association'>(opened, name, {
+              kind: 'record-tool-association',
+              intent: key,
+              request: pending.fixed,
+              source,
+              priorExcluded: null,
+            }),
+          )
+        const undecided = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'commit-unknown', reference },
+          received: evidence('received/call-k'),
+          custody: evidence('custody/call-k'),
+        })
+        await ok(record('associate-unknown', undecided), 'the commit-unknown return')
+        const accepted = await opened.hostRecord({
+          kind: 'tool-return',
+          intent: key,
+          request: pending.fixed,
+          returned: { kind: 'accepted', reference, receipt: evidence('tool-receipt-k') },
+          received: evidence('received/call-k-2'),
+          custody: evidence('custody/call-k-2'),
+        })
+        await ok(
+          record('associate-accepted', accepted),
+          'the accepted return of the same reference',
+        )
+        const judged = await judge(opened, control)
+        assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        assert.equal(itemOf(issued, 'call').disposition.kind, 'held')
+        const finished = await ok(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end', cancelAuthorization(issued, control)),
+          ),
+          'the cancel tryFinish',
+        )
+        assert.equal(finished.kind, 'ended')
+      },
+    },
+    {
+      name: 'record-card-reconciliation: a result the card owner could not determine and then a known result of the same round leave the card-round obligation known, not unknown',
+      run: async () => {
+        const opened = await fixture.open('card-reconciliation-known-after-unknown')
+        if (!(await requireInstallation(opened))) return
+        if (opened.hostRecord === undefined) {
+          await uncoveredCase('', 'hostRecord control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const asking = beforeTerminalPassage('asker-k', {
+          kind: 'requested',
+          mode: { kind: 'fresh' },
+        })
+        const round = presentedRound(asking, 'round-k')
+        const passage: Passage = { ...asking, progress: { kind: 'asked', rounds: [round] } }
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(
+          journal.commit({ ...f1, checkpoint: { ...f1.checkpoint, passages: [passage] } }),
+          'F1 with the asked passage',
+        )
+        const authorRoute = (await load(opened)).settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const record = (name: string, original: DurableEvidence) =>
+          journal.commitSettlement(
+            settlement<P, 'record-card-reconciliation'>(opened, name, {
+              kind: 'record-card-reconciliation',
+              passage: passage.id,
+              round: round.round,
+              candidate: f1.operation,
+              route: authorRoute.record,
+              original,
+            }),
+          )
+        const undetermined = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: { kind: 'unknown', reason: 'source-unavailable' },
+        })
+        await ok(record('reconcile-unknown', undetermined), 'the unknown result')
+        const known = await opened.hostRecord({
+          kind: 'card-reconciliation',
+          passage: passage.id,
+          round: round.round,
+          result: {
+            kind: 'known',
+            present: evidence(`present/${round.round}`),
+            lookups: [operation('lookup-k')],
+            invalidate: null,
+          },
+        })
+        await ok(record('reconcile-known', known), 'the known result of the same round')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const item = itemOf(await load(opened), 'card-round')
+        assert.equal(item.disposition.kind, 'held', 'the known result holds the round')
+      },
+    },
+    {
+      name: 'a call whose producer gave a final failure is settled on that basis: the no-reply failure of the current failed candidate names the call',
+      run: async () => {
+        const opened = await fixture.open('final-failure-current')
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, call } = modelIntent(opened, 'call-f')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', noReplyContent('f1', call)),
+            ),
+          ),
+          'F1 of the no-reply failure',
+        )
+        await ok(journal.commit(f2Commit(opened, await load(opened), 'f2')), 'F2')
+        await ok(
+          journal.prepareFinish(prepareInput(opened, await load(opened), 'prepare')),
+          'prepareFinish',
+        )
+        assert.equal(itemOf(await load(opened), 'call').disposition.kind, 'settled')
+      },
+    },
+    {
+      name: 'the final failure of a superseded candidate still settles its call: after the cancelled candidate replaces the no-reply failure, the call is settled, the judgment is not unknown and the cancel tryFinish ends',
+      run: async () => {
+        const opened = await fixture.open('final-failure-superseded')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const { pending, call } = modelIntent(opened, 'call-g')
+        await ok(
+          journal.commit(
+            commitAt(opened, await load(opened), 'effect', opened.authority, {
+              effects: [{ action: pending.action, pending, authority: opened.authority }],
+            }),
+          ),
+          'the effect intent',
+        )
+        const at = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              at,
+              'f1',
+              opened.authority,
+              candidateContent(at, 'f1', noReplyContent('f1', call)),
+            ),
+          ),
+          'F1 of the no-reply failure',
+        )
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const judged = await judge(opened, control)
+        assert.notEqual(judged.judgment.decision.kind, 'unknown', 'the call is not unknown')
+        const unjudged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, unjudged, 'prepare', cancelAuthorization(unjudged, control)),
+          ),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        assert.equal(itemOf(issued, 'call').disposition.kind, 'settled')
+        const finished = await ok(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end', cancelAuthorization(issued, control)),
+          ),
+          'the cancel tryFinish',
+        )
+        assert.equal(finished.kind, 'ended')
+      },
+    },
+    {
+      name: 'a legacy cancelled candidate that did not migrate does not end on its author route: the cancel tryFinish is blocked with passages at the route record and does not end; after the migration and the judgment it ends',
+      run: async () => {
+        const opened = await fixture.open('legacy-unmigrated')
+        if (!(await requireInstallation(opened))) return
+        if (opened.seedLegacyCandidate === undefined) {
+          await uncoveredCase('', 'seedLegacyCandidate control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const control = await effectiveCancel(opened)
+        const legacy = await opened.seedLegacyCandidate('legacy')
+        const before = await load(opened)
+        const authorRoute = before.settlement.route
+        assert.ok(authorRoute !== null && authorRoute.kind === 'author')
+        if (authorRoute.kind !== 'author') return
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, before, 'prepare-legacy', cancelAuthorization(before, control)),
+          ),
+          'prepareFinish of the legacy candidate',
+        )
+        const issued = await load(opened)
+        const blocked = await ok(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end-legacy', cancelAuthorization(issued, control)),
+          ),
+          'tryFinish of the legacy candidate on its author route',
+        )
+        assert.deepEqual(blockedOf(blocked), { kind: 'blocked', reason: 'passages' })
+        assert.deepEqual(
+          blocked.kind === 'blocked' ? blocked.source : null,
+          authorRoute.record,
+          'the blocked source is the record of the current route',
+        )
+        assert.notEqual((await load(opened)).state.kind, 'ended')
+        const migrated = await load(opened)
+        await ok(
+          journal.commitSettlement(
+            settlement<P, 'migrate-cancellation'>(opened, 'migrate', {
+              kind: 'migrate-cancellation',
+              authorization: cancelAuthorization(migrated, control),
+              expected: migrated.revision,
+              candidate: legacy.candidate,
+              originalRoute: authorRoute.record,
+              installation: installationOf(opened).record,
+              priorExcluded: null,
+            }),
+          ),
+          'the migration',
+        )
+        await endCancelled(opened, control, 'end-migrated', { establish: false })
+        assert.equal((await load(opened)).state.kind, 'ended')
+      },
+    },
+    {
+      name: 'establish-cancellation that names a predecessor which was never a candidate of this execution is invalid at predecessor; with a stale expected the same request is changed; nothing is written',
+      run: async () => {
+        const opened = await fixture.open('establish-forged-predecessor')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        const complete = await load(opened)
+        const control = await effectiveCancel(opened)
+        const at = await load(opened)
+        const forging = settlement<P, 'establish-cancellation'>(opened, 'establish-forged', {
+          kind: 'establish-cancellation',
+          authorization: cancelAuthorization(at, control),
+          expected: at.revision,
+          installation: installationOf(opened).record,
+          predecessor: operation('forged'),
+        })
+        const forged = await refused(
+          journal.commitSettlement(forging),
+          'invalid',
+          'a predecessor that was never a candidate',
+        )
+        assert.equal(fieldOf(forged), 'predecessor')
+        await refused(
+          journal.commitSettlement({
+            ...forging,
+            operation: operation('establish-forged-stale'),
+            expected: complete.revision,
+          }),
+          'changed',
+          'a forged predecessor with a stale expected',
+        )
+        assert.deepEqual(await load(opened), at, 'the refusals wrote nothing')
+      },
+    },
+    {
+      name: 'under an effective cancel with the cancelled candidate established, prepareFinish and tryFinish under an advancement are denied, not changed, and write nothing',
+      run: async () => {
+        const opened = await fixture.open('advancement-on-cancelled')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const at = await load(opened)
+        const prepared = await refused(
+          journal.prepareFinish(prepareInput(opened, at, 'prepare-advance')),
+          'denied',
+          'prepareFinish of the cancelled candidate under an advancement',
+        )
+        assert.equal(prepared.kind === 'denied' ? prepared.action : '', 'prepareFinish')
+        const finished = await refused(
+          journal.tryFinish(finishInput(opened, at, 'end-advance')),
+          'denied',
+          'tryFinish of the cancelled candidate under an advancement',
+        )
+        assert.equal(finished.kind === 'denied' ? finished.action : '', 'tryFinish')
+        assert.deepEqual(await load(opened), at, 'the refusals wrote nothing')
+      },
+    },
+    {
+      name: 'a cancel tryFinish whose authorization source is not the source of the saved control is invalid at authorization.source and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('try-finish-forged-source')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        await judge(opened, control)
+        const judged = await load(opened)
+        await ok(
+          journal.prepareFinish(
+            prepareInput(opened, judged, 'prepare', cancelAuthorization(judged, control)),
+          ),
+          'prepareFinish',
+        )
+        const issued = await load(opened)
+        const forged = await refused(
+          journal.tryFinish(
+            finishInput(opened, issued, 'end-forged', {
+              ...cancelAuthorization(issued, control),
+              source: evidence('forged-control'),
+            }),
+          ),
+          'invalid',
+          'a cancel tryFinish with a source that does not match the saved control',
+        )
+        assert.equal(fieldOf(forged), 'authorization.source')
+        assert.deepEqual(await load(opened), issued, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'migrate-cancellation that names a candidate of this execution which is no longer current is changed and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('migrate-not-current')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const first = f1Commit(opened, await load(opened), 'f1-a')
+        await ok(journal.commit(first), 'the first F1')
+        const kept = await load(opened)
+        await ok(
+          journal.commit(
+            f1Commit(
+              opened,
+              kept,
+              'f1-b',
+              opened.authority,
+              candidateContent(kept, 'f1-b', { conditions: evidence('conditions/changed') }),
+            ),
+          ),
+          'a candidate of other content',
+        )
+        const control = await effectiveCancel(opened)
+        const at = await load(opened)
+        await refused(
+          journal.commitSettlement(
+            settlement<P, 'migrate-cancellation'>(opened, 'migrate-old', {
+              kind: 'migrate-cancellation',
+              authorization: cancelAuthorization(at, control),
+              expected: at.revision,
+              candidate: first.operation,
+              originalRoute: at.settlement.route?.record ?? evidence('none'),
+              installation: installationOf(opened).record,
+              priorExcluded: null,
+            }),
+          ),
+          'changed',
+          'a migration of a candidate that is no longer current',
+        )
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'after ended a commit of a wrong shape (a candidate on a commit that is not settling) is invalid, not terminal, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('shape-after-ended')
+        const { journal } = opened
+        await end(opened)
+        const after = await load(opened)
+        const shape = await refused(
+          journal.commit(
+            commitAt(opened, after, 'shape-after-end', opened.authority, {
+              finish: candidateContent(after, 'shape-after-end'),
+            }),
+          ),
+          'invalid',
+          'a non-settling commit with a candidate after ended',
+        )
+        assert.equal(fieldOf(shape), 'finish')
+        assert.deepEqual(await load(opened), after, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'prepareFinish under a cancel whose source does not match the saved control is invalid at authorization.source, before the kind of the named complete candidate is checked, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('prepare-forged-source')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        const f1 = f1Commit(opened, await load(opened), 'f1')
+        await ok(journal.commit(f1), 'F1')
+        const control = await effectiveCancel(opened)
+        const at = await load(opened)
+        const forged = await refused(
+          journal.prepareFinish(
+            prepareInput(
+              opened,
+              at,
+              'prepare-forged',
+              { ...cancelAuthorization(at, control), source: evidence('forged-control') },
+              f1.operation,
+            ),
+          ),
+          'invalid',
+          'a forged source on a complete candidate',
+        )
+        assert.equal(fieldOf(forged), 'authorization.source')
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'prepareFinish under a cancel with the right source that names a candidate the Journal does not hold is invalid at candidate, not denied by the kind of the current candidate, and writes nothing',
+      run: async () => {
+        const opened = await fixture.open('prepare-unknown-candidate')
+        if (!(await requireInstallation(opened))) return
+        const { journal } = opened
+        await takeInputs(opened)
+        await ok(journal.commit(f1Commit(opened, await load(opened), 'f1')), 'F1')
+        const control = await effectiveCancel(opened)
+        const at = await load(opened)
+        const unknown = await refused(
+          journal.prepareFinish(
+            prepareInput(
+              opened,
+              at,
+              'prepare-unknown',
+              cancelAuthorization(at, control),
+              operation('never'),
+            ),
+          ),
+          'invalid',
+          'a named candidate the Journal does not hold',
+        )
+        assert.equal(fieldOf(unknown), 'candidate')
+        assert.deepEqual(await load(opened), at, 'the refusal wrote nothing')
+      },
+    },
+    {
+      name: 'without the settle qualification a cancel prepareFinish and a cancel tryFinish are denied with the action settle and write nothing',
+      run: async () => {
+        const opened = await fixture.open('prepare-no-settle')
+        if (!(await requireInstallation(opened))) return
+        if (opened.qualify === undefined) {
+          await uncoveredCase('', 'qualify control').run()
+          return
+        }
+        const { journal } = opened
+        await takeInputs(opened)
+        const control = await effectiveCancel(opened)
+        await establish(opened, control)
+        const at = await load(opened)
+        opened.qualify(['migrate-cancellation', 'reconcile'])
+        const prepared = await refused(
+          journal.prepareFinish(
+            prepareInput(opened, at, 'prepare-no-settle', cancelAuthorization(at, control)),
+          ),
+          'denied',
+          'a cancel prepareFinish without settle',
+        )
+        assert.equal(prepared.kind === 'denied' ? prepared.action : '', 'settle')
+        const finished = await refused(
+          journal.tryFinish(
+            finishInput(opened, at, 'end-no-settle', cancelAuthorization(at, control)),
+          ),
+          'denied',
+          'a cancel tryFinish without settle',
+        )
+        assert.equal(finished.kind === 'denied' ? finished.action : '', 'settle')
+        assert.deepEqual(await load(opened), at, 'the refusals wrote nothing')
       },
     },
   ]
