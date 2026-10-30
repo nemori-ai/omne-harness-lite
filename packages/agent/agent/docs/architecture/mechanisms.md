@@ -45,7 +45,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 
 ## 提交点与聚合边界
 
-本节把 [Loop 完整算法](loop-algorithm.md#节点表)中每个写入节点的提交点集中列出。内存 `AgentJournal` 替身与耐久后端按同一份清单实现，同一套测试适用于两者。按节点补“何时提交”的实施卡也从这里查本节点的方法与分面。本节不新增行为。类型与方法以 [journal.ts](../../../agent-contract/src/journal.ts)、[execution.ts](../../../agent-contract/src/execution.ts)、[evaluation.ts](../../../agent-contract/src/evaluation.ts) 与 [SPEC](../../../agent-contract/SPEC.md) 为准，节点语义以节点表为准。本节与它们不一致时，以它们为准。
+本节把 [Loop 完整算法](loop-algorithm.md#节点表)中每个写入节点的提交点集中列出。内存 `AgentJournal` 替身与耐久后端按同一份清单实现，同一套测试适用于两者。按节点补“何时提交”的实施卡也从这里查本节点的方法与分面。本节不新增行为。类型与方法以 [journal.ts](../../../agent-contract/src/journal.ts)、[execution.ts](../../../agent-contract/src/execution.ts)、[evaluation.ts](../../../agent-contract/src/evaluation.ts) 与 [SPEC](../../../agent-contract/SPEC.md) 为准，节点语义以节点表为准。本节与它们不一致时，以它们为准。开放问题页 [U-15](open-questions.md#journal-联合表达的具名缺口) 列出的写入还没有类型承载，在类型落地之前这些行以 SPEC 正文为准。
 
 ### 聚合与分层
 
@@ -61,7 +61,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
    - 挂接的围栏记录，保留到 execution 的保留期结束，见对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 ExecutionAttachment 行。
    - 最终请求记录，它在 checkpoint 被取代之后仍承载自己的事实，见 SPEC 的[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended)。
 
-不经 Journal 的事实由各自的拥有者保存。其他材料由材料拥有者经 `AgentMaterials` 保存；Model received 材料与 Journal 条目由同一提供者共同发布。消息的长期保存归历史拥有者，Agent 经 `MessageHandoff.prepare` 固定准入结果，再以 Journal 的应用操作 J 把结果与真实历史同次提交，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。卡片与答复归人在回路领域，Agent 经 `DecisionCards` 读取。
+不经 Journal 的事实由各自的拥有者保存。其他材料由材料拥有者经 `AgentMaterials` 保存；Model received 材料与 Journal 条目由同一提供者共同发布。消息的长期保存归历史拥有者，Agent 经 `MessageHandoff.prepare` 固定准入结果。真实历史分三路提交：工具结果、拒绝消息、系统提醒与压缩转换消息由 Journal 的应用操作 Ja 与准入结果同次提交，外部输入随原 open 或 submit 提交，主回复经 Ja 的 replyAdmission 提交，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。卡片与答复归人在回路领域，Agent 经 `DecisionCards` 读取。
 
 分层沿用对象模型的三层，见[跨域概念与内部可见范围](../../../agent-contract/docs/object-model.md#跨域概念与内部可见范围)：纯 Evaluator、效果协调层、宿主集成层。各层内的角色见[模块与状态责任](README.md#模块与状态责任)。纯 Evaluator 只读决策事实并返回下一步，它不调用 Journal。效果协调层的 Runtime coordinator、Execution coordinator 与 Passage evaluator / batch coordinator 调用 Journal。宿主集成层的 Journal adapter 提供 Journal。声明了提交参加者时，共同提交由集成适配器兑现。父卡 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) 用领域层、应用层、基础设施层作分层尺子，它们依次对应纯 Evaluator 与纯转移、效果协调层的 runtime 协调者、宿主集成层的 Journal 提供者与适配器。
 
@@ -72,7 +72,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 | 提交类型 | 方法 | 成立条件 | 依据 |
 | --- | --- | --- | --- |
 | 条件提交 | `commit` | 带 operation 与 expected revision。一次提交原子覆盖 checkpoint、执行状态、效果意图、事件与操作结果。状态与事件不含 ended | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
-| 按原操作幂等的记录 | `submit`、`control`、`acknowledge`、`recordResult`、`recordControl`、`recordTerminalObservation` | 带 operation，不带 expected revision。同一操作同一输入认回原结果 | SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类) |
+| 按原操作幂等的记录 | `submit`、`control`、`acknowledge`、`recordResult`、`recordControl`、`recordTerminalObservation`、`recordHandoff` | 带 operation，不带 expected revision。同一操作同一输入认回原结果 | SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类) |
 | 挂接 | `open`、`attach`、`detach` | 授予或撤销执行挂接。`open` 与 `attach` 条件核对修订号与围栏。`detach` 的修订号核对以逐操作表 `AgentExecutionRecovery.detach` 行的 changed 为依据 | SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)、[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)、[交接与停用](../../../agent-contract/SPEC.md#交接与停用) |
 | 条件终结 | `tryFinish` | 带授权、expected revision 与 FinishIntent。唯一能写 ended 的方法 | SPEC 的[条件终结](../../../agent-contract/SPEC.md#条件终结) |
 | 终结准备与收束记录 | `prepareFinish`、`commitSettlement` | 带 operation。`prepareFinish` 与 `commitSettlement` 的候选、迁移和判断变体另带终结授权与 expected revision；保管变体不带 expected，在当前事实之上合入。都不改 checkpoint，不发事件，不能写 ended | SPEC 的[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单)与[commitSettlement 的变体](../../../agent-contract/SPEC.md#commitsettlement-的变体) |
@@ -89,7 +89,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 
 ### 提交点总表
 
-下表为节点表中“写什么”不以“不写”开头的 44 个节点逐一列出提交点。一个节点写入多处时占多行。“随 X 协议提交”的写入由 X1 至 X5 的 `commit` 承载，Passage 的迁移见对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)。“参加者”一列写 `CallerCommit` 种类或其他参加方式，“无”表示 `caller` 为 none 且不需要参加者。没有类型承载的写入不列为已成立的写入，只指向 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
+下表为 44 个节点逐一列出提交点：节点表中“写什么”不以“不写”开头的 42 个节点，以及“写什么”以“不写”开头但另经 `recordControl` 写入的 T0 与 M1。一个节点写入多处时占多行。“随 X 协议提交”的写入由 X1 至 X5 的 `commit` 承载，Passage 的迁移见对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)。“参加者”一列写 `CallerCommit` 种类或其他参加方式，“无”表示 `caller` 为 none 且不需要参加者。没有类型承载的写入不列为已成立的写入，只指向 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)；U-15 列出的正文先于类型的写入除外。
 
 | 节点 | 写入的分面或记录 | 方法 | 提交类型 | 参加者 | 依据 |
 | --- | --- | --- | --- | --- | --- |
@@ -107,21 +107,21 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | I8 | `position`。新 step 开始时 `compaction` 清空 | `commit` | 条件提交 | 无 | 节点表 I8 |
 | C0 | `passages`（压缩之前） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C0 |
 | C1 | `compaction`（初值、进度、`stepRequest`、已发起步数 `initiated`），`calls`（用途 compaction），`effects` | `commit`。新进度与下一步效果意图为同一次 | 条件提交 | 无 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩) |
-| C3 | 转换消息、范围转换、新 epoch 与接续，committed 的转换依据，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 J。提供者声明了 context-transition 时 `caller` 为 context-transition。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 Context 参加者；未声明时为工厂前固定的历史组合 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
+| C3 | 转换消息、范围转换、新 epoch 与接续，committed 的转换依据，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 Ja。提供者声明了 context-transition 时 `caller` 为 context-transition。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 Context 参加者；未声明时为工厂前固定的历史组合 | SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | C4 | `passages`（压缩之后），`compaction.ended` 为 committed | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C4 |
 | A0 | 每条链的 `passages`，`batch.actions` 中的 ActionJudgment | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `batch.barrier`。open 时确定发起请求（`ToolInvokeRequest`）的 `batchDecision` | `commit` | 条件提交 | 无 | 同上第 8 条 |
 | A3 | `batch.slots`（按原顺序建立 denied 槽位） | `commit` | 条件提交 | 无 | 节点表 A3 |
 | A2 | 完整原 ToolInvokeRequest facts 材料，`calls` 的 Tool intent、fixed、position 及 `effects`。引用已证明后改为 associated | 材料 preserve，再 commit 原意图；关联保存另沿 commit | 条件提交，未知先查原 Journal operation | 无 | [两态登记与完整原请求](../../../agent-contract/SPEC.md#两态登记与完整原请求)，节点仍待实现 |
 | A2 | `batch.slots`：accepted 保存 associated 后为 dispatched，rejected 且无历史受理或未决才为 denied，否则保留原 pending、完整请求、consumer、effect intent 与 open 屏障；两类未知先保留原责任并对账 | `commit` | 条件提交 | 无 | 节点表 A2 |
-| T0 | 中断类控制的阶段与可选 toolOperation，原 toolInvocation 已在接受时保存 | recordControl | 相同完整输入按原操作认回，新引用由新 R2 实际写入 | 无 | [Recording operation 与阶段事实](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)，不重复阶段事件 |
+| T0 | 中断类控制的阶段与可选 toolOperation，原 toolInvocation 已在接受时保存 | recordControl | 相同完整输入按原操作认回，新引用由后继的 recording operation 实际写入 | 无 | [Recording operation 与阶段事实](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)，不重复阶段事件 |
 | T0 | 没有事件。Agent 不投影 Tool 的过程流，观察者经 Tool 契约的 `current` 直接观察 | 无写入 | 无 | 无 | SPEC 的[流引用与自身事件](../../../agent-contract/SPEC.md#流引用与自身事件) |
 | T1 | 第一步：`results`（ResultResponsibility 的保管或完成依据） | `recordResult`，transfer 为 custody 或 processed，用自己派生的操作身份 | 按原操作幂等的记录 | 见[提交参加者](#提交参加者)的 custody 与 processed 行 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)、[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任) |
 | T1 | 第二步：`batch.slots` 的 result 或 background 分支。result 分支的 `custody` 取第一步的依据 | `commit`，用另一个派生的操作身份。`recordResult` 不能修改 checkpoint。第一步已成而绑定未知时经 R0 查原操作，见[恢复切点表](#恢复切点表)“Tool 材料已保存、责任绑定未知”行 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | T1 | 事件 producer | 第二步的 `commit`。`recordResult` 自身不追加 producer 事件，由后继有资格的条件提交承担投影 | 条件提交 | 无 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与[执行修订](../../../agent-contract/SPEC.md#执行修订) |
 | T2 | 每个槽位的 `passages`（each），`batch.slots` 的 `each` 与改写后的 `candidate` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T2 |
 | T4 | `passages`（batch），`batch.batchPass` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T4 |
-| T5 | 候选消息，`batch.slots` 的 `handoff` 记 H 的引用，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 J。提供者声明了 message 时 `caller` 为 message。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 message 的参加者；未声明时为工厂前固定的历史组合 | SPEC 的[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 5 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
+| T5 | 候选消息，`batch.slots` 的 `handoff` 记 H 的引用，事件 message | `commit` 带 `handoff.resolve`，经 Q2，即 Ja。提供者声明了 message 时 `caller` 为 message。未声明时 `caller` 为 none，Journal 的固定历史组合在同一事务兑现同样的核心历史义务 | 条件提交 | 声明时为 message 的参加者；未声明时为工厂前固定的历史组合 | SPEC 的[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 5 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | M0 | 主请求：最终请求记录，`adoptedContext`，`effects`。与 I2 的 `calls` 为同一次。ready 的 `requestPreparation` 保存最终请求，`PendingCall.fixed` 引用它，这次提交即构成最终请求记录，`JournalCommit` 不另设字段 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
 | M0 | 压缩步骤：`passages`（调模型之前，用途 compaction） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M0 |
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
@@ -130,8 +130,8 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | M3 | producer 事件 | `commit`。读取接收方已提交的 received 与完整材料（J02）。receiver 推进 revision 时重读，真实撤权时停止 | 条件提交 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
 | M4 | `passages`（complete_reply 或 failure），循环判断的 `guard` 操作记入 Passage 的 `operations`，效果采纳时写 `guard` | `commit`，随 X 协议 | 条件提交 | 无 | SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | Q1 | 内部来源的完整 PendingHandoff，`currentHandoff` 设为 H。外部输入不写 Journal，由准入提供者保存受理前记录 | `commit` 带 `handoff.prepare`，即 P，可与冻结候选的来源提交合并。P 提交后才调用 `MessageHandoff.prepare` | 条件提交 | 无 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
-| Q2 | 原 H 的 HandoffOutcome 与真实历史、来源接续同次提交，事件 message。主回复带 `replyAdmission`。压缩与其他来源在提供者声明对应种类时带 context-transition 或 message，否则 `caller` 为 none 且固定历史组合在同一事务兑现。外部输入由原 open 或 submit 的真实受理承载 | `commit` 带 `handoff.resolve`，即 J | 条件提交 | 按 `caller` 的种类；none 时为固定历史组合 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)、[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素) |
-| Q5 | rejected 的原拒收随来源节点的 J 保存：主回复为 rejected 的 `replyAdmission` 与原 handoff 引用。压缩不提交转换。工具结果与拒绝消息经 T5 转 H0。外部输入不写入，invoke 或 submit 返回 invalid。系统提醒不写入 Passage。当前不能推进时由 O0 的 R 保管 | 来源节点的 J；无推进时 `recordHandoff` | 条件提交；R 为按原操作幂等的记录 | 随来源节点 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
+| Q2 | 原 H 的 HandoffOutcome 与真实历史、来源接续同次提交，事件 message。主回复带 `replyAdmission`。压缩与其他来源在提供者声明对应种类时带 context-transition 或 message，否则 `caller` 为 none 且固定历史组合在同一事务兑现。外部输入由原 open 或 submit 的真实受理承载 | 内部来源：`commit` 带 `handoff.resolve`，即 Ja。外部输入：原 `open` 或 `submit` | 条件提交；外部输入按原 open 或 submit 的提交类型 | 按 `caller` 的种类；none 时为固定历史组合 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)、[卡片与准入端口的逐操作要素](../../../agent-contract/SPEC.md#卡片与准入端口的逐操作要素) |
+| Q5 | rejected 的原拒收随来源节点的 Ja 保存：主回复为 rejected 的 `replyAdmission` 与原 handoff 引用。压缩不提交转换。工具结果与拒绝消息经 T5 转 H0。外部输入不写入，invoke 或 submit 返回 invalid。系统提醒不写入 Passage。当前不能推进时由 O0 的 Rh 保管 | 来源节点的 Ja；无推进时 `recordHandoff` | 条件提交；Rh 为按原操作幂等的记录 | 随来源节点 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | X1 | Passage 的初始迁移（requested） | `commit` | 条件提交 | 无 | 对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次) |
 | X2 | Passage 的 `operations`（producer、read、guard）：发出前提交 requested，结果先提交再交回 | `commit` | 条件提交 | 无 | 本页的[扩展协议的边界](#扩展协议的边界) |
 | X3 | Passage 的 Conclusion。ask 时含新一轮 CardRound | `commit` | 条件提交 | 无 | 对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次) |
@@ -145,7 +145,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | O0 | `results`（保管、完成与释放） | `recordResult` | 按原操作幂等的记录 | 同 T1 | SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | O0 | `output.acknowledgedThrough`。确认由读取方经公开操作 `output.acknowledge` 发起，O0 不发起它，只处理其结果 | `acknowledge` | 按原操作幂等的记录 | 无 | SPEC 的[确认](../../../agent-contract/SPEC.md#确认) |
 | O0 | 控制回执：责任释放阶段（`controls`），事件 control | `recordControl`，stage 为 duty-released | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)第 6 条 |
-| O0 | `handoffs` 的未清责任：原准入结果或排除合入 execution | `recordHandoff`，即 R。先经 `MessageHandoff.lookup` 读原结果；内部 H 的取消围栏经 `MessageHandoff.exclude`，不写 Journal | 按原操作幂等的记录，根与后继稳定派生 | 无 | SPEC 的[准入结果保管](../../../agent-contract/SPEC.md#准入结果保管) |
+| O0 | `handoffs` 的未清责任：原准入结果或排除合入 execution | `recordHandoff`，即 Rh。先经 `MessageHandoff.lookup` 读原结果；内部 H 的取消围栏经 `MessageHandoff.exclude`，不写 Journal | 按原操作幂等的记录，根与后继稳定派生 | 无 | SPEC 的[准入结果保管](../../../agent-contract/SPEC.md#准入结果保管) |
 | W0 | `state` 为 waiting（`waits`），事件 waiting。检查时刻由进程内计时承载，恢复立即重读 | `commit` | 条件提交 | 无 | 本页的[等待、唤醒与公平](#等待唤醒与公平) |
 
 ### 方法表
@@ -183,7 +183,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 | 种类 | 产生的节点 | 方法与字段 | 参加者 | 未声明时 |
 | --- | --- | --- | --- | --- |
 | message | Q2：T5 的工具结果与拒绝消息，X5 的系统提醒 | `commit` 的 `caller`，与 `handoff.resolve` 同一次提交 | 外部协调者作为参加者时在同一次提交中写自己的消息行 | `caller` 为 none。Journal 的固定历史组合在同一事务内兑现同样的核心历史义务：不省略 `handoff.resolve`，不把 prepared 当作已写历史。组合在工厂开始之前固定历史拥有者 Adoption、原准入记录 resolver、共享事务域与提交处理器，缺实际组合时工厂返回 unsupported，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
-| context-transition | C3 经 Q2 | `commit` 的 `caller`，与 `handoff.resolve` 同一次提交 | Context 参加者，它核验并共同保存实际范围与排除名单 | `caller` 为 none，规则与 message 一行相同。SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条写转换由 J 与 Journal 的 context-transition 交接同次保存，独立装配由其固定的历史组合在同一事务兑现 |
+| context-transition | C3 经 Q2 | `commit` 的 `caller`，与 `handoff.resolve` 同一次提交 | Context 参加者，它核验并共同保存实际范围与排除名单 | `caller` 为 none，规则与 message 一行相同。SPEC 的[请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条写转换由 Ja 与 Journal 的 context-transition 交接同次保存，独立装配由其固定的历史组合在同一事务兑现 |
 | custody | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的保管依据。材料先经 `AgentMaterials.preserve` 保存到材料拥有者，见本页的[交付责任解除的两条路径与保管者更替](#交付责任解除的两条路径与保管者更替) | 提供者自己建立保管依据，见[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | processed | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的处理依据 | 提供者自己建立完成依据，依据同上 |
 
@@ -191,7 +191,7 @@ revision 在保留期内单调递增，不复用。每次建立新 execution 事
 
 下列共同成立的事实不是 `CallerCommit` 种类。
 
-- 每个来源的准入结果随 `JournalCommit.handoff.resolve` 在一次 `commit` 中与真实历史、来源接续一起提交（Q2 的 J）。它是 Journal 自身的提交；`caller` 的种类只说明外部参加者是否在同一次提交中写自己的行，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。
+- 每个来源的准入结果随 `JournalCommit.handoff.resolve` 在一次 `commit` 中与真实历史、来源接续一起提交（Q2 的 Ja）。它是 Journal 自身的提交；`caller` 的种类只说明外部参加者是否在同一次提交中写自己的行，见 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)。
 - 主回复准入随 `JournalCommit.replyAdmission` 在一次 `commit` 中与接续一起提交（I3 经 Q2）。它是 Journal 自身的提交，见[主回复准入事实与否决投影](#主回复准入事实与否决投影)。
 - `open` 与 `attach` 的 grant 非空时，coordinated 绑定在同一次提交中共同核对 grant，核对失败返回 denied；standalone 绑定在写前返回 unsupported。见 SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)。
 - `open` 与 `submit` 受理带非空来源依据的输入时，coordinated 绑定在同一次提交中核对来源依据；standalone 绑定在写前返回 unsupported。见 SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)。
@@ -450,11 +450,11 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | Tool 发起前后 | accepted 或 commit-unknown 带引用 | 保存 associated、原引用及已知原回执 | lookup 当前状态。not-accepted 不排除来源续做，沿原 invoke 接续 | 用查询覆盖原回执，换 consumer 发新调用 | R0 回 A2 或 T0 | SC-AG-162、SC-AG-216 |
 | Tool 发起前后 | association-unknown 无引用 | intent 与完整请求、consumer 保留 | 当前资格下重入原 invoke | 猜 ID，进入 associated-only 视图 | R0 回 A2 | SC-AG-217 |
 | 提交回执丢失 | Journal 提交回执丢失 | 原操作身份、持久索引与接管围栏 | query 原操作。committed 取原结果回后继。unknown 等待。excluded 才重新求值 | 用新的随机身份重试。把查无记录当作 excluded | R0 回 E4 | SC-AG-163 |
-| 提交回执丢失 | 准入或应用的回执未知（Q1、Q2） | P、H、J、R 各有稳定身份。P 保存完整 PendingHandoff 与 `currentHandoff`，提供者按 K 或 H 耐久保存原结果 | H 以 `MessageHandoff.lookup` 查：recorded 认回原结果，excluded 读排除，unknown 沿同 H 等待。P 与 J 以 Journal query 查：J 为 committed 后读原 receipt，不再次 prepare 或追加历史 | 换候选或换 H 重新 prepare。把 unknown、excluded 当作 rejected。把 prepared 当作已写历史 | Q1、Q2 转 R0，再 Q4 | SC-AG-163 |
-| 提交回执丢失 | P 已提交，提供者尚无 H，取消已成立 | P 的完整 H、request 与取消 control | 当前合法收束者调用 `MessageHandoff.exclude`，墓碑先成立则迟到的 prepare 不能进入。R 把 excluded 合入闭包 | 以空查询结清责任。以进程锁或取消 RPC 当作排除证明 | O0 | 待登记 |
-| 提交回执丢失 | prepared 或 rejected 已固定，J 未提交，随后 ended 或撤权 | 提供者的原结果，lookup 返回完整原 request 与 origin | 当前保管者以 `recordHandoff` 保管原结果：prepared 按原终态处置记为 retained，rejected 的 history 为 not-applicable。rejected 由 H0 只读路由，无推进时不写 F1 | 发布消息或生成 message 事件。把 R 的 committed 当作 J 已发布 | O0；H0 转 O0 | 待登记 |
-| 提交回执丢失 | 内部 H 已 excluded，retire 未确认 | 原排除与 J 的完整请求 | 查 J，committed 后由 E4 从原来源节点重新求值并建带 `predecessorHandoff` 的新 P | 凭 `currentHandoff` 已空猜提交。另建 H′ 或重跑 Tool | R0 回 E4 | 待登记 |
-| 提交回执丢失 | C3 的 J 已提交，资格重签或 C4 之前崩溃 | 原 J、committed 的转换依据与新 epoch | 先认回 J、重签读取资格并读当前完整快照，再进入 C4 与 resume。参加者一侧的查询桥接原 J | 以派生键查空判未提交。拼接旧 epoch 页与当前页 | R0 回 C4 | 待登记 |
+| 提交回执丢失 | 准入或应用的回执未知（Q1、Q2） | P、H、Ja、Rh 各有稳定身份。P 保存完整 PendingHandoff 与 `currentHandoff`，提供者按 Ki 或 H 耐久保存原结果 | H 以 `MessageHandoff.lookup` 查。prepared 认回原结果。rejected 按来源分流：主回复、压缩与系统提醒先提交该来源的 rejected Ja，再回 I3、C3 或 X5；只有工具结果与拒绝消息（T5）转 H0。excluded 时，retire 未发出则在当前合法位置提交同一个 retire Ja，回执未知时查该 Ja。unknown 时，当前合法推进者用同一 H 与同一完整 request 重调 prepare；没有 advance 的一方只做 lookup、合法的 exclude 或 Rh 保管。P 与 Ja 以 Journal query 查：Ja 为 committed 后读原 receipt，不再次 prepare 或追加历史 | 换候选或换 H 重新 prepare。把 unknown、excluded 当作 rejected。把 prepared 当作已写历史 | Q1、Q2 转 R0，再 Q4 | SC-AG-163 |
+| 提交回执丢失 | P 已提交，提供者尚无 H，取消已成立 | P 的完整 H、request 与取消 control | 当前合法收束者调用 `MessageHandoff.exclude`，墓碑先成立则迟到的 prepare 不能进入。Rh 把 excluded 合入闭包 | 以空查询结清责任。以进程锁或取消 RPC 当作排除证明 | O0 | 待登记 |
+| 提交回执丢失 | prepared 或 rejected 已固定，Ja 未提交，随后 ended 或撤权 | 提供者的原结果，lookup 返回完整原 request 与 origin | 当前保管者以 `recordHandoff` 保管原结果：prepared 按原终态处置记为 retained，rejected 的 history 为 not-applicable。rejected 由 H0 只读路由，无推进时不写 F1 | 发布消息或生成 message 事件。把 Rh 的 committed 当作 Ja 已发布 | O0；H0 转 O0 | 待登记 |
+| 提交回执丢失 | 内部 H 已 excluded，retire 未确认 | 原排除与 Ja 的完整请求 | 查 Ja，committed 后由 E4 从原来源节点重新求值并建带 `predecessorHandoff` 的新 P | 凭 `currentHandoff` 已空猜提交。另建 H′ 或重跑 Tool | R0 回 E4 | 待登记 |
+| 提交回执丢失 | C3 的 Ja 已提交，资格重签或 C4 之前崩溃 | 原 Ja、committed 的转换依据与新 epoch | 先认回 Ja、重签读取资格并读当前完整快照，再进入 C4 与 resume。参加者一侧的查询桥接原 Ja | 以派生键查空判未提交。拼接旧 epoch 页与当前页 | R0 回 C4 | 待登记 |
 | 输出后 | Model 已接收首片、保存窗口未确认。拥有者 Model，见[重试、失联与恢复](../../../../model/model-contract/SPEC.md#重试失联与恢复) | 接收窗口把首内容状态置为 uncertain。preserve 关闭窗口 | Model 按其协议收场：无法证明没有内容时保持 uncertain，以 runtime-lost 收场。Agent 在 M1 等待该收场对应的 Journal received | 以未保存首片或用户没有看到为由重新请求。Agent 产生新的调用 | M1 转 M3 | SC-AG-165 |
 | 输出后 | Model 已有部分输出后供应商失败。拥有者 Model，见[流式和首内容](../../../../model/model-contract/SPEC.md#流式和首内容) | 原部分内容、失败事实与费用 | 宿主接收方共同提交 received 与完整材料后，M3 采用。M4 经过 failure 维度。M5 回原用途。主请求在 I3 以部分结果处理转 I8 | 自动再生成并接在旧输出后。执行未完成的工具建议 | M3、M4、M5，回 I3 转 I8 | SC-AG-166 |
 | 输出后 | 流批次保存回执未知、尚未发布。拥有者 Model 与 Tool，见[展示、诊断与实施证据](../../../../model/model-contract/SPEC.md#展示诊断与实施证据)与[过程帧的观察契约](../../../../tool/tool-contract/SPEC.md#过程帧的观察契约) | 生产者先保存后发布。游标只指向已保存事实 | 生产者查原保存操作，确认后发布原批次。Model 的观察者只读已发布事实；Agent 的 M1 不投影 Model stream。Tool 事件保持原协议 | 未确认先展示。为取得同内容重新运行生产者 | M1、T0 | SC-AG-167 |
@@ -465,7 +465,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 结果取得 | Tool 结果已产生、尚未被消费 | Tool 保管。原 consumption 去重 | 新推进者在 T1 按原 consumption 保管，走 Tool 的两条路径之一 | 先解除交付责任再补保存 | R0 回 T1 | SC-AG-170 |
 | Tool 结果取得 | Tool 材料已保存、责任绑定未知 | 材料拥有者按 identity 认回 preserve。custody 交接有操作身份 | 保留材料，query 原绑定操作。确认后继续 | 超时删除。用孤立材料的存在当作保管交接完成 | T1 转 R0 | SC-AG-171 |
 | 结果取得 | 后台占位已保管，最终结果以同一 consumption 迟到 | 占位版本的前台交付已解除。原 consumption 的责任待释放 | 本执行推进中时 I8 转 T1 保管，回 I8 以 consume 消费。没有推进资格时 O0 只保管 | 改写原槽位。重开批次。把占位的释放当作最终结果已交付 | I8、T1、I8，或 O0 | SC-AG-172 |
-| 结果取得 | 一批中一个结果先到、另一个仍等待。T5 部分提交后崩溃 | 槽位的 `each`、`candidate`、`handoff` 进度随 checkpoint | 先到者完成 T1、T2 并解除生产责任。T3 未齐则 W0。T5 按各槽位的 H 认回，只对尚未进入历史的候选提交 J | 重跑已结束的单结果经过。重新提交已进入历史的消息。重跑工具或整批经过 | T3 转 W0。T5 | SC-AG-173 |
+| 结果取得 | 一批中一个结果先到、另一个仍等待。T5 部分提交后崩溃 | 槽位的 `each`、`candidate`、`handoff` 进度随 checkpoint | 先到者完成 T1、T2 并解除生产责任。T3 未齐则 W0。T5 按各槽位的 H 认回，只对尚未进入历史的候选提交 Ja | 重跑已结束的单结果经过。重新提交已进入历史的消息。重跑工具或整批经过 | T3 转 W0。T5 | SC-AG-173 |
 | Tool 确认前后 | 消费侧保管已成、解除回执丢失 | recordResult 的 release 操作身份。Tool 的确认依据 | 以原 release 操作对账，需要时重认幂等确认。确认后从消费侧继续 | 重新执行 Tool。再次处理同一份结果 | T1、O0 | SC-AG-174 |
 | Model 确认前后 | received 与材料共同保存，生产者 ACK 未完成 | 原 received、材料、接收 operation 与 saved | Model 自己认回 ACK；loop 从原 received 材料继续。宿主独立驱动原账目 handoff | Agent 查询或执行 Model ACK；以 outlet 未完撤回 saved | M1 转 M3；宿主出站 | SC-AG-174 |
 | 确认前后 | 生产侧责任已解除、消费端交付未完成 | Model 用原 received 与完整材料；Tool 用 custody 材料或 processed 完成依据 | 新消费者从各自消费侧依据继续 | 向 Model 索取全文。重新执行工具 | E2、E4 回原消费位置 | SC-AG-175 |
@@ -521,8 +521,8 @@ Journal.load 的 snapshot 固定一个 execution revision，包含当前 checkpo
 
 A2 材料成功、Journal 未知时保留材料并查原 Journal operation。checkpoint 更换不丢完整原请求。schema 是精确 Adoption，恢复经 judgeToolInvokeRequest 校验，具体 schema 与生产材料后端仍由后继 A2 方案提供。
 
-Tool control 接受先核当前资格，再认回原 C 或因异输入 conflict；只有新 C 在当前租户下先按 kind 再按 call 匹配 associated pending，保存 toolInvocation 与初始 null 的 toolOperation。recordControl 的迟到引用以原记录校验 tenant、call、admission，不重新定位当前 checkpoint。recordControl 先核当前资格与附件租户，以规范身份认回原 R 或判异输入 conflict，之后才核新 target、原引用与 stage。外租户先 denied；原 R 新增畸形或非 Tool 附件先 conflict。新 R 的畸形与非 Tool 附件分别映射 invalid(toolOperation)，保留引用损坏映射 unavailable 或 denied，精确 reason、owner、diagnostic 与次序见 SPEC。非 Tool 控制不能附引用。规则由 [SPEC](../../../agent-contract/SPEC.md#控制接受与迟到引用)拥有。
+Tool control 接受先核当前资格，再认回原 control operation 或因异输入 conflict；只有新的 control operation 在当前租户下先按 kind 再按 call 匹配 associated pending，保存 toolInvocation 与初始 null 的 toolOperation。recordControl 的迟到引用以原记录校验 tenant、call、admission，不重新定位当前 checkpoint。recordControl 先核当前资格与附件租户，以规范身份认回原 recording operation 或判异输入 conflict，之后才核新 target、原引用与 stage。外租户先 denied；原 recording operation 新增畸形或非 Tool 附件先 conflict。新 recording operation 的畸形与非 Tool 附件分别映射 invalid(toolOperation)，保留引用损坏映射 unavailable 或 denied，精确 reason、owner、diagnostic 与次序见 SPEC。非 Tool 控制不能附引用。规则由 [SPEC](../../../agent-contract/SPEC.md#控制接受与迟到引用)拥有。
 
-相同 recording operation R 的输入增加引用冲突。新 R2 可以在阶段相同的情况下附引用，并原子推进 revision、保存 R2 回执。不重发阶段事件，不替换原阶段回执。引用冲突先于阶段认回。本例的 revision 要求不裁定其他写操作的全部机制，Q11/Q13 更广问题仍待后续处理。
+相同 recording operation 的输入增加引用冲突。后继的 recording operation 可以在阶段相同的情况下附引用，并原子推进 revision、保存它自己的回执。不重发阶段事件，不替换原阶段回执。引用冲突先于阶段认回。本例的 revision 要求不裁定其他写操作的全部机制，Q11/Q13 更广问题仍待后续处理。
 
 Tool releaseDelivery 未知只有原 ToolOperationRef 可取得时查询。可靠否定后可以明确重入，lookup.delivery 可证明当前已释放。丢引用且未证明释放时保持未知，pending 不能可靠否定旧操作。本页不增加跨重启 release 引用保管协议。

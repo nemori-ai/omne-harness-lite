@@ -208,8 +208,8 @@ flowchart TB
 | C0 | needs-compaction 的准备与计划进度 | 该位置的 Passage | 随 X 协议提交 | X4 等待 | proceed 转 C1。veto 关闭本准备的压缩准入并转 I1 | 一次准备只经过一次 | 否决后果见[无法装下](../../../agent-contract/SPEC.md#无法装下)第 3 条 |
 | C1 | `CompactionState` 的进度与自持的已发起步数、`derive` 的返回、压缩用途的 `select` | checkpoint 的 `compaction`：首次进入计划时置初值，之后写进度、下一步 `stepRequest`、已发起步数。每步的 PendingCall，用途 compaction，返回去处 C1 | 每步结果交 `derive` 之后，新进度与下一步效果意图在同一次提交 | 步骤调用在 M1 等待 | continue 留在 C1。transition 转 C2。cannot-fit 或耗尽转 F1，失败候选为 cannot-fit。进度不符转 F1，失败候选为 compaction-invalid。步骤请求在 M0 被否决时经 M5 回到本节点，再转 F1，失败候选为 cannot-fit 并附否决依据 | 步骤串行，同一计划同时至多一步在途 | 不发起序号不小于 bound 的步骤。认回同一步不重复计数。不递归压缩压缩请求 |
 | C2 | `derive` 返回的 PreparedContextTransition | 不写 | 不提交 | 不等待 | 转 C3 | 串行 | 转换消息与 commitment 绑定 |
-| C3 | 完整 PreparedContextTransition、Context 的 commitment | Q1 以 P 固定来源候选并记 `currentHandoff`，经 prepare 取得准入结果；Q2 以 J 同次提交准入结果、消息、范围转换、新 epoch、接续与 committed 的转换依据，绑定声明了 context-transition 时 caller 为 context-transition，否则 caller 为 none 且固定历史组合在同一事务兑现。事件 message | J 认回 committed 才算压缩完成 | 不等待 | 成功转 C4。消息 rejected 转 F1，失败候选为 cannot-fit（after-compaction），`rejection` 为拒收依据。转换非法转 F1，失败候选为 compaction-invalid | 与 Journal.commit 同一排序 | 提交未知只查原 J，不用未提交的派生冒充已压缩；参加者一侧的查询桥接原 J |
-| C4 | J 的原 receipt 与 committed 的转换依据 | 该位置的 Passage。`compaction.ended` 记 committed | 随 X 协议提交 | X4 等待 | 转 I1：先取 committed 的转换依据并重签当前读取资格，再经 `CurrentConditions.read` 读当前条件，再重新选择，再带转换依据读取当前完整 Runtime Context，再 `resume` | 一次计划只经过一次 | 只面对已提交事实，不改写摘要与范围。材料缺失报 unavailable，不填空 |
+| C3 | 完整 PreparedContextTransition、Context 的 commitment | Q1 以 P 固定来源候选并记 `currentHandoff`，经 prepare 取得准入结果；Q2 以 Ja 同次提交准入结果、消息、范围转换、新 epoch、接续与 committed 的转换依据，绑定声明了 context-transition 时 caller 为 context-transition，否则 caller 为 none 且固定历史组合在同一事务兑现。事件 message | Ja 认回 committed 才算压缩完成 | 不等待 | 成功转 C4。消息 rejected 转 F1，失败候选为 cannot-fit（after-compaction），`rejection` 为拒收依据。转换非法转 F1，失败候选为 compaction-invalid | 与 Journal.commit 同一排序 | 提交未知只查原 Ja，不用未提交的派生冒充已压缩；参加者一侧的查询桥接原 Ja |
+| C4 | Ja 的原 receipt 与 committed 的转换依据 | 该位置的 Passage。`compaction.ended` 记 committed | 随 X 协议提交 | X4 等待 | 转 I1：先取 committed 的转换依据并重签当前读取资格，再经 `CurrentConditions.read` 读当前条件，再重新选择，再带转换依据读取当前完整 Runtime Context，再 `resume` | 一次计划只经过一次 | 只面对已提交事实，不改写摘要与范围。材料缺失报 unavailable，不填空 |
 | A0 | 每个动作的生效参数、定义采用、按需要名的一组读取（`permissions`，空列表表示没有读取） | 每条链的 Passage。链末官方准入经 `ActionAdmission.admit` 写入该动作的 ActionJudgment | 随 X 协议提交，判断随 checkpoint 的 `batch` 提交 | 链内 ask 在 X4 等待 | 转 A1 | 链间并行，链内按声明顺序串行。链间不读取对方 Conclusion | 规则见[整批判断屏障与动作准入](../../../agent-contract/SPEC.md#整批判断屏障与动作准入)第 1、2 条 |
 | A1 | `ActionBarrier` 的 judging 与 asked 列表、每轮卡片状态 | checkpoint 的 `batch.barrier`。open 时另写 `batchDecision` 依据 | 屏障状态变化时提交 | 有链在判断或在等人时转 W0 | all-denied 转 A3。open 转 A2 | 本轮卡片在每条链到达最终 Conclusion 或合法等待后一次呈现 | 打开与全拒的条件只由 SPEC 同节第 4、9 条拥有，本页不另写 |
 | A3 | 每个动作的拒绝依据 | checkpoint 的 `batch.slots`：按原顺序建立 denied 槽位 | 槽位建立后提交 | 不等待从未发起的工具 | 转 T2 | 串行 | 全拒不触发 T4。拒绝事实经回复消息与执行事实到达后续位置 |
@@ -219,7 +219,7 @@ flowchart TB
 | T2 | 槽位的 outcome 与候选消息 | 每个槽位的 `each` Passage，改写后的 `candidate` | 随 X 协议提交 | X4 等待 | 转 T3 | 各槽位的单结果经过不等待其他槽位 | 含结果卸载这一受信系统扩展。后台占位不经过本节点 |
 | T3 | 本批全部槽位与各槽位的 `each` | 不写 | 不提交 | 有槽位缺失、历史尝试未决或单结果经过未结束时转 W0 | 齐备且至少一个槽位曾为 dispatched 转 T4。齐备且没有已发起的动作转 T5 | 等待并发名额的获准动作尚无槽位时不成立 | 条件归[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 4 条 |
 | T4 | 本批全部 outcomes | `batchPass` 的 Passage。合法 inject 经 Q | 随 X 协议提交 | X4 等待 | 转 T5 | 一批只经过一次 | 只 observed、inject、stop、ask。不修改候选 |
-| T5 | 各槽位的 `candidate` 与 `handoff` 进度 | 逐槽位：Q1 以 P 固定候选，`slots[].handoff` 记 H 的引用；Q2 以 J 同次提交准入结果与消息。事件 message | 每个槽位的 J 提交后随 checkpoint 推进 | 不等待 | 全部完成且无缺槽位或历史未决动作才转 I8。rejected 转 H0 | 按原动作顺序串行 | 恢复时按 H 认回，不重复提交已进入历史的候选 |
+| T5 | 各槽位的 `candidate` 与 `handoff` 进度 | 逐槽位：Q1 以 P 固定候选，`slots[].handoff` 记 H 的引用；Q2 以 Ja 同次提交准入结果与消息。事件 message | 每个槽位的 Ja 提交后随 checkpoint 推进 | 不等待 | 全部完成且无缺槽位或历史未决动作才转 I8。rejected 转 H0 | 按原动作顺序串行 | 恢复时按 H 认回，不重复提交已进入历史的候选 |
 | M0 | 本用途的准备、改写依据、覆盖 | 主请求：FinalRequest 与 adoptedContext 的采用、effects 的效果意图与预编码 PendingCall.model.reference，一次提交。压缩步骤：该用途的调模型之前 Passage 与提交前引用 | 向 Model 受理之前提交 | X4 等待 | 转 M6。压缩用途被否决时步骤请求不发出，转 M5，由 M5 按返回去处回 C1 | 主请求的位置已在 P0 完成时只复用。用途为 extension 时不经过位置 | 记录之后不再改写 |
 | M6 | 原 PendingCall.model.reference 与固定输入；reference 在首次 admit 前已保存 | 不写。Model 保存受理并返回同一 reference | 不提交 | 不等待 | 转 M1 | 真实发出前 Model 核资格与围栏 | 同一原调用只受理一次 |
 | M1 | 原 PendingCall 与 Journal received 条目 | 不写接收材料；等待提示由 Journal 及 timer 提供 | 不提交 | 尚无匹配 received 时等待 | 匹配原 reference、consumer、consumption 的 result 转 M3 | 不连接 Model observer 或轮询收场 | entries 缺席返回 unavailable |
@@ -227,11 +227,11 @@ flowchart TB
 | M3 | 已提交 received 与同提供者的完整材料 | 核 schema 与原关联，解释结果后条件提交 producer 事件 | 原材料可读且 Authority 有效时 | 不等待 Model ACK | 转 M4 | receiver 推进 revision 时重读再提交 | 最终失败不再进入 M2 |
 | M4 | 结果或最终失败。循环判断另经执行历史读取能力读本执行的原始工作事实 | 该位置 complete_reply 或 failure 维度的 Passage。合法 inject 经 X5 交 Q。循环判断的守卫判断记入其 Passage 的 `guard` 操作，效果采纳时写 checkpoint 的 `guard` | 随 X 协议提交 | X4 等待 | 转 M5 | 一次调用一次 | 用途为 extension 时不经过位置。failure 维度在这里是原调用最终失败的触发，`retry` 输出不合法，按报错处置。循环判断这一受信系统扩展在主请求的 complete_reply 维度运行，按 `loopGuardPolicy` 的策略形成守卫事实。守卫 L1、L2 的干预消息由它返回 inject，经 X5 交 Q 进入历史一次。L4 由它返回 ask，不记为守卫事实，答复到达后以 replay 重新判断；卡片呈现确定失败时它的结论取报错分支、输出 observed，守卫事实保持上一次的值。它不可用时 Conclusion 记不可用，checkpoint 的 `guard` 沿用上一次，不伪造判断。规则见 SPEC 的[循环守卫](../../../agent-contract/SPEC.md#循环守卫) |
 | M5 | 保存的返回去处，或 M0 的否决 | 不写 | 不提交 | 不等待 | 主请求回 I3。压缩步骤回 C1。扩展能力操作回 X2 | 不隐式进入主回复解析 | 内部用途的结果不进入主回复序列 |
-| U0 | 外部输入候选、原入口 O 与 K | 不写。先按 K 认回原 O 与 H | 不提交 | 不等待 | 原 O 已成功认回原结果回受理方。否则转 Q1 | 在 invoke 或 submit 的受理之内；submit 不要求活体 runtime、advance、grant、槽、resume 或 attach | rejected 回受理方，原 open 或 submit 真实受理才进入可承接输入 |
-| Q1 | 候选、来源、当前位置；外部输入另有 K 与原 O | 内部来源：P，即 `commit` 带 `handoff.prepare`，保存完整 PendingHandoff 并记 `currentHandoff`。外部输入：准入提供者的受理前记录，不写 Journal | 内部来源在任何 prepare、转换或外部效果之前提交 P，可与冻结候选的来源提交合并 | 不等待 | P 提交后调用 `MessageHandoff.prepare`：execution 分支带 advance，invoke 分支带 InvokeRuntimeContext，submit 分支只带 InputHandoff。prepared 转 Q2。rejected 转 Q5。prepare 的回执未知以 lookup 查询，转 R0 | 同一 execution 的候选按来源节点次序串行；同 K 或 H 在提供者的耐久排序先认回或冲突 | 没有扩展位置。结构不合法的回复由 prepare 返回 rejected |
-| Q2 | prepared 的 HandoffOutcome、所需共同事实 | 内部来源：J，即 `commit` 带 `handoff.resolve`，同次写真实历史与来源接续：主回复加 ModelReplyAdmission，压缩加 context-transition，T5 与 X5 加 message；绑定未声明对应种类时 caller 为 none，固定历史组合在同一事务兑现。外部输入：原 open 或 submit 的真实受理。事件 message | J 或原受理操作提交时 | 不等待 | 成功转 Q4。changed 转 R0 重读，不用同一 J 配不同 expected。commit-unknown 转 R0，只查原 J 或原 O，不重新 prepare | 与 Journal.commit、attach、control、tryFinish 同一排序 | 一个 H 至多一次历史应用；J 的重试认回原 receipt |
+| U0 | 外部输入候选、原入口 O 与 Ki | 不写。先按 Ki 认回原 O 与 H | 不提交 | 不等待 | 原 O 已成功认回原结果回受理方；原 O 已发出而未定时沿原 O 恢复。submit 的当前 O 没有成功、也没有未定责任时，先做可信原输入解析：同 InputId 已可靠受理的直接以 recognize-input 调 `Journal.submit`，不经 Q1；未定或缺材料保持 unknown 或 unavailable；权威顺序确认是新输入才转 Q1。invoke 的原 O 没有成功或未定责任时转 Q1 | 在 invoke 或 submit 的受理之内；submit 不要求活体 runtime、advance、grant、槽、resume 或 attach | rejected 回受理方，原 open 或 submit 真实受理才进入可承接输入 |
+| Q1 | 候选、来源、当前位置；外部输入另有 Ki 与原 O | 内部来源：P，即 `commit` 带 `handoff.prepare`，保存完整 PendingHandoff 并记 `currentHandoff`。外部输入：准入提供者的受理前记录，不写 Journal | 内部来源在任何 prepare、转换或外部效果之前提交 P，可与冻结候选的来源提交合并 | 不等待 | P 提交后调用 `MessageHandoff.prepare`：execution 分支带 advance，invoke 分支带 InvokeRuntimeContext，submit 分支只带 InputHandoff。prepared 转 Q2。rejected 转 Q5。prepare 的回执未知以 lookup 查询，转 R0 | 同一 execution 的候选按来源节点次序串行；同 Ki 或 H 在提供者的耐久排序先认回或冲突 | 没有扩展位置。结构不合法的回复由 prepare 返回 rejected |
+| Q2 | prepared 的 HandoffOutcome、所需共同事实 | 内部来源：Ja，即 `commit` 带 `handoff.resolve`，同次写真实历史与来源接续：主回复加 ModelReplyAdmission，压缩加 context-transition，T5 与 X5 加 message；绑定未声明对应种类时 caller 为 none，固定历史组合在同一事务兑现。外部输入：原 open 或 submit 的真实受理。事件 message | Ja 或原受理操作提交时 | 不等待 | 成功转 Q4。changed 转 R0 重读，不用同一 Ja 配不同 expected。commit-unknown 转 R0，只查原 Ja 或原 O，不重新 prepare | 与 Journal.commit、attach、control、tryFinish 同一排序 | 一个 H 至多一次历史应用；Ja 的重试认回原 receipt |
 | Q4 | 返回去处 | 不写 | 不提交 | 不等待 | 回固定调用位置：I3、C3、T5、X5 或 U0 | 不重试 | 外部输入仅原受理成功才进入可承接输入 |
-| Q5 | rejected 的 HandoffOutcome | 内部来源：J 只写原拒收及该来源允许的接续，不写历史。外部输入：提供者保留原 rejected，Journal 不写入 | 随来源节点的 J 提交；当前不能推进时由 O0 的 R 保管 | 不等待 | 转 Q4，由 Q4 回调用位置：外部输入回受理方，返回 invalid。模型回复回 I3。压缩候选回 C3。工具结果与拒绝消息回 T5，再转 H0。系统提醒回 X5 | 不统一重试 | 后果按来源，见[消息准入](../../../agent-contract/SPEC.md#消息准入) |
+| Q5 | rejected 的 HandoffOutcome | 内部来源：Ja 只写原拒收及该来源允许的接续，不写历史。外部输入：提供者保留原 rejected，Journal 不写入 | 随来源节点的 Ja 提交；当前不能推进时由 O0 的 Rh 保管 | 不等待 | 转 Q4，由 Q4 回调用位置：外部输入回受理方，返回 invalid。模型回复回 I3。压缩候选回 C3。工具结果与拒绝消息回 T5，再转 H0。系统提醒回 X5 | 不统一重试 | 后果按来源，见[消息准入](../../../agent-contract/SPEC.md#消息准入) |
 | X0 | 位置、维度、用途、声明、精确采用、输入依据、返回去处 | 不写 | 不提交 | 原实现或材料不可用时具名等待 | 转 X1 | 同位置按装配顺序 | 已开始的扩展调用保留精确采用 |
 | X1 | Passage 的 `progress` 与各轮卡片状态 | 首次调用前，按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)提交该扩展调用的初始迁移 | 提交确认前不调用 | 已询问且未答复时转 X4 | 已有最终 Conclusion 转 X5。无结论提交 requested 后转 X2。已询问且答复齐备以 replay 转 X2 | 恢复次序按作者协议的[结构换代与未完成判断](../../../agent-contract/docs/public-api/extensions.md#结构换代与未完成判断) | 已有最终 Conclusion 的扩展调用永不再调用 |
 | X2 | 回放绑定的 `control`、注入能力 | `operations` 的 producer、read 与 guard 操作，迁移按对象模型的[扩展调用与卡片轮次](../../../agent-contract/docs/object-model.md#扩展调用与卡片轮次)写入：操作先提交再发出，结果先提交再交回 | 每项操作发出前提交 | 能力等待原操作 | 返回转 X3 | 第一次锁存之后能力不再发出新操作 | 能力按经过身份加序号认回原操作，不重复计费 |
@@ -244,8 +244,8 @@ flowchart TB
 | F3 | FinishIntent（含 candidate）、expected 修订、终结授权 | 先 `prepareFinish` 发行终结责任清单并填入 `intent.obligations`，load 最新完整修订后 `tryFinish`：终态、ended 事件、终局清单与处置、终态后观察责任与原操作结果共同提交 | prepareFinish 推进一个修订；tryFinish 是唯一终态提交点 | 不等待 | ended 转 F4。changed、blocked、unavailable 或 commit-unknown 转 R0；blocked 的类别为 inputs、controls、operations、passages 或 custody | 与 submit、control、attach、recordControl 同一排序 | 规则见[条件终结](../../../agent-contract/SPEC.md#条件终结)与[终结责任清单](../../../agent-contract/SPEC.md#终结责任清单) |
 | F4 | 已成立终态、TerminalObservation 台账 | recordTerminalObservation 登记完成 | 观察完成时登记 | 不等待人 | 转 O0 | 由长期协调者逐项处理，不要求推进权 | 只 observed。观察故障不撤终态 |
 | O0 | 未确认事件、未交清结果责任、控制回执、终结责任清单的剩余项、`load.handoffs` 的未清 handoff 责任 | recordResult、acknowledge 的处理、迟到的三种控制阶段事实（recordControl，不追加事件）、保管变体（commitSettlement 的卡片对账、迟到返回与 Tool 关联登记）、准入结果保管（经 `MessageHandoff.lookup` 读原结果后以 recordHandoff 保管）、内部 H 的取消围栏（`MessageHandoff.exclude`，不写 Journal） | 各责任交清时记录，每项在自身原子边界更新处置与修订 | 不等待 | 转 E9 | 不运行终态扩展，不改原终态、checkpoint 与末事件 | 原执行未终态时也可独立处理这些责任。剩余职责从 `load.finishObligations` 与 `load.handoffs` 读取，`reconcile.remaining` 只列结果消费 |
-| H0 | 原 recorded 且 rejected 的结果、原来源请求、当前执行事实 | 不写。没有新 operation、决策帧、快照字段或事件 | 不提交 | 不等待 | 仍有推进资格转 F1，由 F1 条件提交失败候选。无推进资格或已终结转 O0，由 R 保管原拒收。unknown、unavailable、denied 与 excluded 不是拒收，不进入本节点 | 串行 | 纯路由，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由” |
-| R0 | 原操作槽、持久帧、返回去处；handoff 的 H、P、J、R 身份 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待。H 以 `MessageHandoff.lookup` 查，P、J、R 以 Journal query 查；retire 的 ACK 丢失先查 J，committed 后才建后继 P | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有，准入的切点见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)” |
+| H0 | 原 recorded 且 rejected 的结果、原来源请求、当前执行事实 | 不写。没有新 operation、决策帧、快照字段或事件 | 不提交 | 不等待 | 仍有推进资格转 F1，由 F1 条件提交失败候选。无推进资格或已终结转 O0，由 Rh 保管原拒收。unknown、unavailable、denied 与 excluded 不是拒收，不进入本节点 | 串行 | 纯路由，规则见[消息准入](../../../agent-contract/SPEC.md#消息准入)的“H0 的路由” |
+| R0 | 原操作槽、持久帧、返回去处；handoff 的 H、P、Ja、Rh 身份 | 不写 | 不提交 | 原操作未定时等待 | 按 query 的四种结论分支后回原节点，经 E4：committed 采用原结果，rejected 保留拒绝及其责任，excluded 才重新求值，unknown 继续等待。P、Ja、Rh 以 Journal query 查。H 以 `MessageHandoff.lookup` 查，结论按恢复映射的 `currentHandoff` 一行处置：H 的 unknown 由当前合法推进者以同一 H 与同一完整 request 重调 prepare，不只等待。retire 的 ACK 丢失先查 Ja，committed 后才建后继 P | 不重做原效果 | 细节由[内部机制](mechanisms.md)与恢复切点表拥有，准入的切点见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)” |
 | W0 | 等待依据、Journal 修订、生产者与卡片游标 | 执行状态 waiting。事件 waiting | 等待保存后提交 | 登记监听后重读，进度未变才休眠 | 唤醒后转 E1 | 每段处理有限额，之后让出调度 | 超时不是取消或未执行的证明。人的等待没有默认期限 |
 
 ## 九位置与节点
@@ -413,11 +413,11 @@ I1、P0、P1、C0 至 C4、M0 的次序按 SPEC 的[请求准备与压缩](../..
 
 ## 消息准入节点
 
-U0、Q1、Q2、Q4、Q5 只做非扩展的消息准入。行为归 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)，端口形状归公开接口页的 `MessageHandoff`。I3、C3、A3、T5 经 Q 的调用不经过任何扩展位置。每次准入分三步：Q1 以 P 固定候选并经 `prepare` 取得准入结果，Q2 以 J 把结果与真实历史同次提交，Q5 按来源处置 rejected。prepared 不等于已进入历史。
+U0、Q1、Q2、Q4、Q5 只做非扩展的消息准入。行为归 SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入)，端口形状归公开接口页的 `MessageHandoff`。I3、C3、A3、T5 经 Q 的调用不经过任何扩展位置。每次准入分三步：Q1 以 P 固定候选并经 `prepare` 取得准入结果，Q2 以 Ja 把结果与真实历史同次提交，Q5 按来源处置 rejected。prepared 不等于已进入历史。
 
-- 外部输入在 U0 进入，在 invoke 或 submit 的受理之内完成。先按 K 认回原 O，再以 invoke 或 submit 分支 prepare，真实受理由原 open 或 submit 完成。rejected 回受理方，不进入可承接输入。submit 不要求活体 runtime。
-- 模型完整回复在 I3 进入。结构按 SPEC 消息准入一节的 `judgeMessage` 判定，含结构非法 `tool_call` 的回复整条拒收，其中合法的调用也不进入 I4。rejected 由 J 保存为 rejected 的 ModelReplyAdmission，原调用照常收场。I3 建立进程内退避后转 I8，恢复后重新计足，I8 以新 step 转 I0。
-- 压缩转换消息在 C3 进入，J 同次提交准入结果、context-transition 与 committed 的转换依据。
+- 外部输入在 U0 进入，在 invoke 或 submit 的受理之内完成。先按 Ki 认回原 O。submit 再做可信原输入解析：同 InputId 已可靠受理的以 recognize-input 直接受理，不经 prepare；确认是新输入的才以 submit 分支 prepare。invoke 以 invoke 分支 prepare。真实受理由原 open 或 submit 完成。rejected 回受理方，不进入可承接输入。submit 不要求活体 runtime。
+- 模型完整回复在 I3 进入。结构按 SPEC 消息准入一节的 `judgeMessage` 判定，含结构非法 `tool_call` 的回复整条拒收，其中合法的调用也不进入 I4。rejected 由 Ja 保存为 rejected 的 ModelReplyAdmission，原调用照常收场。I3 建立进程内退避后转 I8，恢复后重新计足，I8 以新 step 转 I0。
+- 压缩转换消息在 C3 进入，Ja 同次提交准入结果、context-transition 与 committed 的转换依据。
 - 工具结果消息与被拒绝动作的拒绝消息在 T5 进入，按原动作顺序。rejected 转 H0。
 - 系统提醒由 X5 在采纳 inject 时进入一次。rejected 不改变该扩展的 Conclusion。
 
@@ -504,10 +504,10 @@ SPEC 拥有行为，本页拥有执行位置。每条不变量列出执行它的
 
 ## 复杂度、上界与进展
 
-设 A 为当前动作数，P 为活动扩展调用及其仍需恢复的操作条目数，C 为原调用与结果责任数，I 为本次承接输入数，B 为实际读取或输出字节数，H 为需补齐的投影尾部长度。
+设 `n_a` 为当前动作数，`n_e` 为活动扩展调用及其仍需恢复的操作条目数，`n_c` 为原调用与结果责任数，`n_i` 为本次承接输入数，`n_b` 为实际读取或输出字节数，`n_t` 为需补齐的投影尾部长度。
 
-- 冷恢复（E0 至 E4）至少为 O(A+P+C+I+H+B)。内存取决于同时使用的活动部分与页大小。公开 `load` 返回完整快照，分页是提供者内部实现，所以在分页契约公开之前不能承诺内存只与单页有关。
-- 整批屏障检查（A1）为 O(A+卡片数)，也可从带来源的计数投影取得。
+- 冷恢复（E0 至 E4）至少为 O(`n_a + n_e + n_c + n_i + n_t + n_b`)。内存取决于同时使用的活动部分与页大小。公开 `load` 返回完整快照，分页是提供者内部实现，所以在分页契约公开之前不能承诺内存只与单页有关。
+- 整批屏障检查（A1）为 O(`n_a` + 卡片数)，也可从带来源的计数投影取得。
 - 一次 iter 的提交次数与动作数、扩展调用数和压缩步数成线性关系。每次提交是条件提交，changed 之后重读。
 - 长期读取按所需范围与可重建投影组织，不假设每步遍历全部历史。规则见[事实投影与长期读取](mechanisms.md#事实投影与长期读取)。
 
@@ -556,8 +556,8 @@ checkpoint 字段到接续节点的映射如下。字段归公开接口页的 `A
 | `step` | 当前 iter。新 step 从 I0 开始 |
 | `inputBatch` | 非空且尚未准备时回 I1 |
 | `requestPreparation` | assembled 回 P0。ready 回 P1，由 P1 复核后转 I2。I1 的 `resume` 结果与 P1 的复核结果都按此处理。最终请求已记录时由 `calls` 决定。needs-compaction 且 `compaction` 为空时：C0 的经过尚未结束回 C0，C0 的经过为 vetoed 回 I1 转 F1。needs-compaction 且 `compaction` 非空时按 `compaction` 一行。cannot-fit 回 F1 |
-| `compaction` | 为空表示本 step 尚未进入计划，C1 首次进入计划时才写入。`ended` 为空时回 C1：C1 以已保存的进度与最后一步的保管结果再次调用 `derive`，同一输入得到同一返回。返回 transition 时经 C2 转 C3，C3 的 J 回执未知时先经 R0 查原 J。`ended` 为 committed 回 C4 之后的 I1，先认回 committed 的转换依据并重签读取资格。`ended` 为 failed 回 F1 |
-| `currentHandoff` | 非空表示原来源位置有未定的 H。R0 先以 `MessageHandoff.lookup` 读原结果，再以 Journal query 查原 P 与 J：J 已 committed 回该来源节点的后继；prepared 而 J 未提交时在当前合法位置重新提交 J；rejected 回 H0；excluded 先查 retire，committed 后由 E4 从原来源节点重新求值并建后继 P；unknown 继续等待。失去推进资格时只 lookup 与 R，不发 prepare |
+| `compaction` | 为空表示本 step 尚未进入计划，C1 首次进入计划时才写入。`ended` 为空时回 C1：C1 以已保存的进度与最后一步的保管结果再次调用 `derive`，同一输入得到同一返回。返回 transition 时经 C2 转 C3，C3 的 Ja 回执未知时先经 R0 查原 Ja。`ended` 为 committed 回 C4 之后的 I1，先认回 committed 的转换依据并重签读取资格。`ended` 为 failed 回 F1 |
+| `currentHandoff` | 非空表示原来源位置有未定的 H。R0 先以 `MessageHandoff.lookup` 读原结果，再以 Journal query 查原 P 与 Ja。Ja 已 committed 回该来源节点的后继。prepared 而 Ja 未提交时，在当前合法位置重新提交 Ja。rejected 按来源分流：主回复、压缩与系统提醒先提交该来源的 rejected Ja，再回 I3、C3 或 X5；只有工具结果与拒绝消息（T5）转 H0。excluded 时，retire 未发出则在当前合法位置提交同一个 retire Ja，retire 回执未知则查该 Ja；retire committed 后由 E4 从原来源节点重新求值并建后继 P。unknown 时，当前合法推进者用同一 H 与同一完整 request 重调 prepare；没有 advance 的一方只做 lookup、合法的 exclude 或 Rh 保管，不发 prepare。规则见 SPEC 的“[准入的恢复切点](../../../agent-contract/SPEC.md#准入的恢复切点)”与来源表 |
 | `calls` | Model 用途 main 回 M1 经 I3，用途 compaction 回 M1 经 C1，用途 extension 回 X2。Tool 用途 action：intent 或 association-unknown 经 R0 回 A2，以当前合法资格和完整原请求重入 invoke；已有 associated 引用但受理或来源仍未定时，经 R0 沿原 lookup / invoke 认回，lookup 的 not-accepted 不能排除来源继续签发。保存 associated 的 Journal 回执未知时，先查询原 Journal 操作。认回原受理且关联已保存后，才回原 T0 或已有结果、后台责任槽的接续节点；已完成槽位不重新创建或处理 |
 | `passages` | requested 回 X2。asked 回 X4 或 X2。resolved 回 X5。applied 回原扩展节点的后继 |
 | `batch` | 屏障 closed 回 A1。open 回 A2 或 T 子图的原槽位。all-denied 回 T2、T3 或 T5 |
@@ -605,4 +605,4 @@ flowchart LR
 
 R0 对 Model 保留原受理前引用、inspect 和权威 not-accepted 规则。Tool intent 或 association-unknown 沿当前资格和完整原 ToolInvokeRequest 重入 invoke，不猜调用 ID。Tool commit-unknown 先保存引用并 lookup，not-accepted 不能排除来源继续签发。associated 保存的 Journal 回执未知时先认回原 Journal 操作。
 
-Tool control 先核当前资格并认回原 C，再为新 C 扫描当前 associated pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 R 或因异输入 conflict，随后才核新 target、保留引用与 stage。精确 Failure 映射归 [SPEC](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)。T0 的 Tool 中断与后台控制先在接受记录中保存原调用快照，再附返回操作引用。F0 总 cancel 不携带单个 ToolOperationRef，多前台调用的逐调用控制尝试与总取消对应关系仍待后续控制方案。Q11、Q13 的其余机制、A2/T0 实现与真实提供者组合均不由本页声明完成。
+Tool control 先核当前资格并认回原 control operation，再为新的 control operation 扫描当前 associated pending。recordControl 先核当前资格、附件租户与规范身份，再认回原 recording operation 或因异输入 conflict，随后才核新 target、保留引用与 stage。精确 Failure 映射归 [SPEC](../../../agent-contract/SPEC.md#recording-operation-与阶段事实)。T0 的 Tool 中断与后台控制先在接受记录中保存原调用快照，再附返回操作引用。F0 总 cancel 不携带单个 ToolOperationRef，多前台调用的逐调用控制尝试与总取消对应关系仍待后续控制方案。Q11、Q13 的其余机制、A2/T0 实现与真实提供者组合均不由本页声明完成。
