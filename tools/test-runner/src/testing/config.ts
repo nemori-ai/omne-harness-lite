@@ -71,6 +71,18 @@ export interface TestRunsConfig {
      */
     readonly recheckMaxMutants: number
   }
+  /** 成员级测试结果缓存（`test-cache.ts`）：键里带哪些环境变量。文件输入与影响面规则同源，不在这里另列。 */
+  readonly cache: CacheRules
+}
+
+export interface CacheRules {
+  /**
+   * 进缓存键的环境变量名模式（`*` 通配）：改了会改变测试结果的变量。
+   * 并行度、报告目录、预算这类只影响怎么跑、不影响结果的不要列进来，否则机器一忙键就变、缓存永远不命中。
+   */
+  readonly env: readonly string[]
+  /** 虽被上面的模式匹配到、却不进键的变量名（精确）。 */
+  readonly ignoreEnv: readonly string[]
 }
 
 export const CONFIG_PATH = fileURLToPath(new URL('../../test-runs.config.json', import.meta.url))
@@ -159,6 +171,7 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
     ledger?: { slowFileSeconds?: unknown; nearTimeoutRatio?: unknown; top?: unknown }
     triage?: { repeats?: unknown }
     mutation?: { testTimeoutSeconds?: unknown; recheckMaxMutants?: unknown }
+    cache?: { env?: unknown; ignoreEnv?: unknown }
   }
   const parallel = {
     memberDivisor: positive(raw.parallel?.memberDivisor, 'parallel.memberDivisor'),
@@ -188,6 +201,10 @@ export function parseTestRunsConfig(parsed: unknown): TestRunsConfig {
         raw.mutation?.recheckMaxMutants,
         'mutation.recheckMaxMutants',
       ),
+    },
+    cache: {
+      env: strings(raw.cache?.env, 'cache.env'),
+      ignoreEnv: strings(raw.cache?.ignoreEnv, 'cache.ignoreEnv'),
     },
   }
 }

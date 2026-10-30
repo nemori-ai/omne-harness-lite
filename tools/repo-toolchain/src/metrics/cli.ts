@@ -3,10 +3,15 @@
 // 方向规则的失败由 `lint:rules` 承担；这里退出码非零只表示工具自己出错。
 import { baselines } from '../core/task-context.ts'
 import { copyFileSync, mkdirSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { workingGraph } from '../deps/graph.ts'
 import { readMetricsConfig } from './config.ts'
-import { measureCoverage } from './coverage.ts'
+import {
+  COVERAGE_PARALLEL_ENV,
+  measureCoverage,
+  parseCoverageParallel,
+  type CoverageParallelism,
+} from './coverage.ts'
 import { coverageTargets, readMetricsPlan, unplannedMembers } from './plan.ts'
 import { changedLines, commitShape, coordinates } from '../core/git.ts'
 import { memberOf } from '../deps/graph.ts'
@@ -23,47 +28,68 @@ import { fileTree, listWorkspaceMembers } from '../core/workspace.ts'
 type Scope =
   | { readonly kind: 'none' }
   | { readonly kind: 'base'; readonly ref: string }
-  | { readonly kind: 'plan'; readonly path: string; readonly coverage: boolean }
+  | {
+      readonly kind: 'plan'
+      readonly path: string
+      readonly coverage: boolean
+      /** 覆盖采集跨成员并行的并发度；没有就逐个成员串行。 */
+      readonly parallel?: CoverageParallelism
+    }
 
 interface Options {
   readonly scope: Scope
   readonly out?: string
 }
 
-const USAGE = '用法：metrics [--base <ref> | --plan <计划文件>] [--coverage] [--out <dir>]'
+const USAGE =
+  '用法：metrics [--base <ref> | --plan <计划文件>] [--coverage [--coverage-parallel <M>x<W>]] [--out <dir>]'
 
-function parseArgs(argv: readonly string[]): Options {
-  let base: string | undefined
-  let out: string | undefined
-  let plan: string | undefined
+const VALUED = ['--base', '--out', '--plan', '--coverage-parallel'] as const
+
+/**
+ * `--coverage-parallel` 没给时读环境变量 `OMNE_METRICS_COVERAGE_PARALLEL`（同 `--out` 与 `OMNE_METRICS_OUT`）；
+ * 环境变量只在带 `--coverage` 时生效，参数则要求同时给 `--coverage`。
+ */
+function parseArgs(
+  argv: readonly string[],
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): Options {
+  const values = new Map<string, string>()
   let coverage = false
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index]
     if (arg === '--coverage') coverage = true
-    else if (arg === '--base' || arg === '--out' || arg === '--plan') {
+    else if ((VALUED as readonly (string | undefined)[]).includes(arg)) {
       const value = argv[index + 1]
       if (value === undefined || value === '') throw new Error(`${arg} 需要一个值`)
-      if (arg === '--base') base = value
-      else if (arg === '--plan') plan = value
-      else out = value
+      values.set(arg as string, value)
       index += 1
     } else throw new Error(`未知参数 ${String(arg)}；${USAGE}`)
   }
+  const base = values.get('--base')
+  const plan = values.get('--plan')
+  const out = values.get('--out')
   if (base !== undefined && plan !== undefined)
     throw new Error(`--base 与 --plan 不能同时给：计划里已有基线；${USAGE}`)
   // 覆盖采集与准入检查、变异读同一份计划，不自己按改动另选成员。
   if (coverage && plan === undefined)
     throw new Error(`--coverage 要给 --plan：先用 test-runner 的 plan --json 算计划；${USAGE}`)
+  const given = values.get('--coverage-parallel')
+  if (given !== undefined && !coverage)
+    throw new Error(`--coverage-parallel 只在带 --coverage 时有意义；${USAGE}`)
+  const fromEnv = env[COVERAGE_PARALLEL_ENV]
+  const parallelText = given ?? (coverage && fromEnv !== '' ? fromEnv : undefined)
+  const parallel = parallelText === undefined ? undefined : parseCoverageParallel(parallelText)
   const scope: Scope =
     plan !== undefined
-      ? { kind: 'plan', path: plan, coverage }
+      ? { kind: 'plan', path: plan, coverage, ...(parallel === undefined ? {} : { parallel }) }
       : base !== undefined
         ? { kind: 'base', ref: base }
         : { kind: 'none' }
   return { scope, ...(out === undefined ? {} : { out }) }
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const options = parseArgs(process.argv.slice(2))
   const config = readMetricsConfig()
   const root = resolve(subjectRoot())
@@ -74,6 +100,7 @@ function main(): void {
           plan: readMetricsPlan(root, resolve(scope.path)),
           path: resolve(scope.path),
           coverage: scope.coverage,
+          parallel: scope.parallel,
         }
       : undefined
   const givenBase = scope.kind === 'base' ? scope.ref : undefined
@@ -97,8 +124,7 @@ function main(): void {
   const changed = at.base === undefined ? undefined : changedLines(root, at.base.mergeBase)
   const commits = at.base === undefined ? undefined : commitShape(root, at.base.mergeBase)
 
-  let coverage: CoverageInput | undefined
-  let coverageSeconds: ReadonlyMap<string, number> | undefined
+  let coverageRun: ReturnType<typeof measureCoverage> | undefined
   if (planned?.coverage === true) {
     const unplanned = unplannedMembers(
       changed?.keys() ?? [],
@@ -111,18 +137,51 @@ function main(): void {
     // 其余成员照常做静态度量，覆盖率记为「这次没跑」。
     const members = files.map(file => memberOf(file.path)?.path)
     const targets = coverageTargets(members, planned.plan, config.coverage.roots)
-    const measured = measureCoverage(root, targets, join(outDir, 'coverage'))
-    coverage = measured
-    coverageSeconds = measured.seconds
+    coverageRun = measureCoverage(root, targets, join(outDir, 'coverage'), {
+      ...(planned.parallel === undefined ? {} : { parallel: planned.parallel }),
+      // 按上次各成员的耗时排先后：缺省输出目录的上级，以及这次输出目录的上级。
+      historyDirs: [join(at.mainRoot, 'tmp', 'metrics'), dirname(outDir)],
+    })
+    // 先挂上处理：并行时要等静态度量做完才 await，其间失败不能算「没人处理」而直接结束进程。
+    coverageRun.catch(() => undefined)
   }
+  // 串行时先等覆盖率跑完（与以前的先后相同）。并行时下面的静态度量与它同时进行：它们只读工作树，
+  // 不读覆盖率；同步计算会推迟空出名额的补位，所以每步之间让出一次事件循环。
+  let measured = planned?.parallel === undefined ? await coverageRun : undefined
+  const yieldToCoverage = () => new Promise<void>(next => setImmediate(next))
 
-  const baseTexts =
-    changed !== undefined && at.base !== undefined
-      ? baseTextsOf(root, at.base.mergeBase, changed.keys())
-      : new Map<string, string | undefined>()
+  let baseTexts: Map<string, string | undefined>
+  let graph: ReturnType<typeof workingGraph>
+  let actual: ReturnType<typeof readActualArchitecture>
+  let conformance: ReturnType<typeof readConformance>
+  try {
+    baseTexts =
+      changed !== undefined && at.base !== undefined
+        ? baseTextsOf(root, at.base.mergeBase, changed.keys())
+        : new Map<string, string | undefined>()
+    await yieldToCoverage()
+    // 工作树的图算一次：度量与符合性的方向行读同一张。
+    graph = workingGraph(root)
+    await yieldToCoverage()
+    actual = readActualArchitecture({
+      root,
+      ...(baseRef === undefined ? {} : { base: baseRef }),
+    })
+    await yieldToCoverage()
+    conformance = readConformance({
+      root,
+      graph,
+      ...(baseRef === undefined ? {} : { base: baseRef }),
+    })
+  } catch (error) {
+    // 不丢下还在跑的覆盖率子进程：等它们结束再报静态度量的错。
+    await coverageRun?.catch(() => undefined)
+    throw error
+  }
+  measured ??= await coverageRun
+  const coverage: CoverageInput | undefined = measured
+  const coverageSeconds = measured?.seconds
 
-  // 工作树的图算一次：度量与符合性的方向行读同一张。
-  const graph = workingGraph(root)
   const report = buildReport({
     files,
     graph,
@@ -175,15 +234,6 @@ function main(): void {
     join(outDir, 'graph.json'),
     `${JSON.stringify({ meta, layout: report.layout, edges: report.edges, findings: report.findings }, null, 1)}\n`,
   )
-  const actual = readActualArchitecture({
-    root,
-    ...(baseRef === undefined ? {} : { base: baseRef }),
-  })
-  const conformance = readConformance({
-    root,
-    graph,
-    ...(baseRef === undefined ? {} : { base: baseRef }),
-  })
   const architecture = { ...buildArchitectureView(actual, config.bands), conformance }
   writeFileSync(join(outDir, 'conformance.json'), JSON.stringify(conformance, null, 2) + '\n')
   writeFileSync(join(outDir, 'actual.json'), JSON.stringify(actual, null, 2) + '\n')
@@ -192,4 +242,7 @@ function main(): void {
   console.log(summary.join('\n'))
 }
 
-main()
+main().catch((error: unknown) => {
+  console.error(error instanceof Error ? (error.stack ?? error.message) : String(error))
+  process.exitCode = 1
+})

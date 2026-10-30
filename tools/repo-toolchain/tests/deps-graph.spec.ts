@@ -1,7 +1,8 @@
 // @module-tag slow
 // 归慢层：真起 dependency-cruiser，在临时 git 检出里出依赖图。全量准入快层账本里整份合计 12.1 秒，负载下 21.1 秒，9 条里 5 条在全量准入或负载下超单条预算（2.5 秒），余下的合计不到 0.2 秒（tools/test-runner/README_ZH.md「归层」）。
 // 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员、组之间的环，以及按提交取的基线图。
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ignoredDirectories } from '../src/core/git.ts'
@@ -9,6 +10,7 @@ import {
   graphOf,
   requireCruiserTypeScript,
   revisionGraph,
+  STALE_TREE_GRACE_MS,
   workingGraph,
   type CruiseOutput,
 } from '../src/deps/graph.ts'
@@ -214,6 +216,24 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     expect(readdirSync(cache).filter(name => name.startsWith(base))).toHaveLength(1)
     expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([])
     expect(git(root, 'status', '--porcelain')).toBe('M packages/model/b/src/index.ts')
+  })
+
+  it('基线图开始时清掉被强行结束的运行留下的旧临时树，活着的进程的树不动', () => {
+    const { root, base } = members()
+    const cache = join(root, '.git', 'omne-dep-graph')
+    const old = (Date.now() - STALE_TREE_GRACE_MS - 60_000) / 1000
+    // 一个已经结束的进程号，与本进程（活着）的进程号。
+    const dead = spawnSync(process.execPath, ['-e', '']).pid
+    const leftover = join(cache, `tree-${base}-${dead}`)
+    const living = join(cache, `tree-${base}-${process.ppid}`)
+    for (const tree of [leftover, living]) {
+      mkdirSync(join(tree, 'packages'), { recursive: true })
+      utimesSync(tree, old, old)
+    }
+    expect(pairs(revisionGraph(root, base).edges)).toEqual(['packages/model/a → packages/model/b'])
+    expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([
+      `tree-${base}-${process.ppid}`,
+    ])
   })
 
   it('被 git 忽略的目录里的模块不进工作树的图：变异沙箱的依赖不算新增的边', () => {

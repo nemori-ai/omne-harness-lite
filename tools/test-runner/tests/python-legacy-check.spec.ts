@@ -103,3 +103,22 @@ it.each(['local', 'runner'])(
   },
   20_000,
 )
+
+it('the Python step passes xdist settings to the child only and leaves process.env alone', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-python-env-')))
+  roots.push(root)
+  // 只用到 python.run 与 python.reason；空目录里的 pnpm 命令立刻失败，退出码不在这里判断。
+  const file = { plan: { python: { run: true, reason: 'test' } } } as unknown as PlanFile
+  const before = process.env['PYTEST_XDIST_AUTO_NUM_WORKERS']
+  const runner = process.env['OMNE_RUNNER_ROOT']
+  try {
+    delete process.env['PYTEST_XDIST_AUTO_NUM_WORKERS']
+    delete process.env['OMNE_RUNNER_ROOT']
+    pythonStep(root, file)
+    expect(process.env['PYTEST_XDIST_AUTO_NUM_WORKERS']).toBeUndefined()
+  } finally {
+    if (before === undefined) delete process.env['PYTEST_XDIST_AUTO_NUM_WORKERS']
+    else process.env['PYTEST_XDIST_AUTO_NUM_WORKERS'] = before
+    if (runner !== undefined) process.env['OMNE_RUNNER_ROOT'] = runner
+  }
+})

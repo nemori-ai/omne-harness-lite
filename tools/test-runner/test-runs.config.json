@@ -32,9 +32,20 @@
       "tools/test-runner/src/testing/typecheck-scope.ts",
       "tools/test-runner/src/testing/member-turbo.ts",
       "tools/test-runner/src/testing/parallelism.ts",
+      "tools/test-runner/src/testing/coverage-parallel.ts",
       "tools/test-runner/src/testing/check.ts",
       "tools/test-runner/src/testing/check-graph.ts",
       "tools/test-runner/src/testing/check-steps.ts",
+      "tools/test-runner/src/testing/test-cache.ts",
+      "tools/test-runner/src/testing/lockfile-impact.ts",
+      "tools/test-runner/src/testing/pnpm-lockfile.ts",
+      "tools/test-runner/src/testing/resume.ts",
+      "tools/test-runner/src/testing/admission-run.ts",
+      "tools/test-runner/src/testing/admission-evidence.ts",
+      "tools/test-runner/src/testing/ledger.ts",
+      "tools/test-runner/src/testing/replay.ts",
+      "tools/test-runner/src/testing/triage.ts",
+      "tools/test-runner/src/testing/filter-guard.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"
@@ -82,6 +93,16 @@
         ],
         "members": ["tools/repo-toolchain", "tools/test-runner"],
         "why": "repo-toolchain 的 loop-catalogue.spec.ts 读 clean-loop 与整洁之道对照表，test-runner 的 test-slot.spec.ts 执行 with-test-slot.sh"
+      },
+      {
+        "paths": ["scripts/with-test-slot.sh", "scripts/with-test-slot.mjs"],
+        "members": ["tools/dev-flow"],
+        "why": "dev-flow 的 integration-boundaries.spec.ts 把 with-test-slot.mjs 复制进夹具并执行（预准入的构建一步经它起 turbo）"
+      },
+      {
+        "paths": ["tools/repo-toolchain/src/**", "tools/repo-toolchain/tests/fixtures/**"],
+        "members": ["tools/dev-flow", "tools/test-runner"],
+        "why": "dev-flow 的 dependency-report.spec.ts、repository-environment.spec.ts 与 test-runner 的 loop-acceptance.spec.ts 经相对路径 ../../repo-toolchain/tests/fixtures/loop-canary/repository.ts 导入 repo-toolchain 的夹具，夹具再导入 ../../../src/deps/graph.ts；两个成员装的是钉住的 npm 包，turbo 图里没有指向本地 repo-toolchain 的边，没有这条就漏选"
       },
       {
         "paths": [
@@ -199,5 +220,9 @@
   "mutation": {
     "testTimeoutSeconds": 60,
     "recheckMaxMutants": 8
+  },
+  "cache": {
+    "env": ["NODE_OPTIONS", "OMNE_RUNNER_ROOT", "VITEST_*"],
+    "ignoreEnv": ["VITEST_MAX_WORKERS"]
   }
 }
