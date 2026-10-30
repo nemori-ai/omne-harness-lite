@@ -6,9 +6,11 @@
 
 `check_sources.py` 检查现行设计的本地文件、Markdown 锚点和显式模块拥有者：
 
+从仓库根运行。本仓库的设计树链接到检出里的 docs 与成员，所以要带 `--source-root`，`pnpm run check:design` 的第一步就是这条：
+
 ```sh
-python tooling/src/check_sources.py --root design
-python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root .
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root /explicit/execution-checkout
 ```
 
 `--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
@@ -41,11 +43,23 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 `domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
 并生成派生总表 `design/views/domain-object-map.md`：
 
+在仓库根运行，有两种写法。`pnpm run check:design` 先跑上面的现行源检查，再对账；
+`--stale <值>` 只交给对账：
+
 ```sh
-python tooling/src/domain_objects.py --root design                  # 对账，并核对总表是不是最新
-python tooling/src/domain_objects.py --root design --write          # 重新生成总表
-python tooling/src/domain_objects.py --root design --stale report   # rev 落后只列出，不判失败
+pnpm run check:design
+pnpm run check:design --stale report
 ```
+
+只要对账时，直接调用脚本，由锁定的 uv 环境提供解释器与依赖：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design                  # 对账，并核对总表是不是最新
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --write          # 重新生成总表
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
+```
+
+`tests/test_readme_commands.py` 对这几条 `uv run` 命令加 `--help` 运行，命令写错或脚本搬走时变红。
 
 它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
