@@ -47,11 +47,16 @@ rm -rf "$stage"
 - 新工作树没有 agent 投影时，`pnpm run check` 报缺少生成目录。umask 让投影文件带组写权限时，`check:agents` 报权限不符，对报错的文件 `chmod g-w`。
 - 有成员的验收夹具从 `dist` 导入时，准入的依赖检查报模块无法解析。准入前先构建该成员及其依赖。
 - 只用离线缓存的测试可能报 `ERR_PNPM_NO_OFFLINE_META`。在临时目录对缺少的包运行 `pnpm install --lockfile-only` 补齐离线元数据，证据里写明这是环境问题。
+- 手动构建后又改了源码时，成员下的旧 `dist` 会被 `check:declarations` 读到，结果反映的是旧产物。准入前删掉手动构建残留的 `dist`，需要时按上面「验收夹具从 `dist` 导入」一条重新构建。
+- git 版本太旧时（实测 2.25），turbo 的 `ls --affected` 报 `Unable to query SCM`。把新版 git 放到 PATH 前面。
+- Claude Code 会话的钩子命令来自会话启动时所在检出的生成物，并在会话期间缓存。主检出落后时，所有工作树的钩子都可能报错。修法是快进主检出、重装依赖、重新生成投影，再重启会话。
+- Claude Code 会话会把 shell 的工作目录重置回会话的主工作目录。在某棵工作树里启动的会话，`cd` 到别的工作树不会保持。要在几棵树之间切换，从主检出根启动会话，或者每条命令都写绝对路径或 `git -C <树>`。
 
 ## 卡与派发
 
 - 卡没有前置条件时，「交付条件」整节正文必须恰好是 `无`，不带句号。否则 `start` 报条件表无法建立完整引用。
 - 派发评论不可再改。编辑过的派发评论使 `start` 以 `unknown` 失败。要改派发内容时发新的派发。
+- 对一张卡运行派发命令时报 `deviation decision-kind-invalid`，或 `start` 报 `Task card has protocol deviations`：先查这张卡的评论里有没有不是交付决定、却写了「决定」列表字段的评论。规则见 `docs/engineering/delivery.md`「4. 接受、取消与重开」（P24）。
 - 卡不在 Project 中时，云端会话的 `start` 等 180 秒后以 `Delivery facts timed out` 失败。云端会话不能添加 Project item，先请有权限的人加。
 - 云端会话的 `gh` GraphQL 请求返回 403。读卡与改卡用 REST：`gh api repos/<仓库>/issues/<号>`，`gh api -X PATCH repos/<仓库>/issues/<号> -F body=@<文件>`。
 - 经云端代理写入 GitHub 的正文里，一段没有空白的文字里出现两个 URL，或 URL 后紧跟反引号内容时，整段会被包成代码段。写入前在每个 Markdown 链接后加一个空格。代理还可能在正文末尾追加一行署名，读回比较时忽略它。
@@ -61,6 +66,9 @@ rm -rf "$stage"
 - `pnpm run check` 开始时算一次计划文件，之后每步读计划时核对计划对应的提交与当前 HEAD。中途提交会让这次准入失败，只能重跑（P11）。
 - `test:triage` 不经过 turbo 的严格环境模式，可能把依赖环境的失败报成「隔离后稳定通过」。用常用命令里的 turbo 命令定向复现。
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
+- 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。负载造成的超时先如实报告，写明当时自己有没有加负载。
 - gate 确认说明的实测上限是 1024 个字符。超限后同一运行仍在等待确认，缩短说明后可以对同一运行再确认。
+- 改动命中 `github-gate` 上 `gate/toolchain-paths.txt` 的 PR 要过两道确认：先 `repo-toolchain-review`，再 `publish`。清单里也有 `docs/architecture/constraints.json` 这类正文文件，改动前先读清单。`gate-cli.ts wait` 的 `--environments` 缺省只有 `publish`，这时要写 `--environments repo-toolchain-review,publish`。
+- `gate-release` 的 `npm-release` 确认是不可撤回的发版，不在代确认的授权里。自动模式的权限检查拦下它时不要绕过：把确认命令写成脚本交有权者运行，或请有权者在运行页面确认。
 - 会话的 stop hook 可能要求把提交改成 agent 署名。按贡献指南，作者是负责的人。线会话直接按贡献指南处理，不等人确认。
 - 上下文压缩后的摘要可能把宿主的署名提示记成常设规则。每次压缩后按贡献指南复核一次（P5）。
