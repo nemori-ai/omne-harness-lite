@@ -594,6 +594,12 @@ function retainedFaultKey(input: RetainedFaultInput): string | undefined {
   return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant' ? key : undefined
 }
 
+/** Whether a Tool reference names a tenant other than the given one. */
+function foreignReference(reference: ToolInvocationRef, tenant: TenantId): boolean {
+  const resolved = resolveToolInvocationRef(reference, tenant)
+  return 'failure' in resolved && resolved.failure.kind === 'foreign-tenant'
+}
+
 /** A supplied `toolOperation` that resolved in the caller's tenant: the bytes as given and the parts. */
 type LocalAttachment = Readonly<{
   kind: 'local'
@@ -2093,6 +2099,13 @@ export function createMemoryAgentJournal<P>(
     const record = options.hostRecords?.get(sourceEvidence.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${sourceEvidence.record}`)))
+    // A tool-return record carries no tenant: its tenant is the one of its returned reference. A
+    // foreign one is denied here too, so no variant tells what kind of record a foreign source is.
+    if (
+      record.kind === 'tool-return' &&
+      foreignReference(record.returned.reference, execution.tenant)
+    )
+      return answer(fail(denied('commitSettlement')))
     // A record of another tenant is denied before anything of it is compared or disclosed; a record
     // of another execution of this tenant is not a source of this execution.
     if (record.kind !== 'tool-return') {
@@ -2233,18 +2246,11 @@ export function createMemoryAgentJournal<P>(
       case 'record-tool-association': {
         if (record.kind !== 'tool-return')
           return answer(fail(invalid('source', 'not the return of this intent')))
-        // A tool-return record carries no tenant: the tenant is the one of its returned reference,
-        // resolved before the intent and the request are compared, so a foreign return is denied
-        // without telling whether it is the return of the requested intent.
+        // A foreign return was denied before the switch, before the intent and the request are
+        // compared, so the answer does not tell whether it is the return of the requested intent.
         const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
         if ('failure' in reference)
-          return answer(
-            fail(
-              reference.failure.kind === 'foreign-tenant'
-                ? denied('commitSettlement')
-                : invalid('source', 'the returned reference is malformed'),
-            ),
-          )
+          return answer(fail(invalid('source', 'the returned reference is malformed')))
         if (!sameValue(record.intent, input.intent) || !sameEvidence(record.request, input.request))
           return answer(fail(invalid('source', 'not the return of this intent')))
         const effect = execution.effects.find(item => item.action === input.intent.action)
