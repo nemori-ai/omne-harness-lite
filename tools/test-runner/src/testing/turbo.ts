@@ -181,6 +181,64 @@ export function dependentMembers(
   return listedMembers(run, members, `${paths.join('、')} 的下游`)
 }
 
+/** turbo 的包依赖图里的一个包：目录与它直接依赖的包名。 */
+export interface GraphPackage {
+  readonly path: string
+  readonly dependencies: readonly string[]
+}
+
+/** turbo 的包依赖图：包名 → 目录与直接依赖。 */
+export type PackageGraph = ReadonlyMap<string, GraphPackage>
+
+const GRAPH_QUERY = '{ packages { items { name path directDependencies { items { name } } } } }'
+
+/**
+ * 整张包依赖图，一次 `turbo query` 取出（`--affected` 与 `--filter=...<包>` 走的是同一张图）。
+ * 测试结果缓存用它求一个成员的上游闭包。根包 `//` 不算；输出读不出就报错，不当作空图。
+ */
+export function packageGraph(root: string): PackageGraph {
+  const run = spawnSync(TURBO_BIN, ['query', GRAPH_QUERY], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: turboEnv({}),
+  })
+  if (run.error !== undefined) throw run.error
+  const graph = run.status === 0 ? parsePackageGraph(run.stdout) : undefined
+  if (graph === undefined)
+    throw new Error(`turbo 没有给出包依赖图（退出码 ${run.status}）：${run.stderr.trim()}`)
+  return graph
+}
+
+/** `turbo query` 的输出：`{ data: { packages: { items: [{ name, path, directDependencies: { items: [{ name }] } }] } } }`。 */
+export function parsePackageGraph(stdout: string): PackageGraph | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    return undefined
+  }
+  if (!isRecord(parsed) || !isRecord(parsed['data']) || !isRecord(parsed['data']['packages']))
+    return undefined
+  const items = parsed['data']['packages']['items']
+  if (!Array.isArray(items)) return undefined
+  const graph = new Map<string, GraphPackage>()
+  for (const item of items as unknown[]) {
+    if (!isRecord(item) || typeof item['name'] !== 'string' || typeof item['path'] !== 'string')
+      return undefined
+    const direct = isRecord(item['directDependencies']) ? item['directDependencies']['items'] : []
+    if (!Array.isArray(direct)) return undefined
+    const dependencies: string[] = []
+    for (const dependency of direct as unknown[]) {
+      if (!isRecord(dependency) || typeof dependency['name'] !== 'string') return undefined
+      if (dependency['name'] !== '//') dependencies.push(dependency['name'])
+    }
+    if (item['name'] !== '//')
+      graph.set(item['name'], { path: item['path'].replaceAll('\\', '/'), dependencies })
+  }
+  return graph
+}
+
 /** `turbo ls --output=json` 列出的包，换成成员目录；输出读不出或报出清单外的包就报错，不当作空集。 */
 export function listedMembers(
   run: { readonly status: number | null; readonly stdout: string; readonly stderr: string },

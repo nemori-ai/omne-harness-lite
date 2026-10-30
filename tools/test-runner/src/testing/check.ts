@@ -12,6 +12,7 @@ import { timestamp } from './support.ts'
 import { admissionRequested } from './turbo.ts'
 import { effectiveParallelism, readTestRunsConfig } from './config.ts'
 import { budgetFor, describeBudget, WORKER_BUDGET_ENV } from './parallelism.ts'
+import { TEST_CACHE_ENV } from './test-cache.ts'
 
 export const CHECK_RUN_DIR = 'tmp/check-run'
 export const ADMISSION_LOG_DIR = 'tmp/admission'
@@ -102,6 +103,8 @@ export interface CheckOptions {
   readonly keepGoing: boolean
   /** 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑。 */
   readonly list: boolean
+  /** 成员测试不读结果缓存：只传给子进程的环境，不改本进程的。 */
+  readonly noCache?: boolean
 }
 
 const STEP_INPUTS = {
@@ -120,6 +123,7 @@ export async function runCheck(root: string, options: CheckOptions): Promise<num
   const env: NodeJS.ProcessEnv = { ...process.env }
   for (const name of GIT_ENV) delete env[name]
   if (admission) env['OMNE_ADMISSION'] = '1'
+  if (options.noCache === true) env[TEST_CACHE_ENV] = '0'
 
   // 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。规则拒绝时抛错，调用方以 2 退出。
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])

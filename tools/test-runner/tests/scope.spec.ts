@@ -361,7 +361,8 @@ describe('影响面计划（真实规则）', () => {
     const fixture = plan([
       'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
-    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/repo-toolchain' })
+    // 夹具目录同时被 dev-flow、test-runner 的测试读到，读者规则排在成员归属之前；归属仍记着 repo-toolchain。
+    expect(fixture.files[0]).toMatchObject({ category: 'reader', owner: 'tools/repo-toolchain' })
     // 依赖 repo-toolchain 的三个工具成员按 turbo 的下游规则一起选中。
     expect(fixture.test).toEqual([
       'tools/repo-toolchain',
@@ -592,6 +593,28 @@ describe('按测量收窄的规则（#793）', () => {
     const other = plan(['packages/model/docs/other.md'])
     expect(other.files[0]).toMatchObject({ category: 'resident', rule: 'packages/**/*.md' })
     expect(other.test).toEqual([])
+  })
+
+  it('repo-toolchain 的源码与夹具被 dev-flow、test-runner 的测试经相对路径读到：按读者规则选中；无关文档不选', () => {
+    // 真实依赖图里这两个成员装的是 npm 上钉住的 repo-toolchain，没有指向本地成员的边，
+    // 所以这里的成员清单也不给它们依赖，只靠读者规则选中。
+    const members = MEMBERS.map(entry =>
+      entry.path === 'tools/dev-flow' || entry.path === 'tools/test-runner'
+        ? { ...entry, dependencies: [] }
+        : entry,
+    )
+    for (const path of [
+      'tools/repo-toolchain/src/deps/graph.ts',
+      'tools/repo-toolchain/tests/fixtures/loop-canary/repository.ts',
+    ]) {
+      const result = planWith([path], members)
+      expect(result.test, path).toEqual(
+        expect.arrayContaining(['tools/repo-toolchain', 'tools/dev-flow', 'tools/test-runner']),
+      )
+    }
+    const doc = planWith(['tools/repo-toolchain/README.md'], members)
+    expect(doc.test).not.toContain('tools/dev-flow')
+    expect(doc.test).not.toContain('tools/test-runner')
   })
 
   it('新顶层文件仍判全量；改代码仍选中成员与下游', () => {
