@@ -245,6 +245,22 @@ def test_redo_and_takeover_to_the_same_model_are_separate_items(capsys, tmp_path
     assert items == {("claude-fable-5-1@high", "redo"): (2, 2), ("claude-fable-5-1@high", "takeover"): (1, 1)}
 
 
+def test_a_closure_that_escalates_to_the_same_target_twice_counts_once_for_it(capsys, tmp_path, policy_file):
+    # A -> B -> A: the closure is one closure, so each target gets one n and one success.
+    a, b = "claude-fable-5-1", "claude-opus-5-5"
+    rows = [
+        flow("c1", 1, [defect("D1")], outcome="pending"),
+        flow("c1", 2, [defect("D2")], model=a, minutes=1.0, escalation=escalation(a), outcome="pending"),
+        flow("c1", 3, [defect("D3")], model=b, minutes=2.0, escalation=escalation(b), outcome="pending"),
+        flow("c1", 4, model=a, minutes=4.0, escalation=escalation(a), outcome="merged"),
+    ]
+    _, inc, _ = aggregate(capsys, tmp_path, policy_file, rows)
+    cell = cell_of(inc)
+    assert (cell["dispatched"], cell["escalated"]) == (1, 1)
+    items = {i["to"]: (i["n"], i["success"], i["minutes_sum"]) for i in cell["escalations"]}
+    assert items == {f"{a}@high": (1, 1, 5.0), f"{b}@high": (1, 1, 2.0)}
+
+
 def test_a_closure_started_on_another_model_goes_to_its_own_cell(capsys, tmp_path, policy_file):
     rows = [flow("c1"), flow("c2", model="claude-opus-5-5", effort="medium")]
     _, inc, _ = aggregate(capsys, tmp_path, policy_file, rows)
@@ -337,6 +353,20 @@ def test_check_flows_reports_each_problem_with_file_and_line(capsys, tmp_path, p
     assert code == 1
     assert f"{path}:2" in err + out
     assert f"{path}:1:" not in err + out
+
+
+@pytest.mark.parametrize("ts", ["2026-10-30T10:00:00Z", "2026-10-30T10:00:00+00:00"])
+def test_flow_ts_accepts_utc_spellings(capsys, tmp_path, policy_file, ts):
+    code, _, _ = run(capsys, "check", "--flows", write_flows(tmp_path, [flow("c1", ts=ts)]), "--policy", policy_file)
+    assert code == 0
+
+
+@pytest.mark.parametrize("ts", ["2026-10-30T18:00:00+08:00", "2026-10-30T10:00:00-00:00", "2026-10-30T10:00:00", "2026-10-30T10:00:00+0000"])
+def test_flow_ts_rejects_anything_but_utc(capsys, tmp_path, policy_file, ts):
+    path = write_flows(tmp_path, [flow("c1", ts=ts)])
+    code, _, err = run(capsys, "check", "--flows", path, "--policy", policy_file)
+    assert code == 1
+    assert f"{path}:1" in err and "ts" in err
 
 
 def test_check_flows_accepts_a_clean_file_and_a_second_valid_role(capsys, tmp_path, policy_file):
@@ -475,6 +505,60 @@ def test_check_ledger_rejects_bad_vocabulary_scope_and_unknown_keys(capsys, tmp_
     for name, doc in cases.items():
         code, _, _ = run(capsys, "check", "--ledger", write_json(tmp_path / f"{name}.json", doc), "--policy", policy_file)
         assert code == 1, name
+
+
+# Cell counts that contradict each other ---------------------------------
+
+def _escalated_ledger(capsys, tmp_path, policy_file):
+    rows = [flow("c1", 1, [defect("D1")]), flow("c1", 2, model="claude-fable-5-1", escalation=escalation())]
+    inc = ledger_from(tmp_path, capsys, policy_file, rows)
+    return {"schemaVersion": 1, "rows": inc["rows"], "batches": ["2026-10-30-w7-main"]}
+
+
+_ZERO_ITEM = {"n": 0, "success": 0, "minutes_sum": 0.0, "minutes_n": 0, "tokens_reported_sum": 0, "tokens_n": 0}
+
+
+def _cell_edit(**changes):
+    def edit(cell):
+        cell.update(changes)
+    return edit
+
+
+def _item_edit(**changes):
+    def edit(cell):
+        cell["escalations"][0].update(changes)
+    return edit
+
+
+@pytest.mark.parametrize(
+    "edit",
+    [
+        _item_edit(n=1, success=2),
+        _cell_edit(first_pass=1, first_no_writer_block=0),
+        _cell_edit(escalated=0, escalations=[{**_ZERO_ITEM, "to": "claude-fable-5-1@high", "mode": "takeover"}]),
+        _cell_edit(escalations=[]),
+        _item_edit(n=2, success=2),
+        _cell_edit(dispatched=2, escalated=2),
+        _cell_edit(evidence="field"),
+    ],
+    ids=["success-above-n", "first-pass-above-no-writer-block", "no-escalated-but-empty-item", "escalated-but-no-items", "n-above-escalated", "escalated-above-sum-of-n", "evidence-vs-dispatched"],
+)
+def test_check_ledger_rejects_cell_counts_that_contradict_each_other(capsys, tmp_path, policy_file, edit):
+    base = _escalated_ledger(capsys, tmp_path, policy_file)
+    assert run(capsys, "check", "--ledger", write_json(tmp_path / "base.json", base), "--policy", policy_file)[0] == 0
+    doc = copy.deepcopy(base)
+    edit(doc["rows"][0]["cells"][0])
+    code, _, err = run(capsys, "check", "--ledger", write_json(tmp_path / "bad.json", doc), "--policy", policy_file)
+    assert code == 1
+    assert "rows[0].cells[0]" in err
+
+
+def test_evidence_rule_accepts_a_field_cell_with_five_dispatched(capsys, tmp_path, policy_file):
+    inc = ledger_from(tmp_path, capsys, policy_file, [flow(f"c{i}") for i in range(5)])
+    cell = cell_of(inc)
+    assert (cell["dispatched"], cell["evidence"]) == (5, "field")
+    doc = {"schemaVersion": 1, "rows": inc["rows"], "batches": ["2026-10-30-w7-main"]}
+    assert run(capsys, "check", "--ledger", write_json(tmp_path / "ok.json", doc), "--policy", policy_file)[0] == 0
 
 
 # L11, L12, L13 ---------------------------------------------------------

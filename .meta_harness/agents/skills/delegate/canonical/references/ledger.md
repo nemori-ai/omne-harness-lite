@@ -37,7 +37,7 @@
 
 | 字段 | 含义 |
 | --- | --- |
-| `ts` | UTC 时间，ISO 格式 |
+| `ts` | UTC 时间，ISO 格式，以 `Z` 或 `+00:00` 结尾。其他时区的写法 `check` 拒绝 |
 | `task` | 卡号，例如 `#951` |
 | `closure` | 闭包 ID |
 | `round` | 轮次，从 1 起 |
@@ -68,7 +68,7 @@
   - `first_pass`：第 1 轮通过。
   - `first_no_writer_block`：第 1 轮没有归属写者的阻断缺陷。
   - `within_two`：没有升级，并且在第 1 或第 2 轮通过。
-- `escalated`：有任一行的 `escalation` 不为空。`escalations` 按（目标模型@档位，`mode`）分组，记 `n` 与 `success`。`success` 指升级后该闭包的 `outcome` 为 `merged`。
+- `escalated`：有任一行的 `escalation` 不为空。`escalations` 按（目标模型@档位，`mode`）分组，记 `n` 与 `success`。`success` 指升级后该闭包的 `outcome` 为 `merged`。一个闭包对每个（目标模型@档位，`mode`）至多贡献 1：闭包 A → B → A 升级时，A 项的 `n` 与 `success` 各只计 1。
 - `appends` 取各轮之和。
 - `spec_defects`、`writer_defects.blocking`、`writer_defects.nonblocking` 按缺陷 `id` 去重后计数。
 - `minutes_sum`、`tokens_reported_sum` 是起点模型那几轮的和。升级后各轮的和计入对应的 `escalations` 项。
@@ -126,6 +126,7 @@ uv run --locked python "$L" apply --ledger <ledger.json> --increment <文件…>
 ```
 
 - `check` 逐行核对字段、枚举与策略词表，错误写明文件与行号。
+  - 核对台账时，每格还要自洽：`escalations` 各项 `success` 不大于 `n`，`n` 不大于 `escalated`；`escalated` 为 0 时 `escalations` 为空，大于 0 时不为空，并且不大于各项 `n` 之和；`first_pass` 不大于 `first_no_writer_block`；`evidence` 与 `dispatched` 一致（小于 5 为 `field-small-n`，否则 `field`）。
 - `aggregate` 先核对流水。流水有错误时，它不写文件。
 - `apply` 遇到已应用过的批次时不改文件，输出 `already-applied <批次>`。合并结果过不了核对时，它不写文件。
 - 退出码：0 通过；1 输入有错误；2 用法错误或读文件错误。
