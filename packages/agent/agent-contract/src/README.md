@@ -4,7 +4,7 @@
 
 [index.ts](index.ts) 导出声明、作者协议、身份、纯求值、请求接缝、台账与材料、托管协调与运行实例、Journal、生产者接收面的类型，常量 `ATTRIBUTE_ITEMS`、`POSITIONS`、`POWERS`、`POSITION_OUTPUTS`、`AGENT_IDENTITY_MAX_LENGTH`，以及 `judgeAgentDefinition`、`judgeLoopExtensions`、`judgeExtensionOutput`、`agentBodyContract`、十四个 `decode*` 身份解码函数和 `judgeAdoption`、`judgeEvidence`、`judgeAccess`、`judgeAuthority` 四个结构判定。公开形状以源码为准，边界行为见 [SPEC](../SPEC.md#声明判断)。包根导出托管协调、运行实例与 Journal 的类型，不导出它们的实现。
 
-[testing.ts](testing.ts) 是 `./testing` 入口：接收面两个端口的一致性套件与非耐久替身，规则见 [SPEC 的生产者接收面](../SPEC.md#生产者接收面)。替身声明 `durability: 'none'`，不得装进生产。包根不加载这个入口。
+[testing.ts](testing.ts) 是 `./testing` 入口：接收面两个端口的一致性套件与非耐久替身，规则见 [SPEC 的生产者接收面](../SPEC.md#生产者接收面)；Journal 核心一致性套件与它的夹具形状；套件与替身共用的测试取消政策、安装记录与宿主记录形状。替身声明 `durability: 'none'`，不得装进生产。包根不加载这个入口。
 
 ## 模块
 
