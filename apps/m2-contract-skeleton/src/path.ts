@@ -642,23 +642,15 @@ function handoffKey(reference: HandoffRequest['reference']): string {
     : `input/${String(reference.execution)}/${String(reference.entry)}/${String(reference.input)}`
 }
 
+/** The `prepare` branches this bridge decides: the invoke input and the internal candidates. */
+type DecidedPrepare = Exclude<HandoffPrepare, { kind: 'submit' }>
+
 /** The fixed outcome of `request`: the exact message with its admission, or the rejection. */
-function outcomeOf(input: HandoffPrepare, decision: HandoffOutcome['decision']): HandoffOutcome {
+function outcomeOf(input: DecidedPrepare, decision: HandoffOutcome['decision']): HandoffOutcome {
   const key = handoffKey(input.request.reference)
   return {
     request: input.request,
-    origin:
-      input.kind === 'invoke'
-        ? { kind: 'invoke', ...input.runtime }
-        : input.kind === 'submit'
-          ? {
-              kind: 'submit',
-              executionBinding: evidence(
-                `handoff/binding/${String(input.request.reference.execution)}`,
-              ),
-              delivery: { kind: 'durable-view' },
-            }
-          : null,
+    origin: input.kind === 'invoke' ? { kind: 'invoke', ...input.runtime } : null,
     provider: HANDOFF_PROVIDER,
     qualification: evidence(`handoff/qualification/${key}`),
     record: evidence(`handoff/record/${key}`),
@@ -668,7 +660,7 @@ function outcomeOf(input: HandoffPrepare, decision: HandoffOutcome['decision']):
 
 const rejected = (
   round: Round | undefined,
-  input: HandoffPrepare,
+  input: DecidedPrepare,
   reason: string,
 ): HandoffOutcome => {
   round?.log.failures.push(reason)
@@ -688,16 +680,19 @@ const rejected = (
  * there, while the Session-side `agentMessageHandoff` plugin writes it through the Ja (session-adapters
  * SPEC J06); the difference is part of GAP-SESSION-COORDINATOR. Each call is routed to its round by
  * the execution it names. The outcome of each H is kept, so a second `prepare` of the same request
- * answers the original outcome and `lookup` reads it back.
+ * answers the original outcome, a different request for the same H is a conflict, and `lookup`
+ * reads the outcome back. `exclude` answers a fixed outcome as recorded; without a trusted P
+ * resolver and a durable fence it answers unsupported for any other H. A submit needs the trusted
+ * Ki migration, so its `prepare` answers unsupported. The bridge does not check the
+ * `read-message-handoff` or `exclude-message-handoff` access of the caller (GAP-SESSION-COORDINATOR).
  */
 function messageBridge(scene: SessionScene, rounds: Rounds): MessageHandoff<PathPrincipal> {
   const fixed = new Map<string, Readonly<{ request: string; outcome: HandoffOutcome }>>()
-  const decide = async (input: HandoffPrepare): Promise<HandoffOutcome> => {
+  const decide = async (input: DecidedPrepare): Promise<HandoffOutcome> => {
     const request = input.request
     const execution = String(request.reference.execution)
     const round = rounds.get(execution)
     if (round === undefined) return rejected(round, input, 'no-session-run')
-    if (input.kind === 'submit') return rejected(round, input, 'unsupported-source:submit')
     if (input.kind === 'invoke') {
       if (String(input.request.source.input) !== String(round.sessionInput))
         return rejected(round, input, 'external-input:not-the-session-input')
@@ -758,6 +753,10 @@ function messageBridge(scene: SessionScene, rounds: Rounds): MessageHandoff<Path
   return {
     async prepare(input) {
       const { principal: _principal, tenant: _tenant, ...shape } = input
+      // A submit needs the trusted Ki migration and the original execution binding, which this
+      // bridge does not have. It answers unsupported and fixes no outcome, so the Ki is not
+      // closed by a stand-in rejection (agent-contract SPEC "消息准入").
+      if (shape.kind === 'submit') return unsupported()
       const key = handoffKey(shape.request.reference)
       const text = JSON.stringify(shape.request)
       const known = fixed.get(key)
