@@ -835,7 +835,16 @@ export type ClosuresResult = {
   resume?: string
 }
 /** What makes the install, projections and builds of a tree current. */
-type ClosureKey = { base: string; lock: string | null; agents: string; agentsClean: boolean }
+type ClosureKey = {
+  base: string
+  lock: string | null
+  /** The tree id of `.meta_harness/agents` at HEAD. */
+  agents: string
+  /** SHA-256 of the uncommitted changes in that directory; one fixed value when there are none. */
+  agentsChanges: string
+  /** The requested `--build` filters, sorted and without repeats. */
+  builds: string[]
+}
 
 const CLOSURE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]*$/
 const CLOSURE_BRANCH = /^[^\s-]\S*$/
@@ -888,7 +897,42 @@ function worktreeEntries(
   }
   return entries
 }
-function closureKey(tree: string, base: string, run: Runner): ClosureKey {
+/**
+ * The SHA-256 of the uncommitted changes under `.meta_harness/agents`: the `git diff HEAD` output,
+ * then the path and content digest of each untracked file. A link is digested by its target text.
+ * A clean directory always gives the same value.
+ */
+function agentsChangesDigest(tree: string, run: Runner): string {
+  const diff = step(
+    run,
+    'read agents changes',
+    'git',
+    ['diff', '--no-ext-diff', '--no-color', 'HEAD', '--', '.meta_harness/agents'],
+    tree,
+  )
+  const listing = step(
+    run,
+    'read agents untracked files',
+    'git',
+    ['ls-files', '--others', '--exclude-standard', '-z', '--', '.meta_harness/agents'],
+    tree,
+  )
+  const digest = createHash('sha256').update(diff)
+  for (const path of listing.split('\0').filter(entry => entry !== '')) {
+    const file = join(tree, path)
+    const content = localStep(`read untracked ${path}`, () =>
+      lstatSync(file).isSymbolicLink() ? readlinkSync(file) : readFileSync(file),
+    )
+    digest.update(`\0${path}\0`).update(createHash('sha256').update(content).digest('hex'))
+  }
+  return digest.digest('hex')
+}
+function closureKey(
+  tree: string,
+  base: string,
+  builds: readonly string[],
+  run: Runner,
+): ClosureKey {
   const lockFile = join(tree, 'pnpm-lock.yaml')
   const agents = step(
     run,
@@ -897,33 +941,38 @@ function closureKey(tree: string, base: string, run: Runner): ClosureKey {
     ['rev-parse', 'HEAD:.meta_harness/agents'],
     tree,
   )
-  const status = step(
-    run,
-    'read agents status',
-    'git',
-    ['status', '--porcelain', '--', '.meta_harness/agents'],
-    tree,
-  )
   return {
     base,
     lock: existsSync(lockFile)
       ? createHash('sha256').update(readFileSync(lockFile)).digest('hex')
       : null,
     agents: agents.trim(),
-    agentsClean: status.trim() === '',
+    agentsChanges: agentsChangesDigest(tree, run),
+    builds: [...new Set(builds)].sort(),
   }
 }
-/** Whether `file` records a finished run of the same branch with this key. */
-function isReady(file: string, branch: string, key: ClosureKey): boolean {
+/**
+ * Whether `file` records a finished run of the same branch with this key, with a successful
+ * `build <filter>` step for each filter, and `tree` still holds its `node_modules`.
+ */
+function isReady(file: string, tree: string, branch: string, key: ClosureKey): boolean {
   try {
     const record: unknown = JSON.parse(readFileSync(file, 'utf8'))
     if (typeof record !== 'object' || record === null) return false
     const { steps, key: recorded, branch: recordedBranch } = record as Record<string, unknown>
+    if (!Array.isArray(steps)) return false
+    const succeeded = new Set(
+      steps.flatMap(entry => {
+        const { name, ok } = entry as { name?: unknown; ok?: unknown }
+        return ok === true && typeof name === 'string' ? [name] : []
+      }),
+    )
     return (
       recordedBranch === branch &&
       JSON.stringify(recorded) === JSON.stringify(key) &&
-      Array.isArray(steps) &&
-      steps.every(entry => (entry as { ok?: unknown }).ok === true)
+      steps.every(entry => (entry as { ok?: unknown }).ok === true) &&
+      key.builds.every(filter => succeeded.has(`build ${filter}`)) &&
+      existsSync(join(tree, 'node_modules'))
     )
   } catch {
     return false
@@ -937,13 +986,15 @@ function isReady(file: string, branch: string, key: ClosureKey): boolean {
  * branch checked out; install with the frozen lock file; regenerate the agent projections; run
  * `pnpm turbo run build --filter=<filter>` for each of `builds`; write
  * `tmp/closures/<name>/ready.json` in the tree. A closure whose `ready.json` records the same
- * key (the base, the SHA-256 of `pnpm-lock.yaml`, the `.meta_harness/agents` tree of HEAD and
- * whether that directory has uncommitted changes) is skipped. A changed key or a missing file
- * runs install, projections and builds again in the same tree. Nothing starts a card, pushes,
- * or sets an upstream.
+ * key (the base, the SHA-256 of `pnpm-lock.yaml`, the `.meta_harness/agents` tree of HEAD, the
+ * SHA-256 of that directory's uncommitted changes, and the sorted `builds`) is skipped, when it
+ * also records a successful `build <filter>` step for each filter and the tree still has its
+ * `node_modules`. Any other state runs install, projections and all builds again in the same
+ * tree. Nothing starts a card, pushes, or sets an upstream.
  *
  * A closure that cannot be used is `refused` before any change: its branch is at another commit
- * while its directory is missing, or its directory is not a registered worktree on its branch.
+ * while its directory is missing, or its directory is not a registered worktree on its branch,
+ * or the HEAD of that tree does not contain the base.
  * The other closures still run. A step that fails stops the run at that closure: the trees stay,
  * later closures are not processed, and `resume` is the command that repeats the run. The base
  * must be a commit and pnpm must start, else the call throws before any change.
@@ -1044,6 +1095,16 @@ function prepareClosure({
           'refused',
           `${tree} has ${entry.branch ?? 'a detached HEAD'} checked out, not ${branch}`,
         )
+      if (
+        !check(
+          run,
+          'read base ancestry',
+          'git',
+          ['merge-base', '--is-ancestor', commit, 'HEAD'],
+          tree,
+        )
+      )
+        return report('refused', `The HEAD of ${tree} does not contain the base ${commit}`)
     } else {
       const ref = `refs/heads/${branch}`
       if (check(run, 'read branch', 'git', ['show-ref', '--quiet', '--verify', ref], root)) {
@@ -1055,16 +1116,16 @@ function prepareClosure({
       created = true
     }
   } catch (error) {
-    return report('failed', messageOf('add worktree', error))
+    return report('failed', messageOf('prepare tree', error))
   }
   const ready = join(tree, 'tmp', 'closures', name, 'ready.json')
   let key: ClosureKey
   try {
-    key = closureKey(tree, commit, run)
+    key = closureKey(tree, commit, builds, run)
   } catch (error) {
     return report('failed', messageOf('read key', error))
   }
-  if (isReady(ready, branch, key)) return report('skipped')
+  if (isReady(ready, tree, branch, key)) return report('skipped')
   // A record of an older key must not vouch for a run that stops half way.
   rmSync(ready, { force: true })
   const timed = (stepName: string, work: () => void) => {
@@ -1082,7 +1143,7 @@ function prepareClosure({
       pnpmStep(run, 'install', ['install', '--frozen-lockfile', '--ignore-scripts'], tree, pnpm),
     )
     timed('projections', () => regenerateProjections(tree, run, host))
-    for (const filter of builds)
+    for (const filter of new Set(builds))
       timed(`build ${filter}`, () =>
         pnpmStep(
           run,

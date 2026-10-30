@@ -319,6 +319,42 @@ describe('brief-check', () => {
     expect(check(specText({ acceptance: created })).errors).toEqual([])
   })
 
+  it('N3 checks an acceptance path with non-ASCII characters', () => {
+    const repo = repository({ ...BASE_FILES, 'docs/说明.md': 'x\n' })
+    const read = (path: string) =>
+      specText({ acceptance: [`- \`pnpm run check\`；读 \`${path}\``] })
+    expect(check(read('docs/说明.md'), false, repo).errors).toEqual([])
+    const report = check(read('docs/没有这个文件.md'), false, repo)
+    expect(items(report.errors)).toEqual([5])
+    expect(report.errors[0]?.message).toContain('docs/没有这个文件.md')
+  })
+
+  describe('identifiers taken from backticks', () => {
+    const warned = (word: string) =>
+      messages(
+        check(specText({ scope: A_ONLY, specification: [`改 \`${word}\` 的返回值。`] })).warnings,
+      )
+    it.each([
+      'makeThing()',
+      'makeThing(...)',
+      'ns.makeThing',
+      'ns.makeThing()',
+      'ns.sub.makeThing(...)',
+    ])('names the function in `%s`', word => {
+      expect(warned(word)).toMatch(/caller-outside-scope: src\/caller\.ts:\d+ references makeThing/)
+    })
+
+    it('does not search the extension of a file name as an identifier', () => {
+      const repo = repository({
+        ...BASE_FILES,
+        'src/ts.ts': 'export const ts = 1\n',
+        'src/uses.ts': "import { ts } from './ts.ts'\nexport const u = ts\n",
+      })
+      const spec = specText({ scope: A_ONLY, specification: ['改 `a.ts` 与 `x.md`。'] })
+      expect(messages(check(spec, false, repo).warnings)).not.toContain('references ts')
+    })
+  })
+
   describe('acceptance paths relative to a member directory', () => {
     const memberRepo = () =>
       repository({

@@ -18,7 +18,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, afterEach, describe, expect, it, vi } from 'vitest'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
@@ -1048,7 +1048,9 @@ describe('prepare-closures', () => {
         [BASE, BASE],
         ['main', BASE],
       ]),
-      agents = { tree: 'c'.repeat(40), status: '' },
+      agents = { tree: 'c'.repeat(40), diff: '', untracked: [] as string[] },
+      /** The commits a head contains besides itself, for `merge-base --is-ancestor`. */
+      contains = new Map<string, string[]>(),
       steps: Recorded[] = []
     const answer = (stdout = '', status = 0) => ({ status, stdout, stderr: '' })
     const run: Runner = (program, args, { cwd }) => {
@@ -1056,7 +1058,12 @@ describe('prepare-closures', () => {
       const forced = fail?.(program, args, cwd)
       if (forced !== undefined)
         return { status: forced.status, stdout: forced.stdout ?? '', stderr: forced.stderr ?? '' }
-      if (program !== 'git') return answer()
+      if (program !== 'git') {
+        // Installing gives the tree its node_modules, whether pnpm starts directly or through node.
+        if (args.slice(0, 2).includes('install'))
+          mkdirSync(join(cwd, 'node_modules'), { recursive: true })
+        return answer()
+      }
       const line = args.join(' '),
         last = args.at(-1) ?? ''
       const branch = last.startsWith('refs/heads/') ? last.slice('refs/heads/'.length) : ''
@@ -1084,12 +1091,18 @@ describe('prepare-closures', () => {
         return answer()
       }
       if (line === 'rev-parse HEAD:.meta_harness/agents') return answer(`${agents.tree}\n`)
-      if (line === 'status --porcelain -- .meta_harness/agents') return answer(agents.status)
+      if (line === 'diff --no-ext-diff --no-color HEAD -- .meta_harness/agents')
+        return answer(agents.diff)
+      if (args[0] === 'ls-files') return answer(agents.untracked.map(path => `${path}\0`).join(''))
+      if (args[0] === 'merge-base' && args[1] === '--is-ancestor') {
+        const head = branches.get(trees.get(cwd) ?? '') ?? ''
+        return answer('', args[2] === head || contains.get(head)?.includes(args[2] ?? '') ? 0 : 1)
+      }
       return answer()
     }
     const ran = (program: string, ...args: string[]) =>
       steps.filter(step => step.program === program && args.every((arg, i) => step.args[i] === arg))
-    return { run, steps, ran, branches, trees, agents }
+    return { run, steps, ran, branches, trees, agents, contains, refs }
   }
   type Fake = ReturnType<typeof closureFake>
   const closures = (...names: string[]) => names.map(name => ({ name, branch: `c/${name}` }))
@@ -1221,15 +1234,124 @@ describe('prepare-closures', () => {
       fake = closureFake(root),
       one = input(root, fake, { closures: closures('t1') })
     prepareClosures(one)
-    fake.agents.status = ' M .meta_harness/agents/skills/x/SKILL.md\n'
+    fake.agents.diff = 'diff --git a/x b/x\n+one\n'
     let before = fake.steps.length
     expect(prepareClosures(one).closures[0]?.status).toBe('reused')
     expect(has(fake.steps.slice(before), CHECK)).toBe(true)
-    fake.agents.status = ''
+    fake.agents.diff = ''
     fake.agents.tree = 'e'.repeat(40)
     before = fake.steps.length
     expect(prepareClosures(one).closures[0]?.status).toBe('reused')
     expect(has(fake.steps.slice(before), CHECK)).toBe(true)
+  })
+
+  it('N1 projects again when the uncommitted agent source changes again, and not when it stays the same', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1') })
+    const rerun = () => {
+      const before = fake.steps.length
+      const status = prepareClosures(one).closures[0]?.status
+      return { status, projected: has(fake.steps.slice(before), CHECK) }
+    }
+    fake.agents.diff = 'diff --git a/x b/x\n+one\n'
+    prepareClosures(one)
+    expect(rerun()).toEqual({ status: 'skipped', projected: false })
+    // Another edit of the same dirty directory is another key.
+    fake.agents.diff = 'diff --git a/x b/x\n+two\n'
+    expect(rerun()).toEqual({ status: 'reused', projected: true })
+    expect(rerun()).toEqual({ status: 'skipped', projected: false })
+    // An untracked file counts by its path and by its content.
+    const file = join(treeOf(root, 't1'), '.meta_harness/agents/new.md')
+    mkdirSync(dirname(file), { recursive: true })
+    writeFileSync(file, 'one\n')
+    fake.agents.untracked = ['.meta_harness/agents/new.md']
+    expect(rerun()).toEqual({ status: 'reused', projected: true })
+    expect(rerun()).toEqual({ status: 'skipped', projected: false })
+    writeFileSync(file, 'two\n')
+    expect(rerun()).toEqual({ status: 'reused', projected: true })
+    // Back to a clean directory is again another key.
+    fake.agents.diff = ''
+    fake.agents.untracked = []
+    expect(rerun()).toEqual({ status: 'reused', projected: true })
+    expect(rerun()).toEqual({ status: 'skipped', projected: false })
+  })
+
+  it('B1 builds again when a rerun asks for a --build the record lacks, and not for a repeat or another order', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = (builds: string[]) => input(root, fake, { closures: closures('t1'), builds })
+    prepareClosures(one([]))
+    let before = fake.steps.length
+    const widened = prepareClosures(one(['tools/x']))
+    expect(widened.ok).toBe(true)
+    expect(widened.closures[0]?.status).toBe('reused')
+    expect(has(fake.steps.slice(before), 'turbo run build --filter=tools/x')).toBe(true)
+    expect(readyOf(root, 't1').steps.map((s: { name: string }) => s.name)).toContain(
+      'build tools/x',
+    )
+    prepareClosures(one(['tools/y', 'tools/x']))
+    before = fake.steps.length
+    const same = prepareClosures(one(['tools/x', 'tools/y', 'tools/x']))
+    expect(same.closures[0]?.status).toBe('skipped')
+    expect(work(fake.steps.slice(before))).toEqual([])
+    // A filter given twice builds once.
+    before = fake.steps.length
+    prepareClosures(one(['tools/z', 'tools/z']))
+    expect(
+      fake.steps.slice(before).filter(s => s.args.join(' ') === 'turbo run build --filter=tools/z'),
+    ).toHaveLength(1)
+  })
+
+  it('B1 does not take a record without a successful build step for a filter as ready', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1'), builds: ['tools/x'] })
+    prepareClosures(one)
+    const file = join(treeOf(root, 't1'), 'tmp/closures/t1/ready.json')
+    const record = readyOf(root, 't1')
+    // The key still matches; only the step is missing.
+    const without = record.steps.filter((s: { name: string }) => s.name !== 'build tools/x')
+    writeFileSync(file, JSON.stringify({ ...record, steps: without }))
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(prepareClosures(one).closures[0]?.status).toBe('skipped')
+  })
+
+  it('redoes the install when the tree has lost its node_modules', () => {
+    const root = home(),
+      fake = closureFake(root),
+      one = input(root, fake, { closures: closures('t1') })
+    prepareClosures(one)
+    const modules = join(treeOf(root, 't1'), 'node_modules')
+    expect(existsSync(modules)).toBe(true)
+    rmSync(modules, { recursive: true })
+    const before = fake.steps.length
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(has(fake.steps.slice(before), INSTALL)).toBe(true)
+    expect(prepareClosures(one).closures[0]?.status).toBe('skipped')
+  })
+
+  it('N2 refuses an existing tree whose HEAD does not contain the base, and accepts one that does', () => {
+    const root = home(),
+      fake = closureFake(root),
+      newer = 'e'.repeat(40),
+      one = input(root, fake, { closures: closures('t1') })
+    fake.refs.set(newer, newer)
+    prepareClosures(one)
+    const before = fake.steps.length
+    const refused = prepareClosures({ ...one, base: newer })
+    expect(refused.ok).toBe(false)
+    expect(refused.closures[0]).toMatchObject({ status: 'refused', base: newer })
+    expect(refused.closures[0]?.message).toContain(`does not contain the base ${newer}`)
+    expect(work(fake.steps.slice(before))).toEqual([])
+    expect(readyOf(root, 't1').base).toBe(BASE)
+    // A tree that moved on from the base still contains it; ready.json names the requested base.
+    const moved = 'd'.repeat(40)
+    fake.branches.set('c/t1', moved)
+    fake.contains.set(moved, [BASE])
+    fake.agents.diff = 'diff --git a/x b/x\n+one\n'
+    expect(prepareClosures(one).closures[0]?.status).toBe('reused')
+    expect(readyOf(root, 't1').base).toBe(BASE)
   })
 
   it('P6 stops at the closure whose install fails, keeps the trees, and gives the same command to resume', () => {
@@ -1406,6 +1528,7 @@ describe('prepare-closures with real git', () => {
     const run: Runner = (program, args, options) => {
       if (program === 'git') return runProgram(program, args, options)
       programs.push([program, ...args].join(' '))
+      if (args[0] === 'install') mkdirSync(join(options.cwd, 'node_modules'), { recursive: true })
       return { status: 0, stdout: '', stderr: '' }
     }
     const request = {
@@ -1435,6 +1558,29 @@ describe('prepare-closures with real git', () => {
     expect(programs).toHaveLength(count)
     writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed\n')
     expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
+    // Real git: the same uncommitted change is the same key, another content is not.
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+    writeFileSync(join(root, '.worktrees/t1/.meta_harness/agents/x.md'), 'changed again\n')
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['reused', 'skipped'])
+    // An untracked file in the agent source counts by its content.
+    const added = join(root, '.worktrees/t2/.meta_harness/agents/new.md')
+    writeFileSync(added, 'one\n')
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
+    writeFileSync(added, 'two\n')
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'reused'])
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
+    // A later base is refused for a tree whose HEAD does not contain it; an older one is not.
+    writeFileSync(join(root, 'later.txt'), 'later\n')
+    git(root, 'add', 'later.txt')
+    git(root, '-c', 'user.name=t', '-c', 'user.email=t@example.com', 'commit', '--quiet', '-m', 'l')
+    const later = git(root, 'rev-parse', 'HEAD')
+    expect(
+      prepareClosures({ ...request, base: later }).closures.map(c => [c.status, c.base]),
+    ).toEqual([
+      ['refused', later],
+      ['refused', later],
+    ])
+    expect(prepareClosures(request).closures.map(c => c.status)).toEqual(['skipped', 'skipped'])
   })
 })
 
