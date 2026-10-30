@@ -16,14 +16,23 @@ import { scene, ok, operation, evidence, instance } from './fixtures/common-jour
 import { accept, handed } from './fixtures/progression.ts'
 import { toolCall } from './fixtures/tool-call.ts'
 
+const SETTLEMENT_QUALIFICATIONS: readonly string[] = ['settle', 'migrate-cancellation', 'reconcile']
+
 const fixture: AgentJournalCoreFixture<string> = {
   async open(name, options = {}) {
     const hostRecords = new Map<string, TestHostRecord>()
     const installed = options.cancellationPolicy !== 'absent'
-    const s = await scene(`core-${name}`, undefined, undefined, {
-      cancellationPolicy: installed ? 'installed' : 'absent',
-      hostRecords,
-    })
+    // The settlement qualifications the caller holds; every other action stays allowed.
+    const held = new Set<string>(SETTLEMENT_QUALIFICATIONS)
+    const s = await scene(
+      `core-${name}`,
+      undefined,
+      {
+        agent: action => !SETTLEMENT_QUALIFICATIONS.includes(action) || held.has(action),
+        session: true,
+      },
+      { cancellationPolicy: installed ? 'installed' : 'absent', hostRecords },
+    )
     ok(await handed(s))
     const handedOver = new Set<string>()
     const journal: typeof s.view.journal = {
@@ -89,6 +98,16 @@ const fixture: AgentJournalCoreFixture<string> = {
             retained: evidence(`custody-${label}`),
           },
         }
+      },
+      seedLegacyCandidate: async label => {
+        const candidate = operation(`legacy-${label}`)
+        if (!s.view.controls.seedLegacyCandidate(s.execution, candidate, s.access.tenant))
+          throw new Error(`the legacy candidate ${label} could not be seeded`)
+        return { candidate }
+      },
+      qualify: next => {
+        held.clear()
+        for (const qualification of next) held.add(qualification)
       },
       faultNext: (method, outcome) =>
         s.view.controls.failNext(method, { kind: 'commit-unknown', outcome }),
