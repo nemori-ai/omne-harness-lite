@@ -277,9 +277,11 @@ stateDiagram-v2
 - `control` 与 `recordControl` 按 SPEC [六个阶段](../agent-contract/SPEC.md#六个阶段)把阶段事实投影为 control 事件。同一阶段以同一依据在新的操作身份下再次登记时，认回原回执，不推进 revision，不重复投影。ended 之后，`recordControl` 只记录 producer-confirmed、physically-stopped、duty-released 且不投影事件；intent-established 与 qualification-revoked 在该阶段没有 reached 事实时返回 `terminal`。与任一阶段已 reached 的事实矛盾的证据在 ended 之后也走下面的持久拒绝。已 reached 的阶段配不同 state 或 source 再次登记时持久拒绝：审计推进一个 revision、不发事件，`query` 以原 conflict 回答 `rejected`。
 - standalone 绑定对非空 grant 或输入来源写前返回 `unsupported`。coordinated 绑定在同一次写入内询问协调者钩子与参加者的编排响应：冲突在 `open`、`attach`、`submit` 上为 `denied`，在 `tryFinish` 上为 `changed`。
 
-下列做法仍是「临时做法，待 #558 裁定」（S3）：
+终结按 SPEC 的[条件终结](../agent-contract/SPEC.md#条件终结)、[取消判断与路线](../agent-contract/SPEC.md#取消判断与路线)、[终结责任清单](../agent-contract/SPEC.md#终结责任清单)与 [commitSettlement 的变体](../agent-contract/SPEC.md#commitsettlement-的变体)：
 
-- `tryFinish` 的 blocked：按 operations（本 execution 有未定的写入）、controls（某个适用阶段登记为 unresolved）、inputs（普通终结时有未被已取批次覆盖的受理输入；取消终结不因此受阻）、custody（结果既无保管依据也无完成依据）的次序检查。SPEC 没有写明条件的地方取更严格的读法。passages 不检查：终态前经过是否完成并绑定本候选，是协调者的事实，Journal 从自己的记录判断不了。
+- 带 `finish` 的 settling 提交是 F1：Journal 以该操作建立候选（另一操作同内容认回原候选，异内容建新候选并记替代链接）、author route 与 FinishIntent 投影。其后第一次不带 finish、且 checkpoint 没有未 applied 的 before_terminal passage 的 settling 提交是 F2：Journal 据此设 author route 的 `beforeTerminal`。`prepareFinish` 从 Journal 自己的记录（受理输入、控制、未定写入、handoff、调用、passage 与卡片轮次、结果、输出、观察计划）发行清单，新修订、无事件。
+- `tryFinish` 按次序核对：被取代的推进授权（stale-advance）、ended（terminal）、授权（有效取消下的推进授权为 changed；取消授权必须指向已保存且 intent 已 reached 的控制并带该控制的 source）、expected、`intent.obligations` 是本候选已发行的清单（否则 invalid）、intent 与投影相等（否则 changed）、清单的责任投影未变（否则 changed），再按固定次序 inputs（普通候选有未被批次承接的受理输入）、controls（取消 intent 或撤权登记为 unresolved；三种迟到阶段不阻塞）、operations（未定写入）、passages（author route 无 F2 依据、cancellation route 无判断记录、或判断 blocked 按其类别；判断 unknown 为 unavailable）、custody（结果既无保管也无完成）阻塞。
+- `commitSettlement` 的候选、迁移与判断变体需要 `cancellation` 选项安装的取消政策，没有安装答 unavailable；三个保管变体按 source 的 record 文本读 `hostRecords` 选项的宿主记录，无记录答 unavailable。协调者的取消路线（F0 与 cancelled 的 F1）未实现（#502 阶段 5）。
 
 内存 Journal 不另存退避时刻与下一检查时刻（#558 M04-6）。最终请求保存在 ready 的 `requestPreparation` 中（#558 M04-2）。它不自动生成 stream 与 producer 事件。producer 事件由 M3 的条件提交携带。任何方法都不在 ended 事件之后追加事件。每个返回 `commit-unknown` 的调用都留下 `query` 可判定的记录：写入生效为 committed，没有写入为 excluded，无人能定时为未定（列在 `unresolved`，由 `attach` 围栏排除或由 `settle` 判定）。操作记录与未定写入都按租户保存：其他租户的写入在任何编排故障之前就返回 denied，不进入未定集合；`unresolved`、`attach` 的围栏、`tryFinish` 的 operations 检查与 `settle` 都只看本 execution 所属租户的记录；`query` 不向其他租户透露 execution 是否存在。
 
@@ -307,7 +309,7 @@ stateDiagram-v2
 
 - 公开入口、导入图与清单依赖。
 - 工厂的四种创建失败与 idle，以及四个面的访问守卫。
-- 内存 Journal 的同形清单、一项临时做法（`tryFinish` 的 blocked，S3）及各替身的编排接口。
+- 内存 Journal 的同形清单、终结的候选投影与 blocked 次序及各替身的编排接口。
 - 转移表、评估器与一条输入到 ended 的正常路径。
 - 主调用意图与固定请求的一次提交、原 reference 认回、最终失败、部分结果、received 采用与接收回执未知。
 - 缺原推理回放元数据时保留生产责任，以及 Read 的异常和关闭失败。

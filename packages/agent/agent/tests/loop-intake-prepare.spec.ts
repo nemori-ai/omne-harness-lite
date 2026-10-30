@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
   AgentCheckpoint,
+  FinishCandidateContent,
   FinishIntent,
   JournalCommit,
   Preparation,
@@ -578,7 +579,7 @@ describe('I1 preparation outcomes', () => {
   it.each(['applied', 'dropped'] as const)(
     'a cannot-fit F1 commit with an unknown %s result retains the exact candidate',
     async outcome => {
-      const proposals: FinishIntent[] = []
+      const proposals: FinishCandidateContent[] = []
       const finishes: FinishIntent[] = []
       let clockReads = 0
       let currentTime = '2026-10-21T07:00:00.000Z'
@@ -594,8 +595,8 @@ describe('I1 preparation outcomes', () => {
         journal: {
           ...d.journal,
           commit(input) {
-            if (input.operation.startsWith('F1/') && input.state.kind === 'settling') {
-              proposals.push(structuredClone(input.state.intent))
+            if (input.operation.startsWith('F1/') && input.finish !== null) {
+              proposals.push(structuredClone(input.finish))
               if (proposals.length === 1)
                 assembly.controls.journal.failNext('commit', { kind: 'commit-unknown', outcome })
             }
@@ -629,7 +630,7 @@ describe('I1 preparation outcomes', () => {
 
   it('a failed clock read retains the preparation and F1 continuation without a candidate write', async () => {
     let clockReads = 0
-    const writes: FinishIntent[] = []
+    const writes: FinishCandidateContent[] = []
     const assembly = await loopAssembly([execution()], d => ({
       ...d,
       clock: {
@@ -648,8 +649,8 @@ describe('I1 preparation outcomes', () => {
       journal: {
         ...d.journal,
         commit(input) {
-          if (input.operation.startsWith('F1/') && input.state.kind === 'settling')
-            writes.push(structuredClone(input.state.intent))
+          if (input.operation.startsWith('F1/') && input.finish !== null)
+            writes.push(structuredClone(input.finish))
           return d.journal.commit(input)
         },
       },

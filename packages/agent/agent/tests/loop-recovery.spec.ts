@@ -4,6 +4,7 @@ import type {
   AgentCheckpoint,
   Authority,
   ExecutionSnapshot,
+  ExecutionState,
   Failure,
 } from '@omne-harness/agent-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
@@ -146,9 +147,10 @@ describe('E4 recovery routing', () => {
 
   it.each(['F2', 'F3'])('NA-E4-2: settling resumes %s from the saved finish intent', position => {
     const intent = {
+      candidate: operation('F1/commit@1'),
       conclusion: { kind: 'complete' as const },
       inputWatermark: evidence('inputs'),
-      obligations: evidence('obligations'),
+      obligations: null,
       beforeTerminal: null,
       failure: null,
     }
@@ -950,7 +952,22 @@ describe('checkpoint positions saved by the current assembly', () => {
       journal: {
         ...d.journal,
         commit: input => {
-          saved.push({ checkpoint: input.checkpoint, state: input.state, unresolved: [] })
+          // A committed settling state carries no intent; the route reads only the kind.
+          const state: ExecutionState =
+            input.state.kind === 'settling'
+              ? {
+                  kind: 'settling',
+                  intent: {
+                    candidate: input.operation,
+                    conclusion: { kind: 'complete' },
+                    inputWatermark: evidence('inputs'),
+                    obligations: null,
+                    beforeTerminal: null,
+                    failure: null,
+                  },
+                }
+              : input.state
+          saved.push({ checkpoint: input.checkpoint, state, unresolved: [] })
           return d.journal.commit(input)
         },
       },

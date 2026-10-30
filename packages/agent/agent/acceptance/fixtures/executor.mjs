@@ -57,6 +57,7 @@ process.on('message', async message => {
               'commit',
               'query',
               'recordResult',
+              'prepareFinish',
               'tryFinish',
             ],
           ),

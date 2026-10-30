@@ -1,5 +1,5 @@
 import { describe, it } from 'vitest'
-import type { AgentEvent, EventPage } from '@omne-harness/agent-contract'
+import type { AgentEvent, EventPage, JournalCommit } from '@omne-harness/agent-contract'
 import {
   agentJournalEntriesConformance,
   type AgentJournalEntriesFixture,
@@ -75,9 +75,51 @@ function fixture() {
           effects: [],
           caller: { kind: 'none' },
           replyAdmission: null,
+          finish: null,
+        }),
+      )
+      // F1, F2, prepareFinish, load, then tryFinish with the projection (SPEC "条件终结").
+      const settling = async (name: string, finish: JournalCommit<string>['finish']) => {
+        snapshot = ok(await journal.load({ ...who, execution }))
+        ok(
+          await journal.commit({
+            ...who,
+            execution,
+            operation: operation(`${name}-${execution}`),
+            authority,
+            expected: snapshot.revision,
+            checkpoint: { ...snapshot.checkpoint, position: name },
+            state: { kind: 'settling' },
+            handoff: null,
+            events: [],
+            effects: [],
+            caller: { kind: 'none' },
+            replyAdmission: null,
+            finish,
+          }),
+        )
+      }
+      await settling('F1', {
+        origin: evidence('origin'),
+        conclusion: { kind: 'complete' },
+        failure: null,
+        inputWatermark: snapshot.inputWatermark,
+        conditions: evidence('conditions'),
+      })
+      await settling('F2', null)
+      snapshot = ok(await journal.load({ ...who, execution }))
+      ok(
+        await journal.prepareFinish({
+          ...who,
+          execution,
+          operation: operation(`prepare-${execution}`),
+          authorization: { kind: 'advancement', authority },
+          expected: snapshot.revision,
+          candidate: snapshot.settlement.candidate?.candidate ?? operation('none'),
         }),
       )
       snapshot = ok(await journal.load({ ...who, execution }))
+      if (snapshot.state.kind !== 'settling') throw new Error('expected settling')
       ok(
         await journal.tryFinish({
           ...who,
@@ -85,13 +127,7 @@ function fixture() {
           operation: operation(`finish-${execution}`),
           authorization: { kind: 'advancement', authority },
           expected: snapshot.revision,
-          intent: {
-            conclusion: { kind: 'complete' },
-            inputWatermark: snapshot.inputWatermark,
-            obligations: evidence('obligations'),
-            beforeTerminal: evidence('before'),
-            failure: null,
-          },
+          intent: snapshot.state.intent,
         }),
       )
     },

@@ -7,8 +7,11 @@ import { createMemoryAgentJournal } from '@omne-harness/agent/testing'
 import type { AgentJournal } from '@omne-harness/agent-contract'
 import {
   agentJournalCoreConformance,
+  createTestCancellationPolicy,
+  testCancellationPolicyInstallation,
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpened,
+  type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
 import {
   acceptedInput,
@@ -27,8 +30,21 @@ type Journal = AgentJournal<string>
 type Opened = AgentJournalCoreOpened<string>
 
 const fixture: AgentJournalCoreFixture<string> = {
-  async open(name) {
-    const memory = createMemoryAgentJournal<string>({ coordination: 'standalone' })
+  async open(name, options = {}) {
+    const hostRecords = new Map<string, TestHostRecord>()
+    const installed = options.cancellationPolicy !== 'absent'
+    const memory = createMemoryAgentJournal<string>({
+      coordination: 'standalone',
+      hostRecords,
+      ...(installed
+        ? {
+            cancellation: {
+              installation: testCancellationPolicyInstallation,
+              policy: createTestCancellationPolicy(),
+            },
+          }
+        : {}),
+    })
     const opened = await open(memory.port, name)
     return {
       journal: memory.port,
@@ -37,6 +53,12 @@ const fixture: AgentJournalCoreFixture<string> = {
       receipt: opened.receipt,
       authority: opened.authority,
       checkpoint: checkpoint(),
+      installation: installed ? testCancellationPolicyInstallation : null,
+      hostRecord: async record => {
+        const source = evidence(`host/${hostRecords.size + 1}/${record.kind}`)
+        hostRecords.set(source.record, record)
+        return source
+      },
       acceptInput: async label => acceptedInput(`input-${label}`),
       produceResult: async label => {
         const result = producedResult(label)

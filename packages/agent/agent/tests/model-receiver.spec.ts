@@ -1434,6 +1434,7 @@ it('freezes the original binding workset before authorization and excludes a con
       expected: snapshot.revision,
       checkpoint: { ...snapshot.checkpoint, calls: [laterPending] },
       state: { kind: 'advancing' },
+      finish: null,
       handoff: null,
       events: [],
       effects: [],
