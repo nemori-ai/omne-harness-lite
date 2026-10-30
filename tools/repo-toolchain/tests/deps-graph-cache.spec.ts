@@ -123,6 +123,40 @@ describe('工作树依赖图的指纹', () => {
     expect(removed).not.toBe(modified)
   })
 
+  it('扫描根之外、被忽略的文件被扫描根内的文件导入：改了内容或删掉就变', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\ngen.mts\n')
+    write(
+      root,
+      'packages/model/c/src/index.ts',
+      "import { r } from '../../../../gen.mts'\nexport const c = r\n",
+    )
+    commit(root, 'c imports ignored gen.mts')
+    write(root, 'gen.mts', 'export const r = 1\n')
+    const before = digest(root)
+    write(root, 'gen.mts', 'export const r = 2\n')
+    const modified = digest(root)
+    expect(modified).not.toBe(before)
+    rmSync(join(root, 'gen.mts'))
+    const removed = digest(root)
+    expect(removed).not.toBe(before)
+    expect(removed).not.toBe(modified)
+  })
+
+  it('扫描根之外、被忽略的目录里增删文件不变：目录只记存在与否', () => {
+    const root = copyRepository(template)
+    write(root, '.gitignore', 'node_modules/\nbuild-out/\n')
+    commit(root, 'ignore build-out')
+    write(root, 'build-out/a.txt', 'a\n')
+    const before = digest(root)
+    write(root, 'build-out/b.txt', 'b\n')
+    expect(digest(root)).toBe(before)
+    rmSync(join(root, 'build-out/a.txt'))
+    expect(digest(root)).toBe(before)
+    rmSync(join(root, 'build-out'), { recursive: true })
+    expect(digest(root)).not.toBe(before)
+  })
+
   it('被忽略的单个文件进图，所以它的内容改了也变', () => {
     const root = copyRepository(template)
     write(root, '.gitignore', 'node_modules/\npackages/model/a/src/generated.ts\n')
@@ -361,6 +395,28 @@ describe('工作树依赖图的缓存', () => {
       expect(
         (JSON.parse(readFileSync(file, 'utf8')) as { graph: DependencyGraph }).graph,
       ).not.toEqual(marker)
+    },
+  )
+
+  it(
+    '扫描根之外、被忽略的导入目标被删：开缓存与不开缓存的 findings 相同',
+    { tags: ['slow'], timeout: 120_000 },
+    () => {
+      const root = copyRepository(template)
+      write(root, '.gitignore', 'node_modules/\ngen.mts\n')
+      write(
+        root,
+        'packages/model/c/src/index.ts',
+        "import { r } from '../../../../gen.mts'\nexport const c = r\n",
+      )
+      commit(root, 'c imports ignored gen.mts')
+      write(root, 'gen.mts', 'export const r = 1\n')
+      const rules = (graph: DependencyGraph) => graph.findings.map(finding => finding.rule)
+      workingGraph(root)
+      rmSync(join(root, 'gen.mts'))
+      const cached = rules(workingGraph(root))
+      const uncached = rules(withEnv({ [WORKING_CACHE_SWITCH]: '0' }, () => workingGraph(root)))
+      expect(cached).toEqual(uncached)
     },
   )
 

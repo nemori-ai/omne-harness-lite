@@ -522,7 +522,7 @@ export interface WorkingFingerprint {
 /**
  * 当前工作树依赖图的指纹，覆盖所有能改变 `workingGraph(root)` 结果的输入：图的格式版本、dependency-cruiser 的版本、
  * 规则文件（原文与 require 后的结果）、解析配置（`tsconfig.base.json` 连同 `extends` 链）、HEAD 提交、全部未提交与未跟踪文件的路径与内容（不按扫描根过滤：
- * dependency-cruiser 会解析扫描根之外的导入目标）、扫描根下被忽略的路径（目录记存在与否，
+ * dependency-cruiser 会解析扫描根之外的导入目标）、被忽略的路径（同样不按扫描根过滤；目录记存在与否，
  * 单个文件记内容）、`ignoredDirectories` 的结果、`pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
  * `root` 不在 git 工作树里或没有提交时没有指纹（返回 undefined），这样的树不缓存。
  */
@@ -620,12 +620,6 @@ function resolveExtends(from: string, value: string): string | undefined {
   return undefined
 }
 
-const SCAN_FILES = ['tsconfig.base.json', 'package.json']
-/** 路径落在 dependency-cruiser 会扫描的范围里：扫描根之下，或根 `tsconfig.base.json`、`package.json`。 */
-function inScanScope(path: string): boolean {
-  return ROOTS.some(dir => path.startsWith(`${dir}/`)) || SCAN_FILES.includes(path)
-}
-
 /** 第 `count` 个空格之后的部分：porcelain v2 的记录里路径在固定个数的字段之后，路径本身可以含空格。 */
 function afterFields(record: string, count: number): string | undefined {
   let index = -1
@@ -715,7 +709,7 @@ function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[]
     `roots ${ROOTS.filter(dir => existsSync(join(root, dir))).join(' ')}`,
     `lock ${fileDigest(join(root, 'pnpm-lock.yaml'))}`,
     `modules ${fileDigest(join(root, 'node_modules', '.modules.yaml'))}`,
-    `ignored-dirs ${[...ignoredDirs].filter(inScanScope).sort().join(' ')}`,
+    `ignored-dirs ${[...ignoredDirs].sort().join(' ')}`,
   ]
   const changed = [...new Set(changedPaths(root))].sort()
   const ignored = nulSeparated(
@@ -727,9 +721,7 @@ function workingInputs(root: string, ignoredDirs: ReadonlySet<string>): string[]
       '--directory',
       '-z',
     ]).toString(),
-  )
-    .filter(inScanScope)
-    .sort()
+  ).sort()
   const ignoredFiles = ignored.filter(path => !path.endsWith('/'))
   const ids = contentIds(root, [...new Set([...changed, ...ignoredFiles])])
   for (const path of changed) lines.push(`changed ${path} ${ids.get(path) ?? ''}`)
