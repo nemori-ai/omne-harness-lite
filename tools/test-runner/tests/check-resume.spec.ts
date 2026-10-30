@@ -47,7 +47,8 @@ const ACCEPTING = ['members/a', 'members/c']
 
 /**
  * 假步骤：把步骤名与它从计划文件里读到的范围追加进 trace.txt；`--fail-if-bad <文件>` 时文件里有 bad 就退出 1；
- * `--sleep-if-bad <文件> <毫秒>` 时文件里有 bad 就先等这么久（让它在 oxlint 失败时还在跑、被终止）。
+ * `--sleep-if-bad <文件> <毫秒>` 时文件里有 bad 就先等这么久（让它在 oxlint 失败时还在跑、被终止）；
+ * `--fail-after <步骤>` 时先等那一步在 trace.txt 里出现（至多 10 秒）再按 `--fail-if-bad` 退出，失败时那一步一定已经起了。
  * 环境变量 `FAKE_STRAY` 给了文件名时，回路状态那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
  */
 const FAKE_STEP = `import { appendFileSync, existsSync, readFileSync } from 'node:fs'
@@ -67,6 +68,11 @@ const sleepAt = flags.indexOf('--sleep-if-bad')
 if (sleepAt !== -1 && readFileSync(flags[sleepAt + 1], 'utf8').includes('bad'))
   await new Promise(resolve => setTimeout(resolve, Number(flags[sleepAt + 2])))
 const at = flags.indexOf('--fail-if-bad')
+const afterAt = flags.indexOf('--fail-after')
+if (at !== -1 && afterAt !== -1 && readFileSync(flags[at + 1], 'utf8').includes('bad')) {
+  const started = () => existsSync('trace.txt') && readFileSync('trace.txt', 'utf8').split('\\n').some(line => line.startsWith(flags[afterAt + 1] + '\\t'))
+  for (const deadline = Date.now() + 10_000; !started() && Date.now() < deadline; ) await new Promise(resolve => setTimeout(resolve, 20))
+}
 process.exit(at !== -1 && readFileSync(flags[at + 1], 'utf8').includes('bad') ? 1 : 0)
 `
 
@@ -145,10 +151,17 @@ function fixture(): Fixture {
       planned('python', [], false),
       planned('build', []),
       planned('typecheck', ['build']),
-      // 让 H1 上「哪些步骤跑完、哪些没跑到」不随机器快慢变：假的 oxlint 排在类型检查之后才起。
+      // 让 H1 上「哪些步骤跑完、哪些没跑到」不随机器快慢变：假的 oxlint 排在类型检查之后才起，
+      // 并等成员测试起来之后才失败（不然快的机器上 oxlint 先失败、成员测试还没起）。
       {
         name: 'lint:oxlint',
-        command: command('lint:oxlint', '--fail-if-bad', 'members/c/lint.txt'),
+        command: command(
+          'lint:oxlint',
+          '--fail-if-bad',
+          'members/c/lint.txt',
+          '--fail-after',
+          'test',
+        ),
         after: ['typecheck'],
         heavy: false,
       },
