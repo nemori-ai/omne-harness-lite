@@ -2231,15 +2231,11 @@ export function createMemoryAgentJournal<P>(
         }
       }
       case 'record-tool-association': {
-        if (
-          record.kind !== 'tool-return' ||
-          !sameValue(record.intent, input.intent) ||
-          !sameEvidence(record.request, input.request)
-        )
+        if (record.kind !== 'tool-return')
           return answer(fail(invalid('source', 'not the return of this intent')))
-        const effect = execution.effects.find(item => item.action === input.intent.action)
-        if (effect === undefined)
-          throw new Error('memory Journal defect: the Tool intent was checked before the source')
+        // A tool-return record carries no tenant: the tenant is the one of its returned reference,
+        // resolved before the intent and the request are compared, so a foreign return is denied
+        // without telling whether it is the return of the requested intent.
         const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
         if ('failure' in reference)
           return answer(
@@ -2249,6 +2245,11 @@ export function createMemoryAgentJournal<P>(
                 : invalid('source', 'the returned reference is malformed'),
             ),
           )
+        if (!sameValue(record.intent, input.intent) || !sameEvidence(record.request, input.request))
+          return answer(fail(invalid('source', 'not the return of this intent')))
+        const effect = execution.effects.find(item => item.action === input.intent.action)
+        if (effect === undefined)
+          throw new Error('memory Journal defect: the Tool intent was checked before the source')
         // A known reference of the same intent is not merged with another call or admission
         // (SPEC "commitSettlement 的变体", the Tool paragraph): conflict, the association stays.
         for (const existing of finishing.toolAssociations) {

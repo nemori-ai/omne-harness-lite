@@ -2255,12 +2255,11 @@ export function createJournal<P>(
         const effect = execution.effects.find(item => item.action === input.intent.action)
         if (effect === undefined)
           throw new Error('session Journal defect: the Tool intent was checked before the source')
-        if (
-          record.kind !== 'tool-return' ||
-          !sameValue(record.intent, input.intent) ||
-          !sameEvidence(record.request, input.request)
-        )
+        if (record.kind !== 'tool-return')
           return answer(fail(invalid('source', 'not the return of this intent')))
+        // A tool-return record carries no tenant: the tenant is the one of its returned reference,
+        // resolved before the intent and the request are compared, so a foreign return is denied
+        // without telling whether it is the return of the requested intent.
         const reference = resolveToolInvocationRef(record.returned.reference, execution.tenant)
         if ('failure' in reference)
           return answer(
@@ -2270,6 +2269,8 @@ export function createJournal<P>(
                 : invalid('source', 'the returned reference is malformed'),
             ),
           )
+        if (!sameValue(record.intent, input.intent) || !sameEvidence(record.request, input.request))
+          return answer(fail(invalid('source', 'not the return of this intent')))
         // A known reference of the same intent with another call or admission conflicts: the
         // original association stays as it is (Agent SPEC "record-tool-association").
         const parts = reference.ok
