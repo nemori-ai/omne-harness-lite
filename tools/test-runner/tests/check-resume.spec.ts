@@ -50,9 +50,13 @@ const ACCEPTING = ['members/a', 'members/c']
  * `--hold-if-bad <文件> <标记文件>` 时文件里有 bad 就等标记文件出现（至多 30 秒），超时退出 3 并在 stderr 写明在等什么；
  * `--fail-after <步骤>` 与 `--fail-if-bad` 同给、文件里有 bad 时，先等那一步在 trace.txt 里出现（至多 30 秒）再退出 1；
  * 等不到就退出 3（夹具自己的时序问题，不当成 oxlint 失败）。所以退出 1 一定发生在那一步已经起了之后。
+ * `--wait-done <步骤,…>` 与 `--fail-if-bad` 同给、文件里有 bad 时，还要等这些步骤各自成功退出（它们退出 0 时写下 `doneFile`，
+ * 在 tmp/ 里，不进工作树的状态）；同样至多 30 秒、等不到退出 3。这样 H1 上它们一定跑完、通过。
  * 环境变量 `FAKE_STRAY` 给了文件名时，回路状态那一步在工作树里写这个文件（一个没被忽略的未跟踪文件）。
  */
-const FAKE_STEP = `import { appendFileSync, existsSync, readFileSync } from 'node:fs'
+/** 假步骤的完成标记目录（相对夹具根，在 tmp/ 里，不进工作树的状态）：假步骤成功退出时写下，`--wait-done` 等它。 */
+const FAKE_DONE_DIR = 'tmp/fake-done'
+const FAKE_STEP = `import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 const [name, ...flags] = process.argv.slice(2)
 const planPath = 'tmp/check-plan/plan.json'
 const plan = existsSync(planPath) ? JSON.parse(readFileSync(planPath, 'utf8')).plan : undefined
@@ -66,6 +70,8 @@ const lists = plan === undefined ? {} : {
 appendFileSync('trace.txt', name + '\\t' + (lists[name] === undefined ? '-' : lists[name].join(',')) + '\\n')
 if (name === 'loop:status' && process.env.FAKE_STRAY) appendFileSync(process.env.FAKE_STRAY, 'stray\\n')
 const bad = file => readFileSync(file, 'utf8').includes('bad')
+const doneDir = '${FAKE_DONE_DIR}'
+const doneFile = step => doneDir + '/' + step.replaceAll(':', '-')
 const waitUntil = async (done, ms) => {
   for (const deadline = Date.now() + ms; !done() && Date.now() < deadline; ) await new Promise(resolve => setTimeout(resolve, 20))
   return done()
@@ -80,17 +86,21 @@ if (holdAt !== -1 && bad(flags[holdAt + 1])) {
 }
 const at = flags.indexOf('--fail-if-bad')
 const afterAt = flags.indexOf('--fail-after')
+const waitDoneAt = flags.indexOf('--wait-done')
 if (at !== -1 && bad(flags[at + 1])) {
-  if (afterAt !== -1) {
-    const step = flags[afterAt + 1]
-    const started = () => existsSync('trace.txt') && readFileSync('trace.txt', 'utf8').split('\\n').some(line => line.startsWith(step + '\\t'))
-    if (!(await waitUntil(started, 30_000))) {
-      process.stderr.write(name + ' 在等 trace 里出现 ' + step + '，30 秒内没出现\\n')
-      process.exit(3)
-    }
+  const step = afterAt === -1 ? undefined : flags[afterAt + 1]
+  const waitDone = waitDoneAt === -1 ? [] : flags[waitDoneAt + 1].split(',')
+  const started = () => step === undefined || (existsSync('trace.txt') && readFileSync('trace.txt', 'utf8').split('\\n').some(line => line.startsWith(step + '\\t')))
+  const finished = () => waitDone.every(other => existsSync(doneFile(other)))
+  if (!(await waitUntil(() => started() && finished(), 30_000))) {
+    const missing = [step !== undefined && !started() ? 'trace 里的 ' + step : undefined, ...waitDone.filter(other => !existsSync(doneFile(other))).map(other => other + ' 跑完')].filter(Boolean)
+    process.stderr.write(name + ' 在等 ' + missing.join('、') + '，30 秒内没出现\\n')
+    process.exit(3)
   }
   process.exit(1)
 }
+mkdirSync(doneDir, { recursive: true })
+writeFileSync(doneFile(name), 'done\\n')
 process.exit(0)
 `
 
@@ -165,12 +175,20 @@ function fixture(): Fixture {
   })
   const steps = (): CheckStep[] => {
     const table: CheckStep[] = [
-      { name: 'check:docs', command: command('check:docs'), after: [], heavy: false },
+      // check:docs 启动时清掉上一次的完成标记（它先于 python 起，python 的标记要到它退出时才写）。
+      {
+        name: 'check:docs',
+        command: command('check:docs'),
+        after: [],
+        heavy: false,
+        clean: [FAKE_DONE_DIR],
+      },
       planned('python', [], false),
       planned('build', []),
       planned('typecheck', ['build']),
       // 让 H1 上「哪些步骤跑完、哪些没跑到」不随机器快慢变：假的 oxlint 排在类型检查之后才起，
-      // 并等成员测试起来之后才失败（不然快的机器上 oxlint 先失败、成员测试还没起）。
+      // 并等成员测试起来、check:docs 与 python 跑完之后才失败（不然快的机器上 oxlint 先失败，它们还没跑完，
+      // 被终止、记 ran: false；接续的理由「轻步骤，按整次运行的范围」要求 python 在 H1 上跑完且通过）。
       {
         name: 'lint:oxlint',
         command: command(
@@ -179,6 +197,8 @@ function fixture(): Fixture {
           'members/c/lint.txt',
           '--fail-after',
           'test',
+          '--wait-done',
+          'check:docs,python',
         ),
         after: ['typecheck'],
         heavy: false,
@@ -315,6 +335,9 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     expect(steps.get('build')).toEqual({ ran: true, exit: 0 })
     expect(steps.get('typecheck')).toEqual({ ran: true, exit: 0 })
     expect(steps.get('lint:oxlint')).toEqual({ ran: true, exit: 1 })
+    // oxlint 失败前先等 check:docs 与 python 跑完（握手）：它们在 H1 上是跑过且通过的。接续的「轻步骤，按整次运行的范围」理由靠这一条。
+    expect(steps.get('check:docs'), 'check:docs').toEqual({ ran: true, exit: 0 })
+    expect(steps.get('python'), 'python').toEqual({ ran: true, exit: 0 })
     for (const name of ['test', 'acceptance', 'loop:status'])
       expect(steps.get(name), name).toEqual({ ran: false, exit: null })
     // 准入日志旁边同名的记录与它内容相同；日志以 exit=1 收尾并写明记录在哪。
