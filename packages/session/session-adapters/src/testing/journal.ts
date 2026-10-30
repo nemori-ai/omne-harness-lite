@@ -1086,14 +1086,18 @@ export function createJournal<P>(
     input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
   ): Outcome<Readonly<{ fault: WriteFault | undefined }>, Failure> {
     const fault = writeFaults.get(method)?.shift()
+    // Another tenant's write, or a write on an execution that does not exist (other than `open`),
+    // is denied with the method before any qualification is asked for: the answer is the same for
+    // an existing and a missing execution (Agent SPEC "判定次序与失败映射" 1).
+    const target = state().executions.get(executionKey(input.tenant, input.execution))
+    const foreign =
+      target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
+    if (foreign) return fail(denied(method))
     for (const name of qualificationsOf(method, input)) {
       const refused = cell.authorize(input, name)
       if (refused) return fail(refused)
     }
-    const target = state().executions.get(executionKey(input.tenant, input.execution))
-    const foreign =
-      target === undefined ? method !== 'open' : !tenantEquals(target.tenant, input.tenant)
-    return foreign ? fail(denied(method)) : succeed({ fault })
+    return succeed({ fault })
   }
 
   function run<R>(
@@ -1495,16 +1499,15 @@ export function createJournal<P>(
   /**
    * The checks of a cancel authorization that prepareFinish, tryFinish and the candidate,
    * migration and judgment variants share (Agent SPEC "条件终结", "commitSettlement 的变体" 3): the
-   * cancel names a saved control whose intent is reached (`denied` otherwise); prepareFinish and
-   * tryFinish also need the current settle qualification (`denied` otherwise); the cancel carries
-   * the source of that control (`invalid` otherwise). Answers the effective control.
+   * cancel names a saved control whose intent is reached (`denied` otherwise); the cancel carries
+   * the source of that control (`invalid` otherwise). Answers the effective control. The settle
+   * qualification is checked first, before the original operation is recognized: `settleRefusal`
+   * for prepareFinish and tryFinish, the qualification names of commitSettlement for the variants.
    */
   function cancelCheck(
-    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
     execution: Execution,
     authorization: Extract<FinishAuthorization, { kind: 'cancel' }>,
     action: string,
-    settle: boolean,
   ):
     | Readonly<{ kind: 'failure'; failure: Failure }>
     | Readonly<{ kind: 'held'; control: ControlRecord }> {
@@ -1512,14 +1515,24 @@ export function createJournal<P>(
       record => record.operation === authorization.control,
     )
     if (control === undefined) return { kind: 'failure', failure: denied(action) }
-    const refused = settle ? cell.authorize(input, 'settle') : undefined
-    if (refused !== undefined) return { kind: 'failure', failure: refused }
     if (!sameEvidence(control.stages.accepted.source, authorization.source))
       return {
         kind: 'failure',
         failure: invalid('authorization.source', 'not the source of the saved control'),
       }
     return { kind: 'held', control }
+  }
+
+  /**
+   * A cancel authorization of prepareFinish or tryFinish needs the caller's current settle
+   * qualification. It is checked with the tenant, before the original operation is recognized and
+   * before stale-advance or terminal (Agent SPEC "判定次序与失败映射" 1 and 2).
+   */
+  function settleRefusal(
+    input: Access<P> &
+      Readonly<{ execution: AgentExecutionId; authorization: FinishAuthorization }>,
+  ): Failure | undefined {
+    return input.authorization.kind === 'cancel' ? cell.authorize(input, 'settle') : undefined
   }
 
   /**
@@ -1802,7 +1815,7 @@ export function createJournal<P>(
       return answer(fail(damaged('no cancellation policy is installed on this binding')))
     if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
     // The settle and migrate-cancellation qualifications were checked with the request (step 1).
-    const checked = cancelCheck(input, execution, input.authorization, 'commitSettlement', false)
+    const checked = cancelCheck(execution, input.authorization, 'commitSettlement')
     if (checked.kind === 'failure') return answer(fail(checked.failure))
     const control = checked.control
     if (control.command.kind !== 'cancel')
@@ -2069,6 +2082,8 @@ export function createJournal<P>(
         const passage = execution.checkpoint.passages.find(item => item.id === input.passage)
         if (passage === undefined || passage.position !== 'before_terminal')
           return invalid('passage', 'not a before-terminal passage of this execution')
+        if (!sameEvidence(passage.input, input.request))
+          return invalid('request', 'not the input record of the passage')
         return known(input.candidate, input.route)
       }
       case 'record-tool-association': {
@@ -2093,8 +2108,9 @@ export function createJournal<P>(
    * The three custody variants under the current reconcile qualification, without expected and
    * also after ended: the target is checked first (`invalid` when the Journal does not hold it),
    * then the source must resolve through the trusted host reads (`unavailable` otherwise) to a
-   * record of the named passage, round or intent (`invalid` otherwise). None changes the
-   * candidate, the route or a passage.
+   * record of this tenant (`denied` otherwise, before anything of it is compared), of this execution
+   * (`invalid` otherwise) and of the named passage, round or intent (`invalid` otherwise). None
+   * changes the candidate, the route or a passage.
    */
   function settleCustody(execution: Execution, input: CustodyVariant): Attempt<SettlementResult> {
     const finishing = execution.finishing
@@ -2104,6 +2120,19 @@ export function createJournal<P>(
     const record = options.hostRecords?.get(source.record)
     if (record === undefined)
       return answer(fail(damaged(`the host answers no record for ${source.record}`)))
+    if (record.kind !== 'tool-return') {
+      if (!tenantEquals(record.tenant, execution.tenant))
+        return answer(fail(denied('commitSettlement')))
+      if (record.execution !== execution.id)
+        return answer(
+          fail(
+            invalid(
+              input.kind === 'record-card-reconciliation' ? 'original' : 'source',
+              'a host record of another execution',
+            ),
+          ),
+        )
+    }
     const revision = execution.revision + 1
     const evidence = nextEvidence(execution, input.kind, revision)
     const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
@@ -3232,177 +3261,195 @@ export function createJournal<P>(
     prepareFinish(input) {
       const key = semanticKey('prepareFinish', input)
       type Issued = Readonly<{ receipt: CommandReceipt; obligations: DurableEvidence }>
-      return write('prepareFinish', input, key, () => {
-        const found = owned(input, 'prepareFinish')
-        if ('failure' in found) return answer(found)
-        const execution = found.ok
-        const original = recognized<Issued>(input, key)
-        if (original !== undefined) return answer(original)
-        const authorization = input.authorization
-        // Agent SPEC "判定次序与失败映射" 4 to 6 and the prepareFinish row of the judgment order:
-        // stale-advance, terminal, the cancel checks, the kind of the authorization against the
-        // named candidate, an advancement under an effective cancel, then changed, then a
-        // candidate this Journal does not hold.
-        if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
-          return answer(fail({ kind: 'stale-advance' }))
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        if (authorization.kind === 'cancel') {
-          const checked = cancelCheck(input, execution, authorization, 'prepareFinish', true)
-          if (checked.kind === 'failure') return answer(fail(checked.failure))
-        }
-        const finishing = execution.finishing
-        const candidate = candidateOf(finishing, input.candidate)
-        // A cancel issues the list of a cancelled candidate only, an advancement never.
-        if (
-          candidate !== undefined &&
-          (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
-        )
-          return answer(fail(denied('prepareFinish')))
-        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
-          return answer(fail({ kind: 'changed' }))
-        if (execution.state.kind !== 'settling') return answer(fail({ kind: 'changed' }))
-        if (input.expected !== revisionOf(execution.revision))
-          return answer(fail({ kind: 'changed' }))
-        if (candidate === undefined)
-          return answer(fail(invalid('candidate', 'not a candidate of this execution')))
-        if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'obligations', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        const built = obligationsOf(execution, candidate, input.operation)
-        const list: FinishObligations = {
-          operation: input.operation,
-          revision: revisionOf(revision),
-          evidence,
-          candidate: candidate.candidate,
-          conclusion: candidate.conclusion,
-          failure: candidate.failure,
-          inputWatermark: candidate.inputWatermark,
-          checkpoint: journalEvidence(
-            `${cell.namespace}/${execution.id}/candidate/${candidate.candidate}/checkpoint`,
-            revision,
-          ),
-          conditions: candidate.conditions,
-          items: built.items,
-          coverage: built.coverage,
-        }
-        // One new revision, no event, the checkpoint and the candidate as they were.
-        return {
-          kind: 'write',
-          value: { receipt, obligations: evidence },
-          receipt,
-          apply: () => {
-            finishing.issued.set(evidence.record, copy(list))
-            finishing.obligations = evidence.record
-            execution.revision = revision
-          },
-        }
-      })
+      return write(
+        'prepareFinish',
+        input,
+        key,
+        () => {
+          const found = owned(input, 'prepareFinish')
+          if ('failure' in found) return answer(found)
+          const execution = found.ok
+          const original = recognized<Issued>(input, key)
+          if (original !== undefined) return answer(original)
+          const authorization = input.authorization
+          // A cancel without settle was denied before the recognition (`settleRefusal`). Then Agent
+          // SPEC "判定次序与失败映射" 4 to 6 and the prepareFinish row of the judgment order:
+          // stale-advance, terminal, the cancel checks, the kind of the authorization against the
+          // named candidate, an advancement under an effective cancel, then changed, then a
+          // candidate this Journal does not hold.
+          if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
+            return answer(fail({ kind: 'stale-advance' }))
+          if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+          if (authorization.kind === 'cancel') {
+            const checked = cancelCheck(execution, authorization, 'prepareFinish')
+            if (checked.kind === 'failure') return answer(fail(checked.failure))
+          }
+          const finishing = execution.finishing
+          const candidate = candidateOf(finishing, input.candidate)
+          // A cancel issues the list of a cancelled candidate only, an advancement never.
+          if (
+            candidate !== undefined &&
+            (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
+          )
+            return answer(fail(denied('prepareFinish')))
+          if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+            return answer(fail({ kind: 'changed' }))
+          if (execution.state.kind !== 'settling') return answer(fail({ kind: 'changed' }))
+          if (input.expected !== revisionOf(execution.revision))
+            return answer(fail({ kind: 'changed' }))
+          if (candidate === undefined)
+            return answer(fail(invalid('candidate', 'not a candidate of this execution')))
+          if (candidate.candidate !== finishing.current) return answer(fail({ kind: 'changed' }))
+          const revision = execution.revision + 1
+          const evidence = nextEvidence(execution, 'obligations', revision)
+          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          const built = obligationsOf(execution, candidate, input.operation)
+          const list: FinishObligations = {
+            operation: input.operation,
+            revision: revisionOf(revision),
+            evidence,
+            candidate: candidate.candidate,
+            conclusion: candidate.conclusion,
+            failure: candidate.failure,
+            inputWatermark: candidate.inputWatermark,
+            checkpoint: journalEvidence(
+              `${cell.namespace}/${execution.id}/candidate/${candidate.candidate}/checkpoint`,
+              revision,
+            ),
+            conditions: candidate.conditions,
+            items: built.items,
+            coverage: built.coverage,
+          }
+          // One new revision, no event, the checkpoint and the candidate as they were.
+          return {
+            kind: 'write',
+            value: { receipt, obligations: evidence },
+            receipt,
+            apply: () => {
+              finishing.issued.set(evidence.record, copy(list))
+              finishing.obligations = evidence.record
+              execution.revision = revision
+            },
+          }
+        },
+        () => settleRefusal(input),
+      )
     },
 
     tryFinish(input) {
       const key = semanticKey('tryFinish', input)
-      return write('tryFinish', input, key, () => {
-        const found = owned(input, 'tryFinish')
-        if ('failure' in found) return answer(found)
-        const execution = found.ok
-        const original = recognized<FinishResult>(input, key)
-        if (original !== undefined) return answer(original)
-        const changed = answer<FinishResult>(
-          succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
-        )
-        const authorization = input.authorization
-        // The tryFinish row of the judgment order: stale-advance, terminal, the cancel checks,
-        // the kind of the authorization, an advancement under an effective cancel, then changed,
-        // then the list, then the closure.
-        if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
-          return answer(fail({ kind: 'stale-advance' }))
-        if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
-        const finishing = execution.finishing
-        if (authorization.kind === 'cancel') {
-          const checked = cancelCheck(input, execution, authorization, 'tryFinish', true)
-          if (checked.kind === 'failure') return answer(fail(checked.failure))
-          const route = currentRoute(finishing)
-          if (route?.kind === 'cancellation' && route.control !== authorization.control)
-            return answer(
-              fail(invalid('authorization.control', 'not the control of the current route')),
-            )
-        }
-        const candidate = currentCandidate(finishing)
-        // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
-        if (
-          candidate !== undefined &&
-          (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
-        )
-          return answer(fail(denied('tryFinish')))
-        if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
-          return changed
-        const intent = intentOf(finishing)
-        if (candidate === undefined || intent === undefined || execution.state.kind !== 'settling')
-          return changed
-        if (input.expected !== revisionOf(execution.revision)) return changed
-        // The list must be issued by this Journal for this candidate (Agent SPEC "条件终结").
-        const given = input.intent.obligations
-        if (given === null)
-          return answer(fail(invalid('intent.obligations', 'the obligations are not issued')))
-        const list = finishing.issued.get(given.record)
-        if (list === undefined || !sameEvidence(list.evidence, given))
-          return answer(fail(invalid('intent.obligations', 'not a list this Journal issued')))
-        if (list.candidate !== candidate.candidate)
-          return answer(fail(invalid('intent.obligations', 'the list of another candidate')))
-        // The intent is compared with the projection for equality only.
-        if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
-          return changed
-        // The closure is rebuilt by the builder prepareFinish used; the list stays usable while
-        // the responsibility projection is unchanged.
-        const closure = obligationsOf(execution, candidate, input.operation).items
-        if (projectionOf(closure) !== projectionOf(list.items)) return changed
-        const boundary = cache(execution).watermarks.get(candidate.inputWatermark.record)
-        if (boundary === undefined || boundary.to < execution.inputs.length) return changed
-        const check = blockedReason(execution, candidate, closure, list.items)
-        if (check.kind === 'changed') return changed
-        if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
-        if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
-        const revision = execution.revision + 1
-        const evidence = nextEvidence(execution, 'finish', revision)
-        const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
-        // The Session participant is read-only, so it is asked before the write: its conflict is
-        // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
-        const participation = cell.participate(input, 'tryFinish', receipt, null)
-        if (participation !== undefined) {
-          return participation.kind === 'changed' ? changed : answer(fail(participation))
-        }
-        const conclusion = copy(candidate.conclusion)
-        const observations: TerminalObservation[] = execution.checkpoint.passages
-          .filter(passage => passage.position === 'after_terminal')
-          .map(passage => ({
-            terminal: evidence,
-            passage: passage.id,
-            implementation: copy(passage.implementation),
-            observed: null,
-          }))
-        return {
-          kind: 'write',
-          value: { kind: 'ended', receipt },
-          receipt,
-          apply: () => {
-            execution.state = { kind: 'ended', conclusion, disposition: evidence }
-            execution.observations = observations
-            // A prepared message that no Ja published is retained by the terminal disposition
-            // (Agent SPEC "准入结果保管"); nothing publishes it after the end.
-            for (const record of execution.handoffs) {
-              if (record.history.kind === 'pending')
-                record.history = { kind: 'retained', disposition: evidence }
-            }
-            execution.revision = revision
-            appendEvents(
-              execution,
-              [{ kind: 'ended', conclusion, disposition: evidence }],
-              evidence,
-            )
-          },
-        }
-      })
+      return write(
+        'tryFinish',
+        input,
+        key,
+        () => {
+          const found = owned(input, 'tryFinish')
+          if ('failure' in found) return answer(found)
+          const execution = found.ok
+          const original = recognized<FinishResult>(input, key)
+          if (original !== undefined) return answer(original)
+          const changed = answer<FinishResult>(
+            succeed({ kind: 'changed', revision: revisionOf(execution.revision) }),
+          )
+          const authorization = input.authorization
+          // A cancel without settle was denied before the recognition (`settleRefusal`). Then the
+          // tryFinish row of the judgment order: stale-advance, terminal, the cancel checks,
+          // the kind of the authorization, an advancement under an effective cancel, then changed,
+          // then the list, then the closure.
+          if (authorization.kind === 'advancement' && !holds(execution, authorization.authority))
+            return answer(fail({ kind: 'stale-advance' }))
+          if (execution.state.kind === 'ended') return answer(fail({ kind: 'terminal' }))
+          const finishing = execution.finishing
+          if (authorization.kind === 'cancel') {
+            const checked = cancelCheck(execution, authorization, 'tryFinish')
+            if (checked.kind === 'failure') return answer(fail(checked.failure))
+            const route = currentRoute(finishing)
+            if (route?.kind === 'cancellation' && route.control !== authorization.control)
+              return answer(
+                fail(invalid('authorization.control', 'not the control of the current route')),
+              )
+          }
+          const candidate = currentCandidate(finishing)
+          // A cancel ends with cancelled only, and an advancement never ends a cancelled candidate.
+          if (
+            candidate !== undefined &&
+            (candidate.conclusion.kind === 'cancelled') !== (authorization.kind === 'cancel')
+          )
+            return answer(fail(denied('tryFinish')))
+          if (authorization.kind === 'advancement' && effectiveCancels(execution).length > 0)
+            return changed
+          const intent = intentOf(finishing)
+          if (
+            candidate === undefined ||
+            intent === undefined ||
+            execution.state.kind !== 'settling'
+          )
+            return changed
+          if (input.expected !== revisionOf(execution.revision)) return changed
+          // The list must be issued by this Journal for this candidate (Agent SPEC "条件终结").
+          const given = input.intent.obligations
+          if (given === null)
+            return answer(fail(invalid('intent.obligations', 'the obligations are not issued')))
+          const list = finishing.issued.get(given.record)
+          if (list === undefined || !sameEvidence(list.evidence, given))
+            return answer(fail(invalid('intent.obligations', 'not a list this Journal issued')))
+          if (list.candidate !== candidate.candidate)
+            return answer(fail(invalid('intent.obligations', 'the list of another candidate')))
+          // The intent is compared with the projection for equality only.
+          if (semanticKey('finish-intent', intent) !== semanticKey('finish-intent', input.intent))
+            return changed
+          // The closure is rebuilt by the builder prepareFinish used; the list stays usable while
+          // the responsibility projection is unchanged.
+          const closure = obligationsOf(execution, candidate, input.operation).items
+          if (projectionOf(closure) !== projectionOf(list.items)) return changed
+          const boundary = cache(execution).watermarks.get(candidate.inputWatermark.record)
+          if (boundary === undefined || boundary.to < execution.inputs.length) return changed
+          const check = blockedReason(execution, candidate, closure, list.items)
+          if (check.kind === 'changed') return changed
+          if (check.kind === 'blocked') return answer(succeed(copy(check.value)))
+          if (check.kind === 'unknown') return answer(fail(damaged(check.diagnostic)))
+          const revision = execution.revision + 1
+          const evidence = nextEvidence(execution, 'finish', revision)
+          const receipt = receiptOf(execution, input.operation, revision, evidence, 'applied')
+          // The Session participant is read-only, so it is asked before the write: its conflict is
+          // FinishResult.changed, not a failure (Agent SPEC "条件终结", PA-02).
+          const participation = cell.participate(input, 'tryFinish', receipt, null)
+          if (participation !== undefined) {
+            return participation.kind === 'changed' ? changed : answer(fail(participation))
+          }
+          const conclusion = copy(candidate.conclusion)
+          const observations: TerminalObservation[] = execution.checkpoint.passages
+            .filter(passage => passage.position === 'after_terminal')
+            .map(passage => ({
+              terminal: evidence,
+              passage: passage.id,
+              implementation: copy(passage.implementation),
+              observed: null,
+            }))
+          return {
+            kind: 'write',
+            value: { kind: 'ended', receipt },
+            receipt,
+            apply: () => {
+              execution.state = { kind: 'ended', conclusion, disposition: evidence }
+              execution.observations = observations
+              // A prepared message that no Ja published is retained by the terminal disposition
+              // (Agent SPEC "准入结果保管"); nothing publishes it after the end.
+              for (const record of execution.handoffs) {
+                if (record.history.kind === 'pending')
+                  record.history = { kind: 'retained', disposition: evidence }
+              }
+              execution.revision = revision
+              appendEvents(
+                execution,
+                [{ kind: 'ended', conclusion, disposition: evidence }],
+                evidence,
+              )
+            },
+          }
+        },
+        () => settleRefusal(input),
+      )
     },
 
     commitSettlement(input) {
