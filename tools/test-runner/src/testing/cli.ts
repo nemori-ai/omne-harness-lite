@@ -31,6 +31,7 @@ import {
   pythonStep,
   readPlanFile,
   recordedRun,
+  runCachePolicy,
   testStep,
   writePlanFile,
   type PlanFile,
@@ -129,6 +130,8 @@ async function step(argv: readonly string[]): Promise<number> {
         cachePolicy(process.env, {
           noCache: flags.switches.has('--no-cache'),
           full: flags.switches.has('--full') || fullRequested(process.env),
+          // 带计划文件时前面的构建一步已构建；单独运行时由 turbo 先构建。
+          build: true,
         }),
       ),
     acceptance: async () => acceptanceStep(ROOT, file, await budget()),
@@ -222,7 +225,7 @@ async function run(request: RunRequest): Promise<number> {
     plan: planned === undefined ? null : { mode: planned.plan.mode, reason: planned.plan.reason },
     budget: await budgetFor(config.parallel),
     ...(script === 'test'
-      ? { cache: cachePolicy(process.env, { noCache: request.noCache, full: false }) }
+      ? { cache: runCachePolicy(process.env, { noCache: request.noCache, build: request.build }) }
       : {}),
   })
 }
