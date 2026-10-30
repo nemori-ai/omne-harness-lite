@@ -112,7 +112,7 @@ SERVE 一次接管一个批次 PR：
 
 VERIFY_WAVE：
 
-1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。
+1. 全部预期项有效解决后，在联调轨道头运行 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 及里程碑联调命令，验证整体成果并确定最终 F。没有里程碑联调命令时明确报告未运行。联调轨道头是 gate 的合并提交，且它的树与一个已通过 `OMNE_ADMISSION=1 FULL=1 pnpm run check` 的 PR head 的树相同（`git rev-parse <提交>^{tree}`）时，那次结果就是 F 上的这项检查，不重跑。证据写两个提交与相同的树哈希。这一条只替代这项检查，里程碑联调命令照常运行。依据是负责人 2026-10-30 的[裁定](https://github.com/nemori-ai/omne-harness-lite/issues/945#issuecomment-6519037821)。
 2. 任一 pending、未知副作用、未解决失败或失效证据都阻止收口。
 3. 检查失败由 Reduce 处置。不把失败标红后仍当成功放行。
 
