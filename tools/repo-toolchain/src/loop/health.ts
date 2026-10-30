@@ -68,10 +68,17 @@ export interface TestRun {
   readonly passed: boolean
 }
 
+function hasCacheHits(cache: unknown): boolean {
+  if (typeof cache !== 'object' || cache === null) return false
+  const hits = (cache as Record<string, unknown>)['hits']
+  return Array.isArray(hits) && hits.length > 0
+}
+
 /**
  * 一份 `ledger.json`（`src/testing/cli.ts` 写的）里这里要的部分；不是全量运行返回 `partial`。
  * 全量与受影响范围的区分：跑的是全部成员的运行（`run --all`，或计划判为全量的 `pnpm run check` 测试一步）`meta.base` 是 null，
- * 按影响面选成员的不是。全量运行可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
+ * 按影响面选成员的不是。含缓存命中（`meta.cache.hits` 非空）的运行也不算：`members` 只列实际跑了的成员，
+ * 墙钟不代表一次全量，只看账本、不看有没有设 `FULL=1`。全量运行可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层记在 `meta.tier`。
  */
 export function parseLedgerRun(
   value: unknown,
@@ -79,7 +86,7 @@ export function parseLedgerRun(
   if (typeof value !== 'object' || value === null) return undefined
   const { meta, members } = value as Record<string, unknown>
   if (typeof meta !== 'object' || meta === null || !Array.isArray(members)) return undefined
-  const { base, startedAt, head, dirty, wallSeconds, tier } = meta as Record<string, unknown>
+  const { base, startedAt, head, dirty, wallSeconds, tier, cache } = meta as Record<string, unknown>
   if (
     typeof startedAt !== 'string' ||
     Number.isNaN(Date.parse(startedAt)) ||
@@ -90,7 +97,7 @@ export function parseLedgerRun(
     (tier !== undefined && !isRunTier(tier))
   )
     return undefined
-  if (base !== null) return { kind: 'partial' }
+  if (base !== null || hasCacheHits(cache)) return { kind: 'partial' }
   const exitCodes = members.map(member =>
     typeof member === 'object' && member !== null
       ? (member as Record<string, unknown>)['exitCode']

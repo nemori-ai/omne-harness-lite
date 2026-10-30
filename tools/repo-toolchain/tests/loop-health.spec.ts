@@ -96,6 +96,34 @@ describe('测试耗时', () => {
     expect(parseLedgerRun(tiered('medium'))).toBeUndefined()
   })
 
+  it('含缓存命中的账本不算全量运行，无命中或没有 meta.cache 的照旧', () => {
+    const withCache = (cache: unknown, exitCodes: number[]) => {
+      const base = ledger(null, '2026-10-03T10:00:00Z', 5, exitCodes)
+      return { ...base, meta: { ...base.meta, cache } }
+    }
+    const hit = { member: 'a', key: 'k', source: 's', tests: 3 }
+    const allHit = withCache({ mode: 'read-write', hits: [hit], written: [] }, [])
+    const someHit = withCache({ mode: 'read-write', hits: [hit], written: ['b'] }, [0])
+    const noHit = withCache({ mode: 'read-write', hits: [], written: ['b'] }, [0])
+    expect(parseLedgerRun(allHit)).toEqual({ kind: 'partial' })
+    expect(parseLedgerRun(someHit)).toEqual({ kind: 'partial' })
+    expect(parseLedgerRun(noHit)?.kind).toBe('full')
+    expect(parseLedgerRun(ledger(null, '2026-10-03T10:00:00Z', 600, [0]))?.kind).toBe('full')
+
+    const read = testsBlock(
+      [
+        { path: 'x', value: allHit },
+        { path: 'y', value: someHit },
+        { path: 'z', value: noHit },
+      ],
+      10,
+      'home',
+    )
+    if (read.status !== 'data') throw new Error(read.reason)
+    expect(read.data.runs).toHaveLength(1)
+    expect(read.data.partial).toBe(2)
+  })
+
   it('目录不存在、只有受影响范围的运行：没有数据，原因不同', () => {
     expect(testsBlock(undefined, 10, 'home')).toEqual(noData('测试耗时账本目录 home 不存在'))
     expect(
