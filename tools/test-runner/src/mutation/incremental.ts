@@ -83,8 +83,8 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
 /** 快照里与 Stryker 的报告并排放的自己的记录。 */
 export interface StoreMeta {
   readonly fingerprint: string
-  /** 上次第一遍（不含复核）的墙钟秒数，排成员并行时当工作量。 */
-  readonly seconds: number
+  /** 上次第一遍（不含复核）的墙钟秒数乘以它用的工作进程数，排成员并行时当工作量。 */
+  readonly workerSeconds: number
   /** 上次落在变异范围里的变异体数，排成员并行时当工作进程的上限。 */
   readonly mutants: number
   /** 快照里 static 变异体（按 `mutantIdentity`）的运行记录：复用时带回来，类型测试的读数才与重跑时相同。 */
@@ -116,7 +116,7 @@ function isStoreMeta(value: unknown): value is StoreMeta {
   return (
     isRecord(value) &&
     typeof value['fingerprint'] === 'string' &&
-    typeof value['seconds'] === 'number' &&
+    typeof value['workerSeconds'] === 'number' &&
     typeof value['mutants'] === 'number' &&
     isRecord(value['staticRuns']) &&
     Object.values(value['staticRuns']).every(Array.isArray)
@@ -242,7 +242,7 @@ export function nextStore(
   target: MutationTarget,
   written: Readonly<Record<string, unknown>>,
   runs: readonly RunRecord[] | 'unreadable',
-  facts: { readonly fingerprint: string; readonly seconds: number },
+  facts: { readonly fingerprint: string; readonly workerSeconds: number },
 ): Store {
   const report = filterMutants(
     written,
@@ -270,7 +270,7 @@ export function nextStore(
     report,
     meta: {
       fingerprint: facts.fingerprint,
-      seconds: facts.seconds,
+      workerSeconds: facts.workerSeconds,
       mutants: generated,
       staticRuns,
     },

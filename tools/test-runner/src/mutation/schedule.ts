@@ -10,6 +10,40 @@ export interface MemberWork {
   readonly cap: number
 }
 
+/** 没有上次的记录时，按一行改动至多几个变异体估工作进程的上限（实测一行改动生成 3～11 个）。 */
+export const MUTANTS_PER_LINE = 4
+
+/** 排成员并行要的输入：要变异的行数，以及快照里上次的记录（没有快照时不给）。 */
+export interface WorkInput {
+  readonly lines: number
+  readonly history?: { readonly workerSeconds: number; readonly mutants: number }
+}
+
+/**
+ * 各成员的工作量与开始的先后。每个成员都有上次的记录时，工作量取上次第一遍的「耗时 × 工作进程数」，
+ * 工作进程至多给到上次的变异体数。有一个没有记录，就平分：行数估不出测试有多慢（一行改动可能要跑很慢的测试），
+ * 按行数分会把进程压给错的成员；这时上限按行数估（`MUTANTS_PER_LINE`），用不完的分给别的成员。
+ * 开始的先后按工作量从大到小，相同的按行数从多到少，再按成员顺序。
+ */
+export function planWorks(
+  inputs: readonly WorkInput[],
+  budget: number,
+): { readonly works: MemberWork[]; readonly order: number[]; readonly basis: 'history' | 'even' } {
+  const known = inputs.every(input => input.history !== undefined)
+  const works = inputs.map(({ lines, history }) =>
+    known && history !== undefined
+      ? { weight: history.workerSeconds, cap: Math.max(1, history.mutants) }
+      : { weight: 1, cap: Math.max(1, Math.min(budget, lines * MUTANTS_PER_LINE)) },
+  )
+  const order = [...works.keys()].sort(
+    (a, b) =>
+      (works[b]?.weight ?? 0) - (works[a]?.weight ?? 0) ||
+      (inputs[b]?.lines ?? 0) - (inputs[a]?.lines ?? 0) ||
+      a - b,
+  )
+  return { works, order, basis: known ? 'history' : 'even' }
+}
+
 /**
  * 把 `budget` 个工作进程分给同时开始的几个成员：每个至少 1 个、至多它的 `cap`，其余按 `weight` 成比例分；
  * 封顶后多出来的再分给没封顶的。总数不超过 `budget`（成员数多于 `budget` 时只能每个 1 个，调用方不该这样调用）。

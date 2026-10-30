@@ -28,7 +28,7 @@ import {
 } from './incremental.ts'
 import { mutateMember, type MemberContext, type MemberOutcome } from './member.ts'
 import { memberLines } from './report.ts'
-import { runWithinBudget, type MemberWork } from './schedule.ts'
+import { planWorks, runWithinBudget } from './schedule.ts'
 import {
   changedTargets,
   memberTargets,
@@ -243,9 +243,21 @@ async function run(request: MutationRequest): Promise<number> {
     for (const index of targets.keys())
       outcomes.push(await mutateAt(index, concurrency, stores[index]?.store))
   } else {
-    const works = memberWorks(request.root, targets, stores, concurrency)
+    const works = planWorks(
+      targets.map((target, index) => {
+        const meta = stores[index]?.store?.meta
+        return {
+          lines: scopeLines(request.root, target),
+          ...(meta === undefined
+            ? {}
+            : { history: { workerSeconds: meta.workerSeconds, mutants: meta.mutants } }),
+        }
+      }),
+      concurrency,
+    )
     console.log(
-      `${targets.length} 个成员并行，合起来不超过 ${concurrency} 个工作进程，按${works.unit}分；工作量大的先开始`,
+      `${targets.length} 个成员并行，合起来不超过 ${concurrency} 个工作进程，` +
+        `${works.basis === 'history' ? '按上次的耗时乘进程数分' : '没有每个成员上次的记录，平分'}；工作量大的先开始`,
     )
     outcomes = await runWithinBudget(concurrency, works.works, works.order, (index, workers) => {
       console.log(`  开始 ${label(index)} ${targets[index]?.member.path}：${workers} 个工作进程`)
@@ -257,8 +269,16 @@ async function run(request: MutationRequest): Promise<number> {
     outcome.result === undefined ? [] : [outcome.result],
   )
   const errors = outcomes.flatMap(outcome => outcome.errors)
-  const reuse = outcomes.flatMap(outcome =>
-    outcome.incremental === undefined ? [] : [outcome.incremental],
+  // 快照没读成的原因记在成员的增量情况里，与运行中的原因放在一起。
+  const reuse = outcomes.flatMap((outcome, index) =>
+    outcome.incremental === undefined
+      ? []
+      : [
+          {
+            ...outcome.incremental,
+            notes: [...(stores[index]?.notes ?? []), ...outcome.incremental.notes],
+          },
+        ],
   )
   const summary = [
     `变异范围：${scope}；只跑快层（vitest 的 mode 为 fast）；提交 ${at.shortHead}${at.dirty ? '（工作树有未提交改动）' : ''}`,
@@ -267,8 +287,8 @@ async function run(request: MutationRequest): Promise<number> {
     ...(incremental.kind === 'on'
       ? [
           `增量：复用上次被杀的变异体（不重跑）——${reuse.map(item => `${item.member} ${item.reused ?? '个数不明'}`).join('、')}` +
-            `${incremental.force ? '；--force 全部重跑' : ''}；` +
-            `复用只在代码与杀死它的测试都没变时发生，读数与不复用时相同；--no-incremental 或 ${INCREMENTAL_ENV}=0 关闭`,
+            `${incremental.force ? '（这次用了 --force，全部重跑）' : ''}；` +
+            `复用只在被变异的代码与杀死它的测试都没变时发生；--no-incremental 或 ${INCREMENTAL_ENV}=0 关闭，--force 全部重跑`,
         ]
       : []),
     '存活、无覆盖只是线索：判定会抖，要复跑确认；static 变异体只能跑全部测试；没改的代码不在范围内。',
@@ -311,30 +331,6 @@ function scopeLines(root: string, target: MutationTarget): number {
       }, 0),
     0,
   )
-}
-
-/**
- * 各成员的工作量：每个成员都有快照时按上次第一遍的耗时，否则按要变异的行数（同一批成员用同一种单位）。
- * 有快照的成员，工作进程至多给到上次的变异体数。开始的先后按工作量从大到小，相同的按成员顺序。
- */
-function memberWorks(
-  root: string,
-  targets: readonly MutationTarget[],
-  stores: readonly { readonly store: Store | undefined }[],
-  budget: number,
-): { readonly works: MemberWork[]; readonly order: number[]; readonly unit: string } {
-  const known = stores.every(({ store }) => store !== undefined)
-  const works = targets.map((target, index) => {
-    const meta = stores[index]?.store?.meta
-    return {
-      weight: known && meta !== undefined ? meta.seconds : scopeLines(root, target),
-      cap: meta === undefined ? budget : Math.max(1, meta.mutants),
-    }
-  })
-  const order = [...works.keys()].sort(
-    (a, b) => (works[b]?.weight ?? 0) - (works[a]?.weight ?? 0) || a - b,
-  )
-  return { works, order, unit: known ? '上次的耗时' : '要变异的行数' }
 }
 
 async function main(argv: readonly string[]): Promise<number> {

@@ -211,7 +211,7 @@ export async function mutateMember(
             storePath(context.incremental.dir, path),
             nextStore(target, written, runs, {
               fingerprint: context.fingerprint,
-              seconds: ran.wallSeconds,
+              workerSeconds: ran.wallSeconds * workers,
             }),
           )
     if (failure !== undefined) notes.push(`快照没写成，下次整份重跑：${failure}`)

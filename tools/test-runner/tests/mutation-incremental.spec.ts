@@ -104,7 +104,7 @@ const STORE: Store = {
     },
     testFiles: { 'tests/a.spec.ts': { source: 't', tests: [{ id: '0', name: 'a' }] } },
   },
-  meta: { fingerprint: 'f', seconds: 12, mutants: 5, staticRuns: {} },
+  meta: { fingerprint: 'f', workerSeconds: 12, mutants: 5, staticRuns: {} },
 }
 
 describe('读快照', () => {
@@ -196,10 +196,10 @@ describe('写回快照', () => {
       { mode: 'mutant', activeMutant: '1', typeTests: 0, typecheck: true },
       { mode: 'mutant', activeMutant: '2', typeTests: 0, typecheck: true },
     ]
-    const store = nextStore(TARGET, written, runs, { fingerprint: 'f', seconds: 7 })
+    const store = nextStore(TARGET, written, runs, { fingerprint: 'f', workerSeconds: 7 })
     const files = store.report['files'] as Record<string, { mutants: ReportMutant[] }>
     expect(files['src/a.ts']?.mutants.map(m => m.id)).toEqual(['1'])
-    expect(store.meta).toMatchObject({ fingerprint: 'f', seconds: 7, mutants: 2 })
+    expect(store.meta).toMatchObject({ fingerprint: 'f', workerSeconds: 7, mutants: 2 })
     expect(Object.values(store.meta.staticRuns)).toEqual([[runs[1]]])
   })
 
@@ -207,7 +207,7 @@ describe('写回快照', () => {
     const killed = mutant('1', 3, 'Killed', { static: true })
     const written = { files: { 'src/a.ts': { source: 'a', mutants: [killed] } } }
     const old: RunRecord = { mode: 'mutant', activeMutant: '1', typeTests: 0, typecheck: true }
-    const store = nextStore(TARGET, written, [old], { fingerprint: 'f', seconds: 1 })
+    const store = nextStore(TARGET, written, [old], { fingerprint: 'f', workerSeconds: 1 })
     const now: MutationReport = {
       files: { 'src/a.ts': { source: 'a', mutants: [{ ...killed, id: '17' }] } },
     }

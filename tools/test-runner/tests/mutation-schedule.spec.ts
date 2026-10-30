@@ -1,6 +1,6 @@
 // 成员之间并行：工作进程的分法与按预算调度（schedule.ts）。真起 Stryker 的多成员运行见 mutation-stryker-incremental.spec.ts。
 import { describe, expect, it } from 'vitest'
-import { allocateWorkers, runWithinBudget } from '../src/mutation/schedule.ts'
+import { allocateWorkers, planWorks, runWithinBudget } from '../src/mutation/schedule.ts'
 
 const sum = (values: readonly number[]) => values.reduce((total, value) => total + value, 0)
 
@@ -66,6 +66,39 @@ describe('分工作进程', () => {
           expect(share).toBeLessThanOrEqual(Math.max(1, members[index]?.cap ?? 1))
         }
       }
+  })
+})
+
+describe('工作量', () => {
+  it('每个成员都有上次的记录：按「耗时 × 进程数」分，上限是上次的变异体数，大的先开始', () => {
+    const planned = planWorks(
+      [
+        { lines: 500, history: { workerSeconds: 30, mutants: 40 } },
+        { lines: 3, history: { workerSeconds: 900, mutants: 25 } },
+      ],
+      16,
+    )
+    expect(planned.basis).toBe('history')
+    expect(planned.works).toEqual([
+      { weight: 30, cap: 40 },
+      { weight: 900, cap: 25 },
+    ])
+    expect(planned.order).toEqual([1, 0])
+  })
+
+  it('有一个没有记录就平分，行数只用来定上限与先后：行少的成员不会被压到一个进程', () => {
+    const planned = planWorks(
+      [{ lines: 300 }, { lines: 10, history: { workerSeconds: 900, mutants: 25 } }, { lines: 1 }],
+      16,
+    )
+    expect(planned.basis).toBe('even')
+    expect(planned.works).toEqual([
+      { weight: 1, cap: 16 },
+      { weight: 1, cap: 16 },
+      { weight: 1, cap: 4 },
+    ])
+    expect(planned.order).toEqual([0, 1, 2])
+    expect(allocateWorkers(16, planned.works)).toEqual([6, 6, 4])
   })
 })
 
