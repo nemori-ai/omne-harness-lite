@@ -275,6 +275,16 @@ function pending(
 const LATE_STAGES = ['producer-confirmed', 'physically-stopped', 'duty-released'] as const
 
 /**
+ * The original record an obligation names. The Journal keeps every one of them, so a missing one
+ * is a defect of this double; it never takes another identity in its place.
+ */
+function recorded<T>(value: T | null | undefined, what: string): T {
+  if (value === null || value === undefined)
+    throw new Error(`session Journal defect: ${what} is not on record`)
+  return value
+}
+
+/**
  * The obligations of `candidate` from the Journal's own records at the current revision. An
  * ordinary candidate leaves an input no batch took, an unapplied before-terminal passage and a
  * result without custody pending; a cancelled candidate keeps the inputs and the undetermined
@@ -308,8 +318,8 @@ export function buildObligations(
             : pending('input-disposition', next('input-read', origin, 'submit')),
       input: input.id,
       value: input,
-      acceptance: source.acceptanceOf(input) ?? candidate.candidate,
-      origin: input.source ?? origin,
+      acceptance: recorded(source.acceptanceOf(input), `the acceptance of input ${input.id}`),
+      origin: recorded(input.source, `the Session source of input ${input.id}`),
       taken,
     })
   })
@@ -401,7 +411,10 @@ export function buildObligations(
               )
             : pending('call-custody', next('producer-query', effect.pending.fixed, 'query')),
       action: effect.action,
-      intent: source.finishing.effectOperations.get(effect.action) ?? candidate.candidate,
+      intent: recorded(
+        source.finishing.effectOperations.get(effect.action),
+        `the operation that saved the intent ${effect.action}`,
+      ),
       pending: effect.pending,
       started: null,
       outcome: result?.result.source ?? null,
