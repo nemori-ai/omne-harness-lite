@@ -45,7 +45,7 @@ Reader 的形状与服务键归 Tool；桥接归应用装配，见 [P-8](../SPEC
 
 独立消费使用显式的 `SessionFaces` 及其注入的端口，不要求 Cordis。候选形状见 [public-api](public-api.md)，装配依赖与资源撤除见 [Cordis 定义](../../session-cordis-contract/docs/cordis.md)。可靠状态由相应的提供者兑现。
 
-Session 不发起模型调用或工具执行。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效。交付责任解除归 Agent 宿主的结果接收方，Session 按 [JC-Release](../SPEC.md#jc-release) 读原确认。Session 不参加 Model 的受理点守卫。
+Session 不发起模型调用或工具执行。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 按 [JC-Release](../SPEC.md#jc-release) 读原确认，Tool 确认怎样进入日志见具名偏离 [JC-RELEASE-TOOL-PATH](../SPEC.md#jc-release-tool-path)。Session 不参加 Model 的受理点守卫。
 
 ## 原消费场景的前提
 
@@ -82,7 +82,7 @@ Agent 推进期间的承接、调用登记、等待与出卡、控制阶段与�
 - 先保管：`custody` 交接，Session 参加写 SE20。
 - 生产者继续保管时先处理：`processed` 交接，Session 参加写 SE21。
 
-原生产者确认的当前到达边界见 [JC-Release](../SPEC.md#jc-release)。Tool 的合格 Agent 宿主保管/结果协调者取得原确认后，经 `AgentJournal.recordResult` 写入同一日志，Session 适配协调者读取并核对该投影，再以 `receive(release)` 保存确认。Model 的确认路径仍是具名未决 `MODEL-ACK-ARRIVAL`，无合法公开路径时保持 pending。received、材料与 saved 的同批保存不证明 ACK。EC-04 与本页均不增加 ACK 通道。
+原生产者确认的当前到达边界见 [JC-Release](../SPEC.md#jc-release)。Tool 宿主收到 saved 后自己解除，Tool 原确认怎样写入同一日志是具名偏离 [JC-RELEASE-TOOL-PATH](../SPEC.md#jc-release-tool-path)。日志中已有该确认时，Session 适配协调者读取并核对该投影，再以 `receive(release)` 保存确认。Model 的确认路径仍是具名未决 `MODEL-ACK-ARRIVAL`，无合法公开路径时保持 pending。received、材料与 saved 的同批保存不证明 ACK。EC-04 与本页均不增加 ACK 通道。
 
 本轮完成候选经 Agent 的终态前判断与条件终结。在条件终结的提交里，Session 参加者只读核对待交输入与已生效的取消（[PA-02](../SPEC.md#pa-02)）。Run 的终态有三个入口，每个 Run 只成立一个终态，成立后不可反转：
 

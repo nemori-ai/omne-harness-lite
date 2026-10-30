@@ -1181,8 +1181,8 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 | `run.active`，`advance` 为空                                                    | 读执行记录                           | 执行挂起：`claim` 后 `resume`。挂接仍 active、本主体有接管资格、有宿主的失联判断作证据：`claim`（接管）后 `resume`。没有失联依据时等 Agent。没有资格时报告并保留                      | 不以宿主失联判断代替资格                     |
 | `run.active`，执行记录显示执行已结束                                            | 同日志的结束事实，或快照的结束状态   | 从同一 Journal 读取已发布的原结束事实，经后续 Session 解释提交按 Agent 的结论写 SE26 与 SE16，并共同保存解释进度与该次操作答案（[EC-01](#ec-01)、[RS-08](#rs-08)、[RS-09](#rs-09)）。Session 未提交取消时，Agent 的 cancelled 结论按 [RS-10](#rs-10) 被拒绝，不写 cancelled | 不复活执行；不把 Agent 的结论改写为失败      |
 | `run.active`，读执行记录或接续持续返回原记录不可读或精确采用不可读              | 按策略重试                           | 超过上限后按 [P-5](#具名前提与明确缺项) 提交有界收束，终态为 failed，依据为不可解释记录，写明未收尾效果                                                                               | 不猜默认下一步                               |
-| `consumptions` 中结果已报告，而保管与完成都为空                                 | 生产者原调用                         | 以合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20，再发交付责任解除（[EC-04](#ec-04)）。Agent 记录已删除时由 Session 提交 `preserveResult`                  | 不重发原调用                                 |
-| `release` 为 pending，保管或完成非空，结果来自 Tool                             | 同一日志 `load().results` 的原生产者确认 | 按 [JC-Release](#jc-release) 读到确认后提交 `receive(release)`；未读到时保留该项                                                                                                     | 不写 confirmed 以外的值；Session 不发出交付责任解除 |
+| `consumptions` 中结果已报告，而保管与完成都为空                                 | 生产者原调用                         | 以合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20。Agent 记录已删除时由 Session 提交 `preserveResult`。交付责任由生产者收到 saved 后自己解除（[EC-04](#ec-04)），Tool 解除回执怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path) | 不重发原调用                                 |
+| `release` 为 pending，保管或完成非空，结果来自 Tool                             | 同一日志 `load().results` 的原生产者确认 | 按 [JC-Release](#jc-release) 读到确认后提交 `receive(release)`；未读到时保留该项。确认怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path) | 不写 confirmed 以外的值；Session 不发出交付责任解除 |
 | `release` 为 pending，保管或完成非空，结果来自 Model                            | 无                                   | MODEL-ACK-ARRIVAL 悬置期间只报告，不执行动作。该项计入未结工作（[JC-Release](#jc-release)）                                                                                          | 不写 confirmed；不直接调用 Model              |
 | `controls` 为 propagating                                                       | 原控制操作、待核对生产者与未关联等待责任 | 交控制传播协调                                                                                                                                                                        | 不冒充已停                                   |
 | `tasks` 各类                                                                    | 各拥有者                             | 初始化重驱动、已分流输入重投、级联、作用域释放                                                                                                                          | 不删除待办                                   |
@@ -1224,7 +1224,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-04 交付责任解除的时刻与责任
 
 - 前提：SE20 的保管或 SE21 的处理已提交，原结果版本与消费位置可核对。提交未知时先认回，不能据未知发出确认。
-- 解除生产者责任的动作归 Agent 宿主的结果接收方。Session 不调用生产者解除端口。Tool 原生产者确认由当前合格保管者经既有 `AgentJournal.recordResult` 保存，Session 适配协调者 AD-05 按 [JC-Release](#jc-release) 读原确认并以 `receive(release)` 写 SE19。
+- 生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 不调用生产者解除端口。Tool 原生产者确认怎样进入同一日志是具名偏离 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。日志中已有该确认时，Session 适配协调者 AD-05 按 [JC-Release](#jc-release) 读原确认并以 `receive(release)` 写 SE19。
 - `received`、材料、消费绑定与 saved 只证明保存，不证明生产者确认。Model ACK 到达仍受 MODEL-ACK-ARRIVAL 停止点约束，不能套用 Tool 路径。
 - 确认写回必须核对当前资格、租户、原 execution/Run、consumption、完整结果版本与原回执。重复确认认回，异版本不能解除。旧 attempt 失效不撤销合法保管责任。
 
@@ -1233,7 +1233,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-05 日志提交后交付责任解除丢失
 
 - Tool 原确认已经写入日志而 Session 后果未提交时，AD-05 重读原 `ResultResponsibility.release`，按同一来源身份提交 `receive(release)`。Session 提交未知时先查原 Session operation，不换身份。
-- 尚无生产者确认时，结果接收方沿生产者的原协议认回或接续；Session 保留 pending，不代发解除，不重调生产者执行。结果接收方的恢复责任不转交 Session 扫描者。
+- 日志中尚无生产者确认时，Session 保留 pending，不代发解除，不重调生产者执行。Tool 原确认怎样进入日志见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。
 - Model 未确认时按 JC-Release 计入未结工作，扫描只报告，不执行动作。不可用、查不到或 saved 均不变成 confirmed。
 
 <a id="ec-06"></a>
@@ -1247,7 +1247,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-07 归档后的迟到结果
 
 - 前提：会话已归档，SE27 撤销了原调用的投递资格。生产者的结果或账目迟到。
-- 动作：合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20，登记在原 `Consumption` 下；账目以 `receive(account)` 写 SE32。Agent 记录已删除时由 Session 提交 `preserveResult`。交付责任解除照 [EC-04](#ec-04) 发出。
+- 动作：合格保管者经出站端口 `recordResult`（`custody`）保管，Session 参加写 SE20，登记在原 `Consumption` 下；账目以 `receive(account)` 写 SE32。Agent 记录已删除时由 Session 提交 `preserveResult`。生产者收到 saved 后按 [EC-04](#ec-04) 自己解除交付责任。
 - 结果：不进队列，不 `accept(business)`，不创建后继 Run，不恢复等待。撤销归档后也不自动进队列。
 - 失败：保管者不可用时生产者继续保管，责任没有空档。
 - 责任：归档不删除历史与账目责任。进队列的资格由 SE27 的取消范围决定。
@@ -1271,7 +1271,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：[P-3](#具名前提与明确缺项)。
 - 动作：
   1. Agent 不在场时，Agent 宿主的结果接收方按原调用身份读取生产者的收场与账目事实，并把它们写入同一会话日志。
-  2. Session 只读日志里的结果与账目。Model 一侧由 session-adapters 的 AD-05、Tool 一侧由 AD-06 读取同一日志，再以 `receive(execution)`、`receive(account)` 提交。Tool 的 release 确认写入者仍按 JC-Release 为 AD-05。`receive` 的身份从生产者记录身份与修订派生。
+  2. Session 只读日志里的结果与账目。Model 一侧由 session-adapters 的 AD-05、Tool 一侧由 AD-06 读取同一日志，再以 `receive(execution)`、`receive(account)` 提交。Tool 原生产者确认怎样进入同一日志，见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。`receive` 的身份从生产者记录身份与修订派生。
   3. Session 不读取生产者，也不持有生产者的读取资格。
 - 结果：账目归原调用与原 attempt。未知费用保持未知。重复报告按身份认回。
 - 失败：P-3 不成立时保持未知，不以查不到当作未发生。
@@ -1281,7 +1281,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 
 #### EC-10 长历史读取
 
-- 前提：事件消费、恢复与推进都不扫描全部历史。当前状态、待处理输入与原等待位置由直接索引定位。
+- 前提：同日志解释、恢复与推进都不扫描全部历史。当前状态、待处理输入与原等待位置由直接索引定位。
 - 动作：历史读取只经 `SessionHistory` 的 `begin`、`next`、`since`。
 - 结果：读取量按条目与字节受控。读取期间的追加只在新一轮出现。
 - 失败：游标错域、失效或被篡改时拒绝。提供者不可用时返回 `unavailable`，不返回空页。
@@ -1581,7 +1581,7 @@ RS-10 的拒绝同时约束当前 Run 与历史注记。解释 `ended(cancelled)
 | `resolveOperation`    | 操作身份、规范化参数摘要、已提交记录                                                              | `new`、`recovered`（原回执）、`conflict`                                                                                                                                                                                                                            | 全部变更命令核权后的首个领域步骤；`queryOperation`                                             | [SL07](#日志提交与查询结果)                                              |
 | `reduce`              | 前状态、已提交的完整批次                                                                          | 新 `WorkSnapshot`、`quarantined`                                                                                                                                                                                                                                    | 全部权威读                                                                                     | [SL12、SL13](#日志读取投影及恢复)、[SL18](#原生事实与状态转移)           |
 
-`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（`startRun` 的登录门按裁定 R2 只核存在；初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 遇到不晚于 `readThrough` 的事件时认回原回执，不返回 `changed`。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前按历史顺序排列的全部条目，形状同 `covered`，每项为 `{ ref, message }`，非消息条目的 `message` 为 `null`；`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
+`decide` 把一个命令变成一次提交的内容：认回原操作，调用上表的领域服务，核对守卫材料（`startRun` 的登录门按裁定 R2 只核存在；初始化材料按[初始化守卫编码](#初始化守卫编码)解析，其余 `facts` 沿所属协议解释），产出条目批次或拒绝结局。它是 `reduce` 的逆：同一解释版本下，`reduce` 解释 `decide` 产出的批次得到命令要求的后态。存储参加者在提交事务里调用 `decide`，命令到条目的编码只此一份，不在 `session` 或存储成员里另写。全部拒绝、认回与条件变化都由 `decide` 判定。存储提供者按尝试代次判断时（[session-storage-sql 的 W1 尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），`attempt-rejected` 还表示没有仍未决的尝试，原发起者可以用同一身份重做；这是对 SL09 的加强，不改变「原操作仍未知时不得当作未提交」。`receive` 不接收 Agent 事件，不推进 `readThrough`。同日志解释由 `projectSessionLog` 准备，序号不大于 `readThrough` 的事件按原 execution 与事实身份认回（[EC-02](#ec-02)）。`commitDerived(compaction)` 需要的历史输入由存储参加者在同一事务里从权威日志读出、经 `DecideReads.compaction` 交入：`covered` 是覆盖范围内的全部条目，`after` 是覆盖范围之后、压缩点之前按历史顺序排列的全部条目，形状同 `covered`，每项为 `{ ref, message }`，非消息条目的 `message` 为 `null`；`open` 是 `openWork` 列出的未结工作所在的条目引用（由存储参加者按索引定位）；`decide` 核对 `open` 与快照的 `openWork` 一致。缺这一输入时 `decide` 返回 `invalid`。
 
 `openWork` 只有一个实现，供三处共用：历史持有者交给 Request Context 的未结工作下界、条件终结只读参加的阻塞依据、空闲裁定的本会话部分。三处读同一结果，所以不会对「还有未结工作」给出不同答案。`judgeIdle` 的跨会话部分（子方与在途调用）不在纯函数里计算，由 `SessionIdleInput.inspect` 收集成 `IdleCoverage` 后传入。`reduce` 的算法见[纯批次归约算法](docs/object-model/session-state-transitions.md#纯批次归约算法)。
 
@@ -1648,7 +1648,7 @@ Tool 来源：
 | 转后台确认与占位                       | Tool 的转换确认经消费位置拥有者；占位消息由 Agent 提交                                                         | SE19、SE21 占位、SE10 占位消息   | `receive(execution)`、`completeConsumption`、`recordMessage`                 | 依据                 |
 | 后台最终结果（Run 已终态，会话未归档） | 消费位置拥有者                                                                                                 | SE19、SE20，随后 SE11 业务输入   | 先登记结果，再 `accept(business)`（[EC-08](#ec-08)）                         | 依据                 |
 | 迟到版本                               | 合格保管者                                                                                                     | SE20                             | `recordResult(custody)` 的参加；记录已删除时 `preserveResult`                | 依据                 |
-| 交付责任解除的回执                     | Agent 宿主的结果接收方取得原生产者确认后经 `AgentJournal.recordResult` 写入同一日志；Session 适配协调者读 `load().results`（[JC-Release](#jc-release)） | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
+| 交付责任解除的回执                     | Tool 宿主收到 saved 后自己解除。原生产者确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](#jc-release-tool-path)）。日志中已有该确认时，Session 适配协调者读 `load().results`（[JC-Release](#jc-release)） | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
 | 账目                                   | Agent 的 `producer` 事件不带账目。Agent 宿主的结果接收方把在途与迟到的账目写入同一日志：迟到账目按原调用读取生产者后写入（[P-3](#具名前提与明确缺项)、[EC-09](#ec-09)） | SE32 | Session 适配协调者读日志后的 `receive(account)` | 结算恢复所需为依据   |
 | 常驻工具的首次定义                     | 采用点的候选采用材料（证据桥）                                                                                 | SE36                             | `create`、有新增实际采用的 `completeInitialization`、`startRun`、`reload`    | 依据                 |
 | 冻结判定                               | 新 Run 或显式 reload 的候选采用材料                                                    | SE37；没有未终结 Run 时另有 SE38 | `freeze`                                                                     | 依据                 |
@@ -1707,7 +1707,7 @@ assistant 消息里的推理续接状态部件随所在消息作为 SE10 的内�
 | `commitDerived(context-reminder)`               | ST25                                        | 同一变化材料认回；归档后不追加                                                                                     |
 | 归档同批产生的作用域释放任务                    | ST21                                        | `tasks.scope-release` 与 SE27 同批                                                                                 |
 | `receive(scope-release)`                        | ST26                                        | 按[作用域释放的处置](#构造依赖端口与出站端口)解除或保留任务                                                        |
-| 消费游标的推进                                  | ST26                                        | 游标随产生的条目同批保存；不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进（[EC-02](#ec-02)） |
+| 解释进度的推进                                  | ST07、ST14、ST17a、ST20（EC-01 的同日志派生） | `readThrough` 随解释提交与它产生的后果同批保存；不产生后果的事件不单独提交，持久进度随下一次解释提交前进（[EC-02](#ec-02)） |
 | 采用点纳入常驻工具                              | ST01、有新增能力实际采用的 ST02、ST06、ST11 | 候选采用材料列出的新常驻工具写 SE36；已纳入的能力身份不再写。ST02 纯准备 ready 只写 SE02                           |
 | 冻结的会话收到普通输入                          | ST03                                        | 有未终结 Run 时去处为当前 Run；没有时拒绝，原因 `frozen`                                                           |
 | 冻结的会话里 Run 终结                           | ST20                                        | 仍有待处理资格的输入在终态同批以 SE38 解除                                                                         |
@@ -1769,7 +1769,7 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 
 ### 被替代的协议
 
-Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。Tool 启动围栏归 Agent 的 `start-fence` 条目；生产者解除归 Agent 宿主结果接收方，Session 确认投影沿 [JC-Release](#jc-release)。本页的推进、控制与恢复条款直接采用这些拥有者。
+Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。Tool 启动围栏归 Agent 的 `start-fence` 条目。生产者收到 saved 后自己解除，结果接收方只返回 saved，Session 确认投影沿 [JC-Release](#jc-release)。本页的推进、控制与恢复条款直接采用这些拥有者。
 
 `ProducerFact` 不增加 `agent-event` 变体。Agent 经 Journal 写同一日志，Session 按 EC-01 解释承接、等待、结果、控制与结论，不恢复事件副本协议。当前纯层和非耐久内存组合的支持不证明生产提供者或完整运行组合。
 
@@ -1801,7 +1801,7 @@ Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。
 - 临时文件引用只有经保管参加者保证必要耐久后，才能进入已确认条目。命令身份摘要固定语义参数，不把每次新生成的临时认证封套当作新业务输入。
 - 存储层的回滚不等于原业务操作从未提交。同身份仍有旧写未决时，只能返回 `attempt-rejected`，原操作仍未知。`not-committed` 的排除证明由存储提供者产生，前端或 Agent 不能自填。
 - 公开事务入口执行当前访问裁定；存储核心仅核租户归属及本次裁定证据。直接 commit 显式携带访问身份，认回已有操作也先核当前资格。与四面委派的去重核验边界见[当前操作的访问裁定](#当前操作的访问裁定)。
-- 每个执行的消费游标与会话状态一起保存（[EC-02](#ec-02)）。
+- 每个执行的解释进度 `readThrough` 与会话状态一起保存（[EC-02](#ec-02)）。
 
 #### 身份桥、证据桥与 Context 输入
 
@@ -1982,7 +1982,7 @@ Runtime Context 作用域的结束与已签发资格的撤销不在本表。它�
 
 ### J04 流观察消费义务
 
-Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，不把流引用写 Journal，也不发 `stream` 事件（`AgentEventBody` 只有 Agent 自身的事件）。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
+Session 历史只保存实际采用消息，收场或中断后提交，中断内容带不完整含义。观察者按 Journal 的稳定调用引用经 Model.current 取得当前 StreamRef，重新挂接重新 current，直接经生产者观察端口先取快照后取增量。观察资格由授权与接入侧签发，生产者核验。StreamRef 不带凭据，观察请求另带 Access，两处租户必须一致。Agent 不签发观察资格，也不把流引用写 Journal。Agent 的事件只有 Agent 自身的种类（`AgentEventBody`），不带生产者的流内容。观察结束和取消不能证明 Run 终态。这里规定 Session 消费责任，实时观察适配及其运行验证不在本节范围内。
 
 ### J18 作用域引用与结束事实
 
@@ -2006,13 +2006,44 @@ Session 在撤销归档的同一次提交中，持久保存新业务代次、可
 
 ### JC-Release 原生产者确认的写入与未决路径
 
-Tool 结果：Agent 宿主的结果接收方作为当前合格保管者，取得原生产者确认后，经既有 AgentJournal.recordResult 以 transfer none 和 release.confirmed.receipt 写同一日志。它核验原结果版本、消费位置与当前保管资格，不要求旧 attachment 仍有效，ended 不阻止合法保管。Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。Session 适配协调者因此是 Tool 一侧 `ProducerFact.release` 的写入者。重复投影认回，异版本不解除责任。
+Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/agent-contract/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
 
-上述 Tool 路径有一个前提：Agent 对 Tool 结果保持 recordResult 路径（Agent 契约的[恢复与接管](../../agent/agent-contract/SPEC.md#恢复与接管)）。Agent 若把 Tool 结果改到结果接收方的 push 或 received 路径，SE19 的写入者须重新指定。这个前提与下文的 MODEL-ACK-ARRIVAL 并列。
+<a id="jc-release-tool-path"></a>
+
+具名偏离 JC-RELEASE-TOOL-PATH：Tool 宿主以 `releaseDelivery` 解除交付责任之后，它的解除回执怎样进入同一日志的 `load().results[].release`，尚未确定。日志中已有该确认时由 AD-05 写 SE19，这一点按上文成立。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑。
+
+下图是推送路径上的解除顺序。标「未定」的一步是本偏离。
+
+```mermaid
+sequenceDiagram
+    participant T as Tool 宿主
+    participant R as Agent 宿主的结果接收方
+    participant L as 会话日志
+    participant A as AD-05
+    T->>R: 推送 Tool 结果
+    R->>L: received、完整材料、消费绑定与 saved 同批提交
+    R-->>T: saved
+    T->>T: releaseDelivery，以 saved 为证据自己解除
+    Note over T,L: 未定：解除回执怎样进入 load().results[].release（JC-RELEASE-TOOL-PATH）
+    A->>L: 读 load().results 的 ResultResponsibility.release
+    alt 读到原生产者确认
+        A->>L: receive(release)，写 SE19
+    else 没有读到
+        Note over A,L: release 保持 pending，不代发解除
+    end
+```
+
+闭合之前，日志中没有原生产者确认的 Tool 结果按下列规则处置：
+
+1. `release` 保持 pending，不代发解除，不重调生产者执行（[EC-05](#ec-05)）。恢复扫描保留该项（[PM-14](#pm-14)）。
+2. `judgeIdle` 为 not-due（[FR-06](#fr-06)）。该项不进入 `openWork`。
+3. 闭合之前，推送路径没有把 Tool 解除回执写进日志。由此推出：用过工具的会话都不会自动归档。这一范围由本偏离的拥有者在闭合时一并处理。
+
+这一偏离与下文的 MODEL-ACK-ARRIVAL 并列。
 
 Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
 
-MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)）。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
+MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在 M2 之后的里程碑。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 

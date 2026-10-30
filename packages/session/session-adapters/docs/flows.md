@@ -202,7 +202,7 @@ flowchart LR
 
 ### FA-14 原生产者确认的日志投影
 
-沿 [JC-Release](../../session-contract/SPEC.md#jc-release)、[EC-04](../../session-contract/SPEC.md#ec-04) 与 EC-05。Tool 原确认由合格结果接收方经 AgentJournal.recordResult 保存，AD-05 核对后提交 receive(release)。原确认未到则 pending，Session 提交未知先认回原 operation。Model ACK 到达未决，扫描只报告，不直接调用生产者。
+沿 [JC-Release](../../session-contract/SPEC.md#jc-release)、[EC-04](../../session-contract/SPEC.md#ec-04) 与 EC-05。Tool 宿主收到 saved 后自己解除交付责任。Tool 原确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](../../session-contract/SPEC.md#jc-release-tool-path)）；日志中已有该确认时，AD-05 核对后提交 receive(release)。原确认未到则 pending，Session 提交未知先认回原 operation。Model ACK 到达未决，扫描只报告，不直接调用生产者。
 
 ## 失败与生命周期
 

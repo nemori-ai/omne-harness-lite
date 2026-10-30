@@ -106,31 +106,32 @@ sequenceDiagram
     end
 ```
 
-### C2 Agent 推进协调器：事件消费与游标
+### C2 Agent 推进协调器：同日志解释与进度
 
-对应 [RD-01](../SPEC.md#rd-01) 至 RD-07，依据 [EC-01](../../session-contract/SPEC.md#ec-01)、[EC-02](../../session-contract/SPEC.md#ec-02)。不产生条目的事件不单独提交，持久游标随下一次产生条目的 `receive` 前进，这是 EC-02 的规则。细化组根的 [F-SE02](../../docs/key-flows.md#f-se02-agent-事件到日志条目)。
+对应 [RD-01](../SPEC.md#rd-01) 至 RD-07，依据 [EC-01](../../session-contract/SPEC.md#ec-01)、[EC-02](../../session-contract/SPEC.md#ec-02)。读取与解释在 session-adapters 的 [AD-02](../../session-adapters/SPEC.md#ad-02)。不产生后果的事件不单独提交，持久进度随下一次解释提交前进，这是 EC-02 的规则。细化组根的 [F-SE02](../../docs/key-flows.md#f-se02-agent-事件到日志条目)。
 
 ```mermaid
 sequenceDiagram
-    participant Ev as Agent 事件读取（session-adapters）
-    participant C2 as C2 事件消费处理器
-    participant CP as 命令处理器
-    C2->>C2: 从快照取 readThrough
-    Ev-->>C2: 一页事件，序号大于 readThrough
+    participant C2 as C2 Agent 推进协调器
+    participant J as 同一 AgentJournal 提供者（session-adapters）
+    participant I as 同日志解释（AD-02）
+    participant Tx as 会话日志的解释提交
+    C2->>I: 交来新的 Agent 事件页，或 C5 转来的恢复项
+    I->>I: 从快照取 readThrough
+    I->>J: output.read 或 output.events，序号大于 readThrough
+    J-->>I: 一页事件
     loop 每个事件
         alt message 或 entry
-            Note over C2: 只推进内存游标
-        else 产生条目的事件
-            C2->>CP: receive(agent-event)，身份为 execution 与序号，readThrough 设为本序号
-            alt recovered
-                Note over C2: 重放或另一消费者已写，认回后重读 readThrough 继续
-            else commit-unknown
-                Note over C2: 另一消费者的提交在途，交 S4 认回，不换身份
-            end
+            Note over I: 只推进内存进度
+        else 产生后果的事件
+            Note over I: 按 EC-01 派生后果，按原 execution 与事实身份认回
         end
     end
-    C2->>Ev: 确认持久 readThrough
-    Note over Ev,C2: 读到缺口时经 inspect 读完整快照，按 PM-14 对账后继续
+    I->>Tx: 一次解释提交：后果、readThrough 与该次 Session 操作答案同批保存
+    alt 提交未知
+        Note over I,Tx: 按原解释操作身份查询并认回，不换身份
+    end
+    Note over I,J: 不调用 output.acknowledge。读到缺口时经 inspect 读完整快照，按 PM-14 对账后继续
 ```
 
 ### C2 Agent 推进协调器：恢复、接管与换代
@@ -243,7 +244,7 @@ flowchart TD
 
 对应 [C5](../SPEC.md#c5-release)，依据 [JC-Release](../../session-contract/SPEC.md#jc-release) 与 EC-04/05。
 
-Tool 原确认由 Agent 宿主结果接收方写入同一日志，AD-05 核对原版本后 receive(release)。确认未到保持 pending，由结果接收方按生产者原协议接续；Session 扫描不代发解除。Session 提交未知先查询原 operation。Model ACK 未决时只报告，不执行动作，不以 received/saved 写 confirmed。
+Tool 宿主收到 saved 后自己解除交付责任，Tool 原确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](../../session-contract/SPEC.md#jc-release-tool-path)）。日志中已有该确认时，AD-05 核对原版本后 receive(release)。确认未到保持 pending，Session 扫描不代发解除。Session 提交未知先查询原 operation。Model ACK 未决时只报告，不执行动作，不以 received/saved 写 confirmed。
 
 ### 调度器与协调器的接续
 
@@ -322,7 +323,7 @@ flowchart LR
     P --> R3[tasks] --> C5
     P --> R6[inputs] --> S1[S1]
     P --> R7[run] --> C5
-    R7 --> C2[C2 事件消费]
+    R7 --> C2[C2 同日志解释]
     P --> R4[idle-armed] --> S2[S2 计时，judgeIdle 裁定到期]
     P --> R5[release] --> C5
     Disp --> S4

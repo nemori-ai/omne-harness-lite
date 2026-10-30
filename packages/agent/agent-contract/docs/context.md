@@ -112,6 +112,7 @@ sequenceDiagram
   participant S as Caller or external coordinator
   participant A as Reusable Agent runtime
   participant J as AgentJournal provider
+  participant R as Result receiver in the Agent host
   participant M as Model host
   participant T as Tool host
   S->>S: an external coordinator first saves the input on its own side
@@ -121,13 +122,20 @@ sequenceDiagram
   A->>J: reconcile original checkpoint and inputs
   A->>J: commit checkpoint and original effect intent
   A->>M: admit original request with current dispatch guards
-  M-->>A: original result and real settlement
-  A->>J: commit processing or durable custody
-  A->>M: acknowledge exact settled result
+  M->>R: push original result and real settlement
+  R->>J: commit received entry, full material and consumption binding together
+  R-->>M: saved
+  Note over R,M: Model obtains its own ACK after saved. The Agent runtime sends no ACK
+  A->>J: read and adopt the received result
   A->>A: finish every action judgment and human decision
   A->>J: commit whole-batch barrier and original intents
-  A->>T: admit allowed actions with current guards
-  T-->>A: result or confirmed background placeholder
+  A->>T: ToolRuntime.invoke for each allowed action with current guards
+  T-->>A: confirmed background placeholder, when a call moves to the background
+  T->>R: push each result version
+  R->>J: commit received entry, full material and consumption binding together
+  R-->>T: saved
+  Note over R,T: The Tool host releases the delivery after saved
+  A->>J: read and adopt the received results
   A->>J: commit original consumption and output events
   A->>J: tryFinish with revision, input frontier and intent
   J->>S: joint commit with the commit participant, when present
@@ -345,7 +353,7 @@ Tool 的失联结果与晚到原全文是同一 consumption 下的两个结果�
 
 1. **调用。** 协调者用 `invoke` 开始新的 execution，用 `submit` 追加输入，用 `resume` 恢复或接管原 execution，用 `control` 发出控制。每次调用交出 Access、操作身份、受理输入（完整内容与来源依据）、推进资格依据和恢复依据。Agent 交还原 execution 的句柄或命令回执。accepted 只表示已可靠保存，applied 或 unresolved 由事件或原操作查询给出。行为见 SPEC 的“[托管协调与运行实例](../SPEC.md#托管协调与运行实例)”和“[四种控制](../SPEC.md#四种控制)”。
 2. **事件。** 协调者用 `output.read` 或 `output.events` 按 execution 与序号读取事件，把事件事实与游标共同保存之后，再用 `output.acknowledge` 确认连续前缀。Agent 交还有序的事件页。读取起点早于保留起点时，Agent 交还缺口与恢复入口，不跳过事件。订阅结束不是终态，协调者不确认也不阻止 Agent 结束。行为见 SPEC 的“[事件流与读取](../SPEC.md#事件流与读取)”。
-3. **结果保管。** 生产者的结果有两条交付责任解除路径。custody 路径先经 `AgentMaterials` 保管内容或可靠引用，再经 Journal 的 custody 交接，才请求生产者解除交付责任。processed 路径在生产者仍保管结果时完成必要处理，经 Journal 的 processed 交接保存完成依据，再请求解除。协调者作为提交参加者时，在这两种交接的同一次提交中登记自己的保管或处理依据。协调者自己的外发消息和外部交付的身份、幂等与回执归协调者，Agent 不解释它们。行为见 SPEC 的“[持久性与交付责任](../SPEC.md#持久性与交付责任)”和“[提交与保管](../SPEC.md#提交与保管)”。
+3. **结果保管。** 生产者的结果有两条交付责任解除路径。custody 路径先经 `AgentMaterials` 保管内容或可靠引用，再经 Journal 的 custody 交接，才请求生产者解除交付责任。processed 路径在生产者仍保管结果时完成必要处理，经 Journal 的 processed 交接保存完成依据，再请求解除。Tool 结果已采用推送路径，结果接收方只返回 saved，Tool 宿主收到 saved 后自己解除；本项与推送路径不一致的部分见 Agent 的开放问题 [AGENT-M05](../../agent/docs/architecture/open-questions.md#agent-m05)。协调者作为提交参加者时，在这两种交接的同一次提交中登记自己的保管或处理依据。协调者自己的外发消息和外部交付的身份、幂等与回执归协调者，Agent 不解释它们。行为见 SPEC 的“[持久性与交付责任](../SPEC.md#持久性与交付责任)”和“[提交与保管](../SPEC.md#提交与保管)”。
 4. **当前资格。** 协调者在每次操作的 Access 中交出主体与租户。Agent 在实际执行处用 `AgentAccessCheck` 核验该主体对这个操作的当前资格，unavailable 不放行。`AgentAccessCheck` 判断主体能否调用 Agent 的某个公开操作。`ActionAdmission` 判断某个 Model 或 Tool 动作能否发起，只由执行动作之前这条链末尾的受信系统扩展使用。两个端口不合并。接管仍在推进的 execution 需要 takeover 资格，它不包含在 resume 之内。行为见 SPEC 的“[主体资格核验](../SPEC.md#主体资格核验)”和“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)”。
 5. **恢复。** runtime 失联后，怎样发现需要恢复的 execution、何时扫描、以及候选失败后怎样退避，归外部协调者或装配宿主，Agent 不定义。Agent 为此提供两样能力并要求一项核验：`AgentExecutionRecovery` 的 query 与 load 按 execution 查到并读取原记录，`resume` 为原 execution 取得新的执行挂接（必要时以 takeover 接管）；每一步都以授权领域实现的 `AgentAccessCheck` 核验主体资格。在 Cordis 装配中，恢复入口的服务键是 [`agentExecutionRecovery`](../../agent-cordis-contract/docs/cordis.md#服务键与提供者)。Agent 自己只拥有一次 execution 之内的[等待](../../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)：保存业务等待、进程内计时、唤醒与重读，恢复时立即重读，以及每段处理的限额。执行之内的退避和限额是具名配置项 `denialBackoffMs`、`reconciliationDelayMs` 与 `reconciliationBatchLimit`（[通用工厂的配置](../../agent/docs/public-api.md#工厂配置)），默认值只是配置初值。协调者一侧候选失败后的退避与此无关，归协调者。行为见 SPEC 的“[恢复与接管](../SPEC.md#恢复与接管)”。
 

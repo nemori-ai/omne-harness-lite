@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员没有运行实现，现有测试只导入两个入口，不需要真实存储或服务，也不需要替身。翻译纯函数的测试不需要 Cordis。插件的测试需要真实 Cordis 容器，邻域一侧用其契约的提供者或最小替身。本成员只验证翻译与对应，不验证邻域行为。测试通过不代替规格或验收。
+本成员的运行实现只有 `./testing` 的非耐久内存提供者 `createMemorySessionJournal`。现有测试从源码导入它，并用 session-contract 与 agent-contract 的契约测试件检查它，不需要真实存储或服务。翻译纯函数的测试不需要 Cordis。插件的测试需要真实 Cordis 容器，邻域一侧用其契约的提供者或最小替身。本成员只验证翻译与对应，不验证邻域行为。测试通过不代替规格或验收。
 
 ## 维护
 
@@ -16,8 +16,8 @@
 
 ## 本包事实
 
-现在有两个测试。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出。类型测试只有 [record-fault.spec-d.ts](record-fault.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
+现在有 24 个运行测试文件与 1 个类型测试文件，逐个列在 [index.md](index.md)。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出，其余 22 个运行测试检查 `./testing` 的内存提供者。类型测试只有 [record-fault.spec-d.ts](record-fault.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-adapters`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：SPEC 的[组合与验证](../SPEC.md#组合与验证)里的 VA-01 至 VA-19 都还没有测试，现有骨架测试不证明其中任何一条。翻译纯函数进入后，先补模式翻译表逐格、身份编码与结果对应的测试，再补插件的失败与换代行为。具名维护者由负责人指定。
+当前缺口：SPEC 的[组合与验证](../SPEC.md#组合与验证)里的 VA-01 至 VA-19 没有逐条对应到测试。现有测试检查 `./testing` 的内存提供者，不证明生产插件满足其中任何一条。翻译纯函数进入后，先补模式翻译表逐格、身份编码与结果对应的测试，再补插件的失败与换代行为。具名维护者由负责人指定。

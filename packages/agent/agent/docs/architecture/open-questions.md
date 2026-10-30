@@ -49,6 +49,29 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 
 关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中采用的进程内检查计时保持与 #558 M04-6 一致。两种 Journal 实现按裁定结果补同形测试。
 
+<a id="agent-m05"></a>
+## AGENT-M05 生产者的解除回执怎样进入 Journal
+
+本项尚未闭合。拥有者是 Agent 契约与宿主拥有者，闭合放在 M2 之后的里程碑。
+
+结果接收方保存生产者的交付后只返回 saved，见 SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)。saved 只证明保存，不证明生产者已经解除交付责任。生产者收到 saved 后自己解除：Model 沿专用 ACK operation 取得 ACK，见 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)；Tool 宿主经 `releaseDelivery` 释放，见 Tool 契约的[结果推送与保存](../../../../tool/tool-contract/SPEC.md#结果推送与保存)。所以读取同一 Journal 的外部协调者不能从 Journal 得知解除是否已经成立。
+
+| 生产者 | 现状 | 外部协调者一侧的登记名 |
+| --- | --- | --- |
+| Model | Journal 没有记录 Model ACK 的公开路径。Agent 不执行 Model 的 ACK，也不为此新增 ACK 回调、条目种类或端口 | MODEL-ACK-ARRIVAL |
+| Tool | Tool 结果已采用推送路径，Tool 解除回执怎样进入 Journal 未定。SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)、[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 2 条，机制页的[交付责任解除的两条路径](mechanisms.md#交付责任解除的两条路径与保管者更替)，上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项，对象模型页[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)表的 ResultResponsibility 行，本目录机制页[恢复切点表](mechanisms.md#恢复切点表)的「Tool 确认前后」行，以及 [README_ZH](../../README_ZH.md#临时做法) 与 [README](../../README.md#temporary-choices) 临时做法一节的 M04-5 条，仍按 recordResult 写 Tool 结果的保管与解除，与推送路径不一致 | JC-RELEASE-TOOL-PATH |
+
+关闭条件是拥有者写明 Model 与 Tool 的解除回执怎样进入 Journal，并同步上表列出的 Agent 正文。
+
+<a id="agent-m06"></a>
+## AGENT-M06 Tool 交付的完整收场 schema
+
+本项尚未闭合。拥有者是 Agent 契约与宿主拥有者，补采用放在里程碑 M2。
+
+SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收)第 11 条只为 Model 交付规定了 facts 材料分支与具名版本 schema。Tool 交付的完整收场材料（`terminal`、`actualTerminal`、`effect`）没有已采用的 schema，当前公开的 `ReceivedDelivery` 与 `Material.tool` 也不直接声明这三项。所以读取 Journal 的外部协调者不能从材料确定 Tool 调用已经收场，只能返回不可用并保留任务。外部协调者一侧的登记名是 [TOOL-SETTLEMENT-SCHEMA](../../../../../docs/architecture/runtime/application-assembly.md#tool-settlement-schema)。
+
+关闭条件是拥有者为 Tool 交付采用完整收场 schema，并写回 SPEC 的结果接收第 11 条。
+
 ## 保留的专题边界
 
 上下文压缩是 Agent Loop 的执行节点。Agent 协调节点进入、扩展前后位置、压缩模型调用、结果交接及继续推进；现有请求准备契约提供预算与转换依据。本页不重新划分压缩算法、范围选择及历史存储的更细责任，沿 Loop 专题继续讨论，不把整个压缩过程归到外域。

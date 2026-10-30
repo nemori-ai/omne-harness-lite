@@ -38,4 +38,4 @@ flowchart LR
 | Request Context 的组装 | 经 `HistorySource` 读会话历史 | [AD-04](../SPEC.md#ad-04) |
 | 应用装配者 | 选择插件、交入恢复授权、装配 Agent 宿主外侧的结果接收方 | 本页与 [cordis.md](cordis.md) |
 
-Session 对六个邻域担任的通用角色见系统页的[邻域角色](../../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。本成员是这些角色在代码中的唯一位置。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。本成员读取同日志的 Model/Tool 结果与账目。原生产者的读取与交付解除归 Agent 宿主结果接收方；Model ACK 仍未决，见 [JC-Release](../../session-contract/SPEC.md#jc-release)。
+Session 对六个邻域担任的通用角色见系统页的[邻域角色](../../../../docs/architecture/runtime/session-and-run.md#session-的三层与邻域角色)。本成员是这些角色在代码中的唯一位置。Session 不发起或控制模型调用与工具执行，这些都由 Agent 发起。Agent 宿主的结果接收方把 Model/Tool 结果与账目写入同一日志，只返回 saved。生产者收到 saved 后自己解除交付责任。本成员读取同日志的结果与账目。日志中已有 Tool 原生产者确认时，本成员按 [JC-Release](../../session-contract/SPEC.md#jc-release) 读取并投影。Model ACK 的到达路径仍未决（MODEL-ACK-ARRIVAL）。

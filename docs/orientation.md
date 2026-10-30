@@ -75,7 +75,7 @@ flowchart TB
   biz ~~~ cordis
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
-  class identity,session,agent,model,context,storage loaded
+  class identity,session,agent,model,context,tool,env,storage loaded
 ```
 
 分解轴怎样交叉、哪些概念必须分开，读[三条分解轴](architecture/structure.md#三条分解轴)。common 的完整成员清单见[产品包组织的目标目录](package-organization.md#目标目录)。
@@ -83,7 +83,7 @@ flowchart TB
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 除下一行以外的全部元素 |
-| 首条路径已装载（图中蓝底） | 身份与授权、会话与工作、Agent 推进、模型调用、Context、存储 |
+| 首条路径已装载（图中蓝底） | 身份与授权、会话与工作、Agent 推进、模型调用、工具执行、Context、执行环境、存储 |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |
 
@@ -96,7 +96,7 @@ flowchart TB
 - 共享成员：[产品包组织](package-organization.md#目标目录)「目标目录」中 `schema` 只放 Schema 提供者、不是 `util` 或 `common` 的一段，以及同段对 `common`、`util` 的说明。
 - Cordis 内核：[总体结构与责任](architecture/structure.md#cordis-集成与作用域)「Cordis 集成与作用域」。
 - 装载状态：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 协作
 
@@ -132,7 +132,7 @@ flowchart LR
   session --x|"DIR-SESSION-TOOL"| tool
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
-  class session,agent,model loaded
+  class session,agent,model,tool,env loaded
   linkStyle 7,8,9,10,11,12,13 stroke:#c62828,stroke-dasharray:4 3
 ```
 
@@ -142,20 +142,20 @@ flowchart LR
 - 虚线是运行时交付。Model 和 Tool 按受理时保存的 `ConsumerRef` 交付结果。`ConsumerRef` 是消费者拥有者登记的稳定引用，不是执行许可。Model 原样保存它，不解释它的业务含义。所以运行时有箭头，源码上没有 Model 到 Agent 的依赖。Agent 到 Session 的虚线是 session-adapters 的两个插件在运行时接收 Agent 的事件与提交参加。
 - 末端带叉、标着 `DIR-*` 的线是被禁止的源码依赖。前五条是反向依赖：契约层不得认识外层的状态、生命周期或治理。后两条（`DIR-SESSION-MODEL`、`DIR-SESSION-TOOL`）禁止 Session 的两个契约成员导入 Model 或 Tool 的契约成员，类型导入也算；session-adapters 与 session-cordis 不在其中，两者对 Model、Tool 的限制仍靠评审，见[现有成员与工具适配](package-organization.md#现有成员与工具适配)。
 
-Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结果、账目与生产者解除经 Agent 宿主结果接收方完成；Session 读取同日志并提交本域后果。Tool 启动围栏归 Agent J03 的 start-fence 条目，在 Tool 排序域生效。
+Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结果与账目经 Agent 宿主结果接收方写入同一日志。接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 读取同日志并提交本域后果。Tool 启动围栏归 Agent J03 的 start-fence 条目，在 Tool 排序域生效。
 
 | 状态 | 元素 |
 | --- | --- |
-| 已接受正文 | 除下表具名状态以外的全部元素与关系，包括 Tool、执行环境、`toolRuntime` 与 `toolEnvironments`。首条路径的发行层不含工具与执行环境的行。 |
-| 首条路径已装载（图中蓝底） | Session、Agent、Model；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
-| 已写回，仍有具名缺口 | Session 只读同日志结果与账目（K-05）；应用装配页与 Model ACK 到达路径仍待其拥有者处理 |
-| 已写回，仍有具名缺口 | Session 契约、机制与 Cordis 公开说明、adapters 规格与使用指南的旧端口步骤（K-04）；session-adapters README 与应用装配页仍待同步，见下文 |
+| 已接受正文 | 除下表具名状态以外的全部元素与关系 |
+| 首条路径已装载（图中蓝底） | Session、Agent、Model、Tool、执行环境；`sessionAgentDrive`（`session-ad14` 行）；`modelRuntime`（`agent-host` 行的 `inject`）；`toolRuntime`（`tool-runtime` 行提供，Agent 在工具阶段按调用现取，不经 `inject`）；`toolEnvironments`（`tool-environments` 行）；Agent 到 Session 的事件与提交参加（`session-ad01`、`session-ad02` 行） |
+| 已写回，仍有具名缺口 | Session 只读同日志结果与账目（K-05）；Model ACK 到达（`MODEL-ACK-ARRIVAL`）与 Tool 解除回执进入日志的方式（`JC-RELEASE-TOOL-PATH`）待其拥有者闭合，放在 M2 之后的里程碑 |
+| 已写回，仍有具名缺口 | Session 契约、机制与 Cordis 公开说明、adapters 规格与使用指南的旧端口步骤（K-04）；session-adapters README 仍把两个驻留端口列为受具名前提阻塞，待同步，见下文 |
 | 已裁定待写回 | 无 |
 
 冲突的家是承接卡与拥有者正文。本页只转述，并给出承接卡，不替拥有者裁定。
 
-- K-04，旧端口步骤已写回，仍有具名缺口。[Session 契约](../packages/session/session-contract/SPEC.md#被替代的协议)、[session 公开说明](../packages/session/session/docs/public-api.md)、[session-cordis 公开说明](../packages/session/session-cordis/docs/public-api.md)，以及 [session-adapters 规格](../packages/session/session-adapters/SPEC.md)与[使用指南](../packages/session/session-adapters/docs/context.md)已移除旧端口步骤。启动围栏归 Agent 日志 `start-fence`，在 Tool 排序域生效；生产者解除归 Agent 宿主结果接收方，Session 依 [JC-Release](../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。session-adapters README 的过期插件与驻留说明由该成员拥有者同步，剩余责任见 [#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)；应用装配由 [#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 承接。访问检查类型与独立脚本替身已导出，Cordis 定义也已导出检查 Service 与键。事务 commit 显式 access、工厂必需 accessCheck、实际读写 check 与生产注入仍待 #680 及相应提供者、消费者共同迁移，生产运行尚未验证。
-- K-05，日志消费责任已写回。[AD-05](../packages/session/session-adapters/SPEC.md#ad-05) 现按 #756 只读同日志，AD-06 按 #680 同样只读 Tool 日志。Tool release 确认仍由 AD-05 按 JC-Release 投影。尚未闭合的是 [应用装配页](architecture/runtime/application-assembly.md#插件树) 的 `session-ad05` 旧依赖，以及 MODEL-ACK-ARRIVAL 的合法到达路径；Model 未确认时保持 pending，扫描只报告。应用装配改写归 #789，ACK 由原拥有者裁定。
+- K-04，旧端口步骤已写回，仍有具名缺口。[Session 契约](../packages/session/session-contract/SPEC.md#被替代的协议)、[session 公开说明](../packages/session/session/docs/public-api.md)、[session-cordis 公开说明](../packages/session/session-cordis/docs/public-api.md)，以及 [session-adapters 规格](../packages/session/session-adapters/SPEC.md)与[使用指南](../packages/session/session-adapters/docs/context.md)已移除旧端口步骤。启动围栏归 Agent 日志 `start-fence`，在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved，Session 依 [JC-Release](../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。session-adapters README 仍把两个驻留端口列为受具名前提阻塞的项，而 [session-adapters 规格](../packages/session/session-adapters/SPEC.md)写明 Session 组不实现 Tool 驻留端口。这一说法待该成员拥有者同步。应用装配页已由 [#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 改写并接受。访问检查类型与独立脚本替身已导出，Cordis 定义也已导出检查 Service 与键。事务 commit 显式 access、工厂必需 accessCheck 与实际读写 check 已由 [#680](https://github.com/nemori-ai/omne-harness-lite/issues/680) 在 session-contract 与 session-adapters 的内存替身中接入，#680 已接受（合并提交 `f82f273cc`）。生产注入与 session-storage-sql 的同步留在里程碑 M2，生产运行尚未验证。
+- K-05，日志消费责任已写回。[AD-05](../packages/session/session-adapters/SPEC.md#ad-05) 现按 #756 只读同日志，AD-06 按 #680 同样只读 Tool 日志。日志中已有的 Tool 原生产者确认由 AD-05 按 JC-Release 投影。尚未闭合的是 MODEL-ACK-ARRIVAL 的合法到达路径，以及 Tool 解除回执进入日志的方式（具名偏离 [JC-RELEASE-TOOL-PATH](../packages/session/session-contract/SPEC.md#jc-release-tool-path)）。确认未到达时保持 pending，扫描只报告。两项都归 Agent 契约与宿主拥有者，放在 M2 之后的里程碑闭合。
 
 出处如下。
 
@@ -167,7 +167,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `115bd78b`（integration/legacy-refactor）；「九条方向约束」一项核对于 `eebb3cc77`。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 顶层架构
 
@@ -209,7 +209,7 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 | 状态 | 元素 |
 | --- | --- |
 | 已接受正文 | 图中全部元素与关系 |
-| 首条路径已装载 | 图中不标。插件树装载的成员是：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员 |
+| 首条路径已装载 | 图中不标。插件树装载的成员包括：服务端接入适配中的 `server-entry`；基础设施与 Cordis 适配中由 `agent-host`、`model-host`、`tool-runtime`、`tool-executor`、`tool-host`、`execution-environment`、`execution-files`、`execution-host-files`、`storage`、`session-storage` 与 `session-ad*` 各行装载的成员；服务端能力的公开接口中这些行所依赖的各契约成员。全部装载行见[插件树](architecture/runtime/application-assembly.md#插件树) |
 | 已知冲突待裁 | 无 |
 | 已裁定待写回 | 无 |
 
@@ -218,7 +218,7 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 - 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ### 单机进程
 
@@ -262,7 +262,7 @@ flowchart TB
 
   client -->|"HTTP JSON"| server
   server -->|"fetch SSE"| client
-  toolRt -.-> env
+  toolRt --> env
   server --> provider
 
   %% 以下 ~~~ 是不可见的排版连线，不表示任何关系
@@ -271,16 +271,15 @@ flowchart TB
 
   classDef loaded fill:#e3f2fd,stroke:#1565c0
   classDef absent stroke-dasharray:5 3
-  class entry,identity,authz,sess,agentRt,modelRt,rc,rq,st loaded
-  class assetsWs,toolRt,env absent
-  linkStyle 2 stroke-dasharray:5 3
+  class entry,identity,authz,sess,agentRt,modelRt,toolRt,rc,rq,st,env loaded
+  class assetsWs absent
 ```
 
 | 状态 | 元素 |
 | --- | --- |
-| 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace、工具 runtime 与执行环境不在首条路径的发行层里（图中虚线框）。 |
-| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、runtime-context、request-context、storage |
-| 已写回，装配页待同步 | K-05 的 AD-05/06 日志消费责任已写回；`session-ad05` 装配行及 Model ACK 缺口见[核心四项的方向](#核心四项的方向)，不能据本图声称运行接线完成 |
+| 已接受正文 | 除下两行以外的全部元素与关系。assets · workspace 不在首条路径的发行层里（图中虚线框）。 |
+| 首条路径已装载（图中蓝底） | server-entry、identity、授权适配、session 与 session-adapters、Agent runtime、模型请求 runtime、工具 runtime、runtime-context、request-context、storage、执行环境；工具 runtime 到执行环境的连线（`tool-environments` 行）。执行环境由 `execution-environment`、`execution-files` 与 `execution-host-files` 行装载，只含 `files` 设施和 `host_machine` 的 `files` 提供者。四个工具与 `command` 的真实宿主是 M2 缺口 |
+| 已写回，仍有具名缺口 | K-05 的 AD-05/06 日志消费责任与 `session-ad05` 装配行已写回；Model ACK 与 Tool 解除回执的缺口见[核心四项的方向](#核心四项的方向)，不能据本图声称运行接线完成 |
 | 已裁定待写回 | 无 |
 
 出处如下。
@@ -288,7 +287,7 @@ flowchart TB
 - 部署范围与进程组织：[部署与运行拓扑](architecture/deployment/README.md#部署环境与进程组织)「部署环境与进程组织」。
 - HTTP JSON 与 fetch SSE：[系统技术基础](architecture/technical-foundations.md#共同技术选择)「共同技术选择」。
 - 装配入口、插件树行与供应商适配：[应用装配](architecture/runtime/application-assembly.md#进程与装配入口)「进程与装配入口」「[插件树](architecture/runtime/application-assembly.md#插件树)」。
-- 核对于 `115bd78b`（integration/legacy-refactor）。
+- 核对于 `d8121ff11`（integration/legacy-refactor）。
 
 ## 维护
 

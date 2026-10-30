@@ -16,7 +16,7 @@ This package implements the [run contract of session-contract](../session-contra
 - the entry cache and the snapshot cache
 - the scheduling policy object
 
-The package holds no durable state. The session log, the operation records, the governance state, the derived indexes and the consume cursors belong to the provider of the transaction port. Memory in this package holds only timers, retry counters and caches. A restart loses them, and the recovery scan builds them again from the authoritative reads.
+The package holds no durable state. The session log, the operation records, the governance state, the derived indexes and the interpretation progress belong to the provider of the transaction port. Memory in this package holds only timers, retry counters and caches. A restart loses them, and the recovery scan builds them again from the authoritative reads.
 
 Allow and deny decisions come only from the pure functions of session-contract. [session-contract](../session-contract/README.md) owns the four faces, the ports and the events. [session-cordis-contract](../session-cordis-contract/README.md) owns the service definition. [session-cordis](../session-cordis/README.md) owns the Cordis binding. [session-adapters](../session-adapters/README.md) owns the neighbor adapters. [session-storage-sql](../session-storage-sql/README.md) owns the SQL storage.
 

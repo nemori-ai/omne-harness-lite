@@ -22,7 +22,7 @@
 | --- | --- |
 | [architecture/](architecture/README.md) | 模块与状态责任、与 Agent Loop 的分界、设计理由、SOLID 选择、包与安装边界；[mechanisms.md](architecture/mechanisms.md) 写日志与提交的事件模型、各主题的取舍与三项技术兑现义务 |
 | [flows.md](flows.md) | 命令处理器的一次提交、C1 至 C5 协调器的流程、S1 至 S7 调度器的接续 |
-| [object-model.md](object-model.md) | 构造对象、调度与协调的内存项、缓存项、一次调用的临时对象、持久游标与内存游标 |
+| [object-model.md](object-model.md) | 构造对象、调度与协调的内存项、缓存项、一次调用的临时对象、持久解释进度与内存解释进度 |
 | [public-api.md](public-api.md) | 根入口。现有导出为空；工厂、实例、依赖与 `SchedulingPolicy` 随实现进入 |
 | [context.md](context.md) | 独立装配与框架装配两条路径，以及本成员在会话组中的位置 |
 | [cordis.md](cordis.md) | 本成员不加载 Cordis 的理由，在 `documentation.json` 里按必需文档登记 |

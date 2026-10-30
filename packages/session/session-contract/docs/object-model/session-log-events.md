@@ -195,7 +195,7 @@ Tool 给出的事实：
 | 转后台确认与占位                       | Tool 的转换确认经消费适配器；占位消息由 Agent 提交               | SE19、SE21 占位、SE10 占位消息           | `receive`、`completeConsumption`、`recordMessage`                                             |
 | Run 已终结、会话未归档时的后台最终结果 | Session 的消费适配器                                             | 先 SE19、SE20 登记结果，再 SE11 业务输入 | `receive`、`preserveResult`，再 `accept`                                                      |
 | 迟到版本                               | 合格保管者经 Agent 的 `recordResult`；Agent 记录已删除时直接提交 | SE20                                     | `preserveResult`                                                                              |
-| 交付责任解除确认                       | Agent 宿主的结果接收方经 `recordResult` 写入同一日志；Session 适配协调者读 `load().results` | SE19；`release` 派生为 `confirmed` | `receive` |
+| 交付责任解除确认                       | 生产者收到 saved 后自己解除。Tool 确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](../../SPEC.md#jc-release-tool-path)）；日志中已有该确认时，Session 适配协调者读 `load().results` | SE19；`release` 派生为 `confirmed` | `receive` |
 | 账目                                   | Agent 宿主的结果接收方写入同一日志；迟到账目按原调用读取生产者后写入 | SE32 | Session 适配协调者读日志后经 `receive` 提交 |
 | 常驻工具的首次定义                     | 采用点的候选采用材料                                             | SE36                                     | `create`、`startRun`、`reload`                                                                |
 | 冻结判定                               | 候选采用材料，或 Tool 宿主的协调者经 session-adapters            | SE37；没有未终结 Run 时另有 SE38         | `freeze`                                                                                      |
@@ -244,7 +244,7 @@ Tool 转后台以 SE19 的 Tool 实际确认及 SE21 的合法占位改变当前
 | Tool 的过程块                                    | Tool 的过程保管，按版本读取                                  |
 | Tool 的内部调度、继续与计时段                    | Tool 自己的账本                                              |
 | Tool 内部等待的答复                              | 回到工具自身的等待                                           |
-| Agent 的消息事件                                 | Agent 的事件序列。消息已在参加时成立；Session 只保存消费游标 |
+| Agent 的消息事件                                 | Agent 的事件序列。消息已在参加时成立；Session 不写条目，只推进解释进度 |
 | Agent 内部执行状态与拓展结论的正文               | Agent 检查点与经过记录                                       |
 | Agent 的接续值                                   | Agent 检查点。Session 不保存接续值，只保存 `ExecutionRef`    |
 | 调度器唤醒、提交通知与心跳                       | 不保存                                                       |

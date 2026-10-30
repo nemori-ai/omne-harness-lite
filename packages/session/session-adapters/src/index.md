@@ -7,3 +7,5 @@
 - [README.md](README.md)：源码目录的职责与现状
 - [index.ts](index.ts)：根入口。现在为空，随实现承载翻译纯函数
 - [cordis.ts](cordis.ts)：Cordis 绑定入口。现在为空，随实现承载全部插件
+- [testing.ts](testing.ts)：`./testing` 入口，导出非耐久内存提供者
+- `testing/`：`./testing` 入口的实现模块

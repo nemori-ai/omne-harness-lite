@@ -33,7 +33,7 @@ const decision = await check.check({
 // decision.kind 是 'allowed'、'denied' 或 'unavailable'
 ```
 
-消费端口的适配器把端口输入映射为 `AdmissionInput`，把结论映射回端口结论。`tests/port-adapters.spec.ts` 演示 Agent、Tool 的有限映射及本地 Session 适配模型。ActionAdmission 的 `permissions` 是列表。示例在该列表为空且 `decision` 为 null 时按上述映射裁定。答复为附言时，示例先核对租户与资格，获允许后返回拒绝，原因为 `human-guidance`。其他输入在缺少解释端口时返回 `unavailable`。它不实现选择与拒答的解释、结构化权限或人工决定的绑定。真实业务在操作点还须核对原工作资格，缺少必要守卫时不得推进。
+消费端口的适配器把端口输入映射为 `AdmissionInput`，把结论映射回端口结论。`tests/port-adapters.spec.ts` 演示 Agent、Tool 与 Session 的有限映射。ActionAdmission 的 `permissions` 是列表。示例在该列表为空且 `decision` 为 null 时，按 [SPEC](SPEC.md#消费端口的适配)「消费端口的适配」的映射裁定。附言按 [AU-03](SPEC.md#au-03-授权表达与适用范围) 解释，示例没有安装附言的解释器。所以答复为附言时，示例先核对租户与资格，裁定为 `allowed` 时按 [AU-05](SPEC.md#au-05-人工决定参数改写与重新核验) 改为拒绝，原因为 `human-guidance`。其他输入在缺少解释端口时返回 `unavailable`。它不实现选择、拒答与附言的解释、结构化权限或人工决定的绑定。真实业务在操作点还须核对原工作资格，缺少必要守卫时不得推进。
 
 | 导出 | 用途 |
 | --- | --- |
@@ -74,10 +74,10 @@ const decision = await check.check({
 | `tests/reference-check.spec.ts` | 撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行 |
 | `tests/permit.spec.ts` | 许可文本、授予、查找、跨租户、手写租户、重复消费 |
 | `tests/snapshots.spec.ts` | 修改输入或返回值不能改写许可、消费事实或历史裁定依据；证据仍可重算，主体与租户保留原身份 |
-| `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；本地 Session 适配模型 |
+| `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；Session 的成员资格示例映射，用 session-contract 的真实 `SessionAccessCheck` 形状与非耐久事务替身 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
-端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。测试内 `SessionAccessCheck` 只是本卡适配模型。真实 Session 公共接口的兼容重验仍未完成，由 B1/S-2 接续。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
+端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/session-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释。前两项在里程碑 M2 接入；完整的模式解释不在 M2。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/authorization`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 
