@@ -143,6 +143,43 @@ for (const response of [
   })
 }
 
+it('registers a remark reply as the decision of the human card, like chosen and declined', async () => {
+  const { backend, view, access, execution, opened, input } = await scene('human-remark')
+  const original = passage({ kind: 'remark', text: 'later, please', evidence: evidence('remark') }),
+    wait = { kind: 'human' as const, passage: original.id, cards: [evidence('card-1')] }
+  ok(
+    await view.journal.commit({
+      ...access,
+      execution,
+      operation: operation('human'),
+      authority: opened.authority,
+      expected: opened.receipt.revision,
+      checkpoint: { ...input.checkpoint, passages: [original] },
+      state: { kind: 'waiting', waits: [wait] },
+      events: [{ kind: 'waiting', waits: [wait] }],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+    }),
+  )
+  ok(
+    await backend.controls.interpret({
+      ...access,
+      execution,
+      sequence: '1',
+      operation: operationId('interpret-human-remark'),
+    }),
+  )
+  expect(ok(await backend.transactions.readWork(access)).waiting).toEqual([
+    {
+      kind: 'extension-passage',
+      passage: original.id,
+      position: 'execution_started',
+      members: [{ card: evidence('card-1'), decision: evidence('remark') }],
+    },
+  ])
+})
+
 it('retains selected cards from several original rounds without taking later responses from a replacement checkpoint', async () => {
   const s = await scene('human-rounds'),
     original = passage(null)

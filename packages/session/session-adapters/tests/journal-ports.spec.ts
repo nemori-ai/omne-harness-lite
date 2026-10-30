@@ -3,6 +3,7 @@ import { decodeActionId, decodePassageId, type Passage } from '@omne-harness/age
 import { sampleReceivedModelResult } from '@omne-harness/agent-contract/testing'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { judgeMessage } from '@omne-harness/message'
+import { assistantMessage } from '@omne-harness/session-contract/testing'
 import { scene, ok, operation, evidence, instance } from './fixtures/common-journal.ts'
 import { take, handed, end } from './fixtures/progression.ts'
 
@@ -88,14 +89,13 @@ it('reply admissions page the actual original decisions and output acknowledgeme
         expected: receipt.revision,
         checkpoint: s.input.checkpoint,
         state: { kind: 'advancing' },
+        // One Agent-owned event per commit, so that the acknowledgement below has sequence '3'
+        // to reach; the Model reply itself is not an Agent event.
         events: [
           {
-            kind: 'stream',
-            producer: { kind: 'model', call },
-            cursor: String(index),
-            source: evidence(`stream-${index}`),
-            schema: s.input.checkpoint.schema,
-            value: { kind: 'null' },
+            kind: 'message',
+            message: assistantMessage(`reply-${index}`),
+            source: evidence(`message-${index}`),
           },
         ],
         effects: [],
@@ -148,6 +148,44 @@ it('reply admissions page the actual original decisions and output acknowledgeme
   const after = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
   expect(after.output.acknowledgedThrough).toBe('3')
   expect(after.results).toEqual([])
+})
+it('commit refuses an entry or ended event body as invalid events, because the Journal allocates those', async () => {
+  const s = await scene('journal-allocated-events')
+  const bodies = [
+    { kind: 'entry', entry: sampleReceivedModelResult(s.access.tenant, 'bypassed') },
+    { kind: 'ended', conclusion: { kind: 'complete' }, disposition: evidence('bypassed') },
+  ] as const
+  for (const body of bodies) {
+    const refused = await s.view.journal.commit({
+      ...s.access,
+      execution: s.execution,
+      operation: operation(`bypass-${body.kind}`),
+      authority: s.opened.authority,
+      expected: s.opened.receipt.revision,
+      checkpoint: s.input.checkpoint,
+      state: { kind: 'advancing' },
+      // The type already excludes these bodies; the cast is the caller bypassing it.
+      events: [body] as unknown as Parameters<typeof s.view.journal.commit>[0]['events'],
+      effects: [],
+      caller: { kind: 'none' },
+      replyAdmission: null,
+    })
+    expect(refused).toMatchObject({
+      failure: { kind: 'invalid', field: 'events', reason: expect.stringContaining(body.kind) },
+    })
+  }
+  const snapshot = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+  expect(snapshot.revision).toBe(s.opened.receipt.revision)
+  expect(
+    ok(
+      await s.view.journal.output.read({
+        ...s.access,
+        execution: s.execution,
+        after: null,
+        limit: 10,
+      }),
+    ),
+  ).toMatchObject({ kind: 'page', events: [] })
 })
 it('a context transition and the original Agent answer publish together and recover together', async () => {
   const s = await scene('context-joint'),

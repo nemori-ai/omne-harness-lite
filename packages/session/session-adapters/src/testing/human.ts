@@ -111,10 +111,14 @@ export function captureHuman(
 export function humanWaiting(
   fragment: HumanFragment,
 ): Extract<SessionLogConsequence, { kind: 'registered-waiting' }>['other'][number] {
+  // A chosen, declined or remark reply is a valid answer whose evidence is the decision; pending
+  // and invalidated are not (session-contract "members[].decision").
   const members = fragment.cards.map(({ card }) => ({
     card: card.card,
     decision:
-      card.response?.kind === 'chosen' || card.response?.kind === 'declined'
+      card.response?.kind === 'chosen' ||
+      card.response?.kind === 'declined' ||
+      card.response?.kind === 'remark'
         ? card.response.evidence
         : null,
   }))
