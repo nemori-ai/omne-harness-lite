@@ -232,7 +232,7 @@ it('复用数取自 Stryker 的日志，颜色码不碍事；没有那一行时�
   expect(reusedCount('No incremental result file found')).toBeUndefined()
 })
 
-describe('成员指纹：Stryker 不比较的三类内容', () => {
+describe('成员指纹：Stryker 不比较的四类内容', () => {
   const touch = (root: string, path: string, content: string) => {
     mkdirSync(join(root, path, '..'), { recursive: true })
     writeFileSync(join(root, path), content)
@@ -319,6 +319,83 @@ describe('成员指纹：Stryker 不比较的三类内容', () => {
     touch(notRepo, 'm/tests/helper.ts', 'h')
     expect(memberFingerprint(notRepo, 'm', 60)).toEqual({
       unavailable: expect.stringContaining('git ls-files'),
+    })
+  })
+  describe('测试读的成员外文件', () => {
+    /** 成员 m 的 spec 经相对路径导入 shared/helper.ts，它再导入 shared/deep.ts。 */
+    function linked() {
+      const root = repo()
+      touch(root, 'm/tests/a.spec.ts', "import { h } from '../../shared/helper.ts'\n")
+      touch(root, 'shared/helper.ts', "export { d as h } from './deep.ts'\n")
+      touch(root, 'shared/deep.ts', 'export const d = 1\n')
+      return root
+    }
+
+    it('改成员外的夹具，整份失效并说明是成员外文件', () => {
+      const root = linked()
+      expect(
+        missAfter(root, () => touch(root, 'shared/helper.ts', 'export const h = 2\n')),
+      ).toEqual({
+        miss: expect.stringContaining('测试读的成员外文件'),
+      })
+    })
+
+    it('删掉成员外的夹具也失效', () => {
+      const root = linked()
+      expect(missAfter(root, () => rmSync(join(root, 'shared/helper.ts')))).toHaveProperty('miss')
+    })
+
+    it('夹具再导入的文件变了也失效：递归追踪', () => {
+      const root = linked()
+      expect(missAfter(root, () => touch(root, 'shared/deep.ts', 'export const d = 2\n'))).toEqual({
+        miss: expect.stringContaining('测试读的成员外文件'),
+      })
+    })
+
+    it('文件互相导入时能返回：防环', () => {
+      const root = linked()
+      touch(root, 'shared/helper.ts', "import './deep.ts'\nexport const h = 1\n")
+      touch(root, 'shared/deep.ts', "import './helper.ts'\nexport const d = 1\n")
+      expect(of(root).fingerprint).toMatch(/^[0-9a-f]{64}$/u)
+    })
+
+    it('成员内 tests/ 之外的辅助文件被测试导入时，改它指纹变；没人导入时不变', () => {
+      const root = linked()
+      touch(root, 'm/test-support/assert.ts', 'export const strict = true\n')
+      touch(root, 'm/test-support/unused.ts', 'export const u = 1\n')
+      touch(root, 'm/tests/b.spec.ts', "import { strict } from '../test-support/assert.ts'\n")
+      const change = () => touch(root, 'm/test-support/assert.ts', 'export const strict = false\n')
+      expect(missAfter(root, change)).toEqual({
+        miss: expect.stringContaining('测试读的成员外文件'),
+      })
+      const before = of(root)
+      touch(root, 'm/test-support/unused.ts', 'export const u = 2\n')
+      expect(of(root).parts.external).toBe(before.parts.external)
+    })
+
+    it('只改成员 src/ 下的文件，这一项不变：src 归 Stryker 比较', () => {
+      const root = linked()
+      touch(root, 'm/src/code.ts', "import '../../shared/deep.ts'\nexport const c = 1\n")
+      touch(
+        root,
+        'm/tests/a.spec.ts',
+        "import { c } from '../src/code.ts'\nimport '../../shared/helper.ts'\n",
+      )
+      const before = of(root)
+      touch(root, 'm/src/code.ts', 'export const c = 2\n')
+      expect(of(root).parts.external).toBe(before.parts.external)
+    })
+
+    it('文件数超过上限时给出原因，不复用', () => {
+      const root = repo()
+      const imports = Array.from({ length: 2001 }, (_, i) => `import '../../shared/f${i}.ts'`).join(
+        '\n',
+      )
+      touch(root, 'm/tests/a.spec.ts', imports)
+      for (let i = 0; i < 2001; i += 1) touch(root, `shared/f${i}.ts`, 'export {}')
+      expect(memberFingerprint(root, 'm', 60)).toEqual({
+        unavailable: expect.stringContaining('2000'),
+      })
     })
   })
 })

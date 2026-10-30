@@ -4,9 +4,17 @@
 // 快照读不出、对不上版本或写不进去，都按没有快照处理：整份重跑，不让入口失败，也不让读数少算。
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs'
 import { createRequire } from 'node:module'
-import { dirname, join } from 'node:path'
+import { dirname, join, relative, resolve, sep } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
 import { slugOf } from '../testing/run.ts'
 import { mutantIdentity, type MutationReport, type ReportMutant } from './report.ts'
@@ -81,12 +89,13 @@ export function storeFingerprint(testTimeoutSeconds: number): string {
     .digest('hex')
 }
 
-/** 指纹的四类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件。 */
+/** 指纹的五类分项摘要：版本与时限、成员的 vitest 配置、根目录的分层配置、成员 tests/ 下的夹具与辅助文件、测试读的成员外文件。 */
 export interface FingerprintParts {
   readonly versions: string
   readonly config: string
   readonly tiers: string
   readonly fixtures: string
+  readonly external: string
 }
 
 /** 一个成员的指纹：合并哈希加分项，分项用来在失效时说明是哪一类变了。 */
@@ -100,6 +109,7 @@ const PART_LABELS: Readonly<Record<keyof FingerprintParts, string>> = {
   config: '快照之后成员的 vitest 配置变了',
   tiers: '快照之后根目录的 vitest.tiers.mts 变了',
   fixtures: '快照之后成员 tests/ 下的夹具与辅助文件变了',
+  external: '快照之后测试读的成员外文件变了',
 }
 const PART_KEYS = Object.keys(PART_LABELS) as (keyof FingerprintParts)[]
 
@@ -115,10 +125,81 @@ function digestOf(path: string): string {
   }
 }
 
+/** 测试的外部输入最多追踪的文件数；超过时这一次不复用。 */
+const EXTERNAL_LIMIT = 2000
+const SOURCE_FILE = /\.[cm]?[jt]s$/u
+// 只追相对路径的静态导入：行首的 import／export … from（含 import type 与跨行的名单）、行首的副作用导入、import()。
+const STATIC_IMPORT = /^[ \t]*(?:import|export)\b[^'";]*?\bfrom\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
+const BARE_IMPORT = /^[ \t]*import\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1/gmu
+const DYNAMIC_IMPORT = /\bimport\s*\(\s*(['"])(\.\.?(?:\/[^'"\n]*)?)\1\s*\)/gu
+
+function relativeSpecifiers(text: string): string[] {
+  return [STATIC_IMPORT, BARE_IMPORT, DYNAMIC_IMPORT].flatMap(pattern =>
+    [...text.matchAll(pattern)].map(match => match[2] ?? ''),
+  )
+}
+
+const isFile = (path: string): boolean => {
+  try {
+    return statSync(path).isFile()
+  } catch {
+    return false
+  }
+}
+
+/** 相对导入落到哪个文件：原样、`.js` 换 `.ts`、补扩展名、目录的 index；都没有返回 undefined。 */
+function resolveImport(from: string, specifier: string): string | undefined {
+  const base = resolve(dirname(from), specifier)
+  const stem = base.replace(/\.[cm]?js$/u, '')
+  const candidates = [
+    base,
+    ...(stem === base ? [] : [`${stem}.ts`, `${stem}.mts`]),
+    `${base}.ts`,
+    `${base}.mts`,
+    `${base}.js`,
+    join(base, 'index.ts'),
+    join(base, 'index.mts'),
+    join(base, 'index.js'),
+  ]
+  return candidates.find(isFile)
+}
+
+/**
+ * 成员测试（`tests/` 下全部 .ts／.mts，含 spec）沿相对导入读到的、不在成员 `src/` 下的文件（含成员内的 `test-support/` 等辅助文件），排序后取内容摘要；
+ * 解析不到的相对导入记作 `missing:<路径>`，删掉文件也会变。成员的 `src/` 不追，归 Stryker 比较；包名导入不追。
+ * 访问过的文件超过上限时抛出。
+ */
+function externalInputs(root: string, memberDir: string, entries: readonly string[]): string[][] {
+  const visited = new Set<string>()
+  const found = new Map<string, string>()
+  const srcDir = join(memberDir, 'src') + sep
+  const rel = (path: string) => relative(root, path).split(sep).join('/')
+  const visit = (file: string): void => {
+    if (visited.has(file)) return
+    if (visited.size >= EXTERNAL_LIMIT)
+      throw new Error(`测试读的成员外文件超过 ${EXTERNAL_LIMIT} 个，追踪不完`)
+    visited.add(file)
+    if (!SOURCE_FILE.test(file)) return
+    for (const specifier of relativeSpecifiers(readFileSync(file, 'utf8'))) {
+      const target = resolveImport(file, specifier)
+      if (target === undefined) {
+        const missing = rel(resolve(dirname(file), specifier))
+        found.set(`missing:${missing}`, 'absent')
+      } else if (!target.startsWith(srcDir)) {
+        found.set(rel(target), digestOf(target))
+        visit(target)
+      }
+    }
+  }
+  for (const entry of entries) visit(entry)
+  return [...found.entries()].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+}
+
 /**
  * 成员的指纹：在 `storeFingerprint` 的版本与时限之外，加上成员的 `vitest.config.*`、根目录的 `vitest.tiers.mts`、
- * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
- * 这三类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
+ * 成员 `tests/` 下所有非 `*.spec.ts` 文件（Git 忽略的不算，按路径排序）的内容摘要，
+ * 以及测试经相对导入读到的成员外文件的摘要（`externalInputs`）。Stryker 的增量只比被变异的代码与杀死变异体的测试文件，
+ * 这四类变了它不知道。列文件或读内容失败时给出原因（`unavailable`），调用方这一次不复用也不写快照，不能当作内容为空。
  */
 export function memberFingerprint(
   root: string,
@@ -140,7 +221,13 @@ export function memberFingerprint(
       throw new Error(
         `git ls-files 失败：${listed.error?.message ?? (listed.stderr.trim() || `退出码 ${listed.status}`)}`,
       )
-    const fixtures = [...new Set(listed.stdout.split('\0').filter(path => path !== ''))]
+    const tracked = [...new Set(listed.stdout.split('\0').filter(path => path !== ''))]
+    const external = externalInputs(
+      root,
+      memberDir,
+      tracked.filter(path => SOURCE_FILE.test(path)).map(path => join(root, path)),
+    )
+    const fixtures = tracked
       .filter(path => !path.endsWith('.spec.ts'))
       .sort()
       .map(path => [path, digestOf(join(root, path))])
@@ -149,6 +236,7 @@ export function memberFingerprint(
       config: sha(JSON.stringify(config)),
       tiers: digestOf(join(root, 'vitest.tiers.mts')),
       fixtures: sha(JSON.stringify(fixtures)),
+      external: sha(JSON.stringify(external)),
     }
     return { fingerprint: sha(JSON.stringify(parts)), parts }
   } catch (error) {
