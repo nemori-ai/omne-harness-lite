@@ -65,10 +65,16 @@ function post(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): 
     actor,
     force: flags.has('--force'),
   })
+  // The card body edits of a new revision: printed by a dry run, written by a formal post.
+  const cardEdits =
+    plan.revise === undefined
+      ? undefined
+      : { from: plan.revise.from, to: plan.revise.to, edits: plan.revise.edits }
   if (flags.has('--dry-run')) {
     const { binding, decision } = dispatchDecision(plan, DISPATCH_PLACEHOLDER, spec.basis)
+    const comment = dispatchComment(prose, decision)
     process.stdout.write(
-      `${JSON.stringify({ applied: false, binding, comment: dispatchComment(prose, decision) }, null, 2)}\n`,
+      `${JSON.stringify({ applied: false, cardEdits, binding, comment }, null, 2)}\n`,
     )
     return 0
   }
@@ -82,7 +88,7 @@ function post(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): 
     // Keep the dispatch before the readback: a failed readback must not lose the URL.
     onPosted: posted => recordPosted(posted, out, line => process.stderr.write(line)),
   })
-  process.stdout.write(`${JSON.stringify({ applied: true, ...result }, null, 2)}\n`)
+  process.stdout.write(`${JSON.stringify({ applied: true, cardEdits, ...result }, null, 2)}\n`)
   return result.verified ? 0 : 1
 }
 function bind(values: ReadonlyMap<string, string>, flags: ReadonlySet<string>): number {
