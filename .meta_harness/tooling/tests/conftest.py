@@ -17,6 +17,8 @@ for key in set(os.environ) - env.keys():
 # OMNE_WORKER_BUDGET 的四分之一，与成员测试每个成员的份额相同（test-runs.config.json 的 workerDivisor），
 # 因为 python 步与重步骤同时跑，不能两边都吃满；都没有时取逻辑核的一半：用例多半起 git 或 node 子进程，
 # 24 核上实测 12 个与 24 个一样快。
+# 本文件没被加载时（只跑别的测试根，或别的检出借用 test:python），由 test:python 设的
+# PYTEST_XDIST_AUTO_NUM_WORKERS=0 让 xdist 退回单进程，不按核数起一堆进程去跑几条用例。
 WORKERS_ENV = "OMNE_PYTEST_WORKERS"
 BUDGET_ENV = "OMNE_WORKER_BUDGET"
 BUDGET_DIVISOR = 4
