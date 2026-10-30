@@ -96,7 +96,7 @@ flowchart TB
 - 共享成员：[产品包组织](package-organization.md#目标目录)「目标目录」中 `schema` 只放 Schema 提供者、不是 `util` 或 `common` 的一段，以及同段对 `common`、`util` 的说明。
 - Cordis 内核：[总体结构与责任](architecture/structure.md#cordis-集成与作用域)「Cordis 集成与作用域」。
 - 装载状态：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `d8121ff11`（integration/legacy-refactor）。
+- 核对于 `31d2a717b`（integration/legacy-refactor）。
 
 ## 协作
 
@@ -167,7 +167,7 @@ Session 与 Model、Tool 之间只画了禁止线，没有源码依赖线。结�
 - `ConsumerRef`：[Model 契约](../packages/model/model-contract/SPEC.md)中 `ConsumerRef` 是消费者拥有者登记的稳定引用的一段；[Tool 契约](../packages/tool/tool-contract/SPEC.md)。
 - K-04：[Session 契约的被替代的协议](../packages/session/session-contract/SPEC.md#被替代的协议)。
 - K-05：[session-adapters 规格](../packages/session/session-adapters/SPEC.md#ad-05)「AD-05 Model 消费适配」及其插件表中的 AD-05 行。
-- 核对于 `d8121ff11`（integration/legacy-refactor）。
+- 核对于 `31d2a717b`（integration/legacy-refactor）。
 
 ## 顶层架构
 
@@ -218,7 +218,7 @@ SDK 只依赖公开契约，不带服务端存储、runtime 实例或 Cordis 装
 - 分层与约束表：[系统分层](architecture/layers-and-dependencies.md#依赖关系与禁止方向)「依赖关系与禁止方向」。
 - 成员标注与禁止边：[产品包组织](package-organization.md#sdk与系统接入)「SDK与系统接入」「[最小 CLI 的接入边界](package-organization.md#最小-cli-的接入边界)」。
 - 已装载的成员：[应用装配](architecture/runtime/application-assembly.md#插件树)「插件树」。
-- 核对于 `d8121ff11`（integration/legacy-refactor）。
+- 核对于 `31d2a717b`（integration/legacy-refactor）。
 
 ### 单机进程
 
@@ -287,7 +287,7 @@ flowchart TB
 - 部署范围与进程组织：[部署与运行拓扑](architecture/deployment/README.md#部署环境与进程组织)「部署环境与进程组织」。
 - HTTP JSON 与 fetch SSE：[系统技术基础](architecture/technical-foundations.md#共同技术选择)「共同技术选择」。
 - 装配入口、插件树行与供应商适配：[应用装配](architecture/runtime/application-assembly.md#进程与装配入口)「进程与装配入口」「[插件树](architecture/runtime/application-assembly.md#插件树)」。
-- 核对于 `d8121ff11`（integration/legacy-refactor）。
+- 核对于 `31d2a717b`（integration/legacy-refactor）。
 
 ## 维护
 
