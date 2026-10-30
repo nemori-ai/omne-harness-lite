@@ -424,6 +424,9 @@ export function agentDouble(options: AgentDoubleOptions = {}): PathDependencies[
         denialBackoffMs: 0,
         toolConcurrency: 1,
         jointCommits: [],
+        // The same-log Journal of the Session store is the coordinated binding; the Agent's own
+        // memory Journal of the test dependencies is standalone. Declared apart from the binding.
+        coordination: sessionLog ? 'coordinated' : 'standalone',
         loopGuardPolicy: testAdoption('loop-guard'),
       },
     }

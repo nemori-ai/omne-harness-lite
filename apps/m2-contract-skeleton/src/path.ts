@@ -23,6 +23,9 @@ import {
   type AgentMaterials,
   type AgentOperationId,
   type Access,
+  type HandoffOutcome,
+  type HandoffPrepare,
+  type HandoffRequest,
   type MessageHandoff,
   type RequestPreparation,
 } from '@omne-harness/agent-contract'
@@ -624,78 +627,182 @@ function roundsOf(): Rounds {
   }
 }
 
-const rejection = (round: Round | undefined, reason: string) => {
-  round?.log.failures.push(reason)
+/** The adoption this application fixes as the provider of every admission it decides. */
+const HANDOFF_PROVIDER = {
+  owner: PATH_OWNER,
+  name: 'message-bridge',
+  revision: '1',
+  digest: `${PATH_OWNER}:message-bridge`,
+}
+
+/** The identity text of one H: the internal operation, or the entry index Ki with the input. */
+function handoffKey(reference: HandoffRequest['reference']): string {
+  return reference.kind === 'execution'
+    ? `execution/${String(reference.execution)}/${String(reference.operation)}`
+    : `input/${String(reference.execution)}/${String(reference.entry)}/${String(reference.input)}`
+}
+
+/** The fixed outcome of `request`: the exact message with its admission, or the rejection. */
+function outcomeOf(input: HandoffPrepare, decision: HandoffOutcome['decision']): HandoffOutcome {
+  const key = handoffKey(input.request.reference)
   return {
-    ok: { kind: 'rejected' as const, reason, evidence: evidence(`handoff/rejected/${reason}`) },
+    request: input.request,
+    origin:
+      input.kind === 'invoke'
+        ? { kind: 'invoke', ...input.runtime }
+        : input.kind === 'submit'
+          ? {
+              kind: 'submit',
+              executionBinding: evidence(
+                `handoff/binding/${String(input.request.reference.execution)}`,
+              ),
+              delivery: { kind: 'durable-view' },
+            }
+          : null,
+    provider: HANDOFF_PROVIDER,
+    qualification: evidence(`handoff/qualification/${key}`),
+    record: evidence(`handoff/record/${key}`),
+    decision,
   }
 }
 
+const rejected = (
+  round: Round | undefined,
+  input: HandoffPrepare,
+  reason: string,
+): HandoffOutcome => {
+  round?.log.failures.push(reason)
+  return outcomeOf(input, {
+    kind: 'rejected',
+    reason,
+    evidence: evidence(`handoff/rejected/${reason}`),
+  })
+}
+
 /**
- * The Agent message hand-over of this application. The external input is admitted here; the
- * Session-side `receive(input-handover)` is committed by the round driver once the Agent accepted
- * the invoke, as the drive adapter of the Session coordinator would (GAP-SESSION-COORDINATOR). A
- * Model reply is committed to Session as a `message` participation. Each call is routed to its
- * round by the execution it names.
+ * The Agent message hand-over of this application (`MessageHandoff`). `prepare` fixes the
+ * admission of the external input; the Session-side `receive(input-handover)` is committed by the
+ * round driver once the Agent accepted the invoke, as the drive adapter of the Session coordinator
+ * would (GAP-SESSION-COORDINATOR). For a Model reply, `prepare` commits the Session message as a
+ * `message` participation when it fixes the prepared outcome: this stand-in writes the message
+ * there, while the Session-side `agentMessageHandoff` plugin writes it through the Ja (session-adapters
+ * SPEC J06); the difference is part of GAP-SESSION-COORDINATOR. Each call is routed to its round by
+ * the execution it names. The outcome of each H is kept, so a second `prepare` of the same request
+ * answers the original outcome and `lookup` reads it back.
  */
 function messageBridge(scene: SessionScene, rounds: Rounds): MessageHandoff<PathPrincipal> {
-  return {
-    async accept(input) {
-      const execution = String(input.execution)
-      const round = rounds.get(execution)
-      if (round === undefined) return rejection(round, 'no-session-run')
-      if (input.source.kind === 'external-input') {
-        if (String(input.source.input) !== String(round.sessionInput))
-          return rejection(round, 'external-input:not-the-session-input')
-        round.log.admitted += 1
-        return {
-          ok: {
-            kind: 'accepted',
-            admission: evidence(`handoff/admitted/${String(input.source.input)}`),
-          },
-        }
-      }
-      if (input.source.kind !== 'model-reply')
-        return rejection(round, `unsupported-source:${input.source.kind}`)
-      round.written += 1
-      const agentOperation = `agent-${String(input.source.call)}`
-      const committed = await scene.commit<'recordMessage'>({
-        kind: 'recordMessage',
-        input: {
-          tenant: scene.access.tenant,
-          session: scene.access.session,
-          operation: deriveSessionOperation({
-            kind: 'participation',
-            execution,
-            operation: agentOperation,
-            joint: 'message',
-          }),
-          participation: {
-            execution,
-            operation: agentOperation,
-            joint: 'message',
-            written: String(round.written),
-            handover: evidence(`agent/message/${String(input.operation)}`),
-          },
-          value: {
-            message: input.candidate,
-            source: input.source.result.source,
-            admission: evidence(`agent/admission/${String(input.operation)}`),
-            consumption: null,
-          },
-        },
+  const fixed = new Map<string, Readonly<{ request: string; outcome: HandoffOutcome }>>()
+  const decide = async (input: HandoffPrepare): Promise<HandoffOutcome> => {
+    const request = input.request
+    const execution = String(request.reference.execution)
+    const round = rounds.get(execution)
+    if (round === undefined) return rejected(round, input, 'no-session-run')
+    if (input.kind === 'submit') return rejected(round, input, 'unsupported-source:submit')
+    if (input.kind === 'invoke') {
+      if (String(input.request.source.input) !== String(round.sessionInput))
+        return rejected(round, input, 'external-input:not-the-session-input')
+      round.log.admitted += 1
+      const entry = input.request.entry
+      return outcomeOf(input, {
+        kind: 'prepared',
+        message: entry.kind === 'invoke' ? entry.initial.content : entry.value.content,
+        admission: evidence(`handoff/admitted/${String(input.request.source.input)}`),
       })
-      if ('failure' in committed)
-        return rejection(round, `session-recordMessage:${committed.failure.kind}`)
-      round.log.reply = {
-        text: textOf(input.candidate),
-        call: String(input.source.call),
-        receipt: committed.ok,
+    }
+    const source = input.request.source
+    if (source.kind !== 'model-reply')
+      return rejected(round, input, `unsupported-source:${source.kind}`)
+    round.written += 1
+    const agentOperation = `agent-${String(source.call)}`
+    const operation = String(input.request.reference.operation)
+    const committed = await scene.commit<'recordMessage'>({
+      kind: 'recordMessage',
+      input: {
+        tenant: scene.access.tenant,
+        session: scene.access.session,
+        operation: deriveSessionOperation({
+          kind: 'participation',
+          execution,
+          operation: agentOperation,
+          joint: 'message',
+        }),
+        participation: {
+          execution,
+          operation: agentOperation,
+          joint: 'message',
+          written: String(round.written),
+          handover: evidence(`agent/message/${operation}`),
+        },
+        value: {
+          message: input.request.candidate,
+          source: source.result.source,
+          admission: evidence(`agent/admission/${operation}`),
+          consumption: null,
+        },
+      },
+    })
+    if ('failure' in committed)
+      return rejected(round, input, `session-recordMessage:${committed.failure.kind}`)
+    round.log.reply = {
+      text: textOf(input.request.candidate),
+      call: String(source.call),
+      receipt: committed.ok,
+    }
+    round.log.replies += 1
+    return outcomeOf(input, {
+      kind: 'prepared',
+      message: input.request.candidate,
+      admission: committed.ok.source,
+    })
+  }
+  return {
+    async prepare(input) {
+      const { principal: _principal, tenant: _tenant, ...shape } = input
+      const key = handoffKey(shape.request.reference)
+      const text = JSON.stringify(shape.request)
+      const known = fixed.get(key)
+      if (known !== undefined)
+        return known.request === text
+          ? { ok: known.outcome }
+          : { failure: { kind: 'conflict', operation: operationOf(shape.request) } }
+      const outcome = await decide(shape)
+      fixed.set(key, { request: text, outcome })
+      return { ok: outcome }
+    },
+    async lookup(input) {
+      const reference =
+        input.kind === 'execution'
+          ? input.handoff
+          : [...fixed.values()].find(
+              item =>
+                item.outcome.request.reference.kind === 'input' &&
+                item.outcome.request.reference.execution === input.execution &&
+                item.outcome.request.reference.entry === input.operation,
+            )?.outcome.request.reference
+      const known = reference === undefined ? undefined : fixed.get(handoffKey(reference))
+      return {
+        ok:
+          known === undefined
+            ? { kind: 'unknown', original: null }
+            : { kind: 'recorded', outcome: known.outcome },
       }
-      round.log.replies += 1
-      return { ok: { kind: 'accepted', admission: committed.ok.source } }
+    },
+    async exclude(input) {
+      // A fixed outcome is answered as recorded, never turned into an exclusion. This bridge has no
+      // trusted Journal resolver for P and no durable fence, so it cannot exclude an H it has not
+      // decided: it answers unsupported (agent-contract SPEC "消息准入"), not an empty success.
+      const known = fixed.get(handoffKey(input.request.reference))
+      if (known !== undefined) return { ok: { kind: 'recorded', outcome: known.outcome } }
+      return unsupported()
     },
   }
+}
+
+/** The operation an H names for a conflict: the internal operation, or the original entry O. */
+function operationOf(request: HandoffRequest): AgentOperationId {
+  return request.reference.kind === 'execution'
+    ? request.reference.operation
+    : request.reference.entry
 }
 
 const unsupported = async () => ({ failure: { kind: 'unsupported' as const } })
@@ -1056,7 +1163,7 @@ async function startRun(
   }
 }
 
-/** The Agent invoke with the input as Session admitted it: its identity, content and origin. */
+/** The Agent invoke with the input as Session admitted it: its identity, content and, on the Session log, origin. */
 async function invokeAgent(
   { assembly, identified }: PathContext,
   { scene, journal }: OpenSession,
@@ -1074,7 +1181,9 @@ async function invokeAgent(
     initial: {
       id: agentInput,
       content: admitted.ok.message,
-      source: admitted.ok.origin,
+      // A standalone Journal refuses a non-null input source before any write (agent-contract
+      // SPEC "提交参加者协议"); the Session origin goes only to the Journal on the Session log.
+      source: journal === null ? null : admitted.ok.origin,
       priority: 'ordinary',
     },
     // A Journal on the Session log checks the grant of the Run; an independent Journal takes none.
