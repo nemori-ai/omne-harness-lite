@@ -31,7 +31,7 @@
 1. 每个插件只以一个调用方类调用 `session` 服务。一项适配需要两个调用方类时，拆成两个插件。调用方类按操作授权，核对见 [Cordis 定义](../session-cordis-contract/docs/cordis.md#intercept-配置与调用方类)。
 2. 插件只经邻域的公开契约与服务定义工作，不导入邻域的提供者实现（[IC-5](../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。本页只用邻域契约已有的操作名。邻域缺少的能力写成[具名前提](#具名前提与明确缺项)，不由本成员发明。
 3. 邻域正文不因本成员而点名 Session。邻域只看到通用角色：外部协调者、提交参加者、消费者拥有者、作用域持有者、历史持有者、维护者。
-4. 每次出站调用与每次 Session 命令都带 [OP-00](../session-contract/SPEC.md#op-00) 派生的身份。本成员把 Session 的身份确定地编码为邻域的操作身份，不另存映射，不用时间、随机数或连接参与编码。生产者交付解除的身份与认回归 Agent 宿主的结果接收方，本成员不维护另一份释放操作映射。
+4. 每次出站调用与每次 Session 命令都带 [OP-00](../session-contract/SPEC.md#op-00) 派生的身份。本成员把 Session 的身份确定地编码为邻域的操作身份，不另存映射，不用时间、随机数或连接参与编码。生产者交付解除的身份与认回归生产者自己：生产者收到 saved 后自己解除，结果接收方只返回 saved。本成员不维护另一份释放操作映射。
 5. 租户是每次调用的参数（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。插件不从 Cordis 上下文、isolate 或安装者推断租户。
 6. 未知保持未知。邻域返回结果未知时，插件按原身份查询或把未知原样交给 Session，不改写为成功或失败。邻域的拒绝只在下文写明的对应里成为 Session 的拒绝。其他拒绝按依赖不可用处理并报告，不变成业务拒绝。
 7. 插件不保存业务事实。插件只持有可丢的派生物：活体句柄、订阅、上一份已过滤快照与缓存。派生物丢失时，插件从 Session 的权威读或邻域的公开读重建，不补造事实。
@@ -329,7 +329,7 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 
 收到 received 与 saved 不能推导 ACK。Model 确认路径是 Session [JC-Release](../session-contract/SPEC.md#jc-release) 的 MODEL-ACK-ARRIVAL 未决义务。冻结 Agent recordResult 排除 Model 采用，接收共同提交不执行 ACK。因此没有已采用的 ACK 记录可读时保持 pending，暂停该 confirmed 投影。不得发明 JournalEntry、Agent 端口或直接 Model ACK 路径。
 
-Tool 原生产者确认由 Agent 宿主的结果接收方（当前合格保管者）以既有 recordResult 保存，Session 适配协调者（本插件）按 load().results 读取并成为 ProducerFact.release 的写入者。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
+Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 saved。Tool 原生产者确认怎样进入同一日志、Tool 一侧 ProducerFact.release 由谁写入，是 Session 的具名偏离 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。日志中已有该确认时，本插件按 load().results 读取并投影。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
 
 <a id="ad-06"></a>
 
@@ -338,10 +338,10 @@ Tool 原生产者确认由 Agent 宿主的结果接收方（当前合格保管�
 - 注入同一 AgentJournal 提供者的读取与材料视图，并以 `coordinator` 调用 `session`。不注入 `toolRuntime`，不查询 Tool 收场、结果、附件或账目。
 - Agent 宿主结果接收方先把 Tool 结果与账目写入同一会话日志。本插件从 `load().entries` 选择 `received` 且 delivery.producer 为 tool 的条目，并经同一提供者 `AgentMaterials.read` 取得原材料。Tool 结果带 account 或 null，账目交付带原修订的 CallAccount。只有原 Journal 记录可证明的字段才投影；尚无报告保持未知，不填零。原 recordResult 路径的公开结果责任按 load().results 读取，不以条目字段缺席表示空记录。
 - 读取前核当前资格、租户、原 execution/Run、原 Tool 调用、consumption、完整版本及 schema。缺材料、未知 schema 或读不可用按原失败关闭，不直接读生产者补齐，也不发明新 Journal 条目。
-- 当前公开 `ReceivedDelivery` 保留 Tool 的 key 与账目，`Material.tool` 只有 ProducedResult 和结果页，`load().results` 只有结果责任；它们不直接声明 terminal、actualTerminal、effect。Agent J02 第 11 项的完整 facts schema 约定只明确覆盖 Model。Tool 收场解释若缺少原拥有者已经采用且可读的完整材料，返回 unavailable 并保留任务；不能从结果页、release 或“存在 received”推定已收场。完整 Tool 收场材料的生产与 schema 接线仍归原拥有者，不在此处另定协议。
+- 当前公开 `ReceivedDelivery` 保留 Tool 的 key 与账目，`Material.tool` 只有 ProducedResult 和结果页，`load().results` 只有结果责任；它们不直接声明 terminal、actualTerminal、effect。Agent J02 第 11 项的完整 facts schema 约定只明确覆盖 Model。Tool 收场解释若缺少原拥有者已经采用且可读的完整材料，返回 unavailable 并保留任务；不能从结果页、release 或“存在 received”推定已收场。完整 Tool 收场材料的生产与 schema 接线归 Agent 契约与宿主拥有者，补采用放在里程碑 M2，见[应用装配页的缺口表](../../../docs/architecture/runtime/application-assembly.md#缺口与承接者)的 SC-03 行。本成员不在此处另定协议。
 - 收场与账目分别以 `receive(execution)`、`receive(account)` 提交，身份从原生产者记录与修订确定派生。Session 后果、解释进度与该次答案沿 AD-02 同批发布。重复读取认回；未知先查原操作；失败不撤销已经保存的 Agent 原事实。
 - Tool 的迟到版本归原消费绑定，不创建新 Run 或调用。仍有后续投递资格的后台结果按 EC-08 登记后交受理；归档撤销资格的结果按 EC-07 只保管，不自动进队列。
-- 本插件不发送生产者交付解除，也不写 ProducerFact.release。Tool 原确认的读取与 release 写入者仍为 AD-05，遵循 Session [JC-Release](../session-contract/SPEC.md#jc-release)。Model ACK 未决状态保持。
+- 本插件不发送生产者交付解除，也不写 ProducerFact.release。Tool 原确认的读取归 AD-05，遵循 Session [JC-Release](../session-contract/SPEC.md#jc-release)，release 的写入者见 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。Model ACK 未决状态保持。
 
 模型选择由应用装配一侧的适配器实现 Agent 的 ModelSelection，Session 组不提供 `agentModelSelection`。会话只保存选择及其来源；解析与发送资格仍由各拥有者负责。
 

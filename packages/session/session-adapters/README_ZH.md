@@ -19,8 +19,8 @@ Session 的适配成员。模板变体：`cordis-module`。
 
 状态：适配成员，`draft`。[SPEC](SPEC.md) 是候选设计，尚未技术接受。
 
-- 已实现：无。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。
-- 未实现：全部十七个插件与端口提供者。
+- 已实现：`./testing` 入口。它的非耐久内存提供者实现 AD-01、AD-02、AD-05 与 Agent Journal 提供者。根入口（`src/index.ts`）与 `./cordis`（`src/cordis.ts`）仍只有模板标记。
+- 未实现：全部十七个插件与端口提供者的生产插件，以及全部耐久提供者。
 - 受具名前提阻塞：历史源、受理拓展点、两个驻留端口、Agent 记录迟到结果的入口，以及无活体 runtime 时的执行视图。每项前提与闭合前的表现见 [SPEC](SPEC.md#具名前提与明确缺项)。
 
 ## 使用

@@ -202,7 +202,7 @@ Tool 生产侧交付责任的解除（英文 ACK）有两条路径，名称与�
 - 先保管后处理：合法消费者把内容或有效可恢复引用、原身份、原消费位置与后续责任经 custody 交接保存，返回 saved，由生产者解除。
 - 先处理后保存完成依据：合法消费者完成必要处理，经 processed 交接保存完成依据后解除。处理须符合原生产消费契约，不强制另存可重领全文。处理未完成、完成依据保存未知或当前资格失效时不解除。
 
-尚需后续处理时，消费者必须保留足以接续的内容和责任。Model 结果由结果接收方按“[接收共同提交](#接收共同提交)”一次保存完整材料、条目和原消费责任。结果接收方返回 saved 之后，Model 以原 evidence 沿专用 ACK operation 自己取得 ACK，Agent 一侧不执行 Model 的 ACK。整项调用真实收场等解除前提仍归 Model 契约，单次发出失败不满足这一前提。Tool 取得 saved 后按自身协议释放 delivery。解除生效后，接续从消费侧保存的数据继续，不要求 Model 重新提供完整副本。工具结果按自身保留契约，不能借 Model 的交付责任解除删除全文。
+尚需后续处理时，消费者必须保留足以接续的内容和责任。Model 结果由结果接收方按“[接收共同提交](#接收共同提交)”一次保存完整材料、条目和原消费责任。结果接收方返回 saved 之后，Model 以原 evidence 沿专用 ACK operation 自己取得 ACK，Agent 一侧不执行 Model 的 ACK。整项调用真实收场等解除前提仍归 Model 契约，单次发出失败不满足这一前提。Tool 取得 saved 后按自身协议释放 delivery。生产者的解除回执怎样进入 Journal 尚未闭合，见开放问题 [AGENT-M05](../agent/docs/architecture/open-questions.md#agent-m05)。解除生效后，接续从消费侧保存的数据继续，不要求 Model 重新提供完整副本。工具结果按自身保留契约，不能借 Model 的交付责任解除删除全文。
 
 Model 的 ACK 未知时由 Model 沿原 query 认回，Agent 不再调模型，也不再次处理同一份结果。Tool 仅在原操作引用可取得时 queryOperation；引用丢失且 lookup 未证明释放时保持未知，见“Tool 交付解除未知”。后台占位只解除占位这一版本的前台交付，最终结果以同一 consumption 到达后按两条路径之一解除，该消费关系才闭合。保管者的更替见[机制页](../agent/docs/architecture/mechanisms.md#交付责任解除的两条路径与保管者更替)。
 
@@ -666,7 +666,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 屏障打开后，Agent 按下列规则发起获准动作并承接结果。全拒时的拒绝槽位也按第 3、5 条处理。节点次序归 Loop 算法页。
 
 1. 并发上限：获准动作按工厂配置 `toolConcurrency` 并行发起，超出上限的动作按原动作顺序等待名额。上限是可序列化配置，见[通用工厂](../agent/docs/public-api.md#工厂配置)。Tool 自己的并发与排队规则另行适用。
-2. 逐槽保管：每个动作有一个 ActionSlot。真实结果到达，或 Tool 确认转后台并给出耐久占位时，Agent 按原动作身份把结果或占位保管到该槽位。真实结果保管之后，Agent 解除该结果的生产责任。后台占位保管之后，Agent 只释放占位这一版本的前台交付。原 consumption 的结果责任不因占位而释放，最终结果仍以它到达，见本节第 8 条。最终结果的保管与释放见[机制页](../agent/docs/architecture/mechanisms.md#等待消费与退出)。Tool 的失败结果也是可消费的结果。
+2. 逐槽保管：每个动作有一个 ActionSlot。真实结果到达，或 Tool 确认转后台并给出耐久占位时，Agent 按原动作身份把结果或占位保管到该槽位。真实结果保管之后，Agent 解除该结果的生产责任。这里由 Agent 解除的写法与已采用的 Tool 结果推送不一致：推送路径下 Tool 宿主收到 saved 后自己解除，见开放问题 [AGENT-M05](../agent/docs/architecture/open-questions.md#agent-m05)。后台占位保管之后，Agent 只释放占位这一版本的前台交付。原 consumption 的结果责任不因占位而释放，最终结果仍以它到达，见本节第 8 条。最终结果的保管与释放见[机制页](../agent/docs/architecture/mechanisms.md#等待消费与退出)。Tool 的失败结果也是可消费的结果。
 3. 单结果经过：每个结果槽位与拒绝槽位各自经过执行动作之后的单结果范围，含结果卸载这一受信系统扩展的改写。单结果经过，以及该槽位相关的 Agent 自身事件（`producer` 与 `entry`）的分配，不等待其他槽位。拒绝槽位的 outcome 为 denied。后台占位不经过单结果范围：该槽位的候选消息由占位直接形成，`each` 为 null。
 4. 整批经过：本批每个动作都已有槽位（等待并发名额的获准动作尚未建立槽位，所以本条不成立），全部槽位都具备结果、后台占位或拒绝，全部单结果经过都结束，且至少一个槽位已发起时，Agent 运行一次执行动作之后的整批范围。已发起指 Tool 受理了该动作，槽位曾为 dispatched。该范围只允许 observed、inject、stop、ask，不改写候选，不撤销工具的实际效果。后台槽位在整批 subject 中的 outcome 为 executed，terminal 为 null。全部动作都被拒绝时不经过整批范围，见上文“整批判断屏障与动作准入”第 9 条。
 5. 消息准入：单结果经过之后、整批经过（如有）之后，Agent 按原动作顺序把每个槽位的候选消息交消息准入。准入进度随 checkpoint 保存，恢复时不重复提交已接纳的消息。拒收的后果见下文“消息准入”。
@@ -772,7 +772,7 @@ resume 经 Journal.attach 为原 execution 取得新的执行挂接。attach 有
 
 宿主对实例失联的判断可以作为证据，放进 resume 的恢复依据一并提交，供追溯。它不替代 takeover 的资格核验：宿主认为失联，不等于主体有权取代当前的推进者。两个不同操作身份的 resume 互相取代的风险，由 takeover 资格与 attach 的条件提交共同限制。条件提交使同一 execution 同一时刻只有一个 active 挂接，被取代一方的提交返回 stale-advance。
 
-新挂接之后，Agent 先对账原提交、原调用、原结果、原等待与原卡片，再回到原节点。对账按原操作身份做只读查询，Model 为 inspect。查询不改变调用生命周期，查询结果只用于判断。采用的事实以经生产者事实路径写进 Journal 的条目为准。已提交则采用原结果，未定则等待，查询暂不可用时保持未知，不推断失败、未发生或已完成。同一执行等待后被唤醒时，唤醒不是新挂接或接管。执行回到进入等待之前的状态，经 E1、E2、E4 重读后回原节点。只有被打断的首次认回会回到 reconciling。旧实例被取代后迟到的真实结果与费用，仍由合格的保管者保存。Model 交付经结果接收方的共同提交进入 Journal，Tool 保留既有 recordResult 路径。两者都不要求旧挂接有效，也不恢复业务推进。每个切点的处置见[机制页的恢复切点表](../agent/docs/architecture/mechanisms.md#恢复切点表)，入口与回归节点见[Loop 算法页](../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)。
+新挂接之后，Agent 先对账原提交、原调用、原结果、原等待与原卡片，再回到原节点。对账按原操作身份做只读查询，Model 为 inspect。查询不改变调用生命周期，查询结果只用于判断。采用的事实以经生产者事实路径写进 Journal 的条目为准。已提交则采用原结果，未定则等待，查询暂不可用时保持未知，不推断失败、未发生或已完成。同一执行等待后被唤醒时，唤醒不是新挂接或接管。执行回到进入等待之前的状态，经 E1、E2、E4 重读后回原节点。只有被打断的首次认回会回到 reconciling。旧实例被取代后迟到的真实结果与费用，仍由合格的保管者保存。Model 交付经结果接收方的共同提交进入 Journal，Tool 保留既有 recordResult 路径。Tool 的这一写法与已采用的结果推送（[结果接收](#结果接收)）不一致，见开放问题 [AGENT-M05](../agent/docs/architecture/open-questions.md#agent-m05)。两者都不要求旧挂接有效，也不恢复业务推进。每个切点的处置见[机制页的恢复切点表](../agent/docs/architecture/mechanisms.md#恢复切点表)，入口与回归节点见[Loop 算法页](../agent/docs/architecture/loop-algorithm.md#恢复入口与回归点)。
 
 显式换代（reload）可以走任一条路径：旧 runtime 能够配合时，先 detach 再恢复。旧 runtime 失联时，直接接管。两条路径都由治理排序决定先后，先准备并验证新实例，再撤旧授新。换代的 recovery 须绑定 handover 验证过的原 execution 与修订号、源与目标 continuation 摘要、目标采用及转换后的 continuation 摘要。attach 条件核验该原修订仍适用，并共同保存转换后的接续。修订已变化返回 changed，调用方重新加载并核验，不拿旧证明接管新状态。兼容证明不授予推进权。
 
@@ -915,7 +915,7 @@ J02 规定结果的去处、常驻的结果接收方、保存回执与账目。�
 8. 恢复。接收方从 `received` 条目与原材料认回已保存交付。尚未收到的账目修订可以经 Model [逐操作行为](../../model/model-contract/SPEC.md#342-逐操作行为)中的 dispatches 取回。取回的账目通过原交付校验并经 `received` 共同提交之后才被采用，不能由查询伪造 loop 可采用的结果。该入口当前只保存在内存里的账目不具备进程重启后的取回保证，耐久责任仍由原提供者承担。
 9. 主体资格。每次 push，包括已保存交付的重投，都先以 `AgentAccessCheck` 核验主体的 receive-result 资格，目标使用原绑定的 instance 与 execution。allowed 之后才读取原调用权威或写入。denied 与 unavailable 按生产者协议返回，不写入，没有默认放行。核验结果只对这一次 push 有效，缓存不放行。`AgentAccessOperation` 的 receive-result 成员由本节承担。
 10. Model 原交付校验。接收工厂必须取得 Model 的只读 inspect 与 dispatches。每次 push 在主体资格通过后，经这些入口核验原受理、admission、完整冻结 consumer 和完整 dispatch 集合，然后才能认回原 saved。原调用未受理、admission 非原值、consumer 不符、dispatch 缺项或多项等，按 Model 协议的字段与原因返回 invalid；集合不可读返回 unavailable，dependency 为 dispatches。只有这些前置检查通过后，同 key 异内容才返回 conflict。Model 查询只决定 push 准入，完整材料仍来自本次合法的生产者交付，不由 inspect 构造。
-11. 完整材料。接收方在首次异步或排队前取得合法 typed delivery 的自有冻结副本，后续调用方修改不得改变已接收输入。Model 交付使用现有 facts 材料分支及具名版本 schema，保存完整 settlement、parts、accounts、consumer 与 key。读取时校验 schema、租户、原 reference、版本及绑定；缺失或不支持的材料显式失败，不把未知 JSON 强转为可信材料。此约定不增加 Material 分支或改变接收共同提交的公开形状。
+11. 完整材料。接收方在首次异步或排队前取得合法 typed delivery 的自有冻结副本，后续调用方修改不得改变已接收输入。Model 交付使用现有 facts 材料分支及具名版本 schema，保存完整 settlement、parts、accounts、consumer 与 key。读取时校验 schema、租户、原 reference、版本及绑定；缺失或不支持的材料显式失败，不把未知 JSON 强转为可信材料。此约定不增加 Material 分支或改变接收共同提交的公开形状。Tool 交付的完整收场 schema（`terminal`、`actualTerminal`、`effect`）尚未采用，见开放问题 [AGENT-M06](../agent/docs/architecture/open-questions.md#agent-m06)。
 12. loop 与接收方分工。正常 loop 对 Model 只调用 admit 与 cancel。受理未知或恢复重新挂接时允许 inspect 对账，但不能由查询返回值写 received 或材料。loop 等待 Journal 条目、现有事件提示和 timer，不连接 Model observer，不轮询 Model 收场。缺少 entries 返回 unavailable；无匹配 received 时继续等待。采用时按原 reference、consumer 与 consumption 选择已提交 result，再从同一提供者读取完整材料。后续恢复仍由原 received 派生结果，业务提交沿原 checkpoint 与幂等交接规则。接收提交增加 revision 时，仍持有效 attachment 的 loop 必须重新 load 并以新修订继续条件提交，不能将该变化误判为另一推进者。真正失去 Authority 时仍停止推进。
 
 维护入口 retry/recover 返回 Agent Reply，先从原绑定提供者取得该 execution 的完整原 Model 绑定集合，再核各原 instance/execution 的当前 receive-result 资格。无对象、无原绑定或无权统一 denied；依赖不可读返回 unavailable，不能返回空成功报告。材料读取、出站、报告与诊断均限定到本次绑定集合，await 期间新增绑定不进入本次维护。每次出站和最终报告之前重核资格；拒绝不改变原 unknown、blocked 或实际在途责任。inspect 仅供宿主管理，可返回全局状态，不可暴露为租户查询。

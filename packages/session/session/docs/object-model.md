@@ -62,7 +62,7 @@
 
 ### 持久游标与内存游标
 
-每个执行的持久消费游标是 `ExecutionRef.readThrough`。它是契约对象的字段，由存储随产生条目的 `receive` 一起保存（[RD-01](../SPEC.md#rd-01)、[EC-02](../../session-contract/SPEC.md#ec-02)）。本成员不另存游标。只推进内存游标的 `message` 与 `entry` 事件，其内存游标由执行读取循环的一方持有，读取循环在 session-adapters。空闲与完成的裁定只信持久游标（[RD-04](../SPEC.md#rd-01)）。
+每个执行的持久游标是解释进度 `ExecutionRef.readThrough`。它是契约对象的字段，由存储随解释提交与其后果一起保存（[RD-01](../SPEC.md#rd-01)、[EC-02](../../session-contract/SPEC.md#ec-02)）。本成员不另存游标。只推进内存游标的 `message` 与 `entry` 事件，其内存游标由执行读取循环的一方持有，读取循环在 session-adapters 的 AD-02。空闲与完成的裁定只信持久游标（[RD-04](../SPEC.md#rd-01)）。
 
 ```mermaid
 classDiagram

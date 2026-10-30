@@ -34,7 +34,7 @@ M1 只等 Journal 中的匹配结果，M3/I3 从同一提供者的完整材料�
 
 ### 交付责任解除的两条路径与保管者更替
 
-本节的两条旧交接路径适用于仍使用 recordResult 的 Tool 等消费者，不用于 Model received 路径。每个这样的 ProducedResult 在 execution 内有一条 ResultResponsibility，身份是结果项加 consumption。它在结果登记时为待释放，经 recordResult 的 transfer 保存保管依据或完成依据，最后以含原生产者确认依据的 release 进入已释放。已释放表示生产侧交付责任解除（英文 ACK）。解除只有两条路径，条件归 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)。两条路径对应 Tool 契约的[可靠交接与处理的两条路径](../../../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)：Agent 的先保管后处理（custody 路径）对应 Tool 的先保管后处理，Agent 的先处理后保存完成依据（processed 路径）对应 Tool 的先完成处理。本节只写每条路径经过的端口与保管者的更替。
+本节的两条旧交接路径适用于仍使用 recordResult 的 Tool 等消费者，不用于 Model received 路径。Tool 结果已采用推送路径，Tool 宿主收到 saved 后自己解除；Tool 仍按本节路径保管与解除的写法与之不一致，见开放问题 [AGENT-M05](open-questions.md#agent-m05)。每个这样的 ProducedResult 在 execution 内有一条 ResultResponsibility，身份是结果项加 consumption。它在结果登记时为待释放，经 recordResult 的 transfer 保存保管依据或完成依据，最后以含原生产者确认依据的 release 进入已释放。已释放表示生产侧交付责任解除（英文 ACK）。解除只有两条路径，条件归 SPEC 的[持久性与交付责任](../../../agent-contract/SPEC.md#持久性与交付责任)。两条路径对应 Tool 契约的[可靠交接与处理的两条路径](../../../../tool/tool-contract/SPEC.md#可靠交接与处理的两条路径)：Agent 的先保管后处理（custody 路径）对应 Tool 的先保管后处理，Agent 的先处理后保存完成依据（processed 路径）对应 Tool 的先完成处理。本节只写每条路径经过的端口与保管者的更替。
 
 - custody 路径：消费者先经 `AgentMaterials.preserve` 把内容或有效可恢复引用保存到材料拥有者，再经 Journal 的 custody 交接绑定原版本、位置与责任。
 - processed 路径：生产者在处理期间继续保管原结果。消费者完成必要处理后，经 Journal 的 processed 交接保存足以恢复已完成结果及责任的完成依据。

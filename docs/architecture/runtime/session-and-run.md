@@ -42,7 +42,7 @@ Session 对六个邻域担任下列通用角色。每个角色只经对方的公
 | Request Context | 历史持有者：提供历史源读口与未结工作下界，承担压缩转换的持有者一侧，调用人侧投影 | [历史源读口与 epoch 视图](../../../packages/context/request-context-contract/SPEC.md#历史源读口与-epoch-视图)、[压缩共同结果](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界) |
 | 执行环境 | 不直接认识。经两条间接线：执行环境模式变化时，Session 写一条会话层的目标环境设置声明，有效值经设置求值进入 Tool 装载时固定的设置快照；归档后的作用域释放由 Session 的作用域释放插件以维护者身份发起 | [执行环境恢复](../../../packages/execution/execution-environment-contract/SPEC.md#恢复) |
 
-Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果、账目与生产者解除经 Agent 宿主结果接收方完成，Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
+Agent 以 `admit` 发起 Model 调用，以 `cancel` 请求取消。模型内部重试归 Model，Tool 调用与控制由 Agent 发起。Tool 启动围栏归 Agent J03 日志 `start-fence`，在 Tool 排序域生效。结果与账目经 Agent 宿主结果接收方写入同一日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读同日志事实并提交本域后果。名称与形状翻译集中在[适配成员](../../../packages/session/session-adapters/SPEC.md)。
 
 ```mermaid
 flowchart LR
@@ -275,7 +275,7 @@ Session 的应用层由命令处理、协调器和调度器组成，遵守六条
 2. 一个用例只做一次提交。跨用例的事只能由后一个用例读取前一个用例已经提交的事实。
 3. 幂等只依靠操作身份。协调器与调度器重放同一命令时带同一身份。
 4. 协调器与调度器不持有状态。它们从权威读取重建要做的事，通知只起唤醒作用。
-5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者交付责任解除归 Agent 宿主的结果接收方，Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认。
+5. 外部效果与日志分开。对 Agent、执行环境和子会话的调用在提交之后发出，回执作为新事实提交。Tool 启动围栏由 Agent 日志的 `start-fence` 条目在 Tool 排序域生效。生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 只按 [JC-Release](../../../packages/session/session-contract/SPEC.md#jc-release) 读取原确认，Tool 确认怎样进入日志见具名偏离 [JC-RELEASE-TOOL-PATH](../../../packages/session/session-contract/SPEC.md#jc-release-tool-path)。
 6. 能预先算好的派生物在变化时维护。请求到达时只读取与采用。
 
 协调器读取事实后决定发出哪些命令或调用：

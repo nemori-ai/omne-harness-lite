@@ -223,7 +223,7 @@
 
 `ActionAdmission` 是 Agent 契约的一个消费端口，判断某个 Model 或 Tool 动作能否发起（见[整批判断屏障与动作准入](../../agent/agent-contract/SPEC.md#整批判断屏障与动作准入)）。`permissions` 是按需要名的读取列表。首批 `ActionAdmission` 示例在 `permissions` 为空列表且 `decision` 为 null 时使用上述映射。`decision` 的答复为附言时，示例先按上述映射核对租户与资格。裁定不是 `allowed` 时返回映射后的结论，裁定为 `allowed` 时改为拒绝，原因为 `human-guidance`（AU-05）。其他输入在必要解释端口未安装时返回 `unavailable`，不得忽略输入后允许。该示例不实现结构化权限、选择、拒答与附言的解释、人工决定的绑定或完整 `invalid` 分类。正式适配器须接续 Agent 契约要求的错动作、错卡片答复校验，并满足实际工作资格守卫等消费前提。
 
-测试内的 `SessionAccessCheck` 仅为本卡首批适配模型，不是 Session 已落地的正式接口。真实 Session 公共接口的兼容重验尚未完成，由 B1/S-2 后续协同补齐。这个未完成子范围不能据本地模型测试声明通过。
+Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释，这些归里程碑 M2。
 
 ### 首批不覆盖的部分
 
@@ -235,7 +235,7 @@
 
 ### 验证
 
-`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，覆盖附言答复得到拒绝与 `human-guidance`，以及跨租户的附言先得到 `tenant-mismatch`，并验证本地 Session 适配模型。它不证明真实 Session 公共接口兼容。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+`tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，覆盖附言答复得到拒绝与 `human-guidance`，以及跨租户的附言先得到 `tenant-mismatch`，并用 session-contract 的真实 `SessionAccessCheck` 形状与非耐久事务替身验证 Session 的成员资格示例映射。它不证明生产授权政策与系统作用域授权。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
 
 ## 披露与后续治理操作
 

@@ -240,7 +240,7 @@ Run终态仅为完成、失败、被取消，恰一次有效成立。终态候�
 | 闭合条件 | 位置 |
 | --- | --- |
 | 存储参加者与日志映射 | [事件来源与日志准入](../../../session-contract/SPEC.md#事件来源与日志准入)、[事件目录](../../../session-contract/docs/object-model/session-log-events.md#原生事实类别)、[SessionTransactionPort](../../../session-contract/SPEC.md#sessiontransactionport) |
-| 消费游标与确认 | [EC-01](../../../session-contract/SPEC.md#ec-01)、[EC-02](../../../session-contract/SPEC.md#ec-02)；机制 [RD](../../SPEC.md#rd-01) |
+| 同日志解释进度与认回 | [EC-01](../../../session-contract/SPEC.md#ec-01)、[EC-02](../../../session-contract/SPEC.md#ec-02)；机制 [RD](../../SPEC.md#rd-01) |
 | 原操作认回 | [OP-00](../../../session-contract/SPEC.md#op-00)、[EC-04](../../../session-contract/SPEC.md#ec-04) 至 [EC-06](../../../session-contract/SPEC.md#ec-06) |
 | 保留政策与读路径 | [存储成员](../../../session-storage-sql/SPEC.md) |
 | 日志提交后确认丢失、生产者已确认后恢复、归档后迟到结果、长历史读取 | 契约 [VC-C01 至 VC-C10](../../../session-contract/SPEC.md#候选的持续验证义务)；机制 [CR-06 至 CR-09](../../SPEC.md#cr-崩溃矩阵)、[CA](../../SPEC.md#ca-1)；场景 [FS-C-01 至 FS-C-10](../fault-scenarios.md#组-c日志消费责任与恢复投影) |

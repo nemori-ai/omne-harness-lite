@@ -87,7 +87,7 @@ flowchart LR
 
 ### 原生产者确认只从日志投影
 
-生产者解除由 Agent 宿主的结果接收方发出。Tool 原确认经 AgentJournal.recordResult 保存在同一日志，AD-05 按 [JC-Release](../../session-contract/SPEC.md#jc-release) 核对并提交 receive(release)。AD-06 只解释 Tool 收场与账目。Model ACK 缺少合法公开到达路径时保持 pending。Session 不维护另一份释放映射，也不以 saved 冒充 ACK。
+生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Tool 原确认怎样进入同一日志未定，见 Session 的具名偏离 [JC-RELEASE-TOOL-PATH](../../session-contract/SPEC.md#jc-release-tool-path)。日志中已有该确认时，AD-05 按 [JC-Release](../../session-contract/SPEC.md#jc-release) 核对并提交 receive(release)。AD-06 只解释 Tool 收场与账目。Model ACK 缺少合法公开到达路径时保持 pending。Session 不维护另一份释放映射，也不以 saved 冒充 ACK。
 
 ### 结果对应写成封闭表
 

@@ -6,9 +6,9 @@
 
 ## 范围与边界
 
-本责任治理会话路径中的输入与逻辑工作，包括 Session、Run、执行尝试、消费位置和有效推进资格。Session 拥有业务治理与耐久事实，不是第四个 runtime。它按业务规则协调 Agent、Model 和 Tool 三个 runtime，不要求它们共享线程、实例或寿命。会话日志是唯一的业务写入口，每个意图经一个具名操作进入。
+本责任治理会话路径中的输入与逻辑工作，包括 Session、Run、执行尝试、消费位置和有效推进资格。Session 拥有业务治理与耐久事实，不是第四个 runtime。它按业务规则协调 Agent、Model 和 Tool 三个 runtime，不要求它们共享线程、实例或寿命。会话日志是唯一的业务事实源。Session 自有的每个意图经一个具名操作进入。Agent 执行记录经 Agent Journal 的公开写入口写入同一份日志，由 Session 适配成员的提供者在同一事务域内兑现。
 
-会话事实归租户。Session 是会话日志的唯一写入者，在自己的边界执行租户隔离：每个键都含租户，跨租户读取默认拒绝，会话不存在与跨租户得到同一个拒绝结果。租户随每次操作的访问依据显式传入，不从连接、进程、装配、作用域名或会话身份推断。
+会话事实归租户。Session 是会话日志的唯一拥有者与存储边界，在自己的边界执行租户隔离：每个键都含租户，跨租户读取默认拒绝，会话不存在与跨租户得到同一个拒绝结果。租户随每次操作的访问依据显式传入，不从连接、进程、装配、作用域名或会话身份推断。
 
 Session 与六个邻域协作：Agent、Model、Tool、Runtime Context、Request Context 和执行环境。邻域的契约只使用通用角色，不认识 Session。Session 在会话路径上担任这些角色，名称与形状的翻译只在 Session 的适配成员里发生。每一对关系见[与邻域的交接](architecture.md#与邻域的交接)。
 
@@ -87,7 +87,7 @@ sequenceDiagram
 
 受理消费交付面输入及[命令展开](../slash-commands/README.md)，使用治理提供的合法身份与资格。受理成功须有可恢复去处，不把临时消息发送当作可靠接手。
 
-工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接，Session 只保存执行引用。Model 和 Tool 的调用、重试与中断由 Agent 发起。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效，Session 不拥有 Tool 启动资格版本。结果、账目与交付解除经 Agent 宿主的结果接收方完成，Session 只读日志里的结果与账目。
+工作治理向 Agent 交出当前工作及推进资格依据。Agent 拥有执行与执行挂接，Session 只保存执行引用。Model 和 Tool 的调用、重试与中断由 Agent 发起。Tool 启动围栏归 Agent 日志的 `start-fence` 条目，在 Tool 排序域生效，Session 不拥有 Tool 启动资格版本。结果与账目经 Agent 宿主的结果接收方写入日志。结果接收方只返回 saved，生产者收到 saved 后自己解除交付责任。Session 只读日志里的结果与账目。
 
 Runtime Context 注册的业务决定归会话，块内容归生产者。Runtime Context 的步提交由 Session 守卫，作为 Session 自己的一次提交写入会话日志，见[会话契约的守卫条款](../../../packages/session/session-contract/SPEC.md#守卫条款)。会话历史由 Session 持有，请求组装经历史读口读取。需要共同成立的事实在一次权威提交里成立，见[共同提交与参加关系](../../architecture/runtime/session-and-run.md#共同提交与参加关系)。
 

@@ -1224,7 +1224,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 #### EC-04 交付责任解除的时刻与责任
 
 - 前提：SE20 的保管或 SE21 的处理已提交，原结果版本与消费位置可核对。提交未知时先认回，不能据未知发出确认。
-- 解除生产者责任的动作归 Agent 宿主的结果接收方。Session 不调用生产者解除端口。Tool 原生产者确认由当前合格保管者经既有 `AgentJournal.recordResult` 保存，Session 适配协调者 AD-05 按 [JC-Release](#jc-release) 读原确认并以 `receive(release)` 写 SE19。
+- 生产者收到 saved 后自己解除交付责任，结果接收方只返回 saved。Session 不调用生产者解除端口。Tool 原生产者确认怎样进入同一日志是具名偏离 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。日志中已有该确认时，Session 适配协调者 AD-05 按 [JC-Release](#jc-release) 读原确认并以 `receive(release)` 写 SE19。
 - `received`、材料、消费绑定与 saved 只证明保存，不证明生产者确认。Model ACK 到达仍受 MODEL-ACK-ARRIVAL 停止点约束，不能套用 Tool 路径。
 - 确认写回必须核对当前资格、租户、原 execution/Run、consumption、完整结果版本与原回执。重复确认认回，异版本不能解除。旧 attempt 失效不撤销合法保管责任。
 
@@ -1271,7 +1271,7 @@ Session 不参加 Model 的受理点守卫，也不参加 Tool 的只读守卫�
 - 前提：[P-3](#具名前提与明确缺项)。
 - 动作：
   1. Agent 不在场时，Agent 宿主的结果接收方按原调用身份读取生产者的收场与账目事实，并把它们写入同一会话日志。
-  2. Session 只读日志里的结果与账目。Model 一侧由 session-adapters 的 AD-05、Tool 一侧由 AD-06 读取同一日志，再以 `receive(execution)`、`receive(account)` 提交。Tool 的 release 确认写入者仍按 JC-Release 为 AD-05。`receive` 的身份从生产者记录身份与修订派生。
+  2. Session 只读日志里的结果与账目。Model 一侧由 session-adapters 的 AD-05、Tool 一侧由 AD-06 读取同一日志，再以 `receive(execution)`、`receive(account)` 提交。Tool 一侧 `ProducerFact.release` 的写入者待定，见 [JC-RELEASE-TOOL-PATH](#jc-release-tool-path)。`receive` 的身份从生产者记录身份与修订派生。
   3. Session 不读取生产者，也不持有生产者的读取资格。
 - 结果：账目归原调用与原 attempt。未知费用保持未知。重复报告按身份认回。
 - 失败：P-3 不成立时保持未知，不以查不到当作未发生。
@@ -1648,7 +1648,7 @@ Tool 来源：
 | 转后台确认与占位                       | Tool 的转换确认经消费位置拥有者；占位消息由 Agent 提交                                                         | SE19、SE21 占位、SE10 占位消息   | `receive(execution)`、`completeConsumption`、`recordMessage`                 | 依据                 |
 | 后台最终结果（Run 已终态，会话未归档） | 消费位置拥有者                                                                                                 | SE19、SE20，随后 SE11 业务输入   | 先登记结果，再 `accept(business)`（[EC-08](#ec-08)）                         | 依据                 |
 | 迟到版本                               | 合格保管者                                                                                                     | SE20                             | `recordResult(custody)` 的参加；记录已删除时 `preserveResult`                | 依据                 |
-| 交付责任解除的回执                     | Agent 宿主的结果接收方取得原生产者确认后经 `AgentJournal.recordResult` 写入同一日志；Session 适配协调者读 `load().results`（[JC-Release](#jc-release)） | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
+| 交付责任解除的回执                     | Tool 宿主收到 saved 后自己解除。原生产者确认怎样写入同一日志未定（[JC-RELEASE-TOOL-PATH](#jc-release-tool-path)）。日志中已有该确认时，Session 适配协调者读 `load().results`（[JC-Release](#jc-release)） | SE19；`release` 派生为 confirmed | `receive(release)` | 依据 |
 | 账目                                   | Agent 的 `producer` 事件不带账目。Agent 宿主的结果接收方把在途与迟到的账目写入同一日志：迟到账目按原调用读取生产者后写入（[P-3](#具名前提与明确缺项)、[EC-09](#ec-09)） | SE32 | Session 适配协调者读日志后的 `receive(account)` | 结算恢复所需为依据   |
 | 常驻工具的首次定义                     | 采用点的候选采用材料（证据桥）                                                                                 | SE36                             | `create`、有新增实际采用的 `completeInitialization`、`startRun`、`reload`    | 依据                 |
 | 冻结判定                               | 新 Run 或显式 reload 的候选采用材料                                                    | SE37；没有未终结 Run 时另有 SE38 | `freeze`                                                                     | 依据                 |
@@ -1769,7 +1769,7 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 
 ### 被替代的协议
 
-Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。Tool 启动围栏归 Agent 的 `start-fence` 条目；生产者解除归 Agent 宿主结果接收方，Session 确认投影沿 [JC-Release](#jc-release)。本页的推进、控制与恢复条款直接采用这些拥有者。
+Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。Tool 启动围栏归 Agent 的 `start-fence` 条目。生产者收到 saved 后自己解除，结果接收方只返回 saved，Session 确认投影沿 [JC-Release](#jc-release)。本页的推进、控制与恢复条款直接采用这些拥有者。
 
 `ProducerFact` 不增加 `agent-event` 变体。Agent 经 Journal 写同一日志，Session 按 EC-01 解释承接、等待、结果、控制与结论，不恢复事件副本协议。当前纯层和非耐久内存组合的支持不证明生产提供者或完整运行组合。
 
@@ -2006,13 +2006,17 @@ Session 在撤销归档的同一次提交中，持久保存新业务代次、可
 
 ### JC-Release 原生产者确认的写入与未决路径
 
-Tool 结果：Agent 宿主的结果接收方作为当前合格保管者，取得原生产者确认后，经既有 AgentJournal.recordResult 以 transfer none 和 release.confirmed.receipt 写同一日志。它核验原结果版本、消费位置与当前保管资格，不要求旧 attachment 仍有效，ended 不阻止合法保管。Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。Session 适配协调者因此是 Tool 一侧 `ProducerFact.release` 的写入者。重复投影认回，异版本不解除责任。
+Tool 结果按已采用的推送路径交付。结果接收方实现 Tool 的 `ToolResultReceiver`，只返回 saved。Tool 宿主收到 saved 后，以 saved 的证据经 `releaseDelivery` 自己解除交付责任（Agent 契约的[结果接收](../../agent/agent-contract/SPEC.md#结果接收)，Tool 契约的[结果推送与保存](../../tool/tool-contract/SPEC.md#结果推送与保存)）。Session 不调用生产者解除端口。同一日志中已有 Tool 原生产者确认时，Session 适配协调者（session-adapters 的 AD-05）读取 AgentJournal.load().results 的 ResultResponsibility.release，核对租户、原 execution 所属 Run、consumption、完整结果版本及确认依据，以原 receipt 为 source 调用现有 receive(release)，写 SE19。重复投影认回，异版本不解除责任。
 
-上述 Tool 路径有一个前提：Agent 对 Tool 结果保持 recordResult 路径（Agent 契约的[恢复与接管](../../agent/agent-contract/SPEC.md#恢复与接管)）。Agent 若把 Tool 结果改到结果接收方的 push 或 received 路径，SE19 的写入者须重新指定。这个前提与下文的 MODEL-ACK-ARRIVAL 并列。
+<a id="jc-release-tool-path"></a>
+
+具名偏离 JC-RELEASE-TOOL-PATH：Tool 原生产者确认怎样进入同一日志，尚未确定。现有写法是：当前合格保管者取得原生产者确认后，经既有 `AgentJournal.recordResult` 以 transfer none 和 release.confirmed.receipt 写同一日志，AD-05 因此是 Tool 一侧 `ProducerFact.release` 的写入者。这个写法的前提是 Agent 对 Tool 结果保持 recordResult 路径。在已采用的推送路径下，接收方只返回 saved，Tool 宿主自己解除，这个前提不成立。所以 Tool 解除回执进入日志的方式未定，SE19 中 Tool `ProducerFact.release` 的写入者也须重新指定。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。闭合归 Session 契约与 Agent 契约的拥有者，放在里程碑 M2。
+
+闭合之前，日志中没有原生产者确认的 Tool 结果按现有规则处置：`release` 保持 pending，恢复扫描保留该项，不代发解除（[EC-05](#ec-05)）。它计入未结工作，`judgeIdle` 为 not-due（[FR-06](#fr-06)）。所以有这样的 Tool 结果的会话，在本偏离闭合前不会自动归档。这一偏离与下文的 MODEL-ACK-ARRIVAL 并列。
 
 Model ACK 到达是具名未决义务 MODEL-ACK-ARRIVAL。冻结 Agent SPEC 的 recordResult 路径明确排除 Model 的结果采用与账目接收，AgentReceivedCommits 又明确不执行生产者 ACK。received、材料、消费绑定与 saved 同提交只证明保存，不证明 ACK。不得把 Tool 路径套给 Model，不得新增 release-confirmed JournalEntry、ACK 回调或 Agent 端口。无合法公开确认路径时保持 pending，只停止 Model confirmed 投影。control.duty-released 也不是结果交付回执。Session 不直接 inject modelRuntime 来绕过此缺口。
 
-MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)）。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
+MODEL-ACK-ARRIVAL 的闭合归 Agent 契约与宿主拥有者（[裁定第 3 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6488685009)），放在里程碑 M2。Agent 一侧的登记见 Agent 的开放问题 [AGENT-M05](../../agent/agent/docs/architecture/open-questions.md#agent-m05)。Model 材料的公开 facts 解释入口同样归 Agent 契约与宿主拥有者：session-adapters 的 AD-05 依 Agent 契约[结果接收](../../agent/agent-contract/SPEC.md#结果接收)第 11 条核对 schema，不自定解释规则。
 
 MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按下列规则处置（[裁定第 2 项](https://github.com/nemori-ai/omne-harness-lite/issues/756#issuecomment-6490876468)）：
 
