@@ -3,6 +3,7 @@
 // Journal built, and the host records the custody variants of commitSettlement read through a
 // double's trusted host adapter. None of it proves a real governance installation, a real policy
 // or a real host; the doubles declare `durability: 'none'`.
+import type { TenantId } from '@omne-harness/legal-identity'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   CancellationBlock,
@@ -18,6 +19,7 @@ import { obligationCategoryOf } from './finishing.ts'
 import type { ExtensionInvocationMode, ExtensionInvocationResult } from './extensions.ts'
 import type {
   Adoption,
+  AgentExecutionId,
   AgentOperationId,
   CardRoundId,
   DurableEvidence,
@@ -186,6 +188,9 @@ export type TestHostRecord =
   | Readonly<{
       /** The late return of an author invocation that started before the cancellation fence. */
       kind: 'legacy-return'
+      /** The tenant and the execution of the original invocation. */
+      tenant: TenantId
+      execution: AgentExecutionId
       passage: PassageId
       input: DurableEvidence
       mode: ExtensionInvocationMode
@@ -213,6 +218,9 @@ export type TestHostRecord =
        * it: the known present, lookups and invalidate, or that the owner could not determine it.
        */
       kind: 'card-reconciliation'
+      /** The tenant and the execution of the original card round. */
+      tenant: TenantId
+      execution: AgentExecutionId
       passage: PassageId
       round: CardRoundId
       result:

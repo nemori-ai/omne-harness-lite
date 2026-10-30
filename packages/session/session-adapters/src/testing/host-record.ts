@@ -1,6 +1,8 @@
+import type { TenantId } from '@omne-harness/legal-identity'
 import type * as T from '@omne-harness/tool-contract'
 import type {
   Adoption,
+  AgentExecutionId,
   AgentOperationId,
   CancellationUnknown,
   CardRoundId,
@@ -24,6 +26,9 @@ export type TestHostRecord =
   | Readonly<{
       /** The late return of an author invocation that started before the cancellation fence. */
       kind: 'legacy-return'
+      /** The tenant and the execution of the original invocation. */
+      tenant: TenantId
+      execution: AgentExecutionId
       passage: PassageId
       input: DurableEvidence
       mode: ExtensionInvocationMode
@@ -48,6 +53,9 @@ export type TestHostRecord =
   | Readonly<{
       /** The result of an original lookup or invalidate of one card round, as the card owner kept it. */
       kind: 'card-reconciliation'
+      /** The tenant and the execution of the original card round. */
+      tenant: TenantId
+      execution: AgentExecutionId
       passage: PassageId
       round: CardRoundId
       result:

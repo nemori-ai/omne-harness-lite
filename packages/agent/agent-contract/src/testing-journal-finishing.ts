@@ -1331,6 +1331,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const request = evidence('invoke/closer')
         const source = await opened.hostRecord({
           kind: 'legacy-return',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           input: request,
           mode: { kind: 'fresh' },
@@ -1394,6 +1396,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await endCancelled(opened, control, 'end', { establish: false })
         const late = await opened.hostRecord({
           kind: 'legacy-return',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           input: request,
           mode: { kind: 'fresh' },
@@ -1673,6 +1677,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         const lookup = operation('lookup')
         const source = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: {
@@ -1769,6 +1775,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await establish(opened, control)
         const source = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: { kind: 'unknown', reason: 'source-unavailable' },
@@ -2256,6 +2264,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         )
         const source = await opened.hostRecord({
           kind: 'legacy-return',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: identity(decodePassageId('core-never'), 'never'),
           input: evidence('invoke/never'),
           mode: { kind: 'fresh' },
@@ -2485,6 +2495,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           )
         const undetermined = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: { kind: 'unknown', reason: 'source-unavailable' },
@@ -2492,6 +2504,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await ok(record('reconcile-unknown', undetermined), 'the unknown result')
         const known = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: {
@@ -3251,6 +3265,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
           )
         const known = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: {
@@ -3263,6 +3279,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await ok(record('reconcile-known', known), 'the known result')
         const undetermined = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: passage.id,
           round: round.round,
           result: { kind: 'unknown', reason: 'source-unavailable' },
@@ -3319,6 +3337,8 @@ export function finishingCases<P>(fixture: AgentJournalCoreFixture<P>): readonly
         await establish(opened, control)
         const original = await opened.hostRecord({
           kind: 'card-reconciliation',
+          tenant: opened.access.tenant,
+          execution: opened.execution,
           passage: first.id,
           round: firstRound.round,
           result: {
