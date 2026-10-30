@@ -2,7 +2,7 @@
 
 本页给出常驻线会话在多波、多张卡之间反复复用的做法。目标有两个：每次被派发都能快速进入状态；每张卡不重复做重的上下文收集。
 
-本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P17，方法采用归 `docs/engineering/skills.md`。
+本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P24，方法采用归 `docs/engineering/skills.md`。
 
 ## 核心想法：按存续期分三层准备，每层只做差额
 
@@ -89,7 +89,7 @@
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
 | 署名、分支与 `Harness`／`Agent-Role` trailer | `CONTRIBUTING.md` |
 | 验证能声称什么、不能声称什么 | `docs/verification.md` |
-| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P17 |
+| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P24 |
 
 ## 波级：读 delta，只记变化
 
