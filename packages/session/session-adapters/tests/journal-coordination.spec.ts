@@ -74,13 +74,15 @@ async function effective(s: Scene, control: AgentOperationId) {
 
 /**
  * The cancellation path up to tryFinish under the Agent cancel `control` (Agent SPEC "取消判断与路
- * 线"): establish the cancelled candidate, judge it with the installed test policy, prepareFinish;
- * answers the snapshot whose projection the cancel end presents.
+ * 线"): establish the cancelled candidate over `predecessor` (the current candidate, null when
+ * there is none), judge it with the installed test policy, prepareFinish; answers the snapshot
+ * whose projection the cancel end presents.
  */
 async function windDown(
   s: Scene,
   control: AgentOperationId,
   decision: 'allowed' | 'blocked' = 'allowed',
+  predecessor: AgentOperationId | null = null,
 ): Promise<Snapshot> {
   await effective(s, control)
   const load = async () => ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
@@ -100,7 +102,7 @@ async function windDown(
   await settle('establish', common => ({
     ...common,
     kind: 'establish-cancellation',
-    predecessor: null,
+    predecessor,
   }))
   const established = await load()
   const route = established.settlement.route
@@ -500,5 +502,71 @@ describe('tryFinish takes the Session participant into the same conditional comm
     expect(
       ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state.kind,
     ).not.toBe('ended')
+  })
+
+  it('PA-08 item 3: after SE26 cancelled the advancement end is stale-advance, the cancel route ends the execution, and the read end event is recognized; one SE26 throughout', async () => {
+    const s = await scene('pa08-cancel-first')
+    ok(await handed(s))
+    await take(s)
+    const terminals = () =>
+      s.backend.controls
+        .entriesOf(s.access.tenant, s.access.session)
+        .filter(row => row.kind === 'run.terminal')
+    // The complete candidate is fixed and its list issued under the advancement authorization.
+    const complete = await prepareEnd(s)
+    if (complete.state.kind !== 'settling') throw new Error('settling expected')
+    ok(await cancel(s))
+    expect(terminals()).toHaveLength(1)
+    const cancelledRun = ok(await s.backend.transactions.readWork(s.access)).run
+    expect(cancelledRun).toMatchObject({ kind: 'terminal', terminal: { outcome: 'cancelled' } })
+    // The Journal and the Session participant read one authority: SE26 withdrew the advance, so
+    // the Journal answers stale-advance by the Agent order and the participant is not asked.
+    const root = s.view.controls.root()
+    expect(await end(s, 'advance-end', complete)).toEqual({ failure: { kind: 'stale-advance' } })
+    expect(s.view.controls.root()).toBe(root)
+    expect(terminals()).toHaveLength(1)
+    // The Agent re-reads the facts and ends again on the saved cancel basis.
+    const ready = await windDown(
+      s,
+      sessionCancelControl(s),
+      'allowed',
+      complete.state.intent.candidate,
+    )
+    expect(ok(await s.view.journal.tryFinish(cancelFinish(s, ready, 'cancel-end')))).toMatchObject(
+      { kind: 'ended' },
+    )
+    expect(
+      ok(await s.view.journal.load({ ...s.access, execution: s.execution })).state,
+    ).toMatchObject({ kind: 'ended', conclusion: { kind: 'cancelled' } })
+    expect(terminals()).toHaveLength(1)
+    // The end event the Session then reads is only recognized (RS-10): no new SE26, same terminal.
+    const page = ok(
+      await s.view.journal.output.read({
+        ...s.access,
+        execution: s.execution,
+        after: null,
+        limit: 50,
+      }),
+    )
+    if (page.kind !== 'page') throw new Error('retention gap')
+    const ended = page.events.find(event => event.body.kind === 'ended')
+    if (ended === undefined) throw new Error('the end event should be emitted')
+    const interpreted = new Map<string, unknown>()
+    for (const event of page.events)
+      interpreted.set(
+        event.sequence,
+        ok(
+          await s.backend.controls.interpret({
+            ...s.access,
+            execution: s.execution,
+            operation: operationId(`interpret-${event.sequence}`),
+            sequence: event.sequence,
+          }),
+        ),
+      )
+    // The end event was read and its interpretation committed, not skipped as already read.
+    expect(interpreted.get(ended.sequence)).not.toBeNull()
+    expect(terminals()).toHaveLength(1)
+    expect(ok(await s.backend.transactions.readWork(s.access)).run).toEqual(cancelledRun)
   })
 })
