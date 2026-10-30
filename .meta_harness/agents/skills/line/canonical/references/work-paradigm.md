@@ -2,7 +2,7 @@
 
 本页给出常驻线会话在多波、多张卡之间反复复用的做法。目标有两个：每次被派发都能快速进入状态；每张卡不重复做重的上下文收集。
 
-本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P24，方法采用归 `docs/engineering/skills.md`。
+本页只组织做法，不另立规则。规则仍归各拥有者：协作规则归 `docs/engineering/integration.md`「集成节点的清单」，卡级准备与推进循环归 `claim` 技能，常见失误归 `.meta_harness/human/delivery-pitfalls.md` 的 P1–P25，方法采用归 `docs/engineering/skills.md`。
 
 ## 核心想法：按存续期分三层准备，每层只做差额
 
@@ -89,7 +89,7 @@
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
 | 署名、分支与 `Harness`／`Agent-Role` trailer | `CONTRIBUTING.md` |
 | 验证能声称什么、不能声称什么 | `docs/verification.md` |
-| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P24 |
+| 常见失误 | `.meta_harness/human/delivery-pitfalls.md` P1–P25 |
 
 ## 波级：读 delta，只记变化
 
@@ -106,7 +106,7 @@
 2. 本卡附录：绑定、本卡依据、缺口、受影响成员。主体引用线级地图。一页以内。
 3. `spec.md`：方法按 `to-spec`，格式按 `claim` 技能的 spec 模板。「原则与约束」一节引用线级 `constraints.md`，只写本卡新增条目。
 4. `plan.md`：方法按 `to-tickets`，格式按 `claim` 技能的 plan 模板。每个切片写端到端行为、对应判据、验收命令、角色与模型分配、七步待办。
-5. 待决事项先筛三层：过度设计删掉 → 自己能定的具名裁定写进 `spec.md` → 只有产品规则、范围变化、新的破坏性契约改动才算缺口。缺口不提问：停依赖部分，继续其余，整波做不下去就交回。
+5. 待决事项先筛三层：过度设计删掉 → 从产品正文往下逐层核对后自己能定的，具名裁定写进 `spec.md` → 只有产品规则、范围变化、新的破坏性契约改动才算缺口。缺口不提问：停依赖部分，继续其余，整波做不下去就交回。
 
 ## 推进循环：每个切片的七步
 
