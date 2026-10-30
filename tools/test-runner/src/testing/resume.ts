@@ -333,7 +333,7 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
   const dirtyRun = middle.find(run => run.dirty)
   if (dirtyRun !== undefined)
     return rerun(
-      `${short(origin.head)} 之后这棵树上跑过带未提交改动的准入（${short(dirtyRun.head)}），磁盘上的产物说不清对应哪份源码，整次重跑`,
+      `${short(origin.head)} 之后这棵树上跑过带未提交改动的运行（${short(dirtyRun.head)}），磁盘上的产物说不清对应哪份源码，整次重跑`,
     )
   const known = new Set(changedFiles)
   const added = new Set<string>()
