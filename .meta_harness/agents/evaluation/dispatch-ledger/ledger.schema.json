@@ -7,10 +7,16 @@
     {
       "type": "object",
       "additionalProperties": false,
-      "required": ["schemaVersion", "rows"],
+      "required": ["schemaVersion", "rows", "batches"],
       "properties": {
         "schemaVersion": {"const": 1},
-        "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}}
+        "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+        "batches": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "已合入的批次 ID，排序去重；格子里的 batches 都在这里"
+        }
       }
     },
     {
@@ -58,8 +64,8 @@
       "additionalProperties": false,
       "required": [
         "model", "effort", "source", "dispatched", "first_pass", "first_no_writer_block", "within_two",
-        "escalated", "escalations", "appends", "spec_defects", "writer_defects", "minutes_sum",
-        "tokens_reported_sum", "usage_source", "evidence", "batches"
+        "escalated", "escalations", "appends", "spec_defects", "writer_defects", "minutes_sum", "minutes_n",
+        "tokens_reported_sum", "tokens_n", "usage_source", "evidence", "batches"
       ],
       "properties": {
         "model": {"type": "string", "minLength": 1},
@@ -83,7 +89,9 @@
           }
         },
         "minutes_sum": {"type": "number", "minimum": 0},
+        "minutes_n": {"type": "integer", "minimum": 0, "description": "计入 minutes_sum 的轮数；平均值的分母"},
         "tokens_reported_sum": {"type": "integer", "minimum": 0},
+        "tokens_n": {"type": "integer", "minimum": 0, "description": "计入 tokens_reported_sum 的轮数；平均值的分母"},
         "usage_source": {"enum": ["notification", "transcript", "mixed"]},
         "evidence": {"enum": ["field-small-n", "field"]},
         "batches": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
@@ -92,14 +100,16 @@
     "escalation": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["to", "mode", "n", "success", "minutes_sum", "tokens_reported_sum"],
+      "required": ["to", "mode", "n", "success", "minutes_sum", "minutes_n", "tokens_reported_sum", "tokens_n"],
       "properties": {
         "to": {"type": "string", "minLength": 1, "description": "<模型>@<档位>"},
         "mode": {"enum": ["takeover", "redo"]},
         "n": {"type": "integer", "minimum": 0},
         "success": {"type": "integer", "minimum": 0},
         "minutes_sum": {"type": "number", "minimum": 0},
-        "tokens_reported_sum": {"type": "integer", "minimum": 0}
+        "minutes_n": {"type": "integer", "minimum": 0},
+        "tokens_reported_sum": {"type": "integer", "minimum": 0},
+        "tokens_n": {"type": "integer", "minimum": 0}
       }
     },
     "excluded": {

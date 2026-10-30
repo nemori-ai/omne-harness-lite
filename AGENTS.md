@@ -51,10 +51,11 @@
 | 文档、AGENTS、skills 或角色维护 | 新建或修订文档必须加载 `asd-ste100`；AGENTS 加载 `write-agents-md`，skill 加载官方 `skill-creator`，角色加载 `design-subagents`。按[维护指南](docs/maintenance.md)同步真实消费者 |
 | 对话建卡、取任务或更新交付 | 从[agent交付操作](docs/engineering/agent-delivery.md)核对实际启用范围、唯一卡、条件和具名决定；Project、关闭与绿测不授予接受。未启用时形成获准任务草稿 |
 | 分支同步、轨道提升或稳定点 | [多层分支规则](docs/engineering/integration.md)拥有轨道、准入、运输与双基线；加载 `branch-integration` 找实际工具。没有 task context 不伪造绑定，Git 运输不代替交付接受 |
+| 派发子代理（写者、评审者、验收者） | [派发契约](docs/engineering/workflow.md#派发子代理的契约)拥有本项目补充的派发义务；加载 `delegate` 取步骤与完成判据 |
 | 隔离并行、接续或交付 | [工作约定](docs/engineering/workflow.md#责任与协作交接)拥有每写者隔离、共享单写与清理条件；[交付边界](docs/engineering/publication.md)拥有保存与权限；[贡献指南](CONTRIBUTING.md)拥有报告和接受 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
 
-任务方法分三层：流程用 pstack `poteto-mode`，交付方案与规格的写法用 Matt 加项目模板，研发品味用 ub-mode；分工、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md#三层分工)。派发写者明确检出、分支、写范围、必要输入、完成及停止条件；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
+任务方法分三层：流程用 pstack `poteto-mode`，交付方案与规格的写法用 Matt 加项目模板，研发品味用 ub-mode；分工、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md#三层分工)。派发子代理按[派发契约](docs/engineering/workflow.md#派发子代理的契约)；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
 
 ## Cursor Cloud specific instructions
 
