@@ -1,6 +1,6 @@
 // 准入运行记录：写入是原子的、读回与写入相同；坏文件按「没有记录」；由步骤图运行写成记录时跑完、被终止、没开始各记成什么；
 // 挑某个提交能作接续起点的最近一次记录。
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -52,7 +52,7 @@ const run = (over: Record<string, unknown> = {}): AdmissionRun => {
 
 let dir: string
 beforeEach(() => {
-  dir = mkdtempSync(join(tmpdir(), 'omne-admission-run-'))
+  dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-admission-run-')))
 })
 afterEach(() => {
   rmSync(dir, { recursive: true, force: true })
