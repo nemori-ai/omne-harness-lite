@@ -63,6 +63,11 @@ export type DispatchSpec = {
   basis: string[]
   /** Evidence for each start condition; the digest is computed from the card's current row. */
   confirmations: { condition: string; evidence: string }[]
+  /**
+   * The delivery revision this dispatch is for. Optional: without it the card's revision is
+   * used. A revision above the card's opens that new revision on the card; see `reviseCardBody`.
+   */
+  revision?: number
 }
 const SPEC_FIELDS = [
   'issue',
@@ -77,7 +82,7 @@ const SPEC_FIELDS = [
   'confirmations',
 ] as const
 export function parseDispatchSpec(value: unknown): DispatchSpec {
-  const v = fields(value, SPEC_FIELDS, 'dispatch spec')
+  const v = fields(value, [...SPEC_FIELDS, 'revision'], 'dispatch spec')
   for (const key of SPEC_FIELDS)
     if (!(key in v)) throw new IntegrationError('input-error', `dispatch spec.${key} is required`)
   const writeScope = array(v.writeScope, 'writeScope').map(item => safePath(item, 'writeScope'))
@@ -101,6 +106,7 @@ export function parseDispatchSpec(value: unknown): DispatchSpec {
         evidence: string(c.evidence, 'confirmation.evidence'),
       }
     }),
+    ...(v.revision === undefined ? {} : { revision: integer(v.revision, 'revision') }),
   }
 }
 
@@ -155,8 +161,15 @@ export function taskBaseInputs(
 /** Stands in for the dispatch comment URL until the comment exists. */
 export const DISPATCH_PLACEHOLDER = 'https://github.com/dispatch-comment-not-yet-posted'
 
-/** The checks and the binding of one dispatch, before any platform write. */
-export type DispatchPlan = { binding: TaskBindingV2; confirmations: Confirmation[] }
+/**
+ * The checks and the binding of one dispatch, before any platform write. `revise` is present
+ * when the dispatch opens a new revision: the card body must be rewritten before the comment.
+ */
+export type DispatchPlan = {
+  binding: TaskBindingV2
+  confirmations: Confirmation[]
+  revise?: CardRevision
+}
 function refuse(problems: readonly string[]): never {
   throw new IntegrationError('refused', `Dispatch refused: ${problems.join('; ')}`)
 }
@@ -189,12 +202,13 @@ function earlierDispatches(issue: CapturedIssue, revision: number, attempt: stri
  * protocol deviations, when its attributes or revision are not valid, when a comment already
  * dispatches the same revision and attempt (unless `force`), when a start condition has no
  * evidence or evidence names an unknown condition, or when the binding would carry attribute
- * findings.
+ * findings. A `spec.revision` above the card's opens that revision: every check reads the body
+ * `reviseCardBody` returns, and the plan carries the rewrite for `postDispatch`.
  */
 export function planDispatch({
   spec,
   config,
-  capture,
+  capture: captured,
   lines,
   policy,
   actor,
@@ -209,11 +223,21 @@ export function planDispatch({
   force?: boolean
 }): DispatchPlan {
   const url = `https://github.com/${config.repository}/issues/${spec.issue}`
-  const issue = capture.issues.find(item => item.url === url)
-  if (issue === undefined) throw new IntegrationError('unknown', 'The card was not read')
-  if (issue.state !== 'open') refuse(['the card is closed'])
+  const read = captured.issues.find(item => item.url === url)
+  if (read === undefined) throw new IntegrationError('unknown', 'The card was not read')
+  if (read.state !== 'open') refuse(['the card is closed'])
   if (actor !== spec.responsible)
     refuse([`the comment would be posted by ${actor}, but responsible is ${spec.responsible}`])
+  // A new revision is checked as the card will read after its rewrite, not as it reads now.
+  const revise =
+    spec.revision === undefined
+      ? undefined
+      : reviseCardBody(read.body, spec.revision, spec.route, spec.completionTarget)
+  const issue = revise === undefined ? read : { ...read, body: revise.body }
+  const capture =
+    revise === undefined
+      ? captured
+      : { ...captured, issues: captured.issues.map(item => (item.url === url ? issue : item)) }
   const gaps = dispatchFieldGaps(issue)
   if (gaps.length > 0) refuse(gaps.map(gap => `the card lacks ${gap}`))
   const observed = observeAdmission(config, capture, url)
@@ -291,7 +315,7 @@ export function planDispatch({
   // so the report-only findings do not occur here.
   const refusals = attributeRefusals(findings, line)
   if (refusals.length > 0) refuse(refusals.map(finding => `${finding.code}: ${finding.message}`))
-  return { binding, confirmations }
+  return revise === undefined ? { binding, confirmations } : { binding, confirmations, revise }
 }
 
 /** The binding with the real dispatch comment URL, and the decision that comment carries. */
@@ -355,8 +379,10 @@ export function recordPosted(
   }
 }
 /**
- * Posts the dispatch comment for a checked plan: a placeholder comment first, then one edit
- * that makes it the formal dispatch whose binding names the comment's own URL. `onPosted`
+ * Posts the dispatch comment for a checked plan. A plan that opens a new revision first writes
+ * the revised card body and reads it back; nothing is posted when that fails. Then a
+ * placeholder comment, then one edit that makes it the formal dispatch whose binding names
+ * the comment's own URL. `onPosted`
  * receives the formal dispatch right after the edit, before the readback, so the caller keeps
  * the URL and binding even when the readback fails. A failure after the placeholder exists
  * names its URL; the tool does not retry or delete.
@@ -378,6 +404,7 @@ export function postDispatch({
 }): PostedDispatch & { verified: boolean } {
   dispatchProse(prose)
   const number = plan.binding.issue.number
+  if (plan.revise !== undefined) writeRevision(repository, number, plan.revise, call)
   let placeholder: Record<string, unknown>
   try {
     placeholder = record(
@@ -440,12 +467,148 @@ function subsection(lines: readonly string[], heading: string): [number, number]
   const after = lines.slice(start + 1).findIndex(line => /^#{2,3} /.test(line))
   return [start, after === -1 ? lines.length : start + 1 + after]
 }
+/** One rewritten part of the card body: the old text and the text that replaces it. */
+export type CardEdit = { part: 'revision' | 'binding'; before: string; after: string }
+/**
+ * A card body moved to a new delivery revision: `before` is the body the checks read, `body`
+ * the body to write, and `edits` the rewritten parts in body order.
+ */
+export type CardRevision = {
+  from: number
+  to: number
+  before: string
+  body: string
+  edits: CardEdit[]
+}
+const REVISION_LINE = /^(\s*-\s+交付修订[：:]\s*)([1-9]\d*)(\s*)$/
+const BINDING_FENCE = /^```json[ \t]+omne-integration-binding:v[12][ \t]*\r?$/
+const FENCE_END = /^```[ \t]*\r?$/
+const DISPATCH_LINE = /^正式派发[：:]/
+function routeText(route: TaskBindingV2['route']): string {
+  return route.kind === 'track'
+    ? `轨道 \`${route.track}\``
+    : `${route.kind}，轨道 \`${route.track}\`，受影响拥有者 ${route.owners.join('、')}`
+}
+/**
+ * The card body for dispatching `revision`, or undefined when the card already has it. Above
+ * the card's「交付修订」, two parts change: that line takes the new number, and in「分支、基线与
+ * task context」the binding block, with the dispatch line `bind` wrote just above it, becomes the
+ * pre-dispatch text that names the planned route and completion target. A card without a
+ * binding block gets the first edit only. Refuses a body without exactly one「交付修订」line, a
+ * revision below the card's, and a binding block outside that subsection. Decides by the
+ * revision numbers only.
+ */
+export function reviseCardBody(
+  body: string,
+  revision: number,
+  route: TaskBindingV2['route'],
+  completionTarget: TaskBindingV2['completionTarget'],
+): CardRevision | undefined {
+  const from = deliveryRevision(body)
+  if (from === undefined) refuse(['the card needs exactly one 交付修订 line'])
+  if (revision < from)
+    refuse([
+      `spec revision ${revision} is below the card's 交付修订 ${from}; a revision only grows`,
+    ])
+  if (revision === from) return undefined
+  const lines = body.split('\n')
+  const at = lines.findIndex(line => REVISION_LINE.test(line))
+  const old = lines[at]
+  if (old === undefined) refuse(['the card needs exactly one 交付修订 line'])
+  lines[at] = old.replace(REVISION_LINE, `$1${revision}$3`)
+  const edits: CardEdit[] = [
+    { part: 'revision', before: old.trimEnd(), after: lines[at].trimEnd() },
+  ]
+  const execution = subsection(lines, EXECUTION_HEADING)
+  const open =
+    execution === undefined
+      ? -1
+      : lines.findIndex(
+          (line, index) => index > execution[0] && index < execution[1] && BINDING_FENCE.test(line),
+        )
+  if (execution !== undefined && open !== -1) {
+    const close = lines.findIndex((line, index) => index > open && FENCE_END.test(line))
+    if (close === -1 || close >= execution[1])
+      refuse(['the binding block in 「分支、基线与task context」 is not closed'])
+    // The dispatch line `bind` wrote goes with the block when only blank lines lie between.
+    let first = open
+    for (let index = open - 1; index > execution[0]; index--) {
+      const line = lines[index] ?? ''
+      if (DISPATCH_LINE.test(line)) {
+        first = index
+        break
+      }
+      if (line.trim() !== '') break
+    }
+    const after = `未登记 binding。修订 ${revision} 待派发，修订 ${from} 的 binding 已撤下；计划集成路线：${routeText(route)}，最终终点：${completionTarget}。`
+    const removed = lines.splice(first, close - first + 1, after)
+    edits.push({ part: 'binding', before: removed.map(line => line.trimEnd()).join('\n'), after })
+  }
+  if (lines.some(line => BINDING_FENCE.test(line)))
+    refuse([
+      'the card carries a binding block outside 「分支、基线与task context」; move it there or remove it first',
+    ])
+  return { from, to: revision, before: body, body: lines.join('\n'), edits }
+}
+/**
+ * Writes a new revision into the card body before the dispatch comment exists. The body must
+ * still be the one the checks read; the write is read back, and nothing is posted unless the
+ * card then holds exactly the revised body.
+ */
+function writeRevision(
+  repository: string,
+  number: number,
+  revise: CardRevision,
+  call: GhCommand,
+): void {
+  if (fetchIssueCard(repository, number, call).body !== revise.before)
+    throw new IntegrationError(
+      'refused',
+      'The card body changed after the checks read it; run post again. Nothing was written.',
+    )
+  try {
+    call(
+      [
+        'api',
+        '--method',
+        'PATCH',
+        ...REST_HEADERS,
+        `repos/${repository}/issues/${number}`,
+        '-f',
+        `body=${revise.body}`,
+      ],
+      TIMEOUT_MS,
+    )
+  } catch {
+    throw new IntegrationError(
+      'unknown',
+      `Writing revision ${revise.to} into the card body failed; the card may or may not carry it. Nothing was posted. Read the card, then run post again. API output omitted.`,
+    )
+  }
+  let after: string
+  try {
+    after = fetchIssueCard(repository, number, call).body
+  } catch {
+    throw new IntegrationError(
+      'unknown',
+      `Revision ${revise.to} was written into the card body, but reading it back failed. Nothing was posted. Read the card, then run post again.`,
+    )
+  }
+  if (after !== revise.body)
+    throw new IntegrationError(
+      'unknown',
+      `The card body does not read back as revision ${revise.to}. Nothing was posted. Read the card, then run post again.`,
+    )
+}
+
 /**
  * The card body with the binding written into「分支、基线与task context」: one dispatch line
  * derived from the binding and the binding block replace the whole subsection. Inside
- *「认领与派发」the「派发情况」line, and with `worktree` the「工作树」line, are rewritten when
- * present; lines elsewhere are kept. Refuses a placeholder dispatch URL, a body without exactly
- * one such subsection, and a result whose unique binding does not read back equal to `binding`.
+ *「认领与派发」the「派发情况」line is rewritten when present. With `worktree` the「工作树」line
+ * there is rewritten, or added after the last line of the subsection that is not blank when the
+ * subsection has none. Lines elsewhere are kept. Refuses a placeholder dispatch URL, a body
+ * without exactly one「分支、基线与task context」, a `worktree` with no unique「认领与派发」,
+ * and a result whose unique binding does not read back equal to `binding`.
  */
 export function bindBody(body: string, binding: TaskBindingV2, worktree?: string): string {
   if (binding.dispatch === DISPATCH_PLACEHOLDER)
@@ -470,12 +633,31 @@ export function bindBody(body: string, binding: TaskBindingV2, worktree?: string
   ]
   const written = [...lines.slice(0, start), ...block, ...lines.slice(end)]
   const claim = subsection(written, CLAIM_HEADING)
+  if (worktree !== undefined && claim === undefined)
+    throw new IntegrationError(
+      'input-error',
+      `The body needs exactly one ${CLAIM_HEADING} to record the worktree`,
+    )
+  const inClaim = (index: number) => claim !== undefined && index > claim[0] && index < claim[1]
+  const WORKTREE = /^- 工作树[：:]/
+  const worktreeLine = `- 工作树：\`${worktree}\`。`
   const rewritten = written.map((line, index) => {
-    if (claim === undefined || index <= claim[0] || index >= claim[1]) return line
+    if (!inClaim(index)) return line
     if (/^- 派发情况[：:]/.test(line)) return `- 派发情况：已派发，见 ${binding.dispatch}。`
-    if (worktree !== undefined && /^- 工作树[：:]/.test(line)) return `- 工作树：\`${worktree}\`。`
+    if (worktree !== undefined && WORKTREE.test(line)) return worktreeLine
     return line
   })
+  if (
+    worktree !== undefined &&
+    claim !== undefined &&
+    !written.some((line, index) => inClaim(index) && WORKTREE.test(line))
+  ) {
+    // No「工作树」line yet: add one after the last line of the subsection that is not blank.
+    let last = claim[0]
+    for (let index = claim[0] + 1; index < claim[1]; index++)
+      if ((rewritten[index] ?? '').trim() !== '') last = index
+    rewritten.splice(last + 1, 0, worktreeLine)
+  }
   const result = rewritten.join('\n')
   const read = readTaskBinding(result, binding.issue)
   if (read === undefined || canonical(read) !== canonical(binding))
