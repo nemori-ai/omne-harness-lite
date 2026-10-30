@@ -92,7 +92,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 
 | 节点 | 写入的分面或记录 | 方法 | 提交类型 | 参加者 | 依据 |
 | --- | --- | --- | --- | --- | --- |
-| E0 | 受理输入的内容，初始 checkpoint（`position` 为 E3），新挂接 `executionAttachment`。SPEC 逐操作表的 invoke 行写受理成功后追加首批事件，`Journal.open、attach` 行的事件写无，首批事件由哪次写入承载见 AGENT-M04 | `open` | 挂接 | grant 非空时，外部协调者的提交参加者核对 grant 与来源依据。不是 `CallerCommit` 种类 | SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)、[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
+| E0 | 受理输入的内容，初始 checkpoint（`position` 为 E3），新挂接 `executionAttachment`。`open` 不追加事件，execution 的第一个事件由之后首次产生事件的节点在其提交中分配，见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类) | `open` | 挂接 | grant 非空时，外部协调者的提交参加者核对 grant 与来源依据。不是 `CallerCommit` 种类 | SPEC 的[受理与单执行槽](../../../agent-contract/SPEC.md#受理与单执行槽)、[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线) |
 | E0 | 新挂接，恢复依据或 takeover 依据。换代时转换后的接续 | `attach` | 挂接 | 同上 | SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管) |
 | E3 | `passages`（执行开始之后），`position` 前移 | `commit`。有扩展调用时随 X 协议提交，没有时在 E3 结束时单独提交 | 条件提交 | 无 | 节点表 E3 |
 | E9 | `state` 为 suspended 并带交接依据，`executionAttachment` 撤销。被取代时不写。暂停的责任释放阶段不在节点表的“写什么”中，见 AGENT-M04 | `detach` | 挂接 | 无 | SPEC 的[交接与停用](../../../agent-contract/SPEC.md#交接与停用) |
@@ -101,7 +101,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | P0 | `passages`（调模型之前，用途 main） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 P0 |
 | P1 | `requestPreparation`（ready，或第二入口的 needs-compaction） | `commit` | 条件提交 | 无 | 节点表 P1 |
 | I2 | `calls`（用途 main 的 PendingCall） | `commit`，与 M0 的主请求记录为同一次 | 条件提交 | 无 | 节点表 I2 与 M0 |
-| I3 | ModelReplyAdmission（`JournalCommit.replyAdmission`，投影到 `replyAdmissions`）与接续。拒收退避在进程内计时，恢复后重新计足，见 #558 M04-6 | `commit`，经 Q2，一次提交 | 条件提交 | 不是 `CallerCommit` 种类，见[提交参加者](#提交参加者) | 本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影) |
+| I3 | ModelReplyAdmission（`JournalCommit.replyAdmission`，投影到 `replyAdmissions`）与接续。拒收退避在进程内计时，恢复后重新计足，依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802) | `commit`，经 Q2，一次提交 | 条件提交 | 不是 `CallerCommit` 种类，见[提交参加者](#提交参加者) | 本页的[主回复准入事实与否决投影](#主回复准入事实与否决投影) |
 | I4 | `batch`（ActionBatch 与各 Action 的原参数与身份） | `commit` | 条件提交 | 无 | 节点表 I4 |
 | I8 | `position`。新 step 开始时 `compaction` 清空 | `commit` | 条件提交 | 无 | 节点表 I8 |
 | C0 | `passages`（压缩之前） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 C0 |
@@ -121,7 +121,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | T2 | 每个槽位的 `passages`（each），`batch.slots` 的 `each` 与改写后的 `candidate` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T2 |
 | T4 | `passages`（batch），`batch.batchPass` | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 T4 |
 | T5 | 候选消息，`batch.slots` 的 `handoff` 记接纳回执，事件 message | `commit`，经 Q2。提供者声明了 message 时 `caller` 为 message。未声明时 `caller` 为 none 是本页的读法，待 AGENT-M04 的 M04-10 裁定 | 条件提交 | 声明时为 message 的参加者 | SPEC 的[工具执行与结果承接](../../../agent-contract/SPEC.md#工具执行与结果承接)第 5 条，[消息准入](../../../agent-contract/SPEC.md#消息准入) |
-| M0 | 主请求：最终请求记录，`adoptedContext`，`effects`。与 I2 的 `calls` 为同一次。最终请求记录在 `JournalCommit` 中没有字段，见 AGENT-M04 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
+| M0 | 主请求：最终请求记录，`adoptedContext`，`effects`。与 I2 的 `calls` 为同一次。ready 的 `requestPreparation` 保存最终请求，`PendingCall.fixed` 引用它，这次提交即构成最终请求记录，`JournalCommit` 不另设字段 | `commit` | 条件提交 | 无 | SPEC 的[调模型之前的复核与最终请求](../../../agent-contract/SPEC.md#调模型之前的复核与最终请求)第 4 条 |
 | M0 | 压缩步骤：`passages`（调模型之前，用途 compaction） | `commit`，随 X 协议 | 条件提交 | 无 | 节点表 M0 |
 | M1 | 中断阶段事实（`controls`），事件 control | `recordControl` | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段) |
 | M1 | 无 | 无写入。读取 Journal received，不投影 Model stream | 无 | 无 | SPEC 的[结果接收](../../../agent-contract/SPEC.md#结果接收) |
@@ -144,7 +144,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | O0 | `output.acknowledgedThrough`。确认由读取方经公开操作 `output.acknowledge` 发起，O0 不发起它，只处理其结果 | `acknowledge` | 按原操作幂等的记录 | 无 | SPEC 的[确认](../../../agent-contract/SPEC.md#确认) |
 | O0 | 控制回执：责任释放阶段（`controls`），事件 control | `recordControl`，stage 为 duty-released | 按原操作幂等的记录 | 无 | SPEC 的[六个阶段](../../../agent-contract/SPEC.md#六个阶段)第 6 条 |
 | H0 | 失败候选，或只保管的决定。H0 是否为写入节点见 AGENT-M04 | 仍有推进资格时 `commit`。只保管时由 O0 的 `recordResult` 承接 | 条件提交，或按原操作幂等的记录 | 无 | SPEC 的[消息准入](../../../agent-contract/SPEC.md#消息准入) |
-| W0 | `state` 为 waiting（`waits`），事件 waiting。检查时刻由进程内计时承载，恢复立即重读，见 #558 M04-6 | `commit` | 条件提交 | 无 | 本页的[等待、唤醒与公平](#等待唤醒与公平) |
+| W0 | `state` 为 waiting（`waits`），事件 waiting。检查时刻由进程内计时承载，恢复立即重读 | `commit` | 条件提交 | 无 | 本页的[等待、唤醒与公平](#等待唤醒与公平) |
 
 ### 方法表
 
@@ -182,7 +182,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 | custody | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的保管依据。材料先经 `AgentMaterials.preserve` 保存到材料拥有者，见本页的[交付责任解除的两条路径与保管者更替](#交付责任解除的两条路径与保管者更替) | 提供者自己建立保管依据，见[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管) |
 | processed | T1、O0 | `recordResult` 的 `transfer`。类型上也可作 `commit` 的 `caller` | 外部协调者作为参加者时，在同一次提交中登记自己的处理依据 | 提供者自己建立完成依据，依据同上 |
 
-装配者在[工厂配置](../public-api.md#工厂配置)的 `jointCommits` 列出本装配会用到的种类。工厂创建时把每一种与 `capabilities.participants` 比对，缺一种返回 unsupported，不创建 runtime，也不保存状态。独立调用的装配列空表。runtime 遇到 `commit.caller` 中未声明的种类，在保存任何状态之前返回 unsupported，规则见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。本节按 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项读出：这条规则不约束 `recordResult.transfer`。公开接口页“非 none 种类只能在声明了对应参加者时使用”一句字面上也覆盖 transfer，这项出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)。
+装配者在[工厂配置](../public-api.md#工厂配置)的 `jointCommits` 列出本装配会用到的种类。工厂创建时把每一种与 `capabilities.participants` 比对，缺一种返回 unsupported，不创建 runtime，也不保存状态。独立调用的装配列空表。runtime 遇到 `commit.caller` 中未声明的种类，在保存任何状态之前返回 unsupported，规则见 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。这条规则只约束 `commit.caller`，不约束 `recordResult.transfer`：transfer 为 custody 或 processed 时，提供者在自己的共同提交边界建立依据，见公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
 
 下列共同成立的事实不是 `CallerCommit` 种类。
 
@@ -212,7 +212,7 @@ revision 在保留期内单调递增，不复用。`submit`、`control`、`ackno
 4. query 的三种结论：committed 带原回执，unknown 不推导结论，excluded 带依据。excluded 必须排除原写入及迟到提交，不能只是查无记录。来源是[操作身份的确定派生](#操作身份的确定派生)。
 5. 围栏：`attach` 成功时，旧挂接可能提交的写入已进入可读前缀，或已被围栏排除。之后旧挂接的 `commit`、`tryFinish` 与 `detach` 返回 stale-advance。已受理而未定的操作可以枚举并查询。来源同上，另见 SPEC 的[恢复与接管](../../../agent-contract/SPEC.md#恢复与接管)。
 6. 修订：revision 在 execution 的保留期内单调递增，不复用。按原操作幂等的六个记录方法是否推进 revision 尚待拥有者裁定，见 AGENT-M04。裁定之后，两种实现按同一条规则推进。`load` 返回同一修订的完整快照，不返回不完整的数组。来源是 SPEC 的[终态后与 ended](../../../agent-contract/SPEC.md#终态后与-ended)与[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
-7. 事件序号与游标：序号在同一 execution 内从 1 连续编号，没有空洞，按数值比较。SPEC 逐操作表的 invoke 行与 `Journal.open、attach` 行对首批事件的说法不一致，见 AGENT-M04，第一个序号属于哪个事件取决于该项。`read` 的 after、next、caughtUp 与缺口按 SPEC 的语义返回，缺口不等于空页。确认只接受单调的连续前缀。来源是 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)、[读取、游标与缺口](../../../agent-contract/SPEC.md#读取游标与缺口)与[确认](../../../agent-contract/SPEC.md#确认)。
+7. 事件序号与游标：序号在同一 execution 内从 1 连续编号，没有空洞，按数值比较。`open` 与 `attach` 不追加事件。序号 1 属于 `open` 之后首次产生事件的提交中的第一个事件。`read` 的 after、next、caughtUp 与缺口按 SPEC 的语义返回，缺口不等于空页。确认只接受单调的连续前缀。来源是 SPEC 的[事件身份与序号](../../../agent-contract/SPEC.md#事件身份与序号)、[读取、游标与缺口](../../../agent-contract/SPEC.md#读取游标与缺口)与[确认](../../../agent-contract/SPEC.md#确认)。
 8. 输入：同一水位线返回同一批，内容来自受理时保存的内容。同一输入身份配不同内容返回 conflict。来源是 SPEC 的[输入内容与水位线](../../../agent-contract/SPEC.md#输入内容与水位线)。
 9. 参加者声明：`capabilities.participants` 在构造后不变。`commit.caller` 中未声明的种类返回 unsupported，并且在保存任何状态之前返回。四种响应按上表返回。来源是 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)。
 10. 唯一的终态提交：`commit`、`recordResult`、`recordControl` 与 `detach` 不能创建 ended。`tryFinish` 返回 ended、changed 或 blocked，与 `submit`、`control`、`attach` 处在同一排序。相同操作的重试认回原终结。来源是 SPEC 的[条件终结](../../../agent-contract/SPEC.md#条件终结)。
@@ -255,16 +255,10 @@ sequenceDiagram
 本节发现的出入登记在 [AGENT-M04](open-questions.md#agent-m04-journal-契约与节点表的出入)，由各自的拥有者裁定。实施时不自行补定。
 
 - M04-1：Tool 的 T1 事件承载仍待裁定；T0 没有事件，Agent 的事件流不含生产者的过程流。Model M1 不投影过程流，M3 以条件提交发布 producer。
-- M04-2 与 M04-6 已按 [#558 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)闭合：ready 的 requestPreparation 保存最终请求，检查与退避时刻只在进程内计算。
 - M04-3：外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加没有声明形状。
 - M04-4：按原操作幂等的记录方法是否推进 revision 没有写明。
-- M04-5：“非 none 种类只能在声明时使用”与 `recordResult.transfer` 的适用范围不一致。
-
-- M04-7：SPEC 对首批事件的来源有两种说法。
-- M04-8：SPEC 把 input-taken 列在 `input.submit` 下。
-- M04-9：SPEC 逐操作表的 `commit` 与 `tryFinish` 行缺少 unavailable。
 - M04-10：节点表 Q2 的 message 与 context-transition 两种交接都不区分装配。
-- M04-11：节点表 E9 的“写什么”缺少暂停的责任释放阶段。
+- M04-11：节点表 E9 的“写什么”缺少暂停的责任释放阶段。#730 已采用，写回卡待建，排在 M2 之后。
 - M04-12：H0 是否为写入节点。
 
 ## 终结与输入排序
@@ -414,7 +408,7 @@ Agent 失去资格后不能提交新推进。原执行仍可以记录真实结�
 
 ### 等待、唤醒与公平
 
-W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录等待所依赖的事实：Journal 的 revision、生产者与卡片的游标、待办键。这些业务等待依据随执行状态 waiting 与 waiting 事件一起提交。检查时刻按 AgentClock.now 与 reconciliationDelayMs 在进程内计算，不持久化。恢复时立即重读，再建立本地计时，依据 [#558 M04-6](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)。然后启动本地观察，再重读这些来源。观察端口没有登记就绪回执，重放、初始快照与定时重读共同覆盖窗口。进度已变就立即重新调度，未变才休眠。外域的变化不会增加 Journal 的 revision，所以还要检查生产者的原游标或查询。本地订阅只是低延迟提示。通知只唤醒，不作为恢复事实源。外域提供的变更通知，例如 Tool 的 `call-changed`，由宿主按同样的规则接入，见[本地宿主的 Cordis 装配](../../../agent-host-local/docs/cordis.md#局部依赖与可选依赖)。
+W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录等待所依赖的事实：Journal 的 revision、生产者与卡片的游标、待办键。这些业务等待依据随执行状态 waiting 与 waiting 事件一起提交。检查时刻按 AgentClock.now 与 reconciliationDelayMs 在进程内计算，不持久化。恢复时立即重读，再建立本地计时，依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)。然后启动本地观察，再重读这些来源。观察端口没有登记就绪回执，重放、初始快照与定时重读共同覆盖窗口。进度已变就立即重新调度，未变才休眠。外域的变化不会增加 Journal 的 revision，所以还要检查生产者的原游标或查询。本地订阅只是低延迟提示。通知只唤醒，不作为恢复事实源。外域提供的变更通知，例如 Tool 的 `call-changed`，由宿主按同样的规则接入，见[本地宿主的 Cordis 装配](../../../agent-host-local/docs/cordis.md#局部依赖与可选依赖)。
 
 唤醒后经 E1、E2、E4 回原节点。E1、E2、E4 本身不改变执行状态，执行回到进入等待之前的状态。回到 reconciling 的转换只由恢复、接管，以及唤醒后回到被打断的首次认回这三种情形引起。规则见算法页的[阶段与节点范围](loop-algorithm.md#阶段与节点范围)与[恢复入口与回归点](loop-algorithm.md#恢复入口与回归点)。
 
@@ -446,7 +440,7 @@ W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录�
 | 组 | 切点 | 可观察事实与耐久依据 | 下一动作 | 禁止行为 | 回归节点 | 验收场景 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 发起前后 | 输入已受理、尚未唤醒 | 权威输入水位线与受理时保存的内容（Journal.inputs）。有提交参加者时还有参加者的共同绑定 | 外部协调者或宿主发现后 resume。E2 读水位线，E4 回 I0 承接 | 因内存队列空提前完成。用调用方另存的副本代替受理内容 | E4 回 I0 | SC-AG-160、SC-AG-161 |
-| 发起前后 | 等待已保存，通知丢失或先于监听到达 | Waiting 列表随执行状态 waiting 提交。检查时刻在进程内计算，恢复立即重读，见 #558 M04-6 | 唤醒后重读来源。进度已变即重新调度。到检查时刻按 reconciliationDelayMs 重读 | 把没有通知当作没有进展。把唤醒写成新挂接 | W0 回 E1、E2、E4 | SC-AG-161、SC-AG-185 |
+| 发起前后 | 等待已保存，通知丢失或先于监听到达 | Waiting 列表随执行状态 waiting 提交。检查时刻在进程内计算，恢复立即重读，见[等待、唤醒与公平](#等待唤醒与公平) | 唤醒后重读来源。进度已变即重新调度。到检查时刻按 reconciliationDelayMs 重读 | 把没有通知当作没有进展。把唤醒写成新挂接 | W0 回 E1、E2、E4 | SC-AG-161、SC-AG-185 |
 | 发起前后 | 纯求值后、意图未提交 | 没有合法外部效果。checkpoint 停在上一个 revision | 重读并重算。相同输入得到相同下一步 | 认为内存计算已完成业务 | E4 按 `position` 回原节点 | SC-AG-160、SC-AG-164 |
 | Model 发起前后 | 意图已存、尚未 admit | 原 Model reference、固定输入与 effect intent | inspect 原引用。可信 not-accepted 且当前合法才沿原身份受理 | 分配第二调用身份 | R0 回 M6 | SC-AG-160、SC-AG-162 |
 | Tool 发起前后 | 完整材料与 intent 已存、尚未 invoke | fixed 指向完整 ToolInvokeRequest facts，原 consumer 与 effect intent | 当前资格下重入原 invoke，consumer 四字段不变 | 预造 call/admission，按最新 catalog 重建 | R0 回 A2 | SC-AG-160、SC-AG-216 |

@@ -32,19 +32,23 @@ Agent 自有的条件提交、原操作去重、未知对账、结果责任、�
 <a id="agent-m04"></a>
 ## AGENT-M04 Journal 契约与节点表的出入
 
-本项的剩余出入尚未闭合。[#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)已关闭 M04-2 与 M04-6：ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelayMs，拒收退避恢复后重新计足。其余未决如下。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
+本项的剩余出入尚未闭合。下列各项已关闭，规则写在各自拥有者的正文中。
+
+- M04-2 与 M04-6：依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)，ready 的 requestPreparation 构成最终请求记录，检查与退避时刻不持久化。恢复立即重读，进程内消费 reconciliationDelayMs，拒收退避恢复后重新计足。
+- M04-5：依据 [#558 的修订稿](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366444012)及其[复核](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6366538839)，参加者声明只约束 `commit.caller`，不约束 `recordResult.transfer`。规则见公开接口页的[执行记录与调用方交接端口](../../../agent-contract/docs/public-api/README.md#执行记录与调用方交接端口)与 SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)。
+- M04-7：依据同一修订稿及其复核，`open` 与 `attach` 不追加事件，execution 的第一个事件由之后首次产生事件的节点在其条件提交中分配。规则见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)。
+- M04-8：依据阶段 1 决定，`input.submit` 不追加事件，input-taken 只由 I0 固定输入批之后的提交追加。规则见同一节与节点表 I0。
+- M04-9：依据同一修订稿，逐操作表按 SPEC 的[提交参加者协议](../../../agent-contract/SPEC.md#提交参加者协议)列出 `commit` 与 `tryFinish` 的 unavailable，以及 `tryFinish` 的 unsupported。规则见 SPEC 的[逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)。
+
+其余未决如下。[#505](https://github.com/nemori-ai/omne-harness-lite/issues/505) 把每个写入节点的提交点对到 Journal 契约，结果写在[提交点与聚合边界](mechanisms.md#提交点与聚合边界)。下表登记契约与[节点表](loop-algorithm.md#节点表)不一致、或两者都没有写明的地方。提交点总表照写两边，不作选择。内存 Journal 替身、耐久后端与节点实施卡都不自行补定这些项。
 
 | 编号 | 出入 | 拥有者 | 阻塞 |
 | --- | --- | --- | --- |
 | M04-1 | Model received 路径已由 J02 明确：M1 等待同一 Journal，M3 条件提交 producer 事件，不投影 Model stream。其余 Tool stream/producer 与 control 的事件承载仍须按原节点和公开 Journal 条款裁定。 | agent-contract | T0、T1 及 control 的事件投影 |
 | M04-3 | 外部协调者在 `open`、`attach`、`submit` 与 `tryFinish` 中的参加不是 `CallerCommit` 种类，`capabilities.participants` 没有声明它的形状。与[外部协调者怎样与 Agent 共同受理输入和终结](#外部协调者怎样与-agent-共同受理输入和终结)的 SW-M01 同一主题 | agent-contract | 协调者装配在工厂创建时的拒绝条件 |
 | M04-4 | 对象模型[对象与生命周期](../../../agent-contract/docs/object-model.md#对象与生命周期)的 AgentCheckpoint 行写 checkpoint 每次提交随 execution 修订保存，SPEC [事件交付的四个层次](../../../agent-contract/SPEC.md#事件交付的四个层次)写事件与 execution 修订一起保存。没有拥有者写明 `submit`、`control`、`acknowledge`、`recordResult`、`recordControl` 与 `recordTerminalObservation` 是否推进 revision | agent-contract | 两种 Journal 实现对 revision 的同形测试 |
-| M04-5 | 公开接口页规定 `CallerCommit` 的非 none 种类只能在声明了对应参加者时使用。SPEC 的[提交与保管](../../../agent-contract/SPEC.md#提交与保管)与上下文页[交接清单](../../../agent-contract/docs/context.md#交接清单)第 3 项允许提供者自己为 `recordResult.transfer` 建立 custody 与 processed 依据。两处对 transfer 的适用范围不一致 | agent-contract | 独立装配走 custody 与 processed 两条路径，以及 unsupported 核对的范围 |
-| M04-7 | SPEC [逐操作及输入分类](../../../agent-contract/SPEC.md#逐操作及输入分类)的第二张表中，invoke 行的事件写受理成功后追加首批事件，`Journal.open、attach` 行的事件写无，`open` 也没有事件输入。首批事件来自 invoke 的受理，还是来自之后的一次提交（例如 I0 的 input-taken），两行的说法不一致 | agent-contract | E0 的提交形状，以及第一个事件序号属于哪个事件 |
-| M04-8 | SPEC 逐操作表把 input-taken 列为 `input.submit` 的事件，但只有 I0 能形成 `InputBatch` | agent-contract | I0 与 submit 的事件测试 |
-| M04-9 | SPEC 提交参加者协议规定参加者失败时返回 unavailable，逐操作表的 `AgentJournal.commit` 行与 `AgentJournal.tryFinish` 行没有列出它。`tryFinish` 行也没有列出 unsupported | agent-contract | 两种 Journal 实现对参加者失败的返回测试 |
 | M04-10 | 节点表 Q2 写“压缩加 context-transition，其他来源加 message”，不区分提供者是否声明了对应种类。独立装配的 `jointCommits` 为空表。SPEC [请求准备与压缩](../../../agent-contract/SPEC.md#请求准备与压缩)第 7 条把转换写成经 Journal 的 context-transition 交接保存，独立装配也是如此，只写由其合法历史拥有者兑现 | Loop 完整算法页与 agent-contract | 独立装配中 C3、T5 与 X5 的提交形状 |
-| M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
+| M04-11 | 节点表 E9 的“写什么”没有写暂停的责任释放阶段，SPEC 的六个阶段对暂停适用责任释放。[#730](https://github.com/nemori-ai/omne-harness-lite/issues/730#issuecomment-6443023419) 已采用暂停解除挂接与崩溃恢复协议，写回卡待建，[排在 M2 之后](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6497861221)。写回之前本项保持开放 | Loop 完整算法页 | E9 的实施卡补“何时提交” |
 | M04-12 | H0 的“写什么”写“失败候选或只保管的决定”，失败候选由 F1 写入，只保管由 O0 承接。H0 是否为写入节点没有写明 | Loop 完整算法页 | H0 的实施卡与提交点总表的覆盖口径 |
 
 关闭条件是每一项由其拥有者裁定，并写回拥有该事实的正文：契约项写回 agent-contract 的 SPEC、公开接口页或源码类型，节点表项写回 Loop 完整算法页。写回之后，机制页同步更新下列位置：提交点与聚合边界一节删去对应的指向，[等待、唤醒与公平](mechanisms.md#等待唤醒与公平)与[恢复切点表](mechanisms.md#恢复切点表)中采用的进程内检查计时保持与 #558 M04-6 一致。两种 Journal 实现按裁定结果补同形测试。

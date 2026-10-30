@@ -239,7 +239,7 @@ sed -n '/^## 迁移清单/,$p' packages/agent/docs/architecture.md | grep '^| `[
 | 文件 | 类 | 去向 | 理由 |
 | --- | --- | --- | --- |
 | `action-batch.ts` | 弃 | 无 | 官方准入在每条链末尾、链间并行而链内串行、准入不可用时整批不放行、等全部链结论后才放行，已由 SPEC“整批判断屏障与动作准入”第 1、2、4 条规定。 |
-| `action-request.ts` | 弃 | 无 | 参数块未完整到达不解析已由节点表 I4 行规定，把不可解析或不完整的调用排除在动作批之外，拥有者尚未规定，不取。 |
+| `action-request.ts` | 弃 | 无 | 参数块未完整到达不解析已由节点表 I4 行规定。只有合法的 `tool_call` 部件组成动作批，`tool_call_incomplete` 与 `tool_call_unparsed` 部件不进入动作批，已由 SPEC“整批判断屏障与动作准入”规定。含结构非法 `tool_call` 的回复整条拒收，不剔除坏调用后接纳其余调用，已由 SPEC“消息准入”规定。 |
 | `action-round.ts` | 弃 | 无 | 对整批调用一次准入、结果条数与批次不等时按不可用，与逐动作的 `ActionAdmission.admit` 及 SPEC“整批判断屏障与动作准入”第 1 条不一致，不取，任一候选不可用时整批不放行与等全部链结论已由同节第 2、4 条规定。 |
 | `admission-pass-source.ts` | 弃 | 无 | 准入所用参数在本轮固定已由 SPEC“整批判断屏障与动作准入”第 7 条（准入、卡片与发起使用同一份生效参数）规定，准入轮次记录的回读与鉴权在逐动作的 `ActionAdmission.admit` 下没有对应。 |
 | `cordis.ts` | 弃 | 无 | 它以 Session 日志与 Session 访问服务注册旧 runner 插件，属于旧装配。 |
