@@ -20,8 +20,38 @@ IGNORED_DIRECTORIES = {".git", ".venv", "node_modules", ".dist", "dist", "build"
                        "__pycache__", ".pytest_cache", "tmp", ".worktrees",
                        "packages.0.0.1.legacy", "apps.0.0.1.legacy"}
 
+
+def _git(root: Path, *args: str, stdin: str | None = None) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", str(root), *args], env=repository_env(os.environ),
+                          input=stdin, capture_output=True, text=True, encoding="utf-8")
+
+
+def ignored_directories(root: Path) -> set[str]:
+    """Root-relative POSIX paths of directories that Git ignores; empty outside a checkout root.
+
+    Two steps, as in `tools/repo-toolchain/src/core/git.ts`: list the candidate directories,
+    then let `git check-ignore` confirm each one. Only confirmed directories are skipped.
+    """
+    top = _git(root, "rev-parse", "--show-toplevel")
+    if top.returncode != 0 or Path(top.stdout.strip()).resolve() != root:
+        return set()
+    listed = _git(root, "ls-files", "--others", "--ignored", "--exclude-standard", "--directory", "-z")
+    if listed.returncode != 0:
+        raise ValueError(f"git ls-files failed: {listed.stderr.strip()}")
+    candidates = [path for path in listed.stdout.split("\x00") if path.endswith("/")]
+    if not candidates:
+        return set()
+    checked = _git(root, "check-ignore", "--stdin", "-z", stdin="\x00".join(candidates))
+    if checked.returncode == 1:  # Exit 1 means "none matched", not a failure.
+        return set()
+    if checked.returncode != 0:
+        raise ValueError(f"git check-ignore failed: {checked.stderr.strip()}")
+    return {path.rstrip("/") for path in checked.stdout.split("\x00") if path}
+
+
 def collect(root: Path) -> list[Path]:
     files: list[Path] = []
+    ignored = ignored_directories(root)
     for name in ROOTS:
         path = root / name
         if path.is_file():
@@ -30,6 +60,7 @@ def collect(root: Path) -> list[Path]:
             for directory, children, names in os.walk(path):
                 children[:] = [child for child in children if child not in IGNORED_DIRECTORIES
                               and not child.endswith(".legacy")
+                              and (Path(directory) / child).relative_to(root).as_posix() not in ignored
                               and (Path(directory) / child).resolve() != (root / ".meta_harness/design/record").resolve()]
                 files.extend(Path(directory) / name for name in names if name.endswith(".md"))
     # `.templates/` holds placeholders such as `{{YYYY-MM-DD-topic}}.md`; they are meant to be

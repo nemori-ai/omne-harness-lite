@@ -6,9 +6,11 @@
 
 `check_sources.py` 检查现行设计的本地文件、Markdown 锚点和显式模块拥有者：
 
+从仓库根运行。本仓库的设计树链接到检出里的 docs 与成员，所以要带 `--source-root`，`pnpm run check:design` 的第一步就是这条：
+
 ```sh
-python tooling/src/check_sources.py --root design
-python tooling/src/check_sources.py --root design --source-root /explicit/execution-checkout
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root .
+uv run --locked python .meta_harness/tooling/src/check_sources.py --root .meta_harness/design --source-root /explicit/execution-checkout
 ```
 
 `--source-root` 必须指向设计根所在的同一执行检出，不从安装位置或父目录猜测。
@@ -41,11 +43,23 @@ spec、realization、registry 三个旧根不得重新出现，空目录、普�
 `domain_objects.py` 对账三家之间的对应关系——统一语言词条、领域对象条目、产品 topic——
 并生成派生总表 `design/views/domain-object-map.md`：
 
+在仓库根运行，有两种写法。`pnpm run check:design` 先跑上面的现行源检查，再对账；
+`--stale <值>` 只交给对账：
+
 ```sh
-python tooling/src/domain_objects.py --root design                  # 对账，并核对总表是不是最新
-python tooling/src/domain_objects.py --root design --write          # 重新生成总表
-python tooling/src/domain_objects.py --root design --stale report   # rev 落后只列出，不判失败
+pnpm run check:design
+pnpm run check:design --stale report
 ```
+
+只要对账时，直接调用脚本，由锁定的 uv 环境提供解释器与依赖：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design                  # 对账，并核对总表是不是最新
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --write          # 重新生成总表
+uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
+```
+
+`tests/test_readme_commands.py` 对这几条 `uv run` 命令加 `--help` 运行，命令写错或脚本搬走时变红。
 
 它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
@@ -65,6 +79,25 @@ python tooling/src/domain_objects.py --root design --stale report   # rev 落后
 一致时通过且总表可往返、只改生成时间不判过期、对象词条缺条目与条目缺对象词条、条目缺词条或缺必填字段、
 rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev 或指向非产品正文、
 形态缺失/非法/变体的父无效、未定词条须同时出现在 pending 与 conflicts、索引与分卷不一致、待裁缺 owner。
+
+## 保存只读子代理的交回
+
+design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件，不再临时写 `jq`：
+
+```sh
+uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <子代理记录.jsonl> --out <报告.md>
+```
+
+Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会话>/subagents/agent-<id>.jsonl`。`<项目>` 是检出路径的转写（例如 `D--dev-repos-omne-harness-lite`），`<会话>` 是派发它的会话 ID；`agent-<id>.meta.json` 在同一目录。
+
+报告正文按下面的次序取：
+
+1. 记录里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
+2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。2026-10-30 在本机读到的 Claude Code 子代理记录都是这种形状，没有 `SubagentHandback` 调用。
+
+找不到报告时（记录停在工具调用上、被中断、以宿主错误 `stop_sequence` 结束、报告为空白）以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。仍在写入的记录可能以半行结尾，脚本跳过读不出的行。
+
+脚本只证明「记录里这段文字就是交回的报告」。报告内容对不对，仍由评审流程判断。
 
 ## Agent 编译
 
