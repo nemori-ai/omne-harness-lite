@@ -94,7 +94,9 @@ export declare function createAgentRuntime<P, B extends ContentBlock>(
 ): Reply<AgentProvider<P>>
 ```
 
-创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等，并对配置 `jointCommits` 中每一种共同提交声明了参加者。两项核对都在创建 runtime、登记或写状态之前完成。发布由宿主完成。失败撤除本次创建的临时资源，不能返回半就绪实例。提供登记句柄时，句柄的 instance 必须等于绑定的 instance。配置不能覆盖绑定。纯工厂没有自己的全局注册表。
+创建先校验配置、安全作用域、精确采用和提供者能力，成功得到 idle 实例。提供者能力包括三项：Journal 绑定声明的 `capabilities.coordination` 与配置 `coordination` 严格相等；Journal 提供者对配置 `jointCommits` 中每一种共同提交声明了参加者；Journal 绑定已固定消息准入的历史组合登记。三项核对都在创建 runtime、登记或写状态之前完成。
+
+历史组合登记由 Journal 绑定在工厂开始之前固定，含历史拥有者的精确 Adoption、原准入记录 resolver、实际共享事务域身份，以及 message 与 context-transition 两个提交处理器。standalone 与 coordinated 两种绑定都需要它，`jointCommits` 为空的独立装配也需要它。工厂从可信的绑定构造结果核对这份登记，不从配置取得。它不是 AgentConfiguration 的取值项，因为 resolver 与提交处理器不是可序列化数据。规则见 SPEC 的“[真实历史的提交点](../../agent-contract/SPEC.md#真实历史的提交点)”。发布由宿主完成。失败撤除本次创建的临时资源，不能返回半就绪实例。提供登记句柄时，句柄的 instance 必须等于绑定的 instance。配置不能覆盖绑定。纯工厂没有自己的全局注册表。
 
 `AgentProvider.control` 是契约包的 [AgentRuntimeControl](../../agent-contract/docs/public-api/README.md#托管协调与运行实例)，只由宿主持有，不交给执行的调用方。在 Cordis 装配中，宿主插件自己调用工厂，见[本地宿主装配](../../agent-host-local/docs/cordis.md#装载)。其他装配由调用工厂的装配者把它交给宿主。本页不另定义 quiesce 的形状。
 
@@ -115,7 +117,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | invalid     | 配置越界，或绑定字段非法                                                                                              |
 | denied      | 绑定的租户与安全作用域不一致，或登记句柄的实例与绑定的实例不一致                                                      |
 | unavailable | 必需依赖缺席，或精确采用无法解析                                                                                      |
-| unsupported | 配置 `coordination` 与 Journal 绑定声明的 `capabilities.coordination` 不相等，或配置 `jointCommits` 中有一种共同提交没有出现在 Journal 提供者声明的参加者集合里。创建不保存任何状态，不创建 runtime |
+| unsupported | Journal 绑定缺 `capabilities.coordination` 声明，或配置 `coordination` 与它不相等；配置 `jointCommits` 中有一种共同提交没有出现在 Journal 提供者声明的参加者集合里；Journal 绑定没有固定消息准入的历史组合登记。创建不保存任何状态，不创建 runtime |
 
 ## 依赖逐项分类
 
@@ -158,7 +160,7 @@ createAgentRuntime 没有操作身份，也不是幂等操作：每次调用创�
 | coordination             | 本装配要求的 Journal 协调模式。创建时与 Journal 绑定声明的 `capabilities.coordination` 严格相等，不相等返回 unsupported。没有隐式默认。standalone 配置加 standalone 绑定可独立 invoke、submit 与 finish；coordinated 配置加 coordinated 绑定在 open、attach、submit 与 tryFinish 强制协调核对，规则见 SPEC 的“[提交参加者协议](../../agent-contract/SPEC.md#提交参加者协议)” | 无   | `standalone` 或 `coordinated`，必填 | 由装配提供 |
 | loopGuardPolicy          | 循环判断这一受信系统扩展所用检测策略的精确采用。算法与阈值由该采用携带，守卫事实的 `policy` 记录它。阈值不是本表的数值项，Agent 不写死数值                             | 无   | `Adoption` 的四个字段都是非空字符串。通用实现解析不到该采用时，创建返回 unavailable                 | 由装配提供 |
 
-循环判断的默认实现随本通用实现提供，它按 `loopGuardPolicy` 读原始工作事实并记录守卫事实，行为见 SPEC 的“[循环守卫](../../agent-contract/SPEC.md#循环守卫)”。替换这项受信系统扩展是装配方的指定，不走作者声明。工具并行上限 `toolConcurrency` 由 [Loop 算法页的 A2](architecture/loop-algorithm.md#复杂度上界与进展) 使用，每段处理限额 `reconciliationBatchLimit` 由恢复与等待的处理段使用，见[内部机制](architecture/mechanisms.md#等待唤醒与公平)。事件读取窗口的上限不是 AgentConfiguration 的取值项：每次读取的 `limit` 超过提供者声明的上限时返回输入无效，见 SPEC 的“[读取、游标与缺口](../../agent-contract/SPEC.md#读取游标与缺口)”。压缩的预算与计划归 Context，不在本表登记。压缩的步数上界来自 Context 的压缩计划，是 CompactionProgress 的 bound，不是 AgentConfiguration 的取值项。ended 执行的事件与结果保留政策由 Journal 提供者声明，不是 AgentConfiguration 的一项。
+循环判断的默认实现随本通用实现提供，它按 `loopGuardPolicy` 读原始工作事实并记录守卫事实，行为见 SPEC 的“[循环守卫](../../agent-contract/SPEC.md#循环守卫)”。替换这项受信系统扩展是装配方的指定，不走作者声明。工具并行上限 `toolConcurrency` 由 [Loop 算法页的 A2](architecture/loop-algorithm.md#复杂度上界与进展) 使用，每段处理限额 `reconciliationBatchLimit` 由恢复与等待的处理段使用，见[内部机制](architecture/mechanisms.md#等待唤醒与公平)。事件读取窗口的上限不是 AgentConfiguration 的取值项：每次读取的 `limit` 超过提供者声明的上限时返回输入无效，见 SPEC 的“[读取、游标与缺口](../../agent-contract/SPEC.md#读取游标与缺口)”。压缩的预算与计划归 Context，不在本表登记。压缩的步数上界来自 Context 的压缩计划，是 CompactionProgress 的 bound，不是 AgentConfiguration 的取值项。ended 执行的事件与结果保留政策由 Journal 提供者声明，不是 AgentConfiguration 的一项。消息准入的历史组合登记由 Journal 绑定固定，也不是本表的取值项，工厂的核对见“[参数与依赖](#参数与依赖)”。
 
 ## 行为与失败
 

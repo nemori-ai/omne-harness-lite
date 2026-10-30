@@ -228,7 +228,7 @@ sequenceDiagram
 | runtime 的公开操作 | invoke、resume、takeover、submit、control、read、events、acknowledge、observe、quiesce。takeover 在 resume 之内，只在快照显示旧挂接仍 active 时另核 |
 | 宿主 `agentInstanceHost` | reserve、publish、withdraw，包括登记句柄的 withdraw |
 | 目录 `agentInstances` | resolve、connect |
-| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、exclude-message-handoff，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接 |
+| 宿主恢复入口与长期执行记录适配器 | query、load、reconcile、detach、record-terminal-observation、record-message-handoff、exclude-message-handoff、settle、migrate-cancellation，以及经恢复入口发生的 read、events、acknowledge、submit、control。经 `agentExecutionControl` 的 control 在这里核验。submit 以原 execution 的逻辑目标核验，不要求活体 runtime 或当前挂接。直接调用 `commitSettlement` 时按变体核验：候选与判断变体用 settle，迁移变体用 settle 与 migrate-cancellation，卡片对账、迟到返回与 Tool 关联登记变体用 reconcile，目标都是原 execution |
 | 长期保管者对 `agentMessageHandoff` 的直接调用 | read-message-handoff，目标是 input-entry 或原 execution。runtime 在已核验的公开操作之内调用 prepare 时不再次核验主体 |
 | 宿主的结果接收方 | receive-result。在写 `received` 条目之前核验推送主体，见 SPEC 的“[结果接收](../../agent-contract/SPEC.md#结果接收)” |
 

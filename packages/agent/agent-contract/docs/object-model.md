@@ -366,7 +366,7 @@ stateDiagram-v2
 | PendingCall.tool | intent | accepted 或 commit-unknown 证明引用并保存 | associated | 原 consumer 与完整请求保持，associated 不证明受理已提交 |
 | ControlRecord | 无 | control 被受理 | accepted 阶段 reached | 受理事实、control 事件与原操作结果在同一原子边界成立。Tool control 共同保存原 toolInvocation 与初始 null 的 toolOperation，非 Tool 无引用字段 |
 | ControlRecord | 任一阶段未成立 | recordControl，execution 未 ended | 该阶段 reached 或 unresolved | 阶段适用于该控制；阶段事实、control 事件与原结果原子保存，unresolved 到 reached 是新事实 |
-| ControlRecord | producer-confirmed、physically-stopped 或 duty-released 未成立 | recordControl，execution 已合法 ended | 该阶段 reached | 当前处理方有资格，事实在原责任范围内真实迟到。不追加事件，不改终态；新建立意图、撤销资格或其他终态前效力返回 terminal，与原终结前提矛盾的证据返回 conflict 并保存审计 |
+| ControlRecord | producer-confirmed、physically-stopped 或 duty-released 未成立 | recordControl，execution 已合法 ended | 该阶段 reached 或 unresolved | 当前处理方有资格，事实在原责任范围内真实迟到。不追加事件，不改终态；新建立意图、撤销资格或其他终态前效力返回 terminal，与原终结前提矛盾的证据返回 conflict 并保存审计 |
 | ControlRecord（Tool） | toolOperation 为 null | 新 recording operation 在相同阶段附原调用的操作引用 | 原阶段不变，操作引用已保存 | 真实写入 revision 与新回执，不重发阶段事件或替换原阶段回执。原 recording operation 改输入 conflict |
 | Passage | 无 | Loop 到达位置，Journal 提交扩展调用的身份与调用模式 | requested | 原实现按精确采用解析成功 |
 | Passage | requested | 调用返回 ask 以外的合法输出，或形成报错分支、不可用分支 | resolved | 最终 Conclusion 已提交 |
