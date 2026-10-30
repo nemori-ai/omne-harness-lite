@@ -1,0 +1,208 @@
+{
+  "batches": [
+    "2026-10-30-960-w7c2-seed"
+  ],
+  "rows": [
+    {
+      "category": {
+        "clarity": "探",
+        "risk": "cross-process-faults",
+        "role": "developer",
+        "work": "verification"
+      },
+      "cells": [
+        {
+          "appends": 3,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 1,
+          "effort": "xhigh",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 1,
+          "first_pass": 1,
+          "minutes_n": 1,
+          "minutes_sum": 56.0,
+          "model": "claude-haiku-5-5",
+          "source": "owner-experiment",
+          "spec_defects": 2,
+          "tokens_n": 1,
+          "tokens_reported_sum": 292000,
+          "usage_source": "notification",
+          "within_two": 1,
+          "writer_defects": {
+            "blocking": 0,
+            "nonblocking": 1
+          }
+        }
+      ],
+      "policy_scope": "developer.work"
+    },
+    {
+      "category": {
+        "clarity": "定",
+        "risk": "none",
+        "role": "developer",
+        "work": "verification"
+      },
+      "cells": [
+        {
+          "appends": 2,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 4,
+          "effort": "xhigh",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 4,
+          "first_pass": 4,
+          "minutes_n": 4,
+          "minutes_sum": 35.4,
+          "model": "claude-haiku-5-5",
+          "source": "owner-experiment",
+          "spec_defects": 3,
+          "tokens_n": 4,
+          "tokens_reported_sum": 613000,
+          "usage_source": "notification",
+          "within_two": 4,
+          "writer_defects": {
+            "blocking": 0,
+            "nonblocking": 0
+          }
+        },
+        {
+          "appends": 0,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 1,
+          "effort": "medium",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 1,
+          "first_pass": 1,
+          "minutes_n": 1,
+          "minutes_sum": 6.03,
+          "model": "claude-sonnet-5-5",
+          "source": "field",
+          "spec_defects": 1,
+          "tokens_n": 1,
+          "tokens_reported_sum": 86000,
+          "usage_source": "notification",
+          "within_two": 1,
+          "writer_defects": {
+            "blocking": 0,
+            "nonblocking": 0
+          }
+        }
+      ],
+      "policy_scope": "developer.work"
+    },
+    {
+      "category": {
+        "clarity": "界",
+        "risk": "none",
+        "role": "developer",
+        "work": "verification"
+      },
+      "cells": [
+        {
+          "appends": 2,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 1,
+          "effort": "xhigh",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 1,
+          "first_pass": 0,
+          "minutes_n": 2,
+          "minutes_sum": 31.5,
+          "model": "claude-haiku-5-5",
+          "source": "owner-experiment",
+          "spec_defects": 2,
+          "tokens_n": 1,
+          "tokens_reported_sum": 305000,
+          "usage_source": "notification",
+          "within_two": 1,
+          "writer_defects": {
+            "blocking": 0,
+            "nonblocking": 0
+          }
+        },
+        {
+          "appends": 3,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 4,
+          "effort": "medium",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 4,
+          "first_pass": 4,
+          "minutes_n": 4,
+          "minutes_sum": 15.65,
+          "model": "claude-sonnet-5-5",
+          "source": "field",
+          "spec_defects": 7,
+          "tokens_n": 4,
+          "tokens_reported_sum": 281000,
+          "usage_source": "notification",
+          "within_two": 4,
+          "writer_defects": {
+            "blocking": 1,
+            "nonblocking": 2
+          }
+        }
+      ],
+      "policy_scope": "developer.work"
+    },
+    {
+      "category": {
+        "clarity": "定",
+        "risk": "none",
+        "role": "read-only",
+        "work": "none"
+      },
+      "cells": [
+        {
+          "appends": 0,
+          "batches": [
+            "2026-10-30-960-w7c2-seed"
+          ],
+          "dispatched": 1,
+          "effort": "medium",
+          "escalated": 0,
+          "escalations": [],
+          "evidence": "field-small-n",
+          "first_no_writer_block": 1,
+          "first_pass": 1,
+          "minutes_n": 0,
+          "minutes_sum": 0.0,
+          "model": "claude-sonnet-5-5",
+          "source": "field",
+          "spec_defects": 0,
+          "tokens_n": 0,
+          "tokens_reported_sum": 0,
+          "usage_source": "notification",
+          "within_two": 1,
+          "writer_defects": {
+            "blocking": 0,
+            "nonblocking": 1
+          }
+        }
+      ],
+      "policy_scope": "none"
+    }
+  ],
+  "schemaVersion": 1
+}
