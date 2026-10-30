@@ -82,7 +82,7 @@ node --experimental-strip-types tools/dev-flow/src/delegate/brief-check-cli.ts -
 2. 任务命中 `top_risks` 时，按策略用顶档。
 3. 档位拿不准时，往强的方向上调一档。
 4. 写者、评审者与验收者用策略给出的模型，不用 Haiku。Haiku 只用于纯读的仓库调研与上下文地图汇总（负责人 2026-10-30 裁定，见 #960 卡正文「决定与剩余责任」）。
-5. 可以读派发台账里本类别的计数作参考。样本少于 5 时，只写「n 次里成 k 次」。第一版不按台账改默认档位。
+5. 可以读派发台账里本类别的计数作参考。样本少于 5 时，只写「n 次里成 k 次」。台账目前只积累计数，不据它改默认档位。
 
 - 完成判据：闭包规格「模型与推理强度」已写下 requested 模型与档位、`policy_version`、角色源树哈希、宿主与版本，以及一句选择理由。第 12 步把这些值原样写进流水。
 - 依据：D6。
@@ -150,7 +150,7 @@ node --experimental-strip-types tools/dev-flow/src/delegate/brief-check-cli.ts -
 ### 10 升级
 
 1. 轮次按 `quality.md`「三轮未收敛时升级结构诊断」计。
-2. 归属为规格的阻断：派发者先修规格，在「追加记录」记一条，再继续计数。
+2. 归属为规格的阻断按 `quality.md` 同一节处理：先修规格，在「追加记录」记一条。
 3. 到升级时点，按 D6 依起点档位选接手或重做：
    - 接手：新写者拿到原规格、追加记录、历次验收报告与原分支。
    - 重做：从基线新开分支与工作树。原分支只作对照，不合回。
@@ -161,7 +161,7 @@ node --experimental-strip-types tools/dev-flow/src/delegate/brief-check-cli.ts -
 
 ### 11 合回
 
-1. 写者只在自己的本地分支提交，不推送。同一仓库的工作树共用引用，派发者直接合并写者的分支。
+1. 按 `workflow.md`「合回由派发者完成」从写者的本地分支合回：同一仓库的工作树共用引用，直接合并写者的分支。
 2. 在写者分支头复跑写者门禁与 `pnpm run lint:rules`。`lint:rules` 拒绝 `Co-Authored-By` 这类作者式署名，合回之后再发现只能改写历史。
 3. 合并到卡分支。写者提交的 `Agent-Role` 是写者的角色名（如 `developer`）。派发者的合并提交写 `Agent-Role: main`（`CONTRIBUTING.md`「形成可审阅的交付」）。
 4. 把闭包表的状态改为「已合回 <提交>」。

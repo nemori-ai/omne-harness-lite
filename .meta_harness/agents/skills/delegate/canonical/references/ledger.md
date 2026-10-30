@@ -8,7 +8,7 @@
 - **台账增量**：`ledger.py aggregate` 从一个会话的流水算出的文件。会话负责人随交接报告交回。
 - **派发台账**：`.meta_harness/agents/evaluation/dispatch-ledger/ledger.json`。按类别聚合的计数。只有 reduce 写它（`docs/engineering/integration.md`「不变量」第 2 条）。它与 `tools/dev-flow/src/ledger/` 的交付账本是两回事。
 
-第一版只积累计数，不按台账改默认档位。台账只能把选择往更强的方向收紧。
+台账目前只积累计数，不据它改默认档位；收紧方向的规则见 `workflow.md` D6 第 1 点。
 
 ## 类别
 
@@ -57,7 +57,7 @@
 | `outcome` | `merged`、`discarded`、`stopped` 或 `pending` |
 | `experiment` | `null`，或 `owner-experiment` |
 
-`tokens_reported` 取完成通知里的数。W7-c2 实测，这个数是最后一条消息的上下文长度，不是累计用量，不能当作成本。`usage_source` 记下来源，供第二版核实。
+`tokens_reported` 取完成通知里的数。实测（#960 写第一批计数时，用子代理会话记录对照完成通知），这个数是最后一条消息的上下文长度，不是累计用量，不能当作成本。`usage_source` 记下来源，供以后核实。
 
 ## 汇总口径
 
@@ -75,7 +75,7 @@
   - 值为 `null`（未记录）的轮不计入和。`minutes_n`、`tokens_n` 是有数的轮数，平均值用它们作分母。`escalations` 项有同样的两个计数。
 - 合回后才发现的写者阻断（`found` 为 `after-merge`）计入 `writer_defects.blocking`，不回改首轮结论：它不影响 `first_pass`、`first_no_writer_block` 与 `within_two`。
 - `acceptance.report` 不是 GitHub 评论或 PR 评审 URL 的行不计数，列进增量的 `excluded`。
-- `experiment` 为 `owner-experiment` 的行汇总进 `source: owner-experiment` 的格，与 `source: field` 的格分开，不进提炼。本线的 Haiku 写者数据属于这一类。
+- `experiment` 为 `owner-experiment` 的行汇总进 `source: owner-experiment` 的格，与 `source: field` 的格分开，不进提炼。负责人发起的 Haiku 写者实验（#951、#953、#954 的闭包）属于这一类。
 
 ## 台账字段
 

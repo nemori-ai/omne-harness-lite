@@ -116,7 +116,7 @@ Matt `to-spec`、`to-tickets` 与按需的 `grill-with-docs` 在固定源中声�
 
 本节写主代理派发子代理时采用的上游方法与项目差异。规则归[派发子代理的契约](workflow.md#派发子代理的契约)，做法归 `delegate` 技能。
 
-采用的入口按「阅读与实际加载」加载。`implement-spec` 在固定源中声明 `disable-model-invocation: true`，宿主不会自动触发，直接读已安装路径下的正文。
+采用的入口按「阅读与实际加载」加载。
 
 | 入口 | 采用范围 |
 |---|---|
