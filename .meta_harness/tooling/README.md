@@ -59,7 +59,7 @@ uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_
 uv run --locked python .meta_harness/tooling/src/domain_objects.py --root .meta_harness/design --stale report   # rev 落后只列出，不判失败
 ```
 
-`tests/test_readme_commands.py` 对这几条 `uv run` 命令加 `--help` 运行，命令写错或脚本搬走时变红。
+`tests/test_readme_commands.py` 按 README 里出现的脚本去重，对每个脚本运行 `uv run --locked python <脚本> --help`，脚本名写错或脚本搬走时变红。
 
 它查什么、为什么查，权威正文在 [domain_objects/conventions.md](../design/domain_objects/conventions.md#对账)；
 被点名之后怎么逐条复核，归 `ubiquitous-language` 与 `domain-objects` 两份 skill。这里只记工具自己的边界：
@@ -82,7 +82,7 @@ rev落后及topic内已声明修订不一致及其 report 模式、依据缺 rev
 
 ## 保存只读子代理的交回
 
-design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件，不再临时写 `jq`：
+design-reviewer 等只读角色没有写文件的工具，报告只存在于宿主记录里。`save_handback.py` 把它取出来存成文件：
 
 ```sh
 uv run --locked python .meta_harness/tooling/src/save_handback.py --transcript <子代理记录.jsonl> --out <报告.md>
@@ -93,7 +93,7 @@ Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会�
 报告正文按下面的次序取：
 
 1. 记录里最后一次 `SubagentHandback` 工具调用的 `input.message`。读取形状与 `agents/evaluation/harness/roleeval/claude_host.py` 一致。
-2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。2026-10-30 在本机读到的 Claude Code 子代理记录都是这种形状，没有 `SubagentHandback` 调用。
+2. 没有这个调用时，取记录末尾那条 assistant 消息的文本，条件是它以 `end_turn` 结束。一条 API 消息按内容块拆成多条记录，共用 `message.id`，脚本把它们的文本块按次序接起来。已观察到的 Claude Code 2.1 子代理记录以 `end_turn` 消息结束，没有 `SubagentHandback` 调用。
 
 找不到报告时（记录停在工具调用上、被中断、以宿主错误 `stop_sequence` 结束、报告为空白）以 1 退出，说明原因，不写文件，已有的 `--out` 文件原样保留。记录读不了或 `--out` 写不了以 2 退出。写入先写同目录临时文件再替换。仍在写入的记录可能以半行结尾，脚本跳过读不出的行。
 
@@ -107,15 +107,14 @@ Claude Code 把每个子代理的记录写在 `~/.claude/projects/<项目>/<会�
 
 ## 使用
 
-需要 Python 3.12+ 与 PyYAML；运行测试另需 pytest。选择已准备好这些依赖的解释器，
-以下命令从明确的 `.meta_harness` 工作区根运行。若执行仓库已提供锁定环境，
-可以使用该环境的 `uv run --locked python` / `uv run --locked pytest`，不从父目录猜测环境。
+需要 Python 3.12+ 与 PyYAML；运行测试另需 pytest。执行仓库提供锁定环境。
+以下命令从仓库根运行，用 `uv run --locked` 取得解释器与依赖，不从父目录猜测环境。
 
 ```sh
-python tooling/src/compile_agents.py --source agents --output .
-python tooling/src/compile_agents.py --source agents --output . --check
-PYTHONDONTWRITEBYTECODE=1 pytest -p no:cacheprovider \
-  tooling/tests agents/skills/design-subagents/canonical/scripts
+uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness
+uv run --locked python .meta_harness/tooling/src/compile_agents.py --source .meta_harness/agents --output .meta_harness --check
+PYTHONDONTWRITEBYTECODE=1 uv run --locked pytest -p no:cacheprovider \
+  .meta_harness/tooling/tests .meta_harness/agents/skills/design-subagents/canonical/scripts
 ```
 
 输出根必须显式指定，正常产物留在 `.meta_harness/`。可用 `--host codex` 或
@@ -160,7 +159,7 @@ slots:
 可选 `subagent_types`（须是 `agents/roles/` 下已有的角色名，只收窄 `SubagentStop`，生成为 `|` 连起来的 matcher），
 可选 `session_sources`（`startup`、`resume`、`clear`、`compact`、`fork`，只收窄 `SessionStart`，生成为 `|` 连起来的 matcher）。
 未知事件或字段、空命令、非正整数超时、重复 id 都报错并带出那条的 id。输出确定（键排序、两空格缩进、末尾换行），
-`--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出这两个文件，其余产物不变。
+`--check` 逐字节比对。没有 `hooks/` 或列表为空时不产出钩子文件，其余产物不变。
 生成不等于宿主已加载或已信任这条钩子；声明的含义与怎么关见 [agents/hooks](../agents/hooks/README.md)。
 
 ## 根软链接
@@ -168,8 +167,8 @@ slots:
 先生成完整 all 产物，再在允许接入的产品根运行：
 
 ```sh
-python .meta_harness/tooling/src/link_agents.py --project-root .
-python .meta_harness/tooling/src/link_agents.py --project-root . --check
+uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root .
+uv run --locked python .meta_harness/tooling/src/link_agents.py --project-root . --check
 ```
 
 工具预检所选目标后，创建 `.claude`、`.agents`、`.codex`、`.cursor` 到 `.meta_harness/` 内同名目录的

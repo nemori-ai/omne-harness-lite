@@ -10,9 +10,9 @@ Codex 的 `.codex/hooks.json`。两端读同一个形状：
 `SessionStart` 只为 Claude Code 生成，所以用它的声明必须写 `hosts: [claude-code]`。
 生成物不手改。没有 `hooks.yaml`、列表为空或没有声明给某个宿主时，不产出那个宿主的文件。
 
-现在有两条。
+## `loop-stop-facts`
 
-第一条是 `loop-stop-facts`，在会话收工（`Stop`）与 developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/repo-toolchain/src/loop/stop-hook.ts`，
+它在会话收工（`Stop`）与 developer 子代理收工（`SubagentStop`）时跑执行仓库的收工钩子（`tools/repo-toolchain/src/loop/stop-hook.ts`，
 说明在 `tools/repo-toolchain/README_ZH.md`「收工钩子」一节）。
 它核对产品源码、全局架构约束及其引用的 Markdown 依据，有要报告的读数时反馈。触发与基线选择以执行仓库的工具为准。
 新增偏离对 BASE 的预期判断，预期语义改动另列。机械范围归执行仓库的 `tools/repo-toolchain/src/arch/CONFORMANCE.md`。
@@ -20,7 +20,9 @@ Codex 的 `.codex/hooks.json`。两端读同一个形状：
 
 命令先选择有脚本与依赖的检出，否则回退到主检出脚本。实际受检根来自事件payload.cwd；不能从脚本位置或单次工具workdir推断受检候选。回退脚本的配置可能仍按脚本位置读取，去重状态按git common目录或OMNE_METRICS_HOME保存。精确分工归[工具说明](../../../tools/repo-toolchain/README_ZH.md#收工钩子)。不在Git仓库里时命令退出0，这不证明检查已发生。
 
-第二条是 `stale-skill-copies`，只给 Claude Code，在新会话（`startup`）与压缩之后（`compact`）运行。
+## `stale-skill-copies`
+
+它只给 Claude Code，在新会话（`startup`）与压缩之后（`compact`）运行。
 Claude Code 在会话第一次读写某个子目录里的文件时，加载那个子目录的 `.claude/skills/`。
 所以从主检出启动的会话可以读到 `.worktrees/` 下其他工作树里的技能副本。
 压缩之后，宿主还会重新附上已调用过的技能。这两种情形都可能让会话读到旧副本。
@@ -39,6 +41,8 @@ Claude Code 把这行加进会话上下文。没有要提醒的工作树时，�
 Claude Code 的技能发现没有按目录排除的设置。`skillOverrides` 与 `Skill(...)` 拒绝规则只按技能名生效，会同时隐藏当前检出里的同名技能。
 所以这里只给提醒，不改工作树的目录布局。
 
+## 隔离工作树与钩子观察
+
 独立任务允许各写者使用隔离工作树，共享对象仍单写，具体条件归[协作交接](../../../docs/engineering/workflow.md#责任与协作交接)。每个写者须核对宿主传入的真实cwd与自己的检出；按绝对路径写别树、设置exec的workdir或源码重新生成，都不能证明hook观察已切换。原生宿主调用未核实的部分继续报告未覆盖，不以单树禁令代替证据。
 
 ## 怎么生效
@@ -50,6 +54,8 @@ Claude Code 的技能发现没有按目录排除的设置。`skillOverrides` 与
 - Codex：项目要受信任，且每条非托管钩子都要在 `/hooks` 里按定义逐条信任；定义一改就要重新信任。
 - 核对宿主字段与行为时，按实际采用版本查官方 [Claude Code hooks](https://code.claude.com/docs/en/hooks) 与 [Codex hooks](https://developers.openai.com/codex/hooks) 文档。
   宿主升级后先核对字段及失败行为，再修改声明和生成物。
+
+`SessionStart`（`stale-skill-copies`）有夹具测试与生成物核对，还没有真实会话里的执行证据。
 
 Claude Code 与 Codex 的 `Stop` 已有真实会话执行证据，包括本工作树的 Codex 正常事实反馈。证据只支持当次宿主、事件与受检工作树，不证明所有隔离执行者或 `SubagentStop` 已接通。只按绝对路径写另一棵树，不能使宿主的真实 cwd 自动切换。
 
