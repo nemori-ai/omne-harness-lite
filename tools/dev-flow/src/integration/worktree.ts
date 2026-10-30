@@ -11,13 +11,15 @@ import {
   readFileSync,
   readlinkSync,
   realpathSync,
+  rmdirSync,
   rmSync,
   statSync,
   symlinkSync,
+  unlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { basename, delimiter, join } from 'node:path'
+import { basename, delimiter, join, relative, sep } from 'node:path'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import { fetchIssueCard, type GhCommand } from '../delivery/github-read.ts'
 import { record } from '../delivery/protocol.ts'
@@ -439,10 +441,103 @@ export function swapWorktree({
   }
 }
 
+/** How many of the regular files left in a tree an incomplete removal names. */
+const NAMED_FILES = 5
+/** What a path holds, read with `lstat` only: no link is followed, so a link's target is never read. */
+type Leftover = { links: string[]; directories: string[]; files: string[] }
+function readLeftover(path: string): Leftover {
+  const leftover: Leftover = { links: [], directories: [], files: [] }
+  const visit = (entry: string): void => {
+    const stats = lstatSync(entry, { throwIfNoEntry: false })
+    if (stats === undefined) return
+    if (stats.isSymbolicLink()) leftover.links.push(entry)
+    else if (stats.isDirectory()) {
+      for (const name of readdirSync(entry)) visit(join(entry, name))
+      // Children are listed first, so the directories come out deepest first.
+      leftover.directories.push(entry)
+    } else leftover.files.push(entry)
+  }
+  visit(path)
+  return leftover
+}
+/**
+ * Deletes one link and never its target. `unlink` removes a symbolic link on every platform;
+ * a Windows directory junction that `unlink` refuses is removed with `rmdir`, which deletes the
+ * junction itself. `rmdir` runs only while the entry is still a link, and it never recurses.
+ */
+function unlinkOnly(link: string): void {
+  try {
+    unlinkSync(link)
+  } catch (error) {
+    if (lstatSync(link, { throwIfNoEntry: false })?.isSymbolicLink() !== true) throw error
+    rmdirSync(link)
+  }
+}
+
+/** The result of `removeWorktree`. */
+export type WorktreeRemoval =
+  | {
+      tree: string
+      untracked: string[]
+      /** True only when the directory is gone from the disk. */
+      removed: boolean
+      /** Links and empty directories that `git worktree remove` left and this run deleted. */
+      leftover?: { links: number; directories: number }
+    }
+  | {
+      tree: string
+      untracked: string[]
+      removed: false
+      /** Why the directory is still there after `git worktree remove`. */
+      reason: string
+      /** The first regular files left in the directory, relative to it. */
+      files: string[]
+    }
+
+/**
+ * Deletes what `git worktree remove` left of `tree`, when that is only links and empty
+ * directories. On Windows, git removes the files of a tree but leaves the directory junctions
+ * that pnpm creates, and still exits 0. The leftover is read with `lstat`; a regular file in it
+ * stops the run before anything is deleted. Otherwise each link is deleted by itself, never by
+ * recursion into it, then the directories are deleted deepest first with a plain `rmdir`.
+ * Returns the counts deleted when `tree` is gone afterwards, and the reason when it is not.
+ */
+function removeLeftover(
+  tree: string,
+): { leftover: { links: number; directories: number } } | { reason: string; files: string[] } {
+  const leftover = readLeftover(tree)
+  const name = (path: string) => relative(tree, path).split(sep).join('/')
+  if (leftover.files.length > 0)
+    return {
+      reason: `${tree} still holds ${leftover.files.length} regular files after git worktree remove; nothing more was deleted`,
+      files: leftover.files.slice(0, NAMED_FILES).map(name),
+    }
+  try {
+    for (const link of leftover.links) unlinkOnly(link)
+    // A plain rmdir fails on a directory that is not empty, so a file that appears meanwhile stays.
+    for (const directory of leftover.directories) rmdirSync(directory)
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error)
+    return {
+      reason: `cannot delete what git worktree remove left in ${tree}: ${detail}`,
+      files: [],
+    }
+  }
+  if (lstatSync(tree, { throwIfNoEntry: false }) !== undefined)
+    return {
+      reason: `${tree} still exists after its links and empty directories were deleted`,
+      files: [],
+    }
+  return { leftover: { links: leftover.links.length, directories: leftover.directories.length } }
+}
+
 /**
  * Removes one worktree on request. Always refuses uncommitted tracked changes. Without
  * `force` it only lists the untracked and ignored paths that removal would delete; with
- * `force` it runs `git worktree remove --force` from `root`.
+ * `force` it runs `git worktree remove --force` from `root`, then checks the disk. `removed`
+ * is true only when the directory is gone: a leftover of links and empty directories is
+ * deleted without following any link, and a leftover with a regular file is kept and reported
+ * with `removed: false`, the reason and the first files.
  */
 export function removeWorktree({
   root,
@@ -454,11 +549,16 @@ export function removeWorktree({
   tree: string
   force: boolean
   run?: Runner
-}): { tree: string; untracked: string[]; removed: boolean } {
+}): WorktreeRemoval {
   if (trackedChanges(tree, run).length > 0)
     throw new IntegrationError('refused', `${tree} has uncommitted tracked changes`)
   const untracked = untrackedEntries(tree, undefined, run)
   if (!force) return { tree, untracked, removed: false }
   step(run, 'remove worktree', 'git', ['worktree', 'remove', '--force', tree], root)
-  return { tree, untracked, removed: true }
+  if (lstatSync(tree, { throwIfNoEntry: false }) === undefined)
+    return { tree, untracked, removed: true }
+  const result = removeLeftover(tree)
+  return 'reason' in result
+    ? { tree, untracked, removed: false, ...result }
+    : { tree, untracked, removed: true, ...result }
 }

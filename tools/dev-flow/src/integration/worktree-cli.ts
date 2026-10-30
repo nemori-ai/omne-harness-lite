@@ -100,7 +100,8 @@ try {
   const { command, values, flags } = options(process.argv.slice(2))
   const result = run(command, values, flags)
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`)
-  // Without --force, remove only lists what removal would delete.
+  // Without --force, remove only lists what removal would delete. With --force, `removed` is
+  // false when the directory is still on the disk, and the output gives the reason.
   if ('removed' in result && !result.removed) process.exitCode = 1
 } catch (error) {
   const message =

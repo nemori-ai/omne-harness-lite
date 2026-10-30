@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process'
 import {
   existsSync,
   mkdirSync,
@@ -8,13 +9,17 @@ import {
   symlinkSync,
   chmodSync,
   lstatSync,
+  readdirSync,
   readlinkSync,
+  rmdirSync,
   statSync,
+  unlinkSync,
   utimesSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it, vi } from 'vitest'
 import type { TaskBindingV2 } from '../src/delivery/binding.ts'
 import type { GhCommand } from '../src/delivery/github-read.ts'
@@ -511,11 +516,17 @@ describe('worktree removal', () => {
       removed: false,
     })
     expect(r.ran('git', 'worktree')).toBe(false)
-    const forced = runner(listing)
-    expect(removeWorktree({ root: '/r', tree: '/t', force: true, run: forced.run }).removed).toBe(
-      true,
-    )
-    expect(forced.ran('git', 'worktree', 'remove', '--force', '/t')).toBe(true)
+  })
+
+  it('reports removed when git worktree remove leaves no directory', () => {
+    const tree = join(home(), 'tree'),
+      r = runner(listing)
+    expect(removeWorktree({ root: '/r', tree, force: true, run: r.run })).toEqual({
+      tree,
+      untracked: ['tmp/issue-7/', 'node_modules/'],
+      removed: true,
+    })
+    expect(r.ran('git', 'worktree', 'remove', '--force', tree)).toBe(true)
   })
 
   it('refuses uncommitted tracked changes even with force', () => {
@@ -527,5 +538,147 @@ describe('worktree removal', () => {
       'uncommitted tracked changes',
     )
     expect(r.ran('git', 'worktree')).toBe(false)
+  })
+
+  describe('when git worktree remove leaves the directory behind', () => {
+    // Each base holds a tree and a store. The cleanup deletes the links by themselves before it
+    // removes the base, so it never recurses into a link either.
+    const bases: string[] = []
+    afterAll(() => {
+      for (const path of bases) {
+        unlinkAll(path)
+        rmSync(path, { recursive: true, force: true })
+      }
+    })
+    function unlinkAll(path: string): void {
+      const stats = lstatSync(path, { throwIfNoEntry: false })
+      if (stats?.isSymbolicLink() === true)
+        try {
+          unlinkSync(path)
+        } catch {
+          rmdirSync(path)
+        }
+      else if (stats?.isDirectory() === true)
+        for (const name of readdirSync(path)) unlinkAll(join(path, name))
+    }
+    function base(): string {
+      const path = realpathSync(mkdtempSync(join(tmpdir(), 'omne-worktree-links-')))
+      bases.push(path)
+      return path
+    }
+    /**
+     * Builds in `tree` what git leaves of a pnpm tree on Windows: directory junctions (symbolic
+     * links on POSIX) and empty directories. The links point into a store beside the tree, at
+     * another link, at a deleted directory, and at the base that holds both; a deletion that
+     * follows any of them reaches the store.
+     */
+    function skeleton(at: string, tree: string) {
+      const store = join(at, 'store'),
+        inner = join(tree, 'node_modules/.pnpm/pkg@1/node_modules'),
+        gone = join(at, 'gone')
+      mkdirSync(join(store, 'pkg'), { recursive: true })
+      writeFileSync(join(store, 'pkg/index.js'), 'store content')
+      mkdirSync(inner, { recursive: true })
+      mkdirSync(join(tree, 'tmp/issue-7'), { recursive: true })
+      mkdirSync(gone)
+      const links = [
+        [join(store, 'pkg'), join(inner, 'pkg')],
+        [join(inner, 'pkg'), join(tree, 'node_modules/pkg')],
+        [gone, join(tree, 'node_modules/gone')],
+        [at, join(tree, 'node_modules/up')],
+      ] as const
+      for (const [target, link] of links) symlinkSync(target, link, 'junction')
+      rmdirSync(gone)
+      return { store, links: links.map(([, link]) => link) }
+    }
+    const storeIntact = (store: string) =>
+      expect(readFileSync(join(store, 'pkg/index.js'), 'utf8')).toBe('store content')
+
+    it('deletes only the links and the empty directories, then reports removed', () => {
+      const at = base(),
+        tree = join(at, 'tree'),
+        { store } = skeleton(at, tree)
+      expect(removeWorktree({ root: '/r', tree, force: true, run: runner(listing).run })).toEqual({
+        tree,
+        untracked: ['tmp/issue-7/', 'node_modules/'],
+        removed: true,
+        leftover: { links: 4, directories: 7 },
+      })
+      expect(lstatSync(tree, { throwIfNoEntry: false })).toBeUndefined()
+      storeIntact(store)
+    })
+
+    it('deletes nothing and names the first files when a regular file is left', () => {
+      const at = base(),
+        tree = join(at, 'tree'),
+        { store, links } = skeleton(at, tree),
+        names = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
+      for (const name of names) writeFileSync(join(tree, `tmp/issue-7/${name}.md`), 'kept')
+      const result = removeWorktree({ root: '/r', tree, force: true, run: runner(listing).run })
+      expect(result).toEqual({
+        tree,
+        untracked: ['tmp/issue-7/', 'node_modules/'],
+        removed: false,
+        reason: expect.stringContaining('7 regular files'),
+        files: names.slice(0, 5).map(name => `tmp/issue-7/${name}.md`),
+      })
+      for (const link of links) expect(lstatSync(link).isSymbolicLink()).toBe(true)
+      for (const name of names)
+        expect(readFileSync(join(tree, `tmp/issue-7/${name}.md`), 'utf8')).toBe('kept')
+      storeIntact(store)
+    })
+
+    // Slow: runs real git and the CLI as child processes.
+    it(
+      'removes a real worktree through the CLI and keeps every link target',
+      {
+        tags: ['slow'],
+      },
+      () => {
+        const at = base(),
+          repository = join(at, 'repository'),
+          tree = join(at, 'tree')
+        const git = (...args: string[]) => {
+          const result = spawnSync('git', args, { cwd: repository, encoding: 'utf8' })
+          expect(result.status, result.stderr).toBe(0)
+          return result.stdout
+        }
+        mkdirSync(repository)
+        git('init', '--quiet')
+        writeFileSync(join(repository, 'a.txt'), 'a')
+        git('add', 'a.txt')
+        git('-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '--quiet', '-m', 'a')
+        git('worktree', 'add', '--quiet', '--detach', tree)
+        const { store } = skeleton(at, tree)
+        writeFileSync(join(tree, 'tmp/issue-7/notes.md'), 'an ignored or untracked file')
+        const cli = fileURLToPath(new URL('../src/integration/worktree-cli.ts', import.meta.url))
+        const result = spawnSync(
+          process.execPath,
+          ['--experimental-strip-types', cli, 'remove', '--tree', tree, '--root', repository],
+          { cwd: repository, encoding: 'utf8' },
+        )
+        expect(result.status, result.stderr).toBe(1)
+        const forced = spawnSync(
+          process.execPath,
+          [
+            '--experimental-strip-types',
+            cli,
+            'remove',
+            '--tree',
+            tree,
+            '--root',
+            repository,
+            '--force',
+          ],
+          { cwd: repository, encoding: 'utf8' },
+        )
+        expect(forced.status, forced.stderr).toBe(0)
+        expect(JSON.parse(forced.stdout)).toMatchObject({ tree, removed: true })
+        expect(lstatSync(tree, { throwIfNoEntry: false })).toBeUndefined()
+        expect(git('worktree', 'list', '--porcelain')).not.toContain('/tree\n')
+        storeIntact(store)
+        expect(lstatSync(repository).isDirectory()).toBe(true)
+      },
+    )
   })
 })
