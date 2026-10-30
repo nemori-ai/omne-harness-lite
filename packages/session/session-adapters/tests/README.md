@@ -16,7 +16,7 @@
 
 ## 本包事实
 
-现在有两个测试。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出。没有 `*.spec-d.ts` 类型测试。`vitest.config.ts` 已经为类型测试打开了 typecheck。
+现在有两个测试。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 没有导出。类型测试只有 [record-fault.spec-d.ts](record-fault.spec-d.ts)。`vitest.config.ts` 已经为类型测试打开了 typecheck。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-adapters`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 

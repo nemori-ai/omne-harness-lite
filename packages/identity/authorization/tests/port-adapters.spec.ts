@@ -142,30 +142,33 @@ function denyHumanGuidance(card: DurableEvidence, answer: DurableEvidence): Agen
 function actionAdmission(check: AdmissionCheck): ActionAdmission<Principal> {
   return {
     admit: async input => {
-      if (input.decision?.answer.kind === 'remark')
-        return succeed(denyHumanGuidance(input.decision.card, input.decision.answer.evidence))
-      if (input.permissions.length > 0 || input.decision !== null)
+      const remark =
+        input.decision?.answer.kind === 'remark'
+          ? { card: input.decision.card, answer: input.decision.answer.evidence }
+          : null
+      if (remark === null && (input.permissions.length > 0 || input.decision !== null))
         return succeed({
           kind: 'unavailable',
           diagnostic: 'permission and decision interpreters are not installed',
         })
-      return succeed(
-        toAgentAdmissionDecision(
-          await check.check({
-            access: { principal: input.principal, tenant: input.tenant },
-            operation: { owner: 'agent', name: 'admit-action' },
-            target: {
-              owner: 'agent',
-              kind: 'action',
-              key: `${input.execution}/${input.passage}/${input.action}`,
-            },
-            // The fixed text the action will run with; a permit is bound to its digest.
-            arguments: effectiveArgumentsOf(input.effectiveArguments),
-            requires: [],
-            permit: null,
-          }),
-        ),
-      )
+      const decision = await check.check({
+        access: { principal: input.principal, tenant: input.tenant },
+        operation: { owner: 'agent', name: 'admit-action' },
+        target: {
+          owner: 'agent',
+          kind: 'action',
+          key: `${input.execution}/${input.passage}/${input.action}`,
+        },
+        // The fixed text the action will run with; a permit is bound to its digest.
+        arguments: effectiveArgumentsOf(input.effectiveArguments),
+        requires: [],
+        permit: null,
+      })
+      // A remark is read only after the tenant and standing checks: a cross-tenant remark is
+      // still a tenant mismatch, not guidance.
+      if (remark !== null && decision.kind === 'allowed')
+        return succeed(denyHumanGuidance(remark.card, remark.answer))
+      return succeed(toAgentAdmissionDecision(decision))
     },
   }
 }
@@ -549,6 +552,24 @@ describe('ActionAdmission through the admission check', () => {
     expect(deny.ok.evidence.owner).toBe('authorization')
     expect(deny.ok.evidence.record).toBe('admission/agent/admit-action')
     expect(deny.ok.evidence.digest).toMatch(/^[0-9a-f]{64}$/)
+  })
+
+  // Red when the remark branch is taken before the tenant check: a remark sent with an acting
+  // principal of another tenant would come back as guidance instead of a tenant mismatch.
+  it('answers tenant-mismatch, not human-guidance, for a remark across tenants', async () => {
+    const { principals, actions } = installed()
+    const deny = await actions.admit({
+      ...admitInput(principals.actingForAdmin, memberTenant()),
+      decision: {
+        card: { ...EVIDENCE, record: 'card-for-act_1' },
+        answer: {
+          kind: 'remark',
+          text: '先看一下 README',
+          evidence: { ...EVIDENCE, record: 'remark_1' },
+        },
+      },
+    })
+    expect(deny).toMatchObject({ ok: { kind: 'deny', reason: 'tenant-mismatch' } })
   })
 })
 

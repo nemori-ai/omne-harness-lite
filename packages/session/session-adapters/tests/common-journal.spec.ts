@@ -1,5 +1,6 @@
 import { ordinaryInput, assistantMessage } from '@omne-harness/session-contract/testing'
 import { decodeInputId } from '@omne-harness/agent-contract'
+import { sampleStartFence } from '@omne-harness/agent-contract/testing'
 import { describe, it, expect } from 'vitest'
 import { scene, ok, operation, operationId, evidence } from './fixtures/common-journal.ts'
 
@@ -128,5 +129,68 @@ it('can finalize after scanning an observed-only tail without a cursor-only writ
     },
   }
   const final = await backend.transactions.commit({ access, command, guards: [] })
+  expect(final).toHaveProperty('ok')
+})
+
+// Red when the `entry` event of a recorded condition is normalized to anything but `observed`: the
+// Session has no consequence of its own for it (session-contract EC-01), and a later decision that
+// scans the uninterpreted tail accepts only a tail whose every event is observed.
+it('interprets the entry event of a recorded condition as observed, with no Session consequence', async () => {
+  const { backend, view, access, execution, opened } = await scene('entry-observed')
+  ok(
+    await view.entries.record({
+      ...access,
+      execution,
+      operation: operation('fence'),
+      authority: opened.authority,
+      entry: sampleStartFence('observed'),
+    }),
+  )
+  const page = ok(await view.journal.output.read({ ...access, execution, after: null, limit: 10 }))
+  if (page.kind !== 'page') throw new Error('retention gap')
+  expect(page.events.map(event => event.body.kind)).toEqual(['entry'])
+  const before = backend.controls.entriesOf(access.tenant, access.session).length
+  expect(
+    ok(
+      await backend.controls.interpret({
+        ...access,
+        execution,
+        operation: operationId('interpret-entry'),
+        sequence: page.events[0]!.sequence,
+      }),
+    ),
+  ).toBeNull()
+  expect(backend.controls.entriesOf(access.tenant, access.session)).toHaveLength(before)
+  const work = ok(await backend.transactions.readWork(access))
+  if (work.run.kind !== 'active') throw new Error('not active')
+  expect(work.run.execution.readThrough).toBe('0')
+  ok(
+    await backend.transactions.commit({
+      access,
+      command: {
+        kind: 'freeze',
+        input: {
+          tenant: access.tenant,
+          session: access.session,
+          operation: operationId('freeze'),
+          verdict: { cause: 'tool-shape-lost', evidence: evidence('freeze') },
+        },
+      },
+      guards: [],
+    }),
+  )
+  const final = await backend.transactions.commit({
+    access,
+    command: {
+      kind: 'control',
+      input: {
+        tenant: access.tenant,
+        session: access.session,
+        operation: operationId('cancel'),
+        intent: { kind: 'cancel-run', run: work.run.run, urgency: 'force' },
+      },
+    },
+    guards: [],
+  })
   expect(final).toHaveProperty('ok')
 })

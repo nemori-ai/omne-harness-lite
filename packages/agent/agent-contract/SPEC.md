@@ -34,7 +34,7 @@ Agent 自己的执行结束由本域条件提交成立。外部协调者的业�
 
 进入执行记录的事实有三类。调用登记保存稳定调用身份、固定输入的引用、原消费位置和阻塞范围。会改变后续判断的扩展结论记入执行记录。人的答复交回原卡片。纯观察是留痕。登记不等于已经发出。连续否决不设次数上限。已记下的否决历史不因换执行挂接而消失。
 
-执行记录由 Agent 经 Journal 保存，控制记录与否决历史也保存在执行记录中。业务消息由消息的拥有者保存。流事件由 Agent 的事件序列保存，规则见“事件流与读取”。诊断日志按“性能、诊断与维护”处理。有外部协调者的装配里，Journal 可以由协调者的日志承载。执行记录只有这一份，协调者不另抄 Agent 事实，只从中派生自己的治理事实。Agent 通过事件序列与读取操作提供原事实。
+执行记录由 Agent 经 Journal 保存，控制记录与否决历史也保存在执行记录中。业务消息由消息的拥有者保存。Agent 自身的事件由 Agent 的事件序列保存，规则见“事件流与读取”。诊断日志按“性能、诊断与维护”处理。有外部协调者的装配里，Journal 可以由协调者的日志承载。执行记录只有这一份，协调者不另抄 Agent 事实，只从中派生自己的治理事实。Agent 通过事件序列与读取操作提供原事实。
 
 登记的最小对接是现行规则。这张表适用于所有调用方，包括外部协调者和独立调用者。Model 的引用与受理前身份由 [Model 引用契约](../../model/model-contract/SPEC.md#可保存调用引用)固定。Tool 的来源关联由 Tool 契约拥有，不从 Model 推广共同铸造规则。
 
@@ -609,7 +609,7 @@ RegisteredReads 只路由已登记只读协议，不接受任意 URL、方法或
 
 每一轮卡片的 round 是稳定的 `CardRoundId`，是卡片轮次自己的身份类型，不复用 ActionId。present 的 identity 在保存卡片需求前确定，卡片端口按原卡请求去重，原扩展调用与卡片需求先保存后呈现。卡片轮次的已请求状态表示卡片草稿已入台账而呈现回执未知。返回未知时，lookup 使用已保存的 passage、round、original 和完整请求身份集合查询原呈现，不要求未知的 card DurableEvidence，也不要求旧 advance 仍有效；当前读取资格仍核验。presented 的 cards 按原请求顺序一一对应，不能遗漏未确认成员。批内只有部分创建时保持 unknown，拥有者持续完成原批或认回确定结果，不能重新问已创建卡。not-presented 需要排除原创建及延迟写入的证据；只有此前提和当前推进仍有效时才可继续同请求呈现。查询不可用保持失败，不能当 not-presented。
 
-取得原卡后 read 返回的 chosen、declined 与 remark 都是人的原处理，不给默认批准或超时。卡片来自扩展时，由原扩展按原规则解释。卡片来自官方准入时，chosen 与 declined 按“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 6 条处置，remark 按该节第 11 条处置。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。remark 带人的原话，不授予动作。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
+取得原卡后 read 返回的 chosen、declined 与 remark 都是人的原处理，不给默认批准或超时。卡片来自作者扩展，或官方准入以外的受信系统扩展（例如循环判断）时，由原扩展按原规则解释，remark 的处置见“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 11 条。卡片来自官方准入时，chosen 与 declined 按“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 6 条处置，remark 按该节第 11 条处置。declined 表示没有答案，不授予动作，Agent 不因此重问同一张卡。remark 带人的原话，不授予动作。Tool 内部 Ask 只经 Tool 的受信内部 acceptDecision 端口，不接到 Agent 扩展的卡片中。执行终结后，Agent 以 DecisionCards.invalidate 作废尚无答复的卡片，已有答复保留；原责任核对由卡片端口的实现者按其原协议收束。
 
 AgentMaterials 只保管材料及可解释版本，不拥有工作推进。preserve 同 identity/consumer/内容认回，冲突拒绝。Model 结果不走 preserve 后再绑定 custody 的路径，由结果接收方按“[接收共同提交](#接收共同提交)”保存。通用材料端口及 Tool 的既有保管协议保持有效。孤立材料在绑定未知期间保留，不能超时删除可能已经被外部协调者引用的内容；清理须得到原操作排除或全部消费责任终结的证据。read 每次核权，缺内容明确故障，不能把元数据摘要当正文。processed 路径只保存业务所需完成依据，不强制全文第二副本。
 
@@ -624,7 +624,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 1. 守卫的唯一计算者是循环判断这一受信系统扩展。它在调模型之后位置、主请求的完整回复维度运行，不由作者声明。检测算法与阈值是它的策略，以配置项 `loopGuardPolicy` 的精确采用确定，见[工厂配置](../agent/docs/public-api.md#工厂配置)。Agent 不写死阈值，也不把连续否决数直接当作阶梯。
 2. 它经执行历史读取能力读本执行已可靠保存的原始工作事实：模型调用与回复、回复准入结论、动作批与结果、它自己以往卡片轮次的结果、费用、step。它不读压缩后的视图。读取记入其 Passage 的 `read` 操作，重放时认回同一值。
 3. 它经守卫判断记录能力记录一份 `GuardFact`，记入其 Passage 的 `guard` 操作。效果采纳时 Agent 把该 Passage 的最后一个 `guard` 操作写入 checkpoint 的 `guard`，成为 Agent 自持的守卫事实。这项能力只注入给它，作者声明需要时装配拒绝。形状见[公开接口页](docs/public-api/README.md#身份原位置与纯求值)。
-4. L1 与 L2 的干预消息由它以 `inject` 给出，经消息准入以系统提醒来源进入历史一次。L4 不记为守卫事实：L4 就是它以 `ask` 给出的请求人处理。所以 L4 的人工等待就是这次扩展调用在卡片上的等待，执行停在调模型之后位置之内，不在 I8 另开等待。答复到达后它以 `replay` 重新调用，能力先按原序号认回已记录的操作，它的新判断记在新的序号上。它读到自己上一次 L4 卡片呈现确定失败时，不再以 `ask` 给出同一处置，按策略改判。
+4. L1 与 L2 的干预消息由它以 `inject` 给出，经消息准入以系统提醒来源进入历史一次。L4 不记为守卫事实：L4 就是它以 `ask` 给出的请求人处理。所以 L4 的人工等待就是这次扩展调用在卡片上的等待，执行停在调模型之后位置之内，不在 I8 另开等待。答复到达后它以 `replay` 重新调用，能力先按原序号认回已记录的操作，它的新判断记在新的序号上。答复是附言时，按“[整批判断屏障与动作准入](#整批判断屏障与动作准入)”第 11 条的扩展情形处置：附言原样交给它，后果由它决定。它读到自己上一次 L4 卡片呈现确定失败时，不再以 `ask` 给出同一处置，按策略改判。
 5. I8 只读最新守卫事实，不追加消息：`level` 为 3 时形成 kind 为 `guard` 的失败候选，`basis` 取该守卫事实的 `basis`。`level` 为 0 至 2 或守卫事实为 null 时不改变去向。L4 的卡片呈现确定失败时，人无法被询问，Agent 按[整批判断屏障与动作准入](#整批判断屏障与动作准入)第 11 条代写该扩展调用的结论。调模型之后位置没有动作，也不提供否决，所以第 11 条中关于动作拒绝与整批屏障的部分不适用：结论取报错分支，输出为 `observed`，效果在 M4 照常继续，守卫事实按第 7 条保持上一次的值，执行不进入没有答复来源的等待。
 6. 守卫事实随 checkpoint 持久。压缩、崩溃、换执行挂接与 runtime 换代都不清零，新 step 不清零。恢复后读到的守卫事实与中断前相同。runtime 顺序复用不沿用上一执行的守卫事实。
 7. 循环判断不可用时，Conclusion 记不可用分支，守卫事实保持上一次的值，Agent 不伪造判断。它报错时按后置位置的报错规则处置，守卫事实同样保持上一次的值。
@@ -654,7 +654,9 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
    原受理认回后沿原动作槽位继续 dispatched、result 或 background 的保管、逐槽处理与解除路径，不产生竞争的 denied 结果。T3 不把缺槽位视为齐备，T5 不把该动作视为已完成。
 10. 执行终结时，Agent 以 DecisionCards.invalidate 作废本批尚无答复的卡片。已有答复保留，不因作废改写。
 11. 卡片端口的两种情形按下列规则处置。
-    - 人对卡片有话说，但没有给出准驳：read 对 Agent 返回 remark，带原话 `text` 与依据。附言是答复，它不是批准，也不等于人不同意。附言是这张卡片唯一有效的人的处理，计入该轮已答复；依据是人在回路产品的 [J-HI02](../../../.meta_harness/design/product/human-intervention/design.md#j-hi02-在动手之前处理-agent-的请示)：有效答复保留原话并回原请示位置，原 agent 把原话作为指导。原话由人在回路领域保存，Agent 不合成人的同意或不同意，见 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。卡片来自作者扩展时，Agent 以 `replay` 把附言原样交给原扩展，回放绑定里该卡片的 `answer` 是 `CardRemark`，后果由原扩展决定。卡片来自官方准入时，Agent 以 `replay` 再调用官方准入，ActionAdmission 端口输入的 `decision.answer` 为该附言 `CardRemark`。附言的授权含义由授权领域按 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定：附言不形成批准，准入返回 deny，`reason` 为 `human-guidance`。该动作的判断为 denied，`evidence` 是这次准入的证据。该轮卡片记为 processed。审计凭这次 `admit` 调用的输入与它返回的 deny 证据，确认拒绝来自官方准入。该动作的 `action-denied` 拒绝消息携带附言原话，模型据此作为指导（J-HI02）。Agent 不因没有批准重问同一张卡。该链以官方准入的最终 Conclusion 结束。
+    - 人对卡片有话说，但没有给出准驳：read 对 Agent 返回 remark，带原话 `text` 与依据。附言是答复，它不是批准，也不等于人不同意。附言是这张卡片唯一有效的人的处理，计入该轮已答复。原话由人在回路领域保存，Agent 不合成人的同意或不同意，见 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。Agent 不因没有批准重问同一张卡。附言按卡片的来源处置：
+        - 卡片来自作者扩展，或官方准入以外的受信系统扩展（例如循环判断）：Agent 以 `replay` 把附言原样交给原扩展，回放绑定里该卡片的 `answer` 是 `CardRemark`，后果由原扩展决定。依据是人在回路产品的 [J-HI02](../../../.meta_harness/design/product/human-intervention/design.md#j-hi02-在动手之前处理-agent-的请示)：有效答复保留原话并回原请示位置，原 agent 把原话作为指导。依据也是系统页的“[等待与恢复](../../../docs/architecture/runtime/loop-extensions.md#等待与恢复)”：卡片答复回到原等待，而不是转换成一句聊天后让新模型猜测含义。
+        - 卡片来自官方准入：Agent 以 `replay` 再调用官方准入，ActionAdmission 端口输入的 `decision.answer` 为该附言 `CardRemark`。附言的授权含义由授权领域按 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验) 判定：附言不形成批准，准入返回 deny，`reason` 为 `human-guidance`。该动作的判断为 denied，`evidence` 是这次准入的证据。该轮卡片记为 processed。审计凭这次 `admit` 调用的输入与它返回的 deny 证据，确认拒绝来自官方准入。该动作的 `action-denied` 拒绝消息携带附言原话，模型据此作为指导。该链以官方准入的最终 Conclusion 结束。原话交给准入的依据是人在回路产品的 [J-HI03](../../../.meta_harness/design/product/human-intervention/design.md#j-hi03-处理系统的放行卡片)：原话交原准入及授权拥有者按现行规则解释，文字本身不批准动作。拒绝消息带原话、模型据此作为指导的依据是 [#673 卡](https://github.com/nemori-ai/omne-harness-lite/issues/673)第 3 项（J10：官方准入卡以“人给出指导”拒绝），见[决定台账](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)。
     - present 确定失败，即返回 denied 或 conflict：该轮卡片所属的动作被拒绝，拒绝依据标明系统准入故障及真实原因。该轮卡片记为呈现失败，同一扩展调用早先已答复的轮次一起记为已处理，发出 `ask` 的扩展调用以拒绝 Conclusion 进入已结论，不再以 `replay` 调用。这条 Conclusion 由 Agent 写入：取报错分支，error 写明卡片呈现失败，output 为 veto，故障依据保存在该轮的呈现失败记录中，审计以该轮状态区分它与扩展自己的结论。该动作的判断为 denied，该链结束，第 4 条按此计入。本批全部动作都因此被拒绝时屏障记为 all-denied。Agent 不登记人工等待，不伪造人的拒答。规则见 [INV-HI04](../../human-intervention/human-intervention/SPEC.md#inv-hi04-授权决定仅在允许范围与真实资格内生效)。present 返回 unavailable 或 commit-unknown 不是确定失败，按上文以 lookup 认回。这一规则对官方准入的卡片与作者扩展的卡片都适用，作者扩展的卡片不另沿扩展错误策略处置。扩展自己执行报错是另一种情形，按该扩展的 `onError` 处置。
 
 卡片的唯一有效答复、答复与原等待的一致交接、批次只阻塞原等待范围、拒答与故障不混同，归人在回路领域的 [INV-HI06](../../human-intervention/human-intervention/SPEC.md#inv-hi06-一张卡片只有一个有效人的处理)、[INV-HI07](../../human-intervention/human-intervention/SPEC.md#inv-hi07-答复和原等待可恢复一致且交接无空档)、[INV-HI10](../../human-intervention/human-intervention/SPEC.md#inv-hi10-批次只阻塞其原等待范围) 与 [INV-HI11](../../human-intervention/human-intervention/SPEC.md#inv-hi11-合法拒答拒绝与故障不混同)。准入结果的四类与人工决定的授权含义归授权领域的 [AU-04](../../identity/authorization/SPEC.md#au-04-当前准入与结果) 与 [AU-05](../../identity/authorization/SPEC.md#au-05-人工决定参数改写与重新核验)。Agent 消费这些结论，不自己解释权限模式。
@@ -665,7 +667,7 @@ Agent 是 Tool 的普通调用方，以 `ToolInvokeRequest` 经 `ToolRuntime.inv
 
 1. 并发上限：获准动作按工厂配置 `toolConcurrency` 并行发起，超出上限的动作按原动作顺序等待名额。上限是可序列化配置，见[通用工厂](../agent/docs/public-api.md#工厂配置)。Tool 自己的并发与排队规则另行适用。
 2. 逐槽保管：每个动作有一个 ActionSlot。真实结果到达，或 Tool 确认转后台并给出耐久占位时，Agent 按原动作身份把结果或占位保管到该槽位。真实结果保管之后，Agent 解除该结果的生产责任。后台占位保管之后，Agent 只释放占位这一版本的前台交付。原 consumption 的结果责任不因占位而释放，最终结果仍以它到达，见本节第 8 条。最终结果的保管与释放见[机制页](../agent/docs/architecture/mechanisms.md#等待消费与退出)。Tool 的失败结果也是可消费的结果。
-3. 单结果经过：每个结果槽位与拒绝槽位各自经过执行动作之后的单结果范围，含结果卸载这一受信系统扩展的改写。单结果经过与该结果的流事件外发不等待其他槽位。拒绝槽位的 outcome 为 denied。后台占位不经过单结果范围：该槽位的候选消息由占位直接形成，`each` 为 null。
+3. 单结果经过：每个结果槽位与拒绝槽位各自经过执行动作之后的单结果范围，含结果卸载这一受信系统扩展的改写。单结果经过，以及该槽位相关的 Agent 自身事件（`producer` 与 `entry`）的分配，不等待其他槽位。拒绝槽位的 outcome 为 denied。后台占位不经过单结果范围：该槽位的候选消息由占位直接形成，`each` 为 null。
 4. 整批经过：本批每个动作都已有槽位（等待并发名额的获准动作尚未建立槽位，所以本条不成立），全部槽位都具备结果、后台占位或拒绝，全部单结果经过都结束，且至少一个槽位已发起时，Agent 运行一次执行动作之后的整批范围。已发起指 Tool 受理了该动作，槽位曾为 dispatched。该范围只允许 observed、inject、stop、ask，不改写候选，不撤销工具的实际效果。后台槽位在整批 subject 中的 outcome 为 executed，terminal 为 null。全部动作都被拒绝时不经过整批范围，见上文“整批判断屏障与动作准入”第 9 条。
 5. 消息准入：单结果经过之后、整批经过（如有）之后，Agent 按原动作顺序把每个槽位的候选消息交消息准入。准入进度随 checkpoint 保存，恢复时不重复提交已接纳的消息。拒收的后果见下文“消息准入”。
 6. 发起前再核：Tool 在实际发起处按原准入证据与当前权限再核，Agent 不以旧允许代替这次再核。两段再核各自的槽位结果见上文“整批判断屏障与动作准入”第 8 条。
