@@ -105,7 +105,11 @@ export function processIdentity(pid: number): string | null {
 
 function startTime(value: unknown): string {
   const result = text(value, 'processStartedAt')
-  if (!Number.isFinite(Date.parse(result))) throw new ReceiverError('invalid-receiver-state')
+  if (
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(result) ||
+    !Number.isFinite(Date.parse(result))
+  )
+    throw new ReceiverError('invalid-receiver-state')
   return result
 }
 
@@ -166,8 +170,9 @@ export function claimReceiver(
   const paths = receiverPaths(config.eventFile),
     identity = processIdentity(process.pid)
   if (identity === null) throw new ReceiverError('process-identity-unavailable')
-  const started = process.platform === 'linux' ? processStartTime(process.pid) : identity
-  if (started === null) throw new ReceiverError('process-start-time-unavailable')
+  const queriedStart = process.platform === 'linux' ? processStartTime(process.pid) : identity
+  if (queriedStart === null) throw new ReceiverError('process-start-time-unavailable')
+  const started = new Date(queriedStart).toISOString()
   const state: ReceiverState = {
     schemaVersion: 2,
     instanceId: config.instanceId,
