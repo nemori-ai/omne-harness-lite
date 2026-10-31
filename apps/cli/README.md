@@ -121,7 +121,7 @@ Not covered:
 - The process tests use piped stdio. No test allocates a TTY.
 - The unreadable-directory and read-only-parent cases skip when the tests run as root, because root bypasses these permissions.
 - Windows is not tested.
-- The local development machine runs Node v26. PanQiWei accepted that version for this card's verification on 2026-10-14. Node 24 was not run. `engines.node` remains `>=24.18.0 <25`.
+- The local development machine runs Node v26. PanQiWei accepted that version for this card's verification on 2026-10-14. Node 24 was not run. `engines.node` is `>=24`.
 - No test installs the package outside the workspace through `pnpm pack`.
 
 ## Maintenance
@@ -130,6 +130,6 @@ To change the help text, a message, or an exit code, change [SPEC.md](SPEC.md), 
 
 To add a command, append a `CommandSpec` through `defineCatalog`. `renderHelp` includes it, and `run` calls its `run` with a `CommandEnvironment`. The production catalog's command list is empty. A command that needs the state directory calls `resolveStateDirectory` with `homeFlag`, `environmentHome`, and `homeDirectory`, then `ensureStateDirectory`. It does not read `process.env` itself. Help and version must not call either function. A command that calls the SDK adds the SDK as a dependency. Update the install-closure test and SPEC.md in the same change.
 
-`scripts/package-cli.sh` builds this member into a private staging directory and writes that `dist/` into a new `.tar.gz`. It does not remove or write `apps/cli/dist`, so tests that run the built bin can run at the same time. The archive has no source maps, because it carries no sources. It writes the archive next to the target and renames it into place. On failure it removes its staging directory and the partial archive, and the target does not exist. The build steps repeat the member's `build` script. Change `tools/package.ts` and the `build` script together. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
+`scripts/package-cli.sh` builds this member into a private staging directory and writes that `dist/` into a new `.tar.gz`. It does not remove or write `apps/cli/dist`, so tests that run the built bin can run at the same time. The archive has no source maps, because it carries no sources. It writes the archive in the staging directory, copies it next to the target, and renames it into place. On failure it removes its staging directory and the partial archive, and the target does not exist. The build steps repeat the member's `build` script. Change `tools/package.ts` and the `build` script together. It does not install the command, upload a release, or configure an account. The archive is not the old B01 installer.
 
 Keep [README_ZH.md](README_ZH.md) in step with this file. Both files state the same promises.

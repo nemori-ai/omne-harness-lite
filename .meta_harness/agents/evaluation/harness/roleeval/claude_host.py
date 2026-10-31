@@ -8,6 +8,7 @@ that way of running was dropped.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -41,7 +42,7 @@ class Episode:
     efforts_observed: list[str] = field(default_factory=list)
     cwd: str | None = None             # the session's working directory, as the first event of the transcript gives it
 
-    def failure(self, requested_model: str) -> tuple[str, str] | None:
+    def failure(self, requested_model: str, requested_effort: str | None = None) -> tuple[str, str] | None:
         """(failure class, detail) when this run produced nothing that may be scored."""
         if self.timed_out:
             return ("timeout", f"wall-clock ceiling hit after {self.wall_seconds:.0f}s")
@@ -53,23 +54,40 @@ class Episode:
             return ("harness", f"host reported {self.terminal}")
         if requested_model not in self.models_observed:
             return ("model-mismatch", f"asked for {requested_model}, host recorded {self.models_observed}")
+        # A transcript without effort events cannot show a mismatch; one that records another effort can.
+        if requested_effort and self.efforts_observed and requested_effort not in self.efforts_observed:
+            return ("effort-mismatch", f"asked for {requested_effort}, host recorded {self.efforts_observed}")
         if not self.final.strip():
             return ("harness", "host reported success with an empty final message")
         return None
 
     def touched(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for or got back: where it reached that it should not have."""
-        asked = [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles if needle in args]
         got = [f"a tool result mentions {needle}" for needle in needles
-               if any(needle in text for text in self.tool_outputs)]
-        return asked + got
+               if any(comparable(needle) in comparable(text) for text in self.tool_outputs)]
+        return self.asked(needles) + got
 
     def asked(self, needles: list[str]) -> list[str]:
         """Which of ``needles`` the run's tool calls asked for; what came back is not looked at."""
-        return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles if needle in args]
+        return [f"{name} asked for {needle}" for name, args in self.tool_inputs for needle in needles
+                if comparable(needle) in comparable(args, json_text=True)]
 
     def truncated(self) -> bool:
         return self.stop_reason == "max_tokens"
+
+
+def comparable(text: str, *, json_text: bool = False) -> str:
+    """A needle or what a run said, as the two are compared: as written on POSIX.
+
+    On Windows a path may be written with backslashes or slashes and in either case and still name one file, and
+    a tool call's arguments are JSON, which writes each backslash twice; there both sides get one separator (the
+    slash) and one case.
+    """
+    if os.name != "nt":
+        return text
+    if json_text:
+        text = text.replace("\\\\", "\\")
+    return text.replace("\\", "/").casefold()
 
 
 def definition(generated: Path, *, model: str | None = None, tools: list[str] | None = None) -> dict[str, Any]:

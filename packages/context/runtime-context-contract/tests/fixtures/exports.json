@@ -1,0 +1,781 @@
+{
+  "package": "@omne-harness/runtime-context-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "共享类型",
+          "names": [
+            {
+              "name": "ScopeRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextBlockKey",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConsumerClass",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextBlocks",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScopeText",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BlockValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistrationRevision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ViewRevision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BlockRevision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Generation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommitRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "UpdateOriginRef",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "块声明",
+          "names": [
+            {
+              "name": "BlockDescriptorBase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SuppliedBlockDescriptor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StatefulBlockDescriptor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextBlockDescriptor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "DescriptorCatalog",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "declarationDigest",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "需要与绑定",
+          "names": [
+            {
+              "name": "Necessity",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextNeed",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Translation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NeedBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NeedBindingRef",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "注册与资格",
+          "names": [
+            {
+              "name": "Registration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistrationChange",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EligibilityId",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EligibilityState",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Eligibility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EligibilityMaterial",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "读者与观察",
+          "names": [
+            {
+              "name": "Cursor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReadRefusalReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MissingCause",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "UnknownCause",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MissingItem",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RevisionPair",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReadOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceEvidence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NeedValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NeedRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReadResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BlockState",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BlockEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PerRequestEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Snapshot",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ChangeEntry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Changes",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SnapshotResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CursorInvalidated",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ChangesResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextReader",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PreviousValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ChangeMaterial",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "生产者面",
+          "names": [
+            {
+              "name": "SupplyAnswer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SupplyInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SupplyCallback",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerRegistration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PublishInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PublishResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InvalidateTarget",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InvalidateResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerHandle",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "权威端口",
+          "names": [
+            {
+              "name": "ScopeBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScopeBindingSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "OrdinaryHolderAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HolderAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HolderDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerAction",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckCause",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckUnavailable",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CheckUnknown",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "恢复会话",
+          "names": [
+            {
+              "name": "ReplayRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayBlock",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReplayPrevious",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AppliedCommit",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BeginReplayResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FinishReplayResult",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "状态块",
+          "names": [
+            {
+              "name": "ContextUpdate",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepBlockMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepCommit",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "操作面",
+          "names": [
+            {
+              "name": "RegisterProducerResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProducerOperations",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrepareRegistrationResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "IssueEligibilityResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RevokeEligibilityResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommitInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ApplyCommitResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HolderOperations",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BindResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReaderOperations",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextOperations",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "定义核对",
+          "names": [
+            {
+              "name": "NeedRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "judgeNeed",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "BindingRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "judgeBinding",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RegistrationRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "JudgeRegistrationContext",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "JudgedRegistration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "judgeRegistration",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "解码",
+          "names": [
+            {
+              "name": "ScopeRefRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextBlockKeyRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "decodeScopeRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeContextBlockKey",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "步合并",
+          "names": [
+            {
+              "name": "UpdateRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RejectedUpdate",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReduceStepInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReduceStepResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "reduceStep",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "变化材料",
+          "names": [
+            {
+              "name": "DiffInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "diffForReminder",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "替身",
+          "names": [
+            {
+              "name": "MemoryRuntimeContextOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryRuntimeContext",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createMemoryRuntimeContext",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "权威端口替身",
+          "names": [
+            {
+              "name": "createTestAuthorityPorts",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "TestAuthorityPorts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityFace",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AuthorityScript",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "用例形制",
+          "names": [
+            {
+              "name": "ConformanceCase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NotApplicable",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "CaseVerdict",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "runConformanceCase",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "契约套件",
+          "names": [
+            {
+              "name": "RuntimeContextFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextPorts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RUNTIME_CONTEXT_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextConformance",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": []
+}

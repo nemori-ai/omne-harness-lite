@@ -1,10 +1,9 @@
 # 工具执行组的工程关系
 
-本页在正式维护位置保存待审技术设计。领域分解已评审不等于成员技术接受、阶段选择或实现支持。具名目录只有文档，公开形状和实际验证仍待设计及补证。
+本页维护 Tool 能力组的已接受设计。契约包已导出公开类型与契约函数，Cordis 定义包已导出服务定义。`tool` 已实现独立执行与部分 runtime 路径，`tool-host-local` 已实现本地启动协调器；单机宿主与组合验证尚未完成。
 
+## 包分解与邻接协作
 
-## 成员分解与邻接协作
+四个包按安装闭包划分。`tool-contract` 定义逻辑调用、真实执行、内部等待、控制、结果及执行账的契约，不含 Cordis 与实现。`tool-cordis-contract` 持有唯一的 Cordis 定义。`tool` 是不含 Cordis 的实现，`tool-host-local` 是单机宿主与插件。发起协调者与身份治理、环境、决策方和原消费方分别承担资格、资源及业务采用；程序消费方和动作桥接方通过公开行为组合，不以方法读取或连接成功代替动作准入。
 
-目标 tool/tool 统一承接定义、逻辑调用、真实执行、内部等待、控制、结果及执行账。发起协调者与身份治理、环境、HITL 和原消费方分别承担资格、资源及业务采用；Skill 和 MCP 通过公开行为组合，不以方法读取或连接成功代替动作准入。
-
-本组不维护第二份状态机、错误集合或精确承接协议。完整机制见[成员内部设计](../tool/docs/internals.md)，责任与事实归属见[领域角色](../../../docs/domains/tool-execution/architecture.md)。
+本组不维护第二份状态机、错误集合或精确承接协议。领域级设计见[契约包架构](../tool-contract/docs/architecture.md)，内部机制见[实现包架构](../tool/docs/architecture.md#tool-内部实施规格)，插件装配见[单机宿主的 Cordis 集成](../tool-host-local/docs/cordis.md)，责任与事实归属见[领域角色](../../../docs/domains/tool-execution/architecture.md)。

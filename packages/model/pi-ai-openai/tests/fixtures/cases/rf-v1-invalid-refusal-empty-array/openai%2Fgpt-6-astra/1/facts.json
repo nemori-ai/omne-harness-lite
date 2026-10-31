@@ -1,0 +1,13 @@
+[
+  {
+    "kind": "ended",
+    "termination": {
+      "kind": "failed",
+      "fault": {
+        "cause": "upstream-protocol",
+        "diagnostic": "delta-shape",
+        "upstreamStatus": null
+      }
+    }
+  }
+]

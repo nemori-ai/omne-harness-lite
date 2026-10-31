@@ -9,6 +9,10 @@ export const RULE_IDS = [
   'IC-3',
   'IC-4',
   'IC-5',
+  'H1-SESSION-FACTS',
+  'H1-AGENT-REASSEMBLY',
+  'H1-MODEL-LIFETIME',
+  'H1-OBSERVATION-CONTINUITY',
 ] as const
 export type RuleId = (typeof RULE_IDS)[number]
 export type Layer =
@@ -35,9 +39,35 @@ export interface ArchitectureImportException {
   readonly sharedStorage: string
   readonly source: string
 }
+/** schema 3 的方向行：`from` 角色的源码不得依赖 `to` 角色所在的成员。角色按 id 绑定，与 status 无关。 */
+export interface ArchitectureDirection {
+  readonly id: string
+  readonly from: readonly [string, ...string[]]
+  readonly to: readonly [string, ...string[]]
+  readonly source: string
+}
+/** 例外登记的一条成员边：`from`、`to` 是成员路径（依赖图 `edges` 的键），两端在不同的组。 */
+export interface ArchitectureGroupCycleEdge {
+  readonly from: string
+  readonly to: string
+}
+/**
+ * schema 3 的具名组环例外：放行裁定过的那几条成员边。依赖图的组环的每条跨组成员边都登记了才放行；
+ * `ruling` 是裁定的 https 链接，`reason` 是一句理由。一条边在全部例外里只出现一次。
+ */
+export interface ArchitectureGroupCycleException {
+  readonly id: string
+  readonly edges: readonly [ArchitectureGroupCycleEdge, ...ArchitectureGroupCycleEdge[]]
+  readonly ruling: string
+  readonly reason: string
+}
 export interface ArchitectureConstraints {
-  readonly schemaVersion: 1 | 2
+  readonly schemaVersion: 1 | 2 | 3
   readonly importExceptions?: readonly ArchitectureImportException[]
+  /** 只有 schema 3 可以声明；schema 1、2 的文档没有这个字段。 */
+  readonly directions?: readonly ArchitectureDirection[]
+  /** 只有 schema 3 可以声明；schema 1、2 的文档没有这个字段。 */
+  readonly groupCycleExceptions?: readonly ArchitectureGroupCycleException[]
   readonly domains: readonly {
     readonly id: string
     readonly label: string
@@ -66,7 +96,8 @@ export interface ConstraintChange {
 }
 export interface ConformanceRow {
   readonly id: string
-  readonly rule: RuleId | 'ROLE' | 'INPUT'
+  /** `DIRECTION` 是方向行（schema 3 的 `directions`）按成员对展开的一行；`key` 带方向行 id。 */
+  readonly rule: RuleId | 'ROLE' | 'INPUT' | 'DIRECTION'
   readonly state: 'converged' | 'deviation' | 'unknown'
   readonly age: 'new' | 'stock' | 'unjudged'
   readonly member: string

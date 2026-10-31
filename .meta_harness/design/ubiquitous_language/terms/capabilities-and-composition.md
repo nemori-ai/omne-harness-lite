@@ -149,20 +149,25 @@
 
 ### UL-tool · 工具 · Tool
 
-> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**；参数形状、说明、返回形状属于定义数据，与执行实现分别演化，**所以同一个 name 下可以有平台、组织、租户各自的一份，彼此替代**。
+> **中**：**一个可被调用的动作。**它的身份是**这一类里的那个 name**。工具资产只带身份、治理声明与实现引用。参数形状、说明、返回形状由资产引用的实现提供。系统装载实现时，把资产与实现合成[工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)。
+> 同一个 name 下，官方、组织、租户、工作区各层可以各持有一份资产，按[来源层](scope-and-resolution.md#ul-source-layer--来源层--source-layer)的层序彼此替代。各份资产可以引用不同的实现，参数形状也可以不同。
 > 一个 tool 可以是**多命令**的，而**整套命令在组装时只占一个[槽位](#ul-prompt-slot--提示词槽位--prompt-slot)**。
 >
-> **EN**: **One invocable action.** Its identity is **its name within this kind**; the argument shape, description and result shape are definition data that can evolve separately from execution implementation, so
-> **one name may have a platform, an organization and a tenant version, each standing in for
-> the others**. A tool may be **multi-command**, and **the whole command set occupies a single
-> slot** at assembly time.
+> **EN**: **One invocable action.** Its identity is **its name within this kind**. A tool asset carries
+> only the identity, the governance declarations and a reference to an implementation. The
+> referenced implementation supplies the argument shape, the description and the result shape.
+> When the system loads the implementation, it derives the tool definition from the asset and
+> the implementation. Under one name, the official, organization, tenant and workspace layers
+> may each hold an asset, and these stand in for one another by source-layer order. Each asset
+> may reference a different implementation, with a different argument shape. A tool may be
+> **multi-command**, and **the whole command set occupies a single slot** at assembly time.
 
 - **形态**：变体（父：[资产](#ul-asset--资产--asset)）
-- **出处**：[PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）
+- **出处**：[PF-002 §4 Tool](../../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）；资产、实现与定义的分工见已采用的 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)
 - **别混**：**子命令是 tool 的内部结构，不是独立资产**——随这个 tool 一起被持有、配置与授权
 - **⚠️ 别混**：**「工具」这个词指三样东西，寿命各不相同**——
-  [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（数据，长期）、
-  动作空间里的那个条目（会话已知能力，供各次 agent runtime 使用）、
+  [工具定义](execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)（装载时派生）、
+  动作空间里的那个条目（会话已知能力，供各次 agent runtime 使用；条目是常驻工具时，它的名字与参数形状在会话内不变，见[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)）、
   [工具执行](execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)（计算资源，**绑会话**）。
   **本条说的是它作为一类资产**
 - **注意**：本系统把 Tool 定为**顶层资产**，与前身 `omne-next` 把它归为「组件」**有意相反**
@@ -326,18 +331,23 @@
 
 ### UL-modality-converter · 模态转换件 · Modality Converter
 
-> **中**：挂在 [PF-012「消息落盘之前」](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)那个位置上的一件[拓展件](#ul-loop-extension--拓展件--loop-extension)。
+> **中**：一件系统自带的转换件，**不站在任何[拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上**。
+> **非 Tool ref 来源的内容，由实现[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳之前调用它转换；Tool 内容引用在 Model 实际请求时才加载并按需转换。**
+> 非 Tool ref 来源的这一执行时点已由项目负责人接受，见 [C-58](../conflicts.md#c-58模态转换件的执行时点)。
 > **输入一个非文本[模态](record-and-context.md#ul-modality--模态--modality)的[内容块](record-and-context.md#ul-content-block--内容块--content-block)或一个文件块；
 > 输出一个或多个别的模态的内容块（不能是文件块），外加一段纯文本 [transcript](record-and-context.md#ul-transcript--transcript--transcript) 作最后兜底。**
 > 产出挂在原块上作[派生表示](record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)，**原块不动，不新增块、不另立对象**。
 > 它按**一种模态或一种文件媒体类型**登记，同键只有一件生效、**可替换**（替换只在系统装配层，**本版不是资产**）；
 > 一个文件块两种键都命中时，**媒体类型那一件来转**。**本版它不调模型**，transcript 只来自本地识别。
-> 产出**在落盘之前写好，之后不变**。**转换失败（它挂了、交不出 transcript、交出了文件块，或只交 transcript 不交派生块）时，那条消息不落盘、也不补偿**：
-> 输入消息拒绝请求并告知发送方；模型回复那次调用照常结束、记下被否决，loop 退避之后另起新调用，同一步连续被否决到上限 Run 失败；工具结果直接让 Run 失败。
+> 非 Tool ref 来源的产出**在消息接纳之前写好，接纳后不变**。**转换失败（它挂了、交不出 transcript、交出了文件块，或只交 transcript 不交派生块）时，那条内容不被接纳为消息，也不补偿**：
+> 拒收的后果按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定规则处理，本词条不重述。
 > 没登记转换件的键不算失败；**登记了却不可用，当转换失败**。
 > 它**不判断这次要不要转**、**不承诺无损**。正文在没有歧义处简称**转换件**。
 >
-> **EN**: A loop extension at the "before a message is persisted" position. **It takes one
+> **EN**: A system-provided converter that **stands at no loop extension point**. **For content from sources other than
+> a tool reference, the provider that implements message admission calls it before acceptance; a tool content
+> reference is loaded and converted as needed only when the model request is actually made.** The project owner
+> has accepted this timing for sources other than Tool references (C-58). **It takes one
 > content block of a non-text modality, or one file block, and yields one or more content
 > blocks in other modalities (never a file block), plus a plain-text transcript as the
 > last-resort fallback.** The outputs hang on the original block as its derived renderings;
@@ -345,13 +355,11 @@
 > are registered **per modality or per file media type**; one is in effect per key and it is
 > **replaceable** — at system assembly only, **not an asset in this version**; when a file block
 > matches both kinds of key, **the media-type converter converts it**. **In this version it makes
-> no model call**: the transcript comes from local recognition only. Outputs are
-> **written before persistence and never change**. **If conversion fails (the converter is down,
+> no model call**: the transcript comes from local recognition only. For sources other than a tool
+> reference, outputs are **written before acceptance and never change after it**. **If conversion fails (the converter is down,
 > yields no transcript, yields a file block, or yields only a transcript with no derived block),
-> the message is not persisted and nothing is compensated**: an incoming message is rejected and
-> the sender told; for a model reply the call ends as usual with the reply recorded as vetoed, and
-> the loop starts a new call after a backoff, the Run failing once the same step has been vetoed
-> up to its limit; a tool result fails the Run outright. A key with no registered converter is not
+> the content is not accepted as a message and nothing is compensated**: the consequence of rejection follows
+> the source-specific rules of message admission and is not restated here. A key with no registered converter is not
 > a failure; **a registered converter that is unavailable counts as a failed conversion**. It does
 > **not** decide whether to convert this time and does **not** promise losslessness. Short form in
 > running text: *converter*.
@@ -361,10 +369,10 @@
   [PF-012 §5.8 模态转换为什么必须落在这里](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#模态转换为什么必须落在这里)（rev 25）
 - **⚠️ 别混 ①**：**不是[结果卸载](execution-and-outcome.md#ul-result-offloading--结果卸载--result-offloading)**——
   那是把**太大**的工具结果换成占位、原件离开消息；转换件处理的是**读不懂**，**原件一步没动**
-- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它走拓展件的位置与干预力，
-  但不被持有、不按层配值；「未来是否升为资产」是 PF-013 记下的显式缺口
-- **注意 ①**：**位置归 PF-012，契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
-- **注意 ②**：**转换失败就是「消息落盘之前」那个位置的否决**（[PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——失败语义与业务流程拓展点同性质：拒绝或失败，不补偿；**被否决的模型回复不是一次调模型失败**
+- **⚠️ 别混 ②**：**父词条是资产的一类，它本版却不是资产**——它不被持有、不按层配值，
+  也不站在拓展点上；「未来是否升为资产」是 PF-013 记下的显式缺口
+- **注意 ①**：**非 Tool ref 来源的执行时点已由项目负责人接受（C-58），契约归 PF-013**——有哪些模态、哪个模型收得下哪些，是大语言模型域定的
+- **注意 ②**：**非 Tool ref 来源转换失败，按[消息准入](agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的来源特定拒收处理**（封存原文 [PF-012 §5.8 否决按消息是谁产生的分三路](../../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)）——拒绝或失败，不补偿；**被拒收的模型回复不是一次调模型失败**
 - **注意 ③**：**没登记转换件、因而没有 transcript 的块进[模态投影](record-and-context.md#ul-modality-projection--模态投影--modality-projection)**，把收不下它的模型挡在合法目标之外——这是有意的兜底方向
 
 ### UL-slash-command · 斜杠命令 · Slash Command
@@ -525,6 +533,7 @@
   那说的是**某个范围当前选了哪一个**，是一条关系；这一条说的是**被选的那个东西**
 - **别混 ②**：**草稿不是版本**——它还在变，**复制与分享都只认已发布的**
 - **注意**：**发现有新版本不静默替换已选用的那个**——选哪一版是消费方的决定；持有选了「追随当前版」的，新版一发布就用上，那是持有上写明的选择，不算静默替换
+- **例外**：已有会话的[常驻工具](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)只在[采用点](agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)跟随新版本，而且新版本派生的定义必须与会话首次采用的定义[同形](reach-and-availability.md#ul-same-shape--同形--same-shape)。不同形时，原实现仍装载且可用就留在原实现；没有同形可用实现、原实现耐久地不可装载时，会话进入[冻结](agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)。依据见 [RFC-0012 会话常驻集合的规则](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5)
 
 ## 构成关系
 
@@ -605,9 +614,9 @@
 > necessarily resident, and can be neither disabled nor replaced.**
 
 - **形态**：对象
-- **出处**：[PF-007 §4 meta](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#meta)（rev 25） · [meta 与常驻的关系](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#meta-与常驻的关系)（rev 25）
+- **出处**：[元能力：meta](../../product/meta-capabilities/design.md#使用者与范围)（rev 4） · [meta 与常驻的关系](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
 - **⚠️ 注意 ①**：**「不可禁用」说的是那扇门，不是门后的每一条命令。**
-  [权限照常作用在命令这一级](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#57-权限能关掉一条命令关不掉一扇门)——
+  [权限照常作用在命令这一级](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)——
   **一条命令可以被关掉，而那扇门关不掉**。
   典型：会话运行模式是 [`never`](agent-runtime-loop.md#ul-session-run-mode--会话运行模式--session-run-mode) 时，
   `Ask().request_approval` 不可用，**而 `Ask()` 还在**
@@ -617,18 +626,21 @@
 - **注意 ③**：**常驻不一定是 meta**——一个普通工具标了常驻，它只是占了个位置
 - **注意 ④**：**关掉一扇门等于门后一整类能力凭空消失**，而 agent 会「不知道某件事存在」——
   那种失明无法解释也无法申诉。**收紧安全只能靠执行环境、权限与装配清单**
-- **注意 ⑤**：**全部采用多命令范式**，因此[整套只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)；
+- **注意 ⑤**：**全部采用多命令范式**，因此[每个多命令入口只占一个槽位](#ul-prompt-slot--提示词槽位--prompt-slot)，入口后的命令增多不增加槽位；
   **没有这一条，meta 这件事在预算上就不成立**
 - **别混**：**具体是哪几扇门（`Tools()` `Shell()` …）是它的实例，不是概念**——
   词表定义 meta 能力，**不为每一扇门各立一条**
 
+- **注意 ⑥**：`Tools()` 这扇门也按[工具](#ul-tool--工具--tool)的对象链实现：官方资产引用一个实现包，实现包导出作者插件，系统装载时派生它的工具定义。它仍是官方的，仍不可替换。它与 example 同一波迁移，依据见 [RFC-0012 对象链](../../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。卸载与会话冻结的规则对 meta 能力豁免：它不参与卸载与冻结判定，经它发现和使用非常驻工具只是对它的一次调用，依据见 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6332679272)。
+- **注意 ⑦**：Run 中途新装载的工具不进[常驻工具集合](reach-and-availability.md#ul-resident-tool-set--常驻工具集合--resident-tool-set)，agent 经 `Tools()` 够到它们
 - **运行期边界**：Ask() 可被会话协作模式关闭人交互能力；这不删除、替换或解除 meta 资产的必需绑定。命令是否可用仍受各自权限限制。
+- **采用范围**：必需绑定及常驻约束作用于已采用并提供的入口。未实现定义、候选及纯占位不因此进入模型工具清单；多命令约定不替未定义占位发明命令。
 
 ### UL-prompt-slot · 提示词槽位 · Prompt Slot
 
 > **中**：**agent 始终直接看见的一个条目**——正文说「在系统提示词里」指的就是这种始终可见的呈现，不限定它落在一次模型请求的哪个位置。
 > 标了[常驻](reach-and-availability.md#ul-residency--常驻--residency)的占一个，没标的不占；
-> 此外有**一批恒定占槽位、且关不掉**的条目（PF-007 定义的 meta）。
+> 此外有**一批恒定占槽位、且关不掉**的条目（元能力产品定义并已采用提供的 meta 入口）。
 > **多命令工具整套只占一个**，因此常驻预算的正确用法是
 > **把钱花在入口上，不是花在具体动作上**。
 >
@@ -639,7 +651,7 @@
 > resident budget is **on entry points, not on individual actions**.
 
 - **形态**：视图
-- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [PF-007 §5.4](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#54-十三个槽位是预算的地板也是它的天花板意义)（rev 25）
+- **出处**：[PF-006 §4 槽位](../../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#槽位)（rev 24） · [元能力：产品规则](../../product/meta-capabilities/design.md#必需入口常驻与命令可用性)（rev 4）
 - **别混**：**裸写「槽位」不作数**——它专指系统提示词里的那种占位
 - **注意**：**不占槽位不等于不在[动作空间](#ul-action-space--动作空间--action-space)里**——见[三层正交](reach-and-availability.md#三层正交这是本卷的地基)
 

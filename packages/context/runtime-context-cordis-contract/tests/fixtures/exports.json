@@ -1,0 +1,214 @@
+{
+  "package": "@omne-harness/runtime-context-cordis-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "契约词汇",
+          "names": [
+            {
+              "name": "ScopeRef",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ScopeText",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ContextBlockKey",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ConsumerClass",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ContextBlocks",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ContextBlockDescriptor",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "SuppliedBlockDescriptor",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "StatefulBlockDescriptor",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ViewRevision",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "RegistrationRevision",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "EligibilityId",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ProducerRegistration",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "RegisterProducerResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ProducerHandle",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "RegistrationChange",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "PrepareRegistrationResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "EligibilityMaterial",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "Eligibility",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "IssueEligibilityResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "RevokeEligibilityResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "CommitInput",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ApplyCommitResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "BindResult",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ContextReader",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "RuntimeContextOperations",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            }
+          ]
+        }
+      ]
+    },
+    "./cordis": {
+      "chapters": [
+        {
+          "title": "服务定义",
+          "names": [
+            {
+              "name": "RuntimeContextService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextScopeKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextIntercept",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextChangedPayload",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Context",
+      "members": ["runtimeContext", "[runtimeContextScopeKey]"],
+      "pending": false
+    },
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Events",
+      "members": ["runtime-context-cordis-contract/changed"],
+      "pending": false
+    }
+  ]
+}

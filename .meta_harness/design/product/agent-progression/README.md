@@ -1,8 +1,8 @@
 ---
 id: PD-agent-progression
 title: Agent 定义与工作推进
-status: draft
-revision: 1
+status: active
+revision: 4
 relations:
   supersedes: []
   depends-on: []
@@ -11,11 +11,12 @@ relations:
 
 # Agent 定义与工作推进
 
-本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品采用仍待确认，正式维护位置不表示技术接受或实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
+本topic维护产品规则、能力定义与未核实支持状态、阶段承诺和未决事项。领域分解已评审；整体产品已由产品负责人采用，技术设计也已接受，见[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。常驻工具在采用点的同形接替与会话冻结结论依据 [RFC-0012](../../../../docs/rfcs/RFC-0012-tool-dynamics.md) 及 [#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)写回，产品负责人已于 2026-10-22 接受该写回，见[#618 的接受决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6335123860)。取消不经过其他终态前扩展、由系统只读核对后结束执行的规则依据 [#558 的取消终结政策决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6371768059)写回。采用与接受不表示实现支持。既定用户决定保留，尚未选择的版本能力继续缺项。
 
 ## 阅读入口
 
 - [产品正文](design.md)包含需求、能力状态、阶段承诺及未决事项。
+- [验收场景](acceptance.md)登记既有旅程的阶段 1 切片与终态台账认回范围。
 - [领域责任](../../../../docs/domains/agent-progression/README.md)解释已接受分工与采用范围。
 - [能力组](../../../../packages/agent/README.md)导航工程关系及成员契约。
 

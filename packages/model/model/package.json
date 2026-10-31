@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft model package; complete the accepted public contract before delivery",
+  "description": "Model domain implementation: standalone execution, credential judgments, stream preservation, observation and confirmed call settlement",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -20,11 +25,25 @@
   "scripts": {
     "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.test.json",
-    "test": "vitest run",
+    "test": "vitest run && pnpm run examples",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "install-closure": "node --experimental-strip-types ../model-contract/tests/install/cli.ts --member . --policy tests/fixtures/install-policy.json --scenario tests/install/scenario.mjs",
+    "examples": "node --experimental-strip-types examples/01-submit-and-query.ts && node --experimental-strip-types examples/02-observe-and-settle.ts && node --experimental-strip-types examples/03-output-limit.ts && node --experimental-strip-types examples/04-input-over-limit.ts && node --experimental-strip-types examples/05-read-and-acknowledge.ts",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

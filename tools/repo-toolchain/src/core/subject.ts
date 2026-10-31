@@ -18,3 +18,20 @@ export function runnerRoot(env: Env = process.env, cwd: string = process.cwd()):
   const given = env['OMNE_RUNNER_ROOT']
   return given !== undefined && given !== '' ? resolve(given) : subjectRoot(env, cwd)
 }
+
+/** 两个根解析符号链接后是不是同一个目录；其中一个不存在时按绝对路径比。 */
+export function sameTree(first: string, second: string): boolean {
+  const real = (path: string) => {
+    try {
+      return realpathSync(path)
+    } catch {
+      return resolve(path)
+    }
+  }
+  return real(first) === real(second)
+}
+
+/** 被检查的仓库就是运行检查器的仓库自己。runner 登记的东西是否过期，只有这时才能对照被检树判断。 */
+export function subjectIsRunner(subject: string, env: Env = process.env): boolean {
+  return sameTree(subject, runnerRoot(env))
+}

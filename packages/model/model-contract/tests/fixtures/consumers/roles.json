@@ -1,0 +1,1 @@
+{ "roles": ["context", "independent-caller", "orchestration-coordinator", "provider-author", "result-consumer"] }

@@ -217,13 +217,6 @@ def test_real_member_origin_requires_workspace_and_manifest(tmp_path, kind, suff
     assert modules.origin(target) == ('current-member' if kind == 'packages' else 'archived-member')
     assert modules.owns(target) == (kind == 'packages')
     assert check_links(root, tmp_path) == []
-    if kind != 'packages':
-        # #325 的暂行规则：封存目录里存在的文件放行，但逐条计数，仍不是当前拥有者。
-        notes: list[str] = []
-        (tmp_path / member / 'package.json').unlink()
-        assert check_links(root, tmp_path, notes) == []
-        assert notes == [f'README.md: interim legacy link (#325): ../../{member}/{suffix}']
-        return
     (tmp_path / member / 'package.json').unlink()
     assert any('escapes design root' in error for error in check_links(root, tmp_path))
     save(tmp_path / member / 'package.json', '{"name":"example"}')
@@ -330,24 +323,5 @@ def test_nested_archived_design_material_is_not_scanned(tmp_path):
     save(root / 'topic/archive.legacy-not/broken.md', '[Missing](absent.md)\n')
     errors = check_links(root)
     assert errors
-    assert any('archive.legacy-not/broken.md' in error for error in errors)
+    assert any(str(Path('archive.legacy-not/broken.md')) in error for error in errors)
     assert not any('archive.legacy/broken.md' in error for error in errors)
-
-
-def test_interim_legacy_archive_links_are_counted_not_silently_allowed(tmp_path: Path) -> None:
-    """#325 的暂行规则：指向封存 legacy 且文件存在的链接放行并逐条计数；缺文件、别的目录仍失败。"""
-    root = tmp_path / '.meta_harness/design'
-    save(tmp_path/'pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n')
-    register(tmp_path)
-    save(tmp_path/'packages.0.0.1.legacy/core/old/src/value.ts', 'export const value = 1\n')
-    save(root/'product/a.md', '[old](../../../packages.0.0.1.legacy/core/old/src/value.ts)\n')
-    notes: list[str] = []
-    assert check_links(root, tmp_path, notes) == []
-    assert notes == ['product/a.md: interim legacy link (#325): ../../../packages.0.0.1.legacy/core/old/src/value.ts']
-    assert any('escapes design root' in error for error in markdown(root))
-    save(root/'product/b.md', '[gone](../../../packages.0.0.1.legacy/core/old/src/absent.ts)\n')
-    save(tmp_path/'other.0.0.1.legacy/x.ts', 'x\n')
-    save(root/'product/c.md', '[other](../../../other.0.0.1.legacy/x.ts)\n')
-    errors = check_links(root, tmp_path, [])
-    assert any('product/b.md' in error and 'escapes design root' in error for error in errors)
-    assert any('product/c.md' in error and 'escapes design root' in error for error in errors)

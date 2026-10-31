@@ -72,6 +72,7 @@
 
 - 地址不是身份或凭据，同地址不自动合并，实例不固定租户。
 - 不得从目录或尚未建立叶包反推公开 API。
+- 身份、实例与版本分为三轴，见 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)：身份的文本形式是 legal-identity 第六族 `WorkspaceId`。实例标识与装载依据组成的工作区附着暂由 [session-contract](../../../session/session-contract/SPEC.md#消费者资格与输入) 持有，迁回本域见 [#837](https://github.com/nemori-ai/omne-harness-lite/issues/837)。
 
 处理方向及后果：
 

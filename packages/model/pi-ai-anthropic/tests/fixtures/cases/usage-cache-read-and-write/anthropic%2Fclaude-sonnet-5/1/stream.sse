@@ -1,0 +1,8 @@
+data: {"model":"anthropic/claude-sonnet-5","provider":"Anthropic","choices":[{"delta":{"content":"answer 1"}}]}
+
+data: {"choices":[],"model":"anthropic/claude-sonnet-5","provider":"Anthropic","usage":{"prompt_tokens":100,"completion_tokens":4,"prompt_tokens_details":{"cached_tokens":20,"cache_write_tokens":5}}}
+
+data: {"choices":[{"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

@@ -14,6 +14,7 @@ import {
   setStartTag,
   trackEntry,
 } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import type { Route } from '../src/delivery/binding.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { contextPath } from '../src/integration/context.ts'
@@ -39,7 +40,7 @@ const cliPath = fileURLToPath(new URL('../src/integration/cli.ts', import.meta.u
 function chainFixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   branchAt(f.remote, 'child', f.initial)
   branchAt(f.remote, 'grand', f.main)
@@ -352,16 +353,51 @@ describe('route targets at start', () => {
     action: 'dispatch',
     confirmations: [],
   } as const
-  /** Commits a registry with the chain tracks, binds the task to `route` and runs start. */
+  /**
+   * Commits a registry with the chain tracks and a line table whose one line owns the write
+   * scope, binds the task to `route` with a version 2 binding of that line and runs start. A
+   * `grand` route belongs to a line of the grand track; any other route to a line without a
+   * track, whose cards enter the integration track `runtime`. The card attributes agree with
+   * the route, so no attribute finding refuses it.
+   */
   async function start(f: Chain, taskRoute: Route, entries: Entry[] = Object.values(f.tracks)) {
     writeFileSync(
       join(f.root, 'docs/engineering/integration-policy.json'),
       JSON.stringify(policyDocument(f.initial, f.remote, entries)),
     )
-    git(f.root, ['commit', '-qam', 'Fixture chain registry'])
+    const line = taskRoute.track === 'grand' ? 'grand-line' : 'tools-line'
+    writeFileSync(
+      join(f.root, 'docs/engineering/delivery-lines.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        integration: { track: 'runtime', paths: ['apps'] },
+        shared: [],
+        lines: [
+          {
+            id: line,
+            title: line,
+            owner: 'human',
+            track: line === 'grand-line' ? 'grand' : null,
+            paths: ['feature'],
+            contracts: [],
+          },
+        ],
+      }),
+    )
+    git(f.root, ['commit', '-qam', 'Fixture chain registry and line table'])
+    const attributes = { line, nature: 'impl', contractChange: 'none' }
+    Object.assign(f.binding, { schemaVersion: 2, ...attributes, milestone: 'M1' })
     f.binding.route = taskRoute
     f.binding.completionTarget = 'track'
-    f.update(f.binding)
+    f.update(f.binding, [], 'open', attributes)
+    const platform = join(f.home, 'platform.json')
+    writeFileSync(
+      platform,
+      JSON.stringify({
+        ...JSON.parse(readFileSync(platform, 'utf8')),
+        labels: ['kind:feature', `line:${line}`, 'nature:impl'],
+      }),
+    )
     f.authority({ ...common, basis: [...common.basis], task: f.binding, confirmations: [] }, 1)
     return (await openIntegration({ root: f.root })).execute({
       kind: 'start',

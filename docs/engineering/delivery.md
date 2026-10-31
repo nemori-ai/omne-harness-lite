@@ -1,6 +1,6 @@
 # Issue、Projects与交付协议
 
-协议已采用，日常入口以[GitHub交付配置](github-delivery.json)的实际发布状态为准。PanQiWei已授权启用，接入及首次采用记录归[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)；未发布或未获本任务授权时只形成获准草稿。每项任务按实际需要明确本次身份、结果和接受责任。平台、默认分支模板及实际宿主执行仍须独立验证，本页不授予发布或启用。
+日常入口以[交付配置](github-delivery.json)的发布状态为准。配置未发布或未获本任务授权时，agent 只形成草稿，不写平台。
 
 本页拥有 Issue、Project、条件、调度与交付决定的共同协议。协议不是 GitHub 原生保证；对话及操作顺序归[agent交付操作](agent-delivery.md)。
 
@@ -44,7 +44,7 @@
 
 首版一个主Project，仓库Issue作为正式卡源，不依赖组织特有Issue type。正文明确工作类型和交付层级，分类标签只是派生筛选；主Project不另维护可独立修改的第二个工作类型。标签不能授予ready、规范或接受权。Issue assignee表示负责的人，执行attempt标识区分其名下的agent实例。
 
-Project字段仅建议Stage、Priority、Iteration。阶段由指定调度者维护；阻塞从条件观察，不作为抹去真实进展的独立Stage。首版不强制自动化：人工调度按同一协议复核，之后加只读检查及获准投影；不是从第一天开发新调度服务。
+主Project使用的字段、各自的唯一源与写者见[字段总表](#字段总表)。阶段由指定调度者维护；阻塞从条件观察，不作为抹去真实进展的独立Stage。首版不强制自动化：人工调度按同一协议复核，之后加只读检查及获准投影；不是从第一天开发新调度服务。
 
 ## 2. 卡片与阶段
 
@@ -62,6 +62,7 @@ Epic是后续可选聚合能力，首版不创建正式Epic或对它运行本页
 | Ready | 本次范围、接受者及开始条件已核；开始前再读回，不是永久许可 |
 | In progress | 当前attempt已获授权，独立工作可推进；可能仍等待集成条件 |
 | In review | 候选与相称证据已形成，等待适用技术核验；不是每个任务强制独立全审 |
+| Integrating | 候选已通过准入，正在经 gate 进入目标轨道。gate 成功后进入 Awaiting acceptance 或接受流程；gate 失败退回 In review |
 | Awaiting acceptance | 适用证据和条件齐备，等待具名接受者判断 |
 | Accepted | 对精确交付修订与范围作了有效接受，关闭并退出活动 |
 | Cancelled | 有权者明确不再交付，记录残余影响及后继处置，关闭但不记接受 |
@@ -69,6 +70,116 @@ Epic是后续可选聚合能力，首版不创建正式Epic或对它运行本页
 Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接受／取消事实由具名决定记录拥有。Project只拥有调度Stage等字段，Closed只说明平台状态。若三者不一致，报告并由调度者对账，不依据最便利的一项解锁。
 
 启用该协议的主Project须禁用Issue／PR关闭→Done、PR合并→Done和Stage→自动关闭；仓库禁用关联PR合并自动关闭，PR正文用普通引用。官方说明默认自动化：[Project工作流](https://docs.github.com/en/issues/planning-and-tracking-with-projects/automating-your-project/using-the-built-in-automations)、[仓库自动关闭](https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/managing-repository-settings/managing-auto-closing-issues)。技术接受可以根据合并后的真实证据作出，但平台事件不代替决定。
+
+### 卡属性与合法组合
+
+本节先列主Project的字段与视图，再规定交付卡的三个属性及其合法组合。
+
+#### 字段总表
+
+下表列出主Project的调度字段。字段 ID 与选项 ID 只登记在[交付配置](github-delivery.json)。配置的 `iteration` 键登记 Wave 字段，它在 Project 中是迭代类型的字段。dev-flow 的写入命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#看板字段写入)。标题、负责人、父卡与子项进度是 GitHub 从 Issue 直接显示的内容，不在表中。
+
+| 字段 | 含义 | 唯一源 | 谁写 | 何时写 | 用在哪些视图 |
+| --- | --- | --- | --- | --- | --- |
+| Status | 卡的调度阶段，取 [§2](#2-卡片与阶段) 表中的值，含 Integrating | Project 字段本身。任务事实仍归 Issue 正文，接受与取消归决定记录 | 按事件写，见本表下方的列表 | 阶段变化时 | 各里程碑看板与当前波的列、Active work 与周期的过滤、Awaiting acceptance |
+| Line | 卡的交付线 | 正文「交付线」。`line:` 标签与本字段都是投影。派发后取 binding 的 `line` | `start` 新建 context 后写入。失败时调度者用 `board-cli.ts dispatched` 补写 | 开工时 | 各里程碑看板与当前波的泳道、Active work 的排序、周期 |
+| Kind | 卡的主工作类型 | 正文「主工作类型」。写入前核对唯一的 `kind:` 标签与正文一致 | 同 Line | 开工时 | 按 kind 分组 |
+| Wave | 卡所属的波 | 调度者在 Project 中为本波建的迭代，起止日覆盖本波的派发时间。`start` 取包含开工日的那个迭代 | 同 Line | 卡第一次开工时。卡已有 Wave 时不覆盖，同一张卡的新 attempt 不改 Wave | 当前波、路线图 |
+| Needs decision | `yes` 表示卡在等人拍板，`no` 或空表示不等 | Project 字段本身。要裁定的问题和决定写在卡的评论中 | 本卡调度者。工具不写 | 发现需要人裁定时置 `yes`，包括破坏性契约改动的申请。决定读回后置 `no` | 待裁 |
+| Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
+| Milestone | 卡所属的里程碑 | Issue 的 milestone 字段 | 调度者。建里程碑与流转用 `milestone-cli.ts` | 建卡时设置。改里程碑用 `carry` | 各里程碑看板的过滤、Active work 与顶层交付卡的分组、路线图、周期 |
+| Dispatched at | 卡第一次开工的日期 | dev-flow 写入的日期。已有值时不覆盖 | 同 Line | 开工时 | 周期 |
+| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线内的卡由线会话运行 | 交回候选时 | 现有视图不显示 |
+| Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted`。批次内的卡由集成节点按卡运行 | 接受决定读回后 | 周期 |
+| Cycle days | Accepted at 与 Dispatched at 相差的天数 | 由两个日期算出 | 同 Accepted at | 同 Accepted at | 周期 |
+
+Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
+
+- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在卡的 PR 合入批次分支时运行。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review。
+- Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
+- Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。批次内的任务卡由集成节点在按卡接受时运行。
+
+标签是正文的投影，不是第二个源。下表列出调度用的标签族：
+
+| 标签族 | 含义 | 唯一源 | 谁写 | 何时写 | 用在哪里 |
+| --- | --- | --- | --- | --- | --- |
+| `kind:<主工作类型>` | 卡的主工作类型 | 正文「主工作类型」 | 调度者 | 建卡时；主工作类型改变时同步 | Kind 字段的来源。`start` 要求恰有一个 |
+| `level:delivery`、`level:subtask` | 交付层级 | 正文「交付层级」 | 调度者 | 建卡时 | 顶层交付卡视图的过滤 |
+| `line:<交付线>` | 交付线 | 正文「交付线」 | 调度者运行[标签同步命令](../../tools/dev-flow/src/delivery/README.md#标签同步) | 建卡后；交付线改变时 | `start` 要求恰有一个 |
+| `nature:<性质>` | 性质 | 正文「性质」 | 同 `line:` | 建卡后；性质改变时 | 属性发现核对 |
+| `contract:<契约变更>` | 契约变更为 `additive` 或 `breaking`；为 `none` 时不打 | 正文「契约变更」 | 同 `line:` | 建卡后；契约变更改变时 | 属性发现核对 |
+
+建卡时，卡必须有唯一的 `kind:` 标签、唯一的 `line:` 标签与里程碑，`start` 缺任一项时拒绝开工。调度者在派发一波之前，在 Wave 字段中为本波建好迭代，起止日覆盖本波的派发时间。
+
+#### 视图
+
+视图的过滤、分组、泳道与排序保存在 Project 中，是这些设置的唯一源。本表只记录每个视图回答的问题。新建里程碑时，按 `milestone-cli.ts create` 输出的步骤为它建看板视图。
+
+| 视图 | 回答的问题 |
+| --- | --- |
+| Active work | 还有哪些活动的卡，各在哪个里程碑与哪条线 |
+| 当前波 | 本波每条线的卡分别在排队、推进、评审、集成还是待接受 |
+| 每个里程碑一个看板 | 这个里程碑中每条线在各阶段各有几张卡 |
+| 顶层交付卡 | 每个里程碑的顶层结果拆到了什么程度 |
+| 周期 | 已接受的卡从开工到接受用了几天 |
+| Awaiting acceptance | 哪些卡在等具名接受者判断 |
+| 待裁 | 哪些卡在等人拍板 |
+| 按 kind 分组 | 每种工作类型各有多少卡 |
+| 路线图 | 每个波的起止日，以及卡排在哪个波 |
+
+#### 卡属性
+
+交付卡在「身份与责任」中登记交付线、性质与契约变更三个属性。调度者在 Issue 的 milestone 字段设置卡所属的里程碑。属性与主工作类型、交付层级相互独立。交付线的划分与路线规则归[多层分支集成](integration.md#交付线)，里程碑、契约基线与可加改动归[多层分支集成的同名一节](integration.md#里程碑与契约基线)。
+
+- 交付线：[线归属表](delivery-lines.json)中的线 ID，或 `integration`。`integration` 表示卡归联调轨道，用于系统级或跨线的工作。
+- 性质，取下列之一：
+  - `design`：只改设计与规格正文。
+  - `contract`：改契约成员的公开面、一致性套件或替身。
+  - `impl`：在既有契约下实现。
+  - `integration`：跨线的真实装配、集成点、联合验收或破坏性契约改动。
+  - `baseline`：登记里程碑的契约基线。
+- 契约变更，取下列之一：
+  - `none`：不改契约成员的公开面。
+  - `additive`：对契约成员只做可加改动。
+  - `breaking`：对契约成员做破坏性改动。
+
+交付线的取值 `integration` 与性质的取值 `integration` 属于两个字段：前者表示卡归联调轨道，后者表示跨线集成工作。交付线不是 `integration` 的卡称为线内的卡。卡的契约变更是整张卡的级别；PR 的「契约变化」逐个契约成员列出，其中最高的一级不超过卡的契约变更。
+
+下表规定合法组合：
+
+| 性质 | 交付线 | 写范围 | 交付条件可引用 | 契约变更 |
+| --- | --- | --- | --- | --- |
+| `design` | 任意 | 线内的卡：本线拥有的路径中的正文；交付线为 `integration` 时：任意路径中的正文 | 线内的卡：本线与交付线为 `integration` 的卡；交付线为 `integration` 时：任意卡 | `none` |
+| `contract` | 线内 | 本线的契约成员 | 本线与交付线为 `integration` 的卡 | `none`、`additive` |
+| `impl` | 线内 | 本线拥有的路径 | 本线与交付线为 `integration` 的卡 | `none`、`additive` |
+| `integration` | `integration` | 任意路径 | 任意卡 | 任意 |
+| `baseline` | `integration` | 不写仓库，在卡上登记基线 | 无 | `none` |
+
+表外另有三条规则：
+
+1. 任何卡都可以写线归属表 `shared` 列出的共享路径，只写由本卡其他改动生成或登记的变化，例如锁文件与文档登记。
+2. 线内的卡依赖其他线的契约时，不引用其他线的卡，而写一条 `capability` 条件，目标是本线的目标轨道上可读到的那个契约形状。
+3. 交付线为 `integration` 的卡写入线内的路径时，route 用 `cross-track`，具名联调轨道与线归属表登记的受影响线的 owner；只写联调轨道拥有的路径时，route 用 `track`。
+
+属性属于交付范围。卡首次登记属性时不升交付修订；登记后改变交付线、性质或契约变更时升交付修订。调度者改里程碑时不升交付修订。属性派生的标签与 Project 字段只作投影，规则见[建卡或修订卡](agent-delivery.md#2-建卡或修订卡)。
+
+Project 字段的唯一源与写者见[字段总表](#字段总表)。
+
+#### 契约变更与里程碑类型
+
+里程碑的契约基线、可加改动的判断，以及破坏性改动的允许时机，归[多层分支集成](integration.md#里程碑与契约基线)。卡属性上的规则如下：
+
+1. 线内的卡的契约变更只取 `none` 或 `additive`，见上面的合法组合表。
+2. 线内的卡在开发中发现必须对契约成员做破坏性改动时，执行者停止依赖这项改动的工作，在交接报告中写明改动与受影响的契约成员。调度者把卡的 Needs decision 置为 `yes`，在卡的评论中写明要裁定的问题，由人拍板。
+3. 人同意后，破坏性改动由性质为 `integration` 的卡完成，见[里程碑内的规则](integration.md#里程碑内的规则)。裁定同意后，原线内卡只按兼容形状继续开发，仍不申报 `breaking`；破坏性切换由承接的 `integration` 卡按里程碑规则完成。决定读回后，调度者把 Needs decision 置为 `no`。
+4. 负责人建 Milestone 时，在描述中写明里程碑类型：普通或重构型。Milestone 描述是里程碑类型的唯一源。
+
+调度者用 `milestone-cli.ts carry` 改卡的里程碑时，binding 中派发时的里程碑不变，属性发现随后报告 `attribute-binding-drift`。处置如下：
+
+1. carry 在卡上发的流转评论说明原因。
+2. 正文单写者在这张卡的下一次 revision 中，把 binding 的 `milestone` 改为当前里程碑。漂移随之消失。
 
 ## 3. 条件、关系与解锁
 
@@ -106,6 +217,8 @@ Issue条件表是依赖语义唯一源，每项有稳定条件ID、类型、目�
 - 不含与剩余责任：{{具名缺口及下一责任}}
 - 前项关系：{{此前决定URL、取代／撤销精确范围，或无}}
 ```
+
+dev-flow 的读卡逻辑按「决定」这个列表字段识别决定评论：一条卡评论中只要有字段名为「决定」的列表行（`- 决定：`，前面可以有空白，冒号全角半角都算），这条评论就被读成交付决定，种类取其中第一个这样的行。种类不是 accept、cancel、revoke、partial 之一时，这张卡带 `decision-kind-invalid` 偏离，对这张卡运行的派发命令与 `start` 都会拒绝。所以交付决定以外的评论（例如范围裁定或接管说明）不写「决定」列表字段。需要字段时换一个字段名，例如 `- 裁定：`。
 
 卡由具名结果接受者判断所有本次承诺结果。产品结果必须由产品负责人接受；技术结果由有权技术／工程接受者判断，任务标签不能赋予权限。跨产品与技术责任时，各受影响语义拥有者先接受自己的变化；卡须明确相应决定与本次结果的主接受责任，不能由主接受者替其他拥有者批准变义。部分认可只记录认可范围，卡不进入Accepted、不关闭为完成；剩余结果继续活动，或由拥有者明确拆卡／缩小范围并接受新的交付修订。不能以记录accepted但少几项隐式销卡。
 
@@ -145,10 +258,14 @@ Project保留活动与近期项，达到容量前移出已结束项，Issue历�
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。
+[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。binding 的格式含属性字段时，正文单写者在派发时把交付线、性质、契约变更与当时的里程碑写进 binding。binding 中的里程碑只记录派发时的值，与 Issue 不一致时只作报告。binding 格式不含这些字段时，属性只登记在正文与 milestone 中。已派发的 attempt 在交付前不改 binding 格式；同一张卡的新 attempt 在格式含属性字段时使用它。任务同步不能改变原 taskBase 或虚构新 attempt。
 
 原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
 
 完成 track 后已接受的结果仍可能被后续完整 RI 携带。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
 
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台。
+Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；视图不另增 Stage 或可编辑调度队列，Stage 只取 [§2](#2-卡片与阶段) 表中的值。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。dev-flow 对平台的写入范围见[多层分支规则](integration.md#issue-与-project-的配合)。
+
+## Map-Reduce 交接与整波放行
+
+常驻 Line 与唯一 reduce 的协作规则归[集成清单](integration.md#集成节点的清单)。阶段、收口顺序、redo 与接管处置及恢复归[负责人状态](map-reduce-states.md)。本协议的具名接受权限保持；Project、单卡接受、PR 合入或 Issue closed 均不能单独放行下一波。

@@ -2,7 +2,7 @@ version: 1
 role: product-design-reviewer
 binding:
   native_sha256: d9893407d7ae0c702880f0d3b87d9b3f95565854c83652e48d2c43290f3e505a
-  prompt_sha256: 0abc63b9c255ccd58dea030d894281974cfd97860f045ba0fffb1467acdccf7a
+  prompt_sha256: 07590732bc944958e95933687cbb6a0cb9d829ca3f09c396cf89a94f6c76b2ae
 host_versions:
   cli:
   - 2026.08.04-aaa8809
@@ -37,6 +37,6 @@ evidence: []
 missing: []
 adoption:
   owner: PanQiWei
-  reference: https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019
-  subject_sha256: 07cd083571ba131bd73662017f0eda2fc1d600f470e68712fc8220a6fa2a8dfc
-reason: PanQiWei accepted formal Cursor use for this role.
+  reference: https://github.com/nemori-ai/omne-harness-lite/issues/916#issuecomment-6488410860
+  subject_sha256: c9a37f437b6173ce733f480476d171a42279afa0c1e61d945b708c6f0f27302b
+reason: PanQiWei accepted formal Cursor use for this role (https://github.com/nemori-ai/omne-harness-lite/issues/198#issuecomment-6143351019). On 2026-10-26 PanQiWei adopted a rebind of the prompt hash after the inlined shared page project-frame.md changed. The role body, duty, tools, permissions and cursor.yaml did not change. The role was not re-qualified. Later on 2026-10-26 the wording of the inlined shared page project-frame.md changed again, and the prompt hash was rebound again under the same ruling. On 2026-10-29 PanQiWei adopted another rebind of the prompt hash for issue 916 revision 3 (https://github.com/nemori-ai/omne-harness-lite/issues/916#issuecomment-6488410860) after the inlined shared page project-frame.md changed. The role body, duty, tools, permissions and cursor.yaml did not change. The prior qualification is kept and the role was not re-qualified.

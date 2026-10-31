@@ -1,3 +1,5 @@
+// @module-tag slow
+// Slow: every case runs the package-template CLI as a child process over a temporary git workspace (tsc and git included). File total 19.1 s on the full-admission fast-tier ledger, 56.1 s under load; 2 of its 13 cases are over the 2.5 s per-case budget on the admission run, all 13 under load, and one reached 6 s under load against the 5 s timeout (tools/test-runner/README_ZH.md「归层」).
 import { afterEach, expect, it } from 'vitest'
 import { spawnSync, execFileSync } from 'node:child_process'
 import {
@@ -38,7 +40,9 @@ afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true })
 })
 function fixture() {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
+  // native: on Windows tmpdir() may be an 8.3 short name that the JS realpath keeps, while Git
+  // reports the long name and the installed repo-toolchain compares the two literally.
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-template-cli-')))
   roots.push(root)
   mkdirSync(join(root, 'packages'))
   mkdirSync(join(root, 'docs/architecture'), { recursive: true })

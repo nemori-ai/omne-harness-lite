@@ -11,7 +11,7 @@ lines:
   - "service.ts:42-58"
   - "service.ts:104-113"
   - "reflect.ts:277-305"
-probe: packages/core/kernel-basis/tests/basis/service-subclass-provides-its-key.test.ts
+probe: packages/assembly/kernel-basis/tests/service-subclass-provides-its-key.spec.ts
 checked: 2026-10-02
 ---
 
@@ -47,7 +47,7 @@ checked: 2026-10-02
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-10-02）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-10-02）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 抽象类 `super(ctx, 'probeGreeter')`、子类只实现 `greet`；`ctx.plugin(子类)` 之后 `ctx.get('probeGreeter')` 是抽象类的实例、方法可调；
    撤除那条 fiber 后 `ctx.get('probeGreeter')` 为 `undefined`。

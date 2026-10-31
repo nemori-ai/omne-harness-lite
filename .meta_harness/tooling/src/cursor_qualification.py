@@ -68,7 +68,7 @@ def read_qualification(source: Path, native: bytes, prompt: str, *, require_bind
     path = source / "cursor-qualification.yaml"
     if not path.is_file():
         raise ValueError(f"{prefix}: missing qualification record")
-    record = yaml.load(path.read_text(), Loader=UniqueLoader)
+    record = yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueLoader)
     if (not isinstance(record, dict) or set(record) != FIELDS
             or type(record["version"]) is not int or record["version"] != 1
             or record["role"] != source.name):

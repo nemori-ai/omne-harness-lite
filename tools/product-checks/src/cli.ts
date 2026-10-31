@@ -6,7 +6,7 @@ import { inspectCoverage } from './acceptance/coverage.ts'
 import { readAcceptanceLockConfig } from '@omne-harness/repo-toolchain/acceptance/lock'
 import { attributionViolations, readCommits } from '@omne-harness/repo-toolchain/commits'
 import { collectSources, runRules } from '@omne-harness/repo-toolchain/core/scan'
-import { RULES } from './rules/index.ts'
+import { RULES, rulesForRoot } from './rules/index.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
 import { toolchainConfigPath } from '@omne-harness/repo-toolchain/core/toolchain-config'
 import { collectRepositorySources, REPOSITORY_RULES } from './repository.ts'
@@ -22,7 +22,7 @@ if (existsSync(join(repositoryRoot, '.git'))) baselines(repositoryRoot)
 const roots = (process.argv.length > 2 ? process.argv.slice(2) : ['packages']).map(p =>
   resolve(process.env['OMNE_SUBJECT_ROOT'] ?? process.cwd(), p),
 )
-const violations = roots.flatMap(root => runRules(collectSources(root), RULES))
+const violations = roots.flatMap(root => runRules(collectSources(root), rulesForRoot(root)))
 violations.push(...runRules(collectRepositorySources(repositoryRoot), REPOSITORY_RULES))
 // 验收的覆盖声明：声明的场景要在产品区的 acceptance.md 里存在。产品区的位置与回路的读法同一份配置。
 const coverage = inspectCoverage(

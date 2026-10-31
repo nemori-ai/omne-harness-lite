@@ -1,0 +1,154 @@
+import type { CallAccount } from '@omne-harness/call-account'
+import type { ContentBlock } from '@omne-harness/content-block'
+import type * as M from '@omne-harness/model-contract'
+import type * as T from '@omne-harness/tool-contract'
+import type { Reply } from './evaluation.ts'
+import type { CommandReceipt, ExecutionMutation } from './execution.ts'
+import type { Access, Authority, ConsumerRef, ConsumptionId, DurableEvidence } from './identity.ts'
+import type { AgentJournal } from './journal.ts'
+import type { AgentMaterials, Material } from './passages.ts'
+
+/**
+ * The Tool start fence took effect in the Tool ordering domain (J03). `guard` is the resource that
+ * Agent owns, and `fence` is the evidence that `invalidate` returned for `operation`.
+ */
+export type StartFenceEntry = Readonly<{
+  kind: 'start-fence'
+  operation: T.ToolOperationId
+  guard: Readonly<{ owner: string; resource: string; revision: string; evidence: DurableEvidence }>
+  fence: DurableEvidence
+}>
+
+/**
+ * The delivery that the result receiver saved, with the producer's own delivery key as the key
+ * that recognizes it again (J02). The branch follows the kind of the key. A Model result carries
+ * the account snapshot of every dispatch at freeze time. A Tool result carries its account or
+ * null. An account delivery of either producer carries the `CallAccount` of its revision. A
+ * missing report stays null and is never zero.
+ */
+export type ReceivedDelivery =
+  | Readonly<{
+      producer: 'model'
+      key: Extract<M.ModelDeliveryKey, { kind: 'result' }>
+      accounts: readonly M.ModelAccountSnapshot[]
+    }>
+  | Readonly<{
+      producer: 'model'
+      key: Extract<M.ModelDeliveryKey, { kind: 'account' }>
+      account: CallAccount
+    }>
+  | Readonly<{
+      producer: 'tool'
+      key: Extract<T.ToolDeliveryKey, { kind: 'result' }>
+      account: CallAccount | null
+    }>
+  | Readonly<{
+      producer: 'tool'
+      key: Extract<T.ToolDeliveryKey, { kind: 'account' }>
+      account: CallAccount
+    }>
+
+/**
+ * A pushed result version or account revision that the result receiver saved (J02). `consumer`
+ * is the frozen destination, `consumption` the original consumption it maps to, and `material`
+ * the preserved payload or its recoverable reference.
+ */
+export type ReceivedEntry = Readonly<{
+  kind: 'received'
+  delivery: ReceivedDelivery
+  consumer: ConsumerRef
+  consumption: ConsumptionId
+  material: DurableEvidence
+}>
+
+/**
+ * The receiving entries of the Journal (J01). The union is open: a reader keeps an entry of an
+ * unknown kind and does not interpret it, so a later kind is an additive change.
+ */
+export type AgentJournalEntry = StartFenceEntry | ReceivedEntry
+
+/**
+ * The input of one record. An entry of the advancing side carries the current Authority; the
+ * result receiver writes `received` without an attachment.
+ */
+export type JournalEntryRecord<P> = ExecutionMutation<P> &
+  (
+    | Readonly<{ authority: Authority; entry: StartFenceEntry }>
+    | Readonly<{ authority: null; entry: ReceivedEntry }>
+  )
+
+/**
+ * The port that records receiving entries. The provider of `AgentJournal` serves it in the same
+ * authoritative ordering; see SPEC "日志条目".
+ */
+export interface AgentJournalEntries<P> {
+  record(input: JournalEntryRecord<P>): Reply<CommandReceipt>
+}
+
+/** One received delivery and its complete material, before the provider creates evidence. */
+export type ReceivedCommitInput<P, B extends ContentBlock> = ExecutionMutation<P> &
+  Readonly<{ entry: Omit<ReceivedEntry, 'material'>; material: Material<B> }>
+
+/** The original command, material reference and producer saved evidence have distinct roles. */
+export type ReceivedCommitValue = Readonly<{
+  receipt: CommandReceipt
+  entry: ReceivedEntry
+  saved: DurableEvidence
+}>
+
+export type ReceivedCommitResult =
+  | Readonly<{ kind: 'committed'; value: ReceivedCommitValue }>
+  | Readonly<{ kind: 'excluded'; evidence: DurableEvidence }>
+
+export type ReceivedCommitQuery = ReceivedCommitResult | Readonly<{ kind: 'unknown' }>
+
+/** Joint custody in one authoritative sequence; see SPEC "接收共同提交". */
+export interface AgentReceivedCommits<P, B extends ContentBlock> {
+  commit(input: ReceivedCommitInput<P, B>): Reply<ReceivedCommitResult>
+  query(input: ExecutionMutation<P>): Reply<ReceivedCommitQuery>
+}
+
+/** Views of one provider. A fixed non-null received port declares joint custody support. */
+export type AgentReceivedProvider<P, B extends ContentBlock> = Readonly<{
+  journal: AgentJournal<P>
+  entries: AgentJournalEntries<P>
+  materials: AgentMaterials<P, B>
+  received: AgentReceivedCommits<P, B> | null
+}>
+
+/**
+ * The handoff that tells Request Context that the account of one fixed request arrived (J28).
+ * `call` carries the tenant. `resultVersion` is null unless the original account has that
+ * relation. `committed` is the evidence of the committed `received` entry.
+ */
+export type AgentAccountHandoff = Readonly<{
+  call: M.ModelInvocationRef
+  dispatch: M.DispatchId
+  account: CallAccount
+  resultVersion: M.ResultVersion | null
+  committed: DurableEvidence
+}>
+
+/**
+ * The answer of the account outlet. `received` also covers a repeated handoff and a lower revision
+ * that a higher one replaced. `unknown` and `unavailable` keep the duty, and the receiver retries
+ * the same handoff. `received` is no basis to clean a Journal entry.
+ */
+export type AgentAccountOutcome =
+  | Readonly<{ kind: 'received' }>
+  | Readonly<{ kind: 'denied' }>
+  | Readonly<{ kind: 'conflict' }>
+  | Readonly<{ kind: 'invalid'; field: string; reason: string }>
+  | Readonly<{ kind: 'unknown' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * The outbound port of Agent that hands a received Model account to the adapter of Request
+ * Context (J28). Agent owns the port; the adapter checks that `access.tenant` is the tenant of
+ * `handoff.call`.
+ */
+export interface AgentAccountOutlet<P> {
+  deliver(
+    input: Readonly<{ access: Access<P>; handoff: AgentAccountHandoff }>,
+  ): Promise<AgentAccountOutcome>
+}

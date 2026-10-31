@@ -119,7 +119,7 @@ RFC-0003 revision 1 规定了源码包怎样成为可安装、可检查的成员
 | `packages/common/legal-identity` | 已是成员。消费者是 `tools/product-checks` 的身份形状规则，对旧包 `identity-values` 的导入已移开 |
 | `packages/common/utc-instant` | 已是成员 |
 | `packages/assembly/kernel-basis` | 已是成员 |
-| 存储事务规格的承接成员 | 不是成员。`packages/storage/storage` 目录只有 `README.md` 与 `SPEC.md`，没有 `package.json`。包名仍未决 |
+| 存储事务规格的承接成员 | 不是成员。规格与设计保存在 `packages/storage/docs/storage-contract/`，没有 `package.json`。探针由 `tools/storage-probe/` 维护。包名仍未决 |
 
 `tools/core-verification` 已在 #332 删除。接受原文中依据它的清点，以及“其余旧依赖的新拥有者”这一未决项，不再适用。
 

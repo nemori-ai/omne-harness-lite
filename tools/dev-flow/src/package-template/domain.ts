@@ -5,7 +5,6 @@ import { checkLayout } from './layout.ts'
 import { checkDirectories, planDraft, writeDraft } from './draft.ts'
 import { DOMAIN_TEMPLATE_DIRECTORY, groupName, readDomainTemplate } from './domain-template.ts'
 import type { Finding, PackageScan } from './model.ts'
-import { isPlannedMember } from './discovery.ts'
 
 export interface DomainCreationInput {
   readonly root: string
@@ -43,8 +42,6 @@ export interface DomainScan {
   readonly structure: 'pass' | 'fail'
   readonly tree: PackageScan['tree']
   readonly members: readonly string[]
-  /** Member directories with neither manifest nor `src/`: planning only, see `isPlannedMember`. */
-  readonly planned: readonly string[]
   readonly findings: readonly Finding[]
 }
 export function scanDomains(root: string, groups?: readonly string[]): DomainScan[] {
@@ -75,17 +72,9 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
           })?.isFile(),
       )
       .map(entry => entry.name)
-    const planned = readdirSync(join(root, path), { withFileTypes: true })
-      .filter(
-        entry =>
-          entry.name !== 'docs' &&
-          entry.isDirectory() &&
-          isPlannedMember(root, `${path}/${entry.name}`),
-      )
-      .map(entry => entry.name)
     const result = checkLayout(root, path, {
       ...template.layout,
-      ignoredDirectories: [...members, ...planned],
+      ignoredDirectories: members,
     })
     const findings = [...result.findings]
     for (const file of template.requiredFiles)
@@ -111,7 +100,6 @@ export function scanDomains(root: string, groups?: readonly string[]): DomainSca
       structure: findings.length === 0 ? 'pass' : 'fail',
       tree: result.tree,
       members: members.map(member => `${path}/${member}`),
-      planned: planned.map(member => `${path}/${member}`),
       findings,
     }
   })

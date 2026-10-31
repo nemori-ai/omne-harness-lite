@@ -1,0 +1,158 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-openai-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-astra",
+          "revision": "1",
+          "digest": "aa08389aeb81163db1c606db666a37f430b194d953ba57ea7bc7d00708f27524"
+        },
+        "recipient": "openrouter",
+        "model": "openai/gpt-6-astra",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-openai-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "128"
+      }
+    ],
+    "system": [
+      {
+        "kind": "text",
+        "id": "s1",
+        "visibility": {
+          "toHuman": true,
+          "toModel": true
+        },
+        "text": "instruction"
+      }
+    ],
+    "messages": [
+      {
+        "id": "msg_r100000000000000000000",
+        "role": "system_reminder",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b1",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "keep going"
+          }
+        ]
+      },
+      {
+        "id": "msg_u100000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b2",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "hello"
+          }
+        ]
+      }
+    ],
+    "tools": [],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/openai/gpt-6-astra",
+        "accepts": [
+          "openrouter/openai/gpt-6-astra"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-openai",
+      "name": "openai/gpt-6-astra#representation",
+      "revision": "1",
+      "digest": "aa08389aeb81163db1c606db666a37f430b194d953ba57ea7bc7d00708f27524"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-openai",
+          "name": "openai/gpt-6-astra",
+          "revision": "1",
+          "digest": "aa08389aeb81163db1c606db666a37f430b194d953ba57ea7bc7d00708f27524"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "128"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "128"
+          },
+          "source": {
+            "owner": "pi-ai-openai-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-openai-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 128,
+    "messages": [
+      {
+        "content": "instruction",
+        "role": "system"
+      },
+      {
+        "content": "keep going",
+        "role": "developer"
+      },
+      {
+        "content": "hello",
+        "role": "user"
+      }
+    ],
+    "model": "openai/gpt-6-astra",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "openai"
+      ],
+      "require_parameters": true
+    },
+    "store": false,
+    "stream": true
+  }
+}

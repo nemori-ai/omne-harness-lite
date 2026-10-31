@@ -6,7 +6,7 @@
 
 PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他在当前会话中的原话：把相关内容调整为正式接受状态，若与源码冲突则更新规格。二进制名 `omne`、包名 `@omne-harness/cli`、退出码、帮助文本、用法错误消息、默认状态目录 `$HOME/.omne`，以及本页其余行为条款，按当前源码接受。
 
-[包组织](../../docs/package-organization.md#最小-cli-的接入边界)只规定了 help 和 version 不能做什么。本页补上的是那些未定细节。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 仍是 `>=24.18.0 <25`。Node 24 没有另跑。
+[包组织](../../docs/package-organization.md#最小-cli-的接入边界)只规定了 help 和 version 不能做什么。本页补上的是那些未定细节。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 
 ## 范围
 

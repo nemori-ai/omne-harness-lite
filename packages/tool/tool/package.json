@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft tool package; complete the accepted public contract before delivery",
+  "description": "Tool implementation without Cordis: independent execution, the runtime factory and the ledger",
   "engines": {
     "node": ">=24"
   },
@@ -12,6 +12,11 @@
       "source": "./src/index.ts",
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
     }
   },
   "files": [
@@ -22,11 +27,22 @@
     "typecheck": "tsc -p tsconfig.test.json",
     "test": "vitest run",
     "test:fast": "vitest run --mode fast",
-    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "acceptance": "vitest run --config vitest.acceptance.config.ts",
+    "examples": "node --experimental-strip-types examples/journey.ts"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/unix-format": "workspace:*"
+  },
   "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

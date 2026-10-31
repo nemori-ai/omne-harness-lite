@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "domains": [
     {
       "id": "identity",
@@ -90,14 +90,6 @@
       "paths": ["packages/infra/credential-custodian-local/src/**"],
       "layer": "unknown",
       "domains": ["identity"],
-      "status": "candidate",
-      "source": "docs/domains/boundaries.md#责任地图"
-    },
-    {
-      "id": "packages/session/session-tenancy-table",
-      "paths": ["packages/session/session-tenancy-table/src/**"],
-      "layer": "unknown",
-      "domains": ["session"],
       "status": "candidate",
       "source": "docs/domains/boundaries.md#责任地图"
     },
@@ -300,6 +292,126 @@
       "domains": ["identity"],
       "status": "candidate",
       "source": "docs/domains/boundaries.md#责任地图"
+    },
+    {
+      "id": "packages/agent/agent-contract",
+      "paths": ["packages/agent/agent-contract/src/**"],
+      "layer": "contract",
+      "domains": ["agent"],
+      "status": "adopted",
+      "source": "packages/agent/agent-contract/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent-cordis-contract",
+      "paths": ["packages/agent/agent-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["agent"],
+      "status": "candidate",
+      "source": "packages/agent/agent-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-contract",
+      "paths": ["packages/model/model-contract/src/**"],
+      "layer": "contract",
+      "domains": ["model"],
+      "status": "adopted",
+      "source": "packages/model/model-contract/SPEC.md"
+    },
+    {
+      "id": "packages/model/model-cordis-contract",
+      "paths": ["packages/model/model-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["model"],
+      "status": "candidate",
+      "source": "packages/model/model-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-contract",
+      "paths": ["packages/tool/tool-contract/src/**"],
+      "layer": "contract",
+      "domains": ["tool"],
+      "status": "adopted",
+      "source": "packages/tool/tool-contract/SPEC.md"
+    },
+    {
+      "id": "packages/tool/tool-cordis-contract",
+      "paths": ["packages/tool/tool-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["tool"],
+      "status": "candidate",
+      "source": "packages/tool/tool-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-contract",
+      "paths": ["packages/session/session-contract/src/**"],
+      "layer": "contract",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session-contract/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-cordis-contract",
+      "paths": ["packages/session/session-cordis-contract/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-cordis-contract/SPEC.md"
+    },
+    {
+      "id": "packages/agent/agent-host-local",
+      "paths": ["packages/agent/agent-host-local/src/**"],
+      "layer": "assembly",
+      "domains": ["agent"],
+      "status": "adopted",
+      "source": "packages/agent/agent-host-local/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-cordis",
+      "paths": ["packages/session/session-cordis/src/**"],
+      "layer": "assembly",
+      "domains": ["session"],
+      "status": "adopted",
+      "source": "packages/session/session-cordis/SPEC.md"
+    },
+    {
+      "id": "packages/session/session-adapters",
+      "paths": ["packages/session/session-adapters/src/**"],
+      "layer": "unknown",
+      "domains": ["session"],
+      "status": "candidate",
+      "source": "packages/session/session-adapters/SPEC.md"
+    },
+    {
+      "id": "packages/common/stream-arrival",
+      "paths": ["packages/common/stream-arrival/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": "packages/common/stream-arrival/README.md"
+    },
+    {
+      "id": "packages/access/public-contract",
+      "paths": ["packages/access/public-contract/src/**"],
+      "layer": "contract",
+      "domains": [],
+      "status": "adopted",
+      "source": "packages/access/public-contract/SPEC.md"
+    },
+    {
+      "id": "packages/access/sdk",
+      "paths": ["packages/access/sdk/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/access/sdk/SPEC.md"
+    },
+    {
+      "id": "packages/access/server-entry",
+      "paths": ["packages/access/server-entry/src/**"],
+      "layer": "interaction",
+      "domains": [],
+      "status": "candidate",
+      "source": "packages/access/server-entry/SPEC.md"
     }
   ],
   "rules": [
@@ -330,6 +442,90 @@
     {
       "id": "IC-5",
       "source": "docs/architecture/cordis-integration-conventions.md"
+    },
+    {
+      "id": "H1-SESSION-FACTS",
+      "source": "docs/architecture/runtime/session-and-run.md#h1-session-facts"
+    },
+    {
+      "id": "H1-AGENT-REASSEMBLY",
+      "source": "docs/architecture/runtime/agent-runtime.md#h1-agent-reassembly"
+    },
+    {
+      "id": "H1-MODEL-LIFETIME",
+      "source": "docs/architecture/runtime/model-runtime.md#h1-model-lifetime"
+    },
+    {
+      "id": "H1-OBSERVATION-CONTINUITY",
+      "source": "docs/architecture/runtime/streaming-and-consumption.md#h1-observation-continuity"
+    }
+  ],
+  "directions": [
+    {
+      "id": "DIR-AGENT-SESSION",
+      "from": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-MODEL-SESSION",
+      "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-TOOL-SESSION",
+      "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "to": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-MODEL-AGENT",
+      "from": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-TOOL-AGENT",
+      "from": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "to": ["packages/agent/agent-contract", "packages/agent/agent-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-MODEL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-SESSION-TOOL",
+      "from": ["packages/session/session-contract", "packages/session/session-cordis-contract"],
+      "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-ACCESS-MODEL",
+      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "to": ["packages/model/model-contract", "packages/model/model-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    },
+    {
+      "id": "DIR-ACCESS-TOOL",
+      "from": ["packages/access/public-contract", "packages/access/sdk", "packages/common/stream-arrival"],
+      "to": ["packages/tool/tool-contract", "packages/tool/tool-cordis-contract"],
+      "source": "docs/package-organization.md#依赖方向与cordis集成"
+    }
+  ],
+  "groupCycleExceptions": [
+    {
+      "id": "GCX-CONTEXT-TOOL",
+      "edges": [
+        { "from": "packages/context/request-context-contract", "to": "packages/tool/tool-contract" },
+        { "from": "packages/tool/tool-contract", "to": "packages/context/runtime-context-contract" },
+        { "from": "packages/tool/tool", "to": "packages/context/runtime-context-contract" }
+      ],
+      "ruling": "https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6480475331",
+      "reason": "上下文组装要感知工具，工具要感知运行时上下文（PanQiWei 裁定）"
     }
   ]
 }

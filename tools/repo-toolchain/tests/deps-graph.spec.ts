@@ -1,5 +1,8 @@
+// @module-tag slow
+// 归慢层：真起 dependency-cruiser，在临时 git 检出里出依赖图。全量准入快层账本里整份合计 12.1 秒，负载下 21.1 秒，9 条里 5 条在全量准入或负载下超单条预算（2.5 秒），余下的合计不到 0.2 秒（tools/test-runner/README_ZH.md「归层」）。
 // 依赖图：dependency-cruiser 的输出怎样收成成员边与违规，成员、组之间的环，以及按提交取的基线图。
-import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, readdirSync, utimesSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ignoredDirectories } from '../src/core/git.ts'
@@ -7,6 +10,7 @@ import {
   graphOf,
   requireCruiserTypeScript,
   revisionGraph,
+  STALE_TREE_GRACE_MS,
   workingGraph,
   type CruiseOutput,
 } from '../src/deps/graph.ts'
@@ -60,6 +64,51 @@ describe('graphOf', () => {
       },
     ])
     expect(graph.findings).toEqual([])
+  })
+
+  it('文件级的依赖事实逐处保留：测试里的也在，成员内部、内建模块与解析失败的不在；成员里的模块本身也留下', () => {
+    // 方向规则要按源文件判角色，所以不能只有按成员对归并的边；源范围是 src/** 全部，包含测试与 testing 入口。
+    // 模块清单让「角色有没有文件」能从同一张图判，没有跨成员导入的文件也算有。
+    const output: CruiseOutput = {
+      modules: [
+        {
+          source: 'packages/model/m/src/index.ts',
+          dependencies: [
+            dependency('@omne-harness/n', 'packages/model/n/src/index.ts'),
+            dependency('./local.ts', 'packages/model/m/src/local.ts'),
+            { ...dependency('node:path', 'path'), dependencyTypes: ['core', 'import'] },
+            { ...dependency('@omne-harness/gone', '@omne-harness/gone'), couldNotResolve: true },
+          ],
+        },
+        {
+          source: 'packages/model/m/tests/m.spec.ts',
+          dependencies: [dependency('@omne-harness/n', 'packages/model/n/dist/index.js')],
+        },
+        { source: 'packages/model/n/src/alone.ts', dependencies: [] },
+        { source: 'tools/x/src/index.ts', dependencies: [] },
+      ],
+      summary: { violations: [] },
+    }
+    const graph = graphOf('/nonexistent', output)
+    expect(graph.modules).toEqual([
+      'packages/model/m/src/index.ts',
+      'packages/model/m/tests/m.spec.ts',
+      'packages/model/n/src/alone.ts',
+    ])
+    expect(graph.dependencies).toEqual([
+      {
+        path: 'packages/model/m/src/index.ts',
+        line: 1,
+        specifier: '@omne-harness/n',
+        resolved: 'packages/model/n/src/index.ts',
+      },
+      {
+        path: 'packages/model/m/tests/m.spec.ts',
+        line: 1,
+        specifier: '@omne-harness/n',
+        resolved: 'packages/model/n/dist/index.js',
+      },
+    ])
   })
 
   it('规则违规带规则名、成员对与导入处；文件环单列；成员与组的环由边算出', () => {
@@ -118,6 +167,17 @@ describe('graphOf', () => {
     expect(byKind('group-cycle').map(finding => finding.message)).toEqual([
       '组之间成环：packages/infra、packages/session',
     ])
+    // 组环发现带环上的组与环内全部跨组成员边；具名组环例外按这些边判。
+    expect(
+      graph.findings.flatMap(finding =>
+        finding.kind === 'group-cycle' ? [{ groups: finding.groups, edges: finding.edges }] : [],
+      ),
+    ).toEqual([
+      {
+        groups: ['packages/infra', 'packages/session'],
+        edges: expect.arrayContaining([{ from: 'packages/session/q', to: 'packages/infra/x' }]),
+      },
+    ])
   })
 })
 
@@ -156,6 +216,24 @@ describe('真实检出上的依赖图', { timeout: 60_000 }, () => {
     expect(readdirSync(cache).filter(name => name.startsWith(base))).toHaveLength(1)
     expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([])
     expect(git(root, 'status', '--porcelain')).toBe('M packages/model/b/src/index.ts')
+  })
+
+  it('基线图开始时清掉被强行结束的运行留下的旧临时树，活着的进程的树不动', () => {
+    const { root, base } = members()
+    const cache = join(root, '.git', 'omne-dep-graph')
+    const old = (Date.now() - STALE_TREE_GRACE_MS - 60_000) / 1000
+    // 一个已经结束的进程号，与本进程（活着）的进程号。
+    const dead = spawnSync(process.execPath, ['-e', '']).pid
+    const leftover = join(cache, `tree-${base}-${dead}`)
+    const living = join(cache, `tree-${base}-${process.ppid}`)
+    for (const tree of [leftover, living]) {
+      mkdirSync(join(tree, 'packages'), { recursive: true })
+      utimesSync(tree, old, old)
+    }
+    expect(pairs(revisionGraph(root, base).edges)).toEqual(['packages/model/a → packages/model/b'])
+    expect(readdirSync(cache).filter(name => name.startsWith('tree-'))).toEqual([
+      `tree-${base}-${process.ppid}`,
+    ])
   })
 
   it('被 git 忽略的目录里的模块不进工作树的图：变异沙箱的依赖不算新增的边', () => {

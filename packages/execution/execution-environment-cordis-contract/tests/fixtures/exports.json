@@ -1,0 +1,107 @@
+{
+  "package": "@omne-harness/execution-environment-cordis-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": []
+    },
+    "./cordis": {
+      "chapters": [
+        {
+          "title": "`./cordis`",
+          "names": [
+            {
+              "name": "ExecutionEnvironmentService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "ExecutionRecoveryAuthorityService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "executionEnvironmentKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "executionRecoveryAuthorityKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ExecutionEnvironmentAuthorityService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "executionEnvironmentAuthorityKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ExecutionScopeBindingService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "executionScopeBindingKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ExecutionEnvironmentIntercept",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CallerClass",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ServiceFace",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ServiceOperation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "operationFaces",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "faceCallers",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CallerClassMismatch",
+              "kind": "class",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@deepseek-ai/cordis",
+      "interface": "Context",
+      "members": [
+        "executionEnvironment",
+        "executionRecoveryAuthority",
+        "executionEnvironmentAuthority",
+        "executionScopeBinding"
+      ],
+      "pending": false
+    }
+  ]
+}

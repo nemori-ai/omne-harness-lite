@@ -3,7 +3,7 @@
 // 另核对取改动的那一步：改名拆成两侧、基线不存在时报错而不是改判全量。
 import { baselines } from '@omne-harness/repo-toolchain/core/task-context'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,16 +14,34 @@ import {
   describeCheckPlan,
   patternToRegExp,
   planCheck,
+  RESIDENT_STEPS,
   type CheckPlan,
+  type LockfileJudge,
 } from '../src/testing/scope.ts'
 import { readTestRunsConfig } from '../src/testing/config.ts'
+import { lockfileImpact } from '../src/testing/lockfile-impact.ts'
+import {
+  BASE as LOCK_BASE,
+  EQUIVALENT,
+  ONE_MEMBER_DEPENDENCY,
+  OVERRIDES,
+  SHARED_UPGRADE,
+  UNPARSABLE,
+} from './fixtures/lockfiles.ts'
 import {
   fileTree,
   listWorkspaceMembers,
   type WorkspaceMember,
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { commitChanges, replayTable } from '../src/testing/replay.ts'
-import { computePlan, fullRequested, readPlanFile } from '../src/testing/steps.ts'
+import {
+  computePlan,
+  fullRequested,
+  lockfileImpactBetween,
+  readPlanFile,
+} from '../src/testing/steps.ts'
+import { checkSteps, residentStepNames } from '../src/testing/check-steps.ts'
+import { dependentMembers, listedMembers, packageNames } from '../src/testing/turbo.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 const RULES = readTestRunsConfig().affected
@@ -42,8 +60,16 @@ const member = (
 })
 
 // base ← mid ← top（top 有验收）；custodian-user 依赖读自己 README 的 credential-custodian-local。
+// 读者规则与常驻构建点名的真实成员也在清单里：agent-host-local 依赖 agent-cordis-contract，
+// m2-contract-skeleton 依赖 message，用来核对「被读的成员根目录文档只选读者、不带下游」。
 const MEMBERS = [
   member('packages/common/legal-identity'),
+  member('packages/agent/agent'),
+  member('packages/agent/agent-cordis-contract'),
+  member('packages/agent/agent-host-local', ['@x/agent-cordis-contract']),
+  member('packages/common/message'),
+  member('packages/model/pi-ai-transport'),
+  member('apps/m2-contract-skeleton', ['@x/message']),
   member('packages/core/base'),
   member('packages/core/mid', ['@x/base']),
   member('packages.0.0.1.legacy/core/stream-assembly'),
@@ -66,39 +92,49 @@ const MEMBERS = [
 ]
 
 /**
- * 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。
+ * 模拟 turbo 的依赖图（`--filter=...<包>`）：这些成员连同直接、间接依赖它们的成员。
  * 退役目录不是 workspace 成员，turbo 不认得。
  */
-function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
+function dependentsLike(
+  seeds: readonly string[],
+  members: readonly WorkspaceMember[],
+): Set<string> {
   const active = members.filter(entry => !entry.path.includes('.legacy'))
-  const owners = new Set(
-    paths.flatMap(path => {
-      const owner = active
-        .filter(entry => path.startsWith(`${entry.path}/`))
-        .sort((a, b) => b.path.length - a.path.length)[0]
-      return owner === undefined ? [] : [owner.path]
-    }),
-  )
+  const found = new Set(seeds)
   const byName = new Map(active.map(entry => [entry.name, entry.path]))
   for (let grew = true; grew;) {
     grew = false
     for (const entry of active)
       if (
-        !owners.has(entry.path) &&
-        entry.dependencies.some(name => owners.has(byName.get(name) ?? ''))
+        !found.has(entry.path) &&
+        entry.dependencies.some(name => found.has(byName.get(name) ?? ''))
       ) {
-        owners.add(entry.path)
+        found.add(entry.path)
         grew = true
       }
   }
-  return owners
+  return found
+}
+/** 模拟 turbo 的 `--affected`：成员目录里有任何文件改动就选中它（按包计，含文档），再加上依赖它的成员。 */
+function turboLike(paths: readonly string[], members: readonly WorkspaceMember[]): Set<string> {
+  const active = members.filter(entry => !entry.path.includes('.legacy'))
+  const owners = paths.flatMap(path => {
+    const owner = active
+      .filter(entry => path.startsWith(`${entry.path}/`))
+      .sort((a, b) => b.path.length - a.path.length)[0]
+    return owner === undefined ? [] : [owner.path]
+  })
+  return dependentsLike(owners, members)
 }
 const planWith = (paths: string[], members: readonly WorkspaceMember[], full = false) =>
-  planCheck(paths, members, RULES, turboLike(paths, members), full)
+  planCheck(paths, members, RULES, turboLike(paths, members), full, seeds =>
+    dependentsLike(seeds, members),
+  )
 const plan = (paths: string[], full = false) => planWith(paths, MEMBERS, full)
 const describe_ = (checkPlan: CheckPlan) => describeCheckPlan(checkPlan, RULES, CONFIG).join('\n')
 const RESIDENT_BUILD = [
   { path: 'packages/common/legal-identity', reason: 'resident' },
+  { path: 'packages/agent/agent', reason: 'resident' },
   { path: 'tools/repo-toolchain', reason: 'resident' },
 ]
 
@@ -115,7 +151,7 @@ describe('路径模式', () => {
 })
 
 describe('影响面计划（真实规则）', () => {
-  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity 与 repo-toolchain，其余全跳并说出依据', () => {
+  it('纯文档：只需常驻检查；构建恰好是常驻检查需要的 legal-identity、agent 与 repo-toolchain，其余全跳并说出依据', () => {
     const result = plan(['docs/development.md', 'README.md'])
     expect(result.mode).toBe('scoped')
     expect(result.files.map(file => [file.category, file.rule])).toEqual([
@@ -130,7 +166,7 @@ describe('影响面计划（真实规则）', () => {
     expect(text).toContain('判为只需常驻检查，跳过了类型检查、成员测试、验收、pytest')
     expect(text).toContain(`${CONFIG} 的 affected.residentPaths`)
     expect(text).toContain(
-      '构建：只构建 packages/common/legal-identity、tools/repo-toolchain——常驻检查需要：lint:rules 经',
+      '构建：只构建 packages/common/legal-identity、packages/agent/agent、tools/repo-toolchain——常驻检查需要：lint:rules 经',
     )
     expect(text).toContain('成员测试：没有要跑的成员')
   })
@@ -148,6 +184,7 @@ describe('影响面计划（真实规则）', () => {
     ])
     expect(result.build).toEqual([
       { path: 'packages/common/legal-identity', reason: 'resident' },
+      { path: 'packages/agent/agent', reason: 'resident' },
       { path: 'packages/infra/leaf', reason: 'selected' },
       { path: 'tools/repo-toolchain', reason: 'resident' },
       { path: 'tools/product-checks', reason: 'selected' },
@@ -169,19 +206,29 @@ describe('影响面计划（真实规则）', () => {
     expect(why['apps/top']?.downstream).toBe(true)
     expect(why['tools/core-verification']).toBeUndefined()
     expect(result.acceptance).toEqual(['apps/top'])
-    expect(describe_(result)).toContain('apps/top：依赖了改动过的成员（turbo --affected）')
+    expect(describe_(result)).toContain('apps/top：依赖了改动过代码的成员（turbo --affected）')
   })
 
-  it('没有测试读它的成员 README：不算成员改动，但 turbo 按包计，仍选中那个成员并说明只改了文档', () => {
+  it('没有测试读它的成员 README：不算成员改动，turbo 按包选中也不选，计划只需常驻检查并说明只改了文档', () => {
     const result = plan(['packages/infra/plain/README.md'])
-    expect(result.files[0]).toMatchObject({ category: 'resident', rule: 'packages/*/*/*.md' })
+    expect(result.files[0]).toMatchObject({
+      category: 'resident',
+      rule: 'packages/*/*/*.md',
+      documentOf: 'packages/infra/plain',
+    })
     expect(result.files[0]?.owner).toBeUndefined()
-    expect(result.test).toEqual(['packages/infra/plain'])
-    expect(result.members).toEqual([
-      { path: 'packages/infra/plain', changed: [], reads: [], documentsOnly: true },
-    ])
-    expect(describe_(result)).toContain('成员目录里只改了文档')
-    expect(result.reason).toContain('依赖方 0 个、只因读者规则 0 个、只改了文档 1 个')
+    expect(result.members).toEqual([])
+    expect([result.test, result.typecheck, result.acceptance]).toEqual([[], [], []])
+    expect(result.build).toEqual(RESIDENT_BUILD)
+    expect(result.reason).toBe(
+      '只需常驻检查：1 个改动文件都只被常驻检查读；只改了文档、不选的成员 1 个',
+    )
+    const text = describe_(result)
+    expect(text).toContain('判为只需常驻检查')
+    expect(text).toContain(
+      '只改了文档、不选的成员（成员根目录文档不算成员改动，也不带下游；依据：tools/test-runner/test-runs.config.json 的 affected.memberDocuments）：',
+    )
+    expect(text).toContain('  packages/infra/plain：只改了 packages/infra/plain/README.md')
   })
 
   it('退役成员的 README 不再触发读者或成员测试', () => {
@@ -231,9 +278,9 @@ describe('影响面计划（真实规则）', () => {
   })
 
   it('根清单：全量，理由说出文件与命中的模式', () => {
-    const result = plan(['docs/a.md', 'pnpm-lock.yaml'])
+    const result = plan(['docs/a.md', 'pnpm-workspace.yaml'])
     expect(result.mode).toBe('full')
-    expect(result.reason).toBe('全局文件 pnpm-lock.yaml 有改动（命中 pnpm-lock.yaml）')
+    expect(result.reason).toBe('全局文件 pnpm-workspace.yaml 有改动（命中 pnpm-workspace.yaml）')
     expect(result.test).toEqual(
       MEMBERS.filter(member => !member.path.includes('.legacy/')).map(member => member.path),
     )
@@ -257,8 +304,12 @@ describe('影响面计划（真实规则）', () => {
     }
   })
 
-  it('锁文件：全量', () => {
-    expect(plan(['pnpm-lock.yaml']).mode).toBe('full')
+  it('锁文件单独一类；没有锁文件判定时判全量，理由写明', () => {
+    const result = plan(['pnpm-lock.yaml'])
+    expect(result.mode).toBe('full')
+    expect(result.files[0]?.category).toBe('lockfile')
+    expect(result.reason).toBe('pnpm-lock.yaml 有改动，没有锁文件判定，判为全量')
+    expect(describe_(result)).toContain('锁文件 1 个：pnpm-lock.yaml')
   })
 
   it('选择配置和依赖规则：全量，理由指向全局文件', () => {
@@ -317,18 +368,20 @@ describe('影响面计划（真实规则）', () => {
     )
   })
 
-  it('成员根与部署说明的 .md 不算成员改动，但 turbo 按包计仍选中成员；tests/ 下的 .md 是夹具，算成员改动', () => {
-    const docs = plan(['packages/infra/leaf/README.md', 'apps/top/deploy/docker/README.md'])
-    expect(docs.files.map(file => file.category)).toEqual(['resident', 'resident'])
-    expect(docs.members.map(entry => [entry.path, entry.documentsOnly])).toEqual([
-      ['packages/infra/leaf', true],
-      ['apps/top', true],
+  it('成员根与部署说明的 .md 不算成员改动，turbo 按包选中也不选；tests/ 下的 .md 是夹具，算成员改动', () => {
+    const docs = plan(['apps/top/deploy/docker/README.md', 'packages/infra/leaf/README.md'])
+    expect(docs.files.map(file => [file.category, file.documentOf])).toEqual([
+      ['resident', 'apps/top'],
+      ['resident', 'packages/infra/leaf'],
     ])
+    expect(docs.members).toEqual([])
+    expect(docs.test).toEqual([])
     // loop-canary.spec.ts 把这份 README 复制进临时仓、改它的 revision 行再断言修订次数。
     const fixture = plan([
       'tools/repo-toolchain/tests/fixtures/loop-canary/repo/.meta_harness/design/product/canary/README.md',
     ])
-    expect(fixture.files[0]).toMatchObject({ category: 'member', owner: 'tools/repo-toolchain' })
+    // 夹具目录同时被 dev-flow、test-runner 的测试读到，读者规则排在成员归属之前；归属仍记着 repo-toolchain。
+    expect(fixture.files[0]).toMatchObject({ category: 'reader', owner: 'tools/repo-toolchain' })
     // 依赖 repo-toolchain 的三个工具成员按 turbo 的下游规则一起选中。
     expect(fixture.test).toEqual([
       'tools/repo-toolchain',
@@ -367,7 +420,461 @@ describe('影响面计划（真实规则）', () => {
   })
 })
 
+// #793 按测量收窄的三条规则：每条有正例与反例；硬线（改代码跑影响面测试、未识别文件全量）不变。
+// 锁文件按 importer 映射（#953 W2-C1）：成员清单加上锁文件夹具里的四个 importer，再加一个依赖 c 的成员 d 看下游；
+// turbo 的 `--affected` 在这里按「成员目录里有文件改动」模拟，所以只改锁文件时它什么都不选，映射到的成员全靠计划并进去。
+const LOCK_MEMBERS = [
+  ...MEMBERS,
+  member('packages/a'),
+  member('packages/b'),
+  member('packages/c'),
+  member('packages/shared'),
+  member('packages/d', ['@x/c']),
+]
+const ACTIVE_LOCK_MEMBERS = LOCK_MEMBERS.filter(entry => !entry.path.includes('.legacy')).map(
+  entry => entry.path,
+)
+function planLock(paths: string[], judge: LockfileJudge | string, dependents = true): CheckPlan {
+  const judgeLockfile: LockfileJudge =
+    typeof judge === 'string' ? () => lockfileImpact(LOCK_BASE, judge, LOCK_MEMBERS) : judge
+  return planCheck(
+    paths,
+    LOCK_MEMBERS,
+    RULES,
+    turboLike(paths, LOCK_MEMBERS),
+    false,
+    dependents ? seeds => dependentsLike(seeds, LOCK_MEMBERS) : undefined,
+    judgeLockfile,
+  )
+}
+
+describe('锁文件按 importer 映射到成员（W2-C1）', () => {
+  it('只改一个成员的依赖：只选那个成员与它的下游；说明写明映射结论与每个成员的原因', () => {
+    const result = planLock(['pnpm-lock.yaml'], ONE_MEMBER_DEPENDENCY)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/c', 'packages/d'])
+    expect(result.members).toEqual([
+      {
+        path: 'packages/c',
+        changed: [],
+        reads: [],
+        lockfile: { importerChanged: true, packages: ['extra@1.0.0'] },
+      },
+      { path: 'packages/d', changed: [], reads: [], downstream: true },
+    ])
+    expect(result.lockfile).toContain('lockfile 改动按 importer 映射到 1 个成员：packages/c')
+    expect(result.reason).toContain('锁文件里依赖变了 1 个、依赖方 1 个')
+    const text = describe_(result)
+    expect(text).toContain('锁文件 1 个：pnpm-lock.yaml')
+    expect(text).toContain('  锁文件：lockfile 改动按 importer 映射到 1 个成员：packages/c')
+    expect(text).toContain('packages/c：锁文件里它依赖的 extra@1.0.0 变了（importer 条目也变了）')
+    expect(text).toContain('packages/d：依赖了改动过代码的成员（turbo --affected）')
+  })
+
+  it('升级一个被两个成员依赖的包：直接与间接依赖它的成员都选中，不相关的不选', () => {
+    const result = planLock(['pnpm-lock.yaml'], SHARED_UPGRADE)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/a', 'packages/b'])
+    expect(result.members.map(entry => entry.path)).toEqual(['packages/a', 'packages/b'])
+    expect(result.members[0]?.lockfile?.importerChanged).toBe(false)
+    expect(describe_(result)).toContain('packages/a：锁文件里它依赖的 ')
+  })
+
+  it('顶层 overrides 有变化：全量，原因原样带出映射模块的结论', () => {
+    const result = planLock(['pnpm-lock.yaml'], OVERRIDES)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toBe('pnpm-lock.yaml 有改动：lockfile 顶层 overrides 有变化，判为全量')
+    expect(result.files[0]?.category).toBe('lockfile')
+  })
+
+  it('解析失败：全量，原因写明哪一份', () => {
+    const result = planLock(['pnpm-lock.yaml'], UNPARSABLE)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toMatch(/^pnpm-lock\.yaml 有改动：HEAD 的 pnpm-lock\.yaml 解析失败/u)
+  })
+
+  it('两份等价：不因锁文件选成员，说明写明等价', () => {
+    const result = planLock(['pnpm-lock.yaml'], EQUIVALENT)
+    expect(result.mode).toBe('scoped')
+    expect(result.members).toEqual([])
+    expect(result.test).toEqual([])
+    expect(result.lockfile).toBe('两份 pnpm-lock.yaml 解析后等价')
+    expect(describe_(result)).toContain('  锁文件：两份 pnpm-lock.yaml 解析后等价')
+  })
+
+  it('锁文件与别的全局文件一起改：不问判定，直接全量，理由提到锁文件', () => {
+    let asked = false
+    const result = planLock(['pnpm-lock.yaml', 'package.json'], () => {
+      asked = true
+      return { kind: 'unchanged', reason: '不该被问' }
+    })
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toBe(
+      '全局文件 package.json 有改动（命中 package.json），另有 pnpm-lock.yaml',
+    )
+  })
+
+  // 引擎改了，这次的计划就是用改过的引擎算的：锁文件判定、接续与运行记录的模块都不能给自己划范围。
+  const ENGINE_FILES = [
+    'tools/test-runner/src/testing/lockfile-impact.ts',
+    'tools/test-runner/src/testing/pnpm-lockfile.ts',
+    'tools/test-runner/src/testing/resume.ts',
+    'tools/test-runner/src/testing/admission-run.ts',
+  ]
+
+  it.each(ENGINE_FILES)('引擎模块 %s 是全局文件：改它判全量', path => {
+    expect(classify(path, LOCK_MEMBERS, RULES)).toMatchObject({ category: 'global', rule: path })
+    expect(planLock([path], () => ({ kind: 'unchanged', reason: '不该被问' })).mode).toBe('full')
+  })
+
+  it('锁文件与解析它的引擎模块一起改：不问映射，直接全量', () => {
+    let asked = false
+    const result = planLock(
+      ['pnpm-lock.yaml', 'tools/test-runner/src/testing/pnpm-lockfile.ts'],
+      () => {
+        asked = true
+        return { kind: 'unchanged', reason: '不该被问' }
+      },
+    )
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.reason).toContain('tools/test-runner/src/testing/pnpm-lockfile.ts')
+  })
+
+  it('引擎自己（tools/test-runner）在映射里或在映射成员的下游里：全量', () => {
+    const direct = planLock(['pnpm-lock.yaml'], () => ({
+      kind: 'members',
+      members: [{ path: 'tools/test-runner', importerChanged: true, packages: [] }],
+      reason: '映射到 1 个成员：tools/test-runner',
+    }))
+    expect(direct.mode).toBe('full')
+    expect(direct.reason).toContain('tools/test-runner 自己的依赖变了，引擎不能给自己划范围')
+    // repo-toolchain 的下游里有 test-runner（成员清单里 test-runner 依赖它）。
+    const downstream = planLock(['pnpm-lock.yaml'], () => ({
+      kind: 'members',
+      members: [{ path: 'tools/repo-toolchain', importerChanged: true, packages: [] }],
+      reason: '映射到 1 个成员：tools/repo-toolchain',
+    }))
+    expect(downstream.mode).toBe('full')
+    expect(downstream.reason).toContain('tools/test-runner 自己的依赖变了')
+  })
+
+  it('映射到的成员是合法种子：与只改了文档的成员同时出现时不判「解释不了」，文档种子的下游照拿掉', () => {
+    const result = planLock(['pnpm-lock.yaml', 'packages/core/base/SPEC.md'], ONE_MEMBER_DEPENDENCY)
+    expect(result.mode).toBe('scoped')
+    expect(result.test).toEqual(['packages/c', 'packages/d'])
+    expect(result.documentsOnly).toEqual([
+      { path: 'packages/core/base', files: ['packages/core/base/SPEC.md'] },
+    ])
+    expect(result.reason).toContain('只改了文档、不选的成员 1 个')
+  })
+
+  it('锁文件与别的成员的代码一起改：两边的成员都进来；映射成员自己也改了代码时不算依赖方', () => {
+    const both = planLock(['pnpm-lock.yaml', 'packages/infra/leaf/src/x.ts'], ONE_MEMBER_DEPENDENCY)
+    expect(both.mode).toBe('scoped')
+    expect(both.test).toEqual([
+      'packages/infra/leaf',
+      'tools/product-checks',
+      'packages/c',
+      'packages/d',
+    ])
+    const same = planLock(['pnpm-lock.yaml', 'packages/c/src/x.ts'], ONE_MEMBER_DEPENDENCY)
+    expect(same.members.find(entry => entry.path === 'packages/c')).toEqual({
+      path: 'packages/c',
+      changed: ['packages/c/src/x.ts'],
+      reads: [],
+      lockfile: { importerChanged: true, packages: ['extra@1.0.0'] },
+    })
+    expect(same.reason).toContain('自己改了 1 个、锁文件里依赖变了 1 个、依赖方 1 个')
+  })
+
+  it('映射到了成员却没给依赖图：报错，不照猜的范围少跑', () => {
+    expect(() => planLock(['pnpm-lock.yaml'], ONE_MEMBER_DEPENDENCY, false)).toThrow(
+      '没有给出 turbo 的依赖图',
+    )
+  })
+
+  it('FULL=1 不问判定；全量清单含锁文件夹具的成员', () => {
+    let asked = false
+    const result = planCheck(
+      ['pnpm-lock.yaml'],
+      LOCK_MEMBERS,
+      RULES,
+      new Set(),
+      true,
+      undefined,
+      () => {
+        asked = true
+        return { kind: 'unchanged', reason: '不该被问' }
+      },
+    )
+    expect(asked).toBe(false)
+    expect(result.mode).toBe('full')
+    expect(result.test).toEqual(ACTIVE_LOCK_MEMBERS)
+  })
+})
+
+describe('按测量收窄的规则（#793）', () => {
+  it('N1：只改 .meta_harness/human/ 下的文件只需常驻检查；.meta_harness 下别的未登记目录仍判全量', () => {
+    const human = plan([
+      '.meta_harness/human/README.md',
+      '.meta_harness/human/map-reduce-delivery/templates/line-pack.md',
+    ])
+    expect(human.mode).toBe('scoped')
+    expect(human.files.map(file => [file.category, file.rule])).toEqual([
+      ['resident', '.meta_harness/human/**'],
+      ['resident', '.meta_harness/human/**'],
+    ])
+    expect([human.members, human.test, human.python.run]).toEqual([[], [], false])
+    expect(human.build).toEqual(RESIDENT_BUILD)
+    for (const path of ['.meta_harness/humans/x.md', '.meta_harness/new-area/x.md']) {
+      const other = plan([path])
+      expect(other.mode, path).toBe('full')
+      expect(other.files[0]?.category, path).toBe('unclassified')
+    }
+  })
+
+  it('N2：只改一个不被测试读的成员 SPEC，不选这个成员，也不带它的下游', () => {
+    const result = plan(['packages/core/base/SPEC.md'])
+    expect(result.mode).toBe('scoped')
+    expect(result.members).toEqual([])
+    expect([result.test, result.typecheck, result.acceptance]).toEqual([[], [], []])
+    expect(result.build).toEqual(RESIDENT_BUILD)
+    expect(describe_(result)).toContain('  packages/core/base：只改了 packages/core/base/SPEC.md')
+  })
+
+  it('N2：被测试读的成员根目录文档按读者规则选中读它的成员，不带下游', () => {
+    const cases = [
+      ['packages/agent/agent-cordis-contract/SPEC.md', 'packages/agent/agent-cordis-contract'],
+      ['packages/common/message/README.md', 'packages/common/message'],
+      ['apps/m2-contract-skeleton/README.md', 'apps/m2-contract-skeleton'],
+      ['apps/m2-contract-skeleton/README_ZH.md', 'apps/m2-contract-skeleton'],
+      ['apps/m2-contract-skeleton/SPEC.md', 'apps/m2-contract-skeleton'],
+    ] as const
+    for (const [path, reader] of cases) {
+      const result = plan([path])
+      expect(result.files[0], path).toMatchObject({ category: 'reader', documentOf: reader })
+      expect(result.members, path).toEqual([
+        { path: reader, changed: [], reads: [{ path, pattern: path }] },
+      ])
+      expect(result.test, path).toEqual([reader])
+      expect(describe_(result), path).not.toContain('只改了文档、不选的成员')
+    }
+  })
+
+  it('N2：同一成员既改文档又改代码，照旧选中它与它的下游', () => {
+    const result = plan(['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts'])
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.members.find(entry => entry.path === 'packages/core/mid')?.downstream).toBe(true)
+    expect(describe_(result)).not.toContain('只改了文档、不选的成员')
+  })
+
+  it('N2：只改了文档的成员同时是代码改动成员的下游，照旧作为下游选中', () => {
+    const result = plan(['packages/core/base/src/a.ts', 'packages/core/mid/README.md'])
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.members.find(entry => entry.path === 'packages/core/mid')).toEqual({
+      path: 'packages/core/mid',
+      changed: [],
+      reads: [],
+      downstream: true,
+    })
+  })
+
+  it('N2：文档改在一个成员、代码改在不相干的成员，只选代码这一侧', () => {
+    const result = plan(['packages/core/base/README.md', 'packages/infra/leaf/src/a.ts'])
+    expect(result.test).toEqual(['packages/infra/leaf', 'tools/product-checks'])
+    expect(result.reason).toContain('只改了文档、不选的成员 1 个')
+  })
+
+  it('N2：被读的文档与别处代码一起改：读者只按读者规则选中、不带它的下游；读者是代码下游时两个原因都记', () => {
+    const apart = plan([
+      'packages/agent/agent-cordis-contract/SPEC.md',
+      'packages/common/message/src/a.ts',
+    ])
+    expect(apart.test).toEqual([
+      'packages/agent/agent-cordis-contract',
+      'packages/common/message',
+      'apps/m2-contract-skeleton',
+      'tools/product-checks',
+    ])
+    const both = plan(['apps/m2-contract-skeleton/SPEC.md', 'packages/common/message/src/a.ts'])
+    expect(both.members.find(entry => entry.path === 'apps/m2-contract-skeleton')).toEqual({
+      path: 'apps/m2-contract-skeleton',
+      changed: [],
+      reads: [
+        { path: 'apps/m2-contract-skeleton/SPEC.md', pattern: 'apps/m2-contract-skeleton/SPEC.md' },
+      ],
+      downstream: true,
+    })
+  })
+
+  it('N2：有只改了文档的成员却没给依赖图，算计划报错，不照 turbo 多选也不猜着少选', () => {
+    const paths = ['packages/core/base/SPEC.md']
+    expect(() => planCheck(paths, MEMBERS, RULES, turboLike(paths, MEMBERS))).toThrow(
+      'packages/core/base 只改了文档，要拿掉它们带出的下游，但没有给出 turbo 的依赖图',
+    )
+  })
+
+  it('N2：同一成员既改文档又改代码时没有只改了文档的成员，不要依赖图，照旧选中它与下游', () => {
+    const paths = ['packages/core/base/SPEC.md', 'packages/core/base/src/a.ts']
+    const result = planCheck(paths, MEMBERS, RULES, turboLike(paths, MEMBERS))
+    expect(result.test).toEqual([
+      'packages/core/base',
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+    expect(result.documentsOnly).toEqual([])
+  })
+
+  it('N2：一个成员改了几份文档：计划给出这个成员与全部文档，说明只列前两份并写总数', () => {
+    const result = plan([
+      'packages/core/base/SPEC.md',
+      'packages/core/base/README.md',
+      'packages/core/base/README_ZH.md',
+    ])
+    expect(result.documentsOnly).toEqual([
+      {
+        path: 'packages/core/base',
+        files: [
+          'packages/core/base/README.md',
+          'packages/core/base/README_ZH.md',
+          'packages/core/base/SPEC.md',
+        ],
+      },
+    ])
+    expect(describe_(result)).toContain(
+      '  packages/core/base：只改了 packages/core/base/README.md、packages/core/base/README_ZH.md 等 3 个',
+    )
+  })
+
+  it('N2：turbo 选中了改动解释不了的成员时不拿文档种子的下游，判全量：多改一份文档不会让计划变小', () => {
+    // 模拟 turbo 的种子里有这里没认出的改动（例如根 turbo.json 的 globalDependencies 多了一个成员目录外的文件）：
+    // turbo 选中全部在役成员，而改动只有一份常驻文档。
+    const all = new Set(
+      MEMBERS.filter(entry => !entry.path.includes('.legacy')).map(entry => entry.path),
+    )
+    const graph = (seeds: readonly string[]) => dependentsLike(seeds, MEMBERS)
+    const alone = planCheck(['docs/requirements.md'], MEMBERS, RULES, all, false, graph)
+    expect(alone.mode).toBe('scoped')
+    expect(new Set(alone.test)).toEqual(all)
+    const withDocument = planCheck(
+      ['docs/requirements.md', 'packages/core/base/SPEC.md'],
+      MEMBERS,
+      RULES,
+      all,
+      false,
+      graph,
+    )
+    expect(withDocument.mode).toBe('full')
+    expect(withDocument.reason).toContain(
+      '不在代码改动成员与只改了文档的成员的下游里，影响面未知：packages/common/legal-identity',
+    )
+    expect(withDocument.test).toEqual(alone.test)
+    // 改动能解释 turbo 的选择时照常拿掉：同一份文档单独改，只需常驻检查。
+    expect(plan(['packages/core/base/SPEC.md']).test).toEqual([])
+  })
+
+  it('N3b：dev-flow 的 integration 代码是成员文件，选中 dev-flow，不判全量；引擎自身的源码仍判全量', () => {
+    const integration = plan(['tools/dev-flow/src/integration/parse.ts'])
+    expect(integration.mode).toBe('scoped')
+    expect(integration.files[0]).toMatchObject({ category: 'member', owner: 'tools/dev-flow' })
+    expect(integration.test).toEqual(['tools/dev-flow'])
+    const engine = plan(['tools/test-runner/src/testing/scope.ts'])
+    expect(engine.mode).toBe('full')
+    expect(engine.files[0]).toMatchObject({
+      category: 'global',
+      rule: 'tools/test-runner/src/testing/scope.ts',
+    })
+  })
+
+  it('模型组架构页被 pi-ai-transport 的测试读：只选它；同目录下别的文档只需常驻检查', () => {
+    const read = plan(['packages/model/docs/architecture.md'])
+    expect(read.files[0]).toMatchObject({ category: 'reader' })
+    expect(read.test).toEqual(['packages/model/pi-ai-transport'])
+    const other = plan(['packages/model/docs/other.md'])
+    expect(other.files[0]).toMatchObject({ category: 'resident', rule: 'packages/**/*.md' })
+    expect(other.test).toEqual([])
+  })
+
+  it('repo-toolchain 的源码与夹具被 dev-flow、test-runner 的测试经相对路径读到：按读者规则选中；无关文档不选', () => {
+    // 真实依赖图里这两个成员装的是 npm 上钉住的 repo-toolchain，没有指向本地成员的边，
+    // 所以这里的成员清单也不给它们依赖，只靠读者规则选中。
+    const members = MEMBERS.map(entry =>
+      entry.path === 'tools/dev-flow' || entry.path === 'tools/test-runner'
+        ? { ...entry, dependencies: [] }
+        : entry,
+    )
+    for (const path of [
+      'tools/repo-toolchain/src/deps/graph.ts',
+      'tools/repo-toolchain/tests/fixtures/loop-canary/repository.ts',
+    ]) {
+      const result = planWith([path], members)
+      expect(result.test, path).toEqual(
+        expect.arrayContaining(['tools/repo-toolchain', 'tools/dev-flow', 'tools/test-runner']),
+      )
+    }
+    const doc = planWith(['tools/repo-toolchain/README.md'], members)
+    expect(doc.test).not.toContain('tools/dev-flow')
+    expect(doc.test).not.toContain('tools/test-runner')
+  })
+
+  it('新顶层文件仍判全量；改代码仍选中成员与下游', () => {
+    expect(plan(['m793-new.txt']).mode).toBe('full')
+    expect(plan(['packages/core/mid/src/a.ts']).test).toEqual([
+      'packages/core/mid',
+      'apps/top',
+      'tools/product-checks',
+    ])
+  })
+})
+
 describe('真实仓库', () => {
+  it('读者规则里不带通配符的路径都在仓库里：文件改名或删掉后规则还指着旧路径，是规则错了', () => {
+    const literal = RULES.readers
+      .flatMap(reader => reader.paths)
+      .filter(path => !path.includes('*'))
+    expect(literal.filter(path => !existsSync(join(ROOT, path)))).toEqual([])
+  })
+
+  it('turbo 的依赖图：没有成员时不跑 turbo、给空集；清单外的成员在起 turbo 之前报错', () => {
+    const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+    expect(dependentMembers(ROOT, members, [])).toEqual(new Set())
+    expect(() => dependentMembers(ROOT, members, ['packages/no/such-member'])).toThrow(
+      '成员 packages/no/such-member 不在 workspace 成员清单里',
+    )
+  })
+
+  it(
+    'turbo 的依赖图：给出成员连同依赖它的成员，点名几个成员就带上几个成员的下游',
+    // 起 turbo 子进程：真实的 `--filter=...<包>` 只有 turbo 能核对，造出来的依赖图测不到。
+    { tags: ['slow'] },
+    () => {
+      const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+      const found = dependentMembers(ROOT, members, ['packages/agent/agent-cordis-contract'])
+      expect(found.has('packages/agent/agent-cordis-contract')).toBe(true)
+      expect(found.has('packages/agent/agent-host-local')).toBe(true)
+      expect(found.has('tools/test-runner')).toBe(false)
+      const two = dependentMembers(ROOT, members, [
+        'packages/agent/agent-cordis-contract',
+        'packages/common/message',
+      ])
+      expect(two.has('packages/agent/agent-host-local')).toBe(true)
+      expect(two.has('apps/m2-contract-skeleton')).toBe(true)
+    },
+  )
+
   it('规则点名的成员都存在', () => {
     const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
     expect(() => planCheck([], members, RULES, new Set())).not.toThrow()
@@ -375,6 +882,59 @@ describe('真实仓库', () => {
 
   it('基线不存在：引擎报错，不改判全量', () => {
     expect(() => computePlan(ROOT, 'no-such-ref-for-affected-spec', false)).toThrow()
+  })
+
+  it('两边的锁文件从 git 取：同一个提交两边等价；哪一边取不到就判全量并写明', () => {
+    const members = listWorkspaceMembers(fileTree(ROOT), RULES.excludeRoots)
+    expect(lockfileImpactBetween(ROOT, 'HEAD', 'HEAD', members)).toEqual({
+      kind: 'unchanged',
+      reason: '两份 pnpm-lock.yaml 解析后等价',
+    })
+    expect(lockfileImpactBetween(ROOT, 'no-such-ref-for-affected-spec', 'HEAD', members)).toEqual({
+      kind: 'full',
+      reason: '基线 no-such-r 上没有 pnpm-lock.yaml，判为全量',
+    })
+  })
+})
+
+describe('turbo 输出的解析', () => {
+  const members = [member('packages/core/base'), member('packages/core/mid', ['@x/base'])]
+  const listing = (...names: string[]) =>
+    JSON.stringify({ packages: { items: names.map(name => ({ name })) } })
+
+  it('包名：读出 packages.items 里的 name；不是 JSON 或形状不对时给 undefined，不给部分结果', () => {
+    expect(packageNames(listing('@x/base', '@x/mid'))).toEqual(['@x/base', '@x/mid'])
+    expect(packageNames(listing())).toEqual([])
+    for (const stdout of [
+      'not json',
+      'null',
+      '{}',
+      '{"packages":null}',
+      '{"packages":{"items":"x"}}',
+      '{"packages":{"items":{}}}',
+      '{"packages":{"items":null}}',
+      '{"packages":{"items":[{"name":"@x/base"},{}]}}',
+      '{"packages":{"items":[{"name":1}]}}',
+      '{"packages":{"items":[null]}}',
+    ])
+      expect(packageNames(stdout), stdout).toBeUndefined()
+  })
+
+  it('成员：turbo 成功且输出读得出时换成成员目录；退出码非 0、输出读不出或报出清单外的包都报错，不当作空集', () => {
+    const ok = { status: 0, stdout: listing('@x/mid'), stderr: '' }
+    expect(listedMembers(ok, members, '下游')).toEqual(new Set(['packages/core/mid']))
+    expect(() =>
+      listedMembers({ status: 1, stdout: listing('@x/mid'), stderr: 'boom' }, members, '下游'),
+    ).toThrow('turbo 没有给出下游（退出码 1）：boom')
+    expect(() =>
+      listedMembers({ status: 0, stdout: 'not json', stderr: '' }, members, '下游'),
+    ).toThrow('turbo 没有给出下游（退出码 0）')
+    expect(() => listedMembers({ status: 0, stdout: 'null', stderr: '' }, members, '下游')).toThrow(
+      'turbo 没有给出下游（退出码 0）',
+    )
+    expect(() =>
+      listedMembers({ status: 0, stdout: listing('@x/other'), stderr: '' }, members, '下游'),
+    ).toThrow('turbo 报出的包 @x/other 不在 workspace 成员清单里')
   })
 })
 
@@ -482,5 +1042,28 @@ describe('取改动', () => {
     expect(lines[2]).toBe('| aaa | docs \\| x | 1 | scoped | 0 | — | 只需常驻检查 |')
     expect(lines[3]).toContain('全局或未归类：pnpm-lock.yaml')
     expect(lines.at(-1)).toBe('共 2 个提交：全量 1，按影响面 1（其中只需常驻检查 1），引擎出错 0')
+  })
+})
+
+describe('计划打印的常驻清单', () => {
+  /** 步骤表（`check-steps.ts`）里不按计划跑的步骤，按表的顺序；`scripts/check.sh` 只转发到这张表。 */
+  function residentStepsOfCheckTable(): string[] {
+    return residentStepNames(
+      checkSteps({
+        baseline: 'base',
+        runnerCli: 'cli.ts',
+        devFlowDeliveryCli: 'change-scope-cli.ts',
+        devFlowIntegrationCli: 'integration-cli.ts',
+      }),
+    )
+  }
+
+  it('与步骤表的常驻步骤一致，含 check:lines、change-scope 与 contract-check；打印原样列出', () => {
+    expect([...RESIDENT_STEPS]).toEqual(residentStepsOfCheckTable())
+    expect(RESIDENT_STEPS).toContain('check:lines')
+    expect(RESIDENT_STEPS).toContain('change-scope')
+    expect(RESIDENT_STEPS).toContain('contract-check')
+    const text = describe_(plan(['docs/development.md']))
+    expect(text).toContain(`常驻：${RESIDENT_STEPS.join('、')}`)
   })
 })

@@ -75,7 +75,9 @@ class LeapSecondData {
   }
 
   toString(): never {
-    throw new TypeError('LeapSecondData has no string form; keep the leap-seconds.list text instead')
+    throw new TypeError(
+      'LeapSecondData has no string form; keep the leap-seconds.list text instead',
+    )
   }
 
   static {

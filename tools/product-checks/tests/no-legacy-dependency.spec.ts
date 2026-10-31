@@ -109,13 +109,21 @@ function passed(path: string) { return readFileSync(path) }
     }
   })
 
-  it('does not exempt a former consumer path, and finds none in the current repository', () => {
-    const parked = file(
-      'tools/core-verification/src/w1-public-consumer.ts',
-      "const old = '../../packages.0.0.1.legacy/core/kernel-basis/src/index.ts'\n",
-    )
-    expect(noLegacyDependency.check([parked]).map(item => item.path)).toEqual([parked.path])
-    const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-    expect(noLegacyDependency.check(collectRepositorySources(root))).toEqual([])
-  })
+  // Slow because the second half scans every source file in the repository: about 3 seconds alone,
+  // past the fast tier's per-case budget, and past 5 seconds when the whole gate runs in parallel.
+  it(
+    'does not exempt a former consumer path, and finds none in the current repository',
+    {
+      tags: ['slow'],
+    },
+    () => {
+      const parked = file(
+        'tools/core-verification/src/w1-public-consumer.ts',
+        "const old = '../../packages.0.0.1.legacy/core/kernel-basis/src/index.ts'\n",
+      )
+      expect(noLegacyDependency.check([parked]).map(item => item.path)).toEqual([parked.path])
+      const root = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
+      expect(noLegacyDependency.check(collectRepositorySources(root))).toEqual([])
+    },
+  )
 })

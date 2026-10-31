@@ -1,18 +1,12 @@
-import {
-  mkdtempSync,
-  mkdirSync,
-  writeFileSync,
-  readFileSync,
-  chmodSync,
-  realpathSync,
-} from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { git } from '../../src/integration/git.ts'
 import { parsePolicy } from '../../src/integration/policy.ts'
-import type { TaskBinding } from '../../src/delivery/binding.ts'
+import { BINDING_MARKERS, type TaskBinding } from '../../src/delivery/binding.ts'
 import type { Decision } from '../../src/integration/authority.ts'
 import type { Condition } from '../../src/delivery/protocol.ts'
+import { writeGh } from './gh.ts'
 
 export function commit(root: string, name: string, content: string): string {
   writeFileSync(join(root, name), content)
@@ -26,6 +20,9 @@ export function init(root: string, bare = false): void {
   git(root, ['symbolic-ref', 'HEAD', 'refs/heads/main'])
   for (const key of ['user.name', 'user.email'])
     git(root, ['config', key, git(process.cwd(), ['config', key])])
+  // Checked-out bytes equal committed bytes: Git for Windows defaults to autocrlf=true in its system
+  // configuration and would rewrite checkouts with CRLF. POSIX Git already defaults to false.
+  git(root, ['config', 'core.autocrlf', 'false'])
 }
 /** A registry track entry; tests vary it to probe parsePolicy and the upstream chain. */
 export function trackEntry(
@@ -105,7 +102,21 @@ export function setStartTag(remote: string, id: string, start: string, message?:
  * A task worktree on `human/task` with a local bare remote that has `main` and the track
  * `integration/runtime`. No adoption descriptor, anchor or tag exists.
  */
-export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
+export function integrationFixture(
+  options: {
+    admissionOnly?: boolean
+    /**
+     * Commits this value as docs/engineering/delivery-lines.json with the fixture policy.
+     * Defaults to `DEFAULT_LINES`; `null` commits no line table.
+     */
+    lines?: unknown
+    /**
+     * Adds this value as the delivery config's `board` entry, with the board field and option
+     * IDs the entry needs.
+     */
+    board?: unknown
+  } = {},
+) {
   const home = realpathSync(mkdtempSync(join(tmpdir(), 'omne-integration-engine-'))),
     root = join(home, 'work'),
     remote = join(home, 'remote.git'),
@@ -131,12 +142,37 @@ export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
         number: 1,
         id: 'P_1',
         url: 'https://github.com/orgs/owner/projects/1',
-        fields: { stage: 'F_stage', priority: null, iteration: null },
+        fields: {
+          stage: 'F_stage',
+          priority: null,
+          iteration: null,
+          ...(options.board === undefined
+            ? {}
+            : {
+                line: 'F_line',
+                dispatchedAt: 'F_disp',
+                deliveredAt: 'F_deliv',
+                acceptedAt: 'F_acc',
+                cycleDays: 'F_cycle',
+              }),
+        },
+        ...(options.board === undefined
+          ? {}
+          : {
+              options: {
+                stage: { 'In review': 'a', Integrating: 'b', Accepted: 'c' },
+                line: { integration: 'd' },
+              },
+            }),
       },
       creationHandoffIssue: null,
       writers: { stage: 'human', body: 'human' },
+      ...(options.board === undefined ? {} : { board: options.board }),
     }),
   )
+  const lines = options.lines === undefined ? DEFAULT_LINES : options.lines
+  if (lines !== null)
+    writeFileSync(join(root, 'docs/engineering/delivery-lines.json'), JSON.stringify(lines))
   git(root, ['add', '.'])
   git(root, ['commit', '-m', 'Committed fixture policy'])
   const main = git(root, ['rev-parse', 'HEAD'])
@@ -170,14 +206,17 @@ export function integrationFixture(options: { admissionOnly?: boolean } = {}) {
   writeFileSync(
     platform,
     JSON.stringify({
-      body: body(binding),
+      body: body(binding, [], DEFAULT_CARD),
       state: 'open',
+      // The dispatch fields start requires: one kind: label, one line: label and a milestone.
+      labels: ['kind:feature', 'line:integration', 'nature:integration'],
+      milestone: { title: 'M1' },
       comments: [],
       admissionOnly: options.admissionOnly ?? false,
     }),
   )
-  writeFileSync(
-    join(bin, 'gh'),
+  writeGh(
+    bin,
     String.raw`#!/usr/bin/env node
 import { readFileSync, appendFileSync, writeFileSync } from 'node:fs'
 import { createHash } from 'node:crypto'
@@ -200,9 +239,10 @@ const issue = {
   node_id: 'I_1',
   html_url: 'https://github.com/owner/repo/issues/1',
   state: p.state,
-  updated_at: '2026-10-11T00:00:00Z',
+  updated_at: p.updatedAt || '2026-10-11T00:00:00Z',
   body: p.body,
-  labels: [],
+  labels: (p.labels || []).map(name => ({ name })),
+  ...(p.milestone === undefined ? {} : { milestone: p.milestone }),
 }
 const endpoint = args.at(-1)
 const page = Number(new URLSearchParams(endpoint.split('?')[1]).get('page') || 1)
@@ -375,10 +415,14 @@ if (args[1] === 'graphql') {
 process.stdout.write(JSON.stringify(result))
 `,
   )
-  chmodSync(join(bin, 'gh'), 0o755)
-  function update(task: TaskBinding, conditions: Condition[] = [], state = 'open') {
+  function update(
+    task: TaskBinding,
+    conditions: Condition[] = [],
+    state = 'open',
+    attributes: CardAttributeFields = DEFAULT_CARD,
+  ) {
     const p = JSON.parse(readFileSync(platform, 'utf8'))
-    p.body = body(task, conditions)
+    p.body = body(task, conditions, attributes)
     p.state = state
     writeFileSync(platform, JSON.stringify(p))
   }
@@ -412,8 +456,44 @@ process.stdout.write(JSON.stringify(result))
     authority,
   }
 }
-export function body(binding: TaskBinding, conditions: Condition[] = []): string {
+/**
+ * The line table every fixture commits unless it gives its own: the integration track `runtime`
+ * owns `feature`, the write scope of the fixture binding, so the default card has no attribute
+ * finding that refuses a new context.
+ */
+export const DEFAULT_LINES = {
+  schemaVersion: 1,
+  integration: { track: 'runtime', paths: ['feature', 'apps'] },
+  shared: [],
+  lines: [
+    { id: 'model', title: '模型', owner: 'human', track: null, paths: ['model'], contracts: [] },
+  ],
+}
+/**
+ * The attributes of the default fixture card: an integration card. Its version 1 binding is
+ * then only reported (`binding-v1`), as `start` does for integration cards.
+ */
+export const DEFAULT_CARD: CardAttributeFields = {
+  line: 'integration',
+  nature: 'integration',
+  contractChange: 'none',
+}
+/** The「身份与责任」attribute lines of a fixture card; the section is omitted without them. */
+export type CardAttributeFields = { line: string; nature: string; contractChange: string }
+export function body(
+  binding: TaskBinding,
+  conditions: Condition[] = [],
+  attributes?: CardAttributeFields,
+): string {
   return [
+    ...(attributes === undefined
+      ? []
+      : [
+          '## 身份与责任',
+          `- 交付线：${attributes.line}`,
+          `- 性质：${attributes.nature}`,
+          `- 契约变更：${attributes.contractChange}`,
+        ]),
     `- 交付层级：delivery`,
     '- 主工作类型：maintenance',
     `- 交付修订：${binding.revision}`,
@@ -437,6 +517,6 @@ export function body(binding: TaskBinding, conditions: Condition[] = []): string
           )
           .join('\n'),
     '## 当前执行与交接',
-    `\`\`\`json omne-integration-binding:v1\n${JSON.stringify(binding)}\n\`\`\``,
+    `\`\`\`json ${BINDING_MARKERS[binding.schemaVersion]}\n${JSON.stringify(binding)}\n\`\`\``,
   ].join('\n')
 }

@@ -26,7 +26,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 同层可有多个同标识资产记录，但一个能力标识至多持有一份。资产记录的存在与本层持有分别可查询；新副本不能通过同名自动占用已有持有。成员角色或资格变化不改租户身份、历史作者及既有资产归属。
 
-资产定义数据、执行实现与承载服务分别标明采用依据。它们不要求一一对应或同时换代；报告可执行前，类别与实际采用者保证数据和实现匹配。不能用“只换实现”绕过替换锁或使用资格。
+资产定义数据、执行实现与承载服务分别标明采用依据。它们不要求一一对应或同时换代；报告可执行前，类别与实际采用者保证数据和实现匹配。不能用“只换实现”绕过替换锁或使用资格。Tool 类别例外：工具资产的 body 带实现引用 `implementation { executor, module, construction }`，定义数据与实现仍分别标识，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链)。
 
 ## 定义、草稿与发布
 
@@ -38,7 +38,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 发布前通过适用共同校验和类别校验。发布成功形成不可变版本；后续修订新草稿和新版本，不覆盖已发布字节。过期草稿编辑不能静默覆盖他人已确认修改，应报告冲突和可核实的当前结果。
 
-版本选用与发布分开。持有明确固定版本或跟随当前版，不另指定时跟随当前版，该选择对管理者可见。固定版本不因发现新版暗换，跟随者在后续求值采用当前发布版；分享只能跟随，主动确认的重复复制按其规则更新。新的选择只作用于规定后续采用点，不能改变已捕获的调用内容。
+版本选用与发布分开。持有明确固定版本或跟随当前版，不另指定时跟随当前版，该选择对管理者可见。固定版本不因发现新版暗换，跟随者在后续求值采用当前发布版。例外：对已有会话的工具常驻项，跟随持有只在新定义与会话首次装载的定义同形时才跟，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5) 与 Tool 契约的[会话常驻规则](../../tool/tool-contract/SPEC.md#会话常驻规则r1r5)。分享只能跟随，主动确认的重复复制按其规则更新。新的选择只作用于规定后续采用点，不能改变已捕获的调用内容。
 
 定义可携带 immutable 不可替换声明，随本次合法采用的发布版本或工作区定义解释；未采用的草稿不能暗改运行消费者的约束。声明的替换效果归[候选求值](#candidate-resolution)，不表示该资产不能修订草稿、发布新版本、禁用或移除，也不自动锁定设置、权限或引用能力。
 
@@ -50,7 +50,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 <a id="holding"></a>
 
-加入须有该范围的管理资格及合法权利依据。组织层由所采用治理模型授权的管理者操作，默认团队方案为当前组织管理员；租户层由本人按资格管理。成员不能因可使用资产就管理组织持有。加入使属性可被本层配置，但不保证某个Agent选入或能够实际执行。
+加入须有该范围的管理资格及合法权利依据。组织层加入要求“组织持有管理”资格，由所采用治理模型映射到组织角色；租户层由本人按资格管理。成员不能因可使用资产就管理组织持有。加入使属性可被本层配置，但不保证某个Agent选入或能够实际执行。
 
 禁用保留持有及全部配值；再启用只解除本层自己的禁用，不解除外层禁用。移除结束持有，配值随之退出，不存在脱离持有的可生效配值。配值写入与移除竞争时，不能报告一个已不存在持有上的有效配置。
 
@@ -64,7 +64,7 @@ assets拥有共同状态与变更结果，类别拥有专有声明与内容校�
 
 租户到组织提升改变所有者且不可逆，历史作者、原有持有及配值保持，组织不自动新增持有。提升后的既有分享以组织级分享设置重新判断：仍可分享则保留，否则撤回。不得一律撤回、一律保留或凭此增加重新确认要求。提升结果与对应分享处置必须对外呈现一致的当前事实，不能出现已归组织却仍绕过组织分享限制的可用关系。
 
-共享工作区或外部仓库资产允许直接人工提升到组织，不要求先转入租户层。发起人须具来源处置资格，目标组织管理员须确认接收；发起、通知或普通写入成功均不等于提升完成。Agent不得代用户发起或确认。托管工作区发起人须为治理所有者或其明确授权的人；外部仓库发起人须提供可核实的资产处置权或明确授权依据。当前来源处置资格和目标组织管理员资格分别核对，依据不可取得或失效时不得完成提升；不得默认以访问、参与、写入或作者身份放行。来源处置、组织接收及适用的分享处置须呈现一致的当前事实；精确提交与恢复协议另行设计。
+共享工作区或外部仓库资产允许直接人工提升到组织，不要求先转入租户层。发起人须具来源处置资格，目标组织具备“组织持有管理”资格的人须确认接收；发起、通知或普通写入成功均不等于提升完成。Agent不得代用户发起或确认。托管工作区发起人须为治理所有者或其明确授权的人；外部仓库发起人须提供可核实的资产处置权或明确授权依据。当前来源处置资格和目标组织的“组织持有管理”资格分别核对，依据不可取得或失效时不得完成提升；不得默认以访问、参与、写入或作者身份放行。来源处置、组织接收及适用的分享处置须呈现一致的当前事实；精确提交与恢复协议另行设计。
 
 ## 合法候选与替换
 
@@ -171,7 +171,50 @@ Plugin成员启用值在展开该Plugin时先求，之后再投影实际属性�
 | [AR-J06](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j06)，CAP-AR01、06、09；[AR-F06](../docs/key-flows.md#ar-f06) | [组合](#composition) | 无终点递归拒绝，Skill 与 Tool 配套互引不误拒；Plugin 内含成员随其治理，外部引用不变目标所有；流转发起时缺目标提供者提前告知而不新增拒绝政策。assembly 验证提前启用求值及完整展开，属于对应长期能力范围。 |
 | [AR-J07](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j07)，CAP-AR02、03、04、06、12、16；[AR-F07](docs/internals.md#ar-f07) | [复制](#copy)、[失败恢复](#failure-and-recovery) | 首次复制有或无既存同标识持有分别验证并存或同时持有；无血缘撞名不能覆盖；重复只更新目标层血缘，保留目标配值规则；组织型重复无本次确认不建新版，确认丢失查询原结果不增加第二份 v1。属于长期复制义务。 |
 | [AR-J08](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j08)，CAP-AR03、04、06、13、16；[AR-F08](docs/internals.md#ar-f08) | [分享](#sharing)、[失败恢复](#failure-and-recovery) | 邀请未确认无使用权，到期或撤回不可确认；一名管理员失去资格时其确认被拒，其他有资格者仍可确认有效邀请；成立分享跟随版本且无自动到期或暂停；确认与关系解除竞争没有结束且可用的双结果；重入及恢复旧通知不复活关系。identity 提供当前关系，assets 验证终局，属于长期分享义务。 |
-| [AR-J09](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j09)，CAP-AR02、04、13、14、16；[AR-F09](docs/internals.md#ar-f09) | [提升](#promotion) | 租户提升保留持有配值且不自动组织持有；组织级分享设置允许时原分享保留，不允许时撤回，无额外确认；仅工作区参与或仓库写入者不能直接提升，合法来源处置者仍须目标管理员确认，Agent 两侧均拒绝。直接来源的持有规则不套用租户路径，属于长期提升义务。 |
+| [AR-J09](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j09)，CAP-AR02、04、13、14、16；[AR-F09](docs/internals.md#ar-f09) | [提升](#promotion) | 租户提升保留持有配值且不自动组织持有；组织级分享设置允许时原分享保留，不允许时撤回，无额外确认；仅工作区参与或仓库写入者不能直接提升，合法来源处置者仍须目标组织具备“组织持有管理”资格的人确认，Agent 两侧均拒绝。直接来源的持有规则不套用租户路径，属于长期提升义务。 |
 | [AR-J10](../../../.meta_harness/design/product/assets-and-rules/design.md#ar-j10)，CAP-AR03、04、05、09、10、11、15、16；[AR-F10](../../../docs/domains/assets-and-rules/key-flows.md#ar-f10) | [候选](#candidate-resolution)、[失败恢复](#failure-and-recovery) | 普通故障恢复读回已确认事实，响应丢失与取消竞争查询原结果；未知不当失败重做，空集合与依赖故障可辨。assembly 验证取消和连续候选不覆盖新选择，Session 与类别验证已知不可用身份及原执行仍真实收场，解释不泄露私域和秘密。 |
 
 AR-J05 的设置与权限主行为分别由 [settings](../settings/SPEC.md#journey-verification)和 [permissions](../permissions/SPEC.md#journey-verification)验证，assets 参与持有依附与替换不迁移。操作身份、版本、查询与共同完成机制继续定位 [ASSET-M01](docs/internals.md#asset-m01-完成与来源协议)，组织创作委托及连接件非目标沿 [ASSET-N01](../../../.meta_harness/design/product/assets-and-rules/design.md#未决问题与待定事项)。
+
+## 类别提供方
+
+<a id="category-provider"></a>
+
+状态：已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受，是该节的现行行为。上文仍是「候选、待用户确认」。本节的接受状态与上文分开。本节不定义编程语言里的类型名。选版承诺按 PanQiWei 的 [K-08 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/805#issuecomment-6445267480) 修订。
+
+与上文的关系：
+
+- 「类别扩展协议及发布入口尚待设计」仍然有效。公开类型见[已接受的公开类型](#accepted-public-types)。本节的操作和两个样例仍然有效。
+- 「持有固定版本」与「不另指定时跟随当前版」都是来源层的层值。求值本身不带版本：求值不接受写明版本的能力身份，版本由层值决定，新的求值采用当时的合法胜出者（[项目要求](../../../docs/requirements.md#定义装配与活体sys-composition)、[产品正文](../../../.meta_harness/design/product/sessions-and-work/design.md#定义版本可以更新定义身份不随之改变)）。已捕获的调用内容不因新版本改变。
+
+类别提供者列出候选项，并按层值决定的版本交出正文。候选项说明六件事：身份与版本、治理所需信息、交互、失败、资源、验证责任。身份是类别加 name。提供者不决定本次采用。来源、类别校验或存储不可取得时，返回可辨的失败，不把未核验内容当成合法空定义。
+
+Cordis 按组合挂载提供者。提供者向装配侧的注册表登记。注册表不导入提供者的实现包。理由见[内部设计](docs/internals.md#category-provider-seam)。
+
+### Tool 样例
+
+成功。求值不带版本。该工具在来源层的层值是跟随当前版。提供者交出候选项。身份是 Tool 加 `read_file`。版本是当时的合法胜出者 `v3`。正文是该工具的参数声明和执行说明。装配侧决定这次采用。采用依据记下 `v3` 和当时交出的正文。同一次执行读取这份正文时，读取采用依据里的正文。后来发布的 `v4` 不改写这份依据。尚未发出的后续调用若遇到合法刷新，可以按架构页看到新的定义。已经发出的调用仍使用依据里的正文。
+
+失败。同一身份没有合法定义。提供者返回失败。种类是缺合法定义。不交出空正文。装配侧不形成新的采用依据。
+
+### Skill 样例
+
+成功。来源层的层值固定 `v2`，求值不写版本。提供者按层值交出 `v2` 正文。正文是该 Skill 的任务指令。固定为 `v2` 不豁免资格。资格不成立时，提供者返回失败，种类是候选被拒绝，不交出正文。正文一经记入采用依据，后续读取仍是这份记录。尚未取用的另一 Skill，后续取用读取当时的合法版本。
+
+失败。身份里的类别没有已接受的拥有者。提供者返回失败。种类是无类别拥有者。装配侧不解释该正文，也不采用。
+
+## 已接受的公开类型
+
+<a id="accepted-public-types"></a>
+
+PanQiWei 于 2026-10-15 接受这组编程类型，记录见 [Issue 272](https://github.com/nemori-ai/omne-harness-lite/issues/272#issuecomment-6194044008)。上文「类别提供方」的操作不变。
+
+共同资产导出 `capabilityId`、`createCategoryRegistry`、`unknownCategory`、`isReadBody` 和 `pinBody`。类别是非空字符串。`register` 拒绝空类别名和重复登记。`lookup` 找不到类别时，`unknownCategory` 返回 `unknown-category`。`readBodyText` 返回的正文是冻结副本。`readSnapshot` 只在参数就是这份副本时返回它，否则返回空。`isReadBody` 表示同一次判断。调用方不能改写副本，也不能在上面安装取值函数。复制失败时抛出，不把它说成 token 语法错误。`pinBody` 再复制这份冻结正文。登记端口时复制的 `schema` 只是冻结副本，不是 `readBodyText` 的结果。成环或无法复制时拒绝。`judge` 和 `pinBody` 不接受它。判断和固定都不读取调用方后来换上的函数。未经 `readBodyText` 的正文被拒绝。判断失败后，声明和引用抛出的错误带上同一次拒绝原因。
+
+`BodyContract` 的字段是 `category`、`schema`、`judge`、`deriveDeclarations`、`references`。正文文本先经 `readBodyText`。它调用 `@omne-harness/json-text` 的 `readJsonText`，不另写解析器。`judge` 只接受这份读取结果。对象字面量、伪造的种类和空条目都返回 `incomplete-reference`。判断不调用传入的函数。`judge` 的失败结果带 `ok: false`。声明和引用接收同一次判断的上下文。判断失败时它们抛出，不返回声明或引用。
+
+本次不调用 `@omne-harness/schema-provider`。`schema` 是类别拥有者随端口给出的说明文档，由同一次文本读取得到。正文是否合法由 `judge` 决定。公开入口是 `readBodyText` 和 `judge`。验证命令是 `pnpm --filter @omne-harness/assets test`。
+
+能力身份是类别加 name。本卡不重新定义 `AccountId`、`OrganizationId`、`TenantId`、`LoginStateId` 或 `ScopeLayerIdentity`。这些值不是本卡的输入，所以本成员不依赖 `@omne-harness/legal-identity`。本成员不依赖装配、Tool 或 Skill 的实现包。Tool 绑定登记表的来源层（`official`、`organization`、`tenant`、`workspace`）与 `ScopeLayerIdentity` 的关系，待识别拥有者后协调，见 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md#绑定登记表g7)。
+
+`@omne-harness/tool-contract` 登记 `tool`。名字与能力名不一致时返回 `name-mismatch`。`composes.skills` 只变成 `skill` 身份引用。`@omne-harness/skill` 登记 `skill`。`tools` 里每一条都必须是 `tool` 身份。读判断不执行正文里的函数。Skill 包不依赖 Tool 包。`@omne-harness/agent-contract` 的 `agentBodyContract` 登记 `AgentDefinition`，正文规则见 Agent 契约的[资产正文契约](../../agent/agent-contract/SPEC.md#资产正文契约)。

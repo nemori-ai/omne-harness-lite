@@ -1,0 +1,41 @@
+{
+  "version": "947.1",
+  "top_model_maximum_effort": "high",
+  "tiers": {
+    "economical": {"codex": "diagnostician", "claude_code": "qa"},
+    "default": {"codex": "diagnostician", "claude_code": "developer"},
+    "top": {"codex": "design-reviewer", "claude_code": "design-reviewer"}
+  },
+  "roles": {
+    "developer": {
+      "adjustable_model": true,
+      "work": {
+        "product": "default", "capability": "default", "provider": "default",
+        "application": "default", "single-module-application": "economical",
+        "kernel": "top", "terminal": "economical", "verification": "economical"
+      },
+      "top_risks": ["security-sensitive", "multi-package", "whole-assembly", "underspecified-contract", "cross-module-lifecycle", "cross-process-faults", "subtle-algorithm", "release-gate"],
+      "top_minimum_effort": "high",
+      "hardest_work": ["kernel"],
+      "hardest_risks": ["cross-module-lifecycle", "cross-process-faults", "subtle-algorithm"]
+    },
+    "qa": {
+      "adjustable_model": true,
+      "top_model_sources": {"claude_code": "developer"},
+      "work": {"non-interactive": "economical", "terminal": "top"},
+      "top_risks": ["terminal-matrix", "multi-service", "release-gate"],
+      "top_minimum_effort": "xhigh",
+      "minimum_effort": "high"
+    },
+    "design-reviewer": {
+      "work": {"choice": "source", "expression": "source", "plan": "source"},
+      "model_variants": {"expression": {"claude_code": "product-design-drafter"}},
+      "work_minimum_effort": {"expression": "xhigh"},
+      "hardest_work": ["choice"]
+    },
+    "diagnostician": {"work": {"terminal": "source"}},
+    "implementation-reviewer": {"work": {"implementation": "source"}},
+    "product-design-drafter": {"work": {"product": "source"}},
+    "product-design-reviewer": {"work": {"product": "source"}}
+  }
+}

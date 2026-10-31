@@ -1,6 +1,6 @@
 # 通过对话操作交付卡
 
-协议已采用，日常入口以[GitHub交付配置](github-delivery.json)的实际发布状态为准。PanQiWei已授权启用，接入及首次采用记录归[工程启用任务](https://github.com/nemori-ai/omne-harness-lite/issues/195)；未发布或未获本任务授权时只形成获准草稿。每项任务按实际需要明确本次身份、结果和接受责任。平台、默认分支模板及实际宿主执行仍须独立验证，本页不授予发布或启用。
+启用状态与草稿规则见[交付协议](delivery.md)开头。
 
 本页供协调、实施、评审和维护agent将人的对话转为真实交付操作，也供负责人理解agent将做什么。卡身份、字段、条件、单写与决定归[交付协议](delivery.md)，各类证据归[工作类型](work-types.md)。本页拥有操作顺序与回执，不复制另一套状态或授权规则。
 
@@ -14,7 +14,7 @@
 | “帮我建卡”“把刚讨论的任务记录到队列” | 按获准范围创建或更新唯一卡，读回真实身份、正文及关系 | 建卡授权不等于代码实施、接受或合并授权 |
 | “看看下一步”“哪些任务可以做” | 只读队列，报告排序、条件满足及unknown，提出候选 | 读取或建议不构成领取和派发 |
 | “开始这张卡”“在这个队列自驱推进” | 在指定卡／队列及既有授权内复核准入，由有权协调者登记attempt并派发 | worker不因API可写就取得调度权；范围不扩大到其他队列 |
-| “补充一条要求”“先做B”“A还得等一下” | 区分语义修订、Priority／Iteration调整、阶段阻塞或明确暂停，按各拥有者更新 | 改顺序不删依赖；等待不抹去真实阶段；暂停按精确范围处理 |
+| “补充一条要求”“先做B”“A还得等一下” | 区分语义修订、Priority／Wave调整、阶段阻塞或明确暂停，按各拥有者更新 | 改顺序不删依赖；等待不抹去真实阶段；暂停按精确范围处理 |
 | “方案接受”“这个结果接受”“先取消” | 定位对象、修订、范围和决定者权限，分别记录技术采用、交付接受或取消 | 接受设计不表示结果交付；部分接受不关闭整卡 |
 
 对话中的已有授权持续有效，不逐次要求人重复许可。确实缺对象、范围、接受权、产品规则或工具资格时，只问影响下一步的必要问题，并继续不依赖它的工作。语境不足以区分接受方案还是接受成果时，不能自行销卡。
@@ -33,27 +33,47 @@
 
 按[七个信息模块](delivery.md#长期正文与一次交付)填写两种模板，删除占位和填写提示，保留可见的“接手本卡”说明。依据集中记录精确输入，验收通过输入ID引用；实际证据交回执行区。不把前置条件混入结果判据。测试按[包级测试责任与边界](../verification.md#包级测试责任与边界)填写。单元和契约默认由本包承担。集成只由实现具体存储或应用服务的包承担。端到端只由关键旅程的拥有者承担。非代码任务选择适用检查，说明未覆盖和环境缺口。
 
-建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
+建卡时按[卡属性与合法组合](delivery.md#卡属性与合法组合)登记交付线、性质与契约变更；调度者在 Issue 上设置里程碑，并打唯一的 `kind:` 与 `line:` 标签，缺任一项时 `start` 拒绝开工。调度者的建卡与派发步骤由 `dispatch` 技能给出，集成节点的步骤由 `integrate` 技能给出；两个技能只引用本页的规则与 dev-flow 的命令，不另立规则。建卡时尚未派发，在执行区写计划路线、最终终点和待定输入，不填占位binding或虚构工作树、开工HEAD及context。接手者须能取得必要输入；仅给另一台机器的tmp路径不足以完成交接。
+
+新建 context 时，`start` 也按属性发现拒绝开工。它拒绝[属性发现](../../tools/dev-flow/src/delivery/README.md#属性发现)的全部代码，派发命令用同一条规则。拒绝消息逐项写代码、条款与改法。下面两项只报告，不拒绝：
+
+- carry 之后，binding 的里程碑与 Issue 的里程碑不同。这是条款为 `binding.milestone` 的 `attribute-binding-drift`。
+- 交付线为 `integration` 的卡带版本 1 的 binding。交付线取正文「身份与责任」。线内的卡带版本 1 的 binding 时拒绝，调度者用 `dispatch-cli.ts` 重新派发，生成版本 2 的 binding。
+
+工作树 HEAD 上的线归属表缺失或不合格时，属性规则不可得，`start` 也拒绝新建 context，消息为 `attribute-rules-unavailable`。被拒绝时，调度者按消息中的改法修订卡、同步标签或重新派发，执行者再运行 `start`。工作树已有同绑定的 context 时，重跑 `start` 只报告发现。
+
+调度者用 `milestone-cli.ts create <名称> --due <日期>` 建里程碑，用 `milestone-cli.ts carry --from <A> --to <B> --reason <原因> <卡号>...` 把卡移到另一个里程碑。carry 在每张卡上发一条固定格式的流转评论，不改 binding。用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#里程碑命令)。
 
 读回实际Issue、正文、所需关系及主Project归属，再报告操作结果。Project加入或关系写入失败时，保留真实Issue身份及缺口，逐项修复，不把整项说成未创建而盲重建。
 
 修订由卡owner授权后交正文单写者集成。语义变化升交付revision，保留既有决定范围；分类标签只投影正文。规范变义先由其拥有者接受并写回，卡引用新有效输入；原生边与条件表不一致须对账。改了卡不表示已满足准入。
 
-主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。
+主工作类型派生为`kind:<类型>`，层级派生为`level:delivery`或`level:subtask`。责任视图采用`domain:<领域>`、`member:<成员>`及适用的`topic:<产品topic>`标签，从卡的实际责任和长期依据派生；技术卡不强造topic。优先复用已有稳定值，不从测试标签推定新产品领域。领域、成员、topic视图按前缀查询；标签与正文冲突须对账，不能让标签成为第二份责任源。交付线派生为`line:<线ID>`，性质派生为`nature:<性质>`；契约变更为additive或breaking时派生为`contract:<值>`，为none时不打标签。主Project的Line与Kind字段也是投影：`start` 在开工时按binding写 Line，核对正文主工作类型与唯一 `kind:` 标签一致后写 Kind，调度者可用 `board-cli.ts dispatched` 补写。各字段的唯一源与写者见[字段总表](delivery.md#字段总表)，字段ID、选项ID只登记在[交付配置](github-delivery.json)，没有登记时不造字段ID。
 
-当前迭代必须先有负责人采用的节奏与真实Iteration实例；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
+当前波视图要求负责人已采用波的节奏，调度者已在Wave字段中为本波建好迭代；空视图不表示没有任务，也不证明筛选有效。工程接入不为验证看板擅自制定项目迭代周期。
 
 ## 3. 取任务和派发
 
 协调者先核读取范围与分页完整性、排序、依赖及现存attempt。Ready只是之前的观察，开始前仍核当前必要输入和条件；不能从空列表、closed或Project状态推出资格。返回候选时说明为什么可做、等什么、哪些无法判定。
 
-获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
+获准取任务后，由本卡指定的单一调度者发放执行权，调度者须是 `publish` environment 的 reviewer；worker向该协调者交领取请求或候选，不自行竞争修改共享摘要。线包明确授权时，线会话可为线内的卡登记 attempt；此时线会话用与 reduce 相同的 GitHub 账号，作为该卡的调度者。派发前，调度者按[合法组合](delivery.md#卡属性与合法组合)核对属性、路线、写范围与交付条件；不合时先修订卡，再派发。协调者登记attempt并读回，给执行者明确卡修订、检出／分支、写范围、依据、验证、完成及停止点，随后派发。派发评论与binding写回用 `dispatch-cli.ts post` 与 `bind`，用法见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#派发命令)。工作类型决定加载哪些专项输入，规模决定选哪个pstack流程。
 
 接手会话先在本卡评论声明认卡，注明负责的人、宿主及会话或agent实例、当前修订、授权依据和现存执行核对结果。已有派发就引用该决定；尚未派发就向本卡指定调度者请求领取。认卡评论不授执行权，不新增认领Stage，也不代替唯一attempt读回。已获调度或正文单写职责时，在授权内直接完成登记和更新，不重复请示。
 
 Git任务开工前核对执行区唯一正式binding、直接目标分支及工具生成的context回执。纯评论报告等明确不涉及Git交付的卡，在分支与context小节写“不适用”、成果入口和理由；不造分支或执行Git start。该例外不免除认卡、派发、进展和接受责任。
 
 并行仅在独立写范围和条件允许时展开，共享接口及集成目标有单一责任。其他卡被阻塞不妨碍已获准的独立部分。旧实例失联、调度者交接及过时候选的处置继续按共用协议，不用更新时间或assignee模拟锁。
+
+并行派发多张卡前，调度者按[读写交叉的两类](integration.md#读写交叉的两类)运行写范围求交，命令退出 1 时不派发这组卡，先改分解。调度者为每条线写线包。线内的卡由线会话按 `claim` 技能 `references/` 中的模板写上下文地图本卡附录与任务信息包。不在线内的卡由调度者写，派发前做一次其中的自包含检查。
+
+### 按角色的流程
+
+几条线并行推进一个里程碑时，两个长期角色各有一份可复用的流程。协作规则归[集成清单](integration.md#集成节点的清单)，阶段、收口顺序与恢复归[负责人状态](map-reduce-states.md)，技能只给动作顺序：
+
+| 角色 | 可执行流程 |
+| --- | --- |
+| 线会话（推进一条线的会话，跨波不换） | [`line`](../../.meta_harness/agents/skills/line/canonical/SKILL.md)；卡级动作用 [`claim`](../../.meta_harness/agents/skills/claim/canonical/SKILL.md) |
+| 集成节点（兼调度者） | [`dispatch`](../../.meta_harness/agents/skills/dispatch/canonical/SKILL.md)、[`integrate`](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md) |
 
 ## 4. 推进和更新状态
 
@@ -63,6 +83,15 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 本地会话直接修改 Stage 并运行 `start`，不经过这两个流程。「Stage 只能由有资格的人修改」只在云端路径上由流程强制，本地按本节约定执行；`delivery-stage` 也不核对触发者是不是这张卡的调度者。
 
+`delivery-stage` 现在不接受 Integrating。Integrating 只能在本地路径上写入。让该流程接受 Integrating 归 `github-gate` 分支的拥有者。
+
+看板字段的写入如下。命令都只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
+
+- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。线内的卡由线会话在卡的 PR 合入批次分支时运行。线内的卡的 In progress 也由线会话设置。
+- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review，直到集成节点按卡接受时运行 `accepted`。gate 失败时，调度者把 Stage 改回 In review。
+- `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。Dispatched at 与 Wave 已有值时不覆盖，同一张卡的新 attempt 不改它们。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
+- Needs decision 由调度者在 Project 中设置，工具不写。需要人拍板时置 `yes`，决定读回后置 `no`，规则见[契约变更与里程碑类型](delivery.md#契约变更与里程碑类型)。
+
 执行者在开工和成果交回时也更新事实。每次注明当前revision/attempt、发生的变化、成果或证据、尚缺条件及下一责任。正文只保留当前摘要，旧attempt和逐轮过程通过评论或技术回执定位。Project对账注明所核Stage及时点；评论、正文或Project写入失败时分别报告未持久的部分，不声称全部已更新。
 
 范围或规范变动时先复核影响。仍可独立推进的部分继续，依赖新决定的部分保留问题；不能靠降低要求或删条件报告完成。成果按既有授权及时保存到Git远端，Issue只保留恢复定位及简短交接。调查、临时测量和单次验证的原始输出按保存边界处理，不整目录提交tmp。
@@ -71,11 +100,15 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 形成候选后执行按类型和风险选择的验证，并说明实际输入、结果、限制和未覆盖。相称检查及适用独立判断完成后，由协调者将实际成果与证据交给具名结果接受者；需要人的决定时给足对象、范围及缺口，不把全部原始日志交给人逐条检查。
 
+判据要求附上的证据贴在卡评论里，与交接报告一起交给接受者。这类证据包括命令输出尾部、测量摘要、qa 结论和准入日志摘要。任务 tmp 只在本工作树可读；换会话、换机器或回收工作树后，接受者就读不到它。只放在任务 tmp 的证据，接受者不据它判断。原件太大时贴摘要和关键行，并写明原件位置与哈希。原件仍按[终态与过程材料](../development.md#终态与过程材料)留在任务 tmp，不入库。
+
 同一对话内多个对象时，明确本次等待的是方案采用、某个子任务、整张交付卡还是合并。agent可以代笔人的明确决定，但须能核对授权人、身份、对象、修订和范围；不因自己的测试结论自授接受。人已经明确决定且有权限时直接回到该对象的记录拥有者，不再反复请示。
 
 RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC模板](../rfcs/.templates/rfc.md)记录精确提案修订与范围，写回仍分别判断。产品、架构及成员规格的采用，按其现行接受约定更新获准终态、采用状态和修订；非RFC方案的本次接受记录留任务区，不为补史虚构RFC。上述采用均不写成交付卡的accept决定，也不关闭关联卡。交付卡／子任务结果才进入[交付决定协议](delivery.md#4-接受取消与重开)，使用真实Issue及交付revision；合并或发布继续回其已有授权和制品入口。
 
 交付卡的有效决定先读回，再由具名角色修关闭和Project视图。只接受子任务或部分结果时父卡继续活动。平台写入不可用时，区分“负责人已在对话作决定”和“远端决定尚未记录”；停止依赖其持久事实的状态切换，不声称Issue已接受。恢复后取回有权者的可核输入，不能凭模糊回忆补造决定。
+
+接受决定读回后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts accepted --issue <卡号>`。批次内的任务卡由集成节点在按卡接受时运行。命令写 Accepted at，按 Dispatched at 算出 Cycle days，并把 Stage 改为 Accepted。命令不判断接受是否有效，只在决定读回之后运行。
 
 ## 6. 暂停、取消和跨会话恢复
 
@@ -91,12 +124,6 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 ## 多层集成的交接
 
-[多层分支规则](integration.md)维护技术运输。Issue 当前 revision/attempt 仍唯一拥有任务、路线和本次集成终点，正文单写者维护工具可读 binding；精确格式由[工具指南](../../tools/dev-flow/src/integration/README.md)拥有。任务同步不能改变原 taskBase 或虚构新 attempt。主干的进入按[现行准入](integration.md#现行准入)执行：开 PR，派发 `gate-publish`，由 admin 填写说明后确认。agent 代为确认时在说明中注明代为确认的人。
+技术运输、binding、适用目标与可选 Integration 视图的共同规则归[交付协议的同名一节](delivery.md#多层集成的交接)。主干的进入按[现行准入](integration.md#现行准入)执行。本页只补 binding 在卡上的操作位置：
 
 binding放在“当前执行与交接”，派发后替换未派发的计划文字。attempt、branch、route、completionTarget、taskBase和writeScope以唯一真实binding为编辑源。相邻记录从路线与 policy registry 的轨道登记解析的直接目标分支、实际开工taskSource、目标targetBase及观察时点，以及生成的context路径和核验回执。这些读回项留在JSON外，不增加v1字段。原taskBase与实际开工HEAD分别保留；目标前进后须重新核对targetBase。不得手工制造context或将本地缓存当授权源。
-
-原交付条件表可增加“适用目标”列；未声明为 all。integration 条件按本次实际 track/main/stable 或登记完整 ref 核对，start/acceptance 保持 all。最终包含结果的条件放 acceptance。现有阶段环观察未完整覆盖目标层细化，未知不得说成全图无环。
-
-完成 track 后已接受的结果仍可能随所在轨道逐层提升，被后续完整 RI 携带到上游与 main。轨道 owner 在提升 PR 的说明中列出这些卡及其在上一层的条件。有权 owner 对每个历史 identity/revision/attempt 与当前输入分别重核，历史 tuple 和 taskBase 不被新修订覆盖。当前 attempt 仍唯一，不因历史集合变成多执行队列。
-
-Project 可由原投影单写者维护可选 Integration target/progress，取自 Issue 声明和实际 Git unit/checkpoint。没有真实字段配置时不造 ID；不另增 Stage 或可编辑调度队列。declared/observed 不一致或不足为 inconsistent/unknown，不能升级为 Accepted 或 Closes。Git 已发布而 Issue 投影失败时，由原正文单写者修复技术记录，不重放 Git。本工具只读平台，唯一的例外是云端会话开工时派发 `delivery-facts`。

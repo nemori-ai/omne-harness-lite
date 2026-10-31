@@ -1,95 +1,23 @@
-# Agent 能力的长期行为规格
+# Agent 通用实现的行为边界
 
-状态为候选，待用户确认。目标拥有者为 `packages/agent/agent/`。本规格表达持续约束实现的行为，不声明公开类型、提供者、机制或实现已获接受。正式产品和全系统架构仍是上层依据。
+根入口导出 `createAgentRuntime`、通用评估器 `agentEvaluator`、它写入的 checkpoint 的 schema 采用 `agentCheckpointSchema` 与构造类型。根入口另导出独立 Model 接收工厂、宿主持有状态与完整交付材料读取器，形状见[公开入口](docs/public-api.md#独立-model-接收入口)。读取器只判断 schema 与原关联，不独自证明保存或当前资格。工厂的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。工厂的创建校验、四个面的访问守卫与 `invoke` 的 Loop 正常路径骨架已实现，I0 输入批与 I1 请求准备、不可用读取的 W0 等待、真实 cannot-fit 的 F1 出口已实现。F1 新建候选从注入的 AgentClock.now 取时；失败保留原准备与续点，不写候选；同一已形成候选重试不再次取时。I2/M0 的固定主调用与意图提交、M6 正常直接受理及未知时原调用认回、M1 等待 received、M3 完整材料采用及 M4/M5 直通已实现。首内容前最终失败且无有效回复经 I3 形成 no-reply 候选。I3 的接纳事实、message 事件与 Q4 接续同 revision 提交。I4 提交真实空动作批，I8 重读最新事实后选择新 step、一次等待保存或 F1 候选，部分内容不直接决定完成。W0 保存业务等待，启动观察后重读来源，再按注入时钟等待进程内检查时刻。R0 保留原 operation 与 expected，committed 认回后继，unknown 等待，excluded 才重求值。通知与检查到期都不证明原操作未执行。其他操作本体及剩余 Loop 节点的精确语义与失败分支尚未实现，实际支持范围见[成员 README](README_ZH.md#支持范围)。运行契约的接受范围以 [公共 SPEC](../agent-contract/SPEC.md) 为准。
 
-## 责任与适用调用方
+F1 在候选依据的修订未变时提交终结候选的业务内容，Journal 据此建立候选与 FinishIntent 投影；提交被排除后保留原意图与时刻。新输入或其他事实先改变修订时，经 R0 重读再求值。no-reply 候选失效后，I8 依据已消费结果、原 received 材料 关闭该调用的业务续点，不把已收场调用变成 producer 等待；原 received 与账目待办保持。F2 以普通 settling 提交完成落终态之前的经过，Journal 据此设 author route 的 beforeTerminal。F3 先读快照，投影尚无清单或上次 tryFinish 答 changed 时以 prepareFinish 发行终结责任清单，再读最新完整修订，最后以读到的 FinishIntent 投影调用 tryFinish 创建终态。F3 的 tryFinish 返回 unavailable 时，协调者经 R0 在内存等待，按检查时刻重试，不提交 waiting。changed 与 blocked 回 R0；custody 未交清时仍是未清责任，真实移交之后下一次终结才能成立；回 R0 之后读事实不可用时同样在内存等待，不提交 waiting；commit-unknown 先查询原操作再读取终态，excluded 才以原操作重试，unknown 或查询不可用不写会使原终结失效的等待提交。内存 Journal 以 prepareFinish 同一函数重算清单，按 SPEC 的五类责任固定次序以第一项 pending 阻塞终结，没有 pending 而有 unknown 项（未定写入，或既没有结果、关联也没有最终失败的调用）为 unavailable；核对 obligations 已发行且属本候选，核对 intent 与投影相等。author route 无 beforeTerminal，或 author route 上的候选是未迁移的 cancelled 候选时，以 passages 阻塞。cancellation route 无判断记录时以 passages 阻塞；判断记录的判据与当前闭包不同为 changed；判断为 blocked 时按记录的类别阻塞，判断为 unknown 时为 unavailable。取消候选经 commitSettlement 的 establish、migrate、judge 建立、迁移与判断；有效取消下带 complete 或 failed 候选的 F1 为 changed。协调者的取消路线仍未实现。
 
-成员提供 AgentDefinition 专有语义、Loop 下一步求值、具备资格的推进协调及 Loop extension 的位置与接续行为。
+F4 从非空终态台账认回已登记观察，并把未登记项保留给长期 Journal 与合法观察者。本阶段不执行扩展求值、不虚构 observed。O0 不执行 Model ACK 或 release 记录；接收状态由宿主持有。O0 尚不经 Rh 保管 handoff 责任，见开放问题的[具名缺口](docs/architecture/open-questions.md#journal-联合表达的具名缺口) U-29。未确认输出不由 O0 代为确认，其他合法保管责任继续留在 Journal。终态责任可接续后，E9 释放执行槽并保持登记，旧 execution 仍可读，新 execution 可复用 runtime。这些回归只覆盖同一非耐久内存 Journal 上的新协调者，不证明实际杀进程或跨进程恢复。
 
-调用方包括装配协调者、Session 工作治理、独立能力消费者及扩展适配者。只消费定义或纯求值的使用者不必创建 runtime；系统工作推进必须明确原 Session、Run、attempt 与当前资格。不能通过独立入口绕过系统托管数据的身份、读取和操作限制。
+## 兑现责任
 
-下面三个专题共同构成本成员的完整必要行为。
+实现须完整兑现公共操作与失败语义，不在此复制公共状态机或结果形状。配置与注入能力聚合由 [构造入口](docs/public-api.md) 拥有，机制及尚缺设计见 [内部架构](docs/architecture/README.md)。
 
-| 专题 | 本成员拥有 | 消费的邻域保证 |
-| --- | --- | --- |
-| [定义与选入](definition.md) | Agent 类型、专有声明、继承与必需身份规则 | 资产持有与版本、合法来源、装配求值和采用 |
-| [Loop 与接续](loop.md) | 下一步次序、模型及工具消费协调、完成候选与守卫 | Session 工作身份与推进权，Context 组装，Model 与 Tool 原执行 |
-| [扩展链与等待](extensions.md) | 十一处位置、干预力、组合、失败和原判断接续 | 共同授权、人工答复、装配绑定与原调用保存 |
+## 资源与替换
 
-## 前提与结果边界
+通过显式依赖取得外部能力，不导入 Cordis 或固定本地提供者。业务身份作为操作输入，不以 Context 或插件配置替代。替换和退出保留未完成责任，不能把依赖丢失或 disposer 完成报告成业务成功。
 
-系统推进前取得已校验的采用依据、有效推进资格、可恢复历史或可靠投影、原消费位置及当前模式、权限、Context、模型和资源条件。缺少必要输入不能填假默认值，不用旧日志授权新动作。
+## 验证
 
-本成员的结果是可解释的下一步、候选及其依据、原调用交接、可恢复等待、终态候选或具体失败。模型建议不等于工具发起，准入通过不等于执行成功，空队列不等于工作已完成。
+当前测试核对构造、访问守卫、正常路径、输入承接、请求准备、主调用接缝、回复准入、空动作批、I8 三种去向、原操作认回、等待保存、失通知后的计时重读与等待资源清理，以及终结的候选投影、清单发行与失效、五类 blocked 次序、取消路线的建立、判断与迁移和三个保管变体（内存 Journal 通过 agent-contract 的 Journal 核心一致性套件）。测试使用脚本化 Model 与非耐久内存 Journal，不证明真实提供者或完整恢复。needs-compaction 按 #513 revision 2 保存原结果并返回 unsupported，压缩路径与相应 F1 结果留给 4.5。内部窄接续从同一内存 Journal 的已存 ready/step 或 PendingCall 重建固定帧，并从 received 条目读取完整材料，覆盖意图提交前后与 producer 已提交而尚未完成 I3 的切点，要求原 runtime、Access/Authority 与旧驱动已停；I2 尚须无未决 Journal 操作。它不是公开恢复或进程耐久。缺原产出 scope/format 的 reasoning_state、完整或未封 thinking 返回 unsupported，已接收材料保持可读。
 
-Run 的逻辑终态由 Session 治理记录，本成员不得另立终态权威。纯计算、实际调用、业务承接与资源清理分别报告。
+Model 接收遵守公共 SPEC 的 [J02](../agent-contract/SPEC.md#结果接收)。同一内存 Journal 提供四个视图，joint commit 在单一发布点写入材料、条目、操作结果与 saved。原消费绑定独立于当前 checkpoint 与 attachment 保留。独立接收工厂在当前资格和原 Model 权威核验后才认回或提交；unknown 只查询原 operation，excluded 不换号。账目在共同提交后出站，重试与 blocked 状态跨组件重装配保留。Model 的公开 testing pusher 自行执行其 ACK；Agent loop 不调用 Model consumption。
 
-## 身份、范围与归属
-
-每个独立模型、工具及扩展调用具有可恢复身份和原用途，区分同一 step 中的多个动作。调用发起尝试与后续消费尝试分别关联，不能因换 attempt 新建同一逻辑调用或重记原费用。
-
-为 Run 推进的调用关联该 Run；压缩和扩展判断回到原内部位置。Run 外与独立调用只使用真实存在的身份，不制造 Session 或挂到碰巧活跃的 Run。跨租户默认拒绝；持有历史 ID 或句柄不是读取与控制资格。
-
-业务效果的稳定去重身份与追溯尝试分别表达。稳定身份必须区分同一步多个动作，不能只用 Session、Run、step 三项。去重是否能够阻止外部重做，还取决于实际操作契约和接收方能力，本成员不承诺所有调用恰好执行一次。
-
-## 并发与提交
-
-Session 保证一个 Run 只有一个有效推进者，本成员在每次影响推进、发起或消费时兑现相应资格。重复通知不自动授权新 Run 或新 attempt。已被取代者不能发新工作；原生产者仍可保存真实迟到结果。
-
-同位置同动作扩展有序执行，不同动作可并行判断，整批判断齐备且所需卡片均按原规则处理完成后才发获准部分。需要共同成立的资格检查、结果承接和状态提交由具体操作定义原子边界，普通通知不能模拟它。
-
-写入返回未知时按原操作身份查询，不能直接重复可能产生效果的调用。读取或查询失败保持未知，不等于不存在。恢复已确认的事实不依赖结束记录必须成对出现。
-
-## 持久性与交付责任
-
-已确认保存的业务进度、扩展结论、有效参数、卡片、答复、结果和账目在普通进程崩溃、操作系统崩溃及断电后仍可读取和解释。可重建缓存不另立事实权威；介质或整机物理损毁不自动纳入普通恢复保证。
-
-解除生产侧交付责任前，合法消费者可以先完成处理并可靠保存必要完成依据，也可以先保存内容或有效可恢复引用、原身份、原消费位置及后续责任。先完成处理须符合原生产消费契约，不强制另存可重领全文；尚需后续处理时必须保留足以接续的内容和责任。模型 ACK 只能在整项调用真实收场后由当前合法消费者执行。ACK 已生效后，接续从消费侧保存的数据继续，不要求模型重新提供完整副本。工具结果按自身保留契约，不能借模型 ACK 删除全文。
-
-已拒绝的模型回复或工具结果仍保持真实执行记录。它们未形成协作消息不表示原数据、费用或效果可丢弃。推进者死亡也不免除保管责任。
-
-## 取消、退出与结构变更
-
-仅 Agent runtime 退出或释放句柄，不取消独立 Model 或 Tool 执行。等待时可以挂起或交还资源，不把等待本身当故障，也不生成新工作。
-
-收到有效取消后，本成员停止该目标的新推进，按原事实交接未收尾责任。Session 保存意图和终态；Run 取消与 Session 归档范围不同。归档按业务取消解除等待，不等待所有物理执行停当。取消后实际效果与费用如实保留，不报告 disposer 已撤回外部行动。
-
-结构换代消费 assembly 的有效候选与交接决定。原调用、判断和卡片保留原语义，尚未发起动作核对当前约定与资格。纯数据更新不机械替换 Agent runtime，实例替换也不暗换原调用输入。
-
-## 依赖不可用与降级
-
-必要保存或授权无法取得时，依赖其允许结论的新动作受阻。动作准入不可用全拒，普通扩展和其他可选服务按各自策略，不将局部故障扩大为全系统停机。
-
-降级先避免副作用，确需产生时保留真实范围及可撤回条件。服务恢复后重新核当前条件，不无条件重放旧计划。Loop 自身必要入口失效须具体报告，不能用工具不可用替换件假装整个 Loop 的必要条件成立。
-
-## 性能、诊断与维护
-
-长期读取按所需事实范围和可重建投影组织。读取尺度包含历史持续增长、待处理输入、未完成扩展和结果、取消核对及恢复延迟，不假设每步遍历全部历史。
-
-关键准入、采用、等待、失败、控制、终态候选、消费及未知状态具备定位信息。遥测不默认复制消息正文、秘密和附件；采样不能抹去必要审计和账目事实。费用按原调用和原工作汇总，接续本身不构成额外发出或自动浪费。
-
-后续实现维护三个专题中的行为场景与跨能力故障验证。选择证据须覆盖真实调用与消费，不以接口存在、mock 或静态图代替兑现。机制缺项从[问题登记](../../../.meta_harness/design/product/agent-progression/design.md#未决问题与待定事项)读取；独立审阅和测试通过不授予用户接受。
-
-
-## 旅程验证入口
-
-产品能力和旅程是可定位的文档索引，不是新增公开类型。三层导航及持续验证的归属如下。各场景须结合本 SPEC 的身份、并发、持久性和控制义务验证，不能只检查界面文字或图中节点存在。
-
-| 产品能力与旅程 | 架构流程 | 必要成员契约及持续验证 |
-| --- | --- | --- |
-| CAP-AG01、CAP-AG02；J-AG01、J-AG07 | [F-AG01](docs/key-flows.md#f-ag01)、[F-AG07](docs/key-flows.md#f-ag07) | [定义旅程验证](definition.md#旅程与持续验证)，定义身份、版本与合法选择 |
-| CAP-AG03、CAP-AG04；J-AG02、J-AG04、J-AG06 | [F-AG02](docs/key-flows.md#f-ag02)、[F-AG04](docs/key-flows.md#f-ag04)、[F-AG06](docs/key-flows.md#f-ag06) | [Loop 旅程验证](loop.md#旅程与持续验证)，完整请求、原调用及恢复位置 |
-| CAP-AG05、CAP-AG06；J-AG02、J-AG03、J-AG06、J-AG07 | [F-AG03](docs/key-flows.md#f-ag03)、[F-AG07](docs/key-flows.md#f-ag07) | [扩展旅程验证](extensions.md#旅程与持续验证)，原经过、参数与整批屏障 |
-| CAP-AG07、CAP-AG08；J-AG04、J-AG05、J-AG08 | [F-AG04](docs/key-flows.md#f-ag04)、[F-AG05](docs/key-flows.md#f-ag05)、[F-AG08](docs/key-flows.md#f-ag08) | [Loop 旅程验证](loop.md#旅程与持续验证)，来源拒收与统一终态 |
-| CAP-AG09；J-AG02 至 J-AG08 | [F-AG06](docs/key-flows.md#f-ag06)、[F-AG07](docs/key-flows.md#f-ag07) | 本节交付责任场景及[Loop 验证](loop.md#故障接续与持续验证)、[扩展验证](extensions.md#旅程与持续验证) |
-| CAP-AG10；J-AG06、J-AG08 | [F-AG08](docs/key-flows.md#f-ag08) | [Loop 旅程验证](loop.md#旅程与持续验证)，原始守卫事实、读取范围与原调用账目 |
-
-实现与集成至少保留以下交付责任场景。
-
-1. 模型已真实收场，先完成处理并保存足够完成依据后 ACK；替换消费者后能确认处理结果和剩余责任，不强制重领或再存全文。
-2. 模型已真实收场，先可靠保管内容或有效引用、原位置与责任后 ACK；后续处理前崩溃，新消费者从消费侧继续，原调用不重发。
-3. 保存或 ACK 确认响应丢失时按原身份对账。必须辨认仍在生产侧、已交给消费侧和查询未知；未知不触发重复效果。
-4. 原 Run 已取消或终态，获准保管者接到真实结果；允许保存、结算或交付的事实不获得新业务推进权，不要求终态后的旧消费者重新有效。
-5. 独立调用无 Run 时可靠承接，不制造工作身份；工具全文保留不受模型 ACK 清理影响。
-
-公开协议细化位置见[流程缺项](docs/key-flows.md#protocol-gaps)。上述是持续验证义务，不是已运行证据。能力实现状态与阶段支持只读[产品同页记录](../../../.meta_harness/design/product/agent-progression/design.md#能力定义与实现状态记录表)。
+I3 只准入完整普通结果。completed/limit 的合法全 sealed 内容可形成回复，原 settlement、parts 与真实 trims 保留在 received 材料中，不合成提醒或 trim。含 partial 的结果不升级为完整消息。interrupted 按部分结果回 I8，原控制身份随材料保留，不改成上游故障。该消费出口不表示控制请求、阶段记录或公开恢复已交付。

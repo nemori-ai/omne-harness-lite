@@ -1,0 +1,13 @@
+{
+  "role": "orchestration-coordinator",
+  "description": "A coordinator that controls calls with an explicit identity and carries a call across a lost route",
+  "dependencies": [
+    "@omne-harness/legal-identity",
+    "@omne-harness/model-contract",
+    "@omne-harness/operation-result"
+  ],
+  "forbidden": [
+    "@omne-harness/model",
+    "@omne-harness/model-host-local"
+  ]
+}

@@ -1,12 +1,6 @@
 import { parseTaskBinding, parseConditionScope, type TaskBinding } from './binding.ts'
-export const workKinds = [
-  'feature',
-  'bug',
-  'refactor',
-  'performance',
-  'maintenance',
-  'investigation',
-] as const
+import { workKinds } from './work-kind.ts'
+export { workKinds } from './work-kind.ts'
 export const phases = ['start', 'integration', 'acceptance'] as const
 export const conditionKinds = ['issue-result', 'adopted-source', 'decision', 'capability'] as const
 export type Phase = (typeof phases)[number]
@@ -29,10 +23,35 @@ export type DeliveryConfig = {
     number: number | null
     id: string | null
     url: string | null
-    fields: { stage: string | null; priority: string | null; iteration: string | null }
+    /**
+     * Project field IDs. Stage is the built-in Status field and `iteration` is the Wave field.
+     * The six board fields are optional in the file and null when absent.
+     */
+    fields: {
+      stage: string | null
+      priority: string | null
+      iteration: string | null
+      line: string | null
+      kind: string | null
+      dispatchedAt: string | null
+      deliveredAt: string | null
+      acceptedAt: string | null
+      cycleDays: string | null
+    }
+    /** Single select option IDs by option name; an absent map is empty. */
+    options: {
+      stage: Record<string, string>
+      line: Record<string, string>
+      kind: Record<string, string>
+    }
   }
   creationHandoffIssue: string | null
   writers: { stage: string | null; body: string | null }
+  /**
+   * The board writes of dev-flow, or null when the file has no `board` entry. Only the shape is
+   * parsed here; delivery/board.ts judges which writes an event may enable.
+   */
+  board: { timeZone: string; events: Record<string, string[]> } | null
 }
 export type CapturedIssue = {
   number: number
@@ -48,6 +67,8 @@ export type CapturedIssue = {
   blockedBy: string[]
   parentIssue: string | null
   stage: string | null
+  /** The milestone title, null without one; absent in captures that did not read it. */
+  milestone?: string | null
 }
 export type DeliveryCapture = {
   schemaVersion: 1
@@ -69,9 +90,11 @@ export type Condition = {
   evidence: string
   scope?: string
 }
+export const findingCategories = ['deviation', 'unknown', 'uncovered', 'attribute'] as const
 export type Finding = {
   id: string
-  category: 'deviation' | 'unknown' | 'uncovered'
+  /** `attribute` holds report-only card attribute findings; they never block delivery. */
+  category: (typeof findingCategories)[number]
   code: string
   object: string
   clause: string
@@ -102,7 +125,7 @@ export type CardObservation = {
   execution: 'requires-review'
 }
 export type DeliveryReport = {
-  schemaVersion: 4
+  schemaVersion: 5
   kind: 'github-delivery-report'
   protocolVersion: 2
   repository: string
@@ -118,7 +141,7 @@ export type DeliveryReport = {
     completeness: 'known-subgraph-only'
     cycles: { phases: string[]; conditions: string[] }[]
   }
-  stock: { deviation: number; unknown: number; uncovered: number }
+  stock: { deviation: number; unknown: number; uncovered: number; attribute: number }
   delta: { introduced: string[]; resolved: string[]; remaining: string[]; notComparable: string[] }
 }
 export class InputError extends Error {
@@ -130,6 +153,39 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function record(value: unknown, path: string): Record<string, unknown> {
   if (!isRecord(value)) throw new InputError(`${path} must be an object`)
   return value
+}
+/** The value of the card's single label with `prefix`; undefined without exactly one. */
+export function singleLabel(labels: readonly string[], prefix: string): string | undefined {
+  const values = labels.filter(label => label.startsWith(prefix))
+  return values.length === 1 ? values[0]?.slice(prefix.length) : undefined
+}
+/**
+ * The dispatch fields a card must carry before `start` admits it and before a dispatch is
+ * posted: exactly one `kind:` label, exactly one `line:` label and a milestone. Returns one
+ * entry per gap; an empty list means the card is complete. A milestone the capture did not
+ * read (`undefined`) is not judged.
+ */
+export function dispatchFieldGaps(issue: Pick<CapturedIssue, 'labels' | 'milestone'>): string[] {
+  const gaps: string[] = []
+  for (const prefix of ['kind:', 'line:']) {
+    const count = issue.labels.filter(label => label.startsWith(prefix)).length
+    if (count !== 1) gaps.push(`exactly one ${prefix} label (found ${count})`)
+  }
+  if (issue.milestone === null) gaps.push('a milestone')
+  return gaps
+}
+/**
+ * The `milestone` entry of a captured Issue from a raw GitHub Issue: the title, null when the
+ * Issue has none, and no entry when the response does not carry the field.
+ */
+export function milestoneOf(raw: Record<string, unknown>): Pick<CapturedIssue, 'milestone'> {
+  if (!('milestone' in raw)) return {}
+  return {
+    milestone:
+      raw.milestone === null
+        ? null
+        : nullable(record(raw.milestone, 'Issue.milestone').title, 'milestone.title'),
+  }
 }
 export function text(value: unknown, path: string): string {
   if (typeof value !== 'string') throw new InputError(`${path} must be a string`)
@@ -144,7 +200,7 @@ export function array(value: unknown, path: string): unknown[] {
   if (!Array.isArray(value)) throw new InputError(`${path} must be an array`)
   return value
 }
-function nullable(value: unknown, path: string): string | null {
+export function nullable(value: unknown, path: string): string | null {
   return value === null ? null : nonempty(value, path)
 }
 function boolean(value: unknown, path: string): boolean {
@@ -198,10 +254,39 @@ function date(value: unknown, path: string): string {
 function strings(value: unknown, path: string): string[] {
   return array(value, path).map((item, index) => text(item, `${path}[${index}]`))
 }
+/** An optional field ID: absent and null both read as null. */
+function optionalField(f: Record<string, unknown>, key: string): string | null {
+  return f[key] === undefined ? null : nullable(f[key], `fields.${key}`)
+}
+/** An optional map from option name to option ID; absent reads as empty. */
+function optionMap(value: unknown, path: string): Record<string, string> {
+  if (value === undefined) return {}
+  return Object.fromEntries(
+    Object.entries(record(value, path)).map(([name, id]) => [
+      name,
+      nonempty(id, `${path}.${name}`),
+    ]),
+  )
+}
+function boardEntry(value: unknown): DeliveryConfig['board'] {
+  if (value === undefined || value === null) return null
+  const b = record(value, 'config.board'),
+    events = record(b.events, 'config.board.events')
+  return {
+    timeZone: nonempty(b.timeZone, 'config.board.timeZone'),
+    events: Object.fromEntries(
+      Object.entries(events).map(([event, names]) => [
+        event,
+        strings(names, `config.board.events.${event}`),
+      ]),
+    ),
+  }
+}
 export function parseConfig(value: unknown): DeliveryConfig {
   const v = record(value, 'config'),
     p = record(v.project, 'config.project'),
     f = record(p.fields, 'config.project.fields'),
+    o = p.options === undefined ? undefined : record(p.options, 'config.project.options'),
     w = record(v.writers, 'config.writers')
   const repository = nonempty(v.repository, 'config.repository')
   if (
@@ -229,10 +314,22 @@ export function parseConfig(value: unknown): DeliveryConfig {
         stage: nullable(f.stage, 'fields.stage'),
         priority: nullable(f.priority, 'fields.priority'),
         iteration: nullable(f.iteration, 'fields.iteration'),
+        line: optionalField(f, 'line'),
+        kind: optionalField(f, 'kind'),
+        dispatchedAt: optionalField(f, 'dispatchedAt'),
+        deliveredAt: optionalField(f, 'deliveredAt'),
+        acceptedAt: optionalField(f, 'acceptedAt'),
+        cycleDays: optionalField(f, 'cycleDays'),
+      },
+      options: {
+        stage: optionMap(o?.stage, 'config.project.options.stage'),
+        line: optionMap(o?.line, 'config.project.options.line'),
+        kind: optionMap(o?.kind, 'config.project.options.kind'),
       },
     },
     creationHandoffIssue: nullable(v.creationHandoffIssue, 'creationHandoffIssue'),
     writers: { stage: nullable(w.stage, 'writers.stage'), body: nullable(w.body, 'writers.body') },
+    board: boardEntry(v.board),
   }
 }
 export function parseCapture(value: unknown): DeliveryCapture {
@@ -268,6 +365,7 @@ export function parseCapture(value: unknown): DeliveryCapture {
       blockedBy: strings(i.blockedBy, `${p}.blockedBy`),
       parentIssue: nullable(i.parentIssue, `${p}.parentIssue`),
       stage: nullable(i.stage, `${p}.stage`),
+      ...('milestone' in i ? { milestone: nullable(i.milestone, `${p}.milestone`) } : {}),
     }
   })
   if (
@@ -310,7 +408,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     s = record(v.stock, 'baseline.stock'),
     d = record(v.delta, 'baseline.delta'),
     g = record(v.graph, 'baseline.graph')
-  if (v.schemaVersion !== 4) throw new InputError('unsupported baseline schemaVersion')
+  if (v.schemaVersion !== 5) throw new InputError('unsupported baseline schemaVersion')
   const version = v.schemaVersion
   const capture = parseCapture({
     ...v,
@@ -378,7 +476,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     const f = record(item, `baseline.findings[${index}]`)
     return {
       id: nonempty(f.id, 'finding.id'),
-      category: oneOf(f.category, ['deviation', 'unknown', 'uncovered'], 'finding.category'),
+      category: oneOf(f.category, findingCategories, 'finding.category'),
       code: nonempty(f.code, 'finding.code'),
       object: text(f.object, 'finding.object'),
       clause: text(f.clause, 'finding.clause'),
@@ -391,7 +489,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
     throw new InputError('baseline finding identity is invalid')
   if (new Set(findings.map(f => f.id)).size !== findings.length)
     throw new InputError('baseline has duplicate finding ids')
-  for (const category of ['deviation', 'unknown', 'uncovered'])
+  for (const category of findingCategories)
     if (s[category] !== findings.filter(f => f.category === category).length)
       throw new InputError('baseline stock does not match findings')
   for (const key of ['introduced', 'resolved', 'remaining', 'notComparable'])
@@ -422,6 +520,7 @@ export function parseBaseline(value: unknown): DeliveryReport {
       deviation: findings.filter(f => f.category === 'deviation').length,
       unknown: findings.filter(f => f.category === 'unknown').length,
       uncovered: findings.filter(f => f.category === 'uncovered').length,
+      attribute: findings.filter(f => f.category === 'attribute').length,
     },
     delta: {
       introduced: strings(d.introduced, 'delta.introduced'),
@@ -430,4 +529,38 @@ export function parseBaseline(value: unknown): DeliveryReport {
       notComparable: strings(d.notComparable, 'delta.notComparable'),
     },
   }
+}
+
+/** A calendar date `YYYY-MM-DD` that exists. */
+export function calendarDate(value: string, path: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  const date = match === null ? null : new Date(`${value}T00:00:00Z`)
+  if (date === null || Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== value)
+    throw new InputError(`${path} must be a calendar date YYYY-MM-DD`)
+  return value
+}
+/** The calendar date of `now` in the IANA time zone `zone`, as `YYYY-MM-DD`. */
+export function calendarDay(zone: string, now: Date): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: zone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(now)
+  const part = (type: 'year' | 'month' | 'day') => {
+    const found = parts.find(item => item.type === type)
+    if (found === undefined) throw new InputError(`Cannot format the ${type} in ${zone}`)
+    return found.value
+  }
+  return calendarDate(`${part('year')}-${part('month')}-${part('day')}`, 'calendar day')
+}
+/** Whole days from `from` to `to`, both calendar dates. */
+export function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000)
+}
+/** An Issue number argument, `N` or `#N`; undefined when it is not a safe positive integer. */
+export function issueNumberArgument(value: string): number | undefined {
+  if (!/^#?[1-9]\d*$/.test(value)) return undefined
+  const number = Number(value.replace('#', ''))
+  return Number.isSafeInteger(number) ? number : undefined
 }

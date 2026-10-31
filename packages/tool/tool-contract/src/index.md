@@ -1,0 +1,47 @@
+# Tool 源码索引
+
+- [源码职责与现状](README.md)。
+- [根入口](index.ts)。
+- [提供者协议入口](provider.ts)。
+- [绑定提供者入口](binding.ts)。
+- [一致性套件入口](testing.ts)：[用例类型](testing-case.ts)、[启动排序域与授权替身](testing-start-authority.ts)、[外层调用方的启动围栏](testing-start-fence.ts)、[授权消费点](testing-start-authorization.ts)、[结果接收端口](testing-result-receiver.ts)、[环境](testing-environment.ts)、[执行者绑定](testing-executor-binding.ts)、[输出保管](testing-output-custody.ts)、[时钟](testing-clock.ts)、[决策桥](testing-decision-bridge.ts)、[资源应答](testing-resource-responses.ts)、两者共有的[外部关联用例](testing-external.ts)和[合法值](testing-values.ts)。
+- [资产正文端口](contract.ts)。
+- [品牌身份与解码函数](identity.ts)。
+- [定义与固定请求](definitions.ts)。
+- [返回与执行事实](results.ts)。
+- [普通操作与实例目录](operations.ts)。
+- [作者执行上下文](author-context.ts)。
+- [执行者与账本命令端口](execution.ts)。
+- [提供者端口与 runtime 工厂输入](ports.ts)。
+- [凭据端口](credentials.ts)与[实际绑定一致性套件](testing-credentials.ts)。
+- [定义、作者适配与独立消费](authoring.ts)。
+- [持久状态与协议记录](records.ts)。
+- [输出保管、持久读取与账目](custody.ts)。
+- [程序编排接缝](program.ts)。
+- [默认结果政策](result-policy.ts)。
+- [可复算的采用摘要](adoption.ts)。
+- [定义判定](judge-definition.ts)。
+- [定义派生与常驻规则的纯函数](dynamics.ts)。
+- [固定请求判定](judge-request.ts)。
+- [交付解除输入判定](judge-release.ts)。
+- [结果推送、saved 回执与纯关系判定](result-delivery.ts)。
+- [状态判定](judge-state.ts)。
+- [呈现与可用性判定](catalog.ts)。
+- [操作与作者注册](registration.ts)。
+- [等待协议句柄](wait-contract.ts)。
+- [默认参数 codec](parameter-codec.ts)。
+- [结果渲染](result-rendering.ts)。
+- [结果投影](result-projection.ts)。
+- [封闭形状检查](shape.ts)。
+- [json-text 树检查](json-tree.ts)。
+- [共用引用值形状](value-shapes.ts)。
+- [源码导航](../docs/public-api.md)。
+- [包索引](../index.md)。
+
+- [调用与操作引用](reference.ts)。
+
+- [background-calls.ts](background-calls.ts)：后台调用值、封闭 schema、供给声明与 RC 类型增补。
+- [background-calls-projection.ts](background-calls-projection.ts)：从本次完整获权目录和原调用事实做纯投影，不执行授权或目录 I/O。
+
+- [原准备事实的绑定判定](judge-preparation.ts)。
+- [首次采用一致性套件](testing-environment-allocation.ts)。

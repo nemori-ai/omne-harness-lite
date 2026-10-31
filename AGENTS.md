@@ -22,7 +22,9 @@
 
 ## 研发品味
 
-几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。专责角色开工时按[项目框架](.meta_harness/agents/roles/project-frame.md)理解任务，再按需阅读本文件和 docs 拥有者，不把目标与架构正文复制进角色提示。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，工程方法按[技能入口](docs/engineering/skills.md)选择。
+从本域职责与不变量出发，只建模履约必需的外域概念，保留原拥有者的治理权。架构、领域建模、契约或开发涉及跨域概念和依赖变更时，读取[领域语义依赖与模型边界](docs/architecture/layers-and-dependencies.md#领域语义依赖与模型边界)，按需明确消费契约、投影、引用和外部集成的归属；局部实现沿已有边界执行。
+
+几种做法都成立时，先保护不变量，复用成熟机制，把复杂度花在真实契约差异。领域、公开能力和装配责任分别可见；状态、所有权、失败、生命周期及外部副作用有明确拥有者。专责角色开工时按[项目框架](.meta_harness/agents/roles/project-frame.md)理解任务，再按需阅读本文件和 docs 拥有者，不把目标与架构正文复制进角色提示。项目独有判断继续归[研发品味](.meta_harness/agents/roles/engineering-taste.md)，工程方法按[技能入口](docs/engineering/skills.md)选择。做架构、技术设计、规格或评审时，先按[维度分解与正交](.meta_harness/agents/roles/engineering-taste.md#维度分解与正交)命名问题所在的轴与拥有者，再找现有正文。
 
 错误不能静默变成成功，外部输出不能因 disposer 而声称可逆。实现风险按需读[防御指导](docs/defensive-patterns.md)，验证按[质量与风险](docs/engineering/quality.md#按成果和风险验证)选择，适用独立接受及[现有硬线](docs/clean-loop.md#回路怎么转)保持。传感器反馈事实，负责人判断处置；结构通过不替代语义或行为接受。
 
@@ -40,6 +42,7 @@
 
 | 当前判断 | 加载入口与停止点 |
 | --- | --- |
+| 开工前先建立共同的系统图景 | 做架构、领域、契约、装配、实现切片或设计评审的任务先读一次[开工定向](docs/orientation.md)，取得领域地图、核心四项方向与顶层架构三类图及各自状态与出处，再按本表展开；其余任务直接走各自入口。图的事实归所列出处 |
 | 整体理解知识体系或判断文档归属 | 一次读取[体系上下文](docs/knowledge-map-agent.md)，取得分层、拥有者、状态与展开边界；找到本次责任后转任务路径，不递归通读全仓。人类图文说明归[知识地图](docs/knowledge-map.md) |
 | 普通阅读、操作或独立消费 | 从[读者入口](docs/README.md)选角色或从[角色查询](tools/spec-tools/README.md#按角色读取上下文)取起点，再找实际应用或包。公开责任与支持范围足够时停止；目标架构不授予操作能力 |
 | 局部修复、工具或环境工作 | 从[开发指南](docs/development.md)及实际目录 AGENTS 找承诺和受影响检查。已有承诺足够就不通读全部设计 |
@@ -48,10 +51,11 @@
 | 文档、AGENTS、skills 或角色维护 | 新建或修订文档必须加载 `asd-ste100`；AGENTS 加载 `write-agents-md`，skill 加载官方 `skill-creator`，角色加载 `design-subagents`。按[维护指南](docs/maintenance.md)同步真实消费者 |
 | 对话建卡、取任务或更新交付 | 从[agent交付操作](docs/engineering/agent-delivery.md)核对实际启用范围、唯一卡、条件和具名决定；Project、关闭与绿测不授予接受。未启用时形成获准任务草稿 |
 | 分支同步、轨道提升或稳定点 | [多层分支规则](docs/engineering/integration.md)拥有轨道、准入、运输与双基线；加载 `branch-integration` 找实际工具。没有 task context 不伪造绑定，Git 运输不代替交付接受 |
+| 派发子代理（写者、评审者、验收者） | [派发契约](docs/engineering/workflow.md#派发子代理的契约)拥有本项目补充的派发义务；加载 `delegate` 取步骤与完成判据 |
 | 隔离并行、接续或交付 | [工作约定](docs/engineering/workflow.md#责任与协作交接)拥有每写者隔离、共享单写与清理条件；[交付边界](docs/engineering/publication.md)拥有保存与权限；[贡献指南](CONTRIBUTING.md)拥有报告和接受 |
 | Cordis 来源、生命周期或 API | 加载手册的来源核对，优先[官方资料](https://github.com/deepseek-ai/deepseek-harness/tree/master/docs)，固定采用版本。未覆盖行为保留假设并以源码或验证补足，不自动采用上游保证 |
 
-任务方法由已采用 pstack 主线与 Matt 补充提供，触发、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md)。派发写者明确检出、分支、写范围、必要输入、完成及停止条件；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
+任务方法分三层：流程用 pstack `poteto-mode`，交付方案与规格的写法用 Matt 加项目模板，研发品味用 ub-mode；分工、精确版本、宿主加载和项目差异归[技能入口](docs/engineering/skills.md#三层分工)。派发子代理按[派发契约](docs/engineering/workflow.md#派发子代理的契约)；独立任务隔离并行，共享对象单写，耦合依赖串行。只在找到本次拥有者、适用范围和验证责任后停止扩大阅读。
 
 ## Cursor Cloud specific instructions
 

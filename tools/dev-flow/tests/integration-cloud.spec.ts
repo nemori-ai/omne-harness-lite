@@ -4,6 +4,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import { openIntegration } from '../src/integration/engine.ts'
 import { contextPath } from '../src/integration/context.ts'
 import { FACTS_CLOCK_SKEW_MS } from '../src/integration/delivery-facts.ts'
@@ -24,7 +25,7 @@ function cloud(
 ) {
   const f = integrationFixture({ admissionOnly: true })
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value)
   f.authority(

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import * as fs from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { join, relative, sep } from 'node:path'
 import { createPackage } from '../src/package-template/create.ts'
 import { inspectPackage, scanExitCode, type ScanEvidence } from '../src/package-template/scan.ts'
 import { parseMarker, VARIANTS, type PackageScan } from '../src/package-template/model.ts'
@@ -619,6 +619,19 @@ describe('template adoption and observation', () => {
     fs.rmSync(join(root, member, 'verification/README.md'))
     expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
   })
+  it('excludes the root Turborepo task log directory but not a nested one', () => {
+    const root = repository(),
+      member = adopted(root)
+    fs.mkdirSync(join(root, member, '.turbo'))
+    fs.writeFileSync(join(root, member, '.turbo/turbo-build.log'), 'task output')
+    const result = inspectPackage(root, member, readTemplate(), evidence)
+    expect(result.structure).toBe('pass')
+    expect(result.excludedDirectories).toEqual(['.turbo'])
+    expect(result.tree.some(node => node.path.startsWith('.turbo'))).toBe(false)
+    fs.mkdirSync(join(root, member, 'src/.turbo'))
+    fs.writeFileSync(join(root, member, 'src/.turbo/turbo-build.log'), 'task output')
+    expect(inspectPackage(root, member, readTemplate(), evidence).structure).toBe('fail')
+  })
   it('does not use Git ignore rules to hide undeclared owned files', () => {
     const root = repository(),
       member = adopted(root)
@@ -749,7 +762,9 @@ describe('template 3.0.0 skeleton', () => {
     return fs
       .readdirSync(join(root, member), { recursive: true, withFileTypes: true })
       .filter(entry => entry.isFile())
-      .map(entry => join(entry.parentPath, entry.name).slice(join(root, member).length + 1))
+      .map(entry =>
+        relative(join(root, member), join(entry.parentPath, entry.name)).split(sep).join('/'),
+      )
       .sort()
   }
   it.each(VARIANTS)(

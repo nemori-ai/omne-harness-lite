@@ -5,8 +5,12 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import os
 import re
+import stat
+import subprocess
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import NamedTuple
 
@@ -19,7 +23,7 @@ SKILL_TARGETS = {host: layout.skills for host, layout in HOSTS.items()}
 ROLE_TARGETS = tuple(HOSTS[host].agents for host in ("codex", "claude-code"))
 RUNTIME_EXCLUDES = {"AGENTS.md", "CLAUDE.md", ".design", "evals"}
 # Host-neutral hooks become each host's project hook file. Both hosts read the same
-# `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these two events.
+# `{"hooks": {<event>: [{"matcher"?, "hooks": [handler]}]}}` shape for these events.
 HOOK_TARGETS = {host: layout.hooks for host, layout in HOSTS.items()}
 # Cursor reads .cursor/ from the checkout before install. The source stays here;
 # compile_agents.py copies these files into the output root. README.md is maintainer
@@ -29,8 +33,14 @@ CLOUD_SOURCE_ONLY = {"README.md"}
 # Hosts that read their cloud setup from the host's own settings, not the checkout.
 # The source is checked here and not projected.
 CLOUD_SETUP_ONLY = {"claude-code": ("setup.sh", "session-start.sh")}
-HOOK_EVENTS = ("Stop", "SubagentStop")
-HOOK_FIELDS = {"id", "events", "subagent_types", "command", "timeout"}
+HOOK_EVENTS = ("Stop", "SubagentStop", "SessionStart")
+# The events that each host's generator emits. SessionStart is checked against Claude Code only,
+# so a declaration that uses it must name its hosts.
+HOST_HOOK_EVENTS = {"claude-code": set(HOOK_EVENTS), "codex": {"Stop", "SubagentStop"},
+                    "cursor": {"Stop", "SubagentStop"}}
+# Claude Code matches a SessionStart matcher against the `source` field of the hook input.
+SESSION_SOURCES = ("startup", "resume", "clear", "compact", "fork")
+HOOK_FIELDS = {"id", "events", "hosts", "subagent_types", "session_sources", "command", "timeout"}
 # Matchers made only of these characters are exact names on both hosts, never a regex.
 AGENT_TYPE = re.compile(r"[A-Za-z0-9_-]+")
 SLOT = re.compile(r"\{\{[A-Z][A-Z0-9_]*\}\}")
@@ -60,6 +70,38 @@ def unique_mapping(loader, node, deep=False):
 
 
 UniqueLoader.add_constructor(yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, unique_mapping)
+
+
+def _git_toplevel(path: Path) -> Path | None:
+    """The nearest ancestor holding `.git` (a directory, or the file of a worktree), if any."""
+    for item in (path, *path.parents):
+        if (item / ".git").exists():
+            return item
+    return None
+
+
+@lru_cache(maxsize=None)
+def _git_index_modes(top: Path) -> dict[Path, int]:
+    """Permission bits per tracked file, read from the Git index of the checkout at `top`."""
+    listing = subprocess.run(["git", "-C", str(top), "ls-files", "-s", "-z"],
+                             capture_output=True, check=True).stdout
+    modes = {}
+    for entry in listing.split(b"\0"):
+        if not entry:
+            continue
+        meta, _, name = entry.partition(b"\t")
+        modes[(Path(top) / os.fsdecode(name)).resolve()] = int(meta.split(b" ", 1)[0], 8) & 0o777
+    return modes
+
+
+def file_mode(path: Path) -> int:
+    """Permission bits of a file. NTFS keeps no executable bit, so Windows reads the mode Git
+    tracks for the file; a file that no checkout tracks there counts as 0o644."""
+    if os.name == "posix":
+        return stat.S_IMODE(path.stat().st_mode)
+    resolved = path.resolve()
+    top = _git_toplevel(resolved.parent)
+    return 0o644 if top is None else _git_index_modes(top).get(resolved, 0o644)
 
 
 def no_symlinks(path: Path):
@@ -161,7 +203,7 @@ def project_skill(skill: Path, host: str) -> dict[Path, Artifact]:
             content = text.encode("utf-8")
         if relative == Path("SKILL.md"):
             validate_skill(content.decode("utf-8"), skill.name)
-        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        mode = 0o755 if file_mode(file) & 0o111 else 0o644
         outputs[SKILL_TARGETS[host] / skill.name / relative] = Artifact(content, mode)
     if replacements.keys() - used:
         raise ValueError(f"unused adapter slots: {sorted(replacements.keys() - used)}")
@@ -193,8 +235,13 @@ def load_renderer(path: Path):
     return module.render
 
 
-def hook_groups(entry, roles: set[str]) -> tuple[list[str], dict]:
-    """Validate one hook declaration; return its events and its command handler."""
+def distinct_names(value, allowed) -> bool:
+    return (isinstance(value, list) and bool(value) and len(set(map(repr, value))) == len(value)
+            and all(isinstance(name, str) and name in allowed for name in value))
+
+
+def hook_groups(entry, roles: set[str]) -> tuple[tuple[str, ...], dict[str, dict]]:
+    """Validate one hook declaration; return its hosts and one matcher group per event."""
     hook_id = entry.get("id") if isinstance(entry, dict) else None
     if not isinstance(hook_id, str) or not hook_id.strip():
         raise ValueError(f"every hook needs a non-empty string id: {entry!r}")
@@ -202,10 +249,16 @@ def hook_groups(entry, roles: set[str]) -> tuple[list[str], dict]:
     if unknown:
         raise ValueError(f"unknown hook fields {sorted(unknown)}: {hook_id}")
     events = entry.get("events")
-    if (not isinstance(events, list) or not events or len(set(events)) != len(events)
-            or any(event not in HOOK_EVENTS for event in events)):
+    if not distinct_names(events, HOOK_EVENTS):
         raise ValueError(f"hook events must be distinct names from {list(HOOK_EVENTS)}, "
                          f"got {events!r}: {hook_id}")
+    hosts = entry.get("hosts", list(HOSTS))
+    if not distinct_names(hosts, HOSTS):
+        raise ValueError(f"hook hosts must be distinct names from {list(HOSTS)}, got {hosts!r}: {hook_id}")
+    for host in hosts:
+        unsupported = [event for event in events if event not in HOST_HOOK_EVENTS[host]]
+        if unsupported:
+            raise ValueError(f"hook events {unsupported} are not generated for host {host}: {hook_id}")
     command = entry.get("command")
     if not isinstance(command, str) or not command.strip():
         raise ValueError(f"hook command must be a non-empty string: {hook_id}")
@@ -217,15 +270,26 @@ def hook_groups(entry, roles: set[str]) -> tuple[list[str], dict]:
             not isinstance(name, str) or not AGENT_TYPE.fullmatch(name) or name not in roles
             for name in types)):
         raise ValueError(f"subagent_types must name existing roles, got {types!r}: {hook_id}")
+    sources = entry.get("session_sources")
+    if sources is not None and ("SessionStart" not in events or not distinct_names(sources, SESSION_SOURCES)):
+        raise ValueError(f"session_sources must be distinct names from {list(SESSION_SOURCES)} "
+                         f"on a SessionStart hook, got {sources!r}: {hook_id}")
     handler = {"type": "command", "command": command, "timeout": timeout}
-    return events, {"matcher": "|".join(types), "hooks": [handler]} if types else {"hooks": [handler]}
+    # `Stop` takes no matcher on any host. The other events match one input field each.
+    matchers = {"SubagentStop": types, "SessionStart": sources}
+    groups = {}
+    for event in events:
+        names = matchers.get(event)
+        groups[event] = {"matcher": "|".join(names), "hooks": [handler]} if names else {"hooks": [handler]}
+    return tuple(hosts), groups
 
 
 def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> dict[Path, Artifact]:
     """Render `hooks/hooks.yaml` into each selected host's project hook file.
 
-    No `hooks.yaml`, or an empty list, produces nothing. `Stop` takes no matcher on either
-    host, so `subagent_types` only narrows `SubagentStop`.
+    No `hooks.yaml`, or an empty list, produces nothing. A host that no declaration
+    targets gets no file. `subagent_types` only narrows `SubagentStop`, and
+    `session_sources` only narrows `SessionStart`.
     """
     source = directory / "hooks.yaml"
     if not source.is_file():
@@ -233,20 +297,22 @@ def project_hooks(directory: Path, hosts: tuple[str, ...], roles: set[str]) -> d
     data = yaml.load(source.read_text(encoding="utf-8"), Loader=UniqueLoader)
     if not isinstance(data, dict) or set(data) != {"hooks"} or not isinstance(data["hooks"], list):
         raise ValueError(f"hooks source must be a mapping with exactly one list `hooks`: {source}")
-    by_event: dict[str, list[dict]] = {}
+    by_host: dict[str, dict[str, list[dict]]] = {host: {} for host in hosts}
     seen = set()
     for entry in data["hooks"]:
-        events, group = hook_groups(entry, roles)
+        targets, groups = hook_groups(entry, roles)
         if entry["id"] in seen:
             raise ValueError(f"duplicate hook id: {entry['id']}")
         seen.add(entry["id"])
-        for event in events:
-            by_event.setdefault(event, []).append(
-                {"hooks": group["hooks"]} if event == "Stop" else group)
-    if not by_event:
-        return {}
-    text = json.dumps({"hooks": by_event}, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
-    return {HOOK_TARGETS[host]: Artifact(text.encode("utf-8"), 0o644) for host in hosts}
+        for host in set(targets) & by_host.keys():
+            for event, group in groups.items():
+                by_host[host].setdefault(event, []).append(group)
+    outputs = {}
+    for host, by_event in by_host.items():
+        if by_event:
+            text = json.dumps({"hooks": by_event}, indent=2, sort_keys=True, ensure_ascii=False) + "\n"
+            outputs[HOOK_TARGETS[host]] = Artifact(text.encode("utf-8"), 0o644)
+    return outputs
 
 
 def project_cloud(source: Path, hosts: tuple[str, ...]) -> dict[Path, Artifact]:
@@ -303,7 +369,7 @@ def _check_cloud_setup(directory: Path, scripts: tuple[str, ...]) -> None:
             f"plus optional {sorted(CLOUD_SOURCE_ONLY)}; found {sorted(names)}"
         )
     for script in scripts:
-        if not (directory / script).stat().st_mode & 0o111:
+        if not file_mode(directory / script) & 0o111:
             raise ValueError(f"cloud {script} must be executable")
 
 
@@ -335,7 +401,7 @@ def _project_cloud_host(directory: Path, package: Path) -> dict[Path, Artifact]:
     outputs = {}
     for name in CLOUD_RUNTIME:
         file = directory / name
-        mode = 0o755 if file.stat().st_mode & 0o111 else 0o644
+        mode = 0o755 if file_mode(file) & 0o111 else 0o644
         if name == "install.sh" and mode != 0o755:
             raise ValueError("cloud install.sh must be executable")
         outputs[package / name] = Artifact(file.read_bytes(), mode)

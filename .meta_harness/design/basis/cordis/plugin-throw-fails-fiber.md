@@ -12,7 +12,7 @@ lines:
   - "fiber.ts:142-151"
   - "fiber.ts:576-578"
   - "fiber.ts:641-643"
-probe: packages/core/kernel-basis/tests/basis/plugin-throw-fails-fiber.test.ts
+probe: packages/assembly/kernel-basis/tests/plugin-throw-fails-fiber.spec.ts
 checked: 2026-09-23
 ---
 
@@ -34,19 +34,23 @@ checked: 2026-09-23
 
 | symbol / 语义位置 | 读到了什么 | 怎样复核 |
 |---|---|---|
-| `fiber.ts` `resolveConfig` | 有 `Config` 就 `validate`，失败抛出（错误信息含 `invalid config`） | 给一个 `z.object({ ttl: positive })` 的插件传 `{ ttl: 0 }`，`await ctx.plugin(...)` 拒绝，插件体没跑 |
+| `fiber.ts` `resolveConfig` | 有 `Config` 就 `validate`，失败抛出（错误信息含 `invalid config`） | 给一个只接受正整数 `ttl` 的 Standard Schema 插件传 `{ ttl: 0 }`，`await ctx.plugin(...)` 拒绝，插件体没跑 |
 | `fiber.ts` 状态读取 | 记有错误 ⇒ `FAILED` | 插件体 `throw`，读 `fiber.state` |
 | `fiber.ts` 失败收场 | 已 provide 的服务不可见 | 失败插件体里先 `provide('offers')` 再抛，`ctx.get('offers')` 为 `undefined` |
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis`，对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22 首跑，2026-09-23 升格为条目）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 插件体抛 `Error('missing signing key')`：`await` 该 fiber 以同一错误拒绝，`fiber.state === FAILED`。
 2. config `{ ttl: 0 }` 不过 `positive` 校验：拒绝且错误匹配 `/invalid config/`，`fiber.state === FAILED`，插件体没跑，`ctx.get('offers')` 为 `undefined`。
 3. 对照：config `{ ttl: 5 }` ⇒ `ACTIVE`，插件体收到校验后的值。
 
 上游若改为「校验失败也跑插件体」「抛出后仍保留已 provide 的服务」或「状态不读作 FAILED」，第 1、2 条失败——本条目随之失效。
+
+## 核验范围
+
+本条按函数插件与 `runtime.Config` 核验。`Service` 子类写静态 `Config` 的路径没有单独核验。该路径是否同样经 `resolveConfig` 校验，需另立 basis 条目核验后，才能写成已验证。
 
 ## 已知的误用
 

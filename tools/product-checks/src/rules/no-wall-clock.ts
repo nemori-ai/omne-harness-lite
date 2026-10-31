@@ -4,24 +4,18 @@ import { lineAt } from '@omne-harness/repo-toolchain/core/source-text'
 import { nodeName, syntaxOf, visitSyntax } from '@omne-harness/repo-toolchain/core/syntax'
 
 /**
- * SC-OE-3（offer-expiry 节点）：消费者不得另用墙钟；领域时间只从 clock 服务取。
- * 豁免：`infra/`（clock 的实现是唯一取锚点；storage-sql 用墙钟算锁等待的截止，那不是领域时间）与测试。
+ * 领域时间只从 clock 服务取。非领域取时必须逐个调用标注用途与理由。
  * `new Date(x)` 是转换不是取时，只禁无参的 `new Date()`。
  */
 export const noWallClock: Rule = {
   id: 'no-wall-clock',
-  source: 'data.offer-expiry v1 S-16/S-17 · offer-expiry 节点 SC-OE-3',
+  source: 'docs/architecture/cross-cutting-concepts.md#时间顺序与版本 · SC-OE-3',
   description:
-    'core/ 与 tenancy/ 源码里不得出现 Date.now()、new Date()、performance.now()；时间只从 clock 服务取',
+    '生产源码的 Date.now()、new Date()、performance.now() 必须来自 Clock 实现或具名非领域用途',
   check(files) {
     const out: Violation[] = []
     for (const file of files) {
-      if (
-        isTestPath(file.path) ||
-        file.path.startsWith('infra/') ||
-        file.path === 'frontend/governance-client-operations-local/src/observation-time.ts'
-      )
-        continue
+      if (isTestPath(file.path)) continue
       const syntax = syntaxOf(file)
       const aliases = new Map<string, string>()
       const resolve = (node: ts.Expression): string | undefined => {
@@ -66,15 +60,28 @@ export const noWallClock: Rule = {
           (ts.isNewExpression(node) &&
             resolve(node.expression) === 'Date' &&
             (node.arguments?.length ?? 0) === 0)
-        if (wallClock)
+        if (wallClock && !hasClockAnnotation(syntax, node))
           out.push({
             rule: this.id,
             path: file.path,
             line: lineAt(file.text, node.getStart(syntax)),
-            message: '使用了墙钟；领域时间必须来自 clock 服务（Clock.now()）',
+            message:
+              '未标注的直接取时；领域时间必须来自 Clock，非领域用途须在具体调用前标注类别与理由',
           })
       })
     }
     return out
   },
+}
+
+function hasClockAnnotation(syntax: ts.SourceFile, node: ts.Node): boolean {
+  const comments =
+    ts.getLeadingCommentRanges(syntax.text, node.pos) ??
+    ts.getTrailingCommentRanges(syntax.text, node.pos)
+  const comment = comments?.at(-1)
+  if (comment?.kind !== ts.SyntaxKind.MultiLineCommentTrivia) return false
+  if (!/^[\t ]*$/.test(syntax.text.slice(comment.end, node.getStart(syntax)))) return false
+  return /^\/\* wall-clock: (operation-timing|internal-name|clock-source|observation-time) -- [^\r\n\u2028\u2029]*\S[\t ]*\*\/$/.test(
+    syntax.text.slice(comment.pos, comment.end),
+  )
 }

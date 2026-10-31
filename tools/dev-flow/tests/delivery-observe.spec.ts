@@ -6,7 +6,6 @@ import {
   writeFileSync,
   rmSync,
   existsSync,
-  chmodSync,
   mkdirSync,
   symlinkSync,
   linkSync,
@@ -14,10 +13,11 @@ import {
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { observeAdmission, type AdmissionCapture } from '../src/delivery/admission.ts'
 import { conditionDigest } from '../src/integration/authority.ts'
 import { observeDelivery } from '../src/delivery/observe.ts'
-import type { TaskBinding } from '../src/delivery/binding.ts'
+import type { TaskBinding, TaskBindingV2 } from '../src/delivery/binding.ts'
 import {
   bindCapture,
   parseBaseline,
@@ -25,12 +25,14 @@ import {
   parseConfig,
   workKinds,
 } from '../src/delivery/protocol.ts'
+import { registry, table } from './fixtures/lines.ts'
 import type {
   CapturedIssue,
   Condition,
   DeliveryCapture,
   DeliveryConfig,
 } from '../src/delivery/protocol.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 
 const at = '2026-10-10T00:00:00Z'
 export function config(): DeliveryConfig {
@@ -46,10 +48,22 @@ export function config(): DeliveryConfig {
       number: 4,
       id: 'project-4',
       url: 'https://github.com/orgs/owner/projects/4',
-      fields: { stage: 'stage-field', priority: 'priority-field', iteration: 'iteration-field' },
+      fields: {
+        stage: 'stage-field',
+        priority: 'priority-field',
+        iteration: 'iteration-field',
+        line: null,
+        kind: null,
+        dispatchedAt: null,
+        deliveredAt: null,
+        acceptedAt: null,
+        cycleDays: null,
+      },
+      options: { stage: {}, line: {}, kind: {} },
     },
     creationHandoffIssue: null,
     writers: { stage: null, body: null },
+    board: null,
   }
 }
 export function body(
@@ -149,7 +163,13 @@ function codes(issues: CapturedIssue[], patch: Partial<DeliveryCapture> = {}): s
 const templateValues: Record<string, string> = {
   一次可独立接受的结果: '统一交付卡的输入与执行信息',
   父交付卡中的一次可验证结果: '统一子任务的输入与执行信息',
-  'feature／bug／refactor／performance／maintenance／investigation': 'maintenance',
+  'feature／bug／refactor／performance／maintenance／investigation；建卡时打同值的唯一kind:标签':
+    'maintenance',
+  'docs/engineering/delivery-lines.json 中的线ID，或integration；建卡时打同值的唯一line:标签，并在Issue的milestone字段设置里程碑；缺任一项时start拒绝开工':
+    'engineering-toolchain',
+  'design／contract／impl／integration／baseline': 'impl',
+  'none／additive／breaking；线内的卡只取none或additive，破坏性改动先经Needs decision由人拍板':
+    'none',
   '创建前登记并读回的稳定标识，后续修订保持': 'template-maintenance-2',
   '真实父Issue URL，并核对平台父关系': 'https://github.com/owner/repo/issues/1',
   '领域、实际成员或工程机制': '交付卡模板及只读观察工具',
@@ -198,7 +218,7 @@ const templateValues: Record<string, string> = {
   '实际路径；未创建明说': '未创建',
   '未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。':
     '未登记binding。计划 global 路线，最终进入 main，执行实例待派发。',
-  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v1区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
+  '已派发Git任务时：由正文单写者在此插入唯一、完整、真实的binding区块，并替换上述计划文字。taskBase中的dev-flow能读版本2时用json omne-integration-binding:v2，否则用json omne-integration-binding:v1，核对命令见集成工具指南。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。':
     '',
   '从binding.route及已采用轨道登记解析的只读摘要': '未派发，尚未解析',
   'start回执taskSource；与binding.taskBase分别保留': '未开工',
@@ -208,7 +228,8 @@ const templateValues: Record<string, string> = {
   '关键结果、最后成功远端提交或报告评论': '尚无实施成果',
   '条件ID、影响、确认责任；无则写无': '无',
   具体接续动作和谁负责: 'Human 核准执行实例并派发',
-  '链接、所核Stage和时点；待更新或失败须明说': 'https://github.com/orgs/owner/projects/4，待更新',
+  '链接、所核Stage、Needs decision和时点；Line、Kind、Wave与日期字段由dev-flow写入，见交付协议的字段总表；待更新或失败须明说':
+    'https://github.com/orgs/owner/projects/4，待更新',
   'PR/提交/报告及修订；未交付时写未交付': '未交付',
   '逐项C-ID实际结果、证据和未覆盖': 'C1 尚未执行',
   '实际所在分支/提交；无Git交付写不适用': '尚未集成',
@@ -266,6 +287,7 @@ describe('delivery card layouts', () => {
       expect([...source.matchAll(/^## (.+)$/gm)].map(match => match[1])).toEqual(headings)
       expect(source.replace(/<!--[^]*?-->/g, '')).toContain('在本Issue评论声明认卡')
       expect(source).not.toContain('```json omne-integration-binding:v1')
+      expect(source).not.toContain('```json omne-integration-binding:v2')
     }
     const notice = (source: string) =>
       source.slice(source.indexOf('**接手本卡**'), source.indexOf('## 身份与责任'))
@@ -804,63 +826,68 @@ describe('stock and comparable delta', () => {
 })
 
 describe('actual offline CLI', () => {
-  it.each(['chain', 'reverse', 'two-chains', 'directory-parent'])(
-    'rejects %s dangling output aliases with real target identities',
-    mode => {
-      const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
-      try {
-        const cfg = join(dir, 'config.json'),
-          missing = join(dir, 'missing.json'),
-          first = join(dir, 'first.json'),
-          second = join(dir, 'second.json')
-        writeFileSync(cfg, JSON.stringify(config()))
-        const gh = join(dir, 'gh')
-        writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-        chmodSync(gh, 0o755)
-        let saved = missing,
-          reported = first
-        if (mode === 'directory-parent') {
-          mkdirSync(join(dir, 'physical'))
-          mkdirSync(join(dir, 'physical', 'child'))
-          symlinkSync('physical/child', join(dir, 'parent-link'))
-          saved = join(dir, 'physical', 'missing.json')
-          symlinkSync('parent-link/../missing.json', first)
-        } else {
-          symlinkSync('missing.json', second)
-          symlinkSync('second.json', first)
-          if (mode === 'reverse') {
-            saved = first
-            reported = missing
-          }
-          if (mode === 'two-chains') {
-            const third = join(dir, 'third.json')
-            symlinkSync('missing.json', third)
-            saved = first
-            reported = third
-          }
+  const rejectsDanglingAliases = (mode: string) => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-chain-')))
+    try {
+      const cfg = join(dir, 'config.json'),
+        missing = join(dir, 'missing.json'),
+        first = join(dir, 'first.json'),
+        second = join(dir, 'second.json')
+      writeFileSync(cfg, JSON.stringify(config()))
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
+      let saved = missing,
+        reported = first
+      if (mode === 'directory-parent') {
+        mkdirSync(join(dir, 'physical'))
+        mkdirSync(join(dir, 'physical', 'child'))
+        symlinkSync('physical/child', join(dir, 'parent-link'))
+        saved = join(dir, 'physical', 'missing.json')
+        symlinkSync('parent-link/../missing.json', first)
+      } else {
+        symlinkSync('missing.json', second)
+        symlinkSync('second.json', first)
+        if (mode === 'reverse') {
+          saved = first
+          reported = missing
         }
-        const result = spawnSync(
-          process.execPath,
-          [
-            '--experimental-strip-types',
-            resolve('src/delivery/cli.ts'),
-            '--config',
-            cfg,
-            '--live',
-            '--save-capture',
-            saved,
-            '--report',
-            reported,
-          ],
-          { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
-        )
-        expect(result.status).toBe(2)
-        expect(result.stderr).toContain('overwrite')
-        expect(existsSync(saved)).toBe(false)
-      } finally {
-        rmSync(dir, { recursive: true, force: true })
+        if (mode === 'two-chains') {
+          const third = join(dir, 'third.json')
+          symlinkSync('missing.json', third)
+          saved = first
+          reported = third
+        }
       }
-    },
+      const result = spawnSync(
+        process.execPath,
+        [
+          '--experimental-strip-types',
+          resolve('src/delivery/cli.ts'),
+          '--config',
+          cfg,
+          '--live',
+          '--save-capture',
+          saved,
+          '--report',
+          reported,
+        ],
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
+      )
+      expect(result.status).toBe(2)
+      expect(result.stderr).toContain('overwrite')
+      expect(existsSync(saved)).toBe(false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  }
+  it.each(['chain', 'reverse', 'two-chains'])(
+    'rejects %s dangling output aliases with real target identities',
+    rejectsDanglingAliases,
+  )
+  // Windows 按字面处理符号链接目标里的 `..`：`parent-link/../missing.json` 落在链接所在目录，不在 physical 下，
+  // 两个输出在那里本来就不是别名，这个 POSIX 目录语义的用例不适用。
+  it.skipIf(process.platform === 'win32')(
+    'rejects directory-parent dangling output aliases with real target identities',
+    () => rejectsDanglingAliases('directory-parent'),
   )
   it.each(['cycle', 'long-chain'])(
     'rejects %s output symlink resolution before any write',
@@ -914,9 +941,7 @@ describe('actual offline CLI', () => {
         alias = join(dir, 'report-link.json')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync('report.json', alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(gh, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
-      chmodSync(gh, 0o755)
+      writeGh(dir, '#!/usr/bin/env node\nprocess.stdout.write("[]")\n')
       const result = spawnSync(
         process.execPath,
         [
@@ -930,7 +955,7 @@ describe('actual offline CLI', () => {
           '--report',
           alias,
         ],
-        { encoding: 'utf8', env: { ...process.env, PATH: dir + ':' + process.env.PATH } },
+        { encoding: 'utf8', env: { ...process.env, ...ghEnv(dir) } },
       )
       expect(result.status).toBe(0)
       expect(parseCapture(JSON.parse(readFileSync(saved, 'utf8'))).kind).toBe(
@@ -953,12 +978,10 @@ describe('actual offline CLI', () => {
         marker = join(dir, 'gh-called')
       writeFileSync(cfg, JSON.stringify(config()))
       symlinkSync(missing, alias)
-      const gh = join(dir, 'gh')
-      writeFileSync(
-        gh,
+      writeGh(
+        dir,
         '#!/usr/bin/env node\nrequire("node:fs").appendFileSync(process.env.DELIVERY_READ_MARKER, "read\\n"); process.stdout.write("[]")\n',
       )
-      chmodSync(gh, 0o755)
       const result = spawnSync(
         process.execPath,
         [
@@ -974,7 +997,7 @@ describe('actual offline CLI', () => {
         ],
         {
           encoding: 'utf8',
-          env: { ...process.env, PATH: dir + ':' + process.env.PATH, DELIVERY_READ_MARKER: marker },
+          env: { ...process.env, ...ghEnv(dir), DELIVERY_READ_MARKER: marker },
         },
       )
       expect(result.status).toBe(2)
@@ -1100,7 +1123,7 @@ describe('actual offline CLI', () => {
 })
 
 describe('retired delivery structures', () => {
-  it.each([1, 2, 3])('rejects report schema %s', schemaVersion => {
+  it.each([1, 2, 3, 4])('rejects report schema %s', schemaVersion => {
     const report = observeDelivery(config(), capture([issue(1)]))
     expect(() => parseBaseline({ ...report, schemaVersion })).toThrow('schemaVersion')
   })
@@ -1116,52 +1139,57 @@ describe('retired delivery structures', () => {
     expect(() => parseConfig({ ...config(), schemaVersion: 1 })).toThrow()
     expect(() => parseCapture({ ...capture(), protocolVersion: 1 })).toThrow()
   })
-  it('real CLI rejects old formats and retired structural keys with exit 2', () => {
-    const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
-    const cli = new URL('../src/delivery/cli.ts', import.meta.url).pathname
-    const report = observeDelivery(config(), capture([issue(1)]))
-    const cases = [
-      { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
-      { config: { ...config(), sourceCutovers: 'old' }, capture: capture(), report },
-      { config: config(), capture: { ...capture(), protocolVersion: 1 }, report },
-      ...[1, 2, 3].map(schemaVersion => ({
-        config: config(),
-        capture: capture(),
-        report: { ...report, schemaVersion },
-      })),
-      ...['aliases', 'scenarios'].map(key => ({
-        config: config(),
-        capture: capture(),
-        report: { ...report, cards: report.cards.map(card => ({ ...card, [key]: [] })) },
-      })),
-    ]
-    try {
-      for (const input of cases) {
-        for (const [name, value] of Object.entries(input))
-          writeFileSync(join(root, `${name}.json`), JSON.stringify(value))
-        const result = spawnSync(
-          process.execPath,
-          [
-            '--experimental-strip-types',
-            cli,
-            '--config',
-            join(root, 'config.json'),
-            '--capture',
-            join(root, 'capture.json'),
-            '--baseline',
-            join(root, 'report.json'),
-            '--report',
-            join(root, 'out.json'),
-          ],
-          { encoding: 'utf8' },
-        )
-        expect(result.status, result.stderr).toBe(2)
-        expect(existsSync(join(root, 'out.json'))).toBe(false)
+  // Slow: starts the delivery CLI as a child process several times. 1.7 s on the full-admission fast-tier ledger, 4.8 s under load, which is over the 2.5 s per-case budget (tools/test-runner/README_ZH.md「归层」).
+  it(
+    'real CLI rejects old formats and retired structural keys with exit 2',
+    { tags: ['slow'] },
+    () => {
+      const root = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-retired-')))
+      const cli = fileURLToPath(new URL('../src/delivery/cli.ts', import.meta.url))
+      const report = observeDelivery(config(), capture([issue(1)]))
+      const cases = [
+        { config: { ...config(), schemaVersion: 1 }, capture: capture(), report },
+        { config: { ...config(), sourceCutovers: 'old' }, capture: capture(), report },
+        { config: config(), capture: { ...capture(), protocolVersion: 1 }, report },
+        ...[1, 2, 3, 4].map(schemaVersion => ({
+          config: config(),
+          capture: capture(),
+          report: { ...report, schemaVersion },
+        })),
+        ...['aliases', 'scenarios'].map(key => ({
+          config: config(),
+          capture: capture(),
+          report: { ...report, cards: report.cards.map(card => ({ ...card, [key]: [] })) },
+        })),
+      ]
+      try {
+        for (const input of cases) {
+          for (const [name, value] of Object.entries(input))
+            writeFileSync(join(root, `${name}.json`), JSON.stringify(value))
+          const result = spawnSync(
+            process.execPath,
+            [
+              '--experimental-strip-types',
+              cli,
+              '--config',
+              join(root, 'config.json'),
+              '--capture',
+              join(root, 'capture.json'),
+              '--baseline',
+              join(root, 'report.json'),
+              '--report',
+              join(root, 'out.json'),
+            ],
+            { encoding: 'utf8' },
+          )
+          expect(result.status, result.stderr).toBe(2)
+          expect(existsSync(join(root, 'out.json'))).toBe(false)
+        }
+      } finally {
+        rmSync(root, { recursive: true, force: true })
       }
-    } finally {
-      rmSync(root, { recursive: true, force: true })
-    }
-  })
+    },
+  )
   it.each(['旧卡来源别名', '产品关联'])(
     'reports retired field %s without interpreting its value or general prose',
     name => {
@@ -1244,4 +1272,207 @@ it.each([
     body: body(1, 'maintenance', [dependency('D1', 2)]) + '\n' + explanation,
   })
   expect(codes([card, issue(2)])).not.toContain('conditions-table-invalid')
+})
+
+describe('attribute category', () => {
+  const rules = { lines: table(), registry }
+  const lines = { line: '- 交付线：', nature: '- 性质：', contract: '- 契约变更：' }
+  const v2Binding = (writeScope: string[]): TaskBindingV2 => ({
+    schemaVersion: 2,
+    issue: { repository: 'owner/repo', id: 'issue-2', number: 2, url: issue(2).url },
+    revision: 1,
+    attempt: 'attribute-2',
+    responsible: 'human',
+    branch: 'human/attribute-2',
+    route: { kind: 'track', track: 'legacy-refactor' },
+    completionTarget: 'track',
+    taskBase: 'a'.repeat(40),
+    writeScope,
+    dispatch: `${issue(2).url}#issuecomment-2`,
+    conditions: [],
+    authorization: [],
+    line: 'engineering-toolchain',
+    nature: 'impl',
+    contractChange: 'none',
+    milestone: 'M1',
+  })
+  function card(source: string, patch: Partial<CapturedIssue> = {}): CapturedIssue {
+    return issue(2, {
+      body: source,
+      labels: ['line:engineering-toolchain', 'nature:impl'],
+      milestone: 'M1',
+      ...patch,
+    })
+  }
+  function withBinding(source: string, binding: TaskBinding): string {
+    return replaceSection(
+      source,
+      '当前执行与交接',
+      `## 当前执行与交接\n\n\`\`\`json omne-integration-binding:v2\n${JSON.stringify(binding)}\n\`\`\`\n\n`,
+    )
+  }
+  const attributes = (report: ReturnType<typeof observeDelivery>) =>
+    report.findings.filter(f => f.category === 'attribute').map(f => [f.code, f.clause])
+  const deviations = (report: ReturnType<typeof observeDelivery>) =>
+    report.findings.filter(f => f.category === 'deviation').map(f => f.id)
+
+  it('reports nothing for a filled template that agrees with its v2 binding', () => {
+    const report = observeDelivery(
+      config(),
+      capture([card(withBinding(filledTemplate('delivery'), v2Binding(['tools/dev-flow'])))]),
+      undefined,
+      rules,
+    )
+    expect(attributes(report)).toEqual([])
+    expect(deviations(report)).toEqual([])
+    expect(report.stock.attribute).toBe(0)
+  })
+
+  it('records each attribute finding in its own non-blocking category', () => {
+    const source = withBinding(filledTemplate('delivery').replace(`${lines.contract}none`, ''), {
+      ...v2Binding(['packages/model/model', 'apps/cli']),
+      milestone: 'M0',
+    })
+    const plain = observeDelivery(config(), capture([card(source, { labels: [] })]))
+    const report = observeDelivery(
+      config(),
+      capture([card(source, { labels: [] })]),
+      undefined,
+      rules,
+    )
+    expect(attributes(report)).toEqual([
+      ['attribute-binding-drift', 'binding.milestone'],
+      ['attribute-missing', '契约变更'],
+      ['label-drift', 'line:'],
+      ['label-drift', 'nature:'],
+      ['scope-integration-path', 'apps/cli'],
+      ['scope-outside-line', 'packages/model/model'],
+    ])
+    expect(report.stock.attribute).toBe(attributes(report).length)
+    expect(
+      report.findings.filter(f => f.category === 'attribute').every(f => f.revision === 1),
+    ).toBe(true)
+    expect(deviations(report)).toEqual(deviations(plain))
+    expect(report.stock.deviation).toBe(plain.stock.deviation)
+    expect(report.stock.unknown).toBe(plain.stock.unknown)
+  })
+
+  it('reports cross-line conditions on read cards', () => {
+    const target = issue(3, {
+      body: filledTemplate('delivery').replace(
+        `${lines.line}engineering-toolchain`,
+        `${lines.line}model`,
+      ),
+    })
+    const source = filledTemplate('delivery', true).replace(
+      `${issue(2).url}#issuecomment-3`,
+      target.url,
+    )
+    const report = observeDelivery(config(), capture([card(source), target]), undefined, rules)
+    expect(attributes(report)).toContainEqual(['condition-cross-line', 'D-01'])
+  })
+
+  it('skips closed cards and reports v1 bindings', () => {
+    const {
+      line: _l,
+      nature: _n,
+      contractChange: _c,
+      milestone: _m,
+      ...rest
+    } = v2Binding(['tools'])
+    const v1: TaskBinding = { ...rest, schemaVersion: 1 }
+    const source = replaceSection(
+      filledTemplate('delivery'),
+      '当前执行与交接',
+      `## 当前执行与交接\n\n\`\`\`json omne-integration-binding:v1\n${JSON.stringify(v1)}\n\`\`\`\n\n`,
+    )
+    expect(
+      attributes(observeDelivery(config(), capture([card(source)]), undefined, rules)),
+    ).toEqual([['binding-v1', 'binding']])
+    expect(
+      attributes(
+        observeDelivery(config(), capture([card(source, { state: 'closed' })]), undefined, rules),
+      ),
+    ).toEqual([])
+  })
+
+  it('keeps admission free of attribute findings', () => {
+    const source = filledTemplate('delivery').replace(`${lines.nature}impl`, `${lines.nature}x`)
+    const admission: AdmissionCapture = {
+      schemaVersion: 1,
+      kind: 'github-admission-capture',
+      protocolVersion: 2,
+      repository: 'owner/repo',
+      projectId: 'project-4',
+      scope: { task: issue(2).url, authority: `${issue(2).url}#issuecomment-1` },
+      closure: [issue(2).url],
+      issues: [card(source)],
+      startedAt: at,
+      finishedAt: at,
+    }
+    expect(
+      observeAdmission(config(), admission).findings.filter(f => f.category === 'attribute'),
+    ).toEqual([])
+  })
+
+  it('round-trips report version 5 with the attribute stock and refuses a wrong count', () => {
+    const report = observeDelivery(
+      config(),
+      capture([card(filledTemplate('delivery'), { labels: [] })]),
+      undefined,
+      rules,
+    )
+    expect(report.schemaVersion).toBe(5)
+    expect(report.stock.attribute).toBeGreaterThan(0)
+    const parsed = parseBaseline(JSON.parse(JSON.stringify(report)))
+    expect(parsed.findings).toEqual(report.findings)
+    expect(() => parseBaseline({ ...report, stock: { ...report.stock, attribute: 0 } })).toThrow(
+      /stock/,
+    )
+    const next = observeDelivery(
+      config(),
+      capture([card(filledTemplate('delivery'))]),
+      parsed,
+      rules,
+    )
+    expect(next.delta.resolved.some(id => id.includes('label-drift'))).toBe(true)
+  })
+
+  it('applies the repository rules by default and refuses unreadable rule files in the CLI', () => {
+    const dir = realpathSync(mkdtempSync(join(tmpdir(), 'delivery-attribute-cli-')))
+    try {
+      const cfg = join(dir, 'config.json'),
+        cap = join(dir, 'capture.json'),
+        bad = join(dir, 'lines.json'),
+        cli = resolve('src/delivery/cli.ts')
+      writeFileSync(cfg, JSON.stringify(config()))
+      writeFileSync(
+        cap,
+        JSON.stringify(capture([card(filledTemplate('delivery'), { labels: [] })])),
+      )
+      writeFileSync(bad, JSON.stringify({ schemaVersion: 2 }))
+      const report = parseBaseline(
+        JSON.parse(
+          execFileSync(
+            process.execPath,
+            ['--experimental-strip-types', cli, '--config', cfg, '--capture', cap],
+            { encoding: 'utf8' },
+          ),
+        ),
+      )
+      expect(report.findings.filter(f => f.category === 'attribute').map(f => f.code)).toContain(
+        'label-drift',
+      )
+      const refused = spawnSync(
+        process.execPath,
+        ['--experimental-strip-types', cli, '--config', cfg, '--capture', cap, '--lines', bad],
+        { encoding: 'utf8' },
+      )
+      expect(refused.status).toBe(2)
+      expect(refused.stdout).toBe('')
+      expect(refused.stderr).toContain('delivery-input-error')
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
 })

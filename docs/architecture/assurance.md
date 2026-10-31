@@ -114,6 +114,16 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 方法互补，不排列成可互换的分数。选择能暴露目标缺陷的验证：拒绝分支检查禁止效果未发生，恢复检查原工作被正确接续，性能检查计时区域内确实完成了有效工作。适用时用受控错误、已知反例或故障注入确认检查能发现问题；不要求为每次文档修订运行变异测试。
 
+过载、取消、崩溃、进程退出和物理断电各用自己的证据。一种方法的通过不证明另一种已经通过。没有写明负载和平台的数字不是性能承诺。缺工程日志或遥测记录，不把业务结果改成失败，也不把业务结果改成成功。业务账目、授权依据和恢复事实缺失时，按它们自己的契约判断。
+
+| 故障 | 环境 | 成本 | 可复跑步骤 | 证据强度 |
+| --- | --- | --- | --- | --- |
+| 过载 | 该能力 profile 写明的平台。存储受理队列的平台基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。 | 未测量。 | 在写明的负载上观察拒绝、有界等待或降级。已受理输入仍在。存储队列已满时返回 `queue_full`，并且不发送。 | 规则已写明。没有生产数字下的测量。 |
+| 取消 | 运行该提供者的进程。 | 未测量。 | 取消仍在执行的提交。核对观察已经释放，并且预留不因此归还。 | 存储规格已写明这条规则。没有新的测量。 |
+| 崩溃 | 进程外能观察到该进程消失的监督者。具体装配未在本页点名。 | 未测量。 | 在进程外确认崩溃。已确认事实按耐久要求仍在。未确认的外部效果保持未知。 | 项目要求。恢复秒数没有。 |
+| 进程退出 | 关闭协议的验证平台是 Node v26.0.0。存储语句等待的平台基线是 Node 24.21.0 内嵌的 SQLite 3.53.4。 | 未测量。 | 关闭并读取报告。报告是 `closed`、`failed` 或 `timed-out`。进程在 `close` 完成前死亡，则没有报告。存储期限到达而 SQL 未结束时，结果是 `incomplete`，装配报告是 `timed-out`。 | 关闭协议已有 SIGKILL 试验，并且没有写出报告。该试验不是断电证据。 |
+| 物理断电 | 声明的保存介质。 | 未测量。 | 在该介质上断电或做等效掉电，然后检查已确认事实是否仍在。 | 尚未执行。普通 kill、`synchronous=FULL` 和重启不能代替。 |
+
 ### 证据绑定与复用
 
 报告须能辨认被验契约与源码修订、实际产物、装配、依赖及环境，说明方法版本、输入、命令或配置、实际结果和未覆盖范围。性能证据另外说明基线、样本、重复、噪声及资源代价。没有可比基线时，不生成虚构的改善百分比。
@@ -164,7 +174,7 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 | 差距 | 目标与继续承接的拥有者 |
 |---|---|
-| 固定代整代停止及串行重建 | [局部依赖范围](deployment/cordis-and-lifecycle.md#依赖换代与就绪)与[reload交接](runtime/assembly-and-change.md#reload-与推进权交接)要求无关工作保持运行。当前限制分别见[LIFECYCLE-M01 关闭机制的局部依赖范围](deployment/cordis-and-lifecycle.md#lifecycle-m01)、[LIFECYCLE-M02 插件加载与换代的影响范围](deployment/cordis-and-lifecycle.md#lifecycle-m02)及[LIFECYCLE-M03 治理宿主的装配停止范围](deployment/cordis-and-lifecycle.md#lifecycle-m03)；由相应机制及装配拥有者共同修复，验证真实消费者范围。 |
+| 固定代整代停止及串行重建 | [局部依赖范围](deployment/cordis-and-lifecycle.md#依赖换代与就绪)与[reload交接](runtime/assembly-and-change.md#reload-与推进权交接)要求无关工作保持运行。当前限制分别见[LIFECYCLE-M01 关闭机制的局部依赖范围](deployment/cordis-and-lifecycle.md#lifecycle-m01)、[LIFECYCLE-M02 插件加载与换代的影响范围](deployment/cordis-and-lifecycle.md#lifecycle-m02)及[LIFECYCLE-M03 治理宿主的装配停止范围](deployment/cordis-and-lifecycle.md#lifecycle-m03)；由相应机制及装配拥有者共同修复，验证真实消费者范围。LIFECYCLE-M02 的 Tool 部分由换代协调者 `toolGenerations` 承接，仍待办的范围见该条。 |
 | 无Session的完整模型消费协议覆盖 | [独立调用](runtime/model-runtime.md#独立调用)不要求隐式Session。现有Session关联十五操作及单次invokeModel不能代替独立的可靠消费、ACK和恢复；[MODEL-V01 无 Session 的完整消费协议覆盖](runtime/model-runtime.md#model-v01)由模型公共契约及提供者拥有者承接。 |
 | 双清理失败的保留 | [有序清理](deployment/cordis-and-lifecycle.md#有序退出与清理失败)要求分别保留结果。当前[CLIENT-M01 本地状态关闭中的多重失败保留](layers-and-dependencies.md#client-m01)会覆盖前一失败；提供者及组合关闭拥有者须修复并验证双失败。 |
 | 业务确认与提供者弱耐久配置 | [确认保存的耐久边界](data-and-state.md#已确认保存的耐久边界)不能由SQLite NORMAL的提交返回替代。当前限制及承接责任见[耐久差距](deployment/infrastructure-policy.md#耐久目标与提供者保证)，由Storage、SQL提供者及业务确认协调者继续处理。 |
@@ -173,11 +183,11 @@ agent 从[任务地图](../context-map.md)取得必要上下文，再沿受影�
 
 ## 持续反馈与交付约束
 
-### 与 pstack 和 clean-loop 的分工
+### 与研发方法和 clean-loop 的分工
 
-本页定义系统保证与证据责任。pstack 提供 agent 的执行方法，clean-loop 提供本仓的持续观察与处置回路。三者通过[工程质量](../engineering/quality.md)衔接，不各自生成一套保证或审批流程。
+本页定义系统保证与证据责任。[三层研发方法](../engineering/skills.md#三层分工)提供 agent 的执行方法，clean-loop 提供本仓的持续观察与处置回路。三者通过[工程质量](../engineering/quality.md)衔接，不各自生成一套保证或审批流程。
 
-- **pstack 方法**按任务触发。`principle-prove-it-works` 用于检查真实产物，`principle-test-behavior-not-implementation` 用于判断测试能否发现相关缺陷，`benchmark-checklist` 用于性能证据，`blast-radius` 用于识别改动的外部影响。版本、可用入口和项目采用差异由[工程技能](../engineering/skills.md#pstack-方法入口)统一维护，不把整个技能集设为每次交付的必跑清单。
+- **研发方法**按任务触发。ub-mode「做好」一段的测试判别要求用于检查真实产物和测试能否发现相关缺陷，pstack `benchmark-checklist` 用于性能证据，`blast-radius` 用于识别改动的外部影响。版本、可用入口和项目采用差异由[工程技能](../engineering/skills.md)统一维护，不把整个技能集设为每次交付的必跑清单。
 - **clean-loop**持续反馈可以测量的事实，区分本次变化和存量，并把问题交给有权处理的人。可确定的规则交给传感器；需要语义判断的性质使用有依据的评审；产品取舍和接受范围归负责人。工具发现与修复建议分别表达。
 - **系统专项验证**补足回路不能直接测出的性质。代码复杂度、依赖检查或测试数量不能证明长期稳定性、租户隔离或跨进程恢复；这些保证继续由上文的场景与实际证据支撑。
 

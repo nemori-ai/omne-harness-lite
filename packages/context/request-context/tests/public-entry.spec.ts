@@ -1,6 +1,10 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the root entry exports exactly the two factories', async () => {
   const root = (await import('@omne-harness/request-context')) as Record<string, unknown>
-  expect(Object.keys(root)).toEqual([])
+  expect(Object.keys(root).sort()).toEqual([
+    'createContextAccounting',
+    'createContextSourceRegistry',
+  ])
+  for (const value of Object.values(root)) expect(typeof value).toBe('function')
 })

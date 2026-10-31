@@ -1,17 +1,58 @@
 # 系统公开契约内部设计
 
-<!-- documentation:placeholder -->
+本页拥有纯协议编解码的内部构造设计。实际实现与验证证据随成员持续维护。
 
-本页预留两端共同的系统操作、数据、事件、错误及边界行为的内部结构说明。依据为[上层责任](../../../../docs/architecture/layers-and-dependencies.md)与[成员文档规范](../../../../docs/member-documentation.md)。当前没有成员源码或已接受的内部机制。
+行为唯一源为[成员SPEC](../SPEC.md#公开编解码入口与实现细化)。公开类型归[src主入口](../src/index.ts)及其消息定义。SDK负责传输报告、再送和缓存，server-entry负责业务接入顺序，public-contract只做纯协议类型和codec。
 
-## 设计边界
+## 固定模块与依赖
 
-共同表示不改变原业务含义。内部设计须兑现[成员行为规格](../SPEC.md)，不得从目录或封存实现推断对外保证。
+| 文件 | 唯一责任 |
+| --- | --- |
+| src/index.ts | 仅治理与会话两组共八个纯函数和公共类型的主exports，不加correlation或业务provider出口 |
+| src/messages.ts | 治理的正常/阶段操作、请求、按操作/结果关联响应、本地proof与codec结果类型 |
+| src/session-messages.ts | 会话的5个操作、请求、按操作/结果关联响应、历史页与codec结果类型 |
+| src/operation-rules.ts | 规则种类、协议族描述，以及完整34正常/4阶段封闭规则、信封/body字段和outcome映射 |
+| src/session-rules.ts | 会话协议族：5个操作的封闭规则、信封/body字段和outcome映射 |
+| src/codec.ts | 按协议族参数化的核心与治理四函数：公开参数防护、模型与wire转换、响应验证后匹配 |
+| src/session-codec.ts | 会话四函数，各是核心对会话协议族的一次实例化 |
+| src/correlation.ts | readRequestDocument和recoverCorrelation，私有严格读取门与迭代metadata自动机 |
 
-## 后续技术问题
+直接依赖仅实际使用的json-text、legal-identity、utc-instant及jsonc-parser。jsonc-parser使用现行catalog 3.3.1。静态Schema仅作为已核输入，不引入provider、引擎或异步生命周期。SDK、server-entry、identity、authorization、Cordis和数据库不进入依赖闭包。
 
-技术拥有者先确认公开操作范围、业务类型投影、受理与结果、身份与权限、取消、错误及订阅语义，再说明模块分工、状态和资源拥有者、依赖方向、故障处置与换代路径。实际协调者和SDK、服务端接入与实际客户端共同核对交接点。单次候选留任务证据，现行决定写回本成员唯一正文。
+核心不写死版本或操作表。协议族描述给出版本文本、编程错误文本、封闭操作表和阶段操作清单。共同拒绝集合由阶段操作清单推出：每个协议族都有 `protocol-rejected`，只有阶段操作清单非空的协议族才有 `stage-not-provided`。治理协议族有4项阶段操作。会话协议族的清单为空，所以会话一组既不读出也不编码 `stage-not-provided`，读取结果的类型里也没有这一项。
 
-## 验证与维护
+```mermaid
+flowchart LR
+  G[治理协议族<br/>阶段操作 4 项<br/>共同拒绝 2 种] --> C[参数化核心<br/>codec.ts]
+  S[会话协议族<br/>阶段操作 0 项<br/>共同拒绝 1 种] --> C
+  C --> GF[治理四函数<br/>codec.ts]
+  C --> SF[会话四函数<br/>session-codec.ts]
+```
 
-成员维护者把设计决定连接到实际测试、模型或组合验证，并列明前提与未覆盖。文档维护者核对来源、链接及登记。长期个人负责人尚未具名；目前没有可执行的内部设计验证。
+规则表的叶子种类各对应一个转换函数，转换器按表分派，其余四种规则（literal、object、array、one-of）走穷尽分支。`read-history` 的 `cursor` 出现规则用 one-of 规则表达：两种封闭对象形状，`cursor` 为 null 的形状必带 `direction` 与 `pageBytes`。one-of 的选项必须互斥，第一个转换成功的选项生效，本地值不记录命中的是哪一项。
+
+## 关联读取
+
+采用非递归元数据读取，两个pass使用一次核验并冻结的预算。公开codec入口先核验六项预算并冻结快照，再交readRequestDocument。readJsonBytes严格成功才可提供业务树。只有duplicate-key失败调用recoverCorrelation。其他失败立即返回原失败与无关联。严格读取门与补扫同在src/correlation.ts，词法和frame转换由文件内局部函数维护。
+
+recoverCorrelation使用jsonc-parser扫描token与显式对象/数组frame栈，不用递归visitor。它只计算metadata，不重建树。每个frame维护语法下一状态、成员出现次数及是否处于根messageId值。每个容器/标量计maxItems，进入容器前核maxDepth，每次成员出现计maxMembers，包括相同或转义别名的重复键。解码后的键/值字符串受maxStringLength，原始数字完整lexeme受maxNumberLength，整输入先受maxBytes。
+
+扫描器后仍核严格对象/数组语法、原始字符串转义和控制字符，以及完整RFC8259数字字符段。拒绝注释、尾逗号、错误分隔符、截断、多根、尾部垃圾、非法UTF-8和BOM。不使用scanner的浮点数值。完整EOF且单一根对象成立后，只有恰好一个根messageId且为字符串才有可信ID，包括空字符串。嵌套键不影响根计数，相同值的重复根键仍无关联。根键在原duplicate前后都适用。
+
+两个pass使用同一冻结预算。补扫再次检查完整输入，不因第一处duplicate提前停止而遗漏后缀错误。maxMembers按出现次数可比严格读取更早发现拒绝，不能将补扫更宽松地变成允许。整输入字节上限限制token分配，但不是进程RSS保证。没有隐藏第七深度上限，不捕获RangeError后把有效输入悄悄降成无关联。意外内部编程故障不转换成成功、可信关联或预期拒绝。
+
+响应读取从不补扫被拒绝的响应。它按原operation完整验证版本、outcome/body和关联字段，之后才比较expectedMessageId。治理一组的共同拒绝重载在没有operation时只允许两种共同outcome，带operation的重载仍受38项映射约束。会话一组的共同拒绝重载只允许 `protocol-rejected`，带operation的重载受5项映射约束。
+
+## 字段和对象检查
+
+proof的missing/empty/present是本地协议表示，业务身份由后续拥有者核验。tenant字符串先严格读内层JSON，固定深度1/3值/2成员，再交tenantCodec。外层预算不按子字段重置。Instant编码保留精度，parameters保留tagged JSON与数字lexeme。诊断只输出有限code，不携任意字段、路径或秘密。
+
+编码前核plain对象、自有可枚举数据属性和闭合字段。getter与toJSON不执行。代理trap故障不把原异常交给公开调用者。顶层编程参数或其反射错误用固定TypeError；模型不合规、访问器和模型代理反射错误为invalid/code field。只捕获局部输入反射边界的用户异常，不把内部程序错误改成预期拒绝。已有合法品牌也不能绕过输出字段/秘密检查。
+
+## 持续验证与责任
+
+测试从主exports消费。tests/protocol.spec.ts核共同边界，tests/correlation.spec.ts核完整补扫和预算，tests/operations.spec.ts与tests/responses.spec.ts核完整矩阵，tests/public-consumption.spec-d.ts核关联类型，tests/session-protocol.spec.ts、tests/session-responses.spec.ts与tests/session-consumption.spec-d.ts核会话一组，tests/install-closure.spec.ts核干净安装。tests/fixtures/client.ts与server.ts为纯协议两端fixture，profile.mjs为有界资源观测。它们不实现真实业务provider。本成员没有 `./testing` 导出。
+
+关联向量必须包括ID在duplicate前后、转义等值ID重复、嵌套键、坏后缀、字符串/数字scanner边角、六预算等界/越界，以及超过原生递归容量但在显式预算内的深度。差分向量比较严格成功与补扫语法的适用一致性，duplicate输入永远仍为拒绝。测试只能证明覆盖范围，不能声称真实权限或持久业务验证。
+
+编码时先复制自有数据属性，再做封闭字段和品牌校验。parameters的tagged树也先复制，拒绝访问器、不可枚举字段与环，再由json-text判断并冻结。复制对象数量上限由调用者maxItems推导，合法树每个JSON值至多引入一个节点、一个容器列表和一个成员记录，不增加协议预算。最终写出的整份JSON再次按六预算严格读取。

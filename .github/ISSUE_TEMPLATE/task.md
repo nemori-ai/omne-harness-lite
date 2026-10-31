@@ -21,7 +21,10 @@ about: 从父交付卡拆出的一次可独立接受结果
 ## 身份与责任
 
 - 交付层级：subtask
-- 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation}}
+- 主工作类型：{{feature／bug／refactor／performance／maintenance／investigation；建卡时打同值的唯一kind:标签}}
+- 交付线：{{docs/engineering/delivery-lines.json 中的线ID，或integration；建卡时打同值的唯一line:标签，并在Issue的milestone字段设置里程碑；缺任一项时start拒绝开工}}
+- 性质：{{design／contract／impl／integration／baseline}}
+- 契约变更：{{none／additive／breaking；线内的卡只取none或additive，破坏性改动先经Needs decision由人拍板}}
 - 交付修订：1
 - 创建操作标识：{{创建前登记并读回的稳定标识，后续修订保持}}
 - 父交付卡：{{真实父Issue URL，并核对平台父关系}}
@@ -92,7 +95,7 @@ about: 从父交付卡拆出的一次可独立接受结果
 
 {{未派发时：写明未登记binding，列计划集成路线、最终终点及待定输入。不要发布占位JSON。}}
 
-{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的json omne-integration-binding:v1区块，并替换上述计划文字。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
+{{已派发Git任务时：由正文单写者在此插入唯一、完整、真实的binding区块，并替换上述计划文字。taskBase中的dev-flow能读版本2时用json omne-integration-binding:v2，否则用json omne-integration-binding:v1，核对命令见集成工具指南。branch、route、completionTarget、taskBase、writeScope、attempt等以此区块为唯一编辑源。形状见集成工具指南。}}
 
 | 开工读回项 | 实际值/回执 |
 | --- | --- |
@@ -109,7 +112,7 @@ about: 从父交付卡拆出的一次可独立接受结果
 - 已完成事实与保存位置：{{关键结果、最后成功远端提交或报告评论}}
 - 阻塞与范围变化：{{条件ID、影响、确认责任；无则写无}}
 - 下一步及责任：{{具体接续动作和谁负责}}
-- Project对账：{{链接、所核Stage和时点；待更新或失败须明说}}
+- Project对账：{{链接、所核Stage、Needs decision和时点；Line、Kind、Wave与日期字段由dev-flow写入，见交付协议的字段总表；待更新或失败须明说}}
 
 ### 成果交回
 

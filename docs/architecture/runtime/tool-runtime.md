@@ -14,11 +14,79 @@ Agent runtime 只持有工具执行的访问和控制句柄。最后一个句柄
 
 ## 已知能力、可用性与排队
 
-工具可用性在装配、attempt 开始和必需提供者变化时重算。必需依赖全部成立才可用；可选依赖在使用时探测。附件存储可用不够，消费者还须具备读取能力。会话中的模型交互路径还须让输入输出模态与当前模型及转换能力相容。独立工具调用按调用者与工具契约处理模态，不强制存在模型。
+工具可用性在装配、采用点、执行挂接建立和必需提供者变化时重算。会话初始化、新 Run 开始、显式 reload 和 Run 中的提供者变化各自允许哪些变化，由 Tool 契约的刷新点规则规定，见[刷新点允许的变化](../../../packages/tool/tool-contract/SPEC.md#刷新点允许的变化)。Run 中的提供者变化只改变可用性。必需依赖全部成立才可用；可选依赖在使用时探测。附件存储可用不够，消费者还须具备读取能力。会话中的模型交互路径还须让输入输出模态与当前模型及转换能力相容。独立工具调用按调用者与工具契约处理模态，不强制存在模型。
 
 已知能力因撤权、卸载或依赖故障而不可用时，保留最近合法的身份与形状，用不可用应答说明原因。不能读取撤权后的新内容，也不能为从未合法取得的能力编造定义。
 
-动作获得准入后，选择合法环境并准备资源，再进入执行排队。同一会话、同一工具的并发限制计入前后台执行，超额按发起顺序排队，不直接冒充执行失败。实际发起时仍须核对有效推进权、工作状态和当前授权，排队前的判断不是永久许可。
+动作获得准入后，选择合法环境并准备资源，再进入执行排队。同一资源范围（`ResourceScope`）、同一工具的并发限制计入前后台执行，超额按发起顺序排队，不直接冒充执行失败。实际发起时仍须核对有效推进权、工作状态和当前授权，排队前的判断不是永久许可。
+
+## 常驻工具与冻结
+
+常驻工具是调用方不经 Tools 元工具发现即可调用的工具。常驻规则 R1–R5、同形判据和采用点判定表归 Tool 契约，见[常驻规则](../../../packages/tool/tool-contract/SPEC.md#会话常驻规则r1r5)与[采用点判定](../../../packages/tool/tool-contract/SPEC.md#采用点判定)。下文的跨成员分工依据 [D-04 裁定](https://github.com/nemori-ai/omne-harness-lite/issues/675#issuecomment-6392857690)。
+
+常驻持有者是持久保存常驻工具首次定义的 shape、并在采用点把它供给 `planAdoption` 的一方。会话是一种常驻持有者。常驻工具被卸载或暂时不可用，且登记表里没有该持有者可访问的同形可用贡献时，常驻持有者以[替换件](../../../.meta_harness/design/ubiquitous_language/terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)占住它的位置（Tool 契约的 R3）。替换件按首次定义的 shape 呈现，只把说明换成不可用原因。调用替换件得到不可用应答（`known-unavailable`）。常驻工具的 name 与参数形状对同一常驻持有者不变，判据是与首次定义同形。会话记录首次定义的事实种类与种类准入归会话域，见[会话与工作](../../domains/sessions-and-work/README.md)。
+
+绑定登记表按登记键接受作者插件 fiber 的贡献。登记键由来源层、能力身份和资产版本组成。换代协调者 `toolGenerations` 装载作者插件，并按持有者引用保留或撤除贡献。登记表与协调者的规则归 [Tool 契约](../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载)和 [tool-host-local 的 Cordis 集成](../../../packages/tool/tool-host-local/docs/cordis.md#作者装载与贡献登记)。
+
+### 冻结判定只随采用材料到达
+
+冻结判定只有一条到达路径：采用点的候选采用材料。新 Run 开始与显式 reload 都按下列顺序处理。
+
+1. [装配协调者](../../domains/assembly-and-handoff/README.md#模块角色与事实归属)（领域角色「采用协调」）为本会话收集采用点事实，调用 Tool 的纯函数 `planAdoption`。判定为冻结时，输出是 `FreezeVerdict { cause: 'tool-shape-lost', evidence }`。
+2. 装配协调者把判定放进本次候选采用材料。
+3. Session 的协调器取得这份材料，以该会话的访问依据（`SessionAccess`）和调用方类 `coordinator` 调用 Session 的 `startRun` 或 `reload`。`startRun` 分支由推进触发调度器（[S1](../../../packages/session/session/SPEC.md#s1-推进触发调度器)）触发，由 Agent 推进协调器（[C2](../../../packages/session/session/SPEC.md#c2-agent-推进协调器)）提交。`reload` 分支也由 C2 提交。C2 的换代顺序产出 `reload`，C2 的冻结判定行同时覆盖 `startRun` 与 `reload` 返回 `frozen` 的情形。调度器与协调器的分工见[协调器与调度器](session-and-run.md#协调器与调度器)。它们在 `session-provider` 行（[插件树](application-assembly.md#插件树)），以 `SessionInternalPrincipals` 提交命令。`maintainer` 发起的 `startRun` 返回 `frozen` 的分支待 C7（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。
+4. 材料带冻结判定时，命令返回 `frozen`，不提交。
+5. 收到 `frozen` 的同一协调器以同一判定、同一 `SessionAccess` 和调用方类 `coordinator` 调用 Session 的 `freeze`。`freeze` 是冻结的唯一提交点，同一会话只成立一次冻结，见[常驻工具与会话冻结](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)。
+
+会话初始化不判冻结。`create` 的候选采用材料只列出新纳入的常驻工具，不带冻结判定。Tool 不定义向会话交付冻结判定的端口。换代协调者也不判冻结：`sweep` 只记录重装失败，由下一个采用点判定。Tool 只给判定与原因 `tool-shape-lost`，冻结的状态转换由会话执行。
+
+### 持有者引用由应用装配桥接
+
+换代协调者在 `unload` 与 `sweep` 中经 `ToolResidencyReader` 读取持有者引用。协调者据此履行[保留义务](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)：一份贡献有持有者引用、且没有[同形 serving 替代](../../../packages/tool/tool-contract/SPEC.md#p15-配置声明与合法装载)时，协调者不撤除它。
+
+- 输入：`referencing` 带系统作用域与登记键，按游标分页。它不用 `Access<P>`，属于 [IC-18](../cordis-integration-conventions.md#ic-18) 的系统作用域例外。
+- 结果：每项是一个持有者引用，含 `holder`、`tenant` 与 `shape` 三个字段。`holder` 是不透明的持有者标识，Tool 不解析它，也不从它推出租户。`tenant` 是该持有者所属的租户。`shape` 是该持有者为这项能力保存的首次定义的 shape。结果不含定义正文。
+- 失败：只有 `unavailable`。读不到时不返回空页。
+- 用途：协调者判断同形 serving 替代时，按 [G7](../../../packages/tool/tool-contract/SPEC.md#342-契约缺口决定) 对每个持有者引用的 `tenant` 核对可访问性。
+
+精确形状与服务键 `toolResidencyReader` 归 [tool-cordis-contract](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
+
+Tool 契约不导入 Session 契约（规则见[依赖方向与 Cordis 集成](../../package-organization.md#依赖方向与cordis集成)，机读约束 `DIR-TOOL-SESSION` 见 [constraints](../constraints.json)），Session 也不实现 Tool 的端口。所以 `toolResidencyReader` 由应用装配提供。应用成员的桥接插件以调用方类 `maintainer` 调用 Session 的公开操作 [`references`](../../../packages/session/session-contract/SPEC.md#常驻工具与会话冻结)，并出示装配入口签发的系统主体，作为系统作用域的读取资格。桥接插件把每个引用会话投影为一个持有者引用。`references` 的任何失败都交为 `unavailable`，不交空页。桥接插件的行归[应用装配的插件树](application-assembly.md#插件树)（行由 #789 写入），它使用的运行时对象归[应用装配的运行时对象](application-assembly.md#运行时对象)（行由 #789 写入）。
+
+两种情形下协调者都不撤除贡献：
+
+- 桥接插件缺席或尚未就绪：`toolResidencyReader` 是协调者的必需依赖，协调者停在 `PENDING`，不提供 `toolGenerations`，不执行撤除。
+- 读取返回 `unavailable`：`unload` 与 `sweep` 返回 `retained`。
+
+运行中桥接插件换代时，协调者的插件体卸载并重跑。桥接插件撤除时尚未返回的读取由桥接插件的撤除路径结算为 `unavailable`，协调者按「读取返回 `unavailable`」处理：`reopen(key)` 并返回 `retained`。协调者插件体被卸载重跑后，对上一代留在 `closed` 的键，首次 `unload` 或 `sweep` 先 `reopen`，再从 `close(key)` 与引用核对重新开始。只有引用核对允许撤除时，协调者才执行五步，不跳过保留义务。这条规则的拥有者是[换代协调者契约](../../../packages/tool/tool-cordis-contract/docs/cordis.md#换代协调者契约)。
+
+```mermaid
+flowchart LR
+    G["Tool 宿主的换代协调者<br/>toolGenerations"] -->|"referencing：系统作用域与登记键"| B["应用装配的桥接插件"]
+    B -->|"references：maintainer 与系统主体"| S["Session"]
+    S -->|"引用会话页"| B
+    B -->|"持有者引用页：holder、tenant、shape"| G
+    G -.->|"桥接插件缺席或未就绪"| P["协调者停在 PENDING<br/>不撤除"]
+    G -.->|"读取返回 unavailable"| R["unload 与 sweep<br/>返回 retained"]
+```
+
+Tool 与 Session 之间没有箭头：两者只经应用装配的桥接插件连接。
+
+### 租户来源
+
+| 路径 | 租户来源 |
+| --- | --- |
+| 采用点判定（`startRun`、`reload`） | 会话自己的租户，由命令的 `SessionAccess` 显式携带。Session 在自己的边界核对它。装配协调者按这个租户收集采用点事实 |
+| `freeze` | 提交 `startRun` 或 `reload` 的同一协调器以同一会话与同一 `SessionAccess` 调用，不另取租户。`freeze` 代表该会话的租户，不属于系统作用域例外 |
+| `ToolResidencyReader` | `references` 逐条返回每个引用会话的租户。桥接插件把它原样放进持有者引用的 `tenant` |
+
+三条路径都不按会话身份经会话目录反查租户。不同租户可以有同名会话，反查会把冻结或可访问性核对落到错误的租户（[同名会话反例](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6368233555)）。
+
+## 脚本编排的调用方式许可
+
+Tool Definition 的 `programmable` 决定该工具是否允许被 Agent 脚本组合或编排，只有显式 true 允许。默认与产品依据见[可编程调用许可](../../../.meta_harness/design/product/tool-execution/design.md#可编程调用许可)。它与当前动作授权、后台许可及常驻呈现分别判断。
+
+受信发起协调者固定调用方式和来源，Tool 在受理及实际启动前核对目标许可。脚本可调用集合的筛选不代替逐调用检查；通用入口、SDK、MCP 和包装工具不能抹去编排来源。直接模型调用或普通独立 SDK 消费不因未声明而被禁止。具体字段、拒绝及原调用收束归[Tool 规格](../../../packages/tool/tool-contract/SPEC.md#342-值定义和固定请求)，不由 Cordis 配置产生许可。
 
 ## 前后台与内部等待
 
@@ -55,15 +123,15 @@ flowchart TD
 
 转后台后还须交付最终执行收场，不能再次以转后台充当终局。完整参数解析失败时不执行原工具，返回具体失败；这与模型流中参数尚未到齐不同。
 
-工具结果含给消费者的内容及可选附件或卸载原文。过程帧给人观察，不能替代最终结果，帧发送失败也不单独使工具执行失败。执行账保存实际时长和资源用量，不直接塞进模型上下文。
+工具结果含给消费者的内容及可选附件或卸载原文。作者在 content 用多模态 ref 声明模型直接感知，在 attachments 留地址供 agent 按需另行读取；附件只投影为文本，不自动载入。Agent、Session、Context 保管引用，Model 仅在实际请求时加载选中的内容 ref。精确规则归 [P14](../../../packages/tool/tool-contract/SPEC.md#p14-附件引用与模型交付)。过程帧给人观察，不能替代最终结果，帧发送失败也不单独使工具执行失败。执行账保存实际时长和资源用量，不直接塞进模型上下文。
 
-会话路径先可靠保存结果及原消费位置，再解除原交付责任。工具全文没有现行到期清理规则，不能因压缩、Run 结束或归档使历史引用失效；模型 ACK 不自动成为工具 ACK。
+成员契约规定普通函数返回与直接 ToolResult 在 settle 时归一化。具名程序数据与展示内容使用同一结果身份；Code 消费前校验输出声明和真实值，不解析展示文本猜业务字段。自定义等待固定请求和响应 schema，无效响应提交不结束等待。精确形状与边界归成员 [P12](../../../packages/tool/tool-contract/SPEC.md#p12-等待-schema-与响应提交)及 [P13](../../../packages/tool/tool-contract/SPEC.md#p13-双返回形态与程序输出契约)，不据设计声明运行支持。
+
+会话路径在 Tool 已可靠保管结果的前提下，先保存内容或可恢复引用及原消费位置，或先完成处理并可靠保存必要完成事实，再凭对应证据解除原交付关系。工具全文没有现行到期清理规则，不能因压缩、Run 结束或归档使历史引用失效；模型 ACK 不自动成为工具 ACK。
 
 ### 不可用应答的分类边界
 
-同名替换件没有运行真实工具。它仍须记录本次尝试、不可用原因及实际发生的处理。是否将该应答归入 Tool Execution 和执行账，当前产品定义尚未闭合，后续规格须先明确统计与查询语义。
-
-无论采用哪种分类，都不能虚构真实工具耗时、资源消耗或副作用。本页不把“调用尝试与实际执行分表”之类的工程建议写成已接受规则。
+已知工具不可用的归类见产品[定义、已知能力与一次执行](../../../.meta_harness/design/product/tool-execution/design.md#定义已知能力与一次执行)。该结果进入执行账。真实工具没有运行。不能虚构真实工具的耗时、资源消耗或副作用。调用尝试和实际执行不分成两套账。
 
 ## 中断与失联
 
@@ -75,13 +143,13 @@ flowchart TD
 
 ## 独立调用
 
-程序化调用直接提供合法输入、环境需求、结果消费和控制责任，无须通过完整会话界面或 Agent Loop。独立入口同样支持查询、停止及允许的转后台，并保持定义与实现匹配。
+独立程序调用直接提供合法输入、环境需求、结果消费和控制责任，无须通过完整会话界面或 Agent Loop。独立入口同样支持查询、停止及允许的转后台，并保持定义与实现匹配。
 
 MCP 动作通过工具契约接入。远端刷新影响后续调用，断线保留最近合法清单的不可用解释，不为未发现过的动作伪造定义，也不自动重发已产生外部效果的请求。
 
 ## 依据
 
-工具执行与独立入口的当前产品责任候选见[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)，授权与人工等待的候选责任分别见[身份与授权](../../../.meta_harness/design/product/identity-and-authorization/README.md)及[人在回路](../../../.meta_harness/design/product/human-intervention/README.md)，持久承接的候选责任见[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)。这些 topic 仍为草案；本页既有承诺按实际接受范围执行。
+工具执行与独立入口的产品责任见[工具执行](../../../.meta_harness/design/product/tool-execution/README.md)。授权、人工等待和持久承接分别归[身份与授权](../../../.meta_harness/design/product/identity-and-authorization/README.md)、[人在回路](../../../.meta_harness/design/product/human-intervention/README.md)及[会话与工作](../../../.meta_harness/design/product/sessions-and-work/README.md)，按各自采用范围协作。
 
 ## 未决问题与待办事项
 
@@ -90,8 +158,21 @@ MCP 动作通过工具契约接入。远端刷新影响后续调用，断线保�
 <a id="tool-t01"></a>
 ### TOOL-T01 工具执行与原执行账契约承接
 
-本项为契约承接待办。工具受理、执行身份、前后台、原结果、内部等待、停止及执行账的现行精确公开契约尚须对账。不可用应答的归类保持本页未决范围，逻辑取消不证明物理执行或外部效果已撤回。
+本项为契约承接待办。工具受理、执行身份、前后台、原结果、内部等待、停止及执行账的现行精确公开契约尚须对账。不可用应答的归类见上文「不可用应答的分类边界」。逻辑取消不证明物理执行或外部效果已撤回。
 
 承接责任为工具执行公共契约、实际执行者、原记录及消费协调者。待办是定位独立入口和运行时消费者，验证原身份认回、参数冲突、可靠结果、内部 Ask 和后台工作，不以旧服务定义代替完整装配。
 
-[封存来源](../../../packages.0.0.1.legacy/core/tool-execution-runtime/SPEC.md)仅供核对原范围和消费者；旧接受记录、归档位置与已有测试不能授予冲突设计继续采用。实际限制、待设计输入及验证结果须由各自当前拥有者确认。
+工具运行契约由 [Tool SPEC](../../../packages/tool/tool-contract/SPEC.md) 和 [公开定义](../../../packages/tool/tool-contract/docs/public-api.md)维护。具体提供者说明实际限制，并完成适用的故障验证。
+
+
+<a id="342-成员协议与系统协作候选"></a>
+
+## 成员协议与系统协作
+
+本节说明 Tool 成员契约与系统的协作。ToolRuntime 是操作门面，独立 Tool 宿主驱动实例协程，实例目录只暴露观察句柄。持久调用、队列、等待、操作回执和未完任务由本域提交提供者保管，Agent 退出不撤这些责任。
+
+实际启动采用具名许可与失效共同排序。Tool 先保存原启动与名额，受信执行边界在当前身份、工作资格、调用方式、批决定和固定绑定成立时消费唯一许可。资格失效先成立则禁止发出，启动受理先成立则按在途控制；不承诺撤回已发远端效果。各状态拥有者须在共同围栏失效后才能确认新发起已被阻止，不能只靠异步通知维持此保证。
+
+Tool 侧完整 [操作协议](../../../packages/tool/tool-contract/SPEC.md#tool-操作协议)、[对象模型](../../../packages/tool/tool-contract/docs/object-model.md)及 [Cordis装配](../../../packages/tool/tool-cordis-contract/docs/cordis.md)拥有精确机制。环境准备/释放、等待答复、停止和检查点都使用原操作查询未知。原输出先保管后投影，过程先保存后展示，事实查询独立于活体目录。
+
+Code 是 Tool 执行者的一种组合。原子调用按真实目标队列和当前资格发起，父子关联与未完责任先持久保存，父程序终止不销毁子调用责任。具体 [组合协议](../../../packages/tool/tool-contract/SPEC.md#code-与-tool-的组合协议)不替语言和执行环境提供者选型，也不改变 Code 的产品阶段。

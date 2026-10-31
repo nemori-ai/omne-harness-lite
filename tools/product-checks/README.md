@@ -24,11 +24,20 @@ The CLI exits 1 on violations and prints their rule, source path and line. A suc
 
 | Built module          | Public surface                                                                                                                       |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `dist/rules/index.js` | `RULES`, individually exported rules and configured rule factories                                                                   |
+| `dist/rules/index.js` | `RULES`, `rulesForRoot(root)`, individually exported rules and configured rule factories                                             |
 | `dist/repository.js`  | `collectRepositorySources(root)` and `REPOSITORY_RULES`; collects repository paths and TypeScript-resolved configured module aliases |
 | `dist/cli.js`         | CLI used by the workspace's `lint:rules` command                                                                                     |
 
 `Rule`, `SourceFile`, `Violation`, `collectSources` and `runRules(files, rules)` come from `@omne-harness/repo-toolchain`.
+
+`rulesForRoot(root)` configures `no-testing-import` from manifests within that scan root.
+Test paths, exact declared testing entry files, and named members' direct `acceptance/` directories may import public testing entries.
+A member requires a parsed object manifest with a nonempty string `name`.
+Missing or invalid manifests grant no acceptance exemption.
+
+Product paths such as `src/acceptance/` and names such as `acceptance-other/` remain checked.
+The default `RULES` has no manifest facts and exempts only test paths.
+Other rules retain their own path classification.
 
 `SourceFile` contains a path and source text, plus optional `resolvedModules` supplied by the repository collector. Rules can inspect a supplied source batch without loading or executing product modules. Package rules usually expect paths relative to `packages/`; repository rules expect repository paths. The model credential rule also normalizes the corresponding package-root and app-root paths.
 

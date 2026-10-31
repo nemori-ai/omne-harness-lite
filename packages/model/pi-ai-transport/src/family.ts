@@ -1,0 +1,70 @@
+// The accepted pi family contribution interface. The shapes are copied verbatim from
+// packages/model/docs/architecture.md, section "pi 家族贡献的取得协议"; change them there first.
+import type { Outcome } from '@omne-harness/operation-result'
+import type { JsonValue } from '@omne-harness/json-text'
+import type { ContentReference } from '@omne-harness/content-block'
+import type {
+  Adoption,
+  Supplier,
+  FixedModelRequest,
+  ModelRequestRules,
+  ModelCountingBasis,
+  TransportFailure,
+  ModelFault,
+  MeterRepresentation,
+  MediaMeasurementFact,
+  ReplayDeclaration,
+} from '@omne-harness/model-contract'
+import type {
+  CalibratedInputMeter,
+  ModelToolPayloadAdapter,
+  TransportFact,
+  TransportDispatch,
+  ProviderDiagnostic,
+} from '@omne-harness/model-contract/provider'
+
+export type PiProtocolFrame =
+  | Readonly<{ kind: 'data'; value: JsonValue }>
+  | Readonly<{ kind: 'end-marker' }>
+export interface PiResponseDecoder {
+  accept(frame: PiProtocolFrame): Outcome<readonly TransportFact[], ModelFault>
+  end(): Outcome<readonly TransportFact[], ModelFault>
+}
+export type PiMaterializedMedia = Readonly<{
+  reference: ContentReference
+  mime: string
+  bytes: Uint8Array
+  measurement: MediaMeasurementFact
+}>
+export type PiFamilyBinding = Readonly<{
+  supplier: Supplier
+  adoption: Adoption
+  counting: ModelCountingBasis
+  rules: ModelRequestRules
+  meter: CalibratedInputMeter
+  replayFormat: string | null
+  tools: ModelToolPayloadAdapter<JsonValue>
+  encode(
+    input: Readonly<{
+      request: FixedModelRequest
+      media: readonly PiMaterializedMedia[]
+      declaration: ReplayDeclaration
+      resent: TransportDispatch['resent']
+    }>,
+  ): Outcome<
+    Readonly<{
+      body: JsonValue
+      representation: Extract<MeterRepresentation, { kind: 'materialized' }>
+      diagnostics: readonly ProviderDiagnostic[]
+    }>,
+    TransportFailure
+  >
+  createDecoder(): PiResponseDecoder
+  release(): Promise<void>
+}>
+export interface PiFamilyContributions {
+  acquire(
+    supplier: Supplier,
+    signal: AbortSignal,
+  ): Promise<Outcome<PiFamilyBinding, TransportFailure>>
+}

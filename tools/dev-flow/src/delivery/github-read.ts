@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
-import { array, InputError, parseCapture, record, text } from './protocol.ts'
-import type { CapturedIssue, DeliveryCapture, DeliveryConfig } from './protocol.ts'
+import { readCardAttributes, type CardAttributes } from './attributes.ts'
+import { array, InputError, milestoneOf, parseCapture, record, text } from './protocol.ts'
+import type { CapturedIssue, DeliveryCapture, DeliveryConfig, IssueIdentity } from './protocol.ts'
 
 /**
  * A `gh api` read that exited non-zero after GitHub answered. `gh api` writes the error
@@ -15,8 +16,67 @@ export class GhReadError extends Error {
     this.body = body
   }
 }
-export type GhRead = (argv: readonly string[], timeoutMs: number) => unknown
-export const runGhRead: GhRead = (argv, timeoutMs) => {
+/** The request headers of a REST call: the JSON media type and the adopted API version. */
+export const REST_HEADERS = [
+  '-H',
+  'Accept: application/vnd.github+json',
+  '-H',
+  'X-GitHub-Api-Version: 2026-03-10',
+] as const
+/**
+ * One REST Issue response read as a card: the response object, its body and its attributes.
+ * Refuses a pull request or an Issue other than `repository#number`.
+ */
+export function readIssueCard(
+  value: unknown,
+  repository: string,
+  number: number,
+): { issue: Record<string, unknown>; url: string; body: string; attributes: CardAttributes } {
+  const issue = record(value, 'Issue'),
+    url = `https://github.com/${repository}/issues/${number}`
+  if ('pull_request' in issue || issue.number !== number || issue.html_url !== url)
+    throw new InputError('Issue identity mismatch or pull request')
+  const body = issue.body === null ? '' : text(issue.body, 'Issue.body')
+  return {
+    issue,
+    url,
+    body,
+    attributes: readCardAttributes(body, {
+      url,
+      labels: array(issue.labels, 'Issue.labels').map(item =>
+        text(record(item, 'label').name, 'label.name'),
+      ),
+      ...milestoneOf(issue),
+    }),
+  }
+}
+/**
+ * Reads `repository#number` with one REST GET and returns the card with its Issue identity,
+ * the input `readTaskBinding` takes.
+ */
+export function fetchIssueCard(
+  repository: string,
+  number: number,
+  call: GhCommand,
+): ReturnType<typeof readIssueCard> & { identity: IssueIdentity } {
+  const card = readIssueCard(
+    call(
+      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/${number}`],
+      15_000,
+    ),
+    repository,
+    number,
+  )
+  return {
+    ...card,
+    identity: { repository, number, url: card.url, id: text(card.issue.node_id, 'Issue.node_id') },
+  }
+}
+/** Runs one `gh` command and returns its parsed JSON stdout. */
+export type GhCommand = (argv: readonly string[], timeoutMs: number) => unknown
+/** A `GhCommand` that its callers use only for GET requests. */
+export type GhRead = GhCommand
+export const runGhCommand: GhCommand = (argv, timeoutMs) => {
   let stdout: string
   try {
     stdout = execFileSync('gh', [...argv], {
@@ -31,6 +91,7 @@ export const runGhRead: GhRead = (argv, timeoutMs) => {
   }
   return JSON.parse(stdout)
 }
+export const runGhRead: GhRead = runGhCommand
 /** Only an ordinary non-zero exit with JSON on stdout carries a response body. */
 function responseError(error: unknown): GhReadError | undefined {
   if (!(error instanceof Error)) return undefined
@@ -189,6 +250,7 @@ export function collectDelivery(config: DeliveryConfig, read: GhRead = runGhRead
         blockedBy,
         parentIssue,
         stage: null,
+        ...milestoneOf(i),
       })
     } catch {
       issueComplete = false

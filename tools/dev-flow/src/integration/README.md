@@ -1,6 +1,12 @@
 # 使用分支集成工具
 
-本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。云端开工时，本工具派发 `delivery-facts` workflow，此外不写平台。
+本工具为任务工作树开工、读取状态与基线，并在同步目标分支后更新目标基线。它也为提升 PR 生成说明，见[提升 PR 的说明](#提升-pr-的说明)。四条主干的进入按[现行准入](../../../../docs/engineering/integration.md#现行准入)执行，由 `github-gate` 的流程发布。本工具不构造候选，也不验证或发布。写平台的只有下面三处，此外不写平台：
+
+- 云端开工时，本工具派发 `delivery-facts` workflow。
+- 本地开工新建 context 后，本工具尽力写看板的 Dispatched at、Line、Kind 与 Wave，见[看板字段](#看板字段)。
+- 集成节点用 `gate-cli.ts wait` 批准指定环境的待确认部署，见[等待 gate 并代为确认](#等待-gate-并代为确认)。
+
+准备工作树的命令除其中运行的 `start` 外只操作本机检出，见[准备任务工作树](#准备任务工作树)。
 
 从仓库根运行。行为承诺归 [SPEC](SPEC.md)，工程节奏归[多层分支规则](../../../../docs/engineering/integration.md)。policy 固定读当前 HEAD 提交中的 `docs/engineering/integration-policy.json`，交付配置按 policy 的 `deliveryConfig` 读取。命令存在不授予项目 ref 或平台写权限。
 
@@ -21,7 +27,23 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines 
 
 目标分支是 binding 的 route 所具名轨道在 registry 中登记的 `integration/<轨道>`，三种 route 相同。远端位置取 policy 的 `transport.location`。
 
-`baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，`scripts/check.sh` 在它为空时退回 `origin/main`。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
+`baselines` 输出检查用的基线。有 context 时输出固定的 `targetBase` 与本任务的审计范围；`--base` 给出的提交与 `targetBase` 不同时拒绝，错误码为 `stale`。没有 context 时 `targetBase` 是 `--base` 的值，它为空时不补缺省；缺省基线的统一规则在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`scripts/check.sh` 经测试运行器的 `baseline` 命令使用它，不再调用本命令。输出中的 `state` 来自 `@omne-harness/repo-toolchain` 的读格式：没有 context 时为 `pending`；有 context 时 0.0.4 输出 `adopted`，0.0.5 起输出 `bound`。消费钉住版本的成员只判断它是否为 `pending`，所以两个版本下的结果相同。
+
+## 包发布运行
+
+在仓库根运行：
+
+```sh
+pnpm run release-run --input /absolute/release.json --journal /absolute/task/release
+```
+
+此入口迁移 `release.sh`。包内同名 script 与构建后的 `omne-release-run` 提供同一行为。它启动 `gate-release.yml` 在 `github-gate` 上的一次包发布运行，与整波放行无关。
+
+输入须包含 `schemaVersion: 1`、`repo`、稳定 UUID `operationId`、`package`、完整 SHA `commit`、正整数 `issue`、布尔 `dryRun` 和完整 SHA `workflowHead`。`package` 只接受 `repo-toolchain` 或 `repo-config`。`workflowHead` 是本次已经核对的实际 `github-gate` 提交；派发前工具再次比对。
+
+默认只观察审批。需要批准时显式加 `--approve --note /absolute/note.txt`，且 GitHub 必须允许当前账户批准 `npm-release`。其他环境不批准。`--timeout SECONDS` 限制观察时间，默认 5400 秒；超时不取消远端运行。
+
+工具保存本次精确 run 与 attempt，成功退出要求该运行完成且 conclusion 为 success。恢复使用相同输入和日志目录。没有精确派发回执时保持 unknown，不根据最新 run 猜测归属，也不重复派发。见 [SPEC](SPEC.md#包发布运行命令)。
 
 ## 执行命令
 
@@ -36,7 +58,33 @@ node --experimental-strip-types tools/dev-flow/src/integration/cli.ts execute \
 
 ## 任务与执行权
 
-Issue 正文的 `当前执行与交接` 中放唯一 `json omne-integration-binding:v1` 围栏区块。形状归 [TaskBinding](../delivery/binding.ts)：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填。route 为 `{kind:"track",track:ID}`、`{kind:"global",track:ID,owners:[受影响拥有者]}` 或 `{kind:"cross-track",track:ID,owners:[受影响拥有者]}`。global 与 cross-track 必须具名一条顶层轨道，即 registry 中 `parent` 为 `main` 的轨道。completionTarget 为 track/main/stable。三种 route 的 completionTarget 都可以取 `track`，这时它指 route 中具名的那条轨道。conditions 只引用同卡条件 ID。
+Issue 正文的 `当前执行与交接` 中放唯一一个 binding 围栏区块：版本 1 为 `json omne-integration-binding:v1`，版本 2 为 `json omne-integration-binding:v2`。区块标记的版本必须等于区块内的 `schemaVersion`。正文同时有两种区块时拒绝。形状归 [TaskBinding](../delivery/binding.ts)。
+
+版本 1：schemaVersion=1；issue 包含 repository/id/number/url；revision 等于正文交付修订；attempt、responsible、branch、route、completionTarget、taskBase、writeScope、dispatch、conditions、authorization 都必填，其他字段拒绝。route 为 `{kind:"track",track:ID}`、`{kind:"global",track:ID,owners:[受影响拥有者]}` 或 `{kind:"cross-track",track:ID,owners:[受影响拥有者]}`。global 与 cross-track 必须具名一条顶层轨道，即 registry 中 `parent` 为 `main` 的轨道。completionTarget 为 track/main/stable。三种 route 的 completionTarget 都可以取 `track`，这时它指 route 中具名的那条轨道。conditions 只引用同卡条件 ID。
+
+版本 2：schemaVersion=2，含版本 1 的全部字段，另加四个必填字段，记录派发时的卡属性：
+
+| 字段             | 取值                                                                                  |
+| ---------------- | ------------------------------------------------------------------------------------- |
+| `line`           | 交付线 ID：小写字母开头，只含小写字母、数字与 `-`。线归属表中的线 ID 或 `integration` |
+| `nature`         | `design`、`contract`、`impl`、`integration` 或 `baseline`                             |
+| `contractChange` | `none`、`additive` 或 `breaking`                                                      |
+| `milestone`      | 派发时 Issue milestone 的标题。Issue 没有 milestone 时为 `null`                       |
+
+缺字段、取值不合格或有其他字段时拒绝。`line` 是否登记在线归属表中不由解析判断，由属性发现报告。属性的规则归[交付协议](../../../../docs/engineering/delivery.md#卡属性与合法组合)。已派发的 attempt 在交付前不改 binding 版本。
+
+`start` 用工作树中的 dev-flow 读 binding，工作树从 taskBase 开工。所以 binding 的版本由 taskBase 中的 dev-flow 决定：
+
+- taskBase 中的 dev-flow 能读版本 2 时，新 attempt 用版本 2。
+- 否则用版本 1。较早的 dev-flow 只读 `omne-integration-binding:v1` 区块，对版本 2 的卡报告 `Task binding is missing`，拒绝开工。
+
+调度者派发前在仓库中运行下面的命令。退出 0 表示 taskBase 能读版本 2，退出 1 表示只能用版本 1：
+
+```sh
+git grep -q 'omne-integration-binding:v2' <taskBase> -- tools/dev-flow/src/delivery/binding.ts
+```
+
+授权评论中的 `task`、context 中的 binding 与 Issue 正文用同一个解析。context 的 `schemaVersion` 仍为 1。
 
 taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必须以 responsible 加 `/` 开头。dispatch 是下述 dispatch 决定的真实评论 URL。用现有单调度者发放权限、原正文单写者维护绑定；worker 不争写摘要。
 
@@ -54,7 +102,7 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 
 `register` 与 `start` 同一准入。两者只读取目标任务闭包、授权卡完整评论和目标任务 Project 状态，不枚举仓库历史或全 Project items。闭包最多 32 个 Issue、8 个边层级，独立授权卡计入总数。必需页、条件解析或配置字段不完整时拒绝。Stage 已确认且完整读取后未设值时，`null` 合法。
 
-准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。route 的轨道必须在 registry 中为 active，并且通过上游链核对。上游链从这条轨道开始，沿 registry 的 `parent` 到 `main` 为止。链上的轨道必须满足下列条件：
+准入核对卡的 revision、attempt、分支、taskBase 是 HEAD 的祖先、写范围与开工条件，拒绝已关闭的卡。卡缺唯一的 `kind:` 标签、唯一的 `line:` 标签或里程碑时以 `refused` 拒绝，消息逐项列出缺项，不写 context。调度者补齐后重跑即可。route 的轨道必须在 registry 中为 active，并且通过上游链核对。上游链从这条轨道开始，沿 registry 的 `parent` 到 `main` 为止。链上的轨道必须满足下列条件：
 
 - 已在 registry 中登记，状态为 active 或 paused。
 - 分支存在于远端。
@@ -65,6 +113,142 @@ taskBase 是开工固定 SHA，同步目标分支不改变它。work branch 必�
 创建 context 前双读相关输入，变化则拒绝写入。新 context 的 `targetBase` 是开工时读到的远端目标分支提交，`operation` 为 `null`，不写 `anchor`。
 
 执行失败不创建部分 context。已有同绑定 context 时照原样返回；另一绑定须明确新树。离线 delivery capture 可作观察，不作派发资格。
+
+准入成功后、写 context 之前，`start` 与 `register` 判断本卡的属性发现。新建 context 时，有拒绝的发现就以 `refused` 拒绝开工，不写 context，不写看板，退出码为 2。消息逐项写代码、条款、说明与改法，例如：
+
+```text
+Attribute findings refuse a new context (1):
+- label-drift [nature:] nature: 标签应为 nature:impl，实为 无。 改法：运行 labels-cli.ts --issue <卡号> --apply，按正文同步标签。
+```
+
+拒绝全部属性代码，有两个例外只报告：
+
+- 条款为 `binding.milestone` 的 `attribute-binding-drift`。carry 之后 binding 保留派发时的里程碑，这是预期状态。
+- 版本 1 的 binding 的 `binding-v1`，只在正文的交付线为 `integration` 时只报告。线内的卡拒绝，改法是重新派发，生成版本 2 的 binding。
+
+已有同绑定的 context 时重跑不拒绝，全部发现只报告。派发命令用同一条拒绝规则。
+
+开工成功时，`start` 与 `register` 向标准错误报告本卡的属性发现，每条一行 JSON，带 `"severity":"report"`。例如：
+
+```jsonl
+{"severity":"report","issue":"https://github.com/owner/repo/issues/1","code":"attribute-binding-drift","clause":"binding.milestone","message":"binding 记录派发时的里程碑 M1，Issue 现为 M2。"}
+```
+
+报告不改变标准输出、context 与退出码。线归属表在工作树 HEAD 上缺失或不合格时，新建 context 被拒绝（`attribute-rules-unavailable`）；已有同绑定的 context 时只报告这一行。代码表见[交付观察说明](../delivery/README.md#属性发现)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I16。
+
+### 看板字段
+
+`start` 与 `register` 新建 context 后，在本卡的 Project 条目上写 `board.events.dispatched` 启用的字段：Dispatched at（开工当天在 `board.timeZone` 时区中的日期）、Line、Kind（取唯一的 `kind:` 标签）与 Wave（卡还没有 Wave 时，取包含开工日的迭代）。字段 ID、选项 ID 与 `board` 项都在本次开工已读的[交付配置](../../../../docs/engineering/github-delivery.json)中。
+
+- 交付配置没有 `board` 项、或 `board.events.dispatched` 为空时，不写也不报告。
+- `board` 项的形状不合格（例如 `timeZone` 不是字符串）时，整个交付配置不合格，`start` 拒绝开工，与交付配置的其他字段相同。
+- 已有同绑定的 context 时不写。Project 条目的 Dispatched at 已有值时也不覆盖，所以同一 attempt 在新工作树重跑 `start` 不改开工日期。Wave 已有值时同样不覆盖，同一张卡的新 attempt 不改 Wave。没有包含开工日的迭代时跳过，报告一行 `board-skipped`。
+- 写入失败、事件启用了不属于它的写入、缺字段 ID 或时区无效、或有一项被跳过时，向标准错误写报告行，代码为 `board-write-failed`、`board-skipped` 或 `board-unverified`。报告行的格式与属性发现相同。
+- 云端会话不发 GraphQL 请求，只报告一行 `board-skipped`。之后在本地会话用 `board-cli.ts dispatched` 补写。
+
+写入只是尽力而为。任何结果都不改变 `start` 的标准输出、context 与退出码。命令与其他事件见[交付观察说明](../delivery/README.md#看板字段写入)，精确条款见 [SPEC](SPEC.md#授权与开工) 的 I18。
+
+## 准备任务工作树
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare --issue <N> --tree <目录> [--evidence <目录>] [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts swap --issue <N> --old <旧目录> --tree <新目录> [--root <主检出>] [--remote <名称>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts prepare-closures --base <提交> --closure <名称>:<分支> [--closure <名称>:<分支> ...] [--build <turbo 过滤器> ...] [--root <主检出>] [--json]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections [--tree <目录>]
+node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts remove --tree <目录> [--root <主检出>] [--force]
+```
+
+`prepare` 与 `swap` 从卡上的 binding 取分支、派发评论、revision 与 attempt，不另给输入文件。`--root` 缺省为当前目录所属的主检出，`--remote` 缺省为 `origin`。失败时命令停在失败的一步，报告步骤名与最后几行输出，不删除已建的目录。怎样接续见[中途失败后怎样接续](#中途失败后怎样接续)。
+
+`prepare` 为一张已派发的卡建新工作树并在其中开工：
+
+1. 目录已存在时拒绝。
+2. 确定 pnpm 怎样起，见 [pnpm 怎样起](#pnpm-怎样起)。起不了时退出2，不建树。
+3. fetch binding 的分支。本地没有这个分支时，新工作树建本地分支并跟踪远端分支。本地分支落后于远端时，先快进到远端尖端。本地分支领先于远端或与远端分叉时拒绝。然后在这个分支上建工作树。
+4. 把 `--evidence` 目录复制进 `tmp/issue-<N>/`，再把 `start` 命令写进 `tmp/issue-<N>/start.json`。证据里旧 attempt 的 `start.json` 在这一步被替换。
+5. 用锁文件安装依赖：`pnpm install --frozen-lockfile --ignore-scripts`。
+6. 按 `projections` 的步骤重生成 agent 投影。
+7. 用新工作树自己的 dev-flow 运行 `start`。输出 context 与 `start` 写到标准错误的报告行。
+
+`prepare` 与 `swap` 不构建成员。运行需要 `dist` 的测试或检查之前，先构建受影响的成员。
+
+`swap` 在同一分支上换一棵树给新 attempt，不删除旧树。下列情况下命令拒绝，不改动旧树：
+
+- 旧树有未提交的已跟踪改动。
+- 旧树不在 binding 的分支上。
+- 旧树有远端分支没有的提交。命令不代为推送。
+- pnpm 起不了。
+
+然后命令把旧树的 `tmp/issue-<N>/`（不含 `agents-stage` 开头的目录）复制到系统临时目录，让旧树 `git checkout --detach` 释放分支，再按 `prepare` 从远端尖端建新树并恢复这份副本。副本留在系统临时目录，路径见输出的 `evidence` 字段。确认新树已恢复后，由操作者删除副本。
+
+旧树中 `tmp/issue-<N>/` 以外的未跟踪与被忽略路径原样保留，并报告在输出的 `warnings` 中。可重新生成的被忽略路径不逐条列出，每个类别一行计数，例如 `node_modules: 73 ignored paths, not copied; pnpm install makes them again`。名单是固定的：
+
+| 类别 | 路径 | 怎样重新生成 |
+| --- | --- | --- |
+| `node_modules` | 最后一段为 `node_modules` | `pnpm install` |
+| `dist` | 最后一段为 `dist` | 构建 |
+| `.turbo` | 最后一段为 `.turbo` | turbo 的缓存，构建时重建 |
+| `.venv` | 最后一段为 `.venv` | `uv` |
+| Python caches | 最后一段为 `__pycache__` 或 `.pytest_cache` | Python 与 pytest |
+| agent projections | `.meta_harness/` 下的 `.agents`、`.claude`、`.codex`、`.cursor` 及其下的路径 | `projections` |
+
+其余被忽略路径与全部未跟踪路径逐条列出。
+
+`prepare-closures` 在同一个基线上一次建出多棵闭包工作树。它不是卡的开工：不读 binding，不运行 `start`，不推送，不设上游。每个 `--closure <名称>:<分支>` 是一棵树，在 `<主检出>/.worktrees/<名称>`。`--closure` 与 `--build` 可以重复。命令按给定顺序逐棵处理，不并行安装：
+
+1. 把 `--base` 解析成 40 位提交号，再确定 pnpm 怎样起。两者任一失败时退出2，不建树。名称、分支为空、重复或不可用时同样退出2。
+2. 建树：目录与分支都不存在时，运行 `git worktree add -b <分支> <树> <基线>`，不设上游。分支已存在、目录不存在时，分支尖端等于基线才用它建树，否则该闭包为 `refused`。目录已存在时，它必须是登记在册、检出这个分支的工作树，且树的 HEAD 含基线（`git merge-base --is-ancestor <基线> HEAD`），否则该闭包为 `refused`。`refused` 发生在改动之前，不影响其他闭包。HEAD 已越过基线的树可以重用，`ready.json` 与报告里的 `base` 仍写请求的基线。
+3. 跳过键：基线、树中 `pnpm-lock.yaml` 的 SHA-256、HEAD 的 `.meta_harness/agents` 树、该目录未提交改动的 SHA-256，以及排序去重后的 `--build` 过滤器列表。未提交改动的摘要取 `git diff HEAD -- .meta_harness/agents` 的输出，加上该目录下每个未跟踪文件的路径与内容摘要；目录干净时是固定值。`<树>/tmp/closures/<名称>/ready.json` 记录了同一个键、各步成功、每个 `--build` 过滤器各有一条成功的 `build <过滤器>` 记录，且树根的 `node_modules` 还在时，该闭包为 `skipped`，不安装、不投影、不构建。其余情况，包括重跑时新加了 `--build`、改了 agent 源的内容、或 `node_modules` 被删，都在原树里整套重做第4步，状态为 `reused`（新建的树为 `created`）。重做之前先删掉旧的 `ready.json`，所以重做中途失败的树不会被旧记录当成就绪。
+4. 依次安装（`pnpm install --frozen-lockfile --ignore-scripts`）、按 [`projections`](#准备任务工作树) 重生成投影，再对每个 `--build` 运行 `pnpm turbo run build --filter=<过滤器>`。全部成功后写 `ready.json`：`base`、`branch`、`key`、`steps`（`name`、`ok`、`ms`）与 `completedAt`。
+
+某一步失败时，该闭包为 `failed`，命令停在这里：已建的树不删，后面的闭包不处理，输出里的 `resume` 是同一条命令，重跑即接续。没有失败也没有被拒的闭包时退出0。有闭包 `failed` 或 `refused` 时退出1。默认每棵树输出一行 `<名称> <状态> <树> <分支>`，后面缩进列出步骤与原因。`--json` 输出 `base`、`closures`（`name`、`tree`、`branch`、`base`、`status`、`steps`、`message`）、`ok` 与 `resume`。
+
+agent 源的未提交改动按内容进键：再次修改它，下一次运行就会重新投影，不必先提交。键只看 `.meta_harness/agents`；这个目录之外的改动不进键。清理仍用 `remove`。
+
+`remove` 删除一棵工作树。旧树有未提交的已跟踪改动时总是拒绝。不加 `--force` 时只列出删除会丢掉的未跟踪与被忽略路径，退出1，不删除。加 `--force` 时运行 `git worktree remove --force`，再核对目录确实不在磁盘上，只有这时输出 `"removed": true`。Windows 上 git 会留下 pnpm 建的目录联接与空目录，命令只删除链接本身与空目录，不进入链接，所以 pnpm store 与别的树不受影响。剩下的内容里有普通文件时命令不删，输出 `"removed": false`、原因与前几个文件，退出1。删除前按[工作约定](../../../../docs/engineering/workflow.md)确认清理条件与授权。
+
+`projections` 从本树的 `.meta_harness/agents` 重生成投影：编译到新的临时目录，按内容复制进 `.meta_harness/`，重建根软链接，去掉三份 Cursor 运行时文件的组写权限，最后运行 `pnpm run check:agents`。同步合并之后、准入之前一律运行它：候选自己没改 agent 源时，合并进来的轨道头也可能带别的卡的改动。需要 `uv` 与 `pnpm`。
+
+`projections` 起 `uv run --locked` 与 `pnpm run check:agents`（它自己也起 `uv run --locked`）时，从子进程的环境中去掉 `UV_DEFAULT_INDEX` 与 `UV_INDEX_URL`。锁文件已固定每个包的来源，调用者环境里的镜像索引只会让锁文件核对失败。
+
+按内容复制这一步，在 POSIX 上且 `PATH` 里有 `rsync` 时运行 `rsync -rlpc`。其他情况，包括 Windows，由 Node 实现同样的语义：创建目录，软链接按链接复制，内容相同的文件不重写，权限位随源（仅 POSIX），不删除目标里多出的文件。不直接把 `compile_agents.py` 输出到 `.meta_harness/`，因为它遇到内容不同的已有文件会拒绝覆盖，必须先编到新目录。
+
+### pnpm 怎样起
+
+`prepare` 的安装与 `projections` 的 `check:agents` 起 pnpm。其他平台运行 `pnpm`。Windows 上 Node 不经 shell 起不了 `pnpm.cmd`，所以命令按 `PATH` 顺序找第一个能起 pnpm 的目录：
+
+- 目录里有 `pnpm.exe`（独立安装的布局）时，直接起这个 `pnpm.exe`。
+- 目录里有 `pnpm.cmd`，旁边还有 `node_modules/pnpm/bin/pnpm.cjs`（npm 全局安装的布局）时，用当前 Node 运行这个 `pnpm.cjs`。
+
+旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。找不到能起 pnpm 的目录时，命令报错退出，不尝试其他位置。`prepare`、`swap` 与 `projections` 在改动任何东西之前先确定 pnpm 怎样起。
+
+### 中途失败后怎样接续
+
+`prepare` 建好工作树之后，或 `swap` 开始复制任务目录之后，某一步失败时，标准错误的 JSON 除 `code` 与 `message` 外还有三个字段：
+
+- `done`：已完成的步骤，按顺序。
+- `resume`：从失败的那一步接着做完的命令，按顺序。
+- `evidence`：系统临时目录里任务目录副本的路径。没有副本时为 `null`。
+
+按顺序运行 `resume` 中的命令即可接续，不用手工改 `start.json`，因为 `prepare` 在安装之前已把它写成新 attempt。`resume` 按失败的位置不同：
+
+- `swap` 让旧树分离之前失败时，旧树没有改动，`resume` 是同一条 `swap` 命令。
+- 旧树已分离、新工作树还没建好时，`resume` 是一条带 `--evidence <副本>` 的 `prepare` 命令。
+- 新工作树已建好时，`resume` 是剩下的安装、`projections` 与 `start`。复制证据或写 `start.json` 失败时，`resume` 先删除新树，再重跑 `prepare`。
+
+在这些时刻之前失败的命令没有改动工作树，改正原因后重跑同一条命令即可。`prepare` 这时可能已把落后的本地分支快进到远端尖端，重跑不受影响。
+
+其他错误的 `message` 写明出错的阶段、异常的类型与消息。从 GitHub 读卡这一阶段的错误只写阶段与类型，不写 GitHub API 的原始输出。
+
+## 等待 gate 并代为确认
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/gate-cli.ts wait --run <运行号> --note <说明文件> [--environments <名称,...>] [--interval <秒>] [--timeout <分钟>]
+```
+
+命令轮询一次 workflow 运行，缺省每 10 秒一次、最多 90 分钟。每一轮，命令把当前待确认、环境名在 `--environments` 中、且当前身份可以批准的部署用说明文件的内容一次批准；下一轮再批准那时仍待确认的部署，不因某个环境批准过就跳过。`--environments` 缺省为 `publish`。工具链变更闸门等其他审批环境须显式列出，例如 `--environments repo-toolchain-review,publish`。运行结束时输出结论：`success` 退出0，其他结论退出1。超时、读取失败或批准失败时退出2。
+
+说明去掉首尾空白后不能为空，最多 1024 个字符，这是 GitHub 保留的上限。超过时命令在发出任何请求之前退出2。详细说明写进卡上的评论，说明里给出评论链接。命令不判断当前身份是否获授权代为确认：只在该 admin 授权本次确认之后运行，说明中写明代为确认的人。
 
 ## 同步目标分支
 
@@ -107,12 +291,12 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 
 事实来源按环境变量选择：
 
-| 变量 | 取值 | 结果 |
-| --- | --- | --- |
-| `OMNE_DELIVERY_FACTS` | `workflow` 或 `direct` | 按取值选择，覆盖自动识别。供测试与排障使用 |
-| `OMNE_DELIVERY_FACTS` | 其他值，包括空串 | `input-error`，不读平台 |
-| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS` | 使用 workflow 事实 |
-| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取 |
+| 变量                      | 取值                                             | 结果                                       |
+| ------------------------- | ------------------------------------------------ | ------------------------------------------ |
+| `OMNE_DELIVERY_FACTS`     | `workflow` 或 `direct`                           | 按取值选择，覆盖自动识别。供测试与排障使用 |
+| `OMNE_DELIVERY_FACTS`     | 其他值，包括空串                                 | `input-error`，不读平台                    |
+| `CCR_AGENT_PROXY_ENABLED` | `1`，且没有设置 `OMNE_DELIVERY_FACTS`            | 使用 workflow 事实                         |
+| `CCR_AGENT_PROXY_ENABLED` | 其他值或未设置，且没有设置 `OMNE_DELIVERY_FACTS` | 直接读取                                   |
 
 使用 workflow 事实时：
 
@@ -127,6 +311,59 @@ Claude Code 云端会话的代理拦截 GraphQL、`orgs/…` 路径与 `environm
 - Stage 只取一次快照，云端无法检测两次采集之间的 Stage 变化。
 - workflow 读取之前对派发评论的编辑不检查，与本地相同。workflow 读取之后的编辑会让开工以 `unknown` 失败。
 
+## 提升 PR 的说明
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts ri-notes --track <轨道 ID> [--root PATH] [--format json|markdown]
+pnpm run ri-notes --track <轨道 ID>
+```
+
+命令读源轨道上游不包含的 first-parent 提交、它们的 unit 记录与 PR 正文，汇总各 PR 声明的「所含的卡」与「契约变化」。上游按起点标签与切换点确定，与 gate 相同。
+
+- 缺省把 JSON 写到标准输出，含逐提交的 unit 与 PR、汇总的卡、契约变化、发现与 Markdown。
+- `--format markdown` 只把两节写到标准输出，供贴进提升 PR。发现逐条以 JSON 行写到标准错误，最后一行是汇总。
+- `ri-notes --help` 输出用法。
+
+命令只读，不进入 `pnpm run check`。退出码如下：
+
+- 有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1。先改 PR 的「契约变化」或所含卡的申报，再提出提升 PR。
+- 其他发现只报告，退出 0。`contractCheck` 为 `unavailable` 时也只报告。
+- 远端 Git 读不到、`gh` 不能运行或 `gh` 的错误响应没有 JSON 正文（例如未认证）时，命令失败并退出 2。
+
+退出 1 时输出不变：两节照常写到标准输出。确认者在 gate 说明里贴这次运行的退出码与标准错误最后一行的汇总，见[进轨道 PR 的说明](../../../../docs/engineering/integration.md#进轨道-pr-的说明)。
+
+贴进 PR 之前，先处理发现：
+
+- `pr-section-missing`、`card-inferred`、`card-unresolved`：PR 没有声明卡。推测的卡的条件写「待确认」，按卡的实际条件改写。推测不出的卡手工补行。
+- `unit-missing`：核对下限之后的提交没有 unit。gate 会拦住这次提升，按[现行准入](../../../../docs/engineering/integration.md#现行准入)闭合缺口。
+- `unit-invalid`、`unit-target-mismatch`：unit 记录不合格或不属于这条轨道。下限之前的提交也报告。
+- `lower-bound-unknown`、`lower-bound-not-ancestor`、`parent-registry-drift`：轨道的核对下限或上游登记有问题。
+- `card-other-line`、`card-line-unknown`：卡的交付线不属于这条轨道，或卡没有登记交付线。
+- `contracts-unknown`：有提交的契约变化未知，「契约变化」有一行 `- 待确认：…`。JSON 的 `contractGaps` 列出这些提交与原因。逐个核对后改写本节。原样贴进 PR 时，上一层的 `ri-notes` 仍把这个 PR 计为未知。
+- 其他 `contract-*` 与 `cards-*`：两节的行格式、路径或级别有问题。
+
+命令用 dev-flow 依赖里钉住的 `omne-contract-api --diff <合并点> --json` 核对「契约变化」。这个命令拿合并点上的契约 API 快照与工作树的快照比较，还读工作树的配置、线归属表、成员的 `package.json`、tsconfig 与已安装的类型。所以只在下列条件都成立时运行：
+
+- 检出的 `HEAD` 等于轨道头。
+- 工作树没有未提交改动或未跟踪文件。被 `.gitignore` 忽略的文件不算。
+
+核对完成时，JSON 的 `contractCheck.kind` 为 `checked`，快照差异与声明不符的成员各报一条 `contract-diff-mismatch`。核对没有完成时，`contractCheck.kind` 为 `unavailable`，`reason` 写明原因：HEAD 不对、工作树有改动、Git 读取失败、找不到 `omne-contract-api`、超时、进程出错（附错误码）、退出码与标准错误、输出解析失败、输出的基线不是合并点，或快照差异不可得的成员。成员在合并点或工作树上没有快照、快照读不出时，整个核对为 `unavailable`，不把这些成员当作没有变化。`--format markdown` 模式的 `contractCheck` 在标准错误的汇总行里。超时取 policy 的 `timeouts.networkMs`。全部发现代码与精确条款见 [SPEC](SPEC.md#提升-pr-的说明) 的 I17。
+
+## 契约快照核对
+
+```sh
+node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check [--root PATH]
+```
+
+`pnpm run check` 在构建之后每次都运行它。命令运行钉住的 `omne-contract-api --check --json`，拿成员 dist 现场生成的快照与快照文件比较：
+
+- 成员为 `differs`、`unreadable`、`missing` 或 `invalid` 时退出 1，检查失败。标准错误逐个写成员、状态与改法。公开面的改动是本卡要做的时，运行 `pnpm run contract:api --write`，核对快照改动后提交。不是要做的改动时，改回声明。
+- 没有 dist 的成员（`unbuilt`）只报告。影响面计划没有选中的成员不构建；本卡改了成员的快照或源码时，影响面会选中它。
+- 报 `differs` 时先重新构建这个成员再核对：长期使用的工作树合并了同步之后，dist 可能早于合并进来的快照。仍不一致时才运行 `--write`。
+- 找不到 `omne-contract-api`、运行失败或输出不合格时退出 2，检查也失败。
+
+标准输出是 JSON 报告，标准错误最后一行是汇总。精确条款见 [SPEC](SPEC.md#契约快照核对) 的 I22。
+
 ## 持续验证
 
 在 `tools/dev-flow` 下运行：
@@ -136,6 +373,6 @@ pnpm exec vitest run tests/integration-*.spec.ts
 pnpm run typecheck
 ```
 
-测试文件为 `integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-sync`、`integration-transport` 与 `integration-upstream` 八个 `.spec.ts`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
+测试文件为 `integration-attributes`、`integration-board`、`integration-boundaries`、`integration-cloud`、`integration-context`、`integration-delivery-facts`、`integration-engine`、`integration-contract-check`、`integration-contract-diff`、`integration-ri-notes`、`integration-ri-source`、`integration-sync`、`integration-transport`、`integration-upstream`、`integration-worktree`、`integration-gate` 与 `integration-dispatch` 十七个 `.spec.ts`。`integration-worktree` 用记录步骤的替身覆盖 `prepare`、`swap`、`projections`、`remove` 的步骤顺序与拒绝，用真实建出的目录联接覆盖 `remove` 对残留的处理，并用注入的平台与 `PATH` 覆盖 Windows 的 pnpm 启动、没有 `rsync` 时的 Node 复制。`integration-gate` 用按轮次应答的 GitHub 替身覆盖 `gate-cli wait` 的环境过滤、每轮批准、说明长度与超时。`integration-dispatch` 用派发命令写出的评论驱动一次真实 `start`。`integration-contract-diff` 与 `integration-contract-check` 在临时真实 Git 检出里运行安装的 `omne-contract-api`。它们用临时真实 Git（含 bare 远端）和受限的 GitHub 响应。`integration-delivery-facts` 用注入的时钟、睡眠与 nonce 驱动云端事实的等待与核对。`integration-cloud` 用模拟云端代理的 `gh` 驱动完整的云端开工。真实仓库检查、fixture 检查、平台部署及宿主加载分别报告，不能互相代替。
 
 网络读取使用 policy 的 `timeouts.networkMs`，`timeouts` 不接受其他字段。fetch 仅在本地缺对象时执行。远端读取失败或超时为 `unknown`。

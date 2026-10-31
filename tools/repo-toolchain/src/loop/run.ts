@@ -1,13 +1,18 @@
 // 回路状态的一次运行：只读源码与 git，回答「整洁的各项指标各在哪条带上、这次变更里有哪些红项要解释、哪些成员超了预算」。
 // 除硬线外一切只报告：结果码 1 只在依赖违规或环、给了基线且验收锁被破、严格模式下开着的传感器没数据时。
 // 命令行外壳在 cli.ts。
-import { auditRanges, baselines } from '../core/task-context.ts'
+import { subjectIsRunner } from '../core/subject.ts'
+import { baselines } from '../core/task-context.ts'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
-import { auditHistory, readAcceptanceLockConfig } from '../acceptance/lock.ts'
+import {
+  auditHistory,
+  readAcceptanceLockConfig,
+  render as renderAcceptanceLock,
+} from '../acceptance/lock.ts'
 import { readMetricsConfig, type MetricsConfig } from '../metrics/config.ts'
 import { changedFiles, changedLines, coordinates, git, type Coordinates } from '../core/git.ts'
-import { memberOf, revisionGraph, workingGraph } from '../deps/graph.ts'
+import { memberOf, revisionGraph, workingGraph, type DependencyGraph } from '../deps/graph.ts'
 import { buildReport, isMeasuredSource, type Report } from '../metrics/report.ts'
 import { baseTextsOf, collectMemberSources } from '../metrics/sources.ts'
 import { isTestPath, type SourceFile } from '../core/rule.ts'
@@ -60,7 +65,12 @@ import {
 
 import type { AssemblyObservations, AssemblyDelta } from './sensors/assembly.ts'
 import { readArchitectureSensors } from './sensors/conformance.ts'
-import type { ConstraintChange } from '../arch/conformance-model.ts'
+import type {
+  ArchitectureGroupCycleException,
+  ConstraintChange,
+} from '../arch/conformance-model.ts'
+import { readRunnerConstraints } from '../arch/constraints.ts'
+import { judgeGroupCycles, runnerGroupCycleExceptions } from '../arch/group-cycles.ts'
 
 const OFF = '配置里关了'
 
@@ -113,16 +123,17 @@ export function changeSince(root: string, mergeBase: string): Change {
   return { mergeBase, paths, baseTexts: baseTextsOf(root, mergeBase, paths) }
 }
 
-/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。 */
+/** 度量报告（不跑覆盖率）；给了改动就标出变更的函数与导入。`graph` 是工作树的依赖图，调用方可以与别的传感器共用。 */
 export function measuredReport(
   root: string,
   files: readonly SourceFile[],
   metrics: MetricsConfig,
   change: Change | undefined,
+  graph: DependencyGraph = workingGraph(root),
 ): Report {
   return buildReport({
     files,
-    graph: workingGraph(root),
+    graph,
     thresholds: metrics.thresholds,
     bands: metrics.bands,
     ...(change === undefined
@@ -185,6 +196,7 @@ async function readSensors(
   config: LoopConfig,
   files: readonly SourceFile[],
   report: Report,
+  graph: DependencyGraph,
   change: Change | undefined,
   acceptanceAt: AcceptanceLocation,
 ): Promise<Sensors> {
@@ -194,6 +206,7 @@ async function readSensors(
     root,
     sensors.architecture,
     change?.mergeBase,
+    graph,
   )
   return {
     conformance,
@@ -472,32 +485,61 @@ function baselineOf(
 /**
  * 依赖违规与环：dependency-cruiser 的规则加成员、组间的环，与 `pnpm run metrics`、`lint:deps` 同一张图。
  * 无法解析的导入不算硬线：它由 `lint:deps` 门禁与类型检查拦，没装依赖的树里外部包也会落进这一类。
+ * 组环与 `lint:deps` 一样按 runner 的具名例外判：放行的组环只列在 `exceptedCycles`，没命中的例外算进环。
  */
-export function directionLines(report: Report): Pick<HardLines, 'direction' | 'cycles'> {
-  const findings = report.findings.filter(finding => finding.rule !== 'no-unresolvable')
+export function directionLines(
+  report: Pick<Report, 'findings'>,
+  exceptions: LoopGroupCycleExceptions,
+): Pick<HardLines, 'direction' | 'cycles' | 'exceptedCycles'> {
+  const judged = judgeGroupCycles(
+    report.findings.filter(finding => finding.rule !== 'no-unresolvable'),
+    exceptions.exceptions,
+    exceptions.judgeUnused,
+  )
   return {
-    cycles: findings.filter(finding => finding.kind.endsWith('cycle')),
-    direction: findings.filter(finding => !finding.kind.endsWith('cycle')),
+    cycles: [
+      ...judged.findings.filter(finding => finding.kind.endsWith('cycle')),
+      ...judged.unused,
+    ],
+    exceptedCycles: judged.excepted,
+    direction: judged.findings.filter(finding => !finding.kind.endsWith('cycle')),
+  }
+}
+
+/** 回路读的组环例外，与是否判没用上的例外。 */
+export interface LoopGroupCycleExceptions {
+  readonly exceptions: readonly ArchitectureGroupCycleException[]
+  readonly judgeUnused: boolean
+}
+
+/**
+ * 回路读的组环例外：与 `lint:deps` 同一份 runner `constraints.json`；文件坏了照常抛错，不当成没有例外。
+ * 被检树 `root` 不是 runner 自己时不判没用上的例外，与 `lint:deps` 同一个判断（`subjectIsRunner`）。
+ */
+export function loopGroupCycleExceptions(root: string): LoopGroupCycleExceptions {
+  return {
+    exceptions: runnerGroupCycleExceptions(readRunnerConstraints()),
+    judgeUnused: subjectIsRunner(root),
   }
 }
 
 function hardLinesOf(
   root: string,
-  report: Report,
+  dependencyLines: ReturnType<typeof directionLines>,
   base: string | undefined,
   sensors: SensorLine,
+  history: ReturnType<typeof auditHistory>,
 ): HardLines {
-  const history = auditHistory(root, base, readAcceptanceLockConfig())
   const bound = baselines(root, base).state === 'bound'
   const range = (judge: (base: string) => readonly string[]): RangeLine =>
     base === undefined
       ? { status: 'unjudged', reason: '没给基线' }
       : { status: 'judged', violations: judge(base) }
   return {
-    ...directionLines(report),
+    ...dependencyLines,
     acceptanceLock: range(() =>
       history.flatMap(item =>
-        item.acceptance.violations.map(message =>
+        item.acceptance.unresolvedViolations.map(message =>
           bound ? `${item.label} ${item.base}..${item.head}: ${message}` : message,
         ),
       ),
@@ -539,8 +581,11 @@ export async function runLoopStatus(
     options.out ?? join(home, 'status', `${at.shortHead}${at.dirty ? '-dirty' : ''}`),
   )
 
+  // 先读 runner 的组环例外：文件坏了直接按工具错误停下，不先量一遍。
+  const groupCycleExceptions = loopGroupCycleExceptions(root)
   const files = collectMemberSources(root)
-  const audits = auditRanges(root, options.base)
+  const acceptanceConfig = readAcceptanceLockConfig()
+  const audits = auditHistory(root, options.base, acceptanceConfig)
   const scope: SensorScope =
     scopeKind === 'all'
       ? { kind: 'all' }
@@ -553,8 +598,9 @@ export async function runLoopStatus(
           ]),
         }
   const change = at.base === undefined ? undefined : changeSince(root, at.base.mergeBase)
-  const report = measuredReport(root, files, metrics, change)
-  const sensors = await readSensors(root, config, files, report, change, {
+  const graph = workingGraph(root)
+  const report = measuredReport(root, files, metrics, change, graph)
+  const sensors = await readSensors(root, config, files, report, graph, change, {
     root,
     mainRoot: at.mainRoot,
     shortHead: at.shortHead,
@@ -587,11 +633,12 @@ export async function runLoopStatus(
   const overBudget = writeProposals(budgets, report, sensors, config, proposalDir, at)
   const hardLines = hardLinesOf(
     root,
-    report,
+    directionLines(report, groupCycleExceptions),
     options.base,
     options.strict
       ? judgeSensors(sensors, config, scope)
       : { status: 'unjudged', reason: '只在严格模式（STRICT=1）下判' },
+    audits,
   )
   const catalogue = readCatalogue(
     root,
@@ -632,7 +679,10 @@ export async function runLoopStatus(
     })
 
   const notes = [
-    ...audits.map(range => `审计：${range.label} ${range.base}..${range.head}`),
+    ...audits.flatMap(range => [
+      `审计：${range.label} ${range.base}..${range.head}`,
+      ...renderAcceptanceLock(range.acceptance, acceptanceConfig),
+    ]),
     `趋势：${trendPath}；上一次的带位${previous === undefined ? '：没有更早的快照' : `取自 ${previous.commit.slice(0, 9)}`}；` +
       (decision.write ? '已写入这个提交的快照' : decision.reason) +
       (trend.badLines.length === 0

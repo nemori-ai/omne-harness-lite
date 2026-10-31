@@ -2,65 +2,37 @@
 set -euo pipefail
 
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
-main() {
-if (( $# )); then
-    echo "Usage: $0 (optional BASELINE and FULL=1 environment variables)" >&2
+usage() {
+    echo "Usage: $0 [--admission] [--keep-going] [--resume-from <H1>] (optional BASELINE and FULL=1 environment variables)" >&2
     exit 2
-fi
+}
+main() {
+args=("$@")
+for (( i = 0; i < ${#args[@]}; i++ )); do
+    case "${args[i]}" in
+        --admission|--keep-going) ;;
+        --resume-from)
+            # 带一个值：接续的那个头。值缺失或为空就是用法错误，不交给正文去猜。
+            (( i + 1 < ${#args[@]} )) && [[ -n "${args[i+1]}" ]] || usage
+            i=$(( i + 1 ))
+            ;;
+        *) usage ;;
+    esac
+done
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 cd -- "$repo_root"
 
 # 整套检查占一个运行名额：同一台机器上别的全量检查在跑时排队，而不是一起把 CPU 压满。
+# 名额脚本用 Node 起命令，Windows 上起不了 shell 脚本本身，所以显式经 bash 再进来。
 if [[ -z "${OMNE_TEST_SLOT_HELD:-}" ]]; then
-    exec ./scripts/with-test-slot.sh ./scripts/check.sh
+    exec ./scripts/with-test-slot.sh bash ./scripts/check.sh "$@"
 fi
 
-# 基线取 BASELINE；没给就用 origin/main，本地没有这个引用就用 main。影响面与回路状态共用它。
-baseline="$(node --experimental-strip-types tools/dev-flow/src/integration/cli.ts baselines ${BASELINE:+--base "$BASELINE"} | node -e 'let s="";process.stdin.on("data",x=>s+=x).on("end",()=>process.stdout.write(JSON.parse(s).targetBase??""))')"
-if [[ -z "$baseline" ]]; then
-    baseline=main
-    if git rev-parse --verify --quiet origin/main >/dev/null; then
-        baseline=origin/main
-    fi
-fi
-export BASELINE="$baseline"
-
-# 先算影响面：基线以来改了什么、每一步跑还是跳、跑哪些成员、为什么（规则在 tools/test-runner/test-runs.config.json）。
-# FULL=1 给全量计划；算不出（基线不存在、取不到改动、规则点名了不存在的成员）就在这里失败，不改判全量。
-# 合并后没有自动补跑：负责人不定时让一个会话手动跑一次 FULL=1 pnpm run check。
-plan_dir=tmp/check-plan
-rm -rf "$plan_dir"
-test_runs=(node --experimental-strip-types tools/test-runner/src/testing/cli.ts)
-"${test_runs[@]}" plan --base "$baseline" --json "$plan_dir/plan.json"
-step() {
-    "${test_runs[@]}" step "$1" --plan "$plan_dir/plan.json"
-}
-
-# 常驻：每次都跑。
-pnpm --silent run check:agents
-pnpm --silent run check:docs
-pnpm --silent run check:design
-# 按计划：Python 工具测试。
-step python
-pnpm run format:check
-pnpm run test:format
-# 按计划：构建（被选中的成员及其依赖，加上常驻检查要的成员）、类型检查、成员测试（快层再慢层）。
-step build
-# 常驻：成员用 TypeScript 7 构建，dist 里的声明要能被 TypeScript 6 读；读的是磁盘上现有的 dist。
-pnpm run check:declarations
-step typecheck
-step test
-# 常驻：结构规则、验收的覆盖声明与提交署名；它导入的成员已在上面构建。
-pnpm run lint:rules
-# 常驻：oxlint 的正确性规则与 dependency-cruiser 的环和 legacy 规则；dev tools 违反即失败，packages/ 与 apps/ 只报告。
-pnpm run lint:oxlint
-pnpm run lint:deps
-# 按计划：可执行验收，驱动上面构建出来的 dist/；计划里没有带验收的成员时为当前提交记一份「跳过」的账本。
-step acceptance
-
-# 它只读源码、git 与验收的耗时记录，放在最后是让前面的失败先报。产物写进被 git 忽略的 tmp/，回路目录里什么都不写。
-rm -rf tmp/loop-status-check
-pnpm --silent run loop:status --strict --base "$baseline" --out tmp/loop-status-check
+# 正文在测试运行器的 check 命令里：取基线、算计划，再按步骤图跑全部检查（表在 tools/test-runner/src/testing/check-steps.ts：
+# 无依赖的步骤同时跑，构建之后才跑类型检查、成员测试、验收与读 dist 的检查，回路状态最后；一步失败其余终止）。
+# --admission 或 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试不读缓存，并写准入日志与运行记录。--keep-going 失败后继续跑其余步骤。
+# --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受），规则见 docs/engineering/integration.md「增量准入」。
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check "$@"
 }
 omne_repository_command main "$@"

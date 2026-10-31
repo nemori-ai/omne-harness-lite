@@ -3,6 +3,8 @@
 // 交回时拿它与当前工作树比，并把这段范围里碰过验收文件的提交逐个列出、按来源 trailer 判断是不是验收的拥有者改的。
 // 谁算拥有者、哪个目录算验收，只在仓库根 `repo-toolchain.config.json` 的 `acceptanceLock` 一节里定一次。
 import { execFileSync } from 'node:child_process'
+import { inspectHistoricalApproval } from './historical-approvals.ts'
+import type { HistoricalApproval } from './historical-approvals.data.ts'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { repositoryEnv } from '../core/git-environment.ts'
@@ -60,12 +62,17 @@ export function isAcceptancePath(path: string, config: AcceptanceLockConfig): bo
 export const PLACEHOLDER_MARKER = '<!-- documentation:placeholder -->'
 const ENTRY_NAMES = new Set(['README.md', 'index.md'])
 
+/** 只有 README.md、index.md 可能是占位；别的验收文件判断前不必读内容。 */
+function isEntryName(path: string): boolean {
+  return ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1))
+}
+
 /**
  * 纯函数：这个验收文件在这次变化里是否只是模板占位。`content` 取变化后的内容，删除时取变化前的内容；
  * 读不到内容（undefined）不算占位，照常计入。
  */
 export function isPlaceholderEntry(path: string, content: string | undefined): boolean {
-  if (!ENTRY_NAMES.has(path.slice(path.lastIndexOf('/') + 1)) || content === undefined) return false
+  if (!isEntryName(path) || content === undefined) return false
   return content.split('\n').some(line => line.trim() === PLACEHOLDER_MARKER)
 }
 
@@ -103,7 +110,10 @@ export interface LockReport {
   readonly commits: readonly TouchingCommit[]
   /** 工作树里还没提交的验收改动：说不清是谁改的。 */
   readonly uncommitted: readonly string[]
+  /** Original findings, including precisely approved historical changes. */
   readonly violations: readonly string[]
+  readonly approvedExceptions: readonly HistoricalApproval[]
+  readonly unresolvedViolations: readonly string[]
 }
 
 export interface CommitTouch {
@@ -159,9 +169,51 @@ function lines(text: string): string[] {
 function contentAt(root: string, revision: string, path: string): string | undefined {
   try {
     return git(root, ['show', `${revision}:${path}`])
-  } catch {
-    return undefined
+  } catch (error) {
+    // A missing path is expected for additions/deletions; a failed read of an existing path is not.
+    if (git(root, ['ls-tree', revision, '--', path]) === '') return undefined
+    throw error
   }
+}
+
+/**
+ * 一批 `<版本>:<路径>` 的内容，一次 `git cat-file --batch` 读完，与逐个 `contentAt` 相同：不存在的为 undefined，
+ * 读出的去掉末尾空白（同 `git()`；`git show <版本>:<路径>` 给文件的也是原始内容）。不是文件的对象按工具错误报出。
+ */
+function contentsAt(root: string, specs: readonly string[]): Map<string, string | undefined> {
+  const found = new Map<string, string | undefined>()
+  const unique = [...new Set(specs)]
+  if (unique.length === 0) return found
+  const output = execFileSync('git', ['cat-file', '--batch'], {
+    env: repositoryEnv(process.env),
+    cwd: root,
+    input: unique.map(spec => `${spec}\n`).join(''),
+    maxBuffer: 256 * 1024 * 1024,
+    stdio: ['pipe', 'pipe', 'pipe'],
+  })
+  let offset = 0
+  for (const spec of unique) {
+    const end = output.indexOf(0x0a, offset)
+    if (end < 0) throw new Error(`git cat-file --batch 的输出在 ${spec} 处中断`)
+    const header = output.subarray(offset, end).toString('utf8')
+    offset = end + 1
+    if (header === `${spec} missing`) {
+      found.set(spec, undefined)
+      continue
+    }
+    const object = /^[0-9a-f]+ blob (\d+)$/u.exec(header)
+    if (object === null) throw new Error(`读 ${spec} 时认不出的 git cat-file 输出：${header}`)
+    const size = Number(object[1])
+    found.set(
+      spec,
+      output
+        .subarray(offset, offset + size)
+        .toString('utf8')
+        .trimEnd(),
+    )
+    offset += size + 1
+  }
+  return found
 }
 
 function worktreeContent(root: string, path: string): string | undefined {
@@ -222,6 +274,45 @@ function uncommittedPaths(root: string, config: AcceptanceLockConfig): string[] 
     .sort()
 }
 
+const COMMIT_MARK = '\u001e'
+
+/**
+ * 范围里每个提交改到的路径，一次 `git log` 读完（逐个提交调 `diff-tree` 在 Windows 上一个提交要二三十毫秒）。
+ * 与逐个调 `git diff-tree --name-only --no-renames -r <-m|--cc> <提交>` 列出的路径相同：
+ * `-m` 让合并提交相对每个父提交各列一次（`log.diffMerges=separate` 钉住 `-m` 的含义，免得用户配置把它改成只比第一父），
+ * 同一提交的几段在这里合并；`--cc` 只列与每个父提交都不同的路径。`log.showRoot=false` 让根提交像 `diff-tree`
+ * 不加 `--root` 时那样不列路径；`--no-show-signature` 不让签名校验的输出混进来。
+ */
+export function namesByCommit(
+  root: string,
+  range: string,
+  integration: boolean,
+): Map<string, Set<string>> {
+  const output = git(root, [
+    '-c',
+    'log.showRoot=false',
+    '-c',
+    'log.diffMerges=separate',
+    'log',
+    '--no-show-signature',
+    `--format=${COMMIT_MARK}%H`,
+    '--name-only',
+    '--no-renames',
+    '-r',
+    ...(integration ? ['--cc'] : ['-m']),
+    range,
+  ])
+  const names = new Map<string, Set<string>>()
+  for (const block of output.split(COMMIT_MARK)) {
+    const [sha, ...paths] = block.split('\n')
+    if (sha === undefined || sha === '') continue
+    const seen = names.get(sha) ?? new Set<string>()
+    for (const path of paths) if (path !== '') seen.add(path)
+    names.set(sha, seen)
+  }
+  return names
+}
+
 function touchesSince(
   root: string,
   mergeBase: string,
@@ -229,31 +320,35 @@ function touchesSince(
   head = 'HEAD',
   integration = false,
 ): CommitTouch[] {
-  const touches: CommitTouch[] = []
-  for (const record of readCommits(root, `${mergeBase}..${head}`)) {
-    // `-m` 让合并提交相对每个父提交各列一次，路径去重后即「这个提交带进来的验收改动」。
-    const names = git(root, [
-      'diff-tree',
-      '--no-commit-id',
-      '--name-only',
-      '--no-renames',
-      '-r',
-      ...(integration ? ['--cc'] : ['-m']),
-      record.sha,
-    ])
-    const files = [...new Set(lines(names))]
-      .filter(path => isAcceptancePath(path, config))
-      .filter(
-        path =>
-          !isPlaceholderEntry(
-            path,
-            contentAt(root, record.sha, path) ?? contentAt(root, `${record.sha}^`, path),
-          ),
-      )
+  const range = `${mergeBase}..${head}`
+  const names = namesByCommit(root, range, integration)
+  // 合并提交相对每个父提交的路径已去重，即「这个提交带进来的验收改动」。
+  const touched = readCommits(root, range).map(record => ({
+    record,
+    files: [...(names.get(record.sha) ?? [])].filter(path => isAcceptancePath(path, config)),
+  }))
+  // 占位只看入口文件：变化后的内容，删掉的取父提交里的。两批各一次 git 调用读完。
+  const entries = touched.flatMap(({ record, files }) =>
+    files.filter(isEntryName).map(path => ({ sha: record.sha, path })),
+  )
+  const after = contentsAt(
+    root,
+    entries.map(({ sha, path }) => `${sha}:${path}`),
+  )
+  const before = contentsAt(
+    root,
+    entries
+      .filter(({ sha, path }) => after.get(`${sha}:${path}`) === undefined)
+      .map(({ sha, path }) => `${sha}^:${path}`),
+  )
+  const content = (sha: string, path: string) =>
+    after.get(`${sha}:${path}`) ?? before.get(`${sha}^:${path}`)
+  return touched.flatMap(({ record, files }) => {
+    const kept = files
+      .filter(path => !isEntryName(path) || !isPlaceholderEntry(path, content(record.sha, path)))
       .sort()
-    if (files.length > 0) touches.push({ record, files })
-  }
-  return touches
+    return kept.length > 0 ? [{ record, files: kept }] : []
+  })
 }
 
 /** 读 Git：基线到当前工作树之间，验收文件发生了什么、谁改的。 */
@@ -266,12 +361,26 @@ export function inspect(
 ): LockReport {
   const mergeBase = git(root, ['merge-base', base, head])
   const uncommitted = head === 'HEAD' ? uncommittedPaths(root, config) : []
+  const touches = touchesSince(root, mergeBase, config, head, integration)
+  const original = judge(touches, uncommitted, config)
+  const approvedExceptions = original.commits.flatMap(commit =>
+    commit.allowed ? [] : inspectHistoricalApproval(root, commit.sha, commit.files),
+  )
+  const unresolvedTouches = touches.flatMap(touch => {
+    const files = touch.files.filter(
+      path =>
+        !approvedExceptions.some(item => item.commit === touch.record.sha && item.path === path),
+    )
+    return files.length === 0 ? [] : [{ ...touch, files }]
+  })
   return {
     base,
     mergeBase,
     changes: changesSince(root, mergeBase, config, head),
     uncommitted,
-    ...judge(touchesSince(root, mergeBase, config, head, integration), uncommitted, config),
+    ...original,
+    approvedExceptions,
+    unresolvedViolations: judge(unresolvedTouches, uncommitted, config).violations,
   }
 }
 
@@ -298,9 +407,17 @@ export function render(report: LockReport, config: AcceptanceLockConfig): string
   }
   if (report.violations.length === 0) out.push('  没有不该改验收的角色动过它。')
   else {
-    out.push(`  锁被破 ${report.violations.length} 处：`)
+    out.push(`  原始违规（锁被破 ${report.violations.length} 处）：`)
     for (const violation of report.violations) out.push(`    ${violation}`)
   }
+  out.push(`  已批准历史例外 ${report.approvedExceptions.length} 处：`)
+  for (const approval of report.approvedExceptions) {
+    out.push(`    ${approval.commit}  ${approval.path}`, `      决定：${approval.decisionUrl}`)
+    out.push(`      parent: ${approval.parent}`, `      oldBlob: ${approval.oldBlob}`)
+    out.push(`      newBlob: ${approval.newBlob}`, `      diffSha256: ${approval.diffSha256}`)
+  }
+  out.push(`  未解决违规 ${report.unresolvedViolations.length} 处：`)
+  for (const violation of report.unresolvedViolations) out.push(`    ${violation}`)
   return out
 }
 

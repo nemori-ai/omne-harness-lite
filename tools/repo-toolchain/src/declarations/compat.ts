@@ -28,7 +28,13 @@ export interface DeclarationReport {
 
 const DECLARATION = /\.d\.[cm]?ts$/u
 
-function declarationsIn(directory: string): string[] {
+/** 成员的构建产物目录；`root` 应是真实路径，诊断与归属都按它前缀判断。 */
+export function distOf(root: string, member: string): string {
+  return join(root, member, 'dist')
+}
+
+/** 目录下全部声明文件，按名字排序、逐层展开。 */
+export function declarationsIn(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true })
     .sort((a, b) => a.name.localeCompare(b.name))
     .flatMap(entry => {
@@ -38,8 +44,12 @@ function declarationsIn(directory: string): string[] {
     })
 }
 
-/** 与成员构建同一套严格选项（仓库根 `tsconfig.base.json`），另外不跳过库检查、不产出。 */
-function compilerOptions(root: string): ts.CompilerOptions {
+/**
+ * 与成员构建同一套严格选项（仓库根 `tsconfig.base.json`），另外不跳过库检查、不产出。
+ * 去掉仓库的 `customConditions`（现为 `source`）：消费者不带这些条件，成员之间的导入要解析到对方的 dist 声明。
+ * 带着它们，导入会落到对方的 `src`，同一成员的 src 与 dist 同在程序里，模块扩充就被声明两次（TS2717）。
+ */
+export function consumerCompilerOptions(root: string): ts.CompilerOptions {
   const path = join(root, 'tsconfig.base.json')
   const read = ts.readConfigFile(path, ts.sys.readFile)
   if (read.error !== undefined) throw new Error(flatten(read.error.messageText))
@@ -47,14 +57,54 @@ function compilerOptions(root: string): ts.CompilerOptions {
   // `types: ["node"]` 要从某个成员的 node_modules 解析；仓库根不提升 @types。
   const require = createRequire(import.meta.url)
   const typeRoot = dirname(dirname(require.resolve('@types/node/package.json')))
+  const { customConditions: _source, ...options } = parsed.options
   return {
-    ...parsed.options,
+    ...options,
     noEmit: true,
     skipLibCheck: false,
     declaration: false,
     declarationMap: false,
     sourceMap: false,
     typeRoots: [typeRoot],
+  }
+}
+
+/** 已安装声明的解析结果，按「解析设置 + 路径」存；只收 lib 与类型根下的文件，集合有限。 */
+const installed = new Map<string, ts.SourceFile>()
+const settingsKey = ts.createDocumentRegistry().getKeyForCompilationSettings
+
+/**
+ * 给 `getSourceFile` 加一层进程内共享：TypeScript 的 lib 目录与 `typeRoots` 下的声明是安装好的、进程内不变，
+ * 同一解析设置下只解析一次，之后的程序拿同一个 SourceFile（语言服务的文档注册表也这样跨程序共用）。
+ * 键用 TypeScript 判断 SourceFile 能否复用的编译选项键（含 target、module 等影响解析与绑定的选项）、
+ * 本次的解析参数与路径；`lib` 只决定读哪些文件，已在路径里。其余文件与要求新建的照旧交给 `read`。
+ */
+export function sharingInstalledDeclarations(
+  options: ts.CompilerOptions,
+  read: ts.CompilerHost['getSourceFile'],
+): ts.CompilerHost['getSourceFile'] {
+  const roots = [dirname(ts.getDefaultLibFilePath(options)), ...(options.typeRoots ?? [])].map(
+    root => root.split(sep).join('/') + '/',
+  )
+  const settings = settingsKey(options)
+  return (file, language, onError, fresh) => {
+    if (fresh === true || !roots.some(root => file.startsWith(root)))
+      return read(file, language, onError, fresh)
+    const parse = typeof language === 'object' ? language : { languageVersion: language }
+    const key = [
+      settings,
+      parse.languageVersion,
+      parse.impliedNodeFormat,
+      parse.jsDocParsingMode,
+      file,
+    ].join('|')
+    const cached = installed.get(key)
+    if (cached !== undefined) return cached
+    const text = ts.sys.readFile(file)
+    if (text === undefined) return read(file, language, onError, fresh)
+    const source = ts.createSourceFile(file, text, language, true)
+    installed.set(key, source)
+    return source
   }
 }
 
@@ -68,12 +118,12 @@ export function checkDeclarations(root: string, memberPaths: readonly string[]):
   const dists: string[] = []
   const unbuilt: string[] = []
   for (const member of memberPaths) {
-    const dist = join(realRoot, member, 'dist')
+    const dist = distOf(realRoot, member)
     if (existsSync(dist)) dists.push(dist)
     else unbuilt.push(member)
   }
   const files = dists.flatMap(declarationsIn)
-  const program = ts.createProgram({ rootNames: files, options: compilerOptions(realRoot) })
+  const program = ts.createProgram({ rootNames: files, options: consumerCompilerOptions(realRoot) })
   const owned = (file: string) => dists.some(dist => file.startsWith(dist + sep))
   const diagnostics: DeclarationDiagnostic[] = []
   let external = 0

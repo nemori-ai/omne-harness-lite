@@ -38,7 +38,7 @@ it('static application description controls member selection and the published m
     ])
     const unpack = join(root, 'unpack')
     await mkdir(unpack)
-    execFileSync('tar', ['-xzf', join(root, 'app.tar.gz'), '-C', unpack])
+    execFileSync('tar', ['-xzf', 'app.tar.gz', '-C', 'unpack'], { cwd: root })
     const manifest = JSON.parse(await readFile(join(unpack, 'app/build-info.json'), 'utf8'))
     expect(manifest).toMatchObject({
       format: 'test-build/1',

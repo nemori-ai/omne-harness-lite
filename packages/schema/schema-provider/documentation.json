@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 2,
+  "kind": "documentation-bindings",
+  "owner": {
+    "id": "package:schema/schema-provider",
+    "kind": "member",
+    "source": {
+      "path": "docs/member-documentation.md",
+      "anchor": "成员包文档要求"
+    }
+  },
+  "documents": [
+    {
+      "id": "overview",
+      "path": "packages/schema/schema-provider/README.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "responsibility-and-status"
+        },
+        {
+          "id": "usage",
+          "anchor": "usage"
+        },
+        {
+          "id": "contracts",
+          "anchor": "contracts"
+        },
+        {
+          "id": "design",
+          "anchor": "design"
+        },
+        {
+          "id": "configuration",
+          "anchor": "configuration-and-operation"
+        },
+        {
+          "id": "verification",
+          "anchor": "verification"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "maintenance"
+        }
+      ]
+    },
+    {
+      "id": "overview-zh",
+      "path": "packages/schema/schema-provider/README_ZH.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        {
+          "id": "scope",
+          "anchor": "职责与状态"
+        },
+        {
+          "id": "usage",
+          "anchor": "使用"
+        },
+        {
+          "id": "contracts",
+          "anchor": "契约"
+        },
+        {
+          "id": "design",
+          "anchor": "设计"
+        },
+        {
+          "id": "configuration",
+          "anchor": "配置与运行"
+        },
+        {
+          "id": "verification",
+          "anchor": "验证"
+        },
+        {
+          "id": "maintenance",
+          "anchor": "维护"
+        }
+      ]
+    },
+    {
+      "id": "spec",
+      "path": "packages/schema/schema-provider/SPEC.md",
+      "kind": "contract",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        { "id": "scope", "anchor": "范围" },
+        { "id": "results", "anchor": "结果与不变量" },
+        { "id": "lifecycle", "anchor": "所有权、失败与寿命" },
+        { "id": "composition", "anchor": "组合与验证" }
+      ]
+    },
+    {
+      "id": "internals",
+      "path": "packages/schema/schema-provider/docs/architecture.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "按需专题与持续资源"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [
+        { "id": "modules", "anchor": "模块" },
+        { "id": "state", "anchor": "状态" }
+      ]
+    }
+  ]
+}

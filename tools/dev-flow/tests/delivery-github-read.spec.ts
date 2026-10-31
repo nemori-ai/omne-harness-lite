@@ -1,11 +1,12 @@
-import { chmodSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { collectDelivery, GhReadError, runGhRead } from '../src/delivery/github-read.ts'
 import type { GhRead } from '../src/delivery/github-read.ts'
-import { collectAdmission } from '../src/delivery/admission.ts'
+import { collectAdmission, observeAdmission } from '../src/delivery/admission.ts'
 import { InputError, parseCapture, parseConfig } from '../src/delivery/protocol.ts'
+import { ghEnv, writeGh } from './fixtures/gh.ts'
 const config = parseConfig({
   schemaVersion: 2,
   kind: 'github-delivery-config',
@@ -153,7 +154,7 @@ function page(nodes: unknown[], cursor: string | null = null) {
 }
 function admissionBackend() {
   const calls: string[][] = [],
-    issues = new Map([[1, { ...rawIssue }]]),
+    issues = new Map<number, Record<string, unknown>>([[1, { ...rawIssue }]]),
     comments = new Map<number, unknown[]>(),
     blockedBy = new Map<number, number[]>(),
     parents = new Map<number, number>(),
@@ -353,6 +354,58 @@ describe('scoped admission capture', () => {
       Array.from({ length: 31 }, (_, i) => i + 2),
     )
     expect(() => collectAdmission(config, scope, f.read)).toThrow('32 required')
+  })
+  it('reads a closed related Issue itself but neither its relations nor its targets', () => {
+    const f = admissionBackend()
+    f.add(1, conditionBody(issueUrl(2)))
+    f.add(2, `- 父交付卡：${issueUrl(7)}\n` + conditionBody(issueUrl(3)))
+    for (const number of [3, 4, 5, 6, 7, 8]) f.add(number)
+    f.issues.set(2, { ...f.issues.get(2), state: 'closed' })
+    f.blockedBy.set(1, [4])
+    f.blockedBy.set(2, [5])
+    f.parents.set(2, 6)
+    f.parents.set(4, 8)
+    const result = collectAdmission(config, f.scope, f.read)
+    expect(result.closure).toEqual([1, 2, 4, 8].map(issueUrl))
+    const closed = result.issues.find(issue => issue.number === 2)
+    expect(closed).toMatchObject({ state: 'closed', relationsComplete: false, blockedBy: [] })
+    expect(closed?.parentIssue).toBeNull()
+    expect(result.issues.find(issue => issue.number === 4)?.relationsComplete).toBe(true)
+    const paths = f.calls.map(call => call.at(-1) ?? '')
+    expect(paths.some(path => /issues\/2\/(dependencies|parent)/.test(path))).toBe(false)
+    expect(paths.some(path => /issues\/(3|5|6|7)(\/|$)/.test(path))).toBe(false)
+    expect(paths).toContain('repos/owner/repo/issues/2/comments?per_page=100&page=1')
+  })
+  it('still expands the task when the task itself is closed', () => {
+    const f = admissionBackend()
+    f.add(1, conditionBody(issueUrl(2)))
+    f.add(2)
+    f.issues.set(1, { ...f.issues.get(1), state: 'closed' })
+    f.blockedBy.set(1, [2])
+    const result = collectAdmission(config, f.scope, f.read)
+    expect(result.closure).toEqual([1, 2].map(issueUrl))
+    expect(result.issues.find(issue => issue.number === 1)?.relationsComplete).toBe(true)
+  })
+  it('admits a task behind a closed Issue whose own history exceeds both bounds', () => {
+    const f = admissionBackend()
+    f.add(1, conditionBody(issueUrl(2)))
+    f.blockedBy.set(1, [2])
+    for (let n = 2; n <= 41; n += 1) {
+      f.add(n)
+      f.issues.set(n, { ...f.issues.get(n), state: 'closed' })
+      if (n < 41) f.parents.set(n, n + 1)
+    }
+    f.blockedBy.set(
+      2,
+      Array.from({ length: 35 }, (_, i) => i + 3),
+    )
+    const result = collectAdmission(config, f.scope, f.read)
+    expect(result.closure).toEqual([1, 2].map(issueUrl))
+    const codes = observeAdmission(config, result).findings.map(finding => finding.code)
+    expect(codes).not.toContain('native-relations-incomplete')
+    expect(codes).not.toContain('parent-unverified')
+    expect(codes).not.toContain('condition-target-dangling')
+    expect(codes).not.toContain('native-target-dangling')
   })
   it('reads every comment page and refuses failed pages and exhaustion without exposing API content', () => {
     const f = admissionBackend()
@@ -665,9 +718,8 @@ describe('gh read process outcomes', () => {
   function withFakeGh<T>(script: string, run: () => T): T {
     const dir = realpathSync(mkdtempSync(join(tmpdir(), 'dev-flow-gh-read-')))
     try {
-      writeFileSync(join(dir, 'gh'), `#!/usr/bin/env node\n${script}\n`)
-      chmodSync(join(dir, 'gh'), 0o755)
-      vi.stubEnv('PATH', `${dir}:${process.env.PATH}`)
+      writeGh(dir, `#!/usr/bin/env node\n${script}\n`)
+      for (const [name, value] of Object.entries(ghEnv(dir))) vi.stubEnv(name, value)
       return run()
     } finally {
       vi.unstubAllEnvs()
@@ -711,5 +763,32 @@ describe('gh read process outcomes', () => {
     const error = failure(script, timeoutMs)
     expect(error).toBeInstanceOf(Error)
     expect(error).not.toBeInstanceOf(GhReadError)
+  })
+})
+
+describe('Issue milestone in captures', () => {
+  it('records the milestone title, null without one, and nothing when the field is absent', () => {
+    const f = admissionBackend()
+    f.add(1)
+    f.issues.set(1, { ...f.issues.get(1), milestone: { title: 'M1 首次联合验收' } })
+    expect(collectAdmission(config, f.scope, f.read).issues[0]?.milestone).toBe('M1 首次联合验收')
+    f.issues.set(1, { ...f.issues.get(1), milestone: null })
+    expect(collectAdmission(config, f.scope, f.read).issues[0]?.milestone).toBeNull()
+    f.add(1)
+    expect(collectAdmission(config, f.scope, f.read).issues[0]).not.toHaveProperty('milestone')
+  })
+  it('reads the milestone in the repository capture and keeps it through parsing', () => {
+    const calls: string[][] = [],
+      base = backend(calls)
+    const read: GhRead = (argv, timeoutMs) =>
+      (argv.at(-1) ?? '').includes('/issues?')
+        ? [{ ...rawIssue, milestone: { title: 'M1' } }]
+        : base(argv, timeoutMs)
+    const capture = collectDelivery(config, read)
+    expect(capture.issues[0]?.milestone).toBe('M1')
+    expect(parseCapture(JSON.parse(JSON.stringify(capture))).issues[0]?.milestone).toBe('M1')
+    expect(() =>
+      parseCapture({ ...capture, issues: [{ ...capture.issues[0], milestone: '' }] }),
+    ).toThrow('milestone')
   })
 })

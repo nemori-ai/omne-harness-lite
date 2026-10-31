@@ -18,7 +18,7 @@
       "branch": "integration/engineering-toolchain",
       "owner": "PanQiWei",
       "source": "https://github.com/nemori-ai/omne-harness-lite/issues/215",
-      "status": "active",
+      "status": "paused",
       "parent": "main",
       "initialBase": "3aee801936a9c5dd54f3e34c221566eec4df363d"
     },

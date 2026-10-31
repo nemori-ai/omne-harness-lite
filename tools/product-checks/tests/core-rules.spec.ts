@@ -529,12 +529,9 @@ globalThis['performance']['now']()
 new Constructor(issuedAt)`,
     )
     expect(noWallClock.check([source]).map(value => value.line)).toEqual([4, 5, 6, 7, 8, 9])
-    expect(
-      noWallClock.check([
-        file('infra/clock/src/clock.ts', source.text),
-        file('core/offer-expiry/tests/time.spec.ts', source.text),
-      ]),
-    ).toEqual([])
+    expect(noWallClock.check([file('core/offer-expiry/tests/time.spec.ts', source.text)])).toEqual(
+      [],
+    )
   })
 
   it('Date.now、new Date()、performance.now 各有必红反例，并保留原真实扫描', () => {
@@ -553,7 +550,6 @@ performance . now ( )`,
 const note = 'new Date()'; // Date.now()
 const t = clock.now()`,
         ),
-        file('infra/clock/src/clock.ts', 'Date.now(); new Date(); performance.now()'),
         file('core/content-blocks/tests/x.spec.ts', 'new Date()'),
       ]),
     ).toEqual([])

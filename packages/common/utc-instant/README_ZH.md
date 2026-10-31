@@ -118,7 +118,9 @@ parseDuration('P1D') // { ok: false, failure: { kind: 'calendar-unit' } }
 
 ## 维护
 
-已点名的消费者是 `packages/identity/identity` 和 `packages/tool/tool`，二者仍是空草稿。业务期限、租约恢复和时钟端口留在各自的拥有者。`compareInstants` 或失败名字变化时，#244 和这些消费者一起改。
+Identity 与 Tool 的设计关系和实际直接导入分别核对。[call-account](../call-account/src/index.ts) 用 `parseDuration` 检查账目时长。Model 在 [testing 时钟](../../model/model/src/testing/clock.ts)使用 `parseInstant`、`compareInstants` 和 `Instant` 类型，在 [testing dispatch 支持](../../model/model/src/testing/dispatch.ts)使用 `parseInstant`。这些 Model 导入用于 testing 支持，不代表生产时钟。对应依赖声明见 [call-account](../call-account/package.json) 与 [Model](../../model/model/package.json)。
+
+业务期限、租约恢复和时钟端口留在各自的拥有者。`compareInstants` 或失败名字变化时，须核对 #244、实际导入及受影响的设计消费者。
 
 更新闰秒表：
 

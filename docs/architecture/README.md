@@ -48,9 +48,9 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 正文 | 必要内容范围 |
 |---|---|
 | [总览](runtime/README.md) | 代表性主流程、生命周期、并发取消、失败恢复和阅读地图。 |
-| [Session 与 Run](runtime/session-and-run.md) | 身份、输入受理、推进权、attempt、终态与多会话边界。 |
+| [Session 与 Run](runtime/session-and-run.md) | 身份、会话模式、与六个邻域的角色、输入受理、推进权、attempt、终态与多会话边界。 |
 | [Agent runtime](runtime/agent-runtime.md) | Loop 主线、回复准入、动作处理、完成与接续。 |
-| [Loop extensions](runtime/loop-extensions.md) | 十一个位置、干预力、有序组合、HITL、失效与系统扩展。 |
+| [Loop extensions](runtime/loop-extensions.md) | 九个位置、干预力、有序组合、HITL、失效与系统扩展。 |
 | [Model runtime](runtime/model-runtime.md) | 输入、真实发出、首内容、重试、失联、结果和独立调用。 |
 | [Tool runtime](runtime/tool-runtime.md) | 匹配输入、可用性、排队、前后台、等待、效果和独立调用。 |
 | [装配与变化](runtime/assembly-and-change.md) | 多层求值、能力选入、版本采用与 reload 交接。 |
@@ -58,7 +58,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | [请求上下文](runtime/request-context.md) | 来源、模态、限额、压缩、输入固定与长期性能。 |
 | [执行环境](runtime/execution-environment.md) | 环境选择、资源、隔离、数据责任和故障域。 |
 | [流式与消费](runtime/streaming-and-consumption.md) | 到达、观察、收场、持久承接、模型 ACK 与清理。 |
-| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档、原调用接续及关键服务降级。 |
+| [控制与恢复](runtime/control-and-recovery.md) | 插队、取消、归档与作用域释放、原调用接续、恢复的发现与收束及关键服务降级。 |
 
 后续状态机与接口须遵循已接受的独立生命周期、可靠交接、权限和真实性要求。各页明确保留的局部对账项继续有效，不因正文接受而自动解决。正文接受不表示实现或验证完成。
 
@@ -90,7 +90,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 事项 | 尚需明确什么 | 承接责任与原文 |
 |---|---|---|
 | 原组合问题的关闭依据 | W6导出与Schema、EIS超时、A5冷恢复的原输入、因果和当前关闭证据。 | 实际共享形状、EIS及恢复组合拥有者；[保留未知](assurance.md#尚未取得关闭依据的组合问题)。 |
-| SDK 对外暴露范围 | 首批公开能力、操作和订阅范围，以及各自受理、结果、权限和取消语义。 | 产品及公开契约拥有者；[公开操作与契约覆盖](layers-and-dependencies.md#公开操作与契约覆盖)。 |
+| SDK 对外暴露范围 | 治理消息版本和治理操作名已由公开契约拥有。治理以外的首批能力、操作和订阅范围，以及各自受理、结果、权限和取消语义，仍待明确。 | 产品及公开契约拥有者；[公开操作与契约覆盖](layers-and-dependencies.md#公开操作与契约覆盖)。 |
 | 在途流式内容的故障保留 | 已展示但未收场的内容在模型 runtime 故障后应保留到什么程度，现有表述仍需局部对账。 | 流式存储与恢复契约拥有者；涉及承诺变化时由负责人裁定；[在途内容的局部对账](runtime/streaming-and-consumption.md#在途内容的局部对账)。 |
 | state 提醒的前值语义 | [运行感知与一次模型请求的产品草案](../../.meta_harness/design/product/runtime-context/design.md#5-当前值与变化感知)是当前候选责任入口，仍待确认。完整状态快照是否适用前值要求、扩展提醒在正文中交代前值是否足够，仍由产品拥有者裁定；技术拥有者随后对账 snapshot、extension 消息表示。本页不自行补字段或宣布候选已接受。 | 消息产品及契约拥有者。 |
 | 不可用工具应答的归类 | 同名替换件应答是否属于 Tool Execution 及执行账，如何统计和查询。 | 工具执行契约拥有者；[不可用应答的分类边界](runtime/tool-runtime.md#不可用应答的分类边界)。 |
@@ -106,18 +106,18 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 | 后续设计 | 需要细化的内容 | 承接责任与原文 |
 |---|---|---|
 | 跨系统公共基础契约 | 共享身份与表示、请求关联、错误分类、时间值及观测传播的精确类型和适配，保留领域结果与流式接口。 | 公开值、SDK、能力及观测拥有者；[当前承接与后续设计](cross-cutting-concepts.md#当前承接与后续设计)。 |
-| 登录入口租户冲突的同步 | 拒绝已核实冲突的产品规则及流程已同步 PF-001、PF-017；治理接口的拒绝表达、校验次序、测试和消费者切换仍待承接。 | 身份产品、治理入口及客户端维护者；[身份、归属和关联](cross-cutting-concepts.md#身份归属和关联)、[当前承接与后续设计](cross-cutting-concepts.md#当前承接与后续设计)。 |
+| 登录入口租户冲突的同步 | 拒绝已核实冲突的产品规则及流程已同步 PF-001、PF-017；治理接口的拒绝表达与校验次序归系统公开契约的[判断次序](../../packages/access/public-contract/SPEC.md#判断次序)，测试和消费者切换仍待承接。 | 身份产品、治理入口及客户端维护者；[身份、归属和关联](cross-cutting-concepts.md#身份归属和关联)、[当前承接与后续设计](cross-cutting-concepts.md#当前承接与后续设计)。 |
 | 公共内容与记录契约细化 | 附件保留和跨节点读取、到达流表示与断线协议、记录封装及通知模型。 | 内容、消息、记录、通知及相应产品拥有者；[当前承接与后续设计](cross-cutting-concepts.md#当前承接与后续设计)。 |
 | SDK 传输与发布 | 本地和远程接入、认证交互、协议版本、SDK 发布及兼容关系。 | 公开协议与 SDK 拥有者；[传输与兼容约定](layers-and-dependencies.md#传输与兼容约定)。 |
 | 客户端状态与资源管理 | 支持环境、连接和订阅生命周期、缓存同步与恢复，是否提供拥有式本地启动。 | SDK 与客户端拥有者；[客户端状态与资源管理](layers-and-dependencies.md#客户端状态与资源管理)。 |
 | 多模态能力范围 | 文字、图片与语音的具体格式、组合方式和阶段支持范围。 | 产品及相应能力的公开契约拥有者；[上游依据与适用范围](drivers-and-constraints.md#上游依据与适用范围)、[模态表示与完整输入限制](runtime/request-context.md#模态表示与完整输入限制)。 |
 | 工作认领与并发推进 | 调度、认领、单一有效推进者及可靠输入承接的具体协议。 | Session/Run 治理及提供者；[Run 创建与推进权](runtime/session-and-run.md#run-创建与推进权)、[attempt 与原工作接续](runtime/session-and-run.md#attempt-与原工作接续)。 |
-| Loop 步骤与扩展恢复 | step 切分、连续否决计数、稳定调用身份、非确定输入记录、人工等待和扩展撤除后的接续。 | Agent Loop、扩展与装配交接契约拥有者；[一轮推进](runtime/agent-runtime.md#一轮推进)、[等待与恢复](runtime/loop-extensions.md#等待与恢复)。 |
-| 装配与请求的一致性 | 快照键、原子发起准入、版本复核、并发及新旧推进权交接协议。 | 装配与调用发起边界拥有者；[细化与验证责任](runtime/assembly-and-change.md#细化与验证责任)、[输入来源与组装](runtime/request-context.md#输入来源与组装)。 |
+| Loop 步骤与扩展恢复 | step 切分、非确定输入记录、人工等待和扩展撤除后的接续。 | Agent Loop、扩展与装配交接契约拥有者；[一轮推进](runtime/agent-runtime.md#一轮推进)、[等待与恢复](runtime/loop-extensions.md#等待与恢复)。 |
+| 装配与请求的一致性 | 版本复核、并发协议及交接的存储布局。 | 装配与调用发起边界拥有者；[细化与验证责任](runtime/assembly-and-change.md#细化与验证责任)、[输入来源与组装](runtime/request-context.md#输入来源与组装)。 |
 | 工作区指导加载 | 首次访问的判据、指导文件规范版本和合并协议。 | 工作区指导加载与 Runtime Context 拥有者；[更新、通知与读取](runtime/runtime-context.md#更新通知与读取)。 |
 | 模型适配与失联判定 | 状态码映射、退避参数、请求快照格式及失联判据。 | Model runtime 与模型适配器拥有者；[验证责任与细化范围](runtime/model-runtime.md#验证责任与细化范围)。 |
 | 策略参数与故障兜底 | 循环守卫、预算、时限、轮数、重试、退避和超时的具体规则及参数。 | 各策略与能力拥有者；[循环守卫与终态扩展](runtime/loop-extensions.md#循环守卫与终态扩展)、[长期运行与验证义务](runtime/agent-runtime.md#长期运行与验证义务)、[存储与关键服务降级](runtime/control-and-recovery.md#存储与关键服务降级)。 |
-| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期会话的性能与验证](runtime/request-context.md#长期会话的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
+| 长期会话的算法与性能指标 | 上下文组装、压缩和缓存算法，代表规模、查询与恢复成本、TTFT 场景及目标数值。 | 上下文、数据与性能验证拥有者；[长期运行作用域的性能与验证](runtime/request-context.md#长期运行作用域的性能与验证)、[长期读取与派生状态](data-and-state.md#长期读取与派生状态)、[长期会话与并行工作](drivers-and-constraints.md#长期会话与并行工作)。 |
 | 执行环境提供者 | 候选排序、池化、探测、节点选择、设施命名、限额、保留期及异构恢复协议。 | 执行环境提供者与部署设计；[环境选择与资源准备](runtime/execution-environment.md#环境选择与资源准备)、[失效重建与数据责任](runtime/execution-environment.md#失效重建与数据责任)、[观测与验证责任](runtime/execution-environment.md#观测与验证责任)。 |
 | 持久化与提交协议 | 必需状态和 Schema、持久确认条件、跨拥有者事务、未知提交的查询与对账。 | 数据拥有者、存储提供者与协调方；[状态分类与持久边界](data-and-state.md#状态分类与持久边界)、[事务与一致性](data-and-state.md#事务与一致性)。 |
 | 数据保留、备份和迁移 | 各类内容的保留与删除范围、备份覆盖与灾备目标、迁移的中断及恢复协议。 | 对应产品政策、数据拥有者和存储提供者；[数据生命周期与演进](data-and-state.md#数据生命周期与演进)。 |
@@ -168,7 +168,7 @@ omne-harness-lite 是服务组织或个人的 agent harness，组织模型、工
 
 ## 采用状态与当前有效源
 
-项目负责人已接受边界与环境、目标与约束、结构与责任、分层与公开契约、数据与状态、跨系统技术约定、质量与符合性，以及运行专题十二页、安全专题七页、部署专题八页的目标架构正文。2026-10-09 按负责人的确认同步此状态。接受的是正文中已明确的设计，具体未决项继续保留，不能自动补成已接受决定。
+项目负责人已接受边界与环境、目标与约束、结构与责任、分层与公开契约、数据与状态、跨系统技术约定、质量与符合性，以及运行专题十二页、安全专题七页、部署专题八页的目标架构正文。2026-10-09 按负责人的确认同步此状态。接受的是正文中已明确的设计，具体未决项继续保留，不能自动补成已接受决定。PanQiWei 于 2026-10-21 采用 [RFC-0012 revision 1](../rfcs/RFC-0012-tool-dynamics.md#决定范围)，其中装配与变化、工具运行时、会话、Cordis 生命周期与 IC 约定的条款已写回对应正文。这次写回不扩大上述接受范围。
 
 跨系统技术约定的共同语义已获接受。公共 SDK 共用基础契约并保留领域结果；登录入口拒绝租户冲突。具体接口与消费者的迁移继续按各拥有者承接，不能以架构接受推断其完成。
 

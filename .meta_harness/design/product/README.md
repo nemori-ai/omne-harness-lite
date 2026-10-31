@@ -6,7 +6,7 @@
 
 下表直接进入正式维护位置。每份正文保留四块，依次为产品需求描述、能力定义与实现状态记录表、阶段与版本支持承诺、未决问题与待定事项。关键旅程在需求块展开；技术问题在末块说明使用者后果，并链接唯一技术拥有者。
 
-已明确的产品及阶段决定继续有效，整体待审范围见各 topic 入口。正式落位、产品接受、技术采用、实现支持和验证通过分别判断。身份、资产及会话的已定阶段保持，其他正文中尚待选择的阶段范围由负责人决定。
+已明确的产品及阶段决定继续有效，整体待审范围见各 topic 入口。正式落位、产品接受、技术采用、实现支持和验证通过分别判断。身份、资产、会话及工具执行的已定阶段保持，其他正文中尚待选择的阶段范围由负责人决定。
 
 ## 产品阅读地图
 
@@ -18,6 +18,7 @@
 | [Agent 定义与工作推进](agent-progression/design.md) | [未决](agent-progression/design.md#未决问题与待定事项) | [领域](../../../docs/domains/agent-progression/README.md) | [工程与规格](../../../packages/agent/README.md) |
 | [模型调用的产品设计](model-invocation/design.md) | [未决](model-invocation/design.md#未决问题与待定事项) | [领域](../../../docs/domains/model-invocation/README.md) | [工程与规格](../../../packages/model/README.md) |
 | [工具执行](tool-execution/design.md) | [未决](tool-execution/design.md#未决问题与待定事项) | [领域](../../../docs/domains/tool-execution/README.md) | [工程与规格](../../../packages/tool/README.md) |
+| [元能力入口](meta-capabilities/design.md) | [未决](meta-capabilities/design.md#未决问题与待定事项) | 依各入口的原领域责任 | 完整入口定义与旅程，技术承接按入口分配；Code 已定名并细化程序编排，Engram 与 Stop 占位 |
 | [运行感知与一次模型请求](runtime-context/design.md) | [未决](runtime-context/design.md#未决问题与待定事项) | [领域](../../../docs/domains/runtime-context/README.md) | [工程与规格](../../../packages/context/README.md) |
 | [工作区产品设计](workspaces/design.md) | [未决](workspaces/design.md#未决问题与待定事项) | [领域](../../../docs/domains/workspaces/README.md) | [工程与规格](../../../packages/workspace/README.md) |
 | [执行环境产品设计](execution-environments/design.md) | [未决](execution-environments/design.md#未决问题与待定事项) | [领域](../../../docs/domains/execution-environments/README.md) | [工程与规格](../../../packages/execution/README.md) |
@@ -33,7 +34,7 @@ Skill、Slash Command、MCP 的工程分解已维护在对应能力组，完整�
 
 ## 旧PF与点位来源
 
-旧 PF 原文封存在 [product.0.0.1.legacy](../product.0.0.1.legacy/README.md)，不作为本表正文的并列现行源。原始点位按封存入口及各 topic 维护的来源引用核对；原坐标、哈希和评审快照只证明各自历史范围。尚未承接的 PF 内容由后续专项处理，不据旧源补项目要求或改写已接受架构。
+现行产品规则由上表中的 topic 维护。[元能力入口](meta-capabilities/README.md)拥有元工具规则、旅程和产品判据。历史资料不构成并列现行源，来源快照和逐轮对账留任务过程材料。
 
 ## 维护路径
 

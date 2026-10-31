@@ -1,6 +1,6 @@
 # 身份组的成员与协作
 
-状态为待审技术设计。正式维护位置不授予本组操作规格的技术接受、实施或支持。合法身份与时间点的纯值已经采用，精确形状归[共同纯表示](../../common/README.md)。本组操作的公开形状仍待定义。
+状态为待审技术设计。正式维护位置不授予本组操作规格的技术接受、实施或支持。合法身份与时间点的纯值已经采用，精确形状归[共同纯表示](../../common/README.md)。首批公开形状在两成员的 `src/index.ts`，条款见 identity SPEC ID-16 与 authorization SPEC AU-11；登录、账号、成员关系与持久台账的公开形状仍待定义。
 
 ## 目标成员与依赖
 
@@ -28,7 +28,7 @@ identity 不依赖 Session、HITL、工具或模型的业务生命周期。autho
 
 共同完成不要求所有参与者位于同一进程。回执丢失保留结果未知，调用方按操作契约认回或查询原结果，不能自动再执行。登录每次成功签发独立状态，其重试不能套用其他操作的去重规则。
 
-普通进程或操作系统崩溃、断电后，已确认持久事实按系统耐久保证恢复。介质或整机物理损毁后的恢复范围、可信材料及开放资格沿 U01 专项设计，不从旧备份中的角色授予重新开放权。
+普通进程或操作系统崩溃、断电后，已确认持久事实按系统耐久保证恢复。0.0.0 -> 0.1.0 不提供介质或整机物理损毁后的重新打开，具体阶段边界归[身份安全架构](../../../docs/architecture/security/identity-and-authorization.md#本阶段不提供的打开路径)。旧备份中的角色不授予重新开放权。
 
 ## 独立使用与 Cordis 装配
 
@@ -62,13 +62,13 @@ CAP-ID01 至 CAP-ID12 的完整定义由产品正文拥有；此表只定位消�
 
 精确公开形状、语义错误、提交与查询关联、配置生效细则、治理及认证扩展协议、缓存和性能尺度由对应成员继续设计。验证义务见两份 SPEC，不表示已建立或运行验证资源。产品缺口与邻域承接归[问题登记](../../../.meta_harness/design/product/identity-and-authorization/design.md#未决问题与待定事项)，没有依据的配置和授权策略不由实现者补定。
 
-有效上层为执行仓库[项目要求](../../../docs/requirements.md)、[身份安全架构](../../../docs/architecture/security/identity-and-authorization.md)、[数据与状态](../../../docs/architecture/data-and-state.md)、[跨系统技术约定](../../../docs/architecture/cross-cutting-concepts.md)及[身份领域责任](../../../docs/domains/identity-and-authorization/README.md)。本次产品输入为[身份与授权候选](../../../.meta_harness/design/product/identity-and-authorization/design.md)，其采用范围以产品正文及成员的现行候选声明为准；过程来源报告不作为长期依据。
+有效上层为执行仓库[项目要求](../../../docs/requirements.md)、[身份安全架构](../../../docs/architecture/security/identity-and-authorization.md)、[数据与状态](../../../docs/architecture/data-and-state.md)、[跨系统技术约定](../../../docs/architecture/cross-cutting-concepts.md)及[身份领域责任](../../../docs/domains/identity-and-authorization/README.md)。本次产品输入为[身份与授权候选](../../../.meta_harness/design/product/identity-and-authorization/design.md)，其采用范围以产品正文及成员 SPEC 的现行状态声明为准；过程来源报告不作为长期依据。
 
 ## 后续技术义务
 
 ### T01 公开契约承接
 
-identity 与 authorization 分别形成操作公开类型、结果和语义错误。接入拥有者形成可信材料、治理和认证扩展、配置接口。合法身份与时间点的纯值形状已经采用，不能从旧 core 签名迁入。本组操作的公开形状仍未定。
+identity 与 authorization 分别形成操作公开类型、结果和语义错误。接入拥有者形成可信材料、治理和认证扩展、配置接口。合法身份与时间点的纯值形状已经采用，不能从旧 core 签名迁入。首批公开形状已定：主体签发与核验、具名资格、当前资格读口、准入裁定、许可引用与消费事实。登录、账号、成员关系操作与持久台账的公开形状仍未定。
 
 ### T03 共同完成与提交关联
 

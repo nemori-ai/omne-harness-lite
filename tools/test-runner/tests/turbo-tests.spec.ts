@@ -59,7 +59,8 @@ function workspace(members: Readonly<Record<string, FixtureMember>>): {
   root: string
   targets: TestMember[]
 } {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-turbo-tests-')))
+  // native：Windows 上 tmpdir() 可能是 8.3 短名，JS 版 realpath 保留它；vitest 报告里的文件名是长名。
+  const root = realpathSync.native(mkdtempSync(join(tmpdir(), 'omne-turbo-tests-')))
   roots.push(root)
   put(
     root,
@@ -146,7 +147,8 @@ describe('用 turbo 跑成员测试', { timeout: 60_000 }, () => {
       () => {},
     )
     expect(run?.exitCode).toBe(1)
-    expect(run?.problem).toContain('src/archive.legacy/x.spec.ts')
+    // 问题里的文件名相对成员目录，按本机分隔符拼。
+    expect(run?.problem).toContain(join('src/archive.legacy/x.spec.ts'))
     expect(readFileSync(join(runDir, 'members__old.log'), 'utf8')).toContain('嵌套归档目录')
   })
 })
@@ -295,7 +297,7 @@ describe('报告里的归档文件', () => {
           '/repo/m/old.legacy-not/d.spec.ts',
         ),
       ),
-    ).toEqual(['x.legacy/b.spec.ts', '../shared.legacy/c.spec.ts'])
+    ).toEqual([join('x.legacy/b.spec.ts'), join('../shared.legacy/c.spec.ts')])
     expect(archivedReportFiles('/repo/m', undefined)).toEqual([])
   })
 })

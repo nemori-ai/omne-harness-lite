@@ -2,13 +2,13 @@
 
 本目录维护独有 skills、角色和宿主 hooks 的唯一编译源。实际条目以下表和源目录为准。
 执行仓库根 `.agents/`、`.claude/`、`.codex/`、`.cursor/` 通过相对软链接暴露生成物；接入状态由工具核对。
-通用工程方法从[技能采用入口](../../docs/engineering/skills.md)加载 pstack 与已选 Matt 方法，不复制插件正文。
+通用研发方法按[技能采用入口](../../docs/engineering/skills.md#三层分工)的三层（流程 poteto-mode、写法 Matt、品味 ub-mode）加载，不复制外部技能正文。
 
 | 输入 | 输出（相对显式指定的输出根） |
 |---|---|
 | `skills/<name>/canonical/` + `adapters/<host>/strategy.yaml` | `.agents/skills/<name>/`、`.claude/skills/<name>/`、`.cursor/skills/<name>/` |
 | `roles/<name>/role.md`、`codex.toml`、`claude.yaml`、`cursor.yaml`，可选 assembly / adaptation | `.codex/agents/<name>.toml`、`.claude/agents/<name>.md`、`.cursor/agents/<name>.md` |
-| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的收工钩子声明） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
+| [`hooks/hooks.yaml`](hooks/README.md)（宿主无关的钩子声明：收工与 Claude Code 会话开始） | `.claude/settings.json`、`.codex/hooks.json`、`.cursor/hooks.json` 及 Cursor bridge 资源 |
 | [`cloud/<host>/`](cloud/README.md)（按宿主分的 Cloud Agent 镜像源） | 该宿主 package 根下的 `Dockerfile`、`environment.json`、`install.sh`。现在只有 `cursor/`，投影到 `.cursor/` 并提交；根 `.cursor` 只是指向该目录的软链接 |
 
 [`research/`](research/README.md) 保存方法仍依赖的上游事实、适用版本与限制，
@@ -60,13 +60,23 @@ skills 的共享正文与资源放在 `canonical/`。即使各端直接复制，
 | `terminal-acceptance` | qa 在交付面是终端时的验收关口 |
 | `terminal-forensics` | diagnostician 在 `surface=terminal` 时的取证方法 |
 | `verification-facility` | developer 在 `implementation_kind=verification` 时的验证设施实践 |
-| `claim` | 认领指定 Issue，按基线建工作树并切过去，用 bro 介绍完整交付，并把开工上下文地图写入工作树 tmp |
+| `dispatch` | Reduce 当前波建卡、准入、binding 与首次临时消息，生成、演练、校验、打开与人转发分开记录 |
+| `integrate` | 唯一 Reduce 用 `wait-cli` 持续收件、接管迁移集成、blocked 交回发 redo delta 或接管、后继、全线 delta 与收口卡接受读回先于关闭收口卡 |
+| `line` | 常驻 Line 开工、自主执行、交回、等待下一条 delta 及 active/idle/redo/terminal 逐收口续接 |
+| `claim` | active Line 或独立任务的卡级准备、实施与五节交回；跨波协调按 line |
+| `delegate` | 任何会话派发写者、评审者或验收者：切闭包、写闭包规格、选模型、备环境、扇出、验收、升级、合回、记流水与反思 |
 | `review-delivery` | 开 PR 后主动按任务卡核对交付边界和验收标准。文档任务和代码任务都走它 |
 | `review-docs` | 开 PR 后主动评审正式文档的落盘遗漏、工作日志式表达、断链、下层违背上层，以及该不该补图 |
-| `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、SOLID 与 TypeScript 实践，并固定跑差分变异 |
+| `review-code` | 开 PR 后主动评审代码对规格的遵守、圈复杂度与 CRAP、按 ub-mode 判设计与实践，并固定跑差分变异 |
 
 工作树隔离、真实 cwd、共享写权及清理归[协作流程](../../docs/engineering/workflow.md)。
 提交和PR方法从工程技能入口选择，项目模板、署名及报告归[贡献指南](../../CONTRIBUTING.md)，
 动作授权及成果保存归[交付边界](../../docs/engineering/publication.md)。
 外部项目依赖必须作为明确工作区/执行仓库输入，不暗接父仓库。编译保留草稿状态，
 生成不代表接受、安装、宿主加载或模型行为已验证。
+
+## 协作采用与宿主事实
+
+Map-Reduce 责任与状态归 [工程集成](../../docs/engineering/integration.md#集成节点的清单) 和 [负责人状态](../../docs/engineering/map-reduce-states.md)。四技能共同消费同一语义，修改源后由根集成者生成投影。工具、技能和角色策略按同一固定提交采用，独立工具检出显式传目标 repo，不要求产品分支吸收工具提交。
+
+Codex 与 Claude Code 都必须具备角色默认配置和精确解析输出，固定角色约束不能被任务覆盖降低。requested model/effort、策略修订与 observed model 分别记录，未暴露观测为 unknown。配置、生成、宿主实际加载、原工具等待续接及跨机采用是不同证据。更新文件不说明旧会话热载成功；在开工边界加载新投影或按实际支持重启接续，并保留未完成申请和等待 journal。个人全局配置不自动修改。

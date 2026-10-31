@@ -12,7 +12,7 @@ import {
 const file = (path: string, text: string): SourceFile => ({ path, text })
 
 describe('no-wall-clock', () => {
-  it('CG1显示时刻仅豁免具名文件，其余frontend和领域文件仍报错', () => {
+  it('旧 frontend 显示文件不再自动豁免', () => {
     const observation = file(
       'frontend/governance-client-operations-local/src/observation-time.ts',
       'new Date()',
@@ -20,12 +20,13 @@ describe('no-wall-clock', () => {
     const action = file('frontend/governance-client-operations-local/src/actions.ts', 'new Date()')
     const domain = file('tenancy/account-identity-sql/src/observation-time.ts', 'new Date()')
     expect(noWallClock.check([observation, action, domain]).map(x => x.path)).toEqual([
+      observation.path,
       action.path,
       domain.path,
     ])
   })
 
-  it('产品源码用 Date.now() ⇒ 报出；infra/clock 与测试豁免', () => {
+  it('产品源码和旧 infra 都检查，测试仍豁免', () => {
     const bad = file('tenancy/organization-governance-sql/src/offers.ts', 'const t = Date.now()\n')
     const clockImpl = file('infra/clock/src/clock.ts', 'wall: () => Date.now()\n')
     const test = file('tenancy/organization-governance-sql/tests/x.spec.ts', 'Date.now()\n')
@@ -36,7 +37,8 @@ describe('no-wall-clock', () => {
     expect(noWallClock.check([bad])).toMatchObject([
       { rule: 'no-wall-clock', path: bad.path, line: 1 },
     ])
-    expect(noWallClock.check([clockImpl, test, clean])).toEqual([])
+    expect(noWallClock.check([clockImpl])).toHaveLength(1)
+    expect(noWallClock.check([test, clean])).toEqual([])
   })
 })
 

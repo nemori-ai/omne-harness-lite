@@ -4,7 +4,7 @@
 import { baselines, readTaskContext } from '../core/task-context.ts'
 import type { MetricsConfig } from '../metrics/config.ts'
 import { changedFiles } from '../core/git.ts'
-import { memberOf } from '../deps/graph.ts'
+import { memberOf, workingGraph } from '../deps/graph.ts'
 import { isMeasuredSource } from '../metrics/report.ts'
 import { collectMemberSources } from '../metrics/sources.ts'
 import type { LoopConfig } from './config.ts'
@@ -16,6 +16,7 @@ import { CONSTRAINT_PATHS, constraintDependencies } from '../arch/constraints.ts
 import {
   changeSince,
   directionLines,
+  loopGroupCycleExceptions,
   explainOf,
   measuredReport,
   readAssertions,
@@ -60,7 +61,8 @@ export function measureForHook(
 ): HookReadings {
   const files = collectMemberSources(root)
   const change = changeSince(root, base)
-  const report = measuredReport(root, files, metrics, change)
+  const graph = workingGraph(root)
+  const report = measuredReport(root, files, metrics, change, graph)
   // 只要改动过的测试文件里的：全仓的测试文件逐个解析要一秒多，而要解释的红项本来就只看改动过的。
   const changedTests = files.filter(file => change.paths.has(file.path))
   const explain = explainOf(
@@ -78,6 +80,7 @@ export function measureForHook(
     root,
     config.sensors.architecture,
     change.mergeBase,
+    graph,
   )
   return {
     explain: {
@@ -85,7 +88,7 @@ export function measureForHook(
       conformance,
       assemblyDelta,
     },
-    hardLines: directionLines(report),
+    hardLines: directionLines(report, loopGroupCycleExceptions(root)),
     alert: metrics.thresholds.alert,
   }
 }

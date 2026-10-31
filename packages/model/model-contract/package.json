@@ -1,0 +1,61 @@
+{
+  "name": "@omne-harness/model-contract",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Public type contract of the Model capability: calls, provider operations, profiles, conversion, host drivers and diagnostics",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./provider": {
+      "source": "./src/provider/index.ts",
+      "types": "./dist/provider/index.d.ts",
+      "import": "./dist/provider/index.js"
+    },
+    "./conformance": {
+      "source": "./src/conformance/index.ts",
+      "types": "./dist/conformance/index.d.ts",
+      "import": "./dist/conformance/index.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false",
+    "install-closure": "node --experimental-strip-types tests/install/cli.ts",
+    "fixtures": "node --experimental-strip-types tests/install/fixtures.ts"
+  },
+  "dependencies": {
+    "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/modality": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/stream-arrival": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

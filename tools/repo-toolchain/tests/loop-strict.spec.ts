@@ -2,14 +2,25 @@
 // 归慢层：子进程：在临时 git 仓库里起回路入口 CLI 子进程（严格模式）。
 // 严格模式（pnpm run check 用的那一档）：另判「开着的传感器都有数据」，要求基线与产物目录，回路目录一个字节都不动。
 import { spawnSync } from 'node:child_process'
-import { existsSync, readFileSync, readdirSync, rmSync, symlinkSync } from 'node:fs'
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+} from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
 import { readLoopConfig } from '../src/loop/config.ts'
 import { runLoopStatus } from '../src/loop/run.ts'
 import {
   commit,
+  copyRepository,
   git,
   removeTemporaries,
   repository,
@@ -26,12 +37,17 @@ const run = (root: string, home: string, ...args: string[]) =>
     env: { ...process.env, OMNE_METRICS_HOME: home },
   })
 
+interface Baseline {
+  readonly root: string
+  readonly base: string
+}
+
 /**
  * 每个传感器都能有数据的仓库：两个不同组的成员一起提交过、成员里有带断言的测试、有一个产品 topic。
  * 返回基线（成员都在的那个提交）。
  */
-function complete(): { root: string; home: string; out: string; base: string } {
-  const root = repository()
+function buildComplete(root: string): Baseline {
+  repository(root)
   write(root, 'pnpm-workspace.yaml', "packages:\n  - 'packages/*/*'\n  - 'apps/*'\n")
   write(root, 'packages/core/a/src/index.ts', 'export const a = 1\n')
   write(root, 'packages/infra/b/src/index.ts', 'export const b = 2\n')
@@ -48,33 +64,57 @@ function complete(): { root: string; home: string; out: string; base: string } {
     'docs/architecture/constraints.json',
     '{"schemaVersion": 1, "domains": [], "roles": [], "rules": []}',
   )
-  const base = commit(root, 'members')
-  return {
-    root,
-    base,
-    home: temporaryDirectory('loop-home-'),
-    out: join(temporaryDirectory('loop-out-'), 'status'),
-  }
+  return { root, base: commit(root, 'members') }
 }
 
-const tangled = Array.from(
-  { length: 8 },
-  (_, n) =>
-    `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
-).join('\n')
-
-function skeleton() {
-  const fixture = complete()
+/** 同样的仓库再删掉全部产品源码与测试，只剩产品骨架；返回骨架那个提交。 */
+function buildSkeleton(root: string): Baseline {
+  buildComplete(root)
   git(
-    fixture.root,
+    root,
     'rm',
     '-q',
     'packages/core/a/src/index.ts',
     'packages/infra/b/src/index.ts',
     'packages/core/a/tests/a.spec.ts',
   )
-  return { ...fixture, base: commit(fixture.root, 'product skeleton') }
+  return { root, base: commit(root, 'product skeleton') }
 }
+
+// 两种基线仓库整个文件只建一次，每条用例复制一份，在自己的临时目录里改动与提交。
+// 基线不进 removeTemporaries 的登记，由 afterAll 删。
+let baselines: string
+let completeBaseline: Baseline
+let skeletonBaseline: Baseline
+beforeAll(() => {
+  baselines = realpathSync(mkdtempSync(join(tmpdir(), 'loop-strict-')))
+  const at = (name: string) => {
+    const root = join(baselines, name)
+    mkdirSync(root)
+    return root
+  }
+  completeBaseline = buildComplete(at('complete'))
+  skeletonBaseline = buildSkeleton(at('skeleton'))
+})
+afterAll(() => rmSync(baselines, { recursive: true, force: true }))
+
+function fixtureFrom(baseline: Baseline): Baseline & { home: string; out: string } {
+  return {
+    root: copyRepository(baseline.root),
+    base: baseline.base,
+    home: temporaryDirectory('loop-home-'),
+    out: join(temporaryDirectory('loop-out-'), 'status'),
+  }
+}
+
+const complete = () => fixtureFrom(completeBaseline)
+const skeleton = () => fixtureFrom(skeletonBaseline)
+
+const tangled = Array.from(
+  { length: 8 },
+  (_, n) =>
+    `export function tangled${n}(x: number) {\n${Array.from({ length: 14 }, (__, i) => `  if (x === ${i}) return ${i}`).join('\n')}\n  return -1\n}\n`,
+).join('\n')
 
 // 每条用例都起 git 与 node 子进程；全量检查满载时单条会超过默认的 5 秒。
 describe('严格模式', { timeout: 60_000 }, () => {
@@ -476,5 +516,51 @@ describe('严格模式', { timeout: 60_000 }, () => {
     expect(snapshot.status).toBe(2)
     expect(existsSync(out)).toBe(false)
     expect(readdirSync(home)).toEqual([])
+  })
+})
+
+describe('Loop historical acceptance audit', { timeout: 60_000 }, () => {
+  it('retains original findings and the decision in JSON and Markdown, while rejecting later changes', () => {
+    const root = temporaryDirectory('loop-history-')
+    const source = fileURLToPath(new URL('../../../', import.meta.url))
+    const parent = 'e7aab8ec73002713d2ef6486401816850c984fb1'
+    const approvedCommit = '48ad37d292796326d65055a75e8a1fde44fe4233'
+    const path = 'packages/agent/agent/acceptance/README.md'
+    const decision =
+      'https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357'
+    git(root, 'clone', '--quiet', '--shared', '--no-checkout', source, '.')
+    git(root, 'sparse-checkout', 'set', '--no-cone', `/${path}`)
+    git(root, 'checkout', '--quiet', '--detach', approvedCommit)
+    const home = temporaryDirectory('loop-history-home-')
+    const out = temporaryDirectory('loop-history-out-')
+    const approved = run(root, home, '--base', parent, '--out', out)
+    expect(approved.status, approved.stdout + approved.stderr).toBe(0)
+    const status = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(status.hardLines.acceptanceLock).toEqual({ status: 'judged', violations: [] })
+    expect(status.auditRanges).toHaveLength(1)
+    expect(status.auditRanges[0].acceptance).toMatchObject({
+      commits: [expect.objectContaining({ sha: approvedCommit, allowed: false })],
+      violations: [expect.stringContaining('Agent-Role: developer')],
+      approvedExceptions: [
+        expect.objectContaining({ commit: approvedCommit, decisionUrl: decision }),
+      ],
+      unresolvedViolations: [],
+    })
+    const markdown = readFileSync(join(out, 'status.md'), 'utf8')
+    expect(markdown).toContain('原始违规')
+    expect(markdown).toContain(decision)
+    expect(markdown).toContain('验收锁 无未解决违规')
+    expect(markdown).not.toContain('没有不该改验收的角色动过它')
+    write(root, path, 'new acceptance contract\n')
+    const dirty = run(root, home, '--base', parent, '--out', out)
+    expect(dirty.status, dirty.stderr).toBe(1)
+    expect(dirty.stdout).toContain('未提交的验收改动')
+    commit(root, 'future acceptance edit\n\nAgent-Role: developer')
+    const future = run(root, home, '--base', parent, '--out', out)
+    expect(future.status, future.stderr).toBe(1)
+    const unresolved = JSON.parse(readFileSync(join(out, 'status.json'), 'utf8'))
+    expect(unresolved.hardLines.acceptanceLock.violations).toHaveLength(1)
+    expect(unresolved.auditRanges[0].acceptance.violations).toHaveLength(2)
+    expect(unresolved.auditRanges[0].acceptance.approvedExceptions).toHaveLength(1)
   })
 })

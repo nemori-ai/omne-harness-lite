@@ -10,6 +10,7 @@ import {
   readFileSync,
   rmSync,
   writeFileSync,
+  writeSync,
 } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
 import { stripVTControlCharacters } from 'node:util'
@@ -21,6 +22,7 @@ import type { TestMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunScript, type RunTier } from './config.ts'
 import type { MemberRun, VitestJsonReport } from './ledger.ts'
 import type { TimingReport } from './timing-reporter.ts'
+import { pnpmCommand } from './support.ts'
 import {
   checkMemberTurboConfigs,
   TIER_TASKS,
@@ -50,29 +52,89 @@ export interface SpawnResult {
   readonly wallSeconds: number
 }
 
+export interface SpawnLoggedOptions {
+  readonly cwd: string
+  readonly env: NodeJS.ProcessEnv
+  readonly logPath: string
+  /**
+   * 子进程标准输出与标准错误的每一行（不含换行符与行尾的 `\r`），在写进日志之后交给它。
+   * 不给时子进程直接写日志文件，不经本进程。
+   */
+  readonly onLine?: (line: string) => void
+}
+
+/**
+ * 子进程退出后等它的输出管道关上的时限。孙进程继承了管道又没退出时，管道一直不关；
+ * 过了时限就不再读，按子进程的退出码收尾。
+ */
+const PIPE_DRAIN_MS = 10_000
+
 /** 起一个子进程，输出全部进日志文件；起不来或被信号杀掉都记为非零退出码，不抛。 */
 export function spawnLogged(
   command: string,
   args: readonly string[],
-  options: { readonly cwd: string; readonly env: NodeJS.ProcessEnv; readonly logPath: string },
+  options: SpawnLoggedOptions,
 ): Promise<SpawnResult> {
   forwardTermination()
   const started = Date.now()
   const log = openSync(options.logPath, 'w')
+  const { onLine } = options
   return new Promise(resolve => {
     const child = spawn(command, args, {
       cwd: options.cwd,
       env: options.env,
-      stdio: ['ignore', log, log],
+      stdio: onLine === undefined ? ['ignore', log, log] : ['ignore', 'pipe', 'pipe'],
     })
     children.add(child)
+    let finished = false
+    let drainTimer: NodeJS.Timeout | undefined
     const finish = (exitCode: number) => {
+      if (finished) return
+      finished = true
+      if (drainTimer !== undefined) clearTimeout(drainTimer)
       children.delete(child)
       closeSync(log)
       resolve({ exitCode, wallSeconds: (Date.now() - started) / 1000 })
     }
-    child.once('error', () => finish(-1))
-    child.once('exit', code => finish(code ?? -1))
+    if (onLine === undefined) {
+      child.once('error', () => finish(-1))
+      child.once('exit', code => finish(code ?? -1))
+      return
+    }
+    // 两条管道各自按行切；读到的字节先原样写日志，再把完整的行交出去。
+    const flushes = [child.stdout, child.stderr].map(stream => {
+      let pending = ''
+      const emit = (line: string) => onLine(line.endsWith('\r') ? line.slice(0, -1) : line)
+      stream?.setEncoding('utf8')
+      stream?.on('data', (chunk: string) => {
+        writeSync(log, chunk)
+        const lines = (pending + chunk).split('\n')
+        pending = lines.pop() ?? ''
+        for (const line of lines) emit(line)
+      })
+      return () => {
+        if (pending !== '') emit(pending)
+        pending = ''
+      }
+    })
+    let exitCode = -1
+    child.once('error', () => {
+      exitCode = -1
+    })
+    child.once('exit', code => {
+      exitCode = code ?? -1
+      drainTimer = setTimeout(() => {
+        child.stdout?.destroy()
+        child.stderr?.destroy()
+        for (const flush of flushes) flush()
+        finish(exitCode)
+      }, PIPE_DRAIN_MS)
+    })
+    // 起不来时只有 error 与 close，没有 exit；正常时 close 在 exit 之后、两条管道都读完时到。
+    child.once('close', () => {
+      for (const flush of flushes) flush()
+      finish(exitCode)
+    })
   })
 }
 
@@ -108,6 +170,7 @@ async function runMember(
   const slug = slugOf(member.path)
   // 只有 vitest 的脚本才认这几个参数；别的脚本原样跑，账本里只有成员一级的耗时。
   // 计时报告器的输出路径只能写在配置里（命令行给不了报告器选项），验收的账本因此没有导入耗时，贴线按缺省时限判。
+  // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫因此不在场；这里不带过滤，也用不到它。
   const args = /\bvitest\b/u.test(member.script)
     ? [
         '--exclude',
@@ -136,7 +199,8 @@ async function runMember(
       throw new Error('Invalid archived test scope arguments')
     args.push(...extra)
   }
-  const result = await spawnLogged('pnpm', ['run', script, ...args], {
+  const pnpm = pnpmCommand()
+  const result = await spawnLogged(pnpm.command, [...pnpm.args, 'run', script, ...args], {
     cwd: memberDirectory,
     env,
     logPath: join(runDir, `${slug}.log`),

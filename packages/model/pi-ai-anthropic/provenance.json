@@ -1,0 +1,135 @@
+{
+  "description": "Data that pi-ai-anthropic migrated from the sealed Model packages. The sources are read-only; nothing imports them.",
+  "repository": "https://github.com/nemori-ai/omne-harness-lite",
+  "commit": "901d7ff56cf0a3c8a9e84df140f3ebd57ba5607c",
+  "root": "packages.0.0.1.legacy/model/pi-ai-transport",
+  "sources": [
+    {
+      "path": "src/official-models/anthropic.ts",
+      "sha256": "193662a915eea0b9fc18ebe096d5d38cb3545c6cd714c720636d7d1c97188a88",
+      "migrated": "the 4 models, the parameter subset (drops become unsupported, efforts low to max), the user reminder role, the 1h last-message cache, capabilities and limits with every upstream value unknown, and the 4194304-byte image limit",
+      "target": "src/records.ts"
+    },
+    {
+      "path": "src/input-meters/anthropic-replay.ts",
+      "sha256": "a68c83cf70aa24aaeefaf43dd16c2927f3f0850e6dcc19b10319b2d91b4593a9",
+      "migrated": "the whole-group item rule: format anthropic-claude-v1, signed reasoning.text, reasoning.encrypted data not empty and not [REDACTED]; the signed-prefix models (claude-opus-5.5 and claude-fable-5.1) are not migrated: by the project convention no record turns reasoning off, and live on 2026-10-22 the gateway took a foreign tool turn with reasoning on, and both models refused reasoning off; the frozen original meter is not migrated; the sealed method name `anthropic-complete-signed-encrypted-output-zero-framing-estimated/1` (ANTHROPIC_REPLAY_REVISION, lines 13-14) and the whole-group condition of classifyAnthropicReasoning (lines 157-196), which the meter sees as the units the codec wrote `reasoning_details` for",
+      "target": "src/records.ts, src/rules.ts"
+    },
+    {
+      "path": "src/input-meters/anthropic.ts",
+      "sha256": "de49d0ee80141556c68b62de49fe588af7aa431cdc06c0a7790a1cb0d06be821",
+      "migrated": "the claude.json estimate of the NFKC JSON of messages and tools with [image] placeholders, the SHA-256 check of claude.json, the 28-pixel patch rule and the four image media types; encode(..., 'all') is not migrated (special tokens stay inactive), nor data URL decoding, image-size and the MIME check",
+      "target": "src/meter.ts, src/images.ts, src/tokenizer.ts"
+    },
+    {
+      "path": "src/accounts.ts",
+      "sha256": "4b1210c21355ecdd7e486d97b93ff8a5a68626feaf057282df9832d1f9180717",
+      "migrated": "the cache read and write deduction from the prompt and the unknown negative remainder with its diagnostic; cost is not migrated",
+      "target": "src/rules.ts"
+    },
+    {
+      "path": "src/input-meters/wire-validation.ts",
+      "sha256": "7c686576c0de7fdc5efc677dbb423569e043acf6ff2a67c75aadd870fd8279d0",
+      "migrated": "the function tool subset: the parameters schema is an object",
+      "target": "src/rules.ts"
+    },
+    {
+      "path": "src/anthropic-cache.ts",
+      "sha256": "5656921f9c50452060bd00a6aa56857247ec70ba74338e2bfde2cc0269984030",
+      "migrated": "the cache rule as record data (last message, ttl 1h); the engine places the marker; marker removal and L02 are not migrated",
+      "target": "src/records.ts"
+    },
+    {
+      "path": "resources/tokenizers/anthropic-legacy/claude.json",
+      "sha256": "58dad83d85e9cd57be209172449ebfbc395df2b455c11fe8b7e5b661e6f462ad",
+      "migrated": "copied unchanged",
+      "target": "resources/tokenizers/anthropic-legacy/claude.json"
+    },
+    {
+      "path": "resources/tokenizers/anthropic-legacy/LICENSE",
+      "sha256": "f8508be03f7b370f84fb8411b78cc36b5addaa185628d91b6ca09888d0487798",
+      "migrated": "copied unchanged",
+      "target": "resources/tokenizers/anthropic-legacy/LICENSE"
+    },
+    {
+      "path": "resources/tokenizers/anthropic-legacy/provenance.json",
+      "sha256": "8125fe5d659cad137e1192e34f6b8916cfd9bbc1f311491a2c275f94cec0cf21",
+      "migrated": "copied unchanged",
+      "target": "resources/tokenizers/anthropic-legacy/provenance.json"
+    },
+    {
+      "path": "src/input-meters/output-history.ts",
+      "sha256": "649c07751f83da806eaf2ff062016d62d30a2d041b1353d97b2eb091ca3fd73a",
+      "migrated": "the complete-output-group method: the meter counts a whole unit with reasoning state once, as the upstream output tokens O of the call that produced it. O already includes reasoning. The method refuses a unit when O is unknown or when reasoning exceeds output. It also refuses a unit when the source dispatch has no materialization receipt or names another supplier adoption. The private observation protocol, replaySelection and the caller-carried responses are not migrated. The numbers come from the dispatch records of the model runtime through the preparation lease",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
+    },
+    {
+      "path": "src/input-meters/marginal.ts",
+      "sha256": "4f15b094fb386ed08639e31ad4eebd64a9e323ff4698aaba3dccc967f5e00d58",
+      "migrated": "the complete envelope difference: the new units are counted as count(envelope + new units) - count(envelope + []) with the tools left out of the envelope, and added to the real input total of the continued call as an estimate",
+      "target": "src/meter.ts (through pi-ai-transport chat-completions/calibration.ts)"
+    }
+  ],
+  "tests": [
+    {
+      "path": "tests/anthropic-family-current.spec.ts",
+      "sha256": "875c8428be9131b93738ed68b6ba6198f244e3d0afaa408e43784aaea4440a0c",
+      "target": "tests/support/legacy-cases.ts, tests/fixtures, tests/cross-family-replay.spec.ts, tests/plan.spec.ts, tests/meter.spec.ts"
+    },
+    {
+      "path": "tests/anthropic-stream-late-signature.spec.ts",
+      "sha256": "f7fe5b963a221c1ed88f27b5d298525bfb7e7a941ab7434b30e464fa92687e7b",
+      "target": "tests/support/legacy-cases.ts, tests/fixtures"
+    },
+    {
+      "path": "tests/usage-anthropic-public.spec.ts",
+      "sha256": "d4d128ee871d638b519cf31914b9f9eb879387810b0fd420ef341aab6cf7ebf2",
+      "target": "tests/support/legacy-cases.ts, tests/fixtures"
+    },
+    {
+      "path": "tests/https.spec.ts",
+      "sha256": "f7bc22e6907e8cd99c2871fc8c485a34ec1028a5a87f50e1a677c28048d4991f",
+      "target": "tests/support/legacy-cases.ts, tests/fixtures (the negative input remainder only)"
+    },
+    {
+      "path": "tests/anthropic-input-meter.spec.ts",
+      "sha256": "76aa919cb23942b6fafd4aa0aba78e6cbc83c2de56aacac7b437344747681802",
+      "target": "tests/meter.spec.ts"
+    },
+    {
+      "path": "tests/anthropic-replay-policy.spec.ts",
+      "sha256": "31056f39d2eb83ba33732b4660b11c0dfdd3d6d3acd5378ef4aa1d560edc41bd",
+      "target": "tests/records.spec.ts, tests/rules.spec.ts"
+    },
+    {
+      "path": "tests/fixtures/anthropic/reference-input.json",
+      "sha256": "8e24ee051d65a0e9ebb11ea9c381b501813717af98d32d9df51523bb3faa1393",
+      "target": "tests/meter.spec.ts (the projected text and the reference count 150, inline)"
+    }
+  ],
+  "sealedRevisions": {
+    "implementation": "pi-ai:anthropic mp4-18",
+    "definitions": {
+      "anthropic/claude-opus-5.5": "4",
+      "anthropic/claude-opus-5": "4",
+      "anthropic/claude-sonnet-5": "4",
+      "anthropic/claude-fable-5.1": "4"
+    },
+    "note": "Every current record starts at revision 1. The sealed revisions and the frozen original meter (definition 3, mp4-17) are not migrated: the digest of the new record format cannot equal a sealed adoption, so no sealed revision resolves exactly."
+  },
+  "dependencies": [
+    {
+      "name": "js-tiktoken",
+      "version": "1.0.21",
+      "license": "MIT",
+      "use": "test dependency only: loads claude.json directly as an independent check; the package itself counts through tokenizer-tiktoken"
+    },
+    {
+      "name": "anthropics/anthropic-tokenizer-typescript",
+      "version": "4d75e64d32fe5cd2b5a24d954242f9fab12e8b4b",
+      "license": "MIT terms in the repository LICENSE; the package.json of that repository declares Apache-2.0",
+      "use": "the source of resources/tokenizers/anthropic-legacy/claude.json and LICENSE"
+    }
+  ]
+}

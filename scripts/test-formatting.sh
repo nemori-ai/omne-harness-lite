@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/git-environment.sh"
+# The scenarios below need real symbolic links (a dangling link, a link to the formatter). Git Bash
+# copies the target instead unless told to create native links; other shells ignore the variable.
+export MSYS=winsymlinks:nativestrict
 main() {
 
 if (( $# )); then
@@ -64,7 +67,6 @@ printf '%s\n' 'const legacy={stay:unformatted}' >"$sandbox/tools/extra.legacy/ig
 legacy_before="$(sha256sum "$sandbox/tools/nested/archive.legacy/src/ignored.ts")"
 upstream_before="$(sha256sum "$sandbox/tools/demo/upstream/original.ts")"
 spec_before="$(sha256sum "$sandbox/spec/ignored.ts")"
-# packages/ and apps/ are outside the scope until their owner schedules the reformat.
 printf '%s\n' 'const product={stay:unformatted}' >"$sandbox/packages/demo/src/product.ts"
 printf '%s\n' 'const app={stay:unformatted}' >"$sandbox/apps/demo/src/app.ts"
 product_before="$(sha256sum "$sandbox/packages/demo/src/product.ts")"
@@ -108,14 +110,12 @@ second_write="$(sha256sum "$sandbox/tools/demo/src/space name.ts")"
     fail "upstream source was changed"
 [[ "$spec_before" == "$(sha256sum "$sandbox/spec/ignored.ts")" ]] ||
     fail "spec source was changed"
-[[ "$product_before" == "$(sha256sum "$sandbox/packages/demo/src/product.ts")" ]] ||
-    fail "a product package source was formatted"
-[[ "$app_before" == "$(sha256sum "$sandbox/apps/demo/src/app.ts")" ]] ||
-    fail "an application source was formatted"
-for excluded in packages/demo/src/product.ts apps/demo/src/app.ts; do
-    if "$sandbox/scripts/format.sh" check "$excluded" >/dev/null 2>&1; then
-        fail "an explicit $excluded target was accepted"
-    fi
+[[ "$product_before" != "$(sha256sum "$sandbox/packages/demo/src/product.ts")" ]] ||
+    fail "a product package source escaped formatting"
+[[ "$app_before" != "$(sha256sum "$sandbox/apps/demo/src/app.ts")" ]] ||
+    fail "an application source escaped formatting"
+for included in packages/demo/src/product.ts apps/demo/src/app.ts; do
+    "$sandbox/scripts/format.sh" check "$included" >/dev/null || fail "an explicit $included target was rejected"
 done
 if "$sandbox/scripts/format.sh" write spec/ignored.ts >/dev/null 2>&1; then
     fail "an explicit path escaped the maintained formatting scope"

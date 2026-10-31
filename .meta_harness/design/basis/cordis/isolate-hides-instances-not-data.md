@@ -11,7 +11,7 @@ lines:
   - "reflect.ts:154-166"
   - "reflect.ts:289-290"
   - "context.ts:115-125"
-probe: packages/core/kernel-basis/tests/basis/isolate-hides-instances-not-data.test.ts
+probe: packages/assembly/kernel-basis/tests/isolate-hides-instances-not-data.spec.ts
 checked: 2026-09-22
 ---
 
@@ -47,7 +47,7 @@ checked: 2026-09-22
 
 ## probe 断言什么
 
-probe 在 `packages/core/kernel-basis` 里，对 4.0.4 通过（2026-09-22）：
+probe 在 `packages/assembly/kernel-basis/tests/`，随该成员的测试运行。对 4.0.4 通过（2026-09-22）；2026-10-22 迁入该成员后对 4.0.4 复跑通过：
 
 1. 两个 `ctx.isolate('store')` 标签下各 provide 一个服务实例，两实例共享同一个 `Map`；
    标签 A 下的消费者解析到的是 A 的实例（标签生效），但经它写入再读出的数据对 B 同样可见——隔离不及于数据。

@@ -9,7 +9,10 @@
   },
   "bin": {
     "omne-delivery": "./dist/delivery/cli.js",
-    "omne-package-template": "./dist/package-template/cli.js"
+    "omne-pre-admission": "./dist/delivery/pre-admission-cli.js",
+    "omne-release-run": "./dist/integration/release-run-cli.js",
+    "omne-package-template": "./dist/package-template/cli.js",
+    "omne-package-exports": "./dist/package-exports/cli.js"
   },
   "scripts": {
     "build": "node -e \"require('node:fs').rmSync('dist', {recursive:true, force:true})\" && tsc -p tsconfig.build.json",
@@ -18,11 +21,25 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false",
     "package:template": "node --experimental-strip-types src/package-template/cli.ts",
-    "delivery": "node --experimental-strip-types src/delivery/cli.ts"
+    "delivery": "node --experimental-strip-types src/delivery/cli.ts",
+    "pre-admission": "node --experimental-strip-types src/delivery/pre-admission-cli.ts",
+    "release-run": "node --experimental-strip-types src/integration/release-run-cli.ts",
+    "scope-overlap": "node --experimental-strip-types src/delivery/scope-cli.ts",
+    "milestone": "node --experimental-strip-types src/delivery/milestone-cli.ts",
+    "board": "node --experimental-strip-types src/delivery/board-cli.ts",
+    "dispatch": "node --experimental-strip-types src/delivery/dispatch-cli.ts",
+    "events-receiver": "node --experimental-strip-types src/delivery/events-receiver-cli.ts",
+    "events-wait": "node --experimental-strip-types src/delivery/wait-cli.ts",
+    "ledger": "node --experimental-strip-types src/ledger/ledger-cli.ts",
+    "worktree": "node --experimental-strip-types src/integration/worktree-cli.ts",
+    "gate": "node --experimental-strip-types src/integration/gate-cli.ts",
+    "package:exports": "node --experimental-strip-types src/package-exports/cli.ts",
+    "initial-dispatch": "node --experimental-strip-types src/delivery/line-initial-dispatch-cli.ts"
   },
   "devDependencies": {
     "@omne-harness/repo-toolchain": "catalog:",
     "@types/node": "catalog:",
+    "@typescript/typescript6": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   }

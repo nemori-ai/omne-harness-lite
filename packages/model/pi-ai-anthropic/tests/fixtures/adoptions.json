@@ -1,0 +1,6 @@
+[
+  {"name":"anthropic/claude-opus-5.5","revision":"1","digest":"d7796ece04c25dc39803f44f5f06c5aea142df3e7c37569972e7f7504996edae"},
+  {"name":"anthropic/claude-opus-5","revision":"1","digest":"384c718e015c8ec63615733edc7300910939e0efeb6a07b9533e52bdd77ffb85"},
+  {"name":"anthropic/claude-sonnet-5","revision":"1","digest":"f614a77dc91477caa7a06a784225d138f0ce42c759c392f8157df68c5b0c63fe"},
+  {"name":"anthropic/claude-fable-5.1","revision":"1","digest":"3f892a68ac8765ec685b3b49fd6fb3cc1bcfd53063f70a6744c28e1ec60e4701"}
+]

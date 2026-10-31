@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Strict JSON text reader with caller budgets",
+  "description": "Strict JSON text reader, value-tree judgment and lossless writer with caller budgets",
   "engines": {
     "node": ">=24"
   },

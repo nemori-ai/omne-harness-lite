@@ -1,0 +1,1221 @@
+{
+  "package": "@omne-harness/request-context-contract",
+  "source": "docs/public-api.md",
+  "expectedPending": 0,
+  "entries": {
+    ".": {
+      "chapters": [
+        {
+          "title": "现有根导出",
+          "names": [
+            {
+              "name": "ScopeRef",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "ContextBlockKey",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/runtime-context-contract"
+            },
+            {
+              "name": "Path",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Decoded",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Decoder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "standardSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compactionPolicySchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "representationPolicyConfigSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "planProgressSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compactionPlanSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "coverageSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ToolRoute",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ToolDeclarationSet",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "declareTools",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ConversionIndex",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "chooseRepresentations",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ProjectedMessage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ProjectedHistory",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HumanProjection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "project",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "projectForHuman",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "CompactionSettingsValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "WindowUsageValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "windowRatio",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compactionSettingsSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "windowUsageSchema",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compactionSettingsBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "windowUsageBlock",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "SystemPromptResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "assembleSystemPrompt",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "Placement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlacementInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SNAPSHOT_ANCHOR_RULE",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "placeContext",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "Access",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/legal-identity"
+            },
+            {
+              "name": "Adoption",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
+            },
+            {
+              "name": "DurableEvidence",
+              "kind": "type",
+              "pending": false,
+              "sameAs": "@omne-harness/exchange-refs"
+            },
+            {
+              "name": "RequestContextRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CandidateRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PositionRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlanId",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "EpochId",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BatchRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PassageRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistrationRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceGeneration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupToken",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CommitOrder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingGeneration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryGrantRef",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrincipalKey",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistorySequence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextTarget",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RefKind",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RefRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "REQUEST_CONTEXT_REF_MAX_LENGTH",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeCandidateRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodePositionRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodePlanId",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeEpochId",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeBatchRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodePassageRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeRegistrationRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeSourceGeneration",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeGroupToken",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeCommitOrder",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeAccountingGeneration",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeRecoveryGrantRef",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodePrincipalKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "decodeHistorySequence",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compareHistorySequence",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "AssemblyPolicies",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyOperations",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PreparedInputKey",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyOperationsInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyOperations",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "SourceRead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceGroupValue",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextGroupSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRead",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceDecision",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextReadEligibility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrincipalBinding",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceRegistrationAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourceSettlement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistration",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RegistrationResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextSourceRegistry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRegistryOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingOrigin",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReceivedAccountFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextAccountingInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountReceipt",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextAccountingInbox",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SystemRecoveryAccess",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountReplay",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextRecovery",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingSourceAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RecoveryAuthority",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingLimits",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AccountingOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryRow",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryPage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryReadResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionContextResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistorySource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConversionIndexResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConversionResultSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetainBudget",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicy",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPlanDraft",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicyPort",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyConfig",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyPort",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RetentionMeasurement",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BudgetInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "judgeBudget",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ContributionRejection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContributionResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContributionsResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionRegistry",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestPurpose",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InputGroups",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "GroupName",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryUpper",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryCursor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TenantModelCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SourcedMessage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContinuationBasis",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AdoptedRequestFact",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionBasis",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryEvidence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NewInputBatch",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BlockMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SnapshotMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextReadGroup",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyContext",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionBase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptSection",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptVariable",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptContribution",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PromptContributionSet",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SelectedModel",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ToolAdoption",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ConditionsEvidence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AlterationEvidence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PreviousPreparation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TransitionEvidence",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Layer",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PrefixBreakReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LayerAnchor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SnapshotAnchor",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "Coverage",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "BudgetBreach",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "FitVerdict",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationChoice",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SnapshotReminder",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TailFacts",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestLayers",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestCandidate",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPlan",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlanProgress",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "SummaryMaterial",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ContextTransition",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFailure",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "InvalidReason",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "UnavailableOwner",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyUnknown",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyOutcome",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PlanResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "StepResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "LAYER_ORDER",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "PREFIX_BREAK_REASONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "DeriveInput",
+              "kind": "type",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "现有测试导出",
+          "names": [
+            {
+              "name": "createMemoryHistorySource",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MemoryHistorySource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistoryFixtureRow",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedInputMeter",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedPreparationResources",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryConversionResults",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedCompactionPolicy",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createScriptedRepresentationPolicy",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "FIXTURE_COMPACTION_POLICY",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "FIXTURE_REPRESENTATION_CONFIG",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "MeterScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedInputMeter",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryConversionResults",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PreparationCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "PreparationScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedPreparationResources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createMemoryContextSources",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryAdoptedSource",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createMemoryReadEligibility",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createTestingPrincipalBinding",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "AssemblyGroupValues",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextSources",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryContextSourcesInput",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryAdoptedSource",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "MemoryReadEligibility",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "AssemblyFixtureOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyFixture",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "createAssemblyGroups",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "testingAccess",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "countingBasis",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "fixtureBudget",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "requestContextConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "historySourceConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "compactionPolicyConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "representationPolicyConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ConformanceSubject",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "runConformanceCase",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ConformanceCase",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CaseVerdict",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "REQUEST_CONTEXT_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "HISTORY_SOURCE_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "COMPACTION_POLICY_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "REPRESENTATION_POLICY_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RequestContextObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistorySourceObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicyObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyObligation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "HistorySourceFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "CompactionPolicyFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RepresentationPolicyFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "NotApplicable",
+              "kind": "class",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "augmentations": [
+    {
+      "module": "@omne-harness/runtime-context-contract",
+      "interface": "ContextBlocks",
+      "members": [
+        "context.compaction-settings",
+        "context.window-usage"
+      ],
+      "pending": false
+    }
+  ]
+}

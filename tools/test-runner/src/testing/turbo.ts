@@ -8,7 +8,8 @@
 // 第 3 条「未识别文件按全量处理」turbo 不提供，由 scope.ts 判。
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 import { VITEST_MAX_WORKERS_ENV, type Parallelism, type RunTier } from './config.ts'
@@ -22,7 +23,19 @@ import {
 
 const RUNNER = resolve(fileURLToPath(new URL('../../../../', import.meta.url)))
 export const TURBO_CONFIG = join(RUNNER, 'turbo.json')
-export const TURBO_BIN = join(RUNNER, 'node_modules', '.bin', 'turbo')
+/**
+ * turbo 的入口。POSIX 上照旧是 `node_modules/.bin/turbo`。Windows 上那是 shell 脚本，不能直接 spawn，
+ * 改为按 `turbo` 包自己 `bin/turbo` 的规则在它的可选依赖里找平台二进制。
+ */
+function turboBinary(): string {
+  if (process.platform !== 'win32') return join(RUNNER, 'node_modules', '.bin', 'turbo')
+  const require = createRequire(import.meta.url)
+  const arch = process.arch === 'x64' ? '64' : process.arch
+  return require.resolve(`@turbo/windows-${arch}/bin/turbo.exe`, {
+    paths: [dirname(require.resolve('turbo/package.json', { paths: [RUNNER] }))],
+  })
+}
+export const TURBO_BIN = turboBinary()
 
 /** 环境变量 `OMNE_ADMISSION=1`：准入模式，本地缓存只写不读。 */
 export function admissionRequested(env: Readonly<Record<string, string | undefined>>): boolean {
@@ -137,13 +150,104 @@ export function affectedMembers(
     }),
   })
   if (run.error !== undefined) throw run.error
-  let names: string[]
+  return listedMembers(run, members, '受影响的成员')
+}
+
+/**
+ * 这些成员连同直接、间接依赖它们的全部成员，按 turbo 的包依赖图（`turbo ls --filter=...<包>`），不看改动。
+ * 影响面用它把只改了文档的成员带出的下游从 `--affected` 里拿掉（scope.ts）。没有成员时不跑 turbo；
+ * 点名的成员不在成员清单里就报错，不当作没有下游。
+ */
+export function dependentMembers(
+  root: string,
+  members: readonly WorkspaceMember[],
+  paths: readonly string[],
+): Set<string> {
+  if (paths.length === 0) return new Set()
+  const byPath = new Map(members.map(member => [member.path, member.name]))
+  const filters = paths.map(path => {
+    const name = byPath.get(path)
+    if (name === undefined)
+      throw new Error(`成员 ${path} 不在 workspace 成员清单里，求不出它的下游`)
+    return `--filter=...${name}`
+  })
+  const run = spawnSync(TURBO_BIN, ['ls', ...filters, '--output=json'], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: turboEnv({}),
+  })
+  if (run.error !== undefined) throw run.error
+  return listedMembers(run, members, `${paths.join('、')} 的下游`)
+}
+
+/** turbo 的包依赖图里的一个包：目录与它直接依赖的包名。 */
+export interface GraphPackage {
+  readonly path: string
+  readonly dependencies: readonly string[]
+}
+
+/** turbo 的包依赖图：包名 → 目录与直接依赖。 */
+export type PackageGraph = ReadonlyMap<string, GraphPackage>
+
+const GRAPH_QUERY = '{ packages { items { name path directDependencies { items { name } } } } }'
+
+/**
+ * 整张包依赖图，一次 `turbo query` 取出（`--affected` 与 `--filter=...<包>` 走的是同一张图）。
+ * 测试结果缓存用它求一个成员的上游闭包。根包 `//` 不算；输出读不出就报错，不当作空图。
+ */
+export function packageGraph(root: string): PackageGraph {
+  const run = spawnSync(TURBO_BIN, ['query', GRAPH_QUERY], {
+    cwd: root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: turboEnv({}),
+  })
+  if (run.error !== undefined) throw run.error
+  const graph = run.status === 0 ? parsePackageGraph(run.stdout) : undefined
+  if (graph === undefined)
+    throw new Error(`turbo 没有给出包依赖图（退出码 ${run.status}）：${run.stderr.trim()}`)
+  return graph
+}
+
+/** `turbo query` 的输出：`{ data: { packages: { items: [{ name, path, directDependencies: { items: [{ name }] } }] } } }`。 */
+export function parsePackageGraph(stdout: string): PackageGraph | undefined {
+  let parsed: unknown
   try {
-    const parsed = JSON.parse(run.stdout) as { packages: { items: { name: string }[] } }
-    names = parsed.packages.items.map(item => item.name)
+    parsed = JSON.parse(stdout)
   } catch {
-    throw new Error(`turbo 没有给出受影响的成员（退出码 ${run.status}）：${run.stderr.trim()}`)
+    return undefined
   }
+  if (!isRecord(parsed) || !isRecord(parsed['data']) || !isRecord(parsed['data']['packages']))
+    return undefined
+  const items = parsed['data']['packages']['items']
+  if (!Array.isArray(items)) return undefined
+  const graph = new Map<string, GraphPackage>()
+  for (const item of items as unknown[]) {
+    if (!isRecord(item) || typeof item['name'] !== 'string' || typeof item['path'] !== 'string')
+      return undefined
+    const direct = isRecord(item['directDependencies']) ? item['directDependencies']['items'] : []
+    if (!Array.isArray(direct)) return undefined
+    const dependencies: string[] = []
+    for (const dependency of direct as unknown[]) {
+      if (!isRecord(dependency) || typeof dependency['name'] !== 'string') return undefined
+      if (dependency['name'] !== '//') dependencies.push(dependency['name'])
+    }
+    if (item['name'] !== '//')
+      graph.set(item['name'], { path: item['path'].replaceAll('\\', '/'), dependencies })
+  }
+  return graph
+}
+
+/** `turbo ls --output=json` 列出的包，换成成员目录；输出读不出或报出清单外的包就报错，不当作空集。 */
+export function listedMembers(
+  run: { readonly status: number | null; readonly stdout: string; readonly stderr: string },
+  members: readonly WorkspaceMember[],
+  what: string,
+): Set<string> {
+  const names = run.status === 0 ? packageNames(run.stdout) : undefined
+  if (names === undefined)
+    throw new Error(`turbo 没有给出${what}（退出码 ${run.status}）：${run.stderr.trim()}`)
   const byName = new Map(members.map(member => [member.name, member.path]))
   return new Set(
     names.map(name => {
@@ -154,11 +258,39 @@ export function affectedMembers(
   )
 }
 
-function buildArgs(names: readonly string[], admission: boolean): string[] {
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+/** `{ packages: { items: [{ name }] } }` 里的包名；不是 JSON 或形状不对返回 undefined。 */
+export function packageNames(stdout: string): string[] | undefined {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(stdout)
+  } catch {
+    return undefined
+  }
+  if (!isRecord(parsed) || !isRecord(parsed['packages'])) return undefined
+  const items = parsed['packages']['items']
+  if (!Array.isArray(items)) return undefined
+  const names: string[] = []
+  for (const item of items as unknown[]) {
+    if (!isRecord(item) || typeof item['name'] !== 'string') return undefined
+    names.push(item['name'])
+  }
+  return names
+}
+
+/** 构建的 turbo 参数：同时构建的成员数取工作进程预算（tsc 各占一个核）。 */
+export function buildArgs(
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): string[] {
   return [
     'run',
     'build',
     ...names.map(name => `--filter=${name}`),
+    `--concurrency=${concurrency}`,
     `--cache=${admission ? 'local:w' : 'local:rw'}`,
     '--output-logs=errors-only',
   ]
@@ -168,9 +300,14 @@ function buildArgs(names: readonly string[], admission: boolean): string[] {
  * 用 turbo 构建一批成员；turbo 按依赖先构建上游。准入模式本地缓存只写不读。
  * 返回退出码；没有成员时不跑、返回 0。
  */
-export function turboBuild(root: string, names: readonly string[], admission: boolean): number {
+export function turboBuild(
+  root: string,
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): number {
   if (names.length === 0) return 0
-  const args = buildArgs(names, admission)
+  const args = buildArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
   const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
   if (run.error !== undefined) throw run.error
@@ -182,9 +319,10 @@ export function turboBuildCaptured(
   root: string,
   names: readonly string[],
   admission: boolean,
+  concurrency: number,
 ): { readonly status: number; readonly output: string } {
   if (names.length === 0) return { status: 0, output: '' }
-  const run = spawnSync(TURBO_BIN, buildArgs(names, admission), {
+  const run = spawnSync(TURBO_BIN, buildArgs(names, admission, concurrency), {
     cwd: root,
     encoding: 'utf8',
     maxBuffer: 256 * 1024 * 1024,
@@ -194,28 +332,34 @@ export function turboBuildCaptured(
   return { status: run.status ?? 1, output: `${run.stdout}${run.stderr}` }
 }
 
-/** 类型检查同时运行的成员数，与改由 turbo 调度之前 `pnpm -r` 的缺省并发相同。 */
-const TYPECHECK_CONCURRENCY = 4
-
 /**
  * 类型检查的 turbo 参数。任务按输入缓存，并依赖上游成员的 `typecheck`，上游源码一改下游就重新检查（见 turbo.json）；
- * 准入模式本地缓存只写不读，与构建相同。
+ * 准入模式本地缓存只写不读，与构建相同。同时检查的成员数取工作进程预算（tsc 各占一个核）。
  */
-export function typecheckArgs(names: readonly string[], admission: boolean): string[] {
+export function typecheckArgs(
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): string[] {
   return [
     'run',
     'typecheck',
     ...names.map(name => `--filter=${name}`),
-    `--concurrency=${TYPECHECK_CONCURRENCY}`,
+    `--concurrency=${concurrency}`,
     `--cache=${admission ? 'local:w' : 'local:rw'}`,
     '--output-logs=errors-only',
   ]
 }
 
 /** 用 turbo 跑一批成员的 `typecheck` 脚本；不先构建。没有成员时不跑、返回 0。 */
-export function turboTypecheck(root: string, names: readonly string[], admission: boolean): number {
+export function turboTypecheck(
+  root: string,
+  names: readonly string[],
+  admission: boolean,
+  concurrency: number,
+): number {
   if (names.length === 0) return 0
-  const args = typecheckArgs(names, admission)
+  const args = typecheckArgs(names, admission, concurrency)
   console.log(`$ turbo ${args.join(' ')}`)
   const run = spawnSync(TURBO_BIN, args, { cwd: root, stdio: 'inherit', env: turboEnv({}) })
   if (run.error !== undefined) throw run.error

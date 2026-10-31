@@ -15,6 +15,8 @@
 
 ## 现有冲突
 
+C-31、C-34、C-40 的旧规格链接固定到封存提交 `481f9f45f76f7a36a2c3cd05cc42b640d77a421a`，仅作历史证据。引文和条款编号保留发现时原文；封存快照的章节可能已随当时修订改名，不能据此把旧能力名、字段或条款作为新成员接口。现行行为分别由[Model 契约](../../../packages/model/model-contract/SPEC.md)、[Tool](../../../packages/tool/tool-contract/SPEC.md)和[Session](../../../packages/session/session/SPEC.md)拥有。
+
 | # | 词 | 类型 | 差在哪 | 状态 |
 |---|---|---|---|---|
 | **C-1** | **「上下文」/ context** | **同名不同义** | [PF-001 §4](../product.0.0.1.legacy/PF-001-identity-scope-and-agent-constraints/design.md#contextagent-运行时可感知的上下文信息)（rev 19）指**agent 感知到的「我处在什么情形下」**；[PF-010](../product.0.0.1.legacy/PF-010-context-management-and-assembly/README.md)（rev 2）整个 topic 说的是**喂给模型 / 给用户看的那一份**。**两者毫无关系。**再加上 **Cordis 的 `Context`**（依赖注入容器），同一个词有**四个所指** | **PM 已定用法，两个概念都不改名**——见下 |
@@ -35,7 +37,7 @@
 | **C-16** | **「替换件」/ Stand-in**（[UL-stand-in](terms/reach-and-availability.md#ul-stand-in--替换件--stand-in)） | **形态未定** | [PF-006 §4 替换件](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#替换件)（rev 10）既说它**被调用时会应答**、「是正常的返回，不是错误」（像一个有运行时实例的对象），又说它**同名、占同样的位置**（身份是借来的）；且它同时顶替工具与技能两类，写「变体」找不到单一父词条。正文未述它是否被系统单独标识 | **✅ 已闭合（2026-09-22，产品负责人直接裁决）**：替换件是**与原件同形的一种实例**——工具的名字与调用参数一致、技能的名字一致，**只有说明被换成「当前不可用及原因」**；它**必定以「不可用」收场**，正常返回带原因，不走报错。**它不是一个独立的东西**：身份仍是原条目的，名字与参数来自原条目，说明与应答来自依赖解析算出的原因，**丢了能原样重算**——**因此形态定为视图**，不给它建身份。**[形态取值表](conventions.md#形态这个词指的是哪一类东西)不增补「替身」这一类取值**——它压根不是「借用他者身份」，身份本来就是原条目的那一份。落在 [PF-006 rev 11](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md) |
 | **C-17** | **「持有」/ Asset Holding**（[UL-asset-holding](terms/circulation-and-entitlement.md#ul-asset-holding--资产持有--asset-holding)） | **形态未定** · 定义打架 | [PF-002 §6.4](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#64-移除与禁用是两个动作)（rev 4）说[资产禁用](terms/circulation-and-entitlement.md#ul-asset-disable--资产禁用--asset-disable)是**权限收窄为空集**——一条配值，持有上没有第二处状态；[flows §3.1](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/flows.md#31-一个资产在某个范围里)（rev 4）却把它画成**持有上的一个状态**（持有·启用 ⇄ 持有·禁用）。前者下持有是一层关系，后者下它自带状态机；两者对「启用回来之后权限恢复成什么」「上一层禁用了、下一层能不能自己开回来」给出不同答案 | **✅ 已闭合（2026-09-22，[产品负责人直接裁决](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md)）**：**禁用就是持有关系上的那个开关**——持有带一个启用/禁用标记，配置原样保留，flows 的状态图成立，「权限收窄为空集」那套说法作废。**装配从「持有且未被禁用」的那一批开始，所以禁用对 agent 与移除一样不可见**；**禁用表按层，任一层禁用即不可见，下层开不回上层禁的**。词条形态由「未定」定为**属性**。落在 [PF-002 rev 5](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md) |
 | **C-18** | **「依赖声明」/ Dependency Declaration**（[UL-dependency-declaration](terms/reach-and-availability.md#ul-dependency-declaration--依赖声明--dependency-declaration)） | **定义打架**（同一份正文内） | [PF-006 §4 依赖](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#依赖)（rev 10）写「依赖项有**三类**」；[§5.3](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#六项可选声明) 说两端的**模态声明也是依赖声明的一种**——依赖的是这一次有效模型的能力，三类里一类都不是；[§6.4](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#64-依赖声明与解析) 另有一项「附件放进哪个存储」。按「三类」实现，会漏掉模型能力与存储这两种对端，以及两端不对称的不可用后果 | **✅ 已闭合（2026-09-22，[产品负责人给的建模思路](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md)）**：依赖声明是**一串必需项的名字**，每一项**用抽象的名字**指一样可以在场也可以不在场的东西，**谁生效在那个名字上谁就满足它**；**种类不限**——其他工具、外部服务、设施、存储、有效模型的模态能力都只是例子，「三类」这个说法作废。**只有且，只有必需**：「或」被抽象名消掉，可有可无的东西用时探测、不进声明。**两端的模态都是声明里的必需项，差别在候选提供者不在规则**——调用端只有有效模型满足得了，结果端有效模型或转换件都行，「结果降级」只是这一项被转换件满足了。落在 [PF-006 rev 12](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md) |
-| **C-19** | **「执行尝试」/ Run Attempt**（[UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)） | **形态未定** | [PF-012 §4 执行尝试](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 5）明说「**它不是第二个执行体**……同一个协程，站在治理那一侧叫『这次运行的第几次尝试』」；同一份正文又给了它**自己的起始仪式**（[§5.7 每一次尝试开始，都要做三件事](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)）、**可被追溯**（[§6.4](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#64-每一次尝试开始agent-都要知道)「人追溯得到是哪一次尝试造成的」）与**跨尝试的连续性规则**（[§6.5](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#65-新的尝试不重置循环阶梯)）。判「对象」，下游会建一张尝试表，而上游说执行体只有一个；判「视图」，§6.4 要的「是哪一次」只能靠日志里那条提醒间接还原，**而那条提醒里没有尝试标识**。外延也不等同：agent runtime 是协程本身，执行尝试是「这个 Run × 这一副协程」的配对，带序数 | **✅ 已闭合（2026-09-22，产品负责人直接裁决）**：执行尝试是**视图**——**身份是 (哪次运行, 第几次)，从日志里那条「尝试开始」记录派生，不另存一份**，因为它没有任何「只有它知道」的东西。**两种读法之所以打架，是因为那条提醒里没有序号**；[序号现在写进去了](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#64-每一次尝试开始agent-都要知道)，于是「追溯得到是哪一次」不再需要一个独立对象。落在 [PF-012 rev 6](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md) |
+| **C-19** | **「执行尝试」/ Run Attempt**（[UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)） | **形态未定** | [PF-012 §4 执行尝试](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#执行尝试)（rev 5）明说「**它不是第二个执行体**……同一个协程，站在治理那一侧叫『这次运行的第几次尝试』」；同一份正文又给了它**自己的起始仪式**（[§5.7 每一次尝试开始，都要做三件事](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#每一次尝试开始都要做四件事)）、**可被追溯**（[§6.4](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#64-每一次尝试开始agent-都要知道)「人追溯得到是哪一次尝试造成的」）与**跨尝试的连续性规则**（[§6.5](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#65-新的尝试不重置循环阶梯)）。判「对象」，下游会建一张尝试表，而上游说执行体只有一个；判「视图」，§6.4 要的「是哪一次」只能靠日志里那条提醒间接还原，**而那条提醒里没有尝试标识**。外延也不等同：agent runtime 是协程本身，执行尝试是「这个 Run × 这一副协程」的配对，带序数 | **✅ 已闭合（2026-09-22，产品负责人直接裁决）**：执行尝试是**视图**——**身份是 (哪次运行, 第几次)，从日志里那条「尝试开始」记录派生，不另存一份**，因为它没有任何「只有它知道」的东西。**两种读法之所以打架，是因为那条提醒里没有序号**；[序号现在写进去了](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#64-每一次尝试开始agent-都要知道)，于是「追溯得到是哪一次」不再需要一个独立对象。落在 [PF-012 rev 6](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md)。2026-10-17 接续：形态与身份不变；左列「agent runtime 是协程本身，执行尝试是这个 Run × 这一副协程的配对」不再成立，执行尝试改为会话一侧拥有的关联，不再对应 agent runtime 的启动（用户决定，2026-10-17 Agent 扩展继承与边界对齐），见 C-54 |
 | **C-20** | **「工具定义」/ Tool Definition**（[UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition)） | **形态未定** | [PF-006 §5.2](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#52-工具这个词指三样东西寿命各不相同)（rev 10）的图把第一段标成「数据，长期」「**一类资产**」——工具定义就是「工具」这类资产本身；[PF-002 §4 Tool](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 4）说工具「有两半，缺一不可：**调用定义**……与**适配当前环境的实现**」——定义只是资产的一半。**差在工具定义有没有独立于「工具」这类资产的身份** | **✅ 已闭合（2026-09-22，[产品负责人直接裁决](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md)）**：**工具定义是一个具体的工具实现在数据与治理层面的身份与表示**，**允许自带完整实现 package**——两种旧读法一起作废：它既不是「工具这类资产本身」，也不是「资产的一半」。**那份资产的身份是[类别 ＋ name](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#身份是类别--name其余归实现)，同一身份下平台、组织、租户各可有一份定义**，所以它**不需要独立于工具的身份**——**形态定为属性**。落在 [PF-006 rev 13](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md) 与 [PF-002 rev 6](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md) |
 | **C-21** | **「执行帧」/ Execution Frame**（[UL-execution-frame](terms/execution-and-outcome.md#ul-execution-frame--执行帧--execution-frame)） | **形态未定** | [PF-006 §4 发帧](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#发帧)（rev 10）把它写成工具执行途中**发出去的东西**，形状由一份协议约定；[PF-009 §5.8](../product.0.0.1.legacy/PF-009-context-message-types/design.md#工具帧跟-toolmessage-是两条轨)（rev 2）说一次调用「可能很多条」、活得「可以更短」、有上限且被砍掉的部分必须看得出来——那是落成 `ToolInternalMessage` 之后的读法。**差在执行帧有没有独立于那类消息的身份与寿命**，连带它与[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)的边界 | **✅ 已闭合（2026-09-22，产品负责人直接裁决）**：**工具帧与模型响应流必须同形**——**一次工具执行对应一条 `ToolInternalMessage`**（内容是一串块），**执行帧就是这条消息的到达增量**，走 [§5.5 同一套到达语法](../product.0.0.1.legacy/PF-009-context-message-types/design.md#到达的过程有它自己的语法)，**不是另一份协议、不是独立对象、也不是载荷**。**因此它没有独立于那条消息的身份与寿命**，形态由「未定」定为**过程**；日志里留的是收尾后那条完整的消息（封口后的块），中断时已交付的块照样留。**不加块的种类**——帧的载荷就是普通内容块。**「取代」挂在块上**：开块时说明这块是追加片段还是整体替换。落在 [PF-009 rev 3](../product.0.0.1.legacy/PF-009-context-message-types/design.md) |
 | **C-22** | **`spawn` 的「继承当前会话的上下文」** | **定义打架**（两份已接受的材料） | [PF-007 §6.8 五维表](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 14）写 `spawn` 的上下文「**继承当前会话的**」，§9.1 仍把「共享同一份会话日志」与「派发那一刻复制一份」并列为未决；而 [现行词义](index.md) 裁决 3 说「**子会话不继承父会话的任何历史内容**」、裁决 4 说会话日志之间「**存储上不共享节点**」。§9.1 的第一个选项已被裁决 4 关掉，却还摆在未决项里；裁决 3 与五维表那一格**字面相反**。「继承的是组装出来的那一份，不是日志本身」也许调和得了，**但没有任何一处正文这么说过** | **✅ 已闭合（2026-09-22，[产品负责人直接裁决](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md)）**：**`spawn` 交出去的是「派发那一刻组装出来给模型看的那份上下文」的一份副本**，它是**子会话日志里的起始输入记录**；**父的日志不被指向、不被拷贝**，**派发之后父这边发生的事子看不见**。「**共享同一份会话日志**」那一侧作废，**§9.1 随之从未决项删除**；原则是「不同的 session 在 **session log、投影、runtime context snapshot** 三处存储上都不共享」（[现行词义](index.md)）。落在 [PF-007 rev 15](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md) |
@@ -48,9 +50,9 @@
 | **C-29** | **「组装」出现在 PF-009 §5.5 那一节标题里** | **同名不同义** | [PF-009 §5.5「组装出来的，必须与一次性拿到的一模一样」](../product.0.0.1.legacy/PF-009-context-message-types/design.md#组装出来的必须与一次性拿到的一模一样)（rev 8）说的是**把分次到达的增量拼成一条完整消息**；而[上下文组装](terms/record-and-context.md#ul-context-assembly--上下文组装--context-assembly)（[PF-010](../product.0.0.1.legacy/PF-010-context-management-and-assembly/README.md)）说的是**从会话日志拼出给某一方看的那份**。同一个 PF-009 里两种意思都在用（§5.7「一份会话日志，两种组装」是后一种）。读混了，实现者会把到达那一侧的拼接做进上下文组装，而后者是[纯派生的、一圈要跑两次](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#53-改日志的动作与纯派生的动作) | **PM 已定（只有一个答案成立）**：前一种立正式名 **[到达装配 `Arrival Assembly`](terms/record-and-context.md#ul-arrival-assembly--到达装配--arrival-assembly)**（主线裁定的名字，取代草稿里的「流装配器」，避开与 [Agent 装配](terms/agent-runtime-loop.md#ul-agent-assembly--agent-装配--agent-assembly)撞字）；**裸写「组装」在跨 topic 引用里只指上下文组装**。§5.5 那个标题回改归 PF-009 的 owner |
 | **C-30** | **「投影」/ projection** | **同名不同义** | 词表里有三个带这个中心词的视图：[属性投影](terms/scope-and-resolution.md#ul-attribute-projection--属性投影--attribute-projection)（一层持有的资产各自属性在这一层上的投影）、[模态投影](terms/record-and-context.md#ul-modality-projection--模态投影--modality-projection)、[会话日志投影](terms/record-and-context.md#ul-session-log-projection--会话日志投影--session-log-projection)；而每个产品 topic 下的 [`projection/`](../product/README.md) 是**产品设计向 Cordis 技术设计的派生快照**，是设计材料，不是系统里的概念。块 A 的读数报回「投影」一词在这几处所指不同 | **PM 已定（只有一个答案成立）**：三个词条都已带限定、各自成立，**不改名**；**裸写「投影」不作数**。`projection/` 目录与「技术投影」是设计材料的叫法，**不是术语**，与这三个视图无关 |
 | **C-32** | **一张[决策卡片](terms/interaction-and-dispatch.md#ul-decision-card--决策卡片--decision-card)有几个出口** | **定义打架**（两份产品正文） | [PF-007 §6.11「四个出口」](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#四个出口)（rev 17）列人回了 · 人取消 · 人叫停 run · 会话被归档，并写「**没有第五个出口，尤其没有『等到点了』**」；[PF-008 rev 7 §6.1](../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md#61-永远等着系统不替人作答)与 [flows §3.1](../product.0.0.1.legacy/PF-008-human-in-the-loop/flows.md#31-一张决策卡片)（rev 7）加了**第五个**：它等的那次执行已终局，恢复对账时关成「已作废」，flows 明写「最后一个，PF-007 的问询出口表里还没有」。差在**一张卡片的终态有四种还是五种**——按 PF-007 实现，停机后落了失败的执行出的卡会照挂到有人答了才知道白答 | **✅ 已闭合（2026-09-24，同日）**：第五个出口是产品负责人 2026-09-24 当场裁定（U-6 甲），PF-008 rev 7 先落稿；发现时 PF-007 §6.11 仍写「没有第五个」，[PF-008 decisions §四](../product.0.0.1.legacy/PF-008-human-in-the-loop/design.md)登记给 PF-007；**[PF-007 rev 18](../product.0.0.1.legacy/PF-007-meta-capabilities/design.md) 同日把表扩为五行、改为「没有第六个」**，标题「四个出口」为保锚点未改。词表与对象条目按 PF-008 rev 7 / PF-007 rev 18 写（[UL-card-batch 注意 ③](terms/interaction-and-dispatch.md#ul-card-batch--一批卡片--card-batch)、[决策卡片条目](../domain_objects/objects.md#ul-decision-card--决策卡片)）。**发现于 2026-09-24 rev 复核** |
-| **C-31** | **「X 运行时」出现在规格的能力名里**（「模型请求运行时」「工具执行运行时」） | **同名不同义**（词表 vs 规格层） | [`runtime` 那条写死的规矩](conventions.md#runtime-这个词本系统写死了)要求以 runtime 为中心词的都是**一个协程**：[一次模型调用](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)、[一次工具执行](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)各有一个。而共用契约起草时把**承载所有这类协程的那一项系统能力**也叫「模型请求运行时」「工具执行运行时」——那不是一个协程，是一项能力。[UL-model-call 注意 ②](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) 原写「『模型请求运行时』指执行这一次调用的那个协程」，读到规格里的能力名就会以为两者相等 | **✅ 已闭合（2026-09-25，主线裁定 D-060 §七 M18，维持 §一 T-3）**：**名字保留**——规则量的是所指，两项能力的提供者各是一条宿主协程；[`capability.model-request-runtime`](../../../packages.0.0.1.legacy/core/model-request-runtime/SPEC.md) 与 [`capability.tool-execution-runtime`](../../../packages.0.0.1.legacy/core/tool-execution-runtime/SPEC.md) 的 README 各写明「本能力的提供者是运行时协程」。词表侧（2026-09-24）注意 ② 已写明它指「这一次调用的那个协程」、**不是那项能力**，不改。读到这两个能力名的人仍按所在层分清指的是哪一个 |
+| **C-31** | **「X 运行时」出现在规格的能力名里**（「模型请求运行时」「工具执行运行时」） | **同名不同义**（词表 vs 规格层） | [`runtime` 那条写死的规矩](conventions.md#runtime-这个词本系统写死了)要求以 runtime 为中心词的都是**一个协程**：[一次模型调用](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)、[一次工具执行](terms/execution-and-outcome.md#ul-tool-execution--工具执行--tool-execution)各有一个。而共用契约起草时把**承载所有这类协程的那一项系统能力**也叫「模型请求运行时」「工具执行运行时」——那不是一个协程，是一项能力。[UL-model-call 注意 ②](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call) 原写「『模型请求运行时』指执行这一次调用的那个协程」，读到规格里的能力名就会以为两者相等 | **✅ 已闭合（2026-09-25，主线裁定 D-060 §七 M18，维持 §一 T-3）**：**名字保留**——规则量的是所指，两项能力的提供者各是一条宿主协程；[`capability.model-request-runtime`](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/model-request-runtime/SPEC.md) 与 [`capability.tool-execution-runtime`](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/tool-execution-runtime/SPEC.md) 的 README 各写明「本能力的提供者是运行时协程」。词表侧（2026-09-24）注意 ② 已写明它指「这一次调用的那个协程」、**不是那项能力**，不改。读到这两个能力名的人仍按所在层分清指的是哪一个 |
 | **C-33** | **「动作空间」/ Action Space**（[UL-action-space](terms/capabilities-and-composition.md#ul-action-space--动作空间--action-space)）在一次运行的几次尝试之间变不变 | **定义打架**（两份产品正文） | [PF-004 I-4](../product.0.0.1.legacy/PF-004-agent-definition-and-assembly/design.md#61-不变式)（rev 12）：「**动作空间只由构成决定**」，一次运行之内权限怎么变它都不变，不可用的条目由[替换件](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#63-不可用时装的是同名替换件不是不装)在原位占着；[PF-012 §5.7](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#57-一次尝试三条路通向重新算一遍)（rev 14）：「**重算之后动作空间可能与上一次尝试不同**」，[§7](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#七取舍) 同一说法「前后两次尝试的动作空间可能不同」。照 §5.7 字面，每次尝试重算可用性会把用不了的条目从 agent 眼前拿掉；照 PF-004，几次尝试之间变的只是哪些调得通，条目不少。§5.7 下一句「它调一个已经没了的能力，替换件会给它『用不了 + 原因』」与 PF-004 同向 | **待裁决**——归 PF-012 的 owner，已登记在 [PF-012 decisions §四](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md)（2026-09-24，本 rev 只登记）。PM 的读法：§5.7 与 §7 的「动作空间」该读作「调得通的范围」，改措辞即可；改之前要确认该 topic 别处没把「动作空间」当「调得通的范围」用。词条照 PF-004 定义不动，只在「注意」里点明这一处 |
-| **C-34** | **[尝试栅栏](terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence)拦不拦被取代那次尝试迟到的账** | **定义打架**（产品正文 vs 规格） | [PF-012 §5.7](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)（rev 14）：「只有序号最大的那次尝试的写入被接受；序号更小的尝试，**写什么都被拒**」；同一份正文的 [I-11](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只给**运行终结之后**开了口：「终结之前已经发起的那些，账在终结之后才到的，照样落账、归这个 Run，并标明是迟到的」。规格把这个口子延到了**尝试已被取代**：[`data.call-accounts` v2 S-39](../../../packages.0.0.1.legacy/core/call-accounts/SPEC.md)「它锚定的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下……并标 `late: true`」；[`capability.session-log` v2 S-10](../../../packages.0.0.1.legacy/core/session-log/SPEC.md) ③ 结算类的写（响应体、账）不带栅栏、照写（主线裁定 D-060 K14）。**照 PF-012 字面**，一次在旧尝试里已经出门的模型发出，它的账与响应体写不进日志，「按 Run 汇总成本」会漏；**照规格**，栅栏只拦推进运行的写 | **已闭合（2026-09-26）**：产品负责人同意修正文，D-064 ⑮；PF-012 rev 15 的 §4、§5.7 与 I-11 已对齐，尝试栅栏词条同步。左列保留发现时原文。 |
+| **C-34** | **[尝试栅栏](terms/agent-runtime-loop.md#ul-attempt-fence--尝试栅栏--attempt-fence)拦不拦被取代那次尝试迟到的账** | **定义打架**（产品正文 vs 规格） | [PF-012 §5.7](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#同一个-run-同一时刻只有一副协程在推它)（rev 14）：「只有序号最大的那次尝试的写入被接受；序号更小的尝试，**写什么都被拒**」；同一份正文的 [I-11](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#617-run-这一层的七条不变式) 只给**运行终结之后**开了口：「终结之前已经发起的那些，账在终结之后才到的，照样落账、归这个 Run，并标明是迟到的」。规格把这个口子延到了**尝试已被取代**：[`data.call-accounts` v2 S-39](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/call-accounts/SPEC.md)「它锚定的那次尝试已被新的尝试取代，或它归属的那次运行已经终结——它仍然落下……并标 `late: true`」；[`capability.session-log` v2 S-10](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/session-log/SPEC.md) ③ 结算类的写（响应体、账）不带栅栏、照写（主线裁定 D-060 K14）。**照 PF-012 字面**，一次在旧尝试里已经出门的模型发出，它的账与响应体写不进日志，「按 Run 汇总成本」会漏；**照规格**，栅栏只拦推进运行的写 | **已闭合（2026-09-26）**：产品负责人同意修正文，D-064 ⑮；PF-012 rev 15 的 §4、§5.7 与 I-11 已对齐，尝试栅栏词条同步。左列保留发现时原文。2026-10-17 接续：执行尝试改为会话一侧拥有的关联、不再是 agent runtime 的启动计数（用户决定，2026-10-17 Agent 扩展继承与边界对齐，见 C-54 与 [UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)），栅栏只比较会话日志里的尝试序号这一规则不变。 |
 | **C-35** | 工作区整体私有与共享 | 定义打架 | 旧文案将共享资源也描述为租户私有，与共享参与和两个目录的边界冲突 | **已对齐**，见下方 C-35 |
 | **C-36** | 共享实例与本地目录的归属 | 旧投影与最新裁决不一致 | PF-001/PF-002 仍将本地定制与租户私有资源混述，PF-020 已确认实例可跨租户共用 | **已同步 PF-001/PF-002 产品投影**，见下方 C-36 |
 
@@ -187,7 +189,7 @@ C-1 那两个概念都已拍板、都动不了，只能定用法；**这两条�
 
 ### C-40：模型响应体与实际发送的存在关系
 
-- **两处输入**：UL-model-response 及领域对象生灭曾写“一次都没发出的调用没有它”；已接受 [RT8 S-15/S-33](../../../packages.0.0.1.legacy/core/model-request-runtime/SPEC.md) 要求先耐久登记请求，再发出，并对未收场的登记责任追补响应。登记后、实际发送前取消或失联时，两种说法不能同时成立。
+- **两处输入**：UL-model-response 及领域对象生灭曾写“一次都没发出的调用没有它”；已接受 [RT8 S-15/S-33](https://github.com/nemori-ai/omne-harness-lite/blob/481f9f45f76f7a36a2c3cd05cc42b640d77a421a/packages.0.0.1.legacy/core/model-request-runtime/SPEC.md) 要求先耐久登记请求，再发出，并对未收场的登记责任追补响应。登记后、实际发送前取消或失联时，两种说法不能同时成立。
 - **产品依据**：[PF-013 §5.5 留痕](../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#试过又失败的那几次留痕不进方程) 与 [§5.13 停机](../product.0.0.1.legacy/PF-013-model-profiles-and-invocation/design.md#停机之后能不能重来只看首-token)（rev 15）要求真实留痕及未知费用不补零，并没有给出词表增加的“从未实际发送则绝无响应记录”排除条件。
 - **处置**：2026-09-28 主线按已接受的登记／结算责任边界纠正这条过强概括；独立 spec-reviewer 已定位词表／对象冲突及产品出处。模型响应体仍是同一耐久记录对象，Upstream Send 仍指实际发送；响应记录存在不证明发生发送、收到回复或产生零费用，不改变重试条件。不把未接受 MR8／RT9 的具体时间表示视作本词条的接受依据。
 - **状态**：中英定义、索引与对象生灭已对齐；实际发送时间的未知表示、恢复来源与消费者迁移仍按 MR8／RT9 候选的独立评审、接受及验证流程处理。既有对象条目中成功／失败记录归并的产品来源未裁项保持，不借本次消歧关闭。
@@ -286,3 +288,173 @@ PF-007 §9.2 旧推导把父停止、报告到达均解释成子协程停止；P
 - **反例与影响**：把尝试开始写成提醒，模型消息投影便会收进技术事实；若只在发送时删掉它，依赖提醒认定尝试开始的恢复／结算读者仍耦合于错误表示。涉及PF-012／PF-009／PF-010的相关规则与实际消息、尝试治理、组装、模型调用消费者；源码观察不表示已运行或修复。
 - **负责与闭合条件**：产品定义拥有者同步尝试开始事实与模型感知要求的边界及适用流程、验收和出处；技术接口拥有者分别落实事实表示、投影与原调用恢复／结算来源并迁移消费者。闭合前不采用“每次尝试开始必须向模型追加提醒”的旧读法，不自行删除真实业务结果或风险感知要求。
 - **状态**：产品表达已同步（PF-012 rev24及S103、PF-010 rev8），独立产品复核已完成限定范围；自动尝试提醒的产品歧义闭合。技术消费者迁移尚未实施，必须沿[候选整改设计](../architecture/session-agent-runtime-phase1/boundaries.md)及各实际承诺完成，不据此声称源码已修复。
+- **2026-10-17 接续**：「尝试开始」是会话一侧的记录（[UL-run-attempt](terms/agent-runtime-loop.md#ul-run-attempt--执行尝试--run-attempt)）。Agent 一侧新的开始事实是一个新 Agent 执行的开始，经过[执行开始之后](terms/agent-runtime-loop.md#ul-execution-started-position--执行开始之后--execution-started-position)位置，两者不合并。本条原有结论不变。
+
+
+### C-54：工具调用与工具结果部件由谁发布
+
+- **类型**：定义打架。2026-10-17 在 #342 的 Model 主干评审 R-2（共享 ToolCallPart）时发现。不新增词条。
+- **来源**：[UL-content-block](terms/record-and-context.md#ul-content-block--内容块--content-block) 原写「`tool_call` 和 `tool_result` 由工具领域发布」。[COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02) 当时有同一句。另一方是 [message 成员](../../../packages/common/message/src/index.ts)：它导出 `ToolPart` 与判定函数，拥有消息身份、角色与调用关联。[Model 契约 SPEC 的「工具定义转换与内容引用加载」](../../../packages/model/model-contract/SPEC.md#工具定义转换与内容引用加载)写调用建议采用 common/message 的 ToolCallPart。[会话日志事件 SE10](../../../packages/session/session-contract/docs/object-model/session-log-events.md) 写 ToolMessage 形状归消息契约。
+- **反例与影响**：按旧句，工具领域要发布消息部件，Tool 就得依赖消息模型，而 Tool 目前不导入 message。按 message 一方，消息部件与工具领域没有依赖。两种读法的写者与依赖方向相反。
+- **负责与闭合条件**：负责人 PanQiWei 于 2026-10-17 指定 Model 主干更正统一语言一方。词条已改为引用 COMMON-T02，不再自写包级归属。COMMON-T02 属架构区正文，其拥有者已同步。
+- **状态**：已闭合。依据是 [COMMON-T02](../../../docs/architecture/cross-cutting-concepts.md#common-t02)：`tool_call` 与 `tool_result` 部件的形状由 `packages/common/message` 发布，工具领域产出工具结果的内容，不发布消息部件。词条与架构正文现在一致。
+
+### C-55：模型档案词条仍写发前检查，缺窗口、压缩百分比与 updatedAt
+
+- **类型**：定义打架。2026-10-19 在 Model 契约包送轨的文档评审中发现；不新增词条。
+- **来源**：[UL-model-profile](terms/capabilities-and-composition.md#ul-model-profile--模型档案--model-profile)仍写「输入 token 的发前限额检查可以采用有依据的估算与明确配置的余量」，也写「字节与图片数量仍按实际值精确检查」。词条没有上下文窗口、默认压缩触发百分比与 `updatedAt`。另一方是 [Model 契约 SPEC 的「上游限制与提供上限」](../../../packages/model/model-contract/SPEC.md#上游限制与提供上限)：Model 的准备与发送路径不计量，也不以计量结论作为发出条件，上游报告输入超限时调用以 `failed` 收场，成因为 `input-over-limit`。档案另带上下文窗口、默认压缩触发百分比与不倒退的 `updatedAt`。
+- **反例与影响**：按词条，档案消费者会认为发送前有一道限额与精确字节检查，并会认为档案不带窗口与压缩百分比。按 SPEC，请求前的计量与限额判断归压缩方或请求组装方，发送前没有这道检查。读词条的人会把发前检查当作 Model 的义务，或找不到压缩方读取窗口的出处。
+- **负责与闭合条件**：负责人 PanQiWei。由词条拥有者修订 UL-model-profile，使词条与 Model 契约 SPEC 一致，并同步英文段与消费者。闭合前，不能把词条里的发前检查读作 Model 的发送条件，也不能据词条断言档案没有窗口与压缩百分比。
+- **状态**：打开。词条未改。
+
+### C-56：Agent runtime 是否空闲后复用
+
+- **类型**：定义打架。2026-10-17 改写词条时发现。
+- **两处输入**：[UL-agent-runtime](terms/agent-runtime-loop.md#ul-agent-runtime--agent-runtime--agent-runtime) 原词义（产品负责人 2026-09-20 直接裁决）写「一次起一个」「从 Run 的角度看，它的一生就是一次执行尝试」「协程每次重新起」；已接受系统页 [Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接) 写 runtime 可以在一次执行结束后保持空闲并复用于后续执行。
+- **差别**：若复用，runtime 的寿命长于一次 Agent 执行，登记与生灭随之不同；若不复用，每个新 Agent 执行另起一个。两种读法对「一个会话同一时刻至多一个活跃 agent runtime」都成立。
+- **处置**：项目负责人在本次交接中把「Runtime 可 idle 复用，逻辑执行与物理实例寿命分开」列为必须继承的要求，按此取复用一说。词条与对象条目改为：一次 Agent 执行结束后 runtime 回到空闲并保持登记，可以承接下一次 Agent 执行；前后两次执行之间不沿用主体、授权、取消状态、输入队列与结果游标。
+- **状态**：已闭合（2026-10-17）。上列原文保留发现时的写法，现行含义以词条为准。
+
+### C-57：连续否决是否有上限
+
+- **类型**：定义打架。2026-10-17 核对「消息落盘之前」说法时发现，并非本次决定引起。
+- **两处输入**：[UL-consecutive-veto-limit](terms/execution-and-outcome.md#ul-consecutive-veto-limit--连续否决上限--consecutive-veto-limit) 沿封存 [PF-012 §5.8](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#消息落盘之前的否决按消息是谁产生的分三路)（rev 25）写同一步连续被否决到上限时 Run 落失败；[产品页 模型回复与工具结果](../product/agent-progression/design.md#模型回复与工具结果)（rev 2）写连续否决不设次数上限，不因此使 Run 失败。
+- **另一处现行权威**：已接受系统页 [Agent runtime 回复准入与动作处理](../../../docs/architecture/runtime/agent-runtime.md#回复准入与动作处理) 写「连续否决不设次数上限。否决历史保留，不因此使 Run 失败」，与产品页一致。
+- **差别**：同一场景下，一条要求到上限失败，另一条要求永不因此失败。
+- **处置**：这不是产品未决项，而是词条落后于现行权威：已接受正文优先于封存旧材料。词表维护者按现行权威弃用 UL-consecutive-veto-limit，并改写指向它的说法（[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ②、[一次模型调用](terms/execution-and-outcome.md#ul-model-call--一次模型调用--model-call)注意 ③、[试尽](terms/execution-and-outcome.md#ul-retry-exhaustion--试尽--retry-exhaustion)注意 ①、索引行）。
+- **状态**：已闭合（2026-10-17）。
+
+### C-58：模态转换件的执行时点
+
+- **类型**：定义打架。2026-10-17 用户决定移除消息持久化位置后发现。
+- **来源**：用户决定暂不提供消息落盘之前与之后两种扩展位置。已接受[系统页](../../../docs/architecture/runtime/loop-extensions.md#不可用报错与系统扩展)的系统扩展表把模态转换列为系统扩展，非 Tool ref 来源的转换位置当时待负责人接受。
+- **各处现状**：[Model 契约](../../../packages/model/model-contract/SPEC.md#转换件的共同契约)写非 Tool ref 路径的转换在消息接纳前完成，且转换件不根据当前模型决定是否转换；请求时才加载并转换的只有 Tool 内容引用。[Model 契约的模态投影与实际表示](../../../packages/model/model-contract/SPEC.md#模态投影与实际表示)把实际表示的选择与组装交给 request-context。[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter)、[UL-derived-rendering](terms/record-and-context.md#ul-derived-rendering--派生表示--derived-rendering)、[UL-transcript](terms/record-and-context.md#ul-transcript--transcript--transcript) 与保留技术源 [modality-projection](../architecture/modality-projection/design.md) 仍以「在落盘之前写好」和「prepersist 跨域」描述转换。
+- **候选归属**：一，与 Tool 内容引用一样，在 Model 实际请求准备时按模态投影加载并转换，转换失败按请求准备失败返回。二，仍在消息接纳前完成，只是不再挂在拓展位置上：实现[消息准入](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission)的提供者在接纳前调用转换件，Tool 内容引用在 Model 实际请求时转换，Agent 只看到接纳后的消息与派生表示。
+- **推荐**：协调者推荐候选二，候选一不再推荐。候选二沿用 Model 与 Context 现行规格的时点，不另造时点，也不让 Agent 理解模态细节。
+- **受影响页**：系统页系统扩展表的模态转换行及其后一段、[UL-modality-converter](terms/capabilities-and-composition.md#ul-modality-converter--模态转换件--modality-converter) 及其索引行、[UL-message-admission](terms/agent-runtime-loop.md#ul-message-admission--消息准入--message-admission) 注意 ③。这三处已按候选二写。UL-derived-rendering、UL-transcript 的「在落盘之前写好」与候选二一致，不需要改。modality-projection 专题中「prepersist 跨域」的位置说法已改为接纳前调用。选候选二时 Model 与 Context 的规格不需要改。
+- **负责与闭合条件**：项目负责人接受候选二，或改选候选一。接受候选二后，去掉上述词条的「待负责人接受」，并复核模态转换件的形态：它不再站在拓展点上，是否仍是拓展件的变体。
+- **状态**：已闭合（2026-10-19）。项目负责人在[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)中接受候选二中非 Tool ref 来源的位置；Tool 内容 ref 的时点归 Tool 线，随其契约进入集成轨道。系统页、UL-modality-converter、索引行与 UL-message-admission 注意 ③ 已去掉「待负责人接受」。形态复核：UL-modality-converter 保持「变体（父：拓展件）」。已接受系统页仍把模态转换列在系统扩展表中，位置栏写「不在扩展位置上」，并由系统装配选择和替换。父词条 [UL-loop-extension](terms/capabilities-and-composition.md#ul-loop-extension--拓展件--loop-extension) 的定义写「挂在某个 Loop 拓展点上」，与转换件不站在拓展点上不一致；这一点已在转换件词条的「别混 ②」写明，形态改动须先改产品正文。Model 契约页（`packages/model/model-contract`）尚未进入集成轨道，其措辞随该页进入集成轨道时核对。
+
+### C-59：执行挂接的形态
+
+- **类型**：形态未定。2026-10-17 立词条 [UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 时发现。
+- **两种读法**：一，对象：有独立身份，有自己的生灭和围栏，每次重挂接产生新的一个。二，属性：Agent 执行与 agent runtime 之间当前那一次关联，挂在执行或 agent runtime 上，不另立身份。
+- **产品正文**：[产品页](../product/agent-progression/design.md#扩展检查与权限)（rev 2）只说重挂接与实例换代不再经过执行开始之后位置，没有给执行挂接的身份或生灭。
+- **判据**：能挂成已有对象一个属性的关系，不另立对象（见 `ubiquitous-language` 技能「判形态」）。
+- **负责与闭合条件**：Agent 技术设计（系统架构设计）按产品页的触发边界核对两种读法，定后回头改词条形态。
+- **处置**：Agent 契约的[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)给执行挂接独立的身份、三种状态（有效、被取代、已脱离）和围栏记录：状态终止后记录保留到所属执行的保留期结束，用于归属晚到回执与事件因果。它有独立身份和耐久记录，不能挂成执行或 agent runtime 的一项属性，所以取第一种读法。词条形态改为对象，[领域对象](../domain_objects/objects.md#ul-execution-attachment--执行挂接)已立条目，待裁项已删除。
+- **状态**：已闭合（2026-10-18）。依据是 Agent 契约的对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍给执行挂接独立身份、三种状态和耐久的围栏记录，形态保持对象。
+
+### C-60：拓展结论的形态
+
+- **类型**：形态未定。2026-10-17 立词条 [UL-extension-conclusion](terms/agent-runtime-loop.md#ul-extension-conclusion--拓展结论--extension-conclusion) 时发现。
+- **两种读法**：一，Agent 自己保存的耐久记录，有自己的身份，已有它的调用不再调用。二，会话日志里记录条目的一种，沿封存 [PF-012 §6.10](../product.0.0.1.legacy/PF-012-agent-loop-and-run/design.md#610-能干预的拓展件必须留下结论) 的写法。
+- **差别**：Agent 不要求、不解释会话日志，所以第二种读法与 Agent 一侧的边界不一致；第一种读法没有产品正文给出身份与生灭。
+- **负责与闭合条件**：Agent 技术设计（系统架构设计）定拥有者与记录种类，定后回头改词条形态。
+- **处置**：Agent 契约的[扩展作者协议](../../../packages/agent/agent-contract/docs/public-api/extensions.md#conclusion)规定 Agent 把校验通过的输出包装为结论并保存，作者不返回结论。[对象模型](../../../packages/agent/agent-contract/docs/object-model.md#对象与生命周期)把扩展调用的记录列为 execution 内的台账，结论没有独立于所属调用的身份。保存者是 Agent，保存位置是它的执行记录，所以第二种读法与 Agent 不解释会话日志的边界不符。词条形态改为属性，挂在 Agent 执行的记录上，待裁项已删除。非最终结论（请求人处理）与最终结论同属这一属性。
+- **状态**：已闭合（2026-10-18）。依据是 Agent 契约的扩展作者协议与对象模型。该契约已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)采用（2026-10-19），接受时已复核：已接受的对象模型仍把结论列在扩展调用的台账内，结论没有独立身份，形态保持属性。
+
+### C-61：斜杠命令受理依赖已移除的位置
+
+- **类型**：定义打架，外域。2026-10-17 用户决定移除消息落盘之前位置后发现。
+- **来源**：[slash-commands 产品页](../product/slash-commands/design.md)、[领域流程](../../../docs/domains/slash-commands/key-flows.md)与[包架构](../../../packages/slash-command/docs/architecture.md)依赖该位置做展开、脱敏与否决。[UL-origin-tag](terms/record-and-context.md#ul-origin-tag--来路标记--origin-tag) 的出处引用封存 PF-014 §5.6，该节标题含已移除的位置名。
+- **处理**：产品负责人于 2026-10-19 裁定：消息持久化归会话，不归 Agent。所以消息落盘之前与之后的处理不是 Loop 拓展点，而是会话的[业务流程拓展点](terms/interaction-and-dispatch.md#ul-business-flow-extension-point--业务流程拓展点--business-flow-extension-point)。斜杠命令的展开、脱敏与否决挂在会话的业务流程拓展点上。omne-harness 的拓展点因此分两类：会话的业务流程拓展点与 Agent 的 Loop 拓展点，两类并列。
+- **负责与闭合条件**：会话领域定义消息持久化前后的业务流程拓展点；slash-commands 产品页、领域流程与包架构改挂到这些拓展点；hooks 导入专题的 UserPromptSubmit 同样改挂。会话领域定义这些拓展点时一并写明：展开与脱敏改变的是尚未受理、尚未落定的输入，与业务流程拓展点“不改变已经落定的事实、不对会话日志留下持久化影响”的定义性质怎样相容。各页回改后闭合。
+- **状态**：已裁定，待会话领域定义拓展点与各页回改。
+
+### C-62：拓展与扩展
+
+- **类型**：同义不同名。
+- **两处输入**：词表写「拓展件」「拓展点」；已接受系统页与成员正文写「扩展」「扩展位置」。两者指同一个东西。
+- **处理**：词表保留「拓展」，在 [UL-loop-extension-point](terms/agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point) 写明映射。「扩展」不列入弃用，因为已接受页正在使用，回改归各页拥有者。
+- **状态**：映射已写明，两种写法并存。
+
+### C-63：Runtime Context 的拉取时点
+
+- **类型**：定义打架，外域。2026-10-17 核对 attempt 说法时发现。
+- **来源**：[Runtime Context 产品页](../product/runtime-context/design.md#5-当前值与变化感知)与已接受[系统页](../../../docs/architecture/runtime/runtime-context.md)以 attempt 为拉取时点。用户决定 Agent 不要求、不解释 attempt。
+- **处理**：[UL-runtime-context](terms/scope-and-resolution.md#ul-runtime-context--运行时-context--runtime-context) 不再另定时点，改指 Context 与 Agent 的现行正文。
+- **负责与闭合条件**：Context 拥有者改写拉取时点的说法。
+- **状态**：已闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。Context 一侧描述拉取时点的页面都已改为「执行开始或挂接建立」：已接受的 Runtime Context 系统页与领域页、运行时 context 规格的 RC-04（该规格现归 [runtime-context-contract](../../../packages/context/runtime-context-contract/SPEC.md)，条款标题现为[「读取时点、观察与变化材料」](../../../packages/context/runtime-context-contract/SPEC.md#rc-04-读取时点观察与变化材料)）、该成员的关键流程 RC-F01（现为 runtime-context-contract 的 [F-RC03](../../../packages/context/runtime-context-contract/docs/flows.md#f-rc03-执行开始或挂接建立时的完整快照)）、内部设计与开放问题、Context 组的关键流程，以及 [Runtime Context 产品页](../product/runtime-context/design.md) §5、RC-J01 与 CAP-RC04（产品页修订到 rev 2）。
+
+### C-64：执行挂接的候选类型名
+
+- **类型**：同义不同名，并有英文同名不同义。2026-10-17 核对执行挂接的英文名时发现。
+- **来源**：Agent 契约的[公开接口页](../../../packages/agent/agent-contract/docs/public-api/README.md)当时用裸写的 `AttachmentId` 类型与 `attachment` 字段指执行挂接；[附件](terms/execution-and-outcome.md#ul-attachment--附件--attachment)的英文名是 Attachment，Tool 结果中的 attachments 也指文件附件，两者都流经 Agent。已接受[系统页 Agent runtime](../../../docs/architecture/runtime/agent-runtime.md#实例执行与执行挂接)与[领域页](../../../docs/domains/agent-progression/README.md)的中文当时写「挂载」。
+- **差别**：同一个域里，一个英文词有两个所指，会直接传到类型与字段名上；中文「挂载」与「执行挂接」是同一个概念的两种说法。
+- **处置**：[UL-execution-attachment](terms/agent-runtime-loop.md#ul-execution-attachment--执行挂接--execution-attachment) 的英文名定为 Execution Attachment，不许简称 attachment；「挂载」与「Agent Attachment」列入弃用。类型名改为 `ExecutionAttachment`、`ExecutionAttachmentId`，字段改为 `executionAttachment`。
+- **负责与闭合条件**：Agent 契约的写者改类型名与字段名；已接受页的「挂载」随系统页修订交负责人接受后回改。两处都回改后闭合。
+- **状态**：部分闭合（2026-10-19）。依据是[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)。词条已定名，Agent 契约已改用全称类型名与字段名。已接受页（系统页 Agent runtime 的节名「实例、执行与执行挂接」与正文、领域页）已回改，英文裸写的 attachment 也已改为 execution attachment。仍缺：共同系统页 `runtime-contract-model.md` 的旧写法，该页尚未进入集成轨道，随该页进入集成轨道时回改，之后闭合。
+
+### C-65：压缩用排除名单还是保留名单
+
+- **类型**：定义打架。2026-10-20 承接产品负责人的压缩语义时发现。
+- **来源**：[压缩记录](terms/record-and-context.md#ul-compaction-record--压缩记录--compaction-record)与[上下文压缩](terms/record-and-context.md#ul-context-compaction--上下文压缩--context-compaction)当时按封存的 PF-009、PF-010 写成以块为单位的排除名单：压缩记录点名一批块，从此不再模型可读。PanQiWei 2026-10-20 定下的语义相反：压缩后模型只看到压缩记录指定保留的消息、压缩记录本身和它之后的消息。
+- **差别**：排除名单以块为单位、列出被拿掉的部分，模型视图要逐块扣减；保留名单以消息为单位、列出留下的少数，在压缩时固定。两种读法给出的模型视图形状不同，下游的形状、校验和缓存都会照着其中一种建。
+- **处置**：词表改用[保留名单](terms/record-and-context.md#ul-retained-set--保留名单--retained-set)与[压缩覆盖范围](terms/record-and-context.md#ul-compacted-range--压缩覆盖范围--compacted-range)，「排除名单」列入弃用。[运行感知与一次模型请求](../product/runtime-context/design.md#7-压缩保留历史与未完工作)已修订到 rev 3。消息形状与判定规则归 `packages/common/message`。
+- **负责与闭合条件**：负责人 PanQiWei。Agent 契约成员、Agent 机制页、Model 契约 SPEC、数据与状态系统页、Agent 推进领域页、产品页模型调用与 Session 契约 SPEC 都已改为保留名单：压缩消息带压缩覆盖范围与保留名单，形状归 message 包。
+- **状态**：已闭合（2026-10-21）。Request Context 一侧由 [request-context-contract 的 RQ-06](../../../packages/context/request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)按保留名单写定。上列来源与差别保留发现时的写法，现行含义以词条为准。
+
+### C-66：内容块的种类是否含推理续接状态
+
+- **类型**：定义打架。2026-10-21 承接加密推理回放的设计时发现。
+- **来源**：[内容块](terms/record-and-context.md#ul-content-block--内容块--content-block)把块的种类列为七类封闭清单：文本、思考、语音、图、文件、工具调用、工具结果。PanQiWei 2026-10-21 定下可见推理与加密推理分成两种块；[message 成员的推理续接状态](../../../packages/common/message/SPEC.md#推理续接状态)据此设计了只在 assistant 消息里出现的推理续接状态部件，装供应商交回的不透明推理状态。
+- **差别**：按词表的七类读，加密推理没有位置，只能塞进「思考」，与产品负责人的分块裁定相反；按设计读，块多出第八类，词表的封闭清单不再成立。推理续接状态、回放范围、回放声明和外来可见推理四个说法目前只在成员规格里定义，没有产品正文出处。
+- **处置**：PanQiWei 2026-10-21 接受任务卡 [#605](https://github.com/nemori-ai/omne-harness-lite/issues/605) 的设计，并要求在本卡内消解本项。[模型调用：推理状态的续接](../product/model-invocation/design.md#推理状态的续接)（rev 3）成为产品出处。内容块改为八类，新立[推理续接状态](terms/record-and-context.md#ul-reasoning-state--推理续接状态--reasoning-state)（内容块的变体）、[推理回放](terms/record-and-context.md#ul-reasoning-replay--推理回放--reasoning-replay)与[推理回放范围](terms/record-and-context.md#ul-reasoning-replay-scope--推理回放范围--reasoning-replay-scope)；首 token、模态、媒体类型三条随之改。英文 `Replay` 已是 Agent 接续时的[回放](terms/agent-runtime-loop.md#ul-replay--回放--replay)，所以新词都带「推理」限定，两条词条互相写明别混。回放声明与外来可见推理只在 Model 一个领域使用，不立词条，定义留在 [Model 契约的推理回放](../../../packages/model/model-contract/SPEC.md#推理回放)。
+- **负责与闭合条件**：负责人 PanQiWei。产品出处、词条与内容块清单已一致。
+- **状态**：已闭合（2026-10-21）。上列来源与差别保留发现时的写法，现行含义以词条为准。
+
+### C-67：运行时 context 注册是属性还是对象
+
+- **类型**：定义打架。2026-10-20 承接 Runtime Context 产品页 rev 4 时发现。
+- **来源**：[运行时 context 注册](terms/scope-and-resolution.md#ul-runtime-context-registration--运行时-context-注册--runtime-context-registration)原按封存 [PF-015 §6.18](../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#618-runtime-context-注册与内容分别变化)（rev 21）写成会话上的一项属性：会话纳入一块的来源、配置与消费者声明。[运行感知与一次模型请求 §2.4](../product/runtime-context/design.md#24-注册读取资格与绑定读者)（rev 4）把它写成作用域持有者为一个作用域固定的清单，身份是作用域加块键，必需项在作用域创建时固定、可选项可增删，并带需要绑定与参数。
+- **差别**：属性读法下它没有自己的身份，随会话整体存在；对象读法下每个作用域加块键一条，可以被单独引用、增删与恢复。下游按属性建，就没有「移除一项只停本作用域后续使用」这件事可做；按对象建，才有逐项的注册修订可供读取资格引用。
+- **处置**：词条形态改为对象，定义按 rev 4 改写，封存出处保留为旧说法；[objects.md](../domain_objects/objects.md#ul-runtime-context-registration--运行时-context-注册) 立条目。「会话」改为「作用域持有者」，本版持有者是会话。
+- **负责与闭合条件**：负责人 PanQiWei。Context 成员契约按对象读法写登记条款；封存 PF-015 不回改。契约落地后闭合。
+- **状态**：已裁定（随产品页 rev 4）。成员契约已按对象读法写定登记条款（[RC-02](../../../packages/context/runtime-context-contract/SPEC.md#rc-02-块声明注册与参数)）；随契约接受闭合。
+
+### C-68：目标环境的求值结果是不是这次执行的要求
+
+- **类型**：定义打架。2026-10-21 核对环境要求与执行环境权限的说法时发现。
+- **来源**：[目标环境](terms/grounding-and-isolation.md#ul-target-environment--目标环境--target-environment)按封存的 [PF-006 §6.8](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#68-工具怎么提执行环境的要求)（rev 24）与 [PF-002 §4 Tool](../product.0.0.1.legacy/PF-002-assets-settings-and-permissions/design.md#tool)（rev 32）写成：目标环境是一项被求值的设置，「求值出来的那一份就是这次执行的要求」。[执行环境产品正文的环境要求与落点](../product/execution-environments/design.md#环境要求与落点)（rev 2）写成：被求值的是[执行环境权限](terms/grounding-and-isolation.md#ul-execution-environment-permission--执行环境权限--execution-environment-permission)，工具宿主把它的有效值与目标环境翻译成允许清单，交给执行环境的是[环境要求](terms/grounding-and-isolation.md#ul-environment-requirement--环境要求--environment-requirement)。
+- **差别**：第一种读法里，目标环境本身经求值成为这次执行的要求；第二种读法里，目标环境只是翻译的一项输入，要求是权限有效值与目标环境翻译之后的结果。下游照第一种建，会把工具声明当成执行环境的输入；照第二种建，执行环境只收允许清单。
+- **处置**：目标环境词条的出处不是执行环境产品正文，它的定义不随执行环境产品正文改写。环境要求词条按执行环境产品正文写，并在「别混」指到这里。
+- **负责与闭合条件**：负责人 PanQiWei。工具与设置的产品正文拥有者核对目标环境的定义，与执行环境产品正文对齐后改写目标环境词条，之后闭合。
+- **状态**：待裁。
+
+### C-69：在途状态由谁持有、失去连续性后是否还在
+
+- **类型**：定义打架。2026-10-21 评审会话与工作产品页时发现。
+- **来源**：[在途状态](terms/record-and-context.md#ul-in-flight-arrival--在途状态--in-flight-arrival)按封存的 [PF-009 §9.2](../product.0.0.1.legacy/PF-009-context-message-types/design.md#收尾之前拼到一半的那份是在途状态不是日志不是消息)（rev 9）写成：在途内容由运行时持有，运行时失去连续性它就没了。[会话与工作：在协作历史中看清发生过什么](../product/sessions-and-work/design.md#在协作历史中看清发生过什么)（rev 7）与系统页[用户可见内容的两处来源](../../../docs/architecture/runtime/streaming-and-consumption.md#用户可见内容的两处来源)写成：用户可见的在途增量只来自生产方已经可靠保管的批次，故障后只可能缺从未展示过的片段。
+- **差别**：第一种读法里，已展示的在途内容会随运行时一起丢失；第二种读法里，已展示的部分由生产方保管，故障后仍可取回。下游照第一种建，不会为在途增量做保管；照第二种建，生产方必须先保管再发布。
+- **处置**：词条暂不改。在途状态的定义归模型调用与工具执行的产品正文，会话与工作只写用户可见的来源。
+- **负责与闭合条件**：负责人 PanQiWei。模型调用与工具执行的产品正文拥有者核对在途状态的持有方与丢失条件，改写词条出处到现行产品正文后闭合。
+- **状态**：待裁。
+
+### C-70：常驻工具的形状与能力数据的动态采用
+
+- **类型**：定义打架。2026-10-21 写回 RFC-0012 时登记。
+- **两处输入**：[C-47](#c-47能力数据与实现变化被误当成-loop-生命周期变化) 的处置写「会话保留已知能力，当前数据、实现与可用性动态采用」，[项目要求 SYS-COMPOSITION](../../../docs/requirements.md#定义装配与活体sys-composition) 写「尚未发出的 Tool 或 MCP 调用，仍可按合法刷新看到新的定义和可用性」。已采用的 [RFC-0012 会话常驻集合的规则](../../../docs/rfcs/RFC-0012-tool-dynamics.md#会话常驻集合的规则r1r5) 写「每一项的 name 与参数形状在会话内不变」（R1），并规定新定义不同形时会话留在旧实现（R5a），旧实现耐久地不可装载时会话冻结（R5b）。R5b 原文写「进入不可逆的 archive」，而 [UL-session-archival](terms/agent-runtime-loop.md#ul-session-archival--会话归档--session-archival) 写「归档本身可以撤销」。
+- **差别**：按 C-47 的读法，工具换代可以在会话中途改变常驻工具的名字与参数形状。部分模型厂商校验请求中的工具名称与参数形状是否与历史调用一致，这样的换代会使会话无法继续。R5b 的原文又与归档可撤销相矛盾。
+- **裁决依据**：PanQiWei 于 2026-10-21 采用 RFC-0012 revision 1；2026-10-22 又裁定会话不钉版本、按形状核对同形可用实现（随 [#580 接受](https://github.com/nemori-ai/omne-harness-lite/issues/580#issuecomment-6333519829)）（[采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6314971717)），并于同日裁定冻结是独立的会话状态，不是归档（[#618 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/618#issuecomment-6315367596)）。
+- **处置**：C-47 的动态采用对非常驻工具、技能与 MCP 保持不变。对常驻工具，动态采用收窄为：形状在会话内不变，负责选取实现的一方只选[同形](terms/reach-and-availability.md#ul-same-shape--同形--same-shape)可用的实现；常驻工具的加入只在[采用点](terms/agent-runtime-loop.md#ul-adoption-point--采用点--adoption-point)。[会话冻结](terms/agent-runtime-loop.md#ul-session-freeze--会话冻结--session-freeze)是独立的生命周期状态：不再开始新的运行，在途运行照常收场，不可逆；冻结后仍可归档，撤销归档回到冻结。归档的两条来路与可撤销性不变。词表新增常驻工具集合、同形、采用点、会话冻结、采用依据与来源层，并改写工具、工具定义、资产版本、版本选用、常驻、替换件、会话资产注册表、作用域层、会话、会话归档、运行与 meta 能力。
+- **负责与闭合条件**：产品正文（tool-execution、sessions-and-work、assets-and-rules）、项目要求与已接受架构页的写回由 #618 承接；冻结状态的正式名称、转换与会话事实由 Session 域在 [#580](https://github.com/nemori-ai/omne-harness-lite/issues/580) 定义。这些写回完成并经各自拥有者接受后闭合。
+- **状态**：词表已对齐，其余写回未完成。
+
+### C-71：工具定义由长期数据改为装载时派生
+
+- **类型**：形态变更。2026-10-21 写回 RFC-0012 时登记。
+- **两处输入**：[UL-tool-definition](terms/execution-and-outcome.md#ul-tool-definition--工具定义--tool-definition) 依据封存 [PF-006 §5.3](../product.0.0.1.legacy/PF-006-tools-and-skills/design.md#53-一份工具定义长什么样)（rev 24）写「它可以自带实现」「它是数据，长期存在，谁持有它就归谁」，形态为属性。已采用的 [RFC-0012 对象链](../../../docs/rfcs/RFC-0012-tool-dynamics.md#对象链) 写「`ToolDefinition` 装载时由 `deriveDefinition(governance, implementation)` 派生」，资产 body 只带身份、治理声明与实现引用。
+- **差别**：旧读法让作者直接写下并持有定义数据。新读法中，定义从一个已发布的资产版本与它引用的实现算出，丢了可以原样重算。会话为常驻工具保存首次定义，只为判断同形与恢复，不使它成为另一份事实权威。
+- **处置**：形态由属性改为视图，因此不立对象条目。同一能力身份下各层的定义可以不同形。按旧形态把工具定义当作作者长期持有的数据来设计的下游正文，需要复核。
+- **负责与闭合条件**：tool-execution 产品正文与 Tool 契约写明定义由资产与实现派生后闭合；写回由 #618 承接。
+- **状态**：词表已改，产品正文与 Tool 契约的写回未完成。
+
+### C-72：附着（动作）与工作区附着（值）
+
+- **类型**：同名不同义。2026-10-27 评审 #837 的文档时发现。
+- **来源**：[工作区附着](terms/scope-and-resolution.md#ul-workspace-attachment--工作区附着--workspace-attachment)按 [#679 的裁定](https://github.com/nemori-ai/omne-harness-lite/issues/679#issuecomment-6443061282)指一个引用值：实例标识加装载依据。[工作区产品正文 J-WS01](../product/workspaces/design.md#j-ws01-显式接入已有目录或装载已登记资源)（rev 4）写「报告附着成功」「不报告已附着」，J-WS06 写「为同一会话附着、更换、解除工作区」。[租户—工作区关系](terms/subjects-and-ownership.md#ul-tenant-workspace-relation--租户工作区关系--tenantworkspace-relation)的参与边界写「不作为该租户的工作区附着或装配来源」，[工作区实例](terms/scope-and-resolution.md#ul-workspace-instance--工作区实例--workspace-instance)写「不用时可不再附着」。这些地方的「附着」都是把工作区接到会话上的动作或其结果。
+- **差别**：一个是会话里保存的值，一个是会话与工作区之间的动作。下游读到「附着成功」时，可能把它读成「`workspaceAttachment` 已写入」，而产品正文的意思是「选择已正式采用」。
+- **处置**：词条保留引用值的含义，「别混」写明动作用法不是本词。产品正文与其他词条暂不回改。
+- **负责与闭合条件**：工作区契约卡（[#837](https://github.com/nemori-ai/omne-harness-lite/issues/837) 剩余责任）在发布工作区契约成员时收敛两种用法：为动作或值另定说法，或给裸用加限定。产品正文与相关词条按结论回改后闭合。
+- **状态**：待收敛。

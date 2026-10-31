@@ -77,7 +77,7 @@ README.md        这个流量什么、量不出什么、当前方法、采用范
 | developer 的终端实施，或 `terminal-practice` | `tui-developer-implement` |
 | developer 的验证设施实施，或 `verification-facility` | `verification-write-tests` |
 | `engineering-taste.md`（有流且内联它的角色） | 每个这类角色至少一个流；改的是 TS/JS 专节时以 `developer-implement`、`tui-developer-implement` 与 `implementation-review` 为主 |
-| 某个角色的模型钉值或档位 | 该角色的全部流；流里写的模型与档位同步改，用例集升版本 |
+| 某个角色的模型钉值或档位 | 该角色的全部流；流里写的模型与档位同步改，用例集升版本。档位可调的角色以流里写的档位派发：Claude Code 上用 Agent 工具的 `effort` 参数传入，运行器给出的派发说明写明该值 |
 | 宿主（Claude Code）升了版本 | 每个角色至少一个流 |
 | 判官的规则文本，或换判官模型 | 不是跑流：先重新校准（`calibrate-*`），判定方法重新签字，之后的结果才可比 |
 

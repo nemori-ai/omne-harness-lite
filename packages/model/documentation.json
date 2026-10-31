@@ -47,53 +47,8 @@
       ]
     },
     {
-      "id": "target-model-spec",
-      "path": "packages/model/model/SPEC.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "target-model-design",
-      "path": "packages/model/model/docs/internals.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "成员包文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
       "id": "placed-packages-model-docs-architecture-md",
       "path": "packages/model/docs/architecture.md",
-      "kind": "architecture",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-model-model-docs-key-flows-md",
-      "path": "packages/model/model/docs/key-flows.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",
@@ -122,38 +77,8 @@
       "requiredSections": []
     },
     {
-      "id": "placed-packages-model-model-docs-profile-and-modality-md",
-      "path": "packages/model/model/docs/profile-and-modality.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-model-model-docs-consumption-and-cost-md",
-      "path": "packages/model/model/docs/consumption-and-cost.md",
-      "kind": "contract",
-      "required": true,
-      "visibility": "internal",
-      "basis": "adopted",
-      "applicability": "applicable",
-      "expectationSource": {
-        "path": "docs/member-documentation.md",
-        "anchor": "能力组文档要求"
-      },
-      "inspectionProfile": "prose-v1",
-      "requiredSections": []
-    },
-    {
-      "id": "placed-packages-model-model-docs-open-questions-md",
-      "path": "packages/model/model/docs/open-questions.md",
+      "id": "placed-packages-model-docs-migration-md",
+      "path": "packages/model/docs/migration.md",
       "kind": "architecture",
       "required": true,
       "visibility": "internal",

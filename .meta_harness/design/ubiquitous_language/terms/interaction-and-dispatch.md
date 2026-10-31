@@ -19,18 +19,18 @@
 > |---|---|---|---|
 > | **是不是独立主会话** | 否 | 否 | **是** |
 > | **上下文怎么组装** | **派发那一刻组装出来的那份上下文的副本** | 一段 instruction | 一段 handoff 说明 |
-> | **生命周期受谁控制** | 派发者 | 派发者 | **不受派发者控制** |
+> | **派发工作由谁控制** | 派发者可显式撤回工作 | 派发者可显式撤回工作 | **不能凭派发关系撤回** |
 > | **派发动作何时结束** | 进[工具等待态](execution-and-outcome.md#ul-tool-wait-state--工具等待态--tool-wait-state)待[报告](#ul-dispatch-report--派发报告--dispatch-report)或失败 | 同左 | **确认会话建没建起来即结束** |
-> | **能跟谁[通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)** | 只跟派发者 | 只跟派发者 | **派发者，外加规则二够得着的全部** |
+> | **能跟谁[通信](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)** | 派发者，以及它自己直接派发的 agent | 同左 | **派发者，外加规则二够得着的全部** |
 >
 > **EN**: **Handing a piece of work to another agent.** Three modes, differing on
 > five dimensions: whether it is an independent primary session, how its context is
-> assembled, who controls its lifecycle, when the dispatching action ends, and
+> assembled, who may withdraw the dispatched work, when the dispatching action ends, and
 > whom it can communicate with.
 
 - **控制边界**：派发者可显式撤回 spawn／delegate 的工作；父 Run 停止不自动停止子会话执行，报告结束派发而不决定子 Run 终态。
 - **形态**：过程
-- **出处**：[PF-007 §6.8 派发有三种模式](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#派发有三种模式)（rev 25）
+- **出处**：[元能力：派发有三种模式](../../product/meta-capabilities/design.md#三种派发模式)（rev 4）
 - **注意 ①**：**两处分水岭，各自只有一条。**`spawn` 与 `delegate` 只差
   「**它带着什么开始干活**」——**一个带副本加交代，一个只带交代**；
   `spawn`/`delegate` 与 `handoff` 只差
@@ -40,7 +40,7 @@
   监管取决于对方、回来的是外部内容**——因此**必须是一项显式授予的权限**
 - **注意 ④**：**「是不是独立主会话」这条分水岭还有另一个侧面——谁产生[子 agent](#ul-subagent--子-agent--subagent)。**
   `spawn`/`delegate` 产生，`handoff` 不产生。**这不是第六个维度**，两者在三种模式上取值一一对应
-- **注意 ⑤**：**`spawn` 交出去的是[副本，不是同一本账](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#两处分水岭各自只有一条)**——
+- **注意 ⑤**：**`spawn` 交出去的是[副本，不是同一本账](../../product/meta-capabilities/design.md#三种派发模式)**——
   那份副本是子会话日志里的**起始输入记录**，**父的日志不被指向、不被拷贝**；
   **派发之后父这边发生的事，子看不见**
 
@@ -58,8 +58,8 @@
 > dispatch, not the session.
 
 - **形态**：属性
-- **出处**：[PF-007 §6.8 两处分水岭，各自只有一条](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#两处分水岭各自只有一条) ·
-  [§6.8 报告终结的是这次派发，不是那个会话](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#报告终结的是这次派发不是那个会话)（rev 25）
+- **出处**：[元能力：三种派发模式](../../product/meta-capabilities/design.md#三种派发模式) ·
+  [元能力：一次报告与后续消息](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
 - **别混 ①**：与「**派发出去的 agent**」不是一回事——**后者含 `handoff`，它不含**。
   [规则一](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)管的是前者，范围更大
 - **别混 ②**：**与 [agent 类型](capabilities-and-composition.md#ul-agent-type--agent-类型--agent-type)不是一回事**——
@@ -68,7 +68,7 @@
   **第二个取值特意不叫 `subagent`，就是为了不与本条撞名**（[C-14](../conflicts.md)）
 - **注意 ①**：**它所在的那个会话就是[子会话](agent-runtime-loop.md#ul-child-session--子会话--child-session)**，
   内涵见该词条：由**创建**确立而非由历史确立，**不继承父会话的日志**
-  （`spawn` 交出去的是[派发那一刻那份上下文的副本](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#两处分水岭各自只有一条)，
+  （`spawn` 交出去的是[派发那一刻那份上下文的副本](../../product/meta-capabilities/design.md#三种派发模式)，
   它是子会话自己日志里的**起始输入记录**），
   两边的**会话日志、投影与 runtime context 快照在存储上都不共享节点**
   （**那是存储约束，不是访问约束**——跨会话取数据照常经工具能力与租户权限进行）。
@@ -84,36 +84,29 @@
 >
 > | | 规则 | 覆盖面 |
 > |---|---|---|
-> | **一** | agent 与**它派发出去的** agent 之间可以互发消息 | **两个方向都通**，**不问对方身份**，只问「是不是我派的」 |
+> | **一** | agent 与**它直接派发出去的** agent 之间可以互发消息 | **两个方向都通**，不要求独立主会话身份；仍须满足当前资格、租户隔离及归档准入 |
 > | **二** | **具备独立主会话身份的、会话仍活跃的、同属一个租户的** agents 相互可以通信 | **双向**，且**不要求有派发关系** |
 >
 > **两个素不相识的 agent 也能通**，只要规则二那三个条件都满足。
 >
 > **EN**: **Two independent rules with different reach.** First: an agent and **any agent
-> it dispatched** may message **each other**, whatever the mode — this asks nothing about
-> the recipient's identity, only whether the dispatch relationship exists. Second: agents
+> it directly dispatched** may message **each other** without requiring primary-session
+> identity. Current authorization, tenant isolation, and archive admission still apply. Second: agents
 > that **hold an independent primary session, are still active, and belong to the same
 > tenant** may communicate with one another — this is **bidirectional and requires no
 > dispatch relationship**, so **two agents that never met can talk**.
 
 - **归档边界**：接收会话归档期间拒绝新的任务消息，告知发送方；既有执行的迟到结果和账不丢失，也不作为新任务入队。
 - **形态**：规则
-- **出处**：[PF-007 §6.8 先说谁能给谁发消息](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#先说谁能给谁发消息这是两条独立的规则)（rev 25）
+- **出处**：[元能力：先说谁能给谁发消息](../../product/meta-capabilities/design.md#双向通信与消息失败)（rev 4）
 - **注意 ①**：**规则二那三个条件缺一不可**，「**会话仍活跃**」尤其容易被忽略——
   **一个会话已被归档的 agent，不是「暂时联系不上」，是这条通路不存在了**。
   **「活跃」就是「未被归档」**（[现行词义](../index.md)）——
   **没有删除会话的概念，也就没有「会话结束」这回事**
-- **注意 ②**：**`handoff` 能向派发者发消息不是单独规定的一条**，
-  是它**落进了规则二**的自然结果
+- **注意 ②**：handoff 与派发者可通过直接派发关系双向通信，不要求派发者具有独立主会话身份。双方同时满足主会话、同租户及活跃条件时，也适用规则二。
 - **注意 ③**：**发不出去时要说清是哪一条不满足**（不是我派的？没有主会话身份？会话已被归档？
   不同租户？）——**四种原因的处理方式完全不同**
-- **注意 ④**：**规则一不带时间限定。**它的条件只有「是不是我派的」一项，
-  所以**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，这条通路依然成立**——
-  [报告终结的是那次派发，不是那个会话](#ul-dispatch-report--派发报告--dispatch-report)。
-  **⚠️ 但规则一没有规则二那样的「会话仍未被归档」条件**，因此
-  **「对方会话已被归档时规则一还成不成立」仍然没有答案**。
-  [归档会中断那边的模型响应与工具执行](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#63-归档先停活儿再落状态)，
-  所以问题是：**消息是没有接收者，还是进了那个会话等它被撤销归档**
+- **注意 ④**：交回报告不结束派发关系中的通信资格，[报告终结的是派发，不是会话](#ul-dispatch-report--派发报告--dispatch-report)。后续消息仍须通过当前资格及归档准入；接收会话已归档时拒绝新任务，告知发送方，不暗中排队或自动唤醒。迟到执行事实按原归属保存。
 - **注意 ⑤**：**规则一双向，覆盖的是[子 agent](#ul-subagent--子-agent--subagent) 向上
   「确认事实、澄清需求」那类话**（[现行词义](../index.md)）。
   **它不让兄弟之间通**——两个兄弟子 agent 彼此没有派发关系，规则一够不着；
@@ -136,9 +129,9 @@
 > **a report comes once**, messages any number of times.
 
 - **形态**：对象
-- **出处**：[PF-007 §6.8 报告与消息是两样东西](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#报告与消息是两样东西)（rev 25）
+- **出处**：[元能力：报告与消息是两样东西](../../product/meta-capabilities/design.md#一次报告与后续消息)（rev 4）
 - **⚠️ 它终结的是这次派发，不是那个会话。**[子 agent](#ul-subagent--子-agent--subagent) 交回报告之后，
-  **它的会话不会因此被归档，而归档是会话唯一的出口**，派发者[照样发得出消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
+  它的会话不会因此归档，也不据此认定子 Run 终态；后续消息仍须满足[当前通信准入](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)。
   **不点破这一条，就会被做成「报告一到就把那个会话收掉」——而且不报错**
 - **注意**：**它与[消息](#ul-inter-agent-communication--agent-间通信--inter-agent-communication)是两样东西**，
   子 agent 两样都能用：**干到一半要确认事实、澄清需求，走消息**（什么都不终结，来回多少次都行）；
@@ -291,7 +284,7 @@
 - **注意 ③**：**拿不准就再问一次**——两个方向的代价不对称：该放的没放只是多问一遍，
   **不该放的放了就是做了没有人批准过的事**
 - **注意 ④**：**它此刻不可用时，顶上的是系统预先声明的[全拒件](agent-runtime-loop.md#ul-extension-unavailability-policy--拓展件不可用处置--extension-unavailability-policy)**——
-  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作、绑定与参数保持时放行之后到执行之间不重判；重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
+  需要判断的动作一律拒绝，不放行、也不出卡问人，agent 读到的是一次否决、原因写明「放行判断此刻不在」；同一动作及判断依据仍有效时不重复生成相同请示，但实际启动仍核当前主体、授权及环境资格；排队期间撤权不得沿用旧批准。重装配后已移除或绑定已变的未发起动作不自动执行，交回 agent 重新判断
 
 ### UL-inquiry · 问询 · Inquiry
 
@@ -305,7 +298,7 @@
 > own**. **Several questions may be asked at once.**
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 25）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 4）
 - **别混**：与[请示](#ul-approval-request--请示--approval-request)**形状不同**——
   **问询是开放的，拿到之后接着想；请示是封闭的，拿到之后才动手**
 - **注意 ①**：**自由作答这条路由系统保证，不靠 agent 记得留**——**靠自觉总有忘的时候**
@@ -317,15 +310,17 @@
 
 > **中**：agent **就一件要动手的事请人准不准**。选项**固定两个**：同意 / 不同意，
 > **外加自由作答**。它要说清：**做什么 · 为什么 · 影响多大 · 撤不撤得回 · 不准怎么办**。
-> **获准之后那一笔进[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)。**
+> 作用域为这一次或本会话的有效授权追加进[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)；全局表达按当前主体资格落成租户层权限设置值。
 >
 > **EN**: The agent **asking leave before doing something**. The options are **fixed at
 > two** — approve or decline — **plus free-form reply**. It must state what will be
 > done, why, how large the impact is, **whether it can be undone**, and what happens if
-> declined. **An approval is recorded into the session authorization context.**
+> declined. An effective approval scoped to this action or session is appended to the
+> session authorization context. A global expression becomes a tenant-level permission
+> setting only when the actor has the required authority.
 
 - **形态**：过程
-- **出处**：[PF-007 §6.11 `Ask()`](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人)（rev 25）
+- **出处**：[元能力：`Ask()`](../../product/meta-capabilities/design.md#meta-ask)（rev 4）
 - **注意 ①**：**先把事做了再请示，那不叫请示，叫通知**——**人拒绝的时候已经晚了**
 - **注意 ②**：**翻不出裁决就不要翻。**人的回答常常不落在准/驳上（「第二封改改语气再发」）——
   **替人合成一个裁决等于伪造签字**
@@ -335,31 +330,31 @@
 
 ### UL-session-authorization-context · 会话授权上下文 · Session Authorization Context
 
-> **中**：**一个会话里，用户关于授权表达过的全部意思，按先后顺序排着的那一份。**
+> **中**：一个会话承载的、作用域为这一次或本会话的授权表达，按先后顺序保存的流水。
 > **它是流水，不是结论**——给出是一笔，**撤回也是往后再记一笔**，
 > **只追加，不回头改**。「此刻这个动作准不准」不写在里面，
 > 是**按这份流水实时算出来的**，算的时候连同
 > [权限设置](capabilities-and-composition.md#ul-permission--权限--permission)与会话运行模式一起判。
 >
-> **EN**: **Everything a user has expressed about authorization within one session, in the
-> order it was said.** It is **a ledger, not a verdict** — granting is one entry, **and so is
+> **EN**: The ledger of authorization expressions scoped to this action or this session,
+> kept in the order they were expressed. It is **a ledger, not a verdict** — granting is one entry, **and so is
 > revoking**; entries are **only ever appended**. Whether a given action is permitted right
 > now is **not stored there but computed from it**, together with the permission settings and
 > the session's run mode.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 会话授权上下文](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#会话授权上下文)（rev 25）
+- **出处**：[元能力：会话授权上下文](../../product/meta-capabilities/design.md#会话授权上下文)（rev 4）
 - **注意 ①**：**流水里的每一笔是一次[授权表达](#ul-authorization-expression--授权表达--authorization-expression)**，
   **三个维度**——**来源**（结构化：界面上对着条目操作 / **语义化：用嘴说**）、
   **方向**（给出 / 撤回）、**作用域**（这一次 / 本会话 / **全局，即本租户下未来所有会话**）。
   **⚠️ 作用域为「全局」的那一笔不在这份流水里**——
-  [它落成租户层的权限设置值](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)
+  [具备资格的主体按规则将其写入租户层权限设置](../../product/meta-capabilities/design.md#会话授权上下文)，表达与写入成功分别判断
 - **注意 ②**：**它不挑来源。**卡片上点的「同意」算，
   [自由作答](#ul-approval-request--请示--approval-request)里写的算，
   **agent 压根没问、用户主动说的也算**
 - **注意 ③**：**作用域是用户表达出来的，不是系统替他归的类**——
   系统只负责**准确理解**。**替他作主不允许**；
-  **他没说清的时候，按最窄的那一档算**（[只保守](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#611-ask通向人)）
+  **他没说清的时候，按最窄的那一档算**（[授权意图明确而作用域含糊时取最窄范围](../../product/meta-capabilities/design.md#会话授权上下文)）
 - **注意 ④**：**表达得出，不等于生效。**一个作用域能不能真落地，
   仍按[他自己的身份与权限](scope-and-resolution.md#ul-scope-layer--作用域层--scope-layer)判——
   **会话里坐着的那个人，未必是设权限的那个人**
@@ -377,23 +372,25 @@
 > **有先后**，**分得出是哪一笔**。
 > **「这一次」与「本会话」两档追加进
 > [会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)那份流水，
-> 只追加、不回头改**；**「全局」那一档落成租户层的权限设置值**。
+> 只追加、不回头改**；全局表达由具备资格的主体按规则写入租户层权限设置，表达不等于设置已经生效。
 >
 > **EN**: **One countable expression of what a user means about authorization.** Each carries
 > a **source** (structured: acting on a specific entry in the interface / semantic: said in
 > words), a **direction** (granting / revoking) and a **scope** (this time / this session /
 > global); they **have an order** and **are individually identifiable**. Those scoped to
 > **this time** or **this session** are **appended** to the session authorization context —
-> appended only, never rewritten; those scoped **globally** land as a **tenant-level
-> permission setting value**.
+> appended only, never rewritten. Global expressions require an authorized actor to
+> write the tenant-level permission setting; an expression alone does not establish
+> that the setting is effective.
 
 - **形态**：对象
-- **出处**：[PF-007 §4 一笔授权表达有三个维度](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#一笔授权表达有三个维度)（rev 25）
+- **出处**：[元能力：一笔授权表达有三个维度](../../product/meta-capabilities/design.md#会话授权上下文)（rev 4）
 - **别混**：**不是[会话授权上下文](#ul-session-authorization-context--会话授权上下文--session-authorization-context)**——
   那是流水**整份**，这是流水里的**一笔**
 - **注意 ①**：**撤回也是一笔**——**不是把先前那笔擦掉**，是往后再记一笔
-- **注意 ②**：**[放行判断的第 ③ 步拿它算](../../product.0.0.1.legacy/PF-007-meta-capabilities/design.md#56-一次放行判断走四步)**：
-  结构化的（含由全局那一档落成的租户层权限值）＋ 本会话流水（本会话 ＋ 这一次）
+- **注意 ②**：**[放行判断的第 ③ 步拿它算](../../product/meta-capabilities/design.md#动作放行与环境准入)**：
+  权限结果为「问一下」时，按本会话流水（本会话 ＋ 这一次）判断这次动作是否已获准。
+  由全局那一档落成的租户层权限值不在这一步，它在第 ① 步随权限设置一起求值
 - **弃用**：~~「决策记录」~~——**撞[记录条目](record-and-context.md#ul-record-entry--记录条目--record-entry)**，过不了取名那一关
 
 ## 外面怎么进来
@@ -471,8 +468,7 @@
   [受理](#ul-inbound-arrival--入站到达--inbound-arrival)，
   **请求就地返回给发起方，到此为止**；用户若再来，那是**全新的一次请求**
 - **注意 ②**：**因此「一直不确认」没有后果**——没有待办、没有草稿、没有超时，什么都没留下
-- **注意 ③**：**目前只有一个实例**——[会话跑题的提醒](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。
-  **这一类机制将来由谁统一拥有，尚未判定**
+- **注意 ③**：**这一类拓展点归会话一侧拥有**：消息持久化归会话，所以消息持久化前后对输入的处理，例如斜杠命令的展开、脱敏与否决，挂在这一类拓展点上，不挂在 [Loop 拓展点](agent-runtime-loop.md#ul-loop-extension-point--loop-拓展点--loop-extension-point)上。已有实例是[会话跑题的提醒](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#66-跑题只提醒不阻拦)。归属的裁定见 [C-61](../conflicts.md#c-61斜杠命令受理依赖已移除的位置)
 
 ### UL-control-command · 控制指令 · Control Command
 
@@ -605,8 +601,8 @@
 - **出处**：[PF-016 §4 观感偏好](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好) ·
   [§6.12](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#612-观感偏好不改变任何领域行为)（rev 13）
 - **⚠️ 别混**：**不是[元 runtime context](scope-and-resolution.md#ul-meta-runtime-context--元-runtime-context--meta-runtime-context)
-  那十四项里的第 3 项「账号级的界面偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
-  **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product.0.0.1.legacy/PF-015-session-lifecycle-and-ownership/design.md#56-十四项-meta-runtime-context)，
+  必需感知里的「账号偏好」**（语言 · 时区 · 地区 · 明暗风格一类）——
+  **那些是要被 agent 感知的**，[已经是每个会话必带的一项](../../product/runtime-context/design.md#3-必需感知按内容及消费者供给)，
   **不在这里，也不由这里定**；两者同样由账号承载（[C-26 的处置](../conflicts.md#现有冲突)），但一个进会话、一个不进
 - **注意**：[宿主不是词条的字段](../conventions.md#形态这个词指的是哪一类东西)——「由账号承载」写进定义，
   是因为[PF-016 明文把它归进个人 context](../../product.0.0.1.legacy/PF-016-cli-tui-delivery-surface/design.md#观感偏好)，

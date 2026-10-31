@@ -14,10 +14,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if not args.root.is_dir():
         parser.error("root must be an existing design directory")
-    notes: list[str] = []
-    errors = check_links(args.root, args.source_root, notes)
-    if notes:
-        print(f"NOTE: {len(notes)} link(s) into the sealed legacy archive allowed by the interim rule (#325).")
+    errors = check_links(args.root, args.source_root)
     for error in errors:
         print(f"ERROR: {error}")
     if errors:

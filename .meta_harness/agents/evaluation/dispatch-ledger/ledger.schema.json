@@ -1,0 +1,138 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "dispatch-ledger/ledger.schema.json",
+  "title": "派发台账与增量文件",
+  "description": "台账（schemaVersion、rows）或增量文件（再加 batch、produced_by、excluded、lessons）。角色、work、risk 对 dispatch-policy.json 的核对由 ledger.py check 动态做，这里不枚举策略词表。",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "rows", "batches"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+        "batches": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"type": "string", "minLength": 1},
+          "description": "已合入的批次 ID，排序去重；格子里的 batches 都在这里"
+        }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "batch", "produced_by", "rows", "excluded", "lessons"],
+      "properties": {
+        "schemaVersion": {"const": 1},
+        "batch": {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}-\\S+$"},
+        "produced_by": {"type": "string", "minLength": 1},
+        "rows": {"type": "array", "items": {"$ref": "#/$defs/row"}},
+        "excluded": {"type": "array", "items": {"$ref": "#/$defs/excluded"}},
+        "lessons": {"type": "array", "maxItems": 3, "items": {"$ref": "#/$defs/lesson"}}
+      }
+    }
+  ],
+  "$defs": {
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["category", "policy_scope", "cells"],
+      "properties": {
+        "category": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["role", "work", "risk", "clarity"],
+          "properties": {
+            "role": {
+              "anyOf": [
+                {"type": "string", "minLength": 1},
+                {"enum": ["docs", "read-only"]}
+              ]
+            },
+            "work": {"type": "string", "minLength": 1},
+            "risk": {"type": "string", "minLength": 1},
+            "clarity": {"enum": ["定", "界", "探"]}
+          }
+        },
+        "policy_scope": {"type": "string", "minLength": 1},
+        "cells": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/cell"}}
+      }
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model", "effort", "source", "dispatched", "first_pass", "first_no_writer_block", "within_two",
+        "escalated", "escalations", "appends", "spec_defects", "writer_defects", "minutes_sum", "minutes_n",
+        "tokens_reported_sum", "tokens_n", "usage_source", "evidence", "batches"
+      ],
+      "properties": {
+        "model": {"type": "string", "minLength": 1},
+        "effort": {"type": "string", "minLength": 1},
+        "source": {"enum": ["field", "owner-experiment"]},
+        "dispatched": {"type": "integer", "minimum": 0},
+        "first_pass": {"type": "integer", "minimum": 0},
+        "first_no_writer_block": {"type": "integer", "minimum": 0},
+        "within_two": {"type": "integer", "minimum": 0},
+        "escalated": {"type": "integer", "minimum": 0},
+        "escalations": {"type": "array", "items": {"$ref": "#/$defs/escalation"}},
+        "appends": {"type": "integer", "minimum": 0},
+        "spec_defects": {"type": "integer", "minimum": 0},
+        "writer_defects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["blocking", "nonblocking"],
+          "properties": {
+            "blocking": {"type": "integer", "minimum": 0},
+            "nonblocking": {"type": "integer", "minimum": 0}
+          }
+        },
+        "minutes_sum": {"type": "number", "minimum": 0},
+        "minutes_n": {"type": "integer", "minimum": 0, "description": "计入 minutes_sum 的轮数；平均值的分母"},
+        "tokens_reported_sum": {"type": "integer", "minimum": 0},
+        "tokens_n": {"type": "integer", "minimum": 0, "description": "计入 tokens_reported_sum 的轮数；平均值的分母"},
+        "usage_source": {"enum": ["notification", "transcript", "mixed"]},
+        "evidence": {"enum": ["field-small-n", "field"]},
+        "batches": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}}
+      }
+    },
+    "escalation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["to", "mode", "n", "success", "minutes_sum", "minutes_n", "tokens_reported_sum", "tokens_n"],
+      "properties": {
+        "to": {"type": "string", "minLength": 1, "description": "<模型>@<档位>"},
+        "mode": {"enum": ["takeover", "redo"]},
+        "n": {"type": "integer", "minimum": 0},
+        "success": {"type": "integer", "minimum": 0},
+        "minutes_sum": {"type": "number", "minimum": 0},
+        "minutes_n": {"type": "integer", "minimum": 0},
+        "tokens_reported_sum": {"type": "integer", "minimum": 0},
+        "tokens_n": {"type": "integer", "minimum": 0}
+      }
+    },
+    "excluded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["task", "closure", "round", "report", "reason"],
+      "properties": {
+        "task": {"type": "string"},
+        "closure": {"type": "string"},
+        "round": {"type": "integer", "minimum": 1},
+        "report": {"type": "string"},
+        "reason": {"type": "string", "minLength": 1}
+      }
+    },
+    "lesson": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phenomenon", "evidence", "route"],
+      "properties": {
+        "phenomenon": {"type": "string", "minLength": 1},
+        "evidence": {"type": "string", "minLength": 1, "description": "证据链接"},
+        "route": {"type": "string", "minLength": 1, "description": "建议去处"}
+      }
+    }
+  }
+}

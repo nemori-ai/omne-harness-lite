@@ -4,6 +4,7 @@
 // 这里用文件把它们排成队，而不是靠每个调用者自觉。只用 Node 标准库，macOS、Linux、Windows 通用。
 //
 // 用法：node scripts/with-test-slot.mjs <命令> [参数…]（scripts/with-test-slot.sh 转发到这里）
+// 命令不经 shell 执行。Windows 上 `pnpm` 与 `.sh` 脚本另有起法，见 `launch`。
 //
 // 策略都可用环境变量覆盖，下面是初值：
 //   OMNE_TEST_SLOTS                  名额数（1）
@@ -12,7 +13,7 @@
 //   OMNE_TEST_SLOT_MAX_WAIT_SECONDS  最多等多久，超过即以 75 退出、命令不执行（7200）
 //   OMNE_TEST_SLOT_LEDGER            运行账本（${XDG_STATE_HOME:-~/.local/state}/omne-test-slots/ledger.jsonl）
 //
-// 运行账本：每次用完名额、或等到超时放弃，都追加一行 JSON：命令、目录、等了多久、占了多久、
+// 运行账本：每次用完名额、或等到超时放弃，都追加一行 JSON：命令、所属卡号与 attempt、目录、等了多久、占了多久、
 // 命令用掉的 CPU 时间、起止时的机器负载、退出码。它给「按任务大小分配名额」（#57 第二步）校准用，
 // 所以跟名额同一个范围（同一用户的全部检出与克隆），放在重启也不清的用户状态目录；写不进去只提醒，不改退出码。
 //
@@ -38,7 +39,7 @@ import {
   writeSync,
 } from 'node:fs'
 import os from 'node:os'
-import { dirname, join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 
 const args = process.argv.slice(2)
 if (args.length === 0) {
@@ -94,10 +95,15 @@ try {
 
 const commandLine = args.join(' ').replaceAll('\n', ' ')
 const unixNow = () => Math.floor(Date.now() / 1000)
+// 账本里的时刻按毫秒取、经过的时长按毫秒相减后再取整秒：先各自取整再相减，跨过整秒边界的几毫秒会被记成 1 秒。
+const wholeSeconds = ms => Math.floor(ms / 1000)
 const sleepSync = ms => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 const sleep = seconds => new Promise(settle => setTimeout(settle, seconds * 1000))
 
-/** 票与名额登记同一格式：谁、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。 */
+/**
+ * 票与名额登记同一格式：谁、从何时起、在哪个目录、跑什么命令、多久刷新一次心跳。
+ * `since` 保持整秒：别的进程（包括旧版本的本脚本）按整秒读它，它只用于排队提示里的「已 N 秒」，不进账本。
+ */
 function describe(beatSeconds) {
   return `pid=${process.pid}\nsince=${unixNow()}\ncwd=${process.cwd()}\ncmd=${commandLine}\nbeat=${beatSeconds}\n`
 }
@@ -199,9 +205,9 @@ function duration(seconds) {
   return `${Math.floor(seconds / 3600)} 小时 ${Math.floor((seconds % 3600) / 60)} 分`
 }
 
-/** RFC 3339 本地时刻，带冒号的时区偏移。 */
-function jsonTime(seconds) {
-  const at = new Date(seconds * 1000)
+/** RFC 3339 本地时刻（精确到秒），带冒号的时区偏移；参数是毫秒时刻。 */
+function jsonTime(ms) {
+  const at = new Date(ms)
   const pad = n => String(n).padStart(2, '0')
   const offset = -at.getTimezoneOffset()
   const sign = offset >= 0 ? '+' : '-'
@@ -213,6 +219,35 @@ function jsonTime(seconds) {
 }
 
 const load = () => os.loadavg().map(value => Math.round(value * 100) / 100)
+
+/**
+ * 当前目录所在工作树的 task context（git 目录下的 omne-integration-context.json，由 dev-flow 的 start 写入）
+ * 里最后一项任务的卡号与 attempt。账本只借它归卡：任何一步不成立都记 null，不报错、不改退出码。
+ */
+function currentTask() {
+  const none = { issue: null, attempt: null }
+  try {
+    const git = spawnSync('git', ['rev-parse', '--git-dir'], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      timeout: 10_000,
+    })
+    if (git.status !== 0 || typeof git.stdout !== 'string') return none
+    const gitDir = resolve(process.cwd(), git.stdout.trim())
+    const tasks = JSON.parse(
+      readFileSync(join(gitDir, 'omne-integration-context.json'), 'utf8'),
+    )?.tasks
+    const binding = Array.isArray(tasks) ? tasks.at(-1)?.binding : undefined
+    const issue = binding?.issue?.number
+    const attempt = binding?.attempt
+    if (!Number.isSafeInteger(issue) || issue < 1 || typeof attempt !== 'string' || attempt === '')
+      return none
+    return { issue, attempt }
+  } catch {
+    return none
+  }
+}
+const task = currentTask()
 
 let ticket
 let ticketNumber = 0
@@ -266,7 +301,7 @@ function takeTurn() {
 }
 
 const HOLDER_BEAT_SECONDS = 5
-const started = unixNow()
+const started = Date.now()
 let aheadOnArrival
 let waited = 0
 let status = 0
@@ -276,6 +311,8 @@ function record(event, run) {
   const line = {
     event,
     command: commandLine.slice(0, 500),
+    issue: task.issue,
+    attempt: task.attempt,
     cwd: process.cwd(),
     pid: process.pid,
     cores: os.availableParallelism?.() ?? os.cpus().length,
@@ -285,7 +322,7 @@ function record(event, run) {
     waitSeconds: waited,
     slot: event === 'ran' ? acquired : null,
     acquiredAt: event === 'ran' ? jsonTime(run.acquiredAt) : null,
-    heldSeconds: event === 'ran' ? run.endedAt - run.acquiredAt : null,
+    heldSeconds: event === 'ran' ? wholeSeconds(run.endedAt - run.acquiredAt) : null,
     cpuSeconds: event === 'ran' ? run.cpuSeconds : null,
     loadAtAcquire: event === 'ran' ? run.loadAtAcquire : null,
     endedAt: jsonTime(run.endedAt),
@@ -311,13 +348,13 @@ let lastSeen = ''
 for (;;) {
   inQueue(takeTurn)
   aheadOnArrival ??= ahead
-  waited = unixNow() - started
+  waited = wholeSeconds(Date.now() - started)
   if (acquired) break
   if (waited >= maxWaitSeconds) {
     status = 75
     inQueue(() => {
       rmSync(ticket, { force: true })
-      record('gave-up', { endedAt: unixNow() })
+      record('gave-up', { endedAt: Date.now() })
     })
     process.stderr.write(
       `with-test-slot: 等了 ${waited} 秒仍没轮到（前面还有 ${ahead} 个，共 ${slots} 个名额，锁在 ${slotDir}），命令没有执行\n`,
@@ -349,7 +386,7 @@ for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, interr
 if (announced)
   process.stderr.write(`with-test-slot: 等了 ${waited} 秒，拿到名额 ${acquired}/${slots}\n`)
 const slotPath = join(slotDir, `slot-${acquired}.lock`)
-const acquiredAt = unixNow()
+const acquiredAt = Date.now()
 const loadAtAcquire = load()
 const heartbeat = setInterval(() => {
   try {
@@ -363,7 +400,7 @@ const heartbeat = setInterval(() => {
 const result = await run(args, { ...process.env, OMNE_TEST_SLOT_HELD: slotPath }, true)
 clearInterval(heartbeat)
 status = result.status
-const endedAt = unixNow()
+const endedAt = Date.now()
 inQueue(() => {
   rmSync(slotPath, { force: true })
   record('ran', { acquiredAt, endedAt, cpuSeconds: result.cpuSeconds, loadAtAcquire })
@@ -377,8 +414,18 @@ process.exit(status)
  */
 async function run(command, childEnv, measure) {
   const proc = measure ? cpuMeter() : undefined
-  const argv = proc?.wrap(command) ?? command
-  const child = spawn(argv[0], argv.slice(1), { stdio: 'inherit', env: childEnv })
+  let started
+  try {
+    started = launch(proc?.wrap(command) ?? command, childEnv)
+  } catch (error) {
+    process.stderr.write(`with-test-slot: ${command[0]}: ${error.message}\n`)
+    return { status: 127, cpuSeconds: null }
+  }
+  const child = spawn(started.file, started.args, {
+    stdio: 'inherit',
+    env: childEnv,
+    ...started.options,
+  })
   const forward = signal => child.kill(signal)
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.on(signal, forward)
   const code = await new Promise(settle => {
@@ -392,6 +439,63 @@ async function run(command, childEnv, measure) {
   })
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) process.off(signal, forward)
   return { status: code, cpuSeconds: proc?.read() ?? null }
+}
+
+/**
+ * 实际起的程序、参数与另加的 spawn 选项。POSIX 上原样起。Windows 上 Node 不经 shell 只能起 `.exe`，所以有两种命令另起：
+ * - `pnpm`（或 `pnpm.cmd`）：按 PATH 顺序找。先遇到 `pnpm.exe` 就直接起它（独立安装的布局）。先遇到旁边有
+ *   `node_modules/pnpm/bin/pnpm.cjs` 的 `pnpm.cmd`（npm 全局安装的布局），就用本进程的 Node 运行那个 `pnpm.cjs`：
+ *   直接起 `pnpm` 报 ENOENT，起 `pnpm.cmd` 报 EINVAL。旁边没有 `pnpm.cjs` 的 `pnpm.cmd` 跳过。与 dev-flow 的 `pnpmCommand` 相同。
+ * - 以 `.sh` 结尾的命令：直接起报 EFTYPE。改为经 Git for Windows 的 bash 运行，bash 按 `git --exec-path`
+ *   （`<Git>/<mingw64>/libexec/git-core`）往上三级找 `bin/bash.exe`，不取 PATH 里的 `bash`，因为那可能是 WSL 的启动器。
+ *   这个 bash 被非 MSYS 进程起时，自己解析命令行，并展开没加双引号的参数（通配符、花括号、`~`、单引号）。
+ *   所以每个参数都由 `msysQuote` 加上双引号，命令行原样交给 bash（`windowsVerbatimArguments`），参数原样到达脚本。
+ * 找不到时抛错，不尝试其他位置。其余命令原样起。
+ */
+function launch(argv, childEnv) {
+  const [command, ...rest] = argv
+  if (process.platform !== 'win32') return { file: command, args: rest, options: {} }
+  if (/^pnpm(\.cmd)?$/i.test(command)) {
+    const seen = []
+    for (const directory of (childEnv['PATH'] ?? childEnv['Path'] ?? '').split(';')) {
+      if (directory === '') continue
+      const exe = join(directory, 'pnpm.exe')
+      if (existsSync(exe)) return { file: exe, args: rest, options: {} }
+      if (!existsSync(join(directory, 'pnpm.cmd'))) continue
+      const entry = join(directory, 'node_modules', 'pnpm', 'bin', 'pnpm.cjs')
+      if (existsSync(entry)) return { file: process.execPath, args: [entry, ...rest], options: {} }
+      seen.push(join(directory, 'pnpm.cmd'))
+    }
+    throw new Error(
+      seen.length === 0
+        ? 'PATH 里没有 pnpm.exe，也没有 pnpm.cmd'
+        : `PATH 里没有 pnpm.exe，${seen.join('、')} 旁边都没有 node_modules/pnpm/bin/pnpm.cjs，起不了 pnpm`,
+    )
+  }
+  if (/\.sh$/i.test(command)) {
+    const git = spawnSync('git', ['--exec-path'], { encoding: 'utf8' })
+    const execPath = git.status === 0 ? git.stdout.trim() : ''
+    const bash = execPath === '' ? '' : join(resolve(execPath), '..', '..', '..', 'bin', 'bash.exe')
+    if (bash === '' || !existsSync(bash))
+      throw new Error(
+        `起 .sh 要 Git for Windows 的 bash，没找到（git --exec-path：${execPath || '读不到'}）`,
+      )
+    // 命令行整条由这里拼好：Node 不再加引号，第一项也要自己加。
+    return {
+      file: bash,
+      args: [[command, ...rest].map(msysQuote).join(' ')],
+      options: { windowsVerbatimArguments: true, argv0: msysQuote(bash) },
+    }
+  }
+  return { file: command, args: rest, options: {} }
+}
+
+/**
+ * MSYS 的命令行解析读双引号内的参数时，不展开通配符等，`\\` 读作 `\`，`\"` 读作 `"`，其余字符原样。
+ * 所以把参数里的每个 `\` 与 `"` 前加一个 `\`，再整个加双引号。
+ */
+function msysQuote(value) {
+  return `"${value.replaceAll(/[\\"]/g, '\\$&')}"`
 }
 
 function cpuMeter() {

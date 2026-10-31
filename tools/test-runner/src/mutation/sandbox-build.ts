@@ -1,5 +1,6 @@
 // Stryker 的 buildCommand，在 sandbox（当前目录）里执行：先把成员的 node_modules 软链进来，
 // 再写一份 vitest 配置：展开成员自己的那份并固定 mode 为 fast（只跑快层），放宽默认用例时限，关掉 preParse，
+// 挂上检查收集错误的 reporter 与记录每次运行类型测试数的 reporter（#649），
 // 成员有 `build` 脚本就构建一遍（不少测试跑的是成员自己的 dist），最后用这份配置在 sandbox 里跑一遍快层。
 // 关 preParse：Stryker 逐个变异体按用例名过滤，preParse 只认字面量用例名，`it.each` 等生成名字的用例所在文件会被
 // 整份滤掉，快层的 passWithNoTests 又让这次运行算成功，变异体就被记成存活（#405）。层照旧由 tagsFilter 在运行时分。
@@ -10,6 +11,8 @@
 import { spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { pnpmCommand } from '../testing/support.ts'
 import {
   MEMBER_DIR_ENV,
   PREFLIGHT_FAILED_ENV,
@@ -32,11 +35,13 @@ writeFileSync(
   [
     "import { defineConfig, mergeConfig } from 'vitest/config'",
     "import member from './vitest.config.ts'",
+    `import CollectionReporter from ${JSON.stringify(fileURLToPath(new URL('./collection-reporter.ts', import.meta.url)))}`,
+    `import RunReporter from ${JSON.stringify(fileURLToPath(new URL('./run-reporter.ts', import.meta.url)))}`,
     'export default defineConfig(env => {',
     // 成员配置不是按 mode 的函数时选不了层，报错，不悄悄两层都跑。
     "  if (typeof member !== 'function') throw new Error('vitest.config.ts 须写成 defineConfig(({ mode }) => …)，否则选不了快层')",
     "  const own = member({ ...env, mode: 'fast' })",
-    `  return mergeConfig(own, { test: { testTimeout: ${timeout}, experimental: { preParse: false } } })`,
+    `  return mergeConfig(own, { test: { reporters: [...(own.test?.reporters ? [] : ['default']), new CollectionReporter(), new RunReporter()], testTimeout: ${timeout}, experimental: { preParse: false } } })`,
     '})',
     '',
   ].join('\n'),
@@ -45,7 +50,8 @@ const manifest = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts?: Record<string, unknown>
 }
 if (typeof manifest.scripts?.['build'] === 'string') {
-  const built = spawnSync('pnpm', ['run', 'build'], { stdio: 'inherit' })
+  const pnpm = pnpmCommand()
+  const built = spawnSync(pnpm.command, [...pnpm.args, 'run', 'build'], { stdio: 'inherit' })
   if (built.status !== 0) process.exit(built.status ?? 1)
 }
 // 直接用 node 起 vitest：pnpm 的 .bin shim 含相对路径，随 node_modules 软链进 sandbox 后不一定还对。

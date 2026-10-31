@@ -1,0 +1,166 @@
+{
+  "request": {
+    "profile": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "profile",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "suppliers": [
+      {
+        "adoption": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "1",
+          "digest": "f614a77dc91477caa7a06a784225d138f0ce42c759c392f8157df68c5b0c63fe"
+        },
+        "recipient": "openrouter",
+        "model": "anthropic/claude-sonnet-5",
+        "credential": {
+          "kind": "factory"
+        }
+      }
+    ],
+    "fallback": false,
+    "retryPolicy": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "retry",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "parameters": [
+      {
+        "kind": "max-output-tokens",
+        "value": "128"
+      },
+      {
+        "kind": "reasoning-effort",
+        "value": "high"
+      }
+    ],
+    "system": [],
+    "messages": [
+      {
+        "id": "msg_u000000000000000000000",
+        "role": "user",
+        "blocks": [
+          {
+            "kind": "text",
+            "id": "b0",
+            "visibility": {
+              "toHuman": true,
+              "toModel": true
+            },
+            "text": "start"
+          }
+        ]
+      }
+    ],
+    "tools": [],
+    "toolChoice": "auto",
+    "declarations": [
+      {
+        "produces": "openrouter/anthropic/claude-sonnet-5",
+        "accepts": [
+          "openrouter/anthropic/claude-sonnet-5"
+        ],
+        "foreignThinking": "omit"
+      }
+    ],
+    "representation": {
+      "owner": "@omne-harness/pi-ai-anthropic",
+      "name": "anthropic/claude-sonnet-5#representation",
+      "revision": "1",
+      "digest": "f614a77dc91477caa7a06a784225d138f0ce42c759c392f8157df68c5b0c63fe"
+    },
+    "parameterAdoptions": [
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "1",
+          "digest": "f614a77dc91477caa7a06a784225d138f0ce42c759c392f8157df68c5b0c63fe"
+        },
+        "applied": {
+          "kind": "max-output-tokens",
+          "value": "128"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "max-output-tokens",
+            "value": "128"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      },
+      {
+        "supplier": {
+          "owner": "@omne-harness/pi-ai-anthropic",
+          "name": "anthropic/claude-sonnet-5",
+          "revision": "1",
+          "digest": "f614a77dc91477caa7a06a784225d138f0ce42c759c392f8157df68c5b0c63fe"
+        },
+        "applied": {
+          "kind": "reasoning-effort",
+          "value": "high"
+        },
+        "origin": {
+          "kind": "explicit",
+          "requested": {
+            "kind": "reasoning-effort",
+            "value": "high"
+          },
+          "source": {
+            "owner": "pi-ai-anthropic-tests",
+            "name": "source",
+            "revision": "1",
+            "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          }
+        }
+      }
+    ],
+    "source": {
+      "owner": "pi-ai-anthropic-tests",
+      "name": "source",
+      "revision": "1",
+      "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "body": {
+    "max_tokens": 128,
+    "messages": [
+      {
+        "content": [
+          {
+            "type": "text",
+            "text": "start",
+            "cache_control": {
+              "type": "ephemeral",
+              "ttl": "1h"
+            }
+          }
+        ],
+        "role": "user"
+      }
+    ],
+    "model": "anthropic/claude-sonnet-5",
+    "provider": {
+      "allow_fallbacks": false,
+      "order": [
+        "anthropic"
+      ],
+      "require_parameters": true
+    },
+    "reasoning": {
+      "effort": "high"
+    },
+    "store": false,
+    "stream": true
+  }
+}

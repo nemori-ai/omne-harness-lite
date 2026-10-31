@@ -10,6 +10,7 @@ import yaml
 
 sys.path.insert(0, str(Path(__file__).parents[1] / "src"))
 import compile_agents as compiler
+from executable_bits import staged_modes
 from qualification_test_support import qualify_roles
 
 
@@ -30,7 +31,7 @@ def source(tmp_path):
         adapter.mkdir(parents=True)
         (adapter / "strategy.yaml").write_text(yaml.safe_dump({
             "version": 1, "host": host, "skill": "evidence-reading", "mode": "copy"
-        }))
+        }), encoding="utf-8")
     role = root / "roles/evidence-reader"
     role.mkdir(parents=True)
     (role / "role.md").write_text('只读证据。保留 "引号" 与 \\ 路径。\n', encoding="utf-8")
@@ -42,7 +43,7 @@ def source(tmp_path):
         "name: evidence-reader\ndescription: Read evidence\ntools: Read, Glob\n",
         encoding="utf-8"
     )
-    (role / "cursor.yaml").write_text("name: evidence-reader\ndescription: Read evidence\nmodel: claude-sonnet-5-5-high\nreadonly: true\nis_background: false\n")
+    (role / "cursor.yaml").write_text("name: evidence-reader\ndescription: Read evidence\nmodel: claude-sonnet-5-5-high\nreadonly: true\nis_background: false\n", encoding="utf-8")
     qualify_roles(root)
     return root
 
@@ -58,8 +59,8 @@ def test_four_outputs_preserve_resources_and_native_permissions(source, tmp_path
             relative = Path("evidence-reading") / file.relative_to(source / "skills/evidence-reading/canonical")
             assert (output / ".agents/skills" / relative).read_bytes() == file.read_bytes()
             assert (output / ".claude/skills" / relative).read_bytes() == file.read_bytes()
-    codex = tomllib.loads((output / ".codex/agents/evidence-reader.toml").read_text())
-    front, body = (output / ".claude/agents/evidence-reader.md").read_text().split("---\n", 2)[1:]
+    codex = tomllib.loads((output / ".codex/agents/evidence-reader.toml").read_text(encoding="utf-8"))
+    front, body = (output / ".claude/agents/evidence-reader.md").read_text(encoding="utf-8").split("---\n", 2)[1:]
     assert codex["developer_instructions"] == body.lstrip("\n")
     assert codex["sandbox_mode"] == "read-only"
     assert yaml.safe_load(front)["tools"] == "Read, Glob"
@@ -80,8 +81,8 @@ def test_default_renderer_survives_workspace_relocation(source, tmp_path):
     for extra in ([], ["--check"]):
         result = subprocess.run(command + extra, cwd=tmp_path, capture_output=True, text=True)
         assert result.returncode == 0, result.stdout + result.stderr
-    codex = tomllib.loads((relocated / ".codex/agents/evidence-reader.toml").read_text())
-    claude = (relocated / ".claude/agents/evidence-reader.md").read_text()
+    codex = tomllib.loads((relocated / ".codex/agents/evidence-reader.toml").read_text(encoding="utf-8"))
+    claude = (relocated / ".claude/agents/evidence-reader.md").read_text(encoding="utf-8")
     assert codex["sandbox_mode"] == "read-only"
     assert codex["developer_instructions"] in claude
     assert not (relocated.parent / ".agents").exists()
@@ -98,9 +99,9 @@ def test_output_conflict_preflights_all_files_and_preserves_user_content(source,
     output = tmp_path / "preview"
     conflict = output / ".claude/agents/evidence-reader.md"
     conflict.parent.mkdir(parents=True)
-    conflict.write_text("user content")
+    conflict.write_text("user content", encoding="utf-8")
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
-    assert conflict.read_text() == "user content"
+    assert conflict.read_text(encoding="utf-8") == "user content"
     assert not (output / ".agents").exists()
     assert not (output / ".codex").exists()
 
@@ -112,9 +113,9 @@ def test_check_missing_and_drift_are_read_only(source, tmp_path):
     assert not output.exists()
     assert compiler.main(args) == 0
     target = output / ".agents/skills/evidence-reading/SKILL.md"
-    target.write_text("local edit")
+    target.write_text("local edit", encoding="utf-8")
     assert compiler.main(args + ["--check"]) == 1
-    assert target.read_text() == "local edit"
+    assert target.read_text(encoding="utf-8") == "local edit"
 
 
 @pytest.mark.parametrize("kind", ["source-file", "source-root", "target-parent", "target-root"])
@@ -148,9 +149,9 @@ def test_duplicate_roles_fail_instead_of_last_writer_wins(source):
 def test_malformed_skill_fails(source, change):
     entry = source / "skills/evidence-reading/canonical/SKILL.md"
     if change == "name":
-        entry.write_text(entry.read_text().replace("name: evidence-reading", "name: different"))
+        entry.write_text(entry.read_text(encoding="utf-8").replace("name: evidence-reading", "name: different"), encoding="utf-8")
     elif change == "duplicate-key":
-        entry.write_text(entry.read_text().replace("description:", "name: evidence-reading\ndescription:"))
+        entry.write_text(entry.read_text(encoding="utf-8").replace("description:", "name: evidence-reading\ndescription:"), encoding="utf-8")
     else:
         entry.unlink()
     with pytest.raises((ValueError, OSError)):
@@ -180,26 +181,26 @@ def test_meta_root_can_contain_source_and_generated_siblings(source):
 def test_blocked_output_parent_rejected_before_any_write(source, tmp_path):
     output = tmp_path / "preview"
     output.mkdir()
-    (output / ".codex").write_text("ordinary file")
+    (output / ".codex").write_text("ordinary file", encoding="utf-8")
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
     assert not (output / ".agents").exists()
-    assert (output / ".codex").read_text() == "ordinary file"
+    assert (output / ".codex").read_text(encoding="utf-8") == "ordinary file"
 
 
 def test_host_slots_keep_common_text_and_exclude_maintainer_material(source):
     skill = source / "skills/evidence-reading"
     entry = skill / "canonical/SKILL.md"
-    entry.write_text(entry.read_text() + "Host invocation: {{INVOKE}}\n")
-    (skill / "canonical/AGENTS.md").write_text("maintainer-only")
+    entry.write_text(entry.read_text(encoding="utf-8") + "Host invocation: {{INVOKE}}\n", encoding="utf-8")
+    (skill / "canonical/AGENTS.md").write_text("maintainer-only", encoding="utf-8")
     (skill / ".design").mkdir()
-    (skill / ".design/review.md").write_text("private review")
+    (skill / ".design/review.md").write_text("private review", encoding="utf-8")
     for host, invocation in (("codex", "codex-specific-call"), ("claude-code", "claude-specific-call"),
                              ("cursor", "cursor-specific-call")):
         adapter = skill / "adapters" / host
-        strategy = yaml.safe_load((adapter / "strategy.yaml").read_text())
+        strategy = yaml.safe_load((adapter / "strategy.yaml").read_text(encoding="utf-8"))
         strategy["slots"] = {"{{INVOKE}}": "invoke.md"}
-        (adapter / "strategy.yaml").write_text(yaml.safe_dump(strategy))
-        (adapter / "invoke.md").write_text(invocation)
+        (adapter / "strategy.yaml").write_text(yaml.safe_dump(strategy), encoding="utf-8")
+        (adapter / "invoke.md").write_text(invocation, encoding="utf-8")
     outputs = compiler.compile_sources(source, hosts=("codex", "claude-code", "cursor"))
     codex = outputs[Path(".agents/skills/evidence-reading/SKILL.md")].content.decode()
     claude = outputs[Path(".claude/skills/evidence-reading/SKILL.md")].content.decode()
@@ -213,7 +214,7 @@ def test_host_slots_keep_common_text_and_exclude_maintainer_material(source):
 def test_invalid_host_strategy_fails_before_writing(source, tmp_path, capsys, kind):
     adapter = source / "skills/evidence-reading/adapters/codex"
     path = adapter / "strategy.yaml"
-    strategy = yaml.safe_load(path.read_text())
+    strategy = yaml.safe_load(path.read_text(encoding="utf-8"))
     if kind == "missing":
         path.unlink()
     else:
@@ -228,11 +229,11 @@ def test_invalid_host_strategy_fails_before_writing(source, tmp_path, capsys, ki
         else:
             entry = source / "skills/evidence-reading/canonical/SKILL.md"
             if kind != "unused":
-                entry.write_text(entry.read_text() + "{{INVOKE}}\n")
+                entry.write_text(entry.read_text(encoding="utf-8") + "{{INVOKE}}\n", encoding="utf-8")
             if kind != "unresolved":
                 strategy["slots"] = {"{{INVOKE}}": "../outside.md" if kind == "escape" else "invoke.md"}
-                (adapter / "invoke.md").write_text("{{ANOTHER}}" if kind == "nested" else "invoke")
-        path.write_text(yaml.safe_dump(strategy))
+                (adapter / "invoke.md").write_text("{{ANOTHER}}" if kind == "nested" else "invoke", encoding="utf-8")
+        path.write_text(yaml.safe_dump(strategy), encoding="utf-8")
     output = tmp_path / "preview"
     assert compiler.main(["--source", str(source), "--output", str(output), "--host", "codex"]) == 1
     expected = {
@@ -253,10 +254,11 @@ def test_single_host_does_not_require_other_skill_strategy(source, tmp_path):
     assert not (output / ".claude").exists()
 
 
+@staged_modes
 @pytest.mark.parametrize("host,root", [("codex", ".agents"), ("claude-code", ".claude"), ("cursor", ".cursor")])
 def test_executable_resource_is_preserved_and_mode_drift_detected(source, tmp_path, host, root):
     script = source / "skills/evidence-reading/canonical/run.sh"
-    script.write_text("#!/bin/sh\nprintf 'resource works\\n'\n")
+    script.write_text("#!/bin/sh\nprintf 'resource works\\n'\n", encoding="utf-8")
     script.chmod(0o755)
     output = tmp_path / "preview"
     args = ["--source", str(source), "--output", str(output), "--host", host]
@@ -287,12 +289,12 @@ def test_file_created_after_preflight_is_a_conflict_not_success(source, tmp_path
         if path == output / ".agents/skills" and not injected:
             injected = True
             conflict.parent.mkdir(parents=True, exist_ok=True)
-            conflict.write_text("concurrent writer")
+            conflict.write_text("concurrent writer", encoding="utf-8")
         return result
 
     monkeypatch.setattr(Path, "mkdir", mkdir_with_concurrent_writer)
     assert compiler.main(["--source", str(source), "--output", str(output)]) == 1
-    assert injected and conflict.read_text() == "concurrent writer"
+    assert injected and conflict.read_text(encoding="utf-8") == "concurrent writer"
     captured = capsys.readouterr()
     assert "PASS" not in captured.out
     assert "File exists" in captured.err

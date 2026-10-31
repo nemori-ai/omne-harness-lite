@@ -15,7 +15,7 @@ MODULE = "omne_harness_lite_spec_tools.documentation_inventory"
 def write(root, path, text):
     target = root / path
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(text, encoding="utf-8")
+    target.write_text(text, encoding="utf-8", newline="")
 
 
 def fixture(root, *, text="# Target\n\nReal instruction.\n", sections=None, **changes):
@@ -214,8 +214,8 @@ def test_json_markdown_publish_is_read_only_and_no_base_is_explicit(tmp_path):
     assert result.returncode == 0
     report = json.loads(result.stdout)
     assert not report["delta"]["available"]
-    assert report == json.loads((output / "inventory.json").read_text())
-    assert "missing-file" in (output / "inventory.md").read_text()
+    assert report == json.loads((output / "inventory.json").read_text(encoding="utf-8"))
+    assert "missing-file" in (output / "inventory.md").read_text(encoding="utf-8")
     assert (root / "docs/documentation.json").read_bytes() == original
     assert not (root / "docs/target.md").exists()
     assert run(root, "--out", str(root / "docs")).returncode == 2
@@ -240,5 +240,5 @@ def test_existing_output_file_links_do_not_overwrite_sources(tmp_path, link_kind
     result = run(root, "--base", str(base), "--out", str(output))
     assert result.returncode == 0, result.stderr
     assert (protected / "docs/target.md").read_bytes() == original
-    assert json.loads((output / "inventory.json").read_text())["execution"]["status"] == "complete"
+    assert json.loads((output / "inventory.json").read_text(encoding="utf-8"))["execution"]["status"] == "complete"
     assert not (output / "inventory.json").is_symlink()

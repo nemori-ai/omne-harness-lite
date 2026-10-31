@@ -1,21 +1,98 @@
+# @omne-harness/request-context
+
 PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+The mechanism member of Request Context. Variant: `module`.
 
-# request-context 文档目标
+## Responsibility and status
 
-本位置只有文档，尚无实现、已验证公开入口或可运行示例。设计接受、支持状态、行为验证与阶段交付分别待核实。
+This package implements the two stateful mechanisms of Request Context: the source registry and the account projection. It exports two factories that do not depend on Cordis. The candidate cache, the precomputed derivations, the default compaction strategy, the default representation strategy, and the trimmer also belong here. They are not implemented yet.
 
-## 责任与使用
+[request-context-contract](../request-context-contract/README.md) owns the public behavior. [request-context-cordis-contract](../request-context-cordis-contract/README.md) owns the registration face for prompt contributions. [request-context-cordis](../request-context-cordis/README.md) owns the Cordis binding and the strategy selection by configuration. This package holds no durable state. The registry, the account index, and the cache are in-process state. The account index is rebuilt, with authorization, from the log of the result receiver.
 
-本成员沿[SPEC](SPEC.md)承担完整行为。独立消费通过未来公开入口及显式依赖，不要求启动Cordis；系统集成通过同包Cordis适配满足共同IC、合法身份及业务交接。公开形状、导出、安装闭包、配置、资源限额和提供者尚待设计，不虚构命令。
+Status: mechanism member, `draft`. The adoption basis is the [member decomposition](../docs/architecture.md#成员分解) of the group and the [SPEC](SPEC.md).
 
-## 契约与设计
+- Implemented: `createContextSourceRegistry` (register, replace, withdraw and settle, borrows, the publication check, close) and `createContextAccounting` (the fixed check order of the inbox, idempotency and capacity, the four window usage states, staged rebuild with system recovery access).
+- Verified: in-process tests of the registry and the account projection. The `assembly(target)` of the registry runs every case of the operation conformance suite of the contract. See [tests/](tests/README.md).
+- Not implemented: the candidate cache and `notify`, the precomputed derivations, the default strategies, and the trimmer.
+- Not verified: the SPEC scenarios for the cache, the derivations, the default strategies, and complexity arrive with their implementation. The default strategy values come from evidence about similar systems. They take effect as initial values only after a recheck against the metering of this project. See the [architecture page](docs/architecture.md) and the [API page](docs/public-api.md).
 
-- [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [内部设计](docs/internals.md)解释机制、依赖与未决。
+No package depends on this package now. The owner of request-context-cordis migrates its service.
 
-## 验证与维护
+## Usage
 
-SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+The package has one entry: `@omne-harness/request-context`. A system that assembles Cordis does not import it directly. request-context-cordis selects the strategies by configuration and calls the factory. A source adapter registers the source set of one target with `register`: the seven group readers, the narrow adopted source, the history source, the conversion results, the read eligibility, and the Model preparation resources. A caller gets the operation group with `assembly(target)`. A caller without Cordis that wants hosted registration calls the factories of this package directly. See the [usage page](docs/context.md#独立使用).
+
+A caller that needs only a standalone operation group uses `createAssemblyOperations` from the root entry of request-context-contract and does not need this package. No runnable example exists now. See [tests/](tests/README.md) for usage.
+
+## Contracts
+
+- `src/` owns the public shapes: the two factories. request-context-contract owns the types of their parameters and results. The [API page](docs/public-api.md) indexes the exports.
+- The [SPEC](SPEC.md) owns the local behavior: the source registry, the account projection, the candidate cache, precomputed derivations, default strategies and trimmer, local rules, and close.
+- The [request-context-contract SPEC](../request-context-contract/SPEC.md) owns the operation group, the source set, the account protocol, results, and failures, in clauses RQ-01 to RQ-15.
+- The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
+
+The party that calls a factory owns the instance. `close()` of the registry refuses new registrations and borrows and waits until every generation settles. Close does not cancel operations in flight and does not take back candidates, plans, or transitions that it gave out. Dropping an account projection does not clean the original log. If a dependency port is absent or unavailable, the related operation returns unavailable with a diagnostic.
+
+## Design
+
+The implemented modules are the source registry and the account projection. The planned modules are the candidate cache, the derivations, the default compaction strategy, the default representation strategy, and the trimmer. The outside run-time dependencies are request-context-contract, model-contract (types), call-account, and legal-identity. The key mechanisms are:
+
+- a cache key equal to `PreparedInputKey` (RQ-13): the source generation, the group-one identity, the six group tokens, and the adopted derivation rules
+- invalidation by group, so that only the affected layers are computed again
+- invalidation by change notifications, not by time or content hashes
+- derivations computed when their inputs change, not when a request arrives
+- prefix comparison only at the layer anchors
+- default strategy values as initial configuration values only
+- a trimmer that does not change the original records or the model view
+- no plan progress kept in this package
+
+The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the three mechanism flows. The [object model](docs/object-model.md) describes the internal objects.
+
+## Configuration and operation
+
+The factory accepts the trim threshold and the cache capacity. The default compaction strategy has the trigger line, the retention budget, the retention preference, trim-first, and the step bound. The default representation strategy has the preference order by modality. All default values are only initial configuration values. With Cordis, the plugin configuration of request-context-cordis supplies and checks these values. The package needs no environment, reads no resources at run time, and does not access storage. The coordinator stores plan progress, and the history holder stores history and compaction records.
+
+## Verification
+
+From the repository root, run:
+
+```sh
+pnpm turbo run test --filter=@omne-harness/request-context
+```
+
+In this directory, run `pnpm typecheck` for the type check. The current tests cover the root entry, the registry, and the account projection. See [tests/](tests/README.md). The other [verification scenarios](SPEC.md#组合与验证) of the SPEC arrive with their implementation. The complexity scenario needs measurement, not only assertions. Persistence, joint commits, model sending, and end-to-end composition with a real coordinator and holder are outside this package. A passing structure check does not prove behavior.
+
+## Maintenance
+
+- When the input groups, the six-layer layout, or the prefix change reasons change in the contract, update the [architecture page](docs/architecture.md), the [flows page](docs/flows.md), and the tests.
+- When you add a configuration item or change a default value, update the SPEC, the [API page](docs/public-api.md), and the configuration schema of request-context-cordis.
+- When the factory signature changes, update request-context-cordis, the only user in the group.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Cache, derivations, default strategies, local rules, close
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, dependencies, mechanisms and reasons
+├── flows.md              Mechanism flows F-RQI01 to F-RQI03
+├── object-model.md       Cache entries, derivations, strategy instances, lifecycle
+├── public-api.md         Export entry and definition index
+├── context.md            Use with Cordis, independent use, position
+└── cordis.md             Why Cordis integration does not apply
+src/                      index.ts, registry.ts, and accounting.ts
+tests/                    Entry, registry, and account projection tests, fixtures/ is empty now
+schema/                   Empty, the package publishes no schema
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
+```
+
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.

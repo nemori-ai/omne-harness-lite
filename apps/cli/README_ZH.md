@@ -121,7 +121,7 @@ pnpm turbo run typecheck --filter=@omne-harness/cli
 - 子进程测试使用管道 stdio。没有测试分配 TTY。
 - 以 root 运行时，不可读目录和只读上级目录的用例会跳过，因为 root 不受这些权限限制。
 - 没有在 Windows 上测试。
-- 本地开发机的 Node 是 v26。PanQiWei 于 2026-10-14 接受用这个版本完成本卡验证。没有在 Node 24 上另跑。`engines.node` 仍是 `>=24.18.0 <25`。
+- 本地开发机的 Node 是 v26。PanQiWei 于 2026-10-14 接受用这个版本完成本卡验证。没有在 Node 24 上另跑。`engines.node` 是 `>=24`。
 - 没有测试通过 `pnpm pack` 在 workspace 之外安装本包。
 
 ## 维护
@@ -130,6 +130,6 @@ pnpm turbo run typecheck --filter=@omne-harness/cli
 
 新增命令时，通过 `defineCatalog` 追加一条 `CommandSpec`。`renderHelp` 会带上它，`run` 用 `CommandEnvironment` 调用它的 `run`。生产目录的命令列表是空的。需要状态目录的命令用 `homeFlag`、`environmentHome` 和 `homeDirectory` 调用 `resolveStateDirectory`，再调用 `ensureStateDirectory`。命令自己不读 `process.env`。help 和 version 不得调用这两个函数。调用 SDK 的命令要把 SDK 加为依赖，并在同一次修改中更新安装闭包测试和 SPEC.md。
 
-`scripts/package-cli.sh` 把本成员构建到自己的临时目录，再把其中的 `dist/` 写入一个新的 `.tar.gz`。它不删除、不写入 `apps/cli/dist`，所以运行已构建 bin 的测试可以同时进行。归档不含 source map，因为归档不带源码。它先在目标旁边写归档，再改名到目标路径。失败时它删除临时目录和未写完的归档，目标不会出现。构建步骤与成员的 `build` 脚本相同，修改时同时修改 `tools/package.ts` 和 `build` 脚本。它不安装命令、不上传发布、也不配置账号。这个归档不是旧的 B01 安装包。
+`scripts/package-cli.sh` 把本成员构建到自己的临时目录，再把其中的 `dist/` 写入一个新的 `.tar.gz`。它不删除、不写入 `apps/cli/dist`，所以运行已构建 bin 的测试可以同时进行。归档不含 source map，因为归档不带源码。它先在临时目录里写归档，再复制到目标旁边，最后改名到目标路径。失败时它删除临时目录和未写完的归档，目标不会出现。构建步骤与成员的 `build` 脚本相同，修改时同时修改 `tools/package.ts` 和 `build` 脚本。它不安装命令、不上传发布、也不配置账号。这个归档不是旧的 B01 安装包。
 
 本文件与 [README.md](README.md) 保持同步。两份文件表达同一组承诺。

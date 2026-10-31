@@ -14,7 +14,7 @@
 
 ConverterKey匹配：voice/image仅modality键；file取规范mediaType去参数，先media_type再非text modality，码点恰等，不嗅探/扩展名猜。image/png图块不走media_type键。转换产出恰一DerivedRendering、producedBy system、非空合法text/image/audio且每派生模态异于原输入（无modality file例外），无file/thought/call/result、无递归renderings，非空transcript。不能只给transcript、取多份第一份或删坏块“修好”。
 
-prepersist跨域：系统转换遍历所有模型可见、未派生的eligible块，有eligible才解析真实Session tenant/registry，纯文本/只给人消息不依赖这一侧。确无登记可原样落；registry未知、converter不可用/坏产出、取字节失败、时限/tenant解不出皆整条veto。失败reason至少blockID+failure+key（若已知），不含内容；一块失败全条消息/先前派生不落。它须最后一个动块、模型回复只此系统件能加派生、后件改块非法。转换不发model调用，converter不是普通asset。撤除/换代时未知不能变noConverter，尚未落盘产出不能被写者私自补入日志。
+接纳前跨域：非 Tool ref 来源由实现消息准入的提供者在接纳前调用系统转换，Agent 只看到接纳后的消息与派生表示。系统转换遍历所有模型可见、未派生的eligible块，有eligible才解析真实Session tenant/registry，纯文本/只给人消息不依赖这一侧。确无登记可原样落；registry未知、converter不可用/坏产出、取字节失败、时限/tenant解不出皆整条veto。失败reason至少blockID+failure+key（若已知），不含内容；一块失败全条消息/先前派生不落。它不在扩展位置上；模型回复只此系统件能加派生，接纳后改块非法。转换不发model调用，converter不是普通asset。撤除/换代时未知不能变noConverter，尚未落盘产出不能被写者私自补入日志。
 
 当前 model-request-runtime `SelectionProjection`/`SelectionCompatibility`、session selection projection(prefix)端口已拥有消费者形状；引用它们，不造另一ModelProfile/SessionRef。旧无SessionRef及loop environment出处语句已被messages/session-tenancy/当前loop端口更新取代。现有端口未实现通用fold/converterregistry/builtin converter。仍未闭：附件字节授权/持久化/被veto字节保留，通用log投影协议真实owner与当前CheckedPrefix整合，时限值（归runner配置）、Converter活体完成/撤除的提供者机制；不扩完整Session协调。
 

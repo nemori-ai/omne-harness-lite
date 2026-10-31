@@ -1,6 +1,6 @@
 # 装配交接能力组
 
-本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。[assembly](assembly/README.md) 的关闭协议已经实现。求值快照、绑定生效、缺依赖失败和旧新推进权尚未实现。[kernel-basis](kernel-basis/README.md) 仍是 workspace 草稿，公开行为尚未实现。旧实现仍在 `packages.0.0.1.legacy/core/kernel-basis`，该目录不在 workspace 里。没有整组运行支持。
+本组说明定义求值、采用、绑定及换代交接的工程关系。依据为[领域责任](../../docs/domains/assembly-and-handoff/README.md)和[系统结构](../../docs/architecture/structure.md)。[assembly](assembly/README.md) 的关闭协议已经实现。采用与重装的行为规格已经技术接受，生产实现尚未存在。[kernel-basis](kernel-basis/README.md) 已实现 Cordis 插件辅助 `definePlugin`、`resolveOptional` 和测试装配 `startTestAssembly`，根入口为空导出。操作结果归 [operation-result](../common/operation-result/README.md)。旧实现仍在 `packages.0.0.1.legacy/core/kernel-basis`，该目录不在 workspace 里。没有整组运行支持。
 
 ## 责任与范围
 
@@ -12,7 +12,7 @@
 
 ## 关键协作
 
-采用协调者核对同次使用的定义、参数与资格。绑定集成者连接独立能力与提供者。结构变化时，换代协调者与原工作拥有者分别处理新动作资格和旧推进责任。已发调用仍由原执行者和消费者接续。要查一组租约的关闭结果时，读[成员契约](assembly/SPEC.md)。其中该范围已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受。本页不写那些结果。求值快照、绑定生效与缺依赖失败仍待确定。
+采用协调者核对同次使用的定义、参数与资格。绑定集成者连接独立能力与提供者。结构变化时，换代协调者与原工作拥有者分别处理新动作资格和旧推进责任。已发调用仍由原执行者和消费者接续。要查一组租约的关闭结果时，读[成员契约](assembly/SPEC.md)。其中该范围已由 [部分接受记录](https://github.com/nemori-ai/omne-harness-lite/issues/222#issuecomment-6162745308) 接受。本页不写那些结果。求值快照、绑定生效、缺依赖失败和旧新推进权的现行行为在[采用与重装](assembly/SPEC.md#adoption)，已由 [技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/264#issuecomment-6186685166) 接受。这些行为尚未有生产实现。
 
 ## 组合验证
 

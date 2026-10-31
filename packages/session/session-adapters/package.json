@@ -1,0 +1,56 @@
+{
+  "name": "@omne-harness/session-adapters",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Draft session-adapters package; complete the accepted public contract before delivery",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
+    "./testing": {
+      "source": "./src/testing.ts",
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/agent-contract": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*",
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/message": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
+    "@omne-harness/exchange-refs": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

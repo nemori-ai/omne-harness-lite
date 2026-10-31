@@ -26,7 +26,7 @@ git status --short
 完整检查需要 Git、Bash、[uv](https://docs.astral.sh/uv/getting-started/installation/)，
 以及根 `package.json` 的 `engines`/`packageManager` 指定的 Node 与 pnpm。
 
-支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 WSL2 的 Linux 发行版里检出仓库并运行它们，不支持在 PowerShell 或 cmd 中直接运行。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。
+支持在 macOS、Linux 与 Windows 上开发。`pnpm run check`、格式化脚本与 pre-commit 钩子是 Bash 脚本：Windows 上在 Git Bash 里运行，不支持在 PowerShell 或 cmd 中直接运行；也可以在 WSL2 的 Linux 发行版里检出仓库运行，但经 `/mnt/` 访问 NTFS 很慢。Windows 宿主要先做一次机器级设置：`pnpm config set script-shell "C:\Program Files\Git\bin\bash.exe"`，让 pnpm（以及经 pnpm 起成员脚本的 turbo）用 Git Bash 跑 POSIX 写法的脚本；仓库里不存这项设置。TypeScript 工具只用 Node 标准库与跨平台依赖；运行名额由 [with-test-slot.mjs](../scripts/with-test-slot.mjs) 实现，不依赖 `flock`。Windows 上 NTFS 没有执行位，agents 投影的执行位核对改读 Git 索引里的模式；Git 检出时建成文件型的根链接（`.claude` 等）由 `link_agents.py` 重建为目录链接。已知限制：Windows 宿主上 `pnpm run check` 的退出 0 可以作为准入结论，但有几处行为按平台不同，相应成员 README 写明：事件接收器不检查配置文件的模式位、也不设 ACL，目录私有由操作者保证；凭据存储与操作日志目录在 Windows 上不 fsync 目录句柄；名额账本的 `cpuSeconds` 在 Windows 上为 null；模型契约的协议模型需要 POSIX 进程组，监督进程在 Windows 上拒绝启动；roleeval 的真实套件在 Windows 上还不能建模板（配置命令经 `pnpm.cmd` 启动与 node_modules junction 的限制）。按平台跳过的用例只在 Windows 上跳过并写明原因：拒绝本进程访问文件或目录的用例（chmod 只切只读属性，提权会话里 ACL deny 拦不住备份语义）、目录 fsync 确认、SIGHUP、符号链接目标里 `..` 的 POSIX 目录语义、无扩展名的 sh 替身截 `git`、NTFS 执行位（`staged_modes`）与需要 Ubuntu 镜像路径的用例（`linux_image`）。慢层开着 vitest 的 `experimental.preParse`：一个文件里全部用例都是静态 `skipIf`／`runIf` 时整个文件会被丢掉，按平台跳过要用运行时的 `context.skip`。Windows 上新增可执行源文件后要 `git update-index --chmod=+x`；改了 `.meta_harness/agents` 的源后，先清掉被忽略的暂存目录（`git clean -fdX .meta_harness/.claude .meta_harness/.agents .meta_harness/.codex .meta_harness/.cursor`）再生成，否则 `compile_agents.py` 报 `output differs`。
 Python 范围由 [pyproject.toml](../pyproject.toml) 声明，uv 管理解释器与虚拟环境——
 **不要依赖系统 `python` 恰好存在**。使用coding agent参与本项目迭代维护时，先完成下一节的插件初始化。仓库依赖在实际使用的检出中准备：
 
@@ -46,7 +46,7 @@ pnpm -r rebuild node-pty
 
 镜像提供 Git、Bash、Make、rsync、支持 C++20 的编译器、GitHub CLI、uv 0.13.0，以及根 `package.json` 的 `engines` 与 `packageManager` 所要求的 Node 和 pnpm。角色评估用 rsync 复制检出副本，因此 `pnpm run test:python` 需要本机有 rsync。精确版本写在源 Dockerfile 的 `NODE_VERSION` 与 `PNPM_VERSION`。当前分别是 26.12.0 和 10.28.1。
 
-镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。
+镜像为 ubuntu 用户安装 Matt skills 1.3.1。revision 与[技能来源表](engineering/skills.md#来源与项目采用)相同。`npx skills` 不能把该 revision 当成分支克隆。镜像先取出这个 commit，再以 `-a cursor -g` 安装。正文在 `~/.agents/skills`，并链接到 `~/.cursor/skills`。安装完整插件不扩大方法采用范围。镜像不运行 `setup-matt-pocock-skills`。镜像还按来源表的固定提交把 ub-mode 的 `SKILL.md` 装到 ubuntu 用户的 `~/.cursor/skills/ub-mode/`。
 
 Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWei@users.noreply.github.com`。这是 GitHub 账号 PanQiWei 的 noreply 身份。`/usr/local/bin/git` 在每次调用前写回这个姓名和邮箱，并关闭 `commit.gpgsign`。`~/.gitconfig` 里的其他键保留。镜像环境变量 `GIT_AUTHOR_*` 与 `GIT_COMMITTER_*` 使用同一身份。直接调用 `/usr/bin/git` 时，作者仍是这个人。这些变量写在镜像里，不是安装脚本的临时 shell 变量。环境构建如果复用已有基础镜像，就只运行 `install.sh`。脚本在当前用户是 ubuntu 且 `sudo` 不询问密码时，从 Dockerfile 取出同一身份和同一个 revision 再安装一次。其他账户不改。
 
@@ -58,28 +58,31 @@ Git 的 author 与 committer 是潘其威(William)。邮箱是 `46810637+PanQiWe
 
 手写源在 [`.meta_harness/agents/cloud/claude-code/`](../.meta_harness/agents/cloud/claude-code/README.md)。把其中 `setup.sh` 的全文粘贴到云端环境设置的 Setup script。平台缓存 setup 的结果，所以每次会话都要做的工作放在 `session-start.sh`。setup 把它登记成 user 作用域的 SessionStart 钩子。
 
-setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，以及 pstack 与 Matt 两个 Claude Code 插件。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
+setup 安装 rsync、Node 26.12.0、pnpm 10.28.1、uv 0.13.0，pstack 与 Matt 两个 Claude Code 插件，以及 ub-mode 技能。检出已存在时，它再执行上面的三条依赖命令并生成 agent 投影。
 
-每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前。Git 作者与提交者优先使用云端环境的 `GIT_AUTHOR_NAME` 与 `GIT_AUTHOR_EMAIL`，各缺值才从开会话的 GitHub 账号补足。脚本还会取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件更新到上游最新版本。插件更新在下一次会话生效。
+每次会话启动或恢复时，`session-start.sh` 把 Node 26 放到 Bash 工具的 PATH 最前。Git 作者与提交者优先使用云端环境的 `GIT_AUTHOR_NAME` 与 `GIT_AUTHOR_EMAIL`，各缺值才从开会话的 GitHub 账号补足。脚本还会取完整历史，把本地 `main` 快进到 `origin/main`，按需重装依赖和重新生成投影，并把两个插件和 ub-mode 更新到上游最新版本。Claude Code 如果在钩子运行之前已经加载插件和技能，这些更新要到下一次会话才生效。这一前提没有验证。
 
 `main` 已分叉或不能快进时，脚本只输出诊断，不丢弃本地工作。此环境不安装 Java、TLC、Alloy 或 Postgres。缺少这些工具时，按[失败与未知的处理](#失败与未知的处理)报告未执行。密钥和令牌放在云端环境设置里，不要写入仓库。
 
 ### 初始化 coding agent 插件
 
-本项目的迭代维护依托pstack主线与已选Matt补充。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用对应插件。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装插件。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
+本项目的迭代维护依托[三层方法](engineering/skills.md#三层分工)：流程 pstack `poteto-mode`，写法 Matt，品味 ub-mode。人和agent参与项目迭代维护前，须在自己实际使用的coding agent harness安装并启用pstack与Matt两份插件和ub-mode技能。这项前提适用于研发维护，普通应用操作或独立消费成员公开API不因此要求安装。精确版本、固定revision、采用子集及必要依赖只由[技能来源表](engineering/skills.md#来源与项目采用)维护；这里提供初始化步骤。
 
 1. 确认实际harness及其版本，打开它的插件管理入口。根据技能来源表选择固定revision，不以原版pstack、同名技能或上游最新版代替项目指定来源。
 2. 注册固定来源并安装两份插件。支持Git revision的宿主直接指定来源表中的revision；支持本地marketplace但不能固定远程revision的宿主，可先在仓库外准备对应revision的检出，再注册其marketplace。按固定源的安装说明操作，避免把插件正文复制到本仓的技能源或同时安装另一份同名技能。
-3. 新开会话，核对两份插件的安装版本、启用状态、发现路径，以及本次需要的技能和参考文件是否可读。安装成功、宿主发现、正文读取与实际行为分别判断，详见[阅读与实际加载](engineering/skills.md#阅读与实际加载)。
-4. 按实际harness完成所用方法的配置。需要pstack子代理流程时沿其 `setup-pstack` 正文选择可用模型和宿主映射；使用SessionStart自动路由时，沿[hooks说明](engineering/skills.md#hooks-与证明层次)核对宿主要求的审阅、信任与实际执行。尚未配置或观察到的功能保留未覆盖，不把安装当作已生效。
+3. 安装ub-mode。它只有一份 `SKILL.md`，没有插件。按来源表的固定提交取 `https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md`，放到宿主的用户技能目录：Claude Code 为 `~/.claude/skills/ub-mode/SKILL.md`，Codex 为 `~/.codex/skills/ub-mode/SKILL.md`，Cursor 为 `~/.cursor/skills/ub-mode/SKILL.md`。不把正文复制进本仓库。
+4. 新开会话，核对两份插件的安装版本、启用状态、发现路径，宿主是否发现 `ub-mode`，以及本次需要的技能和参考文件是否可读。安装成功、宿主发现、正文读取与实际行为分别判断，详见[阅读与实际加载](engineering/skills.md#阅读与实际加载)。
+5. 按实际harness完成所用方法的配置。需要pstack子代理流程时沿其 `setup-pstack` 正文选择可用模型和宿主映射。尚未配置或观察到的功能保留未覆盖，不把安装当作已生效。
 
-Codex CLI支持下列命令形态。先将两处revision占位符替换为技能来源表中的完整revision，再执行：
+Codex CLI支持下列命令形态。先将三处revision占位符替换为技能来源表中的完整revision，再执行：
 
 ```sh
 codex plugin marketplace add michael-denyer/pstack-claude --ref <pstack-revision>
 codex plugin add pstack@pstack-claude
 codex plugin marketplace add mattpocock/skills --ref <matt-revision>
 codex plugin add mattpocock-skills@mattpocock
+mkdir -p ~/.codex/skills/ub-mode
+curl -fsSL https://raw.githubusercontent.com/unclebob/ub-mode/<ub-mode-revision>/SKILL.md -o ~/.codex/skills/ub-mode/SKILL.md
 ```
 
 命令语法以实际CLI的 `codex plugin --help`、`codex plugin marketplace add --help` 和 `codex plugin add --help` 为准。其他harness沿固定源的宿主安装说明操作，不能把Codex命令直接套用。若当前宿主缺少项目所需插件机制或技能依赖，报告具体缺口并交agent能力维护者处理；已明确且不依赖缺失能力的工作可以继续，不能声称插件初始化已完成。
@@ -113,9 +116,9 @@ pnpm format:write
 
 局部修改只传入本次有写权限的仓库相对文件，例如
 `pnpm format:write -- tools/spec-tools/src/x.ts`。
-范围包括 `tools/`、`scripts/`、`examples/` 下的 TS/JS 源码、测试及所属配置，
+范围包括 `tools/`、`scripts/`、`examples/`、`packages/`、`apps/` 下的 TS/JS 源码、测试及所属配置，
 和根 TS/测试配置；**不含**上游原件、provenance、JSONL 黄金文件、依赖、构建输出与临时目录。
-`packages/` 与 `apps/` 暂不纳入，重排时间由源码包负责人另定；Markdown 不在范围内。
+Markdown 不在范围内。
 
 编辑器装 `oxc.oxc-vscode` 扩展（`.vscode/extensions.json` 推荐），它调用工作区里的 oxfmt，与命令行同一版本、同一配置。
 
@@ -125,15 +128,16 @@ pnpm format:write
 ### 通用静态检查
 
 ```sh
-pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/
+pnpm lint:oxlint   # oxlint 正确性规则，范围 tools/、scripts/、packages/、apps/
 pnpm lint:deps     # dependency-cruiser：无法解析的导入、文件级运行时循环与 legacy 引用，范围 tools/、scripts/、packages/、apps/
 pnpm lint:report   # 只报告：全部目录的 oxlint（含 vitest 测试风格规则）与 knip
 ```
 
 tsconfig、oxlint 与 dependency-cruiser 的共享规则在 [repo-config](../tools/repo-config/README.md) 预设里维护。根目录的配置文件只引用安装的预设，版本见[仓库工具链的版本](#仓库工具链的版本)。oxfmt 不支持 `extends`，配置留在根目录。
 
-`lint:oxlint` 与 `lint:deps` 违反即失败，`pnpm run check` 每次都跑。oxlint 暂不检查 `packages/` 与 `apps/`，与格式范围一起由源码包负责人另定；dependency-cruiser 的规则是结构护栏，对源码包同样失败。
+`lint:oxlint` 与 `lint:deps` 违反即失败，`pnpm run check` 每次都跑。oxlint 检查工具、脚本、源码包与应用；dependency-cruiser 对这些目录的依赖违规同样失败。
 dependency-cruiser 用类型检查的 `source` 条件解析跨包导入，`dist` 与依赖只作叶子不深入；它自带一份 TypeScript 6 解析 `.ts`（见 `pnpm-workspace.yaml` 的 `packageExtensions`）。方向规则按[产品包组织](package-organization.md#依赖方向与cordis集成)写成成员路径，成员与组之间的环由 repo-toolchain 在同一张图上算；`lint:deps` 运行钉住的 repo-toolchain 的 `omne-deps`。
+自 0.0.12 起，`omne-deps` 还执行 `docs/architecture/constraints.json` 的方向行。规则与角色只从运行检查器的仓库读取，被检查的检出改不了它们。命中方向行失败；方向行引用的角色没有文件时也失败。没有方向行时，命令只输出一行说明。详见 repo-toolchain README 的[依赖方向](../tools/repo-toolchain/README.md#dependency-directions)一节。
 Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和源码字符串里的 legacy 路径，仍由 `pnpm run lint:rules` 检查；legacy 的导入边归 `lint:deps`。
 
 ### 仓库工具链的版本
@@ -142,7 +146,7 @@ Cordis 服务关系、领域规则，以及 `package.json`、workspace 清单和
 
 钉住的版本承担这些检查：
 
-- 根脚本 `check:declarations`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
+- 根脚本 `check:declarations`、`contract:api`、`lint:deps`、`metrics`、`loop:status`、`loop:health`、`acceptance:lock` 运行安装包的命令：`omne-declarations`、`omne-contract-api`、`omne-deps`、`omne-metrics`、`omne-loop-status`、`omne-loop-health`、`omne-acceptance-lock`。
 - 三个工具成员导入的也是钉住的版本。`lint:rules`、影响面计划与成员测试的编排都不读工作区的 repo-toolchain。
 - 根 `tsconfig.base.json` 与 `.dependency-cruiser.cjs` 按包名引用预设。`.oxlintrc.json` 的 `extends` 只接受相对路径，所以写成 `./node_modules/@omne-harness/repo-config/oxlint.json`，指向的仍是安装的预设。
 
@@ -267,7 +271,7 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 | 文档文字、链接与锚点 | `pnpm run check:docs`；变动涉及应有文件、必要章节或占位时，加`pnpm run docs:inventory`并阅读缺项和unknown |
 | skills、roles、生成输入或宿主适配 | `pnpm run check:agents`；改变工具行为时运行受影响工具测试。源与生成一致不证明宿主发现、加载或模型遵循 |
 | 产品topic、统一语言、领域对象或设计登记 | `pnpm run check:design`；本地待复核队列可用`pnpm run check:design --stale report`。需要模型证据时另行执行实际模型 |
-| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试 |
+| 检查器、生成器或自动化行为 | 对受影响工具运行测试；`pnpm run test:python`是Python工具与生成链的组合入口，TS工具沿所属成员测试。`test:python`用pytest-xdist分进程运行，进程数由`.meta_harness/tooling/tests/conftest.py`决定；设`OMNE_PYTEST_WORKERS=0`时退回单进程，设正整数时用该进程数 |
 | TS或JS源码、测试、配置 | `pnpm format:check`及受影响构建、类型检查和测试；读取或修改TS时加载[pstack TypeScript方法](engineering/skills.md#pstack-方法入口) |
 | 产品行为或公开入口 | 运行受影响快慢层及适用公开消费、组合或验收；构建和类型检查按计划选择，公开入口变化不自动等于全仓检查 |
 | 租户、权限、并发、恢复或资源生命周期 | 从[架构质量场景](architecture/assurance.md#系统级代表场景)和实际契约选行为、故障或交错验证。单组件通过不能代替跨边界责任闭合 |
@@ -278,7 +282,11 @@ uv run --locked omne-documentation inventory --root . --out tmp/documentation-in
 
 ### 迭代中的受影响测试
 
-在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
+`check`、`check:plan`、`test:affected` 与 `mutation` 按同一规则取基线：显式给的（`--base` 参数，再取环境变量 `BASELINE`），再取工作树 task context 固定的 `targetBase`，再取 `origin/main`，最后取 `main`。已绑定任务的工作树不必传基线，并且只接受等于 `targetBase` 的显式基线。同步过目标分支以后，开工时的任务基线不再等于 `targetBase`，显式传入会被拒绝，命令在标准错误写出原因后以 2 退出，不运行任何检查。
+
+已绑定任务的工作树上，`pnpm run check` 每次都核对本卡实际改动的文件。本卡的改动从 binding 的 `taskBase` 沿第一父链逐提交计算：合并提交计入与每个父提交都不同的文件（冲突的解决、合并时另加的改动、两侧都改过的文件），它带进来的提交只在不属于别的远端跟踪分支时计入，所以从远端同步目标分支与合并别的卡带进来的提交不计入。工作树中未提交的改动也计入。不在 binding 写范围内的文件，以及线内的卡改到别的线或联调轨道的文件，让检查失败，标准错误逐项写文件、代码与改法。撤回这些改动，或请调度者扩大写范围并重新派发。本卡改了契约成员的 `api` 目录时，检查还用钉住的 `omne-contract-api --diff <taskBase>` 比较这些成员的快照差异：差异超过 binding 的契约变更时检查失败，`omne-contract-api` 运行失败时检查也失败。同步目标分支时用 `git merge --no-ff` 合并远端跟踪分支，不用快进或 rebase：快进与 rebase 把目标分支的提交放到第一父链上，会算成本卡的改动。没有 task context 的工作树只报告「未绑定」。命令与算法见[交付观察说明](../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+
+没有绑定任务的工作树才需要显式基线。在仓库根将占位符替换为完整任务基线提交。以下命令使用同一个比较依据：
 
 ```sh
 TASK_BASE='<完整任务基线提交>'
@@ -290,15 +298,24 @@ pnpm run test:affected --base "$TASK_BASE" --tier slow
 
 `check:plan`只输出计划。`test:affected`先构建选中成员及其上游，默认只跑快层；慢层由`--tier slow`选择，`--tier all`合跑两层。选择依据包括实际改动、依赖关系及显式读者规则，不能仅凭“没修改那个包”省略消费者验证。
 
+成员测试的结果有缓存。`pnpm run check`、`test:affected` 与 `test:tier` 默认读缓存：同一台机器上，键与一次完整通过完全相同的成员不再执行，输出写明命中。要让它们重跑，设 `OMNE_TEST_CACHE=0`；`test:affected` 另认 `--no-cache`。`pnpm run check` 与 `test:tier` 经脚本入口运行，不认 `--no-cache`。命中只说明同样的输入曾经完整通过，不说明这次再跑也会通过。键、写入条件与边界见[结果缓存](../tools/test-runner/README_ZH.md#测试运行)。
+
 按 [RFC-0002 revision 2](rfcs/RFC-0002-engineering-toolchain.md#影响面选择)，改了哪些成员、哪些成员依赖它们，由 turbo 的 `--affected` 给出；构建由 `turbo run build` 编排，按依赖先构建上游，本机读写 `.turbo/` 缓存。类型检查由 `turbo run typecheck` 运行，不先构建，按输入缓存（依赖上游成员的 `typecheck`，上游源码改动后下游重新检查；准入时只写不读），运行前由 `tools/test-runner` 核对嵌套归档目录已在成员的 `tsconfig.test.json` 排除。类型检查的缓存键只覆盖成员目录、`workspace:` 依赖的上游成员和根 `turbo.json` 的 `globalDependencies`。成员的类型检查经相对路径读取其他成员的文件时，要把这些文件列入 `globalDependencies`，否则单独运行会命中过时的结果。现在列入的是仓库根的 `vitest.tiers.mts`，以及 `tools/dev-flow`、`tools/test-runner` 测试读取的 `tools/repo-toolchain/src/**` 与 `tools/repo-toolchain/tests/fixtures/**`。成员测试由 `turbo run test:fast`、`test:slow` 或 `test` 运行，层由 vitest 的 mode 选择；`tools/test-runner` 负责计划、调用 turbo，并照旧写出测试耗时账本。可执行验收仍由 `tools/test-runner` 逐成员执行。
 
 turbo 不提供的规则留在 `tools/test-runner/test-runs.config.json`：全局文件改动判全量；测试读取成员目录以外的文件时带上对应成员；Python 工具、常驻检查和 legacy 排除；没有规则认得的文件判全量，不按猜的范围少跑。`turbo` 2.11.7 的 `--affected` 默认不参考任务 `inputs` 里指向成员目录外的文件，所以读者规则不能改写成 `inputs`。
 
+下面几条规则让计划更小，不改变两条硬线：改代码跑那个成员及其下游的测试，没有规则认得的文件判全量。
+- `.meta_harness/human/**` 是常驻路径。那里只有给人读的 `.md`。只有常驻检查 `check:docs` 读它，成员测试、pytest 与影响面规则都不读。只改它时只跑常驻检查。
+- 成员根目录与 `apps/*/deploy/` 下的 `.md`（`memberDocuments`）不算成员改动。turbo 按包计改动，会选中那个成员与它的全部下游。计划用 turbo 的依赖图，把只改了文档的成员及其下游中不是代码改动成员下游的那些拿掉：不进测试、类型检查与验收。同一成员既改文档又改代码时，照旧选中它与下游。计划说明把拿掉的成员列在「只改了文档、不选的成员」下。拿掉之前，计划核对 turbo 选中的每个成员都在代码改动成员或只改了文档的成员的下游里（含它们自己）。有解释不了的成员时，turbo 的种子里有规则没认出的改动，计划判全量，理由点名这些成员。
+- 只改一个不被任何测试读的成员 `SPEC.md` 或 `README.md` 时，计划只跑常驻检查。被测试读的文档由 `tools/test-runner/test-runs.config.json` 的读者规则逐份点名。改这样的文档时，计划只选规则点名的成员，不带下游。测试新读一份成员根目录文档或成员目录外的文件时，同时补一条读者规则，否则改它时漏选。
+- `tools/dev-flow/src/integration/**` 是 dev-flow 的成员文件，不是全局路径。改这里跑 dev-flow 的测试。`scripts/check.sh` 用 `tools/test-runner` 的 `baseline` 取基线，不执行这里的代码。`check:lines` 导入其中的 `parse.ts` 与 `policy.ts`，它是常驻检查，每次都跑。
+- 常驻构建（`residentBuild`）包含 `packages/agent/agent`。`lint:deps` 解析它的验收夹具 `acceptance/fixtures/executor.mjs` 对 `dist/index.js` 的导入。没有它，在没有旧构建产物的检出上，只需常驻检查的计划会在 `lint:deps` 失败。
+
 RFC-0002 的四条约束这样落实：
-- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`，它们也是全局文件。
+- 选择规则不能由 PR 改写：turbo 用运行检查器仓库的 `turbo.json`（`TURBO_ROOT_TURBO_JSON`）；`packages/*`、`tools/*` 等成员目录下出现 `turbo.json` 直接报错，`apps/*` 下的由检查器按下面的成员配置规则核对合成后的任务定义；`**/turbo.json` 和本配置文件都是全局文件。根配置的预设和检查器来自钉住的 npm 包，改版本就是改锁文件与 `pnpm-workspace.yaml`。`pnpm-workspace.yaml` 是全局文件。锁文件是唯一命中的全局文件时按 importer 映射到成员：根 importer（`.`，全仓的工具）的依赖变了、`tools/test-runner` 在映射到的成员或其下游里、或顶层设置变了，都判全量，见[测试运行器的影响面规则](../tools/test-runner/README_ZH.md#测试运行)「影响面怎么算」第 1 条。
 - 基线显式传入：合并点经 `TURBO_SCM_BASE` 传给 turbo，不让它自己推断。
 - 未识别文件按全量处理：由上面的规则判。
-- 准入检查不读 turbo 任务缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）。进入任何一条主干之前的检查都带这个变量，规则见[集成规则](engineering/integration.md#检查责任)。
+- 准入检查不读缓存：`OMNE_ADMISSION=1` 时构建与类型检查只写本地缓存，不读缓存（`--cache=local:w`）；成员测试也不读测试结果缓存，照常写；依赖图缓存同样不读，照常计算并写入。进入任何一条主干之前的检查都带这个变量，规则见[集成规则](engineering/integration.md#检查责任)。
 
 `apps/*` 下的成员 `turbo.json` 要满足下面七条。`tools/test-runner` 的校验器按规则核对：规则 1、2 读成员原文；规则 3 至 6 读 `turbo run --dry=json` 给出的 `resolvedTaskDefinition`，合成时用的根配置与准入时相同；规则 7 两处都核对。规则 6 后半句不由校验器判断，由评审核对：
 1. `extends` 只能是 `["//"]`。
@@ -342,7 +359,7 @@ pnpm run test:triage --run <实际运行目录>
 
 ### 从候选到可审阅交付
 
-先按[迭代检查的设置](#迭代中的受影响测试)固定`TASK_BASE`，将命令中的`<task>`替换为本次任务目录。同一变量不意味着各工具的比较算法相同，报告保留实际BASE或merge-base。
+先按[迭代检查的设置](#迭代中的受影响测试)固定`TASK_BASE`，将命令中的`<task>`替换为本次任务目录。同一变量不意味着各工具的比较算法相同，报告保留实际BASE或merge-base。已绑定任务的工作树省略下面命令里的`--base "$TASK_BASE"`，基线取固定的`targetBase`。
 
 1. 在首个可运行候选及正常复查点保存适用快照，最终候选再核对。报告实际BASE或merge-base、dirty状态、输入、规则与范围；没有中间快照就不宣称统计了全过程整改。
 2. 对最终候选运行受影响行为、构建、类型及组合验证。复用旧结果须说明契约、代码、配置、依赖和假设仍适用；变化使其失效时补跑对应检查。
@@ -365,18 +382,25 @@ metrics只报告结构与配置范围内的覆盖；mutation只观察其选择�
 
 ### 交付与合并前的检查
 
-同一基线下先检查计划，再执行最终候选所需的组合检查：
+同一基线下先检查计划，再执行最终候选所需的组合检查。已绑定任务的工作树不传基线，两条命令都取固定的 `targetBase`：
+
+```sh
+pnpm run check:plan
+pnpm run admission
+```
+
+没有绑定任务的工作树（例如进入 stable 的 PR）显式给同一个基线：
 
 ```sh
 pnpm run check:plan --base "$TASK_BASE"
-OMNE_ADMISSION=1 BASELINE="$TASK_BASE" pnpm run check
+BASELINE="$TASK_BASE" pnpm run admission
 ```
 
-进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。不带这个变量的运行会读缓存，不作为准入检查结论。
+进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。
 
-两条命令传基线的方式不同：`check:plan`用`--base`参数，`check`用环境变量`BASELINE`。显式传入同一提交可避免它们各自的默认值造成比较范围不同。
+两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 
-`pnpm run check`先打印影响面，运行常驻检查，再按计划执行Python、构建、类型检查、成员快慢层及可执行验收，最后执行严格回路状态。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
+`pnpm run check`先打印影响面，再按[步骤图](../scripts/README.md#check-的步骤图)跑常驻检查与计划里的 Python、构建、类型检查、成员快慢层及可执行验收：没有依赖的步骤同时跑，构建之后才跑读 dist 的步骤，最后执行严格回路状态；一步失败其余终止。它通过时只支持已执行范围；计划中的跳过不算通过。无选中验收时记录显式跳过，不为凑数据运行无关验收。全局变更、未知路径或负责人明确要求可触发全量；`FULL=1`用于显式全量，不是每次交付的默认值。
 
 四条硬线是依赖方向与环、验收锁、主线所需检查绿、启用传感器有数据。严格回路状态核对第一、第二和第四项，第三项由实际所需检查支撑。若手动组合检查，也须完成这些共同硬线，并确保严格传感器所需账本属于同一候选：
 
@@ -480,4 +504,4 @@ Git维护当前终态；正式RFC保留进入审议的方案与最小决定关�
 
 ## 多层分支操作
 
-先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。提升 PR 由轨道 owner 提出，说明中列出所含的卡及其在上一层的条件，见[现行准入](engineering/integration.md#现行准入)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。
+先从[集成规则](engineering/integration.md)核任务路线，再按[工具指南](../tools/dev-flow/src/integration/README.md)运行 status、start 和 task-sync。同步目标分支时，先在工作分支上用 `git merge --no-ff` 合并远端目标提交并提交，再运行 task-sync 让 `targetBase` 前进；taskBase 不变。四条主干的进入按[现行准入](engineering/integration.md#现行准入)开 PR 并派发 `gate-publish`。轨道组成以 main 为根的树，同步与提升只在一条轨道和它的上游之间进行，见[轨道树与上游](engineering/integration.md#轨道树与上游)。新建子轨道时派发 `gate-track` 并传入 `parent`。提升 PR 由轨道 owner 提出，说明中列出所含的卡及其在上一层的条件，见[现行准入](engineering/integration.md#现行准入)。说明的「所含的卡」与「契约变化」两节用 `pnpm run ri-notes --track <轨道 ID> --format markdown` 生成：两节写到标准输出，发现写到标准错误。贴进 PR 之前先处理这些发现。命令只读 Git 与 GitHub。有 `contract-level-exceeds-card`、`contract-breaking-off-integration` 或 `contract-diff-mismatch` 时退出 1，其他发现只报告，退出 0；读取失败退出 2。确认者在 gate 说明里贴退出码与标准错误最后一行的汇总。条款见[集成工具契约](../tools/dev-flow/src/integration/SPEC.md)的 I17，两节的规则见[进轨道 PR 的说明](engineering/integration.md#进轨道-pr-的说明)。仓库检查运行钉住的检查器版本，见[仓库工具链的版本](#仓库工具链的版本)，不需要另一个受信检出。

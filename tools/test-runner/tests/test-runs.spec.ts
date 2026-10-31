@@ -10,7 +10,7 @@ import {
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { join, resolve, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
 import {
@@ -23,9 +23,11 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import {
   effectiveParallelism,
+  effectiveRecheckMax,
   ledgerHome,
   parseTestRunsConfig,
   readTestRunsConfig,
+  workerCountOverride,
 } from '../src/testing/config.ts'
 import { buildLedger, ledgerSummary, type MemberRun } from '../src/testing/ledger.ts'
 import { readLoopConfig } from '@omne-harness/repo-toolchain/loop/config'
@@ -33,7 +35,8 @@ import type { TimingReport } from '../src/testing/timing-reporter.ts'
 import { classify, namePattern, outcomeOf, triageSummary } from '../src/testing/triage.ts'
 
 const ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
-const VITEST = fileURLToPath(new URL('../node_modules/.bin/vitest', import.meta.url))
+// vitest 的 bin 入口本身，由当前 Node 起；`.bin/vitest` 在 Windows 上是 shell 垫片，Node 不经 shell 起不了。
+const VITEST = fileURLToPath(new URL('../node_modules/vitest/vitest.mjs', import.meta.url))
 const TIMING_REPORTER = fileURLToPath(new URL('../src/testing/timing-reporter.ts', import.meta.url))
 
 describe('成员清单', () => {
@@ -143,20 +146,23 @@ describe('与回路配置一致', () => {
   })
 })
 
+// 路径期望经 path.join 写成本机分隔符（Windows 上是反斜杠），结构与 POSIX 上相同。
 describe('账本根', () => {
   it('测试与验收各放一处；环境变量给了用它，给空串当没给', () => {
-    expect(ledgerHome('test', '/repo', {})).toBe('/repo/tmp/test-ledger')
-    expect(ledgerHome('acceptance', '/repo', {})).toBe('/repo/tmp/acceptance-ledger')
+    expect(ledgerHome('test', '/repo', {})).toBe(join('/repo/tmp/test-ledger'))
+    expect(ledgerHome('acceptance', '/repo', {})).toBe(join('/repo/tmp/acceptance-ledger'))
     expect(ledgerHome('test', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe('/x')
     expect(ledgerHome('acceptance', '/repo', { OMNE_TEST_LEDGER_HOME: '/x' })).toBe(
-      '/repo/tmp/acceptance-ledger',
+      join('/repo/tmp/acceptance-ledger'),
     )
     expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '/y' })).toBe('/y')
     expect(ledgerHome('acceptance', '/repo', { OMNE_ACCEPTANCE_LEDGER_HOME: '' })).toBe(
-      '/repo/tmp/acceptance-ledger',
+      join('/repo/tmp/acceptance-ledger'),
     )
   })
 })
+
+const CACHE_EMPTY = { env: [], ignoreEnv: [] }
 
 const AFFECTED_EMPTY = {
   excludeRoots: [],
@@ -168,27 +174,49 @@ const AFFECTED_EMPTY = {
   residentBuild: [],
 }
 
+const POLICY = {
+  memberDivisor: 3,
+  workerDivisor: 4,
+  maxWorkersPerMember: 8,
+  minimum: 2,
+  memoryPerWorkerMiB: 512,
+  sampleMs: 0,
+}
+
 describe('并行度', () => {
   const config = parseTestRunsConfig({
-    parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+    parallel: POLICY,
     affected: AFFECTED_EMPTY,
     ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
     triage: { repeats: 3 },
-    mutation: { testTimeoutSeconds: 60 },
+    mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+    cache: CACHE_EMPTY,
   })
+  const budget = {
+    workers: 20,
+    machine: { cores: 24, idleFraction: 0.85, freeMemoryMiB: 65536 },
+    source: 'sampled' as const,
+  }
 
-  it('配置给初值，环境变量覆盖', () => {
-    expect(effectiveParallelism(config, {})).toEqual({ memberConcurrency: 2, vitestMaxWorkers: 4 })
+  it('预算按策略推出并行度，环境变量覆盖', () => {
+    expect(effectiveParallelism(config, {}, budget)).toEqual({
+      memberConcurrency: 7,
+      vitestMaxWorkers: 5,
+    })
     expect(
-      effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '1', VITEST_MAX_WORKERS: '8' }),
+      effectiveParallelism(
+        config,
+        { OMNE_TEST_MEMBER_CONCURRENCY: '1', VITEST_MAX_WORKERS: '8' },
+        budget,
+      ),
     ).toEqual({ memberConcurrency: 1, vitestMaxWorkers: 8 })
   })
 
   it('环境变量不是正整数就报错，不悄悄回落', () => {
-    expect(() => effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '0' })).toThrow(
-      'OMNE_TEST_MEMBER_CONCURRENCY',
-    )
-    expect(() => effectiveParallelism(config, { VITEST_MAX_WORKERS: '50%' })).toThrow(
+    expect(() =>
+      effectiveParallelism(config, { OMNE_TEST_MEMBER_CONCURRENCY: '0' }, budget),
+    ).toThrow('OMNE_TEST_MEMBER_CONCURRENCY')
+    expect(() => effectiveParallelism(config, { VITEST_MAX_WORKERS: '50%' }, budget)).toThrow(
       'VITEST_MAX_WORKERS',
     )
   })
@@ -197,18 +225,67 @@ describe('并行度', () => {
     expect(() => parseTestRunsConfig({})).toThrow()
     expect(() =>
       parseTestRunsConfig({
-        parallel: { memberConcurrency: 0, vitestMaxWorkers: 4 },
+        parallel: { ...POLICY, memberDivisor: 0 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
+      }),
+    ).toThrow('parallel.memberDivisor')
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: { memberConcurrency: 2, vitestMaxWorkers: 4 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
+      }),
+    ).toThrow('parallel.memberDivisor')
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: { ...POLICY, minimum: 9, maxWorkersPerMember: 8 },
+        affected: AFFECTED_EMPTY,
+        ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
+        triage: { repeats: 3 },
+        mutation: { testTimeoutSeconds: 60, recheckMaxMutants: 8 },
+        cache: CACHE_EMPTY,
+      }),
+    ).toThrow('parallel.minimum 不能大于')
+  })
+
+  it('Stryker 的进程数：VITEST_MAX_WORKERS 已设时以它为准，否则取给的预算', () => {
+    expect(workerCountOverride({}, 19)).toBe(19)
+    expect(workerCountOverride({ VITEST_MAX_WORKERS: '1' }, 19)).toBe(1)
+    expect(() => workerCountOverride({ VITEST_MAX_WORKERS: 'x' }, 19)).toThrow('VITEST_MAX_WORKERS')
+  })
+
+  it('复核上限（#649）：配置给初值，环境变量覆盖，0 表示不复核；不是非负整数就报错', () => {
+    expect(effectiveRecheckMax(config, {})).toBe(8)
+    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '0' })).toBe(0)
+    expect(effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '20' })).toBe(20)
+    expect(() => effectiveRecheckMax(config, { OMNE_MUTATION_RECHECK_MAX: '-1' })).toThrow(
+      'OMNE_MUTATION_RECHECK_MAX',
+    )
+    expect(() =>
+      parseTestRunsConfig({
+        parallel: POLICY,
         affected: AFFECTED_EMPTY,
         ledger: { slowFileSeconds: 10, nearTimeoutRatio: 0.5, top: 5 },
         triage: { repeats: 3 },
         mutation: { testTimeoutSeconds: 60 },
       }),
-    ).toThrow('parallel.memberConcurrency')
+    ).toThrow('mutation.recheckMaxMutants')
   })
 
-  it('仓库里的配置：两者之积不超过 8 核', () => {
+  it('仓库里的配置：策略不含任何一台机器的核数，上下限齐全', () => {
     const { parallel } = readTestRunsConfig()
-    expect(parallel.memberConcurrency * parallel.vitestMaxWorkers).toBeLessThanOrEqual(8)
+    expect(parallel.memberDivisor).toBeGreaterThan(1)
+    expect(parallel.workerDivisor).toBeGreaterThan(1)
+    expect(parallel.minimum).toBeGreaterThanOrEqual(1)
+    expect(parallel.maxWorkersPerMember).toBeGreaterThanOrEqual(parallel.minimum)
+    expect(parallel.memoryPerWorkerMiB).toBeGreaterThan(0)
   })
 })
 
@@ -539,14 +616,15 @@ describe('计时报告器（真起一次 vitest）', { timeout: 60_000 }, () => 
         join(project, 'vitest.config.mjs'),
         `export default { test: { reporters: [[${JSON.stringify(TIMING_REPORTER)}, { outputFile: ${JSON.stringify(timingPath)} }]] } }\n`,
       )
-      const ran = spawnSync(VITEST, ['run', '--root', project, '--globals'], {
+      const ran = spawnSync(process.execPath, [VITEST, 'run', '--root', project, '--globals'], {
         cwd: project,
         encoding: 'utf8',
       })
       expect(ran.status, `${ran.stdout}${ran.stderr}`).toBe(0)
       const timing = JSON.parse(readFileSync(timingPath, 'utf8')) as TimingReport
       expect(timing.files).toHaveLength(1)
-      expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts'))
+      // 与 JSON 报告同一拼法：vitest 的 moduleId 在各平台都用正斜杠。
+      expect(timing.files[0]?.file).toBe(join(project, 'x.spec.ts').split(sep).join('/'))
       expect(timing.files[0]?.collectSeconds).toBeGreaterThanOrEqual(0)
       expect(timing.files[0]?.tests).toEqual([
         { fullName: '外层 里层 带时限', timeoutSeconds: 1.234, tags: [] },

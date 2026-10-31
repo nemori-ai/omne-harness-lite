@@ -1,10 +1,12 @@
 // @module-tag slow
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync, realpathSync } from 'node:fs'
-import { join } from 'node:path'
+import { join, resolve } from 'node:path'
 import { tmpdir } from 'node:os'
+import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import { afterEach, expect, it, vi } from 'vitest'
 import { init, commit, integrationFixture } from './fixtures/integration.ts'
+import { stubGhEnv } from './fixtures/gh.ts'
 import { git, repository } from '../src/integration/git.ts'
 import { writeContext } from '../src/integration/context.ts'
 import { touchedBase } from '@omne-harness/repo-toolchain/loop/hook-measure'
@@ -21,7 +23,7 @@ afterEach(() => {
 function fixture() {
   const f = integrationFixture()
   homes.push(f.home)
-  vi.stubEnv('PATH', `${f.bin}:${process.env.PATH}`)
+  stubGhEnv(f.bin, (name, value) => vi.stubEnv(name, value))
   vi.stubEnv('OMNE_GH_FIXTURE', f.home)
   return f
 }
@@ -117,9 +119,14 @@ node() {
   local script=
   for argument in "$@"; do case "$argument" in --*) ;; *) script=$argument; break ;; esac; done
   case "$script" in
-    */testing/cli.ts) if [[ "$3" == plan ]]; then record plan "$@"; else record "$4" "$@"; fi ;;
-    */integration/cli.ts) printf '{"targetBase":"%s"}' "$BASELINE" ;;
+    */testing/cli.ts)
+      case "$3" in
+        check) record check "$@" ;;
+        *) record "$3" "$@" ;;
+      esac ;;
     */src/cli.ts) record rules "$@" ;;
+    */change-scope-cli.ts) record change-scope "$@" ;;
+    */integration/cli.ts) record contract-check "$@" ;;
     *) command node "$@" ;;
   esac
 }
@@ -163,18 +170,45 @@ pnpm() { record pnpm "$@"; }
   }
 }
 
-it('runs the ordinary local check even when a subject root is set', () => {
+it('the check wrapper forwards to the runner inside its slot even when a subject root is set', () => {
   const f = wrapperFixture()
   init(f.runner)
-  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh')], {
+  const result = spawnSync('bash', [join(f.runner, 'scripts/check.sh'), '--admission'], {
     env: { ...f.env, OMNE_SUBJECT_ROOT: f.subject, OMNE_TEST_SLOT_HELD: 'held' },
     encoding: 'utf8',
   })
   expect(result.status, result.stdout + result.stderr).toBe(0)
   const trace = readFileSync(f.trace, 'utf8')
-  expect(trace).toContain(`plan --base ${f.base}`)
-  expect(trace).toContain(`loop:status --strict --base ${f.base}`)
+  // Exactly one call: the runner's check command, with the flags passed through and the slot held.
+  expect(trace.trim().split('\n')).toHaveLength(1)
+  expect(trace).toMatch(/^check\|held\|.*testing\/cli\.ts check --admission$/mu)
+  expect(trace).not.toContain('pnpm')
   expect(trace).not.toContain('--scope engineering')
+})
+
+it('the check step table runs both dev-flow entries, the snapshot check after the build', () => {
+  const cli = fileURLToPath(new URL('../../test-runner/src/testing/cli.ts', import.meta.url))
+  const listed = spawnSync(
+    process.execPath,
+    ['--experimental-strip-types', cli, 'check', '--list'],
+    {
+      encoding: 'utf8',
+    },
+  )
+  expect(listed.status, listed.stdout + listed.stderr).toBe(0)
+  const rows = new Map(
+    listed.stdout
+      .trim()
+      .split('\n')
+      .map(line => line.split('\t'))
+      .map(([name, after, , command]) => [name, { after: after ?? '', command: command ?? '' }]),
+  )
+  expect(rows.get('change-scope')?.after).toBe('-')
+  expect(rows.get('change-scope')?.command).toMatch(/delivery\/change-scope-cli\.ts$/u)
+  // The snapshot check runs through dev-flow, after the build and the type check (which may rebuild a dist), and no longer through pnpm.
+  expect(rows.get('contract-check')?.after).toBe('build,typecheck')
+  expect(rows.get('contract-check')?.command).toMatch(/integration\/cli\.ts contract-check$/u)
+  expect(listed.stdout).not.toContain('contract:api --check')
 })
 it('reads the hook root and each worktree own immutable task baseline', async () => {
   const f = fixture()
@@ -187,8 +221,13 @@ it('reads the hook root and each worktree own immutable task baseline', async ()
   // Without a task context the hook falls back to the merge base with the primary branch;
   // this worktree changed no product source, so there is nothing to measure.
   expect(touchedBase(other, 'main')).toBeUndefined()
-  expect(readWorktrees(f.root, 'main')).toEqual([
-    { path: realpathSync(other), branch: 'human/other', members: ['packages/core/first'] },
+  // The sensor reports the path as `git worktree list` writes it: forward slashes and long names on
+  // Windows. resolve and the native realpath bring both sides to the platform's own form.
+  const worktrees = () =>
+      readWorktrees(f.root, 'main').map(entry => ({ ...entry, path: resolve(entry.path) })),
+    otherPath = realpathSync.native(other)
+  expect(worktrees()).toEqual([
+    { path: otherPath, branch: 'human/other', members: ['packages/core/first'] },
   ])
   const info = repository(other)
   const binding = { ...f.binding, branch: 'human/other', taskBase: newer, attempt: 'other' }
@@ -205,8 +244,8 @@ it('reads the hook root and each worktree own immutable task baseline', async ()
     operation: null,
   })
   expect(touchedBase(other, 'main')).toBe(newer)
-  expect(readWorktrees(f.root, 'main')).toEqual([
-    { path: other, branch: 'human/other', members: ['packages/core/second'] },
+  expect(worktrees()).toEqual([
+    { path: otherPath, branch: 'human/other', members: ['packages/core/second'] },
   ])
 })
 it('rejects unregistered or paused routes and comments from a different actor or revoked authority', async () => {
@@ -254,7 +293,7 @@ it('rejects unregistered or paused routes and comments from a different actor or
 })
 it('runs the actual trusted formatter on subject bytes, not its own clean source', () => {
   const f = fixture(),
-    runner = new URL('../../../', import.meta.url).pathname
+    runner = fileURLToPath(new URL('../../../', import.meta.url))
   mkdirSync(join(f.root, 'tools/demo/src'), { recursive: true })
   commit(f.root, 'tools/demo/src/invalid.ts', 'export const x={a:1,b:2};\n')
   const result = spawnSync('bash', [join(runner, 'scripts/format.sh'), 'check'], {
@@ -262,6 +301,10 @@ it('runs the actual trusted formatter on subject bytes, not its own clean source
     encoding: 'utf8',
   })
   expect(result.status).toBe(1)
-  expect(result.stdout).toContain(`Formatting subject ${f.root}`)
+  // format.sh names the subject by `git rev-parse --show-toplevel`; on Windows that is the form with
+  // forward slashes and long names.
+  expect(result.stdout).toContain(
+    `Formatting subject ${git(f.root, ['rev-parse', '--show-toplevel'])}`,
+  )
   expect(result.stderr + result.stdout).toContain('invalid.ts')
 })

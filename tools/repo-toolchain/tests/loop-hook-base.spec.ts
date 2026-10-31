@@ -1,3 +1,5 @@
+// @module-tag slow
+// 归慢层：每条用例在临时 git 仓库里建提交并量收工钩子的读数。全量准入快层账本里整份合计 17.5 秒，负载下 30.8 秒，只标超预算的那一条，余下仍有 13.4 秒（负载下 22.1 秒），过了 10 秒线（tools/test-runner/README_ZH.md「归层」）。
 // 收工钩子的基线：没有 task context 时取主线与活跃轨道里离 HEAD 最近的合并点，有 context 时仍用 taskBase；
 // 成员发现不把被 git 忽略的目录（变异运行器的沙箱）里的成员副本当成员。用临时 git 仓库，不跑度量。
 import { realpathSync, writeFileSync } from 'node:fs'
@@ -60,7 +62,9 @@ function branchedFromTrack(root: string): { first: string; tip: string; work: st
 
 /** 流程工具的 start 为本检出写的 task context；这里只给钩子读的字段。 */
 function bind(root: string, taskBase: string, targetBase: string): void {
-  const actual = realpathSync(root)
+  // 和流程工具一样从 git 的顶层目录取真实路径：Windows 的临时目录是 8.3 短名，
+  // 对它直接 realpath 不会展开成 git 回的长名。
+  const actual = realpathSync(git(root, 'rev-parse', '--show-toplevel'))
   writeFileSync(
     taskContextPath(root),
     JSON.stringify({

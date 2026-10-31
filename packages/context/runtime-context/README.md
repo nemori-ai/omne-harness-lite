@@ -1,21 +1,99 @@
+# @omne-harness/runtime-context
+
 PACKAGE_TEMPLATE_DRAFT
+[中文](README_ZH.md)
 
-本成员已按 RFC-0003 初始化为 workspace 草稿。公开行为尚未实现。`src/index.ts` 不导出值。导出条件 `source` 指向本包源码。发布时去掉它。
+The mechanism member of Runtime Context. Variant: `module`.
 
-# runtime-context 文档目标
+## Responsibility and status
 
-本位置只有文档，尚无实现、已验证公开入口或可运行示例。设计接受、支持状态、行为验证与阶段交付分别待核实。
+This package implements the supply mechanism of Runtime Context. The mechanism has a registration table, a producer table, an eligibility table, need bindings, a current projection, an observation chain, eligibility checks, and translation. The package exports one factory that does not depend on Cordis. The factory returns a mechanism instance that implements the three operation faces of the contract.
 
-## 责任与使用
+[runtime-context-contract](../runtime-context-contract/README.md) owns the public behavior. [runtime-context-cordis](../runtime-context-cordis/README.md) owns the Cordis binding and the wake-up. This package holds no durable state. All five tables are in-process copies.
 
-本成员沿[SPEC](SPEC.md)承担完整行为。独立消费通过未来公开入口及显式依赖，不要求启动Cordis；系统集成通过同包Cordis适配满足共同IC、合法身份及业务交接。公开形状、导出、安装闭包、配置、资源限额和提供者尚待设计，不虚构命令。
+Status: mechanism member, `draft`. The adoption basis is the [member decomposition](../docs/architecture.md#成员分解) of the group and the [SPEC](SPEC.md).
 
-## 契约与设计
+- Implemented: nothing. `src/index.ts` holds only a template marker. The root entry exports nothing.
+- Not implemented: the factory, the five tables, the observation chain, eligibility checks, translation, the change outlet, and close.
+- Not verified: none of the ten verification scenarios in the SPEC has a test. The package makes no claim about persistence, cross-process consistency, or tenant isolation.
 
-- [行为入口](SPEC.md)与原专题共同保持完整承诺。
-- [内部设计](docs/internals.md)解释机制、依赖与未决。
+No package depends on this package now.
 
-## 验证与维护
+The two Runtime Context contract members publish their types, checks, and Cordis service definition. Their package tests do not implement this member or prove production behavior.
 
-SPEC及专题维护持续验证义务；实际测试、模型、提供者和装配证据尚缺。修改时同步公开消费者和组导航；未决按[产品第四块](../../../.meta_harness/design/product/runtime-context/design.md#未决问题与待定事项)及技术拥有者闭合。
-默认测试责任是单元和契约。`tests/public-entry.spec.ts` 从包名核对当前公开导出。集成测试和端到端测试不适用：本包还没有具体存储、应用服务或关键用户旅程。
+## Usage
+
+The package has one entry: `@omne-harness/runtime-context`. A system that assembles Cordis does not import it directly. runtime-context-cordis calls the factory. A caller without Cordis calls the factory of this package directly. That caller wires disposal and wake-up itself. See the [usage page](docs/context.md#独立使用).
+
+The implementation will fix the name and signature of the factory. No runnable example exists now.
+
+## Contracts
+
+- `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
+- The [SPEC](SPEC.md) owns the local behavior: tables and projection, local rules, close and rebuild.
+- The [runtime-context-contract SPEC](../runtime-context-contract/SPEC.md) owns the inputs, results, and failures of the three faces, in clauses RC-01 to RC-08.
+- The [object model](docs/object-model.md) owns identity and lifecycle of the internal objects.
+
+The party that calls the factory owns the mechanism instance and closes it. Close first refuses new requests. Then it ends the readers, cancels in-flight calls, and waits within the timeout for in-flight reads to settle. Last, it releases the tables. Close does not take back change material that it gave out, or any outside effect.
+
+## Design
+
+The factory has seven modules: registration table, producer table, current projection, observation chain, eligibility table, read, and lifecycle. The only outside dependency is runtime-context-contract. The package has eight key mechanisms:
+
+- holder commits applied in commit order
+- producer identity, generation, and write sequence
+- lookup along the scope chain
+- a bounded observation chain with refetch
+- eligibility checks and translation at read time
+- step commits written only after commit
+- the change outlet
+- a fixed close order
+
+The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the five mechanism flows. The [object model](docs/object-model.md) describes the internal objects.
+
+## Configuration and operation
+
+The factory accepts the retention limit of the observation chain, the timeout for source calls and callbacks, and the change outlet callback. Default values are only initial configuration values. With Cordis, the plugin configuration of runtime-context-cordis supplies and checks the two configuration values. The package needs no environment, reads no resources at run time, and does not access storage. The scope holder stores registrations and step commits durably. Producers publish `persisted` supplied blocks again after a restart.
+
+## Verification
+
+From the repository root, run:
+
+```sh
+pnpm turbo run test --filter=@omne-harness/runtime-context
+```
+
+In this directory, run `pnpm typecheck` for the type check. The current test checks only that the root entry exports nothing. See [tests/](tests/README.md). The [verification scenarios](SPEC.md#组合与验证) of the SPEC arrive with the implementation. End-to-end evidence for persistence, cross-process consistency, and tenant isolation is outside this package. A passing structure check does not prove behavior.
+
+## Maintenance
+
+- When read results, cursor rules, or step commit rules change in the contract, update the [architecture page](docs/architecture.md), the [flows page](docs/flows.md), and the tests.
+- When you add a configuration item, update the [API page](docs/public-api.md) and the configuration schema of runtime-context-cordis.
+- When the factory signature changes, update runtime-context-cordis, the only user in the group.
+- The [group page](../README.md) owns member relations and dependency direction. The responsible lead names the maintainer.
+
+## Directory structure and documentation roles
+
+```text
+README.md, README_ZH.md   Entry: purpose, status, and this map
+index.md                  Reading paths through the package
+SPEC.md                   Tables and projection, local rules, close and rebuild
+documentation.json        Documentation registration
+docs/                     Internal design, public use, and integration
+├── architecture.md       Modules, dependencies, mechanisms and reasons
+├── flows.md              Mechanism flows F-RCI01 to F-RCI05
+├── object-model.md       Table entries, cursors, and instance lifecycle
+├── public-api.md         Export entry and definition index
+├── context.md            Use with Cordis, independent use, position
+└── cordis.md             Why Cordis integration does not apply
+src/                      Only index.ts, template marker only now
+tests/                    Entry test, fixtures/ is empty now
+schema/                   Empty, the package publishes no schema
+verification/             models/ and proofs/, empty now
+adr/                      Empty now
+examples/                 Empty now
+resources/                Empty now
+acceptance/               Empty now, fixtures/ is also empty
+```
+
+Each directory has README.md for its role and current state, and index.md for navigation. See [index.md](index.md) for reading paths.

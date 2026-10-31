@@ -2,7 +2,7 @@
 
 [English](README.md)
 
-`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
+`@omne-harness/repo-toolchain` 是本仓库的检查器包，发布在 npm。它提供规则引擎、提交署名、依赖图、声明兼容、契约 API 快照、结构度量、实际架构抽取、审讯页与 clean loop。仓库在 `pnpm-workspace.yaml` 的 catalog 里钉它的精确版本，根目录的检查与三个工具成员都运行 npm 上的那个版本，不运行本目录的源码。改了本目录，要先发新版本，再开改钉子的 PR，见[开发指南](../../docs/development.md#仓库工具链的版本)。
 
 三个不发布的工具成员经本包的子路径导入它，本包不引用它们：
 
@@ -14,7 +14,7 @@
 
 - 被检查的仓库取 `OMNE_SUBJECT_ROOT`，未设置时取当前目录所在 Git 仓库的根。
 - 运行检查器的仓库取 `OMNE_RUNNER_ROOT`，未设置时与被检查的仓库相同。依赖规则（`.dependency-cruiser.cjs`、`tsconfig.base.json`）与配置只从这个仓库读，被检查的检出改不了它们。
-- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，分 `loop`、`metrics`、`acceptanceLock` 三节。缺文件、缺节或有认不出的节时报错，不使用默认值。
+- 配置在仓库根的 [`repo-toolchain.config.json`](../../repo-toolchain.config.json)，可有 `loop`、`metrics`、`acceptanceLock`、`contractApi` 四节，每个命令只读自己的那一节。缺文件、缺所读的节或有认不出的节时报错，不使用默认值。`contractApi` 一节从 0.0.10 起认得，更早的版本见到它会报错。
 - dependency-cruiser 需要 TypeScript 才能解析 `.ts`。用 pnpm 安装时，在 `pnpm-workspace.yaml` 的 `packageExtensions` 里给 dependency-cruiser 加上 `typescript`。找不到 TypeScript 时，依赖图检查报错退出，不会在漏掉 `.ts` 的情况下通过。
 
 ## 包内分层
@@ -29,13 +29,25 @@
 
 | 命令 | 源码入口 | 作用 |
 | --- | --- | --- |
-| `omne-deps` | `src/deps/cli.ts` | 依赖规则与成员、组之间的环 |
+| `omne-deps` | `src/deps/cli.ts` | 依赖规则、`constraints.json` 的方向行，与成员、组之间的环 |
 | `omne-declarations` | `src/declarations/cli.ts` | 用 TypeScript 6 读成员 dist 里的声明 |
+| `omne-contract-api` | `src/declarations/api-cli.ts` | 契约成员的 API 快照：写、核对与相对基线的粗分类 |
 | `omne-metrics` | `src/metrics/cli.ts` | 结构度量与审讯页 |
 | `omne-loop-status` | `src/loop/cli.ts` | 回路状态 |
 | `omne-loop-health` | `src/loop/health-cli.ts` | 流程体检页 |
 | `omne-acceptance-lock` | `src/acceptance/cli.ts` | 验收锁 |
 | `omne-architecture` | `src/arch/cli.ts` | 实际架构 JSON |
+
+## 缺省基线
+
+`core/task-context` 的 `resolveBaseline(root, explicitBase?, env?)` 是所有入口共用的缺省基线规则，按顺序取第一个存在的：
+
+1. 显式基线：`explicitBase`（`--base`），没有就取环境变量 `BASELINE`。空串视为没给。
+2. 任务上下文固定的 `targetBase`。工作树绑定了任务上下文时，显式基线只有等于 `targetBase` 才被接受，否则抛 `stale`。
+3. `origin/main`，本地没有这个引用时：
+4. `main`。
+
+返回 `{ state, targetBase, source, audits }`；`source` 是 `explicit`、`task`、`origin/main` 或 `main`，说明基线从哪一条来。`baselines` 保持原样：它不补缺省，没有任务上下文也没有显式基线时 `targetBase` 为 `undefined`。
 
 ## 构建与测试
 
@@ -56,13 +68,61 @@ pnpm --filter @omne-harness/repo-toolchain test
 仓库只有一张依赖图，由 dependency-cruiser 按根 `.dependency-cruiser.cjs` 生成，入口在 `src/deps/graph.ts`。`pnpm run lint:deps`（`src/deps/cli.ts`）、[回路状态](#回路状态)的硬线与新增跨成员依赖、[结构度量](#结构度量)和[实际架构](#全局实际架构视图)的报告都读它，本包不再自写导入解析或层位表。
 
 - 规则：无法解析的导入、文件级运行时循环、legacy 引用，以及按[产品包组织](../../docs/package-organization.md#依赖方向与cordis集成)与[系统分层](../../docs/architecture/layers-and-dependencies.md#依赖关系与禁止方向)写成成员路径的方向规则（SDK 与 server-entry 互不导入、公开契约不依赖两端实现、业务不依赖 SDK 与装配入口、common 与 util 不依赖领域成员、产品包不依赖应用与工具）。每条规则的 `comment` 指回出处。要按角色判断的规则（契约不依赖提供者等）还没有机读的角色，没有写。
-- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。
+- 方向行：`docs/architecture/constraints.json` schema 3 的 `directions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#方向行)；`omne-deps` 怎样用它见下面[依赖方向](#依赖方向)一节。
+- 组环例外：同一文件 schema 3 的 `groupCycleExceptions`，格式与校验见[符合性契约](src/arch/CONFORMANCE.md#组环例外)；`omne-deps` 与回路状态怎样用它见下面[组环例外](#组环例外)一节。
+- 成员边：产品源码（不含测试）解析到另一个成员的依赖，类型导入也算。成员与组之间的环由这些边算出。导入处的行号按说明符在文件里第一次出现的位置找。图里另保留成员里 dependency-cruiser 走到的模块清单（`modules`）与跨成员的文件级依赖事实（`dependencies`，含测试与 `src` 下的 testing 入口，不含 Node 内建模块），方向行的判定与架构符合性报告的方向行都只从这两项判断，不另解析导入。
 - 工作树的图不含被 Git 忽略且未跟踪的目录里的模块与它们的违规（本地产物，理由同[实际架构](#全局实际架构视图)的成员规则）；不在 Git 仓库里的目录没有忽略规则，照常出图。
 - 规则与解析选项（`tsconfig.base.json` 的 `source` 条件）只从运行检查器的仓库读，被检查的检出改不了。
-- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交与规则文件摘要缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
-- 耗时：本机全仓一次约 3 秒，基线命中缓存约 10 毫秒。
+- 基线图：把那个提交的源码导出到 git 公共目录下的临时树，按成员包名补上 `node_modules/@omne-harness/*` 链接后跑；结果按提交、规则文件摘要与图的格式版本缓存在 `<git-common-dir>/omne-dep-graph/`，同一基线只算一次，不写工作树。
+- 临时树叫 `tree-<提交>-<进程号>`，算完就删；Windows 上刚解开的文件可能还被别的程序占着，删除时重试几次，仍删不掉只在标准错误报告，不改变图的结果。运行被强行结束（任务超时、关掉终端、杀进程树）时来不及删，所以每次算基线图开始时清掉进程已不在、且 10 分钟没动过的旧树；活着的进程的树不动。宽限期是为同一个 git 目录被 WSL 里的运行共用的情形：那边的进程这里看不见。
+- 工作树的图：按指纹缓存在同一目录的 `working-<指纹>.json`。指纹（`workingGraphFingerprint`）覆盖所有能改变图的输入：
+  - 图的格式版本与 dependency-cruiser 的版本。
+  - 规则文件（原文与 require 后的结果）、`tsconfig.base.json` 连同 `extends` 链。
+  - HEAD 提交。
+  - 全部未提交与未跟踪文件的路径与内容。不按扫描根过滤，因为 dependency-cruiser 会解析扫描根以外的导入目标。
+  - 被忽略的路径。同样不按扫描根过滤：目录只记存在与否，单个文件记内容。
+  - 被忽略目录的判定结果。
+  - `pnpm-lock.yaml` 与 `node_modules/.modules.yaml` 的内容。
+  - 当前运行的出图代码（`src/deps/graph.ts`）的内容摘要：钉住的发行版与源码版在同一个头上不会互相命中。基线图的缓存键同样带它。它引用的其他模块变了，仍靠加图格式版本兜底。
 
-自测：`tests/deps-graph.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+  命中时不起 dependency-cruiser，读到的图与重算的逐字节相同。未命中照常算，算完先写临时名再改名，只留最近 10 份。
+  - 缓存读不到、JSON 坏、格式或指纹对不上、写不进都按未命中，既不让检查失败也不让它放行。
+  - `OMNE_DEP_GRAPH_CACHE=0` 关掉缓存：不读不写，行为与没有缓存时相同。
+  - `OMNE_ADMISSION=1` 时不读缓存，照常计算并写入。不设或空串为非准入，其他值报错，与测试运行器的规则相同。
+  - 算完图后复核指纹。运行期间输入变了就不写缓存；stderr 是终端时提示一行。
+  - stderr 是终端时打一行命中与否；管道里不打，输出与没有缓存时相同。
+  - 不在 git 仓库里或没有提交的树没有指纹，照常出图不缓存。
+  - 被忽略的目录只记存在与否，所以写缓存时另记一份复核清单：不在被忽略目录里的模块的导入，且解析到被忽略目录里的文件（不含 `node_modules`，它由锁文件与 `.modules.yaml` 的内容兜住）。清单记下每个文件的内容摘要。命中前逐个核对，文件删了或内容变了就当未命中重算。
+
+  命中不能声称的：复核清单只记已经解析到的文件。原来解析不到的导入，之后在被忽略的目录里出现了文件，指纹不变，缓存可能仍报出旧的失败，不会放行。被忽略的目录里新增一个文件、让已有的导入改为解析到它时，缓存也看不出。
+
+  做法借鉴 ub-mode 列出的 crapper 复用已有覆盖报告（`--use-existing-coverage`）与 mutator 的差分快照：先按输入指纹判没变，没变就不重算。
+- 耗时（Windows 宿主，24 核）：全仓一次 dependency-cruiser 约 14 秒，工作树指纹约 0.7 秒，`lint:deps` 命中缓存约 1.2 秒；基线命中缓存约 10 毫秒。
+- 回路状态的硬线是依赖违规与环；方向命中只让 `lint:deps` 退出 1，回路里只报告。按具名例外放行的组环不算硬线。
+
+自测：`tests/deps-graph.spec.ts`、`tests/deps-graph-cache.spec.ts`（指纹逐类失效，含扫描根之外的未提交文件与被忽略的路径；命中、坏文件、开关、留份、算图期间输入变了不写缓存）、`tests/deps-graph-trees.spec.ts`（过期临时树的清理）、`tests/direction-rules.spec.ts`、`tests/group-cycle-exceptions-cli.spec.ts`（runner 与被检树分开的临时仓库）、`tests/group-cycle-exceptions.spec.ts`；回路金丝雀种了一处 `shared-stays-pure` 违规与一对成环的成员。
+
+### 依赖方向
+
+`omne-deps` 从 0.0.12 起按 `constraints.json` 的方向行检查依赖方向。方向行与角色只从运行检查器的仓库读，`--root` 只改变被检查的树；被检查的树改动或删除自己的 `constraints.json` 与预设都不改变结果。
+
+- 命中：一处已解析的导入，所在文件落在某条方向行某个 `from` 角色的 `paths` 里（按 `paths` 匹配，不取最精确的角色；方向行引用的角色的 `paths` 在校验时已保证不与别的角色相同或互相包含），并且解析后的目标文件所在的成员等于某个 `to` 角色的成员。类型导入、`export … from`（含 `export *` 与 `export { x } from`）、动态 `import()`、按包名或公开子路径导入、tsconfig 别名、跨成员相对路径都按解析后的目标判断；目标在 `src/`、`dist/` 或声明文件里都算同一成员。解析失败的导入不是方向命中，仍由 `no-unresolvable` 报出；别名只有运行检查器的 `tsconfig.base.json` 声明了 `paths` 才解析得到。
+- 发现：每处命中一条 `direction-rule`，写 `[<方向行 id>] <源文件> 依赖了 <目标文件>（<源角色> → <目标角色>）：<出处>`，后面是导入处的路径与行号；一处导入同时命中几条方向行就报几条。某条方向行的某个源角色或目标角色在被检树里匹配不到任何文件时，报一条 `direction-unknown`，写明方向行、源或目标与角色：源成员或目标成员改名、迁走后，方向检查都不以「命中 0 处」通过。
+- 退出码：有任何 `direction-rule` 或 `direction-unknown` 退出 1，原有发现与退出码的含义不变。
+- 汇总行：`依赖方向：检查了 <n> 条方向行、<m> 个成员对，命中 <k> 处`，有角色没有文件时再写几处。
+- 没有方向行：运行检查器的仓库没有 `constraints.json` 时不检查方向，写「runner 没有 docs/architecture/constraints.json，未检查」，退出码只由其他发现决定；文件是 schema 1、2，或 schema 3 缺省 `directions`，写「没有方向行」。
+- 退出 2：`constraints.json` 解析失败、校验失败、来源核对失败，或 `docs/architecture/constraints.json` 与 `.meta_harness/design/architecture/constraints.json` 两份并存。先读它再运行 dependency-cruiser，所以文件坏了不出依赖图。
+
+### 组环例外
+
+组之间成环默认失败。负责人裁定某条具体的依赖链在架构上成立时，在运行检查器的仓库的 `constraints.json` 里登记一条 `groupCycleExceptions`，写明成员边（`from`、`to` 是成员路径）、裁定链接和一句理由。例外只放行登记的那几条边。例外与方向行一样只从运行检查器的仓库读，被检查的树登记的例外不生效。例外从 repo-toolchain 0.0.16 起执行。
+
+- 放行：一个组环的每一条跨组成员边都登记了，`omne-deps` 才放行它，另写一行 `excepted 组环 <组>、<组> 按例外 <id>（裁定 <链接>）放行 <from> → <to>、…：<理由>`。环上有一条边没登记，就照常报 `组之间成环` 并失败，消息末尾列出没登记的边；机读的 `edges` 仍是环上的全部边。因此两个组之间以后新增的任何没有登记的成员边，都会让组环失败。
+- 没用上：登记的边必须出现在某个组环里，不论那个组环最后是否放行。边被删、组环已消失或边不在环上时，这条例外报一条 `unused-group-cycle-exception`，写明 id、没用上的边和裁定链接，并退出 1。这条发现的机读 `edges` 是没用上的边。要删掉或改写这条例外。只有被检树就是运行检查器的仓库自己时才判这一条。跨树检查（`OMNE_RUNNER_ROOT` 指向另一个仓库）时，例外照常放行登记的组环，但不判没用上：登记它的是 runner 的树，被检树的组环说明不了它有没有过期。`omne-deps`、回路状态与收工钩子的判断一致。
+- 成员环：成员之间的环不受例外影响，照常失败。文件环与其他规则也一样。
+- 汇总行：有放行的组环时，末行写「<n> 个组环按具名例外放行」。
+- 回路状态：硬线读同一份例外。放行的组环不算硬线，在 `status.md` 硬线一段的「环」下面列出例外、裁定链接与放行的边，在 `status.json` 的 `hardLines.exceptedCycles` 里保留。没用上的例外算进「环」这条硬线。runner 的 `constraints.json` 坏了时，回路状态按工具错误退出 2。收工钩子的硬线同样按例外判。
+- 结构度量与实际架构的报告不读例外：它们照旧把放行的组环列为环。
 
 ## 提交署名
 
@@ -88,23 +148,45 @@ pnpm --filter @omne-harness/repo-toolchain test
 pnpm run acceptance:lock --base <任务基线提交或分支>
 ```
 
-不给 `--base` 时取任务上下文的基线，再缺省 `main`。
+不给 `--base` 时按[统一规则](#缺省基线)取基线：环境变量 `BASELINE`，再取任务上下文的基线，再取 `origin/main`，最后取 `main`。
 
 模板生成的验收入口不算验收内容：`acceptance/` 下名为 `README.md` 或 `index.md`、变化后（删除时看变化前）仍有独立一行文档占位标记的文件，增删改都不计入；去掉标记、写入真实内容的改动照常计入（RFC-0007）。
 
-**基线提交就是清单**：Git 按内容寻址，派发时不必另存一份哈希。工具拿基线与 HEAD 的合并点同当前工作树比，输出三样：
+**基线提交就是清单**：Git 按内容寻址，派发时不必另存一份哈希。工具拿基线与 HEAD 的合并点同当前工作树比，输出以下事实：
 
 - 基线到当前工作树，验收文件的净变化（新增、修改、删除，含未提交与未跟踪）；
 - 这段范围里**每一个**碰过验收文件的提交：短号、作者、来源 trailer 里的 `Agent-Role`、碰了哪些文件；
-- 锁有没有被破。
+- 原始违规、已批准的精确历史例外和未解决违规。
 
 | 判锁被破（退出 1）                                                  | 放行                                            |
 | ------------------------------------------------------------------- | ----------------------------------------------- |
-| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`） | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
+| 碰过验收文件的提交，`Agent-Role` 不在拥有者角色里（如 `developer`），且没有精确历史批准 | `Agent-Role` 是拥有者角色（`main`、`qa`）的提交 |
 | 工作树里有未提交或未跟踪的验收改动——说不清是谁改的                  | 没有来源 trailer 的提交：按人写的算             |
 
 哪些根目录下的成员受管、验收目录叫什么、哪些角色算拥有者，只在
 仓库根 [`repo-toolchain.config.json`](../../repo-toolchain.config.json) 的 `acceptanceLock` 一节 里定一次。用法或 Git 出错（`--base` 没给值、基线不存在）退出 2。
+
+`LockReport.violations` 保留原始发现，`commits[].allowed` 仍表示原角色判断。
+`approvedExceptions` 单列已批准历史例外，包含完整 commit、parent、path、oldBlob、newBlob、diffSha256 和 decisionUrl。
+`unresolvedViolations` 表示剩余违规，独立 CLI 据它返回 0 或 1。
+Loop 的 `auditRanges[].acceptance` 保留完整报告，`hardLines.acceptanceLock.violations` 只列未解决项。
+Loop 的 Markdown 同时显示原始违规和批准决定；其他硬线照常判断。
+
+固定决定编进 `src/acceptance/historical-approvals.data.ts` 的只读列表（核对器 `src/acceptance/historical-approvals.ts` 只读这份列表），每条对应一个提交里的一个受保护路径；一个提交改了几个受保护路径，就登记几条。
+[D010 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6367449357)批准提交 `48ad37d292796326d65055a75e8a1fde44fe4233` 中的 `packages/agent/agent/acceptance/README.md` 改动。
+[#769 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205)批准提交 `19f457a15`、`9f3967cc5`、`69bdedfab`、`837d333fd`、`14b0fcfcb`、`06acd53ca` 中的 27 个路径改动。
+没有任务上下文时，验收锁把合并提交与每个父提交分别比较（`-m`），与任一父提交不同的路径都列出。有任务上下文时它用 `--cc`，只列与所有父提交都不同的路径，干净合并因此不列路径。#769 的六个提交里有四个是这样的合并。
+每个提交改到的路径由一次 `git log --name-only` 读出，列出的路径与逐个提交运行 `git diff-tree --no-commit-id --name-only --no-renames -r` 相同：调用固定 `log.diffMerges=separate`（用户配置不能把 `-m` 改成只比第一个父提交）与 `log.showRoot=false`（根提交不列路径，与 `diff-tree` 不加 `--root` 相同），并加 `--no-show-signature`。
+登记约定是：合并提交的条目写该路径有变化的那一个父提交。工具不核对这条约定，只核对所写父提交是该提交的父提交之一。
+工具读取真实 Git 对象，核对完整提交、所写父提交确是该提交的父提交、受保护路径、旧新 blob 和完整二进制 diff 的 SHA-256。某一侧没有这个路径时，blob 记为 Git 的空对象号（40 个 0，与 `git diff --raw` 的写法相同），工具核对该侧的树里确实没有这个路径。该 diff 使用 `git diff --no-ext-diff --no-textconv --no-color --binary -U3 --src-prefix=a/ --dst-prefix=b/ --text`。
+调用固定 `core.abbrev=8`、`diff.noprefix=false`、`diff.mnemonicPrefix=false`、`diff.algorithm=myers`、`diff.indentHeuristic=true`、`diff.context=3`、`diff.interHunkContext=0`、`diff.suppressBlankEmpty=false`、`diff.srcPrefix=a/`、`diff.dstPrefix=b/`、`core.attributesFile=/dev/null` 与 `attr.tree`（空树），从环境中去掉 `GIT_DIFF_OPTS` 与 `GIT_ATTR_SOURCE`，并设 `GIT_ATTR_NOSYSTEM=1`。仓库大小与这些配置不会改变字节。
+已知限制：`info/attributes` 中的 funcname、xfuncname 或 `binary` 属性，Git 2.43 以前版本下工作树里的 `.gitattributes`，以及对象前缀碰撞，会改变字节，该条因此不获批准。这些情况的失败方向是拒绝，不会误批准。
+其他普通文档可以在原提交中一起修改。验收锁为一个提交列出的受保护路径必须恰好等于为它登记的路径，多一个或少一个，这个提交一条都不批准。
+路径集合相等、但其中一条的指纹不符时，只有那一条不批准，该提交的其他条目照常批准；不符那条的路径仍是未解决违规，CLI 仍退出 1。
+未提交改动、未来 developer 提交和任一指纹或决定不匹配仍失败。Git 读取失败退出 2。
+仓库配置、环境变量、CLI 参数和外部 URL 都不能新增批准；运行时不访问 GitHub。
+批准记录随受审查的工具制品发布，安装版本与 npm integrity 是采用边界，源码测试通过不代表已安装修复。
+持续验证见 `tests/acceptance-lock.spec.ts` 和 `tests/loop-strict.spec.ts`。真实历史用例需要本仓库保留上述 Git 对象。
 
 它**不能声称**的：角色取自提交信息里的来源 trailer，那是提交的人自己写的——一个把 `Agent-Role` 写成 `main` 的实施提交它认不出来，
 所以碰过验收的提交一律列出，由接受的人过目。先改后改回的提交照样列出、照样判破，哪怕净变化为零。
@@ -207,12 +289,22 @@ architecture 报告的函数变化和关系变化都用精确 BASE；metrics 报
 `pnpm run metrics` 是本包的第二入口（`src/metrics/`）。它**只报告、不判失败**，不在 `pnpm run check` 里；能让检查失败的只有上面的方向规则与提交署名。
 
 ```sh
-pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、方向与环
+pnpm run metrics                          # 全仓：实际架构、圈复杂度、依赖图、依赖方向与环
 pnpm run metrics --base <基线提交或分支>    # 另标出基线以来变更的成员、函数、导入与提交形状
 omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的成员逐个跑测试，取覆盖率并合成 CRAP（先构建）
+omne-metrics --plan <计划文件> --coverage --coverage-parallel 3x5   # 覆盖率跨成员并行：同时 3 个成员，每个至多 5 个工作进程
 ```
 
-计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。
+计划文件由 test-runner 的 `plan --json` 写出，准入检查用的也是它（见 [test-runner](../test-runner/README_ZH.md)）。给 `--plan` 时，基线与合并点也取自计划，不能再给 `--base`；计划文件复制到产物目录的 `plan.json`。计划算的不是当前提交时，工具报错退出；工作树绑定了任务上下文时，计划的基线还要与上下文固定的基线一致。`--coverage` 必须带 `--plan`。算完计划后工作树又改了计划外的成员时，带覆盖率的运行报错退出，要求重算计划。改过的文件按最长的成员目录前缀归到成员；成员是 `pnpm-workspace.yaml` 的成员模式匹配到、且 `package.json` 有字符串 `name` 的目录。组根文件（`packages/<组>/README.md`、`packages/<组>/docs/**`）没有成员前缀，不算成员，改它们不触发这项检查。
+
+覆盖率缺省逐个成员串行，vitest 的工作进程数由 vitest 自己按核数定。给了 `--coverage-parallel <M>x<W>`（或环境变量 `OMNE_METRICS_COVERAGE_PARALLEL`，参数优先；只在带 `--coverage` 时生效）就跨成员并行：同时至多 M 个成员，每个成员的 vitest 加 `--maxWorkers=W`。本工具不推预算。`pnpm run metrics --coverage` 经 `scripts/metrics.sh` 在占到运行名额后向 test-runner 要并发度（`coverage-parallel`，两数之积不超过本机的工作进程预算，`OMNE_WORKER_BUDGET` 可覆盖），再经环境变量交下来；不认这个变量的旧版本照旧串行。调用方已设变量或给了参数时，脚本不另算。并行时：
+
+- 预计最久的成员先开始。预计耗时取产物目录上级（缺省为主检出的 `tmp/metrics/`）与这次 `--out` 上级里历次 `metrics.json` 的 `meta.coverageSeconds`，同一成员取最新一份的正数；没有记录的按测试文件数，乘上有记录的成员平均每个文件的秒数。顺序只影响墙钟，不影响读数。
+- 各成员的日志、报告目录与退出码与串行时相同，结果按成员原来的顺序合并，不随完成先后变。进度在每个成员跑完时打一行。
+- 静态度量（依赖图、实际架构、符合性）与覆盖率同时进行，它们只读工作树，不读覆盖率。串行时仍先跑完覆盖率。
+- 一个成员起不来时不再开新成员，等已开始的结束，再报错退出。
+
+这里借鉴了 crapper（[unclebob/ub-mode](https://github.com/unclebob/ub-mode/tree/57a8bdd) 列出的 CRAP 工具）的两种做法：按核数并行，以及在覆盖报告已经存在时复用它（`--use-existing-coverage`）。只采用了前一种。复用要能判定已有报告的输入与这次相同：成员与它的工作区依赖的 `dist/`、测试、配置与安装状态都不在提交里，同一提交上也可能不同。本工具判定不了，所以不复用，每次重跑。
 
 本工具只读计划文件的四栏：`head`、`base.ref`、`base.mergeBase` 与 `plan.test`（成员目录的数组）。这四栏是本包的输入约定，现在由 test-runner 的 `plan --json` 写出。
 
@@ -227,7 +319,7 @@ omne-metrics --plan <计划文件> --coverage   # 再对计划里要跑测试的
 | `actual.json`       | N1 完整实际架构数据及精确两版差分                                                                                                                                      |
 | `architecture.json` | 总览、关系与来源的派生浏览投影；与旧 graph.json 分开                                                                                                                   |
 | `plan.json`         | 给 `--plan` 时复制的计划文件                                                                                                                                             |
-| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误 |
+| `coverage/`         | 开了覆盖率时各成员的原始 `<成员>/coverage-final.json` 与测试输出 `<成员>.vitest.log`；每个成员的耗时与退出码另记在 `metrics.json` 的 `meta` 里，运行时逐个打到标准错误；并行时的耗时含与别的成员争抢 CPU 的时间 |
 
 审讯页的网址后带成员路径可直接定位，例如 `review.html#packages/model/model-request-runtime-local`。
 
@@ -280,7 +372,7 @@ pnpm run loop:status --snapshot                        # 干净的工作树上�
 pnpm run loop:status --base <基线> --strict --out <目录>   # 严格模式，pnpm run check 的最后一步
 ```
 
-**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线），
+**除硬线外一切只报告。**退出码 1 只在硬线被破时：依赖违规或环（与 `pnpm run metrics`、`lint:deps` 读[同一张依赖图](#依赖图与依赖规则)；无法解析的导入归 `lint:deps`，不算硬线；按[组环例外](#组环例外)放行的组环不算硬线），
 或给了 `--base` 且[验收锁](#验收锁)被破，或严格模式下有开着的传感器没数据；
 2 是工具自己出错（参数、配置、git）；其余报告项再多也是 0。
 
@@ -295,7 +387,7 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 只有当前与全部基线的两类计数均为零，duplication、assertions 启用但无数据时才列入 `hardLines.sensors.notApplicable`，原因码为 `engineering-without-product-inputs`。
 `status.json` 的 `scope.evidence` 保存当前计数和各基线的精确提交、计数。原始 `sensors` 仍是 no-data；终端与 Markdown 点名工程范围不适用。关闭项仍列 `off`，其他启用的无数据项仍列 `silent` 并失败。
 最后一个输入被删除或迁入 legacy 时，历史输入仍阻止豁免。无效 context、无效基线、缺对象、读取错误及无法分类的历史链接或子模块按工具错误失败。输入范围沿现有扫描器，包括 legacy、构建产物、测试和声明文件规则。
-普通本地 `pnpm run check`、默认 strict、方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
+普通本地 `pnpm run check`、默认 strict、依赖方向与环、验收锁和趋势只读边界保持。工程范围不证明产品质量通过，也不证明跳过的测试通过。
 
 适用性与编排回归位于 `tests/loop-product-inputs.spec.ts`、`tests/loop-status.spec.ts`、`tests/loop-strict.spec.ts`、`tests/formatting-boundaries.spec.ts` 和 dev-flow 的 `tests/integration-boundaries.spec.ts`。真实 Git 与 shell fixture、受控命令替身、真实工程入口分别提供证据。
 
@@ -345,8 +437,9 @@ CLI 的范围只有 `all` 和 `engineering`，默认 `all`；工程范围必须�
 
 `src/arch/` 按完整版本源码抽取实际关系，回路经 `sensors.architecture` 读取。
 全局预期归 `docs/architecture/constraints.json`。
-当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
+当前及历史版本分别发现唯一源，同版双源或坏依据拒绝。schema 2 与 3 的依据路径从仓库根解析，文件和Markdown锚点在相同版本校验。IC-1与IC-5沿采用责任及真实公开入口判断，目录名不构成许可。
 缺当前或BASE输入保留unknown或no-data，删除变化仍可见。只修改依据Markdown也触发收工测量。精确输入、范围和不能证明的性质见[符合性契约](src/arch/CONFORMANCE.md)。
+符合性报告带[方向行](src/arch/CONFORMANCE.md#方向行)：方向行与角色读运行检查器仓库的 `constraints.json`（与 `omne-deps` 同一份），依赖事实读本版的依赖图，方向行引用的角色在本版里都匹配不到文件时不取图，每一行都是 unknown，文字与取图时相同，规则见[符合性契约](src/arch/CONFORMANCE.md#方向行)；取了图但图不可得时这些行是 unknown；基线的图不可得时偏离行不判新旧，每一行写明原因；方向偏离在回路里只报告，不是硬线。
 集成约定归 [Cordis 集成约定](../../docs/architecture/cordis-integration-conventions.md)。
 工具不反写预期，也不从目录存在性或手写绑定推断实现状态。
 
@@ -376,7 +469,7 @@ contract、owner、layer、定义形式、提供形式和表达形状独立参�
 实际增减与全局预期改动分别进入 explain／钩子，均不称“新增偏离”。
 新增架构偏离仍对完整 BASE 预期比较，修改 HEAD 预期不能抹掉它。
 IC-5 例外仅放行 BASE 点名的精确导出符号，namespace 通配符和新增符号仍不放行。
-例外记录共同存储与出处，不据此证明同提交；方向和环硬线保持独立。
+例外记录共同存储与出处，不据此证明同提交；依赖方向和环硬线保持独立。
 
 当前或BASE全局预期缺失时，architecture是no-data，严格模式点名失败；已有 BASE 的预期删除差分仍可见。
 有效预期与完整实际源码都已读取时，空事实集是真实空结果，不能和 no-data 混淆。
@@ -552,7 +645,7 @@ pnpm run loop:health # --out 可改产物目录
 | 块                   | 内容                                                                                                                             | 数据来源                                                                                                                                                                                                                                                                                                          |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 提交与合并的大小     | `primaryBranch` 沿第一父链最近 `health.commits` 个提交各改了几个文件（合并提交按它对第一父的改动计）：中位数、最大值、最大的三个 | `git log --first-parent -m`                                                                                                                                                                                                                                                                                       |
-| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入 |
+| 测试耗时             | 最近 `health.runs` 次**全量**运行的墙钟、提交、层、是否全过；各层的墙钟不可比，一层一条走向线                                    | `<主检出>/tmp/test-ledger/*/*/ledger.json`（`OMNE_TEST_LEDGER_HOME` 可改根）；全量运行是 `meta.base` 为 null 的那些（`run --all`，或计划判为全量的 `pnpm run check` 测试一步），可以只跑一层（`pnpm run check` 的测试一步快、慢两层各记一份），层取 `meta.tier`，没有这一栏的旧账本按两层；受影响范围的运行带基线，不计入；含缓存命中（`meta.cache.hits` 非空）的账本只列实际跑了的成员，墙钟不代表一次全量，也不计入 |
 | 债的走向             | 每个指标一条小折线（虚线是提醒线与处置线，蓝点是最新值）、最新值与最新带位；当前或曾经处于处置的成员，各项预算的读数走向         | `trend.jsonl`；同一提交多条取最后一条，按提交时间排                                                                                                                                                                                                                                                               |
 | 对照表条数           | 五类各多少条、不合约定的行数、「现状」以「待建」开头的行数                                                                       | `docs/clean-loop.md`，与回路状态同一份解析                                                                                                                                                                                                                                                                        |
 | 传感器最近一次有数据 | 每个指标最近一条带着它的值的快照是哪个提交、什么时候；从没有过数据的标出                                                         | `trend.jsonl`                                                                                                                                                                                                                                                                                                     |
@@ -570,6 +663,65 @@ pnpm run loop:health # --out 可改产物目录
 
 成员用 TypeScript 7 构建；`pnpm run check:declarations` 用 TypeScript 6 读它们产出的声明。
 它把全部有 `build` 脚本的成员 `dist/` 下的 `.d.ts` 作为根文件交给 `@typescript/typescript6` 建一个程序，选项取仓库根 `tsconfig.base.json` 并打开库检查。
-成员声明里有诊断即退出 1；第三方声明里的诊断只计数；没有 `dist/` 的成员列出来，只报告、不判失败。`pnpm run check` 在构建一步之后常驻跑它。
+检查器在全部解析里去掉仓库的 `customConditions`（现在只有 `source`），按消费者视角读每个包；成员之间的导入解析到对方的 `dist` 声明，`src` 不进程序。
+成员声明里有诊断即退出 1；第三方声明里的诊断只计数。
+没有 `dist/` 的成员仍列为未构建，它自己不判失败。
+已构建的成员若导入未构建的成员，导入方的声明会报 TS2307 并判失败；带 `source` 条件时，这个导入落到未构建成员的 `src`，诊断被掩盖。
+`pnpm run check` 在构建一步之后常驻跑它。
 
 本工具调用 `createProgram`、`createSourceFile` 等旧编程接口的模块都从 `@typescript/typescript6` 导入，行为与 TypeScript 6 相同。
+
+## 契约 API 快照
+
+契约成员是[线归属表](../../docs/engineering/delivery-lines.json)各线 `contracts` 列出的成员。线内的卡对它们只做可加改动，规则见[可加改动](../../docs/engineering/integration.md#可加改动)。本命令给每个契约成员一份入库的 API 快照，并把两份快照之间的差异粗分为三类：`none` 表示没有变化；`additive` 表示改动对已有的读方与写方都不破坏；`review` 表示其余一切改动，需要人判断。它只报告，不拦截。行为契约（输入、快照内容、确定性、分类规则、已知限制、退出码与配置校验）见 [SPEC](src/declarations/SPEC.md)。
+
+```sh
+omne-contract-api --write                 # 从 dist 重写快照（先构建）
+omne-contract-api --check                 # 拿 dist 现场生成的快照与快照文件比
+omne-contract-api --diff <基线提交或分支>   # 基线提交上的快照对工作树的快照，逐成员粗分类
+omne-contract-api --baseline-write <提交> [--milestone <名>] [--member <成员目录>]...   # 生成基线登记的机读区块
+omne-contract-api --baseline <区块文件>    # 逐成员从登记的提交比到工作树的快照
+```
+
+每个动作都可加 `--json`，把结果按 JSON 写到标准输出。`--root <检出目录>` 指定被检查的检出。
+
+配置在 `repo-toolchain.config.json` 的 `contractApi` 一节，有两个键：
+
+- `members`：线归属表的路径。
+- `snapshot`：快照路径模板，以 `.md` 结尾，至少含 `{member}`（成员目录）或 `{package}`（不带 scope 的包名）之一。
+
+这一节有别的键、缺键或值不合条件时，命令报错退出。两个成员算出同一个快照路径时，命令也报错退出。
+
+读法与[声明兼容](#声明兼容)用同一套 TypeScript 6 选项，另建一个程序，按消费者视角读 dist。成员 dist 有编译诊断时，不生成它的快照。
+
+快照分两部分：每个入口导出的名字（写明声明在哪个文件或哪个外部包），以及成员 dist 里经打印器规范化的全部声明文件。声明文件保留导入、导出与模块扩充，所以快照能还原成一组能编译的声明。
+
+分类是白名单门：只有正证据成立才是 `additive`。差异分两桶。全局作用域的任何差异整份 `review`，不跑检查器：`declare global` 与对外部模块的 `declare module` 块的增删改、脚本文件的增删改或与模块之间切换、三斜线指令的变化、导入或 `export … from` 的模块边增删（带绑定、仅类型、空导入、无绑定导入都算）、`export as namespace` 的增删改。消费者程序里全局作用域只有一份，检查器证明不了「这处改动没有影响已有导出」。模块作用域的正证据有两条。第一，每一处差异都在白名单里，白名单只有两类：新增一个旧侧不知道的名字的导出（与已有同名声明合并的不算，例如新增重载；与入口已有的导出名或该文件作用域里已有符号重名的也不算，例如遮住 `export *` 导出的名字或 lib 的 `Error`），以及在模块作用域的接口或类型字面量里新增可选属性（属性写法；对本成员模块的扩充块内的改动不算）。第二，TypeScript 检查器对涉及的每个导出证明两个方向都可赋值：新 → 旧成立表示读方不破坏，旧 → 新成立表示写方（提供者、替身、实现者）不破坏。其余一律 `review`，报告写明命中哪一条：全局作用域变了、白名单外改动、没有比较覆盖、方向不成立、检查器未完成、实例组合超限、编译诊断。它用的是 repo-toolchain 已有的 `@typescript/typescript6`，不加新依赖。规则、白名单与归一化见 [SPEC](src/declarations/SPEC.md#分类)。
+
+不用 API Extractor 的理由：它不分析 ambient 声明，`declare module` 与 `declare global` 的扩充在它的报告里全部缺失，而 27 个契约成员里有 8 个的公开面含这类扩充。探路与复核的结论记在卡 #645 的评论里。
+
+操作要求：
+
+- 改了契约成员公开面的卡，在同一个 PR 里构建并运行 `--write`，把快照的变化一起提交。`--check` 报不一致时，先判断改动是否有意。
+- 本工具改了快照格式（格式版本变了）时，全部快照要重新生成。
+- 谁写首份快照、格式变化时谁重新生成，规则见[里程碑内的规则](../../docs/engineering/integration.md#里程碑内的规则)。
+
+`--diff` 的前提：
+
+- 它只比快照文件，不读 dist。先用 `--check` 确认工作树的快照与 dist 一致，或先运行 `--write`。
+- 成员取基线与当前两份线归属表的并集，每侧的快照路径按那一侧的包名算。基线上没有快照的成员整份算 `additive`。
+- 判断改动是否可加时，传里程碑登记的基线提交。
+
+快照摘要是快照文件字节的 SHA-256。`--check --json` 对每个有快照文件的成员给出 `sha256`。
+
+里程碑基线的登记：
+
+- 登记者运行 `--baseline-write <基线提交> --milestone <名>`，把输出的 `json omne-contract-baseline:v1` 区块贴进 baseline 卡的登记评论。区块给每个成员记 `path`、`commit`、快照的 `sha256` 与 `apiTree`。基线文件不入库。
+- 补登记个别成员时加 `--member <成员目录>`，只写这些成员，它们的 `commit` 可以与其他成员不同。
+- 有破坏性改动的裁定读回后，调度者在区块里补 `breakingCards`，列出承接的 `integration` 卡。
+- 核对时把登记合并成一个文件（JSON 对象，或含一个区块的评论正文），运行 `--baseline <文件>`。每个成员从它自己的 `commit` 比到工作树的快照。基线之后加入的成员整份算新增。下列成员判不了，命令退出 1，`breakingCards` 不能放行：登记的成员在它的 `commit` 上不是契约成员或没有快照；在基线点（全部登记提交的共同祖先）上已是契约成员却没有登记。其余情况分类为 `review` 而没有 `breakingCards` 时退出 1。登记的 `sha256` 或 `apiTree` 与那个提交对不上时只报告。
+- `--baseline-write` 与 `--baseline` 从 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。
+
+`review` 不是 PR「契约变化」一节的级别。它包括两方都破坏的改动、只破坏一方的改动，也包括按「可加改动」表不破坏、但不在白名单里的改动（例如契约声明开放的联合加成员、给类型参数加默认值）。PR 的 none、additive 或 breaking 由人按「可加改动」表判定。
+
+它**不能声称**的：它报出读方与写方两个方向，但不判定哪个方向的破坏可以接受。白名单门失败关闭，拿不准时给 `review`，所以 `review` 会比只用检查器时多。这是 P1 只报告阶段的有意取舍。它只看声明的形状，不看行为、文档或运行时校验。转导出的别的包的声明变化归那个包的快照。快照与 dist 一致只说明快照是最新的，不说明改动可加。其余限制（例如 `ToolBindings` 一类的递归启发式误报）见 [SPEC](src/declarations/SPEC.md#已知限制)。

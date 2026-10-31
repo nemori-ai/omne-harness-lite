@@ -366,7 +366,7 @@ def test_sealed_metadata_keeps_its_own_identity_and_revision(
 
 def test_dangling_topic_symlink_is_not_ignored(tree: Path) -> None:
     (tree / 'product/missing').symlink_to(tree / 'gone', target_is_directory=True)
-    assert any('product/missing' in item and '别名' in item for item in errors(tree))
+    assert any(str(Path('product/missing')) in item and '别名' in item for item in errors(tree))
 
 
 def test_current_and_sealed_citations_keep_separate_revision_checks(sealed_tree: Path) -> None:
