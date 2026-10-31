@@ -253,7 +253,7 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 本地状态使用 schemaVersion 2。`processIdentity` 与 `processStartedAt` 分别记录身份和启动时间。Linux 身份由 `/proc/sys/kernel/random/boot_id`、PID 和 `/proc/<pid>/stat` 的第 22 字段启动 tick 组成，不使用墙上时钟或 `ps lstart` 判断身份。解析 stat 时允许 comm 含空格和括号。读取失败或字段无效时不生成替代身份。Windows 继续使用 Get-Process 的 UTC StartTime，其他 POSIX 继续使用 ps lstart 识别进程。
 
-Linux 的启动时间单独取 ps lstart，必须能解析为时间。认领时按查询进程的时区解释该时间，并将所有平台的 `processStartedAt` 保存为 UTC ISO 8601 时间。消费进程按该绝对时刻判断，不按自己的时区重新解释。此转换不改变 Windows 或其他 POSIX 的身份 token。启动时间只在认领时保存，之后校时不重写它。
+POSIX 的启动时间单独取 ps lstart。认领时向该子命令传入 `TZ=UTC0` 和 `LC_ALL=C`，取得 C locale 下的 UTC 时间，并按 UTC 解析。查询失败或输出不符合该格式时拒绝认领，不回退到无偏移本地文本。夏令时回拨时，不能从重复的本地时刻猜测绝对时间。Windows 启动时间继续取 Get-Process 的 UTC StartTime。所有平台的 `processStartedAt` 保存为 UTC ISO 8601 时间，消费进程按该绝对时刻判断。此查询不改变 Windows 或其他 POSIX 的原身份 token。启动时间只在认领时保存，之后校时不重写它。
 
 健康检查比较稳定身份，释放还须核对持久的实例、仓库、文件、主机、PID、模式、管理状态、hookId 和启动时间。核对失败保留 pid 文件。
 
@@ -288,7 +288,7 @@ check 要求持久 `processStartedAt` 是带明确时区的 ISO 8601 时间，�
 
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 生产进程与 Asia/Shanghai 消费进程覆盖启动前事件拒绝和相等边界接受；内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 或 America/New_York 生产进程与 UTC 或 Asia/Shanghai 消费进程覆盖启动前事件拒绝、相等边界接受及 DST 回拨。ps 替身按命令环境选择 UTC 或本地文本，并覆盖非 C locale。内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
 
 ## 首次派发消息具体化
 

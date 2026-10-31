@@ -76,6 +76,33 @@ function processStartTime(pid: number): string | null {
   }
 }
 
+function posixStartTimeUtc(pid: number): string | null {
+  try {
+    const { command, args, timeout } = startTimeCommand(pid)
+    const value = execFileSync(command, args, {
+      encoding: 'utf8',
+      timeout,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false,
+      env: { ...process.env, TZ: 'UTC0', LC_ALL: 'C' },
+    }).trim()
+    const fields =
+      /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+(\d{2}:\d{2}:\d{2})\s+(\d{4})$/.exec(
+        value,
+      )
+    if (fields === null) return null
+    const [, weekday, month, day, time, year] = fields
+    const started = new Date(`${value} GMT`)
+    if (
+      started.toUTCString() !== `${weekday}, ${day?.padStart(2, '0')} ${month} ${year} ${time} GMT`
+    )
+      return null
+    return started.toISOString()
+  } catch {
+    return null
+  }
+}
+
 export function processIdentity(pid: number): string | null {
   if (!Number.isSafeInteger(pid) || pid < 1) return null
   if (process.platform !== 'linux') return processStartTime(pid)
@@ -170,7 +197,7 @@ export function claimReceiver(
   const paths = receiverPaths(config.eventFile),
     identity = processIdentity(process.pid)
   if (identity === null) throw new ReceiverError('process-identity-unavailable')
-  const queriedStart = process.platform === 'linux' ? processStartTime(process.pid) : identity
+  const queriedStart = process.platform === 'win32' ? identity : posixStartTimeUtc(process.pid)
   if (queriedStart === null) throw new ReceiverError('process-start-time-unavailable')
   const started = new Date(queriedStart).toISOString()
   const state: ReceiverState = {

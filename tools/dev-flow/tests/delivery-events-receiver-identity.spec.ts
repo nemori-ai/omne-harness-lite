@@ -1,5 +1,5 @@
 // Kernel and wall-clock reads are controlled; receiver state uses real isolated files.
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync, spawnSync, type ExecFileSyncOptions } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,13 +24,24 @@ const kernel = vi.hoisted(() => ({
   bootId: '11111111-2222-4333-8444-555555555555',
   startTicks: '14473',
   startedAt: 'Sun Nov  1 00:31:43 2026',
+  utcStartedAt: 'Sun Nov  1 00:31:43 2026',
+  utcUnavailable: false,
   statOverride: '',
   unreadable: false,
   pid: 0,
 }))
 vi.mock('node:child_process', async importOriginal => ({
   ...(await importOriginal<typeof import('node:child_process')>()),
-  execFileSync: vi.fn(() => kernel.startedAt),
+  execFileSync: vi.fn(
+    (command: string, _args: readonly string[], options?: ExecFileSyncOptions) => {
+      if (command !== 'ps') return kernel.startedAt
+      if (options?.env?.TZ === 'UTC0' && kernel.utcUnavailable) throw new Error('ps unavailable')
+      const value = options?.env?.TZ === 'UTC0' ? kernel.utcStartedAt : kernel.startedAt
+      if ((options?.env?.LC_ALL ?? process.env.LC_ALL) === 'fr_FR.UTF-8')
+        return value.replace('Sun Nov', 'dim. nov.')
+      return value
+    },
+  ),
 }))
 vi.mock('node:fs', async importOriginal => {
   const fs = await importOriginal<typeof import('node:fs')>()
@@ -57,6 +68,8 @@ beforeEach(() => {
   kernel.bootId = '11111111-2222-4333-8444-555555555555'
   kernel.startTicks = '14473'
   kernel.startedAt = 'Sun Nov  1 00:31:43 2026'
+  kernel.utcStartedAt = 'Sun Nov  1 00:31:43 2026'
+  kernel.utcUnavailable = false
   kernel.statOverride = ''
   kernel.unreadable = false
   kernel.pid = 0
@@ -66,7 +79,7 @@ afterEach(() => {
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
 function testDirectory() {
-  const root = resolve('../../tmp/issue-980/revision2/tests')
+  const root = resolve('../../tmp/issue-980/revision3/tests')
   mkdirSync(root, { recursive: true })
   const directory = realpathSync(mkdtempSync(join(root, 'identity-')))
   homes.push(directory)
@@ -175,7 +188,8 @@ describe('receiver identity across Linux clock correction', () => {
   })
   it.each(['win32', 'darwin'])('keeps the existing start-time identity on %s', platform => {
     vi.stubGlobal('process', { ...process, platform })
-    kernel.startedAt = '2026-11-01T00:31:43.0000000Z'
+    kernel.startedAt =
+      platform === 'win32' ? '2026-11-01T00:31:43.0000000Z' : 'Sun Nov  1 00:31:43 2026'
     const { file, owner } = connected()
     expect(processIdentity(process.pid)).toBe(kernel.startedAt)
     expect(owner.state.processIdentity).toBe(kernel.startedAt)
@@ -280,10 +294,31 @@ describe('receiver delivery time validation', () => {
   it('does not claim a writer when its process start time is unavailable', () => {
     vi.stubGlobal('process', { ...process, platform: 'linux' })
     kernel.startedAt = 'not-a-date'
+    kernel.utcStartedAt = 'not-a-date'
     expect(() => connected()).toThrow('process-start-time-unavailable')
     expect(homes.every(home => !existsSync(receiverPaths(join(home, 'events.jsonl')).pid))).toBe(
       true,
     )
+  })
+  it.each([
+    { utcStartedAt: '' },
+    { utcStartedAt: '2026-11-01T00:31:43' },
+    { utcStartedAt: 'dim. nov.  1 00:31:43 2026' },
+    { utcStartedAt: 'Sun Feb 30 00:31:43 2026' },
+    { utcUnavailable: true },
+  ])('refuses an unavailable or invalid UTC source without a local fallback: %j', change => {
+    Object.assign(kernel, change)
+    kernel.startedAt = 'Sun Nov  1 00:31:43 2026'
+    for (const platform of ['linux', 'darwin']) {
+      vi.stubGlobal('process', { ...process, platform })
+      expect(() => connected()).toThrow('process-start-time-unavailable')
+    }
+    for (const home of homes) {
+      const paths = receiverPaths(join(home, 'events.jsonl'))
+      expect(existsSync(paths.pid)).toBe(false)
+      expect(existsSync(paths.state)).toBe(false)
+      expect(existsSync(paths.guard)).toBe(false)
+    }
   })
 })
 
@@ -291,13 +326,23 @@ describe('receiver delivery time validation', () => {
 const timeWorker = process.env.OMNE_RECEIVER_TIME_WORKER
 if (timeWorker === 'producer') {
   it('timezone producer', () => {
-    expect(new Date('2026-11-01T00:31:43Z').getTimezoneOffset()).toBe(0)
+    const startedAt = process.env.OMNE_RECEIVER_STARTED_AT
+    if (startedAt === undefined) throw new Error('missing startup oracle')
+    expect(new Date(startedAt).getTimezoneOffset()).toBe(
+      Number(process.env.OMNE_RECEIVER_TIME_OFFSET),
+    )
+    if (startedAt === '2026-11-01T06:30:00.000Z') {
+      kernel.startedAt = 'Sun Nov  1 01:30:00 2026'
+      kernel.utcStartedAt = 'Sun Nov  1 06:30:00 2026'
+    }
     vi.stubGlobal('process', { ...process, platform: 'linux' })
     connected(process.env.OMNE_RECEIVER_TIME_DIRECTORY)
   })
 } else if (timeWorker === 'consumer') {
   it('timezone consumer', async () => {
-    expect(new Date('2026-11-01T00:31:43Z').getTimezoneOffset()).toBe(-480)
+    expect(new Date('2026-11-01T00:31:43Z').getTimezoneOffset()).toBe(
+      Number(process.env.OMNE_RECEIVER_TIME_OFFSET),
+    )
     const directory = process.env.OMNE_RECEIVER_TIME_DIRECTORY
     const receivedAt = process.env.OMNE_RECEIVER_EVENT_TIME
     if (directory === undefined || receivedAt === undefined) throw new Error('missing fixture')
@@ -317,28 +362,80 @@ if (timeWorker === 'producer') {
     })
     try {
       const { gh, check } = deliveryCheck(receivedAt, { file, configPath, config })
-      if (receivedAt === '2026-11-01T00:31:43.000Z') {
+      if (receivedAt === process.env.OMNE_RECEIVER_STARTED_AT) {
         expect(await check()).toMatchObject({ event: 'verified', wait: 'reconcile' })
         expect(gh).toHaveBeenCalledTimes(1)
       } else {
         await expect(check()).rejects.toThrow('real-event-not-received')
         expect(gh).not.toHaveBeenCalled()
       }
+      expect(readReceiverState(file).processStartedAt).toBe(process.env.OMNE_RECEIVER_STARTED_AT)
     } finally {
       health.mockRestore()
     }
   })
 } else {
-  it.each(['2026-10-31T20:31:43.000Z', '2026-11-01T00:31:43.000Z'])(
-    'checks event %s across UTC producer and Asia/Shanghai consumer processes',
-    receivedAt => {
+  it.each([
+    {
+      name: 'pre-start event across UTC producer and Asia/Shanghai consumer',
+      receivedAt: '2026-10-31T20:31:43.000Z',
+      startedAt: '2026-11-01T00:31:43.000Z',
+      producerZone: 'UTC',
+      producerOffset: 0,
+      consumerZone: 'Asia/Shanghai',
+      consumerOffset: -480,
+      locale: 'C',
+    },
+    {
+      name: 'startup boundary across UTC producer and Asia/Shanghai consumer',
+      receivedAt: '2026-11-01T00:31:43.000Z',
+      startedAt: '2026-11-01T00:31:43.000Z',
+      producerZone: 'UTC',
+      producerOffset: 0,
+      consumerZone: 'Asia/Shanghai',
+      consumerOffset: -480,
+      locale: 'C',
+    },
+    {
+      name: 'DST pre-start event across New York producer and UTC consumer',
+      receivedAt: '2026-11-01T06:00:00.000Z',
+      startedAt: '2026-11-01T06:30:00.000Z',
+      producerZone: 'America/New_York',
+      producerOffset: 300,
+      consumerZone: 'UTC',
+      consumerOffset: 0,
+      locale: 'C',
+    },
+    {
+      name: 'DST startup boundary across New York producer and Asia/Shanghai consumer',
+      receivedAt: '2026-11-01T06:30:00.000Z',
+      startedAt: '2026-11-01T06:30:00.000Z',
+      producerZone: 'America/New_York',
+      producerOffset: 300,
+      consumerZone: 'Asia/Shanghai',
+      consumerOffset: -480,
+      locale: 'C',
+    },
+    {
+      name: 'DST startup boundary with a French producer locale',
+      receivedAt: '2026-11-01T06:30:00.000Z',
+      startedAt: '2026-11-01T06:30:00.000Z',
+      producerZone: 'America/New_York',
+      producerOffset: 300,
+      consumerZone: 'UTC',
+      consumerOffset: 0,
+      locale: 'fr_FR.UTF-8',
+    },
+  ])(
+    'checks $name',
+    scenario => {
       const directory = testDirectory()
       const vitest = fileURLToPath(
         new URL('./vitest.mjs', import.meta.resolve('vitest/package.json')),
       )
-      for (const [worker, tz] of [
-        ['producer', 'UTC'],
-        ['consumer', 'Asia/Shanghai'],
+      for (const [worker, tz, offset] of [
+        ['producer', scenario.producerZone, scenario.producerOffset],
+        ['consumer', scenario.consumerZone, scenario.consumerOffset],
       ]) {
         const result = spawnSync(
           process.execPath,
@@ -355,12 +452,15 @@ if (timeWorker === 'producer') {
             timeout: 30_000,
             env: {
               ...process.env,
-              TZ: tz,
+              TZ: String(tz),
+              LC_ALL: scenario.locale,
               NO_COLOR: '1',
               FORCE_COLOR: '0',
-              OMNE_RECEIVER_TIME_WORKER: worker,
+              OMNE_RECEIVER_TIME_WORKER: String(worker),
               OMNE_RECEIVER_TIME_DIRECTORY: directory,
-              OMNE_RECEIVER_EVENT_TIME: receivedAt,
+              OMNE_RECEIVER_EVENT_TIME: scenario.receivedAt,
+              OMNE_RECEIVER_STARTED_AT: scenario.startedAt,
+              OMNE_RECEIVER_TIME_OFFSET: String(offset),
             },
           },
         )
