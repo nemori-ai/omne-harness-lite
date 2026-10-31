@@ -41,7 +41,7 @@
 
 按顺序加载：
 
-1. `line`、`pstack:poteto-mode` 和 `asd-ste100`。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
+1. `line`、`pstack:poteto-mode` 和 `asd-ste100`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
 2. 每张卡按 `claim` 技能推进。
 3. 派发子代理时加载 `delegate`。
 4. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
