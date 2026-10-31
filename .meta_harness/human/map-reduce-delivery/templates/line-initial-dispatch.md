@@ -1,4 +1,4 @@
-这是供 reduce 具体化的模板，不是已获准的派发。Reduce 填完全部字段后，只把下方「消息正文」写入每线临时文件，再打开供人转发。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。派发状态与生成规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+这是供 reduce 具体化的模板，不是已获准的派发。Reduce 填完全部字段后，只把下方「消息正文」写入每线临时文件，再按本次授权直接发送或打开供人转发。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。派发状态与生成规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
 
 填写规则：
 
@@ -11,6 +11,8 @@
 - 派发前，reduce 在本机同布局运行消息里的每条命令。演练证据是 `validate` 的必需输入，格式见[交付工具](../../../../tools/dev-flow/src/delivery/README.md#首次派发临时消息)。
 
 # 消息正文
+
+先加载 `line`、`pstack:poteto-mode` 和 `asd-ste100`。阅读 {{working_directory}} 中的 `AGENTS.md`、`docs/orientation.md`，以及 {{line_pack_ref}} 指向的线级上下文地图与拥有者入口。逐卡工作时加载 `claim`，派发子代理前加载 `delegate`，实施前读取 `ub-mode`；本线专项技能按 {{line_work_kind}} 加载。
 
 你是里程碑 {{milestone_name}} 的 {{line_name}} 线负责人。你在同一个会话里逐波工作或轮空，直到读到明确的 terminal delta。唯一的 reduce 会话是 {{reduce_session_ref}}。你负责本线本波的细化、实施和验证，包括线内跨领域的集成与联调。全局设计、跨线的消费者迁移与联调、集成冲突和交回后的问题归 reduce。
 
@@ -39,7 +41,7 @@
 
 按顺序加载：
 
-1. `line` 技能。先读它的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
+1. `line`、`pstack:poteto-mode` 和 `asd-ste100`。先读 `line` 的 `references/work-paradigm.md`。这份范式给出三层准备、方法地图、推进循环、证据、交回与等待。
 2. 每张卡按 `claim` 技能推进。
 3. 派发子代理时加载 `delegate`。
 4. 写 spec 的「原则与约束」或写、改代码前加载 `ub-mode`。它是用户级技能，按 `docs/development.md`「初始化 coding agent 插件」初始化。先确认宿主能发现 `ub-mode`，发现不了时报告缺口。
@@ -91,9 +93,9 @@
 | 本波任务队列 | {{wave_queue_ref}} |
 | 写范围 | {{write_set_ref}} |
 
-binding 齐全且任务卡开放时，你就可以开工。事件接收器的健康状态和自检结果不阻止开工。
+工作卡 binding 齐全、任务卡开放且线轨道同步点已读回时，你就可以开工。线父卡只保存线包、delta、交回与长期责任，不建立每波 Git binding。事件接收器的健康状态和自检结果不阻止开工。
 
-- active：从 F 建本波批次分支，按队列逐卡推进。
+- active：核对从 F 到线轨道的 FI 结果与固定同步点，从真实线轨道头按队列逐卡推进。
 - idle：不建分支，不交空 PR。直接进入第 6 节的等待。
 
 波中输入冻结。你不向人提问，不用普通评论向 reduce 求方案，不读取别线未集成的产出。
@@ -102,8 +104,8 @@ binding 齐全且任务卡开放时，你就可以开工。事件接收器的健
 
 交回阶段归 `docs/engineering/map-reduce-states.md` 第 4 节，交回物与五节交接报告的格式归 `docs/engineering/integration.md`「线会话记录」。
 
-1. 一张卡做完后，把它合入本线批次分支。在卡上发五节交接报告。五节格式见上。
-2. 本线本波全部交完后，开批次 PR。零差异时没有 PR。批次 PR 的说明按「进轨道 PR 的说明」手写两节，逐张列本批次的卡。
+1. 一张卡做完后，在最终 head 执行卡级准入，经 gate 合入本线轨道。同机整次准入互斥。在卡上发五节交接报告。五节格式见上。
+2. 本线本波全部交完后，开线轨道到联调轨道的提升 PR。零差异时没有 PR。用 ri-notes 生成并核对「所含的卡」与「契约变化」，保存实际来源 head 和目标 head。
 3. 在线父卡发一条交回记录。首行是 `<!-- line-handoff -->`。固定项归 `integration.md`「线会话记录」。
 4. 交回记录发布后，你停写。
 

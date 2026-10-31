@@ -9,6 +9,7 @@
 // replay (H12). A probe that the upstream public entries refuse reports the refusal as evidence;
 // it never builds the missing behavior here.
 import { createHash } from 'node:crypto'
+import { setImmediate } from 'node:timers/promises'
 import { readModelDeliveryMaterial, type AgentProvider } from '@omne-harness/agent'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -336,7 +337,7 @@ export function messageOf(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Messag
 async function waitTurns(turns: number, done: () => boolean): Promise<'done' | 'timed-out'> {
   for (let turn = 0; turn < turns; turn += 1) {
     if (done()) return 'done'
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await setImmediate()
   }
   return done() ? 'done' : 'timed-out'
 }
@@ -1939,7 +1940,7 @@ async function probeToolRoundTrip(context: PathContext): Promise<ConnectedObserv
 }
 
 /** The label of a wait that ended at its bound; nothing when the wait ended in time. */
-function timedOut(waited: 'done' | 'timed-out', label: string): readonly string[] {
+function timedOut(waited: BridgeLog['waited'], label: string): readonly string[] {
   return waited === 'timed-out' ? [label] : []
 }
 
@@ -1954,7 +1955,7 @@ async function awaitToolRound(
 ): Promise<Readonly<{ snapshot: AgentSnapshot | null; waits: readonly string[] }>> {
   const load = () => loadSnapshot(drive.agent, session.scene.access, drive.execution)
   const turns = context.turns
-  const first = await waitTurns(turns, () => drive.log.reply !== null)
+  const first = drive.log.waited
   const waits = timedOut(first, `agent:no tool-call reply within ${turns} event-loop turns`)
   const snapshot = await load()
   if (atToolRefusal(snapshot)) return { snapshot, waits }
@@ -2091,7 +2092,7 @@ async function probeReasoningReplay(context: PathContext): Promise<ConnectedObse
   const probe = await openProbe(context, REASONING_PROBE)
   if ('observation' in probe) return probe.observation
   const { session, drive } = probe.opened
-  const waited = await waitTurns(context.turns, () => drive.log.reply !== null)
+  const waited = drive.log.waited
   const snapshot = await loadSnapshot(drive.agent, session.scene.access, drive.execution)
   const received = receivedModelResult(snapshot) !== null
   const head = [

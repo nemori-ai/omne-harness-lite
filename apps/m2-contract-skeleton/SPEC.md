@@ -84,24 +84,24 @@ A hop that stops takes the kind of the step that stopped it. For example, Sessio
 
 The tests declare these rows. The two Session stores differ only in `session-ad01` and `session-ad02`:
 
-| Hop | Rows | `contract-memory` | `session-log` |
-| --- | --- | --- | --- |
-| H01, H02 | `server-entry`, `identity` | double | double |
-| H03 | `server-entry`, `authorization`, `session-storage`, `session-provider`, `session-ad10` | double | double |
-| H04 | `server-entry`, `session-provider`, `session-ad14`, `agent-adoptions`, `agent-host`, `session-handoff` | double | double |
-| H05 | `agent-host`, `session-conditions`, `agent-model-selection`, `session-ad04`, `agent-context`, `request-context`, `model-host` | double | double |
-| H06 | `model-host`, `agent-host`, `agent-journal` | double | double |
-| H07 | `session-handoff` | double | double |
-| H07 | `session-ad01` | absent | double |
-| H08 | `server-entry`, `session-provider` | double | double |
-| H09 | `session-provider`, `session-ad14`, `agent-host` | double | double |
-| H09, H13 | `session-ad02` | absent | double |
-| H10 | `agent-host`, `tool-runtime`, `execution-files` | double | double |
-| H10 | `tool-executor`, `tool-environments`, `execution-environment` | absent | absent |
-| H11 | `agent-host`, `model-host`, `server-entry` | double | double |
-| H11 | `agent-instances` | absent | absent |
-| H12 | `model-host`, `agent-host`, `session-ad04` | double | double |
-| H13 | `agent-journal` | double | double |
+| Hop      | Rows                                                                                                                          | `contract-memory` | `session-log` |
+| -------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------------- | ------------- |
+| H01, H02 | `server-entry`, `identity`                                                                                                    | double            | double        |
+| H03      | `server-entry`, `authorization`, `session-storage`, `session-provider`, `session-ad10`                                        | double            | double        |
+| H04      | `server-entry`, `session-provider`, `session-ad14`, `agent-adoptions`, `agent-host`, `session-handoff`                        | double            | double        |
+| H05      | `agent-host`, `session-conditions`, `agent-model-selection`, `session-ad04`, `agent-context`, `request-context`, `model-host` | double            | double        |
+| H06      | `model-host`, `agent-host`, `agent-journal`                                                                                   | double            | double        |
+| H07      | `session-handoff`                                                                                                             | double            | double        |
+| H07      | `session-ad01`                                                                                                                | absent            | double        |
+| H08      | `server-entry`, `session-provider`                                                                                            | double            | double        |
+| H09      | `session-provider`, `session-ad14`, `agent-host`                                                                              | double            | double        |
+| H09, H13 | `session-ad02`                                                                                                                | absent            | double        |
+| H10      | `agent-host`, `tool-runtime`, `execution-files`                                                                               | double            | double        |
+| H10      | `tool-executor`, `tool-environments`, `execution-environment`                                                                 | absent            | absent        |
+| H11      | `agent-host`, `model-host`, `server-entry`                                                                                    | double            | double        |
+| H11      | `agent-instances`                                                                                                             | absent            | absent        |
+| H12      | `model-host`, `agent-host`, `session-ad04`                                                                                    | double            | double        |
+| H13      | `agent-journal`                                                                                                               | double            | double        |
 
 Every hop has one fragment `<hop>-connected` from the connected path. H01 and H02 also carry the governance protocol scenarios. H06 also carries every public Model obligation from `@omne-harness/model-contract/conformance`.
 
@@ -133,17 +133,17 @@ The path does not touch the shapes that [#673](https://github.com/nemori-ai/omne
 
 The tests wire the doubles in [first-path-doubles.ts](tests/first-path-doubles.ts):
 
-| Capability | Double |
-| --- | --- |
-| Registration, login, recognition | `inProcessIdentityOperations` with `manualIdentityClock` and `adjustableLoginTerms` |
-| Session access check | `createPolicySessionAccessCheck` with an explicit policy, injected by the path |
-| Session store, `contract-memory` (default) | `createMemorySessionTransactions` and `createMemorySessionEvidenceBridge`. The Agent keeps its own memory Journal. |
-| Session store, `session-log` | `createMemorySessionJournal` of `@omne-harness/session-adapters/testing` ([#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)): one log for the Session entries and the Agent Journal |
-| Agent runtime | `createAgentRuntime` over `createTestAgentDependencies`, with the generic `agentEvaluator` |
-| Model call and result push | the scripted Model provider and its public result pusher inside `createTestAgentDependencies`. The host receiver of `@omne-harness/agent` writes the received entry. |
-| Tool runtime | the scripted Tool runtime of `createTestAgentDependencies`. Each invocation first reads and writes a file in `createMemoryFileSystem` and starts one command in `createScriptedCommandFacility` of `@omne-harness/execution-environment-contract/testing` ([#791](https://github.com/nemori-ai/omne-harness-lite/issues/791)). |
-| Request Context assembly and Model preparation lease | `createAssemblyOperations` through `createAssemblyFixture`, with its scripted preparation resources |
-| Model obligations | `createScriptedConformanceSubject` |
+| Capability                                           | Double                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Registration, login, recognition                     | `inProcessIdentityOperations` with `manualIdentityClock` and `adjustableLoginTerms`                                                                                                                                                                                                                                            |
+| Session access check                                 | `createPolicySessionAccessCheck` with an explicit policy, injected by the path                                                                                                                                                                                                                                                 |
+| Session store, `contract-memory` (default)           | `createMemorySessionTransactions` and `createMemorySessionEvidenceBridge`. The Agent keeps its own memory Journal.                                                                                                                                                                                                             |
+| Session store, `session-log`                         | `createMemorySessionJournal` of `@omne-harness/session-adapters/testing` ([#756](https://github.com/nemori-ai/omne-harness-lite/issues/756)): one log for the Session entries and the Agent Journal                                                                                                                            |
+| Agent runtime                                        | `createAgentRuntime` over `createTestAgentDependencies`, with the generic `agentEvaluator`                                                                                                                                                                                                                                     |
+| Model call and result push                           | the scripted Model provider and its public result pusher inside `createTestAgentDependencies`. The host receiver of `@omne-harness/agent` writes the received entry.                                                                                                                                                           |
+| Tool runtime                                         | the scripted Tool runtime of `createTestAgentDependencies`. Each invocation first reads and writes a file in `createMemoryFileSystem` and starts one command in `createScriptedCommandFacility` of `@omne-harness/execution-environment-contract/testing` ([#791](https://github.com/nemori-ai/omne-harness-lite/issues/791)). |
+| Request Context assembly and Model preparation lease | `createAssemblyOperations` through `createAssemblyFixture`, with its scripted preparation resources                                                                                                                                                                                                                            |
+| Model obligations                                    | `createScriptedConformanceSubject`                                                                                                                                                                                                                                                                                             |
 
 The application owns two bridges in [path.ts](src/path.ts). Both bridges find the round of a call by the Agent execution that the call names. They do not read a shared "current round".
 
@@ -156,7 +156,9 @@ A failure label holds only the step name that this application mints and the `ki
 
 The path does not call `quiesce` to end a round. On the happy path the Agent execution of each round has ended when the path returns. The H10 and H12 probes leave their Agent execution stopped where the loop refused. The runtime and the memory doubles stay reachable only from the caller, and the process releases them. The H11 probe releases the held Model call in a `finally` step, also when a withdrawal call throws. When the Model does not settle, the admitted call stays open in the scripted provider until the process exits. The Model obligation suite owns its subject disposal and its bounded waits. The default wait bound is 500 ms for each suite operation. Tests use a 15 second outer limit.
 
-The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
+The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Each turn yields to the event loop through `setImmediate` from `node:timers/promises`. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
+
+H10 and H12 reuse the first-reply wait recorded by the round driver. They do not start another wait for that reply. H10 keeps its separate wait for the reply after the tool result unless the snapshot shows the I4 refusal. A missing wait record adds no timeout label and proves no reply.
 
 A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop in the `gap` state. Evidence holds fixed labels, failure kinds, positions, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
 
