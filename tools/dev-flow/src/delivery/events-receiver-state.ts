@@ -22,7 +22,7 @@ import {
 import { array, record, text } from './protocol.ts'
 
 export type ReceiverState = {
-  schemaVersion: 1
+  schemaVersion: 2
   instanceId: string
   repository: string
   eventFile: string
@@ -32,6 +32,7 @@ export type ReceiverState = {
   events: string[]
   pid: number
   host: string
+  processIdentity: string
   processStartedAt: string
   state: 'starting' | 'connected' | 'reconnecting' | 'recovery-needed' | 'stopped' | 'failed'
   reasonCode: string
@@ -41,11 +42,11 @@ export type ReceiverState = {
 }
 
 /**
- * 进程启动时刻，用来识别 pid 是否被复用。POSIX 读 `ps -o lstart=`。Windows 没有这个 `ps`
+ * 进程启动时刻。POSIX 读 `ps -o lstart=`。Windows 没有这个 `ps`
  * （Git Bash 的 ps 只认 MSYS 的 pid、也不支持 `-o`），改读 `Get-Process` 的 StartTime（UTC，100ns 精度）；
  * PowerShell 冷启动较慢，时限放宽。取不到时返回 null，调用方按身份不可得处理。
  */
-function identityCommand(pid: number): { command: string; args: string[]; timeout: number } {
+function startTimeCommand(pid: number): { command: string; args: string[]; timeout: number } {
   if (process.platform !== 'win32')
     return { command: 'ps', args: ['-p', String(pid), '-o', 'lstart='], timeout: 2000 }
   return {
@@ -60,19 +61,81 @@ function identityCommand(pid: number): { command: string; args: string[]; timeou
   }
 }
 
-export function processIdentity(pid: number): string | null {
+function processStartTime(pid: number): string | null {
   try {
-    const { command, args, timeout } = identityCommand(pid)
+    const { command, args, timeout } = startTimeCommand(pid)
     const value = execFileSync(command, args, {
       encoding: 'utf8',
       timeout,
       stdio: ['ignore', 'pipe', 'ignore'],
       shell: false,
     }).trim()
-    return value || null
+    return Number.isFinite(Date.parse(value)) ? value : null
   } catch {
     return null
   }
+}
+
+function posixStartTimeUtc(pid: number): string | null {
+  try {
+    const { command, args, timeout } = startTimeCommand(pid)
+    const value = execFileSync(command, args, {
+      encoding: 'utf8',
+      timeout,
+      stdio: ['ignore', 'pipe', 'ignore'],
+      shell: false,
+      env: { ...process.env, TZ: 'UTC0', LC_ALL: 'C' },
+    }).trim()
+    const fields =
+      /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{1,2})\s+(\d{2}:\d{2}:\d{2})\s+(\d{4})$/.exec(
+        value,
+      )
+    if (fields === null) return null
+    const [, weekday, month, day, time, year] = fields
+    const started = new Date(`${value} GMT`)
+    if (
+      started.toUTCString() !== `${weekday}, ${day?.padStart(2, '0')} ${month} ${year} ${time} GMT`
+    )
+      return null
+    return started.toISOString()
+  } catch {
+    return null
+  }
+}
+
+export function processIdentity(pid: number): string | null {
+  if (!Number.isSafeInteger(pid) || pid < 1) return null
+  if (process.platform !== 'linux') return processStartTime(pid)
+  try {
+    const bootId = readFileSync('/proc/sys/kernel/random/boot_id', 'utf8').trim()
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8')
+    // comm may contain spaces and parentheses; field 3 follows its final closing parenthesis.
+    const commEnd = stat.lastIndexOf(')')
+    const fields = stat
+      .slice(commEnd + 1)
+      .trim()
+      .split(/\s+/)
+    const startTicks = fields[19]
+    if (
+      !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(bootId) ||
+      !stat.startsWith(`${pid} (`) ||
+      commEnd < `${pid} (`.length ||
+      startTicks === undefined ||
+      !/^\d+$/.test(startTicks)
+    )
+      return null
+    return `linux:${bootId}:${pid}:${startTicks}`
+  } catch {
+    return null
+  }
+}
+
+function startTime(value: unknown): string {
+  const result = text(value, 'processStartedAt')
+  const parsed = Date.parse(result)
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== result)
+    throw new ReceiverError('invalid-receiver-state')
+  return result
 }
 
 function alive(pid: number): boolean {
@@ -130,10 +193,13 @@ export function claimReceiver(
   >,
 ): { state: ReceiverState; release: () => void } {
   const paths = receiverPaths(config.eventFile),
-    started = processIdentity(process.pid)
-  if (started === null) throw new ReceiverError('process-identity-unavailable')
+    identity = processIdentity(process.pid)
+  if (identity === null) throw new ReceiverError('process-identity-unavailable')
+  const queriedStart = process.platform === 'win32' ? identity : posixStartTimeUtc(process.pid)
+  if (queriedStart === null) throw new ReceiverError('process-start-time-unavailable')
+  const started = new Date(queriedStart).toISOString()
   const state: ReceiverState = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     instanceId: config.instanceId,
     repository: config.repository,
     eventFile: config.eventFile,
@@ -143,6 +209,7 @@ export function claimReceiver(
     events: config.events,
     pid: process.pid,
     host: hostname(),
+    processIdentity: identity,
     processStartedAt: started,
     state: 'starting',
     reasonCode: 'starting',
@@ -167,11 +234,22 @@ export function claimReceiver(
       withReceiverGuard(config.eventFile, () => {
         if (
           readFileSync(paths.pid, 'utf8').trim() !== String(state.pid) ||
-          processIdentity(state.pid) !== started
+          processIdentity(state.pid) !== identity
         )
           throw new ReceiverError('receiver-process-identity-changed')
         const current = readReceiverState(config.eventFile)
-        if (current.instanceId !== state.instanceId || current.processStartedAt !== started)
+        if (
+          current.instanceId !== state.instanceId ||
+          current.repository !== state.repository ||
+          current.eventFile !== state.eventFile ||
+          current.host !== state.host ||
+          current.pid !== state.pid ||
+          current.mode !== state.mode ||
+          current.managed !== state.managed ||
+          current.hookId !== state.hookId ||
+          current.processIdentity !== identity ||
+          current.processStartedAt !== started
+        )
           throw new ReceiverError('receiver-owner-changed')
         rmSync(paths.pid)
       }),
@@ -185,7 +263,7 @@ export function readReceiverState(file: string): ReceiverState {
       'receiver state',
     )
     if (
-      value.schemaVersion !== 1 ||
+      value.schemaVersion !== 2 ||
       (value.mode !== 'channel' && value.mode !== 'legacy') ||
       typeof value.managed !== 'boolean'
     )
@@ -207,7 +285,7 @@ export function readReceiverState(file: string): ReceiverState {
     )
       throw new ReceiverError('invalid-receiver-state')
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       mode: value.mode,
       state,
       managed: value.managed,
@@ -218,7 +296,8 @@ export function readReceiverState(file: string): ReceiverState {
       pid: positiveInteger(value.pid),
       hookId: value.hookId === null ? null : positiveInteger(value.hookId),
       events: array(value.events, 'events').map(value => text(value, 'event')),
-      processStartedAt: text(value.processStartedAt, 'processStartedAt'),
+      processIdentity: text(value.processIdentity, 'processIdentity'),
+      processStartedAt: startTime(value.processStartedAt),
       reasonCode: text(value.reasonCode, 'reasonCode'),
       connectionEpoch: value.connectionEpoch,
       updatedAt: text(value.updatedAt, 'updatedAt'),
@@ -250,7 +329,7 @@ export function readReceiverHealth(args: { file: string; repository: string }) {
   if (state.repository !== args.repository || state.eventFile !== resolve(args.file))
     throw new ReceiverError('receiver-identity-mismatch')
   const processAlive =
-    state.host === hostname() && processIdentity(state.pid) === state.processStartedAt
+    state.host === hostname() && processIdentity(state.pid) === state.processIdentity
   let reasonCode = state.reasonCode
   try {
     if (readFileSync(receiverPaths(args.file).pid, 'utf8').trim() !== String(state.pid))
