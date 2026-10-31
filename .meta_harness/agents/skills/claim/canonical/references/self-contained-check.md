@@ -15,7 +15,7 @@
 
 ## 逐项核对
 
-- [ ] 任务信息包的 taskBase 等于卡上 binding 的 taskBase。线内的卡还要核对它是本波批次分支上的提交。
+- [ ] 任务信息包的 taskBase 等于卡上 binding 的 taskBase。线内的卡还要核对它是本波固定同步点之后的真实线轨道头。
 - [ ] 任务信息包的绑定字段与卡上 binding 逐字一致：卡、revision、attempt、分支、route、completionTarget。
 - [ ] 已用 `tools/dev-flow/src/delivery/scope-cli.ts` 核对：本卡与本波其他线的卡的写范围两两不相交。
 - [ ] 禁写清单列出了冻结的共享、其他线的写范围与集成节点保留的文件。
