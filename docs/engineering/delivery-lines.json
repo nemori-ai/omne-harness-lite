@@ -3,7 +3,8 @@
   "integration": {
     "track": "mainline",
     "paths": [
-      "apps",
+      "packages/storage/sql-contract",
+      "packages/storage/docs",
       "docs/requirements.md",
       "docs/architecture",
       "docs/domains/README.md",
@@ -48,11 +49,14 @@
   ],
   "lines": [
     {
-      "id": "session-agent",
+      "id": "session-run",
       "title": "会话推进",
       "owner": "PanQiWei",
-      "track": null,
+      "track": "session-run",
       "paths": [
+        "packages/storage/sqlite-provider",
+        "packages/storage/object-store-local",
+        "packages/storage/object-store-contract",
         "packages/session",
         "packages/agent",
         "packages/context",
@@ -84,7 +88,7 @@
       "id": "model",
       "title": "模型调用",
       "owner": "PanQiWei",
-      "track": null,
+      "track": "model",
       "paths": [
         "packages/model",
         "packages/common/message",
@@ -109,7 +113,7 @@
       "id": "tool-exec",
       "title": "工具与执行",
       "owner": "PanQiWei",
-      "track": null,
+      "track": "tool-exec",
       "paths": [
         "packages/tool",
         "packages/skills",
@@ -132,11 +136,14 @@
       ]
     },
     {
-      "id": "governance",
+      "id": "app-access",
       "title": "治理",
       "owner": "PanQiWei",
-      "track": null,
+      "track": "app-access",
       "paths": [
+        "apps",
+        "packages/access",
+        "packages/assembly/adoption-contract",
         "packages/identity",
         "packages/assets",
         "packages/workspace",
@@ -153,6 +160,7 @@
         ".meta_harness/design/product/workspaces"
       ],
       "contracts": [
+        "packages/access/public-contract",
         "packages/common/legal-identity",
         "packages/identity/identity",
         "packages/identity/authorization"
@@ -186,9 +194,7 @@
       "owner": "PanQiWei",
       "track": null,
       "paths": [
-        "packages/access",
         "packages/assembly/kernel-basis",
-        "packages/storage",
         "packages/telemetry",
         "packages/schema",
         "packages/util",
@@ -200,7 +206,6 @@
         "packages/README.md"
       ],
       "contracts": [
-        "packages/access/public-contract",
         "packages/assembly/kernel-basis",
         "packages/common/json-text",
         "packages/common/operation-result",
@@ -211,7 +216,7 @@
       "id": "engineering-toolchain",
       "title": "工程工具链",
       "owner": "PanQiWei",
-      "track": null,
+      "track": "m2-toolchain",
       "paths": [
         "tools",
         "scripts",
