@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "revision": "7",
+  "revision": "8",
   "repository": "nemori-ai/omne-harness-lite",
   "deliveryConfig": "docs/engineering/github-delivery.json",
   "tracks": [
@@ -12,6 +12,51 @@
       "status": "active",
       "parent": "main",
       "initialBase": "8922df79a53e7800501c09e0a9394bafc9d2837a"
+    },
+    {
+      "id": "session-run",
+      "branch": "integration/session-run",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/502",
+      "status": "active",
+      "parent": "mainline",
+      "initialBase": "201de5d7727063068540966341a034304dc84f10"
+    },
+    {
+      "id": "app-access",
+      "branch": "integration/app-access",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/978",
+      "status": "active",
+      "parent": "mainline",
+      "initialBase": "201de5d7727063068540966341a034304dc84f10"
+    },
+    {
+      "id": "model",
+      "branch": "integration/model",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/446",
+      "status": "active",
+      "parent": "mainline",
+      "initialBase": "201de5d7727063068540966341a034304dc84f10"
+    },
+    {
+      "id": "tool-exec",
+      "branch": "integration/tool-exec",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/421",
+      "status": "active",
+      "parent": "mainline",
+      "initialBase": "201de5d7727063068540966341a034304dc84f10"
+    },
+    {
+      "id": "m2-toolchain",
+      "branch": "integration/m2-toolchain",
+      "owner": "PanQiWei",
+      "source": "https://github.com/nemori-ai/omne-harness-lite/issues/979",
+      "status": "active",
+      "parent": "mainline",
+      "initialBase": "201de5d7727063068540966341a034304dc84f10"
     }
   ],
   "transport": {
