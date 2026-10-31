@@ -68,31 +68,43 @@ describe('运行', () => {
     expect(readFileSync(join(dir, 'logs', 'b.log'), 'utf8')).toContain('b')
   })
 
+  // 断言「同时跑」的步骤要比满载机器上起一个 node 子进程的延迟长得多，否则全量准入时会被判成串行。
+  const OVERLAP_MS = 1000
   const serialized = (run: Awaited<ReturnType<typeof runGraph>>) => {
     const starts = run.results.map(result => result.startedMs).sort((a, b) => a - b)
     const ends = run.results.map(result => result.endedMs).sort((a, b) => a - b)
     return starts.slice(1).every((start, index) => start >= (ends[index] ?? Infinity))
   }
 
-  it('轻步骤受并发上限限制；重步骤缺省一次一个，不占轻步骤的名额', async () => {
-    expect(
-      serialized(await runGraph([step('x', 150), step('y', 150), step('z', 150)], options(1))),
-    ).toBe(true)
-    const heavyLane = await runGraph(
-      [step('x', 150, 0, [], true), step('y', 150, 0, [], true)],
-      options(8),
-    )
-    expect(serialized(heavyLane)).toBe(true)
-    // 轻步骤名额只剩 1 时，重步骤照常起，轻步骤与它同时跑。
-    const mixed = await runGraph([step('heavy', 200, 0, [], true), step('light', 200)], options(1))
-    expect(serialized(mixed)).toBe(false)
-    // 放宽重步骤的并发后两个重步骤同时跑。
-    const twoLanes = await runGraph([step('x', 150, 0, [], true), step('y', 150, 0, [], true)], {
-      ...options(1),
-      heavyConcurrency: 2,
-    })
-    expect(serialized(twoLanes)).toBe(false)
-  })
+  it(
+    '轻步骤受并发上限限制；重步骤缺省一次一个，不占轻步骤的名额',
+    { timeout: 20_000 },
+    async () => {
+      expect(
+        serialized(await runGraph([step('x', 150), step('y', 150), step('z', 150)], options(1))),
+      ).toBe(true)
+      const heavyLane = await runGraph(
+        [step('x', 150, 0, [], true), step('y', 150, 0, [], true)],
+        options(8),
+      )
+      expect(serialized(heavyLane)).toBe(true)
+      // 轻步骤名额只剩 1 时，重步骤照常起，轻步骤与它同时跑。
+      const mixed = await runGraph(
+        [step('heavy', OVERLAP_MS, 0, [], true), step('light', OVERLAP_MS)],
+        options(1),
+      )
+      expect(serialized(mixed)).toBe(false)
+      // 放宽重步骤的并发后两个重步骤同时跑。
+      const twoLanes = await runGraph(
+        [step('x', OVERLAP_MS, 0, [], true), step('y', OVERLAP_MS, 0, [], true)],
+        {
+          ...options(1),
+          heavyConcurrency: 2,
+        },
+      )
+      expect(serialized(twoLanes)).toBe(false)
+    },
+  )
 
   it('一步失败：依赖它的不开始，正在跑的被终止，退出码留在结果里', async () => {
     const run = await runGraph(
