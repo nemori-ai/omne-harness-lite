@@ -158,6 +158,8 @@ The path does not call `quiesce` to end a round. On the happy path the Agent exe
 
 The path waits for each Agent reply for at most `replyTurns` event-loop turns. The default is 2000. Every wait of the main rounds and of the probes that ends at the bound adds a timeout label to the evidence of its hop. The label tells a wait that ended at its bound from a refusal of an upstream entry. When the Model does not settle, H06 through H08 do not connect, and the report says which call did not occur.
 
+H10 and H12 reuse the first-reply wait recorded by the round driver. They do not start another wait for that reply. H10 keeps its separate wait for the reply after the tool result unless the snapshot shows the I4 refusal. A missing wait record adds no timeout label and proves no reply.
+
 A failed governance scenario does not remove its hop or stop the Model checks. An exception in the connected path becomes a structural error and leaves every hop in the `gap` state. Evidence holds fixed labels, failure kinds, positions, and counts. The report holds no free text of a supplier or a port, and no credential, login proof, or message body.
 
 Known limitations of this application, hop by hop. Each item says what the skeleton itself meets first after the upstream entry of the hop is delivered. These items are not residual gaps. M2 must remove them before the hop can connect.
