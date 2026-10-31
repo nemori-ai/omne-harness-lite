@@ -1,6 +1,6 @@
 # 线包模板
 
-Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡上。Line 首次开工和恢复时读本包和任务卡。本包只保存本次事实与引用，不授予额外权限。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。线会话的工作方式归 `line` 技能的 `references/work-paradigm.md`。
+Reduce 从工作卡 binding、已接受依据和当前波生成本包，发在线父卡上。Line 首次开工和恢复时读本包和任务卡。本包只保存本次事实与引用，不授予额外权限。协作规则归[集成清单](../../../../docs/engineering/integration.md#集成节点的清单)。线会话的工作方式归 `line` 技能的 `references/work-paradigm.md`。
 
 每个占位都替换成实际值。不适用的项写原因。命令放在 `sh` 代码块里，派发前在本机同布局演练。只读本包和一张任务卡，Line 就能确定 F、写范围、完成条件、事实来源、本线裁量、交回入口、等待命令和停止条件。缺一项时，reduce 先补齐再派发。
 
@@ -13,6 +13,8 @@ Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡�
 | 当前波、收口卡 R(w)、assignment 与原因 | <active 或 idle，及原因> |
 | 本波任务队列 | <卡、顺序、目标与非目标、验收。idle 写「无」> |
 | binding | <任务卡上的 binding 链接。不抄写分支、taskBase 与写范围> |
+| 线轨道与开波同步 | <registry 的轨道 ID、直接上游、FI 源头、目标头与合并提交。只读回实际结果> |
+| 线级上下文地图与拥有者入口 | <实际工作树中的地图路径、先读正文与专项技能> |
 | 后续波预案 | <本线后续可能的任务。预案不授予开工> |
 
 ## 2. 冻结物
@@ -38,8 +40,8 @@ Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡�
 | 本线的约束 | <适用的 ub-mode 条目与项目独有判断。Line 在会话级按 spec 模板「原则与约束」写进 `constraints.md`> |
 | 风险级别与评审 | <`docs/engineering/quality.md` 的级别，及 `review-code`、`review-docs`、`review-delivery` 的力度> |
 | 角色策略 | <策略版本、两宿主的解析结果。requested 与 observed 分开记录> |
-| 线内检查 | <本卡成员的类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。整次准入归 reduce> |
-| 线内联调 | <本线负责范围跨几个领域时：交回前在批次分支头运行的命令与判据，例如本线纵切的端到端用例。只有一个领域时写「不适用」> |
+| 线内检查 | <本卡成员的类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。每卡最终 head 的准入由线负责人组织，同机互斥；整波验证归 Reduce> |
+| 线内联调 | <本线负责范围跨几个领域时：交回前在线轨道头运行的命令与判据，例如本线纵切的端到端用例。只有一个领域时写「不适用」> |
 | 证据 | <证据贴在卡评论里。规则归 `docs/engineering/agent-delivery.md` 第 5 节> |
 | 进度记录 | 卡级按 `claim` 技能 plan 模板的「进度更新」维护 `tmp/issue-<号>/plan.md`。线级按 `line` 范式的「进度记录」维护 `tmp/line-<线>/state.md` 开头的「本波进度」。每个切片完成和每张卡交付时都更新，不攒到交回 |
 
@@ -51,7 +53,7 @@ Reduce 从 binding、已接受依据和当前波生成本包，发在线父卡�
 
 ## 5. 交回与等待
 
-- 交回物：批次 PR（零差异时没有 PR）、每张卡上的五节交接报告、线父卡上的一条交回记录。交回记录首行是 `<!-- line-handoff -->`。固定项归[线会话记录](../../../../docs/engineering/integration.md#线会话记录)。交回记录发布后，Line 停写。
+- 交回物：提升 PR（零差异时没有 PR）、每张卡上的五节交接报告、线父卡上的一条交回记录。交回记录首行是 `<!-- line-handoff -->`。固定项归[线会话记录](../../../../docs/engineering/integration.md#线会话记录)。交回记录发布后，Line 停写。
 - 遇阻：用同一个入口交回 blocked 或 failed，写清原因和已完成部分，然后停写。
 - 无远端通路：<在本机保存交回记录的位置，及打开供人带回的办法。不声称已发布>
 - 状态注：<`tmp/line-<线>/state.md` 的实际路径>

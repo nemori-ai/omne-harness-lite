@@ -13,7 +13,7 @@ description: >
 | 阶段 | 本技能的节 | 离开条件 |
 | --- | --- | --- |
 | PREPARE | 1–4 | 当前波任务、收口卡 R(w) 与 F 已建并读回，写集求交通过 |
-| DISPATCH | 5–8 | 首次消息已演练、校验并打开供人转发，`integrate` 的等待已挂起 |
+| DISPATCH | 5–8 | 首次消息已演练、校验并按授权直接发送或打开供人转发，`integrate` 的等待已挂起 |
 | RELEASE_WAVE | 「放行」 | 全部存续线的 delta 已读回，R(w) 的接受决定已读回，R(w) 已关闭并读回 |
 
 ## 1. 整理需求，定位已有卡
@@ -50,7 +50,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind
 
 定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
 
-为线父卡登记一波的 attempt 时，binding 的契约变更取本波队列各卡的最高级。否则批次带破坏性卡时，`pnpm run check` 的 change-scope 会拦下。线父卡正文的「契约变更」与 `contract:` 标签同步改。每次写入后读回精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
+线父卡只承载线包、delta、交回与长期责任，不为每波建立 Git binding。实际工作卡各自登记 attempt；有线轨道的卡以该轨道为 route，从真实线轨道头登记 taskBase。派发前核对 registry 与远端分支齐备、上游链有效，并记录开波 FI 结果与固定同步点。每次写入后读回工作卡精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
 
 redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按「放行」一节的发布方法发 redo delta。
 
@@ -68,7 +68,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
 
 派发包由线包和首次消息组成。线包每波更新，首次消息只发给新的线会话。已有线会话的下一波读 delta，不重发首次消息。
 
-1. **写线包。** 按 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md` 从有效 binding、已接受依据和当前波写线包，发在线父卡上并读回。
+1. **写线包。** 按 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md` 从有效工作卡 binding、已接受依据、开波 FI 的实际同步点和当前波写线包，发在线父卡上并读回。
 2. **填首次消息的输入。** 模板是 `.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md`。先列出字段，再从有效来源写输入 JSON：schemaVersion=1、milestone 数字、line 短名、revision 数字和 fields 字符串映射。fields 包含全部列出字段，`dispatch_revision` 等于 revision。字段按模板分为六组：
    - 身份：仓库、里程碑卡、线父卡、机器与宿主、工作目录、`binding_refs`、`line_pack_ref`、唯一 reduce 会话。
    - 先加载：`prepare_commands`、`skill_source_ref`。`skill_source_ref` 写明 `docs/engineering/skills.md` 来源表里 pstack、Matt 与 ub-mode 的 revision，或指向该来源表的固定提交。
@@ -77,7 +77,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
    - 当前分工与冻结点：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。
    - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_health_command`、`line_state_path`、`final_report_ref`。
 
-   分支、taskBase 与写范围只写 binding 的引用。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
+   分支、taskBase 与写范围只写工作卡 binding 的引用。正文第一段先点名 `line`、`pstack:poteto-mode`、`asd-ste100`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。用既有 `line_pack_ref` 指向地图与拥有者导航，`line_work_kind` 列本线专项技能。`machine_and_host` 与 `role_policy_ref` 填本次已采用的宿主、模型和 effort，不把单次选择写成永久默认。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
 
    写命令之前先运行工具的帮助或读它的实现，确认参数，不凭印象猜写（P8）。README 与实现不一致时，按冲突报告给工具的拥有者，不在消息里自己选一种写法。命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
 
@@ -87,7 +87,7 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
 5. **校验。** 带演练证据运行 validate。缺证据、证据针对另一份消息或有命令没有证据条目时，validate 退出 2。
    - 结果里的 `nonZeroExits` 逐条列出非 0 退出码。每一条都写说明进校验记录。带 `--timeout` 的等待命令演练时退出 3 是预期结果。其他非 0 退出表示命令有错：改输入，用新修订重新 render，重新演练。
    - validate 只给 STRUCTURE_CHECKED。它不证明命令输出正确，也不等于 VALIDATED。按返回的 `remainingGuards` 逐项核对：读回 binding 与 attempt，核对目标机上的固定材料、当前收口卡与等待对象、角色策略和权限，检查秘密与矛盾副本。逐项保存证据后才记录 VALIDATED。常见格式扫描不能证明没有其他秘密。
-6. **打开供人转发。** 用宿主侧边栏或 IDE 的公开操作打开返回的绝对路径。queued 只算等待展示。人原样转发；reduce 不自动发送，不替人创建会话，也不让人补设计。派发状态按 `map-reduce-states.md` 第 6 节分别记录，后一状态不能从前一状态推断。
+6. **按授权发送。** 已授权本机直接协作时，Reduce 加载 `mirasim-operate`，创建或定位唯一 Line 会话，发送校验后的正文并读回。保存发送成功、收到、认领三个独立事实。没有直接通信授权或能力时，用宿主侧边栏或 IDE 打开绝对路径，供人原样转发；queued 只算等待展示。派发状态按 `map-reduce-states.md` 第 6 节分别记录，后一状态不能从前一状态推断。
 
 ```sh
 pnpm initial-dispatch fields

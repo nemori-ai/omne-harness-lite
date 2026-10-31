@@ -251,11 +251,23 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 同一事件目录的频道与 legacy 接收器共用原子守卫。receiver.pid 保留进程号，receiver-state.json 保存模式、仓库、实例、主机、进程启动身份、hookId、订阅类型、连接状态和诊断。健康检查默认每 5 秒核对本地进程身份、pid 和事件文件。不能只用 PID 存活断言接收健康。无法确认已停止的旧写者时拒绝争抢。
 
+本地状态使用 schemaVersion 2。`processIdentity` 与 `processStartedAt` 分别记录身份和启动时间。Linux 身份由 `/proc/sys/kernel/random/boot_id`、PID 和 `/proc/<pid>/stat` 的第 22 字段启动 tick 组成，不使用墙上时钟或 `ps lstart` 判断身份。解析 stat 时允许 comm 含空格和括号。读取失败或字段无效时不生成替代身份。Windows 继续使用 Get-Process 的 UTC StartTime，其他 POSIX 继续使用 ps lstart 识别进程。
+
+POSIX 的启动时间单独取 ps lstart。认领时向该子命令传入 `TZ=UTC0` 和 `LC_ALL=C`，取得 C locale 下的 UTC 时间，并按 UTC 解析。查询失败或输出不符合该格式时拒绝认领，不回退到无偏移本地文本。夏令时回拨时，不能从重复的本地时刻猜测绝对时间。Windows 启动时间继续取 Get-Process 的 UTC StartTime。所有平台的 `processStartedAt` 使用 `Date.prototype.toISOString()` 写出规范 UTC 字符串，消费进程按该绝对时刻判断。此查询不改变 Windows 或其他 POSIX 的原身份 token。启动时间只在认领时保存，之后校时不重写它。
+
+持久 `processStartedAt` 只支持上述规范 UTC 格式。读取时先用 `Date.parse` 取得有限时刻，再要求该时刻的 `toISOString()` 结果与原字符串完整相等。不相等时以 `invalid-receiver-state` 拒绝，不把自动归一的非法日期当作有效输入。合法但非规范的偏移或无毫秒文本也不在本地格式的支持范围内。
+
+健康检查比较稳定身份，释放还须核对持久的实例、仓库、文件、主机、PID、模式、管理状态、hookId 和启动时间。核对失败保留 pid 文件。
+
+版本 1、缺少身份、时间无效或启动时间格式不受支持的本地状态无法通过读取、健康检查或释放，不从旧时间文本猜测时区，不依据旧 PID 授予写权。恢复前须确认原接收器已停止、事件目录属于目标实例，以及配置里的仓库、主机和 hook 归属。只有旧 PID 已不存在或 pid 文件不存在时，新认领才可按既有守卫重建本地状态；PID 仍存活或无法确认已停止时保持拒绝。废弃的 guard 仍需在确认没有写者后人工处理。更新本地状态不迁移或删除 hook，不替代 hook 的精确所有权恢复。
+
 自建频道停止时只删除持久 owned hook，删除前验证精确身份。借用实例只退订，不调用 hook 写接口。创建响应丢失、日志失败或归属不明保存 recovery-needed。clean 只允许处理本机已停止且归属已证实的实例；全仓扫删入口退出。
 
 legacy 的 HTTP 接收器只绑定 127.0.0.1、只接受 POST。给出 secret 时校验 X-Hub-Signature-256；签名不符返回 401，非法投递返回 400，落盘完成返回 204，写失败返回 500。停止时结束自己的 forward 子进程并释放本地写者。gh forward 没有可证明所有权的创建回执，因此不得用前后列表差分猜 hook；停止保留 recovery-needed 并退出 2，422 另给 legacy-hook-conflict。SIGKILL 无法执行清理，后续按持久身份恢复。
 
 check 自检分别验证进程、连接、精确 hook 状态、一条真实事件落盘和等待对账立即返回。借用模式由拥有者提供 hook 证据，消费者仍验证端到端。命令退出、输出可取和 agent 续接是三项不同验证。
+
+check 消费通过上述读取校验的持久 `processStartedAt`，并要求事件 `receivedAt` 能解析为有限时间。check 拒绝无效时间和启动前事件，接受与启动时刻相等的事件。稳定身份不能作为时间字段参与比较；时间解析失败不能通过 NaN 比较放行。
 
 `waitForEvent` 的语义：
 
@@ -278,7 +290,7 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 或 America/New_York 生产进程与 UTC 或 Asia/Shanghai 消费进程覆盖启动前事件拒绝、相等边界接受及 DST 回拨。ps 替身按命令环境选择 UTC 或本地文本，并覆盖非 C locale。内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
 
 ## 首次派发消息具体化
 

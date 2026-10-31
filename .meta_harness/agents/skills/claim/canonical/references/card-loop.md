@@ -87,7 +87,7 @@
 
 ## 准入
 
-1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线内的卡在波内不合并联调轨道，这一条不适用。
+1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线内卡的目标是本线轨道，同样执行这一步；从联调轨道 FI 的时点按波计划固定。
 2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。它按准入锁排队，并把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。准入运行还在日志旁写一份同名的 `.json` 运行记录，增量准入与复用核对读它。格式见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。
 3. 准入期间不提交（P11）、不做占 CPU 的事（P12）。可以写交接报告与下一张卡的简报。
 4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。`check --keep-going` 一次报出全部失败。修复后，在最终 head 上按 `docs/engineering/integration.md`「增量准入」（在「检查责任」之下）补跑，命令是 `pnpm run admission --resume-from <H1>`，H1 是失败的那个 head。前提、要跑的步骤、全局路径例外与证据写法都以那一节为准。
@@ -111,7 +111,7 @@ flowchart LR
 
 ## gate
 
-线内的卡不经 gate，合入批次分支归 line 技能。不在线内的卡交回后，由调度者按 `branch-integration` 技能送进轨道。工具改动要发行时，版本号随工具改动一起入轨（P9）。新版本的行为取决于仓库状态时，改变仓库状态的 PR 通过准入之前，不把发行算作完成（P10）。
+每张线卡经卡级准入与 gate 进入线轨道，由线负责人按 `branch-integration` 技能组织。不在线内的卡交回后，由调度者按同一技能送进目标轨道。工具改动要发行时，版本号随工具改动一起入轨（P9）。新版本的行为取决于仓库状态时，改变仓库状态的 PR 通过准入之前，不把发行算作完成（P10）。
 
 ## 子检查点的效率规则
 
