@@ -45,9 +45,7 @@ describe('policy registry', () => {
     )
     expect(policy.repository).toBe('nemori-ai/omne-harness-lite')
     expect(policy.tracks.map(track => [track.id, track.parent])).toEqual([
-      ['legacy-refactor', 'main'],
-      ['engineering-toolchain', 'main'],
-      ['issue-820-bootstrap', 'main'],
+      ['mainline', 'main'],
     ])
     expect(policy.tracks.every(track => track.owner !== '')).toBe(true)
   })

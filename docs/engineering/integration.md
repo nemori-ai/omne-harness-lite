@@ -16,8 +16,7 @@ main 保存完整集成结果。任意数量的 integration/<track> 保存已登
 
 | 轨道                                | 责任与适用任务                                                                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration/legacy-refactor`       | 联调轨道，见[交付线](#交付线)：各线轨道的上游，承接跨线集成、联合验收、破坏性契约改动与工程工具链的卡。原责任保留：将 0.0.1.legacy 已支持的功能迁入新的文档体系、架构和包结构；以已确认能力清单防止功能遗漏，不借重构扩大到全部 0.1.0 范围 |
-| `integration/engineering-toolchain` | paused：不接受新任务。工程工具链线的卡进入联调轨道，见[交付线](#交付线)                                                                 |
+| `integration/mainline`              | 联调轨道，见[交付线](#交付线)：唯一的顶层轨道，各子轨道的上游，承接跨线集成、联合验收、破坏性契约改动与工程工具链的卡。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
 
 新轨道由 `gate-track` 流程从上游的 first-parent 提交创建，起点记在 registry 的 `initialBase`，见[轨道树与上游](#轨道树与上游)。后续上游变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道，不设置隐含默认轨道。
 
@@ -36,7 +35,7 @@ main 与 stable 禁止删除和非快进更新，创建与更新只允许发布�
 一条轨道的上游按下列顺序确定。`gate-publish`、`gate-track`、`gate-reconcile` 与 `start` 使用同一个顺序：
 
 1. 有 `omne/gate/track/<名>` 起点标签时，取标签正文的 `parent`。标签没有 `parent` 字段时，上游为 main。
-2. 否则在 `github-gate` 的 `gate/cutover.json` 中登记了切换点时，上游为 main。`integration/legacy-refactor` 与 `integration/engineering-toolchain` 属于这种情况。
+2. 否则在 `github-gate` 的 `gate/cutover.json` 中登记了切换点时，上游为 main。现在没有按这一条确定上游的轨道：`gate/cutover.json` 里的 `integration/legacy-refactor` 与 `integration/engineering-toolchain` 已退役，分支已删除（#973）。
 3. 两者都没有时拒绝。
 
 核对下限的读取顺序是切换点优先于起点标签：先取 `gate/cutover.json` 中的切换点，没有时取起点标签指向的提交，两者都没有就拒绝。所以 admin 为一条子轨道移动核对下限，不会改变它的上游。
@@ -65,8 +64,7 @@ registry 的 `parent` 是投影，取值为 `main` 或上游轨道的名称。`i
 
 ```mermaid
 flowchart TD
-  main["main"] --> LR["integration/legacy-refactor<br/>联调轨道"]
-  main --> ET["integration/engineering-toolchain<br/>paused"]
+  main["main"] --> LR["integration/mainline<br/>联调轨道"]
   LR -->|"从收口点切出"| B1["线 1 的批次分支<br/>个人分支"]
   LR -->|"从收口点切出"| BN["线 N 的批次分支<br/>个人分支"]
   B1 -->|"批次 PR"| LR
@@ -89,7 +87,7 @@ flowchart TD
 
 ### 卡进入哪条轨道
 
-联调轨道是 `integration/legacy-refactor`。所有交付线的卡的 route 都写联调轨道：
+联调轨道是 `integration/mainline`。所有交付线的卡的 route 都写联调轨道：
 
 - 交付线为 `integration` 的卡和工程工具链线的卡直接进入联调轨道。工具链被所有线使用，放在共同上游，各线同步一次就能得到。
 - 其他交付线的卡，在几条线并行推进时先合入所在线的批次分支，批次完成后一次进入联调轨道，规则见[集成节点的清单](#集成节点的清单)。批次分支是个人分支，卡的 route 仍写联调轨道。
