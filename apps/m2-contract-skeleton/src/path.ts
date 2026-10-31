@@ -9,6 +9,7 @@
 // replay (H12). A probe that the upstream public entries refuse reports the refusal as evidence;
 // it never builds the missing behavior here.
 import { createHash } from 'node:crypto'
+import { setImmediate } from 'node:timers/promises'
 import { readModelDeliveryMaterial, type AgentProvider } from '@omne-harness/agent'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import type { ContentBlock } from '@omne-harness/content-block'
@@ -336,7 +337,7 @@ export function messageOf(entry: Pick<HistoryEntry, 'kind' | 'payload'>): Messag
 async function waitTurns(turns: number, done: () => boolean): Promise<'done' | 'timed-out'> {
   for (let turn = 0; turn < turns; turn += 1) {
     if (done()) return 'done'
-    await new Promise(resolve => setTimeout(resolve, 0))
+    await setImmediate()
   }
   return done() ? 'done' : 'timed-out'
 }
