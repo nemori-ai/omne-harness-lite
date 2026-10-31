@@ -79,7 +79,7 @@ afterEach(() => {
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
 function testDirectory() {
-  const root = resolve('../../tmp/issue-980/revision3/tests')
+  const root = resolve('../../tmp/issue-980/state-format/tests')
   mkdirSync(root, { recursive: true })
   const directory = realpathSync(mkdtempSync(join(root, 'identity-')))
   homes.push(directory)
@@ -260,20 +260,28 @@ describe('receiver delivery time validation', () => {
     kernel.startedAt = '2026-11-01T00:31:43.000Z'
   })
   it.each([
-    'not-a-date',
-    'linux:boot:pid:tick',
-    '',
-    'Sun Nov  1 00:31:43 2026',
-    '2026-11-01T00:31:43',
-  ])('refuses invalid stored processStartedAt %j before reconciliation', async startedAt => {
+    { reason: 'invalid timestamp', startedAt: 'not-a-date' },
+    { reason: 'identity token', startedAt: 'linux:boot:pid:tick' },
+    { reason: 'empty timestamp', startedAt: '' },
+    { reason: 'local timestamp', startedAt: 'Sun Nov  1 00:31:43 2026' },
+    { reason: 'missing timezone', startedAt: '2026-11-01T00:31:43' },
+    { reason: 'F4 impossible calendar date', startedAt: '2026-02-30T00:00:00Z' },
+    { reason: 'F4 impossible calendar date', startedAt: '2026-02-30T00:00:00.000Z' },
+    { reason: 'unsupported format without milliseconds', startedAt: '2026-11-01T00:31:43Z' },
+    { reason: 'unsupported offset format', startedAt: '2026-11-01T08:31:43.000+08:00' },
+  ])('refuses $reason in stored processStartedAt $startedAt', async ({ startedAt }) => {
     const item = connected()
     const { file, gh, check } = deliveryCheck('2026-11-01T00:31:44.000Z', item)
     writePrivateJson(receiverPaths(file).state, {
       ...readReceiverState(file),
       processStartedAt: startedAt,
     })
-    await expect(check()).rejects.toThrow('invalid-receiver-state')
-    expect(gh).not.toHaveBeenCalled()
+    expect.soft(() => readReceiverState(file)).toThrow('invalid-receiver-state')
+    expect
+      .soft(() => readReceiverHealth({ file, repository: 'owner/repo' }))
+      .toThrow('invalid-receiver-state')
+    await expect.soft(check()).rejects.toThrow('invalid-receiver-state')
+    expect.soft(gh).not.toHaveBeenCalled()
     expect(() => item.owner.release()).toThrow('invalid-receiver-state')
     expect(existsSync(receiverPaths(file).pid)).toBe(true)
   })

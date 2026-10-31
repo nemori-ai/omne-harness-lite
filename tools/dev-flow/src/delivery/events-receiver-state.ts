@@ -132,10 +132,8 @@ export function processIdentity(pid: number): string | null {
 
 function startTime(value: unknown): string {
   const result = text(value, 'processStartedAt')
-  if (
-    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(result) ||
-    !Number.isFinite(Date.parse(result))
-  )
+  const parsed = Date.parse(result)
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString() !== result)
     throw new ReceiverError('invalid-receiver-state')
   return result
 }
