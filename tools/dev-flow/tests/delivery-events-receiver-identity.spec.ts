@@ -1,11 +1,13 @@
 // Kernel and wall-clock reads are controlled; receiver state uses real isolated files.
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { normalizeGithubEvent } from '../src/delivery/events.ts'
 import {
   makeChannelConfig,
+  readChannelConfig,
   receiverPaths,
   writePrivateJson,
 } from '../src/delivery/events-channel-config.ts'
@@ -14,7 +16,9 @@ import {
   claimChannelReceiver,
   processIdentity,
   readReceiverHealth,
+  readReceiverState,
 } from '../src/delivery/events-receiver-state.ts'
+import * as receiverState from '../src/delivery/events-receiver-state.ts'
 
 const kernel = vi.hoisted(() => ({
   bootId: '11111111-2222-4333-8444-555555555555',
@@ -22,6 +26,7 @@ const kernel = vi.hoisted(() => ({
   startedAt: 'Sun Nov  1 00:31:43 2026',
   statOverride: '',
   unreadable: false,
+  pid: 0,
 }))
 vi.mock('node:child_process', async importOriginal => ({
   ...(await importOriginal<typeof import('node:child_process')>()),
@@ -36,10 +41,10 @@ vi.mock('node:fs', async importOriginal => {
         if (kernel.unreadable) throw new Error('proc unavailable')
         return `${kernel.bootId}\n`
       }
-      if (args[0] === `/proc/${process.pid}/stat`)
+      if (args[0] === `/proc/${kernel.pid || process.pid}/stat`)
         return (
           kernel.statOverride ||
-          `${process.pid} (receiver (worker) test) S ${Array(18).fill('0').join(' ')} ${kernel.startTicks} 0\n`
+          `${kernel.pid || process.pid} (receiver (worker) test) S ${Array(18).fill('0').join(' ')} ${kernel.startTicks} 0\n`
         )
       return fs.readFileSync(...args)
     }),
@@ -48,23 +53,26 @@ vi.mock('node:fs', async importOriginal => {
 
 const homes: string[] = []
 beforeEach(() => {
-  vi.stubGlobal('process', { ...process, platform: 'linux' })
   vi.clearAllMocks()
   kernel.bootId = '11111111-2222-4333-8444-555555555555'
   kernel.startTicks = '14473'
   kernel.startedAt = 'Sun Nov  1 00:31:43 2026'
   kernel.statOverride = ''
   kernel.unreadable = false
+  kernel.pid = 0
 })
 afterEach(() => {
   vi.unstubAllGlobals()
   homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true }))
 })
-function connected() {
-  const root = resolve('../../tmp/issue-980/tests')
+function testDirectory() {
+  const root = resolve('../../tmp/issue-980/revision2/tests')
   mkdirSync(root, { recursive: true })
   const directory = realpathSync(mkdtempSync(join(root, 'identity-')))
   homes.push(directory)
+  return directory
+}
+function connected(directory = testDirectory()) {
   const file = join(directory, 'events.jsonl')
   const config = makeChannelConfig({
     repository: 'owner/repo',
@@ -82,6 +90,9 @@ function connected() {
 }
 
 describe('receiver identity across Linux clock correction', () => {
+  beforeEach(() => {
+    vi.stubGlobal('process', { ...process, platform: 'linux' })
+  })
   it.each(['health', 'release'])(
     'preserves %s when ps lstart changes for the same process',
     action => {
@@ -167,6 +178,8 @@ describe('receiver identity across Linux clock correction', () => {
     kernel.startedAt = '2026-11-01T00:31:43.0000000Z'
     const { file, owner } = connected()
     expect(processIdentity(process.pid)).toBe(kernel.startedAt)
+    expect(owner.state.processIdentity).toBe(kernel.startedAt)
+    expect(owner.state.processStartedAt).toBe('2026-11-01T00:31:43.000Z')
     expect(execFileSync).toHaveBeenCalledWith(
       platform === 'win32' ? 'powershell.exe' : 'ps',
       expect.any(Array),
@@ -178,8 +191,10 @@ describe('receiver identity across Linux clock correction', () => {
   })
 })
 
-function deliveryCheck(receivedAt: string) {
-  const item = connected()
+function deliveryCheck(
+  receivedAt: string,
+  item: Pick<ReturnType<typeof connected>, 'file' | 'config' | 'configPath'> = connected(),
+) {
   const hookEvidence = join(item.configPath, '..', 'hook-evidence.json')
   const record = normalizeGithubEvent(
     { 'x-github-event': 'issues', 'x-github-delivery': 'checked' },
@@ -230,15 +245,24 @@ describe('receiver delivery time validation', () => {
   beforeEach(() => {
     kernel.startedAt = '2026-11-01T00:31:43.000Z'
   })
-  it.each(['not-a-date', 'linux:boot:pid:tick', ''])(
-    'refuses invalid stored processStartedAt %j before reconciliation',
-    async startedAt => {
-      const { file, owner, gh, check } = deliveryCheck('2026-11-01T00:31:44.000Z')
-      writePrivateJson(receiverPaths(file).state, { ...owner.state, processStartedAt: startedAt })
-      await expect(check()).rejects.toThrow('invalid-receiver-state')
-      expect(gh).not.toHaveBeenCalled()
-    },
-  )
+  it.each([
+    'not-a-date',
+    'linux:boot:pid:tick',
+    '',
+    'Sun Nov  1 00:31:43 2026',
+    '2026-11-01T00:31:43',
+  ])('refuses invalid stored processStartedAt %j before reconciliation', async startedAt => {
+    const item = connected()
+    const { file, gh, check } = deliveryCheck('2026-11-01T00:31:44.000Z', item)
+    writePrivateJson(receiverPaths(file).state, {
+      ...readReceiverState(file),
+      processStartedAt: startedAt,
+    })
+    await expect(check()).rejects.toThrow('invalid-receiver-state')
+    expect(gh).not.toHaveBeenCalled()
+    expect(() => item.owner.release()).toThrow('invalid-receiver-state')
+    expect(existsSync(receiverPaths(file).pid)).toBe(true)
+  })
   it.each(['not-a-date', '', '2026-11-01T00:31:42.999Z'])(
     'rejects invalid or pre-start receivedAt %j before reconciliation',
     async receivedAt => {
@@ -248,12 +272,13 @@ describe('receiver delivery time validation', () => {
     },
   )
   it('accepts the startup boundary without using the stable identity as a timestamp', async () => {
-    const { gh, check, owner } = deliveryCheck(kernel.startedAt)
-    expect(Number.isFinite(Date.parse(owner.state.processStartedAt))).toBe(true)
+    const { gh, check, file } = deliveryCheck(kernel.startedAt)
+    expect(Number.isFinite(Date.parse(readReceiverState(file).processStartedAt))).toBe(true)
     expect(await check()).toMatchObject({ event: 'verified', wait: 'reconcile' })
     expect(gh).toHaveBeenCalledTimes(1)
   })
   it('does not claim a writer when its process start time is unavailable', () => {
+    vi.stubGlobal('process', { ...process, platform: 'linux' })
     kernel.startedAt = 'not-a-date'
     expect(() => connected()).toThrow('process-start-time-unavailable')
     expect(homes.every(home => !existsSync(receiverPaths(join(home, 'events.jsonl')).pid))).toBe(
@@ -261,3 +286,88 @@ describe('receiver delivery time validation', () => {
     )
   })
 })
+
+// Separate Vitest processes give each reader a real TZ, including on Windows workers.
+const timeWorker = process.env.OMNE_RECEIVER_TIME_WORKER
+if (timeWorker === 'producer') {
+  it('timezone producer', () => {
+    expect(new Date('2026-11-01T00:31:43Z').getTimezoneOffset()).toBe(0)
+    vi.stubGlobal('process', { ...process, platform: 'linux' })
+    connected(process.env.OMNE_RECEIVER_TIME_DIRECTORY)
+  })
+} else if (timeWorker === 'consumer') {
+  it('timezone consumer', async () => {
+    expect(new Date('2026-11-01T00:31:43Z').getTimezoneOffset()).toBe(-480)
+    const directory = process.env.OMNE_RECEIVER_TIME_DIRECTORY
+    const receivedAt = process.env.OMNE_RECEIVER_EVENT_TIME
+    if (directory === undefined || receivedAt === undefined) throw new Error('missing fixture')
+    const file = join(directory, 'events.jsonl')
+    const configPath = receiverPaths(file).config
+    const config = readChannelConfig(configPath)
+    kernel.pid = readReceiverState(file).pid
+    // Only identity queries use the Linux seam. Config permissions use the actual host.
+    const actualHealth = receiverState.readReceiverHealth
+    const health = vi.spyOn(receiverState, 'readReceiverHealth').mockImplementation(args => {
+      vi.stubGlobal('process', { ...process, platform: 'linux' })
+      try {
+        return actualHealth(args)
+      } finally {
+        vi.unstubAllGlobals()
+      }
+    })
+    try {
+      const { gh, check } = deliveryCheck(receivedAt, { file, configPath, config })
+      if (receivedAt === '2026-11-01T00:31:43.000Z') {
+        expect(await check()).toMatchObject({ event: 'verified', wait: 'reconcile' })
+        expect(gh).toHaveBeenCalledTimes(1)
+      } else {
+        await expect(check()).rejects.toThrow('real-event-not-received')
+        expect(gh).not.toHaveBeenCalled()
+      }
+    } finally {
+      health.mockRestore()
+    }
+  })
+} else {
+  it.each(['2026-10-31T20:31:43.000Z', '2026-11-01T00:31:43.000Z'])(
+    'checks event %s across UTC producer and Asia/Shanghai consumer processes',
+    receivedAt => {
+      const directory = testDirectory()
+      const vitest = fileURLToPath(
+        new URL('./vitest.mjs', import.meta.resolve('vitest/package.json')),
+      )
+      for (const [worker, tz] of [
+        ['producer', 'UTC'],
+        ['consumer', 'Asia/Shanghai'],
+      ]) {
+        const result = spawnSync(
+          process.execPath,
+          [
+            vitest,
+            'run',
+            'tests/delivery-events-receiver-identity.spec.ts',
+            '--typecheck.enabled=false',
+            '-t',
+            `^timezone ${worker}$`,
+          ],
+          {
+            encoding: 'utf8',
+            timeout: 30_000,
+            env: {
+              ...process.env,
+              TZ: tz,
+              NO_COLOR: '1',
+              FORCE_COLOR: '0',
+              OMNE_RECEIVER_TIME_WORKER: worker,
+              OMNE_RECEIVER_TIME_DIRECTORY: directory,
+              OMNE_RECEIVER_EVENT_TIME: receivedAt,
+            },
+          },
+        )
+        expect(result.error).toBeUndefined()
+        expect(result.status, `${worker} TZ=${tz}\n${result.stdout}\n${result.stderr}`).toBe(0)
+      }
+    },
+    60_000,
+  )
+}
