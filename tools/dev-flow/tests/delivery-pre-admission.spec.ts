@@ -42,7 +42,7 @@ describe('pre-admission script migration', () => {
     expect(calls[0]).toEqual({
       name: 'acceptance-lock',
       command: 'pnpm',
-      args: ['-s', 'run', 'acceptance:lock', '--base', 'origin/integration/legacy-refactor'],
+      args: ['-s', 'run', 'acceptance:lock', '--base', 'origin/integration/mainline'],
     })
     writeFileSync(join(input.worktree, '.git', 'omne-integration-context.json'), '{}')
     calls.length = 0

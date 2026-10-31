@@ -74,7 +74,7 @@ CLI接受显式 `--config` 及互斥的 `--capture`、`--live`。`--save-capture
 
 执行顺序固定如下：
 
-1. `pnpm -s run acceptance:lock`。已有 context 时不加 base；没有 context 时加 `--base origin/integration/legacy-refactor`。
+1. `pnpm -s run acceptance:lock`。已有 context 时不加 base；没有 context 时加 `--base origin/integration/mainline`。
 2. `node scripts/with-test-slot.mjs pnpm turbo run build --affected`。
 3. `pnpm run check:declarations`。
 4. `pnpm run contract:api --check`。
