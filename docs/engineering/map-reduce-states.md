@@ -7,14 +7,14 @@
 - 交付线：卡的路线与写入归属的单位，由[线归属表](delivery-lines.json)登记，见[交付线](integration.md#交付线)。
 - 线会话（Line）：推进一条交付线的常驻会话，跨波不换。交付线是归属，线会话是执行者。一个线会话负责的范围可以覆盖一个或几个领域，其中跨领域的集成与联调归这个线会话，见[集成节点的清单](integration.md#集成节点的清单)。
 - Reduce（集成节点）：同一里程碑唯一的 reduce 会话，兼调度者。它建卡、派发、集成并收口每一波。
-- 收口点 F(w)：第 w 波收口时实际读回的联调轨道提交。R(w) 是第 w 波的收口卡。下一波从 F(w) 开工。
+- 收口点 F(w)：第 w 波收口时实际读回的联调轨道提交。R(w) 是第 w 波的收口卡。下一波先把 F(w) FI 到各参加线的轨道，工作卡从实际同步后的线轨道头开工。
 - 递归：负责人认可的方向是递归的分形结构。同一个会话对上一级是 Line，对它派出的常驻下级线是 Reduce，在线内再做一次 map-reduce。对上一级它仍只在开工与交回两个边界协调，人仍只与最上一级的 Reduce 讨论设计。具体映射尚未设计。设计之前，本页其余各处的 Reduce 都指最上一级、同一里程碑唯一的 reduce 会话，线会话不设常驻下级线。设计由最上一级 Reduce 提出、交人接受，至少要定：嵌套层「唯一」的含义；嵌套 Reduce 原本向人提问或暂停的出口怎样改为向上一级交回；下级线的建卡、binding、attempt 与写范围（下级线不在线归属表里）；下级会话由谁创建、首次消息怎样转发；嵌套波与上一级波的对应，包括嵌套收口先于向上交回、上一级发 idle 或 terminal 时下级线收到什么。
 
 ## 1 事实与副作用
 
 负责人发出命令与外部事实成立是两件不同的事。没有读回成功的合并、关闭或评论，不写成成功。结果未知时，负责人先读回实际结果，再决定继续或重做。同一操作不因结果未知而重发第二次。
 
-可信事件是线父卡上带标记的记录、批次 PR 的状态、gate 运行结果和人的有效决定。普通评论只是提示，不授予开工、放行或返工。提示和状态图不提供文件级权限隔离。写范围、工作树隔离和单写检查仍要执行。
+可信事件是线父卡上带标记的记录、提升 PR 的状态、gate 运行结果和人的有效决定。普通评论只是提示，不授予开工、放行或返工。提示和状态图不提供文件级权限隔离。写范围、工作树隔离和单写检查仍要执行。
 
 ## 2 滚动规划与逐收口等待
 
@@ -49,7 +49,7 @@ control ∈ {RUN, RECOVER, STOPPING, STOPPED}
 stateDiagram-v2
     [*] --> PREPARE
     PREPARE --> DISPATCH: 首波设计和输入齐备
-    DISPATCH --> SERVE: 消息已展示且等待已挂起
+    DISPATCH --> SERVE: 消息已发送或展示且等待已挂起
     SERVE --> SERVE: 逐个处理批次与交回
     SERVE --> VERIFY_WAVE: WaveReady
     VERIFY_WAVE --> SERVE: 检查失败或候选变化
@@ -64,8 +64,8 @@ stateDiagram-v2
 | 阶段 | Reduce 的动作 | 离开条件 |
 | --- | --- | --- |
 | PREPARE | 备齐目标、设计、边界和首波输入，核对项见[阶段内的核对](#阶段内的核对)。用 `scope-cli` 求交，写集相交或产品语义读写交叉时改分解。经[提问前三问](#提问前三问)处理必要分歧 | 首波任务、R1 与 F0 已建并读回，写集求交通过，进入 DISPATCH。必要输入缺失且不能自主决定时留在 PREPARE，只把真实决定交人 |
-| DISPATCH | 按第 6 节依次生成、演练、校验首次消息，再打开供人转发。挂起[等待](integration.md#等待监督) | 消息已展示且等待已挂起，进入 SERVE。「已展示」不是「人已转发」，更不是「Line 已开工」 |
-| SERVE | 逐个处理批次 PR 与交回记录，见[阶段内的核对](#阶段内的核对)。blocked 或 failed 交回时按 [4.1](#41-遇阻交回与处置) 发 redo delta 或接管 | WaveReady 成立且没有进行中的轨道写入，进入 VERIFY_WAVE |
+| DISPATCH | 按第 6 节依次生成、演练、校验首次消息，再按授权直接发送或打开供人转发。挂起[等待](integration.md#等待监督) | 消息已发送或已展示且等待已挂起，进入 SERVE。发送、收到和认领分别读回，不能由前一项推断后一项 |
+| SERVE | 逐个处理提升 PR 与交回记录，见[阶段内的核对](#阶段内的核对)。blocked 或 failed 交回时按 [4.1](#41-遇阻交回与处置) 发 redo delta 或接管 | WaveReady 成立且没有进行中的轨道写入，进入 VERIFY_WAVE |
 | VERIFY_WAVE | 在联调轨道头运行整波检查与里程碑联调命令，见[阶段内的核对](#阶段内的核对) | 通过后进入 RELEASE_WAVE。检查失败或候选变化时回 SERVE，旧证据失效 |
 | RELEASE_WAVE | 按[收口顺序](#收口顺序)建下一波卡与 R(w+1)，发布全部存续线 delta，接受并读回 R(w)，关闭 R(w) | R(w) 已关闭且有后续波时回 SERVE，w 加 1，F 取 F(w)。下一波有新线加入时进入 DISPATCH，为新线生成首次消息。最后一波关闭后进入 FINALIZE |
 | FINALIZE | 收各线最终报告，核对里程碑结束条件 | 齐备后进入 DONE。仍有未交项时继续等待既定期限，不伪造完成 |
@@ -99,11 +99,12 @@ PREPARE：
 
 1. 建卡范围见[第 2 节](#2-滚动规划与逐收口等待)。
 2. 核对已接受依据、基线、消费者影响、参加交付的线与全部存续线清单、期限，以及 Claude Code 与 Codex 两种宿主的角色模型分配（见 `line` 技能的工作范式）。
-3. 在收口点的检出上做写集求交与读写交叉核对。命令、退出码与复核方法归[读写交叉的两类](integration.md#读写交叉的两类)。
+3. 核对线轨道登记与远端分支齐备、上游链有效，完成开波 FI 并记录固定同步点。线父卡不建立每波 Git binding；实际工作卡分别 binding 与 start。
+4. 在收口点的检出上做写集求交与读写交叉核对。命令、退出码与复核方法归[读写交叉的两类](integration.md#读写交叉的两类)。
 
-SERVE 一次接管一个批次 PR：
+SERVE 一次接管一个提升 PR：
 
-1. 保留原始 head、候选 head、targetBase 和 merge 链。
+1. 核对线已停写及工作卡进入线轨道的准入、gate 证据。保留来源原始 head、候选 head、目标 head、targetBase 和 merge 链。
 2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
 3. 同步后先用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
 4. 候选或基线变动后，重做受影响的验证与独立评审。
@@ -176,8 +177,8 @@ stateDiagram-v2
 | 阶段 | Line 的动作 | 离开条件 |
 | --- | --- | --- |
 | 开工 | 从首次消息取得身份、长程目标、方法地图与分工，从 delta 取得 F 与本波 assignment。核对任务卡上的 binding | active 或 redo：binding 齐全且任务卡开放，进入执行。事件接收器的健康状态和自检结果不阻止开工。idle：进入等待。输入缺失且无法自主解决：进入交回，结果为 blocked |
-| 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审。局部细节在授权内决定，不吸收新评论或新设计 | 本波完成，或无工作可继续，进入交回 |
-| 交回 | 开批次 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录。三样交回物的格式归[线会话记录](integration.md#线会话记录) | 交回记录已发布，Line 停写，进入等待 |
+| 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审。线负责人组织卡级准入，经 gate 入线轨道；同机整次准入互斥。局部细节在授权内决定，不吸收新评论或新设计 | 本波完成，或无工作可继续，进入交回 |
+| 交回 | 开提升 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录。三样交回物的格式归[线会话记录](integration.md#线会话记录) | 交回记录已发布，Line 停写，进入等待 |
 | 等待 | 用低层等待命令等线父卡上的下一条 `line-delta`，不结束会话回合。命令归[等待监督](integration.md#等待监督) | 按 delta 的 assignment 转移。每次唤醒与超时后的读回、去重与重挂按[等待监督](integration.md#等待监督)。等待命令失败时，Line 记录状态，等人转告 |
 | 终态 | 交最终报告 | 停止。只清理自己的资源 |
 
@@ -240,7 +241,9 @@ DispatchReady = authorizedAndBound ∧ prerequisitesKnown
                 ∧ everyCommandRehearsedOnSameLayout
                 ∧ allRequiredFieldsFilled ∧ noSecrets ∧ noContradictoryCopies
 
-GENERATED → REHEARSED → STRUCTURE_CHECKED → VALIDATED → OPENED_FOR_HUMAN → FORWARDED_REPORTED
+GENERATED → REHEARSED → STRUCTURE_CHECKED → VALIDATED
+直接通信：VALIDATED → SENT → RECEIVED → CLAIMED
+人工回退：VALIDATED → OPENED_FOR_HUMAN → FORWARDED_REPORTED
 ```
 
 `everyCommandRehearsedOnSameLayout` 指消息里的每条命令都已在本机按目标机的同一布局运行，输出已附进校验记录。
@@ -252,15 +255,18 @@ GENERATED → REHEARSED → STRUCTURE_CHECKED → VALIDATED → OPENED_FOR_HUMAN
 | GENERATED | render 写出临时文件并返回 sha256 | 内容已就绪或已给人看 |
 | REHEARSED | 消息里的每条命令已在本机同布局运行，演练证据针对这份消息的 sha256 | 命令输出正确 |
 | STRUCTURE_CHECKED | validate 带演练证据通过 | 剩余 guard 已核对 |
-| VALIDATED | DispatchReady 全部成立，Reduce 已逐项核对剩余 guard，版本和摘要固定 | 已转发 |
+| VALIDATED | DispatchReady 全部成立，Reduce 已逐项核对剩余 guard，版本和摘要固定 | 已发送或已转发 |
+| SENT | 通信工具返回发送成功，保存会话与消息标识 | Line 已收到或已认领 |
+| RECEIVED | 从目标会话读回该修订消息 | Line 已认领 |
+| CLAIMED | 目标会话明确认领本线责任，Reduce 读回该事实；工作卡 start 另行读回 | 工作卡已开工、工作已完成或已接受 |
 | OPENED_FOR_HUMAN | 侧边栏或 IDE 打开操作成功。queued 单列为等待展示 | 人已读或已转发 |
 | FORWARDED_REPORTED | 人在 reduce 会话说已转发 | Line 已开工 |
 
-FORWARDED_REPORTED 是派发链的最后一个状态。Line 开工后的进展由交回记录与批次 PR 体现，Reduce 不另读回认领。
+直接通信路径分别保存发送、收到和认领的回执。人工回退的 FORWARDED_REPORTED 只说明人报告已转发，不证明 Line 开工。后续进展继续由工作卡、交回记录与提升 PR 体现。
 
-人将文件正文原样复制到目标 Line 会话。Reduce 不自动给其他会话发消息，也不替人创建新的目标会话。需要改内容时，Reduce 重新生成新修订，不让转发者补缺字段或现场设计。公开材料使用目标机器可访问的精确提交链接。本机路径只用于该机器的运行绑定，不能伪装成跨机可读资料。频道 URL 和令牌只引用本机配置位置。
+已授权本机直接协作时，Reduce 通过 mirasim 创建或定位唯一 Line 会话，发送校验后的正文并读回；创建和通信只由 Reduce 执行。没有直接通信授权或能力时，由人将文件正文原样复制到目标 Line 会话。需要改内容时，Reduce 重新生成新修订，不让接收者补缺字段或现场设计。公开材料使用目标机器可访问的精确提交链接。本机路径只用于该机器的运行绑定，不能伪装成跨机可读资料。频道 URL 和令牌只引用本机配置位置。
 
-Line 开工前，Reduce 可以用新修订替代旧修订，并告诉人只转发新修订。Line 开工后，重复转发只接续同一执行。消息正文不授予 binding 未包含的权限。
+Line 开工前，Reduce 可以用新修订替代旧修订，直接发送或通知转发者只使用新修订。Line 开工后，重复转发只接续同一执行。消息正文不授予 binding 未包含的权限。
 
 ## 7 转移验收场景
 

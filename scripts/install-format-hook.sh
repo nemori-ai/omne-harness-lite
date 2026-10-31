@@ -19,7 +19,7 @@ if [[ "$git_root" != "$repo_root" ]]; then
 fi
 source_hook="$repo_root/scripts/pre-commit-format"
 hook_path="$(omne_repository_command git -C "$repo_root" rev-parse --git-path hooks/pre-commit)"
-if [[ "$hook_path" != /* ]]; then
+if [[ "$hook_path" != /* && "$hook_path" != [A-Za-z]:* ]]; then
     hook_path="$repo_root/$hook_path"
 fi
 

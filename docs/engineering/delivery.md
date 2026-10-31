@@ -96,10 +96,10 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
 
 - Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
-- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在卡的 PR 合入批次分支时运行。
-- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。为批次 PR 派发 gate 时，集成节点对线父卡运行这一步。批次内的各张任务卡停在 In review。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在候选 PR 交回时运行。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。线卡进入线轨道时，线负责人对实际工作卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实，不为线父卡建立 Git binding 或虚构 start。
 - Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
-- Accepted：调度者在接受决定读回后运行 `board-cli.ts accepted`。批次内的任务卡由集成节点在按卡接受时运行。
+- Accepted：具名调度者在本卡有效接受决定读回后运行 `board-cli.ts accepted`。入线轨道、提升与接受分别记录，不能由 Git 运输推定接受。
 
 标签是正文的投影，不是第二个源。下表列出调度用的标签族：
 

@@ -81,6 +81,7 @@ export async function checkChannelReceiver(args: {
     event.number !== args.issue ||
     record(event.receiver, 'receiver').instanceId !== config.instanceId ||
     typeof event.receivedAt !== 'string' ||
+    !Number.isFinite(Date.parse(event.receivedAt)) ||
     Date.parse(event.receivedAt) < Date.parse(health.processStartedAt)
   )
     throw new ReceiverError('real-event-not-received')

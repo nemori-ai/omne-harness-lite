@@ -35,9 +35,11 @@
       "line": {
         "integration": "f6ab4114",
         "session-agent": "de362038",
+        "session-run": "17bcd2f0",
         "model": "bf744b7f",
         "tool-exec": "9d7c0d86",
         "governance": "4c163605",
+        "app-access": "1fead18b",
         "platform": "c3de77c0",
         "time-reach": "b64462fc",
         "engineering-toolchain": "d7c1e6c4"
