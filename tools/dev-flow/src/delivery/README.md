@@ -137,7 +137,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 调度者在登记 attempt 前运行这个检查：
 
 - 调度者从任务信息包引用的正文页整理每张卡的读集文件，与卡号或 binding 文件一起传入。读集用独立的 JSON 文件，不写进 binding，因为 binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
-- 命令读运行它的检出的工作树来取成员清单与依赖，读这个检出的 `HEAD` 来取分类用的配置与文件清单。在收口点的检出上运行时，分类的基础就是收口点。命令不读 binding 中的 `taskBase`，也不核对 `HEAD` 是否等于它。线内的卡的 taskBase 可以是批次分支头，与收口点不同。所以调度者用 `readBasis.commit` 核对分类所用的提交。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
+- 命令读运行它的检出的工作树来取成员清单与依赖，读这个检出的 `HEAD` 来取分类用的配置与文件清单。在收口点的检出上运行时，分类的基础就是收口点。命令不读 binding 中的 `taskBase`，也不核对 `HEAD` 是否等于它。线内的卡的 taskBase 是实际线轨道头，可以与联调轨道收口点不同。所以调度者用 `readBasis.commit` 核对分类所用的提交。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
 - 同一条线顺序推进的几张卡，把写范围之并与读集之并作为一张卡传入，与写范围求交的做法相同。
 - 两条线写同一成员中不同的文件时，双方都读这个成员，所以总是报读写交叉。一方写的是 `tools`、`scripts` 下成员中没有登记的 `.md` 说明页时，这个方向的交叉归工程方法与验证正文。其他文件按 `WS(a) ∩ RS(b) = ∅` 判，这两张卡不能在同一波，调度者改分解。
 
@@ -157,7 +157,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
    - 合并提交取 `git diff-tree --cc` 列出的文件，即与每个父提交都不同的文件：冲突的解决、合并时另加的改动，以及两侧都改过的文件（没有冲突也算）。
    - 合并带进来的提交（其他父提交可达、第一父提交不可达的提交）中，在本卡以外的远端跟踪分支上的不计入：目标分支、批次分支与别的卡来自远端。其余按上面两条逐个计入，例如本卡的本地侧分支。
    - 再加上工作树中与 HEAD 不同的已跟踪文件，以及 Git 不忽略的未跟踪文件。
-   - 不用 context 的 `targetBase`。它是远端目标分支头，可以早于批次头。
+   - 这项卡级写范围检查不用 context 的 `targetBase`，因为它只归因本卡从 taskBase 起的改动。影响面与组合检查仍使用 targetBase，不得据此忽略目标同步。
 3. `tmp` 下的路径与线归属表 `shared` 中的路径不计入。其余每个文件：
    - 不在 binding 的 `writeScope` 任一项之下时，为 `change-outside-scope`。
    - binding 为版本2、交付线不是 `integration` 时，文件归属于别的线或联调轨道为 `change-outside-line`。归属按 [lines.ts](lines.ts) 的 `scopeOwners` 判断。交付线为 `integration` 的卡与版本1的 binding 不做这一项：版本1的 binding 没有交付线字段。
@@ -242,7 +242,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts <dispat
 | ------------- | --------------------------------------------- | ------------------------------------------------------------------------ |
 | `dispatched`  | Dispatched at、Line、Kind、Wave               | `start` 新建 context 后自动写入。自动写入失败时调度者补写                |
 | `delivered`   | Delivered at，Status 改为 In review           | 调度者在执行者交回候选 PR 时                                             |
-| `integrating` | Status 改为 Integrating                       | 候选通过准入、经 gate 进入轨道时，在合入之前。一波并行的卡由集成节点运行 |
+| `integrating` | Status 改为 Integrating                       | 候选通过准入、经 gate 进入轨道时，在合入之前。线卡由线负责人运行；提升由 Reduce 记录实际运输事实 |
 | `accepted`    | Accepted at、Cycle days，Status 改为 Accepted | 调度者在接受决定读回后                                                   |
 
 - 日期缺省为运行时刻在 `board.timeZone` 时区中的日期，现为 UTC。`--date` 用于补写。
@@ -408,7 +408,7 @@ pnpm --filter @omne-harness/dev-flow typecheck
 
 ## 首次派发临时消息
 
-Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。
+Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。模板正文先列技能与实际工作树的阅读入口。线级上下文地图与拥有者入口从 `line_pack_ref` 引用，本线专项技能填入 `line_work_kind`；宿主与模型选择仍由 `machine_and_host`、`role_policy_ref` 承接。线父卡不需要每波 Git binding，`binding_refs` 引用实际工作卡。
 
 ```sh
 pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
@@ -452,4 +452,4 @@ validate 按下列规则检查，任一项不满足就退出 2，不输出 STRUC
 
 证据里多出的条目（例如线包里的命令）不报错。结果的 `matchedCommands` 是消息里不同命令的条数，`extraEntries` 按原文列出与消息命令都不匹配的证据项。非 0 退出码不使 validate 失败，结果的 `nonZeroExits` 逐条列出。例如带 `--timeout` 的等待命令演练时退出 3。Reduce 逐条说明这些退出码。
 
-GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后通过宿主侧边栏或 IDE 打开 path，分别记录打开结果和人的转发声明。queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
+GENERATED 只证明文件已生成。STRUCTURE_CHECKED 只证明字段、修订、常见敏感模式、字节和演练证据的覆盖通过。它不证明命令输出正确。Reduce 按返回的 remainingGuards 逐项核对后，才能记录 VALIDATED。常见格式扫描不能证明没有其他秘密。之后按本次授权直接发送或通过宿主侧边栏、IDE 打开 path 供人转发。直接发送由 Reduce 使用通信工具完成，分别读回发送成功、收到与认领；生成器不负责通信。人工路径分别记录打开结果和转发声明，queued 不算已打开。完整阶段规则归[负责人状态](../../../../docs/engineering/map-reduce-states.md#6-初始派发消息的生成与人工转发)。
