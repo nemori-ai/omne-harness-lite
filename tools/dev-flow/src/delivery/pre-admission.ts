@@ -14,7 +14,7 @@ export function preAdmissionSteps(bound: boolean): AdmissionStep[] {
         '-s',
         'run',
         'acceptance:lock',
-        ...(bound ? [] : ['--base', 'origin/integration/legacy-refactor']),
+        ...(bound ? [] : ['--base', 'origin/integration/mainline']),
       ],
     },
     {
