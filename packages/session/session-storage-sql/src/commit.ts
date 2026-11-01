@@ -148,6 +148,9 @@ export async function commit<P, K extends MutationName>(
     return failure({ kind: 'denied', action: command.kind })
   const decided = await qualify(context, mutationAccessRequest(access, command))
   if ('failure' in decided) return decided
+  // A Tool target is refused before any identity, session or storage lookup (SPEC XC-INTERRUPT).
+  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+    return failure({ kind: 'unsupported' })
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
   let facts: Record<string, JsonValue>
