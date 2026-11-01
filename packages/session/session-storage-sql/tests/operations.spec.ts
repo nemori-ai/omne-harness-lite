@@ -202,7 +202,7 @@ describe('commit response evidence', () => {
     const refused = failureOf(await cancel(a, 'bad', ''))
     const receipt = await a.provider.storage.query(identityOf('bad', 1))
     expect(receipt.kind).toBe('rolled_back')
-    const stop = (receipt as { responses: { reply: { kind: string; basis: { failure: unknown } } }[] })
+    const stop = (receipt as unknown as { responses: { reply: { kind: string; basis: { failure: unknown } } }[] })
       .responses.at(-1)?.reply
     expect(stop?.kind).toBe('conflict')
     expect(stop?.basis.failure).toEqual(refused)
