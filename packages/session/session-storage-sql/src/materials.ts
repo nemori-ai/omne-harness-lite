@@ -1,5 +1,6 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their two migrations and their read handlers, as the SQL storage contract describes them
+// their three migrations (two of `session`: the log and the execution index) and their read
+// handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
 // combination). The application
@@ -23,7 +24,13 @@ import {
   EXECUTION_RECORD_MIGRATION,
   EXECUTION_RECORD_TABLES,
 } from './worker/execution-record-schema.ts'
-import { MIGRATION, PROTOCOL, SESSION_TABLES } from './worker/schema.ts'
+import {
+  EXECUTION_INDEX_MIGRATION,
+  EXECUTION_INDEX_TABLES,
+  MIGRATION,
+  PROTOCOL,
+  SESSION_TABLES,
+} from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
@@ -36,6 +43,10 @@ function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
 }
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
+const indexMigrationRef = Object.freeze({
+  owner: EXECUTION_INDEX_MIGRATION.owner,
+  id: EXECUTION_INDEX_MIGRATION.id,
+})
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
   id: EXECUTION_RECORD_MIGRATION.id,
@@ -83,6 +94,12 @@ export const HANDLERS: readonly Handler[] = [
     migrations: [migrationRef, recordMigrationRef],
   },
   {
+    handler: 'session.execution',
+    file: 'read-execution-session',
+    tables: ['sl_execution_idx'],
+    migrations: [indexMigrationRef],
+  },
+  {
     handler: 'execution-record.state',
     file: 'read-execution-state',
     tables: ['er_root', 'er_state'],
@@ -110,6 +127,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
   const record = module('execution-record')
   const migration = module('migration')
   const recordMigration = module('execution-record-migration')
+  const indexMigration = module('execution-index-migration')
   return {
     participants: [
       {
@@ -129,7 +147,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: SESSION_TABLES,
+        ownedTables: [...SESSION_TABLES, ...EXECUTION_INDEX_TABLES],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [],
         providesFacts: [],
@@ -149,6 +167,12 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         moduleUrl: recordMigration.moduleUrl,
         checksum: recordMigration.digest,
         requires: [],
+      },
+      {
+        ...indexMigrationRef,
+        moduleUrl: indexMigration.moduleUrl,
+        checksum: indexMigration.digest,
+        requires: [migrationRef],
       },
     ],
     readHandlers: HANDLERS.map(item => {

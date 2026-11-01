@@ -28,11 +28,13 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import indexMigration from '../../src/worker/execution-index-migration.ts'
 import recordMigration from '../../src/worker/execution-record-migration.ts'
 import executionRecord from '../../src/worker/execution-record.ts'
 import migration from '../../src/worker/migration.ts'
 import participant from '../../src/worker/participant.ts'
 import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionSession from '../../src/worker/read-execution-session.ts'
 import readExecutionState from '../../src/worker/read-execution-state.ts'
 import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
@@ -56,6 +58,7 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readHistoryRoot,
   readExecutionState,
   readExecutionOperation,
+  readExecutionSession,
 ]
 
 /** The participant modules by name; the execution order is the order of the commands. */
@@ -63,7 +66,7 @@ const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
   [participant.participant, participant],
   [executionRecord.participant, executionRecord],
 ])
-const MIGRATIONS: readonly MigrationModule[] = [migration, recordMigration]
+const MIGRATIONS: readonly MigrationModule[] = [migration, recordMigration, indexMigration]
 
 export type StorageCall =
   | Readonly<{ kind: 'read'; handler: string; domain: DomainRef; input: unknown }>

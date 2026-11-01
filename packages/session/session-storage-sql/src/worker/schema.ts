@@ -54,3 +54,18 @@ export const SESSION_TABLES: readonly string[] = [
 
 export const MIGRATION = Object.freeze({ owner: 'session', id: '001-session-log' })
 export const PROTOCOL = '1'
+
+// The execution index, derived from SE13 in the commit that writes it: the session, the Run and
+// the position of the SE13 entry of each execution. An execution is unique within its tenant.
+export const EXECUTION_INDEX_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_execution_idx (
+    tenant TEXT NOT NULL, execution TEXT NOT NULL, session TEXT NOT NULL, run TEXT NOT NULL,
+    position INTEGER NOT NULL, PRIMARY KEY (tenant, execution)) STRICT`,
+]
+
+export const EXECUTION_INDEX_TABLES: readonly string[] = ['sl_execution_idx']
+
+export const EXECUTION_INDEX_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '002-execution-index',
+})

@@ -39,6 +39,11 @@ export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
 export const SESSION_WORK_HANDLER = 'session.work'
 /** The read handler of one ordinary input of one session (input: tenant, session and input). */
 export const SESSION_INPUT_HANDLER = 'session.input'
+/**
+ * The read handler of the execution index (input: tenant and execution): the session, the Run and
+ * the SE13 position of the execution, or null when no Run of the tenant started it.
+ */
+export const SESSION_EXECUTION_HANDLER = 'session.execution'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
   /** The publication count and the opaque state of the records of one session. */
@@ -337,6 +342,24 @@ export function decodeExecutionRecordOperation(
   return value === null || typeof digest !== 'string'
     ? 'malformed'
     : { digest, answer: value['answer'] ?? null }
+}
+
+// ---------------------------------------------------------------------------------------------
+// The execution index
+
+/** The input of `session.execution` and the output it gives (null: no Run of the tenant started it). */
+export type SessionExecutionRead = Readonly<{ tenant: string; execution: string }>
+export type SessionExecution = Readonly<{ session: string; run: string; position: string }>
+
+export function decodeSessionExecution(output: JsonValue): SessionExecution | null | 'malformed' {
+  if (output === null) return null
+  const value = recordOf(output)
+  const session = value?.['session']
+  const run = value?.['run']
+  const position = value?.['position']
+  return typeof session === 'string' && typeof run === 'string' && typeof position === 'string'
+    ? { session, run, position }
+    : 'malformed'
 }
 
 // ---------------------------------------------------------------------------------------------
