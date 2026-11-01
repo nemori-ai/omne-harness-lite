@@ -138,7 +138,7 @@ stdout 每行一条 JSON 记录：
 | 4      | 仍有 PENDING 或未完成 LOADING                                                     |
 | 5      | 启动码为 0 但关闭 incomplete                                                      |
 
-启动码非零时取启动码。启动期 `start` 抛出时的退出码见「有序关闭」节的裁定 3。
+启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节的裁定 3。
 
 用法错误时，stderr 写 `s0: <原因>`，再写一行用法：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。
 
@@ -168,7 +168,7 @@ stdout 每行一条 JSON 记录：
 
 1. 启动次序：阶段之间按关闭次序的逆序，即 `storage`、`composition`、`business`、`entry`。同一阶段内按登记次序。上文「登记」一节与规格 §5.2 所说的「登记次序」按这句理解。
 2. 进入停止状态后，不再调用任何新的 `start`，包括启动尚未走完的时候。每个阶段开始前、每个句柄的 `start` 调用前，都检查停止状态。
-3. 启动期某个 `start` 抛出时，进入停止状态，走整套有序关闭，共用截止时间 D。已启动的句柄按关闭次序停止。最终报告把该句柄记为 `failed`，最后撤除根。`startup-result` 写启动失败。退出码是启动失败对应的退出码。若现有映射没有对应码，则为 3。合回时以代码写者交回的为准，并回头核对本页。
+3. 启动期某个 `start` 抛出时，进入停止状态，走整套有序关闭，共用截止时间 D。已启动的句柄按关闭次序停止。最终报告把该句柄记为 `failed`，最后撤除根。`startup-result` 的 `outcome` 为 `start-failed`，并多一个 `startFailure` 字段，写明行与原因。退出码为 3，沿用 FAILED 的映射。替身配置新增测试输入 `startBehavior: 'fail'`，与 `stopBehavior` 同类，只用于测试，CLI 不暴露。这些字面来自卡树 head `df527a879` 的代码写者交回，合回时对照代码核对本页。
 
 **结果。**整体 `incomplete` 时，进程不能报告平滑退出成功。下次启动时，未决工作由原拥有者按原身份查询与认回。
 
