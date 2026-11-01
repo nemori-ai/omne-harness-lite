@@ -1,6 +1,6 @@
 # verification/models
 
-本目录承载本包的形式模型。当前内容是五个状态空间模型的登记。模型的脚本与结果文件尚未迁入本目录，也没有重跑。本页不宣称任何性质已验证。
+本目录承载本包的形式模型。当前内容有两部分：Journal 收尾协议的有界模型 [Finishing.tla](Finishing.tla) 及其配置、运行脚本与回放轨迹；五个旧状态空间模型的登记。旧模型的脚本与结果文件尚未迁入本目录，也没有重跑。
 
 ## 允许的内容
 
@@ -8,7 +8,55 @@
 
 ## 边界
 
-模型通过不等于实现符合。下表登记五个模型。性质列写模型检查的不变量，前提列写模型的抽象，未覆盖列写模型没有建模的状态空间。每个模型另有一个负控变体，负控变体违反该性质并给出反例轨迹，用于确认检查器能检出违反。
+模型通过不等于实现符合。有限模型检查的结论只在所列规模上限内成立，不写成证明。
+
+### 收尾协议模型（AG-23）
+
+[Finishing.tla](Finishing.tla) 检查 SPEC 的 Journal 收尾协议：候选与路线、终结责任清单、取消判断，commit 的 F1 与 F2、prepareFinish、tryFinish，commitSettlement 的六个变体，消息交接 P、Ja、Rh、exclude 与 `currentHandoff` 指针，有效取消与 Session 参加者，崩溃、重试与同操作认回。状态与事件的对应、抽象、环境假定、规模上限与回放映射见 [formal-mapping.md](../formal-mapping.md)。每次运行的记录见 [formal-runs.md](../formal-runs.md)。
+
+| 文件 | 用途 |
+| --- | --- |
+| `valid.cfg`、`valid-cancel.cfg`、`valid-coordinated.cfg` | 安全性质的正控。每份检查八条安全性质、`TypeOK` 与动作性质 `PointerByJa` |
+| `live.cfg`、`live-cancel.cfg` | 活性 `CancelSettles` 的正控，在 `LiveSpec` 的公平性假定下检查 |
+| `bad-<错误>.cfg` | 负控。每份打开一个故意的错误，只检查它应命中的那一条性质 |
+| `probe-keep-cancelled.cfg` | 探针，不是控制。检查内存 Journal 的读法下 `CancelSettles` 是否成立 |
+| `trace-*.cfg` | 轨迹导出。`TraceSpec` 只含回放驱动能映射的步骤 |
+| `finishing-traces.json` | `run.py traces` 导出的轨迹。`src/testing-journal-replay.ts` 内嵌同一份内容，成员自测核对两者相等 |
+| `run.py` | 串行运行 TLC，判读结果，保存证据，导出轨迹 |
+
+性质与负控的对应：
+
+| 性质 | 负控配置 | 故意的错误 |
+| --- | --- | --- |
+| `NoEndWithPending` | `bad-skip-pending` | author route 的 tryFinish 不检查待办项 |
+| `UnknownNotBlockedOrEnded` | `bad-unknown-as-pending` | 未定项按待办处理：tryFinish 返回 blocked，判断为 blocked |
+| `CancelFirst` | `bad-ignore-cancel` | 推进授权下的 F1、prepareFinish 与 tryFinish 不看有效取消 |
+| `NoEndOutsideSettling` | `bad-stale-intent` | prepareFinish 与 tryFinish 不核对 execution 是否在 settling |
+| `NoStaleJudgment` | `bad-stale-judgment` | tryFinish 不比较判断输入与当前闭包 |
+| `PointerByJa` | `bad-rh-moves-pointer` | Rh 也清除 `currentHandoff` |
+| `OneCustodian` | `bad-release-before-custody` | custody 写入的回执未定时，生产者已释放副本 |
+| `ReplayOriginal` | `bad-recheck-before-recognize` | 同一操作重试时先检查生命周期，后认回原结果 |
+| `CancelSettles` | `bad-new-run-blocks-cancel` | 旧 execution 的收束步骤等待新 Run 占用的槽位 |
+
+运行方法：从仓库根经运行名额执行。
+
+```sh
+node scripts/with-test-slot.mjs python packages/agent/agent-contract/verification/models/run.py
+node scripts/with-test-slot.mjs python packages/agent/agent-contract/verification/models/run.py traces
+```
+
+第一条运行全部正控、负控与探针。在命令后追加配置名可以只运行这几项。第二条导出轨迹，改写 `finishing-traces.json`，并改写回放驱动 `src/testing-journal-replay.ts` 末尾标记之后的轨迹常量。之后用 `pnpm exec oxfmt` 整理回放驱动，重新构建本包，再运行本包测试与两处回放用例。`TLA2TOOLS_JAR` 指向 tla2tools 1.7.4，`JAVA_BIN` 可指定 Java。`FORMAL_OUTPUT_DIR` 指定证据目录，默认是仓库 `tmp/formal/agent-contract-finishing/runs/`。`FORMAL_BUDGET_SECONDS`（默认 1200）、`FORMAL_WORKERS`（默认 4）与 `FORMAL_HEAP`（默认 `-Xmx4096m`）调整单案预算与资源。
+
+判读规则：
+
+- 正控须退出 0，并输出 `Model checking completed. No error has been found.`。
+- 安全负控须退出非零，TLC 报告的被违反性质恰好是配置指定的那一条，并给出反例轨迹。
+- 活性负控与探针只有一条 PROPERTY。TLC 的时序违反报告不写性质名，所以按该配置判读：须报告 `Temporal properties were violated.` 并给出反例。
+- 超时、解析失败、求值错误与未执行都不算通过。非零退出本身不算负控通过。
+
+### 旧模型的登记
+
+下表登记五个旧模型。性质列写模型检查的不变量，前提列写模型的抽象，未覆盖列写模型没有建模的状态空间。每个模型另有一个负控变体，负控变体违反该性质并给出反例轨迹，用于确认检查器能检出违反。
 
 | 模型 | 性质 | 对应条款 | 前提 | 负控反例 | 未覆盖 |
 | --- | --- | --- | --- | --- | --- |
@@ -26,8 +74,8 @@
 
 ## 本包事实
 
-- 当前内容：上表的五个模型登记。没有模型源文件，没有运行结果文件。
-- 来源：源文件与结果文件不在本包。迁入前本页只是登记。
-- 状态：已登记，未重跑，未验证。本页登记的性质不是已验证的事实，不能作为验证证据。
+- 当前内容：收尾协议模型的源文件、配置、运行脚本与导出轨迹；五个旧模型的登记。
+- 收尾协议模型的状态：在 [formal-runs.md](../formal-runs.md) 所列规模上限内，正控通过，每条性质的负控命中该性质。这不是证明，也不表示实现符合模型。两份内存 Journal 的回放结果见同一页。
+- 旧模型的来源与状态：源文件与结果文件不在本包，迁入前只是登记。已登记，未重跑，未验证，不能作为验证证据。
 - 证据缺口：作者协议的回放协议，即唯一提交点加幂等认回，尚无行为模型。扩展调用先提交已请求、调用后提交结论、结果未知时以 `replay` 重调、能力按经过身份加操作序号认回原操作，这条链的“已有最终结论的调用不再调用”“认回不重复计费”与“比对不一致后锁存”都只由 SPEC 与作者协议页陈述，场景推演见[持续验证场景](../scenarios.md#扩展调用的接续)。本页不宣称它已验证。补模型时按上表的格式登记性质、前提、未覆盖和负控变体。
 - 负责人：本包的维护者。迁入前的缺口是源文件、运行结果与检查器版本三项。
