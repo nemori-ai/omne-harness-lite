@@ -11,7 +11,7 @@ Runtime Context 的纯契约成员，`module` 变体。
 状态：契约成员，`draft`。[SPEC](SPEC.md) 写明了哪些部分由技术接受采用，哪些部分依据产品正文第 4 版写入。现在的实现情况如下：
 
 - 已实现：根入口的值类型、两个解码函数和五个纯函数。
-- 已实现：需要、绑定、注册、资格、读者、更新、步提交、变化材料，五个纯函数与两个解码函数。`./testing` 提供核心、扩展、权威与恢复四组契约套件、可编排的权威端口替身和明确无耐久保证的内存替身。
+- 已实现：需要、绑定、注册、资格、读者、更新、步提交、变化材料，五个纯函数与两个解码函数。`./testing` 提供核心、扩展、权威与恢复四组契约套件、可编排的权威端口替身和明确无耐久保证的内存替身。根类型 `RuntimeContextTrust<P>` 把两个原端口合成一份构造输入；`./testing` 另有 `runtimeContextTrustConformance` 与固定替身 `createTestRuntimeContextTrust`（无耐久）。真实同步失效来源仍是缺口（#677）。
 - 未验证：SPEC 的全部行为条款。本成员没有运行实现，不宣称租户隔离、并发、恢复或性能通过。
 
 现在的真实消费者是 execution-environment-contract 与 execution-environment，它们使用作用域引用与块声明类型。
