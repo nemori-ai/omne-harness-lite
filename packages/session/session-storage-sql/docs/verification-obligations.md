@@ -55,6 +55,7 @@ head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、�
 | VS-W12 | 尝试代次：前面代次全部回滚时开新代次；有已提交代次时认回；有未知代次时 `commit-unknown`；达到上限时 `unavailable`；新代次开出后旧代次不会生效 | 按代次回执组合构造用例；`changed` 后同身份重做、同一受理标识在回滚后重试、两个消费者并发 `receive` 同一事件，核对都不得到 `conflict` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W13 | Session 输入摘要只覆盖语义参数：只差认证封套、`expected` 或材料内容的两次提交摘要相同 | 构造这三类差异的命令对，比较 `sl_operation.input_digest` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W14 | 撤销归档同批删除该会话在 `sl_released_scope_idx` 的行 | 归档、释放读回、撤销归档，再查 `releasedScopes` | [W3](../SPEC.md#w3) |
+| VS-W15 | 一次提交带着的访问证据与它的操作记录在同一事务写入（`sl_operation_evidence`）；认回不改原证据；回滚后没有证据行；另一租户读不到 | 委派视图与公开端口各提交一次、认回一次、在操作行之后注入失败、以另一租户的名字查询 | [操作记录的访问证据](../SPEC.md#操作记录的访问证据) |
 | VS-W10 | `decide` 往返：`reduce(前状态, decide(...) 的批次)` 得到命令要求的后态，且等于提交后 `readWork` 读到的快照 | 随机命令序列，每个 JC 行至少一例。对每次提交比较三者：命令要求的后态、`reduce` 结果、`sl_state`。`quarantined` 计为失败 | [W1](../SPEC.md#w1) 第 6、7 步、[编码与归约的拥有者](../SPEC.md#编码与归约的拥有者) |
 | VS-W11 | 参加者模块不在 `decide` 之外调用领域服务，也不另写编码 | 实现的导入核对：参加者模块只从 `session-contract` 导入 OP-00 派生、`decide` 与 `reduce`，不直接导入 message 包的判定函数 | [编码与归约的拥有者](../SPEC.md#编码与归约的拥有者) |
 

@@ -27,7 +27,7 @@ import type {
   ReceiptV2,
   SqlIdentity,
 } from '@omne-harness/sql-contract'
-import { canonicalText, decodeValue } from './codec.ts'
+import { canonicalText, decodeValue, encodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
 import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
 import {
@@ -44,7 +44,14 @@ import {
  * digest under the same identity is another operation (SL07).
  */
 export type Expected = Readonly<{ operation: SessionOperationId; digest: string }>
-type Found = Readonly<{ kind: 'operation'; form: string; receipt: JsonValue; result: JsonValue }>
+type Found = Readonly<{
+  kind: 'operation'
+  form: string
+  receipt: JsonValue
+  result: JsonValue
+  /** The access evidence stored with the record; null when its commit carried none. */
+  evidence: JsonValue
+}>
 type Rest = Awaited<ReturnType<typeof exclusion>>
 
 const identityOf = (domain: TenantDomainRef, operation: string, key: string): SqlIdentity => ({
@@ -198,7 +205,10 @@ export async function commit<P, K extends MutationName>(
   if ('failure' in domain) return domain
   let facts: FactCommandV2
   try {
-    facts = sessionCommandFacts(command, input.guards)
+    // The allowed decision goes into the facts, so the participant writes it with the operation
+    // record in the same transaction (session-contract SPEC「当前操作的访问裁定」).
+    const base = sessionCommandFacts(command, input.guards)
+    facts = { ...base, facts: { ...base.facts, evidence: encodeValue(decided.ok) } }
   } catch (error) {
     return failure({
       kind: 'invalid',
