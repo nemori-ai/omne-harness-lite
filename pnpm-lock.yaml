@@ -1550,6 +1550,9 @@ importers:
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../agent/agent-contract
+      '@omne-harness/agent-cordis-contract':
+        specifier: workspace:*
+        version: link:../../agent/agent-cordis-contract
       '@omne-harness/content-block':
         specifier: workspace:*
         version: link:../../common/content-block
