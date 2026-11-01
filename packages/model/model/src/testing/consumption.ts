@@ -4,30 +4,10 @@ import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { decodeResultVersion } from '@omne-harness/model-contract'
 import { decodeReadId } from '@omne-harness/model-contract/provider'
 import { authFailure, missingReceipt, unresolved } from '../commands/judge.ts'
-import { MemoryState, bump, type MemoryCall } from './state.ts'
+import { expireReads, releaseMaterial } from '../commands/state.ts'
+import { MemoryState, bump } from './state.ts'
 import { invalid, readId } from './value.ts'
 
-function expireReads(call: MemoryCall, now: () => string, idleMs: number): void {
-  for (const read of call.reads.values()) {
-    if (
-      read.state.kind === 'reading' &&
-      Date.parse(now()) - Date.parse(read.lastProgress) >= idleMs
-    )
-      read.state = { kind: 'ended', reason: 'stalled' }
-  }
-}
-function releaseMaterial(call: MemoryCall): void {
-  call.request = null
-  call.snapshots.clear()
-  for (const dispatch of call.dispatches) {
-    dispatch.blocks = []
-    dispatch.assembly = null
-    dispatch.nextSeq.clear()
-    dispatch.trims.clear()
-    dispatch.hadContent.clear()
-    dispatch.windows.clear()
-  }
-}
 export function consumptionCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {

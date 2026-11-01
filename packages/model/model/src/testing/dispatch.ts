@@ -1,11 +1,10 @@
 import type { Outcome } from '@omne-harness/operation-result'
 import { checkedOutcome, checkedEvidence } from './value.ts'
 import { decodeDispatchId } from '@omne-harness/model-contract'
-import type { Termination, ModelFailure, Revision, Snapshot } from '@omne-harness/model-contract'
+import type { ModelFailure, Revision, Snapshot } from '@omne-harness/model-contract'
 import type { ModelCommands, WriteContext } from '@omne-harness/model-contract/provider'
-import { accountFact, reduceFacts } from './arrival.ts'
+import { accountFact, lateTerminal, mergeReceiveWindow, reduceFacts } from '../commands/state.ts'
 import {
-  completionOf,
   dispatchOf,
   encodedBytes,
   evidenceContext,
@@ -22,23 +21,6 @@ import {
 import { MemoryState, bump, type MemoryCall, type MemoryDispatch } from './state.ts'
 import { cursor, digest, invalid, operation } from './value.ts'
 
-/**
- * Records an actual terminal that arrived late. Content that does not form a message leaves the
- * logical terminal open; reasoning state without a known replay range refuses the whole fact, as
- * at the finish.
- */
-function lateTerminal(
-  call: MemoryCall,
-  dispatch: MemoryDispatch,
-  actual: Termination,
-): ModelFailure | null {
-  dispatch.record = { ...dispatch.record, terminal: structuredClone(actual) }
-  if (dispatch.logicalTerminal !== null) return null
-  const completion = completionOf(call, dispatch, actual)
-  if (completion.kind === 'replay-unknown') return completion.failure
-  if (completion.kind === 'formed') dispatch.logicalTerminal = structuredClone(actual)
-  return null
-}
 export function dispatchCommands<P>(
   store: MemoryState<P>,
 ): Pick<
@@ -130,24 +112,6 @@ export function dispatchCommands<P>(
       complete.ok.paused === true &&
       complete.ok.noPrefetch === true
     return { ok: proven }
-  }
-  function mergeReceiveWindow(
-    call: MemoryCall,
-    dispatch: MemoryDispatch,
-    window: string,
-    proven: boolean,
-  ): void {
-    dispatch.windows.set(
-      window,
-      dispatch.record.firstContent === 'observed' || proven ? 'closed' : 'unproven',
-    )
-    const otherOpen = call.dispatches.some(d =>
-      [...d.windows.values()].some(state => state !== 'closed'),
-    )
-    if (dispatch.record.firstContent !== 'observed' && proven && !otherOpen)
-      dispatch.record = { ...dispatch.record, firstContent: 'none-proven' }
-    if (call.state.phase === 'running')
-      call.state = { ...call.state, firstContent: dispatch.record.firstContent }
   }
   function lateFactProof(
     call: MemoryCall,
