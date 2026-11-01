@@ -187,7 +187,12 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       return refreshedEntry(s, key, d)
     }
     const failedAt = s.refreshFailedAt.get(key)
-    if (failedAt !== undefined && Date.now() - failedAt < world.config.refreshRetryMs) {
+    if (
+      failedAt !== undefined &&
+      /* wall-clock: operation-timing -- Retry interval of a failed restored supply. */ Date.now() -
+        failedAt <
+        world.config.refreshRetryMs
+    ) {
       world.diagnose({ kind: 'refresh-deferred', key, reason: 'retry-interval' })
       return refreshedEntry(s, key, d)
     }
@@ -207,7 +212,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
       if (world.refreshes.get(id) === entry) world.refreshes.delete(id)
     }
     if (outcome.kind === 'value' || outcome.kind === 'none' || outcome.kind === 'stale') return null
-    s.refreshFailedAt.set(key, Date.now())
+    s.refreshFailedAt.set(
+      key,
+      /* wall-clock: operation-timing -- Retry interval of a failed restored supply. */ Date.now(),
+    )
     return fromOutcome(key, d, outcome)
   }
 
