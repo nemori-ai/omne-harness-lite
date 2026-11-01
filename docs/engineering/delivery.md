@@ -89,15 +89,15 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
 | Milestone | 卡所属的里程碑 | Issue 的 milestone 字段 | 调度者。建里程碑与流转用 `milestone-cli.ts` | 建卡时设置。改里程碑用 `carry` | 各里程碑看板的过滤、Active work 与顶层交付卡的分组、路线图、周期 |
 | Dispatched at | 卡第一次开工的日期 | dev-flow 写入的日期。已有值时不覆盖 | 同 Line | 开工时 | 周期 |
-| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线内的卡由线会话运行 | 交回候选时 | 现有视图不显示 |
+| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线父卡本波的 attempt 与本波其他卡由线会话运行 | 交回候选时 | 现有视图不显示 |
 | Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted`。批次内的卡由集成节点按卡运行 | 接受决定读回后 | 周期 |
 | Cycle days | Accepted at 与 Dispatched at 相差的天数 | 由两个日期算出 | 同 Accepted at | 同 Accepted at | 周期 |
 
 Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
 
-- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
-- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在候选 PR 交回时运行。
-- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。线卡进入线轨道时，线负责人对实际工作卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实，不为线父卡建立 Git binding 或虚构 start。
+- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线父卡本波的 attempt 与本波其他卡的 In progress 由线会话设置。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线父卡本波的 attempt 与本波其他卡由线会话在波末开出父分支进线轨道的 PR 时运行。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。线父分支进入线轨道时，线负责人对线父卡本波的 attempt 与本波其他卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实。
 - Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
 - Accepted：具名调度者在本卡有效接受决定读回后运行 `board-cli.ts accepted`。入线轨道、提升与接受分别记录，不能由 Git 运输推定接受。
 
@@ -180,6 +180,19 @@ Project 字段的唯一源与写者见[字段总表](#字段总表)。
 
 1. carry 在卡上发的流转评论说明原因。
 2. 正文单写者在这张卡的下一次 revision 中，把 binding 的 `milestone` 改为当前里程碑。漂移随之消失。
+
+#### 契约变更的语义复核
+
+`omne-contract-api` 把无法证明可加的改动分为 `review`。`review` 不是契约级别。它需要人判断这个改动是否可加。已采用的复核通路让这项人的判断承接 `review`，原始分类和退出码仍然可见。
+
+1. 复核记录是载体评论中的 `json omne-api-semantic-review:v1` 围栏。记录有 `attest`、`delegate` 和 `revoke` 三种。载体在卡级是本卡，在提升级是 `--review-issue` 指定的所含卡，在里程碑累计级是 baseline 卡。
+2. 记录只对一个精确范围有效：成员、比较两侧的提交、快照、工具版本、binding 和 owner 身份都进入比较描述。任一项变化，旧记录失效。卡级、提升级和累计级各自匹配，互不授权。
+3. 有权作结论的人，是目标提交中 `delivery-lines.json` 的 `contracts` 精确包含该成员的唯一一条线的 owner。owner 还须是当前 `publish` environment 的 reviewer，并且是评论作者。owner 可以对一次精确内容委派一个人。被委派者同样须是 reviewer，不能再委派。
+4. owner 的稳定身份（login 与 node ID）登记在 `docs/engineering/api-review-owners.json`，每条带负责人采用该映射的评论。这个文件只拥有本机制的身份事实，不是授权表。`delivery-lines.json` 仍然唯一拥有线、契约成员和 owner 责任。`check:lines` 核对两份文件的 owner login 一致。
+5. 有效的 `additive` 结论使 `review` 成员的工程级别为 `additive`。有效的 `breaking` 结论仍走既有的 breaking 路径。来源、权限、快照或成员集合不完整时，一律拒绝，不退回较宽松的结果。
+6. 没有记录的卡、提升和里程碑，行为不变。
+
+身份文件的新增、改动与删除都是治理改动。它们经个人分支 PR 进入轨道，由 `publish` 的确认者按[现行准入](integration.md#现行准入)核对采用评论。精确条款与命令见 [dev-flow 的交付说明](../../tools/dev-flow/src/delivery/README.md#契约变更的语义复核)和[分支集成工具](../../tools/dev-flow/src/integration/README.md#api-语义复核)。命令参数 `--review-issue`、`--semantic-review` 与子命令 `verify-owner-adoption` 的用法在那里。
 
 ## 3. 条件、关系与解锁
 

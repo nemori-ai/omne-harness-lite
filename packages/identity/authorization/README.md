@@ -8,7 +8,7 @@
 
 ## 使用
 
-用包名导入公开入口。依赖是 `@omne-harness/identity`、`@omne-harness/legal-identity` 与 `@omne-harness/operation-result`。本包没有 Cordis 入口。
+用包名导入公开入口。依赖是 `@omne-harness/identity`、`@omne-harness/legal-identity` 与 `@omne-harness/operation-result`。本包没有 Cordis 入口。测试替身在子路径 `@omne-harness/authorization/testing`。
 
 ```ts
 import { inProcessPrincipalAuthority } from '@omne-harness/identity'
@@ -48,6 +48,13 @@ const decision = await check.check({
 | `PermitLedger`、`PermitGrantor`、`PermitLookup`、`ConsumeOutcome`、`GrantOutcome` | 台账端口 |
 | `referenceAdmissionCheck`、`inMemoryPermitLedger` | 进程内参考件 |
 | `operationEquals`、`targetEquals` | 操作与目标的相等 |
+| `SystemActionRequest`、`SystemActionTarget`、`SystemActionDecision`、`SystemActionDenial`、`SystemActionBasis`、`SystemActionFacts`、`SystemActionAuthorization` | 系统动作授权端口及其请求、结论与依据 |
+| `decideSystemAction(request, facts)`、`referenceSystemActionAuthorization` | 系统动作的纯裁定与进程内参考检查 |
+| `SYSTEM_ACTION_MATRIX`、`SystemActionRow` | 七行系统用途矩阵 |
+| `MaintenanceGrant`、`MaintenanceGrantReading`、`MaintenanceGrantSource`、`SystemActionClock`、`ExpiryReading`、`SystemActionDependencies` | 维护授权读口与可信时钟 |
+| `scriptedMaintenanceGrants`、`manualSystemClock`（`./testing`） | 读口与时钟的替身，不是生产来源 |
+
+系统动作的判定顺序、矩阵与撤权已知限制见 [SPEC AU-12](SPEC.md#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。本包不提供生产 `SystemActionAuthorization` 与生产授予来源，也没有 grant 管理入口。
 
 ## 契约
 
@@ -57,7 +64,7 @@ const decision = await check.check({
 
 ## 设计
 
-`src/admission.ts` 是裁定的纯函数与类型。`src/reference.ts` 读依赖并调用它。`src/permit.ts` 定义许可、台账端口与内存台账。`src/evidence.ts` 定义证据与规范 JSON 的 SHA-256 摘要。`src/operation.ts` 定义操作与目标。[内部设计](docs/internals.md)维护机制与流程。
+`src/admission.ts` 是裁定的纯函数与类型。`src/reference.ts` 读依赖并调用它。`src/permit.ts` 定义许可、台账端口与内存台账。`src/evidence.ts` 定义证据与规范 JSON 的 SHA-256 摘要。`src/operation.ts` 定义操作与目标。`src/system-action.ts` 是系统动作的纯裁定与类型，`src/system-matrix.ts` 是矩阵，`src/system-reference.ts` 读依赖并调用纯裁定，`src/testing/` 是替身。[内部设计](docs/internals.md)维护机制与流程。
 
 ## 配置与运行
 
@@ -75,6 +82,10 @@ const decision = await check.check({
 | `tests/permit.spec.ts` | 许可文本、授予、查找、跨租户、手写租户、重复消费 |
 | `tests/snapshots.spec.ts` | 修改输入或返回值不能改写许可、消费事实或历史裁定依据；证据仍可重算，主体与租户保留原身份 |
 | `tests/port-adapters.spec.ts` | Agent、Tool 的有限映射；未支持的权限或答复输入不放行；Session 的成员资格示例映射，用 session-contract 的真实 `SessionAccessCheck` 形状与非耐久事务替身 |
+| `tests/system-action.spec.ts` | 系统动作的四个步骤与顺序、不可用分支、纯函数快照 |
+| `tests/system-matrix.spec.ts` | 矩阵逐行、固定参数、授予互不借用、无通配 |
+| `tests/system-evidence.spec.ts` | 系统动作的证据重算与无记录证据、下一次核验撤销与到期、无围栏名称 |
+| `tests/system-testing-doubles.spec.ts` | 两个替身与 `./testing` 导出清单 |
 | `tests/public-entry.spec.ts` | 公开导出清单 |
 
 端口适配器测试用 `@omne-harness/agent-contract`、`@omne-harness/session-contract`、`@omne-harness/tool`、`@omne-harness/tool-contract` 作为 devDependencies 取端口类型。`Access<P>` 只有 legal-identity 一份定义，各契约成员再导出它，所以没有类型等价测试。Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessCheck` 形状与它的非耐久事务替身验证（[#680](https://github.com/nemori-ai/omne-harness-lite/issues/680)）。它仍是参考映射，只覆盖选定的成员资格示例，不证明生产授权政策、系统作用域授权或完整的模式解释。前两项在里程碑 M2 接入；完整的模式解释不在 M2。测试不执行业务，不证明签发持有约束、原工作关系或当前工作资格守卫已装配。

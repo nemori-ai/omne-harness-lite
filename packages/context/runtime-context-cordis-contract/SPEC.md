@@ -21,6 +21,7 @@
 7. 块是数据不是服务。没有任何一方 `inject` 一个块。必需块缺席是读取时的缺项（[RC-03](../runtime-context-contract/SPEC.md#rc-03-当前读取资格与缺项)），不让消费者 fiber 进入 PENDING。
 8. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/runtime-context` 或 `@omne-harness/runtime-context-cordis`。
 9. 契约的两个权威端口（可信绑定来源与权威端口，见[通用权威端口](../runtime-context-contract/SPEC.md#通用权威端口)）是装配入口交给 Service 实现的运行时对象，不进插件树，也不由消费者插件提供。本成员不为它们定义服务键。Service 实现取不到端口时，对应操作按「不可用」收场，不放行。
+10. 构造输入键 `runtimeContextTrust` 只由抽象类 `RuntimeContextTrustService` 的 `static readonly provide` 给出，`super` 与常量 `runtimeContextTrustKey` 取自它，逐属性投影契约根入口的 `RuntimeContextTrust`。装配入口在受信子树 provide；提供者插件 `inject` 该键，键缺席时停在 PENDING。它不是 Runtime Context 能力，不进插件树 JSON 与插件配置，不增事件。子树可见性是装配位置，不是封装保证。
 
 ## 所有权、失败与生命周期
 

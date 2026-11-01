@@ -83,6 +83,29 @@
             { "name": "ModelCredentialService", "kind": "class", "pending": false },
             { "name": "modelCredentialKey", "kind": "value", "pending": false }
           ]
+        },
+        {
+          "title": "结果接收登记",
+          "names": [
+            { "name": "ModelResultReceiverTable", "kind": "type", "pending": false },
+            { "name": "createModelResultReceiverTable", "kind": "value", "pending": false },
+            { "name": "ModelResultReceiverConflictError", "kind": "class", "pending": false }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "结果接收登记",
+          "names": [
+            { "name": "createScriptedModelRuntimeHost", "kind": "value", "pending": false },
+            { "name": "modelResultReceiverConformance", "kind": "value", "pending": false },
+            { "name": "ModelResultReceiverHost", "kind": "type", "pending": false },
+            { "name": "ScriptedModelRuntimeHostOptions", "kind": "type", "pending": false },
+            { "name": "ModelResultReceiverFixture", "kind": "type", "pending": false },
+            { "name": "ModelResultReceiverCase", "kind": "type", "pending": false }
+          ]
         }
       ]
     }

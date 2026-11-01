@@ -110,7 +110,7 @@ guards 是受信快照：`access.qualify` 回答主体对该租户、调用与�
 
 ### 持久化与一致性边界
 
-本节区分领域事实、应用推进和存储机制，供记录仓契约与耐久适配使用。分析依据是本包现有记录与决定器、Tool 的 [P01–P09](../../tool-contract/SPEC.md#tool-操作协议)、[存储事务行为](../../../storage/docs/storage-contract/SPEC.md)及系统[共同成立的业务事实](../../../../docs/architecture/data-and-state.md#共同成立的业务事实)。现有支持范围仍以本页开头及[成员 SPEC](../SPEC.md#当前范围)为准。存储规格承诺不表示本包已有耐久提供者或运行证据。
+本节区分领域事实、应用推进和存储机制，供记录仓契约与耐久适配使用。分析依据是本包现有记录与决定器、Tool 的 [P01–P09](../../tool-contract/SPEC.md#tool-操作协议)、[存储事务行为](../../../storage/sql-contract/SPEC.md)及系统[共同成立的业务事实](../../../../docs/architecture/data-and-state.md#共同成立的业务事实)。现有支持范围仍以本页开头及[成员 SPEC](../SPEC.md#当前范围)为准。存储规格承诺不表示本包已有耐久提供者或运行证据。
 
 #### 领域事实及一致性边界
 
@@ -123,7 +123,7 @@ guards 是受信快照：`access.qualify` 回答主体对该租户、调用与�
 | D03 工具内部等待 | 原租户、call、等待 key 及其原请求关联；Tool 拥有等待，答复协议拥有者拥有答复资格与内容 | 原请求及采用快照、等待状态、有效回应及后继责任保持一致。取消与答复在原 ToolCall 事务排序；取消先成立则后到决定不作为答案。取消或终局与失效任务同提交，关闭等待与新计时段同提交 | WaitRecord 是 ToolCall 聚合内实体，身份为 call + wait；[LedgerRecord](../src/ledger-store.ts) 尚无完整等待记录。P06 的等待不同于 D02 排队，也不同于 Fiber 暂停。具体持久布局、适配端口及跨答复拥有者的参加或承接方式由 Tool 契约拥有者与相关答复拥有者确认 | [对象与生命周期](../../tool-contract/docs/object-model.md#对象与生命周期)，[P06](../../tool-contract/SPEC.md#p06-内部等待与答复)，[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，[共同成立的业务事实](../../../../docs/architecture/data-and-state.md#共同成立的业务事实) |
 | D04 执行绑定登记 | 原 adoption、command 所选绑定及其采用身份；ToolBindings 提供者 | 同一次绑定选择中的作者操作、参数解析、返回检查及原采用保持配对。恢复取得原事实查询与控制能力，不能重新选择新表启动 | 绑定登记表尚未交付。其持久身份、登记与撤除的一致性边界仍由 Tool 契约拥有者及绑定提供者确定，不能借用 host 记录键代定 | [ToolBindings 与依赖方向](../../tool-contract/docs/object-model.md#应用对象端口和依赖方向)，[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)，本页[业务 schema 与输出归一化](#业务-schema-与输出归一化) |
 
-三种登记另有不同责任。local 的启动资格台账通过 [start-coordinator.ts](../../tool-host-local/src/start-coordinator.ts) 的 `prepare/consume/inspect/invalidate/exclude` 保存启动资格与围栏，使用 `host` 域。`HostRecord.value` 由该宿主解释，Tool 账本不读取它。执行绑定登记属于 D04。存储的[组合登记](../../../storage/docs/storage-contract/SPEC.md#登记)保存租户、事务域、组合版本及参加者名单，不保存工具绑定，也不是每次业务操作的回执。
+三种登记另有不同责任。local 的启动资格台账通过 [start-coordinator.ts](../../tool-host-local/src/start-coordinator.ts) 的 `prepare/consume/inspect/invalidate/exclude` 保存启动资格与围栏，使用 `host` 域。`HostRecord.value` 由该宿主解释，Tool 账本不读取它。执行绑定登记属于 D04。存储的[组合登记](../../../storage/sql-contract/SPEC.md#6-registercombination)保存租户、事务域、组合版本及参加者名单，不保存工具绑定，也不是每次业务操作的回执。
 
 #### 记录仓端口中的领域语言与机制语言
 
@@ -162,14 +162,14 @@ U05 中 P08 的同提交要求覆盖 Tool 生产侧事实。消费方业务事�
 
 | 定位号与承诺 | Tool 需要的适配及限制 | 依据与去向 |
 | --- | --- | --- |
-| S01 五字段操作身份 | 将业务操作关联到 tenant、transactionDomain、operation、protocolVersion、operationKey，并持久保存可恢复的映射。同身份异内容与业务 revision 冲突是不同问题 | [操作身份](../../../storage/docs/storage-contract/SPEC.md#操作身份)、[提交](../../../storage/docs/storage-contract/SPEC.md#提交)；B02 |
-| S02 组合登记 | 协调者登记具名参加者及组合版本。登记跨重启保存、旧版本不覆盖；Tool 绑定登记与启动资格台账均不能替代它 | [登记](../../../storage/docs/storage-contract/SPEC.md#登记)；B01、C01、C02 |
-| S03 提交与原子范围 | Tool 参加者在事务内重核业务前提，事实、回执及待交接记录共同提交。现行契约确定 call 与 queue 两个持久一致边界，不要求共同事务；适配保留 P02 的域内提交及同身份对账。新业务要求若需改变该边界，须有具体依据并取得 Tool 契约拥有者决定。外部工具效果不进入数据库事务 | [提交](../../../storage/docs/storage-contract/SPEC.md#提交)、[提供者义务](../../../storage/docs/storage-contract/SPEC.md#提供者义务)、[持久一致边界](../../tool-contract/docs/object-model.md#无状态性与有状态性)、[P02](../../tool-contract/SPEC.md#p02-定义准入与队列)、[事务域](../../../../docs/architecture/data-and-state.md#事务域与异步sqlite执行)；B01、C01 |
-| S04 结果及未知查询 | `unknown` 后以同一完整身份 `query`。明确 `rolled_back` 具有持久回滚回执；`rejected_before_accept` 没有回执；`identity_conflict` 带已有回执。不能把它们全压成 Tool `conflict` 或 `unavailable` | [提交](../../../storage/docs/storage-contract/SPEC.md#提交)、[查询](../../../storage/docs/storage-contract/SPEC.md#查询)、[LedgerCommit](../src/ledger-store.ts)；B02、B03 |
-| S05 否定结论 | storage `not_committed` 需要旧写者排除、旧事务终止、恢复完成、权威读取成功及未入受理队列五项证明。它不同于 revision 不匹配；Tool 排除围栏须保留等效语义 | [查询](../../../storage/docs/storage-contract/SPEC.md#查询)、[ledger.ts](../src/ledger.ts)；B03 |
-| S06 参加者事务端口 | 以版本化 JSON facts 进入 Worker，参加者同步 `execute(facts, port)`。不传闭包、Context 或 DB handle，不控制事务，不持锁等待外部端口；命令条数与大小有限 | [参加者端口](../../../storage/docs/storage-contract/SPEC.md#参加者端口)、[提交](../../../storage/docs/storage-contract/SPEC.md#提交)；B04、C02 |
-| S07 租户与写代际 | 事务域绑定一个租户，旧写代际未排除时不准入。Tool 的 tenant 身份必须进入映射与查询。storage 写代际不代替 Tool claim 的协调代次或启动围栏 | [登记](../../../storage/docs/storage-contract/SPEC.md#登记)、[提供者义务](../../../storage/docs/storage-contract/SPEC.md#提供者义务)、[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)；B02、B06 |
-| S08 耐久证据 | 事务原子性、`durability: durable` 声明与断电证据分别核对。本包没有已交付 SQLite 仓储；#280 尚未为本包提供运行证据。进程终止也不替代 SQL-T01 断电证据 | [存储规格状态与验证义务](../../../storage/docs/storage-contract/SPEC.md#验证义务与未覆盖)、[SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01)、[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)；B06 |
+| S01 五字段操作身份 | 将业务操作关联到 tenant、transactionDomain、operation、protocolVersion、operationKey，并持久保存可恢复的映射。同身份异内容与业务 revision 冲突是不同问题 | [操作身份](../../../storage/sql-contract/SPEC.md#31-身份与字段规则)、[提交](../../../storage/sql-contract/SPEC.md#7-commit)；B02 |
+| S02 组合登记 | 协调者登记具名参加者及组合版本。登记跨重启保存、旧版本不覆盖；Tool 绑定登记与启动资格台账均不能替代它 | [登记](../../../storage/sql-contract/SPEC.md#6-registercombination)；B01、C01、C02 |
+| S03 提交与原子范围 | Tool 参加者在事务内重核业务前提，事实、回执及待交接记录共同提交。现行契约确定 call 与 queue 两个持久一致边界，不要求共同事务；适配保留 P02 的域内提交及同身份对账。新业务要求若需改变该边界，须有具体依据并取得 Tool 契约拥有者决定。外部工具效果不进入数据库事务 | [提交](../../../storage/sql-contract/SPEC.md#7-commit)、[提供者义务](../../../storage/sqlite-provider/SPEC.md#提交的执行)、[持久一致边界](../../tool-contract/docs/object-model.md#无状态性与有状态性)、[P02](../../tool-contract/SPEC.md#p02-定义准入与队列)、[事务域](../../../../docs/architecture/data-and-state.md#事务域与异步sqlite执行)；B01、C01 |
+| S04 结果及未知查询 | `unknown` 后以同一完整身份 `query`。明确 `rolled_back` 具有持久回滚回执；`rejected_before_accept` 没有回执；`identity_conflict` 带已有回执。不能把它们全压成 Tool `conflict` 或 `unavailable` | [提交](../../../storage/sql-contract/SPEC.md#7-commit)、[查询](../../../storage/sql-contract/SPEC.md#8-query)、[LedgerCommit](../src/ledger-store.ts)；B02、B03 |
+| S05 否定结论 | storage `not_committed` 需要旧写者排除、旧事务终止、恢复完成、权威读取成功及未入受理队列五项证明。它不同于 revision 不匹配；Tool 排除围栏须保留等效语义 | [查询](../../../storage/sql-contract/SPEC.md#8-query)、[ledger.ts](../src/ledger.ts)；B03 |
+| S06 参加者事务端口 | 以版本化 JSON facts 进入 Worker，参加者同步 `execute(facts, port)`。不传闭包、Context 或 DB handle，不控制事务，不持锁等待外部端口；命令条数与大小有限 | [参加者端口](../../../storage/sql-contract/SPEC.md#74-参加者端口与事实格)、[提交](../../../storage/sql-contract/SPEC.md#7-commit)；B04、C02 |
+| S07 租户与写代际 | 事务域绑定一个租户，旧写代际未排除时不准入。Tool 的 tenant 身份必须进入映射与查询。storage 写代际不代替 Tool claim 的协调代次或启动围栏 | [登记](../../../storage/sql-contract/SPEC.md#6-registercombination)、[提供者义务](../../../storage/sqlite-provider/SPEC.md#提交的执行)、[P09](../../tool-contract/SPEC.md#p09-账目恢复与退出)；B02、B06 |
+| S08 耐久证据 | 事务原子性、`durability: durable` 声明与断电证据分别核对。本包没有已交付 SQLite 仓储；#280 尚未为本包提供运行证据。进程终止也不替代 SQL-T01 断电证据 | [存储规格状态与验证义务](../../../storage/sql-contract/SPEC.md#本包的验证资源与覆盖)、[SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01)、[#280](https://github.com/nemori-ai/omne-harness-lite/issues/280)；B06 |
 
 `ToolLedgerStore.commit` 的 `conflict` 只保证本次 expected 不匹配且未写；storage `identity_conflict` 是同身份异输入。`ToolLedgerStore.commit` 的 `unavailable` 表示未尝试，而 storage `rolled_back` 表示已持久确认回滚，二者不能仅按“未生效”互换。适配须保留原身份、是否受理及证据强度，供具名业务命令解释，见 S04、S05。
 

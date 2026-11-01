@@ -20,6 +20,7 @@
 // 它与别的全局文件一起改时不问判定，直接全量。
 import { isLegacyDirectory, isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import type { AffectedRules } from './config.ts'
+import type { FailedFile } from './test-retry.ts'
 import type { LockfileAffectedMember, LockfileImpact } from './lockfile-impact.ts'
 import { ownerOf, type WorkspaceMember } from '@omne-harness/repo-toolchain/core/workspace'
 
@@ -208,6 +209,11 @@ export interface CheckPlan {
   readonly documentsOnly?: readonly DocumentsOnlyMember[]
   /** 问过锁文件判定时它的结论原文（映射到成员，或两份等价）；判全量时写在 `reason` 里，没问时没有。 */
   readonly lockfile?: string
+  /**
+   * 接续时 test 步只跑必要的（resume.ts）：`test` 里的成员按 H1..HEAD 影响面跑快慢两层，另把 H1 上失败的这些文件
+   * （都在慢层）单独各跑一次。只有 H1 失败于 test、失败都在慢层的文件里、H1..HEAD 的差异都落在这些成员里时才有。
+   */
+  readonly testResume?: { readonly files: readonly FailedFile[] }
 }
 
 /**

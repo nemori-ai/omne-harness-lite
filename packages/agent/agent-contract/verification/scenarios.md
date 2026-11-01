@@ -25,6 +25,7 @@
 | 226 至 239 | 官方准入的命名读取 |
 | 240 至 249 | 日志条目的事件投影 |
 | 250 至 259 | 扩展与整批动作的补充 |
+| 260 至 279 | 回复准入的跨轮读取 |
 
 每个场景的“后继验证观察点”写实现测试必须读到的事实。读不到该事实的测试不算覆盖该场景。
 
@@ -422,3 +423,28 @@ SC-AG-75 的六种读取情形如下。每种情形的传入都含消费位置�
 | SC-AG-247 | 被拒绝的写入：`record` 的 stale-advance、terminal、invalid、denied；`commit` 的 denied 与 conflict；`AgentJournal.commit` 的 `events` 绕过类型带 `entry` 或 `ended` 事件体 | 每种拒绝前后事件列表逐项相等，没有条目。带 `entry` 或 `ended` 事件体的 `AgentJournal.commit` 返回 invalid，field 为 `events`，reason 写明哪一种事件体由 Journal 分配，快照与原操作查询都不变 | 提供者在拒绝分支上分配事件，或让带这两种事件体的 commit 通过，本场景变红 |
 | SC-AG-248 | 执行有过一次接管，之后当前挂接被 detach。推进者经 `record` 写 `start-fence`；结果接收方经 `record` 写 `received` | `start-fence` 返回 stale-advance，不分配事件。`received` 照常写入并产生一个 `entry` 事件，`executionAttachment` 等于被 detach 的那个挂接，即最近建立的挂接 | 提供者在 detach 之后拒绝分配事件，或取 detach 之前的挂接，本场景变红。测试件没有 detach 能力时，套件把本场景报告为未覆盖，不报告通过 |
 | SC-AG-249 | 同一 execution 先经 `commit` 提交一个其他种类的事件，再经 `record` 写一条条目 | `entry` 事件的 `schema` 等于同一 execution 其他事件的 `schema` | 两个事件的 `schema` 逐字段相等 |
+
+## 回复准入的跨轮读取
+
+规则见 SPEC 的“[回复准入的已核实前缀](../SPEC.md#回复准入的已核实前缀)”。下列场景由两份测试用 Journal（Agent 内存 Journal 与 session-adapters 的同日志 Journal）各跑一遍 `./testing` 核心套件中以 `D5` 开头的用例，以及 agent 的协调者用例覆盖。它们都不是耐久实现，不证明真实持久性、崩溃、撤权一致性或 E9 性能。
+
+| 编号 | 场景 | 必须结果 | 后继验证观察点 |
+| --- | --- | --- | --- |
+| SC-AG-260 | 从 origin 分页读一个执行的全部准入事实 | 序位从 1 起严格连续，每页 `end = start + items.length`，页与页首尾相接，末页 `end` 等于投影的 `prefix`，`tail` 只在目标前缀处为 complete | 各页的 `start`、`end`、`items[].sequence` 与 `tail` 逐项相符；每项带原发布依据 `publication` |
+| SC-AG-261 | 提供者页上限 20、调用方 `limit` 为 100；另有单项超过提供者字节上限 | 第一页 20 项且 `tail` 为 more；单项超限时该页只含这一项，不返回 unavailable 或空的 more 页 | 页的条数与 `tail`；按字节上限读时页数等于事实数 |
+| SC-AG-262 | 目标 110 的范围分页期间新 Ja 到 111 | 本范围仍止于 110，111 只在下一次 load 的新范围里，从旧终点读出 | 续页的 `end` 等于原目标前缀；新范围从旧前缀读只得到 111 |
+| SC-AG-263 | 游标换到另一 `through`、另一 `from`、同租户另一执行、另一租户，或截成序位 | 另一租户 denied，其余 invalid；同一请求重复返回相同页 | 五种篡改的失败种类；重复请求的两页逐字段相等 |
+| SC-AG-264 | 同 call/resultVersion 重放；同键异结论；同键异 step、action 或 source；另一执行中同文本的 call | 重放认回原事实与原前缀；异结论 conflict；异 step、action 或 source 保持现行接受且不新增事实（R-598 未采用）；另一执行各自从 1 计 | 投影 `prefix` 前后相等；conflict 的种类；另一执行的前缀依据不同 |
+| SC-AG-265 | 组提交中带准入事实的操作被参加者撤下，之后另一 Ja 提交 | 撤下的操作不留事实与序位，后继事实取序位 1，没有缺口 | 投影前缀在撤下后仍为 0；后继读出 `[1]` |
+| SC-AG-266 | 范围内缺一项事实、事实保留起点晚于下界、前缀依据资料丢失、旧 `through` 已不可解析 | 分别返回 gap 的 missing-fact、retention、missing-basis、range-unavailable；缺项之前已核实的页有效，范围不 complete；新 load 从同一前缀开新范围 | gap 的 `reason`；已核实序位停在缺项之前 |
+| SC-AG-267 | 提交写入的 `replyAdmissionRead` 改变：依据属于另一执行或另一租户、超出已发布序位、倒退、回到 unverified、序位与依据不符、依据资料丢失 | 另一租户 denied；资料丢失 unavailable 且诊断以 `missing-basis` 开头；其余 invalid，field 为 `checkpoint.replyAdmissionRead`；都不写入，revision 不变 | 各失败的种类与 field；revision 前后相等；校验在历史 100 与 10000 时扫描行数都为 0 |
+| SC-AG-268 | E2 的下界：新执行、同协调者的下一次 E2、新协调者读已保存的前缀、两者都在 | 依次为 origin、进程内前缀、checkpoint 前缀、两者中序位较大者；E2 不写、不提交 | 读请求的 `from`；E2 前后 revision 相等；空增量的读取扫描行数为 0 |
+| SC-AG-269 | 一次完整推进 | 每个正常提交携带不小于已读目标的 verified 读取位置；没有只改变读取位置的提交；同一 operation 的重发携带原读取位置 | 提交输入的 `replyAdmissionRead`；相邻提交的差异不只在读取位置 |
+| SC-AG-270 | 提交得到 unavailable（`missing-basis`） | 协调者丢弃进程内前缀进入 W0，W0 的提交携带已保存的读取位置，值不变 | W0 提交的 `replyAdmissionRead` 等于提交前保存的值；状态为 dependency 等待 |
+| SC-AG-271 | 已保存前缀的依据资料丢失 | 本次 E2 内用 origin 重读一次并报告原因、原下界与读取量；之后的 E2 从新的进程内前缀读；正常提交落地之前换新协调者会再治疗一次；invalid、denied 与其他缺口不治疗；origin 读取遇缺口转 W0 | 读请求的 `from` 序列；报告的字段；W0 的等待位置 |
+| SC-AG-272 | 上次正常提交保存 120，崩溃前进程内读到 160，崩溃后目标 230 | 新范围为 (120, 230]，第一页 `after` 为 null，120 之前不扫描，恢复读取不写 checkpoint；冷路径中途崩溃时下次从同一下界重来 | 读请求的 `from` 与 `after`；扫描行数差为 110；checkpoint 写次数不变 |
+| SC-AG-273 | 规则换代 | 有转换依据时投影在新规则下重建且计数不变；没有依据时 load 返回 unavailable；读取范围与已核实前缀不变 | 投影的 `rule` 与计数；load 的失败种类；从原前缀读取的结果 |
+| SC-AG-274 | 第一页后撤销读取资格，之后恢复 | 第二页、从已核实前缀的读取与旧 Ja 的 query 都按当前资格 denied；恢复后从原前缀继续，已披露的事实与计数不变 | 三次调用的失败种类；恢复后读出的序位；投影前缀 |
+| SC-AG-275 | 历史 100 与 10000 两种规模，各新增 0、1 与 `L+1` 项 | 扫描行数、解码行数与折叠次数在两种规模下相同，页数只随新增项与页大小变化，checkpoint 写次数等于正常提交次数，load 不折叠历史 | 计数表逐项相等；删除 `from`、查询改成全数组过滤、load 改成历史折叠三个负控各被识别 |
+| SC-AG-276 | checkpoint 的 encode 与 decode | 全成员 round-trip；缺 `replyAdmissionRead`、schema 未知、读取位置畸形或带多余成员时拒绝，不默认为 unverified 或零值 | decode 的结果与失败的 field |
+

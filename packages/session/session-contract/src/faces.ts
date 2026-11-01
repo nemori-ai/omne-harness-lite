@@ -21,6 +21,12 @@ import type {
   SessionRevision,
 } from './identity.ts'
 import type {
+  ControlOperationResolution,
+  SessionCallTerminal,
+  SessionControlReceipt,
+  SessionModelSelection,
+} from './control-values.ts'
+import type {
   AutoArchivePolicy,
   BoundedClose,
   CallBinding,
@@ -51,6 +57,8 @@ export type SessionFailure =
   | Readonly<{ kind: 'commit-unknown'; operation: SessionOperationId }>
   | Readonly<{ kind: 'unavailable'; owner: string; diagnostic: string }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
+  /** Only `stopCall` returns it: the Tool target is refused until the settlement schema is adopted. */
+  | Readonly<{ kind: 'unsupported' }>
   | Readonly<{ kind: 'terminal'; terminal: RunTerminal }>
   | Readonly<{ kind: 'stale-advance'; current: AdvanceRef | null }>
   | Readonly<{ kind: 'frozen'; verdict: FreezeVerdict | null }>
@@ -186,6 +194,19 @@ export interface SessionWork<P> {
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
   ): Reply<OperationResolution>
   loadRecovery(input: SessionAccess<P>): Reply<WorkSnapshot>
+  /** The saved model selection and its original evidence; never the call permit (XC-MODELSEL). */
+  readModelSelection(input: SessionAccess<P>): Reply<SessionModelSelection>
+  /** Failures: denied, invalid, conflict, commit-unknown, unavailable, quarantined. */
+  cancelRun(
+    input: Mutation<P> & Readonly<{ run: RunId; urgency: 'graceful' | 'force' }>,
+  ): Reply<SessionControlReceipt<RunTerminal>>
+  /** Failures: those of `cancelRun`, and `unsupported` for a Tool target. */
+  stopCall(
+    input: Mutation<P> & Readonly<{ producer: ProducerRef }>,
+  ): Reply<SessionControlReceipt<SessionCallTerminal>>
+  queryControlOperation(
+    input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
+  ): Reply<ControlOperationResolution>
 }
 
 export interface SessionManagement<P> {

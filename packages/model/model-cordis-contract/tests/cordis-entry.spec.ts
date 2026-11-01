@@ -27,7 +27,13 @@ it('the cordis entry exports the service definitions with their keys, and no oth
   const keyName = (service: string) =>
     `${service[0]?.toLowerCase()}${service.slice(1, -'Service'.length)}Key`
   expect(Object.keys(cordis).sort()).toEqual(
-    [...Object.keys(definitions), ...Object.keys(definitions).map(keyName)].sort(),
+    [
+      ...Object.keys(definitions),
+      ...Object.keys(definitions).map(keyName),
+      // The result receiver table is not a Service: it is the backend of `registerResultReceiver`.
+      'ModelResultReceiverConflictError',
+      'createModelResultReceiverTable',
+    ].sort(),
   )
   for (const [service, key] of Object.entries(definitions)) {
     expect(cordis[keyName(service)], service).toBe(key)

@@ -17,6 +17,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [

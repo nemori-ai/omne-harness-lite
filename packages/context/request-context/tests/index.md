@@ -8,4 +8,5 @@
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口恰好导出两个工厂
 - [registry.spec.ts](registry.spec.ts)：来源登记表与操作组一致性
 - [accounting.spec.ts](accounting.spec.ts)：账目投影、窗口占用与恢复
+- [trust-conformance.spec.ts](trust-conformance.spec.ts)：信任套件在来源登记表上运行
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空

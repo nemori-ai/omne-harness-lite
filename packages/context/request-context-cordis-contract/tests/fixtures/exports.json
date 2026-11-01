@@ -703,6 +703,11 @@
               "kind": "type",
               "sameAs": "@omne-harness/request-context-contract",
               "pending": false
+            },
+            {
+              "name": "RequestContextTrust",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -737,6 +742,60 @@
               "name": "RequestContextChangedPayload",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "RequestContextTrustService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "requestContextTrustKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ContextAccountingInboxService",
+              "kind": "class",
+              "pending": false
+            },
+            {
+              "name": "contextAccountingInboxKey",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        }
+      ]
+    },
+    "./testing": {
+      "chapters": [
+        {
+          "title": "测试导出",
+          "names": [
+            {
+              "name": "createScriptedRequestContextTrust",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "requestContextTrustConformance",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RequestContextTrustScript",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestContextTrustFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RequestContextTrustCase",
+              "kind": "type",
+              "pending": false
             }
           ]
         }
@@ -747,17 +806,13 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": [
-        "requestContext"
-      ],
+      "members": ["requestContext", "requestContextTrust", "contextAccountingInbox"],
       "pending": false
     },
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Events",
-      "members": [
-        "request-context-cordis-contract/changed"
-      ],
+      "members": ["request-context-cordis-contract/changed"],
       "pending": false
     }
   ]

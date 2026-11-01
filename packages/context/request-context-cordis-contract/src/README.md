@@ -4,7 +4,7 @@
 
 ## 允许的内容
 
-TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入口对应 `index.ts`，`./cordis` 对应 `cordis.ts`。
+TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入口对应 `index.ts`，`./cordis` 对应 `cordis.ts`，`./testing` 对应 `testing/index.ts`。信任类型 `RequestContextTrust` 在 `trust.ts`。
 
 ## 边界
 
@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明：根入
 
 ## 本包事实
 
-`index.ts` 显式重导出原契约类型，没有运行值。`cordis.ts` 发布抽象服务、派生服务键、intercept 与策略选择类型，并增补 Context 和 Events。定义导航见[公开接口页](../docs/public-api.md#定义索引)。运行登记表、缓存和策略实现归提供者。
+`index.ts` 显式重导出原契约类型，没有运行值。`cordis.ts` 发布抽象服务（含信任服务与账目收件口服务）、派生服务键、intercept 与策略选择类型，并增补 Context 和 Events。定义导航见[公开接口页](../docs/public-api.md#定义索引)。运行登记表、缓存和策略实现归提供者。

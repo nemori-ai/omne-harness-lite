@@ -63,6 +63,8 @@
 - 可信绑定来源 `ScopeBindingSource`：对一个作用域回答四种之一：已绑定（带租户）、未绑定、不可用、未知。同一作用域的绑定不改租户。来源重建之后也必须认同原绑定。来源无法确认当前权威状态时答不可用或未知，不用缓存补出新的许可。
 - 权威端口 `RuntimeContextAuthority<P>`：按动作回答授权判定。它有三个面：持有者动作（准备、提交、签发、撤销、开始恢复、完成恢复）、生产者动作（登记、发布、失效、供值、按租户失效）和读者动作（按资格读取）。动作是封闭的判别联合。授权判定是四种之一：已授权（带代租户主体与 `current()`）、拒绝、不可用、未知。完成恢复与开始恢复的判定另可答无效（检查点冲突或恢复材料不全），只在目标授权已经确认之后答复。
 
+两个端口可作为一份构造输入 `RuntimeContextTrust<P>`（`authority`、`bindings`，根入口类型）交入。它只是构造参数，不是新端口，没有权限或生命周期，也不改两个端口的名称、方法与语义。`./testing` 的 `MemoryRuntimeContextOptions<P>` 取它再加四个可选界限，可接受的值集合不变。`runtimeContextTrustConformance` 验证交入的信任对象：夹具 `create({ authority, bindings })` 返回 `trust` 与四个失效控制（`revokeAuthorization`、`revokeWork`、`advanceRequestGeneration`、`advanceBridgeGeneration`），每个控制必须同步使此前依赖对应来源的答案的 `current()` 变假，旧答案不会重新变真；依赖其他来源的答案保持为真。授权与桥代次触及三个面（holder、producer、reader），工作资格触及 holder 与 reader，请求登记代次触及 producer 与 reader。控制在原端口应答期间生效时，调用方随后收到的答案同样为假。套件覆盖：跨租户时来源零调用、原 `authority.current` 为假而桥仍为真、桥失效而原 `authority` 仍为真、读取等待期间撤权或换代后的迟到结果被丢弃、重绑与伪造首绑被拒、恢复来源未知不读作未绑定，以及原写者已确认撤权而异步通知尚未抵达：这一项生产组合必须失败，固定替身不得使其通过，套件对每个夹具答 NotApplicable（已知缺口，#677），不记为通过。固定替身 `createTestRuntimeContextTrust` 用进程内单调代次，标 `durability: 'none'`，只在 `./testing`，不证明真实同步失效来源；该生产缺口保留在 #677。受信子树的可见性是装配位置，不是封装保证。
+
 每个带目标的入口按下列顺序核对。前一项不成立，后面的不再执行：
 
 1. 权威端口答已授权，表示调用方访问身份的租户等于动作里的租户；不等时适配器必须答拒绝。

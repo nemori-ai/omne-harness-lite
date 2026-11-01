@@ -6,10 +6,12 @@ import * as testing from '@omne-harness/session-contract/testing'
 // be added here on purpose; the entry codec and the identity derivations of `decide` stay out.
 it('exports exactly the declared root runtime surface', () => {
   expect(Object.keys(session).sort()).toEqual([
+    'INGRESS_FAMILIES',
     'INITIALIZATION_PROTOCOL',
     'commandDigest',
     'decide',
     'deriveDriveOperation',
+    'deriveIngressOperation',
     'deriveSessionOperation',
     'initializationRegistrationCommit',
     'judgeAdvance',
@@ -53,6 +55,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'createMemorySessionHistorySource',
     'createMemorySessionIdleInput',
     'createMemorySessionNotifier',
+    'createMemorySessionTransactionPair',
     'createMemorySessionTransactions',
     'createPolicySessionAccessCheck',
     'createScriptedSessionAccessCheck',
@@ -68,6 +71,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'isNotApplicable',
     'memoryAccess',
     'memoryOtherAccess',
+    'memorySessionDelegatedTransactionsFixture',
     'memorySessionTransactionsFixture',
     'mintEvidence',
     'operationId',
@@ -78,6 +82,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'scopeReleaseConformance',
     'sessionClockConformance',
     'sessionContextInputConformance',
+    'sessionDelegatedTransactionsConformance',
     'sessionEvidenceBridgeConformance',
     'sessionId',
     'sessionIdentityBridgeConformance',

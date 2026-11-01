@@ -87,8 +87,8 @@ Claude Code 云端会话不能直接修改 Project Stage：平台代理拦截 Gr
 
 看板字段的写入如下。命令都只能在本地会话运行；云端会话改 Stage 仍用 `delivery-stage`，日期字段留待本地会话补写。
 
-- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。线内的卡由线会话在候选 PR 交回时运行。线内的卡的 In progress 也由线会话设置。
-- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。线卡进入线轨道时，线负责人对实际工作卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实，不为线父卡建立 Git binding 或虚构 start。各卡只有在有效接受决定读回后才运行 `accepted`。gate 失败时，调度者把 Stage 改回 In review。
+- 执行者交回候选 PR 时，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts delivered --issue <卡号>`。命令写 Delivered at，并把 Stage 改为 In review。线父卡本波的 attempt 与本波其他卡由线会话运行，时点见[线父分支](integration.md#线父分支)。它们的 In progress 也由线会话设置。
+- 候选通过准入、派发 `gate-publish` 时，运行合入的人用同一命令的 `integrating` 把 Stage 改为 Integrating。线父分支进入线轨道时，线负责人对线父卡本波的 attempt 与本波其他卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实。各卡只有在有效接受决定读回后才运行 `accepted`。gate 失败时，调度者把 Stage 改回 In review。
 - `start` 在新建 context 时写入 Dispatched at、Line、Kind 与 Wave。Dispatched at 与 Wave 已有值时不覆盖，同一张卡的新 attempt 不改它们。写入失败时，调度者用 `board-cli.ts dispatched` 补写。
 - Needs decision 由调度者在 Project 中设置，工具不写。需要人拍板时置 `yes`，决定读回后置 `no`，规则见[契约变更与里程碑类型](delivery.md#契约变更与里程碑类型)。
 
@@ -108,7 +108,7 @@ RFC采用按[提案及决定关系](../rfcs/README.md#现行源与维护)和[RFC
 
 交付卡的有效决定先读回，再由具名角色修关闭和Project视图。只接受子任务或部分结果时父卡继续活动。平台写入不可用时，区分“负责人已在对话作决定”和“远端决定尚未记录”；停止依赖其持久事实的状态切换，不声称Issue已接受。恢复后取回有权者的可核输入，不能凭模糊回忆补造决定。
 
-接受决定读回后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts accepted --issue <卡号>`。线内的任务卡由具名调度者在按卡接受时运行；入线轨道、提升与接受分别记录。命令写 Accepted at，按 Dispatched at 算出 Cycle days，并把 Stage 改为 Accepted。命令不判断接受是否有效，只在决定读回之后运行。
+接受决定读回后，调度者运行 `node --experimental-strip-types tools/dev-flow/src/delivery/board-cli.ts accepted --issue <卡号>`。线父卡本波的 attempt 与本波其他卡由具名调度者在按卡接受时运行；入线轨道、提升与接受分别记录。命令写 Accepted at，按 Dispatched at 算出 Cycle days，并把 Stage 改为 Accepted。命令不判断接受是否有效，只在决定读回之后运行。
 
 ## 6. 暂停、取消和跨会话恢复
 

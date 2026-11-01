@@ -1,22 +1,24 @@
 # Request Context Cordis 定义的内部架构
 
-本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。服务键、抽象类、intercept 配置、事件、登记协议与策略选择的正文归 [Cordis 说明](cordis.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
+本页说明本成员怎样组织三个入口与依赖，来兑现 [SPEC](../SPEC.md)。服务键、抽象类、intercept 配置、事件、登记协议与策略选择的正文归 [Cordis 说明](cordis.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
 本成员没有运行实现，不持有状态，也不持有资源。渲染结果、缓存与默认策略归 [request-context](../../request-context/docs/architecture.md)。贡献登记表、Service 实现与撤除归 [request-context-cordis](../../request-context-cordis/docs/cordis.md)。
 
 ## 模块与依赖
 
-本成员有两个入口，各一个源文件。根入口只导出类型，Cordis 入口提供抽象定义。
+本成员有三个入口，各一个入口源文件。根入口只导出类型，Cordis 入口提供三个抽象服务定义，`./testing` 入口提供信任脚本替身与套件。
 
 | 入口                                                   | 源文件          | 承载                                                                                                                                  | 现状   |
 | ------------------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | `@omne-harness/request-context-cordis-contract`        | `src/index.ts`  | 只重导出服务签名与登记面所需的契约类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
-| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RequestContextService`、键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补                            | 已实现 |
+| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 三个抽象类 `RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`，三个键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补 | 已实现 |
+| `@omne-harness/request-context-cordis-contract/testing` | `src/testing/index.ts` | 脚本替身 `createScriptedRequestContextTrust` 与套件 `requestContextTrustConformance`，不属于生产导出 | 已实现 |
 
 ```mermaid
 flowchart LR
   Root[根入口：类型重导出] --> RQC[request-context-contract]
   Cordis[./cordis：服务定义] --> RQC
+  Testing[./testing：信任替身与套件] --> RQC
   Cordis --> Lib["@deepseek-ai/cordis"]
 ```
 

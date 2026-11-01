@@ -12,6 +12,9 @@ const documentedPairs = {
   sessionAccessCheckKey: 'SessionAccessCheckService',
   sessionTransactionsKey: 'SessionTransactionPortService',
   sessionPrincipalsKey: 'SessionInternalPrincipalsService',
+  sessionDelegatedTransactionsKey: 'SessionDelegatedTransactionsService',
+  sessionWorkPrincipalsKey: 'SessionWorkPrincipalsService',
+  sessionPrincipalBindingsKey: 'SessionPrincipalBindingsService',
   sessionIdentityKey: 'SessionIdentityBridgeService',
   sessionEvidenceKey: 'SessionEvidenceBridgeService',
   sessionClockKey: 'SessionClockService',
@@ -20,6 +23,10 @@ const documentedPairs = {
   sessionNotifierKey: 'SessionNotifierService',
   sessionAgentDriveKey: 'AgentDrivePortService',
   sessionScopeReleaseKey: 'ScopeReleasePortService',
+  sessionAdoptionSourceKey: 'SessionAdoptionSourceService',
+  sessionProductionSourceKey: 'SessionProductionSourceService',
+  sessionCustodySourceKey: 'SessionCustodySourceService',
+  sessionCursorSigningKey: 'SessionCursorSigningService',
 } as const
 
 const documentedKeys = {
@@ -27,6 +34,9 @@ const documentedKeys = {
   sessionAccessCheckKey: 'sessionAccessCheck',
   sessionTransactionsKey: 'sessionTransactions',
   sessionPrincipalsKey: 'sessionPrincipals',
+  sessionDelegatedTransactionsKey: 'sessionDelegatedTransactions',
+  sessionWorkPrincipalsKey: 'sessionWorkPrincipals',
+  sessionPrincipalBindingsKey: 'sessionPrincipalBindings',
   sessionIdentityKey: 'sessionIdentity',
   sessionEvidenceKey: 'sessionEvidence',
   sessionClockKey: 'sessionClock',
@@ -35,10 +45,14 @@ const documentedKeys = {
   sessionNotifierKey: 'sessionNotifier',
   sessionAgentDriveKey: 'sessionAgentDrive',
   sessionScopeReleaseKey: 'sessionScopeRelease',
+  sessionAdoptionSourceKey: 'sessionAdoptionSource',
+  sessionProductionSourceKey: 'sessionProductionSource',
+  sessionCustodySourceKey: 'sessionCustodySource',
+  sessionCursorSigningKey: 'sessionCursorSigning',
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the twelve classes and their keys', () => {
+  it('exports exactly the nineteen classes and their keys', () => {
     expect(Object.keys(cordis).sort()).toEqual(
       [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
     )

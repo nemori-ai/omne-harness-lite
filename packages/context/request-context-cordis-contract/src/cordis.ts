@@ -1,6 +1,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import type {
   AssemblyOperations,
+  ContextAccountingInbox,
   CompactionPolicy,
   ContextSourceRegistry,
   ContextTarget,
@@ -8,6 +9,7 @@ import type {
   RepresentationPolicyConfig,
   ScopeRef,
 } from '@omne-harness/request-context-contract'
+import type { RequestContextTrust } from './trust.js'
 
 /** Scope is an assembly declaration, not an access grant. */
 export type RequestContextIntercept = Readonly<{ scope: ScopeRef | null }>
@@ -53,6 +55,45 @@ export abstract class RequestContextService<P>
 }
 
 export const requestContextKey = RequestContextService.provide
+
+/**
+ * The trust object of one trusted subtree: the principal binding and the registration authority.
+ * The entry that assembles the subtree provides a subclass; the object never enters plugin tree JSON.
+ */
+export abstract class RequestContextTrustService<P>
+  extends Service
+  implements RequestContextTrust<P>
+{
+  static readonly provide = 'requestContextTrust'
+  constructor(ctx: Context) {
+    super(ctx, RequestContextTrustService.provide)
+  }
+  abstract readonly principalBinding: RequestContextTrust<P>['principalBinding']
+  abstract readonly registrationAuthority: RequestContextTrust<P>['registrationAuthority']
+}
+export const requestContextTrustKey = RequestContextTrustService.provide
+
+/**
+ * The accounting inbox of the request context host. The host that provides `requestContext`
+ * provides this key in the same plugin fiber, so the window usage and the received accounts
+ * read one state.
+ */
+export abstract class ContextAccountingInboxService<P>
+  extends Service
+  implements ContextAccountingInbox<P>
+{
+  static readonly provide = 'contextAccountingInbox'
+  constructor(ctx: Context) {
+    super(ctx, ContextAccountingInboxService.provide)
+  }
+  abstract receive(
+    ...args: Parameters<ContextAccountingInbox<P>['receive']>
+  ): ReturnType<ContextAccountingInbox<P>['receive']>
+  abstract usage(
+    ...args: Parameters<ContextAccountingInbox<P>['usage']>
+  ): ReturnType<ContextAccountingInbox<P>['usage']>
+}
+export const contextAccountingInboxKey = ContextAccountingInboxService.provide
 export type RequestContextChangedPayload = Readonly<{
   scope: ScopeRef | null
   layerRevision: string
@@ -62,6 +103,8 @@ export type RequestContextChangedPayload = Readonly<{
 declare module '@deepseek-ai/cordis' {
   interface Context {
     requestContext: RequestContextService<unknown>
+    requestContextTrust: RequestContextTrustService<unknown>
+    contextAccountingInbox: ContextAccountingInboxService<unknown>
   }
   interface Events {
     /**

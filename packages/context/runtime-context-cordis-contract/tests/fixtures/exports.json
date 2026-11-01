@@ -173,7 +173,17 @@
               "pending": false
             },
             {
+              "name": "RuntimeContextTrustService",
+              "kind": "class",
+              "pending": false
+            },
+            {
               "name": "runtimeContextKey",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextTrustKey",
               "kind": "value",
               "pending": false
             },
@@ -201,7 +211,7 @@
     {
       "module": "@deepseek-ai/cordis",
       "interface": "Context",
-      "members": ["runtimeContext", "[runtimeContextScopeKey]"],
+      "members": ["runtimeContext", "runtimeContextTrust", "[runtimeContextScopeKey]"],
       "pending": false
     },
     {

@@ -38,6 +38,9 @@
 - `RawOutput` · `custody.d.ts`
 - `ReleasedDelivery` · `results.d.ts`
 - `Reply` · `results.d.ts`
+- `ResidentHolderPage` · `resident-key.d.ts`
+- `ResidentKeyFailure` · `resident-key.d.ts`
+- `ResidentReferencesPage` · `resident-key.d.ts`
 - `ResourceScope` · `definitions.d.ts`
 - `ResponseProgress` · `records.d.ts`
 - `ResponseRecord` · `records.d.ts`
@@ -117,10 +120,13 @@
 - `backgroundCallsSchema` · `background-calls.d.ts`
 - `decodeToolCallId` · `identity.d.ts`
 - `decodeToolOperationId` · `identity.d.ts`
+- `encodeResidentKey` · `resident-key.d.ts`
 - `encodeToolInvocationRef` · `reference.d.ts`
 - `encodeToolOperationRef` · `reference.d.ts`
 - `judgeToolDelivery` · `result-delivery.d.ts`
+- `projectResidentReferences` · `resident-key.d.ts`
 - `readToolOperationRef` · `reference.d.ts`
+- `residentToolFacts` · `resident-key.d.ts`
 - `resolveToolInvocationRef` · `reference.d.ts`
 - `resolveToolOperationRef` · `reference.d.ts`
 
@@ -384,6 +390,7 @@
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingTenantText` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolCredentialsConformance` · `testing-credentials.d.ts`
@@ -1656,6 +1663,8 @@ export { judgeToolDelivery } from './result-delivery.ts';
 export type { ToolDelivery, ToolDeliveryFailure, ToolDeliveryKey, ToolDeliveryRejection, ToolResultReceiver, ToolSavedReceipt, } from './result-delivery.ts';
 export { backgroundCallsBlock, backgroundCallsSchema } from './background-calls.ts';
 export type { ToolBackgroundCallsValue } from './background-calls.ts';
+export { encodeResidentKey, projectResidentReferences, residentToolFacts } from './resident-key.ts';
+export type { ResidentHolderPage, ResidentKeyFailure, ResidentReferencesPage, } from './resident-key.ts';
 ```
 
 ## 声明文件 `json-tree.d.ts`
@@ -2958,6 +2967,43 @@ export declare function defineCommandTool<E, B extends ContentBlock>(input: Read
 export {};
 ```
 
+## 声明文件 `resident-key.d.ts`
+
+```ts
+import type { JsonValue } from '@omne-harness/json-text';
+import { type TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
+import type { ToolBindingKey, ToolShape } from './authoring.ts';
+export type ResidentKeyFailure = Readonly<{
+    field: string;
+    reason: 'type' | 'empty' | 'identity';
+}>;
+export type ResidentReferencesPage = Readonly<{
+    sessions: readonly Readonly<{
+        tenant: TenantId;
+        session: string;
+        capability: string;
+        shape: JsonValue;
+    }>[];
+    next: string | null;
+}>;
+export type ResidentHolderPage = Readonly<{
+    items: readonly Readonly<{
+        holder: string;
+        tenant: TenantId;
+        shape: ToolShape;
+    }>[];
+    next: string | null;
+}>;
+export declare function encodeResidentKey(key: ToolBindingKey): Outcome<string, ResidentKeyFailure>;
+export declare function residentToolFacts(key: ToolBindingKey, shape: ToolShape): Outcome<Readonly<{
+    capability: string;
+    key: string;
+    shape: JsonValue;
+}>, ResidentKeyFailure>;
+export declare function projectResidentReferences(page: ResidentReferencesPage): Outcome<ResidentHolderPage, ResidentKeyFailure>;
+```
+
 ## 声明文件 `result-delivery.d.ts`
 
 ```ts
@@ -4215,6 +4261,7 @@ export declare function mintEvidence(record: string, content: unknown): DurableE
 export declare function tenantKey(tenant: TenantId): string;
 export declare function identifyingValues(tenant: TenantId, ...evidences: readonly DurableEvidence[]): readonly unknown[];
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingTenantText(tenant: unknown): string | null;
 export declare function testingWorkspace(text: string): WorkspaceId;
 export declare function memoryAccess<P>(principal: P): Access<P>;
 export declare function memoryOtherAccess<P>(principal: P): Access<P>;
@@ -4257,7 +4304,7 @@ export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCu
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
-export { testingTenant, testingWorkspace } from './testing-values.ts';
+export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts';
 export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
 ```
 

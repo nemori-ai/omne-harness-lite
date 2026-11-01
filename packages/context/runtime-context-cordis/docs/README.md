@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口、四个模块、包外依赖、四条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RCP01 装载与卸载、F-RCP02 生产者插件卸载后登记撤除、F-RCP03 唤醒到达作用域监听者 |
 | [object-model.md](object-model.md) | 服务实例与插件配置。领域对象与机制对象指向各自拥有者 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
+| [public-api.md](public-api.md) | 两个入口。现有导出只有信任输入插件，随实现进入的导出单列 |
 | [context.md](context.md) | 装配与独立使用两条路径，以及定位 |
 
 当前缺口：两个入口都没有源码。已在 SPEC 写定：机制实例经变化出口 `onChange(scope, revision)` 通知视图修订前进；监听者的作用域标记键（`scope`，由 runtime-context-cordis-contract 定义）；根入口为空，独立路径从 runtime-context 取机制工厂；代际由机制新取。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

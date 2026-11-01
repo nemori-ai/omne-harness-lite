@@ -33,7 +33,13 @@ const proof = { kind: 'present', value: 'p' } as const
 
 test('the operation set and the session-only outcomes are closed', () => {
   expectTypeOf<SessionOperation>().toEqualTypeOf<
-    'create-session' | 'query-create-session' | 'send-input' | 'query-send-input' | 'read-history'
+    | 'create-session'
+    | 'query-create-session'
+    | 'send-input'
+    | 'query-send-input'
+    | 'read-history'
+    | 'cancel-run'
+    | 'stop-call'
   >()
   expectTypeOf<SessionOutcomes['create-session']>().toEqualTypeOf<
     'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown'

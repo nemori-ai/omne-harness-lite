@@ -137,7 +137,8 @@ packages/
 │   ├── request-context-contract/         Request Context 纯契约：已有组装、压缩计划纯操作、历史源与策略套件
 │   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：已有贡献登记、策略选择与机制测试
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
-│   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
+│   ├── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
+│   └── agent-context/                    Context 一侧的 Agent 适配集成：请求准备、Runtime Context 读取与账目出站；只有骨架，成员名待 #859 采用确认
 ├── human-intervention/human-intervention/
 ├── execution/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件
@@ -151,7 +152,9 @@ packages/
 ├── slash-command/<成员>/       命令定义、识别与展开
 ├── skills/<成员>/              方法、资源、发现与读取
 ├── mcp/<成员>/                 端点、连接、发现与动作桥接
-├── storage/<成员>/             存储契约、机制与提供者
+├── storage/
+│   ├── sql-contract/           SQL 存储契约：身份、结果、材料与清单摘要、关闭控制口、Cordis 服务定义、内存替身与符合性套件；已是 workspace 成员，提供者未建立
+│   └── <其他成员>/             存储机制与提供者
 ├── time/<具名时间能力>/        有独立消费者的时间能力
 ├── telemetry/<具名观测能力>/   有真实共同需要的观测能力
 ├── common/

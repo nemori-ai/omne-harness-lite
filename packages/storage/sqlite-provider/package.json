@@ -1,0 +1,42 @@
+{
+  "name": "@omne-harness/sqlite-provider",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SQLite provider of the SQL storage contract: domain open, registration, single-operation commit and query on one write Worker per domain file",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "pnpm run build && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/kernel-basis": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

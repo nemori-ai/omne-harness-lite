@@ -4,7 +4,7 @@
 
 ## 内容
 
-- [README.md](README.md)：测试范围、真实依赖、运行方式与当前缺口
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口没有导出
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：`./cordis` 入口没有导出
-- [fixtures/](fixtures/index.md)：测试固定输入，现在为空
+- [README.md](README.md)：测试范围、夹具边界、运行方式与缺口
+- [public-entry.spec.ts](public-entry.spec.ts)：导出集合、无 `./cordis`、依赖规则、材料与 LIMIT 检查
+- [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离与事务域目录
+- [fixtures/](fixtures/index.md)：`node:sqlite` 测试夹具
