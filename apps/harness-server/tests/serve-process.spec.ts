@@ -1,14 +1,15 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载 49 行替身树。
+// 慢：每个用例启动 dist/bin.js 子进程，并装载 49 行发行树（7 个真实行、1 个契约替身行、41 个替身行，真实 SQLite 存储）。
 // `serve` 子命令的进程级验收（DP1-C1、C2、C3、C19）：起 `dist/bin.js serve`，`--stop-on-stdin-close` 发起计划停止，
 // 断言退出码与 stdout JSON 记录。先运行 `pnpm run build`。
 import { execFile, spawn } from 'node:child_process'
-import { mkdtempSync, realpathSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, describe, expect, it } from 'vitest'
 import { rowIds } from '../src/s0/rows.ts'
+import { freePort, operatorLayer, writeOperator } from './r9/support.ts'
 
 const memberDir = fileURLToPath(new URL('..', import.meta.url))
 const bin = join(memberDir, 'dist', 'bin.js')
@@ -65,11 +66,31 @@ function serveUntilStartup(args: readonly string[]): Promise<Outcome> {
   })
 }
 
+/**
+ * The operator file that the release tree needs: the storage root, the directory file and the port of
+ * the entry. Each call makes a fresh state root, so two runs never share a database or a port.
+ */
+async function releaseRun(): Promise<{ stateRoot: string; args: string[] }> {
+  const stateRoot = join(scratch, `state-${String(runCount++)}`)
+  mkdirSync(stateRoot)
+  const operatorPath = join(stateRoot, '..', `operator-${String(runCount)}.json`)
+  writeOperator(
+    operatorPath,
+    operatorLayer({
+      storageRoot: join(stateRoot, 'storage'),
+      port: await freePort(),
+      shutdownDeadlineMs: 2000,
+    }),
+  )
+  return { stateRoot, args: ['--operator', operatorPath] }
+}
+let runCount = 0
+
 const common = (stateRoot: string) => [
   '--distribution',
   distributionPath,
   '--readiness-timeout-ms',
-  '5000',
+  '15000',
   '--shutdown-deadline-ms',
   '2000',
   '--state-root',
@@ -77,8 +98,14 @@ const common = (stateRoot: string) => [
 ]
 
 describe('serve process', () => {
-  it('loads the release tree of doubles, waits, stops when stdin closes, exit 0', async () => {
-    const out = await serveUntilStartup(['serve', ...common(scratch), '--stop-on-stdin-close'])
+  it('loads the release tree, waits, stops when stdin closes, exit 0', async () => {
+    const release = await releaseRun()
+    const out = await serveUntilStartup([
+      'serve',
+      ...common(release.stateRoot),
+      ...release.args,
+      '--stop-on-stdin-close',
+    ])
     expect(out.code).toBe(0)
     const of = (kind: string) => out.records.filter(r => r.kind === kind)
     expect(of('tree').map(r => r['id'])).toEqual(rowIds)
@@ -88,17 +115,22 @@ describe('serve process', () => {
       scope: 'serving',
       accepting: true,
       outcome: 'ready',
-      implementations: { real: 0, 'contract-double': 0, 's0-double': 49 },
+      implementations: { real: 7, 'contract-double': 1, 's0-double': 41 },
     })
     expect(of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
   })
 
   it('without --stop-on-stdin-close, keeps waiting for a stop request after startup', async () => {
-    const child = spawn(process.execPath, [bin, 'serve', ...common(scratch)], {
-      env: { ...process.env, NO_COLOR: '1' },
-      stdio: ['ignore', 'pipe', 'pipe'],
-    })
+    const release = await releaseRun()
+    const child = spawn(
+      process.execPath,
+      [bin, 'serve', ...common(release.stateRoot), ...release.args],
+      {
+        env: { ...process.env, NO_COLOR: '1' },
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    )
     let stdout = ''
     child.stdout.setEncoding('utf8')
     const exited = new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
