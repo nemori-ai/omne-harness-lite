@@ -97,6 +97,77 @@ function matches(definition: ToolDefinition, query: string): boolean {
   return texts.some(text => text.toLowerCase().includes(needle))
 }
 
+/** The usage of a definition for a command that the caller may use: its own, or the command's. */
+function usageOf(
+  definition: ToolDefinition,
+  command: string | null,
+): Outcome<ToolUsage, ToolFailure> {
+  if (definition.kind === 'function') {
+    if (command !== null)
+      return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
+    return succeed({
+      definition: definition.adoption,
+      command: null,
+      description: definition.description,
+      parameters: definition.parameters,
+      returns: definition.returns,
+    } satisfies ToolUsage)
+  }
+  if (command === null)
+    return fail({ kind: 'invalid', field: 'command', reason: 'command-required' })
+  const found = definition.commands.find(candidate => candidate.name === command)
+  if (found === undefined)
+    return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
+  // The usage text and protocol of an executor-owned command live with the executor, which the
+  // Catalog does not hold. It does not make them up.
+  if (found.parameters.kind !== 'declared')
+    return fail({
+      kind: 'unavailable',
+      dependency: DEPENDENCY,
+      diagnostic: 'the usage of an executor-owned command is not part of its definition',
+    })
+  return succeed({
+    definition: definition.adoption,
+    command: found.name,
+    description: found.summary,
+    parameters: found.parameters.value,
+    returns: found.returns,
+  } satisfies ToolUsage)
+}
+
+/** The page size and the name after which a search resumes (null: from the start). */
+function searchWindow(
+  limit: number,
+  cursor: string | null,
+): Outcome<string | null, ToolFailure | { kind: 'invalid-cursor'; reason: string }> {
+  if (!Number.isSafeInteger(limit) || limit < 1)
+    return fail({ kind: 'invalid', field: 'limit', reason: 'not-a-positive-integer' })
+  if (cursor === null) return succeed(null)
+  const after = decodeCursor(cursor)
+  if (after === null) return fail({ kind: 'invalid-cursor', reason: 'not-a-catalog-cursor' })
+  return succeed(after)
+}
+
+const byCodeUnits = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0)
+
+/** The listings a search may return, in name order: one per name, past the cursor, matching. */
+function candidates(
+  live: readonly ToolListing[],
+  request: Readonly<{ query: string; invocation: string }>,
+  after: string | null,
+): ToolListing[] {
+  const names = [...new Set(live.map(listing => listing.definition.name))].sort(byCodeUnits)
+  const chosen: ToolListing[] = []
+  for (const name of names) {
+    const listing = choose(live, name)
+    if (listing === undefined || (after !== null && name <= after)) continue
+    if (!matches(listing.definition, request.query)) continue
+    if (request.invocation === 'programmatic' && listing.definition.programmable !== true) continue
+    chosen.push(listing)
+  }
+  return chosen
+}
+
 /** Builds the Catalog. */
 export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): ToolCatalog<P> {
   const { registry, availability } = input
@@ -173,61 +244,15 @@ export function createLocalToolCatalog<P>(input: LocalToolCatalogInput<P>): Tool
       })
       if ('failure' in verdict) return verdict
       if (verdict.ok.qualification !== 'allowed') return fail({ kind: 'denied', action: 'usage' })
-      if (definition.kind === 'function') {
-        if (request.command !== null)
-          return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-        return succeed({
-          definition: definition.adoption,
-          command: null,
-          description: definition.description,
-          parameters: definition.parameters,
-          returns: definition.returns,
-        } satisfies ToolUsage)
-      }
-      if (request.command === null)
-        return fail({ kind: 'invalid', field: 'command', reason: 'command-required' })
-      const command = definition.commands.find(candidate => candidate.name === request.command)
-      if (command === undefined)
-        return fail({ kind: 'invalid', field: 'command', reason: 'unknown-command' })
-      // The usage text and protocol of an executor-owned command live with the executor, which the
-      // Catalog does not hold. It does not make them up.
-      if (command.parameters.kind !== 'declared')
-        return fail({
-          kind: 'unavailable',
-          dependency: DEPENDENCY,
-          diagnostic: 'the usage of an executor-owned command is not part of its definition',
-        })
-      return succeed({
-        definition: definition.adoption,
-        command: command.name,
-        description: command.summary,
-        parameters: command.parameters.value,
-        returns: command.returns,
-      } satisfies ToolUsage)
+      return usageOf(definition, request.command)
     },
 
     search: async request => {
-      if (!Number.isSafeInteger(request.limit) || request.limit < 1)
-        return fail({ kind: 'invalid', field: 'limit', reason: 'not-a-positive-integer' })
-      let after: string | null = null
-      if (request.after !== null) {
-        after = decodeCursor(request.after)
-        if (after === null) return fail({ kind: 'invalid-cursor', reason: 'not-a-catalog-cursor' })
-      }
+      const window = searchWindow(request.limit, request.after)
+      if ('failure' in window) return window
       const live = liveFor(request)
       if ('failure' in live) return live
-      const names = [...new Set(live.ok.map(listing => listing.definition.name))].sort((a, b) =>
-        a < b ? -1 : a > b ? 1 : 0,
-      )
-      const chosen: ToolListing[] = []
-      for (const name of names) {
-        const listing = choose(live.ok, name)
-        if (listing === undefined || (after !== null && name <= after)) continue
-        if (!matches(listing.definition, request.query)) continue
-        if (request.invocation === 'programmatic' && listing.definition.programmable !== true)
-          continue
-        chosen.push(listing)
-      }
+      const chosen = candidates(live.ok, request, window.ok)
       const page = chosen.slice(0, request.limit)
       const entries: ToolAvailability[] = []
       for (const listing of page) {
