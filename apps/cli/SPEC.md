@@ -23,7 +23,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 候选的命令面由下面的责任组成。
 
-- 七个命令，见[命令](#命令)。
+- 六个命令，见[命令](#命令)。
 - 凭据读取与登录状态文件，见[凭据与登录状态](#凭据与登录状态)。
 - 命令结果的输出与退出码，见[命令结果与退出码](#命令结果与退出码)。
 
@@ -62,7 +62,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 进程设置 `process.exitCode`，不调用 `process.exit()`。这样管道上的 stdout 在进程退出前写完。
 
-帮助文本由 `renderHelp(productionCatalog)` 生成，不是另一份手写文档。命令目录为空时，生成结果是下面的原文。登记[命令](#命令)的七个命令之后，文本多出命令清单，实现闭包按生成结果补全本节。最后一行之后有一个换行：
+帮助文本由 `renderHelp(productionCatalog)` 生成，不是另一份手写文档。命令目录为空时，生成结果是下面的原文。登记[命令](#命令)的六个命令之后，文本多出命令清单，由 `renderHelp` 生成。最后一行之后有一个换行：
 
 ```text
 omne
@@ -134,7 +134,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 ## 命令
 
-下列七个命令是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/server-entry/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
+下列六个命令是候选。每个命令对应公开契约的一个操作。命令名与操作名一致。操作的字段、`outcome` 和判断次序归[公开契约](../../packages/access/public-contract/SPEC.md)。路径、方法和状态码归[承载绑定表](../../packages/access/public-contract/docs/http-binding.md#承载绑定表)。CLI 经 SDK 发出请求。
 
 所有选项都写成 `--名字 值`。不支持 `--名字=值`。选项可以出现在命令名之后的任意位置。`--home` 的规则同[参数解析](#参数解析)。
 
@@ -144,17 +144,15 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 | `login` | `issue-login` | `--login-identifier` | `--server` | 凭据按[凭据读取](#凭据读取)读取。成功后写登录状态文件 |
 | `create-session` | `create-session` | `--definition` | `--purpose`、`--create-call-id`、`--server` | `actingTenant` 取登录状态里的租户 |
 | `send-input` | `send-input` | `--session`、`--text` | `--tenant`、`--accept-id`、`--input-id`、`--server` | `--text` 包成一条用户消息，形状归 message 包 |
-| `read-history` | `read-history` | `--session` | `--tenant`、`--direction`、`--page-bytes`、`--cursor`、`--server` | 见下文 |
 | `cancel-run` | `cancel-run` | `--session`、`--run` | `--urgency`、`--tenant`、`--control-id`、`--server` | `--urgency` 取 `graceful` 或 `force`，默认 `graceful` |
 | `stop-call` | `stop-call` | `--session`、`--producer-kind`、`--call` | `--tenant`、`--control-id`、`--server` | `--producer-kind` 取 `model` 或 `tool` |
 
 补充规则如下。
 
 - `--tenant` 的默认值是登录状态里的租户。会话命令中，除 `create-session` 外都用它作 body 的 `tenant`。
-- `read-history` 不带 `--cursor` 时，`cursor` 为 null，`--direction` 默认 `forward`，`--page-bytes` 默认 `16384`。带 `--cursor` 时，同时给出 `--direction` 或 `--page-bytes` 是用法错误。装配给出的 `pageBytes` 上界初值不得低于 16384。
 - 命令生成缺省的标识。每次发送生成新的 `messageId`。`--create-call-id`、`--accept-id`、`--input-id` 和 `--control-id` 缺省时也各生成一个新值。生成值用 `crypto.randomUUID()`。调用者要重试同一次操作时，必须用这些选项传入原来的值。
-- 命令不提供 `query-create-session`、`query-send-input`、`observe-session` 和 `cancel-observation` 的入口。观察命令在波 D。
-- 命令不提供其余治理操作的入口。服务端对它们答 `stage-not-provided`，见[治理位置](../../packages/access/server-entry/docs/http-binding.md#治理位置)。
+- 命令不提供 `query-create-session`、`query-send-input`、`read-history`、`observe-session` 和 `cancel-observation` 的入口。读历史与观察命令在后续波。
+- 命令不提供其余治理操作的入口。服务端对它们答 `stage-not-provided`，见[治理位置的操作范围](../../packages/access/public-contract/docs/http-binding.md#治理位置的操作范围)。
 - 命令不提供退出登录。`revoke-login` 本部署不提供。用户删除登录状态文件，只是忘掉本机持有的证明。
 
 ### 服务地址
@@ -164,9 +162,9 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 1. `--server` 的值。
 2. 环境变量 `OMNE_SERVER`。
 3. 登录状态文件里 `login` 记录的地址，仅会话命令使用。
-4. 默认值 `http://127.0.0.1:8787`。端口以[名字与默认值](../../packages/access/server-entry/docs/http-binding.md#名字与默认值)为准。
+4. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值。M2 发行配置的服务端监听端口初值取同一个数字，由装配给出。
 
-地址必须是 `127.0.0.1` 或 `localhost` 上的 `http:` 地址。其他地址是用法错误，消息为 `omne: --server must be a loopback http address\n`。原因见 SDK 的 [HTTP 传输适配](../../packages/access/sdk/SPEC.md#http-传输适配)。
+CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝是 SDK 的 M2 已知限制，见 SDK 的[已知限制](../../packages/access/sdk/SPEC.md#已知限制)。
 
 ### 命令的用法错误
 
@@ -208,7 +206,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 | `--help`、`--version`、用法错误 | 不解析，不创建，规则见[输出与退出码](#输出与退出码) |
 | `register` | 不解析，不创建，也不读 `--home` 与 `OMNE_HOME` |
 | `login` | 在发送任何请求之前解析并创建。创建失败则退出 `1`，不发送凭据。凭据错误等非成功结果不删除已创建的空目录 |
-| `create-session`、`send-input`、`read-history`、`cancel-run`、`stop-call` | 只读取。不存在时不创建，退出 `1` |
+| `create-session`、`send-input`、`cancel-run`、`stop-call` | 只读取。不存在时不创建，退出 `1` |
 
 `login` 先创建目录再发送请求。这样，签发成功后不会因为写不下登录证明而留下一份无人持有的登录。
 
@@ -247,7 +245,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 已接受的交付中，`package.json` 没有运行时依赖、peer 依赖或 optional 依赖。开发依赖只有 `typescript`、`vitest` 和 `@types/node`。构建产物只导入 `node:` 内置模块和 `dist` 内的相对模块。
 
-命令面实现后，运行时依赖只有 `@omne-harness/sdk`。构建产物只导入 `node:` 内置模块、`dist` 内的相对模块和 `@omne-harness/sdk`。CLI 不直接导入公开契约、server-entry 和任何服务端包。SDK 重新导出 CLI 需要的消息类型与构造入口。`tests/package-boundary.spec.ts` 中「无 SDK 依赖」的断言随命令面一起改为上述依赖规则。`bin.omne` 指向 `./dist/bin.js`。该文件以 `#!/usr/bin/env node` 开头。`files` 只发布 `dist`。
+命令面实现后，运行时依赖只有 `@omne-harness/sdk`。构建产物只导入 `node:` 内置模块、`dist` 内的相对模块和 `@omne-harness/sdk`。CLI 不直接导入公开契约、server-entry 和任何服务端包。SDK 重新导出 CLI 需要的消息类型与构造入口。`bin.omne` 指向 `./dist/bin.js`。该文件以 `#!/usr/bin/env node` 开头。`files` 只发布 `dist`。
 
 ## 适用平台
 
