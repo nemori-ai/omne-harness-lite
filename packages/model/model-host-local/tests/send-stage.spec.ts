@@ -550,7 +550,16 @@ describe('a send through the plugin', () => {
     await fiber.dispose()
     proceed.resolve()
     await driving
-    expect(run.results.map(result => result.kind)).toEqual(['not-started'])
+    expect(run.results).toEqual([
+      {
+        kind: 'not-started',
+        failure: {
+          kind: 'unavailable',
+          dependency: 'model-credential',
+          diagnostic: 'credential-unavailable',
+        },
+      },
+    ])
     expect(SpyCredential.resolves).toBe(0)
     expect(watch.acquired().flatMap(item => item.reads)).toEqual([])
     await watch.dispose()

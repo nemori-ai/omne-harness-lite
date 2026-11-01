@@ -11,11 +11,12 @@
 - [assembly.spec.ts](assembly.spec.ts)：本地装配的配置拒绝、准备租约的绑定来源、被拒装配的网络关闭与两个关闭的失败汇总
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
-- [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源
+- [send-stage.spec.ts](send-stage.spec.ts)：发送阶段插件在真实 Cordis 4.0.4 下的装载、卸载、凭据槽与退出时的发送；慢层用例把四份回放件经插件回放并与装配路径对比
+- [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源；另回放两个工具调用用例的合成回放件，并核对录制器在其上的写出与拒绝
 - [recording-c9.spec.ts](recording-c9.spec.ts)：慢层，计量对照证据：延续轮的计量与真实输入合计之差、两轮应付金额的精确累计；设 `OMNE_EVIDENCE_OUT` 时写 JSON
 - [recording-c1.spec.ts](recording-c1.spec.ts)：慢层，传输义务证据：四份回放件经装配路径的事实序列、终止与账目，以及真实传输上的六条传输义务；设 `OMNE_EVIDENCE_OUT` 时写脱敏 JSON
 - [recorder.spec.ts](recorder.spec.ts)：慢层，录制器经本地 HTTPS 服务与本地 CONNECT 代理写出原样正文与旁注，各种不写文件的情形，以及第二轮的输入形状
 - [secret-scan.spec.ts](secret-scan.spec.ts)：录制器的密钥模式检查
 - [live/record.spec.ts](live/record.spec.ts)：录制器的真实入口，只在 `OMNE_LIVE_TESTS=1` 并给出 `OMNE_RECORD_CASE` 时运行（`record:live`）
 - [support/](support/)：测试支撑，读取家族录制夹具、起本地 HTTPS 服务与 CONNECT 代理、形成官方档案、装配一次调用的本地宿主，回放回放件，用真实租约计量请求，以及录制器、正文截取、密钥检查与录制用例
-- [fixtures/](fixtures/index.md)：测试固定输入
+- [fixtures/](fixtures/index.md)：测试固定输入。`fixtures/recordings/<用例>/synthetic.jsonl` 是两个工具调用用例的合成回放件

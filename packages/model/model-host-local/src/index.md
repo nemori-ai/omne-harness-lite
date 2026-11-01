@@ -9,3 +9,4 @@
 - [deliver-injected.ts](deliver-injected.ts)：注入发送，不导入保管库
 - [send-resources.ts](send-resources.ts)：生产发送资源，每次 acquire 一个 pi 传输与私有凭据槽
 - [assembly.ts](assembly.ts)：本地 Model 装配，组合网络资源、发送资源与 model 的发送边界
+- [plugins/send-stage.ts](plugins/send-stage.ts)：发送阶段插件，在装配的发送路径上提供 `modelSendBoundary`，静态注入凭据服务与命令，退出时撤回凭据端口并关闭发送路径
