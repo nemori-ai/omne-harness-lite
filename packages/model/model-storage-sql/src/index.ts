@@ -1,0 +1,65 @@
+// The Model records over the SQL storage contract. This slice exports the table definitions and
+// the migration, the stored call document with its row parse, and the commit loop with its
+// construction checks. The 22 methods of `ModelCommands`, the send coordinator and the static
+// materials with their digests are later slices. Imports no Cordis.
+export {
+  MIGRATION,
+  MODEL_PARTICIPANT,
+  MODEL_TABLES,
+  PROTOCOL,
+  SCHEMA_STATEMENTS,
+  TABLES,
+  modelMigration,
+  type Column,
+  type ColumnKind,
+  type Table,
+} from './schema.ts'
+export {
+  encodeCallRow,
+  encodeDispatchRow,
+  encodeOperationRow,
+  encodePartRow,
+  nextVersion,
+  parseCallRead,
+  parseRow,
+  type CallRead,
+  type CallRowScope,
+  type ConflictReason,
+  type ModelStorageFailure,
+  type ModelStorageTransaction,
+  type PartBody,
+  type PartKey,
+  type PendingMark,
+  type ResultPaging,
+  type Row,
+  type SnapshotHead,
+  type StoredBinding,
+  type StoredCall,
+  type StoredDispatch,
+  type StoredModelDocument,
+  type StoredPart,
+  type TenantRef,
+  type WindowState,
+} from './documents.ts'
+export {
+  COMMAND_RESERVE_BYTES,
+  DEFAULT_ATTEMPT_LIMIT,
+  PART_MERGE_THRESHOLD,
+  READ_RESERVE_BYTES,
+  createModelStore,
+  planParts,
+  type ModelStore,
+  type ModelStoreLimits,
+  type ModelStoreOptions,
+} from './commit.ts'
+export {
+  CALL_HANDLER,
+  CALL_READ_MAX_OUTPUT_BYTES,
+  CALL_READ_MAX_ROWS,
+  PENDING_HANDLER,
+  PENDING_PAGE_MAX,
+  callHandler,
+  pendingHandler,
+  type CallScope,
+  type PendingPage,
+} from './reads.ts'
