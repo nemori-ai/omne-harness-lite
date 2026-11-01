@@ -6,27 +6,16 @@ import { createHash } from 'node:crypto'
 
 import type {
   Actor,
-  AdoptionDiagnostic,
   ApiSide,
-  AuthorityPathPresence,
-  BindingInput,
   CommentRef,
   Comparison,
   Enablement,
   Finding,
-  Issue,
   Json,
   MemberResolution,
   MilestonePredicates,
-  OwnerIdentityFact,
-  OwnerLineResolution,
-  Repository,
   ReviewFailureCode,
   RunExit,
-  Scope,
-  SnapshotFile,
-  SourcePr,
-  UnitInput,
 } from '../delivery/api-review-types.ts'
 
 type RepoPath = string

@@ -52,7 +52,6 @@ import {
 } from './contract-review.ts'
 import type {
   AdoptionDiagnostic,
-  ApiSide,
   BindingInput,
   CommentRef,
   Comparison,
@@ -79,7 +78,7 @@ import {
   snapshotContractDiffWith,
   toolOf,
 } from './contract-diff.ts'
-import { blob, clean, exactTextBlob, git, GitError } from './git.ts'
+import { blob, clean, git, GitError } from './git.ts'
 import { IntegrationError, json, section } from './parse.ts'
 import {
   riNotes,
