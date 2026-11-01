@@ -156,3 +156,89 @@ describe('stopCall over DecideReads.calls', () => {
     expect(decide(null, tool, [], null, base)).toEqual(unsupported)
   })
 })
+
+describe('format refusals are not saved as answers (r2.2 4.2)', () => {
+  const invalid = { kind: 'rejected', failure: { kind: 'invalid' } }
+
+  async function malformed() {
+    const f = await frame()
+    const active = f.snapshot.run.kind === 'active' ? f.snapshot.run.run : run
+    const cancel = (target: string, urgency: string, reads: DecideReads) =>
+      decide(
+        f.snapshot,
+        {
+          kind: 'cancelRun',
+          input: {
+            ...f.s.base,
+            operation: operationId('c'),
+            run: target as RunId,
+            urgency: urgency as 'force',
+          },
+        },
+        [],
+        null,
+        reads,
+      )
+    const stop = (producer: { kind: string; call: string }) =>
+      decide(
+        f.snapshot,
+        {
+          kind: 'stopCall',
+          input: {
+            ...f.s.base,
+            operation: operationId('s'),
+            producer: producer as typeof model,
+          },
+        },
+        [],
+        null,
+        {
+          ...base,
+          calls: [
+            { kind: 'absent', producer: producer as typeof model, covered: f.snapshot.revision },
+          ],
+        },
+      )
+    return { f, active, cancel, stop }
+  }
+
+  it('cancelRun with an empty run is invalid, not a saved not-found', async () => {
+    const m = await malformed()
+    const reads = {
+      ...base,
+      runs: [{ kind: 'absent' as const, run: '' as RunId, covered: m.f.snapshot.revision }],
+    }
+    expect(m.cancel('', 'graceful', reads)).toMatchObject({
+      ...invalid,
+      failure: { kind: 'invalid', field: 'run' },
+    })
+  })
+
+  it('cancelRun with an unregistered urgency is invalid and cancels nothing', async () => {
+    const m = await malformed()
+    const reads = {
+      ...base,
+      runs: [{ kind: 'bound' as const, run: m.active, bound: evidence('b'), terminal: null }],
+    }
+    expect(m.cancel(m.active, 'abort', reads)).toMatchObject({
+      ...invalid,
+      failure: { kind: 'invalid', field: 'urgency' },
+    })
+  })
+
+  it('stopCall with an unregistered producer kind is invalid, not a saved not-found', async () => {
+    const m = await malformed()
+    expect(m.stop({ kind: 'agent', call: 'm1' })).toMatchObject({
+      ...invalid,
+      failure: { kind: 'invalid', field: 'producer.kind' },
+    })
+  })
+
+  it('stopCall with an empty producer call is invalid, not a saved not-found', async () => {
+    const m = await malformed()
+    expect(m.stop({ kind: 'model', call: '' })).toMatchObject({
+      ...invalid,
+      failure: { kind: 'invalid', field: 'producer.call' },
+    })
+  })
+})

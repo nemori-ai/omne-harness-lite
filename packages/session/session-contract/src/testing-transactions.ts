@@ -275,7 +275,8 @@ function receiptOf(
 }
 
 /** The result of a commit for each mutation kind, built from the snapshot after the batch. */
-function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
+/** A control that left no progress item is not reachable, but it answers `null` (unavailable), never throws. */
+function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
   const kind = command.kind
   switch (command.kind) {
     case 'create':
@@ -319,7 +320,7 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      if (progress === undefined) throw new Error(`${command.kind} committed without a control`)
+      if (progress === undefined) return null
       return receipt => ({
         operation: receipt.operation,
         source: receipt.source,
@@ -624,6 +625,8 @@ export function createMemorySessionTransactions<P>(
           }
     const receipt = receiptOf(command.input.session, command.input.operation, revision, entries)
     const recall = resultOf(command, committedSnapshot)
+    if (recall === null)
+      return fail(unavailable(`${command.kind} committed without a control progress item`))
     const operations = new Map(store?.operations)
     operations.set(command.input.operation, {
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
@@ -2033,6 +2036,85 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
           'queryControlOperation',
         )
         assert.deepEqual(resolved, { kind: 'committed', receipt: first })
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'a malformed cancelRun or stopCall is refused invalid and saves neither an answer nor an operation',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const run = expectKind((await s.readWork()).run, 'active', 'the open Run').run
+        const before = await s.readWork()
+        const cases: readonly (readonly [string, string, SessionCommand])[] = [
+          [
+            'run',
+            'empty run',
+            {
+              kind: 'cancelRun',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e1'),
+                run: '' as RunId,
+                urgency: 'force',
+              },
+            },
+          ],
+          [
+            'urgency',
+            'unregistered urgency',
+            {
+              kind: 'cancelRun',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e2'),
+                run,
+                urgency: 'abort' as 'force',
+              },
+            },
+          ],
+          [
+            'producer.kind',
+            'unregistered producer kind',
+            {
+              kind: 'stopCall',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e3'),
+                producer: { kind: 'agent', call: 'm1' } as unknown as ProducerRef,
+              },
+            },
+          ],
+          [
+            'producer.call',
+            'empty producer call',
+            {
+              kind: 'stopCall',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e4'),
+                producer: { kind: 'model', call: '' },
+              },
+            },
+          ],
+        ]
+        for (const [field, label, command] of cases) {
+          const failure = refused(
+            await s.port.commit({ access: fixture.access, command, guards: [] }),
+            label,
+          )
+          assert.equal(expectKind(failure, 'invalid', label).field, field, label)
+          const resolved = succeeded(
+            await s.port.queryControlOperation({
+              ...fixture.access,
+              operation: command.input.operation,
+            }),
+            `queryControlOperation after ${label}`,
+          )
+          assert.deepEqual(resolved, { kind: 'unknown' }, `${label}: no answer or operation saved`)
+        }
+        assert.deepEqual(await s.readWork(), before, 'a format refusal writes nothing')
       },
     ),
 
