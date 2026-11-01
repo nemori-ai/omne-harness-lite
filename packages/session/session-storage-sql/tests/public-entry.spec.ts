@@ -31,7 +31,7 @@ describe('public entries', () => {
   })
 
   it('has no ./cordis subpath: not declared and not importable', async () => {
-    expect(Object.keys(packageJson.exports)).toEqual(['.'])
+    expect(Object.keys(packageJson.exports)).toEqual(['.', './participants'])
     const removed = '@omne-harness/session-storage-sql/cordis'
     await expect(import(/* @vite-ignore */ removed)).rejects.toThrow()
   })

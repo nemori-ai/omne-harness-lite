@@ -11,9 +11,10 @@ import {
   type SessionFailure,
 } from '@omne-harness/session-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { JsonValue } from '@omne-harness/sql-contract'
+import type { FactCommandV2 } from '@omne-harness/sql-contract'
 import { encodeValue } from './codec.ts'
 import { commitFacts } from './commit.ts'
+import { SESSION_PARTICIPANT } from './participants.ts'
 import { domainOf, failure, type Context } from './context.ts'
 
 export async function commitEntries<P>(
@@ -24,9 +25,16 @@ export async function commitEntries<P>(
   // An unminted tenant is refused here, before any storage call and before the digest needs it.
   const domain = await domainOf(context, observation.tenant)
   if ('failure' in domain) return domain
-  let facts: Record<string, JsonValue>
+  let facts: FactCommandV2
   try {
-    facts = { intent: 'entries', observation: encodeValue(observation), start: encodeValue(start) }
+    facts = {
+      participant: SESSION_PARTICIPANT,
+      facts: {
+        intent: 'entries',
+        observation: encodeValue(observation),
+        start: encodeValue(start),
+      },
+    }
   } catch (error) {
     return failure({
       kind: 'invalid',

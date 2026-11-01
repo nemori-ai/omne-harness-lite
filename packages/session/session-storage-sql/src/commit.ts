@@ -22,12 +22,14 @@ import {
 import type {
   CommitRequestV2,
   CommitResultV2,
+  FactCommandV2,
   JsonValue,
   ReceiptV2,
   SqlIdentity,
 } from '@omne-harness/sql-contract'
-import { canonicalText, decodeValue, encodeValue } from './codec.ts'
+import { canonicalText, decodeValue } from './codec.ts'
 import { OWNER } from './cursor.ts'
+import { SESSION_PARTICIPANT, decodeSessionReply, sessionCommandFacts } from './participants.ts'
 import {
   domainOf,
   failure,
@@ -37,9 +39,6 @@ import {
   type TenantDomainRef,
 } from './context.ts'
 
-const PARTICIPANT = 'session'
-
-type Answer = Readonly<{ result: JsonValue; recovered: boolean; digest: string }>
 /**
  * What a committed answer must match: the operation identity and the digest of its input. Another
  * digest under the same identity is another operation (SL07).
@@ -59,11 +58,16 @@ const identityOf = (domain: TenantDomainRef, operation: string, key: string): Sq
 const requestOf = <P>(
   context: Context<P>,
   identity: SqlIdentity,
-  facts: Readonly<Record<string, JsonValue>>,
+  command: FactCommandV2,
 ): CommitRequestV2 => ({
   identity,
   ...context.options.combination,
-  commands: [{ participant: PARTICIPANT, facts }],
+  commands: [command],
+})
+
+const sessionFacts = (facts: Readonly<Record<string, JsonValue>>): FactCommandV2 => ({
+  participant: SESSION_PARTICIPANT,
+  facts,
 })
 
 /** A recalled result says so: the receipt inside it, or the receipt it is, carries `recovered`. */
@@ -83,29 +87,35 @@ function fromCommitted(
   expected: Expected,
   recall: boolean,
 ): Outcome<unknown, SessionFailure> {
-  const reply = receipt.responses[0]?.reply
-  if (reply?.kind !== 'participated')
+  const entry = receipt.responses.find(item => item.participant === SESSION_PARTICIPANT)
+  if (entry?.reply.kind !== 'participated')
     return failure(unavailable('a committed receipt without a response'))
-  const answer = reply.response as Answer
+  const answer = decodeSessionReply(entry.reply)
+  if (answer.kind !== 'participated') return failure(unavailable('an undecodable session reply'))
   if (answer.digest !== expected.digest)
     return failure({ kind: 'conflict', operation: expected.operation })
-  const value = decodeValue(answer.result)
-  return succeed(recall || answer.recovered ? markRecovered(value) : value)
+  return succeed(recall || answer.recovered ? markRecovered(answer.result) : answer.result)
 }
 
 function fromRolledBack(receipt: ReceiptV2): Outcome<never, SessionFailure> {
   const stop = receipt.responses[receipt.responses.length - 1]?.reply
-  if (stop?.kind === 'conflict')
-    return failure(decodeValue((stop.basis as { failure: JsonValue }).failure) as SessionFailure)
-  if (stop?.kind === 'unsupported')
-    return failure({
-      kind: 'invalid',
-      field: 'command',
-      reason: 'the participant does not support the facts',
-    })
-  if (stop?.kind === 'failed')
-    return failure(unavailable(`participant failed (${stop.category}): ${stop.diagnostic}`))
-  return failure(unavailable('a rolled back receipt without a stopping response'))
+  if (stop === undefined || stop.kind === 'participated')
+    return failure(unavailable('a rolled back receipt without a stopping response'))
+  const decoded = decodeSessionReply(stop)
+  switch (decoded.kind) {
+    case 'stopped':
+      return failure(decoded.failure)
+    case 'unsupported':
+      return failure({
+        kind: 'invalid',
+        field: 'command',
+        reason: 'the participant does not support the facts',
+      })
+    case 'failed':
+      return failure(unavailable(`participant failed (${decoded.diagnostic})`))
+    case 'participated':
+      return failure(unavailable('a rolled back receipt without a stopping response'))
+  }
 }
 
 function fromResult(
@@ -139,7 +149,7 @@ export async function commitFacts<P>(
   context: Context<P>,
   domain: TenantDomainRef,
   expected: Expected,
-  facts: Readonly<Record<string, JsonValue>>,
+  command: FactCommandV2,
 ): Promise<Outcome<unknown, SessionFailure>> {
   // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
   // domain, so one identity is one operation per tenant, not per session. An identity reused in
@@ -153,7 +163,10 @@ export async function commitFacts<P>(
     if (found.kind === 'rolled_back') continue
     if (found.kind === 'committed') return fromCommitted(found, expected, true)
     if (found.kind === 'unknown') return failure({ kind: 'commit-unknown', operation })
-    const settled = fromResult(await storage.commit(requestOf(context, identity, facts)), expected)
+    const settled = fromResult(
+      await storage.commit(requestOf(context, identity, command)),
+      expected,
+    )
     if (settled !== 'next-attempt') return settled
   }
   return failure(unavailable('every attempt generation of the operation was rolled back'))
@@ -183,13 +196,9 @@ export async function commit<P, K extends MutationName>(
     return failure({ kind: 'unsupported' })
   const domain = await domainOf(context, command.input.tenant)
   if ('failure' in domain) return domain
-  let facts: Record<string, JsonValue>
+  let facts: FactCommandV2
   try {
-    facts = {
-      intent: 'command',
-      command: encodeValue(command),
-      guards: encodeValue(input.guards),
-    }
+    facts = sessionCommandFacts(command, input.guards)
   } catch (error) {
     return failure({
       kind: 'invalid',
@@ -215,7 +224,11 @@ async function lookup<P>(
 ): Promise<Outcome<Found | null, SessionFailure>> {
   const identity = identityOf(domain, 'session.lookup', `lookup#${operation}#${randomUUID()}`)
   const result = await context.options.storage.commit(
-    requestOf(context, identity, { intent: 'query', tenant: domain.text, session, operation }),
+    requestOf(
+      context,
+      identity,
+      sessionFacts({ intent: 'query', tenant: domain.text, session, operation }),
+    ),
   )
   if (result.kind !== 'committed')
     return failure(unavailable(`the receipt lookup did not commit: ${result.kind}`))

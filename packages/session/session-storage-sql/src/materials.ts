@@ -10,10 +10,8 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
+import { SESSION_PARTICIPANT } from './participants.ts'
 import { MIGRATION, PROTOCOL, SESSION_TABLES } from './worker/schema.ts'
-
-/** The participant name that a combination lists for the Session log. */
-export const SESSION_PARTICIPANT = 'session'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
