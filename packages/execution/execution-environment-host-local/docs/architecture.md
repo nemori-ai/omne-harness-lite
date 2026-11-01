@@ -13,6 +13,8 @@
 | 同上 | `src/host-file-batch.ts` | `commitBatch`、`recoverBatch` 与批次清单（不从根入口导出） |
 | 同上 | `src/host-domain.ts` | 宿主文件责任域 `createHostFilesDomain`：获取记录、门面、配额与排空 |
 | 同上 | `src/host-provider.ts` | 宿主文件提供者 `createHostFilesProvider` |
+| 同上 | `src/host-command.ts`、`src/host-scope.ts`、`src/host-probe.ts` | 宿主命令设施、systemd 用户 scope 与平台前提探测，见[宿主命令机制](#宿主命令机制) |
+| 门进程脚本，不是入口 | `src/command-gate.ts` | 命令的门进程，由宿主命令设施按文件路径起 |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema |
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
@@ -20,6 +22,8 @@
 | 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次；宿主文件根的绑定与平台前提 P2 的结果、引擎的进程实例身份、正在运行的批次、已封闭的所有者 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
 | 宿主文件责任域 | 共用文件引擎、签发过的提供者代、获取记录（原描述、指纹、状态、门面、租约）、配额策略 | [宿主文件责任域](../SPEC.md#宿主文件责任域) |
 | 宿主文件提供者（一代） | 是否已退役、上界与诊断出口；记录都在责任域 | [宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
+| 宿主命令设施（每份获取） | 准入开关、在途的启动、停止未确认的进程；每个进程的帧读取、输出缓冲与结局 | [宿主命令与终端](../SPEC.md#宿主命令与终端) |
+| 平台前提探测（一代） | 探测结果、解析出的两个工具路径与上次探测的时刻 | [宿主命令与终端](../SPEC.md#宿主命令与终端) |
 | Service 与插件 | 一个登记表实例 | [Service 实现](../SPEC.md#service-实现)与[撤除顺序](../SPEC.md#撤除顺序) |
 
 ```mermaid
@@ -34,6 +38,12 @@ flowchart LR
   Root --> Provider[host-provider.ts]
   Domain --> Files
   Provider --> Domain
+  Root --> Command[host-command.ts]
+  Domain --> Command
+  Provider --> Probe[host-probe.ts]
+  Command --> Scope[host-scope.ts]
+  Probe --> Scope
+  Command -. 起门进程 .-> Gate[command-gate.ts]
   Cordis[./cordis] --> Provider
   Cordis --> EE[execution-environment]
   Cordis --> EECC[execution-environment-cordis-contract]
@@ -165,28 +175,43 @@ Cordis 对撤除函数抛出的处置见 basis 条目 [effect-disposal-concurren
 - 经宿主文件责任域使用时，上文的「本设施实例」是责任域的共用引擎：pending-close 集合里的每个描述符带所属获取的标记，排空该获取时也重试它们；提供者代退役后它们仍留在责任域里，由之后的结清或 `maintain()` 再试。句柄代次在共用引擎内唯一，不按每份获取从 `1` 起。直接调用 `createHostFiles` 的设施仍按上文。
 - 本成员的包测试的运行记录见 [SPEC 的组合与验证](../SPEC.md#组合与验证)。其中包括读取、查看与写入时关闭失败后关闭返回未知的三个测试。这些运行没有重做 2026-10-16 的两次 `close` 观察。
 
-## 宿主命令与终端机制（设计，未实现）
+## 宿主命令机制
 
-本节是宿主提供者承担 `command` 与 `terminal` 的机制设计。它不是实现：本成员现在没有 `command` 与 `terminal` 的提供者，SPEC 把这部分列为[未实现](../SPEC.md#宿主命令与终端未实现)。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令) 与 [`terminal`](../../execution-environment-contract/docs/architecture.md#terminal终端)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局) 与 [F-EEC08](../../execution-environment-contract/docs/flows.md#f-eec08-终端腿)。
+<a id="宿主命令与终端机制设计未实现"></a>
 
-`command` 与 `terminal` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）；再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。保持「一层一个提供者提供全部所需设施」，就不会出现这两种结果。
+本节说明宿主提供者怎样承担 `command`。行为以 SPEC 的[宿主命令与终端](../SPEC.md#宿主命令与终端)为准。设施的协议规则归契约的[设施协议](../../execution-environment-contract/SPEC.md#设施协议)，逐设施的展开见契约内部架构的 [`command`](../../execution-environment-contract/docs/architecture.md#command命令)，协议级流程见契约的 [F-EEC07](../../execution-environment-contract/docs/flows.md#f-eec07-命令的增量输出与终局)。`command` 只在 Linux 上实现。`terminal` 未实现，不在 M2：本成员没有 PTY、终端腿与 node-pty。
+
+`command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。理由：登记表在一层里只选一个提供者。按设施拆成几个宿主提供者时，需要 `files` 加 `command` 的工具在宿主层得不到落点（`missingFacility`）。再加一个合并的提供者，又会有两个提供者同时合格（`ambiguousEnvironment`）。
+
+| 模块 | 承担 |
+| --- | --- |
+| `src/host-probe.ts` | 平台前提 P1、P3～P6 的探测与这一代的探测结果 |
+| `src/host-scope.ts` | systemd 用户 scope：起单元、强制停止与确认、按描述列举、引用的读写 |
+| `src/command-gate.ts` | 门进程脚本。它在命令的单元里运行，只用 Node 的内置模块，不被任何模块导入 |
+| `src/host-command.ts` | 每份获取的命令门面：前置检查、启动、帧的读取、有界缓冲、进程句柄与停止 |
 
 | 机制 | 设计 |
 | --- | --- |
-| 执行域 | 每个受管资源一个 systemd 用户 scope：`systemd-run --user --scope --unit=omne-host-<uuid>.scope --property=KillMode=control-group` 启动一个门进程。坐标 `{ unit, boot_id }` 是进程身份的耐久引用，也是 `ManagedResource.reference`。隔离断言只能确认 `process`，不能确认 `filesystem-root` 或 `network-none` |
-| 门与许可 | 门进程先核对 `/proc/self/cgroup` 含有自己的 unit，再报就绪。GO 信号只能由唯一的写端发一次，GO 之前不启动用户命令。GO 对应资源账本的 `permit` 已确认；账本 `closed` 时关闭 GO 的写端 |
-| PTY | 门内用 node-pty 以显式的列数与行数启动命令。环境变量显式给出，另补 `PWD` 为工作目录、`TERM` 为显式值或 `xterm`，不继承宿主的变量。尺寸来自请求，缺省值归提供者的配置 |
-| 增量转发 | PTY 的原始字节按单块上限切块，经 base64 编进分隔的 JSON 帧，经私有的标准输出管道送到管理端。管道写端返回 false 时暂停 PTY，`drain` 后恢复。管理端按行解析并限制帧大小，非法帧使资源失效 |
-| 有界缓冲 | 管理端的缓冲不超过缓冲上限，超出的字节丢弃并计数。只有一个读者；读者放弃之后，后续字节全部计入丢弃。`observedOffset` 由管理端给出 |
-| 完成回执 | 一次性命令由门内的启动器包一层，退出码写入身份目录下的回执文件（独占新建，权限 0600）。PTY 退出且传输没有暂停时，门用 `O_NOFOLLOW` 读回执，发出带退出码或信号的完成帧。缺回执或传输不完整时发出 `failed`。`CommandOutcome` 的 `completed` 只在收到回执时给出，否则为 `failed`（`effectUnknown`） |
-| 终端腿 | 持久 Bash 在 PTY 里。每条腿写一个脚本文件，用 `builtin source` 执行。腿带显式工作目录或环境变量时，整段包进子 shell 并 `builtin wait`。完成信号是私有转义序列 `ESC ] 777 ; omne ; <腿 id> ; <退出码> BEL`，由管理端从字节流里剥出，普通 ANSI 原样透传。收到回执之后，核对 `cgroup.procs` 没有非僵尸的残留进程，用 `readlink /proc/<shell>/cwd` 读新的工作目录，再给出带退出码与工作目录的完成 |
-| 失效 | 重复的就绪、未发送就收到已创建、帧 id 不匹配、完成后仍有数据、帧过大、管理进程关闭，都使资源失效。在途的腿以 `failed`（`effectUnknown`）结算，并强制停止 |
-| 停止与确认 | 先 `systemctl --user kill --kill-who=all --signal=SIGKILL`，再 `stop`，之后用 `systemctl --user show -p LoadState -p ActiveState` 核对 scope 为 `inactive` 或 `not-found`，才报 `confirmed`。`boot_id` 变了直接视为不活动。原启动尚未隔离或尚未排空时不确认缺席。冷恢复按坐标核对 scope 的状态 |
-| 超时 | 等待有上界。超时不取消原生操作，也不丢弃原控制。准备超时返回 `unknown`，保留控制对象，关闭 GO 的写端 |
-| 身份目录 | 每个资源一个以坐标命名的目录，放请求、输入、脚本与回执。命令处置或终端清理时删除。冷清理覆盖这两类目录。清理经账本的 `stopped` 确认 |
-| 平台前提 | Linux 的用户 systemd、可用的用户管理器、真实的 Bash、GNU `env`、`stty`、node-pty。缺任一项时提供者报 `unavailable`，不用猜测的进程号或假后端顶替。`execution.host-facts` 报告前提是否满足 |
+| 执行域 | 每个进程一个 systemd 用户 scope：`systemd-run --user --scope --collect --unit=omne-host-<资源键>.scope -p KillMode=control-group`。坐标 `{ unit, bootId }` 是 `ManagedResource.reference`。单元描述记下请求方作用域的摘要与资源键，供冷恢复列举 |
+| 门与许可 | `systemd-run` 在单元里执行门进程。门先核对 `/proc/self/cgroup` 含有自己的单元，再报就绪。管理端在账本 `permit` 确认之后才发 GO，GO 只发一次。没有 GO 时门不起命令，控制管道关闭就退出 |
+| 两条私有通道 | 控制通道是描述符 3，管理端写给门：先写请求（可执行文件、参数、目录、环境变量、标准输入），再写 GO 与平和停止。请求不进命令行参数，因为环境变量可能带秘密。帧通道是门的标准输出，一行一个 JSON 帧。门起命令时用第四条管道占住命令的描述符 3，控制通道不会漏进命令 |
+| 门一侧的暂停与恢复 | 门把命令的字节按单块上限切块并编码成帧。帧管道的写端返回 false 时，门暂停读命令的两条管道，`drain` 之后恢复。所以管理端读得慢时，命令被阻塞在自己的输出管道上，门的内存不随输出增长，字节也不丢 |
+| 帧的读取 | 管理端按行读帧，每行有上界（单块上限的 base64 长度加固定余量）。帧的次序固定：就绪，然后起来或映像失败，然后数据，最后一个退出。超长、非 JSON、未知帧、次序不对、超过单块上限，都使资源失效并强制停止 |
+| 有界缓冲 | 管理端立刻读帧，两条流共用一个缓冲。放不下的块整块丢弃并计数，下一块的 `observedOffset` 写出缺口。只有一个读者，读者放弃后全部计入丢弃 |
+| 结局 | 门在主进程退出后等两条管道关闭，或者等输出安静 100 毫秒，再发退出帧。命令留在后台的进程可能占着管道，所以不能只等管道关闭。只有收到退出帧才是 `completed`，其余是 `failed`（`effectUnknown`）。不写回执文件，也没有身份目录 |
+| 停止与确认 | 强制停止：`systemctl --user kill --kill-whom=all --signal=SIGKILL`，再 `stop`（退出码 5 按已不在），等门进程退出，最后用 `systemctl --user show -p LoadState -p ActiveState` 读到 `inactive` 或 `not-found` 才报 `confirmed`，上界内会再读。平和停止只把 `SIGTERM` 发给主进程，超时报 `unconfirmed`，不升级 |
+| 超时 | 启动、平和停止与强制停止都有上界。启动超时答 `unknown`，资源留在这份获取，由释放、结清或退役停止 |
+| 平台前提 | P1 Linux、P3 `systemd-run` 与 `systemctl`、P4 用户管理器、P5 cgroup v2、P6 探测单元往返。提供者创建时在后台探测。不满足时启动答 `unavailable`，`files` 照常可用。不用猜测的进程号或假后端顶替 |
+| 冷恢复 | 列举读 `omne-host-*.scope` 单元的描述，选出这个作用域的单元。恢复只接受本提供者写下的单元名。启动身份变了直接视为已停止，否则按强制停止序列停止并核对。它不重启命令，也不接回输出 |
 
-下图是一次一次性命令的时序：管理端在宿主提供者里，门进程在执行域里。
+理由：
+
+- 停止的确认只来自域外的监督者 `systemctl --user show`。门与命令都在被停止的单元里，它们的自报不能证明自己已经停止。
+- 每个进程一个单元，所以停止只作用于这一次调用。同一份获取的另一个进程照常运行。
+- 门一侧的暂停与管理端的丢弃分开处理两种压力：前者限制门的内存，后者限制管理端的内存，命令不会因为没有读者而被永远阻塞。
+- 退役强制停止这一代仍在运行的命令。把它们列为待处置资源再交给后继的一代需要更多机制，M2 没有这个需求（D1 结论第 3 条）。代价：配置重载以 `effectUnknown` 结束这些命令。
+
+下图是一次命令的时序：管理端在宿主提供者里，门进程与命令在执行域里。
 
 ```mermaid
 sequenceDiagram
@@ -194,30 +219,29 @@ sequenceDiagram
   participant R as 资源账本
   participant S as systemd 用户 scope
   participant G as 门进程
-  participant T as PTY 与命令
+  participant T as 命令
   M->>R: plan(坐标)
-  M->>S: systemd-run 启动门进程
-  G->>G: 核对 /proc/self/cgroup 含自己的 unit
+  M->>S: systemd-run 在单元里执行门进程
+  M->>G: 请求（描述符 3）
+  G->>G: 核对 /proc/self/cgroup 含自己的单元
   G-->>M: ready
   M->>R: permit
   R-->>M: confirmed
-  M->>G: GO（唯一写端，只发一次）
-  G->>T: node-pty 启动命令（显式尺寸与环境变量）
+  M->>G: GO（只发一次）
+  G->>T: 起命令（显式环境变量）
+  G-->>M: started
   loop 增量转发
     T-->>G: 原始字节
-    G-->>M: 分隔的 JSON 帧（私有管道，写满时暂停 PTY）
-    M->>M: 有界缓冲，超出丢弃并计数
+    G-->>M: JSON 帧（帧管道写满时暂停命令的管道）
+    M->>M: 有界缓冲，放不下的块丢弃并计数
   end
-  T-->>G: 退出，启动器写回执文件
-  G->>G: O_NOFOLLOW 读回执
-  G-->>M: completed 帧，或缺回执时 failed
+  T-->>G: 主进程退出
+  G-->>M: exit 帧
   M->>S: kill（SIGKILL）与 stop
   M->>S: systemctl --user show
   S-->>M: inactive 或 not-found
   M->>R: stopped(坐标, confirmed)
 ```
-
-终端腿沿用同一个执行域、门与转发；差别是一个 PTY 承载多条腿，每条腿以私有转义序列与残留检查确认完成，见上表的「终端腿」一行。
 
 ## SOLID 与扩展边界
 
@@ -244,7 +268,7 @@ sequenceDiagram
 | 登记表与提供者经契约套件 | [contract-conformance.spec.ts](../tests/contract-conformance.spec.ts) | 无 |
 | 根入口不导入 Cordis | [public-entry.spec.ts](../tests/public-entry.spec.ts) | 新增根入口模块时加入文件清单 |
 | 两条块的发布 | 没有 | 随 Runtime Context 生产者插件进入 |
-| `command` 与 `terminal` 的宿主机制 | 没有，只有[设计](#宿主命令与终端机制设计未实现) | 实现时按机制表补测试，在满足平台前提的真实 Linux 上运行 |
+| `command` 的宿主机制 | [host-command.spec.ts](../tests/host-command.spec.ts)（真实 `systemd-run`、门进程与 `systemctl`，只在 Linux 且设了 `OMNE_HOST_COMMAND_LINUX=1` 时运行）、[host-command-frames.spec.ts](../tests/host-command-frames.spec.ts)（帧读取、缓冲与确认判断，两个平台）、[host-probe.spec.ts](../tests/host-probe.spec.ts)（改变真实环境后的前提探测） | 真实的 `failed` 单元状态未验证；Windows 上的 `unavailable` 由派发者在 Windows 复跑；`terminal` 不在 M2 |
 
 维护规则：
 

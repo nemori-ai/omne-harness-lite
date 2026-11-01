@@ -116,13 +116,13 @@ async function settledOrPending<T>(promise: Promise<T>): Promise<T | 'pending'> 
   ])
 }
 
-it('declares the host layer, the files key, no isolation, and an empty resource recovery', async () => {
+it('declares the host layer, the files and command keys, no isolation, and an empty resource recovery', async () => {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   expect(provider).toMatchObject({
     name: 'host-files',
     bindingKinds: ['host_machine'],
     continuity: { kind: 'not_guaranteed' },
-    facilities: ['files'],
+    facilities: ['files', 'command'],
     isolation: [],
   })
   expect(provider.generation).toMatch(/^[0-9a-f-]{36}$/)
@@ -135,18 +135,21 @@ it('declares the host layer, the files key, no isolation, and an empty resource 
     await provider.recover?.({ key: 'r', provider: 'host-files', reference: { kind: 'null' } }),
   ).toEqual({ status: 'unsupported', evidence: null })
   expect(provider.version).toBe(packageVersion)
-  expect(await provider.describe()).toEqual({
+  const facts = await provider.describe()
+  expect(facts).toEqual({
     provider: 'host-files',
     generation: provider.generation,
     version: packageVersion,
     platform: { os: process.platform, release: release() },
-    facilities: ['files'],
+    facilities: ['files', 'command'],
     isolation: [],
-    prerequisites: 'unknown',
+    prerequisites: facts.prerequisites,
   })
+  // The probe of the command prerequisites decides this value; host-probe.spec.ts reads it.
+  expect(['satisfied', 'unsatisfied', 'unknown']).toContain(facts.prerequisites)
 })
 
-it('hands out a host lease with its own identity and evidence, and only the files facility', async () => {
+it('hands out a host lease with its own identity and evidence, and the files and command facilities', async () => {
   const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
   const input = inputFor(provider)
   const acquired = await provider.acquire(input)
@@ -166,7 +169,8 @@ it('hands out a host lease with its own identity and evidence, and only the file
   expect(acquired.lease.instance).toEqual({ id: 'host', generation: provider.generation })
   expect(acquired.lease.continuity).toEqual({ kind: 'not_guaranteed' })
   expect(acquired.lease.facility('files')).toBeDefined()
-  expect(acquired.lease.facility('command')).toBeUndefined()
+  expect(acquired.lease.facility('command')).toBeDefined()
+  expect(acquired.lease.facility('terminal')).toBeUndefined()
   expect(await acquired.lease.release()).toEqual({ kind: 'released' })
 })
 
@@ -290,4 +294,92 @@ it('invalidates live leases on retirement but not a lease it already released', 
   await provider.retire()
   await expect(live.invalidated).resolves.toEqual({ source: 'provider', reason: 'providerRetired' })
   expect(await settledOrPending(released.invalidated)).toBe('pending')
+})
+
+function recordingLedger(plans: unknown[]): ResourceLedger {
+  return {
+    closed: new AbortController().signal,
+    plan: async resource => {
+      plans.push(resource)
+      return 'recorded'
+    },
+    permit: async () => 'confirmed',
+    adopt: async () => 'confirmed',
+    stopped: async () => 'recorded',
+  }
+}
+
+function startRequest(requestId: string, overrides: Record<string, unknown> = {}) {
+  return {
+    requestId,
+    access: { principal: 'subject-a', tenant },
+    origin: originRef('call-1'),
+    binding: host,
+    executable: '/bin/sh',
+    args: ['-c', 'exit 0'],
+    cwd: '/',
+    env: { PATH: '/usr/bin:/bin' },
+    outputMode: 'separate' as const,
+    ...overrides,
+  }
+}
+
+it('refuses the terminal mode and a geometry as unsupported, before any resource is planned', async () => {
+  const plans: unknown[] = []
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  const input = { ...inputFor(provider), ledger: recordingLedger(plans) }
+  const command = (await leaseOf(provider, input)).facility('command')
+  if (command === undefined) throw new Error('expected the command facility')
+  expect(await command.start(startRequest('t1', { outputMode: 'terminal' }))).toEqual({
+    kind: 'rejected',
+    requestId: 't1',
+    reason: 'unsupported',
+  })
+  expect(await command.start(startRequest('t2', { geometry: { columns: 80, rows: 24 } }))).toEqual({
+    kind: 'rejected',
+    requestId: 't2',
+    reason: 'unsupported',
+  })
+  expect(
+    await command.start(startRequest('t3', { binding: { kind: 'tenant_sandbox', tenant } })),
+  ).toEqual({ kind: 'rejected', requestId: 't3', reason: 'unsupported' })
+  expect(plans).toEqual([])
+})
+
+it('refuses a relative executable or working directory and a NUL in the environment as invalid input', async () => {
+  const plans: unknown[] = []
+  const provider = createHostFilesProvider({ domain: createHostFilesDomain() })
+  const input = { ...inputFor(provider), ledger: recordingLedger(plans) }
+  const command = (await leaseOf(provider, input)).facility('command')
+  if (command === undefined) throw new Error('expected the command facility')
+  const invalid = [
+    startRequest('i1', { executable: 'sh' }),
+    startRequest('i2', { cwd: 'relative/dir' }),
+    startRequest('i3', { env: { 'A\u0000B': '1' } }),
+    startRequest('i4', { env: { A: 'x\u0000y' } }),
+    startRequest('i5', { args: ['-c', 'echo a\u0000b'] }),
+  ]
+  for (const request of invalid)
+    expect(await command.start(request)).toEqual({
+      kind: 'rejected',
+      requestId: request.requestId,
+      reason: 'invalidInput',
+    })
+  expect(plans).toEqual([])
+})
+
+it('refuses a command option that is not a bound of its kind', () => {
+  const domain = createHostFilesDomain()
+  for (const command of [
+    { maxBufferedBytes: 0 },
+    { maxChunkBytes: 1.5 },
+    { maxChunkBytes: 2048, maxBufferedBytes: 1024 },
+    { graceMs: -1 },
+    { stopBoundMs: Number.POSITIVE_INFINITY },
+    { startBoundMs: Number.NaN },
+    { probeRetryMs: -5 },
+  ])
+    expect(() => createHostFilesProvider({ domain, command }), JSON.stringify(command)).toThrow(
+      RangeError,
+    )
 })

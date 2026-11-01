@@ -167,20 +167,101 @@
 - 本成员不登记 Runtime Context 的生产者，不发布 `execution.placement` 与 `execution.host-facts` 两条块。
 - 装配规则：Service `ExecutionEnvironmentRegistry` 与宿主文件插件在同一插件树里装载。宿主文件插件可以重载：卸载只退役这一代，责任域由进程宿主保管，新的一代加入同一个责任域，看到原占用与原记录。这条规则现在没有强制执行点，见[明确缺项](#明确缺项)。
 
-### 宿主命令与终端（未实现）
+### 宿主命令与终端
 
-本节写 `command` 与 `terminal` 由宿主提供者承担的部分。这些部分都没有实现。机制设计见[架构的宿主命令与终端机制](docs/architecture.md#宿主命令与终端机制设计未实现)，机制级流程见[流程](docs/flows.md)。
+<a id="宿主命令与终端未实现"></a>
 
-- 提供者：`command` 与 `terminal` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。这样宿主层仍由一个提供者提供全部所需设施，需要 `files` 加 `command` 的工具不会得到 `missingFacility` 或 `ambiguousEnvironment`。
-- 平台前提：Linux 的用户 systemd 与可用的用户管理器、真实的 Bash、GNU `env`、`stty` 与 node-pty。缺任一项时，宿主提供者对 `command` 与 `terminal` 的操作报 `unavailable`，不改用猜测的进程号或假的后端。宿主事实块报告前提满足、不满足或未知；探测被接受之前报未知。
-- 隔离：宿主提供者只能确认进程隔离，不能确认文件系统根或无网络。
-- 策略数值：输出的缓冲上限与单块上限、等待的上界与终端的缺省尺寸都是配置，代码里的数值只是配置初值。
-- 停止确认：宿主提供者先强制结束执行域里的全部进程，再停止执行域，之后查询执行域的状态。状态为不活动或已不存在时才报 `confirmed`。宿主机重启过（启动身份变了）时直接视为不活动。原启动尚未隔离或尚未排空时不确认缺席。其余情况报 `unconfirmed`，保留处置责任。
-- 冷恢复：受管资源的恢复引用是执行域的坐标。`recover` 按坐标查询执行域的状态，再按停止确认的条件停止与确认，不重启命令，不重建 shell。
+本节写宿主提供者承担的 `command`。`command` 只在 Linux 上实现（Q-9）。`terminal` 未实现，不在 M2（D-05）。机制见[架构的宿主命令机制](docs/architecture.md#宿主命令机制)。依据是 GATE-EE 候选第 3、4 节与 [D1 决策记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。本节没有经过独立技术接受。
+
+提供者与终端：
+
+- `command` 加在已有的宿主提供者上，与 `files` 由同一个提供者声明，不另立宿主提供者。所以需要 `files` 加 `command` 的工具在宿主层不会得到 `missingFacility` 或 `ambiguousEnvironment`。
+- 宿主提供者不声明 `terminal`。`outputMode` 为 `terminal` 的启动，以及带 `geometry` 的启动，答 `rejected`，原因 `unsupported`。本成员不引入 node-pty。
+- 宿主提供者不声称任何隔离断言。命令能碰到的文件不受宿主文件根限制，也不经过[宿主文件使用](#宿主文件使用)的确认。
+
+启动前的检查不起进程，也不调用账本。检查按下面的顺序：
+
+1. 绑定层不是 `host_machine`，或者请求 `terminal` 模式或 `geometry`，答 `unsupported`。
+2. `executable` 或 `cwd` 不是绝对路径或含空字节，参数含空字节，环境变量名为空、含 `=` 或含空字节，或者值含空字节，答 `invalidInput`。
+3. 这份获取的命令门面已经封住，答 `closed`。
+4. 平台前提不满足，答 `unavailable`。`diagnose` 收到一条 `commandUnavailable` 诊断，写明缺少的前提项与获取键。
+
+平台前提：
+
+| 项 | 探测 | 前提项名 |
+| --- | --- | --- |
+| P1 | `process.platform` 是 `linux` | `linux` |
+| P3 | 在 `PATH` 里解析 `systemd-run` 与 `systemctl` 的绝对路径，并从 `systemctl --help` 读出它支持 `--kill-whom` 还是旧名 `--kill-who` | `systemd-tools` |
+| P4 | `systemctl --user is-system-running` 输出 `running` 或 `degraded` | `user-manager` |
+| P5 | `/sys/fs/cgroup/cgroup.controllers` 存在 | `cgroup-v2` |
+| P6 | 一个探测单元 `omne-host-probe-<uuid>.scope` 运行一个空的 Node 程序并以 0 退出，之后按强制停止序列停止，必须答 `confirmed` | `scope-round-trip` |
+
+- 提供者创建时在后台开始一次探测。第一次启动等这次探测的结果。之后只用探测时解析出的两个绝对路径。
+- 满足的结果在这一代内保留。不满足或探测本身出错时，距上次探测达到 `probeRetryMs` 的下一次启动重新探测。所以修好环境不需要重启进程。
+- `describe()` 的前提：探测未完成或探测本身出错为 `unknown`，任一项不满足为 `unsatisfied`，全部满足为 `satisfied`。不满足的项名只写进诊断，不进宿主事实。
+- 缺前提不影响落点解析与获取。同一份获取的 `files` 照常可用，只有启动答 `unavailable`。
+- 真实的 Bash、GNU `env`、`stty` 与 node-pty 不是前提。`files` 的目录描述符前提（P2）不约束 `command`，命令不使用身份目录。
+- 运行中 `systemd-run` 失败不改写探测结果，只影响这一次启动。
+
+启动：
+
+1. 资源键是新的 UUID。执行域是 systemd 用户 scope 单元 `omne-host-<资源键>.scope`，单元描述是 `omne-host <请求方作用域的摘要> <资源键>`。受管资源的引用是 `{ unit, bootId }`，`bootId` 是本机当前的启动身份。
+2. 调用账本的 `plan`。`conflict`、`closed` 与 `unavailable` 原样作为拒绝原因，不起进程。
+3. 用探测解析出的 `systemd-run` 在这个单元里起门进程。请求经私有管道（描述符 3）交给门，不放在命令行参数里，因为环境变量可能带秘密。
+4. 门核对 `/proc/self/cgroup` 含有自己的单元，然后报就绪。启动这时调用账本的 `permit`。只有 `confirmed` 才发 GO，GO 只发一次。其余答案使启动强制停止这个单元，记入账本的 `stopped`，然后答 `rejected`（`closed` 或 `unavailable`）。门面在这时已经封住，也这样处理，答 `closed`。
+5. 门收到 GO 后起命令。命令的环境只有请求给出的变量，不继承宿主的变量。标准输入写入请求的字节后关闭。标准输出与标准错误分开读。
+6. 命令起来后，启动答 `done`，带 `ProcessHandle`。进程身份是 `{ id: 单元名, generation: bootId }`，不用进程号。映像没有起来（例如 `ENOENT`、`EACCES`）时，启动强制停止这个单元，答 `rejected`（`unavailable`）。门在报就绪之前退出时，同样答 `unavailable`。
+7. 在 `startBoundMs` 内没有收到就绪时，启动答 `unknown`，之后不再发 GO。发出 GO 之后在上界内没有收到命令起来的消息时，也答 `unknown`。这两种情况都把资源留给释放、结清或退役去停止。
+
+输出与结局：
+
+- 门把两条流的字节按 `maxChunkBytes` 切块，每块编成一行 JSON 帧交给提供者。提供者限制一行的长度。超长的行、不是 JSON 的行、未知的帧、次序不对的帧、超过单块上限的字节，都使这个资源失效：`result` 答 `failed`（`effectUnknown`），提供者强制停止这个单元。
+- 两条流共用一个上限为 `maxBufferedBytes` 的缓冲。新块放不下时整块丢弃，按流累加丢弃的字节数。下一个交出的块的 `observedOffset` 与上一块末尾之差就是丢弃量。
+- `output` 只有一个读者。第二个迭代器的第一次 `next()` 以 `TypeError` 拒绝。读者的 `return()` 只放弃读取权，不停止进程。读者放弃之后，缓冲里的字节与之后的字节都计入丢弃。
+- 门一侧：门写帧的管道写满时（写端返回 false），门暂停读命令的两条管道，`drain` 之后恢复。所以命令在提供者读得慢时被阻塞在自己的输出管道上，字节不丢，门的内存也不随输出增长。提供者总是立刻读帧，所以缓冲满时丢弃，不阻塞命令。
+- 命令的主进程退出后，门等两条管道关闭，或者等输出连续 100 毫秒没有新字节，再发退出帧。命令留在后台的进程可能还占着管道，所以不能只等管道关闭。
+- 收到退出帧时，`result` 答 `completed`，带退出码或信号、时长与两条流的计数。没有收到退出帧时答 `failed`（`effectUnknown`），带观察到的时长与计数。强制停止时门与命令在同一个单元里被杀，所以强制停止的结局是 `failed`（`effectUnknown`）。
+- 主进程退出之后，提供者强制停止这个单元，清掉命令留在后台的进程，并把结果记入账本。这一步不推迟 `result`。
+
+停止两态：
+
+- `stop('forced')`：先 `systemctl --user kill --kill-whom=all --signal=SIGKILL <单元>`（旧版 systemd 用 `--kill-who`），再 `systemctl --user stop <单元>`。`stop` 的退出码 5（单元未加载）按已不在处理，其余失败答 `unconfirmed`。然后等门进程退出，再用 `systemctl --user show -p LoadState -p ActiveState` 读单元。`ActiveState` 为 `inactive` 或 `LoadState` 为 `not-found` 才答 `confirmed`。在 `stopBoundMs` 之内会再读，之后答 `unconfirmed`。
+- `failed`、`deactivating` 与其他状态都不算停止。被信号杀掉的单元可能短暂处于 `failed`。WSL 上的用例没有观察到这个状态，这一判断只有纯函数测试。真实的 `failed` 状态未验证。
+- `stop('graceful')`：门把 `SIGTERM` 发给命令的主进程，最多等 `graceMs`。命令在这段时间里退出时，接着做强制停止序列来清掉单元，答序列的结果。超时答 `unconfirmed`，不自动升级为强制停止，由调用方决定。
+- 每次停止都把结果记入账本的 `stopped`。只有确认的停止已经记入账本，这个进程才离开这份获取的待停止集合。
+- 停止只作用于这个进程的单元。同一份获取的另一个进程不受影响（单调用中断）。
+
+释放、结清与退役：
+
+- 排空一份获取时，命令门面与文件门面一起封住，然后在 `drainBoundMs` 之内等在途的启动，再强制停止这份获取里停止尚未确认的每个进程。全部确认才结清。否则答待处置，资源清单列出停止未确认的受管资源，`diagnose` 收到一条 `stopUnconfirmed` 诊断。释放中的原记录查询也列出这些资源。`maintain()` 与之后的结清再试。
+- 退役对这一代的每份获取做同样的排空。所以这一代仍在运行的命令被强制停止，结局为 `failed`（`effectUnknown`）。
+- 已知限制：配置重载会卸载宿主文件插件，从而以 `effectUnknown` 结束这一代仍在运行的命令（D1 结论第 3 条）。这些命令不交给后继的一代接管。
+
+资源级冷恢复（不含获取的结清）：
+
+- `listRecoveryResources(作用域)`：不是 Linux 的宿主没有运行过命令，答完整的空列表。Linux 上读本用户全部 `omne-host-*.scope` 单元的描述，列出描述里的作用域摘要与这个作用域相同的单元。列举命令失败或找不到 `systemctl` 时答 `unavailable`，不答空列表。上一次启动的单元已随重启消失，所以不在列表里。
+- `recover(资源)`：提供者名不是本提供者，或引用不是本提供者写下的 `{ unit, bootId }`（单元名必须是 `omne-host-<uuid>.scope`），答 `unsupported`。所以恢复不能停止别的单元。启动身份已变时答 `confirmedStopped`，证据写明单元与当前的启动身份。否则按强制停止序列停止并核对：确认时答 `confirmedStopped`，证据带单元、`LoadState` 与 `ActiveState`；未确认时答 `pending`。它不重启命令，不接回输出，也不交出原结局。
+- 新进程对旧获取的结清仍答未知（见[宿主文件责任域](#宿主文件责任域)）。需要域外可信的进程退出证据的结清是 M2 之后的剩余责任。
+- 已知限制：列举依赖单元描述。同一用户的其他进程可以伪造描述。M2 单机、同一操作者，接受这一点。
+
+策略数值都是配置，代码里的数值只是初值。宿主文件插件的配置可以给出这六项：
+
+| 配置 | 初值 | 作用 |
+| --- | --- | --- |
+| `maxBufferedBytes` | 1 MiB | 一个进程的输出缓冲上限，正整数 |
+| `maxChunkBytes` | 64 KiB | 门发出的单块上限，正整数，不大于缓冲上限 |
+| `startBoundMs` | 10000 | 启动等就绪与命令起来的上界 |
+| `graceMs` | 5000 | 平和停止等命令退出的时间 |
+| `stopBoundMs` | 10000 | 一次强制停止序列的上界，也是探测中各条命令的上界 |
+| `probeRetryMs` | 60000 | 不满足的探测结果保留多久 |
+
+时间项必须是有限的非负数。值不合法时 `createHostFilesProvider` 抛出 `RangeError`，插件配置校验失败。提供者选项另有 `filesRoot` 与 `stateDirectory` 两个字符串，插件配置要求它们是绝对路径。命令一侧只保存它们，不使用。
 
 ### 撤除顺序
 
 - 宿主文件插件卸载时，这一代宿主文件提供者开始退役。退役使它交出的租约以 `providerRetired` 失效，之后 `files` 不再有提供者，宿主层的落点解析返回 `noMatchingEnvironment`。`files` 设施声明与责任域不受影响。退役逐份排空这一代的获取，最多等 `drainBoundMs`；待处置时 `ctx.logger` 先收到诊断，再收到 `RetirementPending`。原记录与仍打开的描述符留在责任域，由新的一代或责任域的维护入口继续结清。
+- 退役的排空强制停止这一代仍在运行的命令，它们的结局是 `failed`（`effectUnknown`）。停止未确认的进程作为受管资源列在待处置里，`RetirementPending` 带着它们。配置重载走同一条路径（见[宿主命令与终端](#宿主命令与终端)的已知限制）。
+- `commandFacilityPlugin` 卸载时，`command` 设施声明从登记表移除。之后需要 `command` 的落点解析返回 `missingFacility`。宿主提供者与已经起来的进程不受影响。
 - `filesFacilityPlugin` 卸载时，`files` 设施声明从登记表移除。之后需要 `files` 的落点解析返回 `missingFacility`，已取到的 `files` 设施对象上的操作返回 `unsupported`。宿主文件提供者仍在场。
 - `ExecutionEnvironmentRegistry` 卸载时，它在构造时登记的效应调用登记表的 `close()`。关闭顺序归 [execution-environment SPEC 的关闭](../execution-environment/SPEC.md#关闭)。关闭结果是待处置时，这个效应的撤除函数抛出 `RetirementPending`，带未停的受管资源。
 - fiber 卸载本身总是完成。退役或关闭待处置时，撤除函数抛出的 `RetirementPending` 由 Cordis 写入 `ctx.logger` 的错误，卸载不失败，`fiber.dispose()` 正常返回（Cordis 4.0.4 读数，见 [Cordis 说明](docs/cordis.md#机制读数与假设)）。未停的资源经这条错误与登记表的退役、关闭结果可见。只有调用方直接调用 `registerProvider` 返回的撤除函数时，待处置才以抛出报告。
@@ -200,6 +281,11 @@
 | 关闭失败的描述符 | 所属获取（引擎里的所有者标签） | 留在共用文件引擎里，这份获取的操作、排空、结清与 `maintain()` 重试关闭；别的获取关不了它 | 关闭成功 |
 | 已发出的句柄代际 | 共用文件引擎，带所属获取 | 关闭没有成功回执时为未知 | 关闭成功回执 |
 | 写入宿主文件的字节 | 宿主文件系统 | 截断后没写完时为未知 | 不随撤除撤回 |
+| `command` 设施声明的登记 | `commandFacilityPlugin` 的 fiber | 重复登记抛出，插件 fiber 进入 `FAILED` | 插件卸载，或服务撤除 |
+| 平台前提的探测结果 | 宿主提供者的一代 | 探测出错为未知；不满足时在 `probeRetryMs` 之后的启动再探测 | 这一代被丢弃 |
+| 命令进程与它的 scope 单元 | 所属获取的命令门面；单元由 systemd 用户管理器持有 | 停止未确认时作为受管资源留在这份获取，排空、结清、退役与 `maintain()` 再试；进程结束后由资源恢复按单元坐标列举与停止 | `systemctl --user show` 读到不活动或不存在，且结果已记入账本 |
+| 命令的输出缓冲 | 这个进程的句柄 | 放不下的块整块丢弃并计数；读者放弃后全部计入丢弃 | 读者读完或放弃，且进程已有结局 |
+| 命令已经产生的外部效果 | 宿主机 | 停止不撤回它们；强制停止的结局是 `effectUnknown` | 不随停止或撤除撤回 |
 
 进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源，责任域的记录随进程结束。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清是 M2 之后的剩余责任。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
