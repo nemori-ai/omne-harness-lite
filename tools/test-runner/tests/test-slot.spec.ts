@@ -980,7 +980,9 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
 
   it('结束时只删自己的队列锁：锁被别人重建过就不动它', async () => {
     const gate = join(dir, 'ledger.gate')
-    const holder = queue(['bash', '-c', 'true'], {
+    const proceed = join(dir, 'command.proceed')
+    // 命令等放行文件，名额文件在被观察期间一直在；命令太短的话，名额文件只活十几毫秒，轮询可能看不到。
+    const holder = queue(['bash', '-c', `until [ -e "${proceed}" ]; do sleep 0.1; done`], {
       ...preload('ledger-gate', LEDGER_GATE_SOURCE),
       SLOT_TEST_GATED_LEDGER: join(dir, 'ledger.jsonl'),
       SLOT_TEST_LEDGER_GATE: gate,
@@ -988,6 +990,7 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     const slotFile = join(dir, 'locks', 'slot-1.lock')
     const owner = join(dir, 'locks', 'queue.lock', 'owner')
     await waitFor(() => existsSync(slotFile), '拿到名额')
+    writeFileSync(proceed, '')
     // 命令跑完、名额已删、卡在写账本：这时它持有队列锁。
     await waitFor(() => !existsSync(slotFile) && existsSync(owner), '收尾时持有队列锁')
     expect(readFileSync(owner, 'utf8')).toContain(`side=${SIDE}`)
