@@ -258,7 +258,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    4. `ready(open)` 后核当前普通授权、可信绑定及所需注册，重签读取资格并绑定读者。签发不以供给值已经恢复为前提；首个模型请求另等必要输入齐备。
 
    首次创建作用域时，材料为空，也先完成一次恢复。围栏打开之后，Runtime Context 才接受普通的注册与步提交。「顺序不符」时，本插件以新的检查点开始一个取代旧会话的恢复会话，完整恢复之后，若恢复包已覆盖该原提交，只追平投影，不再施加旧增量；若只覆盖其前序且原提交尚未 applied，才用原提交的完整输入重试 `applyCommit`。
-   恢复只接受 `ready(open)` 或 `ready(ended)` 为完成。`ready(ended)` 不签发普通资格。invalid、refused、unavailable、unknown、超时或中断均不开放业务恢复。新检查点显式 supersedes 当前恢复会话；旧 replay 不撤销后继。注册含移除、checkpoint 每个最终 checkpointed 块恰好一次并按原 commit/step 合组；end 与已知结束一致。空数组不证明完整，恢复容量不足不截断材料求成功。
+   恢复只接受 `ready(open)` 或 `ready(ended)` 为完成。`ready(ended)` 不签发普通资格。invalid、refused、unavailable、unknown、超时或中断均不开放业务恢复。新检查点显式 supersedes 当前恢复会话；旧 replay 不撤销后继。注册含移除、checkpoint 每个已有步提交的最终 checkpointed 块恰好一次并按原 commit/step 合组（已注册而没有步提交的块允许缺席）；end 与已知结束一致。空数组不证明完整，恢复容量不足不截断材料求成功。
 
    新 scope 的业务初始化沿 Session [J18](../session-contract/SPEC.md#j18-作用域引用与结束事实)。没有本 scope 原记录时，先证明空恢复材料完整，完成 `ready(open)`，再从当前合法声明准备注册，经 `change` 提交 SE07，确认后按原 CommitRef 应用。注册已提交但初始化未完成就重启时，完整恢复本 scope 的原注册与已有检查点，继续尚未完成的初始化，不重复注册。旧 scope 的注册、checkpoint 或结束不迁入。
 
@@ -267,6 +267,12 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    普通 applyCommit 的成功去重绑定原完整输入；当前资格通过后，同值认回，不回退修订，异值为 commit-conflict。out-of-order、invalid、refused、unavailable 和 unknown 不占成功表。恢复包不写入普通增量去重表，不重放 reducer updates 或原业务效果。相同 begin 输入在仍为最新会话时认回原 ReplayRef，已完成也不重关围栏；已完成 finish 的同包重试认回，异包为 replay-conflict。旧引用的拒绝不关闭后继 ready。恢复期间 staging 不对普通读者披露，只有最终核 current、绑定、epoch、end 与 appliedCommits 版本后才原子安装。ReplayRef 是本实例引用，不能耐久复用或当权限。
 
    `RuntimeContextAuthority` 与 `ScopeBindingSource` 必须从真实作用域绑定、日志检查点和结束记录取依据。其 `current()` 同步核验需要与资格写者和最终动作共用有效序列化边界。首批 authorization 的异步准入不提供这个保证。真实跨进程接线尚未交付，不把本规格当作已实现证明。
+
+   本成员的根导出 `createSessionRuntimeContextTrust` 把这两个端口构成 `runtimeContextTrust` 的内容，由装配入口在受信子树交给 Runtime Context。四个入参都必需，没有默认放行：原 `authority`、原 `bindings`、`current`（`RuntimeContextCurrentBridge`，`capture()` 返回一个失效后不再恢复的视图）、`replayFacts`（`SessionReplayFacts`，持有者从会话日志读出的事实）。它是组合适配，不做第二次授权：
+   - 持有者、生产者、读者的每次调用，在第一次 await 之前调用 `capture()`，再问原 authority，答复保留原分支。授权答复的 `current()` 取原 `current()` 与已捕获视图的合取。`bindings` 原样交出，不缓存答复，未知不读作未绑定。
+   - 它自己的一项核对是完成恢复的覆盖。原 authority 授权 `finish-replay` 之后，先问可信绑定：作用域未指派给动作的租户时答 `refused`，绑定不可用或未知时答同样的 `unavailable` 或 `unknown`，且不读持有者事实。然后 `replayFacts.stepCommittedBlocks` 给出该作用域在 `through` 之前已有步提交的最终 checkpointed 块。材料遗漏其中任一块，答 `invalid`（`replay-incomplete`）。已注册而没有步提交的块不在答复中，缺席不算遗漏。事实读不到时答 `unavailable` 或 `unknown`，不当作覆盖完整。授权答复在读取期间已失效时，原样返回，不披露覆盖结论。
+   - `current` 与 `replayFacts` 的真实提供者归装配与本成员的恢复接线。没有同步失效来源的缺口仍归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)，本函数不补这个保证。
+   - 契约套件的按面性质（工作资格撤销不使生产者答复失效，请求登记代次不使持有者答复失效）要求桥按面区分。`capture()` 不带面参数，所以满足套件的接线是每个面各配一个桥，即为持有者、生产者、读者各建一个工厂实例，各用只观察该面所依赖来源的桥。单个不分面的桥会使其余面的答复过早失效。让桥带面参数要改契约的夹具与 `RuntimeContextCurrentBridge`，归契约拥有者。
 
 2. <a id="ad-03-1b"></a>保留上一份快照（1b）。本插件为每个读者保留上一份已按资格过滤的快照：值与摘要。它是 `diffForReminder` 的前值来源。它是可丢派生物，只在进程内保存。丢失时，下一次读取按完整快照处理，第一份变化材料不带前值，本插件不补造提醒。
 3. <a id="ad-03-1c"></a>补拉的上界（1c）。唤醒只加速补拉。本插件在两个时点必须补拉：

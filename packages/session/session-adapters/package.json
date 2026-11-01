@@ -47,10 +47,10 @@
     "@omne-harness/json-text": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/identity": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*"
   },
   "devDependencies": {
-    "@omne-harness/runtime-context-contract": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
