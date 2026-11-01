@@ -24,14 +24,25 @@ import type {
   DurableEvidence,
   EntryId,
   InputId,
+  RunId,
   SessionAccess,
   SessionId,
   SessionOperationId,
   SessionRevision,
 } from './identity.ts'
 import type {
+  ControlOperationResolution,
+  SessionCallLookup,
+  SessionCallTerminal,
+  SessionControlReceipt,
+  SessionModelSelection,
+  SessionRunLookup,
+} from './control-values.ts'
+import type {
   BoundedClose,
+  ProducerRef,
   RoutedInput,
+  RunTerminal,
   SessionCreation,
   WorkSnapshot,
   Participation,
@@ -90,6 +101,7 @@ import {
   guard,
   memoryAccess,
   memoryOtherAccess,
+  mintEvidence,
   operationId,
   ordinaryInput,
   sessionId,
@@ -107,7 +119,22 @@ type Store = {
   readonly entries: HistoryEntry[]
   readonly operations: Map<
     SessionOperationId,
-    Readonly<{ record: OperationRecord; recall: Recall; decision: DurableEvidence | null }>
+    Readonly<{
+      record: OperationRecord
+      recall: Recall
+      decision: DurableEvidence | null
+      /** `control` marks a cancelRun/stopCall that has a business batch; it recalls a control receipt. */
+      form?: 'control'
+    }>
+  >
+  /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
+  readonly answers: Map<
+    SessionOperationId,
+    Readonly<{
+      digest: string
+      receipt: SessionControlReceipt<RunTerminal | SessionCallTerminal>
+      decision: DurableEvidence | null
+    }>
   >
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
 }
@@ -145,6 +172,15 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
         operation: SessionOperationId,
       ): Promise<Outcome<CommitReceipt, SessionFailure>>
       directoryAvailable(available: boolean): void
+      /**
+       * Models the first committed SE19 that ended a call. The entry codec of this segment has no
+       * outcome field, so the double takes the end as a control and `stopCall` reads it as a lookup.
+       */
+      recordCallTerminal(
+        tenant: TenantId,
+        session: SessionId,
+        terminal: SessionCallTerminal,
+      ): void
     }>
 }
 
@@ -284,6 +320,16 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
       return receipt => ({ receipt, progress })
     }
+    case 'cancelRun':
+    case 'stopCall': {
+      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
+      if (progress === undefined) throw new Error(`${command.kind} committed without a control`)
+      return receipt => ({
+        operation: receipt.operation,
+        source: receipt.source,
+        answer: { kind: 'requested', progress },
+      })
+    }
     case 'considerAutoArchive':
       return receipt => ({ result: 'archived', receipt })
     default:
@@ -298,6 +344,28 @@ function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'o
   if (command.kind === 'create') return command.input.creation.initial
   if (command.kind === 'interrupt') return command.input.urgent
   return null
+}
+
+function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
+  return left.kind === right.kind && left.call === right.call
+}
+
+/** The Run lookup of one snapshot, covering exactly that snapshot. */
+function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
+  const history = snapshot.executions?.find(item => item.run === run)
+  const current =
+    snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run
+      ? snapshot.run.terminal
+      : null
+  const active = snapshot.run.kind === 'active' && snapshot.run.run === run
+  if (history === undefined && current === null && !active)
+    return { kind: 'absent', run, covered: snapshot.revision }
+  return {
+    kind: 'bound',
+    run,
+    bound: mintEvidence(`${snapshot.session}/run/${run}`, { run }),
+    terminal: current ?? history?.terminal ?? null,
+  }
 }
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
@@ -317,6 +385,18 @@ export function createMemorySessionTransactions<P>(
   let failInitialization = false
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
+  const callTerminals = new Map<string, SessionCallTerminal>()
+  const terminalKey = (key: string, producer: ProducerRef): string =>
+    `${key}\u0000${producer.kind}\u0000${producer.call}`
+  const callLookup = (key: string, snapshot: WorkSnapshot, producer: ProducerRef): SessionCallLookup =>
+    snapshot.consumptions.some(item => sameProducer(item.binding.producer, producer))
+      ? {
+          kind: 'bound',
+          producer,
+          bound: mintEvidence(`${snapshot.session}/call/${producer.kind}/${producer.call}`, producer),
+          terminal: callTerminals.get(terminalKey(key, producer)) ?? null,
+        }
+      : { kind: 'absent', producer, covered: snapshot.revision }
 
   /** One current decision for one public call. A throwing or unavailable source does not continue. */
   const qualify = async (
@@ -374,10 +454,20 @@ export function createMemorySessionTransactions<P>(
     const qualification = await qualify(mutationAccessRequest(input.access, command))
     if ('failure' in qualification) return fail(qualification.failure)
     const accessEvidence = qualification.ok
+    // Before the session, the identity table or any lookup: the answer must not tell what exists.
+    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const store = stores.get(key.ok)
     if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+    const answered = store?.answers.get(command.input.operation)
+    if (answered !== undefined) {
+      const control = command.kind === 'cancelRun' || command.kind === 'stopCall'
+      return control && answered.digest === commandDigest(command)
+        ? succeed(answered.receipt)
+        : fail({ kind: 'conflict', operation: command.input.operation })
+    }
     if (command.kind === 'create' || command.kind === 'completeInitialization') {
       const refusal =
         options.initialization?.verify(command, input.guards) ??
@@ -428,6 +518,12 @@ export function createMemorySessionTransactions<P>(
           ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
           : null,
       ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
+      ...(command.kind === 'cancelRun' && store !== undefined
+        ? { runs: [runLookup(store.snapshot, command.input.run)] }
+        : {}),
+      ...(command.kind === 'stopCall' && store !== undefined
+        ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
+        : {}),
       initializationReceipts: [...(store?.operations.values() ?? [])].map(
         value => value.record.receipt,
       ),
@@ -452,6 +548,22 @@ export function createMemorySessionTransactions<P>(
         stores.set(key.ok, { ...store, operations })
       }
       return succeed(recall({ ...decision.receipt, recovered: true }))
+    }
+    if (decision.kind === 'control-answer') {
+      if (store === undefined) return fail(unavailable('a control answer without a session'))
+      const receipt = {
+        operation: command.input.operation,
+        source: decision.source,
+        answer: decision.answer,
+      }
+      const answers = new Map(store.answers)
+      answers.set(command.input.operation, {
+        digest: commandDigest(command),
+        receipt,
+        decision: accessEvidence,
+      })
+      stores.set(key.ok, { ...store, answers })
+      return succeed(receipt)
     }
     if (
       decision.entries.length === 0 &&
@@ -514,6 +626,9 @@ export function createMemorySessionTransactions<P>(
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
       recall,
       decision: accessEvidence,
+      ...(command.kind === 'cancelRun' || command.kind === 'stopCall'
+        ? { form: 'control' as const }
+        : {}),
     })
     const inputs = new Map(store?.inputs)
     const admitted = admittedInput(command)
@@ -526,6 +641,7 @@ export function createMemorySessionTransactions<P>(
       ]),
       entries: [...(store?.entries ?? []), ...entries],
       operations,
+      answers: store?.answers ?? new Map(),
       inputs,
     }
     const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
@@ -717,12 +833,71 @@ export function createMemorySessionTransactions<P>(
       const store = await storeOf(input, 'queryOperation')
       if ('failure' in store) return store
       const held = store.ok.operations.get(input.operation)
+      if (held?.form === 'control' || store.ok.answers.has(input.operation))
+        return fail({ kind: 'conflict', operation: input.operation })
       const resolution: OperationResolution =
         held === undefined
           ? { kind: 'unknown' }
           : { kind: 'committed', receipt: held.record.receipt }
       return succeed(resolution)
     },
+    queryControlOperation: async input => {
+      const store = await storeOf(input, 'queryControlOperation')
+      if ('failure' in store) return store
+      const answered = store.ok.answers.get(input.operation)
+      if (answered !== undefined)
+        return succeed<ControlOperationResolution>({ kind: 'committed', receipt: answered.receipt })
+      const held = store.ok.operations.get(input.operation)
+      if (held === undefined) return succeed<ControlOperationResolution>({ kind: 'unknown' })
+      if (held.form !== 'control') return fail({ kind: 'conflict', operation: input.operation })
+      return succeed<ControlOperationResolution>({
+        kind: 'committed',
+        receipt: held.recall(held.record.receipt) as SessionControlReceipt<
+          RunTerminal | SessionCallTerminal
+        >,
+      })
+    },
+    readModelSelection: async input => {
+      const store = await storeOf(input, 'readModelSelection')
+      if ('failure' in store) return store
+      let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
+      for (const row of store.ok.entries) {
+        const value = decodeEntry(row)
+        if (
+          'ok' in value &&
+          value.ok.kind === 'session.model-selected' &&
+          value.ok.declaration.kind === 'model'
+        )
+          saved = {
+            selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
+            at: row.revision,
+          }
+      }
+      const initial = store.ok.snapshot.creation.initialModelSelection
+      const first = store.ok.entries[0]
+      const chosen =
+        saved ??
+        (initial !== undefined && first !== undefined
+          ? { selection: initial, at: first.revision }
+          : null)
+      if (chosen === null) return fail({ kind: 'not-ready' })
+      const origin = [...store.ok.operations.values()].find(
+        item => item.record.receipt.revision === chosen.at,
+      )
+      if (origin === undefined)
+        return fail(unavailable('the commit that saved the selection has no original receipt'))
+      return succeed<SessionModelSelection>({
+        selection: chosen.selection,
+        revision: store.ok.snapshot.revision,
+        source: origin.record.receipt.source,
+      })
+    },
+    commitEntries: async () =>
+      fail(
+        unavailable(
+          'the in-memory double has no shared transaction domain, so it does not interpret entries',
+        ),
+      ),
     history,
     pending: async input => {
       const qualification = await qualify({
@@ -898,6 +1073,10 @@ export function createMemorySessionTransactions<P>(
       },
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
+      },
+      recordCallTerminal: (tenant: TenantId, session: SessionId, terminal: SessionCallTerminal) => {
+        const key = keyOf(tenant, session)
+        if ('ok' in key) callTerminals.set(terminalKey(key.ok, terminal.producer), terminal)
       },
       failNextInitializationCommit: () => {
         failInitialization = true

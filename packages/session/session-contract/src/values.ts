@@ -239,6 +239,8 @@ export type SessionCreation = Readonly<{
     | Readonly<{ kind: 'tenant-default'; source: Adoption }>
   initial: Extract<RoutedInput, { kind: 'ordinary' }> | null
   entryContract: Adoption
+  /** The first model selection (XC-MODELSEL). The server entry fills it from the adopted default route. */
+  initialModelSelection?: import('./control-values.ts').SavedModelSelection
   residentAdoption?: ResidentAdoption
   initialization?: InitializationSources
 }>
