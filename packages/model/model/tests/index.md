@@ -12,6 +12,7 @@
 - [真实受理、首次分派与完整符合性](runtime-admission.spec.ts)。
 - [实例观察](runtime-observation.spec.ts)、[原流保存及交错](runtime-receive.spec.ts)、[受控外部流与宿主](runtime-fixture.ts)。
 - [原流交接、确认推进、刷新乱序与驱动锁](runtime-transitions.spec.ts)。
+- [取消对发送的停止请求](send-interruption.spec.ts)：只停被取消调用的发送，保留驱动信号，流结束后不再停止。
 - [构造与五端口](runtime-testing.spec.ts)、[合法身份与受信测试适配](memory-fixture.ts)。
 
 [memory-partial.spec.ts](memory-partial.spec.ts) 从实际 preserve 驱动部分结果、真实 trim、目标页、临界容量的控制/终局/读/ACK/清理。

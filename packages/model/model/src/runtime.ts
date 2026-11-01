@@ -2,6 +2,7 @@ import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import { resolveModelInvocationRef } from '@omne-harness/model-contract'
 import { referenceFailure } from './reference.ts'
 import { createModelDriver } from './driver.ts'
+import { createSendInterruption } from './send/interruption.ts'
 import type { Reply } from '@omne-harness/model-contract'
 import type {
   ModelCommands,
@@ -120,12 +121,14 @@ export function createModelRuntime<P>(
 ): ModelRuntimeProvider<P> {
   validate(dependencies, configuration)
   const { commands, instances } = dependencies
+  // The driver sends through this wrapper, so that a committed cancel reaches the running stream.
+  const interruption = createSendInterruption(dependencies.send)
   const activity = createModelDriver(
     commands,
     instances,
     dependencies.clock,
     configuration,
-    dependencies.send,
+    interruption.send,
   )
   async function wake(input: Parameters<typeof instances.schedule>[0]): Promise<void> {
     try {
@@ -165,6 +168,9 @@ export function createModelRuntime<P>(
           const input = { principal, tenant, call, operation }
           const result = await commands.control(input)
           if ('ok' in result) {
+            // Only a committed control stops the stream. The termination still waits for the
+            // transport to confirm the physical stop.
+            interruption.interrupt(input)
             activity.requestRefresh(input)
             await wake({ tenant: input.tenant, call: input.call })
           }

@@ -4,23 +4,23 @@
 
 ## 集成入口
 
-`./cordis` 导出 `LocalCredentialPlugin`、`deliverInjected`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
+`./cordis` 导出 `LocalCredentialPlugin`、`deliverInjected`、`ModelInstancesLocalPlugin`、`ModelConvertersLocalPlugin`、`createModelRuntimeLocalPlugin`、`createMemoryResultPushLedger`、`createModelRequestPreparationPlugin`、`createModelSendStagePlugin` 与 `ModelProfilesLocalPlugin`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库；插件在 [src/plugins/](..)。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
 
 | 插件 | 静态 inject | 提供与寿命 |
 | --- | --- | --- |
 | `ModelInstancesLocalPlugin` | `modelPublicationAuthority` | 构造唯一 `ModelInstancesService`；权威换代时随 fiber 卸载与重装，后继目录从空开始 |
 | `ModelConvertersLocalPlugin` | `modelConverterAuthority` | 构造唯一 `ModelConvertersService`；独立于运行时与结果查询 |
-| `createModelRuntimeLocalPlugin` 造出的类（宿主部分） | `modelCommands`、`modelClock`、`modelHostAuthority`；配置四项上限 | `await bind` 成功后才发布 `modelInstanceHost`；`modelRuntime` 由后续闭包在同一贡献点接入 |
+| `createModelRuntimeLocalPlugin` 造出的类 | `modelCommands`、`modelClock`、`modelHostAuthority`；配置四项上限 | `await bind` 成功后，在同一个子插件里发布 `modelInstanceHost`，提供者带 `runtime` 时也发布 `modelRuntime`。`modelRuntime` 持有结果接收登记表，推送按冻结的 `consumer.owner` 从表里解析接收方 |
 | `createModelRequestPreparationPlugin` 造出的类 | `modelCommands`；配置 `maxCitedCalls` | 在同一 fiber 发布 `modelRequestPreparation` 与 `modelPreparationResources`；后者的租约与 `prepare` 出自同一份准备资源，随 fiber 撤除后拒绝新租约 |
 | `ModelSendStagePlugin`（`createModelSendStagePlugin` 造出的类） | `modelCredential`、`modelCommands`；配置 `maxRetainedAttempts` | 发布 `modelSendBoundary`；发送路径随 fiber 建立与关闭，凭据端口先于关闭撤回 |
 
-三个造类的工厂交出对象选项，因为运行提供者、观察资格、家族绑定、凭据补全、协调器与网络配置不是可序列化配置。宿主状态全在闭包里：消费者看到的实例只有 `schedule`、`publish`、`withdraw` 与 `directory`，`bind` 留在插件里。
+三个造类的工厂交出对象选项，因为运行提供者、观察资格、推送账本、家族绑定、凭据补全、协调器与网络配置不是可序列化配置。宿主状态全在闭包里：消费者看到的实例只有 `schedule`、`publish`、`withdraw` 与 `directory`，`bind` 留在插件里。
 
 ## 有序关闭
 
-宿主插件在 `Service.init` 里先建未绑定宿主，`await host.bind(provider.driver)` 成功后创建发布子插件。子插件的撤除与有序关闭放在同一个外层 effect 的列表里：Cordis 对一个 effect 的撤除按逆序逐个等待，所以 quiesce → 停派发并等待每个 drive 交还 → 撤贡献按这个次序发生。分成两个顶层 effect 会被并发撤除，次序就没有保证。shutdown 不抛出：它之后那一项若因异常被跳过，贡献就撤不掉。
+宿主插件在 `Service.init` 里先建运行阶段与未绑定宿主，把运行阶段的命令端口交给提供者，`await host.bind(provider.driver)` 成功后在同一个 `try` 里创建发布子插件。子插件创建失败（例如 fiber 在启动窗口里被卸载）时，已绑定的宿主关闭。子插件的撤除、推送的停止与有序关闭放在同一个外层 effect 的列表里：Cordis 对一个 effect 的撤除按逆序逐个等待，所以 quiesce → 停派发并等待每个 drive 交还 → 停推送 → 撤贡献按这个次序发生。分成两个顶层 effect 会被并发撤除，次序就没有保证。shutdown 不抛出：它之后那一项若因异常被跳过，贡献就撤不掉。
 
-未派发的唤醒在关闭时留给后继，计数写进诊断。取不到 drive 输入的调用不驱动，原待办留在 `ModelCommands`。
+未派发的唤醒在关闭时留给后继，计数写进诊断。取不到 drive 输入的调用不驱动，原待办留在 `ModelCommands`。停推送时在途推送收到中止信号；未完成的推送、ACK、清理与晚到账目留在装配给出的推送账本里，拿同一账本的后继插件继续。账本同一时刻只有一个写者。
 
 ## 发送阶段的装载与退出
 
@@ -30,12 +30,12 @@
 
 退出由挂在 fiber 上的一个 effect 完成，次序是：撤回凭据端口，再关闭发送路径。关闭等待网络上在途的交换停止，不抛出，失败时只记一条不含原因的警告。退出时在两步之间的发送因凭据不可用以 `not-started` 收场，传输没有被启动。仍持旧引用的调用方对没有开始过的 dispatch 得到 `not-started`，诊断为 `send-resources-closed`。已经发出的请求不由卸载收回。
 
-| 东西 | 在本包里是什么 | 不是什么 |
-| --- | --- | --- |
-| 服务 | 抽象 `Service`，键 `modelCredential`，由 [model-cordis-contract](../../model-cordis-contract/docs/cordis.md) 唯一拥有 | 本包不导出，也不另写键 |
-| 插件 | `LocalCredentialPlugin`，继承该服务，自己实现 `present` 和 `resolve`；保管库只在构造时创建的闭包里 | 不是域外工作与编排的子插件，也不进它的作用域 |
-| fiber | 装载该插件的那条 fiber，关闭挂在它的撤除上 | 不是域外工作的生命周期，不是模型执行器，也不是一次发送 |
-| 档案插件 | `ModelProfilesLocalPlugin`，继承 model-cordis-contract 的 `ModelProfilesService`，键 `modelProfiles`，无静态 `inject` | 不读 settings，不读 `modelCredential`，不是档案维护者 |
+| 东西     | 在本包里是什么                                                                                                        | 不是什么                                               |
+| -------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| 服务     | 抽象 `Service`，键 `modelCredential`，由 [model-cordis-contract](../../model-cordis-contract/docs/cordis.md) 唯一拥有 | 本包不导出，也不另写键                                 |
+| 插件     | `LocalCredentialPlugin`，继承该服务，自己实现 `present` 和 `resolve`；保管库只在构造时创建的闭包里                    | 不是域外工作与编排的子插件，也不进它的作用域           |
+| fiber    | 装载该插件的那条 fiber，关闭挂在它的撤除上                                                                            | 不是域外工作的生命周期，不是模型执行器，也不是一次发送 |
+| 档案插件 | `ModelProfilesLocalPlugin`，继承 model-cordis-contract 的 `ModelProfilesService`，键 `modelProfiles`，无静态 `inject` | 不读 settings，不读 `modelCredential`，不是档案维护者  |
 
 ```mermaid
 classDiagram
