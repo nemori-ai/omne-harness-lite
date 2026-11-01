@@ -31,9 +31,9 @@
 
 ## 注册与资格
 
-定义见 [registration.ts](../src/registration.ts)。
+定义见 [registration.ts](../src/registration.ts)。读取资格交接的请求、结果与端口定义见 [reader-eligibility.ts](../src/reader-eligibility.ts)，Cordis 键归 [runtime-context-cordis-contract](../../runtime-context-cordis-contract/docs/cordis.md#读取资格交接)。
 
-`Registration`, `RegistrationChange`, `EligibilityId`, `EligibilityState`, `Eligibility`, `EligibilityMaterial`。
+`Registration`, `RegistrationChange`, `EligibilityId`, `EligibilityState`, `Eligibility`, `EligibilityMaterial`, `ReaderEligibilityRequest`, `ReaderEligibilityResult`, `ReaderEligibilityHandoff`。
 
 ## 读者与观察
 
