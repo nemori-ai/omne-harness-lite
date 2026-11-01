@@ -14,17 +14,21 @@ it('exports on the root only the names members outside the Tool group import, an
   // SPEC「公开入口的分组」rule 1: the root runtime names are the reference codecs and the two
   // identity decoders and the RC block declaration/schema consumed outside the Tool group,
   // and by rule 3 the relation
-  // check of a result push, which receivers outside the group call. The grouping table of the
+  // check of a result push, which receivers outside the group call, and the resident key text and
+  // reference projection that the Session evidence writer and the application bridge call. The grouping table of the
   // switch is in the PR (tmp/issue-626/provider-split.md).
   expect(Object.keys(tool).sort()).toEqual([
     'backgroundCallsBlock',
     'backgroundCallsSchema',
     'decodeToolCallId',
     'decodeToolOperationId',
+    'encodeResidentKey',
     'encodeToolInvocationRef',
     'encodeToolOperationRef',
     'judgeToolDelivery',
+    'projectResidentReferences',
     'readToolOperationRef',
+    'residentToolFacts',
     'resolveToolInvocationRef',
     'resolveToolOperationRef',
   ])
