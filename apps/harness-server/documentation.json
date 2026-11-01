@@ -154,6 +154,25 @@
         "path": "docs/member-documentation.md",
         "anchor": "行为契约与完整文档"
       }
+    },
+    {
+      "id": "row-session-provider",
+      "path": "apps/harness-server/docs/rows/session-provider.md",
+      "kind": "architecture",
+      "required": true,
+      "visibility": "internal",
+      "basis": "adopted",
+      "applicability": "applicable",
+      "expectationSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "成员包文档要求"
+      },
+      "inspectionProfile": "prose-v1",
+      "requiredSections": [],
+      "gapAllowanceSource": {
+        "path": "docs/member-documentation.md",
+        "anchor": "行为契约与完整文档"
+      }
     }
   ]
 }
