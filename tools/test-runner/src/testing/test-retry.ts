@@ -1,6 +1,6 @@
 // 成员测试一层（快层或慢层）失败后的定向重跑：失败处数不超过 `RETRY_LIMIT` 且每处都落在某个测试文件里时，
 // 同一次运行内以低并发（成员串行、每成员一个工作进程）只把失败用例所在的文件各重跑一次；全过则这一层通过，
-// 重跑记在 `retried` 里进运行记录（admission-run.ts）；仍失败、超过上限或有成员一级的失败（没有报告、起不来）按现语义失败。
+// 重跑记在 `retried` 里进运行记录（admission-run.ts）；仍失败、超过上限、有成员一级的失败（没有报告、起不来）或退出码非 0 却解析不出失败，按现语义失败。
 // 失败原因分类（超时、STACK_TRACE_ERROR、进程起不来、断言失败）只进记录，不决定重不重跑：断言失败也重跑，但分开计。
 // 不改别的步骤的失败语义；不读测试缓存（重跑经成员脚本直接起 vitest）。
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
@@ -96,6 +96,10 @@ export async function tierWithRetry(
 ): Promise<TierOutcome> {
   const first = await run()
   if (first.exitCode === 0) return { exitCode: 0, failures: [], retried: [] }
+  if (first.failures.length === 0) {
+    note(`定向重跑：不做——退出码 ${first.exitCode} 但没有解析出失败，按失败处理，保留原退出码`)
+    return { exitCode: first.exitCode, failures: [], retried: [] }
+  }
   const grouped = filesOf(first.failures, tier)
   if ('memberLevel' in grouped) {
     note(

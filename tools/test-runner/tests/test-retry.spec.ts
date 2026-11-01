@@ -25,10 +25,14 @@ const failure = (file: string, message: string, test = 'a case'): Failure => ({
 })
 
 /** 一次假的层运行：按给定的失败结束；再一次假的重跑：按文件给结果并记下被叫到的顺序。 */
-function harness(failures: readonly Failure[], outcomes: Record<string, RerunOutcome>) {
+function harness(
+  failures: readonly Failure[],
+  outcomes: Record<string, RerunOutcome>,
+  exitCode = failures.length === 0 ? 0 : 1,
+) {
   const reruns: string[] = []
   const notes: string[] = []
-  const run = async () => ({ exitCode: failures.length === 0 ? 0 : 1, failures })
+  const run = async () => ({ exitCode, failures })
   const rerun = async (file: FailedFile) => {
     reruns.push(file.file)
     return outcomes[file.file] ?? 'failed'
@@ -137,6 +141,31 @@ describe('一层失败后的定向重跑', () => {
     const passed = harness([], {})
     expect((await passed.go()).exitCode).toBe(0)
     expect(passed.reruns).toEqual([])
+  })
+
+  it('恰好 10 处失败重跑，11 处不重跑（上限含 10）', async () => {
+    const at = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        failure(`packages/a/tests/t${index}.spec.ts`, 'AssertionError: expected'),
+      )
+    const atLimit = harness(at(RETRY_LIMIT), {})
+    await atLimit.go()
+    expect(atLimit.reruns).toHaveLength(RETRY_LIMIT)
+    const over = harness(at(RETRY_LIMIT + 1), {})
+    await over.go()
+    expect(over.reruns).toEqual([])
+  })
+
+  it('退出码非 0 但解析不出失败：按失败返回、不重跑、保留原退出码与原因说明', async () => {
+    const h = harness([], {}, 2)
+    const result = await h.go()
+    expect(result.exitCode).toBe(2)
+    expect(h.reruns).toEqual([])
+    expect(result.failures).toEqual([])
+    expect(result.retried).toEqual([])
+    const notes = h.notes.join('\n')
+    expect(notes).toContain('退出码 2')
+    expect(notes).toContain('没有解析出失败')
   })
 
   it('重跑没选中文件（not-run）算没过', async () => {
