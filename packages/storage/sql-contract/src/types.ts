@@ -471,6 +471,21 @@ export interface TenantDomains<P> {
   enumerate(input: Readonly<{ principal: P }>): Promise<TenantDomainListing>
 }
 
+export type TenantDomainLookupResult =
+  | Readonly<{ kind: 'ready'; domain: DomainRef }>
+  | Readonly<{ kind: 'unregistered' }>
+  | Readonly<{ kind: 'unavailable'; diagnostic: string }>
+
+/**
+ * Read-only lookup in the published snapshot of the directory (the projection of
+ * `TenantDomainAccess.snapshot()`). It does not resolve, register, migrate or write the directory.
+ * A tenant that the snapshot does not hold is `unregistered`. Trusted: only rows of the trusted
+ * storage subtree receive it.
+ */
+export interface TenantDomainLookup {
+  lookup(input: Readonly<{ tenant: string }>): Promise<TenantDomainLookupResult>
+}
+
 // --- Protocol 1 recognition (§3.3). Published only if the data survey finds v1 receipts. ---
 
 export type OperationIdentityV1 = Readonly<{

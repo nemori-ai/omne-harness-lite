@@ -54,23 +54,27 @@ describe('runtime exports of the entries', () => {
     expect(Object.keys(worker)).toEqual([])
   })
 
-  it('the cordis entry exports the three services and their keys', async () => {
+  it('the cordis entry exports the four services and their keys', async () => {
     const cordis = await import('@omne-harness/sql-contract/cordis')
     expect(Object.keys(cordis).sort()).toEqual([
       'StorageHostService',
       'StorageService',
+      'TenantDomainLookupService',
       'TenantDomainsService',
       'storageHostKey',
       'storageKey',
+      'tenantDomainLookupKey',
       'tenantDomainsKey',
     ])
   })
 
-  it('the testing entry exports the double and the suite', async () => {
+  it('the testing entry exports the doubles and the suites', async () => {
     const testing = await import('@omne-harness/sql-contract/testing')
     expect(Object.keys(testing).sort()).toEqual([
       'createMemorySqlStorage',
+      'createMemoryTenantDomainLookup',
       'runSqlStorageConformance',
+      'runTenantDomainLookupConformance',
     ])
   })
 })

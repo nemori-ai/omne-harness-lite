@@ -39,9 +39,12 @@
 - `ModelRegistrationFailure` · `registration.d.ts`
 - `ModelRegistrationInput` · `registration.d.ts`
 - `ModelRequestPreparationService` · `cordis.d.ts`
+- `ModelResultReceiverConflictError` · `receivers.d.ts`
+- `ModelResultReceiverTable` · `receivers.d.ts`
 - `ModelRetryPolicyService` · `cordis.d.ts`
 - `ModelRuntimeService` · `cordis.d.ts`
 - `ModelSendBoundaryService` · `cordis.d.ts`
+- `createModelResultReceiverTable` · `receivers.d.ts`
 - `modelClockKey` · `cordis.d.ts`
 - `modelCommandsKey` · `cordis.d.ts`
 - `modelConverterAuthorityKey` · `cordis.d.ts`
@@ -59,6 +62,15 @@
 - `modelRetryPolicyKey` · `cordis.d.ts`
 - `modelRuntimeKey` · `cordis.d.ts`
 - `modelSendBoundaryKey` · `cordis.d.ts`
+
+## 入口 `./testing` · `testing/index.d.ts`
+
+- `ModelResultReceiverCase` · `testing/index.d.ts`
+- `ModelResultReceiverFixture` · `testing/index.d.ts`
+- `ModelResultReceiverHost` · `testing/index.d.ts`
+- `ScriptedModelRuntimeHostOptions` · `testing/index.d.ts`
+- `createScriptedModelRuntimeHost` · `testing/index.d.ts`
+- `modelResultReceiverConformance` · `testing/index.d.ts`
 
 ## 声明文件 `converters.d.ts`
 
@@ -81,13 +93,16 @@ export declare const modelConvertersKey = "modelConverters";
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ModelCallId, ModelDiagnostics, ModelRuntime, Revision } from '@omne-harness/model-contract';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelResultReceiver, ModelRuntime, Revision } from '@omne-harness/model-contract';
 import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
+import { type ModelResultReceiverTable } from './receivers.ts';
 import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts';
 export { ModelConvertersService, modelConvertersKey } from './converters.ts';
 export { ModelInstancesService, modelInstancesKey } from './instances.ts';
+export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts';
+export type { ModelResultReceiverTable } from './receivers.ts';
 export type { ModelConverterAuthority, ModelConverterRegistration, ModelConverterRegistrationInput, ModelPublication, ModelPublicationAuthority, ModelRegistration, ModelRegistrationFailure, ModelRegistrationInput, } from './registration.ts';
 export declare abstract class ModelCredentialService extends Service implements CredentialPort {
     static readonly provide = "modelCredential";
@@ -98,7 +113,8 @@ export declare abstract class ModelCredentialService extends Service implements 
 export declare const modelCredentialKey = "modelCredential";
 export declare abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {
     static readonly provide = "modelRuntime";
-    constructor(ctx: CordisContext);
+    readonly registerResultReceiver: (owner: ConsumerRef['owner'], receiver: ModelResultReceiver<P>) => () => void;
+    constructor(ctx: CordisContext, receivers?: ModelResultReceiverTable<P>);
     abstract readonly calls: ModelRuntime<P>['calls'];
     abstract readonly consumption: ModelRuntime<P>['consumption'];
     abstract readonly instances: ModelRuntime<P>['instances'];
@@ -258,6 +274,24 @@ export declare class ModelInstancesService<P> extends Service implements ModelIn
 export declare const modelInstancesKey = "modelInstances";
 ```
 
+## 声明文件 `receivers.d.ts`
+
+```ts
+import type { Context as CordisContext } from '@deepseek-ai/cordis';
+import type { ConsumerRef, ModelResultReceiver } from '@omne-harness/model-contract';
+type Owner = ConsumerRef['owner'];
+export declare class ModelResultReceiverConflictError extends Error {
+    readonly owner: Owner;
+    constructor(owner: Owner);
+}
+export interface ModelResultReceiverTable<P> {
+    register(ctx: CordisContext, owner: Owner, receiver: ModelResultReceiver<P>): () => void;
+    resolve(owner: Owner): ModelResultReceiver<P> | null;
+}
+export declare function createModelResultReceiverTable<P>(): ModelResultReceiverTable<P>;
+export {};
+```
+
 ## 声明文件 `registration.d.ts`
 
 ```ts
@@ -308,4 +342,30 @@ export type ModelConverterRegistration = Readonly<{
         }>;
     }>>;
 }>;
+```
+
+## 声明文件 `testing/index.d.ts`
+
+```ts
+import { Context } from '@deepseek-ai/cordis';
+import type { ModelResultReceiver } from '@omne-harness/model-contract';
+import { type ModelResultReceiverTable } from '../receivers.ts';
+export interface ModelResultReceiverHost<P> {
+    readonly context: Context;
+    resolve(owner: string): ModelResultReceiver<P> | null;
+    dispose(): Promise<void>;
+}
+export type ScriptedModelRuntimeHostOptions<P> = Readonly<{
+    table?: ModelResultReceiverTable<P>;
+}>;
+export declare function createScriptedModelRuntimeHost<P = unknown>(options?: ScriptedModelRuntimeHostOptions<P>): Promise<ModelResultReceiverHost<P>>;
+export interface ModelResultReceiverFixture {
+    create(): Promise<ModelResultReceiverHost<unknown>>;
+}
+export type ModelResultReceiverCase = Readonly<{
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function modelResultReceiverConformance(fixture: ModelResultReceiverFixture): readonly ModelResultReceiverCase[];
 ```

@@ -40,6 +40,19 @@ model-cordis-contract 的根只导出纯类型，Cordis 值和增补仅在 ./cor
 | modelClock | ModelClock | Model | 执行/清理等待必需；失去时保持未完责任，不伪造经过时间 |
 | modelCredential | CredentialPort | Model 定义入口 | 发送边界解析凭据时需要；Context 成员可选，缺席时不发送。不核验调用方资格，见 [SPEC](../SPEC.md#凭据服务) |
 
+## 结果接收登记
+
+`ModelRuntimeService` 的具体方法 `registerResultReceiver(owner, receiver)` 让结果的消费者（Agent 宿主）在插件体内登记接收方。方法经 `this.ctx.effect` 登记，所以和目录的 `register` 一样是实例上的普通函数，登记落在调用方 fiber。撤除函数同步删除表项。登记表在构造函数的闭包里，由提供者用 `createModelResultReceiverTable` 建表并传给构造函数，推送阶段用表的 `resolve` 取接收方。登记表归为装配给的保证，不加服务键，不改根接口 `ModelRuntime`。规则见 [SPEC](../SPEC.md#结果接收登记)。
+
+在途推送的中止（登记撤除时收到 `signal`）与重投、`no-receiver` 诊断归推送阶段的实现，不在本包。
+
+### IC 符合性映射
+
+| 约定 | 本成员的兑现 |
+| --- | --- |
+| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) | `registerResultReceiver` 在调用方 fiber 的 effect 里登记，返回撤除函数，撤除同步删除。与上文的目录写法不同：撤除函数不是幂等的取代，旧登记属于已撤除或正在撤除的 fiber 时被新登记直接替换（R1-D15）。真实 Cordis 的符合性用例见 `tests/receivers-conformance.spec.ts` |
+| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) | 接收登记表是进程内对象，解析接收方靠同一进程成立；拆成多个进程时，推送目标的到达协议本版不定义 |
+
 ## 档案、准备和转换的装配
 
 Model 的全部能力不集中到一个必需依赖集合。下表补足独立消费者的装配。设计定义入口为业务操作提供唯一抽象 Service，为目录提供定义自有的具体 Service；方法类型引用根接口；provide 字符串由定义类拥有，消费者只导入键常量。
