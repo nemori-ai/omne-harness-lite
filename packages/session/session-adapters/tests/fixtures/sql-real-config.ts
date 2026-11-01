@@ -13,7 +13,7 @@ export function realConfig(storageRoot: string): SqliteStorageConfig {
     maxCommandBytes: 1048576,
     maxRequestBytes: 4194304,
     globalInFlightWriteBytes: 67108864,
-    // The Session create with an initial input and the Journal state nest deeper than 64.
+    // With 64 the Session create of these scenes is refused (command_limit); see SPEC K-14.
     maxJsonDepth: 256,
     maxJsonMembers: 65536,
     maxResponseBytes: 65536,
