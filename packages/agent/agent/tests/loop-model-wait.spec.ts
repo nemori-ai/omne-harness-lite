@@ -37,10 +37,11 @@ import {
 type Dependencies = AgentDependencies<Principal, ContentBlock>
 type Loaded = Outcome<ExecutionSnapshot, Failure>
 
-/** One call the coordinator made on the Journal, in call order. */
+/** One call the coordinator made on the Journal, or the start of a sleep on the clock, in order. */
 type Call =
   | Readonly<{ kind: 'load' }>
   | Readonly<{ kind: 'commit'; input: JournalCommit<Principal> }>
+  | Readonly<{ kind: 'sleep' }>
 
 /**
  * What a test does with the first load after a waiting commit, which is the read of the wait:
@@ -48,13 +49,23 @@ type Call =
  */
 type Reread = (load: () => Promise<Loaded>) => Promise<Loaded>
 
-/** The dependencies with each Journal load and commit recorded, and the read of the wait hooked. */
+/**
+ * The dependencies with each Journal load and commit and each clock sleep recorded, and the read of
+ * the wait hooked.
+ */
 function recording(calls: Call[], reread: Reread = load => load()) {
   return (dependencies: Dependencies): Dependencies => {
-    const { journal } = dependencies
+    const { journal, clock } = dependencies
     let waitSaved = false
     return {
       ...dependencies,
+      clock: {
+        ...clock,
+        waitUntil(instant, signal) {
+          calls.push({ kind: 'sleep' })
+          return clock.waitUntil(instant, signal)
+        },
+      },
       journal: {
         ...journal,
         load(input) {
@@ -78,13 +89,13 @@ function commits(calls: readonly Call[]): JournalCommit<Principal>[] {
   return calls.flatMap(call => (call.kind === 'commit' ? [call.input] : []))
 }
 
-/** The loads after the last waiting commit. */
-function loadsInWait(calls: readonly Call[]): number {
+/** The kinds of the calls after the last waiting commit. */
+function afterWaitSaved(calls: readonly Call[]): Call['kind'][] {
   const saved = calls.findLastIndex(
     call => call.kind === 'commit' && call.input.state.kind === 'waiting',
   )
   if (saved < 0) throw new Error('no waiting commit was recorded')
-  return calls.slice(saved + 1).filter(call => call.kind === 'load').length
+  return calls.slice(saved + 1).map(call => call.kind)
 }
 
 /** Invokes exec-1 with the Model gate closed and returns when the driver sleeps in W0. */
@@ -182,7 +193,10 @@ describe('R6.5: entering the Model wait reads the Journal at most once', () => {
     const calls: Call[] = []
     const assembly = await loopAssembly([execution()], recording(calls))
     const handle = await parkedAtModelWait(assembly)
-    expect(loadsInWait(calls)).toBeLessThanOrEqual(1)
+    const entered = afterWaitSaved(calls)
+    expect(
+      entered.slice(0, entered.indexOf('sleep')).filter(kind => kind === 'load').length,
+    ).toBeLessThanOrEqual(1)
     assembly.release.open()
     await eventsOf(handle)
   })
@@ -191,9 +205,9 @@ describe('R6.5: entering the Model wait reads the Journal at most once', () => {
     const calls: Call[] = []
     const assembly = await loopAssembly([execution()], recording(calls))
     const handle = await parkedAtModelWait(assembly)
-    const parked = calls.length
     await turns()
-    expect(calls.slice(parked)).toEqual([])
+    // One read and one sleep since the waiting commit: the driver never woke on its own event.
+    expect(afterWaitSaved(calls)).toEqual(['load', 'sleep'])
     expect(assembly.controls.clock.pending()).toHaveLength(1)
     expect((await journalState(assembly)).kind).toBe('waiting')
     assembly.release.open()
@@ -241,10 +255,10 @@ describe('AG-03: a failure in the wait is not progress and not a result', () => 
       recording(calls, async () => fail(unavailable)),
     )
     const handle = await parkedAtModelWait(assembly)
-    const parked = calls.length
     await turns()
-    // The failed read is no progress: no read again before an event or the check time.
-    expect(calls.slice(parked)).toEqual([])
+    // The failed read is no progress: the driver sleeps and reads nothing again before an event or
+    // the check time.
+    expect(afterWaitSaved(calls)).toEqual(['load', 'sleep'])
     expect((await journalState(assembly)).kind).toBe('waiting')
     expect(assembly.controls.clock.pending()).toHaveLength(1)
     assembly.release.open()
