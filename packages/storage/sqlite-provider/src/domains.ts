@@ -82,6 +82,17 @@ export class Domains {
     return join(this.config.storageRoot, 'domains', `${hex(domain)}.sqlite`)
   }
 
+  /** Admits the lease of a read Worker (SPEC 13.2). Throws when the assembly stopped admission. */
+  admitReader(domain: string, generation: number): { name: string; lease: object } {
+    const name = `storage/${String(this.providerGeneration)}/reader/${hex(domain)}.sqlite/${String(generation)}`
+    return { name, lease: this.leases.admit(name) }
+  }
+
+  /** Returns a lease after the exit of its Worker was observed. */
+  releaseLease(lease: object): void {
+    this.leases.release(lease)
+  }
+
   /** The ready domain right now, without waiting. Operations send at once when it exists. */
   peekReady(domain: string): ReadyDomain | null {
     const entry = this.entries.get(domain)
