@@ -173,14 +173,19 @@ expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
 
 ## 真实模式的测试
 
-| 文件                                | 层   | 覆盖                                                                                       |
-| ----------------------------------- | ---- | ------------------------------------------------------------------------------------------ |
-| `tests/row.spec.ts`                 | fast | `defineRow` 的形状、IC-8 与前缀检查、三种插件形状在同一 fiber、行体承载的登记              |
-| `tests/serve-types.spec-d.ts`       | 类型 | 声明类型的负例：成员插件不能直接做带阶段的行                                               |
-| `tests/serve.spec.ts`               | fast | 发行替身树、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
-| `tests/serve-lifecycle.spec.ts`     | fast | `serve` 版可见性、入口对象承载的登记落在行 fiber、`not-registered`                         |
-| `tests/real-manifests-sync.spec.ts` | fast | 真实清单与 `stubs.ts` 逐行比较、具名差额清单、无 `s0.` 名字、AAP-7                         |
-| `tests/serve-process.spec.ts`       | slow | `dist/bin.js serve`：替身树、`--stop-on-stdin-close`、用法错误、`s0` 的解析路径不变        |
+| 文件                                | 层   | 覆盖                                                                                                                                             |
+| ----------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/row.spec.ts`                 | fast | `defineRow` 的形状、IC-8 与前缀检查、三种插件形状在同一 fiber、行体承载的登记                                                                    |
+| `tests/serve-types.spec-d.ts`       | 类型 | 声明类型的负例：成员插件不能直接做带阶段的行                                                                                                     |
+| `tests/serve.spec.ts`               | fast | 混合发行树（真实 7、契约替身 1、S0 替身 41，运维者层给绝对路径）、名字前缀、占位规则、夹具行走通、PENDING 诊断、四条装载前拒绝、`once`、四个阶段 |
+| `tests/serve-lifecycle.spec.ts`     | fast | `serve` 版可见性、入口对象承载的登记落在行 fiber、`not-registered`                                                                               |
+| `tests/real-manifests-sync.spec.ts` | fast | 真实清单与 `stubs.ts` 逐行比较、具名差额清单、无 `s0.` 名字、AAP-7                                                                               |
+| `tests/serve-process.spec.ts`       | slow | `dist/bin.js serve`：混合发行树加运维者文件、`--stop-on-stdin-close`、用法错误、`s0` 的解析路径不变                                              |
+| `tests/r9/flow.spec.ts`             | slow | R9 进程级贯通：`serve` 进程加 `omne` CLI，注册、登录、建会话、发输入、跨租户拒绝、重启、秘密搜索                                                 |
+| `tests/r9/arrival.spec.ts`          | slow | R9 进程内一层：`session-provider` 带观察者，核对到达会话替身的主体与跨租户路径                                                                   |
+| `tests/rows/<行>/`                  | 两层 | 各真实行与契约替身行的行规格用例，见各行规格页                                                                                                   |
+
+发行配置里含绝对路径的字段（`storage` 的 `storageRoot`、`session-storage` 的 `directoryFile`）与 `server-entry` 的 `listenPort` 不写进发行文件，由运维者层 `replace` 给出（L-APP 波 1 决定 L1-12）。
 
 夹具在 `tests/fixtures/serve/`：定义包 `definitions.ts`，行目录 `rows/`，入口对象 `entry/`，装载入口 `harness.ts`。
 
