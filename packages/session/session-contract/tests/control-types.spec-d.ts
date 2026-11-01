@@ -23,7 +23,7 @@ it('exposes the shapes of the contract face', () => {
   expectTypeOf<ReturnType<SessionWork<string>['stopCall']>>().resolves.toMatchTypeOf<
     { ok: SessionControlReceipt<SessionCallTerminal> } | { failure: SessionFailure }
   >()
-  expectTypeOf<ReturnType<SessionTransactionPort<string>['commitEntries']>>().resolves.toMatchTypeOf<
-    { ok: SessionEntriesReceipt } | { failure: SessionFailure }
-  >()
+  expectTypeOf<
+    ReturnType<SessionTransactionPort<string>['commitEntries']>
+  >().resolves.toMatchTypeOf<{ ok: SessionEntriesReceipt } | { failure: SessionFailure }>()
 })

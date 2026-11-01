@@ -49,9 +49,9 @@ describe('cancelRun over DecideReads.runs', () => {
     ).toMatchObject(unavailable)
     const absent = { kind: 'absent' as const, run, covered: f.snapshot.revision }
     expect(f.cancel({ ...base, runs: [absent, absent] })).toMatchObject(unavailable)
-    expect(f.cancel({ ...base, runs: [{ ...absent, run: 'run_unrelated' as RunId }] })).toMatchObject(
-      unavailable,
-    )
+    expect(
+      f.cancel({ ...base, runs: [{ ...absent, run: 'run_unrelated' as RunId }] }),
+    ).toMatchObject(unavailable)
   })
 
   it('a covered absence is not-found, a terminal is ended, and neither writes entries', async () => {
@@ -67,6 +67,29 @@ describe('cancelRun over DecideReads.runs', () => {
       answer: { kind: 'ended', terminal },
       source: terminal.evidence,
     })
+  })
+
+  it('a lookup that lacks the terminal of the snapshot is unknown, not a new failure kind', async () => {
+    const f = await frame()
+    const active = f.snapshot.run.kind === 'active' ? f.snapshot.run.run : run
+    const terminal = {
+      ...f.snapshot,
+      run: {
+        kind: 'terminal' as const,
+        terminal: { run: active, outcome: 'cancelled' as const, evidence: evidence('x') },
+      },
+    }
+    const decision = decide(
+      terminal,
+      {
+        kind: 'cancelRun',
+        input: { ...f.s.base, operation: operationId('c'), run: active, urgency: 'force' },
+      },
+      [],
+      null,
+      { ...base, runs: [{ kind: 'bound', run: active, bound: evidence('b'), terminal: null }] },
+    )
+    expect(decision).toMatchObject(unavailable)
   })
 
   it('an active bound Run is cancelled by entries', async () => {

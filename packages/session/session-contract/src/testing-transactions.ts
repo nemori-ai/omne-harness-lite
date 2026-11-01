@@ -176,11 +176,7 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
        * Models the first committed SE19 that ended a call. The entry codec of this segment has no
        * outcome field, so the double takes the end as a control and `stopCall` reads it as a lookup.
        */
-      recordCallTerminal(
-        tenant: TenantId,
-        session: SessionId,
-        terminal: SessionCallTerminal,
-      ): void
+      recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void
     }>
 }
 
@@ -388,12 +384,19 @@ export function createMemorySessionTransactions<P>(
   const callTerminals = new Map<string, SessionCallTerminal>()
   const terminalKey = (key: string, producer: ProducerRef): string =>
     `${key}\u0000${producer.kind}\u0000${producer.call}`
-  const callLookup = (key: string, snapshot: WorkSnapshot, producer: ProducerRef): SessionCallLookup =>
+  const callLookup = (
+    key: string,
+    snapshot: WorkSnapshot,
+    producer: ProducerRef,
+  ): SessionCallLookup =>
     snapshot.consumptions.some(item => sameProducer(item.binding.producer, producer))
       ? {
           kind: 'bound',
           producer,
-          bound: mintEvidence(`${snapshot.session}/call/${producer.kind}/${producer.call}`, producer),
+          bound: mintEvidence(
+            `${snapshot.session}/call/${producer.kind}/${producer.call}`,
+            producer,
+          ),
           terminal: callTerminals.get(terminalKey(key, producer)) ?? null,
         }
       : { kind: 'absent', producer, covered: snapshot.revision }
@@ -1894,6 +1897,172 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         assert.equal(state.lifecycle, 'archived')
         assert.ok(state.tasks.some(task => task.kind === 'scope-release'))
         assert.deepEqual(state.releasedScopes ?? [], [])
+      },
+    ),
+
+    conformanceCase(
+      'SL07',
+      'an operation identity belongs to one operation, whatever its form',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const run = expectKind((await s.readWork()).run, 'active', 'the open Run').run
+        const shared = fixture.operation('shared')
+        succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: shared,
+              declaration: { kind: 'model', name: 'route-b', basis: evidence('route-b') },
+            },
+          }),
+          'change',
+        )
+        const clash = refused(
+          await s.commit<'cancelRun'>({
+            kind: 'cancelRun',
+            input: { ...s.base, operation: shared, run, urgency: 'graceful' },
+          }),
+          'cancelRun on a batch identity',
+        )
+        assert.equal(
+          expectKind(clash, 'conflict', 'cancelRun on a batch identity').operation,
+          shared,
+        )
+        assert.equal(
+          expectKind((await s.readWork()).run, 'active', 'the Run is untouched').run,
+          run,
+        )
+        const answered = fixture.operation('answered')
+        const none = succeeded(
+          await s.commit<'cancelRun'>({
+            kind: 'cancelRun',
+            input: { ...s.base, operation: answered, run: 'run_never' as RunId, urgency: 'force' },
+          }),
+          'cancelRun of a Run that never was',
+        )
+        assert.deepEqual(none.answer, { kind: 'not-found' })
+        const reuse = refused(
+          await s.commit<'control'>({
+            kind: 'control',
+            input: { ...s.base, operation: answered, intent: { kind: 'archive' } },
+          }),
+          'archive on a control identity',
+        )
+        expectKind(reuse, 'conflict', 'archive on a control identity')
+        assert.notEqual((await s.readWork()).lifecycle, 'archived')
+        const asBatch = refused(
+          await s.port.queryOperation({ ...fixture.access, operation: answered }),
+          'queryOperation on a control identity',
+        )
+        expectKind(asBatch, 'conflict', 'queryOperation on a control identity')
+        const asControl = refused(
+          await s.port.queryControlOperation({ ...fixture.access, operation: shared }),
+          'queryControlOperation on a batch identity',
+        )
+        expectKind(asControl, 'conflict', 'queryControlOperation on a batch identity')
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'stopCall of a Tool target is unsupported before the identity and the session are read',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const used = fixture.operation('used')
+        succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: used,
+              declaration: { kind: 'model', name: 'route-b', basis: evidence('route-b') },
+            },
+          }),
+          'change',
+        )
+        const before = await s.readWork()
+        const tool = { kind: 'tool', call: 'tool-1' } as const
+        const stop = (operation: SessionOperationId, session = fixture.access.session) =>
+          s.port.commit<'stopCall'>({
+            access: { ...fixture.access, session },
+            command: {
+              kind: 'stopCall',
+              input: { ...s.base, session, operation, producer: tool },
+            },
+            guards: [],
+          })
+        expectKind(refused(await stop(used), 'stopCall on a used identity'), 'unsupported', 'used')
+        expectKind(
+          refused(await stop(fixture.operation('fresh')), 'stopCall on a fresh identity'),
+          'unsupported',
+          'fresh',
+        )
+        expectKind(
+          refused(
+            await stop(fixture.operation('ghost'), sessionId(`${fixture.access.session}-ghost`)),
+            'stopCall on an unknown session',
+          ),
+          'unsupported',
+          'unknown session',
+        )
+        assert.deepEqual(await s.readWork(), before, 'a refusal writes nothing')
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'an answer-only control writes no revision and replays the original answer',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const before = await s.readWork()
+        const operation = fixture.operation('none')
+        const command = {
+          kind: 'cancelRun',
+          input: { ...s.base, operation, run: 'run_never' as RunId, urgency: 'force' },
+        } as const
+        const first = succeeded(await s.commit<'cancelRun'>(command), 'cancelRun')
+        assert.deepEqual(first.answer, { kind: 'not-found' })
+        assert.equal((await s.readWork()).revision, before.revision, 'no revision advanced')
+        assert.deepEqual(succeeded(await s.commit<'cancelRun'>(command), 'replay'), first)
+        const resolved = succeeded(
+          await s.port.queryControlOperation({ ...fixture.access, operation }),
+          'queryControlOperation',
+        )
+        assert.deepEqual(resolved, { kind: 'committed', receipt: first })
+      },
+    ),
+
+    conformanceCase(
+      'XC-MODELSEL',
+      'readModelSelection is not-ready before any selection and then returns the saved one with its original source',
+      async fixture => {
+        const s = scene(fixture)
+        succeeded(await s.create(), 'create')
+        expectKind(
+          refused(await s.port.readModelSelection(fixture.access), 'before a selection'),
+          'not-ready',
+          'before a selection',
+        )
+        const saved = succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: fixture.operation('select'),
+              declaration: { kind: 'model', name: 'route-a', basis: evidence('route-a') },
+            },
+          }),
+          'change',
+        )
+        succeeded(await s.accept('later'), 'accept')
+        const read = succeeded(await s.port.readModelSelection(fixture.access), 'read')
+        assert.deepEqual(read.selection, { name: 'route-a', basis: evidence('route-a') })
+        assert.deepEqual(read.source, saved.source, 'the source is the commit that saved it')
+        assert.equal(read.revision, (await s.readWork()).revision)
       },
     ),
   ]

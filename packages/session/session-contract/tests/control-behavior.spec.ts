@@ -227,7 +227,10 @@ describe('the answers of cancelRun', () => {
     const before = await s.read()
     const rows = s.port.controls.entriesOf(s.base.tenant, s.base.session).length
     const answered = succeeded(await cancel(s, 'late', run), 'cancel again')
-    expect(answered.answer).toMatchObject({ kind: 'ended', terminal: { run, outcome: 'cancelled' } })
+    expect(answered.answer).toMatchObject({
+      kind: 'ended',
+      terminal: { run, outcome: 'cancelled' },
+    })
     expect(answered.source).toEqual(
       before.run.kind === 'terminal' ? before.run.terminal.evidence : null,
     )
@@ -236,7 +239,7 @@ describe('the answers of cancelRun', () => {
     expect(succeeded(await cancel(s, 'late', run), 'replay')).toEqual(answered)
   })
 
-  it('a failure outside the closed set never reaches the caller', async () => {
+  it('an archived session still answers ended for its cancelled Run, and a live call fails inside the set', async () => {
     const { s, run } = await withCall()
     succeeded(await archive(s, 'archive'), 'archive')
     const allowed: SessionFailure['kind'][] = [
@@ -247,7 +250,9 @@ describe('the answers of cancelRun', () => {
       'unavailable',
       'quarantined',
     ]
-    expect(allowed).toContain(refused(await cancel(s, 'X', run), 'cancelRun after archive').kind)
+    expect(succeeded(await cancel(s, 'X', run), 'cancelRun after archive').answer.kind).toBe(
+      'ended',
+    )
     expect(allowed).toContain(refused(await stop(s, 'Y', MODEL), 'stopCall after archive').kind)
   })
 })

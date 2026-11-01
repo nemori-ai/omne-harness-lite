@@ -155,3 +155,18 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 解释版本沿既有 HistoryEntry.schema 与 WorkSnapshot.interpreter，不加第二个 historyProtocol 标志，不给 CommittedBatch 增加必填参数。具体精确 Adoption、版本不兼容和原批完整性分别按 [初始化解释版本与重建](../SPEC.md#初始化解释版本与重建) 与 FR-01 判断。归一和提交的完整流程归 [session-adapters AD-02](../../session-adapters/SPEC.md#ad-02)，纯函数本身不证明提供者的适配责任。已实现的非耐久组合及其限制见 [session-adapters 测试提供者](../../session-adapters/docs/testing.md)。
 
 `createMemorySessionHistorySource` 的 `observe`、`admit` 与 `read` 按显式 tenant/session 隔离。`admit(scope, input, admission)` 的首参为既有 Session 身份对。`observe` 使用 observation 的身份对，`read` 使用 snapshot 的身份对，并拒绝错域原日志。相同 Run、execution、attempt 或 InputId 文本不会合并不同作用域材料。使用与验证见[同日志纯层](same-log-pure.md)。
+
+## 控制与模型选择的增量（Session r2.2，契约面）
+
+候选规格：Session r2.2 第 3、4、6 节，采用记录见 #991。本段只索引导出，行为以源码与测试为准。
+
+| 导出 | 源文件 | 说明 |
+| --- | --- | --- |
+| `readModelSelection`、`cancelRun`、`stopCall`、`queryControlOperation`（`SessionWork`） | [src/faces.ts](../src/faces.ts) | `cancelRun` 的失败只有 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`，只在目标为 Tool 时产生，且在访问裁定之后、会话存在核对之前返回 |
+| `SavedModelSelection`、`SessionControlReceipt`、`SessionCallLookup`、`SessionRunLookup` 等 | [src/control-values.ts](../src/control-values.ts) | 控制答案与同根查找的形状 |
+| `Decision` 的 `control-answer` 分支、`DecideReads.calls`、`DecideReads.runs`、`entries` 分支的 `progress` 与 `interpreted` | [src/judgments.ts](../src/judgments.ts) | `control-answer` 不推进修订，不产生 `CommitReceipt` |
+| `SessionTransactionPort.commitEntries` 与 entries 解释值 | [src/ports.ts](../src/ports.ts)、[src/interpretation-values.ts](../src/interpretation-values.ts) | 只有形状。内存替身返回 `unavailable`，纯检验与提供者步骤属下一段 |
+| `INGRESS_FAMILIES`、`deriveIngressOperation` | [src/operations.ts](../src/operations.ts) | 规范 JSON 数组编码，三个来源族互不相交 |
+| `SessionAdoptionSource`、`SessionProductionSource`、`SessionCustodySource` | [src/ports.ts](../src/ports.ts) | 采用来源三口，Cordis 键在 session-cordis-contract |
+
+纯规则在 [src/decide-control.ts](../src/decide-control.ts)。内存替身用同一张操作表保存 batch 与 control 答案，一个身份只属于一个操作。已知缺口：`projectSessionEntries` 与 entries 解释的事务内复核未实现。

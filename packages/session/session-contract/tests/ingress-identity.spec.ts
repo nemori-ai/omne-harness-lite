@@ -20,7 +20,9 @@ describe('deriveIngressOperation', () => {
 
   it('keeps the three families disjoint for the same fields', () => {
     const fields = ['login', 'tenant', 'session', 'id']
-    const ids = Object.values(INGRESS_FAMILIES).map(family => deriveIngressOperation(family, fields))
+    const ids = Object.values(INGRESS_FAMILIES).map(family =>
+      deriveIngressOperation(family, fields),
+    )
     expect(new Set(ids).size).toBe(3)
   })
 

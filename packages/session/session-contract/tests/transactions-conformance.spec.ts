@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest'
 import type { SessionCommand, SessionTransactionPort } from '@omne-harness/session-contract'
 import {
   adoption,
+  evidence,
   memorySessionTransactionsFixture,
+  ordinaryInput,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
@@ -42,6 +44,12 @@ const NAMES = {
     'queryOperation answers committed with the receipt, and unknown for an operation never seen',
   finish: 'finishRun with an admission rejection fails the Run and releases the first input',
   offPath: 'archive commits its scope cleanup without pretending physical release',
+  oneIdentity: 'an operation identity belongs to one operation, whatever its form',
+  toolUnsupported:
+    'stopCall of a Tool target is unsupported before the identity and the session are read',
+  answerOnly: 'an answer-only control writes no revision and replays the original answer',
+  modelSelection:
+    'readModelSelection is not-ready before any selection and then returns the saved one with its original source',
 } as const
 
 type Fixture = SessionTransactionsFixture<string>
@@ -102,7 +110,7 @@ const variants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'a conflict is reported as unavailable',
-    fails: [NAMES.conflict],
+    fails: [NAMES.conflict, NAMES.oneIdentity],
     fixture: variant(real => ({
       commit: (async input => {
         const answer = await real.commit(input)
@@ -306,6 +314,104 @@ const variants: readonly Variant<Fixture>[] = [
         return 'ok' in result && result.ok.lifecycle === 'archived'
           ? succeed({ ...result.ok, tasks: [] })
           : result
+      },
+    })),
+  },
+  {
+    name: 'split-operation-tables: a control keeps an identity table of its own',
+    fails: [NAMES.oneIdentity, NAMES.answerOnly],
+    fixture: variant(real => ({
+      commit: (async input => {
+        const command = input.command as SessionCommand
+        if (command.kind !== 'cancelRun' && command.kind !== 'stopCall') return real.commit(input)
+        const renamed = {
+          ...command,
+          input: { ...command.input, operation: `ctl:${command.input.operation}` },
+        }
+        return real.commit({ ...input, command: renamed } as never)
+      }) as Port['commit'],
+    })),
+  },
+  {
+    name: 'tool-check-after-identity-lookup: a used identity answers conflict before unsupported',
+    fails: [NAMES.toolUnsupported],
+    fixture: variant(real => ({
+      commit: (async input => {
+        const command = input.command as SessionCommand
+        if (command.kind === 'stopCall' && command.input.producer.kind === 'tool') {
+          const known = await real.queryOperation({
+            ...input.access,
+            operation: command.input.operation,
+          })
+          if ('ok' in known && known.ok.kind === 'committed')
+            return fail({ kind: 'conflict' as const, operation: command.input.operation })
+        }
+        return real.commit(input)
+      }) as Port['commit'],
+    })),
+  },
+  {
+    name: 'empty-batch-receipt: an answer-only control advances the revision',
+    fails: [NAMES.answerOnly],
+    fixture: variant(real => ({
+      commit: (async input => {
+        const answer = await real.commit(input)
+        if (input.command.kind === 'cancelRun' && 'ok' in answer)
+          await real.commit({
+            access: input.access,
+            command: {
+              kind: 'accept',
+              input: {
+                tenant: input.command.input.tenant,
+                session: input.command.input.session,
+                operation: `${input.command.input.operation}/bump` as never,
+                value: ordinaryInput(`bump-${input.command.input.operation}`),
+              },
+            },
+            guards: [],
+          })
+        return answer
+      }) as Port['commit'],
+    })),
+  },
+  {
+    name: 'query-unseen-as-not-committed: a control identity reads as never seen',
+    fails: [NAMES.oneIdentity],
+    fixture: variant(real => ({
+      queryOperation: async input => {
+        const answer = await real.queryOperation(input)
+        return 'failure' in answer && answer.failure.kind === 'conflict'
+          ? succeed({
+              kind: 'not-committed' as const,
+              exclusion: { owner: 'variant', record: 'x', revision: '1', digest: 'sha256:x' },
+            })
+          : answer
+      },
+    })),
+  },
+  {
+    name: 'default-selection: a missing selection is filled with a default name',
+    fails: [NAMES.modelSelection],
+    fixture: variant(real => ({
+      readModelSelection: async input => {
+        const answer = await real.readModelSelection(input)
+        return 'failure' in answer && answer.failure.kind === 'not-ready'
+          ? succeed({
+              selection: { name: 'default', basis: evidence('default') },
+              revision: '1' as never,
+              source: evidence('read-time'),
+            })
+          : answer
+      },
+    })),
+  },
+  {
+    name: 'selection-source-at-read-time: the source is made up when the selection is read',
+    fails: [NAMES.modelSelection],
+    fixture: variant(real => ({
+      readModelSelection: async input => {
+        const answer = await real.readModelSelection(input)
+        return 'ok' in answer ? succeed({ ...answer.ok, source: evidence('read-time') }) : answer
       },
     })),
   },
