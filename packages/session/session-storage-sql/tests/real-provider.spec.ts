@@ -209,3 +209,32 @@ describe('concurrent sessions in one transaction domain', () => {
     expect(physical).toBe(ops)
   })
 })
+
+describe('reads through the real read Worker', () => {
+  // The read port of the provider refuses a statement without LIMIT (sql-contract SPEC §9.4):
+  // a handler that ran one answered read_port_violation instead of a page.
+  it('history.begin and history.readModelView answer a page, not a read port violation', async () => {
+    const app = await open()
+    ok(await app.create(TENANT_A))
+    ok(await app.accept(TENANT_A, 'session-1', 'one'))
+    const page = ok<{ entries: readonly unknown[]; exhausted: boolean }>(
+      await app.port.history.begin({
+        ...app.access(TENANT_A),
+        kinds: [],
+        from: null,
+        direction: 'forward',
+        pageBytes: 1_000_000,
+      }),
+    )
+    expect(page.exhausted).toBe(true)
+    expect(page.entries.length).toBeGreaterThan(0)
+    ok(
+      await app.port.history.readModelView({
+        ...app.access(TENANT_A),
+        basis: null,
+        after: null,
+        pageBytes: 1_000_000,
+      }),
+    )
+  })
+})

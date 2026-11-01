@@ -1,8 +1,9 @@
 // A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
 // it cannot run the Session participant or the read handlers; this one runs the real modules of
 // this member against one in-memory database per transaction domain. It models receipts, rollback
-// by a stopping reply, recognition by the full identity, and scope partition. It does not model
-// Workers, durability, queues or limits, and a pass proves none of those.
+// by a stopping reply, recognition by the full identity, scope partition and the read port rules
+// (only SELECT, every statement with LIMIT). It does not model Workers, durability, queues or
+// limits, and a pass proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import {
   inputDigestV2,
@@ -248,6 +249,8 @@ export function createSqliteStorage(): SqliteStorage {
         execute: (sql, params) => {
           readSql.push(sql)
           if (!/^\s*SELECT/i.test(sql)) throw new Error('a read handler ran a write')
+          // sql-contract SPEC §9.4: every statement of a read handler has a LIMIT.
+          if (!/\blimit\b/i.test(sql)) throw new Error('a read statement has no LIMIT')
           return rowsOf(domain.db, sql, params)
         },
       })
