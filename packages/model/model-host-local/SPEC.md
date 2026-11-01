@@ -170,7 +170,7 @@
 - 进程内账本随进程消失。进程重启后，已收场而未确认的调用由恢复扫描接续，恢复扫描尚未实现。插件不在时收场的调用不在账本里，也由恢复扫描接续。
 - 账本为每个调用留一条小记录（调用引用、consumer 与已交付的账目修订），不逐出。
 - 推送不发出 `model-cordis-contract/call-changed` 事件。
-- model 运行时的 `quiesce` 尚未实现，撤除时它返回的不可用只写进诊断。53 项义务里的两项 quiesce 义务因此失败，见下文。
+- model 运行时的 `quiesce` 停止新受理并报告本进程的 pending 与 running（#446 阶段 5.5，C-QUIESCE）；进程外或重启前的耐久待办不计入，归 5.4 恢复。
 - 模型发送没有重试策略（M2 范围）。
 - 进程内没有再驱动等待（`waiting`）或未知（`unknown`）的交付。只有四个唤醒来源：`settle` 提交、晚到账目接受、owner 登记、后继插件启动。没有计时器，也不扫描。波 C 的恢复扫描接续这些交付。
 - 被接收方以 `denied`、`invalid` 或 `conflict` 拒绝的晚到账目一直占着名额，不自动重推。租户份额因此可能被耗尽。波 C 的恢复扫描收场这些账目。
@@ -184,7 +184,7 @@
 - **替身。** SQL 存储是 model-storage-sql 自己测试里的 node:sqlite 测试提供者的复制：每个事务域一个内存库，按完整身份认回执，参加者停止时回滚；它运行该成员真实的参加者、迁移与读 handler，不模拟 Worker、耐久性、队列与上限。参加者模块还不在 model-storage-sql 的公开面上，支撑文件从该成员源码导入它。传输是 model-contract 的脚本传输，事实来自套件的钩子，不连网络；发送阶段的网络是只会关闭的替身。
 - **故障注入。** `failNextWrite` 在存储端口的装饰层实现：下一次匹配租户与 operation 的提交，`applied` 时先真提交再回 `unknown`，`dropped` 时不提交只回 `unknown`。`blockCleanup` 让该调用下一次 `advanceCleanup` 的提交在存储受理前被拒（`queue_full`）。`disconnectObservers` 与 `failDirectory` 在运行时读取的实例目录上注入。`revokeAccess` 从核心的授权方按动作撤权，观察资格经同一授权方判断。
 - **受理的放行。** 调用的第一次 `schedule` 在路由发布且 drive 在上游资源处阻塞之后才返回，所以返回的受理有路由，状态不会自己变。`startRun` 放开该调用的上游并等发出记录为 `started`；`settleCall` 把结果项译成上游事实并等 drive 结束。耐久命令的分页在构造期固定为每页两项，不按钩子的 `pageSize` 逐调用设置；套件只用 `pageSize: 2`。
-- **结果。** 2026-11-02 在基线 c39e5dcb7 上：51 项 pass，2 项 fail，0 项 not-applicable。失败的两项是 `quiesce-refuses-new-admissions` 与 `quiesce-reports-pending-and-running`，原因是 model 的 `provider.quiesce` 仍是 5.5 桩（`managed-runtime-not-implemented operation=quiesce stage=5.5`），归闭包 C-QUIESCE；用例把它们列在显式的已知失败表里，并要求失败文本就是这个原因，别的失败或别的原因都使用例变红。设 `OMNE_EVIDENCE_OUT=<目录>` 时用例写 `conformance.json`（逐项 obligation、status、detail）、`assembly.json`（`ModelCommands` 的实现、SQL 提供者、Cordis 版本、各插件，取自实际装出的对象）与 `hooks.json`。
+- **结果。** 2026-11-02 在 C-QUIESCE 合入之后：53 项 pass，0 项 fail，0 项 not-applicable。用例保留显式的已知失败表与不适用允许表，两张表目前都为空，任何失败或不适用都使用例变红。设 `OMNE_EVIDENCE_OUT=<目录>` 时用例写 `conformance.json`（逐项 obligation、status、detail）、`assembly.json`（`ModelCommands` 的实现、SQL 提供者、Cordis 版本、各插件，取自实际装出的对象）与 `hooks.json`。
 
 #### 宿主插件的已知限制
 
@@ -290,7 +290,8 @@
 - [plugins-host.spec.ts](tests/plugins-host.spec.ts)：真实 Cordis 4.0.4 下宿主部分的绑定后发布、四项配置的拒绝、并发上限、唤醒容量满、重复唤醒、调用方 fiber 退出、无可信输入时不驱动、有序关闭的次序与未派发唤醒、后继宿主不接管旧引用、失去依赖、启动窗口卸载时宿主关闭、观察资格与换代路由。
 - [runtime-push.spec.ts](tests/runtime-push.spec.ts)：真实 Cordis 4.0.4、真实 model 运行时与内存 `ModelCommands`、脚本传输与脚本接收方（代 agent-host-local 的接收方）。核对：冻结的结果交付与 retained ACK；saved 的四项事实各缺一项时不 ACK；键或证据 owner 不符的回执不算 saved；未知时用原键原载荷重投；ACK 未知时以原操作认回；清理失败保持确认、后继完成清理；没有接收方时等待、登记后推送；正文释放后每个晚到修订一个账目交付；账目在结果 saved 之后；晚到账目超界被拒并可观察、有名额后接受；未知后被拒的重投保持未知；晚到账目接受未知时不归还名额、同一操作重交不另占；卸载等正在接纳的晚到账目并交给后继、停后拒收；两个存活 fiber 争同一 owner；因别的依赖重跑后重新登记；撤除时未完成推送交给后继。
 - [runtime-cancel.spec.ts](tests/runtime-cancel.spec.ts)（慢层）：本地 HTTPS 流进行中的 `calls.cancel`。核对：终止在传输报告物理停止之后，已交付内容保留，费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时只有一个终止。
-- [runtime-host.spec.ts](tests/runtime-host.spec.ts)（慢层）：真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands` 与协调器）跑 model-contract 的 53 项提供者义务；每项出现一次，失败只允许已知失败表里的 quiesce 两项且原因相同，not-applicable 只允许显式允许表（目前为空）；`assembly.json` 的实现描述取自实际装出的后端。见[53 项提供者义务](#53-项提供者义务)。
+- [runtime-host.spec.ts](tests/runtime-host.spec.ts)（慢层）：真实 Cordis 4.0.4 上的整装配（运行时插件、发送阶段插件、真实 model 运行时、model-storage-sql 的耐久 `ModelCommands` 与协调器）跑 model-contract 的 53 项提供者义务；每项出现一次，失败只允许显式的已知失败表，not-applicable 只允许显式允许表（两张表目前都为空）；`assembly.json` 的实现描述取自实际装出的后端。见[53 项提供者义务](#53-项提供者义务)。
+- [line-e2e.spec.ts](tests/line-e2e.spec.ts)（慢层）：线内贯通。一个进程、一个真实 Cordis 4.0.4 根 Context 装出保管库、官方档案、请求准备、发送阶段、运行门面与推送，耐久 `ModelCommands` 用 model-storage-sql 的 `createSqlModelCommands`（命令与发送协调器共核）；走完 准备 → 发送（回放 `openai-tool-call` 合成件，请求摘要等于旁注）→ 持久（关掉并重开 SQLite 文件后新命令读出终态与结果页）→ 推送（接收方替身先 saved，生产方才 ACK，之后清理 released）→ 取消（`exchange-stopped` 先于 settle，终止为该取消的 interrupted）。SQL 提供者是 node:sqlite 文件替身，不覆盖 sqlite-provider 的 Worker、队列与耐久；接收方是脚本替身。设 `OMNE_EVIDENCE_OUT` 时写脱敏 `line-e2e.json`。
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。`modelPreparationResources`：经键取得的租约读到注入命令里的调用，键随插件撤除，旧引用拒绝新租约，重装后键恢复；真实插件跑契约成员的两条符合性用例。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。

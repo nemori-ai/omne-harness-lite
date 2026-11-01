@@ -31,18 +31,7 @@ const ALLOWED_NOT_APPLICABLE: Readonly<Partial<Record<ConformanceObligation, str
  */
 const KNOWN_FAILING: Readonly<
   Partial<Record<ConformanceObligation, Readonly<{ reason: string; detail: string }>>>
-> = {
-  'quiesce-refuses-new-admissions': {
-    reason:
-      'provider.quiesce of @omne-harness/model (src/runtime.ts) is the 5.5 stub; closure C-QUIESCE',
-    detail: 'managed-runtime-not-implemented operation=quiesce stage=5.5',
-  },
-  'quiesce-reports-pending-and-running': {
-    reason:
-      'provider.quiesce of @omne-harness/model (src/runtime.ts) is the 5.5 stub; closure C-QUIESCE',
-    detail: 'managed-runtime-not-implemented operation=quiesce stage=5.5',
-  },
-}
+> = {}
 
 it('keeps the 53 provider obligations on the full assembly with the durable ModelCommands', async () => {
   const hookEvents: unknown[] = []

@@ -81,7 +81,7 @@ const provider = createModelRuntime(dependencies, {
 })
 ```
 
-上述数值只用于构造示例，不是生产默认。构造不调用依赖。runtime 提供 calls.admit、inspect、dispatches、cancel 与真实目录 connect。admit 在解构与排队前复用[共同 judge](../../model-contract/SPEC.md#封闭输入判断)，保持 principal/tenant 同一性，畸形重放先 invalid。受信 driver 先发布初始实例，再接原发送流、保存和观察。beginRead、readNext、closeRead 与 processed acknowledge 已接真实 Commands。retained acknowledge 静态 unavailable，阶段 6.1；recover 与 quiesce 尚未实现。完整生产宿主仍归 3.5。普通 runtime 不暴露 driver。完整原参认回、正数批延迟的沉默读取限制、观察逻辑额度及并发 next 行为见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。observerCheckIntervalMs 是必填正安全整数，专用于等待观察者的当前权限及实例复查，不复用 readIdleMs。
+上述数值只用于构造示例，不是生产默认。构造不调用依赖。runtime 提供 calls.admit、inspect、dispatches、cancel 与真实目录 connect。admit 在解构与排队前复用[共同 judge](../../model-contract/SPEC.md#封闭输入判断)，保持 principal/tenant 同一性，畸形重放先 invalid。受信 driver 先发布初始实例，再接原发送流、保存和观察。beginRead、readNext、closeRead 与 processed acknowledge 已接真实 Commands。retained acknowledge 静态 unavailable，阶段 6.1；recover 尚未实现（阶段 5.4）；quiesce 停止新受理并报告本进程的 pending 与 running（阶段 5.5）。完整生产宿主仍归 3.5。普通 runtime 不暴露 driver。完整原参认回、正数批延迟的沉默读取限制、观察逻辑额度及并发 next 行为见 [当前构造支持](../SPEC.md#当前构造支持与本地模拟)。observerCheckIntervalMs 是必填正安全整数，专用于等待观察者的当前权限及实例复查，不复用 readIdleMs。
 ```ts
 declare const input: Parameters<typeof provider.runtime.calls.admit>[0]
 declare const driveInput: Parameters<typeof provider.driver.drive>[0]
