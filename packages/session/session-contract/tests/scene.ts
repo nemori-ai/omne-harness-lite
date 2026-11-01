@@ -8,6 +8,7 @@ import type {
   SessionOperationId,
 } from '@omne-harness/session-contract'
 import {
+  type MemorySessionTransactionOptions,
   createMemorySessionTransactions,
   createPolicySessionAccessCheck,
   memoryAccess,
@@ -22,7 +23,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import { initializationGuards } from './initialization-fixture.ts'
 
-export function scene() {
+export function scene(extra: Partial<MemorySessionTransactionOptions<string>> = {}) {
   const access = memoryAccess('tester')
   const initialization = createMemoryInitializationSource()
   const history = createMemorySessionHistorySource()
@@ -31,7 +32,12 @@ export function scene() {
     kind: 'allowed',
     evidence: evidence('access'),
   }))
-  const port = createMemorySessionTransactions<string>({ initialization, history, accessCheck })
+  const port = createMemorySessionTransactions<string>({
+    initialization,
+    history,
+    accessCheck,
+    ...extra,
+  })
   const base = { tenant: access.tenant, session: access.session }
   const commit = async <K extends MutationName>(
     command: Extract<SessionCommand, { kind: K }> & { kind: K },
@@ -189,8 +195,8 @@ export function scene() {
   }
 }
 
-export async function open() {
-  const s = scene()
+export async function open(extra: Partial<MemorySessionTransactionOptions<string>> = {}) {
+  const s = scene(extra)
   await s.create()
   await s.accept('first')
   await s.start()

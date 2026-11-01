@@ -46,6 +46,9 @@
       "tools/test-runner/src/testing/replay.ts",
       "tools/test-runner/src/testing/triage.ts",
       "tools/test-runner/src/testing/filter-guard.ts",
+      "tools/test-runner/src/testing/environment.ts",
+      "tools/test-runner/src/testing/preflight.ts",
+      "tools/test-runner/src/testing/test-retry.ts",
       "docs/engineering/integration-policy.json",
       "docs/architecture/constraints.json",
       "**/turbo.json"

@@ -956,7 +956,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         count += 1
         const out = join(root, `run-${count}`)
         writeFileSync(join(root, 'ran.txt'), '')
-        const exitCode = await recordedRun(root, {
+        const { exitCode } = await recordedRun(root, {
           script: 'test',
           tier,
           targets,
@@ -1042,7 +1042,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
       count += 1
       const out = join(root, `run-${count}`)
       writeFileSync(join(root, 'ran.txt'), '')
-      const exitCode = await recordedRun(root, {
+      const { exitCode } = await recordedRun(root, {
         script: 'test',
         tier,
         targets,
@@ -1109,7 +1109,7 @@ describe('一次运行里的缓存（真起 turbo）', { timeout: 180_000 }, () 
         const go = async (write: boolean) => {
           count += 1
           const out = join(root, `run-${count}`)
-          const exitCode = await recordedRun(root, {
+          const { exitCode } = await recordedRun(root, {
             script: 'test',
             tier: 'fast',
             targets,

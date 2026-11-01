@@ -417,6 +417,11 @@
               "name": "CheckUnknown",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "RuntimeContextTrust",
+              "kind": "type",
+              "pending": false
             }
           ]
         },
@@ -769,6 +774,41 @@
             },
             {
               "name": "runtimeContextConformance",
+              "kind": "value",
+              "pending": false
+            }
+          ]
+        },
+        {
+          "title": "受信构造套件",
+          "names": [
+            {
+              "name": "RuntimeContextTrustControls",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "RuntimeContextTrustFixture",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "TestRuntimeContextTrust",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createTestRuntimeContextTrust",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "RUNTIME_CONTEXT_TRUST_OBLIGATIONS",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "runtimeContextTrustConformance",
               "kind": "value",
               "pending": false
             }

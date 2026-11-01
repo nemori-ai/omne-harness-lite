@@ -394,7 +394,7 @@ classDiagram
 | `recall` | 调用与终局 | 查询 | 原 admission 与调用认回，当前事实读取资格 | Model 的 call/admission 关联；不可读不等于未受理 | [逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `settle` | 调用与终局 | 状态变更 | 整调用实际终局与完整结果版本，执行或策略等待已经结束 | Model 的 operation、expected/revision 及 execution generation | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
 | `control` | 调用与终局 | 状态变更 | 当前控制资格、原意图、禁止新发出状态和传播续做责任，真实终局继续保留 | Model 的 operation 认回、条件修订及派生控制例外 | [逐操作行为](../../model-contract/SPEC.md#342-逐操作行为)、[控制与晚到事实](../../model-contract/SPEC.md#控制取消与晚到事实) |
-| `query` | 调用与终局 | 查询 | 当前资格与原 operation 的权威提交结论 | Model 保留原身份；Storage 构造完整排除证明，revision 仅用于重查业务状态 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[Storage 查询](../../../storage/docs/storage-contract/SPEC.md#查询) |
+| `query` | 调用与终局 | 查询 | 当前资格与原 operation 的权威提交结论 | Model 保留原身份；Storage 构造完整排除证明，revision 仅用于重查业务状态 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作)、[Storage 查询](../../../storage/sql-contract/SPEC.md#8-query) |
 | `dispatches` | 调用与终局 | 查询 | 当前账目及发出事实读取资格，按原发出顺序返回脱敏事实 | Model 的 dispatch 身份、费用 revision 及披露边界 | [逐操作行为](../../model-contract/SPEC.md#342-逐操作行为) |
 | `prepareDispatch` | 发出尝试与重试 | 状态变更 | 当前代次、尚未控制且尚未收场、首内容界、合法政策和唯一 dispatch 意图 | Model 的 operation、expected/revision、generation 与 dispatch；意图不证明已发送 | [提供者操作](../../model-contract/SPEC.md#342-独立执行与提供者操作) |
 | `recordMaterialization` | 发出尝试与重试 | 状态变更 | 当前代次、原未发出 dispatch、供应商、固定输入与物化回执 | Model 固定 supplier/representation/payload 摘要；Storage 耐久确认后才形成 source | [物化提交](../../model-contract/SPEC.md#物化回执的提交与发送) |
@@ -437,11 +437,11 @@ Model 决定调用事实、不变量及领域结果，ModelCommands 隐藏仓储
 
 ### Storage 承载与资格协议
 
-Model 自有 tenant/call/operation、dispatch、版本和 owner 采用保留在其领域 facts 中。Storage 的[操作身份](../../../storage/docs/storage-contract/SPEC.md#操作身份)另含事务域、操作、协议版本和操作键。适配必须同时维护两套约束，不能因 Storage 比较完整五项而削弱 Model 的租户 operation 唯一性。
+Model 自有 tenant/call/operation、dispatch、版本和 owner 采用保留在其领域 facts 中。Storage 的[操作身份](../../../storage/sql-contract/SPEC.md#31-身份与字段规则)另含事务域、操作、协议版本和操作键。适配必须同时维护两套约束，不能因 Storage 比较完整五项而削弱 Model 的租户 operation 唯一性。
 
-提交协调者按[登记](../../../storage/docs/storage-contract/SPEC.md#登记)固定参加者与组合版本；Model 提供者把方法编成[提交](../../../storage/docs/storage-contract/SPEC.md#提交)接受的版本化 JSON facts。Worker 通过[参加者端口](../../../storage/docs/storage-contract/SPEC.md#参加者端口)在同一受管事务内执行。Worker 不接主线程闭包、Cordis Context、数据库句柄或网络等待。Model 的 codec、动作版本与组合注册映射属于[阶段 7.2](https://github.com/nemori-ai/omne-harness-lite/issues/446)的提供者适配，不在本节指定公开仓储或 transaction callback。
+提交协调者按[登记](../../../storage/sql-contract/SPEC.md#6-registercombination)固定参加者与组合版本；Model 提供者把方法编成[提交](../../../storage/sql-contract/SPEC.md#7-commit)接受的版本化 JSON facts。Worker 通过[参加者端口](../../../storage/sql-contract/SPEC.md#74-参加者端口与事实格)在同一受管事务内执行。Worker 不接主线程闭包、Cordis Context、数据库句柄或网络等待。Model 的 codec、动作版本与组合注册映射属于[阶段 7.2](https://github.com/nemori-ai/omne-harness-lite/issues/446)的提供者适配，不在本节指定公开仓储或 transaction callback。
 
-[Storage 提交结果](../../../storage/docs/storage-contract/SPEC.md#提交)在适配中分别保留含义。
+[Storage 提交结果](../../../storage/sql-contract/SPEC.md#7-commit)在适配中分别保留含义。
 
 | 结果 | Model 可以认定的事实 |
 | --- | --- |
@@ -451,7 +451,7 @@ Model 自有 tenant/call/operation、dispatch、版本和 owner 采用保留在�
 | `identity_conflict` | 同一 Storage 身份绑定不同摘要，保留已有回执；不能改身份覆盖，Model 仍须核自己的跨方法冲突 |
 | `rejected_before_accept` | 该提交未进入受理队列且没有提交回执；不据此推断此前未知提交或外部效果不存在 |
 
-[Storage 查询](../../../storage/docs/storage-contract/SPEC.md#查询)的 `not_committed` 只能由提供者构造。旧写代际排除、旧事务终止、数据库恢复完成、权威读取成功，以及原操作未进入受理队列，五项证明缺一不可。无回执、读取失败或连接失败都不足以证明未提交。未知不能换 operation 重做有副作用的动作，Model query 的 revision 也不能冒充受理或 ACK 回执。
+[Storage 查询](../../../storage/sql-contract/SPEC.md#8-query)的 `not_committed` 只能由提供者构造。旧写代际排除、旧事务终止、数据库恢复完成、权威读取成功，以及原操作未进入受理队列，五项证明缺一不可。无回执、读取失败或连接失败都不足以证明未提交。未知不能换 operation 重做有副作用的动作，Model query 的 revision 也不能冒充受理或 ACK 回执。
 
 资格参加者在本次提交内读取权威事实，核验来源和适用消费者关系。提交前在主线程获得的 allowed 不能作提交资格。资格判断及守卫仍归其原拥有者，Model 仅消费相应裁定。[资格协议](../../model-contract/SPEC.md#342-资格共同提交与实际发送)由 Model 与 Storage 契约拥有者共同负责，尚未闭合的是守卫读数的提交内载体、载体拥有者及 participant 先后保证。
 

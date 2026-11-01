@@ -16,6 +16,7 @@ import {
 } from '@omne-harness/agent/testing'
 import {
   decodeInputBatchId,
+  decodeReplyAdmissionSequence,
   type AcceptedInput,
   type AgentEvent,
   type AgentExecutionHandle,
@@ -147,6 +148,7 @@ export function loopFacts(position: string, overrides: Partial<LoopFacts> = {}):
       lastAdmission: null,
       consecutiveDenials: '0',
       totalDenials: '0',
+      prefix: { sequence: ok(decodeReplyAdmissionSequence('0')), basis: evidence('admissions') },
     },
     controls: [],
     ...overrides,

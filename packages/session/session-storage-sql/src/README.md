@@ -16,6 +16,17 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-现在有两个文件：`index.ts` 与 `cordis.ts`。两者都只有 `PACKAGE_TEMPLATE_DRAFT` 标记与空导出。这个标记表示公开定义还没有进入源码。
+根入口 [index.ts](../src/index.ts) 导出 `createSessionStorage`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 与两个类型。没有 `cordis.ts`，会话存储组合由应用承担（[装配边界](../docs/cordis.md)）。
 
-当前缺口：[内部架构](../docs/architecture.md#模块与依赖)的七个模块都还没有进入，包括事务端口实现、参加者模块、派生维护、读路径、重建、编解码与迁移片段。`cordis.ts` 的插件见 [Cordis 集成](../docs/cordis.md)。候选导出清单见[公开接口导航](../docs/public-api.md#候选导出尚未实现)。`package.json` 现在只列出 `@deepseek-ai/cordis`，对 session-contract、session-cordis-contract、存储契约成员与 Kysely 的依赖随实现进入。存储契约没有可依赖的 workspace 成员，见 SPEC 的 [XP 表](../SPEC.md#xp-table)。具名维护者由负责人指定。
+| 文件 | 内容 |
+| --- | --- |
+| `index.ts` | 端口工厂。`commitEntries` 恒返回 `unavailable` |
+| `commit.ts` | 写路径：尝试代次、`commit`、`queryOperation`、`queryControlOperation` |
+| `reads.ts` | 读路径：核权、事务域、handler 调用、历史与 epoch 视图读、`pending`、系统读 |
+| `context.ts` | 选项、访问裁定、事务域解析、`snapshot` 读的封装 |
+| `cursor.ts` | 签名游标的签发与验证 |
+| `codec.ts` | 值的 JSON 形式与租户、工作区身份的互转 |
+| `materials.ts` | 参加者、迁移与八个读 handler 的静态材料及文件摘要 |
+| `worker/` | Worker 内模块：`participant.ts`、`migration.ts`、`schema.ts`、`support.ts` 与 `read-*.ts` 八个 handler |
+
+`worker/` 下的模块在提供者的 Worker 里运行，不导入端口侧的文件。设计目标里的重建与 PostgreSQL 方言没有进入。`package.json` 的依赖见[公开接口导航](../docs/public-api.md)与[内部架构](../docs/architecture.md#模块与依赖)。

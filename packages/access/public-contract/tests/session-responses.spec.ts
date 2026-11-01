@@ -40,6 +40,12 @@ const successes = {
   'send-input': { recovered: true },
   'query-send-input': {},
   'read-history': page,
+  'cancel-run': { kind: 'requested', controlId: 'control-1', run: 'run-1' },
+  'stop-call': {
+    kind: 'requested',
+    controlId: 'control-1',
+    producer: { kind: 'tool', call: 'call-1' },
+  },
 } satisfies Record<SessionOperation, object>
 const outcomes = {
   'create-session': ['succeeded', 'denied', 'invalid', 'conflict', 'basis-unavailable', 'unknown'],
@@ -56,6 +62,25 @@ const outcomes = {
   ],
   'query-send-input': ['succeeded', 'not-committed', 'denied', 'basis-unavailable', 'unknown'],
   'read-history': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
+  'cancel-run': [
+    'succeeded',
+    'denied',
+    'invalid',
+    'conflict',
+    'not-found',
+    'basis-unavailable',
+    'unknown',
+  ],
+  'stop-call': [
+    'succeeded',
+    'denied',
+    'invalid',
+    'conflict',
+    'not-found',
+    'basis-unavailable',
+    'unknown',
+    'unsupported',
+  ],
 } satisfies Record<SessionOperation, readonly string[]>
 const allOutcomes = [
   'succeeded',
@@ -70,6 +95,8 @@ const allOutcomes = [
   'no-change',
   'not-visible',
   'stage-not-provided',
+  'not-found',
+  'unsupported',
 ]
 const operations = Object.keys(outcomes) as SessionOperation[]
 const bytes = (value: unknown) => new TextEncoder().encode(JSON.stringify(value))

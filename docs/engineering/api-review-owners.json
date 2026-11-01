@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "repository": {
+    "name": "nemori-ai/omne-harness-lite",
+    "nodeId": "R_kgDOUjjhyw"
+  },
+  "owners": [
+    {
+      "lineId": "app-access",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "engineering-toolchain",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "model",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "platform",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "session-run",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "time-reach",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    },
+    {
+      "lineId": "tool-exec",
+      "owner": {
+        "login": "PanQiWei",
+        "nodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      },
+      "adoption": {
+        "comment": {
+          "url": "https://github.com/nemori-ai/omne-harness-lite/issues/996#issuecomment-6555765755",
+          "bodySha256": "5f627108200b883e4f19f4691505f18134286def2977f46b825b50d944064c22",
+          "updatedAt": "2026-11-01T09:53:39Z"
+        },
+        "authorNodeId": "MDQ6VXNlcjQ2ODEwNjM3"
+      }
+    }
+  ]
+}

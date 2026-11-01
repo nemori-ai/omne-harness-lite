@@ -8,16 +8,20 @@
 
 ## 边界
 
-写路径与读路径的测试用真实的 SQLite 提供者，PostgreSQL 的用例用真实的 PostgreSQL 提供者，不用内存替身，因为本包的行为就是对这些介质的行为。存储契约的提供者还没有可依赖的 workspace 成员，这类测试要等它。`decide` 与 `reduce` 用 session-contract 的真实纯函数。Cordis 入口的测试在真实 Cordis 4.0.4 上运行。测试通过不代替规格或验收。
+目标是用真实的 SQLite 与 PostgreSQL 提供者测试，不用内存替身，因为本包的行为就是对这些介质的行为。现在的夹具在 `node:sqlite` 的内存库上运行本包真实的 participant 与 handler 模块，`decide` 与 `reduce` 用 session-contract 的真实纯函数。夹具不经过 sqlite-provider 的 Worker，所以不覆盖 Worker、持久、关闭、受理队列与限额。本包没有 Cordis 入口，也没有 Cordis 用例。测试通过不代替规格或验收。
 
 ## 维护
 
-公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。导出进入根入口或 `./cordis` 时，同一次修改要更新对应的导出测试。
+公开行为或 `SPEC.md` 条款变化时，同步对应测试与本目录 `index.md`。导出进入根入口时，同一次修改要更新 `public-entry.spec.ts` 的导出集合。
 
 ## 本包事实
 
-现在有两个测试。[public-entry.spec.ts](public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](cordis-entry.spec.ts) 断言 `./cordis` 入口没有导出。它们只证明模板状态，不证明任何 SPEC 行为。
+现有文件：
 
-运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-storage-sql`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合是 `SESSION_PARTICIPANT`、`createSessionStorage`、`sessionStorageMaterials`；没有 `./cordis`（不在 `exports`、不可导入、源文件不存在）；源码只经 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状，不导入 `packages/storage/**`、sqlite-provider 或 `node:sqlite`，`package.json` 不依赖 sqlite-provider；每个读 handler 是 `snapshot`；每条 SELECT 有 LIMIT。
+- [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：访问裁定不放行时每个入口 `denied`，且没有任何调用到达存储；访问指名别的租户或会话的 `commit` 被拒绝；另一租户的会话读为 `denied`，向它提交不改变它；`pending` 只列出本租户的会话；两个租户的同名会话是两个会话；每次调用用本租户的事务域；目录答了别的租户时拒绝，目录不认识该租户时 `unavailable` 而不是空。
+- [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
-当前缺口：[验证义务](../docs/verification-obligations.md)里的各组都还没有测试，包括派生等于重算、读路径复杂度与退化、写路径与并发写裁定、失败分类。[Cordis 集成的验证义务](../docs/cordis.md#验证义务)列出的八项也还没有测试。复杂度场景需要测量，不只是断言。具名维护者由负责人指定。
+局限：这些用例是负控与入口检查，没有先红后绿记录。派生等于重算、分页与游标属性、写路径各 JC 行、并发写与失败分类注入尚未写（[验证义务](../docs/verification-obligations.md)）。夹具之外的真实提供者没有用例。
+
+运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session-storage-sql`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。具名维护者由负责人指定。

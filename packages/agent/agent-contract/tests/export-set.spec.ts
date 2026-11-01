@@ -25,6 +25,8 @@ it('exports exactly the judgments, the constants, the identity decoders and the 
     'decodeInputBatchId',
     'decodeInputId',
     'decodePassageId',
+    'decodeReplyAdmissionPageCursor',
+    'decodeReplyAdmissionSequence',
     'decodeStepId',
     'judgeAccess',
     'judgeAdoption',

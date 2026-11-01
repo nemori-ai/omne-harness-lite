@@ -9,6 +9,9 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   AgentDrivePort,
+  SessionAdoptionSource,
+  SessionCustodySource,
+  SessionProductionSource,
   DurableEvidence,
   ScopeReleasePort,
   SessionAccessCheck,
@@ -25,6 +28,7 @@ import type {
   SessionRevision,
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
+import type { SessionCursorSigning } from './cursor-signing.ts'
 
 /** The intercept configuration of a caller plugin: `inject: { session: { caller } }`. */
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
@@ -68,6 +72,9 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly readWork: SessionTransactionPort<P>['readWork']
   abstract readonly readInput: SessionTransactionPort<P>['readInput']
   abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation']
+  abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']
+  abstract readonly readModelSelection: SessionTransactionPort<P>['readModelSelection']
+  abstract readonly commitEntries: SessionTransactionPort<P>['commitEntries']
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
   abstract readonly references: SessionTransactionPort<P>['references']
@@ -191,6 +198,58 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
+/** @owner packages/session/session-contract */
+export abstract class SessionAdoptionSourceService
+  extends Service
+  implements SessionAdoptionSource
+{
+  static readonly provide = 'sessionAdoptionSource'
+  constructor(ctx: Context) {
+    super(ctx, SessionAdoptionSourceService.provide)
+  }
+  abstract readonly prepare: SessionAdoptionSource['prepare']
+}
+export const sessionAdoptionSourceKey = SessionAdoptionSourceService.provide
+
+/** @owner packages/session/session-contract */
+export abstract class SessionProductionSourceService
+  extends Service
+  implements SessionProductionSource
+{
+  static readonly provide = 'sessionProductionSource'
+  constructor(ctx: Context) {
+    super(ctx, SessionProductionSourceService.provide)
+  }
+  abstract readonly prepare: SessionProductionSource['prepare']
+}
+export const sessionProductionSourceKey = SessionProductionSourceService.provide
+
+/** @owner packages/session/session-contract */
+export abstract class SessionCustodySourceService extends Service implements SessionCustodySource {
+  static readonly provide = 'sessionCustodySource'
+  constructor(ctx: Context) {
+    super(ctx, SessionCustodySourceService.provide)
+  }
+  abstract readonly prepare: SessionCustodySource['prepare']
+}
+export const sessionCustodySourceKey = SessionCustodySourceService.provide
+
+/**
+ * The narrow cursor signing of the Session reads. A provider signs and verifies with its current
+ * key per call. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionCursorSigningService extends Service implements SessionCursorSigning {
+  static readonly provide = 'sessionCursorSigning'
+  constructor(ctx: Context) {
+    super(ctx, SessionCursorSigningService.provide)
+  }
+  abstract readonly sign: SessionCursorSigning['sign']
+  abstract readonly verify: SessionCursorSigning['verify']
+}
+export const sessionCursorSigningKey = SessionCursorSigningService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
@@ -207,6 +266,10 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionAdoptionSource: SessionAdoptionSourceService
+    sessionProductionSource: SessionProductionSourceService
+    sessionCustodySource: SessionCustodySourceService
+    sessionCursorSigning: SessionCursorSigningService
   }
   interface Events {
     /**

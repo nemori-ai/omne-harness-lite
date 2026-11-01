@@ -16,6 +16,6 @@
 
 ## 本包事实
 
-现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本包没有运行实现，存储契约也没有可依赖的 workspace 成员，所以现在没有可验收的对象。
+现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本包已有实现，但验收需要真实的 sqlite-provider（[sqlite-provider 规格](../../../storage/sqlite-provider/SPEC.md)）与应用的会话存储组合，两者现在都没有可运行的组合，所以没有可验收的对象。
 
-第一个场景要用真实的 SQLite 提供者，没有内存替身。候选场景取自 SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)：两个进程并发提交同一会话时后到者在新尾部上裁定；提交后、回执读回前结束 Worker，重启后按原身份 `queryOperation` 认回；`sl_entry` 缺口使会话隔离。这些场景何时进入，取决于存储契约拥有者（[storage 契约](../../../storage/docs/storage-contract/README.md)）给出 SPEC 的 XP 表所列入口。断电耐久不在本目录，归 [SQL-T01](../../../../docs/architecture/deployment/infrastructure-policy.md#sql-t01) 的承接方。
+第一个场景要用真实的 SQLite 提供者，没有内存替身。候选场景取自 SPEC 的[自有义务的验证](../SPEC.md#自有义务的验证)：两个进程并发提交同一会话时后到者在新尾部上裁定；提交后、回执读回前结束 Worker，重启后按原身份 `queryOperation` 认回。这些场景何时进入，取决于提供者与应用组合的交付。验收文件归验收角色，实施角色不写。

@@ -1,0 +1,45 @@
+{
+  "operators": {
+    "disableStorage": { "ops": [{ "kind": "disable", "id": "storage" }] },
+    "layering": {
+      "ops": [
+        { "kind": "replace", "id": "model-profiles", "config": { "tuned": true } },
+        { "kind": "disable", "id": "model-credential" },
+        {
+          "kind": "insert",
+          "after": "model-profiles",
+          "row": { "id": "extra-stub", "plugin": "stubPlugin", "config": {} }
+        }
+      ]
+    },
+    "unknownReplace": { "ops": [{ "kind": "replace", "id": "no-such-row", "config": {} }] },
+    "unknownDisable": { "ops": [{ "kind": "disable", "id": "no-such-row" }] },
+    "unknownInsertAnchor": {
+      "ops": [
+        {
+          "kind": "insert",
+          "after": "no-such-row",
+          "row": { "id": "extra-stub", "plugin": "stubPlugin", "config": {} }
+        }
+      ]
+    },
+    "duplicateInsert": {
+      "ops": [
+        {
+          "kind": "insert",
+          "after": "storage",
+          "row": { "id": "identity", "plugin": "stubPlugin", "config": {} }
+        }
+      ]
+    },
+    "intruder": {
+      "ops": [
+        {
+          "kind": "insert",
+          "after": "storage",
+          "row": { "id": "intruder", "plugin": "stubPlugin", "config": {} }
+        }
+      ]
+    }
+  }
+}
