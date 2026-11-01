@@ -167,7 +167,7 @@ N 为该会话条目总数。K 为本页实际扫描条目数。B 为本页读�
 
 **W1 Session 为提交方的提交。**`SessionTransactionPort.commit` 按下列步骤执行。`session` 的流水线（[CP-01](../session/SPEC.md#cp-01)）在事务外完成它的第 1 至第 4 步，本成员从 CP-01 的第 5 步接手。时序见[写路径](docs/flows.md#写路径session-为提交方)。
 
-1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。身份的 `scope` 与 `transactionDomain` 取自应用目录里该租户的事务域，`operation` 为 `SessionOperationId`，`operationKey` 为 `<SessionOperationId>#<代次>`，`protocolVersion` 为 `2`。规范化 `{ command, guards }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，租户与工作区经 legal-identity 的编码写成带标记的文本，没有 BigInt、`undefined`、`Date` 或函数。Session 操作的输入摘要由 `commandDigest` 给出，写进 `sl_operation.input_digest`。调用前先向访问裁定取一次当前决定，访问不指名该命令的租户与会话时直接 `denied`。
+1. 选尝试代次并构造存储操作身份。代次的规则见下文的[尝试代次](#w1-attempts)。身份的 `scope` 与 `transactionDomain` 取自应用目录里该租户的事务域，`operation` 为 `SessionOperationId`，`operationKey` 为 `<SessionOperationId>#<代次>`，`protocolVersion` 为 `2`。规范化 `{ command, guards }` 为 JSON 值：位置、序号与 epoch 都是十进制文本，租户与工作区经 legal-identity 的编码写成带标记的文本，没有 BigInt、`undefined`、`Date` 或函数。Session 操作的输入摘要由 `commandDigest` 给出，写进 `sl_operation.input_digest`。调用前先向访问裁定取一次当前决定，访问不指名该命令的租户与会话时直接 `denied`。经委派视图提交时不取决定，改为核对视图绑定的请求与本次命令（租户、Session、命令摘要），不一致答 `denied`，证据取自绑定。
 2. 调用存储契约的 `commit`，命令数组只有一条 `participant` 为 `session` 的命令。`rejected_before_accept` 映射为 `unavailable`，不改写为业务拒绝；其中 `writer_not_current` 映射为 `commit-unknown`。`unknown` 映射为 `commit-unknown`。`identity_conflict` 说明同一 Session 操作的另一次尝试已经用了这个代次：已有回执为 `committed` 时，端口从该回执的响应证据取出原结果，摘要相同则返回，`recovered` 为真，摘要不同则返回 `conflict`；已有回执为 `rolled_back` 时，回到第 1 步选下一个代次。
 3. Worker 内，`session` 模块收到 `facts` 与语句端口。先核对材料：每个 `GuardCommand` 的 `owner`、`participant`、`protocol` 与该命令种类要求的材料集合一致。集合按[共同提交表](../session-contract/SPEC.md#共同提交与共享事务域)的「参加者」列固定在本成员的材料表里。缺一项或多一项，响应「不支持」，不写任何行。
 4. 点查 `sl_operation`，得到该操作的 `OperationRecord`，没有时为 null。认回由第 6 步的 `decide` 判定，本步只读行。
@@ -290,7 +290,7 @@ Session 操作的输入摘要写在 `sl_operation.input_digest`，`decide` 用�
 
 每条读路径先按身份与披露边界核权，再读取。核权失败返回 `denied` 或 `invalid`，不返回空页。提供者不可用、索引重建中或读入口缺席返回 `unavailable`，不返回空页。读路径不写任何行，不发通知。
 
-**读路径路由**（SQL r2 第 17 节）。每个公开读先向访问裁定取一次当前决定，再按调用指名的租户向应用目录取事务域，随后经 `SqlStorage.read` 交给 handler。租户与会话随输入送入 handler，handler 的每条语句都按两者过滤。路由如下：
+**读路径路由**（SQL r2 第 17 节）。每个公开读先向访问裁定取一次当前决定；经委派视图的读不取决定，只核租户与 Session 等于绑定，再按调用指名的租户向应用目录取事务域，随后经 `SqlStorage.read` 交给 handler。租户与会话随输入送入 handler，handler 的每条语句都按两者过滤。路由如下：
 
 | 公开入口 | 路由 |
 | --- | --- |

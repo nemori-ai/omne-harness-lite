@@ -1,6 +1,7 @@
 // The composition of one test application: two tenants with their own transaction domains, a tenant
-// domain directory, an explicit access policy, a fixed cursor signing double and the Session storage
-// port over the SQLite test provider.
+// domain directory, an explicit access policy, a fixed cursor signing double, and over the SQLite
+// test provider the Session storage port, the pair of a public port and a delegated entry, and the
+// session binding source.
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import type { SessionCommand, SessionAccess } from '@omne-harness/session-contract'
 import {
@@ -22,7 +23,12 @@ import {
   type FixedSessionCursorSigning,
 } from '@omne-harness/session-cordis-contract/testing'
 import type { DomainRef, TenantDomain, TenantDomainAccess } from '@omne-harness/sql-contract'
-import { createSessionStorage } from '../../src/index.ts'
+import {
+  createSessionPrincipalBindings,
+  createSessionStorage,
+  createSessionStoragePair,
+  type SessionStorageOptions,
+} from '../../src/index.ts'
 import { createSqliteStorage, type SqliteStorage } from './sqlite-storage.ts'
 
 export const TENANT_A = testingTenant(
@@ -94,14 +100,18 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       : { kind: 'allowed', evidence: evidence(`access/${request.operation}`) },
   )
   let clock = 1_000_000
-  const port = createSessionStorage<string>({
+  const storageOptions: SessionStorageOptions<string> = {
     storage: provider.storage,
     domains,
     accessCheck,
     cursorSigning: signing,
     combination: { combinationVersion: 'c1', manifestDigest: 'a'.repeat(64) },
     now: options.now ?? (() => clock),
-  })
+  }
+  const port = createSessionStorage<string>(storageOptions)
+  // The pair over the same options and storage: its public port and its delegated entry.
+  const pair = createSessionStoragePair<string>(storageOptions)
+  const bindings = createSessionPrincipalBindings({ storage: provider.storage, domains })
   const access = (tenant: TenantId, session = 'session-1'): SessionAccess<string> => ({
     principal: 'tester',
     tenant,
@@ -160,6 +170,8 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
   }
   return {
     port,
+    pair,
+    bindings,
     provider,
     register,
     signing,

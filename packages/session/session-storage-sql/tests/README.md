@@ -18,8 +18,10 @@
 
 现有文件：
 
-- [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合是 `SESSION_PARTICIPANT`、`createSessionStorage`、`sessionStorageMaterials`；没有 `./cordis`（不在 `exports`、不可导入、源文件不存在）；源码只经 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状，不导入 `packages/storage/**`、sqlite-provider 或 `node:sqlite`，`package.json` 不依赖 sqlite-provider；每个读 handler 是 `snapshot`；每条 SELECT 有 LIMIT。
+- [public-entry.spec.ts](public-entry.spec.ts)：根入口的导出集合是 `SESSION_PARTICIPANT`、`createSessionPrincipalBindings`、`createSessionStorage`、`createSessionStoragePair`、`sessionStorageMaterials`；没有 `./cordis`（不在 `exports`、不可导入、源文件不存在）；源码只经 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入 SQL 形状，不导入 `packages/storage/**`、sqlite-provider 或 `node:sqlite`，`package.json` 不依赖 sqlite-provider；每个读 handler 是 `snapshot`；每条 SELECT 有 LIMIT。
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：访问裁定不放行时每个入口 `denied`，且没有任何调用到达存储；访问指名别的租户或会话的 `commit` 被拒绝；另一租户的会话读为 `denied`，向它提交不改变它；`pending` 只列出本租户的会话；两个租户的同名会话是两个会话；每次调用用本租户的事务域；目录答了别的租户时拒绝，目录不认识该租户时 `unavailable` 而不是空。
+- [delegated.spec.ts](delegated.spec.ts)：session-contract 的委派视图符合性套件在本包上运行。视图不调用访问检查，对另一会话、另一租户或另一命令答 `denied`。本包不把证据存进操作记录，所以夹具不提供 `decisionOf`，证据一项判为不适用。另加租户用例：租户 B 有同名会话时，经租户 A 绑定的视图对 B 的每个会话读与提交都答 `denied`，不调用检查，也没有调用到达存储。
+- [principal-bindings.spec.ts](principal-bindings.spec.ts)：session-cordis-contract 的会话归属读口套件在本包上运行。读口返回存储记录里的租户、会话与来源证据，不调用访问检查。租户 B 经工作主体替身为租户 A 的会话取主体时答 `denied`，不签发。目录缺该租户、目录答了别的租户、存储读不返回，都答 `unavailable`，不答 `not-bound`。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
 局限：这些用例是负控与入口检查，没有先红后绿记录。派生等于重算、分页与游标属性、写路径各 JC 行、并发写与失败分类注入尚未写（[验证义务](../docs/verification-obligations.md)）。夹具之外的真实提供者没有用例。
