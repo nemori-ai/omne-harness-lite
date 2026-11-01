@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 
-it('draft public entries export nothing until the accepted contract replaces them', async () => {
+it('the root entry exports nothing', async () => {
   const root = (await import('@omne-harness/request-context-cordis')) as Record<string, unknown>
   expect(Object.keys(root)).toEqual([])
 })

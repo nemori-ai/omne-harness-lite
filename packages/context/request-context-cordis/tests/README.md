@@ -16,11 +16,12 @@ SPEC 性质或验证义务变化时，同步对应测试与本目录 `index.md`�
 
 ## 本包事实
 
-现在有两个测试：
+现在有三个测试文件：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：断言根入口没有导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口没有导出。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口的运行时导出只有 `RequestContextProvider`。
+- [provider.spec.ts](provider.spec.ts)：信任键缺席时不装载、两个键由同一个插件 fiber 提供并同时撤除、登记只经信任授权、收件口经原端口应答。
 
 没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/request-context-cordis`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：[Cordis 说明的验证义务](../docs/cordis.md#验证义务)列出的八项都没有测试，随实现进入。具名维护者由负责人指定。
+当前缺口：[Cordis 说明的验证义务](../docs/cordis.md#验证义务)列出的十项都没有完整覆盖它的测试，随实现进入。具名维护者由负责人指定。
