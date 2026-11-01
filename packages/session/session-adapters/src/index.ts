@@ -1,2 +1,7 @@
-// PACKAGE_TEMPLATE_DRAFT: Pure public functions/types for this mechanism.
-export {}
+export { createSessionRuntimeContextTrust } from './runtime-context-trust.ts'
+export type {
+  RuntimeContextCurrentBridge,
+  SessionReplayFacts,
+  SessionRuntimeContextTrustInput,
+  StepCommittedBlocks,
+} from './runtime-context-trust.ts'
