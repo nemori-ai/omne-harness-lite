@@ -358,3 +358,302 @@ describe('the core conformance suite fails a Journal that breaks one of its rule
     )
   })
 })
+
+/** The names of the D5 cases that fail for `fixture`; the other cases are not run. */
+async function failingD5(fixture: AgentJournalCoreFixture<string>): Promise<string[]> {
+  const names: string[] = []
+  for (const entry of agentJournalCoreConformance(fixture)) {
+    if (!entry.name.startsWith('D5 ')) continue
+    try {
+      await entry.run()
+    } catch {
+      names.push(entry.name)
+    }
+  }
+  return names
+}
+
+type Read = Journal['readReplyAdmissions']
+type Page = Extract<Awaited<ReturnType<Read>>, { ok: unknown }>['ok']
+
+/** A decorator that rewrites every successful page of `readReplyAdmissions`. */
+function pages(
+  rewrite: (page: Page, input: Parameters<Read>[0]) => Awaited<ReturnType<Read>>,
+): AgentJournalCoreFixture<string> {
+  return decorated(journal => ({
+    ...journal,
+    async readReplyAdmissions(input) {
+      const answered = await journal.readReplyAdmissions(input)
+      return 'ok' in answered ? rewrite(answered.ok, input) : answered
+    },
+  }))
+}
+
+const D5 = {
+  dense:
+    'D5 page 1: from origin the sequences are dense from 1, each fact is its predecessor plus one, and end = start + items',
+  original:
+    'D5 page 2: each item is the original fact of this execution with the evidence of its own original Ja',
+  ends: 'D5 page 3: the end of a page is the start of the next and the end of the range is the projection prefix; an empty range is one complete page with start = end',
+  tail: 'D5 page 4: tail is complete exactly at the target prefix; a more tail carries at least one fact, stays below the target and its cursor moves on',
+  bounds:
+    'D5 page 5 and page bounds: a provider bound of 20 under limit 100 answers 20 facts and more; fewer than limit is not completion; an oversized fact gets a page of its own',
+  fixed:
+    'D5 fixed range: a fact admitted while the range is read stays out of it; the next load extends the target and a read from the old end reads only the new fact',
+  cursor:
+    'D5 cursor binding: a cursor of another range, another lower bound, another execution, another tenant or cut down to a sequence is refused',
+  identity:
+    'D5 identity: a replay of the same call and result version recognizes the original fact without a new sequence or basis; another decision conflicts; another step or action keeps the current answer (R-598 not adopted)',
+  missingFact:
+    'D5 gap missing-fact: a missing fact inside the range is a gap; the verified pages stop before it and the range never completes',
+  retention:
+    'D5 gap retention: a lower bound before the retained facts is a gap, never a read from the retained start',
+  missingBasis:
+    'D5 gap missing-basis: a lawful prefix whose basis the Journal lost is a gap, neither invalid nor an empty history',
+  rangeUnavailable:
+    'D5 gap range-unavailable: a through that no longer resolves is a gap; a new load gives a new range from the same prefix',
+  qualification:
+    'D5 read qualification: each page, a read from a verified prefix and the query of an old Ja check the current qualification; after it is given back the read goes on from the same prefix and nothing was undone',
+} as const
+
+/**
+ * The D5 cases turn red for a provider that breaks one page or range rule (D5 r2.2 第 3.3 节): each
+ * decorator keeps every other answer of the memory Journal and breaks one rule.
+ */
+describe('the D5 cases fail a Journal that breaks one page or range rule', () => {
+  beforeAll(async () => {
+    expect(await failingD5(fixture)).toEqual([])
+  })
+
+  it.each([
+    [
+      'a page whose sequences skip one',
+      D5.dense,
+      pages(page =>
+        succeed(
+          page.kind === 'page' && page.items.length > 1
+            ? {
+                ...page,
+                items: page.items.map((item, index) =>
+                  index === 0
+                    ? item
+                    : {
+                        ...item,
+                        sequence: String(BigInt(item.sequence) + 1n) as typeof item.sequence,
+                      },
+                ),
+              }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'a page whose items are copies with another call',
+      D5.original,
+      pages(page =>
+        succeed(
+          page.kind === 'page'
+            ? {
+                ...page,
+                items: page.items.map(item => ({
+                  ...item,
+                  fact: { ...item.fact, call: page.items[0]!.fact.call },
+                })),
+              }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'a page whose end keeps the basis of its start',
+      D5.ends,
+      pages(page =>
+        succeed(
+          page.kind === 'page' && page.items.length > 0
+            ? { ...page, end: { ...page.end, basis: page.start.basis } }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'a page that answers complete when it holds fewer facts than the limit (a count inference)',
+      D5.bounds,
+      pages((page, input) =>
+        succeed(
+          page.kind === 'page' && page.items.length < input.limit
+            ? { ...page, tail: { kind: 'complete' } }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'an empty more page before every page',
+      D5.tail,
+      (() => {
+        const served = new Set<string>()
+        return pages((page, input) => {
+          const key = JSON.stringify([input.execution, input.from, input.after])
+          if (page.kind !== 'page' || page.tail.kind !== 'more' || served.has(key))
+            return succeed(page)
+          served.add(key)
+          return succeed({ ...page, items: [], end: page.start })
+        })
+      })(),
+    ],
+    [
+      'a provider bound taken as completion',
+      D5.bounds,
+      pages((page, input) =>
+        succeed(
+          page.kind === 'page' && page.items.length < input.limit && page.items.length > 1
+            ? { ...page, tail: { kind: 'complete' } }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'an oversized fact answered unavailable',
+      D5.bounds,
+      pages((page, input) =>
+        page.kind === 'page' &&
+        page.items.length === 1 &&
+        input.limit > 1 &&
+        page.tail.kind === 'more'
+          ? fail({ kind: 'unavailable', owner: 'test', diagnostic: 'the fact is too large' })
+          : succeed(page),
+      ),
+    ],
+    [
+      'a missing fact passed over to complete the range',
+      D5.missingFact,
+      pages(page =>
+        succeed(
+          page.kind === 'gap' && page.reason === 'missing-fact'
+            ? {
+                kind: 'page',
+                through: page.recovery,
+                start: { sequence: '0' as never, basis: page.recovery },
+                end: { sequence: '0' as never, basis: page.recovery },
+                items: [],
+                tail: { kind: 'complete' },
+              }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'a retention gap answered as a missing fact',
+      D5.retention,
+      pages(page =>
+        succeed(
+          page.kind === 'gap' && page.reason === 'retention'
+            ? { ...page, reason: 'missing-fact' }
+            : page,
+        ),
+      ),
+    ],
+    [
+      'a lost basis answered invalid',
+      D5.missingBasis,
+      pages(page =>
+        page.kind === 'gap' && page.reason === 'missing-basis'
+          ? fail({ kind: 'invalid', field: 'from', reason: 'unknown' })
+          : succeed(page),
+      ),
+    ],
+    [
+      'a range that no longer resolves answered as another reason',
+      D5.rangeUnavailable,
+      pages(page =>
+        succeed(
+          page.kind === 'gap' && page.reason === 'range-unavailable'
+            ? { ...page, reason: 'retention' }
+            : page,
+        ),
+      ),
+    ],
+  ] as const)('%s', async (_name, rule, broken) => {
+    expect(await failingD5(broken)).toContain(rule)
+  })
+
+  it('a read that moves the fixed range to the latest one', async () => {
+    const names = await failingD5(
+      decorated((journal, opened) => ({
+        ...journal,
+        async readReplyAdmissions(input) {
+          const latest = await journal.load({ ...opened.access, execution: opened.execution })
+          if (!('ok' in latest) || input.after === null) return journal.readReplyAdmissions(input)
+          const answered = await journal.readReplyAdmissions(input)
+          if (!('ok' in answered) || answered.ok.kind !== 'page') return answered
+          return journal.readReplyAdmissions({
+            ...input,
+            after: null,
+            from: { kind: 'prefix', prefix: answered.ok.start },
+            through: latest.ok.replyAdmissions.through,
+          })
+        },
+      })),
+    )
+    expect(names).toContain(D5.fixed)
+  })
+
+  it('a cursor that is not checked against its range', async () => {
+    const names = await failingD5(
+      decorated(journal => ({
+        ...journal,
+        async readReplyAdmissions(input) {
+          const answered = await journal.readReplyAdmissions(input)
+          if ('failure' in answered && answered.failure.kind === 'invalid' && input.after !== null)
+            return journal.readReplyAdmissions({ ...input, after: null })
+          return answered
+        },
+      })),
+    )
+    expect(names).toContain(D5.cursor)
+  })
+
+  it('another decision of the same key answered as a new fact', async () => {
+    const names = await failingD5(
+      decorated((journal, opened) => ({
+        ...journal,
+        async commit(input) {
+          const answered = await journal.commit(input)
+          if (
+            'failure' in answered &&
+            answered.failure.kind === 'conflict' &&
+            input.replyAdmission !== null
+          )
+            return succeed({ ...opened.receipt, operation: input.operation })
+          return answered
+        },
+      })),
+    )
+    expect(names).toContain(D5.identity)
+  })
+
+  it('a read that does not check the current qualification on later pages', async () => {
+    const names = await failingD5({
+      async open(name, options) {
+        const opened = await fixture.open(name, options)
+        const controls = opened.replyAdmissions
+        if (controls === undefined) throw new Error('the memory fixture has the controls')
+        let allowed = true
+        return {
+          ...opened,
+          replyAdmissions: {
+            ...controls,
+            readable: value => {
+              allowed = value
+            },
+          },
+          journal: {
+            ...opened.journal,
+            query: async input =>
+              allowed ? opened.journal.query(input) : fail({ kind: 'denied', action: 'query' }),
+          },
+        }
+      },
+    })
+    expect(names).toContain(D5.qualification)
+  })
+})
