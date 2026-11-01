@@ -8,10 +8,15 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const OWNER = '@omne-harness/session-storage-sql'
 
+/**
+ * What a token is bound to. `revision` is the tenant domain directory revision, bound only where
+ * the read protocol says so (R10 references); a token without it binds no revision.
+ */
 export type CursorBinding = Readonly<{
   kind: string
   tenant: string | null
   session: string | null
+  revision?: string
 }>
 export type CursorOptions = Readonly<{
   signing: SessionCursorSigning
@@ -90,6 +95,8 @@ export async function open<T>(
     parsed['session'] !== binding.session
   )
     return invalid('issued for another tenant, session or read')
+  if ((parsed['revision'] ?? null) !== (binding.revision ?? null))
+    return invalid('issued under another tenant domain directory revision')
   if (typeof parsed['expires'] !== 'number' || parsed['expires'] < options.now())
     return invalid('expired')
   return succeed(parsed['state'] as T)

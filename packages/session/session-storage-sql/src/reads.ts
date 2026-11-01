@@ -341,15 +341,22 @@ async function systemWalk<P, Row>(
 ): Reply<Readonly<{ rows: readonly Row[]; next: string | null }>> {
   if (!Number.isInteger(limit) || limit < 1)
     return failure({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
-  const binding = { kind, tenant: null, session: null }
+  const listed = await context.options.domains.snapshot()
+  if (listed.kind !== 'ready') return failure(unavailable(`tenant domains: ${listed.diagnostic}`))
+  // R10 binds its cursor to the directory revision: a continuation under another revision is
+  // invalid, so a tenant registered before the cursor is never skipped. R11 does not bind it.
+  const binding = {
+    kind,
+    tenant: null,
+    session: null,
+    ...(kind === 'references' ? { revision: listed.value.revision } : {}),
+  }
   let from: SystemState | null = null
   if (after !== null) {
     const state = await open<SystemState>(context.cursor, binding, after)
     if ('failure' in state) return state
     from = state.ok
   }
-  const listed = await context.options.domains.snapshot()
-  if (listed.kind !== 'ready') return failure(unavailable(`tenant domains: ${listed.diagnostic}`))
   const entries = [...listed.value.entries].sort((a, b) => (a.tenant < b.tenant ? -1 : 1))
   const rows: Row[] = []
   let position = from === null ? 0 : entries.findIndex(entry => entry.tenant >= from.tenant)

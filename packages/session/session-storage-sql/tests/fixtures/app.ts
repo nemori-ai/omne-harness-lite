@@ -56,7 +56,11 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       transactionDomain: `dom_${index}`,
     } satisfies DomainRef,
   }))
-  const directory: { entries: TenantDomain[]; swap: TenantDomain | null } = { entries, swap: null }
+  const directory: { entries: TenantDomain[]; swap: TenantDomain | null; revision: string } = {
+    entries,
+    swap: null,
+    revision: '1',
+  }
   const domains: TenantDomainAccess = {
     resolve: input => {
       const entry = directory.swap ?? directory.entries.find(item => item.tenant === input.tenant)
@@ -67,7 +71,10 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       )
     },
     snapshot: () =>
-      Promise.resolve({ kind: 'ready', value: { revision: '1', entries: directory.entries } }),
+      Promise.resolve({
+        kind: 'ready',
+        value: { revision: directory.revision, entries: [...directory.entries] },
+      }),
   }
   for (const entry of entries)
     await provider.storage.registerCombination({
@@ -131,9 +138,30 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       },
       guards: [guard('login', 'login-entry', 'present')],
     })
+  /** Registers a tenant in its own new domain; the directory publishes a new revision. */
+  const register = async (tenant: TenantId) => {
+    const entry: TenantDomain = {
+      tenant: textOf(tenant),
+      domain: {
+        scope: { kind: 'tenant', tenant: textOf(tenant) },
+        transactionDomain: `dom_${directory.entries.length}`,
+      },
+    }
+    await provider.storage.registerCombination({
+      scope: entry.domain.scope,
+      transactionDomain: entry.domain.transactionDomain,
+      combinationVersion: 'c1',
+      manifestDigest: 'a'.repeat(64),
+      participants: ['session'],
+    })
+    directory.entries.push(entry)
+    directory.revision = String(Number(directory.revision) + 1)
+    return entry.domain.transactionDomain
+  }
   return {
     port,
     provider,
+    register,
     signing,
     access,
     create,
