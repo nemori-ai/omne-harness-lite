@@ -81,7 +81,6 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'agent-model-selection': { provides: ['agentModelSelection'], injects: ['modelProfiles'] },
   'agent-host': {
     provides: [
-      'agentHost',
       'agentPublicationAuthority',
       'agentExecutionRecovery',
       'agentExecutionControl',
