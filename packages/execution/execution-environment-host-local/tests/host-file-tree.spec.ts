@@ -640,10 +640,13 @@ it('refuses move for a missing source, an old version, a wrong name and an absen
   expect(await readdir(base)).toEqual(['from'])
 })
 
-it('answers unsupported when the move would cross devices', async () => {
-  const other = await tree('/dev/shm')
+it('answers unsupported when the move would cross devices', async ({ skip }) => {
+  // Without a second device the case cannot run; it is reported as skipped, not passed.
+  const other = await tree('/dev/shm').catch(() => undefined)
   const base = await tree()
-  if ((await lstat(other)).dev === (await lstat(base)).dev) return
+  if (other === undefined || (await lstat(other)).dev === (await lstat(base)).dev)
+    skip('environment has no second device')
+  if (other === undefined) return
   await writeFile(join(other, 'from'), 'x')
   const result = await move(
     files(),
@@ -654,8 +657,11 @@ it('answers unsupported when the move would cross devices', async () => {
     'exdev',
   )
   expect(result).toEqual(refused('exdev', 'unsupported'))
+  // Only a real rename that failed with EXDEV leaves this picture: the source is as it was and the
+  // target directory holds nothing, not even a temporary file.
   expect(await readFile(join(other, 'from'), 'utf8')).toBe('x')
-  expect(await exists(join(base, 'to'))).toBe(false)
+  expect(await readdir(other)).toEqual(['from'])
+  expect(await readdir(base)).toEqual([])
 })
 
 it('answers unknown with both names present when the old name cannot be removed after the new one exists', async () => {

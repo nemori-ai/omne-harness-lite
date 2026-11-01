@@ -16,9 +16,11 @@ import {
   symlink,
   writeFile,
 } from 'node:fs/promises'
+import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { tenantCodec } from '@omne-harness/legal-identity'
 import {
@@ -69,6 +71,17 @@ vi.mock('node:fs/promises', async importOriginal => {
 })
 
 const bases: string[] = []
+const mounts: string[] = []
+
+/** Runs a command with `sudo -n`; false when it is not allowed or fails (no mount permission). */
+async function sudo(args: readonly string[]): Promise<boolean> {
+  try {
+    await promisify(execFile)('sudo', ['-n', ...args])
+    return true
+  } catch {
+    return false
+  }
+}
 
 // These tests need `/proc/self/fd` and a POSIX file system; elsewhere they are skipped, not passed.
 beforeEach(({ skip }) => {
@@ -77,6 +90,8 @@ beforeEach(({ skip }) => {
 
 afterEach(async () => {
   hooks.rules.length = 0
+  // A mount made by a case goes before the tree it sits in, or `rm` would reach into the other device.
+  for (const mounted of mounts.splice(0).reverse()) await sudo(['umount', mounted])
   await Promise.all(
     bases.splice(0).map(async base => {
       await chmod(base, 0o700).catch(() => undefined)
@@ -376,6 +391,45 @@ it('refuses any path with a .. segment, also one that would resolve inside the r
     w.facility.read(request(`${w.root}/dir/../../outside/secret`, secret, 'escape')),
   )
   expect(escaping).toEqual(refused('escape', 'notAuthorized'))
+})
+
+/** The state directory as the engine left it: its own times and everything below it. */
+async function stateSnapshot(state: string) {
+  const own = await lstat(state, { bigint: true })
+  return { mtimeNs: own.mtimeNs, ctimeNs: own.ctimeNs, below: await snapshot(state) }
+}
+
+it('refuses a path outside the root, or with .., before the prerequisite probe touches the state directory', async () => {
+  const outsides: ReadonlyArray<(w: World) => string> = [
+    w => join(w.outside, 'secret'),
+    w => `${w.root}/dir/../ok.txt`,
+  ]
+  for (const pathOf of outsides) {
+    // A new world is a new engine: its probe has not run yet.
+    const w = await world()
+    const before = await stateSnapshot(w.state)
+    await new Promise(resolve => setTimeout(resolve, 25))
+    const result = await w.facility.read(request(pathOf(w), w.okToken, 'first'))
+    expect(result).toEqual(refused('first', 'notAuthorized'))
+    expect(await stateSnapshot(w.state)).toEqual(before)
+  }
+})
+
+// Needs the right to mount; without it the case is reported as skipped, not passed.
+it('refuses a last segment that is on another device than the directory that holds it', async ({
+  skip,
+}) => {
+  const w = await world()
+  const mounted = join(w.root, 'mounted')
+  await mkdir(mounted)
+  if (!(await sudo(['mount', '-t', 'tmpfs', 'tmpfs', mounted])))
+    skip('environment lacks the right to mount')
+  mounts.push(mounted)
+  const named = await hostObjectToken(mounted)
+  // Only the device sets this name apart: it is a directory, not a link, inside the root.
+  expect((await lstat(mounted)).isDirectory()).toBe(true)
+  const stat = await unchanged(w, () => w.facility.stat(request(mounted, named, 'mounted')))
+  expect(stat).toEqual(refused('mounted', 'notAuthorized'))
 })
 
 it('refuses a path that goes through a link to the outside, whatever the operation', async () => {

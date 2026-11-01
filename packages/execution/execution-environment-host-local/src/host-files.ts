@@ -12,7 +12,7 @@ import type {
   HandleGeneration,
   ObjectToken,
 } from '@omne-harness/execution-environment-contract'
-import { createHostFileBatch } from './host-file-batch.ts'
+import { createHostFileBatch, type HostFileDiagnostic } from './host-file-batch.ts'
 import { createHostFileTree, hostFilesLimits, type HostFilesLimits } from './host-file-tree.ts'
 import {
   createCodes,
@@ -30,9 +30,11 @@ import {
   unknown,
   versionOf,
   type FileStats,
+  type Located,
 } from './host-paths.ts'
 
 export type { HostFilesLimits } from './host-file-tree.ts'
+export type { HostFileDiagnostic } from './host-file-batch.ts'
 
 export async function hostObjectToken(path: string): Promise<ObjectToken> {
   const stat = await lstat(path, { bigint: true })
@@ -77,6 +79,16 @@ async function refusalAfterOpen(
   if (final === 'opened') return undefined
   return final === 'unresolved' ? { kind: 'unresolved', requestId } : reject(requestId, final)
 }
+
+/** A file or directory opened for a request: the descriptor, what it is, and its state at the open. */
+type OpenedNamed = Readonly<{
+  kind: 'handle'
+  handle: FileHandle
+  object: ObjectToken
+  stat: FileStats
+}>
+
+type Refusal = { readonly kind: 'unresolved'; readonly requestId: string } | FacilityResult<never>
 
 function openFailure(requestId: string, error: unknown): FacilityResult<never> {
   return failed(requestId, mapped(openCodes, error) ?? 'unknown', 'unresolved')
@@ -133,6 +145,11 @@ export type HostFilesEngineOptions = Readonly<{
   root?: string
   /** An absolute path where the manifests of file batches are kept. Without it batches answer `unavailable`. */
   stateDirectory?: string
+  /**
+   * Receives a fact a result cannot carry, such as a staged file that stays after its batch was
+   * published. A sink that throws changes no result.
+   */
+  diagnose?: ((diagnostic: HostFileDiagnostic) => void) | undefined
 }>
 
 /**
@@ -268,7 +285,36 @@ export function createHostFilesEngine(
       sealed: () => sealed.has(owner),
       close: closeOrTrack,
       drain: drainPendingClose,
+      diagnose: options.diagnose,
     })
+
+    /**
+     * Opens the last segment, which is not a link, and checks it is on the device of the directory
+     * that holds it. A mount point or a file mounted over a name is another device and is refused;
+     * the open itself changes nothing.
+     */
+    async function openLastSegment(
+      requestId: string,
+      located: Located,
+      flags: number,
+    ): Promise<FileHandle | FacilityResult<never>> {
+      let opened: FileHandle
+      try {
+        opened = await open(fdPath(located.parent, located.name), flags | constants.O_NOFOLLOW)
+      } catch (error) {
+        return openFailure(requestId, error)
+      }
+      try {
+        const own = await opened.stat({ bigint: true })
+        const parent = await located.parent.stat({ bigint: true })
+        if (own.dev === parent.dev) return opened
+      } catch {
+        await closeOrTrack(opened)
+        return unknown(requestId)
+      }
+      await closeOrTrack(opened)
+      return reject(requestId, 'notAuthorized')
+    }
 
     /** Opens `opening` below the root without following a link; a failure is already a result. */
     async function openBelowRoot(
@@ -279,15 +325,72 @@ export function createHostFilesEngine(
       const located = await paths.locate(opening)
       if (!located.ok) return failed(requestId, located.failure, 'unresolved')
       try {
-        return await open(
-          fdPath(located.value.parent, located.value.name),
-          flags | constants.O_NOFOLLOW,
-        )
-      } catch (error) {
-        return openFailure(requestId, error)
+        return await openLastSegment(requestId, located.value, flags)
       } finally {
         await closeOrTrack(located.value.parent)
       }
+    }
+
+    /** The refusal owed before anything is opened, or none. */
+    function namedRefusal(
+      requestId: string,
+      path: string,
+      namedToken: string,
+      bindingKind: EnvironmentBinding['kind'],
+    ): FacilityResult<never> | undefined {
+      if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
+      if (!isHostPath(path)) return reject(requestId, 'invalidInput')
+      return namedToken === '' ? reject(requestId, 'notAuthorized') : undefined
+    }
+
+    /** Opens the named path: below the root when one is configured, as the path says otherwise. */
+    async function openPath(
+      requestId: string,
+      path: string,
+      flags: number,
+    ): Promise<FileHandle | FacilityResult<never>> {
+      const opening = pathWithoutTrailingSlash(path)
+      if (!paths.rooted) {
+        try {
+          return await open(opening, flags | (noFollow ?? 0))
+        } catch (error) {
+          return openFailure(requestId, error)
+        }
+      }
+      const refusal = await gate(paths, requestId, [path])
+      if (refusal !== undefined) return refusal
+      return openBelowRoot(requestId, opening, flags)
+    }
+
+    /** True when a file was named with a trailing slash, which only a directory can be. */
+    function slashOnNonDirectory(path: string, stat: FileStats): boolean {
+      return path.length > 1 && path.endsWith('/') && !stat.isDirectory()
+    }
+
+    /**
+     * A file with a second name may be the same file as one outside the root. The count is read
+     * from the descriptor that is open, so the check cannot race with the open.
+     */
+    function sharedBelowRoot(content: boolean, stat: FileStats): boolean {
+      return paths.rooted && content && stat.isFile() && stat.nlink > 1n
+    }
+
+    /** What the opened object must be for the request; the caller closes the handle unless it is accepted. */
+    async function checkOpened(
+      requestId: string,
+      handle: FileHandle,
+      path: string,
+      namedToken: string,
+      content: boolean,
+    ): Promise<OpenedNamed | Refusal> {
+      const stat = await handle.stat({ bigint: true })
+      const object = tokenOf(stat)
+      const refused = await refusalAfterOpen(requestId, pathWithoutTrailingSlash(path), stat)
+      if (refused !== undefined) return refused
+      if (slashOnNonDirectory(path, stat)) return { kind: 'unresolved', requestId }
+      if (object.token !== namedToken) return reject(requestId, 'conflict')
+      if (sharedBelowRoot(content, stat)) return reject(requestId, 'notAuthorized')
+      return { kind: 'handle', handle, object, stat }
     }
 
     async function openNamed(
@@ -297,65 +400,19 @@ export function createHostFilesEngine(
       bindingKind: EnvironmentBinding['kind'],
       flags: number,
       content = false,
-    ): Promise<
-      | {
-          readonly kind: 'handle'
-          readonly handle: FileHandle
-          readonly object: ObjectToken
-          readonly stat: FileStats
-        }
-      | FacilityResult<never>
-    > {
-      if (bindingKind !== 'host_machine') return reject(requestId, 'unsupported')
-      if (!isHostPath(path)) return reject(requestId, 'invalidInput')
-      if (namedToken === '') return reject(requestId, 'notAuthorized')
-
-      const opening = pathWithoutTrailingSlash(path)
-      let handle: FileHandle
-      if (paths.rooted) {
-        const refusal = await gate(paths, requestId, [path])
-        if (refusal !== undefined) return refusal
-        const below = await openBelowRoot(requestId, opening, flags)
-        if ('kind' in below) return below
-        handle = below
-      } else {
-        try {
-          handle = await open(opening, flags | (noFollow ?? 0))
-        } catch (error) {
-          return openFailure(requestId, error)
-        }
-      }
-
+    ): Promise<OpenedNamed | FacilityResult<never>> {
+      const early = namedRefusal(requestId, path, namedToken, bindingKind)
+      if (early !== undefined) return early
+      const handle = await openPath(requestId, path, flags)
+      if ('kind' in handle) return handle
+      let checked: OpenedNamed | Refusal
       try {
-        const stat = await handle.stat({ bigint: true })
-        const object = tokenOf(stat)
-
-        const refused = await refusalAfterOpen(requestId, opening, stat)
-        if (refused !== undefined) {
-          await closeOrTrack(handle)
-          return refused
-        }
-
-        if (path.length > 1 && path.endsWith('/') && !stat.isDirectory()) {
-          await closeOrTrack(handle)
-          return { kind: 'unresolved', requestId }
-        }
-
-        if (object.token !== namedToken) {
-          await closeOrTrack(handle)
-          return reject(requestId, 'conflict')
-        }
-        // A file with a second name may be the same file as one outside the root. The count is read
-        // from the descriptor that is open, so the check cannot race with the open.
-        if (paths.rooted && content && stat.isFile() && stat.nlink > 1n) {
-          await closeOrTrack(handle)
-          return reject(requestId, 'notAuthorized')
-        }
-        return { kind: 'handle', handle, object, stat }
+        checked = await checkOpened(requestId, handle, path, namedToken, content)
       } catch {
-        await closeOrTrack(handle)
-        return unknown(requestId)
+        checked = unknown(requestId)
       }
+      if (checked.kind !== 'handle') await closeOrTrack(handle)
+      return checked
     }
 
     async function writeAll(handle: FileHandle, bytes: Uint8Array): Promise<boolean> {

@@ -21,6 +21,7 @@ import {
 } from '@omne-harness/execution-environment-contract'
 import { hostObjectToken } from '@omne-harness/execution-environment-host-local'
 import { createHostFilesEngine, type HostFilesEngine } from '../src/host-files.ts'
+import type { HostFileDiagnostic } from '../src/host-file-batch.ts'
 
 type Rule = {
   fn: string
@@ -116,7 +117,9 @@ type Setup = Readonly<{
   parent: ObjectToken
 }>
 
-async function setup(options: { state?: boolean } = {}): Promise<Setup> {
+async function setup(
+  options: { state?: boolean; diagnose?: (diagnostic: HostFileDiagnostic) => void } = {},
+): Promise<Setup> {
   const base = await realpath(await mkdtemp(join(tmpdir(), 'omne-exec-batch-')))
   dirs.push(base)
   const files = join(base, 'files')
@@ -124,7 +127,7 @@ async function setup(options: { state?: boolean } = {}): Promise<Setup> {
   await mkdir(files)
   await mkdir(state)
   const engine = createHostFilesEngine(
-    options.state === false ? undefined : { stateDirectory: state },
+    options.state === false ? undefined : { stateDirectory: state, diagnose: options.diagnose },
   )
   return {
     base,
@@ -217,6 +220,36 @@ it('publishes every entry, leaves no temporary file and records the batch as com
     matchingPrepared: [],
     conflicting: [],
   })
+})
+
+it('answers committed and names the temporary file that stays when it cannot be removed after a publication', async () => {
+  const seen: HostFileDiagnostic[] = []
+  const s = await setup({ diagnose: diagnostic => seen.push(diagnostic) })
+  rules.list.push({ fn: 'unlink', match: '.omne-batch-', skip: 0, code: 'EIO' })
+  const outcome = committedOutcome(await commit(s.facility, [created(s, 'one.txt', 'one')]))
+  expect(outcome.published).toEqual([join(s.files, 'one.txt')])
+  const temporary = `.omne-batch-${outcome.batch.id}-0`
+  expect(await readdir(s.files)).toEqual([temporary, 'one.txt'])
+  expect(seen).toEqual([
+    {
+      kind: 'temporaryFileRemains',
+      batch: outcome.batch.id,
+      path: join(s.files, 'one.txt'),
+      temporary,
+      code: 'EIO',
+    },
+  ])
+})
+
+it('does not let a failing diagnostic sink change the result of a published batch', async () => {
+  const s = await setup({
+    diagnose: () => {
+      throw new Error('sink failed')
+    },
+  })
+  rules.list.push({ fn: 'unlink', match: '.omne-batch-', skip: 0, code: 'EIO' })
+  const outcome = committedOutcome(await commit(s.facility, [created(s, 'one.txt', 'one')]))
+  expect(outcome.published).toEqual([join(s.files, 'one.txt')])
 })
 
 it('refuses an unsound batch before it writes anything', async () => {
