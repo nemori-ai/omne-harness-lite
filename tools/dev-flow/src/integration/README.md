@@ -377,15 +377,15 @@ node --experimental-strip-types tools/dev-flow/src/integration/api-review-cli.ts
 node --experimental-strip-types tools/dev-flow/src/integration/api-review-cli.ts verify-owner-adoption --root <可信检出> --base <目标提交> --head <PR head 提交>
 ```
 
-- 三个 `draft` 命令只输出待人工核对的草稿，不发评论，不产生通过结论。无 `review` 成员时草稿的比较列表为空。输入不完整时退出 2。
+- 三个 `draft` 命令只输出待人工核对的草稿，不发评论，不产生通过结论。无 `review` 成员时草稿的比较列表为空。输入不完整时退出 2。`draft-card` 与 `draft-ri` 被拒绝时输出 `{"kind":"draft-refused","findings":[…]}`，退出码取该报告的 `exit`，规则见 [SPEC](SPEC.md#api-语义复核)。
 - 新路径要求候选树的 HEAD 等于候选 head，工作树干净，并且 `tools/dev-flow/src`、工具的 `package.json`、`integration.md`、`delivery.md`、`docs/verification.md`、线归属表、身份文件、`integration-policy.json` 与 `repo-toolchain.config.json` 和目标提交逐对象相同。不相同时拒绝为 `api-review-self-authorization`。从另一份检出运行入口时拒绝为 `api-review-entry-outside-root`。
 - 提升范围内改动了这些权威文件时，新路径拒绝。顺序见 [SPEC](SPEC.md#api-语义复核)：先单独提升工具与治理改动，上游前进并同步后，再合入含 `review` 成员的改动。
-- `ri-notes` 不带 `--review-issue` 时行为不变。带上时，卡号必须是本次提升所含的卡。`check-milestone` 不带 `--semantic-review` 时仍按原有保守累计规则。
-- 退出码：全部通过为 0，有拒绝为 1，输入、权限或工具不可得为 2。每个发现带固定的失败码。一个成员通过不掩盖另一成员未知。
+- `ri-notes` 不带 `--review-issue` 时行为不变。带上时，卡号必须是本次提升所含的卡。所含卡的 notes 为空时，标准输出只有 `{"semanticReview": …}`。`check-milestone` 不带 `--semantic-review` 时仍按原有保守累计规则。
+- 退出码：全部通过为 0，有拒绝为 1，输入、权限或工具不可得为 2。每个失败码对应的退出码见 [SPEC](SPEC.md#api-语义复核) 的对照表。在身份文件登记前，新路径一律退出 2。每个发现带固定的失败码。一个成员通过不掩盖另一成员未知。
 
 ### 核对身份文件的改动
 
-个人分支 PR 改动 `docs/engineering/api-review-owners.json` 时，`publish` 的确认者在确认前运行 `verify-owner-adoption`。它把 `--base` 与 `--head` 的合并结果与目标比较，对新增和改动的条目读回采用评论，核对 URL、正文摘要、更新时间与作者 node ID。对删除的条目只列出。
+个人分支 PR 改动 `docs/engineering/api-review-owners.json` 时，`publish` 的确认者在确认前运行 `verify-owner-adoption`。它把 `--base` 与 `--head` 的合并结果与目标比较，对新增和改动的条目读回采用评论，核对 URL、正文摘要、更新时间与作者 node ID。对删除的条目只列出。仓库名取自 `--base` 提交的 `docs/engineering/integration-policy.json`，读不到时退出 2 并报 `adoption-verify-input-unknown`。
 
 - 从目标提交的独立检出运行，不从 PR head 运行。初次入轨时目标没有这条命令，从工具候选运行，并手工读回同样的四项，两者都写进确认说明。
 - 报告附读回评论的原始正文。确认者阅读它，核对正文是有权决定线归属的负责人对该条线、owner login 与 node ID 的明确决定。
