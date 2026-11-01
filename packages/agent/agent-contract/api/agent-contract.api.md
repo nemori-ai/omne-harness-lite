@@ -299,6 +299,9 @@
 - `AgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `AgentJournalReplyAdmissionControls` · `testing-journal-helpers.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
+- `JournalReplayState` · `testing-journal-replay.d.ts`
+- `JournalReplayStep` · `testing-journal-replay.d.ts`
+- `JournalReplayTrace` · `testing-journal-replay.d.ts`
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
@@ -314,12 +317,16 @@
 - `agentAccountOutletConformance` · `testing-account-outlet.d.ts`
 - `agentJournalCoreConformance` · `testing-journal-core.d.ts`
 - `agentJournalEntriesConformance` · `testing-journal-entries.d.ts`
+- `agentJournalReplayConformance` · `testing-journal-replay.d.ts`
+- `agentJournalReplayTraces` · `testing-journal-replay.d.ts`
+- `agentJournalViolatingTraces` · `testing-journal-replay.d.ts`
 - `createMemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `createMemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `createTestCancellationPolicy` · `testing-cancellation.d.ts`
 - `memoryAgentAccountOutletFixture` · `testing-account-outlet.d.ts`
 - `memoryAgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
 - `memoryReceivedCommitFixture` · `testing-received-memory.d.ts`
+- `replayJournalTrace` · `testing-journal-replay.d.ts`
 - `sampleAccountHandoff` · `testing-account-outlet.d.ts`
 - `sampleReceivedModelAccount` · `testing-journal-samples.d.ts`
 - `sampleReceivedModelResult` · `testing-journal-samples.d.ts`
@@ -3805,6 +3812,46 @@ export declare function replyRequest<P>(opened: AgentJournalCoreOpened<P>, snaps
 export declare function admitReply<P>(opened: AgentJournalCoreOpened<P>, index: number, decision?: 'admitted' | 'rejected', call?: string): Promise<CommandReceipt>;
 ```
 
+## 声明文件 `testing-journal-replay.d.ts`
+
+```ts
+import { AssertionError } from 'node:assert/strict';
+import type { ConformanceCase } from './testing-case.ts';
+import { type AgentJournalCoreFixture } from './testing-journal-helpers.ts';
+export type JournalReplayState = Readonly<{
+    status: 'advancing' | 'settling' | 'ended';
+    conclusion: 'none' | 'complete' | 'failed' | 'cancelled';
+    route: 'none' | 'author' | 'cancellation';
+    handoff: boolean;
+}>;
+export type JournalReplayStep = Readonly<{
+    action: string;
+    reply: string;
+    state: JournalReplayState;
+}>;
+export type JournalReplayTrace = Readonly<{
+    name: string;
+    origin: string;
+    steps: readonly JournalReplayStep[];
+}>;
+export type JournalReplayObservation = Readonly<{
+    reply: string;
+    state: JournalReplayState;
+}>;
+export declare class JournalReplayMismatch extends AssertionError {
+    readonly step: number;
+    constructor(trace: JournalReplayTrace, step: number, observed: JournalReplayObservation);
+}
+export declare function checkJournalTrace(trace: JournalReplayTrace, perform: (step: JournalReplayStep, index: number) => Promise<JournalReplayObservation>): Promise<void>;
+export declare function replayJournalTrace<P>(fixture: AgentJournalCoreFixture<P>, trace: JournalReplayTrace): Promise<void>;
+export declare function agentJournalReplayConformance<P>(fixture: AgentJournalCoreFixture<P>, traces?: Readonly<{
+    conforming: readonly JournalReplayTrace[];
+    violating: readonly JournalReplayTrace[];
+}>): readonly ConformanceCase[];
+export declare const agentJournalReplayTraces: readonly JournalReplayTrace[];
+export declare const agentJournalViolatingTraces: readonly JournalReplayTrace[];
+```
+
 ## 声明文件 `testing-journal-samples.d.ts`
 
 ```ts
@@ -3954,4 +4001,5 @@ export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJo
 export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';
+export { agentJournalReplayConformance, agentJournalReplayTraces, agentJournalViolatingTraces, replayJournalTrace, type JournalReplayState, type JournalReplayStep, type JournalReplayTrace, } from './testing-journal-replay.ts';
 ```
