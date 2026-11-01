@@ -328,10 +328,12 @@ export function createModelRuntimeLocalPlugin(
     const bound = await host.bind(provider.driver)
     if ('failure' in bound) throw new Error(`the model host could not bind: ${bound.failure.kind}`)
 
-    // EXTENSION POINT (the plugin of the runtime facade): create the provider's `modelRuntime`
-    // service here, in the same contribution as the host, after the bind above and from `provider`.
-    const contribution = ctx.plugin(HostContribution, host)
     try {
+      // EXTENSION POINT (the plugin of the runtime facade): create the provider's `modelRuntime`
+      // service here, in the same contribution as the host, after the bind above and from
+      // `provider`. The contribution is created inside this `try`: a fiber that unloads in the
+      // start window makes it throw, and the bound host must then close.
+      const contribution = ctx.plugin(HostContribution, host)
       // One outer effect owns the contribution and the shutdown. They are disposed in reverse order
       // of this list, one after the other: the shutdown first, the contribution last.
       ctx.effect(() => [contribution.dispose, orderedShutdown(ctx, provider, bound.ok)])

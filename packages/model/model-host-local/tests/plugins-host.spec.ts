@@ -24,6 +24,7 @@ import type {
   ModelCommands,
   ModelDriveInput,
   ModelDriver,
+  ModelInstanceHost,
 } from '@omne-harness/model-contract/provider'
 import {
   ModelClockService,
@@ -519,6 +520,34 @@ it('unloads the host with a lost dependency and answers unavailable through the 
     failure: { kind: 'unavailable', diagnostic: 'host-closed' },
   })
   expect(f.log).toEqual(['quiesce'])
+})
+
+it('closes the bound host and publishes nothing when the fiber unloads while it starts', async () => {
+  const f = fixture()
+  await f.ctx.plugin(f.Authority)
+  await f.ctx.plugin(f.Clock)
+  await f.ctx.plugin(f.Commands)
+  let fiber: ReturnType<Context['plugin']> | undefined
+  let built: ModelInstanceHost<unknown> | undefined
+  // The provider runs inside the start, before the bind: the unload lands in that window.
+  const Plugin = createModelRuntimeLocalPlugin({
+    provider: input => {
+      built = input.host
+      void fiber?.dispose()
+      return { driver: f.driver, quiesce: () => f.hooks.quiesce() }
+    },
+    qualifyObservation: async () => ({ ok: undefined }),
+  })
+  fiber = f.ctx.plugin(Plugin, { ...SETTINGS })
+  await loadError(fiber)
+  await new Promise(resolve => setTimeout(resolve, 20))
+
+  expect(f.ctx.modelInstanceHost).toBeUndefined()
+  if (built === undefined) throw new Error('the provider was not called')
+  expect(await built.schedule(wake('a'))).toMatchObject({
+    failure: { kind: 'unavailable', diagnostic: 'host-closed' },
+  })
+  expect(f.driven).toEqual([])
 })
 
 it('serves a route only to an observer that is currently qualified, and only a later generation replaces it', async () => {
