@@ -8,7 +8,16 @@ import { SYSTEM_ACTION_MATRIX, type SystemActionRow } from '@omne-harness/author
 import type { AgentAccessOperation } from '@omne-harness/agent-contract'
 import type { SessionAccessOperation } from '@omne-harness/session-contract'
 import { AGENT_POLICY } from './agent-policy.ts'
-import type { PolicyCell, PolicyRow, PrincipalColumn, SystemPurpose } from './cells.ts'
+import type {
+  DenyCell,
+  MatrixCell,
+  MemberCell,
+  PendingCell,
+  PolicyCell,
+  PolicyRow,
+  PrincipalColumn,
+  SystemPurpose,
+} from './cells.ts'
 import { DECISION_ITEMS, type DecisionItem } from './decision-items.ts'
 import type { ReleaseGrant } from './grants.ts'
 import { SESSION_POLICY } from './session-policy.ts'
@@ -61,70 +70,109 @@ function hasSource(cell: PolicyCell): boolean {
   )
 }
 
+type Tally = {
+  allowedCells: number
+  allowedCellsWithoutSource: number
+  pendingCells: string[]
+}
+
+/** What the audit of one table carries from cell to cell. */
+type AuditContext = Readonly<{
+  table: PolicyTable
+  input: PolicyTables
+  purposes: ReadonlyMap<string, SystemActionRow>
+  findings: string[]
+  tally: Tally
+}>
+
+const where = (context: AuditContext, value: Cell) =>
+  `${context.table} \`${value.operation}\` × ${value.column}`
+
+function auditMatrixCell(context: AuditContext, value: Cell, cell: MatrixCell): void {
+  if (value.column !== 'system')
+    context.findings.push(`${where(context, value)} gives a tenant principal a matrix cell`)
+  const row = context.purposes.get(cell.purpose)
+  if (row === undefined)
+    context.findings.push(
+      `${where(context, value)} names purpose ${cell.purpose} outside the matrix`,
+    )
+  else if (row.operation.owner !== context.table || row.operation.name !== value.operation)
+    context.findings.push(
+      `${where(context, value)} names purpose ${cell.purpose}, whose row is ${row.operation.owner} ${row.operation.name}`,
+    )
+}
+
+function auditAllowingCell(
+  context: AuditContext,
+  value: Cell,
+  cell: MemberCell | MatrixCell,
+): void {
+  context.tally.allowedCells += 1
+  if (!hasSource(cell)) {
+    context.tally.allowedCellsWithoutSource += 1
+    context.findings.push(`${where(context, value)} allows without a source`)
+  }
+  if (cell.verdict === 'member' && value.column === 'system')
+    context.findings.push(`${where(context, value)} gives a system principal a member cell`)
+  if (cell.verdict === 'matrix') auditMatrixCell(context, value, cell)
+}
+
+function auditDenyCell(context: AuditContext, value: Cell, cell: DenyCell): void {
+  if (typeof cell.basis !== 'string' || cell.basis.trim() === '')
+    context.findings.push(`${where(context, value)} denies without a basis`)
+}
+
+function auditPendingCell(context: AuditContext, value: Cell, cell: PendingCell): void {
+  context.tally.pendingCells.push(`${value.operation} × ${value.column}: ${cell.item}`)
+  const item = context.input.items[cell.item]
+  if (item === undefined)
+    context.findings.push(`${where(context, value)} cites ${cell.item}, which has no item`)
+  else if (
+    item.table !== context.table ||
+    item.operation !== value.operation ||
+    item.column !== value.column
+  )
+    context.findings.push(
+      `${where(context, value)} cites ${cell.item}, which names ${item.table} \`${item.operation}\` × ${item.column}`,
+    )
+  else if (item.missingRule.trim() === '' || item.defaultVerdict !== 'denied')
+    context.findings.push(`${cell.item} lacks the missing product rule or the default denial`)
+}
+
+function auditCell(context: AuditContext, value: Cell): void {
+  const { cell } = value
+  switch (cell.verdict) {
+    case 'member':
+    case 'matrix':
+      return auditAllowingCell(context, value, cell)
+    case 'deny':
+      return auditDenyCell(context, value, cell)
+    case 'deny-pending':
+      return auditPendingCell(context, value, cell)
+    default: {
+      const _exhaustive: never = cell
+      context.findings.push(
+        `${where(context, value)} has an unknown verdict ${String(_exhaustive)}`,
+      )
+    }
+  }
+}
+
 function auditTable(
-  name: PolicyTable,
-  table: Readonly<Record<string, PolicyRow>>,
+  table: PolicyTable,
+  rows: Readonly<Record<string, PolicyRow>>,
   input: PolicyTables,
   findings: string[],
 ): TableAudit {
-  const rowsByPurpose = new Map(input.matrix.map(row => [row.purpose, row]))
-  let allowedCells = 0
-  let allowedCellsWithoutSource = 0
-  const pendingCells: string[] = []
-  const where = (value: Cell) => `${name} \`${value.operation}\` × ${value.column}`
-  for (const value of cellsOf(table)) {
-    const { cell, column, operation } = value
-    switch (cell.verdict) {
-      case 'member':
-      case 'matrix': {
-        allowedCells += 1
-        if (!hasSource(cell)) {
-          allowedCellsWithoutSource += 1
-          findings.push(`${where(value)} allows without a source`)
-        }
-        if (cell.verdict === 'member' && column === 'system')
-          findings.push(`${where(value)} gives a system principal a member cell`)
-        if (cell.verdict === 'matrix') {
-          if (column !== 'system')
-            findings.push(`${where(value)} gives a tenant principal a matrix cell`)
-          const row = rowsByPurpose.get(cell.purpose)
-          if (row === undefined)
-            findings.push(`${where(value)} names purpose ${cell.purpose} outside the matrix`)
-          else if (row.operation.owner !== name || row.operation.name !== operation)
-            findings.push(
-              `${where(value)} names purpose ${cell.purpose}, whose row is ${row.operation.owner} ${row.operation.name}`,
-            )
-        }
-        break
-      }
-      case 'deny':
-        if (typeof cell.basis !== 'string' || cell.basis.trim() === '')
-          findings.push(`${where(value)} denies without a basis`)
-        break
-      case 'deny-pending': {
-        pendingCells.push(`${operation} × ${column}: ${cell.item}`)
-        const item = input.items[cell.item]
-        if (item === undefined)
-          findings.push(`${where(value)} cites ${cell.item}, which has no item`)
-        else if (item.table !== name || item.operation !== operation || item.column !== column)
-          findings.push(
-            `${where(value)} cites ${cell.item}, which names ${item.table} \`${item.operation}\` × ${item.column}`,
-          )
-        else if (item.missingRule.trim() === '' || item.defaultVerdict !== 'denied')
-          findings.push(`${cell.item} lacks the missing product rule or the default denial`)
-        break
-      }
-      default: {
-        const _exhaustive: never = cell
-        findings.push(`${where(value)} has an unknown verdict ${String(_exhaustive)}`)
-      }
-    }
-  }
+  const tally: Tally = { allowedCells: 0, allowedCellsWithoutSource: 0, pendingCells: [] }
+  const purposes = new Map(input.matrix.map(row => [row.purpose, row]))
+  const context: AuditContext = { table, input, purposes, findings, tally }
+  for (const value of cellsOf(rows)) auditCell(context, value)
   return Object.freeze({
-    rows: Object.keys(table).length,
-    allowedCells,
-    allowedCellsWithoutSource,
-    pendingCells: Object.freeze(pendingCells),
+    rows: Object.keys(rows).length,
+    allowedCells: tally.allowedCells,
+    allowedCellsWithoutSource: tally.allowedCellsWithoutSource,
+    pendingCells: Object.freeze(tally.pendingCells),
   })
 }
 
