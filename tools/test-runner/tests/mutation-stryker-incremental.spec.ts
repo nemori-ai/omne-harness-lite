@@ -1,5 +1,5 @@
 // 夹具项目上真起 Stryker：同一任务里重跑复用上次被杀的变异体、读数不变；改一处被变异的行只重跑那里；关掉增量与以前一样；
-// 两个成员并行与逐个跑读数相同。
+// 只改杀死变异体的测试文件时那些变异体重跑；两个成员并行与逐个跑读数相同。
 import { cpSync, existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -124,6 +124,63 @@ describe('夹具项目上真起 Stryker：增量与并行', { tags: ['slow'] }, 
       ok(forced)
       expect(reused(forced)).toEqual([0])
       expect(members(forced)).toEqual(members(narrowedFresh))
+    },
+  )
+
+  it(
+    '只改杀死某些变异体的测试文件、被变异的代码不变：那些变异体重跑，别的测试文件守着的照样复用',
+    { timeout: 300_000 },
+    () => {
+      const { root, memberDir } = guardedFixture()
+      // `double` 只由 double.spec.ts 守着，`isPositive` 只由 sign.spec.ts 守着：两份测试文件杀死的变异体不相交。
+      writeFileSync(
+        join(memberDir, 'tests/sign.spec.ts'),
+        [
+          "import { isPositive, label, zero } from '../src/sign.ts'",
+          "test('zero', () => { expect(zero).toBe(0) })",
+          "test('sign', () => { expect(isPositive(1)).toBe(true); expect(isPositive(0)).toBe(false) })",
+          "test('label is only called', () => { label(1) })",
+        ].join('\n'),
+      )
+      const doubleSpec = join(memberDir, 'tests/double.spec.ts')
+      const doubleTest = [
+        "import { double } from '../src/sign.ts'",
+        "test('double', () => { expect(double(3)).toBe(6) })",
+        '',
+      ].join('\n')
+      writeFileSync(doubleSpec, doubleTest)
+      const env = { OMNE_MUTATION_INCREMENTAL_HOME: temporary('mutation-store-') }
+
+      const first = mutate(root, join(root, 'out-1'), '2', env)
+      ok(first)
+      const [before] = members(first) ?? []
+      // `double` 函数在 src/sign.ts 的第 8～10 行：先数出被它的测试杀死的变异体。
+      const raw = JSON.parse(
+        readFileSync(join(root, 'out-1/packages__core__sign.mutation.json'), 'utf8'),
+      ) as {
+        files: Record<
+          string,
+          { mutants: { status: string; location: { start: { line: number } } }[] }
+        >
+      }
+      const killed = (raw.files['src/sign.ts']?.mutants ?? []).filter(
+        item => item.status === 'Killed',
+      )
+      const killedByDouble = killed.filter(item => item.location.start.line >= 8).length
+      expect(killedByDouble).toBeGreaterThan(0)
+      expect(killed.length).toBeGreaterThan(killedByDouble)
+
+      // 测试文件没变：被杀的全部复用。
+      const unchanged = mutate(root, join(root, 'out-2'), '2', env)
+      ok(unchanged)
+      expect(reused(unchanged)).toEqual([killed.length])
+
+      // 只改 double.spec.ts（多一行注释，用例与被变异的代码都没变）：被它杀死的变异体重跑，别的仍复用，读数不变。
+      writeFileSync(doubleSpec, `// 只改测试文件\n${doubleTest}`)
+      const edited = mutate(root, join(root, 'out-3'), '2', env)
+      ok(edited)
+      expect(reused(edited)).toEqual([killed.length - killedByDouble])
+      expect(members(edited)).toEqual([before])
     },
   )
 
