@@ -79,6 +79,7 @@ export type {
   CheckUnavailable,
   CheckUnknown,
 } from './authority.js'
+export type { RuntimeContextTrust } from './trust.js'
 export type {
   ReplayRef,
   BeginReplayInput,
