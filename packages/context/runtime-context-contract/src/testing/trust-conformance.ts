@@ -3,8 +3,19 @@ import { NotApplicable, type ConformanceCase } from './case.js'
 import { declaration, scope, openScope, setup } from './fixtures.js'
 import { createMemoryRuntimeContext } from './memory.js'
 import { createTestAuthorityPorts } from './ports.js'
-import type { RuntimeContextTrustControls, RuntimeContextTrustFixture } from './trust.js'
-import type { AuthorityDecision, Eligibility, RuntimeContextTrust, SupplyAnswer } from '../index.js'
+import {
+  RUNTIME_CONTEXT_TRUST_DEPENDENCIES,
+  type RuntimeContextTrustControls,
+  type RuntimeContextTrustFace,
+  type RuntimeContextTrustFixture,
+} from './trust.js'
+import type {
+  AuthorityDecision,
+  Eligibility,
+  RuntimeContextAuthority,
+  RuntimeContextTrust,
+  SupplyAnswer,
+} from '../index.js'
 
 export const RUNTIME_CONTEXT_TRUST_OBLIGATIONS = [
   'cross-tenant-zero-source-calls',
@@ -14,6 +25,11 @@ export const RUNTIME_CONTEXT_TRUST_OBLIGATIONS = [
   'bridge-invalidates-while-original-current',
   'original-current-false-refused',
   'revocation-during-await-discarded',
+  'revocation-during-original-answer',
+  'authorization-revocation-scoped',
+  'work-revocation-scoped',
+  'request-generation-scoped',
+  'bridge-generation-scoped',
   'work-revocation-during-await-discarded',
   'request-replacement-old-disclosure-refused',
   'bridge-unload-late-callback-discarded',
@@ -31,6 +47,11 @@ const trustCases = {
   'work-revocation-synchronous': <P>(f: Fixture<P>) => staleAtOnce(f, 'revokeWork'),
   'request-generation-synchronous': <P>(f: Fixture<P>) =>
     staleAtOnce(f, 'advanceRequestGeneration'),
+  'revocation-during-original-answer': revocationDuringOriginalAnswer,
+  'authorization-revocation-scoped': <P>(f: Fixture<P>) => scopedToSource(f, 'revokeAuthorization'),
+  'work-revocation-scoped': <P>(f: Fixture<P>) => scopedToSource(f, 'revokeWork'),
+  'request-generation-scoped': <P>(f: Fixture<P>) => scopedToSource(f, 'advanceRequestGeneration'),
+  'bridge-generation-scoped': <P>(f: Fixture<P>) => scopedToSource(f, 'advanceBridgeGeneration'),
   'bridge-invalidates-while-original-current': bridgeInvalidatesWhileOriginalCurrent,
   'original-current-false-refused': originalCurrentFalseRefused,
   'revocation-during-await-discarded': <P>(f: Fixture<P>) =>
@@ -57,11 +78,40 @@ export function runtimeContextTrustConformance<P>(): readonly ConformanceCase<Fi
   }))
 }
 
-function build<P>(fixture: Fixture<P>) {
+function build<P>(
+  fixture: Fixture<P>,
+  around: (original: RuntimeContextAuthority<P>) => RuntimeContextAuthority<P> = same => same,
+) {
   const ports = createTestAuthorityPorts<P>()
-  const made = fixture.create({ authority: ports.authority, bindings: ports.bindings })
+  const made = fixture.create({ authority: around(ports.authority), bindings: ports.bindings })
   const subject = createMemoryRuntimeContext<P>(made.trust)
   return { ports, ...made, subject }
+}
+
+const FACES: readonly RuntimeContextTrustFace[] = ['holder', 'producer', 'reader']
+
+/** One decision of one authority face, for the suite principal. */
+async function ask<P>(
+  trust: RuntimeContextTrust<P>,
+  fixture: Fixture<P>,
+  eligibility: Eligibility<P>,
+  face: RuntimeContextTrustFace,
+): Promise<AuthorityDecision<P>> {
+  const { authority } = trust
+  const decision =
+    face === 'holder'
+      ? await authority.holder(fixture.principal, { kind: 'revoke', eligibility: eligibility.id })
+      : face === 'producer'
+        ? await authority.producer(fixture.principal, {
+            kind: 'register',
+            tenant: fixture.tenant,
+            key: 'suite.value',
+            producer: { producer: 'suite' },
+          })
+        : await authority.reader(fixture.principal, eligibility)
+  assert.ok(decision.kind === 'authorized', `authority answered ${decision.kind}`)
+  assert.equal(decision.principal, fixture.principal)
+  return decision
 }
 
 /** One decision per authority face, all for the same principal. */
@@ -70,29 +120,20 @@ async function decisions<P>(
   fixture: Fixture<P>,
   eligibility: Eligibility<P>,
 ): Promise<readonly AuthorityDecision<P>[]> {
-  const { authority } = trust
-  const asked = [
-    await authority.holder(fixture.principal, { kind: 'revoke', eligibility: eligibility.id }),
-    await authority.producer(fixture.principal, {
-      kind: 'register',
-      tenant: fixture.tenant,
-      key: 'suite.value',
-      producer: { producer: 'suite' },
-    }),
-    await authority.reader(fixture.principal, eligibility),
-  ]
-  return asked.map(decision => {
-    assert.ok(decision.kind === 'authorized', `authority answered ${decision.kind}`)
-    assert.equal(decision.principal, fixture.principal)
-    return decision
-  })
+  const asked: AuthorityDecision<P>[] = []
+  for (const face of FACES) asked.push(await ask(trust, fixture, eligibility, face))
+  return asked
+}
+
+function reaches(control: keyof RuntimeContextTrustControls, face: RuntimeContextTrustFace) {
+  return RUNTIME_CONTEXT_TRUST_DEPENDENCIES[control].some(reached => reached === face)
 }
 
 function currents<P>(asked: readonly AuthorityDecision<P>[]): boolean[] {
   return asked.map(decision => decision.kind === 'authorized' && decision.current())
 }
 
-/** A control makes every earlier answer stale in the same synchronous step; a later answer is current. */
+/** A control makes the earlier answers that depend on its source stale in the same synchronous step; a later answer is current. */
 async function staleAtOnce<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
   const t = build(fixture)
   try {
@@ -100,13 +141,85 @@ async function staleAtOnce<P>(fixture: Fixture<P>, control: keyof RuntimeContext
     const before = await decisions(t.trust, fixture, s.eligibility)
     assert.deepEqual(currents(before), [true, true, true])
     t.controls[control]()
-    assert.deepEqual(currents(before), [false, false, false])
+    const stale = currents(before)
+    for (const [i, face] of FACES.entries())
+      if (reaches(control, face))
+        assert.equal(stale[i], false, `${face} answer still current after ${control}`)
     const after = await decisions(t.trust, fixture, s.eligibility)
     assert.deepEqual(currents(after), [true, true, true])
-    assert.deepEqual(currents(before), [false, false, false])
+    assert.deepEqual(currents(before), stale)
   } finally {
     await t.subject.close()
   }
+}
+
+/**
+ * A control belongs to one source: only the earlier answers that depend on that source turn stale,
+ * the answers that depend on other sources only stay current.
+ */
+async function scopedToSource<P>(fixture: Fixture<P>, control: keyof RuntimeContextTrustControls) {
+  const t = build(fixture)
+  try {
+    const s = await setup(t.subject, t.ports, fixture.tenant, fixture.principal)
+    const before = await decisions(t.trust, fixture, s.eligibility)
+    t.controls[control]()
+    assert.deepEqual(
+      currents(before),
+      FACES.map(face => !reaches(control, face)),
+      `answers after ${control}`,
+    )
+  } finally {
+    await t.subject.close()
+  }
+}
+
+/**
+ * A control runs while the original port is still answering, before the bridge sees the answer:
+ * the answer the caller then receives is stale for every face the source reaches. A bridge that
+ * takes its generations after the original answered cannot pass this.
+ */
+async function revocationDuringOriginalAnswer<P>(fixture: Fixture<P>) {
+  const controls = Object.keys(
+    RUNTIME_CONTEXT_TRUST_DEPENDENCIES,
+  ) as (keyof RuntimeContextTrustControls)[]
+  for (const control of controls)
+    for (const face of FACES) {
+      let open: () => void = () => undefined
+      const gate = new Promise<void>(resolve => {
+        open = resolve
+      })
+      let armed = false
+      let entered = false
+      async function settle<D>(answer: D): Promise<D> {
+        if (!armed) return answer
+        entered = true
+        await gate
+        return answer
+      }
+      const slow = (original: RuntimeContextAuthority<P>): RuntimeContextAuthority<P> => ({
+        holder: async (p, a) => settle(await original.holder(p, a)),
+        producer: async (p, a) => settle(await original.producer(p, a)),
+        reader: async (p, e) => settle(await original.reader(p, e)),
+      })
+      const t = build(fixture, slow)
+      try {
+        const s = await setup(t.subject, t.ports, fixture.tenant, fixture.principal)
+        armed = true
+        const pending = ask(t.trust, fixture, s.eligibility, face)
+        while (!entered) await new Promise(resolve => setImmediate(resolve))
+        t.controls[control]()
+        open()
+        const answer = await pending
+        assert.equal(
+          answer.kind === 'authorized' && answer.current(),
+          !reaches(control, face),
+          `${face} answer given after ${control} during the original answer`,
+        )
+      } finally {
+        open()
+        await t.subject.close()
+      }
+    }
 }
 
 /** The bridge alone goes stale: the original answer of the same call stays current. */

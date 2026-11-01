@@ -123,6 +123,6 @@
 
 ## 受信构造套件
 
-定义见 [testing/trust.ts](../src/testing/trust.ts) 与 [testing/trust-conformance.ts](../src/testing/trust-conformance.ts)。夹具的 `create` 必须让返回的 `trust` 使用套件给出的两个原端口；`controls` 的四个控制各自同步使对应来源失效。固定替身只供测试，标 `durability: 'none'`，不进根入口。
+定义见 [testing/trust.ts](../src/testing/trust.ts) 与 [testing/trust-conformance.ts](../src/testing/trust-conformance.ts)。夹具的 `create` 必须让返回的 `trust` 使用套件给出的两个原端口；`controls` 的四个控制各自同步使依赖对应来源的答案失效，其余面的答案保持为真（各面依赖见 SPEC）。固定替身只供测试，标 `durability: 'none'`，不进根入口。
 
 `RuntimeContextTrustControls`, `RuntimeContextTrustFixture`, `TestRuntimeContextTrust`, `createTestRuntimeContextTrust`, `RUNTIME_CONTEXT_TRUST_OBLIGATIONS`, `runtimeContextTrustConformance`。

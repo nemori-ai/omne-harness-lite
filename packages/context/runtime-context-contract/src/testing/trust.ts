@@ -35,6 +35,22 @@ export interface RuntimeContextTrustFixture<P = unknown> {
   principal: P
 }
 
+/** The three faces of the authority port. */
+export type RuntimeContextTrustFace = 'holder' | 'producer' | 'reader'
+
+/**
+ * Which sources the answer of each face depends on. A control makes stale exactly the earlier
+ * answers of the faces listed for its source; the answers of every other face stay current.
+ * Authorization and the bridge reach every face. The work eligibility reaches the holder and the
+ * reader. A Request Context source registration reaches the producer and the reader.
+ */
+export const RUNTIME_CONTEXT_TRUST_DEPENDENCIES = {
+  revokeAuthorization: ['holder', 'producer', 'reader'],
+  revokeWork: ['holder', 'reader'],
+  advanceRequestGeneration: ['producer', 'reader'],
+  advanceBridgeGeneration: ['holder', 'producer', 'reader'],
+} as const satisfies Record<keyof RuntimeContextTrustControls, readonly RuntimeContextTrustFace[]>
+
 /** The fixed double of the bridge. It keeps monotonic in-process generations and nothing durable. */
 export type TestRuntimeContextTrust<P> = Readonly<{
   trust: RuntimeContextTrust<P>
@@ -44,22 +60,27 @@ export type TestRuntimeContextTrust<P> = Readonly<{
 
 /**
  * A test double of the current bridge for the two original ports. For every call it captures the
- * four generations before the first await, asks the original port, and keeps the original answer's
- * branch. An authorized answer stays current only while the original `current()` and all four
- * captured generations hold. Bindings pass through unchanged. Not for production: nothing here is
+ * generations its face depends on (`RUNTIME_CONTEXT_TRUST_DEPENDENCIES`) before the first await,
+ * asks the original port, and keeps the original answer's branch. An authorized answer stays
+ * current only while the original `current()` and all those captured generations hold. Bindings pass through unchanged. Not for production: nothing here is
  * durable, and the generations are not shared with any real revocation writer.
  */
 export function createTestRuntimeContextTrust<P>(
   input: RuntimeContextTrust<P>,
 ): TestRuntimeContextTrust<P> {
   const generation = { authorization: 0, work: 0, request: 0, bridge: 0 }
-  function capture(): () => boolean {
+  const sources = {
+    authorization: 'revokeAuthorization',
+    work: 'revokeWork',
+    request: 'advanceRequestGeneration',
+    bridge: 'advanceBridgeGeneration',
+  } as const
+  function capture(face: RuntimeContextTrustFace): () => boolean {
     const seen = { ...generation }
-    return () =>
-      seen.authorization === generation.authorization &&
-      seen.work === generation.work &&
-      seen.request === generation.request &&
-      seen.bridge === generation.bridge
+    const watched = (Object.keys(sources) as (keyof typeof sources)[]).filter(source =>
+      (RUNTIME_CONTEXT_TRUST_DEPENDENCIES[sources[source]] as readonly string[]).includes(face),
+    )
+    return () => watched.every(source => seen[source] === generation[source])
   }
   function bridged<D extends AuthorityDecision<P> | HolderDecision<P>>(
     decision: D,
@@ -74,15 +95,15 @@ export function createTestRuntimeContextTrust<P>(
     trust: {
       authority: {
         async holder(principal, action) {
-          const live = capture()
+          const live = capture('holder')
           return bridged(await authority.holder(principal, action), live)
         },
         async producer(principal, action) {
-          const live = capture()
+          const live = capture('producer')
           return bridged(await authority.producer(principal, action), live)
         },
         async reader(principal, eligibility) {
-          const live = capture()
+          const live = capture('reader')
           return bridged(await authority.reader(principal, eligibility), live)
         },
       },

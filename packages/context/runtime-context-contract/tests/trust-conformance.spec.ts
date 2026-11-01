@@ -58,7 +58,7 @@ describe('the fixed double satisfies the whole suite', () => {
   for (const c of runtimeContextTrustConformance<string>())
     it(c.name, async () => {
       const verdict = await runConformanceCase(c, fixtureOf(honest))
-      // The double never passes the known-gap case (#677); the other eleven pass.
+      // The double never passes the known-gap case (#677); the other seventeen pass.
       expect(verdict).toEqual(
         c.name === 'async-notification-pending-revoked'
           ? { kind: 'not-applicable', handle: 'synchronous revocation source (known gap #677)' }
@@ -83,22 +83,93 @@ describe('a fixture that breaks one rule fails only the cases of that rule', () 
   const controlCases: readonly (readonly [keyof RuntimeContextTrustControls, string[]])[] = [
     [
       'revokeAuthorization',
-      ['authorization-revocation-synchronous', 'revocation-during-await-discarded'],
+      [
+        'authorization-revocation-synchronous',
+        'authorization-revocation-scoped',
+        'revocation-during-await-discarded',
+        'revocation-during-original-answer',
+      ],
     ],
-    ['revokeWork', ['work-revocation-synchronous', 'work-revocation-during-await-discarded']],
+    [
+      'revokeWork',
+      [
+        'work-revocation-synchronous',
+        'work-revocation-scoped',
+        'work-revocation-during-await-discarded',
+        'revocation-during-original-answer',
+      ],
+    ],
     [
       'advanceRequestGeneration',
-      ['request-generation-synchronous', 'request-replacement-old-disclosure-refused'],
+      [
+        'request-generation-synchronous',
+        'request-generation-scoped',
+        'request-replacement-old-disclosure-refused',
+        'revocation-during-original-answer',
+      ],
     ],
     [
       'advanceBridgeGeneration',
-      ['bridge-invalidates-while-original-current', 'bridge-unload-late-callback-discarded'],
+      [
+        'bridge-invalidates-while-original-current',
+        'bridge-generation-scoped',
+        'bridge-unload-late-callback-discarded',
+        'revocation-during-original-answer',
+      ],
     ],
   ]
   for (const [control, expected] of controlCases)
     it(`a ${String(control)} control that invalidates nothing`, async () => {
       expect(await failures(fixtureOf(ignoring(control)))).toEqual([...expected].sort())
     })
+
+  it('a bridge that takes its generations after the original port answered', async () => {
+    const late = (input: Input): Made => {
+      const { authority } = input
+      const gen = { n: 0 }
+      const wrap = <D extends { kind: string }>(d: D): D => {
+        if (d.kind !== 'authorized') return d
+        const seen = gen.n
+        const original = (d as unknown as { current(): boolean }).current
+        return { ...d, current: () => original() && seen === gen.n }
+      }
+      const bump = () => void gen.n++
+      return {
+        trust: {
+          bindings: input.bindings,
+          authority: {
+            holder: async (p, a) => wrap(await authority.holder(p, a)),
+            producer: async (p, a) => wrap(await authority.producer(p, a)),
+            reader: async (p, e) => wrap(await authority.reader(p, e)),
+          },
+        },
+        controls: {
+          revokeAuthorization: bump,
+          revokeWork: bump,
+          advanceRequestGeneration: bump,
+          advanceBridgeGeneration: bump,
+        },
+      }
+    }
+    expect(await failures(fixtureOf(late))).toContain('revocation-during-original-answer')
+  })
+
+  it('a bridge whose bridge control moves the request generation instead', async () => {
+    const crossed = (input: Input): Made => {
+      const made = honest(input)
+      return {
+        ...made,
+        controls: {
+          ...made.controls,
+          advanceBridgeGeneration: made.controls.advanceRequestGeneration,
+        },
+      }
+    }
+    expect(await failures(fixtureOf(crossed))).toEqual([
+      'bridge-generation-scoped',
+      'revocation-during-original-answer',
+    ])
+  })
 
   it('a bridge that drops the original current()', async () => {
     const dropped = (input: Input): Made => {

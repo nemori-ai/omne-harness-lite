@@ -1501,7 +1501,7 @@ export declare function addScope<P>(s: Setup<P>, ref: string, required?: boolean
 
 ```ts
 import { type ConformanceCase } from './case.js';
-import type { RuntimeContextTrustFixture } from './trust.js';
+import { type RuntimeContextTrustFixture } from './trust.js';
 export declare const RUNTIME_CONTEXT_TRUST_OBLIGATIONS: readonly [
     'cross-tenant-zero-source-calls',
     'authorization-revocation-synchronous',
@@ -1510,6 +1510,11 @@ export declare const RUNTIME_CONTEXT_TRUST_OBLIGATIONS: readonly [
     'bridge-invalidates-while-original-current',
     'original-current-false-refused',
     'revocation-during-await-discarded',
+    'revocation-during-original-answer',
+    'authorization-revocation-scoped',
+    'work-revocation-scoped',
+    'request-generation-scoped',
+    'bridge-generation-scoped',
     'work-revocation-during-await-discarded',
     'request-replacement-old-disclosure-refused',
     'bridge-unload-late-callback-discarded',
@@ -1545,6 +1550,27 @@ export interface RuntimeContextTrustFixture<P = unknown> {
     otherTenant: TenantId;
     principal: P;
 }
+export type RuntimeContextTrustFace = 'holder' | 'producer' | 'reader';
+export declare const RUNTIME_CONTEXT_TRUST_DEPENDENCIES: {
+    readonly revokeAuthorization: readonly [
+        "holder",
+        "producer",
+        "reader"
+    ];
+    readonly revokeWork: readonly [
+        "holder",
+        "reader"
+    ];
+    readonly advanceRequestGeneration: readonly [
+        "producer",
+        "reader"
+    ];
+    readonly advanceBridgeGeneration: readonly [
+        "holder",
+        "producer",
+        "reader"
+    ];
+};
 export type TestRuntimeContextTrust<P> = Readonly<{
     trust: RuntimeContextTrust<P>;
     controls: RuntimeContextTrustControls;
