@@ -27,6 +27,7 @@ export type CloseHooks = Readonly<{
 type LiveWorker = {
   readonly domain: string
   readonly leaseName: string
+  readonly client: WriterClient
   /** Known when the registration names it, or after the open reply. */
   scope: StorageScope | null
 }
@@ -225,7 +226,7 @@ export class Domains {
       )
       client = started
       claim.client = started
-      const live: LiveWorker = { domain, leaseName, scope: create?.scope ?? null }
+      const live: LiveWorker = { domain, leaseName, client: started, scope: create?.scope ?? null }
       this.workers.set(leaseName, live)
       void started.exited.then(() => {
         this.workers.delete(leaseName)
@@ -277,7 +278,12 @@ export class Domains {
       await rm(`${file}${suffix}`, { force: true }).catch(() => undefined)
   }
 
-  /** Closes every Worker. In-flight requests finish first: the close message queues behind them. */
+  /**
+   * Closes every Worker. In-flight requests finish first: the close message queues behind them.
+   * Resolves when the exit of every write Worker was observed, whatever the state of its domain
+   * entry: a quarantined domain or a failed open can leave a Worker that is still ending (SPEC 13.3
+   * step 5).
+   */
   async closeAll(): Promise<void> {
     const closing: Promise<void>[] = []
     for (const entry of Array.from(this.entries.values())) {
@@ -290,6 +296,7 @@ export class Domains {
       else if (entry.state === 'ready') closing.push(entry.client.close())
     }
     await Promise.all(closing)
+    await Promise.all([...this.workers.values()].map(worker => worker.client.exited))
   }
 
   /** Write Workers whose exit was not observed yet: they still hold a Worker slot (SPEC 12.2). */

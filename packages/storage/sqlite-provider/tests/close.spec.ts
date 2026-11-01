@@ -1,7 +1,7 @@
 // Close protocol (SQL contract SPEC 13, C12/C14): the steps of 13.3, the reporting latch of 13.4
 // and the in-process writer exclusion of 13.5. A commit that spins in the participant keeps the
 // write Worker busy, so each test controls what is in flight when `close` runs.
-import { symlink } from 'node:fs/promises'
+import { appendFile, symlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -141,6 +141,20 @@ describe('close steps (13.3)', () => {
     expect(Date.now() - again).toBeLessThan(150)
     await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
     expect(await provider.control.close({ initiator: 'disposal' })).toEqual({ kind: 'closed' })
+  })
+})
+
+describe('close after a quarantine (13.3 step 5)', () => {
+  it('returns closed only after the write Worker of a quarantined domain has exited', async () => {
+    const provider = await ready()
+    // The participant file changes after construction: the Worker sees a digest mismatch.
+    await appendFile(built.files['participant-ledger'] as string, '\n// changed\n')
+    expect(kindOf(await provider.storage.commit(plain('a')))).toBe(
+      'rejected_before_accept/domain_unavailable',
+    )
+    const writer = leases.admitted.find(name => name.includes('/writer/'))
+    expect(await provider.control.close({ initiator: 'assembly' })).toEqual({ kind: 'closed' })
+    expect(leases.released).toContain(writer)
   })
 })
 
