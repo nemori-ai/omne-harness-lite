@@ -288,7 +288,8 @@ export async function seedCp2(world: Cp2World) {
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    source: admitted.origin,
+    // The source basis of the opening input is the SE13 receipt of startRun (AD-14, C26).
+    source: started.receipt.source,
     priority: 'ordinary',
   }
   return {
