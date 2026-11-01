@@ -8,6 +8,8 @@ export type SessionReadAccessOperation =
   | 'readWork'
   | 'readInput'
   | 'queryOperation'
+  | 'readModelSelection'
+  | 'queryControlOperation'
   | 'loadRecovery'
   | 'inspectIdle'
   | 'history.begin'

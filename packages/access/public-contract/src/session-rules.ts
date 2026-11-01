@@ -5,6 +5,14 @@ const text: Rule = { kind: 'text' }
 const tenant: Rule = { kind: 'tenant' }
 const session: Rule = { kind: 'session' }
 
+const producer: Rule = {
+  kind: 'object',
+  fields: {
+    kind: { rule: { kind: 'literal', values: ['model', 'tool'] } },
+    call: { rule: text },
+  },
+}
+
 const requests = {
   'create-session': {
     kind: 'object',
@@ -52,6 +60,25 @@ const requests = {
       },
     ],
   },
+  'cancel-run': {
+    kind: 'object',
+    fields: {
+      tenant: { rule: tenant },
+      session: { rule: session },
+      controlId: { rule: text },
+      run: { rule: text },
+      urgency: { rule: { kind: 'literal', values: ['graceful', 'force'] } },
+    },
+  },
+  'stop-call': {
+    kind: 'object',
+    fields: {
+      tenant: { rule: tenant },
+      session: { rule: session },
+      controlId: { rule: text },
+      producer: { rule: producer },
+    },
+  },
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const anyText: Rule = { kind: 'string' }
@@ -65,6 +92,37 @@ const historyEntry: Rule = {
     payload: { rule: { kind: 'json' } },
   },
 }
+
+// The wire form of a recorded origin. Declared here so this package imports no other member.
+const terminalSource: Rule = {
+  kind: 'object',
+  fields: {
+    owner: { rule: text },
+    record: { rule: text },
+    revision: { rule: text },
+    digest: { rule: text },
+  },
+}
+const literal = (...values: string[]): Rule => ({ kind: 'literal', values })
+/** `requested` and `ended` are told apart by the literal `kind`, so the options are disjoint. */
+const controlAnswer = (target: Record<string, { rule: Rule }>, terminal: Rule): Rule => ({
+  kind: 'one-of',
+  rules: [
+    {
+      kind: 'object',
+      fields: { kind: { rule: literal('requested') }, controlId: { rule: text }, ...target },
+    },
+    {
+      kind: 'object',
+      fields: {
+        kind: { rule: literal('ended') },
+        controlId: { rule: text },
+        ...target,
+        terminal: { rule: terminal },
+      },
+    },
+  ],
+})
 
 const successes = {
   'create-session': {
@@ -84,6 +142,29 @@ const successes = {
       scannedThrough: { rule: anyText },
     },
   },
+  'cancel-run': controlAnswer(
+    { run: { rule: text } },
+    {
+      kind: 'object',
+      fields: {
+        outcome: { rule: literal('completed', 'failed', 'cancelled') },
+        source: { rule: terminalSource },
+      },
+    },
+  ),
+  'stop-call': controlAnswer(
+    { producer: { rule: producer } },
+    {
+      kind: 'object',
+      fields: {
+        version: { rule: text },
+        outcome: {
+          rule: literal('completed', 'failed', 'interrupted', 'unavailable', 'no-response'),
+        },
+        source: { rule: terminalSource },
+      },
+    },
+  ),
 } satisfies Readonly<Record<SessionOperation, Rule>>
 
 const outcomes = {
@@ -101,6 +182,25 @@ const outcomes = {
   ],
   'query-send-input': ['succeeded', 'not-committed', 'denied', 'basis-unavailable', 'unknown'],
   'read-history': ['succeeded', 'denied', 'invalid', 'basis-unavailable'],
+  'cancel-run': [
+    'succeeded',
+    'denied',
+    'invalid',
+    'conflict',
+    'not-found',
+    'basis-unavailable',
+    'unknown',
+  ],
+  'stop-call': [
+    'succeeded',
+    'denied',
+    'invalid',
+    'conflict',
+    'not-found',
+    'basis-unavailable',
+    'unknown',
+    'unsupported',
+  ],
 } as const satisfies { readonly [O in SessionOperation]: readonly SessionOutcomes[O][] }
 
 /** Fails to compile when an outcome of `SessionOutcomes` is missing from the table above. */

@@ -20,6 +20,7 @@ Session 的适配成员。模板变体：`cordis-module`。
 状态：适配成员，`draft`。[SPEC](SPEC.md) 是候选设计，尚未技术接受。
 
 - 已实现：`./testing` 入口。它的非耐久内存提供者实现 AD-01、AD-02 与 AD-05，并提供 Agent Journal。根入口（`src/index.ts`）与 `./cordis`（`src/cordis.ts`）仍只有模板标记。
+- 会话事务端口：`./testing` 的会话事务替身实现 `SessionTransactionPort` 的 `queryControlOperation`、`readModelSelection` 与 `commitEntries`。`commitEntries` 目前返回 `unavailable`，因为 session-contract 还没有 entries 解释的纯范围检查，见 [SPEC 已知限制](SPEC.md#已知限制)。
 - 未实现：全部十七个插件与端口提供者的生产实现，以及全部耐久提供者。
 - 受具名前提阻塞：历史源、受理拓展点、两个驻留端口、Agent 记录迟到结果的入口，以及无活体 runtime 时的执行视图。每项前提与闭合前的表现见 [SPEC](SPEC.md#具名前提与明确缺项)。
 

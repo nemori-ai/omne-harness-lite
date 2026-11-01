@@ -895,6 +895,9 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
   const transactions: SessionTransactionPort<P> = {
     readInput: base.readInput,
     queryOperation: base.queryOperation,
+    queryControlOperation: base.queryControlOperation,
+    readModelSelection: base.readModelSelection,
+    commitEntries: base.commitEntries,
     history: base.history,
     pending: base.pending,
     references: base.references,
@@ -931,9 +934,16 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         guards: input.guards,
         decision: qualification.ok,
       }
+      // After the access decision, before the frontier or any lookup: nothing of the session shows.
+      if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+        return fail<SessionFailure>({ kind: 'unsupported' })
       const cell = cellOf(command.input.tenant, command.input.session)
       try {
-        if (cell.current().session?.operations.has(command.input.operation))
+        const held = cell.current().session
+        if (
+          held?.operations.has(command.input.operation) ||
+          held?.answers.has(command.input.operation)
+        )
           return base.prepareCommand(prepared)
         for (;;) {
           const root = await frontier.prepare(cell, snapshot => commandScope(command, snapshot))
@@ -1393,6 +1403,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
           entries,
           inputs,
           operations: new Map(),
+          answers: new Map(),
           modelView: materializeModelView({ epoch: 'epoch:0', rows: [] }, entries, entries),
         }
         cell.mutate(() => cell.replaceSession(state))

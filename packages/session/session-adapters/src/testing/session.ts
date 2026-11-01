@@ -36,12 +36,23 @@ import type {
   SessionCommand,
   SessionTransactionPort,
   SessionLogObservation,
+  ProducerRef,
+  RunId,
+  SessionCallLookup,
+  SessionRunLookup,
+  ControlOperationResolution,
+  RunTerminal,
+  SavedModelSelection,
+  SessionCallTerminal,
+  SessionControlReceipt,
+  SessionModelSelection,
 } from '@omne-harness/session-contract'
 import type { InitializationSource, HistorySource } from './ports.ts'
 import {
   canonical as canonicalText,
   digestOf,
   decodedRow,
+  rowData,
   materializeModelView,
   compactionReads,
 } from './session-values.ts'
@@ -268,11 +279,61 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
       return receipt => ({ receipt, progress })
     }
+    case 'cancelRun':
+    case 'stopCall': {
+      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
+      if (progress === undefined) throw new Error(`${command.kind} committed without a control`)
+      return receipt => ({
+        operation: receipt.operation,
+        source: receipt.source,
+        answer: { kind: 'requested', progress },
+      })
+    }
     case 'considerAutoArchive':
       return receipt => ({ result: 'archived', receipt })
     default:
       return receipt => receipt
   }
+}
+
+const mint = (record: string, content: unknown): DurableEvidence => ({
+  owner: TESTING_OWNER,
+  record,
+  revision: '1',
+  digest: `sha256:${digestOf(content)}`,
+})
+
+/** The Run lookup of one snapshot, covering exactly that snapshot. */
+function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
+  const history = snapshot.executions?.find(item => item.run === run)
+  const current =
+    snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run
+      ? snapshot.run.terminal
+      : null
+  const active = snapshot.run.kind === 'active' && snapshot.run.run === run
+  if (history === undefined && current === null && !active)
+    return { kind: 'absent', run, covered: snapshot.revision }
+  return {
+    kind: 'bound',
+    run,
+    bound: mint(`${snapshot.session}/run/${run}`, { run }),
+    terminal: current ?? history?.terminal ?? null,
+  }
+}
+
+/** The double keeps no call terminals: a bound call has none, so a stop is always requested. */
+function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallLookup {
+  return snapshot.consumptions.some(
+    item =>
+      item.binding.producer.kind === producer.kind && item.binding.producer.call === producer.call,
+  )
+    ? {
+        kind: 'bound',
+        producer,
+        bound: mint(`${snapshot.session}/call/${producer.kind}/${producer.call}`, producer),
+        terminal: null,
+      }
+    : { kind: 'absent', producer, covered: snapshot.revision }
 }
 
 function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'ordinary' }> | null {
@@ -336,12 +397,22 @@ export function createSessionTransactions<P>(
 
   const commit = (input: PreparedCommit): Outcome<unknown, SessionFailure> => {
     const command: SessionCommand = input.command
+    // After the access decision, before the session or any lookup: the answer tells nothing of what exists.
+    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const blocked = stores.gate(key.ok)
     if (blocked !== null) return fail({ kind: 'quarantined', diagnostic: blocked })
     const store = stores.get(key.ok)
     if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+    const answered = store?.answers.get(command.input.operation)
+    if (answered !== undefined) {
+      const control = command.kind === 'cancelRun' || command.kind === 'stopCall'
+      return control && answered.digest === commandDigest(command)
+        ? succeed(answered.receipt)
+        : fail({ kind: 'conflict', operation: command.input.operation })
+    }
     if (command.kind === 'create' || command.kind === 'completeInitialization') {
       const refusal =
         options.initialization?.verify(command, input.guards) ??
@@ -398,11 +469,33 @@ export function createSessionTransactions<P>(
           ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
           : null,
       ...(frozen == null ? {} : { frozenReceipt: frozen }),
+      ...(command.kind === 'cancelRun' && store !== undefined
+        ? { runs: [runLookup(store.snapshot, command.input.run)] }
+        : {}),
+      ...(command.kind === 'stopCall' && store !== undefined
+        ? { calls: [callLookup(store.snapshot, command.input.producer)] }
+        : {}),
       initializationReceipts: [
         ...(command.kind === 'completeInitialization' ? (store?.operations.values() ?? []) : []),
       ].map(value => value.record.receipt),
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
+    if (decision.kind === 'control-answer') {
+      if (store === undefined) return fail(unavailable('a control answer without a session'))
+      const receipt = {
+        operation: command.input.operation,
+        source: decision.source,
+        answer: decision.answer,
+      }
+      const answers = new Map(store.answers)
+      answers.set(command.input.operation, {
+        digest: commandDigest(command),
+        receipt,
+        decision: input.decision,
+      })
+      stores.set(key.ok, { ...store, answers })
+      return succeed(receipt)
+    }
     if (decision.kind === 'recovered') {
       const original = held ?? store?.operations.get(decision.receipt.operation)
       if (original === undefined) return fail(unavailable('a recalled operation without a record'))
@@ -487,6 +580,9 @@ export function createSessionTransactions<P>(
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
       decision: input.decision,
       recall,
+      ...(command.kind === 'cancelRun' || command.kind === 'stopCall'
+        ? { form: 'control' as const }
+        : {}),
     })
     const inputs = new Map(store?.inputs)
     const admitted = admittedInput(command)
@@ -503,6 +599,7 @@ export function createSessionTransactions<P>(
       ]),
       entries: [...(store?.entries ?? []), ...entries],
       operations,
+      answers: store?.answers ?? new Map(),
       inputs,
     }
     const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
@@ -708,12 +805,73 @@ export function createSessionTransactions<P>(
       const store = await storeOf(input, 'queryOperation')
       if ('failure' in store) return store
       const held = store.ok.operations.get(input.operation)
+      // A control identity is not a batch identity (SL07): it answers conflict here.
+      if (held?.form === 'control' || store.ok.answers.has(input.operation))
+        return fail({ kind: 'conflict', operation: input.operation })
       const resolution: OperationResolution =
         held === undefined
           ? { kind: 'unknown' }
           : { kind: 'committed', receipt: held.record.receipt }
       return succeed(resolution)
     },
+    queryControlOperation: async input => {
+      const store = await storeOf(input, 'queryControlOperation')
+      if ('failure' in store) return store
+      const answered = store.ok.answers.get(input.operation)
+      if (answered !== undefined)
+        return succeed<ControlOperationResolution>({ kind: 'committed', receipt: answered.receipt })
+      const held = store.ok.operations.get(input.operation)
+      if (held === undefined) return succeed<ControlOperationResolution>({ kind: 'unknown' })
+      if (held.form !== 'control') return fail({ kind: 'conflict', operation: input.operation })
+      return succeed<ControlOperationResolution>({
+        kind: 'committed',
+        receipt: held.recall(held.record.receipt) as SessionControlReceipt<
+          RunTerminal | SessionCallTerminal
+        >,
+      })
+    },
+    readModelSelection: async input => {
+      const store = await storeOf(input, 'readModelSelection')
+      if ('failure' in store) return store
+      let saved: { selection: SavedModelSelection; at: string } | null = null
+      for (const row of store.ok.entries) {
+        if (row.kind !== 'session.model-selected') continue
+        const declaration = rowData(row)['declaration'] as
+          | { kind?: string; name?: string; basis?: DurableEvidence }
+          | undefined
+        if (
+          declaration?.kind === 'model' &&
+          declaration.name !== undefined &&
+          declaration.basis !== undefined
+        )
+          saved = {
+            selection: { name: declaration.name, basis: declaration.basis },
+            at: row.revision,
+          }
+      }
+      const initial = store.ok.snapshot.creation.initialModelSelection
+      const first = store.ok.entries[0]
+      const chosen =
+        saved ??
+        (initial !== undefined && first !== undefined
+          ? { selection: initial, at: first.revision }
+          : null)
+      if (chosen === null) return fail({ kind: 'not-ready' })
+      const origin = [...store.ok.operations.values()].find(
+        item => item.record.receipt.revision === chosen.at,
+      )
+      if (origin === undefined)
+        return fail(unavailable('the commit that saved the selection has no original receipt'))
+      return succeed<SessionModelSelection>({
+        selection: chosen.selection,
+        revision: store.ok.snapshot.revision,
+        source: origin.record.receipt.source,
+      })
+    },
+    // The pure range check of the entries interpretation is not in session-contract yet, so the
+    // double cannot judge a range: it refuses, and never answers success for an unchecked range.
+    commitEntries: async () =>
+      fail(unavailable('entries interpretation has no pure range check in session-contract')),
     history,
     pending: async input => {
       const qualification = await qualifyAccess(options.accessCheck, {
@@ -863,6 +1021,8 @@ export function createSessionTransactions<P>(
     const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') return succeed(decision.receipt)
+    if (decision.kind !== 'entries')
+      return fail(unavailable('projection produced a control answer'))
     const encoded = [...decision.entries]
     for (const fact of releases) {
       const command = {
@@ -876,6 +1036,7 @@ export function createSessionTransactions<P>(
       if (release.kind === 'rejected') return fail(release.failure)
       if (release.kind === 'recovered')
         return fail(unavailable('release unexpectedly recovered outside its reconciliation'))
+      if (release.kind !== 'entries') return fail(unavailable('release produced a control answer'))
       encoded.push(...release.entries)
     }
     if (encoded.length === 0) return succeed(null)
