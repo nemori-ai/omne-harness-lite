@@ -1,6 +1,6 @@
 # 存储能力组
 
-本组是条件性工程位置，依据为[数据与状态](../../docs/architecture/data-and-state.md)与[目标包组织](../../docs/package-organization.md#目标目录)。本组现有一份目标文档。workspace 包、`package.json`、源码和可运行入口尚未建立。
+本组是条件性工程位置，依据为[数据与状态](../../docs/architecture/data-and-state.md)与[目标包组织](../../docs/package-organization.md#目标目录)。本组现有一个 workspace 成员 `sql-contract`，以及一份目标文档。SQLite 提供者的 workspace 包尚未建立。
 
 ## 责任与范围
 
@@ -8,11 +8,11 @@
 
 ## 成员与依赖
 
-要读提交结果、未知、未提交、取消或关闭时，打开 [storage 目标文档](docs/storage-contract/README.md) 及其 [事务行为](docs/storage-contract/SPEC.md)。该目录是目标文档，workspace 包尚未建立。真实包在具名消费者和公开入口接受之后建立。依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。
+- [sql-contract](sql-contract/README_ZH.md)：SQL 存储契约的 workspace 成员，已建立。拥有身份、提交与认回结果、登记、读取、材料与清单摘要、关闭控制口、三个 Cordis 服务定义，以及内存替身与符合性套件。根与 `./worker` 不导入 Cordis。设计依据是 #687 revision 2 采用的 SQL r2 规格。
+- SQLite 提供者（`sqlite-provider`）：尚未建立，由 #687 第二段交付。依赖 sql-contract，不被 sql-contract 依赖。
+- 旧的目标文档仍在 [storage 目标文档](docs/storage-contract/README.md) 与其[事务行为](docs/storage-contract/SPEC.md)，在第二段按替换清单写回成员后退出。
 
-<!-- documentation:placeholder -->
-
-SQLite 提供者与 PostgreSQL 提供者尚未建立。它们以后补充自己的配置和失败。公共结果在事务行为规格。
+依赖方向见[包边界与公开入口](../../docs/package-organization.md#包边界与公开入口)。PostgreSQL 提供者尚未建立。
 
 ## 关键协作
 
