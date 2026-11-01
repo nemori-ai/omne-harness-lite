@@ -1,3 +1,4 @@
+import { tenantEquals } from '@omne-harness/legal-identity'
 import type {
   AuthorityDecision,
   CommitRef,
@@ -81,7 +82,8 @@ export function createSessionRuntimeContextTrust<P>(
   async function uncovered(action: FinishReplayAction): Promise<HolderDecision<P> | undefined> {
     const binding = await bindings.lookup(action.scope)
     if (binding.kind === 'unavailable' || binding.kind === 'unknown') return { kind: binding.kind }
-    if (binding.kind !== 'bound' || binding.tenant !== action.tenant) return { kind: 'refused' }
+    if (binding.kind !== 'bound' || !tenantEquals(binding.tenant, action.tenant))
+      return { kind: 'refused' }
     const facts = await replayFacts.stepCommittedBlocks(action.scope, action.through)
     if (facts.kind !== 'known') return { kind: facts.kind }
     const restored = new Set<ContextBlockKey>(

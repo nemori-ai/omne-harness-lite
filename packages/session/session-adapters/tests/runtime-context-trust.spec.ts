@@ -257,6 +257,28 @@ describe('cross-tenant scope bindings are refused before any holder fact is read
     expect(h.asked).toEqual([])
   })
 
+  it('compares tenants by value: one tenant parsed twice reaches the coverage check', async () => {
+    const parsed = () => {
+      const result = tenantCodec.parse(
+        JSON.stringify({
+          organization: 'org_00000000000000000000000000',
+          account: 'acc_00000000000000000000000000',
+        }),
+      )
+      if (!result.ok) throw new Error('Invalid fixture tenant')
+      return result.value
+    }
+    const bound = parsed()
+    const asked = parsed()
+    expect(bound).not.toBe(asked)
+    const h = holder({ kind: 'known', keys: ['suite.a'] })
+    h.ports.bind(target, bound)
+    expect(
+      await h.trust.authority.holder(principal, { ...finish(material([])), tenant: asked }),
+    ).toEqual({ kind: 'invalid', reason: 'replay-incomplete' })
+    expect(h.asked).toHaveLength(1)
+  })
+
   it('refuses a scope that is not bound', async () => {
     const h = holder()
     h.ports.answerBinding(target, { kind: 'unbound' })

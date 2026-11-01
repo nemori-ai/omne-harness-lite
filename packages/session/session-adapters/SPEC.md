@@ -272,6 +272,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
    - 持有者、生产者、读者的每次调用，在第一次 await 之前调用 `capture()`，再问原 authority，答复保留原分支。授权答复的 `current()` 取原 `current()` 与已捕获视图的合取。`bindings` 原样交出，不缓存答复，未知不读作未绑定。
    - 它自己的一项核对是完成恢复的覆盖。原 authority 授权 `finish-replay` 之后，先问可信绑定：作用域未指派给动作的租户时答 `refused`，绑定不可用或未知时答同样的 `unavailable` 或 `unknown`，且不读持有者事实。然后 `replayFacts.stepCommittedBlocks` 给出该作用域在 `through` 之前已有步提交的最终 checkpointed 块。材料遗漏其中任一块，答 `invalid`（`replay-incomplete`）。已注册而没有步提交的块不在答复中，缺席不算遗漏。事实读不到时答 `unavailable` 或 `unknown`，不当作覆盖完整。授权答复在读取期间已失效时，原样返回，不披露覆盖结论。
    - `current` 与 `replayFacts` 的真实提供者归装配与本成员的恢复接线。没有同步失效来源的缺口仍归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)，本函数不补这个保证。
+   - 契约套件的按面性质（工作资格撤销不使生产者答复失效，请求登记代次不使持有者答复失效）要求桥按面区分。`capture()` 不带面参数，所以满足套件的接线是每个面各配一个桥，即为持有者、生产者、读者各建一个工厂实例，各用只观察该面所依赖来源的桥。单个不分面的桥会使其余面的答复过早失效。让桥带面参数要改契约的夹具与 `RuntimeContextCurrentBridge`，归契约拥有者。
 
 2. <a id="ad-03-1b"></a>保留上一份快照（1b）。本插件为每个读者保留上一份已按资格过滤的快照：值与摘要。它是 `diffForReminder` 的前值来源。它是可丢派生物，只在进程内保存。丢失时，下一次读取按完整快照处理，第一份变化材料不带前值，本插件不补造提醒。
 3. <a id="ad-03-1c"></a>补拉的上界（1c）。唤醒只加速补拉。本插件在两个时点必须补拉：
