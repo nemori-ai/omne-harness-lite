@@ -6,7 +6,7 @@
 
 本页依据 S0 私有应用实施规格 r2（#1001 的输入，见 #991 的采用记录）。它只覆盖 S0 模式。规格状态是候选实施输入，不是已接受的产品承诺。正式服务定义未接受，S0 只用私有服务键 `s0.<名>`。
 
-本页的每条行为都标出实现状态。当前提交只有冻结类型 `src/types.ts` 和成员文档。装载器、就绪、关闭协调器和进程入口分别由其他 S0 子闭包实现。没有实现的行为是目标，不是已有能力。
+装载器、就绪、行快照差分、关闭协调器和进程入口 `dist/bin.js` 已经实现，`./cordis` 只导出 S0 替身插件。本页下列三项是 Reduce 对 #1001 实现评审的裁定，代码由卡树另一位写者修改：启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置。它们在「有序关闭」节标明「裁定，待代码合回」。合回时逐项核对代码与本页。
 
 ## 范围
 
@@ -59,7 +59,51 @@ node apps/harness-server/dist/bin.js s0 --distribution <绝对 JSON 路径> [--o
 - 根上同名提供者与子树提供者并存，两者都 ACTIVE，子树消费者得到子树实现。
 - 同一作用域内第二个同名提供者 FAILED，错误含 `has been registered`，不静默覆盖。
 
-行 id 与受信成员的唯一源是应用装配页。S0 的行快照由脚本从该页抽取，抽取与差分归 S0-C。
+行 id 与受信成员的唯一源是应用装配页。S0 的行快照 `src/s0/aa-rows.json` 由 `scripts/aa-rows.mjs write` 从该页抽取，只能由脚本再生。`scripts/aa-rows.mjs check` 对快照与该页逐字节比较，`tests/aa-rows.spec.ts` 对正式页运行同一检查。
+
+子 fiber 消费的受信名也列入该行的可见集合。这是启动门控的具名例外（N-4）。
+
+下图是插件树与受信子树的可见性。实线表示该行可见这个受信名。根上的行和未列出的行可见集合为空。
+
+```mermaid
+flowchart LR
+  subgraph entry[装配入口：持有每个受信名的私有标签]
+    T1[storage]
+    T2[tenantDomainLookup]
+    T3[sessionPrincipalBindings]
+    T4[sessionWorkPrincipals]
+    T5[principalIssuer]
+    T6[definitionMappings]
+    T7[runtimeContextTrust]
+    T8[requestContextTrust]
+  end
+  subgraph tree[插件树的行]
+    R1[storage、identity]
+    R2[session-storage]
+    R3[agent-journal]
+    R4[session-provider]
+    R5[agent-adoptions、adoption-sources]
+    R6[server-entry]
+    R7[runtime-context]
+    R8[request-context]
+  end
+  root[根上的插件体：未列出的行与运维者插入的行]
+  T1 --> R1
+  T1 --> R2
+  T2 --> R2
+  T3 --> R2
+  T1 --> R3
+  T2 --> R3
+  T4 --> R4
+  T6 --> R5
+  T5 --> R6
+  T6 --> R6
+  T7 --> R7
+  T8 --> R8
+  root -. 按名取得得到 undefined .-> T1
+```
+
+图只示意可见性。精确的行与名对应以应用装配页的受信子树表为准。
 
 ## 就绪与诊断
 
@@ -75,25 +119,28 @@ node apps/harness-server/dist/bin.js s0 --distribution <绝对 JSON 路径> [--o
 
 stdout 每行一条 JSON 记录：
 
-| 记录 | 字段 |
-| --- | --- |
-| `tree` | 每行：`id`、`plugin`、`source`、`configSource`、`visible`（受信名）、`visibleSource: 'release-code'`、`implementation: 's0-double'`。装载前完整输出 |
-| `row-state` | `RowState` 的全部字段 |
-| `startup-result` | `profile: 's0'`、`scope: 'loader-only'`、`accepting: false`、启用行数、`outcome` |
-| `shutdown-step` | 序号、阶段、行 id、动作 |
-| `shutdown-result` | `ShutdownReport` |
+| 记录              | 字段                                                                                                                                                                                                           |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tree`            | 启用行：`id`、`plugin`、`source`、`configSource`、`visible`（受信名）、`visibleSource: 'release-code'`、`implementation: 's0-double'`。运维者停用的行：`id`、`disabled: true`、`source`。装载前完整输出        |
+| `row-state`       | `RowState` 的全部字段。先于 `startup-result` 输出                                                                                                                                                              |
+| `startup-result`  | `profile: 's0'`、`scope: 'loader-only'`、`accepting: false`、`enabledRows`（启用行数）、`outcome`、`barrierCalls`（barrier 调用次数）、`startedRows`（已调用 `start` 的行）、`appliedRows`（插件体已运行的行） |
+| `shutdown-step`   | 序号、阶段、行 id、动作                                                                                                                                                                                        |
+| `shutdown-result` | `ShutdownReport`                                                                                                                                                                                               |
 
-进程在输出 `startup-result` 之后自动发起计划停止。
+进程在输出 `startup-result` 之后自动发起计划停止。装载前拒绝的诊断写 stderr，stdout 只有 `tree` 记录。
 
-| 退出码 | 含义 |
-| --- | --- |
-| 0 | 启动全部 ACTIVE 且关闭 settled |
-| 2 | 配置、解析或装载前检查失败 |
-| 3 | 至少一行 FAILED |
-| 4 | 仍有 PENDING 或未完成 LOADING |
-| 5 | 启动为 0 但关闭 incomplete |
+| 退出码 | 含义                                                                              |
+| ------ | --------------------------------------------------------------------------------- |
+| 0      | 启动全部 ACTIVE 且关闭 settled                                                    |
+| 1      | 未预期的内部错误，stderr 写 `s0: internal error: ...`                             |
+| 2      | 配置、解析或装载前检查失败，也含用法错误：参数缺失、路径不是绝对路径、JSON 读不出 |
+| 3      | 至少一行 FAILED                                                                   |
+| 4      | 仍有 PENDING 或未完成 LOADING                                                     |
+| 5      | 启动码为 0 但关闭 incomplete                                                      |
 
-启动码非零时取启动码。
+启动码非零时取启动码。启动期 `start` 抛出时的退出码见「有序关闭」节的裁定 3。
+
+用法错误时，stderr 写 `s0: <原因>`，再写一行用法：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。
 
 ## 有序关闭
 
@@ -105,7 +152,7 @@ stdout 每行一条 JSON 记录：
 
 **步骤。**
 
-1. 收到计划停止请求后进入停止状态。再次请求返回同一个结果，不再次调用任何句柄。此后不调用新的 `start`。
+1. 收到计划停止请求后进入停止状态。再次请求返回同一个结果，不再次调用任何句柄。此后不调用新的 `start`，规则见下面的「启动与停止状态」。
 2. 计算截止时间 D：当前单调时钟加配置的 `shutdownDeadlineMs`。全部阶段共用 D。
 3. `entry` 阶段：并发调用全部 `entry` 句柄的 `stop(D)`，等全部结束。接入停止接收新请求，结算在途请求与观察流。
 4. `business` 阶段：并发调用全部 `business` 句柄的 `stop(D)`，等全部结束。各业务的停止准入、交接与等待真实结果的语义归各自拥有者。业务交接未决时，句柄返回 `incomplete`，原责任与可查询状态保留在耐久事实中。
@@ -117,17 +164,55 @@ stdout 每行一条 JSON 记录：
 
 **阶段规则。**一个阶段的全部句柄结束或到达 D 之后，才开始下一阶段。到达 D 时未结束的句柄记为 `incomplete`，协调者继续下一阶段，不等它。句柄抛出时记为 `failed`，继续下一阶段。报告确定后才结束的句柄只写诊断，不改变报告。协调者不关闭任何业务连接，不回滚提交；SQL 连接与 Worker 只由 SQL 提供者在第 6 步关闭。
 
+**启动与停止状态（裁定，待代码合回）。**
+
+1. 启动次序：阶段之间按关闭次序的逆序，即 `storage`、`composition`、`business`、`entry`。同一阶段内按登记次序。上文「登记」一节与规格 §5.2 所说的「登记次序」按这句理解。
+2. 进入停止状态后，不再调用任何新的 `start`，包括启动尚未走完的时候。每个阶段开始前、每个句柄的 `start` 调用前，都检查停止状态。
+3. 启动期某个 `start` 抛出时，进入停止状态，走整套有序关闭，共用截止时间 D。已启动的句柄按关闭次序停止。最终报告把该句柄记为 `failed`，最后撤除根。`startup-result` 写启动失败。退出码是启动失败对应的退出码。若现有映射没有对应码，则为 3。合回时以代码写者交回的为准，并回头核对本页。
+
 **结果。**整体 `incomplete` 时，进程不能报告平滑退出成功。下次启动时，未决工作由原拥有者按原身份查询与认回。
 
 **已知限制。**单实例部署。跨进程 writer 排除不由本协议提供。
 
-实现要点：S0 用私有服务键 `s0.assemblyLifecycle`。正式定义归 kernel-basis，接受后迁移并删除私有定义。关闭协调器的时钟可注入。每次句柄调用与报告确定各写一条带单调序号的 `shutdown-step` 记录。
+实现要点：S0 用私有服务键 `s0.assemblyLifecycle`，见「偏离登记」。关闭协调器的时钟可注入。每次句柄调用与报告确定各写一条带单调序号的 `shutdown-step` 记录。
+
+下图是关闭的四个阶段，对应上面的步骤 2 至 9。
+
+```mermaid
+sequenceDiagram
+  participant R as 停止请求
+  participant C as 协调者
+  participant E as entry 句柄
+  participant B as business 句柄
+  participant P as composition 句柄
+  participant S as storage 句柄
+  R->>C: 步骤 1 进入停止状态
+  Note over C: 步骤 2 D = 单调时钟 + shutdownDeadlineMs，全部阶段共用
+  C->>E: 步骤 3 并发 stop(D)
+  E-->>C: 全部结束或到达 D
+  C->>B: 步骤 4 并发 stop(D)
+  B-->>C: 全部结束或到达 D
+  C->>P: 步骤 5 stop(D)
+  P-->>C: 会话存储组合关闭结果
+  C->>S: 步骤 6 stop(D)，即 close({ deadlineMonotonicMs: D })
+  S-->>C: SQL 关闭报告
+  Note over C: 步骤 7 报告确定，之后不再修改
+  C->>S: 步骤 8 assemblyReportSettled()
+  Note over C: 步骤 9 撤除 Cordis 根，结果只进诊断
+```
 
 ## 已知限制
 
 - 正式服务定义（`definitionMappings`、`tenantDomainLookup`、`sessionWorkPrincipals`、`sessionPrincipalBindings`、`assemblyLifecycle`）未接受。S0 只用私有键。
-- 暂停项（inbox、owner 解析器）不在 S0 中出现为服务。
+- `PrincipalIssuerService` 由 #992 交付（N-5）。#992 合回之前，只在测试里使用测试自己的定义。
+- 签发者的寿命与根进程相同，没有「绑定 identity 行」的条件分支（N-6）。
+- 暂停项（inbox、owner 解析器）不在 S0 中出现为服务。解析器交出接收方；推送资格由接收组件核验。（N-9）
 - 生产插件 ABI、身份与授权、存储、真实回复和真实业务交接，都不由 S0 证明。
 - 同进程反射遍历 `ctx.reflect.store` 可取得受信实例。这是 kernel-basis 已记录的非保证。S0 不测试它，也不宣称阻止它。
 - 生产 Node 版本与服务模式的停止触发方式由后继任务固定。
-- 本页除类型外的行为在当前提交尚未实现，见「采用状态」。
+- 「有序关闭」节标明「裁定，待代码合回」的三项，在代码合回前是目标，不是已有行为。
+
+## 偏离登记
+
+- IC-3：私有服务键 `s0.assemblyLifecycle` 与服务类 `S0AssemblyLifecycleService`，`@owner apps/harness-server`。待 kernel-basis 的正式定义被接受后迁移，并删除这个私有定义（规格 §9 末段）。
+- `StubService` 使用动态服务键，只在 S0 替身内部使用，不对外导出。
