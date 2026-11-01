@@ -1364,7 +1364,7 @@ async function foreignPrefix<P>(
  * The reply admission cases. `covered` is false when the fixture gives no `replyAdmissions`
  * controls; the cases that need them are then uncovered.
  */
-export function replyAdmissionCases<P>(
+function replyAdmissionCases<P>(
   fixture: AgentJournalCoreFixture<P>,
   covered: boolean,
 ): readonly ConformanceCase[] {
