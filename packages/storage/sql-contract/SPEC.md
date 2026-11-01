@@ -52,8 +52,8 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 | --- | --- | --- |
 | `packages/storage/sql-contract` | `.` | 词汇类型、`SqlStorage`、材料与清单类型、三个纯函数、关闭控制口与宿主接口、目录形状。不导入 Cordis（IC-4）。 |
 | 同上 | `./worker` | Worker 内的模块与端口接口、`SqlValue`、`QueryRows`。不导入 Cordis。 |
-| 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）与 `Context` 增补。 |
-| 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）。 |
+| 同上 | `./cordis` | `StorageService`、`StorageHostService`、`TenantDomainsService`（依赖 Context r3）、`TenantDomainLookupService` 与 `Context` 增补。 |
+| 同上 | `./testing` | 内存替身与 `runSqlStorageConformance`（§16）；目录查找的替身与 `runTenantDomainLookupConformance`（§2.4）。 |
 | `packages/storage/sqlite-provider` | `.`、`./cordis` | 见 [sqlite-provider 规格](../sqlite-provider/SPEC.md)。 |
 
 成员名表达契约种类与后端（IC-7）。根接口名 `SqlStorage` 属于 sql-contract，表达同一契约种类。服务键表达能力，是 `storage`。
@@ -76,7 +76,9 @@ SQL r2 在 S1 之上改变或闭合的条款，按 SQL r2 第 19.1 节的提案�
 
 #### §2.4 租户域目录（依赖 Context r3）
 
-按 Reduce 依 IC-1 的裁定，目录形状（`TenantDomain`、`TenantDomainAccess`、`TenantDomains<P>` 等）由 sql-contract 根唯一声明。`TenantDomainsService<P>`（键 `tenantDomains`，只有 `enumerate`）放在 sql-contract 的 `./cordis`。目录的实现与目录文件归应用的会话存储组合。SQL 提供者不实现目录，也不读目录文件。Context r3 若把定义移走，本节与公开形状同批修改，SQL 操作语义不变。
+按 Reduce 依 IC-1 的裁定，目录形状（`TenantDomain`、`TenantDomainAccess`、`TenantDomains<P>` 等）由 sql-contract 根唯一声明。`TenantDomainsService<P>`（键 `tenantDomains`，只有 `enumerate`）放在 sql-contract 的 `./cordis`。目录的实现与目录文件归应用的会话存储组合。SQL 提供者不实现目录，也不读目录文件。
+
+`TenantDomainLookup`（键 `tenantDomainLookup`，只有 `lookup`，`TenantDomainLookupService` 在 `./cordis`）是目录已发布快照的只读查找，即 `TenantDomainAccess.snapshot()` 的投影。已登记的租户答 `ready` 与其事务域。快照里没有的租户答 `unregistered`。快照不可读时答 `unavailable`，不答 `unregistered`。查找不调用 `resolve`，不登记、不迁移，也不写目录。会话存储组合在受信存储子树内提供它，写共同提交的行（`agent-journal`）注入它；收到 `unregistered` 时不写入。`./testing` 的 `createMemoryTenantDomainLookup` 按显式的已发布条目答复，`runTenantDomainLookupConformance` 是它的符合性套件。Context r3 若把定义移走，本节与公开形状同批修改，SQL 操作语义不变。
 
 #### §2.5 共同规则
 
@@ -489,7 +491,7 @@ Session 采用响应证据后，删除事务外重算的正常退路。R7 的操
 | 2 | `static readonly provide`；提供者继承，不再 provide | 重复 provide 失败（basis `service-subclass-provides-its-key`） |
 | 4、5 | 两个成员的根不导入 Cordis；领域适配只消费 sql-contract | 源码、声明与产物检查 |
 | 6、18 | 一个 isolate 一个 `storage` 提供者；作用域显式，空租户不是系统作用域；注入不是授权 | 另一租户的相同操作键不认回也不冲突（basis `isolate-hides-instances-not-data`） |
-| 7 | 键 `storage`、`storageHost`、`tenantDomains` 表达能力 | 没有以实现命名的键 |
+| 7 | 键 `storage`、`storageHost`、`tenantDomains`、`tenantDomainLookup` 表达能力 | 没有以实现命名的键 |
 | 9–12 | 不新增公开事件。结果拥有者先收下持久回执，再做可能失败的通知 | 通知失败不改变提交结果 |
 
 ### §17 消费者路由

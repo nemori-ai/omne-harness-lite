@@ -6,3 +6,5 @@
 - [cordis.ts](cordis.ts)：`./cordis` 入口，导出抽象 Service 定义、键、Context 与 Events 增补。
 - [converters.ts](converters.ts)：转换目录 `ModelConvertersService`，定义自有的具体 Service。
 - [instances.ts](instances.ts)：实例目录 `ModelInstancesService`，定义自有的具体 Service。
+- [receivers.ts](receivers.ts)：结果接收登记表 `ModelResultReceiverTable`，`ModelRuntimeService.registerResultReceiver` 的后端；由 cordis.ts 转出。
+- [testing/index.ts](testing/index.ts)：`./testing` 入口，只实现登记的替身 `modelRuntime` 宿主与符合性用例。
