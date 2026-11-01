@@ -181,6 +181,19 @@ Project 字段的唯一源与写者见[字段总表](#字段总表)。
 1. carry 在卡上发的流转评论说明原因。
 2. 正文单写者在这张卡的下一次 revision 中，把 binding 的 `milestone` 改为当前里程碑。漂移随之消失。
 
+#### 契约变更的语义复核
+
+`omne-contract-api` 把无法证明可加的改动分为 `review`。`review` 不是契约级别。它需要人判断这个改动是否可加。已采用的复核通路让这项人的判断承接 `review`，原始分类和退出码仍然可见。
+
+1. 复核记录是载体评论中的 `json omne-api-semantic-review:v1` 围栏。记录有 `attest`、`delegate` 和 `revoke` 三种。载体在卡级是本卡，在提升级是 `--review-issue` 指定的所含卡，在里程碑累计级是 baseline 卡。
+2. 记录只对一个精确范围有效：成员、比较两侧的提交、快照、工具版本、binding 和 owner 身份都进入比较描述。任一项变化，旧记录失效。卡级、提升级和累计级各自匹配，互不授权。
+3. 有权作结论的人，是目标提交中 `delivery-lines.json` 的 `contracts` 精确包含该成员的唯一一条线的 owner。owner 还须是当前 `publish` environment 的 reviewer，并且是评论作者。owner 可以对一次精确内容委派一个人。被委派者同样须是 reviewer，不能再委派。
+4. owner 的稳定身份（login 与 node ID）登记在 `docs/engineering/api-review-owners.json`，每条带负责人采用该映射的评论。这个文件只拥有本机制的身份事实，不是授权表。`delivery-lines.json` 仍然唯一拥有线、契约成员和 owner 责任。`check:lines` 核对两份文件的 owner login 一致。
+5. 有效的 `additive` 结论使 `review` 成员的工程级别为 `additive`。有效的 `breaking` 结论仍走既有的 breaking 路径。来源、权限、快照或成员集合不完整时，一律拒绝，不退回较宽松的结果。
+6. 没有记录的卡、提升和里程碑，行为不变。
+
+身份文件的新增、改动与删除都是治理改动。它们经个人分支 PR 进入轨道，由 `publish` 的确认者按[现行准入](integration.md#现行准入)核对采用评论。精确条款与命令见 [dev-flow 的交付说明](../../tools/dev-flow/src/delivery/README.md#契约变更的语义复核)和[分支集成工具](../../tools/dev-flow/src/integration/README.md#api-语义复核)。命令参数 `--review-issue`、`--semantic-review` 与子命令 `verify-owner-adoption` 的用法在那里。
+
 ## 3. 条件、关系与解锁
 
 Issue条件表是依赖语义唯一源，每项有稳定条件ID、类型、目标、阻塞阶段、所需结果／满足判据、确认责任与证据入口。排序是Priority或建议，不是硬依赖；父子仅分解。阻塞阶段为start、integration、acceptance。各阶段启动前读取自己的条件；进行中的卡可被integration阻塞而继续不依赖它的部分。
