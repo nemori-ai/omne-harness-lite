@@ -54,9 +54,9 @@
 所有限额都由调用方给出，本包不设默认值：
 
 - 网络资源：`maxConnections`（容量，即同时在途的交换数；连接池本身不设套接字上限）、`idleConnectionTimeoutMs`（池中空闲连接的关闭时限）、可选的 `tls.ca`、可选的 `proxy`（`url` 与 `bypass`），以及可选的诊断观察者与 `maxPending`。本包不读取 `HTTPS_PROXY` 或 `NO_PROXY`，由调用方在边界把环境映射为 `proxy`。
-- 每次交换：`connectTimeoutMs`（从发起到取得已连接的套接字，复用的连接在下一个 tick 结束，`null` 表示不设）与 `maxErrorBodyBytes`。
+- 每次交换：`connectTimeoutMs`（从发起到取得已连接的套接字，复用的连接在下一个 tick 结束，`null` 表示不设）、`maxErrorBodyBytes` 与可选的 `streamStallTimeoutMs`。`streamStallTimeoutMs` 是两次收到响应字节的最长间隔：从发起开始计时，每收到任意响应字节（含 SSE 注释行）重新计时，缺省表示不设。到期时发送以 `failed` 收场：响应头之前是 `upstream-unavailable`，之后是 `stream-lost`，诊断名都是 `stream-stall`。见 [SPEC“流停顿上界”](SPEC.md#流停顿上界)。
 - SSE 分帧：`maxEventBytes`。协议帧：`endMarker` 与 JSON 限额。
-- 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个接收方的 `url` 与 `endMarker`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与 `json`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。
+- 三段传输：`network`（装配创建并关闭的网络资源）、`families`、`routes`（每个接收方的 `url` 与 `endMarker`）、`credential`（凭据槽），以及 `limits`（`connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes`、`json` 与可选的 `streamStallTimeoutMs`）。配置不合规时 `createPiTransport` 同步抛出 `RangeError`。
 - 每个计时值最多 2147483647 毫秒，即 Node 定时器接受的最大延迟。
 
 调用方的责任见 [SPEC“调用方责任”](SPEC.md#调用方责任)。

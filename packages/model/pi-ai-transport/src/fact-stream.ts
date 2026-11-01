@@ -9,7 +9,12 @@ import type {
 import type { CheckedRoute, PiTransportLimits } from './config.ts'
 import type { PiResponseDecoder } from './family.ts'
 import { readProtocolFrames } from './frames.ts'
-import { ResponseBodyReadError, ResponseBodyStoppedError, type HttpExchange } from './http.ts'
+import {
+  ResponseBodyReadError,
+  ResponseBodyStalledError,
+  ResponseBodyStoppedError,
+  type HttpExchange,
+} from './http.ts'
 import { closeSourceOnEarlyEnd } from './iteration.ts'
 import { readSseEvents, SseProtocolError } from './sse.ts'
 import { terminationOf, type SendEnd } from './termination.ts'
@@ -76,6 +81,8 @@ async function* decodeSend(
       return { kind: 'stopped' }
     case 'connect-failed':
       return { kind: 'connect-failed', timeout: result.timeout }
+    case 'stalled':
+      return STALLED_BEFORE_RESPONSE
     case 'http-error':
       return { kind: 'http-error', status: result.status }
     case 'ok':
@@ -160,6 +167,7 @@ async function* readBody(
     }
   } catch (error) {
     if (error instanceof ResponseBodyStoppedError) return { kind: 'stopped' }
+    if (error instanceof ResponseBodyStalledError) return STALLED_AFTER_RESPONSE
     if (error instanceof ResponseBodyReadError) return { kind: 'body-lost' }
     if (error instanceof SseProtocolError) return { kind: 'sse-failed', reason: error.reason }
     throw error
@@ -198,6 +206,27 @@ async function* passFacts(
   }
   return null
 }
+
+/**
+ * The stream stall timeout fired. The send fails with an existing cause and the diagnostic
+ * `stream-stall`: before the response head the other side was unavailable; after it the stream was
+ * lost. `SendEnd` has no stall variant and `terminationOf` gives a fault as it is, so the fault
+ * travels as the `decoder-fault` end; a body stall still goes through the decoder's `end()` so that
+ * the usage received so far is kept.
+ */
+const STALLED_BEFORE_RESPONSE: SendEnd = Object.freeze({
+  kind: 'decoder-fault',
+  fault: Object.freeze({
+    cause: 'upstream-unavailable',
+    diagnostic: 'stream-stall',
+    upstreamStatus: null,
+  }),
+})
+
+const STALLED_AFTER_RESPONSE: SendEnd = Object.freeze({
+  kind: 'decoder-fault',
+  fault: Object.freeze({ cause: 'stream-lost', diagnostic: 'stream-stall', upstreamStatus: null }),
+})
 
 const SECOND_TERMINATION: ModelFault = Object.freeze({
   cause: 'upstream-protocol',
