@@ -16,16 +16,16 @@
 
 ## 本包事实
 
-| 文件                           | 义务                                   | 层                              |
-| ------------------------------ | -------------------------------------- | ------------------------------- |
-| `operations-contract.spec.ts`  | R4-1：identity 契约套件，两组配置      | 慢：每个用例起新的存储与 Worker |
-| `restart.spec.ts`              | R4-2：两个子进程共用一个存储根         | 慢：起子进程                    |
-| `credential-storage.spec.ts`   | R4-3：数据库文件与输出里没有凭据与凭证 | 快                              |
-| `register-transaction.spec.ts` | R4-4：单事务回滚、结果未知、输入上界   | 快                              |
-| `standing.spec.ts`             | R4-5：读口不区分未知租户与非成员       | 快                              |
-| `stopped.spec.ts`              | SPEC IS-07：停止后的答复与在途调用     | 快                              |
-| `scrypt-mapping.spec.ts`       | SPEC IS-04：scrypt 拒绝的映射与假材料  | 快                              |
-| `public-entry.spec.ts`         | 两个入口的导出、材料、组合与配置校验   | 快                              |
-| `cordis-entry.spec.ts`         | 插件：非法配置、两键、系统时钟、撤除   | 快加一条慢用例                  |
+| 文件                           | 义务                                                           | 层                              |
+| ------------------------------ | -------------------------------------------------------------- | ------------------------------- |
+| `operations-contract.spec.ts`  | R4-1：identity 契约套件，两组配置                              | 慢：每个用例起新的存储与 Worker |
+| `restart.spec.ts`              | R4-2：两个子进程共用一个存储根                                 | 慢：起子进程                    |
+| `credential-storage.spec.ts`   | R4-3：数据库文件与输出里没有凭据与凭证                         | 快                              |
+| `register-transaction.spec.ts` | R4-4：单事务回滚、结果未知、输入上界                           | 快                              |
+| `standing.spec.ts`             | R4-5：读口不区分未知租户与非成员                               | 快                              |
+| `stopped.spec.ts`              | SPEC IS-07：停止后的答复与在途调用                             | 快                              |
+| `scrypt-mapping.spec.ts`       | SPEC IS-04：scrypt 拒绝的映射与假材料                          | 快                              |
+| `public-entry.spec.ts`         | 两个入口的导出、材料、组合与配置校验                           | 快                              |
+| `cordis-entry.spec.ts`         | 插件：非法配置、缺时钟 PENDING、两键、注入时钟与截止时刻、撤除 | 快加一条慢用例                  |
 
 未覆盖：应用层贯通、多进程并发、闰秒、时序侧信道。负责人是本成员的写者。

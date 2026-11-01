@@ -16,4 +16,4 @@ TypeScript 源码。公开入口由 `package.json` 的 `exports` 声明。
 
 ## 本包事实
 
-主线程：`index.ts`、`cordis.ts`、`provider.ts`、`materials.ts`、`config.ts`、`clock.ts`、`deadline.ts`、`identifiers.ts`。Worker：`worker/schema.ts`、`worker/support.ts`、`worker/migration.ts`、`worker/participant.ts`、`worker/read-issue-basis.ts`、`worker/read-login-by-proof.ts`、`worker/read-standing.ts`。负责人是本成员的写者，当前没有缺口。
+主线程：`index.ts`、`cordis.ts`、`provider.ts`、`materials.ts`、`config.ts`、`deadline.ts`、`identifiers.ts`。时钟不在本目录：它经 `identityClock` 服务键注入。Worker：`worker/schema.ts`、`worker/support.ts`、`worker/migration.ts`、`worker/participant.ts`、`worker/read-issue-basis.ts`、`worker/read-login-by-proof.ts`、`worker/read-standing.ts`。负责人是本成员的写者，当前没有缺口。
