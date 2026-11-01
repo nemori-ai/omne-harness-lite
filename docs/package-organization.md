@@ -98,6 +98,7 @@ packages/
 ├── identity/
 │   ├── identity/               主体、成员、登录与组织关系
 │   ├── authorization/          授权及共同动作准入
+│   ├── identity-sql/           身份契约的持久提供者：账号、成员与登录的 SQL 存储
 │   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
