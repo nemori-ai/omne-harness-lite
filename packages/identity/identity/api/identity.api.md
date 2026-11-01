@@ -85,478 +85,368 @@
 ## 声明文件 `cordis.d.ts`
 
 ```ts
-import { type Context, Service } from '@deepseek-ai/cordis'
-import type { IdentityClock, IdentityOperations } from './operations.ts'
-import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts'
-import type { TenantStandingSource } from './standing.ts'
-export declare abstract class IdentityOperationsService
-  extends Service
-  implements IdentityOperations
-{
-  static readonly provide = 'identityOperations'
-  constructor(ctx: Context)
-  abstract readonly registerAndActivate: IdentityOperations['registerAndActivate']
-  abstract readonly issueLogin: IdentityOperations['issueLogin']
-  abstract readonly recognizeLogin: IdentityOperations['recognizeLogin']
+import { type Context, Service } from '@deepseek-ai/cordis';
+import type { IdentityClock, IdentityOperations } from './operations.ts';
+import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts';
+import type { TenantStandingSource } from './standing.ts';
+export declare abstract class IdentityOperationsService extends Service implements IdentityOperations {
+    static readonly provide = "identityOperations";
+    constructor(ctx: Context);
+    abstract readonly registerAndActivate: IdentityOperations['registerAndActivate'];
+    abstract readonly issueLogin: IdentityOperations['issueLogin'];
+    abstract readonly recognizeLogin: IdentityOperations['recognizeLogin'];
 }
-export declare const identityOperationsKey = 'identityOperations'
-export declare abstract class TenantStandingSourceService
-  extends Service
-  implements TenantStandingSource
-{
-  static readonly provide = 'tenantStanding'
-  constructor(ctx: Context)
-  abstract readonly read: TenantStandingSource['read']
+export declare const identityOperationsKey = "identityOperations";
+export declare abstract class TenantStandingSourceService extends Service implements TenantStandingSource {
+    static readonly provide = "tenantStanding";
+    constructor(ctx: Context);
+    abstract readonly read: TenantStandingSource['read'];
 }
-export declare const tenantStandingKey = 'tenantStanding'
-export declare abstract class PrincipalVerifierService
-  extends Service
-  implements PrincipalVerifier
-{
-  static readonly provide = 'principalVerifier'
-  constructor(ctx: Context)
-  abstract readonly verify: PrincipalVerifier['verify']
+export declare const tenantStandingKey = "tenantStanding";
+export declare abstract class PrincipalVerifierService extends Service implements PrincipalVerifier {
+    static readonly provide = "principalVerifier";
+    constructor(ctx: Context);
+    abstract readonly verify: PrincipalVerifier['verify'];
 }
-export declare const principalVerifierKey = 'principalVerifier'
+export declare const principalVerifierKey = "principalVerifier";
 export declare abstract class PrincipalIssuerService extends Service implements PrincipalIssuer {
-  static readonly provide = 'principalIssuer'
-  constructor(ctx: Context)
-  abstract readonly issueSystem: PrincipalIssuer['issueSystem']
-  abstract readonly issueActingForTenant: PrincipalIssuer['issueActingForTenant']
+    static readonly provide = "principalIssuer";
+    constructor(ctx: Context);
+    abstract readonly issueSystem: PrincipalIssuer['issueSystem'];
+    abstract readonly issueActingForTenant: PrincipalIssuer['issueActingForTenant'];
 }
-export declare const principalIssuerKey = 'principalIssuer'
+export declare const principalIssuerKey = "principalIssuer";
 export declare abstract class IdentityClockService extends Service implements IdentityClock {
-  static readonly provide = 'identityClock'
-  constructor(ctx: Context)
-  abstract readonly now: IdentityClock['now']
+    static readonly provide = "identityClock";
+    constructor(ctx: Context);
+    abstract readonly now: IdentityClock['now'];
 }
-export declare const identityClockKey = 'identityClock'
+export declare const identityClockKey = "identityClock";
 declare module '@deepseek-ai/cordis' {
-  interface Context {
-    identityOperations: IdentityOperationsService
-    tenantStanding: TenantStandingSourceService
-    principalVerifier: PrincipalVerifierService
-    principalIssuer: PrincipalIssuerService
-    identityClock: IdentityClockService
-  }
+    interface Context {
+        identityOperations: IdentityOperationsService;
+        tenantStanding: TenantStandingSourceService;
+        principalVerifier: PrincipalVerifierService;
+        principalIssuer: PrincipalIssuerService;
+        identityClock: IdentityClockService;
+    }
 }
 ```
 
 ## 声明文件 `index.d.ts`
 
 ```ts
-export { inProcessPrincipalAuthority, scopeOf } from './principal.ts'
-export type {
-  ActingForTenantPrincipal,
-  IssueFailure,
-  Principal,
-  PrincipalAuthority,
-  PrincipalIssuer,
-  PrincipalVerification,
-  PrincipalVerifier,
-  SystemPrincipal,
-  WorkRef,
-} from './principal.ts'
-export {
-  DEFAULT_TEAM_MODEL,
-  DEFAULT_TEAM_ROLES,
-  DEFAULT_TEAM_ROLE_MAPPING,
-  QUALIFICATIONS,
-  governanceModelEquals,
-  isQualification,
-  qualificationsOf,
-} from './qualification.ts'
-export type {
-  GovernanceModelRef,
-  Qualification,
-  RoleMapping,
-  RoleQualifications,
-  RoleRef,
-  RoleResolutionFailure,
-} from './qualification.ts'
-export type { StandingEvidence, TenantStandingReading, TenantStandingSource } from './standing.ts'
-export type {
-  ClockReading,
-  IdentityClock,
-  IdentityOperations,
-  IdentityOperationsOptions,
-  IssuedLogin,
-  IssueLoginInput,
-  IssueLoginOutcome,
-  LoginCredentialInput,
-  LoginRecognition,
-  LoginTerms,
-  LoginTermsReading,
-  LoginTermsSource,
-  RecognizeLoginInput,
-  RegisterAndActivateInput,
-  RegisterAndActivateOutcome,
-} from './operations.ts'
+export { inProcessPrincipalAuthority, scopeOf } from './principal.ts';
+export type { ActingForTenantPrincipal, IssueFailure, Principal, PrincipalAuthority, PrincipalIssuer, PrincipalVerification, PrincipalVerifier, SystemPrincipal, WorkRef, } from './principal.ts';
+export { DEFAULT_TEAM_MODEL, DEFAULT_TEAM_ROLES, DEFAULT_TEAM_ROLE_MAPPING, QUALIFICATIONS, governanceModelEquals, isQualification, qualificationsOf, } from './qualification.ts';
+export type { GovernanceModelRef, Qualification, RoleMapping, RoleQualifications, RoleRef, RoleResolutionFailure, } from './qualification.ts';
+export type { StandingEvidence, TenantStandingReading, TenantStandingSource } from './standing.ts';
+export type { ClockReading, IdentityClock, IdentityOperations, IdentityOperationsOptions, IssuedLogin, IssueLoginInput, IssueLoginOutcome, LoginCredentialInput, LoginRecognition, LoginTerms, LoginTermsReading, LoginTermsSource, RecognizeLoginInput, RegisterAndActivateInput, RegisterAndActivateOutcome, } from './operations.ts';
 ```
 
 ## 声明文件 `operations.d.ts`
 
 ```ts
-import type {
-  AccountId,
-  LoginStateId,
-  OrganizationId,
-  TenantId,
-} from '@omne-harness/legal-identity'
-import type { Duration, Instant } from '@omne-harness/utc-instant'
+import type { AccountId, LoginStateId, OrganizationId, TenantId } from '@omne-harness/legal-identity';
+import type { Duration, Instant } from '@omne-harness/utc-instant';
 export type LoginCredentialInput = Readonly<{
-  loginIdentifier: string
-  credential: string
-}>
-export type RegisterAndActivateInput = LoginCredentialInput
-export type RegisterAndActivateOutcome =
-  | Readonly<{
-      kind: 'succeeded'
-      account: AccountId
-      organization: OrganizationId
-      tenant: TenantId
-    }>
-  | Readonly<{
-      kind: 'not-loginable'
-    }>
-export type IssueLoginInput = LoginCredentialInput
+    loginIdentifier: string;
+    credential: string;
+}>;
+export type RegisterAndActivateInput = LoginCredentialInput;
+export type RegisterAndActivateOutcome = Readonly<{
+    kind: 'succeeded';
+    account: AccountId;
+    organization: OrganizationId;
+    tenant: TenantId;
+}> | Readonly<{
+    kind: 'not-loginable';
+}>;
+export type IssueLoginInput = LoginCredentialInput;
 export type IssuedLogin = Readonly<{
-  login: LoginStateId
-  account: AccountId
-  loginIdentifier: string
-  issuedAt: Instant
-  maxDeadline: Instant
-  idleDeadline: Instant
-  tenant: TenantId
-  loginProof: string
-}>
-export type IssueLoginOutcome =
-  | (Readonly<{
-      kind: 'succeeded'
-    }> &
-      IssuedLogin)
-  | Readonly<{
-      kind: 'uniform-auth-failure'
-    }>
-  | Readonly<{
-      kind: 'basis-unavailable'
-      diagnostic: string
-    }>
+    login: LoginStateId;
+    account: AccountId;
+    loginIdentifier: string;
+    issuedAt: Instant;
+    maxDeadline: Instant;
+    idleDeadline: Instant;
+    tenant: TenantId;
+    loginProof: string;
+}>;
+export type IssueLoginOutcome = (Readonly<{
+    kind: 'succeeded';
+}> & IssuedLogin) | Readonly<{
+    kind: 'uniform-auth-failure';
+}> | Readonly<{
+    kind: 'basis-unavailable';
+    diagnostic: string;
+}>;
 export type RecognizeLoginInput = Readonly<{
-  loginProof: string
-}>
-export type LoginRecognition =
-  | Readonly<{
-      kind: 'recognized'
-      account: AccountId
-      login: LoginStateId
-      tenant: TenantId
-    }>
-  | Readonly<{
-      kind: 'invalid'
-    }>
-  | Readonly<{
-      kind: 'basis-unavailable'
-      diagnostic: string
-    }>
+    loginProof: string;
+}>;
+export type LoginRecognition = Readonly<{
+    kind: 'recognized';
+    account: AccountId;
+    login: LoginStateId;
+    tenant: TenantId;
+}> | Readonly<{
+    kind: 'invalid';
+}> | Readonly<{
+    kind: 'basis-unavailable';
+    diagnostic: string;
+}>;
 export interface IdentityOperations {
-  registerAndActivate(input: RegisterAndActivateInput): Promise<RegisterAndActivateOutcome>
-  issueLogin(input: IssueLoginInput): Promise<IssueLoginOutcome>
-  recognizeLogin(input: RecognizeLoginInput): Promise<LoginRecognition>
+    registerAndActivate(input: RegisterAndActivateInput): Promise<RegisterAndActivateOutcome>;
+    issueLogin(input: IssueLoginInput): Promise<IssueLoginOutcome>;
+    recognizeLogin(input: RecognizeLoginInput): Promise<LoginRecognition>;
 }
-export type ClockReading =
-  | Readonly<{
-      kind: 'read'
-      instant: Instant
-    }>
-  | Readonly<{
-      kind: 'unavailable'
-      diagnostic: string
-    }>
+export type ClockReading = Readonly<{
+    kind: 'read';
+    instant: Instant;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface IdentityClock {
-  now(): Promise<ClockReading>
+    now(): Promise<ClockReading>;
 }
 export type LoginTerms = Readonly<{
-  maxLifetime: Duration
-  idlePeriod: Duration
-}>
-export type LoginTermsReading =
-  | Readonly<{
-      kind: 'read'
-      terms: LoginTerms
-    }>
-  | Readonly<{
-      kind: 'unavailable'
-      diagnostic: string
-    }>
+    maxLifetime: Duration;
+    idlePeriod: Duration;
+}>;
+export type LoginTermsReading = Readonly<{
+    kind: 'read';
+    terms: LoginTerms;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface LoginTermsSource {
-  read(): Promise<LoginTermsReading>
+    read(): Promise<LoginTermsReading>;
 }
 export type IdentityOperationsOptions = Readonly<{
-  clock: IdentityClock
-  terms: LoginTermsSource
-}>
+    clock: IdentityClock;
+    terms: LoginTermsSource;
+}>;
 ```
 
 ## 声明文件 `principal.d.ts`
 
 ```ts
-import { type ActingScope, type TenantId } from '@omne-harness/legal-identity'
-import { type Outcome } from '@omne-harness/operation-result'
+import { type ActingScope, type TenantId } from '@omne-harness/legal-identity';
+import { type Outcome } from '@omne-harness/operation-result';
 export type SystemPrincipal = Readonly<{
-  kind: 'system'
-  component: string
-}>
+    kind: 'system';
+    component: string;
+}>;
 export type WorkRef = Readonly<{
-  owner: string
-  work: string
-}>
+    owner: string;
+    work: string;
+}>;
 export type ActingForTenantPrincipal = Readonly<{
-  kind: 'acting-for-tenant'
-  actor: SystemPrincipal
-  tenant: TenantId
-  work: WorkRef
-}>
-export type Principal = SystemPrincipal | ActingForTenantPrincipal
+    kind: 'acting-for-tenant';
+    actor: SystemPrincipal;
+    tenant: TenantId;
+    work: WorkRef;
+}>;
+export type Principal = SystemPrincipal | ActingForTenantPrincipal;
 export type IssueFailure = Readonly<{
-  field: 'component' | 'actor' | 'tenant' | 'work.owner' | 'work.work'
-  reason: 'type' | 'empty' | 'unissued' | 'unminted'
-}>
+    field: 'component' | 'actor' | 'tenant' | 'work.owner' | 'work.work';
+    reason: 'type' | 'empty' | 'unissued' | 'unminted';
+}>;
 export interface PrincipalIssuer {
-  issueSystem(
-    input: Readonly<{
-      component: string
-    }>,
-  ): Outcome<SystemPrincipal, IssueFailure>
-  issueActingForTenant(
-    input: Readonly<{
-      actor: SystemPrincipal
-      tenant: TenantId
-      work: WorkRef
-    }>,
-  ): Outcome<ActingForTenantPrincipal, IssueFailure>
+    issueSystem(input: Readonly<{
+        component: string;
+    }>): Outcome<SystemPrincipal, IssueFailure>;
+    issueActingForTenant(input: Readonly<{
+        actor: SystemPrincipal;
+        tenant: TenantId;
+        work: WorkRef;
+    }>): Outcome<ActingForTenantPrincipal, IssueFailure>;
 }
-export type PrincipalVerification =
-  | Readonly<{
-      kind: 'verified'
-      principal: Principal
-    }>
-  | Readonly<{
-      kind: 'rejected'
-    }>
-  | Readonly<{
-      kind: 'unavailable'
-      diagnostic: string
-    }>
+export type PrincipalVerification = Readonly<{
+    kind: 'verified';
+    principal: Principal;
+}> | Readonly<{
+    kind: 'rejected';
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface PrincipalVerifier {
-  verify(value: unknown): Promise<PrincipalVerification>
+    verify(value: unknown): Promise<PrincipalVerification>;
 }
 export type PrincipalAuthority = Readonly<{
-  issuer: PrincipalIssuer
-  verifier: PrincipalVerifier
-}>
-export declare function scopeOf(principal: Principal): ActingScope
-export declare function inProcessPrincipalAuthority(): PrincipalAuthority
+    issuer: PrincipalIssuer;
+    verifier: PrincipalVerifier;
+}>;
+export declare function scopeOf(principal: Principal): ActingScope;
+export declare function inProcessPrincipalAuthority(): PrincipalAuthority;
 ```
 
 ## 声明文件 `qualification.d.ts`
 
 ```ts
-import { type Outcome } from '@omne-harness/operation-result'
-export declare const QUALIFICATIONS: readonly ['organization-cost-ledger-read']
-export type Qualification = (typeof QUALIFICATIONS)[number]
-export declare function isQualification(value: unknown): value is Qualification
+import { type Outcome } from '@omne-harness/operation-result';
+export declare const QUALIFICATIONS: readonly [
+    "organization-cost-ledger-read"
+];
+export type Qualification = (typeof QUALIFICATIONS)[number];
+export declare function isQualification(value: unknown): value is Qualification;
 export type GovernanceModelRef = Readonly<{
-  model: string
-  revision: string
-}>
+    model: string;
+    revision: string;
+}>;
 export type RoleRef = Readonly<{
-  model: GovernanceModelRef
-  role: string
-}>
+    model: GovernanceModelRef;
+    role: string;
+}>;
 export type RoleQualifications = Readonly<{
-  role: string
-  qualifications: readonly Qualification[]
-}>
+    role: string;
+    qualifications: readonly Qualification[];
+}>;
 export type RoleMapping = Readonly<{
-  model: GovernanceModelRef
-  roles: readonly RoleQualifications[]
-}>
+    model: GovernanceModelRef;
+    roles: readonly RoleQualifications[];
+}>;
 export type RoleResolutionFailure = Readonly<{
-  reason: 'model-mismatch' | 'unknown-role'
-}>
-export declare const DEFAULT_TEAM_MODEL: GovernanceModelRef
+    reason: 'model-mismatch' | 'unknown-role';
+}>;
+export declare const DEFAULT_TEAM_MODEL: GovernanceModelRef;
 export declare const DEFAULT_TEAM_ROLES: Readonly<{
-  readonly superAdmin: 'super-admin'
-  readonly member: 'member'
-}>
-export declare const DEFAULT_TEAM_ROLE_MAPPING: RoleMapping
-export declare function governanceModelEquals(
-  left: GovernanceModelRef,
-  right: GovernanceModelRef,
-): boolean
-export declare function qualificationsOf(
-  mapping: RoleMapping,
-  role: RoleRef,
-): Outcome<readonly Qualification[], RoleResolutionFailure>
+    readonly superAdmin: 'super-admin';
+    readonly member: 'member';
+}>;
+export declare const DEFAULT_TEAM_ROLE_MAPPING: RoleMapping;
+export declare function governanceModelEquals(left: GovernanceModelRef, right: GovernanceModelRef): boolean;
+export declare function qualificationsOf(mapping: RoleMapping, role: RoleRef): Outcome<readonly Qualification[], RoleResolutionFailure>;
 ```
 
 ## 声明文件 `standing.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity'
-import type { Qualification, RoleRef } from './qualification.ts'
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { Qualification, RoleRef } from './qualification.ts';
 export type StandingEvidence = Readonly<{
-  record: string
-  revision: string
-}>
-export type TenantStandingReading =
-  | Readonly<{
-      kind: 'member'
-      role: RoleRef
-      qualifications: readonly Qualification[]
-      evidence: StandingEvidence
-    }>
-  | Readonly<{
-      kind: 'not-member'
-      evidence: StandingEvidence
-    }>
-  | Readonly<{
-      kind: 'unavailable'
-      diagnostic: string
-    }>
+    record: string;
+    revision: string;
+}>;
+export type TenantStandingReading = Readonly<{
+    kind: 'member';
+    role: RoleRef;
+    qualifications: readonly Qualification[];
+    evidence: StandingEvidence;
+}> | Readonly<{
+    kind: 'not-member';
+    evidence: StandingEvidence;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
 export interface TenantStandingSource {
-  read(
-    input: Readonly<{
-      tenant: TenantId
-    }>,
-  ): Promise<TenantStandingReading>
+    read(input: Readonly<{
+        tenant: TenantId;
+    }>): Promise<TenantStandingReading>;
 }
 ```
 
 ## 声明文件 `testing/contract.d.ts`
 
 ```ts
-import { type Duration, type Instant } from '@omne-harness/utc-instant'
-import type {
-  IdentityOperations,
-  IdentityOperationsOptions,
-  LoginCredentialInput,
-} from '../operations.ts'
-import { type RecordStoreFaults } from './controls.ts'
-export type IdentityContractProviderOptions = IdentityOperationsOptions &
-  Readonly<{
-    faults: RecordStoreFaults
-  }>
+import { type Duration, type Instant } from '@omne-harness/utc-instant';
+import type { IdentityOperations, IdentityOperationsOptions, LoginCredentialInput } from '../operations.ts';
+import { type RecordStoreFaults } from './controls.ts';
+export type IdentityContractProviderOptions = IdentityOperationsOptions & Readonly<{
+    faults: RecordStoreFaults;
+}>;
 export interface IdentityContractFixture {
-  create(options: IdentityContractProviderOptions): IdentityOperations | Promise<IdentityOperations>
-  injectsRecordFaults?: boolean
-  registerWithoutActivation?(
-    operations: IdentityOperations,
-    input: LoginCredentialInput,
-  ): Promise<void>
+    create(options: IdentityContractProviderOptions): IdentityOperations | Promise<IdentityOperations>;
+    injectsRecordFaults?: boolean;
+    registerWithoutActivation?(operations: IdentityOperations, input: LoginCredentialInput): Promise<void>;
 }
 export type IdentityContractOptions = Readonly<{
-  start: Instant
-  short: Duration
-  long: Duration
-}>
+    start: Instant;
+    short: Duration;
+    long: Duration;
+}>;
 export type IdentityContractCaseResult = Readonly<{
-  id: string
-  rule: string
-  status: 'passed' | 'failed' | 'not-applicable'
-  detail?: string
-}>
+    id: string;
+    rule: string;
+    status: 'passed' | 'failed' | 'not-applicable';
+    detail?: string;
+}>;
 export type IdentityContractReport = Readonly<{
-  passed: boolean
-  cases: readonly IdentityContractCaseResult[]
-}>
+    passed: boolean;
+    cases: readonly IdentityContractCaseResult[];
+}>;
 export declare const IDENTITY_CONTRACT_CASES: readonly Readonly<{
-  id: string
-  rule: string
-}>[]
-export declare function checkIdentityOperationsContract(
-  fixture: IdentityContractFixture,
-  options: IdentityContractOptions,
-): Promise<IdentityContractReport>
+    id: string;
+    rule: string;
+}>[];
+export declare function checkIdentityOperationsContract(fixture: IdentityContractFixture, options: IdentityContractOptions): Promise<IdentityContractReport>;
 ```
 
 ## 声明文件 `testing/controls.d.ts`
 
 ```ts
-import type { Duration, Instant } from '@omne-harness/utc-instant'
-import type { IdentityClock, LoginTerms, LoginTermsSource } from '../operations.ts'
+import type { Duration, Instant } from '@omne-harness/utc-instant';
+import type { IdentityClock, LoginTerms, LoginTermsSource } from '../operations.ts';
 export type ManualIdentityClock = Readonly<{
-  clock: IdentityClock
-  current(): Instant
-  advanceBy(duration: Duration): void
-  setTo(instant: Instant): void
-  makeUnavailable(diagnostic: string): void
-  restore(): void
-}>
-export declare function manualIdentityClock(start: Instant): ManualIdentityClock
-export type RecordStore = 'accounts' | 'logins'
+    clock: IdentityClock;
+    current(): Instant;
+    advanceBy(duration: Duration): void;
+    setTo(instant: Instant): void;
+    makeUnavailable(diagnostic: string): void;
+    restore(): void;
+}>;
+export declare function manualIdentityClock(start: Instant): ManualIdentityClock;
+export type RecordStore = 'accounts' | 'logins';
 export interface RecordStoreFaults {
-  unavailable(store: RecordStore): string | undefined
+    unavailable(store: RecordStore): string | undefined;
 }
 export type RecordStoreFaultControl = Readonly<{
-  faults: RecordStoreFaults
-  makeUnavailable(store: RecordStore, diagnostic: string): void
-  restore(): void
-}>
-export declare function recordStoreFaults(): RecordStoreFaultControl
+    faults: RecordStoreFaults;
+    makeUnavailable(store: RecordStore, diagnostic: string): void;
+    restore(): void;
+}>;
+export declare function recordStoreFaults(): RecordStoreFaultControl;
 export type AdjustableLoginTerms = Readonly<{
-  source: LoginTermsSource
-  set(terms: LoginTerms): void
-  makeUnavailable(diagnostic: string): void
-  restore(): void
-}>
-export declare function adjustableLoginTerms(initial: LoginTerms): AdjustableLoginTerms
+    source: LoginTermsSource;
+    set(terms: LoginTerms): void;
+    makeUnavailable(diagnostic: string): void;
+    restore(): void;
+}>;
+export declare function adjustableLoginTerms(initial: LoginTerms): AdjustableLoginTerms;
 ```
 
 ## 声明文件 `testing/double.d.ts`
 
 ```ts
-import type { IdentityOperations, IdentityOperationsOptions } from '../operations.ts'
-import type { RecordStoreFaults } from './controls.ts'
-export type InProcessIdentityOptions = IdentityOperationsOptions &
-  Readonly<{
-    faults?: RecordStoreFaults
-  }>
-export declare function inProcessIdentityOperations(
-  options: InProcessIdentityOptions,
-): IdentityOperations
+import type { IdentityOperations, IdentityOperationsOptions } from '../operations.ts';
+import type { RecordStoreFaults } from './controls.ts';
+export type InProcessIdentityOptions = IdentityOperationsOptions & Readonly<{
+    faults?: RecordStoreFaults;
+}>;
+export declare function inProcessIdentityOperations(options: InProcessIdentityOptions): IdentityOperations;
 ```
 
 ## 声明文件 `testing/index.d.ts`
 
 ```ts
-export { checkIdentityOperationsContract, IDENTITY_CONTRACT_CASES } from './contract.ts'
-export type {
-  IdentityContractCaseResult,
-  IdentityContractFixture,
-  IdentityContractOptions,
-  IdentityContractProviderOptions,
-  IdentityContractReport,
-} from './contract.ts'
-export { adjustableLoginTerms, manualIdentityClock, recordStoreFaults } from './controls.ts'
-export type {
-  AdjustableLoginTerms,
-  ManualIdentityClock,
-  RecordStore,
-  RecordStoreFaultControl,
-  RecordStoreFaults,
-} from './controls.ts'
-export { inProcessIdentityOperations } from './double.ts'
-export type { InProcessIdentityOptions } from './double.ts'
+export { checkIdentityOperationsContract, IDENTITY_CONTRACT_CASES } from './contract.ts';
+export type { IdentityContractCaseResult, IdentityContractFixture, IdentityContractOptions, IdentityContractProviderOptions, IdentityContractReport, } from './contract.ts';
+export { adjustableLoginTerms, manualIdentityClock, recordStoreFaults } from './controls.ts';
+export type { AdjustableLoginTerms, ManualIdentityClock, RecordStore, RecordStoreFaultControl, RecordStoreFaults, } from './controls.ts';
+export { inProcessIdentityOperations } from './double.ts';
+export type { InProcessIdentityOptions } from './double.ts';
 ```
 
 ## 声明文件 `testing/time.d.ts`
 
 ```ts
-import { type Duration, type Instant } from '@omne-harness/utc-instant'
-export declare function addDuration(instant: Instant, duration: Duration): Instant | undefined
-export declare function isPositive(duration: Duration): boolean
-export declare function justBefore(instant: Instant): Instant | undefined
-export declare function spansLeapSecond(from: Instant, to: Instant): boolean
+import { type Duration, type Instant } from '@omne-harness/utc-instant';
+export declare function addDuration(instant: Instant, duration: Duration): Instant | undefined;
+export declare function isPositive(duration: Duration): boolean;
+export declare function justBefore(instant: Instant): Instant | undefined;
+export declare function spansLeapSecond(from: Instant, to: Instant): boolean;
 ```
