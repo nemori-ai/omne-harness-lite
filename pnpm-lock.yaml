@@ -685,9 +685,15 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../../model/model-contract
@@ -695,9 +701,6 @@ importers:
         specifier: workspace:*
         version: link:../request-context-contract
     devDependencies:
-      '@omne-harness/message':
-        specifier: workspace:*
-        version: link:../../common/message
       '@omne-harness/request-context-cordis-contract':
         specifier: workspace:*
         version: link:../request-context-cordis-contract

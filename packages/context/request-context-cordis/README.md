@@ -11,8 +11,8 @@ This package puts the mechanism of [request-context](../request-context/README.m
 
 Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
 
-- Implemented: `src/cordis.ts` exports `RequestContextProvider`, the concrete subclass of `RequestContextService`. The plugin needs the trust key `requestContextTrust` and provides two keys, `requestContext` and `contextAccountingInbox`, from one fiber. It implements contribution registration, the change event, `register`, `replace`, and `assembly(target)`. Removal closes the source registry. The assembly entry passes the policies and the accounting options as plugin options.
-- Not implemented: the configuration schema check, the strategy selection by configuration, the `notify('contributions', …)` path, the producers of the two blocks through a child fiber, and the duplicate-load check. `src/index.ts` still holds only a template marker, and the root entry exports nothing.
+- Implemented: `src/cordis.ts` exports `RequestContextProvider`, the concrete subclass of `RequestContextService`. The plugin needs the trust key `requestContextTrust` and provides two keys, `requestContext` and `contextAccountingInbox`, from one fiber. It implements contribution registration, the change event, `register`, `replace`, and `assembly(target)`. Removal closes the source registry. The static `Config` checks the plugin options with a Standard Schema, and the plugin picks the compaction and the representation strategy by name from the serializable `selection` (property 4). Without a selection the default strategies run with their initial values. Trusted assembly code may pass ready strategy objects as `policies` instead. `policies` and `selection` exclude each other.
+- Not implemented: the trim threshold and the cache capacity as plugin configuration (the selection shape of the contract has no field for them), the `notify('contributions', …)` path, the producers of the two blocks through a child fiber, and the duplicate-load check. `src/index.ts` still holds only a template marker, and the root entry exports nothing.
 - Not verified: the definition member tests the intercept mechanism on Cordis 4.0.4. The reading is not registered in the shared basis yet. `tests/provider.spec.ts` checks the trust key, the one-fiber two-key lifetime, trust-gated registration, and the inbox. None of the ten verification obligations on the Cordis page has a test that covers it in full. The package makes no claim about persistence or cross-process consistency.
 - A Cordis caller reaches the configured operations through `assembly(target)`. The operations borrow the source set that a source adapter registered for that target through `register`, and they read the contributions of that scope at each call. A target with no registered source set gets unavailable. The plugin gives only contribution-registry changes to the source registry instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
 
@@ -52,8 +52,7 @@ A Standard Schema checks the plugin configuration. The configuration has these f
 
 - the compaction strategy selection and its parameters
 - the representation strategy selection and its preference order
-- the trim threshold
-- the cache capacity
+- no field yet for the trim threshold and the cache capacity: the selection shape of the contract has none
 
 Default values are only initial values, and request-context owns them. The plugin does not load when the configuration points to a strategy that does not exist. It also does not load when a parameter does not match the schema. In both cases the fiber goes to `FAILED`. The plugin does not fall back to the default strategy. One isolate label holds one copy of the plugin. A second load under the same label fails.
 
@@ -67,7 +66,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The current tests check that the root entry exports nothing, that `./cordis` exports only `RequestContextProvider`, and the provider behavior listed above. See [tests/](tests/README.md). The ten verification obligations on the Cordis page arrive with the remaining implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The current tests check that the root entry exports nothing, that `./cordis` exports only `RequestContextProvider`, the provider behavior listed above, and the configuration schema, the failed load on a bad configuration (on real Cordis 4.0.4), and the strategy selection. See [tests/](tests/README.md). The ten verification obligations on the Cordis page arrive with the remaining implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 

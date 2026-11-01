@@ -13,8 +13,8 @@
 ## 目录
 
 - [docs/](docs/index.md)：Cordis 集成、架构、流程、对象模型、公开接口、使用与定位
-- [src/](src/index.md)：根入口只有模板标记，`./cordis` 导出 `RequestContextProvider`
-- [tests/](tests/index.md)：两个入口测试、提供者测试与固定输入
+- [src/](src/index.md)：根入口只有模板标记，`./cordis` 导出 `RequestContextProvider`，配置与策略选择在 `config.ts`
+- [tests/](tests/index.md)：两个入口测试、提供者测试、配置与策略选择测试与固定输入
 - [schema/](schema/index.md)：现在为空
 - [verification/](verification/index.md)：模型与证明，现在为空
 - [adr/](adr/index.md)：实现取舍，现在为空

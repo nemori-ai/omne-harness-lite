@@ -13,7 +13,7 @@
 ## 目录
 
 - [docs/](docs/index.md)：架构、流程、对象模型、公开接口、使用与定位、Cordis 适用性
-- [src/](src/index.md)：根入口、来源登记表与账目投影
+- [src/](src/index.md)：根入口、来源登记表、账目投影、默认压缩策略、修剪器、默认表示策略与转换件结果读口
 - [tests/](tests/index.md)：持续测试与固定输入
 - [schema/](schema/index.md)：现在为空，本成员不发布 Schema
 - [verification/](verification/index.md)：模型与证明，现在为空

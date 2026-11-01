@@ -7,14 +7,16 @@ Request Context 的机制实现成员，`module` 变体。
 
 ## 职责与状态
 
-本成员实现 Request Context 的两个有状态机制：来源登记表与账目投影。它导出两个不依赖 Cordis 的工厂。候选缓存、预计算派生物、默认压缩策略、默认表示策略与修剪器也归本成员，尚未实现。公开行为归 [request-context-contract](../request-context-contract/README.md)，提示词贡献的登记面归 [request-context-cordis-contract](../request-context-cordis-contract/README_ZH.md)，Cordis 绑定与按配置选择策略归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员不持有任何耐久状态：登记表、账目索引与缓存都是进程内状态，账目索引从结果接收方的日志授权重建。
+本成员实现 Request Context 的两个有状态机制：来源登记表与账目投影。它导出两个不依赖 Cordis 的工厂。默认压缩策略、默认表示策略、修剪器与转换件结果读口的缺席实现也归本成员，已进入。候选缓存与预计算派生物也归本成员，尚未实现。公开行为归 [request-context-contract](../request-context-contract/README.md)，提示词贡献的登记面归 [request-context-cordis-contract](../request-context-cordis-contract/README_ZH.md)，Cordis 绑定与按配置选择策略归 [request-context-cordis](../request-context-cordis/README_ZH.md)。本成员不持有任何耐久状态：登记表、账目索引与缓存都是进程内状态，账目索引从结果接收方的日志授权重建。
 
 状态：机制实现成员，`draft`。采用依据是组的[成员分解](../docs/architecture.md#成员分解)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
 - 已实现：`createContextSourceRegistry`（登记、替换、撤除与结算、借用、发布核对、关闭）与 `createContextAccounting`（收件口的固定核验顺序、幂等与容量、窗口占用四种状态、系统恢复的暂存重建）。
 - 已验证：登记表与账目投影的进程内测试，以及登记表的 `assembly(target)` 跑契约操作组的全部一致性用例，见 [tests/](tests/README.md)。
-- 未实现：候选缓存与 `notify`、预计算派生物、默认策略与修剪器。
-- 未验证：SPEC 中缓存、派生物、默认策略与复杂度的持续验证场景随实现进入。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
+- 已实现（构造件）：`createDefaultCompactionPolicy`（含修剪器与摘要指令）、`createDefaultRepresentationPolicy`、`createAbsentConversionResults`，以及它们的配置初值。
+- 未实现：候选缓存与 `notify`、预计算派生物。
+- 已验证（本成员内）：默认策略的数值、配对不拆开的保留、修剪、表示偏好与 Model 请求准备替身的固定请求，以及第 2 轮的 `lineage.continues`，见 [tests/](tests/README.md)。
+- 未验证：SPEC 中缓存、派生物与复杂度的持续验证场景随实现进入；真实 Model 准备资源在联调中验证。默认策略的数值来自同类系统的取证，按本项目的计量口径重核之后才作为初值生效。见[内部架构](docs/architecture.md)与[公开接口页](docs/public-api.md)。
 
 现在没有包依赖本成员；request-context-cordis 的 Service 迁移由其拥有者完成。
 
@@ -35,11 +37,11 @@ Request Context 的机制实现成员，`module` 变体。
 
 ## 设计
 
-已实现的模块是来源登记表与账目投影；计划中的模块是候选缓存、派生物、默认压缩策略、默认表示策略与修剪器。包外运行依赖是 request-context-contract、model-contract（类型）、call-account 与 legal-identity。关键机制是：缓存键与 `PreparedInputKey`（RQ-13）相同，即来源代际、组一身份、六组令牌与派生规则的采用；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
+已实现的模块是来源登记表、账目投影，以及默认压缩策略、默认表示策略、修剪器与缺席的转换件结果读口三个无状态构造件；计划中的模块是候选缓存与派生物。包外运行依赖是 request-context-contract、model-contract（类型）、content-block、message、call-account 与 legal-identity。关键机制是：缓存键与 `PreparedInputKey`（RQ-13）相同，即来源代际、组一身份、六组令牌与派生规则的采用；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-工厂接受修剪阈值与缓存容量。默认压缩策略有触发界线、保留预算、保留偏好、修剪优先与步数上界，默认表示策略有按模态的偏好顺序。全部默认值只是配置初值。经 Cordis 时，这些值由 request-context-cordis 的插件配置给出并校验。本成员没有环境前提，运行时不读取资源，不访问存储。计划进度由协调者保存，历史与压缩记录由历史持有者保存。
+默认压缩策略的构造件接受修剪阈值（字节数，初值 65536）；缓存容量待缓存实现后再有字段。默认压缩策略有触发界线、保留预算、保留偏好、修剪优先与步数上界，默认表示策略有按模态的偏好顺序。全部默认值只是配置初值。经 Cordis 时，这些值由 request-context-cordis 的插件配置给出并校验。本成员没有环境前提，运行时不读取资源，不访问存储。计划进度由协调者保存，历史与压缩记录由历史持有者保存。
 
 ## 验证
 
@@ -49,7 +51,7 @@ Request Context 的机制实现成员，`module` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有测试覆盖根入口、登记表与账目投影，见 [tests/](tests/README.md)。SPEC 其余的[持续验证场景](SPEC.md#组合与验证)随实现进入，其中复杂度场景需要测量，不只是断言。持久化、共同提交、模型发送，以及与真实协调者和持有者的端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试覆盖根入口、登记表、账目投影、默认策略与修剪器、转换件结果读口，以及默认策略在真实操作组里的固定请求，见 [tests/](tests/README.md)。SPEC 其余的[持续验证场景](SPEC.md#组合与验证)随实现进入，其中复杂度场景需要测量，不只是断言。持久化、共同提交、模型发送，以及与真实协调者和持有者的端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
