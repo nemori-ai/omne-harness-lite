@@ -183,7 +183,8 @@ export interface CheckDependencies {
   readonly environment?: EnvironmentIo
 }
 
-const STEP_INPUTS = {
+/** 步骤表的入口脚本路径（相对根）；check 与预检共用。 */
+export const STEP_INPUTS = {
   runnerCli: 'tools/test-runner/src/testing/cli.ts',
   devFlowDeliveryCli: 'tools/dev-flow/src/delivery/change-scope-cli.ts',
   devFlowIntegrationCli: 'tools/dev-flow/src/integration/cli.ts',

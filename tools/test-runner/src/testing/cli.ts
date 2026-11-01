@@ -42,6 +42,7 @@ import { triage, triageSummary } from './triage.ts'
 import { budgetFor, describeBudget } from './parallelism.ts'
 import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
+import { runPreflight } from './preflight.ts'
 import { ADMISSION_EVIDENCE_USAGE, admissionEvidenceCommand } from './admission-evidence.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
@@ -67,14 +68,16 @@ const USAGE = [
   '  triage --run <运行目录>',
   '  coverage-parallel',
   '      打印覆盖率跨成员并行的并发度 <同时成员数>x<每成员工作进程数>，两数之积不超过本机的工作进程预算（scripts/metrics.sh 用）',
-  '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>]',
+  '  check [--admission] [--keep-going] [--list] [--no-cache] [--resume-from <H1>] | check --preflight',
   '      `pnpm run check` 的正文：取基线、算计划，再按步骤图跑全部检查（无依赖的同时跑，一步失败其余终止）；',
   '      --admission 或环境变量 OMNE_ADMISSION=1 为准入模式：构建、类型检查与成员测试都不读缓存，并写准入日志与运行记录；',
   '      --no-cache 成员测试不读结果缓存（同 OMNE_TEST_CACHE=0）；',
   '      --keep-going 失败后继续跑其余步骤（依赖失败的仍不启动），一次看全部失败；--list 只打印步骤表。调用方先取运行名额；',
   '      --resume-from <H1> 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下接受，与 FULL=1、--list 互斥）：前提不满足以 2 退出，',
   '      H1..HEAD 碰到全局路径（含锁文件）就按 H1 的范围整次重跑，否则 X、H1 没跑到的步骤与轻步骤按 H1 的范围整次跑，',
-  '      H1 上通过了的重步骤只跑 H1..HEAD 影响到的成员；要在 H1 那次准入的同一棵工作树里跑',
+  '      H1 上通过了的重步骤只跑 H1..HEAD 影响到的成员；要在 H1 那次准入的同一棵工作树里跑；',
+  '      --preflight 预检（根脚本 pnpm run preflight）：只跑准入里不依赖构建与全量测试的步骤，全部同时起、失败不终止其余，',
+  '      最后一次列出全部发现与修法；开始时同样自检并自愈环境；不写准入日志与运行记录。不与别的 check 开关同给',
   ADMISSION_EVIDENCE_USAGE,
 ].join('\n')
 
@@ -324,8 +327,14 @@ async function main(): Promise<void> {
     const flags = parseFlags(
       rest,
       ['--resume-from'],
-      ['--admission', '--keep-going', '--list', '--no-cache'],
+      ['--admission', '--keep-going', '--list', '--no-cache', '--preflight'],
     )
+    if (flags.switches.has('--preflight')) {
+      if (flags.switches.size > 1 || flags.values.size > 0)
+        throw new Error(`--preflight 不与别的 check 开关同给\n${USAGE}`)
+      process.exitCode = await runPreflight(ROOT)
+      return
+    }
     const resumeFrom = flags.values.get('--resume-from')
     process.exitCode = await runCheck(ROOT, {
       admission: flags.switches.has('--admission'),
