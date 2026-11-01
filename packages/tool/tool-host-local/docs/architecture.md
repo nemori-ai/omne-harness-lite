@@ -34,3 +34,7 @@
 ## 时钟、登记表、Catalog 与缺席端口
 
 四个文件各自独立，互不导入，也不导入 Cordis 与任何 `testing` 入口（`tests/public-entry.spec.ts` 检查）。[clock.ts](../src/clock.ts) 只依赖 `node:crypto` 与契约类型；标记的摘要用本次运行的随机密钥，所以另一次运行的标记即使记录合法也得不到数字。[bindings.ts](../src/bindings.ts) 的 `register` 是一个同步步骤，这一步是本地排序域，条目只存在内存数组里，按登记序号排列；它依赖 legal-identity 的租户校验和契约的键、形状比较函数。[catalog.ts](../src/catalog.ts) 经 `ToolListingSource` 读登记表，经 `LocalToolAvailabilitySource` 读已核验的事实，用契约的 `evaluateToolAvailability` 判定可用性，自己只保管分页游标（上一页最后一项的名字）。[absent-ports.ts](../src/absent-ports.ts) 的方法清单用 `satisfies` 对照端口类型，端口新增方法时类型检查失败。
+
+## 账本守卫的组装
+
+守卫的五个文件各自独立。[ledger-guards.ts](../src/ledger-guards.ts) 是组装点，只依赖其余文件的工厂、`tool` 的 `createToolFactAcknowledgementGuard` 与契约的 `defaultResultPolicy`；它不建记录仓，不持有状态。[invocation-source.ts](../src/invocation-source.ts) 依赖记录仓端口与 `host` 域，域键 `invocation-source`，每个租户一个域、每个消费者位置一条记录，用 `tool` 导出的 `isTenantShape` 与 `canonicalDigest`。记录里有 call、admission、请求摘要、整个固定请求的摘要、签发的调用来源与编码后的主体。资格裁定、主体比较与主体编码不在本包：它们是 `access`、`authority` 与 `principalCodec` 参数，真件归授权与身份的拥有者。组装点的两个资格视图来自同一个适配对象，所以资格只有一个来源。跨租户的资格拒绝先于任何记录仓读取。

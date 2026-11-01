@@ -14,6 +14,10 @@
 - [Catalog 测试](catalog.spec.ts)。
 - [缺席端口测试](absent-ports.spec.ts)。
 - [部件对 createToolRuntime 的组合测试](runtime-composition.spec.ts)。
+- [账本守卫的组装与真账本下的租户隔离](ledger-guards.spec.ts)。
+- [来源签发、认回与伪造](invocation-source.spec.ts)。
+- [授予核验](grant-verifiers.spec.ts)。
+- [启动守卫](start-guard.spec.ts)。
 - [登记表与 Catalog 的测试构造器](binding-values.ts)。
 - [测试构造器](coordinator-values.ts)。
 - [导入图遍历工具](module-graph.ts)。

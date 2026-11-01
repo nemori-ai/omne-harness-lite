@@ -14,3 +14,4 @@
 - [宿主时钟](clock.ts)。
 - [绑定登记表](bindings.ts)与 [Catalog](catalog.ts)。
 - [缺席端口](absent-ports.ts)。
+- [账本守卫的组装](ledger-guards.ts)、[来源签发与操作身份](invocation-source.ts)、[授予核验](grant-verifiers.ts)、[启动守卫](start-guard.ts)与[文本结果](text-results.ts)。

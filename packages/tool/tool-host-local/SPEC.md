@@ -8,6 +8,7 @@
 - G5：第一版采用同机的启动协调器和耐久受理台账，实现 [P04](../tool-contract/SPEC.md#p04-实际发起围栏) 要求的启动排序域。本地启动协调器已实现，见下文；现有测试使用非耐久记录仓。耐久记录仓提供者尚未交付，耐久受理台账仍依赖该提供者。
 - G7：`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由本包实现。登记表与 Catalog 已实现；换代协调者尚未实现。见[绑定登记表与换代协调者](#绑定登记表与换代协调者g7)。
 - G9：本包命名为 `packages/tool/tool-host-local`。
+- TL-11：账本守卫的生产件、来源签发器与操作身份。已实现为纯工厂，见[账本守卫](#账本守卫tl-11)。装配接线在 `./cordis` 插件，尚未交付。
 
 ## 本地启动协调器（G5）
 
@@ -134,6 +135,51 @@ prepare 在发出外部获取前保存原准备与原获取引用。取消、pen
 
 `createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`。每个方法回复 `unavailable`，`dependency` 是端口名，`diagnostic` 写明被问的操作（`<端口>.<方法>`）。不抛出，不回复空成功。这三个端口在 M2 之后由各自的提供者取代。`toolOutputCustody` 不属于缺席端口，本包也不提供它。
 
+## 账本守卫（TL-11）
+
+账本在构造时固定一份守卫快照 `ToolLedgerGuards`。本包给出它的八项生产件和一个组装函数。全部是纯工厂：不建记录仓，不持有跨调用的状态，不导入 Cordis 与任何 `testing` 入口。资格裁定、主体比较与主体编码归其他拥有者，以函数参数进入；测试用替身，装配用真件。
+
+| 键                     | 工厂                                                | 行为                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `access`               | 无。由装配给出 `ToolHostAccess<P>`                  | 一个适配对象，两个视图：`guard` 交账本，`start` 交启动协调器与启动守卫。组装函数原样放入 `guards.access`，不加默认放行                                                    |
+| `sources`              | `createLocalInvocationSource`                       | 见下文「来源签发」                                                                                                                                                        |
+| `factAcknowledgements` | `createToolFactAcknowledgementGuard`（`tool` 已有） | 装配给出的窄代理 `bindings.recover` 认回原绑定。取不到时答 `unavailable`                                                                                                  |
+| `grants`               | `createLocalGrantVerifiers`                         | 见下文「授予」                                                                                                                                                            |
+| `starts`               | `createLocalStartGuard`                             | 见下文「启动守卫」                                                                                                                                                        |
+| `results`              | `createLocalTextResults`                            | 一个文本块：`id` 为 `logical`，对人与对模型可见，没有数据、原始输出与附件。块先经 `defaultResultPolicy.judge`，被拒时答失败，账本随之答 `unavailable`（`result-factory`） |
+| `policy`               | `defaultResultPolicy`（`tool-contract` 已有）       | 组装函数放入的就是这个对象。装配把同一个对象交给 runtime 的 `resultPolicy`                                                                                                |
+| `budgets`              | `localArgumentLimits`                               | 参数解析的六项 json-text 预算的初值。每项必须是正安全整数                                                                                                                 |
+
+`createLocalToolLedgerGuards({ access, sources, bindings, grants, budgets? })` 只拼对象和核必填项。缺必填项抛 `TypeError`（`access: missing`、`sources.guard.verify: missing`、`grants: not a Map` 一类）。预算缺省用 `localArgumentLimits`；给出的预算缺项或某项不是正安全整数时抛 `TypeError`（`budgets.arguments.<项>: range`）。
+
+### 来源签发
+
+`createLocalInvocationSource({ store, authority, principalCodec, commitAttempts })` 返回 `{ issuer, guard }`。`issuer` 交 runtime 作 `sourceIssuer`，`guard` 交账本作 `guards.sources`。
+
+- 绑定放在记录仓的 `host` 域，域键 `invocation-source`，每个租户一个域，每个消费者位置一条记录。同一消费者在另一个租户落在另一个域，读不到原绑定。
+- `resolve` 的顺序：请求形状，租户形状，`authority.qualify`（`denied` 与 `unavailable` 在读记录仓之前返回），主体编码，读域。已有绑定时先问 `authority.samePrincipal({ current, original })`，不同主体答 `denied`；请求与原请求不同答 `conflict`（`operation` 为原受理操作）；否则答 `bound` 且 `recovered` 为真。没有绑定时条件提交一条记录，答 `bound`。
+- call 与 admission 的身份由租户与消费者的摘要得出，所以同一输入永远得同一身份。提交结果未知时答 `issuance-unknown`，带的就是重试会用的身份：记录已写入则重试认回，未写入则重试写入。
+- 存下的主体解不开（记录形状不对，或 `principalCodec.decode` 拒绝）答 `association-unknown`，不签发新身份。
+- 修订冲突时重读重判，最多 `commitAttempts` 次，用尽答 `unavailable`。没有进程内串行区：先后由记录仓的条件提交裁定。
+- `guard.verify` 读同一条记录，核 call、admission 与整个固定请求（含 `invocation`、`scope`、`consumer`）的摘要，再核主体。没有记录或不一致答 `forged`；读不到记录或解不开主体答 `unavailable`，不答 `forged`。
+- `createLocalOperationIdentities` 的 `newOperation` 返回 `op-<uuid>`。它不读记录仓，也不区分租户：命令由账本按 operation 认回。
+
+### 授予
+
+`createLocalGrantVerifiers({ owner, key, grant })` 返回只含这一个 owner 的 `Map`。请求的 `scope` 与传入值的 owner、key 相等，且 `grant` 的 owner、record、revision、digest 四项都相同时答 `granted`，否则答 `refused`。没有声明的 owner 由账本答 `denied`。值由装配给出，装配把同一个范围值也交给 Agent 组装请求（D1 结论第 1 条），所以两边没有各自复制的配方。
+
+已知限制：M2 每个装配只有一个范围，所有调用共用同一个 FIFO 键前缀（键由 owner、key 与工具名组成）。核验器不按租户或主体区分；`limits.concurrency` 随请求进入，它的可信来源不在本件。
+
+### 启动守卫
+
+`createLocalStartGuard({ access })` 的 `qualifyStart`：调用方式不是 `direct` 时答 `refused`，原因 `programmatic-not-in-m2`，不问资格；否则对 `access.qualify({ principal, tenant, call, action: 'start' })` 取当前答案，`allowed` 答 `allowed`，`denied` 答 `refused`，`unavailable` 或抛出答 `unavailable`。每次都重问，不缓存。
+
+已知限制（评审 N7）：定义侧的事实，即受理之后绑定被关闭或排空，不在本守卫，由守卫资源的拥有者经启动围栏的失效表达。
+
+### 本节的验证范围
+
+`tests/ledger-guards.spec.ts` 用 `tool` 的真账本、本节的来源与守卫，资格用 `createTableToolAccess`，记录仓是内存仓。它证明单进程内的行为，不证明耐久、不证明资格真件的映射。主体编码与资格真件的通道还没有定（候选 U-2、U-4），交 Reduce 在 `./cordis` 插件之前裁定。
+
 ## 实例宿主与普通调用的边界
 
-本包尚未提供生产 ToolInstanceHost、来源签发器或 ToolInstanceIdentities。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
+本包尚未提供生产 ToolInstanceHost 或 ToolInstanceIdentities。来源签发器与操作身份已提供，见[账本守卫](#账本守卫tl-11)。宿主实现须在创建实例时取得身份，向 driver.run 显式传入，同一存活实例重复唤醒沿用。runtime 工厂不再接受全局 instance。当前测试将普通 payload 经 invoke、配对来源 issuer/guard、真实 ledger 和本地启动协调器组合，driver 的 instance 由测试 host 提供。这只证明单进程非耐久组合，不证明 claim、换实例接管或恢复。
