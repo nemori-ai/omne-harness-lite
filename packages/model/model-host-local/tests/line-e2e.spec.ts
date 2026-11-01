@@ -25,16 +25,21 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs'
 import type { ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import type { AssembledModelInput, FixedModelRequest, Termination } from '@omne-harness/model-contract'
+import type {
+  AssembledModelInput,
+  FixedModelRequest,
+  Termination,
+} from '@omne-harness/model-contract'
 import { createCertificate, startHttpsServer, type HttpsFixture } from './support/https-server.ts'
 import {
   ACCESS,
   CAPACITY,
   CONSUMER,
   REQUIRED,
+  TENANT,
   assembleLine,
   callOf,
   cordisVersion,
@@ -209,7 +214,8 @@ describe('the Model line in one process', () => {
       expect(request.messages).toEqual(recorded.messages)
       expect(request.tools).toEqual(recorded.tools)
       expect(request.parameters).toEqual(recorded.parameters)
-      steps.prepare = 'the fixed request came from the profile and the preparation plugin; no request reached the gateway'
+      steps.prepare =
+        'the fixed request came from the profile and the preparation plugin; no request reached the gateway'
 
       // --- 2. send: call A through the send stage to the local gateway, which replays -----------------
       gateway = 'replay'
@@ -221,7 +227,10 @@ describe('the Model line in one process', () => {
       const stateA = await line.stateOf(a.call)
       if (stateA.phase !== 'settled') throw new Error('call A is not settled')
       terminations.a = stateA.settlement.termination.kind
-      expect(stateA.settlement.termination).toEqual({ kind: 'completed', reason: 'tool-suggestions' })
+      expect(stateA.settlement.termination).toEqual({
+        kind: 'completed',
+        reason: 'tool-suggestions',
+      })
       expect(line.log.filter(entry => entry === `settle:${a.call}`)).toHaveLength(1)
       const sentA = server.requests.slice(requestsBefore)
       expect(sentA).toHaveLength(1)
@@ -236,6 +245,92 @@ describe('the Model line in one process', () => {
       expect(JSON.stringify(stateA)).not.toContain(PLACEHOLDER)
       expect(line.messages.join('\n')).not.toContain(PLACEHOLDER)
       steps.send = `call A completed once by replay; the gateway received the recorded request (digest ${RECORDING.note.payloadDigest.slice(0, 12)}…); the placeholder is in the sent header only`
+
+      // --- 3. durability: close and reopen the file; fresh commands read A from it -------------------
+      storage.reopen()
+      const fresh = durableCommands(storage.storage).commands
+      const reread = await readResult(fresh, a.call)
+      expect(reread.state.settlement).toEqual(stateA.settlement)
+      expect(reread.state.custody).toEqual({ kind: 'producer' })
+      const sealed = reread.parts.flatMap(part => (part.kind === 'sealed' ? [part.block] : []))
+      expect(sealed.some(block => block.kind === 'tool_call')).toBe(true)
+      expect(sealed.some(block => block.kind === 'reasoning_state')).toBe(true)
+      const [dispatchAgain] = decoded(await fresh.dispatches({ ...ACCESS, call: a.call }))
+      expect(dispatchAgain).toEqual(dispatchA)
+      expect(JSON.stringify(reread)).not.toContain(PLACEHOLDER)
+      steps.persist = `after closing and reopening ${basename(storage.file)}, fresh commands read the settled state, ${reread.parts.length} result parts and the dispatch of call A`
+
+      // --- 4. push: the receiver registers; saved first, then the producer's ACK, then cleanup --------
+      const scripted = scriptedReceiver(line.log)
+      await line.register(scripted.receiver)
+      await eventually(
+        () => line.ledger.read({ tenant: TENANT, call: a.call })?.cleanup === 'released',
+        'the push, ACK and cleanup of call A',
+      )
+      const savedAt = line.log.indexOf(`saved:${a.reference}`)
+      const ackAt = line.log.indexOf(`handoff:${a.call}`)
+      expect(savedAt).toBeGreaterThanOrEqual(0)
+      expect(ackAt).toBeGreaterThan(savedAt)
+      expect(line.log.filter(entry => entry === `handoff:${a.call}`)).toHaveLength(1)
+      expect(scripted.pushes).toHaveLength(1)
+      expect(scripted.pushes[0]).toMatchObject({
+        kind: 'result',
+        key: { kind: 'result', reference: a.reference },
+        consumer: { owner: CONSUMER },
+        settlement: stateA.settlement,
+      })
+      expect((await line.stateOf(a.call)).custody).toMatchObject({
+        kind: 'acknowledged',
+        cleanup: 'released',
+      })
+      expect(JSON.stringify(scripted.pushes)).not.toContain(PLACEHOLDER)
+      steps.push =
+        'call A was pushed once to the receiver stand-in; the receiver saved it before the producer acknowledged; after the ACK the cleanup is released'
+
+      // --- 5. cancel: call B streams, the gateway holds; cancel stops the stream first ----------------
+      gateway = 'hold'
+      const mark = line.log.length
+      const firstHeld = held.length
+      const b = await admit(line, 'b', request)
+      await eventually(async () => {
+        const state = await line.stateOf(b.call)
+        return state.phase === 'running' && state.firstContent === 'observed'
+      }, 'the first content of call B')
+      const response = held[firstHeld]
+      if (response === undefined) throw new Error('call B did not reach the gateway')
+      const cancelled = decoded(
+        await line.runtime.calls.cancel({ ...ACCESS, call: b.call, operation: op('cancel-b') }),
+      )
+      expect(cancelled).toMatchObject({ kind: 'requested', operation: op('cancel-b') })
+      // The response ends only because the client stopped it: the gateway never finishes this answer.
+      await within(response.closed, 5_000, 'the close of the response of call B at the gateway')
+      await eventually(
+        async () => (await line.stateOf(b.call)).phase === 'settled',
+        'the settlement of call B',
+      )
+      const stateB = await line.stateOf(b.call)
+      if (stateB.phase !== 'settled') throw new Error('call B is not settled')
+      terminations.b = stateB.settlement.termination.kind
+      expect(stateB.settlement.termination).toEqual({
+        kind: 'interrupted',
+        control: op('cancel-b'),
+      })
+      const since = line.log.slice(mark)
+      const stopped = since.indexOf('exchange-stopped')
+      const settled = since.indexOf(`settle:${b.call}`)
+      expect(stopped).toBeGreaterThanOrEqual(0)
+      expect(settled).toBeGreaterThan(stopped)
+      const [dispatchB] = await line.dispatchesOf(b.call)
+      expect(dispatchB?.terminal).toEqual({ kind: 'interrupted', control: op('cancel-b') })
+      expect(dispatchB?.account).toBeNull()
+      // The content delivered before the cancel stays in the result: the receiver gets it.
+      await eventually(() => scripted.pushes.length >= 2, 'the push of call B')
+      const pushedB = scripted.pushes.find(delivery => delivery.key.reference === b.reference)
+      if (pushedB?.kind !== 'result') throw new Error('call B was not pushed as a result')
+      expect(textOf(pushedB.parts)).toBe('partial answer')
+      expect(pushedB.settlement.termination).toEqual(stateB.settlement.termination)
+      steps.cancel =
+        'call B was streaming; calls.cancel stopped the supplier stream (exchange-stopped) before the settlement; B ended interrupted by that cancel with its content kept'
     } finally {
       writeEvidence({
         steps: {
@@ -250,9 +345,12 @@ describe('the Model line in one process', () => {
           b: { call: callOf('b'), termination: terminations.b },
         },
         implementations: {
-          modelCommands: '@omne-harness/model-storage-sql createSqlModelCommands (with send: shared core and coordinator)',
-          sqlProvider: 'node:sqlite file provider of tests/support/line-assembly.ts (stand-in for @omne-harness/sqlite-provider)',
-          resultReceiver: 'scripted receiver of tests/line-e2e.spec.ts (stand-in for agent-host-local createLocalModelReceiver)',
+          modelCommands:
+            '@omne-harness/model-storage-sql createSqlModelCommands (with send: shared core and coordinator)',
+          sqlProvider:
+            'node:sqlite file provider of tests/support/line-assembly.ts (stand-in for @omne-harness/sqlite-provider)',
+          resultReceiver:
+            'scripted receiver of tests/line-e2e.spec.ts (stand-in for agent-host-local createLocalModelReceiver)',
           cordis: `@deepseek-ai/cordis ${cordisVersion()}`,
         },
       })

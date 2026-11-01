@@ -115,7 +115,12 @@ const CONFIGURATION: ModelConfiguration = {
   retryBackoffMs: 0,
   cleanupRetryMs: 0,
 }
-const HOST_SETTINGS = { concurrencyLimit: 4, wakeCapacity: 16, scanBatchSize: 10, scanIntervalMs: 0 }
+const HOST_SETTINGS = {
+  concurrencyLimit: 4,
+  wakeCapacity: 16,
+  scanBatchSize: 10,
+  scanIntervalMs: 0,
+}
 const PUSH_LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
   maxRedeliveries: 2,
@@ -442,13 +447,17 @@ export function durableCommands(storage: Storage, profile?: ModelProfile) {
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
     maxCallBytes: MAX_CALL_BYTES,
     maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
-    ...(profile === undefined ? {} : { send: { mirrorBytes: 1 << 20, sources: sourcesOf(profile) } }),
+    ...(profile === undefined
+      ? {}
+      : { send: { mirrorBytes: 1 << 20, sources: sourcesOf(profile) } }),
   })
 }
 
 /** Reads the whole result of a settled call through bare commands, and ends the read. */
 export async function readResult(commands: ModelCommands<Principal>, call: ModelCallId) {
-  const lookup = decoded(await commands.recall({ ...ACCESS, call, admission: op(`admit-${nameOf(call)}`) }))
+  const lookup = decoded(
+    await commands.recall({ ...ACCESS, call, admission: op(`admit-${nameOf(call)}`) }),
+  )
   if (lookup.kind !== 'found') throw new Error('the call is not found')
   const { state } = lookup
   if (state.phase !== 'settled') throw new Error('the call is not settled')
@@ -466,7 +475,9 @@ export async function readResult(commands: ModelCommands<Principal>, call: Model
   while (value.kind === 'reading') {
     parts.push(...value.page.parts)
     if (value.page.next === null) break
-    value = decoded(await commands.nextRead({ ...ACCESS, call, read: begun.read, after: value.page.next }))
+    value = decoded(
+      await commands.nextRead({ ...ACCESS, call, read: begun.read, after: value.page.next }),
+    )
   }
   decoded(await commands.endRead({ ...ACCESS, call, read: begun.read }))
   return { state, parts }
@@ -668,7 +679,10 @@ export async function assembleLine(input: LineInput) {
       },
     },
     routes: {
-      openrouter: { url: new URL(ROUTE_PATH, input.gateway.url).href, endMarker: GATEWAY_END_MARKER },
+      openrouter: {
+        url: new URL(ROUTE_PATH, input.gateway.url).href,
+        endMarker: GATEWAY_END_MARKER,
+      },
     },
     transportLimits: TRANSPORT_LIMITS,
     preparation: { maxCitedCalls: 8, supplierOf: factorySupplier<unknown>() },
@@ -720,7 +734,8 @@ export async function assembleLine(input: LineInput) {
       if (lookup.kind !== 'found') throw new Error('the call is not found')
       return lookup.state
     },
-    dispatchesOf: async (call: ModelCallId) => decoded(await commands.dispatches({ ...ACCESS, call })),
+    dispatchesOf: async (call: ModelCallId) =>
+      decoded(await commands.dispatches({ ...ACCESS, call })),
     /** Unloads every plugin in reverse load order. */
     async close() {
       for (const fiber of fibers.toReversed()) await fiber.dispose()
@@ -731,7 +746,10 @@ export async function assembleLine(input: LineInput) {
 /** The version of the Cordis package the tree runs on, from the installed package. */
 export function cordisVersion(): string {
   const manifest: unknown = JSON.parse(
-    readFileSync(new URL('../../node_modules/@deepseek-ai/cordis/package.json', import.meta.url), 'utf8'),
+    readFileSync(
+      new URL('../../node_modules/@deepseek-ai/cordis/package.json', import.meta.url),
+      'utf8',
+    ),
   )
   const version: unknown = Reflect.get(Object(manifest), 'version')
   if (typeof version !== 'string') throw new Error('cordis: no version in package.json')
