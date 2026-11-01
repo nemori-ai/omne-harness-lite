@@ -242,7 +242,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 
 本插件以作用域持有者身份使用 Runtime Context 的持有者面，以生产者身份供给 `session.modes`。作用域引用由 Session 铸造，按 Runtime Context 根入口的解码函数解码。
 
-- 注入：数组形式 `runtimeContext`（作用域持有者的适配器），`session` 调用方类 `coordinator`。回放子插件以 `reader` 调用 `session` 的历史读取。变化提醒子插件以对象形式 `runtimeContext: { consumer: 'model' }` 绑定模型类读者。
+- 注入：数组形式 `runtimeContext`（作用域持有者的适配器），`session` 调用方类 `coordinator`。回放子插件自己注入数组形式 `runtimeContext`（持有者面），并以 `reader` 调用 `session` 的历史读取；它与主插件各自注入，分开换代，不借用主插件闭包里的句柄。变化提醒子插件以对象形式 `runtimeContext: { consumer: 'model' }` 绑定模型类读者。
 - 块声明：本插件把 `session-contract` 导出的 `sessionModesBlock` 翻译为 Runtime Context 的块声明，并在本成员的 `./cordis` 增补 `ContextBlocks`。Session 契约不导入 Runtime Context，所以增补落在本成员。
 - 生产者：本插件以 `registerProducer` 登记 `session.modes`。第一个参数是调用方可信主体，登记输入带租户，并给出按作用域供值的回调（[RC-07](../../context/runtime-context-contract/SPEC.md#rc-07-生产者句柄并发撤除与恢复)）。生产者槽的身份是租户加块键。本插件为几个租户供值时，为每个租户分别登记，并分别撤除各自的句柄。
   - 回调收到作用域、租户与本次供值的代租户主体，以 `readWork` 读本会话三轴的当前值。
@@ -290,7 +290,7 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 - 纯 scope end 使用 CommitInput 的 scope 分支，不制造空注册或虚假 step；registration/step 带 scopeEnded 时整笔原子应用。executionEnded 只影响原 untracked 块，不等于 scope end。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
-注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。本插件是调用 `applyCommit` 的唯一一方，AD-12 只准备材料，不调用 `applyCommit`。本插件的回放子插件监听 `session-cordis-contract/committed`，事件种类含 SE07 时以 `reader` 经历史读取取出该批注册，沿每份决定的原 CommitRef 与完整输入调用 `applyCommit`，批内多个注册按持久顺序应用。`applyCommit` 是 Runtime Context 持有者面的操作，不调用 `session`，所以回放子插件只用 `reader` 一种调用方类（[AD-00](#ad-00) 第 1 条）。通知丢失时，下一次恢复会话（1a）的完整材料覆盖这些注册，或下一次 `applyCommit` 返回「顺序不符」并开始恢复会话。同值重复应用按原输入认回，所以注册不会重复生效。
+注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。本插件是调用 `applyCommit` 的唯一一方，AD-12 只准备材料，不调用 `applyCommit`。本插件的回放子插件监听 `session-cordis-contract/committed`，事件种类含 SE07 时以 `reader` 经历史读取取出该批注册，沿每份决定的原 CommitRef 与完整输入调用 `applyCommit`，批内多个注册按持久顺序应用。`applyCommit` 是 Runtime Context 持有者面的操作，不调用 `session`，所以回放子插件调用 `session` 只用 `reader` 一种调用方类（[AD-00](#ad-00) 第 1 条）；持有者面由它自己注入的 `runtimeContext` 取得，不把注册交回主插件应用。提供者换代时子插件按自己的 `inject` 重跑，重跑后的应用靠同值认回保持幂等。通知丢失时，下一次恢复会话（1a）的完整材料覆盖这些注册，或下一次 `applyCommit` 返回「顺序不符」并开始恢复会话。同值重复应用按原输入认回，所以注册不会重复生效。
 
 已知限制：注册从 Session 日志进入 Runtime Context 没有时间上界。通知丢失或监听者失败之后，如果没有新的 SE07、没有 Runtime Context 提供者换代、也没有重启，该批注册留在 Session 日志里而不进入 Runtime Context。依赖它的首个模型请求继续暂停，S3 的八个待办原因都不覆盖这一状态，没有调度器找回它。安全性成立：注册不会重复生效。触发条件：实测出现这种暂停，或 Runtime Context 拥有者按 NP-11 给出对账时点之后，为本插件加一个对账时点（例如签发资格时核对该 scope 未应用的 SE07），并写明上界。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
 

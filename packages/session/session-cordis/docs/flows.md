@@ -94,8 +94,8 @@ sequenceDiagram
   participant S as 服务实例
   participant I as 实例
   participant C as 调用方
-  A->>F: 卸载插件
-  F->>S: 运行撤除 effect
+  A->>F: 有序关闭时调用停止句柄；卸载或换代时运行 effect
+  F->>S: 调用同一个撤除函数
   S->>S: 1. 标记撤除中
   C->>S: 新的面调用
   S-->>C: unavailable，owner 为 session
@@ -114,7 +114,7 @@ sequenceDiagram
 
 | 环节 | 结果 | 失败与责任交接 |
 | --- | --- | --- |
-| 四步顺序 | 写在一个 effect 里按顺序 `await` | 某一步抛出时本插件捕获、记录诊断，并继续后续步骤 |
+| 四步顺序 | 写在同一个函数里按顺序 `await`；停止句柄与 effect 两条路径调用它，后到的一次只等先到的一次结束，不重复执行；后到的是 effect 时仍退登记两个句柄 | 某一步抛出时本插件捕获、记录诊断，并继续后续步骤 |
 | 撤除开始后的面调用 | `unavailable`，`owner` 为 `session` | 调用方插件随本插件卸载或重跑后，在新的提供者上重试 |
 | 撤除期间确认的提交 | 调用方得到回执，不发通知 | 下一个实例的扫描按待办找回后续工作 |
 | 未确认的提交 | `commit-unknown` 或 `unavailable` | 调用方以同一操作身份重试或 `queryOperation` |

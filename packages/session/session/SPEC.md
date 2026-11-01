@@ -31,7 +31,7 @@
 
 | 步 | 动作 | 输入 | 输出 | 失败分支 |
 | --- | --- | --- | --- | --- |
-| 1 认回原操作 | 核对 `Access`；按面操作的请求调用一次 `accessCheck.check`；allowed 后以请求与证据调用 `SessionDelegatedTransactions.bind`，取得本次面操作的委派视图，本命令其余各步（含 `changed` 重做）的端口调用都经该视图；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；经视图点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`check` 答 `denied`：返回 `denied`，不继续；`check` 答 `unavailable` 或抛错：返回 `unavailable`，`owner` 取字面值 `'sessionAccessCheck'`（与 Cordis 服务键同名，不装配 Cordis 时也取这个值），不继续；会话在该租户下不存在（`create` 除外）：返回 `denied`，与跨租户不可区分；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |
+| 1 核权与认回原操作 | 核对 `Access`；按面操作的请求调用一次 `accessCheck.check`；allowed 后以请求与证据调用 `SessionDelegatedTransactions.bind`，取得本次面操作的委派视图，本命令其余各步（含 `changed` 重做）的端口调用都经该视图；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；经视图点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`check` 答 `denied`：返回 `denied`，不继续；`check` 答 `unavailable` 或抛错：返回 `unavailable`，`owner` 取字面值 `'sessionAccessCheck'`（与 Cordis 服务键同名，不装配 Cordis 时也取这个值），不继续；会话在该租户下不存在（`create` 除外）：返回 `denied`，与跨租户不可区分；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |
 | 2 权威读 | 在同一事务边界读 `WorkSnapshot`。命令带 `expected` 时，记下 `revision` 作为本次提交的 `expected` | `Access` | 一个完整提交位置上的快照 | 读不到返回 `unavailable`；归约隔离返回 `quarantined`。都不提交 |
 | 3 事务外裁定 | 以第 2 步的快照调用 `decide`。`decide` 按[命令表](../session-contract/SPEC.md#命令表)组合领域服务与守卫 | 快照与命令参数 | 拒绝结局，或「允许」与本命令需要的材料种类 | 拒绝结局原样返回，不提交。允许时丢弃这一次产出的批次，不交给第 5 步 |
 | 4 收材料 | 按命令向身份桥、证据桥、Context 输入或空闲输入要 `GuardCommand`。`GuardCommand.participant` 标识材料的拥有者，不是存储参加者的名字（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)） | `SessionCommand` | 完整的材料集合 | 桥返回失败时原样返回该失败，`owner` 沿[契约端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)取桥自己报告的拥有者；桥缺席或抛出时，`owner` 由宿主填该端口的服务键（[session-cordis 端口接线](../session-cordis/SPEC.md#端口接线)）；缺一项材料不提交 |
@@ -51,11 +51,11 @@
 一次面操作恰调用一次 `check`，核权点是第 1 步。点查、权威读、`changed` 重做与提交都经委派视图，视图不再裁定（[委派入口](../session-contract/docs/access-check.md#委派入口)、[当前操作的访问裁定](../session-contract/SPEC.md#当前操作的访问裁定)）。委派视图只服务本次面操作，不跨面操作保留，不写进任务、缓存或游标。协调器、调度器与恢复对已成立会话的每次面操作都先取得主体。提交命令与读取都算面操作：
 
 - 主体来源：按 `{ actor, tenant, session }` 调用 `SessionWorkPrincipals.forSession`，再以这个主体进入该面操作的第 1 步。每次读取是一次独立的面操作，各自取主体，各自调用一次 `check`。
-- actor 等于本次面操作所用的调用方类。C2 至 C4 用 `coordinator`；C4 对子会话的 `control(archive)` 例外，用 `maintainer`。C5 与 S1 至 S7 用 `maintainer`。
+- actor 等于本次面操作所用的调用方类。C2 至 C4 用 `coordinator`；C4 对子会话的 `control(archive)` 例外，用 `maintainer`。C5 与 S1 至 S7 用 `maintainer`。已知缺项（NP-10）：契约只许 `intake` 调用 `completeInitialization`（[VC-O05](../session-contract/SPEC.md#四个面与公开操作)），而 C5 在重新驱动初始化负责方之后要提交它，所以 C5 发起 `completeInitialization` 用哪个调用方类还未定。该调用会被调用方类核对拒绝，初始化项停在 `initialization` 原因下。由 Session 契约拥有者随 W1-RUN-5 裁定，可能的做法是扩展四面表；M2 不触发。
 - `forSession` 答 `denied` 时不推进该会话，待办保留。答 `unavailable` 或 `quarantined` 时保留任务，记录诊断，下一次触发再取。`forSession` 抛错时，本成员按 `unavailable` 处理，`owner` 取字面值 `'sessionWorkPrincipals'`。
-- 首次 `create` 不用 `forSession`，沿用登录请求的工作关系。C1 的 `accept` 用入站调用方的主体，也不用 `forSession`。
+- 首次 `create` 不用 `forSession`，沿用登录请求的工作关系。C1 的 `accept` 用入站调用方的主体，也不用 `forSession`。C4 的 `receive(scope-release)` 也不用 `forSession`，改用内部主体的 `maintainer` 字段（`SessionInternalPrincipals.maintainer`），与 S3 相同。
 
-`SessionInternalPrincipals` 只用于不由单个会话归属决定的系统维护。第一版只有两处：S3 按租户读 `pending`；作用域释放任务的系统收尾，即 `ScopeReleasePort.release` 之后的 `receive(scope-release)`，用户撤权后仍要完成。其他操作要用内部主体时，先由 Session 契约的拥有者另行裁定。
+`SessionInternalPrincipals` 只用于不由单个会话归属决定的系统维护。第一版只有两处：S3 按租户读 `pending`；作用域释放任务的系统收尾，即 `ScopeReleasePort.release` 之后的 `receive(scope-release)`，用户撤权后仍要完成。两处都取 `maintainer` 字段。其他操作要用内部主体时，先由 Session 契约的拥有者另行裁定。
 
 已知限制：授权政策是否允许以 `maintainer` 为 actor 签发的会话主体执行 `readWork`、`inspectIdle` 与 `loadRecovery`，由应用授权的政策表决定，本成员不预设。政策不允许时，S1、S2 与 C5 的这些读取答 `denied`，待办保留，不推进。触发条件：政策表定稿（W1-APP-6）且结论为不允许时，这些读取改由 `coordinator` 取主体，或交给 C2 执行。
 
@@ -387,7 +387,7 @@
 | VM-10 | 崩溃矩阵的每个提交点，崩溃在提交前与提交后各一次 | 与 [CR](#cr-崩溃矩阵) 表一致；没有第二个执行、第二份输入、第二个 attempt 或第二个终态 | [CR](#cr-崩溃矩阵) |
 | VM-11 | 停止顺序与重启 | 在途命令跑完或返回未知；没有出站调用在停止期间发出；重启后未发出的调用被重放，回执认回 | [资源与替换](#资源与替换) |
 | VM-12 | 已保管或处理而原确认未投影；重启与答复丢失 | Tool 原确认从日志认回，核版本后 receive(release)；无确认保持 pending。Model ACK 未决时只报告，不直接调用生产者 | [C5](#c5-release)、[JC-Release](../session-contract/SPEC.md#jc-release) |
-| VM-13 | 每种面操作各执行一次，含 `changed` 重做、认回已有操作、CA-3 命中；`check` 答 `denied`、`unavailable` 或抛错；会话在该租户下不存在 | 每次面操作恰调用一次 `check`，重做不追加；视图不调用 `check`；`denied`、`unavailable`（`owner` 为 `'sessionAccessCheck'`）原样返回且没有提交；不存在的会话答 `denied`，与跨租户不可区分；`pending` 等三项目录读取只由公开端口调用一次 `check` | [CP-01](#cp-01)、[CP-03](#cp-03) |
+| VM-13 | 每种面操作各执行一次，含 `changed` 重做、认回已有操作、CA-3 命中；`check` 答 `denied`、`unavailable` 或抛错；会话在该租户下不存在 | 每次面操作恰调用一次 `check`，重做不追加；视图不调用 `check`；`denied`、`unavailable`（`owner` 为 `'sessionAccessCheck'`）原样返回且没有提交；不存在的会话答 `denied`，与跨租户不可区分；`pending` 等三项目录读取只由公开端口调用一次 `check`。`SessionWorkPrincipals.forSession` 答 `denied` 时不推进该会话、待办保留；答 `unavailable` 或 `quarantined` 时任务保留、记录诊断、下一次触发再取；抛错时按 `unavailable` 处理且 `owner` 为 `'sessionWorkPrincipals'`；四种情形都不调用 `check`，没有提交 | [CP-01](#cp-01)、[CP-03](#cp-03) |
 
 ### CR 崩溃矩阵
 
