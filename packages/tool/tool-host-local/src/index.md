@@ -11,3 +11,6 @@
 - [包索引](../index.md)。
 
 - [受信环境诊断依赖](environment-diagnostics.ts)。
+- [宿主时钟](clock.ts)。
+- [绑定登记表](bindings.ts)与 [Catalog](catalog.ts)。
+- [缺席端口](absent-ports.ts)。
