@@ -114,20 +114,26 @@ async function scopeRoundTrip(tools: ScopeTools, boundMs: number): Promise<boole
   return code === 0 && stop.status === 'confirmed'
 }
 
-/** Probes P1 and P3 to P6 once against the real host, in order; a later item needs the earlier ones. */
-export async function probeCommandPrerequisites(boundMs: number): Promise<PrerequisiteReading> {
-  if (process.platform !== 'linux') return { kind: 'unsatisfied', missing: ['linux'] }
-  const missing: HostCommandPrerequisite[] = []
+/** P3 and P4: the tools by absolute path and a running user manager, or the item that is missing. */
+async function resolveScopeTools(
+  boundMs: number,
+): Promise<ScopeTools | 'systemd-tools' | 'user-manager'> {
   const systemdRun = await resolveTool('systemd-run')
   const systemctl = await resolveTool('systemctl')
   const killWhom = systemctl === undefined ? undefined : await killOption(systemctl, boundMs)
   if (systemdRun === undefined || systemctl === undefined || killWhom === undefined)
-    missing.push('systemd-tools')
-  else if (!(await userManagerRuns(systemctl, boundMs))) missing.push('user-manager')
+    return 'systemd-tools'
+  if (!(await userManagerRuns(systemctl, boundMs))) return 'user-manager'
+  return { systemdRun, systemctl, killWhom }
+}
+
+/** Probes P1 and P3 to P6 once against the real host, in order; a later item needs the earlier ones. */
+export async function probeCommandPrerequisites(boundMs: number): Promise<PrerequisiteReading> {
+  if (process.platform !== 'linux') return { kind: 'unsatisfied', missing: ['linux'] }
+  const tools = await resolveScopeTools(boundMs)
+  const missing: HostCommandPrerequisite[] = typeof tools === 'string' ? [tools] : []
   if (!(await cgroupV2())) missing.push('cgroup-v2')
-  if (missing.length > 0 || systemdRun === undefined || systemctl === undefined || !killWhom)
-    return { kind: 'unsatisfied', missing }
-  const tools: ScopeTools = { systemdRun, systemctl, killWhom }
+  if (typeof tools === 'string' || missing.length > 0) return { kind: 'unsatisfied', missing }
   if (!(await scopeRoundTrip(tools, boundMs)))
     return { kind: 'unsatisfied', missing: ['scope-round-trip'] }
   return { kind: 'satisfied', tools }

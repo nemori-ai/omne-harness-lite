@@ -1,18 +1,30 @@
 // The manager side of the command gate, without a scope: the frame reader over the gate's standard
 // output, the bounded output buffer with its single reader, the two pure decisions of the scope
 // supervisor (when a `show` reading confirms a stop, and which references name a scope of this
-// provider), and the tool runner on a plain Node child. Inputs are byte frames as the gate writes
+// provider), the recovery listing against a stand-in `systemctl`, the gate's refusal to run outside
+// its own scope, and the tool runner on a plain Node child. Inputs are byte frames as the gate writes
 // them; nothing here claims scope behavior, which `host-command.spec.ts` covers on Linux.
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { chmod, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { expect, it } from 'vitest'
 import type { OutputChunk } from '@omne-harness/execution-environment-contract'
+import type { ScopeRef as ListedScope } from '@omne-harness/runtime-context-contract'
 import { createGateReader, createOutputBuffer, type GateFrame } from '../src/host-command.ts'
 import {
   confirmationOf,
+  listScopes,
   parseShow,
   readScopeReference,
   runTool,
+  scopeDescription,
   scopeReference,
 } from '../src/host-scope.ts'
+
+const onLinux = process.platform === 'linux'
 
 const encoder = new TextEncoder()
 
@@ -240,3 +252,105 @@ it('runs a supervisor tool within a bound that carries a fraction, and answers f
   })
   expect(await runTool('/nonexistent/omne-tool', [], 100.5)).toEqual({ kind: 'failed' })
 })
+
+// ---------------------------------------------------------------------------------------------
+// The recovery listing: a failed listing is `unavailable`, never an empty list
+
+function isScopeText(text: string): text is ListedScope['ref'] {
+  return text.length > 0
+}
+
+function scopeOf(text: string): ListedScope {
+  if (!isScopeText(text)) throw new TypeError('empty scope')
+  return { ref: text }
+}
+
+/** Runs `check` with a stand-in `systemctl` that answers the listing with `body` (a shell script). */
+async function withSystemctl(body: string, check: (systemctl: string) => Promise<void>) {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-systemctl-')))
+  try {
+    const systemctl = join(directory, 'systemctl')
+    await writeFile(systemctl, `#!/bin/sh\n${body}\n`)
+    await chmod(systemctl, 0o755)
+    await check(systemctl)
+  } finally {
+    await rm(directory, { recursive: true, force: true })
+  }
+}
+
+const listing = (systemctl: string, scope: ListedScope) =>
+  listScopes({ systemctl, scope, provider: 'host-files', boundMs: 5000 })
+
+it.skipIf(!onLinux)('lists the scopes whose description names the requester scope', async () => {
+  const scope = scopeOf('scope-listing-a')
+  const key = '0b9c3a2e-5f0d-4d7e-9c51-2a0e6c1d4b7f'
+  const mine = { unit: `omne-host-${key}.scope`, description: scopeDescription(scope, key) }
+  const other = {
+    unit: 'omne-host-6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11.scope',
+    description: scopeDescription(
+      scopeOf('scope-listing-b'),
+      '6d1c0f4a-7a2b-4f19-8f3c-9b0a5e2d7c11',
+    ),
+  }
+  await withSystemctl(`echo '${JSON.stringify([mine, other])}'`, async systemctl => {
+    const answer = await listing(systemctl, scope)
+    if (answer.kind !== 'listed') throw new Error(`expected a listing: ${JSON.stringify(answer)}`)
+    expect(answer.resources.map(resource => resource.key)).toEqual([key])
+  })
+})
+
+it.skipIf(!onLinux)(
+  'answers unavailable, not an empty list, when the listing command fails or does not answer a list',
+  async () => {
+    const scope = scopeOf('scope-listing-a')
+    const failing = 'echo "Failed to connect to bus" >&2; exit 1'
+    await withSystemctl(failing, async systemctl => {
+      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
+    })
+    await withSystemctl('echo "not json"', async systemctl => {
+      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
+    })
+    await withSystemctl('echo "{}"', async systemctl => {
+      expect(await listing(systemctl, scope)).toEqual({ kind: 'unavailable' })
+    })
+    expect(await listing('/nonexistent/omne-systemctl', scope)).toEqual({ kind: 'unavailable' })
+  },
+)
+
+it.skipIf(onLinux)('answers unavailable where the host gives no boot identity', async () => {
+  expect(await listing('/nonexistent/omne-systemctl', scopeOf('scope-listing-a'))).toEqual({
+    kind: 'unavailable',
+  })
+})
+
+// ---------------------------------------------------------------------------------------------
+// The gate outside a scope of its own
+
+it.skipIf(!onLinux)(
+  'exits 2 without reporting ready when the gate does not run in its own scope',
+  async () => {
+    const gate = fileURLToPath(new URL('../dist/command-gate.js', import.meta.url))
+    const child = spawn(process.execPath, [gate, `omne-host-${'0'.repeat(8)}.scope`], {
+      stdio: ['ignore', 'pipe', 'pipe', 'pipe'],
+    })
+    let frames = ''
+    child.stdout?.on('data', (chunk: Buffer) => (frames += chunk.toString('utf8')))
+    child.stderr?.resume()
+    const control = child.stdio[3]
+    if (control === null || control === undefined || !('write' in control))
+      throw new Error('expected a control pipe')
+    control.end(
+      `${JSON.stringify({
+        executable: '/bin/true',
+        args: [],
+        cwd: '/',
+        env: {},
+        stdin: null,
+        maxChunkBytes: 1024,
+      })}\n`,
+    )
+    const [code] = await once(child, 'close')
+    expect(code).toBe(2)
+    expect(frames).toBe('')
+  },
+)

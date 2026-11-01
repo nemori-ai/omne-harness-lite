@@ -276,6 +276,64 @@ function alive(pid: number): boolean {
   }
 }
 
+type RunningGate = {
+  frames: Record<string, unknown>[]
+  send(message: Readonly<Record<string, unknown>>): void
+  closed: Promise<number | null>
+}
+
+/** Starts the real gate in its own scope unit, as the provider does, and collects its frames. */
+function gateInScope(): RunningGate {
+  const unit = `omne-test-gate-${randomUUID()}.scope`
+  units.add(unit)
+  const gate = spawn(
+    'systemd-run',
+    [
+      '--user',
+      '--scope',
+      '--quiet',
+      '--collect',
+      `--unit=${unit}`,
+      '--',
+      process.execPath,
+      gateScript,
+      unit,
+    ],
+    { stdio: ['ignore', 'pipe', 'inherit', 'pipe'] },
+  )
+  const control = gate.stdio[3]
+  if (control === null || control === undefined || !('write' in control))
+    throw new Error('expected a control pipe')
+  const frames: Record<string, unknown>[] = []
+  let buffered = ''
+  gate.stdout?.on('data', (chunk: Buffer) => {
+    buffered += chunk.toString('utf8')
+    for (let at = buffered.indexOf('\n'); at !== -1; at = buffered.indexOf('\n')) {
+      const frame: unknown = JSON.parse(buffered.slice(0, at))
+      buffered = buffered.slice(at + 1)
+      if (typeof frame === 'object' && frame !== null) frames.push({ ...frame })
+    }
+  })
+  const closed = new Promise<number | null>(resolve => gate.on('close', resolve))
+  return { frames, send: message => control.write(`${JSON.stringify(message)}\n`), closed }
+}
+
+/** The gate's request for `script`, run by `/bin/sh` in `cwd` with an empty environment. */
+const gateRequest = (cwd: string, script: string) => ({
+  executable: '/bin/sh',
+  args: ['-c', script],
+  cwd,
+  env: { PATH: '/usr/bin:/bin' },
+  stdin: null,
+  maxChunkBytes: 64 * 1024,
+})
+
+const dataText = (frames: readonly Record<string, unknown>[]) =>
+  frames
+    .filter(frame => frame['t'] === 'data' && frame['s'] === 'stdout')
+    .map(frame => Buffer.from(String(frame['b']), 'base64').toString('utf8'))
+    .join('')
+
 describe('host command facility on Linux', { skip: !enabled }, () => {
   it('streams three lines in order with their offsets, exits 0, and clears its scope', async () => {
     const recorded = recordingLedger()
@@ -562,6 +620,82 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
     expect(await counting.result).toMatchObject({ kind: 'completed', exit: { code: 0 } })
   })
 
+  it('starts the command once however often the control pipe says GO', async () => {
+    const cwd = await workDirectory()
+    const marker = join(cwd, 'runs')
+    const gate = gateInScope()
+    gate.send(gateRequest(cwd, `echo run >> '${marker}'; sleep 0.3`))
+    await vi.waitFor(() => expect(gate.frames.map(frame => frame['t'])).toContain('ready'), {
+      timeout: 15_000,
+    })
+    gate.send({ c: 'go' })
+    gate.send({ c: 'go' })
+    expect(await gate.closed).toBe(0)
+    expect(gate.frames.filter(frame => frame['t'] === 'started')).toHaveLength(1)
+    expect((await readFile(marker, 'utf8')).trim().split('\n')).toEqual(['run'])
+  })
+
+  it('does not hand the control pipe on to the command: descriptor 3 there is another pipe', async () => {
+    const gate = gateInScope()
+    // The parent of the shell is the gate: its descriptor 3 is the control pipe.
+    gate.send(
+      gateRequest(
+        await workDirectory(),
+        'readlink /proc/$PPID/fd/3; readlink /proc/$$/fd/3 || echo none',
+      ),
+    )
+    await vi.waitFor(() => expect(gate.frames.map(frame => frame['t'])).toContain('ready'), {
+      timeout: 15_000,
+    })
+    gate.send({ c: 'go' })
+    expect(await gate.closed).toBe(0)
+    const [controlPipe, commandPipe] = dataText(gate.frames).trim().split('\n')
+    expect(controlPipe).toMatch(/^socket:\[\d+\]$/u)
+    expect(commandPipe).not.toBe(controlPipe)
+  })
+
+  it('answers unsupported before closed for a released acquisition, and invalidInput too', async () => {
+    const recorded = recordingLedger()
+    const lease = await leaseOf(hostProvider(), recorded.ledger)
+    const command = commandOf(lease)
+    const cwd = await workDirectory()
+    expect(await lease.release()).toEqual({ kind: 'released' })
+    expect(await command.start(request(cwd, 'exit 0', { outputMode: 'terminal' }))).toMatchObject({
+      kind: 'rejected',
+      reason: 'unsupported',
+    })
+    expect(await command.start(request(cwd, 'exit 0', { executable: 'sh' }))).toMatchObject({
+      kind: 'rejected',
+      reason: 'invalidInput',
+    })
+    expect(await command.start(request(cwd, 'exit 0'))).toMatchObject({
+      kind: 'rejected',
+      reason: 'closed',
+    })
+    expect(recorded.plans).toEqual([])
+  })
+
+  it('answers unavailable before closed when a prerequisite is missing and the acquisition is released', async () => {
+    const empty = await workDirectory()
+    const path = process.env['PATH']
+    process.env['PATH'] = empty
+    let provider: EnvironmentProvider
+    try {
+      provider = hostProvider()
+      // Wait for the probe, which reads PATH, to answer before PATH is restored.
+      const lease = await leaseOf(provider, recordingLedger().ledger)
+      await commandOf(lease).start(request(empty, 'exit 0'))
+      process.env['PATH'] = path
+      expect(await lease.release()).toEqual({ kind: 'released' })
+      expect(await commandOf(lease).start(request(empty, 'exit 0'))).toMatchObject({
+        kind: 'rejected',
+        reason: 'unavailable',
+      })
+    } finally {
+      process.env['PATH'] = path
+    }
+  })
+
   it('stops the running processes of an acquisition on release, and answers released', async () => {
     const recorded = recordingLedger()
     const provider = hostProvider()
@@ -705,6 +839,18 @@ describe('host command facility on Linux', { skip: !enabled }, () => {
       kind: 'listed',
       resources: [],
     })
+  })
+
+  it('answers unavailable, not an empty list, when no systemctl can be found to list the scopes', async () => {
+    const empty = await workDirectory()
+    const path = process.env['PATH']
+    process.env['PATH'] = empty
+    try {
+      const listed = await hostProvider().listRecoveryResources?.(scopeOf(recoverScope))
+      expect(listed).toEqual({ kind: 'unavailable' })
+    } finally {
+      process.env['PATH'] = path
+    }
   })
 
   it('answers confirmedStopped for a scope of an earlier boot, and unsupported for a unit it does not name', async () => {
