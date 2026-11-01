@@ -2,7 +2,6 @@
   "source": "docs/architecture/runtime/application-assembly.md",
   "rows": [
     "storage",
-    "tenant-domains",
     "identity",
     "authorization",
     "session-storage",
@@ -23,6 +22,7 @@
     "session-conditions",
     "agent-journal",
     "agent-adoptions",
+    "adoption-sources",
     "agent-model-selection",
     "agent-host",
     "agent-instances",
@@ -30,6 +30,7 @@
     "model-instances",
     "model-converters",
     "model-profiles",
+    "model-request-preparation",
     "model-credential",
     "tool-runtime",
     "tool-executor",
@@ -42,8 +43,74 @@
     "execution-host-files",
     "request-context",
     "agent-context",
+    "agent-account-outlet",
     "runtime-context",
     "server-entry"
   ],
-  "trusted": null
+  "trusted": [
+    {
+      "row": "storage",
+      "names": [
+        "storage"
+      ]
+    },
+    {
+      "row": "identity",
+      "names": [
+        "storage"
+      ]
+    },
+    {
+      "row": "session-storage",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "sessionPrincipalBindings"
+      ]
+    },
+    {
+      "row": "session-provider",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "agent-journal",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "agent-adoptions",
+      "names": [
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "adoption-sources",
+      "names": [
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "request-context",
+      "names": [
+        "requestContextTrust"
+      ]
+    },
+    {
+      "row": "runtime-context",
+      "names": [
+        "runtimeContextTrust"
+      ]
+    },
+    {
+      "row": "server-entry",
+      "names": [
+        "principalIssuer",
+        "definitionMappings"
+      ]
+    }
+  ]
 }
