@@ -1,8 +1,8 @@
 // The Model records over the SQL storage contract. This slice exports the table definitions and
 // the migration, the stored call document with its row parse, and the `ModelCommandStorage` of
-// the shared commands core with its construction checks. The 22 methods of `ModelCommands`, the
-// send coordinator and the static materials with their digests are later slices. Imports no
-// Cordis.
+// the shared commands core with its construction checks, and the send coordinator over an in-process
+// mirror of that storage. The 22 methods of `ModelCommands` and the static materials with their
+// digests are later slices. Imports no Cordis.
 export {
   MIGRATION,
   MODEL_PARTICIPANT,
@@ -72,3 +72,9 @@ export {
   type CallReadInput,
   type PendingPage,
 } from './reads.ts'
+export {
+  DEFAULT_MAX_CLAIMS,
+  createSendMirror,
+  type SendMirror,
+  type SendMirrorOptions,
+} from './coordinator.ts'

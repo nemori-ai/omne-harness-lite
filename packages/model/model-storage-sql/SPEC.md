@@ -122,6 +122,39 @@
 
 每次写操作增加一行 `md_operation`，与存储层的提交回执各保存一份。这些行与释放后的 `md_call` 头都不删除，与会话日志不删除日志相同。读关系进度的写入不增加 `md_operation` 行。
 
+## 发送协调器
+
+`src/coordinator.ts` 的 `createSendMirror(storage, options)` 返回两样东西：存储端口的装饰层 `storage`，与工厂 `coordinator(core, sources)`。工厂返回共享核心的 `SendCoordinator`（`@omne-harness/model`）。采用依据是 D3 第 10 节第 3 点、D3 复核 N4 与决策记录 D3c。
+
+装配把核心建在 `mirror.storage` 上，commands 与协调器共用这一个核心。所以两者共用同一份镜像与同一个资格权威 `core.options.authority`。`coordinator` 收到建在别的存储上的核心时，抛 `TypeError`。
+
+镜像的更新：
+
+- 一次 run 结束后才更新镜像。run 成功时，镜像保存最后一轮读到的文档与该轮暂存的写。
+- run 暂存了写而没有成功时（含 `commit-unknown`），镜像丢弃该调用。所以镜像不领先于存储确认的结果。
+- 新文档的修订号小于镜像里的修订号时，镜像不替换。读回包晚于新提交到达时，镜像不回退。
+- `mirrorBytes` 是镜像的字节预算，按最近使用淘汰。最近保存的一份文档总留下。钉住的文档不淘汰。
+
+围栏：
+
+- `check` 与 `withinCurrent` 同步运行，中间没有 await，也不推迟到回调。核心在围栏内只从镜像读该调用。
+- 围栏先问资格权威，再看镜像里有没有该调用。镜像里没有该调用时，核心在空视图上判断。授权查询里资源的 `consumer` 为 `null`，与内存实现对不存在的调用相同。所以未授权主体对镜像里的调用、冷调用与不存在的调用都得到同一个 `denied`，看不出调用在不在镜像里。
+- 授权主体的调用不在镜像里时，围栏返回 `unavailable`（依赖 `model-send`，诊断 `qualification-unavailable`），不调用 `start`。重做入口是同一 operation 的 `recordMaterialization`：它的 run 读回该调用，写入镜像。
+- 镜像与认领表的键含租户。别的租户的同名调用在本租户看来是冷调用，不能通过围栏，也不占本租户的认领。
+- 在 `start` 内再进入围栏时，协调器抛 `TypeError`。
+- 认领表使一个 dispatch 在本进程只启动一次。再次进入返回 `unknown`（`dispatch-already-claimed`）。`start` 抛错时返回 `unknown`（`transport-start-unknown`）。
+- 镜像显示该 dispatch 不再是 `prepared`，或调用已收场时，协调器删除认领。淘汰不删除认领。认领数达到 `maxClaims`（初值 1024）时，新的围栏返回 `unavailable`（`send-claim-capacity`），不调用 `start`。
+
+钉住（N4）：调用有一个 dispatch 已记录物化、仍是 `prepared`、且没有被认领时，镜像不淘汰该调用。所以从 `recordMaterialization` 提交到该 dispatch 的 `withinCurrent`，围栏不会因淘汰而拒绝。认领后钉住结束。钉住的文档数不超过处于发送阶段的调用数。发送边界在这一段停止时，钉住保持到该调用的下一次写入。
+
+已知限制：
+
+- 协调器假设唯一协调进程（契约「首版可由唯一协调进程持有围栏」，sqlite-provider L-4）。存储确认一次提交后，本进程要再经过若干微任务才更新镜像。在这个窗口里，围栏按提交前的文档判断。这与 N3 的 L-1 同类。
+- 镜像与认领表只在进程内（同 N5）。重启或同进程替换实例后，新实例的认领表为空。旧实例启动了发送、但没有写入 `recordSend` 时，同一 dispatch 可以在新实例再次通过围栏。发现与重做的义务归运行时（M6）。
+- 与内存实现的差异只有一条：主体获准、调用不在本进程镜像里时，本实现返回 `qualification-unavailable`，内存实现返回 `invalid`（`call`，`not-found`）。本实现不区分不存在与冷。主体未获准时，两个实现都返回 `denied`。
+
+用例在 `tests/coordinator.spec.ts`：同步围栏与重入、一次启动、钉住与钉住结束、冷镜像与认回、未知结论丢弃镜像、旧读回包不回退、未授权主体对热、冷、不存在调用同一 `denied`、双租户同名调用的镜像与认领互不相见、认领上界的释放，以及与内存协调器逐步对拍。用例在 `node:sqlite` 测试提供者上运行，不覆盖真实提供者的 Worker、耐久性与关闭。
+
 ## 所有权、失败与生命周期
 
 ### 失败
