@@ -1514,6 +1514,9 @@ importers:
       '@omne-harness/exchange-refs':
         specifier: workspace:*
         version: link:../../common/exchange-refs
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../../identity/identity
       '@omne-harness/json-text':
         specifier: workspace:*
         version: link:../../common/json-text
@@ -1532,6 +1535,9 @@ importers:
       '@omne-harness/session-contract':
         specifier: workspace:*
         version: link:../session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../session-cordis-contract
       '@omne-harness/tool-contract':
         specifier: workspace:*
         version: link:../../tool/tool-contract
