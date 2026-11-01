@@ -25,7 +25,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 | --- | --- | --- | --- | --- |
 | `sessionAccessCheck` | `accessCheck` | 插件体 inject 取得，直接交入；每次面操作在开头 check 一次，之后经委派视图读写（[session CP-01](../session/SPEC.md#cp-access)） | PENDING，不能沿用旧 allowed | unavailable，不执行原操作 |
 | `sessionDelegatedTransactions` | `transactions` | 插件体里 `inject` 取得的委派入口，直接传入。实例在每次面操作开头 check 一次后 `bind` 视图 | 插件停在 `PENDING`，服务不在场，`inject` 了 `session` 的调用方插件也停在 `PENDING` | 不包装。失败由视图按契约返回 |
-| `sessionWorkPrincipals` | `workPrincipals` | 插件体里 `inject` 取得，直接传入（性质 8） | 同上。插件停在 `PENDING`，不启动协调器与调度器 | 该次 `forSession` 返回 `unavailable`，任务保留（[session CP-01](../session/SPEC.md#cp-access)） |
+| `sessionWorkPrincipals` | `workPrincipals` | 插件体里 `inject` 取得，直接传入（性质 8） | 同上。插件停在 `PENDING`，不启动协调器与调度器 | 不包装。session 的协调器把抛错按 `unavailable` 处理，`owner` 为 `'sessionWorkPrincipals'`，任务保留（[session CP-01](../session/SPEC.md#cp-access)） |
 | `sessionTransactions` | `directory` | `Current`：`current()` 现取，缺席时返回 `null`。只用于 `pending`、`references` 与 `releasedScopes` | 这三项读取返回 `unavailable`，`owner` 为该键；S3 本轮停止并按退避重试 | 不包装。失败由事务端口按契约返回 |
 | `sessionPrincipals` | `principals` | 插件体里 `inject` 取得的内部主体，直接传入（性质 8） | 同上。插件停在 `PENDING`，不启动任何协调器与调度器 | 不适用。内部主体是对象，不是端口调用 |
 | `sessionIdentity` | `identity` | 完整接口的代理。每次方法调用时现取 | 该次调用返回 `unavailable`，`owner` 为该端口的服务键 | 该次调用返回 `unavailable`，`owner` 为该端口的服务键，`diagnostic` 带原因，并记录诊断 |
@@ -48,7 +48,13 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 
 ### 撤除与换代
 
-9. 撤除：插件卸载时，本插件在一个 effect 里按下列顺序撤除。几步写在同一个 effect 里，因为不同 effect 的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。 0. 插件体在 `assemblyLifecycle` 登记开始与停止句柄，停止句柄执行下列各步。有序关闭按装配顺序先停 `session-provider`，后停 `session-storage` 与 `storage`。
+9. 撤除：撤除有两条触发路径，两条都执行下列第 1 至第 4 步。四步写在同一个函数里按顺序 `await`，因为不同 effect 的释放是并发的（[effect-disposal-concurrent-not-ordered](../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
+
+   - 有序关闭：插件体在 `assemblyLifecycle` 登记开始与停止句柄。装配按顺序先停 `session-provider`，后停 `session-storage` 与 `storage`。停止句柄执行下列四步。开始句柄不做任何事，因为实例在插件体运行时已经构造，并开始接收调用。
+   - effect 释放：插件卸载或第 10 条的换代时，本插件的 effect 执行下列四步，再退登记两个句柄。换代时只有这一条路径触发。
+
+   有序关闭时两条路径先后都会触发。后到的一次不重复执行任何一步，不再调用 `close()`，只等先到的一次结束再返回。
+
    1. 标记撤除中。此后读到的面对每个操作返回 `unavailable`，`owner` 为 `session`。监听到的通知不再交给实例，也不再为新租户调用 `maintain`。
    2. 释放全部维护句柄，各租户的扫描者停止。
    3. 调用实例的 `close()`，最多等待 `disposeWaitMs`。`close` 按 session 的停止顺序进行：调度器停止接受新的触发，在途命令跑完或返回未知，协调器在当前命令结束后停止，最后释放时钟等待与缓存（[资源与替换](../session/SPEC.md#资源与替换)）。
@@ -95,7 +101,7 @@ session 的工厂把依赖分成三类（[参数与依赖](../session/docs/publi
 5. 每次提交派发一次 `session-cordis-contract/committed`，载荷是租户、会话、修订、原提交证据与事件种类集合，不含正文。监听者抛出、`sessionNotifier` 缺席或失败时，提交的回执不变。
 6. 外来的提交通知唤醒实例。同一租户只绑定一个扫描者。`maintain` 失败后，该租户的下一条通知再次绑定。
 7. 配置错误时 fiber 进入 `FAILED`。同一 isolate 标签下重复装载失败。
-8. 撤除顺序：有序关闭时 `session-provider` 先于 `session-storage` 与 `storage` 停止；撤除开始后面返回 `unavailable`；维护句柄全部释放；`close` 完成或超时；超时时在途命令仍以回执或 `commit-unknown` 结束；撤除期间没有出站调用发出，也没有通知派发。
+8. 撤除顺序：有序关闭时 `session-provider` 先于 `session-storage` 与 `storage` 停止；停止句柄与 effect 释放先后触发时，四步只执行一次，`close()` 只调用一次；撤除开始后面返回 `unavailable`；维护句柄全部释放；`close` 完成或超时；超时时在途命令仍以回执或 `commit-unknown` 结束；撤除期间没有出站调用发出，也没有通知派发。
 9. `inject` 的任一项换代时插件体重跑，新实例接管扫描，调用方插件取得新服务。新旧实例并存时，同一命令按操作身份认回，不产生第二次效果。
 
 服务定义成员要求提供者验证的项目（[验证义务](../session-cordis-contract/docs/cordis.md#验证义务)）包含在第 1、2、4、5 项里。机制本身的义务归 [session SPEC 的验证](../session/SPEC.md#验证)。本成员不覆盖：跨进程的每租户单扫描者、持久化与真实邻域的端到端组合。

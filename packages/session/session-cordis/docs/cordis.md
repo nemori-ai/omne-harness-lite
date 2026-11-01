@@ -55,7 +55,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 校验拒绝未知键、类型错误、负数、零上限、空退避序列与非有限数。`preEvaluation.prewarm` 只接受 `false`，与 session 的类型一致：Agent 宿主创建实例的入口定义之前，配置无法打开预热（[配置](../../session/docs/public-api.md#配置)）。`disposeWaitMs` 的初值随实现确定。根关闭的物理等待上界由部署给出，本字段只限制本插件的等待（[必需依赖、局部依赖与有序交接](../../../../docs/architecture/runtime/runtime-contract-integration.md#必需依赖局部依赖与有序交接)）。
 
-配置错误时插件加载失败，fiber 进入 `FAILED`，不提供服务（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。这条 basis 按函数插件核验。Service 子类静态 `Config` 的路径没有单独核验，对本插件还是假设，由本成员的测试补证。缺访问检查、事务端口或内部主体时 fiber 停在 `PENDING`。两种状态分别诊断。
+配置错误时插件加载失败，fiber 进入 `FAILED`，不提供服务（[plugin-throw-fails-fiber](../../../../.meta_harness/design/basis/cordis/plugin-throw-fails-fiber.md)）。这条 basis 按函数插件核验。Service 子类静态 `Config` 的路径没有单独核验，对本插件还是假设，由本成员的测试补证。`inject` 的五项任一缺席时 fiber 停在 `PENDING`。两种状态分别诊断。
 
 配置只放可序列化的数据。租户、主体、受理槽、句柄与回调不进配置，也不进插件树（[IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16)）。
 
@@ -107,14 +107,14 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 
 ## 撤除顺序
 
-插件卸载时，本插件按下列顺序撤除（性质 9）：
+撤除有两条触发路径（性质 9）。有序关闭时，`assemblyLifecycle` 的停止句柄执行下列四步；开始句柄不做任何事。插件卸载或换代时，本插件的 effect 执行下列四步，再退登记两个句柄。两条路径先后都触发时，后到的一次不重复执行任何一步，只等先到的一次结束。四步的顺序：
 
 1. 标记撤除中。此后读到的面对每个操作返回 `unavailable`，`owner` 为 `session`。监听者不再交入通知，也不再绑定扫描者。
 2. 释放全部维护句柄。
 3. 调用实例的 `close()`，最多等待 `disposeWaitMs`。
 4. 等待超时时记录诊断，然后返回。
 
-四步写在同一个 effect 里按顺序 `await`。不同 effect 的释放是并发的，而且 disposer 的异常只写日志、不上抛（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以每一步由本插件自己捕获，失败时记录诊断并继续下一步。
+四步写在同一个函数里按顺序 `await`，停止句柄与 effect 调用同一个函数。不同 effect 的释放是并发的，而且 disposer 的异常只写日志、不上抛（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以每一步由本插件自己捕获，失败时记录诊断并继续下一步。
 
 `close` 的内部顺序归 session：调度器停止接受新的触发，在途命令跑完或返回未知，协调器在当前命令结束后停止，最后释放时钟等待与缓存（[资源与替换](../../session/SPEC.md#资源与替换)）。在途提交的收场：
 

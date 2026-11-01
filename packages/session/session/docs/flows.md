@@ -14,13 +14,16 @@
 sequenceDiagram
     participant Caller as 调用方或协调器
     participant CP as 命令处理器
+    participant AC as SessionAccessCheck 与委派入口
     participant Op as 操作记录
     participant DS as decide（契约导出的纯函数）
     participant Br as 身份桥、证据桥、Context 与空闲输入
-    participant Tx as SessionTransactionPort 与存储参加者
+    participant Tx as 委派视图与存储参加者
     participant N as SessionNotifier
     Caller->>CP: 命令与 Access
-    CP->>Op: 按 OP-00 派生身份后点查
+    CP->>AC: check 一次；allowed 后 bind，取得本次面操作的委派视图
+    Note over CP,AC: denied 返回 denied；unavailable 或抛错返回 unavailable。都不继续。之后各步都经视图，不再 check
+    CP->>Op: 按 OP-00 派生身份后经视图点查
     alt 已提交
         CP-->>Caller: 原回执，recovered 为真
     else 未见
@@ -33,7 +36,7 @@ sequenceDiagram
             CP->>Tx: commit(命令, 材料)
             Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的七种命令核对 expected，其余按当前状态重新裁定
             alt changed（只有带 expected 的命令）
-                Note over CP: 回到点查，以同一身份重做，次数受策略上限
+                Note over CP: 回到点查，不再 check；丢弃快照缓存槽，读权威快照；以同一身份重做，次数受策略上限
             else commit-unknown
                 CP-->>Caller: commit-unknown，不改写
             else 成功

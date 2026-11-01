@@ -290,7 +290,9 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 - 纯 scope end 使用 CommitInput 的 scope 分支，不制造空注册或虚假 step；registration/step 带 scopeEnded 时整笔原子应用。executionEnded 只影响原 untracked 块，不等于 scope end。
 - 访问核验：持有者面每个操作的第一个参数是调用方可信主体。每个带目标的入口先问权威端口，再问可信绑定来源。「作用域到租户」的可信绑定来源是调用方提供的端口（RC-01），由装配提供。该装配缺口归 [#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。
 
-注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。本插件是调用 `applyCommit` 的唯一一方，AD-12 只准备材料，不调用 `applyCommit`。本插件监听 `session-cordis-contract/committed`，事件种类含 SE07 时经历史读取取出该批注册，沿每份决定的原 CommitRef 与完整输入调用 `applyCommit`，批内多个注册按持久顺序应用。通知丢失时，下一次恢复会话（1a）的完整材料覆盖这些注册，或下一次 `applyCommit` 返回「顺序不符」并开始恢复会话，所以注册不会两边都不应用；同值重复应用按原输入认回，所以也不会重复生效。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
+注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。本插件是调用 `applyCommit` 的唯一一方，AD-12 只准备材料，不调用 `applyCommit`。本插件的回放子插件监听 `session-cordis-contract/committed`，事件种类含 SE07 时以 `reader` 经历史读取取出该批注册，沿每份决定的原 CommitRef 与完整输入调用 `applyCommit`，批内多个注册按持久顺序应用。`applyCommit` 是 Runtime Context 持有者面的操作，不调用 `session`，所以回放子插件只用 `reader` 一种调用方类（[AD-00](#ad-00) 第 1 条）。通知丢失时，下一次恢复会话（1a）的完整材料覆盖这些注册，或下一次 `applyCommit` 返回「顺序不符」并开始恢复会话。同值重复应用按原输入认回，所以注册不会重复生效。
+
+已知限制：注册从 Session 日志进入 Runtime Context 没有时间上界。通知丢失或监听者失败之后，如果没有新的 SE07、没有 Runtime Context 提供者换代、也没有重启，该批注册留在 Session 日志里而不进入 Runtime Context。依赖它的首个模型请求继续暂停，S3 的八个待办原因都不覆盖这一状态，没有调度器找回它。安全性成立：注册不会重复生效。触发条件：实测出现这种暂停，或 Runtime Context 拥有者按 NP-11 给出对账时点之后，为本插件加一个对账时点（例如签发资格时核对该 scope 未应用的 SE07），并写明上界。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
 
 <a id="ad-04"></a>
 
@@ -597,7 +599,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 | <a id="np-05"></a>NP-05 | `load` 不区分记录不存在与读取失败 | Agent 拥有者 | 本成员不产生 `missing` |
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记；受理按准入不可用返回 `unavailable`，装配声明没有命令域与 hooks 时不经槽 |
 | <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的现有邻域适配内，已有插件 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
-| <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉上界是下一次模型请求之前）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
+| <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉时点与上界：下一次步边界提交之后；「下一次模型请求之前」是 1c 已知限制的恢复条件）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 

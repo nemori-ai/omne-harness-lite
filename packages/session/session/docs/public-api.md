@@ -87,7 +87,7 @@ export type SessionDependencies<P> = Readonly<{
 
 公开面在面操作开头按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 检查一次，经委派视图读写，不缓存 allowed（[SPEC CP-01](../SPEC.md#cp-access)、[委派入口](../../session-contract/docs/access-check.md#委派入口)）。拒绝、不可用或抛错不继续执行。视图不再检查，存储只核租户键与绑定的裁定证据。`pending`、`references` 与 `releasedScopes` 不经视图，由公开事务端口检查一次。访问检查类型与独立脚本替身已由 [session-contract](../../session-contract/docs/access-check.md) 导出，Service 与键已由 [session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 导出。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../../session-contract/docs/access-check.md)）。本成员的生产注入尚未接入，生产运行尚未验证。
 
-协调器以 `coordinator` 调用方类、调度器与恢复以 `maintainer` 调用方类对已成立会话提交命令时，经 `workPrincipals.forSession` 取得该会话的主体，失败处置见 [SPEC CP-01](../SPEC.md#cp-access)。`principals` 只用于系统维护。两者都由应用装配签发，身份桥核实它们的可信来源，本成员不铸造主体。
+协调器、调度器与恢复对已成立会话的每次面操作（提交命令与读取）都经 `workPrincipals.forSession` 取得该会话的主体。actor 的取值、失败处置与 `principals` 适用的两处系统维护见 [SPEC CP-01](../SPEC.md#cp-access)。两者都由应用装配签发，身份桥核实它们的可信来源，本成员不铸造主体。
 
 `BeforeAdmitSlot` 的输入与输出取自 [EX-1](../SPEC.md#ex-1) 的表：输入是原提交、来源与会话当前值，输出是放行（可能已展开的内容与该槽的结论）或拦截（原因与留痕材料）。前一个槽放行的 `submission` 是后一个槽的输入。槽的结论与留痕以 `GuardCommand` 表示，作为参加者材料进入 `accept`，`participant` 为该槽的拥有者。槽的语义与公开入口归命令域与 hooks 的拥有者，尚未定义。定义之前 session-adapters 不登记槽，`admission` 取不到，`accept` 返回 `unavailable`；只有装配声明 `admission: 'none'` 时才返回空列表。
 

@@ -45,7 +45,7 @@ export const inject = {
 | --- | --- | --- | --- |
 | `sessionAccessCheck` | `SessionAccessCheck` | 授权适配器 | 抽象类与键已导出。生产提供者仍须将其列为必需 `inject`，缺席时 `PENDING`；该接线未交付 |
 | `sessionTransactions` | `SessionTransactionPort` | [session-storage-sql](../../session-storage-sql/README.md) 或其他存储提供者 | 供直接调用者与符合性套件。Session 服务提供者不 `inject` 它，只为 `pending`、`references` 与 `releasedScopes` 按调用现取；缺席时这三项返回 `unavailable`。单会话读写经受信键 `sessionDelegatedTransactions` |
-| `sessionPrincipals` | `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体 | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
+| `sessionPrincipals` | `SessionInternalPrincipals`：本组系统维护用的内部主体，适用的操作见 [session CP-01](../../session/SPEC.md#cp-access)。已成立会话上的协调与恢复用受信键 `sessionWorkPrincipals` | 应用装配（维护拥有者签发） | 进 `inject`。缺席时 Session 服务停在 `PENDING`，不启动任何协调器 |
 | `sessionIdentity` | `SessionIdentityBridge` | [session-adapters](../../session-adapters/README.md) | 按调用现取。缺席时变更操作返回 `unavailable`，读取照常 |
 | `sessionEvidence` | `SessionEvidenceBridge` | session-adapters | 按调用现取。缺席时只有需要该材料的命令返回 `unavailable` |
 | `sessionClock` | `SessionClock` | 应用装配 | 按调用现取。缺席时空闲取证与等待返回 `unavailable` |
@@ -70,6 +70,8 @@ Tool 常驻引用桥由应用装配提供，以显式 tenant 消费 Session 的 
 | `sessionDelegatedTransactions` | `SessionDelegatedTransactions` | 会话存储组合（`session-storage` 行） | `session-provider` 行，进 `inject` |
 | `sessionWorkPrincipals` | `SessionWorkPrincipals` | 装配入口 | `session-provider` 行，进 `inject` |
 | `sessionPrincipalBindings` | `SessionPrincipalBindingSource` | 会话存储组合（`session-storage` 行） | 只由装配入口按调用读取，没有行 `inject` |
+
+`sessionDelegatedTransactions` 与 `sessionTransactions` 必须由同一存储核心提供，读写同一份会话事实与待办索引。应用装配的 `session-storage` 行兑现这一点（[契约端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)）。
 
 `./testing` 提供两个非耐久替身与各自的符合性套件：
 

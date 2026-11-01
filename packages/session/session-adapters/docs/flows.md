@@ -77,7 +77,7 @@ flowchart LR
   Modes[SE03 提交] --> Publish[经生产者句柄发布 session.modes]
 ```
 
-1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。AD-03 是调用 applyCommit 的唯一一方：它从提交通知或恢复材料得知提交确认后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
+1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。AD-03 是调用 applyCommit 的唯一一方：它的回放子插件（`reader`）从提交通知或恢复材料得知提交确认后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。通知丢失后注册进入 Runtime Context 没有时间上界，见 [AD-03](../SPEC.md#ad-03) 注册决定一段的已知限制。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
 2. 恢复会话按 [AD-03 1a](../SPEC.md#ad-03-1a) 与 RC-09 进行。以原 scope、through/supersedes 及完整三部分材料 begin/finishReplay，只有 ready(open) 后按当前普通授权、可信绑定及所需注册重签资格，签发不等供给值恢复。合法普通读取触发待刷新供值，必要输入齐备后才发首个模型请求。新 scope 按 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 经现有注册与提交路径初始化，不复制旧 scope。注册已提交但初始化未完即重启时，恢复原注册与已有检查点，再补供值并续原初始化。必要来源或资格有缺口时失败关闭，首请求保持暂停；恢复覆盖的普通提交不重复执行增量。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
