@@ -191,3 +191,79 @@ describe('check:lines command', () => {
     expect(broken.status).toBe(2)
   })
 })
+
+describe('check:lines owner identity drift', () => {
+  const homes: string[] = []
+  afterEach(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
+  const fact = (lineId: string, login: string) => ({
+    lineId,
+    owner: { login, nodeId: `U_${login}` },
+    adoption: {
+      comment: {
+        url: 'https://github.com/nemori-ai/omne-harness-lite/issues/1#issuecomment-1',
+        bodySha256: 'b'.repeat(64),
+        updatedAt: '2026-11-01T00:00:00Z',
+      },
+      authorNodeId: 'U_accepter',
+    },
+  })
+  const manifest = (owners: unknown[]) => ({
+    schemaVersion: 1,
+    repository: { name: 'nemori-ai/omne-harness-lite', nodeId: 'R_repo' },
+    owners,
+  })
+  function run(identity: unknown) {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-lines-')))
+    homes.push(root)
+    const write = (path: string, content: string) => {
+      mkdirSync(dirname(join(root, path)), { recursive: true })
+      writeFileSync(join(root, path), content)
+    }
+    write('pnpm-workspace.yaml', 'packages:\n  - packages/*/*\n  - apps/*\n  - tools/dev-flow\n')
+    for (const member of members)
+      write(`${member.path}/package.json`, JSON.stringify({ name: `@fixture/${member.path}` }))
+    write('docs/engineering/delivery-lines.json', JSON.stringify(table()))
+    write('docs/engineering/integration-policy.json', JSON.stringify(registry))
+    if (identity !== undefined)
+      write('docs/engineering/api-review-owners.json', JSON.stringify(identity))
+    return spawnSync(
+      process.execPath,
+      [
+        '--experimental-strip-types',
+        fileURLToPath(new URL('../src/delivery/lines-cli.ts', import.meta.url)),
+        '--root',
+        root,
+      ],
+      { encoding: 'utf8' },
+    )
+  }
+  const matching = [fact('model', 'model-owner'), fact('session-agent', 'session-owner')]
+
+  it('passes when every identity entry matches the table', () => {
+    expect(run(manifest(matching)).status).toBe(0)
+  })
+  it('fails when a login differs from the table owner', () => {
+    const result = run(manifest([fact('model', 'other'), matching[1]]))
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('owner-identity-drift')
+  })
+  it('fails when a login differs only by case', () => {
+    const result = run(manifest([fact('model', 'Model-Owner'), matching[1]]))
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('owner-identity-drift')
+  })
+  it('fails when an identity lineId is not in the table', () => {
+    const result = run(manifest([fact('model', 'model-owner'), fact('zzz-gone', 'x')]))
+    expect(result.status).toBe(1)
+    expect(result.stderr).toContain('owner-identity-drift')
+  })
+  it('does not check an absent identity file', () => {
+    expect(run(undefined).status).toBe(0)
+  })
+  it('does not report a table line without an identity entry', () => {
+    expect(run(manifest([matching[0]])).status).toBe(0)
+  })
+  it('refuses an unparsable identity file as unusable input', () => {
+    expect(run({ ...manifest(matching), extra: 1 }).status).toBe(2)
+  })
+})
