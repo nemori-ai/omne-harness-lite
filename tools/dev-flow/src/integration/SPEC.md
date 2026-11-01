@@ -280,18 +280,61 @@ I22。`contract-check` 让契约快照与 dist 的不一致使 `pnpm run check` 
 
 - 三个范围各自重算比较描述：卡级核对 task context、当前 binding 与正式派发，提升级读取来源轨道、unit、PR 与所含卡，里程碑累计读取 baseline 卡与 Milestone 并运行真实的 `omne-contract-api --baseline`。检查器不相信 draft 文件。
 - 比较描述保留完整的原始成员 JSON 与进程退出码，不用丢失差异的简化结果。`checkedMembers` 与 `reviewMembers` 是完整集合，缺项、重复、意外项或不可判定成员都拒绝，列表不截取。
-- 目标提交必须来自上下文或提升的直接上游，不来自任意 `--base` 参数。检出 HEAD 必须等于候选 head，工作树无未提交或未忽略的未跟踪文件。前后两次读取 HEAD、工作树、直接目标 head 与关键评论摘要，变化即拒绝。
-- 启用检查按固定顺序执行，前一步失败不执行后一步：入口位置（`api-review-entry-outside-root`）、AuthorityFiles 存在性、AuthorityFiles 逐对象相等（`api-review-self-authorization`）、解析目标提交的线归属表与身份文件（`api-review-policy-unavailable`）。AuthorityFiles 含 `tools/dev-flow/src`、`tools/dev-flow/package.json`、`integration.md`、`delivery.md`、`docs/verification.md`、`delivery-lines.json`、`api-review-owners.json`、`integration-policy.json` 与 `repo-toolchain.config.json`。
+- 目标提交必须来自上下文或提升的直接上游，不来自任意 `--base` 参数。检出 HEAD 必须等于候选 head，工作树无未提交或未忽略的未跟踪文件。三个入口在判定之后、返回结果之前，重读账号、`publish` reviewer、载体评论摘要与 binding 或派发，并重读 HEAD、工作树与直接目标 head。任一项与第一次读取不同，即为 `api-review-source-changed`。
+- 启用检查按固定顺序执行，前一步失败不执行后一步：入口位置（`api-review-entry-outside-root`）、AuthorityFiles 存在性、AuthorityFiles 逐对象相等（`api-review-self-authorization`）、解析目标提交的线归属表与身份文件（`api-review-policy-unavailable`）。AuthorityFiles 含 `tools/dev-flow/src`、`tools/dev-flow/package.json`、`integration.md`、`delivery.md`、`docs/verification.md`、`delivery-lines.json`、`api-review-owners.json`、`integration-policy.json` 与 `repo-toolchain.config.json`。存在性一步逐个检查这些路径在目标提交与候选提交中是否存在：目标侧缺而候选侧有，为 `api-review-self-authorization`；两侧都缺，为 `api-review-policy-unavailable`，退出 2。因此在身份文件登记前，新路径一律退出 2。四步的流程见本节末尾的图。
 - 提升范围内任一卡改动了 AuthorityFiles 中的路径时，提升级新路径拒绝。需要用新路径提升时，先单独提升工具与治理改动，再合入含 `review` 成员的改动。
-- 原始 `none` 与 `additive` 不需要记录。有效的 `review` 加 `additive` 记录得到 `additive`。有效的 `breaking` 结论为 `api-review-breaking-route-required`，仍走既有 breaking 路径。binding 为 `none` 不能消费 `additive` 结论。
-- 里程碑累计通过的条件：基线读取退出码只能是 0 或 1，且为 1 当且仅当 `refused` 为真；无未判定成员，登记的 sha256 与 apiTree 相符；每个成员原始分类为 `none` 或 `additive`，或为 `review` 且有效记录为 `additive`；没有 `breaking` 结论；没有发现，两次读取一致。累计语义路径只放行全部确认为 `additive` 的 `review`。
+- 原始 `none` 与 `additive` 不需要记录。有效的 `review` 加 `additive` 记录得到 `additive`。有效的 `breaking` 结论为 `api-review-breaking-route-required`，仍走既有 breaking 路径。卡与 RI 在有效的 breaking binding 下仍按原有规则判定，breaking 结论不使其失败。里程碑累计的语义路径中，breaking 成员的有效结论得到 `api-review-breaking-route-required`。已登记 breaking 承接、同时另有经复核为 additive 的 review 成员时，中段累计核对在承接卡完成并补登记前不通过。这是已知限制。binding 为 `none` 不能消费 `additive` 结论。
+- 里程碑累计通过要求下列条件全部成立：
+  - 基线读取退出码只能是 0 或 1，且为 1 当且仅当 `refused` 为真。
+  - 无未判定成员，登记的 sha256 与 apiTree 相符。
+  - 每个成员的原始分类为 `none` 或 `additive`，或为 `review` 且有效记录为 `additive`。
+  - 没有 `breaking` 结论。
+  - 没有发现，两次读取一致。
+
+  累计语义路径只放行全部确认为 `additive` 的 `review`。
+- 卡级入口是 `change-scope-cli.ts`，`scripts/check.sh` 每次调用它。卡有 review 成员时它读 GitHub 评论，离线或没有令牌时退出 2，这是拒绝方向的结果。它与 `--lines` 不能同用：指定 `--lines` 且卡有 review 成员时拒绝并退出 2。
 - 无 `--review-issue` 的提升级、无 `--semantic-review` 的累计级与无记录的卡级，保持旧行为。新路径中 `contractCheck.unavailable` 退出 2，不能沿旧报告模式退出 0。
-- `api-review-cli.ts` 提供 `draft-card`、`draft-ri`、`draft-milestone`、`check-milestone` 与 `verify-owner-adoption`。draft 命令只输出待人工核对的草稿，不发评论，不产生通过结论。输入无法完整取得时退出 2，不写部分可签发草稿。没有 `--record`、`--trust-local` 或任意 owner 参数。`ri-notes` 增加 `--review-issue <所含卡号>`，该卡号必须属于本次解析出的所含卡且与载体一致。`check-milestone` 的 `--semantic-review` 只允许 `true` 或缺省。
-- `verify-owner-adoption --root <检出> --base <目标提交> --head <PR head 提交>` 是 `publish` 确认者的只读工具，不属于新语义路径，不执行启用检查，也不产生任何复核结论。它用 `git merge-tree --write-tree` 算出合并结果，比较两侧 `api-review-owners.json`，把条目分为新增、改动与删除。对新增与改动的条目，读回采用评论并核对四项：URL 属于本仓库且与读回的 `html_url` 相等、`bodySha256`、`updatedAt`、`authorNodeId`。对删除的条目只列出。三个参数都必填，不重复。提交不在对象库时不自动 fetch。输出 JSON 报告，附读回评论的原始正文，标准错误最后一行为汇总。只发 GET 请求，不写平台、工作树与 task context。
+- `api-review-cli.ts` 提供 `draft-card`、`draft-ri`、`draft-milestone`、`check-milestone` 与 `verify-owner-adoption`。draft 命令只输出待人工核对的草稿，不发评论，不产生通过结论。输入无法完整取得时退出 2，不写部分可签发草稿。`draft-card` 与 `draft-ri` 在复核被拒绝时不输出草稿，改为输出 `{"kind":"draft-refused","findings":[…]}`，退出码取该报告的 `exit`：启用检查类拒绝为 1，输入不完整为 2。`draft-milestone` 同样输出 `draft-refused`。`ri-notes --review-issue` 在所含卡的 notes 为空时只输出 `{"semanticReview": <报告>}`。没有 `--record`、`--trust-local` 或任意 owner 参数。`ri-notes` 增加 `--review-issue <所含卡号>`，该卡号必须属于本次解析出的所含卡且与载体一致。`check-milestone` 的 `--semantic-review` 只允许 `true` 或缺省。
+- `verify-owner-adoption --root <检出> --base <目标提交> --head <PR head 提交>` 是 `publish` 确认者的只读工具，不属于新语义路径，不执行启用检查，也不产生任何复核结论。它用 `git merge-tree --write-tree` 算出合并结果，比较两侧 `api-review-owners.json`，把条目分为新增、改动与删除。对新增与改动的条目，读回采用评论并核对四项：URL 属于本仓库且与读回的 `html_url` 相等、`bodySha256`、`updatedAt`、`authorNodeId`。对删除的条目只列出。三个参数都必填，不重复。仓库名 `repository` 取自 `--base` 提交中的 `docs/engineering/integration-policy.json`。读不到或没有字符串字段 `repository` 时，输出 `kind` 为 `input-unknown` 的报告，发现为 `adoption-verify-input-unknown`，退出 2。提交不在对象库时不自动 fetch。输出 JSON 报告，附读回评论的原始正文，标准错误最后一行为汇总。只发 GET 请求，不写平台、工作树与 task context。
 - `verify-owner-adoption` 的失败码：`adoption-verify-foreign-url`、`adoption-verify-comment-missing`、`adoption-verify-mismatch`、`adoption-verify-manifest-invalid` 退出 1；`adoption-verify-input-unknown`（参数无效、提交不在对象库、合并冲突、目标侧不能解析、403、429、网络错误）退出 2。退出 0 只说明四项与平台一致，不说明评论是有权者的决定，也不判断删除是否获准。这两项由确认者阅读后判断。
 - 一般情形从目标提交的独立检出运行该命令，不从 PR head 运行，因为 PR 可以修改这条命令。初次入轨时目标还没有这条命令，确认者从工具候选运行，并另外手工读回同样的四项。候选自带的输出不能单独作为依据。
 
 测试使用真实临时 Git 与已安装的 `omne-contract-api`，至少驱动一个新入口完成 module augmentation 的 `review`。GitHub 以替身代替网络。每个拒绝场景只改变一个条件，不依赖另一个先发生的失败。真实 GitHub 的复核由集成负责人只读执行。
+
+失败码与退出码一一对应，取自 `contract-review.ts` 的 `FAILURE_EXIT`。有任一退出 2 的发现时整体为 2。
+
+| 失败码 | 退出码 | 含义 |
+| --- | --- | --- |
+| `api-review-missing` | 1 | review 成员没有记录 |
+| `api-review-owner-unresolved` | 1 | 成员所属线不是唯一一条 |
+| `api-review-owner-identity-missing` | 1 | 身份文件没有该线的条目 |
+| `api-review-owner-identity-mismatch` | 1 | 身份文件与当前读回的账号不符 |
+| `api-review-invalid` | 1 | 有权作者的记录不能严格解析 |
+| `api-review-scope-mismatch` | 1 | 记录的范围与本次比较描述不符 |
+| `api-review-unauthorized` | 1 | 作者或委派者无权 |
+| `api-review-source-changed` | 1 | 两次读取之间平台事实变化 |
+| `api-review-revoked` | 1 | 记录已被撤销 |
+| `api-review-conflict` | 1 | 记录冲突，例如重复的 `operationId` |
+| `api-review-entry-outside-root` | 1 | 入口不在候选树的工具源码下 |
+| `api-review-self-authorization` | 1 | 权威文件在两侧不同，或只在候选侧存在 |
+| `api-review-breaking-route-required` | 1 | 有效结论为 breaking，走既有 breaking 路径 |
+| `api-review-input-unknown` | 2 | 输入或事实无法确定 |
+| `api-review-policy-unavailable` | 2 | 策略文件缺失或不能解析 |
+
+启用检查按下图执行。前一步失败即停止，不执行后一步。
+
+```mermaid
+flowchart TD
+  A[入口位置：入口在候选树 tools/dev-flow/src 下] -->|否| F1[api-review-entry-outside-root 退出 1]
+  A -->|是| B[存在性：权威文件在两侧都存在]
+  B -->|目标侧缺而候选侧有| F2[api-review-self-authorization 退出 1]
+  B -->|两侧都缺| F3[api-review-policy-unavailable 退出 2]
+  B -->|都存在| C[逐对象相等：两侧 Git 对象号相同]
+  C -->|不同| F2
+  C -->|相同| D[解析：目标提交的线归属表与身份文件可解析]
+  D -->|不能解析| F3
+  D -->|可解析| E[启用，继续读取记录]
+```
 
 ## 验证义务与限制
 

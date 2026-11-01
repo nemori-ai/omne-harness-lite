@@ -81,7 +81,7 @@ pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pr
 
 ## 线归属表校验
 
-`pnpm run check:lines` 校验 `docs/engineering/delivery-lines.json`：线 ID 唯一且不为 `integration`，路径归属不重叠，每个工作区成员恰好属于一条线或 `integration.paths`，契约成员是本线路径下的工作区成员，线轨道已在 registry 登记、状态为 active 或 paused、上游是联调轨道。每处错误输出一行，带表中的 JSON 路径。有错误时退出1，输入读不到时退出2。`scripts/check.sh` 每次运行它。`docs/engineering/api-review-owners.json` 存在时，每个 `lineId` 必须在线归属表中存在，owner login 必须相同，否则输出 `owner-identity-drift` 并退出1。文件缺失时不检查。身份文件的含义见[API 语义复核](#契约变更的语义复核)。
+`pnpm run check:lines` 校验 `docs/engineering/delivery-lines.json`：线 ID 唯一且不为 `integration`，路径归属不重叠，每个工作区成员恰好属于一条线或 `integration.paths`，契约成员是本线路径下的工作区成员，线轨道已在 registry 登记、状态为 active 或 paused、上游是联调轨道。每处错误输出一行，带表中的 JSON 路径。有错误时退出1，输入读不到时退出2。`scripts/check.sh` 每次运行它。`docs/engineering/api-review-owners.json` 存在时，每个 `lineId` 必须在线归属表中存在，owner login 必须相同，否则输出 `owner-identity-drift` 并退出1。文件缺失时不检查。身份文件存在却不能解析（不是严格 JSON、字段不合格或条目未排序）时，命令退出2，不输出 `owner-identity-drift`。身份文件的含义见[API 语义复核](#契约变更的语义复核)。
 
 ## 标签同步
 
@@ -169,6 +169,16 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
    - 版本1的 binding 没有契约变更字段，只在 `contract` 中列出成员，不核对。
 
 标准输出是 JSON：`issue`、`attempt`、`taskBase`、`head`、本卡改动的文件 `files`、契约核对 `contract`，以及 `findings`。`contract.kind` 为 `not-needed`、`skipped` 或 `checked`。文件发现有 `code`、`file`、`message` 与 `remedy`，契约发现有 `code`、`member`、`change`、`declared`、`message` 与 `remedy`。每项发现向标准错误写一行。没有发现退出0，有发现退出1。参数错误、context 不属于本工作树、`taskBase` 不是 HEAD 的祖先、读不到线归属表，或 `omne-contract-api` 运行失败时退出2。
+
+语义复核通路运行时，JSON 多一个 `semantic` 字段，退出码另有一条规则。通路在三个条件同时成立时运行：binding 为版本2，本卡改到的成员中有差异为 review 的成员，卡的 Issue 评论中有复核记录。任一条件不成立时不写 `semantic`，退出码规则不变。
+
+- `semantic` 的字段是 `exit`（0、1 或 2）、`rawExitCode`（`omne-contract-api` 的原始退出码，没有时为 null）、`findings`（`code`、`member`、`detail`）、`members`（每个成员的原始分类、结论与工程级别）和 `levels`（每个有有效结论的 review 成员的级别，`additive` 或 `breaking`）。
+- 有效的 `additive` 结论使该成员在契约核对中按 additive 计。契约发现随之重新计算，原始分类仍在 `semantic.members` 中。
+- 语义发现也列入 `findings`，形状是 `SemanticFinding`：`code`（`api-review-*` 失败码）、`member`（成员路径，或 null）、`detail`、`message` 与 `remedy`。
+- `semantic.exit` 为 2 时命令退出2，不论其他发现。失败码与退出码的对照见[集成工具](../integration/SPEC.md#api-语义复核)。其余情况按发现数退出0或1。
+- 常驻检查：`scripts/check.sh` 调用本命令。卡有 review 成员时，命令读 GitHub 评论。离线或没有令牌时读取失败，命令退出2。这是拒绝方向的结果，不是通过。
+- `--lines` 与语义复核通路不能同时使用。指定 `--lines` 且卡有 review 成员时，命令拒绝这种组合并退出2。
+- binding 的契约变更为 `breaking` 的卡仍按原有规则判定。有效的 `breaking` 结论不使这张卡失败。
 
 下图是一张卡的提交图。`B` 是 taskBase，`o/target` 是目标分支的远端跟踪分支，别的卡的提交经它进入。
 
