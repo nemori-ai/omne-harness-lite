@@ -72,8 +72,12 @@ console.log('scenario ok: value, denied, absent and a minted-tenant judgment')
 const testing = await import('@omne-harness/model/testing')
 const { createModelRuntime, createModelSendBoundary } = await import('@omne-harness/model')
 assert.deepEqual(Object.keys(testing).sort(), [
+  'ACCOUNT_OBLIGATIONS',
+  'checkCommandsAccounts',
   'createMemoryModelCommands',
+  'createModelCommandsCore',
   'createTestModelDependencies',
+  'modelCommands',
 ])
 const assembled = testing.createTestModelDependencies({
   owners: [],

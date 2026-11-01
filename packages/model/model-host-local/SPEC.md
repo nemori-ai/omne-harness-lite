@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包承载三项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；以及单机宿主插件（实例目录、转换目录、宿主驱动与请求准备及其计量租约）。运行门面 `modelRuntime`、恢复扫描、发送与重试阶段插件、档案读取不在本包当前范围，没有实现也不由本文件承诺。
+本包承载四项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动、请求准备及其计量租约，以及发送阶段）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。运行门面 `modelRuntime`、恢复扫描、重试与目录阶段插件不在本包当前范围，没有实现也不由本文件承诺。
 
 发送资源满足 model 的 `SendResources` 端口，端口形状与发送边界的行为归 [model 的 SPEC](../model/SPEC.md)。传输、家族贡献、网络资源与路由的形状和行为归 [pi-ai-transport](../pi-ai-transport/SPEC.md)。秘密不进入请求、发出记录、失败、扩展或遥测的要求归 [model-contract](../model-contract/SPEC.md)。
 
@@ -148,6 +148,12 @@
 - `publish` 只接受当前绑定的代次：同一发布认回原回执，旧代次返回 `stale-instance` 且不夺回路由，较晚代次取代旧路由。`withdraw` 只撤除登记匹配的发布。`directory.connect` 先经装配给的 `qualifyObservation` 核当前观察资格，失败（含 `denied`）原样返回，命中路由不当作授权。
 - 有序关闭是一个流程：先 quiesce（`provider.quiesce`，拒绝或抛出只报告），再停派发、发停止信号并等待每个 drive 交还，最后撤发布服务的贡献（Cordis 撤除子插件）。未派发的唤醒明确留给后继，计数写进诊断，不报告为完成。shutdown 不抛出：它之后的撤除若被跳过，服务就撤不掉。
 
+#### 宿主插件的已知限制
+
+- 同一服务键同时只有一个提供者（Cordis 不允许两个）。旧宿主在有序关闭里等 drive 交还时，服务键仍被它占着，此时装载的后继 fiber 失败（`FAILED`），旧宿主退出后没有宿主。失败是响亮的，不静默。需要换宿主时，先等旧宿主退出再装载。`tests/plugins-host.spec.ts` 固定这个行为。
+- 关闭时的排空没有上界：`closeNow` 等所有在途 drive 交还，不设超时。忽略停止信号的 driver 会让卸载一直不返回。driver 必须响应传给它的停止信号。上界数值属装配配置，M2 不加这个机制。
+- 收到响应头之前的流停顿经本地装配与 Model 运行时调用时，属首内容之前的可重试失败。M2 没有重试策略，调用停在 `retry-not-decided`，仍为 `running`，不形成 Settlement，见 [Model 已实现的调用收场](../model/SPEC.md#已实现的调用收场)。本包的 C4 用例只在首内容之后的一支要求 Settlement 可读。这是 M2 无重试的限制，不是宿主或停顿上界的缺陷。
+
 ### 请求准备插件与计量租约
 
 `createModelRequestPreparationPlugin(options)` 交出插件类与该插件的租约来源 `resources`。静态注入只有 `modelCommands`；不依赖 `modelRuntime` 或供应商网络，传输缺席时 `prepare` 照常工作。配置是 `maxCitedCalls`（正整数，必需）。
@@ -156,6 +162,36 @@
 - 租约与宿主读同一份 `ModelCommands`：装配与插件都经 `modelCommands` 注入它。所以延续计量读得到同一存储里的调用事实；换一份命令时读不到（`call-unreadable`）。
 - 插件卸载时租约来源拒绝新租约（`unavailable`，诊断 `preparation-plugin-unloaded`），`prepare` 同样拒绝。卸载前取得的租约持有自己的调用事实视图，继续可用到释放；释放幂等，释放后的 meter 答 `preparation-lease-released`。
 - 交给请求组装的租约来源是对象，不是服务键（R1-D17 Q-8）。插件装载后可用，卸载后拒绝。
+### 官方档案读取
+
+`ModelProfilesLocalPlugin` 把 pi-ai-openai 的官方档案作为一份冻结快照，经 model 的 `createModelProfiles` 发布为 `modelProfiles` 服务。求值规则归 [model 的 SPEC](../model/SPEC.md#档案读取与同名求值)，本节只写本包构造快照的规则。
+
+- **来源构造。** `createOfficialProfileSource({ definitions, updatedAt })` 在 [profile-source.ts](src/profile-source.ts)，不导入任何家族包。每份定义成为一份工厂层档案，`identity` 为 `{ scope: { kind: 'factory' }, route }`，`route` 取第一家供应商的 `model`（依据：pi-ai-openai SPEC 写明记录名等于路由名）。`availability` 为 `active`，`updatedAt` 取配置。候选 `excluded` 与 `locked` 为 `false`，`credential` 为 `unavailable`，`precedence` 只有 `factory` 一层。构造时路由重复是装配缺陷，抛 `RangeError`，不服务半份目录。
+- **档案 adoption 的身份规则。** 档案 adoption 是 `{ owner, name, revision, digest }`：`owner` 与 `revision` 取第一家供应商采用的 `owner` 与 `revision`，`name` 为路由名，`digest` 为整份定义的规范 JSON 的 SHA-256。它与供应商记录的 adoption 在 `owner`、`name`、`revision` 上重合，`digest` 不同：供应商的 digest 覆盖家族记录，档案的 digest 覆盖装配输入后的定义（含配置给出的 `retryPolicy` 与 `compactionTriggerPercent`）。家族包没有发布过档案的摘要，所以不存在可「向原拥有者核实」的档案摘要；这个 digest 只证内容相同。规范 JSON 规则同 tokenizer-tiktoken SPEC「规范 JSON」，tokenizer-tiktoken 与 pi-ai-transport 都没有从公开入口导出该函数，本包自写一份小函数，并由 [profile-source.spec.ts](tests/profile-source.spec.ts) 用独立算出的摘要固定。
+- **快照 `source` 与 `revision` 规则。** `source` 为 `{ owner: '@omne-harness/model-host-local', record: 'official-profiles', revision: updatedAt, digest }`，`digest` 为各档案 adoption 列表的规范 JSON 的 SHA-256。`revision` 取配置的 `updatedAt`。家族记录升修订而配置不变时，`revision` 不变而 `digest` 变，所以只比 `revision` 的消费者会把它们当作同一来源。本阶段没有消费者核对 `source`：快照 `source` 只证内容相同，不证已向原拥有者核实。
+- **凭据状态。** 候选 `credential` 固定为 `unavailable`，表示来源没有凭据元数据可给，它不是暂态，也不是 `missing`，更不是 `available`。这不挡选择：缺凭据与凭据不可得都不使 `selectable` 为假，所以官方档案在本阶段都可选。读取 settings 与凭据状态元数据留给后续波。依据：R1-D4。消费方（如选择界面或运行线）不得把「非 `available`」当作不可选。
+- **不核主体。** 官方档案对所有租户相同，不含租户数据。本阶段来源只核租户经 legal-identity 铸造，不核主体；待身份适配器进入装配后补。
+
+插件的配置经 Standard Schema 在入口一次解析，只含可序列化值，没有默认值，非法配置使插件加载失败：`retryPolicy`（一份 Adoption，四项均为非空字符串）、`compactionTriggerPercent`（字符串，1 至 100 的十进制整数）、`updatedAt`（RFC 3339 UTC 文本）。
+
+- **具名偏离：插件内固定 OpenAI 家族。** 插件文件 [plugins/profiles.ts](src/plugins/profiles.ts) 是本包唯一导入 `@omne-harness/pi-ai-openai` 的文件，调用 `officialOpenAiProfiles`。这偏离[组架构的包依赖图](../docs/architecture.md#包依赖与装配)里「Host 没有指向 Family 的边」。依据：R1-D4 与线包 C-PROFILE。退出条件：发行装配改由调用方注入定义列表或经装配页登记，此后只改这一个文件，来源构造与求值不动。`pi-ai-openai` 因此从 devDependencies 提到 dependencies，选择本成员会多安装 `@omne-harness/pi-ai-openai` 及其 `js-tiktoken`；根入口导入家族即持有 o200k 词表模块，是已知代价。本阶段不引入 `pi-ai-anthropic`。
+- **`retryPolicy` 只是随档案走的值。** 插件配置里的 `retryPolicy` 与 `modelRetryPolicy` 服务是同一事实的第二个写入处。本阶段没有任何阶段解析这个字段，两者的相等保证归装配页，不由本包承担。
+
+生命周期：插件没有资源可关闭，不登记需要等待的清理。快照在构造时创建一次，之后每次读取看到同一份。插件撤除后 `ctx.modelProfiles` 为 `undefined`，仍被持有的旧句柄的 `list` 与 `resolve` 返回 `unavailable`（`dependency` 为 `model-profiles`，`diagnostic` 为 `plugin-removed`），不继续回答旧快照；这与「撤除后不再回答」一致。换代不改在途采用：在途请求已固定档案 adoption。
+
+已知限制：`scope` 原因本阶段不产生（没有租户层与组织层档案）；`retryPolicy` 本阶段不被任何阶段解析；快照 `source` 的 digest 只证内容相同。
+
+### 发送阶段插件
+
+`createModelSendStagePlugin(options)` 交出插件类 `ModelSendStagePlugin`，继承契约包的 `ModelSendBoundaryService`，提供 `modelSendBoundary`。静态注入是 `modelCredential` 与 `modelCommands`：两者缺一个，插件不装载，不建发送路径。配置是 `maxRetainedAttempts`（正整数，必需），其余取值让加载失败，不取默认值。`options` 是对象，不是可序列化配置：家族、协调器、网络、路由、限额与 `preparation`。`preparation` 必需，因为 `assembleLocalModel` 在同一次调用里建准备租约，插件不使用它们。
+
+- 构造时，插件用 `assembleLocalModel` 建发送路径。`credentials` 是插件自己的端口，`commands` 是注入的 `modelCommands`。装配拒绝配置时构造抛出 `RangeError`，什么都没有打开，服务不发布。
+- 服务面只有 `send`，委托给发送路径的发送边界。发送规则全归 model 与[发送资源](#发送资源)：围栏、尝试保留、凭据解析与凭据槽。本插件不另写发送规则。凭据槽仍只在 `start` 期间有值，经插件发送时也一样。
+- 凭据端口只转发 `present` 与 `resolve` 给注入的服务，不缓存任何值。
+- 退出是一个流程：先撤回凭据端口，此后端口返回 `unavailable`，插件不再持有服务。再关闭发送路径：释放发送资源，关闭网络并等待在途交换停止。流程不抛出，关闭失败只记一条不含原因的警告。卸载等它结束。
+- 退出时在两步之间的发送不启动传输，也不解析凭据：它以 `not-started` 收场，失败是 `unavailable`，`dependency` 为 `model-credential`，诊断为 `credential-unavailable`。
+- 退出后，仍持有旧服务引用的调用方继续得到原发送边界的答复。没有开始过的 dispatch 得到 `not-started`，`dependency` 为 `pi-send-resources`，诊断为 `send-resources-closed`，此时不取得资源，不解析凭据。
+- 卸载不收回已经发出的请求。网络关闭让在途交换停止，该交换的终止仍由传输按自己的映射给出。接替的插件建一个新的发送边界，它对已发出的 dispatch 的答复归 model 的发送边界。本包没有测试这两种情形。
 
 ## 所有权、失败与生命周期
 
@@ -204,6 +240,8 @@
 - [custodian-options.spec.ts](tests/custodian-options.spec.ts)：建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。
 - [credential-service.spec.ts](tests/credential-service.spec.ts)：在真实 Cordis 4.0.4 下，服务实例只暴露 `present` 与 `resolve`。
 - [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验，以及损坏文件上的不可用服务。
+- [profile-source.spec.ts](tests/profile-source.spec.ts)：来源构造的身份、adoption、revision 与快照证据，摘要用独立算出的夹具核对，路由重复与非法修订在构造时拒绝。
+- [profiles-plugin.spec.ts](tests/profiles-plugin.spec.ts)：在真实 Cordis 4.0.4 下，`ModelProfilesLocalPlugin` 发布 `modelProfiles`，每条路由的档案定义与 `officialOpenAiProfiles` 逐字段相同，`list` 与 `resolve` 的答案，撤除后旧句柄返回 `unavailable`，非法配置使加载失败，并与档案替身对拍。
 - [deliver-injected.spec.ts](tests/deliver-injected.spec.ts)：在真实 Cordis 4.0.4 下，注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。
 - [vault-init.spec.ts](tests/vault-init.spec.ts)：保管库初始化命令：新建与读回、五种已有对象的拒绝、密钥不外泄的各失败点、输入规则、用户目录规则、POSIX 权限与失败时清理、终端回显关闭与还原、命令行参数与退出码。
 - [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。
@@ -213,7 +251,8 @@
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。
-- [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。
+- [send-stage.spec.ts](tests/send-stage.spec.ts)：真实 Cordis 4.0.4 下发送阶段插件的装载与卸载（服务发布与撤回，缺凭据服务时等待，随凭据服务卸载，配置与装配被拒时什么都不建）、凭据槽、退出后的发送、退出时在途的发送，以及卸载等发送路径关闭。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，并与装配路径在同一用例里对比事实、请求与发出记录。
+- [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。它还回放两个工具调用用例的合成回放件：请求带 function 形状的工具、`tool_choice` 为 `auto`、推理档位为 `medium`，首轮以工具建议收场；延续轮带首轮回复里的工具调用与推理状态，再带工具结果；录制器把合成流原样写出，旁注摘要等于发出请求体的摘要，密钥模式命中时不写文件，回复没有工具调用时不写文件。合成回放件是手写数据，不证明真实模型的输出。
 - [recording-c9.spec.ts](tests/recording-c9.spec.ts)（慢层）：两家各计量一次延续真实首轮的请求，再回放延续轮，记录发送前计量与真实输入合计之差。差值只记录，不是门槛。
 - [recorder.spec.ts](tests/recorder.spec.ts)（慢层）与 [secret-scan.spec.ts](tests/secret-scan.spec.ts)（快层）：录制器写出的字节与旁注、不写文件的情形，以及密钥扫描。录制器的规则见 [tests/README.md](tests/README.md)。
 

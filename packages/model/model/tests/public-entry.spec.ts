@@ -8,6 +8,7 @@ it('the public entry exports standalone execution, runtime construction and cred
   expect(Object.keys(root).sort()).toEqual(
     [
       'createModelPreparationResources',
+      'createModelProfiles',
       'createModelRuntime',
       'createModelSendBoundary',
       'executeModel',
@@ -51,7 +52,7 @@ it('the package exposes its root and isolated testing entry: the old cordis and 
   const manifest = JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   ) as { exports: Record<string, unknown> }
-  expect(Object.keys(manifest.exports)).toEqual(['.', './testing'])
+  expect(Object.keys(manifest.exports)).toEqual(['.', './commands', './testing'])
 })
 
 it('the manifest declares no Cordis, lock-file or Cordis-contract dependency', () => {

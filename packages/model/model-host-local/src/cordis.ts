@@ -128,3 +128,10 @@ export type {
   ModelRuntimeLocalPluginClass,
   ModelRuntimeLocalPluginInstance,
 } from './plugins/host.ts'
+export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'
+export { createModelSendStagePlugin } from './plugins/send-stage.ts'
+export type {
+  ModelSendStagePluginClass,
+  ModelSendStagePluginOptions,
+  ModelSendStageSettings,
+} from './plugins/send-stage.ts'

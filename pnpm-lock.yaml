@@ -1236,9 +1236,15 @@ importers:
       '@omne-harness/model-cordis-contract':
         specifier: workspace:*
         version: link:../model-cordis-contract
+      '@omne-harness/pi-ai-openai':
+        specifier: workspace:*
+        version: link:../pi-ai-openai
       '@omne-harness/pi-ai-transport':
         specifier: workspace:*
         version: link:../pi-ai-transport
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
       proper-lockfile:
         specifier: ^4.1.2
         version: 4.1.2
@@ -1249,9 +1255,6 @@ importers:
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
-      '@omne-harness/pi-ai-openai':
-        specifier: workspace:*
-        version: link:../pi-ai-openai
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
