@@ -110,6 +110,7 @@ function registration(root: string, commit: string, extra: string[], cards?: str
   return renderBaselineBlock(parseBaselineText(JSON.stringify(parsed)))
 }
 
+// Builds a real temporary repository and runs the installed CLI once; under the full slow tier this can exceed the default hook timeout.
 beforeAll(() => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'omne-milestone-')))
   homes.push(root)
@@ -157,7 +158,7 @@ beforeAll(() => {
     registrationBHead,
     registrationWithCards,
   }
-})
+}, 120_000)
 afterAll(() => homes.splice(0).forEach(home => rmSync(home, { recursive: true, force: true })))
 
 type ApiComment = {
