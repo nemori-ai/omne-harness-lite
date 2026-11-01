@@ -1,7 +1,7 @@
 ---
 name: dispatch
 description: >
-  Reduce 建当前波任务、写集求交、登记 binding、写线包、演练并校验首次线消息，收口时给每条存续线发 delta 并关闭收口卡。首次派发、下一波物化、收口放行或派发恢复时加载；收件与集成用 integrate。派发写者、评审者或验收者子代理用 delegate。
+  Reduce 为每条参加线在线父卡上登记本波的 attempt、写集求交、写线包、演练并校验首次线消息，收口时给每条存续线发 delta 并关闭收口卡。首次派发、下一波物化、收口放行或派发恢复时加载；收件与集成用 integrate。派发写者、评审者或验收者子代理用 delegate。
 ---
 
 # 派发
@@ -24,13 +24,28 @@ description: >
 
 按 `docs/engineering/delivery.md` 与 `docs/engineering/agent-delivery.md` 建卡，按实际 Issue 模板写本次范围、负责人、revision、条件和验收。`kind:` 唯一且与正文主工作类型一致；`line:`、`nature:`、`contract:` 用标签同步命令对齐。Project 是投影，写入失败单列，不写成成功。创建结果未知时先读回，不重复创建。
 
+下面几条写法来自波 0 被拒的派发与重复字段：
+
+- 条件行的目标列写 Issue 完整 URL，判据列含「整项结果」。交付条件只写条件表或 `无`。
+- 每个字段行只出现一次。`contract: none` 不建标签。
+- 卡写明验收文件（`acceptance/`）只由 Agent-Role 为 main 或 qa 的提交修改。
+- 简报里的缩写全部展开。起草子代理的简报写明它能不能再派子代理。
+- 旧卡升修订前，清掉旧的开始条件与 `blockedBy`，补「分支」「基线」小节。升修订要 swap 新树，swap 前先推送旧树的分支。
+
+有线轨道的线，Reduce 每波只给三样：线包、线父卡上本波的一个 attempt、首次消息或 delta。理由：卡越多，中间的无效时间越多。线负责人比 Reduce 更清楚怎样切闭包。所以：
+
+- 不为线建工作卡。原先想拆给线的小卡，写进线包附录「建议闭包与依赖」，只作参考。
+- 设计点不另建卡，写进线包「需 Reduce 批复」一节。
+- 本波确有已存在的载体卡，或某项工作需要独立跟踪时，本波可以另有几张卡。它们按 `integration.md`「本波有几张卡」登记，线负责人一次认领，只开一个集成 PR。
+- 本节建卡主要用于线外的卡、收口卡与 `integration` 卡。
+
 写验收时，上位正文里的每条验证义务（复杂度上界、基准、规模）都对应到一张卡和一条验收判据，或者具名推迟。卡第一次实现某条按请求执行的热路径时，验收比较第 k 轮与第 k+n 轮的代价。替身配符合性套件只证明形状，联调的代价检查另派，并指定拥有者。方法见[波段编排](references/wave-planning.md)。
 
 ## 3. 波准入
 
 分解当前波前，按[波段编排的判断方法](references/wave-planning.md)权衡关键路径、容量、反馈时延与风险。
 
-按 `integration.md`「不变量」核对：开工依据已接受且合入提交在 F；跨线写集不相交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。在收口点的检出上按 `integration.md`「读写交叉的两类」运行 `scope-cli.ts`，对本波绑定求交，同线顺序任务先按线聚合。退出 1 时不开波，改分解，不降低判据。退出 0 时逐条复核 `read-overlap-frozen:` 行，写进线包。
+按 `integration.md`「不变量」核对：开工依据已接受且合入提交在 F；跨线写集不相交；契约成员只有一个写者；破坏性变更及真实消费者在具名责任内。在收口点的检出上按 `integration.md`「读写交叉的两类」运行 `scope-cli.ts`，对本波绑定求交，同线顺序任务先按线聚合。退出 1 时不开波，改分解，不降低判据。退出 0 时逐条复核 `read-overlap-frozen:` 行，写进线包。本波另有几张卡的线，只传线父卡 attempt 的 binding，它的写范围已覆盖这些卡。
 
 建卡范围按 `map-reduce-states.md` 第 2 节「滚动规划与逐收口等待」。
 
@@ -48,17 +63,17 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
 ```
 
-定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
+定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。删除或搬迁正文时，同样先 `git grep` 旧路径与锚点：入向链接所在的文件放进写范围，或拆给有权写它们的卡，并与删除正文的卡编进同一批次。
 
-线父卡只承载线包、delta、交回与长期责任，不为每波建立 Git binding。实际工作卡各自登记 attempt；有线轨道的卡以该轨道为 route，从真实线轨道头登记 taskBase。派发前核对 registry 与远端分支齐备、上游链有效，并记录开波 FI 结果与固定同步点。每次写入后读回工作卡精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
+每条参加线在线父卡上登记本波的一个 attempt：branch 是父分支名 `<用户名>/<线短名>-w<波号>`，taskBase 是开波 FI 后的线轨道头，route 是本线轨道，写范围是本线本波的目录，契约变更取本波的最高级。这个 taskBase 也是本波线父分支的起点。本波另有几张卡时，每张卡各登记一个 attempt，taskBase 与 branch 同上，写范围在线父卡 attempt 之内。规则见 `docs/engineering/integration.md`「线父分支」与「本波有几张卡」。派发前核对 registry 与远端分支齐备、上游链有效，并记录开波 FI 结果与固定同步点。每次写入后读回精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
 
-redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按「放行」一节的发布方法发 redo delta。
+redo 也走本节：Reduce 更正输入后在线父卡上登记新 attempt，再按「放行」一节的发布方法发 redo delta。
 
 升修订也走本节。spec 的 `revision` 大于卡上「交付修订」行的值时，`post` 把这次派发当作新修订：先改写卡上的修订号行，卡上有 binding 区块时一并撤下，再发派发评论。修订号行留给 `post` 改：正文单写者只写范围改动，不先改修订号，否则 `post` 按普通派发处理，不撤旧 binding。`--dry-run` 输出的 `cardEdits` 列出每处改动，核对后再正式运行。然后 `bind` 登记新 attempt。同一分支已有工作树时，用 `worktree-cli.ts swap` 给新 attempt 换树。见 `tools/dev-flow/src/delivery/README.md`「为新修订派发」与 `tools/dev-flow/src/integration/README.md`「准备任务工作树」。
 
 ## 6. 建分支与工作树，运行 start
 
-按 `tools/dev-flow/src/integration/README.md` 与 `worktree-cli.ts` 帮助，从 binding 的 taskBase 准备隔离工作树。已有同名分支时核对尖端，不覆盖别的执行。运行 `start` 后用 `status` 读回：issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。不手写 context。
+线父卡本波的 attempt 由线负责人在父分支工作树上运行 `start`，Reduce 不替线运行。本节用于 Reduce 自己执行的卡。按 `tools/dev-flow/src/integration/README.md` 与 `worktree-cli.ts` 帮助，从 binding 的 taskBase 准备隔离工作树。已有同名分支时核对尖端，不覆盖别的执行。运行 `start` 后用 `status` 读回：issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。不手写 context。
 
 ## 7. 看板字段
 
@@ -68,16 +83,16 @@ redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按
 
 派发包由线包和首次消息组成。线包每波更新，首次消息只发给新的线会话。已有线会话的下一波读 delta，不重发首次消息。
 
-1. **写线包。** 按 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md` 从有效工作卡 binding、已接受依据、开波 FI 的实际同步点和当前波写线包，发在线父卡上并读回。
+1. **写线包。** 按 `.meta_harness/human/map-reduce-delivery/templates/line-pack.md` 从线父卡本波 attempt 的 binding、已接受依据、开波 FI 的实际同步点和当前波写线包，发在线父卡上并读回。力气花在本线里程碑的目标、边界与验收，以及本波的交付边界。边界写清楚，线才不会自行扩大范围或推迟交付。
 2. **填首次消息的输入。** 模板是 `.meta_harness/human/map-reduce-delivery/templates/line-initial-dispatch.md`。先列出字段，再从有效来源写输入 JSON：schemaVersion=1、milestone 数字、line 短名、revision 数字和 fields 字符串映射。fields 包含全部列出字段，`dispatch_revision` 等于 revision。字段按模板分为六组：
    - 身份：仓库、里程碑卡、线父卡、机器与宿主、工作目录、`binding_refs`、`line_pack_ref`、唯一 reduce 会话。
    - 先加载：`prepare_commands`、`skill_source_ref`。`skill_source_ref` 写明 `docs/engineering/skills.md` 来源表里 pstack、Matt 与 ub-mode 的 revision，或指向该来源表的固定提交。
    - 长程目标：`milestone_close_condition`、`line_later_wave_plan`。
    - 方法：`line_work_kind`、`role_policy_ref`。
-   - 当前分工与冻结点：当前波与收口卡、assignment 与原因、F、`wave_queue_ref`、`write_set_ref`。
+   - 当前分工与冻结点：当前波与收口卡、assignment 与原因、F、`wave_boundary_ref`、`write_set_ref`。
    - 交回与等待：`handoff_post_command`、`wait_command`、`events_receiver_health_command`、`line_state_path`、`final_report_ref`。
 
-   分支、taskBase 与写范围只写工作卡 binding 的引用。正文第一段先点名 `line`、`pstack:poteto-mode`、`asd-ste100`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。用既有 `line_pack_ref` 指向地图与拥有者导航，`line_work_kind` 列本线专项技能。`machine_and_host` 与 `role_policy_ref` 填本次已采用的宿主、模型和 effort，不把单次选择写成永久默认。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
+   分支、taskBase 与写范围只写线父卡本波 attempt 的 binding 引用。正文第一段先点名 `line`、`pstack:poteto-mode`、`asd-ste100`，以及实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图和拥有者入口。用既有 `line_pack_ref` 指向地图与拥有者导航，`line_work_kind` 列本线专项技能。`machine_and_host` 与 `role_policy_ref` 填本次已采用的宿主、模型和 effort，不把单次选择写成永久默认。字段里没有占位符和秘密，也没有与 binding 矛盾的副本。
 
    写命令之前先运行工具的帮助或读它的实现，确认参数，不凭印象猜写（P8）。README 与实现不一致时，按冲突报告给工具的拥有者，不在消息里自己选一种写法。命令字段只放 reduce 能在本机演练的命令。`events_receiver_health_command` 只放只读的 `events-receiver-cli health` 命令。接收器的 `init` 与 `serve` 会创建 webhook、启动常驻服务，不放进消息。消息引用 `tools/dev-flow/src/delivery/README.md`「事件等待」的启动方法。
 
@@ -99,7 +114,7 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 收口顺序与放行守卫归 `map-reduce-states.md`「收口顺序」。整波检查由 `integrate` 完成。之后按下列顺序执行：
 
-1. 按真实结果调整后一波预案。继续推进时，按第 2–5 节建下一波任务卡与 R(w+1) 并读回。里程碑终态时不建虚构后继，先读回有权者的终态决定。
+1. 按真实结果调整后一波预案。继续推进时，按第 3、5 节在参加线的线父卡上登记下一波的 attempt，按第 2 节建 R(w+1)，并读回。里程碑终态时不建虚构后继，先读回有权者的终态决定。
 2. 为每条存续线写一条 delta，idle 线也写。正文按 `.meta_harness/human/map-reduce-delivery/templates/line-delta.md`，首行是 `<!-- line-delta -->`，固定项归「线会话记录」。终态时每条存续线都发 terminal delta。
 3. 发布前读一遍 delta 文件：占位符都已替换，首行是标记，F 正确。生成 delta 文件的任何一步失败时都不发布，先修好再重新生成。然后用 `gh issue comment <线父卡> --repo <owner/name> --body-file <delta 文件>` 发布，读回这条评论，核对首行标记与 F。发布结果未知时，先读回线父卡，确认没有这条 delta 再重发。
 4. 全部存续线的 delta 都已读回，各条的 F 一致，非终态时 R(w+1) 已建。然后 R(w) 按自身交付条件接受，读回接受决定。规则归 `docs/engineering/delivery.md`「4. 接受、取消与重开」。
@@ -108,4 +123,4 @@ pnpm initial-dispatch validate --input <输入.json> --rehearsal-evidence <演�
 
 ## 恢复
 
-恢复时从 GitHub 重读事实：任务卡与 binding、派发评论、线父卡上的线包、delta 与交回记录、收口卡状态。已生成的文件不说明已打开、已转发或已认领。结果未知的写入先读回再决定，不重复发布。人请求停止时冻结新的派发与写入；STOPPED 不等于 DONE。恢复后的等待按 `integrate` 重新挂起。
+恢复时从 GitHub 重读事实：线父卡上的 attempt 与 binding、派发评论、线父卡上的线包、delta 与交回记录、收口卡状态。已生成的文件不说明已打开、已转发或已认领。结果未知的写入先读回再决定，不重复发布。人请求停止时冻结新的派发与写入；STOPPED 不等于 DONE。恢复后的等待按 `integrate` 重新挂起。

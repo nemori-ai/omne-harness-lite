@@ -5,7 +5,7 @@
 ## 包根
 
 - [README_ZH.md](README_ZH.md)、[README.md](README.md)：用途、状态、目录结构与文档职责
-- [SPEC.md](SPEC.md)：类型以外的行为，性质 1 至 10
+- [SPEC.md](SPEC.md)：类型以外的行为，性质 1 至 15
 - `documentation.json`：本成员的文档登记
 - `package.json`：根入口、`./cordis` 入口、脚本与依赖
 - `vitest.config.ts`、`tsconfig.build.json`、`tsconfig.test.json`：测试与构建配置
@@ -14,7 +14,7 @@
 
 - [docs/](docs/index.md)：Cordis 定义、架构、流程、对象模型、公开接口、使用与定位
 - [src/](src/index.md)：根入口与 `./cordis`，已有根类型重导出与 Cordis 服务定义
-- [tests/](tests/index.md)：两个入口测试与固定输入
+- [tests/](tests/index.md)：入口测试、信任测试与固定输入
 - [schema/](schema/index.md)：现在为空，本成员不发布 Schema
 - [verification/](verification/index.md)：模型与证明，现在为空
 - [adr/](adr/index.md)：实现取舍，现在为空

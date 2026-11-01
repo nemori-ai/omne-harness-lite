@@ -110,6 +110,7 @@ export async function assembleModelReceiverFixture(
       completedPassages: [],
       priorConditions: null,
       currentHandoff: null,
+      replyAdmissionRead: { kind: 'unverified' as const },
     },
   }
   const handoff = { kind: 'input' as const, execution, entry: open, input: initial.id }

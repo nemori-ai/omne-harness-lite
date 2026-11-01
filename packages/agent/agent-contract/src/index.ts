@@ -33,6 +33,8 @@ export {
   decodeInputBatchId,
   decodeInputId,
   decodePassageId,
+  decodeReplyAdmissionPageCursor,
+  decodeReplyAdmissionSequence,
   decodeStepId,
   judgeAccess,
   judgeAdoption,

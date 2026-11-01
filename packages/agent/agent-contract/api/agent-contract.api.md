@@ -232,8 +232,16 @@
 - `Registration` · `execution.d.ts`
 - `RegistrationState` · `execution.d.ts`
 - `Reply` · `evaluation.d.ts`
+- `ReplyAdmissionFrom` · `evaluation.d.ts`
+- `ReplyAdmissionGapReason` · `evaluation.d.ts`
+- `ReplyAdmissionItem` · `evaluation.d.ts`
 - `ReplyAdmissionPage` · `evaluation.d.ts`
+- `ReplyAdmissionPageCursor` · `identity.d.ts`
+- `ReplyAdmissionPageTail` · `evaluation.d.ts`
+- `ReplyAdmissionPrefix` · `evaluation.d.ts`
 - `ReplyAdmissionProjection` · `evaluation.d.ts`
+- `ReplyAdmissionRead` · `evaluation.d.ts`
+- `ReplyAdmissionSequence` · `identity.d.ts`
 - `RequestPreparation` · `request.d.ts`
 - `ResponsibilityCoverage` · `finishing.d.ts`
 - `ResultResponsibility` · `execution.d.ts`
@@ -268,6 +276,8 @@
 - `decodeInputBatchId` · `identity.d.ts`
 - `decodeInputId` · `identity.d.ts`
 - `decodePassageId` · `identity.d.ts`
+- `decodeReplyAdmissionPageCursor` · `identity.d.ts`
+- `decodeReplyAdmissionSequence` · `identity.d.ts`
 - `decodeStepId` · `identity.d.ts`
 - `judgeAccess` · `identity.d.ts`
 - `judgeAdoption` · `identity.d.ts`
@@ -287,11 +297,14 @@
 - `AgentJournalCoreOpenOptions` · `testing-journal-helpers.d.ts`
 - `AgentJournalCoreOpened` · `testing-journal-helpers.d.ts`
 - `AgentJournalEntriesFixture` · `testing-journal-entries.d.ts`
+- `AgentJournalReplyAdmissionControls` · `testing-journal-helpers.d.ts`
 - `ConformanceCase` · `testing-case.d.ts`
 - `MemoryAgentAccountOutlet` · `testing-account-outlet.d.ts`
 - `MemoryAgentJournalEntries` · `testing-journal-entries.d.ts`
 - `ReceivedCommitFixture` · `testing-received-fixture.d.ts`
 - `RecordFault` · `testing-journal-entries.d.ts`
+- `ReplyAdmissionDamage` · `testing-journal-helpers.d.ts`
+- `ReplyAdmissionReadStatistics` · `testing-journal-helpers.d.ts`
 - `RequiredReceivedCommits` · `testing-received-fixture.d.ts`
 - `SettlementQualification` · `testing-journal-helpers.d.ts`
 - `TEST_CANCELLATION_IMPLEMENTATION` · `testing-cancellation.d.ts`
@@ -400,7 +413,7 @@ import type { Message, ToolPart } from '@omne-harness/message';
 import type * as M from '@omne-harness/model-contract';
 import type * as T from '@omne-harness/tool-contract';
 import type { ControlRecord, ResultResponsibility } from './execution.ts';
-import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, StepId } from './identity.ts';
+import type { Adoption, ActionBatchId, ActionId, AgentInstant, AgentOperationId, CardRoundId, ConsumerRef, ConsumptionId, Continuation, DurableEvidence, InputBatchId, InputId, PassageId, ReplyAdmissionPageCursor, ReplyAdmissionSequence, StepId } from './identity.ts';
 import type { JsonValue } from '@omne-harness/json-text';
 import type { HandoffReference, MessageSource, Passage } from './passages.ts';
 import type { CompactionProgress, CompactionState, Preparation } from './request.ts';
@@ -626,25 +639,53 @@ export type ModelReplyAdmission = Readonly<{
     decision: 'admitted' | 'rejected';
     source: DurableEvidence;
 }>;
+export type ReplyAdmissionPrefix = Readonly<{
+    sequence: ReplyAdmissionSequence;
+    basis: DurableEvidence;
+}>;
 export type ReplyAdmissionProjection = Readonly<{
     through: DurableEvidence;
     rule: Adoption;
     lastAdmission: DurableEvidence | null;
     consecutiveDenials: string;
     totalDenials: string;
+    prefix: ReplyAdmissionPrefix;
 }>;
+export type ReplyAdmissionFrom = Readonly<{
+    kind: 'origin';
+}> | Readonly<{
+    kind: 'prefix';
+    prefix: ReplyAdmissionPrefix;
+}>;
+export type ReplyAdmissionItem = Readonly<{
+    sequence: ReplyAdmissionSequence;
+    fact: ModelReplyAdmission;
+    publication: DurableEvidence;
+}>;
+export type ReplyAdmissionPageTail = Readonly<{
+    kind: 'more';
+    next: ReplyAdmissionPageCursor;
+}> | Readonly<{
+    kind: 'complete';
+}>;
+export type ReplyAdmissionGapReason = 'retention' | 'missing-fact' | 'missing-basis' | 'range-unavailable';
 export type ReplyAdmissionPage = Readonly<{
     kind: 'page';
     through: DurableEvidence;
-    items: readonly Readonly<{
-        sequence: string;
-        fact: ModelReplyAdmission;
-    }>[];
-    next: string | null;
-    complete: boolean;
+    start: ReplyAdmissionPrefix;
+    end: ReplyAdmissionPrefix;
+    items: readonly ReplyAdmissionItem[];
+    tail: ReplyAdmissionPageTail;
 }> | Readonly<{
     kind: 'gap';
+    reason: ReplyAdmissionGapReason;
     recovery: DurableEvidence;
+}>;
+export type ReplyAdmissionRead = Readonly<{
+    kind: 'unverified';
+}> | Readonly<{
+    kind: 'verified';
+    prefix: ReplyAdmissionPrefix;
 }>;
 export type GuardLevel = 0 | 1 | 2 | 3;
 export type GuardFact = Readonly<{
@@ -671,6 +712,7 @@ export type AgentCheckpoint = Readonly<{
     completedPassages: readonly PassageId[];
     priorConditions: DurableEvidence | null;
     currentHandoff: HandoffReference | null;
+    replyAdmissionRead: ReplyAdmissionRead;
 }>;
 export type RuntimeConditions = Readonly<{
     source: DurableEvidence;
@@ -2060,6 +2102,8 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>;
 export type InputId = AgentIdentity<'AgentInputId'>;
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>;
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>;
+export type ReplyAdmissionSequence = AgentIdentity<'ReplyAdmissionSequence'>;
+export type ReplyAdmissionPageCursor = AgentIdentity<'ReplyAdmissionPageCursor'>;
 export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs';
 export type { Access } from '@omne-harness/legal-identity';
 export type Authority = Readonly<{
@@ -2104,6 +2148,8 @@ export declare const decodeExecutionRevision: IdentityDecoder<ExecutionRevision,
 export declare const decodeInputId: IdentityDecoder<InputId, "InputId">;
 export declare const decodeInputBatchId: IdentityDecoder<InputBatchId, "InputBatchId">;
 export declare const decodeConsumptionId: IdentityDecoder<ConsumptionId, "ConsumptionId">;
+export declare const decodeReplyAdmissionPageCursor: IdentityDecoder<ReplyAdmissionPageCursor, "ReplyAdmissionPageCursor">;
+export declare function decodeReplyAdmissionSequence(value: unknown): Outcome<ReplyAdmissionSequence, IdentityFailure<'ReplyAdmissionSequence'>>;
 export declare function judgeAdoption(value: unknown): Outcome<Adoption, StructureFailure>;
 export declare function judgeEvidence(value: unknown): Outcome<DurableEvidence, StructureFailure>;
 export declare function judgeAccess<P>(value: unknown, judgePrincipal: (value: unknown) => Outcome<P, StructureFailure>): Outcome<Access<P>, StructureFailure>;
@@ -2123,7 +2169,7 @@ export { judgeHandoffPrepare, judgeInputOrigin } from './judge-handoff.ts';
 export { judgeExtensionOutput, POSITION_OUTPUTS } from './judge-output.ts';
 export type { ExtensionOutputJudgeInput, PositionOutputKey, PositionOutputs, } from './judge-output.ts';
 export type { AgentDefinition, AssetReference, AttributeDeclaration, AttributeItem, CapabilityRef, } from './definition.ts';
-export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
+export { AGENT_IDENTITY_MAX_LENGTH, decodeActionBatchId, decodeActionId, decodeAgentExecutionId, decodeAgentInstanceId, decodeAgentOperationId, decodeAgentRegistrationId, decodeCardRoundId, decodeConsumptionId, decodeExecutionAttachmentId, decodeExecutionRevision, decodeInputBatchId, decodeInputId, decodePassageId, decodeReplyAdmissionPageCursor, decodeReplyAdmissionSequence, decodeStepId, judgeAccess, judgeAdoption, judgeAuthority, judgeEvidence, } from './identity.ts';
 export type * from './evaluation.ts';
 export type * from './execution.ts';
 export type * from './extensions.ts';
@@ -2141,10 +2187,10 @@ export type { BatchJudgment, Judgment, OutputRefusalReason, RefusalReason } from
 ```ts
 import type { ToolOperationRef } from '@omne-harness/tool-contract';
 import type { Message } from '@omne-harness/message';
-import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionPage } from './evaluation.ts';
+import type { AgentCheckpoint, InputBatch, ModelReplyAdmission, PendingCall, PreparedContextTransition, ProducedResult, Reply, ReplyAdmissionFrom, ReplyAdmissionPage } from './evaluation.ts';
 import type { HandoffOutcome, HandoffReference, HandoffRequest, HandoffResolution, InputEntry, InvokeRuntimeContext, PendingHandoff } from './passages.ts';
 import type { AgentEventBody, AgentExecutionControl, AgentExecutionEvents, AgentExecutionInput, AgentExecutionRecovery, CommandReceipt, ControlStage, ExecutionMutation, ExecutionSnapshot, ExecutionState, FinishAuthorization, FinishIntent, FinishResult } from './execution.ts';
-import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId } from './identity.ts';
+import type { Access, ActionId, Adoption, AgentExecutionId, AgentOperationId, Authority, ConsumptionId, DurableEvidence, ExecutionRevision, PassageId, ReplyAdmissionPageCursor } from './identity.ts';
 import type { FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts';
 export type CallerCommit = Readonly<{
     kind: 'none';
@@ -2373,8 +2419,9 @@ export interface AgentJournalReading<P> {
     }>>;
     readReplyAdmissions(input: Access<P> & Readonly<{
         execution: AgentExecutionId;
+        from: ReplyAdmissionFrom;
         through: DurableEvidence;
-        after: string | null;
+        after: ReplyAdmissionPageCursor | null;
         limit: number;
     }>): Reply<ReplyAdmissionPage>;
     query(input: ExecutionMutation<P>): ReturnType<AgentExecutionRecovery<P>['query']>;
@@ -3405,7 +3452,7 @@ export declare function doubleEvidence(owner: string, record: string, revision: 
 ```ts
 import { type ConformanceCase } from './testing-case.ts';
 import { type AgentJournalCoreFixture } from './testing-journal-helpers.ts';
-export type { AgentJournalCoreFixture, AgentJournalCoreOpenOptions, AgentJournalCoreOpened, SettlementQualification, } from './testing-journal-helpers.ts';
+export type { AgentJournalCoreFixture, AgentJournalCoreOpenOptions, AgentJournalCoreOpened, AgentJournalReplyAdmissionControls, ReplyAdmissionDamage, ReplyAdmissionReadStatistics, SettlementQualification, } from './testing-journal-helpers.ts';
 export declare function agentJournalCoreConformance<P>(fixture: AgentJournalCoreFixture<P>): readonly ConformanceCase[];
 ```
 
@@ -3492,7 +3539,7 @@ import type { Outcome } from '@omne-harness/operation-result';
 import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts';
 import type { AcceptedInput, AgentEvent, CommandReceipt, ControlRecord, ExecutionSnapshot, FinishAuthorization, FinishIntent } from './execution.ts';
 import type { CancellationPolicyInstallation, FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts';
-import { type Access, type AgentExecutionId, type AgentOperationId, type Authority, type ConsumptionId, type DurableEvidence } from './identity.ts';
+import { type Access, type Adoption, type AgentExecutionId, type AgentOperationId, type Authority, type ConsumptionId, type DurableEvidence } from './identity.ts';
 import type { AgentJournal, ExecutionHandoff, JournalCommit, OriginalInputAcceptance } from './journal.ts';
 import type { HandoffOutcome, HandoffReference, HandoffResolution, Passage, PendingHandoff } from './passages.ts';
 import type { TestHostRecord } from './testing-cancellation.ts';
@@ -3518,6 +3565,42 @@ export interface AgentJournalCoreOpened<P> {
         candidate: AgentOperationId;
     }>>;
     readonly qualify?: (held: readonly SettlementQualification[]) => void;
+    readonly replyAdmissions?: AgentJournalReplyAdmissionControls<P>;
+}
+export type ReplyAdmissionDamage = Readonly<{
+    kind: 'missing-fact';
+    sequence: number;
+}> | Readonly<{
+    kind: 'missing-basis';
+    sequence: number;
+}> | Readonly<{
+    kind: 'retention';
+    from: number;
+}> | Readonly<{
+    kind: 'range-unavailable';
+    below: number;
+}>;
+export type ReplyAdmissionReadStatistics = Readonly<{
+    seeks: number;
+    scanned: number;
+    decoded: number;
+    pages: number;
+    folds: number;
+    loads: number;
+    checkpointWrites: number;
+}>;
+export interface AgentJournalReplyAdmissionControls<P> {
+    seed(count: number): Promise<void>;
+    damage(damage: ReplyAdmissionDamage): Promise<void>;
+    limitPages(limits: Readonly<{
+        items: number | null;
+        bytes: number | null;
+    }>): void;
+    statistics(): ReplyAdmissionReadStatistics;
+    changeRule(rule: Adoption, conversion: 'rebuild' | 'none'): Promise<void>;
+    readable(allowed: boolean): void;
+    sibling(name: string): Promise<AgentJournalCoreOpened<P>>;
+    foreign(name: string): Promise<AgentJournalCoreOpened<P>>;
 }
 export type SettlementQualification = 'settle' | 'migrate-cancellation' | 'reconcile';
 export type AgentJournalCoreOpenOptions = Readonly<{
@@ -3718,6 +3801,8 @@ export declare function endCancelled<P>(opened: AgentJournalCoreOpened<P>, contr
 export declare const MISSING_EXECUTION: AgentExecutionId;
 export declare function requireOtherAccess<P>(opened: AgentJournalCoreOpened<P>): Promise<Access<P> | undefined>;
 export declare function foreignDenied<P>(opened: AgentJournalCoreOpened<P>, other: Access<P>, method: Parameters<NonNullable<AgentJournalCoreOpened<P>['faultNext']>>[0], id: AgentOperationId, call: (access: Access<P>, execution: AgentExecutionId) => Reply<unknown>): Promise<void>;
+export declare function replyRequest<P>(opened: AgentJournalCoreOpened<P>, snapshot: ExecutionSnapshot, index: number, call?: string): PendingHandoff;
+export declare function admitReply<P>(opened: AgentJournalCoreOpened<P>, index: number, decision?: 'admitted' | 'rejected', call?: string): Promise<CommandReceipt>;
 ```
 
 ## 声明文件 `testing-journal-samples.d.ts`
@@ -3865,7 +3950,7 @@ export declare function receivedFailure<P, B extends ContentBlock>(input: Receiv
 export type { ConformanceCase } from './testing-case.ts';
 export { agentJournalEntriesConformance, createMemoryAgentJournalEntries, memoryAgentJournalEntriesFixture, sampleReceivedModelAccount, sampleReceivedModelResult, sampleReceivedToolAccount, sampleStartFence, type AgentJournalEntriesFixture, type MemoryAgentJournalEntries, type RecordFault, } from './testing-journal-entries.ts';
 export { agentAccountOutletConformance, createMemoryAgentAccountOutlet, memoryAgentAccountOutletFixture, sampleAccountHandoff, type AgentAccountOutletFixture, type MemoryAgentAccountOutlet, } from './testing-account-outlet.ts';
-export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type SettlementQualification, } from './testing-journal-core.ts';
+export { agentJournalCoreConformance, type AgentJournalCoreFixture, type AgentJournalCoreOpenOptions, type AgentJournalCoreOpened, type AgentJournalReplyAdmissionControls, type ReplyAdmissionDamage, type ReplyAdmissionReadStatistics, type SettlementQualification, } from './testing-journal-core.ts';
 export { createTestCancellationPolicy, TEST_CANCELLATION_IMPLEMENTATION, TEST_CANCELLATION_INPUT_SCHEMA, TEST_CANCELLATION_POLICY, testCancellationPolicyInstallation, type TestHostRecord, } from './testing-cancellation.ts';
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts';
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts';

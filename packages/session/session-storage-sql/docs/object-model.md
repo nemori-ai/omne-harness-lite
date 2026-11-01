@@ -22,9 +22,28 @@ erDiagram
   SL_ENTRY ||--o{ SL_RELEASED_SCOPE_IDX : "derives"
 ```
 
-左侧五表与 `sl_blob` 在共同提交内写入，是权威。右侧七个索引同一提交内维护，可以从 `sl_entry` 与重算的 `sl_state` 重建（[C-01](../SPEC.md#c-01)）。
+（设计目标）左侧五表与 `sl_blob` 在共同提交内写入，是权威。右侧七个索引同一提交内维护，可以从 `sl_entry` 与重算的 `sl_state` 重建（[C-01](../SPEC.md#c-01)）。
 
-### 权威表
+### 当前实现的表
+
+head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义，迁移是 `session/001-session-log`。十张表都是 SQLite `STRICT` 表，位置、序号与提交序号是 `INTEGER`（以 `bigint` 读写），其余为 `TEXT`。每张表的第一列或主键都含 `tenant`，每条语句都按它过滤。下文「权威表」与「派生索引」是设计目标的表集，与本节不一致处以本节为准（[SPEC 实现现状](../SPEC.md#实现现状)）。
+
+| 表 | 列 | 主键 | 说明 |
+| --- | --- | --- | --- |
+| `sl_journal` | `tenant`、`session`、`tail`、`commit_seq`、`epoch` | `(tenant, session)` | `epoch` 是文本，创建时为 `epoch:0`，压缩后为 `epoch:<压缩记录的条目 id>`。没有 `source`、`epoch_base` |
+| `sl_entry` | `tenant`、`session`、`position`、`revision`、`kind`、`entry`、`bytes` | `(tenant, session, position)` | `entry` 是整条 `HistoryEntry` 的 JSON 文本。二级索引 `sl_kind_idx (tenant, session, kind, position)` |
+| `sl_operation` | `tenant`、`session`、`operation`、`input_digest`、`form`、`revision`、`receipt`、`result` | `(tenant, session, operation)` | `form` 为 `batch`、`control` 或 `answer`。`answer` 行的 `revision` 为 NULL，不属于任何批次。`result` 是原结果的 JSON，认回时还原。二级索引 `sl_operation_revision_idx (tenant, session, revision)` |
+| `sl_state` | `tenant`、`session`、`snapshot`、`covered` | `(tenant, session)` | `snapshot` 是 `WorkSnapshot` 的 JSON。没有 `fold_version`、`covered_commit`、`digest` |
+| `sl_input` | `tenant`、`session`、`input`、`value` | `(tenant, session, input)` | 普通输入的原值，`readInput` 点查它 |
+| `sl_model_view` | `tenant`、`session`、`epoch`、`seq`、`entry`、`bytes`、`prefix_digest`、`message` | `(tenant, session, epoch, seq)` | `message` 是消息的 JSON，读取时不再读 `sl_entry`。没有 `position` 列 |
+| `sl_annotation_idx` | `tenant`、`session`、`target`、`position` | 全部四列 | `target` 是单个目标位置，不是范围 |
+| `sl_pending_idx` | `tenant`、`reason`、`session` | 全部三列 | `reason` 有八个取值，含 `initialization` |
+| `sl_resident_idx` | `resident_key`、`tenant`、`session`、`capability`、`shape` | `(resident_key, tenant, session, capability)` | `shape` 是 SE36 首次载入形状的 JSON，没有 `admitted_position` |
+| `sl_released_scope_idx` | `tenant`、`session`、`scope`、`data` | `(tenant, session, scope)` | `data` 是已释放作用域的 JSON |
+
+没有 `sl_batch`、`sl_blob`、`sl_ref_idx` 与 `sl_rebuild`。
+
+### 权威表（设计目标）
 
 列类型写 SQLite 的类型，PostgreSQL 的对应见 [SPEC 的介质差异表](../SPEC.md#sqlite-与-postgresql)。`tenant` 与 `session` 都是文本。JSON 列是 `TEXT`，内容按应用层 schema 校验。
 
@@ -123,6 +142,8 @@ erDiagram
 `sl_model_view` 一个 epoch 内 `seq` 从 1 起连续。`prefix_digest` 的第一行是 `H(空 ‖ 条目 digest)`。`sl_rebuild` 是进度元数据，不是派生物，也不进 C-01 的等式。
 
 ### 进程内对象
+
+下表的对象名是设计目标的名字。源码里没有同名类：端口是 `createSessionStorage` 返回的对象，参加者模块是 `src/worker/participant.ts` 的默认导出，读入口是 `src/reads.ts` 与 `src/worker/read-*.ts`，编解码是 `src/codec.ts`，游标是 `src/cursor.ts`，迁移是 `src/worker/migration.ts`。
 
 | 对象 | 职责 | 身份与状态 |
 | --- | --- | --- |

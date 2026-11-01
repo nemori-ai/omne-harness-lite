@@ -4,6 +4,8 @@
 
 ## 流程
 
+实现状态：写路径（提交方）、读取与压缩提交的时序已进入 `src/`，但压缩提交的历史输入读取、R4 定位与派生重建没有实现。下图里的 `sl_batch`、`sl_blob` 与重建是设计目标，head 没有这些表（[SPEC 实现现状](../SPEC.md#实现现状)）。「Session 为参加者」一路由执行记录提供者发起，participant 模块的代码路径存在，但它的跨成员组合没有在本成员验证。
+
 ### 写路径：Session 为提交方
 
 前提：`session` 的命令处理器已经完成事务外的认回、权威读、裁定与收材料（[CP-01](../../session/SPEC.md#cp-01) 第 1 至第 4 步）。本包从 [W1](../SPEC.md#w1) 接手。
@@ -16,12 +18,11 @@ sequenceDiagram
     participant M as 参加者模块 session
     participant D as 表与索引
     S->>T: commit(command, guards)
-    T->>D: 点查 sl_operation（命中则返回原回执）
     loop 代次 k = 1, 2, …
         T->>P: query(<SessionOperationId>#k)
         Note over T,P: rolled_back 继续；not_committed 选用 k；committed 认回；unknown 返回 commit-unknown
     end
-    T->>T: 构造身份 <SessionOperationId>#k；规范化 { command, guards } 为 JSON
+    T->>T: 访问裁定；取租户事务域；构造身份 scope、transactionDomain、operation、operationKey = <SessionOperationId>#k、protocolVersion 2；规范化 { command, guards } 为 JSON
     T->>P: commit(identity, combinationVersion, [{ participant: session, facts }])
     P->>P: 受理前核对；BEGIN IMMEDIATE；按身份读回执
     P->>M: execute(facts, port)
@@ -29,14 +30,14 @@ sequenceDiagram
     M->>D: 点查 sl_operation 得到操作记录
     M->>D: 锁住并读 sl_journal（PostgreSQL 为 FOR UPDATE），读 sl_state，核 covered == tail
     M->>M: decide(快照, command, guards, 操作记录)
-    M->>D: 为批次分配 position；写 sl_blob、sl_entry、派生索引行
+    M->>D: 为批次分配 position；写 sl_entry、sl_input、sl_model_view 与其他派生索引行
     M->>M: reduce(前状态, 本批)
-    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_batch、sl_operation；条件更新 sl_journal
+    M->>D: 替换 sl_state；增删 sl_pending_idx；写 sl_operation（形式 batch、control 或 answer）；条件更新 sl_journal
     M-->>P: 参加
     P->>P: 写回执；COMMIT
     P-->>T: committed
-    T->>D: 读回 sl_operation.receipt
-    T-->>S: CommitReceipt
+    T->>T: 从回执的响应证据取出结果，核对输入摘要
+    T-->>S: 结果
 ```
 
 数据去向：条目、批次、回执、快照与派生行进同一事务。状态变化：`sl_journal.tail` 前进一批，`sl_state.covered` 等于新 `tail`。
@@ -51,11 +52,11 @@ sequenceDiagram
 | 同一代次异摘要（`identity_conflict`） | 提供者 | 已有回执为已提交：比较 Session 输入摘要，相同返回原回执，不同返回 `conflict`。已有回执为回滚：选下一个代次 |
 | 模块里 `decide` 返回 `recovered` | 模块 | 「参加」，不写行，返回原回执，`recovered` 为真 |
 | 同 Session 操作异输入摘要 | 模块里的 `decide` | `conflict` |
-| 材料集合不符 | 模块 | 「不支持」，明确回滚。XP-2 成立时映射为 `invalid`；缺席时按退路返回 `unavailable` |
+| 事实不是命令也不是查询，或无法解码 | 模块 | 「不支持」，明确回滚，映射为 `invalid`。材料集合是否齐全，模块不另核对，交给 `decide`（[SPEC 实现现状](../SPEC.md#实现现状)） |
 | 带 `expected` 的命令，`expected ≠ tail` | 模块里的 `decide` | 「冲突」，`changed` 带当前 `revision`，明确回滚。`session` 以同一身份重做，开新代次 |
-| `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚。没有响应通道时本包在事务外再调用一次 `decide` 求拒绝原因（W1 第 9 步）；重算允许提交时返回 `unavailable` |
+| `decide` 返回其他拒绝 | 模块 | 「冲突」，明确回滚，依据里保存原 `SessionFailure`。端口从回执的响应证据取出并原样返回，不重算（W1 第 9 步） |
 | `reduce` 对 `decide` 的批次返回 `quarantined` | 模块 | 「失败」，不写行。这是契约实现的缺陷 |
-| `sl_state` 落后 | 模块 | 「失败」，`unavailable`；R9 追赶 |
+| `sl_state` 落后 | 模块 | 「失败」，`unavailable`。R9 追赶尚未实现 |
 | `sl_journal` 条件更新影响 0 行 | 模块 | 「失败」，`unavailable`，记诊断 |
 | 语句失败 | 提供者关闭端口 | 「失败」，`rolled_back` 或 `unknown` |
 | `COMMIT` 结果不确定、锁等待超时 | 提供者 | `commit-unknown`；调用方按原身份 `queryOperation` |
@@ -90,7 +91,7 @@ sequenceDiagram
 | 分支 | 结果 |
 | --- | --- |
 | `joint` 不是四种之一，或 `Participation` 缺项 | 「不支持」，提交方得到 `unsupported`，不保存任何一半 |
-| 结局为拒绝类（`stale-advance`、`terminal`、`archived`） | 「冲突」，提交方得到 `changed` 并带依据。缺响应通道时依据丢失，见 [XP-2](../SPEC.md#xp-table) |
+| 结局为拒绝类（`stale-advance`、`terminal`、`archived`） | 「冲突」，提交方得到 `changed` 并带依据。依据保存在响应证据里（[XP-2](../SPEC.md#xp-table)） |
 | 同 Session 身份已提交 | 「参加」，不写第二份 |
 | 桥材料不可用或语句失败 | 「失败」，提交方得到 `unavailable` 或 `commit-unknown` |
 

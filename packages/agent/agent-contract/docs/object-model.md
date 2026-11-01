@@ -74,7 +74,8 @@ Agent 扩展产生的人工等待在 Passage 中建模。Tool 内部 wait 仅向
 | 对象 | 身份 | 构造 | 状态与合法转换 | 所有者 | 销毁或保留 |
 | --- | --- | --- | --- | --- | --- |
 | AcceptedInput | InputId，由调用方分配 | invoke 或 submit 携带内容、来源依据与优先级，Journal 提供者受理时保存 | 不可变值。受理后进入 execution 的输入集合，按水位线分批承接 | Journal 提供者保存内容 | 随 execution 保留。同一身份配不同内容被拒绝 |
-| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 随建立新 execution 事实的提交保存；一个 revision 标识 execution 的完整已提交事实视图，只保存认回索引的操作不分配新 revision，规则见 SPEC 的“[执行修订](../SPEC.md#执行修订)”。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null，`currentHandoff` 为 null | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零。`currentHandoff` 由 P 设为 H，只由 Ja 的 resolve 或 retire 清除或移到后继，Rh 不改它 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
+| AgentCheckpoint | 没有自己的身份，属于 execution 的某个修订 | 随建立新 execution 事实的提交保存；一个 revision 标识 execution 的完整已提交事实视图，只保存认回索引的操作不分配新 revision，规则见 SPEC 的“[执行修订](../SPEC.md#执行修订)”。初始 checkpoint 的 `position` 是执行开始之后位置，`guard` 为 null，`currentHandoff` 为 null，`replyAdmissionRead` 为 unverified | 不可变快照，没有状态。`guard` 是 Agent 自持的守卫事实，只由循环判断这一受信系统扩展的判断更新，压缩、换挂接与换代不清零。`currentHandoff` 由 P 设为 H，只由 Ja 的 resolve 或 retire 清除或移到后继，Rh 不改它 | Agent，由 Journal 保存 | 只保留最新已提交的一版，被后继提交取代的可以立即删除；不含 Promise、句柄、锁或依赖容器。规则见 SPEC 的“[终态后与 ended](../SPEC.md#终态后与-ended)” |
+| ReplyAdmissionPrefix（已核实前缀） | 执行加稠密序位 `sequence`；`basis` 是 Journal 铸造的前缀依据 | 零前缀由原 open 形成，非零前缀由原 Ja 在发布准入事实的同一事务内形成。读取、确认、attach 与 checkpoint 保存都不新建前缀 | 不可变。checkpoint 的读取位置只从 unverified 到 verified，verified 只前进不倒退，规则见 SPEC 的“[回复准入的已核实前缀](../SPEC.md#回复准入的已核实前缀)” | Journal 拥有依据与原事实；读取位置归 Agent，由 Journal 保存 | 当前 checkpoint 引用的依据、执行起源与验证资料不回收。M2 全保留，不回收任何准入事实与依据 |
 | ActionBatch | ActionBatchId | 已准入的模型完整回复形成动作批，每个合法的 tool_call 一个 Action，调用部件的三种形状见 SPEC 的“[整批判断屏障与动作准入](../SPEC.md#整批判断屏障与动作准入)” | 屏障 closed 转为 open 或 all-denied，不回转。open 或 all-denied 时，判断被拒的动作建立 denied 槽位；获准动作交 Tool 后，受理建立 dispatched，确定拒绝且无历史受理或未决才建立 denied；否则保留原 pending 与 effect intent，缺槽位保持未决，dispatched 再转为 result 或 background。全拒时每个动作也有槽位。转换见下文合法转换表 | Agent，由 Journal 随 checkpoint 保存 | 全部槽位的候选消息经消息准入后随 checkpoint 更新。后台槽位的占位在最终结果到达后仍保留 |
 | TerminalObservation | 终态加 PassageId | tryFinish 提交终态时固定全部待观察项 | 待观察转为已观察 | Journal 台账，由长期协调者处理 | 随 execution 保留，观察完成后仍可读取 |
 | ResultResponsibility | ConsumptionId | Tool 结果经 recordResult 登记时建立 | 待释放，保管或处理依据已保存，已释放 | Journal，由合法的保管方推进 | 已释放后记录保留到 execution 保留期结束 |
@@ -161,6 +162,8 @@ classDiagram
   Passage *-- PassageOperation : ordered durable operations
   Passage *-- CardRound : card rounds in progress
   AgentExecution --> ReplyAdmissionProjection : derived from original facts
+  ReplyAdmissionProjection --> ReplyAdmissionPrefix : ends at
+  AgentCheckpoint --> ReplyAdmissionPrefix : verified read position
   AgentJournal --> AgentExecution : persists authoritative records
   AgentJournal --> ExecutionAttachment : grants and fences
   EffectCoordinator --> AgentJournal : commits and conditionally finishes

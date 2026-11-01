@@ -382,12 +382,15 @@ metrics只报告结构与配置范围内的覆盖；mutation只观察其选择�
 
 ### 交付与合并前的检查
 
-同一基线下先检查计划，再执行最终候选所需的组合检查。已绑定任务的工作树不传基线，两条命令都取固定的 `targetBase`：
+同一基线下先预检，再检查计划，最后执行最终候选所需的组合检查。已绑定任务的工作树不传基线，后两条命令都取固定的 `targetBase`：
 
 ```sh
+pnpm run preflight
 pnpm run check:plan
 pnpm run admission
 ```
+
+`pnpm run preflight` 在当前树上一次跑完准入里不依赖构建与全量测试的步骤（文档、agents 投影、设计登记、线归属、写范围与卡级语义复核、格式、结构规则、oxlint、验收锁），全部同时起、失败不终止其余，最后一次列出全部发现与修法，本机约 40 到 90 秒；写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据，见[预检](../scripts/README.md#预检)。
 
 没有绑定任务的工作树（例如进入 stable 的 PR）显式给同一个基线：
 
@@ -396,7 +399,7 @@ pnpm run check:plan --base "$TASK_BASE"
 BASELINE="$TASK_BASE" pnpm run admission
 ```
 
-进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。
+进入任何一条主干之前的检查都带 `OMNE_ADMISSION=1`，规则见[集成规则](engineering/integration.md#检查责任)。`pnpm run admission` 就是带这个变量的 `pnpm run check`，另把命令、head、基线、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（见[自动化入口](../scripts/README.md)）；手写 `OMNE_ADMISSION=1 pnpm run check` 等价。不带这个变量的运行会读缓存，不作为准入检查结论。准入开始时先[自检并自愈环境](../scripts/README.md#环境自检与自愈)：依赖目录与锁文件不一致就离线重装，索引 LF、工作副本 CRLF 的已跟踪文件从索引重新检出，做了什么写进日志与记录。成员测试一层失败不超过 10 处且都在测试文件里时，同一次运行内只把那些文件低并发各重跑一次，全过则这一步通过，重跑的文件与结果写进记录的 `retried`，确认者在 `admission-evidence` 的输出里看得到；其余失败语义不变，见[失败语义](../scripts/README.md#check-的步骤图)。准入失败于成员测试、修复只碰失败用例所在的成员时，`pnpm run admission --resume-from <H1>` 只重跑失败的文件加 H1..HEAD 影响到的成员，规则见 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。
 
 两条命令按同一规则取基线，因此不给基线时它们比较的范围相同。传显式基线的方式不同：`check:plan`用`--base`参数（也读环境变量`BASELINE`），`check`只读环境变量`BASELINE`。
 

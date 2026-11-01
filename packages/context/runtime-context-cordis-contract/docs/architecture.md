@@ -11,7 +11,7 @@
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
 | `@omne-harness/runtime-context-cordis-contract` | `src/index.ts` | 只重导出契约词汇所需的类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
-| `@omne-harness/runtime-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RuntimeContextService`、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 已实现 |
+| `@omne-harness/runtime-context-cordis-contract/cordis` | `src/cordis.ts` | 抽象类 `RuntimeContextService`、`RuntimeContextTrustService`、键常量、intercept 配置类型、`Context` 与 `Events` 增补 | 已实现 |
 
 ```mermaid
 flowchart LR

@@ -31,6 +31,13 @@ export type ExecutionRevision = AgentIdentity<'ExecutionRevision'>
 export type InputId = AgentIdentity<'AgentInputId'>
 export type InputBatchId = AgentIdentity<'AgentInputBatchId'>
 export type ConsumptionId = AgentIdentity<'AgentConsumptionId'>
+/**
+ * The dense ordinal of a reply admission fact: a canonical decimal non-negative integer text. It is
+ * compared as an exact integer, never as a JS number or by text order.
+ */
+export type ReplyAdmissionSequence = AgentIdentity<'ReplyAdmissionSequence'>
+/** The opaque cursor of the next page of one `readReplyAdmissions` range; it grants no read. */
+export type ReplyAdmissionPageCursor = AgentIdentity<'ReplyAdmissionPageCursor'>
 // The three exchange values have one definition in exchange-refs and `Access` has one in
 // legal-identity. This member re-exports them; the judgments below stay here.
 export type { Adoption, ConsumerRef, DurableEvidence } from '@omne-harness/exchange-refs'
@@ -146,6 +153,34 @@ export const decodeInputId = decoderOf<InputId, 'InputId'>('InputId')
 export const decodeInputBatchId = decoderOf<InputBatchId, 'InputBatchId'>('InputBatchId')
 /** Decodes the text of a `ConsumptionId`. Gives the brand only, not existence or eligibility. */
 export const decodeConsumptionId = decoderOf<ConsumptionId, 'ConsumptionId'>('ConsumptionId')
+/**
+ * Decodes the text of a `ReplyAdmissionPageCursor`. Gives the brand only: the provider checks the
+ * cursor against the range of the request and the current read qualification.
+ */
+export const decodeReplyAdmissionPageCursor = decoderOf<
+  ReplyAdmissionPageCursor,
+  'ReplyAdmissionPageCursor'
+>('ReplyAdmissionPageCursor')
+
+// A canonical decimal non-negative integer: zero, or a digit 1 to 9 and then digits.
+const CANONICAL_DECIMAL = /^(?:0|[1-9][0-9]*)$/u
+
+/**
+ * Decodes the text of a `ReplyAdmissionSequence`: a canonical decimal non-negative integer of at
+ * most `AGENT_IDENTITY_MAX_LENGTH` digits. A leading zero, a sign, a space or any other character
+ * is `character`. Gives the brand only: it does not prove that the fact exists.
+ */
+export function decodeReplyAdmissionSequence(
+  value: unknown,
+): Outcome<ReplyAdmissionSequence, IdentityFailure<'ReplyAdmissionSequence'>> {
+  const field = 'ReplyAdmissionSequence'
+  if (typeof value !== 'string') return fail({ field, reason: 'type' })
+  if (value.length === 0) return fail({ field, reason: 'empty' })
+  if (value.length > AGENT_IDENTITY_MAX_LENGTH) return fail({ field, reason: 'length' })
+  if (!CANONICAL_DECIMAL.test(value)) return fail({ field, reason: 'character' })
+  // The checks above are the only way to mint the brand.
+  return succeed(value as ReplyAdmissionSequence)
+}
 
 /** A structure of non-empty text members and nothing else. */
 function judgeTextRecord<K extends string>(

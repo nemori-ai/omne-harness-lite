@@ -194,8 +194,16 @@ import type {
   Registration,
   RegistrationState,
   Reply,
+  ReplyAdmissionFrom,
+  ReplyAdmissionGapReason,
+  ReplyAdmissionItem,
   ReplyAdmissionPage,
+  ReplyAdmissionPageCursor,
+  ReplyAdmissionPageTail,
+  ReplyAdmissionPrefix,
   ReplyAdmissionProjection,
+  ReplyAdmissionRead,
+  ReplyAdmissionSequence,
   RequestPreparation,
   ResultResponsibility,
   RuntimeConditions,
@@ -316,8 +324,16 @@ type Landed = {
   ProgressionDirective: ProgressionDirective
   RegisteredReads: RegisteredReads<string>
   Reply: Reply<number>
+  ReplyAdmissionFrom: ReplyAdmissionFrom
+  ReplyAdmissionGapReason: ReplyAdmissionGapReason
+  ReplyAdmissionItem: ReplyAdmissionItem
   ReplyAdmissionPage: ReplyAdmissionPage
+  ReplyAdmissionPageCursor: ReplyAdmissionPageCursor
+  ReplyAdmissionPageTail: ReplyAdmissionPageTail
+  ReplyAdmissionPrefix: ReplyAdmissionPrefix
   ReplyAdmissionProjection: ReplyAdmissionProjection
+  ReplyAdmissionRead: ReplyAdmissionRead
+  ReplyAdmissionSequence: ReplyAdmissionSequence
   RequestPreparation: RequestPreparation<string>
   RuntimeConditions: RuntimeConditions
   SelectedModel: SelectedModel
@@ -586,6 +602,141 @@ describe('the discriminants of the evaluation chapter', () => {
     expectTypeOf<ReturnType<AgentEvaluator['decode']>>().toEqualTypeOf<
       Outcome<AgentCheckpoint, Failure>
     >()
+  })
+})
+
+describe('the reply admission read of D5 (verified prefix, fixed range, tail)', () => {
+  type Request = Parameters<AgentJournal<string>['readReplyAdmissions']>[0]
+  type Page = Extract<ReplyAdmissionPage, { kind: 'page' }>
+  const sequence = '1' as ReplyAdmissionSequence
+  const basis: DurableEvidence = { owner: 'o', record: 'r', revision: '1', digest: 'd' }
+  const prefix: ReplyAdmissionPrefix = { sequence, basis }
+
+  it('names the prefix, the lower bound, the page tail, the gap reasons and the checkpoint read', () => {
+    expectTypeOf<keyof ReplyAdmissionPrefix>().toEqualTypeOf<'sequence' | 'basis'>()
+    expectTypeOf<ReplyAdmissionPrefix['sequence']>().toEqualTypeOf<ReplyAdmissionSequence>()
+    expectTypeOf<ReplyAdmissionProjection['prefix']>().toEqualTypeOf<ReplyAdmissionPrefix>()
+    expectTypeOf<KindOf<ReplyAdmissionFrom>>().toEqualTypeOf<'origin' | 'prefix'>()
+    expectTypeOf<KindOf<ReplyAdmissionPageTail>>().toEqualTypeOf<'more' | 'complete'>()
+    expectTypeOf<
+      Extract<ReplyAdmissionPageTail, { kind: 'more' }>['next']
+    >().toEqualTypeOf<ReplyAdmissionPageCursor>()
+    expectTypeOf<ReplyAdmissionGapReason>().toEqualTypeOf<
+      'retention' | 'missing-fact' | 'missing-basis' | 'range-unavailable'
+    >()
+    expectTypeOf<keyof Page>().toEqualTypeOf<
+      'kind' | 'through' | 'start' | 'end' | 'items' | 'tail'
+    >()
+    expectTypeOf<keyof ReplyAdmissionItem>().toEqualTypeOf<'sequence' | 'fact' | 'publication'>()
+    expectTypeOf<KindOf<ReplyAdmissionRead>>().toEqualTypeOf<'unverified' | 'verified'>()
+    expectTypeOf<AgentCheckpoint['replyAdmissionRead']>().toEqualTypeOf<ReplyAdmissionRead>()
+    expectTypeOf<Request['from']>().toEqualTypeOf<ReplyAdmissionFrom>()
+    expectTypeOf<Request['after']>().toEqualTypeOf<ReplyAdmissionPageCursor | null>()
+  })
+
+  it('keeps the sequence and the cursor apart from a plain string', () => {
+    // @ts-expect-error a plain string is not a sequence
+    const _plain: ReplyAdmissionSequence = '1'
+    // @ts-expect-error a sequence is not a cursor
+    const _cursor: ReplyAdmissionPageCursor = sequence
+  })
+
+  it('refuses a page without its range, bounds, items or tail, and the old complete and next', () => {
+    const items: readonly ReplyAdmissionItem[] = []
+    const page: Page = {
+      kind: 'page',
+      through: basis,
+      start: prefix,
+      end: prefix,
+      items,
+      tail: { kind: 'complete' },
+    }
+    expectTypeOf(page).toExtend<ReplyAdmissionPage>()
+    // @ts-expect-error a page needs through
+    const _noThrough: Page = {
+      kind: 'page',
+      start: prefix,
+      end: prefix,
+      items,
+      tail: { kind: 'complete' },
+    }
+    // @ts-expect-error a page needs start
+    const _noStart: Page = {
+      kind: 'page',
+      through: basis,
+      end: prefix,
+      items,
+      tail: { kind: 'complete' },
+    }
+    // @ts-expect-error a page needs end
+    const _noEnd: Page = {
+      kind: 'page',
+      through: basis,
+      start: prefix,
+      items,
+      tail: { kind: 'complete' },
+    }
+    // @ts-expect-error a page needs items
+    const _noItems: Page = {
+      kind: 'page',
+      through: basis,
+      start: prefix,
+      end: prefix,
+      tail: { kind: 'complete' },
+    }
+    // @ts-expect-error a page needs tail: a missing tail is not completion
+    const _noTail: Page = { kind: 'page', through: basis, start: prefix, end: prefix, items }
+    const _old: Page = {
+      kind: 'page',
+      through: basis,
+      start: prefix,
+      end: prefix,
+      items,
+      tail: { kind: 'complete' },
+      // @ts-expect-error the complete flag left the page with tail
+      complete: true,
+    }
+    const _oldNext: Page = {
+      kind: 'page',
+      through: basis,
+      start: prefix,
+      end: prefix,
+      items,
+      tail: { kind: 'complete' },
+      // @ts-expect-error the next text left the page with tail
+      next: null,
+    }
+    // @ts-expect-error a more tail needs its cursor
+    const _moreWithoutNext: ReplyAdmissionPageTail = { kind: 'more' }
+    // @ts-expect-error an item needs the publication of its original Ja
+    const _noPublication: ReplyAdmissionItem = { sequence, fact: {} as ModelReplyAdmission }
+    // @ts-expect-error a gap names its reason
+    const _gap: ReplyAdmissionPage = { kind: 'gap', recovery: basis }
+    // @ts-expect-error rule-unavailable is not a gap reason
+    const _rule: ReplyAdmissionGapReason = 'rule-unavailable'
+  })
+
+  it('refuses a prefix, projection, request or checkpoint without its new members', () => {
+    // @ts-expect-error a prefix needs its basis
+    const _noBasis: ReplyAdmissionPrefix = { sequence }
+    // @ts-expect-error a prefix needs its sequence
+    const _noSequence: ReplyAdmissionPrefix = { basis }
+    // @ts-expect-error the projection needs its prefix
+    const _projection: ReplyAdmissionProjection = {
+      through: basis,
+      rule: { owner: 'o', name: 'n', revision: '1', digest: 'd' },
+      lastAdmission: null,
+      consecutiveDenials: '0',
+      totalDenials: '0',
+    }
+    const access = {} as Access<string>
+    const execution = 'e' as AgentExecutionId
+    // @ts-expect-error the request needs from: a lower bound is never left out
+    const _request: Request = { ...access, execution, through: basis, after: null, limit: 1 }
+    // @ts-expect-error a verified read needs its prefix
+    const _verified: ReplyAdmissionRead = { kind: 'verified' }
+    // @ts-expect-error the checkpoint needs its read position
+    const _checkpoint: AgentCheckpoint = {} as Omit<AgentCheckpoint, 'replyAdmissionRead'>
   })
 })
 

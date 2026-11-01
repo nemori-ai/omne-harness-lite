@@ -4,7 +4,7 @@
 
 ## 使用方式
 
-本成员现在没有导出。下面是 SPEC 固定的用法，随实现生效。
+`./cordis` 现在导出 `RequestContextProvider`，根入口没有导出。下面是 SPEC 固定的用法，其中配置字段随配置 Schema 进入。
 
 ### 装配
 
