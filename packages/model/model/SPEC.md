@@ -184,9 +184,19 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 - 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
-核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
+核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、`hasRecoveryWork` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
 
-`run` 的第二个参数 `scope` 可选，写明本次尝试的租户（规范文本）、call 与 operation。耐久存储可在运行同步的 `work` 之前按它预读；内存存储不读任何东西，忽略它。核心的调用点目前不传 `scope`，存储不得依赖它出现。
+`run` 的第二个参数 `scope` 可选，写明本次尝试的租户（规范文本）、call 与 operation。耐久存储可在运行同步的 `work` 之前按它预读；内存存储不读任何东西，忽略它。核心的每个 `run` 调用处都传 `scope`，传递义务如下，用例 [commands-scope.spec.ts](tests/commands-scope.spec.ts) 固定：
+
+- 租户取方法输入的租户，用 `tenantCodec` 的规范文本。
+- 写方法（`MODEL_WRITE_METHODS` 的 15 个）带 call 与 operation。
+- 读方法带 call，不带 operation，即使输入里有（`recall` 的 admission、`query` 的 operation）。
+- `scanPending` 跨调用读，只带租户。
+- 租户没有规范文本时不传 `scope`，`work` 照旧返回 `denied`。
+
+核心用 `runRead` 与 `runWrite` 两个入口传 `scope`，裁定逻辑不读它。
+
+`hasRecoveryWork(call, pending?)` 回答一份调用文档是否还有待恢复工作：`pending` 是该调用仍为 `unknown` 的 operation，缺省为空。它与 `scanPending` 选调用用的是同一条规则，所以自己选待恢复调用的存储问同一个问题，不另写一份规则。用例固定两者的一致。
 
 已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
 
