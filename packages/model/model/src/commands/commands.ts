@@ -85,7 +85,7 @@ export function callCommands<P>(
               : { kind: 'invalid', ...checked.failure },
         })
       const input = checked.ok
-      return core.storage.run(() => {
+      return core.runWrite(input, () => {
         const { call, operation, request, consumer, capacity } = input
         const fields = { call, operation, request, consumer, capacity }
         return core.write({
@@ -161,7 +161,7 @@ export function callCommands<P>(
       })
     },
     recall: input =>
-      core.storage.run<Lookup>(() => {
+      core.runRead<Lookup>(input, () => {
         const key = core.identity(input)
         if (typeof key !== 'string') return { failure: key }
         const root = core.storage.documents(key)
@@ -186,7 +186,7 @@ export function callCommands<P>(
         return { ok: { kind: 'found', state: structuredClone(call.state) } }
       }),
     query: input =>
-      core.storage.run(() => {
+      core.runRead(input, () => {
         const key = core.identity(input)
         if (typeof key !== 'string') return { failure: key }
         const root = core.storage.documents(key)
@@ -209,13 +209,13 @@ export function callCommands<P>(
         }
       }),
     dispatches: input =>
-      core.storage.run(() =>
+      core.runRead(input, () =>
         core.read(input, 'account', call => ({
           ok: structuredClone(call.dispatches.map(d => d.record)),
         })),
       ),
     control: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write({
           input,
           method: 'control',
@@ -244,7 +244,7 @@ export function callCommands<P>(
         }),
       ),
     settle: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write({
           input,
           method: 'settle',
@@ -318,7 +318,7 @@ export function recoveryCommands<P>(
   }
   return {
     scanPending: input =>
-      core.storage.run(() => {
+      core.runRead(input, () => {
         const tenant = core.authorize(input, 'recovery')
         if ('failure' in tenant) return tenant
         const scope = tenantKey(input.tenant)
@@ -332,7 +332,7 @@ export function recoveryCommands<P>(
         return scanPage(scope, input.after, input.limit)
       }),
     loadRecovery: input =>
-      core.storage.run(() =>
+      core.runRead(input, () =>
         core.read(input, 'recovery', (call, root) => {
           if (call.request === null)
             return { failure: invalid('call', 'recovery-material-released') }
@@ -354,7 +354,7 @@ export function recoveryCommands<P>(
         }),
       ),
     claim: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write({
           input,
           method: 'claim',
@@ -426,7 +426,7 @@ export function dispatchCommands<P>(
     fields: unknown,
     apply: (call: CallDocument) => ModelFailure | null,
   ) {
-    return core.storage.run(() =>
+    return core.runWrite(input, () =>
       core.write<Revision>({
         input,
         method,
@@ -597,7 +597,7 @@ export function dispatchCommands<P>(
         },
       ),
     recordMaterialization: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write({
           input,
           method: 'recordMaterialization',
@@ -691,7 +691,7 @@ export function dispatchCommands<P>(
         },
       ),
     preserve: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write<Snapshot>({
           input,
           method: 'preserve',
@@ -749,7 +749,7 @@ export function dispatchCommands<P>(
         }),
       ),
     recordLateFact: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write<
           Extract<Awaited<ReturnType<ModelCommands<P>['recordLateFact']>>, { ok: unknown }>['ok']
         >({
@@ -804,7 +804,7 @@ export function dispatchCommands<P>(
         }),
       ),
     prepareRetry: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write({
           input,
           method: 'prepareRetry',
@@ -890,7 +890,7 @@ export function consumptionCommands<P>(
 ): Pick<ModelCommands<P>, 'acquireRead' | 'nextRead' | 'endRead' | 'handoff' | 'advanceCleanup'> {
   return {
     acquireRead: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write<ReadStart>({
           input,
           method: 'acquireRead',
@@ -957,19 +957,19 @@ export function consumptionCommands<P>(
         }),
       ),
     nextRead: input =>
-      core.storage.run(() =>
+      core.runRead(input, () =>
         'failure' in decodeReadId(input.read)
           ? { failure: invalid('read', 'identity') }
           : core.updateRead(input, input.read, 'next', input.after),
       ),
     endRead: input =>
-      core.storage.run(() =>
+      core.runRead(input, () =>
         'failure' in decodeReadId(input.read)
           ? { failure: invalid('read', 'identity') }
           : core.updateRead(input, input.read, 'end'),
       ),
     handoff: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write<AckReceipt>({
           input,
           method: 'handoff',
@@ -1043,7 +1043,7 @@ export function consumptionCommands<P>(
         }),
       ),
     advanceCleanup: input =>
-      core.storage.run(() =>
+      core.runWrite(input, () =>
         core.write<CustodyState>({
           input,
           method: 'advanceCleanup',

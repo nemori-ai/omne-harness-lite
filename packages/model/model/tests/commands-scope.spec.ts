@@ -99,7 +99,10 @@ function everyMethod(f: ReturnType<typeof fixture>) {
           policy: adoption,
           consumer: f.admit.consumer,
         },
-        decision: { kind: 'stop', fault: { kind: 'cancelled' } },
+        decision: {
+          kind: 'stop',
+          fault: { cause: 'unclassified', diagnostic: 'fixture', upstreamStatus: null },
+        },
         source: evidence,
       }),
     settle: c =>
@@ -110,7 +113,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
         ...access,
         call,
         operation: op('acquireRead'),
-        result: unbox(decodeResultVersion('mres_one')),
+        result: unbox(decodeResultVersion('mrver_one')),
       }),
     nextRead: c =>
       c.nextRead({ ...access, call, read: unbox(decodeReadId('mread_one')), after: '0' }),
@@ -120,7 +123,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
         ...access,
         call,
         operation: op('handoff'),
-        result: unbox(decodeResultVersion('mres_one')),
+        result: unbox(decodeResultVersion('mrver_one')),
         evidence: { kind: 'processed', completion: evidence },
       }),
     advanceCleanup: c => c.advanceCleanup({ ...execution, operation: op('advanceCleanup') }),

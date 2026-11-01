@@ -1,4 +1,5 @@
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
+import type { TenantId } from '@omne-harness/legal-identity'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   decodeModelCallId,
@@ -11,6 +12,7 @@ import type {
   MaterializationReceipt,
   ModelCallId,
   ModelFailure,
+  ModelOperationId,
   ReadId,
   ReadState,
   Revision,
@@ -54,7 +56,7 @@ import {
   sealsWhole,
   wellFormed,
 } from './judge.ts'
-import type { ModelCommandStorage } from './storage.ts'
+import type { ModelCommandStorage, RunScope } from './storage.ts'
 import type {
   Applied,
   Binding,
@@ -401,6 +403,29 @@ export class ModelCommandCore<P> {
   }
   replaceOwners(owners: readonly ModelConsumerOwnerDeclaration[]): void {
     this.owners = this.checkOwners(owners)
+  }
+  /**
+   * Runs a read attempt under the scope of its tenant and, when it names one, its call. A read
+   * names no operation, even when its input carries one. A tenant that has no canonical text gets
+   * no scope: `work` then answers it with the same `denied` failure as before.
+   */
+  runRead<T>(
+    input: Readonly<{ tenant: TenantId; call?: ModelCallId }>,
+    work: () => Outcome<T, ModelFailure>,
+  ): Promise<Outcome<T, ModelFailure>> {
+    const tenant = tenantKey(input.tenant)
+    if (typeof tenant !== 'string') return this.storage.run(work)
+    const scope: RunScope = input.call === undefined ? { tenant } : { tenant, call: input.call }
+    return this.storage.run(work, scope)
+  }
+  /** Runs a write attempt under the scope of its tenant, call and operation. */
+  runWrite<T>(
+    input: Readonly<{ tenant: TenantId; call: ModelCallId; operation: ModelOperationId }>,
+    work: () => Outcome<T, ModelFailure>,
+  ): Promise<Outcome<T, ModelFailure>> {
+    const tenant = tenantKey(input.tenant)
+    if (typeof tenant !== 'string') return this.storage.run(work)
+    return this.storage.run(work, { tenant, call: input.call, operation: input.operation })
   }
   identity(input: Pick<ExecutionRef, 'tenant' | 'call'>): string | ModelFailure {
     const key = tenantKey(input.tenant)
