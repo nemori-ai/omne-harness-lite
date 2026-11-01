@@ -1021,7 +1021,8 @@ export function createSessionTransactions<P>(
     const decision = projectSessionLog(prepared, { ...observation, operation }, material?.reads)
     if (decision.kind === 'rejected') return fail(decision.failure)
     if (decision.kind === 'recovered') return succeed(decision.receipt)
-    if (decision.kind !== 'entries') return fail(unavailable('projection produced a control answer'))
+    if (decision.kind !== 'entries')
+      return fail(unavailable('projection produced a control answer'))
     const encoded = [...decision.entries]
     for (const fact of releases) {
       const command = {

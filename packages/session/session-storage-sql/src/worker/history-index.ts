@@ -20,7 +20,12 @@ import { big, rowsOf, text } from './support.ts'
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 100_000
 
-type Planted = Readonly<{ id: string; revision: string; entry: HistoryEntry; data: Record<string, unknown> }>
+type Planted = Readonly<{
+  id: string
+  revision: string
+  entry: HistoryEntry
+  data: Record<string, unknown>
+}>
 
 export type SessionHistory = Readonly<{ index: SessionHistoryIndex; reads: SessionHistoryReads }>
 

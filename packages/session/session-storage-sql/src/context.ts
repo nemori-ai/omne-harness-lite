@@ -82,7 +82,9 @@ export async function qualify<P>(
     case 'denied':
       return failure({ kind: 'denied', action: request.operation })
     case 'unavailable':
-      return failure(unavailable(`access check unavailable for ${request.operation}: ${decision.diagnostic}`))
+      return failure(
+        unavailable(`access check unavailable for ${request.operation}: ${decision.diagnostic}`),
+      )
   }
 }
 
@@ -95,9 +97,14 @@ export async function domainOf<P>(
 ): Promise<Outcome<TenantDomainRef, SessionFailure>> {
   const text = tenantCodec.encode(tenant)
   if (!text.ok)
-    return failure({ kind: 'invalid', field: 'tenant', reason: 'not a tenant that legal-identity minted' })
+    return failure({
+      kind: 'invalid',
+      field: 'tenant',
+      reason: 'not a tenant that legal-identity minted',
+    })
   const resolved = await context.options.domains.resolve({ tenant: text.value })
-  if (resolved.kind !== 'ready') return failure(unavailable(`tenant domain: ${resolved.diagnostic}`))
+  if (resolved.kind !== 'ready')
+    return failure(unavailable(`tenant domain: ${resolved.diagnostic}`))
   const { entry } = resolved
   if (
     entry.tenant !== text.value ||

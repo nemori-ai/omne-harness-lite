@@ -30,7 +30,8 @@ export default handler('session.model-view', (raw, port) => {
   if (input.epoch !== null && input.epoch !== epoch) return { kind: 'epoch-changed', current }
   const upper = input.upper === null ? BigInt(current.upper) : BigInt(input.upper)
   const after = input.after === null ? 0n : BigInt(input.after)
-  if (after < 0n || upper > BigInt(current.upper) || after > upper) return { kind: 'invalid-bounds' }
+  if (after < 0n || upper > BigInt(current.upper) || after > upper)
+    return { kind: 'invalid-bounds' }
   const rows = rowsOf(
     port,
     `SELECT seq, entry, bytes, prefix_digest, message FROM sl_model_view

@@ -25,7 +25,12 @@ async function seeded(): Promise<App> {
   for (const name of ['one', 'two', 'three']) ok(await a.accept(TENANT_A, 'session-1', name))
   return a
 }
-const begin = (a: App, pageBytes: number, direction: 'forward' | 'backward' = 'forward', tenant = TENANT_A) =>
+const begin = (
+  a: App,
+  pageBytes: number,
+  direction: 'forward' | 'backward' = 'forward',
+  tenant = TENANT_A,
+) =>
   a.port.history.begin({
     ...a.access(tenant),
     kinds: [],
@@ -51,7 +56,9 @@ describe('history paging', () => {
   it('one page with room returns every entry in order and is exhausted', async () => {
     const a = await seeded()
     const page = ok<Page>(await begin(a, 1_000_000))
-    expect(page.entries.map(entry => entry.id)).toEqual(['1', '2', '3', '4', '5', '6', '7', '8'].slice(0, page.entries.length))
+    expect(page.entries.map(entry => entry.id)).toEqual(
+      ['1', '2', '3', '4', '5', '6', '7', '8'].slice(0, page.entries.length),
+    )
     expect(page.entries.length).toBeGreaterThanOrEqual(4)
     expect(page.exhausted).toBe(true)
     expect(page.next).toBeNull()
@@ -123,9 +130,15 @@ describe('the continuation token of history.next', () => {
     const a = await seeded()
     const cursor = await firstCursor(a)
     const [body, key, signature] = cursor.split('.') as [string, string, string]
-    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as { state: { edge: string } }
+    const payload = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as {
+      state: { edge: string }
+    }
     payload.state.edge = '0'
-    const forged = [Buffer.from(JSON.stringify(payload)).toString('base64url'), key, signature].join('.')
+    const forged = [
+      Buffer.from(JSON.stringify(payload)).toString('base64url'),
+      key,
+      signature,
+    ].join('.')
     const mark = a.provider.calls.length
     expect(failureOf(await next(a, forged))).toMatchObject({ kind: 'invalid', field: 'cursor' })
     expect(a.provider.calls.length).toBe(mark)
@@ -139,7 +152,10 @@ describe('the continuation token of history.next', () => {
     ok(await a.create(TENANT_B))
     for (const name of ['one', 'two']) ok(await a.accept(TENANT_B, 'session-1', name))
     const cursor = await firstCursor(a)
-    expect(failureOf(await next(a, cursor, TENANT_B))).toMatchObject({ kind: 'invalid', field: 'cursor' })
+    expect(failureOf(await next(a, cursor, TENANT_B))).toMatchObject({
+      kind: 'invalid',
+      field: 'cursor',
+    })
   })
 
   it('a token issued for one session is invalid for another session of the tenant', async () => {

@@ -121,9 +121,7 @@ export default handler('session.history', (raw, port) => {
     kind: 'page',
     upper: String(upperRow?.['revision'] ?? journal['tail']),
     interpreter:
-      sample === undefined
-        ? null
-        : (JSON.parse(text(sample['entry'])) as { schema: never }).schema,
+      sample === undefined ? null : (JSON.parse(text(sample['entry'])) as { schema: never }).schema,
     entries: taken.map(row => JSON.parse(text(row['entry']))),
     scannedThrough: String(lastPosition),
     next: exhausted

@@ -32,7 +32,12 @@ async function created() {
   const cancel = (name: string) =>
     commit({
       kind: 'cancelRun',
-      input: { ...base, operation: fixture.operation(name), run: 'run_never' as RunId, urgency: 'force' },
+      input: {
+        ...base,
+        operation: fixture.operation(name),
+        run: 'run_never' as RunId,
+        urgency: 'force',
+      },
     })
   const select = (name: string, route: string) =>
     commit({
@@ -50,7 +55,12 @@ describe('queryControlOperation', () => {
   it('is unknown for an identity never seen, and the original answer for an answered control', async () => {
     const { fixture, cancel } = await created()
     expect(
-      ok(await fixture.port.queryControlOperation({ ...fixture.access, operation: fixture.operation('x') })),
+      ok(
+        await fixture.port.queryControlOperation({
+          ...fixture.access,
+          operation: fixture.operation('x'),
+        }),
+      ),
     ).toEqual({ kind: 'unknown' })
     const first = ok(await cancel('answered'))
     expect(
@@ -79,7 +89,10 @@ describe('queryControlOperation', () => {
     if (other === undefined) throw new Error('fixture')
     expect(
       kindOf(
-        await fixture.port.queryControlOperation({ ...other, operation: fixture.operation('answered') }),
+        await fixture.port.queryControlOperation({
+          ...other,
+          operation: fixture.operation('answered'),
+        }),
       ),
     ).toBe('denied')
   })
@@ -93,7 +106,12 @@ describe('the answer-only control branch', () => {
     expect(ok(await cancel('none'))).toEqual(first)
     const other = await commit({
       kind: 'cancelRun',
-      input: { ...base, operation: fixture.operation('none'), run: 'run_other' as RunId, urgency: 'force' },
+      input: {
+        ...base,
+        operation: fixture.operation('none'),
+        run: 'run_other' as RunId,
+        urgency: 'force',
+      },
     })
     expect(kindOf(other)).toBe('conflict')
     expect(ok<{ revision: string }>(await fixture.port.readWork(fixture.access)).revision).toBe(

@@ -27,7 +27,10 @@ export function handler(
 
 export type Row = Readonly<Record<string, SqlCell>>
 export type Executor = Readonly<{
-  execute(sql: string, params: readonly SqlValue[]): Readonly<{
+  execute(
+    sql: string,
+    params: readonly SqlValue[],
+  ): Readonly<{
     columns: readonly string[]
     rows: readonly (readonly SqlCell[])[]
     changes: bigint
@@ -56,7 +59,10 @@ export const big = (cell: SqlCell | undefined): bigint => BigInt(cell as bigint 
 export function scopeOf(input: unknown): { tenant: string; session: string } | null {
   if (typeof input !== 'object' || input === null) return null
   const { tenant, session } = input as Record<string, unknown>
-  return typeof tenant === 'string' && tenant !== '' && typeof session === 'string' && session !== ''
+  return typeof tenant === 'string' &&
+    tenant !== '' &&
+    typeof session === 'string' &&
+    session !== ''
     ? { tenant, session }
     : null
 }

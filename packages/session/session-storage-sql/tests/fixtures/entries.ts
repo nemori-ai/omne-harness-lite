@@ -58,12 +58,16 @@ export const SESSION_ENTRIES: readonly EntryCall[] = [
   {
     name: 'history.readModelView',
     call: (a, t, s) =>
-      a.port.history.readModelView({ ...a.access(t, s), basis: null, after: null, pageBytes: bytes }),
+      a.port.history.readModelView({
+        ...a.access(t, s),
+        basis: null,
+        after: null,
+        pageBytes: bytes,
+      }),
   },
   {
     name: 'pending',
-    call: (a, t) =>
-      a.port.pending({ principal: 'tester', tenant: t, after: null, limit: 10 }),
+    call: (a, t) => a.port.pending({ principal: 'tester', tenant: t, after: null, limit: 10 }),
   },
 ]
 
@@ -72,11 +76,18 @@ export const SYSTEM_ENTRIES: readonly EntryCall[] = [
   {
     name: 'references',
     call: a =>
-      a.port.references({ principal: 'tester', scope: 'system', key: 'k' as never, after: null, limit: 10 }),
+      a.port.references({
+        principal: 'tester',
+        scope: 'system',
+        key: 'k' as never,
+        after: null,
+        limit: 10,
+      }),
   },
   {
     name: 'releasedScopes',
-    call: a => a.port.releasedScopes({ principal: 'tester', scope: 'system', after: null, limit: 10 }),
+    call: a =>
+      a.port.releasedScopes({ principal: 'tester', scope: 'system', after: null, limit: 10 }),
   },
 ]
 

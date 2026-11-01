@@ -24,7 +24,9 @@ export default handler('session.released-scopes', (raw, port) => {
       ORDER BY session, scope LIMIT ?`,
     [
       input.tenant,
-      ...(input.after === null ? [] : [input.after.session, input.after.session, input.after.scope]),
+      ...(input.after === null
+        ? []
+        : [input.after.session, input.after.session, input.after.scope]),
       BigInt(input.limit + 1),
     ],
   )

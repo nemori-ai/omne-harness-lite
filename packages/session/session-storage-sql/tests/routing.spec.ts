@@ -5,7 +5,8 @@ import { app, TENANT_A } from './fixtures/app.ts'
 import { SESSION_ENTRIES, SYSTEM_ENTRIES } from './fixtures/entries.ts'
 
 const READS = [...SESSION_ENTRIES, ...SYSTEM_ENTRIES].filter(
-  entry => !['commit', 'queryOperation', 'queryControlOperation', 'history.next'].includes(entry.name),
+  entry =>
+    !['commit', 'queryOperation', 'queryControlOperation', 'history.next'].includes(entry.name),
 )
 
 describe('read routing', () => {

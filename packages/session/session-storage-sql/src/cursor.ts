@@ -8,7 +8,11 @@ import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 
 export const OWNER = '@omne-harness/session-storage-sql'
 
-export type CursorBinding = Readonly<{ kind: string; tenant: string | null; session: string | null }>
+export type CursorBinding = Readonly<{
+  kind: string
+  tenant: string | null
+  session: string | null
+}>
 export type CursorOptions = Readonly<{
   signing: SessionCursorSigning
   now: () => number

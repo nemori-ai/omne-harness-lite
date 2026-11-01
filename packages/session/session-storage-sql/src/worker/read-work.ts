@@ -12,6 +12,7 @@ export default handler('session.work', (input, port) => {
     [scope.tenant, scope.session],
   )
   if (row === undefined) return { kind: 'absent' }
-  if (row['snapshot'] === null || big(row['covered']) !== big(row['tail'])) return { kind: 'behind' }
+  if (row['snapshot'] === null || big(row['covered']) !== big(row['tail']))
+    return { kind: 'behind' }
   return { kind: 'state', snapshot: JSON.parse(text(row['snapshot'])) }
 })

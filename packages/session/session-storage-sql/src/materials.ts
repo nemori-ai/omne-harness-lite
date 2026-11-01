@@ -19,7 +19,9 @@ const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
 
 function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
   const moduleUrl = new URL(`./worker/${name}${extension}`, import.meta.url).href
-  const digest = createHash('sha256').update(readFileSync(fileURLToPath(moduleUrl))).digest('hex')
+  const digest = createHash('sha256')
+    .update(readFileSync(fileURLToPath(moduleUrl)))
+    .digest('hex')
   return { moduleUrl, digest }
 }
 
@@ -40,7 +42,11 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-history',
     tables: ['sl_journal', 'sl_entry', 'sl_annotation_idx'],
   },
-  { handler: 'session.model-view', file: 'read-model-view', tables: ['sl_journal', 'sl_model_view'] },
+  {
+    handler: 'session.model-view',
+    file: 'read-model-view',
+    tables: ['sl_journal', 'sl_model_view'],
+  },
   { handler: 'session.pending', file: 'read-pending', tables: ['sl_pending_idx'] },
   { handler: 'session.references', file: 'read-references', tables: ['sl_resident_idx'] },
   {

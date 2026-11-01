@@ -34,7 +34,8 @@ export function encodeValue(value: unknown): JsonValue {
   }
   const out: Record<string, JsonValue> = {}
   for (const [key, member] of Object.entries(value)) {
-    if (key === TENANT || key === WORKSPACE) throw new TypeError(`the member name ${key} is reserved`)
+    if (key === TENANT || key === WORKSPACE)
+      throw new TypeError(`the member name ${key} is reserved`)
     if (member !== undefined) out[key] = encodeValue(member)
   }
   return out

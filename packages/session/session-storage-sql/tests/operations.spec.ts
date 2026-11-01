@@ -85,7 +85,11 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
       access: a.access(TENANT_A),
       command: {
         kind: 'accept',
-        input: { ...base, operation: operationId('accept-one'), value: { kind: 'ordinary', input: 'other' } },
+        input: {
+          ...base,
+          operation: operationId('accept-one'),
+          value: { kind: 'ordinary', input: 'other' },
+        },
       } as never,
       guards: [],
     })
@@ -99,7 +103,10 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
   it('a control command on the identity of a batch is a conflict', async () => {
     const a = await started()
     ok(await a.accept(TENANT_A, 'session-1', 'one'))
-    expect(failureOf(await cancel(a, 'accept-one'))).toEqual({ kind: 'conflict', operation: operationId('accept-one') })
+    expect(failureOf(await cancel(a, 'accept-one'))).toEqual({
+      kind: 'conflict',
+      operation: operationId('accept-one'),
+    })
   })
 
   it('a batch command on the identity of a control answer is a conflict and changes nothing', async () => {
@@ -119,7 +126,11 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
       access: a.access(TENANT_A),
       command: {
         kind: 'stopCall',
-        input: { ...base, operation: operationId('shared'), producer: { kind: 'model', call: 'm-1' } },
+        input: {
+          ...base,
+          operation: operationId('shared'),
+          producer: { kind: 'model', call: 'm-1' },
+        },
       } as never,
       guards: [],
     })
@@ -130,7 +141,10 @@ describe('SL07: an operation identity belongs to one operation, whatever its for
     const a = await started()
     ok(await a.accept(TENANT_A, 'session-1', 'one'))
     ok(await cancel(a, 'answered'))
-    const asBatch = await a.port.queryOperation({ ...a.access(TENANT_A), operation: operationId('answered') })
+    const asBatch = await a.port.queryOperation({
+      ...a.access(TENANT_A),
+      operation: operationId('answered'),
+    })
     const asControl = await a.port.queryControlOperation({
       ...a.access(TENANT_A),
       operation: operationId('accept-one'),
@@ -169,7 +183,10 @@ describe('stopCall of a Tool target', () => {
     expect(kindOf(await stopTool(a, 'ghost', 'no-such-session'))).toBe('unsupported')
     expect(a.provider.calls.length).toBe(mark)
     expect(ok(await a.port.readWork(a.access(TENANT_A)))).toEqual(before)
-    const asked = await a.port.queryControlOperation({ ...a.access(TENANT_A), operation: operationId('fresh') })
+    const asked = await a.port.queryControlOperation({
+      ...a.access(TENANT_A),
+      operation: operationId('fresh'),
+    })
     expect(ok<{ kind: string }>(asked).kind).toBe('unknown')
   })
 })
@@ -180,9 +197,14 @@ describe('control answers', () => {
     const before = ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A)))
     const first = ok<{ answer: unknown }>(await cancel(a, 'none'))
     expect(first.answer).toEqual({ kind: 'not-found' })
-    expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(before.revision)
+    expect(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision).toBe(
+      before.revision,
+    )
     expect(ok(await cancel(a, 'none'))).toEqual(first)
-    const resolved = await a.port.queryControlOperation({ ...a.access(TENANT_A), operation: operationId('none') })
+    const resolved = await a.port.queryControlOperation({
+      ...a.access(TENANT_A),
+      operation: operationId('none'),
+    })
     expect(ok(resolved)).toEqual({ kind: 'committed', receipt: first })
   })
 
@@ -202,8 +224,11 @@ describe('commit response evidence', () => {
     const refused = failureOf(await cancel(a, 'bad', ''))
     const receipt = await a.provider.storage.query(identityOf('bad', 1))
     expect(receipt.kind).toBe('rolled_back')
-    const stop = (receipt as unknown as { responses: { reply: { kind: string; basis: { failure: unknown } } }[] })
-      .responses.at(-1)?.reply
+    const stop = (
+      receipt as unknown as {
+        responses: { reply: { kind: string; basis: { failure: unknown } } }[]
+      }
+    ).responses.at(-1)?.reply
     expect(stop?.kind).toBe('conflict')
     expect(stop?.basis.failure).toEqual(refused)
   })
@@ -223,7 +248,9 @@ describe('commit response evidence', () => {
       kind: 'commit-unknown',
       operation: operationId('accept-lost'),
     })
-    const recalled = ok<{ recovered: boolean; revision: string }>(await a.accept(TENANT_A, 'session-1', 'lost'))
+    const recalled = ok<{ recovered: boolean; revision: string }>(
+      await a.accept(TENANT_A, 'session-1', 'lost'),
+    )
     expect(recalled.recovered).toBe(true)
     expect(recalled.revision).toBe('2')
   })
@@ -235,12 +262,17 @@ describe('queryOperation', () => {
     const created = ok<{ receipt: unknown }>(await a.create(TENANT_A, 'session-1'))
     const mark = a.provider.calls.length
     const resolved = ok(
-      await a.port.queryOperation({ ...a.access(TENANT_A), operation: operationId('create-session-1') }),
+      await a.port.queryOperation({
+        ...a.access(TENANT_A),
+        operation: operationId('create-session-1'),
+      }),
     )
     expect(resolved).toEqual({ kind: 'committed', receipt: created.receipt })
     const seen = a.provider.calls.slice(mark)
     expect(seen.map(call => call.kind)).toEqual(['commit'])
-    expect((seen[0] as { identity: { operation: string } }).identity.operation).toBe('session.lookup')
+    expect((seen[0] as { identity: { operation: string } }).identity.operation).toBe(
+      'session.lookup',
+    )
   })
 
   it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed (R7)', async () => {
@@ -254,7 +286,9 @@ describe('queryOperation', () => {
     expect(resolved.kind).toBe('unknown')
     expect(resolved.exclusion).toBeUndefined()
     const asked = a.provider.calls.slice(mark).filter(call => call.kind === 'query')
-    expect(asked.map(call => (call as { identity: unknown }).identity)).toEqual([identityOf('never', 1)])
+    expect(asked.map(call => (call as { identity: unknown }).identity)).toEqual([
+      identityOf('never', 1),
+    ])
   })
 
   it('a rolled back attempt answers attempt-rejected, which does not prove the original was not committed', async () => {
@@ -289,7 +323,9 @@ describe('readModelSelection', () => {
     )
     expect(read.selection).toEqual({ name: 'route-a', basis: evidence('route-a') })
     expect(read.source).toEqual(saved.source)
-    expect(read.revision).toBe(ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision)
+    expect(read.revision).toBe(
+      ok<{ revision: string }>(await a.port.readWork(a.access(TENANT_A))).revision,
+    )
   })
 
   it('the latest selection wins and keeps its own source', async () => {

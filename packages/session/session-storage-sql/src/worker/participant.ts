@@ -108,7 +108,11 @@ function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallL
 }
 
 /** The result a command returns, built from the snapshot after its batch (the recall of the original). */
-function resultOf(command: SessionCommand, snapshot: WorkSnapshot, receipt: CommitReceipt): unknown {
+function resultOf(
+  command: SessionCommand,
+  snapshot: WorkSnapshot,
+  receipt: CommitReceipt,
+): unknown {
   switch (command.kind) {
     case 'create':
       return { receipt, state: snapshot }
@@ -125,7 +129,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot, receipt: Comm
       return { receipt, advance: snapshot.run.advance }
     }
     case 'finishRun': {
-      if (snapshot.run.kind !== 'terminal') throw new Error('finishRun committed without a terminal')
+      if (snapshot.run.kind !== 'terminal')
+        throw new Error('finishRun committed without a terminal')
       return { receipt, terminal: snapshot.run.terminal }
     }
     case 'preserveResult':
@@ -136,7 +141,9 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot, receipt: Comm
       return {
         receipt,
         consumption: snapshot.consumptions.find(
-          item => canonicalText(encodeValue(item.binding)) === canonicalText(encodeValue(command.input.binding)),
+          item =>
+            canonicalText(encodeValue(item.binding)) ===
+            canonicalText(encodeValue(command.input.binding)),
         )?.id,
       }
     case 'control':
@@ -164,7 +171,8 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot, receipt: Comm
 
 /** The ordinary input that a command admits, if any, for `readInput`. */
 function admittedInput(command: SessionCommand): { input: string } | null {
-  if (command.kind === 'accept' && command.input.value.kind === 'ordinary') return command.input.value
+  if (command.kind === 'accept' && command.input.value.kind === 'ordinary')
+    return command.input.value
   if (command.kind === 'create') return command.input.creation.initial ?? null
   if (command.kind === 'interrupt') return command.input.urgent
   return null
@@ -223,7 +231,16 @@ function maintainModelView(
     const digest = sha256(canonicalText({ prefix, entry, message }))
     port.execute(
       'INSERT INTO sl_model_view (tenant, session, epoch, seq, entry, bytes, prefix_digest, message) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [tenant, session, at, seq, entry, BigInt(Buffer.byteLength(JSON.stringify(message))), digest, JSON.stringify(message)],
+      [
+        tenant,
+        session,
+        at,
+        seq,
+        entry,
+        BigInt(Buffer.byteLength(JSON.stringify(message))),
+        digest,
+        JSON.stringify(message),
+      ],
     )
     return digest
   }
@@ -249,9 +266,15 @@ function maintainModelView(
       let prefix = ''
       let seq = 0n
       for (const row of [
-        ...kept.map(row => ({ id: text(row['entry']), message: JSON.parse(text(row['message'])) as ViewMessage })),
+        ...kept.map(row => ({
+          id: text(row['entry']),
+          message: JSON.parse(text(row['message'])) as ViewMessage,
+        })),
         { id: entry.id, message },
-        ...after.map(row => ({ id: text(row['entry']), message: JSON.parse(text(row['message'])) as ViewMessage })),
+        ...after.map(row => ({
+          id: text(row['entry']),
+          message: JSON.parse(text(row['message'])) as ViewMessage,
+        })),
       ]) {
         seq += 1n
         prefix = writeRow(next, seq, row.id, row.message, prefix)
@@ -286,10 +309,18 @@ function maintainDerived(
   const after = new Set(pendingReasons(snapshot))
   for (const reason of before)
     if (!after.has(reason))
-      port.execute('DELETE FROM sl_pending_idx WHERE tenant = ? AND reason = ? AND session = ?', [tenant, reason, session])
+      port.execute('DELETE FROM sl_pending_idx WHERE tenant = ? AND reason = ? AND session = ?', [
+        tenant,
+        reason,
+        session,
+      ])
   for (const reason of after)
     if (!before.has(reason))
-      port.execute('INSERT INTO sl_pending_idx (tenant, reason, session) VALUES (?, ?, ?)', [tenant, reason, session])
+      port.execute('INSERT INTO sl_pending_idx (tenant, reason, session) VALUES (?, ?, ?)', [
+        tenant,
+        reason,
+        session,
+      ])
   port.execute('DELETE FROM sl_resident_idx WHERE tenant = ? AND session = ?', [tenant, session])
   if (snapshot.lifecycle !== 'archived')
     for (const pair of snapshot.residentKeys ?? []) {
@@ -300,7 +331,10 @@ function maintainDerived(
           [pair.key, tenant, session, pair.capability, JSON.stringify(encodeValue(resident.shape))],
         )
     }
-  port.execute('DELETE FROM sl_released_scope_idx WHERE tenant = ? AND session = ?', [tenant, session])
+  port.execute('DELETE FROM sl_released_scope_idx WHERE tenant = ? AND session = ?', [
+    tenant,
+    session,
+  ])
   for (const scope of snapshot.releasedScopes ?? [])
     port.execute(
       'INSERT OR REPLACE INTO sl_released_scope_idx (tenant, session, scope, data) VALUES (?, ?, ?, ?)',
@@ -318,7 +352,15 @@ function writeEntries(
     const body = JSON.stringify(encodeValue(entry))
     port.execute(
       'INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [tenant, session, BigInt(entry.id), BigInt(entry.revision), entry.kind, body, BigInt(Buffer.byteLength(body))],
+      [
+        tenant,
+        session,
+        BigInt(entry.id),
+        BigInt(entry.revision),
+        entry.kind,
+        body,
+        BigInt(Buffer.byteLength(body)),
+      ],
     )
     if (entry.kind === 'history.annotated') {
       const targets = (plainOf(entry.payload) as { targets?: unknown } | null)?.targets
@@ -338,7 +380,12 @@ function runQuery(
   session: string,
   operation: string,
 ): ParticipantReply {
-  if (oneRow(port, 'SELECT tail FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1', [tenant, session]) === undefined)
+  if (
+    oneRow(port, 'SELECT tail FROM sl_journal WHERE tenant = ? AND session = ? LIMIT 1', [
+      tenant,
+      session,
+    ]) === undefined
+  )
     return { kind: 'participated', response: { kind: 'no-session' } }
   const row = oneRow(
     port,
@@ -368,7 +415,8 @@ function runCommand(
   if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
     return stopped({ kind: 'unsupported' })
   const tenantText = tenantCodec.encode(command.input.tenant)
-  if (!tenantText.ok) return stopped({ kind: 'invalid', field: 'tenant', reason: 'not minted by legal-identity' })
+  if (!tenantText.ok)
+    return stopped({ kind: 'invalid', field: 'tenant', reason: 'not minted by legal-identity' })
   const tenant = tenantText.value
   const session = command.input.session
   const operation = command.input.operation
@@ -422,7 +470,9 @@ function runCommand(
         )
   const reads: Reads = {
     compaction: null,
-    ...(frozen === undefined ? {} : { frozenReceipt: JSON.parse(text(frozen['receipt'])) as CommitReceipt }),
+    ...(frozen === undefined
+      ? {}
+      : { frozenReceipt: JSON.parse(text(frozen['receipt'])) as CommitReceipt }),
     ...(command.kind === 'cancelRun' && previous !== null
       ? { runs: [runLookup(previous, command.input.run)] }
       : {}),
@@ -447,7 +497,8 @@ function runCommand(
         ? { kind: 'selected' as const, inputs: [command.input.fact.input] }
         : { kind: 'pending' as const, inputs: previous?.pending ?? [] }
   const history = previous === null ? null : readHistory(port, tenant, session, previous, scope)
-  const prepared = history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
+  const prepared =
+    history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, record, {
     ...reads,
     ...(history === null ? {} : { history: history.reads }),
@@ -458,7 +509,15 @@ function runCommand(
     const receipt = { operation, source: decision.source, answer: decision.answer }
     port.execute(
       'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, NULL, ?, ?)',
-      [tenant, session, operation, commandDigest(command), 'answer', JSON.stringify(encodeValue(receipt)), JSON.stringify(encodeValue(receipt))],
+      [
+        tenant,
+        session,
+        operation,
+        commandDigest(command),
+        'answer',
+        JSON.stringify(encodeValue(receipt)),
+        JSON.stringify(encodeValue(receipt)),
+      ],
     )
     return participated(receipt, false)
   }
@@ -468,7 +527,8 @@ function runCommand(
       'SELECT result, receipt FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
       [tenant, session, decision.receipt.operation],
     )
-    if (original === undefined) return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
+    if (original === undefined)
+      return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
     if (held === undefined && command.kind === 'completeInitialization')
       port.execute(
         'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
@@ -496,14 +556,22 @@ function runCommand(
   const tail = journal === undefined ? 0n : big(journal['tail'])
   const seq = journal === undefined ? 1n : big(journal['commit_seq']) + 1n
   const revision = String(tail + 1n)
-  const last = oneRow(port, 'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?', [tenant, session])
+  const last = oneRow(
+    port,
+    'SELECT COALESCE(MAX(position), 0) AS p FROM sl_entry WHERE tenant = ? AND session = ?',
+    [tenant, session],
+  )
   const first = big(last?.['p'] ?? 0n) + 1n
   const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
     ...entry,
     id: String(first + BigInt(index)),
     revision,
   })) as HistoryEntry[]
-  const reduced = reduce(prepared, { revision, entries } as never, history === null ? undefined : history.reads)
+  const reduced = reduce(
+    prepared,
+    { revision, entries } as never,
+    history === null ? undefined : history.reads,
+  )
   if (reduced.kind === 'quarantined')
     return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
   // The index is a read projection of this transaction, never stored in the snapshot row.
@@ -525,19 +593,23 @@ function runCommand(
   } as CommitReceipt
 
   writeEntries(port, tenant, session, entries)
-  const epoch = maintainModelView(port, tenant, session, journal === undefined ? 'epoch:0' : text(journal['epoch']), entries)
+  const epoch = maintainModelView(
+    port,
+    tenant,
+    session,
+    journal === undefined ? 'epoch:0' : text(journal['epoch']),
+    entries,
+  )
   const admitted = admittedInput(command)
   if (admitted !== null)
     port.execute(
       'INSERT OR REPLACE INTO sl_input (tenant, session, input, value) VALUES (?, ?, ?, ?)',
       [tenant, session, admitted.input, JSON.stringify(encodeValue(admitted))],
     )
-  port.execute('INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)', [
-    tenant,
-    session,
-    JSON.stringify(encodeValue(snapshot)),
-    BigInt(revision),
-  ])
+  port.execute(
+    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
+    [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
+  )
   maintainDerived(port, tenant, session, previous, snapshot)
   const result = resultOf(command, snapshot, receipt)
   port.execute(
@@ -554,19 +626,17 @@ function runCommand(
     ],
   )
   if (journal === undefined)
-    port.execute('INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)', [
-      tenant,
-      session,
-      BigInt(revision),
-      seq,
-      epoch,
-    ])
+    port.execute(
+      'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
+      [tenant, session, BigInt(revision), seq, epoch],
+    )
   else {
     const updated = port.execute(
       'UPDATE sl_journal SET tail = ?, commit_seq = ?, epoch = ? WHERE tenant = ? AND session = ? AND tail = ?',
       [BigInt(revision), seq, epoch, tenant, session, tail],
     )
-    if (updated.changes !== 1n) return { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
+    if (updated.changes !== 1n)
+      return { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
   }
   return participated(result, false)
 }
@@ -578,19 +648,31 @@ const participant: ParticipantModule = {
     const intent = facts['intent']
     if (intent === 'query') {
       const { tenant, session, operation } = facts as Record<string, unknown>
-      return typeof tenant === 'string' && typeof session === 'string' && typeof operation === 'string'
+      return typeof tenant === 'string' &&
+        typeof session === 'string' &&
+        typeof operation === 'string'
         ? runQuery(port, tenant, session, operation)
         : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
     }
-    if (intent !== 'command' || typeof facts['command'] !== 'object' || !Array.isArray(facts['guards']))
-      return { kind: 'unsupported', basis: { reason: 'the facts are neither a command nor a query' } }
+    if (
+      intent !== 'command' ||
+      typeof facts['command'] !== 'object' ||
+      !Array.isArray(facts['guards'])
+    )
+      return {
+        kind: 'unsupported',
+        basis: { reason: 'the facts are neither a command nor a query' },
+      }
     let command: SessionCommand
     let guards: GuardCommand[]
     try {
       command = decodeValue(facts['command'] as JsonValue) as SessionCommand
       guards = decodeValue(facts['guards'] as JsonValue) as GuardCommand[]
     } catch (error) {
-      return { kind: 'unsupported', basis: { reason: error instanceof Error ? error.message : 'undecodable facts' } }
+      return {
+        kind: 'unsupported',
+        basis: { reason: error instanceof Error ? error.message : 'undecodable facts' },
+      }
     }
     const reply = runCommand(command, guards, port)
     // The digest of the command travels with the answer, so a later caller can tell a recall of the

@@ -37,7 +37,11 @@ describe('a tenant that the access check does not admit', () => {
         intent: { kind: 'archive' },
       },
     } as never
-    const other = await a.port.commit({ access: a.access(TENANT_B, 'session-1'), command, guards: [] })
+    const other = await a.port.commit({
+      access: a.access(TENANT_B, 'session-1'),
+      command,
+      guards: [],
+    })
     const wrongSession = await a.port.commit({
       access: a.access(TENANT_A, 'session-2'),
       command,
@@ -59,7 +63,9 @@ describe('a session of another tenant', () => {
     return a
   }
 
-  for (const entry of SESSION_ENTRIES.filter(item => !['pending', 'history.next'].includes(item.name)))
+  for (const entry of SESSION_ENTRIES.filter(
+    item => !['pending', 'history.next'].includes(item.name),
+  ))
     it(`${entry.name}: tenant A gets denied for the session that only tenant B has`, async () => {
       const a = await twoTenants()
       expect(kindOf(await entry.call(a, TENANT_A, 'only-b'))).toBe('denied')
@@ -75,7 +81,12 @@ describe('a session of another tenant', () => {
   it('pending lists only the sessions of the tenant that asks', async () => {
     const a = await twoTenants()
     await a.accept(TENANT_A, 'session-1', 'mine')
-    const listed = await a.port.pending({ principal: 'tester', tenant: TENANT_A, after: null, limit: 10 })
+    const listed = await a.port.pending({
+      principal: 'tester',
+      tenant: TENANT_A,
+      after: null,
+      limit: 10,
+    })
     expect(listed).toEqual({ ok: { sessions: ['session-1'], next: null } })
   })
 

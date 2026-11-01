@@ -83,7 +83,11 @@ export async function readInput<P>(
   })
   if ('failure' in read) return read
   if (read.ok.out['kind'] !== 'input')
-    return failure({ kind: 'invalid', field: 'input', reason: 'not an ordinary input of this session' })
+    return failure({
+      kind: 'invalid',
+      field: 'input',
+      reason: 'not an ordinary input of this session',
+    })
   return succeed(decodeValue(read.ok.out['value'] as JsonValue) as never)
 }
 
@@ -151,8 +155,16 @@ async function historyRead<P>(
   if ('failure' in read) return read
   const out = read.ok.out
   if (out['kind'] === 'invalid')
-    return failure({ kind: 'invalid', field: String(out['field']), reason: 'not an entry of this session' })
-  const nextState = out['next'] as { edge: string; upper: string; direction: 'forward' | 'backward' } | null
+    return failure({
+      kind: 'invalid',
+      field: String(out['field']),
+      reason: 'not an entry of this session',
+    })
+  const nextState = out['next'] as {
+    edge: string
+    upper: string
+    direction: 'forward' | 'backward'
+  } | null
   if (nextState === null) return succeed(page(out, null))
   const token = await seal(
     context.cursor,
@@ -223,12 +235,18 @@ export function historyFace<P>(context: Context<P>): SessionHistory<P> {
       }
       if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
         return failure({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const read = await sessionRead(context, input, 'history.readModelView', 'session.model-view', {
-        epoch: input.basis === null ? null : input.basis.epoch.slice(prefix.length),
-        upper: input.basis === null ? null : input.basis.upper,
-        after,
-        pageBytes: input.pageBytes,
-      })
+      const read = await sessionRead(
+        context,
+        input,
+        'history.readModelView',
+        'session.model-view',
+        {
+          epoch: input.basis === null ? null : input.basis.epoch.slice(prefix.length),
+          upper: input.basis === null ? null : input.basis.upper,
+          after,
+          pageBytes: input.pageBytes,
+        },
+      )
       if ('failure' in read) return read
       const out = read.ok.out
       const basisOf = (value: { epoch: string; upper: string }): ModelViewBasis => ({
@@ -341,7 +359,11 @@ async function systemWalk<P, Row>(
     const entry = entries[position]
     if (entry === undefined) break
     const minted = tenantCodec.parse(entry.tenant)
-    if (!minted.ok || entry.domain.scope.kind !== 'tenant' || entry.domain.scope.tenant !== entry.tenant)
+    if (
+      !minted.ok ||
+      entry.domain.scope.kind !== 'tenant' ||
+      entry.domain.scope.tenant !== entry.tenant
+    )
       return failure(unavailable('the tenant domain directory holds an entry of no tenant'))
     const first = from !== null && from.tenant === entry.tenant
     const out = await readHandler(context, entry.domain, handler, {
@@ -429,4 +451,3 @@ export async function releasedScopes<P>(
   if ('failure' in walked) return walked
   return succeed({ scopes: walked.ok.rows, next: walked.ok.next })
 }
-

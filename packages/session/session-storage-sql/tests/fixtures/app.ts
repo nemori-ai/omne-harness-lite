@@ -21,17 +21,22 @@ import {
   createFixedSessionCursorSigning,
   type FixedSessionCursorSigning,
 } from '@omne-harness/session-cordis-contract/testing'
-import type {
-  DomainRef,
-  TenantDomain,
-  TenantDomainAccess,
-} from '@omne-harness/sql-contract'
+import type { DomainRef, TenantDomain, TenantDomainAccess } from '@omne-harness/sql-contract'
 import { createSessionStorage } from '../../src/index.ts'
 import { createSqliteStorage, type SqliteStorage } from './sqlite-storage.ts'
 
-export const TENANT_A = testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
-export const TENANT_B = testingTenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000')
-export const TENANT_C = testingTenant('org_c0nf0rmance0thr33000000000', 'acc_c0nf0rmance0thr33000000000')
+export const TENANT_A = testingTenant(
+  'org_c0nf0rmance000000000000000',
+  'acc_c0nf0rmance000000000000000',
+)
+export const TENANT_B = testingTenant(
+  'org_c0nf0rmance0ther0000000000',
+  'acc_c0nf0rmance0ther0000000000',
+)
+export const TENANT_C = testingTenant(
+  'org_c0nf0rmance0thr33000000000',
+  'acc_c0nf0rmance0thr33000000000',
+)
 
 export const textOf = (tenant: TenantId): string => {
   const encoded = tenantCodec.encode(tenant)
