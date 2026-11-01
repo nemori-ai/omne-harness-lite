@@ -1,6 +1,5 @@
 # @omne-harness/runtime-context-cordis
 
-PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
 Runtime Context 的 Service 实现成员，`service-provider` 变体。
@@ -11,7 +10,7 @@ Runtime Context 的 Service 实现成员，`service-provider` 变体。
 
 状态：Service 实现成员，`draft`。采用依据是[系统页的成员与 Cordis 落位](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
-- 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
+- 已实现：`./cordis` 的 `createRuntimeContextPlugin`。插件 `inject` 构造输入键 `runtimeContextTrust`，键缺席时停在 PENDING，取出 `authority` 与 `bindings` 交给调用方给的构造函数。生产工厂与同步失效来源尚未实现（缺口保留在 #677）。`src/index.ts` 仍无导出。
 - 未实现：具体子类、插件、配置 Schema。根入口保持为空。
 - 未验证：定义成员已有 Cordis 4.0.4 的三条机制测试，读数尚未登记到共同 basis。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
 
@@ -24,9 +23,9 @@ Runtime Context 的两个契约成员已有类型、纯校验与 Cordis 服务�
 本成员有两个入口：
 
 - `@omne-harness/runtime-context-cordis/cordis`：插件。应用装配者在插件树里加一行本插件并给出配置。
-- `@omne-harness/runtime-context-cordis`：不导出任何东西。不装配 Cordis 的调用方从 [runtime-context](../runtime-context/README_ZH.md) 取机制工厂。
+- `@omne-harness/runtime-context-cordis`：根入口不导出任何东西；`./cordis` 导出 `createRuntimeContextPlugin`。不装配 Cordis 的调用方从 [runtime-context](../runtime-context/README_ZH.md) 取机制工厂。
 
-生产者、作用域持有者与读者不导入本成员，它们经服务定义使用服务。装配写法与独立使用见[使用与定位](docs/context.md#使用方式)。插件还没有实现，现在没有可运行的示例。
+生产者、作用域持有者与读者不导入本成员，它们经服务定义使用服务。装配写法与独立使用见[使用与定位](docs/context.md#使用方式)。现在只有信任输入插件，没有可运行的端到端示例。
 
 ## 契约
 
@@ -55,7 +54,7 @@ Runtime Context 的两个契约成员已有类型、纯校验与 Cordis 服务�
 pnpm turbo run test --filter=@omne-harness/runtime-context-cordis
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口没有导出，见 [tests/](tests/README.md)。SPEC 的六项验证义务随实现进入，其中三项要在真实 Cordis 上运行，见 [Cordis 说明的验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试断言根入口无导出、`./cordis` 只导出插件工厂，并核对信任键注入（键缺席时停在 PENDING），见 [tests/](tests/README.md)。SPEC 的六项验证义务随实现进入，其中三项要在真实 Cordis 上运行，见 [Cordis 说明的验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -79,7 +78,7 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            装配、独立使用与定位
 └── cordis.md             插件、配置、isolate、唤醒、撤除与 IC 映射
-src/                      index.ts 与 cordis.ts，现在只有模板标记
+src/                      index.ts 与 cordis.ts，现在只有信任输入插件
 tests/                    两个入口测试，fixtures/ 现在为空
 schema/                   现在为空，配置 Schema 随实现进入 src/
 verification/             models/ 与 proofs/，现在为空

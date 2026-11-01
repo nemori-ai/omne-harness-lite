@@ -23,6 +23,9 @@ it('testing entry exposes the suite and explicitly non-durable stand-in', async 
       'runConformanceCase',
       'NotApplicable',
       'RUNTIME_CONTEXT_OBLIGATIONS',
+      'RUNTIME_CONTEXT_TRUST_OBLIGATIONS',
+      'createTestRuntimeContextTrust',
+      'runtimeContextTrustConformance',
     ].sort(),
   )
   const ports = testing.createTestAuthorityPorts()

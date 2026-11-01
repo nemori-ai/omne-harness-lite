@@ -6,7 +6,7 @@ The Cordis definition member of Runtime Context. Variant: `service-contract`.
 
 ## Responsibility and status
 
-This package owns only the Cordis definition of the Runtime Context seam. The definition has four parts: the service key `runtimeContext`, the abstract class `RuntimeContextService`, the intercept configuration `{ consumer }`, and the wake-up event `runtime-context-cordis-contract/changed`.
+This package owns only the Cordis definition of the Runtime Context seam. The definition has four parts: the service key `runtimeContext`, the abstract class `RuntimeContextService`, the intercept configuration `{ consumer }`, and the wake-up event `runtime-context-cordis-contract/changed`. It also defines the construction input `RuntimeContextTrustService` with the key `runtimeContextTrust`: the trusted assembly provides the two original authority ports there, and a provider plugin injects it. It is not a Runtime Context capability. Subtree visibility is an assembly position, not encapsulation.
 
 The package does not own domain behavior. [runtime-context-contract](../runtime-context-contract/README.md) owns the behavior of the three operation faces. [runtime-context](../runtime-context/README.md) owns the supply mechanism. [runtime-context-cordis](../runtime-context-cordis/README.md) owns the Service implementation. The package knows only generic roles: producer, scope holder, consumer class, and listener.
 

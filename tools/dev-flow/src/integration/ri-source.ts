@@ -26,7 +26,7 @@ import type {
 import { fetchObject, fetchObjects, remoteRefs, tagMessage } from './transport.ts'
 import { cutoverEntries, GATE_BRANCH, gateRecord, startTag, trustedParent } from './upstream.ts'
 
-const UNIT_PREFIX = 'refs/tags/omne/gate/unit/'
+export const UNIT_PREFIX = 'refs/tags/omne/gate/unit/'
 
 function unitRecord(text: string, commit: string): UnitRecord {
   const v = gateRecord(text, `Unit tag of ${commit}`)
@@ -295,6 +295,7 @@ export function riInput({
     repository: policy.repository,
     lines: parseDeliveryLines(committed(LINES_PATH)),
     registry: policy,
+    policy,
     ...githubReaders({ repository: policy.repository, read, timeoutMs: policy.timeouts.networkMs }),
     diffContracts: contractDiffProvider({ root: info.root, timeoutMs: policy.timeouts.networkMs }),
   }

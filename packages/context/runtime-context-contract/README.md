@@ -13,7 +13,7 @@ The package does not own the content of any block. It does not decide whether an
 Status: contract member, `draft`. The [SPEC](SPEC.md) states which parts come from technical acceptance and which parts come from the product text, revision 4.
 
 - Implemented: value types, two decoders and five pure operations through the root entry.
-- Implemented: framework-independent core, extended, authority, and replay case lists, scripted authority ports, and a non-durable memory stand-in through `./testing`.
+- Implemented: framework-independent core, extended, authority, and replay case lists, scripted authority ports, and a non-durable memory stand-in through `./testing`. The root type `RuntimeContextTrust<P>` bundles the two original ports as one construction input; `./testing` adds `runtimeContextTrustConformance` and the fixed double `createTestRuntimeContextTrust` (durability none). The real synchronous revocation source stays an open gap (#677).
 - Verification: tests cover pure operations and in-process contract obligations. They do not prove durability, concurrent production behavior or performance.
 
 The current consumers are execution-environment-contract and execution-environment. They use the scope reference and the block declaration types.

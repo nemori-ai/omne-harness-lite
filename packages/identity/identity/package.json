@@ -13,6 +13,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./cordis": {
+      "source": "./src/cordis.ts",
+      "types": "./dist/cordis.d.ts",
+      "import": "./dist/cordis.js"
+    },
     "./testing": {
       "source": "./src/testing/index.ts",
       "types": "./dist/testing/index.d.ts",
@@ -30,6 +35,7 @@
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
   "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*"

@@ -811,6 +811,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/runtime-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-cordis-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1023,6 +1026,9 @@ importers:
 
   packages/identity/identity:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity

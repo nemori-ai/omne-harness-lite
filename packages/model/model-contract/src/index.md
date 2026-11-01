@@ -57,7 +57,10 @@
 | [testing/pusher.ts](testing/pusher.ts) | `createScriptedResultPusher`：推送生产者替身 |
 | [testing/stream-references.ts](testing/stream-references.ts) | `createScriptedStreamReferences`：`current` 替身 |
 | [testing/stream-observation.ts](testing/stream-observation.ts) | `createScriptedStreamObservation`：观察替身 |
-| [testing/access.ts](testing/access.ts) | `current` 替身与观察替身共用的测试控制面 `ScriptedAccessDecision` |
+| [testing/profiles.ts](testing/profiles.ts) | `createScriptedModelProfiles`：档案替身 |
+| [testing/preparation.ts](testing/preparation.ts) | `createScriptedModelRequestPreparation`：请求准备替身 |
+| [testing/profile-values.ts](testing/profile-values.ts) | 档案与准备替身共用的档案复制与范围核对，保留合法范围身份的原引用，不从入口导出 |
+| [testing/access.ts](testing/access.ts) | `current`、观察、档案与准备替身共用的测试控制面 `ScriptedAccessDecision` |
 | [testing/stream-codec.ts](testing/stream-codec.ts)、[testing/values.ts](testing/values.ts) | 替身判断 `StreamRef` 用的 Model 引用 codec；替身共用的值辅助函数，不从入口导出 |
 
 ## `./conformance` 入口
