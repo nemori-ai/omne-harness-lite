@@ -7,7 +7,11 @@
 // The suite runs with `withRuntimeDuties` (see host-support.ts): the plain factory answers quiesce
 // `unavailable` until #502 stage 5, so its instances are never reclaimed. The cases named "plain
 // factory" show that answer and the host's handling of it.
-import { decodeAgentOperationId, type AgentInstanceId } from '@omne-harness/agent-contract'
+import {
+  decodeAgentOperationId,
+  decodeAgentRegistrationId,
+  type AgentInstanceId,
+} from '@omne-harness/agent-contract'
 import { agentInstanceProvisionConformance } from '@omne-harness/agent-cordis-contract/testing'
 import { afterEach, describe, expect, it } from 'vitest'
 import {
@@ -287,6 +291,53 @@ describe('reserve, publish and withdraw of the host', () => {
     expect(await held.answer).toEqual({ failure: { kind: 'denied', action: 'withdraw' } })
     expect(host.retired).toEqual([])
     ok(await host.directory.resolve({ ...caller('a'), instance }))
+  })
+
+  it('refuses a publish of another scope and recognises a withdrawal by its operation', async () => {
+    const host = await world('plain')
+    const { instance, registration } = ok(await host.provision.acquire(slotOf('a')))
+    const otherScope = { ...scope, record: 'another-slot' }
+    expect(
+      await host.instanceHost.publish({
+        ...caller('a'),
+        operation: operation('publish-other-scope'),
+        instance,
+        scope: otherScope,
+        state: { kind: 'idle', instance },
+      }),
+    ).toEqual({ failure: { kind: 'denied', action: 'publish' } })
+    const request = {
+      ...caller('a'),
+      operation: operation('withdraw-once'),
+      instance,
+      registration: registration.registration,
+    }
+    const first = ok(await host.instanceHost.withdraw(request))
+    expect(first.state).toBe('withdrawn')
+    expect(await host.instanceHost.withdraw(request)).toEqual({ ok: first })
+    expect(
+      await host.instanceHost.withdraw({
+        ...request,
+        registration: ok(decodeAgentRegistrationId('another-registration')),
+      }),
+    ).toEqual({ failure: { kind: 'conflict', operation: request.operation } })
+  })
+
+  it('refuses a registration that does not come from the contribution fiber', async () => {
+    const host = await world('plain')
+    const { instance } = ok(await host.provision.acquire(slotOf('a')))
+    const started = {
+      ...caller('a'),
+      operation: operation('publish-started'),
+      instance,
+      scope,
+      state: { kind: 'idle' as const, instance },
+    }
+    ok(await host.instanceHost.publish(started))
+    const authority = host.root.get('agentPublicationAuthority')
+    expect(authority?.check(started, host.root)).toEqual({
+      failure: { kind: 'denied', action: 'publish' },
+    })
   })
 
   it('withdraws the current registration through the instance handle', async () => {
