@@ -49,7 +49,7 @@
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
 | [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
-| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | `./testing` 内存提供者已实现；Model ACK 到达未决 |
+| [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取；`sessionTransactions.commitEntries` | `./testing` 内存提供者已实现。生产插件 `createSessionModelLogConsumptionPlugin` 已实现（`src/cordis/model-log-consumption.ts`，[实现现状](#ad-05-生产插件)），在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。生产侧没有 `agentMaterials` 提供者时停在 `PENDING`。Model ACK 到达未决 |
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；`inject` `sessionAccessCheck`、`storage` 与受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现。生产提供者 `createSessionLogJournal` 按会话给出三个端口。提供 `agentJournal` 的插件 `SessionLogAgentJournalProvider` 按租户与 execution 路由到会话，经 `./cordis` 导出。提供 `agentJournalEntries` 与 `agentMaterials` 的插件未交付 |
 | [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件未交付 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
@@ -342,6 +342,25 @@ CM-02 的来源完整性由本插件及其 Session 历史提供者负责：
 收到 received 与 saved 不能推导 ACK。Model 确认路径是 Session [JC-Release](../session-contract/SPEC.md#jc-release) 的 MODEL-ACK-ARRIVAL 未决义务。冻结 Agent recordResult 排除 Model 采用，接收共同提交不执行 ACK。因此没有已采用的 ACK 记录可读时保持 pending，暂停该 confirmed 投影。不得发明 JournalEntry、Agent 端口或直接 Model ACK 路径。
 
 Tool 宿主收到 saved 后自己解除交付责任，结果接收方只返回 saved。Tool 原生产者确认怎样进入同一日志，是 Session 的具名偏离 [JC-RELEASE-TOOL-PATH](../session-contract/SPEC.md#jc-release-tool-path)。日志中已有该确认时，本插件按 load().results 读取并投影。详细资格、原版本、receipt 与认回条件同 JC-Release。两类生产者不得混同。
+
+##### AD-05 生产插件
+
+`createSessionModelLogConsumptionPlugin(input)`（`src/cordis/model-log-consumption.ts`）返回插件 `plugin` 与调用入口 `consume`。插件不提供键，不订阅事件。
+
+- 装载：`inject` 为 `session: { caller: 'coordinator' }`、`agentJournal`、`agentMaterials` 与 `sessionTransactions`。缺任一键时插件停在 `PENDING`。任一依赖换代时插件重跑。`input.coordinator` 与 AD-14 的同名输入相同：装配入口按会话给出 coordinator 主体。
+- 调用：`consume({ tenant, session, execution })` 只进入当前一代插件。插件停在 `PENDING` 或已经停止时，调用答 `unavailable`。插件停止时仍在等待读取的调用不提交，答 `unavailable`。
+- 读取：插件以 `coordinator` 经 `session.work.readWork` 读会话，找出拥有该 execution 的 Run。找不到时答 `unavailable`，`owner` 为 `session-history`。插件再经 `agentJournal.load` 读执行。`entries` 缺席时答 `unavailable`。`kind: received` 且 `delivery.producer: model` 的条目按提交顺序组成 `model-received` 通道。
+- 核对与翻译：插件从已存进度之后逐条处理。
+  1. 插件按租户解析调用引用。引用属于另一租户时答 `denied`。
+  2. Session 快照须有该调用的 Model 生产者绑定。没有绑定时，本条与其后各条等待，不提交，也不当作空项。绑定的 consumption 或 consumer 与条目不同时答 `invalid`。
+  3. 插件经 `agentMaterials.read` 读条目的 `material`。读取失败原样交回：拒绝保持拒绝，其余答 `unavailable`。材料须是 facts 分支，schema 等于 Agent 结果接收方的采用 `agent:received-model-delivery/1`。材料里的租户、交付键、consumer、账目快照或账目须与条目相同，并通过 model-contract 的 `judgeModelDelivery`。租户不同时答 `denied`，其余不符答 `invalid`。
+  4. 结果条目译为该调用的 `execution` 事实。有 dispatch 报告了账目时，另译一个 `account` 事实。账目条目译为 `account` 事实。没有报告不产生事实，不写零。两种事实的来源都是条目的 `material` 引用。
+- 提交：已核对的各条组成一次观察，交给 `sessionTransactions.commitEntries`。后果行、进度行与操作答案在一次 Session 提交里发布。`start` 取 `readWork` 读到的已存进度。操作身份由观察确定地派生，形如 `ad05_` 加摘要。Agent 快照没有执行头证据，插件按 load 的修订与通道条目派生 `boundary.executionEvidence`，`owner` 为 `session-adapters/model-log`。
+- 失败与认回：`commitEntries` 答 `commit-unknown` 时，插件以同一观察再发一次，认回原操作。答 `changed` 时插件重读进度，最多三轮。`commitEntries` 抛错时答 `commit-unknown`。提交失败不撤销 Agent 已发布的条目、材料、绑定与 saved，进度也不推进。依赖在提交前抛错时答 `unavailable`。
+- 重复读取：已存进度覆盖的条目不再读材料，也不再提交。插件不注入 Model，也不调用 Model。
+- 不在插件里：Model ACK 到达仍未决，插件不产生 release 或 confirmed，`commitEntries` 也不接收它们（EI-20）。Tool 原确认的投影（JC-RELEASE-TOOL-PATH）不在本插件。谁在什么时候调用 `consume` 由装配决定，装配页现在没有这一行。
+- 装配给：`agentJournal` 与 `agentMaterials` 来自同一个提供者，读同一份已提交状态。生产侧现在没有 `agentMaterials` 插件（[已知限制](#已知限制)第 6 条），所以生产组合里本插件停在 `PENDING`。
+- 验证：`tests/model-log-consumption.spec.ts` 在真实 Cordis 4.0.4 上运行，Session 与 Agent Journal 用 `./testing` 的内存提供者，结果接收方的写入用同一提供者的 `received.commit`。用例覆盖：结果与账目的翻译、未报告账目、重复读取、丢答复认回、`changed` 重读、`entries` 缺席、材料读不到与各类不符、绑定不符、进度超过条目、执行不属于会话、未绑定调用等待、另一租户的目标、调用引用与材料、提交失败与抛错、四个依赖逐个缺席、停止后与停止时在途的调用。内存提供者不证明耐久、跨进程或会话日志生产提供者上的组合。
 
 <a id="ad-06"></a>
 
