@@ -49,6 +49,17 @@
 - `qualificationsOf` · `qualification.d.ts`
 - `scopeOf` · `principal.d.ts`
 
+## 入口 `./cordis` · `cordis.d.ts`
+
+- `IdentityOperationsService` · `cordis.d.ts`
+- `PrincipalIssuerService` · `cordis.d.ts`
+- `PrincipalVerifierService` · `cordis.d.ts`
+- `TenantStandingSourceService` · `cordis.d.ts`
+- `identityOperationsKey` · `cordis.d.ts`
+- `principalIssuerKey` · `cordis.d.ts`
+- `principalVerifierKey` · `cordis.d.ts`
+- `tenantStandingKey` · `cordis.d.ts`
+
 ## 入口 `./testing` · `testing/index.d.ts`
 
 - `AdjustableLoginTerms` · `testing/controls.d.ts`
@@ -68,6 +79,50 @@
 - `inProcessIdentityOperations` · `testing/double.d.ts`
 - `manualIdentityClock` · `testing/controls.d.ts`
 - `recordStoreFaults` · `testing/controls.d.ts`
+
+## 声明文件 `cordis.d.ts`
+
+```ts
+import { type Context, Service } from '@deepseek-ai/cordis';
+import type { IdentityOperations } from './operations.ts';
+import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts';
+import type { TenantStandingSource } from './standing.ts';
+export declare abstract class IdentityOperationsService extends Service implements IdentityOperations {
+    static readonly provide = "identityOperations";
+    constructor(ctx: Context);
+    abstract readonly registerAndActivate: IdentityOperations['registerAndActivate'];
+    abstract readonly issueLogin: IdentityOperations['issueLogin'];
+    abstract readonly recognizeLogin: IdentityOperations['recognizeLogin'];
+}
+export declare const identityOperationsKey = "identityOperations";
+export declare abstract class TenantStandingSourceService extends Service implements TenantStandingSource {
+    static readonly provide = "tenantStanding";
+    constructor(ctx: Context);
+    abstract readonly read: TenantStandingSource['read'];
+}
+export declare const tenantStandingKey = "tenantStanding";
+export declare abstract class PrincipalVerifierService extends Service implements PrincipalVerifier {
+    static readonly provide = "principalVerifier";
+    constructor(ctx: Context);
+    abstract readonly verify: PrincipalVerifier['verify'];
+}
+export declare const principalVerifierKey = "principalVerifier";
+export declare abstract class PrincipalIssuerService extends Service implements PrincipalIssuer {
+    static readonly provide = "principalIssuer";
+    constructor(ctx: Context);
+    abstract readonly issueSystem: PrincipalIssuer['issueSystem'];
+    abstract readonly issueActingForTenant: PrincipalIssuer['issueActingForTenant'];
+}
+export declare const principalIssuerKey = "principalIssuer";
+declare module '@deepseek-ai/cordis' {
+    interface Context {
+        identityOperations: IdentityOperationsService;
+        tenantStanding: TenantStandingSourceService;
+        principalVerifier: PrincipalVerifierService;
+        principalIssuer: PrincipalIssuerService;
+    }
+}
+```
 
 ## 声明文件 `index.d.ts`
 
