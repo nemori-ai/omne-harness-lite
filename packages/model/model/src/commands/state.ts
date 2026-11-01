@@ -39,7 +39,7 @@ import {
   revision,
   tenantKey,
   unavailable,
-} from '../testing/value.ts'
+} from './value.ts'
 import {
   capacityValid,
   completionOf,

@@ -14,7 +14,7 @@ export function createModelCommandsCore<P>(
 }
 export { modelCommands } from './commands.ts'
 export type { ModelCommandCore } from './state.ts'
-export type { CommandWrite, ModelCommandStorage } from './storage.ts'
+export type { CommandWrite, ModelCommandStorage, RunScope } from './storage.ts'
 export { MODEL_WRITE_METHODS } from './types.ts'
 export type {
   Binding,

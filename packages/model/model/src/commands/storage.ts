@@ -1,5 +1,10 @@
 import type { Outcome } from '@omne-harness/operation-result'
-import type { ModelFailure, ModelOperationId, ResultCapacity } from '@omne-harness/model-contract'
+import type {
+  ModelCallId,
+  ModelFailure,
+  ModelOperationId,
+  ResultCapacity,
+} from '@omne-harness/model-contract'
 import type { BindingBase, CallDocument, TenantDocuments } from './types.ts'
 
 /**
@@ -18,6 +23,17 @@ export type CommandWrite = Readonly<{
 }>
 
 /**
+ * What a command attempt is about, for a storage that reads before it runs `work`. `tenant` is the
+ * canonical tenant text. `call` and `operation` are present when the command names them. A storage
+ * that needs no pre-read ignores the scope.
+ */
+export type RunScope = Readonly<{
+  tenant: string
+  call?: ModelCallId
+  operation?: ModelOperationId
+}>
+
+/**
  * The storage of the shared commands core. The core does no I/O and keeps no state outside the
  * process: it reads and writes call documents and operation bindings only through this port.
  * `tenant` is the canonical tenant text (`tenantCodec`).
@@ -25,9 +41,11 @@ export type CommandWrite = Readonly<{
 export interface ModelCommandStorage {
   /**
    * Runs one command attempt. `work` is synchronous: it reads documents, calls the ports of the
-   * core and asks for at most one `commit`. The storage lets one attempt run at a time.
+   * core and asks for at most one `commit`. The storage lets one attempt run at a time. `scope`
+   * names the tenant, call and operation of the attempt, so a durable storage can read them before
+   * it runs `work`.
    */
-  run<T>(work: () => Outcome<T, ModelFailure>): Promise<Outcome<T, ModelFailure>>
+  run<T>(work: () => Outcome<T, ModelFailure>, scope?: RunScope): Promise<Outcome<T, ModelFailure>>
   /** The calls and operation bindings of one tenant. A tenant without documents reads empty. */
   documents(tenant: string): TenantDocuments
   /** The capacity that admitted, unreleased calls hold. The storage decides the scope of the sum. */

@@ -214,6 +214,24 @@ it('fails to load on a configuration it cannot accept, and publishes nothing', a
   }
 })
 
+async function failsToLoad(updatedAt: string) {
+  const ctx = new Context()
+  await expect(ctx.plugin(ModelProfilesLocalPlugin, { ...CONFIG, updatedAt })).rejects.toThrow(
+    /updatedAt/u,
+  )
+  expect(ctx.modelProfiles).toBeUndefined()
+}
+
+it('refuses an updatedAt that has the instant shape but is not on the calendar', async () => {
+  await failsToLoad('2026-13-45T99:99:99Z')
+  await failsToLoad('2026-02-30T00:00:00Z')
+})
+
+it('refuses an updatedAt with a numeric offset, even one that names the same instant', async () => {
+  await failsToLoad('2026-11-01T08:00:00+08:00')
+  await failsToLoad('2026-11-01T00:00:00-00:00')
+})
+
 it('passes the configuration through to the profiles it publishes', async () => {
   const ctx = new Context()
   await ctx.plugin(ModelProfilesLocalPlugin, { ...CONFIG, compactionTriggerPercent: '55' })

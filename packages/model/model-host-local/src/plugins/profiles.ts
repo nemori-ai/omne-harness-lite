@@ -4,6 +4,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import type { Adoption, ModelFailure } from '@omne-harness/model-contract'
 import type { ModelProfiles } from '@omne-harness/model-contract/provider'
+import { parseInstant } from '@omne-harness/utc-instant'
 import { ModelProfilesService } from '@omne-harness/model-cordis-contract/cordis'
 import { createModelProfiles } from '@omne-harness/model'
 import { officialOpenAiProfiles } from '@omne-harness/pi-ai-openai'
@@ -15,7 +16,7 @@ type PluginConfig = Readonly<{
   retryPolicy: Adoption
   /** A decimal integer from 1 to 100: the compaction trigger of every profile. */
   compactionTriggerPercent: string
-  /** The RFC 3339 UTC text of every profile and of the snapshot revision. */
+  /** The RFC 3339 UTC text of every profile and of the snapshot revision, read by `parseInstant`. */
   updatedAt: string
 }>
 
@@ -23,7 +24,6 @@ type Issue = { message: string }
 type Parsed<T> = Readonly<{ value: T }> | Readonly<{ issues: Issue[] }>
 
 const PERCENT = /^(100|[1-9][0-9]?)$/
-const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/
 const ADOPTION_MEMBERS = ['owner', 'name', 'revision', 'digest'] as const
 
 function rejected(message: string): Parsed<never> {
@@ -51,12 +51,11 @@ function parseConfig(value: unknown): Parsed<PluginConfig> {
   if (typeof compactionTriggerPercent !== 'string' || !PERCENT.test(compactionTriggerPercent))
     return rejected('compactionTriggerPercent must be a decimal integer from 1 to 100')
   const updatedAt = fieldOf(value, 'updatedAt')
-  if (typeof updatedAt !== 'string' || !INSTANT.test(updatedAt))
+  if (typeof updatedAt !== 'string' || !parseInstant(updatedAt).ok)
     return rejected('updatedAt must be an RFC 3339 UTC timestamp')
   return { value: { retryPolicy: retryPolicy.value, compactionTriggerPercent, updatedAt } }
 }
 
-/** Why a handle kept past the plugin's removal answers `unavailable`. */
 /** Why a handle kept past the plugin's removal answers `unavailable`. */
 function removedFailure(): ModelFailure {
   return { kind: 'unavailable', dependency: 'model-profiles', diagnostic: 'plugin-removed' }
