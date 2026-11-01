@@ -21,7 +21,8 @@ const memberPlugin: Plugin.Object = {
   inject: [storageHostKey],
   apply(ctx: Context) {
     new StorageImpl(ctx)
-    const host: FixtureStorageHostService = ctx.get(storageHostKey)
+    // `ctx.get` 经 sql-contract 的 Context 增补按正式定义取型；夹具定义的形状不同，所以经 reflect 取（同一条路径）。
+    const host: FixtureStorageHostService = ctx.reflect.get(storageHostKey)
     const control: FixtureStorageControl = {
       async close(options) {
         storageEvents.push(`close:${options.initiator}`)

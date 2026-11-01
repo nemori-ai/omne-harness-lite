@@ -10,7 +10,6 @@
 - [provider.ts](provider.ts)：`createIdentitySql`，三项操作、读口与结果映射
 - [materials.ts](materials.ts)：材料描述、事务域、组合版本与登记请求
 - [config.ts](config.ts)：配置形状、校验与常量期限源
-- [clock.ts](clock.ts)：系统时钟
 - [deadline.ts](deadline.ts)：截止时刻加法
 - [identifiers.ts](identifiers.ts)：标识、操作键、登录凭证与摘要
 - [worker/schema.ts](worker/schema.ts)：表、名字与跨 Worker 边界的形状

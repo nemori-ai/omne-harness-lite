@@ -24,7 +24,7 @@
 | 域打开、迁移、分组资格与持久性                 | [sqlite-provider SPEC](../../storage/sqlite-provider/SPEC.md) §4.5、§5.3、§5.4                                     |
 | 派生与校验的结果种类与关闭                     | [scrypt SPEC](../scrypt/SPEC.md)                                                                                   |
 | 成员位置、结果映射、单事务、读口、插件形状     | DP-3 决策记录第 1 至 6 条（候选 DP3-C1 至 DP3-C16）                                                                |
-| 时钟由插件体构造                               | DP-1 第 2 轮 DP1-C16，经 DP-3 决策记录第 5 条                                                                      |
+| 时钟经 `identityClock` 服务键注入              | R1-D27（AAP-8 替代路径）。它取代 DP1-C16 与 DP-3 决策记录第 5 条的「插件体内构造系统时钟」                         |
 | Cordis 集成规则                                | [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)，核对表在 [docs/cordis.md](docs/cordis.md) |
 
 ## 结果与不变量
@@ -141,14 +141,15 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 
 ### 所有权
 
-| 事项                             | 拥有者                                                                                  |
-| -------------------------------- | --------------------------------------------------------------------------------------- |
-| 六张表与迁移字节                 | 本成员的参加者 `identity`。迁移发布后不改字节，表结构的变化写成新迁移                   |
-| 组合登记                         | 插件体在提供服务之前调用 `registerCombination`。登记是持久的协议元数据，不随 fiber 撤除 |
-| 停止标志与最晚时钟读数           | 一个提供者实例。插件重跑产生新实例                                                      |
-| scrypt 模块与假材料              | 插件体。工厂只接收已打开的模块，不关闭它                                                |
-| `SqlStorage` 对象                | 装配。本成员只经 `storage` 服务键使用它，不认识提供者                                   |
-| 账号、组织、租户、登录标识的文本 | 本成员按 legal-identity 的词法产生，再经该包解析                                        |
+| 事项                             | 拥有者                                                                                     |
+| -------------------------------- | ------------------------------------------------------------------------------------------ |
+| 六张表与迁移字节                 | 本成员的参加者 `identity`。迁移发布后不改字节，表结构的变化写成新迁移                      |
+| 组合登记                         | 插件体在提供服务之前调用 `registerCombination`。登记是持久的协议元数据，不随 fiber 撤除    |
+| 停止标志与最晚时钟读数           | 一个提供者实例。插件重跑产生新实例                                                         |
+| scrypt 模块与假材料              | 插件体。工厂只接收已打开的模块，不关闭它                                                   |
+| `SqlStorage` 对象                | 装配。本成员只经 `storage` 服务键使用它，不认识提供者                                      |
+| 时钟                             | 装配入口的 `identityClock` 入口对象。本成员只经 `identityClock` 服务键使用它，不认识提供者 |
+| 账号、组织、租户、登录标识的文本 | 本成员按 legal-identity 的词法产生，再经该包解析                                           |
 
 ### 失败
 
@@ -165,10 +166,14 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 1. 校验配置 `maxLifetime` 与 `idlePeriod`。解析失败或不大于零时插件抛错，该行 `FAILED`。
 2. 用 `SCRYPT_PROFILE` 调 `openScrypt`，再 `derive` 假材料。派生失败时关闭模块并抛错，诊断 `decoy-derive-failed:<code>`。
 3. `registerCombination`。结果不是 `registered` 时关闭模块并抛错。
-4. 用系统时钟构造提供者，在同一插件体内各 `new` 一个 `IdentityOperationsService` 与 `TenantStandingSourceService` 子类实例。
+4. 用注入的 `identityClock` 构造提供者，在同一插件体内各 `new` 一个 `IdentityOperationsService` 与 `TenantStandingSourceService` 子类实例。
 5. 登记一个受管 effect。撤除函数先调用提供者的 `stop()`，再 `await` scrypt 的 `close()`。
 
-`storage` 换代时插件体重跑：重开 scrypt、重派生假材料、`registerCombination` 幂等认回，产生新实例。旧实例的调用按 IS-07 作答。撤除不撤销已提交的事实。
+`storage` 或 `identityClock` 换代时插件体重跑：重开 scrypt、重派生假材料、`registerCombination` 幂等认回，产生新实例。旧实例的调用按 IS-07 作答。撤除不撤销已提交的事实。
+
+### 时钟来源
+
+插件 inject identity `./cordis` 的 `identityClock` 键（R1-D27）。装配入口提供 `IdentityClockService` 的子类，本成员不读墙钟，也不自建时钟。`identityClock` 缺席时 fiber 停在 PENDING，两个键都不提供。时钟换代时插件体重跑，实例内的最晚读数重新开始。期限类用例因此用可控时钟拨过截止时刻，不等待真实时间。
 
 ### 已知限制
 
@@ -182,6 +187,8 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 8. **个人组织的治理模型钉在 `default-team` revision `'1'`。** 换模型或升 revision 时，须同批迁移 `id_membership` 的 `role_model` 与 `role_model_revision`。迁移完成之前，个人租户的读口答 `unavailable`。
 9. **截止时刻的加法不计闰秒。** 跨过插入闰秒的期限提前一秒结束。
 10. **唯一约束写成列内约束。** sqlite-provider 的迁移 authorizer 拒绝显式 `CREATE INDEX` 的 REINDEX 步骤，所以三个唯一约束都写在 `CREATE TABLE` 里。新增独立索引要等提供者放开这一项。
+11. **三项操作的圈复杂度超过度量阈值。** `metrics` 报 `issueLogin` CC 18、`recognizeLogin` CC 16、`registerAndActivate` CC 12，超过 alert 阈值 12。分支来自 ID-17 各操作的固定步骤次序与结果映射，每个分支对应一种契约结果，拆分不改变次序。退出条件：把结果映射提成 `provider.ts` 里的独立函数后重新度量。
+12. **「登录表可读」的探读没有独立用例。** `read-issue-basis.ts` 的探读与账号表的读取在同一个读 handler、同一个 SQLite 文件里，不能独立于账号表失败。现有用例只让整个 `identity.issue-basis` 读失败，没有「账号表可读、登录表不可读」的用例。本提供者答 `basis-unavailable` 的条件因此是 ID-17 条件的子集。
 
 ## 组合与验证
 
@@ -194,21 +201,22 @@ scrypt `derive` 的任何计算前拒绝，以及 `done` 得到 `unavailable`，
 | sqlite-provider §5.3 DO-1、`synchronous=FULL` 与 WAL        | IS-08 的持久性                                                                       |
 | scrypt 的结果种类、`close` 让等候者得到 `stopped`           | IS-02、IS-04、IS-07 的映射                                                           |
 | identity `./cordis` 的两个抽象类与键                        | 插件体的两个子类实例                                                                 |
+| identity `./cordis` 的 `identityClock` 键                   | 插件 inject 它，交给工厂作时钟                                                       |
 
 ### 验证资源
 
-| 义务                                 | 资源                                                                             | 真实依赖                       |
-| ------------------------------------ | -------------------------------------------------------------------------------- | ------------------------------ |
-| R4-1 契约套件对持久实现通过          | `tests/operations-contract.spec.ts`（慢层）                                      | sqlite-provider、scrypt 小配置 |
-| R4-2 重启后账号与登录仍在            | `tests/restart.spec.ts` 与 `tests/fixtures/restart-child.ts`（慢层，两个子进程） | 同上                           |
-| R4-3 凭据只存 scrypt 材料            | `tests/credential-storage.spec.ts`                                               | 同上，另读数据库文件字节       |
-| R4-4 注册单事务与结果未知            | `tests/register-transaction.spec.ts`                                             | 同上，标识生成器与存储包装注入 |
-| R4-5 读口不区分未知租户与非成员      | `tests/standing.spec.ts`                                                         | 同上                           |
-| IS-07 停止后                         | `tests/stopped.spec.ts`                                                          | 同上，门控 scrypt 计算         |
-| IS-04 的 scrypt 映射与假材料         | `tests/scrypt-mapping.spec.ts`                                                   | 同上                           |
-| IS-02 输入上界                       | `tests/register-transaction.spec.ts`                                             | 同上                           |
-| 公开入口、材料与组合                 | `tests/public-entry.spec.ts`                                                     | 无                             |
-| 插件：配置失败、两键、系统时钟、撤除 | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`）            | Cordis 4.0.4、sqlite-provider  |
+| 义务                                                           | 资源                                                                             | 真实依赖                       |
+| -------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| R4-1 契约套件对持久实现通过                                    | `tests/operations-contract.spec.ts`（慢层）                                      | sqlite-provider、scrypt 小配置 |
+| R4-2 重启后账号与登录仍在                                      | `tests/restart.spec.ts` 与 `tests/fixtures/restart-child.ts`（慢层，两个子进程） | 同上                           |
+| R4-3 凭据只存 scrypt 材料                                      | `tests/credential-storage.spec.ts`                                               | 同上，另读数据库文件字节       |
+| R4-4 注册单事务与结果未知                                      | `tests/register-transaction.spec.ts`                                             | 同上，标识生成器与存储包装注入 |
+| R4-5 读口不区分未知租户与非成员                                | `tests/standing.spec.ts`                                                         | 同上                           |
+| IS-07 停止后                                                   | `tests/stopped.spec.ts`                                                          | 同上，门控 scrypt 计算         |
+| IS-04 的 scrypt 映射与假材料                                   | `tests/scrypt-mapping.spec.ts`                                                   | 同上                           |
+| IS-02 输入上界                                                 | `tests/register-transaction.spec.ts`                                             | 同上                           |
+| 公开入口、材料与组合                                           | `tests/public-entry.spec.ts`                                                     | 无                             |
+| 插件：配置失败、缺时钟 PENDING、两键、注入时钟与截止时刻、撤除 | `tests/cordis-entry.spec.ts`（端到端用例在慢层，用 `SCRYPT_PROFILE`）            | Cordis 4.0.4、sqlite-provider  |
 
 命令：成员目录运行 `pnpm run build`、`pnpm run typecheck`、`NO_COLOR=1 pnpm exec vitest run --mode fast` 与 `--mode slow`。用例经 `dist` 导入本成员，改源码后先构建。
 

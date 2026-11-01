@@ -37,7 +37,7 @@ it('exports the factory, the materials, the names and the configuration helpers 
 
 it('exports only the plugin from ./cordis', () => {
   expect(Object.keys(cordis)).toEqual(['IdentitySqlPlugin'])
-  expect(cordis.IdentitySqlPlugin.inject).toEqual(['storage'])
+  expect(cordis.IdentitySqlPlugin.inject).toEqual(['storage', 'identityClock'])
   expect(cordis.IdentitySqlPlugin.name).toBe('identity-sql')
 })
 

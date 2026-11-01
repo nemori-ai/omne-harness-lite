@@ -1,5 +1,5 @@
 import { type Context, Service } from '@deepseek-ai/cordis'
-import type { IdentityOperations } from './operations.ts'
+import type { IdentityClock, IdentityOperations } from './operations.ts'
 import type { PrincipalIssuer, PrincipalVerifier } from './principal.ts'
 import type { TenantStandingSource } from './standing.ts'
 
@@ -46,11 +46,26 @@ export abstract class PrincipalIssuerService extends Service implements Principa
 }
 export const principalIssuerKey = PrincipalIssuerService.provide
 
+/**
+ * The injected time source of a provider (ID-17 "端口与注入"), as a Cordis seam: the assembly
+ * entry provides it, a persistent provider injects it. An additive definition (R1-D27).
+ * @owner packages/identity/identity
+ */
+export abstract class IdentityClockService extends Service implements IdentityClock {
+  static readonly provide = 'identityClock'
+  constructor(ctx: Context) {
+    super(ctx, IdentityClockService.provide)
+  }
+  abstract readonly now: IdentityClock['now']
+}
+export const identityClockKey = IdentityClockService.provide
+
 declare module '@deepseek-ai/cordis' {
   interface Context {
     identityOperations: IdentityOperationsService
     tenantStanding: TenantStandingSourceService
     principalVerifier: PrincipalVerifierService
     principalIssuer: PrincipalIssuerService
+    identityClock: IdentityClockService
   }
 }

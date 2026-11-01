@@ -1,19 +1,20 @@
 // The Cordis binding (DP3-C16; IC-1 to IC-3, IC-8, IC-13, IC-14): a function plugin that injects
-// `storage` only, validates the two lifetimes, opens scrypt with the deployed profile, derives the
-// decoy material, registers the identity combination, and provides `identityOperations` and
-// `tenantStanding` as subclasses of the identity service definitions. One managed effect stops the
-// provider and then waits for scrypt to close. The system clock is built here (DP1-C16).
+// `storage` and `identityClock`, validates the two lifetimes, opens scrypt with the deployed
+// profile, derives the decoy material, registers the identity combination, and provides
+// `identityOperations` and `tenantStanding` as subclasses of the identity service definitions. One
+// managed effect stops the provider and then waits for scrypt to close. The clock is the injected
+// `identityClock` service (R1-D27): this member reads no wall clock.
 import type { Context } from '@deepseek-ai/cordis'
 import { randomBytes } from 'node:crypto'
 import type { IdentityOperations, TenantStandingSource } from '@omne-harness/identity'
 import {
   IdentityOperationsService,
   TenantStandingSourceService,
+  identityClockKey,
 } from '@omne-harness/identity/cordis'
 import { definePlugin, type StandardSchema } from '@omne-harness/kernel-basis/cordis'
 import { openScrypt, SCRYPT_PROFILE } from '@omne-harness/scrypt'
 import { storageKey } from '@omne-harness/sql-contract/cordis'
-import { systemIdentityClock } from './clock.ts'
 import { constantLoginTerms, parseIdentitySqlConfig, type IdentitySqlConfig } from './config.ts'
 import { identitySqlRegistration } from './materials.ts'
 import { createIdentitySql } from './provider.ts'
@@ -57,11 +58,12 @@ const configSchema: StandardSchema<IdentitySqlConfig> = {
 export const IdentitySqlPlugin = definePlugin({
   name: 'identity-sql',
   Config: configSchema,
-  inject: [storageKey],
+  inject: [storageKey, identityClockKey],
   async apply(ctx, config) {
     const judged = parseIdentitySqlConfig(config)
     if (judged.kind !== 'valid') throw new Error('identity-sql configuration rejected')
     const storage = ctx.storage
+    const clock = ctx.identityClock
     const opened = openScrypt(SCRYPT_PROFILE)
     if (!opened.ok) throw new Error(`scrypt profile rejected: ${opened.code}`)
     const scrypt = opened.module
@@ -83,7 +85,7 @@ export const IdentitySqlPlugin = definePlugin({
       )
     const provider = createIdentitySql({
       storage,
-      clock: systemIdentityClock(),
+      clock,
       terms: constantLoginTerms(judged.terms),
       scrypt,
       decoyMaterial: derived.material,
