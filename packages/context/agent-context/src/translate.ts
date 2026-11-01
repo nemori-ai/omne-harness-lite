@@ -8,7 +8,7 @@ import type {
   SelectedModel as AgentSelectedModel,
 } from '@omne-harness/agent-contract'
 import type { JsonValue } from '@omne-harness/json-text'
-import type { ModelRequestPreparationService } from '@omne-harness/model-cordis-contract/cordis'
+import type { ModelRequestPreparation } from '@omne-harness/model-contract/provider'
 import type {
   Access,
   AssemblyFailure,
@@ -20,8 +20,8 @@ import type {
 } from '@omne-harness/request-context-contract'
 import { canonical } from './records.ts'
 
-/** The request preparation port of Model, as its Cordis service projects it. */
-export type ModelRequestPreparation<P> = Pick<ModelRequestPreparationService<P>, 'prepare'>
+/** The request preparation port of Model. */
+export type { ModelRequestPreparation }
 type ModelFailure = Extract<
   Awaited<ReturnType<ModelRequestPreparation<unknown>['prepare']>>,
   { failure: unknown }

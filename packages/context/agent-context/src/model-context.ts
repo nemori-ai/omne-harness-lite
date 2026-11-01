@@ -172,22 +172,29 @@ export function createAgentModelContext<P>(
     return material
   }
 
+  /**
+   * The checks on the evidence this owner minted, before any read. Evidence names its tenant, so a
+   * foreign one is denied. The adopted coverage must be ours and belong to this execution.
+   */
+  function evidenceRefusal(input: ReadInput<P>, tenant: string): Failure | null {
+    for (const evidence of [input.adopted, input.transition]) {
+      const key = evidence === null ? null : materials.key(evidence)
+      if (key !== null && key.tenant !== tenant) return { kind: 'denied', action: 'read' }
+    }
+    if (input.adopted === null) return null
+    const key = materials.key(input.adopted)
+    if (key === null) return { kind: 'invalid', field: 'adopted', reason: 'foreign-evidence' }
+    return key.execution === input.advance.execution
+      ? null
+      : { kind: 'invalid', field: 'adopted', reason: 'other-execution' }
+  }
+
   async function read(input: ReadInput<P>): ReturnType<ModelContextReader<P>['read']> {
     const access: Access<P> = { principal: input.principal, tenant: input.tenant }
     const tenant = tenantText(input.tenant)
     if (tenant === null) return fail({ kind: 'denied', action: 'read' })
-    // Evidence that this owner minted names its tenant: a foreign one stops before any read.
-    for (const evidence of [input.adopted, input.transition]) {
-      const key = evidence === null ? null : materials.key(evidence)
-      if (key !== null && key.tenant !== tenant) return fail({ kind: 'denied', action: 'read' })
-    }
-    if (input.adopted !== null) {
-      const key = materials.key(input.adopted)
-      if (key === null)
-        return fail({ kind: 'invalid', field: 'adopted', reason: 'foreign-evidence' })
-      if (key.execution !== input.advance.execution)
-        return fail({ kind: 'invalid', field: 'adopted', reason: 'other-execution' })
-    }
+    const refused = evidenceRefusal(input, tenant)
+    if (refused !== null) return fail(refused)
     const resolved = await parts.resolveHistory({ access, evidence: input.history })
     if (resolved.kind !== 'value')
       return fail(failureOfRead(resolved, 'history-holder', 'resolve-history'))
