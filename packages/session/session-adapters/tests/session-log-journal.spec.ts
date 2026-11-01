@@ -15,6 +15,8 @@ import {
   ordinaryInput,
 } from '@omne-harness/session-contract/testing'
 import type { SessionEntriesObservation, WorkSnapshot } from '@omne-harness/session-contract'
+import type { CommitRejectReason, SqlStorage } from '@omne-harness/sql-contract'
+import { createSessionLogJournal } from '../src/cordis/agent-journal.ts'
 import { ok, operation } from './fixtures/common-journal.ts'
 import { sqlScene, type SqlScene, type SqlSceneOptions } from './fixtures/sql-scene.ts'
 
@@ -89,6 +91,31 @@ async function messageRequest(
     handoff: null,
     finish: null,
   }
+}
+
+/** A provider over the scene's records whose storage commit refuses before it accepts. */
+function refusedBy(s: SqlScene, reason: CommitRejectReason) {
+  const storage: SqlStorage = {
+    registerCombination: input => s.storage.registerCombination(input),
+    query: identity => s.storage.query(identity),
+    read: (request, options) => s.storage.read(request, options),
+    commit: request =>
+      Promise.resolve({
+        kind: 'rejected_before_accept',
+        identity: request.identity,
+        reason,
+        diagnostic: null,
+      } as never),
+  }
+  return createSessionLogJournal<string>({
+    storage,
+    tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+    sessionAccessCheck: {
+      check: request =>
+        Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) }),
+    },
+    combination: s.combination,
+  }).forSession(s.access).journal
 }
 
 const count = (s: SqlScene, table: string): number =>
@@ -292,6 +319,131 @@ describe('unknown, tenancy and registration', () => {
     expect((await load(s)).revision).toBe(recalled.revision)
     const again = ok(await s.fresh().journal.commit(request))
     expect(again).toEqual(recalled)
+  })
+
+  it('a storage that refuses before accepting is unavailable and writes nothing: the prepared answer is not given, and the same operation then commits once', async () => {
+    const { s, open } = await opened('refused-before-accept')
+    const request = await messageRequest(s, open.authority)
+    const before = { agent: (await load(s)).revision, published: count(s, 'er_operation') }
+    const refusing = refusedBy(s, 'queue_full')
+    const answer = await refusing.commit(request)
+    expect(answer).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        owner: 'session-log-journal',
+        diagnostic: expect.stringContaining('queue_full'),
+      },
+    })
+    // The refusing provider keeps no copy of the unsaved state: it reads the durable records.
+    expect(ok(await refusing.load({ ...s.access, execution: s.execution })).revision).toBe(
+      before.agent,
+    )
+    expect(count(s, 'er_operation')).toBe(before.published)
+    const receipt = ok(await s.view.journal.commit(request))
+    expect(Number(receipt.revision)).toBe(Number(before.agent) + 1)
+  })
+
+  it('a writer that is not current leaves the outcome unknown, not unavailable, and names the operation', async () => {
+    const { s, open } = await opened('writer-not-current')
+    const request = await messageRequest(s, open.authority)
+    expect(await refusedBy(s, 'writer_not_current').commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+  })
+
+  it('a write without an Agent operation whose outcome is unknown is unavailable: no operation identity is made up', async () => {
+    const { s } = await opened('preserve-unknown')
+    const preserve = {
+      ...s.access,
+      identity: 'material-1',
+      consumer: { owner: 'session', work: 'work', position: 'at', purpose: 'action' },
+      value: {
+        kind: 'facts' as const,
+        schema: { owner: 'suite', name: 'payload', revision: '1', digest: 'fixture' },
+        value: { kind: 'string' as const, value: 'kept' },
+      },
+    }
+    const before = count(s, 'er_operation')
+    s.controls?.dropNext()
+    const answer = await s.view.materials.preserve(preserve)
+    expect(answer).toMatchObject({ failure: { kind: 'unavailable', owner: 'session-log-journal' } })
+    expect(JSON.stringify(answer)).not.toContain('commit-unknown')
+    expect(count(s, 'er_operation')).toBe(before)
+    // The write is idempotent by its identity: the retry saves it once.
+    const source = ok(await s.view.materials.preserve(preserve))
+    expect(ok(await s.view.materials.read({ ...s.access, source }))).toMatchObject({
+      kind: 'facts',
+    })
+    expect(count(s, 'er_operation')).toBe(before + 1)
+  })
+
+  it('a write the storage never ran is excluded; it stays excluded in the durable records after another write, and its retry commits once', async () => {
+    const { s, open } = await opened('dropped-write')
+    const dropped = await messageRequest(s, open.authority, 'message-dropped')
+    const query = (journal: AgentJournal<string>, name: string) =>
+      journal.query({ ...s.access, execution: s.execution, operation: operation(name) })
+    s.controls?.dropNext()
+    expect(await s.view.journal.commit(dropped)).toEqual({
+      failure: { kind: 'commit-unknown', operation: dropped.operation },
+    })
+    // The storage proves the generation never ran: excluded, with evidence of its own.
+    const excluded = ok(await query(s.view.journal, 'message-dropped'))
+    expect(excluded).toMatchObject({ kind: 'excluded', evidence: { record: expect.any(String) } })
+    expect(count(s, 'er_operation')).toBe(1)
+    expect(ok(await query(s.view.journal, 'never-sent'))).toEqual({ kind: 'unknown' })
+
+    // The next write saves the exclusion with the rest of the records: a provider that has no
+    // memory of the dropped call answers it excluded too.
+    const next = await messageRequest(s, open.authority, 'message-next')
+    ok(await s.view.journal.commit(next))
+    expect(ok(await query(s.fresh().journal, 'message-dropped'))).toEqual(excluded)
+
+    // The same operation can still be committed, once, and then it is committed for everyone.
+    const loaded = await load(s)
+    const retry = ok(await s.view.journal.commit({ ...dropped, expected: loaded.revision }))
+    expect(ok(await query(s.fresh().journal, 'message-dropped'))).toEqual({
+      kind: 'committed',
+      receipt: retry,
+    })
+  })
+
+  it('a write whose outcome is still undecided is unknown to a query, and is decided when the storage decides', async () => {
+    const { s, open } = await opened('undecided-write')
+    const request = await messageRequest(s, open.authority, 'message-held')
+    let decided = false
+    const unknownUntilDecided: SqlStorage = {
+      registerCombination: input => s.storage.registerCombination(input),
+      read: (read, options) => s.storage.read(read, options),
+      commit: input =>
+        Promise.resolve({ kind: 'unknown', identity: input.identity, diagnostic: 'scripted' }),
+      query: identity =>
+        decided
+          ? s.storage.query(identity)
+          : Promise.resolve({ kind: 'unknown', identity, diagnostic: 'scripted' }),
+    }
+    const journal = createSessionLogJournal<string>({
+      storage: unknownUntilDecided,
+      tenantDomainLookup: { lookup: () => Promise.resolve({ kind: 'ready', domain: s.domain }) },
+      sessionAccessCheck: {
+        check: check =>
+          Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${check.operation}`) }),
+      },
+      combination: s.combination,
+    }).forSession(s.access).journal
+    expect(await journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    const ask = () =>
+      journal.query({ ...s.access, execution: s.execution, operation: request.operation })
+    expect(ok(await ask())).toEqual({ kind: 'unknown' })
+    // Asked again while the storage has not decided, the same call is still unknown and writes nothing.
+    expect(await journal.commit(request)).toEqual({
+      failure: { kind: 'commit-unknown', operation: request.operation },
+    })
+    expect(count(s, 'er_operation')).toBe(1)
+    // The storage decides that the generation never ran.
+    decided = true
+    expect(ok(await ask())).toMatchObject({ kind: 'excluded' })
   })
 
   it('two providers that race on the same operation give one revision and the same answer', async () => {

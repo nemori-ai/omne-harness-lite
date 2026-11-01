@@ -21,13 +21,14 @@ export type JournalCombination = Readonly<{ combinationVersion: string; manifest
  *   send it (a committed earlier generation, or the existing receipt of an identity conflict): the
  *   caller tells the same operation from another by the digest in the receipt.
  * - `rolled-back`: the generation this call sent was rolled back by a stopping reply.
- * - `unknown`: the outcome of a generation is not known; nothing may be assumed.
+ * - `unknown`: the outcome of generation `attempt` is not known; nothing may be assumed. The caller
+ *   keeps the generation to ask `standingOf` later.
  * - `unavailable`: the storage refused before accepting, or every generation was rolled back.
  */
 export type JournalCommitResult =
   | Readonly<{ kind: 'committed'; receipt: CommittedV2; recalled: boolean }>
   | Readonly<{ kind: 'rolled-back'; receipt: RolledBackV2 }>
-  | Readonly<{ kind: 'unknown'; diagnostic: string }>
+  | Readonly<{ kind: 'unknown'; diagnostic: string; attempt: number }>
   | Readonly<{ kind: 'unavailable'; diagnostic: string }>
 
 export type JournalCommitInput = Readonly<{
@@ -40,6 +41,11 @@ export type JournalCommitInput = Readonly<{
   attemptLimit?: number
 }>
 
+/**
+ * The number of attempt generations one operation may use. A fixed policy of this provider, not a
+ * configuration: a storage that rolled back eight generations of one operation is not one a retry
+ * helps (session-adapters SPEC, "生产提供者的实现现状" step 6). `attemptLimit` is for tests.
+ */
 const ATTEMPTS = 8
 
 const identityOf = (domain: DomainRef, operation: string, attempt: number): SqlIdentity => ({
@@ -57,7 +63,8 @@ export async function commitJournal(input: JournalCommitInput): Promise<JournalC
     const found = await input.storage.query(identity)
     if (found.kind === 'rolled_back') continue
     if (found.kind === 'committed') return { kind: 'committed', receipt: found, recalled: true }
-    if (found.kind === 'unknown') return { kind: 'unknown', diagnostic: found.diagnostic ?? '' }
+    if (found.kind === 'unknown')
+      return { kind: 'unknown', diagnostic: found.diagnostic ?? '', attempt }
     const request: CommitRequestV2 = {
       identity,
       ...input.combination,
@@ -70,15 +77,48 @@ export async function commitJournal(input: JournalCommitInput): Promise<JournalC
       case 'rolled_back':
         return { kind: 'rolled-back', receipt: result }
       case 'unknown':
-        return { kind: 'unknown', diagnostic: result.diagnostic ?? '' }
+        return { kind: 'unknown', diagnostic: result.diagnostic ?? '', attempt }
       case 'identity_conflict':
         if (result.existing.kind === 'rolled_back') continue
         return { kind: 'committed', receipt: result.existing, recalled: true }
       case 'rejected_before_accept':
         return result.reason === 'writer_not_current'
-          ? { kind: 'unknown', diagnostic: 'the writer is not current' }
+          ? { kind: 'unknown', diagnostic: 'the writer is not current', attempt }
           : { kind: 'unavailable', diagnostic: `storage rejected the commit: ${result.reason}` }
     }
   }
   return { kind: 'unavailable', diagnostic: 'every attempt generation was rolled back' }
+}
+
+/**
+ * What the storage says of generation `attempt` of `operation` after a call left it unknown:
+ * - `committed`: it took effect; the durable records hold its write.
+ * - `not-run`: it did not and, by the storage's proof (`not_committed`) or its rollback receipt,
+ *   never will: the write is excluded.
+ * - `unknown`: still undecided, or the storage could not be asked.
+ * The storage cannot tell a generation that was sent and dropped from one never sent, so only a
+ * caller that knows it sent the generation may read `not-run` as "dropped".
+ */
+export type GenerationStanding = 'committed' | 'not-run' | 'unknown'
+
+export async function standingOf(
+  storage: SqlStorage,
+  domain: DomainRef,
+  operation: string,
+  attempt: number,
+): Promise<GenerationStanding> {
+  try {
+    const found = await storage.query(identityOf(domain, operation, attempt))
+    switch (found.kind) {
+      case 'committed':
+        return 'committed'
+      case 'rolled_back':
+      case 'not_committed':
+        return 'not-run'
+      case 'unknown':
+        return 'unknown'
+    }
+  } catch {
+    return 'unknown'
+  }
 }

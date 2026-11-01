@@ -14,6 +14,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import type {
   AgentExecutionId,
   AgentJournal,
+  AgentOperationId,
   AgentReceivedProvider,
   CallerCommit,
   CommandReceipt,
@@ -65,7 +66,7 @@ import type {
   SqlStorage,
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
-import { commitJournal, type JournalCombination } from '../journal-commit.ts'
+import { commitJournal, standingOf, type JournalCombination } from '../journal-commit.ts'
 import {
   participationAccessFailure,
   participationFailure,
@@ -75,6 +76,7 @@ import { canonical } from '../testing/canonical.ts'
 import { normalizedResult } from '../testing/history.ts'
 import {
   createJournal,
+  operationText,
   outrunParticipation,
   type JointDecision,
   type JournalWrite,
@@ -87,7 +89,7 @@ import {
   type CommonRoot,
   type JournalCell,
 } from '../testing/root.ts'
-import { decodeState, encodeState, recordsOf } from './journal-state.ts'
+import { decodeState, encodeState, recordsOf, type DurableAgentRecords } from './journal-state.ts'
 
 export type SessionLogJournalOptions<P> = Readonly<{
   storage: SqlStorage
@@ -116,6 +118,29 @@ type Copy<P> = Readonly<{
   core: ReturnType<typeof createJournal<P>>
 }>
 
+type CustodyAttempt =
+  MemoryExecution['custodyAttempts'] extends Map<infer _Operation, infer Attempt> ? Attempt : never
+
+/**
+ * A write of this process whose storage outcome stayed unknown. The durable records know nothing
+ * of it until the storage decides, so the provider keeps what the call left and puts it back into
+ * every copy it rebuilds: while the storage has not decided, the operation is pending in the copy
+ * (a `query` answers unknown and the finishing list of its execution carries an unknown operation
+ * item); once the storage proves the generation never ran, it is excluded, with the custody
+ * attempt the write had reached. A committed generation needs no entry: the durable records hold it.
+ */
+type Held = {
+  readonly execution: AgentExecutionId
+  readonly operation: AgentOperationId
+  /** The record key the Journal core gave the write: it tells a retry of it from another write. */
+  readonly key: string
+  readonly storageOperation: string
+  readonly attempt: number
+  /** The custody attempt of a recordHandoff that reached the write step; its chain needs it. */
+  readonly custody: CustodyAttempt | null
+  standing: 'unknown' | 'excluded'
+}
+
 type Book<P> = {
   readonly tenant: TenantId
   readonly tenantText: string
@@ -125,9 +150,17 @@ type Book<P> = {
   published: string | null
   scratch: Scratch | null
   queue: Promise<unknown>
+  /** The unknown writes of this process, by the Journal core's operation key. */
+  readonly held: Map<string, Held>
 }
 
 const PARTICIPANTS = ['message', 'context-transition', 'custody', 'processed'] as const
+/**
+ * The rounds one call may redo itself when its publication loses a race (a revision or publication
+ * count conflict, or a recalled operation). A fixed policy of this provider, not a configuration:
+ * four lost races in a row is a session under contention that a fifth round does not help, and the
+ * call then answers `unavailable` (session-adapters SPEC, "生产提供者的实现现状" step 6).
+ */
 const ROUNDS = 4
 /** The calls that only read: they need no Session snapshot for the advance check. */
 const READS: ReadonlySet<string> = new Set([
@@ -193,6 +226,15 @@ function receiptOf(answer: Outcome<unknown, Failure>): CommandReceipt | null {
     'revision' in receipt
     ? (receipt as CommandReceipt)
     : null
+}
+
+/** What of the copy is durable: a pending operation is a held write, not data (see `Held`). */
+function durableRecords(root: CommonRoot): DurableAgentRecords {
+  const records = recordsOf(root)
+  return {
+    ...records,
+    operations: new Map([...records.operations].filter(([, record]) => record.kind !== 'pending')),
+  }
 }
 
 /** The same-root index rows of the executions a write changed (AD-02 table, Agent side). */
@@ -269,6 +311,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         published: null,
         scratch: null,
         queue: Promise.resolve(),
+        held: new Map(),
       }
       books.set(key, book)
     }
@@ -620,6 +663,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
         cell.touch()
       })
     }
+    putBack(book, cell)
     const core = createJournal<P>(cell, {
       participants: PARTICIPANTS,
       grant: () => true,
@@ -629,6 +673,69 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       ...(options.hostRecords === undefined ? {} : { hostRecords: options.hostRecords }),
     })
     return { cell, core }
+  }
+
+  /** Puts the held writes back into a rebuilt copy, unless the durable records already decided them. */
+  function putBack(book: Book<P>, cell: JournalCell<P>): void {
+    if (book.held.size === 0) return
+    cell.mutate(() => {
+      const root = cell.state()
+      for (const [at, held] of book.held) {
+        if (root.agent.operations.has(at)) continue
+        if (held.standing === 'unknown') {
+          root.agent.operations.set(at, {
+            kind: 'pending',
+            key: held.key,
+            tenant: book.tenant,
+            execution: held.execution,
+            operation: held.operation,
+            // The storage, not the copy, decides a held write; there is nothing to run or drop here.
+            run: () => undefined,
+          })
+          continue
+        }
+        const record = `${cell.namespace}/${held.execution}/excluded/${held.operation}/dropped`
+        root.agent.operations.set(at, {
+          kind: 'excluded',
+          key: held.key,
+          evidence: {
+            owner: OWNER,
+            record,
+            revision: '0',
+            digest: `sha256:${createHash('sha256').update(record).digest('hex')}`,
+          },
+        })
+        if (held.custody === null) continue
+        const execution = [...root.agent.executions.values()].find(
+          item => item.id === held.execution,
+        )
+        execution?.custodyAttempts.set(held.operation, held.custody)
+      }
+      cell.touch()
+    })
+  }
+
+  /**
+   * Asks the storage about each held write that is still undecided. True when one of them turned
+   * out excluded, so the cached copy, which still holds it as pending, must be rebuilt.
+   */
+  async function settleHeld(book: Book<P>, domain: DomainRef): Promise<boolean> {
+    let changed = false
+    for (const [at, held] of book.held) {
+      if (held.standing !== 'unknown') continue
+      const standing = await standingOf(
+        options.storage,
+        domain,
+        held.storageOperation,
+        held.attempt,
+      )
+      if (standing === 'committed') book.held.delete(at)
+      else if (standing === 'not-run') {
+        held.standing = 'excluded'
+        changed = true
+      }
+    }
+    return changed
   }
 
   const receiptStub = (execution: string) => ({
@@ -646,7 +753,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
     })
     const root = rootOutput === null ? null : decodeSessionHistoryRoot(rootOutput)
     if (root === null) return fail(unavailable('the common root of the session is not readable'))
-    if (book.copy !== null && book.published === root.published) return succeed(book.copy)
+    const excluded = await settleHeld(book, domain)
+    if (!excluded && book.copy !== null && book.published === root.published)
+      return succeed(book.copy)
     const stateOutput = await read(
       domain,
       EXECUTION_RECORD_HANDLERS.state,
@@ -682,6 +791,33 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       method === 'recordResult'
       ? method
       : null
+  }
+
+  /** Keeps the write the call prepared in its copy, whose storage outcome stayed unknown. */
+  function hold(
+    book: Book<P>,
+    after: CommonRoot,
+    written: Written,
+    operation: AgentOperationId,
+    storageOperation: string,
+    attempt: number,
+  ): void {
+    if (written.execution === null) return
+    const at = operationText(book.tenantText, written.execution as AgentExecutionId, operation)
+    const record = after.agent.operations.get(at)
+    if (record === undefined) return
+    const execution = [...after.agent.executions.values()].find(
+      item => item.id === written.execution,
+    )
+    book.held.set(at, {
+      execution: written.execution as AgentExecutionId,
+      operation,
+      key: record.key,
+      storageOperation,
+      attempt,
+      custody: execution?.custodyAttempts.get(operation) ?? null,
+      standing: 'unknown',
+    })
   }
 
   async function publish<T>(
@@ -748,7 +884,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           operation,
           digest: written.digest,
           answer: encodeState(answer),
-          state: encodeState(recordsOf(after)),
+          state: encodeState(durableRecords(after)),
           ...index,
           admissions,
         }),
@@ -773,7 +909,13 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       operation,
       commands: facts,
     })
-    const agentOperation = (written.operation ?? '') as ExecutionMutation<P>['operation']
+    // A write without an Agent operation (the material port) has no identity to name or to recall
+    // by: wherever an answer would name one, it is `unavailable`, never an invented identity.
+    const agentOperation = written.operation as AgentOperationId | null
+    const nameless = (what: string): Settled<T> => ({
+      kind: 'answer',
+      value: fail(unavailable(`${what} of a write without an Agent operation`)),
+    })
     switch (outcome.kind) {
       case 'committed': {
         const entry = outcome.receipt.responses.find(
@@ -789,9 +931,16 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
           // An earlier generation committed this operation: the durable records answer it.
           return reply.digest === written.digest
             ? { kind: 'again' }
-            : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
+            : agentOperation === null
+              ? nameless('a conflict')
+              : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
         book.copy = copy
         book.published = reply.published
+        // What the copy holds is now durable: an excluded write, and one the Journal core fenced.
+        for (const at of book.held.keys()) {
+          const record = after.agent.operations.get(at)
+          if (record !== undefined && record.kind !== 'pending') book.held.delete(at)
+        }
         return { kind: 'answer', value: answer }
       }
       case 'rolled-back': {
@@ -807,8 +956,9 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             case 'revision-conflict':
               return { kind: 'again' }
             case 'operation-conflict':
-              return reply.digest === written.digest
-                ? { kind: 'again' }
+              if (reply.digest === written.digest) return { kind: 'again' }
+              return agentOperation === null
+                ? nameless('a conflict')
                 : { kind: 'answer', value: fail({ kind: 'conflict', operation: agentOperation }) }
             default:
               return {
@@ -824,7 +974,7 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             return {
               kind: 'answer',
               value: fail(
-                method === null
+                method === null || agentOperation === null
                   ? unavailable('a Session stop without a participation')
                   : participationFailure(
                       method,
@@ -843,11 +993,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             }
         }
       }
-      case 'unknown':
+      case 'unknown': {
+        if (agentOperation === null) return nameless('an unknown outcome')
+        hold(book, after, written, agentOperation, operation, outcome.attempt)
         return {
           kind: 'answer',
           value: fail({ kind: 'commit-unknown', operation: agentOperation }),
         }
+      }
       case 'unavailable':
         return { kind: 'answer', value: fail(unavailable(outcome.diagnostic)) }
     }

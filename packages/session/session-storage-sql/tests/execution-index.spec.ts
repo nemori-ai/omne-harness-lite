@@ -88,6 +88,16 @@ describe('the materials of the execution index', () => {
     expect(handler?.readTables).toEqual(['sl_execution_idx'])
     expect(handler?.requiresMigrations).toEqual([{ owner: 'session', id: '002-execution-index' }])
   })
+
+  it('the index migration requires the session log migration, which creates the table it extends', () => {
+    const migrations = sessionStorageMaterials().migrations
+    const index = migrations.find(
+      item => `${item.owner}/${item.id}` === 'session/002-execution-index',
+    )
+    const log = migrations.find(item => `${item.owner}/${item.id}` === 'session/001-session-log')
+    expect(log?.requires).toEqual([])
+    expect(index?.requires).toEqual([{ owner: 'session', id: '001-session-log' }])
+  })
 })
 
 describe('the startRun commit writes the index in its own transaction', () => {
