@@ -8,6 +8,18 @@ Structural checks for this repository's TypeScript product sources and trusted a
 
 `pnpm run acceptance:scenarios` reads current product topics and coverage declarations independently of Issues. It reports execution and acceptance as unknown when evidence is absent. Topics without numbered scenarios remain explicitly uncovered. The [product contract](../repo-toolchain/src/product/SPEC.md) defines discovery and failure behavior.
 
+## Double retirement inventory
+
+```sh
+pnpm --filter @omne-harness/product-checks run retire -- --wave B
+```
+
+A read-only check to run before each wave release R(w). It reads the retirement table [`retire-doubles.json`](retire-doubles.json), scans the checkout for the listed test doubles, and reports three kinds of problem: `overdue` (the double is due but its export or definition is still there), `retired-referenced` (the double is due and a file outside its definition chain still names it) and `misassembled` (a B or C double name appears in product source under `apps/**/src` or `packages/**/src`). It also prints an inventory of every member's `./testing` exports with reference counts. The command is not part of `lint:rules`.
+
+Options: `--wave <A|B|C|D|E>` (required), `--root <checkout>`, `--table <file>`, `--json`, `--strict`. Exit code 0 means no problem. Exit code 1 means a problem was found, or an unmapped item exists when `--strict` is set. Exit code 2 means the table, the checkout or the arguments cannot be used, or the table is stale. Unknown is never reported as success: a missing or invalid table, or a table name without a definition, exits 2.
+
+Reference lookup uses `git grep -n -w`, so it works on names. It can report an unrelated symbol with the same name, and it cannot find a reference imported under another name. The command only reads files and runs `git`. The [Chinese README](README_ZH.md#替身清点) has the full description of the table fields, the due rule and the known limits. Reduce maintains the table.
+
 ## Run and consume
 
 Use Node.js >=24.0.0 and the repository's pinned pnpm version. The normal command scans `packages/`, `apps/` and `examples/`, then runs repository rules over actual execution modules in `packages/`, `apps/`, `examples/`, `tools/` and `scripts/`:
