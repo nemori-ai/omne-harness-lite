@@ -54,6 +54,9 @@ type Checked<P> = Readonly<{
 }>
 type Item = PerRequestEntry | Refusal
 
+/** What a Cordis caller declared in its intercept configuration; `consumer` is absent when it declared none. */
+export type BindCaller = Readonly<{ consumer?: ConsumerClass | undefined }>
+
 function cacheable(item: Item): item is CachedItem {
   return item.kind === 'value' || item.kind === 'none' || item.kind === 'missing'
 }
@@ -295,7 +298,7 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     return items
   }
 
-  async function bind(raw: EligibilityId, expected?: ConsumerClass): Promise<BindResult> {
+  async function bind(raw: EligibilityId, caller?: BindCaller): Promise<BindResult> {
     if (world.closed) return { kind: 'refused', reason: 'closed' }
     const id = { eligibility: raw.eligibility }
     const initial = world.currentEligibility(id)
@@ -304,9 +307,10 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
     if (checked.kind !== 'checked') return checked
     if (world.closed) return { kind: 'refused', reason: 'closed' }
     if (!checked.gate.current()) return { kind: 'refused', reason: 'unauthorized' }
-    // Over Cordis the caller's declared consumer class must match the eligibility. The comparison
-    // comes after every access check, so a mismatch discloses nothing an unbound caller could not see.
-    if (expected !== undefined && expected !== initial.consumer)
+    // Over Cordis the caller's declared consumer class must match the eligibility; a caller that
+    // declared none is refused too. The comparison comes after every access check, so a mismatch
+    // discloses nothing an unbound caller could not see. It is a consistency check, not access control.
+    if (caller && caller.consumer !== initial.consumer)
       return { kind: 'refused', reason: 'callerMismatch' }
     return { kind: 'bound', reader: readerOf(id, initial) }
   }
@@ -543,6 +547,6 @@ export function createReaders<P>(world: World<P>, supplier: Supplier<P>) {
   }
 
   return {
-    bind: (raw: EligibilityId, expected?: ConsumerClass) => world.track(bind(raw, expected)),
+    bind: (raw: EligibilityId, caller?: BindCaller) => world.track(bind(raw, caller)),
   }
 }

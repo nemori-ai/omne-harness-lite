@@ -1,6 +1,5 @@
 import type {
   BindResult,
-  ConsumerClass,
   EligibilityId,
   RuntimeContextOperations,
   RuntimeContextTrust,
@@ -11,7 +10,7 @@ import { resolveRuntimeContextConfig, type RuntimeContextConfig } from './config
 import type { RuntimeContextDiagnostic } from './diagnostics.js'
 import { createHolder } from './holder.js'
 import { createSupplier } from './producer.js'
-import { createReaders } from './reader.js'
+import { createReaders, type BindCaller } from './reader.js'
 import { createReplay } from './replay.js'
 import { createWorld } from './world.js'
 
@@ -27,13 +26,14 @@ export type RuntimeContextOptions<P = unknown> = Readonly<{
 }>
 
 /**
- * One mechanism instance: the three faces of the contract plus `close`. `bind` accepts the
- * caller's declared consumer class as an optional second argument; a mismatch with the eligibility
- * is refused with `callerMismatch` after every access check. The instance holds no durable state.
+ * One mechanism instance: the three faces of the contract plus `close`. `bind` accepts what a Cordis
+ * caller declared as an optional second argument; a consumer class that differs from the
+ * eligibility, or none at all, is refused with `callerMismatch` after every access check. Without
+ * the argument there is no comparison. The instance holds no durable state.
  */
 export type RuntimeContextMechanism<P = unknown> = Omit<RuntimeContextOperations<P>, 'bind'> &
   Readonly<{
-    bind(eligibility: EligibilityId, expected?: ConsumerClass): Promise<BindResult>
+    bind(eligibility: EligibilityId, caller?: BindCaller): Promise<BindResult>
     /**
      * Refuses new requests, ends every bound reader, cancels the waits in flight, waits for the
      * operations in flight within the settle bound, then releases the tables. Idempotent.

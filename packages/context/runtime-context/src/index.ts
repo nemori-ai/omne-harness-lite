@@ -3,3 +3,4 @@ export type { RuntimeContextOptions, RuntimeContextMechanism } from './mechanism
 export { RUNTIME_CONTEXT_DEFAULTS, resolveRuntimeContextConfig } from './config.js'
 export type { RuntimeContextConfig, ResolvedRuntimeContextConfig } from './config.js'
 export type { RuntimeContextDiagnostic } from './diagnostics.js'
+export type { BindCaller } from './reader.js'
