@@ -32,7 +32,7 @@ Status: mechanism member, candidate technical design. Technical acceptance has n
 
 The package has one entry: `@omne-harness/session`. The entry exports nothing now. After the implementation arrives, a host uses the package in this order:
 
-1. Build `SessionDependencies` and a `SessionConfiguration`. Only the transaction port and the internal principals are required to start.
+1. Build `SessionDependencies` and a `SessionConfiguration`. Four dependencies are required to start: the access check, the delegated transaction entry, the internal principals and the work principals.
 2. Call `createSessionInstance(dependencies, configuration)`.
 3. Give each caller class its own faces from `facesFor(caller)`.
 4. Call `maintain(tenant)` for each tenant that the host serves. Keep the handle that the call returns.
@@ -51,7 +51,7 @@ The factory signature is a candidate. No example can run now.
 - The [object model](docs/object-model.md) owns the construction objects and the owners of in-memory state.
 - Operations, failures, events and state machines belong to the [contract SPEC](../session-contract/SPEC.md). This package links to them and does not repeat them.
 
-The factory returns an instance that the caller owns. After `close`, the four faces return `unavailable`. `close` does not roll back a committed fact. It does not cancel an Agent, Tool or Model execution. A missing outbound port stops only the operations that need it. A missing transaction port stops the whole instance.
+The factory returns an instance that the caller owns. After `close`, the four faces return `unavailable`. `close` does not roll back a committed fact. It does not cancel an Agent, Tool or Model execution. A missing outbound port stops only the operations that need it. A missing access check, delegated transaction entry, internal principals or work principals stops the whole instance. Each face operation calls the access check once, at its start.
 
 ## Design
 

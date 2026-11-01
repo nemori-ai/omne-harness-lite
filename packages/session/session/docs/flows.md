@@ -4,7 +4,7 @@
 
 ## 构造与调用
 
-工厂以依赖聚合与配置构造服务。构造顺序：核对当前访问检查、事务端口与内部主体在场，否则服务停在不可用，不启动任何协调器与调度器；装入 `SchedulingPolicy`；注册五个协调器与七个调度器；S3 做一次启动扫描。宿主把框架服务适配为端口，本成员经端口调用依赖。
+工厂以依赖聚合与配置构造服务。构造顺序：核对当前访问检查、委派事务入口、内部主体与会话工作主体在场，否则服务停在不可用，不启动任何协调器与调度器；装入 `SchedulingPolicy`；注册五个协调器与七个调度器；S3 做一次启动扫描。宿主把框架服务适配为端口，本成员经端口调用依赖。
 
 ### 命令处理器的一次提交
 
@@ -14,13 +14,16 @@
 sequenceDiagram
     participant Caller as 调用方或协调器
     participant CP as 命令处理器
+    participant AC as SessionAccessCheck 与委派入口
     participant Op as 操作记录
     participant DS as decide（契约导出的纯函数）
     participant Br as 身份桥、证据桥、Context 与空闲输入
-    participant Tx as SessionTransactionPort 与存储参加者
+    participant Tx as 委派视图与存储参加者
     participant N as SessionNotifier
     Caller->>CP: 命令与 Access
-    CP->>Op: 按 OP-00 派生身份后点查
+    CP->>AC: check 一次；allowed 后 bind，取得本次面操作的委派视图
+    Note over CP,AC: denied 返回 denied；unavailable 或抛错返回 unavailable。都不继续。之后各步都经视图，不再 check
+    CP->>Op: 按 OP-00 派生身份后经视图点查
     alt 已提交
         CP-->>Caller: 原回执，recovered 为真
     else 未见
@@ -33,7 +36,7 @@ sequenceDiagram
             CP->>Tx: commit(命令, 材料)
             Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的七种命令核对 expected，其余按当前状态重新裁定
             alt changed（只有带 expected 的命令）
-                Note over CP: 回到点查，以同一身份重做，次数受策略上限
+                Note over CP: 回到点查，不再 check；丢弃快照缓存槽，读权威快照；以同一身份重做，次数受策略上限
             else commit-unknown
                 CP-->>Caller: commit-unknown，不改写
             else 成功
@@ -315,10 +318,11 @@ sequenceDiagram
 
 ```mermaid
 flowchart LR
-    Dir[事务域目录，缺席时用装配交入的租户集合并报告缺口] --> B
+    Dir[部署枚举 tenantDomains.enumerate，缺席时用装配交入的租户集合并报告缺口] --> B
     Dir --> P
-    B[启动] --> All[pending 不带 reason，七个原因的并集，分页] --> Disp[按每个会话的原因分派]
-    P[周期] --> R1[unresolved] --> S4[S4]
+    B[启动] --> All[pending 不带 reason，八个原因的并集，分页] --> Disp[按每个会话的原因分派]
+    P[周期] --> R0[initialization] --> C5
+    P --> R1[unresolved] --> S4[S4]
     P --> R2[controls] --> C5[C5]
     P --> R3[tasks] --> C5
     P --> R6[inputs] --> S1[S1]

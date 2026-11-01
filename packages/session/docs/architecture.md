@@ -56,7 +56,7 @@ flowchart LR
 | `session-contract` | module | 无 Cordis | 类型、端口接口、领域服务 | 无 |
 | `session-cordis-contract` | service-contract | 绑定只从 `./cordis` 导出 | 服务键 `session`，四个面挂同一个键；调用方类；出站端口的服务键；`Events` | 无 |
 | `session` | module | 无 Cordis | 纯工厂与 `SchedulingPolicy` 等配置 | 无；依赖经工厂参数传入 |
-| `session-cordis` | service-provider | 按模板 | `session` 服务实现、时钟与端口的现取代理、通知订阅、扫描者 | 只有事务端口 `sessionTransactions` 与内部主体 `sessionPrincipals`。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
+| `session-cordis` | service-provider | 按模板 | `session` 服务实现、时钟与端口的现取代理、通知订阅、扫描者 | 五个键：访问检查 `sessionAccessCheck`、受信委派事务 `sessionDelegatedTransactions`、内部主体 `sessionPrincipals`、受信会话工作主体 `sessionWorkPrincipals` 与装配生命周期 `assemblyLifecycle`（[session-cordis 性质 2](../session-cordis/SPEC.md#服务与依赖)）。公开事务端口 `sessionTransactions` 只为三项目录读取现取。身份与证据桥、时钟、空闲与 Context 输入、通知者与出站端口按调用经 `ctx.get` 现取（[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)） |
 | `session-adapters` | cordis-module | 按模板 | 入站适配插件提供的邻域端口与登记；出站端口的实现 | `session` 服务（按调用方类）与各邻域的服务 |
 | `session-storage-sql` | cordis-module | 按模板 | 事务端口、存储参加者模块与迁移片段 | 存储契约的服务 |
 

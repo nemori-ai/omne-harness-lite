@@ -69,7 +69,7 @@ flowchart LR
 
 | 事项 | session-cordis 怎样做 | 独立宿主怎样做 |
 | --- | --- | --- |
-| 构造 | 插件装载时调用工厂；`sessionTransactions` 缺席时服务停在 `PENDING`，不构造实例 | 直接传入事务端口 |
+| 构造 | 插件装载时调用工厂；访问检查、委派事务入口、内部主体或会话工作主体缺席时服务停在 `PENDING`，不构造实例 | 直接传入这四项依赖 |
 | 端口 | 以[端口服务键](../../session-cordis-contract/docs/cordis.md#端口服务键)取得端口；按调用现取的端口经 `ctx.get` 在调用点取得 | 自己传入实现或现取函数 |
 | 配置 | 以 Standard Schema 校验插件配置，再交给工厂 | 自己构造 `SchedulingPolicy`，工厂仍校验 |
 | 调用方类 | 读 intercept 配置里的调用方类，调用 `facesFor` | 自己按调用方分发 |

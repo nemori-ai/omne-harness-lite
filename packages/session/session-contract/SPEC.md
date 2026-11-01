@@ -1,6 +1,6 @@
 # Session长期行为规格
 
-状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：普通输入拒绝不写 SE12，见 [SE12-JC03](#se12-jc03-现行未决偏离)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化遵循 J18 与 AD-03，生产接线尚未交付。当前初始化纯核心实现[初始化来源与提交](#初始化来源与提交)的三类可加来源、严格守卫、同批事实、原结果索引与 revision 3 重建，保留 `requiredIdentities` 的原身份映射。可信来源接线与精确发布摘要见[初始化实现](docs/initialization.md)。生产采用源、真实加载及 Context 提交应用仍待对应提供者验证。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
+状态：会话与 Run 的协作身份、日志提交与查询认回、控制及逻辑终态、恢复与跨成员结果承接已由[技术接受](https://github.com/nemori-ai/omne-harness-lite/issues/262#issuecomment-6186972289)采用，是本卡范围的现行协作契约。本页及所引专题中上述范围的采用状态以此处和接受记录为准。其余专有候选及明确未定的机制保留原状态；设计接受不表示生产实现或运行验证已完成。源码支持范围：`@omne-harness/session-contract` 导出[公开接口页](docs/public-api.md)导航的类型，判定全部 23 种 `MutationName`、8 种现有 `ProducerFact`，提供九个纯领域服务及批次归约。`projectSessionLog` 接受由适配器按同日志公开读取形状归一的 Session 后果，形成第二次 Session 解释提交。completed 来自该提交。历史分页、模型视图、常驻引用与已释放作用域读取由 `./testing` 的非耐久事务替身提供。有效提供者端口均有一致性套件与替身。以下限制保留：before-admit 拦截的 SE12 路径随受理槽交付，见 [SE12 的适用范围](#se12-的适用范围)；Model ACK 确认仍停止于 [JC-Release](#jc-release)；新 scope 的业务初始化遵循 J18 与 AD-03，生产接线尚未交付。当前初始化纯核心实现[初始化来源与提交](#初始化来源与提交)的三类可加来源、严格守卫、同批事实、原结果索引与 revision 3 重建，保留 `requiredIdentities` 的原身份映射。可信来源接线与精确发布摘要见[初始化实现](docs/initialization.md)。生产采用源、真实加载及 Context 提交应用仍待对应提供者验证。失败初始化项保留任务，会话保持 initializing，直到全部必要项完成。`login-required` 仍由 `decide` 根据 `login-entry` 守卫项产出，`judgeRunStart` 不产出它。上述源码支持不证明真实存储耐久、真实外域提供者或完整运行组合。被替代的协议见[被替代的协议](#被替代的协议)。
 
 目标成员为`packages/session/session-contract`。本规格表达已具依据的必要行为；公开类型、领域服务、`decide`/`reduce` 与 `./testing` 的替身与一致性套件已按状态行所述范围在源码声明（[公开接口页](docs/public-api.md)），不定义存储提供者或认领协议。
 
@@ -84,11 +84,11 @@
 
 每次公开读写在实际执行处调用一次 `check`，包括重复变更、原操作查询、每一页历史、恢复读与目录页。先取得本次裁定，再返回已有答案或披露正文。`allowed` 不缓存、不写进游标当作以后访问的凭据。`denied` 返回同名失败；`unavailable` 或核验抛错返回 `unavailable`，不继续读写，不推进修订、游标或操作答案。其他既有守卫仍执行，`allowed` 不证明推进权、来源或共同提交成立。
 
-存储核心只核租户归属键与绑定本次操作和固定输入的裁定证据，不解释主体类别、权限模式或授权政策。操作执行边界调用端口，随后把证据交给存储核对；同一公开调用内部的投影、归约和存储步骤不重复裁定。直接暴露事务入口的提供者也必须经过这个边界。`SessionTransactionPort.commit` 显式携带本次 `SessionAccess`，不能从不含主体的 command 或任意 `GuardCommand` 猜出调用者。委派同一已核验操作时共享内部执行路径，不把已有证据暴露为可由调用者重放的通行证。
+存储核心只核租户归属键与绑定本次操作和固定输入的裁定证据，不解释主体类别、权限模式或授权政策。操作执行边界调用端口，随后把证据交给存储核对；同一公开调用内部的投影、归约和存储步骤不重复裁定。直接暴露事务入口的提供者也必须经过这个边界。`SessionTransactionPort.commit` 显式携带本次 `SessionAccess`，不能从不含主体的 command 或任意 `GuardCommand` 猜出调用者。委派同一已核验操作时共享内部执行路径，不把已有证据暴露为可由调用者重放的通行证。同一已核验操作指一次面操作。Session 服务实例在面操作开头按该面操作的请求调用一次 `check`。allowed 后，服务实例以 `SessionDelegatedTransactions.bind` 取得只服务本次面操作的事务视图。本次面操作内的认回点查、权威读、`changed` 重做与提交都经该视图。视图不再调用 `check`，它按绑定核对每次调用；核对规则与失败答复只由[访问检查的委派入口](docs/access-check.md#委派入口)写定，本页不另列。证据随提交交给存储，与操作记录放在一起。委派入口只经受信装配交给 Session 服务实例，不进共享根。视图不跨面操作保留，不写进任务、缓存或游标。公开 `SessionTransactionPort` 的每个方法仍各自调用一次 `check`。从「同一已核验操作指一次面操作」到本段末尾是候选，尚未技术接受，依据是 #502 GATE-SS 的裁定 R1-D14（O1）。
 
 模式变更资格由授权适配器根据原 `change` 命令裁定。Session 不用调用方类、模式词或历史允许推断当前资格。身份桥仍生产共同提交需要的身份材料，不能代替此裁定。
 
-`./testing` 提供可逐次指定三类答复并记录完整请求的访问检查替身，以及按显式政策逐请求答复的替身。内存事务工厂必须显式取得 `accessCheck`，不保留默认放行或可选 boolean `authorize`。测试覆盖每种公开事务操作、重复操作与分页的调用次数，以及 allowed 后 denied、unavailable、抛错、跨租户和系统目录失败关闭。生产 Session、真实系统授权适配及持久存储组合尚未交付，替身不能证明这些运行保证。
+`./testing` 提供可逐次指定三类答复并记录完整请求的访问检查替身，以及按显式政策逐请求答复的替身。内存事务工厂必须显式取得 `accessCheck`，不保留默认放行或可选 boolean `authorize`。测试覆盖每种公开事务操作、重复操作与分页的调用次数，以及 allowed 后 denied、unavailable、抛错、跨租户和系统目录失败关闭。生产 Session、真实系统授权适配及持久存储组合尚未交付，替身不能证明这些运行保证。委派视图的替身不调用检查，按[委派入口](docs/access-check.md#委派入口)的核对规则答复，并把绑定证据记进操作记录。
 
 ## 固定事实及当前状态
 
@@ -642,7 +642,7 @@ Session 命令：
 | `references`     | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页）                                                                                                          | 只读，没有未知   | 不适用                                             | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool       |
 | `releasedScopes` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空页）                                                                                                                        | 只读，没有未知   | 不适用                                             | 账本是会话日志的 SE25；存储提供者维护派生索引，读取不扫描日志                          |
 
-`PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。Model 结果在 MODEL-ACK-ARRIVAL 悬置期间保持 `release`，恢复扫描对它只报告，不执行动作（[JC-Release](#jc-release)）。
+`PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`initialization` 指 `tasks` 中有初始化项（pending、unknown 或 failed）；`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。Model 结果在 MODEL-ACK-ARRIVAL 悬置期间保持 `release`，恢复扫描对它只报告，不执行动作（[JC-Release](#jc-release)）。
 
 #### SessionHistory
 
@@ -861,7 +861,7 @@ SE07 保存原键、CommitRef、完整原材料、basedOn、revision、scope 与
 | ----- | --------------------------------- | --------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | JC-01 | `create`                          | Session                                                                                       | 存储参加者；身份桥、Context 输入、证据桥的材料                 | 创建资格、真实初始定义采用、完整来源计划及已取得结果                                                                                                                                            | SE01、初始 SE08 和必要 SE36 同批；已取得结果写 SE02，注册 ready 同批 SE07；原项、结果索引、原操作答案同批。任一未完成项（含 failed）保留 `tasks.initialization` 与 initializing；全部完成且无 Run 才 dormant。详见[初始化来源与提交](#初始化来源与提交) |
 | JC-02 | `completeInitialization`          | Session                                                                                       | 存储参加者；证据桥                                             | 原绑定、结果、前修订及必要成功事实                                                                                                                                                              | SE02 与新的 SE07、确有新增能力实际采用的 SE08、必要 SE36，以及结果索引和原操作答案同批；纯准备 ready 仅 SE02。已存在的同值事实只引用。全部原项 ready 且无 Run 才 dormant，失败保留原项                                                                  |
-| JC-03 | `accept`（普通输入）              | Session                                                                                       | 存储参加者；身份桥；业务流程拓展点的留痕                       | 发送资格；拓展点的结论                                                                                                                                                                          | SE10、SE11；`pending` 含该输入。拒绝时只有 SE12                                                                                                                                                                                                         |
+| JC-03 | `accept`（普通输入） | Session | 存储参加者；身份桥；业务流程拓展点的留痕 | 发送资格；拓展点的结论 | SE10、SE11；`pending` 含该输入。拒绝时只有 SE12（准入者的拒绝，见 [SE12 的适用范围](#se12-的适用范围)；这一读法是候选，依据 R1-D14 的 O2） |
 | JC-04 | `accept`（卡片答复、业务输入）    | Session                                                                                       | 存储参加者；证据桥                                             | 卡片或业务来源                                                                                                                                                                                  | SE11，卡片答复另有 SE23，授权类答复另有 SE34；`tasks.routed-input` 含交回责任                                                                                                                                                                           |
 | JC-05 | `startRun`                        | Session                                                                                       | 存储参加者；Context 输入、证据桥                               | 注册集合；候选采用与登录确认（裁定 R2：入口类别为普通输入时，`decide` 核对 `guards` 里是否有 `owner === 'login-entry'` 的 `GuardCommand`，只看存在，`facts` 不解释；缺席返回 `login-required`） | SE13、SE15，采用变化时 SE08；`run.active`，`advance` 为首个 attempt；`pending` 不变。执行记录提供者不参加本次提交                                                                                                                                       |
 | JC-06 | `recordMessage`                   | 执行记录提供者（`message` 交接）                                                              | Session 参加者                                                 | [P-2](#具名前提与明确缺项) 材料；消息、来源与准入证据                                                                                                                                           | SE10；`ExecutionRef.revision` 更新                                                                                                                                                                                                                      |
@@ -1768,7 +1768,7 @@ Runtime Context 重建后，作用域持有者用 [RC-09](../../context/runtime-
 - 纳入：采用点的候选采用材料列出本次新纳入的常驻工具。`create`、确有新增能力实际采用的 `completeInitialization`、`startRun` 与 `reload` 在各自同一次提交里为每一项写 SE36，内容是能力身份、资产版本与 shape。已纳入的能力身份不再写。常驻集合只增不减（`WorkSnapshot.residents`）。
 - 记下：候选采用材料同时按能力身份列出本次采用为常驻工具记下的登记键（能力身份与 `ResidentKey` 成对），随 SE08 保存。带键对的 SE08 保存本次完整的键对集合。不带键对的 SE08 表示没有新声明，不清除已有键对。会话当前记下的登记键取自最近一条带键对的 SE08，不另写条目。
 - 冻结判定：装配协调者只在新 Run 或显式 reload 的采用点调用 Tool 公开纯函数 `planAdoption`，把判定放入本次候选采用材料。会话初始化不判冻结，`create` 的材料不带判定。常驻工具暂时缺席、状态未知或被撤权时，按 Tool 契约用同形不可用件，不给出冻结判定。
-- 唯一提交点：候选采用材料是冻结判定的唯一到达路径。`startRun` 或 `reload` 返回 `frozen` 且不提交后，Session 的推进触发以同一判定、同一 `SessionAccess` 和 `coordinator` 调用方类调用 `freeze`。推进触发属于 Session 的协调器与调度器，使用 `SessionInternalPrincipals`，不是 Agent 推进者。`maintainer` 发起 `startRun` 得到 `frozen` 时不开 Run，也不以另一调用方类提交冻结；下一个合法采用点重新判定，由 coordinator 提交。租户始终来自原 SessionAccess，不经会话目录反查。
+- 唯一提交点：候选采用材料是冻结判定的唯一到达路径。`startRun` 或 `reload` 返回 `frozen` 且不提交后，Session 的推进触发以同一判定、同一 `SessionAccess` 和 `coordinator` 调用方类调用 `freeze`。推进触发属于 Session 的协调器与调度器，不是 Agent 推进者。这个 `SessionAccess` 与原 `startRun` 或 `reload` 的相同，其主体由 `SessionWorkPrincipals.forSession` 以 `coordinator` 为 actor 按该会话签发，不用 `SessionInternalPrincipals`（[session CP-01](../session/SPEC.md#cp-access)；候选，依据 R1-D14 的 O3）。`maintainer` 发起 `startRun` 得到 `frozen` 时不开 Run，也不以另一调用方类提交冻结；下一个合法采用点重新判定，由 coordinator 提交。租户始终来自原 SessionAccess，不经会话目录反查。
 
 | 编号                  | 不变量                                    | 守卫                                                                             | 违反时怎样被拒                                                                                                                                                                             |
 | --------------------- | ----------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -1793,12 +1793,16 @@ Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。
 
 ### 构造依赖端口与出站端口
 
-本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`），另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组协调器与调度器提交命令时用的内部主体，由应用装配的维护拥有者签发，身份桥核实。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。`SessionAccessCheck`、`SessionTransactionPort` 与内部主体是装配的必需依赖；其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。
+本成员声明八个构造依赖端口与两个出站端口（`AgentDrivePort`、`ScopeReleasePort`），另声明一个由应用装配交付的值 `SessionInternalPrincipals`：本组系统维护用的内部主体，适用的操作见 [session CP-01](../session/SPEC.md#cp-access)，由应用装配的维护拥有者签发，身份桥核实。另有三个只经受信装配交付的接口：委派入口 `SessionDelegatedTransactions`、会话工作主体 `SessionWorkPrincipals` 与会话归属读口 `SessionPrincipalBindingSource`，见[访问检查](docs/access-check.md#委派入口)；下表另列委派入口与会话工作主体两行。接口与类型在本成员，服务键在 [session-cordis-contract](../session-cordis-contract/docs/cordis.md#端口服务键)，实现在提供者与 session-adapters。
+
+Session 服务实例的必需依赖是 `SessionAccessCheck`、`SessionDelegatedTransactions`、内部主体与 `SessionWorkPrincipals`，任一缺席不构造实例。`SessionTransactionPort` 不是 Session 服务实例的必需依赖：服务实例只为 `pending`、`references` 与 `releasedScopes` 三项目录读取按调用现取它；直接调用者与符合性套件经它读写。委派入口与 `SessionTransactionPort` 必须由同一存储核心提供，读写同一份会话事实与待办索引；应用装配的 `session-storage` 行兑现这一点。其余端口按调用现取，缺席时只使需要它的操作返回 `unavailable`，不使整个服务停下。下表的「缺席或失败时」一列与 Cordis 定义的端口表一致。本段关于必需依赖与同一存储核心的说法，以及下表委派入口与会话工作主体两行，是候选，依据 R1-D14 的 O1 与 O3。
 
 | 端口                              | 提供什么                                                                       | 必需性                                                                   | 缺席或失败时                                                                                     |
 | --------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `SessionAccessCheck`              | 本次主体、操作与目标的当前访问裁定                                             | 必需，进 `inject`                                                        | 缺席不启动服务；`denied`、`unavailable` 或抛错时不继续本次读写                                  |
-| `SessionTransactionPort`          | 共同提交、权威读、原操作查询、历史读、待办扫描                                 | 必需，进 `inject`                                                        | 服务不启动任何协调器；读与写都返回 `unavailable`                                                 |
+| `SessionTransactionPort`          | 共同提交、权威读、原操作查询、历史读、待办扫描                                 | 直接调用者必需；Session 服务实例只为三项目录读取按调用现取，不进 `inject` | `pending`、`references` 与 `releasedScopes` 返回 `unavailable`；单会话读写经委派入口，不受影响 |
+| `SessionDelegatedTransactions` | 受信委派入口：面操作已核验后的事务视图 | Session 服务实例必需，受信 `inject` | 缺席不启动服务 |
+| `SessionWorkPrincipals` | 受信：按会话签发协调器与维护者的主体 | Session 服务实例必需，受信 `inject` | 缺席不启动服务；`forSession` 失败时不推进该会话，任务保留（[session CP-01](../session/SPEC.md#cp-access)） |
 | `SessionIdentityBridge`           | 可信主体到身份参加者材料的适配                                                 | 变更操作必需                                                             | 变更返回 `unavailable`，`owner` 为身份来源；读取照常                                             |
 | `SessionEvidenceBridge`           | 按命令取采用、来源、保管与解释材料                                             | 按命令局部必需                                                           | 只拒绝需要该材料的命令；不依赖它的读、控制与已持久任务的核对继续                                 |
 | `SessionClock`                    | 时间采样与等待                                                                 | 空闲取证与等待必需                                                       | 空闲取证与等待返回 `unavailable`；不用系统时间补默认                                             |
@@ -1818,7 +1822,7 @@ Session 不声明 Tool 启动资格失效端口或生产者交付解除端口。
 - 材料缺席、协议版本不符、跨租户、来源无权或最新条件改变时，提交被拒绝或返回 `changed`。
 - 临时文件引用只有经保管参加者保证必要耐久后，才能进入已确认条目。命令身份摘要固定语义参数，不把每次新生成的临时认证封套当作新业务输入。
 - 存储层的回滚不等于原业务操作从未提交。同身份仍有旧写未决时，只能返回 `attempt-rejected`，原操作仍未知。`not-committed` 的排除证明由存储提供者产生，前端或 Agent 不能自填。
-- 公开事务入口执行当前访问裁定；存储核心仅核租户归属及本次裁定证据。直接 commit 显式携带访问身份，认回已有操作也先核当前资格。与四面委派的去重核验边界见[当前操作的访问裁定](#当前操作的访问裁定)。
+- 公开事务入口执行当前访问裁定；存储核心仅核租户归属及本次裁定证据。直接 commit 显式携带访问身份，认回已有操作也先核当前资格。与四面委派的去重核验边界见[当前操作的访问裁定](#当前操作的访问裁定)；委派入口是 `SessionDelegatedTransactions`。
 - 每个执行的解释进度 `readThrough` 与会话状态一起保存（[EC-02](#ec-02)）。
 
 #### 身份桥、证据桥与 Context 输入
@@ -2069,13 +2073,13 @@ MODEL-ACK-ARRIVAL 悬置期间，Model 一侧未确认的交付责任解除按�
 2. 恢复扫描对它只报告，不执行动作（[PM-14](#pm-14)）。
 3. 代价：有 Model 结果的会话在 MODEL-ACK-ARRIVAL 闭合前不会自动归档。
 
-### SE12-JC03 现行未决偏离
+### SE12 的适用范围
 
-JC-03 要求：受理写 SE10、SE11，`pending` 含该输入；拒绝时只写 SE12。操作表对拒绝留痕的要求与 JC-03 一致。
+SE12 记准入者的拒绝：before-admit 槽（用途提醒、内容型斜杠命令展开、用户提示提交的 hook）拦截，或展开槽明确拒绝失效命令（[session EX-1](../session/SPEC.md#ex-1)）。拦截结论以该槽拥有者的 `GuardCommand` 进入 `accept`。`accept` 在原受理标识下只写 SE12，不保管被拦正文，不取得待处理资格（[事件目录](docs/object-model/session-log-events.md#c-受理与分流) SE12）。JC-03 与命令表的「拒绝时只有 SE12」指这一类拒绝。本小节是候选读法，尚未技术接受，依据是 #502 GATE-SS 的裁定 R1-D14（O2）。
 
-现行实现：`decideAccept` 拒绝普通输入时不写条目（[src/decide.ts](src/decide.ts) 的 `decideAccept`）。会话已归档时返回 `archived`，会话已冻结时返回 `frozen`（`verdict` 为 null），输入没有身份或内容时返回 `invalid`。三个分支都不写 SE12。
+`routeInput` 的三个拒绝是操作失败，不是准入者的拒绝：会话已归档答 `archived`；会话已冻结且没有未终结 Run 答 `frozen`，`verdict` 为 null；输入没有身份或内容答 `invalid`。它们按[变更操作次序](#四个面与公开操作)停止，不提交，不写 SE12。原受理标识此后仍按[耐久及受理确认](#耐久及受理确认)重新准入。现行 `decideAccept` 与本条一致。
 
-偏离在实现，不在条款。影响是拒绝决定没有对应的日志留痕。负责人裁定补写 SE12 或修改 JC-03 之前，现行拒绝行为保持不变。[README](README.md) 的首条路径支持表已注明此例外。
+现行实现没有 SE12 路径：`HistoryEntry` 没有 `intake.rejected`，`decide` 不读拦截材料，`accept` 的回执不区分受理与拦截。受理槽的服务键尚未定义，`accept` 只能不经槽（装配声明 `admission: 'none'`）或答 `unavailable`（[session-cordis 性质 8](../session-cordis/SPEC.md#唤醒调用方与扫描者)），所以不会出现没有留痕的拦截。条目、`decide` 分支与回执形状由交付受理槽（[AD-08](../session-adapters/SPEC.md#ad-08)）的卡一并交付。
 
 ### 细化条款的持续验证
 
@@ -2110,4 +2114,4 @@ JC-03 要求：受理写 SE10、SE11，`pending` 含该输入；拒绝时只写 
 | VC-FR09a | 直接 pure 提交同 consumption 异绑定或同版本异结果，operation 与历史登记及 Agent 操作不同。合法本次身份返回 conflict 且回显本字段；缺省返回 unavailable；非法 operation 返回 invalid，field 为 operation；错租户先 denied。省略且合法无冲突分支仍按所需材料判定，均不得半写。                                                                                                                            |
 | VC-FR10  | 大量无关旧 execution 有迟到保管，只准备少量 Q。读集合限于相关目录和必要后缀，不全历史 load。P-5 缺承接前缀仍不可释放未知输入。                                                                                                                                                                                                                                                                          |
 
-恢复排序机制须取得有限行为模型、精确配置和边界、实际结果及具名负控制，再核对模型前提。实现后另交公共入口、同根故障、跨租户、纯层负例及模型动作到真实发布点的对应。模型或轻量文档检查不证明实现接受、真实耐久、跨进程、Model ACK、新 scope 初始化或 SE12 偏离已经闭合。
+恢复排序机制须取得有限行为模型、精确配置和边界、实际结果及具名负控制，再核对模型前提。实现后另交公共入口、同根故障、跨租户、纯层负例及模型动作到真实发布点的对应。模型或轻量文档检查不证明实现接受、真实耐久、跨进程、Model ACK、新 scope 初始化或 SE12 拦截路径已经交付。
