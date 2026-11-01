@@ -14,7 +14,7 @@
 
 - [受理、结果消费与实例观察运行工厂](runtime.ts)、[按调用驱动与原操作认回](driver.ts)。
 - [原事实流、批次保存与资源释放](receive.ts)、[确认投影与观察者寿命](observation.ts)。
-- 共享归约核心在 `commands/`：[入口与 createModelCommandsCore](commands/index.ts)、[22 个方法](commands/commands.ts)、[存储端口](commands/storage.ts)、[状态机与写驱动](commands/state.ts)、[纯判定](commands/judge.ts)、[文档与端口类型](commands/types.ts)。边界归[实现规格](../SPEC.md#共享归约核心)。
+- 共享归约核心在 `commands/`，经子路径 `@omne-harness/model/commands` 导出：[入口与 createModelCommandsCore](commands/index.ts)、[规范编码与身份铸造](commands/value.ts)、[22 个方法](commands/commands.ts)、[存储端口](commands/storage.ts)、[状态机与写驱动](commands/state.ts)、[纯判定](commands/judge.ts)、[文档与端口类型](commands/types.ts)。边界归[实现规格](../SPEC.md#共享归约核心)。
 - [内存测试公开入口](testing/index.ts)，[ModelCommands 账目共用套件](testing/accounts.ts)。
 - [内存存储、测试控制与发送围栏](testing/state.ts)。[调用及恢复](testing/calls.ts)、[发出](testing/dispatch.ts)、[读取及清理](testing/consumption.ts)把内存存储的核心交给对应方法组。
 

@@ -184,7 +184,9 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 - 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
-核心与端口只从 [commands/index.ts](src/commands/index.ts) 和 testing 入口导出，根入口不导出。核心目前从 [testing/value.ts](src/testing/value.ts) 取规范编码、摘要与身份铸造。根入口导出核心之前，须先把这些值工具移出 testing 目录，否则根入口会到达 testing。
+核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
+
+`run` 的第二个参数 `scope` 可选，写明本次尝试的租户（规范文本）、call 与 operation。耐久存储可在运行同步的 `work` 之前按它预读；内存存储不读任何东西，忽略它。核心的调用点目前不传 `scope`，存储不得依赖它出现。
 
 已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
 
