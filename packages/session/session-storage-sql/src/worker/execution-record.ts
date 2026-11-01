@@ -147,7 +147,6 @@ function parseWrite(raw: JsonValue | undefined): Write | null {
   const batches = listOf(raw['batches'], parseBatch)
   const admissions = listOf(raw['admissions'], parseAdmission)
   if (boundaries === null || facts === null || batches === null || admissions === null) return null
-  if (!boundaries.some(boundary => boundary.execution === execution)) return null
   return {
     tenant,
     session,
@@ -278,7 +277,7 @@ function publish(port: Executor, write: Write): ParticipantReply {
     session,
     next,
   ])
-  return { kind: 'participated', response: { published: String(next) } }
+  return { kind: 'participated', response: { published: String(next), digest: write.digest } }
 }
 
 const participant: ParticipantModule = {

@@ -10,6 +10,7 @@ import type {
   SessionCommand,
   SessionFailure,
   SessionId,
+  WorkSnapshot,
 } from '@omne-harness/session-contract'
 import type { FactCommandV2, JsonValue, RecordedReply } from '@omne-harness/sql-contract'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -34,6 +35,10 @@ export const EXECUTION_RECORD_PROTOCOL = '1'
 
 /** The read handler that reads the common log root G in one snapshot. */
 export const SESSION_HISTORY_ROOT_HANDLER = 'session.history-root'
+/** The read handler of the authoritative snapshot of one session (input: tenant and session). */
+export const SESSION_WORK_HANDLER = 'session.work'
+/** The read handler of one ordinary input of one session (input: tenant, session and input). */
+export const SESSION_INPUT_HANDLER = 'session.input'
 /** The read handlers of the execution record participant. */
 export const EXECUTION_RECORD_HANDLERS = {
   /** The publication count and the opaque state of the records of one session. */
@@ -234,17 +239,32 @@ export type ExecutionRecordWrite = Readonly<{
   admissions: readonly ExecutionAdmissionRecord[]
 }>
 
+/** The opaque members (`state`, `answer`, each `batch`) travel as they are; the rest is encoded. */
 export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2 {
+  const { state, answer, batches, ...rest } = write
+  const encoded = encodeValue(rest) as Readonly<Record<string, JsonValue>>
   return {
     participant: EXECUTION_RECORD_PARTICIPANT,
-    facts: { intent: 'publish', write: encodeValue(write) },
+    facts: {
+      intent: 'publish',
+      write: {
+        ...encoded,
+        state,
+        answer,
+        batches: batches.map(({ batch, ...index }) => ({
+          ...(encodeValue(index) as Readonly<Record<string, JsonValue>>),
+          batch,
+        })),
+      },
+    },
   }
 }
 
 /**
  * The reply of the `execution-record` participant, decoded.
  *
- * - `published`: the write is saved; `published` is the new publication count of the session.
+ * - `published`: the write is saved; `published` is the new publication count of the session and
+ *   `digest` the digest of the write's operation, so a recalled receipt tells its operation.
  * - `revision-conflict`: the head revision of the execution is not `expected`, or the publication
  *   count is not `published`. `revision` is the current head (null: no such execution) and
  *   `published` the current count.
@@ -252,7 +272,7 @@ export function executionRecordFacts(write: ExecutionRecordWrite): FactCommandV2
  *   the original ones: an equal digest is the recall of the same operation.
  */
 export type ExecutionRecordParticipation =
-  | Readonly<{ kind: 'published'; published: string }>
+  | Readonly<{ kind: 'published'; published: string; digest: string }>
   | Readonly<{ kind: 'revision-conflict'; revision: string | null; published: string }>
   | Readonly<{ kind: 'operation-conflict'; digest: string; answer: JsonValue }>
   | Readonly<{ kind: 'failed'; diagnostic: string }>
@@ -261,9 +281,11 @@ export type ExecutionRecordParticipation =
 export function decodeExecutionRecordReply(reply: RecordedReply): ExecutionRecordParticipation {
   switch (reply.kind) {
     case 'participated': {
-      const published = recordOf(reply.response)?.['published']
-      return typeof published === 'string'
-        ? { kind: 'published', published }
+      const response = recordOf(reply.response)
+      const published = response?.['published']
+      const digest = response?.['digest']
+      return typeof published === 'string' && typeof digest === 'string'
+        ? { kind: 'published', published, digest }
         : { kind: 'failed', diagnostic: 'an execution-record reply without a count' }
     }
     case 'conflict': {
@@ -346,4 +368,57 @@ export function decodeSessionHistoryRoot(output: JsonValue): SessionHistoryRoot 
     source !== null
     ? { position, sessionPosition, published, revision, source: source as DurableEvidence }
     : null
+}
+
+// ---------------------------------------------------------------------------------------------
+// The Session reads a committer needs before it prepares
+
+/**
+ * The output of `session.work`: the snapshot, `absent` when the session does not exist, `behind`
+ * when the snapshot row does not cover the log tail (a read to retry, never an empty session).
+ */
+export type SessionWorkRead =
+  | Readonly<{ kind: 'state'; snapshot: WorkSnapshot }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'behind' }>
+
+export function decodeSessionWork(output: JsonValue): SessionWorkRead | null {
+  const value = recordOf(output)
+  switch (value?.['kind']) {
+    case 'state':
+      return value['snapshot'] === undefined
+        ? null
+        : { kind: 'state', snapshot: decodeValue(value['snapshot']) as WorkSnapshot }
+    case 'absent':
+      return { kind: 'absent' }
+    case 'behind':
+      return { kind: 'behind' }
+    default:
+      return null
+  }
+}
+
+/** The output of `session.input`: the admitted ordinary input, or why there is none. */
+export type SessionInputRead =
+  | Readonly<{ kind: 'input'; value: Extract<RoutedInput, { kind: 'ordinary' }> }>
+  | Readonly<{ kind: 'absent' }>
+  | Readonly<{ kind: 'no-input' }>
+
+export function decodeSessionInput(output: JsonValue): SessionInputRead | null {
+  const value = recordOf(output)
+  switch (value?.['kind']) {
+    case 'input':
+      return value['value'] === undefined
+        ? null
+        : {
+            kind: 'input',
+            value: decodeValue(value['value']) as Extract<RoutedInput, { kind: 'ordinary' }>,
+          }
+    case 'absent':
+      return { kind: 'absent' }
+    case 'no-input':
+      return { kind: 'no-input' }
+    default:
+      return null
+  }
 }

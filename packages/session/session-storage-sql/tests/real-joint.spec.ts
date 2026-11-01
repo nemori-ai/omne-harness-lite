@@ -90,6 +90,7 @@ describe('the joint commit on the real write Worker', () => {
     expect(decodeExecutionRecordReply(result.responses[0]!.reply)).toEqual({
       kind: 'published',
       published: '1',
+      digest: expect.any(String),
     })
     const after = decodeSessionHistoryRoot(await read(app, 'session.history-root'))
     expect(after?.published).toBe('1')

@@ -195,6 +195,7 @@ describe('the first publication: one commit with an execution-record and a sessi
     expect(decodeExecutionRecordReply(result.responses[0]!.reply)).toEqual({
       kind: 'published',
       published: '1',
+      digest: expect.any(String),
     })
     expect(decodeSessionReply(result.responses[1]!.reply).kind).toBe('participated')
     const after = await root(a)
