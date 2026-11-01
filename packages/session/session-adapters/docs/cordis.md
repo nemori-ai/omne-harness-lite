@@ -19,7 +19,7 @@
 | AD-01 Agent 提交参加者 | `session: { caller: 'coordinator' }` | 无 | 向执行记录提供者登记 Session 参加者，形状待 P-1 |
 | AD-02 Agent 同日志解释 | `session: { caller: 'coordinator' }` | 无 | 不订阅事件。经本成员 Journal 提供者的 `output.read`、`output.events` 与 `load` 读同一会话日志 |
 | AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
-| AD-03 回放子插件 | `session: { caller: 'reader' }` | 无 | 无 |
+| AD-03 回放子插件 | `runtimeContext`（数组形式，持有者面，与主插件分开换代）；`session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
 | AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
 | AD-05 Model 日志消费适配 | `session: { caller: 'coordinator' }`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 不登记。经本成员 Journal 提供者读 `received` 条目与材料 |

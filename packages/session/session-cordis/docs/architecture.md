@@ -20,7 +20,7 @@
 | 服务子类 | 持有实例；四个面属性做调用方类的第一层核对后转给 `facesFor` | 性质 1、4、6 |
 | 通知 | 组合通知者：派发 `committed`、转发 `sessionNotifier`；`ctx.on` 监听外来通知并交给实例 | 性质 5 |
 | 扫描者绑定 | 租户到维护句柄的表；首次见到租户时 `maintain` | 性质 7 |
-| 撤除 | 一个 effect 内完成标记、释放句柄、限时 `close` | 性质 9 |
+| 撤除 | 一个函数按顺序完成标记、释放句柄、限时 `close`；`assemblyLifecycle` 的停止句柄与 effect 释放两条路径调用它 | 性质 9 |
 
 ```mermaid
 flowchart LR
@@ -66,9 +66,9 @@ session 的工厂要求身份、证据、时钟、空闲与 Context 输入是完
 
 第一版靠装配单实例兑现每租户一个扫描者。租户是操作参数，不能从 Context、isolate 或配置推断（[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18)），本成员又不导入租户领域的契约。提交通知是本成员唯一能看到租户的地方，所以扫描者在首次见到租户的通知时绑定。代价是重启后的启动扫描只覆盖有新提交的租户。这个代价写在 [SPEC 的明确缺项](../SPEC.md#明确缺项)里，不隐去。
 
-### 撤除放在一个 effect 里，并限时等待
+### 撤除放在一个函数里，并限时等待
 
-撤除有严格次序：先拒绝新调用，再停扫描者，最后停实例。不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)），所以几步写在一个 effect 里按顺序 `await`。等待 `close` 设上限，因为事务端口可能正在离开，在途命令可能长时间不返回。超时只结束本插件的等待，不改变在途命令的结局，也不声称实例已经停止。
+撤除有严格次序：先拒绝新调用，再停扫描者，最后停实例。不同 effect 的撤除函数并发运行（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)），所以几步写在同一个函数里按顺序 `await`。有两条触发路径：有序关闭时由 `assemblyLifecycle` 的停止句柄调用，插件卸载或换代时由 effect 调用，先后都触发时后到的一次只等先到的一次结束，不重复执行（[SPEC 性质 9](../SPEC.md#提供者责任)）。后到的是 effect 时仍退登记两个句柄。等待 `close` 设上限，因为事务端口可能正在离开，在途命令可能长时间不返回。超时只结束本插件的等待，不改变在途命令的结局，也不声称实例已经停止。
 
 ## SOLID 与扩展边界
 
