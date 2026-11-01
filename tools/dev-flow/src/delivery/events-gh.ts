@@ -46,12 +46,19 @@ export function originRepository(): string {
 /**
  * A one-time read of GitHub that tells whether the atomic predicate already holds. It returns a
  * record that describes the satisfied state, or undefined when the state does not hold.
- * `since` is an ISO time that limits comments.
+ * `since` is an ISO time on the GitHub clock: only comments created at or after it count.
+ * `seen` holds the ids of comments that the caller has handled; they never count. Absent: none.
  */
 export type Reconcile = (
   predicate: AtomicPredicate,
   since: string | undefined,
+  seen?: ReadonlySet<string>,
 ) => EventRecord | undefined | Promise<EventRecord | undefined>
+
+/** The comment id at the end of a comment URL, `...#issuecomment-<id>`; undefined for any other URL. */
+export function commentIdOf(htmlUrl: string | null): string | undefined {
+  return htmlUrl === null ? undefined : /#issuecomment-(\d+)$/.exec(htmlUrl)?.[1]
+}
 
 function synthetic(fields: Partial<EventRecord> & { event: string }): EventRecord {
   return {
@@ -71,7 +78,7 @@ function synthetic(fields: Partial<EventRecord> & { event: string }): EventRecor
 
 /** The reconcile reads of the three predicates, each one `gh` call. */
 export function githubReconcile(repository: string, call: GhCommand): Reconcile {
-  return (predicate, since) => {
+  return (predicate, since, seen = new Set()) => {
     switch (predicate.kind) {
       case 'issue-closed': {
         const view = record(
@@ -151,26 +158,28 @@ export function githubReconcile(repository: string, call: GhCommand): Reconcile 
           'comment pages',
         )
         const after = since === undefined ? undefined : Date.parse(since)
-        const hits = pages
+        // The API lists comments oldest first; the first one that counts is the oldest unhandled.
+        const first = pages
           .flatMap(page => array(page, 'comment page'))
           .map(item => record(item, 'comment'))
-          .filter(comment => {
+          .find(comment => {
             const created = Date.parse(text(comment.created_at, 'comment.created_at'))
+            const id = commentIdOf(typeof comment.html_url === 'string' ? comment.html_url : null)
             return (
               commentMarker(typeof comment.body === 'string' ? comment.body : '') ===
                 predicate.marker &&
-              (after === undefined || created > after)
+              (after === undefined || created >= after) &&
+              (id === undefined || !seen.has(id))
             )
           })
-        const last = hits.at(-1)
-        return last === undefined
+        return first === undefined
           ? undefined
           : synthetic({
               event: 'issue_comment',
               action: 'created',
               number: predicate.issue,
               marker: predicate.marker,
-              html_url: text(last.html_url, 'comment.html_url'),
+              html_url: text(first.html_url, 'comment.html_url'),
             })
       }
     }

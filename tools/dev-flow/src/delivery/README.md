@@ -388,13 +388,15 @@ legacy 只监听 loopback，并持有 `gh webhook forward` 子进程。给出 se
 ```sh
 node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts issue-closed --issue <号> [公共参数]
 node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts pr-ready --base <分支> [--ignore <pr>@<head> ...] [公共参数]
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <号> --marker <标记名> [公共参数]
-node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--issue-closed <号> ...] [--comment <issue>:<标记名> ...] [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts comment --issue <号> --marker <标记名> [--seen <评论id> ...] [公共参数]
+node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--issue-closed <号> ...] [--comment <issue>:<标记名> ...] [--seen <评论id> ...] [公共参数]
 ```
 
 - `--file <事件文件>`，缺省同接收器。
-- `--timeout <秒>`，缺省不超时。超时退出3，标准错误写说明。超时不表示条件不成立。
-- `--since <ISO 时间或 delivery id>`，只认之后的事件。缺省认文件里已有的全部行。
+- `--timeout <秒>`，缺省不超时。到期时命令先把事件文件再读一次、对账一次，这是保底读回。读回发现起点之后未处理的记录，就按命中返回，退出0。读回也没有才退出3，标准错误写说明。读回失败退出2。超时不表示条件不成立。
+- `--since <ISO 时间或 delivery id>`，起点。ISO 时间表示不早于它：事件文件的行按 `receivedAt` 比，对账按评论 `created_at` 比，两边都包含等于它的那一刻。delivery id 表示文件里在该行之后的行；这时对账没有时间起点，该行及之前各行里的评论 id 当作已处理。缺省认全部记录。
+- `--seen <评论id>`，只属于 `comment` 与 `any`，可重复，值是十进制评论 id。这些评论不再命中，事件文件和对账都一样。评论 id 取自评论 URL `#issuecomment-` 之后的数字。
+- 命中输出的 `next` 只属于 `comment` 与 `any`，给出重挂的参数：`next.since` 是调用者给的 `--since` 原样（没给就没有这个字段），`next.seen` 是输入的 `--seen` 加上本次命中评论的 id。重挂时把它们原样传回：`--since <next.since> --seen <id> ...`。起点不前移，所以不会把另一条线上、更早创建而尚未处理的记录跳过；已处理的评论按 id 排除，所以同一秒创建的评论、对账先找到而投递后到的评论都不会让等待立即再返回。工具不做本机时间与 GitHub 时间的换算，也不加时间余量。
 - `--repo <owner/name>`，对账用，缺省取 `origin`。
 - 输出多一个 `source` 字段。`event` 表示可信事件文件里的行，`reconcile` 表示权威对账命中。
 - `comment` 的标记名是评论第一行 `<!-- 标记名 -->` 里的词。`<!-- line-delta -->` 的标记名是 `line-delta`。
@@ -406,7 +408,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受。
 - 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
-接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后的评论。`any` 对每个条件各对账一次。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次，到期时再对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后创建、带标记且不在 `--seen` 里的评论，返回其中最早的一条。积压几条时一次返回一条，按发布顺序，其余在重挂后立即返回。`any` 对每个条件各对账一次，在第一个成立的条件处停止；`issue-closed` 成立后每次都先命中，它没有 id 可排除，需要评论记录时先读回带标记的评论。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
 
 带 `receiver.mode=channel` 的事件只作提示。匹配事件和 connected/reconnected 诊断触发有界权威对账，频道提示本身不能放行。库调用必须同时提供明确 repository 与 reconcile，CLI 自动传入所选仓库。不匹配的仓库或缺失对账函数会失败。
 
