@@ -246,7 +246,7 @@ flowchart LR
 | 环境授权、可信作用域绑定与恢复授权 | `execution-environment`；AD-15 另在构造时接收恢复授权 | 入口装载 `ExecutionEnvironmentAuthorityService`、`ExecutionScopeBindingService`、`ExecutionRecoveryAuthorityService` 的子类，提供 `executionEnvironmentAuthority`、`executionScopeBinding`、`executionRecoveryAuthority`。逐次现取，缺席按[环境端口规则](../../../packages/execution/execution-environment-host-local/docs/cordis.md#插件与配置)不可用 |
 | 宿主文件责任域 | `execution-host-files` | 进程宿主只创建一次，重载仍交同一责任域；插件卸载只退役这一代，不删除原获取与占用 |
 | Model 与 Tool 的原事实、权威与时钟适配对象 | `model-host`、`model-instances`、`model-converters`、`tool-runtime`、`tool-executor` 等 | 按各成员的唯一服务定义提供；Tool 启动授权与启动围栏由同一提供者兑现同一排序域，不以同名键证明同权威。`toolStartAuthority` 与 `toolStartFence` 由装配入口在装载前从同一提供者的两个视图 provide 在根上，绑定进程寿命，不随任何行换代 |
-| 游标签名密钥 | `session-storage` | 只经取用入口交入，不进插件配置（[成员配置](../../../packages/session/session-storage-sql/docs/cordis.md#配置)） |
+| 游标签名密钥 | `session-storage` | 只经取用入口交入，不进插件配置（[装配边界](../../../packages/session/session-storage-sql/docs/cordis.md#应用承担什么)） |
 | 时钟 | `identity`、`session-provider`（`sessionClock`）、`agent-host`（`agentClock`） | 缺席时按各成员规定返回 `unavailable`，见 [SessionClock](../../../packages/session/session-contract/SPEC.md#sessionclock-与-sessionidleinput) |
 | 凭据解析 | `model-host` | 只交凭据引用，不交秘密副本 |
 | 供应商传输适配 | `model-host` | 经注入交给 Model 宿主，不设供应商全局键 |
