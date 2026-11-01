@@ -2,27 +2,30 @@
   "rows": [
     {
       "id": "storage",
-      "plugin": "stubPlugin",
+      "plugin": "storageRow",
       "config": {}
     },
     {
       "id": "identity",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "identityRow",
+      "config": {
+        "maxLifetime": "PT2592000S",
+        "idlePeriod": "PT604800S"
+      }
     },
     {
       "id": "authorization",
-      "plugin": "stubPlugin",
+      "plugin": "authorization",
       "config": {}
     },
     {
       "id": "session-storage",
-      "plugin": "stubPlugin",
+      "plugin": "sessionStorageRow",
       "config": {}
     },
     {
       "id": "session-provider",
-      "plugin": "stubPlugin",
+      "plugin": "sessionProviderRow",
       "config": {}
     },
     {
@@ -102,12 +105,54 @@
     },
     {
       "id": "agent-adoptions",
-      "plugin": "stubPlugin",
-      "config": {}
+      "plugin": "agentAdoptionsRow",
+      "config": {
+        "mappings": [
+          {
+            "name": "assistant",
+            "candidate": {
+              "owner": "harness-server-release",
+              "name": "assistant",
+              "revision": "1",
+              "digest": "sha256:assistant"
+            },
+            "execution": {
+              "owner": "harness-server-release",
+              "name": "generic",
+              "revision": "1",
+              "digest": "sha256:generic"
+            },
+            "entryContract": {
+              "owner": "harness-server-release",
+              "name": "chat",
+              "revision": "1",
+              "digest": "sha256:chat"
+            },
+            "requiredIdentities": [],
+            "modes": {
+              "permission": "never",
+              "environment": {
+                "owner": "harness-server-release",
+                "name": "local",
+                "revision": "1",
+                "digest": "sha256:local"
+              },
+              "collaboration": "co-work"
+            },
+            "definition": {
+              "category": "AgentDefinition",
+              "name": "assistant",
+              "references": [],
+              "attributes": []
+            },
+            "extensions": []
+          }
+        ]
+      }
     },
     {
       "id": "adoption-sources",
-      "plugin": "stubPlugin",
+      "plugin": "adoptionSourcesRow",
       "config": {}
     },
     {
@@ -242,7 +287,7 @@
     },
     {
       "id": "server-entry",
-      "plugin": "stubPlugin",
+      "plugin": "serverEntryRow",
       "config": {}
     }
   ]

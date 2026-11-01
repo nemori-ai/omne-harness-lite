@@ -1,6 +1,7 @@
 // `serve` 模式在同一进程里的行为（DP1-C3、C6、C9、C10、C11、C15、C17 的 once）：发行替身树、夹具行、装载前拒绝、
 // 入口对象与占位规则、四个阶段的有序关闭。进程级（`dist/bin.js serve`）在 `serve-process.spec.ts`。
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { beforeEach, describe, expect, it } from 'vitest'
@@ -11,6 +12,7 @@ import { rowIds } from '../src/s0/rows.ts'
 import { identityClock } from '../src/entry/identity-clock.ts'
 import type { EntryObjectModule } from '../src/types.ts'
 import { serveOnce, type ServeRun } from './fixtures/serve/harness.ts'
+import { freePort, operatorLayer } from './r9/support.ts'
 import {
   failingEntryObject,
   fixturePlugins,
@@ -42,23 +44,49 @@ beforeEach(() => {
 })
 
 describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
-  it('49 s0-double rows load, accept, stop on request and exit 0', async () => {
-    const run = await serveOnce({ distribution: release })
-    expect(run.result.exitCode).toBe(0)
-    expect(ids(run.of('tree'))).toEqual(rowIds)
-    expect(run.of('tree').every(r => r['implementation'] === 's0-double')).toBe(true)
-    expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
-    expect(run.startup).toMatchObject({
-      profile: 'real',
-      scope: 'serving',
-      accepting: true,
-      outcome: 'ready',
-      enabledRows: 49,
-      barrierCalls: 1,
-      implementations: { real: 0, 'contract-double': 0, 's0-double': 49 },
-    })
-    expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
-    expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
+  it('the release tree of 7 real, 1 contract-double and 41 s0-double rows loads, accepts, stops on request and exits 0', async () => {
+    // The operator layer gives what the distribution file does not hold: absolute paths and the port.
+    const base = realpathSync(mkdtempSync(join(tmpdir(), 'serve-release-')))
+    try {
+      const port = await freePort()
+      const run = await serveOnce({
+        distribution: release,
+        operator: operatorLayer({ storageRoot: join(base, 'storage'), port }),
+        readinessTimeoutMs: 15_000,
+        shutdownDeadlineMs: 5000,
+      })
+      expect(run.result.exitCode).toBe(0)
+      expect(ids(run.of('tree'))).toEqual(rowIds)
+      const implementations = new Map(run.of('tree').map(r => [r['id'], r['implementation']]))
+      expect(
+        [...implementations]
+          .filter(([, kind]) => kind !== 's0-double')
+          .map(([id, kind]) => `${String(id)}:${String(kind)}`),
+      ).toEqual([
+        'storage:real',
+        'identity:real',
+        'authorization:real',
+        'session-storage:real',
+        'session-provider:contract-double',
+        'agent-adoptions:real',
+        'adoption-sources:real',
+        'server-entry:real',
+      ])
+      expect(run.of('row-state').every(r => r['state'] === 'ACTIVE')).toBe(true)
+      expect(run.startup).toMatchObject({
+        profile: 'real',
+        scope: 'serving',
+        accepting: true,
+        outcome: 'ready',
+        enabledRows: 49,
+        barrierCalls: 1,
+        implementations: { real: 7, 'contract-double': 1, 's0-double': 41 },
+      })
+      expect(run.of('shutdown-result')[0]).toMatchObject({ overall: 'settled' })
+      expect(run.stderr).toEqual(['serve: stop requested: test: startup seen'])
+    } finally {
+      rmSync(base, { recursive: true, force: true })
+    }
   })
 
   it('R1-1: only s0.assemblyLifecycle carries the s0. prefix', async () => {
