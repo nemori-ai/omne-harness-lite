@@ -4,13 +4,14 @@
 
 ## 集成入口
 
-`./cordis` 导出 `LocalCredentialPlugin` 与 `deliverInjected`。后者在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库。
+`./cordis` 导出 `LocalCredentialPlugin`、`ModelProfilesLocalPlugin` 与 `deliverInjected`。`deliverInjected` 在 [deliver-injected.ts](../src/deliver-injected.ts)，不导入保管库。`ModelProfilesLocalPlugin` 在 [plugins/profiles.ts](../src/plugins/profiles.ts)，是本包唯一导入家族包的文件。
 
 | 东西 | 在本包里是什么 | 不是什么 |
 | --- | --- | --- |
 | 服务 | 抽象 `Service`，键 `modelCredential`，由 [model-cordis-contract](../../model-cordis-contract/docs/cordis.md) 唯一拥有 | 本包不导出，也不另写键 |
 | 插件 | `LocalCredentialPlugin`，继承该服务，自己实现 `present` 和 `resolve`；保管库只在构造时创建的闭包里 | 不是域外工作与编排的子插件，也不进它的作用域 |
 | fiber | 装载该插件的那条 fiber，关闭挂在它的撤除上 | 不是域外工作的生命周期，不是模型执行器，也不是一次发送 |
+| 档案插件 | `ModelProfilesLocalPlugin`，继承 model-cordis-contract 的 `ModelProfilesService`，键 `modelProfiles`，无静态 `inject` | 不读 settings，不读 `modelCredential`，不是档案维护者 |
 
 ```mermaid
 classDiagram
@@ -49,3 +50,9 @@ fiber 撤除把本进程标成关闭，随后的 `present` 与 `resolve` 返回 
 保管库不放在实例属性上：Cordis 把实例的代理交给消费者，`#private` 字段经代理失败，实例属性也可被任何能读 `ctx.modelCredential` 的插件取得。注入到的对象不是 `ModelCredentialService` 时，`deliverInjected` 的结果是 `{ sent: false }`。
 
 `modelCredential` 是可选成员，缺席与更替的结果见 [SPEC 注入发送](../SPEC.md#注入发送)。
+
+## 档案插件的配置与寿命
+
+`ModelProfilesLocalPlugin` 的配置经 Standard Schema 在入口一次解析，只含可序列化值：`retryPolicy`（Adoption）、`compactionTriggerPercent`（字符串，1 至 100）、`updatedAt`（RFC 3339 UTC 文本）。没有默认值，非法配置使插件加载失败。`list` 与 `resolve` 是构造时创建的闭包成员，不放 `#private`，原因同保管库：Cordis 把实例的代理交给消费者。
+
+插件没有资源要等待关闭，也不登记需要等待的 effect。它在则 `ctx.modelProfiles` 在，撤除则消失；仍被持有的旧句柄返回 `unavailable`（`plugin-removed`）。换代不改在途采用：在途请求已固定档案 `adoption`。规则与具名偏离见 [SPEC 官方档案读取](../SPEC.md#官方档案读取)。

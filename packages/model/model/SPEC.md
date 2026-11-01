@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行、凭据存在性与解析的判定及档案读取 `createModelProfiles` 已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
 
@@ -23,6 +23,23 @@
 发送准备、物化回执、同步 start 与两级资源关闭的完整协议见 [传输协议](../model-contract/SPEC.md#342-独立执行与提供者操作)。其余托管行为直接遵循该规格，不另写状态机。
 
 <a id="调用和各次真实发出"></a>调用受理与各次真实发出的事实归 model-contract 的[调用和各次真实发出](../model-contract/SPEC.md#调用和各次真实发出)。
+
+## 档案读取与同名求值
+
+`createModelProfiles(source)` 返回 `ModelProfiles`。每次 `list` 与 `resolve` 先检查租户是否经 legal-identity 铸造，未铸造时返回 `denied`（action 为 `tenant`），先于读取来源。通过后读一次来源快照，来源失败原样返回，不折成 absent。快照交给纯函数 `judgeProfileResolution` 与 `judgeProfileChoices`（[profiles/judge.ts](src/profiles/judge.ts)，不读环境，不做 I/O，不抛异常，不进根入口）。本包不依赖任何 `pi-ai-*` 成员，由 [install-policy.json](tests/fixtures/install-policy.json) 与 `package.json` 共同保证。
+
+求值规则依 [model-contract 同名求值](../model-contract/SPEC.md#同名求值选择及列表)：
+
+1. 同路由候选先去掉已撤回的，再去掉被排除的，余下的按 `precedence` 取最具体者，层序位置靠后者更具体。求值不写死层序。
+2. 没有同名候选是 `unknown-name`。同名候选全部撤回是 `withdrawn`。仍有在册候选而全部被排除是 `excluded`。
+3. 胜出后才判相容：`required.modalities` 不全在 `definition.input` 内加 `modality` 原因，`locked` 为真加 `locked` 原因，`selectable` 等于无原因。含 `video` 的 `required` 因此不可选。
+4. 缺凭据与模态不符都不改换外层，`credential` 原样取自候选，求值不读秘密。
+5. `list` 的 `choices` 只含可选的 resolved 项，路由不重复，次序同候选在快照中的首次出现；`selected` 只解释传入值，保留当前不合法项；`source` 取自快照。
+6. 快照有重复身份返回 `unavailable`（`duplicate-profile-identity`），候选范围不在 `precedence` 内返回 `unavailable`（`profile-scope-outside-precedence`），不使用半份目录。
+
+契约没写的三点，本实现取下列值并由用例固定：`shadowed` 只含未撤回、未排除的低层同名项，次序同 `precedence`；`choices` 次序同候选在快照中的首次出现；`scope` 原因在本阶段不产生，因为快照里没有租户层与组织层候选，契约也没有定义它的触发条件，留给契约拥有者。
+
+**O1，待契约拥有者裁定。** model-contract SPEC 的「同名求值、选择及列表」一节（先去掉已撤回候选，再取最具体）与「档案和准备提供者的组合协议」一节（被更高层同名档案遮蔽的低层项不能在高层撤回时自动顶替）在「两层同名、高层撤回」上读法不一。本实现按前一节读：高层撤回后，在册的低层同名档案胜出。用例（[profiles.spec.ts](tests/profiles.spec.ts)）标注了这一读法。M2 的快照只有 `factory` 一层，官方档案不触发这个情形。
 
 ## 工厂与配置
 
