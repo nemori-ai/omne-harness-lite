@@ -34,6 +34,10 @@ entries 夹具为每个 `(tenant, execution)` 分配明确的 Session，材料�
 
 故障句柄只安排暂停、提交前失败、提交后失答复或材料损失。`pauseWrite`/`faultWrite` 针对原 Agent 方法；`pauseSession`/`faultSession` 针对原 Session operation。`resultPreparationOperation` 返回结果参加前准备的独立 operation，供同一故障控制使用。`quarantine` 关闭共享 gap 门，不需要推进根位置；旧准备不能因此继续发布。`failNextRecord` 为一个租户的一个 execution 安排下一次走到写入步骤的 `record` 的故障：`commit-unknown`（条目与事件已写，只丢失答复）或 `unavailable`（发布前失败，什么也不写）。被拒绝的调用和认回原回执的调用不消耗它，后安排的故障替换尚未消耗的故障。`src` 不导入别的包的 `/testing` 入口，所以本包另建本地 `RecordFault` 类型。它与 agent-contract 一致性套件的同名类型互相可赋值，由 `tests/record-fault.spec-d.ts` 保证。这些故障句柄不授予业务资格，也不提供成功事实。
 
+## 会话事务端口的契约面
+
+同一个内存提供者的 `transactions` 实现 `SessionTransactionPort` 的 `queryControlOperation`、`readModelSelection` 与 `commitEntries`。前两者读同一会话根并经访问裁定。`commitEntries` 恒返回 `unavailable`，因为 session-contract 还没有 entries 解释的纯范围检查。行为见 [SPEC](../SPEC.md#会话事务端口的契约面) 与[已知限制](../SPEC.md#已知限制)。这些新行为没有先红后绿记录，用负控用例代替。
+
 ## 验证范围与资源成本
 
 持续用例位于本包 `tests/`，包含 Agent entries/required received 与 Session 公共套件，以及真实同日志组合、原身份、隔离、故障和并发场景。外域 Model/Tool/HITL 原值采用明确的离线夹具；这些测试不证明外部生产者执行或交付能力。

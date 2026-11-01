@@ -2,6 +2,10 @@
 
 本文件列出本包的持续验证义务：性质、方法、前提与未覆盖。每一项都是后继实现必须通过的可观察结果，不是已经执行的测试。条款编号指 [SPEC](../SPEC.md)。数值目标在实测之前不写。
 
+## 现状
+
+head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、租户隔离与事务域目录，它们不对应下列任何一个编号。下列编号的义务现在都没有用例。用例将在 `node:sqlite` 夹具上先行，真实 sqlite-provider 的结果另报。夹具通过只证明模块的 SQL 语义，不证明 Worker、持久与关闭。新增行为没有先红后绿记录，负控用例代替它。
+
 ## 组 D：派生等于重算
 
 | 编号 | 性质 | 方法 | 前提 | 条款 |
@@ -40,12 +44,12 @@
 | VS-W01 | 每个 JC 行提交后，派生行与 `sl_state` 与 [W3](../SPEC.md#w3) 一致 | 每个 JC 行一个用例 | [W1](../SPEC.md#w1)、[W3](../SPEC.md#w3) |
 | VS-W02 | 两个进程并发提交同一会话：后到者等前一个提交，在新尾部上裁定。带 `expected` 的命令得到 `changed`；不带 `expected` 的命令按新状态裁定，不得到 `changed`；`sl_journal` 条件更新从不影响 0 行 | SQLite 与 PostgreSQL 各一组交错用例，两类命令各一 | [W1](../SPEC.md#w1) 第 5 步、[W6](../SPEC.md#w6) |
 | VS-W03 | 重读序号不大于 `readThrough` 的事件时，后果按原 execution 与事实身份认回，`readThrough` 不回退；`readThrough` 与后果在同一次解释提交中保存；`receive` 不推进 `readThrough` | 重放与乱序事件 | [W5](../SPEC.md#w5) |
-| VS-W04 | 材料缺项或多项时不写任何行 | 缺身份桥材料的 `accept` | [W1](../SPEC.md#w1) 第 3 步 |
+| VS-W04 | 材料缺项或多项时不写任何行。参加者模块不另核对材料集合，由 `decide` 拒绝，用例要证明拒绝发生且没有行写入 | 缺身份桥材料的 `accept` | [W1](../SPEC.md#w1) 第 3 步 |
 | VS-W05 | 参加者路径下提交方失败时 Session 一侧不保存 | 注入 Agent 参加者语句失败 | [W2](../SPEC.md#w2) |
 | VS-W06 | 压缩提交任一步失败整体回滚，旧 epoch 仍为当前 | 注入新 epoch 写入失败 | [W4](../SPEC.md#w4) |
 | VS-W07 | 载荷超过内联阈值时先写 blob 再写条目，读回一致 | 阈值两侧各一 | [TB-04](../SPEC.md#tb-04) |
 | VS-W08 | 读事务看不到未提交尾部 | 提交途中并发读 | 事务与并发 |
-| VS-W09 | `rolled_back` 后退路重算的拒绝与事务内的结局相同；带 `expected` 的命令在尾部已变时为 `changed`；重算允许提交时为 `unavailable` | 对比模块内 `decide` 的结局与事务外再次调用 `decide` 的结局；另注入参加者「失败」与「不支持」 | [W1](../SPEC.md#w1) 第 9 步 |
+| VS-W09 | `rolled_back` 回执的停止响应是 `conflict` 时，端口返回响应证据里保存的原 `SessionFailure`，与事务内 `decide` 的结局相同，不在事务外重算；带 `expected` 的命令在尾部已变时为 `changed`；停止响应是 `unsupported` 为 `invalid`，是 `failed` 为 `unavailable` | 对比模块内 `decide` 的结局与端口返回的结局；注入三种停止响应 | [W1](../SPEC.md#w1) 第 9 步 |
 | VS-W12 | 尝试代次：前面代次全部回滚时开新代次；有已提交代次时认回；有未知代次时 `commit-unknown`；达到上限时 `unavailable`；新代次开出后旧代次不会生效 | 按代次回执组合构造用例；`changed` 后同身份重做、同一受理标识在回滚后重试、两个消费者并发 `receive` 同一事件，核对都不得到 `conflict` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W13 | Session 输入摘要只覆盖语义参数：只差认证封套、`expected` 或材料内容的两次提交摘要相同 | 构造这三类差异的命令对，比较 `sl_operation.input_digest` | [W1 的尝试代次](../SPEC.md#w1-attempts) |
 | VS-W14 | 撤销归档同批删除该会话在 `sl_released_scope_idx` 的行 | 归档、释放读回、撤销归档，再查 `releasedScopes` | [W3](../SPEC.md#w3) |
@@ -67,5 +71,8 @@
 
 - 对象存储作为 blob 去向。
 - 多实例恢复扫描者并发读 `pending` 的租约协议。
-- SQLite 独立读连接下的吞吐。现行存储契约只有写连接，基准只能在串行读写下取数。
+- SQLite 独立读连接下的吞吐。读经 `read` 入口，排队归提供者，基准须在真实提供者上取数。
 - 任何数值目标。实测之前不写。
+- `commitEntries` 的范围检查：现在恒返回 `unavailable`，没有可验证的成功路径（[已知限制](../SPEC.md#已知限制)）。
+- sqlite-provider 的 Worker 对本包 participant 与 handler 的真实载入、持久与关闭。
+- 尚未实现的设计（`sl_batch`、`sl_blob`、`sl_ref_idx`、R9、PostgreSQL）：对应义务（VS-D02、VS-D06、VS-R05、VS-R06、VS-W07、VS-F04）在实现之前无从验证。

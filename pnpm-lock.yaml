@@ -1527,9 +1527,21 @@ importers:
 
   packages/session/session-storage-sql:
     dependencies:
-      '@deepseek-ai/cordis':
-        specifier: 'catalog:'
-        version: 4.0.4
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/session-contract':
+        specifier: workspace:*
+        version: link:../session-contract
+      '@omne-harness/session-cordis-contract':
+        specifier: workspace:*
+        version: link:../session-cordis-contract
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
