@@ -18,7 +18,7 @@
 
 | 定义 | 种类 | 输入与输出 | 依据 |
 | --- | --- | --- | --- |
-| `createSessionStorage` | 函数 | 输入 `SessionStorageOptions<P>`，输出 `SessionTransactionPort<P>`。端口含 `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`history`、`pending`、`references`、`releasedScopes`。`commitEntries` 恒返回 `unavailable`，见[已知限制](../SPEC.md#已知限制) | [SPEC 实现现状](../SPEC.md#实现现状) |
+| `createSessionStorage` | 函数 | 输入 `SessionStorageOptions<P>`，输出 `SessionTransactionPort<P>`。端口含 `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`history`、`pending`、`references`、`releasedScopes`。`commitEntries` 不问访问检查，步骤见[已知限制](../SPEC.md#已知限制)第 1 条 | [SPEC 实现现状](../SPEC.md#实现现状) |
 | `sessionStorageMaterials` | 函数 | 无输入，输出 `SessionStorageMaterials`：`participants`、`migrations`、`readHandlers` 三个只读列表。读取模块文件一次并给出摘要 | [参加者模块与材料](../SPEC.md#参加者模块与材料) |
 | `SESSION_PARTICIPANT` | 常量 | 值 `session` | 同上 |
 | `SessionStorageOptions`、`SessionStorageMaterials` | 类型 | 见源码 | 同上 |

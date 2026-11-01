@@ -9,12 +9,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { operationId } from '@omne-harness/session-contract/testing'
+import {
+  adoptedInitializationFixture,
+  creation,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
+  operationId,
+  sessionEntriesConformance,
+  type SessionTransactionsFixture,
+} from '@omne-harness/session-contract/testing'
 import {
   identityOf,
   openRealApp,
   queryKindOf,
   TENANT_A,
+  TENANT_B,
   walSample,
   type RealApp,
   type RealAppOptions,
@@ -237,4 +246,25 @@ describe('reads through the real read Worker', () => {
       }),
     )
   })
+})
+
+describe('session-contract commitEntries conformance on the real provider', () => {
+  const fixtureOf = (app: RealApp): SessionTransactionsFixture<string> => ({
+    port: app.port,
+    access: app.access(TENANT_A),
+    otherAccess: app.access(TENANT_B),
+    creation: creation(),
+    operation: name => operationId(name),
+    initializationGuards: command =>
+      Promise.resolve([
+        initializationFixtureGuard(
+          initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+        ),
+      ]),
+    askedAccessChecks: () => app.accessCheck.controls.asked().length,
+  })
+  for (const test of sessionEntriesConformance<string>())
+    it(`${test.clause}: ${test.name}`, async () => {
+      await test.run(fixtureOf(await open()))
+    })
 })

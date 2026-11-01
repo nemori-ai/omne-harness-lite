@@ -320,6 +320,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
     storage,
     control,
     events,
+    accessCheck,
     access,
     create,
     accept,
