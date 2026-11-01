@@ -151,6 +151,8 @@
 
 事实、已提交回执和响应证据在同一个事务里提交。`RELEASE` 不执行外层提交的全部检查。每个操作在结束时满足它独立提交时的约束，由 §4.5 保证。
 
+第 1 步的写代际核对：Worker 打开域时把 `_sql_generation` 加一，并记下它写入的值。组提交在 `BEGIN IMMEDIATE` 之后读回这个值。值不同或读不到时，另一个打开者已经接管该文件。本组全部操作为 `unknown`（诊断 `write_generation_changed` 或 `write_generation_unreadable`），Worker 回滚并退出，不在该连接上执行任何操作。
+
 ```mermaid
 sequenceDiagram
     participant C as 调用方
@@ -374,14 +376,14 @@ G1（同一原操作内的批写）保留：Session 的条目、状态、七个�
 2. 撤下未开始的工作：控制侧等待列表中的操作直接移出；已发给 Worker 的未开始操作经 Worker 确认后撤下。每个预留归还一次。
 3. 正在执行的写跑完。Worker 在操作之间确认关闭后，不再开始后缀，按 §7.7 提交成功前缀或完成失败处理。Worker 不打断正在执行的语句：`node:sqlite` 把语句同步跑完，所以关闭等待当前语句结束。
 4. 已开始的读事务结束后关闭连接，`domain-serial` 屏障随后释放。
-5. 全部连接关闭、全部 Worker 退出都已被观察时，返回 `closed`。
+5. 全部连接关闭、全部 Worker 退出都已被观察时，返回 `closed`。提供者等待每个仍存活的写 Worker 退出，不按域条目的状态挑选。隔离或打开失败后正在结束的 Worker 也在内。
 6. 期限到达时仍有 Worker 未退出，返回 `incomplete`，附 `residuals`。语句仍在执行时，提供者持有该 Worker 的租约。语句在期限内结束时，提供者调用 `release`。期限到达而语句未结束时，提供者不释放租约，此后语句结束仍不调用 `release`，直到装配报告确定（sql-contract 规格 §13.4）。这条释放限制由存储提供者承担。
 
 结束 Worker 不是回滚。
 
 ### §13.5 进程内写者排除
 
-同一进程中，一个数据库文件只能有一个写 Worker。sqlite-provider 模块持有一张模块级声明表，按文件路径记录持有写 Worker 的提供者代际。DO-1 第 1 步先取得声明。旧代际的写 Worker 退出被观察之前，新代际取不到声明，打开按暂时性故障处理。插件重跑因此不会产生第二个写者（IC-8）。旧 `StorageService` 引用的调用得到 `closing`。
+同一进程中，一个数据库文件只能有一个写 Worker。sqlite-provider 模块持有一张模块级声明表，按文件身份记录持有写 Worker 的提供者代际。文件身份是 `realpathSync.native` 解析链接后的真实路径，在 win32 上再折叠大小写。文件尚不存在时，解析最近的已有目录，再接上其余路径。域文件路径（`fileOf`）使用同一规范化。DO-1 第 1 步先取得声明。旧代际的写 Worker 退出被观察之前，新代际取不到声明，打开按暂时性故障处理。插件重跑因此不会产生第二个写者（IC-8）。旧 `StorageService` 引用的调用得到 `closing`。
 
 运行中的停止使用已经验证的 interrupt，或使用独立进程。`node:sqlite` 路线没有已验证的中断（L-5）。
 
@@ -465,3 +467,5 @@ S2 中已闭合的项已经从本节删除：事务域绑定配置（P-07，§5.
 | L-7 | 材料摘要不防御能写构建目录的攻击者；核对与加载之间存在竞态 | 构建目录不受受信部署保护 |
 | L-8 | WAL 阈值不是磁盘空间的硬保证 | 磁盘空间告警 |
 | L-9 | authorizer 能否看到默认值中的时间函数待实测；实测前以模式层为准 | V2 |
+| L-10 | 期限到达时，正在打开已有文件、还不知道 scope 的写 Worker 不列入 `residuals`。`StorageResidual.domain.scope` 是必填字段，提供者不伪造 scope。这个 Worker 仍计入 `incomplete` 的判定，它的租约按 sql-contract 规格 §13.4 处理 | 契约拥有者裁定 scope 在打开前未知时的表示 |
+| L-11 | `writesPerControlTurn` 没有实现。写 Worker 的 inbox 严格先进先出，`query` 排在已发送的写之后。`query` 的延迟上界由 `admissionQueueLimit` 约束，而不是由 `writesPerControlTurn` 约束。这不会使 `query` 饿死 | 出现 `query` 延迟需求，或控制消息需要插队 |
