@@ -262,12 +262,13 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     return checked(() => authority.samePrincipal({ current, original }))
   }
 
-  /** A rejection when the consumer is not qualified now, or null when it may issue. */
+  /** A rejection when the tenant is malformed or the consumer is not qualified now; else null. */
   const admit = async (
     principal: P,
     tenant: TenantId,
     consumer: FixedToolRequest['consumer'],
   ): Promise<ToolInvocationSourceOutcome | null> => {
+    if (!isTenantShape(tenant)) return rejected(denied)
     const qualified = await checked(() => authority.qualify({ principal, tenant, consumer }))
     if (qualified.kind === 'denied') return rejected(denied)
     if (qualified.kind === 'unavailable')
@@ -355,7 +356,6 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
       if ('failure' in judged) return rejected({ kind: 'invalid', ...judged.failure })
       const request = judged.ok
       const { principal, tenant } = input
-      if (!isTenantShape(tenant)) return rejected(denied)
       const refused = await admit(principal, tenant, request.consumer)
       if (refused !== null) return refused
       const kept = encodePrincipal(principal)
