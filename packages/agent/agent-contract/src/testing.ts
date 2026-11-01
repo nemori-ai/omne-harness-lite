@@ -33,6 +33,9 @@ export {
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpenOptions,
   type AgentJournalCoreOpened,
+  type AgentJournalReplyAdmissionControls,
+  type ReplyAdmissionDamage,
+  type ReplyAdmissionReadStatistics,
   type SettlementQualification,
 } from './testing-journal-core.ts'
 export {

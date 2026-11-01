@@ -6,7 +6,13 @@ import assert from 'node:assert/strict'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import { decodeModelCallId } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts'
+import type {
+  AgentCheckpoint,
+  Failure,
+  ProducedResult,
+  Reply,
+  ReplyAdmissionPrefix,
+} from './evaluation.ts'
 import type {
   AcceptedInput,
   AgentEvent,
@@ -30,6 +36,7 @@ import {
   decodeInputId,
   decodePassageId,
   type Access,
+  type Adoption,
   type AgentExecutionId,
   type AgentOperationId,
   type Authority,
@@ -130,6 +137,57 @@ export interface AgentJournalCoreOpened<P> {
    * Optional; the qualification case is uncovered without it.
    */
   readonly qualify?: (held: readonly SettlementQualification[]) => void
+  /**
+   * The reply admission controls of this execution (SPEC "回复准入的已核实前缀"). Optional; the
+   * cases of the verified prefix, the fixed range and the page bounds are uncovered without it.
+   */
+  readonly replyAdmissions?: AgentJournalReplyAdmissionControls<P>
+}
+
+/** A removal of reply admission material, as a storage fault or an operator error leaves it. */
+export type ReplyAdmissionDamage =
+  | Readonly<{ kind: 'missing-fact'; sequence: number }>
+  | Readonly<{ kind: 'missing-basis'; sequence: number }>
+  | Readonly<{ kind: 'retention'; from: number }>
+  | Readonly<{ kind: 'range-unavailable'; below: number }>
+
+/**
+ * What the reads of a provider did since it was created: range positions (`seeks`), rows touched
+ * (`scanned`), facts decoded into pages, pages, facts folded by a projection rebuild, loads and
+ * commits that wrote a checkpoint. The complexity cases compare the differences of two scales.
+ */
+export type ReplyAdmissionReadStatistics = Readonly<{
+  seeks: number
+  scanned: number
+  decoded: number
+  pages: number
+  folds: number
+  loads: number
+  checkpointWrites: number
+}>
+
+/** The reply admission controls a fixture gives for one opened execution. */
+export interface AgentJournalReplyAdmissionControls<P> {
+  /**
+   * Admits `count` new admitted model reply facts at once, through the provider's own seam, as
+   * the original Ja commits would: each with its sequence, prefix basis, publication and the
+   * incremental projection.
+   */
+  seed(count: number): Promise<void>
+  /** Removes the named material of this execution. */
+  damage(damage: ReplyAdmissionDamage): Promise<void>
+  /** Sets the provider's own page bounds: at most `items` facts, at most `bytes` of its encoding. */
+  limitPages(limits: Readonly<{ items: number | null; bytes: number | null }>): void
+  /** The read counters of the provider. */
+  statistics(): ReplyAdmissionReadStatistics
+  /** Changes the projection rule: `rebuild` converts the projection, `none` leaves it as it is. */
+  changeRule(rule: Adoption, conversion: 'rebuild' | 'none'): Promise<void>
+  /** Whether the caller is qualified to read the execution from now on; qualified by default. */
+  readable(allowed: boolean): void
+  /** Opens another execution of the same tenant on the same Journal. */
+  sibling(name: string): Promise<AgentJournalCoreOpened<P>>
+  /** A lawful prefix of an execution of another tenant on the same Journal. */
+  foreignPrefix(): Promise<ReplyAdmissionPrefix>
 }
 
 /** The three qualifications the settlement operations check (SPEC "commitSettlement 的变体"). */
@@ -920,5 +978,68 @@ export async function foreignDenied<P>(
     (await query(opened, id)).kind,
     'unknown',
     `another tenant's ${method} left no record of the operation`,
+  )
+}
+
+/**
+ * The internal request of the model reply number `index` at I3 of the snapshot's step: its own
+ * call, action and H, so that every index is a new original fact.
+ */
+export function replyRequest<P>(
+  opened: AgentJournalCoreOpened<P>,
+  snapshot: ExecutionSnapshot,
+  index: number,
+  call = `mcall_reply${String(index).padStart(12, '0')}`,
+): PendingHandoff {
+  const name = `reply-${index}-${snapshot.revision}`
+  const callId = identity(decodeModelCallId(call), 'call')
+  return {
+    kind: 'execution',
+    reference: { kind: 'execution', execution: opened.execution, operation: operation(name) },
+    predecessor: snapshot.revision,
+    position: { step: snapshot.checkpoint.step, node: 'I3', slot: null },
+    source: {
+      kind: 'model-reply',
+      step: snapshot.checkpoint.step,
+      action: identity(decodeActionId(`core-${name}/action`), name),
+      call: callId,
+      result: {
+        producer: { kind: 'model', call: callId },
+        version: 'v1',
+        delivery: null,
+        source: evidence(`result/${name}`),
+      },
+    },
+    candidate: message(`reply ${index}`, String(index % 100).padStart(2, '0'), 'assistant'),
+    originalAdvance: opened.authority,
+    predecessorHandoff: null,
+  }
+}
+
+/**
+ * Admits the model reply `index` through the public port, as the coordinator does: the P commit
+ * of its H, then the Ja that resolves it with its admission fact. Answers the Ja receipt.
+ */
+export async function admitReply<P>(
+  opened: AgentJournalCoreOpened<P>,
+  index: number,
+  decision: 'admitted' | 'rejected' = 'admitted',
+  call?: string,
+): Promise<CommandReceipt> {
+  const before = await load(opened)
+  const request = replyRequest(opened, before, index, call)
+  const name = request.reference.operation
+  await ok(opened.journal.commit(prepareCommit(opened, before, `p-${name}`, request)), `P ${name}`)
+  const outcome =
+    decision === 'admitted'
+      ? prepared(request)
+      : outcomeOf(request, {
+          kind: 'rejected',
+          reason: 'rejected',
+          evidence: evidence(`no/${name}`),
+        })
+  return ok(
+    opened.journal.commit(resolveCommit(opened, await load(opened), `ja-${name}`, outcome)),
+    `Ja ${name}`,
   )
 }
