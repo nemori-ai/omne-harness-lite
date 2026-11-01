@@ -10,7 +10,6 @@ import {
   decodeModelCallId,
   decodeModelInstanceId,
   decodeModelOperationId,
-  judgeFixedModelRequest,
   type Adoption,
   type DurableEvidence,
   type FixedModelRequest,
@@ -18,7 +17,10 @@ import {
   type ModelInstanceId,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
-import type { ModelConsumerOwnerDeclaration } from '@omne-harness/model-contract/provider'
+import {
+  judgeFixedModelRequest,
+  type ModelConsumerOwnerDeclaration,
+} from '@omne-harness/model-contract/provider'
 import type {
   ModelCommandsAuthority,
   ModelCommandsCoreOptions,

@@ -4,13 +4,25 @@
 // command. The participant writes it only if `row_version` is still the version the work read
 // (CAS); otherwise the commit rolls back and the run reads again in the next attempt generation.
 // The default export is the participant module.
-import type {
-  ModelCallId,
-  ModelFailure,
-  ModelOperationId,
-  ResultCapacity,
-  VisibleBlock,
+import {
+  decodeModelCallId,
+  type ModelCallId,
+  type ModelFailure,
+  type ModelOperationId,
+  type ResultCapacity,
+  type VisibleBlock,
 } from '@omne-harness/model-contract'
+import {
+  hasRecoveryWork,
+  type Binding,
+  type CallDocument,
+  type CommandWrite,
+  type DispatchDocument,
+  type ModelCommandStorage,
+  type PendingPage as ScanPage,
+  type RunScope,
+  type TenantDocuments,
+} from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type {
   CommitResultV2,
@@ -36,25 +48,20 @@ import {
   nextVersion,
   parseRow,
   sameStored,
-  type Binding,
-  type CallDocument,
   type CallRead,
-  type CommandWrite,
-  type DispatchDocument,
-  type ModelCommandStorage,
-  type ModelRunScope,
   type Row,
   type RowFailure,
   type StoredPart,
-  type TenantDocuments,
 } from './documents.ts'
 import {
   CALL_READ_MAX_OUTPUT_BYTES,
+  HELD_SHARE_SQL,
   domainOf,
   readCall,
   readPending,
   unavailable,
   type CallReadInput,
+  type DomainOf,
   type PendingPage,
 } from './reads.ts'
 import { MODEL_PARTICIPANT, PROTOCOL, TABLES, type Table } from './schema.ts'
@@ -85,19 +92,20 @@ export type SqlModelStorageOptions = Readonly<{
   /** The combination the application registered for the tenant scope (session log and Model). */
   combination: Readonly<{ combinationVersion: string; manifestDigest: string }>
   limits: ModelStorageLimits
-  /** Whether a call has recovery work. The rule belongs to the shared core; the storage keeps it. */
-  isPending: (call: CallDocument) => boolean
   /** Attempt generations of one operation. Default 8. */
   attemptLimit?: number
-  /** Operations with an unknown commit outcome that the process keeps. Default 1024. */
+  /** Operations with an unknown commit outcome that the process keeps for one tenant. Default 1024. */
   unresolvedLimit?: number
 }>
 
 export type SqlModelStorage = ModelCommandStorage &
   Readonly<{
     limits: ModelStorageLimits
+    /** The pending calls of a tenant, one page by call: the `pending` port of the core. */
+    pending: NonNullable<ModelCommandStorage['pending']>
     /** One `snapshot` read of a call, outside a run. */
     readCall(input: CallReadInput): Promise<Outcome<CallRead, ModelFailure>>
+    /** One page of the calls whose stored document has recovery work; no unknown operation. */
     readPending(
       input: Readonly<{ tenant: string; after: ModelCallId | null; limit: number }>,
     ): Promise<Outcome<PendingPage, ModelFailure>>
@@ -145,9 +153,19 @@ function checkOptions(options: SqlModelStorageOptions): Readonly<{
 /** A call of the port that the scope of the current run does not cover. Never a silent answer. */
 class ScopeError extends Error {}
 
+/** The scope of a run of this storage: it reads one call, so the call is named. */
+type CallScope = RunScope & Readonly<{ call: ModelCallId }>
+
 type Staged =
   | Readonly<{ kind: 'commit'; write: CommandWrite; expected: number | null }>
   | Readonly<{ kind: 'publish'; call: CallDocument; expected: number }>
+
+const stagedCall = (staged: Staged): CallDocument | undefined =>
+  staged.kind === 'commit' ? staged.write.call : staged.call
+const stagedCallId = (staged: Staged): ModelCallId =>
+  staged.kind === 'commit' ? staged.write.binding.call : staged.call.state.call
+
+const noDocuments = (): TenantDocuments => ({ calls: new Map(), operations: new Map() })
 
 /**
  * The synchronous face of one attempt. It answers from the read of this attempt and stages one
@@ -155,12 +173,12 @@ type Staged =
  */
 class Attempt {
   staged: Staged | null = null
-  private readonly scope: ModelRunScope
+  private readonly scope: CallScope
   private readonly read: CallRead
   private readonly view: TenantDocuments
 
   constructor(
-    scope: ModelRunScope,
+    scope: CallScope,
     read: CallRead,
     unresolved: ReadonlyMap<ModelOperationId, Binding>,
   ) {
@@ -180,9 +198,9 @@ class Attempt {
     if (tenant !== this.scope.tenant) throw new ScopeError('another tenant than the run scope')
   }
 
+  /** The documents of the scope tenant. Another tenant reads empty, as the port says. */
   documents(tenant: string): TenantDocuments {
-    this.check(tenant)
-    return this.view
+    return tenant === this.scope.tenant ? this.view : noDocuments()
   }
 
   reserved(field: keyof ResultCapacity): bigint {
@@ -202,9 +220,15 @@ class Attempt {
     return record.version
   }
 
+  /**
+   * A commit binds the operation that the run read. A run without one has not read its binding,
+   * so it could not recognize an earlier commit of the same operation.
+   */
   commit(tenant: string, write: CommandWrite): 'committed' {
     this.check(tenant)
-    if (this.scope.operation !== undefined && write.operation !== this.scope.operation)
+    if (this.scope.operation === undefined)
+      throw new ScopeError('a commit in a run whose scope names no operation')
+    if (write.operation !== this.scope.operation)
       throw new ScopeError('another operation than the run scope')
     if (write.call === undefined && write.expected !== undefined)
       throw new ScopeError('a write cannot remove a call')
@@ -354,68 +378,88 @@ export function planParts(
   return bound(stored, { remove, insert })
 }
 
-function encoded<T>(result: Outcome<T, RowFailure>): Outcome<T, ModelFailure> {
-  return 'failure' in result
-    ? fail({ kind: 'invalid', field: result.failure.field, reason: result.failure.reason })
-    : result
+/** An encoder that refused a value, carried out of the row building at once. */
+class EncodeError extends Error {
+  readonly failure: RowFailure
+
+  constructor(failure: RowFailure) {
+    super(`${failure.field}: ${failure.reason}`)
+    this.failure = failure
+  }
 }
 
-/** The fact command of one staged write. */
+function must<T>(result: Outcome<T, RowFailure>): T {
+  if ('failure' in result) throw new EncodeError(result.failure)
+  return result.ok
+}
+
+/** The dispatch rows of `after` that differ from the rows of `before`. */
+function changedDispatches(
+  tenant: string,
+  call: ModelCallId,
+  before: readonly DispatchDocument[],
+  after: readonly DispatchDocument[],
+): Row[] {
+  return after.flatMap((dispatch, seq) => {
+    const next = must(encodeDispatchRow(tenant, call, seq, dispatch))
+    const prior = before[seq]
+    const old = prior === undefined ? null : encodeDispatchRow(tenant, call, seq, prior)
+    return old !== null && 'ok' in old && sameStored(old.ok, next) ? [] : [next]
+  })
+}
+
+/**
+ * The fact command of one staged write. The `pending` mark of the call row is the recovery-work
+ * judgment of the shared core over the document. Operations with an unknown outcome are not in
+ * the document; `pending` adds their calls when it reads.
+ */
 function factsOf(
   tenant: string,
   staged: Staged,
   read: CallRead,
-  options: SqlModelStorageOptions,
-): Outcome<Readonly<Record<string, JsonValue>>, ModelFailure> {
-  const call = staged.kind === 'commit' ? staged.write.call : staged.call
-  const callId = staged.kind === 'commit' ? staged.write.binding.call : staged.call.state.call
+  share: ResultCapacity,
+): Readonly<Record<string, JsonValue>> {
+  const call = stagedCall(staged)
+  const callId = stagedCallId(staged)
   const { expected } = staged
-  let row: Row | null = null
-  if (call !== undefined) {
-    const head = encoded(
-      encodeCallRow(tenant, nextVersion(expected), call, options.isPending(call)),
-    )
-    if ('failure' in head) return head
-    row = head.ok
-  }
   const before = read.record?.document.dispatches ?? []
-  const dispatches: Row[] = []
-  for (const [seq, dispatch] of (call?.dispatches ?? []).entries()) {
-    const next = encoded(encodeDispatchRow(tenant, callId, seq, dispatch))
-    if ('failure' in next) return next
-    const prior = before[seq]
-    const old = prior === undefined ? null : encodeDispatchRow(tenant, callId, seq, prior)
-    if (old === null || !('ok' in old) || !sameStored(old.ok, next.ok)) dispatches.push(next.ok)
-  }
   const plan = planParts(read.record?.parts ?? [], before, call?.dispatches ?? [])
-  const parts: Row[] = []
-  for (const part of plan.insert) {
-    const next = encoded(encodePartRow(tenant, callId, part))
-    if ('failure' in next) return next
-    parts.push(next.ok)
-  }
-  let binding: Row | null = null
-  if (staged.kind === 'commit') {
-    const next = encoded(encodeOperationRow(tenant, staged.write.operation, staged.write.binding))
-    if ('failure' in next) return next
-    binding = next.ok
-  }
-  return succeed({
+  return {
     intent: 'write',
     tenant,
     call: callId,
     expected,
-    row,
-    dispatches,
+    row:
+      call === undefined
+        ? null
+        : must(encodeCallRow(tenant, nextVersion(expected), call, hasRecoveryWork(call))),
+    dispatches: changedDispatches(tenant, callId, before, call?.dispatches ?? []),
     removeParts: plan.remove.map(part => ({
       seq: part.seq,
       block: part.position,
       part: part.part,
     })),
-    parts,
-    binding,
-    share: expected === null && row !== null ? options.limits.tenantCapacity : null,
-  })
+    parts: plan.insert.map(part => must(encodePartRow(tenant, callId, part))),
+    binding:
+      staged.kind === 'commit'
+        ? must(encodeOperationRow(tenant, staged.write.operation, staged.write.binding))
+        : null,
+    share: expected === null && call !== undefined ? share : null,
+  }
+}
+
+function encodedFacts(
+  tenant: string,
+  staged: Staged,
+  read: CallRead,
+  share: ResultCapacity,
+): Outcome<Readonly<Record<string, JsonValue>>, ModelFailure> {
+  try {
+    return succeed(factsOf(tenant, staged, read, share))
+  } catch (error) {
+    if (!(error instanceof EncodeError)) throw error
+    return fail({ kind: 'invalid', field: error.failure.field, reason: error.failure.reason })
+  }
 }
 
 // --- The run -------------------------------------------------------------------------------
@@ -435,7 +479,7 @@ function afterRollback(receipt: ReceiptV2, staged: Staged): Step {
   if (stop?.kind === 'conflict') {
     const reason = isFactRecord(stop.basis) ? stop.basis['reason'] : undefined
     if (typeof reason === 'string' && RETRIED.includes(reason)) return { kind: 'again' }
-    const call = staged.kind === 'commit' ? staged.write.call : staged.call
+    const call = stagedCall(staged)
     if (reason === 'capacity' && call !== undefined)
       return { kind: 'done', failure: { kind: 'capacity', required: call.capacity } }
   }
@@ -445,35 +489,70 @@ function afterRollback(receipt: ReceiptV2, staged: Staged): Step {
   }
 }
 
-/** The unknown bindings of each tenant, by operation. One writer: the storage of this process. */
+/**
+ * The unknown bindings of each tenant, by operation. One writer: the storage of this process. The
+ * limit holds per tenant, so the unknown outcomes of one tenant do not stop the writes of another.
+ */
 class Unresolved {
   private readonly tenants = new Map<string, Map<ModelOperationId, Binding>>()
-  private count = 0
   private readonly limit: number
 
   constructor(limit: number) {
     this.limit = limit
   }
 
-  full(): boolean {
-    return this.count >= this.limit
+  /** Whether a new unknown operation of `tenant` has no room. An operation already kept has room. */
+  full(tenant: string, operation: ModelOperationId): boolean {
+    const kept = this.tenants.get(tenant)
+    return kept !== undefined && !kept.has(operation) && kept.size >= this.limit
   }
 
   of(tenant: string): ReadonlyMap<ModelOperationId, Binding> {
     return new Map(this.tenants.get(tenant) ?? [])
   }
 
+  /** The calls of `tenant` after `after` that have an unknown operation, in call order. */
+  callsAfter(tenant: string, after: ModelCallId | null): ModelCallId[] {
+    const calls = [...(this.tenants.get(tenant)?.values() ?? [])].map(binding => binding.call)
+    return [...new Set(calls)].filter(call => after === null || call > after).sort()
+  }
+
   add(tenant: string, operation: ModelOperationId, binding: Binding): void {
-    const map = this.tenants.get(tenant) ?? new Map<ModelOperationId, Binding>()
-    if (!map.has(operation)) this.count += 1
-    map.set(operation, binding)
-    this.tenants.set(tenant, map)
+    const kept = this.tenants.get(tenant) ?? new Map<ModelOperationId, Binding>()
+    kept.set(operation, binding)
+    this.tenants.set(tenant, kept)
   }
 
   remove(tenant: string, operation: ModelOperationId): void {
-    if (this.tenants.get(tenant)?.delete(operation) === true) this.count -= 1
+    const kept = this.tenants.get(tenant)
+    kept?.delete(operation)
+    if (kept?.size === 0) this.tenants.delete(tenant)
   }
 }
+
+/**
+ * One page of the union of the stored pending calls and the calls with an unknown operation. When
+ * more stored rows follow the stored page, nothing after its last call is known yet, so the page
+ * stops there.
+ */
+function mergePending(
+  stored: PendingPage,
+  unknown: readonly ModelCallId[],
+  limit: number,
+): ScanPage {
+  const bound = stored.next
+  const merged = [...new Set([...stored.calls, ...unknown])]
+    .sort()
+    .filter(call => bound === null || call <= bound)
+  const calls = merged.slice(0, limit)
+  const more = bound !== null || merged.length > limit
+  return { calls, next: more ? (calls[calls.length - 1] ?? null) : null }
+}
+
+type Settled<T> =
+  | Readonly<{ kind: 'done'; outcome: Outcome<T, ModelFailure> }>
+  | Readonly<{ kind: 'again' }>
+const done = <T>(outcome: Outcome<T, ModelFailure>): Settled<T> => ({ kind: 'done', outcome })
 
 export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModelStorage {
   const { attempts, unresolved: unresolvedLimit } = checkOptions(options)
@@ -510,7 +589,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
   }
 
   /** Drops the unknown operations of the call that the storage has since decided. */
-  async function settleUnresolved(domain: DomainRef, scope: ModelRunScope): Promise<void> {
+  async function settleUnresolved(domain: DomainRef, scope: CallScope): Promise<void> {
     for (const [operation, binding] of unresolved.of(scope.tenant)) {
       if (binding.call !== scope.call) continue
       if ((await freeGeneration(domain, operation)) !== 'unknown')
@@ -550,7 +629,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
       const operation = `${staged.call.state.call}#read`
       return identityOf(domain, operation, `${operation}@${staged.expected}`)
     }
-    if (unresolved.full())
+    if (unresolved.full(tenant, staged.write.operation))
       return { kind: 'done', failure: unavailable('too many operations with an unknown outcome') }
     const at = await freeGeneration(domain, staged.write.operation)
     if (at === 'committed') return { kind: 'again' }
@@ -560,21 +639,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     return generation(domain, staged.write.operation, at)
   }
 
-  async function commitStaged(
-    domain: DomainRef,
-    tenant: string,
-    staged: Staged,
-    read: CallRead,
-  ): Promise<Step> {
-    const facts = factsOf(tenant, staged, read, options)
-    if ('failure' in facts) return { kind: 'done', failure: facts.failure }
-    const identity = await identityFor(domain, tenant, staged)
-    if ('kind' in identity) return identity
-    const result: CommitResultV2 = await storage.commit({
-      identity,
-      ...combination,
-      commands: [{ participant: MODEL_PARTICIPANT, facts: facts.ok }],
-    })
+  function afterCommit(result: CommitResultV2, tenant: string, staged: Staged): Step {
     switch (result.kind) {
       case 'committed':
         return { kind: 'done', failure: null }
@@ -591,29 +656,81 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     }
   }
 
+  async function commitStaged(
+    domain: DomainRef,
+    tenant: string,
+    staged: Staged,
+    read: CallRead,
+  ): Promise<Step> {
+    const call = stagedCall(staged)
+    // N1: a call larger than one command can carry is refused where it is admitted.
+    if (call !== undefined && BigInt(call.capacity.bytes) > BigInt(limits.maxCallBytes))
+      return { kind: 'done', failure: { kind: 'capacity', required: call.capacity } }
+    const facts = encodedFacts(tenant, staged, read, limits.tenantCapacity)
+    if ('failure' in facts) return { kind: 'done', failure: facts.failure }
+    const identity = await identityFor(domain, tenant, staged)
+    if ('kind' in identity) return identity
+    const result = await storage.commit({
+      identity,
+      ...combination,
+      commands: [{ participant: MODEL_PARTICIPANT, facts: facts.ok }],
+    })
+    return afterCommit(result, tenant, staged)
+  }
+
+  /** One attempt: settle, read, run the work, commit what it staged. */
+  async function attempt<T>(
+    work: () => Outcome<T, ModelFailure>,
+    scope: CallScope,
+    domain: DomainOf,
+  ): Promise<Settled<T>> {
+    const ready = domain.kind === 'ready' ? domain.domain : null
+    if (ready !== null) await settleUnresolved(ready, scope)
+    const input = { tenant: scope.tenant, call: scope.call, operation: scope.operation ?? null }
+    const read = await readCall(storage, domain, input)
+    if ('failure' in read) return done(read)
+    if (read.ok.binding !== null) unresolved.remove(scope.tenant, read.ok.binding.operation)
+    const face = new Attempt(scope, read.ok, unresolved.of(scope.tenant))
+    const outcome = runWork(work, face)
+    const staged = face.staged
+    if (staged === null) return done(outcome)
+    if (ready === null) return done(fail(unavailable('the tenant has no registered domain')))
+    const settled = await commitStaged(ready, scope.tenant, staged, read.ok)
+    if (settled.kind === 'again') return settled
+    return done(settled.failure === null ? outcome : fail(settled.failure))
+  }
+
   async function run<T>(
     work: () => Outcome<T, ModelFailure>,
-    scope?: ModelRunScope,
+    scope?: RunScope,
   ): Promise<Outcome<T, ModelFailure>> {
     if (scope === undefined) return runWork(work, null)
+    const { call } = scope
+    if (call === undefined)
+      return fail(unavailable('a run of this storage reads one call; the scope names none'))
     const domain = await domainOf(domains, scope.tenant)
     if ('failure' in domain) return domain
-    const ready = domain.ok.kind === 'ready' ? domain.ok.domain : null
-    const input = { tenant: scope.tenant, call: scope.call, operation: scope.operation ?? null }
     for (let pass = 1; pass <= attempts; pass += 1) {
-      if (ready !== null) await settleUnresolved(ready, scope)
-      const read = await readCall(storage, domain.ok, input)
-      if ('failure' in read) return read
-      if (read.ok.binding !== null) unresolved.remove(scope.tenant, read.ok.binding.operation)
-      const attempt = new Attempt(scope, read.ok, unresolved.of(scope.tenant))
-      const outcome = runWork(work, attempt)
-      const staged = attempt.staged
-      if (staged === null) return outcome
-      if (ready === null) return fail(unavailable('the tenant has no registered domain'))
-      const settled = await commitStaged(ready, scope.tenant, staged, read.ok)
-      if (settled.kind === 'done') return settled.failure === null ? outcome : fail(settled.failure)
+      const settled = await attempt(work, { ...scope, call }, domain.ok)
+      if (settled.kind === 'done') return settled.outcome
     }
     return fail(unavailable('every attempt of the run met a newer write'))
+  }
+
+  async function pending(
+    tenant: string,
+    after: string | null,
+    limit: number,
+  ): Promise<Outcome<ScanPage, ModelFailure>> {
+    const from = after === null ? null : decodeModelCallId(after)
+    if (from !== null && 'failure' in from)
+      return fail({ kind: 'invalid', field: 'after', reason: 'scan-cursor' })
+    const start = from === null ? null : from.ok
+    const domain = await domainOf(domains, tenant)
+    if ('failure' in domain) return domain
+    const stored = await readPending(storage, domain.ok, { tenant, after: start, limit })
+    if ('failure' in stored) return stored
+    return succeed(mergePending(stored.ok, unresolved.callsAfter(tenant, start), limit))
   }
 
   return {
@@ -623,6 +740,7 @@ export function createSqlModelStorage(options: SqlModelStorageOptions): SqlModel
     reserved: field => active().reserved(field),
     commit: (tenant, write) => active().commit(tenant, write),
     publish: (tenant, call) => active().publish(tenant, call),
+    pending,
     async readCall(input) {
       const domain = await domainOf(domains, input.tenant)
       return 'failure' in domain ? domain : readCall(storage, domain.ok, input)
@@ -733,11 +851,7 @@ function writeFacts(facts: Readonly<Record<string, JsonValue>>) {
 const stop = (reason: string): ParticipantReply => ({ kind: 'conflict', basis: { reason } })
 
 function overShare(port: ParticipantPort, tenant: string, share: ResultCapacity): boolean {
-  const sums = port.execute(
-    `SELECT COALESCE(SUM(cap_bytes), 0), COALESCE(SUM(cap_blocks), 0), COALESCE(SUM(cap_attachment), 0)
-       FROM md_call WHERE tenant = ? AND request IS NOT NULL`,
-    [tenant],
-  ).rows[0]
+  const sums = port.execute(HELD_SHARE_SQL, [tenant]).rows[0]
   const limits = [share.bytes, share.blocks, share.attachmentBytes]
   return limits.some((limit, at) => {
     const sum = sums?.[at] ?? 0
@@ -747,31 +861,28 @@ function overShare(port: ParticipantPort, tenant: string, share: ResultCapacity)
   })
 }
 
-/**
- * One write in the provider's transaction: bind the operation, then insert the call or update it
- * at the expected version, then the dispatch and part rows, then the tenant share of a new call.
- * Any stop rolls the whole commit back.
- */
-function write(port: ParticipantPort, facts: ReturnType<typeof writeFacts>): ParticipantReply {
+type WriteFacts = ReturnType<typeof writeFacts>
+
+/** Inserts the call row, or updates it at the expected version. The reason of a stop, or null. */
+function writeCall(port: ParticipantPort, facts: WriteFacts): string | null {
   const { tenant, call, expected, row } = facts
-  if (
-    facts.binding !== null &&
-    insert(port, TABLES.operation, facts.binding, 'ON CONFLICT (tenant, operation) DO NOTHING') !==
-      1n
+  if (row === null) return null
+  if (expected === null)
+    return insert(port, TABLES.call, row, 'ON CONFLICT (tenant, call) DO NOTHING') === 1n
+      ? null
+      : 'call-exists'
+  const names = columnNames(TABLES.call).filter(name => name !== 'tenant' && name !== 'call')
+  const updated = port.execute(
+    `UPDATE md_call SET ${names.map(name => `${name} = ?`).join(', ')}
+      WHERE tenant = ? AND call = ? AND row_version = ?`,
+    [...names.map(name => cellValue(TABLES.call, row, name)), tenant, call, BigInt(expected)],
   )
-    return stop('operation-bound')
-  if (row !== null && expected === null) {
-    if (insert(port, TABLES.call, row, 'ON CONFLICT (tenant, call) DO NOTHING') !== 1n)
-      return stop('call-exists')
-  } else if (row !== null && expected !== null) {
-    const names = columnNames(TABLES.call).filter(name => name !== 'tenant' && name !== 'call')
-    const updated = port.execute(
-      `UPDATE md_call SET ${names.map(name => `${name} = ?`).join(', ')}
-        WHERE tenant = ? AND call = ? AND row_version = ?`,
-      [...names.map(name => cellValue(TABLES.call, row, name)), tenant, call, BigInt(expected)],
-    )
-    if (updated.changes !== 1n) return stop('version')
-  }
+  return updated.changes === 1n ? null : 'version'
+}
+
+/** Upserts the changed dispatch rows, removes the dropped parts and inserts the new ones. */
+function writeChildren(port: ParticipantPort, facts: WriteFacts): void {
+  const { tenant, call } = facts
   const kept = columnNames(TABLES.dispatch).filter(
     name => !['tenant', 'call', 'seq'].includes(name),
   )
@@ -785,8 +896,24 @@ function write(port: ParticipantPort, facts: ReturnType<typeof writeFacts>): Par
       [tenant, call, BigInt(key.seq), BigInt(key.block), BigInt(key.part)],
     )
   for (const item of facts.parts) insert(port, TABLES.part, item, '')
-  if (facts.share !== null && overShare(port, tenant, facts.share)) return stop('capacity')
-  return { kind: 'participated', response: { version: nextVersion(expected) } }
+}
+
+/**
+ * One write in the provider's transaction: bind the operation, then insert the call or update it
+ * at the expected version, then the dispatch and part rows, then the tenant share of a new call.
+ * Any stop rolls the whole commit back.
+ */
+function write(port: ParticipantPort, facts: WriteFacts): ParticipantReply {
+  const bound =
+    facts.binding === null ||
+    insert(port, TABLES.operation, facts.binding, 'ON CONFLICT (tenant, operation) DO NOTHING') ===
+      1n
+  if (!bound) return stop('operation-bound')
+  const refused = writeCall(port, facts)
+  if (refused !== null) return stop(refused)
+  writeChildren(port, facts)
+  if (facts.share !== null && overShare(port, facts.tenant, facts.share)) return stop('capacity')
+  return { kind: 'participated', response: { version: nextVersion(facts.expected) } }
 }
 
 const participant: ParticipantModule = {
@@ -795,7 +922,7 @@ const participant: ParticipantModule = {
   execute(facts, port) {
     if (facts['intent'] !== 'write')
       return { kind: 'unsupported', basis: { reason: 'the facts are not a write' } }
-    let checked: ReturnType<typeof writeFacts>
+    let checked: WriteFacts
     try {
       checked = writeFacts(facts)
     } catch (error) {

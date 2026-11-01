@@ -31,130 +31,19 @@ import {
   type Termination,
   type VisibleBlock,
 } from '@omne-harness/model-contract'
-import type {
-  ActorRef,
-  ExecutionRef,
-  ModelConsumerOwnerDeclaration,
-  ProviderDiagnostic,
-} from '@omne-harness/model-contract/provider'
+import type { ExecutionRef } from '@omne-harness/model-contract/provider'
+import {
+  MODEL_WRITE_METHODS,
+  type BindingBase,
+  type CallDocument,
+  type DispatchDocument,
+  type ModelWriteMethod,
+  type ReadRelation,
+  type Receipt,
+} from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { TABLES, type Table } from './schema.ts'
-
-// --- The storage port of the shared commands core ------------------------------------------
-// Integration point: these types mirror `packages/model/model/src/commands/{storage,types}.ts`
-// (C-CORE, 8ac28f135), which is the authority. They are replaced by imports from
-// `@omne-harness/model/commands` when that entry exists. `run` already takes the optional scope
-// that C-CORE-2 adds. `DispatchDocument.assembly` is `null` here: the core never sets it to
-// anything else, and the storage does not keep a live assembly.
-
-export const MODEL_WRITE_METHODS = [
-  'admit',
-  'claim',
-  'prepareDispatch',
-  'recordMaterialization',
-  'recordSend',
-  'openReceiveWindow',
-  'preserve',
-  'recordLateFact',
-  'prepareRetry',
-  'decideRetry',
-  'settle',
-  'control',
-  'acquireRead',
-  'handoff',
-  'advanceCleanup',
-] as const
-export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
-export type Receipt =
-  | Readonly<{ kind: 'revision'; revision: Revision }>
-  | Readonly<{ kind: 'admit'; admission: Admission }>
-  | Readonly<{ kind: 'claim'; instance: string; generation: string }>
-  | Readonly<{ kind: 'materialization'; revision: Revision; source: DurableEvidence }>
-  | Readonly<{ kind: 'retry'; position: RetryPosition }>
-  | Readonly<{ kind: 'settle'; settlement: Settlement }>
-  | Readonly<{ kind: 'preserve'; cursor: OutputCursor }>
-  | Readonly<{ kind: 'late'; revision: Revision }>
-  | Readonly<{ kind: 'read'; read: ReadId | null }>
-  | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
-export type BindingBase = Readonly<{
-  call: ModelCallId
-  method: ModelWriteMethod
-  fingerprint: string
-  revision: Revision
-  receipt: Receipt
-}>
-export type Binding = BindingBase &
-  (
-    | Readonly<{ status: 'committed' }>
-    | Readonly<{ status: 'unknown'; effect: 'applied' | 'not-applied' }>
-    | Readonly<{ status: 'rolled-back' | 'not-committed' }>
-  )
-export type ReadRelation = {
-  id: ReadId
-  lastProgress: string
-  furthest: number
-  state: Extract<ReadState, { kind: 'ended' }> | { kind: 'reading'; offset: number }
-}
-export type ResultPaging = Readonly<{ resultPageParts: number; resultPageTargetBytes: number }>
-export type DispatchDocument = {
-  record: DispatchRecord
-  logicalTerminal: Termination | null
-  windows: Map<string, 'open' | 'closed' | 'unproven'>
-  events: Map<string, string>
-  assembly: null
-  blocks: readonly VisibleBlock[]
-  nextSeq: Map<string, string>
-  trims: Map<string, readonly ResultTrim[]>
-  hadContent: Set<string>
-  diagnostics: readonly ProviderDiagnostic[]
-}
-export type CallDocument = {
-  state: CallState
-  request: FixedModelRequest | null
-  requestDigest: string
-  capacity: ResultCapacity
-  initiator: ActorRef
-  admission: ModelOperationId
-  owner: ModelConsumerOwnerDeclaration
-  execution: ExecutionRef | null
-  dispatches: DispatchDocument[]
-  retry: RetryDecision | null
-  retryPosition: RetryPosition | null
-  retrySource: DurableEvidence | null
-  cursor: OutputCursor
-  snapshots: Map<OutputCursor, Snapshot>
-  reads: Map<ReadId, ReadRelation>
-  cleanupFailure: string | null
-  resultPaging: ResultPaging
-}
-export type TenantDocuments = Readonly<{
-  calls: ReadonlyMap<ModelCallId, CallDocument>
-  operations: ReadonlyMap<ModelOperationId, Binding>
-}>
-export type CommandWrite = Readonly<{
-  operation: ModelOperationId
-  expected: CallDocument | undefined
-  call: CallDocument | undefined
-  binding: BindingBase
-}>
-/** What one run reads before its work: the call, and the operation the work writes, if any. */
-export type ModelRunScope = Readonly<{
-  /** The canonical tenant text (`tenantCodec`), as in the other methods. */
-  tenant: string
-  call: ModelCallId
-  operation?: ModelOperationId
-}>
-export interface ModelCommandStorage {
-  run<T>(
-    work: () => Outcome<T, ModelFailure>,
-    scope?: ModelRunScope,
-  ): Promise<Outcome<T, ModelFailure>>
-  documents(tenant: string): TenantDocuments
-  reserved(field: keyof ResultCapacity): bigint
-  commit(tenant: string, write: CommandWrite): 'committed' | 'unknown'
-  publish(tenant: string, call: CallDocument): void
-}
 
 // --- Stored shapes -------------------------------------------------------------------------
 
@@ -453,6 +342,9 @@ function parseDispatchRow(
       ),
       windows: entries(str(row, 'windows'), 'md_dispatch.windows'),
       events: entries(str(row, 'events'), 'md_dispatch.events'),
+      // The core types `assembly` as `StreamAssembly | null`. A live assembly is process state
+      // and is never stored, so a stored dispatch reads back with none (`encodeDispatchRow`
+      // refuses to write one).
       assembly: null,
       nextSeq: entries(str(row, 'next_seq'), 'md_dispatch.next_seq'),
       trims: entries(str(row, 'trims'), 'md_dispatch.trims'),
@@ -754,6 +646,8 @@ export function encodeDispatchRow(
   dispatch: DispatchDocument,
 ): Outcome<Row, RowFailure> {
   return guarded(() => {
+    // The narrowing from the core's `StreamAssembly | null` to the stored `null`: a dispatch
+    // with a live assembly is refused, never written without it.
     if (dispatch.assembly !== null) throw new RowError('dispatch.assembly', 'live')
     return {
       tenant,

@@ -366,7 +366,6 @@ function options(
       maxCallBytes: 1 << 20,
       maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     },
-    isPending: call => call.state.phase !== 'settled',
     ...overrides,
   }
 }
@@ -769,13 +768,13 @@ describe('tenant isolation', () => {
     })
   })
 
-  it('answers unavailable when the work asks for another tenant than the run scope', async () => {
+  it('reads another tenant than the run scope as empty (D3d)', async () => {
     const store = createSqlModelStorage(options(sqliteStorage().storage))
     const result = await store.run(() => ({ ok: store.documents(B).calls.size }), {
       tenant: A,
       call: callId('x'),
     })
-    expect('failure' in result && result.failure.kind).toBe('unavailable')
+    expect(result).toEqual({ ok: 0 })
   })
 
   it('answers unavailable when a run without a scope reads documents', async () => {
@@ -809,9 +808,17 @@ describe('pending flag', () => {
     expect(await store.readPending({ tenant: A, after: null, limit: 2 })).toEqual({
       ok: { calls: [callId('m1'), callId('m2')], next: callId('m2') },
     })
+    // Settled, handed off and cleaned up: the core rule leaves no recovery work.
     const settled = edit(doc => {
       doc.state = {
         ...doc.state,
+        custody: {
+          kind: 'acknowledged',
+          operation: opId('ack'),
+          receipt: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+          cleanup: 'released',
+          diagnostic: null,
+        },
         phase: 'settled',
         settlement: {
           version: 'mrver_1' as never,

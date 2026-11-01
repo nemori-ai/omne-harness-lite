@@ -24,7 +24,8 @@ async function answersOfB(
     loadRecovery: await commands.loadRecovery(access),
     dispatches: await commands.dispatches(access),
     scanPending: await commands.scanPending({ principal, tenant: B, after: null, limit: 2 }),
-    control: await commands.control({ ...access, operation: opId('b-control') }),
+    // A write of B under the operation that A bound: B must not read the binding of A.
+    control: await commands.control({ ...access, operation: ADMISSION }),
   }
 }
 

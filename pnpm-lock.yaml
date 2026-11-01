@@ -1286,6 +1286,9 @@ importers:
         specifier: workspace:*
         version: link:../../storage/sql-contract
     devDependencies:
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../session/session-storage-sql
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

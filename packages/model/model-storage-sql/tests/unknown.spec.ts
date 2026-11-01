@@ -63,23 +63,27 @@ describe('a saved write whose reply is lost', () => {
     ).toEqual([[2n]])
   })
 
-  it('answers the lost operation as committed to a query, with the revision it wrote', async () => {
-    const { commands, sqlite, admit } = setup()
+  it('gives back the original control state on a retry and writes it once', async () => {
+    const { commands, sqlite, admit, count, domain } = setup()
     await commands.admit(admit)
     const control = { principal: admit.principal, tenant: A, call: CALL, operation: opId('stop') }
     sqlite.hooks.loseNextReply = true
     expect(await commands.control(control)).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('stop') },
     })
-    expect(
-      await commands.query({
-        principal: admit.principal,
-        tenant: A,
-        call: CALL,
+    const commits = sqlite.commits()
+    expect(await commands.control(control)).toEqual({
+      ok: {
+        kind: 'requested',
         operation: opId('stop'),
-      }),
-    ).toEqual({ ok: { kind: 'committed', value: { revision: '2' } } })
-    const retried = await commands.control(control)
-    expect('ok' in retried && retried.ok.kind).toBe('requested')
+        propagation: 'pending',
+        upstream: 'unknown',
+      },
+    })
+    expect(sqlite.commits()).toBe(commits)
+    expect(count('md_operation')).toEqual([[2n]])
+    expect(
+      sqlite.rows(domain, 'SELECT row_version FROM md_call WHERE tenant = ?', [textOf(A)]),
+    ).toEqual([[2n]])
   })
 })
