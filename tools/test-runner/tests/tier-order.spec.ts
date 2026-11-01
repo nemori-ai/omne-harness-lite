@@ -1,6 +1,6 @@
 // 成员测试一步的两层顺序：快层失败时结论已定，不再跑慢层。
 import { describe, expect, it } from 'vitest'
-import { fastThenSlow } from '../src/testing/steps.ts'
+import { fastThenSlow, resumeFilesToRun } from '../src/testing/steps.ts'
 
 function recorder(codes: Readonly<Record<'fast' | 'slow', number>>) {
   const ran: string[] = []
@@ -31,5 +31,20 @@ describe('快层再慢层', () => {
     const r = recorder({ fast: 0, slow: 0 })
     expect(await fastThenSlow(r.run, r.note)).toBe(0)
     expect(r.ran).toEqual(['fast', 'slow'])
+  })
+})
+
+describe('接续时要单独跑的失败文件', () => {
+  it('所在成员这次已整个跑过的不再单独跑，其余照跑', () => {
+    const file = (member: string, name: string) => ({
+      member,
+      file: `${member}/tests/${name}`,
+      tier: 'slow' as const,
+      kind: 'timeout' as const,
+      firstError: 'timed out',
+    })
+    const files = [file('packages/a', 'x.spec.ts'), file('tools/b', 'y.spec.ts')]
+    expect(resumeFilesToRun(files, new Set(['packages/a']))).toEqual([files[1]])
+    expect(resumeFilesToRun(files, new Set())).toEqual(files)
   })
 })

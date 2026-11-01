@@ -18,14 +18,32 @@
 - 改过的文件：在工作树根运行 `pnpm exec oxlint <文件>` 与 `pnpm exec oxfmt --check <文件>`。格式不对时，用 `pnpm exec oxfmt <文件>` 改正。
 - 改了文档时，在工作树根运行 `pnpm run check:docs` 一次。
 - 改动含代码时，在工作树根运行 `pnpm run lint:rules`。
+- 仓库级 lint 与格式：在工作树根运行 `pnpm run lint:oxlint` 与 `pnpm run format:check`。准入的前几步就是这两项。只查改过的文件时，未用的导入与禁用指令可能漏掉。
+- 换行：在工作树根运行 `git ls-files --eol <改过的文件>`。第二列出现 `w/crlf` 时，把该文件改成 LF 再提交。Windows 宿主上写出的文件常带 CRLF，`format:check` 会因此失败。
 
 对负载敏感的用例（demo 全量、冷启动这一类）留给派发者在验证时跑。不要循环重跑它们来追绿。
 
 最后一次改动之后，重跑全部写者门禁。交回时报告每份门禁日志的时间与它所跑的提交号（P1）。
 
+## 不跑的检查
+
+不运行下面几项，闭包规格明确要求的除外：
+
+- `pnpm run admission` 或 `scripts/check.sh --admission`。
+- 仓库全量 `pnpm test`。
+- 全仓的差分变异或 `metrics --coverage`。
+
+原因：准入由派发者排队，同一台机器上一次只跑一个。写者的全量运行与准入争用 CPU 和测试名额，让准入里有时限的用例超时，整轮作废。M2 波 0 中，两路准入加写者全量同时运行时，单次准入从约 6 分钟拖到 25～40 分钟。
+
 ## 产物位置
 
 日志与临时文件写进闭包规格给出的任务过程目录（例如 `tmp/issue-<号>/logs/`）。不要写在工作树根或其他被跟踪的目录。原因：工作树里 Git 不忽略的未跟踪文件都会被 change-scope 计入改动，超出写范围时被拒绝。
+
+## 不改的文件与不用的命令
+
+- 不改任何 `acceptance/` 目录下的文件。验收锁只接受 `Agent-Role` 为 `main` 或 `qa` 的提交改它们（`repo-toolchain.config.json` 的 `acceptanceLock`）。写者的提交改了验收文件，准入会拒绝，修正要改写分支历史。需要改验收时，停下交回。
+- 删除、改名或搬迁一份正文之前，在工作树根运行 `git grep -n <旧路径或旧锚点>`，列出入向链接。入向链接所在的文件不在写范围内时，停下交回，并列出这些文件。否则 `check:docs` 报断链，或 change-scope 报越界。
+- 不用 `git stash`。同一仓库的全部工作树共用一个 stash 栈，别的会话可能取走或覆盖你的改动。要临时保存改动，提交到自己的分支，或把 `git diff` 写进任务过程目录。
 
 ## 长命令与名额
 
@@ -73,5 +91,7 @@
 | --- | --- | --- |
 
 变异做完后按字节还原被改的代码。手工变异的规则见 `docs/engineering/workflow.md` D4。
+
+用例经 `dist` 导入被测成员时，每个变异都先重新构建该成员，再跑用例。否则用例测的是旧产物，变异看起来存活或全红都不可信。
 
 P 编号指 `.meta_harness/human/delivery-pitfalls.md` 的失误条目。

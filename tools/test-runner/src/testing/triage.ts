@@ -96,14 +96,19 @@ export function triageSummary(entries: readonly TriageEntry[], triageDir: string
   return lines
 }
 
-async function rerun(
+/**
+ * 单独重跑一个测试文件（`test` 给了时只跑那一条用例）：经成员自己的 `script` 脚本起 vitest，一个工作进程，
+ * 日志与 JSON 报告写在 `base` 旁。失败归因与一层失败后的定向重跑（test-retry.ts）共用。
+ */
+export async function rerunInFile(
   root: string,
-  script: RunScript,
-  failure: Failure & { readonly file: string },
+  script: string,
+  member: string,
+  file: string,
   test: string | undefined,
   base: string,
 ): Promise<RerunOutcome> {
-  const memberDir = join(root, failure.member)
+  const memberDir = join(root, member)
   const reportPath = `${base}.json`
   // 经成员自己的脚本跑（它是 `vitest run …`，验收的那份还带着自己的配置），后面的参数原样传给 vitest。
   // 命令行的 `--reporter` 替换配置里的报告器，`vitest.tiers.mts` 的过滤守卫不在场：选不中时退出码可能是 0，
@@ -116,7 +121,7 @@ async function rerun(
       ...pnpm.args,
       'run',
       script,
-      relative(memberDir, join(root, failure.file)),
+      relative(memberDir, join(root, file)),
       ...(test === undefined ? [] : ['-t', namePattern(test)]),
       '--reporter=default',
       '--reporter=json',
@@ -153,10 +158,11 @@ export async function triage(
       const outcomes: RerunOutcome[] = []
       for (let attempt = 1; attempt <= repeats; attempt += 1)
         outcomes.push(
-          await rerun(
+          await rerunInFile(
             root,
             script,
-            target,
+            target.member,
+            target.file,
             failure.test,
             join(triageDir, `${index + 1}-${attempt}`),
           ),
@@ -168,10 +174,11 @@ export async function triage(
               ...failure,
               outcomes,
               class: kind,
-              wholeFile: await rerun(
+              wholeFile: await rerunInFile(
                 root,
                 script,
-                target,
+                target.member,
+                target.file,
                 undefined,
                 join(triageDir, `${index + 1}-file`),
               ),

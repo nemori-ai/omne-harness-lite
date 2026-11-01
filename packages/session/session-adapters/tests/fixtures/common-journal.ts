@@ -29,6 +29,7 @@ import {
   initializationFixtureFacts,
   creation,
   memoryAccess,
+  memoryOtherAccess,
   operationId,
   ordinaryInput,
   guard,
@@ -65,6 +66,7 @@ export function checkpoint(): AgentCheckpoint {
     completedPassages: [],
     priorConditions: null,
     currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' },
   }
 }
 export type SceneQualification = {
@@ -88,8 +90,10 @@ export async function scene(
   budget?: { entries: number; bytes: number; capacityBytes: number },
   qualification: SceneQualification = { agent: true, session: true },
   finishing: SceneFinishing = {},
+  tenant: 'own' | 'other' = 'own',
 ) {
-  const access = memoryAccess('tester', session)
+  const access =
+    tenant === 'other' ? memoryOtherAccess('intruder', session) : memoryAccess('tester', session)
   const initialization = createMemoryInitializationSource()
   // The Session side: an explicit policy. Only the scene's own tenant may touch a session; the
   // scene's qualification flag decides the rest per request, and every allowed decision gets its

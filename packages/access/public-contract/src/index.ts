@@ -30,6 +30,8 @@ export type {
 export type {
   SessionOperation,
   SessionRequestBodies,
+  SessionProducerRef,
+  SessionTerminalSource,
   SessionRequest,
   SessionOutcomes,
   SessionSuccessBodies,

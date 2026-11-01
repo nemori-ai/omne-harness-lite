@@ -1,0 +1,116 @@
+{
+  "source": "docs/architecture/runtime/application-assembly.md",
+  "rows": [
+    "storage",
+    "identity",
+    "authorization",
+    "session-storage",
+    "session-provider",
+    "session-ad01",
+    "session-ad02",
+    "session-ad03",
+    "session-ad04",
+    "session-ad05",
+    "session-ad06",
+    "session-ad09",
+    "session-ad10",
+    "session-ad11",
+    "session-ad12",
+    "session-ad14",
+    "session-ad15",
+    "session-handoff",
+    "session-conditions",
+    "agent-journal",
+    "agent-adoptions",
+    "adoption-sources",
+    "agent-model-selection",
+    "agent-host",
+    "agent-instances",
+    "model-host",
+    "model-instances",
+    "model-converters",
+    "model-profiles",
+    "model-request-preparation",
+    "model-credential",
+    "tool-runtime",
+    "tool-executor",
+    "tool-host",
+    "tool-residency",
+    "tool-instances",
+    "tool-environments",
+    "execution-environment",
+    "execution-files",
+    "execution-host-files",
+    "request-context",
+    "agent-context",
+    "agent-account-outlet",
+    "runtime-context",
+    "server-entry"
+  ],
+  "trusted": [
+    {
+      "row": "storage",
+      "names": [
+        "storage"
+      ]
+    },
+    {
+      "row": "identity",
+      "names": [
+        "storage"
+      ]
+    },
+    {
+      "row": "session-storage",
+      "names": [
+        "storage",
+        "tenantDomainLookup",
+        "sessionPrincipalBindings"
+      ]
+    },
+    {
+      "row": "session-provider",
+      "names": [
+        "sessionWorkPrincipals"
+      ]
+    },
+    {
+      "row": "agent-journal",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "agent-adoptions",
+      "names": [
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "adoption-sources",
+      "names": [
+        "definitionMappings"
+      ]
+    },
+    {
+      "row": "request-context",
+      "names": [
+        "requestContextTrust"
+      ]
+    },
+    {
+      "row": "runtime-context",
+      "names": [
+        "runtimeContextTrust"
+      ]
+    },
+    {
+      "row": "server-entry",
+      "names": [
+        "principalIssuer",
+        "definitionMappings"
+      ]
+    }
+  ]
+}

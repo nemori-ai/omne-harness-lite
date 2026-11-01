@@ -29,6 +29,12 @@ import type {
   ScopeReleaseDisposition,
   WorkSnapshot,
 } from './values.ts'
+import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts'
+import type {
+  SessionEntriesObservation,
+  SessionEntriesReceipt,
+  SessionEntriesStart,
+} from './interpretation-values.ts'
 import type {
   OperationResolution,
   PendingReason,
@@ -160,6 +166,8 @@ export type MutationName =
   | 'considerAutoArchive'
   | 'recordIdle'
   | 'interrupt'
+  | 'cancelRun'
+  | 'stopCall'
   | 'freeze'
   | 'receive'
 /** The mutation methods of the three faces, with the principal erased. */
@@ -209,6 +217,29 @@ export interface SessionContextInput<P> {
     command: Extract<SessionCommand, { kind: 'create' | 'change' | 'startRun' | 'reload' }>,
   ): Reply<readonly GuardCommand[]>
 }
+/** The commands whose guard material the Context adoption source prepares. */
+export type AdoptionEvidenceCommand = Extract<
+  SessionCommand,
+  { kind: 'create' | 'startRun' | 'reload' | 'completeInitialization' | 'change' | 'freeze' }
+>
+export type ProductionEvidenceCommand = Extract<
+  SessionCommand,
+  { kind: 'receive' | 'preserveResult' | 'completeInitialization' }
+>
+export type CustodyEvidenceCommand = Extract<
+  SessionCommand,
+  { kind: 'preserveResult' | 'completeConsumption' | 'completeExternalConsumption' }
+>
+/** The three narrow consumption ports of the evidence bridge (XC-ADOPTSRC). They prepare guard material only. */
+export interface SessionAdoptionSource {
+  prepare(command: AdoptionEvidenceCommand): Reply<readonly GuardCommand[]>
+}
+export interface SessionProductionSource {
+  prepare(command: ProductionEvidenceCommand): Reply<readonly GuardCommand[]>
+}
+export interface SessionCustodySource {
+  prepare(command: CustodyEvidenceCommand): Reply<readonly GuardCommand[]>
+}
 export interface SessionTransactionPort<P> {
   /**
    * Commits one command under the explicit access of this call (SPEC「当前操作的访问裁定」). The
@@ -229,6 +260,17 @@ export interface SessionTransactionPort<P> {
   queryOperation(
     input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
   ): Reply<OperationResolution>
+  readModelSelection(input: SessionAccess<P>): Reply<SessionModelSelection>
+  queryControlOperation(
+    input: SessionAccess<P> & Readonly<{ operation: SessionOperationId }>,
+  ): Reply<ControlOperationResolution>
+  /**
+   * The same-log entries interpretation commit. It is not a public face method and has no access
+   * check: the caller is the trusted interpreter, and the facts are already committed producer facts.
+   */
+  commitEntries(
+    input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
+  ): Reply<SessionEntriesReceipt>
   readonly history: SessionHistory<P>
   pending(
     input: Readonly<{

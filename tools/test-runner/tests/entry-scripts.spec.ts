@@ -204,7 +204,7 @@ describe('check-design.sh', () => {
 })
 
 describe('check.sh', () => {
-  it('只认 --admission、--keep-going 与带值的 --resume-from，原样交给运行器的 check；别的参数或缺值退出 2', () => {
+  it('只认 --admission、--keep-going、--preflight 与带值的 --resume-from，原样交给运行器的 check；别的参数或缺值退出 2', () => {
     const { run } = fixture()
     const held = { OMNE_TEST_SLOT_HELD: '1' }
     const ran = run('check.sh', ['--admission', '--resume-from', 'abc123'], held)
@@ -214,6 +214,12 @@ describe('check.sh', () => {
     ])
     expect(run('check.sh', ['--keep-going'], held).lines).toEqual([
       'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --keep-going',
+    ])
+    // 预检不占运行名额：没有拿到名额也直接起运行器。
+    const preflight = run('check.sh', ['--preflight'])
+    expect(preflight.status, preflight.stderr).toBe(0)
+    expect(preflight.lines).toEqual([
+      'node|--experimental-strip-types tools/test-runner/src/testing/cli.ts check --preflight',
     ])
     for (const args of [['--resume-from'], ['--resume-from', ''], ['--bogus'], ['abc']]) {
       const refused = run('check.sh', args, held)

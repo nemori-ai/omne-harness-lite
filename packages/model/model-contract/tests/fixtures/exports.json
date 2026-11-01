@@ -1468,6 +1468,51 @@
               "name": "ScriptedAccessDecision",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "createScriptedModelProfiles",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelProfiles",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelProfileCall",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "createScriptedModelRequestPreparation",
+              "kind": "value",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelRequestPreparation",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelRequestPreparationOptions",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelPreparationMatch",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelPreparationPlan",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ScriptedModelPreparationCall",
+              "kind": "type",
+              "pending": false
             }
           ]
         },

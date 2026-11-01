@@ -388,6 +388,105 @@ describe('增量计划', () => {
   })
 })
 
+describe('H1 失败于 test 时只跑必要的', () => {
+  // H1 的 test 步在慢层失败于 packages/b 的一个文件（快层已对全部成员通过），验收与回路状态没开始。
+  const AFTER_TEST = ['acceptance', 'loop:status']
+  const FAILED_FILE = {
+    member: 'packages/b',
+    file: 'packages/b/tests/x.spec.ts',
+    tier: 'slow',
+    kind: 'timeout',
+    firstError: 'Error: Test timed out in 5000ms.',
+  } as const
+  const testFailed = (over: Record<string, unknown> = {}) =>
+    record('test', AFTER_TEST, { testFailures: [FAILED_FILE], ...over })
+  /** H1..HEAD 只改了 packages/b 的文档：影响面没有选中任何成员要测。 */
+  const DOCS_ONLY: CheckPlan = {
+    ...AFFECTED_PLAN,
+    members: [],
+    build: [],
+    typecheck: [],
+    test: [],
+    acceptance: [],
+    documentsOnly: [{ path: 'packages/b', files: ['packages/b/README.md'] }],
+  }
+
+  it('差异都在失败用例所在成员里、失败在慢层：test 步只跑失败的文件加 H1..HEAD 影响到的成员，计划带 testResume', () => {
+    const verdict = resumePlan(
+      harness({ records: [testFailed()], changedFiles: ['packages/b/README.md'] }, DOCS_ONLY)
+        .inputs,
+    )
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind !== 'resume') return
+    const test = verdict.steps.find(step => step.name === 'test')
+    expect(test?.scope).toBe('files')
+    expect(test?.why).toContain('packages/b/tests/x.spec.ts')
+    expect(verdict.plan.testResume).toEqual({ files: [FAILED_FILE] })
+    // 成员清单按 H1..HEAD 影响面（这里为空）；没开始的验收仍整次，构建因它而整次。
+    expect(verdict.plan.test).toEqual([])
+    const scope = new Map(verdict.steps.map(step => [step.name, step.scope]))
+    expect(scope.get('acceptance')).toBe('whole')
+    expect(scope.get('build')).toBe('whole')
+    expect(scope.get('typecheck')).toBe('narrowed')
+    const text = describeResume(verdict, HEAD)
+    expect(text.find(line => line.startsWith('  只跑失败用例文件：'))).toContain('test（')
+    expect(text.find(line => line.startsWith('  整次：'))).not.toContain('test（')
+  })
+
+  it('差异碰到失败用例所在成员以外的路径：回退，test 步整次', () => {
+    const verdict = resumePlan(
+      harness({ records: [testFailed()], changedFiles: ['packages/a/src/y.ts'] }).inputs,
+    )
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind !== 'resume') return
+    const test = verdict.steps.find(step => step.name === 'test')
+    expect(test?.scope).toBe('whole')
+    expect(test?.why).toContain('packages/a/src/y.ts')
+    expect(verdict.plan.testResume).toBeUndefined()
+    expect(verdict.plan.test).toEqual(FULL_PLAN.test)
+  })
+
+  it('失败在快层（慢层在 H1 上没跑）：回退，test 步整次并说明', () => {
+    const verdict = resumePlan(
+      harness(
+        {
+          records: [testFailed({ testFailures: [{ ...FAILED_FILE, tier: 'fast' }] })],
+          changedFiles: ['packages/b/README.md'],
+        },
+        DOCS_ONLY,
+      ).inputs,
+    )
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind !== 'resume') return
+    const test = verdict.steps.find(step => step.name === 'test')
+    expect(test?.scope).toBe('whole')
+    expect(test?.why).toContain('快层')
+    expect(verdict.plan.testResume).toBeUndefined()
+  })
+
+  it('记录没写失败文件（早于这一栏，或失败不在文件里）：回退，test 步整次', () => {
+    for (const over of [{ testFailures: undefined }, { testFailures: [] }]) {
+      const verdict = resumePlan(
+        harness({ records: [testFailed(over)], changedFiles: ['packages/b/README.md'] }, DOCS_ONLY)
+          .inputs,
+      )
+      expect(verdict.kind).toBe('resume')
+      if (verdict.kind !== 'resume') continue
+      expect(verdict.steps.find(step => step.name === 'test')?.scope).toBe('whole')
+      expect(verdict.plan.testResume).toBeUndefined()
+    }
+  })
+
+  it('失败步不是 test 时不收窄，哪怕记录里有 testFailures', () => {
+    const verdict = resumePlan(
+      harness({ records: [record('lint:oxlint', AFTER_BUILD, { testFailures: [FAILED_FILE] })] })
+        .inputs,
+    )
+    expect(verdict.kind).toBe('resume')
+    if (verdict.kind === 'resume') expect(verdict.plan.testResume).toBeUndefined()
+  })
+})
+
 describe('中间运行', () => {
   const H2 = 'f'.repeat(40)
   /** H1 之后在同一棵树上的一次接续运行，失败在 contract-check。 */
@@ -633,7 +732,9 @@ describe('证据文本', () => {
   })
 })
 
-describe('取 git 事实', () => {
+// 每条用例在 beforeEach 建一棵临时仓库、再起多个 git 子进程：空闲时约 1 秒，负载下量到 6.5 秒
+// （2026-11-01 准入），超过 vitest 默认的 5 秒。时限按负载下成本的三倍写明，钩子同样，不改断言。
+describe('取 git 事实', { timeout: 20_000 }, () => {
   let repo: string
   const run = (...args: string[]) =>
     execFileSync('git', args, {
@@ -660,7 +761,7 @@ describe('取 git 事实', () => {
     writeFileSync(join(repo, 'a.txt'), 'a\n')
     run('add', '.')
     commit('one')
-  })
+  }, 20_000)
   afterEach(() => {
     rmSync(repo, { recursive: true, force: true })
   })

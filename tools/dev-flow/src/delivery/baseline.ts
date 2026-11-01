@@ -5,11 +5,12 @@
 // (src/declarations/api-baseline.ts). The pinned 0.0.15 does not export it yet, so this module
 // validates the same v1 shape. Replace the copy with the package import when the pin moves to a
 // version that has it.
-import { REST_HEADERS, type GhRead } from './github-read.ts'
+import { createHash } from 'node:crypto'
+import { GH_READ_TIMEOUT_MS, GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
 import { array, InputError, record, text } from './protocol.ts'
 
 export const BASELINE_MARKER = 'omne-contract-baseline:v1'
-const TIMEOUT_MS = 15_000
+const TIMEOUT_MS = GH_READ_TIMEOUT_MS
 const PAGE_LIMIT = 20
 
 /** The baseline of one contract member. */
@@ -317,6 +318,68 @@ export function readComments(repository: string, issue: number, call: GhRead): B
     if (result.length < 100) return items.map(parseComment)
   }
   throw new InputError(`Page limit reached at ${path}`)
+}
+/** One comment read by its URL: the fields every caller compares. */
+export type UrlComment = {
+  htmlUrl: string
+  body: string
+  bodySha256: string
+  updatedAt: string
+  author: CommentAuthor
+}
+export type CommentByUrl =
+  | { kind: 'foreign' }
+  | { kind: 'failed'; error: unknown; status: unknown; reason: string }
+  | { kind: 'unexplained'; reason: string }
+  | { kind: 'read'; comment: UrlComment }
+/**
+ * The one read of a comment of `repository` by its URL. `foreign` means the URL is not an Issue
+ * comment URL of this repository, so no request was made. A failed read keeps the error and the
+ * API `status`; the status `404` is the only absence. The caller compares `htmlUrl` with the URL.
+ */
+export function readCommentByUrl(repository: string, url: string, call: GhRead): CommentByUrl {
+  const escaped = repository.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const id = new RegExp(
+    `^https://github\\.com/${escaped}/issues/[1-9][0-9]*#issuecomment-([1-9][0-9]*)$`,
+  ).exec(url)?.[1]
+  if (id === undefined) return { kind: 'foreign' }
+  let value: unknown
+  try {
+    value = call(
+      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/comments/${id}`],
+      TIMEOUT_MS,
+    )
+  } catch (error) {
+    const status =
+      error instanceof GhReadError ? (error.body as { status?: unknown } | null)?.status : undefined
+    return {
+      kind: 'failed',
+      error,
+      status,
+      reason: error instanceof GhReadError ? `API error ${String(status)}` : 'read failed',
+    }
+  }
+  try {
+    const comment = record(value, 'comment'),
+      user = record(comment.user, 'comment.user'),
+      body = comment.body === null ? '' : text(comment.body, 'comment.body')
+    return {
+      kind: 'read',
+      comment: {
+        htmlUrl: text(comment.html_url, 'comment.html_url'),
+        body,
+        bodySha256: createHash('sha256').update(body, 'utf8').digest('hex'),
+        updatedAt: text(comment.updated_at, 'comment.updated_at'),
+        author: {
+          login: text(user.login, 'user.login'),
+          nodeId: text(user.node_id, 'user.node_id'),
+        },
+      },
+    }
+  } catch (error) {
+    if (error instanceof InputError) return { kind: 'unexplained', reason: error.message }
+    throw error
+  }
 }
 const PUBLISH_ENVIRONMENT = 'publish'
 /**

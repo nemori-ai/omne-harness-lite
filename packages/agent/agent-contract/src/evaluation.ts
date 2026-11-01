@@ -19,6 +19,8 @@ import type {
   InputBatchId,
   InputId,
   PassageId,
+  ReplyAdmissionPageCursor,
+  ReplyAdmissionSequence,
   StepId,
 } from './identity.ts'
 import type { JsonValue } from '@omne-harness/json-text'
@@ -187,22 +189,66 @@ export type ModelReplyAdmission = Readonly<{
   decision: 'admitted' | 'rejected'
   source: DurableEvidence
 }>
+/**
+ * A complete prefix of the reply admission facts of one execution (SPEC "回复准入的已核实前缀"):
+ * the facts 1 to `sequence` are consecutive and verified. `sequence` is the dense ordinal of the
+ * facts; zero is the proven origin of the execution. `basis` is the evidence the Journal resolves
+ * to this prefix: it binds tenant, execution, the execution origin, the sequence and the original
+ * publication. Neither a bare number nor a revision is a basis, and the prefix grants no read.
+ */
+export type ReplyAdmissionPrefix = Readonly<{
+  sequence: ReplyAdmissionSequence
+  basis: DurableEvidence
+}>
 export type ReplyAdmissionProjection = Readonly<{
   through: DurableEvidence
   rule: Adoption
   lastAdmission: DurableEvidence | null
   consecutiveDenials: string
   totalDenials: string
+  /** The end of every admission fact within `through`, at the same revision as the snapshot. */
+  prefix: ReplyAdmissionPrefix
 }>
+/**
+ * The lower bound of one `readReplyAdmissions` range: `origin` reads from the first fact of the
+ * execution, `prefix` reads after a verified prefix. `origin` does not mean "no history".
+ */
+export type ReplyAdmissionFrom =
+  | Readonly<{ kind: 'origin' }>
+  | Readonly<{ kind: 'prefix'; prefix: ReplyAdmissionPrefix }>
+/** One fact of a page: its sequence, the original fact and the evidence of its original Ja. */
+export type ReplyAdmissionItem = Readonly<{
+  sequence: ReplyAdmissionSequence
+  fact: ModelReplyAdmission
+  publication: DurableEvidence
+}>
+/** The end of a page: `more` names the cursor of the next page of the same range. */
+export type ReplyAdmissionPageTail =
+  | Readonly<{ kind: 'more'; next: ReplyAdmissionPageCursor }>
+  | Readonly<{ kind: 'complete' }>
+/** Why a range cannot be read completely (SPEC "回复准入的已核实前缀", 缺口). */
+export type ReplyAdmissionGapReason =
+  | 'retention'
+  | 'missing-fact'
+  | 'missing-basis'
+  | 'range-unavailable'
 export type ReplyAdmissionPage =
   | Readonly<{
       kind: 'page'
       through: DurableEvidence
-      items: readonly Readonly<{ sequence: string; fact: ModelReplyAdmission }>[]
-      next: string | null
-      complete: boolean
+      start: ReplyAdmissionPrefix
+      end: ReplyAdmissionPrefix
+      items: readonly ReplyAdmissionItem[]
+      tail: ReplyAdmissionPageTail
     }>
-  | Readonly<{ kind: 'gap'; recovery: DurableEvidence }>
+  | Readonly<{ kind: 'gap'; reason: ReplyAdmissionGapReason; recovery: DurableEvidence }>
+/**
+ * The read position the checkpoint keeps: `unverified` has no verified position, `verified` has
+ * verified the facts up to `prefix`. It holds no range, cursor, page or count.
+ */
+export type ReplyAdmissionRead =
+  | Readonly<{ kind: 'unverified' }>
+  | Readonly<{ kind: 'verified'; prefix: ReplyAdmissionPrefix }>
 export type GuardLevel = 0 | 1 | 2 | 3
 export type GuardFact = Readonly<{
   level: GuardLevel
@@ -229,6 +275,8 @@ export type AgentCheckpoint = Readonly<{
   priorConditions: DurableEvidence | null
   /** The H of the current source position; set by P, cleared or moved only by a Ja, never by Rh. */
   currentHandoff: HandoffReference | null
+  /** The verified read position of the reply admission facts; written only by an ordinary commit. */
+  replyAdmissionRead: ReplyAdmissionRead
 }>
 export type RuntimeConditions = Readonly<{
   source: DurableEvidence

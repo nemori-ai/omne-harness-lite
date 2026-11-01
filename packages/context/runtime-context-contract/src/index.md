@@ -25,6 +25,7 @@
 - [reduce.ts](reduce.ts)
 - [replay.ts](replay.ts)：恢复引用、开始与完成恢复的输入、恢复材料与结果
 - [registration.ts](registration.ts)
+- [trust.ts](trust.ts)：RuntimeContextTrust 构造输入类型
 - [shared.ts](shared.ts)
 - [update.ts](update.ts)
 - [validation.ts](validation.ts)

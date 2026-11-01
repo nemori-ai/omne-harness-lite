@@ -112,3 +112,24 @@ export function deriveSessionOperation(elements: SessionOperationElements): Sess
 export function deriveDriveOperation(elements: DriveOperationElements): string {
   return `dop_${digestOf(elements)}`
 }
+
+/** The disjoint identity families of the ingress that derives Session operation identities. */
+export const INGRESS_FAMILIES = Object.freeze({
+  control: 'session-public/1-control',
+  accept: 'session-public/1-accept',
+  create: 'session-public/1-create',
+} as const)
+export type IngressFamily = (typeof INGRESS_FAMILIES)[keyof typeof INGRESS_FAMILIES]
+
+/**
+ * The operation identity of an ingress request: the digest of the canonical JSON array
+ * `[family, ...fields]`. The array has no separator, so a field value that holds a delimiter, a
+ * quote or a newline cannot meet another combination of fields; the family is the first element,
+ * so two families never share an identity.
+ */
+export function deriveIngressOperation(
+  family: IngressFamily,
+  fields: readonly string[],
+): SessionOperationId {
+  return `sop_${digestOf([family, ...fields])}` as SessionOperationId
+}

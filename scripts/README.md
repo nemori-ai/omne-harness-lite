@@ -9,7 +9,7 @@
 | [package-tenancy-host.sh](package-tenancy-host.sh) | 脚本仍执行 `apps/tenancy-host/tools/package.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [build-tenancy-image.sh](build-tenancy-image.sh) | 脚本仍执行 `apps/tenancy-host/tools/docker-image.ts`。仓库里没有这个路径，它不会进入 `apps.0.0.1.legacy` |
 | [package-cli.sh](package-cli.sh) | 把 `@omne-harness/cli` 构建到临时目录，把其中的 `dist/` 写入一个尚不存在的绝对路径 `.tar.gz`。不删除、不写入 `apps/cli/dist`，不安装、不上传 |
-| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`） |
+| [check.sh](check.sh) | 定位仓库根，先取一个运行名额，再把正文交给测试运行器的 `check` 命令：算基线以来改动的影响面并打印计划，按[步骤图](#check-的步骤图)跑常驻检查与计划里的各步（无依赖的同时跑），最后是严格模式的回路状态；任一步失败即终止其余并返回那一步的退出码。`--admission` 为准入模式并写准入日志与运行记录（根脚本 `pnpm run admission`），`--keep-going` 失败后继续跑其余步骤，`--resume-from <H1>` 接续 H1 上快速失败的准入（全量或按影响面；只在准入模式下可用，`pnpm run admission --resume-from <H1>`）；`--preflight` 是[预检](#预检)（根脚本 `pnpm run preflight`），不占运行名额 |
 | [with-test-slot.sh](with-test-slot.sh) | 运行名额：让重负载的检查在同一台机器上排队执行，见[下文](#运行名额) |
 | [slot-unless-plan-only.sh](slot-unless-plan-only.sh) | 根脚本 `test:affected` 与 `mutation` 的入口：实际运行时取一个运行名额，带 `--plan-only` 只列范围时不取 |
 | [test-tier.sh](test-tier.sh) | 根脚本 `test:tier` 的入口：取一个运行名额，先构建，再跑全部成员的一层。层必须给 `fast`、`slow` 或 `all`，缺层或层名不对时退出 2 |
@@ -24,14 +24,15 @@
 安装 Bash、uv、Node/npm/pnpm 并按[验证规范](../docs/verification.md)准备环境后，
 在根执行 `pnpm run check` 或 `./scripts/check.sh`，两者等价。脚本也可通过绝对路径从其他目录调用。
 需要比较冻结基线时使用 `BASELINE=<git-ref> pnpm run check` 或
-`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission`、`--keep-going` 两个开关与带值的 `--resume-from <H1>`。
+`BASELINE=<git-ref> ./scripts/check.sh`；要全量用 `FULL=1 pnpm run check` 或 `FULL=1 ./scripts/check.sh`。脚本只接受 `--admission`、`--keep-going`、`--preflight` 三个开关与带值的 `--resume-from <H1>`；`--preflight` 不与别的开关同给。
 准入用 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，见[集成规则](../docs/engineering/integration.md#检查责任)）：
-除了构建、类型检查与成员测试不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。日志是本节的唯一源，别处只链接过来：
+除了构建、类型检查与成员测试不读缓存，还写准入日志 `tmp/admission/<时间>-<head 短号>.log`，作为准入证据；两种写法都写日志。准入开始时先[自检并自愈环境](#环境自检与自愈)，结果写进日志与记录。日志是本节的唯一源，别处只链接过来：
 日志旁边同名的 `.json` 是同一次运行的机读记录（头、树哈希、模式、每步的退出码、快速失败的步、缓存开关），与日志是同一份事实的两种写法：
 `check --resume-from <H1>` 与 `admission-evidence --for <F>` 读它，人读日志。JSON 记录的形状与用法归 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。文本日志的格式以本节为唯一源，别处只链接过来：
 
 - 首行：命令、head（有未提交改动时注明）、基线与它的来源、核数、开始时刻。
-- 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。
+- 接着两行 `环境自检：依赖——…` 与 `环境自检：换行——…`：做了什么，一致时写「不动」。
+- 中间：影响面计划、每一步的开始与结束（秒数、退出码、失败步骤的日志路径）、总计与关键路径。成员测试一层失败后做过定向重跑时，另有一行 `test 步定向重跑 N 个文件：…`，逐个写文件、原因分类与结果。
 - 末行：`exit=<退出码>`。没有这一行表示运行中途中止：基线被拒时根本不写日志（以 2 退出），算计划或步骤图核对抛错时日志只有开头几行。集成节点核对证据时按这一条判断。
 基线在正文开头按统一规则解析一次（`BASELINE`，再取任务上下文固定的 `targetBase`，再取 `origin/main`，本地没有这个引用就取 `main`）并以 `BASELINE` 传给各步，
 影响面与最后的回路状态共用它。规则由测试运行器的 `baseline` 命令给出，实现在 `@omne-harness/repo-toolchain` 的 `resolveBaseline`，`pnpm run check:plan`、`test:affected` 与 `mutation` 用同一个函数。
@@ -53,6 +54,7 @@
 
 - 一步失败：不再起新步骤，正在跑的整棵进程树终止，整体退出码取第一个失败的那一步，并打印它日志的末尾。
 - `--keep-going`：其余步骤照跑，依赖失败步骤的仍不启动；退出码仍取第一个失败。
+- 成员测试那一步例外，一层失败不立刻算失败：失败不超过 10 处且都落在测试文件里时，同一次运行内只把那些文件各重跑一次（成员串行、每成员一个工作进程），全过则这一步通过，重跑的文件、原因分类与结果写进运行记录的 `retried` 与准入日志；仍失败、超过 10 处或有成员一级的失败（没有报告、起不来）照旧失败。断言失败也重跑，但分类里分开计。规则与记录形状见 [test-runner 的准入一节](../tools/test-runner/README_ZH.md#准入运行记录接续与证据核对)。别的步骤的失败语义不变。
 
 产物：
 
@@ -63,6 +65,25 @@
 - 不依赖任何步骤、按计划：`pnpm run test:python`（pytest）与构建（被选中的成员及其依赖，另加 `lint:rules` 需要的 identity-values）。
 - 构建之后：`check:declarations`；契约成员 API 快照与 dist 的核对 `node --experimental-strip-types tools/dev-flow/src/integration/cli.ts contract-check`（根 `package.json` 没有对应的脚本；它运行钉住的 `omne-contract-api --check --json`。成员为 differs、unreadable、missing 或 invalid 时退出 1，检查失败，标准错误逐个写成员、状态与改法。没有 dist 的成员（unbuilt）只报告：影响面计划没有选中它们，所以没有构建。本卡改了成员的快照或源码时，影响面会选中它。工具缺失、运行失败或输出不合格时退出 2，检查也失败。见 [dev-flow 集成工具说明](../tools/dev-flow/src/integration/README.md#契约快照核对)）；`lint:rules`（也核[验收的覆盖声明](../tools/product-checks/README_ZH.md#验收的覆盖声明)与提交署名）；`lint:deps`（dependency-cruiser 解析验收夹具对 dist 的导入）；按计划的类型检查、成员测试与可执行验收。成员测试跑被选中成员的快层，快层全部通过才跑慢层（[分层](../tools/test-runner/README_ZH.md#测试运行)；`pnpm run test:gate` 也是这一步）；计划为空时明说「没有要跑的成员」，那不是「跑过了、全绿」。可执行验收只跑被选中、带 `acceptance` 脚本的成员，驱动构建出来的 `dist/`，任何一份不过整套检查就失败；耗时记录写进主检出的 `tmp/acceptance-ledger/`，是回路状态里验收耗时传感器的读数来源。计划里一个带验收的成员都没有时，为当前提交记一份标着「本次影响面不含带验收的成员」的账本，传感器认它。现在只有 `apps/cli` 一份，约 6～16 秒。
 - 其余全部结束之后：`pnpm run loop:status --strict --base <基线> --out tmp/loop-status-check`：方向与环、验收锁、开着的传感器都有数据（验收被计划跳过时认上一步的记录），破一个就失败（见 [tools/repo-toolchain](../tools/repo-toolchain/README_ZH.md#回路状态)）。基线就是正文开头解析的那一个；HEAD 就是那个提交时照跑，新增依赖为 0。它只读源码、git 与验收的耗时记录，放最后是让前面的失败先报；产物写进被 git 忽略的 `tmp/loop-status-check/`（每次先清掉），回路目录里什么都不写。这一步约 30 秒，大头是重复代码检测。单独跑这一步时，要先在同一个提交上跑过 `pnpm run acceptance`（或 `pnpm run check` 的验收一步留下过记录），否则验收耗时传感器没数据、严格模式判失败。
+
+### 环境自检与自愈
+
+准入（`--admission`）与预检开始时、读任何现场之前，先做两件事，只改工作副本与依赖目录，不改提交（实现在 [environment.ts](../tools/test-runner/src/testing/environment.ts)）：
+
+- 依赖目录与锁文件不一致（合并了别的分支后没重装）：pnpm 安装成功后把它用的锁文件留在 `node_modules/.pnpm/lock.yaml`，与 `pnpm-lock.yaml` 逐字节比；不同或没有就 `pnpm install --offline --frozen-lockfile`（只读 store，不改锁文件）。离线安装失败时不跑任何步骤、不写记录，以 2 退出，输出写明联网后手动 `pnpm install --frozen-lockfile`。
+- 已跟踪文件里索引为 LF、工作副本为 CRLF 的（Windows 编辑器写回的），只在除换行外与索引相同时 `git checkout-index -f` 重新检出；有内容改动的不碰，写在记录的 `kept` 里，`format:check` 会报它们。仓库 `core.autocrlf=true` 时检出就写 CRLF，不重新检出，写明改法。
+
+做了什么写进运行记录的 `environment` 一栏与准入日志的 `环境自检：` 两行；一致时也写明「不动」。
+
+### 预检
+
+`pnpm run preflight`（`./scripts/check.sh --preflight`，正文是运行器的 `check --preflight`）在当前树上一次跑完准入里不依赖构建与全量测试的步骤：`check:agents`、`check:docs`、`check:design`、`check:lines`、`change-scope`（含卡级语义复核与写范围）、`format:check`、`lint:rules`、`lint:oxlint`，以及 `acceptance:lock`（`loop:status` 里验收锁那一项的等价核对）。表在 [check-steps.ts](../tools/test-runner/src/testing/check-steps.ts) 的 `preflightSteps`，判据与 check 的表相同。全部同时起（受轻步骤并发限制），失败不终止其余（等价 `--keep-going`），最后一次列出全部失败：每一步的退出码、日志末尾与一句修法。退出码取第一个失败的那一步，全过退出 0。
+
+- 写者收尾与调度者入队前都跑它。它不写准入日志与运行记录，不是准入证据；日志落 `tmp/preflight/`。
+- 它不占运行名额：只起轻步骤，与 check 里同时跑的那些相同。
+- 开始时同样[自检并自愈环境](#环境自检与自愈)。
+- `lint:rules` 读磁盘上现有的 `packages/common/legal-identity` 的 dist，预检不构建；没有就在那一步失败，修法里写明先构建它。
+- 本机实测（24 核，别的会话在跑测试）墙钟 41 到 44 秒，长的一步是 `check:docs`。
 
 这样排之后，墙钟由关键路径决定。Linux 上是构建 → 类型检查 → 快层 → 慢层 → 验收 → 回路状态；pytest、文档与设计检查、格式、lint 都与它重叠。Windows 上 pytest 用 xdist 分进程，在 check 里用时约两分钟，与构建、类型检查重叠。逐步耗时表每次都写，关键路径由实际起止时间算出。
 判全量时（全局文件改了、有规则不认得的路径、`FULL=1`）计划选中全部成员，全部步骤对全部成员跑。构建与类型检查仍经 turbo 执行。
