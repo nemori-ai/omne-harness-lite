@@ -165,8 +165,20 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 | `readModelSelection`、`cancelRun`、`stopCall`、`queryControlOperation`（`SessionWork`） | [src/faces.ts](../src/faces.ts) | `cancelRun` 的失败只有 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`，只在目标为 Tool 时产生，且在访问裁定之后、会话存在核对之前返回；字段格式拒绝（空 `run`、未登记 `urgency`、未登记 `producer.kind`、空 `producer.call`）为 `invalid`，不保存为答案。行为条款见 [SPEC 控制与模型选择](../SPEC.md#控制与模型选择) |
 | `SavedModelSelection`、`SessionControlReceipt`、`SessionCallLookup`、`SessionRunLookup` 等 | [src/control-values.ts](../src/control-values.ts) | 控制答案与同根查找的形状 |
 | `Decision` 的 `control-answer` 分支、`DecideReads.calls`、`DecideReads.runs`、`entries` 分支的 `progress` 与 `interpreted` | [src/judgments.ts](../src/judgments.ts) | `control-answer` 不推进修订，不产生 `CommitReceipt` |
-| `SessionTransactionPort.commitEntries` 与 entries 解释值 | [src/ports.ts](../src/ports.ts)、[src/interpretation-values.ts](../src/interpretation-values.ts) | 只有形状。内存替身返回 `unavailable`，纯检验与提供者步骤属下一段 |
+| `SessionTransactionPort.commitEntries` 与 entries 解释值 | [src/ports.ts](../src/ports.ts)、[src/interpretation-values.ts](../src/interpretation-values.ts) | 两个内存替身按下面的 entries 纯检查提交。session-storage-sql 的实现另行交付 |
 | `INGRESS_FAMILIES`、`deriveIngressOperation` | [src/operations.ts](../src/operations.ts) | 规范 JSON 数组编码，三个来源族互不相交 |
 | `SessionAdoptionSource`、`SessionProductionSource`、`SessionCustodySource` | [src/ports.ts](../src/ports.ts) | 采用来源三口，Cordis 键在 session-cordis-contract |
 
-纯规则在 [src/decide-control.ts](../src/decide-control.ts)。内存替身用同一张操作表保存 batch 与 control 答案，一个身份只属于一个操作。已知缺口：`projectSessionEntries` 与 entries 解释的事务内复核未实现。
+纯规则在 [src/decide-control.ts](../src/decide-control.ts)。内存替身用同一张操作表保存 batch 与 control 答案，一个身份只属于一个操作。
+
+## entries 通道的解释提交
+
+规则、顺序、成功内容与已知限制见[同日志纯层](same-log-pure.md#entries-通道的解释提交)。本段只索引导出。
+
+| 导出 | 入口 | 源文件 | 说明 |
+| --- | --- | --- | --- |
+| `projectSessionEntries` | 根入口 | [src/entries-interpretation.ts](../src/entries-interpretation.ts) | 纯范围检查。已存进度是输入参数 `saved`，返回 `Decision` 的 `entries`、`recovered` 或 `rejected` 分支 |
+| `digestSessionEntries` | 根入口 | 同上 | 观察的认回摘要，不含操作标识与 `start`。租户不是 legal-identity 铸造的时抛出 TypeError |
+| `sessionEntriesConformance` | `./testing` | [src/testing-entries.ts](../src/testing-entries.ts) | `commitEntries` 的共用符合性用例 CF-01 至 CF-08，用现有 `SessionTransactionsFixture` |
+
+`WorkSnapshot` 不变。新行种类 `entries.interpreted` 不改公开类型：`SessionEntry` 不从根入口导出。

@@ -285,6 +285,7 @@
 - `sessionClockConformance` · `testing-provider-conformance.d.ts`
 - `sessionContextInputConformance` · `testing-provider-conformance.d.ts`
 - `sessionDelegatedTransactionsConformance` · `testing-delegated.d.ts`
+- `sessionEntriesConformance` · `testing-entries.d.ts`
 - `sessionEvidenceBridgeConformance` · `testing-provider-conformance.d.ts`
 - `sessionId` · `testing-values.d.ts`
 - `sessionIdentityBridgeConformance` · `testing-provider-conformance.d.ts`
@@ -2571,6 +2572,14 @@ export declare function sessionDelegatedTransactionsConformance<P>(): readonly C
 export declare function memorySessionDelegatedTransactionsFixture(): SessionDelegatedTransactionsFixture<string>;
 ```
 
+## 声明文件 `testing-entries.d.ts`
+
+```ts
+import { type ConformanceCase } from './testing-case.ts';
+import { type SessionTransactionsFixture } from './testing-transactions.ts';
+export declare function sessionEntriesConformance<P>(): readonly ConformanceCase<SessionTransactionsFixture<P>>[];
+```
+
 ## 声明文件 `testing-history-source.d.ts`
 
 ```ts
@@ -2968,6 +2977,7 @@ export declare function guard(participant: string, owner: string, facts: unknown
 ```ts
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
 export { createMemorySessionTransactionPair, createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactionPair, type MemorySessionTransactions, type MemorySessionLogTransactions, type MemoryInitializationTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
+export { sessionEntriesConformance } from './testing-entries.ts';
 export { memorySessionDelegatedTransactionsFixture, sessionDelegatedTransactionsConformance, type SessionDelegatedTransactionsFixture, } from './testing-delegated.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
 export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';

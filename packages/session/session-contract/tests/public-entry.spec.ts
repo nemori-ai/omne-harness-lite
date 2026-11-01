@@ -85,6 +85,7 @@ it('exports the suite, the doubles and the legal values from ./testing', () => {
     'sessionClockConformance',
     'sessionContextInputConformance',
     'sessionDelegatedTransactionsConformance',
+    'sessionEntriesConformance',
     'sessionEvidenceBridgeConformance',
     'sessionId',
     'sessionIdentityBridgeConformance',

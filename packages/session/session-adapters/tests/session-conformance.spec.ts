@@ -1,8 +1,13 @@
 import { it, expect } from 'vitest'
-import { sessionTransactionsConformance } from '@omne-harness/session-contract/testing'
+import {
+  sessionEntriesConformance,
+  sessionTransactionsConformance,
+} from '@omne-harness/session-contract/testing'
 import { sessionFixture } from './fixtures/session-conformance.ts'
 for (const test of sessionTransactionsConformance<string>())
   it(`Session ${test.clause}: ${test.name}`, () => test.run(sessionFixture()))
+for (const test of sessionEntriesConformance<string>())
+  it(`Session commitEntries ${test.clause}: ${test.name}`, () => test.run(sessionFixture()))
 
 for (const defect of ['execution', 'operation', 'missing-half'] as const)
   it(`JC-06 detects a faulty participation hook: ${defect}`, async () => {
