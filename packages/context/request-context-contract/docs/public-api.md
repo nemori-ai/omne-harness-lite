@@ -42,6 +42,7 @@
 | `AssemblyOperationsInput` | [operations.ts](../src/operations.ts) |
 | `createAssemblyOperations` | [operations.ts](../src/operations.ts) |
 | `SourceRead`, `SourceGroupValue`, `GroupSource`, `ContextGroupSources`, `AdoptedRead`, `AdoptedRequestSource`, `SourceDecision`, `ContextReadEligibility`, `PrincipalBinding`, `ContextSources`, `SourceRegistrationAuthority`, `SourceSettlement`, `ContextRegistration`, `RegistrationResult`, `ContextSourceRegistry`, `ContextRegistryOptions` | [sources.ts](../src/sources.ts) |
+| `HistoryResolution`, `HistoryEvidenceResolver` | [history-resolution.ts](../src/history-resolution.ts) |
 | `AccountingOrigin`, `ReceivedAccountFact`, `ContextAccountingInput`, `AccountReceipt`, `ContextAccountingInbox`, `SystemRecoveryAccess`, `AccountReplay`, `RecoveryResult`, `ContextRecovery`, `AccountingSourceAuthority`, `RecoveryAuthority`, `AccountingLimits`, `AccountingOptions` | [accounting.ts](../src/accounting.ts) |
 | `HistoryRow` | [values.ts](../src/values.ts) |
 | `HistoryPage`, `HistoryReadResult`, `CompactionContextResult`, `HistorySource`, `ConversionIndexResult`, `ConversionResultSource`, `RetainBudget`, `CompactionPolicy`, `CompactionPlanDraft`, `CompactionPolicyPort`, `RepresentationPolicyConfig`, `RepresentationPolicyPort`, `RetentionMeasurement` | [ports.ts](../src/ports.ts) |

@@ -85,7 +85,7 @@ Agent 契约是本成员的消费者，本成员不依赖它。下表只说适�
 | `action` | 组一：候选身份 | 用作候选身份。同一候选身份至多进入一个计划，见下文[对不上的字段](#对不上的字段) |
 | `purpose` | 组一：用途 | `main` 译为主请求，`extension` 译为扩展用途。类型已排除 `compaction`：步请求不经组装 |
 | `position` | 组一：消费位置 | 作为不透明引用传入 |
-| `history` | 组二：历史依据 | 经历史持有者的可信读取适配器解析为 `HistoryEvidence`，即 epoch 与上界 |
+| `history` | 组二：历史依据 | 经历史持有者实现的历史依据解析端口 `HistoryEvidenceResolver` 解析为 `HistoryEvidence`，即目标、epoch 与上界。端口每次调用都核本次访问身份的当前资格 |
 | `inputs` | 组二：新输入批 | 批身份、水位线与有序输入引用。本成员要求这批输入已可靠保存 |
 | `context` | 组三：读取结果 | `content` 译为完整或增量，`source` 与 `coverage` 译为来源与覆盖证据。`recipient` 必须等于 `selection.recipient` |
 | （无） | 组三：上一次已采用的覆盖、压缩转换依据 | 取自适配器服务的那次 `ModelContextReader.read` 的 `adopted` 与 `transition` |
