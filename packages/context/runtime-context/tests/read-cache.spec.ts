@@ -189,9 +189,17 @@ describe('read cache in the mechanism', () => {
 
 describe('projection version advances on every change that alters a filtered read', () => {
   it('a new generation of the same producer drops the stored value, so no cached value is served', async () => {
-    const { h, r } = await setup()
+    const h = harness()
+    const a = scope('cache/generation')
+    const declaration = supplied('test.value')
+    await open(h, a, tenantA)
+    const first = await producer(h, tenantA, 'test.value', { declaration })
+    await register(h, a, tenantA, 'test.value')
+    await first.publish({ scope: a, tenant: tenantA, value: 1 })
+    const r = await reader(h, await issue(h, a, tenantA, ['test.value']))
     expect(await firstBlock(r)).toEqual({ kind: 'value', value: 1 })
-    await producer(h, tenantA, 'test.value')
+    // Same declaration object: the catalog entry does not change, only the generation does.
+    await producer(h, tenantA, 'test.value', { declaration })
     expect(await firstBlock(r)).toEqual({ kind: 'none' })
   })
 

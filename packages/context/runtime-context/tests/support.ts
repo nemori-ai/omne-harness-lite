@@ -144,6 +144,15 @@ export async function register(
   if (applied.kind !== 'applied') throw new Error(`applyCommit: ${JSON.stringify(applied)}`)
 }
 
+/** The declaration object passes through unchanged, so a test controls when the catalog entry changes. */
+function isStable(
+  declaration: SuppliedBlockDescriptor<ContextBlockKey, unknown>,
+): declaration is SuppliedBlockDescriptor<ContextBlockKey, unknown> & {
+  volatility: 'stable' | 'per-step'
+} {
+  return declaration.volatility === 'stable' || declaration.volatility === 'per-step'
+}
+
 export async function producer(
   h: Harness,
   tenant: TenantId,
@@ -157,26 +166,16 @@ export async function producer(
   const declaration = options.declaration ?? supplied(key)
   const head = { key, tenant, producer: { producer: options.name ?? 'producer' } }
   const { supply } = options
-  const registration: ProducerRegistration<ContextBlockKey, string> =
-    declaration.volatility === 'per-request'
-      ? {
-          ...head,
-          declaration: { ...declaration, volatility: 'per-request' },
-          scoped: false,
-          supply: supply ?? (async () => ({ kind: 'none' })),
-        }
-      : supply
-        ? {
-            ...head,
-            declaration: { ...declaration, volatility: declaration.volatility },
-            scoped: false,
-            supply,
-          }
-        : {
-            ...head,
-            declaration: { ...declaration, volatility: declaration.volatility },
-            scoped: true,
-          }
+  const registration: ProducerRegistration<ContextBlockKey, string> = !isStable(declaration)
+    ? {
+        ...head,
+        declaration: { ...declaration, volatility: 'per-request' },
+        scoped: false,
+        supply: supply ?? (async () => ({ kind: 'none' })),
+      }
+    : supply
+      ? { ...head, declaration, scoped: false, supply }
+      : { ...head, declaration, scoped: true }
   const result = await h.rc.registerProducer('producer', registration)
   if (result.kind !== 'registered') throw new Error(`registerProducer: ${JSON.stringify(result)}`)
   return result.handle
