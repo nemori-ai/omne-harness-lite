@@ -263,8 +263,15 @@
 - `ScriptedEvent` · `testing/stream-references.d.ts`
 - `ScriptedModelError` · `testing/error.d.ts`
 - `ScriptedModelErrorReason` · `testing/error.d.ts`
+- `ScriptedModelPreparationCall` · `testing/preparation.d.ts`
+- `ScriptedModelPreparationMatch` · `testing/preparation.d.ts`
+- `ScriptedModelPreparationPlan` · `testing/preparation.d.ts`
+- `ScriptedModelProfileCall` · `testing/profiles.d.ts`
+- `ScriptedModelProfiles` · `testing/profiles.d.ts`
 - `ScriptedModelProvider` · `testing/provider.d.ts`
 - `ScriptedModelProviderOptions` · `testing/provider.d.ts`
+- `ScriptedModelRequestPreparation` · `testing/preparation.d.ts`
+- `ScriptedModelRequestPreparationOptions` · `testing/preparation.d.ts`
 - `ScriptedPrincipal` · `testing/conformance-scripted.d.ts`
 - `ScriptedResultPusher` · `testing/pusher.d.ts`
 - `ScriptedResultPusherOptions` · `testing/pusher.d.ts`
@@ -277,7 +284,9 @@
 - `ScriptedTransportScript` · `testing/transport.d.ts`
 - `ScriptedWriteAction` = `WriteAction` · `testing/writes.d.ts`
 - `createScriptedConformanceSubject` · `testing/conformance-scripted.d.ts`
+- `createScriptedModelProfiles` · `testing/profiles.d.ts`
 - `createScriptedModelProvider` · `testing/provider.d.ts`
+- `createScriptedModelRequestPreparation` · `testing/preparation.d.ts`
 - `createScriptedResultPusher` · `testing/pusher.d.ts`
 - `createScriptedStreamObservation` · `testing/stream-observation.d.ts`
 - `createScriptedStreamReferences` · `testing/stream-references.d.ts`
@@ -2765,6 +2774,10 @@ export { createScriptedStreamReferences } from './stream-references.ts';
 export type { ScriptedEvent, ScriptedStreamReferences } from './stream-references.ts';
 export { createScriptedStreamObservation } from './stream-observation.ts';
 export type { ScriptedStreamObservation, ScriptedStreamObservationOptions, } from './stream-observation.ts';
+export { createScriptedModelProfiles } from './profiles.ts';
+export type { ScriptedModelProfileCall, ScriptedModelProfiles } from './profiles.ts';
+export { createScriptedModelRequestPreparation } from './preparation.ts';
+export type { ScriptedModelPreparationCall, ScriptedModelPreparationMatch, ScriptedModelPreparationPlan, ScriptedModelRequestPreparation, ScriptedModelRequestPreparationOptions, } from './preparation.ts';
 export type { ScriptedAccessDecision } from './access.ts';
 ```
 
@@ -2785,6 +2798,77 @@ import type { ModelHandle } from '../index.ts';
 import { type CallRecord, type Core, type ObservationEnd, type Subscription } from './core.ts';
 export declare function handleFor<P>(core: Core<P>, record: CallRecord<P>, instance: ModelInstanceId): ModelHandle<P>;
 export declare function endObservations<P>(record: CallRecord<P>, reason: ObservationEnd, matches?: (subscription: Subscription<P>) => boolean): void;
+```
+
+## 声明文件 `testing/preparation.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import { type Access } from '@omne-harness/legal-identity';
+import type { ModelFailure } from '../result.ts';
+import type { FixedModelRequest } from '../root.ts';
+import type { AssembledModelInput, ModalityRequirement, ModelProfile, ModelRequestPreparation } from '../profile.ts';
+import type { ModelTransport } from '../provider-protocol.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedModelPreparationMatch<P> = Access<P> & Readonly<{
+    profile: ModelProfile;
+    required: ModalityRequirement;
+    parameters: AssembledModelInput['parameters'];
+}>;
+export type ScriptedModelPreparationPlan = Readonly<{
+    suppliers: FixedModelRequest['suppliers'];
+    parameterAdoptions: FixedModelRequest['parameterAdoptions'];
+}>;
+export type ScriptedModelPreparationCall<P> = Readonly<{
+    sequence: number;
+    input: Parameters<ModelRequestPreparation<P>['prepare']>[0];
+}>;
+export type ScriptedModelRequestPreparationOptions = Readonly<{
+    transport: ModelTransport;
+}>;
+export type ScriptedModelRequestPreparation<P> = Readonly<{
+    preparation: ModelRequestPreparation<P>;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    setPlan(input: ScriptedModelPreparationMatch<P>, answer: Outcome<ScriptedModelPreparationPlan, ModelFailure>): void;
+    calls(): readonly ScriptedModelPreparationCall<P>[];
+}>;
+export declare function createScriptedModelRequestPreparation<P>(options: ScriptedModelRequestPreparationOptions): ScriptedModelRequestPreparation<P>;
+```
+
+## 声明文件 `testing/profile-values.d.ts`
+
+```ts
+import { type TenantId } from '@omne-harness/legal-identity';
+import type { ModelChoices, ModelProfile, ProfileResolution, ProfileScope } from '../profile.ts';
+export declare function profileScopeFailure(scope: ProfileScope, tenant: TenantId): 'invalid-identity' | 'foreign' | null;
+export declare function copyProfile(profile: ModelProfile): ModelProfile;
+export declare function copyResolution(resolution: ProfileResolution): ProfileResolution;
+export declare function copyChoices(choices: ModelChoices): ModelChoices;
+```
+
+## 声明文件 `testing/profiles.d.ts`
+
+```ts
+import { type Access } from '@omne-harness/legal-identity';
+import type { ModelProfiles } from '../profile.ts';
+import { type ScriptedAccessDecision } from './access.ts';
+export type ScriptedModelProfileCall<P> = Readonly<{
+    sequence: number;
+    kind: 'list';
+    input: Parameters<ModelProfiles<P>['list']>[0];
+}> | Readonly<{
+    sequence: number;
+    kind: 'resolve';
+    input: Parameters<ModelProfiles<P>['resolve']>[0];
+}>;
+export type ScriptedModelProfiles<P> = Readonly<{
+    profiles: ModelProfiles<P>;
+    setAccess(access: Access<P>, decision: ScriptedAccessDecision): void;
+    setList(input: Parameters<ModelProfiles<P>['list']>[0], answer: Awaited<ReturnType<ModelProfiles<P>['list']>>): void;
+    setResolution(input: Parameters<ModelProfiles<P>['resolve']>[0], answer: Awaited<ReturnType<ModelProfiles<P>['resolve']>>): void;
+    calls(): readonly ScriptedModelProfileCall<P>[];
+}>;
+export declare function createScriptedModelProfiles<P>(): ScriptedModelProfiles<P>;
 ```
 
 ## 声明文件 `testing/provider.d.ts`
