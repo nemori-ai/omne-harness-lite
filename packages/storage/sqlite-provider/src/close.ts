@@ -89,7 +89,9 @@ export function createControl(deps: CloseDeps): StorageControl {
   /** Steps 1 to 5. Step 1 is the lifecycle flag. Steps 2 to 4 are the Workers' own confirmations. */
   const start = (): Promise<void> => {
     if (drain === null) {
-      deadlineAt = performance.now() + deps.config.closeDeadlineMs
+      deadlineAt =
+        /* wall-clock: operation-timing -- The close deadline is a monotonic duration from the first close call (SPEC 13.1). */ performance.now() +
+        deps.config.closeDeadlineMs
       deps.lifecycle.closing = true
       drain = Promise.all([deps.domains.closeAll(), deps.readers.closeAll()]).then(
         () => void (drained = true),
@@ -122,7 +124,14 @@ export function createControl(deps: CloseDeps): StorageControl {
       const stop = new AbortController()
       const winner = await Promise.race([
         draining.then(() => 'closed' as const),
-        sleep(Math.max(0, deadlineAt - performance.now()), stop.signal),
+        sleep(
+          Math.max(
+            0,
+            deadlineAt -
+              /* wall-clock: operation-timing -- The close deadline is a monotonic duration from the first close call (SPEC 13.1). */ performance.now(),
+          ),
+          stop.signal,
+        ),
       ])
       stop.abort()
       if (winner === 'closed' || drained) return { kind: 'closed' }

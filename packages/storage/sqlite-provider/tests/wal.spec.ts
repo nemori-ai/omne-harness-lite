@@ -1,6 +1,6 @@
 // WAL maintenance (SQL contract SPEC 12.3, C19): checkpoint cadence, the read-paused and
 // write-stopped states, FULL kept, and a query that is not starved while maintenance cannot finish.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -58,7 +58,7 @@ describe('WalMaintainer', () => {
   }
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'sqlite-wal-'))
+    dir = await realpath(await mkdtemp(join(tmpdir(), 'sqlite-wal-')))
     writer = new DatabaseSync(join(dir, 'm.sqlite'), { timeout: 5000 })
     writer.exec('pragma journal_mode=WAL; pragma synchronous=FULL; pragma wal_autocheckpoint=0')
     writer.exec('create table t(id integer primary key, v text)')
