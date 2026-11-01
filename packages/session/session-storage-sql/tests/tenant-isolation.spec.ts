@@ -147,6 +147,49 @@ describe('the transaction domain of a call', () => {
     expect(a.provider.calls.length).toBe(calls)
   })
 
+  it('is refused when the entry is labelled tenant A but holds the domain scope of tenant B', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    const other = a.directory.entries[1]
+    if (other === undefined) throw new Error('fixture')
+    a.directory.swap = { tenant: textOf(TENANT_A), domain: other.domain }
+    const calls = a.provider.calls.length
+    for (const entry of SESSION_ENTRIES.filter(item => item.name !== 'history.next'))
+      expect(kindOf(await entry.call(a, TENANT_A, 'session-1')), entry.name).toBe('unavailable')
+    expect(a.provider.calls.length).toBe(calls)
+  })
+
+  it('is refused when the entry of tenant A holds a scope that is not a tenant scope', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    const own = a.directory.entries[0]
+    if (own === undefined) throw new Error('fixture')
+    a.directory.swap = {
+      tenant: textOf(TENANT_A),
+      domain: {
+        ...own.domain,
+        // A malformed scope that still names tenant A: only its kind is wrong.
+        scope: { kind: 'system', tenant: textOf(TENANT_A) } as never,
+      },
+    }
+    const calls = a.provider.calls.length
+    for (const entry of SESSION_ENTRIES.filter(item => item.name !== 'history.next'))
+      expect(kindOf(await entry.call(a, TENANT_A, 'session-1')), entry.name).toBe('unavailable')
+    expect(a.provider.calls.length).toBe(calls)
+  })
+
+  it('is refused when the entry is labelled another tenant but holds the domain scope of tenant A', async () => {
+    const a = await app()
+    await a.create(TENANT_A)
+    const own = a.directory.entries[0]
+    if (own === undefined) throw new Error('fixture')
+    a.directory.swap = { tenant: textOf(TENANT_B), domain: own.domain }
+    const calls = a.provider.calls.length
+    for (const entry of SESSION_ENTRIES.filter(item => item.name !== 'history.next'))
+      expect(kindOf(await entry.call(a, TENANT_A, 'session-1')), entry.name).toBe('unavailable')
+    expect(a.provider.calls.length).toBe(calls)
+  })
+
   it('is unavailable, not empty, for a tenant that the directory does not know', async () => {
     const a = await app()
     for (const entry of SESSION_ENTRIES) {

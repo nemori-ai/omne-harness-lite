@@ -186,6 +186,20 @@ describe('the continuation token of history.next', () => {
     })
   })
 
+  it('a history token differs from a model-view token by kind alone: model-view refuses it', async () => {
+    const a = await seeded()
+    const cursor = await firstCursor(a)
+    const mark = a.provider.calls.length
+    const cross = await a.port.history.readModelView({
+      ...a.access(TENANT_A),
+      basis: null,
+      after: cursor,
+      pageBytes: 1000,
+    })
+    expect(failureOf(cross)).toMatchObject({ kind: 'invalid', field: 'cursor' })
+    expect(a.provider.calls.length).toBe(mark)
+  })
+
   it('a token of another read kind is invalid', async () => {
     const a = await seeded()
     ok(await a.create(TENANT_A, 'session-2'))
