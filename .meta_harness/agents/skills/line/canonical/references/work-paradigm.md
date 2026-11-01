@@ -92,7 +92,7 @@ Reduce 是项目总负责人，你是本线的 dev team lead。Reduce 每波只�
 | --- | --- |
 | 认卡、交回、证据与接受 | `docs/engineering/agent-delivery.md`（证据贴卡评论的规则在第 5 节） |
 | 线父卡本波 attempt 与本波其他卡的 Stage，由线会话按事实写 | `docs/engineering/agent-delivery.md` 第 4 节；`docs/engineering/delivery.md`「字段总表」 |
-| 线轨道与父分支：开波从 F 做 FI，固定同步点。本波 attempt 的 taskBase 是父分支起点。你从它建父分支，在父分支工作树上运行 `start` 并用 `status` 读回，targetBase 按 `start` 与 `task-sync` 读回 | `docs/engineering/integration.md`「线父分支」「线轨道的同步与提升」 |
+| 线轨道与父分支：开波从 F 做 FI，固定同步点。本波 attempt 的 taskBase 是父分支起点。父分支由 Reduce 在开波 FI 后从它建好并推送，你读回它，在父分支工作树上运行 `start` 并用 `status` 读回，targetBase 按 `start` 与 `task-sync` 读回 | `docs/engineering/integration.md`「线父分支」「线轨道的同步与提升」 |
 | 线内工作对契约成员只做可加改动 | `docs/engineering/integration.md`「里程碑内的规则」第 2 条；`docs/engineering/delivery.md`「契约变更与里程碑类型」 |
 | 交回物：父分支进线轨道的 PR、提升 PR、本波一份的五节交接报告、交回记录 | `docs/engineering/integration.md`「线会话记录」 |
 | 风险级别、评审与升级阶梯 | `docs/engineering/quality.md` |
@@ -106,7 +106,7 @@ Reduce 是项目总负责人，你是本线的 dev team lead。Reduce 每波只�
 
 1. 读 delta：新 F、本波 assignment（active、idle、redo、terminal）、reduce 做过的修改与消费者迁移、外域变化。
 2. 写本波变化摘要。delta 提到的拥有者正文若在线级地图里，只更新那一条。
-3. active：核对从新 F 到线轨道的 FI 结果，从本波 attempt 的 taskBase 建父分支并推送，在父分支工作树上运行 `start`，用 `status` 读回。不重放上一波的补丁。然后写本波计划，见下一节。
+3. active：核对从新 F 到线轨道的 FI 结果，读回 Reduce 已从本波 attempt 的 taskBase 建好的父分支，在父分支工作树上运行 `start`，用 `status` 读回。不重放上一波的补丁。然后写本波计划，见下一节。
 4. idle：只做第 1、2 步，然后继续等。这一步让下一次开工几乎零成本。
 5. redo：按线父卡上的新 attempt 重开，波号不变。
 6. terminal：交最终报告，结束。
