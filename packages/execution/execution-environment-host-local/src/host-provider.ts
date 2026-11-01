@@ -25,6 +25,8 @@ import {
   type DrainResult,
   type HostFilesDomain,
 } from './host-domain.ts'
+import type { HostFileDiagnostic, HostFilesLimits } from './host-files.ts'
+import { probeHostFilesPrerequisite } from './host-paths.ts'
 import {
   createPrerequisiteProbe,
   resolveSupervisor,
@@ -75,20 +77,49 @@ export type HostFilesDiagnostic =
       missing: readonly HostCommandPrerequisite[]
       acquisition: string
     }>
+  | Readonly<{
+      /**
+       * A file batch was published, but the staged file it was published from could not be
+       * removed. It stays beside the target. The fact belongs to the engine, not to one
+       * acquisition, so it names no acquisition.
+       */
+      kind: 'temporaryFileRemains'
+      provider: string
+      generation: string
+      /** The batch id. */
+      batch: string
+      /** The target that was published. */
+      path: string
+      /** The name of the staged file that stays. */
+      temporary: string
+      /** The error code of the failed removal. */
+      code?: string
+    }>
 
 export type HostFilesProviderOptions = Readonly<{
   /** The responsibility domain this generation joins. Every generation of one host shares it. */
   domain: HostFilesDomain
   /** Upper bound in milliseconds that a release, a settlement or `retire()` waits for in-flight file operations. */
   drainBoundMs?: number
-  /** Receives a diagnostic when a drain stays pending, or when a command start lacks a prerequisite. */
+  /**
+   * Receives a diagnostic when a drain stays pending, when a command start lacks a prerequisite,
+   * or when a published batch leaves its staged file.
+   */
   diagnose?: (diagnostic: HostFilesDiagnostic) => void
   /** Bounds of the `command` facility. */
   command?: HostCommandOptions
-  /** The host files root. Declared and kept; the files side takes it into use. */
+  /**
+   * The host files root, an absolute path. Every path of every `files` request of this provider
+   * must lie below it. Without it, the provider only checks the named object.
+   */
   filesRoot?: string
-  /** The directory for the provider's durable state. Declared and kept; the files side takes it into use. */
+  /**
+   * An absolute path where the manifests of file batches are kept, and where the probe of the files
+   * prerequisite makes its temporary directory. Without it, batches answer `unavailable`.
+   */
   stateDirectory?: string
+  /** Bounds of listing and searching; each given value must be a positive safe integer. */
+  limits?: Partial<HostFilesLimits>
 }>
 
 function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -111,6 +142,46 @@ function isDrainBound(value: number): boolean {
   return Number.isFinite(value) && value >= 0
 }
 
+type Prerequisite = ProviderFacts['prerequisites']
+
+/**
+ * Reads prerequisite P2 for `describe`. A settled answer stays for the generation; an unknown one
+ * is read again at the next call, as the engine does for its requests.
+ */
+function createFilesPrerequisiteReader(
+  stateDirectory: string | undefined,
+): () => Promise<Prerequisite> {
+  let settled: Prerequisite | undefined
+  return async () => {
+    if (settled !== undefined) return settled
+    const reading = await probeHostFilesPrerequisite(stateDirectory)
+    if (reading !== 'unknown') settled = reading
+    return reading
+  }
+}
+
+/** One prerequisite that is missing makes the whole unsatisfied; otherwise one unknown makes it unknown. */
+function merged(readings: readonly Prerequisite[]): Prerequisite {
+  if (readings.includes('unsatisfied')) return 'unsatisfied'
+  return readings.includes('unknown') ? 'unknown' : 'satisfied'
+}
+
+function temporaryFileRemains(
+  provider: string,
+  generation: string,
+  fact: HostFileDiagnostic,
+): HostFilesDiagnostic {
+  return {
+    kind: 'temporaryFileRemains',
+    provider,
+    generation,
+    batch: fact.batch,
+    path: fact.path,
+    temporary: fact.temporary,
+    ...(fact.code === undefined ? {} : { code: fact.code }),
+  }
+}
+
 /**
  * The host provider of the `files` and `command` facilities. It serves the `host_machine` layer
  * only, confirms no isolation claim and gives no continuity guarantee. Each acquisition gets its own
@@ -131,6 +202,19 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
   const settings = commandSettings(options.command)
   const name = 'host-files'
   const generation = randomUUID()
+  const report = (diagnostic: HostFilesDiagnostic) => {
+    try {
+      options.diagnose?.(Object.freeze(diagnostic))
+    } catch {
+      /* A diagnostic sink never changes the result. */
+    }
+  }
+  // The files engine for this provider's configuration. Invalid settings throw here, before the
+  // generation is registered and before any probe starts.
+  const files = internals.joinEngine(
+    { root: options.filesRoot, stateDirectory: options.stateDirectory, limits: options.limits },
+    fact => report(temporaryFileRemains(name, generation, fact)),
+  )
   internals.registerGeneration(generation)
   const facilities: readonly FacilityKey[] = Object.freeze(['files', 'command'])
   let retired = false
@@ -139,6 +223,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     retryMs: settings.probeRetryMs,
     boundMs: settings.stopBoundMs,
   })
+  const filesPrerequisite = createFilesPrerequisiteReader(options.stateDirectory)
   const platform = Object.freeze({ os: process.platform, release: release() })
 
   const bindingKinds: readonly BindingKind[] = Object.freeze(['host_machine'])
@@ -149,15 +234,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       { key: 'provider', value: { kind: 'string', value: name } },
       { key: 'generation', value: { kind: 'string', value: generation } },
       { key: 'version', value: { kind: 'string', value: version } },
+      // The contract's facts cannot say that a files root limits this provider; the evidence can.
+      ...(options.filesRoot === undefined
+        ? []
+        : [{ key: 'filesRoot', value: { kind: 'string', value: 'configured' } } as const]),
     ],
-  }
-
-  const report = (diagnostic: HostFilesDiagnostic) => {
-    try {
-      options.diagnose?.(Object.freeze(diagnostic))
-    } catch {
-      /* A diagnostic sink never changes the result. */
-    }
   }
 
   /** Diagnoses pending drains: work or descriptors left, and processes whose stop is unconfirmed. */
@@ -171,7 +252,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       0,
     )
     const openDescriptors = records.reduce(
-      (sum, record) => sum + internals.engine.openCount(record.owner),
+      (sum, record) => sum + record.engine.openCount(record.owner),
       0,
     )
     const named = acquisition === undefined ? {} : { acquisition }
@@ -262,7 +343,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         platform,
         facilities,
         isolation: [],
-        prerequisites: probe.facts(),
+        prerequisites: merged([probe.facts(), await filesPrerequisite()]),
       })
     },
     async quota(tenant) {
@@ -280,22 +361,27 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
         scope: input.scope,
         placement: input.placement,
       }
-      const admitted = internals.admit(original, fingerprintOf(original), generation, () =>
-        createHostCommands({
-          ledger: input.ledger,
-          provider: name,
-          scope: input.scope,
-          settings,
-          prerequisites: probe,
-          unavailable: missing =>
-            report({
-              kind: 'commandUnavailable',
-              provider: name,
-              generation,
-              missing,
-              acquisition: input.acquisition,
-            }),
-        }),
+      const admitted = internals.admit(
+        original,
+        fingerprintOf(original),
+        generation,
+        files.engine,
+        () =>
+          createHostCommands({
+            ledger: input.ledger,
+            provider: name,
+            scope: input.scope,
+            settings,
+            prerequisites: probe,
+            unavailable: missing =>
+              report({
+                kind: 'commandUnavailable',
+                provider: name,
+                generation,
+                missing,
+                acquisition: input.acquisition,
+              }),
+          }),
       )
       switch (admitted.kind) {
         case 'admitted':
@@ -401,7 +487,11 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
       }
       // Draining force-stops what this generation still runs: those outcomes end as effectUnknown.
       const results = await Promise.all(own.map(record => internals.drain(record, drainBoundMs)))
-      if (results.every(result => result.kind === 'settled')) return { kind: 'drained' }
+      if (results.every(result => result.kind === 'settled')) {
+        // Nothing of this generation is left to report on; the engine stays with the domain.
+        files.leave()
+        return { kind: 'drained' }
+      }
       const resources = results.flatMap(result =>
         result.kind === 'pending' ? result.resources : [],
       )
