@@ -36,13 +36,13 @@
     "@omne-harness/model": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/model-cordis-contract": "workspace:*",
+    "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
     "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
-    "@omne-harness/pi-ai-openai": "workspace:*",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
     "typescript": "catalog:",

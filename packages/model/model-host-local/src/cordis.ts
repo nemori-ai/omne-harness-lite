@@ -128,3 +128,4 @@ export type {
   ModelRuntimeLocalPluginClass,
   ModelRuntimeLocalPluginInstance,
 } from './plugins/host.ts'
+export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'

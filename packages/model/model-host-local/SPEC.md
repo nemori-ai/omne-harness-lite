@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包承载三项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；以及单机宿主插件（实例目录、转换目录、宿主驱动与请求准备及其计量租约）。运行门面 `modelRuntime`、恢复扫描、发送与重试阶段插件、档案读取不在本包当前范围，没有实现也不由本文件承诺。
+本包承载四项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动与请求准备及其计量租约）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。运行门面 `modelRuntime`、恢复扫描、发送与重试阶段插件不在本包当前范围，没有实现也不由本文件承诺。
 
 发送资源满足 model 的 `SendResources` 端口，端口形状与发送边界的行为归 [model 的 SPEC](../model/SPEC.md)。传输、家族贡献、网络资源与路由的形状和行为归 [pi-ai-transport](../pi-ai-transport/SPEC.md)。秘密不进入请求、发出记录、失败、扩展或遥测的要求归 [model-contract](../model-contract/SPEC.md)。
 
@@ -156,6 +156,24 @@
 - 租约与宿主读同一份 `ModelCommands`：装配与插件都经 `modelCommands` 注入它。所以延续计量读得到同一存储里的调用事实；换一份命令时读不到（`call-unreadable`）。
 - 插件卸载时租约来源拒绝新租约（`unavailable`，诊断 `preparation-plugin-unloaded`），`prepare` 同样拒绝。卸载前取得的租约持有自己的调用事实视图，继续可用到释放；释放幂等，释放后的 meter 答 `preparation-lease-released`。
 - 交给请求组装的租约来源是对象，不是服务键（R1-D17 Q-8）。插件装载后可用，卸载后拒绝。
+### 官方档案读取
+
+`ModelProfilesLocalPlugin` 把 pi-ai-openai 的官方档案作为一份冻结快照，经 model 的 `createModelProfiles` 发布为 `modelProfiles` 服务。求值规则归 [model 的 SPEC](../model/SPEC.md#档案读取与同名求值)，本节只写本包构造快照的规则。
+
+- **来源构造。** `createOfficialProfileSource({ definitions, updatedAt })` 在 [profile-source.ts](src/profile-source.ts)，不导入任何家族包。每份定义成为一份工厂层档案，`identity` 为 `{ scope: { kind: 'factory' }, route }`，`route` 取第一家供应商的 `model`（依据：pi-ai-openai SPEC 写明记录名等于路由名）。`availability` 为 `active`，`updatedAt` 取配置。候选 `excluded` 与 `locked` 为 `false`，`credential` 为 `unavailable`，`precedence` 只有 `factory` 一层。构造时路由重复是装配缺陷，抛 `RangeError`，不服务半份目录。
+- **档案 adoption 的身份规则。** 档案 adoption 是 `{ owner, name, revision, digest }`：`owner` 与 `revision` 取第一家供应商采用的 `owner` 与 `revision`，`name` 为路由名，`digest` 为整份定义的规范 JSON 的 SHA-256。它与供应商记录的 adoption 在 `owner`、`name`、`revision` 上重合，`digest` 不同：供应商的 digest 覆盖家族记录，档案的 digest 覆盖装配输入后的定义（含配置给出的 `retryPolicy` 与 `compactionTriggerPercent`）。家族包没有发布过档案的摘要，所以不存在可「向原拥有者核实」的档案摘要；这个 digest 只证内容相同。规范 JSON 规则同 tokenizer-tiktoken SPEC「规范 JSON」，tokenizer-tiktoken 与 pi-ai-transport 都没有从公开入口导出该函数，本包自写一份小函数，并由 [profile-source.spec.ts](tests/profile-source.spec.ts) 用独立算出的摘要固定。
+- **快照 `source` 与 `revision` 规则。** `source` 为 `{ owner: '@omne-harness/model-host-local', record: 'official-profiles', revision: updatedAt, digest }`，`digest` 为各档案 adoption 列表的规范 JSON 的 SHA-256。`revision` 取配置的 `updatedAt`。家族记录升修订而配置不变时，`revision` 不变而 `digest` 变，所以只比 `revision` 的消费者会把它们当作同一来源。本阶段没有消费者核对 `source`：快照 `source` 只证内容相同，不证已向原拥有者核实。
+- **凭据状态。** 候选 `credential` 固定为 `unavailable`，表示来源没有凭据元数据可给，它不是暂态，也不是 `missing`，更不是 `available`。这不挡选择：缺凭据与凭据不可得都不使 `selectable` 为假，所以官方档案在本阶段都可选。读取 settings 与凭据状态元数据留给后续波。依据：R1-D4。消费方（如选择界面或运行线）不得把「非 `available`」当作不可选。
+- **不核主体。** 官方档案对所有租户相同，不含租户数据。本阶段来源只核租户经 legal-identity 铸造，不核主体；待身份适配器进入装配后补。
+
+插件的配置经 Standard Schema 在入口一次解析，只含可序列化值，没有默认值，非法配置使插件加载失败：`retryPolicy`（一份 Adoption，四项均为非空字符串）、`compactionTriggerPercent`（字符串，1 至 100 的十进制整数）、`updatedAt`（RFC 3339 UTC 文本）。
+
+- **具名偏离：插件内固定 OpenAI 家族。** 插件文件 [plugins/profiles.ts](src/plugins/profiles.ts) 是本包唯一导入 `@omne-harness/pi-ai-openai` 的文件，调用 `officialOpenAiProfiles`。这偏离[组架构的包依赖图](../docs/architecture.md#包依赖与装配)里「Host 没有指向 Family 的边」。依据：R1-D4 与线包 C-PROFILE。退出条件：发行装配改由调用方注入定义列表或经装配页登记，此后只改这一个文件，来源构造与求值不动。`pi-ai-openai` 因此从 devDependencies 提到 dependencies，选择本成员会多安装 `@omne-harness/pi-ai-openai` 及其 `js-tiktoken`；根入口导入家族即持有 o200k 词表模块，是已知代价。本阶段不引入 `pi-ai-anthropic`。
+- **`retryPolicy` 只是随档案走的值。** 插件配置里的 `retryPolicy` 与 `modelRetryPolicy` 服务是同一事实的第二个写入处。本阶段没有任何阶段解析这个字段，两者的相等保证归装配页，不由本包承担。
+
+生命周期：插件没有资源可关闭，不登记需要等待的清理。快照在构造时创建一次，之后每次读取看到同一份。插件撤除后 `ctx.modelProfiles` 为 `undefined`，仍被持有的旧句柄的 `list` 与 `resolve` 返回 `unavailable`（`dependency` 为 `model-profiles`，`diagnostic` 为 `plugin-removed`），不继续回答旧快照；这与「撤除后不再回答」一致。换代不改在途采用：在途请求已固定档案 adoption。
+
+已知限制：`scope` 原因本阶段不产生（没有租户层与组织层档案）；`retryPolicy` 本阶段不被任何阶段解析；快照 `source` 的 digest 只证内容相同。
 
 ## 所有权、失败与生命周期
 
@@ -204,6 +222,8 @@
 - [custodian-options.spec.ts](tests/custodian-options.spec.ts)：建库采用已有文件、诊断容量、锁等待上限与超时的 `ELOCKED` 代码、非锁错误、三种不可用原因及其 `cause`、快照字段类型不对判为损坏，以及选项取值的拒绝。
 - [credential-service.spec.ts](tests/credential-service.spec.ts)：在真实 Cordis 4.0.4 下，服务实例只暴露 `present` 与 `resolve`。
 - [cordis-entry.spec.ts](tests/cordis-entry.spec.ts)：插件的发布、空路径建库并服务、撤除、损坏文件上撤除不报错、配置校验，以及损坏文件上的不可用服务。
+- [profile-source.spec.ts](tests/profile-source.spec.ts)：来源构造的身份、adoption、revision 与快照证据，摘要用独立算出的夹具核对，路由重复与非法修订在构造时拒绝。
+- [profiles-plugin.spec.ts](tests/profiles-plugin.spec.ts)：在真实 Cordis 4.0.4 下，`ModelProfilesLocalPlugin` 发布 `modelProfiles`，每条路由的档案定义与 `officialOpenAiProfiles` 逐字段相同，`list` 与 `resolve` 的答案，撤除后旧句柄返回 `unavailable`，非法配置使加载失败，并与档案替身对拍。
 - [deliver-injected.spec.ts](tests/deliver-injected.spec.ts)：在真实 Cordis 4.0.4 下，注入发送的模块边界、提供者缺席、恢复、重装后结果不变、更替与非服务对象。
 - [vault-init.spec.ts](tests/vault-init.spec.ts)：保管库初始化命令：新建与读回、五种已有对象的拒绝、密钥不外泄的各失败点、输入规则、用户目录规则、POSIX 权限与失败时清理、终端回显关闭与还原、命令行参数与退出码。
 - [send-resources.spec.ts](tests/send-resources.spec.ts)：用观察凭据槽的传输工厂核对，槽只在 `start` 期间有值，正常返回与抛出后都为空，两个资源互不见对方的值，异物与释放后的物化传输被拒绝且不填槽，`release` 与 `close` 幂等。它还用真实 pi 传输核对异物物化传输被拒绝，以及传输拒绝的配置在构造时抛出。

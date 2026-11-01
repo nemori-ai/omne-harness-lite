@@ -3,6 +3,8 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口导出清单
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：插件发布、空路径建库、撤除、配置校验与损坏文件上的不可用服务
+- [profile-source.spec.ts](profile-source.spec.ts)：官方档案来源构造的身份、adoption、revision、快照证据与独立算出的摘要夹具
+- [profiles-plugin.spec.ts](profiles-plugin.spec.ts)：真实 Cordis 下档案插件的发布、与官方档案逐字段相同、撤除后旧句柄不可用、非法配置与档案替身对拍
 - [credential.spec.ts](credential.spec.ts)：保管库与注入发送的行为，含发布路径关闭文件描述符
 - [custodian-options.spec.ts](custodian-options.spec.ts)：建库采用、诊断容量、锁等待与 `ELOCKED`、不可用原因、快照字段类型与选项取值
 - [deliver-injected.spec.ts](deliver-injected.spec.ts)：注入发送的模块边界，以及提供者缺席、恢复、重装后结果不变、更替与非服务对象

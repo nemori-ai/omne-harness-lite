@@ -6,6 +6,7 @@
 
 - [凭据判定与状态快照](credential.ts)。
 - [凭据发送接缝](deliver.ts)。
+- 档案读取在 `profiles/`：[`createModelProfiles` 与租户检查](profiles/profiles.ts)、[同名求值与列表的纯判决](profiles/judge.ts)。行为归[实现规格](../SPEC.md#档案读取与同名求值)。
 - [产品发送边界](send.ts)，尝试状态在 [send/attempt.ts](send/attempt.ts)，事实资源在 [send/lifetime.ts](send/lifetime.ts)。
 - [独立执行与资源关闭](execute.ts)。
 - [采用相等的唯一比较](adoption.ts)：独立执行与准备资源共用。
