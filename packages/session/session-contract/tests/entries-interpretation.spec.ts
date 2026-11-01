@@ -23,12 +23,14 @@ import {
   evidence,
   memoryOtherAccess,
   operationId,
+  ordinaryInput,
   sessionId,
   succeeded,
 } from '@omne-harness/session-contract/testing'
 import { decodeEntry, encodeEntry } from '../src/entries.ts'
 import { digestSessionEntries, projectSessionEntries } from '../src/entries-interpretation.ts'
-import { reduceWithEntriesProgress } from '../src/reduce.ts'
+import { reduce } from '../src/reduce.ts'
+import { decide } from '../src/decide.ts'
 import { open } from './scene.ts'
 
 type Context = Readonly<{ snapshot: WorkSnapshot; r0: RunId; ex0: string; r1: RunId; ex1: string }>
@@ -589,16 +591,20 @@ function progressRow(
   }
 }
 
-describe('reduceWithEntriesProgress: the progress chain', () => {
+describe('reduce: the progress chain in WorkSnapshot.entriesProgress', () => {
   const next = (snapshot: WorkSnapshot) => BigInt(snapshot.revision) + 1n
+  const reduced = (answer: ReturnType<typeof reduce>): WorkSnapshot => {
+    if (answer.kind !== 'reduced') throw new Error(answer.diagnostic)
+    return answer.snapshot
+  }
 
   function twoBatches() {
     const first = batchOf(judge(c), next(c.snapshot))
-    const one = reduceWithEntriesProgress(c.snapshot, [], first)
-    if (one.kind !== 'reduced') throw new Error(one.diagnostic)
-    const start: SessionEntriesStart = { kind: 'saved', progress: one.progress[0]! }
+    const one = reduced(reduce(c.snapshot, first))
+    const saved = one.entriesProgress ?? []
+    const start: SessionEntriesStart = { kind: 'saved', progress: saved[0]! }
     const second = batchOf(
-      projectSessionEntries(one.snapshot, {
+      projectSessionEntries(one, {
         observation: {
           ...b0(c),
           operation: operationId('op-2'),
@@ -607,53 +613,52 @@ describe('reduceWithEntriesProgress: the progress chain', () => {
           items: oneItem('3'),
         },
         start,
-        saved: one.progress,
+        saved,
         record: null,
       }),
-      next(one.snapshot),
+      next(one),
     )
     return { first, one, second }
   }
 
+  it('a snapshot without an entries commit has no entriesProgress', () => {
+    expect(c.snapshot.entriesProgress).toBeUndefined()
+  })
+
   it('keeps one item per channel: the last through and the evidence of the batch that set it', () => {
     const { one, second } = twoBatches()
-    expect(one.progress).toEqual([
+    expect(one.entriesProgress).toEqual([
       {
         run: c.r1,
         execution: c.ex1,
         channel: 'tool-received',
         through: '2',
-        interpreted: one.snapshot.source,
+        interpreted: one.source,
       },
     ])
-    const two = reduceWithEntriesProgress(one.snapshot, one.progress, second)
-    if (two.kind !== 'reduced') throw new Error(two.diagnostic)
-    expect(two.progress).toEqual([
+    const two = reduced(reduce(one, second))
+    expect(two.entriesProgress).toEqual([
       {
         run: c.r1,
         execution: c.ex1,
         channel: 'tool-received',
         through: '3',
-        interpreted: two.snapshot.source,
+        interpreted: two.source,
       },
     ])
   })
 
   it('replays the same batches into the same progress', () => {
     const { first, second } = twoBatches()
-    const fold = () => {
-      const one = reduceWithEntriesProgress(c.snapshot, [], first)
-      if (one.kind !== 'reduced') throw new Error(one.diagnostic)
-      return reduceWithEntriesProgress(one.snapshot, one.progress, second)
-    }
-    expect(fold()).toEqual(fold())
+    const fold = () => reduced(reduce(reduced(reduce(c.snapshot, first)), second))
+    expect(fold().entriesProgress).toEqual(fold().entriesProgress)
   })
 
   it('keeps the progress of another channel apart', () => {
     const { one } = twoBatches()
     const observation = b0(c)
     const model = batchOf(
-      projectSessionEntries(one.snapshot, {
+      projectSessionEntries(one, {
         observation: {
           ...observation,
           operation: operationId('op-model'),
@@ -661,28 +666,49 @@ describe('reduceWithEntriesProgress: the progress chain', () => {
           boundary: { ...observation.boundary, channel: 'model-received' },
         },
         start: { kind: 'initial' },
-        saved: one.progress,
+        saved: one.entriesProgress ?? [],
         record: null,
       }),
-      next(one.snapshot),
+      next(one),
     )
-    const two = reduceWithEntriesProgress(one.snapshot, one.progress, model)
-    if (two.kind !== 'reduced') throw new Error(two.diagnostic)
-    expect(two.progress.map(item => [item.channel, item.through])).toEqual([
+    const two = reduced(reduce(one, model))
+    expect((two.entriesProgress ?? []).map(item => [item.channel, item.through])).toEqual([
       ['tool-received', '2'],
       ['model-received', '2'],
     ])
   })
 
+  it('a later batch without a progress row keeps the saved progress', () => {
+    const { one } = twoBatches()
+    const accepted = batchOf(
+      decide(
+        one,
+        {
+          kind: 'accept',
+          input: {
+            tenant: one.tenant,
+            session: one.session,
+            operation: operationId('accept-later'),
+            value: ordinaryInput('later'),
+          },
+        },
+        [],
+        null,
+        { compaction: null },
+      ),
+      next(one),
+    )
+    expect(reduced(reduce(one, accepted)).entriesProgress).toEqual(one.entriesProgress)
+  })
+
   it('the same batch applied again recalls the state and leaves the progress', () => {
     const { first, one } = twoBatches()
-    expect(reduceWithEntriesProgress(one.snapshot, one.progress, first)).toEqual(one)
+    expect(reduce(one, first)).toEqual({ kind: 'reduced', snapshot: one })
   })
 
   it('RD-1 a progress row that does not start at the saved through quarantines', () => {
-    const answer = reduceWithEntriesProgress(
+    const answer = reduce(
       c.snapshot,
-      [],
       progressRow({ run: c.r1, execution: c.ex1, after: '1', through: '2' }, next(c.snapshot)),
     )
     expect(answer).toMatchObject({
@@ -691,10 +717,21 @@ describe('reduceWithEntriesProgress: the progress chain', () => {
     })
   })
 
+  it('RD-1 a progress row that starts at 0 after a saved progress of its channel quarantines', () => {
+    const { one } = twoBatches()
+    const answer = reduce(
+      one,
+      progressRow({ run: c.r1, execution: c.ex1, after: '0', through: '3' }, next(one)),
+    )
+    expect(answer).toMatchObject({
+      kind: 'quarantined',
+      diagnostic: expect.stringMatching(/saved through 2/u),
+    })
+  })
+
   it('RD-2 a progress row that does not advance quarantines', () => {
-    const answer = reduceWithEntriesProgress(
+    const answer = reduce(
       c.snapshot,
-      [],
       progressRow({ run: c.r1, execution: c.ex1, after: '0', through: '0' }, next(c.snapshot)),
     )
     expect(answer).toMatchObject({
@@ -704,9 +741,8 @@ describe('reduceWithEntriesProgress: the progress chain', () => {
   })
 
   it('RD-3 a progress row whose execution is not of its run quarantines', () => {
-    const answer = reduceWithEntriesProgress(
+    const answer = reduce(
       c.snapshot,
-      [],
       progressRow({ run: c.r0, execution: c.ex1, after: '0', through: '2' }, next(c.snapshot)),
     )
     expect(answer).toMatchObject({

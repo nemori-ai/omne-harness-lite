@@ -1,8 +1,9 @@
 // The conformance cases of `SessionTransactionPort.commitEntries` (docs/same-log-pure.md「entries
 // 通道的解释提交」). Every provider runs the same cases on a fixture that it builds through the
 // public commit: an active Run with its execution and a bound external Tool call. The cases read
-// the result only through the public port: the receipt, `readWork`, `history` and the two query
-// methods. They do not read the saved progress itself, which `WorkSnapshot` does not hold yet.
+// the result only through the public port: the receipt, `readWork` with its `entriesProgress`,
+// `history` and the two query methods. A caller that lost its memory takes its start from
+// `readWork` alone, as the interpreter does after a restart.
 import assert from 'node:assert/strict'
 import type { SessionHistory } from './faces.ts'
 import type { TenantId } from '@omne-harness/legal-identity'
@@ -11,9 +12,9 @@ import type {
   SessionEntriesInterpretation,
   SessionEntriesItem,
   SessionEntriesObservation,
-  SessionEntriesReceipt,
   SessionEntriesStart,
 } from './interpretation-values.ts'
+import type { WorkSnapshot } from './values.ts'
 import {
   assertIndistinguishable,
   conformanceCase,
@@ -105,18 +106,20 @@ function observation(
   }
 }
 
-/** The range (2, 3] that continues from `receipt`. */
-function next(o: Opened, operation: SessionOperationId, receipt: SessionEntriesReceipt) {
-  const start: SessionEntriesStart = {
-    kind: 'saved',
-    progress: {
-      run: o.run,
-      execution: o.execution,
-      channel: 'tool-received',
-      through: receipt.through,
-      interpreted: receipt.interpreted,
-    },
-  }
+/**
+ * The start of the Tool channel of `o`, taken from a snapshot only: the saved item of the channel,
+ * or `initial` when the snapshot holds none.
+ */
+function startOf(o: Opened, snapshot: WorkSnapshot): SessionEntriesStart {
+  const progress = (snapshot.entriesProgress ?? []).find(
+    item =>
+      item.run === o.run && item.execution === o.execution && item.channel === 'tool-received',
+  )
+  return progress === undefined ? { kind: 'initial' } : { kind: 'saved', progress }
+}
+
+/** The range (2, 3] that continues from `start`. */
+function next(o: Opened, operation: SessionOperationId, start: SessionEntriesStart) {
   return {
     observation: observation(o, operation, {
       after: '2',
@@ -148,10 +151,15 @@ async function allEntries<P>(
   return page.entries
 }
 
-/** What a refused commit must leave unchanged: the revision, the log and the operation identity. */
+/**
+ * What a refused commit must leave unchanged: the revision, the saved progress, the log and the
+ * operation identity.
+ */
 async function state<P>(fixture: SessionTransactionsFixture<P>, operation: SessionOperationId) {
+  const snapshot = succeeded(await fixture.port.readWork(fixture.access), 'readWork')
   return {
-    revision: succeeded(await fixture.port.readWork(fixture.access), 'readWork').revision,
+    revision: snapshot.revision,
+    entriesProgress: snapshot.entriesProgress,
     entries: (await allEntries(fixture.port.history, fixture.access)).map(entry => entry.id),
     query: succeeded(
       await fixture.port.queryOperation({ ...fixture.access, operation }),
@@ -185,11 +193,12 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'CF-02',
-      'the consequence and the progress row are one new revision',
+      'the consequence and the progress row are one new revision, and readWork reads the saved progress back',
       async fixture => {
         const o = await opened(fixture)
         const before = await o.s.readWork()
-        succeeded(
+        assert.equal(before.entriesProgress, undefined, 'no progress before the first commit')
+        const receipt = succeeded(
           await fixture.port.commitEntries({
             observation: observation(o, fixture.operation('entries-1')),
             start: initial,
@@ -198,6 +207,15 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
         )
         const after = await o.s.readWork()
         assert.equal(BigInt(after.revision), BigInt(before.revision) + 1n, 'one revision')
+        assert.deepEqual(after.entriesProgress, [
+          {
+            run: o.run,
+            execution: o.execution,
+            channel: 'tool-received',
+            through: receipt.through,
+            interpreted: receipt.interpreted,
+          },
+        ])
         const progress = await allEntries(fixture.port.history, fixture.access, [
           'entries.interpreted',
         ])
@@ -213,18 +231,20 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
 
     conformanceCase(
       'CF-03',
-      'the next range continues from the receipt, and a start behind the saved progress is changed',
+      'the next range continues from the start that readWork gives, and a start behind the saved progress is changed',
       async fixture => {
         const o = await opened(fixture)
-        const first = succeeded(
+        succeeded(
           await fixture.port.commitEntries({
             observation: observation(o, fixture.operation('entries-1')),
             start: initial,
           }),
           'first range',
         )
+        // The caller keeps nothing of the first commit: the start comes from readWork alone.
+        const start = startOf(o, await o.s.readWork())
         const second = succeeded(
-          await fixture.port.commitEntries(next(o, fixture.operation('entries-2'), first)),
+          await fixture.port.commitEntries(next(o, fixture.operation('entries-2'), start)),
           'continued range',
         )
         assert.equal(second.through, '3')
@@ -308,7 +328,16 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           'commitEntries',
         )
         const operation = fixture.operation('refused')
-        const continued = next(o, operation, committed)
+        const continued = next(o, operation, {
+          kind: 'saved',
+          progress: {
+            run: o.run,
+            execution: o.execution,
+            channel: 'tool-received',
+            through: committed.through,
+            interpreted: committed.interpreted,
+          },
+        })
         const range = continued.observation
         const refusals: readonly [string, SessionEntriesObservation, SessionEntriesStart][] = [
           ['denied', { ...range, session: sessionId(`${o.base.session}-other`) }, continued.start],
@@ -325,14 +354,20 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           ],
         ]
         for (const [kind, refusedObservation, start] of refusals) {
-          const before = await state(fixture, operation)
+          const { query: _before, ...before } = await state(fixture, operation)
           const failure = refused(
             await fixture.port.commitEntries({ observation: refusedObservation, start }),
             kind,
           )
           assert.equal(failure.kind, kind)
-          assert.deepEqual(await state(fixture, operation), before, `${kind} changed nothing`)
-          assert.deepEqual(before.query, { kind: 'unknown' })
+          const { query, ...after } = await state(fixture, operation)
+          assert.deepEqual(after, before, `${kind} changed nothing`)
+          // The refused identity stays unknown. A provider that keeps its rolled back attempts
+          // answers attempt-rejected, which leaves the original unknown as well (SL09).
+          assert.ok(
+            query.kind === 'unknown' || query.kind === 'attempt-rejected',
+            `${kind} left the identity unknown, not ${query.kind}`,
+          )
         }
       },
     ),
@@ -389,6 +424,30 @@ export function sessionEntriesConformance<P>(): readonly ConformanceCase<
           'denied',
         )
         assert.deepEqual(await state(fixture, fixture.operation('entries-1')), before)
+      },
+    ),
+
+    conformanceCase(
+      'CF-09',
+      'commitEntries asks no access check, for a commit, a recall and a refusal',
+      async fixture => {
+        const asked = fixture.askedAccessChecks
+        assert.ok(asked !== undefined, 'CF-09 needs the fixture to count the access checks')
+        const o = await opened(fixture)
+        const input = {
+          observation: observation(o, fixture.operation('entries-1')),
+          start: initial,
+        }
+        const before = asked()
+        succeeded(await fixture.port.commitEntries(input), 'commitEntries')
+        // The answers of the recall and of the stale start belong to CF-04 and CF-03; this case
+        // counts only the access checks.
+        await fixture.port.commitEntries(input)
+        await fixture.port.commitEntries({
+          ...input,
+          observation: { ...input.observation, operation: fixture.operation('entries-2') },
+        })
+        assert.equal(asked(), before, 'no access check was asked')
       },
     ),
   ]

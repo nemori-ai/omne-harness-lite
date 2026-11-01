@@ -76,11 +76,10 @@ import { consumptionIdOf } from './decide-results.ts'
 import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { decodeEntry } from './entries.ts'
-import { reduce, reduceWithEntriesProgress } from './reduce.ts'
+import { reduce } from './reduce.ts'
 import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
 import type {
   SessionEntriesObservation,
-  SessionEntriesProgress,
   SessionEntriesReceipt,
   SessionEntriesStart,
 } from './interpretation-values.ts'
@@ -146,8 +145,6 @@ type Store = {
     }>
   >
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
-  /** The saved entries progress, one item per (run, execution, channel); `WorkSnapshot` does not hold it yet. */
-  readonly entriesProgress: readonly SessionEntriesProgress[]
 }
 
 type Cursor = Readonly<{
@@ -728,7 +725,6 @@ export function createMemorySessionTransactionPair<P>(
         operations,
         answers: store?.answers ?? new Map(),
         inputs,
-        entriesProgress: store?.entriesProgress ?? [],
       }
       const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
       if (initialization && failInitialization) {
@@ -746,7 +742,7 @@ export function createMemorySessionTransactionPair<P>(
     /**
      * The entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」): no access
      * check, the shared pure check, then the consequence rows, the progress row, the operation record
-     * and the saved progress in one replacement of the store. Nothing between the read of the store
+     * and the snapshot with its saved progress in one replacement of the store. Nothing between the read of the store
      * and that replacement awaits, and nothing is written before every check and the reduction pass.
      */
     const commitEntries = (
@@ -763,7 +759,7 @@ export function createMemorySessionTransactionPair<P>(
       const decision = projectSessionEntries(store.snapshot, {
         observation,
         start,
-        saved: store.entriesProgress,
+        saved: store.snapshot.entriesProgress ?? [],
         record: held?.record ?? null,
       })
       if (decision.kind === 'rejected') return fail(decision.failure)
@@ -779,7 +775,7 @@ export function createMemorySessionTransactionPair<P>(
         id: String(store.entries.length + index + 1) as EntryId,
         revision,
       }))
-      const reduced = reduceWithEntriesProgress(store.snapshot, store.entriesProgress, {
+      const reduced = reduce(store.snapshot, {
         revision,
         entries,
       })
@@ -817,7 +813,6 @@ export function createMemorySessionTransactionPair<P>(
         modelView: materializeModelView(store.modelView, entries, committedEntries),
         entries: committedEntries,
         operations,
-        entriesProgress: reduced.progress,
       })
       return succeed(answer)
     }
@@ -1327,6 +1322,8 @@ export interface SessionTransactionsFixture<P> {
   initializationGuards?(
     command: Extract<SessionCommand, { kind: 'create' }>,
   ): Promise<readonly GuardCommand[]>
+  /** The count of access checks that the port asked so far, for a case that asserts none is asked. */
+  readonly askedAccessChecks?: () => number
 }
 
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
@@ -2413,6 +2410,7 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
     creation: legalCreation(),
     operation: name => operationId(name),
     initializationGuards: memoryInitializationGuards(initialization),
+    askedAccessChecks: () => accessCheck.controls.asked().length,
   }
 }
 
