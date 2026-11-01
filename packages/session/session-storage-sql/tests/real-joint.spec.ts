@@ -32,6 +32,7 @@ import {
   jointWrite,
   openRealApp,
   queryKindOf,
+  realConfig,
   TENANT_A,
   textOf,
   type RealApp,
@@ -127,6 +128,37 @@ describe('the joint commit on the real write Worker', () => {
     expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
       published: '0',
       state: null,
+    })
+  })
+})
+
+describe('the size of the Agent records of one session', () => {
+  it('a state the write bound lets in reads back: the read bound holds the state of the largest accepted command', async () => {
+    const app = await open()
+    expect('ok' in (await app.create(TENANT_A))).toBe(true)
+    const cap = realConfig('unused').maxCommandBytes
+    // The command is the facts of one execution-record write; its UTF-8 size in canonical JSON
+    // (no spaces, sorted keys, ASCII only here) is the size of its JSON text. The two operations
+    // have names of one length, so the same room fits both.
+    const command = (operation: string, pad: number) =>
+      executionRecordFacts(jointWrite({ operation, state: { pad: 'x'.repeat(pad) } }))
+    const room = cap - Buffer.byteLength(JSON.stringify(command('aop_over', 0)))
+    const refused = await app.storage.commit({
+      identity: identityOf(TENANT_A, 'dom_0', 'aop_over'),
+      ...app.combination,
+      commands: [command('aop_over', room + 1)],
+    })
+    expect(refused).toMatchObject({ kind: 'rejected_before_accept', reason: 'command_limit' })
+    const state = { pad: 'x'.repeat(room) }
+    const accepted = await app.storage.commit({
+      identity: identityOf(TENANT_A, 'dom_0', 'aop_edge'),
+      ...app.combination,
+      commands: [command('aop_edge', room)],
+    })
+    expect(accepted.kind).toBe('committed')
+    expect(decodeExecutionRecordState(await read(app, 'execution-record.state'))).toEqual({
+      published: '1',
+      state,
     })
   })
 })

@@ -49,6 +49,7 @@
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/runtime-context-cordis-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
     "@omne-harness/session-storage-sql": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*"

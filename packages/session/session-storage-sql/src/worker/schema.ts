@@ -69,3 +69,21 @@ export const EXECUTION_INDEX_MIGRATION = Object.freeze({
   owner: 'session',
   id: '002-execution-index',
 })
+
+// The access evidence of an operation (session-contract SPEC「当前操作的访问裁定」): the allowed
+// decision that a commit carried is stored with the operation record, one row per operation, in
+// the same transaction. It is a side table, not a column of `sl_operation`: the provider denies
+// the `ALTER TABLE` of a STRICT table (SQLite checks the table with a pragma that the migration
+// port forbids). An operation whose commit carried no decision has no row.
+export const OPERATION_EVIDENCE_STATEMENTS: readonly string[] = [
+  `CREATE TABLE sl_operation_evidence (
+    tenant TEXT NOT NULL, session TEXT NOT NULL, operation TEXT NOT NULL, evidence TEXT NOT NULL,
+    PRIMARY KEY (tenant, session, operation)) STRICT`,
+]
+
+export const OPERATION_EVIDENCE_TABLES: readonly string[] = ['sl_operation_evidence']
+
+export const OPERATION_EVIDENCE_MIGRATION = Object.freeze({
+  owner: 'session',
+  id: '003-operation-evidence',
+})

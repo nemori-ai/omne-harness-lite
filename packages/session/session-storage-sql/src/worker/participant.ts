@@ -505,6 +505,14 @@ function runQuery(
     'SELECT form, receipt, result FROM sl_operation WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
     [tenant, session, operation],
   )
+  const stored =
+    row === undefined
+      ? undefined
+      : oneRow(
+          port,
+          'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+          [tenant, session, operation],
+        )
   return {
     kind: 'participated',
     response:
@@ -515,6 +523,8 @@ function runQuery(
             form: text(row['form']),
             receipt: JSON.parse(text(row['receipt'])) as JsonValue,
             result: JSON.parse(text(row['result'])) as JsonValue,
+            evidence:
+              stored === undefined ? null : (JSON.parse(text(stored['evidence'])) as JsonValue),
           },
   }
 }
@@ -522,6 +532,7 @@ function runQuery(
 function runCommand(
   command: SessionCommand,
   guards: readonly GuardCommand[],
+  evidence: string | null,
   port: ParticipantPort,
 ): ParticipantReply {
   // Before the session or any lookup: the answer must not tell what exists.
@@ -638,6 +649,7 @@ function runCommand(
         JSON.stringify(encodeValue(receipt)),
       ],
     )
+    storeEvidence(port, { tenant, session, operation }, evidence)
     return participated(receipt, false)
   }
   if (decision.kind === 'recovered') {
@@ -648,7 +660,7 @@ function runCommand(
     )
     if (original === undefined)
       return { kind: 'failed', diagnostic: 'a recalled operation without a record' }
-    if (held === undefined && command.kind === 'completeInitialization')
+    if (held === undefined && command.kind === 'completeInitialization') {
       port.execute(
         'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
         [
@@ -662,6 +674,8 @@ function runCommand(
           text(original['receipt']),
         ],
       )
+      storeEvidence(port, { tenant, session, operation }, evidence)
+    }
     const value =
       command.kind === 'completeInitialization'
         ? { ...(JSON.parse(text(original['receipt'])) as CommitReceipt), recovered: true }
@@ -741,6 +755,7 @@ function runCommand(
       JSON.stringify(encodeValue(result)),
     ],
   )
+  storeEvidence(port, { tenant, session, operation }, evidence)
   if (journal === undefined)
     port.execute(
       'INSERT INTO sl_journal (tenant, session, tail, commit_seq, epoch) VALUES (?, ?, ?, ?, ?)',
@@ -820,6 +835,32 @@ function runEntries(facts: Readonly<Record<string, JsonValue>>, port: Participan
   }
 }
 
+/**
+ * The access evidence that a command carries, as the JSON text stored with its operation record.
+ * Absent is `null` (no decision travelled); a value that is not a durable evidence is `malformed`.
+ */
+function evidenceOf(value: JsonValue | undefined): string | null | 'malformed' {
+  if (value === undefined || value === null) return null
+  if (typeof value !== 'object' || Array.isArray(value)) return 'malformed'
+  const { owner, record, revision, digest } = value as Readonly<Record<string, JsonValue>>
+  return [owner, record, revision, digest].every(member => typeof member === 'string')
+    ? JSON.stringify({ owner, record, revision, digest })
+    : 'malformed'
+}
+
+/** The evidence row of an operation record, in the transaction that writes the record. */
+function storeEvidence(
+  port: ParticipantPort,
+  key: Readonly<{ tenant: string; session: string; operation: string }>,
+  evidence: string | null,
+): void {
+  if (evidence === null) return
+  port.execute(
+    'INSERT INTO sl_operation_evidence (tenant, session, operation, evidence) VALUES (?, ?, ?, ?)',
+    [key.tenant, key.session, key.operation, evidence],
+  )
+}
+
 const participant: ParticipantModule = {
   participant: 'session',
   protocol: PROTOCOL,
@@ -857,7 +898,13 @@ const participant: ParticipantModule = {
         basis: { reason: error instanceof Error ? error.message : 'undecodable facts' },
       }
     }
-    const reply = runCommand(command, guards, port)
+    const evidence = evidenceOf(facts['evidence'])
+    if (evidence === 'malformed')
+      return {
+        kind: 'unsupported',
+        basis: { reason: 'the access evidence of the command is not a durable evidence' },
+      }
+    const reply = runCommand(command, guards, evidence, port)
     // The digest of the command travels with the answer, so a later caller can tell a recall of the
     // same command from the same identity used for another command (SL07).
     return reply.kind === 'participated'

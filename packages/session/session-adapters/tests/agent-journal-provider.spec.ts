@@ -92,22 +92,21 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   const storage: SqlStorage = s.storage
   // The operations whose commit never ran and whose outcome stays undecided (`pending`).
   const undecided = new Set<string>()
-  class Storage extends StorageService {
-    readonly registerCombination: SqlStorage['registerCombination'] = input =>
-      storage.registerCombination(input)
-    readonly commit: SqlStorage['commit'] = async (input, options) => {
+  const wrapped: SqlStorage = {
+    registerCombination: input => storage.registerCombination(input),
+    commit: async (input, options) => {
       const fault = wiring.fault
       wiring.fault = null
       if (fault === null) return storage.commit(input, options)
       if (fault === 'applied') await storage.commit(input, options)
       if (fault === 'pending') undecided.add(input.identity.operation)
       return { kind: 'unknown', identity: input.identity, diagnostic: `scripted ${fault}` }
-    }
-    readonly query: SqlStorage['query'] = identity =>
+    },
+    query: identity =>
       undecided.has(identity.operation)
         ? Promise.resolve({ kind: 'unknown', identity, diagnostic: 'scripted pending' })
-        : storage.query(identity)
-    readonly read: SqlStorage['read'] = (request, options) => {
+        : storage.query(identity),
+    read: (request, options) => {
       if (request.handler === 'session.execution') {
         wiring.indexReads.push(String((request.input as { tenant?: unknown }).tenant))
         if (wiring.failIndex)
@@ -119,7 +118,13 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
           } as never)
       }
       return storage.read(request, options)
-    }
+    },
+  }
+  class Storage extends StorageService {
+    readonly registerCombination = wrapped.registerCombination
+    readonly commit = wrapped.commit
+    readonly query = wrapped.query
+    readonly read = wrapped.read
   }
   const lookup: TenantDomainLookup['lookup'] = input =>
     Promise.resolve(
@@ -132,11 +137,12 @@ function servicesOf(s: SqlScene, otherDomain: DomainRef) {
   class Lookup extends TenantDomainLookupService {
     readonly lookup = lookup
   }
+  const check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
+    Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
   class Access extends SessionAccessCheckService<unknown> {
-    readonly check = (request: SessionAccessRequest<unknown>): Promise<SessionAccessDecision> =>
-      Promise.resolve({ kind: 'allowed', evidence: evidence(`access/${request.operation}`) })
+    readonly check = check
   }
-  return { wiring, Storage, Lookup, Access }
+  return { wiring, Storage, Lookup, Access, storage: wrapped, lookup: { lookup }, check }
 }
 
 /** The domain of the other tenant; on the real provider it is registered with the same combination. */
@@ -174,6 +180,22 @@ async function assembled(s: SqlScene, config: Readonly<{ routeCacheEntries?: num
     return found as AgentJournal<string>
   }
   return { ctx, plugin, journal, wiring: services.wiring }
+}
+
+/**
+ * The Journal of the scene's session without the plugin: `createSessionLogJournal(...).forSession`
+ * over the same scripted storage, so the core suite can tell a fault of the provider from one of
+ * the plugin's routing.
+ */
+async function direct(s: SqlScene) {
+  const services = servicesOf(s, await otherDomainOf(s))
+  const journal = createSessionLogJournal<string>({
+    storage: services.storage,
+    tenantDomainLookup: services.lookup,
+    sessionAccessCheck: { check: services.check },
+    combination: s.combination,
+  }).forSession(s.access).journal
+  return { journal: () => journal, wiring: services.wiring }
 }
 
 const scenes: SqlScene[] = []
@@ -523,10 +545,10 @@ describe('an execution that is not the caller tenant’s', () => {
  * Host records, settlement qualifications, legacy candidates and reply admission controls have no
  * seam in the production provider; those cases are uncovered too.
  */
-const coreFixture: AgentJournalCoreFixture<string> = {
+const coreFixtureVia = (via: 'plugin' | 'direct'): AgentJournalCoreFixture<string> => ({
   async open(name, options = {}): Promise<AgentJournalCoreOpened<string>> {
-    const s = await scene(`pj-${name}`.slice(0, 48))
-    const { journal: current, wiring } = await assembled(s)
+    const s = await scene(`${via === 'plugin' ? 'pj' : 'pd'}-${name}`.slice(0, 48))
+    const { journal: current, wiring } = via === 'plugin' ? await assembled(s) : await direct(s)
     const base = current()
     const opened = ok(await base.open(s.openInput))
     ok(await handed(s, String(s.initial.id), opened.receipt.evidence))
@@ -671,81 +693,69 @@ const coreFixture: AgentJournalCoreFixture<string> = {
       },
     }
   },
-}
+})
 
 /** The capabilities a case may name as missing; any other is a fixture fault. */
 const UNCOVERABLE =
   /^uncovered: the fixture has no (cancellation policy installation|hostRecord control|qualify control|seedLegacyCandidate control|seedLegacyCandidate and hostRecord controls|replyAdmissions controls)$/u
 
 /**
- * Cases the session-log Journal itself does not pass yet: they fail the same way when the fixture
- * calls `createSessionLogJournal(...).forSession` directly, without the plugin (C19b log
- * `core-suite-direct.log`). Each is pinned to its failure, so a routing fault that fails such a
- * case otherwise still shows red, and a fix of the provider shows red until the entry is removed.
+ * The case the session-log Journal itself does not pass yet. It fails the same way through the
+ * plugin and straight from `forSession` (the suite runs both ways below), and it is pinned to the
+ * failing assertion: the message names the call and the values are the counters `advances` read.
+ * Any other failure of the case is red, and so is a pass.
  */
-const PROVIDER_GAPS: readonly Readonly<{ name: string; failure: RegExp; gap: string }>[] = [
-  {
-    name: 'query: committed carries the original receipt, an operation never seen is unknown, a dropped write is excluded with evidence',
-    failure: /\+ 'unknown'\s+- 'excluded'/u,
-    gap: 'a write the storage never ran is queried unknown, not excluded',
-  },
-  {
-    name: 'Rh custody chain:',
-    failure: /\+ 'unknown'\s+- 'excluded'/u,
-    gap: 'a write the storage never ran is queried unknown, not excluded',
-  },
-  {
-    name: 'another tenant: a successor recordHandoff is denied',
-    failure: /\+ 'unknown'\s+- 'excluded'/u,
-    gap: 'a write the storage never ran is queried unknown, not excluded',
-  },
-  {
-    name: 'a pending write of another operation is an unknown operation item of the list',
-    failure: /the list should carry one operation item/u,
-    gap: 'an undecided write leaves no unknown operation item in the finish list',
-  },
-  {
-    name: 'the unknown operation item of a pending write carries the original-operation query',
-    failure: /the list should carry one operation item/u,
-    gap: 'an undecided write leaves no unknown operation item in the finish list',
-  },
+const PROVIDER_GAPS: readonly Readonly<{
+  name: string
+  gap: string
+  pinned(error: unknown): boolean
+}>[] = [
   {
     name: 'Q3 and Q13: recordResult advances one revision for a new responsibility fact',
-    failure: /^recordResult/u,
-    gap: 'a custody transfer of a result is refused: Session holds no producer binding of the consumption',
+    gap: 'a custody transfer of a result is refused: Session holds no producer binding of the consumption (session-contract decide-results: no matching producer binding)',
+    pinned: error =>
+      error instanceof Error &&
+      error.message.startsWith('recordResult') &&
+      JSON.stringify((error as { actual?: unknown }).actual) === '[0,0]' &&
+      JSON.stringify((error as { expected?: unknown }).expected) === '[1,0]',
   },
 ]
 
-describe('the Agent contract core Journal suite through the plugin (Session log over node:sqlite)', () => {
-  for (const entry of agentJournalCoreConformance(coreFixture)) {
-    if ('uncovered' in entry) {
-      it.skip(`${entry.name} (${entry.uncovered})`, entry.run)
-      continue
-    }
-    const known = PROVIDER_GAPS.find(item => entry.name.startsWith(item.name))
-    it(
-      known === undefined ? entry.name : `${entry.name} [provider gap: ${known.gap}]`,
-      async context => {
-        try {
-          await entry.run()
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error)
-          if (message.startsWith('uncovered:')) {
-            expect(message).toMatch(UNCOVERABLE)
-            context.skip(message)
+for (const via of ['plugin', 'direct'] as const) {
+  const fixture = coreFixtureVia(via)
+  const how =
+    via === 'plugin' ? 'through the plugin' : 'straight from forSession, without the plugin'
+  describe(`the Agent contract core Journal suite ${how} (Session log over node:sqlite)`, () => {
+    for (const entry of agentJournalCoreConformance(fixture)) {
+      if ('uncovered' in entry) {
+        it.skip(`${entry.name} (${entry.uncovered})`, entry.run)
+        continue
+      }
+      const known = PROVIDER_GAPS.find(item => entry.name.startsWith(item.name))
+      it(
+        known === undefined ? entry.name : `${entry.name} [provider gap: ${known.gap}]`,
+        async context => {
+          try {
+            await entry.run()
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error)
+            if (message.startsWith('uncovered:')) {
+              expect(message).toMatch(UNCOVERABLE)
+              context.skip(message)
+            }
+            if (known === undefined) throw error
+            expect(known.pinned(error), message).toBe(true)
+            return
           }
-          if (known === undefined) throw error
-          expect(message).toMatch(known.failure)
-          return
-        }
-        if (known !== undefined)
-          expect.fail(
-            `the provider gap "${known.gap}" no longer shows: remove it from PROVIDER_GAPS`,
-          )
-      },
-    )
-  }
-})
+          if (known !== undefined)
+            expect.fail(
+              `the provider gap "${known.gap}" no longer shows: remove it from PROVIDER_GAPS`,
+            )
+        },
+      )
+    }
+  })
+}
 
 describe('routing on the real sqlite-provider', () => {
   it(
