@@ -15,7 +15,8 @@ export type ShutdownClock = Readonly<{
 }>
 
 export const monotonicClock: ShutdownClock = {
-  now: () => performance.now(),
+  now: () =>
+    /* wall-clock: operation-timing -- 关闭期限的单调时钟读数，不是领域时间 */ performance.now(),
   after(ms) {
     let timer: ReturnType<typeof setTimeout> | undefined
     const promise = new Promise<void>(resolve => {
