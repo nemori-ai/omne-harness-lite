@@ -49,7 +49,7 @@ it('consumes the packed ./cordis entry with original types and keeps Cordis out 
   if (!archive) throw new Error('pack produced no archive')
   const installed = join(scratch, 'node_modules/@omne-harness/identity')
   mkdirSync(installed, { recursive: true })
-  run('tar', ['-xzf', archive, '--strip-components=1', '-C', installed])
+  run('tar', ['-xzf', archive, '--strip-components=1', '-C', 'node_modules/@omne-harness/identity'])
   expect(readdirSync(installed)).not.toContain('src')
   // Reuse locked dependency artifacts. The identity package itself is the unpacked tarball.
   for (const dependency of [
