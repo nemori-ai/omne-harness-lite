@@ -31,7 +31,7 @@ import {
   ModelHostAuthorityService,
   modelInstanceHostKey,
 } from '@omne-harness/model-cordis-contract/cordis'
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { createModelRuntimeLocalPlugin } from '../src/cordis.ts'
 
 function unbox<T>(decoded: { ok: T } | { failure: unknown }): T {
@@ -558,4 +558,77 @@ it('serves a route only to an observer that is currently qualified, and only a l
   // The registration of the replaced route no longer removes anything.
   expect(await host.withdraw(published.ok)).toEqual({ ok: { removed: false } })
   expect(await host.directory.connect(observer)).toEqual({ ok: { kind: 'live', handle: second } })
+})
+
+describe('what the host keeps apart, and what it refuses to share', () => {
+  const otherAccount = accountCodec.parse('acc_bcdefghjkmnpqrstvwxyz2345a')
+  if (!otherAccount.ok) throw new Error('fixture identity')
+  const OTHER = tenant(organization.value, otherAccount.value)
+
+  it('keeps the wakes of two tenants for one call id apart: each is driven for its own tenant', async () => {
+    const f = fixture({ concurrencyLimit: 2, wakeCapacity: 3 })
+    await f.load()
+    const resolvedFor: TenantId[] = []
+    const resolve = f.state.resolve
+    f.state.resolve = input => {
+      resolvedFor.push(input.tenant)
+      return resolve(input)
+    }
+    const host = f.ctx.modelInstanceHost
+    const call = callOf('shared')
+    expect(await host.schedule({ tenant: TENANT, call })).toEqual({ ok: { queued: true } })
+    expect(await host.schedule({ tenant: OTHER, call })).toEqual({ ok: { queued: true } })
+
+    // The first drive is still running, so a wake that merged with it would wait and not start.
+    await until(() => f.driven.length === 2, 'one drive for each tenant')
+    expect(resolvedFor).toHaveLength(2)
+    expect(resolvedFor).toContainEqual(TENANT)
+    expect(resolvedFor).toContainEqual(OTHER)
+    f.gateOf(call).open()
+  })
+
+  it('takes a repeated wake of a call that already waits when the queue is full, and refuses a new call', async () => {
+    const f = fixture({ concurrencyLimit: 1, wakeCapacity: 1 })
+    await f.load()
+    const host = f.ctx.modelInstanceHost
+    await host.schedule(wake('a'))
+    await until(() => f.driven.length === 1, 'the first drive')
+    expect(await host.schedule(wake('b'))).toEqual({ ok: { queued: true } })
+    // The queue holds b and is full: b again sets the bit that is set, a new call c has no room.
+    expect(await host.schedule(wake('b'))).toEqual({ ok: { queued: true } })
+    expect(await host.schedule(wake('c'))).toMatchObject({
+      failure: { kind: 'unavailable', diagnostic: 'queue-full' },
+    })
+
+    f.gateOf(callOf('a')).open()
+    await until(() => f.driven.length === 2, 'the drive of b')
+    f.gateOf(callOf('b')).open()
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(f.driven).toEqual([callOf('a'), callOf('b')])
+  })
+
+  it('fails a successor that loads while the old host still drains, and leaves no host after the old unload (known limit: one provider per service key)', async () => {
+    const f = fixture({ concurrencyLimit: 1, wakeCapacity: 2 })
+    const first = await f.load()
+    await f.ctx.modelInstanceHost.schedule(wake('a'))
+    await until(() => f.driven.length === 1, 'the drive')
+    const gate = f.gateOf(callOf('a'))
+
+    const unloading = first.dispose()
+    await until(() => gate.signalAborted, 'the old host to stop dispatching')
+    // The old host still waits for its drive, so its service key is still taken.
+    const rejected = await loadError(f.ctx.plugin(f.Plugin, { ...SETTINGS }))
+    expect(rejected).toBeInstanceOf(Error)
+
+    gate.open()
+    await unloading
+    await new Promise(resolve => setTimeout(resolve, 20))
+    expect(f.ctx.modelInstanceHost).toBeUndefined()
+
+    // The way out is to wait for the old host to leave and load again.
+    await f.ctx.plugin(f.Plugin, { ...SETTINGS })
+    expect(await f.ctx.modelInstanceHost.schedule(wake('b'))).toEqual({ ok: { queued: true } })
+    await until(() => f.driven.length === 2, 'the drive of the reloaded host')
+    f.gateOf(callOf('b')).open()
+  })
 })

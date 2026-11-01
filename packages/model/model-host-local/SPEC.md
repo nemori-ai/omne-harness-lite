@@ -148,6 +148,12 @@
 - `publish` 只接受当前绑定的代次：同一发布认回原回执，旧代次返回 `stale-instance` 且不夺回路由，较晚代次取代旧路由。`withdraw` 只撤除登记匹配的发布。`directory.connect` 先经装配给的 `qualifyObservation` 核当前观察资格，失败（含 `denied`）原样返回，命中路由不当作授权。
 - 有序关闭是一个流程：先 quiesce（`provider.quiesce`，拒绝或抛出只报告），再停派发、发停止信号并等待每个 drive 交还，最后撤发布服务的贡献（Cordis 撤除子插件）。未派发的唤醒明确留给后继，计数写进诊断，不报告为完成。shutdown 不抛出：它之后的撤除若被跳过，服务就撤不掉。
 
+#### 宿主插件的已知限制
+
+- 同一服务键同时只有一个提供者（Cordis 不允许两个）。旧宿主在有序关闭里等 drive 交还时，服务键仍被它占着，此时装载的后继 fiber 失败（`FAILED`），旧宿主退出后没有宿主。失败是响亮的，不静默。需要换宿主时，先等旧宿主退出再装载。`tests/plugins-host.spec.ts` 固定这个行为。
+- 关闭时的排空没有上界：`closeNow` 等所有在途 drive 交还，不设超时。忽略停止信号的 driver 会让卸载一直不返回。driver 必须响应传给它的停止信号。上界数值属装配配置，M2 不加这个机制。
+- 收到响应头之前的流停顿经本地装配与 Model 运行时调用时，属首内容之前的可重试失败。M2 没有重试策略，调用停在 `retry-not-decided`，仍为 `running`，不形成 Settlement，见 [Model 已实现的调用收场](../model/SPEC.md#已实现的调用收场)。本包的 C4 用例只在首内容之后的一支要求 Settlement 可读。这是 M2 无重试的限制，不是宿主或停顿上界的缺陷。
+
 ### 请求准备插件与计量租约
 
 `createModelRequestPreparationPlugin(options)` 交出插件类与该插件的租约来源 `resources`。静态注入只有 `modelCommands`；不依赖 `modelRuntime` 或供应商网络，传输缺席时 `prepare` 照常工作。配置是 `maxCitedCalls`（正整数，必需）。
