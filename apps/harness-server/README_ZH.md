@@ -17,7 +17,7 @@ Harness Server 装配的私有应用成员。S0 模式经真实 Cordis 装载标
 - `./cordis` 导出，含 S0 替身插件。各行闭包把真实导出加进去。
 - 真实模式的子命令 `serve`、行声明 `defineRow`、入口对象注册表与装载前检查。见 [docs/real-mode.md](docs/real-mode.md)。
 
-SPEC.md「有序关闭」一节有三项裁定标明「待代码合回」：启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置。代码合回之前，它们是目标。
+SPEC.md「有序关闭」一节的三项裁定（启动次序、停止状态后不再调用 `start`、启动期 `start` 抛出的处置）已经实现。`tests/shutdown.spec.ts` 与 `tests/s0-process.spec.ts` 覆盖它们。
 
 S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密。S0 通过不表示首条租户路径可运行。
 
@@ -106,7 +106,6 @@ pnpm --filter @omne-harness/harness-server run check:aa-rows
 
 未覆盖：
 
-- SPEC.md 中标明「待代码合回」的三项裁定，在代码合回之前没有通过的测试。
 - Windows 与 Linux 分别报告。一个平台的结果不覆盖另一个平台。
 - 对 `ctx.reflect.store` 的反射遍历是已记录的非保证。
 

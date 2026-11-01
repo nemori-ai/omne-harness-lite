@@ -17,7 +17,7 @@ Implemented:
 - The `./cordis` export, which holds the S0 stub plugin. Row closures add their real exports to it.
 - The `serve` subcommand, the row declaration `defineRow`, the entry object registry, and the checks before loading of the real mode. See [docs/real-mode.md](docs/real-mode.md).
 
-Three rulings in SPEC.md are marked "pending code merge" in the section "有序关闭". They are the start order, no new `start` after the stopping state, and the handling of a `start` that throws. Until the code merges, they are targets.
+The three rulings in the section "有序关闭" of SPEC.md (the start order, no new `start` after the stopping state, and the handling of a `start` that throws) are implemented. `tests/shutdown.spec.ts` and `tests/s0-process.spec.ts` cover them.
 
 S0 does not open HTTP, create a tenant, open a business state root, or read a real secret. A passing S0 run does not show that the first tenant path works.
 
@@ -106,7 +106,6 @@ The test inventory is in [tests/README.md](tests/README.md). The tests of the re
 
 Not covered:
 
-- The three rulings marked "pending code merge" in SPEC.md have no passing test until the code merges.
 - Windows and Linux runs are reported apart. A run on one platform does not cover the other.
 - Reflection over `ctx.reflect.store` is a recorded non-guarantee.
 
