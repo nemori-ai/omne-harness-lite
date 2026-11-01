@@ -17,15 +17,19 @@ const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key =
 
 const TABLE: Readonly<Record<string, Entry>> = {
   storage: { provides: ['storage'], phase: 'storage' },
-  'tenant-domains': { provides: ['tenantDomains'], injects: ['storage'] },
   identity: { provides: ['identity', 'tenantStandingSource'], injects: ['storage'] },
   authorization: {
     provides: ['agentAccessCheck', 'sessionAccessCheck'],
     injects: ['identity'],
   },
   'session-storage': {
-    provides: ['sessionTransactions', 'tenantDomainLookup', 'sessionPrincipalBindings'],
-    injects: ['storage', 'tenantDomains'],
+    provides: [
+      'sessionTransactions',
+      'tenantDomains',
+      'tenantDomainLookup',
+      'sessionPrincipalBindings',
+    ],
+    injects: ['storage', 'sessionAccessCheck'],
     phase: 'composition',
   },
   'session-provider': {
@@ -66,6 +70,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
     group: 'agent-journal',
   },
   'agent-adoptions': { provides: ['agentAdoptions', 'definitionMappings'] },
+  'adoption-sources': { provides: ['sessionAdoptionSource'], injects: ['definitionMappings'] },
   'agent-model-selection': { provides: ['agentModelSelection'], injects: ['modelProfiles'] },
   'agent-host': {
     provides: [
@@ -76,6 +81,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
     ],
     injects: [
       'agentJournal',
+      'agentJournalEntries',
+      'agentMaterials',
       'agentAccessCheck',
       'agentAdoptions',
       'agentConditions',
@@ -83,6 +90,8 @@ const TABLE: Readonly<Record<string, Entry>> = {
       'agentModelSelection',
       'agentModelContext',
       'agentMessageHandoff',
+      'agentAccountOutlet',
+      'toolStartFence',
       'modelRuntime',
       'agentClock',
     ],
@@ -100,6 +109,10 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'model-instances': { provides: ['modelInstances'], injects: ['modelPublicationAuthority'] },
   'model-converters': { provides: ['modelConverters'], injects: ['modelConverterAuthority'] },
   'model-profiles': { provides: ['modelProfiles'] },
+  'model-request-preparation': {
+    provides: ['modelRequestPreparation'],
+    injects: ['modelCommands'],
+  },
   'model-credential': { provides: ['modelCredential'] },
   'tool-runtime': {
     provides: ['toolRuntime'],
@@ -123,12 +136,13 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'execution-environment': { provides: ['executionEnvironment'] },
   'execution-files': { injects: ['executionEnvironment'] },
   'execution-host-files': { injects: ['executionEnvironment'] },
-  'request-context': { provides: ['requestContext'] },
+  'request-context': { provides: ['requestContext'], injects: ['requestContextTrust'] },
   'agent-context': {
     provides: ['agentRequests', 'agentModelContext'],
-    injects: ['requestContext', 'runtimeContext'],
+    injects: ['requestContext', 'runtimeContext', 'modelRequestPreparation'],
   },
-  'runtime-context': { provides: ['runtimeContext'] },
+  'agent-account-outlet': { provides: ['agentAccountOutlet'], injects: ['requestContext'] },
+  'runtime-context': { provides: ['runtimeContext'], injects: ['runtimeContextTrust'] },
   'server-entry': {
     injects: ['session', 'principalIssuer', 'definitionMappings'],
     phase: 'entry',

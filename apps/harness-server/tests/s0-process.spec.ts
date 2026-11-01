@@ -1,5 +1,5 @@
 // @module-tag slow
-// 慢：每个用例启动 dist/bin.js 子进程，并装载 43 行替身树。
+// 慢：每个用例启动 dist/bin.js 子进程，并装载 45 行替身树。
 // S0 进程级验收（s0-spec-r2 §7、§8、§10）。慢层：直接启动 dist/bin.js，用绝对 fixture 路径，
 // 断言退出码与 stdout JSON 记录，不经 POSIX shell。S0-7 与 G-3 的装载前拒绝用同进程 runS0，因为
 // 替身清单与可见表是代码事实，CLI 不暴露它们。

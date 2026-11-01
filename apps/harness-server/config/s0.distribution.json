@@ -6,11 +6,6 @@
       "config": {}
     },
     {
-      "id": "tenant-domains",
-      "plugin": "stubPlugin",
-      "config": {}
-    },
-    {
       "id": "identity",
       "plugin": "stubPlugin",
       "config": {}
@@ -111,6 +106,11 @@
       "config": {}
     },
     {
+      "id": "adoption-sources",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "agent-model-selection",
       "plugin": "stubPlugin",
       "config": {}
@@ -142,6 +142,11 @@
     },
     {
       "id": "model-profiles",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "model-request-preparation",
       "plugin": "stubPlugin",
       "config": {}
     },
@@ -202,6 +207,11 @@
     },
     {
       "id": "agent-context",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "agent-account-outlet",
       "plugin": "stubPlugin",
       "config": {}
     },
