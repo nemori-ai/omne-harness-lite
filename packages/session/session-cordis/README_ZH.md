@@ -38,11 +38,11 @@ Session 的 Service 实现成员，`service-provider` 变体。
 
 ## 设计
 
-`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。只有访问检查、事务端口与内部主体进 `inject`，其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
+`./cordis` 分为配置、端口接线、服务子类、通知、扫描者绑定与撤除六块。包外依赖是 session-contract、session-cordis-contract、session 与 `@deepseek-ai/cordis`。`inject` 写五个键：访问检查 `sessionAccessCheck`、受信委派事务 `sessionDelegatedTransactions`、内部主体 `sessionPrincipals`、受信会话工作主体 `sessionWorkPrincipals` 与装配生命周期 `assemblyLifecycle`。公开事务端口 `sessionTransactions` 不进 `inject`，只为 `pending`、`references` 与 `releasedScopes` 按调用现取。其余端口每次调用时用本插件的 Context 现取。本成员是提交通知的派发方。扫描者在首次见到租户的通知时绑定。模块与理由见[内部架构](docs/architecture.md)，四条生命周期流程见[生命周期流程](docs/flows.md)，对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 
-插件配置用 Standard Schema 校验，字段是调度策略 `policy` 的逐字段覆盖、撤除等待上限 `disposeWaitMs` 与受理槽声明 `admission`。`admission` 只能省略或取 `'none'`。省略的策略字段取 session 的初值。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`；缺事务端口时 fiber 停在 `PENDING`。
+插件配置用 Standard Schema 校验，字段是调度策略 `policy` 的逐字段覆盖、撤除等待上限 `disposeWaitMs` 与受理槽声明 `admission`。`admission` 只能省略或取 `'none'`。省略的策略字段取 session 的初值。默认值只是初值。配置错误时插件加载失败，fiber 进入 `FAILED`；`inject` 的五个键缺任一个时 fiber 停在 `PENDING`。每次面操作在开头调用一次访问检查。
 
 每个租户同一时刻只有一个恢复扫描者，第一版靠装配单实例兑现：全部进程里只装一份本插件，不在两个 isolate 标签下各装一份。租户、主体与回调不进配置。本成员不读取资源，只经事务端口访问存储。
 

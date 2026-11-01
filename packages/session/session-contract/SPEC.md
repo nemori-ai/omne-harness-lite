@@ -642,7 +642,7 @@ Session 命令：
 | `references`     | `denied`；`invalid`（游标错域，或键不可解析）；`unavailable`（不返回空页）                                                                                                          | 只读，没有未知   | 不适用                                             | 引用从会话事实派生（[常驻工具与会话冻结](#常驻工具与会话冻结)）；键的含义归 Tool       |
 | `releasedScopes` | `denied`；`invalid`（游标错域）；`unavailable`（不返回空页）                                                                                                                        | 只读，没有未知   | 不适用                                             | 账本是会话日志的 SE25；存储提供者维护派生索引，读取不扫描日志                          |
 
-`PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。Model 结果在 MODEL-ACK-ARRIVAL 悬置期间保持 `release`，恢复扫描对它只报告，不执行动作（[JC-Release](#jc-release)）。
+`PendingReason` 的取值只由快照决定，不读时间，所以提交时就能准确维护：`initialization` 指 `tasks` 中有初始化项（pending、unknown 或 failed）；`unresolved` 指 `unresolved` 非空；`controls` 指有停在 propagating 的控制；`tasks` 指 `tasks` 非空；`inputs` 指待处理输入非空；`run` 指有未终结的 Run；`idle-armed` 指自动归档已启用、未豁免且没有未终结 Run，是否到期由扫描时的 `judgeIdle` 裁定；`release` 指有已保管或已处理、交付责任解除仍为 pending 的结果版本（[EC-04](#ec-04)）。Model 结果在 MODEL-ACK-ARRIVAL 悬置期间保持 `release`，恢复扫描对它只报告，不执行动作（[JC-Release](#jc-release)）。
 
 #### SessionHistory
 
