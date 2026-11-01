@@ -484,7 +484,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 3. 行事租户：`create-session` 的 `actingTenant` 不等于该登录的当前选择时是 `denied`，响应不包含实际选择。
 4. 目标租户与主体：目标租户（`create-session` 为 `actingTenant`，其他操作为 body 的 `tenant`）的账号不等于识别出的账号时是 `denied`。签发主体不可用（签发者未安装或签发失败）时是 `basis-unavailable`。
 5. 部署范围：`create-session` 的定义名不在部署集合内，或 `read-history` 的 `pageBytes` 超出部署上界时，是 `invalid`。
-6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。
+6. Session 判断：资格、会话存在与业务规则由 Session 判断，结果按下表映射。主体在该租户下没有当前资格与会话不存在对外都是 `denied`，不能区分。例外：`stop-call` 的目标是 Tool 调用时，在访问裁定之后、会话存在核对之前答 `unsupported`（见[会话中断操作](#会话中断操作)），所以这时不论会话是否存在都得 `unsupported`，不泄露存在性。
 
 `cancel-run` 与 `stop-call` 没有行事租户，第 3 步不适用。两者的第 6 步先做 Session 的访问裁定，`denied` 与不可用先于一切。仅 `stop-call`：`producer.kind` 为 `tool` 时返回 `unsupported`。这一判定在访问裁定之后，在会话存在核对、操作认回与目标查找之前，只看 `producer.kind`，与会话状态、目标是否存在、该控制标识是否已用无关，所以不披露这些事实，也不写任何记录。
 
