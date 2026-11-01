@@ -1,8 +1,10 @@
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
+  ConsumerRef,
   ModelCallId,
   ModelDiagnostics,
+  ModelResultReceiver,
   ModelRuntime,
   Revision,
 } from '@omne-harness/model-contract'
@@ -21,10 +23,13 @@ import type {
 } from '@omne-harness/model-contract/provider'
 import type { ModelConvertersService } from './converters.ts'
 import type { ModelInstancesService } from './instances.ts'
+import { createModelResultReceiverTable, type ModelResultReceiverTable } from './receivers.ts'
 import type { ModelConverterAuthority, ModelPublicationAuthority } from './registration.ts'
 
 export { ModelConvertersService, modelConvertersKey } from './converters.ts'
 export { ModelInstancesService, modelInstancesKey } from './instances.ts'
+export { ModelResultReceiverConflictError, createModelResultReceiverTable } from './receivers.ts'
+export type { ModelResultReceiverTable } from './receivers.ts'
 export type {
   ModelConverterAuthority,
   ModelConverterRegistration,
@@ -55,12 +60,40 @@ export abstract class ModelCredentialService extends Service implements Credenti
 }
 export const modelCredentialKey = ModelCredentialService.provide
 
-/** @owner packages/model/model-cordis-contract */
+/**
+ * The runtime service. Besides the three abstract members of the root interface it carries one
+ * concrete method, `registerResultReceiver`, for the consumer of results. The registration is an
+ * effect of the calling plugin's fiber and ends with it. The table is the provider's: it creates
+ * one with `createModelResultReceiverTable`, passes it to `super`, and resolves receivers from it
+ * in its push stage. The table is in the constructor's closure and not on the instance, because
+ * every property of the instance is reachable by any plugin that can read `ctx.modelRuntime`. A
+ * provider that passes no table gets a private one that nothing can resolve from. The table holds
+ * for one process only: how a push target is reached across processes is not defined here.
+ * @owner packages/model/model-cordis-contract
+ */
 export abstract class ModelRuntimeService<P> extends Service implements ModelRuntime<P> {
   static readonly provide = 'modelRuntime'
 
-  constructor(ctx: CordisContext) {
+  /**
+   * Registers `receiver` under the consumer `owner`, in an effect of the calling fiber. Returns
+   * the synchronous, idempotent removal function. Throws `ModelResultReceiverConflictError` when
+   * a live fiber already holds the owner; a registration of a fiber that is unloading, disposed
+   * or failed is replaced.
+   */
+  readonly registerResultReceiver: (
+    owner: ConsumerRef['owner'],
+    receiver: ModelResultReceiver<P>,
+  ) => () => void
+
+  constructor(
+    ctx: CordisContext,
+    receivers: ModelResultReceiverTable<P> = createModelResultReceiverTable<P>(),
+  ) {
     super(ctx, ModelRuntimeService.provide)
+    // A plain function, so that Cordis binds `this.ctx` to the calling plugin.
+    this.registerResultReceiver = function (this: ModelRuntimeService<P>, owner, receiver) {
+      return receivers.register(this.ctx, owner, receiver)
+    }
   }
 
   abstract readonly calls: ModelRuntime<P>['calls']
