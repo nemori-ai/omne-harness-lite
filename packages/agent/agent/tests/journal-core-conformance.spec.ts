@@ -11,6 +11,7 @@ import {
   testCancellationPolicyInstallation,
   type AgentJournalCoreFixture,
   type AgentJournalCoreOpened,
+  type AgentJournalReplyAdmissionControls,
   type SettlementQualification,
   type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
@@ -23,11 +24,13 @@ import {
   commitAt,
   consumption,
   evidence,
+  execution,
   instance,
   load,
   modelCall,
   ok,
   open,
+  openInput,
   operation,
   otherTenant,
   producedResult,
@@ -48,9 +51,11 @@ const fixture: AgentJournalCoreFixture<string> = {
     const hostRecords = new Map<string, TestHostRecord>()
     const held = new Set<SettlementQualification>(ALL_QUALIFICATIONS)
     const installed = options.cancellationPolicy !== 'absent'
+    const reading = { allowed: true }
     const memory = createMemoryAgentJournal<string>({
       coordination: 'standalone',
       hostRecords,
+      reader: () => reading.allowed,
       qualification: input => held.has(input.operation),
       ...(installed
         ? {
@@ -62,6 +67,56 @@ const fixture: AgentJournalCoreFixture<string> = {
         : {}),
     })
     const opened = await open(memory.port, name)
+    const controls = (id: Opened['execution']): AgentJournalReplyAdmissionControls<string> => ({
+      seed: async count => {
+        if (!memory.replyAdmissions.seed(id, count, access.tenant))
+          throw new Error(`the facts of ${id} could not be seeded`)
+      },
+      damage: async damage => {
+        if (!memory.replyAdmissions.damage(id, damage, access.tenant))
+          throw new Error(`the damage ${JSON.stringify(damage)} names nothing`)
+      },
+      limitPages: limits => memory.replyAdmissions.limitPages(limits),
+      statistics: () => memory.replyAdmissions.statistics(),
+      changeRule: async (rule, conversion) => {
+        if (!memory.replyAdmissions.changeRule(id, rule, conversion, access.tenant))
+          throw new Error('the rule could not be changed')
+      },
+      readable: allowed => {
+        reading.allowed = allowed
+      },
+      sibling: async label => {
+        const sibling = await open(memory.port, `${name}-${label}`)
+        return {
+          journal: memory.port,
+          access,
+          otherAccess: otherTenant,
+          execution: sibling.execution,
+          receipt: sibling.receipt,
+          authority: sibling.authority,
+          checkpoint: checkpoint(),
+          acceptInput: async item => acceptedInput(`input-${label}-${item}`),
+          replyAdmissions: controls(sibling.execution),
+        }
+      },
+      foreignPrefix: async () => {
+        const foreign = execution(`${name}-foreign`)
+        ok(
+          await memory.port.open(
+            openInput({
+              ...otherTenant,
+              execution: foreign,
+              operation: operation(`open-${name}-foreign`),
+              initial: acceptedInput('input-foreign'),
+            }),
+          ),
+        )
+        if (!memory.replyAdmissions.seed(foreign, 1, otherTenant.tenant))
+          throw new Error('the foreign fact could not be seeded')
+        return ok(await memory.port.load({ ...otherTenant, execution: foreign })).replyAdmissions
+          .prefix
+      },
+    })
     return {
       journal: memory.port,
       access,
@@ -136,6 +191,7 @@ const fixture: AgentJournalCoreFixture<string> = {
         held.clear()
         for (const qualification of next) held.add(qualification)
       },
+      replyAdmissions: controls(opened.execution),
     }
   },
 }
