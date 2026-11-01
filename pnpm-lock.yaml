@@ -339,12 +339,18 @@ importers:
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../identity/identity
+      '@omne-harness/json-text':
+        specifier: workspace:*
+        version: link:../../common/json-text
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../assembly/kernel-basis
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@omne-harness/operation-result':
         specifier: workspace:*
         version: link:../../common/operation-result
