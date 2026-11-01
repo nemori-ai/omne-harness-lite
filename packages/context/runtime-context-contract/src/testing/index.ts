@@ -10,3 +10,13 @@ export type {
   RuntimeContextPorts,
   RuntimeContextObligation,
 } from './conformance.js'
+export { createTestRuntimeContextTrust } from './trust.js'
+export type {
+  TestRuntimeContextTrust,
+  RuntimeContextTrustControls,
+  RuntimeContextTrustFixture,
+} from './trust.js'
+export {
+  RUNTIME_CONTEXT_TRUST_OBLIGATIONS,
+  runtimeContextTrustConformance,
+} from './trust-conformance.js'

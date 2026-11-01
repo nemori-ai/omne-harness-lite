@@ -5,8 +5,12 @@
 // imports only the public contract and its neighbours' value packages. Its code receives the
 // services and no transport, so it cannot read media; that is a property of its types and imports,
 // which the dependency checks and the role trace show, not something these paths observe.
-import { createScriptedTransport } from '@omne-harness/model-contract/testing'
-import type { ModelFault, Termination } from '@omne-harness/model-contract'
+import {
+  createScriptedModelProfiles,
+  createScriptedModelRequestPreparation,
+  createScriptedTransport,
+} from '@omne-harness/model-contract/testing'
+import type { ModelFault, ProfileResolution, Termination } from '@omne-harness/model-contract'
 import { fail, succeed } from '@omne-harness/operation-result'
 import { prepareRequest, submitRequest, type Prepared, type Services } from './context.ts'
 import { triggerLine } from './meter-input.ts'
@@ -15,8 +19,6 @@ import {
   createConversion,
   createMeter,
   createMeterWith,
-  createPreparation,
-  createProfiles,
   createSender,
   type CountingMeter,
 } from './services.ts'
@@ -24,6 +26,7 @@ import {
   access,
   adoption,
   callId,
+  evidence,
   expect,
   imageBlock,
   profile,
@@ -32,6 +35,7 @@ import {
   textBlock,
   userMessage,
   voiceBlock,
+  type Principal,
 } from './values.ts'
 
 type Path = Readonly<{
@@ -58,16 +62,60 @@ function setup(
     ending: { kind: 'terminated', termination: { kind: 'completed', reason: 'stop' } },
     rejection: null,
   })
-  const preparation = createPreparation(transport.transport)
+  // The profile that the fixture offers is the one official profile of values.ts. Its factory
+  // credential is an explicit input of this fixture, not a default of the public double.
+  const profiles = createScriptedModelProfiles<Principal>()
+  profiles.setAccess(access, 'allow')
+  const resolved: ProfileResolution = {
+    kind: 'resolved',
+    profile,
+    source: evidence('profile'),
+    selectable: true,
+    reasons: [],
+    credential: 'available',
+    shadowed: [],
+  }
+  profiles.setResolution({ ...access, route: profile.identity.route, required }, { ok: resolved })
+  profiles.setList(
+    { ...access, selected: profile.identity.route, required },
+    {
+      ok: {
+        choices: [resolved],
+        selected: { route: profile.identity.route, resolution: resolved },
+        source: evidence('choices'),
+      },
+    },
+  )
+  const preparation = createScriptedModelRequestPreparation<Principal>({
+    transport: transport.transport,
+  })
+  preparation.setAccess(access, 'allow')
+  const [supplier] = profile.definition.suppliers
+  preparation.setPlan(
+    { ...access, profile, required, parameters: [] },
+    {
+      ok: {
+        suppliers: [
+          {
+            adoption: supplier.adoption,
+            recipient: supplier.recipient,
+            model: supplier.model,
+            credential: { kind: 'factory' },
+          },
+        ],
+        parameterAdoptions: [],
+      },
+    },
+  )
   const sender = createSender(endings)
   const services: Services = {
-    profiles: createProfiles(),
-    preparation,
+    profiles: profiles.profiles,
+    preparation: preparation.preparation,
     meter,
     conversion: createConversion(),
     sender,
   }
-  return { services, meter, preparation, transport, sender }
+  return { services, profiles, preparation, meter, transport, sender }
 }
 
 const overLimit = (reported: Extract<ModelFault, { cause: 'input-over-limit' }>['reported']) =>
@@ -129,7 +177,7 @@ const SENT_FIELDS = [
 ]
 
 async function profileAndMeterFixTheRequest(): Promise<void> {
-  const { services, meter, preparation } = setup()
+  const { services, meter, preparation, transport } = setup()
   const result = prepared(await run(services, short))
   const { request } = result
   expect(request.suppliers[0].model === 'model', 'the request names another model')
@@ -146,11 +194,16 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
   // The context measured once, before the preparation. A preparation that measured again would
   // count two.
   expect(meter.measured() === 1, `the input was measured ${meter.measured()} times`)
-  expect(preparation.prepared() === 1, 'the preparation was not asked once')
+  expect(preparation.calls().length === 1, 'the preparation was not asked once')
+  // The preparation closes what it prepared, and only prepares: nothing is materialized or started.
+  const counts = transport.counts()
+  expect(counts.prepare === 1, `the transport was prepared ${counts.prepare} times`)
+  expect(counts.closePrepared === counts.prepare, 'a prepared transport was not closed')
+  expect(counts.materialize === 0 && counts.start === 0, 'the preparation went past prepare')
 }
 
 async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void> {
-  const { services } = setup()
+  const { services, profiles } = setup()
   const resolution = await services.profiles.resolve({ ...access, route: 'default', required })
   expect('ok' in resolution, 'the profile service refused the route')
   expect(resolution.ok.kind === 'resolved', 'the route did not resolve')
@@ -158,7 +211,15 @@ async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void
   expect(context.window.provided === '50', `the window is ${context.window.provided}`)
   expect(context.compactionTriggerPercent === '60', 'the trigger share differs')
   expect(triggerLine(context) === 30n, `the trigger line is ${triggerLine(context)}`)
-  expect(context.window === profile.definition.context.window, 'the profile was read twice')
+  // The double hands out a frozen copy of the profile it was given, so the window is compared by
+  // its value: it must be the window of the registered profile, not one read from elsewhere.
+  expect(
+    JSON.stringify(context.window) === JSON.stringify(profile.definition.context.window),
+    'the window is not the window of the registered profile',
+  )
+  // The context read the profile once: the double recorded one business call.
+  const reads = profiles.calls().length
+  expect(reads === 1, `the profiles were read ${reads} times`)
 }
 
 // The system text of this fixture is 9 characters, so the input below holds 9 + the blocks.
@@ -198,7 +259,7 @@ async function voiceBlockIsReplacedByItsDerivedText(): Promise<void> {
 // The input holds 34 tokens: more than the trigger line of 30 and less than the 40 that the input
 // may hold. The context compresses on its own policy before it asks for a preparation.
 async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
-  const { services, meter } = setup()
+  const { services, meter, preparation } = setup()
   const history = [
     userMessage('older', [textBlock('t1', 'older one')]),
     userMessage('middle', [textBlock('t2', 'middle one')]),
@@ -210,6 +271,13 @@ async function inputOverTheTriggerIsCompressedBeforePreparing(): Promise<void> {
   const newest = result.request.messages[1]?.blocks[0]
   expect(newest?.kind === 'text' && newest.text === 'newest', 'the newest message was not kept')
   expect(meter.measured() === 2, `the context measured ${meter.measured()} times, not twice`)
+  // The compressed input is what reached the preparation, and the request carries it.
+  const calls = preparation.calls()
+  expect(calls.length === 1, `the preparation was asked ${calls.length} times`)
+  expect(
+    JSON.stringify(calls[0]?.input.assembled.messages) === JSON.stringify(result.request.messages),
+    'the request does not carry the messages that the context assembled',
+  )
 }
 
 // The input holds 42 tokens, over the 40 that it may hold. The meter reports the count against
@@ -240,7 +308,7 @@ async function inputThatStaysOverTheLimitIsTooLarge(): Promise<void> {
   expect(result.kind === 'too-large', `the preparation ended as ${result.kind}`)
   expect(result.dropped === 1, `the context dropped ${result.dropped} messages before giving up`)
   expect(result.amount === '54' && result.limit === '40', 'the report holds other figures')
-  const handed = preparation.prepared()
+  const handed = preparation.calls().length
   expect(handed === 0, `the rejected input was handed to the preparation ${handed} times`)
   expect(transport.counts().prepare === 0, 'a transport was prepared for a rejected input')
 }
@@ -267,7 +335,7 @@ async function meterFailureIsHandedOnWithoutCompression(): Promise<void> {
   )
   expect(result.dropped === 0, `the context dropped ${result.dropped} messages on a failed meter`)
   expect(meter.measured() === 1, `the context asked the meter ${meter.measured()} times`)
-  expect(preparation.prepared() === 0, 'an unmeasured input was handed to the preparation')
+  expect(preparation.calls().length === 0, 'an unmeasured input was handed to the preparation')
   // Through the submission too: nothing is sent.
   const { services: again, sender } = setup([COMPLETED], unavailableMeter())
   const submitted = await submitRequest(again, submission(threeMessages))
@@ -292,7 +360,7 @@ async function budgetWithoutAnInputCheckIsNotPreparedOn(): Promise<void> {
   expect(result.kind === 'unmeasured', `the preparation ended as ${result.kind}`)
   expect(result.dropped === 0, `the context dropped ${result.dropped} messages without a count`)
   expect(meter.measured() === 1, `the context asked the meter ${meter.measured()} times`)
-  expect(preparation.prepared() === 0, 'an unmeasured input was handed to the preparation')
+  expect(preparation.calls().length === 0, 'an unmeasured input was handed to the preparation')
 }
 
 const submission = (history: Parameters<typeof prepareRequest>[1]['history']) => {
@@ -315,7 +383,7 @@ const threeMessages = [
 // again and does not choose another route; the finished call hands the fault to the context.
 async function inputOverTheLimitAfterSendingIsCompressedAndSentAsNewCall(): Promise<void> {
   const reported = { metric: 'context-tokens', limit: '50', actual: '61' } as const
-  const { services, sender } = setup([overLimit(reported), COMPLETED])
+  const { services, sender, preparation, transport } = setup([overLimit(reported), COMPLETED])
   const result = await submitRequest(services, submission(threeMessages))
   expect(result.kind === 'settled', `the submission ended as ${result.kind}`)
   expect(result.termination.kind === 'completed', 'the second call did not complete')
@@ -330,6 +398,19 @@ async function inputOverTheLimitAfterSendingIsCompressedAndSentAsNewCall(): Prom
     'the same input was sent again',
   )
   expect(sender.sent().length === 2, 'the sender saw another number of calls')
+  // Each request was formed from the input that the context assembled for it.
+  const calls = preparation.calls()
+  expect(calls.length === 2, `the preparation was asked ${calls.length} times`)
+  expect(
+    JSON.stringify(calls[1]?.input.assembled.messages) === JSON.stringify(after?.messages),
+    'the compressed request does not carry the messages that the context assembled',
+  )
+  const counts = transport.counts()
+  expect(
+    counts.prepare === 2 && counts.closePrepared === 2,
+    'each prepared transport is closed once',
+  )
+  expect(counts.materialize === 0 && counts.start === 0, 'the preparation went past prepare')
 }
 
 async function inputThatStaysOverTheLimitAfterSendingIsGivenUp(): Promise<void> {

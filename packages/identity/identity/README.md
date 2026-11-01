@@ -8,7 +8,7 @@
 
 ## 使用
 
-用包名导入公开入口。依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。本包没有 Cordis 入口。
+用包名导入公开入口。纯值依赖是 `@omne-harness/legal-identity`、`@omne-harness/operation-result` 与 `@omne-harness/utc-instant`。独立的 `./cordis` 入口使用 `@deepseek-ai/cordis` 4.0.4，提供四个原接口的抽象服务定义与键，见 [Cordis 消费说明](docs/cordis.md)。根入口不加载 Cordis。
 
 ```ts
 import { tenantCodec } from '@omne-harness/legal-identity'
@@ -29,20 +29,20 @@ const acting = authority.issuer.issueActingForTenant({
 
 应用装配创建一个权威，把 `verifier` 交给授权与其他消费方，把 `issuer` 只交给装配声明的受信具名持有者。持有者在签发前须向原工作拥有者核对原主体、目标租户与原工作的关系。核对失败、依据不可得或能力未安装时不得签发。签发的主体放进 `Access<Principal>` 的 `principal`。消费方在实际操作点还须核当前成员关系及原工作资格，缺少必要守卫时不得推进业务。责任与有限采用依据见 [SPEC ID-16](SPEC.md)。`inProcessPrincipalAuthority` 只提供进程内来源核验，不实现上述真实提供者能力。
 
-| 导出 | 用途 |
-| --- | --- |
-| `SystemPrincipal`、`ActingForTenantPrincipal`、`Principal`、`WorkRef` | 两种主体与原工作关联 |
-| `PrincipalIssuer`、`PrincipalVerifier`、`PrincipalAuthority`、`inProcessPrincipalAuthority()` | 签发与核验接口，以及进程内权威 |
-| `scopeOf(principal)` | 主体的行事作用域（`ActingScope`） |
-| `QUALIFICATIONS`、`Qualification`、`isQualification` | 具名资格 |
-| `RoleMapping`、`RoleRef`、`GovernanceModelRef`、`qualificationsOf`、`governanceModelEquals` | 治理模型的角色到资格映射 |
-| `DEFAULT_TEAM_MODEL`、`DEFAULT_TEAM_ROLES`、`DEFAULT_TEAM_ROLE_MAPPING` | 默认团队方案的映射 |
-| `TenantStandingSource`、`TenantStandingReading`、`StandingEvidence` | 当前资格读口 |
-| `IdentityOperations`、`IdentityOperationsOptions` | 注册并激活、签发登录与识别登录的操作端口，以及提供者的注入项 |
-| `RegisterAndActivateInput`、`RegisterAndActivateOutcome`、`LoginCredentialInput` | 注册并激活的输入与结果 |
-| `IssueLoginInput`、`IssueLoginOutcome`、`IssuedLogin` | 签发登录的输入与结果 |
-| `RecognizeLoginInput`、`LoginRecognition` | 识别登录的输入与结果 |
-| `IdentityClock`、`ClockReading`、`LoginTermsSource`、`LoginTermsReading`、`LoginTerms` | 注入的时钟与登录期限配置 |
+| 导出                                                                                          | 用途                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `SystemPrincipal`、`ActingForTenantPrincipal`、`Principal`、`WorkRef`                         | 两种主体与原工作关联                                         |
+| `PrincipalIssuer`、`PrincipalVerifier`、`PrincipalAuthority`、`inProcessPrincipalAuthority()` | 签发与核验接口，以及进程内权威                               |
+| `scopeOf(principal)`                                                                          | 主体的行事作用域（`ActingScope`）                            |
+| `QUALIFICATIONS`、`Qualification`、`isQualification`                                          | 具名资格                                                     |
+| `RoleMapping`、`RoleRef`、`GovernanceModelRef`、`qualificationsOf`、`governanceModelEquals`   | 治理模型的角色到资格映射                                     |
+| `DEFAULT_TEAM_MODEL`、`DEFAULT_TEAM_ROLES`、`DEFAULT_TEAM_ROLE_MAPPING`                       | 默认团队方案的映射                                           |
+| `TenantStandingSource`、`TenantStandingReading`、`StandingEvidence`                           | 当前资格读口                                                 |
+| `IdentityOperations`、`IdentityOperationsOptions`                                             | 注册并激活、签发登录与识别登录的操作端口，以及提供者的注入项 |
+| `RegisterAndActivateInput`、`RegisterAndActivateOutcome`、`LoginCredentialInput`              | 注册并激活的输入与结果                                       |
+| `IssueLoginInput`、`IssueLoginOutcome`、`IssuedLogin`                                         | 签发登录的输入与结果                                         |
+| `RecognizeLoginInput`、`LoginRecognition`                                                     | 识别登录的输入与结果                                         |
+| `IdentityClock`、`ClockReading`、`LoginTermsSource`、`LoginTermsReading`、`LoginTerms`        | 注入的时钟与登录期限配置                                     |
 
 ### 测试入口 `./testing`
 
@@ -71,14 +71,14 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 // → { kind: 'recognized', account, login, tenant }
 ```
 
-| 导出 | 用途 |
-| --- | --- |
-| `inProcessIdentityOperations({ clock, terms, faults })`、`InProcessIdentityOptions` | 三项操作的进程内参考替身。时钟与期限配置都须注入，没有默认值。`faults` 可选 |
-| `manualIdentityClock(start)`、`ManualIdentityClock` | 可控时钟：前进、后退、置为不可得 |
-| `adjustableLoginTerms(initial)`、`AdjustableLoginTerms` | 可控期限配置：改值、置为不可得 |
-| `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore` | 可控记录库故障：使账号记录库或登录记录库对查询不作答 |
-| `checkIdentityOperationsContract(fixture, options)`、`IDENTITY_CONTRACT_CASES` | 契约测试套件与用例清单。真实提供者用同一套件检查自己 |
-| `IdentityContractFixture`、`IdentityContractProviderOptions`、`IdentityContractOptions`、`IdentityContractReport`、`IdentityContractCaseResult` | 套件的输入与逐项报告 |
+| 导出                                                                                                                                            | 用途                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `inProcessIdentityOperations({ clock, terms, faults })`、`InProcessIdentityOptions`                                                             | 三项操作的进程内参考替身。时钟与期限配置都须注入，没有默认值。`faults` 可选 |
+| `manualIdentityClock(start)`、`ManualIdentityClock`                                                                                             | 可控时钟：前进、后退、置为不可得                                            |
+| `adjustableLoginTerms(initial)`、`AdjustableLoginTerms`                                                                                         | 可控期限配置：改值、置为不可得                                              |
+| `recordStoreFaults()`、`RecordStoreFaultControl`、`RecordStoreFaults`、`RecordStore`                                                            | 可控记录库故障：使账号记录库或登录记录库对查询不作答                        |
+| `checkIdentityOperationsContract(fixture, options)`、`IDENTITY_CONTRACT_CASES`                                                                  | 契约测试套件与用例清单。真实提供者用同一套件检查自己                        |
+| `IdentityContractFixture`、`IdentityContractProviderOptions`、`IdentityContractOptions`、`IdentityContractReport`、`IdentityContractCaseResult` | 套件的输入与逐项报告                                                        |
 
 ## 契约
 
@@ -96,19 +96,21 @@ if (login.kind === 'succeeded') await identity.recognizeLogin({ loginProof: logi
 
 ## 验证
 
-单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。集成测试与端到端测试不适用：本包没有存储、应用服务或用户旅程。`TenantStandingSource` 只有端口类型，本包没有它的实现，所以没有它的行为测试；提供者自测。
+单元与契约测试从包名导入公开入口，所以同时检查 `dist` 能被独立消费。Cordis 测试使用真实 Context 和测试子类，另用打包制品验证消费隔离。本包没有存储、应用服务或用户旅程，未进行完整服务端端到端验证。`TenantStandingSource` 没有生产实现，测试仅检查读数委托，真实提供者须自测。
 
-| 文件 | 覆盖 |
-| --- | --- |
-| `tests/principal.spec.ts` | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返 |
-| `tests/principal.spec-d.ts` | 不带租户的代租户行事主体、带租户的系统主体是类型错误 |
-| `tests/qualification.spec.ts` | 具名资格清单、默认团队映射、别的模型与未列出的角色 |
-| `tests/public-entry.spec.ts` | 公开导出清单 |
-| `tests/testing-entry.spec.ts` | `./testing` 的导出清单 |
-| `tests/operations-contract.spec.ts` | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败 |
-| `tests/operations-double.spec.ts` | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟 |
-| `tests/operations-scenario.spec.ts` | 只经包入口完成注册、登录与识别 |
-| `tests/operations.spec-d.ts` | 三项操作结果种类的类型正反例 |
+| 文件                                             | 覆盖                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| `tests/principal.spec.ts`                        | 签发两种主体、拒绝的输入、畸形输入不抛出、核验、手写副本与 JSON 往返                     |
+| `tests/principal.spec-d.ts`                      | 不带租户的代租户行事主体、带租户的系统主体是类型错误                                     |
+| `tests/qualification.spec.ts`                    | 具名资格清单、默认团队映射、别的模型与未列出的角色                                       |
+| `tests/public-entry.spec.ts`                     | 公开导出清单                                                                             |
+| `tests/testing-entry.spec.ts`                    | `./testing` 的导出清单                                                                   |
+| `tests/operations-contract.spec.ts`              | 契约测试套件在两组配置下对参考替身全部通过，套件对逐条故意违反的提供者报告失败           |
+| `tests/operations-double.spec.ts`                | 替身的截止时刻来自注入的时长、闰秒限制、失效登录不恢复、端口抛出与诊断不含秘密、可控时钟 |
+| `tests/operations-scenario.spec.ts`              | 只经包入口完成注册、登录与识别                                                           |
+| `tests/operations.spec-d.ts`                     | 三项操作结果种类的类型正反例                                                             |
+| `tests/cordis.spec.ts`、`tests/cordis.spec-d.ts` | 四个服务定义的真实注册、委托、撤除及原接口类型，复用 Operations 契约套件                 |
+| `tests/cordis-package.spec.ts`                   | 打包制品的根入口隔离、`./cordis` 实际消费及类型正反例                                    |
 
 在仓库根运行 `pnpm turbo run test --filter=@omne-harness/identity`。turbo 先构建依赖与 `dist`，再运行测试。本目录里的 `pnpm test` 不构建。
 
