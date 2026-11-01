@@ -217,13 +217,14 @@ function messageOf(entry: HistoryEntry): ViewMessage | null {
 }
 
 /** Appends the model-visible rows of the batch to the current epoch; a compaction opens a new epoch (W4). */
-function maintainModelView(
+export function maintainModelView(
   port: ParticipantPort,
   tenant: string,
   session: string,
   epoch: string,
   entries: readonly HistoryEntry[],
-): string {
+  limit: number = MAX_VIEW_ROWS,
+): string | null {
   let current = epoch
   const writeRow = (
     at: string,
@@ -260,8 +261,10 @@ function maintainModelView(
       const old = rowsOf(
         port,
         'SELECT entry, message FROM sl_model_view WHERE tenant = ? AND session = ? AND epoch = ? ORDER BY seq LIMIT ?',
-        [tenant, session, current, BigInt(MAX_VIEW_ROWS)],
+        [tenant, session, current, BigInt(limit + 1)],
       )
+      // A compaction over a partial epoch would drop rows from the model view.
+      if (old.length > limit) return null
       const covers = BigInt(String(message.covers?.to ?? 0))
       const retained = new Set((message.retained ?? []).map(ref => String(ref)))
       const kept = old.filter(row => retained.has(text(row['entry'])))
@@ -344,6 +347,22 @@ function maintainDerived(
       'INSERT OR REPLACE INTO sl_released_scope_idx (tenant, session, scope, data) VALUES (?, ?, ?, ?)',
       [tenant, session, scope.scope, JSON.stringify(encodeValue(scope))],
     )
+}
+
+/** Every operation receipt of the session, in revision order, that completeInitialization recalls. */
+export function initializationReceipts(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  limit: number = MAX_INITIALIZATION_RECEIPTS,
+): CommitReceipt[] | null {
+  const rows = rowsOf(
+    port,
+    'SELECT receipt FROM sl_operation WHERE tenant = ? AND session = ? ORDER BY revision LIMIT ?',
+    [tenant, session, BigInt(limit + 1)],
+  )
+  if (rows.length > limit) return null
+  return rows.map(row => JSON.parse(text(row['receipt'])) as CommitReceipt)
 }
 
 function writeEntries(
@@ -472,6 +491,14 @@ function runCommand(
            WHERE e.tenant = ? AND e.session = ? AND e.kind = 'session.frozen' LIMIT 1`,
           [tenant, session],
         )
+  // A bound reached by a read inside the commit is a failure (unavailable), never a shorter read.
+  const receipts =
+    command.kind === 'completeInitialization' ? initializationReceipts(port, tenant, session) : []
+  if (receipts === null)
+    return {
+      kind: 'failed',
+      diagnostic: 'the operation receipts of the session exceed the read bound',
+    }
   const reads: Reads = {
     compaction: null,
     ...(frozen === undefined
@@ -485,11 +512,7 @@ function runCommand(
       : {}),
     ...(command.kind === 'completeInitialization'
       ? {
-          initializationReceipts: rowsOf(
-            port,
-            'SELECT receipt FROM sl_operation WHERE tenant = ? AND session = ? ORDER BY revision LIMIT ?',
-            [tenant, session, BigInt(MAX_INITIALIZATION_RECEIPTS)],
-          ).map(row => JSON.parse(text(row['receipt'])) as CommitReceipt),
+          initializationReceipts: receipts,
         }
       : {}),
   }
@@ -501,6 +524,8 @@ function runCommand(
         ? { kind: 'selected' as const, inputs: [command.input.fact.input] }
         : { kind: 'pending' as const, inputs: previous?.pending ?? [] }
   const history = previous === null ? null : readHistory(port, tenant, session, previous, scope)
+  if (history === 'too-many')
+    return { kind: 'failed', diagnostic: 'the history index of the session exceeds the read bound' }
   const prepared =
     history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
   const decision: Decision = decide(prepared, command, guards, record, {
@@ -604,6 +629,11 @@ function runCommand(
     journal === undefined ? 'epoch:0' : text(journal['epoch']),
     entries,
   )
+  if (epoch === null)
+    return {
+      kind: 'failed',
+      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
+    }
   const admitted = admittedInput(command)
   if (admitted !== null)
     port.execute(

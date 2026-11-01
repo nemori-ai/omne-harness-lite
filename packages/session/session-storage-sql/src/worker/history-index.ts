@@ -35,14 +35,17 @@ export function readHistory(
   session: string,
   snapshot: WorkSnapshot,
   scope: SessionInputScope,
-): SessionHistory {
+  limit: number = MAX_ROWS,
+): SessionHistory | 'too-many' {
   const rows = rowsOf(
     port,
     `SELECT position, revision, entry FROM sl_entry
       WHERE tenant = ? AND session = ? AND kind IN ('intake.routed', 'run.started', 'run.attempt-started')
       ORDER BY position LIMIT ?`,
-    [tenant, session, BigInt(MAX_ROWS)],
+    [tenant, session, BigInt(limit + 1)],
   )
+  // More rows than the bound: the index would be partial, so the commit cannot be judged on it.
+  if (rows.length > limit) return 'too-many'
   const planted = (kind: string): Planted[] =>
     rows.flatMap(row => {
       const entry = decodeValue(JSON.parse(text(row['entry']))) as HistoryEntry

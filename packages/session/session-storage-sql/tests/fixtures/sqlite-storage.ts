@@ -276,3 +276,21 @@ export function createSqliteStorage(): SqliteStorage {
     },
   }
 }
+
+/** One migrated in-memory database and a participant statement port over it, for module-level tests. */
+export function migratedPort(): Readonly<{
+  port: {
+    execute(sql: string, params?: readonly SqlValue[]): QueryRows
+    requireFact(): null
+    provideFact(): undefined
+  }
+}> {
+  const db = new DatabaseSync(':memory:')
+  const port = {
+    execute: (sql: string, params: readonly SqlValue[] = []) => rowsOf(db, sql, params),
+    requireFact: () => null,
+    provideFact: () => undefined,
+  }
+  ;(migration as MigrationModule).up(port)
+  return { port }
+}
