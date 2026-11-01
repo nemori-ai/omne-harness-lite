@@ -116,11 +116,14 @@ import { type Context, Service } from '@deepseek-ai/cordis';
 import type { ContentBlock } from '@omne-harness/content-block';
 import { type Outcome } from '@omne-harness/operation-result';
 import type { Access, TenantId } from '@omne-harness/legal-identity';
-import { type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolRuntime } from '@omne-harness/tool-contract';
+import { type ConsumerRef, type DurableEvidence, type SourceLayer, type ToolCallId, type ToolCatalog, type ToolRevision, type ToolResultReceiver, type ToolRuntime } from '@omne-harness/tool-contract';
 import { type ResultPolicy, type ToolAccounts, type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolBindingScope, type ToolBindings, type ToolChildren, type ToolClock, type ToolCommands, type ToolDecisionBridge, type ToolDirectory, type ToolEnvironment, type ToolInstanceHost, type ToolLoader, type ToolOffloader, type ToolOutputCustody, type ToolReads, type ToolResourceResponses, type ToolStartAuthority, type ToolStartFence, type ToolShape } from '@omne-harness/tool-contract/provider';
 export declare abstract class ToolRuntimeService<P, B extends ContentBlock> extends Service implements ToolRuntime<P, B> {
     static readonly provide = "toolRuntime";
+    private readonly resultReceivers;
     constructor(ctx: Context);
+    registerResultReceiver(owner: ConsumerRef['owner'], receiver: ToolResultReceiver<P, B>): () => void;
+    protected resultReceiver(owner: ConsumerRef['owner']): ToolResultReceiver<P, B> | undefined;
     abstract readonly invoke: ToolRuntime<P, B>['invoke'];
     abstract readonly inspect: ToolRuntime<P, B>['inspect'];
     abstract readonly queries: ToolRuntime<P, B>['queries'];

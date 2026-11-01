@@ -2,16 +2,18 @@
 // `tool-cordis-contract/call-changed` and `binding-changed` events and the instance directory.
 // Provider plugins live in `@omne-harness/tool-host-local/cordis`. This entry does not import a
 // Tool implementation.
-import { type Context, Service } from '@deepseek-ai/cordis'
+import { type Context, type Fiber, Service } from '@deepseek-ai/cordis'
 import type { ContentBlock } from '@omne-harness/content-block'
 import { fail, type Outcome } from '@omne-harness/operation-result'
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import {
+  type ConsumerRef,
   type DurableEvidence,
   type SourceLayer,
   type ToolCallId,
   type ToolCatalog,
   type ToolRevision,
+  type ToolResultReceiver,
   type ToolRuntime,
 } from '@omne-harness/tool-contract'
 import {
@@ -40,14 +42,68 @@ import {
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
 
+type CordisFiberState = typeof import('@deepseek-ai/cordis').FiberState
+const LOADING = 1 satisfies CordisFiberState['LOADING']
+const ACTIVE = 2 satisfies CordisFiberState['ACTIVE']
+
+/** A fiber that is neither disposed nor unloading still owns its registrations. */
+function isLive(fiber: Fiber): boolean {
+  return fiber.uid !== null && (fiber.state === LOADING || fiber.state === ACTIVE)
+}
+
+type ResultReceiverEntry<P, B extends ContentBlock> = Readonly<{
+  receiver: ToolResultReceiver<P, B>
+  fiber: Fiber
+}>
+
 /** @owner packages/tool/tool-cordis-contract */
 export abstract class ToolRuntimeService<P, B extends ContentBlock>
   extends Service
   implements ToolRuntime<P, B>
 {
   static readonly provide = 'toolRuntime'
+  /** The result receivers of this process, by consumer owner. Only this provider reads it. */
+  private readonly resultReceivers = new Map<string, ResultReceiverEntry<P, B>>()
   constructor(ctx: Context) {
     super(ctx, ToolRuntimeService.provide)
+  }
+
+  /**
+   * Assembles a result receiver for the push stage of this process under a consumer owner
+   * (docs/cordis.md「结果接收方的登记」). The registration is an effect on the caller's fiber
+   * (IC-13): it ends when that fiber is disposed, or when the returned function is called, which
+   * removes the entry synchronously. A registration of the same owner whose fiber is disposed or
+   * unloading is replaced. A registration of the same owner whose fiber is still live is an
+   * assembly error: the method throws, so a caller in a plugin body fails its fiber. The
+   * registration grants no qualification: the receiver still checks every push.
+   */
+  registerResultReceiver(
+    owner: ConsumerRef['owner'],
+    receiver: ToolResultReceiver<P, B>,
+  ): () => void {
+    const fiber = this.ctx.fiber
+    const held = this.resultReceivers.get(owner)
+    if (held !== undefined && isLive(held.fiber))
+      throw new Error(`a result receiver is already registered for the consumer owner ${owner}`)
+    const dispose = this.ctx.effect(() => {
+      const entry: ResultReceiverEntry<P, B> = { receiver, fiber }
+      this.resultReceivers.set(owner, entry)
+      return () => {
+        // A late disposer of a replaced registration must not remove its successor.
+        if (this.resultReceivers.get(owner) === entry) this.resultReceivers.delete(owner)
+      }
+    }, 'toolRuntime.registerResultReceiver')
+    return () => {
+      void dispose()
+    }
+  }
+
+  /**
+   * The receiver the push stage reaches for the frozen consumer owner of a delivery, or undefined
+   * when none is registered: the push stage then keeps the delivery and its work (`no-receiver`).
+   */
+  protected resultReceiver(owner: ConsumerRef['owner']): ToolResultReceiver<P, B> | undefined {
+    return this.resultReceivers.get(owner)?.receiver
   }
   abstract readonly invoke: ToolRuntime<P, B>['invoke']
   abstract readonly inspect: ToolRuntime<P, B>['inspect']

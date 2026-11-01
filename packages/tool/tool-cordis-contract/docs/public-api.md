@@ -22,3 +22,5 @@
 类型参数取自 `@omne-harness/tool-contract`。服务行为与依赖分类见 [cordis](cordis.md)。目录职责见 [README](README.md)。
 
 `ToolResidencyReaderService` (`toolResidencyReader`) 提供持有者、租户与 shape 的分页引用查询，见[服务定义](../src/cordis.ts)。
+
+`ToolRuntimeService` 的具体方法 `registerResultReceiver(owner, receiver)` 把结果接收方装配给本进程的推送阶段，提供者子类经受保护的 `resultReceiver(owner)` 按冻结的 owner 读取。规则见 [结果接收方的登记](cordis.md#结果接收方的登记)。
