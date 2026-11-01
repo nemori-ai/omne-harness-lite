@@ -13,7 +13,7 @@ This package implements the two stateful mechanisms of Request Context: the sour
 
 Status: mechanism member, `draft`. The adoption basis is the [member decomposition](../docs/architecture.md#成员分解) of the group and the [SPEC](SPEC.md).
 
-- Implemented: `createContextSourceRegistry` (register, replace, withdraw and settle, borrows, the publication check, close) and `createContextAccounting` (the fixed check order of the inbox, idempotency and capacity, the four window usage states, staged rebuild with system recovery access).
+- Implemented: `createContextSourceRegistry` (register, replace, withdraw and settle, borrows, the publication check, close) and `createContextAccounting` (the fixed check order of the inbox, idempotency and capacity, target eviction (CX-11: the least recently used ready target without an operation in flight leaves when a new target needs a slot), the four window usage states, staged rebuild with system recovery access).
 - Verified: in-process tests of the registry and the account projection. The `assembly(target)` of the registry runs every case of the operation conformance suite of the contract. See [tests/](tests/README.md).
 - Implemented (constructors): `createDefaultCompactionPolicy` (with the trimmer and the summary instruction), `createDefaultRepresentationPolicy`, `createAbsentConversionResults`, and the initial values of their configuration.
 - Not implemented: the candidate cache and `notify`, and the precomputed derivations.

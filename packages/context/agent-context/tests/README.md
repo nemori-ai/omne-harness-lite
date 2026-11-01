@@ -14,7 +14,11 @@
 
 <!-- documentation:placeholder -->
 
-说明每类测试用到的真实依赖与替身。测试通过不代替规格或验收。
+- `account-outlet.spec.ts`：出站的符合性套件（接真实的 `createContextAccounting`，目标由空重放重建）、事实字段、租户次序、缺席解析器、结果映射、解析器与收件口抛出、与真实账目投影的组合。收件口的替身只用来记录收到的事实与回放固定答复，真实的投影只在符合性与组合用例里。
+- `cordis-entry.spec.ts`：真实 Cordis 4.0.4，真实的 `RequestContextProvider` 提供 `requestContext` 与 `contextAccountingInbox`，信任对象与内存来源是替身。覆盖缺依赖停在 `PENDING`、提供者撤除后回到 `PENDING`、停止后旧引用答 `outlet-closed`、不合的配置加载失败、真实装配上 `deliver` 答 `scope-unresolved`。
+- `public-entry.spec.ts`：两个入口的导出清单。
+
+测试经构建产物导入所用成员，先构建依赖。测试通过不代替规格或验收；真实装配里账目投影的初始化（ACCT-INIT）不在这里覆盖。
 
 ## 维护
 

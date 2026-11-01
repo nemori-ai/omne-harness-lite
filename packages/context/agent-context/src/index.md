@@ -10,4 +10,5 @@
 
 - [README.md](README.md)：源码目录的职责
 - [index.ts](index.ts)：根入口与公开定义
-- [cordis.ts](cordis.ts)：Cordis 绑定入口
+- [account-outlet.ts](account-outlet.ts)：账目出站工厂、目标解析器类型与缺席解析器
+- [cordis.ts](cordis.ts)：Cordis 绑定入口，出站插件

@@ -3,53 +3,52 @@
 PACKAGE_TEMPLATE_DRAFT
 [中文](README_ZH.md)
 
-The Context-side Agent adapter member, `service-provider` variant. This member is only a skeleton now.
+The Context-side Agent adapter member, `service-provider` variant.
 
 ## Responsibility and status
 
-This member will carry two rows of the application assembly page. The `agent-context` row provides `agentRequests` and `agentModelContext`. The `agent-account-outlet` row provides `agentAccountOutlet`. The service definitions belong to [agent-cordis-contract](../../agent/agent-cordis-contract/README.md). The Context-side ports belong to [request-context-contract](../request-context-contract/README.md). For the rows and their dependencies, see the [application assembly](../../../docs/architecture/runtime/application-assembly.md#插件树). For the adapter plan, see [the Context adapter plan](../request-context-contract/docs/context.md#适配方案).
+This member carries two rows of the application assembly page. The `agent-account-outlet` row provides `agentAccountOutlet`. The `agent-context` row will provide `agentRequests` and `agentModelContext`. The service definitions belong to [agent-cordis-contract](../../agent/agent-cordis-contract/README.md). The Context-side ports belong to [request-context-contract](../request-context-contract/README.md). For the rows and their dependencies, see the [application assembly](../../../docs/architecture/runtime/application-assembly.md#插件树). For the adapter plan, see [the Context adapter plan](../request-context-contract/docs/context.md#适配方案).
 
-Status: skeleton. The responsibilities and the adoption scope wait for the adoption of the Context and Agent integration gap contract ([#859](https://github.com/nemori-ai/omne-harness-lite/issues/859)). The member name and location are provisional until that adoption confirms them. A rename changes the package organization page and the lockfile in the same batch.
+Status: first step, in progress. The package exists as the adapter between Agent and Request Context. It is the only member of the Context group that imports the Agent contract.
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` export nothing.
-- Not implemented: request preparation, Runtime Context reads, the account outlet, and source set registration.
-- Not verified: everything. No application assembles this member, and no package depends on it.
+- Implemented: the account outlet. `createAgentAccountOutlet` turns one Agent account handoff into one account fact for the accounting inbox and maps the answer by name. `absentAccountTarget` is the resolver that has no target. `AgentAccountOutletProvider` is the Cordis plugin that provides `agentAccountOutlet`.
+- Known limits (named in the [SPEC](SPEC.md#已知限制)): in this wave no member initializes the account projection (ACCT-INIT) and no member resolves the account target (ACCT-TARGET). In a real assembly `deliver` always answers `unavailable` with `scope-unresolved`. It never answers `received`.
+- Not implemented: `agentRequests`, `agentModelContext`, and the registration of source sets. They wait for the shapes of the session-side parts.
+- Verified: the outlet passes the conformance suite of `AgentAccountOutlet` over the real account projection. The plugin loads and stops on real Cordis 4.0.4 with the real request-context provider. See [tests/](tests/README.md).
+- Not verified: the account projection in a real assembly, the real Model-side result receiver, and any behavior across processes.
 
 ## Usage
 
-<!-- documentation:placeholder -->
+Independent use needs a `ContextAccountingInbox`, an adoption identity for the sender, and a target resolver:
 
-Give a working example, dependencies, and initialization and disposal responsibilities. Distinguish independent use from Cordis integration. Check public exports, source value dependencies, generated declarations, runtime startup, and the installation closure separately. A ./cordis entry does not prove independent installation.
+```ts
+import { absentAccountTarget, createAgentAccountOutlet } from '@omne-harness/agent-context'
+
+const outlet = createAgentAccountOutlet({ inbox, sender, resolveTarget: absentAccountTarget })
+const outcome = await outlet.deliver({ access, handoff })
+```
+
+The returned outlet holds no resource and needs no disposal. With Cordis, load `AgentAccountOutletProvider` from `@omne-harness/agent-context/cordis` with the configuration `{ sender }`. It needs `requestContext` and `contextAccountingInbox`. A `./cordis` entry does not prove independent installation.
 
 ## Contracts
 
-<!-- documentation:placeholder -->
-
-Link public types, necessary validation, and the sole behavior owner. SPEC.md owns behavior beyond types, and docs/public-api.md indexes the public definitions. Identify error, lifecycle, and resource responsibilities without copying signatures or state machines.
+The behavior of the outlet is in [SPEC.md](SPEC.md). The public definitions are indexed in [docs/public-api.md](docs/public-api.md). The port `AgentAccountOutlet` and its answers belong to agent-contract. The inbox and the fact belong to request-context-contract.
 
 ## Design
 
-<!-- documentation:placeholder -->
-
-Summarize internal modules and invariant owners. The full design belongs in docs/architecture.md, docs/flows.md, and docs/object-model.md.
+The outlet checks the tenant of the call first, then asks the target resolver, then hands one fact to the inbox once. It keeps nothing between calls. See [docs/architecture.md](docs/architecture.md), [docs/flows.md](docs/flows.md) and [docs/object-model.md](docs/object-model.md).
 
 ## Configuration and operation
 
-<!-- documentation:placeholder -->
-
-Describe configuration owners, defaults, environment requirements, and explicit dependencies. State the caller and package responsibilities during operation.
+The plugin configuration has one field, `sender`, the adoption identity that the outlet gives to every fact. A configuration that does not fit makes the load fail. The first wave passes the absent resolver. The caller of the factory supplies the inbox, the sender and the resolver.
 
 ## Verification
 
-<!-- documentation:placeholder -->
-
-List repeatable commands, properties, assumptions, and uncovered behavior. Add tests with actual assertions. Passing structure checks does not establish business behavior.
+Run these commands in this directory: `pnpm exec vitest run` and `pnpm run typecheck`. The tests import the built output of the members they use, so build the dependencies first. They cover the conformance suite, the tenant order, the absent resolver, the field mapping, the answer mapping, and the real Cordis lifecycle. They do not cover the initialization of the account projection in a real assembly.
 
 ## Maintenance
 
-<!-- documentation:placeholder -->
-
-Identify consumers and checks that must change with public contracts, resources, or dependencies. Explain inapplicable information. Record named gaps for unknown information.
+When the inbox, the handoff or the service keys change, update the plugin `inject`, the mapping tables in the SPEC and the tests. The consumers are Agent (through `agentAccountOutlet`) and the application assembly page. When the target resolver gets a real provider, update the known limits in the SPEC.
 
 ## Directory structure and documentation roles
 
