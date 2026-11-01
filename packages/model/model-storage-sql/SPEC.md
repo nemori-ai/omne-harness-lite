@@ -138,7 +138,9 @@
 围栏：
 
 - `check` 与 `withinCurrent` 同步运行，中间没有 await，也不推迟到回调。核心在围栏内只从镜像读该调用。
-- 镜像里没有该调用时，围栏返回 `unavailable`（依赖 `model-send`，诊断 `qualification-unavailable`），不调用 `start`。重做入口是同一 operation 的 `recordMaterialization`：它的 run 读回该调用，写入镜像。
+- 围栏先问资格权威，再看镜像里有没有该调用。镜像里没有该调用时，核心在空视图上判断。授权查询里资源的 `consumer` 为 `null`，与内存实现对不存在的调用相同。所以未授权主体对镜像里的调用、冷调用与不存在的调用都得到同一个 `denied`，看不出调用在不在镜像里。
+- 授权主体的调用不在镜像里时，围栏返回 `unavailable`（依赖 `model-send`，诊断 `qualification-unavailable`），不调用 `start`。重做入口是同一 operation 的 `recordMaterialization`：它的 run 读回该调用，写入镜像。
+- 镜像与认领表的键含租户。别的租户的同名调用在本租户看来是冷调用，不能通过围栏，也不占本租户的认领。
 - 在 `start` 内再进入围栏时，协调器抛 `TypeError`。
 - 认领表使一个 dispatch 在本进程只启动一次。再次进入返回 `unknown`（`dispatch-already-claimed`）。`start` 抛错时返回 `unknown`（`transport-start-unknown`）。
 - 镜像显示该 dispatch 不再是 `prepared`，或调用已收场时，协调器删除认领。淘汰不删除认领。认领数达到 `maxClaims`（初值 1024）时，新的围栏返回 `unavailable`（`send-claim-capacity`），不调用 `start`。
@@ -149,9 +151,9 @@
 
 - 协调器假设唯一协调进程（契约「首版可由唯一协调进程持有围栏」，sqlite-provider L-4）。存储确认一次提交后，本进程要再经过若干微任务才更新镜像。在这个窗口里，围栏按提交前的文档判断。这与 N3 的 L-1 同类。
 - 镜像与认领表只在进程内（同 N5）。重启或同进程替换实例后，新实例的认领表为空。旧实例启动了发送、但没有写入 `recordSend` 时，同一 dispatch 可以在新实例再次通过围栏。发现与重做的义务归运行时（M6）。
-- 与内存实现的差异：内存实现对不存在的调用返回 `invalid`（`call`，`not-found`）。本实现对镜像里没有的调用返回 `qualification-unavailable`，不区分不存在与冷。
+- 与内存实现的差异只有一条：主体获准、调用不在本进程镜像里时，本实现返回 `qualification-unavailable`，内存实现返回 `invalid`（`call`，`not-found`）。本实现不区分不存在与冷。主体未获准时，两个实现都返回 `denied`。
 
-用例在 `tests/coordinator.spec.ts`：同步围栏与重入、一次启动、钉住与钉住结束、冷镜像与认回、未知结论丢弃镜像、旧读回包不回退、认领上界的释放，以及与内存协调器逐步对拍。用例在 `node:sqlite` 测试提供者上运行，不覆盖真实提供者的 Worker、耐久性与关闭。
+用例在 `tests/coordinator.spec.ts`：同步围栏与重入、一次启动、钉住与钉住结束、冷镜像与认回、未知结论丢弃镜像、旧读回包不回退、未授权主体对热、冷、不存在调用同一 `denied`、双租户同名调用的镜像与认领互不相见、认领上界的释放，以及与内存协调器逐步对拍。用例在 `node:sqlite` 测试提供者上运行，不覆盖真实提供者的 Worker、耐久性与关闭。
 
 ## 所有权、失败与生命周期
 
