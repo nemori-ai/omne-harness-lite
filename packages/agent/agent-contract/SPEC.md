@@ -516,7 +516,7 @@ execution 未 ended 时，control 的受理事实及其 control 事件，以及 
 
 “[身份、范围与归属](#身份范围与归属)”要求所有 ID、DurableEvidence 和 Authority 在边界验证。本包为每个品牌身份导出一个解码函数，另导出六个结构判定，作为这项验证的方法，其中两个属于消息准入，见本节末段。设计没有给出身份文本规则。身份文本规则与 Tool 契约相同。
 
-十四个解码函数是 `decodeAgentInstanceId`、`decodeStepId`、`decodeActionId`、`decodePassageId`、`decodeCardRoundId`、`decodeActionBatchId`、`decodeAgentExecutionId`、`decodeExecutionAttachmentId`、`decodeAgentRegistrationId`、`decodeAgentOperationId`、`decodeExecutionRevision`、`decodeInputId`、`decodeInputBatchId` 与 `decodeConsumptionId`。身份文本是可打印 ASCII，不含空格，长度从 1 到 `AGENT_IDENTITY_MAX_LENGTH`（256 个 UTF-16 码元）。解码函数接受 `unknown`，返回 `Outcome`。失败值是 `{ field, reason }`：`field` 是身份类型名，`reason` 是 `type`（不是字符串）、`empty`、`length` 或 `character`。解码按类型、空串、长度、字符的次序检查，返回第一个失败。成功值只是品牌类型。解码不证明实例、执行或登记存在，也不授予资格。
+十六个解码函数是 `decodeAgentInstanceId`、`decodeStepId`、`decodeActionId`、`decodePassageId`、`decodeCardRoundId`、`decodeActionBatchId`、`decodeAgentExecutionId`、`decodeExecutionAttachmentId`、`decodeAgentRegistrationId`、`decodeAgentOperationId`、`decodeExecutionRevision`、`decodeInputId`、`decodeInputBatchId`、`decodeConsumptionId`、`decodeReplyAdmissionSequence` 与 `decodeReplyAdmissionPageCursor`。身份文本是可打印 ASCII，不含空格，长度从 1 到 `AGENT_IDENTITY_MAX_LENGTH`（256 个 UTF-16 码元）。解码函数接受 `unknown`，返回 `Outcome`。失败值是 `{ field, reason }`：`field` 是身份类型名，`reason` 是 `type`（不是字符串）、`empty`、`length` 或 `character`。解码按类型、空串、长度、字符的次序检查，返回第一个失败。`decodeReplyAdmissionSequence` 的字符规则更窄，只接受规范十进制，见“[回复准入的已核实前缀](#回复准入的已核实前缀)”。成功值只是品牌类型。解码不证明实例、执行或登记存在，也不授予资格。
 
 四个结构判定是 `judgeAdoption`、`judgeEvidence`、`judgeAccess` 与 `judgeAuthority`。它们对 `unknown` 做封闭字段检查，返回 `Outcome`，失败值是 `{ field, reason }`。`reason` 是 `type`、`empty`、`unknown-field`、`missing` 或 `identity`。值本身不是普通对象时，`field` 是结构名：`Adoption`、`Evidence`、`Access` 或 `Authority`。`judgeEvidence` 判定 `DurableEvidence`，它的结构名仍是 `Evidence`。成员出错时，`field` 是成员名。嵌套的 `source` 不是普通对象时，`field` 是 `source`。`source` 的成员出错时，`field` 是 `source.` 加成员名，例如 `source.owner`。
 
@@ -591,7 +591,7 @@ Agent 将明确事实求成下一步，再通过公开端口协调工作。外�
 
 StepId 区分一轮主要请求及其动作承接位置，ActionId 区分同一步内不同动作。拒收模型回复之后的新调用有新 action/call，保留原否决历史。PassageId 固定一次位置、扩展采用、动作和链序号。身份生成不授予资格，稳定身份先保管再用于外部操作；恢复不因换执行挂接重建它们。PendingCall.model 保存 ModelInvocationRef，用于 admit、cancel 与恢复对账时的只读 inspect。观察与读取由 Agent 外侧按该引用经 Model 的 current 承担。首次 admit 前即可由已固定的 tenant/call/admission 编码，意图先保存。Tool 分支先保存 intent，只有 Tool 证明调用身份后才保存 associated 与 ToolInvocationRef，见“Tool 调用关联与控制引用”。
 
-AgentCheckpoint 由 Agent 解释并通过 AgentJournal 保存。外部协调者的提交参加者可以把它纳入自己的原子提交，但不得另行维护第二份 Agent 工作状态。效果协调层把生产者公开状态投影为 ProducerDecisionView，纯 Evaluator 不解释外域状态编码。查询不可用返回失败，原状态未定保持 unresolved，不用空集合或结束状态代替。decode 必须核对精确采用、身份关系和完整性，不能把任意 JsonValue 当 AgentCheckpoint。缺少 `replyAdmissionRead` 或 schema 未知的 checkpoint 一律拒绝，不默认为 unverified 或零值。编码只允许数据，不含运行对象。
+AgentCheckpoint 由 Agent 解释并通过 AgentJournal 保存。外部协调者的提交参加者可以把它纳入自己的原子提交，但不得另行维护第二份 Agent 工作状态。效果协调层把生产者公开状态投影为 ProducerDecisionView，纯 Evaluator 不解释外域状态编码。查询不可用返回失败，原状态未定保持 unresolved，不用空集合或结束状态代替。decode 必须核对精确采用、身份关系和完整性，不能把任意 JsonValue 当 AgentCheckpoint。缺少 `replyAdmissionRead` 或 schema 未知的 checkpoint 一律拒绝，不默认为 unverified 或零值。本版本的 decode 只核对其中一部分，见“[回复准入的已核实前缀](#回复准入的已核实前缀)”的已知限制。编码只允许数据，不含运行对象。
 
 next 是纯函数，不读时钟、当前注册或数据库，不发请求。相同完整输入与精确采用得到同一决定；缺必要事实返回具体失败。条件快照只是判断依据，影响推进的写入及实际发起仍在领域边界重新裁定。权限模式及环境选择由原领域解释，RuntimeConditions 只传 Loop 所需的 ProgressionDirective 与采用依据，不把 bypass 模式当直接授权，也不含守卫。守卫阶梯由循环判断这一受信系统扩展计算并记为 checkpoint 的守卫事实 `guard`，规则见“[循环守卫](#循环守卫)”。L0 始终保留观测；L3 的失败候选由 I8 按最新守卫事实的 `basis` 认回，L4 的人工等待就是循环判断那次扩展调用的卡片等待，不以换执行挂接清零，Agent 不自动生成默认阈值。
 
@@ -1648,6 +1648,8 @@ read 的 after 是读取方已处理的最后序号。after 为 null 与 "0" 等
 
 游标 `ReplyAdmissionPageCursor` 是不透明值。Journal 把游标绑定到完整的 tenant、execution、执行起源、`from`、`through` 与上一页末端，并在每次续页时核对。游标换到另一 `through` 或另一 `from` 返回 invalid。游标用于同租户另一执行返回 invalid，用于另一租户返回 denied，不区分不存在与无权。游标截成序位返回 invalid。保留范围仍可用且资格允许时，重复请求返回相同事实与范围。游标的正确性不依赖服务端读会话。
 
+游标不签名。提供者核对上述绑定，并核对游标的末端位置在 `from` 与 `through` 的范围内。提供者不保证识别范围内的篡改：同租户的调用方把末端位置改为范围内的另一位置时，提供者接受该游标，返回从该位置开始的页，页的 `start` 如实报出该位置。接续校验由消费者负责：消费者按下文“消费者（E2）”第 3 步核对续页的 `start` 等于前页的 `end`，拒绝该页。
+
 **成功页的五条。**成功页带 `through`（与请求相同）、`start`、`end`、`items` 与 `tail`。
 
 1. 序位严格连续。第一项是 `start.sequence + 1`，`end.sequence = start.sequence + items.length`。第一页的 `start` 等于解析后的 `from`，续页的 `start` 等于前页的 `end`。
@@ -1718,6 +1720,7 @@ read 的 after 是读取方已处理的最后序号。after 为 null 与 "0" 等
 - 冷路径（origin 读取）中途崩溃时从同一下界重来，不能从中途继续。
 - 治疗后在正常提交落地之前崩溃，下次恢复再治疗一次。
 - 本版本的 decode 拒绝缺少读取位置或未知 schema 的 checkpoint，不提供旧 schema 迁移。
+- 本版本的 decode 只部分核对：只核 schema 采用、成员集（不缺、不多）与读取位置，以及 definition、position、step 与接续的对应。其他 facet 保持编码时的形状，不判定类型与身份关系，例如 `calls` 为字符串的 continuation 也解码成功。完整核对归 #502 阶段 5（恢复）。目前没有生产调用方经 decode 恢复执行。
 - 生产 SQL 提供者尚无本节的实现：范围与唯一索引、提交时前缀校验、页上限配置与存储编码版本由 `session-storage-sql` 后续承担。
 
 #### 订阅、背压与关闭
