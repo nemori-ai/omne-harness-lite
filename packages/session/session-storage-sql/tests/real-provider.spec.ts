@@ -9,12 +9,21 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it } from 'vitest'
-import { operationId } from '@omne-harness/session-contract/testing'
+import {
+  adoptedInitializationFixture,
+  creation,
+  initializationFixtureFacts,
+  initializationFixtureGuard,
+  operationId,
+  sessionEntriesConformance,
+  type SessionTransactionsFixture,
+} from '@omne-harness/session-contract/testing'
 import {
   identityOf,
   openRealApp,
   queryKindOf,
   TENANT_A,
+  TENANT_B,
   walSample,
   type RealApp,
   type RealAppOptions,
@@ -208,4 +217,54 @@ describe('concurrent sessions in one transaction domain', () => {
     expect(ops).toBe(names.length)
     expect(physical).toBe(ops)
   })
+})
+
+describe('reads through the real read Worker', () => {
+  // The read port of the provider refuses a statement without LIMIT (sql-contract SPEC §9.4):
+  // a handler that ran one answered read_port_violation instead of a page.
+  it('history.begin and history.readModelView answer a page, not a read port violation', async () => {
+    const app = await open()
+    ok(await app.create(TENANT_A))
+    ok(await app.accept(TENANT_A, 'session-1', 'one'))
+    const page = ok<{ entries: readonly unknown[]; exhausted: boolean }>(
+      await app.port.history.begin({
+        ...app.access(TENANT_A),
+        kinds: [],
+        from: null,
+        direction: 'forward',
+        pageBytes: 1_000_000,
+      }),
+    )
+    expect(page.exhausted).toBe(true)
+    expect(page.entries.length).toBeGreaterThan(0)
+    ok(
+      await app.port.history.readModelView({
+        ...app.access(TENANT_A),
+        basis: null,
+        after: null,
+        pageBytes: 1_000_000,
+      }),
+    )
+  })
+})
+
+describe('session-contract commitEntries conformance on the real provider', () => {
+  const fixtureOf = (app: RealApp): SessionTransactionsFixture<string> => ({
+    port: app.port,
+    access: app.access(TENANT_A),
+    otherAccess: app.access(TENANT_B),
+    creation: creation(),
+    operation: name => operationId(name),
+    initializationGuards: command =>
+      Promise.resolve([
+        initializationFixtureGuard(
+          initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+        ),
+      ]),
+    askedAccessChecks: () => app.accessCheck.controls.asked().length,
+  })
+  for (const test of sessionEntriesConformance<string>())
+    it(`${test.clause}: ${test.name}`, async () => {
+      await test.run(fixtureOf(await open()))
+    })
 })

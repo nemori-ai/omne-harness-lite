@@ -1,8 +1,9 @@
 // A test provider of `SqlStorage` on node:sqlite. The memory double of sql-contract has no SQL, so
 // it cannot run the Session participant or the read handlers; this one runs the real modules of
 // this member against one in-memory database per transaction domain. It models receipts, rollback
-// by a stopping reply, recognition by the full identity, and scope partition. It does not model
-// Workers, durability, queues or limits, and a pass proves none of those.
+// by a stopping reply, recognition by the full identity, scope partition and the read port rules
+// (only SELECT, every statement with LIMIT). It does not model Workers, durability, queues or
+// limits, and a pass proves none of those.
 import { DatabaseSync } from 'node:sqlite'
 import {
   inputDigestV2,
@@ -63,10 +64,17 @@ export type SqliteStorage = Readonly<{
   domains(): readonly string[]
   /** Seeds derived rows that the commands of this test cannot produce (a test set-up, not a path). */
   seed(domain: string, sql: string, params?: readonly SqlValue[]): void
+  /** Reads rows of one domain outside any transaction, for a test that counts what a commit wrote. */
+  select(domain: string, sql: string, params?: readonly SqlValue[]): QueryRows
   /** Makes every later read of `handler` answer unavailable; `null` ends it. */
   failReads(handler: string | null): void
   /** Makes the next commit answer `unknown` after it ran (the reply is lost). */
   loseNextReply(): void
+  /**
+   * Makes the participant port throw at the `nth` later statement that matches `pattern`, inside
+   * the write transaction; `null` ends it. The storage then rolls the transaction back.
+   */
+  failWrite(pattern: RegExp | null, nth?: number): void
 }>
 
 type Domain = {
@@ -108,6 +116,15 @@ export function createSqliteStorage(): SqliteStorage {
   const readSql: string[] = []
   let failing: string | null = null
   let lose = false
+  let writeFault: { pattern: RegExp; left: number } | null = null
+  /** Counts the statement against the armed write fault and throws at the chosen one. */
+  const faultAt = (sql: string): void => {
+    if (writeFault === null || !writeFault.pattern.test(sql)) return
+    writeFault.left -= 1
+    if (writeFault.left > 0) return
+    writeFault = null
+    throw new Error(`injected write failure at: ${sql.slice(0, 60)}`)
+  }
 
   const domainOf = (scope: DomainRef['scope'], name: string): Domain | null => {
     const domain = domains.get(name)
@@ -142,7 +159,10 @@ export function createSqliteStorage(): SqliteStorage {
       let reply: RecordedReply
       try {
         const port = {
-          execute: (sql: string, params: readonly SqlValue[]) => rowsOf(domain.db, sql, params),
+          execute: (sql: string, params: readonly SqlValue[]) => {
+            faultAt(sql)
+            return rowsOf(domain.db, sql, params)
+          },
           requireFact: () => null,
           provideFact: () => undefined,
         }
@@ -248,6 +268,8 @@ export function createSqliteStorage(): SqliteStorage {
         execute: (sql, params) => {
           readSql.push(sql)
           if (!/^\s*SELECT/i.test(sql)) throw new Error('a read handler ran a write')
+          // sql-contract SPEC §9.4: every statement of a read handler has a LIMIT.
+          if (!/\blimit\b/i.test(sql)) throw new Error('a read statement has no LIMIT')
           return rowsOf(domain.db, sql, params)
         },
       })
@@ -268,11 +290,19 @@ export function createSqliteStorage(): SqliteStorage {
       if (domain === undefined) throw new Error('no such domain')
       rowsOf(domain.db, sql, params)
     },
+    select: (name, sql, params = []) => {
+      const domain = domains.get(name)
+      if (domain === undefined) throw new Error('no such domain')
+      return rowsOf(domain.db, sql, params)
+    },
     failReads: handler => {
       failing = handler
     },
     loseNextReply: () => {
       lose = true
+    },
+    failWrite: (pattern, nth = 1) => {
+      writeFault = pattern === null ? null : { pattern, left: nth }
     },
   }
 }

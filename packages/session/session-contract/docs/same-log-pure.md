@@ -23,10 +23,10 @@
 - `snapshot`：提交事务内的当前快照。
 - `observation`：本次观察，范围是 `(after, through]`。
 - `start`：调用者声称的已存进度，即端口入参。
-- `saved`：提供者保存的本会话已存进度，每个 `(run, execution, channel)` 一项。缺该项表示该通道从未提交。
+- `saved`：本会话的已存进度，每个 `(run, execution, channel)` 一项。三个提供者都传入 `snapshot.entriesProgress`，字段缺席时传空数组。缺该项表示该通道从未提交。
 - `record`：提供者对该操作标识的记录，没有时为 `null`。
 
-已存进度是输入参数。`WorkSnapshot` 目前不带它。纯检查不读存储，不看时钟，也不抛出：每个失败都返回 `rejected`。
+已存进度是输入参数，它的来源是快照的 `entriesProgress` 字段。纯检查不读存储，不看时钟，也不抛出：每个失败都返回 `rejected`。
 
 ### 检查顺序与失败
 
@@ -77,7 +77,7 @@
 
 ### 已存进度与归约
 
-日志里的 `entries.interpreted` 行是权威。已存进度从这些行求得。`reduce` 对每个进度行核对 RD-2 与 RD-3。`reduceWithEntriesProgress`（[reduce.ts](../src/reduce.ts)）另外携带已存进度并核对 RD-1：
+日志里的 `entries.interpreted` 行是权威。已存进度是 `WorkSnapshot.entriesProgress`，`reduce` 从这些行求得它。`reduce` 对每个进度行核对 RD-2 与 RD-3，并在批末对照上一个快照的 `entriesProgress` 核对 RD-1（[reduce.ts](../src/reduce.ts)）：
 
 | ID | 核对 | 不成立时 |
 | --- | --- | --- |
@@ -85,7 +85,7 @@
 | RD-2 | 行的 `through` 大于行的 `after`。 | `quarantined` |
 | RD-3 | 行的执行属于行的 `run`。 | `quarantined`，诊断 `missing historical execution binding` |
 
-都成立时，该通道的已存进度设为行的 `through`，`interpreted` 设为本批的批次证据，即归约后快照的 `source`。重放日志会再次算出同样的值。同一批再次归约时认回原状态，已存进度不变。回执 `SessionEntriesReceipt.interpreted` 也取这个批次证据。
+都成立时，该通道的已存进度设为行的 `through`，`interpreted` 设为本批的批次证据，即归约后快照的 `source`。重放日志会再次算出同样的值。同一批再次归约时认回原状态，已存进度不变。没有进度行的批次不改已存进度。从来没有进度行的会话，快照里没有这个字段。回执 `SessionEntriesReceipt.interpreted` 也取这个批次证据。
 
 ### 提供者的步骤
 
@@ -94,18 +94,20 @@
 1. 租户文本不是 legal-identity 铸造的：`invalid`，字段 `tenant`。
 2. 该租户下没有这个会话：`denied`，`action` 为 `commitEntries`。答复不说明会话是否属于别的租户。
 3. 该标识已是只有答案的控制记录：`conflict`。
-4. 调用 `projectSessionEntries`，`saved` 取替身内保存的已存进度。
+4. 调用 `projectSessionEntries`，`saved` 取快照的 `entriesProgress`。
 5. 合法时分配条目 id 与修订，然后归约。归约隔离时返回 `quarantined`，不写任何东西。
-6. 一次替换写入条目、快照、模型视图、操作记录与已存进度。
+6. 一次替换写入条目、快照（含已存进度）、模型视图与操作记录。
 
-读取会话与这次替换之间没有 `await`。检查与归约全部通过之前，替身不写入任何东西。操作记录用 `digestSessionEntries` 的摘要，回执是普通的 `CommitReceipt`。所以 `queryOperation` 对 entries 记录答 `committed`，`queryControlOperation` 答 `conflict`。session-storage-sql 的实现另行交付。
+读取会话与这次替换之间没有 `await`。检查与归约全部通过之前，替身不写入任何东西。操作记录用 `digestSessionEntries` 的摘要，回执是普通的 `CommitReceipt`。所以 `queryOperation` 对 entries 记录答 `committed`，`queryControlOperation` 答 `conflict`。
+
+session-storage-sql 在 `session` 参加者的一次写事务里完成同样的判定与写入，步骤与表见该成员的 [SPEC](../../session-storage-sql/SPEC.md)。它的操作记录形式是 `entries`。
 
 ### 调用者义务
 
 调用者是受信的解释者。端口不替它做下列事：
 
-1. `start` 只取 Session 的已存进度。调用者刚收到本通道上一次提交的成功回执时，可以用回执的 `through` 与 `interpreted` 构造下一个 `start`。
-2. 收到 `changed` 时重读已存进度，不用同一个 `start` 重试。
+1. `start` 只取 Session 的已存进度：经 `readWork` 读快照，在 `entriesProgress` 里按 `(run, execution, channel)` 找到该通道的项，构造 `saved`。没有该项时用 `initial`。调用者重启后也走这条路径，不需要保留内存。调用者刚收到本通道上一次提交的成功回执时，也可以用回执的 `through` 与 `interpreted` 构造下一个 `start`。
+2. 收到 `changed` 时经 `readWork` 重读已存进度，不用同一个 `start` 重试。
 3. 只有 `observed` 的项不单独提交。下一批的 `after` 仍是已存进度，`items` 从已存进度之后的第一项开始，包括这些项。
 4. 同一个操作标识只用于同一个观察。
 
@@ -125,11 +127,11 @@
 | KL-1 | `openWork.unreadEvents` 只计事件通道。entries 通道里已落日志、尚未解释的项不计入未结工作。 |
 | KL-2 | 重放时两条通道的核对强度不同。entries 通道的后果行只在提交前由 EI-21 核对一次。重放时只核对进度行自身（RD-1 至 RD-3），不核对后果行与进度行同批配对。 |
 | KL-3 | 同一 `key` 跨批重复交付不检查。批内重复由 EI-19 拒绝。 |
-| KL-4 | 内存替身不耐久，不证明事务、持久或跨进程。 |
+| KL-4 | 内存替身不耐久，不证明事务、持久或跨进程。session-storage-sql 的同事务写入由 `node:sqlite` 夹具与真实 sqlite-provider 验证，见该成员的验证义务。 |
 | KL-5 | 不认识 `entries.interpreted` 载荷的旧解释器按 SL12 隔离会话。0.0.x 不承诺历史字节兼容。 |
 | KL-6 | 已存进度每个 `(run, execution, channel)` 一项。终态 Run 的项不删除，本版不裁剪。 |
 | KL-7 | 本通道不核对生产者绑定的 Run 归属（原 EI-22 已删除），只由 EI-08 在执行层核对。将来要按 Run 归属分流后果行，或出现跨 Run 的结果误挂时，需要重新设计这一核对。 |
-| KL-8 | `WorkSnapshot` 目前不带已存进度。两个内存替身把它存在替身内部，`readWork` 读不到它。调用者重启后读回已存进度的路径另行交付。 |
+| KL-8 | `WorkSnapshot.entriesProgress` 只是派生投影。它的正确性依赖 `reduce` 逐批归约日志：手工改写快照行而不改日志时，提供者不发现这一差异。SQL 提供者本版不从日志起点重建快照，所以 RD-1 至 RD-3 只在提交路径逐批核对，全链重放核对等快照重建能力交付后才成立。 |
 
 ## 登记、控制与压缩
 
@@ -144,7 +146,7 @@
 - [work-entry-behavior.spec.ts](../tests/work-entry-behavior.spec.ts) 检查原控制引用、逐项漏下界、缺索引、非消息压缩、责任结清及旧事件重放。
 - [same-log-integrity.spec.ts](../tests/same-log-integrity.spec.ts) 检查直接归约的跨 Run 拒绝、双向批次完整性、空事件对账及合法迟到认回。
 - [entries-interpretation.spec.ts](../tests/entries-interpretation.spec.ts) 对 EI-01 至 EI-23（无 EI-22）各写一条只违反该规则的用例，断言失败类别与字段，并检查 RD-1 至 RD-3 的进度链与重放。
-- [testing-entries.ts](../src/testing-entries.ts) 是 `commitEntries` 的共用符合性用例 `sessionEntriesConformance`，经 `./testing` 导出。两个内存替身各跑一次，自证与违例变体在 [transactions-conformance.spec.ts](../tests/transactions-conformance.spec.ts)。
+- [testing-entries.ts](../src/testing-entries.ts) 是 `commitEntries` 的共用符合性用例 `sessionEntriesConformance`（CF-01 至 CF-09），经 `./testing` 导出。CF-02 与 CF-03 只从 `readWork().entriesProgress` 读回已存进度并续写。CF-09 要求夹具提供 `askedAccessChecks`，断言提交、认回与拒绝都不问访问检查。两个内存替身、session-storage-sql 的 `node:sqlite` 夹具与真实 sqlite-provider 各跑一次。自证与违例变体在 [transactions-conformance.spec.ts](../tests/transactions-conformance.spec.ts)。
 - [history-source-isolation.spec.ts](../tests/history-source-isolation.spec.ts) 检查同文本身份在不同租户、不同 Session 的原事件、目录、前缀与根隔离。
 - [testing-history-source.ts](../src/testing-history-source.ts) 是显式填入原事件与原受理的内存夹具。grant 与 attachment 由测试提供，不从 pending 或页长度产生。`observe` 从观察值取得显式 tenant/session，`admit(scope, input, admission)` 必须传同样的作用域。`read` 按 snapshot 的作用域读取，拒绝另一作用域的 Session 原日志。根位置和摘要只包含本作用域材料。它不证明 Agent 原协议归一。
 

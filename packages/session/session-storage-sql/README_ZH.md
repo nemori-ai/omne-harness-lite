@@ -12,9 +12,9 @@ Session 的存储成员。它用 SQL 实现 `SessionTransactionPort`，只经 `@
 
 状态：存储成员，`draft`。head 已有实现，覆盖范围见 [SPEC 的实现现状](SPEC.md#实现现状)。采用依据是组的[成员分解](../docs/architecture.md)与 [SPEC](SPEC.md)。
 
-- 已实现：根入口 `createSessionStorage`、`sessionStorageMaterials`、`SESSION_PARTICIPANT`；一个参加者 `session`、一个迁移、八个 `snapshot` 读 handler；端口的提交、读、`queryOperation`、`queryControlOperation`、`readModelSelection`、历史读、`pending`、`references`、`releasedScopes`。
+- 已实现：根入口 `createSessionStorage`、`sessionStorageMaterials`、`SESSION_PARTICIPANT`；一个参加者 `session`、一个迁移、八个 `snapshot` 读 handler；端口的提交、读、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、历史读、`pending`、`references`、`releasedScopes`。`commitEntries` 不问访问检查，在一次存储提交里写入条目、快照与操作记录。
 - 没有 `./cordis` 子路径。会话存储组合（材料目录、组合声明、事务域目录、Cordis 服务）由应用承担，本成员不重建它。
-- 未实现：`commitEntries`（恒返回 `unavailable`，session-contract 还没有 entries 解释的纯范围检查）、`sl_batch`、`sl_blob`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL。
+- 未实现：`sl_batch`、`sl_blob`、`sl_ref_idx`、R9 追赶与重建、PostgreSQL。
 - 已验证：公开入口与依赖规则（`tests/public-entry.spec.ts`）、租户隔离与事务域目录（`tests/tenant-isolation.spec.ts`），以及另一位写者在 `tests/` 补入的用例。`node:sqlite` 夹具在内存库上运行真实的 participant 与 handler，**不**覆盖 Worker、持久与关闭。`tests/real-provider.spec.ts` 在真实 sqlite-provider 上运行本包：Worker 下提交、回执返回后杀进程再按原身份 `query`、未提交身份、关闭、两种限额，以及组提交计数（原操作 8、物理写事务 8，零合并）。断电、WAL 维护、跨进程写者与锁等待超时没有覆盖。新行为没有先红后绿记录，以负控用例代替。
 - 前提：存储契约现在是 [sql-contract](../../storage/sql-contract/SPEC.md)，提供者是 [sqlite-provider](../../storage/sqlite-provider/SPEC.md)。提供者只是测试的开发依赖。
 

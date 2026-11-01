@@ -2431,23 +2431,15 @@ import type { SessionHistoryReads } from './history-values.ts';
 import type { DurableEvidence } from './identity.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
-import type { SessionEntriesProgress } from './interpretation-values.ts';
 export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
 export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
-export declare function reduceWithEntriesProgress(previous: WorkSnapshot | null, saved: readonly SessionEntriesProgress[], batch: CommittedBatch, reads?: SessionHistoryReads): Readonly<{
-    kind: 'reduced';
-    snapshot: WorkSnapshot;
-    progress: readonly SessionEntriesProgress[];
-}> | Extract<ReduceResult, {
-    kind: 'quarantined';
-}>;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:86e3a3365bcbf4d750b450280133a7095877b851703532f442f444ae3e63364b";
-export declare const SESSION_RELEASE_DIGEST = "sha256:86e3a3365bcbf4d750b450280133a7095877b851703532f442f444ae3e63364b";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:62b8bb55bb063240cc56f2cfb1428c75aa34bd0d2407d8bf793171075419985c";
+export declare const SESSION_RELEASE_DIGEST = "sha256:62b8bb55bb063240cc56f2cfb1428c75aa34bd0d2407d8bf793171075419985c";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2800,6 +2792,7 @@ export interface SessionTransactionsFixture<P> {
     initializationGuards?(command: Extract<SessionCommand, {
         kind: 'create';
     }>): Promise<readonly GuardCommand[]>;
+    readonly askedAccessChecks?: () => number;
 }
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>;
 export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
@@ -2933,6 +2926,7 @@ export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
         historyIndex?: import("./history-values.ts").SessionHistoryIndex;
         callRegistrations?: readonly import("./call-values.ts").SessionCallRecord[];
         callWaits?: readonly import("./call-values.ts").SessionCallWait[];
+        entriesProgress?: readonly import("./interpretation-values.ts").SessionEntriesProgress[];
     }>>;
     openRun: () => Promise<string>;
 };
@@ -2999,6 +2993,7 @@ import type { CompactionMessage, Message } from '@omne-harness/message';
 import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { SessionHistoryIndex } from './history-values.ts';
 import type { SessionCallRecord, SessionCallWait } from './call-values.ts';
+import type { SessionEntriesProgress } from './interpretation-values.ts';
 import type { Adoption, AdvanceRef, AttemptId, ConsumerRef, ConsumptionId, DurableEvidence, InputId, ResidentKey, BatchId, RunId, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 export type ResidentTool = Readonly<{
     capability: string;
@@ -3448,6 +3443,7 @@ export type WorkSnapshot = Readonly<{
     historyIndex?: SessionHistoryIndex;
     callRegistrations?: readonly SessionCallRecord[];
     callWaits?: readonly SessionCallWait[];
+    entriesProgress?: readonly SessionEntriesProgress[];
 }>;
 export type ResidentAdoption = Readonly<{
     residents: readonly ResidentTool[];

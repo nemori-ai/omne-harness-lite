@@ -75,6 +75,6 @@ head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、�
 - 多实例恢复扫描者并发读 `pending` 的租约协议。
 - SQLite 独立读连接下的吞吐。读经 `read` 入口，排队归提供者，基准须在真实提供者上取数。
 - 任何数值目标。实测之前不写。
-- `commitEntries` 的范围检查：现在恒返回 `unavailable`，没有可验证的成功路径（[已知限制](../SPEC.md#已知限制)）。
+- `commitEntries` 在真实 sqlite-provider 上的写失败注入：只在 `node:sqlite` 夹具上注入，真实提供者上只跑共用用例（[已知限制](../SPEC.md#已知限制)第 1 条）。
 - 真实 sqlite-provider 上未覆盖：断电耐久、WAL 维护与读暂停、跨进程写者、读 Worker 崩溃、`lockWaitMs` 超时。participant 与 handler 的真实载入、进程级持久和关闭已由 `tests/real-provider.spec.ts` 覆盖。
 - 尚未实现的设计（`sl_batch`、`sl_blob`、`sl_ref_idx`、R9、PostgreSQL）：对应义务（VS-D02、VS-D06、VS-R05、VS-R06、VS-W07、VS-F04）在实现之前无从验证。

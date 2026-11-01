@@ -484,9 +484,10 @@ const entriesCases = sessionEntriesConformance<string>()
 
 const ENTRIES = {
   commit: 'commitEntries commits the range and its receipt names the batch evidence of the commit',
-  revision: 'the consequence and the progress row are one new revision',
+  revision:
+    'the consequence and the progress row are one new revision, and readWork reads the saved progress back',
   continue:
-    'the next range continues from the receipt, and a start behind the saved progress is changed',
+    'the next range continues from the start that readWork gives, and a start behind the saved progress is changed',
   recall:
     'the same operation with the same observation recalls the original receipt and writes nothing',
   conflict: 'an operation identity of another observation or of another commit form is a conflict',
@@ -495,6 +496,7 @@ const ENTRIES = {
   query:
     'queryOperation answers committed for an entries operation, and queryControlOperation conflict',
   tenant: 'an observation of another tenant is denied, the same as for a session that never was',
+  access: 'commitEntries asks no access check, for a commit, a recall and a refusal',
 } as const
 
 const entriesLegal: readonly LegalProvider<Fixture>[] = [
@@ -513,8 +515,37 @@ type EntriesInput = Parameters<Port['commitEntries']>[0]
 
 const entriesVariants: readonly Variant<Fixture>[] = [
   {
+    name: 'readWork leaves out the saved progress',
+    fails: [ENTRIES.revision, ENTRIES.continue],
+    fixture: variant(real => ({
+      readWork: async input => {
+        const answer = await real.readWork(input)
+        if (!('ok' in answer)) return answer
+        const { entriesProgress: _progress, ...snapshot } = answer.ok
+        return succeed(snapshot)
+      },
+    })),
+  },
+  {
+    name: 'commitEntries asks the access check of a public read',
+    fails: [ENTRIES.access],
+    fixture: () => {
+      const base = memorySessionTransactionsFixture()
+      return {
+        ...base,
+        port: {
+          ...base.port,
+          commitEntries: async input => {
+            await base.port.readWork(base.access)
+            return base.port.commitEntries(input)
+          },
+        },
+      }
+    },
+  },
+  {
     name: 'the receipt names another evidence than the batch evidence of the commit',
-    fails: [ENTRIES.commit, ENTRIES.continue],
+    fails: [ENTRIES.commit, ENTRIES.revision],
     fixture: variant(real => ({
       commitEntries: async input => {
         const answer = await real.commitEntries(input)
@@ -573,7 +604,7 @@ const entriesVariants: readonly Variant<Fixture>[] = [
   },
   {
     name: 'without rollback: a refused commitEntries keeps a write',
-    fails: [ENTRIES.continue, ENTRIES.conflict, ENTRIES.refusal, ENTRIES.tenant],
+    fails: [ENTRIES.continue, ENTRIES.conflict, ENTRIES.refusal, ENTRIES.tenant, ENTRIES.access],
     fixture: variant(real => {
       const fixture = memorySessionTransactionsFixture()
       let writes = 0

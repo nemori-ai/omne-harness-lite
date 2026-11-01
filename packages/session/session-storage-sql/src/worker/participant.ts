@@ -28,6 +28,7 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory } from './history-index.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
@@ -397,6 +398,57 @@ function writeEntries(
   }
 }
 
+/** The receipt of one committed batch: the same for a command batch and an entries batch. */
+function batchReceipt(
+  input: Readonly<{
+    tenant: string
+    session: string
+    operation: string
+    seq: bigint
+    revision: string
+    entries: readonly HistoryEntry[]
+  }>,
+): CommitReceipt {
+  const { tenant, session, operation, seq, revision, entries } = input
+  const firstEntry = entries[0] as HistoryEntry
+  const lastEntry = entries[entries.length - 1] as HistoryEntry
+  return {
+    operation,
+    revision,
+    first: firstEntry.id,
+    last: lastEntry.id,
+    recovered: false,
+    source: {
+      owner: OWNER,
+      record: `${tenant}/${session}/${seq}`,
+      revision,
+      digest: `sha256:${sha256(canonicalText({ operation, first: firstEntry.id, last: lastEntry.id, kinds: entries.map(entry => entry.kind), payload: entries.map(entry => entry.payload) }))}`,
+    },
+  } as CommitReceipt
+}
+
+/** W1 step 7, last: the tail moves only from the tail that the batch was judged on. */
+function advanceTail(
+  port: ParticipantPort,
+  input: Readonly<{
+    tenant: string
+    session: string
+    tail: bigint
+    revision: string
+    seq: bigint
+    epoch: string
+  }>,
+): ParticipantReply | null {
+  const { tenant, session, tail, revision, seq, epoch } = input
+  const updated = port.execute(
+    'UPDATE sl_journal SET tail = ?, commit_seq = ?, epoch = ? WHERE tenant = ? AND session = ? AND tail = ?',
+    [BigInt(revision), seq, epoch, tenant, session, tail],
+  )
+  return updated.changes === 1n
+    ? null
+    : { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
+}
+
 function runQuery(
   port: ParticipantPort,
   tenant: string,
@@ -605,21 +657,7 @@ function runCommand(
     return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
   // The index is a read projection of this transaction, never stored in the snapshot row.
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
-  const firstEntry = entries[0] as HistoryEntry
-  const lastEntry = entries[entries.length - 1] as HistoryEntry
-  const receipt: CommitReceipt = {
-    operation,
-    revision,
-    first: firstEntry.id,
-    last: lastEntry.id,
-    recovered: false,
-    source: {
-      owner: OWNER,
-      record: `${tenant}/${session}/${seq}`,
-      revision,
-      digest: `sha256:${sha256(canonicalText({ operation, first: firstEntry.id, last: lastEntry.id, kinds: entries.map(entry => entry.kind), payload: entries.map(entry => entry.payload) }))}`,
-    },
-  } as CommitReceipt
+  const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
 
   writeEntries(port, tenant, session, entries)
   const epoch = maintainModelView(
@@ -670,14 +708,76 @@ function runCommand(
       [tenant, session, BigInt(revision), seq, epoch],
     )
   else {
-    const updated = port.execute(
-      'UPDATE sl_journal SET tail = ?, commit_seq = ?, epoch = ? WHERE tenant = ? AND session = ? AND tail = ?',
-      [BigInt(revision), seq, epoch, tenant, session, tail],
-    )
-    if (updated.changes !== 1n)
-      return { kind: 'failed', diagnostic: 'the conditional tail update changed no row' }
+    const moved = advanceTail(port, { tenant, session, tail, revision, seq, epoch })
+    if (moved !== null) return moved
   }
   return participated(result, false)
+}
+
+/**
+ * The entries interpretation commit: the consequence rows, the progress row, the model view, the
+ * snapshot with its saved progress, the derived rows, the `entries` operation record and the tail,
+ * in this one transaction. A failure at any step rolls all of them back.
+ */
+function publishEntries(port: ParticipantPort, batch: EntriesBatch): ParticipantReply {
+  const { tenant, session, operation, journal, previous, snapshot, entries } = batch
+  const revision = String(journal.tail + 1n)
+  const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
+  writeEntries(port, tenant, session, entries)
+  const epoch = maintainModelView(port, tenant, session, journal.epoch, entries)
+  if (epoch === null)
+    return {
+      kind: 'failed',
+      diagnostic: 'the model view epoch exceeds the read bound of a compaction',
+    }
+  port.execute(
+    'INSERT OR REPLACE INTO sl_state (tenant, session, snapshot, covered) VALUES (?, ?, ?, ?)',
+    [tenant, session, JSON.stringify(encodeValue(snapshot)), BigInt(revision)],
+  )
+  maintainDerived(port, tenant, session, previous, snapshot)
+  port.execute(
+    'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+    [
+      tenant,
+      session,
+      operation,
+      batch.digest,
+      'entries',
+      BigInt(revision),
+      JSON.stringify(encodeValue(receipt)),
+      JSON.stringify(encodeValue(batch.answer)),
+    ],
+  )
+  const moved = advanceTail(port, {
+    tenant,
+    session,
+    tail: journal.tail,
+    revision,
+    seq: journal.seq,
+    epoch,
+  })
+  return moved ?? participated(batch.answer, false)
+}
+
+/** The entries interpretation commit. Its answer carries the digest of the observation (SL07). */
+function runEntries(facts: Readonly<Record<string, JsonValue>>, port: ParticipantPort) {
+  const judged = judgeEntries(facts, port)
+  const withDigest = (reply: ParticipantReply, digest: string): ParticipantReply =>
+    reply.kind === 'participated'
+      ? { kind: 'participated', response: { ...(reply.response as object), digest } }
+      : reply
+  switch (judged.kind) {
+    case 'unsupported':
+      return { kind: 'unsupported', basis: { reason: judged.reason } } as const
+    case 'stopped':
+      return stopped(judged.failure)
+    case 'failed':
+      return { kind: 'failed', diagnostic: judged.diagnostic } as const
+    case 'recovered':
+      return withDigest(participated(judged.result, true), judged.digest)
+    case 'publish':
+      return withDigest(publishEntries(port, judged.batch), judged.batch.digest)
+  }
 }
 
 const participant: ParticipantModule = {
@@ -693,6 +793,7 @@ const participant: ParticipantModule = {
         ? runQuery(port, tenant, session, operation)
         : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
     }
+    if (intent === 'entries') return runEntries(facts, port)
     if (
       intent !== 'command' ||
       typeof facts['command'] !== 'object' ||
@@ -700,7 +801,7 @@ const participant: ParticipantModule = {
     )
       return {
         kind: 'unsupported',
-        basis: { reason: 'the facts are neither a command nor a query' },
+        basis: { reason: 'the facts are neither a command, an entries commit nor a query' },
       }
     let command: SessionCommand
     let guards: GuardCommand[]

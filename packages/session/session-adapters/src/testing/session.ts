@@ -49,7 +49,6 @@ import type {
   SessionControlReceipt,
   SessionModelSelection,
   SessionEntriesObservation,
-  SessionEntriesProgress,
   SessionEntriesReceipt,
   SessionEntriesStart,
 } from '@omne-harness/session-contract'
@@ -383,12 +382,6 @@ export function createSessionTransactions<P>(
   let failInitialization = false
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
-  /**
-   * The saved entries progress per session key, one item per (run, execution, channel). The
-   * session state type does not hold it, and `WorkSnapshot` does not hold it yet. It is written
-   * in the same synchronous step as the session state that its commit published.
-   */
-  const entriesProgress = new Map<string, readonly SessionEntriesProgress[]>()
 
   const storeOf = async (
     access: SessionAccess<P>,
@@ -637,7 +630,7 @@ export function createSessionTransactions<P>(
   /**
    * The entries interpretation commit (session-contract docs/same-log-pure.md「entries 通道的解释提交」):
    * no access check, the shared pure check, then the consequence rows, the progress row, the
-   * operation record and the saved progress in one synchronous step. Nothing between the read of
+   * operation record and the snapshot with its saved progress in one synchronous step. Nothing between the read of
    * the session and its replacement awaits, and nothing is written before every check passes.
    */
   const commitEntries = (
@@ -653,11 +646,10 @@ export function createSessionTransactions<P>(
     if (store.answers.has(observation.operation))
       return fail({ kind: 'conflict', operation: observation.operation })
     const held = store.operations.get(observation.operation)
-    const saved = entriesProgress.get(key.ok) ?? []
     const decision = projectSessionEntries(store.snapshot, {
       observation,
       start,
-      saved,
+      saved: store.snapshot.entriesProgress ?? [],
       record: held?.record ?? null,
     })
     if (decision.kind === 'rejected') return fail(decision.failure)
@@ -702,11 +694,6 @@ export function createSessionTransactions<P>(
       },
       recall: () => answer,
     })
-    const sameChannel = (item: SessionEntriesProgress) =>
-      item.run === progress.run &&
-      item.execution === progress.execution &&
-      item.channel === progress.channel
-    const next: SessionEntriesProgress = { ...progress, interpreted: reduced.snapshot.source }
     stores.set(key.ok, {
       ...store,
       snapshot: reduced.snapshot,
@@ -715,7 +702,6 @@ export function createSessionTransactions<P>(
       operations,
       modelView: materializeModelView(store.modelView, entries, [...store.entries, ...entries]),
     })
-    entriesProgress.set(key.ok, [...saved.filter(item => !sameChannel(item)), next])
     return succeed(answer)
   }
 

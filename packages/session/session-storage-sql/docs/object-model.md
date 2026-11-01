@@ -32,7 +32,7 @@ head 的实际表集由 [src/worker/schema.ts](../src/worker/schema.ts) 定义�
 | --- | --- | --- | --- |
 | `sl_journal` | `tenant`、`session`、`tail`、`commit_seq`、`epoch` | `(tenant, session)` | `epoch` 是文本，创建时为 `epoch:0`，压缩后为 `epoch:<压缩记录的条目 id>`。没有 `source`、`epoch_base` |
 | `sl_entry` | `tenant`、`session`、`position`、`revision`、`kind`、`entry`、`bytes` | `(tenant, session, position)` | `entry` 是整条 `HistoryEntry` 的 JSON 文本。二级索引 `sl_kind_idx (tenant, session, kind, position)` |
-| `sl_operation` | `tenant`、`session`、`operation`、`input_digest`、`form`、`revision`、`receipt`、`result` | `(tenant, session, operation)` | `form` 为 `batch`、`control` 或 `answer`。`answer` 行的 `revision` 为 NULL，不属于任何批次。`result` 是原结果的 JSON，认回时还原。二级索引 `sl_operation_revision_idx (tenant, session, revision)` |
+| `sl_operation` | `tenant`、`session`、`operation`、`input_digest`、`form`、`revision`、`receipt`、`result` | `(tenant, session, operation)` | `form` 为 `batch`、`control`、`answer` 或 `entries`。`entries` 行是 `commitEntries` 的记录，`receipt` 是普通提交回执，`result` 是 `SessionEntriesReceipt`。`answer` 行的 `revision` 为 NULL，不属于任何批次。`result` 是原结果的 JSON，认回时还原。二级索引 `sl_operation_revision_idx (tenant, session, revision)` |
 | `sl_state` | `tenant`、`session`、`snapshot`、`covered` | `(tenant, session)` | `snapshot` 是 `WorkSnapshot` 的 JSON。没有 `fold_version`、`covered_commit`、`digest` |
 | `sl_input` | `tenant`、`session`、`input`、`value` | `(tenant, session, input)` | 普通输入的原值，`readInput` 点查它 |
 | `sl_model_view` | `tenant`、`session`、`epoch`、`seq`、`entry`、`bytes`、`prefix_digest`、`message` | `(tenant, session, epoch, seq)` | `message` 是消息的 JSON，读取时不再读 `sl_entry`。没有 `position` 列 |
