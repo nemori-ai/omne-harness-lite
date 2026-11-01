@@ -15,7 +15,7 @@ import { checkMilestone, observeMilestone } from '../src/integration/contract-ba
 import { contractApiCommand, contractApiEnv } from '../src/integration/contract-diff.ts'
 import { git } from '../src/integration/git.ts'
 import { contracts, SNAPSHOT_TEMPLATE, write, writeSnapshots } from './fixtures/contract-api.ts'
-import { init } from './fixtures/integration.ts'
+import { body as cardBody, init } from './fixtures/integration.ts'
 
 const REPO = 'owner/repo'
 const ISSUE = 20
@@ -30,6 +30,8 @@ const EVIDENCE_BODY = 'review evidence'
 const EVIDENCE_UPDATED = '2026-11-01T04:40:00Z'
 const BRANCH = 'refs/heads/integration/mainline'
 const MEMBER = 'pkg/a'
+const CARD_URL = `https://github.com/${REPO}/issues/5`
+const DISPATCH_URL = `${CARD_URL}#issuecomment-55`
 
 const LINES = {
   schemaVersion: 1,
@@ -136,6 +138,42 @@ beforeAll(() => {
 }, 120_000)
 afterAll(() => rmSync(root, { recursive: true, force: true }))
 
+/** The owner task of the checkout: a version 2 binding of card 5. */
+function bindingOf() {
+  return {
+    schemaVersion: 2 as const,
+    issue: { repository: REPO, id: 'I_5', number: 5, url: CARD_URL },
+    revision: 1,
+    attempt: '5-a1',
+    responsible: 'human',
+    branch: 'human/task',
+    route: { kind: 'track' as const, track: 'mainline' },
+    completionTarget: 'stable' as const,
+    taskBase: base,
+    writeScope: ['pkg/a'],
+    dispatch: DISPATCH_URL,
+    conditions: [],
+    authorization: [],
+    line: 'alpha',
+    nature: 'impl' as const,
+    contractChange: 'additive' as const,
+    milestone: 'M1',
+  }
+}
+function dispatchText(): string {
+  const decision = {
+    schemaVersion: 1,
+    responsible: 'alice',
+    basis: ['x'],
+    action: 'dispatch',
+    task: bindingOf(),
+    confirmations: [],
+  }
+  return `\`\`\`json omne-integration-authority:v1
+${JSON.stringify(decision)}
+\`\`\``
+}
+
 type State = { comments: unknown[] }
 function gh(state: State): GhRead {
   return argv => {
@@ -149,6 +187,29 @@ function gh(state: State): GhRead {
             reviewers: [{ type: 'User', reviewer: { login: 'alice', node_id: 'N_alice' } }],
           },
         ],
+      }
+    if (path === `repos/${REPO}`) return { node_id: REPOSITORY.nodeId }
+    if (path === `repos/${REPO}/issues/5`)
+      return {
+        number: 5,
+        node_id: 'I_5',
+        html_url: CARD_URL,
+        body: cardBody(bindingOf(), [], {
+          line: 'alpha',
+          nature: 'impl',
+          contractChange: 'additive',
+        }),
+        labels: [],
+        milestone: { title: 'M1' },
+      }
+    if (path === `repos/${REPO}/issues/comments/55`)
+      return {
+        id: 55,
+        html_url: DISPATCH_URL,
+        created_at: '2026-11-01T00:00:00Z',
+        updated_at: '2026-11-01T00:00:00Z',
+        user: { login: 'alice', node_id: 'N_alice' },
+        body: dispatchText(),
       }
     if (path === `repos/${REPO}/issues/${ISSUE}`)
       return {
@@ -213,7 +274,12 @@ const input = (state: State) => ({
   baselineIssue: ISSUE,
   semanticReview: true,
   call: gh(state),
-  resolveTrusted: () => ({ candidate: head, targetBase: base, targetBranch: BRANCH }),
+  resolveTrusted: () => ({
+    candidate: head,
+    targetBase: base,
+    targetBranch: BRANCH,
+    binding: bindingOf(),
+  }),
 })
 
 describe('a new entry that augments an interface with declare module', () => {
