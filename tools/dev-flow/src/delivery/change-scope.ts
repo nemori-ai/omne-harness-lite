@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { contextPath, readContextFile } from '../integration/context.ts'
+import { contextPath, readContextFile, type Context } from '../integration/context.ts'
 import {
   contractApiCommand,
   parseDiffRun,
@@ -11,7 +11,7 @@ import { git, repository, requireAncestor } from '../integration/git.ts'
 import { IntegrationError, json } from '../integration/parse.ts'
 import type { SnapshotChange } from '../integration/ri-notes.ts'
 import type { ContractChange } from './attributes.ts'
-import type { TaskBinding } from './binding.ts'
+import type { TaskBinding, TaskBindingV2 } from './binding.ts'
 import {
   INTEGRATION_LINE,
   isOpenScope,
@@ -54,6 +54,41 @@ export type ContractCheck =
   | { kind: 'not-needed' }
   | { kind: 'skipped'; members: string[]; reason: string }
   | { kind: 'checked'; base: string; members: { path: string; change: SnapshotChange | null }[] }
+/**
+ * One failure of the semantic review of a card (`api-review-*` code), with the member it
+ * concerns. The exit code of each code is in `integration/contract-review.ts`.
+ */
+export type SemanticFinding = {
+  code: string
+  member: string | null
+  detail: unknown
+  message: string
+  remedy: string
+}
+/**
+ * The outcome of the semantic review path of a card. `levels` holds, for each review member
+ * with a valid conclusion, the level that conclusion gives it.
+ */
+export type CardSemantic = {
+  exit: 0 | 1 | 2
+  rawExitCode: number | null
+  findings: { code: string; member: string | null; detail: unknown }[]
+  members: unknown[]
+  levels: Record<string, 'additive' | 'breaking'>
+}
+export type CardReviewInput = {
+  root: string
+  binding: TaskBindingV2
+  context: Context
+  files: string[]
+  touched: string[]
+  lines: DeliveryLines
+}
+/**
+ * The semantic review path of a card: `undefined` when the card Issue carries no review record,
+ * so the conservative rule stands. The CLI wires it; without it nothing is read from the platform.
+ */
+export type CardReview = (input: CardReviewInput) => CardSemantic | undefined
 export type ChangeScopeReport =
   | { bound: false; message: string }
   | {
@@ -65,7 +100,9 @@ export type ChangeScopeReport =
       /** The changed files of this card, sorted; task tmp and shared paths included. */
       files: string[]
       contract: ContractCheck
-      findings: (ChangeFinding | ContractFinding)[]
+      findings: (ChangeFinding | ContractFinding | SemanticFinding)[]
+      /** Present only when the semantic review path ran. */
+      semantic?: CardSemantic
     }
 /** Runs `omne-contract-api --diff <base>` on the working tree; a failure throws. */
 export type DiffContractsFrom = (base: string) => DiffRun
@@ -279,16 +316,16 @@ function workingMembers(root: string): string[] {
   if (!existsSync(path)) return []
   return contractMembers(parseDeliveryLines(json(readFileSync(path, 'utf8'), LINES_PATH)))
 }
-/** The contract part of the check, with its findings. */
+/** The contract part of the check, with its findings and, when the diff ran, its result. */
 function checkContracts(
   root: string,
   binding: TaskBinding,
   files: readonly string[],
   lines: DeliveryLines,
   diff: DiffContractsFrom,
-): { contract: ContractCheck; findings: ContractFinding[] } {
+): { contract: ContractCheck; findings: ContractFinding[]; touched: string[]; run?: DiffRun } {
   const touched = touchedContracts(files, [...contractMembers(lines), ...workingMembers(root)])
-  if (touched.length === 0) return { contract: { kind: 'not-needed' }, findings: [] }
+  if (touched.length === 0) return { contract: { kind: 'not-needed' }, findings: [], touched }
   if (binding.schemaVersion !== 2)
     return {
       contract: {
@@ -297,6 +334,7 @@ function checkContracts(
         reason: 'version 1 的 binding 没有契约变更字段，不核对契约差异。',
       },
       findings: [],
+      touched,
     }
   const run = diff(binding.taskBase)
   if (run.commit !== binding.taskBase)
@@ -314,6 +352,30 @@ function checkContracts(
       }),
     },
     findings: contractFindings(touched, run, binding.contractChange),
+    touched,
+    run,
+  }
+}
+/** `run` with each review member that has a valid conclusion of `additive` counted as additive. */
+function withSemanticLevels(run: DiffRun, levels: CardSemantic['levels']): DiffRun {
+  return {
+    ...run,
+    members: run.members.map(member =>
+      member.status === 'compared' &&
+      member.change === 'review' &&
+      levels[member.directory] === 'additive'
+        ? { ...member, change: 'additive' }
+        : member,
+    ),
+  }
+}
+const SEMANTIC_REMEDY =
+  '按 candidate-r4 第 7.1 节处置这个失败码：补全或更正记录与身份输入，不改申报去迎合结果。'
+function semanticFinding(item: CardSemantic['findings'][number]): SemanticFinding {
+  return {
+    ...item,
+    message: `${item.code}${item.member === null ? '' : ` ${item.member}`}`,
+    remedy: SEMANTIC_REMEDY,
   }
 }
 
@@ -324,6 +386,30 @@ function committedLines(root: string, commit: string): DeliveryLines {
   )
 }
 /**
+ * The inputs of the semantic review of the card bound to this tree: the version 2 owner task, its
+ * changed files and the contract members they touch. Throws when the tree is unbound or the owner
+ * task has no version 2 binding.
+ */
+export function cardReviewInput(root: string): CardReviewInput {
+  const actual = repository(root).root
+  if (!existsSync(contextPath(actual)))
+    throw new IntegrationError('input-error', 'The tree is unbound: no task context to review')
+  const context = readContextFile(actual).context
+  const binding = context.ownerTask
+  if (binding === null || binding.schemaVersion !== 2)
+    throw new IntegrationError('input-error', 'The semantic review needs a version 2 owner task')
+  const lines = committedLines(actual, binding.taskBase),
+    files = cardChanges(actual, binding.taskBase, binding.branch)
+  return {
+    root: actual,
+    binding,
+    context,
+    files,
+    touched: touchedContracts(files, [...contractMembers(lines), ...workingMembers(actual)]),
+    lines,
+  }
+}
+/**
  * Checks the changes of the card bound to this tree. Without a task context the tree is
  * unbound and nothing is checked. `linesFile` replaces the line table of taskBase.
  * `diffContracts` replaces the installed `omne-contract-api --diff`.
@@ -332,15 +418,18 @@ export function changeScope({
   root,
   linesFile,
   diffContracts,
+  review,
 }: {
   root: string
   linesFile?: string
   diffContracts?: DiffContractsFrom
+  review?: CardReview
 }): ChangeScopeReport {
   const actual = repository(root).root
   if (!existsSync(contextPath(actual)))
     return { bound: false, message: '未绑定：本工作树没有 task context，不核对写范围与线归属。' }
-  const binding = readContextFile(actual).context.ownerTask
+  const context = readContextFile(actual).context
+  const binding = context.ownerTask
   if (binding === null)
     throw new IntegrationError('input-error', 'The task context has no owner task to check')
   const lines =
@@ -349,6 +438,25 @@ export function changeScope({
         : parseDeliveryLines(json(readFileSync(linesFile, 'utf8'), linesFile)),
     files = cardChanges(actual, binding.taskBase, binding.branch),
     contract = checkContracts(actual, binding, files, lines, diffContracts ?? installedDiff(actual))
+  const hasReview =
+    contract.run?.members.some(
+      member =>
+        contract.touched.includes(member.directory) &&
+        member.status === 'compared' &&
+        member.change === 'review',
+    ) ?? false
+  const semantic =
+    review !== undefined && hasReview && binding.schemaVersion === 2
+      ? review({ root: actual, binding, context, files, touched: contract.touched, lines })
+      : undefined
+  const contractResult =
+    semantic === undefined || contract.run === undefined || binding.schemaVersion !== 2
+      ? contract.findings
+      : contractFindings(
+          contract.touched,
+          withSemanticLevels(contract.run, semantic.levels),
+          binding.contractChange,
+        )
   return {
     bound: true,
     issue: binding.issue.url,
@@ -357,6 +465,11 @@ export function changeScope({
     head: git(actual, ['rev-parse', 'HEAD']),
     files,
     contract: contract.contract,
-    findings: [...changeFindings(files, binding, lines), ...contract.findings],
+    findings: [
+      ...changeFindings(files, binding, lines),
+      ...contractResult,
+      ...(semantic?.findings.map(semanticFinding) ?? []),
+    ],
+    ...(semantic === undefined ? {} : { semantic }),
   }
 }
