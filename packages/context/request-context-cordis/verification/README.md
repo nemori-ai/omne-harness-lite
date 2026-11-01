@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，`models/` 与 `proofs/` 都没有资源。本成员的八项验证义务由测试承担，见 [Cordis 说明的验证义务](../docs/cordis.md#验证义务)。性质 2、3 依赖的 Cordis 机制读数由 basis probe 核验，清单归 [Runtime Context 服务定义成员](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。撤除顺序与并发卸载的交错只靠测试不能覆盖时，才在这里加入模型。
+现在为空，`models/` 与 `proofs/` 都没有资源。本成员的十项验证义务由测试承担，见 [Cordis 说明的验证义务](../docs/cordis.md#验证义务)。性质 2、3 依赖的 Cordis 机制读数由 basis probe 核验，清单归 [Runtime Context 服务定义成员](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。撤除顺序与并发卸载的交错只靠测试不能覆盖时，才在这里加入模型。

@@ -8,33 +8,34 @@ The Cordis definition member of Request Context. Variant: `service-contract`.
 
 This package owns only the Cordis definition of the Request Context seam. The definition has five parts:
 
-- the service key `requestContext`
-- the abstract class `RequestContextService`
+- the three service keys `requestContext`, `requestContextTrust`, and `contextAccountingInbox`
+- the three abstract classes `RequestContextService`, `RequestContextTrustService`, and `ContextAccountingInboxService`
 - the intercept configuration `{ scope }`
 - the change event `request-context-cordis-contract/changed`
 - the configuration shape that selects the compaction strategy and the representation strategy
 
-The service carries one thing with a lifetime: the registration face for prompt contributions.
+The `requestContext` service carries one thing with a lifetime: the registration face for prompt contributions. The trust service and the accounting inbox service project original ports and add no lifetime of their own.
 
 The package does not own domain behavior. [request-context-contract](../request-context-contract/README.md) owns the pure operations, the two kinds of prompt contribution, and the assembly rules. [request-context](../request-context/README.md) owns the cache, the precomputed derivations, and the default strategies. [request-context-cordis](../request-context-cordis/README.md) owns the Service implementation. The package knows only generic roles: contributor, caller, listener, and provider.
 
 Status: Cordis definition member, `draft`. The adoption basis is the [prompt contribution registration section](../../../docs/architecture/runtime/request-context.md#提示词贡献登记面) and the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page, and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: the abstract Service, derived service key, intercept and policy selection types, Context/Events augmentations, and root type re-exports.
+- Implemented: the three abstract Service classes with their derived keys, intercept and policy selection types, Context/Events augmentations, root type re-exports, and the `./testing` trust double and conformance suite.
 - Verified locally: Cordis 4.0.4 object injection, ancestor scope, caller fiber effects, event filtering, and ctx.set behavior, plus hosted operation boundaries. See [tests](tests/README.md).
 - Production registry, caching, cancellation and strategy implementations remain the provider's responsibility. Local probe providers are test fixtures.
 - ScopeRef is reused from Runtime Context. Intercept scope declares placement and grants no access.
 
-No package depends on this package now.
+The packages request-context and request-context-cordis depend on this package. No application loads it directly.
 
 ## Usage
 
-The package has two entries:
+The package has three entries:
 
-- The root entry `@omne-harness/request-context-cordis-contract` re-exports only contract types. It does not import Cordis.
-- `@omne-harness/request-context-cordis-contract/cordis` holds the service definition.
+- The root entry `@omne-harness/request-context-cordis-contract` re-exports only contract types, and adds the type `RequestContextTrust`. It does not import Cordis.
+- `@omne-harness/request-context-cordis-contract/cordis` holds the three service definitions.
+- `@omne-harness/request-context-cordis-contract/testing` holds the scripted trust double and the trust conformance suite. It is not a production export.
 
-After the implementation arrives, a contributor plugin declares its scope and registers in its plugin body:
+A contributor plugin declares its scope and registers in its plugin body:
 
 ```text
 import type {} from '@omne-harness/request-context-cordis-contract/cordis'
@@ -49,7 +50,7 @@ Independent use does not need this package. A caller without Cordis binds its ow
 ## Contracts
 
 - `src/` owns the public shapes. The public definitions are implemented.
-- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 10.
+- The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 15.
 - The [Cordis page](docs/cordis.md) owns the service definition, the intercept configuration, the event, the dependency classes, the registration and removal protocol, the strategy selection, and the IC conformance map.
 - The [API page](docs/public-api.md) indexes the exports.
 - The [request-context-contract SPEC](../request-context-contract/SPEC.md) owns the two contribution kinds, the refusal of per-request variables, and the inputs, results, and failures of the pure operations.
@@ -58,7 +59,7 @@ The package holds no resources. The fiber of the contributor plugin owns the lif
 
 ## Design
 
-Each entry has one source file. The outside dependencies are the types of request-context-contract and `@deepseek-ai/cordis`. The package does not import the mechanism or the provider. The service has one key and holds only the registration face. The pure operations stay in the contract root entry. The event is an invalidation hint with a revision, not a source of facts. The strategy selection is configuration, not a service method. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the two mechanism flows. The [object model](docs/object-model.md) lists the three technical objects.
+Each entry has one source entry file (`index.ts`, `cordis.ts`, `testing/index.ts`). The outside dependencies are the types of request-context-contract and `@deepseek-ai/cordis`. The package does not import the mechanism or the provider. Each of the three services has one key. The `requestContext` service holds only the registration face. The pure operations stay in the contract root entry. The event is an invalidation hint with a revision, not a source of facts. The strategy selection is configuration, not a service method. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the two mechanism flows. The [object model](docs/object-model.md) lists the three technical objects.
 
 ## Configuration and operation
 
@@ -88,17 +89,17 @@ In this directory, run `pnpm typecheck` for the type check. Tests cover exports,
 ```text
 README.md, README_ZH.md   Entry: purpose, status, and this map
 index.md                  Reading paths through the package
-SPEC.md                   Behavior beyond the types, properties 1 to 10
+SPEC.md                   Behavior beyond the types, properties 1 to 15
 documentation.json        Documentation registration
 docs/                     Internal design, public use, and integration
-├── architecture.md       Two entries, dependencies, mechanisms and reasons
+├── architecture.md       Three entries, dependencies, mechanisms and reasons
 ├── flows.md              Mechanism flows F-RQD01 and F-RQD02
 ├── object-model.md       Three technical objects; domain objects in the contract
 ├── public-api.md         Export entries and definition index
 ├── context.md            Use by each dependent, position
 └── cordis.md             Service definition, event, registration, strategies, IC map
-src/                      index.ts and cordis.ts, abstract definition and type re-exports
-tests/                    Entry, mechanism and boundary tests; export inventory
+src/                      index.ts, cordis.ts, trust.ts, testing/index.ts: type re-exports, abstract definitions, trust double and suite
+tests/                    Entry, mechanism, boundary and trust tests; export inventory
 schema/                   Empty, the package publishes no schema
 verification/             models/ and proofs/, empty now
 adr/                      Empty now

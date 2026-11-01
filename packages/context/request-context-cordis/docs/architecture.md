@@ -2,14 +2,14 @@
 
 本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。插件、配置、isolate、贡献登记表、事件与撤除的正文归 [Cordis 说明](cordis.md)。缓存与默认策略归 [request-context](../../request-context/docs/architecture.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。下文是 SPEC 固定的结构，文件名由实现确定。
+本成员有基本实现：`src/cordis.ts` 导出 `RequestContextProvider`。`src/index.ts` 仍只有模板标记。配置 Schema、策略选择、通知路径、两块的生产者与重复装载检查尚未进入，下文这些部分是 SPEC 固定的结构。
 
 ## 模块与依赖
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/request-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径用 request-context-contract 的 `createAssemblyOperations` | 模板标记 |
-| `@omne-harness/request-context-cordis/cordis` | `src/cordis.ts` | `RequestContextService` 的具体子类、插件与配置 Schema | 模板标记 |
+| `@omne-harness/request-context-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立路径用 request-context-contract 的 `createAssemblyOperations` | 模板标记，没有导出 |
+| `@omne-harness/request-context-cordis/cordis` | `src/cordis.ts` | `RequestContextService` 的具体子类（插件）与配置 Schema | 已导出 `RequestContextProvider`，配置 Schema 尚未进入 |
 
 `./cordis` 内部按 Cordis 责任分成六块：
 
@@ -42,7 +42,7 @@ flowchart LR
 - `@omne-harness/runtime-context-cordis-contract`：可选依赖，只用于在子 fiber 里登记两块的生产者。Runtime Context 不在场时本插件照常可用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
 
-现在 `package.json` 只列出 `@deepseek-ai/cordis`，其余四项随实现进入。本插件不 `inject` 作用域持有者或模型侧的服务，来源集合由来源适配者按目标登记。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+现在 `package.json` 列出 `@deepseek-ai/cordis`、request-context、request-context-contract 与 request-context-cordis-contract。`runtime-context-cordis-contract` 随两块的生产者进入。本插件不 `inject` 作用域持有者或模型侧的服务，来源集合由来源适配者按目标登记。本成员不导入任何协调者或持有者的契约（性质 7）。贡献者与组装请求的调用方依赖服务定义，不依赖本成员的 `./cordis`。提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 根入口不导出任何东西。独立路径的组装入口只有一个公开名字，就是 request-context-contract 根入口的 `createAssemblyOperations`；来源登记表的工厂是 request-context 根入口的 `createContextSourceRegistry`。
 
@@ -94,7 +94,8 @@ flowchart LR
 | --- | --- | --- |
 | 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
 | `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言入口只导出 `RequestContextProvider` | 实现扩充后，核对导出集合 |
-| SPEC 的验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
+| 信任键、两个键与收件口 | [provider.spec.ts](../tests/provider.spec.ts) | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
+| Cordis 说明列出的十项验证义务 | 没有完整覆盖的测试 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：
 

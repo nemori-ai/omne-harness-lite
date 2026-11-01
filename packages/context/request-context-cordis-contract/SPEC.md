@@ -1,6 +1,6 @@
 # @omne-harness/request-context-cordis-contract 行为规格
 
-状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：一个服务键、一个抽象 `Service`、一个事件、一种 intercept 配置。它承载三件事：提示词贡献的登记面、来源登记表 `register`、`replace` 与 `assembly(target)` 的投影，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；生产提供者实现不在本成员。
+状态：Cordis 定义成员，`draft`。本成员只拥有 Request Context 的 Cordis 定义：三个服务键（`requestContext`、`requestContextTrust`、`contextAccountingInbox`）、三个抽象 `Service` 类（`RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`）、一个事件、一种 intercept 配置，以及 `./testing` 子路径的信任脚本替身与套件。`requestContext` 服务承载三件事：提示词贡献的登记面、来源登记表 `register`、`replace` 与 `assembly(target)` 的投影，以及压缩策略与表示策略的提供者选择。领域行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页不另写第二份保证。`./cordis` 已实现服务定义；生产提供者实现不在本成员。
 
 ## 范围与依据
 
@@ -25,7 +25,7 @@
 9. 一个 isolate 标签下一个提供者（[IC-6](../../../docs/architecture/cordis-integration-conventions.md#ic-6)）。作用域是参数，不是 Context，也不是 isolate（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。
 10. `./cordis` 的源码、生成声明和产物都不导入 `@omne-harness/request-context` 或 `@omne-harness/request-context-cordis`。
 11. `register` 与 `replace` 是登记即效应（[IC-13](../../../docs/architecture/cordis-integration-conventions.md#ic-13)）：登记挂在调用者的 fiber 上，fiber 撤除只触发对应句柄的 `withdraw()`，不等待结算。服务的 intercept 作用域只是装配事实；`target.tenant` 显式传入并由授权判定者核验，作用域与 fiber 都不是租户授权。服务撤除时提供者调用登记表的 `close()`，等待全部来源集合结算；disposer 被调用不代替异步结算。
-12. 信任服务 `RequestContextTrustService`（键 `requestContextTrust`）把 `principalBinding` 与 `registrationAuthority` 两个原端口逐属性交给消费者。聚合类型 `RequestContextTrust<P>` 声明在根入口 `src/trust.ts`，由 `ContextRegistryOptions<P>` 的 `Pick` 派生，不复制字段类型，不新造登记授权协议。信任对象由装配入口在受信子树提供，不进插件树 JSON，没有 root 共享签发者。信任键缺席时消费者不运行。
+12. 信任服务 `RequestContextTrustService`（键 `requestContextTrust`）把 `principalBinding` 与 `registrationAuthority` 两个原端口逐属性交给消费者。聚合类型 `RequestContextTrust<P>` 声明在本包 `@omne-harness/request-context-cordis-contract` 的根入口（源文件 `src/trust.ts`），由 `ContextRegistryOptions<P>` 的 `Pick` 派生，不复制字段类型，不新造登记授权协议。信任对象由装配入口在受信子树提供，不进插件树 JSON，没有 root 共享签发者。信任键缺席时消费者不运行。
 13. 键只是交付路径。不 `inject` 就取不到，不是访问控制：每次 `register` 与 `replace` 仍由 `registrationAuthority` 判定。`allowed` 不含同步 current。本成员不保证登记写入与远端撤权的原子排序，也不让 `allowed` 成为后续读取许可。
 14. 账目收件口服务 `ContextAccountingInboxService`（键 `contextAccountingInbox`）投影原契约的 `ContextAccountingInbox<P>`。提供者在提供 `requestContext` 的同一个插件 fiber 提供它，使窗口占用与收账读同一份状态。本成员只定义键与抽象类。
 15. `./testing` 子路径发布脚本替身 `createScriptedRequestContextTrust` 与套件 `requestContextTrustConformance`。脚本替身按字段逐一相等匹配 `access`、`target`、`owner`、`action`；未列出的输入答 `unavailable`，成功必须显式列出。套件不导入提供者成员，夹具经 `createRegistry({ trust, policies })` 交入登记表工厂。根入口与 `./cordis` 不转导出 testing。

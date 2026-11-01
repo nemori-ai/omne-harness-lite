@@ -8,7 +8,7 @@
 
 ## 插件与服务
 
-`./cordis` 导出 `RequestContextService` 的具体子类与插件。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`，两个键由同一个插件在同一个 fiber 提供，所以同生同灭，窗口占用与收账读同一份账目状态。本成员必需 `inject` 信任键 `requestContextTrust`（[request-context-cordis-contract 的信任服务](../../request-context-cordis-contract/docs/cordis.md#信任服务与账目收件口服务)），把取出的对象交给纯工厂的 `trust: RequestContextTrust<P>`，再与策略一起构造 `ContextRegistryOptions<P>`。信任键缺席时插件停在 `PENDING`。信任对象由装配入口在受信子树提供，不进插件树 JSON。不 `inject` 就取不到不是访问控制，登记授权仍由 `registrationAuthority` 逐次判定。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
+`./cordis` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类，也是插件。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`，两个键由同一个插件在同一个 fiber 提供，所以同生同灭，窗口占用与收账读同一份账目状态。本成员必需 `inject` 信任键 `requestContextTrust`（[request-context-cordis-contract 的信任服务](../../request-context-cordis-contract/docs/cordis.md#信任服务与账目收件口服务)），把取出的对象交给纯工厂的 `trust: RequestContextTrust<P>`，再与策略一起构造 `ContextRegistryOptions<P>`。信任键缺席时插件停在 `PENDING`。信任对象由装配入口在受信子树提供，不进插件树 JSON。不 `inject` 就取不到不是访问控制，登记授权仍由 `registrationAuthority` 逐次判定。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
 插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件除信任键外不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
 
@@ -137,7 +137,9 @@
 
 ## 验证义务
 
-本成员的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的各项：
+已有测试：[provider.spec.ts](../tests/provider.spec.ts) 在真实 Cordis 4.0.4 上覆盖四件事。信任键缺席时两个键都不提供，信任键出现后提供；信任提供者卸载后两个键撤回；卸载插件 fiber 同时撤除两个键；只有信任授权列出的登记被接受，收件口经原端口应答。这些不在下面十项之内，它们属于信任注入。
+
+下面十项的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的各项。现在没有完整覆盖其中任何一项的测试。第 8 项只有「目标已登记时组装得到候选」的一条路径被 provider.spec.ts 触及：
 
 1. 贡献者插件卸载后，登记已撤除，来源登记表实例收到通知后不再有它的渲染结果。
 2. 同一层同名登记被拒绝。
