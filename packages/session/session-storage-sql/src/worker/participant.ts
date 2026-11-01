@@ -107,8 +107,12 @@ function callLookup(snapshot: WorkSnapshot, producer: ProducerRef): SessionCallL
     : { kind: 'absent' as const, producer, covered: snapshot.revision }
 }
 
-/** The result a command returns, built from the snapshot after its batch (the recall of the original). */
-function resultOf(
+/**
+ * The result a command returns, built from the snapshot after its batch (the recall of the original).
+ * A control that left no progress item is not reachable, but it answers `null` (unavailable), never
+ * throws, as the session-contract double does.
+ */
+export function resultOf(
   command: SessionCommand,
   snapshot: WorkSnapshot,
   receipt: CommitReceipt,
@@ -155,7 +159,7 @@ function resultOf(
     case 'cancelRun':
     case 'stopCall': {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
-      if (progress === undefined) throw new Error(`${command.kind} committed without a control`)
+      if (progress === undefined) return null
       return {
         operation: receipt.operation,
         source: receipt.source,
@@ -612,6 +616,11 @@ function runCommand(
   )
   maintainDerived(port, tenant, session, previous, snapshot)
   const result = resultOf(command, snapshot, receipt)
+  if (result === null)
+    return {
+      kind: 'failed',
+      diagnostic: `${command.kind} committed without a control progress item`,
+    }
   port.execute(
     'INSERT INTO sl_operation (tenant, session, operation, input_digest, form, revision, receipt, result) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     [
