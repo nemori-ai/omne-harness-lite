@@ -112,3 +112,19 @@ export class LocalCredentialPlugin extends ModelCredentialService {
     })
   }
 }
+
+export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
+export { ModelConvertersLocalPlugin } from './plugins/converters.ts'
+export { createModelRequestPreparationPlugin } from './plugins/preparation.ts'
+export type {
+  ModelPreparationPlugin,
+  ModelPreparationPluginOptions,
+  ModelRequestPreparationPluginClass,
+} from './plugins/preparation.ts'
+export { createModelRuntimeLocalPlugin } from './plugins/host.ts'
+export type {
+  HostEvent,
+  ModelHostPluginOptions,
+  ModelRuntimeLocalPluginClass,
+  ModelRuntimeLocalPluginInstance,
+} from './plugins/host.ts'
