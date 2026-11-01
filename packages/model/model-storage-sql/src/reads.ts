@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import {
   decodeModelCallId,
   type ModelCallId,
+  type ModelFailure,
   type ModelOperationId,
   type ResultCapacity,
 } from '@omne-harness/model-contract'
@@ -16,13 +17,7 @@ import type {
   TenantDomainLookup,
 } from '@omne-harness/sql-contract'
 import type { ReadHandlerModule, ReadPort, SqlCell } from '@omne-harness/sql-contract/worker'
-import {
-  parseCallRead,
-  tenantText,
-  type CallRead,
-  type ModelStorageFailure,
-  type TenantRef,
-} from './documents.ts'
+import { parseCallRead, type CallRead } from './documents.ts'
 import { PROTOCOL, TABLES, type Table } from './schema.ts'
 
 export const CALL_HANDLER = 'model.call'
@@ -36,7 +31,7 @@ export const PENDING_PAGE_MAX = 1000
 
 const DEPENDENCY = 'model-records'
 
-export const unavailable = (diagnostic: string): ModelStorageFailure => ({
+export const unavailable = (diagnostic: string): ModelFailure => ({
   kind: 'unavailable',
   dependency: DEPENDENCY,
   diagnostic,
@@ -83,18 +78,21 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
   const scope = record(input)
   const tenant = textInput(scope, 'tenant')
   const call = textInput(scope, 'call')
-  const operation = textInput(scope, 'operation')
+  const operation = scope['operation'] === null ? null : textInput(scope, 'operation')
   const head = rows(
     port,
     `SELECT ${columnList(TABLES.call)} FROM md_call WHERE tenant = ? AND call = ? LIMIT 1`,
     [tenant, call],
   )[0]
-  const bound = rows(
-    port,
-    `SELECT ${columnList(TABLES.operation)} FROM md_operation
-      WHERE tenant = ? AND operation = ? LIMIT 1`,
-    [tenant, operation],
-  )[0]
+  const bound =
+    operation === null
+      ? undefined
+      : rows(
+          port,
+          `SELECT ${columnList(TABLES.operation)} FROM md_operation
+            WHERE tenant = ? AND operation = ? LIMIT 1`,
+          [tenant, operation],
+        )[0]
   const held = rows(
     port,
     `SELECT COALESCE(SUM(cap_bytes), 0) AS bytes, COALESCE(SUM(cap_blocks), 0) AS blocks,
@@ -143,7 +141,7 @@ function readPendingRows(input: JsonValue, port: ReadPort): JsonValue {
   const found = rows(
     port,
     `SELECT call FROM md_call
-      WHERE tenant = ? AND pending_operation IS NOT NULL ${after === null ? '' : 'AND call > ?'}
+      WHERE tenant = ? AND pending = 1 ${after === null ? '' : 'AND call > ?'}
       ORDER BY call LIMIT ?`,
     [tenant, ...(after === null ? [] : [after]), BigInt(limit + 1)],
   )
@@ -181,23 +179,21 @@ export const pendingHandler: ReadHandlerModule = handler(PENDING_HANDLER, readPe
 // --- Main-thread half ----------------------------------------------------------------------
 
 export type DomainOf =
-  | Readonly<{ kind: 'ready'; text: string; domain: DomainRef }>
-  | Readonly<{ kind: 'unregistered'; text: string }>
+  | Readonly<{ kind: 'ready'; domain: DomainRef }>
+  | Readonly<{ kind: 'unregistered' }>
 
-/** The domain of one tenant. A directory answer for another tenant is refused, never used. */
+/** The domain of one tenant text. A directory answer for another tenant is refused, never used. */
 export async function domainOf(
   domains: TenantDomainLookup,
-  tenant: TenantRef,
-): Promise<Outcome<DomainOf, ModelStorageFailure>> {
-  const text = tenantText(tenant)
-  if ('failure' in text) return text
-  const found = await domains.lookup({ tenant: text.ok })
+  tenant: string,
+): Promise<Outcome<DomainOf, ModelFailure>> {
+  const found = await domains.lookup({ tenant })
   if (found.kind === 'unavailable') return fail(unavailable(`tenant domain: ${found.diagnostic}`))
-  if (found.kind === 'unregistered') return succeed({ kind: 'unregistered', text: text.ok })
+  if (found.kind === 'unregistered') return succeed({ kind: 'unregistered' })
   const scope = found.domain.scope
-  if (scope.kind !== 'tenant' || scope.tenant !== text.ok)
+  if (scope.kind !== 'tenant' || scope.tenant !== tenant)
     return fail(unavailable('the tenant domain lookup answered another scope'))
-  return succeed({ kind: 'ready', text: text.ok, domain: found.domain })
+  return succeed({ kind: 'ready', domain: found.domain })
 }
 
 async function readHandler(
@@ -205,7 +201,7 @@ async function readHandler(
   domain: DomainRef,
   name: string,
   input: Readonly<Record<string, JsonValue>>,
-): Promise<Outcome<JsonValue, ModelStorageFailure>> {
+): Promise<Outcome<JsonValue, ModelFailure>> {
   const result = await storage.read({
     domain,
     handler: name,
@@ -221,34 +217,34 @@ async function readHandler(
 
 const NO_CAPACITY: ResultCapacity = { bytes: '0', blocks: '0', attachmentBytes: '0' }
 
-export type CallScope = Readonly<{
-  tenant: TenantRef
+export type CallReadInput = Readonly<{
+  tenant: string
   call: ModelCallId
-  operation: ModelOperationId
+  operation: ModelOperationId | null
 }>
 
 /**
  * One `snapshot` read of a call. A tenant without a domain holds no call: the answer is the same
- * as for a call that does not exist, so it tells nothing about another tenant.
+ * as for a call that does not exist, so it tells nothing about another tenant. A row that does
+ * not parse makes the read unavailable.
  */
 export async function readCall(
   storage: SqlStorage,
   domain: DomainOf,
-  scope: CallScope,
-): Promise<Outcome<CallRead, ModelStorageFailure>> {
+  input: CallReadInput,
+): Promise<Outcome<CallRead, ModelFailure>> {
   if (domain.kind === 'unregistered')
-    return succeed({ document: undefined, binding: null, capacity: NO_CAPACITY })
+    return succeed({ record: undefined, binding: null, capacity: NO_CAPACITY })
   const output = await readHandler(storage, domain.domain, CALL_HANDLER, {
-    tenant: domain.text,
-    call: scope.call,
-    operation: scope.operation,
+    tenant: input.tenant,
+    call: input.call,
+    operation: input.operation,
   })
   if ('failure' in output) return output
-  return parseCallRead(output.ok, {
-    tenant: domain.text,
-    call: scope.call,
-    operation: scope.operation,
-  })
+  const parsed = parseCallRead(output.ok, input)
+  return 'failure' in parsed
+    ? fail(unavailable(`stored row ${parsed.failure.field}: ${parsed.failure.reason}`))
+    : parsed
 }
 
 export type PendingPage = Readonly<{ calls: readonly ModelCallId[]; next: ModelCallId | null }>
@@ -257,27 +253,26 @@ export type PendingPage = Readonly<{ calls: readonly ModelCallId[]; next: ModelC
 export async function readPending(
   storage: SqlStorage,
   domain: DomainOf,
-  input: Readonly<{ after: ModelCallId | null; limit: number }>,
-): Promise<Outcome<PendingPage, ModelStorageFailure>> {
+  input: Readonly<{ tenant: string; after: ModelCallId | null; limit: number }>,
+): Promise<Outcome<PendingPage, ModelFailure>> {
   if (!Number.isSafeInteger(input.limit) || input.limit < 1 || input.limit > PENDING_PAGE_MAX)
     return fail({ kind: 'invalid', field: 'limit', reason: 'out-of-range' })
   if (domain.kind === 'unregistered') return succeed({ calls: [], next: null })
   const output = await readHandler(storage, domain.domain, PENDING_HANDLER, {
-    tenant: domain.text,
+    tenant: input.tenant,
     after: input.after,
     limit: input.limit,
   })
   if ('failure' in output) return output
   const value = output.ok
-  if (!isObject(value)) return fail({ kind: 'invalid', field: 'read', reason: 'pending' })
+  if (!isObject(value)) return fail(unavailable('stored row pending: shape'))
   const { calls, more } = value
   if (!Array.isArray(calls) || typeof more !== 'boolean')
-    return fail({ kind: 'invalid', field: 'read', reason: 'pending' })
+    return fail(unavailable('stored row pending: shape'))
   const ids: ModelCallId[] = []
   for (const text of calls) {
-    const id = typeof text === 'string' ? decodeModelCallId(text) : null
-    if (id === null || 'failure' in id)
-      return fail({ kind: 'invalid', field: 'call', reason: 'identity' })
+    const id = decodeModelCallId(text)
+    if ('failure' in id) return fail(unavailable('stored row pending: call'))
     ids.push(id.ok)
   }
   return succeed({ calls: ids, next: more ? (ids[ids.length - 1] ?? null) : null })

@@ -1,7 +1,8 @@
 // The Model records over the SQL storage contract. This slice exports the table definitions and
-// the migration, the stored call document with its row parse, and the commit loop with its
-// construction checks. The 22 methods of `ModelCommands`, the send coordinator and the static
-// materials with their digests are later slices. Imports no Cordis.
+// the migration, the stored call document with its row parse, and the `ModelCommandStorage` of
+// the shared commands core with its construction checks. The 22 methods of `ModelCommands`, the
+// send coordinator and the static materials with their digests are later slices. Imports no
+// Cordis.
 export {
   MIGRATION,
   MODEL_PARTICIPANT,
@@ -15,6 +16,7 @@ export {
   type Table,
 } from './schema.ts'
 export {
+  MODEL_WRITE_METHODS,
   encodeCallRow,
   encodeDispatchRow,
   encodeOperationRow,
@@ -22,35 +24,42 @@ export {
   nextVersion,
   parseCallRead,
   parseRow,
+  snapshotHeadOf,
+  type Binding,
+  type BindingBase,
+  type CallDocument,
   type CallRead,
+  type CallReadScope,
+  type CallRecord,
   type CallRowScope,
-  type ConflictReason,
-  type ModelStorageFailure,
-  type ModelStorageTransaction,
+  type CommandWrite,
+  type DispatchDocument,
+  type ModelCommandStorage,
+  type ModelRunScope,
+  type ModelWriteMethod,
   type PartBody,
   type PartKey,
-  type PendingMark,
+  type ReadRelation,
+  type Receipt,
   type ResultPaging,
   type Row,
+  type RowFailure,
   type SnapshotHead,
   type StoredBinding,
-  type StoredCall,
-  type StoredDispatch,
-  type StoredModelDocument,
   type StoredPart,
-  type TenantRef,
-  type WindowState,
+  type TenantDocuments,
 } from './documents.ts'
 export {
   COMMAND_RESERVE_BYTES,
   DEFAULT_ATTEMPT_LIMIT,
+  DEFAULT_UNRESOLVED_LIMIT,
   PART_MERGE_THRESHOLD,
   READ_RESERVE_BYTES,
-  createModelStore,
+  createSqlModelStorage,
   planParts,
-  type ModelStore,
-  type ModelStoreLimits,
-  type ModelStoreOptions,
+  type ModelStorageLimits,
+  type SqlModelStorage,
+  type SqlModelStorageOptions,
 } from './commit.ts'
 export {
   CALL_HANDLER,
@@ -60,6 +69,6 @@ export {
   PENDING_PAGE_MAX,
   callHandler,
   pendingHandler,
-  type CallScope,
+  type CallReadInput,
   type PendingPage,
 } from './reads.ts'

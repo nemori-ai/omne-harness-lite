@@ -1,8 +1,9 @@
-// The commit loop through its public entry, against the real participant, migration and read
-// handlers of this member on node:sqlite. The storage below is a test provider: one in-memory
-// database per transaction domain, receipts by full identity, rollback on a stopping reply. It
-// does not model Workers, durability, queues or limits; the real provider is joined later
-// (sqlite-provider, integration A).
+// The `ModelCommandStorage` of this member, driven the way the shared commands core drives it:
+// a run with a scope, `documents`, `reserved`, one `commit` or `publish`. It runs against the
+// real participant, migration and read handlers on node:sqlite. The storage below is a test
+// provider: one in-memory database per transaction domain, receipts by full identity, rollback on
+// a stopping reply. It does not model Workers, durability, queues or limits; the real provider is
+// joined later (sqlite-provider, integration A).
 import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
@@ -14,16 +15,20 @@ import {
   decodeRevision,
   type FixedModelRequest,
   type ModelCallId,
+  type ModelFailure,
   type ModelOperationId,
   type ResultCapacity,
+  type VisibleBlock,
 } from '@omne-harness/model-contract'
+import { decodeReadId } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import {
   inputDigestV2,
-  type JsonValue,
   type CommitRequestV2,
   type CommitResultV2,
+  type JsonValue,
   type ReceiptV2,
+  type SqlIdentity,
   type SqlStorage,
   type TenantDomainLookup,
 } from '@omne-harness/sql-contract'
@@ -33,13 +38,14 @@ import {
   COMMAND_RESERVE_BYTES,
   PART_MERGE_THRESHOLD,
   callHandler,
-  createModelStore,
+  createSqlModelStorage,
   modelMigration,
   pendingHandler,
-  type ModelStore,
-  type ModelStoreOptions,
-  type StoredModelDocument,
-  type StoredPart,
+  type BindingBase,
+  type CallDocument,
+  type DispatchDocument,
+  type SqlModelStorage,
+  type SqlModelStorageOptions,
 } from '@omne-harness/model-storage-sql'
 import participant from '../src/commit.ts'
 
@@ -73,14 +79,17 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 }
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
+type Held = { readonly request: CommitRequestV2; readonly domain: Domain; readonly key: string }
 const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
 
 function sqliteStorage() {
   const domains = new Map<string, Domain>()
-  const hooks: { beforeCommit: (() => Promise<void>) | null; loseNextReply: boolean } = {
-    beforeCommit: null,
-    loseNextReply: false,
-  }
+  const hooks: {
+    beforeCommit: (() => Promise<void>) | null
+    loseNextReply: boolean
+    holdNextCommit: boolean
+  } = { beforeCommit: null, loseNextReply: false, holdNextCommit: false }
+  const held = new Map<string, Held>()
   let commits = 0
   const domainOf = (name: string): Domain => {
     const found = domains.get(name)
@@ -91,12 +100,12 @@ function sqliteStorage() {
     domains.set(name, domain)
     return domain
   }
-  const execute = (domain: Domain, request: CommitRequestV2, inputDigest: string): ReceiptV2 => {
+  const execute = (domain: Domain, request: CommitRequestV2): ReceiptV2 => {
     const command = request.commands[0]
     if (command === undefined) throw new Error('no command')
     const head = {
       identity: request.identity,
-      inputDigest,
+      inputDigest: inputDigestV2(request),
       combinationVersion: request.combinationVersion,
       manifestDigest: request.manifestDigest,
     }
@@ -128,8 +137,7 @@ function sqliteStorage() {
         : reply
     return { kind: 'rolled_back', ...head, responses: [{ ...entry, reply: stopping }] }
   }
-  const keyOf = (identity: CommitRequestV2['identity']) =>
-    `${identity.operation}|${identity.operationKey}`
+  const keyOf = (identity: SqlIdentity) => `${identity.operation}|${identity.operationKey}`
   const storage: SqlStorage = {
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     async commit(request): Promise<CommitResultV2> {
@@ -138,14 +146,19 @@ function sqliteStorage() {
       if (hook !== null) await hook()
       commits += 1
       const domain = domainOf(request.identity.transactionDomain)
-      const inputDigest = inputDigestV2(request)
-      const existing = domain.receipts.get(keyOf(request.identity))
+      const key = keyOf(request.identity)
+      if (hooks.holdNextCommit) {
+        hooks.holdNextCommit = false
+        held.set(key, { request, domain, key })
+        return { kind: 'unknown', identity: request.identity, diagnostic: null }
+      }
+      const existing = domain.receipts.get(key)
       if (existing !== undefined)
-        return existing.inputDigest === inputDigest
+        return existing.inputDigest === inputDigestV2(request)
           ? existing
           : { kind: 'identity_conflict', identity: request.identity, existing }
-      const receipt = execute(domain, request, inputDigest)
-      domain.receipts.set(keyOf(request.identity), receipt)
+      const receipt = execute(domain, request)
+      domain.receipts.set(key, receipt)
       if (hooks.loseNextReply) {
         hooks.loseNextReply = false
         return { kind: 'unknown', identity: request.identity, diagnostic: null }
@@ -153,6 +166,8 @@ function sqliteStorage() {
       return receipt
     },
     query(identity) {
+      if (held.has(keyOf(identity)))
+        return Promise.resolve({ kind: 'unknown', identity, diagnostic: null })
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
       return Promise.resolve(
         found ?? {
@@ -190,6 +205,12 @@ function sqliteStorage() {
     storage,
     hooks,
     commits: () => commits,
+    /** Runs every held commit now: the storage decides them. */
+    release() {
+      for (const item of held.values())
+        item.domain.receipts.set(item.key, execute(item.domain, item.request))
+      held.clear()
+    },
     rows: (domain: string, sql: string, params: readonly SqlValue[] = []) =>
       rowsOf(domainOf(domain).db, sql, params).rows,
     seed: (domain: string, sql: string, params: readonly SqlValue[]) =>
@@ -209,14 +230,15 @@ function tenantOf(letter: string): TenantId {
   if (!parsed.ok) throw new Error('fixture tenant does not parse')
   return parsed.value
 }
-const tenantText = (tenant: TenantId): string => {
+const textOf = (tenant: TenantId): string => {
   const text = tenantCodec.encode(tenant)
   if (!text.ok) throw new Error('fixture tenant does not encode')
   return text.value
 }
 
-const TENANT_A = tenantOf('a')
-const TENANT_B = tenantOf('b')
+const A = textOf(tenantOf('a'))
+const B = textOf(tenantOf('b'))
+const domainName = (tenant: string): string => (tenant === A ? 'domain-a' : 'domain-b')
 const callId = (name: string): ModelCallId => decoded(decodeModelCallId(`mcall_${name}`))
 const opId = (name: string): ModelOperationId => decoded(decodeModelOperationId(`mop_${name}`))
 const ADOPTION = { owner: 'test', name: 'a', revision: '1', digest: '0'.repeat(64) }
@@ -250,153 +272,145 @@ function admitted(
   call: ModelCallId,
   operation: ModelOperationId,
   capacity = CAPACITY,
-): StoredModelDocument {
+): CallDocument {
   return {
-    version: 0,
-    call: {
+    state: {
       call,
-      admission: operation,
-      owner: { consumerOwner: 'owner', work: { kind: 'exempt' }, evidence: ADOPTION },
-      initiator: { owner: 'authority', subject: 'subject', revision: '1' },
-      request: REQUEST,
-      requestDigest: 'request-digest',
-      capacity,
-      state: {
-        call,
-        revision: decoded(decodeRevision('1')),
-        consumer: { owner: 'owner', work: 'work', position: 'position', purpose: 'purpose' },
-        control: { kind: 'none' },
-        custody: { kind: 'producer' },
-        phase: 'accepted',
-      },
-      execution: null,
-      retry: null,
-      retryPosition: null,
-      retrySource: null,
-      cursor: decoded(decodeOutputCursor('0')),
-      snapshot: null,
-      paging: { resultPageParts: 10, resultPageTargetBytes: 1000 },
-      cleanupFailure: null,
-      pending: null,
+      revision: decoded(decodeRevision('1')),
+      consumer: { owner: 'owner', work: 'work', position: 'position', purpose: 'purpose' },
+      control: { kind: 'none' },
+      custody: { kind: 'producer' },
+      phase: 'accepted',
     },
+    request: REQUEST,
+    requestDigest: 'request-digest',
+    capacity,
+    initiator: { owner: 'authority', subject: 'subject', revision: '1' },
+    admission: operation,
+    owner: { consumerOwner: 'owner', work: { kind: 'exempt' }, evidence: ADOPTION },
+    execution: null,
     dispatches: [],
-    parts: [],
-    binding: bindingOf(call, operation, 'admit'),
+    retry: null,
+    retryPosition: null,
+    retrySource: null,
+    cursor: decoded(decodeOutputCursor('0')),
+    snapshots: new Map(),
+    reads: new Map(),
+    cleanupFailure: null,
+    resultPaging: { resultPageParts: 10, resultPageTargetBytes: 1000 },
   }
 }
 
-function bindingOf(call: ModelCallId, operation: ModelOperationId, method: string) {
+function dispatchOf(
+  seq: number,
+  operation: ModelOperationId,
+  blocks: readonly VisibleBlock[] = [],
+): DispatchDocument {
   return {
-    operation,
+    record: {
+      dispatch: decoded(decodeDispatchId(`mdisp_${seq}`)),
+      supplier: SUPPLIER,
+      intent: operation,
+      send: 'prepared',
+      firstContent: 'none-proven',
+      terminal: null,
+      account: null,
+      materialization: null,
+    },
+    logicalTerminal: null,
+    windows: new Map([['w1', 'open']]),
+    events: new Map(),
+    assembly: null,
+    blocks,
+    nextSeq: new Map([['0', '1']]),
+    trims: new Map(),
+    hadContent: new Set(['0']),
+    diagnostics: [],
+  }
+}
+
+function bindingOf(call: ModelCallId, method: BindingBase['method']): BindingBase {
+  return {
     call,
     method,
     fingerprint: `fp-${method}`,
     revision: decoded(decodeRevision('1')),
-    receipt: { kind: method },
+    receipt: { kind: 'revision', revision: decoded(decodeRevision('1')) },
   }
 }
 
-function withDispatch(
-  document: StoredModelDocument,
-  operation: ModelOperationId,
-): StoredModelDocument {
-  const dispatch = decoded(decodeDispatchId('mdisp_1'))
+function lookup(registered: readonly string[]): TenantDomainLookup {
   return {
-    ...document,
-    dispatches: [
-      {
-        seq: 0,
-        record: {
-          dispatch,
-          supplier: SUPPLIER,
-          intent: operation,
-          send: 'prepared',
-          firstContent: 'none-proven',
-          terminal: null,
-          account: null,
-          materialization: null,
-        },
-        logicalTerminal: null,
-        windows: [],
-        events: [],
-        nextSeq: [],
-        trims: [],
-        hadContent: [],
-        diagnostics: [],
-      },
-    ],
-  }
-}
-
-const domainName = (tenant: TenantId): string =>
-  `domain-${tenantText(tenant).length}-${tenantText(tenant).slice(20, 24)}`
-
-function lookup(registered: readonly TenantId[]): TenantDomainLookup {
-  const known = new Map(registered.map(tenant => [tenantText(tenant), domainName(tenant)]))
-  return {
-    lookup: ({ tenant }) => {
-      const name = known.get(tenant)
-      return Promise.resolve(
-        name === undefined
-          ? { kind: 'unregistered' }
-          : {
+    lookup: ({ tenant }) =>
+      Promise.resolve(
+        registered.includes(tenant)
+          ? {
               kind: 'ready',
-              domain: { scope: { kind: 'tenant', tenant }, transactionDomain: name },
-            },
-      )
-    },
+              domain: { scope: { kind: 'tenant', tenant }, transactionDomain: domainName(tenant) },
+            }
+          : { kind: 'unregistered' },
+      ),
   }
 }
 
 function options(
   storage: SqlStorage,
-  overrides: Partial<ModelStoreOptions> = {},
-): ModelStoreOptions {
+  overrides: Partial<SqlModelStorageOptions> = {},
+): SqlModelStorageOptions {
   return {
     storage,
-    domains: lookup([TENANT_A, TENANT_B]),
+    domains: lookup([A, B]),
     combination: { combinationVersion: 'v1', manifestDigest: DIGEST },
     limits: {
       tenantCapacity: { bytes: '2500', blocks: '100', attachmentBytes: '0' },
       maxCallBytes: 1 << 20,
       maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     },
+    isPending: call => call.state.phase !== 'settled',
     ...overrides,
   }
 }
 
-/** Writes `next` at the version the transaction read, under `operation`. */
-async function put(
-  store: ModelStore,
+type Change = (current: CallDocument | undefined) => CallDocument | undefined
+
+/** One command attempt as the core runs it: read the documents, write once, answer. */
+function write(
+  store: SqlModelStorage,
   call: ModelCallId,
   operation: ModelOperationId,
-  change: (current: StoredModelDocument | undefined) => StoredModelDocument,
-  tenant: TenantId = TENANT_A,
-) {
-  return store.transact({ tenant, call, operation }, tx => {
-    const current = tx.read(tenant, operation)
-    if ('failure' in current) return current
-    return tx.write(tenant, operation, current.ok?.version ?? null, change(current.ok))
-  })
+  change: Change,
+  tenant: string = A,
+): Promise<Outcome<string, ModelFailure>> {
+  return store.run(
+    () => {
+      const documents = store.documents(tenant)
+      const binding = documents.operations.get(operation)
+      if (binding?.status === 'committed') return { ok: 'recovered' }
+      if (binding?.status === 'unknown') return { failure: { kind: 'commit-unknown', operation } }
+      const original = documents.calls.get(call)
+      const next = change(original === undefined ? undefined : structuredClone(original))
+      store.commit(tenant, {
+        operation,
+        expected: original,
+        call: next,
+        binding: bindingOf(call, original === undefined ? 'admit' : 'control'),
+      })
+      return { ok: 'written' }
+    },
+    { tenant, call, operation },
+  )
 }
 
-const update =
-  (
-    operation: ModelOperationId,
-    method: string,
-    edit: (doc: StoredModelDocument) => Partial<StoredModelDocument['call']>,
-  ) =>
-  (current: StoredModelDocument | undefined): StoredModelDocument => {
+const edit =
+  (change: (doc: CallDocument) => void): Change =>
+  current => {
     if (current === undefined) throw new Error('no document')
-    return {
-      ...current,
-      call: { ...current.call, ...edit(current) },
-      binding: bindingOf(current.call.call, operation, method),
-    }
+    change(current)
+    return current
   }
 
-async function readDocument(store: ModelStore, call: ModelCallId, tenant: TenantId = TENANT_A) {
-  const read = await store.readCall({ tenant, call, operation: opId('reader') })
+async function stored(store: SqlModelStorage, call: ModelCallId, tenant: string = A) {
+  const read = await store.readCall({ tenant, call, operation: null })
   if ('failure' in read) throw new Error(`read failed: ${JSON.stringify(read.failure)}`)
   return read.ok
 }
@@ -405,135 +419,172 @@ async function readDocument(store: ModelStore, call: ModelCallId, tenant: Tenant
 
 describe('construction', () => {
   it('accepts maxCallBytes plus the command reserve equal to maxCommandBytes', () => {
-    const { storage } = sqliteStorage()
-    expect(() => createModelStore(options(storage))).not.toThrow()
+    expect(() => createSqlModelStorage(options(sqliteStorage().storage))).not.toThrow()
   })
 
   it('refuses limits where maxCallBytes plus the command reserve exceeds maxCommandBytes (N1)', () => {
-    const { storage } = sqliteStorage()
     const limits = {
       tenantCapacity: CAPACITY,
       maxCallBytes: 1 << 20,
       maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES - 1,
     }
-    expect(() => createModelStore(options(storage, { limits }))).toThrow(RangeError)
+    expect(() => createSqlModelStorage(options(sqliteStorage().storage, { limits }))).toThrow(
+      RangeError,
+    )
   })
 
   it('refuses a call bound that the model.call output cannot carry', () => {
-    const { storage } = sqliteStorage()
     const limits = { tenantCapacity: CAPACITY, maxCallBytes: 4 << 20, maxCommandBytes: 8 << 20 }
-    expect(() => createModelStore(options(storage, { limits }))).toThrow(RangeError)
+    expect(() => createSqlModelStorage(options(sqliteStorage().storage, { limits }))).toThrow(
+      RangeError,
+    )
   })
 
-  it('refuses an empty combination version and a manifest digest that is not SHA-256 hex', () => {
+  it('refuses an empty combination version and a digest that is not SHA-256 hex', () => {
     const { storage } = sqliteStorage()
-    expect(() =>
-      createModelStore(
-        options(storage, { combination: { combinationVersion: '', manifestDigest: DIGEST } }),
-      ),
-    ).toThrow(TypeError)
-    expect(() =>
-      createModelStore(
-        options(storage, {
-          combination: { combinationVersion: 'v1', manifestDigest: 'A'.repeat(64) },
-        }),
-      ),
-    ).toThrow(TypeError)
+    const empty = { combinationVersion: '', manifestDigest: DIGEST }
+    const upper = { combinationVersion: 'v1', manifestDigest: 'A'.repeat(64) }
+    expect(() => createSqlModelStorage(options(storage, { combination: empty }))).toThrow(TypeError)
+    expect(() => createSqlModelStorage(options(storage, { combination: upper }))).toThrow(TypeError)
   })
 })
 
 describe('commit and read back', () => {
-  it('reads back the written call at version 1, bound to its operation', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
+  it('reads back every field of the written document at version 1', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
     const call = callId('one')
-    const written = admitted(call, opId('admit'))
-    expect(await put(store, call, opId('admit'), () => written)).toEqual({ ok: 1 })
-    const read = await readDocument(store, call)
-    expect(read.document?.version).toBe(1)
-    expect(read.document?.call).toEqual(written.call)
-    expect(read.binding).toEqual(null)
+    const document = admitted(call, opId('admit'))
+    document.dispatches = [
+      dispatchOf(0, opId('admit'), [
+        { kind: 'sealed', index: '0', block: { type: 'text', text: 'done' } as never },
+        { kind: 'growing', index: '1', mode: 'append', content: 'text', value: 'hel' },
+      ]),
+    ]
+    document.reads.set(decoded(decodeReadId('mread_1')), {
+      id: decoded(decodeReadId('mread_1')),
+      lastProgress: '2026-11-02T00:00:00Z',
+      furthest: 0,
+      state: { kind: 'reading', offset: 0 },
+    })
+    document.cleanupFailure = 'x'
+    expect(await write(store, call, opId('admit'), () => document)).toEqual({ ok: 'written' })
+    const read = await stored(store, call)
+    expect(read.record?.version).toBe(1)
+    expect(read.record?.document).toEqual(document)
     expect(read.capacity).toEqual(CAPACITY)
   })
 
-  it('advances the version by one on each update and keeps the binding of the operation', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
+  it('keeps the latest snapshot, with its blocks taken from the dispatch they equal', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
+    const call = callId('snap')
+    const blocks: VisibleBlock[] = [
+      { kind: 'growing', index: '0', mode: 'append', content: 'text', value: 'abc' },
+    ]
+    const document = admitted(call, opId('admit'))
+    document.dispatches = [dispatchOf(0, opId('admit'), blocks)]
+    const older = decoded(decodeOutputCursor('1'))
+    const latest = decoded(decodeOutputCursor('2'))
+    document.cursor = latest
+    document.snapshots.set(older, { call, cursor: older, blocks: [], state: document.state })
+    document.snapshots.set(latest, { call, cursor: latest, blocks, state: document.state })
+    await write(store, call, opId('admit'), () => document)
+    const read = await stored(store, call)
+    expect([...(read.record?.document.snapshots.values() ?? [])]).toEqual([
+      { call, cursor: latest, blocks, state: document.state },
+    ])
+  })
+
+  it('advances the version by one and binds the operation as committed', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
     const call = callId('two')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    const result = await put(
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    await write(
       store,
       call,
       opId('fail'),
-      update(opId('fail'), 'control', () => ({ cleanupFailure: 'x' })),
+      edit(doc => (doc.cleanupFailure = 'x')),
     )
-    expect(result).toEqual({ ok: 2 })
-    const read = await store.readCall({ tenant: TENANT_A, call, operation: opId('fail') })
-    expect('ok' in read && read.ok.document?.binding?.method).toBe('control')
-    expect('ok' in read && read.ok.document?.call.cleanupFailure).toBe('x')
+    const result = await store.run(
+      () => {
+        const documents = store.documents(A)
+        return {
+          ok: [
+            documents.operations.get(opId('fail'))?.status,
+            documents.calls.get(call)?.cleanupFailure,
+          ],
+        }
+      },
+      { tenant: A, call, operation: opId('fail') },
+    )
+    expect(result).toEqual({ ok: ['committed', 'x'] })
+    expect((await stored(store, call)).record?.version).toBe(2)
   })
 
-  it('answers a stale expected version with a version conflict and writes nothing', async () => {
-    const { storage, commits } = sqliteStorage()
-    const store = createModelStore(options(storage))
-    const call = callId('stale')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    const before = commits()
-    const result = await store.transact({ tenant: TENANT_A, call, operation: opId('late') }, tx => {
-      const current = tx.read(TENANT_A, opId('late'))
-      if ('failure' in current || current.ok === undefined) throw new Error('no document')
-      return tx.write(
-        TENANT_A,
-        opId('late'),
-        current.ok.version - 1,
-        update(opId('late'), 'control', () => ({}))(current.ok),
-      )
-    })
-    expect(result).toEqual({ failure: { kind: 'conflict', reason: 'version' } })
-    expect(commits()).toBe(before)
+  it('persists published read progress without binding an operation', async () => {
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const call = callId('publish')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    const read = decoded(decodeReadId('mread_p'))
+    const result = await store.run(
+      () => {
+        const original = store.documents(A).calls.get(call)
+        if (original === undefined) return { failure: { kind: 'not-settled' } }
+        const next = structuredClone(original)
+        next.reads.set(read, {
+          id: read,
+          lastProgress: 'now',
+          furthest: 2,
+          state: { kind: 'reading', offset: 2 },
+        })
+        store.publish(A, next)
+        return { failure: { kind: 'denied', action: 'content' } }
+      },
+      { tenant: A, call },
+    )
+    expect(result).toEqual({ failure: { kind: 'denied', action: 'content' } })
+    const after = await stored(store, call)
+    expect(after.record?.version).toBe(2)
+    expect(after.record?.document.reads.get(read)?.furthest).toBe(2)
+    expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_operation')).toEqual([[1n]])
   })
 })
 
 describe('CAS conflict', () => {
   it('runs the work again on a new read when another write committed in between', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('race')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
     sqlite.hooks.beforeCommit = async () => {
-      const other = await put(
+      const other = await write(
         store,
         call,
         opId('first'),
-        update(opId('first'), 'control', () => ({ cleanupFailure: 'first' })),
+        edit(doc => (doc.cleanupFailure = 'first')),
       )
-      expect(other).toEqual({ ok: 2 })
+      expect(other).toEqual({ ok: 'written' })
     }
-    const seen: number[] = []
-    const result = await store.transact(
-      { tenant: TENANT_A, call, operation: opId('second') },
-      tx => {
-        const current = tx.read(TENANT_A, opId('second'))
-        if ('failure' in current || current.ok === undefined) throw new Error('no document')
-        seen.push(current.ok.version)
-        const next = update(opId('second'), 'claim', doc => ({
-          requestDigest: `${doc.call.cleanupFailure ?? 'none'}+second`,
-        }))(current.ok)
-        return tx.write(TENANT_A, opId('second'), current.ok.version, next)
-      },
+    const seen: (string | null)[] = []
+    const result = await write(
+      store,
+      call,
+      opId('second'),
+      edit(doc => {
+        seen.push(doc.cleanupFailure)
+        doc.requestDigest = `${doc.cleanupFailure ?? 'none'}+second`
+      }),
     )
-    expect(result).toEqual({ ok: 3 })
-    expect(seen).toEqual([1, 2])
-    const read = await readDocument(store, call)
-    expect(read.document?.call.cleanupFailure).toBe('first')
-    expect(read.document?.call.requestDigest).toBe('first+second')
+    expect(result).toEqual({ ok: 'written' })
+    expect(seen).toEqual([null, 'first'])
+    const read = await stored(store, call)
+    expect(read.record?.version).toBe(3)
+    expect(read.record?.document.cleanupFailure).toBe('first')
+    expect(read.record?.document.requestDigest).toBe('first+second')
   })
 
   it('stops a participant write whose expected version is not the stored version', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
-    const call = callId('cas')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
     const recorded: { facts: Readonly<Record<string, JsonValue>> | null } = { facts: null }
     const recorder: SqlStorage = {
       ...sqlite.storage,
@@ -542,386 +593,341 @@ describe('CAS conflict', () => {
         return sqlite.storage.commit(request)
       },
     }
-    const recording = createModelStore(options(recorder))
-    await put(
-      recording,
+    const store = createSqlModelStorage(options(recorder))
+    const call = callId('cas')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    await write(
+      store,
       call,
       opId('next'),
-      update(opId('next'), 'control', () => ({})),
+      edit(() => undefined),
     )
     const facts = recorded.facts
-    const head = facts?.['row']
+    const row = facts?.['row']
     const bound = facts?.['binding']
-    if (!isObject(head) || !isObject(bound)) throw new Error('no facts')
-    // The same write once more, but at a version ahead of the stored one (stored 2, expected 4).
+    if (!isObject(row) || !isObject(bound)) throw new Error('no facts')
+    // The same write once more, at a version ahead of the stored one (stored 2, expected 4).
     const ahead = {
       ...facts,
-      operation: 'mop_ahead',
       expected: 4,
-      row: { ...head, row_version: 5 },
+      row: { ...row, row_version: 5 },
       binding: { ...bound, operation: 'mop_ahead' },
     }
-    const domain = domainName(TENANT_A)
     const result = await sqlite.storage.commit({
       identity: {
-        scope: { kind: 'tenant', tenant: tenantText(TENANT_A) },
-        transactionDomain: domain,
+        scope: { kind: 'tenant', tenant: A },
+        transactionDomain: 'domain-a',
         operation: 'mop_ahead',
         protocolVersion: '2',
         operationKey: 'mop_ahead#1',
       },
       combinationVersion: 'v1',
       manifestDigest: DIGEST,
-      commands: [
-        {
-          participant: 'model',
-          facts: ahead,
-        },
-      ],
+      commands: [{ participant: 'model', facts: ahead }],
     })
-    expect(result.kind).toBe('rolled_back')
     expect(result.kind === 'rolled_back' && result.responses.at(-1)?.reply).toEqual({
       kind: 'conflict',
       basis: { reason: 'version' },
     })
-    expect(sqlite.rows(domain, 'SELECT row_version FROM md_call')).toEqual([[2n]])
+    expect(sqlite.rows('domain-a', 'SELECT row_version FROM md_call')).toEqual([[2n]])
   })
 })
 
 describe('operation identity', () => {
-  it('lets the work recognize an operation already bound to the call, with no new commit', async () => {
-    const { storage, commits } = sqliteStorage()
-    const store = createModelStore(options(storage))
-    const call = callId('again')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    const before = commits()
-    const result = await store.transact(
-      { tenant: TENANT_A, call, operation: opId('admit') },
-      tx => {
-        const current = tx.read(TENANT_A, opId('admit'))
-        if ('failure' in current) return current
-        return { ok: current.ok?.binding?.method ?? 'unbound' }
-      },
-    )
-    expect(result).toEqual({ ok: 'admit' })
-    expect(commits()).toBe(before)
-  })
-
-  it('refuses a read for an operation bound to another call', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
-    await put(store, callId('owner'), opId('shared'), () =>
-      admitted(callId('owner'), opId('shared')),
-    )
-    const result = await store.transact(
-      { tenant: TENANT_A, call: callId('other'), operation: opId('shared') },
-      tx => tx.read(TENANT_A, opId('shared')),
-    )
-    expect(result).toEqual({ failure: { kind: 'conflict', reason: 'operation-bound' } })
-  })
-
-  it('answers commit-unknown when the reply is lost, then recognizes the committed original', async () => {
+  it('shows a bound operation as committed so the work recognizes it, with no new commit', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const call = callId('again')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    const before = sqlite.commits()
+    expect(await write(store, call, opId('admit'), () => admitted(call, opId('admit')))).toEqual({
+      ok: 'recovered',
+    })
+    expect(sqlite.commits()).toBe(before)
+  })
+
+  it('answers commit-unknown when the reply is lost, then shows the committed original', async () => {
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('lost')
     sqlite.hooks.loseNextReply = true
-    expect(await put(store, call, opId('admit'), () => admitted(call, opId('admit')))).toEqual({
+    expect(await write(store, call, opId('admit'), () => admitted(call, opId('admit')))).toEqual({
       failure: { kind: 'commit-unknown', operation: opId('admit') },
     })
     const before = sqlite.commits()
-    const again = await store.transact({ tenant: TENANT_A, call, operation: opId('admit') }, tx => {
-      const current = tx.read(TENANT_A, opId('admit'))
-      if ('failure' in current) return current
-      return current.ok?.binding === null || current.ok === undefined
-        ? tx.write(TENANT_A, opId('admit'), null, admitted(call, opId('admit')))
-        : { ok: current.ok.version }
+    expect(await write(store, call, opId('admit'), () => admitted(call, opId('admit')))).toEqual({
+      ok: 'recovered',
     })
-    expect(again).toEqual({ ok: 1 })
     expect(sqlite.commits()).toBe(before)
-    expect(sqlite.rows(domainName(TENANT_A), 'SELECT count(*) FROM md_call')).toEqual([[1n]])
+    expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_call')).toEqual([[1n]])
   })
 
-  it('never commits a second generation after a committed one', async () => {
+  it('keeps an operation with an undecided commit as unknown until the storage decides it', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
-    const call = callId('twice')
-    sqlite.hooks.loseNextReply = true
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    const result = await store.transact({ tenant: TENANT_A, call, operation: opId('admit') }, tx =>
-      tx.write(
-        TENANT_A,
-        opId('admit'),
-        1,
-        update(opId('admit'), 'admit', () => ({}))(admitted(call, opId('admit'))),
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const call = callId('held')
+    await write(store, call, opId('admit'), () => admitted(call, opId('admit')))
+    sqlite.hooks.holdNextCommit = true
+    expect(
+      await write(
+        store,
+        call,
+        opId('held'),
+        edit(doc => (doc.cleanupFailure = 'h')),
       ),
-    )
-    expect(result).toEqual({ failure: { kind: 'conflict', reason: 'operation-bound' } })
-    expect(sqlite.rows(domainName(TENANT_A), 'SELECT row_version FROM md_call')).toEqual([[1n]])
+    ).toEqual({
+      failure: { kind: 'commit-unknown', operation: opId('held') },
+    })
+    const statusOf = () =>
+      store.run(() => ({ ok: store.documents(A).operations.get(opId('held'))?.status ?? 'none' }), {
+        tenant: A,
+        call,
+        operation: opId('probe'),
+      })
+    expect(await statusOf()).toEqual({ ok: 'unknown' })
+    expect(
+      await write(
+        store,
+        call,
+        opId('held'),
+        edit(() => undefined),
+      ),
+    ).toEqual({
+      failure: { kind: 'commit-unknown', operation: opId('held') },
+    })
+    sqlite.release()
+    expect(await statusOf()).toEqual({ ok: 'none' })
+    expect((await stored(store, call)).record?.document.cleanupFailure).toBe('h')
   })
 })
 
 describe('tenant share', () => {
   it('refuses a new call above the tenant share and writes no row', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
     const big = { bytes: '1500', blocks: '1', attachmentBytes: '0' }
     expect(
-      await put(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big)),
-    ).toEqual({ ok: 1 })
-    expect(
-      await put(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big)),
+      await write(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big)),
     ).toEqual({
-      failure: { kind: 'capacity' },
+      ok: 'written',
     })
-    expect(sqlite.rows(domainName(TENANT_A), 'SELECT call FROM md_call')).toEqual([['mcall_c1']])
     expect(
-      sqlite.rows(
-        domainName(TENANT_A),
-        "SELECT count(*) FROM md_operation WHERE operation = 'mop_a2'",
-      ),
-    ).toEqual([[0n]])
+      await write(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big)),
+    ).toEqual({
+      failure: { kind: 'capacity', required: big },
+    })
+    expect(sqlite.rows('domain-a', 'SELECT call FROM md_call')).toEqual([['mcall_c1']])
+    expect(sqlite.rows('domain-a', 'SELECT count(*) FROM md_operation')).toEqual([[1n]])
   })
 
-  it('does not count a call whose request material is released', async () => {
-    const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+  it('reports the held share and does not count a call whose request is released', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
     const big = { bytes: '1500', blocks: '1', attachmentBytes: '0' }
-    await put(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big))
-    await put(
+    await write(store, callId('c1'), opId('a1'), () => admitted(callId('c1'), opId('a1'), big))
+    const reserved = await store.run(() => ({ ok: store.reserved('bytes') }), {
+      tenant: A,
+      call: callId('c2'),
+    })
+    expect(reserved).toEqual({ ok: 1500n })
+    await write(
       store,
       callId('c1'),
       opId('rel'),
-      update(opId('rel'), 'advanceCleanup', () => ({ request: null })),
+      edit(doc => (doc.request = null)),
     )
     expect(
-      await put(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big)),
-    ).toEqual({ ok: 1 })
+      await write(store, callId('c2'), opId('a2'), () => admitted(callId('c2'), opId('a2'), big)),
+    ).toEqual({
+      ok: 'written',
+    })
   })
 })
 
-describe('tenant isolation of the reads', () => {
+describe('tenant isolation', () => {
   it('does not read a call row of another tenant planted in the domain', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('planted')
-    await put(store, call, opId('b-admit'), () => admitted(call, opId('b-admit')), TENANT_B)
-    const domainA = domainName(TENANT_A)
-    const columns =
-      'call, row_version, admission, owner, initiator, request, request_digest, cap_bytes, cap_blocks, cap_attachment, state, execution, retry, retry_position, retry_source, cursor, snapshot, paging, cleanup_failure, pending_operation, pending_at'
-    const [row] = sqlite.rows(domainName(TENANT_B), `SELECT ${columns} FROM md_call`)
+    await write(store, call, opId('b-admit'), () => admitted(call, opId('b-admit')), B)
+    const [row] = sqlite.rows('domain-b', 'SELECT * FROM md_call')
     if (row === undefined) throw new Error('no row of B')
-    sqlite.seed(
-      domainA,
-      `INSERT INTO md_call (tenant, ${columns}) VALUES (${['?', ...row.map(() => '?')].join(', ')})`,
-      [tenantText(TENANT_B), ...(row as SqlValue[])],
-    )
-    const read = await readDocument(store, call)
-    expect(read.document).toBeUndefined()
+    sqlite.seed('domain-a', `INSERT INTO md_call VALUES (${row.map(() => '?').join(', ')})`, [
+      ...(row as SqlValue[]),
+    ])
+    const read = await stored(store, call)
+    expect(read.record).toBeUndefined()
     expect(read.capacity).toEqual({ bytes: '0', blocks: '0', attachmentBytes: '0' })
   })
 
   it('does not list a pending call of another tenant planted in the domain', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
-    const call = callId('pend')
-    await store.transact({ tenant: TENANT_A, call, operation: opId('p') }, tx => {
-      tx.pending(TENANT_A, opId('p'), '2026-11-02T00:00:00Z')
-      return tx.write(TENANT_A, opId('p'), null, admitted(call, opId('p')))
-    })
-    sqlite.seed(domainName(TENANT_A), 'UPDATE md_call SET tenant = ?', [tenantText(TENANT_B)])
-    expect(await store.readPending({ tenant: TENANT_A, after: null, limit: 10 })).toEqual({
+    const store = createSqlModelStorage(options(sqlite.storage))
+    await write(store, callId('p'), opId('p'), () => admitted(callId('p'), opId('p')))
+    sqlite.seed('domain-a', 'UPDATE md_call SET tenant = ?', [B])
+    expect(await store.readPending({ tenant: A, after: null, limit: 10 })).toEqual({
       ok: { calls: [], next: null },
     })
   })
 
-  it('refuses a transaction method called for another tenant', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
-    const result = await store.transact(
-      { tenant: TENANT_A, call: callId('x'), operation: opId('x') },
-      tx => tx.read(TENANT_B, opId('x')),
-    )
-    expect(result).toEqual({ failure: { kind: 'out-of-scope', field: 'tenant' } })
+  it('answers unavailable when the work asks for another tenant than the run scope', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
+    const result = await store.run(() => ({ ok: store.documents(B).calls.size }), {
+      tenant: A,
+      call: callId('x'),
+    })
+    expect('failure' in result && result.failure.kind).toBe('unavailable')
   })
 
-  it('answers an unregistered tenant read as an empty domain and refuses its writes', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage, { domains: lookup([]) }))
-    const read = await readDocument(store, callId('none'))
-    expect(read.document).toBeUndefined()
-    const written = await put(store, callId('none'), opId('w'), () =>
+  it('answers unavailable when a run without a scope reads documents', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
+    const result = await store.run(() => ({ ok: store.documents(A).calls.size }))
+    expect('failure' in result && result.failure.kind).toBe('unavailable')
+  })
+
+  it('reads an unregistered tenant as empty and refuses its writes', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage, { domains: lookup([]) }))
+    expect((await stored(store, callId('none'))).record).toBeUndefined()
+    const written = await write(store, callId('none'), opId('w'), () =>
       admitted(callId('none'), opId('w')),
     )
     expect('failure' in written && written.failure.kind).toBe('unavailable')
   })
 })
 
-describe('pending mark', () => {
-  it('lists a marked call in call order and drops it when a write clears the mark', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
+describe('pending flag', () => {
+  it('lists calls that the core rule marks pending, in call order, and drops them later', async () => {
+    const store = createSqlModelStorage(options(sqliteStorage().storage))
     const small = { bytes: '10', blocks: '1', attachmentBytes: '0' }
     for (const name of ['m2', 'm1', 'm3'])
       expect(
-        await store.transact(
-          { tenant: TENANT_A, call: callId(name), operation: opId(name) },
-          tx => {
-            tx.pending(TENANT_A, opId(name), '2026-11-02T00:00:00Z')
-            return tx.write(TENANT_A, opId(name), null, admitted(callId(name), opId(name), small))
-          },
+        await write(store, callId(name), opId(name), () =>
+          admitted(callId(name), opId(name), small),
         ),
-      ).toEqual({ ok: 1 })
-    expect(await store.readPending({ tenant: TENANT_A, after: null, limit: 2 })).toEqual({
+      ).toEqual({
+        ok: 'written',
+      })
+    expect(await store.readPending({ tenant: A, after: null, limit: 2 })).toEqual({
       ok: { calls: [callId('m1'), callId('m2')], next: callId('m2') },
     })
-    await put(
-      store,
-      callId('m1'),
-      opId('clear'),
-      update(opId('clear'), 'claim', () => ({ pending: null })),
-    )
-    expect(await store.readPending({ tenant: TENANT_A, after: null, limit: 10 })).toEqual({
+    const settled = edit(doc => {
+      doc.state = {
+        ...doc.state,
+        phase: 'settled',
+        settlement: {
+          version: 'mrver_1' as never,
+          termination: { kind: 'completed', reason: 'stop' },
+          cursor: doc.cursor,
+          source: { owner: 'o', record: 'r', revision: '1', digest: 'd' },
+        },
+      }
+    })
+    await write(store, callId('m1'), opId('settle'), settled)
+    expect(await store.readPending({ tenant: A, after: null, limit: 10 })).toEqual({
       ok: { calls: [callId('m2'), callId('m3')], next: null },
     })
   })
 })
 
 describe('parts', () => {
-  const index = '0'
-  async function withParts(
-    store: ModelStore,
-    call: ModelCallId,
-    parts: readonly StoredPart[],
-    name: string,
-  ) {
-    return store.transact({ tenant: TENANT_A, call, operation: opId(name) }, tx => {
-      const current = tx.read(TENANT_A, opId(name))
-      if ('failure' in current || current.ok === undefined) throw new Error('no document')
-      for (const part of parts) {
-        const appended = tx.appendPart(TENANT_A, opId(name), part)
-        if ('failure' in appended) return appended
-      }
-      return tx.write(
-        TENANT_A,
-        opId(name),
-        current.ok.version,
-        update(opId(name), 'preserve', () => ({}))(current.ok),
-      )
+  const growingBlock = (value: string): VisibleBlock => ({
+    kind: 'growing',
+    index: '0',
+    mode: 'append',
+    content: 'text',
+    value,
+  })
+  const withBlocks = (blocks: readonly VisibleBlock[]): Change =>
+    edit(doc => {
+      const dispatch = doc.dispatches[0]
+      if (dispatch === undefined) throw new Error('no dispatch')
+      dispatch.blocks = blocks
+    })
+  async function started(store: SqlModelStorage, call: ModelCallId) {
+    await write(store, call, opId('admit'), () => {
+      const doc = admitted(call, opId('admit'))
+      doc.dispatches = [dispatchOf(0, opId('admit'))]
+      return doc
     })
   }
+  const partRows = (sqlite: ReturnType<typeof sqliteStorage>) =>
+    sqlite.rows('domain-a', 'SELECT kind FROM md_part ORDER BY seq, block, part').map(row => row[0])
 
   it(`folds the append parts of a block into one row at ${PART_MERGE_THRESHOLD} parts (N2)`, async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
-    const call = callId('parts')
-    await put(store, call, opId('admit'), () =>
-      withDispatch(admitted(call, opId('admit')), opId('admit')),
-    )
-    const open: StoredPart = {
-      seq: 0,
-      index,
-      part: 0,
-      kind: 'open',
-      mode: 'append',
-      content: 'text',
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const call = callId('grow')
+    await started(store, call)
+    let value = ''
+    for (let batch = 0; batch < PART_MERGE_THRESHOLD; batch += 1) {
+      value += `d${batch};`
+      expect(
+        await write(store, call, opId(`b${batch}`), withBlocks([growingBlock(value)])),
+      ).toEqual({
+        ok: 'written',
+      })
     }
-    const deltas = Array.from({ length: PART_MERGE_THRESHOLD - 1 }, (_, at): StoredPart => ({
-      seq: 0,
-      index,
-      part: at + 1,
-      kind: 'append',
-      delta: `d${at};`,
-    }))
-    expect(await withParts(store, call, [open, ...deltas], 'batch1')).toEqual({ ok: 2 })
-    expect((await readDocument(store, call)).document?.parts).toHaveLength(PART_MERGE_THRESHOLD)
-    const last: StoredPart = {
-      seq: 0,
-      index,
-      part: PART_MERGE_THRESHOLD,
-      kind: 'append',
-      delta: 'end',
-    }
-    expect(await withParts(store, call, [last], 'batch2')).toEqual({ ok: 3 })
-    const parts = (await readDocument(store, call)).document?.parts
-    expect(parts).toEqual([
-      open,
-      {
-        seq: 0,
-        index,
-        part: 1,
-        kind: 'append',
-        delta: `${deltas.map(item => (item.kind === 'append' ? item.delta : '')).join('')}end`,
-      },
+    expect(partRows(sqlite)).toEqual(['open', 'append'])
+    expect((await stored(store, call)).record?.document.dispatches[0]?.blocks).toEqual([
+      growingBlock(value),
     ])
   })
 
-  it('keeps only the latest replace part of a block', async () => {
+  it('keeps only the latest replace part and drops the growth parts when a block seals', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('replace')
-    await put(store, call, opId('admit'), () =>
-      withDispatch(admitted(call, opId('admit')), opId('admit')),
-    )
-    const open: StoredPart = {
-      seq: 0,
-      index,
-      part: 0,
-      kind: 'open',
+    await started(store, call)
+    const replaced = (text: string): VisibleBlock => ({
+      kind: 'growing',
+      index: '0',
       mode: 'replace',
       content: 'text',
+      value: text,
+    })
+    await write(store, call, opId('r1'), withBlocks([replaced('a')]))
+    await write(store, call, opId('r2'), withBlocks([replaced('ab')]))
+    expect(partRows(sqlite)).toEqual(['open', 'replace'])
+    const sealed: VisibleBlock = {
+      kind: 'sealed',
+      index: '0',
+      block: { type: 'text', text: 'ab' } as never,
     }
-    await withParts(
-      store,
-      call,
-      [open, { seq: 0, index, part: 1, kind: 'replace', value: 'a' }],
-      'r1',
-    )
-    await withParts(store, call, [{ seq: 0, index, part: 2, kind: 'replace', value: 'ab' }], 'r2')
-    expect((await readDocument(store, call)).document?.parts).toEqual([
-      open,
-      { seq: 0, index, part: 2, kind: 'replace', value: 'ab' },
-    ])
+    await write(store, call, opId('seal'), withBlocks([sealed]))
+    expect(partRows(sqlite)).toEqual(['seal'])
+    expect((await stored(store, call)).record?.document.dispatches[0]?.blocks).toEqual([sealed])
+  })
+
+  it('removes every part of a dispatch whose blocks are cleared', async () => {
+    const sqlite = sqliteStorage()
+    const store = createSqlModelStorage(options(sqlite.storage))
+    const call = callId('clear')
+    await started(store, call)
+    await write(store, call, opId('g'), withBlocks([growingBlock('x')]))
+    await write(store, call, opId('c'), withBlocks([]))
+    expect(partRows(sqlite)).toEqual([])
   })
 
   it('reads a call at the row bound and answers unavailable one row above it', async () => {
     const sqlite = sqliteStorage()
-    const store = createModelStore(options(sqlite.storage))
+    const store = createSqlModelStorage(options(sqlite.storage))
     const call = callId('rows')
-    await put(store, call, opId('admit'), () =>
-      withDispatch(admitted(call, opId('admit')), opId('admit')),
-    )
+    await started(store, call)
     // One dispatch row; the call, operation and capacity rows take three more of the bound.
-    const fill = (count: number) =>
-      sqlite.seed(
-        domainName(TENANT_A),
-        `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload)
-         WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
-         SELECT ?, ?, 0, 0, i, 'append', '{"delta":"x"}' FROM n`,
-        [BigInt(count), tenantText(TENANT_A), call],
-      )
-    fill(CALL_READ_MAX_ROWS - 4)
-    const atBound = await store.readCall({ tenant: TENANT_A, call, operation: opId('r') })
-    expect('ok' in atBound && atBound.ok.document?.parts).toHaveLength(CALL_READ_MAX_ROWS - 4)
     sqlite.seed(
-      domainName(TENANT_A),
-      'INSERT INTO md_part (tenant, call, seq, block, part, kind, payload) VALUES (?, ?, 0, 1, 0, \'append\', \'{"delta":"x"}\')',
-      [tenantText(TENANT_A), call],
+      'domain-a',
+      `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload)
+       WITH RECURSIVE n(i) AS (SELECT 0 UNION ALL SELECT i + 1 FROM n WHERE i < ?)
+       SELECT ?, ?, 0, i, 0, 'open', '{"index":"0","mode":"append","content":"text"}' FROM n`,
+      [BigInt(CALL_READ_MAX_ROWS - 5), A, call],
     )
-    const above = await store.readCall({ tenant: TENANT_A, call, operation: opId('r') })
+    const atBound = await store.readCall({ tenant: A, call, operation: null })
+    expect('ok' in atBound && atBound.ok.record?.parts).toHaveLength(CALL_READ_MAX_ROWS - 4)
+    sqlite.seed(
+      'domain-a',
+      `INSERT INTO md_part (tenant, call, seq, block, part, kind, payload) VALUES (?, ?, 0, ?, 0, 'open', '{"index":"0","mode":"append","content":"text"}')`,
+      [A, call, BigInt(CALL_READ_MAX_ROWS - 4)],
+    )
+    const above = await store.readCall({ tenant: A, call, operation: null })
     expect('failure' in above && above.failure.kind).toBe('unavailable')
-  })
-
-  it('refuses a part of a dispatch the call does not have', async () => {
-    const { storage } = sqliteStorage()
-    const store = createModelStore(options(storage))
-    const call = callId('nodispatch')
-    await put(store, call, opId('admit'), () => admitted(call, opId('admit')))
-    const result = await withParts(
-      store,
-      call,
-      [{ seq: 0, index, part: 0, kind: 'append', delta: 'x' }],
-      'p',
-    )
-    expect(result).toEqual({ failure: { kind: 'invalid', field: 'part', reason: 'dispatch' } })
   })
 })

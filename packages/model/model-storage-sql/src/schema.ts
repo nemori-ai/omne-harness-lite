@@ -49,17 +49,14 @@ const CALL: Table = {
     column('cursor', 'text'),
     column('snapshot', 'json', true),
     column('paging', 'json'),
+    column('reads', 'json'),
     column('cleanup_failure', 'text', true),
-    column('pending_operation', 'text', true),
-    column('pending_at', 'text', true),
+    column('pending', 'int'),
   ],
   primaryKey: ['tenant', 'call'],
-  constraints: [
-    'CHECK (row_version >= 1)',
-    'CHECK ((pending_operation IS NULL) = (pending_at IS NULL))',
-  ],
+  constraints: ['CHECK (row_version >= 1)', 'CHECK (pending IN (0, 1))'],
   indexes: [
-    'CREATE INDEX md_call_pending_idx ON md_call (tenant, call) WHERE pending_operation IS NOT NULL',
+    'CREATE INDEX md_call_pending_idx ON md_call (tenant, call) WHERE pending = 1',
     'CREATE INDEX md_call_held_idx ON md_call (tenant) WHERE request IS NOT NULL',
   ],
 }
