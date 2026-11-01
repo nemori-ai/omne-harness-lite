@@ -38,6 +38,7 @@
     "@omne-harness/model-cordis-contract": "workspace:*",
     "@omne-harness/pi-ai-openai": "workspace:*",
     "@omne-harness/pi-ai-transport": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*",
     "proper-lockfile": "^4.1.2"
   },
   "devDependencies": {

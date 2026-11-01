@@ -236,6 +236,26 @@ it('lets an active lower layer win when the higher layer is withdrawn (contract 
   expect(resolution.shadowed).toEqual([])
 })
 
+it('lists two or more shadowed layers in layer order, whatever order the snapshot gives them', async () => {
+  const lowest = profileOf({ route: 'alpha' })
+  const middle = profileOf({ route: 'alpha', scope: organizationOf('2') })
+  const upper = profileOf({ route: 'alpha', scope: organizationOf('3') })
+  const winner = profileOf({ route: 'alpha', scope: organizationOf('4') })
+  const snapshot = snapshotOf(
+    [candidateOf(upper), candidateOf(winner), candidateOf(lowest), candidateOf(middle)],
+    { precedence: [factory, organizationOf('2'), organizationOf('3'), organizationOf('4')] },
+  )
+  const resolution = resolvedOf(await resolveOf(snapshot, 'alpha'))
+  expect(resolution.profile).toBe(winner)
+  expect(resolution.shadowed).toEqual([lowest.adoption, middle.adoption, upper.adoption])
+})
+
+it('gives the source of the snapshot back with a resolution', async () => {
+  const given: DurableEvidence = { ...evidence, record: 'profiles-given', digest: 'digest-given' }
+  const snapshot = { ...snapshotOf([candidateOf(profileOf())]), source: given }
+  expect(resolvedOf(await resolveOf(snapshot, 'alpha')).source).toEqual(given)
+})
+
 it('leaves a withdrawn or an excluded lower layer out of shadowed', async () => {
   const withdrawn = profileOf({ route: 'alpha', availability: 'withdrawn' })
   const excluded = profileOf({ route: 'alpha', scope: organizationOf('2') })
@@ -397,6 +417,16 @@ it('hands a source failure back unchanged and never judges a missing snapshot', 
         principal,
         tenant: tenantOf('1', '1'),
         route: 'alpha',
+        required: requirement(),
+      }),
+    ),
+  ).toBe(unreadable.failure)
+  expect(
+    failureOf(
+      await profiles.list({
+        principal,
+        tenant: tenantOf('1', '1'),
+        selected: null,
         required: requirement(),
       }),
     ),
