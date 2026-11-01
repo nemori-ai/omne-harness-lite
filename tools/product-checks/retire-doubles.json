@@ -4,7 +4,7 @@
     "sha256": "800071d18d9dabad0e42f69947eda5789bb21473f022cd30aa11a7c7a7d48f5b",
     "ref": "201de5d7727063068540966341a034304dc84f10"
   },
-  "refreshedAt": "f9818f21517d638a649ea7cecbefdb71ea31e608",
+  "refreshedAt": "52fcf681a4105be19996dc1e86c2e4d3ab79300a",
   "items": [
     {
       "id": "AG-11",
@@ -59,12 +59,12 @@
     {
       "id": "MD-15",
       "category": "B",
-      "exports": [],
+      "exports": ["createScriptedModelRequestPreparation"],
       "exists": true,
       "retireWave": null,
       "dueBy": null,
       "ownerKind": null,
-      "note": "reduce 补交，由 RD-MODEL 交付（ModelRequestPreparation 的替身）。agent ./testing 的 createScriptedRequestPreparation 是 Agent 的 RequestPreparation，不是它"
+      "note": "并入 RD-MODEL。reduce 补交，由 RD-MODEL 交付（ModelRequestPreparation 的替身）。agent ./testing 的 createScriptedRequestPreparation 是 Agent 的 RequestPreparation，不是它"
     },
     {
       "id": "MD-08",
@@ -79,12 +79,12 @@
     {
       "id": "AS-13",
       "category": "B",
-      "exports": [],
+      "exports": ["createFixedSessionCursorSigning"],
       "exists": true,
       "retireWave": null,
       "dueBy": null,
       "ownerKind": null,
-      "note": "reduce 补交，由 RD-CURSOR 交付（游标签名密钥的服务键与替身）"
+      "note": "并入 RD-CURSOR。reduce 补交，由 RD-CURSOR 交付（游标签名密钥的服务键与替身）"
     },
     {
       "id": "ID-04",
@@ -169,22 +169,22 @@
     {
       "id": "AS-07",
       "category": "B",
-      "exports": [],
+      "exports": ["createMemoryToolResidencyReader"],
       "exists": true,
       "retireWave": null,
       "dueBy": null,
       "ownerKind": null,
-      "note": "reduce 补交，由 RD-TOOLHEAD 交付（预置引用的常驻引用读取替身）"
+      "note": "并入 RD-TOOLHEAD。reduce 补交，由 RD-TOOLHEAD 交付（预置引用的常驻引用读取替身）"
     },
     {
       "id": "ID-10",
       "category": "B",
-      "exports": [],
+      "exports": ["createTableToolAccess"],
       "exists": true,
       "retireWave": null,
       "dueBy": null,
       "ownerKind": null,
-      "note": "reduce 补交，由 RD-TOOLHEAD 交付（Tool 访问守卫的替身）"
+      "note": "并入 RD-TOOLHEAD。reduce 补交，由 RD-TOOLHEAD 交付（Tool 访问守卫的替身）"
     },
     {
       "id": "TL-05",
@@ -269,12 +269,15 @@
     {
       "id": "XC-SESSFACE",
       "category": "B",
-      "exports": [],
-      "exists": false,
+      "exports": [
+        "createMemorySessionTransactionPair",
+        "memorySessionDelegatedTransactionsFixture"
+      ],
+      "exists": true,
       "retireWave": "D",
       "dueBy": "E",
       "ownerKind": "reduce",
-      "note": "会话服务四个面的脚本化应答替身（新写）。证据桥沿用现有 createMemorySessionEvidenceBridge，指向那个现有替身，不另列；该现有替身不在本表范围，需要时由 reduce 补列"
+      "note": "Reduce 裁定：另两面按交付正文的四个面逐面核，未点名导出。会话服务四个面的脚本化应答替身（新写）。证据桥沿用现有 createMemorySessionEvidenceBridge，指向那个现有替身，不另列；该现有替身不在本表范围，需要时由 reduce 补列"
     },
     {
       "id": "XC-OBJSTORE",
@@ -289,12 +292,12 @@
     {
       "id": "XC-AUTHZ",
       "category": "B",
-      "exports": [],
-      "exists": false,
+      "exports": ["scriptedMaintenanceGrants"],
+      "exists": true,
       "retireWave": "B",
       "dueBy": "C",
       "ownerKind": "reduce",
-      "note": "冻结交付写的是「访问检查替身按新规则更新」，没有点名现有替身（packages/identity/authorization 在 REF 上没有 ./testing 入口；agent ./testing 有 createScriptedAccessCheck 但正文未指它）。脚本把它当新交付的系统主体授权替身计，现有访问检查替身的更新并入本项"
+      "note": "Reduce 裁定（#979 评论 6561727762）：#997 交付 scriptedMaintenanceGrants；manualSystemClock 是时钟，不填。冻结交付写的是「访问检查替身按新规则更新」，没有点名现有替身（packages/identity/authorization 在 REF 上没有 ./testing 入口；agent ./testing 有 createScriptedAccessCheck 但正文未指它）。脚本把它当新交付的系统主体授权替身计，现有访问检查替身的更新并入本项"
     },
     {
       "id": "XC-J19",
@@ -319,12 +322,12 @@
     {
       "id": "XC-CXREG",
       "category": "B",
-      "exports": [],
-      "exists": false,
+      "exports": ["createMemorySessionPrincipalBindings", "createMemorySessionWorkPrincipals"],
+      "exists": true,
       "retireWave": "A",
       "dueBy": "B",
       "ownerKind": "reduce",
-      "note": "来源登记表的主体绑定与登记授权的替身"
+      "note": "Reduce 裁定：X1 的主体绑定就是登记表的主体绑定；createScriptedRequestContextTrust 归 K-RQ，不填。来源登记表的主体绑定与登记授权的替身"
     },
     {
       "id": "XC-AGINST",
@@ -369,12 +372,12 @@
     {
       "id": "XC-TENANTDOM",
       "category": "B",
-      "exports": [],
-      "exists": false,
+      "exports": ["createMemoryTenantDomainLookup", "createMemorySqlStorage"],
+      "exists": true,
       "retireWave": "B",
       "dueBy": "C",
       "ownerKind": "reduce",
-      "note": "tenantDomains 类型与服务定义的替身，及启动扫描读登记表入口的替身"
+      "note": "Reduce 裁定：createMemoryTenantDomainLookup 是查找一半；createMemorySqlStorage（含 TenantDomainsService）是启动扫描读登记表一半。tenantDomains 类型与服务定义的替身，及启动扫描读登记表入口的替身"
     },
     {
       "id": "XC-ADOPTSRC",
@@ -394,7 +397,7 @@
       "retireWave": "B",
       "dueBy": "C",
       "ownerKind": "reduce",
-      "note": "常驻键与 shape 编码的往返替身，提供方取 cards-plan.json suiteProviders 的点名"
+      "note": "X1 只交付根入口，往返由套件验，本项无独立替身（Reduce 裁定；./testing 只有 residentKeyRoundTripConformance 套件）。常驻键与 shape 编码的往返替身，提供方取 cards-plan.json suiteProviders 的点名"
     },
     {
       "id": "XC-OBSERVE",
@@ -404,7 +407,7 @@
       "retireWave": "D",
       "dueBy": "E",
       "ownerKind": "reduce",
-      "note": "Model current 与观察两个服务定义及 model-output-v1 投影的替身"
+      "note": "Reduce 裁定：保持 exists false，等 L-MODEL 波 D 交付；createScriptedModelRuntimeHost 是结果接收登记表的宿主替身，不填。Model current 与观察两个服务定义及 model-output-v1 投影的替身"
     },
     {
       "id": "M15-SESSION-JOURNAL",
