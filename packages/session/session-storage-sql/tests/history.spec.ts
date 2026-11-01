@@ -78,7 +78,7 @@ describe('history paging', () => {
     const all = ok<Page>(await begin(a, 1_000_000)).entries.map(entry => entry.id)
     const first = ok<Page>(await begin(a, 1))
     ok(await a.accept(TENANT_A, 'session-1', 'late'))
-    const rest: string[] = [...first.entries.map(entry => entry.id)]
+    const rest: string[] = first.entries.map(entry => entry.id)
     let page = first
     while (page.next !== null) {
       page = ok<Page>(await next(a, page.next))

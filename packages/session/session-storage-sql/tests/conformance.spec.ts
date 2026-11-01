@@ -1,12 +1,11 @@
 // The transaction conformance suite of session-contract, run on the real participant and read
 // handlers over the SQLite test provider. Every case runs and none is pinned as a known failure.
-import { describe, expect, it } from 'vitest'
+import { describe, it } from 'vitest'
 import {
   adoptedInitializationFixture,
   creation,
   initializationFixtureFacts,
   initializationFixtureGuard,
-  isNotApplicable,
   operationId,
   sessionTransactionsConformance,
   type SessionTransactionsFixture,

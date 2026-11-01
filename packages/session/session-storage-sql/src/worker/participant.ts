@@ -51,11 +51,6 @@ const stopped = (failure: SessionFailure): ParticipantReply => ({
   kind: 'conflict',
   basis: { failure: encodeValue(failure) },
 })
-const unavailable = (diagnostic: string): SessionFailure => ({
-  kind: 'unavailable',
-  owner: OWNER,
-  diagnostic,
-})
 
 function pendingReasons(snapshot: WorkSnapshot | null): readonly PendingReason[] {
   if (snapshot === null) return []
