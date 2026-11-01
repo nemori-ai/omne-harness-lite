@@ -41,13 +41,14 @@
 - `config.network` 是装配创建并拥有的网络资源。多个传输可以共享同一网络资源。传输不创建也不关闭它。
 - `config.families` 是家族贡献，`config.credential` 是凭据槽。两者都由装配注入。
 - `config.routes` 按 `supplier.recipient` 查找路由。本包只查对象自身的属性，不查原型链。每个路由给出完整的 endpoint（`url`）与协议的 end-marker 文本（`endMarker`，协议没有 end-marker 时为 `null`）。
-- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额。本包不设默认值。
+- `config.limits` 给出 `connectTimeoutMs`、`maxErrorBodyBytes`、`maxEventBytes` 与单个事件 JSON 的 `json` 限额，另有可选的 `streamStallTimeoutMs`（见[“流停顿上界”](#流停顿上界)）。本包不设默认值。
 
 下列情况下，`createPiTransport` 同步抛出 `RangeError`。消息只写字段名与规则，不含 URL：
 
 - 路由的 `url` 不能解析，或不是 `https:`，或含用户名、密码、查询串或片段；
 - 路由的 `endMarker` 既不是字符串也不是 `null`；
 - `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数；
+- `streamStallTimeoutMs` 存在，但不是 1 到 2147483647 之间的整数（`null`、0、负数与小数都被拒绝；消息指向 `limits.streamStallTimeoutMs`）；
 - `maxErrorBodyBytes`、`maxEventBytes` 或 `json` 的任一限额不是正的安全整数；
 - `families` 或 `credential` 不是对象，或 `families.acquire`、`credential.read` 不是函数；
 - `network` 不是 `createNetworkResources` 返回的句柄，含结构相同的其他对象。
@@ -107,10 +108,10 @@
 
 - 解码器给出的 `ended` 由本包保留，到协议结束且解码器 `end()` 成功之后才作为最后一个事实给出。解码器在 `ended` 之后给出的其他事实照常先给出。
 - 解码器给出第二个 `ended` 时，流以 `failed` 结束，`cause` 为 `upstream-protocol`，`diagnostic` 为 `decoder-ended-twice`。
-- 读取 2xx 响应体时失败（响应体断开、SSE 分帧失败、协议帧失败、解码器拒绝某帧、取消或关闭），本包仍调用解码器的 `end()` 一次。`end()` 成功时，本包给出它的事实，但不给出它的 `ended`，再给出失败的 `ended`。终止仍按下表取那次失败。所以已收场的响应在失败之前收到的用量仍进入账目（见“网关引擎：流解释”的“账目”）。`end()` 失败时，本包不给出它的事实，终止不变。
+- 读取 2xx 响应体时失败（响应体断开、流停顿到期、SSE 分帧失败、协议帧失败、解码器拒绝某帧、取消或关闭），本包仍调用解码器的 `end()` 一次。`end()` 成功时，本包给出它的事实，但不给出它的 `ended`，再给出失败的 `ended`。终止仍按下表取那次失败。所以已收场的响应在失败之前收到的用量仍进入账目（见“网关引擎：流解释”的“账目”）。`end()` 失败时，本包不给出它的事实，终止不变。
 - 流给出 `ended` 之前，交换已物理停止，名额已归还。
 - 本包读入 end-marker 所在的响应字节之后，协议结束优先。之后到达的取消或关闭不改变终止：流以解码器的终止结束（例如 `completed`），不以 `interrupted` 结束。end-marker 与之前的事件在同一次读入中到达、读者在给出第一个事实之后才取消时，也是如此。
-- 本包读入 end-marker 所在的响应字节之前，取消或关闭给出 `interrupted`（`stop: 'confirmed'`）。
+- 本包读入 end-marker 所在的响应字节之前，取消或关闭给出 `interrupted`（`stop: 'confirmed'`）。流停顿到期与取消或关闭竞争时，先发生的胜出：到期在先给出上表的 `stream-stall`，取消在先给出 `interrupted`。终止只有一个，并且都在物理停止之后。
 
 终止按下表确定。`upstreamStatus` 只含状态码。响应头与错误体不进入 fault：
 
@@ -125,6 +126,8 @@
 | 连接失败，含代理拒绝 | `failed`，`upstream-unavailable`，状态码为 `null` | `connect-failed` |
 | 连接超时 | `failed`，`upstream-unavailable`，状态码为 `null` | `connect-timeout` |
 | 响应体在末尾之前被对方断开 | `failed`，`stream-lost` | `response-body-lost` |
+| 收到响应头之前，两次收到字节的间隔达到 `streamStallTimeoutMs` | `failed`，`upstream-unavailable`，状态码为 `null` | `stream-stall` |
+| 收到 2xx 响应头之后，两次收到字节的间隔达到 `streamStallTimeoutMs` | `failed`，`stream-lost`，状态码为 `null` | `stream-stall` |
 | SSE 分帧失败 | `failed`，`upstream-protocol` | `sse-<原因>` |
 | 协议帧失败 | `failed`，`upstream-protocol` | `frame-<原因>` |
 | 解码器对某帧或 `end()` 返回 `ModelFault` | `failed`，该 fault | 解码器给出 |
@@ -176,7 +179,7 @@
 | `invalid-url` | 地址不符合上述要求 |
 | `invalid-header` | `headers` 不是对象（例如 `null`、字符串或数组），或头名不是 HTTP token，或头值不是字符串，或头值含可打印 ASCII（0x20 至 0x7E）以外的字符 |
 | `invalid-body` | `body` 不是 `Uint8Array` |
-| `invalid-limit` | `maxErrorBodyBytes` 不是正的安全整数，或 `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数 |
+| `invalid-limit` | `maxErrorBodyBytes` 不是正的安全整数，或 `connectTimeoutMs` 既不是 `null` 也不是 1 到 2147483647 之间的整数，或 `streamStallTimeoutMs` 存在但不是 1 到 2147483647 之间的整数 |
 | `reservation-unusable` | 预约不是本资源的容量授予的，或已消费，或已归还 |
 
 - 拒绝时，本包不建立任何网络连接，也不向连接池登记任何请求。
@@ -187,7 +190,7 @@
 
 ### 交换结果
 
-`result` 只确定一次，取下列四种之一：
+`result` 只确定一次，取下列五种之一：
 
 | 结果 | 含义 | 确定的时刻 |
 | --- | --- | --- |
@@ -195,8 +198,9 @@
 | `http-error` | 2xx 以外的状态，含 3xx，带状态码、响应头与错误体 | 交换物理关闭时 |
 | `connect-failed` | 收到响应之前连接已关闭，且没有停止。`timeout` 说明是否由连接超时引起 | 交换物理关闭时 |
 | `stopped` | 取消信号或 `stop()` 胜出。`responded` 说明停止之前是否已收到响应 | 交换物理关闭时 |
+| `stalled` | 收到响应头之前，两次收到字节的间隔达到 `streamStallTimeoutMs`（计时从发起开始），且没有停止在先 | 交换物理关闭时 |
 
-- 停止在物理关闭完成之前胜出。`http-error` 或 `connect-failed` 尚未确定时调用停止，结果变成 `stopped`。
+- 停止在物理关闭完成之前胜出。`http-error` 或 `connect-failed` 尚未确定时调用停止，结果变成 `stopped`。`stalled` 例外：流停顿先到期时，之后到达的停止不改变它，先发生的胜出，见[“流停顿上界”](#流停顿上界)。
 - `ok` 在收到响应头时已经确定。之后的停止不改变 `ok`，只结束响应体。
 - `result` 只在 Node 契约以外的情况下拒绝：响应没有状态码，或错误体的块不是字节。拒绝之前，本包同样物理关闭交换并归还名额。
 
@@ -205,8 +209,9 @@
 - 2xx 响应体只能认领一次。第二次 `claim()` 返回 `undefined`。
 - 调用方必须读完响应体，或停止交换。否则响应、连接与名额一直被占用。
 - 读者提前结束迭代时，本包销毁响应，交换随之物理关闭。读者在第一次 `next()` 之前调用 `return()` 或 `throw()` 时也是如此。
-- 响应体在到达末尾之前结束时，读者的迭代以下列两种错误之一结束。读者按错误类型区分，不依赖 Node 的错误码：
+- 响应体在到达末尾之前结束时，读者的迭代以下列三种错误之一结束。读者按错误类型区分，不依赖 Node 的错误码：
   - `ResponseBodyStoppedError`：本地停止在先，即 `stop()`、取消信号或网络资源的 `close()`。
+  - `ResponseBodyStalledError`：流停顿超时先到期，之后没有停止先于它。到期与本地停止同时发生时，先发生的给出错误类型。
   - `ResponseBodyReadError`：没有本地停止，连接被对方关闭或重置。`cause` 是 Node 报告的错误。
 - 响应体的块不是字节时，读者的迭代以普通的 `Error` 结束。这是缺陷。
 
@@ -229,10 +234,30 @@
 - 本包不用 `maxSockets` 对齐容量，原因是两者的计数时刻不同。本包在请求与响应关闭时归还名额，等待者随即发起。Node 对不保留的套接字（例如服务端声明 `Keep-Alive: timeout=1`，或套接字已不可写）在请求关闭时销毁它，但要到该套接字自己的 `close` 事件到达时才把它移出连接池的计数，这是事件循环的下一轮。套接字上限等于容量时，这一轮之内发起的请求会进入等待队列，尽管它持有名额。
 - 连接池没有套接字上限，所以持有名额的请求不在连接池中排队。
 - 连接池关闭空闲时间超过 `idleConnectionTimeoutMs` 的连接。
+- 偏离登记：技术基础写传输用 Undici，本包用 `node:https` 的 `Agent`。它已经有连接复用、并发上限与超时（本包的 `maxConnections`、`connectTimeoutMs`、`idleConnectionTimeoutMs`、`streamStallTimeoutMs` 覆盖这三类限制），所以不改用 Undici。
 - `maxConnections` 限制同时进行的交换数，不限制物理连接数。下列连接不占名额，连接数因此可以超过 `maxConnections`：
   - 空闲连接。
   - 交换已停止、但直连仍在握手的连接。例如交换在发起的同一 tick 内停止，连接池收回仍在握手的套接字。这种连接按 `idleConnectionTimeoutMs` 结束，不按 `connectTimeoutMs` 结束。经代理正在建立的连接不属于这一种，见“代理”。
   - 正在关闭、尚未移出连接池的套接字。它们让物理连接数短暂超过容量。
+
+### 流停顿上界
+
+`limits.streamStallTimeoutMs` 是两次收到响应字节的最长间隔，单位毫秒。它限制的是流停住不动，不是调用总时长：调用总时长是否设上界仍未裁定，见 [model-contract](../model-contract/SPEC.md)。
+
+- 字段可选。缺省表示不设，此时交换不创建计时器，行为与没有这个字段时完全相同。本包不给默认值，初值由装配给。取值规则同 `connectTimeoutMs`：1 到 2147483647 之间的整数，其他值使 `createPiTransport` 抛出 `RangeError`，见“构造”。
+- 计时从请求发出（交换发起）时开始，所以覆盖“请求已发出而响应头迟迟不来”。收到任意响应字节都重新计时：连接上到达的任何字节都算，包括响应头、响应体与 SSE 注释行（例如保活行）。注释行不产生事实，但仍使计时重新开始。
+- 到期时本包停止交换，等物理停止，再以 `failed` 收场。失败种类取已有集合，不新增结果种类，也不以 `interrupted` 或 `completed` 收场：
+  - 收到响应头之前到期：`upstream-unavailable`，`diagnostic` 为 `stream-stall`，状态码为 `null`。交换的结果是 `stalled`。
+  - 收到 2xx 响应头之后到期：`stream-lost`，`diagnostic` 为 `stream-stall`，状态码为 `null`。交换的结果仍是 `ok`，读者的迭代以 `ResponseBodyStalledError` 结束。到期之前已给出的事实与用量保留：本包与响应体断开时一样，调用解码器的 `end()` 一次，再给出失败的 `ended`。
+  - 非 2xx 响应的错误体读取中到期：本包关闭连接，错误体为 `read-failed`，终止仍按状态码，见“错误体”。
+- 到期与取消、`stop()`、连接超时或自然结束竞争时，先发生的胜出，终止只有一个：
+  - 取消在先：计时器随停止清除，终止是 `interrupted`。
+  - 到期在先：之后到达的取消、关闭或 `stop()` 不改变终止，终止是 `stream-stall` 的 `failed`，且在物理停止之后。
+  - 连接超时在先：结果是 `connect-failed`，计时器随交换结束清除。
+  - 响应体已完整收到（Node 已持有整个响应体）之后不再有停顿，只等待连接关闭。
+- Node 已收到而读者尚未读取的字节不算停顿：到期时响应还有未读字节，说明慢的是读者，本包只重新计时，不失败。
+- 计时器只有一个，由交换持有。交换进入 `closed` 时清除它，停止、取消、连接超时、错误体读完与网络资源关闭都使交换进入 `closed`。交换还从连接的套接字上移除它为计时挂上的 `data` 监听器，连接留在连接池中时不残留监听器。
+- 已知限制：本包不重试，到期之后由调用方决定是否再发一次。到期不能撤回已发出的请求，供应商可能已经收到并开始计费。
 
 ### 代理
 
@@ -652,7 +677,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 - 凭据由调用方在发起时放进请求头。本包只校验头部字符集，不解析、保存或记录凭据。
 - 响应头与错误体只在包内交给家族解释。本包不把它们写入任何对外事实或诊断。
 - 对外失败的 `diagnostic` 是安全的短文本，不含秘密、URL、响应头或错误体。下列两方形成它：
-  - 本包形成交换、协议与凭据槽的诊断：`http-<状态码>`、`connect-failed`、`connect-timeout`、`response-body-lost`、`sse-<原因>`、`frame-<原因>`、`no-termination`、`decoder-ended-twice`、`credential-not-provided` 与 `credential-not-a-header-value`。materialize 与 prepare 的失败另用 `cancelled`、`network-closed`、`transport-closed` 与 `prepared-closed`。
+  - 本包形成交换、协议与凭据槽的诊断：`http-<状态码>`、`connect-failed`、`connect-timeout`、`response-body-lost`、`stream-stall`、`sse-<原因>`、`frame-<原因>`、`no-termination`、`decoder-ended-twice`、`credential-not-provided` 与 `credential-not-a-header-value`。materialize 与 prepare 的失败另用 `cancelled`、`network-closed`、`transport-closed` 与 `prepared-closed`。
   - 网关引擎的解码器形成“网关引擎：流解释”中列出的诊断。它们只含固定的词与上游的整数错误码，不含上游正文。
   - 家族形成解码器 fault 与家族返回的失败中的诊断。本包原样给出它们。
 - 家族实现者与同包调用代码必须遵守同一约束：原样的请求头、响应头与错误体不得写入对外事实或诊断。
@@ -683,7 +708,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 
 ### 缺陷与异常
 
-- 四种结果、七种拒绝原因、三种错误体状态、两种响应体读取错误与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
+- 五种结果、七种拒绝原因、三种错误体状态、三种响应体读取错误与 SSE、帧的失败原因覆盖 Node 契约内的全部情况。
 - 本包只在调用方违反配置规则，或在 Node 契约以外的情况下拒绝 `result` 或抛出异常：
   - 配置不符合规则：`createPiTransport` 同步抛出 `RangeError`（规则见“构造”），`createNetworkResources` 同步抛出 `RangeError`（规则见“网络资源”）。
   - `startExchange` 以 `invalid-url`、`invalid-body`、`invalid-limit` 或 `reservation-unusable` 拒绝一次已校验的发送：`start` 抛出 `Error`，名额已归还。这是本包的缺陷。
@@ -727,6 +752,7 @@ hook 成功时，`end()` 按下列次序给出事实：
 | 读者提前结束时关闭来源，含第一个事件或第一帧之前 | [sse.spec.ts](tests/sse.spec.ts)、[frames.spec.ts](tests/frames.spec.ts)；对真实响应见 [http.spec.ts](tests/http.spec.ts) | 快；慢 |
 | 提前结束的包装本身：`return()`、`throw()` 与 `asyncDispose` 关闭来源，启动后不重复关闭，来源关闭失败时生成器仍完成 | [iteration.spec.ts](tests/iteration.spec.ts) | 快 |
 | 同步发起、停止、2xx、响应体读取错误的类型、非 2xx、错误体、连接超时与计时器清除、关闭后的清理 | [http.spec.ts](tests/http.spec.ts) | 慢 |
+| 流停顿上界：配置校验（`streamStallTimeoutMs` 的 0、负数、小数、超过计时上限与 `null`，消息指向该字段）；对真实本地 HTTPS 服务和假计时器：头前无字节与头后中途无字节到期的结果与终止（`upstream-unavailable` 与 `stream-lost`，诊断 `stream-stall`，内容保留，终止在物理停止之后，名额已归还）、字节间隔小于上限的稳定流（含注释行）不受影响、读者未读的字节不算停顿、错误体停顿、缺省时不建计时器、正常结束、停止、取消、连接超时与网络资源关闭后计时器被清除、到期与取消竞争时先发生的胜出 | [stream-stall.spec.ts](tests/stream-stall.spec.ts)；经本地装配路径见 [model-host-local 的 stream-stall.spec.ts](../model-host-local/tests/stream-stall.spec.ts) | 快（配置）；慢（其余） |
 | 网络资源关闭与连接池，含同一接收方连续发起不受连接池影响、容量是唯一的并发上限、多接收方不排队 | [network.spec.ts](tests/network.spec.ts) | 慢 |
 | 代理配置校验与 Node 版本守卫，含构造时任何消息都不含 URL（URL 含换行、回车或制表符时也不报错） | [proxy-config.spec.ts](tests/proxy-config.spec.ts) | 快 |
 | 经代理的交换：隧道成功、直连项、大写协议与前导空白的 URL 仍经代理、拒绝后重置不崩溃、代理不可达、代理未回复即关闭、CONNECT 与隧道内 TLS 的连接超时、建立中的停止与关闭、取消不影响连接池已持有的套接字、代理 URL 不进入结果与诊断 | [proxy.spec.ts](tests/proxy.spec.ts) | 慢 |
@@ -752,5 +778,6 @@ hook 成功时，`end()` 按下列次序给出事实：
 - 真实凭据下的三段传输。本包的测试只用测试记录与 hook 替身驱动网关引擎。两个家族包在自己的测试中经家族表与夹具检查驱动引擎。两个真实家族经三段传输与本地 HTTPS 服务的发送，以及对它们的符合性套件 transport 组，在 `pi-ai-anthropic` 的慢层用例 `two-families.spec.ts` 中，不在本包。解码器在本包的输入是手写的合成流，形状仿照真实网关流，不是真实样本。
 - 网关引擎请求体被真实网关接受。空的工具结果写空内容、没有文本的 assistant 消息写空内容，这两种写法不在持续验证中。两个家族包的示例发出这两种写法，只在手动运行时有证据。
 - 消息中模型可见的内容引用。快层只用 `system` 中的引用核对 materialize 的拒绝；构造消息需要本包不依赖的 `@omne-harness/message`。
-- 在途响应长时间没有数据时，连接池空闲超时的效果。
+- 在途响应长时间没有数据时，连接池空闲超时的效果。未配置 `streamStallTimeoutMs` 时，没有数据的响应不会结束。
+- 真实供应商的停顿分布没有数据，`streamStallTimeoutMs` 的初值由装配给。
 - 多个进程或多个网络资源共享名额。容量是单个进程内的对象。
