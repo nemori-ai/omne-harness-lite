@@ -81,7 +81,9 @@ export const AGENT_POLICY = Object.freeze({
   'record-terminal-observation': row(deny(NO_SOURCE), deny(CALLER_UNKNOWN), deny(OUTSIDE_MATRIX)),
   'receive-result': row(
     deny(NO_SOURCE),
-    deny('推送主体未写明，见 P-4 与输入需求 Q-1'),
+    member(
+      'L-RUN：推送用原受理主体（会话 coordinator 的 W）；L-MODEL：推送前经 ModelHostAuthority.resolve 取主体。只核租户（DP-4 Q-1 三方对齐）',
+    ),
     deny('AGS:1790 要求推送主体代原租户行事，不用系统主体'),
   ),
   'read-message-handoff': row(deny(NO_SOURCE), deny(DIRECT_CALLER_UNKNOWN), deny(OUTSIDE_MATRIX)),

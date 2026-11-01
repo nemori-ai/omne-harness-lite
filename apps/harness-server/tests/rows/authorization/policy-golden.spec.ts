@@ -98,7 +98,7 @@ const AGENT_GOLDEN = {
   reconcile: NOT_MEMBER_ROW,
   detach: WORK_ONLY,
   'record-terminal-observation': NOT_MEMBER_ROW,
-  'receive-result': NOT_MEMBER_ROW,
+  'receive-result': WORK_ONLY,
   'read-message-handoff': NOT_MEMBER_ROW,
   'record-message-handoff': NOT_MEMBER_ROW,
   'exclude-message-handoff': NOT_MEMBER_ROW,
