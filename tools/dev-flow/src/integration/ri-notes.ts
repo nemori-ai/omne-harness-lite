@@ -190,6 +190,17 @@ export type RiInput = TrackFacts & {
   readPull: (number: number) => PullRead
   readCard: (number: number) => CardRead
   diffContracts: DiffContracts
+  /** The registry the input was read from; only the semantic review path reads it. */
+  policy?: Policy
+  /**
+   * Set only by the semantic review path: the level each review member carries after a valid
+   * conclusion, and the comment that holds it. A review member without an entry still needs a
+   * breaking declaration.
+   */
+  semantic?: {
+    levels: ReadonlyMap<string, 'additive' | 'breaking'>
+    records: ReadonlyMap<string, string>
+  }
 }
 
 function finding(code: FindingCode, at: RiFinding['at'], message: string): RiFinding {
@@ -720,7 +731,11 @@ function checkContracts(
   for (const path of [...new Set([...declared.keys(), ...diff.members.keys()])].sort()) {
     const observed = diff.members.get(path) ?? 'none',
       written = declared.get(path) ?? 'none'
-    if (SNAPSHOT_MATCH[observed] !== written)
+    const expected =
+      observed === 'review'
+        ? (input.semantic?.levels.get(path) ?? SNAPSHOT_MATCH.review)
+        : SNAPSHOT_MATCH[observed]
+    if (expected !== written)
       findings.push(
         finding(
           'contract-diff-mismatch',
@@ -736,9 +751,14 @@ function renderMarkdown(
   cards: readonly RiCard[],
   contracts: readonly RiContract[],
   gaps: readonly ContractGap[],
+  records: ReadonlyMap<string, string> = new Map(),
 ): string {
   const members = contracts.map(item => {
-    const notes = item.notes.map(({ pr, note }) => `#${pr}：${note}`).join('；')
+    const record = records.get(item.path)
+    const notes = [
+      ...item.notes.map(({ pr, note }) => `#${pr}：${note}`),
+      ...(record === undefined ? [] : [`语义复核：${record}`]),
+    ].join('；')
     return `- ${item.path}：${item.level}${notes === '' ? '' : `。${notes}`}`
   })
   const unknown = gaps.map(gap =>
@@ -823,6 +843,6 @@ export function riNotes(input: RiInput): RiNotes {
     contractGaps,
     contractCheck: checked.contractCheck,
     findings,
-    markdown: renderMarkdown(judged.cards, merged.contracts, contractGaps),
+    markdown: renderMarkdown(judged.cards, merged.contracts, contractGaps, input.semantic?.records),
   }
 }

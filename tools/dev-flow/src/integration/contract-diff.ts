@@ -273,28 +273,85 @@ function isUnavailable(value: object): value is Unavailable {
  * changes or untracked files (ignored files do not count). Anything it cannot establish is
  * `unavailable` with the reason; an unknown member is never reported as no change.
  */
-export const snapshotContractDiff: ContractDiffProvider =
-  ({ root, timeoutMs }) =>
-  range => {
-    const checkout = unavailableOnKnown(
-      () => clean(root),
-      error =>
-        error.code === 'refused'
-          ? `检出 ${root} 有未提交改动或未跟踪文件；快照差异读工作树，未运行。`
-          : `读不出检出 ${root} 的 Git 状态：${error.message}`,
-    )
-    if (isUnavailable(checkout)) return checkout
-    if (checkout.head !== range.head)
-      return {
-        kind: 'unavailable',
-        reason: `检出 ${root} 的 HEAD 为 ${checkout.head}，不是范围头 ${range.head}；快照差异读工作树，未运行。`,
+export const snapshotContractDiff: ContractDiffProvider = snapshotContractDiffWith(() => {})
+/**
+ * `snapshotContractDiff` that also hands the exact standard output of the CLI run to `onRaw`.
+ * The semantic review hashes the raw member objects of that same run.
+ */
+export function snapshotContractDiffWith(onRaw: (stdout: string) => void): ContractDiffProvider {
+  return ({ root, timeoutMs }) =>
+    range => {
+      const checkout = unavailableOnKnown(
+        () => clean(root),
+        error =>
+          error.code === 'refused'
+            ? `检出 ${root} 有未提交改动或未跟踪文件；快照差异读工作树，未运行。`
+            : `读不出检出 ${root} 的 Git 状态：${error.message}`,
+      )
+      if (isUnavailable(checkout)) return checkout
+      if (checkout.head !== range.head)
+        return {
+          kind: 'unavailable',
+          reason: `检出 ${root} 的 HEAD 为 ${checkout.head}，不是范围头 ${range.head}；快照差异读工作树，未运行。`,
+        }
+      const command = contractApiCommand()
+      if (isUnavailable(command)) return command
+      const ran = runDiff(command, { root, base: range.base, timeoutMs })
+      if (ran.kind === 'unavailable') return ran
+      onRaw(ran.stdout)
+      return unavailableOnKnown(
+        () => contractDiffOf(range, parseDiffRun(ran.stdout)),
+        error => `${CONTRACT_API_BIN} 的输出解析失败：${error.message}`,
+      )
+    }
+}
+
+/**
+ * The raw member objects of one `omne-contract-api --diff --json` stdout, by directory, with
+ * every field the CLI printed. The semantic review hashes them; `parseDiffRun` keeps only the
+ * fields this module reads.
+ */
+export function rawDiffMembers(text: string): Map<string, unknown> {
+  const v = object(json(text, `${CONTRACT_API_BIN} --diff --json`), 'diff')
+  return new Map(
+    array(v.members, 'diff.members').map((item, index) => [
+      string(object(item, `diff.members[${index}]`).directory, `diff.members[${index}].directory`),
+      item,
+    ]),
+  )
+}
+
+/** The pinned toolchain version and the TypeScript version it resolves, or why neither is known. */
+export function toolchainFacts():
+  | { kind: 'known'; version: string; typescriptVersion: string }
+  | Unavailable {
+  const manifest = toolchainManifest()
+  if (manifest === undefined)
+    return {
+      kind: 'unavailable',
+      reason: `dev-flow 解析不到 ${TOOLCHAIN_PACKAGE}。`,
+    }
+  const versionOf = (file: string) =>
+    string(object(json(readFileSync(file, 'utf8'), file), file).version, `${file} version`)
+  const typescript = (() => {
+    for (const base of [manifest, import.meta.url]) {
+      try {
+        const found = findPackageJSON('@typescript/typescript6', base)
+        if (found !== undefined) return found
+      } catch {
+        // Try the next resolution base.
       }
-    const command = contractApiCommand()
-    if (isUnavailable(command)) return command
-    const ran = runDiff(command, { root, base: range.base, timeoutMs })
-    if (ran.kind === 'unavailable') return ran
-    return unavailableOnKnown(
-      () => contractDiffOf(range, parseDiffRun(ran.stdout)),
-      error => `${CONTRACT_API_BIN} 的输出解析失败：${error.message}`,
-    )
-  }
+    }
+    return undefined
+  })()
+  if (typescript === undefined)
+    return { kind: 'unavailable', reason: '解析不到 @typescript/typescript6。' }
+  return unavailableOnKnown(
+    () => ({
+      kind: 'known' as const,
+      version: versionOf(manifest),
+      typescriptVersion: versionOf(typescript),
+    }),
+    error => `读不出工具链版本：${error.message}`,
+  )
+}
