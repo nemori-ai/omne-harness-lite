@@ -203,6 +203,26 @@ describe('the close adapter (acceptance 5)', () => {
     expect(registry.liveRows()).toEqual([])
   })
 
+  test('a refused registration whose control rejects on close does not leave an unhandled rejection', async () => {
+    const mismatched = new Map<RowId, LifecyclePhase>([[STORAGE, 'business']])
+    const { host } = await hostOn(mismatched)
+    const unhandled: unknown[] = []
+    const record = (reason: unknown): void => {
+      unhandled.push(reason)
+    }
+    process.on('unhandledRejection', record)
+    try {
+      const control = fakeControl(() => Promise.reject(new Error('close blew up')))
+      expect(() => host.attachControl(control)).toThrow(/phase-mismatch/)
+      expect(control.closes).toEqual(['assembly'])
+      // 让拒绝有机会走到 unhandledRejection 钩子。
+      await new Promise<void>(resolve => setTimeout(resolve, 50))
+    } finally {
+      process.off('unhandledRejection', record)
+    }
+    expect(unhandled).toEqual([])
+  })
+
   test('an incomplete close answers incomplete with counts only, and a deadline answers incomplete without waiting', async () => {
     const { registry, host } = await hostOn(expectedStorage)
     const residual = fakeControl(() =>

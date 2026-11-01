@@ -160,7 +160,7 @@ export class StorageHostAdapter extends StorageHostService {
         })
       } catch (error) {
         // 结果只作诊断：这一代控制口不再有登记者去等它。
-        void control.close({ initiator: 'assembly' })
+        control.close({ initiator: 'assembly' }).catch(() => {})
         throw error
       }
     }

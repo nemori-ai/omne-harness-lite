@@ -169,7 +169,12 @@ export function openTenantDirectory(options: DirectoryOptions): TenantDirectory 
     }
     const registered = await options.register(entry)
     if (registered.kind === 'unavailable') return unavailable(registered.diagnostic)
-    writeDirectoryFile(options.file, [...entries.keys(), tenantText])
+    try {
+      writeDirectoryFile(options.file, [...entries.keys(), tenantText])
+    } catch {
+      // 存储里的登记已经完成；登记表没写成，快照不变。下一次放行的 create 用相同输入再登记即可收敛。诊断不带路径或系统错误文本。
+      return unavailable('the tenant domain directory could not be written')
+    }
     entries.set(tenantText, entry)
     return { kind: 'ready', entry }
   }

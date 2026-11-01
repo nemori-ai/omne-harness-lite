@@ -4,6 +4,7 @@
 // `tenantDomainLookup`（受信，只读快照）、`sessionPrincipalBindings`（受信，会话归属读口）。
 // 登记规则：session-storage-sql 在每次读与提交都 `resolve` 租户的域（XP-6），而目录的 `resolve` 只查快照；
 // 只有 `create` 提交在访问裁定放行之后，由本行显式登记该租户。读与被拒的 `create` 不登记。
+// 已知限制：换 `combinationVersion` 不会为已登记的租户补登记（登记表不记版本），换版本需要另有拥有者定补登记的时机。
 // 游标签名按调用现取 `sessionCursorSigning`（IC-9），不在 inject 里；入口对象缺席时五种读答 `unavailable`。
 import type { Context } from '@deepseek-ai/cordis'
 import { tenantCodec, tenantEquals } from '@omne-harness/legal-identity'
@@ -98,7 +99,7 @@ function registerWith(
 type CommitInput<P> = Parameters<SessionTransactionPort<P>['commit']>[0]
 
 /**
- * 公开端口与委派视图共用的登记规则：`create` 提交、访问与命令指名同一租户、目录快照里没有该租户、`authorize` 放行时，
+ * 公开端口与委派视图共用的登记规则：`create` 提交、访问与命令指名同一租户和同一会话、目录快照里没有该租户、`authorize` 放行时，
  * 先登记（含迁移），再交给端口提交。其余调用原样交给端口。
  */
 function registeringOnCreate<P>(
@@ -108,7 +109,12 @@ function registeringOnCreate<P>(
 ): SessionTransactionPort<P> {
   const commit = async (input: CommitInput<P>): Promise<Outcome<unknown, SessionFailure>> => {
     const { command, access } = input
-    if (command.kind === 'create' && tenantEquals(access.tenant, command.input.tenant)) {
+    // 与 session-storage-sql 的第一道拒绝相同：访问与命令指名的租户或会话不一致时，交给端口拒绝，不登记。
+    if (
+      command.kind === 'create' &&
+      tenantEquals(access.tenant, command.input.tenant) &&
+      access.session === command.input.session
+    ) {
       const text = tenantCodec.encode(command.input.tenant)
       if (text.ok && !directory.holds(text.value) && (await authorize(input))) {
         const registered = await directory.ensureRegistered(text.value)

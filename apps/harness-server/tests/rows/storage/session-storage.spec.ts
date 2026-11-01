@@ -25,6 +25,8 @@ import { evidence, operationId, sessionId } from '@omne-harness/session-contract
 import type { TenantDomainLookup, TenantDomains } from '@omne-harness/sql-contract'
 import { tenantDomainLookupKey, tenantDomainsKey } from '@omne-harness/sql-contract/cordis'
 import { runTenantDomainLookupConformance } from '@omne-harness/sql-contract/testing'
+import { cursorSigning } from '../../../src/entry/cursor-signing.ts'
+import { storageHost } from '../../../src/entry/storage-host.ts'
 import { storageCatalog } from '../../../src/rows/storage/catalog.ts'
 import { SESSION_COMPOSITE_PARTICIPANTS } from '../../../src/rows/session-storage/composite.ts'
 import {
@@ -133,6 +135,45 @@ describe('tenant registration (acceptance 1)', () => {
       guards: createGuards(command),
     })
     expect(created).toMatchObject({ failure: { kind: 'denied' } })
+    expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
+      kind: 'unregistered',
+    })
+    expect(existsSync(ws.directoryFile)).toBe(false)
+  })
+
+  test('a create whose access names another session than the command is denied before anything registers', async () => {
+    const ws = workspace()
+    const tree = await load(ws)
+    started(tree)
+    const command = createCommand(TENANT_A, 's2')
+    const created = await transactions(tree).commit({
+      access: access(TENANT_A, 's1'),
+      command,
+      guards: createGuards(command),
+    })
+    expect(created).toMatchObject({ failure: { kind: 'denied' } })
+    expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
+      kind: 'unregistered',
+    })
+    expect(existsSync(ws.directoryFile)).toBe(false)
+  })
+
+  test('a failed write of the directory file answers unavailable without a path, and the tenant stays unregistered in the snapshot', async () => {
+    const ws = workspace()
+    const tree = await load(ws)
+    started(tree)
+    // 临时文件的位置被一个目录占着：`openSync(…, "w")` 失败，登记表写不出去。
+    mkdirSync(`${ws.directoryFile}.${String(process.pid)}.tmp`, { recursive: true })
+    const command = createCommand(TENANT_A, 's1')
+    const created = await transactions(tree).commit({
+      access: access(TENANT_A, 's1'),
+      command,
+      guards: createGuards(command),
+    })
+    expect(created).toMatchObject({ failure: { kind: 'unavailable' } })
+    const text = JSON.stringify(created)
+    expect(text).not.toContain(ws.stateRoot)
+    expect(text).not.toContain('tenant-domains')
     expect(await lookup(tree).lookup({ tenant: textOf(TENANT_A) })).toEqual({
       kind: 'unregistered',
     })
@@ -346,5 +387,41 @@ describe('the delegated entry and the trusted reads', () => {
     expect(await bindings.read({ tenant: TENANT_A, session: sessionId('s1') })).toMatchObject({
       failure: { kind: 'unavailable' },
     })
+  })
+})
+
+describe('the cursor signing reaches the reads through the real tree', () => {
+  const forged = ['eyJ4IjoxfQ', 'c3RhdGUtcm9vdC8x', 'AAAA'].join('.')
+  const pendingAfter = (tree: LoadedTree) =>
+    transactions(tree).pending({ principal: 'tester', tenant: TENANT_A, after: forged, limit: 1 })
+
+  async function withTenant(extra: Partial<Parameters<typeof loadStorageTree>[0]> = {}) {
+    const tree = await load(workspace(), extra)
+    started(tree)
+    const command = createCommand(TENANT_A, 's1')
+    const created = await transactions(tree).commit({
+      access: access(TENANT_A, 's1'),
+      command,
+      guards: createGuards(command),
+    })
+    expect('ok' in created, JSON.stringify(created)).toBe(true)
+    return tree
+  }
+
+  test('a forged cursor is judged by the real signing service: invalid, field cursor, reason signature', async () => {
+    const tree = await withTenant()
+    expect(await pendingAfter(tree)).toMatchObject({
+      failure: { kind: 'invalid', field: 'cursor', reason: 'signature' },
+    })
+  })
+
+  test('without the sessionCursorSigning entry object the same read answers unavailable, not invalid', async () => {
+    const tree = await withTenant({ entryObjects: [storageHost] })
+    expect(await pendingAfter(tree)).toMatchObject({ failure: { kind: 'unavailable' } })
+  })
+
+  test('with the entry object present the read does not answer unavailable (guards the late binding)', async () => {
+    const tree = await withTenant({ entryObjects: [storageHost, cursorSigning] })
+    expect(await pendingAfter(tree)).not.toMatchObject({ failure: { kind: 'unavailable' } })
   })
 })
