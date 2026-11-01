@@ -142,6 +142,7 @@ export function createCommit(core: Core): SqlStorage['commit'] {
         }
         // A domain of another scope looks like an absent one (SPEC 5.5).
         if (!sameScope(ready.scope, identity.scope)) return reject('combination_unregistered')
+        if (ready.wal.state === 'write-stopped') return reject('domain_unavailable')
         let reply: CommitReply
         try {
           reply = await ready.client.request<CommitReply>({

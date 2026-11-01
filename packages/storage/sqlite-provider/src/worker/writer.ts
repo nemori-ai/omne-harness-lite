@@ -6,13 +6,25 @@ import { parentPort, workerData } from 'node:worker_threads'
 import { openDomain, registerInDomain, type WorkerState } from './domain.ts'
 import { ModuleCache } from './modules.ts'
 import { runCommit, runQuery } from './execute.ts'
-import type { InternalErrorReply, WithdrawnReply, WorkerEnv, WorkerRequest } from './protocol.ts'
+import { WalMaintainer } from './wal.ts'
+import type {
+  InternalErrorReply,
+  WithdrawnReply,
+  WorkerEnv,
+  WorkerEvent,
+  WorkerRequest,
+} from './protocol.ts'
 
 const port = parentPort
 if (port === null) throw new Error('writer.ts must run in a Worker')
 const env = workerData as WorkerEnv
 const state: WorkerState = { db: null, modules: new ModuleCache() }
 const closingFlag = new Int32Array(env.closingFlag)
+const wal = new WalMaintainer(
+  env,
+  () => state.db,
+  walState => port.postMessage({ event: 'wal', state: walState } satisfies WorkerEvent),
+)
 /** Requests that the Worker does not start once the provider closes (SPEC 13.3 step 2). */
 const WITHDRAWABLE: ReadonlySet<WorkerRequest['kind']> = new Set(['register', 'commit', 'query'])
 
@@ -64,5 +76,20 @@ port.on('message', (message: { id: number; request: WorkerRequest }) => {
       }
       process.exit(0)
     }
+    maintain()
   })
 })
+
+/** Maintenance runs on the request queue, so it never interleaves with a request (SPEC 12.3). */
+function maintain(): void {
+  if (Atomics.load(closingFlag, 0) === 1) return
+  try {
+    wal.tick()
+  } catch {
+    // A maintenance error is not a request error. The next tick tries again.
+  }
+}
+
+setInterval(() => {
+  queue = queue.then(maintain)
+}, env.checkpointIntervalMs).unref()

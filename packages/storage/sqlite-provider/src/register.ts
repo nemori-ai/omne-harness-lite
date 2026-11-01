@@ -96,8 +96,9 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
         if (outcome.created === spec) return registered(spec.scope)
         const { entry } = outcome
         if (!sameScope(entry.scope, spec.scope)) return rejection('domain_occupied')
-      // Not sent yet, so it can be withdrawn without a trace (SPEC 13.3 step 2).
-      if (core.lifecycle.closing) return unknown('withdrawn_before_start')
+        // Not sent yet, so it can be withdrawn without a trace (SPEC 13.3 step 2).
+        if (core.lifecycle.closing) return unknown('withdrawn_before_start')
+        if (entry.wal.state === 'write-stopped') return rejection('domain_unavailable')
         let reply: RegisterReply
         try {
           reply = await entry.client.request<RegisterReply>({

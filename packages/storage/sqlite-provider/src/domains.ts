@@ -12,7 +12,7 @@ import type { CloseLeasePort, SqlMaterialCatalog, StorageScope } from '@omne-har
 import { claimWriter, releaseWriter } from './claims.ts'
 import type { ReadPoolPort, ReportLatch } from './close.ts'
 import type { SqliteStorageConfig } from './config.ts'
-import type { OpenReply, RegistrationSpec } from './worker/protocol.ts'
+import type { OpenReply, RegistrationSpec, WalState } from './worker/protocol.ts'
 import { WriterClient } from './writer-client.ts'
 
 export type Lifecycle = { closing: boolean }
@@ -35,6 +35,8 @@ export type ReadyDomain = {
   /** Participants that the schema check handles as singletons in this generation (SPEC 4.5). */
   readonly singletons: readonly string[]
   readonly leaseName: string
+  /** The WAL state that the Worker reports (SPEC 12.3). `write-stopped` refuses new writes. */
+  readonly wal: { state: WalState }
 }
 
 type OpeningDomain = {
@@ -167,6 +169,7 @@ export class Domains {
       return { kind: 'closing' }
     }
     let client: WriterClient | null = null
+    const wal = { state: 'normal' as WalState }
     let reply: OpenReply
     try {
       if (create !== null) await mkdir(dirname(file), { recursive: true })
@@ -190,6 +193,12 @@ export class Domains {
           // Unexpected exit: the next touch opens the domain again (SPEC 5.2, recovering).
           const current = this.entries.get(domain)
           if (current?.state === 'ready' && current.client === started) this.entries.delete(domain)
+        },
+        state => {
+          const was = wal.state
+          wal.state = state
+          if (was === 'normal') this.hooks.readPool.pause(domain)
+          else if (state === 'normal') this.hooks.readPool.resume(domain)
         },
       )
       client = started
@@ -220,6 +229,7 @@ export class Domains {
         scope: reply.scope,
         singletons: reply.singletons,
         leaseName,
+        wal,
       }
       const live = this.workers.get(leaseName)
       if (live !== undefined) live.scope = reply.scope
