@@ -28,8 +28,13 @@ import type {
   SqlCell,
   SqlValue,
 } from '@omne-harness/sql-contract/worker'
+import recordMigration from '../../src/worker/execution-record-migration.ts'
+import executionRecord from '../../src/worker/execution-record.ts'
 import migration from '../../src/worker/migration.ts'
 import participant from '../../src/worker/participant.ts'
+import readExecutionOperation from '../../src/worker/read-execution-operation.ts'
+import readExecutionState from '../../src/worker/read-execution-state.ts'
+import readHistoryRoot from '../../src/worker/read-history-root.ts'
 import readHistory from '../../src/worker/read-history.ts'
 import readInput from '../../src/worker/read-input.ts'
 import readModelSelection from '../../src/worker/read-model-selection.ts'
@@ -48,7 +53,17 @@ const HANDLERS: readonly ReadHandlerModule[] = [
   readPending,
   readReferences,
   readReleasedScopes,
+  readHistoryRoot,
+  readExecutionState,
+  readExecutionOperation,
 ]
+
+/** The participant modules by name; the execution order is the order of the commands. */
+const PARTICIPANTS: ReadonlyMap<string, ParticipantModule> = new Map([
+  [participant.participant, participant],
+  [executionRecord.participant, executionRecord],
+])
+const MIGRATIONS: readonly MigrationModule[] = [migration, recordMigration]
 
 export type StorageCall =
   | Readonly<{ kind: 'read'; handler: string; domain: DomainRef; input: unknown }>
@@ -135,7 +150,7 @@ export function createSqliteStorage(): SqliteStorage {
     if (existing !== null) return existing
     const db = new DatabaseSync(':memory:')
     const port = { execute: (sql: string, params: readonly SqlValue[]) => rowsOf(db, sql, params) }
-    ;(migration as MigrationModule).up(port)
+    for (const module of MIGRATIONS) module.up(port)
     const domain: Domain = { scope, db, receipts: new Map() }
     domains.set(name, domain)
     return domain
@@ -154,8 +169,13 @@ export function createSqliteStorage(): SqliteStorage {
         responses: entries,
       }) as unknown as ReceiptV2
     domain.db.exec('BEGIN IMMEDIATE')
-    for (const command of request.commands) {
-      const module: ParticipantModule = participant
+    // The storage runs the commands in the fixed order of the combination: ascending names.
+    const ordered = [...request.commands].sort((a, b) =>
+      a.participant < b.participant ? -1 : a.participant > b.participant ? 1 : 0,
+    )
+    for (const command of ordered) {
+      const module = PARTICIPANTS.get(command.participant)
+      if (module === undefined) throw new Error(`no participant ${command.participant}`)
       let reply: RecordedReply
       try {
         const port = {
@@ -321,6 +341,6 @@ export function migratedPort(): Readonly<{
     requireFact: () => null,
     provideFact: () => undefined,
   }
-  ;(migration as MigrationModule).up(port)
+  for (const module of MIGRATIONS) module.up(port)
   return { port }
 }

@@ -48,11 +48,14 @@
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/identity": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*",
-    "@omne-harness/session-cordis-contract": "workspace:*"
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "@omne-harness/sqlite-provider": "workspace:*"
   }
 }
