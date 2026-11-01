@@ -472,14 +472,11 @@ export function readAdmissionPage(
   const count = Math.min(request.limit, limits.items ?? request.limit, target - start)
   const items: ReplyAdmissionItem[] = []
   let bytes = 0
-  let end = startPrefix
+  // The basis of each row, for the end of the page: only the last fact of a page needs one.
+  const bases: (DurableEvidence | null)[] = []
   for (const [offset, row] of rowsOf(records, start, count, counters).entries()) {
     if (row === undefined || !row.present) {
       if (items.length === 0) return gap('missing-fact')
-      break
-    }
-    if (row.basis === null) {
-      if (items.length === 0) return gap('missing-basis')
       break
     }
     const size = canonical(row.fact).length
@@ -487,10 +484,21 @@ export function readAdmissionPage(
     if (limits.bytes !== null && items.length > 0 && bytes + size > limits.bytes) break
     bytes += size
     counters.decoded += 1
-    const sequence = sequenceText(start + offset + 1)
-    items.push({ sequence, fact: row.fact, publication: row.publication })
-    end = { sequence, basis: row.basis }
+    items.push({
+      sequence: sequenceText(start + offset + 1),
+      fact: row.fact,
+      publication: row.publication,
+    })
+    bases.push(row.basis)
   }
+  // A page ends at its last fact whose prefix basis the Journal still holds.
+  while (items.length > 0 && bases.at(-1) === null) {
+    items.pop()
+    bases.pop()
+  }
+  if (items.length === 0) return gap('missing-basis')
+  const last = items.at(-1)!
+  const end: ReplyAdmissionPrefix = { sequence: last.sequence, basis: bases.at(-1)! }
   const reached = start + items.length
   return succeed({
     kind: 'page',

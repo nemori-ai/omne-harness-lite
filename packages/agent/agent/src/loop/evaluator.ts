@@ -11,8 +11,10 @@
 // position that is a continuation point) answer `unsupported`. J5 routes those positions in the
 // coordinator without extending LoopFacts or Next.
 import {
+  decodeReplyAdmissionSequence,
   decodeStepId,
   judgeAdoption,
+  judgeEvidence,
   type Adoption,
   type AgentCheckpoint,
   type AgentEvaluator,
@@ -20,6 +22,7 @@ import {
   type Failure,
   type LoopFacts,
   type Next,
+  type ReplyAdmissionRead,
   type StepId,
   type Waiting,
 } from '@omne-harness/agent-contract'
@@ -33,8 +36,8 @@ import type { LoopNode } from './nodes.ts'
 export const agentCheckpointSchema: Adoption = Object.freeze({
   owner: '@omne-harness/agent',
   name: 'agent-checkpoint',
-  revision: '1',
-  digest: 'agent:agent-checkpoint/1',
+  revision: '2',
+  digest: 'agent:agent-checkpoint/2',
 })
 
 /** The position of a new checkpoint: every new logical execution passes E3 once (node table E3). */
@@ -183,13 +186,116 @@ function encode(value: AgentCheckpoint): Continuation {
   }
 }
 
+/** Every member of the checkpoint this evaluator writes; each one is required. */
+const CHECKPOINT_MEMBERS: readonly (keyof AgentCheckpoint)[] = [
+  'schema',
+  'definition',
+  'step',
+  'position',
+  'calls',
+  'passages',
+  'batch',
+  'inputBatch',
+  'requestPreparation',
+  'compaction',
+  'adoptedContext',
+  'guard',
+  'completedPassages',
+  'priorConditions',
+  'currentHandoff',
+  'replyAdmissionRead',
+]
+
+/** The plain value of a JSON value tree: the inverse of `toJson`. */
+function fromJson(value: JsonValue): unknown {
+  switch (value.kind) {
+    case 'null':
+      return null
+    case 'boolean':
+    case 'string':
+      return value.value
+    case 'number':
+      return Number(value.lexeme)
+    case 'array':
+      return value.items.map(fromJson)
+    case 'object':
+      return Object.fromEntries(value.entries.map(entry => [entry.key, fromJson(entry.value)]))
+    default: {
+      const _exhaustive: never = value
+      return _exhaustive
+    }
+  }
+}
+
+/** Whether `value` is exactly the adoption `expected`: the same four members and no other. */
+function sameAdoption(value: unknown, expected: Adoption): boolean {
+  const judged = judgeAdoption(value)
+  return (
+    'ok' in judged &&
+    judged.ok.owner === expected.owner &&
+    judged.ok.name === expected.name &&
+    judged.ok.revision === expected.revision &&
+    judged.ok.digest === expected.digest
+  )
+}
+
+function refused(field: string, reason: string): Outcome<never, Failure> {
+  return fail({ kind: 'invalid', field, reason })
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+/** The read position exactly: `unverified`, or `verified` with a canonical sequence and a basis. */
+function readPositionOf(value: unknown): Outcome<ReplyAdmissionRead, Failure> {
+  const field = 'checkpoint.replyAdmissionRead'
+  if (!isRecord(value)) return refused(field, 'type')
+  if (value['kind'] === 'unverified' && Object.keys(value).length === 1)
+    return succeed({ kind: 'unverified' })
+  if (value['kind'] !== 'verified' || Object.keys(value).length !== 2)
+    return refused(field, 'not a read position')
+  const prefix = value['prefix']
+  if (!isRecord(prefix) || Object.keys(prefix).length !== 2)
+    return refused(`${field}.prefix`, 'type')
+  const sequence = decodeReplyAdmissionSequence(prefix['sequence'])
+  if ('failure' in sequence) return refused(`${field}.prefix.sequence`, sequence.failure.reason)
+  const basis = judgeEvidence(prefix['basis'])
+  if ('failure' in basis) return refused(`${field}.prefix.basis`, basis.failure.reason)
+  return succeed({ kind: 'verified', prefix: { sequence: sequence.ok, basis: basis.ok } })
+}
+
 /**
- * Stage-temporary (#502 stage 5): decode must judge the exact adoption, the identity relations and
- * the completeness of every facet (SPEC "身份、原位置与纯求值"). Until resume brings that judgment,
- * no continuation is taken as a checkpoint.
+ * Decodes a continuation this evaluator encoded: the exact schema adoption, every member present
+ * and no other, the definition, step and position of the continuation, and the read position of
+ * the reply admission facts exactly (D5: a missing member or an unknown schema is refused, never
+ * taken as `unverified` or as zero). There is no named migration of an older schema. The other
+ * facets keep their encoded shape: judging their identity relations is #502 stage 5 (resume).
  */
-function decode(_value: Continuation): Outcome<AgentCheckpoint, Failure> {
-  return unsupported
+function decode(value: Continuation): Outcome<AgentCheckpoint, Failure> {
+  if (!sameAdoption(value.schema, agentCheckpointSchema))
+    return refused('schema', 'not the checkpoint schema of this evaluator')
+  const tree = fromJson(value.value)
+  if (!isRecord(tree)) return refused('checkpoint', 'type')
+  for (const member of CHECKPOINT_MEMBERS)
+    if (!Object.hasOwn(tree, member)) return refused(`checkpoint.${member}`, 'missing')
+  for (const member of Object.keys(tree))
+    if (!(CHECKPOINT_MEMBERS as readonly string[]).includes(member))
+      return refused(`checkpoint.${member}`, 'unknown-field')
+  if (!sameAdoption(tree['schema'], value.schema))
+    return refused('checkpoint.schema', 'not the schema of the continuation')
+  const definition = judgeAdoption(tree['definition'])
+  if ('failure' in definition) return refused('checkpoint.definition', definition.failure.reason)
+  if (!sameAdoption(definition.ok, value.definition))
+    return refused('checkpoint.definition', 'not the definition of the continuation')
+  if (tree['position'] !== value.position)
+    return refused('checkpoint.position', 'not the position of the continuation')
+  const step = decodeStepId(tree['step'])
+  if ('failure' in step) return refused('checkpoint.step', step.failure.reason)
+  const read = readPositionOf(tree['replyAdmissionRead'])
+  if ('failure' in read) return read
+  // The members were checked one by one above; the other facets keep the shape encode wrote.
+  return succeed({ ...(tree as AgentCheckpoint), step: step.ok, replyAdmissionRead: read.ok })
 }
 
 /** The evaluator of the generic Agent. An assembly resolves it through `AgentAdoptions`. */

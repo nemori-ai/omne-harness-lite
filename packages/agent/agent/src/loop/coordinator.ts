@@ -69,7 +69,8 @@ import type {
   StepId,
   Waiting,
   ReceivedEntry,
-  ReplyAdmissionPageCursor,
+  ReplyAdmissionPrefix,
+  ReplyAdmissionRead,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -92,6 +93,12 @@ import {
 import { canonical } from '../canonical.ts'
 import { waitForExecutionChange } from './wait.ts'
 import { diagnosticOf } from './diagnostic.ts'
+import {
+  lowerBound,
+  readRange,
+  REPLY_ADMISSION_PAGE_LIMIT,
+  sentPosition,
+} from './admission-read.ts'
 import { LOOP_NODES, successor, type Label, type LoopNode } from './nodes.ts'
 import { consumeModelResult, type ModelOutcome } from './model-result.ts'
 import { readModelDeliveryMaterial } from '../receiving-material.ts'
@@ -123,6 +130,24 @@ export type ExecutionEntry<P> = Readonly<{
   grant: DurableEvidence | null
   /** E9, or E1 finding an advanced execution: give the slot back and return to idle. */
   idle(): void
+  /**
+   * Receives the report of a cold read of the reply admission facts (D5 5.1, 治疗). Optional; the
+   * runtime assembly gives none yet, so the report then goes nowhere.
+   */
+  report?: (report: ReplyAdmissionReadReport) => void
+}>
+
+/**
+ * A cold read of the reply admission facts: E2 met `missing-basis` at the prefix `from` and read
+ * once again from origin. `outcome` says how that read ended; `pages` and `facts` are its size.
+ */
+export type ReplyAdmissionReadReport = Readonly<{
+  kind: 'origin-reread'
+  reason: 'missing-basis'
+  from: string
+  outcome: 'complete' | 'gap' | 'failure'
+  pages: number
+  facts: number
 }>
 
 /** Where and why the coordinator stopped. The execution stays where its last commit put it. */
@@ -389,6 +414,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     null
   let activeDrive = false
   let activeWait = false
+  // The verified prefix of the reply admission facts this coordinator read (D5 第 5 节). It belongs
+  // to this execution and this coordinator, is lost with the process and is saved only by the
+  // ordinary commits that carry it.
+  let readPrefix: ReplyAdmissionPrefix | null = null
+  // The read position the last operation was sent with: a retry of the same operation sends the
+  // same semantic input (SPEC:261, 102), never a newer prefix.
+  let lastSent: Readonly<{ operation: AgentOperationId; read: ReplyAdmissionRead }> | null = null
 
   async function exclusive<T>(
     node: LoopNode,
@@ -406,12 +438,20 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
   async function commit(node: LoopNode, to: string, write: Write): Promise<Outcome<void, Failure>> {
     const base = required(checkpoint, 'checkpoint')
     const after = required(revision, 'revision')
-    const next: AgentCheckpoint = { ...base, ...write.checkpoint, position: to }
+    const operation = write.operation ?? journalOperation(node, 'commit', after)
+    const replyAdmissionRead = sentPosition(
+      lastSent,
+      operation,
+      readPrefix,
+      base.replyAdmissionRead,
+    )
+    lastSent = { operation, read: replyAdmissionRead }
+    const next: AgentCheckpoint = { ...base, ...write.checkpoint, replyAdmissionRead, position: to }
     const nextState = write.state ?? state
     const committed = await ports.journal.commit({
       ...access,
       execution,
-      operation: write.operation ?? journalOperation(node, 'commit', after),
+      operation,
       authority: required(authority, 'authority'),
       expected: after,
       checkpoint: next,
@@ -466,6 +506,19 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
         if (ran.ok.commit !== null && to !== null) {
           const committed = await commit(at, to, ran.ok.commit)
           if ('failure' in committed) {
+            // D5 5.1: the Journal lost the material of the prefix this commit carried. Drop the
+            // in-process prefix and wait in W0 with the saved one; the wake reads from it again.
+            if (
+              committed.failure.kind === 'unavailable' &&
+              committed.failure.diagnostic.startsWith('missing-basis')
+            ) {
+              readPrefix = null
+              waitingAt = at
+              recheckDependency = null
+              waits = [{ kind: 'dependency', owner: committed.failure.owner, position: at }]
+              node = 'W0'
+              continue
+            }
             if (committed.failure.kind === 'changed' && ['F1', 'F2'].includes(at)) {
               finishRefused = true
               node = 'R0'
@@ -541,35 +594,8 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       watermark: read.inputWatermark,
     })
     if ('failure' in inputs) return inputs
-    let after: ReplyAdmissionPageCursor | null = null
-    const cursors = new Set<string>()
-    for (;;) {
-      const admissions = await ports.journal.readReplyAdmissions({
-        ...access,
-        execution,
-        from: { kind: 'origin' },
-        through: read.replyAdmissions.through,
-        after,
-        limit: 100,
-      })
-      if ('failure' in admissions) return admissions
-      if (admissions.ok.kind === 'gap')
-        return fail({
-          kind: 'unavailable',
-          owner: 'agentJournal',
-          diagnostic: 'reply admission projection has a gap',
-        })
-      if (admissions.ok.tail.kind === 'complete') break
-      const next = admissions.ok.tail.next
-      if (cursors.has(next))
-        return fail({
-          kind: 'unavailable',
-          owner: 'agentJournal',
-          diagnostic: 'reply admission projection does not advance',
-        })
-      cursors.add(next)
-      after = next
-    }
+    const admissions = await readAdmissions(read, current)
+    if ('failure' in admissions) return admissions
     const conditions = await ports.conditions.read({
       ...access,
       advance: required(authority, 'authority'),
@@ -592,6 +618,60 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       replyAdmissions: read.replyAdmissions,
       controls: [], // Control interpretation belongs to stage 5 (J4).
     })
+  }
+
+  /**
+   * E2's read of the reply admission facts (D5 第 5 节): from the lower bound to the fixed target
+   * of `read`, page by page, the in-process prefix moving with each page that passed. A gap of
+   * `missing-basis` at a prefix is read once more from origin (5.1, 治疗); every other gap, and an
+   * origin read that does not complete, is a dependency to wait on. E2 writes nothing.
+   */
+  async function readAdmissions(
+    read: ExecutionSnapshot,
+    current: AgentCheckpoint,
+  ): Promise<Outcome<void, Failure>> {
+    const port = (
+      input: Omit<
+        Parameters<typeof ports.journal.readReplyAdmissions>[0],
+        'principal' | 'tenant' | 'execution'
+      >,
+    ) => ports.journal.readReplyAdmissions({ ...access, execution, ...input })
+    const range = {
+      through: read.replyAdmissions.through,
+      target: read.replyAdmissions.prefix,
+      limit: REPLY_ADMISSION_PAGE_LIMIT,
+    }
+    const advance = (prefix: ReplyAdmissionPrefix) => {
+      readPrefix = prefix
+    }
+    const from = lowerBound(readPrefix, current.replyAdmissionRead)
+    let ranged = await readRange(port, { ...range, from }, advance)
+    if ('failure' in ranged) return ranged
+    if (
+      ranged.ok.kind === 'gap' &&
+      ranged.ok.reason === 'missing-basis' &&
+      from.kind === 'prefix'
+    ) {
+      readPrefix = null
+      const origin = await readRange(port, { ...range, from: { kind: 'origin' } }, advance)
+      entry.report?.({
+        kind: 'origin-reread',
+        reason: 'missing-basis',
+        from: from.prefix.sequence,
+        outcome: 'failure' in origin ? 'failure' : origin.ok.kind,
+        pages: 'failure' in origin ? 0 : origin.ok.pages,
+        facts: 'failure' in origin ? 0 : origin.ok.facts,
+      })
+      if ('failure' in origin) return origin
+      ranged = origin
+    }
+    if (ranged.ok.kind === 'gap')
+      return fail({
+        kind: 'unavailable',
+        owner: 'agentJournal',
+        diagnostic: `reply admission range has a gap: ${ranged.ok.reason}`,
+      })
+    return succeed(undefined)
   }
 
   /**
