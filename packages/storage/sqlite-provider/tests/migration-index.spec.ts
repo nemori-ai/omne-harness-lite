@@ -6,6 +6,7 @@ import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { SqlMaterialCatalog } from '@omne-harness/sql-contract'
+import { SqlGateway, migrationDecision } from '../src/worker/ports.ts'
 import {
   DOMAIN,
   buildMaterials,
@@ -80,6 +81,39 @@ describe('index creation in a migration', () => {
           .all('t_ledger_note_idx'),
       ).toHaveLength(1)
     } finally {
+      db.close()
+    }
+  })
+})
+
+describe('REINDEX in a migration', () => {
+  function gatewayOf(owned: readonly string[]): { gateway: SqlGateway; db: DatabaseSync } {
+    const db = new DatabaseSync(':memory:')
+    db.exec(
+      'create table t_a(id integer primary key, v text); create table t_b(id integer primary key, v text);' +
+        'create index t_b_v_idx on t_b(v)',
+    )
+    return { gateway: new SqlGateway(db, migrationDecision(owned, [])), db }
+  }
+
+  it('denies REINDEX of an index or a table the owner does not own', () => {
+    const { gateway, db } = gatewayOf(['t_a'])
+    try {
+      expect(() => gateway.execute('reindex t_b_v_idx', [])).toThrow()
+      expect(() => gateway.execute('reindex t_b', [])).toThrow()
+      expect(() => gateway.execute('create index t_b_other_idx on t_b(id)', [])).toThrow()
+    } finally {
+      gateway.close()
+      db.close()
+    }
+  })
+
+  it('allows the REINDEX raised by creating an index on an owned table', () => {
+    const { gateway, db } = gatewayOf(['t_a'])
+    try {
+      expect(() => gateway.execute('create index t_a_v_idx on t_a(v)', [])).not.toThrow()
+    } finally {
+      gateway.close()
       db.close()
     }
   })
