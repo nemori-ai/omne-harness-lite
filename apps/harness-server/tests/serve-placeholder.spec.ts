@@ -8,8 +8,10 @@ import { syntheticRow } from './fixtures/serve/index.ts'
 
 describe('serve: a real consumer never gets a placeholder (DP1-C11, rule 4)', () => {
   it('a name that an s0-double row and a real row both inject stays unprovided, the real row is PENDING', async () => {
-    // `agent-host` 是 S0 替身行，它 inject `agentClock`（不受信）；没有行提供它，注册表也没有它。
+    // `agent-host` 是 S0 替身行，它 inject `agentClock`（不受信）；没有行提供它。注册表显式置空，
+    // 因为发行注册表里 `agentClock` 已是真实入口对象（APP-5）。
     const run = await serveOnce({
+      entryObjects: [],
       distribution: {
         rows: [
           { id: 'agent-host', plugin: 'stubPlugin', config: {} },

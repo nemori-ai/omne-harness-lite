@@ -158,6 +158,9 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent/agent
       '@omne-harness/agent-contract':
         specifier: workspace:*
         version: link:../../packages/agent/agent-contract

@@ -88,7 +88,7 @@ describe('serve: the release tree of doubles (R1-1, DP1-C3)', () => {
     expect(entries.find(r => r['name'] === 'principalIssuer')).toEqual({
       kind: 'entry-object',
       name: 'principalIssuer',
-      implementation: 's0-double',
+      implementation: 'real',
       trusted: true,
     })
     // 名字只被行提供的不是入口对象，即使这一次树里没有提供者。

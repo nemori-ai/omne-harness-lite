@@ -98,6 +98,7 @@ packages/
 ├── identity/
 │   ├── identity/               主体、成员、登录与组织关系
 │   ├── authorization/          授权及共同动作准入
+│   ├── identity-sql/           身份契约的持久提供者：账号、成员与登录的 SQL 存储
 │   └── scrypt/                 有界 scrypt 派生与校验
 ├── assets/
 │   ├── assets/                 共同定义、版本、持有与来源
@@ -128,6 +129,7 @@ packages/
 │   ├── tool-contract/          工具纯契约：类型、判定与投影
 │   ├── tool-cordis-contract/   工具的 Cordis 服务定义
 │   ├── tool/                   不含 Cordis 的工具执行实现
+│   ├── tool-storage-sql/       Tool 记录仓与原件保管的 SQL 提供者，依赖 tool、tool-contract、sql-contract
 │   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
 │   ├── runtime-context-contract/         Runtime Context 纯契约：已有类型、校验、解码与契约套件
