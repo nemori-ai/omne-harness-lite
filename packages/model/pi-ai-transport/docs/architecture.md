@@ -200,11 +200,11 @@ stateDiagram-v2
 - `response`：收到响应时加入，响应的 `close` 事件时离开。
 - `error-body`：开始读取错误体时加入，读取结束时离开。
 
-集合为空时，交换进入 `closed`：清除连接超时定时器，移除信号监听器，离开在途登记，经座位归还名额，确定结果，投递 `exchange-stopped`，然后完成 `stopped`。`responding` 的结果已在收到响应头时交付，`closed` 时不再改变。
+集合为空时，交换进入 `closed`：清除连接超时定时器与流停顿定时器，移除套接字上的 `data` 监听器与信号监听器，离开在途登记，经座位归还名额，确定结果，投递 `exchange-stopped`，然后完成 `stopped`。`responding` 的结果已在收到响应头时交付，`closed` 时不再改变。
 
 停止在 `requesting`、`reading-error` 与 `concluding` 时把相位改为 `stopping`，然后销毁响应与请求。在 `responding` 时，停止不改变相位，只销毁连接，读者的迭代因此以 `ResponseBodyStoppedError` 结束。其他相位上的停止不起作用。
 
-交换记住是否发生过本地停止。响应体在到达末尾之前结束时，读者按这个记录得到两种错误之一：有本地停止是 `ResponseBodyStoppedError`，没有本地停止是 `ResponseBodyReadError`，后者带 Node 报告的 `cause`。读者按类型分支，不解释 Node 的错误码。
+交换记住响应第一次本地结束的原因：停止，或流停顿到期。到期在先时，无论在哪个相位，之后的停止都不再改变结果。2xx 响应体在到达末尾之前结束时，读者按这个记录得到三种错误之一：本地停止在先是 `ResponseBodyStoppedError`，流停顿先到期是 `ResponseBodyStalledError`，没有本地原因是 `ResponseBodyReadError`，后者带 Node 报告的 `cause`。读者按类型分支，不解释 Node 的错误码。
 
 响应体的读者提前结束迭代时，本包销毁响应。未启动的异步生成器不运行 `finally`，所以 `claim()` 返回的迭代器、`readSseEvents` 与 `readProtocolFrames` 都经 [iteration.ts](../src/iteration.ts) 包装：读者在第一次 `next()` 之前调用 `return()` 或 `throw()` 时，包装先关闭来源。来源关闭失败时，包装仍让生成器完成，之后的 `next()` 返回 done，失败本身传给读者。包装在这种 `return()` 或 `throw()` 开始时同步进入“结束中”状态。关闭期间到达的 `next()`、`return()` 或 `throw()` 等关闭完成后才转给已完成的生成器，与原生生成器的排队一致。所以 `next()` 返回 done，生成器不启动，来源只关闭一次。三层组合提前结束时，关闭逐层到达响应。
 
@@ -225,6 +225,7 @@ stateDiagram-v2
 - 容量在授予或取消时移除信号监听器。
 - 交换在 `closed` 时移除信号监听器。
 - 交换在请求取得已连接的套接字、收到响应或关闭时清除连接超时定时器。新建的直连在 TLS 握手完成时才算已连接。
+- 流停顿定时器（配置了 `streamStallTimeoutMs` 时）也属于交换，由交换单独启动、重新计时与清除。它在发起时启动，每个到达套接字的字节使它重新计时，交换进入 `closed`、停止或到期时清除。字节由交换挂在套接字上的 `data` 监听器观察，这是唯一能同时覆盖响应头之前、响应体与 SSE 注释行的位置；监听器随交换关闭移除，因为连接可能留在连接池中。定时器到期时只在没有其他结果先确定时起作用：之前的停止、连接超时或自然结束保持原结果，Node 持有未读字节时只重新计时。到期后交换销毁连接并等物理关闭，所以名额归还与 `stopped` 都在终止之前。
 - 连接池在把套接字交给请求或收到建连错误时，移除建连取消信号上的监听器。直连时 Node 不调用这个回调，监听器随交换的取消控制器一起被回收。
 - 诊断隔离只在 thenable 完成时调整计数，派生的 Promise 不会拒绝。
 
@@ -279,7 +280,7 @@ Node 不再把信号传到 `createConnection` 时，这些用例以“未在时�
 - 发起：封存件在 send 内等待容量。本包把等待移到 `reserve`，发起本身同步。
 - 地址：封存件固定 OpenRouter 路径。本包只接收调用方给出的完整 https 地址。
 - 诊断上限：封存件复用连接数作为诊断在途上限。本包的 `maxPending` 独立配置。
-- 读者看到的错误：封存件把 Node 的流错误原样交给读者。本包把本地停止与对方中断分为 `ResponseBodyStoppedError` 与 `ResponseBodyReadError` 两种类型。
+- 读者看到的错误：封存件把 Node 的流错误原样交给读者。本包把本地停止、流停顿到期与对方中断分为 `ResponseBodyStoppedError`、`ResponseBodyStalledError` 与 `ResponseBodyReadError` 三种类型。
 - 非 2xx 的报告：封存件把所有非 2xx 归为一类。三段传输按状态码区分 `credential`、`upstream-unavailable`、`input-rejected` 与 `upstream-protocol`，见 SPEC“事实流”。
 - 凭据：封存件经旧的凭据通道取得凭据。三段传输只在 start 的同步调用中读取注入的凭据槽。
 

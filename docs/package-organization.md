@@ -123,7 +123,8 @@ packages/
 │   ├── model-contract/         模型纯契约：档案、请求准备、调用与提供者协议
 │   ├── model-cordis-contract/  模型的 Cordis 服务定义
 │   ├── model/                  不含 Cordis 的模型执行实现
-│   └── model-host-local/       单机宿主：本地凭据保管与 Cordis 插件
+│   ├── model-host-local/       单机宿主：本地凭据保管与 Cordis 插件
+│   └── model-storage-sql/      调用事实的 SQL 存储：ModelCommands 存储端口
 ├── tool/
 │   ├── tool-contract/          工具纯契约：类型、判定与投影
 │   ├── tool-cordis-contract/   工具的 Cordis 服务定义
@@ -200,6 +201,7 @@ scripts/                       仓库自动化
 | model-cordis-contract | 唯一 Cordis 服务定义、键、增补及定义自有登记表；不安装 Model 运行提供者 | 已接受 | workspace 成员；已发布全部声明并有测试 |
 | model | 可复用领域执行与实际工厂，按契约注入依赖，不安装 Cordis | 已接受 | workspace 成员；托管运行与工厂未实现，已实现部分见[成员入口](../packages/model/model/README_ZH.md) |
 | model-host-local | 本地凭据保管、实例调度、时钟、目录装载及 Cordis 插件，复用 model | 已接受 | workspace 成员；实例调度、时钟、目录装载未实现，已实现部分见[成员入口](../packages/model/model-host-local/README_ZH.md) |
+| model-storage-sql | 调用事实的 SQL 存储：实现 model 共享归约核心的存储端口（`ModelCommandStorage`），与会话日志同处一租户一事务域；不安装 Cordis，`modelCommands` 应用插件归应用组合 | D3 决策记录（#446，第二层）已定 | workspace 成员；存储端口与表、行解析、提交循环已实现，装配与对拍在做，见[成员入口](../packages/model/model-storage-sql/README_ZH.md) |
 | pi-ai-transport | 共享 pi 请求机制、HTTP/SSE、连接资源及取消 | 成员划分与家族贡献取得协议已接受；其余细化沿组架构标注 | workspace 成员；根入口导出家族贡献接口类型、家族表、`createPiTransport` 与 `createNetworkResources`，子入口导出网关引擎与家族测试助手；ModelTransport 三段语义已实现，两个真实家族经它的联调在 pi-ai-anthropic 的慢层验证；媒体读取未实现，见[成员入口](../packages/model/pi-ai-transport/README_ZH.md) |
 | pi-ai-openai | OpenAI 家族的型号记录、请求与响应规则、计量与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createOpenAiFamily`、`officialOpenAiProfiles`、`openAiTokenizerResources` 与 12 条记录；快层验证规则、计量与夹具，经共享传输的联调在 pi-ai-anthropic 的慢层；经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-openai/README_ZH.md) |
 | pi-ai-anthropic | Anthropic 家族的型号记录、请求与响应规则、计量、词表资源与官方档案 | 成员划分、家族贡献取得及计量分工已接受；其余细化沿组架构标注 | workspace 成员；根入口导出 `createAnthropicFamily`、`officialAnthropicProfiles`、`anthropicTokenizerResources` 与 4 条记录；快层验证规则、计量、词表资源与夹具，慢层验证两个家族经共享传输的联调；两个经代理的示例只在手动运行时有证据，见[成员入口](../packages/model/pi-ai-anthropic/README_ZH.md) |

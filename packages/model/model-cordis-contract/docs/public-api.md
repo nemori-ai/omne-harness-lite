@@ -5,12 +5,12 @@
 
 根入口导出八个登记类型：`ModelRegistrationFailure`、`ModelPublication`、`ModelRegistrationInput`、`ModelRegistration`、`ModelPublicationAuthority`、`ModelConverterRegistrationInput`、`ModelConverterAuthority`、`ModelConverterRegistration`。`./cordis` 再导出这八个类型，并导出下列值：
 
-- 十五个抽象 Service 与键：`ModelCredentialService`（见[凭据服务定义](#凭据服务定义)）、`ModelRuntimeService`、`ModelCommandsService`、`ModelSendBoundaryService`、`ModelRetryPolicyService`、`ModelInstanceHostService`、`ModelClockService`、`ModelProfilesService`、`ModelProfileMaintenanceService`、`ModelRequestPreparationService`、`ModelMessageConversionService`、`ModelHostAuthorityService`、`ModelPublicationAuthorityService`、`ModelConverterAuthorityService`、`ModelDiagnosticsService`。
+- 十六个抽象 Service 与键：`ModelCredentialService`（见[凭据服务定义](#凭据服务定义)）、`ModelRuntimeService`、`ModelCommandsService`、`ModelSendBoundaryService`、`ModelRetryPolicyService`、`ModelInstanceHostService`、`ModelClockService`、`ModelProfilesService`、`ModelProfileMaintenanceService`、`ModelRequestPreparationService`、`ModelPreparationResourcesService`（见[准备资源租约](#准备资源租约)）、`ModelMessageConversionService`、`ModelHostAuthorityService`、`ModelPublicationAuthorityService`、`ModelConverterAuthorityService`、`ModelDiagnosticsService`。
 - 两个具体目录 `ModelInstancesService` 与 `ModelConvertersService`，及键 `modelInstancesKey` 与 `modelConvertersKey`。
 - 结果接收登记：`ModelResultReceiverTable`（类型）、`createModelResultReceiverTable` 与 `ModelResultReceiverConflictError`，见[结果接收登记](#结果接收登记)。
 - `Context` 的全部增补和事件 `model-cordis-contract/call-changed`。
 
-`./testing` 导出结果接收登记的替身与符合性用例，见[结果接收登记](#结果接收登记)。
+`./testing` 导出结果接收登记的替身与符合性用例，见[结果接收登记](#结果接收登记)；还导出准备资源租约的替身、提供插件与符合性用例，见[准备资源租约](#准备资源租约)。
 
 以上名字都已实现。精确清单见[验证说明](../verification/README.md#导出清单)。领域类型由[纯契约](../../model-contract/docs/public-api.md)拥有，登记行为由[SPEC](../SPEC.md)拥有。
 
@@ -44,6 +44,19 @@ Context 以 unknown 表达边界输入，可信身份适配器在进入领域操
 - 类型探针：[`tests/receivers.spec-d.ts`](../tests/receivers.spec-d.ts)。行为测试：[`tests/receivers.spec.ts`](../tests/receivers.spec.ts)、[`tests/receivers-conformance.spec.ts`](../tests/receivers-conformance.spec.ts)。
 
 `registerResultReceiver(owner, receiver)` 是 `ModelRuntimeService` 上的具体成员，实例属性，不是抽象成员，也不在根接口 `ModelRuntime` 上。登记落在调用方 fiber，返回同步、幂等的撤除函数。提供者用 `createModelResultReceiverTable` 建表，传给构造函数，并在推送阶段用表的 `resolve` 取接收方；表在构造函数的闭包里，不在服务实例上。重新登记的规则与同进程保证见 [SPEC](../SPEC.md#结果接收登记)。`./testing` 的 `createScriptedModelRuntimeHost` 在真实 Cordis Context 上起一个只实现登记的 `modelRuntime`，`modelResultReceiverConformance` 返回符合性用例，提供者可对自己的运行时跑同一组用例。
+
+## 准备资源租约
+
+本章给请求装配方（Context 一侧的集成提供者）和准备插件的提供者：计量租约的服务键、替身与符合性用例。
+
+- 声明：[`src/cordis.ts`](../src/cordis.ts) 的 `ModelPreparationResourcesService` 与 `modelPreparationResourcesKey`，[`src/testing/preparation-resources.ts`](../src/testing/preparation-resources.ts) 的替身与用例。
+- 行为测试：[`tests/prep-resources.spec.ts`](../tests/prep-resources.spec.ts)。
+
+`ModelPreparationResourcesService` 只有一个抽象成员 `acquire`，签名取自 model-contract 的 `ModelPreparationResources<P>['acquire']`。规则见 [SPEC](../SPEC.md#准备资源租约)。`./testing` 有三个值：
+
+- `createScriptedModelPreparationResources(script)`：替身租约来源。每个档案供应商一个绑定，计量器由脚本给出，取得与释放的结果可以编排。它不读调用事实，也不核 lineage。
+- `createModelPreparationResourcesPlugin(source)`：在自己的插件 fiber 上用 `source` 提供这个键。消费者不装 Model 宿主也能装载这个键。
+- `modelPreparationResourcesConformance(fixture)`：两条符合性用例。提供者可对自己的插件跑同一组用例。
 
 ## 凭据服务定义
 
