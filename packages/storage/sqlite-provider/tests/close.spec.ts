@@ -1,6 +1,9 @@
 // Close protocol (SQL contract SPEC 13, C12/C14): the steps of 13.3, the reporting latch of 13.4
 // and the in-process writer exclusion of 13.5. A commit that spins in the participant keeps the
 // write Worker busy, so each test controls what is in flight when `close` runs.
+import { symlink } from 'node:fs/promises'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CommitResultV2, SqlIdentity } from '@omne-harness/sql-contract'
 import {
@@ -18,6 +21,7 @@ import {
   type RecordingLeases,
   type Workspace,
 } from './support.ts'
+import { domainFile } from './group-support.ts'
 
 let workspace: Workspace
 let built: Built
@@ -202,6 +206,66 @@ describe('one writer per file in the process (13.5)', () => {
     await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
     expect(kindOf(await second.storage.commit(plain('other')))).toBe('committed')
     expect(secondLeases.admitted).toHaveLength(1)
+  })
+
+  // The claim is keyed by the file, not by the path text (SPEC 13.5).
+  it.runIf(process.platform === 'win32')(
+    'does not start a second writer through a storage root that differs only in drive-letter case',
+    async () => {
+      const first = await ready()
+      expect(kindOf(await first.storage.commit(plain('a')))).toBe('committed')
+      const root = workspace.storageRoot
+      const flipped =
+        root.charAt(0).toLowerCase() === root.charAt(0)
+          ? root.charAt(0).toUpperCase()
+          : root.charAt(0).toLowerCase()
+      const secondLeases = recordingLeases()
+      const second = await createProvider(
+        workspace,
+        built,
+        { storageRoot: flipped + root.slice(1) },
+        secondLeases,
+      )
+      providers.push(second)
+      expect(kindOf(await second.storage.commit(plain('b')))).toBe(
+        'rejected_before_accept/domain_unavailable',
+      )
+      expect(secondLeases.admitted).toEqual([])
+    },
+  )
+
+  it('does not start a second writer through a linked storage root', async () => {
+    const first = await ready()
+    expect(kindOf(await first.storage.commit(plain('a')))).toBe('committed')
+    const alias = join(workspace.root, 'alias')
+    await symlink(workspace.storageRoot, alias, 'junction')
+    const secondLeases = recordingLeases()
+    const second = await createProvider(workspace, built, { storageRoot: alias }, secondLeases)
+    providers.push(second)
+    expect(kindOf(await second.storage.commit(plain('b')))).toBe(
+      'rejected_before_accept/domain_unavailable',
+    )
+    expect(secondLeases.admitted).toEqual([])
+  })
+
+  // SPEC 7.5 step 1: the group checks the write generation after BEGIN IMMEDIATE.
+  it('gives unknown to the group of a Worker whose write generation another opener advanced', async () => {
+    const provider = await ready()
+    expect(kindOf(await provider.storage.commit(plain('a')))).toBe('committed')
+    const other = new DatabaseSync(domainFile(workspace), { timeout: 5000 })
+    try {
+      other.exec('update _sql_generation set generation = generation + 1')
+    } finally {
+      other.close()
+    }
+    expect(await provider.storage.commit(plain('stale'))).toMatchObject({
+      kind: 'unknown',
+      diagnostic: 'write_generation_changed',
+    })
+    // The Worker ends. The next touch opens the domain again with a new write generation.
+    await vi.waitFor(() => expect(leases.released).toHaveLength(1), { timeout: 5000 })
+    expect(kindOf(await provider.storage.query(keyOf('stale')))).toBe('not_committed')
+    expect(kindOf(await provider.storage.commit(plain('fresh')))).toBe('committed')
   })
 
   it('gives closing to a call on the old generation', async () => {

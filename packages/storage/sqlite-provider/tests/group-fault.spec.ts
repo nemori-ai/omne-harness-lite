@@ -105,7 +105,14 @@ function runner(log: Log, fail: (sql: string, count: number) => boolean): GroupR
     walWriteStopBytes: 134217728,
     closingFlag: new SharedArrayBuffer(4),
   }
-  return new GroupRunner(env, { db: wrap(real, log, fail), modules: new ModuleCache() })
+  const { generation } = real.prepare('select generation from _sql_generation').get() as {
+    generation: number
+  }
+  return new GroupRunner(env, {
+    db: wrap(real, log, fail),
+    modules: new ModuleCache(),
+    writeGeneration: generation,
+  })
 }
 
 const job = (id: number, request: CommitRequestV2): CommitJob => ({
@@ -245,7 +252,10 @@ describe('C09: ROLLBACK TO that cannot be confirmed (SPEC 7.7.2, state unclear)'
     const group = runner(log, sql => sql.startsWith('ROLLBACK TO'))
     const outcome = await run(group, log, [insert('a'), failing('b'), insert('c')])
     expect(kinds(outcome)).toEqual(['unknown', 'unknown'])
-    expect(outcome.replies.get(1)).toEqual({ kind: 'unknown', diagnostic: 'rollback_state_unclear' })
+    expect(outcome.replies.get(1)).toEqual({
+      kind: 'unknown',
+      diagnostic: 'rollback_state_unclear',
+    })
     expect(outcome.fatal).toBe(true)
     expect(outcome.unstarted).toEqual([3])
     expect(receipts()).toEqual([])

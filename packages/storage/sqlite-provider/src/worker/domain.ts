@@ -30,6 +30,20 @@ import { PROVIDER_SCHEMA, findSingletons } from './schema.ts'
 export type WorkerState = {
   db: DatabaseSync | null
   readonly modules: ModuleCache
+  /**
+   * The write generation that this Worker wrote into `_sql_generation` when it opened the domain.
+   * Null until then. A group commit checks it after BEGIN IMMEDIATE (SPEC 7.5 step 1).
+   */
+  writeGeneration: number | null
+}
+
+/** The write generation in the file. Read it inside a transaction to get a stable value. */
+export function readWriteGeneration(db: DatabaseSync): number {
+  const row = db.prepare('select generation from _sql_generation where singleton = 1').get() as
+    | { generation: number | bigint }
+    | undefined
+  if (row === undefined) throw new DataError('write_generation_missing')
+  return Number(row.generation)
 }
 
 /** A COMMIT that failed: the transaction may or may not be durable. */
@@ -204,6 +218,7 @@ async function createDomain(
     ).run(env.domain, canonicalJson(create.scope))
     insertRegistration(db, create)
   })
+  state.writeGeneration = 1
   return { kind: 'ready', scope: create.scope, singletons: findSingletons(db, plan.participants) }
 }
 
@@ -214,7 +229,10 @@ async function reopenDomain(
   db: DatabaseSync,
   scope: StorageScope,
 ): Promise<OpenReply> {
-  transact(db, () => db.exec('update _sql_generation set generation = generation + 1'))
+  state.writeGeneration = transact(db, () => {
+    db.exec('update _sql_generation set generation = generation + 1')
+    return readWriteGeneration(db)
+  })
   const fault = markerFault(db, env.catalog)
   if (fault !== null) return { kind: 'quarantined', diagnostic: fault }
   const { combinations, declared } = targetCombinations(db, env.catalog, scope)

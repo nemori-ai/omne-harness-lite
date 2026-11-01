@@ -9,7 +9,7 @@
 import { mkdir, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { CloseLeasePort, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
-import { claimWriter, releaseWriter } from './claims.ts'
+import { canonicalFile, claimWriter, releaseWriter } from './claims.ts'
 import type { ReportLatch } from './close.ts'
 import type { SqliteStorageConfig } from './config.ts'
 import type { OpenReply, RegistrationSpec, WalState } from './worker/protocol.ts'
@@ -101,8 +101,9 @@ export class Domains {
     this.providerGeneration = providerCounter
   }
 
+  /** The domain file as a real path, the same form that the writer claim keys (SPEC 13.5). */
   fileOf(domain: string): string {
-    return join(this.config.storageRoot, 'domains', `${hex(domain)}.sqlite`)
+    return canonicalFile(join(this.config.storageRoot, 'domains', `${hex(domain)}.sqlite`))
   }
 
   /** Admits the lease of a read Worker (SPEC 13.2). Throws when the assembly stopped admission. */
@@ -179,7 +180,7 @@ export class Domains {
       lease = this.leases.admit(leaseName)
     } catch {
       this.lifecycle.closing = true
-      releaseWriter(file, claim)
+      releaseWriter(claim)
       forget()
       return { kind: 'closing' }
     }
@@ -228,7 +229,7 @@ export class Domains {
       this.workers.set(leaseName, live)
       void started.exited.then(() => {
         this.workers.delete(leaseName)
-        releaseWriter(file, claim)
+        releaseWriter(claim)
         this.hooks.latch.release(() => this.leases.release(lease))
       })
       reply = await started.request<OpenReply>({ kind: 'open', create })
@@ -236,7 +237,7 @@ export class Domains {
       forget()
       if (client !== null) await client.close()
       else {
-        releaseWriter(file, claim)
+        releaseWriter(claim)
         this.leases.release(lease)
       }
       if (!existed) await this.removeFiles(file)

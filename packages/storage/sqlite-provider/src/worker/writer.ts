@@ -19,7 +19,7 @@ import type {
 const port = parentPort
 if (port === null) throw new Error('writer.ts must run in a Worker')
 const env = workerData as WorkerEnv
-const state: WorkerState = { db: null, modules: new ModuleCache() }
+const state: WorkerState = { db: null, modules: new ModuleCache(), writeGeneration: null }
 const closingFlag = new Int32Array(env.closingFlag)
 const closing = (): boolean => Atomics.load(closingFlag, 0) === 1
 const runner = new GroupRunner(env, state, closing)

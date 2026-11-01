@@ -8,7 +8,7 @@ import type { DatabaseSync } from 'node:sqlite'
 import type { ParticipantDescriptor, ReceiptV2 } from '@omne-harness/sql-contract'
 import type { ParticipantModule } from '@omne-harness/sql-contract/worker'
 import { canonicalJson, utf8Length } from '../json.ts'
-import { rollbackQuietly, transact, type WorkerState } from './domain.ts'
+import { readWriteGeneration, rollbackQuietly, transact, type WorkerState } from './domain.ts'
 import { describeError } from './errors.ts'
 import {
   checkRegistration,
@@ -191,6 +191,21 @@ export class GroupRunner {
     } catch (error) {
       for (const entry of entries) settleUnknown(entry, describeError('begin', error))
       return { unstarted: rest(), fatal: false }
+    }
+    // Another opener advanced the write generation: this Worker is not the writer of the file any
+    // more. Nothing runs, and the Worker ends (SPEC 7.5 step 1, 13.5).
+    let generation: number | null = null
+    try {
+      generation = readWriteGeneration(db)
+    } catch {
+      // The diagnostic below says that the value could not be read.
+    }
+    if (generation === null || generation !== this.state.writeGeneration) {
+      rollbackQuietly(db)
+      const diagnostic =
+        generation === null ? 'write_generation_unreadable' : 'write_generation_changed'
+      for (const entry of entries) settleUnknown(entry, diagnostic)
+      return { unstarted: rest(), fatal: true }
     }
 
     const staged: { entry: Entry; receipt: ReceiptV2 }[] = []
