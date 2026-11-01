@@ -12,6 +12,7 @@ import type {
   PreparedContextTransition,
   ProducedResult,
   Reply,
+  ReplyAdmissionFrom,
   ReplyAdmissionPage,
 } from './evaluation.ts'
 import type {
@@ -49,6 +50,7 @@ import type {
   DurableEvidence,
   ExecutionRevision,
   PassageId,
+  ReplyAdmissionPageCursor,
 } from './identity.ts'
 import type { FinishCandidateContent, SettlementRequest, SettlementResult } from './finishing.ts'
 
@@ -335,12 +337,19 @@ export interface AgentJournalReading<P> {
   inputs(
     input: Access<P> & Readonly<{ execution: AgentExecutionId; watermark: DurableEvidence }>,
   ): Reply<Readonly<{ batch: InputBatch; messages: readonly Message[] }>>
+  /**
+   * Reads the reply admission facts of the fixed range `(from, through]` page by page (SPEC
+   * "回复准入的已核实前缀"). The first page has `after` null; each next page repeats `from` and
+   * `through` with the cursor of the page before. `limit` is the most facts the caller takes in one
+   * page; the provider may return fewer and then answers `tail.kind` `more`.
+   */
   readReplyAdmissions(
     input: Access<P> &
       Readonly<{
         execution: AgentExecutionId
+        from: ReplyAdmissionFrom
         through: DurableEvidence
-        after: string | null
+        after: ReplyAdmissionPageCursor | null
         limit: number
       }>,
   ): Reply<ReplyAdmissionPage>

@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员没有运行实现，独立验收要等工厂进入根入口后才有对象。验收依据是 SPEC 的[组合与验证](../SPEC.md#组合与验证)。
+现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员已有来源登记表与账目投影的实现，独立验收要等其余模块进入后才有完整对象。验收依据是 SPEC 的[组合与验证](../SPEC.md#组合与验证)。

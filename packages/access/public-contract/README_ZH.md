@@ -6,7 +6,7 @@
 
 ## 职责与状态
 
-本成员实现34项治理请求操作与5项会话操作，并识别4项本阶段不提供的治理操作。[行为规格](SPEC.md)拥有规则。[主入口](src/index.ts)导出八个函数及其输入、结果类型，两种协议各四个。[治理消息类型](src/messages.ts)与[会话消息类型](src/session-messages.ts)把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md)索引全部导出。
+本成员实现34项治理请求操作与7项会话操作（含会话中断的`cancel-run`与`stop-call`），并识别4项本阶段不提供的治理操作。[行为规格](SPEC.md)拥有规则。[主入口](src/index.ts)导出八个函数及其输入、结果类型，两种协议各四个。[治理消息类型](src/messages.ts)与[会话消息类型](src/session-messages.ts)把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md)索引全部导出。
 
 本成员不核验身份、不判断授权、不执行业务，也不选择传输。identity和authorization继续拥有业务责任。Session继续拥有会话业务规则。SDK和server-entry仍是独立消费者，各自承担后续交付义务。
 
@@ -70,7 +70,7 @@ pnpm --filter @omne-harness/public-contract typecheck
 
 测试消费主exports。protocol.spec.ts验证共同边界与两端演示。correlation.spec.ts覆盖后缀语法、六预算和深层输入。operations.spec.ts与responses.spec.ts覆盖所有操作、封闭正文、终结、名单和秘密排除。public-consumption.spec-d.ts验证操作关联类型。
 
-session-protocol.spec.ts用正反向量覆盖readSessionRequest负责的第1步规则。其中message只覆盖对象与role的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。session-responses.spec.ts覆盖每个会话操作的每个结果、封闭正文、历史页、unmatched、unreadable与共同拒绝重载。session-consumption.spec-d.ts验证会话操作、正文与结果的类型。
+session-protocol.spec.ts用正反向量覆盖readSessionRequest负责的第1步规则。其中message只覆盖对象与role的检查，不含完整消息解码。它还覆盖两个位置上的跨版本拒绝。session-responses.spec.ts覆盖每个会话操作的每个结果、封闭正文、历史页、unmatched、unreadable与共同拒绝重载。session-consumption.spec-d.ts验证会话操作、正文与结果的类型。session-control-protocol.spec.ts、session-control-responses.spec.ts与session-control-consumption.spec-d.ts覆盖`cancel-run`与`stop-call`的请求、结果集合、成功正文与类型，每条用例只违反一条规则。本成员不把Session结果映射为线上结果，也不派生操作身份，两者归服务端接入。
 
 fixtures/client.ts与fixtures/server.ts各自只从包名消费。两个fixture各有一次治理往返和一次会话往返。install-closure.spec.ts打包本包及三个workspace纯依赖，建立干净安装，编译两端，并通过Node在dist上运行两次往返。安装测试需要pnpm，以及可用的jsonc-parser注册表或缓存。测试清理临时安装，把闭包记录写入任务tmp证据目录。fixtures/profile.mjs从dist入口观察有界负载。
 

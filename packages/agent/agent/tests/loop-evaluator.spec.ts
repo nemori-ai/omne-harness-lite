@@ -4,8 +4,13 @@
 // row in the transition table. The evaluator is reached through the root entry; the table and the
 // module graph are read from the source (tests/README.md).
 import { describe, expect, it } from 'vitest'
-import { agentEvaluator } from '@omne-harness/agent'
-import { decodeStepId, type LoopFacts, type Next } from '@omne-harness/agent-contract'
+import { agentCheckpointSchema, agentEvaluator } from '@omne-harness/agent'
+import {
+  decodeReplyAdmissionSequence,
+  decodeStepId,
+  type LoopFacts,
+  type Next,
+} from '@omne-harness/agent-contract'
 import { LOOP_NODES, successor, type LoopNode } from '../src/loop/nodes.ts'
 import { adoption, failure, ok } from './journal-support.ts'
 import {
@@ -39,6 +44,7 @@ describe('initial', () => {
       guard: null,
       completedPassages: [],
       priorConditions: null,
+      replyAdmissionRead: { kind: 'unverified' },
     })
   })
 
@@ -157,10 +163,78 @@ describe('codec', () => {
     const value = { ...checkpoint, guard: { member } }
     expect(() => agentEvaluator.encode(value as unknown as typeof checkpoint)).toThrow(TypeError)
   })
+})
 
-  it('stage-temporary (#502 stage 5): decode takes no continuation as a checkpoint yet', () => {
-    const encoded = agentEvaluator.encode(loopFacts('I8').checkpoint)
-    expect(failure(agentEvaluator.decode(encoded))).toEqual(unsupported)
+describe('decode (D5: the checkpoint read position and the exact schema)', () => {
+  const basis = {
+    owner: 'journal',
+    record: 'prefix/7',
+    revision: '9',
+    digest: 'journal:prefix/7@9',
+  }
+  const saved = {
+    ...loopFacts('I8').checkpoint,
+    schema: agentCheckpointSchema,
+    replyAdmissionRead: {
+      kind: 'verified',
+      prefix: { sequence: ok(decodeReplyAdmissionSequence('7')), basis },
+    },
+  } as const
+  const encodedOf = (value: unknown) => {
+    const encoded = agentEvaluator.encode(saved)
+    const tree = value as Record<string, unknown>
+    return { ...encoded, value: agentEvaluator.encode(tree as typeof saved).value }
+  }
+
+  it('round-trips every member of the checkpoint, the read position included', () => {
+    const decoded = ok(agentEvaluator.decode(agentEvaluator.encode(saved)))
+    for (const key of Object.keys(saved) as (keyof typeof saved)[])
+      expect({ key, value: decoded[key] }).toEqual({ key, value: saved[key] })
+    expect(Object.keys(decoded).sort()).toEqual(Object.keys(saved).sort())
+    const unverified = { ...saved, replyAdmissionRead: { kind: 'unverified' } } as const
+    expect(ok(agentEvaluator.decode(agentEvaluator.encode(unverified)))).toEqual(unverified)
+  })
+
+  it('refuses a checkpoint without the read position instead of taking it as unverified', () => {
+    const { replyAdmissionRead: _gone, ...older } = saved
+    expect(failure(agentEvaluator.decode(encodedOf(older)))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.replyAdmissionRead',
+      reason: 'missing',
+    })
+  })
+
+  it('refuses a continuation of another schema revision', () => {
+    const older = { ...agentCheckpointSchema, revision: '1', digest: 'agent:agent-checkpoint/1' }
+    const encoded = agentEvaluator.encode({ ...saved, schema: older })
+    expect(failure(agentEvaluator.decode(encoded))).toMatchObject({
+      kind: 'invalid',
+      field: 'schema',
+    })
+  })
+
+  it.each([
+    ['null', null],
+    ['a verified read without its prefix', { kind: 'verified' }],
+    ['a zero value', 0],
+    ['a sequence with a leading zero', { kind: 'verified', prefix: { sequence: '07', basis } }],
+    ['a prefix without its basis', { kind: 'verified', prefix: { sequence: '7' } }],
+    ['another kind', { kind: 'partial' }],
+  ])('refuses a read position that is %s', (_name, read) => {
+    expect(
+      failure(agentEvaluator.decode(encodedOf({ ...saved, replyAdmissionRead: read }))),
+    ).toMatchObject({
+      kind: 'invalid',
+      field: expect.stringMatching(/^checkpoint\.replyAdmissionRead/u),
+    })
+  })
+
+  it('refuses a member the checkpoint does not have', () => {
+    expect(failure(agentEvaluator.decode(encodedOf({ ...saved, through: 'x' })))).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.through',
+      reason: 'unknown-field',
+    })
   })
 })
 

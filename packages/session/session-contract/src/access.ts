@@ -2,12 +2,14 @@
 // the Session execution boundary binds each decision to this operation and its fixed input.
 import type { Access, TenantId } from '@omne-harness/legal-identity'
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts'
-import type { MutationName, SessionCommand } from './ports.ts'
+import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts'
 
 export type SessionReadAccessOperation =
   | 'readWork'
   | 'readInput'
   | 'queryOperation'
+  | 'readModelSelection'
+  | 'queryControlOperation'
   | 'loadRecovery'
   | 'inspectIdle'
   | 'history.begin'
@@ -60,6 +62,25 @@ export type SessionAccessDecision =
 /** One current decision. An allowed answer cannot authorize a later operation. */
 export interface SessionAccessCheck<P> {
   check(input: SessionAccessRequest<P>): Promise<SessionAccessDecision>
+}
+
+/** The allowed decision of one face operation, fixed before its first await. */
+export type SessionCheckedAccess<P> = Readonly<{
+  request: SessionAccessRequest<P>
+  evidence: DurableEvidence
+}>
+
+/**
+ * The internal path from the Session execution boundary to storage (SPEC「当前操作的访问裁定」).
+ * Only the Session service instance receives it, through a trusted name. A bound view serves one
+ * face operation and does not ask the access check: it answers `denied` to any call whose tenant
+ * or session differs from the request target, to a commit whose command (kind, operation and the
+ * OP-00 digest without `expected`) differs from the command of a mutation request, and to
+ * `pending`, `references`, `releasedScopes` and `commitEntries`. The view stores `evidence` with
+ * the operation record.
+ */
+export interface SessionDelegatedTransactions<P> {
+  bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>
 }
 
 /** The request of one public read on the session that `access` names. */

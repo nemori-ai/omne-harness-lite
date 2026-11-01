@@ -24,7 +24,7 @@
 | [architecture.md](architecture.md) | 两个入口、五个模块、包外依赖、五条关键机制的理由、模块层的 SOLID 选择 |
 | [flows.md](flows.md) | F-RQP01 装载与卸载、F-RQP02 贡献者卸载后登记撤除、F-RQP03 配置指向不存在的策略时 fiber FAILED |
 | [object-model.md](object-model.md) | 服务实例、插件配置、贡献登记表与登记条目。领域对象与机制对象指向各自拥有者 |
-| [public-api.md](public-api.md) | 两个入口。现有导出为空，随实现进入的导出单列 |
+| [public-api.md](public-api.md) | 两个入口。现有导出是 `RequestContextProvider`，随实现进入的导出单列 |
 | [context.md](context.md) | 装配与独立使用两条路径，以及定位 |
 
-当前缺口：两个入口都没有源码。已在 SPEC 写定：根入口为空；经 Cordis 的组装路径（`assembly(target)` 现取贡献、借用该目标经 `register` 登记的来源集合）；只有贡献登记的变化经 `notify('contributions', …)` 交给来源登记表实例（SPEC 性质 8）；事件由监听者按载荷过滤；全局层的表达（`scope: null`）；登记修订按层计，另有实例代次；两块的生产者经子 fiber 可选依赖 Runtime Context。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+当前缺口：`./cordis` 已有基本实现，根入口仍只有模板标记，配置 Schema、策略选择、通知路径、两块的生产者与重复装载检查尚未进入。已在 SPEC 写定：根入口为空；经 Cordis 的组装路径（`assembly(target)` 现取贡献、借用该目标经 `register` 登记的来源集合）；只有贡献登记的变化经 `notify('contributions', …)` 交给来源登记表实例（SPEC 性质 8）；事件由监听者按载荷过滤；全局层的表达（`scope: null`）；登记修订按层计，另有实例代次；两块的生产者经子 fiber 可选依赖 Runtime Context。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

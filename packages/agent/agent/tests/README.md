@@ -12,6 +12,7 @@
 
 - `loop-transitions.spec.ts` 与 `loop-evaluator.spec.ts` 直接导入 `src/loop/nodes.ts`，并读评估器的导入图。转移表是纯数据。C1 核对正常路径与节点表。E1 的临时例外见下文。
 - `canonical.spec.ts` 直接调用 `src/canonical.ts` 的纯函数，核对其注释承诺的输入等价性。
+- `loop-admission-read.spec.ts` 直接调用协调者，核对 E2 读取主回复准入事实的下界选择、进程内前缀、正常提交携带的读取位置、提交时 `missing-basis` 转 W0、缺依据时一次 origin 重读与报告，以及从已保存前缀恢复的读取范围（#1011）。重启用例用新协调者的窄接续，以条件读取失败截停在 E2 之后，不证明公开 resume 或跨进程恢复。`loop-admission-pages.spec.ts` 用脚本页核对 `admission-read.ts` 的下界规则、读取位置选择与逐页校验，每条用例只破坏一项条件，含越过 2^53 的序位。内存 Journal 的计数器只证明测试用提供者的读取量，不证明 SQLite 或 E9。
 - `loop-coordinator.spec.ts` 直接调用协调者，核对 E1 `found-existing` 返回成功，以及节点抛错时返回的停止节点与 failure 种类。公开观察没有停止原因，不能区分这些协调结果。此测试只读返回值，不读私有状态。
 
 - `loop-intake-prepare.spec.ts` 直接调用协调者，以区分等待完成、提供者违约和阶段不支持的结果。它只读返回值与 Journal 已存事实，不读取私有状态。公开 invoke 用例另核对同一 runtime 的两次输入无重叠。
@@ -95,7 +96,7 @@ O0 窄接续用例保留原 received 与材料，核对零 Agent Model 消费调
 - `loop-transitions.spec.ts` 核对 I1 首次 assembled 转 P0、不可用转 W0、真实 cannot-fit 转 F1。P1 带 previous 复核才返回 ready（#558 S-11）。I3 把回复交 Q1（伪代码 `runIter`、`admitMessage`）。
 - E1 在修订号已超过原 open 回执时返回 `found-existing`，由转移表正常结束协调。这避免为已受理的同一操作启动第二个 Loop。节点表 E1 行没有这个去向，属于阶段 1 读法。`loop-transitions.spec.ts` 核对转移行，`loop-coordinator.spec.ts` 核对成功结果。
 - Q1 的 prepare 回执未知时，由调用方用原操作与原请求再次调用 prepare 即查询。invoke 先返回 commit-unknown，新受理释放槽。模型回复的 Ja 回执未知时转 R0，再入时 Q2 以 lookup 读回同一个 H。`loop-admission.spec.ts` 与 `loop-reply-close.spec.ts` 核对此读法，后台等待尚未交付。
-- `loop-evaluator.spec.ts` 中「stage-temporary (#502 stage 5)」的用例固定 `decode` 返回 `unsupported`。
+- `loop-evaluator.spec.ts` 的 decode 用例核对 checkpoint schema revision 2 的全成员 round-trip，并拒绝缺少 `replyAdmissionRead`、schema 未知与读取位置畸形的 continuation（#1011）。其他 facet 的身份关系判断仍属 #502 阶段 5。
 
 E1/E2/I1 的等待、E4/R0 路由与 I0/I1 的用例已写入节点验收表（agent-contract 的 `verification/node-acceptance.md`）的「实现用例」列。公开唤醒与完整失败恢复尚未交付。下表仅列仍待后续卡补齐的骨架用例：
 

@@ -2,7 +2,7 @@
 
 本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。插件、配置、isolate、撤除与唤醒的正文归 [Cordis 说明](cordis.md)。机制归 [runtime-context](../../runtime-context/docs/architecture.md)。组内八个成员的分解与依赖方向归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。下文是 SPEC 固定的结构，文件名由实现确定。
+本成员只实现了信任输入插件 `createRuntimeContextPlugin`（`src/cordis.ts`）；`src/index.ts` 为空。下文是 SPEC 固定的结构，文件名由实现确定。
 
 ## 模块与依赖
 
@@ -76,7 +76,7 @@ flowchart LR
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
-| `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，核对导出集合 |
+| `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言入口只导出 `createRuntimeContextPlugin` | 实现进入后，核对导出集合 |
 | SPEC 的六项验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：

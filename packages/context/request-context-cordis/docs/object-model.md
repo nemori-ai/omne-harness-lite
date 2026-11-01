@@ -2,7 +2,7 @@
 
 本成员没有自己的领域对象。提示词贡献、组装输入、请求候选与覆盖证据归 [request-context-contract 的对象模型](../../request-context-contract/docs/object-model.md)。缓存条目、派生物与策略的数值归 [request-context 的对象模型](../../request-context/docs/object-model.md)。本成员有四个技术对象：服务实例、插件配置、贡献登记表与它的条目。它们不自动成为产品领域对象。两个策略实例由本插件按配置构造，寿命归本插件（[SPEC 所有权、失败与生命周期](../SPEC.md#所有权失败与生命周期)），它们的字段与默认值归 request-context。
 
-本成员没有运行实现。类名与字段名随实现确定。
+本成员有基本实现，类名 `RequestContextProvider` 已定。配置对象与策略实例尚未进入，类图里的字段名是说明用的名字。
 
 ## 对象与关系
 

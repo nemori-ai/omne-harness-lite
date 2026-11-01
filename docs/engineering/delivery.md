@@ -89,15 +89,15 @@ Issue正文拥有交付范围、所核依据、条件及当前执行摘要；接
 | Priority | 排序与建议，不是依赖 | Project 字段本身 | 本卡调度者 | 排期时 | Active work、Awaiting acceptance |
 | Milestone | 卡所属的里程碑 | Issue 的 milestone 字段 | 调度者。建里程碑与流转用 `milestone-cli.ts` | 建卡时设置。改里程碑用 `carry` | 各里程碑看板的过滤、Active work 与顶层交付卡的分组、路线图、周期 |
 | Dispatched at | 卡第一次开工的日期 | dev-flow 写入的日期。已有值时不覆盖 | 同 Line | 开工时 | 周期 |
-| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线内的卡由线会话运行 | 交回候选时 | 现有视图不显示 |
+| Delivered at | 执行者交回候选 PR 的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts delivered`。线父卡本波的 attempt 与本波其他卡由线会话运行 | 交回候选时 | 现有视图不显示 |
 | Accepted at | 接受决定读回的日期 | dev-flow 写入的日期 | 调度者运行 `board-cli.ts accepted`。批次内的卡由集成节点按卡运行 | 接受决定读回后 | 周期 |
 | Cycle days | Accepted at 与 Dispatched at 相差的天数 | 由两个日期算出 | 同 Accepted at | 同 Accepted at | 周期 |
 
 Status 按事件由下列角色写入，操作顺序见[推进和更新状态](agent-delivery.md#4-推进和更新状态)：
 
-- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线内的卡的 In progress 由线会话设置。
-- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线内的卡由线会话在候选 PR 交回时运行。
-- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。线卡进入线轨道时，线负责人对实际工作卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实，不为线父卡建立 Git binding 或虚构 start。
+- Backlog、Ready、In progress、Cancelled：本卡调度者在 Project 中设置。云端会话用 `delivery-stage`。线父卡本波的 attempt 与本波其他卡的 In progress 由线会话设置。
+- In review：调度者在执行者交回候选 PR 时运行 `board-cli.ts delivered`。线父卡本波的 attempt 与本波其他卡由线会话在波末开出父分支进线轨道的 PR 时运行。
+- Integrating：运行合入的人在派发 gate 时运行 `board-cli.ts integrating`。线父分支进入线轨道时，线负责人对线父卡本波的 attempt 与本波其他卡运行这一步。线轨道提升时，Reduce 记录提升 PR 与 gate 事实。
 - Awaiting acceptance：调度者在 gate 成功、等待具名接受者判断时在 Project 中设置。直接进入接受流程时可跳过。
 - Accepted：具名调度者在本卡有效接受决定读回后运行 `board-cli.ts accepted`。入线轨道、提升与接受分别记录，不能由 Git 运输推定接受。
 

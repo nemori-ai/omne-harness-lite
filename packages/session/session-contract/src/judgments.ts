@@ -34,6 +34,13 @@ import type { GuardCommand, SessionCommand } from './ports.ts'
 import type { ConsumptionId, DurableEvidence } from './identity.ts'
 import type { SessionHistoryReads } from './history-values.ts'
 import type { SessionCallWait } from './call-values.ts'
+import type {
+  SessionCallLookup,
+  SessionCallTerminal,
+  SessionControlAnswer,
+  SessionRunLookup,
+} from './control-values.ts'
+import type { SessionEntriesChannel } from './interpretation-values.ts'
 
 export type AdvanceJudgment =
   | Readonly<{ kind: 'ok' }>
@@ -106,7 +113,29 @@ export type ReduceResult =
 /** Entries without id and revision; the storage provider assigns both at commit. */
 export type EncodedEntry = Omit<HistoryEntry, 'id' | 'revision'>
 export type Decision =
-  | Readonly<{ kind: 'entries'; entries: readonly EncodedEntry[] }>
+  | Readonly<{
+      kind: 'entries'
+      entries: readonly EncodedEntry[]
+      /** Only entries interpretation fills it: the new continuous progress of the channel. */
+      progress?: Readonly<{
+        run: RunId
+        execution: string
+        channel: SessionEntriesChannel
+        through: string
+      }>
+      /** The channel ordinal and delivery key of every interpreted item. */
+      interpreted?: readonly Readonly<{ ordinal: string; key: string }>[]
+    }>
+  /** An answer-only control operation: no entry, no revision, no CommitReceipt. */
+  | Readonly<{
+      kind: 'control-answer'
+      answer: Exclude<
+        SessionControlAnswer<RunTerminal | SessionCallTerminal>,
+        { kind: 'requested' }
+      >
+      /** The source of the fact the answer rests on: the ended terminal's evidence, or the snapshot source. */
+      source: DurableEvidence
+    }>
   | Readonly<{ kind: 'recovered'; receipt: CommitReceipt }>
   | Readonly<{ kind: 'rejected'; failure: SessionFailure }>
 /** Transaction-bound materials. Each branch requires only its original history, compaction or management inputs. */
@@ -120,6 +149,10 @@ export type DecideReads = Readonly<{
   frozenReceipt?: CommitReceipt
   /** Original receipts from the same committed root, required only for initialization result recall. */
   initializationReceipts?: readonly CommitReceipt[]
+  /** `stopCall`: the same-root call lookup. Exactly one item must match the target. */
+  calls?: readonly SessionCallLookup[]
+  /** `cancelRun`: the same-root Run lookup. Exactly one item must match the target. */
+  runs?: readonly SessionRunLookup[]
 }>
 
 export const OFF_PATH_DIAGNOSTIC =

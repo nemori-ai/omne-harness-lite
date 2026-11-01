@@ -86,13 +86,42 @@ export type {
   StartedRun,
 } from './faces.ts'
 export {
+  INGRESS_FAMILIES,
   deriveDriveOperation,
+  deriveIngressOperation,
   deriveSessionOperation,
   type DriveOperationElements,
+  type IngressFamily,
   type SessionOperationElements,
 } from './operations.ts'
 export type {
+  ControlOperationResolution,
+  SavedModelSelection,
+  SessionCallLookup,
+  SessionCallTerminal,
+  SessionControlAnswer,
+  SessionControlReceipt,
+  SessionModelSelection,
+  SessionRunLookup,
+} from './control-values.ts'
+export type {
+  SessionEntriesBoundary,
+  SessionEntriesChannel,
+  SessionEntriesInterpretation,
+  SessionEntriesItem,
+  SessionEntriesObservation,
+  SessionEntriesProgress,
+  SessionEntriesReceipt,
+  SessionEntriesStart,
+} from './interpretation-values.ts'
+export type {
+  AdoptionEvidenceCommand,
   AgentDrivePort,
+  CustodyEvidenceCommand,
+  ProductionEvidenceCommand,
+  SessionAdoptionSource,
+  SessionCustodySource,
+  SessionProductionSource,
   DriveFailure,
   DriveReceipt,
   DriveReply,
@@ -111,7 +140,9 @@ export type {
   SessionIdleInput,
   SessionInternalPrincipals,
   SessionNotifier,
+  SessionPrincipalBindingSource,
   SessionTransactionPort,
+  SessionWorkPrincipals,
 } from './ports.ts'
 export { sessionModesBlock } from './block.ts'
 export {
@@ -196,5 +227,7 @@ export {
   type SessionAccessOperation,
   type SessionAccessRequest,
   type SessionAccessTarget,
+  type SessionCheckedAccess,
+  type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'

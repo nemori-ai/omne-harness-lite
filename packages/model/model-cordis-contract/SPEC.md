@@ -12,6 +12,22 @@ M-2 保持旧插件、现有 Runtime、凭据服务及观察消费的必需形�
 
 真实 runtime/provider 与宿主的安装，以及当前目标发布、每帧核权、原 operation 恢复及实际 ACK 的验证，归 [#795](https://github.com/nemori-ai/omne-harness-lite/issues/795)。原消费者拥有者的消费迁移与停止代发[临时 ACK](../model-contract/SPEC.md#推送与公共观察的交付边界)归承接卡 [#787](https://github.com/nemori-ai/omne-harness-lite/issues/787)。合法独立消费者的 processed ACK 路径不受影响。显示消费者的接入归观察承担者 [#746](https://github.com/nemori-ai/omne-harness-lite/issues/746)。现有 call-changed 事件不成为逐次内容流目标切换保证，也不新增第二条目标通知流。Tool 的目录、投影和终止适配由 Tool 拥有，本包不替其定义。
 
+`ModelRuntimeService` 提供具体方法 `registerResultReceiver`，按 consumer owner 登记 `ModelResultReceiver`，登记即效应。它是上文所说的可选装配面，消费者是 Agent 宿主。按 owner 解析到接收方是装配给的保证，不是推送协议的一部分，规则见[结果接收登记](#结果接收登记)。同进程保证：登记表只在本进程内有效；拆成多个进程时，推送目标怎样到达，本版不定义。
+
+## 结果接收登记
+
+采用依据：T-06 方案 C（`tmp/m2-reduce/wave1/freeze/t05-t06/decision.md` r2）与 R1-D15。推送阶段按受理时冻结的 `ConsumerRef.owner` 找接收方；Agent 宿主在自己的插件体内，经 `modelRuntime` 把接收方登记到它的 owner 下。
+
+- **形状。** `registerResultReceiver(owner, receiver)` 是 `ModelRuntimeService` 上的具体成员，不是抽象成员，根接口 `ModelRuntime` 不变，现有子类不受影响。方法经 `this.ctx.effect` 登记，所以登记落在调用方的 fiber 上，调用方撤除即撤掉。返回撤除函数。`owner` 须是非空字符串，`receiver` 须有 `push` 函数，否则抛 `TypeError`，不登记。
+- **登记即生效。** 方法返回时，表里已有该登记，推送阶段马上能解析到它。登记不授予资格：接收方仍逐次核验主体、原调用、consumer 与 dispatch 集合，见纯领域契约的[推送与公共观察的交付边界](../model-contract/SPEC.md#推送与公共观察的交付边界)。
+- **撤除。** 撤除函数同步删除表项，不等待，可重复调用，只删自己的登记：被后继替换后，旧登记的晚到撤除不删后继。登记者 fiber 卸载时由同一个撤除函数兑现。
+- **重新登记（R1-D15）。** 同一 owner 出现新登记时：旧登记属于已撤除或正在撤除的 fiber（状态为 `UNLOADING`、`DISPOSED` 或 `FAILED`），新登记直接替换它；旧登记属于仍存活的 fiber，新登记抛出 `ModelResultReceiverConflictError`，登记者插件因此 `FAILED`，原登记不动。同一个存活 fiber 对同一 owner 登记第二次，同样抛出。Cordis 并发运行各撤除函数，所以插件因 `modelRuntime` 以外的依赖换代而重跑时，旧登记可能尚未撤完；这一条保证重跑后的重新登记不因旧登记而 `FAILED`。
+- **解析。** 表的 `resolve(owner)` 只返回存活 fiber 的登记，没有就返回 `null`。正在撤除的 fiber 的登记不再被解析。`resolve` 在表上，由提供者持有，不在服务实例上：服务实例的全部属性对任何能读 `ctx.modelRuntime` 的插件可见，表放进构造函数的闭包。提供者用 `createModelResultReceiverTable` 建表并传给 `ModelRuntimeService` 的构造函数；不传表的提供者得到一张没有人能解析的私有表。
+- **保证归属。** 协议给：推送按冻结的 owner，重投不重新选择 owner；接收方逐次核验；`saved` 之后由 Model 取 ACK。装配给：推送阶段能解析到 Agent 宿主的接收方；它靠登记表与推送阶段在同一进程、同一提供者实例内成立。任何 `inject` 了 `modelRuntime` 的插件都能为尚无存活登记的 owner 登记，这一点不靠可见性约束，由装配测试核对登记者是 Agent 宿主的行。
+- **同进程保证（[IC-19](../../../docs/architecture/cordis-integration-conventions.md#ic-19)）。** 登记表只在本进程内有效；拆成多个进程时，推送目标怎样到达，本版不定义。
+- **不在本包。** 推送阶段、`no-receiver` 诊断、撤除时在途推送的中止与重投、`model-host` 换代后重新登记的端到端验证，归 model-host-local（MD-10）。本包的用例只证明登记表自己的规则。
+- **采用与替身的范围。** `./testing` 的 `createScriptedModelRuntimeHost` 只实现登记，三个根成员被调用就失败；它不是 Model 运行时。`modelResultReceiverConformance` 的用例在真实 Cordis 4.0.4 的 Context 上运行，只用公开方法与插件生命周期。
+
 ## 登记输入与撤除协议
 
 ModelInstancesService 是包含 register 实现的具体服务，唯一归 model-cordis-contract，精确形状见[公开接口设计](docs/public-api.md)。model-host-local 的装载插件静态 inject `modelPublicationAuthority`，用当前 Context 和该能力构造服务；不复制类或服务键。PublicationAuthority 属于本域消费接缝，具体适配器核原领域权威；不是任意调用者可实现后传入的准入回调。authority 是当前受信宿主取得的原实例资格证据，含租户、调用身份、实例和代次，不能仅以 token 或 handle.instance 自证。

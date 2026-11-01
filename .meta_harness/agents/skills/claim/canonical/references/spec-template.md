@@ -96,7 +96,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 
 - 测试与验证先设计：写出判据、反例与变红验证（每条测试在什么缺陷下变红），再实施。写新测试时先确认它变红，再实现（`docs/engineering/skills.md`「ub-mode 研发品味」）。
 - 好的测试只断言外部行为与契约要求的结果，包括必须的「不发生」与固定值。
-- 测试接缝：<优先已有接缝，越高越好，越少越好。线内的卡由线会话定；不在线内的卡经卡负责人确认>
+- 测试接缝：<优先已有接缝，越高越好，越少越好。本波的卡由线会话定；线外的卡经卡负责人确认>
 - 被测成员与先例：<同类测试在仓库里的位置>
 - 传感器与命令（按风险级别选，规则归 `docs/clean-loop.md` 与 `docs/verification.md`）：
 
@@ -107,7 +107,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | 结构读数 | `pnpm run metrics --coverage`，基线按 `review-code` 技能「度量与差分变异的基线」一段 | 若干切片后集中一次 |
 | 差分变异 | `pnpm run mutation`，基线与收窄按 `review-code` 技能「差分变异」一段 | 最终 head 上跑一次，只跑热点 |
 | 文档与投影 | `pnpm run check:docs`；`pnpm run check:agents` | 改到时 |
-| 整次准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 每张卡在最终 head 跑一次；线负责人组织卡级准入，Reduce 另做整波验证 |
+| 整次准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 本波的卡不跑，本线本波只在父分支头跑一次；线外的卡在最终 head 跑一次。Reduce 另做整波验证 |
 
 - 不能声称的事（`docs/verification.md`）：<本卡验证覆盖不到的范围，写「未执行」或「未测量」及原因>
 
@@ -117,7 +117,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 
 | 缺口 | 影响的切片 | 处置 |
 | --- | --- | --- |
-| <> | <> | <线内：暂停依赖切片，保存进状态快照，整波做不下去就交回；不在线内：写进卡评论> |
+| <> | <> | <本波的卡：暂停依赖切片，保存进状态快照，整波做不下去就交回；线外的卡：写进卡评论> |
 
 ## Out of Scope
 

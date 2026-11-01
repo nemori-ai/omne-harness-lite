@@ -28,6 +28,43 @@
 
 验证资源：[transactions-access.spec.ts](../tests/transactions-access.spec.ts)、session-adapters 的 [transactions-access.spec.ts](../../session-adapters/tests/transactions-access.spec.ts) 与 [participation-access.spec.ts](../../session-adapters/tests/participation-access.spec.ts)，以及 authorization 的[端口适配测试](../../../identity/authorization/tests/port-adapters.spec.ts)经真实事务端口的历史读用例。
 
+## 委派入口
+
+精确形状归 [access.ts](../src/access.ts)，根入口导出 `SessionCheckedAccess` 与 `SessionDelegatedTransactions`。它是一次面操作从 Session 执行边界到存储的内部路径，兑现[当前操作的访问裁定](../SPEC.md#当前操作的访问裁定)中「同一公开调用内部的步骤不重复裁定」。
+
+1. Session 服务实例在面操作开头按本次面操作的请求调用一次 `check`。
+2. 结果为 allowed 时，服务实例以请求和证据调用 `bind`，取得只服务本次面操作的视图。视图的形状是 `SessionTransactionPort<P>`。
+3. 本次面操作内的认回点查、权威读、`changed` 重做与提交都经视图。视图不调用 `check`。
+
+视图按绑定核对每次调用：
+
+- 调用的租户与 Session 不等于请求目标时，视图答 `denied`。
+- 提交的命令与请求所带命令的种类、操作身份或 OP-00 摘要（不含 `expected`）不同时，视图答 `denied`。读请求不带命令，所以经读绑定的提交也答 `denied`。
+- `pending`、`references`、`releasedScopes` 与 `commitEntries` 不属于单会话的面操作，视图一律答 `denied`。
+- 提交时，视图把绑定的证据交给存储，与该操作记录放在一起。
+
+委派入口只经受信名 `sessionDelegatedTransactions`（[Cordis 定义](../../session-cordis-contract/docs/cordis.md#受信服务键)）交给 Session 服务实例，不进共享根。视图不跨面操作保留，不写进任务、缓存或游标。公开 `SessionTransactionPort` 的每个方法仍各自调用一次 `check`。
+
+`./testing` 的 `createMemorySessionTransactionPair` 返回 `{ transactions, delegated }`，两者共用同一份内存核心。`createMemorySessionTransactions` 返回其中的 `transactions`。视图替身不调用检查，按上列规则答 `denied`，并把绑定证据记进操作记录，`controls.decisionOf` 可以读回。`sessionDelegatedTransactionsConformance` 是视图的符合性套件，`memorySessionDelegatedTransactionsFixture` 在内存对上构造它的 fixture。验证资源：[delegated-conformance.spec.ts](../tests/delegated-conformance.spec.ts)。
+
+## 会话归属读口与会话工作主体
+
+精确形状归 [ports.ts](../src/ports.ts)，根入口导出 `SessionPrincipalBindingSource` 与 `SessionWorkPrincipals`。两者都只在受信作用域内交付，服务键与替身在 [Cordis 定义](../../session-cordis-contract/docs/cordis.md#受信服务键)。
+
+`SessionPrincipalBindingSource.read` 只证明会话的租户归属与已成立身份，不返回输入、历史或快照。它不调用 `SessionAccessCheck`，避免递归依赖。未知 Session 与另一租户的 Session 都答 `not-bound`，两者不可区分。
+
+`SessionWorkPrincipals.forSession` 为协调器或维护者签发该会话的主体。签发前，实现读取会话归属读口。下表是失败映射，所有失败都不签发主体：
+
+| 情形 | 答复 |
+| --- | --- |
+| 读口答 `not-bound` | `denied` |
+| 读口答 `bound`，但租户或 Session 与请求不同 | `quarantined` |
+| 读口答 `unavailable` 或 `quarantined` | 原样转交 |
+| 读口抛错 | `unavailable` |
+| 签发失败 | `unavailable`，`owner` 为 `identity` |
+
+`SessionInternalPrincipals` 保留，只用于系统维护。
+
 ## 尚未接入的部分
 
-[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。
+[Cordis 定义](../../session-cordis-contract/docs/cordis.md) 已导出检查 Service 与键。独立子类的装卸测试不证明生产 Session 已完成必需注入。会话存储提供者的委派入口与归属读口、装配入口的 `forSession` 以及 Session 服务实例经视图的接线尚未交付，内存替身不证明这些运行保证。生产 Session 服务、生产系统授权、Session 存储组合、持久重启及跨进程资格均未由这些测试验证。

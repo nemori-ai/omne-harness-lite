@@ -151,6 +151,29 @@ describe('给了记录：只看那一份', () => {
     )
   })
 
+  it('test 步做过定向重跑的记录：照常接受，输出列出重跑的文件、原因分类与结果，确认者看得到', () => {
+    const record = writeRecord('explicit-retried', {
+      ...passingRecord(),
+      retried: [
+        {
+          member: 'packages/a',
+          file: 'packages/a/tests/x.spec.ts',
+          tier: 'slow',
+          kind: 'timeout',
+          firstError: 'Error: Test timed out in 5000ms.',
+          retryResult: 'passed',
+        },
+      ],
+    })
+    const evidence = admissionEvidence(fixture.root, { for: fixture.f, record })
+    expect(evidence.kind).toBe('accepted')
+    const text = formatEvidence(evidence).join('\n')
+    expect(text).toContain('定向重跑 1 个测试文件')
+    expect(text).toContain(
+      'packages/a/tests/x.spec.ts（slow，timeout：Error: Test timed out in 5000ms.）→ passed',
+    )
+  })
+
   it('树不同时拒绝，原因里写出两个树哈希', () => {
     const record = writeRecord('explicit-pass', passingRecord())
     const evidence = admissionEvidence(fixture.root, { for: fixture.d, record })

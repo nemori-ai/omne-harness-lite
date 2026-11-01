@@ -112,6 +112,8 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | --- | --- | --- |
 | toolResidencyReader | `referencing({ scope: 'system', key, after })` 返回 `Outcome<Page<{ holder, tenant, shape }>, unavailable>`。Page 是 `{ items, next }`，after 与 next 为不透明游标，null 分别表示首页和读完。holder 只在同一 tenant 内区分持有者，Tool 不解析。shape 为已有 ToolShape，不返回正文。不用 Access，是 IC-18 系统作用域例外 | 桥接行缺席或未就绪时协调者停在 PENDING，不提供 toolGenerations，不执行撤除。读取 unavailable 时 unload 与 sweep 返回 retained |
 
+Reader 的实现用 tool-contract 根入口的 `encodeResidentKey` 生成 Session `references` 的查询键，用 `projectResidentReferences` 投影每条引用。编码失败、读取失败与投影失败都交 `unavailable`，不交空页。规则见 [常驻登记键与 shape 的文本编码](../../tool-contract/SPEC.md#常驻登记键与-shape-的文本编码)，测试替身是 `./testing` 的 `createMemoryToolResidencyReader`。
+
 协调者从 after=null 开始逐页读取，把 next 原样作为下一页 after。它读完全部页后才判断保留，逐项按 tenant 与 shape 核 G7，不能按 holder 文本合并跨租户引用。任一页失败、提供者撤除、租户无效或资格未知均保留原贡献并 reopen，不把已读部分当完整集合。Reader 只有读取动作，没有冻结或登记键目录枚举动作。
 
 独立 Tool 宿主同样必须提供该 Reader，由其装配桥接自己的持有者事实。只有可证明没有任何持有者引用的实现才返回空终页。进程内系统读取依赖受信装配与接线，不能由 inject 推导访问控制或跨进程授权。跨进程读取资格仍须具体装配证明。
@@ -186,6 +188,29 @@ Tool 门面只把 Commands/Reads 作为持久操作的静态必需依赖。Catal
 Cordis 撤除的是登记、监听和具名可释放资源。`startRejection`、启动是否发生、结果交付与释放责任是跨重启仍须成立的 Tool 事实，按 [SPEC](../../tool-contract/SPEC.md#342-值定义和固定请求)保存，不放进 effect 闭包，也不让 disposer 改写业务终局。需要先停止准入、结清或交接、再撤资源时，由具名协调者显式等待；多个 effect 的卸载不提供这种完成顺序。外部操作已发出或结果未知时，撤除不能声称回滚。
 
 上述机制沿固定采用的 Cordis 4.0.4 核对。[调用方 effect 归属](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)、[提供者换代与插件重跑](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)及[释放顺序与持久事实的边界](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)分别拥有机制依据；业务兑现仍须由 Tool 提供者验证。
+
+### 结果接收方的登记
+
+本节依据 M2 冻结批 XC-TOOLRESULT r2 的 Tool 一侧与重新登记的统一规则（M2 Reduce 裁定 R1-D15，Model 一侧用同一规则）。契约 SPEC 的[结果推送与保存](../../tool-contract/SPEC.md#结果推送与保存)规定推送目标是受理时冻结的 `ConsumerRef`，取得接收端口的方式由装配提供。本节给出这种装配方式。它不新增服务键。
+
+`ToolRuntimeService` 有一个具体方法 `registerResultReceiver(owner, receiver)`，返回撤除函数。它不是抽象成员，根接口 `ToolRuntime` 不变，所以「接收端口不加入 `ToolRuntime`」仍然成立。
+
+1. 登记即效应（IC-13）：方法在调用方 fiber 上用 `ctx.effect` 登记。调用方 fiber 撤除时登记随之撤除。返回的撤除函数同步删除登记表项，不等待。
+2. 唯一：同一 owner 已有登记、且那个登记的 fiber 仍然存活（未撤除，也不在撤除中）时，方法抛出。这是装配错误，在插件体里登记的调用方 fiber 进入 `FAILED`，原登记不动。
+3. 重新登记：同一 owner 的旧登记来自已撤除或正在撤除的 fiber 时，新登记直接替换它，不抛出。旧登记迟到的撤除只删除它自己的表项，不删除后继。依据是 Cordis 的效应撤除并发且无序（basis `effect-disposal-concurrent-not-ordered`）。同一 fiber 因提供者换代重跑时，旧效应先撤除，再执行插件体（basis `plugin-body-reruns-on-provider-change`），所以重跑后的登记成功。`toolRuntime` 的提供者换代时，注入它的登记者重跑，并向新一代登记。
+4. 解析：推送阶段按交付里冻结的 `consumer.owner` 查本进程的登记表，读取口是提供者子类可用的 `resultReceiver(owner)`。没有登记时不推送，交付与 `deliver`、`account` 待办都保留，诊断名为 `no-receiver`，登记出现后或下一轮扫描时重推。推送阶段不重新选择 owner。推送驱动与登记出现后的重推归 `tool-host-local` 的 `tool-runtime` 行。
+5. 撤除时的在途推送：登记撤除时，在途推送经 `signal` 中止。只有确定接收方尚未接管时才是 `cancelled-before-accept`，其余按 `outcome-unknown` 处理，之后用原 key 与原冻结载荷重投。
+6. 资格：登记不授予资格。接收方每次 push 仍逐项核验租户、接收资格与原消费关联。Tool 在 saved 之后才经受信的 `ToolCommands.releaseDelivery` 解除交付。
+
+保证分类：
+
+- 协议给：推送按冻结的 `ConsumerRef.owner`，重投不重新选择 owner；接收方逐次核验；saved 之后由 Tool 解除交付。
+- 装配给：推送阶段能解析到登记的接收方。登记表不是发现机制，不是服务目录，也不授予资格。
+- 同进程保证（IC-19）：登记表只存在于提供 `toolRuntime` 的那个进程的服务实例里，推送阶段与接收方在同一进程时上述各条成立。拆成多个进程时，本版不定义推送目标的到达协议，也不声称能推送，以后要另定协议。
+
+已知限制：能取得 `toolRuntime` 的插件都能为尚无登记的 owner 登记接收方。约束靠「同一 owner 第二个存活登记即失败」与装配测试核对登记者。同进程插件代码按已定前提视为受信。
+
+验证：本包的 [result-receivers.spec.ts](../tests/result-receivers.spec.ts) 在真实 Cordis 4.0.4 上覆盖登记与随 fiber 撤除、撤除函数同步删除、两个存活 fiber 争同一 owner 时后来者 `FAILED`、旧 fiber 正在撤除时替换且迟到撤除不删后继、同一 fiber 重跑后重新登记、提供者换代后向新一代登记。推送、`no-receiver`、在途中止与重投归 `tool-host-local` 推送驱动的成员测试。替身沿用 tool-contract `./testing` 的 `createMemoryToolResultReceiver`，接收方的提供者套件是 `toolResultReceiverConformance`。
 
 ### 配置与变更通知
 

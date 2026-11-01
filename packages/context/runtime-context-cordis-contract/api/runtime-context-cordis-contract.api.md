@@ -37,14 +37,16 @@
 - `RuntimeContextChangedPayload` · `cordis.d.ts`
 - `RuntimeContextIntercept` · `cordis.d.ts`
 - `RuntimeContextService` · `cordis.d.ts`
+- `RuntimeContextTrustService` · `cordis.d.ts`
 - `runtimeContextKey` · `cordis.d.ts`
 - `runtimeContextScopeKey` · `cordis.d.ts`
+- `runtimeContextTrustKey` · `cordis.d.ts`
 
 ## 声明文件 `cordis.d.ts`
 
 ```ts
 import { type Context, Service } from '@deepseek-ai/cordis';
-import type { ConsumerClass, ContextBlockKey, RuntimeContextOperations, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
+import type { ConsumerClass, ContextBlockKey, RuntimeContextOperations, RuntimeContextTrust, ScopeRef, ViewRevision } from '@omne-harness/runtime-context-contract';
 type Operation<P, O extends keyof RuntimeContextOperations<P>> = {
     args: Parameters<RuntimeContextOperations<P>[O]>;
     result: ReturnType<RuntimeContextOperations<P>[O]>;
@@ -57,6 +59,13 @@ type ProducerOperation<K extends ContextBlockKey> = {
 export type RuntimeContextIntercept = Readonly<{
     consumer: ConsumerClass;
 }>;
+export declare abstract class RuntimeContextTrustService<P = unknown> extends Service implements RuntimeContextTrust<P> {
+    static readonly provide = "runtimeContextTrust";
+    constructor(ctx: Context);
+    abstract readonly authority: RuntimeContextTrust<P>['authority'];
+    abstract readonly bindings: RuntimeContextTrust<P>['bindings'];
+}
+export declare const runtimeContextTrustKey = "runtimeContextTrust";
 export declare abstract class RuntimeContextService<P = unknown> extends Service<RuntimeContextIntercept> implements RuntimeContextOperations<P> {
     static readonly provide = "runtimeContext";
     constructor(ctx: Context);
@@ -78,6 +87,7 @@ export type RuntimeContextChangedPayload = Readonly<{
 declare module '@deepseek-ai/cordis' {
     interface Context {
         runtimeContext: RuntimeContextService<unknown>;
+        runtimeContextTrust: RuntimeContextTrustService<unknown>;
         [runtimeContextScopeKey]?: ScopeRef;
     }
     interface Events {

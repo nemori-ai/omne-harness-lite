@@ -14,6 +14,10 @@
 // - H1 按影响面时，它的基线合并点必须就是本次的：H1 的影响面（合并点..H1）与 H1..HEAD 的影响面合起来，
 //   才覆盖 HEAD 相对本次基线的影响面（合并点..HEAD）。
 // - H1..HEAD 碰到全局路径（锁文件也是）时不接续，按 H1 那次的范围整次重跑；锁文件的按 importer 映射只用于普通的影响面计划。
+// - H1 失败于 test 且记录写了失败文件（test-retry.ts 的 `testFailures`）、失败都在慢层（快层已对全部成员通过）、
+//   H1..HEAD 的差异都落在失败文件所在的成员里时，test 步只跑必要的：H1..HEAD 影响到的成员照常跑快慢两层，
+//   另把失败的文件单独各跑一次（计划的 `testResume`）；其余步骤按本节别的规则。差异碰到别的路径、失败在快层
+//   （慢层在 H1 上没跑过）或记录没写失败文件时回退：test 步整次。
 // - 接续运行的记录（`mode: resume`）不作 H1：接续不链式。
 // - H1 之后在同一棵工作树里留下记录的运行（任何 mode，含失败的接续，准入与否都算）是「中间运行」：它们可能重建过成员，
 //   后来的提交又把改动撤回，H1..HEAD 的差异里就看不到那些成员，磁盘上的 dist 却停在中间运行那个头。
@@ -22,6 +26,7 @@
 import { isLegacyFile } from '@omne-harness/repo-toolchain/core/check-scope'
 import { git, nulSeparated } from '@omne-harness/repo-toolchain/core/git'
 import type { AdmissionRun, CacheStates, ResumeOrigin } from './admission-run.ts'
+import type { FailedFile } from './test-retry.ts'
 import { latestResumeOrigin } from './admission-run.ts'
 import type { CheckStep } from './check-graph.ts'
 import { patternToRegExp, sample, type CheckPlan } from './scope.ts'
@@ -69,8 +74,11 @@ export interface ResumeInputs {
   readonly plan: Planner
 }
 
-/** `whole` 按 H1 那次的范围整次跑；`narrowed` 只跑 H1..HEAD 影响到的成员（只有 H1 上通过了的重步骤）；`resident` 常驻、整仓。 */
-export type StepScope = 'whole' | 'narrowed' | 'resident'
+/**
+ * `whole` 按 H1 那次的范围整次跑；`narrowed` 只跑 H1..HEAD 影响到的成员（只有 H1 上通过了的重步骤）；`resident` 常驻、整仓；
+ * `files` 只有 test 步：H1..HEAD 影响到的成员加 H1 上失败的文件。
+ */
+export type StepScope = 'whole' | 'narrowed' | 'resident' | 'files'
 
 export interface ResumeStep {
   readonly name: string
@@ -231,18 +239,23 @@ function globalHits(paths: readonly string[], globalPaths: readonly string[]): s
   return paths.filter(path => !isLegacyFile(path) && patterns.some(pattern => pattern.test(path)))
 }
 
-/** 整次跑的按计划步骤：X、H1 上没跑到的与全部轻步骤，连同它们前面（传递）的按计划步骤。 */
+/**
+ * 整次跑的按计划步骤：X、H1 上没跑到的与全部轻步骤，连同它们前面（传递）的按计划步骤。
+ * `narrowedFailed` 为真时 X（test）不作种子：它只跑失败的文件与 H1..HEAD 的影响面。
+ */
 function wholeScopeSteps(
   steps: readonly CheckStep[],
   record: AdmissionRun,
   failedStep: string,
+  narrowedFailed: boolean,
 ): Set<string> {
   const byName = new Map(steps.map(step => [step.name, step]))
   const ranAt = new Map(record.steps.map(step => [step.name, step]))
   const seeds = steps.filter(step => {
     if (step.planned !== true) return false
     const at = ranAt.get(step.name)
-    return step.name === failedStep || at === undefined || !at.ran || !step.heavy
+    if (step.name === failedStep) return !narrowedFailed
+    return at === undefined || !at.ran || !step.heavy
   })
   const whole = new Set<string>()
   const visit = (name: string) => {
@@ -252,12 +265,20 @@ function wholeScopeSteps(
     for (const before of step.after) visit(before)
   }
   for (const seed of seeds) visit(seed.name)
+  // 收窄的 test 步不整次：后面的步骤（验收）读的是构建的产物，不读它的；它前面的构建已经随链进来。
+  if (narrowedFailed) whole.delete(failedStep)
   return whole
 }
 
 /** 整次跑的理由：自己失败、自己没跑到、自己是轻步骤，或者它之后有整次跑的步骤（它们读它的产物）。 */
-function whyWhole(record: AdmissionRun, failedStep: string, step: CheckStep): string {
-  if (step.name === failedStep) return `${short(record.head)} 上失败`
+function whyWhole(
+  record: AdmissionRun,
+  failedStep: string,
+  step: CheckStep,
+  narrowing: TestNarrowing | undefined,
+): string {
+  if (step.name === failedStep)
+    return `${short(record.head)} 上失败${narrowing !== undefined && 'fallback' in narrowing ? `；${narrowing.fallback}` : ''}`
   const at = record.steps.find(entry => entry.name === step.name)
   if (at === undefined || !at.ran) return `${short(record.head)} 上没跑到`
   if (!step.heavy) return '轻步骤，按整次运行的范围'
@@ -269,7 +290,37 @@ const PLANNED_LISTS = ['build', 'typecheck', 'test', 'acceptance'] as const
 /** 分组的名字：H1 按影响面时，整次跑的写明范围是本次基线的影响面。 */
 function scopeName(scope: StepScope, origin: OriginScope): string {
   if (scope === 'whole') return origin.mode === 'full' ? '整次' : '整次（本次基线的影响面）'
+  if (scope === 'files') return '只跑失败用例文件'
   return scope === 'narrowed' ? '按影响面' : '常驻'
+}
+
+const TEST_STEP = 'test'
+
+/** 收窄 test 步的判断：能收窄给失败文件，不能给回退的原因（写进那一步的理由）。 */
+type TestNarrowing = { readonly files: readonly FailedFile[] } | { readonly fallback: string }
+
+/**
+ * H1 失败于 test 时 test 步能不能只跑失败的文件：记录写了失败文件、都在慢层（快层已对全部成员通过）、
+ * 差异（含中间运行补进的）都落在这些文件所在的成员里。差异里有别的路径时，那些路径影响到的成员
+ * 读的代码变了，只跑文件不够，回退整次。
+ */
+function narrowTest(
+  record: AdmissionRun,
+  failedStep: string,
+  changed: readonly string[],
+): TestNarrowing | undefined {
+  if (failedStep !== TEST_STEP) return undefined
+  const files = record.testFailures ?? []
+  if (files.length === 0) return { fallback: '记录没写失败的测试文件，整次' }
+  if (files.some(file => file.tier !== 'slow'))
+    return { fallback: '失败在快层，慢层在 H1 上没跑过，整次' }
+  const members = new Set(files.map(file => file.member))
+  const outside = changed.filter(
+    path => ![...members].some(member => path.startsWith(`${member}/`)),
+  )
+  if (outside.length > 0)
+    return { fallback: `差异碰到失败用例所在成员以外的路径（${sample(outside)}），整次` }
+  return { files }
 }
 
 /** 按步骤各取整次或 H1..HEAD 影响面的那一份，合成一份计划文件。 */
@@ -280,6 +331,7 @@ function composePlan(
   origin: ResumeOrigin,
   scope: OriginScope,
   steps: readonly ResumeStep[],
+  testFiles: readonly FailedFile[] | undefined,
 ): CheckPlan {
   const pick = <K extends (typeof PLANNED_LISTS)[number]>(key: K): CheckPlan[K] =>
     wholeScope.has(key) ? whole[key] : since[key]
@@ -293,7 +345,10 @@ function composePlan(
     mode: 'scoped',
     reason:
       `接续 ${from} 的${scope.mode === 'full' ? '全量准入' : '影响面准入'}（失败于 ${origin.failedStep}）：` +
-      `${scopeName('whole', scope)} ${names('whole') || '无'}；按 ${from}..HEAD 影响面 ${names('narrowed') || '无'}`,
+      `${scopeName('whole', scope)} ${names('whole') || '无'}；按 ${from}..HEAD 影响面 ${names('narrowed') || '无'}` +
+      (testFiles === undefined
+        ? ''
+        : `；test 只跑 ${from} 上失败的 ${testFiles.length} 个文件加影响面`),
     files: since.files,
     members: since.members,
     build: pick('build'),
@@ -302,6 +357,7 @@ function composePlan(
     acceptance: pick('acceptance'),
     python: wholeScope.has('python') ? whole.python : since.python,
     ...(since.documentsOnly === undefined ? {} : { documentsOnly: since.documentsOnly }),
+    ...(testFiles === undefined ? {} : { testResume: { files: testFiles } }),
   }
 }
 
@@ -358,15 +414,27 @@ export function resumePlan(inputs: ResumeInputs): ResumeVerdict {
   const since = inputs.plan({ kind: 'since', paths: planned })
   if (since.mode === 'full')
     return rerun(`${short(origin.head)}..HEAD 的影响面判全量：${since.reason}`)
-  const wholeScope = wholeScopeSteps(inputs.steps, record, failedStep)
+  const narrowing = narrowTest(record, failedStep, planned)
+  const testFiles = narrowing !== undefined && 'files' in narrowing ? narrowing.files : undefined
+  const wholeScope = wholeScopeSteps(inputs.steps, record, failedStep, testFiles !== undefined)
   const steps = inputs.steps.map((step): ResumeStep => {
     if (step.planned !== true) return { name: step.name, scope: 'resident', why: '常驻，整仓' }
+    if (testFiles !== undefined && step.name === failedStep)
+      return {
+        name: step.name,
+        scope: 'files',
+        why: `${short(record.head)} 上慢层失败于 ${testFiles.map(file => file.file).join('、')}，差异都在这些成员里：只跑这些文件加 ${short(record.head)}..HEAD 影响面`,
+      }
     if (wholeScope.has(step.name))
-      return { name: step.name, scope: 'whole', why: whyWhole(record, failedStep, step) }
+      return {
+        name: step.name,
+        scope: 'whole',
+        why: whyWhole(record, failedStep, step, narrowing),
+      }
     return { name: step.name, scope: 'narrowed', why: `${short(record.head)} 上通过` }
   })
   const whole = inputs.plan({ kind: 'whole', mode: scope.mode })
-  const plan = composePlan(whole, since, wholeScope, origin, scope, steps)
+  const plan = composePlan(whole, since, wholeScope, origin, scope, steps, testFiles)
   return {
     kind: 'resume',
     origin,
@@ -416,7 +484,7 @@ export function describeResume(verdict: ResumeVerdict, head: string): string[] {
       ...changedLines(range, verdict.changedFiles),
       ...intermediateLines(verdict.intermediate),
     ]
-  const groups = (['whole', 'narrowed', 'resident'] as const).flatMap(scope => {
+  const groups = (['whole', 'files', 'narrowed', 'resident'] as const).flatMap(scope => {
     const names = verdict.steps.filter(step => step.scope === scope)
     if (names.length === 0) return []
     const detail = names.map(step => `${step.name}（${step.why}）`).join('、')

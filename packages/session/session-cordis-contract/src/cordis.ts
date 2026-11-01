@@ -9,6 +9,12 @@ import { type Context, Service } from '@deepseek-ai/cordis'
 import type { TenantId } from '@omne-harness/legal-identity'
 import type {
   AgentDrivePort,
+  SessionAdoptionSource,
+  SessionCustodySource,
+  SessionProductionSource,
+  SessionDelegatedTransactions,
+  SessionPrincipalBindingSource,
+  SessionWorkPrincipals,
   DurableEvidence,
   ScopeReleasePort,
   SessionAccessCheck,
@@ -25,6 +31,7 @@ import type {
   SessionRevision,
   SessionTransactionPort,
 } from '@omne-harness/session-contract'
+import type { SessionCursorSigning } from './cursor-signing.ts'
 
 /** The intercept configuration of a caller plugin: `inject: { session: { caller } }`. */
 export type SessionIntercept = Readonly<{ caller: SessionCallerClass }>
@@ -68,6 +75,9 @@ export abstract class SessionTransactionPortService<P = unknown>
   abstract readonly readWork: SessionTransactionPort<P>['readWork']
   abstract readonly readInput: SessionTransactionPort<P>['readInput']
   abstract readonly queryOperation: SessionTransactionPort<P>['queryOperation']
+  abstract readonly queryControlOperation: SessionTransactionPort<P>['queryControlOperation']
+  abstract readonly readModelSelection: SessionTransactionPort<P>['readModelSelection']
+  abstract readonly commitEntries: SessionTransactionPort<P>['commitEntries']
   abstract readonly history: SessionTransactionPort<P>['history']
   abstract readonly pending: SessionTransactionPort<P>['pending']
   abstract readonly references: SessionTransactionPort<P>['references']
@@ -88,6 +98,60 @@ export abstract class SessionInternalPrincipalsService<P = unknown>
   abstract readonly maintainer: SessionInternalPrincipals<P>['maintainer']
 }
 export const sessionPrincipalsKey = SessionInternalPrincipalsService.provide
+
+/**
+ * The delegated entry from the Session execution boundary to storage. Trusted: the assembly makes
+ * it visible to the `session-provider` row only, never on the shared root.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionDelegatedTransactionsService<P = unknown>
+  extends Service
+  implements SessionDelegatedTransactions<P>
+{
+  static readonly provide = 'sessionDelegatedTransactions'
+  constructor(ctx: Context) {
+    super(ctx, SessionDelegatedTransactionsService.provide)
+  }
+  abstract readonly bind: SessionDelegatedTransactions<P>['bind']
+}
+export const sessionDelegatedTransactionsKey = SessionDelegatedTransactionsService.provide
+
+/**
+ * The per-session principals of the coordinators and maintainers. Trusted: the assembly entry
+ * provides it, visible to the `session-provider` row only.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionWorkPrincipalsService<P = unknown>
+  extends Service
+  implements SessionWorkPrincipals<P>
+{
+  static readonly provide = 'sessionWorkPrincipals'
+  constructor(ctx: Context) {
+    super(ctx, SessionWorkPrincipalsService.provide)
+  }
+  abstract readonly forSession: SessionWorkPrincipals<P>['forSession']
+}
+export const sessionWorkPrincipalsKey = SessionWorkPrincipalsService.provide
+
+/**
+ * The tenant ownership read of established sessions. Trusted: the `session-storage` row provides
+ * it, and only the assembly entry reads it, per call.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionPrincipalBindingsService
+  extends Service
+  implements SessionPrincipalBindingSource
+{
+  static readonly provide = 'sessionPrincipalBindings'
+  constructor(ctx: Context) {
+    super(ctx, SessionPrincipalBindingsService.provide)
+  }
+  abstract readonly read: SessionPrincipalBindingSource['read']
+}
+export const sessionPrincipalBindingsKey = SessionPrincipalBindingsService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionIdentityBridgeService<P = unknown>
@@ -191,6 +255,58 @@ export abstract class ScopeReleasePortService extends Service implements ScopeRe
 }
 export const sessionScopeReleaseKey = ScopeReleasePortService.provide
 
+/** @owner packages/session/session-contract */
+export abstract class SessionAdoptionSourceService
+  extends Service
+  implements SessionAdoptionSource
+{
+  static readonly provide = 'sessionAdoptionSource'
+  constructor(ctx: Context) {
+    super(ctx, SessionAdoptionSourceService.provide)
+  }
+  abstract readonly prepare: SessionAdoptionSource['prepare']
+}
+export const sessionAdoptionSourceKey = SessionAdoptionSourceService.provide
+
+/** @owner packages/session/session-contract */
+export abstract class SessionProductionSourceService
+  extends Service
+  implements SessionProductionSource
+{
+  static readonly provide = 'sessionProductionSource'
+  constructor(ctx: Context) {
+    super(ctx, SessionProductionSourceService.provide)
+  }
+  abstract readonly prepare: SessionProductionSource['prepare']
+}
+export const sessionProductionSourceKey = SessionProductionSourceService.provide
+
+/** @owner packages/session/session-contract */
+export abstract class SessionCustodySourceService extends Service implements SessionCustodySource {
+  static readonly provide = 'sessionCustodySource'
+  constructor(ctx: Context) {
+    super(ctx, SessionCustodySourceService.provide)
+  }
+  abstract readonly prepare: SessionCustodySource['prepare']
+}
+export const sessionCustodySourceKey = SessionCustodySourceService.provide
+
+/**
+ * The narrow cursor signing of the Session reads. A provider signs and verifies with its current
+ * key per call. The consumer takes it per call (`ctx.get`) and treats absence as `unavailable`.
+ *
+ * @owner packages/session/session-cordis-contract
+ */
+export abstract class SessionCursorSigningService extends Service implements SessionCursorSigning {
+  static readonly provide = 'sessionCursorSigning'
+  constructor(ctx: Context) {
+    super(ctx, SessionCursorSigningService.provide)
+  }
+  abstract readonly sign: SessionCursorSigning['sign']
+  abstract readonly verify: SessionCursorSigning['verify']
+}
+export const sessionCursorSigningKey = SessionCursorSigningService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type. Providers still
   // check every input at run time.
@@ -199,6 +315,9 @@ declare module '@deepseek-ai/cordis' {
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
     sessionPrincipals: SessionInternalPrincipalsService<unknown>
+    sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>
+    sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
+    sessionPrincipalBindings: SessionPrincipalBindingsService
     sessionIdentity: SessionIdentityBridgeService<unknown>
     sessionEvidence: SessionEvidenceBridgeService
     sessionClock: SessionClockService
@@ -207,6 +326,10 @@ declare module '@deepseek-ai/cordis' {
     sessionNotifier: SessionNotifierService
     sessionAgentDrive: AgentDrivePortService
     sessionScopeRelease: ScopeReleasePortService
+    sessionAdoptionSource: SessionAdoptionSourceService
+    sessionProductionSource: SessionProductionSourceService
+    sessionCustodySource: SessionCustodySourceService
+    sessionCursorSigning: SessionCursorSigningService
   }
   interface Events {
     /**

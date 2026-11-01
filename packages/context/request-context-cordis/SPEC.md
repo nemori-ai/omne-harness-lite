@@ -1,10 +1,10 @@
 # @omne-harness/request-context-cordis 行为规格
 
-状态：Service 实现成员，`draft`，没有运行实现。本成员把 [request-context](../request-context/SPEC.md) 的机制装进 [request-context-cordis-contract](../request-context-cordis-contract/SPEC.md) 定义的服务 `requestContext`，并承担贡献登记表、策略实现选择、配置校验失败、isolate 绑定与撤除。领域行为和机制行为都不在本页。
+状态：Service 实现成员，`draft`，只有基本实现（信任注入、两个键、贡献登记、assembly），配置校验与策略选择未实现。本成员把 [request-context](../request-context/SPEC.md) 的机制装进 [request-context-cordis-contract](../request-context-cordis-contract/SPEC.md) 定义的服务 `requestContext`，并承担贡献登记表、策略实现选择、配置校验失败、isolate 绑定与撤除。领域行为和机制行为都不在本页。
 
 ## 范围与依据
 
-本成员从 `./cordis` 导出 `RequestContextService` 的具体子类与插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员不导出第二个服务键，不增补新事件。
+本成员从 `./cordis` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类，也是插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`（由同一个插件在同一个 fiber 提供），并必需 `inject` 信任键 `requestContextTrust`，缺席时停在 `PENDING`。本成员不增补新事件。插件已有基本实现，配置 Schema 校验与按配置选策略尚未实现，见 [Cordis 页](docs/cordis.md)。
 
 配置经 Standard Schema 校验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。可调项：压缩策略的选择与它的参数、表示策略的选择与偏好顺序、修剪阈值、缓存容量。默认值只是初值。
 
