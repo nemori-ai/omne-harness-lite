@@ -568,6 +568,15 @@ describe('each plan check has a case that breaks only it (M11)', () => {
     )
     await keptEarlier()
   })
+
+  it('does not count the explicit adoption of another asked parameter for the same supplier', async () => {
+    const { refuse, keptEarlier } = planned()
+    const parameterAdoptions = [...adoptions(), ...explicitFor(topP).slice(0, 1)]
+    expect(
+      refuse({ ...plan(), parameterAdoptions }, { parameters: [temperature, topP] }),
+    ).toMatchObject(misuseOf('an asked parameter has no explicit adoption for a supplier'))
+    await keptEarlier()
+  })
 })
 
 describe('replay declarations (M12)', () => {
