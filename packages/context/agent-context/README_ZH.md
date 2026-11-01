@@ -3,53 +3,52 @@
 PACKAGE_TEMPLATE_DRAFT
 [English](README.md)
 
-Context 一侧的 Agent 适配集成成员，`service-provider` 变体。本成员现在只有骨架。
+Context 一侧的 Agent 适配集成成员，`service-provider` 变体。
 
 ## 职责与状态
 
-本成员将承载应用装配页的两行：`agent-context` 行提供 `agentRequests` 与 `agentModelContext`，`agent-account-outlet` 行提供 `agentAccountOutlet`。服务定义归 [agent-cordis-contract](../../agent/agent-cordis-contract/README_ZH.md)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
+本成员承载应用装配页的两行：`agent-account-outlet` 行提供 `agentAccountOutlet`，`agent-context` 行将提供 `agentRequests` 与 `agentModelContext`。服务定义归 [agent-cordis-contract](../../agent/agent-cordis-contract/README_ZH.md)，Context 一侧的端口归 [request-context-contract](../request-context-contract/README_ZH.md)。行与依赖见[应用装配](../../../docs/architecture/runtime/application-assembly.md#插件树)，适配方案见 [Context 的适配方案](../request-context-contract/docs/context.md#适配方案)。
 
-状态：骨架。职责与采用范围等 Context 与 Agent 集成缺口契约（[#859](https://github.com/nemori-ai/omne-harness-lite/issues/859)）的采用。成员名与位置是暂名，待该采用确认；改名时同批改包组织页与锁文件的登记。
+状态：第一步，实现中。本包是 Agent 与 Request Context 之间的适配器，是 Context 组里唯一导入 Agent 契约的成员。
 
-- 已实现：无。`src/index.ts` 与 `src/cordis.ts` 都没有导出。
-- 未实现：请求准备、Runtime Context 读取、账目出站与来源集合登记。
-- 未验证：全部。现在没有应用装配本成员，也没有包依赖本成员。
+- 已实现：账目出站。`createAgentAccountOutlet` 把一份 Agent 账目交接译成一条账目事实交给收件口，收件结果按名映射。`absentAccountTarget` 是没有目标的解析器。`AgentAccountOutletProvider` 是提供 `agentAccountOutlet` 的 Cordis 插件。
+- 已知限制（见 [SPEC](SPEC.md#已知限制)）：本波没有成员初始化账目投影（ACCT-INIT），也没有成员解析账目目标（ACCT-TARGET）。真实装配里 `deliver` 总是答 `unavailable`，诊断 `scope-unresolved`，不会答 `received`。
+- 未实现：`agentRequests`、`agentModelContext` 与来源集合登记，等会话侧部件的形状。
+- 已验证：出站在真实账目投影上通过 `AgentAccountOutlet` 的符合性套件；插件在真实 Cordis 4.0.4 上与真实 request-context 提供者一起装载与停止。见 [tests/](tests/README.md)。
+- 未验证：真实装配里的账目投影、真实 Model 一侧的结果接收方、任何跨进程行为。
 
 ## 使用
 
-<!-- documentation:placeholder -->
+独立使用需要一个 `ContextAccountingInbox`、发送方的采用身份与目标解析器：
 
-给出最小有效示例、依赖及初始化和释放责任。分别说明独立使用入口与 Cordis 集成入口。逐项核对公开 exports、源码值依赖、生成声明、运行启动和安装闭包。存在 ./cordis 不证明独立安装成立。
+```ts
+import { absentAccountTarget, createAgentAccountOutlet } from '@omne-harness/agent-context'
+
+const outlet = createAgentAccountOutlet({ inbox, sender, resolveTarget: absentAccountTarget })
+const outcome = await outlet.deliver({ access, handoff })
+```
+
+返回的出站不持有资源，无需释放。接入 Cordis 时，从 `@omne-harness/agent-context/cordis` 加载 `AgentAccountOutletProvider`，配置 `{ sender }`，它需要 `requestContext` 与 `contextAccountingInbox`。`./cordis` 入口不证明可独立安装。
 
 ## 契约
 
-<!-- documentation:placeholder -->
-
-链接公开类型、必要校验及唯一行为正文。类型外行为由 SPEC.md 拥有，公开定义的导航在 docs/public-api.md。说明错误、生命周期与资源责任的拥有者，不复制签名或状态机。
+出站的行为见 [SPEC.md](SPEC.md)，公开定义的索引见 [docs/public-api.md](docs/public-api.md)。端口 `AgentAccountOutlet` 及其答复归 agent-contract，收件口与事实归 request-context-contract。
 
 ## 设计
 
-<!-- documentation:placeholder -->
-
-概述内部模块和关键不变量的拥有者。完整设计写在 docs/architecture.md、docs/flows.md 与 docs/object-model.md。
+出站先核调用的租户，再问目标解析器，再把一条事实交给收件口一次，调用之间不保存任何东西。见 [docs/architecture.md](docs/architecture.md)、[docs/flows.md](docs/flows.md)、[docs/object-model.md](docs/object-model.md)。
 
 ## 配置与运行
 
-<!-- documentation:placeholder -->
-
-填写配置拥有者、默认行为、环境前提和显式依赖。说明调用者与包各自的运行责任。
+插件配置只有一个字段 `sender`，是出站给每条事实的采用身份；不合的配置使加载失败。第一波传缺席解析器。工厂的调用方提供收件口、发送方与解析器。
 
 ## 验证
 
-<!-- documentation:placeholder -->
-
-填写可复跑命令、性质、前提和未覆盖。提供有实际断言的测试。结构通过不表示业务行为已验证。
+在本目录运行 `pnpm exec vitest run` 与 `pnpm run typecheck`。测试经构建产物导入所用成员，先构建依赖。覆盖：符合性套件、租户次序、缺席解析器、字段映射、结果映射、真实 Cordis 生命周期。不覆盖真实装配里账目投影的初始化。
 
 ## 维护
 
-<!-- documentation:placeholder -->
-
-说明公开契约、资源或依赖变化时必须同步的消费者和验证入口。信息不适用时写明理由，未知时登记具名缺口。
+收件口、交接或服务键变化时，同步插件的 `inject`、SPEC 的映射表与测试。消费者是 Agent（经 `agentAccountOutlet`）与应用装配页。目标解析器有了真实提供者时，更新 SPEC 的已知限制。
 
 ## 目录结构与文档职责
 

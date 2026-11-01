@@ -9,3 +9,4 @@
 <!-- documentation:placeholder -->
 
 - [README.md](README.md)：固定输入的来源与约束
+- [outlet-world.ts](outlet-world.ts)：出站测试共用的两租户世界与真实账目投影
