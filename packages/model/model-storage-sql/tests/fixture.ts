@@ -152,7 +152,9 @@ function rowsOf(db: DatabaseSync, sql: string, params: readonly SqlValue[]): Que
 
 type Domain = { readonly db: DatabaseSync; readonly receipts: Map<string, ReceiptV2> }
 const HANDLERS = new Map([callHandler, pendingHandler].map(item => [item.handler, item]))
-const keyOf = (identity: SqlIdentity) => `${identity.operation}|${identity.operationKey}`
+/** Receipts are kept by the full identity: the scope is part of it, as in the real provider. */
+const keyOf = (identity: SqlIdentity) =>
+  JSON.stringify([identity.scope, identity.operation, identity.operationKey])
 
 function executeCommit(domain: Domain, request: CommitRequestV2): ReceiptV2 {
   const command = request.commands[0]
@@ -204,8 +206,17 @@ export type SqliteStorage = ReturnType<typeof sqliteStorage>
 
 export function sqliteStorage() {
   const domains = new Map<string, Domain>()
-  /** `loseNextReply`: the next commit is saved, then its reply is lost (`unknown`). */
-  const hooks = { loseNextReply: false }
+  const hooks: {
+    /** The next commit is saved, then its reply is lost (`unknown`). */
+    loseNextReply: boolean
+    /** Runs once before the next commit reaches the database, as a concurrent writer would. */
+    beforeCommit: (() => void) | null
+    /** The next commit is rejected before the storage accepts it, for this reason. */
+    rejectNext: 'writer_not_current' | 'queue_full' | null
+    /** The next commit stays undecided: it answers `unknown` and so does every query of it. */
+    holdNext: boolean
+  } = { loseNextReply: false, beforeCommit: null, rejectNext: null, holdNext: false }
+  const held = new Set<string>()
   let commits = 0
   const domainOf = (name: string): Domain => {
     const found = domains.get(name)
@@ -220,8 +231,25 @@ export function sqliteStorage() {
     registerCombination: input => Promise.resolve({ kind: 'registered', registration: input }),
     commit(request): Promise<CommitResultV2> {
       commits += 1
+      const rejected = hooks.rejectNext
+      hooks.rejectNext = null
+      if (rejected !== null)
+        return Promise.resolve({
+          kind: 'rejected_before_accept',
+          identity: request.identity,
+          reason: rejected,
+          diagnostic: null,
+        })
+      const before = hooks.beforeCommit
+      hooks.beforeCommit = null
+      before?.()
       const domain = domainOf(request.identity.transactionDomain)
       const key = keyOf(request.identity)
+      if (hooks.holdNext) {
+        hooks.holdNext = false
+        held.add(key)
+        return Promise.resolve({ kind: 'unknown', identity: request.identity, diagnostic: null })
+      }
       const existing = domain.receipts.get(key)
       if (existing !== undefined)
         return Promise.resolve(
@@ -238,6 +266,8 @@ export function sqliteStorage() {
       return Promise.resolve(receipt)
     },
     query(identity) {
+      if (held.has(keyOf(identity)))
+        return Promise.resolve({ kind: 'unknown', identity, diagnostic: null })
       const found = domainOf(identity.transactionDomain).receipts.get(keyOf(identity))
       return Promise.resolve(
         found ?? { kind: 'not_committed', identity, proofs: NOT_COMMITTED_PROOFS },
@@ -299,11 +329,11 @@ export type Principal = Readonly<{ subject: string }>
 export function coreOptions(tenants: readonly TenantId[]) {
   const principals = new Map<Principal, TenantId>()
   const principalOf = new Map<string, Principal>()
-  for (const scope of tenants) {
-    const principal: Principal = Object.freeze({ subject: `trusted-${textOf(scope).length}` })
+  tenants.forEach((scope, at) => {
+    const principal: Principal = Object.freeze({ subject: `trusted-${at}` })
     principals.set(principal, scope)
     principalOf.set(textOf(scope), principal)
-  }
+  })
   const completeWindows = new Set<string>()
   const authority: ModelCommandsAuthority<Principal> = {
     authorize: ({ access, action }) => {
