@@ -5,13 +5,21 @@
 // `durability: 'none'` and must not be assembled into production.
 import assert from 'node:assert/strict'
 import type { ToolCallId } from '@omne-harness/tool-contract'
-import {
-  NotApplicable,
-  testingTenantText,
-  type ConformanceCase,
-} from '@omne-harness/tool-contract/testing'
 import type { AccessVerdict, ToolAccessGuard, ToolLedgerAction } from './ledger-guards.ts'
 import type { TenantId } from './ledger-store.ts'
+
+/** What the entry passes in: the minted-tenant text and the not-applicable signal of tool-contract. */
+export type AccessDependencies = Readonly<{
+  tenantText(value: unknown): string | null
+  missing(handle: string): never
+}>
+
+/** One case, in the shape of `ConformanceCase` of tool-contract/testing. */
+export type AccessGuardCase<F> = Readonly<{
+  name: string
+  clause: string
+  run(fixture: F): Promise<void>
+}>
 
 /**
  * One allowed qualification. `principal` is the value of `principalKey` for the principal. An
@@ -48,16 +56,17 @@ export type TableToolAccess<P> = Readonly<{
 }>
 
 /**
- * Builds the table double. A verdict is, in order: `unavailable` while failed; `denied`
+ * Builds the table double (the entry exports it as `createTableToolAccess`). A verdict is, in order: `unavailable` while failed; `denied`
  * (`forged-tenant`) when the tenant is not a value that legal-identity minted; `allowed` when a
  * rule matches the principal key, the tenant text, the action and the call; else `denied`
  * (`no-rule`). One lookup is one decision point, so `read-raw-content` needs its own rule.
  */
-export function createTableToolAccess<P>(
+export function tableToolAccess<P>(
   input: Readonly<{ principalKey(principal: P): string; allow: readonly ToolAccessRule[] }>,
+  deps: Pick<AccessDependencies, 'tenantText'>,
 ): TableToolAccess<P> {
   const rules = input.allow.map(rule => {
-    const tenant = testingTenantText(rule.tenant)
+    const tenant = deps.tenantText(rule.tenant)
     if (tenant === null) throw new TypeError('an allow rule needs a minted tenant')
     return { ...rule, tenant }
   })
@@ -70,7 +79,7 @@ export function createTableToolAccess<P>(
     action: ToolAccessRule['action']
   }): Promise<AccessVerdict> => {
     if (failed !== null) return { kind: 'unavailable', diagnostic: failed }
-    const tenant = testingTenantText(request.tenant)
+    const tenant = deps.tenantText(request.tenant)
     if (tenant === null) return { kind: 'denied', reason: 'forged-tenant' }
     let principal: string
     try {
@@ -119,10 +128,10 @@ export interface ToolAccessGuardFixture<P> {
   breakDependency?(): void
 }
 
-/** The five cases every Tool access guard must pass; the first four protect tenant isolation. */
-export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
-  ToolAccessGuardFixture<P>
->[] {
+/** The five cases every Tool access guard must pass (exported as `toolAccessGuardConformance`). */
+export function accessGuardCases<P>(
+  deps: Pick<AccessDependencies, 'missing'>,
+): readonly AccessGuardCase<ToolAccessGuardFixture<P>>[] {
   return [
     {
       name: 'a qualified principal is allowed',
@@ -162,7 +171,7 @@ export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
       name: 'a failed dependency is unavailable, never allowed',
       clause: 'ToolAccessGuard',
       async run({ guard, allowed, breakDependency }) {
-        if (breakDependency === undefined) throw new NotApplicable('breakDependency')
+        if (breakDependency === undefined) deps.missing('breakDependency')
         breakDependency()
         assert.equal((await guard.qualify(allowed)).kind, 'unavailable')
       },

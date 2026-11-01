@@ -4,19 +4,13 @@
 // Session (or its in-memory transactions) on one side, the application bridge or the reader double
 // on the other. The encoding laws themselves are unit tests of tool-contract, not cases here.
 import assert from 'node:assert/strict'
-import type { TenantId } from '@omne-harness/legal-identity'
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity'
 import type { ResidentReferencesPage } from '@omne-harness/tool-contract'
 import {
   sameShape,
   type ToolBindingKey,
   type ToolShape,
 } from '@omne-harness/tool-contract/provider'
-import {
-  NotApplicable,
-  testingTenant,
-  testingWorkspace,
-  type ConformanceCase,
-} from '@omne-harness/tool-contract/testing'
 import type { ToolResidencyReader, ToolResidencyReference } from './cordis.ts'
 
 export interface ResidentKeyRoundTripFixture {
@@ -33,10 +27,20 @@ export interface ResidentKeyRoundTripFixture {
   ): Promise<void>
 }
 
-const tenantA = () =>
-  testingTenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
-const tenantB = () =>
-  testingTenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000')
+/** What the entry passes in from tool-contract/testing: minted test identities and not-applicable. */
+export type ResidentKeyCaseDependencies = Readonly<{
+  tenant(organization: string, account: string): TenantId
+  workspace(text: string): WorkspaceId
+  missing(handle: string): never
+}>
+
+/** One case, in the shape of `ConformanceCase` of tool-contract/testing. */
+export type ResidentKeyCase = Readonly<{
+  name: string
+  clause: string
+  run(fixture: ResidentKeyRoundTripFixture): Promise<void>
+}>
+
 const WORKSPACE = 'wsp_c0nf0rmance000000000000000'
 
 function key(layer: ToolBindingKey['layer'], name: string, revision = '1'): ToolBindingKey {
@@ -73,7 +77,12 @@ const sameTenant = (left: TenantId, right: TenantId) =>
   left.organization.text === right.organization.text && left.account.text === right.account.text
 
 /** The suite. A fresh fixture per case: each case writes its own keys. */
-export function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[] {
+export function residentKeyCases(deps: ResidentKeyCaseDependencies): readonly ResidentKeyCase[] {
+  const tenantA = () =>
+    deps.tenant('org_c0nf0rmance000000000000000', 'acc_c0nf0rmance000000000000000')
+  const tenantB = () =>
+    deps.tenant('org_c0nf0rmance0ther0000000000', 'acc_c0nf0rmance0ther0000000000')
+  const testingWorkspace = deps.workspace
   return [
     {
       name: 'each source layer reads back exactly the one written holder with its tenant and shape',
@@ -171,7 +180,7 @@ export function residentKeyRoundTripConformance(): readonly ConformanceCase<Resi
       name: 'a stored shape that does not read back makes the read unavailable, not a shorter page',
       clause: 'G7',
       async run({ write, writeRaw, reader }) {
-        if (writeRaw === undefined) throw new NotApplicable('writeRaw')
+        if (writeRaw === undefined) deps.missing('writeRaw')
         const at = key({ kind: 'official' }, 'damaged')
         await write({ tenant: tenantA(), key: at, shape: shape('damaged') })
         await writeRaw({

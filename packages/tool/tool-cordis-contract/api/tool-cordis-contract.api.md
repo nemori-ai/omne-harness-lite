@@ -101,7 +101,7 @@
 - `memoryToolBindingRegistryFixture` · `testing.d.ts`
 - `memoryToolRegistrationFixture` · `testing.d.ts`
 - `registrationAnswers` · `testing.d.ts`
-- `residentKeyRoundTripConformance` · `testing-resident-key.d.ts`
+- `residentKeyRoundTripConformance` · `testing.d.ts`
 - `runConformanceCase` · 包 `@omne-harness/tool-contract`
 - `runToolDynamicsSuite` · `testing.d.ts`
 - `toolBindingRegistryConformance` · `testing.d.ts`
@@ -538,10 +538,9 @@ export declare function createMemoryToolResidencyReader(input?: Readonly<{
 ## 声明文件 `testing-resident-key.d.ts`
 
 ```ts
-import type { TenantId } from '@omne-harness/legal-identity';
+import type { TenantId, WorkspaceId } from '@omne-harness/legal-identity';
 import type { ResidentReferencesPage } from '@omne-harness/tool-contract';
 import { type ToolBindingKey, type ToolShape } from '@omne-harness/tool-contract/provider';
-import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
 import type { ToolResidencyReader } from './cordis.ts';
 export interface ResidentKeyRoundTripFixture {
     write(input: Readonly<{
@@ -556,7 +555,17 @@ export interface ResidentKeyRoundTripFixture {
         shape: ResidentReferencesPage['sessions'][number]['shape'];
     }>): Promise<void>;
 }
-export declare function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[];
+export type ResidentKeyCaseDependencies = Readonly<{
+    tenant(organization: string, account: string): TenantId;
+    workspace(text: string): WorkspaceId;
+    missing(handle: string): never;
+}>;
+export type ResidentKeyCase = Readonly<{
+    name: string;
+    clause: string;
+    run(fixture: ResidentKeyRoundTripFixture): Promise<void>;
+}>;
+export declare function residentKeyCases(deps: ResidentKeyCaseDependencies): readonly ResidentKeyCase[];
 ```
 
 ## 声明文件 `testing.d.ts`
@@ -569,6 +578,7 @@ import { type Access, type DurableEvidence, type SourceLayer } from '@omne-harne
 import { type ToolAuthority, type ToolBindingKey, type ToolBindingRegistry, type ToolLoadedRegistration, type ToolLoader } from '@omne-harness/tool-contract/provider';
 import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
 import type { ToolAuthorityFailure, ToolGenerations, ToolResidencyReader, ToolResidencyReference, ToolRegistration, ToolRegistrationFailure, ToolRegistrationInput, VerifiedAuthority } from './cordis.ts';
+import { type ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
     readonly generations?: Pick<ToolGenerations<P, E, B>, 'loaderFor'>;
     readonly authority: ToolAuthority;
@@ -673,5 +683,6 @@ export interface ToolResidencyReaderFixture {
 }
 export declare function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[];
 export { createMemoryToolResidencyReader, type MemoryToolResidencyReader, type ResidentReferencesRead, } from './testing-residency-memory.ts';
-export { residentKeyRoundTripConformance, type ResidentKeyRoundTripFixture, } from './testing-resident-key.ts';
+export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts';
+export declare function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[];
 ```

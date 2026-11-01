@@ -42,6 +42,7 @@ import {
   NotApplicable,
   resendRecalls,
   testingTenant,
+  testingWorkspace,
   type AnswerModel,
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
@@ -55,6 +56,7 @@ import type {
   ToolRegistrationInput,
   VerifiedAuthority,
 } from './cordis.ts'
+import { residentKeyCases, type ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
 
 /** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
@@ -1495,7 +1497,15 @@ export {
   type MemoryToolResidencyReader,
   type ResidentReferencesRead,
 } from './testing-residency-memory.ts'
-export {
-  residentKeyRoundTripConformance,
-  type ResidentKeyRoundTripFixture,
-} from './testing-resident-key.ts'
+export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
+
+/** The round-trip suite of the resident key (XC-RESKEY); see testing-resident-key.ts. */
+export function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[] {
+  return residentKeyCases({
+    tenant: testingTenant,
+    workspace: testingWorkspace,
+    missing: handle => {
+      throw new NotApplicable(handle)
+    },
+  })
+}
