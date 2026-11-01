@@ -148,40 +148,36 @@ function holdsOf(value: JsonValue | undefined): ManifestFacts['holds'] | undefin
   return operation === null || seal === null ? undefined : { operation, seal }
 }
 
-function manifestOf(value: JsonObject): ManifestFacts | null {
-  const address = custodyAddressOf(value)
-  const kind = value['kind']
+/** What a manifest declares about the kept bytes and its own answer. */
+function declaredOf(
+  value: JsonObject,
+): Pick<ManifestFacts, 'digest' | 'sha256' | 'seal' | 'answer'> | null {
   const digest = textOf(value, 'digest')
-  const bytes = countOf(value, 'bytes')
-  const chunks = countOf(value, 'chunks')
   const sha256 = textOf(value, 'sha256')
   const seal = textOf(value, 'seal')
   const answer = value['answer']
+  return digest === null || sha256 === null || seal === null || answer === undefined
+    ? null
+    : { digest, sha256, seal, answer }
+}
+
+function manifestOf(value: JsonObject): ManifestFacts | null {
+  const address = custodyAddressOf(value)
+  const kind = value['kind']
+  const declared = declaredOf(value)
+  const bytes = countOf(value, 'bytes')
+  const chunks = countOf(value, 'chunks')
   const holds = holdsOf(value['holds'])
   if (
     address === null ||
     (kind !== 'raw' && kind !== 'retain') ||
-    digest === null ||
+    declared === null ||
     bytes === null ||
     chunks === null ||
-    sha256 === null ||
-    seal === null ||
-    answer === undefined ||
     holds === undefined
   )
     return null
-  return {
-    ...address,
-    intent: 'manifest',
-    kind,
-    digest,
-    bytes,
-    chunks,
-    sha256,
-    seal,
-    answer,
-    holds,
-  }
+  return { ...address, ...declared, intent: 'manifest', kind, bytes, chunks, holds }
 }
 
 /** The facts of one `tool` command, or null when they are not a command of this protocol. */

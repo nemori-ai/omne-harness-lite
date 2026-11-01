@@ -29,7 +29,7 @@ export const TOOL_STORAGE_OWNER = '@omne-harness/tool-storage-sql'
 /**
  * The bytes one chunk command may hold beside its base64 data: the participant name, the intent,
  * the tenant text, a call and an operation of at most 256 characters each, the index and the
- * custody digest, with their JSON punctuation. `tests/custody-config.spec.ts` builds the largest
+ * custody digest, with their JSON punctuation. `tests/custody-chunks.spec.ts` builds the largest
  * such envelope and checks that it stays below this bound.
  */
 export const CHUNK_ENVELOPE_BYTES = 2048

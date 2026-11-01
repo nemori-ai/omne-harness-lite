@@ -22,6 +22,7 @@ import { checkChunkBound, TOOL_STORAGE_OWNER, type SqlToolOutputCustodyOptions }
 import { requestOf, resolveTenant, type TenantDomain } from './tenant.ts'
 import type { CustodyAddress, ManifestFacts, ManifestKind, ManifestRow } from './worker/facts.ts'
 import { MANIFEST_READ_HANDLER, PROTOCOL } from './worker/schema.ts'
+import { isObject } from './worker/support.ts'
 
 type Reply<T> = Promise<Outcome<T, ToolFailure>>
 
@@ -36,10 +37,6 @@ const notPreserved: Outcome<never, ToolFailure> = fail({
 })
 
 type Json = Readonly<Record<string, JsonValue>>
-
-function isObject(value: JsonValue | undefined): value is Json {
-  return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
 
 function textAt(value: Json, key: string): string | null {
   const member = value[key]
@@ -296,19 +293,28 @@ export function createSqlToolOutputCustody<P>(
       : succeed({ kind: 'retained', raw })
   }
 
+  /** The operation that preserved `raw` in this call, when its manifest seals exactly `raw`. */
+  const heldRawOperation = async (
+    at: TenantDomain,
+    call: string,
+    raw: RawOutput,
+  ): Reply<string> => {
+    const operation = preservedAt(raw, call)
+    if (operation === null) return notPreserved
+    const held = await manifest(at, { tenant: at.tenant, call, operation })
+    if ('failure' in held) return held
+    return held.ok?.kind !== 'raw' || held.ok.seal !== raw.custody.digest
+      ? notPreserved
+      : succeed(operation)
+  }
+
   const retainResult: ToolOutputCustody<P>['retainResult'] = async input => {
     const resolved = await resolveTenant(options, input.tenant)
     if (resolved.kind !== 'ready') return unavailable(resolved.diagnostic)
     const at = resolved.at
-    const rawOperation = preservedAt(input.raw, input.call)
-    if (rawOperation === null) return notPreserved
-    const held = await manifest(at, {
-      tenant: at.tenant,
-      call: input.call,
-      operation: rawOperation,
-    })
+    const held = await heldRawOperation(at, input.call, input.raw)
     if ('failure' in held) return held
-    if (held.ok?.kind !== 'raw' || held.ok.seal !== input.raw.custody.digest) return notPreserved
+    const rawOperation = held.ok
     const encoded = jsonField(input.value, 'value')
     if ('failure' in encoded) return encoded
     const value = encoded.ok
@@ -358,6 +364,22 @@ function recall<T>(
     : succeed(answer)
 }
 
+type CommitAnswer = Awaited<ReturnType<SqlToolOutputCustodyOptions['storage']['commit']>>
+
+/** A rolled-back custody commit: the reason the participant stopped it names the failure. */
+function stopped(
+  operation: ToolOperationId,
+  answer: Extract<CommitAnswer, { kind: 'rolled_back' }>,
+): Outcome<never, ToolFailure> {
+  const stop = answer.responses[answer.responses.length - 1]?.reply
+  const reason = stop?.kind === 'conflict' && isObject(stop.basis) ? stop.basis['reason'] : null
+  if (reason === 'operation' || reason === 'chunks') return conflict(operation)
+  if (reason === 'holder') return notPreserved
+  return unavailable(
+    `custody commit rolled back: ${stop?.kind === 'failed' ? stop.category : (stop?.kind ?? 'no reply')}`,
+  )
+}
+
 /** One custody commit, read as the answer of the port. */
 async function settle(
   operation: ToolOperationId,
@@ -369,15 +391,8 @@ async function settle(
       const response = answer.responses[0].reply.response
       return succeed(isObject(response) ? (response['answer'] ?? null) : null)
     }
-    case 'rolled_back': {
-      const stop = answer.responses[answer.responses.length - 1]?.reply
-      const reason = stop?.kind === 'conflict' && isObject(stop.basis) ? stop.basis['reason'] : null
-      if (reason === 'operation' || reason === 'chunks') return conflict(operation)
-      if (reason === 'holder') return notPreserved
-      return unavailable(
-        `custody commit rolled back: ${stop?.kind === 'failed' ? stop.category : (stop?.kind ?? 'no reply')}`,
-      )
-    }
+    case 'rolled_back':
+      return stopped(operation, answer)
     case 'unknown':
       return fail({ kind: 'commit-unknown', operation })
     case 'identity_conflict':
