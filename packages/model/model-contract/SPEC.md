@@ -381,7 +381,7 @@ schedule 按原 call 去重，不能自行取得执行代次。recover 核实原
 
 `ModelOperationId` 的唯一性范围是租户：同一租户内调用方与提供者共用 operation 空间。调用身份在租户内唯一。主体以 `--` 开头的 `ModelOperationId` 保留给守卫派生的控制 operation，只由 `deriveGuardControlOperation` 产生。调用方与提供者的生成器都不得产生这种主体，这是铸造方的义务，不是被拒后重铸。提供者铸造的 operation（策略 operation、claim operation、`DispatchRecord.intent`、`WriteContext.operation`、清理推进）使用不少于 128 位熵的生成器，例如 ULID 或 UUIDv4/v7，并在受理新 operation 时按（租户，operation）唯一条件提交：撞号返回 conflict，不覆盖。调用方的熵由调用方承担，撞号同样得到 conflict。
 
-`./testing` 入口提供受控替代提供者与替代传输，声明见[公开页](docs/public-api.md#受控替代提供者)。推送生产者替身、`current` 替身与观察替身三个公开替身也在该入口，见[公开替身与受控替身](#公开替身与受控替身)。替代提供者按本节的认回与幂等规则工作，受理结构由共同 judge 判断，其余结果由测试脚本给出，不核验证据的真实外部事实，不保存耐久状态。脚本给出的 `not-committed` 不是 Storage 的完整排除证明，脚本给出的任何结果都不是生产提供者的证明。
+`./testing` 入口提供受控替代提供者与替代传输，声明见[公开页](docs/public-api.md#受控替代提供者)。推送生产者替身、`current` 替身与观察替身三个公开替身也在该入口，见[公开替身与受控替身](#公开替身与受控替身)。档案端口与请求准备端口的两个替身也在该入口，见[档案与请求准备的公开替身](#档案与请求准备的公开替身)。替代提供者按本节的认回与幂等规则工作，受理结构由共同 judge 判断，其余结果由测试脚本给出，不核验证据的真实外部事实，不保存耐久状态。脚本给出的 `not-committed` 不是 Storage 的完整排除证明，脚本给出的任何结果都不是生产提供者的证明。
 
 `./conformance` 入口提供提供者符合性断言，它不导出任何替身，替代提供者和替代传输留在 `./testing`，所以检查真实提供者不会把替身带进依赖：对一个被测方，按本章与前面各章在公开面上可观察的义务逐条检查，报告每条义务通过、失败或不适用，声明与义务清单见[公开页](docs/public-api.md#符合性断言)。需要装配方才能做的准备（让调用收场、给出耐久证据、撤除或替换实例、撤销资格）由被测方的可选钩子提供，缺钩子、缺传输，或结果只有一页而无法检查读取的义务（`read-page-stable-for-same-after`、`acknowledge-keeps-open-read-readable`、`revoked-reader-gets-no-page`）报告不适用，不算通过。`waitMs` 是套件对被测方每一次等待的上限，超时只让当条义务失败；工厂或释放失败同样只让当条失败，其余义务照常检查。受控替代提供者通过全部义务；把它接成被测方的 `createScriptedConformanceSubject` 由 `./testing` 导出。本章没有给出失败 kind 或判据的地方，套件只做较弱但确定的断言，不替契约定 kind：跨租户与不存在的失败形态，提前确认与伪证据的失败 kind，已开始读取的期限，观察者落后时的结束原因，重复 materialize 与 start 的形态，媒体读取器的注入方式，`quiesce` 之后受理的失败 kind，取消后 `upstream` 的初值，同一 operation 跨方法复用的失败 kind，首内容前断流的故障原因。套件没有让替代传输以上游拒绝收场并观察重试的入口，因此不检查「上游超限以 `input-over-limit` 收场且不重试」，也不检查推理回放的再发；回放投影与关闭回放发生在适配器编码时，套件同样不检查。这些缺口待契约拥有者补全，补全后再收紧断言。另有两处判据明确但公开面看不到，同样只做较弱断言：已收场调用的终局经深接缝被覆盖，以及取消后收场的终局值（它由套件经钩子给出）。
 
@@ -799,6 +799,37 @@ M-2 增量不向现有 ModelRuntime、ModelHandle、CredentialPort、Supplier �
 receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收端口由各消费方拥有者各自实现。receiver 替身分别记录材料事实、关联责任、去重及保留保护、响应观察状态。saved 由四项合取检查产生，不能直接设置下一次成功回执。未知注入分别记录实际 committed/absent 与 observed known/unknown，只有权威排除旧写和迟到提交才允许 absent 后重试。原完整输入和原 key 保持。
 
 `current` 替身、观察替身与 receiver 替身各带一个测试控制面。测试控制面默认拒绝。替身的访问控制只按真实 tenant 与 principal identity 设置 allow、deny 或 unavailable；操作分类归真实装配里的授权能力，替身不建模它。该控制面不是生产 Identity AccessCheck，也不接受普通请求自带的许可布尔值。推送生产者替身没有自己的控制面：它只以构造时给定的主体行事，资格由被包的受控替代提供者与使用方注入的接收方各自核对。观察替身以同步确认点取得快照并登记订阅，可按待取帧数限制每个观察者。receiver 替身的驻留期限由手动 clock 驱动，不使用 sleep。它的规范字节由独立递归规范 JSON UTF-8 计量器计算，不能由每个测试返回常数绕过额度。泛型公开值须合法且可规范计量，common 不导入 Model 或 Tool。四个替身都不证明磁盘耐久、跨进程互斥、真实主体或最终输出围栏。
+
+### 档案与请求准备的公开替身
+
+`createScriptedModelProfiles` 与 `createScriptedModelRequestPreparation` 经 `./testing` 公开。它们分别替代 `ModelProfiles<P>` 与 `ModelRequestPreparation<P>`，供消费方测试自己怎样使用这两个端口。采用依据：[#991 局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6553544046)，实施卡 [#994](https://github.com/nemori-ai/omne-harness-lite/issues/994)。本节只规定替身的测试行为，不改变[档案与请求准备协议](#档案与请求准备协议)的生产承诺。
+
+1. 业务端口与测试控制是不同对象。业务端口只有原方法，`setAccess`、`setList`、`setResolution`、`setPlan` 与 `calls` 只在控制对象上。每个工厂实例独立持有脚本表、访问规则和调用记录。替身没有默认档案、默认来源、默认主体或默认凭据。
+2. 每次业务调用按以下顺序处理：
+   1. 记录本次输入。
+   2. 租户不是合法身份时，返回 `denied`，action 为 `tenant`。
+   3. 测试控制面没有设为 allow 时返回失败。deny 返回 `denied`，action 为 `profiles.list`、`profiles.resolve` 或 `prepare`。unavailable 返回 `unavailable`，dependency 为 `model-profiles` 或 `model-request-preparation`，diagnostic 为 `scripted-access`。没有设过的访问按 deny 处理。
+   4. 之后才查找脚本。所以未授权的调用不能得知某条登记是否存在。
+3. 测试控制面按合法租户编码与主体身份（`Object.is`）设置。结构相同的另一个主体不共享规则与答案。档案的 factory 范围不授予访问。
+4. 档案替身按完整输入查找答案：`list` 用 `selected` 与 `required`，`resolve` 用 `route` 与 `required`。`required` 的模态次序、重复项和来源的每个字段都参加匹配。查找先按租户与主体分区。没有匹配的登记时，调用以 `ScriptedModelError`（reason 为 `invalid-script`）拒绝。替身不把脚本遗漏当作 absent 或来源不可用。来源不可用由测试登记的 `unavailable` 失败表达，与 absent 是不同答案。
+5. 档案替身在保存成功答案前核对局部一致性。核对失败时登记抛 `invalid-script`，已有登记不变。核对的内容如下：
+   - resolved 只带 active 档案，档案范围适用于登记的租户，路由等于所问路由。
+   - `selectable` 等于没有任何原因。原因不重复。档案输入不覆盖 `required` 时必须带 modality 原因，覆盖时不得带它。
+   - `choices` 只放可选的 resolved，路由不重复。
+   - 所问 `selected` 为 null 时，答案的 `selected` 为 null。不为 null 时，答案保留所问路由。可选的 selected 等于 `choices` 中同路由的项。absent 或不可选的 selected 不在 `choices` 中。
+   - 凭据状态、locked 与 scope 原因、shadowed 及来源由脚本给出。替身不推导它们。
+6. 准备替身在查找计划前做静态检查。档案范围属于另一个租户或组织时返回 `denied`，action 为 `prepare`。范围里的身份不合法时返回 `invalid`，field 为 `profile.identity.scope`，reason 为 `invalid-identity`。档案已撤回时返回 `invalid`，field 为 `profile`，reason 为 `withdrawn`。`required` 含档案输入没有的模态时返回 `invalid`，field 为 `required.modalities`，reason 为 `modality`。替身不据消息重建 `required`，也不按输入大小拒绝。
+7. 准备替身按完整的 profile、`required` 与 `assembled.parameters` 查找计划。消息、工具和来源不参加匹配。计划只给出绑定后的供应商和参数采用。成功计划的供应商个数、次序、adoption、recipient 与 model 必须与档案相同，只增加凭据。tenant 凭据保持原样，不改成 factory。每个显式参数对每个供应商至少有一项 explicit 采用。替身不运行参数规则，不补默认值。需要默认采用的测试显式给出 default 项。
+8. 每次调用都从本次 `assembled` 形成新请求：正文、工具、`toolChoice`、参数、表示、来源和 `replay: 'off'` 取自本次输入。替身按档案供应商次序调用 `judgeReplayDeclaration` 展开回放声明。声明失败时原样返回，不调用 transport。
+9. 准备替身以 `transport.prepare(request, request.suppliers[0], { resent: [] })` 准备传输：
+   - prepare 返回失败时，原样返回该失败，不调用 close。
+   - prepare 抛出时，原异常传播，不调用 close。
+   - prepare 成功时，替身等待 `close()` 一次，close 完成后才返回请求。close 等待期间业务调用保持未完成。
+   - close 拒绝时，同一错误对象传播。替身不重试、不再次 close，也不返回成功。
+   - 替身从不调用 materialize 或 start。close 不撤销 transport 已产生的外部效果。
+10. 主体 `P` 按原引用保留，不复制、不冻结、不枚举。租户与档案范围中的合法身份保留原引用，其余值冻结复制。登记后修改调用方的对象不改变脚本，修改返回值不改变后续回答。`calls()` 每次返回新的冻结数组。每次业务调用一进入就编号，拒绝、失败、无匹配和 transport 或 close 异常都计入。异步调用在进入时固定输入与命中的计划，之后的登记不改变在途调用。
+
+这两个替身不证明生产档案求值、范围链、锁定、凭据保管、参数规则、计量或发送。
 
 ## 档案、模态与转换行为
 
