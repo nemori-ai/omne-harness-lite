@@ -112,3 +112,5 @@ export class LocalCredentialPlugin extends ModelCredentialService {
     })
   }
 }
+
+export { ModelProfilesLocalPlugin } from './plugins/profiles.ts'
