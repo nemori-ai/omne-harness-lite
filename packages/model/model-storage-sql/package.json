@@ -26,6 +26,7 @@
   },
   "dependencies": {
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/model": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*"

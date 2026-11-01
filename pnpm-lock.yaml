@@ -1273,6 +1273,9 @@ importers:
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
+      '@omne-harness/model':
+        specifier: workspace:*
+        version: link:../model
       '@omne-harness/model-contract':
         specifier: workspace:*
         version: link:../model-contract
