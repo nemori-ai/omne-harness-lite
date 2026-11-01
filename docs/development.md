@@ -103,7 +103,7 @@ pnpm run check:formal-tools
 
 Java、TLC、Alloy的查找路径、JAR及环境变量归[环境与实际执行](verification.md#环境与实际执行)。本地已有安装不代表新工作树、cloud镜像或CI具备同一环境；非登录shell须显式传入所需变量。
 
-`pnpm run check:formal-tools`只检查环境，`pnpm run check:design`只检查设计材料结构和登记，二者都不执行模型。实际模型命令从所属规格及验证资源读取，记录工具、输入和范围；环境缺失、模型未覆盖与执行失败分别报告。
+`pnpm run check:formal-tools`只检查环境，`pnpm run check:design`只检查设计材料结构和登记，二者都不执行模型。环境检查还比对`TLA2TOOLS_JAR`的sha256。它只接受钉住的tla2tools v1.7.4发布文件。文件不同时，检查报`MISMATCH`并退出1。实际模型命令从所属规格及验证资源读取，记录工具、输入和范围；环境缺失、模型未覆盖与执行失败分别报告。
 
 ### 格式化
 
