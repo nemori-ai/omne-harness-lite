@@ -99,10 +99,10 @@ export type CommandHandler<P> = (
 
 type Lookup = Readonly<{ kind: 'new' }> | Readonly<{ kind: 'held' }>
 
-function withExpected(command: SessionCommand, revision: WorkSnapshot['revision']): SessionCommand {
-  if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return command
-  // Only the seven optimistic commands reach here, and each of them has `expected` in its input.
-  return { kind: command.kind, input: { ...command.input, expected: revision } } as SessionCommand
+/** The `expected` the caller asserted, or undefined for a command that carries none. */
+function expectedOf(command: SessionCommand): WorkSnapshot['revision'] | undefined {
+  if (!OPTIMISTIC.has(command.kind) || !('expected' in command.input)) return undefined
+  return command.input.expected
 }
 
 function isReceipt(value: unknown): value is CommitReceipt {
@@ -306,27 +306,30 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
   const run = async (
     view: SessionTransactionPort<P>,
     access: SessionAccess<P>,
-    original: SessionCommand,
+    command: SessionCommand,
     retries: number,
   ): Promise<CommandAnswer> => {
     // The Tool target is refused before the session or the operation is read (contract 控制与模型选择).
-    if (original.kind === 'stopCall' && original.input.producer.kind === 'tool')
-      return commit(view, access, original, [])
-    const lookup = await lookUp(view, access, original)
+    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+      return commit(view, access, command, [])
+    const lookup = await lookUp(view, access, command)
     if ('failure' in lookup) return lookup
     if (lookup.ok.kind === 'held') {
       // The original answer comes back from the record; nothing new is committed or notified.
-      if (!RECALL_WITH_MATERIAL.has(original.kind)) return commit(view, access, original, [])
-      const recalled = await materials(access, original)
-      return 'failure' in recalled ? recalled : commit(view, access, original, recalled.ok)
+      if (!RECALL_WITH_MATERIAL.has(command.kind)) return commit(view, access, command, [])
+      const recalled = await materials(access, command)
+      return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
     }
-    let command = original
-    if (original.kind !== 'create') {
-      const snapshot = await readSnapshot(view, access, original.kind)
+    if (command.kind !== 'create') {
+      const snapshot = await readSnapshot(view, access, command.kind)
       if ('failure' in snapshot) return snapshot
-      command = withExpected(original, snapshot.ok.revision)
       const refusal = refusalOf(snapshot.ok, command)
       if (refusal !== null) return fail(refusal)
+      // The caller's `expected` is its own assertion: it is never replaced by the revision just
+      // read. A tail that has moved on answers `changed` and commits nothing (SPEC CP-01 step 2).
+      const expected = expectedOf(command)
+      if (expected !== undefined && expected !== snapshot.ok.revision)
+        return fail({ kind: 'changed', revision: snapshot.ok.revision })
     }
     const guards = await materials(access, command)
     if ('failure' in guards) return guards
@@ -335,10 +338,10 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       if (
         answer.failure.kind === 'changed' &&
         OPTIMISTIC.has(command.kind) &&
-        'expected' in command.input &&
+        expectedOf(command) === undefined &&
         retries < policy.command.retriesOnChanged
       )
-        return run(view, access, original, retries + 1)
+        return run(view, access, command, retries + 1)
       return answer
     }
     const receipt = receiptOf(answer.ok)

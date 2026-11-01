@@ -32,19 +32,19 @@
 | 步 | 动作 | 输入 | 输出 | 失败分支 |
 | --- | --- | --- | --- | --- |
 | 1 核权与认回原操作 | 核对 `Access`；按面操作的请求调用一次 `accessCheck.check`；allowed 后以请求与证据调用 `SessionDelegatedTransactions.bind`，取得本次面操作的委派视图，本命令其余各步（含 `changed` 重做）的端口调用都经该视图；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；经视图点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`check` 答 `denied`：返回 `denied`，不继续；`check` 答 `unavailable` 或抛错：返回 `unavailable`，`owner` 取字面值 `'sessionAccessCheck'`（与 Cordis 服务键同名，不装配 Cordis 时也取这个值），不继续；会话在该租户下不存在（`create` 除外）：返回 `denied`，与跨租户不可区分；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |
-| 2 权威读 | 在同一事务边界读 `WorkSnapshot`。命令带 `expected` 时，记下 `revision` 作为本次提交的 `expected` | `Access` | 一个完整提交位置上的快照 | 读不到返回 `unavailable`；归约隔离返回 `quarantined`。都不提交 |
+| 2 权威读 | 在同一事务边界读 `WorkSnapshot`。命令带调用方的 `expected` 时，把它与快照的 `revision` 比较：相等，照调用方的原值提交；不等，答 `changed`（带快照的 `revision`），不提交。服务不用读到的 `revision` 改写 `expected`。第 3 步能由快照单独裁定的状态拒绝先于这次比较，次序与 `decide` 相同 | `Access` | 一个完整提交位置上的快照 | 读不到返回 `unavailable`；归约隔离返回 `quarantined`；`expected` 与 `revision` 不等返回 `changed`。都不提交 |
 | 3 事务外裁定 | 以第 2 步的快照调用 `decide`。`decide` 按[命令表](../session-contract/SPEC.md#命令表)组合领域服务与守卫 | 快照与命令参数 | 拒绝结局，或「允许」与本命令需要的材料种类 | 拒绝结局原样返回，不提交。允许时丢弃这一次产出的批次，不交给第 5 步 |
 | 4 收材料 | 按命令向身份桥、证据桥、Context 输入或空闲输入要 `GuardCommand`。`GuardCommand.participant` 标识材料的拥有者，不是存储参加者的名字（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)） | `SessionCommand` | 完整的材料集合 | 桥返回失败时原样返回该失败，`owner` 沿[契约端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)取桥自己报告的拥有者；桥缺席或抛出时，`owner` 由宿主填该端口的服务键（[session-cordis 端口接线](../session-cordis/SPEC.md#端口接线)）；缺一项材料不提交 |
-| 5 提交 | 经第 1 步的委派视图调用 `commit`，交 `SessionCommand` 与材料；视图把绑定的证据交给存储，与操作记录放在一起。材料随命令交给存储参加者，不各自成为存储参加者。存储参加者在同一事务里调用 `decide` 取得条目批次，再写条目、操作回执、治理变更、派生索引与解释进度。带 `expected` 的命令由 `decide` 在事务内核对 `expected`；其余命令由 `decide` 按事务内的当前状态重新裁定。批次内容（例如冻结的会话里 Run 终态同批的 SE38，见 [I-F4](../session-contract/SPEC.md#i-f4)）全部来自 `decide` | 命令与材料 | `CommitReceipt` | `changed`（只有带 `expected` 的七种命令会得到，尾部已变）：回到第 1 步的认回部分，不再调用 `check`，不再 `bind`，沿用本次视图；丢弃该会话的 [CA-3](#ca-3) 槽，第 2 步经视图读权威快照；用同一操作身份重做，存储参加者为重做开新的尝试代次（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)）。第 3 步在新快照上重算拒绝原因。重做上限为策略 `command.retriesOnChanged`，超过后把 `changed` 交给调用方。材料缺席、版本不符或来源无权：提交被拒绝，按[SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport)返回，不重做。`commit-unknown`：原样返回，不改写，不换身份。`attempt-rejected` 只出现在原操作查询里，说明该次尝试未生效，原操作可用同一身份重试（[SL09](../session-contract/SPEC.md#日志提交与查询结果)） |
+| 5 提交 | 经第 1 步的委派视图调用 `commit`，交 `SessionCommand` 与材料；视图把绑定的证据交给存储，与操作记录放在一起。材料随命令交给存储参加者，不各自成为存储参加者。存储参加者在同一事务里调用 `decide` 取得条目批次，再写条目、操作回执、治理变更、派生索引与解释进度。带 `expected` 的命令由 `decide` 在事务内核对 `expected`；其余命令由 `decide` 按事务内的当前状态重新裁定。批次内容（例如冻结的会话里 Run 终态同批的 SE38，见 [I-F4](../session-contract/SPEC.md#i-f4)）全部来自 `decide` | 命令与材料 | `CommitReceipt` | `changed`：带调用方 `expected` 的七种命令把 `changed` 原样交给调用方，不重做，因为 `expected` 是调用方的断言，重做会替它另选一个修订。不带调用方 `expected` 的命令（只有 `commitDerived(compaction)`）：回到第 1 步的认回部分，不再调用 `check`，不再 `bind`，沿用本次视图；丢弃该会话的 [CA-3](#ca-3) 槽，第 2 步经视图读权威快照；用同一操作身份重做，存储参加者为重做开新的尝试代次（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)）。第 3 步在新快照上重算拒绝原因。重做上限为策略 `command.retriesOnChanged`，超过后把 `changed` 交给调用方。契约的 `decide` 不对这类命令答 `changed`，所以这条重做只防存储提供者仍答 `changed` 的情形。材料缺席、版本不符或来源无权：提交被拒绝，按[SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport)返回，不重做。`commit-unknown`：原样返回，不改写，不换身份。`attempt-rejected` 只出现在原操作查询里，说明该次尝试未生效，原操作可用同一身份重试（[SL09](../session-contract/SPEC.md#日志提交与查询结果)） |
 | 6 通知 | 提交确认耐久之后，现取 `SessionNotifier` 并调用 `committed`，载荷为租户、会话、回执的 `revision`、`source` 与本次事件种类集合 | 回执 | 无 | 通知缺席或失败只记诊断，不回滚，不改回执（[EC-11](../session-contract/SPEC.md#ec-11)） |
 
 第 1 步分两部分：核权（`check` 与 `bind`）与认回（派生身份、经视图点查、`resolveOperation`）。核权每次面操作只做一次。本节与本文别处说「回到第 1 步」「从第 1 步开始」或「运行第 1 步」时，都只指认回部分。
 
-只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，第 2 步与第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
+只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，调用方的 `expected` 在第 2 步与快照的 `revision` 比较，不等答 `changed` 不提交；相等时服务照调用方的原值提交，第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`，服务把它交回调用方。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
 
 其余命令不带 `expected`。事务内的 `decide` 以存储参加者读到的当前状态重新裁定，结局可能与第 3 步不同，以事务内的结局为准，不产生 `changed`。第 3 步只用来提前得到拒绝原因与决定收哪些材料，材料集合按命令种类固定，所以状态变化不会让收到的材料失配。
 
-因此第 2 步可以从[快照缓存](#ca-3)读取。错误的快照对带 `expected` 的命令只导致一次 `changed` 重做，因为重做前丢弃该槽，重做的第 2 步读权威快照。错误的快照对其余命令只影响事务外的预判。两类都不导致错误提交。第 1 步的点查不走快照缓存。重做沿用同一 `SessionOperationId`。Session 操作的输入摘要不含认证封套与 `expected`，材料只计拥有者与身份（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），所以重做与同一意图的重试认回原回执或继续提交，不得到 `conflict`。
+因此第 2 步可以从[快照缓存](#ca-3)读取。错误的快照对带 `expected` 的命令只可能让比较不等：缓存命中的快照与 `expected` 不等时，先丢弃该槽、经视图读权威快照再比较一次，权威快照仍不等才答 `changed`，所以过期的缓存不制造 `changed`；缓存与 `expected` 相等而尾部已变时，第 5 步事务内的核对答 `changed`，交给调用方。错误的快照对其余命令只影响事务外的预判。两类都不导致错误提交。第 1 步的点查不走快照缓存。重做沿用同一 `SessionOperationId`。Session 操作的输入摘要不含认证封套与 `expected`，材料只计拥有者与身份（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），所以重做与同一意图的重试认回原回执或继续提交，不得到 `conflict`。
 
 <a id="cp-access"></a>
 
@@ -298,7 +298,7 @@
 
 | 字段 | 覆盖 | 含义 | 配置初值 |
 | --- | --- | --- | --- |
-| `command.retriesOnChanged` | CP-01 | 存储层返回 `changed` 时流水线重做的次数上限 | 3 |
+| `command.retriesOnChanged` | CP-01 | 存储层返回 `changed` 时流水线重做的次数上限。只重做不带调用方 `expected` 的命令；带 `expected` 的命令把 `changed` 交给调用方 | 3 |
 | `advance.retryDelaysMs` | S1、C2 | Agent 返回 `busy` 或 `unavailable` 时的退避序列，用尽后交 S3 | `[1000, 5000, 30000]` |
 | `idle.checkIntervalMs` | S2 | 没有时钟等待能力时的轮询间隔 | 60000 |
 | `idle.clockToleranceMs` | S2 | 时钟采样允许的偏差 | 5000 |
@@ -342,7 +342,7 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <a id="ca-1"></a>CA-1 | 条目缓存 | `(tenant, session, position)` | 解码后的条目，含内联载荷 | 永远有效。已提交条目不可变。只缓存从已确认提交前缀读到的条目；未提交候选没有对外位置，不进缓存 | 按字节 LRU，预算 `cache.entryBudgetBytes` | 不需要。键即内容，命中不可能过期 | 本成员 |
 | <a id="ca-2"></a>CA-2 | 视图前缀摘要缓存 | `(tenant, session, epoch, seq)` | 模型视图在该位置的前缀摘要 | 永远有效。一代模型视图物化后不改；压缩开新一代，旧键自然不再被读 | 按条数 LRU | 不需要。读者以「代已变」的读取结果发现新代，不靠失效 | `session-adapters` 的历史源插件，按本规则实现 |
-| <a id="ca-3"></a>CA-3 | 快照缓存 | `(tenant, session)` | `WorkSnapshot` 与它的 `revision` | 不与权威尾部比对（端口没有尾部修订读取，见下文已知限制），所以只用于 CP-01 第 2 步。第 5 步得到 `changed` 时丢弃该槽，重做的第 2 步经视图读权威快照，再写回该槽。提交通知带来的 `revision` 大于缓存值时丢弃该槽。通知不能使缓存变为有效。修订是十进制文本，按数值比较：先比长度，长度相同再比字典序 | 每会话单槽替换；会话数上限 `cache.snapshotSessions`，按 LRU 淘汰会话 | 不做点查比对。带 `expected` 的命令由事务内的 `expected` 核对兜底：过期快照只导致一次 `changed` 重做，因为重做读权威快照。其余命令由事务内的 `decide` 按当前状态重新裁定。两类都不导致错误提交 | 本成员 |
+| <a id="ca-3"></a>CA-3 | 快照缓存 | `(tenant, session)` | `WorkSnapshot` 与它的 `revision` | 不与权威尾部比对（端口没有尾部修订读取，见下文已知限制），所以只用于 CP-01 第 2 步。第 5 步得到 `changed` 时丢弃该槽；第 2 步命中的快照与调用方的 `expected` 不等时也丢弃该槽，并经视图读权威快照，再写回该槽。提交通知带来的 `revision` 大于缓存值时丢弃该槽。通知不能使缓存变为有效。修订是十进制文本，按数值比较：先比长度，长度相同再比字典序 | 每会话单槽替换；会话数上限 `cache.snapshotSessions`，按 LRU 淘汰会话 | 不做点查比对。带 `expected` 的命令由事务内的 `expected` 核对兜底：过期快照不制造 `changed`，因为与 `expected` 不等的命中会先换成权威快照。其余命令由事务内的 `decide` 按当前状态重新裁定。两类都不导致错误提交 | 本成员 |
 
 `SessionId` 只在租户内唯一，一个服务实例服务全部租户，所以三层缓存的键都带租户。缓存不是核权点：
 
@@ -420,14 +420,14 @@
 
 | 编号 | 场景 | 必须观察的结果 | 条款 |
 | --- | --- | --- | --- |
-| VM-01 | 每个变更命令走完流水线六步；带 `expected` 的七种命令在第 5 步返回 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变 | `changed` 时重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交。不带 `expected` 的命令从不得到 `changed`，结局按事务内的当前状态裁定 | [CP-01](#cp-01) |
+| VM-01 | 每个变更命令走完流水线六步；调用方持过期 `expected` 调带 `expected` 的七种命令之一；调用方持当前 `expected`，存储层在第 5 步答 `changed`；不带 `expected` 的命令在第 3 步之后状态被并发改变，或存储层对它答 `changed` | 过期 `expected` 在第 2 步答 `changed`，不提交，不换成新的 `revision` 重做；当前 `expected` 在第 5 步得到的 `changed` 原样交给调用方，不重做。不带 `expected` 的命令在状态被并发改变时不得到 `changed`，结局按事务内的当前状态裁定；存储层仍对它答 `changed` 时，重做从第 1 步的认回部分开始，不再调用 `check`，读权威快照，沿用同一操作身份，不得到 `conflict`；重做次数不超过 `command.retriesOnChanged`；超过后调用方收到 `changed`，没有提交 | [CP-01](#cp-01) |
 | VM-02 | 参加命令在提交方事务里运行；提交方回滚 | Session 一侧没有条目，`ExecutionRef` 不变；参加者四种响应与结局一一对应 | [CP-02](#cp-02) |
 | VM-03 | before-admit 槽拦截、放行与展开；同一原提交重复进入 | 拦截只写 SE12，不保管正文；展开内容与原命令同批；重复进入认回原回执 | [EX-1](#ex-1)、[C1](#c1) |
 | VM-04 | 每个协调器在每个失败分支上的动作 | 与各协调器表的「失败分支」一致；没有一个分支把未知改写为成功或失败 | [C1](#c1) 至 [C5](#c5) |
 | VM-05 | 每个调度器的触发、幂等、并发与停机接续 | 重复触发无重复效果；每会话一个在途实例；重启后由 S3 按八个原因找回全部待办，包括只有未完成初始化项、只有待处理输入、只有未终结 Run、只启用了自动归档的会话；部署枚举缺席时只扫描装配交入的租户并报告缺口；调度器从不写日志 | [S1](#s1) 至 [S7](#s7)、[SR](#sr-1) |
 | VM-06 | `SchedulingPolicy` 每个字段替换为另一个值 | 只有间隔、上限与退避变化；结局集合不变 | [SchedulingPolicy](#schedulingpolicy) |
 | VM-07 | 事件页以不产生后果的事件结束；解释进度丢失；两个解释者并发 | 持久进度停在最后一个产生后果的事件；不调用 `output.acknowledge`；重读按原 execution 与事实身份认回，不重复写后果；进度不回退 | [RD-01](#rd-01) 至 RD-07 |
-| VM-08 | 三层缓存：命中、淘汰、过期快照、提交通知晚到；两个租户有同名会话与同值修订 | 条目与前缀摘要命中永不过期；过期快照对带 `expected` 的命令只导致一次 `changed`，`changed` 后该槽被丢弃，重做读权威快照；过期快照对其余命令不改变事务内结局；通知不能使缓存变为有效；一个租户读不到另一个租户的缓存项；命中不跳过核权；全部缓存清空后结果不变 | [CA-1](#ca-1) 至 [CA-3](#ca-3) |
+| VM-08 | 三层缓存：命中、淘汰、过期快照、提交通知晚到；两个租户有同名会话与同值修订 | 条目与前缀摘要命中永不过期；过期快照不制造 `changed`：与 `expected` 不等的命中先换成权威快照再比较，该槽被丢弃；过期快照对其余命令不改变事务内结局；通知不能使缓存变为有效；一个租户读不到另一个租户的缓存项；命中不跳过核权；全部缓存清空后结果不变 | [CA-1](#ca-1) 至 [CA-3](#ca-3) |
 | VM-09 | `startRun` 或 `reload` 返回 `frozen`：一次 `verdict` 非 null，两步之间崩溃；另一次 `verdict` 为 null | `verdict` 非 null 时 `freeze` 恰提交一次；`verdict` 为 null 时不调用 `freeze`；崩溃后下一次触发再次取得判定并认回；S1 跳过冻结且没有 Run 的会话；冻结的会话里 Run 终态同批写 SE38 | [C2](#c2)、[S1](#s1)、[I-F1](../session-contract/SPEC.md#i-f1) 至 [I-F5](../session-contract/SPEC.md#i-f5) |
 | VM-10 | 崩溃矩阵的每个提交点，崩溃在提交前与提交后各一次 | 与 [CR](#cr-崩溃矩阵) 表一致；没有第二个执行、第二份输入、第二个 attempt 或第二个终态 | [CR](#cr-崩溃矩阵) |
 | VM-11 | 停止顺序与重启 | 在途命令跑完或返回未知；没有出站调用在停止期间发出；重启后未发出的调用被重放，回执认回 | [资源与替换](#资源与替换) |

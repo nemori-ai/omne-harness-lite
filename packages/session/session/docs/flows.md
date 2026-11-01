@@ -27,15 +27,19 @@ sequenceDiagram
     alt 已提交
         CP-->>Caller: 原回执，recovered 为真
     else 未见
-        CP->>Tx: readWork；命令带 expected 时记下 expected
+        CP->>Tx: readWork；命令带 expected 时与快照的 revision 比较
         CP->>DS: 事务外调用 decide，只取拒绝原因与所需材料
         alt 拒绝结局
             CP-->>Caller: 失败，不提交
+        else expected 与快照的 revision 不等
+            CP-->>Caller: changed，不提交
         else 允许
             CP->>Br: 按命令要材料
             CP->>Tx: commit(命令, 材料)
             Note over Tx: 选尝试代次；事务内调用 decide：带 expected 的七种命令核对 expected，其余按当前状态重新裁定
-            alt changed（只有带 expected 的命令）
+            alt changed 且命令带调用方的 expected
+                CP-->>Caller: changed，不重做
+            else changed 且命令不带调用方的 expected
                 Note over CP: 回到点查，不再 check；丢弃快照缓存槽，读权威快照；以同一身份重做，次数受策略上限
             else commit-unknown
                 CP-->>Caller: commit-unknown，不改写

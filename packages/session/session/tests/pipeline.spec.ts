@@ -233,7 +233,27 @@ describe('step 4: material owners', () => {
 })
 
 describe('step 5: the commit', () => {
-  it('a changed commit is retried at most command.retriesOnChanged times, then changed reaches the caller', async () => {
+  it('a stale expected of the caller answers changed with no commit, and no redo takes it over', async () => {
+    const h = await service({ policy: { command: { retriesOnChanged: 2 } } })
+    await h.create()
+    await h.accept('input-1')
+    const started = await startRun(h)
+    const stale = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    // Another writer moves the tail before the caller acts on its old revision.
+    await h.accept('input-2')
+    const current = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    expect(current.revision).not.toBe(stale.revision)
+    h.view.reset()
+    const answer = await finishRun(h, started, stale.revision)
+    expect(failureOf(answer)).toEqual({ kind: 'changed', revision: current.revision })
+    expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(0)
+    expect(h.view.calls().filter(call => call.method === 'readWork')).toHaveLength(1)
+    const after = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    expect(after.revision).toBe(current.revision)
+    expect(after.run.kind).toBe('active')
+  })
+
+  it('the revision the caller holds is committed as it is: a tail moved after the read reaches the caller as changed, with no redo', async () => {
     const h = await service({ policy: { command: { retriesOnChanged: 2 } } })
     await h.create()
     await h.accept('input-1')
@@ -243,10 +263,55 @@ describe('step 5: the commit', () => {
     h.view.reset()
     const answer = await finishRun(h, started, snapshot.revision)
     expect(failureOf(answer)).toMatchObject({ kind: 'changed' })
-    expect(moves()).toBe(3)
-    expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(3)
+    expect(moves()).toBe(1)
+    expect(h.view.calls().filter(call => call.method === 'readWork')).toHaveLength(1)
+    expect(h.view.calls().filter(call => call.method === 'commit')).toHaveLength(1)
     const after = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
     expect(after.run.kind).toBe('active')
+  })
+
+  it('the revision the caller holds commits as before', async () => {
+    const h = await service()
+    await h.create()
+    await h.accept('input-1')
+    const started = await startRun(h)
+    const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    expect(await finishRun(h, started, snapshot.revision)).toHaveProperty('ok')
+  })
+
+  it('a command without a caller expected is redone on changed at most command.retriesOnChanged times, then changed reaches the caller', async () => {
+    const h = await service({ policy: { command: { retriesOnChanged: 2 } } })
+    await h.create()
+    await h.accept('input-1')
+    await startRun(h)
+    const snapshot = succeeded(await h.backend.transactions.readWork(h.access()), 'read')
+    if (snapshot.run.kind !== 'active') throw new Error('the run is not active')
+    const { execution } = snapshot.run.execution
+    h.view.onCommit(() =>
+      Promise.resolve(fail({ kind: 'changed' as const, revision: '1' as never })),
+    )
+    h.view.reset()
+    const asked = h.checks.count()
+    const answer = await h.faces('coordinator').work.commitDerived({
+      ...h.access(),
+      operation: operationId('compact'),
+      participation: {
+        execution,
+        operation: 'compact',
+        joint: 'context-transition',
+        written: '1',
+        handover: h.baseEvidence,
+      },
+      judgment: h.baseEvidence,
+      value: { kind: 'compaction' },
+    } as never)
+    expect(failureOf(answer)).toMatchObject({ kind: 'changed' })
+    const methods = h.view.calls().map(call => call.method)
+    expect(methods.filter(method => method === 'commit')).toHaveLength(3)
+    // Every redo reads the authoritative snapshot again through the same view, and no redo asks
+    // for a second access decision.
+    expect(methods.filter(method => method === 'readWork')).toHaveLength(3)
+    expect(h.checks.count() - asked).toBe(1)
   })
 
   it('a command without expected never meets changed: a moved tail is decided again inside the commit', async () => {
