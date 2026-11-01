@@ -8,8 +8,8 @@ The Cordis definition member of Request Context. Variant: `service-contract`.
 
 This package owns only the Cordis definition of the Request Context seam. The definition has five parts:
 
-- the three service keys `requestContext`, `requestContextTrust`, and `contextAccountingInbox`
-- the three abstract classes `RequestContextService`, `RequestContextTrustService`, and `ContextAccountingInboxService`
+- the four service keys `requestContext`, `requestContextTrust`, `contextAccountingInbox`, and `contextHolderSources`
+- the four abstract classes `RequestContextService`, `RequestContextTrustService`, `ContextAccountingInboxService`, and `ContextHolderSourcesService`
 - the intercept configuration `{ scope }`
 - the change event `request-context-cordis-contract/changed`
 - the configuration shape that selects the compaction strategy and the representation strategy
@@ -20,7 +20,7 @@ The package does not own domain behavior. [request-context-contract](../request-
 
 Status: Cordis definition member, `draft`. The adoption basis is the [prompt contribution registration section](../../../docs/architecture/runtime/request-context.md#提示词贡献登记面) and the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page, and the [IC conventions](../../../docs/architecture/cordis-integration-conventions.md).
 
-- Implemented: the three abstract Service classes with their derived keys, intercept and policy selection types, Context/Events augmentations, root type re-exports, and the `./testing` trust double and conformance suite.
+- Implemented: the four abstract Service classes with their derived keys, intercept and policy selection types, Context/Events augmentations, root type re-exports, and the `./testing` doubles and conformance suites of the trust and the holder sources.
 - Verified locally: Cordis 4.0.4 object injection, ancestor scope, caller fiber effects, event filtering, and ctx.set behavior, plus hosted operation boundaries. See [tests](tests/README.md).
 - Production registry, caching, cancellation and strategy implementations remain the provider's responsibility. Local probe providers are test fixtures.
 - ScopeRef is reused from Runtime Context. Intercept scope declares placement and grants no access.
@@ -32,7 +32,7 @@ The packages request-context and request-context-cordis depend on this package. 
 The package has three entries:
 
 - The root entry `@omne-harness/request-context-cordis-contract` re-exports only contract types, and adds the type `RequestContextTrust`. It does not import Cordis.
-- `@omne-harness/request-context-cordis-contract/cordis` holds the three service definitions.
+- `@omne-harness/request-context-cordis-contract/cordis` holds the four service definitions.
 - `@omne-harness/request-context-cordis-contract/testing` holds the scripted trust double and the trust conformance suite. It is not a production export.
 
 A contributor plugin declares its scope and registers in its plugin body:
@@ -59,7 +59,7 @@ The package holds no resources. The fiber of the contributor plugin owns the lif
 
 ## Design
 
-Each entry has one source entry file (`index.ts`, `cordis.ts`, `testing/index.ts`). The outside dependencies are the types of request-context-contract and `@deepseek-ai/cordis`. The package does not import the mechanism or the provider. Each of the three services has one key. The `requestContext` service holds only the registration face. The pure operations stay in the contract root entry. The event is an invalidation hint with a revision, not a source of facts. The strategy selection is configuration, not a service method. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the two mechanism flows. The [object model](docs/object-model.md) lists the three technical objects.
+Each entry has one source entry file (`index.ts`, `cordis.ts`, `testing/index.ts`). The outside dependencies are the types of request-context-contract and `@deepseek-ai/cordis`. The package does not import the mechanism or the provider. Each of the four services has one key. The `requestContext` service holds only the registration face. The pure operations stay in the contract root entry. The event is an invalidation hint with a revision, not a source of facts. The strategy selection is configuration, not a service method. The [architecture page](docs/architecture.md) explains the modules and the reasons. The [flows page](docs/flows.md) gives the two mechanism flows. The [object model](docs/object-model.md) lists the three technical objects.
 
 ## Configuration and operation
 
