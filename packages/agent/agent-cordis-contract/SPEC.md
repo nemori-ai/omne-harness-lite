@@ -1,6 +1,6 @@
 # Agent Cordis 定义的行为边界
 
-公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节依据 [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)。本包已实现这些定义：`./cordis` 导出 21 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出三个类型。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
+公共定义及机制的设计已由[技术接受与产品采用决定](https://github.com/nemori-ai/omne-harness-lite/issues/384#issuecomment-6258475204)接受。“[生产者接收面的服务](#生产者接收面的服务)”一节依据 [#672](https://github.com/nemori-ai/omne-harness-lite/issues/672)。本包已实现这些定义：`./cordis` 导出 22 个服务键与 Service、`Context` 与 `Events` 增补、目录服务和目录插件，根入口只导出五个类型，`./testing` 导出实例取得的内存替身与符合性套件。具体内容见 [Cordis 协议](docs/cordis.md)。`agentInstances` 的提供者是目录插件 `agentInstancesPlugin`，其他服务键的提供者与宿主插件尚未实现。“[实例的取得](#实例的取得)”一节的 `agentInstanceProvision` 也没有提供者。领域操作沿 [agent-contract SPEC](../agent-contract/SPEC.md)，本包不另定治理语义。
 
 ## 唯一性
 
@@ -15,6 +15,10 @@
 ## 实现与验证
 
 具体插件归 [agent-host-local](../agent-host-local/README.md)。本包的测试在真实 Cordis 4.0.4 上验证唯一服务身份、类型增补、定义入口不引入提供者，以及目录的登记、取代、撤除、监听失败与跨租户规则，见[测试说明](tests/README.md)。这些测试用测试子类代替发布权威、主体资格核验和宿主，不证明真实提供者、跨进程行为或持久性。
+
+## 实例的取得
+
+`AgentInstanceProvision` 是宿主按实例槽给出已发布实例的入口，只有 `acquire`，键是 `agentInstanceProvision`。实例槽由租户、安全作用域和精确定义采用组成。一个槽在一个宿主进程内至多有一个已发布、未进入回收的实例，同一槽的并发调用得到同一个实例。`acquire` 只核验调用方的 `reserve`。发布、停用和撤登记由宿主主体代实例所属租户发起，分别核验 `publish`、`quiesce` 和 `withdraw`。没有公开的停用入口，停用只由宿主发起：空闲回收与有序关闭。回收的到期判定、回收标记与 runtime 进入 draining 在同一个不让出的本地动作里完成，使到期后到达的 invoke 要么被拒绝，要么让回收放弃。规则、授权操作清单和三方义务归 [Cordis 页的实例的取得与回收](docs/cordis.md#实例的取得与回收)。会话槽引用的格式归会话适配器 AD-14，本包不定义。
 
 ## Tool 契约消费
 

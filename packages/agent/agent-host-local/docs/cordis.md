@@ -8,7 +8,7 @@
 
 插件 `agentHostPlugin` 由 `@omne-harness/agent-host-local/cordis` 导出，名称是 `agent-host`。它用 `@omne-harness/kernel-basis/cordis` 的 `definePlugin` 构造。导出名是设计中的名称，实现时以实际源码为准。
 
-插件在一个插件体内逐个构造三个服务面：`agentInstanceHost`、`agentPublicationAuthority` 和 `agentExecutionRecovery`。每个子类 `extends` 定义入口的抽象类，不另写键，三个键登记在这一条 fiber 上（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。选择一条 fiber 的理由是：三个服务面共用宿主进程内的同一份状态，即预约表、宿主持有的 runtime 和 `route` 的路由。它们必须一起出现、一起撤除。如果分成三条 fiber，一个服务面撤除后另一个仍可能被调用，并读到已经失效的状态。目录 `agentInstances` 不是本插件的服务面。目录是定义入口导出的具体注册表，以独立的目录插件 `agent-instances` 装载。本包不拥有 Model 与 Tool 的运行寿命。结果接收方由宿主持有，独立于这些 Agent 实例；实例贡献 fiber 的撤除不销毁接收方及其待办状态。
+插件在一个插件体内逐个构造四个服务面：`agentInstanceHost`、`agentPublicationAuthority`、`agentExecutionRecovery` 和 `agentInstanceProvision`。每个子类 `extends` 定义入口的抽象类，不另写键，四个键登记在这一条 fiber 上（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。选择一条 fiber 的理由是：四个服务面共用宿主进程内的同一份状态，即预约表、槽表、宿主持有的 runtime 和 `route` 的路由。它们必须一起出现、一起撤除。如果分成几条 fiber，一个服务面撤除后另一个仍可能被调用，并读到已经失效的状态。目录 `agentInstances` 不是本插件的服务面。目录是定义入口导出的具体注册表，以独立的目录插件 `agent-instances` 装载。本包不拥有 Model 与 Tool 的运行寿命。结果接收方由宿主持有，独立于这些 Agent 实例；实例贡献 fiber 的撤除不销毁接收方及其待办状态。
 
 ## 注入、配置与生命周期
 
@@ -45,6 +45,8 @@ export const agentHostPlugin = definePlugin({
 })
 ```
 
+除这十项外，宿主插件还静态 inject 运行时对象 `agentHostPrincipal`，即装配入口签发的系统主体“Agent 宿主维护主体”。它与 `toolResidencyPrincipal` 同一做法，不进插件配置，也不是工厂的依赖。宿主用它代实例所属租户发布、停用和撤登记，见[实例的取得与回收](../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)。
+
 数组不在运行时拼接，也不经变量转手。写进数组的依赖缺席时，宿主插件停在 PENDING，插件体不运行；它换提供者时，Cordis 卸载并重新运行插件体，见 Cordis 页的[依赖与定义拥有者](../../agent-cordis-contract/docs/cordis.md#依赖与定义拥有者)。依赖逐项的必需性、缺席与换代结果只归[通用工厂](../../agent/docs/public-api.md#依赖逐项分类)，取得方式由本页拥有，Cordis 页的取得方式表只写键、取得方式与该键特有的 Cordis 事实。
 
 ### 局部依赖与可选依赖
@@ -61,7 +63,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 ### 配置
 
-插件的 `Config` 是 Standard Schema，字段来自[通用工厂的配置表](../../agent/docs/public-api.md#工厂配置)的全部取值项，规则归 Cordis 页的[配置](../../agent-cordis-contract/docs/cordis.md#配置)。字段的单位与校验规则只写在工厂配置表，本页不复述。默认值由装配提供。AgentDefinition、扩展采用、当前模式和调用方工作身份不写进配置树；连续否决不新增次数上限。配置错误使插件加载失败。
+插件的 `Config` 是 Standard Schema，字段来自[通用工厂的配置表](../../agent/docs/public-api.md#工厂配置)的全部取值项，规则归 Cordis 页的[配置](../../agent-cordis-contract/docs/cordis.md#配置)。字段的单位与校验规则只写在工厂配置表，本页不复述。默认值由装配提供。宿主另有一项自己的配置 `instanceIdleMs`：实例空闲回收时长，正整数，单位毫秒，初值由装配给。它不是工厂的取值项。AgentDefinition、扩展采用、当前模式和调用方工作身份不写进配置树；连续否决不新增次数上限。配置错误使插件加载失败。
 
 ### 装载
 
@@ -69,14 +71,16 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 1. 校验配置。配置错误时抛出，fiber 进入 FAILED，插件体后面的步骤不执行。
 2. 保存宿主自己的长期 Context。实例的贡献 fiber 都建在它之下，不建在调用方的 Context 之下。
-3. 构造 `agentInstanceHost`、`agentPublicationAuthority` 和 `agentExecutionRecovery` 三个服务面。
+3. 构造 `agentInstanceHost`、`agentPublicationAuthority`、`agentExecutionRecovery` 和 `agentInstanceProvision` 四个服务面。
 
-装载不创建实例，也不发布登记。实例在装配者调用 `reserve` 之后才存在，次序如下。
+装载不创建实例，也不发布登记。实例在调用方对某个槽调用 `acquire` 之后才存在，规则见[实例的取得与回收](../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)。宿主自己完成下列次序，装配者和应用成员不调用 `reserve` 与 `publish`。
 
-1. `reserve`：宿主核验 reserve 资格，预约实例身份，创建该实例的登记句柄，记录预约。
-2. 创建 idle runtime：宿主插件调用工厂，不是装配者调用。宿主传入 reserve 得到的登记句柄、已核验的租户、scope 与精确采用。静态依赖是宿主 inject 得到的同一批服务实例，局部依赖是宿主的阶段适配器。工厂返回 `AgentProvider`。装配者请求宿主以某次预约创建实例的入口，本版没有定义，见开放问题“[宿主怎样创建并持有实例的 AgentProvider](../../agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider)”。
+1. `reserve`：宿主以调用方的 Access 核验 reserve 资格，以自己派生的操作身份预约实例身份，创建该实例的登记句柄，记录预约。
+2. 创建 idle runtime：宿主插件调用工厂。宿主传入 reserve 得到的登记句柄、已核验的租户、scope 与精确采用。静态依赖是宿主 inject 得到的同一批服务实例，局部依赖是宿主的阶段适配器。工厂返回 `AgentProvider`。
 3. 持有：宿主持有 runtime、观察句柄和 `AgentProvider.control`，它们不进入登记输入。
-4. `publish`：宿主核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。宿主对登记的义务（认回、复用贡献 fiber、重试结论一致）见 Cordis 页的[登记输入与撤除协议](../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)。
+4. `publish`：宿主以宿主主体、实例所属租户的 Access 核验 publish 资格，在宿主 Context 之下为该实例创建贡献 fiber，在这条 fiber 内经 `ctx.get(agentInstances).register` 登记。宿主对登记的义务（认回、复用贡献 fiber、重试结论一致）见 Cordis 页的[登记输入与撤除协议](../../agent-cordis-contract/docs/cordis.md#登记输入与撤除协议)。
+
+同一槽的并发 `acquire` 共用这一次建立，得到同一个实例。槽内的实例已标记回收时，`acquire` 不等它，建立新实例。工厂返回 unsupported 或 unavailable 时，宿主原样返回，不发布，并撤销预约。宿主主体被拒时，发布失败使 `acquire` 返回同一失败。
 
 宿主的 `route` 只对已发布的实例返回运行对象，登记撤除后返回 null。
 
@@ -84,7 +88,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 
 运行实例登记的贡献权限只交受信宿主。目录register验证原实例预约，在调用方fiber的effect中增加并条件撤除；connect不授发布权。计划卸载先完成业务交接再dispose；依赖突然消失时保留未知，不用自动撤登记声称外部效果被撤回。
 
-计划停用一个实例按下列次序进行。`AgentRuntimeControl` 只交给宿主，所以 quiesce 由宿主调用。装配者经宿主的入口请求停用，这个入口的形状本版没有定义，见[宿主怎样创建并持有实例的 AgentProvider](../../agent/docs/architecture/open-questions.md#宿主怎样创建并持有实例的-agentprovider)。宿主显式等待每一步。
+计划停用一个实例按下列次序进行。`AgentRuntimeControl` 只交给宿主，所以 quiesce 由宿主调用，并且只由宿主发起：空闲回收与有序关闭。应用成员没有公开的停用入口。宿主以宿主主体、实例所属租户的 Access 核验 quiesce，经登记句柄的撤登记核验 withdraw。宿主主体被拒或不可用时，实例保持 published，宿主记录 error 级诊断，下一次空闲到期再试，不声称已回收。宿主显式等待每一步。
 
 1. 宿主对实例调用 `AgentRuntimeControl.quiesce`。runtime 进入 draining，新的 invoke 与 resume 返回 unavailable。
 2. runtime 对每个在途 execution 调用 detach，交接原位置与责任。任一交接未知时，quiesce 返回 unresolved，登记保持 published，宿主也不卸载贡献 fiber。
@@ -92,6 +96,13 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
 4. 宿主收到 drained 之后，卸载该实例的贡献 fiber，释放本实例持有的订阅和资源。
 
 撤登记与卸载 fiber 是配对的。登记 effect 随调用方 fiber 撤除，所以贡献 fiber 一旦卸载，登记随之消失。多个 effect 的释放是并发的，不保证次序，所以上面的次序由宿主显式等待，不靠 disposer 的执行顺序。
+
+空闲回收与有序关闭是宿主的义务，规则见[实例的取得与回收](../../agent-cordis-contract/docs/cordis.md#实例的取得与回收)，宿主这一侧的做法如下。
+
+- 空闲计时：实例经登记句柄 `report` 为 `idle` 后，宿主用 `agentClock.waitUntil` 计时 `instanceIdleMs`。转为 `occupied` 就取消计时。
+- 回收的保护点：计时到期的回调里，宿主不经 `await`，依次读该实例最近一次 `report`，不是 `idle` 就放弃本次回收，是 `idle` 就在槽表标记“回收中”，然后同步调用 quiesce。回收标记使后到的 `acquire` 不再返回旧实例。runtime 一侧的两条同步义务见[通用工厂](../../agent/docs/public-api.md#quiesce-与执行槽的同步义务)。
+- 回收的结果：quiesce 返回 drained 后，宿主卸载贡献 fiber，从槽表删除该实例，并以原因证据（owner `agent-host`，record 写 `idle-reclaim`）记录。返回 unresolved 时，登记保持 published，撤销回收标记，槽表恢复。
+- 有序关闭：`assemblyLifecycle` 停止时，宿主以宿主主体对全部实例调用 quiesce。unresolved 的实例留给 fiber 卸载，按“非计划卸载”处置。
 
 ### 在途责任
 
@@ -125,6 +136,7 @@ Agent消费者与三个运行实例宿主按共同图组合。Runtime Context/Re
     "reconciliationDelayMs": 1000,
     "reconciliationBatchLimit": 100,
     "denialBackoffMs": 1000,
+    "instanceIdleMs": 300000,
     "toolConcurrency": 4,
     "jointCommits": ["message", "context-transition", "custody", "processed"],
     "coordination": "coordinated",
