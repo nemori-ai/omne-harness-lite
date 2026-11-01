@@ -7,14 +7,17 @@
 | 入口 | 源文件 | 承载 |
 | --- | --- | --- |
 | `@omne-harness/execution-environment-host-local` | `src/index.ts` | 重导出下面三个模块的四个函数与类型，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） |
-| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles`、对象身份读取 `hostObjectToken` 与共用文件引擎（不从根入口导出） |
+| 同上 | `src/host-files.ts` | 宿主文件设施 `createHostFiles`、对象身份读取 `hostObjectToken` 与共用文件引擎（不从根入口导出）；已接受的四项在这里，其余八项转调下面三个模块 |
+| 同上 | `src/host-paths.ts` | 路径检查、逐段走、目录描述符路径、平台前提 P2 的探测、宿主文件根的绑定，以及各模块共用的结果与错误映射（不从根入口导出） |
+| 同上 | `src/host-file-tree.ts` | `list`、`search`、`mkdir`、`remove`、`move`、`copy`（不从根入口导出） |
+| 同上 | `src/host-file-batch.ts` | `commitBatch`、`recoverBatch` 与批次清单（不从根入口导出） |
 | 同上 | `src/host-domain.ts` | 宿主文件责任域 `createHostFilesDomain`：获取记录、门面、配额与排空 |
 | 同上 | `src/host-provider.ts` | 宿主文件提供者 `createHostFilesProvider` |
 | `@omne-harness/execution-environment-host-local/cordis` | `src/cordis.ts` | Service 子类 `ExecutionEnvironmentRegistry`、插件 `filesFacilityPlugin`、插件工厂 `createHostFilesPlugin`、空配置 Schema |
 
 | 模块 | 持有的状态 | 承担的 SPEC 行为 |
 | --- | --- | --- |
-| 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
+| 共用文件引擎与宿主文件设施 | 已发出的句柄代际表（带所有者）、关闭失败待重试的描述符（带所有者）、引擎内唯一的下一个代次；宿主文件根的绑定与平台前提 P2 的结果、引擎的进程实例身份、正在运行的批次、已封闭的所有者 | [宿主文件使用](#宿主文件使用)与[其余现行行为](../SPEC.md#宿主文件设施的其余现行行为) |
 | 宿主文件责任域 | 共用文件引擎、签发过的提供者代、获取记录（原描述、指纹、状态、门面、租约）、配额策略 | [宿主文件责任域](../SPEC.md#宿主文件责任域) |
 | 宿主文件提供者（一代） | 是否已退役、上界与诊断出口；记录都在责任域 | [宿主提供者的事实](../SPEC.md#宿主提供者的事实) |
 | Service 与插件 | 一个登记表实例 | [Service 实现](../SPEC.md#service-实现)与[撤除顺序](../SPEC.md#撤除顺序) |
@@ -22,6 +25,11 @@
 ```mermaid
 flowchart LR
   Root[根入口] --> Files[host-files.ts]
+  Files --> Paths[host-paths.ts]
+  Files --> Tree[host-file-tree.ts]
+  Files --> Batch[host-file-batch.ts]
+  Tree --> Paths
+  Batch --> Paths
   Root --> Domain[host-domain.ts]
   Root --> Provider[host-provider.ts]
   Domain --> Files
@@ -43,10 +51,10 @@ flowchart LR
 - `@omne-harness/execution-environment`：`createEnvironmentRegistry` 与 `RetirementPending`，只由 `./cordis` 使用。
 - `@omne-harness/execution-environment-cordis-contract`：抽象类与键常量，只由 `./cordis` 使用。
 - `@deepseek-ai/cordis`：只由 `./cordis` 使用。
-- `@omne-harness/legal-identity`：责任域用 `tenantCodec` 把租户编成记录键。
+- `@omne-harness/legal-identity`：责任域用 `tenantCodec` 把租户编成记录键；批次清单用它把租户编成目录名的摘要。
 - `@omne-harness/runtime-context-contract`：只用类型（作用域引用与可信绑定来源）。
 
-宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+宿主文件设施只用 Node 的 `node:fs`、`node:fs/promises` 与 `node:path`；八项另用 `node:crypto` 生成批次与临时文件的名字、算摘要，用 `node:os` 取系统临时目录。提供者另用 `node:crypto` 生成代，用 `node:os` 读操作系统版本，用 `node:fs` 读本包 `package.json` 的版本。没有包应依赖本成员的 `./cordis` 来调用环境操作。调用方依赖服务定义，Service 实现的选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 ## 关键机制与理由
 
@@ -67,6 +75,22 @@ flowchart LR
 ### 排空有上界，名额只在什么都不剩时返还
 
 释放、结清与退役都排空获取：封门面，标为释放中，最多等 `drainBoundMs` 让在途操作结束，然后重试这份获取的失败关闭。在途操作已结束且没有打开的描述符时，记录结清，名额恰好返还一次；否则答待处置，资源清单为空，名额仍占用，诊断写明在途操作数与打开的描述符数。理由：契约的排空要求已接纳的操作都已结束、关闭责任都已结清（[INV-EE18](../../execution-environment-contract/SPEC.md#inv-ee18-提供者换代和-cordis-集成保留原责任)）；替换写入截断文件之后、写完之前被卸载时，立即报已排空会让原请求的未知结果无人承接；空的受管资源列表不证明没有描述符。上界归提供者，登记表不设计时器；上界是配置，`10000` 毫秒只是初值。代价：一个卡住的文件操作会让释放或卸载等满上界；超界之后它仍在运行，结果仍交回原请求。
+
+### 八项操作经目录描述符落点
+
+列表、搜索、建目录、删除、移动、复制与批次先打开所需的目录，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`。理由：Node 没有 `openat`，而这条路径由内核按已打开的目录对象解析，目录在核对之后被改名或被换成符号链接，操作仍落在原目录里。按路径字符串再解析一次的做法没有这个性质。在 WSL（Ubuntu 24.04，内核 6.18）上做过原型：目录改名、原名换成指向外部的链接之后，独占新建、`rename`、`mkdir` 都落在改名后的原目录；`link` 到已有名得 `EEXIST`；`O_NOFOLLOW` 打开文件链接得 `ELOOP`；硬链接文件的 `fstat` 链接数为 2，而 `readlink /proc/self/fd/<fd>` 给出根内的路径，所以必须核链接数，不能只看路径。包测试 [host-file-root.spec.ts](../tests/host-file-root.spec.ts) 用 `vi.mock` 在调用之前停住，把目录换成链接，再放行。
+
+八项只在 Linux 宿主上实现，依赖平台前提 P2；其他宿主上答 `unavailable`，不另做降级路径。理由：降级路径是另一套没有这条性质的实现，M2 的验收在 Linux（D1 决定记录第 2 条）。代价：Windows 与 macOS 宿主上这八项不可用。
+
+`move` 与 `copy` 都靠预先核对加一次系统调用，核对与调用之间名可以被换掉。`remove` 与不覆盖的目录 `move` 的窗口关不上，但效果不出该目录。`commitBatch` 没有多路径原子性，用清单加回执留下可核对的事实：先写清单，再暂存，逐项发布，每发布一项追加回执；`recoverBatch` 只读清单与目标，把「有回执」「字节相同但没有回执」「冲突」分开，因为相同的字节不能证明是这个批次发布的。
+
+### 宿主文件根不是授予根
+
+配置了 `root` 的引擎把全部 `files` 请求限制在它之下，但宿主提供者仍不声称 `filesystem-root` 隔离断言。理由：同一个提供者还提供 `command`，命令碰到的文件不受这个根限制，声称它就是假断言（契约把授予根定义为声称该断言的落点的属性）。所以这个限制取另一个名字，要求 `filesystem-root` 的工具仍得到 `isolationUnconfirmed`。
+
+根的判定分三层：路径检查不触碰文件系统（按段比较、任何 `..` 都拒绝）；逐段走只打开目录，每段 `O_NOFOLLOW`，设备号必须与根相同；内容操作打开之后在描述符上核链接数。把第三层放在打开之后，是因为外部文件被硬链接进根内、再换掉根内原来的名，都发生在打开之前；打开之后核的是实际打开的对象。第一层与第二层的拒绝不改动文件系统：走路径只读，创建只在已核对的目录描述符下发生，替换写入的截断在身份与链接数核对之后。
+
+代价：有根时，已接受四项里「祖先符号链接本身不构成拒绝」不再适用，中间段是链接一律拒绝。这是对已接受行为的收紧，只在配置了根时生效，须经原接受入口重新接受。第一次使用时才绑定根（`realpath`、设备号与 inode），所以引擎创建时不触碰文件系统；绑定失败的请求答 `unavailable`，下一次再试。
 
 ### 配额接纳是一个同步段
 
@@ -210,7 +234,10 @@ sequenceDiagram
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 宿主文件使用（已接受） | [host-file-results.spec.ts](../tests/host-file-results.spec.ts)、[host-files.spec.ts](../tests/host-files.spec.ts)，真实文件系统 | 授予根限制没有实现与测试 |
-| 八项未实现操作 | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts) | 实现时改为真实行为并复用对象绑定 |
+| 非 Linux 宿主与有根而前提不满足时答 `unavailable` | [host-files-unsupported.spec.ts](../tests/host-files-unsupported.spec.ts)，在 Linux 上把 `process.platform` 换成 `win32`，在 Windows 上是真实平台 | 没有在 macOS 上运行 |
+| 六项树操作 | [host-file-tree.spec.ts](../tests/host-file-tree.spec.ts)，真实文件系统；未知的答复用 `vi.mock` 注入故障 | 跨设备目录（需要挂载权限）没有构造 |
+| 宿主文件根的四类逃逸、竞态、根的身份 | [host-file-root.spec.ts](../tests/host-file-root.spec.ts)，只在 Linux，真实文件系统，前后快照比较；竞态用 `vi.mock` 在调用之前停住 | 根内挂载点没有构造 |
+| 批次与恢复 | [host-file-batch.spec.ts](../tests/host-file-batch.spec.ts)，真实文件系统与一个被 `SIGKILL` 杀掉的真实子进程（慢层） | 无 |
 | Service 装载、撤除、恢复缺省 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)，真实 Cordis | 重复装载失败、配置校验失败、调用方类核对 |
 | 退役等在途操作、超界待处置与诊断 | [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts)，用 `vi.mock` 让一次 `open` 停住，其余是真实文件系统与真实 Cordis | 无 |
 | 责任域：每份获取的排空、关闭失败的归属、跨代共用配额与原记录、查询与结清、冷恢复的保守答复 | [host-domain.spec.ts](../tests/host-domain.spec.ts)，用 `vi.mock` 让 `open` 停住、让活描述符上的 `close` 失败，其余是真实文件系统与真实描述符 | 真实进程退出之后的冷恢复结清（[#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)）；行为模型；独立验收场景 |
@@ -225,3 +252,4 @@ sequenceDiagram
 2. 服务定义改变时，同步 Service 子类、[Cordis 说明](cordis.md)与测试。
 3. 登记表工厂的签名改变时，同步 Service 子类。
 4. 新的宿主设施进入时，同步[公开接口页](public-api.md)、SPEC 的宿主提供者事实与 [Cordis 说明](cordis.md)。
+5. 改八项或宿主文件根的行为时，同步 SPEC 的[八项操作](../SPEC.md#八项操作未接受)与[宿主文件根](../SPEC.md#宿主文件根未接受)，以及上表对应的三份测试。

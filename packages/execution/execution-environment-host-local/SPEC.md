@@ -92,7 +92,7 @@
 - 本设施的结果用契约的设施结果四态表达：完成是 `done`，未解析是 `unresolved`，拒绝是 `rejected` 带原因，未知是 `unknown`。
 - 绑定层不是 `host_machine` 的请求返回 `rejected`，原因 `unsupported`，不触碰文件系统。
 - 读取、查看、两种模式的写入与关闭的路径必须是绝对路径。相对路径返回 `rejected`，原因 `invalidInput`，不触碰文件系统。含空字节的路径同样如此。
-- 契约的 `files` 设施另有列表、搜索、建目录、删除、移动、复制、提交批次与恢复批次八项操作。本设施对这八项一律返回 `rejected`，原因 `unsupported`，不触碰文件系统。
+- 契约的 `files` 设施另有列表、搜索、建目录、删除、移动、复制、提交批次与恢复批次八项操作。本设施在 Linux 宿主上实现它们，见[八项操作](#八项操作未接受)。其他宿主上，这八项返回 `rejected`，原因 `unavailable`，不触碰文件系统。
 - 打开失败按错误码映射：`ENOENT`、`ENOTDIR` 为未解析；`ELOOP`、`EMLINK`、`EISDIR` 为 `unsupported`；`EINVAL` 为 `invalidInput`；`EACCES`、`EPERM` 为 `notAuthorized`；其余错误为未知。
 - 读取接受起点与上限两个字节数。两者必须是非负安全整数，否则返回 `invalidInput`。读取目录返回 `unsupported`。完成时带字节、下一次读取的起点与是否已到文件末尾。
 - 查看完成时带对象类型（文件或目录）、字节数与修改时间。
@@ -100,6 +100,60 @@
 - 写入有两种模式。替换模式按上一节写入。路径上没有对象时，替换模式返回未解析。
 - 新建模式的 `named` 是父目录。本设施在独占新建前后各核对一次父目录的设备号与 inode。新建模式带预期版本，或路径以斜杠结尾，返回 `invalidInput`。父目录不存在返回 `notFound`。目标已存在返回 `conflict`。新建之后父目录身份变了，返回未知，已建的文件留在原处。
 - 本设施在调用时取下请求身份与待写字节的副本。调用方在调用之后改动请求对象，不影响这次操作。
+
+#### 八项操作（未接受）
+
+状态：未接受，依据 [#421 的 D1 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。契约不带条目名，所以 `list` 的条目读不出名字（[契约的明确缺项](../execution-environment-contract/SPEC.md#明确缺项)）。
+
+共同规则：
+
+1. 平台前提 P2。八项靠 `/proc/self/fd/<描述符>/<名>`：内核按已打开的目录对象解析这条路径，不按目录现在叫什么名字解析。`probeHostFilesPrerequisite(directory?)` 探测它：不是 Linux 为不满足；否则在 `directory`（缺省是系统临时目录，引擎用状态目录）里建临时目录，打开它，经描述符路径独占新建一个文件再删除，成功为满足，没有这种路径为不满足，探测本身出错为未知。引擎保留满足与不满足的结果，未知的结果下一次请求再探。前提不是满足时，八项返回 `rejected`，原因 `unavailable`，不触碰文件系统。
+2. 前置检查与已接受的四项相同，先于平台检查，不触碰文件系统：绑定层不是 `host_machine` 为 `unsupported`；路径不是绝对路径或含空字节为 `invalidInput`；没有点名为 `notAuthorized`。`move` 与 `copy` 的目标路径和点名、`commitBatch` 每一项的路径和点名用同一组检查。
+3. 落点是目录描述符。每项操作先打开所需的目录，不跟随最后一段链接，核对它的设备号与 inode，之后的建、删、改名都经 `/proc/self/fd/<描述符>/<名>`，名里没有斜杠。目录在操作中被改名或被换成链接，操作仍落在原目录里。
+4. 点名不一致为 `conflict`，与读取、写入相同。
+5. 路径上没有对象时，只有 `list` 返回未解析；其余各项返回 `rejected`，原因 `notFound`。契约只许读取、查看、列表与替换写入返回未解析。
+6. 已经产生部分效果又没有完成整个请求时返回未知，不写成拒绝。
+7. 门面封住之后，新操作返回 `closed`，不触碰文件系统；门面由责任域做，引擎的 `seal(所有者)` 提供同样的封闭，并使这个所有者正在运行的批次停在下一次发布之前。操作返回前关闭自己打开的描述符，关闭失败的描述符进入引擎的待关闭集合，归这份获取。
+8. 编码之外的限制：目录项名不是合法 UTF-8 时，`list` 与 `search` 略过这一项，不计入分页；`remove` 的递归删除遇到这样的名字时返回 `unsupported`，什么都不删。
+9. 列表与搜索的上界是配置：`listPageLimit`（初值 1000）、`searchEntryBudget`（初值 10000 个目录项）、`searchByteBudget`（初值 64 MiB）、`searchFileBytes`（初值 8 MiB）。`createHostFilesEngine` 的第二个参数给出它们，每个必须是正安全整数，否则抛出 `RangeError`。
+
+各项（每项的最后一句写用户能看到的代价）：
+
+- **list**。`named` 是这个目录。读出目录项，按名的字节序排序，从 `offset` 起取至多 `limit` 项（缺省取 `listPageLimit`）。每一项用 `lstat` 取类型、字节数、修改时间与版本，符号链接报 `symlink`，不跟随。有下一页时带 `nextOffset`。结果带目录的身份与版本：调用方比较各页的目录版本判断目录是否变过。路径上没有对象为未解析，不是目录（含符号链接）为 `unsupported`，点名不一致为 `conflict`，`offset` 或 `limit` 不是非负安全整数、`limit` 为 0 或超过 `listPageLimit` 为 `invalidInput`，`offset` 超过项数为完成且没有条目，读目录中途出错为未知。代价：翻页之间目录可以变，提供者不保证跨页的一致快照。
+- **search**。`named` 是起点目录。`match: 'name'` 在目录项名的字节里找 `pattern`；`match: 'content'` 在普通文件的字节里找，每个文件只报第一个命中，带 `offsetBytes`。`recursive` 为真时按名的字节序深度优先，经目录描述符逐层打开，不跟随符号链接，不进入设备号与起点不同的目录。每次调用从头遍历，取第 `offset` 起的至多 `limit` 个命中。超过 `searchEntryBudget` 或 `searchByteBudget` 时停止，大于 `searchFileBytes` 的文件不读，两种情况都使 `truncated` 为真，结果为完成。`pattern` 为空、分页参数不合要求为 `invalidInput`，路径上没有对象为 `notFound`，起点不是目录为 `unsupported`，走到一半出错为未知。代价：翻页重复遍历，预算对整次调用计；`truncated` 为真时结果不完整。
+- **mkdir**。`parents` 为假时 `named` 是父目录：打开父目录并核对点名，在其中建目录，再不跟随链接地打开新目录，返回它的身份。`parents` 为真时 `named` 是最近的已有祖先：核对点名后，经上一段的目录描述符逐段建缺的段。目标已存在为 `conflict`，父目录不存在为 `notFound`，点名不一致为 `conflict`；`parents` 为真且已建了至少一段之后失败为未知，已建的目录留在原处；建好后核对新目录失败为未知。代价：失败时可能留下已建的上层目录。
+- **remove**。`named` 是要删除的对象。打开父目录，`lstat` 目录里的名，核对它就是点名对象，再核预期版本。文件与符号链接用 `unlink`，只删链接本身。目录在 `recursive` 为假时用 `rmdir`；为真时先走一遍子树确认可删（不跟随链接，设备号必须相同），再从叶子起逐项删除。路径上没有对象为 `notFound`，版本不同或点名不一致为 `conflict`，目录非空而 `recursive` 为假为 `conflict`，子树里有别的设备为 `notAuthorized` 且什么都不删，递归删除删了一部分之后失败为未知。代价：核对与删除之间名可以被换成另一个对象，被删的仍是同一目录里的这个名，效果不出这个目录，这个窗口关不上（Node 没有带身份核对的 `unlinkat`）；递归删除失败时子树只删了一部分。
+- **move**。`path` 是源，`named` 是源对象。目标不存在时 `target.named` 是目标的父目录，`replace` 为真且目标存在时是目标对象。`replace` 为真用 `rename`。`replace` 为假时，文件与符号链接用 `link` 加 `unlink`：`link` 在目标已存在时失败，所以不覆盖；目录在 `lstat` 目标不存在之后 `rename`。返回源对象与目标的身份。源不存在为 `notFound`，源版本或任一点名不一致为 `conflict`，`replace` 为假而目标存在为 `conflict`，跨设备为 `unsupported`（不改用复制），`link` 成功而 `unlink` 失败时两个名都在，为未知。代价：目录在 `replace` 为假时有检查与改名之间的窗口，此时并发建出的空目录会被换掉；跨设备移动要调用方自己复制再删除。
+- **copy**。只复制普通文件，源是目录、符号链接或别的类型为 `unsupported`。打开源（不跟随链接），核对点名与版本，一块一块读。`replace` 为假时在目标父目录里独占新建目标再写入；`replace` 为真时先在目标父目录写临时文件 `.omne-copy-<uuid>`，写完 `fsync` 后 `rename` 到目标名，所以替换后目标是新的 inode，另一个已打开旧文件的读者仍读到旧字节。返回源对象与目标的身份。源不存在为 `notFound`，版本或点名不一致、`replace` 为假而目标存在为 `conflict`，目标是目录为 `unsupported`。写临时文件失败：删除临时文件成功时目标名没有变，按错误映射返回拒绝；删除失败为未知。`replace` 为假时目标已建而写入未完成为未知，文件留在原处。代价：`replace` 为假的写入中途失败会留下不完整的目标文件；临时文件删除失败时留下 `.omne-copy-` 前缀的文件，引擎没有诊断出口，不报告它的名字。
+- **commitBatch**。每一项单独发布，不做多路径原子提交。`entries` 的 `named`：`expectedVersion` 为 `null` 的项是目标的父目录，否则是目标文件。步骤：先核全部项（路径、点名、宿主文件根、预期版本）；任一项不合格返回 `rejected`，什么都不写。再在状态目录写清单 `batches/<租户摘要>/<批次 id>.json`（状态 `staging`，记各项路径、点名、预期版本、待写字节的 SHA-256 与长度，不记字节本身，`fsync`）。再在各目标的父目录里独占新建临时文件 `.omne-batch-<批次 id>-<序号>`，写入并 `fsync`，清单改为 `publishing`。再逐项发布：`expectedVersion` 为 `null` 用 `link` 加 `unlink`，目标已存在时失败，不覆盖；否则紧挨着 `rename` 之前再核一次点名与版本，再 `rename` 覆盖。每发布一项，把路径追加进清单的回执并 `fsync`。全部发布后清单为 `committed`，返回完成，`kind: 'committed'`。某一项版本冲突时停止发布，删除尚未发布的临时文件，清单为 `conflict`，返回完成，`kind: 'unknown'`，`reason: 'conflict'`，`published` 列出已有回执的路径。门面封住时同样停止，`reason: 'closed'`。其余发布错误返回 `reason: 'effectUnknown'`，临时文件留在原处。批次身份是 `{ id, generation }`：`id` 是 UUID，`generation` 是引擎的进程实例身份。没有配置 `stateDirectory` 时返回 `rejected`，原因 `unavailable`。代价：不是原子的，中途失败时前面的项已经发布；清单只增不减，与句柄表相同；清单目录需要 `stateDirectory`。
+- **recoverBatch**。只读：按请求的租户与批次 id 读清单，不发布、不回滚、不覆盖。对每一项：有回执的进 `published`；没有回执、但目标当前字节的摘要等于待写摘要的进 `matchingPrepared`（相等不是回执）；目标既不是预期版本也不是待写字节的进 `conflicting`。状态：全部有回执为 `complete`；清单为 `conflict` 为 `conflict`；批次的 `generation` 不是本引擎为 `interrupted`；是本引擎且批次还在运行为 `pending`；是本引擎、已经停止而没有全部发布为 `partial`。清单不存在、租户不同或 `generation` 不同返回 `rejected`，原因 `notFound`，不区分；批次 id 不是 UUID 为 `invalidInput`；清单读失败或目标读不了为未知。代价：回答只说清单与目标现在是什么，不说下一步；读取的是读取那一刻的目标。
+
+### 宿主文件根（未接受）
+
+状态：未接受，依据同一份 [D1 决定记录](https://github.com/nemori-ai/omne-harness-lite/issues/421#issuecomment-6561322330)。
+
+宿主文件根限制宿主提供者的全部 `files` 请求。它不是契约的授予根：契约把授予根定义为声称 `filesystem-root` 隔离断言的落点的属性，而宿主提供者不声称它，因为同一个提供者还提供 `command`，命令不受文件限制。要求 `filesystem-root` 的工具在落点解析时仍得到 `isolationUnconfirmed`。
+
+- 来源：`createHostFilesEngine(options)` 的 `root`，必须是绝对路径，否则抛出 `TypeError`。`stateDirectory` 同样必须是绝对路径。引擎用 `hasRoot` 报告自己有没有根。域与提供者怎样把配置传给引擎、`describe()` 怎样写出是否配置了根，由应用装配与提供者的接线兑现，本节不定。不给 `root` 时，已接受的四项行为不变。
+- 绑定：第一次使用时对 `root` 取 `realpath`，打开它，记下设备号与 inode。打不开时全部 `files` 请求（含已接受的四项）返回 `rejected`，原因 `unavailable`，不改成不受限；下一次请求再试。
+- 每次请求重新打开根的真实路径，核对设备号与 inode 与记下的相同，不同返回 `notAuthorized`。
+- 路径检查先于任何目录的打开：路径按段比较必须以根的真实路径为前缀（段边界，不是字符串前缀）；任何一段是 `..` 返回 `notAuthorized`，哪怕它解析后仍在根内。
+- 逐段走：从根的目录描述符起，每一个中间段以 `O_DIRECTORY` 加 `O_NOFOLLOW` 经上一段的描述符打开。中间段是符号链接返回 `notAuthorized`；中间目录的设备号与根不同返回 `notAuthorized`。最后一段以 `O_NOFOLLOW` 打开，是符号链接时按现有映射返回 `unsupported`；删除与改名的最后一段是链接时只作用于链接本身。
+- 内容操作（读取、替换写入、复制的源、搜索读内容的文件）打开后对描述符做 `fstat`，普通文件的链接数大于 1 返回 `notAuthorized`，在任何写字节之前。核对发生在打开之后，所以没有检查与打开之间的窗口。删除、改名与批次发布只改根内的名，不核链接数：被删或被换掉名字的文件若在根外另有名字，根外对象的链接数减 1，字节不变。
+- 有根而平台前提 P2 不满足时，全部 `files` 请求返回 `rejected`，原因 `unavailable`，不放宽成无根。
+- 有根时，已接受四项里「祖先符号链接本身不构成拒绝」不再适用：中间段是链接一律拒绝。这是对已接受行为的收紧，只在配置了根时生效，须经原接受入口重新接受（[架构页的维护规则](docs/architecture.md#验证与维护)第 1 条）。归层不确定，按 D1 决定记录按第二层处理。
+- 创建（新建写入、建目录、复制、批次临时文件）只在已核对的目录描述符下发生，所以创建不会落到根外。
+
+四类逃逸与结果：
+
+| 类 | 判定 | 结果 |
+| --- | --- | --- |
+| 解析在根外 | 路径按段不以根的真实路径为前缀；或逐段走时某个中间目录的设备号与根不同 | `notAuthorized` |
+| `..` | 任何一段是 `..` | `notAuthorized` |
+| 指向根外的符号链接 | 中间段是符号链接，不论指向哪里 | `notAuthorized`；最后一段是链接时按现有映射为 `unsupported` |
+| 硬链接 | 内容操作打开后的描述符上，普通文件的链接数大于 1 | `notAuthorized` |
+
+拒绝后根内与根外的目录无变化：名、类型、字节、链接数与修改时间不变。读取与打开目录可能更新访问时间（取决于挂载选项），不在其内。已知限制：根内的挂载点靠设备号核对挡住，没有在包测试里构造；删除与改名的核对和实际调用之间名可以被换成另一个对象，效果仍不出该目录。
 
 ### Service 实现
 
@@ -147,7 +201,7 @@
 | 已发出的句柄代际 | 共用文件引擎，带所属获取 | 关闭没有成功回执时为未知 | 关闭成功回执 |
 | 写入宿主文件的字节 | 宿主文件系统 | 截断后没写完时为未知 | 不随撤除撤回 |
 
-进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源，责任域的记录随进程结束。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
+进程失败：本成员没有可恢复的东西。宿主文件提供者没有受管资源，责任域的记录随进程结束。新进程的责任域对旧进程的原描述答未知，不答未分配；需要域外可信进程退出证据的冷恢复结清是 M2 之后的剩余责任。登记表的重建沿 [execution-environment SPEC](../execution-environment/SPEC.md#所有权失败与生命周期)。撤除函数抛出的错误只进 `ctx.logger`，`fiber.dispose()` 的调用方观察不到，见 [Cordis 说明](docs/cordis.md#机制读数与假设)。
 
 ## 组合与验证
 
@@ -185,6 +239,6 @@
 - 宿主文件插件可以重载而责任域保留，这一点依据本域目标协议；它与产品正文第 2 版「宿主机提供者随执行环境一起在场，不单独装卸」的关系，以及与 #278 已接受的插件形状谁先谁后，待产品负责人与契约拥有者确认。装配规则现在没有强制执行点。
 - 责任域在真实装配中的保管点与唯一分发没有采用：本成员只给出工厂 `createHostFilesDomain` 与插件工厂，进程宿主怎样保管并唯一分发它归应用装配（[#677](https://github.com/nemori-ai/omne-harness-lite/issues/677)）。本成员不新增服务或包。
 - 维护驱动的调度没有实现：`maintain()` 与结清是入口，谁在提供者卸载之后定时调用它们归责任域的拥有者与应用装配。
-- 冷恢复结清需要域外可信的进程退出证据，以及原提供者代到进程实例的可核验关联；本成员没有，具名剩余责任交 [#323](https://github.com/nemori-ai/omne-harness-lite/issues/323)。在它兑现之前，新进程对旧原描述只答未知。
+- 冷恢复结清需要域外可信的进程退出证据，以及原提供者代到进程实例的可核验关联；本成员没有，这是 M2 之后的剩余责任。在它兑现之前，新进程对旧原描述只答未知。
 - 配额、查询、迟到与结清协议的行为模型没有进入本成员的 `verification/models/`，相应机制路径保持未验证。
 - 两个插件仍是手写的插件对象，没有经过 kernel-basis 的 `definePlugin`，空配置 Schema 与宿主文件插件的配置 Schema 仍在本成员（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。加依赖需要更新工作区锁文件，待派发者裁定。

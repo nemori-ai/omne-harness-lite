@@ -98,7 +98,7 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 | [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 可选依赖现取 | 三个端口服务都不写进 `inject`，每次使用时从 Service 装载时的上下文 `ctx.get` 现取，取不到答不可用 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 恢复授权服务装载前、装载后、卸载后各恢复一次；两个访问端口服务缺席、只装一个、都装、卸载一个时各解析一次落点 |
 | [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记面在调用方 fiber 上登记效应，不采用目录写法 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 卸载宿主文件插件后宿主层没有匹配，卸载 `filesFacilityPlugin` 后已取到的设施返回 `unsupported` |
 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验 | Service 子类与 `filesFacilityPlugin` 用空配置 Schema，宿主文件插件用只接受 `drainBoundMs` 的 Schema。两个函数插件还没有经过 kernel-basis 的 `definePlugin`（偏离，见 [SPEC 明确缺项](../SPEC.md#明确缺项)） | 校验失败的路径没有测试；Service 子类路径没有 basis |
-| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树 | 三个端口以服务提供，责任域作为工厂参数进入，插件树只有包名、导出名与可序列化配置 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) |
+| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树 | 偏离，见装配页 [HOSTFILE-FACTORY-ROW](../../../../docs/architecture/runtime/application-assembly.md#hostfile-factory-row)：三个端口以服务提供，责任域作为工厂参数进入，插件树只有包名、导出名与可序列化配置 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)、[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 作用域与租户是参数 | 作用域、租户与恢复授权都随操作参数进入 | 契约类型 |
 | [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 同进程保证 | 登记表是进程内副本，重启后不重建租约 | 写在 [execution-environment SPEC](../../execution-environment/SPEC.md#范围与依据) |
 
