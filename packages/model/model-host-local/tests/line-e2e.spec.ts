@@ -241,6 +241,8 @@ describe('the Model line in one process', () => {
       const [dispatchA] = await line.dispatchesOf(a.call)
       expect(dispatchA?.terminal).toEqual(stateA.settlement.termination)
       expect(dispatchA?.materialization?.receipt.payloadDigest).toBe(RECORDING.note.payloadDigest)
+      expect(line.facts.filter(fact => fact.kind === 'ended')).toHaveLength(1)
+      expect(JSON.stringify(line.facts)).not.toContain(PLACEHOLDER)
       expect(JSON.stringify(dispatchA)).not.toContain(PLACEHOLDER)
       expect(JSON.stringify(stateA)).not.toContain(PLACEHOLDER)
       expect(line.messages.join('\n')).not.toContain(PLACEHOLDER)

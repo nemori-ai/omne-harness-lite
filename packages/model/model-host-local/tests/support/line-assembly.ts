@@ -46,6 +46,7 @@ import {
   type ModelCommands,
   type ModelDriveInput,
   type ModelRetryPolicy,
+  type TransportFact,
 } from '@omne-harness/model-contract/provider'
 import {
   ModelClockService,
@@ -690,12 +691,31 @@ export async function assembleLine(input: LineInput) {
   await load(Stage, { maxRetainedAttempts: 4 })
 
   const ledger = createMemoryResultPushLedger()
+  // Every fact the send stage hands to the runtime, kept in order: the facts must not carry the credential.
+  const facts: TransportFact[] = []
   const Runtime = createModelRuntimeLocalPlugin({
     provider: given =>
       createModelRuntime(
         {
           commands: given.commands,
-          send: { send: (demand, signal) => ctx.modelSendBoundary.send(demand, signal) },
+          send: {
+            async send(demand, signal) {
+              const result = await ctx.modelSendBoundary.send(demand, signal)
+              if (result.kind !== 'started') return result
+              const source = result.facts
+              return {
+                ...result,
+                facts: {
+                  async *[Symbol.asyncIterator]() {
+                    for await (const fact of source) {
+                      facts.push(structuredClone(fact))
+                      yield fact
+                    }
+                  },
+                },
+              }
+            },
+          },
           retry: NO_RETRY,
           instances: given.host,
           clock: given.clock,
@@ -711,6 +731,7 @@ export async function assembleLine(input: LineInput) {
     ctx,
     log,
     messages,
+    facts,
     profile,
     ledger,
     /** The durable commands of the tree, as the plugins see them. */
