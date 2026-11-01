@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { runGhRead } from '../delivery/github-read.ts'
+import { reviewRi, type ReviewReport } from './api-review-draft.ts'
 import {
   checkSummary,
   contractCheckExitCode,
@@ -38,9 +40,12 @@ export function parseCommand(value: unknown): Command {
       throw new IntegrationError('input-error', 'Unsupported integration command')
   }
 }
-const RI_NOTES_USAGE = `integration ri-notes --track ID [--root PATH] [--format json|markdown]
+const RI_NOTES_USAGE = `integration ri-notes --track ID [--root PATH] [--format json|markdown] [--review-issue N]
   Builds the「所含的卡」and「契约变化」sections of a promotion PR. Read-only.
   Exit 1 when a finding is ${RI_REFUSING_CODES.join(', ')}; exit 0 otherwise; exit 2 on bad input or a failed read.
+  With --review-issue N (a card of the range that carries the review records) a review member
+  with a valid conclusion counts at that level; the semantic review report is added. Exit 2 when
+  any fact of that path is unknown, including an unavailable snapshot difference.
 `
 /** Options as `--key value` pairs; an unknown, repeated or valueless option is an input error. */
 function parseOptions(args: readonly string[], allowed: readonly string[]): Map<string, string> {
@@ -58,26 +63,31 @@ function parseOptions(args: readonly string[], allowed: readonly string[]): Map<
  * Markdown carries only the two sections on standard output. The findings go to standard error,
  * one JSON line each, then one summary line.
  */
-function writeMarkdown(notes: RiNotes): void {
+function writeMarkdown(notes: RiNotes, review?: ReviewReport): void {
   process.stdout.write(notes.markdown)
   const codes: Record<string, number> = {}
   for (const finding of notes.findings) {
     codes[finding.code] = (codes[finding.code] ?? 0) + 1
     process.stderr.write(`${JSON.stringify(finding)}\n`)
   }
-  const summary = { findings: notes.findings.length, codes, contractCheck: notes.contractCheck }
+  const summary = {
+    findings: notes.findings.length,
+    codes,
+    contractCheck: notes.contractCheck,
+    ...(review === undefined ? {} : { semanticReview: review }),
+  }
   process.stderr.write(`${JSON.stringify({ severity: 'report', summary })}\n`)
 }
 /**
  * `ri-notes`: returns 1 when a finding has a refusing code (`RI_REFUSING_CODES`), otherwise 0.
  * An unavailable snapshot difference only reports. The output is the same for both exit codes.
  */
-function runRiNotes(args: readonly string[]): 0 | 1 {
+function runRiNotes(args: readonly string[]): 0 | 1 | 2 {
   if (args.length === 1 && args[0] === '--help') {
     process.stdout.write(RI_NOTES_USAGE)
     return 0
   }
-  const options = parseOptions(args, ['--root', '--track', '--format']),
+  const options = parseOptions(args, ['--root', '--track', '--format', '--review-issue']),
     track = options.get('--track'),
     format = options.get('--format') ?? 'json'
   if (track === undefined || (format !== 'json' && format !== 'markdown'))
@@ -85,6 +95,27 @@ function runRiNotes(args: readonly string[]): 0 | 1 {
       'input-error',
       'ri-notes requires --track ID and --format json|markdown',
     )
+  const reviewIssue = options.get('--review-issue')
+  if (reviewIssue !== undefined) {
+    if (!/^[1-9]\d*$/.test(reviewIssue))
+      throw new IntegrationError('input-error', '--review-issue requires an Issue number')
+    const result = reviewRi({
+      root: resolve(options.get('--root') ?? process.cwd()),
+      entry: fileURLToPath(import.meta.url),
+      call: runGhRead,
+      track,
+      reviewIssue: Number(reviewIssue),
+    })
+    if (result.notes === null) {
+      process.stdout.write(`${JSON.stringify({ semanticReview: result.report }, null, 2)}\n`)
+      for (const item of result.report.findings) process.stderr.write(`${JSON.stringify(item)}\n`)
+    } else if (format === 'markdown') writeMarkdown(result.notes, result.report)
+    else
+      process.stdout.write(
+        `${JSON.stringify({ ...result.notes, semanticReview: result.report }, null, 2)}\n`,
+      )
+    return result.exit
+  }
   const notes = riNotes(
     riInput({
       root: resolve(options.get('--root') ?? process.cwd()),

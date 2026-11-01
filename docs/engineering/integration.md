@@ -154,7 +154,7 @@ Reduce 是几张连续 `integration` 卡的唯一写者时，这几张卡可以�
 5. 集成节点用 dev-flow 的 `baseline-cli.ts read <baseline 卡号> --out <文件>` 读出并合并全部登记，再用 `omne-contract-api --baseline <文件>` 核对累计变化。`--baseline` 与 `--baseline-write` 从 repo-toolchain 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。命令见 [dev-flow 交付观察说明](../../tools/dev-flow/src/delivery/README.md#契约基线的读取)。
 6. 核对在下列情况失败：
    - 有成员判不了：登记的成员在它的基线提交上不是契约成员或没有快照；或者成员在基线点（全部登记提交的共同祖先）上已是契约成员，却没有登记。`breakingCards` 不能放行这些成员。
-   - 累计为 review 而登记没有 `breakingCards`。
+   - 累计为 review 而登记没有 `breakingCards`。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。
 
    基线点之后才加入的成员按上面里程碑内的规则第 4 条，整份算新增。有 `breakingCards` 时核对通过，只说明登记了承接卡；每个 review 成员由哪张卡承接，由集成节点核对。
 
@@ -174,7 +174,7 @@ Reduce 是几张连续 `integration` 卡的唯一写者时，这几张卡可以�
 
 本地核对分两处：
 
-1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 2. 提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
 
 提升 PR 的确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。个人分支（含批次分支）进轨道的 PR 不运行 `ri-notes`：两节手写，逐张列本次带入的卡。确认者按本节开头「第一阶段由确认者核对」一句人工核对；卡级核对的输出在各卡交接报告第 1 节，批次 head 的准入输出在准入证据评论。该轨道下一次提升时，`ri-notes` 对汇总后的申报与快照差异做核对，不逐批次核对。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
@@ -244,6 +244,7 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 - 任务卡的派发评论由 `publish` environment 的 reviewer 发出，`start` 据此核对开工准入并写入 task context。没有 task context 的检出也能运行本地检查，基线退回 `origin/main`；收工钩子例外，它在 `origin/main` 与活跃轨道中取离 HEAD 最近的合并点，见[收工钩子](../../tools/repo-toolchain/README_ZH.md#收工钩子)。
 - 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
 - 个人分支进入任何一层轨道的 PR 如果改动仓库工具链，确认前多一道审批。流程用 `git merge-tree` 算出合并结果，把结果相对目标改动的文件与 `github-gate` 上的 `gate/toolchain-paths.txt` 比对。命中时，先由 `repo-toolchain-review` environment 的确认者确认，再进入 `publish` 的确认。工具链确认也必须填写说明，说明原文写进发布决定评论。未命中的 PR 不经这道审批。同步（上游进轨道）、提升（轨道进上游）和 main 进 stable 不经这道审批，它们搬运的提交都已经从个人分支进入过某条轨道。路径清单由卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 建立，只在 `github-gate` 上维护。
+- 个人分支进入任何一层轨道的 PR 如果改动 `docs/engineering/api-review-owners.json`，`publish` 的确认者在确认前逐条核对改动的条目。对新增或改动的条目，确认者运行 dev-flow 的 `api-review-cli.ts verify-owner-adoption`，核对引用的评论在本仓库存在，正文摘要、更新时间与作者 node ID 与条目一致；再阅读该评论，核对正文是有权决定线归属的负责人对该条 lineId、owner login 与 node ID 的明确决定（代笔时附可核对的授权输入）。对删除的条目，确认者只核对删除由有权决定线归属的负责人决定。确认说明写明所核评论的 URL 与该命令的退出码。任一项不成立时不确认。
 - 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签，推送比较派发时读到的目标。合并写 `omne/gate/unit/<结果提交号>`。stable 写 `omne/gate/stable/<提交号>` 和 `omne/gate/checkpoint/<名称>`，同一提交只能进入 stable 一次：另一次发布已把 stable 推进到同一提交时，记录已存在，整次推送失败。标签正文是 `omne-gate-record:v1` JSON。
 - 提升前，即 head 是 base 的直接子轨道或 base 为 main 时，流程核对来源轨道在核对下限之后的每个 first-parent 提交都有目标为该轨道的 unit。同步不做这项核对，上游的记录由上游自己的提升负责。发布 stable 前，对 main 在切换点之后的 first-parent 历史做同样的核对。有缺口就停止。
 - 提升 PR 由该轨道的 owner 提出。PR 说明列出自上一次提升以来进入该轨道的卡，以及这些卡在上一层或 main 上要满足的条件，每张卡写 Issue 编号、revision 与 attempt。格式见 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。确认者据此核对条件。个人分支进轨道的 PR 与提升 PR 还要写「契约变化」，见[进轨道 PR 的说明](#进轨道-pr-的说明)。
