@@ -235,3 +235,44 @@ it('the exported recovery-work judgment gives the answer that scanPending gives 
   const released = calls.find(call => call.state.call === callId('released'))
   expect(released && hasRecoveryWork(released)).toBe(false)
 })
+
+it('scanPending pages through the pending port of a storage that has one, outside any attempt, after the same checks', async () => {
+  const f = fixture()
+  const text = tenantCodec.encode(f.tenant)
+  if (!text.ok) throw new Error('fixture tenant')
+  const memory = new MemoryState(f.options)
+  const asked: [string, string | null, number][] = []
+  let runs = 0
+  const page = { calls: [callId('paged')], next: 'cursor-of-the-storage' }
+  const commands = modelCommands(
+    createModelCommandsCore(f.options, {
+      run: (work, scope) => {
+        runs += 1
+        return memory.run(work, scope)
+      },
+      documents: key => memory.documents(key),
+      reserved: field => memory.reserved(field),
+      commit: (key, write) => memory.commit(key, write),
+      publish: (key, call) => memory.publish(key, call),
+      pending: (tenant, after, limit) => {
+        asked.push([tenant, after, limit])
+        return Promise.resolve({ ok: page })
+      },
+    }),
+  )
+  const access = { principal: f.principal, tenant: f.tenant }
+  expect(await commands.scanPending({ ...access, after: 'cursor-in', limit: 2 })).toEqual({
+    ok: page,
+  })
+  expect(asked).toEqual([[text.value, 'cursor-in', 2]])
+  expect(runs).toBe(0)
+  // The limit and the qualification are checked before the storage is asked.
+  expect(await commands.scanPending({ ...access, after: null, limit: 3 })).toEqual({
+    failure: { kind: 'invalid', field: 'limit', reason: 'out-of-range' },
+  })
+  f.denied.add('recovery')
+  expect(await commands.scanPending({ ...access, after: null, limit: 1 })).toEqual({
+    failure: { kind: 'denied', action: 'recovery' },
+  })
+  expect(asked).toHaveLength(1)
+})

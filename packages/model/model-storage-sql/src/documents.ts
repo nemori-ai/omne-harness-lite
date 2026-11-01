@@ -8,7 +8,6 @@ import {
   decodeModelOperationId,
   decodeOutputCursor,
   decodeRevision,
-  type Admission,
   type CallState,
   type DispatchRecord,
   type DurableEvidence,
@@ -16,145 +15,28 @@ import {
   type GrowingContentKind,
   type ModelBlock,
   type ModelCallId,
-  type ModelFailure,
   type ModelOperationId,
   type OutputCursor,
-  type ReadId,
-  type ReadState,
   type ResultCapacity,
-  type ResultTrim,
-  type Revision,
   type RetryDecision,
   type RetryPosition,
-  type Settlement,
   type Snapshot,
   type Termination,
   type VisibleBlock,
 } from '@omne-harness/model-contract'
-import type {
-  ActorRef,
-  ExecutionRef,
-  ModelConsumerOwnerDeclaration,
-  ProviderDiagnostic,
-} from '@omne-harness/model-contract/provider'
+import type { ExecutionRef } from '@omne-harness/model-contract/provider'
+import {
+  MODEL_WRITE_METHODS,
+  type BindingBase,
+  type CallDocument,
+  type DispatchDocument,
+  type ModelWriteMethod,
+  type ReadRelation,
+  type Receipt,
+} from '@omne-harness/model/commands'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import type { JsonValue } from '@omne-harness/sql-contract'
 import { TABLES, type Table } from './schema.ts'
-
-// --- The storage port of the shared commands core ------------------------------------------
-// Integration point: these types mirror `packages/model/model/src/commands/{storage,types}.ts`
-// (C-CORE, 8ac28f135), which is the authority. They are replaced by imports from
-// `@omne-harness/model/commands` when that entry exists. `run` already takes the optional scope
-// that C-CORE-2 adds. `DispatchDocument.assembly` is `null` here: the core never sets it to
-// anything else, and the storage does not keep a live assembly.
-
-export const MODEL_WRITE_METHODS = [
-  'admit',
-  'claim',
-  'prepareDispatch',
-  'recordMaterialization',
-  'recordSend',
-  'openReceiveWindow',
-  'preserve',
-  'recordLateFact',
-  'prepareRetry',
-  'decideRetry',
-  'settle',
-  'control',
-  'acquireRead',
-  'handoff',
-  'advanceCleanup',
-] as const
-export type ModelWriteMethod = (typeof MODEL_WRITE_METHODS)[number]
-export type Receipt =
-  | Readonly<{ kind: 'revision'; revision: Revision }>
-  | Readonly<{ kind: 'admit'; admission: Admission }>
-  | Readonly<{ kind: 'claim'; instance: string; generation: string }>
-  | Readonly<{ kind: 'materialization'; revision: Revision; source: DurableEvidence }>
-  | Readonly<{ kind: 'retry'; position: RetryPosition }>
-  | Readonly<{ kind: 'settle'; settlement: Settlement }>
-  | Readonly<{ kind: 'preserve'; cursor: OutputCursor }>
-  | Readonly<{ kind: 'late'; revision: Revision }>
-  | Readonly<{ kind: 'read'; read: ReadId | null }>
-  | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
-export type BindingBase = Readonly<{
-  call: ModelCallId
-  method: ModelWriteMethod
-  fingerprint: string
-  revision: Revision
-  receipt: Receipt
-}>
-export type Binding = BindingBase &
-  (
-    | Readonly<{ status: 'committed' }>
-    | Readonly<{ status: 'unknown'; effect: 'applied' | 'not-applied' }>
-    | Readonly<{ status: 'rolled-back' | 'not-committed' }>
-  )
-export type ReadRelation = {
-  id: ReadId
-  lastProgress: string
-  furthest: number
-  state: Extract<ReadState, { kind: 'ended' }> | { kind: 'reading'; offset: number }
-}
-export type ResultPaging = Readonly<{ resultPageParts: number; resultPageTargetBytes: number }>
-export type DispatchDocument = {
-  record: DispatchRecord
-  logicalTerminal: Termination | null
-  windows: Map<string, 'open' | 'closed' | 'unproven'>
-  events: Map<string, string>
-  assembly: null
-  blocks: readonly VisibleBlock[]
-  nextSeq: Map<string, string>
-  trims: Map<string, readonly ResultTrim[]>
-  hadContent: Set<string>
-  diagnostics: readonly ProviderDiagnostic[]
-}
-export type CallDocument = {
-  state: CallState
-  request: FixedModelRequest | null
-  requestDigest: string
-  capacity: ResultCapacity
-  initiator: ActorRef
-  admission: ModelOperationId
-  owner: ModelConsumerOwnerDeclaration
-  execution: ExecutionRef | null
-  dispatches: DispatchDocument[]
-  retry: RetryDecision | null
-  retryPosition: RetryPosition | null
-  retrySource: DurableEvidence | null
-  cursor: OutputCursor
-  snapshots: Map<OutputCursor, Snapshot>
-  reads: Map<ReadId, ReadRelation>
-  cleanupFailure: string | null
-  resultPaging: ResultPaging
-}
-export type TenantDocuments = Readonly<{
-  calls: ReadonlyMap<ModelCallId, CallDocument>
-  operations: ReadonlyMap<ModelOperationId, Binding>
-}>
-export type CommandWrite = Readonly<{
-  operation: ModelOperationId
-  expected: CallDocument | undefined
-  call: CallDocument | undefined
-  binding: BindingBase
-}>
-/** What one run reads before its work: the call, and the operation the work writes, if any. */
-export type ModelRunScope = Readonly<{
-  /** The canonical tenant text (`tenantCodec`), as in the other methods. */
-  tenant: string
-  call: ModelCallId
-  operation?: ModelOperationId
-}>
-export interface ModelCommandStorage {
-  run<T>(
-    work: () => Outcome<T, ModelFailure>,
-    scope?: ModelRunScope,
-  ): Promise<Outcome<T, ModelFailure>>
-  documents(tenant: string): TenantDocuments
-  reserved(field: keyof ResultCapacity): bigint
-  commit(tenant: string, write: CommandWrite): 'committed' | 'unknown'
-  publish(tenant: string, call: CallDocument): void
-}
 
 // --- Stored shapes -------------------------------------------------------------------------
 
@@ -229,26 +111,40 @@ class RowError extends Error {
   }
 }
 
-/** Strict JSON of a stored value. A minted tenant or workspace travels as marked text. */
-function encodeValue(value: unknown): JsonValue {
+type Scalar = string | boolean | number | null | undefined
+
+const isScalar = (value: unknown): value is Scalar =>
+  value === null || value === undefined || ['string', 'boolean', 'number'].includes(typeof value)
+
+function encodeScalar(value: Scalar): JsonValue {
   if (value === null || value === undefined) return null
-  if (typeof value === 'string' || typeof value === 'boolean') return value
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new RowError('value', 'non-finite-number')
-    return value
-  }
-  if (Array.isArray(value)) return value.map(item => encodeValue(item))
-  if (value instanceof Map || value instanceof Set) throw new RowError('value', 'collection')
-  if (!isRecord(value)) throw new RowError('value', `not-json-${typeof value}`)
-  if (value['name'] === 'TenantId') {
-    const text = tenantCodec.encode(value as never)
-    if (!text.ok) throw new RowError('value', 'tenant-not-minted')
-    return { [TENANT]: text.value }
-  }
-  if (value['name'] === 'WorkspaceId') {
-    const text = workspaceCodec.encode(value as never)
-    if (!text.ok) throw new RowError('value', 'workspace-not-minted')
-    return { [WORKSPACE]: text.value }
+  if (typeof value === 'number' && !Number.isFinite(value))
+    throw new RowError('value', 'non-finite-number')
+  return value
+}
+
+/** A minted tenant or workspace travels as marked text. */
+const MINTED = [
+  {
+    name: 'TenantId',
+    mark: TENANT,
+    text: (value: never) => tenantCodec.encode(value),
+    reason: 'tenant-not-minted',
+  },
+  {
+    name: 'WorkspaceId',
+    mark: WORKSPACE,
+    text: (value: never) => workspaceCodec.encode(value),
+    reason: 'workspace-not-minted',
+  },
+] as const
+
+function encodeRecord(value: Record<string, unknown>): JsonValue {
+  const minted = MINTED.find(item => value['name'] === item.name)
+  if (minted !== undefined) {
+    const text = minted.text(value as never)
+    if (!text.ok) throw new RowError('value', minted.reason)
+    return { [minted.mark]: text.value }
   }
   const out: Record<string, JsonValue> = {}
   for (const [key, member] of Object.entries(value)) {
@@ -256,6 +152,15 @@ function encodeValue(value: unknown): JsonValue {
     if (member !== undefined) out[key] = encodeValue(member)
   }
   return out
+}
+
+/** Strict JSON of a stored value. */
+function encodeValue(value: unknown): JsonValue {
+  if (isScalar(value)) return encodeScalar(value)
+  if (Array.isArray(value)) return value.map(item => encodeValue(item))
+  if (value instanceof Map || value instanceof Set) throw new RowError('value', 'collection')
+  if (!isRecord(value)) throw new RowError('value', `not-json-${typeof value}`)
+  return encodeRecord(value)
 }
 
 function decodeValue(value: unknown): unknown {
@@ -299,26 +204,27 @@ const jsonText = (value: unknown): string => JSON.stringify(encodeValue(value))
 /** One row as it crosses the SQL boundary: TEXT cells as strings, INTEGER cells as safe integers. */
 export type Row = Readonly<Record<string, string | number | null>>
 
+/** One cell of column `item`: present, and null only where the column allows it. */
+function cellOf(table: Table, item: Table['columns'][number], raw: Record<string, unknown>) {
+  const field = `${table.name}.${item.name}`
+  if (!Object.hasOwn(raw, item.name)) throw new RowError(field, 'missing-column')
+  const cell = raw[item.name]
+  if (cell === null) {
+    if (!item.nullable) throw new RowError(field, 'null')
+    return null
+  }
+  if (item.kind === 'int' && typeof cell === 'number' && Number.isSafeInteger(cell)) return cell
+  if (item.kind !== 'int' && typeof cell === 'string') return cell
+  throw new RowError(field, 'cell-kind')
+}
+
 /** The cells of a row: exactly the columns of `table`, each of its declared kind. */
 function cellsOf(table: Table, raw: unknown): Row {
   if (!isRecord(raw)) throw new RowError(table.name, 'not-a-row')
   for (const key of Object.keys(raw))
     if (!table.columns.some(item => item.name === key))
       throw new RowError(`${table.name}.${key}`, 'extra-column')
-  const row: Record<string, string | number | null> = {}
-  for (const item of table.columns) {
-    const field = `${table.name}.${item.name}`
-    if (!Object.hasOwn(raw, item.name)) throw new RowError(field, 'missing-column')
-    const cell = raw[item.name]
-    if (cell === null) {
-      if (!item.nullable) throw new RowError(field, 'null')
-      row[item.name] = null
-    } else if (item.kind === 'int' && typeof cell === 'number' && Number.isSafeInteger(cell))
-      row[item.name] = cell
-    else if (item.kind !== 'int' && typeof cell === 'string') row[item.name] = cell
-    else throw new RowError(field, 'cell-kind')
-  }
-  return row
+  return Object.fromEntries(table.columns.map(item => [item.name, cellOf(table, item, raw)]))
 }
 
 function str(row: Row, name: string): string {
@@ -453,6 +359,9 @@ function parseDispatchRow(
       ),
       windows: entries(str(row, 'windows'), 'md_dispatch.windows'),
       events: entries(str(row, 'events'), 'md_dispatch.events'),
+      // The core types `assembly` as `StreamAssembly | null`. A live assembly is process state
+      // and is never stored, so a stored dispatch reads back with none (`encodeDispatchRow`
+      // refuses to write one).
       assembly: null,
       nextSeq: entries(str(row, 'next_seq'), 'md_dispatch.next_seq'),
       trims: entries(str(row, 'trims'), 'md_dispatch.trims'),
@@ -556,22 +465,39 @@ function growing(part: Extract<PartBody, { kind: 'open' }>): VisibleBlock {
   return { kind: 'growing', index: part.index, mode: part.mode, content: part.content, value: '' }
 }
 
+type Growing = Extract<VisibleBlock, { kind: 'growing' }>
+
+/** The growing block that `append` or `replace` continues, in that mode. */
+function growingIn(block: VisibleBlock | null, mode: Growing['mode']): Growing {
+  if (block === null || block.kind !== 'growing' || block.mode !== mode)
+    throw new RowError('md_part.kind', mode)
+  return block
+}
+
+function applyOpen(block: VisibleBlock | null, part: Extract<PartBody, { kind: 'open' }>) {
+  if (block !== null) throw new RowError('md_part.kind', 'open-twice')
+  return growing(part)
+}
+
+function applySeal(block: VisibleBlock | null, part: Extract<PartBody, { kind: 'seal' }>) {
+  if (block !== null && block.index !== part.index) throw new RowError('md_part.kind', 'seal')
+  return { kind: 'sealed' as const, index: part.index, block: part.block }
+}
+
 /** One part applied to the block that the earlier parts of its position folded into. */
 function applyPart(block: VisibleBlock | null, part: StoredPart): VisibleBlock {
   if (block?.kind === 'sealed') throw new RowError('md_part.kind', 'after-seal')
   switch (part.kind) {
     case 'open':
-      if (block !== null) throw new RowError('md_part.kind', 'open-twice')
-      return growing(part)
+      return applyOpen(block, part)
     case 'seal':
-      if (block !== null && block.index !== part.index) throw new RowError('md_part.kind', 'seal')
-      return { kind: 'sealed', index: part.index, block: part.block }
-    case 'append':
-      if (block === null || block.mode !== 'append') throw new RowError('md_part.kind', 'append')
-      return { ...block, value: block.value + part.delta }
+      return applySeal(block, part)
+    case 'append': {
+      const prior = growingIn(block, 'append')
+      return { ...prior, value: prior.value + part.delta }
+    }
     case 'replace':
-      if (block === null || block.mode !== 'replace') throw new RowError('md_part.kind', 'replace')
-      return { ...block, value: part.value }
+      return { ...growingIn(block, 'replace'), value: part.value }
     default: {
       const exhaustive: never = part
       return exhaustive
@@ -618,23 +544,21 @@ function snapshotOf(
 
 export type CallReadScope = CallRowScope & Readonly<{ operation: ModelOperationId | null }>
 
-function parseRead(output: unknown, scope: CallReadScope): CallRead {
-  const value = exactKeys(output, ['call', 'dispatches', 'parts', 'operation', 'capacity'], 'read')
-  const { dispatches, parts } = value
-  if (!Array.isArray(dispatches) || !Array.isArray(parts)) throw new RowError('read', 'rows')
-  const operationRow = value['operation']
-  if (operationRow !== null && scope.operation === null)
+/** The binding row of the operation read; one is only allowed when an operation was asked. */
+function bindingOf(raw: unknown, scope: CallReadScope): StoredBinding | null {
+  if (raw !== null && scope.operation === null)
     throw new RowError('md_operation.operation', 'scope')
-  const binding =
-    operationRow === null || scope.operation === null
-      ? null
-      : parseOperationRow(operationRow, scope.tenant, scope.operation)
-  const capacity = parseCapacity(value['capacity'])
-  if (value['call'] === null) {
-    if (dispatches.length > 0 || parts.length > 0) throw new RowError('read', 'orphan-rows')
-    return { record: undefined, binding, capacity }
-  }
-  const head = parseCallRow(value['call'], scope)
+  return raw === null || scope.operation === null
+    ? null
+    : parseOperationRow(raw, scope.tenant, scope.operation)
+}
+
+/** The dispatch rows in `seq` order and the part rows in key order, each under its dispatch. */
+function childrenOf(
+  dispatches: readonly unknown[],
+  parts: readonly unknown[],
+  scope: CallRowScope,
+) {
   const parsedDispatches = dispatches.map(row => parseDispatchRow(row, scope))
   parsedDispatches.forEach((item, at) => {
     if (item.seq !== at) throw new RowError('md_dispatch.seq', 'order')
@@ -650,15 +574,30 @@ function parseRead(output: unknown, scope: CallReadScope): CallRead {
     ...dispatch,
     blocks: foldDispatch(parsedParts.filter(part => part.seq === seq)),
   }))
+  return { documents, parts: parsedParts }
+}
+
+function parseRead(output: unknown, scope: CallReadScope): CallRead {
+  const value = exactKeys(output, ['call', 'dispatches', 'parts', 'operation', 'capacity'], 'read')
+  const { dispatches, parts } = value
+  if (!Array.isArray(dispatches) || !Array.isArray(parts)) throw new RowError('read', 'rows')
+  const binding = bindingOf(value['operation'], scope)
+  const capacity = parseCapacity(value['capacity'])
+  if (value['call'] === null) {
+    if (dispatches.length > 0 || parts.length > 0) throw new RowError('read', 'orphan-rows')
+    return { record: undefined, binding, capacity }
+  }
+  const head = parseCallRow(value['call'], scope)
+  const children = childrenOf(dispatches, parts, scope)
   const snapshots = new Map<OutputCursor, Snapshot>()
   if (head.head !== null)
-    snapshots.set(head.head.cursor, snapshotOf(scope.call, head.head, documents))
+    snapshots.set(head.head.cursor, snapshotOf(scope.call, head.head, children.documents))
   return {
     record: {
       version: head.version,
       pending: head.pending,
-      document: { ...head.document, dispatches: documents, snapshots },
-      parts: parsedParts,
+      document: { ...head.document, dispatches: children.documents, snapshots },
+      parts: children.parts,
     },
     binding,
     capacity,
@@ -754,6 +693,8 @@ export function encodeDispatchRow(
   dispatch: DispatchDocument,
 ): Outcome<Row, RowFailure> {
   return guarded(() => {
+    // The narrowing from the core's `StreamAssembly | null` to the stored `null`: a dispatch
+    // with a live assembly is refused, never written without it.
     if (dispatch.assembly !== null) throw new RowError('dispatch.assembly', 'live')
     return {
       tenant,

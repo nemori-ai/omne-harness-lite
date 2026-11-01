@@ -316,21 +316,34 @@ export function recoveryCommands<P>(
     if (next) scans.set(next, { tenant: scope, calls: ids, offset: end })
     return { ok: { calls, next } }
   }
+  /** The tenant text of a scan that may go ahead: the caller may recover and the limit fits. */
+  function scanScope(input: Parameters<ModelCommands<P>['scanPending']>[0]) {
+    const tenant = core.authorize(input, 'recovery')
+    if ('failure' in tenant) return tenant
+    const scope = tenantKey(input.tenant)
+    if (typeof scope !== 'string') return { failure: scope }
+    if (
+      !Number.isSafeInteger(input.limit) ||
+      input.limit <= 0 ||
+      input.limit > core.options.limits.scanPageCalls
+    )
+      return { failure: invalid('limit', 'out-of-range') }
+    return { ok: scope }
+  }
   return {
-    scanPending: input =>
-      core.runRead(input, () => {
-        const tenant = core.authorize(input, 'recovery')
-        if ('failure' in tenant) return tenant
-        const scope = tenantKey(input.tenant)
-        if (typeof scope !== 'string') return { failure: scope }
-        if (
-          !Number.isSafeInteger(input.limit) ||
-          input.limit <= 0 ||
-          input.limit > core.options.limits.scanPageCalls
-        )
-          return { failure: invalid('limit', 'out-of-range') }
-        return scanPage(scope, input.after, input.limit)
-      }),
+    scanPending: input => {
+      const storage = core.storage
+      // A storage that pages the pending calls itself is asked for the page outside an attempt.
+      if (storage.pending !== undefined) {
+        const scope = scanScope(input)
+        if ('failure' in scope) return Promise.resolve(scope)
+        return storage.pending(scope.ok, input.after, input.limit)
+      }
+      return core.runRead(input, () => {
+        const scope = scanScope(input)
+        return 'failure' in scope ? scope : scanPage(scope.ok, input.after, input.limit)
+      })
+    },
     loadRecovery: input =>
       core.runRead(input, () =>
         core.read(input, 'recovery', (call, root) => {

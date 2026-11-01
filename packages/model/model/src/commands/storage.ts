@@ -33,6 +33,9 @@ export type RunScope = Readonly<{
   operation?: ModelOperationId
 }>
 
+/** One page of the calls of a tenant that owe recovery work, and the cursor of the next page. */
+export type PendingPage = Readonly<{ calls: readonly ModelCallId[]; next: string | null }>
+
 /**
  * The storage of the shared commands core. The core does no I/O and keeps no state outside the
  * process: it reads and writes call documents and operation bindings only through this port.
@@ -60,4 +63,18 @@ export interface ModelCommandStorage {
    * progress of a read relation, which the result consumer drives without an operation.
    */
   publish(tenant: string, call: CallDocument): void
+  /**
+   * Optional. One page of the calls of `tenant` that owe recovery work, in call order, after the
+   * cursor `after` that an earlier page gave (`null` for the first page), at most `limit` calls.
+   * The selection is the one `scanPending` makes over `documents`: a call for which
+   * `hasRecoveryWork` holds, or that has an operation with an unknown outcome. A storage that
+   * cannot hold every call of a tenant in `documents` provides it; `scanPending` then pages
+   * through it and never runs an attempt. A cursor the storage did not give answers
+   * `invalid('after', 'scan-cursor')`.
+   */
+  pending?(
+    tenant: string,
+    after: string | null,
+    limit: number,
+  ): Promise<Outcome<PendingPage, ModelFailure>>
 }

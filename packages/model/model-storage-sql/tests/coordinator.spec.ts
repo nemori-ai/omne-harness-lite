@@ -28,7 +28,6 @@ import type { SendCoordinator, SendStart } from '@omne-harness/model'
 import {
   createModelCommandsCore,
   modelCommands,
-  hasRecoveryWork,
   type ModelCommandsCoreOptions,
   type ModelSendSource,
 } from '@omne-harness/model/commands'
@@ -332,7 +331,6 @@ const storageOf = (provider: Provider) =>
       maxCallBytes: 1 << 20,
       maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     },
-    isPending: call => hasRecoveryWork(call),
   })
 
 /** The SQL assembly: one SQL storage, its mirror, one core over the mirror, the coordinator. */

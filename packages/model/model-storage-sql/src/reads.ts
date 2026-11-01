@@ -31,6 +31,14 @@ export const PENDING_PAGE_MAX = 1000
 
 const DEPENDENCY = 'model-records'
 
+/**
+ * The share that the calls of one tenant hold: the capacity of every call whose request material
+ * is held. The read of `model.call` reports it; the participant checks a new call against it.
+ */
+export const HELD_SHARE_SQL = `SELECT COALESCE(SUM(cap_bytes), 0) AS bytes,
+    COALESCE(SUM(cap_blocks), 0) AS blocks, COALESCE(SUM(cap_attachment), 0) AS attachment
+  FROM md_call WHERE tenant = ? AND request IS NOT NULL`
+
 export const unavailable = (diagnostic: string): ModelFailure => ({
   kind: 'unavailable',
   dependency: DEPENDENCY,
@@ -93,13 +101,7 @@ function readCallRows(input: JsonValue, port: ReadPort): JsonValue {
             WHERE tenant = ? AND operation = ? LIMIT 1`,
           [tenant, operation],
         )[0]
-  const held = rows(
-    port,
-    `SELECT COALESCE(SUM(cap_bytes), 0) AS bytes, COALESCE(SUM(cap_blocks), 0) AS blocks,
-            COALESCE(SUM(cap_attachment), 0) AS attachment
-       FROM md_call WHERE tenant = ? AND request IS NOT NULL`,
-    [tenant],
-  )[0]
+  const held = rows(port, HELD_SHARE_SQL, [tenant])[0]
   const capacity = {
     bytes: String(held?.['bytes'] ?? 0),
     blocks: String(held?.['blocks'] ?? 0),
