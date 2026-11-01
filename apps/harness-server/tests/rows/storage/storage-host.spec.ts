@@ -11,6 +11,7 @@ import type {
   StorageCloseResult,
   StorageControl,
 } from '@omne-harness/sql-contract'
+import { IDENTITY_PARTICIPANT } from '@omne-harness/identity-sql'
 import { StorageHostService } from '@omne-harness/sql-contract/cordis'
 import {
   StorageHostAdapter,
@@ -84,6 +85,8 @@ describe('materials (acceptance 4)', () => {
     expect(catalogProblems(catalog)).toEqual([])
     expect(catalog.catalogProtocol).toBe('sql-catalog/1')
     expect(catalog.participants.map(item => item.participant)).toContain('session')
+    // identity 行（identity-sql）在 `system` 域登记自己的组合，它的材料必须在同一份发行目录里。
+    expect(catalog.participants.map(item => item.participant)).toContain(IDENTITY_PARTICIPANT)
     expect(catalog.declaredCombinations).toEqual({ tenant: null, system: null })
   })
 
