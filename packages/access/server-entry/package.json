@@ -24,7 +24,17 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/kernel-basis": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/public-contract": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*",
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/utc-instant": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
