@@ -76,7 +76,14 @@ import { consumptionIdOf } from './decide-results.ts'
 import { judgeIdle } from './judgments.ts'
 import { materializeModelView, compactionReads, type MaterializedModelView } from './model-view.ts'
 import { decodeEntry } from './entries.ts'
-import { reduce } from './reduce.ts'
+import { reduce, reduceWithEntriesProgress } from './reduce.ts'
+import { digestSessionEntries, projectSessionEntries } from './entries-interpretation.ts'
+import type {
+  SessionEntriesObservation,
+  SessionEntriesProgress,
+  SessionEntriesReceipt,
+  SessionEntriesStart,
+} from './interpretation-values.ts'
 import {
   createMemoryInitializationSource,
   type MemoryInitializationSource,
@@ -139,6 +146,8 @@ type Store = {
     }>
   >
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
+  /** The saved entries progress, one item per (run, execution, channel); `WorkSnapshot` does not hold it yet. */
+  readonly entriesProgress: readonly SessionEntriesProgress[]
 }
 
 type Cursor = Readonly<{
@@ -719,6 +728,7 @@ export function createMemorySessionTransactionPair<P>(
         operations,
         answers: store?.answers ?? new Map(),
         inputs,
+        entriesProgress: store?.entriesProgress ?? [],
       }
       const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
       if (initialization && failInitialization) {
@@ -731,6 +741,85 @@ export function createMemorySessionTransactionPair<P>(
         return fail({ kind: 'commit-unknown', operation: command.input.operation })
       }
       return succeed(recall(receipt))
+    }
+
+    /**
+     * The entries interpretation commit (docs/same-log-pure.md「entries 通道的解释提交」): no access
+     * check, the shared pure check, then the consequence rows, the progress row, the operation record
+     * and the saved progress in one replacement of the store. Nothing between the read of the store
+     * and that replacement awaits, and nothing is written before every check and the reduction pass.
+     */
+    const commitEntries = (
+      input: Readonly<{ observation: SessionEntriesObservation; start: SessionEntriesStart }>,
+    ): Outcome<SessionEntriesReceipt, SessionFailure> => {
+      const { observation, start } = input
+      const key = keyOf(observation.tenant, observation.session)
+      if ('failure' in key) return key
+      const store = stores.get(key.ok)
+      if (store === undefined) return fail(denied('commitEntries'))
+      if (store.answers.has(observation.operation))
+        return fail({ kind: 'conflict', operation: observation.operation })
+      const held = store.operations.get(observation.operation)
+      const decision = projectSessionEntries(store.snapshot, {
+        observation,
+        start,
+        saved: store.entriesProgress,
+        record: held?.record ?? null,
+      })
+      if (decision.kind === 'rejected') return fail(decision.failure)
+      if (decision.kind === 'recovered') {
+        if (held === undefined) return fail(unavailable('a recalled operation without a record'))
+        return succeed(held.recall(decision.receipt) as SessionEntriesReceipt)
+      }
+      if (decision.progress === undefined)
+        return fail(unavailable('an entries decision without its progress'))
+      const revision = String(BigInt(store.snapshot.revision) + 1n) as SessionRevision
+      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+        ...entry,
+        id: String(store.entries.length + index + 1) as EntryId,
+        revision,
+      }))
+      const reduced = reduceWithEntriesProgress(store.snapshot, store.entriesProgress, {
+        revision,
+        entries,
+      })
+      if (reduced.kind === 'quarantined')
+        return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+      const committedEntries = [...store.entries, ...entries]
+      const snapshot =
+        options.history === undefined
+          ? reduced.snapshot
+          : {
+              ...reduced.snapshot,
+              historyIndex: options.history.read(reduced.snapshot, committedEntries, {
+                kind: 'pending',
+                inputs: reduced.snapshot.pending,
+              }).index,
+            }
+      const answer: SessionEntriesReceipt = {
+        operation: observation.operation,
+        through: decision.progress.through,
+        interpreted: reduced.snapshot.source,
+      }
+      const operations = new Map(store.operations)
+      operations.set(observation.operation, {
+        record: {
+          operation: observation.operation,
+          digest: digestSessionEntries(observation),
+          receipt: receiptOf(observation.session, observation.operation, revision, entries),
+        },
+        recall: () => answer,
+        decision: null,
+      })
+      stores.set(key.ok, {
+        ...store,
+        snapshot,
+        modelView: materializeModelView(store.modelView, entries, committedEntries),
+        entries: committedEntries,
+        operations,
+        entriesProgress: reduced.progress,
+      })
+      return succeed(answer)
     }
 
     const page = (store: Store, cursor: Cursor): HistoryPage => {
@@ -975,12 +1064,7 @@ export function createMemorySessionTransactionPair<P>(
           source: origin.record.receipt.source,
         })
       },
-      commitEntries: async () =>
-        fail(
-          unavailable(
-            'the in-memory double has no shared transaction domain, so it does not interpret entries',
-          ),
-        ),
+      commitEntries: async input => commitEntries(input),
       history,
       pending: async input => {
         const qualification = await qualify({
