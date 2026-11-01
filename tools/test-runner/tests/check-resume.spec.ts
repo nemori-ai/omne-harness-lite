@@ -158,6 +158,8 @@ function fixture(): Fixture {
     return git('rev-parse', 'HEAD')
   }
   git('init', '-q', '-b', 'main')
+  // 与本仓库相同：检出写 LF（Git for Windows 的系统配置是 autocrlf=true，夹具不能继承它）。
+  git('config', 'core.autocrlf', 'input')
   commit('base')
   git('switch', '-qc', 'card')
   const command = (name: string, ...extra: string[]): Command => [
@@ -497,6 +499,22 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     // 同一个头再跑一次、工作树干净：不是 dirty。trace.txt 与 tmp/ 被忽略，不算。
     await check()
     expect(runRecord(fx.root, head).dirty).toBe(false)
+  })
+
+  it('开始时自愈环境：索引 LF、工作副本 CRLF 的文件从索引重新检出，记录写明；树不记 dirty', async () => {
+    const head = fx.git('rev-parse', 'HEAD')
+    const path = join(fx.root, 'members/d/src.ts')
+    writeFileSync(path, readFileSync(path, 'utf8').replaceAll('\n', '\r\n'))
+    const healed = await check()
+    expect(healed.code).toBe(0)
+    expect(readFileSync(path, 'utf8')).not.toContain('\r\n')
+    const record = runRecord(fx.root, head)
+    expect(record.dirty).toBe(false)
+    expect(record.environment).toMatchObject({
+      dependencies: { status: 'no-lockfile' },
+      lineEndings: { restored: ['members/d/src.ts'], kept: [] },
+    })
+    expect(healed.output.join('\n')).toContain('已从索引重新检出：members/d/src.ts')
   })
 })
 

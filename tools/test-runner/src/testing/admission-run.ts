@@ -13,6 +13,7 @@ import {
 } from 'node:fs'
 import { dirname, join } from 'node:path'
 import type { CheckStep, GraphRun } from './check-graph.ts'
+import { parseEnvironmentHealing, type EnvironmentHealing } from './environment.ts'
 
 export const ADMISSION_RUN_SCHEMA_VERSION = 1
 export const ADMISSION_RUN_KIND = 'admission-run'
@@ -88,6 +89,8 @@ interface AdmissionRunCommon {
   readonly failedStep: string | null
   readonly startedAt: string
   readonly finishedAt: string
+  /** 开始时环境自检与自愈的结果（environment.ts）：依赖目录有没有重装、哪些 CRLF 工作副本被重新检出。早于这一栏的记录没有。 */
+  readonly environment?: EnvironmentHealing
 }
 
 export type AdmissionRun =
@@ -150,9 +153,13 @@ function parseCommon(value: Record<string, unknown>): AdmissionRunCommon | undef
     failedStep,
     startedAt,
     finishedAt,
+    environment,
   } = value
   if (schemaVersion !== ADMISSION_RUN_SCHEMA_VERSION || kind !== ADMISSION_RUN_KIND)
     return undefined
+  const parsedEnvironment =
+    environment === undefined ? undefined : parseEnvironmentHealing(environment)
+  if (environment !== undefined && parsedEnvironment === undefined) return undefined
   if (!isSha(head) || !isSha(tree) || typeof dirty !== 'boolean') return undefined
   if (typeof worktree !== 'string' || worktree === '') return undefined
   if (typeof admission !== 'boolean' || typeof fullRequested !== 'boolean') return undefined
@@ -183,6 +190,7 @@ function parseCommon(value: Record<string, unknown>): AdmissionRunCommon | undef
     failedStep,
     startedAt,
     finishedAt,
+    ...(parsedEnvironment === undefined ? {} : { environment: parsedEnvironment }),
   }
 }
 
@@ -249,6 +257,7 @@ export interface AdmissionRunInputs {
   readonly base: string | null
   readonly startedAt: Date
   readonly finishedAt: Date
+  readonly environment?: EnvironmentHealing
   readonly origin:
     | { readonly mode: 'full' | 'affected' }
     | { readonly mode: 'resume'; readonly from: ResumeOrigin }
@@ -285,6 +294,7 @@ export function admissionRunFrom(inputs: AdmissionRunInputs): AdmissionRun {
     failedStep: failed?.name ?? null,
     startedAt: inputs.startedAt.toISOString(),
     finishedAt: inputs.finishedAt.toISOString(),
+    ...(inputs.environment === undefined ? {} : { environment: inputs.environment }),
   }
   return inputs.origin.mode === 'resume'
     ? { ...common, mode: 'resume', resumeFrom: inputs.origin.from }

@@ -50,6 +50,7 @@ import {
   writePlanFile,
   type PlanFile,
 } from './steps.ts'
+import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
 import { timestamp } from './support.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 import { admissionRequested, affectedMembers, dependentMembers } from './turbo.ts'
@@ -178,6 +179,8 @@ export interface CheckOptions {
 /** 可替换的依赖：步骤表。端到端测试在夹具仓库上换成假命令的表，别的照真。 */
 export interface CheckDependencies {
   readonly steps?: (inputs: StepInputs) => CheckStep[]
+  /** 环境自愈的外部动作（离线安装）；测试换成假的。 */
+  readonly environment?: EnvironmentIo
 }
 
 const STEP_INPUTS = {
@@ -303,6 +306,15 @@ export async function runCheck(
   }
   const caches = cacheStates(env, full)
 
+  // 准入先自检并自愈环境（environment.ts），在读任何现场之前：CRLF 工作副本让 dirty 判定与 format:check 失真，
+  // 依赖目录与锁文件不一致让构建与测试失真。离线安装失败时不跑任何步骤、不写记录，以 2 退出。
+  const healed = admission ? healEnvironment(root, dependencies.environment) : undefined
+  if (healed?.dependencies.status === 'install-failed') {
+    for (const line of describeHealing(healed)) console.error(line)
+    console.error('依赖目录与锁文件不一致且离线安装失败：不跑任何步骤，不写记录')
+    return 2
+  }
+
   // 基线按统一规则取：BASELINE，再取任务上下文的基线，再取 origin/main，最后取 main。规则拒绝时抛错，调用方以 2 退出。
   const { targetBase, source } = resolveBaseline(root, env['BASELINE'])
   env['BASELINE'] = targetBase
@@ -341,6 +353,7 @@ export async function runCheck(
       `基线 ${targetBase}（${source}）；本机 ${cores} 核；${startedAt.toISOString()}`,
   )
   if (admissionLog !== undefined) say(`准入日志：${relative(root, admissionLog)}`)
+  if (healed !== undefined) for (const line of describeHealing(healed)) say(line)
   if (resume !== undefined) for (const line of describeResume(resume, at.head)) say(line)
 
   // 先算影响面；算不出就在这里失败，不改判全量。
@@ -417,6 +430,7 @@ export async function runCheck(
           : plan.base.mergeBase,
     startedAt,
     finishedAt: new Date(),
+    ...(healed === undefined ? {} : { environment: healed }),
     origin,
   })
   const copies = [join(runDir, RUN_RECORD_FILE)]
