@@ -12,6 +12,10 @@ export function canonical(value: unknown): string {
     .map(([key, item]) => `${JSON.stringify(key)}:${canonical(item)}`)
     .join(',')}}`
 }
+/** The digest of an `Adoption` this strategy mints: 64 lowercase hex characters of SHA-256. */
+export function adoptionDigest(value: unknown): string {
+  return createHash('sha256').update(canonical(value)).digest('hex')
+}
 export function digest(value: unknown): string {
   return createHash('sha256').update(canonical(value)).digest('base64url')
 }

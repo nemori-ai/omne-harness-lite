@@ -5,7 +5,7 @@ import type * as M from '@omne-harness/model-contract'
 import type { Message } from '@omne-harness/message'
 import type { AssemblyInput, RequestLayers } from './values.js'
 import type { AssemblyPolicies } from './ports.js'
-import { digest } from './internal.js'
+import { adoptionDigest } from './internal.js'
 import { buildModelInput } from './model-input.js'
 import { compareHistorySequence } from './refs.js'
 export function assembledInput<P>(
@@ -24,7 +24,7 @@ export function assembledInput<P>(
       owner: 'request-context-contract',
       name: 'assembly',
       revision: '1',
-      digest: digest(input.identity.candidate),
+      digest: adoptionDigest(input.identity.candidate),
     },
   })
 }
