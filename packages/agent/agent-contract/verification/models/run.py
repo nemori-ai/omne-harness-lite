@@ -6,7 +6,8 @@ Usage, from the repository root, through the test slot:
     node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py [case ...]
     node scripts/with-test-slot.mjs python3 packages/agent/agent-contract/verification/models/run.py traces
 
-A case is the name of a configuration file without `.cfg`. Without a case every check case runs.
+A case is the name of a configuration file without `.cfg`. Without a case every control and every
+probe runs. The exit code is 0 when every control passed; a probe only records what TLC observed.
 `traces` runs the trace configurations and writes finishing-traces.json next to this file.
 See README.md for the judgment rules and ../formal-runs.md for the recorded runs.
 """
@@ -30,6 +31,7 @@ CHECKS = {
     'valid': None,
     'valid-cancel': None,
     'valid-coordinated': None,
+    'valid-keep-cancelled': None,
     'live': None,
     'live-cancel': None,
     'bad-skip-pending': 'NoEndWithPending',
@@ -39,10 +41,14 @@ CHECKS = {
     'bad-stale-judgment': 'NoStaleJudgment',
     'bad-rh-moves-pointer': 'PointerByJa',
     'bad-release-before-custody': 'OneCustodian',
+    'bad-release-while-issued': 'OneCustodian',
     'bad-recheck-before-recognize': 'ReplayOriginal',
     'bad-new-run-blocks-cancel': 'CancelSettles',
-    # Not a control: the reading of the memory Journals, which never replace a cancelled
-    # candidate. The run records whether that reading keeps CancelSettles (see README.md).
+}
+# Probes are not controls: each one records whether its property holds on a reading the owner has
+# not settled, and takes no part in the exit code. probe-keep-cancelled is the reading of the
+# memory Journals, which never replace a cancelled candidate (see README.md).
+PROBES = {
     'probe-keep-cancelled': 'CancelSettles',
 }
 # The liveness property is the only PROPERTY of its configurations; TLC's temporal report does not
@@ -123,6 +129,26 @@ def violated(text):
     if 'Temporal properties were violated' in text:
         found.append('temporal')
     return found
+
+
+def probe(case):
+    """Runs a probe and records what TLC observed: holds, violated, or did not finish."""
+    prop = PROBES[case]
+    result, text = tlc(case, [])
+    found = violated(text)
+    if result['timedOut'] or result['exitCode'] is None:
+        observed = 'did-not-finish'
+    elif result['exitCode'] == 0 and 'Model checking completed. No error has been found.' in text:
+        observed = 'holds'
+    elif found == ['temporal' if prop in TEMPORAL else prop]:
+        observed = 'violated'
+    else:
+        observed = 'unreadable'
+    result.update({'case': case, 'probe': True, 'property': prop,
+                   'configSha256': sha(ROOT / f'{case}.cfg'), 'violated': found, 'observed': observed,
+                   'tlcVersion': next((l for l in text.splitlines() if l.startswith('TLC2')), None),
+                   'stateStatistics': re.findall(r'^.*states generated.*$', text, re.M)})
+    return result
 
 
 def check(case):
@@ -271,20 +297,29 @@ def embed(document):
     DRIVER.write_text(head + generated, encoding='utf-8', newline='\n')
 
 
-cases = sys.argv[1:] or list(CHECKS)
+cases = sys.argv[1:] or [*CHECKS, *PROBES]
 if cases == ['traces']:
     traces()
 else:
-    if any(case not in CHECKS for case in cases):
+    if any(case not in CHECKS and case not in PROBES for case in cases):
         sys.exit('Unknown configuration')
     for case in cases:
-        result = check(case)
+        if case in PROBES:
+            result = probe(case)
+            shown = ('case', 'exitCode', 'property', 'violated', 'seconds', 'observed')
+        else:
+            result = check(case)
+            shown = ('case', 'exitCode', 'expected', 'violated', 'seconds', 'passed')
         metadata['results'].append(result)
         (run_dir / 'results.json').write_text(json.dumps(metadata, indent=2) + '\n')
-        print(json.dumps({k: result[k] for k in ('case', 'exitCode', 'expected', 'violated', 'seconds', 'passed')}), flush=True)
-        if not result['passed'] and result['timedOut']:
+        print(json.dumps({k: result[k] for k in shown}), flush=True)
+        if result['timedOut']:
             print('Stopped after a run that did not finish; the remaining cases were not executed.', flush=True)
             break
 (run_dir / 'results.json').write_text(json.dumps(metadata, indent=2) + '\n')
 print('Evidence: ' + str(run_dir), flush=True)
-sys.exit(0 if all(item['passed'] for item in metadata['results']) else 1)
+# Only the controls decide the exit code. A requested control that did not run is not a pass.
+controls = [item for item in metadata['results'] if not item.get('probe')]
+ran = {item['case'] for item in controls}
+missing = [case for case in cases if case in CHECKS and case not in ran]
+sys.exit(0 if not missing and all(item['passed'] for item in controls) else 1)
