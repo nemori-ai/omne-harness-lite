@@ -44,7 +44,22 @@
     "@omne-harness/tool-cordis-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/agent-context": "workspace:*",
     "@omne-harness/message": "workspace:*",
+    "@omne-harness/request-context": "workspace:*",
+    "@omne-harness/request-context-contract": "workspace:*",
+    "@omne-harness/request-context-cordis": "workspace:*",
+    "@omne-harness/request-context-cordis-contract": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/runtime-context-cordis": "workspace:*",
+    "@omne-harness/runtime-context-cordis-contract": "workspace:*",
+    "@omne-harness/session-adapters": "workspace:*",
+    "@omne-harness/session-contract": "workspace:*",
+    "@omne-harness/session-cordis": "workspace:*",
+    "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-storage-sql": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
