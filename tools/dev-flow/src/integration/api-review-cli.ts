@@ -11,14 +11,16 @@ import type {
   AdoptionVerifyEntry,
   AdoptionVerifyFinding,
   AdoptionVerifyReport,
+  DraftBundle,
   OwnerIdentityFact,
   RunExit,
 } from '../delivery/api-review-types.ts'
 import { OWNER_IDENTITY_PATH, parseOwnerIdentityManifest } from '../delivery/api-review-owners.ts'
 import { readCommentByUrl } from '../delivery/baseline.ts'
 import { runGhRead, type GhRead } from '../delivery/github-read.ts'
-import { draftCard, draftRi, type DraftBundle, type ReviewReport } from './api-review-draft.ts'
+import { draftCard, draftRi, type ReviewReport } from './api-review-draft.ts'
 import { checkMilestone, draftMilestone, type TrustedTarget } from './contract-baseline-review.ts'
+import { composeRunExit } from './contract-review.ts'
 import { exactTextBlob, git } from './git.ts'
 import { IntegrationError } from './parse.ts'
 import { taskStatus } from './sync.ts'
@@ -41,14 +43,6 @@ export type VerifyAdoptionResult = {
   summary: string
 }
 
-function exitOf(findings: readonly AdoptionVerifyFinding[]): RunExit {
-  let exit: RunExit = 0
-  for (const item of findings) {
-    if (ADOPTION_VERIFY_EXIT[item.code] === 2) return 2
-    exit = 1
-  }
-  return exit
-}
 const unknown = (lineId: string | null, detail: string): AdoptionVerifyFinding => ({
   code: 'adoption-verify-input-unknown',
   lineId,
@@ -144,7 +138,7 @@ export function verifyOwnerAdoption(input: {
       report.kind === 'unchanged'
         ? 0
         : report.kind === 'input-unknown'
-          ? exitOf(report.findings)
+          ? composeRunExit(report.findings, ADOPTION_VERIFY_EXIT)
           : report.exitCode
     const entries = report.kind === 'changed' ? report.entries : []
     const count = (change: string) => entries.filter(item => item.change === change).length
@@ -235,7 +229,7 @@ export function verifyOwnerAdoption(input: {
     mergeTree,
     entries,
     findings,
-    exitCode: exitOf(findings),
+    exitCode: composeRunExit(findings, ADOPTION_VERIFY_EXIT),
   })
 }
 

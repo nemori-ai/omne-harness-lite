@@ -29,31 +29,6 @@ import type {
   UnitInput,
 } from '../delivery/api-review-types.ts'
 
-export type {
-  Actor,
-  AdoptionDiagnostic,
-  ApiSide,
-  AuthorityPathPresence,
-  BindingInput,
-  CommentRef,
-  Comparison,
-  Enablement,
-  Finding,
-  Issue,
-  Json,
-  MemberResolution,
-  MilestonePredicates,
-  OwnerIdentityFact,
-  OwnerLineResolution,
-  Repository,
-  ReviewFailureCode,
-  RunExit,
-  Scope,
-  SnapshotFile,
-  SourcePr,
-  UnitInput,
-}
-
 type RepoPath = string
 type Commit = string
 
@@ -370,11 +345,17 @@ export function resolveMember(input: {
 // ---------------------------------------------------------------------------------------------
 // Exit composition (7.1)
 
-/** 2 if any finding exits 2, else 1 if any finding exists, else 0. A code outside the table is 2. */
-export function composeRunExit(findings: readonly Finding[]): RunExit {
+/**
+ * 2 if any finding exits 2, else 1 if any finding exists, else 0. A code outside the table is 2.
+ * The table is the review failure table unless the caller gives its own (verify-owner-adoption).
+ */
+export function composeRunExit<T extends { code: string }>(
+  findings: readonly T[],
+  table: Readonly<Record<string, 1 | 2>> = FAILURE_EXIT,
+): RunExit {
   let exit: RunExit = 0
   for (const item of findings) {
-    const mapped = Object.hasOwn(FAILURE_EXIT, item.code) ? FAILURE_EXIT[item.code] : 2
+    const mapped = Object.hasOwn(table, item.code) ? (table[item.code] ?? 2) : 2
     if (mapped === 2) return 2
     exit = 1
   }

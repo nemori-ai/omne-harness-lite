@@ -10,6 +10,7 @@ import {
 import { git, repository, requireAncestor } from '../integration/git.ts'
 import { IntegrationError, json } from '../integration/parse.ts'
 import type { SnapshotChange } from '../integration/ri-notes.ts'
+import type { MemberResolution, Json, ReviewFailureCode, RunExit } from './api-review-types.ts'
 import type { ContractChange } from './attributes.ts'
 import type { TaskBinding, TaskBindingV2 } from './binding.ts'
 import {
@@ -59,9 +60,9 @@ export type ContractCheck =
  * concerns. The exit code of each code is in `integration/contract-review.ts`.
  */
 export type SemanticFinding = {
-  code: string
+  code: ReviewFailureCode
   member: string | null
-  detail: unknown
+  detail: Json
   message: string
   remedy: string
 }
@@ -70,10 +71,10 @@ export type SemanticFinding = {
  * with a valid conclusion, the level that conclusion gives it.
  */
 export type CardSemantic = {
-  exit: 0 | 1 | 2
+  exit: RunExit
   rawExitCode: number | null
-  findings: { code: string; member: string | null; detail: unknown }[]
-  members: unknown[]
+  findings: { code: ReviewFailureCode; member: string | null; detail: Json }[]
+  members: MemberResolution[]
   levels: Record<string, 'additive' | 'breaking'>
 }
 export type CardReviewInput = {
@@ -370,7 +371,7 @@ function withSemanticLevels(run: DiffRun, levels: CardSemantic['levels']): DiffR
   }
 }
 const SEMANTIC_REMEDY =
-  '按 candidate-r4 第 7.1 节处置这个失败码：补全或更正记录与身份输入，不改申报去迎合结果。'
+  '按 docs/engineering/delivery.md#契约变更的语义复核 处置这个失败码：补全或更正记录与身份输入，不改申报去迎合结果。'
 function semanticFinding(item: CardSemantic['findings'][number]): SemanticFinding {
   return {
     ...item,

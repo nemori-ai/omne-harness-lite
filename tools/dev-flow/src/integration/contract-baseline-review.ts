@@ -38,7 +38,12 @@ import {
   type BaselineComment,
   type ContractBaseline,
 } from '../delivery/baseline.ts'
-import { GhReadError, REST_HEADERS, type GhRead } from '../delivery/github-read.ts'
+import {
+  GH_READ_TIMEOUT_MS,
+  GhReadError,
+  REST_HEADERS,
+  type GhRead,
+} from '../delivery/github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { InputError, record as asRecord, text as asText } from '../delivery/protocol.ts'
 import { checkEnablement, gitEnablementPorts } from './api-review-enablement.ts'
@@ -64,7 +69,6 @@ import { array, choice, IntegrationError, json, object, string } from './parse.t
 
 const POLICY_PATH = 'docs/engineering/integration-policy.json'
 const BASELINE_TIMEOUT_MS = 300_000
-const READ_TIMEOUT_MS = 15_000
 
 /** The trusted candidate and direct target of one run (candidate-r4.md 3). */
 export type TrustedTarget = { candidate: string; targetBase: string; targetBranch: string }
@@ -326,7 +330,7 @@ function observe(input: MilestoneInput): Observation {
         ...REST_HEADERS,
         `repos/${repository.name}/issues/${input.baselineIssue}`,
       ],
-      READ_TIMEOUT_MS,
+      GH_READ_TIMEOUT_MS,
     ),
     'baseline Issue',
   )

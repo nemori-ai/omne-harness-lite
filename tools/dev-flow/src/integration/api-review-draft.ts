@@ -24,7 +24,13 @@ import {
   type CardReviewInput,
   type CardSemantic,
 } from '../delivery/change-scope.ts'
-import { fetchIssueCard, GhReadError, REST_HEADERS, type GhRead } from '../delivery/github-read.ts'
+import {
+  fetchIssueCard,
+  GH_READ_TIMEOUT_MS,
+  GhReadError,
+  REST_HEADERS,
+  type GhRead,
+} from '../delivery/github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { InputError, record, text } from '../delivery/protocol.ts'
 import { taskWorkspace } from './context.ts'
@@ -43,24 +49,27 @@ import {
   memberSetFindings,
   resolveMember,
   sideSetFindings,
-  type AdoptionDiagnostic,
-  type ApiSide,
-  type BindingInput,
-  type Comparison,
-  type CommentRef,
-  type Enablement,
-  type Finding,
-  type Issue,
-  type Json,
-  type MemberResolution,
-  type OwnerIdentityFact,
-  type Repository,
-  type ReviewFailureCode,
-  type RunExit,
-  type Scope,
-  type SourcePr,
-  type UnitInput,
 } from './contract-review.ts'
+import type {
+  AdoptionDiagnostic,
+  ApiSide,
+  BindingInput,
+  CommentRef,
+  Comparison,
+  DraftBundle,
+  Enablement,
+  Finding,
+  Issue,
+  Json,
+  MemberResolution,
+  OwnerIdentityFact,
+  Repository,
+  ReviewFailureCode,
+  RunExit,
+  Scope,
+  SourcePr,
+  UnitInput,
+} from '../delivery/api-review-types.ts'
 import {
   contractApiCommand,
   parseDiffRun,
@@ -98,13 +107,6 @@ export type ReviewReport = {
   findings: Finding[]
   ignored: CommentRef[]
 }
-export type DraftBundle = {
-  schemaVersion: 1
-  kind: 'draft'
-  comparisons: Comparison[]
-  raw: { exitCode: number; stdoutSha256: string; report: Json }
-  facts: { observedAt: string; carrierIssue: Issue }
-}
 type Levels = Map<string, 'additive' | 'breaking'>
 type Outcome = {
   report: ReviewReport
@@ -114,7 +116,6 @@ type Outcome = {
   bundle: DraftBundle | null
 }
 
-const TIMEOUT_MS = 15_000
 const DIFF_TIMEOUT_MS = 120_000
 const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
 const asJson = (value: unknown): Json => value as Json
@@ -138,7 +139,7 @@ function knownFailure(error: unknown): string | undefined {
   return undefined
 }
 const get = (call: GhRead, path: string): unknown =>
-  call(['api', '--method', 'GET', ...REST_HEADERS, path], TIMEOUT_MS)
+  call(['api', '--method', 'GET', ...REST_HEADERS, path], GH_READ_TIMEOUT_MS)
 
 // ---------------------------------------------------------------------------------------------
 // Facts shared by the entries
