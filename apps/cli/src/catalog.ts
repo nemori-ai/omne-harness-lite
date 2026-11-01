@@ -1,4 +1,5 @@
 import type { Catalog, CommandSpec, DocumentedOption, FlagSpec } from './cli-types.ts'
+import { productionCommands } from './commands.ts'
 
 export type { Catalog, CommandSpec, DocumentedOption, FlagSpec }
 
@@ -19,10 +20,12 @@ export const productionCatalog: Catalog = defineCatalog({
     { token: '--help', usage: 'omne --help', result: 'help' },
     { token: '--version', usage: 'omne --version', result: 'version' },
   ],
-  commands: [],
+  commands: productionCommands,
   options: [
     { usage: '--home <directory>', summary: 'State directory. Overrides OMNE_HOME.' },
     { usage: 'OMNE_HOME', summary: 'State directory when --home is absent.' },
+    { usage: '--server <url>', summary: 'Server address. Overrides OMNE_SERVER.' },
+    { usage: 'OMNE_SERVER', summary: 'Server address when --server is absent.' },
   ],
   footer:
     'The default state directory is $HOME/.omne.\n--help and --version do not open or create a state directory.\n',
