@@ -462,6 +462,31 @@ describe('the timer of a stall limit is cleared when the exchange ends', () => {
     )
   })
 
+  it(
+    'and leaves no byte listener on a connection that goes back to the pool',
+    { tags: ['slow'] },
+    async () => {
+      await withScene(
+        res => {
+          res.writeHead(200)
+          res.end('complete')
+          return Promise.resolve()
+        },
+        async scene => {
+          const exchange = start(scene, await held(scene.resources))
+          const result = await exchange.result
+          const socket = latestSocket()
+          expect(socket.listenerCount('data')).toBeGreaterThan(0)
+          expect(await readToEnd(claimed(result))).toBe('complete')
+          await exchange.stopped
+          expect(Object.values(scene.resources.agent.freeSockets).flat()).toEqual([socket])
+          // A listener of the exchange left on a pooled connection would outlive the exchange.
+          expect(socket.listenerCount('data')).toBe(0)
+        },
+      )
+    },
+  )
+
   it('after a complete non-2xx body', { tags: ['slow'] }, async () => {
     await withScene(
       res => {
