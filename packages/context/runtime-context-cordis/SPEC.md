@@ -16,8 +16,8 @@
 4. 唤醒走机制的变化出口：插件装载时把 `onChange(scope, revision)` 交给工厂，回调里派发事件。派发走 `this.ctx.emit`，载荷是作用域引用与视图修订，不带块键。派发对象带 `Context.filter`，只到达在扩展 ctx 上以属性键 `scope` 标出该作用域引用、并在那里 `on` 的监听者。属性键 `scope` 由 [runtime-context-cordis-contract](../runtime-context-cordis-contract/SPEC.md) 定义。不建 fiber，不建 isolate（[IC-17](../../../docs/architecture/cordis-integration-conventions.md#ic-17)）。监听者同步执行，不返回 Promise；派发放在 `try` 中，监听者失败只记录诊断（[IC-12](../../../docs/architecture/cordis-integration-conventions.md#ic-12)）。
 5. 本阶段没有耐久存储端口。持有者在服务之外保存注册与步提交；`persisted` 的供给块由生产者重新发布。服务重启后，在生产者重新发布之前这些块读到缺项。本成员不把这写成失败，也不用旧值填充。将来有存储端口时，缺席行为保持同样含义：端口不在场即按缺项处理，不让服务加载失败。
 6. 撤除顺序：插件卸载时先拒绝新的 `bind`、注册、登记与签发，再使全部绑定读者结束，取消在途的来源调用与生产者回调，在配置的超时内等在途读取结算，最后关闭机制实例并释放表。撤除不撤回已交给持有者的变化材料，也不撤回任何外部效果。
-7a. 插件 `inject` 构造输入键 `runtimeContextTrust`（由 runtime-context-cordis-contract 定义），只取出 `authority` 与 `bindings`；键缺席时插件停在 PENDING，不从插件配置取信任对象。子树可见性是装配位置，不是封装保证。
 7. 本成员不导入任何上层领域的契约。租户、作用域、资格全部随操作参数进入（[IC-18](../../../docs/architecture/cordis-integration-conventions.md#ic-18)）。
+8. 插件 `inject` 构造输入键 `runtimeContextTrust`（由 runtime-context-cordis-contract 定义），只取出 `authority` 与 `bindings`；键缺席时插件停在 PENDING，不从插件配置取信任对象。子树可见性是装配位置，不是封装保证。
 
 ## 所有权、失败与生命周期
 
