@@ -47,7 +47,7 @@
 | --- | --- | --- | --- | --- | --- | --- |
 | [AD-01](#ad-01) | Agent 提交参加者 | 入站 | 无；参加者登记见 AD-01 | `coordinator` | Session 自有日志提交内的 CallerCommit 与只读核对 | `./testing` 内存提供者已实现四种 CallerCommit 与 open、submit、attach、tryFinish 的只读核对。attach 按 [PA-01](../session-contract/SPEC.md#pa-01) 第 3 条核对普通推进与取消收束，取消收束含 SE16 条件。tryFinish 含 [PA-02](../session-contract/SPEC.md#pa-02) 的取消分支。judge-cancellation 的判断输入带 Session 的参加者事实。生产提供者经 `session` 参加者在同一次存储提交里核对与参加（[生产提供者的实现现状](#生产提供者的实现现状)）；按 Cordis 插件登记未交付 |
 | [AD-02](#ad-02) | Agent 同日志解释 | 入站 | 无 | `coordinator` | AgentJournal.load；同提供者 output.read/events | `./testing` 内存提供者已实现；生产插件未交付 |
-| [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | 无 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 可登记 |
+| [AD-03](#ad-03) | Runtime Context 持有者与 `session.modes` 生产者 | 入站 | `runtimeContextReaderEligibility`（K-RC），由持有者插件提供 | `coordinator`；回放子插件为 `reader` | `prepareRegistration`、`issueEligibility`、`revokeEligibility`、`applyCommit`、`registerProducer`、`bind`、`changes`、`diffForReminder` | 回放子插件与持有者插件已实现（`src/cordis/context-holder.ts`），在真实 Cordis 上对 Runtime Context 内存替身验证。`replayFacts` 交给 `createSessionRuntimeContextTrust`。条目到提交输入的翻译协议待 AD-12 交付。`session.modes` 生产者与变化提醒子插件未交付。`./cordis` 导出由集成方合入。见 [AD-03 的实现现状](#ad-03-的实现现状) |
 | [AD-04](#ad-04) | Request Context 历史来源 | 入站 | 无 | 历史源子插件为 `reader`；下界子插件为 `coordinator` | HistorySource.read/compactionContext；ContextSourceRegistry.register/replace | 来源材料未齐时不登记；生产插件未交付 |
 | [AD-05](#ad-05) | Model 日志消费适配 | 入站 | 无 | `coordinator` | Agent Journal 的结果与账目读取 | `./testing` 内存提供者已实现；Model ACK 到达未决 |
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；`inject` `sessionAccessCheck`、`storage` 与受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现。生产提供者 `createSessionLogJournal` 按会话给出三个端口。提供 `agentJournal` 的插件 `SessionLogAgentJournalProvider` 按租户与 execution 路由到会话，经 `./cordis` 导出。提供 `agentJournalEntries` 与 `agentMaterials` 的插件未交付 |
@@ -299,6 +299,34 @@ finishRun 仍核原目标 Run、expected、恢复者资格和收束依据。PM-0
 注册决定由 Session 提交：原初始化计划内的增加由 create 或 completeInitialization，之后由 change。本插件是调用 `applyCommit` 的唯一一方，AD-12 只准备材料，不调用 `applyCommit`。本插件的回放子插件监听 `session-cordis-contract/committed`，事件种类含 SE07 时以 `reader` 经历史读取取出该批注册，沿每份决定的原 CommitRef 与完整输入调用 `applyCommit`，批内多个注册按持久顺序应用。`applyCommit` 是 Runtime Context 持有者面的操作，不调用 `session`，所以回放子插件调用 `session` 只用 `reader` 一种调用方类（[AD-00](#ad-00) 第 1 条）；持有者面由它自己注入的 `runtimeContext` 取得，不把注册交回主插件应用。提供者换代时子插件按自己的 `inject` 重跑，重跑后的应用靠同值认回保持幂等。通知丢失时，下一次恢复会话（1a）的完整材料覆盖这些注册，或下一次 `applyCommit` 返回「顺序不符」并开始恢复会话。同值重复应用按原输入认回，所以注册不会重复生效。
 
 已知限制：注册从 Session 日志进入 Runtime Context 没有时间上界。通知丢失或监听者失败之后，如果没有新的 SE07、没有 Runtime Context 提供者换代、也没有重启，该批注册留在 Session 日志里而不进入 Runtime Context。依赖它的首个模型请求继续暂停，S3 的八个待办原因都不覆盖这一状态，没有调度器找回它。安全性成立：注册不会重复生效。触发条件：实测出现这种暂停，或 Runtime Context 拥有者按 NP-11 给出对账时点之后，为本插件加一个对账时点（例如签发资格时核对该 scope 未应用的 SE07），并写明上界。Session 返回 `commit-unknown` 时，本插件不调用 `applyCommit`，先按操作身份查询（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)）。
+
+##### AD-03 的实现现状
+
+`createSessionContextHolder`（`src/cordis/context-holder.ts`）给出两个插件和一个端口。两个插件都在 `runtimeContext` 或 `session` 缺席时停在 `PENDING`。
+
+1. 回放子插件 `session-ad03-replay` 注入 `runtimeContext`（不带 intercept 配置）与 `session: { caller: 'reader' }`。它是唯一调用 `applyCommit` 的一方。
+   - `committed` 通知的种类含翻译协议列出的种类时，它以 `reader` 前向读完该会话的上下文记录，按日志顺序分到各作用域。
+   - 本代次没有恢复过的作用域，先做第 1a 项的恢复会话。through 取该作用域的最后一个提交。材料按第 1a 项第 2 步构造，只含有步提交的 checkpointed 块。块被移除之前的步提交，不算作重新增加之后的块的步提交。
+   - 已恢复的作用域，按原 CommitRef 与完整输入，逐条对尚未覆盖的记录调用 `applyCommit`。记录包括 SE07、步提交与作用域结束。
+   - `out-of-order` 与 `replay-incomplete` 开始一个取代当前会话的恢复会话。恢复没有完成时，下一次通知或下一次签发之前再恢复，并取代没有完成的那个会话。
+2. 持有者插件 `session-ad03` 注入 `runtimeContext` 与 `session: { caller: 'coordinator' }`，提供 K-RC `runtimeContextReaderEligibility`。`current` 的政策如下：
+   - 先核作用域的租户。租户不符时答 `refused`，不读会话，也不签发。
+   - 本插件没有见过的作用域答 `unavailable`。恢复没有完成时答 `unavailable`。作用域已经结束时答 `absent`。
+   - 同一主体、消费者类与作用域已有资格，并且作用域的恢复与注册修订都没有变时，再交出这份资格。
+   - 否则当场签发。块键集合是该消费者类不带翻译的绑定的块键，需要绑定集合是它带翻译的绑定。两者都为空时答 `absent`。同一次恢复内的重签取代旧资格。旧资格属于更早的恢复时，`beginReplay` 已使它失效，所以不取代它。
+   - 持有者权威拒绝签发时答 `refused`。Runtime Context 不可用或未知时，原样答 `unavailable` 或 `unknown`。
+3. `replayFacts.stepCommittedBlocks` 交给 `createSessionRuntimeContextTrust`。它重新读该会话的上下文记录，截到 through，答最终注册中有步提交的 checkpointed 块。through 不在日志中时答 `unknown`。没见过的作用域、读不完的历史、翻译缺陷和停止的回放子插件，都答 `unavailable`。
+
+两个插件对 `session` 和持有者面都使用装配交入的会话协调者主体。入参 `coordinator` 与 AD-14 的是同一个端口，取值按 #978 的答复。插件只保存派生物：作用域到会话的索引（进程内，有上界，跨代次保留）、每个作用域的恢复状态（回放子插件的 fiber）和已签发的资格（持有者插件的 fiber）。读取或翻译失败时，插件报告不可用，不把它当作空材料或业务拒绝。
+
+已知缺口：
+
+- 条目到 `CommitInput` 的翻译是 AD-12 的已采用翻译协议，尚未交付。插件从入参 `translation` 取得它。协议交付之前，装配没有它的真实提供者。
+- 作用域到会话的索引只从 `committed` 通知建立。进程重启之后，一个会话在下一次提交之前，K-RC 对它的作用域答 `unavailable`。
+- `session.modes` 生产者、变化提醒子插件、第 1b 项、第 1c 项、归档之后撤销资格，以及签发时核对未应用的 SE07，都尚未交付。持有者插件按上表注入 `session` 的 `coordinator` 配置，但本版不调用它。
+- 每次同步都重读该会话的全部上下文记录，不按游标增量读取。
+
+验证：[tests/context-holder.spec.ts](tests/context-holder.spec.ts) 在真实 Cordis 4.0.4 上运行。Runtime Context 是 runtime-context-contract 的内存替身。信任端口是 C18 的 `createSessionRuntimeContextTrust` 加本插件的 `replayFacts`。翻译协议与会话服务是脚本替身。没有对 runtime-context-cordis 真件、真实会话服务或真实存储运行。
 
 <a id="ad-04"></a>
 
