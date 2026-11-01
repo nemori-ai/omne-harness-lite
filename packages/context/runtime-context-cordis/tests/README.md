@@ -16,12 +16,8 @@ SPEC 性质或验证义务变化时，同步对应测试与本目录 `index.md`�
 
 ## 本包事实
 
-现在有三个测试文件：
-
-- [public-entry.spec.ts](public-entry.spec.ts)：断言根入口没有导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口只导出 `createRuntimeContextPlugin`。
-- [trust-inject.spec.ts](trust-inject.spec.ts)：信任键缺席时插件停在 PENDING、只取得两个原端口、提供者撤除后重跑。
+测试文件清单见 [index.md](index.md)。[conformance.spec.ts](conformance.spec.ts) 经服务跑整套契约套件，[lifecycle.spec.ts](lifecycle.spec.ts) 覆盖 Cordis 生命周期，[support.ts](support.ts) 是共用辅助。用例经包名导入 `dist`，改源码后先构建 runtime-context 与本成员。
 
 没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/runtime-context-cordis`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：[Cordis 说明的验证义务](../docs/cordis.md#验证义务)列出的六项都没有测试，随实现进入。具名维护者由负责人指定。
+当前缺口：真实消费者与生产者的端到端组合不在本目录。具名维护者由负责人指定。
