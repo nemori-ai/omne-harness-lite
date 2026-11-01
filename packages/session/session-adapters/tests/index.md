@@ -11,6 +11,7 @@
 - [entries-conformance.spec.ts](entries-conformance.spec.ts)：用 agent-contract 的 entries 与 received 契约测试件检查内存提供者
 - [session-log-journal.spec.ts](session-log-journal.spec.ts)：生产 Journal 提供者在 node:sqlite 替身上的首次共同发布、解释提交、只读核对冲突、P6、丢答复认回、受理前拒绝、被丢弃与未定的写入、无操作身份的写入、竞争、跨租户与未登记租户
 - [agent-journal-provider.spec.ts](agent-journal-provider.spec.ts)：`agentJournal` 插件在真实 Cordis 上的装载、停止与按 execution 路由；agent-contract 的核心 Journal 套件经插件与直接用 `forSession` 各运行一遍，唯一的提供者缺口按断言固定；真实 sqlite-provider 上的路由（慢层）
+- [drive-source-basis.spec.ts](drive-source-basis.spec.ts)：AD-14 在真实 Cordis 上交的 `AcceptedInput` 原样到达会话日志 Journal 的只读核对：invoke 以 SE13 回执、submit 以 SE11 回执成立；输入的 origin 或另一输入的回执被拒，不写记录
 - [session-log-journal-custody.spec.ts](session-log-journal-custody.spec.ts)：保管链在根 recordHandoff 的存储结果未定时的行为：同一 H 的另一根仍被拒；接管栅栏使它排除后，直接后继接上保管链
 - [create-depth.spec.ts](create-depth.spec.ts)：带首条输入的 Session `create` 提交嵌套 69 层，不带的 48 层，解释真实 provider 场景为何要把 `maxJsonDepth` 设在 64 以上
 - [session-log-journal-real.spec.ts](session-log-journal-real.spec.ts)：生产 Journal 提供者在真实 sqlite-provider 上的首次共同发布、核对冲突回滚、清单摘要不符与解释提交（慢层）

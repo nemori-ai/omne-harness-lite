@@ -17,7 +17,7 @@ import type { JsonValue } from '@omne-harness/sql-contract'
 import type { ParticipantPort, ParticipantReply } from '@omne-harness/sql-contract/worker'
 import type { SessionAdmittedInput, SessionCheck } from '../participants.ts'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
-import { big, oneRow, rowsOf, text } from './support.ts'
+import { big, oneRow, rowsOf, text, type Row } from './support.ts'
 
 const OWNER = '@omne-harness/session-storage-sql'
 const MAX_ROWS = 10_000
@@ -57,15 +57,17 @@ function planted(
     [tenant, session, ...kinds, BigInt(MAX_ROWS + 1)],
   )
   if (rows.length > MAX_ROWS) return 'too-many'
-  return rows.map(row => {
-    const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
-    return {
-      position: text(row['position']),
-      revision: text(row['revision']),
-      entry,
-      data: (plainOf(entry.payload) ?? {}) as Record<string, unknown>,
-    }
-  })
+  return rows.map(plantedRow)
+}
+
+function plantedRow(row: Row): Planted {
+  const entry = decodeValue(JSON.parse(text(row['entry'])) as JsonValue) as HistoryEntry
+  return {
+    position: text(row['position']),
+    revision: text(row['revision']),
+    entry,
+    data: (plainOf(entry.payload) ?? {}) as Record<string, unknown>,
+  }
 }
 
 /** The batch receipts of one revision: the grant a Session commit gave out is one of their sources. */
@@ -85,6 +87,33 @@ function batchSources(
     }
     return receipt.source === undefined ? [] : [receipt.source]
   })
+}
+
+/** The evidence of one committed entry, as the history index gives it out. */
+function entryEvidence(tenant: string, session: string, row: Planted): DurableEvidence {
+  return {
+    owner: OWNER,
+    record: `${tenant}/${session}/entry/${row.position}`,
+    revision: row.revision,
+    digest: `sha256:${sha256(canonicalText(row.entry))}`,
+  }
+}
+
+/**
+ * Whether `receipt` is a receipt of the committed entry `row`: the source of the receipt of the
+ * batch that wrote it, or the evidence of the entry itself.
+ */
+function receiptNames(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  row: Planted,
+  receipt: DurableEvidence,
+): boolean {
+  return (
+    same(entryEvidence(tenant, session, row), receipt) ||
+    batchSources(port, tenant, session, row.revision).some(source => same(source, receipt))
+  )
 }
 
 /**
@@ -112,22 +141,55 @@ function grantAttempt(
     if (runs.get(run) !== execution) continue
     const attempt = { run, attempt: String(row.data['attempt']), revision: row.revision }
     attempts.push(attempt)
-    const evidence: DurableEvidence = {
-      owner: OWNER,
-      record: `${tenant}/${session}/entry/${row.position}`,
-      revision: row.revision,
-      digest: `sha256:${sha256(canonicalText(row.entry))}`,
-    }
-    if (
-      same(evidence, grant) ||
-      batchSources(port, tenant, session, row.revision).some(source => same(source, grant))
-    )
-      found = attempt
+    if (receiptNames(port, tenant, session, row, grant)) found = attempt
   }
   return { found, attempts }
 }
 
-function admittedMatches(
+/**
+ * The source check of PA-01 items 1 and 2. The source basis is a receipt of a committed entry of
+ * this session: for `open` the SE13 (`run.started`) of the execution, whose first input is the
+ * initial input; for `submit` the SE11 (`intake.routed`) of the input. It is never compared with
+ * the origin of the input. The message is the one Session admitted for the input.
+ *
+ * Both forms of a receipt carry the revision of the entry, so only the entries of that revision
+ * are read; the full comparison then decides, and a receipt with another revision names nothing.
+ * The rows of one revision are one batch, so the read bound is not reached in practice; past it
+ * the check fails rather than judging on part of the rows.
+ */
+function sourceHolds(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  check: Extract<SessionCheck, { kind: 'open' | 'submit' }>,
+): boolean | 'too-many' {
+  const value = check.kind === 'open' ? check.initial : check.value
+  // `origin` of the checked input carries the source basis of the Agent's AcceptedInput.
+  const source = value.origin
+  // The facts come from the committer: a source without a decimal revision names no entry.
+  const revision = (source as Partial<DurableEvidence> | null)?.revision
+  if (typeof revision !== 'string' || !/^\d+$/.test(revision)) return false
+  const kind = check.kind === 'open' ? 'run.started' : 'intake.routed'
+  const records = (row: Planted) =>
+    check.kind === 'open'
+      ? String(row.data['execution']) === check.execution &&
+        String(row.data['first']) === value.input
+      : String(row.data['input']) === value.input
+  const rows = rowsOf(
+    port,
+    `SELECT position, revision, entry FROM sl_entry
+      WHERE tenant = ? AND session = ? AND kind = ? AND revision = ? ORDER BY position LIMIT ?`,
+    [tenant, session, kind, BigInt(revision), BigInt(MAX_ROWS + 1)],
+  )
+  if (rows.length > MAX_ROWS) return 'too-many'
+  const named = rows
+    .map(plantedRow)
+    .some(row => records(row) && receiptNames(port, tenant, session, row, source))
+  return named && admittedMessage(port, tenant, session, value)
+}
+
+/** Whether Session admitted `value.input` in this session with this message. */
+function admittedMessage(
   port: ParticipantPort,
   tenant: string,
   session: string,
@@ -140,7 +202,7 @@ function admittedMatches(
   )
   if (row === undefined) return false
   const admitted = decodeValue(JSON.parse(text(row['value'])) as JsonValue) as SessionAdmittedInput
-  return same(admitted.origin, value.origin) && same(admitted.message, value.message)
+  return same(admitted.message, value.message)
 }
 
 /** The revision of the batch that wrote the SE26 of `terminal`, and the control that asked for it. */
@@ -235,15 +297,18 @@ function runCheck(port: ParticipantPort, check: SessionCheck): ParticipantReply 
   const snapshot = decodeValue(JSON.parse(text(state['snapshot'])) as JsonValue) as WorkSnapshot
   const scope = { tenant, session, execution }
   switch (check.kind) {
-    case 'open':
-      if (!admittedMatches(port, tenant, session, check.initial))
-        return stopped({ kind: 'denied', action: 'open' })
+    case 'open': {
+      const source = sourceHolds(port, tenant, session, check)
+      if (source === 'too-many') return tooMany()
+      if (!source) return stopped({ kind: 'denied', action: 'open' })
       return grantCheck(port, scope, snapshot, check.grant, 'open')
+    }
     case 'attach':
       return grantCheck(port, scope, snapshot, check.grant, 'attach')
     case 'submit': {
-      if (!admittedMatches(port, tenant, session, check.value))
-        return stopped({ kind: 'denied', action: 'submit' })
+      const source = sourceHolds(port, tenant, session, check)
+      if (source === 'too-many') return tooMany()
+      if (!source) return stopped({ kind: 'denied', action: 'submit' })
       const run = snapshot.run
       if (run.kind === 'terminal') return stopped({ kind: 'terminal', terminal: run.terminal })
       if (run.kind !== 'active') return stopped({ kind: 'stale-advance', current: null })
