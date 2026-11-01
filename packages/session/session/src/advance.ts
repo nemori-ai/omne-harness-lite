@@ -96,11 +96,16 @@ export function createAdvance<P>(
     unknownTo(ref, answer, () => handOver(ref, started, receipt))
   }
 
-  /** PM-02: the first input refused by the message admission closes the Run with a bounded failure. */
+  /**
+   * PM-02: the first input refused by the message admission closes the Run with a bounded failure.
+   * `finishRun` carries the revision this step read; when another writer moved the tail meanwhile it
+   * answers `changed`, and the step reads again and retries up to `command.retriesOnChanged` times.
+   */
   const closeRefused = async (
     ref: SessionRef,
     started: StartedRun,
     rejection: DurableEvidence,
+    changes = 0,
   ): Promise<void> => {
     const snapshot = await as('coordinator', ref, principal =>
       coordinator.readWork({ principal, ...ref }),
@@ -119,6 +124,12 @@ export function createAdvance<P>(
         bounded,
       }),
     )
+    if (
+      'failure' in answer &&
+      answer.failure.kind === 'changed' &&
+      changes < policy.command.retriesOnChanged
+    )
+      return closeRefused(ref, started, rejection, changes + 1)
     unknownTo(ref, answer, () => closeRefused(ref, started, rejection))
   }
 

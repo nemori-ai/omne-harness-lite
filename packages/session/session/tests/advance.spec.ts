@@ -188,6 +188,31 @@ describe('S1 and C2: a commit that leaves a startable input opens the Run', () =
     if (snapshot.run.kind !== 'terminal') throw new Error('no terminal')
     expect(snapshot.run.terminal.outcome).toBe('failed')
   })
+
+  it('a bounded close whose read revision went stale reads again and still closes the Run (PM-02)', async () => {
+    const h = await service()
+    await h.create()
+    h.drive.invoke = () =>
+      Promise.resolve(
+        fail({ kind: 'invalid' as const, reason: 'refused', rejection: evidence('agent/refused') }),
+      )
+    let moved = false
+    h.view.onCommit(async (input, next) => {
+      if (input.command.kind === 'finishRun' && !moved) {
+        moved = true
+        await h.accept('input-2')
+      }
+      return next()
+    })
+    await h.accept('input-1')
+    await vi.waitFor(async () => {
+      expect((await read(h)).run.kind).toBe('terminal')
+    })
+    expect(moved).toBe(true)
+    const snapshot = await read(h)
+    if (snapshot.run.kind !== 'terminal') throw new Error('no terminal')
+    expect(snapshot.run.terminal.outcome).toBe('failed')
+  })
 })
 
 describe('S4: an unknown commit is resolved with the same identity', () => {
