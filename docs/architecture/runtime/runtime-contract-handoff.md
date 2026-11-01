@@ -41,22 +41,25 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 | `query-create-session` | `SessionWork.queryOperation` | `intake` | 同一派生的创建操作身份 |
 | `send-input` | `SessionWork.accept`，普通输入 | `intake` | 派生的受理操作身份与 `InputId` |
 | `query-send-input` | `SessionWork.queryOperation` | `intake` | 同一派生的受理操作身份 |
+| `cancel-run` | `SessionWork.cancelRun` | `intake` | 派生的控制操作身份 |
+| `stop-call` | `SessionWork.stopCall` | `intake` | 派生的控制操作身份，与 `cancel-run` 共用同一冲突域 |
 | `read-history` | `SessionHistory.begin`（`from` 为 null）、`next` | `reader` | 只读 |
 
 服务端接入是这些调用的唯一调用方。SDK 只编码请求、读取回复，不直接调用 Session。
 
 #### 派生身份
 
-服务端接入从调用者的标识确定性地派生 Session 所需的身份，认回不需要另存映射。每个身份取下表字符串数组的 SHA-256。数组按不带 replacer 与缩进的 `JSON.stringify` 编成文本，摘要输入是该文本的 UTF-8 字节，输出写成小写十六进制：
+服务端接入从调用者的标识确定性地派生 Session 所需的身份，认回不需要另存映射。每个身份取下表字符串数组的 SHA-256。数组按不带 replacer 与缩进的 `JSON.stringify` 编成文本，摘要输入是该文本的 UTF-8 字节，输出写成小写十六进制。标「`sop_`」的三行是操作身份，在摘要前加 `sop_` 前缀，由 session-contract 的 `deriveIngressOperation(族, 字段)` 给出：数组首项是 `INGRESS_FAMILIES` 的族文本，其后是字段。三个族文本 `session-public/1-control`、`session-public/1-accept`、`session-public/1-create` 互不相交：
 
 | 身份 | 数组 |
 | --- | --- |
 | 会话标识 | `["session-public/1:session", 租户文本, createCallId]` |
-| 创建操作身份 | `["session-public/1:create", 租户文本, createCallId]` |
-| 受理操作身份 | `["session-public/1:accept", 租户文本, 会话文本, acceptId]` |
+| 创建操作身份（`sop_`） | `["session-public/1-create", 租户文本, createCallId]` |
+| 受理操作身份（`sop_`） | `["session-public/1-accept", 租户文本, 会话文本, acceptId]` |
+| 控制操作身份（`sop_`） | `["session-public/1-control", 登录文本, 租户文本, 会话文本, controlId]` |
 | `InputId` | `["session-public/1:input", 租户文本, 会话文本, inputId]` |
 
-租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。摘要到 Session 品牌值的转换由服务端接入完成，归 M2 的接入实现。
+租户文本是公开契约判断次序第 1 步解析出的 `TenantId` 再经 tenantCodec 编码的文本，不是调用者原文，所以同一租户只有一种写法；它含账号，不同账号的同名调用标识不会撞。会话文本就是会话标识摘要的十六进制文本。登录文本是这份登录的 loginStateCodec 文本，同一登录在同一会话内重试同一次中断，得到同一个控制操作身份。会话标识与 `InputId` 的摘要到 Session 品牌值的转换由服务端接入完成，归 M2 的接入实现。
 
 `create-session` 不公开 `SessionCreation` 的内部采用字段。服务端接入按部署装配把定义名解析为定义候选、执行类型与入口契约的采用，`modes` 取租户默认，`workspace` 为 null，`workspaceAttachment` 为 null，没有初始输入。定义名到采用的映射、`requiredIdentities` 与租户默认设置的来源都归[应用装配 #677](https://github.com/nemori-ai/omne-harness-lite/issues/677)。Session 比较的是解析后的 `SessionCreation`，所以部署映射变化会让原样再送得到 `conflict`（见[会话公开操作](../../../packages/access/public-contract/SPEC.md#会话公开操作)）。
 
@@ -80,7 +83,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 #### 传输
 
 - 进程内环回是骨架的承载：同一进程里 SDK 编码请求，服务端接入读取并回写字节。它证明消息格式、判断次序与结果映射。它不证明网络、并发连接、进程隔离或跨进程的主体来源。
-- HTTP 是结束标志的承载：同样的字节经 HTTP 承载（[补记](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6358025478)）。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
+- HTTP 是结束标志的承载：同样的字节经 HTTP 承载，承载映射见 `packages/access/public-contract/docs/http-binding.md`。它另外证明跨进程的请求与回复能完整往返。它不证明多实例部署、连接复用下的隔离或长连接观察。状态码不替代消息里的 `outcome`。
 
 #### 尚未提供
 
