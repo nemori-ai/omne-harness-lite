@@ -49,3 +49,25 @@ export {
   type ToolAvailabilityVerdict,
 } from './catalog.ts'
 export { createAbsentToolPorts, type AbsentToolPorts } from './absent-ports.ts'
+export {
+  createLocalToolLedgerGuards,
+  localArgumentLimits,
+  type LocalToolLedgerGuardsInput,
+  type ToolHostAccess,
+} from './ledger-guards.ts'
+export {
+  createLocalInvocationSource,
+  createLocalOperationIdentities,
+  INVOCATION_SOURCE_DOMAIN_KEY,
+  type LocalInvocationSource,
+  type LocalInvocationSourceInput,
+  type PrincipalCodec,
+  type PrincipalJson,
+} from './invocation-source.ts'
+export { createLocalGrantVerifiers, type LocalGrantScope } from './grant-verifiers.ts'
+export {
+  createLocalStartGuard,
+  PROGRAMMATIC_NOT_IN_M2,
+  type LocalStartGuardInput,
+} from './start-guard.ts'
+export { createLocalTextResults } from './text-results.ts'

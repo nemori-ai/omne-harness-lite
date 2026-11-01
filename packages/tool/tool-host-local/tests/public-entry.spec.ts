@@ -8,18 +8,27 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7) and the absent ports', async () => {
+it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7), the absent ports and the guard factories (TL-11)', async () => {
   const root = (await import('@omne-harness/tool-host-local')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
+    'INVOCATION_SOURCE_DOMAIN_KEY',
+    'PROGRAMMATIC_NOT_IN_M2',
     'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
     'createAbsentToolPorts',
+    'createLocalGrantVerifiers',
+    'createLocalInvocationSource',
+    'createLocalOperationIdentities',
     'createLocalScheduledEnvironment',
     'createLocalStartCoordinator',
+    'createLocalStartGuard',
+    'createLocalTextResults',
     'createLocalToolBindingRegistry',
     'createLocalToolCatalog',
     'createLocalToolClock',
     'createLocalToolCredentials',
+    'createLocalToolLedgerGuards',
+    'localArgumentLimits',
     'startCoordinatorAdoption',
   ])
 })
