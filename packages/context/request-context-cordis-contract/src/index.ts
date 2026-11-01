@@ -116,3 +116,4 @@ export type {
   ContextSourceRegistry,
   ContextRegistryOptions,
 } from '@omne-harness/request-context-contract'
+export type { RequestContextTrust } from './trust.js'

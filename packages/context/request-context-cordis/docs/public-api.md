@@ -15,16 +15,19 @@
 
 ### 现有导出
 
-两个入口现在都没有导出。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。[public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言两个入口的导出为空。
+| 定义 | 入口 | 种类 | 依据 |
+| --- | --- | --- | --- |
+| `RequestContextProvider` | `./cordis` | 类，`RequestContextService` 的具体子类，也是装配用的插件，不写服务键 | [SPEC 范围与依据](../SPEC.md#范围与依据)、[插件与服务](cordis.md#插件与服务) |
+| `RequestContextProviderOptions` | `./cordis` | 类型，策略与账目选项，由装配入口在受信代码里构造，不进插件树 JSON | 同上 |
+
+根入口 `src/index.ts` 只有模板标记，没有导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出，[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言 `./cordis` 的运行时导出只有 `RequestContextProvider`。
 
 ### 随实现进入的导出
 
-下表的内容由 SPEC 固定。名称与签名随实现进入。某项进入 `src/` 后，把它移到上一节，并同步导出测试。
+下表的内容由 SPEC 固定，名称与签名随实现进入。某项进入 `src/` 后，把它移到上一节，并同步导出测试。
 
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
-| `RequestContextService` 的具体子类 | `./cordis` | 类，不写服务键 | [SPEC 范围与依据](../SPEC.md#范围与依据)、[插件与服务](cordis.md#插件与服务) |
-| 插件 | `./cordis` | 装配用的插件导出 | 同上 |
 | 配置 Schema | `./cordis` | 静态 `Config`，Standard Schema。策略选择与参数、修剪阈值、缓存容量 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)、[配置与策略选择](cordis.md#配置与策略选择) |
 
 本成员不导出服务键常量。键常量只由服务定义成员导出（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。本成员不增补新事件。根入口不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。机制工厂只由 [request-context](../../request-context/docs/public-api.md) 导出，独立调用方从那里取。

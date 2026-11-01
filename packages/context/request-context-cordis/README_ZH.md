@@ -11,9 +11,9 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 
 状态：Service 实现成员，`draft`。采用依据是系统页的[成员与 Cordis 落位](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位)与 [SPEC](SPEC.md)。现在的实现情况如下：
 
-- 已实现：没有。`src/index.ts` 与 `src/cordis.ts` 只有模板标记，两个入口都没有导出。
-- 未实现：具体子类、插件、配置 Schema、贡献登记表。根入口保持为空。
-- 未验证：定义成员已有 Cordis 4.0.4 的 intercept 机制测试，读数尚未登记到共同 basis。SPEC 列出的验证义务都没有测试。本成员不宣称持久化或跨进程一致性。
+- 已实现：`src/cordis.ts` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类。插件必需信任键 `requestContextTrust`，在同一个 fiber 提供 `requestContext` 与 `contextAccountingInbox` 两个键。它实现了贡献登记、变化事件、`register`、`replace` 与 `assembly(target)`，撤除时关闭来源登记表。策略与账目选项由装配入口以插件选项交入。
+- 未实现：配置 Schema 校验、按配置选择策略、`notify('contributions', …)` 通知路径、经子 fiber 登记的两块生产者、重复装载检查。`src/index.ts` 仍只有模板标记，根入口没有导出。
+- 未验证：定义成员已有 Cordis 4.0.4 的 intercept 机制测试，读数尚未登记到共同 basis。`tests/provider.spec.ts` 只检查信任键、一个 fiber 两个键的寿命、经信任授权的登记与收件口。[Cordis 说明](docs/cordis.md#验证义务)的十项验证义务都没有完整覆盖它的测试。本成员不宣称持久化或跨进程一致性。
 - 经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组；操作组借用来源适配者经 `register` 为该目标登记的来源集合，每次调用时现取该作用域的贡献；目标没有登记时返回不可用。本插件只把贡献登记的变化经 `notify('contributions', …)` 交给来源登记表实例，不订阅别的变化。两块的生产者经子 fiber 可选依赖 Runtime Context。见 [Cordis 说明](docs/cordis.md#插件与服务)。
 
 现在没有应用装配本插件，也没有包依赖本成员。
@@ -25,11 +25,11 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 - `@omne-harness/request-context-cordis/cordis`：插件。应用装配者在插件树里加一行本插件并给出配置。
 - `@omne-harness/request-context-cordis`：不导出任何东西。不装配 Cordis 的调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂在 [request-context](../request-context/README_ZH.md)。
 
-贡献者与组装请求的调用方不导入本成员，它们经服务定义使用服务。装配行与独立使用见[使用与定位](docs/context.md#使用方式)。插件没有实现，现在没有可运行的示例。
+贡献者与组装请求的调用方不导入本成员，它们经服务定义使用服务。装配行与独立使用见[使用与定位](docs/context.md#使用方式)。`examples/` 为空，现在没有可运行的示例。
 
 ## 契约
 
-- 公开形状归 `src/`，现在为空。导出索引归[公开接口页](docs/public-api.md)。
+- 公开形状归 `src/`。`src/cordis.ts` 导出 `RequestContextProvider`，`src/index.ts` 没有导出。导出索引归[公开接口页](docs/public-api.md)。
 - 类型以外的行为归 [SPEC](SPEC.md)，性质 1 至 9。
 - 插件、配置与策略选择、isolate 绑定、贡献登记表、变化事件派发与撤除顺序归 [Cordis 说明](docs/cordis.md)。
 - 服务键、抽象类、intercept 配置、事件与策略选择的配置形状归 [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md)。
@@ -54,7 +54,7 @@ Request Context 的 Service 实现成员，`service-provider` 变体。
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-在本目录执行 `pnpm typecheck` 做类型检查。现有两个测试只断言两个入口没有导出，见 [tests/](tests/README.md)。SPEC 的八项验证义务随实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
+在本目录执行 `pnpm typecheck` 做类型检查。现有测试断言根入口没有导出、`./cordis` 只导出 `RequestContextProvider`，并检查上文列出的提供者行为，见 [tests/](tests/README.md)。Cordis 说明的十项验证义务随其余实现进入，其中一部分必须在真实 Cordis 上运行，见[验证义务](docs/cordis.md#验证义务)。持久化、跨进程一致性与端到端组合不在本成员。结构检查通过不表示行为已验证。
 
 ## 维护
 
@@ -77,8 +77,8 @@ docs/                     内部设计、公开使用与集成说明
 ├── public-api.md         导出入口与定义索引
 ├── context.md            装配、独立使用与定位
 └── cordis.md             插件、策略选择、isolate、登记表、事件、撤除与 IC 映射
-src/                      index.ts 与 cordis.ts，现在只有模板标记
-tests/                    两个入口测试，fixtures/ 现在为空
+src/                      cordis.ts 承载提供者，index.ts 只有模板标记
+tests/                    两个入口测试与 provider.spec.ts，fixtures/ 现在为空
 schema/                   现在为空，配置 Schema 写在 src/
 verification/             models/ 与 proofs/，现在为空
 adr/                      现在为空

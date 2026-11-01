@@ -16,4 +16,4 @@
 
 ## 本包事实
 
-现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员没有运行实现，独立验收要等插件进入 `./cordis` 后才有对象。验收依据是 SPEC 的[组合与验证](../SPEC.md#组合与验证)，Request Context 的 Cordis 集成在本成员这里验收。
+现在为空，没有可执行场景。包根没有 `vitest.acceptance.config.ts`，`package.json` 没有 `acceptance` 脚本。本成员只有基本实现，独立验收要等配置 Schema、策略选择与通知路径进入后才有完整对象。验收依据是 SPEC 的[组合与验证](../SPEC.md#组合与验证)，Request Context 的 Cordis 集成在本成员这里验收。

@@ -682,6 +682,9 @@ importers:
       '@omne-harness/message':
         specifier: workspace:*
         version: link:../../common/message
+      '@omne-harness/request-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../request-context-cordis-contract
       '@omne-harness/runtime-context-contract':
         specifier: workspace:*
         version: link:../runtime-context-contract
@@ -749,6 +752,15 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/request-context':
+        specifier: workspace:*
+        version: link:../request-context
+      '@omne-harness/request-context-contract':
+        specifier: workspace:*
+        version: link:../request-context-contract
+      '@omne-harness/request-context-cordis-contract':
+        specifier: workspace:*
+        version: link:../request-context-cordis-contract
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

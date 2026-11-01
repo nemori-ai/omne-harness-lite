@@ -97,6 +97,7 @@
 - `RepresentationResult` · 包 `@omne-harness/request-context-contract`
 - `RequestCandidate` · 包 `@omne-harness/request-context-contract`
 - `RequestContextRef` · 包 `@omne-harness/request-context-contract`
+- `RequestContextTrust` · `trust.d.ts`
 - `RequestLayers` · 包 `@omne-harness/request-context-contract`
 - `RequestPurpose` · 包 `@omne-harness/request-context-contract`
 - `RetainBudget` · 包 `@omne-harness/request-context-contract`
@@ -125,17 +126,30 @@
 
 ## 入口 `./cordis` · `cordis.d.ts`
 
+- `ContextAccountingInboxService` · `cordis.d.ts`
 - `RequestContextChangedPayload` · `cordis.d.ts`
 - `RequestContextIntercept` · `cordis.d.ts`
 - `RequestContextPolicySelection` · `cordis.d.ts`
 - `RequestContextService` · `cordis.d.ts`
+- `RequestContextTrustService` · `cordis.d.ts`
+- `contextAccountingInboxKey` · `cordis.d.ts`
 - `requestContextKey` · `cordis.d.ts`
+- `requestContextTrustKey` · `cordis.d.ts`
+
+## 入口 `./testing` · `testing/index.d.ts`
+
+- `RequestContextTrustCase` · `testing/index.d.ts`
+- `RequestContextTrustFixture` · `testing/index.d.ts`
+- `RequestContextTrustScript` · `testing/index.d.ts`
+- `createScriptedRequestContextTrust` · `testing/index.d.ts`
+- `requestContextTrustConformance` · `testing/index.d.ts`
 
 ## 声明文件 `cordis.d.ts`
 
 ```ts
 import { Service, type Context } from '@deepseek-ai/cordis';
-import type { AssemblyOperations, CompactionPolicy, ContextSourceRegistry, ContextTarget, PromptContributionRegistry, RepresentationPolicyConfig, ScopeRef } from '@omne-harness/request-context-contract';
+import type { AssemblyOperations, ContextAccountingInbox, CompactionPolicy, ContextSourceRegistry, ContextTarget, PromptContributionRegistry, RepresentationPolicyConfig, ScopeRef } from '@omne-harness/request-context-contract';
+import type { RequestContextTrust } from './trust.js';
 export type RequestContextIntercept = Readonly<{
     scope: ScopeRef | null;
 }>;
@@ -160,6 +174,20 @@ export declare abstract class RequestContextService<P> extends Service<RequestCo
     abstract assembly(target: ContextTarget): AssemblyOperations<P>;
 }
 export declare const requestContextKey = "requestContext";
+export declare abstract class RequestContextTrustService<P> extends Service implements RequestContextTrust<P> {
+    static readonly provide = "requestContextTrust";
+    constructor(ctx: Context);
+    abstract readonly principalBinding: RequestContextTrust<P>['principalBinding'];
+    abstract readonly registrationAuthority: RequestContextTrust<P>['registrationAuthority'];
+}
+export declare const requestContextTrustKey = "requestContextTrust";
+export declare abstract class ContextAccountingInboxService<P> extends Service implements ContextAccountingInbox<P> {
+    static readonly provide = "contextAccountingInbox";
+    constructor(ctx: Context);
+    abstract receive(...args: Parameters<ContextAccountingInbox<P>['receive']>): ReturnType<ContextAccountingInbox<P>['receive']>;
+    abstract usage(...args: Parameters<ContextAccountingInbox<P>['usage']>): ReturnType<ContextAccountingInbox<P>['usage']>;
+}
+export declare const contextAccountingInboxKey = "contextAccountingInbox";
 export type RequestContextChangedPayload = Readonly<{
     scope: ScopeRef | null;
     layerRevision: string;
@@ -168,6 +196,8 @@ export type RequestContextChangedPayload = Readonly<{
 declare module '@deepseek-ai/cordis' {
     interface Context {
         requestContext: RequestContextService<unknown>;
+        requestContextTrust: RequestContextTrustService<unknown>;
+        contextAccountingInbox: ContextAccountingInboxService<unknown>;
     }
     interface Events {
         'request-context-cordis-contract/changed'(scope: ScopeRef | null, layerRevision: string, registryGeneration: string): void;
@@ -179,4 +209,53 @@ declare module '@deepseek-ai/cordis' {
 
 ```ts
 export type { ScopeRef, ContextBlockKey, Path, Decoded, Decoder, ToolRoute, ToolDeclarationSet, ConversionIndex, RepresentationResult, ProjectedMessage, ProjectedHistory, HumanProjection, CompactionSettingsValue, WindowUsageValue, SystemPromptResult, Placement, PlacementInput, Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, PlanId, EpochId, BatchRef, PassageRef, RefKind, RefRejection, AssemblyPolicies, AssemblyOperations, PreparedInputKey, HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, RetainBudget, CompactionPolicy, CompactionPlanDraft, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, BudgetInput, ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, RequestPurpose, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, DeriveInput, AssemblyCall, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration, SourceRead, GroupSource, ContextGroupSources, AdoptedRequestSource, AdoptedRequestFact, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceDecision, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, } from '@omne-harness/request-context-contract';
+export type { RequestContextTrust } from './trust.js';
+```
+
+## 声明文件 `testing/index.d.ts`
+
+```ts
+import type { Access, Adoption, AssemblyPolicies, ContextSourceRegistry, ContextTarget, PrincipalKey, SourceDecision, SourceRead } from '@omne-harness/request-context-contract';
+import { createAssemblyFixture } from '@omne-harness/request-context-contract/testing';
+import type { RequestContextTrust } from '../trust.js';
+export type RequestContextTrustScript<P> = Readonly<{
+    keys: readonly Readonly<{
+        access: Access<P>;
+        result: SourceRead<PrincipalKey>;
+    }>[];
+    grants: readonly Readonly<{
+        access: Access<P>;
+        target: ContextTarget;
+        owner: Adoption;
+        action: 'register' | 'replace';
+        decision: SourceDecision;
+    }>[];
+}>;
+export declare function createScriptedRequestContextTrust<P>(script: RequestContextTrustScript<P>): RequestContextTrust<P>;
+export interface RequestContextTrustFixture<P> {
+    readonly tenants: readonly [
+        Tenant,
+        Tenant
+    ];
+    createRegistry(input: Readonly<{
+        trust: RequestContextTrust<P>;
+        policies: AssemblyPolicies;
+    }>): ContextSourceRegistry<P>;
+}
+export type RequestContextTrustCase = Readonly<{
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+type Fixture = ReturnType<typeof createAssemblyFixture>;
+type Tenant = Fixture['target']['tenant'];
+export declare function requestContextTrustConformance<P>(fixture: RequestContextTrustFixture<P>): readonly RequestContextTrustCase[];
+export {};
+```
+
+## 声明文件 `trust.d.ts`
+
+```ts
+import type { ContextRegistryOptions } from '@omne-harness/request-context-contract';
+export type RequestContextTrust<P> = Pick<ContextRegistryOptions<P>, 'principalBinding' | 'registrationAuthority'>;
 ```
