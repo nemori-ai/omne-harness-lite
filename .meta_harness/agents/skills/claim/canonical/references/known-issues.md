@@ -59,13 +59,22 @@ rm -rf "$stage"
 - Windows 宿主例外（2026-10-29 实测）：对经 `with-test-slot` 的后台长链（`bash → node → turbo → pnpm.cmd`）或它的兄弟任务运行 TaskStop，会关掉这一批进程共用的控制台。之后同一棵进程树里新起的 `cmd.exe`、`pnpm.cmd` 立即以 `-1073741502`（`0xC0000142`）失败，看起来像全部成员 0 秒失败。这时不改 turbo 或测试。要停这类长链，用 `taskkill //PID <pid> //T //F` 结束整棵进程树，然后读名额目录，确认被结束的进程留下的 `ticket-*` 与 `slot-*.lock` 已经失效或已被删除。目录与失效规则见 `scripts/README.md`「运行名额」。
 - Claude Code 会话会把 shell 的工作目录重置回会话的主工作目录。在某棵工作树里启动的会话，`cd` 到别的工作树不会保持。要在几棵树之间切换，从主检出根启动会话，或者每条命令都写绝对路径或 `git -C <树>`。
 
+- 合并目标分支或 `swap` 到新树之后，锁文件可能带来新依赖。不重装就跑准入，build 报模块无法解析（M2 波 0 有 2 次准入因此失败）。合并之后、准入之前，在该树运行 `pnpm install --offline --frozen-lockfile`，再运行 `git update-index --refresh`，然后确认 `git status --short` 为空。`swap` 先装依赖再合并时，合并后还要再装一次。
+- Windows 宿主上，已跟踪文件的工作副本可能是 CRLF，而索引是 LF。`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
+- 工具链准入修复的第二阶段（预检入口、环境自愈、失败用例定向重跑）合入之前，本机主检出有两份临时脚本做同样的事：`tmp/m2-reduce/wave0-swarm/scripts/prep-tree.sh <树>`（离线装依赖、刷新索引、修 CRLF 工作副本，并预检 `acceptance:lock`、`check:docs`、oxlint、`format:check`），`rerun-failed.sh <树> [check-run 目录]`（只重跑准入里失败用例所在的文件，再补跑没有开始的轻步骤）。第二阶段合入后，用工具里的入口，并删除本条。
 - Windows 宿主上，Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。
 - WSL 的 `/tmp` 在 WSL 重启后清空。要留作证据的复现材料放在主检出的 `tmp/` 下，不放 WSL 的 `/tmp`。
 - 子代理或派发者借用别的工作树里的工具运行时，那棵树正被写者改动，工具读到的是半改状态。借用前确认那棵树没有写者在改，规则见 `docs/engineering/workflow.md` D8。
 
 ## 卡与派发
 
-- 卡没有前置条件时，「交付条件」整节正文必须恰好是 `无`，不带句号。否则 `start` 报条件表无法建立完整引用。
+- 卡没有前置条件时，「交付条件」整节正文必须恰好是 `无`，不带句号。否则 `start` 报条件表无法建立完整引用。交付条件只能是条件表或 `无`，写成散文时派发被拒。
+- 条件表的每一行按机读格式写：目标列是 Issue 的完整 URL，判据列含「整项结果」四个字。目标写成卡号或判据缺这四个字，派发被拒（M2 波 0 的 #1010、#1011）。
+- 卡正文的每个字段行只出现一次。同一字段写两次，派发工具直接拒绝。
+- `contract: none` 不投影成标签，不用为它建 `contract:none` 标签。
+- 派发的 `post` 报 GitHub 读取失败时，先读回卡的评论数。没有新评论才重试，否则会发出两条派发评论。
+- 卡升新修订后要换新树：用 `worktree-cli.ts swap`。`swap` 要求旧树的提交已经在远端，先推送旧树的分支。
+- 旧卡升修订之前，删掉旧的开始条件与不再成立的 `blockedBy` 边，补齐「分支」「基线」等固定小节。否则派发的 dry-run 或 `bind` 失败。
 - 派发评论不可再改。编辑过的派发评论使 `start` 以 `unknown` 失败。要改派发内容时发新的派发。
 - 对一张卡运行派发命令时报 `deviation decision-kind-invalid`，或 `start` 报 `Task card has protocol deviations`：先查这张卡的评论里有没有不是交付决定、却写了「决定」列表字段的评论。规则见 `docs/engineering/delivery.md`「4. 接受、取消与重开」（P24）。
 - 卡不在 Project 中时，云端会话的 `start` 等 180 秒后以 `Delivery facts timed out` 失败。云端会话不能添加 Project item，先请有权限的人加。
@@ -77,7 +86,12 @@ rm -rf "$stage"
 - `pnpm run check` 开始时算一次计划文件，之后每步读计划时核对计划对应的提交与当前 HEAD。中途提交会让这次准入失败，只能重跑（P11）。
 - `test:triage` 不经过 turbo 的严格环境模式，可能把依赖环境的失败报成「隔离后稳定通过」。用常用命令里的 turbo 命令定向复现。
 - 对 `/` 或主目录运行搜索会拖慢准入。简报写明搜索范围是工作树。
-- 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。负载造成的超时先如实报告，写明当时自己有没有加负载。
+- 准入运行时，同一台机器上的其他负载会让有时限的用例超时（例如 5 秒时限），准入停在快层，只能整次重跑。准入期间不派会跑 vitest 的评审子代理，也不跑 metrics、mutation 或 profile（P12）。同一台机器上也不同时跑第二个准入：M2 波 0 两路准入并行时，单次准入从约 6 分钟拖到 25～40 分钟，4 个工具链用例超时。负载造成的超时先如实报告，写明当时自己有没有加负载。
+- 卡的 API 语义复核记录（attest）绑定候选 head。合并目标分支或任何新提交之后，旧记录失效，change-scope 拒绝。每次重新合并后重发 attest，再跑准入。前一张卡合入后，后一张只需再合并一次、task-sync、重发 attest，几分钟可以做完。
+- 只有 `Agent-Role` 为 `main` 或 `qa` 的提交能改 `acceptance/` 下的文件（`repo-toolchain.config.json` 的 `acceptanceLock`）。写者的提交改了它们，准入的验收锁拒绝。修正要改写个人分支历史：把验收改动移进 `Agent-Role: main` 的提交，写者的合并由主会话重做，改写前留备份分支，改写后核对新旧树逐字节相同。
+- 一张卡删除或搬迁正文、另一张卡改这份正文的入向链接时，两张卡单独都过不了 `check:docs`。建卡时把它们编进同一批次，在批次 head 上跑一次准入。
+- Claude Code 的后台命令最长运行 2 小时，到时被结束。长的变异批分段跑，每段的结果写文件。
+- 会话收工钩子按会话或整条分支汇总结构读数。跨卡时，它把别的卡的改动也算进来，写者会以为要交代这些改动。按文件归属分拣读数，只交代本卡的文件。
 - 同一用户的全部检出共用测试名额。工作树隔离不隔离名额，也不隔离机器的 CPU。起差分变异、`metrics --coverage` 这类长任务前，先看有没有人在排队。写者的检查长时间没有输出时，读名额的锁文件看是谁占着。方法见 `scripts/README.md`「运行名额」（P29）。
 - 本卡的提交碰过 `pnpm-lock.yaml` 时，普通的影响面计划把锁文件的差异按 importer 映射到受影响的成员。顶层的 `lockfileVersion`、`settings`、`overrides`、`patchedDependencies` 或 `catalogs` 有变化、锁文件解析失败，或有 `tools/test-runner/README_ZH.md`「影响面怎么算」列出的其他情形时，计划仍判全量，余下的 `metrics --coverage`、`test:affected` 与 `check` 都按全部成员跑。增量准入（`--resume-from`）里锁文件仍按全局路径处理，H1 之后碰过它就整次重跑，规则见同一文件「准入：运行记录、接续与证据核对」。
 - 计划判全量时，中间轮用不带 `--coverage` 的 `pnpm run metrics`，基线按 `review-code`「度量与差分变异的基线」判定：它不占名额，只给圈复杂度。CRAP 要覆盖率，留到最终 head 上跑。
