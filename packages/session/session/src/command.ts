@@ -244,6 +244,27 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       : null
   }
 
+  /**
+   * Steps 2 and 3: the authoritative read, then the early refusal. Null means go on. The caller's
+   * `expected` is its own assertion: it is never replaced by the revision just read. A tail that
+   * has moved on answers `changed` and commits nothing (SPEC CP-01 step 2); a state refusal comes
+   * first, in the order of `decide`.
+   */
+  const readAndRefuse = async (
+    view: SessionTransactionPort<P>,
+    access: SessionAccess<P>,
+    command: SessionCommand,
+  ): Promise<CommandAnswer | null> => {
+    const snapshot = await readSnapshot(view, access, command.kind)
+    if ('failure' in snapshot) return snapshot
+    const refusal = refusalOf(snapshot.ok, command)
+    if (refusal !== null) return fail(refusal)
+    const expected = expectedOf(command)
+    return expected !== undefined && expected !== snapshot.ok.revision
+      ? fail({ kind: 'changed', revision: snapshot.ok.revision })
+      : null
+  }
+
   /** Step 5: the commit through the view. A throw leaves the outcome unknown. */
   const commit = async (
     view: SessionTransactionPort<P>,
@@ -321,15 +342,8 @@ export function createCommandHandler<P>(input: CommandHandlerInput<P>): CommandH
       return 'failure' in recalled ? recalled : commit(view, access, command, recalled.ok)
     }
     if (command.kind !== 'create') {
-      const snapshot = await readSnapshot(view, access, command.kind)
-      if ('failure' in snapshot) return snapshot
-      const refusal = refusalOf(snapshot.ok, command)
-      if (refusal !== null) return fail(refusal)
-      // The caller's `expected` is its own assertion: it is never replaced by the revision just
-      // read. A tail that has moved on answers `changed` and commits nothing (SPEC CP-01 step 2).
-      const expected = expectedOf(command)
-      if (expected !== undefined && expected !== snapshot.ok.revision)
-        return fail({ kind: 'changed', revision: snapshot.ok.revision })
+      const early = await readAndRefuse(view, access, command)
+      if (early !== null) return early
     }
     const guards = await materials(access, command)
     if ('failure' in guards) return guards
