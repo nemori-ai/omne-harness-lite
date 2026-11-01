@@ -18,6 +18,7 @@ import type {
 import { OWNER_IDENTITY_PATH, parseOwnerIdentityManifest } from '../delivery/api-review-owners.ts'
 import { GhReadError, REST_HEADERS, runGhRead, type GhRead } from '../delivery/github-read.ts'
 import { record as asRecord, text as asText } from '../delivery/protocol.ts'
+import { draftCard, draftRi, type DraftBundle, type ReviewReport } from './api-review-draft.ts'
 import { checkMilestone, draftMilestone, type TrustedTarget } from './contract-baseline-review.ts'
 import { exactTextBlob, git } from './git.ts'
 import { IntegrationError } from './parse.ts'
@@ -304,19 +305,15 @@ function trustedFromContext(root: string): TrustedTarget {
   return { candidate: status.head, targetBase: status.targetBase, targetBranch: status.target.ref }
 }
 
-/**
- * Integration point of R3-5. `draft-card` and `draft-ri` call the functions that the card and RI
- * modules of R3-5 export. Until they are merged, these two stand-ins refuse with exit 2 and write
- * nothing, so no half draft can be signed.
- */
-export type DraftResult = { exit: RunExit; output: unknown }
-export type RangeDrafts = {
-  draftCard(input: { root: string; call: GhRead }): DraftResult
-  draftRi(input: { root: string; track: string; reviewIssue: number; call: GhRead }): DraftResult
-}
-export const rangeDrafts: RangeDrafts = {
-  draftCard: () => ({ exit: 2, output: { code: 'unavailable', message: 'draft-card needs R3-5' } }),
-  draftRi: () => ({ exit: 2, output: { code: 'unavailable', message: 'draft-ri needs R3-5' } }),
+/** Prints a draft and returns its exit: the bundle when the run produced one, the refusal otherwise. */
+function emitDraft(
+  name: string,
+  draft: { report: ReviewReport; bundle: DraftBundle | null },
+): number {
+  print(draft.bundle ?? { kind: 'draft-refused', findings: draft.report.findings })
+  process.stderr.write(`${name}: ${draft.report.exit} findings=${draft.report.findings.length}
+`)
+  return draft.report.exit
 }
 
 function main(args: readonly string[]): number {
@@ -325,20 +322,20 @@ function main(args: readonly string[]): number {
   switch (command) {
     case 'draft-card': {
       const root = resolve(options(rest, ['--root']).get('--root') ?? process.cwd())
-      const result = rangeDrafts.draftCard({ root, call: runGhRead })
-      print(result.output)
-      return result.exit
+      return emitDraft('draft-card', draftCard({ root, entry, call: runGhRead }))
     }
     case 'draft-ri': {
       const values = options(rest, ['--root', '--track', '--review-issue'])
-      const result = rangeDrafts.draftRi({
-        root: resolve(values.get('--root') ?? process.cwd()),
-        track: required(values, '--track'),
-        reviewIssue: issueNumber(required(values, '--review-issue'), '--review-issue'),
-        call: runGhRead,
-      })
-      print(result.output)
-      return result.exit
+      return emitDraft(
+        'draft-ri',
+        draftRi({
+          root: resolve(values.get('--root') ?? process.cwd()),
+          entry,
+          track: required(values, '--track'),
+          reviewIssue: issueNumber(required(values, '--review-issue'), '--review-issue'),
+          call: runGhRead,
+        }),
+      )
     }
     case 'draft-milestone': {
       const values = options(rest, ['--root', '--baseline-issue'])

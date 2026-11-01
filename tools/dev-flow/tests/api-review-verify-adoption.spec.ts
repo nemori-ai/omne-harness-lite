@@ -278,7 +278,7 @@ describe('api-review-cli command line', () => {
     for (const args of forms) expect(spawn(args, root).status, args.join(' ')).toBe(2)
   })
 
-  it('refuses draft-card and draft-ri until R3-5 is wired, with exit 2 and a reason', () => {
+  it('runs draft-card and draft-ri through the R3-5 functions and refuses an unbound root', () => {
     const root = temporary()
     const forms = [
       ['draft-card', '--root', root],
@@ -286,8 +286,8 @@ describe('api-review-cli command line', () => {
     ]
     for (const args of forms) {
       const result = spawn(args, root)
-      expect(result.status).toBe(2)
-      expect(JSON.parse(result.stdout)).toMatchObject({ code: 'unavailable' })
+      expect([1, 2], args.join(' ')).toContain(result.status)
+      expect(result.stdout + result.stderr).not.toContain('needs R3-5')
     }
   })
 })
