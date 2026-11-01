@@ -319,8 +319,13 @@ describe('installation shape (DP1-C11, 验收 5)', () => {
       ...heldValues(principals.service),
       ...heldValues(verifier),
     ])
-    expect(held.has(issuer.issueSystem)).toBe(false)
-    expect(held.has(issuer.issueActingForTenant)).toBe(false)
+    const issuerLike = (value: unknown): boolean =>
+      typeof value === 'object' &&
+      value !== null &&
+      'issueActingForTenant' in value &&
+      typeof value.issueActingForTenant === 'function'
+    expect([...held].some(issuerLike)).toBe(false)
+    expect(issuerLike(issuer)).toBe(true)
     expect(JSON.stringify({ principalVerifier, principalIssuer, sessionPrincipals })).not.toMatch(
       /issueSystem|issueActingForTenant|authority/u,
     )

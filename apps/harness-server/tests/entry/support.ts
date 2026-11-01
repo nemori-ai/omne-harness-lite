@@ -133,6 +133,8 @@ export function heldValues(start: unknown): Set<unknown> {
     if (typeof current !== 'object' && typeof current !== 'function') continue
     if (current === null || visited.has(current)) continue
     visited.add(current)
+    // 不进 Cordis 上下文：服务的 `ctx` 连着整棵树，那不是「这个对象持有」。
+    if (current instanceof Context) continue
     for (let o: object | null = current; o !== null; o = Object.getPrototypeOf(o)) {
       for (const key of Reflect.ownKeys(o)) {
         const descriptor = Object.getOwnPropertyDescriptor(o, key)
