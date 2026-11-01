@@ -114,7 +114,7 @@ Service 子类用静态 `Config` 声明 Standard Schema（[IC-14](../../../../do
 3. 调用实例的 `close()`，最多等待 `disposeWaitMs`。
 4. 等待超时时记录诊断，然后返回。
 
-四步写在同一个函数里按顺序 `await`，停止句柄与 effect 调用同一个函数。不同 effect 的释放是并发的，而且 disposer 的异常只写日志、不上抛（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以每一步由本插件自己捕获，失败时记录诊断并继续下一步。
+四步写在同一个函数里按顺序 `await`，停止句柄与 effect 调用同一个函数。后到的一次只等先到的一次结束，不重复任何一步；后到的若是 effect，结束后仍退登记两个句柄，后到的停止句柄不退登记（[SPEC 性质 9](../SPEC.md#提供者责任)）。不同 effect 的释放是并发的，而且 disposer 的异常只写日志、不上抛（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。所以每一步由本插件自己捕获，失败时记录诊断并继续下一步。
 
 `close` 的内部顺序归 session：调度器停止接受新的触发，在途命令跑完或返回未知，协调器在当前命令结束后停止，最后释放时钟等待与缓存（[资源与替换](../../session/SPEC.md#资源与替换)）。在途提交的收场：
 
