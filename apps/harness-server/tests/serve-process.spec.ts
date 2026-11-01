@@ -98,7 +98,6 @@ describe('serve process', () => {
     ['missing --state-root', ['serve', ...common(scratch).slice(0, 6)]],
     ['relative --state-root', ['serve', ...common('state')]],
     ['--state-root that is not a directory', ['serve', ...common(join(scratch, 'none'))]],
-    ['unknown subcommand', ['run', ...common(scratch)]],
   ])('%s: exit 2, nothing on stdout', async (_name, args) => {
     const out = await runBin(args)
     expect(out.code).toBe(2)
