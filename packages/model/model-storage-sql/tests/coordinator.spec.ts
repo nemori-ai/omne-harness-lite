@@ -251,7 +251,7 @@ const proof = (record: string, by = 'host'): DurableEvidence => ({
   revision: '1',
   digest: '1'.repeat(64),
 })
-const principal = Object.freeze({ subject: 'trusted' })
+const principal: Readonly<{ subject: string }> = Object.freeze({ subject: 'trusted' })
 type Principal = typeof principal
 
 const coreOptions: ModelCommandsCoreOptions<Principal> = {
