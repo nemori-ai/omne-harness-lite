@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本成员从 `./cordis` 导出 `RequestContextService` 的具体子类与插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员不导出第二个服务键，不增补新事件。
+本成员从 `./cordis` 导出 `RequestContextService` 的具体子类与插件。根入口不导出任何东西（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）；不装配 Cordis 的独立调用方用 request-context-contract 根入口的 `createAssemblyOperations`，来源登记表的工厂是 [request-context](../request-context/SPEC.md) 的 `createContextSourceRegistry`。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`（由同一个插件在同一个 fiber 提供），并必需 `inject` 信任键 `requestContextTrust`，缺席时停在 `PENDING`。本成员不增补新事件。插件实现尚未交付，见 [Cordis 页](docs/cordis.md)。
 
 配置经 Standard Schema 校验（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。可调项：压缩策略的选择与它的参数、表示策略的选择与偏好顺序、修剪阈值、缓存容量。默认值只是初值。
 

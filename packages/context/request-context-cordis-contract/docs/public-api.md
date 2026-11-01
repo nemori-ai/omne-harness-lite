@@ -12,11 +12,17 @@
 
 ### 根类型导出
 
-根入口 [src/index.ts](../src/index.ts) 显式重导出服务签名与登记面所需的契约类型，不是 request-context-contract 的全部类型名字；精确名单以[导出清单](../tests/fixtures/exports.json)为准。没有运行值，也不导入 Cordis。纯操作、Schema 和测试工厂仍从原契约入口导入。
+根入口 [src/index.ts](../src/index.ts) 显式重导出服务签名与登记面所需的契约类型，不是 request-context-contract 的全部类型名字；精确名单以[导出清单](../tests/fixtures/exports.json)为准。没有运行值，也不导入 Cordis。类型 RequestContextTrust 声明在 [src/trust.ts](../src/trust.ts)。纯操作、Schema 和测试工厂仍从原契约入口导入。
 
 ### Cordis 定义
 
-[src/cordis.ts](../src/cordis.ts) 导出抽象类 RequestContextService、派生键 requestContextKey、RequestContextIntercept、RequestContextPolicySelection 和 RequestContextChangedPayload。它增补 Cordis Context 的 requestContext 属性及 Events 的 request-context-cordis-contract/changed 位置参数事件。
+[src/cordis.ts](../src/cordis.ts) 另导出抽象类 RequestContextTrustService 与 ContextAccountingInboxService，以及派生键 requestContextTrustKey 与 contextAccountingInboxKey，并增补 Cordis Context 的 requestContextTrust 与 contextAccountingInbox 属性。根入口另导出类型 RequestContextTrust（[src/trust.ts](../src/trust.ts)）。
+
+### 测试导出
+
+`./testing`（[src/testing/index.ts](../src/testing/index.ts)，单文件，因为只有已声明的入口可以导入其他包的 testing 子入口）导出 createScriptedRequestContextTrust 与类型 RequestContextTrustScript，以及 requestContextTrustConformance 与类型 RequestContextTrustFixture、RequestContextTrustCase。它不属于生产导出，根入口不转导出它。
+
+[src/cordis.ts](../src/cordis.ts) 的 Service 导出还有抽象类 RequestContextService、派生键 requestContextKey、RequestContextIntercept、RequestContextPolicySelection 和 RequestContextChangedPayload。它增补 Cordis Context 的 requestContext 属性及 Events 的 request-context-cordis-contract/changed 位置参数事件。
 
 服务实现登记面的三个操作，参数与结果直接复用原契约。它逐签名投影来源登记表 `ContextSourceRegistry` 的 `register` 与 `replace`，登记挂在调用者的 fiber 上；`assembly(target)` 返回绑定策略与该目标当前登记的来源集合的操作组，目标没有登记或服务已撤除时操作返回不可用（来源登记）。每次托管操作从登记面现取贡献，替换第四组读口给出的贡献；目标作用域与组装上下文、历史依据不一致时返回无效。类型不提供运行时登记表、缓存或默认策略。
 

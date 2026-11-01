@@ -72,6 +72,8 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-cordis-contract
 ```
 
+The `./testing` subpath ships `createScriptedRequestContextTrust` and `requestContextTrustConformance`. A provider member runs the suite with a fixture that hands in its registry factory; the suite imports no provider member. The root entry holds the type `RequestContextTrust` (derived from `ContextRegistryOptions` with `Pick`), and `./cordis` holds `RequestContextTrustService` (key `requestContextTrust`) and `ContextAccountingInboxService` (key `contextAccountingInbox`). The trust object is provided in a trusted subtree; omitting `inject` is not access control, and the member does not guarantee atomic ordering of a registration write against a remote revocation.
+
 In this directory, run `pnpm typecheck` for the type check. Tests cover exports, real Cordis mechanisms, lifecycle, and hosted operation boundaries. See [tests/](tests/README.md). Local probe evidence does not replace production provider validation or promote shared basis state. A passing structure check does not prove behavior.
 
 ## Maintenance

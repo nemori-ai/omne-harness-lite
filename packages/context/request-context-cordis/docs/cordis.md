@@ -8,16 +8,16 @@
 
 ## 插件与服务
 
-`./cordis` 导出 `RequestContextService` 的具体子类与插件。本成员只提供一个键 `requestContext`。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
+`./cordis` 导出 `RequestContextService` 的具体子类与插件。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`，两个键由同一个插件在同一个 fiber 提供，所以同生同灭，窗口占用与收账读同一份账目状态。本成员必需 `inject` 信任键 `requestContextTrust`（[request-context-cordis-contract 的信任服务](../../request-context-cordis-contract/docs/cordis.md#信任服务与账目收件口服务)），把取出的对象交给纯工厂的 `trust: RequestContextTrust<P>`，再与策略一起构造 `ContextRegistryOptions<P>`。信任键缺席时插件停在 `PENDING`。信任对象由装配入口在受信子树提供，不进插件树 JSON。不 `inject` 就取不到不是访问控制，登记授权仍由 `registrationAuthority` 逐次判定。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
-插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
+插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件除信任键外不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
 
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
 | `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，调用 `notify('contributions', …)`，派发变化事件。关闭后拒绝 | 来源登记表实例从登记面读口读段并渲染，渲染结果只归它 |
 | `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(target)` 的操作组自己现取贡献，不经调用方转交 |
 
-本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
+本成员提供的第二个键 `contextAccountingInbox` 由 request-context-cordis-contract 定义，本成员不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
 经 Cordis 的调用方用服务的 `assembly(target)` 取得已按配置绑定策略与登记面的一组操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。这组操作只借用来源适配者经 `register` 或 `replace` 为该目标登记的来源集合；目标没有登记时返回不可用（性质 6）。性质 5 取消的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。
 

@@ -27,6 +27,18 @@
 
 `assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组：提供者按配置选的策略与登记表经这个入口起作用。独立调用方不经服务，用契约根入口的 `createAssemblyOperations` 绑定自己的来源集合。两条路径执行同一读取协议，差别只在第四组的贡献集合：托管路径由服务从登记面现取，独立路径由来源集合的第四组读口给出。本成员不定义第二个服务键，也不为每个贡献者或每个作用域建服务。
 
+## 信任服务与账目收件口服务
+
+`RequestContextTrustService<P>` 在 `./cordis` 定义，键 `requestContextTrust` 只在抽象类的 `static readonly provide` 写一次，`super` 与常量 `requestContextTrustKey` 都引用它。类按原接口逐属性投影 `principalBinding` 与 `registrationAuthority`。聚合类型 `RequestContextTrust<P>` 在根入口，所以根入口仍不依赖 Cordis。
+
+装配入口在受信子树内装载它的子类。子树只装需要它的提供者。隔离只隐藏实例，不是权限：不 `inject` 就取不到这一点不作为访问控制，登记授权由 `registrationAuthority` 逐次判定。信任键缺席时必需注入它的插件停在 `PENDING`。信任对象是运行时对象，不进插件树 JSON。
+
+`ContextAccountingInboxService<P>` 的键 `contextAccountingInbox` 同样只写一次。提供 `requestContext` 的插件在同一个 fiber 提供它，所以两个键同生同灭。生产实现不在本成员。
+
+登记写入与远端撤权的原子排序不在本成员的保证内。`allowed` 不含同步 current。
+
+`./testing` 的套件与脚本替身见 [SPEC](../SPEC.md#结果与不变量) 性质 15。套件有九个用例，每个用例对应一条登记规则：同主体跨租户键不混同、伪造主体、替换别人的 expected、owner 完整采用身份参与核对、权威的 denied 与 unknown 及 unavailable 被原样返回、来源集合不能自授登记、撤权后的 replace、旧代撤除不删后继、关闭后拒绝登记。套件不替代 request-context 的既有组装符合性套件。
+
 ## intercept 配置与作用域
 
 贡献者插件用对象形式的 `inject` 声明自己的作用域（性质 7）：

@@ -56,6 +56,8 @@ inject: { requestContext: { scope: 作用域引用 } }
 
 ## 验证
 
+`./testing` 子路径发布 `createScriptedRequestContextTrust` 与 `requestContextTrustConformance`。提供者成员用夹具交入自己的登记表工厂来跑套件，套件不导入提供者成员。根入口有类型 `RequestContextTrust`（由 `ContextRegistryOptions` 经 `Pick` 派生），`./cordis` 有 `RequestContextTrustService`（键 `requestContextTrust`）与 `ContextAccountingInboxService`（键 `contextAccountingInbox`）。信任对象在受信子树提供；不 `inject` 不是访问控制；本成员不保证登记写入与远端撤权的原子排序。
+
 在仓库根执行：
 
 ```sh
