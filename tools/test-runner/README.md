@@ -52,6 +52,8 @@ The rules are in [the integration rules](../../docs/engineering/integration.md#æ
 
 `fullRequested` tells the request: it is true only if the run had `FULL=1`. A plan that became full for another reason has `mode: full` and `fullRequested: false`. If a resume run runs again with the H1 scope, the record copies `fullRequested` from H1.
 
+An admission run first checks and repairs the environment (`src/testing/environment.ts`): if `node_modules/.pnpm/lock.yaml` differs from `pnpm-lock.yaml`, it runs `pnpm install --offline --frozen-lockfile`; tracked files whose index is LF but whose working copy is CRLF are checked out again from the index when only the line endings differ. The result is the `environment` field of the record. `pnpm run preflight` (`check --preflight`) runs only the steps that do not need a build or the full test run, all at once, and lists every failure with a fix; it writes no record. If the member tests fail in one tier with at most 10 failures that are all in test files, the step reruns those files once with low concurrency; if they all pass, the step passes and the record has `retried` (file, tier, kind, first error, result). `admission-evidence` prints `retried`. The files that still fail are in `testFailures`. See the Chinese guide and `scripts/README.md` for the rules.
+
 The command checks `dirty` again at the end of the run. If the head changed, or the working tree has changes (`git status --porcelain`, ignored files excluded), the record has `dirty: true`. `tree` is the tree of the head at the start. The record is written to a temporary name first and then renamed. A file that does not parse is not a record.
 
 **`--resume-from <H1>`**. Use `pnpm run admission --resume-from <H1>` or `pnpm run check --admission --resume-from <H1>`. They are the same command. `--resume-from` is available only in admission mode (`--admission` or `OMNE_ADMISSION=1`). Without admission mode the command exits 2. You cannot use it with `FULL=1`. If you use it with `--list`, the command exits 2.
@@ -62,6 +64,7 @@ H1 is a head where one admission run (full or affected) failed at one step X. Af
 - The planned light step (`python`) runs on HEAD with the H1 scope.
 - X and the planned heavy steps that did not run on H1 run again on HEAD with the H1 scope. If H1 was full, they run for all members. If H1 was affected, they run for the affected scope of HEAD relative to the baseline. The planned steps before them (`after`, transitive) also use this scope.
 - The planned heavy steps that passed on H1 run only for the members that H1..HEAD affects.
+- If X is the member tests, the record has `testFailures`, all failures are in the slow tier and every changed path of H1..HEAD is inside the members of those files, the test step runs only the members that H1..HEAD affects plus those files (`testResume` in the plan). Otherwise it runs with the H1 scope.
 
 Reason: the affected scope of H1 (merge base..H1) together with the affected scope of H1..HEAD is the affected scope of HEAD (merge base..HEAD). Thus if H1 was affected, the `base` of its record must be equal to the merge base of the current baseline and HEAD.
 
