@@ -128,6 +128,7 @@ packages/
 │   ├── tool-contract/          工具纯契约：类型、判定与投影
 │   ├── tool-cordis-contract/   工具的 Cordis 服务定义
 │   ├── tool/                   不含 Cordis 的工具执行实现
+│   ├── tool-storage-sql/       Tool 记录仓与原件保管的 SQL 提供者，依赖 tool、tool-contract、sql-contract
 │   └── tool-host-local/        单机宿主与 Cordis 插件
 ├── context/
 │   ├── runtime-context-contract/         Runtime Context 纯契约：已有类型、校验、解码与契约套件
