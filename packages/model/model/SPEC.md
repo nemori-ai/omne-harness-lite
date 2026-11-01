@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行、凭据存在性与解析的判定及档案读取 `createModelProfiles` 已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行、凭据存在性与解析的判定及档案读取 `createModelProfiles` 已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取、processed ACK 与 quiesce 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
 
@@ -73,6 +73,12 @@ outputBatchBytes 按事实 JSON 的 UTF-8 逻辑字节数触发持久输出批�
 本实现的三个独立能力工厂只组合算法，不启动运行。createModelRuntime 返回带driver的 ModelRuntimeProvider，普通runtime不暴露driver。装配者须完成显式host绑定，才能公开受理；绑定失败不得返回“可用runtime”。既有替代提供者无需复制这些工厂，但必须符合领域协议。
 
 调用已经持久受理而schedule失败时，返回原受理事实，不伪装未受理。提供者记录唤醒失败并由恢复扫描续排。query和recover不得为了返回可用状态创建第二次逻辑调用。quiesce停止新的业务受理，仍允许已受理工作调度，不撤销原责任；现有查询、控制、结果保管及清理按可用依赖继续。
+
+<a id="quiesce-的受理闸门与计数"></a>**quiesce 的受理闸门与计数。** 本实现的 quiesce 关上 runtime 的受理闸门。之后的 admit 先按共同判断核验输入，再用 Commands.recall 查同一 operation 的原受理。找到原受理时，admit 照常经 Commands.admit 认回它。没有原受理时，admit 返回 unavailable，dependency 为 `model-runtime`，diagnostic 为 `quiesced`，不提交，也不留下调用。recall 的失败（例如 denied、commit-unknown）原样返回。已经通过闸门、尚未返回的受理，quiesce 先等它返回，再计数。quiesce 不调用 Commands，不关闭绑定，不取消或撤销已受理工作；schedule、drive、查询、取消、读取、ACK 与清理不受影响。
+
+quiesce 返回十进制字符串 `{ pending, running }`。`running` 是本 provider 的 driver 正在 drive 的调用数。`pending` 是本 provider 新受理（认回不算）或 drive 过、尚未确认收场、此刻不在 drive 中的调用数。drive 确认 settle，或读到原调用已经 settled 时，该调用不再计入。重复 quiesce 返回同一形状，数字按当时的状态。用例 [runtime-quiesce.spec.ts](tests/runtime-quiesce.spec.ts) 固定这些行为。
+
+已知限制：pending 只数本进程。进程外或重启前的耐久待办不计入，其他来源的唤醒在 drive 开始之前也不计入；它们归 5.4 恢复的耐久扫描（波 C）。drive 失败而原调用未收场时，该调用继续计入 pending。
 
 本地关闭期限属于宿主配置，不是业务取消期限。到期时只能报告仍有未决资源；不能借超时宣称物理停止。故障恢复、真实执行者排除及旧写核实的前提由[宿主设计](docs/cordis.md#本地调度与执行者排除)维护。受理、发送和保管已承诺的事实不因构造方式改变。
 
@@ -171,7 +177,7 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 | consumption.acknowledge | processed 已接 handoff；retained 静态 unavailable，阶段 6.1；保留 operation 返回 invalid |
 | instances.connect | 委托实际 directory，提供最小实例观察；完整生产宿主归 3.5 |
 | recover | unavailable，5.4 |
-| quiesce | unavailable，5.5 |
+| quiesce | 已实现停新受理与本进程 pending/running 报告，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
 
 未实现操作的 diagnostic 为 `managed-runtime-not-implemented operation=<操作> stage=<阶段>`，dependency 为 model-runtime。操作和阶段取固定字面量，不含请求、身份或秘密。诊断供人阅读，不是解析协议。每次未实现操作返回独立的回复与 failure 对象。
 
@@ -229,7 +235,7 @@ receiver 在终止 preserve 的确认回执下固定原 ended、Snapshot 和独�
 | 首内容前可重试失败等待策略 | 策略循环尚未实现，保留 retry-not-decided 等真实拒绝，不制造默认 stop |
 | 无控制 interrupted、sender.not-started、已有 dispatch 但本实例没有确认终止证据 | 尚未支持精确收场。保留原事实和责任，不复制测试后端私有终局映射或恢复猜测 |
 | runtime 读取与 processed ACK | 已实现，见[结果消费支持](#结果消费支持) |
-| retained ACK、生产调度、跨进程恢复、排空 | 尚未实现，继续各自后续阶段 |
+| retained ACK、生产调度、跨进程恢复 | 尚未实现，继续各自后续阶段。quiesce 已实现，见[受理闸门与计数](#quiesce-的受理闸门与计数) |
 
 Activity 持有唯一的固定 settle 输入。首次写前读取当前资格、代次和 revision。query unknown、失败、调用异常或已知 committed 但原回执暂不可得时，保留原 operation、expected 和完整终局。后续 drive 先核当前资格，查询原操作，并以原参数取得回执，不重新发送或读取原流。
 
