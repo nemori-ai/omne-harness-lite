@@ -7,9 +7,9 @@
 - [architecture.md](architecture.md)：内部模块、状态与资源归属、关键机制及理由、设计限制
 - [flows.md](flows.md)：写路径、压缩提交、epoch 视图读取、派生重建，失败与生命周期
 - [object-model.md](object-model.md)：表、索引与进程内对象，生命周期
-- [public-api.md](public-api.md)：公开边界、候选导出与配置的导航
+- [public-api.md](public-api.md)：公开边界、导出与配置的导航
 - [context.md](context.md)：消费侧使用与系统定位
-- [cordis.md](cordis.md)：作为 `sessionTransactions` 提供者的 Cordis 集成
+- [cordis.md](cordis.md)：装配边界，本包没有 Cordis 入口
 
 ## 阅读路径
 
