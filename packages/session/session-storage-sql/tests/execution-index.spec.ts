@@ -167,7 +167,12 @@ describe('the startRun commit writes the index in its own transaction', () => {
       'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
       [textOf(TENANT_A), execution, 'session-1', 'run_other', 7n],
     )
-    expect(kindOf(await startRun(a, 'session-2'))).toBe('unavailable')
+    expect(await startRun(a, 'session-2')).toMatchObject({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: expect.stringContaining('already indexed to another session'),
+      },
+    })
     expect(await lookup(a, execution)).toEqual({
       session: 'session-1',
       run: 'run_other',

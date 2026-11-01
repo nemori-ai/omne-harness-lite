@@ -423,7 +423,7 @@ describe('routing by tenant and execution', () => {
 describe('an execution that is not the caller tenant’s', () => {
   it('an execution no Run started and an execution of another tenant get the same denied, and nothing is written', async () => {
     const s = await scene('route-denied')
-    const { journal } = await assembled(s)
+    const { journal, wiring } = await assembled(s)
     const opened = ok(await journal().open(s.openInput))
     const commits = s.commits.length
     const unknown = ok(decodeAgentExecutionId('run_never/execution'))
@@ -487,6 +487,11 @@ describe('an execution that is not the caller tenant’s', () => {
       expect(never, action).toEqual(foreign)
     }
     expect(s.commits.length).toBe(commits)
+    // The route the scene's tenant cached is not the other tenant's: each of its calls read the
+    // index under its own tenant.
+    expect(wiring.indexReads.filter(tenant => tenant === textOf(other.tenant))).toHaveLength(
+      calls.length,
+    )
   })
 
   it('an index that cannot be read is unavailable, never denied; an unregistered tenant is unavailable', async () => {
