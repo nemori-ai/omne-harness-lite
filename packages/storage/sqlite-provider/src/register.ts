@@ -100,6 +100,12 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
         if (core.lifecycle.closing) return unknown('withdrawn_before_start')
         if (entry.wal.state === 'write-stopped') return rejection('domain_unavailable')
         let reply: RegisterReply
+        // The registration may migrate: the read connections give way first (SPEC 9.5).
+        const resume = await core.readers.pauseForMigration(transactionDomain)
+        if (core.lifecycle.closing) {
+          resume()
+          return unknown('withdrawn_before_start')
+        }
         try {
           reply = await entry.client.request<RegisterReply>({
             kind: 'register',
@@ -107,6 +113,8 @@ export function createRegister(core: Core): SqlStorage['registerCombination'] {
           })
         } catch (error) {
           return unknown(error instanceof WorkerExited ? 'worker_exited' : 'provider_error')
+        } finally {
+          resume()
         }
         switch (reply.kind) {
           case 'registered':

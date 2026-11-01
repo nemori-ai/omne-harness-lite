@@ -21,6 +21,7 @@ export class WriterClient {
   /** Settles when the Worker has ended. */
   readonly exited: Promise<void>
   private readonly worker: Worker
+  private readonly generation: number
   private readonly waiting = new Map<number, Waiter>()
   private readonly closingFlag = new Int32Array(new SharedArrayBuffer(4))
   private nextId = 1
@@ -32,12 +33,15 @@ export class WriterClient {
     onUnexpectedExit: () => void,
     onWalState: (state: WalState) => void = () => undefined,
   ) {
+    this.generation = env.generation
     const workerData: WorkerEnv = {
       ...env,
       closingFlag: this.closingFlag.buffer as SharedArrayBuffer,
     }
     this.worker = new Worker(WRITER_URL, { workerData })
     this.worker.on('message', (envelope: WorkerEnvelope | WorkerEvent) => {
+      // A message of another Worker generation answers nothing that this client sent (SPEC 7.7.2).
+      if (envelope.generation !== this.generation) return
       if ('event' in envelope) {
         onWalState(envelope.state)
         return

@@ -11,30 +11,7 @@ import type {
 } from '@omne-harness/sql-contract'
 import type { SqliteStorageConfig } from './config.ts'
 import type { Domains, Lifecycle } from './domains.ts'
-
-/**
- * What the close protocol needs from the read pool (SPEC 9.5, 12.3, 13.3 step 4). The read pool
- * does not exist in this closure. `noReadPool` stands in until the pool is wired.
- */
-export interface ReadPoolPort {
-  /** read-paused: no new read starts on the domain until `resume`. Started reads end by themselves. */
-  pause(domain: string): void
-  resume(domain: string): void
-  /**
-   * Close step 4: no new dispatch, queued reads get `unavailable`/`closing`, started read
-   * transactions end, connections close, and the Workers exit. Settles when all of it was observed.
-   */
-  close(): Promise<void>
-  /** Read Workers whose exit was not observed yet, for the residuals of an incomplete close. */
-  residuals(): readonly StorageResidual[]
-}
-
-export const noReadPool: ReadPoolPort = {
-  pause: () => undefined,
-  resume: () => undefined,
-  close: () => Promise.resolve(),
-  residuals: () => [],
-}
+import type { ReaderPool } from './reader-pool.ts'
 
 /**
  * The reporting latch (SPEC 13.4). Once an `assembly` close gave `incomplete`, the lease of a
@@ -94,7 +71,7 @@ export type CloseDeps = Readonly<{
   lifecycle: Lifecycle
   domains: Domains
   inFlight: InFlight
-  readPool: ReadPoolPort
+  readers: ReaderPool
   latch: ReportLatch
 }>
 
@@ -114,7 +91,7 @@ export function createControl(deps: CloseDeps): StorageControl {
     if (drain === null) {
       deadlineAt = performance.now() + deps.config.closeDeadlineMs
       deps.lifecycle.closing = true
-      drain = Promise.all([deps.domains.closeAll(), deps.readPool.close()]).then(
+      drain = Promise.all([deps.domains.closeAll(), deps.readers.closeAll()]).then(
         () => void (drained = true),
         () => void (drained = true),
       )
@@ -130,7 +107,13 @@ export function createControl(deps: CloseDeps): StorageControl {
       leaseName: worker.leaseName,
       inFlight: deps.inFlight.identitiesOf(worker.domain),
     })),
-    ...deps.readPool.residuals(),
+    ...deps.readers.liveReaders().map((reader): StorageResidual => ({
+      domain: { scope: reader.scope, transactionDomain: reader.domain },
+      workerRole: 'reader',
+      workerGeneration: String(reader.workerGeneration),
+      leaseName: reader.leaseName,
+      inFlight: [],
+    })),
   ]
 
   return {

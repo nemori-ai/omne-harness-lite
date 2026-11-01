@@ -8,10 +8,10 @@ import type {
   SqlStorage,
   StorageControl,
 } from '@omne-harness/sql-contract'
-import { ReportLatch, createControl, noReadPool, type ReadPoolPort } from './close.ts'
+import { ReportLatch, createControl } from './close.ts'
 import { createCommit } from './commit.ts'
 import { validateConfig } from './config.ts'
-import { createCore } from './core.ts'
+import { createCore, type Core } from './core.ts'
 import { Domains } from './domains.ts'
 import { checkMaterials } from './materials.ts'
 import { createQuery } from './query.ts'
@@ -33,12 +33,8 @@ export type CreateSqliteStorageResult =
       problems: readonly string[]
     }>
 
-/** Wiring that the application does not give: the read pool that SPEC 9.5 describes. */
-export type SqliteStorageInternals = Readonly<{ readPool?: ReadPoolPort }>
-
 export async function createSqliteStorage(
   input: SqliteStorageInput,
-  internals: SqliteStorageInternals = {},
 ): Promise<CreateSqliteStorageResult> {
   const judged = validateConfig(input.config)
   if (judged.kind === 'invalid')
@@ -57,14 +53,16 @@ export async function createSqliteStorage(
       problems: checked.declaredProblems,
     }
   const latch = new ReportLatch()
-  const readPool = internals.readPool ?? noReadPool
-  const core = createCore(
+  const core: Core = createCore(
     judged.config,
     input.materials,
     lifecycle =>
       new Domains(judged.config, input.materials, input.closeLeases, lifecycle, {
         latch,
-        readPool,
+        readGate: {
+          pause: domain => core.readers.pauseDispatch(domain),
+          resume: domain => core.readers.resumeDispatch(domain),
+        },
       }),
   )
   const storage: SqlStorage = {
@@ -81,7 +79,7 @@ export async function createSqliteStorage(
       lifecycle: core.lifecycle,
       domains: core.domains,
       inFlight: core.inFlight,
-      readPool,
+      readers: core.readers,
       latch,
     }),
   }

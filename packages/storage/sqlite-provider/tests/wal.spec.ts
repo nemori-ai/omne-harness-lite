@@ -5,9 +5,15 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { StorageCloseResult } from '@omne-harness/sql-contract'
-import { createSqliteStorage } from '../src/index.ts'
-import type { ReadPoolPort } from '../src/close.ts'
+import {
+  buildReadMaterials,
+  closeProviders,
+  commitOf,
+  delay,
+  readRequest,
+  readyProvider,
+  summary,
+} from './read-support.ts'
 import { WalMaintainer } from '../src/worker/wal.ts'
 import type { WalState } from '../src/worker/protocol.ts'
 import {
@@ -134,44 +140,27 @@ describe('WalMaintainer', () => {
 describe('write-stopped through the provider', () => {
   let workspace: Workspace
   let built: Built
-  let closing: Promise<StorageCloseResult> | null = null
 
   beforeEach(async () => {
     workspace = await makeWorkspace()
-    built = await buildMaterials(workspace)
+    built = await buildReadMaterials(workspace)
   })
 
   afterEach(async () => {
-    await closing?.catch(() => undefined)
+    await closeProviders()
     await workspace.remove()
   })
 
-  it('refuses commit with domain_unavailable, still answers query, pauses reads, and recovers', async () => {
-    const calls: string[] = []
-    const readPool: ReadPoolPort = {
-      pause: domain => void calls.push(`pause:${domain}`),
-      resume: domain => void calls.push(`resume:${domain}`),
-      close: () => Promise.resolve(),
-      residuals: () => [],
-    }
-    const created = await createSqliteStorage(
-      {
-        config: {
-          ...defaultConfig(workspace.storageRoot),
-          checkpointIntervalMs: 20,
-          checkpointWalBytes: 6000,
-          journalSizeLimitBytes: 6000,
-          walReadPauseBytes: 24000,
-          walWriteStopBytes: 48000,
-        },
-        materials: built.catalog,
-        closeLeases: leases,
-      },
-      { readPool },
-    )
-    if (created.kind !== 'created') throw new Error('rejected')
-    const { storage, control } = created
-    expect((await storage.registerCombination(registration(built))).kind).toBe('registered')
+  it('refuses commit with domain_unavailable, still answers query, holds reads, and recovers', async () => {
+    const { storage } = await readyProvider(workspace, built, {
+      checkpointIntervalMs: 20,
+      checkpointWalBytes: 6000,
+      journalSizeLimitBytes: 6000,
+      walReadPauseBytes: 24000,
+      walWriteStopBytes: 48000,
+      readQueueTimeoutMs: 200,
+    })
+    expect(summary(await storage.read(readRequest('page')))).toBe('read')
     const file = join(
       workspace.storageRoot,
       'domains',
@@ -183,34 +172,29 @@ describe('write-stopped through the provider', () => {
     try {
       let stopped = false
       for (let index = 0; index < 60 && !stopped; index += 1) {
-        const result = await storage.commit(
-          commitRequest(built, { identity: identity({ operationKey: `k${String(index)}` }) }),
-        )
+        const result = await storage.commit(commitOf(built, `k${String(index)}`))
         if (kindOf(result) === 'rejected_before_accept/domain_unavailable') stopped = true
         else expect(kindOf(result)).toBe('committed')
-        await new Promise(resolve => setTimeout(resolve, 40))
+        await delay(40)
       }
       expect(stopped).toBe(true)
       const began = Date.now()
       expect(kindOf(await storage.query(identity({ operationKey: 'k0' })))).toBe('committed')
       expect(Date.now() - began).toBeLessThan(1500)
-      expect(calls).toContain(`pause:${DOMAIN}`)
+      // read-paused: no new read is dispatched, so the read waits and times out (SPEC 5.5).
+      expect(summary(await storage.read(readRequest('page')))).toBe('unavailable/queue_timeout')
     } finally {
       reader.exec('rollback')
       reader.close()
     }
     await vi.waitFor(
       async () => {
-        const again = await storage.commit(
-          commitRequest(built, {
-            identity: identity({ operationKey: `again-${String(Date.now())}` }),
-          }),
+        expect(kindOf(await storage.commit(commitOf(built, `again-${String(Date.now())}`)))).toBe(
+          'committed',
         )
-        expect(kindOf(again)).toBe('committed')
       },
       { timeout: 5000, interval: 100 },
     )
-    expect(calls).toContain(`resume:${DOMAIN}`)
-    closing = control.close({ initiator: 'disposal' })
+    expect(summary(await storage.read(readRequest('page')))).toBe('read')
   })
 })

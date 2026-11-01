@@ -10,15 +10,19 @@ import { mkdir, rm, stat } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import type { CloseLeasePort, SqlMaterialCatalog, StorageScope } from '@omne-harness/sql-contract'
 import { claimWriter, releaseWriter } from './claims.ts'
-import type { ReadPoolPort, ReportLatch } from './close.ts'
+import type { ReportLatch } from './close.ts'
 import type { SqliteStorageConfig } from './config.ts'
 import type { OpenReply, RegistrationSpec, WalState } from './worker/protocol.ts'
 import { WriterClient } from './writer-client.ts'
 
 export type Lifecycle = { closing: boolean }
 
-/** What the domain table needs from the close protocol (SPEC 13.4) and the read pool. */
-export type CloseHooks = Readonly<{ latch: ReportLatch; readPool: ReadPoolPort }>
+/** What the domain table needs from the close protocol (SPEC 13.4) and the read pool (SPEC 12.3). */
+export type CloseHooks = Readonly<{
+  latch: ReportLatch
+  /** read-paused: no new read starts on the domain. `resume` ends it. */
+  readGate: Readonly<{ pause(domain: string): void; resume(domain: string): void }>
+}>
 
 type LiveWorker = {
   readonly domain: string
@@ -99,6 +103,17 @@ export class Domains {
 
   fileOf(domain: string): string {
     return join(this.config.storageRoot, 'domains', `${hex(domain)}.sqlite`)
+  }
+
+  /** Admits the lease of a read Worker (SPEC 13.2). Throws when the assembly stopped admission. */
+  admitReader(domain: string, generation: number): { name: string; lease: object } {
+    const name = `storage/${String(this.providerGeneration)}/reader/${hex(domain)}.sqlite/${String(generation)}`
+    return { name, lease: this.leases.admit(name) }
+  }
+
+  /** Returns a lease after the exit of its Worker was observed. */
+  releaseLease(lease: object): void {
+    this.hooks.latch.release(() => this.leases.release(lease))
   }
 
   /** The ready domain right now, without waiting. Operations send at once when it exists. */
@@ -188,6 +203,12 @@ export class Domains {
           checkpointWalBytes: this.config.checkpointWalBytes,
           walReadPauseBytes: this.config.walReadPauseBytes,
           walWriteStopBytes: this.config.walWriteStopBytes,
+          groupMaxOperations: this.config.groupMaxOperations,
+          groupCollectMs: this.config.groupCollectMs,
+          groupMaxInputBytes: this.config.groupMaxInputBytes,
+          groupMaxResponseReservationBytes: this.config.groupMaxResponseReservationBytes,
+          groupMaxExecutionSliceMs: this.config.groupMaxExecutionSliceMs,
+          generation: this.workerGeneration,
         },
         () => {
           // Unexpected exit: the next touch opens the domain again (SPEC 5.2, recovering).
@@ -197,8 +218,8 @@ export class Domains {
         state => {
           const was = wal.state
           wal.state = state
-          if (was === 'normal') this.hooks.readPool.pause(domain)
-          else if (state === 'normal') this.hooks.readPool.resume(domain)
+          if (was === 'normal') this.hooks.readGate.pause(domain)
+          else if (state === 'normal') this.hooks.readGate.resume(domain)
         },
       )
       client = started
@@ -268,6 +289,11 @@ export class Domains {
       else if (entry.state === 'ready') closing.push(entry.client.close())
     }
     await Promise.all(closing)
+  }
+
+  /** Write Workers whose exit was not observed yet: they still hold a Worker slot (SPEC 12.2). */
+  liveWriterCount(): number {
+    return this.workers.size
   }
 
   /**

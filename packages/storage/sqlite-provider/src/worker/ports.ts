@@ -2,16 +2,52 @@
 // call of a participant or migration. It installs an authorizer, runs each statement through a
 // fresh prepare so that the authorizer judges every statement, and closes for good after a failed
 // statement or when the call ends. Authority never comes from the statement text.
-import { constants as C, type DatabaseSync } from 'node:sqlite'
+import {
+  constants as C,
+  type DatabaseSync,
+  type SQLInputValue,
+  type StatementSync,
+} from 'node:sqlite'
 import type { QueryRows, SqlCell, SqlValue } from '@omne-harness/sql-contract/worker'
 import { DataError, isDataError } from './errors.ts'
 
 /** Functions that every participant may call. No time, random or connection state functions. */
 export const BASE_FUNCTIONS: ReadonlySet<string> = new Set([
-  'abs', 'avg', 'coalesce', 'count', 'glob', 'group_concat', 'hex', 'ifnull', 'iif', 'instr',
-  'length', 'like', 'lower', 'ltrim', 'max', 'min', 'nullif', 'printf', 'format', 'quote',
-  'replace', 'round', 'rtrim', 'substr', 'substring', 'sum', 'total', 'trim', 'typeof',
-  'unicode', 'upper', 'zeroblob', 'json_extract', 'json_valid', 'json_type',
+  'abs',
+  'avg',
+  'coalesce',
+  'count',
+  'glob',
+  'group_concat',
+  'hex',
+  'ifnull',
+  'iif',
+  'instr',
+  'length',
+  'like',
+  'lower',
+  'ltrim',
+  'max',
+  'min',
+  'nullif',
+  'printf',
+  'format',
+  'quote',
+  'replace',
+  'round',
+  'rtrim',
+  'substr',
+  'substring',
+  'sum',
+  'total',
+  'trim',
+  'typeof',
+  'unicode',
+  'upper',
+  'zeroblob',
+  'json_extract',
+  'json_valid',
+  'json_type',
   'json_array_length',
 ])
 
@@ -111,9 +147,19 @@ function cell(value: unknown): SqlCell {
   throw new DataError('unsupported SQLite value')
 }
 
+/** Thrown when the rows of a read exceed the ceiling. The gateway keeps `rowLimitHit`. */
+export class RowLimitError extends Error {}
+
+export type GatewayOptions = Readonly<{
+  /** Rows that all statements of this gateway may return together (read port, SPEC 9.4). */
+  maxRows?: number
+}>
+
 export class SqlGateway {
   /** The authorizer refused a statement. */
   violated = false
+  /** The rows of the statements went over `maxRows`. */
+  rowLimitHit = false
   /** A statement failed for a reason that only the statement and the data decide. */
   dataFailure = false
   /** A statement failed for an environment reason. The operation becomes unknown. */
@@ -121,10 +167,13 @@ export class SqlGateway {
 
   private open = true
   private sawInsert = false
+  private rowsRead = 0
   private readonly db: DatabaseSync
+  private readonly maxRows: number
 
-  constructor(db: DatabaseSync, decide: Decision) {
+  constructor(db: DatabaseSync, decide: Decision, options: GatewayOptions = {}) {
     this.db = db
+    this.maxRows = options.maxRows ?? Number.POSITIVE_INFINITY
     db.setAuthorizer((action, arg1, arg2) => {
       if (action === C.SQLITE_INSERT && arg1 !== null && !arg1.startsWith('sqlite_'))
         this.sawInsert = true
@@ -155,10 +204,9 @@ export class SqlGateway {
       statement.setReturnArrays(true)
       const columns = statement.columns().map(column => column.name)
       if (columns.length > 0) {
-        const rows = statement.all(...bound) as unknown as unknown[][]
         return {
           columns,
-          rows: rows.map(row => row.map(cell)),
+          rows: this.collect(statement, bound),
           changes: 0n,
           lastInsertRowid: null,
         }
@@ -172,12 +220,27 @@ export class SqlGateway {
       }
     } catch (error) {
       this.open = false
+      if (error instanceof RowLimitError) throw error
       if (!this.violated) {
         if (isDataError(error)) this.dataFailure = true
         else this.environmentFailure = error
       }
       throw error
     }
+  }
+
+  /** Takes rows one by one and stops at the row after the ceiling, so nothing is read ahead. */
+  private collect(statement: StatementSync, bound: readonly unknown[]): SqlCell[][] {
+    const rows: SqlCell[][] = []
+    for (const row of statement.iterate(...(bound as SQLInputValue[])) as Iterable<unknown[]>) {
+      this.rowsRead += 1
+      if (this.rowsRead > this.maxRows) {
+        this.rowLimitHit = true
+        throw new RowLimitError('row ceiling')
+      }
+      rows.push(row.map(cell))
+    }
+    return rows
   }
 
   /** Removes the authorizer. The provider runs its own statements after this. */

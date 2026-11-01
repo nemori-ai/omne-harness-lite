@@ -30,6 +30,14 @@ export type WorkerEnv = Readonly<{
    * (SPEC 13.3 step 2). The flag does not depend on when a message reaches the Worker.
    */
   closingFlag: SharedArrayBuffer
+  /** Group commit limits (SPEC 7.3). */
+  groupMaxOperations: number
+  groupCollectMs: number
+  groupMaxInputBytes: number
+  groupMaxResponseReservationBytes: number
+  groupMaxExecutionSliceMs: number
+  /** The Worker generation of this start. Every reply carries it (SPEC 7.7.2). */
+  generation: number
 }>
 
 /** What the Worker confirms for a request that it did not start because the provider is closing. */
@@ -78,8 +86,7 @@ export type CommitReply =
   | Readonly<{ kind: 'receipt'; receipt: ReceiptV2 }>
   | Readonly<{ kind: 'conflict'; existing: ReceiptV2 }>
   | Readonly<{ kind: 'rejected'; reason: CommitWorkerRejection }>
-  /** fatal: the connection state is unclear, so the Worker exits after this reply. */
-  | Readonly<{ kind: 'unknown'; diagnostic: string; fatal?: boolean }>
+  | Readonly<{ kind: 'unknown'; diagnostic: string }>
   | Readonly<{ kind: 'quarantine'; diagnostic: string }>
   | WithdrawnReply
 
@@ -90,7 +97,7 @@ export type QueryReply =
 
 export type InternalErrorReply = Readonly<{ kind: 'internal_error'; diagnostic: string }>
 
-export type WorkerEnvelope = Readonly<{ id: number; reply: unknown }>
+export type WorkerEnvelope = Readonly<{ id: number; generation: number; reply: unknown }>
 
 /** A message that the Worker sends on its own, not as a reply (SPEC 12.3). */
-export type WorkerEvent = Readonly<{ event: 'wal'; state: WalState }>
+export type WorkerEvent = Readonly<{ event: 'wal'; generation: number; state: WalState }>
