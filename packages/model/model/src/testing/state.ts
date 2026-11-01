@@ -13,7 +13,7 @@ import type { ExecutionRef } from '@omne-harness/model-contract/provider'
 import { createModelCommandsCore } from '../commands/index.ts'
 import { encodedBytes, materialBytes } from '../commands/judge.ts'
 import { copyCall, type CallAccessInput, type ModelCommandCore } from '../commands/state.ts'
-import type { CommandWrite, ModelCommandStorage } from '../commands/storage.ts'
+import type { CommandWrite, ModelCommandStorage, RunScope } from '../commands/storage.ts'
 import type { Binding, CallDocument, TenantDocuments } from '../commands/types.ts'
 import { MEMORY_WRITE_METHODS } from './types.ts'
 import type {
@@ -125,7 +125,11 @@ export class MemoryState<P> implements ModelCommandStorage {
 
   // --- ModelCommandStorage.
 
-  run<T>(work: () => Outcome<T, ModelFailure>): Promise<Outcome<T, ModelFailure>> {
+  /** The memory storage reads nothing before `work`, so it ignores the scope. */
+  run<T>(
+    work: () => Outcome<T, ModelFailure>,
+    _scope?: RunScope,
+  ): Promise<Outcome<T, ModelFailure>> {
     return Promise.resolve(this.exclusive(work))
   }
   documents(key: string): TenantDocuments {
