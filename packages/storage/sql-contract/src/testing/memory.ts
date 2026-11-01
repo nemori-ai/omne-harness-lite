@@ -291,7 +291,7 @@ class MemorySqlStorage implements SqlStorage {
     const names: unknown = input?.participants
     const namesOk =
       Array.isArray(names) &&
-      names.every(name => typeof name === 'string' && (name === '' || isName(name)))
+      names.every(name => isName(name))
     if (
       scope === null ||
       !isName(input.transactionDomain, DOMAIN_BYTES) ||
@@ -301,7 +301,7 @@ class MemorySqlStorage implements SqlStorage {
     )
       return reject('field_missing')
     const participants = names as string[]
-    if (participants.length === 0 || participants.includes('')) return reject('participant_empty')
+    if (participants.length === 0) return reject('participant_empty')
     if (new Set(participants).size !== participants.length) return reject('participant_repeated')
     const judged = combinationManifest({ catalog: this.catalog, participants })
     if (judged.kind === 'material_unavailable') return reject('material_unavailable')
@@ -380,7 +380,12 @@ class MemorySqlStorage implements SqlStorage {
         reason,
         diagnostic: this.diagnostic(reason),
       }) as CommitResultV2
-    const early = this.controlRejection(input, signal, reject)
+    const unknownOf = (text: string): CommitResultV2 => ({
+      kind: 'unknown',
+      identity: decoded.identity as SqlIdentity, // read only after the identity is decoded
+      diagnostic: this.diagnostic(text),
+    })
+    const early = this.controlRejection(input, signal, reject, unknownOf)
     if (early !== null) return Promise.resolve(early)
     const identity = decoded.identity as SqlIdentity
     return new Promise(resolve => {
@@ -391,11 +396,7 @@ class MemorySqlStorage implements SqlStorage {
         signal?.removeEventListener('abort', onAbort)
         resolve(result)
       }
-      const unknown = (text: string): CommitResultV2 => ({
-        kind: 'unknown',
-        identity,
-        diagnostic: this.diagnostic(text),
-      })
+      const unknown = unknownOf
       // Abort releases the observer only. The operation stays in the queue and runs to its end.
       const onAbort = (): void => settle(unknown('observer_detached'))
       signal?.addEventListener('abort', onAbort, { once: true })
@@ -411,6 +412,7 @@ class MemorySqlStorage implements SqlStorage {
     input: CommitRequestV2,
     signal: AbortSignal | undefined,
     reject: (reason: CommitRejectReason) => CommitResultV2,
+    unknown: (text: string) => CommitResultV2,
   ): CommitResultV2 | null {
     if (this.closing) return reject('closing')
     if (signal?.aborted === true) return reject('cancelled')
@@ -440,6 +442,9 @@ class MemorySqlStorage implements SqlStorage {
     if (new Set(list.map(command => command.participant)).size !== list.length)
       return reject('participant_repeated')
     if (!list.every(command => isStrictJson(command.facts))) return reject('facts_not_json')
+    // SPEC 7.2 has no reason for a request that is not JSON outside `facts`. A result still comes
+    // through the return value (SPEC 2.5 rule 1), and it is `unknown`, which reserves nothing.
+    if (!isStrictJson(input)) return unknown('request_not_json')
     if (!this.withinLimits(input, list)) return reject('command_limit')
     return null
   }

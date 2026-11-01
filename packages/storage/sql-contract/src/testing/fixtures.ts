@@ -46,6 +46,7 @@ export default {
       case 'big': return { kind: 'participated', response: 'x'.repeat(100000) }
       case 'sql': port.execute('select * from _sql_receipt', []); break
       case 'require-undeclared': port.requireFact({ key: 'not.declared', protocol: '1' }); break
+      case 'require-undeclared-existing': port.requireFact({ key: 'gamma.ready', protocol: '1' }); break
       case 'provide-undeclared': port.provideFact({ key: 'not.declared', protocol: '1' }, 1); break
       case 'provide-twice':
         port.provideFact({ key: 'probe.out', protocol: '1' }, 1)

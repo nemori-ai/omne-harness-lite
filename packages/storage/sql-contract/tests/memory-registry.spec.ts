@@ -90,15 +90,25 @@ describe('registerCombination', () => {
     expect(rejected(result)).toBe('field_missing')
   })
 
-  it('participant_empty: an empty list and an empty name', async () => {
+  it('participant_empty: an empty list', async () => {
     const h = await open(fx.fixture())
-    for (const participants of [[], ['']]) {
+    const result = await h.storage.registerCombination(
+      registration(fx.fixture(), { participants: [], manifestDigest: 'a'.repeat(64) }),
+    )
+    expect(rejected(result)).toBe('participant_empty')
+  })
+
+  // SPEC 3.1 makes a name non-empty, and 6.2 step 2 judges that before step 3 (Reduce ruling).
+  it.each([[['']], [['session', '']], [['', '']]])(
+    'field_missing: the empty participant name in %j, not participant_empty',
+    async participants => {
+      const h = await open(fx.fixture())
       const result = await h.storage.registerCombination(
         registration(fx.fixture(), { participants, manifestDigest: 'a'.repeat(64) }),
       )
-      expect(rejected(result)).toBe('participant_empty')
-    }
-  })
+      expect(rejected(result)).toBe('field_missing')
+    },
+  )
 
   it('participant_repeated', async () => {
     const h = await open(fx.fixture())
@@ -191,12 +201,12 @@ describe('rejection order of registerCombination: when two reasons hold, the ear
     expect(rejected(result)).toBe('field_missing')
   })
 
-  it('participant_empty before participant_repeated', async () => {
+  it('field_missing before participant_repeated', async () => {
     const h = await open(fx.fixture())
     const result = await h.storage.registerCombination(
       registration(fx.fixture(), { participants: ['', ''], manifestDigest: bad }),
     )
-    expect(rejected(result)).toBe('participant_empty')
+    expect(rejected(result)).toBe('field_missing')
   })
 
   it('participant_repeated before material_unavailable', async () => {
@@ -388,6 +398,26 @@ describe('read', () => {
     expect(await h.storage.read(echo({ input: 2 }))).toMatchObject({ output: { echo: 2 } })
   })
 
+  it('invalid: a transactionDomain over 120 bytes', async () => {
+    const h = await open(fx.fixture())
+    await small(h)
+    const domain = { scope: TENANT_A, transactionDomain: 'd'.repeat(121) }
+    expect(reasonOf(await h.storage.read(echo({ domain })))).toBe('invalid')
+    const edge = { scope: TENANT_A, transactionDomain: 'd'.repeat(120) }
+    expect(reasonOf(await h.storage.read(echo({ domain: edge })))).toBe('domain_unavailable')
+  })
+
+  it.each([
+    ['undefined', undefined],
+    ['bigint', 1n],
+    ['NaN', Number.NaN],
+    ['function', () => 1],
+  ])('invalid: an input that is %s, not a throw', async (_name, input) => {
+    const h = await open(fx.fixture())
+    await small(h)
+    expect(reasonOf(await h.storage.read(echo({ input: loose(input) })))).toBe('invalid')
+  })
+
   it('closing', async () => {
     const h = await open(fx.fixture())
     await small(h)
@@ -517,6 +547,19 @@ describe('close', () => {
     expect(closed).toEqual({ kind: 'closed' })
     expect((await running).kind).toBe('committed')
     expect(await waiting).toMatchObject({ kind: 'unknown', diagnostic: 'withdrawn_before_start' })
+  })
+
+  it('returns closed only after the running operation is done', async () => {
+    const h = await open(fx.fixture())
+    await small(h)
+    let settled = false
+    const running = h.storage.commit(commitRequest(fx.fixture())).then(result => {
+      settled = true
+      return result
+    })
+    await h.control.close({ initiator: 'assembly' })
+    expect(settled).toBe(true)
+    expect((await running).kind).toBe('committed')
   })
 
   it('does not turn a withdrawn commit into a rollback or a not_committed proof', async () => {

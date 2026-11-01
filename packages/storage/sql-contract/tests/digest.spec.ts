@@ -134,6 +134,16 @@ describe('inputDigestV2', () => {
     expect(inputDigestV2(request(commands))).toBe(sha(expectedText))
   })
 
+  it('sorts commands by UTF-16 code units, so "B" comes before "a" (not localeCompare)', () => {
+    const mixed = request([
+      { participant: 'a', facts: {} },
+      { participant: 'B', facts: {} },
+    ])
+    expect(inputDigestV2(mixed)).toBe(
+      sha(canonicalOf('[{"facts":{},"participant":"B"},{"facts":{},"participant":"a"}]')),
+    )
+  })
+
   it('does not change with the order of commands or of object keys', () => {
     const shuffled = request([
       { facts: { y: 'z' }, participant: 'a' },

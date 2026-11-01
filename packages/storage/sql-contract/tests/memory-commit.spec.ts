@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest'
 import type { CommitRequestV2, CommitResultV2 } from '@omne-harness/sql-contract'
 import {
   TENANT_B,
+  canonicalBytes,
   all,
   command,
   commitRequest,
@@ -127,6 +128,9 @@ describe('single rejection reasons of commit', () => {
     ['NaN', Number.NaN],
     ['bigint', 1n],
     ['function', () => 1],
+    ['sparse array', [1, , 3]], // eslint-disable-line no-sparse-arrays
+    ['accessor property', Object.defineProperty({}, 'g', { get: () => 1, enumerable: true })],
+    ['key with a lone surrogate', { ['\ud800']: 1 }],
   ])('facts_not_json: a %s fact', async (_name, value) => {
     const h = await open(fx.fixture())
     await small(h)
@@ -134,6 +138,85 @@ describe('single rejection reasons of commit', () => {
       commitRequest(fx.fixture(), { commands: [command('session', loose({ v: value }))] }),
     )
     expect(rejection(result).reason).toBe('facts_not_json')
+  })
+
+  describe('a request that is not JSON outside facts (SPEC 2.5 rule 1: a result, not a throw)', () => {
+    const cyclic = (): Record<string, unknown> => {
+      const loop: Record<string, unknown> = {}
+      loop['self'] = loop
+      return loop
+    }
+    const cases: [string, (base: CommitRequestV2) => CommitRequestV2][] = [
+      ['an undefined extra field on the request', b => loose({ ...b, note: undefined })],
+      [
+        'an undefined extra field in a command',
+        b => loose({ ...b, commands: [{ ...b.commands[0], extra: undefined }] }),
+      ],
+      ['a bigint extra field on the request', b => loose({ ...b, extra: 1n })],
+      ['a cycle in an extra field of the request', b => loose({ ...b, extra: cyclic() })],
+    ]
+    it.each(cases)('returns unknown for %s and keeps the queue alive', async (_name, change) => {
+      const h = await open(fx.fixture())
+      await small(h)
+      const request = change(commitRequest(fx.fixture()))
+      const result = await h.storage.commit(request)
+      expect(result).toEqual({
+        kind: 'unknown',
+        identity: request.identity,
+        diagnostic: 'request_not_json',
+      })
+      expect((await h.storage.commit(commitRequest(fx.fixture()))).kind).toBe('committed')
+    })
+  })
+
+  describe('a limit that is met exactly still passes (SPEC 7.2 step 7 says "exceeds")', () => {
+    const base = (): CommitRequestV2 => commitRequest(fx.fixture())
+    const passes = async (
+      limits: Record<string, number>,
+      request: CommitRequestV2,
+    ): Promise<string> => {
+      const h = await open(fx.fixture(), limits)
+      await small(h)
+      return (await h.storage.commit(request)).kind
+    }
+    const over = async (limits: Record<string, number>, request: CommitRequestV2) => {
+      const h = await open(fx.fixture(), limits)
+      await small(h)
+      return rejection(await h.storage.commit(request)).reason
+    }
+
+    it('maxCommandsPerCommit', async () => {
+      expect(await passes({ maxCommandsPerCommit: 2 }, base())).toBe('committed')
+      expect(await over({ maxCommandsPerCommit: 1 }, base())).toBe('command_limit')
+    })
+
+    it('maxRequestBytes', async () => {
+      const bytes = canonicalBytes(base())
+      expect(await passes({ maxRequestBytes: bytes }, base())).toBe('committed')
+      expect(await over({ maxRequestBytes: bytes - 1 }, base())).toBe('command_limit')
+    })
+
+    it('maxCommandBytes', async () => {
+      const bytes = Math.max(...base().commands.map(canonicalBytes))
+      expect(await passes({ maxCommandBytes: bytes }, base())).toBe('committed')
+      expect(await over({ maxCommandBytes: bytes - 1 }, base())).toBe('command_limit')
+    })
+
+    it('maxJsonDepth', async () => {
+      const request = commitRequest(fx.fixture(), {
+        commands: [command('session', { a: { b: 1 } }), command('agent-journal')],
+      })
+      expect(await passes({ maxJsonDepth: 2 }, request)).toBe('committed')
+      expect(await over({ maxJsonDepth: 1 }, request)).toBe('command_limit')
+    })
+
+    it('maxJsonMembers', async () => {
+      const request = commitRequest(fx.fixture(), {
+        commands: [command('session', { a: 1, b: 2 }), command('agent-journal', { c: 3 })],
+      })
+      expect(await passes({ maxJsonMembers: 3 }, request)).toBe('committed')
+      expect(await over({ maxJsonMembers: 2 }, request)).toBe('command_limit')
+    })
   })
 
   it('command_limit: more commands than the limit', async () => {
@@ -461,6 +544,28 @@ describe('failed and stopping replies roll the operation back (SPEC 7.6)', () =>
   ])('mode %s is recorded as failed with category %s', async (mode, category) => {
     const { last } = await stopped({ mode })
     expect(last?.reply).toMatchObject({ kind: 'failed', category })
+  })
+
+  it('a fact that the cell holds but the participant did not declare is a fact_violation', async () => {
+    const h = await open(fx.fixture())
+    await all(h)
+    const result = await h.storage.commit(
+      commitRequest(fx.fixture(), {
+        combinationVersion: 'all-v1',
+        commands: [
+          command('gamma'),
+          command('session'),
+          command('probe', loose({ mode: 'require-undeclared-existing' })),
+        ],
+      }),
+    )
+    if (result.kind !== 'rolled_back') throw new Error(`result is ${result.kind}`)
+    expect(result.responses.map(r => `${r.participant}:${r.reply.kind}`)).toEqual([
+      'gamma:participated',
+      'session:participated',
+      'probe:failed',
+    ])
+    expect(result.responses[2]?.reply).toMatchObject({ kind: 'failed', category: 'fact_violation' })
   })
 
   it('a response over maxResponseBytes is failed with response_limit', async () => {
