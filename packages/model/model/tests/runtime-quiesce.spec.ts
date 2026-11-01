@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { createModelRuntime } from '@omne-harness/model'
 import { createTestModelDependencies } from '@omne-harness/model/testing'
-import type { ModelCommands } from '@omne-harness/model-contract/provider'
+import { judgePart } from '@omne-harness/message'
+import type { ModelCommands, TransportFact } from '@omne-harness/model-contract/provider'
 import { invocationReference } from './reference-input.ts'
 import { configuration, eventually, runtimeFixture } from './runtime-fixture.ts'
 import { callId, fixture, op, unbox } from './memory-fixture.ts'
@@ -29,6 +30,22 @@ function idle(wrap?: (commands: ModelCommands<Principal>) => ModelCommands<Princ
   const provider = createModelRuntime({ ...assembly.dependencies, commands }, configuration)
   return { ...f, ...assembly, provider }
 }
+function sealedText() {
+  const part = judgePart({
+    kind: 'text',
+    id: 'answer',
+    text: 'kept',
+    visibility: { toHuman: true, toModel: true },
+  })
+  if ('rejected' in part || part.ok.kind !== 'text') throw new Error('invalid text block')
+  return part.ok
+}
+const answer: TransportFact[] = [
+  { kind: 'block-open', index: '0', content: 'text', mode: 'append' },
+  { kind: 'block-delta', index: '0', delta: 'kept' },
+  { kind: 'block-seal', index: '0', block: sealedText() },
+  { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
+]
 function another(f: ReturnType<typeof fixture>, label: string) {
   return { ...f.admit, call: callId(label), operation: op(`admit-${label}`) }
 }
@@ -63,8 +80,8 @@ it('recovers the original admission of the same operation after quiesce', async 
 })
 
 it('reports admitted calls that no drive holds as pending', async () => {
+  expect(unbox(await idle().provider.quiesce())).toEqual({ pending: '0', running: '0' })
   const f = idle()
-  expect(unbox(await f.provider.quiesce())).toEqual({ pending: '0', running: '0' })
   unbox(await f.provider.runtime.calls.admit(f.admit))
   unbox(await f.provider.runtime.calls.admit(another(f, 'second')))
   expect(unbox(await f.provider.quiesce())).toEqual({ pending: '2', running: '0' })
@@ -77,9 +94,7 @@ it('reports a call in drive as running rather than pending, and drops it once se
     expect(unbox(await f.provider.quiesce())).toEqual({ pending: '0', running: '1' })
     // Quiesce does not stop the accepted work: the drive still sends, receives and settles.
     await f.start(f.admit.call)
-    f.channel(f.admit.call).push([
-      { kind: 'ended', termination: { kind: 'completed', reason: 'stop' } },
-    ])
+    f.channel(f.admit.call).push(answer)
     await eventually(() => f.results.has(f.admit.call))
     expect(f.results.get(f.admit.call)).toEqual({ ok: undefined })
     expect(unbox(await f.provider.quiesce())).toEqual({ pending: '0', running: '0' })
