@@ -432,7 +432,7 @@ Agent 失去资格后不能提交新推进。原执行仍可以记录真实结�
 
 ### 等待、唤醒与公平
 
-W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录等待所依赖的事实：Journal 的 revision、生产者与卡片的游标、待办键。这些业务等待依据随执行状态 waiting 与 waiting 事件一起提交。检查时刻按 AgentClock.now 与 reconciliationDelayMs 在进程内计算，不持久化。恢复时立即重读，再建立本地计时，依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)。然后启动本地观察，再重读这些来源。观察端口没有登记就绪回执，重放、初始快照与定时重读共同覆盖窗口。进度已变就立即重新调度，未变才休眠。外域的变化不会增加 Journal 的 revision，所以还要检查生产者的原游标或查询。本地订阅只是低延迟提示。通知只唤醒，不作为恢复事实源。外域提供的变更通知，例如 Tool 的 `call-changed`，由宿主按同样的规则接入，见[本地宿主的 Cordis 装配](../../../agent-host-local/docs/cordis.md#局部依赖与可选依赖)。
+W0 是一次执行之内唯一的等待节点。进入 W0 时，Agent 先记录等待所依赖的事实：Journal 的 revision、生产者与卡片的游标、待办键。这些业务等待依据随执行状态 waiting 与 waiting 事件一起提交。检查时刻按 AgentClock.now 与 reconciliationDelayMs 在进程内计算，不持久化。恢复时立即重读，再建立本地计时，依据 [#558 的阶段 1 决定](https://github.com/nemori-ai/omne-harness-lite/issues/558#issuecomment-6307768802)。然后启动本地观察，再重读这些来源。观察端口没有登记就绪回执，重放、初始快照与定时重读共同覆盖窗口。初始快照不另读：事件序号连续，一次提交只追加它自己的事件，所以协调者从上一次 `load` 加上此后的自身提交得到确切的事件游标，观察从这个游标开始。进入等待因此最多一次完整读取。进度已变就立即重新调度，未变才休眠。外域的变化不会增加 Journal 的 revision，所以还要检查生产者的原游标或查询。本地订阅只是低延迟提示。通知只唤醒，不作为恢复事实源。外域提供的变更通知，例如 Tool 的 `call-changed`，由宿主按同样的规则接入，见[本地宿主的 Cordis 装配](../../../agent-host-local/docs/cordis.md#局部依赖与可选依赖)。
 
 唤醒后经 E1、E2、E4 回原节点。E1、E2、E4 本身不改变执行状态，执行回到进入等待之前的状态。回到 reconciling 的转换只由恢复、接管，以及唤醒后回到被打断的首次认回这三种情形引起。规则见算法页的[阶段与节点范围](loop-algorithm.md#阶段与节点范围)与[恢复入口与回归点](loop-algorithm.md#恢复入口与回归点)。
 
