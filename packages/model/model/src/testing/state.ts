@@ -3,55 +3,29 @@ import type { MemorySendSource } from './types.ts'
 import type { Outcome } from '@omne-harness/operation-result'
 import { decodeModelOperationId } from '@omne-harness/model-contract'
 import type {
-  Access,
-  ConsumerRef,
   MaterializationReceipt,
   ModelCallId,
   ModelFailure,
   ModelOperationId,
-  ReadId,
-  ReadState,
   ResultCapacity,
 } from '@omne-harness/model-contract'
-import type {
-  ActorRef,
-  ExecutionRef,
-  ModelConsumerOwnerDeclaration,
-  SendDemand,
-} from '@omne-harness/model-contract/provider'
-import { encodedBytes, materialBytes } from '../commands/judge.ts'
+import type { ExecutionRef } from '@omne-harness/model-contract/provider'
 import { createModelCommandsCore } from '../commands/index.ts'
-import {
-  copyCall,
-  type CallAccessInput,
-  type ModelCommandCore,
-  type WriteArguments,
-} from '../commands/state.ts'
+import { encodedBytes, materialBytes } from '../commands/judge.ts'
+import { copyCall, type CallAccessInput, type ModelCommandCore } from '../commands/state.ts'
 import type { CommandWrite, ModelCommandStorage } from '../commands/storage.ts'
-import type {
-  Binding,
-  CallDocument,
-  DispatchDocument,
-  ReadRelation,
-  TenantDocuments,
-} from '../commands/types.ts'
+import type { Binding, CallDocument, TenantDocuments } from '../commands/types.ts'
 import { MEMORY_WRITE_METHODS } from './types.ts'
 import type {
   MemoryAction,
   MemoryModelCommandsOptions,
   MemoryModelControl,
-  MemoryModelEvidence,
   UnknownInjection,
 } from './types.ts'
 import { positiveLimit } from './value.ts'
 
-export type { Applied, Binding, Draft, Receipt, WriteIdentity } from '../commands/types.ts'
-export { bump } from '../commands/state.ts'
-export type MemoryRead = ReadRelation
-export type MemoryDispatch = DispatchDocument
-export type MemoryCall = CallDocument
 export type TenantState = {
-  calls: Map<ModelCallId, MemoryCall>
+  calls: Map<ModelCallId, CallDocument>
   operations: Map<ModelOperationId, Binding>
 }
 
@@ -212,48 +186,12 @@ export class MemoryState<P> implements ModelCommandStorage {
   read<T>(
     input: CallAccessInput<P>,
     action: MemoryAction,
-    work: (call: MemoryCall, root: TenantDocuments) => Outcome<T, ModelFailure>,
+    work: (call: CallDocument, root: TenantDocuments) => Outcome<T, ModelFailure>,
   ): Outcome<T, ModelFailure> {
     return this.core.read(input, action, work)
   }
-  execution(input: ExecutionRef, call: MemoryCall | undefined): ModelFailure | null {
+  execution(input: ExecutionRef, call: CallDocument | undefined): ModelFailure | null {
     return this.core.execution(input, call)
-  }
-  authorize(
-    input: Access<P>,
-    action: MemoryAction,
-    call?: MemoryCall,
-    callId?: ModelCallId,
-    consumer?: ConsumerRef,
-  ): Outcome<ActorRef, ModelFailure> {
-    return this.core.authorize(input, action, call, callId, consumer)
-  }
-  adapter(call: MemoryCall): MemoryModelEvidence | ModelFailure {
-    return this.core.adapter(call)
-  }
-  owner(owner: string): ModelConsumerOwnerDeclaration | undefined {
-    return this.core.owner(owner)
-  }
-  write<T>(args: WriteArguments<T>): Outcome<T, ModelFailure> {
-    return this.core.write(args)
-  }
-  updateRead(
-    input: CallAccessInput<P>,
-    read: ReadId,
-    action: 'next' | 'end' | 'refresh',
-    after?: string,
-  ): Outcome<ReadState, ModelFailure> {
-    return this.core.updateRead(input, read, action, after)
-  }
-  page(call: MemoryCall, offset: number): ReadState {
-    return this.core.page(call, offset)
-  }
-  sendBinding(
-    input: SendDemand<P>,
-    call: MemoryCall | undefined,
-    stage: 'access' | 'prepare' = 'prepare',
-  ): ModelFailure | null {
-    return this.core.sendBinding(input, call, stage)
   }
   sendCoordinator(sources: readonly MemorySendSource<P>[]): SendCoordinator<P> {
     const registered = sources.map(source => ({
@@ -267,7 +205,7 @@ export class MemoryState<P> implements ModelCommandStorage {
       check: (input, stage) =>
         this.exclusive(() =>
           this.read(input, 'send', call => {
-            const failure = this.sendBinding(input, call, stage)
+            const failure = this.core.sendBinding(input, call, stage)
             return failure ? { failure } : { ok: undefined }
           }),
         ),
