@@ -17,6 +17,11 @@
       "source": "./src/cordis.ts",
       "types": "./dist/cordis.d.ts",
       "import": "./dist/cordis.js"
+    },
+    "./testing": {
+      "source": "./src/testing/index.ts",
+      "types": "./dist/testing/index.d.ts",
+      "import": "./dist/testing/index.js"
     }
   },
   "files": [
@@ -31,12 +36,12 @@
   },
   "dependencies": {
     "@deepseek-ai/cordis": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/runtime-context-contract": "workspace:*"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:",
-    "@omne-harness/legal-identity": "workspace:*"
+    "vitest": "catalog:"
   }
 }

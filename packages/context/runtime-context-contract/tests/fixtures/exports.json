@@ -177,6 +177,21 @@
               "name": "EligibilityMaterial",
               "kind": "type",
               "pending": false
+            },
+            {
+              "name": "ReaderEligibilityRequest",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReaderEligibilityResult",
+              "kind": "type",
+              "pending": false
+            },
+            {
+              "name": "ReaderEligibilityHandoff",
+              "kind": "type",
+              "pending": false
             }
           ]
         },

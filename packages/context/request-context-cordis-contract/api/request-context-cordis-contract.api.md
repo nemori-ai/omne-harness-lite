@@ -33,6 +33,10 @@
 - `ConditionsEvidence` · 包 `@omne-harness/request-context-contract`
 - `ContextBlockKey` · 包 `@omne-harness/runtime-context-contract`
 - `ContextGroupSources` · 包 `@omne-harness/request-context-contract`
+- `ContextHolderLease` · `holder-sources.d.ts`
+- `ContextHolderLeaseResult` · `holder-sources.d.ts`
+- `ContextHolderParts` · `holder-sources.d.ts`
+- `ContextHolderSources` · `holder-sources.d.ts`
 - `ContextReadEligibility` · 包 `@omne-harness/request-context-contract`
 - `ContextReadGroup` · 包 `@omne-harness/request-context-contract`
 - `ContextRegistration` · 包 `@omne-harness/request-context-contract`
@@ -57,14 +61,17 @@
 - `GroupSource` · 包 `@omne-harness/request-context-contract`
 - `GroupToken` · 包 `@omne-harness/request-context-contract`
 - `HistoryEvidence` · 包 `@omne-harness/request-context-contract`
+- `HistoryEvidenceResolver` · 包 `@omne-harness/request-context-contract`
 - `HistoryPage` · 包 `@omne-harness/request-context-contract`
 - `HistoryReadResult` · 包 `@omne-harness/request-context-contract`
+- `HistoryResolution` · 包 `@omne-harness/request-context-contract`
 - `HistoryRow` · 包 `@omne-harness/request-context-contract`
 - `HistorySource` · 包 `@omne-harness/request-context-contract`
 - `HumanProjection` · 包 `@omne-harness/request-context-contract`
 - `InvalidReason` · 包 `@omne-harness/request-context-contract`
 - `Layer` · 包 `@omne-harness/request-context-contract`
 - `LayerAnchor` · 包 `@omne-harness/request-context-contract`
+- `LeaseSettlement` · `holder-sources.d.ts`
 - `NewInputBatch` · 包 `@omne-harness/request-context-contract`
 - `PassageRef` · 包 `@omne-harness/request-context-contract`
 - `Path` · 包 `@omne-harness/request-context-contract`
@@ -127,20 +134,30 @@
 ## 入口 `./cordis` · `cordis.d.ts`
 
 - `ContextAccountingInboxService` · `cordis.d.ts`
+- `ContextHolderSourcesService` · `cordis.d.ts`
 - `RequestContextChangedPayload` · `cordis.d.ts`
 - `RequestContextIntercept` · `cordis.d.ts`
 - `RequestContextPolicySelection` · `cordis.d.ts`
 - `RequestContextService` · `cordis.d.ts`
 - `RequestContextTrustService` · `cordis.d.ts`
 - `contextAccountingInboxKey` · `cordis.d.ts`
+- `contextHolderSourcesKey` · `cordis.d.ts`
 - `requestContextKey` · `cordis.d.ts`
 - `requestContextTrustKey` · `cordis.d.ts`
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
+- `ContextHolderPartCall` · `testing/holder-sources-conformance.d.ts`
+- `ContextHolderSourcesCase` · `testing/holder-sources-conformance.d.ts`
+- `ContextHolderSourcesFixture` · `testing/holder-sources-conformance.d.ts`
+- `ContextHolderUnderTest` · `testing/holder-sources-conformance.d.ts`
+- `MemoryContextHolder` · `testing/holder-sources.d.ts`
+- `MemoryContextHolderOptions` · `testing/holder-sources.d.ts`
 - `RequestContextTrustCase` · `testing/index.d.ts`
 - `RequestContextTrustFixture` · `testing/index.d.ts`
 - `RequestContextTrustScript` · `testing/index.d.ts`
+- `contextHolderSourcesConformance` · `testing/holder-sources-conformance.d.ts`
+- `createMemoryContextHolder` · `testing/holder-sources.d.ts`
 - `createScriptedRequestContextTrust` · `testing/index.d.ts`
 - `requestContextTrustConformance` · `testing/index.d.ts`
 
@@ -149,6 +166,7 @@
 ```ts
 import { Service, type Context } from '@deepseek-ai/cordis';
 import type { AssemblyOperations, ContextAccountingInbox, CompactionPolicy, ContextSourceRegistry, ContextTarget, PromptContributionRegistry, RepresentationPolicyConfig, ScopeRef } from '@omne-harness/request-context-contract';
+import type { ContextHolderSources } from './holder-sources.js';
 import type { RequestContextTrust } from './trust.js';
 export type RequestContextIntercept = Readonly<{
     scope: ScopeRef | null;
@@ -188,6 +206,12 @@ export declare abstract class ContextAccountingInboxService<P> extends Service i
     abstract usage(...args: Parameters<ContextAccountingInbox<P>['usage']>): ReturnType<ContextAccountingInbox<P>['usage']>;
 }
 export declare const contextAccountingInboxKey = "contextAccountingInbox";
+export declare abstract class ContextHolderSourcesService<P> extends Service implements ContextHolderSources<P> {
+    static readonly provide = "contextHolderSources";
+    constructor(ctx: Context);
+    abstract lease(...args: Parameters<ContextHolderSources<P>['lease']>): ReturnType<ContextHolderSources<P>['lease']>;
+}
+export declare const contextHolderSourcesKey = "contextHolderSources";
 export type RequestContextChangedPayload = Readonly<{
     scope: ScopeRef | null;
     layerRevision: string;
@@ -198,6 +222,7 @@ declare module '@deepseek-ai/cordis' {
         requestContext: RequestContextService<unknown>;
         requestContextTrust: RequestContextTrustService<unknown>;
         contextAccountingInbox: ContextAccountingInboxService<unknown>;
+        contextHolderSources: ContextHolderSourcesService<unknown>;
     }
     interface Events {
         'request-context-cordis-contract/changed'(scope: ScopeRef | null, layerRevision: string, registryGeneration: string): void;
@@ -205,11 +230,93 @@ declare module '@deepseek-ai/cordis' {
 }
 ```
 
+## 声明文件 `holder-sources.d.ts`
+
+```ts
+import type { AdoptedRequestSource, ContextReadEligibility, HistoryEvidenceResolver, HistorySource, SourceSettlement } from '@omne-harness/request-context-contract';
+export type ContextHolderParts<P> = Readonly<{
+    history: HistorySource<P>;
+    adopted: AdoptedRequestSource<P>;
+    eligibility: ContextReadEligibility<P>;
+    resolveHistory: HistoryEvidenceResolver<P>;
+}>;
+export type LeaseSettlement = () => Promise<SourceSettlement>;
+export type ContextHolderLease<P> = Readonly<{
+    parts: ContextHolderParts<P>;
+    release(): void;
+}>;
+export type ContextHolderLeaseResult<P> = Readonly<{
+    kind: 'leased';
+    lease: ContextHolderLease<P>;
+}> | Readonly<{
+    kind: 'unavailable';
+    diagnostic: string;
+}>;
+export interface ContextHolderSources<P> {
+    lease(input: Readonly<{
+        settle: LeaseSettlement;
+    }>): ContextHolderLeaseResult<P>;
+}
+```
+
 ## 声明文件 `index.d.ts`
 
 ```ts
-export type { ScopeRef, ContextBlockKey, Path, Decoded, Decoder, ToolRoute, ToolDeclarationSet, ConversionIndex, RepresentationResult, ProjectedMessage, ProjectedHistory, HumanProjection, CompactionSettingsValue, WindowUsageValue, SystemPromptResult, Placement, PlacementInput, Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, PlanId, EpochId, BatchRef, PassageRef, RefKind, RefRejection, AssemblyPolicies, AssemblyOperations, PreparedInputKey, HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, RetainBudget, CompactionPolicy, CompactionPlanDraft, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, BudgetInput, ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, RequestPurpose, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, DeriveInput, AssemblyCall, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration, SourceRead, GroupSource, ContextGroupSources, AdoptedRequestSource, AdoptedRequestFact, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceDecision, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, } from '@omne-harness/request-context-contract';
+export type { ScopeRef, ContextBlockKey, Path, Decoded, Decoder, ToolRoute, ToolDeclarationSet, ConversionIndex, RepresentationResult, ProjectedMessage, ProjectedHistory, HumanProjection, CompactionSettingsValue, WindowUsageValue, SystemPromptResult, Placement, PlacementInput, Access, Adoption, DurableEvidence, RequestContextRef, CandidateRef, PositionRef, PlanId, EpochId, BatchRef, PassageRef, RefKind, RefRejection, AssemblyPolicies, AssemblyOperations, PreparedInputKey, HistoryRow, HistoryPage, HistoryReadResult, CompactionContextResult, HistorySource, ConversionIndexResult, ConversionResultSource, RetainBudget, CompactionPolicy, CompactionPlanDraft, CompactionPolicyPort, RepresentationPolicyConfig, RepresentationPolicyPort, BudgetInput, ContributionRejection, ContributionResult, ContributionsResult, PromptContributionRegistry, RequestPurpose, HistoryEvidence, NewInputBatch, BlockMaterial, SnapshotMaterial, ContextReadGroup, AssemblyContext, PromptContributionBase, PromptSection, PromptVariable, PromptContribution, PromptContributionSet, SelectedModel, ToolAdoption, ConditionsEvidence, AlterationEvidence, PreviousPreparation, TransitionEvidence, Layer, PrefixBreakReason, LayerAnchor, SnapshotAnchor, Coverage, BudgetBreach, FitVerdict, RepresentationChoice, SnapshotReminder, TailFacts, RequestLayers, RequestCandidate, CompactionPlan, PlanProgress, SummaryMaterial, StepRequest, StepInput, ContextTransition, AssemblyFailure, InvalidReason, UnavailableOwner, AssemblyUnknown, AssemblyOutcome, AssemblyResult, PlanResult, StepResult, DeriveInput, AssemblyCall, ContextTarget, GroupToken, PrincipalKey, RegistrationRef, SourceGeneration, SourceRead, GroupSource, ContextGroupSources, AdoptedRequestSource, AdoptedRequestFact, ContextReadEligibility, PrincipalBinding, ContextSources, SourceRegistrationAuthority, SourceDecision, SourceSettlement, ContextRegistration, RegistrationResult, ContextSourceRegistry, ContextRegistryOptions, HistoryResolution, HistoryEvidenceResolver, } from '@omne-harness/request-context-contract';
 export type { RequestContextTrust } from './trust.js';
+export type { ContextHolderParts, LeaseSettlement, ContextHolderLease, ContextHolderLeaseResult, ContextHolderSources, } from './holder-sources.js';
+```
+
+## 声明文件 `testing/holder-sources-conformance.d.ts`
+
+```ts
+import { Context } from '@deepseek-ai/cordis';
+import type { Access } from '@omne-harness/request-context-contract';
+import type { ContextHolderParts } from '../holder-sources.js';
+export type ContextHolderPartCall<P> = Readonly<{
+    call(parts: ContextHolderParts<P>, access: Access<P>): Promise<Readonly<{
+        kind: string;
+    }>>;
+    admitted: string;
+}>;
+export interface ContextHolderUnderTest<P> {
+    readonly access: Access<P>;
+    stop(): Promise<void>;
+    readsClosed(): boolean;
+    revoke(access: Access<P>): void;
+    readonly calls: Readonly<{
+        [K in keyof ContextHolderParts<P>]: ContextHolderPartCall<P>;
+    }>;
+}
+export interface ContextHolderSourcesFixture<P> {
+    start(ctx: Context): Promise<ContextHolderUnderTest<P>>;
+}
+export type ContextHolderSourcesCase = Readonly<{
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function contextHolderSourcesConformance<P>(fixture: ContextHolderSourcesFixture<P>): readonly ContextHolderSourcesCase[];
+```
+
+## 声明文件 `testing/holder-sources.d.ts`
+
+```ts
+import type { Context } from '@deepseek-ai/cordis';
+import type { Access, SourceSettlement } from '@omne-harness/request-context-contract';
+import { ContextHolderSourcesService } from '../cordis.js';
+import type { ContextHolderParts } from '../holder-sources.js';
+export type MemoryContextHolderOptions<P> = Readonly<{
+    parts: ContextHolderParts<P>;
+    admits(access: Access<P>): boolean;
+}>;
+export interface MemoryContextHolder<P> {
+    readonly durability: 'none';
+    readonly plugin: new (ctx: Context) => ContextHolderSourcesService<P>;
+    readonly readsClosed: boolean;
+    settlements(): readonly SourceSettlement[];
+}
+export declare function createMemoryContextHolder<P>(options: MemoryContextHolderOptions<P>): MemoryContextHolder<P>;
 ```
 
 ## 声明文件 `testing/index.d.ts`
@@ -250,7 +357,10 @@ export type RequestContextTrustCase = Readonly<{
 type Fixture = ReturnType<typeof createAssemblyFixture>;
 type Tenant = Fixture['target']['tenant'];
 export declare function requestContextTrustConformance<P>(fixture: RequestContextTrustFixture<P>): readonly RequestContextTrustCase[];
-export {};
+export { createMemoryContextHolder } from './holder-sources.js';
+export type { MemoryContextHolder, MemoryContextHolderOptions } from './holder-sources.js';
+export { contextHolderSourcesConformance } from './holder-sources-conformance.js';
+export type { ContextHolderPartCall, ContextHolderSourcesCase, ContextHolderSourcesFixture, ContextHolderUnderTest, } from './holder-sources-conformance.js';
 ```
 
 ## 声明文件 `trust.d.ts`
