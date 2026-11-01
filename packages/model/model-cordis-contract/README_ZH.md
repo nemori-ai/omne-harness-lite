@@ -10,6 +10,7 @@
 2. 本包已实现：根入口导出八个登记类型。`./cordis` 导出十五个抽象 Service 定义（含凭据服务）、两个具体目录 `ModelInstancesService` 与 `ModelConvertersService`，以及对应的 `Context` 与 `Events` 增补。导出清单里的名字全部已实现。局限：测试只覆盖[验证说明](verification/README.md)列出的范围，不证明任何运行实现。
 3. 尚未实现或验证：抽象 Service 的实现，即模型运行工厂、完整宿主与其他提供者，不在本包。两个目录的未决项见 [SPEC](SPEC.md#实例目录的未决项)与 [SPEC](SPEC.md#转换目录的未决项)。
 4. 技术设计：非 pi-ai 技术设计已接受，pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。契约实现不表示 CAP-MD01 至 CAP-MD13 已交付。
+5. 结果接收登记（T-06 方案 C）：`ModelRuntimeService.registerResultReceiver(owner, receiver)` 是具体成员，登记落在调用方 fiber。`./cordis` 另导出 `createModelResultReceiverTable`、`ModelResultReceiverTable` 与 `ModelResultReceiverConflictError`；新增的 `./testing` 入口有只实现登记的替身 `modelRuntime` 宿主与符合性用例。登记表只在本进程内有效，拆成多个进程时推送目标怎样到达，本版不定义。推送阶段在 model-host-local。见 [SPEC](SPEC.md#结果接收登记)。
 
 ## 使用
 
