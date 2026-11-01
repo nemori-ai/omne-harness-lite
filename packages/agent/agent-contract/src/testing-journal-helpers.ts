@@ -6,13 +6,7 @@ import assert from 'node:assert/strict'
 import { judgeMessage, type Message } from '@omne-harness/message'
 import { decodeModelCallId } from '@omne-harness/model-contract'
 import type { Outcome } from '@omne-harness/operation-result'
-import type {
-  AgentCheckpoint,
-  Failure,
-  ProducedResult,
-  Reply,
-  ReplyAdmissionPrefix,
-} from './evaluation.ts'
+import type { AgentCheckpoint, Failure, ProducedResult, Reply } from './evaluation.ts'
 import type {
   AcceptedInput,
   AgentEvent,

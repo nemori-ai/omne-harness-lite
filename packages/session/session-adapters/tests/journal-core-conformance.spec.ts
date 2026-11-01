@@ -5,7 +5,6 @@
 // and each first submit, so that an ordinary end is not blocked on the Session side; that record
 // is a Session write after the Journal answered, not a change of the Journal's answer.
 import { describe, it } from 'vitest'
-import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   agentJournalCoreConformance,
   testCancellationPolicyInstallation,

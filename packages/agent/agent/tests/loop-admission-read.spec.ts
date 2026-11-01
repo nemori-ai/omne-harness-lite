@@ -6,7 +6,6 @@
 import { describe, expect, it } from 'vitest'
 import { agentEvaluator } from '@omne-harness/agent'
 import type {
-  AgentCheckpoint,
   Authority,
   Failure,
   JournalCommit,
@@ -21,7 +20,6 @@ import {
 import {
   acceptedInput,
   checkpoint,
-  commitAt,
   execution,
   failure,
   ok,
@@ -94,22 +92,6 @@ async function load(assembly: LoopAssembly) {
 
 function seed(assembly: LoopAssembly, count: number) {
   expect(memory(assembly).replyAdmissions.seed(execution(), count, alice.tenant)).toBe(true)
-}
-
-/** Saves `read` as the checkpoint's read position with a commit of the original authority. */
-async function saveRead(
-  assembly: LoopAssembly,
-  authority: Authority,
-  read: AgentCheckpoint['replyAdmissionRead'],
-) {
-  const snapshot = await load(assembly)
-  ok(
-    await memory(assembly).port.commit(
-      commitAt(snapshot, authority, 'save-read', {
-        checkpoint: { ...snapshot.checkpoint, replyAdmissionRead: read },
-      }),
-    ),
-  )
 }
 
 const fromOf = (input: ReadInput | undefined) =>
