@@ -21,6 +21,7 @@ pnpm run test:gate                                  # pnpm run check 的测试�
 OMNE_TEST_CACHE=0 pnpm run check                    # 成员测试不读结果缓存（本次有构建时照常写）；test:affected 与 cli.ts 的 run、step、check 另认 --no-cache；test:tier 不认 --no-cache，改用 OMNE_TEST_CACHE=0 或 FULL=1。缓存见「结果缓存」
 pnpm run acceptance                                 # 构建有 acceptance 脚本的成员及其依赖，再跑它们的验收；--no-build 不构建
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts check [--admission] [--keep-going] [--list] [--resume-from <H1>]  # pnpm run check 的正文：取基线、算计划、按步骤图跑全部检查；调用方（scripts/check.sh）先取运行名额。--list 只打印步骤表（名字、依赖、重轻、命令），不取基线、不算计划、不跑；--resume-from 接续 H1 上快速失败的准入（全量或按影响面），只在准入模式下可用，见「准入」一节
+node --experimental-strip-types tools/test-runner/src/testing/cli.ts check --preflight  # pnpm run preflight 的正文：只跑准入里不依赖构建与全量测试的步骤，同时起、失败不终止其余，最后列出全部发现与修法；不写准入日志与记录，见 scripts/README.md「预检」
 node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F> [--record <路径>]  # 核对 F 上有没有可采用的全量准入（树相同的另一个提交上的也算），见「准入」一节
 ```
 
@@ -255,7 +256,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 ## 准入：运行记录、接续与证据核对
 
-规则归[集成规则](../../docs/engineering/integration.md#检查责任)的「增量准入」与「树相同时复用准入」两节；这里是执行它们的工具。三样东西：每次 `check` 写的运行记录、`check --resume-from <H1>` 与 `admission-evidence --for <F>`。
+规则归[集成规则](../../docs/engineering/integration.md#检查责任)的「增量准入」与「树相同时复用准入」两节；这里是执行它们的工具。三样东西：每次 `check` 写的运行记录、`check --resume-from <H1>` 与 `admission-evidence --for <F>`。准入开始时的环境自检与自愈、预检入口与成员测试的定向重跑归 [scripts/README.md](../../scripts/README.md#环境自检与自愈)，这里只写它们在记录里的形状。
 
 **运行记录**（`src/testing/admission-run.ts`，schemaVersion 1，`kind: admission-run`）。JSON 记录的形状归本节，文本准入日志的格式归 [scripts/README.md](../../scripts/README.md) 的准入日志一段。每次 `check` 结束时写一份 JSON，在本头的目录里是 `tmp/check-run/<head 短号>/run.json`；准入运行另在准入日志旁边写一份同名的 `.json`（`tmp/admission/<时间>-<head 短号>.json`），与日志是同一份事实的两种写法：人读日志，工具读记录。栏目：
 
@@ -271,6 +272,9 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | `steps`                      | 按步骤表的顺序，每步 `ran`、`exit`、`seconds`：跑完的记退出码，被终止的与没开始的记 `ran: false`、`exit: null`                                                                                                      |
 | `failedStep`                 | 快速失败的那一步（最早结束的失败步骤）；全部通过为 `null`                                                                                                                                                           |
 | `startedAt`、`finishedAt`    | 起止时刻                                                                                                                                                                                                            |
+| `environment`                | 开始时环境自检与自愈的结果（`src/testing/environment.ts`）：`dependencies.status` 取 `in-sync`、`reinstalled`、`install-failed`、`no-lockfile` 之一加 `detail`；`lineEndings.restored` 是从索引重新检出的 CRLF 工作副本，`kept` 是另有内容改动、没有覆盖的，`blocked` 是 `core.autocrlf=true` 时不检出的说明。只有准入运行写；早于这一栏的记录没有 |
+| `retried`                    | test 步一层失败后定向重跑过的文件（`src/testing/test-retry.ts`）：每项 `member`、`file`、`tier`（`fast`／`slow`）、`kind`（`timeout`、`stack-trace`、`startup`、`assertion`）、`firstError`（账本里第一处失败的第一行）、`retryResult`（`passed`、`failed`、`not-run`）。`admission-evidence` 把它列进输出，确认者看得到哪些用例是重跑才过的。没失败或没重跑时为空或没有 |
+| `testFailures`               | test 步最终失败时仍失败的文件（定向重跑后仍不过的，或没重跑时的全部），形状同 `retried` 去掉 `retryResult`；`--resume-from` 据它收窄。通过时为空或没有。失败不在任何文件里（成员一级）时为空 |
 
 写入先写临时名再改名，读到的要么是完整的旧记录要么是新的；解析失败、形状不对的文件按「没有记录」处理，不猜。`tmp/check-run/` 只留最近 5 个头的目录。
 
@@ -307,7 +311,8 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 | --- | --- | --- |
 | 常驻步骤（`check:docs`、`lint:oxlint` 等，不按计划） | 任何状态 | 整仓，与每次运行相同 |
 | 按计划的轻步骤（`python`） | 任何状态 | 整次运行的范围 |
-| 按计划的重步骤（构建、类型检查、成员测试、验收） | 失败（X） | 整次运行的范围 |
+| 按计划的重步骤（构建、类型检查、成员测试、验收） | 失败（X） | 整次运行的范围。X 是成员测试且满足下一行的条件时例外 |
+| 成员测试 | 失败（X），记录写了失败的文件（`testFailures`）、失败都在慢层（快层已对全部成员通过）、H1..HEAD 的差异（含中间运行补进的）都落在这些文件所在的成员里 | 只跑必要的：H1..HEAD 影响到的成员照常跑快慢两层，失败的文件各单独跑一次（所在成员已整个跑过的不重复），计划的 `testResume` 列出它们，证据分组写「只跑失败用例文件」。差异碰到别的路径、失败在快层（慢层在 H1 上没跑过）或记录没写失败文件时回退整次，理由写明。它之后的验收读的是构建的产物，不因它整次 |
 | 按计划的重步骤 | 没跑到：被终止、没开始，或记录里没有这一步 | 整次运行的范围 |
 | 按计划的重步骤 | 通过，且它之后（`after`，传递）有整次跑的步骤 | 整次运行的范围。成员测试与验收读构建出来的 `dist/`，缩了构建范围就会读到旧产物 |
 | 按计划的重步骤 | 通过，其余情况 | 只跑 H1..HEAD 影响到的成员 |
@@ -340,7 +345,7 @@ turbo 的 Strict Mode 只把声明过的环境变量传给任务。`turbo.json` 
 
 **不能声称**：接续不重跑 H1 上通过了的重步骤的全部成员，只跑 H1..HEAD 影响到的——影响面规则漏掉的读取这里同样漏掉；H1 按影响面时，整个接续的范围也只是 HEAD 相对本次基线的影响面；接续读 H1 那次留在磁盘上的 `dist/`，命令只补建本树上留下记录的运行构建过的成员，手工构建或没有留下记录的运行改过的 `dist/` 看不出；pnpm 依赖提升（`hoistPattern`）让成员读到没声明的依赖时，锁文件的 importer 映射看不到这种读取；`admission-evidence` 接受的是「这棵树上跑过一次干净的全量准入」，不是「这次再跑也会过」；记录与日志都在被忽略的 `tmp/` 下，换一棵检出就没有，不是远程或跨机器的证据。
 
-自测：`tests/admission-run.spec.ts`（记录的读写、由步骤图运行写成记录、挑 H1 的记录、工作树根的写法）、`tests/resume.spec.ts`（前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步怎么跑、H1 按影响面时的范围与基线核对、接续不链式、证据文本、取 git 事实、结束时重新核对现场）、`tests/admission-evidence.spec.ts`（逐字段的拒绝、没带 `FULL=1` 的拒绝、按树找、子命令退出码，慢层起真实 CLI）、`tests/check-resume.spec.ts`（慢层，夹具仓库上端到端：只在 oxlint 失败的准入写出记录，修复后接续只跑规定的步骤与成员、轻步骤整次跑，拒绝以 2 退出，碰全局路径整次全量，运行中留下没被忽略的文件时记 dirty；H1 按影响面时接续不选影响面外的成员、基线合并点不同拒绝、接续记录不作 H1）。
+自测：`tests/environment.spec.ts`（依赖一致不动、副本不同离线安装、安装失败、CRLF 工作副本重新检出、有内容改动不覆盖、`autocrlf=true` 不检出、记录一栏的解析）、`tests/preflight.spec.ts`（两步失败一步慢时全部跑完并一次列出、全过退出 0、安装失败不跑步骤、步骤表只有轻步骤且每步有修法）、`tests/test-retry.spec.ts`（失败分类、≤10 重跑全过记通过、重跑仍失败、>10 不重跑、成员一级失败不重跑、报告与记录两栏的读写）、`tests/admission-run.spec.ts`（记录的读写、由步骤图运行写成记录、挑 H1 的记录、工作树根的写法）、`tests/resume.spec.ts`（前提校验的每种拒绝、全局路径与锁文件的退化、增量计划里每一步怎么跑、H1 按影响面时的范围与基线核对、接续不链式、证据文本、取 git 事实、结束时重新核对现场）、`tests/admission-evidence.spec.ts`（逐字段的拒绝、没带 `FULL=1` 的拒绝、按树找、子命令退出码，慢层起真实 CLI）、`tests/check-resume.spec.ts`（慢层，夹具仓库上端到端：只在 oxlint 失败的准入写出记录，修复后接续只跑规定的步骤与成员、轻步骤整次跑，拒绝以 2 退出，碰全局路径整次全量，运行中留下没被忽略的文件时记 dirty；H1 按影响面时接续不选影响面外的成员、基线合并点不同拒绝、接续记录不作 H1；开始时 CRLF 工作副本被重新检出且记录写明；test 步留下的重跑报告进记录；H1 失败于 test 时接续只跑影响到的成员加失败的文件）。接续里 test 步真正按 `testResume` 跑文件的那段（`steps.ts`）只有选择函数的单测（`tests/tier-order.spec.ts`），没有在真实成员上跑过接续。
 
 ## 差分变异
 
