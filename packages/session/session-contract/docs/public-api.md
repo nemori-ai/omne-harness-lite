@@ -162,7 +162,7 @@ SessionCreation.initialization 是可选来源包，包含 sources 和 results�
 
 | 导出 | 源文件 | 说明 |
 | --- | --- | --- |
-| `readModelSelection`、`cancelRun`、`stopCall`、`queryControlOperation`（`SessionWork`） | [src/faces.ts](../src/faces.ts) | `cancelRun` 的失败只有 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`，只在目标为 Tool 时产生，且在访问裁定之后、会话存在核对之前返回 |
+| `readModelSelection`、`cancelRun`、`stopCall`、`queryControlOperation`（`SessionWork`） | [src/faces.ts](../src/faces.ts) | `cancelRun` 的失败只有 `denied`、`invalid`、`conflict`、`commit-unknown`、`unavailable`、`quarantined`；`stopCall` 另有 `unsupported`，只在目标为 Tool 时产生，且在访问裁定之后、会话存在核对之前返回；字段格式拒绝（空 `run`、未登记 `urgency`、未登记 `producer.kind`、空 `producer.call`）为 `invalid`，不保存为答案。行为条款见 [SPEC 控制与模型选择](../SPEC.md#控制与模型选择) |
 | `SavedModelSelection`、`SessionControlReceipt`、`SessionCallLookup`、`SessionRunLookup` 等 | [src/control-values.ts](../src/control-values.ts) | 控制答案与同根查找的形状 |
 | `Decision` 的 `control-answer` 分支、`DecideReads.calls`、`DecideReads.runs`、`entries` 分支的 `progress` 与 `interpreted` | [src/judgments.ts](../src/judgments.ts) | `control-answer` 不推进修订，不产生 `CommitReceipt` |
 | `SessionTransactionPort.commitEntries` 与 entries 解释值 | [src/ports.ts](../src/ports.ts)、[src/interpretation-values.ts](../src/interpretation-values.ts) | 只有形状。内存替身返回 `unavailable`，纯检验与提供者步骤属下一段 |
