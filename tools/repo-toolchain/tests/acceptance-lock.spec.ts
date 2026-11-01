@@ -133,7 +133,10 @@ describe('验收锁：判断', () => {
   })
 })
 
-describe('验收锁：读 Git', () => {
+// 每条用例都建一棵临时仓库、起多个 git 子进程，两条入口用例还各起几个 CLI 进程：空闲时 0.3–2 秒，
+// 负载下（另两份 vitest 全跑）量到 6–21 秒（2026-11-01），超过 vitest 默认的 5 秒。时限按负载下成本的
+// 三倍写明，不改断言。
+describe('验收锁：读 Git', { timeout: 60_000 }, () => {
   const made: string[] = []
   afterEach(() => {
     for (const path of made.splice(0)) rmSync(path, { recursive: true, force: true })
@@ -444,7 +447,10 @@ describe('historical fingerprint rejection', () => {
   })
 })
 
-describe('#769 historical approvals against real Git objects', () => {
+// Each case reads real objects of this repository's history through git subprocesses: about one
+// second idle, 7–12 seconds under load (two other vitest runs, 2026-11-01), past the 5-second
+// default. The limit is three times the loaded cost; no assertion changes.
+describe('#769 historical approvals against real Git objects', { timeout: 30_000 }, () => {
   const root = fileURLToPath(new URL('../../../', import.meta.url))
   const decision =
     'https://github.com/nemori-ai/omne-harness-lite/issues/769#issuecomment-6411908205'

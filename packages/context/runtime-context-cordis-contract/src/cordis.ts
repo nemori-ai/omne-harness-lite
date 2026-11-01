@@ -3,6 +3,7 @@ import type {
   ConsumerClass,
   ContextBlockKey,
   RuntimeContextOperations,
+  RuntimeContextTrust,
   ScopeRef,
   ViewRevision,
 } from '@omne-harness/runtime-context-contract'
@@ -19,6 +20,25 @@ type ProducerOperation<K extends ContextBlockKey> = {
 }
 
 export type RuntimeContextIntercept = Readonly<{ consumer: ConsumerClass }>
+
+/**
+ * Construction input, not a Runtime Context capability: the trusted assembly provides the two
+ * original ports in its own subtree. Subtree visibility is an assembly position, not
+ * encapsulation. The object never enters plugin tree JSON or plugin configuration.
+ * @owner packages/context/runtime-context-contract
+ */
+export abstract class RuntimeContextTrustService<P = unknown>
+  extends Service
+  implements RuntimeContextTrust<P>
+{
+  static readonly provide = 'runtimeContextTrust'
+  constructor(ctx: Context) {
+    super(ctx, RuntimeContextTrustService.provide)
+  }
+  abstract readonly authority: RuntimeContextTrust<P>['authority']
+  abstract readonly bindings: RuntimeContextTrust<P>['bindings']
+}
+export const runtimeContextTrustKey = RuntimeContextTrustService.provide
 
 /** @owner packages/context/runtime-context-contract */
 export abstract class RuntimeContextService<P = unknown>
@@ -63,6 +83,7 @@ export type RuntimeContextChangedPayload = Readonly<{ scope: ScopeRef; revision:
 declare module '@deepseek-ai/cordis' {
   interface Context {
     runtimeContext: RuntimeContextService<unknown>
+    runtimeContextTrust: RuntimeContextTrustService<unknown>
     [runtimeContextScopeKey]?: ScopeRef
   }
   interface Events {

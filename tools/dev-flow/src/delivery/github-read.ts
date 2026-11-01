@@ -16,6 +16,8 @@ export class GhReadError extends Error {
     this.body = body
   }
 }
+/** The time limit of one platform read, in milliseconds. */
+export const GH_READ_TIMEOUT_MS = 15_000
 /** The request headers of a REST call: the JSON media type and the adopted API version. */
 export const REST_HEADERS = [
   '-H',
@@ -62,7 +64,7 @@ export function fetchIssueCard(
   const card = readIssueCard(
     call(
       ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/${number}`],
-      15_000,
+      GH_READ_TIMEOUT_MS,
     ),
     repository,
     number,
@@ -76,22 +78,138 @@ export function fetchIssueCard(
 export type GhCommand = (argv: readonly string[], timeoutMs: number) => unknown
 /** A `GhCommand` that its callers use only for GET requests. */
 export type GhRead = GhCommand
-export const runGhCommand: GhCommand = (argv, timeoutMs) => {
-  let stdout: string
-  try {
-    stdout = execFileSync('gh', [...argv], {
-      encoding: 'utf8',
-      timeout: timeoutMs,
-      maxBuffer: 8 * 1024 * 1024,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-    })
-  } catch (error) {
-    throw responseError(error) ?? error
-  }
-  return JSON.parse(stdout)
+/** One launch of `gh`: its stdout text. Throws the process error of `execFileSync`. */
+export type GhProcess = (argv: readonly string[], timeoutMs: number) => string
+export const ghProcess: GhProcess = (argv, timeoutMs) =>
+  execFileSync('gh', [...argv], {
+    encoding: 'utf8',
+    timeout: timeoutMs,
+    maxBuffer: 8 * 1024 * 1024,
+    stdio: ['ignore', 'pipe', 'pipe'],
+    shell: false,
+  })
+/**
+ * The pause before retry 1, 2 and 3 of an idempotent GET whose transport failed. Three retries
+ * at most; the fourth failure is thrown as it is.
+ */
+export const GH_READ_RETRY_DELAYS_MS: readonly number[] = [500, 1000, 2000]
+/** Blocks the thread for `ms`: the reads are synchronous, so the backoff is too. */
+function blockingSleep(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
 }
+const FIELD_OPTIONS = new Set(['-f', '--raw-field', '-F', '--field', '--input'])
+/**
+ * True for `gh api` argv that sends a GET: an explicit `--method GET`/`-X GET`, or no method and
+ * no field or input (then `gh api` itself uses GET). GraphQL and every write stay out.
+ */
+export function isIdempotentGet(argv: readonly string[]): boolean {
+  if (argv[0] !== 'api' || argv[1] === 'graphql') return false
+  let method: string | undefined
+  for (let index = 1; index < argv.length; index += 1) {
+    const word = argv[index] ?? ''
+    if (word === '--method' || word === '-X') method = argv[index + 1]
+    else if (word.startsWith('--method=')) method = word.slice('--method='.length)
+    else if (FIELD_OPTIONS.has(word) && method === undefined) return false
+  }
+  return method === undefined || method.toUpperCase() === 'GET'
+}
+/**
+ * True when a failed launch is a transport fault worth one more try: a timeout, a non-zero exit
+ * that carries no API answer, or an API answer with a 5xx status. A 4xx answer, 429 included
+ * (`gh api` does not expose `retry-after`), and a process that could not start are final.
+ */
+function transient(error: unknown): boolean {
+  if (error instanceof GhReadError) {
+    const status = (error.body as { status?: unknown } | null)?.status
+    return typeof status === 'string' && /^5\d\d$/u.test(status)
+  }
+  if (!(error instanceof Error)) return false
+  const { code, status } = error as Error & { code?: unknown; status?: unknown }
+  return code === 'ETIMEDOUT' || (typeof status === 'number' && status !== 0)
+}
+/**
+ * A `GhCommand` over `run`. A GET whose transport fails is launched again after each pause of
+ * `GH_READ_RETRY_DELAYS_MS`; every other command and every other failure is thrown at once.
+ * The retried read is the same command, so a judgement that reads twice still reads twice.
+ */
+export function ghCommand(run: GhProcess, sleep: (ms: number) => void = blockingSleep): GhCommand {
+  return (argv, timeoutMs) => {
+    const retries = isIdempotentGet(argv) ? GH_READ_RETRY_DELAYS_MS.length : 0
+    for (let attempt = 0; ; attempt += 1) {
+      let stdout: string
+      try {
+        stdout = run(argv, timeoutMs)
+      } catch (error) {
+        const failure = responseError(error) ?? error
+        if (attempt >= retries || !transient(failure)) throw failure
+        sleep(GH_READ_RETRY_DELAYS_MS[attempt] ?? 0)
+        continue
+      }
+      return JSON.parse(stdout)
+    }
+  }
+}
+export const runGhCommand: GhCommand = ghCommand(ghProcess)
 export const runGhRead: GhRead = runGhCommand
+
+/** The reads of one command run, with the reuse each step of the run is allowed. */
+export type ReusedReads = {
+  /** The same GET reads the platform once in the run; later calls take that answer. */
+  shared: GhRead
+  /**
+   * A reader for one step that reads twice and must not take its first read for its second: the
+   * first call per GET goes through `shared`, every later call of the same GET reads the platform.
+   */
+  onceThenFresh(): GhRead
+  /**
+   * A reader for the reads after a judgement: every GET reads the platform once more, and that
+   * read is reused only inside this group, never by `shared`.
+   */
+  freshGroup(): GhRead
+}
+type Answer = { value: unknown } | { error: GhReadError }
+/** A `GhRead` over `call` that answers a repeated GET from its first answer; writes pass through. */
+function cached(call: GhRead): GhRead {
+  const answers = new Map<string, Answer>()
+  return (argv, timeoutMs) => {
+    if (!isIdempotentGet(argv)) return call(argv, timeoutMs)
+    const key = JSON.stringify(argv)
+    let answer = answers.get(key)
+    if (answer === undefined) {
+      try {
+        answer = { value: call(argv, timeoutMs) }
+      } catch (error) {
+        // An API answer is a result and is reused; a transport failure is not an answer.
+        if (!(error instanceof GhReadError)) throw error
+        answer = { error }
+      }
+      answers.set(key, answer)
+    }
+    if ('error' in answer) throw answer.error
+    return answer.value
+  }
+}
+/**
+ * Read reuse of one command run over `call`. The GET of one URL goes to the platform once and is
+ * reused by every later step, except the reads a judgement repeats on purpose: those take
+ * `onceThenFresh` or `freshGroup` and read the platform again.
+ */
+export function reuseReads(call: GhRead): ReusedReads {
+  const shared = cached(call)
+  return {
+    shared,
+    onceThenFresh: () => {
+      const seen = new Set<string>()
+      return (argv, timeoutMs) => {
+        const key = JSON.stringify(argv)
+        if (!isIdempotentGet(argv) || seen.has(key)) return call(argv, timeoutMs)
+        seen.add(key)
+        return shared(argv, timeoutMs)
+      }
+    },
+    freshGroup: () => cached(call),
+  }
+}
 /** Only an ordinary non-zero exit with JSON on stdout carries a response body. */
 function responseError(error: unknown): GhReadError | undefined {
   if (!(error instanceof Error)) return undefined
@@ -152,7 +270,7 @@ export function collectDelivery(config: DeliveryConfig, read: GhRead = runGhRead
     if (requests >= 200 || Date.now() >= deadline)
       throw new InputError('collection request or time limit reached')
     requests += 1
-    return read(argv, Math.min(15_000, Math.max(1, deadline - Date.now())))
+    return read(argv, Math.min(GH_READ_TIMEOUT_MS, Math.max(1, deadline - Date.now())))
   }
   function rest(path: string): unknown {
     return request([

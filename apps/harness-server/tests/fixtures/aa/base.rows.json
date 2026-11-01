@@ -1,0 +1,17 @@
+{
+  "source": "docs/architecture/runtime/application-assembly.md",
+  "rows": [
+    "storage",
+    "identity",
+    "server-entry"
+  ],
+  "trusted": [
+    {
+      "row": "storage",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    }
+  ]
+}

@@ -15,6 +15,16 @@ export type SessionEncodeResult = GovernanceEncodeResult
 
 export type SessionTarget = { readonly tenant: TenantId; readonly session: string }
 
+/** The producer of a call that `stop-call` selects. */
+export type SessionProducerRef = { readonly kind: 'model' | 'tool'; readonly call: string }
+/** The origin of a recorded terminal fact. Declared here so the wire shape needs no other package. */
+export type SessionTerminalSource = {
+  readonly owner: string
+  readonly record: string
+  readonly revision: string
+  readonly digest: string
+}
+
 export type SessionRequestBodies = {
   'create-session': {
     readonly createCallId: string
@@ -35,6 +45,15 @@ export type SessionRequestBodies = {
         readonly pageBytes: string
       })
     | (SessionTarget & { readonly cursor: string })
+  'cancel-run': SessionTarget & {
+    readonly controlId: string
+    readonly run: string
+    readonly urgency: 'graceful' | 'force'
+  }
+  'stop-call': SessionTarget & {
+    readonly controlId: string
+    readonly producer: SessionProducerRef
+  }
 }
 export type SessionOperation = keyof SessionRequestBodies
 
@@ -68,6 +87,33 @@ export type SessionSuccessBodies = {
   'send-input': { readonly recovered: boolean }
   'query-send-input': EmptyBody
   'read-history': SessionHistoryPage
+  'cancel-run':
+    | { readonly kind: 'requested'; readonly controlId: string; readonly run: string }
+    | {
+        readonly kind: 'ended'
+        readonly controlId: string
+        readonly run: string
+        readonly terminal: {
+          readonly outcome: 'completed' | 'failed' | 'cancelled'
+          readonly source: SessionTerminalSource
+        }
+      }
+  'stop-call':
+    | {
+        readonly kind: 'requested'
+        readonly controlId: string
+        readonly producer: SessionProducerRef
+      }
+    | {
+        readonly kind: 'ended'
+        readonly controlId: string
+        readonly producer: SessionProducerRef
+        readonly terminal: {
+          readonly version: string
+          readonly outcome: 'completed' | 'failed' | 'interrupted' | 'unavailable' | 'no-response'
+          readonly source: SessionTerminalSource
+        }
+      }
 }
 export type SessionOutcomes = {
   'create-session':
@@ -89,6 +135,23 @@ export type SessionOutcomes = {
     | 'unknown'
   'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown'
   'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable'
+  'cancel-run':
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'conflict'
+    | 'not-found'
+    | 'basis-unavailable'
+    | 'unknown'
+  'stop-call':
+    | 'succeeded'
+    | 'denied'
+    | 'invalid'
+    | 'conflict'
+    | 'not-found'
+    | 'basis-unavailable'
+    | 'unknown'
+    | 'unsupported'
 }
 
 export type SessionProtocolRejected = {

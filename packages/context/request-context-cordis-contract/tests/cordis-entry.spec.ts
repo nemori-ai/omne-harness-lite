@@ -20,11 +20,18 @@ function current(ctx: Context, scope: ScopeRef | null) {
   if (result.kind !== 'current') throw new Error('Registry closed')
   return result.set
 }
-it('exports only the Service definition and its derived key', async () => {
+it('exports only the Service definitions and their derived keys', async () => {
   expect(requestContextKey).toBe(RequestContextService.provide)
   expect(
     Object.keys(await import('@omne-harness/request-context-cordis-contract/cordis')).sort(),
-  ).toEqual(['RequestContextService', 'requestContextKey'])
+  ).toEqual([
+    'ContextAccountingInboxService',
+    'RequestContextService',
+    'RequestContextTrustService',
+    'contextAccountingInboxKey',
+    'requestContextKey',
+    'requestContextTrustKey',
+  ])
 })
 it('subclass loads under the unique key and unregisters on provider unload', async () => {
   const ctx = new Context()

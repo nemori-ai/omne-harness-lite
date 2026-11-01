@@ -3,7 +3,6 @@
   "integration": {
     "track": "mainline",
     "paths": [
-      "packages/storage/sql-contract",
       "packages/storage/docs",
       "docs/requirements.md",
       "docs/architecture",
@@ -45,7 +44,8 @@
     "packages/assembly/kernel-basis/api",
     "packages/common/json-text/api",
     "packages/common/operation-result/api",
-    "packages/common/call-account/api"
+    "packages/common/call-account/api",
+    "packages/storage/sql-contract/api"
   ],
   "lines": [
     {
@@ -54,6 +54,7 @@
       "owner": "PanQiWei",
       "track": "session-run",
       "paths": [
+        "packages/storage/sql-contract",
         "packages/storage/sqlite-provider",
         "packages/storage/object-store-local",
         "packages/storage/object-store-contract",
@@ -81,7 +82,8 @@
         "packages/context/runtime-context-contract",
         "packages/context/runtime-context-cordis-contract",
         "packages/context/request-context-contract",
-        "packages/context/request-context-cordis-contract"
+        "packages/context/request-context-cordis-contract",
+        "packages/storage/sql-contract"
       ]
     },
     {

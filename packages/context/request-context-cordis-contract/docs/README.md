@@ -21,10 +21,10 @@
 | 专题                               | 本成员里承载什么                                                                                          |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | [cordis.md](cordis.md)             | 服务定义、intercept 配置与作用域、事件、依赖分类、登记与撤除协议、策略选择、IC 符合性映射、机制读数与假设 |
-| [architecture.md](architecture.md) | 两个入口、包外依赖、五条关键机制的理由、模块层的 SOLID 选择                                               |
+| [architecture.md](architecture.md) | 三个入口、包外依赖、五条关键机制的理由、模块层的 SOLID 选择                                               |
 | [flows.md](flows.md)               | F-RQD01 贡献登记与撤除、F-RQD02 变化事件按作用域到达                                                      |
 | [object-model.md](object-model.md) | 三个技术对象。领域对象指向契约的对象模型                                                                  |
-| [public-api.md](public-api.md)     | 两个入口。根类型重导出、Cordis 定义与导出库存                                                              |
+| [public-api.md](public-api.md)     | 三个入口。根类型重导出、Cordis 定义、测试导出与导出库存                                                    |
 | [context.md](context.md)           | 各类依赖方的用法与定位                                                                                    |
 
-两个入口的公开定义已进入[源码](../src/cordis.ts)。经 Cordis 的来源登记 `register`、`replace` 与组装入口 `assembly(target)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 从 Runtime Context 契约原样复用。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。
+三个入口的公开定义已进入[源码](../src/cordis.ts)。经 Cordis 的来源登记 `register`、`replace` 与组装入口 `assembly(target)`、全局层的表达 `scope: null` 与事件由监听者按载荷过滤已在 SPEC 写定。`ScopeRef` 从 Runtime Context 契约原样复用。这几项见 [Cordis 说明](cordis.md)。一条机制读数还没有进入 basis。具名维护者由负责人指定，见[组入口](../../README.md#维护)。

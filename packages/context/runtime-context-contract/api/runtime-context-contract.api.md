@@ -95,6 +95,7 @@
 - `RevokeEligibilityResult` · `operations.d.ts`
 - `RuntimeContextAuthority` · `authority.d.ts`
 - `RuntimeContextOperations` · `operations.d.ts`
+- `RuntimeContextTrust` · `trust.d.ts`
 - `ScopeBinding` · `authority.d.ts`
 - `ScopeBindingSource` · `authority.d.ts`
 - `ScopeRef` · `shared.d.ts`
@@ -136,14 +137,20 @@
 - `MemoryRuntimeContextOptions` · `testing/memory.d.ts`
 - `NotApplicable` · `testing/case.d.ts`
 - `RUNTIME_CONTEXT_OBLIGATIONS` · `testing/conformance.d.ts`
+- `RUNTIME_CONTEXT_TRUST_OBLIGATIONS` · `testing/trust-conformance.d.ts`
 - `RuntimeContextFixture` · `testing/suite.d.ts`
 - `RuntimeContextObligation` · `testing/conformance.d.ts`
 - `RuntimeContextPorts` · `testing/suite.d.ts`
+- `RuntimeContextTrustControls` · `testing/trust.d.ts`
+- `RuntimeContextTrustFixture` · `testing/trust.d.ts`
 - `TestAuthorityPorts` · `testing/ports.d.ts`
+- `TestRuntimeContextTrust` · `testing/trust.d.ts`
 - `createMemoryRuntimeContext` · `testing/memory.d.ts`
 - `createTestAuthorityPorts` · `testing/ports.d.ts`
+- `createTestRuntimeContextTrust` · `testing/trust.d.ts`
 - `runConformanceCase` · `testing/case.d.ts`
 - `runtimeContextConformance` · `testing/conformance.d.ts`
+- `runtimeContextTrustConformance` · `testing/trust-conformance.d.ts`
 
 ## 声明文件 `authority.d.ts`
 
@@ -320,6 +327,7 @@ export type { Necessity, ContextNeed, Translation, NeedBinding, NeedBindingRef }
 export type { BlockDescriptorBase, SuppliedBlockDescriptor, StatefulBlockDescriptor, ContextBlockDescriptor, DescriptorCatalog, } from './descriptor.js';
 export type { SupplyAnswer, SupplyInput, SupplyCallback, ProducerRegistration, PublishInput, PublishResult, InvalidateTarget, InvalidateResult, ProducerHandle, } from './producer.js';
 export type { ScopeBinding, ScopeBindingSource, AuthorityDecision, OrdinaryHolderAction, BeginReplayAction, FinishReplayAction, HolderAction, HolderDecision, ProducerAction, RuntimeContextAuthority, CheckCause, CheckUnavailable, CheckUnknown, } from './authority.js';
+export type { RuntimeContextTrust } from './trust.js';
 export type { ReplayRef, BeginReplayInput, ReplayBlock, ReplayMaterial, FinishReplayInput, ReplayPrevious, AppliedCommit, BeginReplayResult, FinishReplayResult, } from './replay.js';
 export type { ScopeText, BlockValue, RegistrationRevision, ViewRevision, BlockRevision, Generation, CommitRef, ProducerRef, StepRef, UpdateOriginRef, } from './shared.js';
 export { decodeScopeRef, decodeContextBlockKey } from './decode.js';
@@ -1176,6 +1184,9 @@ export { NotApplicable, runConformanceCase } from './case.js';
 export type { ConformanceCase, CaseVerdict } from './case.js';
 export { RUNTIME_CONTEXT_OBLIGATIONS, runtimeContextConformance } from './conformance.js';
 export type { RuntimeContextFixture, RuntimeContextPorts, RuntimeContextObligation, } from './conformance.js';
+export { createTestRuntimeContextTrust } from './trust.js';
+export type { TestRuntimeContextTrust, RuntimeContextTrustControls, RuntimeContextTrustFixture, } from './trust.js';
+export { RUNTIME_CONTEXT_TRUST_OBLIGATIONS, runtimeContextTrustConformance, } from './trust-conformance.js';
 ```
 
 ## 声明文件 `testing/memory-holder.d.ts`
@@ -1390,10 +1401,8 @@ export {};
 ## 声明文件 `testing/memory.d.ts`
 
 ```ts
-import type { RuntimeContextOperations, RuntimeContextAuthority, ScopeBindingSource, ScopeRef } from '../index.js';
-export type MemoryRuntimeContextOptions<P = unknown> = Readonly<{
-    authority: RuntimeContextAuthority<P>;
-    bindings: ScopeBindingSource;
+import type { RuntimeContextOperations, RuntimeContextTrust, ScopeRef } from '../index.js';
+export type MemoryRuntimeContextOptions<P = unknown> = RuntimeContextTrust<P> & Readonly<{
     retention?: number;
     replayCapacity?: number;
     supplyBoundMs?: number;
@@ -1486,6 +1495,98 @@ export declare function start<P>(fixture: RuntimeContextFixture<P>): Promise<{
 }>;
 export declare function started<P>(fixture: RuntimeContextFixture<P>): Promise<Setup<P>>;
 export declare function addScope<P>(s: Setup<P>, ref: string, required?: boolean): Promise<ScopeRef>;
+```
+
+## 声明文件 `testing/trust-conformance.d.ts`
+
+```ts
+import { type ConformanceCase } from './case.js';
+import { type RuntimeContextTrustFixture } from './trust.js';
+export declare const RUNTIME_CONTEXT_TRUST_OBLIGATIONS: readonly [
+    'cross-tenant-zero-source-calls',
+    'authorization-revocation-synchronous',
+    'work-revocation-synchronous',
+    'request-generation-synchronous',
+    'bridge-invalidates-while-original-current',
+    'original-current-false-refused',
+    'revocation-during-await-discarded',
+    'revocation-during-original-answer',
+    'authorization-revocation-scoped',
+    'work-revocation-scoped',
+    'request-generation-scoped',
+    'bridge-generation-scoped',
+    'work-revocation-during-await-discarded',
+    'request-replacement-old-disclosure-refused',
+    'bridge-unload-late-callback-discarded',
+    'scope-rebind-refused',
+    'recovery-source-unknown',
+    'async-notification-pending-revoked'
+];
+type Fixture<P> = RuntimeContextTrustFixture<P>;
+export declare function runtimeContextTrustConformance<P>(): readonly ConformanceCase<Fixture<P>>[];
+export {};
+```
+
+## 声明文件 `testing/trust.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { RuntimeContextAuthority, RuntimeContextTrust, ScopeBindingSource } from '../index.js';
+export type RuntimeContextTrustControls = Readonly<{
+    revokeAuthorization(): void;
+    revokeWork(): void;
+    advanceRequestGeneration(): void;
+    advanceBridgeGeneration(): void;
+}>;
+export interface RuntimeContextTrustFixture<P = unknown> {
+    create(input: Readonly<{
+        authority: RuntimeContextAuthority<P>;
+        bindings: ScopeBindingSource;
+    }>): Readonly<{
+        trust: RuntimeContextTrust<P>;
+        controls: RuntimeContextTrustControls;
+    }>;
+    tenant: TenantId;
+    otherTenant: TenantId;
+    principal: P;
+}
+export type RuntimeContextTrustFace = 'holder' | 'producer' | 'reader';
+export declare const RUNTIME_CONTEXT_TRUST_DEPENDENCIES: {
+    readonly revokeAuthorization: readonly [
+        "holder",
+        "producer",
+        "reader"
+    ];
+    readonly revokeWork: readonly [
+        "holder",
+        "reader"
+    ];
+    readonly advanceRequestGeneration: readonly [
+        "producer",
+        "reader"
+    ];
+    readonly advanceBridgeGeneration: readonly [
+        "holder",
+        "producer",
+        "reader"
+    ];
+};
+export type TestRuntimeContextTrust<P> = Readonly<{
+    trust: RuntimeContextTrust<P>;
+    controls: RuntimeContextTrustControls;
+    durability: 'none';
+}>;
+export declare function createTestRuntimeContextTrust<P>(input: RuntimeContextTrust<P>): TestRuntimeContextTrust<P>;
+```
+
+## 声明文件 `trust.d.ts`
+
+```ts
+import type { RuntimeContextAuthority, ScopeBindingSource } from './authority.js';
+export type RuntimeContextTrust<P> = Readonly<{
+    authority: RuntimeContextAuthority<P>;
+    bindings: ScopeBindingSource;
+}>;
 ```
 
 ## 声明文件 `update.d.ts`

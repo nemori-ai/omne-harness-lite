@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { TaskContextError } from '@omne-harness/repo-toolchain/core/task-context'
+import { cardReviewHook } from '../integration/api-review-draft.ts'
 import { IntegrationError } from '../integration/parse.ts'
 import { changeScope } from './change-scope.ts'
+import { runGhRead } from './github-read.ts'
 
 const usage = 'Usage: change-scope-cli.ts [--root PATH] [--lines FILE]'
 
@@ -30,11 +33,16 @@ function options(args: readonly string[]): { root: string; lines?: string } {
  * Checks that the changes of the card bound to this tree stay in its write scope and line, and
  * that its contract snapshot changes stay within its declared contract change. Standard output
  * is the JSON report. Exit 0 without findings or without a task context, 1 with findings, 2 on
- * unusable input or a failed read, including a failed `omne-contract-api --diff`.
+ * unusable input or a failed read, including a failed `omne-contract-api --diff`, and 2 when the
+ * semantic review path of a card could not establish a fact.
  */
 function main(args: readonly string[]): number {
   const { root, lines } = options(args)
-  const report = changeScope({ root, ...(lines === undefined ? {} : { linesFile: lines }) })
+  const report = changeScope({
+    root,
+    ...(lines === undefined ? {} : { linesFile: lines }),
+    review: cardReviewHook({ entry: fileURLToPath(import.meta.url), call: runGhRead }),
+  })
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`)
   if (!report.bound) {
     process.stderr.write(`change-scope: ${report.message}\n`)
@@ -42,8 +50,9 @@ function main(args: readonly string[]): number {
   }
   for (const finding of report.findings)
     process.stderr.write(
-      `change-scope: ${finding.code} ${'file' in finding ? finding.file : finding.member}: ${finding.message} 改法：${finding.remedy}\n`,
+      `change-scope: ${finding.code} ${'file' in finding ? finding.file : (finding.member ?? '-')}: ${finding.message} 改法：${finding.remedy}\n`,
     )
+  if (report.semantic?.exit === 2) return 2
   return report.findings.length > 0 ? 1 : 0
 }
 try {

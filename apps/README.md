@@ -1,13 +1,13 @@
 # 产品应用与装配入口
 
-本树是产品应用的维护入口。现有一个可启动成员：最小 CLI [`apps/cli`](cli/README.md)，包名 `@omne-harness/cli`，二进制名 `omne`。它只提供 `--help` 和 `--version`。装配角色由[部署与运行拓扑](../docs/architecture/deployment/README.md)决定；其余应用成员名、规格与提供包尚未建立。旧应用名称不作为新成员的命名依据。
+本树是产品应用的维护入口。可启动成员有：最小 CLI [`apps/cli`](cli/README.md)（包名 `@omne-harness/cli`，二进制名 `omne`，只提供 `--help` 和 `--version`）；私有服务端应用 [`apps/harness-server`](harness-server/README.md)（S0 插件树骨架与有序关闭）。装配角色由[部署与运行拓扑](../docs/architecture/deployment/README.md)决定；其余应用成员名、规格与提供包尚未建立。旧应用名称不作为新成员的命名依据。
 
 ## 目标责任
 
 | 装配角色 | 架构入口 | 成员状态 |
 | --- | --- | --- |
 | 客户端表现及系统接入 | [系统分层](../docs/architecture/layers-and-dependencies.md) | 最小 CLI 已建为 [`apps/cli`](cli/README.md)，只有 help 与 version；SDK 调用和 TTY 呈现尚未实现 |
-| 个人设备常驻Harness Server及多进程协作 | [单机部署](../docs/architecture/deployment/single-machine.md) | 待明确具体成员 |
+| 个人设备常驻Harness Server及多进程协作 | [单机部署](../docs/architecture/deployment/single-machine.md) | 私有 S0 成员 [`apps/harness-server`](harness-server/README.md) 在建，只验证装载、可见性、就绪与有序关闭，不接 HTTP，不是可部署成员 |
 | 云节点与集群装配 | [部署入口](../docs/architecture/deployment/README.md) | 待明确具体成员 |
 
 ## 建立与维护

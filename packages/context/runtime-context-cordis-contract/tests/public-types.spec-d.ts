@@ -21,3 +21,15 @@ it('retains the contract key generic, configuration and positional event argumen
     [scope: ScopeRef, revision: ViewRevision]
   >()
 })
+
+import type { RuntimeContextTrust } from '@omne-harness/runtime-context-contract'
+import type { RuntimeContextTrustService } from '@omne-harness/runtime-context-cordis-contract/cordis'
+it('RuntimeContextTrustService projects the two ports of the root trust type', () => {
+  expectTypeOf<RuntimeContextTrustService<string>>().toExtend<RuntimeContextTrust<string>>()
+  expectTypeOf<RuntimeContextTrustService<string>['authority']>().toEqualTypeOf<
+    RuntimeContextTrust<string>['authority']
+  >()
+  expectTypeOf<RuntimeContextTrustService<string>['bindings']>().toEqualTypeOf<
+    RuntimeContextTrust<string>['bindings']
+  >()
+})

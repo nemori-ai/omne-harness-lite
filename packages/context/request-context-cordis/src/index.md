@@ -5,8 +5,8 @@
 ## 内容
 
 - [README.md](README.md)：源码目录的职责与现状
-- [index.ts](index.ts)：根入口，将导出不依赖 Cordis 的工厂，现在为空
-- [cordis.ts](cordis.ts)：`./cordis` 入口，将导出具体子类、插件与配置 Schema，现在为空
+- [index.ts](index.ts)：根入口，现在只有模板标记，没有导出
+- [cordis.ts](cordis.ts)：`./cordis` 入口，导出 `RequestContextProvider`，配置 Schema 尚未进入
 
 ## 阅读路径
 

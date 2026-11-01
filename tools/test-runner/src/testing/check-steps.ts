@@ -102,6 +102,57 @@ export function checkSteps(inputs: StepInputs): CheckStep[] {
   return steps
 }
 
+/**
+ * 预检 `check --preflight` 的步骤表：准入里不依赖构建与全量测试的步骤，全部是轻步骤、彼此无依赖，同时起、失败不终止其余。
+ * 与 check 的表同一条命令，判据相同；差别只在这里不跑按计划的步骤、不跑读 dist 的步骤，也不跑 loop:status。
+ * `acceptance:lock` 是 loop:status 里验收锁那一项的等价核对。`lint:rules` 导入 packages/common/legal-identity 的 dist：
+ * 预检不构建，读磁盘上现有的；没有就在那一步失败并在修法里写明。
+ */
+export function preflightSteps(inputs: StepInputs): CheckStep[] {
+  const pnpm = pnpmCommand()
+  const run = (...args: string[]): Command => [pnpm.command, ...pnpm.args, 'run', ...args]
+  const light = (name: string, ...args: string[]): CheckStep => ({
+    name,
+    command: run('--silent', name, ...args),
+    after: [],
+    heavy: false,
+  })
+  return [
+    light('check:agents'),
+    light('check:docs'),
+    light('check:design'),
+    light('check:lines'),
+    {
+      name: 'change-scope',
+      command: [process.execPath, '--experimental-strip-types', inputs.devFlowDeliveryCli],
+      after: [],
+      heavy: false,
+    },
+    light('format:check'),
+    light('lint:rules'),
+    light('lint:oxlint'),
+    light('acceptance:lock'),
+  ]
+}
+
+/** 预检每一步失败时给人的修法，一句话；详情看那一步的日志。 */
+export const PREFLIGHT_FIXES: Readonly<Record<string, string>> = {
+  'check:agents':
+    '投影与源不一致：先 git clean -fdX .meta_harness/.claude .meta_harness/.agents .meta_harness/.codex .meta_harness/.cursor，再按 .meta_harness/tooling/README.md 重新生成；不手改根目录的投影',
+  'check:docs': '按日志修链接、锚点与必要章节；规则见 docs/engineering/documentation.md',
+  'check:design':
+    '按日志修设计材料的结构与登记；需要 uv 锁文件一致（UV_DEFAULT_INDEX 指向镜像时先 unset）',
+  'check:lines': '改 .meta_harness/design/lines 的归属表：重叠、漏掉的成员、轨道登记与契约位置',
+  'change-scope':
+    '改动越出 binding 写范围或本线：撤回那些文件，或请调度者扩大写范围后重新派发；契约申报不符时改申报。见 tools/dev-flow/src/delivery/README.md',
+  'format:check':
+    'pnpm run format:write；CRLF 工作副本已由预检开头自愈，仍报的文件看是不是有内容改动',
+  'lint:rules':
+    '按日志修结构规则（tools/product-checks）；报「找不到 dist」时先 pnpm run build --filter @omne-harness/legal-identity',
+  'lint:oxlint': 'pnpm run lint:oxlint 看逐条；改代码，不加 disable 指令绕过',
+  'acceptance:lock': '验收锁不一致：按 tools/repo-toolchain/README_ZH.md 的验收锁一节更新或回退',
+}
+
 /** 常驻步骤名，按表的顺序：计划打印的「常驻」清单与它对账。 */
 export function residentStepNames(steps: readonly CheckStep[]): string[] {
   return steps.filter(step => step.planned !== true).map(step => step.name)

@@ -4,20 +4,20 @@
 
 服务键、抽象类、intercept 配置、事件、登记协议与策略选择的配置形状归 [request-context-cordis-contract 的 Cordis 说明](../../request-context-cordis-contract/docs/cordis.md)，本插件继承这些定义，不重复提供键。缓存、派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，插件没有实现，包里没有可用的 `./cordis` 导出。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`./cordis` 导出 `RequestContextProvider`：必需 `inject` 信任键，提供 `requestContext` 与 `contextAccountingInbox` 两个键，来源登记表与账目收件口由 request-context 的工厂建立。贡献登记、变化事件与 `assembly` 已实现；配置 Schema 校验与按配置选择策略实现尚未实现，策略与账目选项暂由装配入口以插件选项交入。`src/index.ts` 仍只有模板标记。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与服务
 
-`./cordis` 导出 `RequestContextService` 的具体子类与插件。本成员只提供一个键 `requestContext`。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
+`./cordis` 导出 `RequestContextProvider`，它是 `RequestContextService` 的具体子类，也是插件。本成员提供两个键：`requestContext` 与 `contextAccountingInbox`，两个键由同一个插件在同一个 fiber 提供，所以同生同灭，窗口占用与收账读同一份账目状态。本成员必需 `inject` 信任键 `requestContextTrust`（[request-context-cordis-contract 的信任服务](../../request-context-cordis-contract/docs/cordis.md#信任服务与账目收件口服务)），把取出的对象交给纯工厂的 `trust: RequestContextTrust<P>`，再与策略一起构造 `ContextRegistryOptions<P>`。信任键缺席时插件停在 `PENDING`。信任对象由装配入口在受信子树提供，不进插件树 JSON。不 `inject` 就取不到不是访问控制，登记授权仍由 `registrationAuthority` 逐次判定。抽象类的构造函数以这个键登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
-插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
+插件加载时按配置选定两个策略实现，并用 request-context 的 `createContextSourceRegistry` 建来源登记表。本插件除信任键外不 `inject` 作用域持有者或模型侧的服务。服务实例拥有来源登记表与贡献登记表。登记面三项方法的 Cordis 责任如下：
 
 | 方法 | 本插件加的责任 | 交给谁 |
 | --- | --- | --- |
 | `contributeSection`、`contributeVariable` | 从调用方 fiber 取作用域引用，核对重名与逐请求变量，在调用方 fiber 上登记效应，调用 `notify('contributions', …)`，派发变化事件。关闭后拒绝 | 来源登记表实例从登记面读口读段并渲染，渲染结果只归它 |
 | `contributions(scope)` | 按作用域解析，作用域层遮蔽全局层。关闭后拒绝 | 结果交给调用方查看。`assembly(target)` 的操作组自己现取贡献，不经调用方转交 |
 
-本成员不导出第二个服务键，不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
+本成员提供的第二个键 `contextAccountingInbox` 由 request-context-cordis-contract 定义，本成员不增补新事件（[SPEC 范围与依据](../SPEC.md#范围与依据)）。它不导入任何协调者或持有者的契约（性质 7）。
 
 经 Cordis 的调用方用服务的 `assembly(target)` 取得已按配置绑定策略与登记面的一组操作（[request-context-cordis-contract 的服务定义](../../request-context-cordis-contract/docs/cordis.md#服务定义)）。这组操作只借用来源适配者经 `register` 或 `replace` 为该目标登记的来源集合；目标没有登记时返回不可用（性质 6）。性质 5 取消的在途组装就是经这组操作发起的组装。这组操作每次调用时从本插件的登记表现取该作用域适用的贡献集合，不收调用方传入的贡献，覆盖证据记本作用域适用的段列表摘要与登记面实例的代次；操作组的作用域与组装上下文、历史依据的作用域引用不一致时返回无效（性质 9）。
 
@@ -124,7 +124,7 @@
 
 ## 机制读数与假设
 
-服务定义成员已用真实 Cordis 4.0.4 测试固定三条读数，见该定义成员的机制说明。共同 basis 登记仍待其拥有者完成；本提供者没有实现，自己的验证义务仍未兑现。下文未登记读数的假设范围保留。
+服务定义成员已用真实 Cordis 4.0.4 测试固定三条读数，见该定义成员的机制说明。共同 basis 登记仍待其拥有者完成；本提供者只有基本实现，自己的验证义务仍未兑现。下文未登记读数的假设范围保留。
 
 本成员的性质 2 依赖还没有进入 basis 的机制读数 `inject-object-config-reaches-service-resolve-config`，probe 要证明的内容见 [runtime-context-cordis-contract 的机制读数与假设](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。按本成员 [SPEC 的组合与验证](../SPEC.md#组合与验证)，读数补齐之前，性质 2 的 intercept 部分是假设，不是已核验的保证。事件由监听者按载荷过滤，不依赖派发方过滤的读数。
 
@@ -137,7 +137,9 @@
 
 ## 验证义务
 
-本成员的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的各项：
+已有测试：[provider.spec.ts](../tests/provider.spec.ts) 在真实 Cordis 4.0.4 上覆盖四件事。信任键缺席时两个键都不提供，信任键出现后提供；信任提供者卸载后两个键撤回；卸载插件 fiber 同时撤除两个键；只有信任授权列出的登记被接受，收件口经原端口应答。这些不在下面十项之内，它们属于信任注入。
+
+下面十项的测试随实现进入 `tests/`，至少覆盖 SPEC [组合与验证](../SPEC.md#组合与验证)列出的各项。现在没有完整覆盖其中任何一项的测试。第 8 项只有「目标已登记时组装得到候选」的一条路径被 provider.spec.ts 触及：
 
 1. 贡献者插件卸载后，登记已撤除，来源登记表实例收到通知后不再有它的渲染结果。
 2. 同一层同名登记被拒绝。

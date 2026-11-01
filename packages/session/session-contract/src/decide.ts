@@ -34,6 +34,7 @@ import {
 } from './judgments.ts'
 import { judgeCompaction } from '@omne-harness/message'
 import { decideManagement, decideControl } from './decide-management.ts'
+import { closeControlFailure, decideCancelRun, decideStopCall } from './decide-control.ts'
 import { decideResults } from './decide-results.ts'
 import { decideProducerFact } from './decide-receive.ts'
 import { residentEntries, completeEvidence } from './decision-support.ts'
@@ -156,6 +157,9 @@ function decideCreate(
   if (emptyAdoption(creation.execution)) return invalid('creation.execution', 'incomplete adoption')
   if (emptyAdoption(creation.entryContract))
     return invalid('creation.entryContract', 'incomplete adoption')
+  const initialModel = creation.initialModelSelection
+  if (initialModel !== undefined && (!initialModel.name || !completeEvidence(initialModel.basis)))
+    return invalid('creation.initialModelSelection', 'empty name or incomplete evidence')
   const workspace = judgeWorkspace(creation.workspace, creation.workspaceAttachment, {
     workspace: 'creation.workspace',
     attachment: 'creation.workspaceAttachment',
@@ -749,6 +753,9 @@ function decideCommand(
   record: OperationRecord | null,
   reads: DecideReads,
 ): Decision {
+  // The Tool target is refused before the session, the identity or any lookup is read (r2.2 4.3).
+  if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+    return rejected({ kind: 'unsupported' })
   if (
     previous !== null &&
     (previous.session !== command.input.session ||
@@ -831,6 +838,10 @@ function decideCommand(
           ])
         : control
     }
+    case 'cancelRun':
+      return decideCancelRun(previous, command, reads)
+    case 'stopCall':
+      return decideStopCall(previous, command, reads)
     case 'freeze':
       if (previous.frozen !== null)
         return reads.frozenReceipt === undefined
@@ -862,7 +873,10 @@ export function decide(
   reads: DecideReads,
 ): Decision {
   try {
-    const decision = decideCommand(previous, command, guards, record, reads)
+    const decision = closeControlFailure(
+      decideCommand(previous, command, guards, record, reads),
+      command,
+    )
     if (decision.kind === 'entries' && previous !== null && decision.entries.length > 0) {
       const decoded = decision.entries.map(row => {
         const value = decodeEntry(row)

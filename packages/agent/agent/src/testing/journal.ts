@@ -71,9 +71,13 @@ import type {
   AgentReceivedProvider,
 } from '@omne-harness/agent-contract'
 import type { SettlementQualification, TestHostRecord } from './host-record.ts'
-import { decodeAgentExecutionId, decodeAgentOperationId } from '@omne-harness/agent-contract'
+import {
+  decodeActionId,
+  decodeAgentExecutionId,
+  decodeAgentOperationId,
+} from '@omne-harness/agent-contract'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
-import { resolveModelInvocationRef } from '@omne-harness/model-contract'
+import { decodeModelCallId, resolveModelInvocationRef } from '@omne-harness/model-contract'
 import {
   resolveToolInvocationRef,
   resolveToolOperationRef,
@@ -97,6 +101,22 @@ import {
   JOURNAL_OWNER,
 } from './journal-values.ts'
 import { canonical } from '../canonical.ts'
+import {
+  admissionCounters,
+  admissionKey,
+  admit,
+  checkReadPosition,
+  damaged as damagedLedger,
+  originLedger,
+  projectionOf as admissionProjectionOf,
+  readAdmissionPage,
+  rebuild,
+  type AdmissionDamage,
+  type AdmissionLedger,
+  type AdmissionPageLimits,
+  type AdmissionRecord,
+  type AdmissionScope,
+} from './journal-admissions.ts'
 import {
   beforeTerminalPending,
   buildObligations,
@@ -230,6 +250,11 @@ export type MemoryAgentJournalOptions<P> = Readonly<{
   /** The rule of the reply-admission projection. */
   replyAdmissionRule?: Adoption
   /**
+   * Whether the caller is qualified to read the execution now: `load`, `readReplyAdmissions` and
+   * `query` check it on every call and answer `denied` when it refuses. Default: yes.
+   */
+  reader?: Qualification<P, Readonly<{ execution: AgentExecutionId }>>
+  /**
    * The trusted cancellation judgment this binding holds (SPEC "安装记录与资格"): the installation
    * governance issued and the pure implementation it names. Absent: the candidate, migration and
    * judgment variants of commitSettlement answer `unavailable`.
@@ -317,6 +342,34 @@ export type MemoryAgentJournal<P> = Readonly<{
    * events are kept, as SPEC "终态后与 ended" requires. Returns how many events were dropped.
    */
   applyRetention(execution: AgentExecutionId, tenant?: TenantId): number
+  /** The reply admission controls of the D5 tests (Agent SPEC "回复准入的已核实前缀"). */
+  replyAdmissions: MemoryReplyAdmissionControls
+}>
+
+/** The reply admission controls of the memory Journal; `tenant` names the tenant when two could match. */
+export type MemoryReplyAdmissionControls = Readonly<{
+  /**
+   * Admits `count` admitted model reply facts in one new revision, as original Ja commits would:
+   * each with its sequence, basis, publication and the incremental projection. Returns `false`
+   * when the execution is not found or ended.
+   */
+  seed(execution: AgentExecutionId, count: number, tenant?: TenantId): boolean
+  /** Removes ledger material as a storage fault would. Returns `false` when it names nothing. */
+  damage(execution: AgentExecutionId, damage: AdmissionDamage, tenant?: TenantId): boolean
+  /** Sets the provider's own page bounds; null leaves a bound out. Default: none. */
+  limitPages(limits: AdmissionPageLimits): void
+  /** The read counters of this Journal since it was created. */
+  statistics(): Readonly<ReturnType<typeof admissionCounters>>
+  /**
+   * Changes the projection rule of the Journal. `rebuild` converts the projection of the execution
+   * by folding its facts from the origin; `none` leaves it, so `load` answers `unavailable`.
+   */
+  changeRule(
+    execution: AgentExecutionId,
+    rule: Adoption,
+    conversion: 'rebuild' | 'none',
+    tenant?: TenantId,
+  ): boolean
 }>
 
 type Attachment = {
@@ -358,8 +411,11 @@ export type MemoryExecution = {
   stageReceipts: Map<string, CommandReceipt>
   /** The receipt of the first registration of each post-terminal observation. */
   observed: Map<TerminalObservation['passage'], CommandReceipt>
-  admissions: Readonly<{ sequence: number; fact: ModelReplyAdmission }>[]
-  admissionThroughs: Map<string, number>
+  /** The reply admission facts: index i holds the sequence i + 1. */
+  admissions: AdmissionRecord[]
+  /** The index of each fact by its deduplication key (SPEC:598). */
+  admissionKeys: Map<string, number>
+  admissionLedger: AdmissionLedger
   entries: AgentJournalEntry[]
   /** The handoff responsibilities of the execution, as `load.handoffs` projects them (SPEC "消息准入"). */
   handoffs: HandoffRecord[]
@@ -747,7 +803,10 @@ function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
 ): readonly ExecutionHandoff[] {
-  return execution.handoffs.map(record => ({ ...copy(record), custody: custody(record.handoff) }))
+  return execution.handoffs.map(record => ({
+    ...copy(record),
+    custody: custody(record.handoff),
+  }))
 }
 
 /** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
@@ -801,13 +860,15 @@ export function createMemoryAgentJournal<P>(
     revision: '1',
     digest: 'memory:agent-event',
   }
-  const admissionRule: Adoption = options.replyAdmissionRule ?? {
+  let admissionRule: Adoption = options.replyAdmissionRule ?? {
     owner: JOURNAL_OWNER,
     name: 'reply-admission-projection',
     revision: '1',
     digest: 'memory:reply-admission-projection',
   }
   const executions = new Map<string, Execution>()
+  const admissionStatistics = admissionCounters()
+  let pageLimits: AdmissionPageLimits = { items: null, bytes: null }
   const executionKey = (tenant: TenantId, id: AgentExecutionId) => {
     const encoded = tenantCodec.encode(tenant)
     return JSON.stringify([encoded.ok ? encoded.value : null, id])
@@ -1242,26 +1303,31 @@ export function createMemoryAgentJournal<P>(
     return evidence
   }
 
-  function admissionsThrough(execution: Execution): DurableEvidence {
-    const count = execution.admissions.length
-    const evidence = journalEvidence(`${execution.id}/reply-admissions/${count}`, count)
-    execution.admissionThroughs.set(evidence.record, count)
-    return evidence
+  /** The ledger scope of an execution: its tenant and id name every basis, range and cursor. */
+  function admissionScope(tenant: TenantId, id: AgentExecutionId): AdmissionScope {
+    const encoded = tenantCodec.encode(tenant)
+    return {
+      parts: [encoded.ok ? encoded.value : '', id],
+      owner: JOURNAL_OWNER,
+      mint: journalEvidence,
+    }
   }
 
-  function snapshotOf(execution: Execution): ExecutionSnapshot {
-    let consecutive = 0
-    let total = 0
-    let last: DurableEvidence | null = null
-    for (const { fact } of execution.admissions) {
-      if (fact.decision === 'rejected') {
-        consecutive += 1
-        total += 1
-      } else {
-        consecutive = 0
-        last = fact.source
-      }
-    }
+  /** The current read qualification of `input` (SPEC D5 第 6 节); `denied` when it does not hold. */
+  function unreadable(
+    input: Access<P> & Readonly<{ execution: AgentExecutionId }>,
+    action: string,
+  ): Failure | undefined {
+    return options.reader === undefined || options.reader(input) ? undefined : denied(action)
+  }
+
+  function snapshotOf(execution: Execution): Outcome<ExecutionSnapshot, Failure> {
+    const replyAdmissions = admissionProjectionOf(
+      admissionScope(execution.tenant, execution.id),
+      execution.admissionLedger,
+      admissionRule,
+    )
+    if ('failure' in replyAdmissions) return replyAdmissions
     const unresolved: AgentOperationId[] = []
     for (const record of operations.values()) {
       if (pendingOf(record, execution)) {
@@ -1269,35 +1335,31 @@ export function createMemoryAgentJournal<P>(
       }
     }
     const emitted = execution.events.length
-    return copy({
-      execution: execution.id,
-      revision: revisionOf(execution.revision),
-      state: stateOf(execution),
-      checkpoint: execution.checkpoint,
-      inputWatermark: watermarkOf(execution),
-      history: journalEvidence(`${execution.id}/history`, execution.revision),
-      replyAdmissions: {
-        through: admissionsThrough(execution),
-        rule: admissionRule,
-        lastAdmission: last,
-        consecutiveDenials: String(consecutive),
-        totalDenials: String(total),
-      },
-      executionAttachment: activeAttachment(execution)?.authority ?? null,
-      unresolved,
-      controls: execution.controls,
-      results: execution.results,
-      entries: execution.entries,
-      effects: execution.effects,
-      terminalObservations: execution.observations,
-      handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
-      finishObligations: currentObligations(execution.finishing) ?? null,
-      settlement: settlementOf(execution.finishing),
-      output: {
-        emittedThrough: emitted === 0 ? null : String(emitted),
-        acknowledgedThrough: execution.acknowledged === 0 ? null : String(execution.acknowledged),
-      },
-    })
+    return succeed<ExecutionSnapshot>(
+      copy({
+        execution: execution.id,
+        revision: revisionOf(execution.revision),
+        state: stateOf(execution),
+        checkpoint: execution.checkpoint,
+        inputWatermark: watermarkOf(execution),
+        history: journalEvidence(`${execution.id}/history`, execution.revision),
+        replyAdmissions: replyAdmissions.ok,
+        executionAttachment: activeAttachment(execution)?.authority ?? null,
+        unresolved,
+        controls: execution.controls,
+        results: execution.results,
+        entries: execution.entries,
+        effects: execution.effects,
+        terminalObservations: execution.observations,
+        handoffs: handoffsOf(execution, handoff => custodyOf(execution, handoff)),
+        finishObligations: currentObligations(execution.finishing) ?? null,
+        settlement: settlementOf(execution.finishing),
+        output: {
+          emittedThrough: emitted === 0 ? null : String(emitted),
+          acknowledgedThrough: execution.acknowledged === 0 ? null : String(execution.acknowledged),
+        },
+      }),
+    )
   }
 
   /** The public state: a settling execution carries the FinishIntent projection of its current candidate. */
@@ -2413,7 +2475,12 @@ export function createMemoryAgentJournal<P>(
           stageReceipts: new Map(),
           observed: new Map(),
           admissions: [],
-          admissionThroughs: new Map(),
+          admissionKeys: new Map(),
+          admissionLedger: originLedger(
+            admissionScope(input.tenant, input.execution),
+            admissionRule,
+            1,
+          ),
           entries: [],
           handoffs: [],
           custodyAttempts: new Map(),
@@ -2637,19 +2704,30 @@ export function createMemoryAgentJournal<P>(
           }
           if (known === undefined) newEffect = true
         }
-        let admission: Readonly<{ sequence: number; fact: ModelReplyAdmission }> | null = null
+        // SPEC:598: one fact per original call and result version. The same key with the same
+        // decision recognizes the original fact and its sequence; another decision conflicts.
+        let admission: ModelReplyAdmission | null = null
         if (input.replyAdmission !== null) {
           const fact = input.replyAdmission
-          const known = execution.admissions.find(
-            item => item.fact.call === fact.call && item.fact.resultVersion === fact.resultVersion,
-          )
-          if (known !== undefined && known.fact.decision !== fact.decision) {
+          const known = execution.admissionKeys.get(admissionKey(fact))
+          const original = known === undefined ? undefined : execution.admissions[known]
+          if (original !== undefined && original.fact.decision !== fact.decision) {
             return answer(fail(conflict(input.operation)))
           }
-          if (known === undefined) {
-            admission = { sequence: execution.admissions.length + 1, fact: copy(fact) }
-          }
+          if (known === undefined) admission = copy(fact)
         }
+        const scope = admissionScope(execution.tenant, execution.id)
+        // SPEC D5 5.1: a changed read position is checked by a point read of its basis.
+        const readFailure = checkReadPosition(
+          scope,
+          execution.admissions,
+          execution.admissionLedger,
+          execution.checkpoint.replyAdmissionRead,
+          input.checkpoint.replyAdmissionRead,
+          'commit',
+          admissionStatistics,
+        )
+        if (readFailure !== undefined) return answer(fail(readFailure))
         const handoffChange = handoffWrite(execution, input)
         if ('failure' in handoffChange) return answer(handoffChange)
         if (input.caller.kind !== 'none') {
@@ -2734,7 +2812,21 @@ export function createMemoryAgentJournal<P>(
               const index = finishing.routes.indexOf(route)
               finishing.routes[index] = { ...route, beforeTerminal: evidence }
             }
-            if (admission !== null) execution.admissions.push(admission)
+            if (admission !== null) {
+              // The fact, its key, sequence, basis, publication and the projection step are written
+              // in this same write as the Ja (SPEC D5 第 4 节).
+              const admitted = admit(
+                scope,
+                execution.admissionLedger,
+                admission,
+                revision,
+                evidence,
+              )
+              execution.admissionKeys.set(admissionKey(admission), execution.admissions.length)
+              execution.admissions.push(admitted.record)
+              execution.admissionLedger = admitted.ledger
+            }
+            admissionStatistics.checkpointWrites += 1
             if (caller.kind !== 'none') {
               jointFacts.push({
                 execution: execution.id,
@@ -3546,7 +3638,10 @@ export function createMemoryAgentJournal<P>(
       if (fault !== undefined) return fault
       const found = owned(input, 'load')
       if ('failure' in found) return found
-      return succeed(snapshotOf(found.ok))
+      const refused = unreadable(input, 'load')
+      if (refused !== undefined) return fail(refused)
+      admissionStatistics.loads += 1
+      return snapshotOf(found.ok)
     },
 
     async inputs(input) {
@@ -3576,30 +3671,24 @@ export function createMemoryAgentJournal<P>(
       if (fault !== undefined) return fault
       const found = owned(input, 'readReplyAdmissions')
       if ('failure' in found) return found
+      // Every page checks the current qualification; a cursor or a prefix grants nothing.
+      const refused = unreadable(input, 'readReplyAdmissions')
+      if (refused !== undefined) return fail(refused)
       const execution = found.ok
-      const through = execution.admissionThroughs.get(input.through.record)
-      if (through === undefined) return fail(invalid('through', 'not a range of this execution'))
-      const after = sequenceOf(input.after)
-      if (after === undefined || after > through) return fail(invalid('after', 'outside the range'))
-      if (!Number.isSafeInteger(input.limit) || input.limit < 1) {
-        return fail(invalid('limit', 'not a positive integer'))
-      }
-      const items = execution.admissions
-        .filter(item => item.sequence > after && item.sequence <= through)
-        .slice(0, input.limit)
-      const last = items.at(-1)?.sequence ?? after
-      const complete = last === through
-      return succeed({
-        kind: 'page',
-        through: copy(input.through),
-        items: items.map(item => ({ sequence: String(item.sequence), fact: copy(item.fact) })),
-        next: complete ? null : String(last),
-        complete,
-      })
+      return readAdmissionPage(
+        admissionScope(execution.tenant, execution.id),
+        execution.admissions,
+        execution.admissionLedger,
+        input,
+        pageLimits,
+        execution.revision,
+        'readReplyAdmissions',
+        admissionStatistics,
+      )
     },
 
     async query(input) {
-      const rejected = receiving.queryQualification(input)
+      const rejected = receiving.queryQualification(input) ?? unreadable(input, 'query')
       if (rejected) return fail(rejected)
       const fault = readFault('query')
       if (fault !== undefined) return fault
@@ -3816,5 +3905,72 @@ export function createMemoryAgentJournal<P>(
       execution.retainedFrom = Math.max(execution.retainedFrom, execution.acknowledged + 1)
       return execution.retainedFrom - before
     },
+    replyAdmissions: {
+      seed(id, count, tenant) {
+        const execution = only(id, tenant)
+        if (execution === undefined || execution.state.kind === 'ended') return false
+        const scope = admissionScope(execution.tenant, execution.id)
+        const revision = execution.revision + 1
+        for (let index = 0; index < count; index += 1) {
+          const sequence = execution.admissionLedger.projection.sequence + 1
+          const call = decodeModelCallId(`mcall_seed${String(sequence).padStart(12, '0')}`)
+          const action = decodeActionId(`seed-${sequence}/action`)
+          if ('failure' in call || 'failure' in action) return false
+          const fact: ModelReplyAdmission = {
+            step: execution.checkpoint.step,
+            action: action.ok,
+            call: call.ok,
+            resultVersion: 'v1',
+            decision: 'admitted',
+            source: journalEvidence(`${execution.id}/seed/${sequence}`, revision),
+          }
+          const publication = nextEvidence(execution, 'commit', revision)
+          const admitted = admit(scope, execution.admissionLedger, fact, revision, publication)
+          execution.admissionKeys.set(admissionKey(fact), execution.admissions.length)
+          execution.admissions.push(admitted.record)
+          execution.admissionLedger = admitted.ledger
+        }
+        execution.revision = revision
+        return true
+      },
+      damage(id, damage, tenant) {
+        const execution = only(id, tenant)
+        if (execution === undefined) return false
+        const next = damagedLedger(execution.admissions, execution.admissionLedger, damage)
+        if (next === undefined) return false
+        execution.admissions = next.records.filter(
+          (record): record is AdmissionRecord => record !== undefined,
+        )
+        execution.admissionLedger = next.ledger
+        return true
+      },
+      limitPages(limits) {
+        pageLimits = { ...limits }
+      },
+      statistics: () => ({ ...admissionStatistics }),
+      changeRule(id, rule, conversion, tenant) {
+        const execution = only(id, tenant)
+        if (execution === undefined) return false
+        admissionRule = copy(rule)
+        if (conversion === 'none') return true
+        const projection = rebuild(
+          execution.admissions,
+          execution.admissionLedger,
+          rule,
+          admissionStatistics,
+        )
+        if (projection === undefined) return false
+        execution.admissionLedger = { ...execution.admissionLedger, projection }
+        return true
+      },
+    },
+  }
+
+  /** The one execution `id` names, of `tenant` when given. */
+  function only(id: AgentExecutionId, tenant: TenantId | undefined): Execution | undefined {
+    const matches = [...executions.values()].filter(
+      value => value.id === id && (tenant === undefined || tenantEquals(tenant, value.tenant)),
+    )
+    return matches.length === 1 ? matches[0] : undefined
   }
 }

@@ -11,9 +11,9 @@ This package puts the mechanism of [request-context](../request-context/README.m
 
 Status: Service implementation member, `draft`. The adoption basis is the [member and Cordis placement section](../../../docs/architecture/runtime/request-context.md#成员与-cordis-落位) of the system page and the [SPEC](SPEC.md).
 
-- Implemented: nothing. `src/index.ts` and `src/cordis.ts` hold only template markers. Both entries export nothing.
-- Not implemented: the concrete subclass, the plugin, the configuration schema, and the contribution registry. The root entry stays empty.
-- Not verified: the definition member tests the intercept mechanism on Cordis 4.0.4. The reading is not registered in the shared basis yet. None of the verification obligations in the SPEC has a test. The package makes no claim about persistence or cross-process consistency.
+- Implemented: `src/cordis.ts` exports `RequestContextProvider`, the concrete subclass of `RequestContextService`. The plugin needs the trust key `requestContextTrust` and provides two keys, `requestContext` and `contextAccountingInbox`, from one fiber. It implements contribution registration, the change event, `register`, `replace`, and `assembly(target)`. Removal closes the source registry. The assembly entry passes the policies and the accounting options as plugin options.
+- Not implemented: the configuration schema check, the strategy selection by configuration, the `notify('contributions', …)` path, the producers of the two blocks through a child fiber, and the duplicate-load check. `src/index.ts` still holds only a template marker, and the root entry exports nothing.
+- Not verified: the definition member tests the intercept mechanism on Cordis 4.0.4. The reading is not registered in the shared basis yet. `tests/provider.spec.ts` checks the trust key, the one-fiber two-key lifetime, trust-gated registration, and the inbox. None of the ten verification obligations on the Cordis page has a test that covers it in full. The package makes no claim about persistence or cross-process consistency.
 - A Cordis caller reaches the configured operations through `assembly(target)`. The operations borrow the source set that a source adapter registered for that target through `register`, and they read the contributions of that scope at each call. A target with no registered source set gets unavailable. The plugin gives only contribution-registry changes to the source registry instance through `notify('contributions', …)`. It subscribes to no other change. The producers of the two blocks depend on Runtime Context as an optional dependency through a child fiber. See the [Cordis page](docs/cordis.md#插件与服务).
 
 No application loads this plugin now, and no package depends on this package.
@@ -25,11 +25,11 @@ The package has two entries:
 - `@omne-harness/request-context-cordis/cordis` holds the plugin. An application assembler adds one row for this plugin to the plugin tree and supplies the configuration.
 - `@omne-harness/request-context-cordis` exports nothing. A caller without Cordis uses `createAssemblyOperations` from the request-context-contract root entry. The source registry factory is in [request-context](../request-context/README.md).
 
-Contributors and callers that assemble requests do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. The plugin is not implemented, so no runnable example exists now.
+Contributors and callers that assemble requests do not import this package. They use the service through the service definition. The [usage page](docs/context.md#使用方式) shows the assembly row and the independent use. `examples/` is empty, so no runnable example exists now.
 
 ## Contracts
 
-- `src/` owns the public shapes. It is empty now. The [API page](docs/public-api.md) indexes the exports.
+- `src/` owns the public shapes. `src/cordis.ts` exports `RequestContextProvider`, and `src/index.ts` exports nothing. The [API page](docs/public-api.md) indexes the exports.
 - The [SPEC](SPEC.md) owns behavior beyond the types, in properties 1 to 9.
 - The [Cordis page](docs/cordis.md) owns the plugin, the configuration and strategy selection, the isolate binding, the contribution registry, the change event dispatch, and the removal order.
 - [request-context-cordis-contract](../request-context-cordis-contract/docs/cordis.md) owns the service key, the abstract class, the intercept configuration, the event, and the strategy selection shape.
@@ -67,7 +67,7 @@ From the repository root, run:
 pnpm turbo run test --filter=@omne-harness/request-context-cordis
 ```
 
-In this directory, run `pnpm typecheck` for the type check. The two current tests check only that both entries export nothing. See [tests/](tests/README.md). The eight verification obligations of the SPEC arrive with the implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
+In this directory, run `pnpm typecheck` for the type check. The current tests check that the root entry exports nothing, that `./cordis` exports only `RequestContextProvider`, and the provider behavior listed above. See [tests/](tests/README.md). The ten verification obligations on the Cordis page arrive with the remaining implementation. Some of them must run on real Cordis. See the [verification obligations](docs/cordis.md#验证义务). Persistence, cross-process consistency, and end-to-end composition are outside this package. A passing structure check does not prove behavior.
 
 ## Maintenance
 
@@ -90,8 +90,8 @@ docs/                     Internal design, public use, and integration
 ├── public-api.md         Export entries and definition index
 ├── context.md            Assembly, independent use, position
 └── cordis.md             Plugin, strategies, isolate, registry, event, removal, IC map
-src/                      index.ts and cordis.ts, template markers only now
-tests/                    Two entry tests, fixtures/ is empty now
+src/                      cordis.ts holds the provider, index.ts holds a template marker only
+tests/                    Two entry tests and provider.spec.ts, fixtures/ is empty now
 schema/                   Empty, the configuration schema goes in src/
 verification/             models/ and proofs/, empty now
 adr/                      Empty now

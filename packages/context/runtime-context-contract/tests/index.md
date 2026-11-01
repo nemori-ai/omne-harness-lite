@@ -12,6 +12,7 @@
 - [pure.spec.ts](pure.spec.ts)：纯函数的解码、绑定、合并与变化材料
 - [registration.spec.ts](registration.spec.ts)：注册材料核对
 - [public-types.spec-d.ts](public-types.spec-d.ts)：公开类型的形状
+- [trust-conformance.spec.ts](trust-conformance.spec.ts)：信任套件与固定替身，坏夹具各只让对应用例变红
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
 
 - [cross-realm-schema.spec.ts](cross-realm-schema.spec.ts)：真实跨 realm Promise 的同步定义拒绝与原异常传播

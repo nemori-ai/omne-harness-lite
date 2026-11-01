@@ -1,8 +1,9 @@
 // The `./testing` entry: a scripted provider and a scripted transport for tests of the Model
-// contract, and a conformance subject built from them. The provider obligation suite itself is
-// the `./conformance` entry. The scripted pair exercises the failure paths that a coordinator
-// must decide on, and gives the result the script says. It is not a provider: nothing here is
-// durable, and a scripted answer proves nothing about a real provider.
+// contract, a conformance subject built from them, the doubles of the push and observation
+// protocols, and the doubles of the profile and request preparation ports. The provider
+// obligation suite itself is the `./conformance` entry. The scripted pair exercises the failure
+// paths that a coordinator must decide on, and gives the result the script says. It is not a
+// provider: nothing here is durable, and a scripted answer proves nothing about a real provider.
 export { createScriptedModelProvider } from './provider.ts'
 export type { ScriptedModelProvider, ScriptedModelProviderOptions } from './provider.ts'
 export type { ScriptController, ScriptedCall } from './controller.ts'
@@ -36,4 +37,16 @@ export type {
   ScriptedStreamObservation,
   ScriptedStreamObservationOptions,
 } from './stream-observation.ts'
+// The two doubles of the profile and request preparation ports. Each answers from tables the test
+// fills and records every call; neither evaluates profiles, runs parameter rules or holds secrets.
+export { createScriptedModelProfiles } from './profiles.ts'
+export type { ScriptedModelProfileCall, ScriptedModelProfiles } from './profiles.ts'
+export { createScriptedModelRequestPreparation } from './preparation.ts'
+export type {
+  ScriptedModelPreparationCall,
+  ScriptedModelPreparationMatch,
+  ScriptedModelPreparationPlan,
+  ScriptedModelRequestPreparation,
+  ScriptedModelRequestPreparationOptions,
+} from './preparation.ts'
 export type { ScriptedAccessDecision } from './access.ts'

@@ -125,6 +125,7 @@ describe('#515 reply admission and iteration close', () => {
               await d.journal.readReplyAdmissions({
                 ...alice,
                 execution: execution(),
+                from: { kind: 'origin' },
                 through: saved.replyAdmissions.through,
                 after: null,
                 limit: 100,
@@ -158,6 +159,7 @@ describe('#515 reply admission and iteration close', () => {
       await assembly.dependencies.journal.readReplyAdmissions({
         ...alice,
         execution: execution(),
+        from: { kind: 'origin' },
         through: saved.replyAdmissions.through,
         after: null,
         limit: 100,

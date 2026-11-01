@@ -1,9 +1,4 @@
-import type {
-  RuntimeContextOperations,
-  RuntimeContextAuthority,
-  ScopeBindingSource,
-  ScopeRef,
-} from '../index.js'
+import type { RuntimeContextOperations, RuntimeContextTrust, ScopeRef } from '../index.js'
 import { createWorld } from './memory-world.js'
 import { createSupplier } from './memory-producer.js'
 import { createHolder } from './memory-holder.js'
@@ -14,18 +9,17 @@ import { createReaders } from './memory-reader.js'
  * The two authority ports are required: the double has no unchecked mode. Bounds are configurable
  * initial values, not product numbers.
  */
-export type MemoryRuntimeContextOptions<P = unknown> = Readonly<{
-  authority: RuntimeContextAuthority<P>
-  bindings: ScopeBindingSource
-  /** Retained view revisions per cursor; an older cursor is invalidated. Default 64. */
-  retention?: number
-  /** Upper bound of one recovery material: registrations, checkpoint blocks and the end. Default 10000. */
-  replayCapacity?: number
-  /** How long one supply call may take before it reads as unknown. Default 30000 ms. */
-  supplyBoundMs?: number
-  /** How long `dispose` waits for the generation's reads in flight. Default 1000 ms. */
-  settleBoundMs?: number
-}>
+export type MemoryRuntimeContextOptions<P = unknown> = RuntimeContextTrust<P> &
+  Readonly<{
+    /** Retained view revisions per cursor; an older cursor is invalidated. Default 64. */
+    retention?: number
+    /** Upper bound of one recovery material: registrations, checkpoint blocks and the end. Default 10000. */
+    replayCapacity?: number
+    /** How long one supply call may take before it reads as unknown. Default 30000 ms. */
+    supplyBoundMs?: number
+    /** How long `dispose` waits for the generation's reads in flight. Default 1000 ms. */
+    settleBoundMs?: number
+  }>
 
 export type MemoryRuntimeContext<P = unknown> = RuntimeContextOperations<P> &
   Readonly<{
