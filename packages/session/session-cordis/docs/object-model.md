@@ -2,7 +2,7 @@
 
 本成员没有自己的领域对象。会话、Run、执行尝试、命令、条目与回执归 [session-contract 的对象模型](../../session-contract/docs/object-model/README.md)。实例、协调器、调度器、租户扫描者与缓存归 [session 的对象模型](../../session/docs/object-model.md)。本成员只有几个技术对象：服务实例、插件配置、端口接线、组合通知者与租户维护表。它们不自动成为产品领域对象。
 
-本成员没有运行实现。类名与字段名随实现确定。
+本成员已实现，类名与字段名以 `src/` 为准：服务类 `SessionProvider`，状态在 [runtime.ts](../src/runtime.ts) 的闭包里。
 
 ## 对象与关系
 
