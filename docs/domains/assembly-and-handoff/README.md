@@ -43,6 +43,8 @@
 
 求值/采用契约拥有一致依据及失败，绑定提供者拥有装配生命周期，原工作与换代协调者拥有认领/推进交接。工具实现的换代协调者在 Tool 宿主，装配只给候选。精确服务定义、公开类型及协议随这些成员。
 
+采用协调的契约设计候选见[采用协调契约设计](adoption-coordination.md)。该页尚未采用，它是采用协调契约的唯一源。本页只保留模块角色。
+
 上层沿[采用与换代](../../architecture/runtime/assembly-and-change.md)、[Cordis与部署生命周期](../../architecture/deployment/cordis-and-lifecycle.md)、[系统分层](../../architecture/layers-and-dependencies.md)。当前产品责任候选见[Agent 定义与工作推进](../../../.meta_harness/design/product/agent-progression/README.md)及[资产与规则](../../../.meta_harness/design/product/assets-and-rules/README.md)，两者仍为草案，不代替既有技术接受。验证见[组合入口](../verification.md)。
 
 ## 后续设计与维护
