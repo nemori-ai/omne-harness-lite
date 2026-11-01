@@ -16,7 +16,11 @@
 - G7 套件 `toolBindingRegistryConformance`、夹具类型 `ToolBindingRegistryFixture` 与被测登记表类型 `ToolBindingRegistryService`。套件核验登记、认回、冲突、按 token 撤回、fiber 结束撤回、来源层核验与租户范围的读取。
 - 守约的非耐久登记表 `createMemoryToolBindingRegistry`（授予表类型 `ToolBindingGrant`，返回类型 `MemoryToolBindingRegistry`）与带全部手柄的夹具 `memoryToolBindingRegistryFixture`。登记表声明 `durability: 'none'`，不能装配进生产。它的 `controls.verify` 扮演来源核验，返回 `VerifiedAuthority`。
 - RFC-0012 动态性套件的骨架 `runToolDynamicsSuite`、判据表 `TOOL_DYNAMICS_CRITERIA` 与夹具类型 `ToolDynamicsFixture`。十个用例在 2.5 填入用例体之前报告不适用，不是通过。
+- 持有者引用读取的唯一替身 `createMemoryToolResidencyReader`（[testing-residency-memory.ts](../src/testing-residency-memory.ts)，返回类型 `MemoryToolResidencyReader`）。它用 tool-contract 根入口的 `encodeResidentKey` 生成查询键，用 `projectResidentReferences` 投影每条记录，与应用的常驻引用桥用同一组函数。不给 `source` 时读内置来源：`set` 按键整体替换持有者，按 `pageSize`（缺省 2）分页，游标绑定键与位置，别的键的游标与伪造的游标答 `unavailable`。给出 `source`（结构类型 `ResidentReferencesRead`，与 Session `references` 同形）时转交 `after` 与 `limit`，例如接 session-contract `./testing` 的内存事务。键编码失败、来源的任何失败、任一条 shape 读回失败与 `interrupt` 之后，都答 `unavailable`，不答空页。替身声明 `durability: 'none'`，不能装配进生产。
+- 常驻登记键往返套件 `residentKeyRoundTripConformance` 与夹具类型 `ResidentKeyRoundTripFixture`（[testing-resident-key.ts](../src/testing-resident-key.ts)）。夹具经写入路径记下持有者，套件经 Reader 读回：四种来源层各一条、乱序的 commands 形状读回同形、只差资产修订的两个键互不串读、同一键两个租户各带自己的租户、未铸出的工作区键答 `unavailable`、读回失败的存储 shape 使读取答 `unavailable`（夹具没有 `writeRaw` 时报告不适用）。它对写入侧证据桥与读取侧常驻引用桥的组合运行，编码律不在套件里，归 tool-contract 的单元测试。
 
 类型参数取自 `@omne-harness/tool-contract`。服务行为与依赖分类见 [cordis](cordis.md)。目录职责见 [README](README.md)。
 
 `ToolResidencyReaderService` (`toolResidencyReader`) 提供持有者、租户与 shape 的分页引用查询，见[服务定义](../src/cordis.ts)。
+
+`ToolRuntimeService` 的具体方法 `registerResultReceiver(owner, receiver)` 把结果接收方装配给本进程的推送阶段，提供者子类经受保护的 `resultReceiver(owner)` 按冻结的 owner 读取。规则见 [结果接收方的登记](cordis.md#结果接收方的登记)。

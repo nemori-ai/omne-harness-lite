@@ -87,6 +87,7 @@ it('installs only the packed closure and every entry resolves inside the consume
   expect(report.probe.map(entry => entry.specifier)).toEqual([
     '@omne-harness/model-cordis-contract',
     '@omne-harness/model-cordis-contract/cordis',
+    '@omne-harness/model-cordis-contract/testing',
   ])
   expect(report.install).toEqual({ mode: 'offline', allowNetwork: false })
   expect(status).toBe(0)

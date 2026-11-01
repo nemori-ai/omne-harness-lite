@@ -12,6 +12,9 @@ import type {
   SessionAdoptionSource,
   SessionCustodySource,
   SessionProductionSource,
+  SessionDelegatedTransactions,
+  SessionPrincipalBindingSource,
+  SessionWorkPrincipals,
   DurableEvidence,
   ScopeReleasePort,
   SessionAccessCheck,
@@ -95,6 +98,60 @@ export abstract class SessionInternalPrincipalsService<P = unknown>
   abstract readonly maintainer: SessionInternalPrincipals<P>['maintainer']
 }
 export const sessionPrincipalsKey = SessionInternalPrincipalsService.provide
+
+/**
+ * The delegated entry from the Session execution boundary to storage. Trusted: the assembly makes
+ * it visible to the `session-provider` row only, never on the shared root.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionDelegatedTransactionsService<P = unknown>
+  extends Service
+  implements SessionDelegatedTransactions<P>
+{
+  static readonly provide = 'sessionDelegatedTransactions'
+  constructor(ctx: Context) {
+    super(ctx, SessionDelegatedTransactionsService.provide)
+  }
+  abstract readonly bind: SessionDelegatedTransactions<P>['bind']
+}
+export const sessionDelegatedTransactionsKey = SessionDelegatedTransactionsService.provide
+
+/**
+ * The per-session principals of the coordinators and maintainers. Trusted: the assembly entry
+ * provides it, visible to the `session-provider` row only.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionWorkPrincipalsService<P = unknown>
+  extends Service
+  implements SessionWorkPrincipals<P>
+{
+  static readonly provide = 'sessionWorkPrincipals'
+  constructor(ctx: Context) {
+    super(ctx, SessionWorkPrincipalsService.provide)
+  }
+  abstract readonly forSession: SessionWorkPrincipals<P>['forSession']
+}
+export const sessionWorkPrincipalsKey = SessionWorkPrincipalsService.provide
+
+/**
+ * The tenant ownership read of established sessions. Trusted: the `session-storage` row provides
+ * it, and only the assembly entry reads it, per call.
+ *
+ * @owner packages/session/session-contract
+ */
+export abstract class SessionPrincipalBindingsService
+  extends Service
+  implements SessionPrincipalBindingSource
+{
+  static readonly provide = 'sessionPrincipalBindings'
+  constructor(ctx: Context) {
+    super(ctx, SessionPrincipalBindingsService.provide)
+  }
+  abstract readonly read: SessionPrincipalBindingSource['read']
+}
+export const sessionPrincipalBindingsKey = SessionPrincipalBindingsService.provide
 
 /** @owner packages/session/session-contract */
 export abstract class SessionIdentityBridgeService<P = unknown>
@@ -258,6 +315,9 @@ declare module '@deepseek-ai/cordis' {
     sessionAccessCheck: SessionAccessCheckService<unknown>
     sessionTransactions: SessionTransactionPortService<unknown>
     sessionPrincipals: SessionInternalPrincipalsService<unknown>
+    sessionDelegatedTransactions: SessionDelegatedTransactionsService<unknown>
+    sessionWorkPrincipals: SessionWorkPrincipalsService<unknown>
+    sessionPrincipalBindings: SessionPrincipalBindingsService
     sessionIdentity: SessionIdentityBridgeService<unknown>
     sessionEvidence: SessionEvidenceBridgeService
     sessionClock: SessionClockService

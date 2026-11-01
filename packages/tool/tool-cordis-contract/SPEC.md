@@ -10,8 +10,9 @@
 4. ToolRuntimeService 按 ToolRuntime 投影 invoke、inspect、queries、commands、instances、content 与 catalog，不增加普通 admission 或受信回应入口。ToolCommandsService 保留内部协议。
 5. 事件名以包名为范围，为 `tool-cordis-contract/call-changed`（IC-10）。
 6. ToolStartFenceService 的键为 `toolStartFence`，只投影 `ToolStartFence` 的 `invalidate`。它与 `toolStartAuthority` 的关系见契约 SPEC 的[外层调用方的启动围栏](../tool-contract/SPEC.md#外层调用方的启动围栏)。
+7. ToolRuntimeService 有一个具体方法 `registerResultReceiver(owner, receiver)`，按 consumer owner 登记 `ToolResultReceiver`，登记即效应，返回撤除函数。同一 owner 第二个存活登记抛出，来自已撤除或正在撤除的 fiber 的旧登记被替换。它不是抽象成员，不改根接口 `ToolRuntime`，不新增服务键。按 owner 解析到接收方是装配给的保证，不是推送协议的一部分。同进程保证：登记表只在本进程，拆成多个进程时推送目标的到达协议本版不定义。规则见 [结果接收方的登记](docs/cordis.md#结果接收方的登记)。
 
-[结果推送与保存](../tool-contract/SPEC.md#结果推送与保存)的接收端口由消费拥有者实现，本包不为它定义服务键。
+[结果推送与保存](../tool-contract/SPEC.md#结果推送与保存)的接收端口由消费拥有者实现，本包不为它定义服务键。接收方经第 7 条的登记方法装配给推送阶段。
 
 契约 SPEC 的 [G1–G9 总表](../tool-contract/SPEC.md#342-契约缺口决定)没有归属本包的决定。服务定义的归属由四包拆分确定。
 

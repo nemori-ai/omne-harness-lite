@@ -52,6 +52,15 @@ The controls arm the next corresponding IO: `readUnavailable`, `commitUnavailabl
 The cases have stable `name` and `clause` fields. Direct consumption and the evidence limits are described in the [usage guide](../README.md#ledger-store-conformance). This adds a testing API in the G6 owner package. No existing consumer requires migration.
 
 
+## Tool 访问守卫的替身与套件（`./testing`）
+
+[testing-access.ts](../src/testing-access.ts) 给出 `ToolAccessGuard` 的表替身与提供者套件。依据是 M2 冻结批 RD-TOOLHEAD r2。它们是 `./testing` 的可加导出，不改 `ToolAccessGuard` 的形状。
+
+- `createTableToolAccess({ principalKey, allow })` 按显式的允许表 `ToolAccessRule[]` 作答，返回 `TableToolAccess`。判定顺序：处于 `fail` 状态时答 `unavailable`。租户不是 legal-identity 铸出的值时答 `denied`，原因 `forged-tenant`。表里有一条规则的主体键、租户文本、动作与调用都匹配时答 `allowed`。否则答 `denied`，原因 `no-rule`。没有默认放行，另一租户的请求因租户不同找不到规则。规则省略 `call` 时匹配该租户的任意调用，`call: null` 只匹配不带调用的请求（`invalidate`）。`read-raw-content` 只认同名规则，一次查表就是一个判定点，不拼两个基础权限。
+- `start` 视图在结构上满足 tool-host-local 的 `StartCoordinatorAccess<P>`，与 `guard` 共用同一张表和同一个 `fail` 状态。tool 不依赖 tool-host-local，所以这里只给结构相容的类型 `TableStartAccess<P>`。可赋值的类型断言由 tool-host-local 的测试承担。
+- 替身声明 `durability: 'none'`，不能装配进生产。生产代码不导入 `./testing`。
+- `toolAccessGuardConformance()` 是每个守卫提供者都要通过的五条用例，夹具类型是 `ToolAccessGuardFixture<P>`：`allowed` 答 `allowed`；`unlisted` 答 `denied`；`otherTenant`（与 `allowed` 只差租户）答 `denied`；伪造租户答 `denied`；依赖失败（夹具的 `breakDependency`）答 `unavailable`，不答 `allowed`。夹具没有 `breakDependency` 时最后一条报告不适用。替身先跑这个套件，应用的真实守卫适配接上后跑同一套件。
+
 ## 原环境分配的首次采用
 
 [driver.ts](../src/driver.ts) 消费 [P03](../../tool-contract/SPEC.md#p03-环境准备和释放) 的 allocated 事实。它先比对完整原准备与证据形状，再用同一适配器和原输入追加最多一次 prepare。allocated、pending、unknown 或不可用均保留准备任务，后续运行查询原事实。只有 prepared 写准备完成并进入执行队列。`environmentOf` 只重连 prepared，不通过 allocated 领取租约。原获取与无 E 时的结清仍归适配器，分配证据不能替代独立输出保管依据。

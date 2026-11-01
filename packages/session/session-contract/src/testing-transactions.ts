@@ -17,6 +17,8 @@ import {
   type SessionAccessCheck,
   type SessionAccessDecision,
   type SessionAccessRequest,
+  type SessionCheckedAccess,
+  type SessionDelegatedTransactions,
   type SessionReadAccessOperation,
 } from './access.ts'
 import { createPolicySessionAccessCheck } from './testing-access.ts'
@@ -374,9 +376,59 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
    */
   accessCheck: SessionAccessCheck<P>
 }>
-export function createMemorySessionTransactions<P>(
+/**
+ * The public port and the delegated entry of one in-memory core (SPEC「当前操作的访问裁定」). Both
+ * read and write the same stores. The public port asks `accessCheck` at each public call. A view
+ * from `delegated.bind` never asks it: it answers each call by its binding (see
+ * `SessionDelegatedTransactions`) and stores the bound evidence with the operation record, where
+ * `controls.decisionOf` reads it back.
+ */
+export type MemorySessionTransactionPair<P> = Readonly<{
+  transactions: MemoryInitializationTransactions<P>
+  delegated: SessionDelegatedTransactions<P>
+}>
+
+/** True when `request` stays inside the face operation that `bound` checked. */
+function withinBinding<P>(
+  bound: SessionAccessRequest<P>,
+  request: SessionAccessRequest<P>,
+): boolean {
+  if (bound.target.kind !== 'session' || request.target.kind !== 'session') return false
+  if (!('tenant' in bound.access) || !('tenant' in request.access)) return false
+  if (!tenantEquals(bound.access.tenant, request.access.tenant)) return false
+  if (bound.target.session !== request.target.session) return false
+  if (!('command' in request.target)) return true
+  return (
+    'command' in bound.target && sameCheckedCommand(bound.target.command, request.target.command)
+  )
+}
+
+/** The same command up to `expected`: a `changed` retry of the face operation stays bound. */
+function sameCheckedCommand(left: SessionCommand, right: SessionCommand): boolean {
+  const strip = (command: SessionCommand): SessionCommand => {
+    const { expected: _expected, ...input } = command.input as Record<string, unknown>
+    return { kind: command.kind, input } as SessionCommand
+  }
+  return (
+    left.kind === right.kind &&
+    left.input.operation === right.input.operation &&
+    commandDigest(strip(left)) === commandDigest(strip(right))
+  )
+}
+
+/** The decision source of a delegated view: the binding answers, the access check is not asked. */
+function boundAccessCheck<P>(checked: SessionCheckedAccess<P>): SessionAccessCheck<P> {
+  return {
+    check: async request =>
+      withinBinding(checked.request, request)
+        ? { kind: 'allowed', evidence: checked.evidence }
+        : { kind: 'denied' },
+  }
+}
+
+export function createMemorySessionTransactionPair<P>(
   options: MemorySessionTransactionOptions<P>,
-): MemoryInitializationTransactions<P> {
+): MemorySessionTransactionPair<P> {
   const stores = new Map<string, Store>()
   let directoryAvailable = true
   let failInitialization = false
@@ -402,619 +454,663 @@ export function createMemorySessionTransactions<P>(
         }
       : { kind: 'absent', producer, covered: snapshot.revision }
 
-  /** One current decision for one public call. A throwing or unavailable source does not continue. */
-  const qualify = async (
-    request: SessionAccessRequest<P>,
-  ): Promise<Outcome<DurableEvidence, SessionFailure>> => {
-    let decision: SessionAccessDecision
-    try {
-      decision = await options.accessCheck.check(request)
-    } catch (error) {
-      return fail(
-        unavailable(
-          `access check threw for ${request.operation}: ${error instanceof Error ? error.message : String(error)}`,
-        ),
-      )
-    }
-    switch (decision.kind) {
-      case 'allowed':
-        return succeed(decision.evidence)
-      case 'denied':
-        return fail(denied(request.operation))
-      case 'unavailable':
+  /**
+   * The port surface over the shared stores. `accessCheck` answers every public call of this
+   * surface: the public port gets the configured check, a delegated view gets its binding.
+   */
+  const surface = (accessCheck: SessionAccessCheck<P>): SessionTransactionPort<P> => {
+    /** One current decision for one public call. A throwing or unavailable source does not continue. */
+    const qualify = async (
+      request: SessionAccessRequest<P>,
+    ): Promise<Outcome<DurableEvidence, SessionFailure>> => {
+      let decision: SessionAccessDecision
+      try {
+        decision = await accessCheck.check(request)
+      } catch (error) {
         return fail(
-          unavailable(`access check unavailable for ${request.operation}: ${decision.diagnostic}`),
+          unavailable(
+            `access check threw for ${request.operation}: ${error instanceof Error ? error.message : String(error)}`,
+          ),
         )
-    }
-  }
-
-  const storeOf = async (
-    access: SessionAccess<P>,
-    operation: SessionReadAccessOperation,
-  ): Promise<Outcome<Store, SessionFailure>> => {
-    const qualification = await qualify(readAccessRequest(access, operation))
-    if ('failure' in qualification) return fail(qualification.failure)
-    const key = keyOf(access.tenant, access.session)
-    if ('failure' in key) return key
-    const store = stores.get(key.ok)
-    return store === undefined ? fail(denied(operation)) : succeed(store)
-  }
-
-  const commit = async <K extends MutationName>(
-    input: Readonly<{
-      access: SessionAccess<P>
-      command: Extract<SessionCommand, { kind: K }>
-      guards: readonly GuardCommand[]
-    }>,
-  ): Promise<Outcome<unknown, SessionFailure>> => {
-    const command: SessionCommand = input.command
-    const access: SessionAccess<P> | undefined = input.access
-    if (
-      access === undefined ||
-      !tenantEquals(access.tenant, command.input.tenant) ||
-      access.session !== command.input.session
-    )
-      return fail(denied(command.kind))
-    const qualification = await qualify(mutationAccessRequest(input.access, command))
-    if ('failure' in qualification) return fail(qualification.failure)
-    const accessEvidence = qualification.ok
-    // Before the session, the identity table or any lookup: the answer must not tell what exists.
-    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
-      return fail({ kind: 'unsupported' })
-    const key = keyOf(command.input.tenant, command.input.session)
-    if ('failure' in key) return key
-    const store = stores.get(key.ok)
-    if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
-    const answered = store?.answers.get(command.input.operation)
-    if (answered !== undefined) {
-      const control = command.kind === 'cancelRun' || command.kind === 'stopCall'
-      return control && answered.digest === commandDigest(command)
-        ? succeed(answered.receipt)
-        : fail({ kind: 'conflict', operation: command.input.operation })
-    }
-    if (command.kind === 'create' || command.kind === 'completeInitialization') {
-      const refusal =
-        options.initialization?.verify(command, input.guards) ??
-        (options.initialization === undefined
-          ? {
-              kind: 'invalid' as const,
-              field: 'initialization',
-              reason: 'no trusted initialization source was configured',
-            }
-          : null)
-      if (refusal !== null) return fail(refusal)
-    }
-    const held = store?.operations.get(command.input.operation)
-    const frozen =
-      store === undefined
-        ? undefined
-        : [...store.operations.values()].find(
-            item =>
-              item.record.receipt.source.record.endsWith('/' + item.record.operation) &&
-              store.entries.some(
-                entry =>
-                  entry.kind === 'session.frozen' &&
-                  entry.revision === item.record.receipt.revision,
-              ),
+      }
+      switch (decision.kind) {
+        case 'allowed':
+          return succeed(decision.evidence)
+        case 'denied':
+          return fail(denied(request.operation))
+        case 'unavailable':
+          return fail(
+            unavailable(
+              `access check unavailable for ${request.operation}: ${decision.diagnostic}`,
+            ),
           )
-    const selected =
-      command.kind === 'startRun'
-        ? store?.snapshot.pending.slice(0, 1)
-        : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
-          ? [command.input.fact.input]
-          : undefined
-    const scope: SessionInputScope =
-      selected === undefined
-        ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
-        : { kind: 'selected', inputs: selected }
-    const material =
-      store === undefined ? undefined : options.history?.read(store.snapshot, store.entries, scope)
-    const prepared =
-      store === undefined
-        ? null
-        : { ...store.snapshot, ...(material === undefined ? {} : { historyIndex: material.index }) }
-    const decision = decide(prepared, command, input.guards, held?.record ?? null, {
-      ...(material === undefined ? {} : { history: material.reads }),
-      compaction:
-        command.kind === 'commitDerived' &&
-        command.input.value.kind === 'compaction' &&
-        store !== undefined
-          ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
-          : null,
-      ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
-      ...(command.kind === 'cancelRun' && store !== undefined
-        ? { runs: [runLookup(store.snapshot, command.input.run)] }
-        : {}),
-      ...(command.kind === 'stopCall' && store !== undefined
-        ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
-        : {}),
-      initializationReceipts: [...(store?.operations.values() ?? [])].map(
-        value => value.record.receipt,
-      ),
-    })
-    if (decision.kind === 'rejected') return fail(decision.failure)
-    if (decision.kind === 'recovered') {
-      const original = held ?? store?.operations.get(decision.receipt.operation) ?? frozen
-      if (original === undefined) return fail(unavailable('a recalled operation without a record'))
-      const recall: Recall =
-        command.kind === 'completeInitialization' ? receipt => receipt : original.recall
-      if (held === undefined && store !== undefined && command.kind === 'completeInitialization') {
-        const operations = new Map(store.operations)
-        operations.set(command.input.operation, {
-          record: {
-            operation: command.input.operation,
-            digest: commandDigest(command),
-            receipt: original.record.receipt,
-          },
-          recall,
+      }
+    }
+
+    const storeOf = async (
+      access: SessionAccess<P>,
+      operation: SessionReadAccessOperation,
+    ): Promise<Outcome<Store, SessionFailure>> => {
+      const qualification = await qualify(readAccessRequest(access, operation))
+      if ('failure' in qualification) return fail(qualification.failure)
+      const key = keyOf(access.tenant, access.session)
+      if ('failure' in key) return key
+      const store = stores.get(key.ok)
+      return store === undefined ? fail(denied(operation)) : succeed(store)
+    }
+
+    const commit = async <K extends MutationName>(
+      input: Readonly<{
+        access: SessionAccess<P>
+        command: Extract<SessionCommand, { kind: K }>
+        guards: readonly GuardCommand[]
+      }>,
+    ): Promise<Outcome<unknown, SessionFailure>> => {
+      const command: SessionCommand = input.command
+      const access: SessionAccess<P> | undefined = input.access
+      if (
+        access === undefined ||
+        !tenantEquals(access.tenant, command.input.tenant) ||
+        access.session !== command.input.session
+      )
+        return fail(denied(command.kind))
+      const qualification = await qualify(mutationAccessRequest(input.access, command))
+      if ('failure' in qualification) return fail(qualification.failure)
+      const accessEvidence = qualification.ok
+      // Before the session, the identity table or any lookup: the answer must not tell what exists.
+      if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+        return fail({ kind: 'unsupported' })
+      const key = keyOf(command.input.tenant, command.input.session)
+      if ('failure' in key) return key
+      const store = stores.get(key.ok)
+      if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+      const answered = store?.answers.get(command.input.operation)
+      if (answered !== undefined) {
+        const control = command.kind === 'cancelRun' || command.kind === 'stopCall'
+        return control && answered.digest === commandDigest(command)
+          ? succeed(answered.receipt)
+          : fail({ kind: 'conflict', operation: command.input.operation })
+      }
+      if (command.kind === 'create' || command.kind === 'completeInitialization') {
+        const refusal =
+          options.initialization?.verify(command, input.guards) ??
+          (options.initialization === undefined
+            ? {
+                kind: 'invalid' as const,
+                field: 'initialization',
+                reason: 'no trusted initialization source was configured',
+              }
+            : null)
+        if (refusal !== null) return fail(refusal)
+      }
+      const held = store?.operations.get(command.input.operation)
+      const frozen =
+        store === undefined
+          ? undefined
+          : [...store.operations.values()].find(
+              item =>
+                item.record.receipt.source.record.endsWith('/' + item.record.operation) &&
+                store.entries.some(
+                  entry =>
+                    entry.kind === 'session.frozen' &&
+                    entry.revision === item.record.receipt.revision,
+                ),
+            )
+      const selected =
+        command.kind === 'startRun'
+          ? store?.snapshot.pending.slice(0, 1)
+          : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+            ? [command.input.fact.input]
+            : undefined
+      const scope: SessionInputScope =
+        selected === undefined
+          ? { kind: 'pending', inputs: store?.snapshot.pending ?? [] }
+          : { kind: 'selected', inputs: selected }
+      const material =
+        store === undefined
+          ? undefined
+          : options.history?.read(store.snapshot, store.entries, scope)
+      const prepared =
+        store === undefined
+          ? null
+          : {
+              ...store.snapshot,
+              ...(material === undefined ? {} : { historyIndex: material.index }),
+            }
+      const decision = decide(prepared, command, input.guards, held?.record ?? null, {
+        ...(material === undefined ? {} : { history: material.reads }),
+        compaction:
+          command.kind === 'commitDerived' &&
+          command.input.value.kind === 'compaction' &&
+          store !== undefined
+            ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
+            : null,
+        ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
+        ...(command.kind === 'cancelRun' && store !== undefined
+          ? { runs: [runLookup(store.snapshot, command.input.run)] }
+          : {}),
+        ...(command.kind === 'stopCall' && store !== undefined
+          ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
+          : {}),
+        initializationReceipts: [...(store?.operations.values() ?? [])].map(
+          value => value.record.receipt,
+        ),
+      })
+      if (decision.kind === 'rejected') return fail(decision.failure)
+      if (decision.kind === 'recovered') {
+        const original = held ?? store?.operations.get(decision.receipt.operation) ?? frozen
+        if (original === undefined)
+          return fail(unavailable('a recalled operation without a record'))
+        const recall: Recall =
+          command.kind === 'completeInitialization' ? receipt => receipt : original.recall
+        if (
+          held === undefined &&
+          store !== undefined &&
+          command.kind === 'completeInitialization'
+        ) {
+          const operations = new Map(store.operations)
+          operations.set(command.input.operation, {
+            record: {
+              operation: command.input.operation,
+              digest: commandDigest(command),
+              receipt: original.record.receipt,
+            },
+            recall,
+            decision: accessEvidence,
+          })
+          stores.set(key.ok, { ...store, operations })
+        }
+        return succeed(recall({ ...decision.receipt, recovered: true }))
+      }
+      if (decision.kind === 'control-answer') {
+        if (store === undefined) return fail(unavailable('a control answer without a session'))
+        const receipt = {
+          operation: command.input.operation,
+          source: decision.source,
+          answer: decision.answer,
+        }
+        const answers = new Map(store.answers)
+        answers.set(command.input.operation, {
+          digest: commandDigest(command),
+          receipt,
           decision: accessEvidence,
         })
-        stores.set(key.ok, { ...store, operations })
+        stores.set(key.ok, { ...store, answers })
+        return succeed(receipt)
       }
-      return succeed(recall({ ...decision.receipt, recovered: true }))
-    }
-    if (decision.kind === 'control-answer') {
-      if (store === undefined) return fail(unavailable('a control answer without a session'))
-      const receipt = {
-        operation: command.input.operation,
-        source: decision.source,
-        answer: decision.answer,
+      if (
+        decision.entries.length === 0 &&
+        command.kind === 'considerAutoArchive' &&
+        store !== undefined
+      ) {
+        const snapshot = store.snapshot
+        const observation = snapshot.idle?.observation
+        const result =
+          snapshot.autoArchive?.kind !== 'enabled'
+            ? 'disabled'
+            : snapshot.relation?.kind === 'main' && snapshot.relation.resident
+              ? 'exempt'
+              : observation === undefined
+                ? 'not-due'
+                : judgeIdle(snapshot, {
+                    observation,
+                    policy: snapshot.autoArchive,
+                    coverage:
+                      observation.kind === 'interval'
+                        ? observation.coverage
+                        : {
+                            own: observation.source,
+                            relations: observation.source,
+                            calls: [],
+                            children: [],
+                            completeScope: observation.source,
+                          },
+                  }).kind
+        return succeed({ result, receipt: null })
       }
-      const answers = new Map(store.answers)
-      answers.set(command.input.operation, {
-        digest: commandDigest(command),
-        receipt,
+      const previous = prepared
+      const revision = String(
+        previous === null ? 1n : BigInt(previous.revision) + 1n,
+      ) as SessionRevision
+      const offset = store?.entries.length ?? 0
+      const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
+        ...entry,
+        id: String(offset + index + 1) as EntryId,
+        revision,
+      }))
+      const reduced = reduce(previous, { revision, entries }, material?.reads)
+      if (reduced.kind === 'quarantined')
+        return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
+      const committedEntries = [...(store?.entries ?? []), ...entries]
+      const committedSnapshot =
+        options.history === undefined
+          ? reduced.snapshot
+          : {
+              ...reduced.snapshot,
+              historyIndex: options.history.read(reduced.snapshot, committedEntries, {
+                kind: 'pending',
+                inputs: reduced.snapshot.pending,
+              }).index,
+            }
+      const receipt = receiptOf(command.input.session, command.input.operation, revision, entries)
+      const recall = resultOf(command, committedSnapshot)
+      if (recall === null)
+        return fail(unavailable(`${command.kind} committed without a control progress item`))
+      const operations = new Map(store?.operations)
+      operations.set(command.input.operation, {
+        record: { operation: command.input.operation, digest: commandDigest(command), receipt },
+        recall,
         decision: accessEvidence,
+        ...(command.kind === 'cancelRun' || command.kind === 'stopCall'
+          ? { form: 'control' as const }
+          : {}),
       })
-      stores.set(key.ok, { ...store, answers })
-      return succeed(receipt)
-    }
-    if (
-      decision.entries.length === 0 &&
-      command.kind === 'considerAutoArchive' &&
-      store !== undefined
-    ) {
-      const snapshot = store.snapshot
-      const observation = snapshot.idle?.observation
-      const result =
-        snapshot.autoArchive?.kind !== 'enabled'
-          ? 'disabled'
-          : snapshot.relation?.kind === 'main' && snapshot.relation.resident
-            ? 'exempt'
-            : observation === undefined
-              ? 'not-due'
-              : judgeIdle(snapshot, {
-                  observation,
-                  policy: snapshot.autoArchive,
-                  coverage:
-                    observation.kind === 'interval'
-                      ? observation.coverage
-                      : {
-                          own: observation.source,
-                          relations: observation.source,
-                          calls: [],
-                          children: [],
-                          completeScope: observation.source,
-                        },
-                }).kind
-      return succeed({ result, receipt: null })
-    }
-    const previous = prepared
-    const revision = String(
-      previous === null ? 1n : BigInt(previous.revision) + 1n,
-    ) as SessionRevision
-    const offset = store?.entries.length ?? 0
-    const entries: HistoryEntry[] = decision.entries.map((entry, index) => ({
-      ...entry,
-      id: String(offset + index + 1) as EntryId,
-      revision,
-    }))
-    const reduced = reduce(previous, { revision, entries }, material?.reads)
-    if (reduced.kind === 'quarantined')
-      return fail({ kind: 'quarantined', diagnostic: reduced.diagnostic })
-    const committedEntries = [...(store?.entries ?? []), ...entries]
-    const committedSnapshot =
-      options.history === undefined
-        ? reduced.snapshot
-        : {
-            ...reduced.snapshot,
-            historyIndex: options.history.read(reduced.snapshot, committedEntries, {
-              kind: 'pending',
-              inputs: reduced.snapshot.pending,
-            }).index,
-          }
-    const receipt = receiptOf(command.input.session, command.input.operation, revision, entries)
-    const recall = resultOf(command, committedSnapshot)
-    if (recall === null)
-      return fail(unavailable(`${command.kind} committed without a control progress item`))
-    const operations = new Map(store?.operations)
-    operations.set(command.input.operation, {
-      record: { operation: command.input.operation, digest: commandDigest(command), receipt },
-      recall,
-      decision: accessEvidence,
-      ...(command.kind === 'cancelRun' || command.kind === 'stopCall'
-        ? { form: 'control' as const }
-        : {}),
-    })
-    const inputs = new Map(store?.inputs)
-    const admitted = admittedInput(command)
-    if (admitted !== null) inputs.set(admitted.input, admitted)
-    const target: Store = {
-      snapshot: committedSnapshot,
-      modelView: materializeModelView(store?.modelView ?? { epoch: 'epoch:0', rows: [] }, entries, [
-        ...(store?.entries ?? []),
-        ...entries,
-      ]),
-      entries: [...(store?.entries ?? []), ...entries],
-      operations,
-      answers: store?.answers ?? new Map(),
-      inputs,
-    }
-    const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
-    if (initialization && failInitialization) {
-      failInitialization = false
-      return fail(unavailable('injected failure before initialization publication'))
-    }
-    stores.set(key.ok, target)
-    if (initialization && loseInitializationReply) {
-      loseInitializationReply = false
-      return fail({ kind: 'commit-unknown', operation: command.input.operation })
-    }
-    return succeed(recall(receipt))
-  }
-
-  const page = (store: Store, cursor: Cursor): HistoryPage => {
-    const upper = Math.min(cursor.upper, store.entries.length)
-    const forward = cursor.direction === 'forward'
-    const matches = (entry: HistoryEntry): boolean =>
-      cursor.kinds.length === 0 || cursor.kinds.includes(entry.kind)
-    const taken: HistoryEntry[] = []
-    let scanned = cursor.scanned
-    let bytes = 0
-    // `scanned` is a position: forward, the count of entries scanned from the start; backward, the
-    // count scanned from the upper bound. A page ends when the next match would exceed the bytes.
-    while (forward ? scanned < upper : scanned < upper) {
-      const index = forward ? scanned : upper - scanned - 1
-      const entry = store.entries[index] as HistoryEntry
-      if (matches(entry)) {
-        const size = entryBytes(entry)
-        if (taken.length > 0 && bytes + size > cursor.pageBytes) break
-        taken.push(entry)
-        bytes += size
-      }
-      scanned += 1
-    }
-    const exhausted = scanned >= upper
-    const next: Cursor = { ...cursor, upper, scanned }
-    const token = encodeCursor(next)
-    if (!exhausted) issuedCursors.add(token)
-    return {
-      source: TESTING_OWNER,
-      interpreter: SESSION_INTERPRETER,
-      upper: store.entries[upper - 1]?.revision ?? store.snapshot.revision,
-      entries: taken,
-      scannedThrough: String(scanned),
-      next: exhausted ? null : token,
-      exhausted,
-      annotations: store.entries.slice(0, upper).filter(entry => {
-        const decoded = decodeEntry(entry)
-        return (
-          'ok' in decoded &&
-          decoded.ok.kind === 'history.annotated' &&
-          'targets' in decoded.ok &&
-          !taken.includes(entry) &&
-          decoded.ok.targets.some(target => taken.some(row => row.id === target))
-        )
-      }),
-    }
-  }
-
-  const history: SessionHistory<P> = {
-    begin: async input => {
-      const store = await storeOf(input, 'history.begin')
-      if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
-      const total = store.ok.entries.length
-      let scanned = 0
-      let upper = total
-      if (input.from !== null) {
-        const at = store.ok.entries.findIndex(entry => entry.id === input.from)
-        if (at === -1)
-          return fail({ kind: 'invalid', field: 'from', reason: 'not an entry of this session' })
-        if (input.direction === 'forward') scanned = at + 1
-        else upper = at
-      }
-      return succeed(
-        page(store.ok, {
-          tenant,
-          session: input.session,
-          kinds: input.kinds,
-          direction: input.direction,
-          upper,
-          scanned,
-          pageBytes: input.pageBytes,
-        }),
-      )
-    },
-    next: async input => {
-      const store = await storeOf(input, 'history.next')
-      if ('failure' in store) return store
-      const cursor = decodeCursor(input.cursor)
-      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
-      if (
-        !issuedCursors.has(input.cursor) ||
-        cursor === null ||
-        cursor.tenant !== tenant ||
-        cursor.session !== input.session
-      )
-        return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
-      return succeed(page(store.ok, cursor))
-    },
-    since: async input => {
-      const store = await storeOf(input, 'history.since')
-      if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const at = store.ok.entries.findIndex(entry => entry.id === input.after)
-      if (at === -1)
-        return fail({ kind: 'invalid', field: 'after', reason: 'not an entry of this session' })
-      const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
-      return succeed(
-        page(store.ok, {
-          tenant,
-          session: input.session,
-          kinds: input.kinds,
-          direction: 'forward',
-          upper: store.ok.entries.length,
-          scanned: at + 1,
-          pageBytes: input.pageBytes,
-        }),
-      )
-    },
-    readModelView: async input => {
-      const store = await storeOf(input, 'history.readModelView')
-      if ('failure' in store) return store
-      if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
-        return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
-      const view = store.ok.modelView
-      const key = keyOf(input.tenant, input.session)
-      if ('failure' in key) return key
-      const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
-      if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
-        return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
-      if (input.basis !== null && input.basis.epoch !== current.epoch)
-        return succeed({ kind: 'epoch-changed', current })
-      const basis = input.basis ?? current
-      const after = input.after === null ? 0 : Number(input.after)
-      const upper = Number(basis.upper)
-      if (
-        !Number.isInteger(after) ||
-        !Number.isInteger(upper) ||
-        after < 0 ||
-        upper > view.rows.length ||
-        after > upper
-      )
-        return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
-      const rows = []
-      let bytes = 0
-      for (const row of view.rows.slice(after, upper)) {
-        if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
-        rows.push(row)
-        bytes += row.bytes
-      }
-      return succeed({
-        kind: 'page',
-        basis,
-        rows,
-        next: after + rows.length < upper ? String(after + rows.length) : null,
-      })
-    },
-  }
-
-  const port: SessionTransactionPort<P> = {
-    commit: (input => commit(input)) as SessionTransactionPort<P>['commit'],
-    readWork: async input => {
-      const store = await storeOf(input, 'readWork')
-      if ('failure' in store) return store
-      const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
-        kind: 'pending',
-        inputs: store.ok.snapshot.pending,
-      })
-      return succeed({
-        ...store.ok.snapshot,
-        ...(material === undefined ? {} : { historyIndex: material.index }),
-      })
-    },
-    readInput: async input => {
-      const store = await storeOf(input, 'readInput')
-      if ('failure' in store) return store
-      const found = store.ok.inputs.get(input.input)
-      return found === undefined
-        ? fail({ kind: 'invalid', field: 'input', reason: 'not an ordinary input of this session' })
-        : succeed(found)
-    },
-    queryOperation: async input => {
-      const store = await storeOf(input, 'queryOperation')
-      if ('failure' in store) return store
-      const held = store.ok.operations.get(input.operation)
-      if (held?.form === 'control' || store.ok.answers.has(input.operation))
-        return fail({ kind: 'conflict', operation: input.operation })
-      const resolution: OperationResolution =
-        held === undefined
-          ? { kind: 'unknown' }
-          : { kind: 'committed', receipt: held.record.receipt }
-      return succeed(resolution)
-    },
-    queryControlOperation: async input => {
-      const store = await storeOf(input, 'queryControlOperation')
-      if ('failure' in store) return store
-      const answered = store.ok.answers.get(input.operation)
-      if (answered !== undefined)
-        return succeed<ControlOperationResolution>({ kind: 'committed', receipt: answered.receipt })
-      const held = store.ok.operations.get(input.operation)
-      if (held === undefined) return succeed<ControlOperationResolution>({ kind: 'unknown' })
-      if (held.form !== 'control') return fail({ kind: 'conflict', operation: input.operation })
-      return succeed<ControlOperationResolution>({
-        kind: 'committed',
-        receipt: held.recall(held.record.receipt) as SessionControlReceipt<
-          RunTerminal | SessionCallTerminal
-        >,
-      })
-    },
-    readModelSelection: async input => {
-      const store = await storeOf(input, 'readModelSelection')
-      if ('failure' in store) return store
-      let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
-      for (const row of store.ok.entries) {
-        const value = decodeEntry(row)
-        if (
-          'ok' in value &&
-          value.ok.kind === 'session.model-selected' &&
-          value.ok.declaration.kind === 'model'
-        )
-          saved = {
-            selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
-            at: row.revision,
-          }
-      }
-      const initial = store.ok.snapshot.creation.initialModelSelection
-      const first = store.ok.entries[0]
-      const chosen =
-        saved ??
-        (initial !== undefined && first !== undefined
-          ? { selection: initial, at: first.revision }
-          : null)
-      if (chosen === null) return fail({ kind: 'not-ready' })
-      const origin = [...store.ok.operations.values()].find(
-        item => item.record.receipt.revision === chosen.at,
-      )
-      if (origin === undefined)
-        return fail(unavailable('the commit that saved the selection has no original receipt'))
-      return succeed<SessionModelSelection>({
-        selection: chosen.selection,
-        revision: store.ok.snapshot.revision,
-        source: origin.record.receipt.source,
-      })
-    },
-    commitEntries: async () =>
-      fail(
-        unavailable(
-          'the in-memory double has no shared transaction domain, so it does not interpret entries',
+      const inputs = new Map(store?.inputs)
+      const admitted = admittedInput(command)
+      if (admitted !== null) inputs.set(admitted.input, admitted)
+      const target: Store = {
+        snapshot: committedSnapshot,
+        modelView: materializeModelView(
+          store?.modelView ?? { epoch: 'epoch:0', rows: [] },
+          entries,
+          [...(store?.entries ?? []), ...entries],
         ),
-      ),
-    history,
-    pending: async input => {
-      const qualification = await qualify({
-        access: { principal: input.principal, tenant: input.tenant },
-        operation: 'pending',
-        target: { kind: 'tenant', tenant: input.tenant },
-      })
-      if ('failure' in qualification) return fail(qualification.failure)
-      const text = tenantCodec.encode(input.tenant)
-      if (!text.ok)
-        return fail({
-          kind: 'invalid',
-          field: 'tenant',
-          reason: 'not a tenant that legal-identity minted',
-        })
-      if (!Number.isInteger(input.limit) || input.limit < 1)
-        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
-      const prefix = `${text.value}\u0000`
-      const sessions = [...stores.entries()]
-        .filter(([key]) => key.startsWith(prefix))
-        .map(([, store]) => store.snapshot)
-        .filter(snapshot => {
-          const reasons = pendingReasonsOf(snapshot)
-          return input.reason === undefined ? reasons.length > 0 : reasons.includes(input.reason)
-        })
-        .map(snapshot => snapshot.session)
-        .sort()
-        .filter(session => input.after === null || session > input.after)
-      const taken = sessions.slice(0, input.limit)
-      const last = taken[taken.length - 1]
-      return succeed({
-        sessions: taken,
-        next: sessions.length > taken.length && last !== undefined ? last : null,
-      })
-    },
-    references: async input => {
-      const qualification = await qualify({
-        access: { principal: input.principal, scope: 'system' },
-        operation: 'references',
-        target: { kind: 'resident-references', key: input.key },
-      })
-      if ('failure' in qualification) return fail(qualification.failure)
-      if (!directoryAvailable)
-        return fail(unavailable('transaction-domain directory is unavailable'))
-      if (!Number.isInteger(input.limit) || input.limit < 1)
-        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
-      const scope = `references:${input.key}:`
-      if (input.after !== null && !input.after.startsWith(scope))
-        return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
-      const rows = [...stores.values()].flatMap(store =>
-        store.snapshot.lifecycle === 'archived'
-          ? []
-          : (store.snapshot.residentKeys ?? []).flatMap(pair => {
-              const resident = store.snapshot.residents.find(
-                item => item.capability === pair.capability,
-              )
-              return pair.key === input.key && resident !== undefined
-                ? [
-                    {
-                      tenant: store.snapshot.tenant,
-                      session: store.snapshot.session,
-                      capability: pair.capability,
-                      shape: resident.shape,
-                    },
-                  ]
-                : []
-            }),
-      )
-      const offset = input.after === null ? 0 : Number(input.after.slice(scope.length))
-      if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
-        return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
-      const sessions = rows.slice(offset, offset + input.limit)
-      return succeed({
-        sessions,
-        next:
-          offset + sessions.length < rows.length ? scope + String(offset + sessions.length) : null,
-      })
-    },
-    releasedScopes: async input => {
-      const qualification = await qualify({
-        access: { principal: input.principal, scope: 'system' },
-        operation: 'releasedScopes',
-        target: { kind: 'released-scopes' },
-      })
-      if ('failure' in qualification) return fail(qualification.failure)
-      if (!directoryAvailable)
-        return fail(unavailable('transaction-domain directory is unavailable'))
-      if (!Number.isInteger(input.limit) || input.limit < 1)
-        return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
-      const prefix = 'released-scopes:'
-      if (input.after !== null && !input.after.startsWith(prefix))
-        return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
-      const rows = [...stores.values()].flatMap(store =>
-        (store.snapshot.releasedScopes ?? []).map(scope => ({
-          tenant: store.snapshot.tenant,
-          session: store.snapshot.session,
-          ...scope,
-        })),
-      )
-      const offset = input.after === null ? 0 : Number(input.after.slice(prefix.length))
-      if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
-        return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
-      const scopes = rows.slice(offset, offset + input.limit)
-      return succeed({
-        scopes,
-        next: offset + scopes.length < rows.length ? prefix + String(offset + scopes.length) : null,
-      })
-    },
-  }
+        entries: [...(store?.entries ?? []), ...entries],
+        operations,
+        answers: store?.answers ?? new Map(),
+        inputs,
+      }
+      const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
+      if (initialization && failInitialization) {
+        failInitialization = false
+        return fail(unavailable('injected failure before initialization publication'))
+      }
+      stores.set(key.ok, target)
+      if (initialization && loseInitializationReply) {
+        loseInitializationReply = false
+        return fail({ kind: 'commit-unknown', operation: command.input.operation })
+      }
+      return succeed(recall(receipt))
+    }
 
-  return Object.freeze({
+    const page = (store: Store, cursor: Cursor): HistoryPage => {
+      const upper = Math.min(cursor.upper, store.entries.length)
+      const forward = cursor.direction === 'forward'
+      const matches = (entry: HistoryEntry): boolean =>
+        cursor.kinds.length === 0 || cursor.kinds.includes(entry.kind)
+      const taken: HistoryEntry[] = []
+      let scanned = cursor.scanned
+      let bytes = 0
+      // `scanned` is a position: forward, the count of entries scanned from the start; backward, the
+      // count scanned from the upper bound. A page ends when the next match would exceed the bytes.
+      while (forward ? scanned < upper : scanned < upper) {
+        const index = forward ? scanned : upper - scanned - 1
+        const entry = store.entries[index] as HistoryEntry
+        if (matches(entry)) {
+          const size = entryBytes(entry)
+          if (taken.length > 0 && bytes + size > cursor.pageBytes) break
+          taken.push(entry)
+          bytes += size
+        }
+        scanned += 1
+      }
+      const exhausted = scanned >= upper
+      const next: Cursor = { ...cursor, upper, scanned }
+      const token = encodeCursor(next)
+      if (!exhausted) issuedCursors.add(token)
+      return {
+        source: TESTING_OWNER,
+        interpreter: SESSION_INTERPRETER,
+        upper: store.entries[upper - 1]?.revision ?? store.snapshot.revision,
+        entries: taken,
+        scannedThrough: String(scanned),
+        next: exhausted ? null : token,
+        exhausted,
+        annotations: store.entries.slice(0, upper).filter(entry => {
+          const decoded = decodeEntry(entry)
+          return (
+            'ok' in decoded &&
+            decoded.ok.kind === 'history.annotated' &&
+            'targets' in decoded.ok &&
+            !taken.includes(entry) &&
+            decoded.ok.targets.some(target => taken.some(row => row.id === target))
+          )
+        }),
+      }
+    }
+
+    const history: SessionHistory<P> = {
+      begin: async input => {
+        const store = await storeOf(input, 'history.begin')
+        if ('failure' in store) return store
+        if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+          return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+        const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+        const total = store.ok.entries.length
+        let scanned = 0
+        let upper = total
+        if (input.from !== null) {
+          const at = store.ok.entries.findIndex(entry => entry.id === input.from)
+          if (at === -1)
+            return fail({ kind: 'invalid', field: 'from', reason: 'not an entry of this session' })
+          if (input.direction === 'forward') scanned = at + 1
+          else upper = at
+        }
+        return succeed(
+          page(store.ok, {
+            tenant,
+            session: input.session,
+            kinds: input.kinds,
+            direction: input.direction,
+            upper,
+            scanned,
+            pageBytes: input.pageBytes,
+          }),
+        )
+      },
+      next: async input => {
+        const store = await storeOf(input, 'history.next')
+        if ('failure' in store) return store
+        const cursor = decodeCursor(input.cursor)
+        const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+        if (
+          !issuedCursors.has(input.cursor) ||
+          cursor === null ||
+          cursor.tenant !== tenant ||
+          cursor.session !== input.session
+        )
+          return fail({ kind: 'invalid', field: 'cursor', reason: 'not a cursor of this session' })
+        return succeed(page(store.ok, cursor))
+      },
+      since: async input => {
+        const store = await storeOf(input, 'history.since')
+        if ('failure' in store) return store
+        if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+          return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+        const at = store.ok.entries.findIndex(entry => entry.id === input.after)
+        if (at === -1)
+          return fail({ kind: 'invalid', field: 'after', reason: 'not an entry of this session' })
+        const tenant = (tenantCodec.encode(input.tenant) as { ok: true; value: string }).value
+        return succeed(
+          page(store.ok, {
+            tenant,
+            session: input.session,
+            kinds: input.kinds,
+            direction: 'forward',
+            upper: store.ok.entries.length,
+            scanned: at + 1,
+            pageBytes: input.pageBytes,
+          }),
+        )
+      },
+      readModelView: async input => {
+        const store = await storeOf(input, 'history.readModelView')
+        if ('failure' in store) return store
+        if (!Number.isInteger(input.pageBytes) || input.pageBytes < 1)
+          return fail({ kind: 'invalid', field: 'pageBytes', reason: 'not a positive integer' })
+        const view = store.ok.modelView
+        const key = keyOf(input.tenant, input.session)
+        if ('failure' in key) return key
+        const current = { epoch: `${key.ok}/${view.epoch}`, upper: String(view.rows.length) }
+        if (input.basis !== null && !input.basis.epoch.startsWith(`${key.ok}/`))
+          return fail({ kind: 'invalid', field: 'basis', reason: 'another session' })
+        if (input.basis !== null && input.basis.epoch !== current.epoch)
+          return succeed({ kind: 'epoch-changed', current })
+        const basis = input.basis ?? current
+        const after = input.after === null ? 0 : Number(input.after)
+        const upper = Number(basis.upper)
+        if (
+          !Number.isInteger(after) ||
+          !Number.isInteger(upper) ||
+          after < 0 ||
+          upper > view.rows.length ||
+          after > upper
+        )
+          return fail({ kind: 'invalid', field: 'basis', reason: 'invalid model view bounds' })
+        const rows = []
+        let bytes = 0
+        for (const row of view.rows.slice(after, upper)) {
+          if (rows.length > 0 && bytes + row.bytes > input.pageBytes) break
+          rows.push(row)
+          bytes += row.bytes
+        }
+        return succeed({
+          kind: 'page',
+          basis,
+          rows,
+          next: after + rows.length < upper ? String(after + rows.length) : null,
+        })
+      },
+    }
+
+    const port: SessionTransactionPort<P> = {
+      commit: (input => commit(input)) as SessionTransactionPort<P>['commit'],
+      readWork: async input => {
+        const store = await storeOf(input, 'readWork')
+        if ('failure' in store) return store
+        const material = options.history?.read(store.ok.snapshot, store.ok.entries, {
+          kind: 'pending',
+          inputs: store.ok.snapshot.pending,
+        })
+        return succeed({
+          ...store.ok.snapshot,
+          ...(material === undefined ? {} : { historyIndex: material.index }),
+        })
+      },
+      readInput: async input => {
+        const store = await storeOf(input, 'readInput')
+        if ('failure' in store) return store
+        const found = store.ok.inputs.get(input.input)
+        return found === undefined
+          ? fail({
+              kind: 'invalid',
+              field: 'input',
+              reason: 'not an ordinary input of this session',
+            })
+          : succeed(found)
+      },
+      queryOperation: async input => {
+        const store = await storeOf(input, 'queryOperation')
+        if ('failure' in store) return store
+        const held = store.ok.operations.get(input.operation)
+        if (held?.form === 'control' || store.ok.answers.has(input.operation))
+          return fail({ kind: 'conflict', operation: input.operation })
+        const resolution: OperationResolution =
+          held === undefined
+            ? { kind: 'unknown' }
+            : { kind: 'committed', receipt: held.record.receipt }
+        return succeed(resolution)
+      },
+      queryControlOperation: async input => {
+        const store = await storeOf(input, 'queryControlOperation')
+        if ('failure' in store) return store
+        const answered = store.ok.answers.get(input.operation)
+        if (answered !== undefined)
+          return succeed<ControlOperationResolution>({
+            kind: 'committed',
+            receipt: answered.receipt,
+          })
+        const held = store.ok.operations.get(input.operation)
+        if (held === undefined) return succeed<ControlOperationResolution>({ kind: 'unknown' })
+        if (held.form !== 'control') return fail({ kind: 'conflict', operation: input.operation })
+        return succeed<ControlOperationResolution>({
+          kind: 'committed',
+          receipt: held.recall(held.record.receipt) as SessionControlReceipt<
+            RunTerminal | SessionCallTerminal
+          >,
+        })
+      },
+      readModelSelection: async input => {
+        const store = await storeOf(input, 'readModelSelection')
+        if ('failure' in store) return store
+        let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
+        for (const row of store.ok.entries) {
+          const value = decodeEntry(row)
+          if (
+            'ok' in value &&
+            value.ok.kind === 'session.model-selected' &&
+            value.ok.declaration.kind === 'model'
+          )
+            saved = {
+              selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
+              at: row.revision,
+            }
+        }
+        const initial = store.ok.snapshot.creation.initialModelSelection
+        const first = store.ok.entries[0]
+        const chosen =
+          saved ??
+          (initial !== undefined && first !== undefined
+            ? { selection: initial, at: first.revision }
+            : null)
+        if (chosen === null) return fail({ kind: 'not-ready' })
+        const origin = [...store.ok.operations.values()].find(
+          item => item.record.receipt.revision === chosen.at,
+        )
+        if (origin === undefined)
+          return fail(unavailable('the commit that saved the selection has no original receipt'))
+        return succeed<SessionModelSelection>({
+          selection: chosen.selection,
+          revision: store.ok.snapshot.revision,
+          source: origin.record.receipt.source,
+        })
+      },
+      commitEntries: async () =>
+        fail(
+          unavailable(
+            'the in-memory double has no shared transaction domain, so it does not interpret entries',
+          ),
+        ),
+      history,
+      pending: async input => {
+        const qualification = await qualify({
+          access: { principal: input.principal, tenant: input.tenant },
+          operation: 'pending',
+          target: { kind: 'tenant', tenant: input.tenant },
+        })
+        if ('failure' in qualification) return fail(qualification.failure)
+        const text = tenantCodec.encode(input.tenant)
+        if (!text.ok)
+          return fail({
+            kind: 'invalid',
+            field: 'tenant',
+            reason: 'not a tenant that legal-identity minted',
+          })
+        if (!Number.isInteger(input.limit) || input.limit < 1)
+          return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+        const prefix = `${text.value}\u0000`
+        const sessions = [...stores.entries()]
+          .filter(([key]) => key.startsWith(prefix))
+          .map(([, store]) => store.snapshot)
+          .filter(snapshot => {
+            const reasons = pendingReasonsOf(snapshot)
+            return input.reason === undefined ? reasons.length > 0 : reasons.includes(input.reason)
+          })
+          .map(snapshot => snapshot.session)
+          .sort()
+          .filter(session => input.after === null || session > input.after)
+        const taken = sessions.slice(0, input.limit)
+        const last = taken[taken.length - 1]
+        return succeed({
+          sessions: taken,
+          next: sessions.length > taken.length && last !== undefined ? last : null,
+        })
+      },
+      references: async input => {
+        const qualification = await qualify({
+          access: { principal: input.principal, scope: 'system' },
+          operation: 'references',
+          target: { kind: 'resident-references', key: input.key },
+        })
+        if ('failure' in qualification) return fail(qualification.failure)
+        if (!directoryAvailable)
+          return fail(unavailable('transaction-domain directory is unavailable'))
+        if (!Number.isInteger(input.limit) || input.limit < 1)
+          return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+        const scope = `references:${input.key}:`
+        if (input.after !== null && !input.after.startsWith(scope))
+          return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
+        const rows = [...stores.values()].flatMap(store =>
+          store.snapshot.lifecycle === 'archived'
+            ? []
+            : (store.snapshot.residentKeys ?? []).flatMap(pair => {
+                const resident = store.snapshot.residents.find(
+                  item => item.capability === pair.capability,
+                )
+                return pair.key === input.key && resident !== undefined
+                  ? [
+                      {
+                        tenant: store.snapshot.tenant,
+                        session: store.snapshot.session,
+                        capability: pair.capability,
+                        shape: resident.shape,
+                      },
+                    ]
+                  : []
+              }),
+        )
+        const offset = input.after === null ? 0 : Number(input.after.slice(scope.length))
+        if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
+          return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
+        const sessions = rows.slice(offset, offset + input.limit)
+        return succeed({
+          sessions,
+          next:
+            offset + sessions.length < rows.length
+              ? scope + String(offset + sessions.length)
+              : null,
+        })
+      },
+      releasedScopes: async input => {
+        const qualification = await qualify({
+          access: { principal: input.principal, scope: 'system' },
+          operation: 'releasedScopes',
+          target: { kind: 'released-scopes' },
+        })
+        if ('failure' in qualification) return fail(qualification.failure)
+        if (!directoryAvailable)
+          return fail(unavailable('transaction-domain directory is unavailable'))
+        if (!Number.isInteger(input.limit) || input.limit < 1)
+          return fail({ kind: 'invalid', field: 'limit', reason: 'not a positive integer' })
+        const prefix = 'released-scopes:'
+        if (input.after !== null && !input.after.startsWith(prefix))
+          return fail({ kind: 'invalid', field: 'after', reason: 'wrong directory cursor' })
+        const rows = [...stores.values()].flatMap(store =>
+          (store.snapshot.releasedScopes ?? []).map(scope => ({
+            tenant: store.snapshot.tenant,
+            session: store.snapshot.session,
+            ...scope,
+          })),
+        )
+        const offset = input.after === null ? 0 : Number(input.after.slice(prefix.length))
+        if (!Number.isInteger(offset) || offset < 0 || offset > rows.length)
+          return fail({ kind: 'invalid', field: 'after', reason: 'invalid cursor' })
+        const scopes = rows.slice(offset, offset + input.limit)
+        return succeed({
+          scopes,
+          next:
+            offset + scopes.length < rows.length ? prefix + String(offset + scopes.length) : null,
+        })
+      },
+    }
+    return port
+  }
+  const port = surface(options.accessCheck)
+
+  const delegated: SessionDelegatedTransactions<P> = Object.freeze({
+    bind: (checked: SessionCheckedAccess<P>): SessionTransactionPort<P> => {
+      const view = surface(boundAccessCheck(checked))
+      return Object.freeze({
+        ...view,
+        commitEntries: async () => fail(denied('commitEntries')),
+        pending: async () => fail(denied('pending')),
+        references: async () => fail(denied('references')),
+        releasedScopes: async () => fail(denied('releasedScopes')),
+      })
+    },
+  })
+
+  const transactions: MemoryInitializationTransactions<P> = Object.freeze({
     ...port,
     durability: 'none' as const,
     controls: Object.freeze({
@@ -1102,6 +1198,14 @@ export function createMemorySessionTransactions<P>(
       },
     }),
   })
+  return Object.freeze({ transactions, delegated })
+}
+
+/** The public port of {@link createMemorySessionTransactionPair}, for a fixture that needs no view. */
+export function createMemorySessionTransactions<P>(
+  options: MemorySessionTransactionOptions<P>,
+): MemoryInitializationTransactions<P> {
+  return createMemorySessionTransactionPair(options).transactions
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -1143,7 +1247,8 @@ export interface SessionTransactionsFixture<P> {
 
 type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>
 
-function scene<P>(fixture: SessionTransactionsFixture<P>) {
+/** The steps of a case over one fixture; shared with the delegated-view suite. */
+export function scene<P>(fixture: SessionTransactionsFixture<P>) {
   const { port, access } = fixture
   const base = { tenant: access.tenant, session: access.session }
   const commit = <K extends MutationName>(
@@ -2223,14 +2328,21 @@ export function memorySessionTransactionsFixture(): SessionTransactionsFixture<s
     otherAccess: memoryOtherAccess('stranger'),
     creation: legalCreation(),
     operation: name => operationId(name),
-    initializationGuards: async command => {
-      initialization.controls.register(
-        command,
-        initializationFixtureGuard(
-          initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
-        ),
-      )
-      return succeeded(await initialization.prepare(command), 'initialization source')
-    },
+    initializationGuards: memoryInitializationGuards(initialization),
+  }
+}
+
+/** The initialization guards of a memory fixture: registers the adopted fixture, then prepares. */
+export function memoryInitializationGuards(
+  initialization: MemoryInitializationSource,
+): (command: Extract<SessionCommand, { kind: 'create' }>) => Promise<readonly GuardCommand[]> {
+  return async command => {
+    initialization.controls.register(
+      command,
+      initializationFixtureGuard(
+        initializationFixtureFacts(command, null, adoptedInitializationFixture(command)),
+      ),
+    )
+    return succeeded(await initialization.prepare(command), 'initialization source')
   }
 }
