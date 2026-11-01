@@ -170,7 +170,7 @@ describe('stopCall of a Tool target', () => {
     expect(a.provider.calls.length).toBe(mark)
     expect(ok(await a.port.readWork(a.access(TENANT_A)))).toEqual(before)
     const asked = await a.port.queryControlOperation({ ...a.access(TENANT_A), operation: operationId('fresh') })
-    expect(ok<{ kind: string }>(asked).kind).toBe('not-committed')
+    expect(ok<{ kind: string }>(asked).kind).toBe('unknown')
   })
 })
 
@@ -192,7 +192,7 @@ describe('control answers', () => {
     const resolved = ok<{ kind: string }>(
       await a.port.queryControlOperation({ ...a.access(TENANT_A), operation: operationId('bad') }),
     )
-    expect(resolved.kind).toBe('attempt-rejected')
+    expect(resolved.kind).toBe('unknown')
   })
 })
 
@@ -243,14 +243,16 @@ describe('queryOperation', () => {
     expect((seen[0] as { identity: { operation: string } }).identity.operation).toBe('session.lookup')
   })
 
-  it('an operation without a receipt is asked of the storage under its original identity', async () => {
+  it('an operation without a receipt is asked of the storage under its original identity and is unknown, not not-committed (R7)', async () => {
     const a = await started()
     const mark = a.provider.calls.length
     const resolved = ok<{ kind: string; exclusion?: { owner: string } }>(
       await a.port.queryOperation({ ...a.access(TENANT_A), operation: operationId('never') }),
     )
-    expect(resolved.kind).toBe('not-committed')
-    expect(resolved.exclusion?.owner).toBe('@omne-harness/session-storage-sql')
+    // The entry that tells a participating operation from a Session operation is absent (R7), so a
+    // clean generation 1 is not proof that the operation was never committed.
+    expect(resolved.kind).toBe('unknown')
+    expect(resolved.exclusion).toBeUndefined()
     const asked = a.provider.calls.slice(mark).filter(call => call.kind === 'query')
     expect(asked.map(call => (call as { identity: unknown }).identity)).toEqual([identityOf('never', 1)])
   })

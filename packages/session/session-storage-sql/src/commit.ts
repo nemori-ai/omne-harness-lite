@@ -167,6 +167,10 @@ export async function commit<P, K extends MutationName>(
       reason: error instanceof Error ? error.message : 'not JSON data',
     })
   }
+  // Known limitation: the storage identity is `<SessionOperationId>#<generation>` in the tenant
+  // domain, so one identity is one operation per tenant, not per session. An identity reused in
+  // another session answers `conflict` and writes nothing (the safe side); the SL07 domain
+  // (tenant, session, identity) relies on OP-00 never reusing an identity across sessions.
   const operation = command.input.operation
   const { storage } = context.options
   for (let attempt = 1; attempt <= context.attemptLimit; attempt += 1) {
@@ -254,18 +258,25 @@ async function resolve<P>(
 
 type Unfound = ControlOperationResolution & OperationResolution
 
-function unfound(rest: Rest): Outcome<Unfound, SessionFailure> {
+/**
+ * R7: the entry that tells a participating operation from a Session operation is missing, so a
+ * clean generation 1 never proves the operation was not committed (a participating operation
+ * never uses this storage identity). It answers `unknown`. Only a rolled back later generation
+ * is `attempt-rejected`, and that answer is for `queryOperation` only.
+ */
+function unfound(rest: Rest, control: boolean): Outcome<Unfound, SessionFailure> {
   switch (rest.kind) {
     case 'committed-unseen':
       return failure(unavailable('a committed attempt has no original receipt'))
-    case 'not-committed':
-      return succeed({ kind: 'not-committed', exclusion: rest.exclusion })
     case 'attempt-rejected':
-      return succeed({
-        kind: 'attempt-rejected',
-        original: 'unknown',
-        reason: 'an attempt was rolled back',
-      })
+      return control
+        ? succeed({ kind: 'unknown' })
+        : succeed({
+            kind: 'attempt-rejected',
+            original: 'unknown',
+            reason: 'an attempt was rolled back',
+          })
+    case 'not-committed':
     case 'unknown':
       return succeed({ kind: 'unknown' })
   }
@@ -278,7 +289,7 @@ export async function queryOperation<P>(
   const looked = await resolve(context, input, input.operation, 'queryOperation')
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
-  if (found === null) return unfound(rest as Rest)
+  if (found === null) return unfound(rest as Rest, false)
   // A control identity is not a batch identity (SL07).
   if (found.form !== 'batch') return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.receipt) as CommitReceipt })
@@ -291,7 +302,7 @@ export async function queryControlOperation<P>(
   const looked = await resolve(context, input, input.operation, 'queryControlOperation')
   if ('failure' in looked) return looked
   const { found, rest } = looked.ok
-  if (found === null) return unfound(rest as Rest)
+  if (found === null) return unfound(rest as Rest, true)
   if (found.form === 'batch') return failure({ kind: 'conflict', operation: input.operation })
   return succeed({ kind: 'committed', receipt: decodeValue(found.result) as never })
 }

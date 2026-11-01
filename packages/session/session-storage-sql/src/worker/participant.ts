@@ -28,6 +28,7 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { readHistory } from './history-index.ts'
 import { PROTOCOL } from './schema.ts'
 import { big, oneRow, rowsOf, text } from './support.ts'
 
@@ -443,7 +444,19 @@ function runCommand(
         }
       : {}),
   }
-  const decision: Decision = decide(previous, command, guards, record, reads)
+  // The history index is read in the same transaction as the snapshot, for the input range of this command.
+  const scope =
+    command.kind === 'startRun'
+      ? { kind: 'selected' as const, inputs: (previous?.pending ?? []).slice(0, 1) }
+      : command.kind === 'receive' && command.input.fact.kind === 'input-handover'
+        ? { kind: 'selected' as const, inputs: [command.input.fact.input] }
+        : { kind: 'pending' as const, inputs: previous?.pending ?? [] }
+  const history = previous === null ? null : readHistory(port, tenant, session, previous, scope)
+  const prepared = history === null || previous === null ? previous : { ...previous, historyIndex: history.index }
+  const decision: Decision = decide(prepared, command, guards, record, {
+    ...reads,
+    ...(history === null ? {} : { history: history.reads }),
+  })
 
   if (decision.kind === 'rejected') return stopped(decision.failure)
   if (decision.kind === 'control-answer') {
@@ -495,10 +508,11 @@ function runCommand(
     id: String(first + BigInt(index)),
     revision,
   })) as HistoryEntry[]
-  const reduced = reduce(previous, { revision, entries } as never)
+  const reduced = reduce(prepared, { revision, entries } as never, history === null ? undefined : history.reads)
   if (reduced.kind === 'quarantined')
     return { kind: 'failed', diagnostic: `reduce quarantined: ${reduced.diagnostic}` }
-  const snapshot = reduced.snapshot
+  // The index is a read projection of this transaction, never stored in the snapshot row.
+  const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const firstEntry = entries[0] as HistoryEntry
   const lastEntry = entries[entries.length - 1] as HistoryEntry
   const receipt: CommitReceipt = {
