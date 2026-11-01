@@ -732,7 +732,9 @@ describe('证据文本', () => {
   })
 })
 
-describe('取 git 事实', () => {
+// 每条用例在 beforeEach 建一棵临时仓库、再起多个 git 子进程：空闲时约 1 秒，负载下量到 6.5 秒
+// （2026-11-01 准入），超过 vitest 默认的 5 秒。时限按负载下成本的三倍写明，钩子同样，不改断言。
+describe('取 git 事实', { timeout: 20_000 }, () => {
   let repo: string
   const run = (...args: string[]) =>
     execFileSync('git', args, {
@@ -759,7 +761,7 @@ describe('取 git 事实', () => {
     writeFileSync(join(repo, 'a.txt'), 'a\n')
     run('add', '.')
     commit('one')
-  })
+  }, 20_000)
   afterEach(() => {
     rmSync(repo, { recursive: true, force: true })
   })

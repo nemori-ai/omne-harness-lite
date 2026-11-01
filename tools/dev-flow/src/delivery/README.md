@@ -176,7 +176,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/change-scope-cli.ts 
 - 有效的 `additive` 结论使该成员在契约核对中按 additive 计。契约发现随之重新计算，原始分类仍在 `semantic.members` 中。
 - 语义发现也列入 `findings`，形状是 `SemanticFinding`：`code`（`api-review-*` 失败码）、`member`（成员路径，或 null）、`detail`、`message` 与 `remedy`。
 - `semantic.exit` 为 2 时命令退出2，不论其他发现。失败码与退出码的对照见[集成工具](../integration/SPEC.md#api-语义复核)。其余情况按发现数退出0或1。
-- 常驻检查：`scripts/check.sh` 调用本命令。卡有 review 成员时，命令读 GitHub 评论。离线或没有令牌时读取失败，命令退出2。这是拒绝方向的结果，不是通过。
+- 常驻检查：`scripts/check.sh` 调用本命令。卡有 review 成员时，命令读 GitHub 评论。离线或没有令牌时读取失败，命令退出2。这是拒绝方向的结果，不是通过。传输层瞬时失败（超时、连接错误、5xx）的 GET 最多重试 3 次（0.5、1、2 秒），仍失败才退出2。同一次运行里同一 URL 的 GET 只读平台一次，判定后的重读除外。
 - `--lines` 与语义复核通路不能同时使用。指定 `--lines` 且卡有 review 成员时，命令拒绝这种组合并退出2。
 - binding 的契约变更为 `breaking` 的卡仍按原有规则判定。有效的 `breaking` 结论不使这张卡失败。
 

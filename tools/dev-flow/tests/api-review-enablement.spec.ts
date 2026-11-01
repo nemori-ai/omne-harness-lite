@@ -95,7 +95,10 @@ function run(f: Fixture, options: { entry?: string } = {}) {
   return { result, spy }
 }
 
-describe('enablement check', () => {
+// Every case builds a temporary Git checkout with several subprocesses: about one second idle,
+// 5.2 seconds under load (admission 2026-11-01), past the 5-second default. The limit is three
+// times the loaded cost; no assertion changes.
+describe('enablement check', { timeout: 20_000 }, () => {
   it('passes when both sides carry identical authority files and the targetBase JSON parses', () => {
     const f = fixture()
     const { result } = run(f)

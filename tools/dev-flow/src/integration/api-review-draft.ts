@@ -29,7 +29,9 @@ import {
   GH_READ_TIMEOUT_MS,
   GhReadError,
   REST_HEADERS,
+  reuseReads,
   type GhRead,
+  type ReusedReads,
 } from '../delivery/github-read.ts'
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { InputError, record, text } from '../delivery/protocol.ts'
@@ -266,21 +268,27 @@ type Collected = {
   union?: string[]
   pre: Finding[]
   fingerprint: () => string
-  /** The live binding and dispatch of every card of the scope, read again after the fold. */
-  rebind: () => unknown
+  /** The live binding and dispatch of every card of the scope, through `call`; read again after the fold. */
+  rebind: (call: GhRead) => unknown
   /** The card declares `breaking`: the original rule judges a breaking review member. */
   breakingDeclared?: boolean
 }
 type Collection = Collected | { unavailable: string } | { conservative: true }
 
+/**
+ * The platform reads of one run reuse each answer (`reads.shared`); the reads a judgement repeats on
+ * purpose, the second read of the identity check, of the carrier and the state after the fold, read
+ * the platform again. Enablement comes before any of them.
+ */
 function semanticReview<T extends Trusted>(o: {
   root: string
   env: ReviewEnv
   mode: 'draft' | 'check'
   resolve: () => T
-  collect: (trusted: T) => Collection
+  collect: (trusted: T, reads: ReusedReads) => Collection
 }): Outcome {
   const { root, env, mode } = o
+  const reads = reuseReads(env.call)
   const empty = (report: ReviewReport): Outcome => ({
     report,
     comparisons: [],
@@ -316,7 +324,7 @@ function semanticReview<T extends Trusted>(o: {
     return stopped(enabled.enablement, enablementFindings(enabled.enablement))
   const enablement = enabled.enablement
   try {
-    const collected = o.collect(trusted)
+    const collected = o.collect(trusted, reads)
     if ('conservative' in collected) return { ...stopped(enablement, []), conservative: true }
     if ('unavailable' in collected)
       return stopped(enablement, [
@@ -332,7 +340,7 @@ function semanticReview<T extends Trusted>(o: {
   }
 
   function review(c: Collected, authoritySha256: string): Outcome {
-    const call = env.call
+    const call = reads.shared
     const before = c.fingerprint()
     const findings: Finding[] = [...c.pre]
     const resolutions = new Map<string, MemberResolution>()
@@ -426,7 +434,13 @@ function semanticReview<T extends Trusted>(o: {
       }
       const tool = toolOf(root, c.head)
       for (const member of reviewMembers) {
-        const reading = readOwnerIdentity({ repository, member, lines, manifest, call })
+        const reading = readOwnerIdentity({
+          repository,
+          member,
+          lines,
+          manifest,
+          call: reads.onceThenFresh(),
+        })
         if (reading.adoption !== null)
           identities.set(member, {
             line: reading.line,
@@ -487,17 +501,17 @@ function semanticReview<T extends Trusted>(o: {
       const records = new Map<string, string>()
       let ignored: CommentRef[] = []
       const folds = mode === 'check' && comparisons.length > 0
-      const state = () =>
+      const state = (through: GhRead) =>
         platformState({
-          call,
+          call: through,
           repository: repository.name,
           owners: [...facts.values()].map(fact => fact.owner.login),
           carrier: mode === 'check' ? c.carrier.number : null,
-          rebind: c.rebind,
+          rebind: () => c.rebind(through),
         })
-      const stateBefore = comparisons.length > 0 ? state() : null
+      const stateBefore = comparisons.length > 0 ? state(call) : null
       if (folds) {
-        const read = readCarrier(repository.name, c.carrier.number, call)
+        const read = readCarrier(repository.name, c.carrier.number, reads.onceThenFresh())
         if (read.kind === 'refused') {
           for (const item of comparisons)
             if (!resolutions.has(item.member))
@@ -551,7 +565,7 @@ function semanticReview<T extends Trusted>(o: {
             reason: 'HEAD, the working tree or the target head changed during the review',
           }),
         )
-      if (stateBefore !== null && state() !== stateBefore)
+      if (stateBefore !== null && state(reads.freshGroup()) !== stateBefore)
         findings.push(
           finding('api-review-source-changed', null, {
             reason:
@@ -635,11 +649,11 @@ function cardOutcome(
         policy: state.policy,
       }
     },
-    collect: trusted => {
+    collect: (trusted, reads) => {
       const { binding, context, touched } = input()
       const repository = binding.issue.repository
       clean(root)
-      if (mode === 'check' && !ownerRecordPresent(root, trusted.targetBase, binding, env.call))
+      if (mode === 'check' && !ownerRecordPresent(root, trusted.targetBase, binding, reads.shared))
         return { conservative: true }
       const pre: Finding[] = []
       if (context.targetBase !== trusted.targetBase)
@@ -651,7 +665,7 @@ function cardOutcome(
             targetHead: trusted.targetBase,
           }),
         )
-      const bound = bindingInputOf(repository, binding, env.call)
+      const bound = bindingInputOf(repository, binding, reads.shared)
       pre.push(...bound.pre)
       return {
         repository,
@@ -665,8 +679,8 @@ function cardOutcome(
         checked: [...touched].sort(),
         pre,
         fingerprint: fingerprintOf(root, () => targetHead(root, trusted.policy, trusted.ref)),
-        rebind: () => {
-          const again = bindingInputOf(repository, binding, env.call)
+        rebind: call => {
+          const again = bindingInputOf(repository, binding, call)
           return [again.input, again.pre]
         },
         breakingDeclared: binding.contractChange === 'breaking',
@@ -743,7 +757,7 @@ function riOutcome(
       })
       return { candidate: facts.head, targetBase: facts.parent.head, facts }
     },
-    collect: ({ facts }): Collection => {
+    collect: ({ facts }, reads): Collection => {
       let diff: ContractDiff | undefined
       once = { ...facts, diffContracts: range => (diff ??= facts.diffContracts(range)) }
       first = riNotes(once)
@@ -783,7 +797,7 @@ function riOutcome(
         ...new Set(first.commits.flatMap(commit => (commit.pr === null ? [] : [commit.pr.number]))),
       ].sort(byNumber)
       const prs: SourcePr[] = prNumbers.map(number => {
-        const raw = record(get(request.call, `repos/${repository}/pulls/${number}`), `PR ${number}`)
+        const raw = record(get(reads.shared, `repos/${repository}/pulls/${number}`), `PR ${number}`)
         const body = raw.body === null ? '' : text(raw.body, 'PR.body')
         return {
           number,
@@ -799,7 +813,7 @@ function riOutcome(
       for (const card of first.cards) {
         if (card.inferred)
           throw new IntegrationError('refused', `Card #${card.issue} was inferred, not declared`)
-        const fetched = fetchIssueCard(repository, card.issue, request.call)
+        const fetched = fetchIssueCard(repository, card.issue, reads.shared)
         const live = readTaskBinding(fetched.body, fetched.identity)
         if (live === undefined)
           throw new IntegrationError('refused', `Card #${card.issue} has no binding`)
@@ -809,7 +823,7 @@ function riOutcome(
               reason: 'the declared revision or attempt is not the live binding',
             }),
           )
-        const bound = bindingInputOf(repository, live, request.call)
+        const bound = bindingInputOf(repository, live, reads.shared)
         pre.push(...bound.pre)
         cards.push(bound.input)
         if (card.issue === request.reviewIssue) carrier = bound.issue
@@ -851,12 +865,12 @@ function riOutcome(
         union: [...new Set([...contractsOf(targetLines), ...contractsOf(facts.lines)])].sort(),
         pre,
         fingerprint: fingerprintOf(root, () => targetHead(root, policy, targetRef)),
-        rebind: () =>
+        rebind: call =>
           declared.map(card => {
-            const fetched = fetchIssueCard(repository, card.issue, request.call)
+            const fetched = fetchIssueCard(repository, card.issue, call)
             const live = readTaskBinding(fetched.body, fetched.identity)
             if (live === undefined) return null
-            const again = bindingInputOf(repository, live, request.call)
+            const again = bindingInputOf(repository, live, call)
             return [again.input, again.pre]
           }),
       }
