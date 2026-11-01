@@ -4,9 +4,10 @@
 // shared commands core records each call document that a run read or committed, and the core,
 // run on that decorator, judges a send demand against the mirror inside one synchronous fence.
 // The commands and the coordinator share this one mirror and the one core, so they share one
-// qualification authority (`core.options.authority`). A call that the mirror does not hold is
-// cold: the fence refuses it as `qualification-unavailable`, and `recordMaterialization` with the
-// same operation reads the call back into the mirror. Imports no Cordis.
+// qualification authority (`core.options.authority`). The fence asks that authority first, also
+// for a call that the mirror does not hold. Such a call is cold: a qualified demand for it is
+// refused as `qualification-unavailable`, and `recordMaterialization` with the same operation
+// reads the call back into the mirror. Imports no Cordis.
 import type {
   MaterializationReceipt,
   ModelCallId,
@@ -204,8 +205,15 @@ type Pass = {
   staged: Readonly<{ tenant: string; call: ModelCallId; document: CallDocument | undefined }> | null
 }
 
-/** What the fence lets the core read: one mirrored call of one tenant. */
-type FenceView = Readonly<{ tenant: string; call: ModelCallId; document: CallDocument }>
+/** What the fence lets the core read: the mirrored call of one tenant, or none when it is cold. */
+type FenceView = Readonly<{
+  tenant: string
+  call: ModelCallId
+  document: CallDocument | undefined
+}>
+
+const notFound = (failure: ModelFailure): boolean =>
+  failure.kind === 'invalid' && failure.field === 'call' && failure.reason === 'not-found'
 
 export function createSendMirror(
   inner: ModelCommandStorage,
@@ -249,7 +257,8 @@ export function createSendMirror(
     },
     documents(tenant: string): TenantDocuments {
       if (pass === null && fence !== null) {
-        if (tenant !== fence.tenant) return { calls: new Map(), operations: new Map() }
+        if (tenant !== fence.tenant || fence.document === undefined)
+          return { calls: new Map(), operations: new Map() }
         return { calls: new Map([[fence.call, fence.document]]), operations: new Map() }
       }
       const view = inner.documents(tenant)
@@ -296,7 +305,11 @@ export function createSendMirror(
       }))
       const refused = (failure: ModelFailure): SendStart => ({ kind: 'refused', failure })
 
-      /** Runs `work` of the core on the mirrored call, or refuses a cold call. */
+      /**
+       * Runs `work` of the core on the mirrored call. The core asks the qualification authority
+       * before it looks for the call, so an unqualified demand is denied alike for a mirrored, a
+       * cold and a missing call; a qualified demand for a call outside the mirror is cold.
+       */
       function qualified<T>(
         input: SendDemand<P>,
         work: (call: CallDocument) => Outcome<T, ModelFailure>,
@@ -304,13 +317,18 @@ export function createSendMirror(
         const tenant = core.identity(input)
         if (typeof tenant !== 'string') return { failure: tenant }
         const document = mirror.get(callKey(tenant, input.call))
-        if (document === undefined) return { failure: QUALIFICATION_UNAVAILABLE }
         fence = { tenant, call: input.call, document }
+        let outcome: Outcome<T, ModelFailure>
         try {
-          return core.read(input, 'send', work)
+          outcome = core.read(input, 'send', work)
         } finally {
           fence = null
         }
+        // The empty view of a cold call holds no operation either, so the core can only say
+        // not-found: the mirror does not know whether the storage holds the call.
+        if (document === undefined && 'failure' in outcome && notFound(outcome.failure))
+          return { failure: QUALIFICATION_UNAVAILABLE }
+        return outcome
       }
 
       return {
