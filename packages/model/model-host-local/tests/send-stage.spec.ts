@@ -44,7 +44,7 @@ import {
   type PiTransportConfig,
 } from '@omne-harness/pi-ai-transport'
 import { GATEWAY_END_MARKER } from '@omne-harness/pi-ai-transport/testing'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createModelSendStagePlugin, LocalCredentialPlugin } from '../src/cordis.ts'
 import { assembleOver, type AssemblyFactories } from '../src/assembly.ts'
 import { sendStagePluginOver, type ModelSendStagePluginOptions } from '../src/plugins/send-stage.ts'
@@ -460,6 +460,29 @@ describe('the plugin and its dependencies', () => {
     await watch.dispose()
   })
 
+  it('waits for modelCommands, and loads nothing without it', async () => {
+    const scene = sceneOf(REQUEST, 'commands')
+    const watch = observing()
+    const ctx = new Context()
+    await ctx.plugin(SpyCredential)
+    const Stage = stageOver(optionsOf(scene), watch.factories)
+    const waiting = ctx.plugin(Stage, SETTINGS)
+    await new Promise(resolve => setTimeout(resolve, 20))
+    // The credential service is there, modelCommands is not: nothing is built, nothing is served.
+    expect(ctx.modelSendBoundary).toBeUndefined()
+    expect(watch.events).toEqual([])
+
+    const commands = await ctx.plugin(commandsServiceOver(scene.memory.dependencies.commands))
+    await waiting
+    expect(ctx.modelSendBoundary).toBeInstanceOf(ModelSendBoundaryService)
+    expect(watch.events).toEqual(['network', 'resources'])
+
+    await commands.dispose()
+    expect(ctx.modelSendBoundary).toBeUndefined()
+    expect(watch.events).toContain('resources-closed')
+    await watch.dispose()
+  })
+
   it('fails to load for a retained-attempt bound that is not a positive integer, and builds nothing', async () => {
     const { ctx, Stage, watch } = await treeOf('settings')
     for (const bad of [undefined, 0, 1.5, -1, '4', Number.NaN]) {
@@ -562,6 +585,78 @@ describe('a send through the plugin', () => {
     ])
     expect(SpyCredential.resolves).toBe(0)
     expect(watch.acquired().flatMap(item => item.reads)).toEqual([])
+    await watch.dispose()
+  })
+
+  it('a send that reaches its credential while the close still runs never reads it, and is not started', async () => {
+    const entered = Promise.withResolvers<void>()
+    const proceed = Promise.withResolvers<void>()
+    const { ctx, scene, watch, Stage } = await treeOf('close-window', commands => ({
+      ...commands,
+      async recordMaterialization(input) {
+        entered.resolve()
+        await proceed.promise
+        return commands.recordMaterialization(input)
+      },
+    }))
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    const run = runtimeOver(scene, {
+      send: (input, signal) => ctx.modelSendBoundary.send(input, signal),
+    })
+    const driving = run.drive(REQUEST)
+    await entered.promise
+    // The exit begins and its close of the send path is held open.
+    const release = watch.hold()
+    const disposing = fiber.dispose()
+    await vi.waitFor(() => expect(watch.events.at(-1)).toBe('resources-close'))
+    // The send continues inside the closing window: the credential is already withdrawn.
+    proceed.resolve()
+    await driving
+    release()
+    await disposing
+    expect(run.results.map(result => result.kind)).toEqual(['not-started'])
+    expect(SpyCredential.resolves).toBe(0)
+    expect(watch.acquired().flatMap(item => item.reads)).toEqual([])
+    await watch.dispose()
+  })
+
+  it('a send path that fails to close does not fail the exit, and the warning names no cause', async () => {
+    const { ctx, scene, watch } = await treeOf('close-fails')
+    const warnings: string[] = []
+    const errors: unknown[][] = []
+    // Cordis drops what ranks above the exporter level, so the level is raised to see the warning.
+    ctx.logger.exporter({
+      colors: 0,
+      levels: { default: 3 },
+      export: message => {
+        if (message.type === 'error') errors.push(message.args)
+        if (message.type === 'warn') warnings.push(message.args.map(String).join(' '))
+      },
+    })
+    const cause = 'ENOENT /home/me/secret/vault.json https://gateway.invalid/key-9f3'
+    const failing: AssemblyFactories<unknown, NetworkResources> = {
+      ...watch.factories,
+      createSendResources(config) {
+        const resources = watch.factories.createSendResources(config)
+        return {
+          acquire: input => resources.acquire(input),
+          async close() {
+            await resources.close()
+            throw new Error(cause)
+          },
+        }
+      },
+    }
+    const Stage = stageOver(optionsOf(scene), failing)
+    const fiber = await ctx.plugin(Stage, SETTINGS)
+    await fiber.dispose()
+    expect(ctx.modelSendBoundary).toBeUndefined()
+    expect(errors).toEqual([])
+    expect(warnings).toHaveLength(1)
+    expect(warnings[0]).toContain('model send stage')
+    for (const secret of ['ENOENT', 'secret', 'vault.json', 'gateway.invalid', 'key-9f3']) {
+      expect(warnings[0]).not.toContain(secret)
+    }
     await watch.dispose()
   })
 
