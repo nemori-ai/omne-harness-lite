@@ -1,5 +1,6 @@
 import type { ChildProcess } from 'node:child_process'
 import { isAbsolute } from 'node:path'
+import type { Writable } from 'node:stream'
 import { fileURLToPath } from 'node:url'
 import type { ScopeRef } from '@omne-harness/runtime-context-contract'
 import type {
@@ -105,6 +106,30 @@ type Phase = 'launching' | 'ready' | 'running' | 'ended'
 
 const base64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u
 
+function decodeSpawnFailed(value: object): GateFrame | string {
+  const code: unknown = Reflect.get(value, 'code')
+  return typeof code === 'string' ? { kind: 'spawnFailed', code } : 'a spawn failure has no code'
+}
+
+function decodeData(value: object, maxChunkBytes: number): GateFrame | string {
+  const stream: unknown = Reflect.get(value, 's')
+  const text: unknown = Reflect.get(value, 'b')
+  if (stream !== 'stdout' && stream !== 'stderr') return 'a data frame names an unknown stream'
+  if (typeof text !== 'string' || !base64.test(text)) return 'a data frame is not base64'
+  const bytes = new Uint8Array(Buffer.from(text, 'base64'))
+  if (bytes.length > maxChunkBytes) return 'a data frame exceeds the chunk bound'
+  return { kind: 'data', stream, bytes }
+}
+
+function decodeExit(value: object): GateFrame {
+  const code: unknown = Reflect.get(value, 'code')
+  const signal: unknown = Reflect.get(value, 'signal')
+  if (typeof code === 'number' && Number.isSafeInteger(code))
+    return { kind: 'exit', exit: { kind: 'code', code } }
+  if (typeof signal === 'string') return { kind: 'exit', exit: { kind: 'signal', signal } }
+  return { kind: 'exit', exit: { kind: 'unknown' } }
+}
+
 function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string {
   if (typeof value !== 'object' || value === null) return 'a frame is not an object'
   const type: unknown = Reflect.get(value, 't')
@@ -112,29 +137,12 @@ function decodeFrame(value: unknown, maxChunkBytes: number): GateFrame | string 
     case 'ready':
     case 'started':
       return { kind: type }
-    case 'spawnFailed': {
-      const code: unknown = Reflect.get(value, 'code')
-      return typeof code === 'string'
-        ? { kind: 'spawnFailed', code }
-        : 'a spawn failure has no code'
-    }
-    case 'data': {
-      const stream: unknown = Reflect.get(value, 's')
-      const text: unknown = Reflect.get(value, 'b')
-      if (stream !== 'stdout' && stream !== 'stderr') return 'a data frame names an unknown stream'
-      if (typeof text !== 'string' || !base64.test(text)) return 'a data frame is not base64'
-      const bytes = new Uint8Array(Buffer.from(text, 'base64'))
-      if (bytes.length > maxChunkBytes) return 'a data frame exceeds the chunk bound'
-      return { kind: 'data', stream, bytes }
-    }
-    case 'exit': {
-      const code: unknown = Reflect.get(value, 'code')
-      const signal: unknown = Reflect.get(value, 'signal')
-      if (typeof code === 'number' && Number.isSafeInteger(code))
-        return { kind: 'exit', exit: { kind: 'code', code } }
-      if (typeof signal === 'string') return { kind: 'exit', exit: { kind: 'signal', signal } }
-      return { kind: 'exit', exit: { kind: 'unknown' } }
-    }
+    case 'spawnFailed':
+      return decodeSpawnFailed(value)
+    case 'data':
+      return decodeData(value, maxChunkBytes)
+    case 'exit':
+      return decodeExit(value)
     default:
       return 'an unknown frame type'
   }
@@ -340,24 +348,22 @@ function rejected(requestId: string, reason: FacilityReason): FacilityResult<nev
   return { kind: 'rejected', requestId, reason }
 }
 
-const hasNul = (text: string) => text.includes('\u0000')
+const hasNul = (text: string) => text.includes(' ')
+
+const invalidPath = (path: string) => !isAbsolute(path) || hasNul(path)
+
+const invalidVariable = ([name, value]: readonly [string, unknown]) =>
+  name === '' || name.includes('=') || hasNul(name) || typeof value !== 'string' || hasNul(value)
+
+const invalidArgument = (arg: unknown) => typeof arg !== 'string' || hasNul(arg)
 
 /** The request checks that need no process, in order; undefined when the request may go on. */
 function requestIssue(request: StartRequest): FacilityReason | undefined {
   if (request.binding.kind !== 'host_machine') return 'unsupported'
   if (request.outputMode !== 'separate' || request.geometry !== undefined) return 'unsupported'
-  if (!isAbsolute(request.executable) || hasNul(request.executable)) return 'invalidInput'
-  if (!isAbsolute(request.cwd) || hasNul(request.cwd)) return 'invalidInput'
-  if (request.args.some(arg => typeof arg !== 'string' || hasNul(arg))) return 'invalidInput'
-  for (const [name, value] of Object.entries(request.env))
-    if (
-      name === '' ||
-      name.includes('=') ||
-      hasNul(name) ||
-      typeof value !== 'string' ||
-      hasNul(value)
-    )
-      return 'invalidInput'
+  if (invalidPath(request.executable) || invalidPath(request.cwd)) return 'invalidInput'
+  if (request.args.some(invalidArgument)) return 'invalidInput'
+  if (Object.entries(request.env).some(invalidVariable)) return 'invalidInput'
   return undefined
 }
 
@@ -381,6 +387,91 @@ type ProcessEntry = {
   /** Resolves once the gate reported the command's exit, or the gate ended. */
   readonly exited: Promise<void>
 }
+
+/** The control pipe of the launcher (descriptor 3), when the launcher has one to write. */
+function controlPipe(launcher: ChildProcess): Writable | undefined {
+  const control = launcher.stdio[3]
+  return control !== null && control !== undefined && 'write' in control ? control : undefined
+}
+
+function deferred<T>(): Readonly<{ promise: Promise<T>; settle(value: T): void }> {
+  let settle: (value: T) => void = () => undefined
+  const promise = new Promise<T>(resolve => {
+    settle = resolve
+  })
+  return { promise, settle }
+}
+
+/** Resolves when the launcher has exited or could not start. */
+function launcherExit(launcher: ChildProcess): Promise<void> {
+  return new Promise<void>(resolve => {
+    launcher.once('exit', () => resolve())
+    launcher.once('error', () => resolve())
+  })
+}
+
+/** The first line on the control pipe: the request, with the bound on the gate's frames. */
+function startMessage(request: StartRequest, maxChunkBytes: number): string {
+  return `${JSON.stringify({
+    executable: request.executable,
+    args: request.args,
+    cwd: request.cwd,
+    env: request.env,
+    stdin: request.stdin === undefined ? null : Buffer.from(request.stdin).toString('base64'),
+    maxChunkBytes,
+  })}
+`
+}
+
+/** Applies one frame of the gate to the process it belongs to; `markExited` tells the exit frame. */
+function applyFrame(entry: ProcessEntry, frame: GateFrame, markExited: () => void): void {
+  switch (frame.kind) {
+    case 'ready':
+      entry.phase = 'ready'
+      entry.signal?.('ready')
+      break
+    case 'started':
+      entry.phase = 'running'
+      entry.startedAt = monotonicMs()
+      entry.signal?.('started')
+      break
+    case 'spawnFailed':
+      entry.signal?.('spawnFailed')
+      break
+    case 'data':
+      entry.buffer.push(frame.stream, frame.bytes)
+      break
+    case 'exit':
+      entry.exit = frame.exit
+      markExited()
+      break
+    default: {
+      const exhaustive: never = frame
+      return exhaustive
+    }
+  }
+}
+
+/** Waits for the next gate event, or answers `late` once `deadline` passes. */
+function nextEvent(entry: ProcessEntry, deadline: number) {
+  return new Promise<'ready' | 'started' | 'spawnFailed' | 'ended' | 'late'>(resolve => {
+    if (entry.phase === 'ended') return resolve('ended')
+    const timer = setTimeout(
+      () => {
+        entry.signal = undefined
+        resolve('late')
+      },
+      Math.max(0, deadline - monotonicMs()),
+    )
+    entry.signal = event => {
+      clearTimeout(timer)
+      entry.signal = undefined
+      resolve(event)
+    }
+  })
+}
+
+type Admitted = Readonly<{ tools: ScopeTools; bootId: string }>
 
 export function createHostCommands(input: HostCommandsInput): HostCommands {
   const { settings, ledger } = input
@@ -448,37 +539,26 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
     })
     const buffer = createOutputBuffer({ maxBufferedBytes: settings.maxBufferedBytes })
     const reader = createGateReader({ maxChunkBytes: settings.maxChunkBytes })
-    const control = launcher.stdio[3]
-    const writable =
-      control !== null && control !== undefined && 'write' in control ? control : undefined
+    const writable = controlPipe(launcher)
     writable?.on('error', () => undefined)
     launcher.stderr?.resume()
-    let settleOutcome: (outcome: CommandOutcome) => void = () => undefined
-    const outcome = new Promise<CommandOutcome>(resolve => {
-      settleOutcome = resolve
-    })
-    let markExited: () => void = () => undefined
-    const exited = new Promise<void>(resolve => {
-      markExited = resolve
-    })
-    const launcherExited = new Promise<void>(resolve => {
-      launcher.once('exit', () => resolve())
-      launcher.once('error', () => resolve())
-    })
+    const outcome = deferred<CommandOutcome>()
+    const exitedGate = deferred<void>()
+    const launcherExited = launcherExit(launcher)
     const entry: ProcessEntry = {
       resource,
       coordinate,
       launcher,
       launcherExited,
       buffer,
-      outcome,
+      outcome: outcome.promise,
       phase: 'launching',
       confirmed: false,
       startedAt: undefined,
       exit: undefined,
       stopping: undefined,
       signal: undefined,
-      exited,
+      exited: exitedGate.promise,
       closeControl: () => writable?.end(),
       sendControl: message => {
         if (writable !== undefined && !writable.writableEnded)
@@ -493,10 +573,10 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       ended = true
       entry.phase = 'ended'
       buffer.close()
-      markExited()
+      exitedGate.settle()
       entry.signal?.('ended')
       const exit = entry.exit
-      settleOutcome(
+      outcome.settle(
         exit === undefined
           ? {
               kind: 'failed',
@@ -518,67 +598,14 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
         void forceStop(entry, tools)
         return
       }
-      for (const frame of step.frames) {
-        switch (frame.kind) {
-          case 'ready':
-            entry.phase = 'ready'
-            entry.signal?.('ready')
-            break
-          case 'started':
-            entry.phase = 'running'
-            entry.startedAt = monotonicMs()
-            entry.signal?.('started')
-            break
-          case 'spawnFailed':
-            entry.signal?.('spawnFailed')
-            break
-          case 'data':
-            buffer.push(frame.stream, frame.bytes)
-            break
-          case 'exit':
-            entry.exit = frame.exit
-            markExited()
-            break
-          default: {
-            const exhaustive: never = frame
-            return exhaustive
-          }
-        }
-      }
+      for (const frame of step.frames) applyFrame(entry, frame, exitedGate.settle)
     })
     launcher.once('close', end)
     launcher.once('error', end)
-    writable?.write(
-      `${JSON.stringify({
-        executable: request.executable,
-        args: request.args,
-        cwd: request.cwd,
-        env: request.env,
-        stdin: request.stdin === undefined ? null : Buffer.from(request.stdin).toString('base64'),
-        maxChunkBytes: settings.maxChunkBytes,
-      })}\n`,
-    )
+    writable?.write(startMessage(request, settings.maxChunkBytes))
     live.add(entry)
     return entry
   }
-
-  /** Waits for the next gate event, or answers `late` once `deadline` passes. */
-  const nextEvent = (entry: ProcessEntry, deadline: number) =>
-    new Promise<'ready' | 'started' | 'spawnFailed' | 'ended' | 'late'>(resolve => {
-      if (entry.phase === 'ended') return resolve('ended')
-      const timer = setTimeout(
-        () => {
-          entry.signal = undefined
-          resolve('late')
-        },
-        Math.max(0, deadline - monotonicMs()),
-      )
-      entry.signal = event => {
-        clearTimeout(timer)
-        entry.signal = undefined
-        resolve(event)
-      }
-    })
 
   const handleOf = (entry: ProcessEntry, tools: ScopeTools): ProcessHandle =>
     Object.freeze({
@@ -595,19 +622,41 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
         mode === 'graceful' ? gracefulStop(entry, tools) : forceStop(entry, tools),
     })
 
-  const start = async (request: StartRequest): Promise<FacilityResult<ProcessHandle>> => {
-    const requestId = request.requestId
+  /** The checks before anything exists, in the order of the SPEC: the request, the platform, the facade. */
+  const admit = async (request: StartRequest): Promise<FacilityReason | Admitted> => {
     const issue = requestIssue(request)
-    if (issue !== undefined) return rejected(requestId, issue)
+    if (issue !== undefined) return issue
     const reading = await input.prerequisites.ready()
     if (reading.kind !== 'satisfied') {
       input.unavailable(reading.kind === 'unsatisfied' ? reading.missing : [])
-      return rejected(requestId, 'unavailable')
+      return 'unavailable'
     }
-    const tools = reading.tools
-    if (sealed) return rejected(requestId, 'closed')
+    if (sealed) return 'closed'
     const bootId = await readBootId()
-    if (bootId === undefined) return rejected(requestId, 'unavailable')
+    return bootId === undefined ? 'unavailable' : { tools: reading.tools, bootId }
+  }
+
+  const planResource = async (resource: ManagedResource) => {
+    try {
+      return await ledger.plan(resource)
+    } catch {
+      return 'unavailable' as const
+    }
+  }
+
+  const permitStart = async (key: string) => {
+    try {
+      return await ledger.permit(key)
+    } catch {
+      return 'unavailable' as const
+    }
+  }
+
+  const start = async (request: StartRequest): Promise<FacilityResult<ProcessHandle>> => {
+    const requestId = request.requestId
+    const admitted = await admit(request)
+    if (typeof admitted === 'string') return rejected(requestId, admitted)
+    const { tools, bootId } = admitted
     const { key, unit } = newScopeUnit()
     const coordinate = { unit, bootId }
     const resource: ManagedResource = {
@@ -615,12 +664,7 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       provider: input.provider,
       reference: scopeReference(coordinate),
     }
-    let planned: Awaited<ReturnType<ResourceLedger['plan']>>
-    try {
-      planned = await ledger.plan(resource)
-    } catch {
-      planned = 'unavailable'
-    }
+    const planned = await planResource(resource)
     if (planned !== 'recorded') return rejected(requestId, planned)
     const deadline = monotonicMs() + settings.startBoundMs
     const entry = launch(resource, coordinate, request, tools)
@@ -635,37 +679,20 @@ export function createHostCommands(input: HostCommandsInput): HostCommands {
       return { kind: 'unknown', requestId }
     }
     if (ready !== 'ready') return refuse('unavailable')
-    let permit: Awaited<ReturnType<ResourceLedger['permit']>>
-    try {
-      permit = await ledger.permit(key)
-    } catch {
-      permit = 'unavailable'
-    }
+    const permit = await permitStart(key)
     if (permit !== 'confirmed') return refuse(permit)
     if (sealed) return refuse('closed')
     entry.sendControl({ c: 'go' })
     const started = await nextEvent(entry, deadline)
-    switch (started) {
-      case 'started':
-        return { kind: 'done', requestId, value: handleOf(entry, tools) }
-      case 'spawnFailed':
-        // The image did not start: the contract's reason for that is `unavailable`.
-        return refuse('unavailable')
-      case 'ready':
-      case 'ended':
-      case 'late':
-        // GO went out: the command may have started. The resource stays for the stop.
-        return { kind: 'unknown', requestId }
-      default: {
-        const exhaustive: never = started
-        return exhaustive
-      }
-    }
+    if (started === 'started') return { kind: 'done', requestId, value: handleOf(entry, tools) }
+    // The image did not start: the contract's reason for that is `unavailable`.
+    if (started === 'spawnFailed') return refuse('unavailable')
+    // GO went out: the command may have started. The resource stays for the stop.
+    return { kind: 'unknown', requestId }
   }
 
   const facility: CommandFacility<unknown> = {
     start(request) {
-      if (sealed) return Promise.resolve(rejected(request.requestId, 'closed'))
       const running = start(request)
       inFlight.add(running)
       return running.finally(() => inFlight.delete(running))

@@ -144,6 +144,18 @@ function isStringRecord(value: unknown): value is Record<string, string> {
   )
 }
 
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every(entry => typeof entry === 'string')
+}
+
+function isOptionalText(value: unknown): value is string | null {
+  return value === null || typeof value === 'string'
+}
+
+function isChunkBound(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+}
+
 function parseRequest(value: unknown): GateRequest | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const executable: unknown = Reflect.get(value, 'executable')
@@ -153,14 +165,8 @@ function parseRequest(value: unknown): GateRequest | undefined {
   const stdin: unknown = Reflect.get(value, 'stdin')
   const maxChunkBytes: unknown = Reflect.get(value, 'maxChunkBytes')
   if (typeof executable !== 'string' || typeof cwd !== 'string') return undefined
-  if (!Array.isArray(args) || !args.every(arg => typeof arg === 'string')) return undefined
-  if (!isStringRecord(env) || (stdin !== null && typeof stdin !== 'string')) return undefined
-  if (
-    typeof maxChunkBytes !== 'number' ||
-    !Number.isSafeInteger(maxChunkBytes) ||
-    maxChunkBytes < 1
-  )
-    return undefined
+  if (!isStringArray(args) || !isStringRecord(env)) return undefined
+  if (!isOptionalText(stdin) || !isChunkBound(maxChunkBytes)) return undefined
   return { executable, args, cwd, env, stdin, maxChunkBytes }
 }
 
