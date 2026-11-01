@@ -163,6 +163,11 @@ function receiptFor(operation: unknown, record: string): CommandReceipt {
  */
 async function assembled(options: { mount?: readonly string[] } = {}) {
   const ctx = new Context()
+  const logged: { name: string; type: string }[] = []
+  ctx.logger.exporter({
+    export: message => logged.push({ name: message.name, type: message.type }),
+  })
+  const faults = { principal: false }
   const calls: Call[] = []
   const callers: unknown[] = []
   const principalsAsked: unknown[] = []
@@ -318,6 +323,7 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     createSessionAgentDrivePlugin<unknown>({
       coordinator: async input => {
         principalsAsked.push(input)
+        if (faults.principal) throw new Error('the principal source broke')
         return runs.has(runKey(input))
           ? succeed(coordinatorOf(input.tenant, input.session))
           : fail({ kind: 'denied', action: 'forSession' })
@@ -346,6 +352,12 @@ async function assembled(options: { mount?: readonly string[] } = {}) {
     port,
     drive,
     methods: () => calls.map(call => call.method),
+    faults,
+    /** The error records that AD-14 wrote. */
+    errors: () =>
+      logged.filter(
+        entry => entry.type === 'error' && entry.name === 'session-adapters/agent-drive',
+      ),
   }
 }
 
@@ -565,16 +577,32 @@ describe('the Agent answers map by the result table', () => {
     expect(await f.drive().invoke(invokeInput())).toEqual({ failure: { kind: 'conflict' } })
   })
 
-  it('a refusal of the message admission (field value) is invalid with its reason and a rejection basis', async () => {
+  it('a refusal of the message admission that carries the admission record is invalid with that record', async () => {
     const f = await assembled()
+    const record = evidence('admission-rejection')
     f.script.invoke.push(() =>
-      fail({ kind: 'invalid', field: 'value', reason: 'refused by admission' }),
+      fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', rejection: record }),
     )
-    const answer = await f.drive().invoke(invokeInput())
-    expect(answer).toHaveProperty('failure.kind', 'invalid')
-    expect(answer).toHaveProperty('failure.reason', 'refused by admission')
-    expect(answer).toHaveProperty('failure.rejection.record', INVOKE)
+    expect(await f.drive().invoke(invokeInput())).toEqual({
+      failure: { kind: 'invalid', reason: 'refused by admission', rejection: record },
+    })
   })
+
+  it.each([
+    ['no rejection record', {}],
+    ['a rejection that is not evidence', { rejection: { owner: 'admission' } }],
+  ])(
+    'a refusal of the message admission with %s is unavailable (NP-12), and no record is made',
+    async (_name, extra) => {
+      const f = await assembled()
+      f.script.invoke.push(() =>
+        fail({ kind: 'invalid', field: 'value', reason: 'refused by admission', ...extra }),
+      )
+      expect(await f.drive().invoke(invokeInput())).toEqual({
+        failure: { kind: 'unavailable', diagnostic: 'Agent invalid 未带拒收证据（NP-12）' },
+      })
+    },
+  )
 
   it('any other invalid is unavailable as a translation defect, never a refusal', async () => {
     const f = await assembled()
@@ -585,6 +613,19 @@ describe('the Agent answers map by the result table', () => {
       'failure.diagnostic',
       expect.stringMatching(/^translation defect/),
     )
+  })
+
+  it('a dependency that throws is reported as a defect and answers unavailable', async () => {
+    const f = await assembled()
+    f.faults.principal = true
+    expect(f.errors()).toHaveLength(0)
+    expect(await f.drive().query(target())).toEqual({
+      failure: {
+        kind: 'unavailable',
+        diagnostic: 'translation defect: threw: the principal source broke',
+      },
+    })
+    expect(f.errors()).toHaveLength(1)
   })
 
   it('unavailable, not-ready and commit-unknown', async () => {
@@ -707,14 +748,18 @@ describe('submit uses the handle that invoke or resume kept', () => {
     })
   })
 
-  it('a refusal of the message admission on submit is invalid', async () => {
+  it('a refusal of the message admission on submit is invalid only with the admission record', async () => {
     const f = await assembled()
     await f.drive().invoke(invokeInput())
-    f.script.submit.push(fail({ kind: 'invalid', field: 'value', reason: 'refused' }))
-    expect(await f.drive().submit(submitInput)).toHaveProperty(
-      'failure.rejection.record',
-      'dop_submit-1',
+    const record = evidence('submit-rejection')
+    f.script.submit.push(
+      fail({ kind: 'invalid', field: 'value', reason: 'refused', rejection: record } as Failure),
     )
+    expect(await f.drive().submit(submitInput)).toEqual({
+      failure: { kind: 'invalid', reason: 'refused', rejection: record },
+    })
+    f.script.submit.push(fail({ kind: 'invalid', field: 'value', reason: 'refused' }))
+    expect(await f.drive().submit(submitInput)).toHaveProperty('failure.kind', 'unavailable')
   })
 
   it('the handle is dropped when its instance retires', async () => {

@@ -504,7 +504,8 @@ Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被�
 | --- | --- |
 | 受理回执、挂接回执、交接依据、命令回执 | 成功，带修订与证据 |
 | `busy`、`denied`、`terminal`、`changed`、`stale-advance`、`unsupported`、`conflict` | 同名的 `DriveFailure` |
-| `invalid`，且是消息准入拒收（字段为 `value`） | `invalid`，带拒收原因与拒收证据 |
+| `invalid`，且是消息准入拒收（字段为 `value`），并带准入提供者的拒收记录 | `invalid`，带拒收原因，拒收证据原样转交 |
+| `invalid`，且是消息准入拒收（字段为 `value`），但没有可用的拒收记录 | `unavailable`，诊断为「Agent invalid 未带拒收证据（NP-12）」。不成为拒收，不产生 SE35，见 [NP-12](#np-12) |
 | 其他 `invalid` | `unavailable`，诊断标为翻译缺陷，并报告。它不成为拒收，不产生 SE35 rejected |
 | `query` 的 `rejected` | `unavailable`，诊断标为翻译缺陷，并报告。本端口只查询自己发起的驱动操作，`rejected` 不属于它们；不映成 `not-committed` |
 | `unavailable` | `unavailable` |
@@ -516,8 +517,9 @@ Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被�
 - 本插件不调用 `prewarm` 对应的任何 Agent 入口。
 - Agent 的 `not-ready` 不在上表。本插件把它答为 `unavailable`，Session 保留任务。
 - 端口的 `submit` 不带优先级，本插件一律以 `ordinary` 提交。上面控制映射里 `interrupt` 的 urgent 插队在本插件尚未实现，等端口能区分插队输入时补上。
-- `invalid` 拒收的拒收证据由本插件按规则生成，因为 Agent 的 `invalid` 只带字段与原因：`{ owner: 'session-adapters', record: <Agent 操作身份>, revision: '1', digest: <JSON 数组 [Agent 操作身份, 字段, 原因] 的 sha256 十六进制> }`。它只指明这次拒收，不是 Agent 的耐久记录。
-- 翻译缺陷的答复是 `unavailable`，诊断以 `translation defect` 开头，插件同时以 error 级写入日志。
+- 拒收证据是准入提供者一条耐久记录的定位符。本插件不生成它（[AD-00](#ad-00) 第 2、7 条）。Agent 的 `invalid` 带 `rejection` 成员且它是合法的 `DurableEvidence` 时，本插件原样转交。现行 agent-contract 的 `invalid` 只带字段与原因，所以消息准入拒收在本插件答 `unavailable`（[NP-12](#np-12)）。
+- 已知限制：NP-12 闭合之前，Session 的 PM-02 有界收束（首条输入被消息准入拒收）经本端口走不到。Session 按 `unavailable` 退避重试，然后等 S3。
+- 翻译缺陷的答复是 `unavailable`，诊断以 `translation defect` 开头，插件同时以 error 级写入日志。依赖或插件内部抛出的异常也按翻译缺陷处理。
 
 ##### 会话槽引用
 
@@ -661,6 +663,7 @@ Session 契约的 [P-1 至 P-8](../session-contract/SPEC.md#具名前提与明�
 | <a id="np-07"></a>NP-07 | 命令域与 hooks 的公开入口 | 命令域与 hooks 拥有者 | AD-08 不登记；受理按准入不可用返回 `unavailable`，装配声明没有命令域与 hooks 时不经槽 |
 | <a id="np-10"></a>NP-10 | 换代或重启之后，恢复要把 `tasks.initialization` 重新驱动给初始化项的负责方，把 `tasks.routed-input` 重投给卡片或业务拥有者（[PM-14](../session-contract/SPEC.md#pm-14)）。这两类拥有者不在本成员的现有邻域适配内，已有插件 没有承接它们的插件。Runtime Context 注册的重放不在此列，它由 [AD-03](#ad-03-1a) 的 1a 承接 | 初始化项负责方、卡片与业务输入的拥有者，以及 Session 的集成包拥有者 | 恢复读到这两类任务时，对应拥有者按 `unavailable` 处理。任务保留，不删除，按恢复扫描的退避重试 |
 | <a id="np-11"></a>NP-11 | AD-03 的 [1b](#ad-03-1b)（持有者保留上一份已过滤快照作为提醒前值）与 [1c](#ad-03-1c)（补拉时点与上界：下一次步边界提交之后；「下一次模型请求之前」是 1c 已知限制的恢复条件）由本成员推出。Runtime Context 契约把补拉上界交给持有者定，没有确认这两项 | Runtime Context 拥有者 | 本插件按 1b 与 1c 工作。拥有者给出不同的规则时，按该规则改 AD-03 |
+| <a id="np-12"></a>NP-12 | Agent 一侧交回消息准入拒收证据的能力。agent-contract 的 `invalid(value)` 只带字段与原因，不带准入提供者的拒收记录。触发条件：agent-contract 的 `invalid(value)` 带上准入提供者的拒收记录 | Agent 拥有者 | [AD-14](#ad-14) 对没有拒收记录的 `invalid(value)` 答 `unavailable`，不产生 SE35。PM-02 的有界收束经本端口走不到 |
 
 Session 契约的明确缺项也约束本成员，其中两项直接影响插件：
 

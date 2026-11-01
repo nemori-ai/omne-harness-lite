@@ -13,6 +13,7 @@ import {
   decodeAgentExecutionId,
   decodeAgentOperationId,
   decodeInputId,
+  judgeEvidence,
   type AgentExecutionHandle,
   type AgentExecutionId,
   type AgentInstanceId,
@@ -254,7 +255,7 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       const answer = await kept.handle.input.submit({ ...mutation, value: value.ok })
       return 'ok' in answer
         ? succeed(receiptOf(answer.ok))
-        : this.agentFailure('submit', answer.failure, mutation.operation)
+        : this.agentFailure('submit', answer.failure)
     })
 
   readonly resume: AgentDrivePort['resume'] = input =>
@@ -363,13 +364,16 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
 
   // --- steps -----------------------------------------------------------------------------------
 
-  /** Runs one operation; a closed plugin and a throw both give unavailable, never a rejection. */
+  /**
+   * Runs one operation. A closed plugin gives unavailable. A throw is reported as a defect and also
+   * gives unavailable, never a rejection.
+   */
   private async guarded<T>(operation: string, run: () => Promise<Drive<T>>): Promise<Drive<T>> {
     if (this.closed) return unavailable('the agent drive has stopped')
     try {
       return await run()
     } catch (cause) {
-      return unavailable(`${operation} threw: ${describe(cause)}`)
+      return this.defect(operation, `threw: ${describe(cause)}`)
     }
   }
 
@@ -515,18 +519,16 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
   ): Promise<Drive<Placed & { handle: AgentExecutionHandle<unknown> }>> {
     const first = await this.place(mutation, slot)
     if ('failure' in first) return first
-    const subject = mutation.operation
     const answer = await call(first.ok.runtime)
     if ('ok' in answer) return succeed({ ...first.ok, handle: answer.ok })
-    if (answer.failure.kind !== 'unavailable')
-      return this.agentFailure('runtime', answer.failure, subject)
+    if (answer.failure.kind !== 'unavailable') return this.agentFailure('runtime', answer.failure)
     const again = await this.place(mutation, slot)
     if ('failure' in again || again.ok.instance === first.ok.instance)
-      return this.agentFailure('runtime', answer.failure, subject)
+      return this.agentFailure('runtime', answer.failure)
     const retried = await call(again.ok.runtime)
     return 'ok' in retried
       ? succeed({ ...again.ok, handle: retried.ok })
-      : this.agentFailure('runtime', retried.failure, subject)
+      : this.agentFailure('runtime', retried.failure)
   }
 
   /**
@@ -546,11 +548,8 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
     }
   }
 
-  /**
-   * The result table of SPEC AD-14, from an Agent failure. `subject` is the Agent operation that a
-   * refusal of the input names in its rejection basis.
-   */
-  private agentFailure(operation: string, failure: Failure, subject = operation): Drive<never> {
+  /** The result table of SPEC AD-14, from an Agent failure. */
+  private agentFailure(operation: string, failure: Failure): Drive<never> {
     switch (failure.kind) {
       case 'denied':
       case 'busy':
@@ -560,20 +559,18 @@ class SessionAgentDriveProvider<P> extends AgentDrivePortService {
       case 'unsupported':
       case 'conflict':
         return fail({ kind: failure.kind })
-      case 'invalid':
-        // Only the refusal of the message admission is a refusal of the input.
-        if (failure.field === 'value')
-          return fail({
-            kind: 'invalid',
-            reason: failure.reason,
-            rejection: {
-              owner: 'session-adapters',
-              record: subject,
-              revision: '1',
-              digest: digestOf([subject, failure.field, failure.reason]),
-            },
-          })
-        return this.defect(operation, `Agent answered invalid ${failure.field}: ${failure.reason}`)
+      case 'invalid': {
+        if (failure.field !== 'value')
+          return this.defect(
+            operation,
+            `Agent answered invalid ${failure.field}: ${failure.reason}`,
+          )
+        // A refusal of the message admission is a refusal of the input only with the admission
+        // provider's own rejection record. This member does not make one (AD-00 rules 2 and 7).
+        const rejection = judgeEvidence(Reflect.get(failure, 'rejection'))
+        if ('failure' in rejection) return unavailable('Agent invalid 未带拒收证据（NP-12）')
+        return fail({ kind: 'invalid', reason: failure.reason, rejection: rejection.ok })
+      }
       case 'unavailable':
         return unavailable(`${failure.owner}: ${failure.diagnostic}`)
       case 'commit-unknown':
