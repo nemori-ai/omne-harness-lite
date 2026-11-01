@@ -23,6 +23,11 @@ export type PiCredentialSlot = Readonly<{ read(): string | undefined }>
 export type PiTransportLimits = Readonly<{
   /** From the start of an exchange until it has a connected socket. `null`: no connect timeout. At most `MAX_TIMER_MS`. */
   connectTimeoutMs: number | null
+  /**
+   * The longest gap between two response bytes, counted from the start of an exchange. Absent: no
+   * stall timeout. The package gives no default. At most `MAX_TIMER_MS`.
+   */
+  streamStallTimeoutMs?: number
   /** A non-2xx body beyond this many bytes is dropped. */
   maxErrorBodyBytes: number
   /** The largest SSE event, line breaks included. */
@@ -100,10 +105,14 @@ function checkRoutes(routes: Readonly<Record<string, PiRoute>>): ReadonlyMap<str
 
 function checkLimits(limits: PiTransportLimits): PiTransportLimits {
   if (!isObject(limits)) throw new RangeError('limits must be an object')
-  const { connectTimeoutMs, maxErrorBodyBytes, maxEventBytes, json } = limits
+  const { connectTimeoutMs, streamStallTimeoutMs, maxErrorBodyBytes, maxEventBytes, json } = limits
   if (connectTimeoutMs !== null && !isTimerDuration(connectTimeoutMs))
     throw new RangeError(
       `limits.connectTimeoutMs must be null or a positive integer of at most ${MAX_TIMER_MS}`,
+    )
+  if (streamStallTimeoutMs !== undefined && !isTimerDuration(streamStallTimeoutMs))
+    throw new RangeError(
+      `limits.streamStallTimeoutMs must be absent or a positive integer of at most ${MAX_TIMER_MS}`,
     )
   if (!isPositiveInteger(maxErrorBodyBytes))
     throw new RangeError('limits.maxErrorBodyBytes must be a positive integer')
@@ -115,6 +124,7 @@ function checkLimits(limits: PiTransportLimits): PiTransportLimits {
       throw new RangeError(`limits.json.${name} must be a positive integer`)
   return Object.freeze({
     connectTimeoutMs,
+    ...(streamStallTimeoutMs === undefined ? {} : { streamStallTimeoutMs }),
     maxErrorBodyBytes,
     maxEventBytes,
     json: Object.freeze({ ...json }),
