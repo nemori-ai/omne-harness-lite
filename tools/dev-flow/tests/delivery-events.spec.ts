@@ -330,7 +330,7 @@ describe('waitForEvent', () => {
       timeoutMs: 2000,
     })
     expect(result).toMatchObject({ source: 'reconcile', number: 5, action: 'closed' })
-    expect(reconcile).toHaveBeenCalledWith(predicate, '2026-10-26T17:00:00.000Z')
+    expect(reconcile).toHaveBeenCalledWith(predicate, '2026-10-26T17:00:00.000Z', new Set())
   })
 
   it('fails when the start-up read fails instead of waiting on', async () => {
@@ -357,6 +357,14 @@ describe('waitForEvent', () => {
     expect(
       await waitForEvent({ file, predicate, since: '2026-10-26T12:00:00Z', timeoutMs: 2000 }),
     ).toMatchObject({ delivery: 'new' })
+  })
+
+  it('counts an event received at the ISO since time itself', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    writeFileSync(file, line(closed('edge', '2026-10-26T12:00:00.000Z')))
+    expect(
+      await waitForEvent({ file, predicate, since: '2026-10-26T12:00:00Z', timeoutMs: 2000 }),
+    ).toMatchObject({ delivery: 'edge' })
   })
 
   it('counts only lines after the since delivery id and refuses an unknown id', async () => {
@@ -473,7 +481,8 @@ describe('waitForEvent', () => {
           timeoutMs: 200,
         }),
       ).rejects.toBeInstanceOf(WaitTimeout)
-      expect(reconcile).toHaveBeenCalledTimes(2)
+      // Two members at the start, and the same two again in the last read at the timeout.
+      expect(reconcile).toHaveBeenCalledTimes(4)
     })
 
     it('reads no further member once an event has matched', async () => {
@@ -520,6 +529,209 @@ describe('waitForEvent', () => {
     await sleep(100)
     appendFileSync(file, line(ready(HEAD_B, 'b')))
     expect(await pending).toMatchObject({ delivery: 'b', number: 41, head: HEAD_B })
+  })
+})
+
+describe('waiting again after a hand-back', () => {
+  const HANDOFF = '2026-11-01T10:00:00Z'
+  type StubComment = { id: number; issue: number; created: string; body: string }
+  const handoff = (id: number, issue: number, created: string): StubComment => ({
+    id,
+    issue,
+    created,
+    body: '<!-- line-handoff -->',
+  })
+  const urlOf = (issue: number, id: number) => `${REPO_URL}/issues/${issue}#issuecomment-${id}`
+  /** A `gh api` that serves the comments of the issue named in the endpoint, oldest first. */
+  function commentsApi(comments: readonly StubComment[]): GhCommand {
+    return argv => {
+      const issue = Number(/issues\/(\d+)\/comments/.exec(argv.at(-1) ?? '')?.[1])
+      return [
+        comments
+          .filter(comment => comment.issue === issue)
+          .map(comment => ({
+            body: comment.body,
+            created_at: comment.created,
+            html_url: urlOf(comment.issue, comment.id),
+          })),
+      ]
+    }
+  }
+  /** The line the receiver writes for a created comment. */
+  const delivered = (comment: StubComment, delivery: string, at: string) =>
+    record(
+      'issue_comment',
+      {
+        action: 'created',
+        issue: {
+          number: comment.issue,
+          state: 'open',
+          html_url: `${REPO_URL}/issues/${comment.issue}`,
+        },
+        comment: { body: comment.body, html_url: urlOf(comment.issue, comment.id) },
+      },
+      delivery,
+      at,
+    )
+  const both = {
+    kind: 'any',
+    of: [
+      { kind: 'comment', issue: 7, marker: 'line-handoff' },
+      { kind: 'comment', issue: 8, marker: 'line-handoff' },
+    ],
+  } as const
+  const one = { kind: 'comment', issue: 7, marker: 'line-handoff' } as const
+
+  it('hands back the record of line B after line A, when only the delivery of line A arrived', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const lineB = handoff(1001, 8, '2026-11-01T10:00:03Z')
+    const lineA = handoff(1002, 7, '2026-11-01T10:00:05Z')
+    writeFileSync(file, line(delivered(lineA, 'delivery-a', '2026-11-01T10:00:06.200Z')))
+    const reconcile = githubReconcile('owner/repo', commentsApi([lineB, lineA]))
+    const first = await waitForEvent({
+      file,
+      predicate: both,
+      since: HANDOFF,
+      reconcile,
+      timeoutMs: 2000,
+    })
+    expect(first).toMatchObject({ source: 'event', delivery: 'delivery-a' })
+    const second = await waitForEvent({
+      file,
+      predicate: both,
+      since: HANDOFF,
+      seen: ['1002'],
+      reconcile,
+      timeoutMs: 2000,
+    })
+    expect(second).toMatchObject({ source: 'reconcile', html_url: urlOf(8, 1001) })
+  })
+
+  it('hands back the record of line B after line A when the caller still gives the delivery id', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const lineB = handoff(1001, 8, '2026-11-01T10:00:03Z')
+    const lineA = handoff(1002, 7, '2026-11-01T10:00:05Z')
+    writeFileSync(file, line(delivered(lineA, 'delivery-a', '2026-11-01T10:00:06.200Z')))
+    const result = await waitForEvent({
+      file,
+      predicate: both,
+      since: 'delivery-a',
+      reconcile: githubReconcile('owner/repo', commentsApi([lineB, lineA])),
+      timeoutMs: 2000,
+    })
+    expect(result).toMatchObject({ source: 'reconcile', html_url: urlOf(8, 1001) })
+  })
+
+  it('hands back two records of one parent card one after the other, oldest first', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const comments = [
+      handoff(2001, 7, '2026-11-01T10:00:01Z'),
+      handoff(2002, 7, '2026-11-01T10:00:02Z'),
+    ]
+    const reconcile = githubReconcile('owner/repo', commentsApi(comments))
+    const wait = (seen: string[], timeoutMs = 2000) =>
+      waitForEvent({ file, predicate: one, since: HANDOFF, seen, reconcile, timeoutMs })
+    expect(await wait([])).toMatchObject({ html_url: urlOf(7, 2001) })
+    expect(await wait(['2001'])).toMatchObject({ html_url: urlOf(7, 2002) })
+    await expect(wait(['2001', '2002'], 200)).rejects.toBeInstanceOf(WaitTimeout)
+  })
+
+  it('does not hand back a record again when its delivery arrives after the read found it', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const comment = handoff(3001, 7, '2026-11-01T10:00:02Z')
+    const reconcile = githubReconcile('owner/repo', commentsApi([comment]))
+    expect(
+      await waitForEvent({ file, predicate: one, since: HANDOFF, reconcile, timeoutMs: 2000 }),
+    ).toMatchObject({ source: 'reconcile', html_url: urlOf(7, 3001) })
+    writeFileSync(file, line(delivered(comment, 'late', '2026-11-01T10:00:03.100Z')))
+    await expect(
+      waitForEvent({
+        file,
+        predicate: one,
+        since: HANDOFF,
+        seen: ['3001'],
+        reconcile,
+        timeoutMs: 200,
+      }),
+    ).rejects.toBeInstanceOf(WaitTimeout)
+  })
+
+  it('skips the lines of records that the caller has seen and wakes for the next new line', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const old = handoff(5001, 7, '2026-11-01T10:00:02Z')
+    writeFileSync(file, line(delivered(old, 'old', '2026-11-01T10:00:03Z')))
+    const pending = waitForEvent({ file, predicate: one, seen: ['5001'], timeoutMs: 5000 })
+    await sleep(100)
+    appendFileSync(
+      file,
+      line(delivered(handoff(5002, 7, '2026-11-01T10:00:09Z'), 'new', '2026-11-01T10:00:10Z')),
+    )
+    expect(await pending).toMatchObject({ source: 'event', delivery: 'new' })
+  })
+
+  it('reads GitHub once more at the timeout and hands back a record that appeared meanwhile', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const comment = handoff(7001, 7, '2026-11-01T10:00:02Z')
+    const reconcile = vi
+      .fn<Reconcile>()
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(delivered(comment, 'x', T0))
+    const result = await waitForEvent({ file, predicate: one, reconcile, timeoutMs: 150 })
+    expect(result).toMatchObject({ source: 'reconcile', marker: 'line-handoff' })
+    expect(reconcile).toHaveBeenCalledTimes(2)
+  })
+
+  it('rejects with WaitTimeout only after that last read finds nothing', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const reconcile = vi.fn<Reconcile>(() => undefined)
+    await expect(
+      waitForEvent({ file, predicate: one, reconcile, timeoutMs: 150 }),
+    ).rejects.toBeInstanceOf(WaitTimeout)
+    expect(reconcile).toHaveBeenCalledTimes(2)
+  })
+
+  it('fails instead of timing out when the last read fails', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const reconcile = vi
+      .fn<Reconcile>()
+      .mockReturnValueOnce(undefined)
+      .mockImplementationOnce(() => {
+        throw new Error('gh failed')
+      })
+    await expect(waitForEvent({ file, predicate: one, reconcile, timeoutMs: 150 })).rejects.toThrow(
+      'gh failed',
+    )
+  })
+
+  it('does not give up while the last read is running, even when the file changes meanwhile', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const comment = handoff(7003, 7, '2026-11-01T10:00:02Z')
+    const reconcile = vi
+      .fn<Reconcile>()
+      .mockReturnValueOnce(undefined)
+      .mockImplementationOnce(async () => {
+        await sleep(300)
+        return delivered(comment, 'x', T0)
+      })
+    const pending = waitForEvent({ file, predicate: one, reconcile, timeoutMs: 100 })
+    await sleep(200)
+    appendFileSync(file, line(record('issues', issuePayload('labeled', 9), 'unrelated')))
+    expect(await pending).toMatchObject({ source: 'reconcile' })
+  })
+
+  it('takes the last read after a read that is still running at the timeout', async () => {
+    const file = join(tempDir(), 'events.jsonl')
+    const comment = handoff(7002, 7, '2026-11-01T10:00:02Z')
+    const reconcile = vi
+      .fn<Reconcile>()
+      .mockImplementationOnce(async () => {
+        await sleep(300)
+        return undefined
+      })
+      .mockReturnValueOnce(delivered(comment, 'x', T0))
+    const result = await waitForEvent({ file, predicate: one, reconcile, timeoutMs: 100 })
+    expect(result).toMatchObject({ source: 'reconcile' })
+    expect(reconcile).toHaveBeenCalledTimes(2)
   })
 })
 
