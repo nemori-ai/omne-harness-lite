@@ -43,6 +43,7 @@
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
+    "@omne-harness/model-storage-sql": "workspace:*",
     "@omne-harness/pi-ai-anthropic": "workspace:*",
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
