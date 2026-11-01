@@ -205,6 +205,7 @@ function tenantOf(letter: string): TenantId {
   return parsed.value
 }
 const TENANT = tenantOf('a')
+const OTHER_TENANT = tenantOf('b')
 const callId = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
 const op = (name: string): ModelOperationId => unbox(decodeModelOperationId(`mop_${name}`))
 const instanceId = unbox(decodeModelInstanceId('minst_one'))
@@ -253,14 +254,25 @@ const proof = (record: string, by = 'host'): DurableEvidence => ({
 })
 const principal: Readonly<{ subject: string }> = Object.freeze({ subject: 'trusted' })
 type Principal = typeof principal
+/** A principal that the authority admits in `OTHER_TENANT` only. */
+const otherPrincipal: Principal = Object.freeze({ subject: 'other-tenant' })
+/** A principal that the authority admits in no tenant. */
+const stranger: Principal = Object.freeze({ subject: 'stranger' })
+/** The tenant in which the authority admits each principal. */
+const GRANTS = new Map<Principal, TenantId>([
+  [principal, TENANT],
+  [otherPrincipal, OTHER_TENANT],
+])
 
 const coreOptions: ModelCommandsCoreOptions<Principal> = {
   owners: [owner],
   authority: {
-    authorize: ({ access, action }) =>
-      access.principal === principal && tenantEquals(TENANT, access.tenant)
-        ? { ok: { owner: 'identity', subject: principal.subject, revision: '1' } }
-        : { failure: { kind: 'denied', action } },
+    authorize: ({ access, action }) => {
+      const granted = GRANTS.get(access.principal)
+      return granted !== undefined && tenantEquals(granted, access.tenant)
+        ? { ok: { owner: 'identity', subject: access.principal.subject, revision: '1' } }
+        : { failure: { kind: 'denied', action } }
+    },
     execution: () => ({ ok: { owner: 'host', subject: 'channel', revision: '1' } }),
   },
   evidence: [
@@ -361,7 +373,9 @@ function memoryAssembly(): Subject {
 }
 
 const WINDOW = 'receive_one'
-const access = (call: ModelCallId) => ({ principal, tenant: TENANT, call })
+type Actor = Readonly<{ principal: Principal; tenant: TenantId }>
+const OWNER: Actor = { principal, tenant: TENANT }
+const access = (call: ModelCallId, actor: Actor = OWNER) => ({ ...actor, call })
 
 type Stage = 'admitted' | 'prepared' | 'materialized' | 'window'
 type Driven = Readonly<{
@@ -371,29 +385,39 @@ type Driven = Readonly<{
 }>
 
 /** Drives one call through the commands up to `stage`; returns its send demand. */
-async function drive(subject: Subject, call: ModelCallId, stage: Stage): Promise<Driven> {
+async function drive(
+  subject: Subject,
+  call: ModelCallId,
+  stage: Stage,
+  actor: Actor = OWNER,
+): Promise<Driven> {
   const { commands } = subject
   unbox(
     await commands.admit({
-      ...access(call),
+      ...access(call, actor),
       operation: op(`admit-${call}`),
       request,
       consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
       capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
     }),
   )
-  let execution: ExecutionRef = { tenant: TENANT, call, instance: instanceId, generation: '0' }
+  let execution: ExecutionRef = {
+    tenant: actor.tenant,
+    call,
+    instance: instanceId,
+    generation: '0',
+  }
   let materialization: Driven['materialization'] = null
   if (stage !== 'admitted') {
     execution = unbox(
       await commands.claim({
-        ...access(call),
+        ...access(call, actor),
         instance: instanceId,
         operation: op(`claim-${call}`),
         continuity: proof(call),
       }),
     )
-    const expected = unbox(await commands.loadRecovery(access(call))).state.revision
+    const expected = unbox(await commands.loadRecovery(access(call, actor))).state.revision
     const revision = unbox(
       await commands.prepareDispatch({
         ...execution,
@@ -425,9 +449,9 @@ async function drive(subject: Subject, call: ModelCallId, stage: Stage): Promise
         )
     }
   }
-  const recovery = unbox(await commands.loadRecovery(access(call)))
+  const recovery = unbox(await commands.loadRecovery(access(call, actor)))
   const demand: SendDemand<Principal> = {
-    ...access(call),
+    ...access(call, actor),
     execution,
     dispatch: dispatchId,
     request,
@@ -584,6 +608,75 @@ describe('a cold mirror', () => {
   })
 })
 
+/** `demand` as sent by `actor` for `call`, with the execution of the same tenant and call. */
+const demandAs = (
+  demand: SendDemand<Principal>,
+  actor: Partial<Actor>,
+  call: ModelCallId = demand.call,
+): SendDemand<Principal> => {
+  const tenant = actor.tenant ?? demand.tenant
+  return {
+    ...demand,
+    principal: actor.principal ?? demand.principal,
+    tenant,
+    call,
+    execution: { ...demand.execution, tenant, call },
+  }
+}
+
+describe('qualification before the mirror', () => {
+  it('denies an unauthorized principal alike for a hot, a cold and a missing call', async () => {
+    const provider = sqliteStorage()
+    const cold = await drive(sqlAssembly({ provider }), callId('cold'), 'window')
+    // A new instance over the same rows: `cold` is stored but not mirrored, `hot` is mirrored.
+    const subject = sqlAssembly({ provider })
+    const hot = await drive(subject, callId('hot'), 'window')
+    const demands = {
+      hot: hot.demand,
+      cold: cold.demand,
+      missing: demandAs(hot.demand, {}, callId('missing')),
+    }
+    const denied = { failure: { kind: 'denied', action: 'send' } }
+    for (const [name, demand] of Object.entries(demands)) {
+      const fence = fenceOf(subject, demandAs(demand, { principal: stranger }))
+      expect([
+        name,
+        subject.coordinator.check(demandAs(demand, { principal: stranger }), 'access'),
+      ]).toEqual([name, denied])
+      expect([name, fence.enter()]).toEqual([name, { kind: 'refused', ...denied }])
+      expect([name, fence.starts()]).toEqual([name, 0])
+    }
+    // The authorized principal: the hot call is judged, a call outside the mirror is cold.
+    expect(subject.coordinator.check(demands.hot, 'access')).toEqual({ ok: undefined })
+    expect(subject.coordinator.check(demands.cold, 'access')).toEqual(COLD)
+    expect(subject.coordinator.check(demands.missing, 'access')).toEqual(COLD)
+  })
+})
+
+describe('tenants', () => {
+  it('keeps the mirror and the claims of a tenant from a namesake call of another tenant', async () => {
+    const subject = sqlAssembly()
+    const shared = callId('shared')
+    const mine = await drive(subject, shared, 'window')
+    const theirs = demandAs(mine.demand, { principal: otherPrincipal, tenant: OTHER_TENANT })
+    // The other tenant does not see the mirrored call of this tenant, nor start its dispatch.
+    const intruder = fenceOf(subject, theirs)
+    expect(subject.coordinator.check(theirs, 'access')).toEqual(COLD)
+    expect(intruder.enter()).toEqual({ kind: 'refused', ...COLD })
+    expect(intruder.starts()).toBe(0)
+    expect(fenceOf(subject, mine.demand).enter().kind).toBe('started')
+    // The namesake call of the other tenant has its own mirror entry and its own claim.
+    const own = await drive(subject, shared, 'window', {
+      principal: otherPrincipal,
+      tenant: OTHER_TENANT,
+    })
+    expect(subject.coordinator.check(own.demand, 'access')).toEqual({ ok: undefined })
+    const fence = fenceOf(subject, own.demand)
+    expect(fence.enter().kind).toBe('started')
+    expect(fence.starts()).toBe(1)
+  })
+})
+
 describe('claims', () => {
   it('drops a claim once the send record is mirrored, so the bound frees', async () => {
     const subject = sqlAssembly({ maxClaims: 1 })
@@ -624,7 +717,6 @@ describe('parity with the memory coordinator', () => {
     const fence = fenceOf(subject, open.demand)
     answer(fence.enter(started, { ...receipt, payloadDigest: 'b'.repeat(64) }))
     answer(fence.enter(started, receipt, 'receive_other'))
-    const stranger = Object.freeze({ subject: 'stranger' })
     answer(subject.coordinator.check({ ...open.demand, principal: stranger }, 'access'))
     answer(fence.enter())
     answer(fence.enter())
