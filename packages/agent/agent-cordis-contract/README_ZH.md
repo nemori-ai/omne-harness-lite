@@ -6,12 +6,14 @@ Agent 能力唯一的 Cordis 服务定义：服务、键、类型增补及框架
 
 `./cordis` 入口导出：
 
-- 20 个抽象 Service 和具体的 `AgentInstancesService`，另有 21 个键常量。
-- 21 个键的 `Context` 增补，以及 `Events` 中的 `agent-cordis-contract/instance-retired` 事件。
+- 21 个抽象 Service 和具体的 `AgentInstancesService`，另有 22 个键常量。
+- 22 个键的 `Context` 增补，以及 `Events` 中的 `agent-cordis-contract/instance-retired` 事件。
 - 接口 `AgentPublicationAuthority`。
 - 目录插件 `agentInstancesPlugin`。
 
-根入口不导出值，只导出三个类型：`AgentLocalRoute`、`AgentRegistrationInput` 与 `AgentWithdrawalInput`。根入口没有到 Cordis 的边。
+根入口不导出值，只导出五个类型：`AgentLocalRoute`、`AgentRegistrationInput`、`AgentWithdrawalInput`、`AgentInstanceSlotInput` 与 `AgentInstanceProvision`。根入口没有到 Cordis 的边。
+
+`./testing` 导出 `AgentInstanceProvision` 的非耐久内存替身和符合性套件。替身不导入 Cordis。
 
 目录插件 `agentInstancesPlugin` 提供 `agentInstances` 键。本包没有实现 Agent 推进 Loop、评估器、其他服务键的提供者和宿主插件。宿主插件归 [agent-host-local](../agent-host-local/README.md)。没有用真实提供者做过运行验证。
 

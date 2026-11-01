@@ -39,7 +39,12 @@ import {
 import type { ContentBlock } from '@omne-harness/content-block'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
-import type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts'
+import type {
+  AgentInstanceProvision,
+  AgentLocalRoute,
+  AgentRegistrationInput,
+  AgentWithdrawalInput,
+} from './index.ts'
 
 export type { AgentLocalRoute, AgentRegistrationInput, AgentWithdrawalInput } from './index.ts'
 
@@ -323,6 +328,21 @@ export abstract class AgentExecutionControlService<P>
   abstract readonly control: AgentExecutionControl<P>['control']
 }
 export const agentExecutionControlKey = AgentExecutionControlService.provide
+
+// The entry that gives out the instance of a slot. The host plugin provides it in the same body as
+// the host, the publication authority and the recovery entry, because they share one slot table.
+/** @owner packages/agent/agent-cordis-contract */
+export abstract class AgentInstanceProvisionService<P>
+  extends Service
+  implements AgentInstanceProvision<P>
+{
+  static readonly provide = 'agentInstanceProvision'
+  constructor(ctx: Context) {
+    super(ctx, AgentInstanceProvisionService.provide)
+  }
+  abstract readonly acquire: AgentInstanceProvision<P>['acquire']
+}
+export const agentInstanceProvisionKey = AgentInstanceProvisionService.provide
 
 type RetirementReason = 'withdrawn' | 'contributor-removed' | 'superseded'
 
@@ -831,6 +851,7 @@ declare module '@deepseek-ai/cordis' {
     agentAccountOutlet: AgentAccountOutletService<unknown>
     agentExecutionControl: AgentExecutionControlService<unknown>
     agentInstances: AgentInstancesService<unknown>
+    agentInstanceProvision: AgentInstanceProvisionService<unknown>
   }
   interface Events {
     /**
