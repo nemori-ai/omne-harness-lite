@@ -7,7 +7,11 @@
 // qualification authority (`core.options.authority`). A call that the mirror does not hold is
 // cold: the fence refuses it as `qualification-unavailable`, and `recordMaterialization` with the
 // same operation reads the call back into the mirror. Imports no Cordis.
-import type { MaterializationReceipt, ModelCallId, ModelFailure } from '@omne-harness/model-contract'
+import type {
+  MaterializationReceipt,
+  ModelCallId,
+  ModelFailure,
+} from '@omne-harness/model-contract'
 import type { SendDemand } from '@omne-harness/model-contract/provider'
 import type { Outcome } from '@omne-harness/operation-result'
 import type { CredentialSelection, SendCoordinator, SendStart } from '@omne-harness/model'
@@ -109,7 +113,8 @@ class Claims {
     const claims = this.calls.get(key)
     if (claims === undefined) return
     const settled = document.state.phase === 'settled'
-    for (const dispatch of [...claims.keys()]) {
+    // A Map visits each remaining key once when the loop deletes the current one.
+    for (const dispatch of claims.keys()) {
       const found = document.dispatches.find(d => d.record.dispatch === dispatch)
       if (settled || found === undefined || found.record.send !== 'prepared') {
         claims.delete(dispatch)
@@ -185,7 +190,7 @@ class Mirror {
   }
 
   private evict(keep: string): void {
-    for (const [key, entry] of [...this.entries]) {
+    for (const [key, entry] of this.entries) {
       if (this.total <= this.budget) return
       if (key === keep || this.pinned(key, entry.document)) continue
       this.remove(key)
@@ -256,8 +261,7 @@ export function createSendMirror(
     reserved: field => inner.reserved(field),
     commit(tenant: string, write: CommandWrite) {
       const status = inner.commit(tenant, write)
-      if (pass !== null)
-        pass.staged = { tenant, call: write.binding.call, document: write.call }
+      if (pass !== null) pass.staged = { tenant, call: write.binding.call, document: write.call }
       return status
     },
     publish(tenant: string, call: CallDocument) {

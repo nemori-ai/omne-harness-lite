@@ -29,7 +29,6 @@ import {
   createModelCommandsCore,
   modelCommands,
   hasRecoveryWork,
-  type ModelCommandStorage,
   type ModelCommandsCoreOptions,
   type ModelSendSource,
 } from '@omne-harness/model/commands'
@@ -197,15 +196,13 @@ const unbox = <T>(outcome: Outcome<T, unknown>): T => {
 }
 function tenantOf(letter: string): TenantId {
   const parsed = tenantCodec.parse(
-    JSON.stringify({ organization: `org_${letter.repeat(26)}`, account: `acc_${letter.repeat(26)}` }),
+    JSON.stringify({
+      organization: `org_${letter.repeat(26)}`,
+      account: `acc_${letter.repeat(26)}`,
+    }),
   )
   if (!parsed.ok) throw new Error('fixture tenant does not parse')
   return parsed.value
-}
-const textOf = (tenant: TenantId): string => {
-  const text = tenantCodec.encode(tenant)
-  if (!text.ok) throw new Error('fixture tenant does not encode')
-  return text.value
 }
 const TENANT = tenantOf('a')
 const callId = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
@@ -213,7 +210,12 @@ const op = (name: string): ModelOperationId => unbox(decodeModelOperationId(`mop
 const instanceId = unbox(decodeModelInstanceId('minst_one'))
 const dispatchId = unbox(decodeDispatchId('mdisp_one'))
 const factoryId = unbox(decodeCredentialId('official-query'))
-const adoption: Adoption = { owner: 'test-owner', name: 'test', revision: '1', digest: '0'.repeat(64) }
+const adoption: Adoption = {
+  owner: 'test-owner',
+  name: 'test',
+  revision: '1',
+  digest: '0'.repeat(64),
+}
 const owner: ModelConsumerOwnerDeclaration = {
   consumerOwner: 'consumer',
   work: { kind: 'exempt' },
@@ -331,7 +333,11 @@ function sqlAssembly(
     ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
   })
   const core = createModelCommandsCore(coreOptions, mirror.storage)
-  return { commands: modelCommands(core), coordinator: mirror.coordinator(core, [source]), provider }
+  return {
+    commands: modelCommands(core),
+    coordinator: mirror.coordinator(core, [source]),
+    provider,
+  }
 }
 
 /** The memory assembly of `@omne-harness/model/testing`, with the same options and source. */
