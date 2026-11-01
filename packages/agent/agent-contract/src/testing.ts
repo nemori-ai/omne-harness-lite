@@ -5,7 +5,8 @@
 // carries `uncovered` and rejects; it is reported, never passed. Each double declares
 // `durability: 'none'` and must not be
 // assembled into production. The doubles do not prove durability, cross-process behavior or the
-// real Agent runtime.
+// real Agent runtime. The entry also carries the trace replay of the finishing model
+// (verification/formal-mapping.md): the TLC traces replayed onto a Journal core fixture.
 export type { ConformanceCase } from './testing-case.ts'
 export {
   agentJournalEntriesConformance,
@@ -48,3 +49,12 @@ export {
 } from './testing-cancellation.ts'
 export { memoryReceivedCommitFixture } from './testing-received-memory.ts'
 export type { ReceivedCommitFixture, RequiredReceivedCommits } from './testing-received-fixture.ts'
+export {
+  agentJournalReplayConformance,
+  agentJournalReplayTraces,
+  agentJournalViolatingTraces,
+  replayJournalTrace,
+  type JournalReplayState,
+  type JournalReplayStep,
+  type JournalReplayTrace,
+} from './testing-journal-replay.ts'

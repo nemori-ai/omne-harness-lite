@@ -32,6 +32,7 @@
 - [journal-coordination.spec.ts](journal-coordination.spec.ts)：coordinated 绑定的声明、`open`/`attach`/`submit` 的参加者冲突译为 denied、取消收束的 attach（取消前最后授予的 attempt）、取消路线的 establish、judge、`prepareFinish` 与 `tryFinish`，以及 `tryFinish` 参加者的 changed 与 PA-02 取消分支；PA-08 第 3 项：SE26 cancelled 之后推进授权的结束为 `stale-advance`，取消路线以取消授权结束，读到的结束事件只认回，全程只有一个 SE26
 - [journal-finishing.spec.ts](journal-finishing.spec.ts)：会话日志绑定上的条件终结规则：settling commit 的形状与有效取消下的候选、prepareFinish 发行与 tryFinish 重算的责任闭包、作者路线与取消路线的判定次序、`commitSettlement` 的资格名与目标核对
 - [journal-core-conformance.spec.ts](journal-core-conformance.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的 Journal 核心一致性套件，含消息准入的 P、Ja、Rh 与 submit 谱系，以及条件终结的候选、清单、五类阻塞次序与 `commitSettlement` 六变体；夹具装入测试取消政策并登记宿主记录，经内存提供者的 `seedLegacyCandidate` 写入旧协议的取消候选，并按套件的 `qualify` 决定调用方持有 `settle`、`migrate-cancellation`、`reconcile` 中的哪几个资格；夹具在每次首个 submit 成功后记录 Session 一侧的交接，使普通结束不在 Session 一侧受阻
+- [journal-replay.spec.ts](journal-replay.spec.ts)：Session 替身以 coordinated 绑定运行 agent-contract `./testing` 的轨迹回放（AG-23）：收尾协议模型导出的轨迹逐步核对答复与状态投影，三条负控的违规轨迹须在最后一步被报告；夹具在每次首个 submit 成功后记录 Session 一侧的交接
 - [record-fault.spec-d.ts](record-fault.spec-d.ts)：本地 `RecordFault` 与契约测试件的 `RecordFault` 互相可赋值
 - [host-record.spec-d.ts](host-record.spec-d.ts)：本地 `TestHostRecord` 与一致性套件的 `TestHostRecord` 互相可赋值
 - [fixtures/](fixtures/index.md)：测试共用的构造与固定输入，有 7 个文件
