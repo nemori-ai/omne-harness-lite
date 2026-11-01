@@ -46,8 +46,22 @@ export type SessionState = Readonly<{
       projection?: import('@omne-harness/session-contract').SessionLogObservation
       /** The access decision evidence of the public commit that recorded this operation; absent for delegated and projected commits. */
       decision?: import('@omne-harness/session-contract').DurableEvidence
+      /** `control` marks a cancelRun or stopCall that has a business batch: it recalls a control receipt. */
+      form?: 'control'
       recall(receipt: CommitReceipt): unknown
     }
+  >
+  /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
+  answers: ReadonlyMap<
+    SessionOperationId,
+    Readonly<{
+      digest: string
+      receipt: import('@omne-harness/session-contract').SessionControlReceipt<
+        | import('@omne-harness/session-contract').RunTerminal
+        | import('@omne-harness/session-contract').SessionCallTerminal
+      >
+      decision: import('@omne-harness/session-contract').DurableEvidence | null
+    }>
   >
   inputs: ReadonlyMap<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
 }>
