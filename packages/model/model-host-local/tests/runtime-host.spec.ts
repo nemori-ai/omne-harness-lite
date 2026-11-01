@@ -88,7 +88,9 @@ it('reports the assembly from what it built: the durable commands over the SQL s
     expect(subject.facts.commandsKind).toBe('durable-sql')
     expect(subject.facts.modelCommands).toContain('@omne-harness/model-storage-sql')
     expect(subject.facts.cordis).toMatch(/^4\.0\./u)
-    expect(subject.facts.plugins.some(name => name.startsWith('ModelRuntimeLocalPlugin'))).toBe(true)
+    expect(subject.facts.plugins.some(name => name.startsWith('ModelRuntimeLocalPlugin'))).toBe(
+      true,
+    )
     expect(subject.facts.plugins.some(name => name.startsWith('ModelSendStagePlugin'))).toBe(true)
   } finally {
     await subject.dispose?.()

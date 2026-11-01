@@ -134,7 +134,12 @@ export const callOf = (name: string): ModelCallId => unbox(decodeModelCallId(`mc
 const TENANT = identity('5')
 const OTHER_TENANT = identity('6')
 const PRINCIPAL: Principal = Object.freeze({ subject: 'trusted' })
-const ADOPTION: Adoption = { owner: 'test-owner', name: 'test', revision: '1', digest: '0'.repeat(64) }
+const ADOPTION: Adoption = {
+  owner: 'test-owner',
+  name: 'test',
+  revision: '1',
+  digest: '0'.repeat(64),
+}
 const OWNER: ModelConsumerOwnerDeclaration = {
   consumerOwner: 'consumer',
   work: { kind: 'exempt' },
@@ -145,7 +150,12 @@ const CAPACITY = { bytes: '100000', blocks: '100', attachmentBytes: '100000' }
 const REQUEST: FixedModelRequest = {
   profile: ADOPTION,
   suppliers: [
-    { adoption: ADOPTION, recipient: 'test.invalid', model: 'test', credential: { kind: 'factory' } },
+    {
+      adoption: ADOPTION,
+      recipient: 'test.invalid',
+      model: 'test',
+      credential: { kind: 'factory' },
+    },
   ],
   fallback: false,
   retryPolicy: ADOPTION,
@@ -164,7 +174,12 @@ const REQUEST: FixedModelRequest = {
 const SUPPLIER = REQUEST.suppliers[0]
 if (SUPPLIER === undefined) throw new Error('durable assembly: request without a supplier')
 
-const HOST_SETTINGS = { concurrencyLimit: 8, wakeCapacity: 64, scanBatchSize: 10, scanIntervalMs: 0 }
+const HOST_SETTINGS = {
+  concurrencyLimit: 8,
+  wakeCapacity: 64,
+  scanBatchSize: 10,
+  scanIntervalMs: 0,
+}
 const STAGE_SETTINGS = { maxRetainedAttempts: 64 }
 const PUSH_LIMITS: ResultPushLimits = {
   maxConcurrentCalls: 4,
@@ -466,7 +481,12 @@ function completionRecords() {
         consumer: input.consumer,
         label: input.label,
       })
-      const proof: DurableEvidence = { owner: CONSUMER.owner, record, revision: '1', digest: record }
+      const proof: DurableEvidence = {
+        owner: CONSUMER.owner,
+        record,
+        revision: '1',
+        digest: record,
+      }
       records.set(record, { ...input, proof })
       return { ...proof }
     },
@@ -487,12 +507,13 @@ function completionRecords() {
   }
 }
 
-function coreOptions(denied: Set<CommandAction>, completions: ReturnType<typeof completionRecords>) {
+function coreOptions(
+  denied: Set<CommandAction>,
+  completions: ReturnType<typeof completionRecords>,
+) {
   const authority: ModelCommandsAuthority<unknown> = {
     authorize: ({ access, action }) =>
-      access.principal === PRINCIPAL &&
-      tenantEquals(TENANT, access.tenant) &&
-      !denied.has(action)
+      access.principal === PRINCIPAL && tenantEquals(TENANT, access.tenant) && !denied.has(action)
         ? { ok: { owner: 'identity', subject: PRINCIPAL.subject, revision: '1' } }
         : { failure: { kind: 'denied', action } },
     execution: () => ({ ok: { owner: 'host', subject: 'channel', revision: '1' } }),
@@ -571,11 +592,13 @@ function durableBackend(
     maxCommandBytes: MAX_CALL_BYTES + COMMAND_RESERVE_BYTES,
     send: { mirrorBytes: 1 << 24, sources: [source] },
   })
-  if (coordinator === null) throw new Error('durable assembly: the SQL commands gave no coordinator')
+  if (coordinator === null)
+    throw new Error('durable assembly: the SQL commands gave no coordinator')
   return {
     kind: 'durable-sql',
     description: '@omne-harness/model-storage-sql createSqlModelCommands (durable, SQL storage)',
-    sqlProvider: 'node:sqlite test provider (tests/support/durable-assembly.ts), in-memory database',
+    sqlProvider:
+      'node:sqlite test provider (tests/support/durable-assembly.ts), in-memory database',
     commands,
     coordinator,
     faults,
@@ -603,13 +626,17 @@ function memoryBackend(
     sends: [],
     sending: {
       maxRetainedAttempts: STAGE_SETTINGS.maxRetainedAttempts,
-      credentials: { present: () => ({ kind: 'unavailable' }), resolve: () => ({ kind: 'unavailable' }) },
+      credentials: {
+        present: () => ({ kind: 'unavailable' }),
+        resolve: () => ({ kind: 'unavailable' }),
+      },
       sources: [source],
     },
   })
   return {
     kind: 'memory',
-    description: '@omne-harness/model/testing createTestModelDependencies (in-memory, no durability)',
+    description:
+      '@omne-harness/model/testing createTestModelDependencies (in-memory, no durability)',
     sqlProvider: 'none',
     commands: memory.dependencies.commands,
     coordinator: memory.controls.send.coordinator,
@@ -738,7 +765,9 @@ function channels() {
               const fact = queue.shift()
               if (queue.length === 0) waiter = deferred<void>()
               if (fact?.kind === 'ended') done = true
-              return fact ? { done: false as const, value: fact } : { done: true as const, value: undefined }
+              return fact
+                ? { done: false as const, value: fact }
+                : { done: true as const, value: undefined }
             },
             async return() {
               done = true
@@ -962,7 +991,8 @@ function cordisVersion(): string {
     'utf8',
   )
   const parsed: unknown = JSON.parse(text)
-  const version = typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'version') : null
+  const version =
+    typeof parsed === 'object' && parsed !== null ? Reflect.get(parsed, 'version') : null
   return typeof version === 'string' ? version : 'unknown'
 }
 
@@ -983,7 +1013,8 @@ function assemblyFacts(backend: Backend): AssemblyFacts {
     sqlProvider: backend.sqlProvider,
     cordis: cordisVersion(),
     plugins: PLUGIN_NAMES,
-    transport: '@omne-harness/model-contract/testing createScriptedTransport behind a per-call channel',
+    transport:
+      '@omne-harness/model-contract/testing createScriptedTransport behind a per-call channel',
     network: 'closable stand-in that opens nothing',
   }
 }
@@ -1009,7 +1040,8 @@ export async function durableSubject(
     ...backend.commands,
     preserve: async input => {
       const result = await backend.commands.preserve(input)
-      if ('ok' in result) preserved.set(input.call, (preserved.get(input.call) ?? 0) + input.facts.length)
+      if ('ok' in result)
+        preserved.set(input.call, (preserved.get(input.call) ?? 0) + input.facts.length)
       return result
     },
   }
@@ -1089,7 +1121,10 @@ export async function durableSubject(
     const current = await recovery(input.call)
     if (!current.execution) throw new Error('durable assembly: missing cleanup execution')
     const result = unbox(
-      await commands.advanceCleanup({ ...current.execution, operation: op(`cleanup-${randomUUID()}`) }),
+      await commands.advanceCleanup({
+        ...current.execution,
+        operation: op(`cleanup-${randomUUID()}`),
+      }),
     )
     record({ hook: 'advanceCleanup', input, result })
   }
@@ -1173,7 +1208,9 @@ export async function durableSubject(
       const before = preserved.get(input.call) ?? 0
       upstream.channel(input.call).push(input.facts)
       await until(
-        () => (preserved.get(input.call) ?? 0) >= before + input.facts.length || drives.results.has(input.call),
+        () =>
+          (preserved.get(input.call) ?? 0) >= before + input.facts.length ||
+          drives.results.has(input.call),
         `the preservation of ${input.facts.length} facts of ${input.call}`,
       )
       await quiet()
@@ -1186,16 +1223,21 @@ export async function durableSubject(
         input.termination.kind === 'interrupted'
           ? ({ kind: 'interrupted', stop: 'confirmed' } as const)
           : input.termination
-      upstream.channel(input.call).push([...resultFacts(input.parts), { kind: 'ended', termination }])
+      upstream
+        .channel(input.call)
+        .push([...resultFacts(input.parts), { kind: 'ended', termination }])
       await until(() => drives.results.has(input.call), `the end of the drive of ${input.call}`)
       const outcome = drives.results.get(input.call)
       if (outcome !== undefined && 'failure' in outcome)
-        throw new Error(`durable assembly: the driver refused the settlement: ${JSON.stringify(outcome.failure)}`)
+        throw new Error(
+          `durable assembly: the driver refused the settlement: ${JSON.stringify(outcome.failure)}`,
+        )
       record({ hook: 'settleCall', input: { call: input.call, termination: input.termination } })
     },
     provideEvidence: async input => {
       const current = await recovery(input.call)
-      if (current.state.phase !== 'settled') throw new Error('durable assembly: completion before settlement')
+      if (current.state.phase !== 'settled')
+        throw new Error('durable assembly: completion before settlement')
       const evidence = completions.finish({
         tenant: tenantText,
         call: input.call,
@@ -1224,7 +1266,8 @@ export async function durableSubject(
         ...current.execution,
         operation: op(`blocked-cleanup-${randomUUID()}`),
       })
-      if ('ok' in result) throw new Error('durable assembly: the cleanup was not blocked by the storage')
+      if ('ok' in result)
+        throw new Error('durable assembly: the cleanup was not blocked by the storage')
       record({ hook: 'blockCleanup', input, result })
     },
     withdrawInstance: async input => {
@@ -1253,7 +1296,11 @@ export async function durableSubject(
     revokeAccess: async input => {
       if (input.action === 'all') for (const action of Object.values(ACTIONS)) denied.add(action)
       else denied.add(ACTIONS[input.action])
-      record({ hook: 'revokeAccess', input: { call: input.call, action: input.action }, denied: [...denied] })
+      record({
+        hook: 'revokeAccess',
+        input: { call: input.call, action: input.action },
+        denied: [...denied],
+      })
     },
     failDirectory: async () => {
       control.failDirectory()
@@ -1272,7 +1319,12 @@ export async function durableSubject(
     request: REQUEST,
     consumer: CONSUMER,
     capacity: CAPACITY,
-    transport: { transport: countedTransport, sends: () => sends, request: REQUEST, supplier: SUPPLIER },
+    transport: {
+      transport: countedTransport,
+      sends: () => sends,
+      request: REQUEST,
+      supplier: SUPPLIER,
+    },
     hooks,
     facts: assemblyFacts(backend),
     injected: backend.faults?.injected ?? [],
