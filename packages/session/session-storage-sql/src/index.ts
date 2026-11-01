@@ -1,47 +1,43 @@
-// The Session storage over the SQL storage contract. The root exports the port factory and the
-// static materials. It imports the SQL contract only through its public entries, and it builds no
-// Cordis service: the session storage composite belongs to the application.
-import type { SessionTransactionPort } from '@omne-harness/session-contract'
-import { fail } from '@omne-harness/operation-result'
-import { commit, queryControlOperation, queryOperation } from './commit.ts'
-import { contextOf, unavailable, type SessionStorageOptions } from './context.ts'
-import {
-  historyFace,
-  pending,
-  readInput,
-  readModelSelection,
-  readWork,
-  references,
-  releasedScopes,
-} from './reads.ts'
+// The Session storage over the SQL storage contract. The root exports the port factories, the
+// session binding source and the static materials. It imports the SQL contract only through its
+// public entries, and it builds no Cordis service: the session storage composite belongs to the
+// application.
+import type {
+  SessionDelegatedTransactions,
+  SessionTransactionPort,
+} from '@omne-harness/session-contract'
+import { contextOf, type SessionStorageOptions } from './context.ts'
+import { delegatedOf } from './delegated.ts'
+import { portOf } from './port.ts'
 
 export type { SessionStorageOptions } from './context.ts'
+export { createSessionPrincipalBindings, type SessionPrincipalBindingsOptions } from './bindings.ts'
 export {
   SESSION_PARTICIPANT,
   sessionStorageMaterials,
   type SessionStorageMaterials,
 } from './materials.ts'
 
+/** The public port. Every method asks the access check once. */
 export function createSessionStorage<P>(
   options: SessionStorageOptions<P>,
 ): SessionTransactionPort<P> {
+  return portOf(contextOf(options))
+}
+
+export type SessionStoragePair<P> = Readonly<{
+  transactions: SessionTransactionPort<P>
+  delegated: SessionDelegatedTransactions<P>
+}>
+
+/**
+ * The public port and the delegated entry over one context. `transactions` behaves as
+ * `createSessionStorage`; a view from `delegated.bind` serves one checked face operation on the
+ * same storage and does not ask the access check.
+ */
+export function createSessionStoragePair<P>(
+  options: SessionStorageOptions<P>,
+): SessionStoragePair<P> {
   const context = contextOf(options)
-  return {
-    commit: (input => commit(context, input)) as SessionTransactionPort<P>['commit'],
-    readWork: input => readWork(context, input),
-    readInput: input => readInput(context, input),
-    queryOperation: input => queryOperation(context, input),
-    queryControlOperation: input => queryControlOperation(context, input),
-    readModelSelection: input => readModelSelection(context, input),
-    // The pure range check of the entries interpretation is not in session-contract yet, so the
-    // storage cannot judge a range. It refuses; it never answers success for an unchecked range.
-    commitEntries: () =>
-      Promise.resolve(
-        fail(unavailable('entries interpretation has no pure range check in session-contract')),
-      ),
-    history: historyFace(context),
-    pending: input => pending(context, input),
-    references: input => references(context, input),
-    releasedScopes: input => releasedScopes(context, input),
-  }
+  return { transactions: portOf(context), delegated: delegatedOf(context) }
 }
