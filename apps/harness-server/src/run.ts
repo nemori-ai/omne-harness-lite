@@ -163,6 +163,28 @@ function treeRecords(
   ]
 }
 
+/** A non-zero startup code wins. Otherwise an incomplete shutdown is 5. */
+function finalExitCode(
+  startCode: 0 | 3 | 4,
+  overall: 'settled' | 'incomplete',
+): S0Result['exitCode'] {
+  if (startCode !== 0) return startCode
+  return overall === 'settled' ? 0 : 5
+}
+
+/** Expected registrants of the enabled rows, by shutdown phase. */
+function expectedPhases(
+  tree: ResolvedTree,
+  manifests: ReadonlyMap<RowId, RowManifest>,
+): Map<RowId, LifecyclePhase> {
+  const expected = new Map<RowId, LifecyclePhase>()
+  for (const row of tree.rows) {
+    const phase = (manifests.get(row.id) ?? NO_MANIFEST).phase
+    if (phase !== null) expected.set(row.id, phase)
+  }
+  return expected
+}
+
 export async function runS0(options: RunS0Options): Promise<S0Result> {
   const { write, stderr } = options
   const probes: Probes = { started: [], applied: [] }
@@ -191,11 +213,7 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
   )
   for (const record of treeRecords(tree, row => trust.describe(row).names)) write(record)
 
-  const expected = new Map<RowId, LifecyclePhase>()
-  for (const row of tree.rows) {
-    const phase = (manifests.get(row.id) ?? NO_MANIFEST).phase
-    if (phase !== null) expected.set(row.id, phase)
-  }
+  const expected = expectedPhases(tree, manifests)
 
   const root = new Context()
   let loaded: readonly LoadedRow[] = []
@@ -279,6 +297,5 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
 
   const report = await shutdown()
   write({ kind: 'shutdown-result', ...report })
-  const startCode = started.report.exitCode
-  return result(startCode !== 0 ? startCode : report.overall === 'settled' ? 0 : 5)
+  return result(finalExitCode(started.report.exitCode, report.overall))
 }
