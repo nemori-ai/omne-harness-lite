@@ -410,7 +410,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any [--i
 - 这些是低层事件谓词。Issue 关闭或普通评论命中不代表整波已接受。
 - 命令先读文件里已有的行，再监听文件所在目录。不起进程逐行读。文件不存在时等它出现。监听之外每5秒再读一次本地事件文件，补上丢失的监听通知，这不调用 GitHub API。文件被换成另一个（inode 变了）时从头重读。
 
-接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次，到期时再对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后创建、带标记且不在 `--seen` 里的评论，返回其中最早的一条。积压几条时一次返回一条，按发布顺序，其余在重挂后立即返回。`any` 对每个条件各对账一次，在第一个成立的条件处停止；`issue-closed` 成立后每次都先命中，它没有 id 可排除，需要评论记录时先读回带标记的评论。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件此后不再调用 GitHub API。
+接收器不在时，GitHub 不补发事件。所以每条等待命令启动时对账一次，到期时再对账一次。`issue-closed` 用 `gh issue view` 看卡是否已关闭。`pr-ready` 用 `gh pr list --limit 200` 看目标分支上是否已有开放、非草稿且不在 `--ignore` 里的 PR，只看前200个开放 PR。`comment` 用 `gh api` 取 `--since` 之后创建、带标记且不在 `--seen` 里的评论，返回其中最早的一条。积压几条时一次返回一条，按发布顺序，其余在重挂后立即返回。`any` 对每个条件各对账一次，在第一个成立的条件处停止；`issue-closed` 成立后每次都先命中，它没有 id 可排除，需要评论记录时先读回带标记的评论。已满足就立即返回，标 `source: "reconcile"`。对账读不到时命令退出2，不继续等。旧格式事件在启动对账之后不再调用 GitHub API，到期前的保底对账除外。
 
 带 `receiver.mode=channel` 的事件只作提示。匹配事件和 connected/reconnected 诊断触发有界权威对账，频道提示本身不能放行。库调用必须同时提供明确 repository 与 reconcile，CLI 自动传入所选仓库。不匹配的仓库或缺失对账函数会失败。
 

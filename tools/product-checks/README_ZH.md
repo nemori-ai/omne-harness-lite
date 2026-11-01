@@ -195,7 +195,7 @@ pnpm run acceptance:scenarios
 pnpm --filter @omne-harness/product-checks run retire -- --wave B
 ```
 
-整波放行 R(w) 前运行的只读核对：按放行波次逐项扫描[退役表](retire-doubles.json)里的替身，报告三类问题，并列出每个契约成员 `./testing` 的清点表。它不在 `lint:rules` 的默认规则集里，不阻塞别的检查。根 `package.json` 的脚本入口由集成时单写。pnpm 会把 `run retire -- --wave B` 里的 `--` 原样传给脚本，命令忽略参数表里单独的 `--`。
+整波放行 R(w) 前运行的只读核对：按放行波次逐项扫描[退役表](retire-doubles.json)里的替身，报告三类问题，并列出每个契约成员 `./testing` 的清点表。它不在 `lint:rules` 的默认规则集里，不阻塞别的检查。目前没有根入口，从成员目录或用 `pnpm --filter @omne-harness/product-checks run retire` 运行。pnpm 会把 `run retire -- --wave B` 里的 `--` 原样传给脚本，命令忽略参数表里单独的 `--`。
 
 | 参数                     | 含义                                                                             |
 | ------------------------ | -------------------------------------------------------------------------------- |
@@ -221,7 +221,7 @@ pnpm --filter @omne-harness/product-checks run retire -- --wave B
 
 **退出码**：0 无问题；1 有问题（`--strict` 时含未映射）；2 表、检出或参数不可用，或表过期。
 
-**到期规则**：`dueBy` 在表里写明，命令不重新推导。依据是 Reduce 的替身退役裁定（2026-10-30 第 2 条）：`ownerKind` 为 `line` 的替身在落真件的那张线卡里同卡退役，`dueBy` 等于 `retireWave`；`reduce` 的替身在 `retireWave` 的下一波前段退役，`dueBy` 是下一波；`retireWave` 为 D 的替身在联调 D 之后、M2-E 之前退役，`dueBy` 写 `E`。C 类、`none` 类与退役波算不出的项 `dueBy` 为 null，永不到期。到 `dueBy` 的放行 R(w) 时必须已删；放行波次在 `dueBy` 之后的核对仍报。
+**到期规则**：`dueBy` 在表里写明，命令不重新推导。规则如下：`ownerKind` 为 `line` 的替身在落真件的那张线卡里同卡退役，`dueBy` 等于 `retireWave`；`reduce` 的替身在 `retireWave` 的下一波前段退役，`dueBy` 是下一波；`retireWave` 为 D 的替身在联调 D 之后、M2-E 之前退役，`dueBy` 写 `E`。C 类、`none` 类与退役波算不出的项 `dueBy` 为 null，永不到期。到 `dueBy` 的放行 R(w) 时必须已删；放行波次在 `dueBy` 之后的核对仍报。
 
 **表由谁维护**：Reduce 维护 `retire-doubles.json`。每次出现新替身或类别变化时更新；类别与导出名拿不准的行留空，不由写者猜。头部记录来源文件名、来源 SHA256 与刷新导出名所用的提交；刷新办法是在目标提交上列出各成员 `./testing` 的导出（本命令的清点表就是它），再按表项描述、提交说明与套件条款标签核对。每项的字段是 `id`、`category`（A、B、C、none）、`exports`、`exists`、`retireWave`、`dueBy`、`ownerKind`、`note`；`exists` 记这个替身在刷新所用的提交上是否已存在，没有它就分不出「尚未交付」与「已存在而没填导出名」。
 
@@ -229,7 +229,7 @@ pnpm --filter @omne-harness/product-checks run retire -- --wave B
 
 **已知限制**：
 
-- 引用查找是名字级的：`git grep -n -w`，只看 `packages/`、`apps/` 下已跟踪的脚本文件，与账本脚本 `retire.py` 同一口径。同名的无关符号会被报成引用（误报）；经别名或重命名导入的引用、动态拼出的名字找不到（漏报）。要精确需要走 TypeScript 引用解析，本命令不做。
+- 引用查找是名字级的：`git grep -n -w`，只看 `packages/`、`apps/` 下已跟踪的脚本文件，口径固定，命令不重新推导。同名的无关符号会被报成引用（误报）；经别名或重命名导入的引用、动态拼出的名字找不到（漏报）。要精确需要走 TypeScript 引用解析，本命令不做。
 - 定义文件按名字判定：声明在某个文件里的同名顶层声明都算定义，不区分它是不是表里那个替身。
 - 未跟踪、未提交的新文件看不见（`git grep` 只查已跟踪文件）。
 - A 类（装配替身）的拆除核对不在本命令内，它随联调进行；本命令只对 A 类有导出名的项做「是否仍在」的存在性检查。CS 目录本身（`apps/m2-contract-skeleton`）的删除也不查。

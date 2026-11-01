@@ -302,7 +302,7 @@ check 消费通过上述读取校验的持久 `processStartedAt`，并要求事�
 - 事件文件变短，或 inode 变了（文件被换成另一个），从头重读。重读到的已计过的 delivery 仍按去重忽略。
 - 事件文件不存在不算错误。读事件文件状态的其他错误使等待失败并退出2。
 - 旧格式事件行在文件中已有匹配时直接返回，不读 GitHub。带频道身份的行只触发权威对账，不能直接放行。
-- 启动对账。已有内容没有可信匹配时，调用注入的对账函数。旧格式事件此后不再调用 GitHub API。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。可信事件命中标 `source: "event"`。
+- 启动对账。已有内容没有可信匹配时，调用注入的对账函数。旧格式事件在启动对账之后不再调用 GitHub API，到期前的保底对账除外。`any` 对每个成员各调用一次，第一个命中的成员结束对账。事件在对账期间已经命中时，不再对后面的成员调用对账函数。对账命中时立即返回，输出标 `source: "reconcile"`。可信事件命中标 `source: "event"`。
 - 频道行的可选 `receiver` 包含非空 instanceId、repository、mode=channel、requiresReconcile=true。解析保留该信任标记；标记非法时整行无效，不降级成旧格式。频道行的 repository 必须等于调用者明确传入的 repository，且调用者必须提供 reconcile，否则等待失败。CLI 将已解析的 `--repo` 或 origin 仓库传入。
 - 频道业务行匹配谓词，或 receiver 的 connected/reconnected 诊断到达时，执行一次有界权威对账。仅权威结果能返回 `source: reconcile`。诊断可附 reasonCode、非负整数 connectionEpoch 和 coverage=coverage-gap；它不证明历史事件已完整重放。对账串行执行，对账期间收到的新触发保留到下一次读取；本地5秒检查不会自行触发平台轮询。
 - `any` 的输出多一个 `matched`，值是命中成员的谓词名。库层的 `any` 的成员可以是 `issue-closed`、`pr-ready` 与 `comment`，`wait-cli.ts any` 只组合 `issue-closed` 与 `comment`，所以命令输出的 `matched` 只会是这两个值。原子谓词的输出没有 `matched`。
