@@ -31,7 +31,7 @@ node apps/harness-server/dist/bin.js s0 --distribution <绝对 JSON 路径> [--o
 node apps/harness-server/dist/bin.js serve --distribution <绝对 JSON 路径> [--operator <绝对 JSON 路径>] --readiness-timeout-ms <正整数> --shutdown-deadline-ms <正整数> --state-root <绝对目录> [--stop-on-stdin-close]
 ```
 
-子命令是第一个参数。`bin.ts` 只解析参数、调用 `runS0` 或 `runServe` 并设置退出码。它不是 `omne` 命令的一部分，也不注册全局二进制。`s0` 的选项表、诊断文字与用法行保持原样。
+位置参数里有 `serve` 时，进程走真实模式。其他任何调用走 S0 的原解析路径：`parseArgs` 允许位置参数，子命令 `s0` 可在任意位置。这条路径的参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`bin.ts` 只解析参数、调用 `runS0` 或 `runServe` 并设置退出码。它不是 `omne` 命令的一部分，也不注册全局二进制。
 
 `serve` 另有两个参数：
 
@@ -162,7 +162,7 @@ S0 进程在输出 `startup-result` 之后自动发起计划停止。装载前�
 
 启动码非零时取启动码。启动期 `start` 抛出时，`outcome` 为 `start-failed`，退出码为 3，见「有序关闭」节「启动与停止状态」第 3 条。`serve` 里一个入口对象的 `install` 抛出时，入口不装载任何行，stderr 写 `serve: entry-object <名>: install failed`，错误消息不写进 stdout，然后发起计划停止，退出 3。这时没有行登记过句柄，关闭报告把预期登记者记为 `not-registered`。
 
-用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]`。子命令不是 `s0` 或 `serve` 时，stderr 写 `harness-server: expected subcommand s0 or serve`，再写两行用法。
+用法错误时，stderr 写 `<子命令>: <原因>`，再写该子命令的用法行。`s0` 的用法行不变：`usage: s0 --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n>`。`serve` 的用法行是：`usage: serve --distribution <abs json> [--operator <abs json>] --readiness-timeout-ms <n> --shutdown-deadline-ms <n> --state-root <abs dir> [--stop-on-stdin-close]`。位置参数里没有 `serve`，也不是恰好一个 `s0` 时（包括无参数），按 S0 路径处理，stderr 写 `s0: expected subcommand s0`，再写 `s0` 的用法行。位置参数里有 `serve` 但不是恰好一个 `serve` 时，stderr 写 `serve: expected subcommand serve`，再写 `serve` 的用法行。
 
 ## 有序关闭
 

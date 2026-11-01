@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // 进程入口：只解析参数、调用 `runS0` 或 `runServe`、设置退出码（s0-spec-r2 §2、§10；DP1-C1、C2）。
-// 子命令是第一个参数。`s0` 的选项表与文字保持原样；`serve` 另加 `--state-root` 与 `--stop-on-stdin-close`。
+// 位置参数里有 `serve` 时走真实模式，否则走 S0 的基线解析路径：`parseArgs` 允许位置参数，子命令可在任意位置，
+// 参数、输出、退出码与 stderr 文字与加入 `serve` 之前逐字节相同。`serve` 另加 `--state-root` 与 `--stop-on-stdin-close`。
 // 退出码：0 就绪且关闭 settled；2 配置、解析或装载前检查失败；3 有 FAILED、启动失败或入口对象安装失败；
 // 4 仍有 PENDING 或 LOADING；5 启动为 0 但关闭 incomplete；1 是未预期的内部错误。
 import { readFile, stat } from 'node:fs/promises'
@@ -20,6 +21,12 @@ const COMMON_OPTIONS = {
   operator: { type: 'string' },
   'readiness-timeout-ms': { type: 'string' },
   'shutdown-deadline-ms': { type: 'string' },
+} as const
+
+const SERVE_OPTIONS = {
+  ...COMMON_OPTIONS,
+  'state-root': { type: 'string' },
+  'stop-on-stdin-close': { type: 'boolean' },
 } as const
 
 function positiveInt(name: string, text: string | undefined): number {
@@ -68,7 +75,8 @@ async function commonOf(
   values: Readonly<{ [K in keyof typeof COMMON_OPTIONS]?: string }>,
   positionals: readonly string[],
 ): Promise<Common> {
-  if (positionals.length !== 0) throw new UsageError(`expected subcommand ${subcommand}`)
+  if (positionals.length !== 1 || positionals[0] !== subcommand)
+    throw new UsageError(`expected subcommand ${subcommand}`)
   const readinessTimeoutMs = positiveInt('readiness-timeout-ms', values['readiness-timeout-ms'])
   const shutdownDeadlineMs = positiveInt('shutdown-deadline-ms', values['shutdown-deadline-ms'])
   const distribution = await readJson('distribution', values.distribution, true)
@@ -99,11 +107,7 @@ async function mainServe(argv: readonly string[]): Promise<number> {
   const { positionals, values } = parseArgs({
     args: [...argv],
     allowPositionals: true,
-    options: {
-      ...COMMON_OPTIONS,
-      'state-root': { type: 'string' },
-      'stop-on-stdin-close': { type: 'boolean' },
-    },
+    options: SERVE_OPTIONS,
   })
   const common = await commonOf('serve', values, positionals)
   const root = await stateRoot(values['state-root'])
@@ -141,27 +145,39 @@ function isUsageError(error: unknown): boolean {
   return typeof code === 'string' && code.startsWith('ERR_PARSE_ARGS')
 }
 
-async function main(argv: readonly string[]): Promise<number> {
-  const [subcommand, ...rest] = argv
-  const known = subcommand === 's0' || subcommand === 'serve'
-  const prefix = known ? subcommand : 'harness-server'
-  const usage =
-    subcommand === 's0'
-      ? S0_USAGE
-      : subcommand === 'serve'
-        ? SERVE_USAGE
-        : `${S0_USAGE}\n${SERVE_USAGE}`
+/**
+ * True when `serve` is one of the positionals. The scan is lenient (unknown options never throw),
+ * so a malformed call without `serve` still reaches the S0 path and fails there with the S0 text.
+ */
+function selectsServe(argv: readonly string[]): boolean {
   try {
-    if (subcommand === 's0') return await mainS0(rest)
-    if (subcommand === 'serve') return await mainServe(rest)
-    throw new UsageError('expected subcommand s0 or serve')
+    const { positionals } = parseArgs({
+      args: [...argv],
+      allowPositionals: true,
+      strict: false,
+      options: SERVE_OPTIONS,
+    })
+    return positionals.includes('serve')
+  } catch {
+    return false
+  }
+}
+
+async function main(argv: readonly string[]): Promise<number> {
+  const serve = selectsServe(argv)
+  const prefix = serve ? 'serve' : 's0'
+  try {
+    return serve ? await mainServe(argv) : await mainS0(argv)
   } catch (error) {
     if (isUsageError(error)) {
-      process.stderr.write(`${prefix}: ${(error as Error).message}\n${usage}\n`)
+      process.stderr.write(`${prefix}: ${(error as Error).message}
+${serve ? SERVE_USAGE : S0_USAGE}
+`)
       return 2
     }
     process.stderr.write(
-      `${prefix}: internal error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+      `${prefix}: internal error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}
+`,
     )
     return 1
   }

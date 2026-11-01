@@ -23,7 +23,7 @@ S0 不接 HTTP，不创建租户，不打开业务状态根，不读真实秘密
 
 ## 使用
 
-先构建，再运行进程入口。子命令是第一个参数：
+先构建，再运行进程入口。位置参数里有 `serve` 时进入真实模式，其他调用按 S0 处理：
 
 ```sh
 pnpm --filter @omne-harness/harness-server run build

@@ -23,7 +23,7 @@ S0 does not open HTTP, create a tenant, open a business state root, or read a re
 
 ## Usage
 
-Build first, then run the process entry. The subcommand is the first argument:
+Build first, then run the process entry. A `serve` positional selects the real mode. Every other call follows the S0 path:
 
 ```sh
 pnpm --filter @omne-harness/harness-server run build
