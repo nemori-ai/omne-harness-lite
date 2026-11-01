@@ -126,6 +126,10 @@ describe('the configuration schema', () => {
       }),
     ).toMatch(/unknown field stepBond/u)
   })
+  it('refuses a null or non-object selection and does not fall back to the default', () => {
+    for (const selection of [null, 'default', 3, []])
+      expect(refused({ accounting, selection }), String(selection)).toMatch(/selection/u)
+  })
   it('refuses ready strategy objects together with a selection', () => {
     expect(refused({ accounting, policies: f.policies, selection: initial })).toMatch(
       /exclude each other/u,

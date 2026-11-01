@@ -37,7 +37,7 @@ Request Context 的机制实现成员，`module` 变体。
 
 ## 设计
 
-已实现的模块是来源登记表、账目投影，以及默认压缩策略、默认表示策略、修剪器与缺席的转换件结果读口三个无状态构造件；计划中的模块是候选缓存与派生物。包外运行依赖是 request-context-contract、model-contract（类型）、call-account 与 legal-identity。关键机制是：缓存键与 `PreparedInputKey`（RQ-13）相同，即来源代际、组一身份、六组令牌与派生规则的采用；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
+已实现的模块是来源登记表、账目投影，以及默认压缩策略、默认表示策略、修剪器与缺席的转换件结果读口三个无状态构造件；计划中的模块是候选缓存与派生物。包外运行依赖是 request-context-contract、model-contract（类型）、content-block、message、call-account 与 legal-identity。关键机制是：缓存键与 `PreparedInputKey`（RQ-13）相同，即来源代际、组一身份、六组令牌与派生规则的采用；按组失效，只重算受影响的层；失效来自变化通知，不来自时间或内容重哈希；派生物在输入变化时预计算；前缀比较只在锚点处做；默认策略只是配置初值；修剪器不改原记录与模型视图；计划进度不在本成员保存。模块与理由见[内部架构](docs/architecture.md)，三条机制流程见[机制流程](docs/flows.md)，内部对象见[对象模型](docs/object-model.md)。
 
 ## 配置与运行
 

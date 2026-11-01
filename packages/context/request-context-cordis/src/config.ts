@@ -105,7 +105,7 @@ export function selectPolicies(options: RequestContextProviderOptions): Assembly
       throw new TypeError('policies must hold a compaction and a representation strategy')
     return policies
   }
-  const wanted = selection ?? INITIAL_SELECTION
+  const wanted = selection === undefined ? INITIAL_SELECTION : selection
   if (!isRecord(wanted)) throw new TypeError('selection must be an object')
   closed(wanted, ['compaction', 'representation'], 'selection')
   return {

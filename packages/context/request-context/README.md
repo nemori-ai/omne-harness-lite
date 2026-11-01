@@ -39,7 +39,7 @@ The party that calls a factory owns the instance. `close()` of the registry refu
 
 ## Design
 
-The implemented modules are the source registry, the account projection, and three stateless constructors: the default compaction strategy (with the trimmer), the default representation strategy, and the absent conversion result reader. The planned modules are the candidate cache and the derivations. The outside run-time dependencies are request-context-contract, model-contract (types), call-account, and legal-identity. The key mechanisms are:
+The implemented modules are the source registry, the account projection, and three stateless constructors: the default compaction strategy (with the trimmer), the default representation strategy, and the absent conversion result reader. The planned modules are the candidate cache and the derivations. The outside run-time dependencies are request-context-contract, model-contract (types), content-block, message, call-account, and legal-identity. The key mechanisms are:
 
 - a cache key equal to `PreparedInputKey` (RQ-13): the source generation, the group-one identity, the six group tokens, and the adopted derivation rules
 - invalidation by group, so that only the affected layers are computed again
