@@ -6,9 +6,11 @@ import type {
   FacilityResult,
   FileSystemFacility,
   LeaseInvalidation,
+  ManagedResource,
   OriginalAcquisition,
   ProviderQuota,
 } from '@omne-harness/execution-environment-contract'
+import type { HostCommands } from './host-command.ts'
 import { createHostFilesEngine, type HostFilesEngine } from './host-files.ts'
 
 /** The per-tenant quota policy of a host files domain. Its values are configuration, not contract. */
@@ -35,7 +37,10 @@ export interface HostFilesDomain {
   /** The process instance this domain belongs to; a new process makes a new domain. */
   readonly instance: string
   readonly durability: 'process'
-  /** Retries the failed closes of every acquisition still releasing; answers how many remain. */
+  /**
+   * Retries the failed closes and the unconfirmed process stops of every acquisition still
+   * releasing; answers how many remain.
+   */
   maintain(): Promise<Readonly<{ pending: number }>>
 }
 
@@ -43,7 +48,7 @@ const defaultPerTenant = 64
 
 export type RecordState = 'open' | 'releasing' | 'settled'
 
-/** One acquisition of the domain: its original description, its facade and its owner tag. */
+/** One acquisition of the domain: its original description, its facades and its owner tag. */
 export type DomainRecord = {
   readonly owner: string
   readonly tenant: string
@@ -51,6 +56,8 @@ export type DomainRecord = {
   readonly fingerprint: string
   readonly generation: string
   readonly facade: TrackedFacade
+  /** The command side of this acquisition: its admission and the processes it started. */
+  readonly commands: HostCommands
   state: RecordState
   lease: EnvironmentLease | null
   invalidate: (value: LeaseInvalidation) => void
@@ -73,17 +80,31 @@ export type AdmitResult =
   | Readonly<{ kind: 'quotaExceeded' | 'globalCapacityExceeded' }>
   | Readonly<{ kind: 'unknown' }>
 
+/** `pending` lists the processes whose stop is not confirmed; in-flight work and open descriptors are not resources. */
+export type DrainResult =
+  | Readonly<{ kind: 'settled' }>
+  | Readonly<{ kind: 'pending'; resources: readonly ManagedResource[] }>
+
 /** The domain's internal surface for its providers. It is not part of the package's public entry. */
 export type DomainInternals = Readonly<{
   engine: HostFilesEngine
   quota(tenant: TenantId): ProviderQuota | undefined
   registerGeneration(generation: string): void
   knowsGeneration(generation: string): boolean
-  admit(original: OriginalAcquisition, fingerprint: string, generation: string): AdmitResult
+  /** `commands` makes the command side of a newly admitted acquisition; a repeat never calls it. */
+  admit(
+    original: OriginalAcquisition,
+    fingerprint: string,
+    generation: string,
+    commands: () => HostCommands,
+  ): AdmitResult
   find(original: OriginalAcquisition): DomainRecord | undefined
   records(): Iterable<DomainRecord>
-  /** Seals, waits up to `boundMs`, retries closes; settles exactly once when nothing is left. */
-  drain(record: DomainRecord, boundMs: number): Promise<'settled' | 'pending'>
+  /**
+   * Seals, waits up to `boundMs`, retries closes, force-stops the processes; settles exactly once
+   * when nothing is left.
+   */
+  drain(record: DomainRecord, boundMs: number): Promise<DrainResult>
 }>
 
 const internals = new WeakMap<HostFilesDomain, DomainInternals>()
@@ -245,19 +266,28 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     return { unit: 'unsettled-acquisition', perTenant: answer.perTenant, global: answer.global }
   }
 
-  const drain = async (record: DomainRecord, boundMs: number): Promise<'settled' | 'pending'> => {
-    if (record.state === 'settled') return 'settled'
+  const drain = async (record: DomainRecord, boundMs: number): Promise<DrainResult> => {
+    const settled: DrainResult = { kind: 'settled' }
+    if (record.state === 'settled') return settled
     record.facade.seal()
+    record.commands.seal()
     record.invalidate({ source: 'provider', reason: 'released' })
     if (record.state === 'open') record.state = 'releasing'
-    const quiet = await within(record.facade.settled(), boundMs)
+    const quiet = await within(
+      Promise.all([record.facade.settled(), record.commands.settled()]).then(() => undefined),
+      boundMs,
+    )
     const open = await engine.closeOwned(record.owner)
-    if (!quiet || open > 0 || record.facade.inFlight() > 0) return 'pending'
+    // A process still running is stopped by force: draining never leaves it to a later generation.
+    const resources = await record.commands.stopAll()
+    const busy = record.facade.inFlight() + record.commands.inFlight()
+    const pending: DrainResult = { kind: 'pending', resources }
+    if (!quiet || open > 0 || busy > 0 || resources.length > 0) return pending
     // Exactly one return of the slot: only the first drain that finds nothing left settles.
-    if (record.state !== 'releasing') return record.state === 'settled' ? 'settled' : 'pending'
+    if (record.state !== 'releasing') return record.state === 'settled' ? settled : pending
     record.state = 'settled'
     record.lease = null
-    return 'settled'
+    return settled
   }
 
   const domain: HostFilesDomain = {
@@ -267,7 +297,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
     async maintain() {
       let pending = 0
       for (const record of records.values())
-        if (record.state === 'releasing' && (await drain(record, 0)) === 'pending') pending++
+        if (record.state === 'releasing' && (await drain(record, 0)).kind === 'pending') pending++
       return { pending }
     },
   }
@@ -279,7 +309,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
       generations.add(generation)
     },
     knowsGeneration: generation => generations.has(generation),
-    admit(original, fingerprint, generation) {
+    admit(original, fingerprint, generation, commands) {
       const key = slotKey(original.tenant, original.acquisition)
       if (key === undefined) return { kind: 'unknown' }
       const existing = records.get(key)
@@ -302,6 +332,7 @@ export function createHostFilesDomain(options: HostFilesDomainOptions = {}): Hos
         fingerprint,
         generation,
         facade: trackedFacade(engine.facilityFor(owner)),
+        commands: commands(),
         state: 'open',
         lease: null,
         invalidate: () => undefined,

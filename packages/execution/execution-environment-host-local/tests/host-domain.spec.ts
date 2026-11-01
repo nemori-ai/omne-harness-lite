@@ -4,9 +4,11 @@
 // issued. Two test controls replace parts of `node:fs/promises`: `open` on a marked path waits for
 // the test, and `FileHandle.close` can fail while `closeFails` is set. File bytes, inodes and
 // descriptors are real.
+import { execFile } from 'node:child_process'
 import { mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { promisify } from 'node:util'
 import { afterEach, expect, it, vi } from 'vitest'
 import { tenantCodec, type TenantId } from '@omne-harness/legal-identity'
 import {
@@ -481,3 +483,64 @@ it('refuses to create a provider without a domain from this package', () => {
   )
   expect(() => createHostFilesDomain({ quotaDomain: '' })).toThrow(RangeError)
 })
+
+// Real processes in systemd user scopes: only on Linux with OMNE_HOST_COMMAND_LINUX=1.
+const withScopes = process.platform === 'linux' && process.env['OMNE_HOST_COMMAND_LINUX'] === '1'
+
+async function activeState(unit: string): Promise<string> {
+  const { stdout } = await promisify(execFile)('systemctl', [
+    '--user',
+    'show',
+    '-p',
+    'ActiveState',
+    '--value',
+    unit,
+  ])
+  return stdout.trim()
+}
+
+it(
+  'stops the processes of the drained acquisition only, and settles it once their stop is confirmed',
+  // Slow: starts real processes in systemd user scopes and waits for their stop.
+  { tags: ['slow'], skip: !withScopes },
+  async () => {
+    const domain = createHostFilesDomain()
+    const provider = createHostFilesProvider({ domain })
+    // A scope of its own: recovery elsewhere on this host reaches every unit of a scope.
+    const scope = scopeOf(`scope-domain-${String(Date.now())}-${String(process.pid)}`)
+    const firstInput = { ...inputFor(provider, 'first'), scope }
+    const first = await leaseOf(provider, firstInput)
+    const second = await leaseOf(provider, { ...inputFor(provider, 'second'), scope })
+    const start = async (lease: typeof first.lease, requestId: string) => {
+      const command = lease.facility('command')
+      if (command === undefined) throw new Error('expected the command facility')
+      const answer = await command.start({
+        requestId,
+        access: { principal: 'subject', tenant: tenantA },
+        origin: originRef('call-1'),
+        binding: host,
+        executable: '/bin/sleep',
+        args: ['300'],
+        cwd: '/',
+        env: {},
+        outputMode: 'separate',
+      })
+      if (answer.kind !== 'done') throw new Error(`expected a start: ${JSON.stringify(answer)}`)
+      return answer.value
+    }
+    const stopped = await start(first.lease, 'first-sleep')
+    const kept = await start(second.lease, 'second-sleep')
+    try {
+      expect(await first.lease.release()).toEqual({ kind: 'released' })
+      expect(await stopped.result).toMatchObject({ kind: 'failed', reason: 'effectUnknown' })
+      expect(await activeState(stopped.process.id)).toBe('inactive')
+      expect(await activeState(kept.process.id)).toBe('active')
+      expect(await provider.inspectAcquisition(originalOf(firstInput))).toEqual({
+        kind: 'settled',
+      })
+    } finally {
+      await kept.stop('forced')
+      await provider.retire()
+    }
+  },
+)

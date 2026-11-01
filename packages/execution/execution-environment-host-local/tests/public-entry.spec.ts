@@ -17,15 +17,25 @@ it('exports the host files facility, its object token reader, the domain and the
   for (const name of Object.keys(root)) expect(typeof root[name]).toBe('function')
 })
 
+// Every module the root entry reaches, and the gate script the command facility starts.
+const reachable = [
+  'index',
+  'host-files',
+  'host-domain',
+  'host-provider',
+  'host-command',
+  'host-scope',
+  'host-probe',
+  'command-gate',
+]
+
 it('keeps Cordis out of every module the root entry reaches', async () => {
   const directory = join(packageRoot, 'dist')
   const names = await readdir(directory).catch(() => undefined)
   const files =
     names === undefined
-      ? ['src/index.ts', 'src/host-files.ts', 'src/host-domain.ts', 'src/host-provider.ts'].map(
-          name => join(packageRoot, name),
-        )
-      : ['index.js', 'host-files.js', 'host-provider.js'].map(name => join(directory, name))
+      ? reachable.map(name => join(packageRoot, 'src', `${name}.ts`))
+      : reachable.map(name => join(directory, `${name}.js`))
   for (const file of files) {
     const source = await readFile(file, 'utf8')
     expect(source.includes('@deepseek-ai/cordis'), file).toBe(false)
