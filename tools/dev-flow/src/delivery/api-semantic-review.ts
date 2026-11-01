@@ -11,116 +11,49 @@ import { GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
 import { InputError, record as asRecord, text as asText } from './protocol.ts'
 import { strictJson } from './strict-json.ts'
 
-// ---------------------------------------------------------------------------------------------
-// Record types. The shapes equal record-types-r4.ts (6f468667...); only the names used here.
-// ---------------------------------------------------------------------------------------------
-export type Actor = { login: string; nodeId: string }
-export type Repository = { name: string; nodeId: string }
-export type Issue = { number: number; nodeId: string }
-export type CommentRef = { url: string; bodySha256: string; updatedAt: string }
-export type IdentityAdoption = { comment: CommentRef; authorNodeId: string }
-export type OwnerIdentityFact = { lineId: string; owner: Actor; adoption: IdentityAdoption }
-export type BindingInput = {
-  issue: Issue
-  revision: number
-  attempt: string
-  bindingSha256: string
-  dispatch: CommentRef
-}
-export type SourcePr = {
-  number: number
-  nodeId: string
-  bodySha256: string
-  head: string
-  baseRef: string
-}
-export type UnitInput = { commit: string; tagObject: string; pr: number }
-export type Scope =
-  | { kind: 'card'; card: BindingInput; base: string }
-  | {
-      kind: 'ri'
-      track: string
-      sourceBranch: string
-      base: string
-      carrier: Issue
-      units: UnitInput[]
-      prs: SourcePr[]
-      cards: BindingInput[]
-    }
-  | {
-      kind: 'milestone'
-      milestone: { number: number; nodeId: string; title: string }
-      baselineIssue: Issue
-      baselineSha256: string
-      registrations: CommentRef[]
-    }
-export type SnapshotFile = { path: string; sha256: string }
-export type ApiSide = {
-  commit: string
-  apiTree: string
-  packageName: string
-  snapshots: SnapshotFile[]
-}
-export type Comparison = {
-  repository: Repository
-  head: string
-  targetBranch: string
-  targetBase: string
-  authoritySha256: string
-  ownerIdentity: OwnerIdentityFact
-  tool: {
-    packageName: '@omne-harness/repo-toolchain'
-    version: '0.0.18'
-    typescriptVersion: string
-    lockSha256: string
-  }
-  scope: Scope
-  checkedMembers: string[]
-  reviewMembers: string[]
-  member: string
-  before: ApiSide
-  after: ApiSide
-  rawMemberSha256: string
-}
-export type ReviewPayload = {
-  comparison: Comparison
-  conclusion: 'additive' | 'breaking'
-  rationale: string
-  evidence: CommentRef[]
-  consumerScope: string
-}
-type Envelope = {
-  schemaVersion: 1
-  repository: Repository
-  operationId: string
-  responsible: Actor
-}
-export type Attest = Envelope & {
-  action: 'attest'
-  authority: { kind: 'owner' } | { kind: 'delegated'; grant: CommentRef }
-  review: ReviewPayload
-  replaces: CommentRef[]
-}
-export type Delegate = Envelope & {
-  action: 'delegate'
-  member: string
-  ownerIdentity: OwnerIdentityFact
-  reviewSha256: string
-  delegate: Actor
-}
-export type Revoke = Envelope & { action: 'revoke'; targets: CommentRef[]; reason: string }
-export type SemanticReviewRecord = Attest | Delegate | Revoke
+import type {
+  Actor,
+  ApiSide,
+  Attest,
+  BindingInput,
+  CommentRef,
+  Comparison,
+  Delegate,
+  IdentityAdoption,
+  Issue,
+  OwnerIdentityFact,
+  RecordFailureCode,
+  Repository,
+  Revoke,
+  ReviewPayload,
+  Scope,
+  SemanticReviewRecord,
+  SnapshotFile,
+  SourcePr,
+  UnitInput,
+} from './api-review-types.ts'
 
-/** The failure codes of the record boundary; each is a member of `FAILURE_EXIT` (section 7.1). */
-export type RecordFailureCode =
-  | 'api-review-missing'
-  | 'api-review-invalid'
-  | 'api-review-scope-mismatch'
-  | 'api-review-unauthorized'
-  | 'api-review-source-changed'
-  | 'api-review-revoked'
-  | 'api-review-conflict'
-  | 'api-review-input-unknown'
+export type {
+  Actor,
+  ApiSide,
+  Attest,
+  BindingInput,
+  CommentRef,
+  Comparison,
+  Delegate,
+  IdentityAdoption,
+  Issue,
+  OwnerIdentityFact,
+  RecordFailureCode,
+  Repository,
+  Revoke,
+  ReviewPayload,
+  Scope,
+  SemanticReviewRecord,
+  SnapshotFile,
+  SourcePr,
+  UnitInput,
+}
 
 export const RECORD_MARKER = 'omne-api-semantic-review:v1'
 

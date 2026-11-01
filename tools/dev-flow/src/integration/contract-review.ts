@@ -4,85 +4,58 @@
 // declared here.
 import { createHash } from 'node:crypto'
 
-export type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
+import type {
+  Actor,
+  AdoptionDiagnostic,
+  ApiSide,
+  AuthorityPathPresence,
+  BindingInput,
+  CommentRef,
+  Comparison,
+  Enablement,
+  Finding,
+  Issue,
+  Json,
+  MemberResolution,
+  MilestonePredicates,
+  OwnerIdentityFact,
+  OwnerLineResolution,
+  Repository,
+  ReviewFailureCode,
+  RunExit,
+  Scope,
+  SnapshotFile,
+  SourcePr,
+  UnitInput,
+} from '../delivery/api-review-types.ts'
 
-type Sha256 = string
-type Commit = string
+export type {
+  Actor,
+  AdoptionDiagnostic,
+  ApiSide,
+  AuthorityPathPresence,
+  BindingInput,
+  CommentRef,
+  Comparison,
+  Enablement,
+  Finding,
+  Issue,
+  Json,
+  MemberResolution,
+  MilestonePredicates,
+  OwnerIdentityFact,
+  OwnerLineResolution,
+  Repository,
+  ReviewFailureCode,
+  RunExit,
+  Scope,
+  SnapshotFile,
+  SourcePr,
+  UnitInput,
+}
+
 type RepoPath = string
-type NodeId = string
-type PositiveInteger = number
-
-export type Actor = { login: string; nodeId: NodeId }
-export type Repository = { name: string; nodeId: NodeId }
-export type Issue = { number: PositiveInteger; nodeId: NodeId }
-export type CommentRef = { url: string; bodySha256: Sha256; updatedAt: string }
-export type OwnerIdentityFact = {
-  lineId: string
-  owner: Actor
-  adoption: { comment: CommentRef; authorNodeId: NodeId }
-}
-export type BindingInput = {
-  issue: Issue
-  revision: PositiveInteger
-  attempt: string
-  bindingSha256: Sha256
-  dispatch: CommentRef
-}
-export type SourcePr = {
-  number: PositiveInteger
-  nodeId: string
-  bodySha256: Sha256
-  head: Commit
-  baseRef: string
-}
-export type UnitInput = { commit: Commit; tagObject: Commit; pr: PositiveInteger }
-export type Scope =
-  | { kind: 'card'; card: BindingInput; base: Commit }
-  | {
-      kind: 'ri'
-      track: string
-      sourceBranch: string
-      base: Commit
-      carrier: Issue
-      units: UnitInput[]
-      prs: SourcePr[]
-      cards: BindingInput[]
-    }
-  | {
-      kind: 'milestone'
-      milestone: { number: PositiveInteger; nodeId: string; title: string }
-      baselineIssue: Issue
-      baselineSha256: Sha256
-      registrations: CommentRef[]
-    }
-export type SnapshotFile = { path: RepoPath; sha256: Sha256 }
-export type ApiSide = {
-  commit: Commit
-  apiTree: Commit
-  packageName: string
-  snapshots: SnapshotFile[]
-}
-export type Comparison = {
-  repository: Repository
-  head: Commit
-  targetBranch: string
-  targetBase: Commit
-  authoritySha256: Sha256
-  ownerIdentity: OwnerIdentityFact
-  tool: {
-    packageName: '@omne-harness/repo-toolchain'
-    version: '0.0.18'
-    typescriptVersion: string
-    lockSha256: Sha256
-  }
-  scope: Scope
-  checkedMembers: RepoPath[]
-  reviewMembers: RepoPath[]
-  member: RepoPath
-  before: ApiSide
-  after: ApiSide
-  rawMemberSha256: Sha256
-}
+type Commit = string
 
 // One failure code, one exit code (candidate-r4.md 7.1). Exit 1: an established refusal.
 // Exit 2: the facts or the policy could not be established.
@@ -102,57 +75,7 @@ export const FAILURE_EXIT = {
   'api-review-breaking-route-required': 1,
   'api-review-input-unknown': 2,
   'api-review-policy-unavailable': 2,
-} as const satisfies Record<string, 1 | 2>
-export type ReviewFailureCode = keyof typeof FAILURE_EXIT
-export type RunExit = 0 | 1 | 2
-
-export type Finding = {
-  code: ReviewFailureCode
-  member: RepoPath | null
-  detail: Json
-}
-
-export type AuthorityPathPresence = {
-  path: RepoPath
-  targetBase: 'present' | 'absent'
-  candidate: 'present' | 'absent'
-}
-export type Enablement =
-  | { kind: 'enabled'; authoritySha256: Sha256 }
-  | { kind: 'entry-outside-root'; entryRealpath: string; root: string }
-  | { kind: 'presence'; rows: AuthorityPathPresence[] }
-  | { kind: 'oid-differs'; paths: RepoPath[] }
-  | { kind: 'unparsable'; path: RepoPath }
-
-export type OwnerLineResolution =
-  | { kind: 'unique'; lineId: string; ownerLogin: string }
-  | { kind: 'unresolved'; lineIds: string[] }
-export type AdoptionDiagnostic =
-  | { kind: 'consistent' }
-  | { kind: 'drifted'; fields: ('url' | 'bodySha256' | 'updatedAt' | 'authorNodeId')[] }
-  | { kind: 'unreadable'; reason: string }
-
-export type MemberResolution = {
-  member: RepoPath
-  rawClassification: 'none' | 'additive' | 'review'
-  semanticClassification: 'additive' | 'breaking' | null
-  requiredLevel: 'none' | 'additive' | 'breaking'
-  record: CommentRef | null
-  authority: Actor | null
-  identity: {
-    line: OwnerLineResolution
-    loginCaseOnly: boolean
-    adoption: AdoptionDiagnostic
-  } | null
-}
-
-export type MilestonePredicates = {
-  rawExitMatchesRefused: boolean
-  inputComplete: boolean
-  everyReviewAttestedAdditive: boolean
-  noBreakingConclusion: boolean
-  noFindingsAndStableReads: boolean
-}
+} as const satisfies Record<ReviewFailureCode, 1 | 2>
 
 // ---------------------------------------------------------------------------------------------
 // H and Comparison equality (section 4)

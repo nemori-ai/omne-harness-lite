@@ -3,42 +3,33 @@
 // manifest, and checks the join against the platform. The platform only confirms; it never
 // writes or completes an anchor. The caller supplies both parsed files and the `gh` read.
 import { createHash } from 'node:crypto'
+import type {
+  Actor,
+  AdoptionDiagnostic,
+  CommentRef,
+  IdentityAdoption,
+  IdentityFailureCode,
+  Json,
+  OwnerIdentityFact,
+  OwnerIdentityManifest,
+  OwnerLineResolution,
+  Repository,
+} from './api-review-types.ts'
 import { publishReviewers } from './baseline.ts'
 import { GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
 import type { DeliveryLines } from './lines.ts'
 
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
-type Sha256 = string
-export type Actor = { login: string; nodeId: string }
-export type Repository = { name: string; nodeId: string }
-export type CommentRef = { url: string; bodySha256: Sha256; updatedAt: string }
-export type IdentityAdoption = { comment: CommentRef; authorNodeId: string }
-/** The accepted anchor of one line owner. Same shape as the frozen `OwnerIdentityFact`. */
-export type OwnerIdentityFact = { lineId: string; owner: Actor; adoption: IdentityAdoption }
-export type OwnerIdentityManifest = {
-  schemaVersion: 1
-  repository: Repository
-  owners: OwnerIdentityFact[]
+export type {
+  Actor,
+  AdoptionDiagnostic,
+  CommentRef,
+  IdentityAdoption,
+  IdentityFailureCode,
+  OwnerIdentityFact,
+  OwnerIdentityManifest,
+  OwnerLineResolution,
+  Repository,
 }
-export type OwnerLineResolution =
-  | { kind: 'unique'; lineId: string; ownerLogin: string }
-  | { kind: 'unresolved'; lineIds: string[] }
-/** Online re-read of the adoption comment. A diagnostic only; it never changes a verdict. */
-export type AdoptionDiagnostic =
-  | { kind: 'consistent' }
-  | { kind: 'drifted'; fields: ('url' | 'bodySha256' | 'updatedAt' | 'authorNodeId')[] }
-  | { kind: 'unreadable'; reason: string }
-
-/** The failure codes this reader can return, each with its exit code (candidate r4, 7.1). */
-export const IDENTITY_FAILURE_EXIT = {
-  'api-review-owner-unresolved': 1,
-  'api-review-owner-identity-missing': 1,
-  'api-review-owner-identity-mismatch': 1,
-  'api-review-unauthorized': 1,
-  'api-review-source-changed': 1,
-  'api-review-input-unknown': 2,
-} as const satisfies Record<string, 1 | 2>
-export type IdentityFailureCode = keyof typeof IDENTITY_FAILURE_EXIT
 export type IdentityFinding = { code: IdentityFailureCode; member: string; detail: Json }
 
 export type OwnerIdentityReading = {
