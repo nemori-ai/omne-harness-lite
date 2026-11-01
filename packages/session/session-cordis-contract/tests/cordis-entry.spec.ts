@@ -12,6 +12,9 @@ const documentedPairs = {
   sessionAccessCheckKey: 'SessionAccessCheckService',
   sessionTransactionsKey: 'SessionTransactionPortService',
   sessionPrincipalsKey: 'SessionInternalPrincipalsService',
+  sessionDelegatedTransactionsKey: 'SessionDelegatedTransactionsService',
+  sessionWorkPrincipalsKey: 'SessionWorkPrincipalsService',
+  sessionPrincipalBindingsKey: 'SessionPrincipalBindingsService',
   sessionIdentityKey: 'SessionIdentityBridgeService',
   sessionEvidenceKey: 'SessionEvidenceBridgeService',
   sessionClockKey: 'SessionClockService',
@@ -31,6 +34,9 @@ const documentedKeys = {
   sessionAccessCheckKey: 'sessionAccessCheck',
   sessionTransactionsKey: 'sessionTransactions',
   sessionPrincipalsKey: 'sessionPrincipals',
+  sessionDelegatedTransactionsKey: 'sessionDelegatedTransactions',
+  sessionWorkPrincipalsKey: 'sessionWorkPrincipals',
+  sessionPrincipalBindingsKey: 'sessionPrincipalBindings',
   sessionIdentityKey: 'sessionIdentity',
   sessionEvidenceKey: 'sessionEvidence',
   sessionClockKey: 'sessionClock',
@@ -46,7 +52,7 @@ const documentedKeys = {
 } as const
 
 describe('the ./cordis entry', () => {
-  it('exports exactly the sixteen classes and their keys', () => {
+  it('exports exactly the nineteen classes and their keys', () => {
     expect(Object.keys(cordis).sort()).toEqual(
       [...Object.keys(documentedPairs), ...Object.values(documentedPairs)].sort(),
     )

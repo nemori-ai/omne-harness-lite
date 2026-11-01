@@ -15,15 +15,22 @@ export {
   type ConformanceCase,
 } from './testing-case.ts'
 export {
+  createMemorySessionTransactionPair,
   createMemorySessionTransactions,
   memorySessionTransactionsFixture,
   pendingReasonsOf,
   sessionTransactionsConformance,
+  type MemorySessionTransactionPair,
   type MemorySessionTransactions,
   type MemorySessionLogTransactions,
   type MemoryInitializationTransactions,
   type SessionTransactionsFixture,
 } from './testing-transactions.ts'
+export {
+  memorySessionDelegatedTransactionsFixture,
+  sessionDelegatedTransactionsConformance,
+  type SessionDelegatedTransactionsFixture,
+} from './testing-delegated.ts'
 export {
   createMemorySessionClock,
   createMemorySessionContextInput,

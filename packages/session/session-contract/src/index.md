@@ -21,7 +21,8 @@
 - [testing-access.ts](testing-access.ts)：显式逐次裁定、请求记录与异常脚本的独立访问检查替身
 - [testing-case.ts](testing-case.ts)：套件的用例形状与断言助手
 - [testing-values.ts](testing-values.ts)：合法测试值
-- [testing-transactions.ts](testing-transactions.ts)：事务端口的替身与一致性套件
+- [testing-transactions.ts](testing-transactions.ts)：事务端口的替身与一致性套件，以及共用同一内存核心的委派入口
+- [testing-delegated.ts](testing-delegated.ts)：委派视图的符合性套件与内存 fixture
 - [testing-ports.ts](testing-ports.ts)：身份桥、证据桥、Context 输入与时钟的替身
 
 - [decision-support.ts](decision-support.ts)：判定共用的证据、采用与终态批次

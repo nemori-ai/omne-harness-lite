@@ -11,6 +11,7 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [entries.spec.ts](entries.spec.ts)：四个入口、清单、不含 Cordis 的根、禁用名
 - [services.spec.ts](services.spec.ts)：三个服务定义
+- [tenant-domain-lookup.spec.ts](tenant-domain-lookup.spec.ts)：目录查找的替身、套件自证与 `TenantDomainLookupService` 装载
 - [digest.spec.ts](digest.spec.ts)：输入摘要与清单摘要
 - [manifest.spec.ts](manifest.spec.ts)：组合有效性
 - [memory-commit.spec.ts](memory-commit.spec.ts)：替身的 commit
