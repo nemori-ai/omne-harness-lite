@@ -215,6 +215,29 @@ const cases = <P>(fixture: ContextHolderSourcesFixture<P>): ContextHolderSources
     },
   },
   {
+    name: 'closing-holder-lends-no-new-lease',
+    clause:
+      'K-RQ lease 3: once the holder has begun to close its reads, a new lease is answered unavailable',
+    async run() {
+      const ctx = new Context()
+      const holder = await fixture.start(ctx)
+      const kept = ctx.get(contextHolderSourcesKey)
+      if (kept === undefined) throw new Error('The holder provides no contextHolderSources')
+      const settlement = gatedSettlement()
+      await borrow(ctx, settlement.settle)
+      const stopping = holder.stop()
+      await drain()
+      expectThat(!holder.readsClosed(), 'a pending settlement keeps the holder closing')
+      const late = readySettlement()
+      const result = kept.lease({ settle: late.settle })
+      expectThat(result.kind === 'unavailable', `expected unavailable, got ${result.kind}`)
+      expectThat(late.calls() === 0, 'a lease that was not lent pulls no settlement')
+      settlement.finish()
+      await stopping
+      expectThat(holder.readsClosed(), 'the reads close after the settlement has ended')
+    },
+  },
+  {
     name: 'every-call-checks-the-current-access',
     clause: 'K-RQ lease 5: every call of every part checks the current eligibility of its access',
     async run() {

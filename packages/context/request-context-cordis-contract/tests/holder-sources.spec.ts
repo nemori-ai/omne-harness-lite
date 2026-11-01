@@ -97,6 +97,7 @@ describe('contextHolderSources conformance against the memory holder', () => {
       'reads-stay-open-until-the-settlement-ends',
       'borrower-unload-ends-the-lease',
       'holder-stop-waits-for-an-unloading-borrower',
+      'closing-holder-lends-no-new-lease',
       'every-call-checks-the-current-access',
     ])
   })

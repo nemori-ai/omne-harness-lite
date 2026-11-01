@@ -33,15 +33,23 @@
     "@deepseek-ai/cordis": "catalog:",
     "@omne-harness/agent-contract": "workspace:*",
     "@omne-harness/agent-cordis-contract": "workspace:*",
+    "@omne-harness/json-text": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/message": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
+    "@omne-harness/model-cordis-contract": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/request-context": "workspace:*",
     "@omne-harness/request-context-contract": "workspace:*",
-    "@omne-harness/request-context-cordis-contract": "workspace:*"
+    "@omne-harness/request-context-cordis-contract": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*",
+    "@omne-harness/runtime-context-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/call-account": "workspace:*",
-    "@omne-harness/request-context": "workspace:*",
     "@omne-harness/request-context-cordis": "workspace:*",
+    "@omne-harness/runtime-context": "workspace:*",
+    "@omne-harness/runtime-context-cordis": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
