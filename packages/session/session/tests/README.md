@@ -20,7 +20,7 @@
 | --- | --- | --- |
 | [public-entry.spec.ts](public-entry.spec.ts) | 快 | 根入口的运行时导出（经 `dist`，先构建） |
 | [conformance.spec.ts](conformance.spec.ts) | 快 | session-contract 的事务套件经四个面运行，内存替身对 |
-| [conformance-sql.spec.ts](conformance-sql.spec.ts) | 慢 | 同一套件与计次、跨租户，真实 sqlite-provider 上的 SQL 提供者对。J40、SL10 钉在存储缺陷上，见文件开头 |
+| [conformance-sql.spec.ts](conformance-sql.spec.ts) | 慢 | 同一套件与计次、跨租户，真实 sqlite-provider 上的 SQL 提供者对 |
 | [access.spec.ts](access.spec.ts) | 快 | 每次面操作一次 `check`、`changed` 重做不追加；CP-01 第 1 步的失败分支；调用方类；另一租户 |
 | [pipeline.spec.ts](pipeline.spec.ts) | 快 | CP-01 的认回、事务外拒绝、材料拥有者、`changed` 上限、未知结局、通知与关闭 |
 | [construction.spec.ts](construction.spec.ts) | 快 | 启动条件与 `SchedulingPolicy` 的逐字段核对 |

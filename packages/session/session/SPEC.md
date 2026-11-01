@@ -408,7 +408,7 @@
 
 成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
 
-- session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，19 例通过，J40 与 SL10 两例钉在存储缺陷上。缺陷是 session-storage-sql 的 `session.history` 读处理器有一条语句没有 `LIMIT`，真实读端口答 `read_port_violation`。套件直接驱动 SQL 端口时，这两例同样失败。缺陷修复后这两例变红，届时删除钉住。
+- session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，21 例全部通过。
 - [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
 - 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
 
