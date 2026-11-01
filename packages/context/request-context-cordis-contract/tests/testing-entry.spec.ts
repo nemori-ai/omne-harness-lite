@@ -23,6 +23,8 @@ describe('the ./testing subpath (C3)', () => {
       new URL('../dist/testing/index.js', import.meta.url).href
     )) as Record<string, unknown>
     expect(Object.keys(built).sort()).toEqual([
+      'contextHolderSourcesConformance',
+      'createMemoryContextHolder',
       'createScriptedRequestContextTrust',
       'requestContextTrustConformance',
     ])
@@ -47,7 +49,14 @@ describe('the ./testing subpath (C3)', () => {
     expect(JSON.parse(read('package.json')).exports['.']).not.toHaveProperty('testing')
   })
   it('the root source and build carry no Cordis runtime dependency', () => {
-    for (const path of ['src/index.ts', 'src/trust.ts', 'dist/index.js', 'dist/trust.js'])
+    for (const path of [
+      'src/index.ts',
+      'src/trust.ts',
+      'src/holder-sources.ts',
+      'dist/index.js',
+      'dist/trust.js',
+      'dist/holder-sources.js',
+    ])
       expect(read(path), path).not.toContain('@deepseek-ai/cordis')
   })
 })

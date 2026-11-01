@@ -1,6 +1,6 @@
 # Request Context 的 Cordis 定义
 
-本页是 Request Context 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、事件、依赖分类、登记与撤除协议、策略选择，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 10。纯操作、提示词贡献的两类与组装规则归 [request-context-contract SPEC](../../request-context-contract/SPEC.md)。缓存、预计算派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。Service 实现、贡献登记表、isolate 绑定与撤除归 [request-context-cordis](../../request-context-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
+本页是 Request Context 这一接缝的 Cordis 定义正文：服务键、抽象 `Service`、intercept 配置、事件、依赖分类、登记与撤除协议、策略选择，以及它们怎样符合 IC 约定。性质编号指本成员 [SPEC](../SPEC.md#结果与不变量) 的性质 1 至 17。纯操作、提示词贡献的两类与组装规则归 [request-context-contract SPEC](../../request-context-contract/SPEC.md)。缓存、预计算派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。Service 实现、贡献登记表、isolate 绑定与撤除归 [request-context-cordis](../../request-context-cordis/docs/cordis.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)，本页不复制。
 
 现状：三个入口已实现（根入口、`./cordis`、`./testing`）；精确导出归[公开接口](public-api.md)。本成员只含抽象定义，不含生产登记表。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，没有进入 basis 的机制写明是假设。
 
@@ -8,7 +8,7 @@
 
 | 定义               | 形状                                                                                                                                                           | 依据                                                                                                                                                                   |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 服务键             | 三个：`requestContext`、`requestContextTrust`、`contextAccountingInbox`，各由对应抽象类的 `static readonly provide` 给出。`./cordis` 导出的键常量取自它（`requestContextKey`、`requestContextTrustKey`、`contextAccountingInboxKey`）。提供者不另写键 | 性质 1，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7)     |
+| 服务键 | 四个：`requestContext`、`requestContextTrust`、`contextAccountingInbox`、`contextHolderSources`，各由对应抽象类的 `static readonly provide` 给出。`./cordis` 导出的键常量取自它（`requestContextKey`、`requestContextTrustKey`、`contextAccountingInboxKey`、`contextHolderSourcesKey`）。提供者不另写键 | 性质 1，[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[IC-7](../../../../docs/architecture/cordis-integration-conventions.md#ic-7) |
 | 抽象类             | `RequestContextService extends Service`，构造函数以 `RequestContextService.provide` 调 `super`。它 `implements` 契约根入口的登记面操作类型，同一组签名不写两份 | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)                                                                                   |
 | 类的 JSDoc         | `@owner packages/context/request-context-contract`。登记面出自协议形状，没有契约 ID，所以写 `@owner`，不写 `@contract`                                         | 性质 2，[IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3)                                                                                   |
 | intercept 配置类型 | `{ scope: ScopeRef \| null }`，由贡献者插件以对象形式 `inject` 声明；`null` 表示全局层                                                                         | 性质 4、7                                                                                                                                                              |
@@ -25,7 +25,7 @@
 | `register`、`replace` | 来源适配者 | 逐签名投影 `ContextSourceRegistry`。登记即效应：登记挂在调用者 fiber 上，fiber 撤除只触发对应句柄的 `withdraw()`，不等待结算。`target.tenant` 显式传入并由提供者构造时注入的登记授权核验，intercept 作用域与 fiber 都不是租户授权（性质 2、11） |
 | `assembly(target)` | 要组装请求的调用方，例如协调者一侧的适配器 | 返回一组操作，已按该 isolate 的配置绑定选定的策略，只借用该目标当前登记的来源集合；目标没有登记时返回不可用（来源登记）。提供者不 `inject` 作用域持有者或模型侧的服务。操作组每次调用时从登记面现取该作用域适用的贡献，替换第四组读口给出的贡献；第四组令牌覆盖登记面实例的代次与两层修订。目标的作用域与组装上下文、历史依据的作用域引用不一致时返回无效。服务撤除时提供者关闭登记表，等待全部来源集合结算（性质 2、11） |
 
-`assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组：提供者按配置选的策略与登记表经这个入口起作用。独立调用方不经服务，用契约根入口的 `createAssemblyOperations` 绑定自己的来源集合。两条路径执行同一读取协议，差别只在第四组的贡献集合：托管路径由服务从登记面现取，独立路径由来源集合的第四组读口给出。`requestContext` 之外的两个键是信任服务与账目收件口服务的键（见[信任服务与账目收件口服务](#信任服务与账目收件口服务)），本成员不为登记面再定义键，也不为每个贡献者或每个作用域建服务。
+`assemble`、`planCompaction` 这类纯操作不直接写成服务方法。它们的类型由 [request-context-contract](../../request-context-contract/docs/public-api.md) 的根入口定义（性质 2）。经 Cordis 的调用方用 `assembly(target)` 取得已配置的操作组：提供者按配置选的策略与登记表经这个入口起作用。独立调用方不经服务，用契约根入口的 `createAssemblyOperations` 绑定自己的来源集合。两条路径执行同一读取协议，差别只在第四组的贡献集合：托管路径由服务从登记面现取，独立路径由来源集合的第四组读口给出。`requestContext` 之外的三个键是信任服务、账目收件口服务与持有者部件服务的键（见[信任服务与账目收件口服务](#信任服务与账目收件口服务)、[持有者部件服务](#持有者部件服务)），本成员不为登记面再定义键，也不为每个贡献者或每个作用域建服务。
 
 ## 信任服务与账目收件口服务
 
@@ -37,7 +37,25 @@
 
 登记写入与远端撤权的原子排序不在本成员的保证内。`allowed` 不含同步 current。
 
-`./testing` 的套件与脚本替身见 [SPEC](../SPEC.md#结果与不变量) 性质 15。套件有九个用例，每个用例对应一条登记规则：同主体跨租户键不混同、伪造主体、替换别人的 expected、owner 完整采用身份参与核对、权威的 denied 与 unknown 及 unavailable 被原样返回、来源集合不能自授登记、撤权后的 replace、旧代撤除不删后继、关闭后拒绝登记。套件不替代 request-context 的既有组装符合性套件。
+`./testing` 的信任套件与脚本替身见 [SPEC](../SPEC.md#结果与不变量) 性质 15，持有者部件套件与内存持有者替身见性质 17。套件有九个用例，每个用例对应一条登记规则：同主体跨租户键不混同、伪造主体、替换别人的 expected、owner 完整采用身份参与核对、权威的 denied 与 unknown 及 unavailable 被原样返回、来源集合不能自授登记、撤权后的 replace、旧代撤除不删后继、关闭后拒绝登记。套件不替代 request-context 的既有组装符合性套件。
+
+## 持有者部件服务
+
+`ContextHolderSourcesService<P>` 在 `./cordis` 定义，键 `contextHolderSources` 只在抽象类的 `static readonly provide` 写一次，常量 `contextHolderSourcesKey` 取自它。类实现根入口的 `ContextHolderSources<P>`，只有一个抽象方法 `lease`。聚合类型与部件类型在根入口，所以根入口仍不依赖 Cordis。
+
+这项服务把两件事分给两方：来源持有者拥有读口，借用方登记来源集合。借用方用部件组成来源集合，再经 `register` 登记；`register` 的效应落在借用方的 fiber 上（性质 11）。读口仍归来源持有者，所以 [RQ-12](../../request-context-contract/SPEC.md#rq-12-来源集合与登记面) 的「来源持有者等 `settled` 之后才可关闭自己借出的读口」仍由来源持有者履行。`settled` 经租借到达持有者：
+
+| 步骤 | 谁做 | 做什么 |
+| ---- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1 | 借用方 | 在自己的插件体里调用 `lease({ settle })`。持有者在方法里用 `this.ctx.effect` 登记租借，效应落在借用方的 fiber 上（[service-method-ctx-is-caller](../../../../.meta_harness/design/basis/cordis/service-method-ctx-is-caller.md)） |
+| 2 | 借用方 | 用租借的四个部件组成来源集合并登记。登记多少个、何时登记，由借用方决定 |
+| 3 | 借用方或 Cordis | 借用方调用 `release()`，或借用方 fiber 卸载。两条路径走同一个撤除函数，第二次调用不做任何事 |
+| 4 | 持有者 | 在撤除函数里调用借用方的结算函数一次。结算函数撤除借用方的全部登记，合成各 `settled` 后返回 |
+| 5 | 持有者 | 服务撤除时，禁止新的租借，等全部租借结束、全部结算结束，再关闭读口 |
+
+结算用拉取，不用推送。持有者的撤除、借用方的撤除与登记表为句柄登记的撤除在同一次卸载里并发运行，没有次序（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。若由借用方在交还时交出 `settled`，租借撤除先于借用方自己的撤除运行时，持有者会收到没有 `settled` 的交还并提前关闭读口。拉取时，`settled` 的取得跟随租借撤除本身，与次序无关。固定 Cordis 4.0.4 的本地读数：持有者的撤除函数开始等待之后，借用方仍随依赖缺席卸载，所以「持有者先开始关闭」不会死锁。这一条读数由 [holder-sources.spec.ts](../tests/holder-sources.spec.ts) 对内存替身运行的套件用例覆盖，没有进入共同 basis。
+
+键只是交付路径，不是访问控制。每个部件在每次调用时按本次 `Access` 核当前资格（性质 16）。
 
 ## intercept 配置与作用域
 
@@ -80,6 +98,8 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发�
 | 组装请求或读取贡献集合的调用方，例如协调者一侧的适配器                       | 数组形式 `inject: ['requestContext']`，来源适配者调用 `register` 或 `replace`，组装方调用 `assembly(target)`，或调用 `contributions(scope)`                                                                                          | 提供者不在场时插件停在 `PENDING`。不能把服务缺席当成「没有贡献」，否则会组装出缺少系统提示词的候选                                                                                                             |
 | 只监听变化事件的一方                                                         | 不 `inject`。用 `ctx.on` 监听事件，类型增补用 `import type {} from '@omne-harness/request-context-cordis-contract/cordis'` 取得（[IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9)） | 提供者不在场时收不到事件。正确性不依赖事件                                                                                                                                                                     |
 | 提供者 [request-context-cordis](../../request-context-cordis/docs/cordis.md) | `extends RequestContextService`，不另写键，不自己 `ctx.provide` 这个键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）                                                          | 不适用                                                                                                                                                                                                         |
+| 借用方：登记来源集合的一方 | 数组形式 `inject: ['contextHolderSources']`，在插件体里调用 `lease({ settle })` | 持有者换代，借用方插件体先卸载再重跑。旧租借随旧 fiber 结束，持有者拉取旧结算；重跑后重新取得租借并重新登记 |
+| 来源持有者 | `extends ContextHolderSourcesService`，不另写键 | 不适用 |
 | 只需要契约类型或纯操作的包                                                   | 从 [request-context-contract](../../request-context-contract/README.md) 根入口导入。不需要本成员                                                                                                                | 不适用                                                                                                                                                                                                         |
 
 依赖方只引用本成员与契约成员，不导入提供者的实现入口（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。提供者选择归应用装配。
@@ -130,10 +150,10 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发�
 | [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次                  | 键只在 `RequestContextService.provide`，键常量取自它，提供者 `extends` 不写键                          | [导出测试](../tests/cordis-entry.spec.ts) 核对键与 provide                              |
 | [IC-3](../../../../docs/architecture/cordis-integration-conventions.md#ic-3) 抽象 Service 与 `@owner`        | 抽象类 `implements` 登记面操作类型，JSDoc 写 `@owner packages/context/request-context-contract`        | [源码](../src/cordis.ts)                                                                |
 | [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关            | 根入口只重导出契约类型，Cordis 定义只在 `./cordis`                                                     | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有运行导出            |
-| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者     | 本成员定义三个键：`requestContext`、`requestContextTrust`、`contextAccountingInbox`，每个键只写一次。重复装载的处置归提供者                                                             | 归 [request-context-cordis](../../request-context-cordis/docs/cordis.md#ic-符合性映射)  |
+| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 本成员定义四个键：`requestContext`、`requestContextTrust`、`contextAccountingInbox`、`contextHolderSources`，每个键只写一次。重复装载的处置归提供者 | 归 [request-context-cordis](../../request-context-cordis/docs/cordis.md#ic-符合性映射) |
 | [IC-10](../../../../docs/architecture/cordis-integration-conventions.md#ic-10) 事件命名                      | `request-context-cordis-contract/changed`：范围是本包名，过去分词表示通知                              | [源码](../src/cordis.ts)                                                                |
 | [IC-11](../../../../docs/architecture/cordis-integration-conventions.md#ic-11) 事件增补位置                  | 在 `./cordis` 增补 `Events`，JSDoc 写 `@mode emit` 与 `@param`                                         | [源码](../src/cordis.ts)                                                                |
-| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应                    | 两个登记方法在方法里 `this.ctx.effect` 登记并返回撤除函数，不采用目录写法                              | 效应归属有 basis。撤除验证归提供者                                                      |
+| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 两个登记方法在方法里 `this.ctx.effect` 登记并返回撤除函数，不采用目录写法。`lease` 把租借登记在借用方 fiber 上，`release()` 与 fiber 卸载走同一个撤除函数 | 效应归属有 basis。撤除验证归提供者；租借的五条由 `contextHolderSourcesConformance` 验证 |
 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验                      | 本成员定义策略选择的配置形状，校验与失败归提供者                                                       | 归 [request-context-cordis](../../request-context-cordis/docs/cordis.md#配置与策略选择) |
 | [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17) 作用域不是 Context 或 isolate | 作用域是不透明键，经 intercept 配置或 `contributions(scope)` 的参数进入。不为作用域建 fiber 或 isolate | [源码](../src/cordis.ts)                                                                |
 | [IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 租户与资格是参数              | intercept 配置只声明作用域，不授予资格                                                                 | [源码](../src/cordis.ts)                                                                |
@@ -165,7 +185,8 @@ Cordis 4.0.4 的派发对用 `{ global: true }` 注册的监听者不做派发�
 
 - 根入口没有运行导出，也不导入 `@deepseek-ai/cordis`。
 - `./cordis` 的源码、生成声明和产物不导入 `@omne-harness/request-context` 或 `@omne-harness/request-context-cordis`（性质 10）。
-- 导出的键常量等于 `RequestContextService.provide`。
+- 导出的键常量等于 `RequestContextService.provide`，`contextHolderSourcesKey` 等于 `ContextHolderSourcesService.provide`。
+- 持有者部件套件的十个用例对内存持有者替身全部通过（[holder-sources.spec.ts](../tests/holder-sources.spec.ts)）。
 
 继承这些定义的提供者持续验证八项：贡献者卸载后登记撤除，同层重名拒绝，作用域层遮蔽全局层，带逐请求变量的段被拒绝，变化事件带该层修订与实例代次，别的作用域的贡献变化不使本作用域的提示词键变化，`assembly(target)` 只用该目标当前登记的来源集合、目标没有登记时不可用，来源集合的登记随登记者 fiber 撤除且旧句柄撤除不删后继。这些义务归 [request-context-cordis](../../request-context-cordis/docs/cordis.md#验证义务)。
 
