@@ -279,7 +279,7 @@ export class Domains {
   /** Closes every Worker. In-flight requests finish first: the close message queues behind them. */
   async closeAll(): Promise<void> {
     const closing: Promise<void>[] = []
-    for (const entry of [...this.entries.values()]) {
+    for (const entry of Array.from(this.entries.values())) {
       if (entry.state === 'opening')
         closing.push(
           entry.opening.then(async outcome => {

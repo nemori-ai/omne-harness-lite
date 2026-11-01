@@ -15,7 +15,7 @@ const notJson: [string, unknown][] = [
   ['symbol', Symbol('s')],
   ['cycle', cycle],
   ['sparse array', [1, , 3]], // eslint-disable-line no-sparse-arrays
-  ['array of holes', new Array<unknown>(2)],
+  ['array of holes', Object.assign([] as unknown[], { length: 2 })],
   ['array with an extra own key', Object.assign([1], { extra: 1 })],
   ['accessor property', Object.defineProperty({}, 'g', { get: () => 1, enumerable: true })],
   ['non-enumerable property', Object.defineProperty({}, 'h', { value: 1, enumerable: false })],

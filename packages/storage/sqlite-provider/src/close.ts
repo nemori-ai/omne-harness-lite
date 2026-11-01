@@ -56,7 +56,7 @@ export class InFlight {
   }
 
   expireAll(): void {
-    for (const op of [...this.ops]) op.expire()
+    for (const op of Array.from(this.ops)) op.expire()
   }
 
   identitiesOf(domain: string): readonly SqlIdentity[] {

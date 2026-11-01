@@ -52,11 +52,9 @@ const file = (): string => domainFile(workspace)
 
 function reply(result: CommitResultV2, participant: string): unknown {
   if (result.kind !== 'committed') throw new Error(`expected committed, got ${result.kind}`)
-  return (
-    result.responses.find(entry => entry.participant === participant)?.reply as {
-      response: unknown
-    }
-  ).response
+  const entry = result.responses.find(item => item.participant === participant)
+  if (entry === undefined) throw new Error(`no response of ${participant}`)
+  return (entry.reply as { response: unknown }).response
 }
 
 /** What the probe of this result saw: durable rows and receipts at the time it ran. */

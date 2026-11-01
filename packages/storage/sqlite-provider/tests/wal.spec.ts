@@ -16,17 +16,7 @@ import {
 } from './read-support.ts'
 import { WalMaintainer } from '../src/worker/wal.ts'
 import type { WalState } from '../src/worker/protocol.ts'
-import {
-  DOMAIN,
-  buildMaterials,
-  commitRequest,
-  defaultConfig,
-  identity,
-  kindOf,
-  makeWorkspace,
-  type Built,
-  type Workspace,
-} from './support.ts'
+import { DOMAIN, identity, kindOf, makeWorkspace, type Built, type Workspace } from './support.ts'
 
 const THRESHOLDS = {
   checkpointIntervalMs: 20,
