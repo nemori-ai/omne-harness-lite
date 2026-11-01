@@ -20,7 +20,11 @@ import {
   ordinaryInput,
   sessionId,
 } from '@omne-harness/session-contract/testing'
-import type { SessionCommand, WorkSnapshot } from '@omne-harness/session-contract'
+import {
+  deriveDriveOperation,
+  type SessionCommand,
+  type WorkSnapshot,
+} from '@omne-harness/session-contract'
 import {
   decodeExecutionRecordReply,
   decodeSessionHistoryRoot,
@@ -154,6 +158,26 @@ async function running(a: App) {
   return { execution: work.run.execution.execution, grant: started.receipt.source as never, work }
 }
 
+/** Cancels the active Run of `work` by a forced cancel-run control. */
+async function cancel(a: App, work: WorkSnapshot) {
+  if (work.run.kind !== 'active') throw new Error('no active Run')
+  ok(
+    await a.port.commit({
+      access: a.access(TENANT_A),
+      command: {
+        kind: 'control',
+        input: {
+          tenant: TENANT_A,
+          session: SESSION,
+          operation: operationId('cancel'),
+          intent: { kind: 'cancel-run', run: work.run.run, urgency: 'force' },
+        },
+      },
+      guards: [],
+    }),
+  )
+}
+
 describe('the materials of the Session log combination', () => {
   const materials = sessionStorageMaterials()
   const catalog: SqlMaterialCatalog = {
@@ -279,6 +303,36 @@ describe('the guards of an execution-record write', () => {
     expect((await state(a)) as { published: string }).toMatchObject({ published: '1' })
   })
 
+  it('an execution of the same identity in another session is a conflict: nothing is written and the first session keeps it', async () => {
+    const a = await app()
+    ok(await a.create(TENANT_A))
+    expect((await joint(a, 'aop_first', [executionRecordFacts(write())])).kind).toBe('committed')
+    const elsewhere = sessionId('session-2')
+    // The head revision and the publication count of the other session both look right: the
+    // execution belongs to session-1.
+    const stolen = await joint(a, 'aop_stolen', [
+      executionRecordFacts(
+        write({
+          session: elsewhere,
+          operation: 'aop_stolen',
+          expected: '1',
+          revision: '2',
+          published: '0',
+          state: { opaque: ['other'] },
+        }),
+      ),
+    ])
+    expect(stolen.kind).toBe('rolled_back')
+    expect(
+      stolen.kind === 'rolled_back' && decodeExecutionRecordReply(stolen.responses[0]!.reply),
+    ).toEqual({ kind: 'revision-conflict', revision: '1', published: '0' })
+    expect(a.provider.select('dom_0', 'SELECT session FROM er_execution').rows).toEqual([
+      ['session-1'],
+    ])
+    expect(count(a, 'er_operation')).toBe(1)
+    expect(await state(a)).toEqual({ published: '1', state: { opaque: ['state', 1] } })
+  })
+
   it('reads and writes of another tenant see nothing of this tenant', async () => {
     const a = await app()
     ok(await a.create(TENANT_A))
@@ -378,6 +432,91 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       foreign.kind === 'rolled_back' && decodeSessionReply(foreign.responses[1]!.reply),
     ).toEqual({ kind: 'stopped', failure: { kind: 'denied', action: 'attach' } })
     expect((await attach('aop_attach_2', grant)).kind).toBe('committed')
+  })
+
+  it('after a cancel the last attempt granted before it attaches for the wind-down, an earlier one is stale (PA-01 item 3)', async () => {
+    const a = await app()
+    const { execution, grant: first, work } = await running(a)
+    if (work.run.kind !== 'active') throw new Error('no active Run')
+    const claimed = ok<{ receipt: { source: unknown } }>(
+      await a.port.commit({
+        access: a.access(TENANT_A),
+        command: {
+          kind: 'claim',
+          input: {
+            tenant: TENANT_A,
+            session: SESSION,
+            operation: operationId('claim'),
+            run: work.run.run,
+            instance: { owner: 'agent', id: 'instance-2' },
+            continuity: evidence('continuity'),
+          },
+        },
+        guards: [],
+      }),
+    )
+    const last = claimed.receipt.source
+    await cancel(a, work)
+    const attach = (name: string, grant: unknown) =>
+      joint(a, name, [
+        executionRecordFacts(write({ execution, operation: name })),
+        sessionCheckFacts({
+          kind: 'attach',
+          tenant: TENANT_A,
+          session: SESSION,
+          execution,
+          grant: grant as never,
+        }),
+      ])
+    const earlier = await attach('aop_wind_1', first)
+    expect(
+      earlier.kind === 'rolled_back' && decodeSessionReply(earlier.responses[1]!.reply),
+    ).toMatchObject({ kind: 'stopped', failure: { kind: 'stale-advance', current: null } })
+    const winding = await attach('aop_wind_2', last)
+    expect(winding.kind).toBe('committed')
+    expect(
+      winding.kind === 'committed' && decodeSessionReply(winding.responses[1]!.reply),
+    ).toMatchObject({
+      kind: 'participated',
+      result: { kind: 'checked', advance: 'wind-down', attempt: expect.any(String) },
+    })
+  })
+
+  it('a cancelled finish participates only under the control the SE26 of the Run refers to (PA-02)', async () => {
+    const a = await app()
+    const { execution, work } = await running(a)
+    await cancel(a, work)
+    const cancelled = ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
+    const control = cancelled.controls.find(item => item.intent.kind === 'control')
+    if (control === undefined) throw new Error('no cancel control')
+    const finish = (name: string, by: string | null) =>
+      joint(a, name, [
+        executionRecordFacts(write({ execution, operation: name })),
+        sessionCheckFacts({
+          kind: 'finish',
+          tenant: TENANT_A,
+          session: SESSION,
+          execution,
+          conclusion: 'cancelled',
+          control: by,
+        }),
+      ])
+    const own = deriveDriveOperation({ kind: 'control', execution, control: control.operation })
+    // The refusals first: they write nothing, so the accepted finish below is the first write.
+    for (const [name, by] of [
+      [
+        'aop_fin_other',
+        deriveDriveOperation({ kind: 'control', execution, control: 'sop_other' as never }),
+      ],
+      ['aop_fin_none', null],
+    ] as const) {
+      const refused = await finish(name, by)
+      expect(
+        refused.kind === 'rolled_back' && decodeSessionReply(refused.responses[1]!.reply),
+      ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
+    }
+    expect(count(a, 'er_operation')).toBe(0)
+    expect((await finish('aop_fin_own', own)).kind).toBe('committed')
   })
 
   it('a finish while an input Session accepted for this Run is not handed over is changed (PA-02)', async () => {

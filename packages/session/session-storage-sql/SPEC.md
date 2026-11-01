@@ -70,7 +70,7 @@
 5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料，`startRun` 的 `login-entry` 材料；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
 6. 组提交计数：`tests/real-provider.spec.ts` 并发提交 8 个会话的 `create`，原操作数 8，物理写事务数 8（读 WAL 提交帧得到，没有读提供者内部计数）。两者相等，记为零合并：参加者 `session` 标 `singleton`，按提供者规格 §4.5 单独成组。本成员不声称 G2-P 在这条路径上生效。这是 Windows 上 Node 26.12 的一次观察。
 7. `exclusion()` 构造的 `not-committed` 排除证据（`record`、`digest`）是死数据：`unfound()` 不把它交给调用方。要么删除，要么等辨认参加操作的入口补上后启用，见[明确缺项](#明确缺项)。
-8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，提交方答 `unavailable`。本成员不写 `sl_blob`，也没有外置载荷的链路。触发条件：真实材料或执行记录超过上限。
+8. K-1 大载荷：执行记录的一次写入超过存储的 `maxCommandBytes` 时，提交方答 `unavailable`。本成员不写 `sl_blob`，也没有外置载荷的链路。触发条件：真实材料或执行记录超过上限。读口上限：读 handler `execution-record.state` 的 `maxOutputBytes` 固定为 1 MiB（`materials.ts`），与装配的 `maxCommandBytes` 无关。读出的输出是状态加一个很短的外壳（`{"published":"<n>","state":…}`），写入的命令是同一份状态加答案、摘要、标识和索引行（至少数百字节），所以只要 `maxCommandBytes` 不超过 1 MiB，能写入的状态一定读得回：两个上限数值相等，差额是命令里状态以外的字节。`tests/real-joint.spec.ts` 在 `maxCommandBytes` 为 1 MiB 的真实 provider 上写入恰好等于上限的命令（多一字节被拒为 `command_limit`），再读回同一份状态。装配把 `maxCommandBytes` 配到 1 MiB 以上时这个保证不再成立：读口上限必须随之放大，否则状态写得进、读不回，该会话此后每次调用都读不到记录而答 `unavailable`。
 9. K-2 线性序依赖单写者：共同根的严格递增依赖 SQLite 每个事务域只有一个写事务。PostgreSQL 或跨进程写者要另做串行化，例如锁住 `er_root` 与 `sl_journal` 两行。触发条件：PostgreSQL 提供者或跨进程写者进入范围。
 10. K-3 Agent 读形状：Agent 的读口只能用通用索引列。读形状要按别的字段过滤或排序时，要新增 `execution-record/00N` 迁移，由本成员的串行写者写。在此之前提供者不能用全量扫描代替。触发条件：Agent 契约改读口形状。
 11. K-4 执行顺序依赖名字：共同提交里 `session` 读到本批 `er_` 写入，这依赖名字序（`execution-record` 在 `session` 之前）。触发条件：任一参加者改名，或任一方声明事实依赖（依赖图先于名字序决定顺序）。`tests/execution-record.spec.ts` 断言当前顺序。
@@ -144,6 +144,8 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 
 记录模型分三类列。通用索引列是 `tenant`、`session`、`execution`、修订号、事件序号、操作键与摘要，模块只做相等比较与排序。不透明载荷（`state`、`answer`、批次）是提供者编码的 JSON，模块不解码。同根索引用 Session 的词：执行边界、事实边界、批次与原受理。写入不带自身执行的边界行时（例如没有执行的材料保存），只受发布计数守卫。索引内容是否正确由提供者负责。
 
+执行边界行的回执列（`er_execution.receipt`）：提供者在写入的答案带有该执行的 `CommandReceipt` 时，把它的证据写进这一列。答案不带回执、或回执属于另一个执行时，提供者写一个占位证据：`owner` 为 `session-log-journal`，`record` 为 `<execution>/head`，`revision` 为该执行本次的修订，`digest` 为 `unknown`。占位不是回执证据，`digest` 为 `unknown` 的行不能当作 Agent 回执核验或引用。当前会产生占位的写入，是核心 Journal 套件和 AG-23 回放里观察到的 `detach` 与 `recordControl`：它们的答案不是 `CommandReceipt`（`tests/agent-journal-provider.spec.ts` 观察，没有穷举其余写入）。读执行边界的一方（K-5，AD-02 的同日志解释）实现时，要么在提供者一侧让这些写入也带可核验的回执，要么把占位行按「没有回执」处理，答 `unavailable`；在此之前没有读者依赖这一列。
+
 #### 执行索引
 
 <a id="执行索引"></a>
@@ -154,8 +156,9 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 - 唯一：execution 在租户内唯一。该 execution 已有一行时，不论指向哪个会话，参加者答「失败」，诊断说明已有索引。存储回滚整个批次，原行不变，不覆盖。Session 的 `commit` 对外答 `unavailable`。
 - 读取：读 handler `session.execution` 的输入是 `tenant` 与 `execution`。有这一行时输出会话、Run 与位置；没有时输出 `null`。另一租户的 execution 与没有 Run 的 execution 都得到 `null`。输入缺 `tenant` 或 `execution` 时 handler 失败，不输出 `null`。
 - 迁移：`session/002-execution-index` 建这张表，依赖 `session/001-session-log`。读 handler 只依赖这个迁移。
+- 解释提交（`commitEntries`）的批次不带 SE13：session-contract 里产生 `run.started` 的只有 `startRun` 的决定，解释提交的后果行都不是它。`publishEntries` 仍经同一个写入步骤建索引，所以万一批次带了 SE13，同样不覆盖已有的行、整批失败；这条防御路径没有 SQL 层用例，因为经公开入口构造不出这样的批次。触发条件：解释能产生 SE13 时，先补用例。
 - 不提供重建：本成员不回填已有 SE13 的索引行。0.0.x 没有在本迁移之前写入的 SE13 需要保留（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。
-- 验证：`tests/execution-index.spec.ts` 在 `node:sqlite` 夹具上核对：写入的行与 SE13 位置一致；两个会话各有自己的行；在索引行写入时与操作记录写入时各注入一次失败，没有行也没有 SE13，同一命令随后只提交一次；Session 拒绝的 `startRun` 不写行；预置一行指向另一会话时 `startRun` 失败，原行不变；另一租户在自己的域与本租户的域里都读到 `null`。真实 sqlite-provider 上的迁移与写入由 session-adapters 的 `tests/agent-journal-provider.spec.ts` 慢层用例经过，本成员没有对它单独的用例。
+- 验证：`tests/execution-index.spec.ts` 在 `node:sqlite` 夹具上核对：写入的行与 SE13 位置一致；两个会话各有自己的行；在索引行写入时与操作记录写入时各注入一次失败，没有行也没有 SE13，同一命令随后只提交一次；Session 拒绝的 `startRun` 不写行；预置一行指向另一会话时 `startRun` 失败，原行不变；迁移 002 的 `requires` 恰是 001，001 没有依赖；另一租户在自己的域与本租户的域里都读到 `null`。真实 sqlite-provider 上的迁移与写入由 session-adapters 的 `tests/agent-journal-provider.spec.ts` 慢层用例经过，本成员没有对它单独的用例。
 
 #### 共同日志根
 
