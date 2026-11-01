@@ -1,10 +1,10 @@
 # 服务端接入行为规格
 
-本页拥有治理协议的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
+本页拥有治理位置与会话位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
 
 ## 入口职责
 
-服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者没有可信答复，对外是 `unknown`，不是 `basis-unavailable`，也不是业务结果。远程字节流必须具备保密和完整。传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证、端点与订阅语义由公开契约拥有。本页不选定具体保护协议。
+服务端接入接受已经完成传输保护的字节。传输保护失败时，调用者没有可信答复，对外是 `unknown`，不是 `basis-unavailable`，也不是业务结果。远程字节流必须具备保密和完整。传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证与订阅语义由公开契约拥有。端点由[承载绑定正文](docs/http-binding.md)拥有。M2 的服务只在 `127.0.0.1` 上以明文提供，拒绝非回环地址。TLS 与远程部署的保护协议不在 M2，见[已知限制](docs/http-binding.md#已知限制)。
 
 接入用公开契约指定的严格 JSON 读取这些字节。读取失败是 `protocol-rejected`。它不挑选重复的 `protocolVersion`。
 
@@ -13,6 +13,44 @@
 必填登录证明的缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威记录不可得时，identity 返回 `basis-unavailable`。接入不改写这两个结果，也不另持一份登录表。
 
 发起者只取证明核验出的账号。请求体里的账号、组织和租户是目标。通过协议检查的请求交给 identity 与 authorization 的公开入口。接入不把存储对象放进公开响应。
+
+## 位置与操作范围
+
+接入有两个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`。接入按请求路径选择位置和读取函数，不按消息里的版本文本分派。路径、方法、内容类型、状态码与请求体上限在[承载绑定表](docs/http-binding.md#承载绑定表)。本页不复制那张表。
+
+两个位置的 HTTP 层先于公开契约的判断次序。HTTP 层的步骤和次序见[请求与响应规则](docs/http-binding.md#请求与响应规则)。HTTP 层的失败不调用 identity、authorization 和 Session。
+
+状态码不替代消息里的 `outcome`。接入只由 `outcome` 决定状态码，映射见[状态码映射](docs/http-binding.md#状态码映射)。同一个 `outcome` 总是得到同一个状态码和同样形状的响应体。
+
+### 治理位置
+
+M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `issue-login`。
+
+- 接入把这两个消息交给 identity 的公开入口，不核验登录证明。
+- 其余治理操作按 D-10 答 `stage-not-provided`，空 `body`。判断位置与公开契约已有的四个操作相同：版本检查之后，封闭字段检查与登录核验之前。接入不核验登录，不读取账号库。规则和核对结论见[治理位置](docs/http-binding.md#治理位置)。
+- 识别登录不是公开操作。它是会话位置判断次序第 2 步的内部步骤。
+
+### 会话位置
+
+会话位置提供公开契约的七个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。
+
+| 步骤 | 接入的职责 |
+| --- | --- |
+| 1 协议读取 | 用 `readSessionRequest` 读取。另按 message 包完整解码 `message`。任一不合规是 `protocol-rejected`，Session 不被调用 |
+| 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
+| 3 行事租户 | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择 |
+| 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable` |
+| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid` |
+| 6 Session 判断 | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示 |
+
+补充规则如下。
+
+- `cancel-run` 和 `stop-call` 调用 Session 的 `cancelRun` 与 `stopCall`，调用方类是 `intake`。它们没有行事租户，第 3 步不适用。
+- `stop-call` 的 `producer.kind` 为 `tool` 时，接入在 Session 的访问裁定之后、会话存在核对之前答 `unsupported`。接入不写任何记录。该结果与会话是否存在、`controlId` 是否用过无关。
+- 接入从识别出的登录和请求标识派生 `SessionOperationId`。派生规则见 [SessionOperationId 的派生规则](docs/http-binding.md#sessionoperationid-的派生规则)。客户端不填它。
+- `definitionMappings` 的选择是部署装配的配置。接入只读取已装配的映射，不自己选择。同一份映射数据交给 Agent 采用和 Session 采用来源。
+- 会话位置的 `denied` 不披露会话是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](docs/http-binding.md#denied-的一致性)。
+- 观察操作的建立点、帧与取消沿公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。承载格式见[SSE 观察](docs/http-binding.md#sse-观察)。
 
 ## 依赖
 
@@ -53,6 +91,15 @@ function receiveRevoke(
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
+
+会话位置与 HTTP 层另有下列验证义务。实现闭包用测试兑现它们。
+
+- 状态码映射覆盖公开契约的全部 `outcome`，少一个就变红。
+- 会话位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。
+- 超限的请求体得到 413 和该位置的 `protocol-rejected`，没有业务调用。
+- 配置了非回环监听地址时，启动失败。
+- Tool 目标的 `stop-call` 得到 `unsupported`，会话存在与否都一样，没有记录写入。
+- `SessionOperationId` 的碰撞测试，清单见[派生规则](docs/http-binding.md#sessionoperationid-的派生规则)。
 
 ## 观察脱离与重附着（#746）
 

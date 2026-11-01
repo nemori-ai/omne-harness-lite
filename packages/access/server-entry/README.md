@@ -10,7 +10,7 @@
 
 接入只处理已经完成传输保护的字节。它按公开契约的次序给出终端结果。它不改写 identity 返回的 `denied` 和 `basis-unavailable`。设计签名和接入样例在行为规格。那些类型现在不导出。
 
-传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证、端点与订阅语义由公开契约拥有。具体保护协议不在本页选定。远程字节流必须具备保密和完整。
+传输路线沿[技术基础的共同技术选择](../../../docs/architecture/technical-foundations.md#共同技术选择)：HTTP JSON 控制与查询，fetch SSE 单向观察。公开操作、认证与订阅语义由公开契约拥有。端点与 HTTP 绑定在[承载绑定正文](docs/http-binding.md)。M2 只在 `127.0.0.1` 上明文提供服务。远程字节流必须具备保密和完整。
 
 ## 验证
 
@@ -20,6 +20,6 @@
 
 This member owns the entry duties for the governance protocol. Outcome meanings stay in the public contract. The entry stops at the first terminal result and does not rewrite an identity result.
 
-Remote byte streams must stay confidential and intact. The transport follows the [shared technical choices](../../../docs/architecture/technical-foundations.md#共同技术选择): HTTP JSON for control and queries, and fetch SSE for one-way observation. Public operations, authentication, endpoints, and subscription semantics belong to the public contract. This page does not choose a protection protocol.
+Remote byte streams must stay confidential and intact. The transport follows the [shared technical choices](../../../docs/architecture/technical-foundations.md#共同技术选择): HTTP JSON for control and queries, and fetch SSE for one-way observation. Public operations, authentication, and subscription semantics belong to the public contract. Endpoints and the HTTP binding belong to the [binding page](docs/http-binding.md). M2 serves plain HTTP on `127.0.0.1` only.
 
 The design signatures in the behavior spec are not installed exports.
