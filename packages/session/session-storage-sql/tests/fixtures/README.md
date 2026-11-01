@@ -22,4 +22,7 @@
 - [app.ts](app.ts)：一个测试应用的组合：两个租户及各自的事务域、租户事务域目录、显式访问策略、固定的游标签名替身，以及经测试提供者构造的 `createSessionStorage` 端口。
 - [entries.ts](entries.ts)：端口每个公开入口各一个调用，供隔离用例对每个入口重复同一断言。
 
-本夹具是真实 sqlite-provider 的替代，对应 SPEC 义务只在 SQL 语义层面。
+- [real-provider.ts](real-provider.ts)：经 `@omne-harness/sqlite-provider` 公开入口组合的真实存储：临时目录的文件库、真实 Worker、租户域目录与访问策略；带 `commit` 调用计数、读 WAL 提交帧的 `walSample`，以及 `query` 应答分支 `queryKindOf`。不含 vitest，子进程可直接运行。
+- [real-provider-child.ts](real-provider-child.ts)：杀进程用例的子进程：提交一个 `create`，回执返回后打印一行并等待被杀。
+
+`sqlite-storage.ts` 是真实 sqlite-provider 的替代，对应 SPEC 义务只在 SQL 语义层面；真实提供者的结果看 `real-provider.ts` 与 `real-provider.spec.ts`。

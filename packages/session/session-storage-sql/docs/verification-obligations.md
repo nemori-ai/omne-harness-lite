@@ -4,7 +4,9 @@
 
 ## 现状
 
-head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、租户隔离与事务域目录，它们不对应下列任何一个编号。下列编号的义务现在都没有用例。用例将在 `node:sqlite` 夹具上先行，真实 sqlite-provider 的结果另报。夹具通过只证明模块的 SQL 语义，不证明 Worker、持久与关闭。新增行为没有先红后绿记录，负控用例代替它。
+head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、租户隔离与事务域目录，它们不对应下列任何一个编号。下列编号的义务现在都没有用例。用例将在 `node:sqlite` 夹具上先行，夹具通过只证明模块的 SQL 语义，不证明 Worker、持久与关闭。新增行为没有先红后绿记录，负控用例代替它。
+
+真实 sqlite-provider 上已有 `tests/real-provider.spec.ts`（Worker 下提交与读回、回执返回后杀进程再按原身份 `query`、未提交身份、关闭、`command_limit` 与 `queue_full`、并发会话的组提交计数）。它不对应下列编号。组提交计数的观察是原操作 8、物理写事务 8，零合并，不声称 G2-P 生效。
 
 ## 组 D：派生等于重算
 
@@ -74,5 +76,5 @@ head 的用例（[tests/](../tests/README.md)）检查导出与依赖规则、�
 - SQLite 独立读连接下的吞吐。读经 `read` 入口，排队归提供者，基准须在真实提供者上取数。
 - 任何数值目标。实测之前不写。
 - `commitEntries` 的范围检查：现在恒返回 `unavailable`，没有可验证的成功路径（[已知限制](../SPEC.md#已知限制)）。
-- sqlite-provider 的 Worker 对本包 participant 与 handler 的真实载入、持久与关闭。
+- 真实 sqlite-provider 上未覆盖：断电耐久、WAL 维护与读暂停、跨进程写者、读 Worker 崩溃、`lockWaitMs` 超时。participant 与 handler 的真实载入、进程级持久和关闭已由 `tests/real-provider.spec.ts` 覆盖。
 - 尚未实现的设计（`sl_batch`、`sl_blob`、`sl_ref_idx`、R9、PostgreSQL）：对应义务（VS-D02、VS-D06、VS-R05、VS-R06、VS-W07、VS-F04）在实现之前无从验证。
