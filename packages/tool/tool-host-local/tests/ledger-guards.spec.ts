@@ -8,7 +8,7 @@
 // behaviour of the guards over one process and one store object, not durability and not the real
 // authorization adapter.
 import { describe, expect, it } from 'vitest'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail } from '@omne-harness/operation-result'
 import {
   createToolLedger,
   type ToolAccessGuard,
@@ -35,27 +35,21 @@ import {
   createLocalToolClock,
   createLocalToolLedgerGuards,
   localArgumentLimits,
-  type PrincipalCodec,
 } from '@omne-harness/tool-host-local'
-import { evidence, request as fixedRequest, tenantA, tenantB } from './coordinator-values.ts'
+import {
+  evidence,
+  invokeRequest,
+  request as fixedRequest,
+  samePrincipalBySubject,
+  subjectCodec,
+  tenantA,
+  tenantB,
+  type Subject,
+} from './coordinator-values.ts'
 
-type P = Readonly<{ subject: string }>
+type P = Subject
 const alice: P = { subject: 'alice' }
 const bob: P = { subject: 'bob' }
-
-function invokeRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
-  const { invocation: _invocation, ...rest } = fixedRequest()
-  return { ...rest, ...overrides }
-}
-
-const codec: PrincipalCodec<P> = {
-  encode: principal => ({ subject: principal.subject }),
-  decode: value => {
-    const subject: unknown =
-      typeof value === 'object' && value !== null ? Reflect.get(value, 'subject') : undefined
-    return typeof subject === 'string' ? succeed({ subject }) : fail({ reason: 'subject-shape' })
-  },
-}
 
 const scope = fixedRequest().scope
 
@@ -90,17 +84,12 @@ function assembly() {
         call: callId('source-qualification'),
         action: 'admit',
       }),
-    samePrincipal: ({ current, original }) =>
-      Promise.resolve(
-        current.subject === original.subject
-          ? { kind: 'allowed' }
-          : { kind: 'denied', reason: 'different-subject' },
-      ),
+    samePrincipal: samePrincipalBySubject,
   }
   const sources = createLocalInvocationSource<P, ToolMessageContentBlock>({
     store,
     authority,
-    principalCodec: codec,
+    principalCodec: subjectCodec,
     commitAttempts: 4,
   })
   const guards = createLocalToolLedgerGuards<P>({

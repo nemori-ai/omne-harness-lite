@@ -5,7 +5,7 @@
 // prove behaviour over one store object, not durability.
 import { describe, expect, it } from 'vitest'
 import type { ContentBlock } from '@omne-harness/content-block'
-import { fail, succeed } from '@omne-harness/operation-result'
+import { fail } from '@omne-harness/operation-result'
 import type {
   AccessVerdict,
   LedgerCommit,
@@ -28,25 +28,20 @@ import {
   createLocalOperationIdentities,
   type PrincipalCodec,
 } from '@omne-harness/tool-host-local'
-import { request as fixedRequest, tenantA, tenantB } from './coordinator-values.ts'
+import {
+  invokeRequest,
+  samePrincipalBySubject,
+  subjectCodec,
+  tenantA,
+  tenantB,
+  type Subject,
+} from './coordinator-values.ts'
 
-type P = Readonly<{ subject: string }>
+type P = Subject
 const alice: P = { subject: 'alice' }
 const mallory: P = { subject: 'mallory' }
 
-function invokeRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
-  const { invocation: _invocation, ...rest } = fixedRequest()
-  return { ...rest, ...overrides }
-}
-
-const codec: PrincipalCodec<P> = {
-  encode: principal => ({ subject: principal.subject }),
-  decode: value => {
-    const subject: unknown =
-      typeof value === 'object' && value !== null ? Reflect.get(value, 'subject') : undefined
-    return typeof subject === 'string' ? succeed({ subject }) : fail({ reason: 'subject-shape' })
-  },
-}
+const codec = subjectCodec
 
 /** Counts the calls and answers by subject: every subject is qualified, only equal ones are the same. */
 function authority(
@@ -60,14 +55,10 @@ function authority(
       if (options.throws === true) return Promise.reject(new Error('secret connection string'))
       return Promise.resolve(options.qualify ?? { kind: 'allowed' })
     },
-    samePrincipal: ({ current, original }) => {
+    samePrincipal: input => {
       calls.same += 1
       if (options.same !== undefined) return Promise.resolve(options.same)
-      return Promise.resolve(
-        current.subject === original.subject
-          ? { kind: 'allowed' }
-          : { kind: 'denied', reason: 'different-subject' },
-      )
+      return samePrincipalBySubject(input)
     },
   }
 }
