@@ -99,6 +99,7 @@ export default {
       case 'random': port.execute('select random()', []); break
       case 'receipts': port.execute('select * from _sql_receipt', []); break
       case 'schema': port.execute('select * from sqlite_master', []); break
+      case 'die': process.exit(1); break
       case 'spin': { const end = Date.now() + Number(facts.ms); while (Date.now() < end) {} break }
       case 'big': return { kind: 'participated', response: 'x'.repeat(70000) }
       case 'invalid': return { kind: 'participated' }

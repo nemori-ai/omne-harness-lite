@@ -154,7 +154,7 @@ describe('SqliteStoragePlugin', () => {
       name: 'caller',
       inject: ['storage'],
       apply(inner: Context) {
-        pending = (inner.get('storage') as StorageService).commit(spinning('by-caller', 300))
+        pending = inner.storage.commit(spinning('by-caller', 300))
       },
     })
     await caller

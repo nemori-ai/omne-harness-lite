@@ -140,6 +140,21 @@ describe('close steps (13.3)', () => {
   })
 })
 
+describe('a Worker that ends is not a rollback', () => {
+  it('gives unknown (worker_exited) when the Worker ends under a commit, and reopens at the next touch', async () => {
+    const provider = await ready()
+    const result = await provider.storage.commit(
+      commitRequest(built, {
+        identity: keyOf('dies'),
+        commands: [command('ledger', { mode: 'die' })],
+      }),
+    )
+    expect(result).toMatchObject({ kind: 'unknown', diagnostic: 'worker_exited' })
+    expect(kindOf(await provider.storage.commit(plain('after')))).toBe('committed')
+    expect(kindOf(await provider.storage.query(keyOf('dies')))).toBe('not_committed')
+  })
+})
+
 describe('reporting latch (13.4)', () => {
   it('does not release when the Worker exits before the report is settled; releases on settle', async () => {
     const provider = await ready({ closeDeadlineMs: 150 })
