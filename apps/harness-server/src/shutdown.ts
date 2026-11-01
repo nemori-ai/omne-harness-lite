@@ -126,7 +126,18 @@ async function execute(
     const phaseOutcomes = await Promise.all(
       rows.map(async ([row]): Promise<HandleOutcome> => {
         const live = frozen.live.get(row)
-        if (live !== undefined) return stopOne(live, phase, row)
+        if (live !== undefined) {
+          const outcome = await stopOne(live, phase, row)
+          const failure = registry.startFailure
+          if (failure?.row !== row) return outcome
+          // 启动期抛出的句柄仍收到 stop；报告记 failed，并保留 stop 的结果作诊断。
+          const stop = outcome.result.kind === 'settled' ? '' : `; stop ${outcome.result.kind}`
+          return {
+            row,
+            phase,
+            result: { kind: 'failed', detail: `start failed: ${failure.detail}${stop}` },
+          }
+        }
         const gone = frozen.withdrawn.get(row)
         if (gone !== undefined) {
           return { row, phase, result: { kind: 'disposed-before-stop', detail: gone.detail } }

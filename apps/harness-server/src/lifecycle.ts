@@ -43,6 +43,9 @@ export class LifecycleRefusedError extends Error {
 export type LifecycleEntry = { readonly handle: LifecycleHandle; stopCalled: boolean }
 export type WithdrawnEntry = { readonly handle: LifecycleHandle; detail: string }
 
+/** 启动期抛出的句柄与原因（R-1）。 */
+export type StartFailure = Readonly<{ row: RowId; detail: string }>
+
 export type FrozenRegistry = Readonly<{
   live: ReadonlyMap<RowId, LifecycleEntry>
   withdrawn: ReadonlyMap<RowId, WithdrawnEntry>
@@ -72,6 +75,7 @@ export class LifecycleRegistry {
   #frozen = false
   #stopRequested = false
   #shutdown: Promise<ShutdownReport> | undefined
+  #startFailure: StartFailure | undefined
 
   constructor(options: LifecycleRegistryOptions) {
     this.#options = options
@@ -114,16 +118,45 @@ export class LifecycleRegistry {
     }
   }
 
-  /** 全部行 ACTIVE 后由装配入口调用：按阶段相反次序调用各句柄的 `start`。只做一次。 */
-  async startAll(): Promise<void> {
-    if (this.#started || this.#state === 'stopping') return
+  /**
+   * 全部行 ACTIVE 后由装配入口调用：按阶段相反次序（storage → composition → business → entry）调用各句柄的
+   * `start`，阶段内按登记次序并发调用。只做一次。每个阶段与每个句柄调用前都检查停止状态：已进入停止就不再调用新的
+   * `start`（§9 步骤 1、N-3）。某个 `start` 抛出时不再进入后续阶段，同阶段已发出的调用等其结束；返回首个失败句柄
+   * （登记次序），由装配入口发起整套关闭，报告记该句柄 `failed`。
+   */
+  async startAll(): Promise<StartFailure | undefined> {
+    if (this.#started || this.#state === 'stopping') return undefined
     this.#started = true
     for (const phase of [...PHASE_ORDER].reverse()) {
-      const starts = [...this.#live.values()]
-        .filter(entry => entry.handle.phase === phase)
-        .map(entry => entry.handle.start?.())
-      await Promise.all(starts)
+      const calls: { row: RowId; settled: Promise<void> }[] = []
+      for (const entry of this.#live.values()) {
+        if (this.#isStopping()) break
+        if (entry.handle.phase !== phase) continue
+        calls.push({ row: entry.handle.row, settled: (async () => entry.handle.start?.())() })
+      }
+      const results = await Promise.allSettled(calls.map(call => call.settled))
+      const index = results.findIndex(result => result.status === 'rejected')
+      const rejected = results[index]
+      if (rejected?.status === 'rejected') {
+        const row = calls[index]!.row
+        const detail =
+          rejected.reason instanceof Error ? rejected.reason.message : String(rejected.reason)
+        this.#startFailure = { row, detail }
+        this.#state = 'stopping'
+        return this.#startFailure
+      }
     }
+    return undefined
+  }
+
+  // 方法边界阻止 TypeScript 把跨 await 会变化的状态按入口守卫收窄。
+  #isStopping(): boolean {
+    return this.#state === 'stopping'
+  }
+
+  /** 启动期失败的句柄；关闭协调者据此把该句柄记为 `failed`。 */
+  get startFailure(): StartFailure | undefined {
+    return this.#startFailure
   }
 
   /** 协调者进入停止状态（步骤 1）。幂等。 */
@@ -172,7 +205,13 @@ export class LifecycleRegistry {
   }
 }
 
-/** 根上下文的服务面。登记落在调用方 fiber（ctx 是调用方的）：该 fiber 撤除时退登记。 */
+/**
+ * 根上下文的服务面。登记落在调用方 fiber（ctx 是调用方的）：该 fiber 撤除时退登记。
+ *
+ * @owner apps/harness-server
+ * 私有键 `s0.assemblyLifecycle` 是临时定义；kernel-basis 正式定义该服务并被接受后迁移，本私有定义随之删除
+ * （s0-spec-r2 §9 末段）。
+ */
 export class S0AssemblyLifecycleService extends Service implements AssemblyLifecycle {
   private readonly registry: LifecycleRegistry
 

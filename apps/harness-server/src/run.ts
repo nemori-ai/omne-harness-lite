@@ -67,7 +67,10 @@ const ALLOWLIST = Object.keys(PLUGINS)
 const NO_MANIFEST: RowManifest = { provides: [], injects: [], phase: null, sameProviderGroup: null }
 
 /** The one stub switch this entry reads itself. The rest belongs to the stub plugin. */
-const StopConfig = z.object({ stopBehavior: z.enum(['settle', 'hang']).optional() })
+const StopConfig = z.object({
+  startBehavior: z.enum(['settle', 'fail']).optional(),
+  stopBehavior: z.enum(['settle', 'hang']).optional(),
+})
 
 type Probes = { started: string[]; applied: string[] }
 
@@ -102,12 +105,13 @@ function rowPlugin(
     apply: async (ctx, config) => {
       await stub.apply(ctx, config)
       if (phase === null) return
-      const { stopBehavior } = StopConfig.parse(config ?? {})
+      const { startBehavior, stopBehavior } = StopConfig.parse(config ?? {})
       const handle: LifecycleHandle = {
         phase,
         row: id,
         start: async () => {
           probes.started.push(id)
+          if (startBehavior === 'fail') throw new Error(`stub start failed: ${id}`)
         },
         stop: () =>
           stopBehavior === 'hang' ? new Promise<StopResult>(() => {}) : Promise.resolve(SETTLED),
@@ -281,7 +285,7 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
   }
 
   loaded = started.rows
-  if (barrierCalls > 0) await registry.startAll()
+  const startFailure = barrierCalls > 0 ? await registry.startAll() : undefined
   for (const state of started.report.rows) write({ kind: 'row-state', ...state })
   write({
     kind: 'startup-result',
@@ -289,7 +293,8 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
     scope: 'loader-only',
     accepting: false,
     enabledRows: tree.rows.length,
-    outcome: started.report.outcome,
+    outcome: startFailure === undefined ? started.report.outcome : 'start-failed',
+    ...(startFailure === undefined ? {} : { startFailure }),
     barrierCalls,
     startedRows: probes.started,
     appliedRows: probes.applied,
@@ -297,5 +302,7 @@ export async function runS0(options: RunS0Options): Promise<S0Result> {
 
   const report = await shutdown()
   write({ kind: 'shutdown-result', ...report })
-  return result(finalExitCode(started.report.exitCode, report.overall))
+  return result(
+    finalExitCode(startFailure === undefined ? started.report.exitCode : 3, report.overall),
+  )
 }

@@ -127,6 +127,12 @@ describe('S0-1 完整发行替身树', () => {
       barrierCalls: 1,
     })
     expect([...result['startedRows']].sort()).toEqual([...phased].sort())
+    // R-2：阶段间启动次序是关闭次序的逆序 storage → composition → business → entry。
+    const rank = ['storage', 'composition', 'business', 'entry']
+    const phaseOf = (id: string) => rank.indexOf(rowManifests.get(id as RowId)!.phase!)
+    const ranks = (result['startedRows'] as string[]).map(phaseOf)
+    expect(ranks).toEqual([...ranks].sort((a, b) => a - b))
+    expect(new Set(ranks).size).toBe(rank.length)
     expect(of(out, 'shutdown-result')[0]).toMatchObject({ overall: 'settled' })
   })
 })
@@ -381,6 +387,29 @@ describe('G 启动门控', () => {
 })
 
 describe('关闭', () => {
+  it('启动期某个 start 抛出：退出 3，startup-result 为 start-failed，整套有序关闭，该句柄 failed', async () => {
+    const out = await runS0Process(withConfig('agent-host', { startBehavior: 'fail' }))
+    expect(out.code).toBe(3)
+    expect(startup(out)).toMatchObject({
+      outcome: 'start-failed',
+      startFailure: { row: 'agent-host' },
+    })
+    const steps = of(out, 'shutdown-step').filter(r => r['action'] === 'stop-call')
+    expect(steps.length).toBe(phased.length)
+    const closing = ['entry', 'business', 'composition', 'storage']
+    const order = steps.map(r => closing.indexOf(r['phase']))
+    expect(order).toEqual([...order].sort((a, b) => a - b))
+    expect(of(out, 'shutdown-step').some(r => r['action'] === 'dispose-root')).toBe(true)
+    const report = of(out, 'shutdown-result')[0]!
+    expect(report['outcomes']).toContainEqual(
+      expect.objectContaining({
+        row: 'agent-host',
+        result: expect.objectContaining({ kind: 'failed' }),
+      }),
+    )
+    expect(out.stderr).not.toContain('internal error')
+  })
+
   it('替身 stopBehavior hang：退出 5，shutdown-result 为 incomplete，进程自然退出', async () => {
     const out = await runS0Process(withConfig('agent-host', { stopBehavior: 'hang' }), {
       shutdownMs: 300,

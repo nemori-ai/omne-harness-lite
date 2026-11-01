@@ -98,22 +98,29 @@ function errorInfo(error: unknown): NonNullable<RowState['error']> {
  * A provider row that exists but is not ACTIVE blocks the row, and a provider
  * under another label (it does not see the name the way this row does) does not.
  */
-function describeRow(row: LoadedRow, all: readonly LoadedRow[]): RowState {
-  const state = stateOf(row)
+function pendingReasons(
+  row: LoadedRow,
+  all: readonly LoadedRow[],
+): { missing: ServiceName[]; blockedBy: RowId[] } {
   const missing: ServiceName[] = []
   const blockedBy: RowId[] = []
-  if (state === 'PENDING') {
-    for (const name of row.manifest.injects) {
-      if (row.ctx.reflect.get(name) !== undefined) continue
-      missing.push(name)
-      for (const other of all) {
-        if (other === row || blockedBy.includes(other.id)) continue
-        if (!other.manifest.provides.includes(name)) continue
-        if (other.visible.includes(name) !== row.visible.includes(name)) continue
-        if (stateOf(other) !== 'ACTIVE') blockedBy.push(other.id)
-      }
+  for (const name of row.manifest.injects) {
+    if (row.ctx.reflect.get(name) !== undefined) continue
+    missing.push(name)
+    for (const other of all) {
+      if (other === row || blockedBy.includes(other.id)) continue
+      if (!other.manifest.provides.includes(name)) continue
+      if (other.visible.includes(name) !== row.visible.includes(name)) continue
+      if (stateOf(other) !== 'ACTIVE') blockedBy.push(other.id)
     }
   }
+  return { missing, blockedBy }
+}
+
+function describeRow(row: LoadedRow, all: readonly LoadedRow[]): RowState {
+  const state = stateOf(row)
+  const { missing, blockedBy } =
+    state === 'PENDING' ? pendingReasons(row, all) : { missing: [], blockedBy: [] }
   const error = state === 'FAILED' ? errorInfo(row.error) : null
   return { id: row.id, state, missing, blockedBy, error }
 }

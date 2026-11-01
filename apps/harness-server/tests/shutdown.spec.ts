@@ -496,3 +496,110 @@ describe('N-3 运行期换代视为计划停止', () => {
     expect(registry.state).toBe('running')
   })
 })
+
+describe('X-5 启动期的停止状态与失败（§9 步骤 1、N-3，Reduce R-1、R-2）', () => {
+  const startable = (calls: Calls, id: string, phase: LifecyclePhase, onStart?: () => void) =>
+    handle(calls, id, phase, undefined, {
+      start: async () => {
+        calls.push(`start:${id}`)
+        onStart?.()
+      },
+    })
+
+  it('storage 的 start 内触发 runShutdown：此后没有任何 start，停止次序仍为 entry → storage', async () => {
+    const calls: Calls = []
+    const clock = fakeClock()
+    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const stopNow = () => void runShutdown(registry, EXPECTED, DEADLINE_MS, clock)
+    registry.add(startable(calls, 'server-entry', 'entry'))
+    registry.add(startable(calls, 'agent-host', 'business'))
+    registry.add(startable(calls, 'session-storage', 'composition'))
+    registry.add(startable(calls, 'storage', 'storage', stopNow))
+    await registry.startAll()
+    await flush()
+    expect(calls).toEqual([
+      'start:storage',
+      'stop:server-entry',
+      'stop:agent-host',
+      'stop:session-storage',
+      'stop:storage',
+    ])
+  })
+
+  it('同一阶段内：前一个句柄的 start 触发停止后，后一个句柄不再被调用', async () => {
+    const calls: Calls = []
+    const clock = fakeClock()
+    const expected = new Map<RowId, LifecyclePhase>([
+      [row('a'), 'entry'],
+      [row('b'), 'entry'],
+    ])
+    const registry = new LifecycleRegistry({ expected, clock, requestStop: () => {} })
+    registry.add(
+      startable(
+        calls,
+        'a',
+        'entry',
+        () => void runShutdown(registry, expected, DEADLINE_MS, clock),
+      ),
+    )
+    registry.add(startable(calls, 'b', 'entry'))
+    await registry.startAll()
+    await flush()
+    expect(calls.filter(c => c.startsWith('start:'))).toEqual(['start:a'])
+  })
+
+  it('阶段间启动次序是关闭次序的逆序，阶段内按登记次序', async () => {
+    const calls: Calls = []
+    const expected = new Map<RowId, LifecyclePhase>([
+      [row('e1'), 'entry'],
+      [row('e2'), 'entry'],
+      [row('b1'), 'business'],
+      [row('c1'), 'composition'],
+      [row('s1'), 'storage'],
+      [row('s2'), 'storage'],
+    ])
+    const registry = new LifecycleRegistry({ expected, clock: fakeClock(), requestStop: () => {} })
+    const add = (id: string, phase: LifecyclePhase) => registry.add(startable(calls, id, phase))
+    add('e2', 'entry') // 倒序登记混入：阶段内以登记次序为准，阶段间以阶段为准
+    add('s1', 'storage')
+    add('b1', 'business')
+    add('s2', 'storage')
+    add('c1', 'composition')
+    add('e1', 'entry')
+    await registry.startAll()
+    expect(calls).toEqual(['s1', 's2', 'c1', 'b1', 'e2', 'e1'].map(id => `start:${id}`))
+  })
+
+  it('start 抛出：startAll 返回失败句柄，后续阶段不启动；关闭整套照走，该句柄报告 failed', async () => {
+    const calls: Calls = []
+    const clock = fakeClock()
+    const registry = new LifecycleRegistry({ expected: EXPECTED, clock, requestStop: () => {} })
+    const boom = handle(calls, 'session-storage', 'composition', undefined, {
+      start: async () => {
+        calls.push('start:session-storage')
+        throw new Error('boom')
+      },
+    })
+    registry.add(startable(calls, 'server-entry', 'entry'))
+    registry.add(startable(calls, 'agent-host', 'business'))
+    registry.add(boom)
+    registry.add(startable(calls, 'storage', 'storage'))
+    const failure = await registry.startAll()
+    expect(failure).toEqual({ row: 'session-storage', detail: 'boom' })
+    expect(calls).toEqual(['start:storage', 'start:session-storage'])
+    const report = await runShutdown(registry, EXPECTED, DEADLINE_MS, clock)
+    expect(calls.slice(2)).toEqual([
+      'stop:server-entry',
+      'stop:agent-host',
+      'stop:session-storage',
+      'stop:storage',
+    ])
+    expect(report.overall).toBe('incomplete')
+    expect(report.outcomes.map(o => [o.row, o.result.kind])).toEqual([
+      ['server-entry', 'settled'],
+      ['agent-host', 'settled'],
+      ['session-storage', 'failed'],
+      ['storage', 'settled'],
+    ])
+  })
+})
