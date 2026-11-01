@@ -186,8 +186,11 @@ export interface AgentJournalReplyAdmissionControls<P> {
   readable(allowed: boolean): void
   /** Opens another execution of the same tenant on the same Journal. */
   sibling(name: string): Promise<AgentJournalCoreOpened<P>>
-  /** A lawful prefix of an execution of another tenant on the same Journal. */
-  foreignPrefix(): Promise<ReplyAdmissionPrefix>
+  /**
+   * Opens an execution of another tenant under that tenant's Access, on the same Journal when the
+   * provider holds every tenant in one Journal.
+   */
+  foreign(name: string): Promise<AgentJournalCoreOpened<P>>
 }
 
 /** The three qualifications the settlement operations check (SPEC "commitSettlement 的变体"). */

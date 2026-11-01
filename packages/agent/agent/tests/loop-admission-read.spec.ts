@@ -370,6 +370,21 @@ describe('commit-time missing basis and the origin re-read', () => {
     }
   })
 
+  it('a gap other than missing-basis at the prefix is not treated by an origin read: E2 waits in W0', async () => {
+    const recovery = { owner: 'test', record: 'gap', revision: '1', digest: 'test:gap' }
+    const { assembly, reads, authority, next } = await restartable(1, async (input, read) =>
+      input.from.kind === 'prefix'
+        ? succeed({ kind: 'gap', reason: 'retention', recovery })
+        : read(input),
+    )
+    ok(await next().continueExecution(authority))
+    expect(reads.map(fromOf)).toEqual(['1'])
+    expect((await load(assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', position: 'E2' }],
+    })
+  })
+
   it('an origin re-read that meets a gap waits in W0 instead of passing the gap', async () => {
     const recovery = { owner: 'test', record: 'gap', revision: '1', digest: 'test:gap' }
     const { assembly, reads, authority, next } = await restartable(1, async input =>

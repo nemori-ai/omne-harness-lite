@@ -1350,6 +1350,16 @@ async function writeRead<P>(
   )
 }
 
+/** A lawful prefix of an execution of another tenant: its first admitted fact. */
+async function foreignPrefix<P>(
+  controls: Controls<P>,
+  name: string,
+): Promise<ReplyAdmissionPrefix> {
+  const foreign = await controls.foreign(name)
+  await admitReply(foreign, 1)
+  return (await load(foreign)).replyAdmissions.prefix
+}
+
 /**
  * The reply admission cases. `covered` is false when the fixture gives no `replyAdmissions`
  * controls; the cases that need them are then uncovered.
@@ -1532,12 +1542,18 @@ export function replyAdmissionCases<P>(
           'invalid',
           'a cursor of another through',
         )
+        const second = pageOf(
+          await readOne(opened, readInput(opened, ORIGIN, early.through, cursor, 1)),
+          'second',
+        )
+        assert.equal(second.tail.kind, 'more')
+        if (second.tail.kind !== 'more') return
         await refused(
           opened.journal.readReplyAdmissions(
-            readInput(opened, fromPrefix(first.end), early.through, cursor, 1),
+            readInput(opened, fromPrefix(first.end), early.through, second.tail.next, 1),
           ),
           'invalid',
-          'a cursor of another lower bound',
+          'a cursor inside the range of another lower bound',
         )
         const sibling = await controls.sibling('cursor-sibling')
         for (let index = 1; index <= 4; index += 1) await admitReply(sibling, index)
@@ -1562,15 +1578,15 @@ export function replyAdmissionCases<P>(
           'invalid',
           'a cursor cut down to a sequence',
         )
-        const foreign = opened.otherAccess
-        assert.ok(foreign !== undefined, 'the cursor case needs another tenant')
+        const foreign = await controls.foreign('cursor-foreign')
+        for (let index = 1; index <= 4; index += 1) await admitReply(foreign, index)
+        const foreignRange = (await load(foreign)).replyAdmissions
         await refused(
-          opened.journal.readReplyAdmissions({
-            ...readInput(opened, ORIGIN, early.through, cursor, 1),
-            ...foreign,
-          }),
+          foreign.journal.readReplyAdmissions(
+            readInput(foreign, ORIGIN, foreignRange.through, cursor, 1),
+          ),
           'denied',
-          'a cursor under another tenant',
+          'a cursor of another tenant on its own execution',
         )
       },
     ),
@@ -1744,7 +1760,7 @@ export function replyAdmissionCases<P>(
           opened.journal.readReplyAdmissions(
             readInput(
               opened,
-              fromPrefix(await controls.foreignPrefix()),
+              fromPrefix(await foreignPrefix(controls, 'bound-foreign')),
               projection.through,
               null,
               10,
@@ -1774,7 +1790,7 @@ export function replyAdmissionCases<P>(
         await refused(
           writeRead(opened, 'other-tenant', {
             kind: 'verified',
-            prefix: await controls.foreignPrefix(),
+            prefix: await foreignPrefix(controls, 'check-foreign'),
           }),
           'denied',
           'another tenant',

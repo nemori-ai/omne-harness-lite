@@ -99,22 +99,27 @@ const fixture: AgentJournalCoreFixture<string> = {
           replyAdmissions: controls(sibling.execution),
         }
       },
-      foreignPrefix: async () => {
-        const foreign = execution(`${name}-foreign`)
-        ok(
+      foreign: async label => {
+        const foreign = execution(`${name}-${label}`)
+        const foreignOpened = ok(
           await memory.port.open(
             openInput({
               ...otherTenant,
               execution: foreign,
-              operation: operation(`open-${name}-foreign`),
-              initial: acceptedInput('input-foreign'),
+              operation: operation(`open-${name}-${label}`),
+              initial: acceptedInput(`input-${label}`),
             }),
           ),
         )
-        if (!memory.replyAdmissions.seed(foreign, 1, otherTenant.tenant))
-          throw new Error('the foreign fact could not be seeded')
-        return ok(await memory.port.load({ ...otherTenant, execution: foreign })).replyAdmissions
-          .prefix
+        return {
+          journal: memory.port,
+          access: otherTenant,
+          execution: foreign,
+          receipt: foreignOpened.receipt,
+          authority: foreignOpened.authority,
+          checkpoint: checkpoint(),
+          acceptInput: async item => acceptedInput(`input-${label}-${item}`),
+        }
       },
     })
     return {

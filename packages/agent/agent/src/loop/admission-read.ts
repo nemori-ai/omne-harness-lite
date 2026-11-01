@@ -128,10 +128,9 @@ export async function readRange(
     if (page.kind === 'gap') return succeed({ kind: 'gap', reason: page.reason, pages, facts })
     if (canonical(page.through) !== canonical(request.through))
       return refused('the range is not the one requested')
-    const first = exact(page.start.sequence)
-    const end = exact(page.end.sequence)
-    if (first === undefined || end === undefined)
-      return refused('a bound is not a canonical decimal')
+    // A bound that is not a canonical decimal cannot be continued: -1 fails the checks below.
+    const first = exact(page.start.sequence) ?? -1n
+    const end = exact(page.end.sequence) ?? -1n
     if (start === null ? first !== 0n : canonical(page.start) !== canonical(start))
       return refused('the page does not start where the read stands')
     if (page.items.length > request.limit) return refused('more facts than the limit')
