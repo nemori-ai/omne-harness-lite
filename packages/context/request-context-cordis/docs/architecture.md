@@ -93,7 +93,7 @@ flowchart LR
 | 保证 | 现在的验证 | 后续义务 |
 | --- | --- | --- |
 | 根入口为空 | [public-entry.spec.ts](../tests/public-entry.spec.ts) 断言根入口没有导出 | 实现进入后仍断言根入口没有导出 |
-| `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言草稿入口没有导出 | 实现进入后，核对导出集合 |
+| `./cordis` 只有本成员的插件 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言入口只导出 `RequestContextProvider` | 实现扩充后，核对导出集合 |
 | SPEC 的验证义务 | 没有 | 见 [Cordis 说明的验证义务](cordis.md#验证义务) |
 
 维护规则：

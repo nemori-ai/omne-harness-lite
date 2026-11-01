@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置、事件、登记协议与策略选择的配置形状归 [request-context-cordis-contract 的 Cordis 说明](../../request-context-cordis-contract/docs/cordis.md)，本插件继承这些定义，不重复提供键。缓存、派生物与默认策略归 [request-context](../../request-context/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 与 `src/index.ts` 只有模板标记，插件没有实现，包里没有可用的 `./cordis` 导出。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`./cordis` 导出 `RequestContextProvider`：必需 `inject` 信任键，提供 `requestContext` 与 `contextAccountingInbox` 两个键，来源登记表与账目收件口由 request-context 的工厂建立。贡献登记、变化事件与 `assembly` 已实现；配置 Schema 校验与按配置选择策略实现尚未实现，策略与账目选项暂由装配入口以插件选项交入。`src/index.ts` 仍只有模板标记。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与服务
 
@@ -124,7 +124,7 @@
 
 ## 机制读数与假设
 
-服务定义成员已用真实 Cordis 4.0.4 测试固定三条读数，见该定义成员的机制说明。共同 basis 登记仍待其拥有者完成；本提供者没有实现，自己的验证义务仍未兑现。下文未登记读数的假设范围保留。
+服务定义成员已用真实 Cordis 4.0.4 测试固定三条读数，见该定义成员的机制说明。共同 basis 登记仍待其拥有者完成；本提供者只有基本实现，自己的验证义务仍未兑现。下文未登记读数的假设范围保留。
 
 本成员的性质 2 依赖还没有进入 basis 的机制读数 `inject-object-config-reaches-service-resolve-config`，probe 要证明的内容见 [runtime-context-cordis-contract 的机制读数与假设](../../runtime-context-cordis-contract/docs/cordis.md#机制读数与假设)。按本成员 [SPEC 的组合与验证](../SPEC.md#组合与验证)，读数补齐之前，性质 2 的 intercept 部分是假设，不是已核验的保证。事件由监听者按载荷过滤，不依赖派发方过滤的读数。
 
