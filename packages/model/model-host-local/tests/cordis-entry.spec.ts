@@ -29,6 +29,7 @@ it('the cordis entry exports the plugin and the injected delivery, not the servi
     'ModelInstancesLocalPlugin',
     'createModelRequestPreparationPlugin',
     'createModelRuntimeLocalPlugin',
+    'createModelSendStagePlugin',
     'deliverInjected',
   ])
   expect(Object.getPrototypeOf(cordis.LocalCredentialPlugin)).toBe(ModelCredentialService)
