@@ -20,10 +20,11 @@ import type {
   SendDemand,
 } from '@omne-harness/model-contract/provider'
 import { encodedBytes, materialBytes } from '../commands/judge.ts'
+import { createModelCommandsCore } from '../commands/index.ts'
 import {
-  ModelCommandCore,
   copyCall,
   type CallAccessInput,
+  type ModelCommandCore,
   type WriteArguments,
 } from '../commands/state.ts'
 import type { CommandWrite, ModelCommandStorage } from '../commands/storage.ts'
@@ -68,7 +69,7 @@ export class MemoryState<P> implements ModelCommandStorage {
   readonly options: MemoryModelCommandsOptions<P>
 
   constructor(options: MemoryModelCommandsOptions<P>) {
-    this.core = new ModelCommandCore(options, this)
+    this.core = createModelCommandsCore(options, this)
     this.options = this.core.options
     this.control = {
       configureResultPaging: input =>
