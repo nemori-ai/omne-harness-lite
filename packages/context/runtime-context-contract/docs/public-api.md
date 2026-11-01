@@ -51,7 +51,9 @@
 
 定义见 [authority.ts](../src/authority.ts)。调用方提供这两个端口，本成员不签发身份，见 [SPEC 通用权威端口](../SPEC.md#通用权威端口)。
 
-`ScopeBinding`, `ScopeBindingSource`, `AuthorityDecision`, `OrdinaryHolderAction`, `BeginReplayAction`, `FinishReplayAction`, `HolderAction`, `HolderDecision`, `ProducerAction`, `RuntimeContextAuthority`, `CheckCause`, `CheckUnavailable`, `CheckUnknown`。
+`ScopeBinding`, `ScopeBindingSource`, `AuthorityDecision`, `OrdinaryHolderAction`, `BeginReplayAction`, `FinishReplayAction`, `HolderAction`, `HolderDecision`, `ProducerAction`, `RuntimeContextAuthority`, `CheckCause`, `CheckUnavailable`, `CheckUnknown`, `RuntimeContextTrust`。
+
+`RuntimeContextTrust` 定义见 [trust.ts](../src/trust.ts)，只是装配入口交入两个原端口的构造参数，没有新权限或生命周期。
 
 ## 恢复会话
 
@@ -118,3 +120,9 @@
 定义见 [testing/conformance.ts](../src/testing/conformance.ts) 与 [testing/suite.ts](../src/testing/suite.ts)。夹具的 `subject(ports)` 必须让被测对象使用套件给出的两个端口。
 
 `RuntimeContextFixture`, `RuntimeContextPorts`, `RUNTIME_CONTEXT_OBLIGATIONS`, `RuntimeContextObligation`, `runtimeContextConformance`。
+
+## 受信构造套件
+
+定义见 [testing/trust.ts](../src/testing/trust.ts) 与 [testing/trust-conformance.ts](../src/testing/trust-conformance.ts)。夹具的 `create` 必须让返回的 `trust` 使用套件给出的两个原端口；`controls` 的四个控制各自同步使对应来源失效。固定替身只供测试，标 `durability: 'none'`，不进根入口。
+
+`RuntimeContextTrustControls`, `RuntimeContextTrustFixture`, `TestRuntimeContextTrust`, `createTestRuntimeContextTrust`, `RUNTIME_CONTEXT_TRUST_OBLIGATIONS`, `runtimeContextTrustConformance`。
