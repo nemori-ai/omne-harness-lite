@@ -66,7 +66,11 @@ export function sessionCommandFacts(
   }
 }
 
-/** One ordinary input as Session admitted it (SE10, SE11): the identity, the origin and the message. */
+/**
+ * One ordinary input as Session admitted it (SE10, SE11): the identity, the origin and the message.
+ * In the `open` and `submit` checks, `origin` carries the source basis of the Agent's
+ * `AcceptedInput` (its `source`), not the origin Session recorded for the input.
+ */
 export type SessionAdmittedInput = Pick<
   Extract<RoutedInput, { kind: 'ordinary' }>,
   'input' | 'origin' | 'message'
@@ -78,10 +82,11 @@ type CheckScope = Readonly<{ tenant: TenantId; session: SessionId; execution: st
  * The read-only participations of the `session` participant (session-contract JC-26 and JC-27).
  * They write no Session entry.
  *
- * - `open`: PA-01 item 1. The grant names the attempt of the active Run that started this
- *   execution, and the initial input is the one Session admitted.
- * - `submit`: PA-01 item 2. The input is the one Session admitted and the active Run is the Run of
- *   this execution.
+ * - `open`: PA-01 item 1. `initial.origin` is a receipt of the committed SE13 that started this
+ *   execution with the initial input as its first input, and the message is the one Session
+ *   admitted. The grant names the attempt of the active Run that started this execution.
+ * - `submit`: PA-01 item 2. `value.origin` is a receipt of the committed SE11 of the input, and the
+ *   message is the one Session admitted. The active Run is the Run of this execution.
  * - `attach`: PA-01 item 3. The grant names the current attempt of the active Run of this
  *   execution (ordinary advance), or the last attempt granted before the cancel of the cancelled
  *   Run of this execution (cancel wind-down).

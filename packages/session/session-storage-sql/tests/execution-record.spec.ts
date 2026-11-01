@@ -22,6 +22,7 @@ import {
 } from '@omne-harness/session-contract/testing'
 import {
   deriveDriveOperation,
+  type DurableEvidence,
   type SessionCommand,
   type WorkSnapshot,
 } from '@omne-harness/session-contract'
@@ -35,6 +36,7 @@ import {
   type ExecutionRecordWrite,
   type SessionCheck,
 } from '../src/participants.ts'
+import { canonicalText, decodeValue, sha256 } from '../src/codec.ts'
 import { sessionStorageMaterials } from '../src/materials.ts'
 import { app, TENANT_A, TENANT_B, textOf, type App } from './fixtures/app.ts'
 
@@ -130,33 +132,52 @@ const acceptCommand = (name: string): SessionCommand => ({
 })
 const login = [guard('login', 'login-entry', 'present')]
 
-/** A session with input `input-1` accepted and an active Run that started execution E. */
-async function running(a: App) {
-  ok(await a.create(TENANT_A))
-  ok(await a.accept(TENANT_A, 'session-1', 'input-1'))
-  const started = ok<{ receipt: { source: unknown } }>(
+/**
+ * A session with input `input-1` accepted and an active Run that started execution E. `grant` is
+ * the receipt of the startRun batch: Session hands it to `invoke` as the SE15 grant and as the SE13
+ * source basis (PA-01 item 1).
+ */
+async function running(
+  a: App,
+  tenant: TenantId = TENANT_A,
+  session = 'session-1',
+  first = 'input-1',
+) {
+  ok(await a.create(tenant, session))
+  ok(await a.accept(tenant, session, first))
+  const started = ok<{ receipt: { source: DurableEvidence } }>(
     await a.port.commit({
-      access: a.access(TENANT_A),
+      access: a.access(tenant, session),
       command: {
         kind: 'startRun',
         input: {
-          tenant: TENANT_A,
-          session: SESSION,
-          operation: operationId('start-run'),
+          tenant,
+          session: sessionId(session),
+          operation: operationId(`start-run-${session}`),
           entry: 'interactive',
           candidate: creation().definition.candidate,
           instance: { owner: 'agent', id: 'instance-1' },
         },
       },
-      guards: [
-        guard('evidence-bridge', 'login-entry', { session: SESSION, operation: 'start-run' }),
-      ],
+      guards: [guard('evidence-bridge', 'login-entry', { session, operation: 'start-run' })],
     }),
   )
-  const work = ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
+  const work = ok<WorkSnapshot>(await a.port.readWork(a.access(tenant, session)))
   if (work.run.kind !== 'active') throw new Error('no active Run')
-  return { execution: work.run.execution.execution, grant: started.receipt.source as never, work }
+  return { execution: work.run.execution.execution, grant: started.receipt.source, work }
 }
+
+/** Accepts the ordinary input `name`: the source of the receipt is its SE11 receipt (PA-01 item 2). */
+async function admitted(a: App, name: string): Promise<DurableEvidence> {
+  return ok<{ source: DurableEvidence }>(await a.accept(TENANT_A, 'session-1', name)).source
+}
+
+/** The input as the Agent accepted it: its identity, its message and the source basis Session gave. */
+const acceptedAs = (name: string, source: DurableEvidence) => ({
+  input: inputId(name),
+  origin: source,
+  message: ordinaryInput(name).message,
+})
 
 /** Cancels the active Run of `work` by a forced cancel-run control. */
 async function cancel(a: App, work: WorkSnapshot) {
@@ -367,9 +388,7 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       session: SESSION,
       execution,
       grant,
-      initial: (({ input, origin, message }) => ({ input, origin, message }))(
-        ordinaryInput('input-1'),
-      ),
+      initial: acceptedAs('input-1', grant),
     }
     const result = await joint(a, 'aop_open_check', [
       executionRecordFacts(write({ execution })),
@@ -538,6 +557,226 @@ describe('the read-only checks of the session participant (JC-26, JC-27)', () =>
       result.kind === 'rolled_back' && decodeSessionReply(result.responses[1]!.reply),
     ).toMatchObject({ kind: 'stopped', failure: { kind: 'changed' } })
     expect(count(a, 'er_operation')).toBe(0)
+  })
+})
+
+describe('the source basis of open and submit (PA-01 items 1 and 2)', () => {
+  const open = (
+    a: App,
+    name: string,
+    check: Omit<Extract<SessionCheck, { kind: 'open' }>, 'kind'>,
+  ) =>
+    joint(a, name, [
+      executionRecordFacts(write({ execution: check.execution, operation: name })),
+      sessionCheckFacts({ kind: 'open', ...check }),
+    ])
+  const submit = (
+    a: App,
+    name: string,
+    execution: string,
+    value: Extract<SessionCheck, { kind: 'submit' }>['value'],
+  ) =>
+    joint(a, name, [
+      executionRecordFacts(write({ execution, operation: name })),
+      sessionCheckFacts({ kind: 'submit', tenant: TENANT_A, session: SESSION, execution, value }),
+    ])
+  const stoppedAs = (result: Awaited<ReturnType<typeof joint>>) =>
+    result.kind === 'rolled_back' ? decodeSessionReply(result.responses[1]!.reply) : result.kind
+
+  it('open holds on the receipt of the SE13 Session handed to invoke, not on the origin of the input', async () => {
+    const a = await app()
+    const { execution, grant } = await running(a)
+    // The C24 counterexample: the source is the startRun receipt, the stored origin is intake/input-1.
+    expect(grant.record).not.toBe(ordinaryInput('input-1').origin.record)
+    const result = await open(a, 'aop_open_se13', {
+      tenant: TENANT_A,
+      session: SESSION,
+      execution,
+      grant,
+      initial: acceptedAs('input-1', grant),
+    })
+    expect(result.kind).toBe('committed')
+    expect(
+      result.kind === 'committed' && decodeSessionReply(result.responses[1]!.reply),
+    ).toMatchObject({
+      kind: 'participated',
+      result: { kind: 'checked', advance: 'ordinary' },
+    })
+  })
+
+  it('open holds on the evidence of the SE13 entry itself', async () => {
+    const a = await app()
+    const { execution, grant } = await running(a)
+    const row = a.provider.select(
+      'dom_0',
+      "SELECT position, revision, entry FROM sl_entry WHERE kind = 'run.started'",
+    ).rows[0]
+    if (row === undefined) throw new Error('no SE13 row')
+    const entry = decodeValue(JSON.parse(String(row[2])) as JsonValue)
+    const se13: DurableEvidence = {
+      owner: '@omne-harness/session-storage-sql',
+      record: `${textOf(TENANT_A)}/${SESSION}/entry/${String(row[0])}`,
+      revision: String(row[1]),
+      digest: `sha256:${sha256(canonicalText(entry))}`,
+    }
+    const result = await open(a, 'aop_open_entry', {
+      tenant: TENANT_A,
+      session: SESSION,
+      execution,
+      grant,
+      initial: acceptedAs('input-1', se13),
+    })
+    expect(result.kind).toBe('committed')
+  })
+
+  it('open is denied when the source names no SE13 of this execution, or the input is not the first one it records', async () => {
+    const a = await app()
+    const { execution, grant } = await running(a)
+    const other = await running(a, TENANT_A, 'session-2', 'other-1')
+    const se11 = await admitted(a, 'input-2')
+    const uncommitted = { ...grant, record: `${textOf(TENANT_A)}/${SESSION}/99`, revision: '99' }
+    const cases = [
+      ['the SE13 of another session', acceptedAs('input-1', other.grant)],
+      ['a receipt of no committed batch', acceptedAs('input-1', uncommitted)],
+      [
+        'a receipt whose revision is not a number',
+        acceptedAs('input-1', { ...grant, revision: 'r3' }),
+      ],
+      ['the origin of the input', acceptedAs('input-1', ordinaryInput('input-1').origin)],
+      ['the SE11 receipt of an input', acceptedAs('input-1', se11)],
+      ['an input other than the first of SE13', acceptedAs('input-2', grant)],
+      [
+        'a message other than the one Session admitted',
+        { ...acceptedAs('input-1', grant), message: ordinaryInput('input-2').message },
+      ],
+    ] as const
+    for (const [index, [, initial]] of cases.entries()) {
+      const result = await open(a, `aop_open_bad_${index}`, {
+        tenant: TENANT_A,
+        session: SESSION,
+        execution,
+        grant,
+        initial,
+      })
+      expect(stoppedAs(result)).toEqual({
+        kind: 'stopped',
+        failure: { kind: 'denied', action: 'open' },
+      })
+    }
+    expect(count(a, 'er_operation')).toBe(0)
+  })
+
+  it('open of the next Run is denied on the SE13 of the Run before it, though both record the same first input', async () => {
+    const a = await app()
+    const { grant: before, work } = await running(a)
+    await cancel(a, work)
+    const next = ok<{ receipt: { source: DurableEvidence } }>(
+      await a.port.commit({
+        access: a.access(TENANT_A),
+        command: {
+          kind: 'startRun',
+          input: {
+            tenant: TENANT_A,
+            session: SESSION,
+            operation: operationId('start-run-next'),
+            entry: 'interactive',
+            candidate: creation().definition.candidate,
+            instance: { owner: 'agent', id: 'instance-1' },
+          },
+        },
+        guards: [guard('evidence-bridge', 'login-entry', { session: SESSION, operation: 'next' })],
+      }),
+    ).receipt.source
+    const current = ok<WorkSnapshot>(await a.port.readWork(a.access(TENANT_A)))
+    if (current.run.kind !== 'active') throw new Error('no active Run')
+    const execution = current.run.execution.execution
+    const check = { tenant: TENANT_A, session: SESSION, execution, grant: next }
+    // The input the cancel left pending is the first input of the next Run as well.
+    expect(String(current.run.first)).toBe('input-1')
+    const refused = await open(a, 'aop_open_previous', {
+      ...check,
+      initial: acceptedAs('input-1', before),
+    })
+    expect(stoppedAs(refused)).toEqual({
+      kind: 'stopped',
+      failure: { kind: 'denied', action: 'open' },
+    })
+    const opened = await open(a, 'aop_open_next', {
+      ...check,
+      initial: acceptedAs(String(current.run.first), next),
+    })
+    expect(opened.kind).toBe('committed')
+  })
+
+  it('open in another tenant is denied on the receipt of this tenant, though the names are the same', async () => {
+    const a = await app()
+    const own = await running(a)
+    const theirs = await running(a, TENANT_B)
+    const result = await joint(
+      a,
+      'aop_open_tenant',
+      [
+        executionRecordFacts(write({ tenant: TENANT_B, execution: theirs.execution })),
+        sessionCheckFacts({
+          kind: 'open',
+          tenant: TENANT_B,
+          session: SESSION,
+          execution: theirs.execution,
+          grant: theirs.grant,
+          initial: acceptedAs('input-1', own.grant),
+        }),
+      ],
+      TENANT_B,
+    )
+    expect(stoppedAs(result)).toEqual({
+      kind: 'stopped',
+      failure: { kind: 'denied', action: 'open' },
+    })
+  })
+
+  it('submit holds on the SE11 receipt of the input; the receipt of another input or the origin is denied', async () => {
+    const a = await app()
+    const { execution } = await running(a)
+    const second = await admitted(a, 'input-2')
+    const third = await admitted(a, 'input-3')
+    for (const [index, value] of [
+      acceptedAs('input-2', third),
+      acceptedAs('input-2', ordinaryInput('input-2').origin),
+      { ...acceptedAs('input-2', second), message: ordinaryInput('input-3').message },
+    ].entries())
+      expect(stoppedAs(await submit(a, `aop_submit_bad_${index}`, execution, value))).toEqual({
+        kind: 'stopped',
+        failure: { kind: 'denied', action: 'submit' },
+      })
+    const result = await submit(a, 'aop_submit_se11', execution, acceptedAs('input-2', second))
+    expect(result.kind).toBe('committed')
+    expect(
+      result.kind === 'committed' && decodeSessionReply(result.responses[1]!.reply),
+    ).toMatchObject({
+      kind: 'participated',
+      result: { kind: 'checked' },
+    })
+  })
+  it('a revision with more rows than the read bound fails the check; it does not judge on part of them', async () => {
+    const a = await app()
+    const { execution } = await running(a)
+    const second = await admitted(a, 'input-2')
+    a.provider.seed(
+      'dom_0',
+      `INSERT INTO sl_entry (tenant, session, position, revision, kind, entry, bytes)
+         WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 10001)
+         SELECT ?, 'session-1', 1000000 + i, 777, 'intake.routed', '{}', 2 FROM n`,
+      [textOf(TENANT_A)],
+    )
+    const result = await submit(a, 'aop_submit_bound', execution, {
+      ...acceptedAs('input-2', second),
+      origin: { ...second, revision: '777' },
+    })
+    expect(result.kind).toBe('rolled_back')
+    expect(stoppedAs(result)).toMatchObject({
+      kind: 'failed',
+      diagnostic: expect.stringContaining('read bound'),
+    })
   })
 })
 

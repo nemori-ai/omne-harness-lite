@@ -62,6 +62,7 @@ import {
 } from '@omne-harness/agent-contract/testing'
 import type { DurableEvidence } from '@omne-harness/agent-contract'
 import { createSessionLogJournal } from '../../src/cordis/agent-journal.ts'
+import { encodeSessionSlotRef } from '../../src/slot-ref.ts'
 import { checkpoint, instance, ok, openInput, operation } from './common-journal.ts'
 
 const COMBINATION = 'c1'
@@ -289,6 +290,11 @@ export type SqlSceneOptions = Readonly<{
   cancellation?: 'installed'
   /** The manifest digest the Journal is configured with; the registered one when absent. */
   manifest?: string
+  /**
+   * `slot`: the first attempt records the session slot reference of the Run's adoption, as the
+   * Session coordinator writes it, so AD-14 can take its instance. A fixed test instance when absent.
+   */
+  instance?: 'slot'
 }>
 
 export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = {}) {
@@ -442,7 +448,13 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
           operation: operationId('start'),
           entry: 'interactive',
           candidate: value.definition.candidate,
-          instance: { owner: 'agent', id: 'instance-1' },
+          instance:
+            options.instance === 'slot'
+              ? encodeSessionSlotRef({
+                  session: access.session,
+                  adoption: value.definition.candidate,
+                })
+              : { owner: 'agent', id: 'instance-1' },
         },
       },
       guards: [guard('evidence-bridge', 'login-entry', { session: name, operation: 'start' })],
@@ -455,7 +467,8 @@ export async function sqlScene(name = 'sql-session', options: SqlSceneOptions = 
   const initial: AcceptedInput = {
     id: ok(decodeInputId(admitted.input)),
     content: admitted.message,
-    source: admitted.origin,
+    // AD-14: the source basis of the initial input is the receipt of SE13 (PA-01 item 1).
+    source: started.receipt.source,
     priority: 'ordinary',
   }
   const opening = checkpoint()

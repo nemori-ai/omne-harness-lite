@@ -180,10 +180,12 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 
 | 核对                      | 规则                                                                                                                                                                | 不成立时的依据                                                                                              |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `open`（PA-01 第 1 条）   | 首条输入是 Session 已受理的输入，来源与消息相同。`grant` 指向本执行的 SE15（批次回执的来源，或 SE15 条目的证据）。该执行是当前 Run 的执行，attempt 是当前 `advance` | 输入不符或 `grant` 不指向本执行的 SE15：`denied`。Run 已终态：`terminal`。attempt 已被取代：`stale-advance` |
-| `submit`（PA-01 第 2 条） | 输入是 Session 已受理的输入，来源与消息相同。当前 Run 是该执行的 Run                                                                                                | 输入不符：`denied`。Run 已终态：`terminal`。其他情形：`stale-advance`                                       |
+| `open`（PA-01 第 1 条）   | 来源依据是本会话已提交 SE13 的回执（批次回执的来源，或 SE13 条目的证据）。该 SE13 记的执行是本执行，首条输入是 `initial` 的输入。消息与 Session 受理时相同。`grant` 指向本执行的 SE15（批次回执的来源，或 SE15 条目的证据）。该执行是当前 Run 的执行，attempt 是当前 `advance` | 来源依据或输入不符，或 `grant` 不指向本执行的 SE15：`denied`。Run 已终态：`terminal`。attempt 已被取代：`stale-advance` |
+| `submit`（PA-01 第 2 条） | 来源依据是该输入已提交 SE11 的回执（批次回执的来源，或 SE11 条目的证据）。消息与 Session 受理时相同。当前 Run 是该执行的 Run | 来源依据或输入不符：`denied`。Run 已终态：`terminal`。其他情形：`stale-advance` |
 | `attach`（PA-01 第 3 条） | 普通推进同 `open` 的后两项。取消收束：该执行所属的 Run 是 cancelled 终态，`grant` 指向该 Run 在取消批次之前最后授予的 attempt                                       | 同 `open`                                                                                                   |
 | `finish`（PA-02）         | `judgeCompletion` 为 `allowed`。为 `cancelled` 时，结论是 cancelled，且取消控制等于 SE26 引用的控制                                                                 | 待交输入或控制不符：`changed`。其他终态：`terminal`                                                         |
+
+来源依据只与本会话已提交条目的回执比较，不与输入的 `origin` 比较。`initial.origin` 与 `value.origin` 带 Agent `AcceptedInput` 的 `source`，即来源依据。另一会话、另一租户、另一输入或未提交批次的回执都不成立。
 
 取消收束只核对 SE26 所在批次之前的最后一个 attempt，不另核对 SE16 行。读到的历史行超过界限（10 000 行）时，模块答「失败」。
 
