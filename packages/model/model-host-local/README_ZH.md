@@ -23,6 +23,18 @@
 
 独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。宿主插件是 `createModelRuntimeLocalPlugin` 与 `createModelRequestPreparationPlugin` 造出的类：它们的对象选项（运行提供者、观察资格、家族绑定、凭据补全）不可序列化，由创建插件类的装配给出。准备插件同时交出租约来源 `resources`，由装配交给请求组装；它不是服务键。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
 
+### 保管库初始化命令
+
+要发真实请求的每台宿主，由人运行一次保管库初始化命令。命令在关闭回显的终端里读一个密钥，在给定路径新建保管库并把密钥写成工厂秘密；成功时输出 `已建立：<路径>`，失败时输出 `失败：<原因代码>`。在仓库根目录用 Git Bash 或 PowerShell 运行（PowerShell 里用 `pnpm.cmd`）：
+
+```sh
+pnpm --filter @omne-harness/model-host-local exec node --experimental-strip-types src/vault-init-cli.ts --path <路径>
+```
+
+路径必须位于当前用户目录之下，且路径上没有任何对象。路径上已有有效保管库、损坏文件、空文件、目录或符号链接时，命令一律拒绝，不读也不改它们。标准输入不是终端时拒绝，出现像是携带密钥的参数时拒绝。失败的运行不留下文件。命令不从根入口导出，也不属于 `LocalCredentialPlugin`。失败原因与完整行为见[行为规格](SPEC.md#保管库初始化命令)。
+
+运行命令的是持有密钥的人。Reduce、写者与其他 agent 不读取、不持有、不输入密钥。该宿主上第一次真实请求成功，才证明这把密钥可用。
+
 ## 契约
 
 [行为规格](SPEC.md)拥有保管库文件、文件锁、发布确认、刷新、关闭与插件生命周期的行为，以及发送资源与本地装配的行为。引用、结果和端口的形状归 model-contract。`SendResources` 端口与发送边界归 model，传输配置归 pi-ai-transport。公开入口的导航见[公开接口](docs/public-api.md)。
@@ -33,7 +45,7 @@
 
 ## 配置与运行
 
-保管库路径与工厂秘密是保管库仅有的配置，由应用提供。本地装配的路由地址、代理、TLS、连接容量与各项限额全部由应用配置给出，本包不写默认值。在本仓库的云端环境里，保管库只存占位值，真实密钥由出站代理注入。文件锁不按时间过期，持锁进程崩溃后须在所有写者停止后手工删除 `${path}.lock`。保管库从磁盘记录经 legal-identity 重新铸造租户值，租户相等只在同一 legal-identity 实例内成立，因此调用方与保管库须在同一进程内共享该实例。
+保管库路径与工厂秘密是保管库仅有的配置，由应用提供。本地装配的路由地址、代理、TLS、连接容量与各项限额全部由应用配置给出，本包不写默认值。在本仓库的云端环境里，保管库只存占位值，真实密钥由出站代理注入。命令建的保管库文件必须在当前用户目录之下。POSIX 上，命令以 `0700` 建新目录、以 `0600` 建文件，并读回模式。Windows 上，命令不改访问控制列表，也不调用 `icacls`；保护来自新建目录与文件从用户目录继承的访问控制，前提是该用户目录一直不对其他账户开放，命令也无法读回这个保护。文件锁不按时间过期，持锁进程崩溃后须在所有写者停止后手工删除 `${path}.lock`。保管库从磁盘记录经 legal-identity 重新铸造租户值，租户相等只在同一 legal-identity 实例内成立，因此调用方与保管库须在同一进程内共享该实例。
 
 ## 验证
 
