@@ -13,6 +13,7 @@ import {
   type FixedModelRequest,
   type ModalityRequirement,
   type ModelProfile,
+  type Parameter,
   type ParameterAdoption,
   type ProfileSupplier,
   type Supplier,
@@ -28,6 +29,7 @@ import {
 import {
   createScriptedModelRequestPreparation,
   ScriptedModelError,
+  type ScriptedModelPreparationMatch,
   type ScriptedModelPreparationPlan,
 } from '@omne-harness/model-contract/testing'
 
@@ -152,12 +154,18 @@ const bound = (supplier: ProfileSupplier, credential: Supplier['credential']): S
 })
 
 const temperature = { kind: 'temperature', value: 0.5 } as const
-const adoptions = (): ParameterAdoption[] =>
+const topP = { kind: 'top-p', value: 0.9 } as const
+/** One explicit adoption of `parameter` for each supplier of the profile, in supplier order. */
+const explicitFor = (parameter: Parameter): ParameterAdoption[] =>
   [first, second].map(supplier => ({
     supplier: supplier.adoption,
-    applied: temperature,
-    origin: { kind: 'explicit', requested: temperature, source: adoption('rules') },
+    applied: parameter,
+    origin: { kind: 'explicit', requested: parameter, source: adoption('rules') },
   }))
+const adoptions = (): ParameterAdoption[] => explicitFor(temperature)
+
+/** The script misuse that a refused registration throws, with the message that names its check. */
+const misuseOf = (message: string) => ({ reason: 'invalid-script', message })
 
 const plan = (): ScriptedModelPreparationPlan => ({
   suppliers: [bound(first, tenantCredential()), bound(second, { kind: 'factory' })],
@@ -337,6 +345,229 @@ describe('suppliers and parameter adoptions (M11)', () => {
     }
     expect(must(await prepare()).suppliers).toEqual(plan().suppliers)
   })
+
+  it('accepts a plan that adopts two asked parameters explicitly for each supplier', async () => {
+    const { scripted, access, profile, required } = setup()
+    const parameters = [temperature, topP]
+    const parameterAdoptions = [...adoptions(), ...explicitFor(topP)]
+    scripted.setPlan(
+      { ...access, profile, required, parameters },
+      { ok: { ...plan(), parameterAdoptions } },
+    )
+    const request = must(
+      await scripted.preparation.prepare({
+        ...access,
+        profile,
+        required,
+        assembled: assembled({ parameters }),
+      }),
+    )
+    expect(request.parameterAdoptions).toEqual(parameterAdoptions)
+  })
+})
+
+/**
+ * Each check of a plan registration has one case whose plan breaks that check alone. The case
+ * asserts the message that names the check and that the plan registered before is still used.
+ */
+describe('each plan check has a case that breaks only it (M11)', () => {
+  function planned() {
+    const fixture = setup()
+    const { scripted, access, profile, required, prepare } = fixture
+    const match = { ...access, profile, required, parameters: [temperature] }
+    const [one, two] = plan().suppliers
+    if (two === undefined) throw new Error('expected two suppliers')
+    const refuse = (
+      answer: ScriptedModelPreparationPlan,
+      over: Partial<ScriptedModelPreparationMatch<Agent>> = {},
+    ) => scriptMisuse(() => scripted.setPlan({ ...match, ...over }, { ok: answer }))
+    const keptEarlier = async () =>
+      expect(must(await prepare()).suppliers).toEqual(plan().suppliers)
+    return { one, two, refuse, keptEarlier }
+  }
+
+  it('refuses a plan whose profile belongs to another tenant', async () => {
+    const { refuse, keptEarlier } = planned()
+    const profile = profileOf({ scope: { kind: 'tenant', tenant: mint('2', '3') } })
+    expect(refuse(plan(), { profile })).toMatchObject(
+      misuseOf('the planned profile scope does not apply to the tenant'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan whose profile belongs to another organization', async () => {
+    const { refuse, keptEarlier } = planned()
+    const scope = { kind: 'organization', organization: mint('2', '3').organization } as const
+    expect(refuse(plan(), { profile: profileOf({ scope }) })).toMatchObject(
+      misuseOf('the planned profile scope does not apply to the tenant'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan whose profile scope holds an organization that is not minted', async () => {
+    const { refuse, keptEarlier } = planned()
+    const organization = structuredClone(mint('1', '1').organization)
+    const profile = profileOf({ scope: { kind: 'organization', organization } })
+    expect(refuse(plan(), { profile })).toMatchObject(
+      misuseOf('the planned profile scope holds an identity that is not minted'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan whose profile is withdrawn', async () => {
+    const { refuse, keptEarlier } = planned()
+    const profile = profileOf({ availability: 'withdrawn' })
+    expect(refuse(plan(), { profile })).toMatchObject(misuseOf('a planned profile must be active'))
+    await keptEarlier()
+  })
+
+  it('refuses a plan whose profile does not cover the required modalities', async () => {
+    const { refuse, keptEarlier } = planned()
+    expect(refuse(plan(), { required: requirement(['text', 'video']) })).toMatchObject(
+      misuseOf('the planned profile does not cover the input'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan that binds fewer suppliers than the profile has', async () => {
+    const { one, refuse, keptEarlier } = planned()
+    expect(refuse({ ...plan(), suppliers: [one] })).toMatchObject(
+      misuseOf('the plan must bind every supplier of the profile'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan that binds more suppliers than the profile has', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    expect(refuse({ ...plan(), suppliers: [one, two, two] })).toMatchObject(
+      misuseOf('the plan must bind every supplier of the profile'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned supplier with a field that a bound supplier does not have', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const widened = { ...one, region: 'eu' } as Supplier
+    expect(refuse({ ...plan(), suppliers: [widened, two] })).toMatchObject(
+      misuseOf(
+        'a planned supplier has a field other than adoption, recipient, model and credential',
+      ),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned supplier with another adoption than the profile supplier at its position', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const replaced = { ...one, adoption: adoption('other') }
+    expect(refuse({ ...plan(), suppliers: [replaced, two] })).toMatchObject(
+      misuseOf('a planned supplier has another adoption than the profile supplier at its position'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned supplier with another recipient than the profile supplier at its position', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const replaced = { ...one, recipient: 'north' }
+    expect(refuse({ ...plan(), suppliers: [replaced, two] })).toMatchObject(
+      misuseOf(
+        'a planned supplier has another recipient than the profile supplier at its position',
+      ),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned supplier with another model than the profile supplier at its position', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const replaced = { ...one, model: 'other' }
+    expect(refuse({ ...plan(), suppliers: [replaced, two] })).toMatchObject(
+      misuseOf('a planned supplier has another model than the profile supplier at its position'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned supplier without a credential', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const bare = { adoption: one.adoption, recipient: one.recipient, model: one.model } as Supplier
+    expect(refuse({ ...plan(), suppliers: [bare, two] })).toMatchObject(
+      misuseOf('a planned supplier needs its credential'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned credential of a kind that is neither tenant nor factory', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const credential = { kind: 'shared' } as unknown as Supplier['credential']
+    expect(refuse({ ...plan(), suppliers: [{ ...one, credential }, two] })).toMatchObject(
+      misuseOf('a planned credential is neither a tenant nor a factory binding'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned credential with a field that its kind does not have', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const credential = {
+      kind: 'factory',
+      id: must(decodeCredentialId('cred-tenant')),
+    } as unknown as Supplier['credential']
+    expect(refuse({ ...plan(), suppliers: [one, { ...two, credential }] })).toMatchObject(
+      misuseOf('a planned credential does not have exactly the fields of its kind'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a planned tenant credential whose id does not decode', async () => {
+    const { one, two, refuse, keptEarlier } = planned()
+    const credential = { kind: 'tenant', id: '' } as unknown as Supplier['credential']
+    expect(refuse({ ...plan(), suppliers: [{ ...one, credential }, two] })).toMatchObject(
+      misuseOf('a planned tenant credential id does not decode'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a parameter adoption whose supplier is not in the plan', async () => {
+    const { refuse, keptEarlier } = planned()
+    const stranger: ParameterAdoption = {
+      supplier: adoption('stranger'),
+      applied: temperature,
+      origin: { kind: 'explicit', requested: temperature, source: adoption('rules') },
+    }
+    expect(refuse({ ...plan(), parameterAdoptions: [...adoptions(), stranger] })).toMatchObject(
+      misuseOf('a parameter adoption names a supplier outside the plan'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses an explicit adoption of a parameter that the input does not ask for', async () => {
+    const { refuse, keptEarlier } = planned()
+    const parameterAdoptions = [...adoptions(), ...explicitFor(topP).slice(0, 1)]
+    expect(refuse({ ...plan(), parameterAdoptions })).toMatchObject(
+      misuseOf('an explicit adoption names a parameter that the input does not ask for'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a plan in which an asked parameter lacks an explicit adoption for a supplier', async () => {
+    const { refuse, keptEarlier } = planned()
+    expect(refuse({ ...plan(), parameterAdoptions: adoptions().slice(0, 1) })).toMatchObject(
+      misuseOf('an asked parameter has no explicit adoption for a supplier'),
+    )
+    await keptEarlier()
+  })
+
+  it('does not count a default adoption as the explicit adoption of an asked parameter', async () => {
+    const { refuse, keptEarlier } = planned()
+    const [explicit] = adoptions()
+    if (explicit === undefined) throw new Error('expected an adoption')
+    const byDefault: ParameterAdoption = {
+      supplier: second.adoption,
+      applied: temperature,
+      origin: { kind: 'default', source: adoption('rules') },
+    }
+    expect(refuse({ ...plan(), parameterAdoptions: [explicit, byDefault] })).toMatchObject(
+      misuseOf('an asked parameter has no explicit adoption for a supplier'),
+    )
+    await keptEarlier()
+  })
 })
 
 describe('replay declarations (M12)', () => {
@@ -384,6 +615,38 @@ describe('replay declarations (M12)', () => {
     expect(outcome).toEqual(judged)
     expect(recorded.seen).toHaveLength(0)
   })
+
+  it('returns the failure of the first supplier before it judges the later ones', async () => {
+    const principal = new Agent('alice')
+    const access: Access<Agent> = { tenant: mint('1', '1'), principal }
+    const recorded = recordingTransport()
+    const scripted = createScriptedModelRequestPreparation<Agent>({ transport: recorded.transport })
+    scripted.setAccess(access, 'allow')
+    const broken: ProfileSupplier = { ...first, replay: { produces: 'a/b', accepts: ['c/d'] } }
+    const alsoBroken: ProfileSupplier = { ...second, replay: { produces: 'e/f', accepts: [] } }
+    const profile = profileOf({ suppliers: [broken, alsoBroken] })
+    const required = requirement()
+    scripted.setPlan(
+      { ...access, profile, required, parameters: [temperature] },
+      {
+        ok: {
+          suppliers: [bound(broken, { kind: 'factory' }), bound(alsoBroken, { kind: 'factory' })],
+          parameterAdoptions: adoptions(),
+        },
+      },
+    )
+    const outcome = await scripted.preparation.prepare({
+      ...access,
+      profile,
+      required,
+      assembled: assembled(),
+    })
+    const judged = judgeReplayDeclaration(broken, 0)
+    expect('failure' in judged).toBe(true)
+    expect(outcome).toEqual(judged)
+    expect(Object.isFrozen(outcome)).toBe(true)
+    expect(recorded.seen).toHaveLength(0)
+  })
 })
 
 describe('the transport lifecycle (M13 to M16)', () => {
@@ -401,13 +664,28 @@ describe('the transport lifecycle (M13 to M16)', () => {
     const held = new Promise<void>(resolve => {
       release = resolve
     })
-    const { recorded, prepare } = setup([{ kind: 'ok', close: () => held }])
+    // The test transport gives a signal when the close begins and keeps the close open until
+    // `release`.
+    let signal: () => void = () => undefined
+    const closing = new Promise<void>(resolve => {
+      signal = resolve
+    })
+    const close = () => {
+      signal()
+      return held
+    }
+    const { recorded, prepare } = setup([{ kind: 'ok', close }])
     let settled = false
     const pending = prepare().then(outcome => {
       settled = true
       return outcome
     })
-    for (let turn = 0; turn < 20; turn += 1) await Promise.resolve()
+    await closing
+    // One macrotask runs every queued microtask: a call that does not wait for the close has
+    // settled when it ends. The count of microtask turns that the double takes does not matter.
+    await new Promise<void>(resolve => {
+      setImmediate(resolve)
+    })
     expect(recorded.leases[0]?.closes()).toBe(1)
     expect(settled).toBe(false)
     release()
@@ -530,5 +808,68 @@ describe('the read order and the record of attempts (M17)', () => {
     release()
     expect(must(await pending).suppliers).toEqual(plan().suppliers)
     expect(await prepare()).toEqual({ failure: { kind: 'denied', action: 'scripted' } })
+  })
+
+  it('denies a profile of another organization and checks an organization scope that is not minted', async () => {
+    const recorded = recordingTransport()
+    const access: Access<Agent> = { tenant: mint('1', '1'), principal: new Agent('alice') }
+    const scripted = createScriptedModelRequestPreparation<Agent>({ transport: recorded.transport })
+    scripted.setAccess(access, 'allow')
+    const prepareFor = (organization: TenantId['organization']) =>
+      scripted.preparation.prepare({
+        ...access,
+        profile: profileOf({ scope: { kind: 'organization', organization } }),
+        required: requirement(),
+        assembled: assembled(),
+      })
+    // No plan is set at all: each answer below comes before the lookup.
+    expect(await prepareFor(mint('2', '3').organization)).toEqual({
+      failure: { kind: 'denied', action: 'prepare' },
+    })
+    expect(await prepareFor(structuredClone(access.tenant.organization))).toEqual({
+      failure: { kind: 'invalid', field: 'profile.identity.scope', reason: 'invalid-identity' },
+    })
+    // The scope of the tenant's own organization passes, so the call reaches the plan lookup.
+    const own = await rejection(prepareFor(mint('1', '2').organization))
+    expect(own).toMatchObject({ reason: 'invalid-script', message: 'no scripted preparation plan' })
+    expect(recorded.seen).toHaveLength(0)
+  })
+
+  it('keeps one plan per tenant and per principal for the same profile, requirement and parameters', async () => {
+    const recorded = recordingTransport()
+    const scripted = createScriptedModelRequestPreparation<Agent>({ transport: recorded.transport })
+    const alice = new Agent('alice')
+    const owners: [Access<Agent>, string][] = [
+      [{ tenant: mint('1', '1'), principal: alice }, 'cred-first-tenant'],
+      [{ tenant: mint('2', '3'), principal: alice }, 'cred-second-tenant'],
+      [{ tenant: mint('1', '1'), principal: new Agent('bob') }, 'cred-other-principal'],
+    ]
+    const profile = profileOf()
+    const required = requirement()
+    const credentialOf = (id: string) =>
+      ({ kind: 'tenant', id: must(decodeCredentialId(id)) }) as const
+    for (const [access, id] of owners) {
+      scripted.setAccess(access, 'allow')
+      scripted.setPlan(
+        { ...access, profile, required, parameters: [temperature] },
+        {
+          ok: {
+            suppliers: [bound(first, credentialOf(id)), bound(second, { kind: 'factory' })],
+            parameterAdoptions: adoptions(),
+          },
+        },
+      )
+    }
+    for (const [access, id] of owners) {
+      const request = must(
+        await scripted.preparation.prepare({
+          ...access,
+          profile,
+          required,
+          assembled: assembled(),
+        }),
+      )
+      expect(request.suppliers[0].credential).toEqual(credentialOf(id))
+    }
   })
 })

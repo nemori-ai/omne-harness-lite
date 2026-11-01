@@ -14,16 +14,26 @@ import type {
   ModalityRequirement,
   ModelProfile,
   ModelRequestPreparation,
+  ProfileSupplier,
   ReplayDeclaration,
 } from '../profile.ts'
 import type { ModelTransport } from '../provider-protocol.ts'
 import { judgeReplayDeclaration } from '../replay-values.ts'
 import { createAccessRules, type ScriptedAccessDecision } from './access.ts'
 import { misuse } from './error.ts'
-import { copyProfile, profileScopeFailure } from './profile-values.ts'
+import {
+  copyProfile,
+  covers,
+  findRow,
+  frozenAnswer,
+  profileScopeFailure,
+  putRow,
+  refusal,
+  type ScriptRow,
+} from './profile-values.ts'
 import { frozenCopy, sameValue, tenantText } from './values.ts'
 
-/** The input fields a plan is looked up by: no message, tool or source takes part. */
+/** The input fields a plan is looked up by: no message, tool or assembled source takes part. */
 export type ScriptedModelPreparationMatch<P> = Access<P> &
   Readonly<{
     profile: ModelProfile
@@ -62,63 +72,97 @@ export type ScriptedModelRequestPreparation<P> = Readonly<{
   calls(): readonly ScriptedModelPreparationCall<P>[]
 }>
 
-type PlanRow<P> = Readonly<{
-  tenant: string
-  principal: P
+type PlanKey = Readonly<{
   profile: ModelProfile
   required: ModalityRequirement
   parameters: AssembledModelInput['parameters']
-  answer: Outcome<ScriptedModelPreparationPlan, ModelFailure>
 }>
 
 type PrepareInput<P> = Parameters<ModelRequestPreparation<P>['prepare']>[0]
 
-const SUPPLIER_FIELDS = ['adoption', 'credential', 'model', 'recipient'].join()
+type Declarations = FixedModelRequest['declarations']
 
-function covers(profile: ModelProfile, required: ModalityRequirement): boolean {
-  const input: readonly string[] = profile.definition.input
-  return required.modalities.every(modality => input.includes(modality))
+/** Why a profile cannot serve a preparation: the business failure and the misuse of a plan. */
+type ProfileRefusal = Readonly<{ failure: ModelFailure; misuse: string }>
+
+const SUPPLIER_FIELDS: readonly string[] = ['adoption', 'credential', 'model', 'recipient']
+
+/**
+ * Step 5 of the read order, and the only judgment of whether a profile can serve this preparation:
+ * its scope applies to the tenant, it is active and it covers the requirement. A business call
+ * returns the failure; a plan registration throws the misuse.
+ */
+function profileFailure(
+  input: Pick<PrepareInput<unknown>, 'tenant' | 'profile' | 'required'>,
+): ProfileRefusal | null {
+  const scope = profileScopeFailure(input.profile.identity.scope, input.tenant)
+  if (scope === 'invalid-identity')
+    return {
+      failure: { kind: 'invalid', field: 'profile.identity.scope', reason: 'invalid-identity' },
+      misuse: 'the planned profile scope holds an identity that is not minted',
+    }
+  if (scope === 'foreign')
+    return {
+      failure: { kind: 'denied', action: 'prepare' },
+      misuse: 'the planned profile scope does not apply to the tenant',
+    }
+  if (input.profile.availability === 'withdrawn')
+    return {
+      failure: { kind: 'invalid', field: 'profile', reason: 'withdrawn' },
+      misuse: 'a planned profile must be active',
+    }
+  if (!covers(input.profile, input.required))
+    return {
+      failure: { kind: 'invalid', field: 'required.modalities', reason: 'modality' },
+      misuse: 'the planned profile does not cover the input',
+    }
+  return null
 }
 
 function checkCredential(credential: Supplier['credential'] | undefined): void {
   if (credential === undefined) throw misuse('a planned supplier needs its credential')
-  if (credential.kind === 'factory' && Object.keys(credential).length === 1) return
-  if (
-    credential.kind === 'tenant' &&
-    Object.keys(credential).length === 2 &&
-    'ok' in decodeCredentialId(credential.id)
-  )
-    return
-  throw misuse('a planned credential is not a credential binding')
+  const { kind } = credential
+  if (kind !== 'tenant' && kind !== 'factory')
+    throw misuse('a planned credential is neither a tenant nor a factory binding')
+  if (Object.keys(credential).length !== (kind === 'tenant' ? 2 : 1))
+    throw misuse('a planned credential does not have exactly the fields of its kind')
+  if (kind === 'tenant' && !('ok' in decodeCredentialId(credential.id)))
+    throw misuse('a planned tenant credential id does not decode')
 }
 
-/**
- * A successful plan binds the suppliers of the profile one to one, in order, and adds only the
- * credential to each. Each adopted parameter belongs to a planned supplier, an explicit adoption
- * names a parameter of the match, and every parameter of the match has an explicit adoption for
- * every supplier. Defaults and conversions are what the script says; nothing here runs rules.
- */
-function checkPlan<P>(match: ScriptedModelPreparationMatch<P>, plan: ScriptedModelPreparationPlan) {
-  const { profile, required, parameters } = match
-  if (profileScopeFailure(profile.identity.scope, match.tenant) !== null)
-    throw misuse('the planned profile scope does not apply to the tenant')
-  if (profile.availability !== 'active') throw misuse('a planned profile must be active')
-  if (!covers(profile, required)) throw misuse('the planned profile does not cover the input')
-  const listed = profile.definition.suppliers
-  if (plan.suppliers.length !== listed.length)
-    throw misuse('the plan must bind every supplier of the profile')
-  plan.suppliers.forEach((supplier, index) => {
-    const own = listed[index]
-    if (
-      own === undefined ||
-      Object.keys(supplier).sort().join() !== SUPPLIER_FIELDS ||
-      !sameValue(supplier.adoption, own.adoption) ||
-      supplier.recipient !== own.recipient ||
-      supplier.model !== own.model
+/** A planned supplier is the profile supplier at its position with a credential added. */
+function checkSupplier(supplier: Supplier, own: ProfileSupplier): void {
+  if (Object.keys(supplier).some(field => !SUPPLIER_FIELDS.includes(field)))
+    throw misuse(
+      'a planned supplier has a field other than adoption, recipient, model and credential',
     )
-      throw misuse('a planned supplier is not the supplier of the profile at its position')
-    checkCredential(supplier.credential)
-  })
+  if (!sameValue(supplier.adoption, own.adoption))
+    throw misuse(
+      'a planned supplier has another adoption than the profile supplier at its position',
+    )
+  if (supplier.recipient !== own.recipient)
+    throw misuse(
+      'a planned supplier has another recipient than the profile supplier at its position',
+    )
+  if (supplier.model !== own.model)
+    throw misuse('a planned supplier has another model than the profile supplier at its position')
+  checkCredential(supplier.credential)
+}
+
+/** The plan binds the suppliers of the profile one to one, in the order of the profile. */
+function checkSuppliers(planned: readonly Supplier[], listed: readonly ProfileSupplier[]): void {
+  const count = Math.max(planned.length, listed.length)
+  for (let index = 0; index < count; index += 1) {
+    const supplier = planned[index]
+    const own = listed[index]
+    if (supplier === undefined || own === undefined)
+      throw misuse('the plan must bind every supplier of the profile')
+    checkSupplier(supplier, own)
+  }
+}
+
+/** Each adoption belongs to a planned supplier, and an explicit one names an asked parameter. */
+function checkAdoptions(plan: ScriptedModelPreparationPlan, parameters: PlanKey['parameters']) {
   for (const adoption of plan.parameterAdoptions) {
     if (!plan.suppliers.some(supplier => sameValue(supplier.adoption, adoption.supplier)))
       throw misuse('a parameter adoption names a supplier outside the plan')
@@ -126,41 +170,62 @@ function checkPlan<P>(match: ScriptedModelPreparationMatch<P>, plan: ScriptedMod
     if (origin.kind === 'explicit' && !parameters.some(item => sameValue(item, origin.requested)))
       throw misuse('an explicit adoption names a parameter that the input does not ask for')
   }
+}
+
+/** Every asked parameter has an explicit adoption for every planned supplier. */
+function checkExplicitCoverage(
+  plan: ScriptedModelPreparationPlan,
+  parameters: PlanKey['parameters'],
+) {
+  const adopted = (parameter: PlanKey['parameters'][number], supplier: Supplier) =>
+    plan.parameterAdoptions.some(
+      ({ origin, supplier: owner }) =>
+        origin.kind === 'explicit' &&
+        sameValue(origin.requested, parameter) &&
+        sameValue(owner, supplier.adoption),
+    )
   for (const parameter of parameters)
-    for (const supplier of plan.suppliers)
-      if (
-        !plan.parameterAdoptions.some(
-          adoption =>
-            adoption.origin.kind === 'explicit' &&
-            sameValue(adoption.origin.requested, parameter) &&
-            sameValue(adoption.supplier, supplier.adoption),
-        )
-      )
-        throw misuse('an asked parameter has no explicit adoption for a supplier')
+    if (!plan.suppliers.every(supplier => adopted(parameter, supplier)))
+      throw misuse('an asked parameter has no explicit adoption for a supplier')
 }
 
-function refusal(failure: ModelFailure): Outcome<never, ModelFailure> {
-  return Object.freeze(fail(Object.freeze(failure)))
+/**
+ * A successful plan needs a profile that can serve the match. It binds the suppliers of the
+ * profile one to one, in order, and adds only the credential to each. Each adopted parameter
+ * belongs to a planned supplier, an explicit adoption names a parameter of the match, and every
+ * parameter of the match has an explicit adoption for every supplier. Defaults and conversions are
+ * what the script says; nothing here runs rules.
+ */
+function checkPlan<P>(match: ScriptedModelPreparationMatch<P>, plan: ScriptedModelPreparationPlan) {
+  const refused = profileFailure(match)
+  if (refused !== null) throw misuse(refused.misuse)
+  checkSuppliers(plan.suppliers, match.profile.definition.suppliers)
+  checkAdoptions(plan, match.parameters)
+  checkExplicitCoverage(plan, match.parameters)
 }
 
-/** Step 5 of the read order: the static profile and requirement checks, before the plan. */
-function profileFailure<P>(input: PrepareInput<P>): ModelFailure | null {
-  const scope = profileScopeFailure(input.profile.identity.scope, input.tenant)
-  if (scope === 'invalid-identity')
-    return { kind: 'invalid', field: 'profile.identity.scope', reason: 'invalid-identity' }
-  if (scope === 'foreign') return { kind: 'denied', action: 'prepare' }
-  if (input.profile.availability === 'withdrawn')
-    return { kind: 'invalid', field: 'profile', reason: 'withdrawn' }
-  if (!covers(input.profile, input.required))
-    return { kind: 'invalid', field: 'required.modalities', reason: 'modality' }
-  return null
+/** The replay declarations of the profile suppliers, in order, by the real judge. */
+function declare(
+  suppliers: ModelProfile['definition']['suppliers'],
+): Outcome<Declarations, ModelFailure> {
+  const [head, ...rest] = suppliers
+  const first = judgeReplayDeclaration(head, 0)
+  if (!('ok' in first)) return Object.freeze(fail(frozenCopy(first.failure)))
+  const more: ReplayDeclaration[] = []
+  for (const [offset, supplier] of rest.entries()) {
+    const declared = judgeReplayDeclaration(supplier, offset + 1)
+    if (!('ok' in declared)) return Object.freeze(fail(frozenCopy(declared.failure)))
+    more.push(declared.ok)
+  }
+  const declarations: Declarations = Object.freeze([first.ok, ...more])
+  return succeed(declarations)
 }
 
 /** The request of this call: the plan binds, the assembled input of this call fills the rest. */
 function formRequest(
   input: PrepareInput<unknown>,
   plan: ScriptedModelPreparationPlan,
-  declarations: readonly [ReplayDeclaration, ...ReplayDeclaration[]],
+  declarations: Declarations,
 ): FixedModelRequest {
   const { profile, assembled } = input
   return Object.freeze({
@@ -186,17 +251,22 @@ export function createScriptedModelRequestPreparation<P>(
 ): ScriptedModelRequestPreparation<P> {
   const { transport } = options
   const rules = createAccessRules<P>()
-  const plans: PlanRow<P>[] = []
+  const plans: ScriptRow<P, PlanKey, ScriptedModelPreparationPlan>[] = []
   const recorded: ScriptedModelPreparationCall<P>[] = []
 
-  function samePlanKey(row: PlanRow<P>, key: Omit<PlanRow<P>, 'answer'>): boolean {
-    return (
-      row.tenant === key.tenant &&
-      Object.is(row.principal, key.principal) &&
-      sameValue(row.profile, key.profile) &&
-      sameValue(row.required, key.required) &&
-      sameValue(row.parameters, key.parameters)
-    )
+  /** Steps 2 to 5 of the read order: the tenant, the control plane, then the profile. */
+  function qualify(input: PrepareInput<P>): ModelFailure | null {
+    if (!tenantCodec.encode(input.tenant).ok) return { kind: 'denied', action: 'tenant' }
+    const decision = rules.decide(input)
+    if (decision === 'deny') return { kind: 'denied', action: 'prepare' }
+    if (decision === 'unavailable')
+      return {
+        kind: 'unavailable',
+        dependency: 'model-request-preparation',
+        diagnostic: 'scripted-access',
+      }
+    const profile = profileFailure(input)
+    return profile === null ? null : profile.failure
   }
 
   const preparation: ModelRequestPreparation<P> = {
@@ -209,37 +279,18 @@ export function createScriptedModelRequestPreparation<P>(
         assembled: frozenCopy(input.assembled),
       })
       recorded.push(Object.freeze({ sequence: recorded.length + 1, input: snapshot }))
-      if (!tenantCodec.encode(snapshot.tenant).ok)
-        return refusal({ kind: 'denied', action: 'tenant' })
-      const decision = rules.decide(snapshot)
-      if (decision === 'deny') return refusal({ kind: 'denied', action: 'prepare' })
-      if (decision === 'unavailable')
-        return refusal({
-          kind: 'unavailable',
-          dependency: 'model-request-preparation',
-          diagnostic: 'scripted-access',
-        })
-      const refused = profileFailure(snapshot)
+      const refused = qualify(snapshot)
       if (refused !== null) return refusal(refused)
-      const key = {
-        tenant: tenantText(snapshot.tenant),
-        principal: snapshot.principal,
+      const row = findRow(plans, snapshot, {
         profile: snapshot.profile,
         required: snapshot.required,
         parameters: snapshot.assembled.parameters,
-      }
-      const row = plans.find(item => samePlanKey(item, key))
+      })
       if (row === undefined) throw misuse('no scripted preparation plan')
       if (!('ok' in row.answer)) return row.answer
-      const declarations: ReplayDeclaration[] = []
-      for (const [index, supplier] of snapshot.profile.definition.suppliers.entries()) {
-        const declared = judgeReplayDeclaration(supplier, index)
-        if (!('ok' in declared)) return Object.freeze(fail(frozenCopy(declared.failure)))
-        declarations.push(declared.ok)
-      }
-      const [first, ...more] = declarations
-      if (first === undefined) throw misuse('a profile has at least one supplier')
-      const request = formRequest(snapshot, row.answer.ok, Object.freeze([first, ...more]))
+      const declarations = declare(snapshot.profile.definition.suppliers)
+      if (!('ok' in declarations)) return declarations
+      const request = formRequest(snapshot, row.answer.ok, declarations.ok)
       const prepared = await transport.prepare(
         request,
         request.suppliers[0],
@@ -259,19 +310,16 @@ export function createScriptedModelRequestPreparation<P>(
     setPlan(input, answer) {
       const tenant = tenantText(input.tenant)
       if ('ok' in answer) checkPlan(input, answer.ok)
-      const row: PlanRow<P> = {
+      putRow(plans, {
         tenant,
         principal: input.principal,
-        profile: copyProfile(input.profile),
-        required: frozenCopy(input.required),
-        parameters: frozenCopy(input.parameters),
-        answer: Object.freeze(
-          'ok' in answer ? succeed(frozenCopy(answer.ok)) : fail(frozenCopy(answer.failure)),
-        ),
-      }
-      const at = plans.findIndex(item => samePlanKey(item, row))
-      if (at === -1) plans.push(Object.freeze(row))
-      else plans[at] = Object.freeze(row)
+        key: Object.freeze({
+          profile: copyProfile(input.profile),
+          required: frozenCopy(input.required),
+          parameters: frozenCopy(input.parameters),
+        }),
+        answer: frozenAnswer(answer, frozenCopy),
+      })
     },
     calls: () => Object.freeze([...recorded]),
   }

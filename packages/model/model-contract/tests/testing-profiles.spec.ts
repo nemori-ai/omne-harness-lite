@@ -135,6 +135,9 @@ async function rejection(promise: Promise<unknown>): Promise<unknown> {
   throw new Error('expected a rejection')
 }
 
+/** The script misuse that a refused registration throws, with the message that names its check. */
+const misuseOf = (message: string) => ({ reason: 'invalid-script', message })
+
 function scriptMisuse(run: () => void): ScriptedModelError {
   try {
     run()
@@ -577,6 +580,263 @@ describe('answers are checked before they are kept (M08)', () => {
     expect(
       must(await scripted.profiles.resolve({ ...access, route: 'default', required })),
     ).toEqual(choice)
+  })
+})
+
+/**
+ * Each check of an answer has one case whose answer breaks that check alone. The case asserts the
+ * message that names the check and that the answers registered before are still given.
+ */
+describe('each answer check has a case that breaks only it (M08)', () => {
+  function registered() {
+    const principal = new Agent('alice')
+    const access: Access<Agent> = { tenant: tenantA(), principal }
+    const required = requirement()
+    const scripted = createScriptedModelProfiles<Agent>()
+    scripted.setAccess(access, 'allow')
+    const choice = resolvedOf(profileOf())
+    const good: ModelChoices = {
+      choices: [choice],
+      selected: { route: 'default', resolution: choice },
+      source: evidence('choices'),
+    }
+    scripted.setList({ ...access, selected: 'default', required }, { ok: good })
+    scripted.setResolution({ ...access, route: 'default', required }, { ok: choice })
+    const refuseList = (selected: string | null, answer: ModelChoices) =>
+      scriptMisuse(() => scripted.setList({ ...access, selected, required }, { ok: answer }))
+    const refuseResolution = (answer: ProfileResolution) =>
+      scriptMisuse(() =>
+        scripted.setResolution({ ...access, route: 'default', required }, { ok: answer }),
+      )
+    async function keptEarlier(): Promise<void> {
+      expect(
+        must(await scripted.profiles.list({ ...access, selected: 'default', required })),
+      ).toEqual(good)
+      expect(
+        must(await scripted.profiles.resolve({ ...access, route: 'default', required })),
+      ).toEqual(choice)
+    }
+    const listOf = (
+      choices: ModelChoices['choices'],
+      selected: ModelChoices['selected'],
+    ): ModelChoices => ({ choices, selected, source: evidence('choices') })
+    return { choice, listOf, refuseList, refuseResolution, keptEarlier }
+  }
+
+  it('refuses a resolution whose absent reason is not known', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const unknown = { kind: 'absent', reason: 'expired' } as unknown as ProfileResolution
+    expect(refuseResolution(unknown)).toMatchObject(misuseOf('the absent reason is not known'))
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose profile scope belongs to another tenant', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const profile = profileOf({ scope: { kind: 'tenant', tenant: tenantB() } })
+    expect(refuseResolution(resolvedOf(profile))).toMatchObject(
+      misuseOf('the scripted profile scope does not apply to the tenant'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose profile scope belongs to another organization', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const scope = { kind: 'organization', organization: tenantB().organization } as const
+    expect(refuseResolution(resolvedOf(profileOf({ scope })))).toMatchObject(
+      misuseOf('the scripted profile scope does not apply to the tenant'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose organization scope holds an identity that is not minted', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const forged = structuredClone(organization('1'))
+    const profile = profileOf({ scope: { kind: 'organization', organization: forged } })
+    expect(refuseResolution(resolvedOf(profile))).toMatchObject(
+      misuseOf('the scripted profile scope does not apply to the tenant'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose profile is withdrawn', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const profile = profileOf({ availability: 'withdrawn' })
+    expect(refuseResolution(resolvedOf(profile))).toMatchObject(
+      misuseOf('a resolved profile must be active'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose reason is not known', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const reasons = ['expired'] as unknown as ['locked']
+    const answer = resolvedOf(profileOf(), { selectable: false, reasons })
+    expect(refuseResolution(answer)).toMatchObject(misuseOf('the resolution reason is not known'))
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose reason repeats', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const answer = resolvedOf(profileOf(), { selectable: false, reasons: ['locked', 'locked'] })
+    expect(refuseResolution(answer)).toMatchObject(misuseOf('a resolution reason repeats'))
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose selectability is not the absence of reasons', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const answer = resolvedOf(profileOf(), { selectable: true, reasons: ['locked'] })
+    expect(refuseResolution(answer)).toMatchObject(
+      misuseOf('selectable must equal the absence of reasons'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose modality reason does not state the coverage of the input', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const answer = resolvedOf(profileOf({ input: ['image'] }))
+    expect(refuseResolution(answer)).toMatchObject(
+      misuseOf('the modality reason must state exactly whether the profile covers the input'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution whose credential state is not known', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const credential = 'lost' as unknown as 'available'
+    expect(refuseResolution(resolvedOf(profileOf(), { credential }))).toMatchObject(
+      misuseOf('the credential state is not known'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a resolution of another route than the asked one', async () => {
+    const { refuseResolution, keptEarlier } = registered()
+    const answer = resolvedOf(profileOf({ route: 'other' }))
+    expect(refuseResolution(answer)).toMatchObject(
+      misuseOf('the scripted resolution names another route'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list with an absent choice', async () => {
+    const { listOf, refuseList, keptEarlier } = registered()
+    const answer = listOf([{ kind: 'absent', reason: 'unknown-name' }], null)
+    expect(refuseList(null, answer)).toMatchObject(
+      misuseOf('a choice must be a resolved profile, not an absence'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list with a choice that cannot be chosen', async () => {
+    const { listOf, refuseList, keptEarlier } = registered()
+    const locked = resolvedOf(profileOf(), { selectable: false, reasons: ['locked'] })
+    expect(refuseList(null, listOf([locked], null))).toMatchObject(
+      misuseOf('a choice must be selectable'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list with a choice that is not consistent in itself', async () => {
+    const { listOf, refuseList, keptEarlier } = registered()
+    const uncovered = resolvedOf(profileOf({ input: ['image'] }))
+    expect(refuseList(null, listOf([uncovered], null))).toMatchObject(
+      misuseOf('the modality reason must state exactly whether the profile covers the input'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list whose choice route repeats', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    expect(refuseList(null, listOf([choice, choice], null))).toMatchObject(
+      misuseOf('a choice route repeats'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list with a selected item that was not asked for', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const answer = listOf([choice], { route: 'default', resolution: choice })
+    expect(refuseList(null, answer)).toMatchObject(
+      misuseOf('a list without a selection has no selected item'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list that drops the asked selection', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    expect(refuseList('default', listOf([choice], null))).toMatchObject(
+      misuseOf('the selected item must keep the asked route'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list whose selected item has another route than the asked one', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const other = resolvedOf(profileOf({ route: 'other' }))
+    const answer = listOf([choice, other], { route: 'other', resolution: other })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('the selected item must keep the asked route'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list whose selected resolution is not consistent in itself', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const held = resolvedOf(profileOf({ route: 'held' }), { selectable: false, reasons: [] })
+    const answer = listOf([choice], { route: 'held', resolution: held })
+    expect(refuseList('held', answer)).toMatchObject(
+      misuseOf('selectable must equal the absence of reasons'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a list whose selected resolution names another route than the selected item', async () => {
+    const { listOf, refuseList, keptEarlier } = registered()
+    const other = resolvedOf(profileOf({ route: 'other' }))
+    const answer = listOf([], { route: 'default', resolution: other })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('the selected resolution names another route'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a selectable selection that is not one of the choices', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const answer = listOf([], { route: 'default', resolution: choice })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('a selectable selection must be one of the choices'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses a selectable selection that differs from the choice of its route', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const elsewhere = resolvedOf(profileOf(), { source: evidence('elsewhere') })
+    const answer = listOf([elsewhere], { route: 'default', resolution: choice })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('a selectable selection must equal the choice of its route'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses an absent selection whose route is a choice', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const gone: ProfileResolution = { kind: 'absent', reason: 'withdrawn' }
+    const answer = listOf([choice], { route: 'default', resolution: gone })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('a selection that cannot be chosen is not a choice'),
+    )
+    await keptEarlier()
+  })
+
+  it('refuses an unselectable selection whose route is a choice', async () => {
+    const { choice, listOf, refuseList, keptEarlier } = registered()
+    const locked = resolvedOf(profileOf(), { selectable: false, reasons: ['locked'] })
+    const answer = listOf([choice], { route: 'default', resolution: locked })
+    expect(refuseList('default', answer)).toMatchObject(
+      misuseOf('a selection that cannot be chosen is not a choice'),
+    )
+    await keptEarlier()
   })
 })
 
