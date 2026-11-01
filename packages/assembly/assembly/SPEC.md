@@ -197,6 +197,8 @@ sequenceDiagram
 
 runtime 启动前取得已校验的装配依据。同一位置的扩展按装配声明的顺序执行。本节不指定 AgentDefinition 的包拥有者，也不新造扩展接口。
 
+采用协调的公开操作、失败分类与耐久性质，见[采用协调契约设计](../../../docs/domains/assembly-and-handoff/adoption-coordination.md)。该设计是候选，尚未采用。本节保持现行行为，不复制那些条款。
+
 ### 定义到消费者
 
 <a id="definition-to-consumer"></a>
