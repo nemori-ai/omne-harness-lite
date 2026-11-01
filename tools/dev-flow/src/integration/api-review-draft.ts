@@ -75,6 +75,7 @@ import {
   parseDiffRun,
   rawDiffMembers,
   runDiff,
+  sideOf,
   snapshotContractDiffWith,
   toolOf,
 } from './contract-diff.ts'
@@ -109,6 +110,8 @@ export type ReviewReport = {
 }
 type Levels = Map<string, 'additive' | 'breaking'>
 type Outcome = {
+  /** True when the card entry found no record of an owner and the conservative rule stands. */
+  conservative?: true
   report: ReviewReport
   comparisons: Comparison[]
   levels: Levels
@@ -145,22 +148,6 @@ const get = (call: GhRead, path: string): unknown =>
 // Facts shared by the entries
 // ---------------------------------------------------------------------------------------------
 
-/** One side of a Comparison: the member tree, its package name and every `*.api.md` snapshot. */
-function sideOf(root: string, commit: string, member: string): ApiSide {
-  const apiTree = git(root, ['rev-parse', `${commit}:${member}/api`])
-  const snapshots = git(root, ['ls-tree', '-r', '--name-only', commit, '--', `${member}/api`])
-    .split('\n')
-    .filter(path => path.endsWith('.api.md'))
-    .sort()
-    .map(path => ({ path, sha256: sha256(exactTextBlob(root, commit, path).text) }))
-  const manifest = json(exactTextBlob(root, commit, `${member}/package.json`).text, member)
-  return {
-    commit,
-    apiTree,
-    packageName: text(record(manifest, `${member}/package.json`).name, `${member} package name`),
-    snapshots,
-  }
-}
 /** The dispatch comment of a card as a CommentRef; a mismatch is reported as findings. */
 function dispatchOf(
   repository: string,
@@ -199,7 +186,7 @@ function dispatchOf(
   }
 }
 /** The live card read as a BindingInput; a binding that differs from `binding` is a finding. */
-function bindingInputOf(
+export function bindingInputOf(
   repository: string,
   binding: TaskBinding,
   call: GhRead,
@@ -228,6 +215,38 @@ function bindingInputOf(
   }
 }
 
+/**
+ * What the platform says about the actors and records a verdict rests on: the owner accounts, the
+ * publish reviewers, the digest of the carrier comments (when a carrier is read) and the live
+ * binding with its dispatch. It is read before the fold and again after it; any difference is
+ * `api-review-source-changed`.
+ */
+export function platformState(input: {
+  call: GhRead
+  repository: string
+  owners: Iterable<string>
+  carrier: number | null
+  rebind: () => unknown
+}): string {
+  const { call, repository } = input
+  return JSON.stringify({
+    accounts: [...new Set(input.owners)]
+      .sort()
+      .map(login => [login, get(call, `users/${encodeURIComponent(login)}`)]),
+    reviewers: get(call, `repos/${repository}/environments/publish`),
+    carrier:
+      input.carrier === null
+        ? null
+        : readComments(repository, input.carrier, call).map(item => [
+            item.url,
+            sha256(item.body),
+            item.updatedAt,
+            item.author.nodeId,
+          ]),
+    binding: input.rebind(),
+  })
+}
+
 // ---------------------------------------------------------------------------------------------
 // The kernel
 // ---------------------------------------------------------------------------------------------
@@ -248,8 +267,12 @@ type Collected = {
   union?: string[]
   pre: Finding[]
   fingerprint: () => string
+  /** The live binding and dispatch of every card of the scope, read again after the fold. */
+  rebind: () => unknown
+  /** The card declares `breaking`: the original rule judges a breaking review member. */
+  breakingDeclared?: boolean
 }
-type Collection = Collected | { unavailable: string }
+type Collection = Collected | { unavailable: string } | { conservative: true }
 
 function semanticReview<T extends Trusted>(o: {
   root: string
@@ -295,6 +318,7 @@ function semanticReview<T extends Trusted>(o: {
   const enablement = enabled.enablement
   try {
     const collected = o.collect(trusted)
+    if ('conservative' in collected) return { ...stopped(enablement, []), conservative: true }
     if ('unavailable' in collected)
       return stopped(enablement, [
         finding('api-review-input-unknown', null, {
@@ -399,7 +423,7 @@ function semanticReview<T extends Trusted>(o: {
             reason: error instanceof Error ? error.message : 'unreadable',
           }),
         )
-        return finish(c, before, findings, resolutions, comparisons, null, [])
+        return finish()
       }
       const tool = toolOf(root, c.head)
       for (const member of reviewMembers) {
@@ -456,39 +480,41 @@ function semanticReview<T extends Trusted>(o: {
         facts.set(member, reading.fact)
       }
     }
-    return finish(c, before, findings, resolutions, comparisons, repository, [...facts])
+    return finish()
 
-    function finish(
-      cc: Collected,
-      fingerprintBefore: string,
-      all: Finding[],
-      done: Map<string, MemberResolution>,
-      list: Comparison[],
-      repo: Repository | null,
-      ownerFacts: [string, OwnerIdentityFact][],
-    ): Outcome {
+    /** Folds the records (check mode), reads the platform state again and builds the report. */
+    function finish(): Outcome {
       const levels: Levels = new Map()
       const records = new Map<string, string>()
       let ignored: CommentRef[] = []
-      if (mode === 'check' && repo !== null && list.length > 0) {
-        const read = readCarrier(repo.name, cc.carrier.number, call)
+      const folds = mode === 'check' && comparisons.length > 0
+      const state = () =>
+        platformState({
+          call,
+          repository: repository.name,
+          owners: [...facts.values()].map(fact => fact.owner.login),
+          carrier: mode === 'check' ? c.carrier.number : null,
+          rebind: c.rebind,
+        })
+      const stateBefore = comparisons.length > 0 ? state() : null
+      if (folds) {
+        const read = readCarrier(repository.name, c.carrier.number, call)
         if (read.kind === 'refused') {
-          for (const item of list)
-            if (!done.has(item.member))
+          for (const item of comparisons)
+            if (!resolutions.has(item.member))
               failMember(item.member, read.code, {
-                carrier: cc.carrier.number,
+                carrier: c.carrier.number,
                 reason: read.detail,
               })
         } else {
-          const owners = new Map(ownerFacts)
           const folded = foldSemanticReviews({
-            repository: repo,
+            repository,
             comments: read.comments,
-            expected: list,
+            expected: comparisons,
             authority: {
-              isReviewer: publishReviewers(repo.name, call),
-              ownerOf: member => owners.get(member),
-              checkEvidence: evidenceChecker(repo.name, call),
+              isReviewer: publishReviewers(repository.name, call),
+              ownerOf: member => facts.get(member),
+              checkEvidence: evidenceChecker(repository.name, call),
             },
           })
           ignored = folded.ignored
@@ -504,27 +530,42 @@ function semanticReview<T extends Trusted>(o: {
                   ? {}
                   : { identity: identities.get(verdict.member) ?? null }),
               })
-              done.set(verdict.member, resolved.resolution)
-              all.push(...resolved.findings)
+              resolutions.set(verdict.member, resolved.resolution)
+              findings.push(
+                ...resolved.findings.filter(
+                  item =>
+                    !(
+                      c.breakingDeclared === true &&
+                      item.code === 'api-review-breaking-route-required'
+                    ),
+                ),
+              )
               levels.set(verdict.member, verdict.conclusion)
               records.set(verdict.member, verdict.record.url)
             } else failMember(verdict.member, verdict.code, asJson(verdict.problems))
           }
         }
       }
-      if (cc.fingerprint() !== fingerprintBefore)
-        all.push(
+      if (c.fingerprint() !== before)
+        findings.push(
           finding('api-review-source-changed', null, {
             reason: 'HEAD, the working tree or the target head changed during the review',
+          }),
+        )
+      if (stateBefore !== null && state() !== stateBefore)
+        findings.push(
+          finding('api-review-source-changed', null, {
+            reason:
+              'the accounts, reviewers, carrier comments or binding changed during the review',
           }),
         )
       const report: ReviewReport = {
         mode,
         enablement,
-        rawExitCode: cc.raw.exitCode,
-        exit: composeRunExit(all),
-        members: cc.checked.flatMap(member => done.get(member) ?? []),
-        findings: all,
+        rawExitCode: c.raw.exitCode,
+        exit: composeRunExit(findings),
+        members: c.checked.flatMap(member => resolutions.get(member) ?? []),
+        findings,
         ignored,
       }
       const bundle: DraftBundle | null =
@@ -532,16 +573,16 @@ function semanticReview<T extends Trusted>(o: {
           ? {
               schemaVersion: 1,
               kind: 'draft',
-              comparisons: list,
+              comparisons,
               raw: {
-                exitCode: cc.raw.exitCode,
-                stdoutSha256: sha256(cc.raw.stdout),
-                report: asJson(JSON.parse(cc.raw.stdout)),
+                exitCode: c.raw.exitCode,
+                stdoutSha256: sha256(c.raw.stdout),
+                report: asJson(JSON.parse(c.raw.stdout)),
               },
-              facts: { observedAt: new Date().toISOString(), carrierIssue: cc.carrier },
+              facts: { observedAt: new Date().toISOString(), carrierIssue: c.carrier },
             }
           : null
-      return { report, comparisons: list, levels, records, bundle }
+      return { report, comparisons, levels, records, bundle }
     }
   }
 }
@@ -556,14 +597,36 @@ const fingerprintOf = (root: string, remoteHead: () => string | null) => () =>
 // ---------------------------------------------------------------------------------------------
 // Card
 // ---------------------------------------------------------------------------------------------
-function cardOutcome(input: CardReviewInput, env: ReviewEnv, mode: 'draft' | 'check'): Outcome {
-  const { root, binding } = input
-  const repository = binding.issue.repository
+/**
+ * True when a comment of the card carrier names the record marker and its author matches an owner (login or node ID, so a taken-over login is still refused) of
+ * the identity file at the trusted target. Only such a comment moves a card to the strict path.
+ */
+function ownerRecordPresent(root: string, targetBase: string, binding: TaskBinding, call: GhRead) {
+  const comments = readComments(binding.issue.repository, binding.issue.number, call)
+  const manifest = parseOwnerIdentityManifest(blob(root, targetBase, OWNER_IDENTITY_PATH).text)
+  return comments.some(
+    item =>
+      parseRecordComment(item.body).kind !== 'none' &&
+      manifest.owners.some(
+        fact => fact.owner.login === item.author.login || fact.owner.nodeId === item.author.nodeId,
+      ),
+  )
+}
+/** `read` runs after the enablement check: no Git read, platform read or carrier read comes first. */
+function cardOutcome(
+  root: string,
+  read: () => CardReviewInput,
+  env: ReviewEnv,
+  mode: 'draft' | 'check',
+): Outcome {
+  let memo: CardReviewInput | undefined
+  const input = (): CardReviewInput => (memo ??= read())
   return semanticReview({
     root,
     env,
     mode,
     resolve: () => {
+      const { binding } = input()
       const state = taskWorkspace(root)
       const upstream = checkUpstream(root, state.policy, binding.route)
       return {
@@ -574,14 +637,18 @@ function cardOutcome(input: CardReviewInput, env: ReviewEnv, mode: 'draft' | 'ch
       }
     },
     collect: trusted => {
+      const { binding, context, touched } = input()
+      const repository = binding.issue.repository
       clean(root)
+      if (mode === 'check' && !ownerRecordPresent(root, trusted.targetBase, binding, env.call))
+        return { conservative: true }
       const pre: Finding[] = []
-      if (input.context.targetBase !== trusted.targetBase)
+      if (context.targetBase !== trusted.targetBase)
         pre.push(
           finding('api-review-source-changed', null, {
             reason:
               'the context targetBase is not the target head; merge the target, then task-sync',
-            contextTargetBase: input.context.targetBase,
+            contextTargetBase: context.targetBase,
             targetHead: trusted.targetBase,
           }),
         )
@@ -596,9 +663,14 @@ function cardOutcome(input: CardReviewInput, env: ReviewEnv, mode: 'draft' | 'ch
         targetBase: trusted.targetBase,
         raw: rawDiff(root, binding.taskBase),
         carrier: bound.issue,
-        checked: [...input.touched].sort(),
+        checked: [...touched].sort(),
         pre,
         fingerprint: fingerprintOf(root, () => targetHead(root, trusted.policy, trusted.ref)),
+        rebind: () => {
+          const again = bindingInputOf(repository, binding, env.call)
+          return [again.input, again.pre]
+        },
+        breakingDeclared: binding.contractChange === 'breaking',
       }
     },
   })
@@ -622,16 +694,15 @@ function toSemantic(outcome: Outcome): CardSemantic {
   }
 }
 /**
- * The semantic review path of `changeScope` for a card. It reads the carrier (the card Issue)
- * once to see whether any review record exists. Without one the conservative rule stands
- * (`undefined`). With one the strict path runs, and every record is judged.
+ * The semantic review path of `changeScope` for a card. The enablement check comes first. Then the
+ * carrier (the card Issue) is read once: unless a comment of an owner of the identity file names
+ * the record marker, the conservative rule stands (`undefined`). Otherwise the strict path runs,
+ * and every record is judged.
  */
 export function cardReviewHook(env: ReviewEnv): CardReview {
   return input => {
-    const { binding } = input
-    const comments = readComments(binding.issue.repository, binding.issue.number, env.call)
-    if (comments.every(item => parseRecordComment(item.body).kind === 'none')) return undefined
-    return toSemantic(cardOutcome(input, env, 'check'))
+    const outcome = cardOutcome(input.root, () => input, env, 'check')
+    return outcome.conservative === true ? undefined : toSemantic(outcome)
   }
 }
 /** `draft-card`: the Comparison of each review member of this card, for a human to sign. */
@@ -639,7 +710,7 @@ export function draftCard(env: ReviewEnv & { root: string }): {
   report: ReviewReport
   bundle: DraftBundle | null
 } {
-  const outcome = cardOutcome(cardReviewInput(env.root), env, 'draft')
+  const outcome = cardOutcome(env.root, () => cardReviewInput(env.root), env, 'draft')
   return { report: outcome.report, bundle: outcome.bundle }
 }
 
@@ -723,6 +794,7 @@ function riOutcome(
           baseRef: text(record(raw.base, 'PR.base').ref, 'PR.base.ref'),
         }
       })
+      const declared = first.cards
       const cards: BindingInput[] = []
       let carrier: Issue | undefined
       for (const card of first.cards) {
@@ -780,6 +852,14 @@ function riOutcome(
         union: [...new Set([...contractsOf(targetLines), ...contractsOf(facts.lines)])].sort(),
         pre,
         fingerprint: fingerprintOf(root, () => targetHead(root, policy, targetRef)),
+        rebind: () =>
+          declared.map(card => {
+            const fetched = fetchIssueCard(repository, card.issue, request.call)
+            const live = readTaskBinding(fetched.body, fetched.identity)
+            if (live === undefined) return null
+            const again = bindingInputOf(repository, live, request.call)
+            return [again.input, again.pre]
+          }),
       }
     },
   })

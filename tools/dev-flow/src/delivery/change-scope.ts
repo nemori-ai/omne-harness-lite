@@ -446,6 +446,11 @@ export function changeScope({
         member.status === 'compared' &&
         member.change === 'review',
     ) ?? false
+  if (review !== undefined && linesFile !== undefined && hasReview && binding.schemaVersion === 2)
+    throw new IntegrationError(
+      'input-error',
+      '--lines cannot be combined with the semantic review of a card that has review members',
+    )
   const semantic =
     review !== undefined && hasReview && binding.schemaVersion === 2
       ? review({ root: actual, binding, context, files, touched: contract.touched, lines })

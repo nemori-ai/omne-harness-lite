@@ -60,6 +60,7 @@ import {
 import {
   contractApiCommand,
   contractApiEnv,
+  sideOf,
   toolOf,
   toolchainFacts,
   type ContractApiCommand,
@@ -200,28 +201,6 @@ function runOnRegistration(baseline: ContractBaseline, runner: BaselineRunner): 
   } finally {
     rmSync(directory, { recursive: true, force: true })
   }
-}
-
-function apiSide(root: string, commit: string, member: string): ApiSide {
-  const directory = `${member}/api`
-  const apiTree = git(root, ['rev-parse', `${commit}:${directory}`])
-  const snapshots = git(root, ['ls-tree', apiTree])
-    .split('\n')
-    .flatMap(line => {
-      const match = /^100644 blob [0-9a-f]{40}\t(.+\.api\.md)$/.exec(line)
-      return match?.[1] === undefined ? [] : [match[1]]
-    })
-    .sort()
-    .map(name => ({
-      path: `${directory}/${name}`,
-      sha256: sha256(exactTextBlob(root, commit, `${directory}/${name}`).text),
-    }))
-  const manifest = JSON.parse(exactTextBlob(root, commit, `${member}/package.json`).text) as {
-    name?: unknown
-  }
-  if (typeof manifest.name !== 'string' || manifest.name === '')
-    throw new IntegrationError('unknown', `${member}/package.json has no name at ${commit}`)
-  return { commit, apiTree, packageName: manifest.name, snapshots }
 }
 
 export type Observation =
@@ -428,8 +407,8 @@ function observe(input: MilestoneInput): Observation {
       checkedMembers: checked,
       reviewMembers: review,
       member,
-      before: apiSide(root, registered.commit, member),
-      after: apiSide(root, candidate, member),
+      before: sideOf(root, registered.commit, member),
+      after: sideOf(root, candidate, member),
       rawMemberSha256: hashJson(rawMember.json),
     }
     const problems = [

@@ -4,8 +4,9 @@ import { readFileSync } from 'node:fs'
 import { findPackageJSON } from 'node:module'
 import { dirname, join } from 'node:path'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
-import type { Comparison } from '../delivery/api-review-types.ts'
-import { clean, exactTextBlob } from './git.ts'
+import { record, text } from '../delivery/protocol.ts'
+import type { ApiSide, Comparison } from '../delivery/api-review-types.ts'
+import { clean, exactTextBlob, git } from './git.ts'
 import { array, choice, IntegrationError, json, object, sha, string } from './parse.ts'
 import {
   SNAPSHOT_CHANGES,
@@ -384,3 +385,21 @@ export function toolOf(
       .digest('hex'),
   }
 }
+
+/** One side of a Comparison: the member tree, its package name and every `*.api.md` snapshot. */
+export function sideOf(root: string, commit: string, member: string): ApiSide {
+  const apiTree = git(root, ['rev-parse', `${commit}:${member}/api`])
+  const snapshots = git(root, ['ls-tree', '-r', '--name-only', commit, '--', `${member}/api`])
+    .split('\n')
+    .filter(path => path.endsWith('.api.md'))
+    .sort()
+    .map(path => ({ path, sha256: sha256Of(exactTextBlob(root, commit, path).text) }))
+  const manifest = json(exactTextBlob(root, commit, `${member}/package.json`).text, member)
+  return {
+    commit,
+    apiTree,
+    packageName: text(record(manifest, `${member}/package.json`).name, `${member} package name`),
+    snapshots,
+  }
+}
+const sha256Of = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
