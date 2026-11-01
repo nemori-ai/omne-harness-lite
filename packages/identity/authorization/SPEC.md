@@ -1,6 +1,6 @@
 # authorization：长期行为规格
 
-状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 AU-01 至 AU-07、披露与后续治理操作的业务规则。AU-08、AU-10 是后续验证义务。AU-09 继续登记阶段与公开形状的承接责任。AU-11 定义首批公开形状，类型在本成员 `src/index.ts`。表达解释、人工决定、持久台账与跨进程依据的提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
+状态：[具名采用](https://github.com/nemori-ai/omne-harness-lite/issues/266#issuecomment-6190010029)覆盖 AU-01 至 AU-07、披露与后续治理操作的业务规则。AU-08、AU-10 是后续验证义务。AU-09 继续登记阶段与公开形状的承接责任。AU-11 定义首批公开形状，AU-12 定义系统动作授权，类型在本成员 `src/index.ts`。表达解释、人工决定、持久台账与跨进程依据的提供者机制尚需设计，本文不作为那些部分已实现或已验证的证明。
 
 产品规则归[身份与授权产品](../../../.meta_harness/design/product/identity-and-authorization/design.md)，协作与依赖归[领域架构](../../../docs/domains/identity-and-authorization/architecture.md)。本文拥有授权建模、表达解释、范围、决定绑定、当前准入、撤回与消费。资源业务、权限配值、人工交互和运行控制由各自拥有者负责。
 
@@ -227,7 +227,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 ### 首批不覆盖的部分
 
-结构化约束（permissions 的锁定允许集合与明确禁止）不进入首批裁定；它们由权限求值的写入者生产，接入形状待定。需要人工决定的结论、表达解释、撤回操作与持久台账待后续形状。系统作用域下的准入（系统主体在系统作用域的动作）不经本节的输入；它的形状随消费端口加入系统作用域变体时定义。
+结构化约束（permissions 的锁定允许集合与明确禁止）不进入首批裁定；它们由权限求值的写入者生产，接入形状待定。需要人工决定的结论、表达解释、撤回操作与持久台账待后续形状。系统作用域下的准入（系统主体在系统作用域的动作）不经本节的输入，见 [AU-12](#au-12-系统动作授权端口判定顺序用途矩阵与维护授权读口)。
 
 ### 参考件
 
@@ -236,6 +236,57 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 ### 验证
 
 `tests/decide.spec.ts` 覆盖每个步骤、每个拒绝原因、两种不可用、证据的重算、参数摘要进入依据与证据、许可对操作的 owner 与 name、目标的三个成员和参数摘要逐项比较、核验得到另一个主体时拒绝。`tests/evidence.spec.ts` 覆盖规范 JSON 的成员顺序无关、undefined 成员去掉、数组保序。`tests/reference-check.spec.ts` 覆盖撤权后再核拒绝、每次重新读取、依赖抛出不放行、许可消费后不再放行。`tests/reference-snapshots.spec.ts` 覆盖异步读取期间的输入绑定、跨租户资格拼接拒绝，以及已读核验回答与成员事实不被后续修改改写。`tests/permit-reading-snapshots.spec.ts` 覆盖许可读回后微任务改写状态、绑定、答复种类或诊断不能改变裁定，原包装仍可修改，真实台账历史与可重算证据保持。`tests/permit.spec.ts` 覆盖台账的授予、查找、跨租户、手写租户与重复消费。`tests/snapshots.spec.ts` 覆盖调用方修改与返回值写入不能改写已存许可、消费事实或裁定依据，证据仍可重算。`tests/port-adapters.spec.ts` 覆盖 Agent、Tool 的有限映射及未支持权限、错动作或错卡片答复输入不放行，覆盖附言答复得到拒绝与 `human-guidance`，以及跨租户的附言先得到 `tenant-mismatch`，并用 session-contract 的真实 `SessionAccessCheck` 形状与非耐久事务替身验证 Session 的成员资格示例映射。它不证明生产授权政策与系统作用域授权。这些测试不覆盖持久台账、表达解释、人工决定与跨进程依据。
+
+## AU-12 系统动作授权：端口、判定顺序、用途矩阵与维护授权读口
+
+依据是 [D-AUTH r4](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6554736152) 第 4.2 至 4.6 节，由 [#997](https://github.com/nemori-ai/omne-harness-lite/issues/997) 交付。该候选未获技术接受。本节只描述本包交付的部分，类型在 `src/index.ts`。
+
+系统部件执行扫描、目录读取和已成立义务的收尾时，租户 `AdmissionCheck` 不能承接：它的依据必含租户。`SystemActionAuthorization.check` 是独立的端口。请求是 `{ principal, scope: 'system', operation, target, arguments }`。`principal` 是 `SystemPrincipal`，`target` 是系统分支或租户分支。租户分支的租户是被维护对象所在分区，不使系统主体代租户行事。`component` 文本只用于诊断，不是凭据。
+
+### 判定顺序
+
+`decideSystemAction(request, facts)` 按固定顺序判断。第一个不满足的步骤决定结果。
+
+1. 主体核验。核验器答 `rejected`，或答 `verified` 但返回的主体不是 `request.principal` 的同一个对象，或该主体的 `kind` 不是 `system`，拒绝，原因 `untrusted-principal`。核验器答 `unavailable`，结论 `unavailable`。核验器的答复种类不在约定之内（空答复、未知种类，或 `verified` 不带主体对象），是读不到可信事实，结论 `unavailable`，不是拒绝。
+2. 矩阵。`operation` 不在下表内，拒绝，原因 `operation-forbidden`。这一步先于读取授予记录。`operation` 在表内，但 `scope` 不是 `system`，或 `target.kind`、`resource.owner` 或 `resource.kind` 与该行不符，拒绝，原因 `binding-mismatch`。比较时使用请求自带的 `scope`，不以常量覆盖。`resource.key` 与 `target.tenant` 的绑定由授予读口负责：读口按 key 查到记录，即承诺该记录属于该租户。本端口只比较分支、owner 与 kind。
+3. 授予记录。记录的 `revoked` 不是布尔值，或读口、时钟的答复种类不在约定之内，或记录的 `purposes` 不是文本列表，都是读不到可信事实，结论 `unavailable`；记录形状先于用途比较判断。读口答 `none`，或记录的 `purposes` 不含本行用途，拒绝，原因 `grant-missing`。记录存在但不含本行用途时，证据取该授予记录（见下节）。记录已撤销，拒绝，原因 `grant-revoked`。记录有 `expiresAt` 且可信时钟答 `reached`，拒绝，原因 `grant-expired`；答 `pending` 才继续；其余任何答复（含空答复和大小写不同的种类）为 `unavailable`。读口或时钟不可用，结论 `unavailable`。已撤销的记录不再问时钟。用途名只按相等比较，`*` 不是通配。
+4. 参数。该行为固定参数时，请求的摘要必须等于 `noArguments()`，否则拒绝，原因 `binding-mismatch`。按请求计算的行只把摘要写入依据，不比较。
+
+四步全部通过为 `allowed`。已知无授予答 `denied`，授予来源或时钟读不到答 `unavailable`，二者不能互换。没有安装授予来源时每个矩阵内的动作都是 `unavailable`。
+
+### 用途矩阵
+
+`SYSTEM_ACTION_MATRIX` 是仅有的七行。授予记录用 `purpose` 点名行。授予不能互借：持有某一行用途的主体对其他行得到 `grant-missing`。
+
+| 用途 | operation | target 分支与资源 | 参数 |
+| --- | --- | --- | --- |
+| `resident-references` | session `references` | 系统；session `resident-references` | 固定 |
+| `released-scopes` | session `releasedScopes` | 系统；session `released-scopes` | 固定 |
+| `enumerate-tenants` | tenant-domains `enumerate` | 系统；tenant-domains `registered-tenants` | 固定 |
+| `pending-sessions` | session `pending` | 租户；session `tenant` | 固定 |
+| `scope-release-receive` | session `receive` | 租户；session `session` | 按请求计算 |
+| `scope-release-load` | session `loadScopeRelease` | 租户；session `session` | 固定 |
+| `scope-release-query` | session `queryScopeReleaseOperation` | 租户；session `session` | 按请求计算 |
+
+固定行的 `arguments` 是 `noArguments()`。需要矩阵之外的系统动作时，先给出该动作的既有职责与原义务绑定，再增行。
+
+### 依据与证据
+
+`allowed` 与 `denied` 带 `basis`（操作、目标、参数摘要、核验后的主体、读到的授予记录）与 `evidence`。`evidence` 是 `{ owner: 'authorization', record, revision, digest }`。读到授予记录时 `record` 与 `revision` 取该记录。没有读到时 `record` 是 `system-admission/<operation.owner>/<operation.name>`，`revision` 是 `0`。`digest` 是 `{ kind, reason?, basis }` 的 `digestOf`。`unavailable` 只带诊断文本，不带证据。证据只能被同一次执行路径消费，不是以后跳过检查的凭据。
+
+### 维护授权读口
+
+`MaintenanceGrantSource.read({ principal, operation, target })` 答 `found`、`none` 或 `unavailable`。它是裁定读取授予记录的唯一入口，没有写入侧：本包不提供 grant 管理 API，也不把安装事件当作授予。`referenceSystemActionAuthorization({ verifier, grants, clock })` 读事实后调用纯函数。它不保存任何结论，每次 `check` 重新读取，依赖抛出一律是 `unavailable`，诊断不带异常文本。只有授予记录有 `expiresAt` 且未被前面的步骤拒绝时才问时钟。
+
+`@omne-harness/authorization/testing` 提供 `scriptedMaintenanceGrants`（逐次脚本化 `found`、`none`、`unavailable`，记录调用次数与请求，脚本用完答 `unavailable`）与 `manualSystemClock`。时钟替身只回答登记过的截止时间：`pend` 登记为未到，`expire` 登记为已到，没有登记的截止时间答 `unavailable`（默认拒绝）。它们是替身，不是生产来源。生产 `SystemActionAuthorization` 与维护授权读口的提供者归应用 `authorization` 行，本包没有提供。
+
+### 撤权在下一次核验生效
+
+授予被撤销或到期后，下一次 `check` 答 `grant-revoked` 或 `grant-expired`，不沿用旧证据。M2 没有撤权围栏，本包没有 `allowed.fences`、`access-fence` 模块或 `auth_fence` 表。已知限制：一次 `check` 返回 `allowed` 之后、动作完成之前发生的撤销不阻止这次动作。用户退出不撤销具名维护授权。
+
+### 验证
+
+`tests/system-action.spec.ts` 每个步骤与顺序各有只违反它的用例，另含纯函数快照。`tests/system-matrix.spec.ts` 比较矩阵与独立字面表，逐行正例、固定参数反例、跨行借用与通配。`tests/system-closed-answers.spec.ts` 覆盖时钟与读口答复种类不明、`revoked` 非布尔、主体种类与请求范围不符，以及基线快照与「用途不符不问时钟」。`tests/system-evidence.spec.ts` 覆盖证据重算、无记录的证据构成、下一次核验的撤销与到期，以及源码中没有围栏名称。`tests/system-testing-doubles.spec.ts` 覆盖两个替身与 `./testing` 的导出清单。这些测试不覆盖生产授权来源、真实并发与多进程撤权。
 
 ## 披露与后续治理操作
 
