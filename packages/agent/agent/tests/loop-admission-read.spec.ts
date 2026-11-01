@@ -383,6 +383,38 @@ describe('commit-time missing basis and the origin re-read', () => {
       waits: [{ kind: 'dependency', position: 'E2' }],
     })
   })
+
+  it('an in-process prefix ahead of the saved one whose basis is lost is dropped before the origin re-read: the W0 commit after a failed origin read carries the saved prefix', async () => {
+    const recovery = { owner: 'test', record: 'gap', revision: '1', digest: 'test:gap' }
+    const origin = { fails: false }
+    const { assembly, reads, commits, authority, next } = await restartable(3, (input, read) =>
+      origin.fails && input.from.kind === 'origin'
+        ? Promise.resolve(succeed({ kind: 'gap', reason: 'missing-fact', recovery }))
+        : read(input),
+    )
+    seed(assembly, 2)
+    const c = next()
+    // E2 reads (3, 5] into the in-process prefix; the cut stops it before any commit saves 5.
+    expect(failure(await c.continueExecution(authority))).toEqual({ node: 'E2', failure: STOP })
+    const saved = (await load(assembly)).checkpoint.replyAdmissionRead
+    expect(saved.kind === 'verified' && saved.prefix.sequence).toBe('3')
+    // The basis of 5 is lost while the coordinator lives; the origin re-read does not complete.
+    expect(
+      memory(assembly).replyAdmissions.damage(
+        execution(),
+        { kind: 'missing-basis', sequence: 5 },
+        alice.tenant,
+      ),
+    ).toBe(true)
+    origin.fails = true
+    ok(await c.runExecution())
+    expect(reads.map(fromOf)).toEqual(['3', '5', 'origin'])
+    expect(commits.map(item => item.checkpoint.replyAdmissionRead)).toEqual([saved])
+    expect((await load(assembly)).state).toMatchObject({
+      kind: 'waiting',
+      waits: [{ kind: 'dependency', position: 'E2' }],
+    })
+  })
 })
 
 describe('recovery reads from the saved prefix', () => {
