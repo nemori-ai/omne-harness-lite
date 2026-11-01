@@ -4,21 +4,22 @@
 
 服务键、抽象类、intercept 配置与登记协议归 [execution-environment-cordis-contract 的 Cordis 说明](../../execution-environment-cordis-contract/docs/cordis.md)，本成员继承这些定义，不重复提供键。登记表机制归 [execution-environment](../../execution-environment/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 已实现 Service 子类、`files` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件、`command` 与 `terminal` 提供者还没有接受；调用方类由定义成员的九个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 已实现 Service 子类、`files` 与 `command` 声明插件、宿主文件插件工厂 `createHostFilesPlugin(domain)`、空配置 Schema 与宿主文件插件的配置 Schema。模板标记写明 Runtime Context 生产者插件和 `terminal` 提供者还没有接受；调用方类由定义成员的九个模板方法核对。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与配置
 
 `./cordis` 导出下列装配单元：
 
-| 导出 | 种类 | 做什么 |
-| --- | --- | --- |
-| `ExecutionEnvironmentRegistry` | `ExecutionEnvironmentService` 的具体子类，可以直接当插件装载 | 持有一个登记表实例，提供 `executionEnvironment`。每次使用时从自己装载时的上下文现取 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务 |
-| `filesFacilityPlugin` | 函数插件，名称 `filesFacility` | 对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时登记 `files` 设施声明，不登记提供者 |
-| `createHostFilesPlugin(domain)` | 函数，返回名称为 `hostFiles` 的函数插件 | 插件对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时用工厂收到的责任域与配置的 `drainBoundMs` 登记一代宿主文件提供者，不登记声明；待处置的诊断写到 `ctx.logger('executionEnvironment.hostFiles')` |
+| 导出                            | 种类                                                         | 做什么                                                                                                                                                                               |
+| ------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `ExecutionEnvironmentRegistry`  | `ExecutionEnvironmentService` 的具体子类，可以直接当插件装载 | 持有一个登记表实例，提供 `executionEnvironment`。每次使用时从自己装载时的上下文现取 `executionEnvironmentAuthority`、`executionScopeBinding` 与 `executionRecoveryAuthority` 服务    |
+| `filesFacilityPlugin`           | 函数插件，名称 `filesFacility`                               | 对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时登记 `files` 设施声明，不登记提供者                                                                                     |
+| `commandFacilityPlugin`         | 函数插件，名称 `commandFacility`                             | 与 `filesFacilityPlugin` 同形，装载时登记 `command` 设施声明，不登记提供者；配置只接受缺省、`null` 或空对象                                                                          |
+| `createHostFilesPlugin(domain)` | 函数，返回名称为 `hostFiles` 的函数插件                      | 插件对象形式 `inject` 服务键常量并声明 `caller: provider`，装载时用工厂收到的责任域与配置登记一代宿主文件提供者，不登记声明；诊断写到 `ctx.logger('executionEnvironment.hostFiles')` |
 
 抽象类的构造函数以 `executionEnvironment` 登记服务，子类不写键（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)、[service-subclass-provides-its-key](../../../../.meta_harness/design/basis/cordis/service-subclass-provides-its-key.md)）。服务登记在装载它的那条插件 fiber 上，插件撤除时键上就没有服务了。
 
-Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类与 `filesFacilityPlugin` 共用空配置 Schema：只接受缺省、`null` 或空对象，其余值校验失败，消息是「configuration accepts no fields」。宿主文件插件用自己的 Schema `HostFilesConfig`：另接受只带 `drainBoundMs` 的对象，`drainBoundMs` 必须是有限的非负数；缺省时取提供者的初值 10000 毫秒。`drainBoundMs` 是唯一的可调配置字段，它可以序列化；诊断的回调与责任域不进配置：回调由插件体接到 `ctx.logger`，责任域由工厂参数进入。配额策略是责任域的选项，由进程宿主在创建责任域时给出。两个函数插件还没有经过 kernel-basis 的 `definePlugin`，见 [SPEC 明确缺项](../SPEC.md#明确缺项)。
+Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。Service 子类与 `filesFacilityPlugin` 共用空配置 Schema：只接受缺省、`null` 或空对象，其余值校验失败，消息是「configuration accepts no fields」。宿主文件插件用自己的 Schema `HostFilesConfig`：另接受下列字段，都可以序列化，缺省时取提供者的初值。`drainBoundMs` 必须是有限的非负数，初值 10000 毫秒。`filesRoot` 与 `stateDirectory` 必须是绝对路径，经提供者选项交给文件引擎，分别是宿主文件根与批次清单目录。`maxBufferedBytes`、`maxChunkBytes`、`startBoundMs`、`graceMs`、`stopBoundMs` 与 `probeRetryMs` 是 `command` 设施的上界。列表与搜索的四项上界（`listPageLimit`、`searchEntryBudget`、`searchByteBudget`、`searchFileBytes`）是提供者选项 `limits` 的字段，Schema 现在不接受它们，所以插件配置给不了。诊断的回调与责任域不进配置：回调由插件体接到 `ctx.logger`，责任域由工厂参数进入。配额策略是责任域的选项，由进程宿主在创建责任域时给出。两个函数插件还没有经过 kernel-basis 的 `definePlugin`，见 [SPEC 明确缺项](../SPEC.md#明确缺项)。
 
 `files` 设施声明与宿主文件提供者分成两个插件。理由：声明的拥有者是 `files` 设施，宿主提供者只是它的一个实现者。分开之后，声明的生灭不随宿主提供者，以后的沙箱文件提供者不必依赖宿主插件在场。
 
@@ -36,11 +37,11 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 `ExecutionEnvironmentRegistry` 构造时调用 `createEnvironmentRegistry`，得到一个登记表实例。服务实例拥有这个登记表实例。
 
-| 面 | 本成员加的责任 | 登记表做的事 |
-| --- | --- | --- |
-| 环境面 `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | 原样转发；环境授权与可信绑定每次现取 `executionEnvironmentAuthority` 与 `executionScopeBinding` 服务，取不到答不可用 | 访问核验、匹配、获取与核验、原获取查询、租约视图、描述 |
-| 恢复面 `recoverOwned`、`releaseScope`、`inspectRecoveryAcquisition` | 原样转发；恢复授权每次现取 `executionRecoveryAuthority` 服务，取不到答不可用 | 恢复授权核对、作用域释放、资源路与获取路的恢复、恢复查询 |
-| 登记面 `registerFacility`、`registerProvider` | 在调用方 fiber 上登记效应，见[登记即效应](#登记即效应) | 设施声明表、提供者表、退役 |
+| 面                                                                     | 本成员加的责任                                                                                                       | 登记表做的事                                             |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| 环境面 `resolvePlacement`、`acquire`、`inspectAcquisition`、`describe` | 原样转发；环境授权与可信绑定每次现取 `executionEnvironmentAuthority` 与 `executionScopeBinding` 服务，取不到答不可用 | 访问核验、匹配、获取与核验、原获取查询、租约视图、描述   |
+| 恢复面 `recoverOwned`、`releaseScope`、`inspectRecoveryAcquisition`    | 原样转发；恢复授权每次现取 `executionRecoveryAuthority` 服务，取不到答不可用                                         | 恢复授权核对、作用域释放、资源路与获取路的恢复、恢复查询 |
+| 登记面 `registerFacility`、`registerProvider`                          | 在调用方 fiber 上登记效应，见[登记即效应](#登记即效应)                                                               | 设施声明表、提供者表、退役                               |
 
 本成员不另写服务键，不增补事件，也不导入任何上层领域的契约。
 
@@ -62,7 +63,7 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 宿主文件插件卸载时，效应让这一代宿主文件提供者退役：先把提供者标为不在场，再使它交出的租约以 `providerRetired` 失效，然后调用提供者的 `retire()`。宿主文件提供者封住这一代获取的门面，逐份排空，最多 `drainBoundMs`：都结清返回已排空；否则返回待处置，受管资源为空，插件体把诊断写入 `ctx.logger`，登记表的撤除再抛出 `RetirementPending`，也写入 `ctx.logger`。`files` 设施声明与责任域不受影响，原记录留在责任域。
 
-`filesFacilityPlugin` 卸载时，效应从设施声明表删除 `files`。新的落点解析返回 `missingFacility`，已取到的设施对象上的操作返回 `unsupported`。两个插件的效应各自独立，卸载先后不影响结果（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
+`filesFacilityPlugin` 卸载时，效应从设施声明表删除 `files`。新的落点解析返回 `missingFacility`，已取到的设施对象上的操作返回 `unsupported`。`commandFacilityPlugin` 卸载时同样删除 `command`，宿主提供者与已经起来的进程不受影响。各插件的效应各自独立，卸载先后不影响结果（[effect-disposal-concurrent-not-ordered](../../../../.meta_harness/design/basis/cordis/effect-disposal-concurrent-not-ordered.md)）。
 
 `ExecutionEnvironmentRegistry` 卸载时：
 
@@ -89,27 +90,27 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 
 ## IC 符合性映射
 
-| 规则 | 本成员怎样符合 | 现在的证据 |
-| --- | --- | --- |
-| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次 | 子类 `extends ExecutionEnvironmentService`，不写键，不自己 `ctx.provide` | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 按键常量取到服务 |
-| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关 | 根入口可达的模块不导入 Cordis 或 `./cordis` | [public-entry.spec.ts](../tests/public-entry.spec.ts) |
-| [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖实现入口 | 调用方经服务定义取服务 | 现在没有组外调用方 |
-| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者 | 重复装载在 `provide` 时失败 | 源码读数，没有测试 |
-| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 可选依赖现取 | 三个端口服务都不写进 `inject`，每次使用时从 Service 装载时的上下文 `ctx.get` 现取，取不到答不可用 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 恢复授权服务装载前、装载后、卸载后各恢复一次；两个访问端口服务缺席、只装一个、都装、卸载一个时各解析一次落点 |
-| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应 | 登记面在调用方 fiber 上登记效应，不采用目录写法 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 卸载宿主文件插件后宿主层没有匹配，卸载 `filesFacilityPlugin` 后已取到的设施返回 `unsupported` |
-| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验 | Service 子类与 `filesFacilityPlugin` 用空配置 Schema，宿主文件插件用只接受 `drainBoundMs` 的 Schema。两个函数插件还没有经过 kernel-basis 的 `definePlugin`（偏离，见 [SPEC 明确缺项](../SPEC.md#明确缺项)） | 校验失败的路径没有测试；Service 子类路径没有 basis |
-| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树 | 偏离，见装配页 [HOSTFILE-FACTORY-ROW](../../../../docs/architecture/runtime/application-assembly.md#hostfile-factory-row)：三个端口以服务提供，责任域作为工厂参数进入，插件树只有包名、导出名与可序列化配置 | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) |
-| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)、[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 作用域与租户是参数 | 作用域、租户与恢复授权都随操作参数进入 | 契约类型 |
-| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 同进程保证 | 登记表是进程内副本，重启后不重建租约 | 写在 [execution-environment SPEC](../../execution-environment/SPEC.md#范围与依据) |
+| 规则                                                                                                                                                                              | 本成员怎样符合                                                                                                                                                                                                                                     | 现在的证据                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2) 服务键只写一次                                                                                       | 子类 `extends ExecutionEnvironmentService`，不写键，不自己 `ctx.provide`                                                                                                                                                                           | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 按键常量取到服务                                                                                             |
+| [IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 根入口与 Cordis 无关                                                                                 | 根入口可达的模块不导入 Cordis 或 `./cordis`                                                                                                                                                                                                        | [public-entry.spec.ts](../tests/public-entry.spec.ts)                                                                                                              |
+| [IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5) 消费者不依赖实现入口                                                                                 | 调用方经服务定义取服务                                                                                                                                                                                                                             | 现在没有组外调用方                                                                                                                                                 |
+| [IC-6](../../../../docs/architecture/cordis-integration-conventions.md#ic-6) 一个 isolate 标签一个提供者                                                                          | 重复装载在 `provide` 时失败                                                                                                                                                                                                                        | 源码读数，没有测试                                                                                                                                                 |
+| [IC-9](../../../../docs/architecture/cordis-integration-conventions.md#ic-9) 可选依赖现取                                                                                         | 三个端口服务都不写进 `inject`，每次使用时从 Service 装载时的上下文 `ctx.get` 现取，取不到答不可用                                                                                                                                                  | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 恢复授权服务装载前、装载后、卸载后各恢复一次；两个访问端口服务缺席、只装一个、都装、卸载一个时各解析一次落点 |
+| [IC-13](../../../../docs/architecture/cordis-integration-conventions.md#ic-13) 登记即效应                                                                                         | 登记面在调用方 fiber 上登记效应，不采用目录写法                                                                                                                                                                                                    | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 卸载宿主文件插件后宿主层没有匹配，卸载 `filesFacilityPlugin` 后已取到的设施返回 `unsupported`                |
+| [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14) 配置校验                                                                                           | Service 子类、`filesFacilityPlugin` 与 `commandFacilityPlugin` 用空配置 Schema，宿主文件插件用接受 `drainBoundMs`、两个路径与命令上界的 Schema。函数插件还没有经过 kernel-basis 的 `definePlugin`（偏离，见 [SPEC 明确缺项](../SPEC.md#明确缺项)） | 校验失败的路径没有测试；Service 子类路径没有 basis                                                                                                                 |
+| [IC-16](../../../../docs/architecture/cordis-integration-conventions.md#ic-16) 运行时对象不进插件树                                                                               | 偏离，见装配页 [HOSTFILE-FACTORY-ROW](../../../../docs/architecture/runtime/application-assembly.md#hostfile-factory-row)：三个端口以服务提供，责任域作为工厂参数进入，插件树只有包名、导出名与可序列化配置                                        | [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)                                                                                                              |
+| [IC-17](../../../../docs/architecture/cordis-integration-conventions.md#ic-17)、[IC-18](../../../../docs/architecture/cordis-integration-conventions.md#ic-18) 作用域与租户是参数 | 作用域、租户与恢复授权都随操作参数进入                                                                                                                                                                                                             | 契约类型                                                                                                                                                           |
+| [IC-19](../../../../docs/architecture/cordis-integration-conventions.md#ic-19) 同进程保证                                                                                         | 登记表是进程内副本，重启后不重建租约                                                                                                                                                                                                               | 写在 [execution-environment SPEC](../../execution-environment/SPEC.md#范围与依据)                                                                                  |
 
 ## 机制读数与假设
 
-| 机制 | 依据现状 | 影响 |
-| --- | --- | --- |
-| 同一 isolate 标签下重复 `provide` 抛出 | 源码读数 | 重复装载失败 |
-| Service 子类静态 `Config` 校验失败使 fiber `FAILED` | basis 只核验了函数插件 | 配置错误时的加载失败 |
+| 机制                                                | 依据现状                                                                                                                                                                                                                                                                            | 影响                                                                           |
+| --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| 同一 isolate 标签下重复 `provide` 抛出              | 源码读数                                                                                                                                                                                                                                                                            | 重复装载失败                                                                   |
+| Service 子类静态 `Config` 校验失败使 fiber `FAILED` | basis 只核验了函数插件                                                                                                                                                                                                                                                              | 配置错误时的加载失败                                                           |
 | 撤除函数抛出 `RetirementPending` 时 Cordis 怎样处置 | 读数：Cordis 4.0.4 `fiber.ts` 的 `_unload` 对每个撤除函数捕获抛出，只写入 `ctx.logger.error`，卸载照常完成。包测试 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 在真实卸载上固定：提供者插件与服务卸载时 `fiber.dispose()` 正常返回，`ctx.logger` 收到 `RetirementPending` | 装配从 `ctx.logger` 与登记表的退役、关闭结果观察退役待处置，不能从卸载结果观察 |
-| 效应撤除只运行一次 | 源码读数：`fiber.ts` 的 `effect` 撤除以 `disposing` 标记只运行一次 | 提供者撤除函数的重试不经效应 |
+| 效应撤除只运行一次                                  | 源码读数：`fiber.ts` 的 `effect` 撤除以 `disposing` 标记只运行一次                                                                                                                                                                                                                  | 提供者撤除函数的重试不经效应                                                   |
 
 前两项是假设，补齐之前对应的行为以假设成立。Cordis 升版时，先按 IC 约定重跑相关 probe 与包测试。
 
@@ -125,9 +126,10 @@ Service 子类写静态 `Config`，两个函数插件写 `Config` 字段（[IC-1
 6. 经服务登记的提供者退役待处置时，返回的撤除函数每次调用都再调用 `retire()` 并抛出 `RetirementPending`。
 7. 提供者插件与服务在退役、关闭待处置时卸载照常完成，`ctx.logger` 收到 `RetirementPending`。
 8. 授权后释放作用域，宿主租约以 `scopeReleased` 失效，该作用域的再获取与落点解析为 `referenceExpired`；`describe` 列出该作用域的宿主落点。
-9. 宿主文件插件的配置只接受合法的 `drainBoundMs`，以 `-1` 装载失败；Service 与 `filesFacilityPlugin` 只接受空配置。
+9. 宿主文件插件的配置只接受合法的字段与值（`drainBoundMs`、绝对路径、命令上界），以 `-1` 的 `drainBoundMs` 装载失败；Service、`filesFacilityPlugin` 与 `commandFacilityPlugin` 只接受空配置。
 10. 两个访问端口服务缺席或只装一个时，落点解析为 `unavailable`；都装上之后得到带配额域的落点；卸载环境授权服务后又为 `unavailable`。
 11. 可信绑定把作用域绑到别的租户时，落点解析为 `notAuthorized`。
+12. `files` 与 `command` 两个声明插件和宿主文件插件都在时，需求 `files` 加 `command` 落在同一个宿主提供者，`terminal` 仍缺；卸载 `commandFacilityPlugin` 后需要 `command` 的落点解析返回 `missingFacility`。
 
 [host-provider-drain.spec.ts](../tests/host-provider-drain.spec.ts) 在真实 Cordis 上覆盖：以 `{ drainBoundMs: 20 }` 装载宿主文件插件，有一个在途写入时卸载它，`ctx.logger` 先收到退役超界的诊断，再收到 `RetirementPending`，卸载完成。
 
