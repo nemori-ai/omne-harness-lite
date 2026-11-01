@@ -1,6 +1,8 @@
-// 夹具 `identity` 行：没有关闭阶段的真实行。它 inject 受信名 `storage`，所以要求提供者不是 S0 替身（DP1-C10）。
+// 夹具 `identity` 行：没有关闭阶段的真实行。它 inject 受信名 `storage`，所以要求提供者不是 S0 替身（DP1-C10）；
+// 另 inject 根上的入口对象 `identityClock`（装配页 AAP-14）。
 // 这个目录是 R1-5 的样板：新增一行只新增这个目录，再在 `./cordis` 导出与发行配置各加一条。
 import type { Context, Plugin } from '@deepseek-ai/cordis'
+import { identityClockKey } from '@omne-harness/identity/cordis'
 import { defineRow } from '../../../../../src/row.ts'
 import {
   FixtureIdentityService,
@@ -15,7 +17,7 @@ class TenantStandingSourceImpl extends FixtureTenantStandingSourceService {}
 
 const memberPlugin: Plugin.Object = {
   name: 'fixture-identity',
-  inject: [storageKey],
+  inject: [storageKey, identityClockKey],
   apply(ctx: Context) {
     new IdentityImpl(ctx)
     new TenantStandingSourceImpl(ctx)
@@ -27,7 +29,7 @@ export const fixtureIdentity = defineRow({
   implementation: 'real',
   manifest: {
     provides: [identityKey, tenantStandingSourceKey],
-    injects: [storageKey],
+    injects: [storageKey, identityClockKey],
     sameProviderGroup: null,
   },
   lifecycle: { kind: 'none' },

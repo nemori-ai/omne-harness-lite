@@ -8,6 +8,7 @@ import { stubPlugin } from '../src/cordis.ts'
 import { serveProfile } from '../src/profile.ts'
 import type { S0Record } from '../src/run.ts'
 import { rowIds } from '../src/s0/rows.ts'
+import { identityClock } from '../src/entry/identity-clock.ts'
 import type { EntryObjectModule } from '../src/types.ts'
 import { serveOnce, type ServeRun } from './fixtures/serve/harness.ts'
 import {
@@ -156,7 +157,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
       ]),
       operator: { ops: [{ kind: 'disable', id: 'storage' }] },
       plugins: fixturePlugins,
-      entryObjects: [fixtureStorageHost()],
+      entryObjects: [fixtureStorageHost(), identityClock],
     })
     expect(run.result.exitCode).toBe(4)
     expect(run.tree('storage')).toMatchObject({ disabled: true, source: 'operator' })
@@ -209,7 +210,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
         fixtureStorage: fixturePlugins.fixtureStorage,
         fixtureIdentity: fixturePlugins.fixtureIdentity,
       },
-      entryObjects: [fixtureStorageHost()],
+      entryObjects: [fixtureStorageHost(), identityClock],
     })
     expect(run.result.exitCode).toBe(0)
     expect(run.tree('identity')).toMatchObject({
@@ -247,7 +248,11 @@ describe('serve: checks before loading (DP1-C9, DP1-C10, DP1-C15, DP1-C11)', () 
 
   it('DP1-C15: via without a registering entry object is refused, exit 2', async () => {
     const rows = tree([{ id: 'storage', plugin: 'fixtureStorage' }])
-    const absent = await serveOnce({ distribution: rows, plugins: fixturePlugins })
+    const absent = await serveOnce({
+      distribution: rows,
+      plugins: fixturePlugins,
+      entryObjects: [],
+    })
     expect(absent.result.exitCode).toBe(2)
     expect(absent.stderr.join('\n')).toMatch(/storage.*storageHost/)
 

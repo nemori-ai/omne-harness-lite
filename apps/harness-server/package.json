@@ -50,6 +50,7 @@
     "@omne-harness/server-entry": "workspace:*",
     "@omne-harness/session-contract": "workspace:*",
     "@omne-harness/session-cordis-contract": "workspace:*",
+    "@omne-harness/session-storage-sql": "workspace:*",
     "@omne-harness/sql-contract": "workspace:*",
     "@omne-harness/sqlite-provider": "workspace:*",
     "@omne-harness/utc-instant": "workspace:*",

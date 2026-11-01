@@ -3,11 +3,13 @@
 // 名字取定义包的键常量；受信与否由受信表（`src/s0/aa-rows.json`）决定，模块不自报。
 import type { EntryObjectModule } from '../types.ts'
 import { agentClock } from './agent-clock.ts'
+import { cursorSigning } from './cursor-signing.ts'
 import { identityClock } from './identity-clock.ts'
 import { principalIssuer, principalVerifier, sessionPrincipals } from './principals.ts'
 import { requestContextTrust } from './request-context-trust.ts'
 import { sessionClock } from './session-clock.ts'
 import { sessionWorkPrincipals } from './session-work-principals.ts'
+import { storageHost } from './storage-host.ts'
 
 export const entryObjects: readonly EntryObjectModule[] = [
   principalVerifier,
@@ -18,4 +20,6 @@ export const entryObjects: readonly EntryObjectModule[] = [
   sessionClock,
   agentClock,
   identityClock,
+  storageHost,
+  cursorSigning,
 ]

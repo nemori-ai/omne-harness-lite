@@ -212,6 +212,9 @@ importers:
       '@omne-harness/session-cordis-contract':
         specifier: workspace:*
         version: link:../../packages/session/session-cordis-contract
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../../packages/session/session-storage-sql
       '@omne-harness/sql-contract':
         specifier: workspace:*
         version: link:../../packages/storage/sql-contract

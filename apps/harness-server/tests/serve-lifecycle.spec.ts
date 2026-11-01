@@ -1,6 +1,7 @@
 // `serve` 模式下的可见性与关闭登记落点（R1-4，DP1-C15）：直接用装载器与登记表，能看到根、fiber 与在册句柄。
 import { Context, type Plugin } from '@deepseek-ai/cordis'
 import { afterEach, beforeEach, describe, expect, test } from 'vitest'
+import { identityClock } from '../src/entry/identity-clock.ts'
 import { LifecycleRegistry, S0AssemblyLifecycleService } from '../src/lifecycle.ts'
 import {
   disposeTree,
@@ -142,7 +143,7 @@ describe('serve visibility (R1-4, same mechanism as trust.spec, formal names)', 
     const events: StubEvent[] = []
     const loaded = await load(
       [declared('storage', fixtureStorage), stub('identity', events)],
-      [fixtureStorageHost()],
+      [fixtureStorageHost(), identityClock],
     )
     expect(state(loaded, 'storage').state).toBe('ACTIVE')
     expect(state(loaded, 'identity').state).toBe('ACTIVE')

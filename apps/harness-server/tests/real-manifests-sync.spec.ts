@@ -10,10 +10,7 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {
-  // R1-D27：identity 持久提供者经根上的 `identityClock` 入口对象取时钟；装配页补丁 AAP-14 待登记（#978 评论 6563724224）。
-  identity: { patch: 'AAP-14', manifest: { injects: ['storage', 'identityClock'] } },
-}
+> = {}
 
 const profile = serveProfile()
 
