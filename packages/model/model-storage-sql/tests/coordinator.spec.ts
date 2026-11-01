@@ -27,7 +27,6 @@ import {
 import type { SendCoordinator, SendStart } from '@omne-harness/model'
 import {
   createModelCommandsCore,
-  modelCommands,
   type ModelCommandsCoreOptions,
   type ModelSendSource,
 } from '@omne-harness/model/commands'
@@ -47,6 +46,7 @@ import participant from '../src/commit.ts'
 import {
   COMMAND_RESERVE_BYTES,
   callHandler,
+  createSqlModelCommands,
   createSqlModelStorage,
   modelMigration,
   pendingHandler,
@@ -333,21 +333,29 @@ const storageOf = (provider: Provider) =>
     },
   })
 
-/** The SQL assembly: one SQL storage, its mirror, one core over the mirror, the coordinator. */
+/**
+ * The SQL assembly of the member root: `createSqlModelCommands` with send options builds one SQL
+ * storage, its mirror, one core over the mirror, the commands and the coordinator.
+ */
 function sqlAssembly(
   settings: Readonly<{ provider?: Provider; mirrorBytes?: number; maxClaims?: number }> = {},
 ): Subject & Readonly<{ provider: Provider }> {
   const provider = settings.provider ?? sqliteStorage()
-  const mirror = createSendMirror(storageOf(provider), {
-    mirrorBytes: settings.mirrorBytes ?? 1 << 20,
-    ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
+  const { commands, coordinator } = createSqlModelCommands<Principal>({
+    ...coreOptions,
+    storage: provider.storage,
+    domains: lookup,
+    combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
+    maxCallBytes: 1 << 20,
+    maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
+    send: {
+      mirrorBytes: settings.mirrorBytes ?? 1 << 20,
+      ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
+      sources: [source],
+    },
   })
-  const core = createModelCommandsCore(coreOptions, mirror.storage)
-  return {
-    commands: modelCommands(core),
-    coordinator: mirror.coordinator(core, [source]),
-    provider,
-  }
+  if (coordinator === null) throw new Error('send options give a coordinator')
+  return { commands, coordinator, provider }
 }
 
 /** The memory assembly of `@omne-harness/model/testing`, with the same options and source. */

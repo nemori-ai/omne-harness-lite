@@ -12,9 +12,9 @@ Model 的 SQL 存储成员。它实现共享命令核心的存储端口 `ModelCo
 
 状态：`draft`。覆盖范围见 SPEC 的[实现现状](SPEC.md#实现现状)。
 
-- 已实现：`createSqlModelCommands`、`createSqlModelStorage`、表与迁移、行解析、参加者、两个 handler 模块、构造期核对。
-- 未实现：发送协调器、`modelStorageMaterials()`。
-- 已知差异：对一个已提交的 operation，`query` 回答 `not-committed`，因为核心的读 scope 不带 operation。与内存实现的全部差异见 SPEC 的[已知差异](SPEC.md#已知差异)。
+- 已实现：`createSqlModelCommands`（给出 `send` 时同时给出共用核心的发送协调器）、`createSendMirror`、`createSqlModelStorage`、表与迁移、行解析、参加者、两个 handler 模块、构造期核对。
+- 未实现：`modelStorageMaterials()`。
+- 已知差异：进程重启后，对重启前结论未定的写，`query` 可能回答 `not-committed`。与内存实现的全部差异见 SPEC 的[已知差异](SPEC.md#已知差异)。
 - 没有 `./cordis` 子路径。应用插件 `modelCommands` 归应用。
 
 ## 使用

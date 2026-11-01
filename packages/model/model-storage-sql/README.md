@@ -12,9 +12,9 @@ The package does not own the rules of the Model commands. The shared core of `@o
 
 Status: `draft`. The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
 
-- Implemented: `createSqlModelCommands`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, and the construction checks.
-- Not implemented: the send coordinator and `modelStorageMaterials()`.
-- Known difference: `query` answers `not-committed` for a committed operation, because the read scope of the core does not name the operation. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
+- Implemented: `createSqlModelCommands` (with `send`, also the send coordinator over the same core), `createSendMirror`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, and the construction checks.
+- Not implemented: `modelStorageMaterials()`.
+- Known difference: after a restart, `query` can answer `not-committed` for a write whose outcome was unknown before the restart. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
 - No `./cordis` subpath exists. The application plugin `modelCommands` belongs to the application.
 
 ## Usage

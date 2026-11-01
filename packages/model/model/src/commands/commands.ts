@@ -185,29 +185,37 @@ export function callCommands<P>(
           return { failure: invalid('admission', 'not-original') }
         return { ok: { kind: 'found', state: structuredClone(call.state) } }
       }),
+    // The read names the operation, so a storage that reads bindings by operation (the SQL one)
+    // holds the binding of the original write in the documents it gives.
     query: input =>
-      core.runRead(input, () => {
-        const key = core.identity(input)
-        if (typeof key !== 'string') return { failure: key }
-        const root = core.storage.documents(key)
-        const auth = core.authorize(input, 'facts', root.calls.get(input.call), input.call)
-        if ('failure' in auth) return auth
-        if (
-          'failure' in decodeModelOperationId(input.operation) ||
-          input.operation.startsWith('mop_--')
-        )
-          return { failure: invalid('operation', 'reserved-or-invalid') }
-        const op = root.operations.get(input.operation)
-        if (op && op.call !== input.call)
-          return { failure: { kind: 'conflict', operation: input.operation, revision: revision() } }
-        if (!op) return { ok: { kind: 'not-committed' } }
-        return {
-          ok:
-            op.status === 'committed'
-              ? { kind: 'committed', value: { revision: op.revision } }
-              : { kind: op.status },
-        }
-      }),
+      core.runRead(
+        input,
+        () => {
+          const key = core.identity(input)
+          if (typeof key !== 'string') return { failure: key }
+          const root = core.storage.documents(key)
+          const auth = core.authorize(input, 'facts', root.calls.get(input.call), input.call)
+          if ('failure' in auth) return auth
+          if (
+            'failure' in decodeModelOperationId(input.operation) ||
+            input.operation.startsWith('mop_--')
+          )
+            return { failure: invalid('operation', 'reserved-or-invalid') }
+          const op = root.operations.get(input.operation)
+          if (op && op.call !== input.call)
+            return {
+              failure: { kind: 'conflict', operation: input.operation, revision: revision() },
+            }
+          if (!op) return { ok: { kind: 'not-committed' } }
+          return {
+            ok:
+              op.status === 'committed'
+                ? { kind: 'committed', value: { revision: op.revision } }
+                : { kind: op.status },
+          }
+        },
+        input.operation,
+      ),
     dispatches: input =>
       core.runRead(input, () =>
         core.read(input, 'account', call => ({

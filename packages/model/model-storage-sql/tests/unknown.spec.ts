@@ -99,6 +99,23 @@ describe('a saved write whose reply is lost', () => {
       sqlite.rows(domain, 'SELECT row_version FROM md_call WHERE tenant = ?', [textOf(A)]),
     ).toEqual([[2n]])
   })
+
+  it('answers the lost operation as committed to a query, with the revision it wrote', async () => {
+    const { commands, sqlite, admit } = setup()
+    await commands.admit(admit)
+    const control = { principal: admit.principal, tenant: A, call: CALL, operation: opId('stop') }
+    sqlite.hooks.loseNextReply = true
+    expect(await commands.control(control)).toEqual({
+      failure: { kind: 'commit-unknown', operation: opId('stop') },
+    })
+    const query = { principal: admit.principal, tenant: A, call: CALL, operation: opId('stop') }
+    expect(await commands.query(query)).toEqual({
+      ok: { kind: 'committed', value: { revision: '2' } },
+    })
+    expect(await commands.query({ ...query, operation: opId('never') })).toEqual({
+      ok: { kind: 'not-committed' },
+    })
+  })
 })
 
 describe('operations whose outcome stays unknown', () => {

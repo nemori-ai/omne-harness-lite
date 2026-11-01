@@ -3,7 +3,7 @@
 // that binds the admission operation. When that commit fails, none of them exists.
 import { describe, expect, it } from 'vitest'
 import { OWNER, callId, opId, sqlCommands, tenantOf, textOf } from './fixture.ts'
-import { COMMAND_RESERVE_BYTES } from '@omne-harness/model-storage-sql'
+import { COMMAND_RESERVE_BYTES, PENDING_PAGE_MAX } from '@omne-harness/model-storage-sql'
 
 const A = tenantOf('a')
 const LIMITS = {
@@ -98,5 +98,12 @@ describe('an admission in one commit', () => {
     })
     expect(sqlite.commits()).toBe(commits)
     expect(rowsOf('mcall_large')).toEqual({ call: [], operations: [] })
+  })
+
+  it('refuses at construction a scan page larger than one model.pending page', () => {
+    const page = (scanPageCalls: number) => () =>
+      sqlCommands([A], { limits: { ...LIMITS, scanPageCalls } })
+    expect(page(PENDING_PAGE_MAX)).not.toThrow()
+    expect(page(PENDING_PAGE_MAX + 1)).toThrow(RangeError)
   })
 })

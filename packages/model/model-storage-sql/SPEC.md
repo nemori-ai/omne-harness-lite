@@ -8,19 +8,19 @@
 
 ### 实现现状
 
-现在的切片是 S1 存储骨架加 C-WIRE-SQL 装配。
+现在的切片是 S1 存储骨架、C-WIRE-SQL 装配与 C-COORD 发送协调器。
 
-- 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 的模块；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上。
-- 未实现：发送协调器（C-COORD）；静态材料 `modelStorageMaterials()` 及其 `codeDigest`；`modelCommands` 应用插件（L-APP）。
+- 已实现：四张表与迁移 `001-model-records`；行与调用文档之间的解析；`createSqlModelStorage`，即 `ModelCommandStorage` 的 SQL 实现；参加者 `model`；读 handler `model.call` 与 `model.pending` 的模块；构造期核对；`createSqlModelCommands`，即共享核心的 22 个方法装在这份存储上；`createSendMirror`，即发送协调器。
+- 未实现：静态材料 `modelStorageMaterials()` 及其 `codeDigest`；`modelCommands` 应用插件（L-APP）。
 
 ### 耐久的 ModelCommands
 
-`createSqlModelCommands(options)` 等于 `modelCommands(createModelCommandsCore(核心选项, createSqlModelStorage(存储选项)))`。22 个方法的规则全部在共享核心，本成员不另写规则。
+`createSqlModelCommands(options)` 等于 `modelCommands(createModelCommandsCore(核心选项, createSqlModelStorage(存储选项)))`；给出 `send` 时，核心建在 `createSendMirror` 装饰过的存储上。22 个方法的规则全部在共享核心，本成员不另写规则。
 
-- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`maxCallBytes`、`maxCommandBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`。
+- 选项是核心的选项（`owners`、`authority`、`evidence`、`clock`、`limits`）加上存储需要的 `storage`、`domains`、`combination`、`maxCallBytes`、`maxCommandBytes`、可选的 `attemptLimit` 与 `unresolvedLimit`，以及可选的 `send`（`mirrorBytes`、可选的 `maxClaims` 与发送来源 `sources`）。
 - 核心的 `limits.capacity` 在这里是每租户份额：`reserved` 给出该租户持有的容量，参加者在受理的同一次提交里按同一份额核对。所以不另设 `tenantCapacity`。
 - 构造期核对：核心的选项与 owner 声明（核心抛出）；N1 与组合（存储抛出）；`limits.scanPageCalls` 不超过 `model.pending` 一页的上限 1000。
-- 返回 `{ commands }`。发送协调器合入后，它的镜像在装配处装饰这份存储，命令与协调器共用同一个被装饰的存储与同一个核心。
+- 返回 `{ commands, coordinator }`。给出 `send` 时，命令与协调器共用同一个被装饰的存储与同一个核心，也就共用同一个资格权威；没有 `send` 时 `coordinator` 为 `null`。`model-records` 装配行用它同时提供 `modelCommands` 与 `modelSendCoordinator`。
 
 ### 存储端口
 
@@ -48,7 +48,8 @@
 
 ### 已知差异
 
-- `query` 读不到已提交的绑定：核心的读方法给出的 scope 不带 operation（C-WIRE-CORE），所以 `model.call` 不读该 operation 的绑定。对一个已提交的 operation，`query` 在本存储上回答 `not-committed`，内存实现回答 `committed`。修正需要核心把 `query` 的 operation 放进读 scope，归共享核心，见明确缺项。
+- `query` 的 `not-committed`：没有绑定、本进程的未定登记里也没有这个 operation 时，本存储回答 `not-committed`，不再逐代调用存储的 `query` 取完整排除证明（D3 第 6 节）。进程内这两处已覆盖本进程的写；进程重启后未定登记丢失，重启前结论未定的写可能被答成 `not-committed`。这是已知限制，由波 C 的恢复扫描接续。
+- `scanPending` 的并集语义（文档判定与未定登记）只有本存储一侧的用例，没有与内存实现逐项对拍。
 - 扫描游标：`scanPending` 的 `next` 是上一页的最后一个调用（键集分页），扫描期间新受理的调用会出现在后面的页里。内存实现在首页取定全部调用，游标是不透明的 `scan_` 身份。
 - 快照只保存最新一份。认回一个已被后续 `preserve` 超过的 `preserve` 时，核心返回 `invalid('call', 'recovery-material-released')`。内存实现保留每一份快照。
 - 容量口径：`materialBytes` 只计最新快照。
@@ -226,5 +227,4 @@ JSON 列只做列级的穷尽解析：列齐全、类型对、租户与调用对
 - 静态材料与模块文件：提供者按每个模块文件的默认导出加载。现在 `schema.ts` 默认导出迁移，`commit.ts` 默认导出参加者。两个 handler 在 `reads.ts` 中是具名导出，还需要各自的模块文件与 `modelStorageMaterials()`。
 - 与会话日志同处一个事务域时的写队列争用没有实测数据。ST-09 或 E9 的测量显示 Model 写使会话日志提交的排队时延超过阈值时，按 R1-D2 重开分域。
 - 跨租户的全局容量上界不在一个事务域内，M2 不设。
-- `query` 对已提交 operation 的回答（见已知差异）：需要共享核心把 `query` 的 operation 放进读 scope，本成员已能读该绑定。归共享核心的拥有者。
 - 结构度量：`src/documents.ts` 与 `src/commit.ts` 中原超过 alert 阈值的六个函数已拆分（D3d 第 8 条）。

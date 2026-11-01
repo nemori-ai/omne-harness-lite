@@ -412,10 +412,16 @@ export class ModelCommandCore<P> {
   runRead<T>(
     input: Readonly<{ tenant: TenantId; call?: ModelCallId }>,
     work: () => Outcome<T, ModelFailure>,
+    operation?: ModelOperationId,
   ): Promise<Outcome<T, ModelFailure>> {
     const tenant = tenantKey(input.tenant)
     if (typeof tenant !== 'string') return this.storage.run(work)
-    const scope: RunScope = input.call === undefined ? { tenant } : { tenant, call: input.call }
+    const scope: RunScope =
+      input.call === undefined
+        ? { tenant }
+        : operation === undefined
+          ? { tenant, call: input.call }
+          : { tenant, call: input.call, operation }
     return this.storage.run(work, scope)
   }
   /** Runs a write attempt under the scope of its tenant, call and operation. */

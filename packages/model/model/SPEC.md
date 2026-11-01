@@ -180,7 +180,7 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 <a id="共享归约核心"></a>**共享归约核心。** 22 个方法的规则在 [src/commands/](src/commands/index.ts)，内存实现与耐久实现共用同一份。这是[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446) MD-03 决定 D3 第 2 条的选项 A。`createModelCommandsCore(options, storage)` 构造核心：构造时校验限额与 owner 声明，校验失败时抛出。`modelCommands(core)` 给出完整的 `ModelCommands`。两个实现的边界如下：
 
 - 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、单调用容量、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
-- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度。
+- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度；可选的 `pending(tenant, after, limit)` 由存储自己分页选出待恢复调用（`PendingPage`）。存储给出 `pending` 时，`scanPending` 在同样的资格与 limit 检查之后直接调用它，不经 `run`。
 - 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
 - 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
 
@@ -190,7 +190,7 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 - 租户取方法输入的租户，用 `tenantCodec` 的规范文本。
 - 写方法（`MODEL_WRITE_METHODS` 的 15 个）带 call 与 operation。
-- 读方法带 call，不带 operation，即使输入里有（`recall` 的 admission、`query` 的 operation）。
+- 读方法带 call，不带 operation（`recall` 的 admission 也不带）。`query` 例外：它恢复一个原 operation，所以带上输入的 operation，读绑定的存储（SQL）据此读到原写的绑定。
 - `scanPending` 跨调用读，只带租户。
 - 租户没有规范文本时不传 `scope`，`work` 照旧返回 `denied`。
 

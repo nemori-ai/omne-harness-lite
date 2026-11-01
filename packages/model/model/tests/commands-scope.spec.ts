@@ -136,7 +136,7 @@ function everyMethod(f: ReturnType<typeof fixture>) {
   return calls
 }
 
-it('every one of the 22 methods runs its attempt under a scope that names the tenant and the call, and a write also names its operation', async () => {
+it('every one of the 22 methods runs its attempt under a scope that names the tenant and the call, and a write or a query also names its operation', async () => {
   const f = fixture()
   const text = tenantCodec.encode(f.tenant)
   if (!text.ok) throw new Error('fixture tenant')
@@ -157,6 +157,9 @@ it('every one of the 22 methods runs its attempt under a scope that names the te
       expect(scope?.tenant, method).toBe(text.value)
       expect(scope?.call, method).toBe(call)
       expect(scope?.operation, method).toBe(op(method))
+    } else if (method === 'query') {
+      // A query recovers one original operation: the read names it, as a write names its own.
+      expect(scope, method).toStrictEqual({ tenant: text.value, call, operation: op('admit') })
     } else {
       expect(scope, method).toStrictEqual({ tenant: text.value, call })
     }
