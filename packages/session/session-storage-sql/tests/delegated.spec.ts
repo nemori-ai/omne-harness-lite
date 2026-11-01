@@ -17,8 +17,31 @@ import {
   sessionId,
   type SessionDelegatedTransactionsFixture,
 } from '@omne-harness/session-contract/testing'
-import { app, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
+import type { TenantId } from '@omne-harness/legal-identity'
+import type { DurableEvidence } from '@omne-harness/session-contract'
+import { decodeValue } from '../src/codec.ts'
+import { app, textOf, TENANT_A, TENANT_B, type App } from './fixtures/app.ts'
 import { kindOf, SESSION_ENTRIES } from './fixtures/entries.ts'
+
+/** The evidence stored with an operation record, read from the domain of the tenant (null: none). */
+function storedEvidence(
+  a: App,
+  tenant: TenantId,
+  session: string,
+  operation: string,
+): DurableEvidence | null {
+  const domain = a.directory.entries.find(item => item.tenant === textOf(tenant))?.domain
+  if (domain === undefined) return null
+  const found = a.provider.select(
+    domain.transactionDomain,
+    'SELECT evidence FROM sl_operation_evidence WHERE tenant = ? AND session = ? AND operation = ? LIMIT 1',
+    [textOf(tenant), session, operation],
+  )
+  const cell = found.rows[0]?.[0]
+  return typeof cell === 'string'
+    ? (decodeValue(JSON.parse(cell) as never) as DurableEvidence)
+    : null
+}
 
 async function fixture(): Promise<SessionDelegatedTransactionsFixture<string>> {
   const a = await app()
@@ -36,12 +59,9 @@ async function fixture(): Promise<SessionDelegatedTransactionsFixture<string>> {
         ),
       ]),
     checks: () => a.accessCheck.controls.asked().length,
+    decisionOf: (tenant, session, operation) => storedEvidence(a, tenant, session, operation),
   }
 }
-
-// The member does not keep the access evidence with the operation record, so the fixture offers no
-// `decisionOf` and that case checks nothing here (known gap, see the SPEC W1 step 1).
-const UNSTORED = 'a view commit stores the bound evidence with the operation record'
 
 describe('session-contract delegated-view conformance on the SQL storage', () => {
   const cases = sessionDelegatedTransactionsConformance<string>()
@@ -49,11 +69,7 @@ describe('session-contract delegated-view conformance on the SQL storage', () =>
   for (const test of cases)
     it(`${test.clause}: ${test.name}`, async () => {
       const verdict = await runConformanceCase(test, await fixture())
-      expect(verdict).toEqual(
-        test.name === UNSTORED
-          ? { kind: 'not-applicable', handle: 'decisionOf' }
-          : { kind: 'passed' },
-      )
+      expect(verdict).toEqual({ kind: 'passed' })
     })
 })
 

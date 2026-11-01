@@ -1,5 +1,6 @@
 // The static materials of the Session storage: two participants (`session` and `execution-record`),
-// their three migrations (two of `session`: the log and the execution index) and their read
+// their four migrations (three of `session`: the log, the execution index and the operation
+// evidence table) and their read
 // handlers, as the SQL storage contract describes them
 // (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
 // `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
@@ -28,6 +29,8 @@ import {
   EXECUTION_INDEX_MIGRATION,
   EXECUTION_INDEX_TABLES,
   MIGRATION,
+  OPERATION_EVIDENCE_MIGRATION,
+  OPERATION_EVIDENCE_TABLES,
   PROTOCOL,
   SESSION_TABLES,
 } from './worker/schema.ts'
@@ -46,6 +49,10 @@ const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
 const indexMigrationRef = Object.freeze({
   owner: EXECUTION_INDEX_MIGRATION.owner,
   id: EXECUTION_INDEX_MIGRATION.id,
+})
+const evidenceMigrationRef = Object.freeze({
+  owner: OPERATION_EVIDENCE_MIGRATION.owner,
+  id: OPERATION_EVIDENCE_MIGRATION.id,
 })
 const recordMigrationRef = Object.freeze({
   owner: EXECUTION_RECORD_MIGRATION.owner,
@@ -128,6 +135,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
   const migration = module('migration')
   const recordMigration = module('execution-record-migration')
   const indexMigration = module('execution-index-migration')
+  const evidenceMigration = module('operation-evidence-migration')
   return {
     participants: [
       {
@@ -147,7 +155,7 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
-        ownedTables: [...SESSION_TABLES, ...EXECUTION_INDEX_TABLES],
+        ownedTables: [...SESSION_TABLES, ...EXECUTION_INDEX_TABLES, ...OPERATION_EVIDENCE_TABLES],
         readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [],
         providesFacts: [],
@@ -173,6 +181,12 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         moduleUrl: indexMigration.moduleUrl,
         checksum: indexMigration.digest,
         requires: [migrationRef],
+      },
+      {
+        ...evidenceMigrationRef,
+        moduleUrl: evidenceMigration.moduleUrl,
+        checksum: evidenceMigration.digest,
+        requires: [indexMigrationRef],
       },
     ],
     readHandlers: HANDLERS.map(item => {

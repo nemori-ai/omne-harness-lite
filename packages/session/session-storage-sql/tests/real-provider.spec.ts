@@ -24,6 +24,7 @@ import {
   queryKindOf,
   TENANT_A,
   TENANT_B,
+  textOf,
   walSample,
   type RealApp,
   type RealAppOptions,
@@ -112,6 +113,35 @@ describe('the process is killed after the receipt came back', () => {
     expect(ok<{ revision: string }>(await app.port.readWork(app.access(TENANT_A))).revision).toBe(
       '1',
     )
+  })
+})
+
+describe('the access evidence through the real write Worker', () => {
+  it('the migration that adds the evidence table runs, and the evidence of a commit is read back with its record', async () => {
+    const app = await open()
+    ok(await app.create(TENANT_A))
+    const answer = await app.storage.commit({
+      identity: identityOf(TENANT_A, app.domainOf(TENANT_A), 'session.lookup'),
+      ...app.combination,
+      commands: [
+        {
+          participant: 'session',
+          facts: {
+            intent: 'query',
+            tenant: textOf(TENANT_A),
+            session: 'session-1',
+            operation: operationId('create-session-1'),
+          },
+        },
+      ],
+    })
+    expect(answer.kind).toBe('committed')
+    const response = (answer as unknown as { responses: { reply: { response: unknown } }[] })
+      .responses[0]?.reply.response
+    expect(response).toMatchObject({
+      kind: 'operation',
+      evidence: { owner: 'conformance', record: 'access/create', revision: '1' },
+    })
   })
 })
 
