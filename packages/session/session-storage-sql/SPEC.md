@@ -47,8 +47,8 @@
 | 根入口导出                            | `createSessionStorage`、`createSessionStoragePair`、`createSessionPrincipalBindings`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和它们的类型。子路径 `./participants` 导出两个参加者的词汇，见[对外部提交方的词汇](#对外部提交方的词汇)。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记                                                                                                                                                                    |
 | SQL 依赖                              | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，`dependencies` 不含 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite`。`devDependencies` 有 sqlite-provider，只供 `tests/real-provider.spec.ts` 用它的公开入口                                                                                                                                                                                                                                  |
 | 端口操作                              | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`commitEntries`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 的步骤见[已知限制](#已知限制)第 1 条                                                                                                                                                                                                                                       |
-| 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；两个迁移 `session/001-session-log` 与 `execution-record/001-execution-record`；十一个 `snapshot` 读 handler：`session.work`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`execution-record.state`、`execution-record.operation`。每个模块带文件摘要                                                       |
-| 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。`execution-record` 拥有 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与二级索引 `er_execution_session_idx`。列见[对象模型](docs/object-model.md)                                                                        |
+| 静态材料                              | 两个参加者 `execution-record` 与 `session`（`grouping` 都为 `singleton`）；三个迁移 `session/001-session-log`、`session/002-execution-index` 与 `execution-record/001-execution-record`；十二个 `snapshot` 读 handler：`session.work`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`、`session.history-root`、`session.execution`、`execution-record.state`、`execution-record.operation`。每个模块带文件摘要   |
+| 当前表                                | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。执行索引 `sl_execution_idx` 也归 `session`，见[执行索引](#执行索引)。`execution-record` 拥有 `er_root`、`er_state`、`er_operation`、`er_execution`、`er_fact_idx`、`er_batch_idx`、`er_admission_idx` 与二级索引 `er_execution_session_idx`。列见[对象模型](docs/object-model.md)   |
 | 尚未实现的设计                        | `sl_batch`、`sl_blob`、`sl_ref_idx`、`sl_rebuild`；TB-04 的内联阈值与外置载荷；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶                                                                                                                                                                               |
 | 与设计的差异                          | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer`、`entries` 四种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
 | R7 的现状（Reduce R1-D23 按源码改写） | 未命中 `sl_operation` 的操作，在代次 1 得到存储 `not_committed` 时，`queryOperation` 与 `queryControlOperation` 对外答 `unknown`，与上文 R7 正文一致。源码里 `exclusion()` 仍构造 `not-committed` 与排除证据，但 `unfound()` 把它映射为 `unknown`，这份证据不到达调用方，见[已知限制](#已知限制)。真实 sqlite-provider 对从未使用的身份答带五项证明的 `not_committed`，`queryOperation` 仍答 `unknown`（`tests/real-provider.spec.ts`）                                                                                   |
@@ -110,7 +110,7 @@
 | XP-2 | 参加者业务响应通道        | 模块返回 `participated`、`conflict`（带依据）、`unsupported`、`failed`。响应证据与回执同事务保存，端口从证据还原结果，不在事务外重算（[W1 第 9 步](#w1)） |
 | XP-3 | 事务外读入口              | `SqlStorage.read`，八个 handler，`ordering` 为 `snapshot`，每页一个有界事务。每次读带随机 `requestKey`                                                    |
 | XP-4 | `SqlValue` 与 `QueryRows` | 位置列以 `bigint` 读写，其余为文本。形状见 sql-contract §10                                                                                               |
-| XP-5 | 迁移挂接                  | `MigrationModule` 由提供者在原子迁移里执行。本成员的 `verify` 核对十张表都在                                                                              |
+| XP-5 | 迁移挂接                  | `MigrationModule` 由提供者在原子迁移里执行。每个迁移的 `verify` 核对它建的表都在                                                                          |
 | XP-6 | 事务域目录                | 应用提供 `TenantDomainAccess`。每次调用先 `resolve` 本租户的域；系统读用 `snapshot` 枚举。目录项指向别的租户或别的作用域时拒绝使用                        |
 
 存储对 SQLite 提供者的独立读连接由 sql-contract 的 `read` 入口闭合，不再是缺项。读与提交是否在同一个 Worker 内串行是提供者的事，见 [sqlite-provider 规格](../../storage/sqlite-provider/SPEC.md)。
@@ -143,6 +143,19 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 6. 把 `er_root.published` 加 1，响应「参加」。回复带新计数与本次写入的摘要。
 
 记录模型分三类列。通用索引列是 `tenant`、`session`、`execution`、修订号、事件序号、操作键与摘要，模块只做相等比较与排序。不透明载荷（`state`、`answer`、批次）是提供者编码的 JSON，模块不解码。同根索引用 Session 的词：执行边界、事实边界、批次与原受理。写入不带自身执行的边界行时（例如没有执行的材料保存），只受发布计数守卫。索引内容是否正确由提供者负责。
+
+#### 执行索引
+
+<a id="执行索引"></a>
+
+`AgentJournal` 的调用只带租户与 execution，不带会话。Session 在 `startRun` 时分配 execution，写进 SE13（session-contract JC-05）。执行索引把 execution 对应到会话，供 Journal 提供者路由一次调用（[L-RUN 决策记录 w1-c19-q1](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6563847140)）。它是 session-adapters「同根读取与原记录索引」表第一行中 execution 到会话与 Run 的部分。同一行的 attempt 与原 grant（SE15）不在本索引里，归 K-5。
+
+- 写入：`session` 参加者写入一条 `run.started`（SE13）条目时，在同一事务里写一行 `sl_execution_idx`：`(tenant, execution)` 对应会话、Run 与该 SE13 的位置。`startRun` 被拒绝、失败或回滚时，这一行也不存在。
+- 唯一：execution 在租户内唯一。该 execution 已有一行时，不论指向哪个会话，参加者答「失败」，诊断说明已有索引。存储回滚整个批次，原行不变，不覆盖。Session 的 `commit` 对外答 `unavailable`。
+- 读取：读 handler `session.execution` 的输入是 `tenant` 与 `execution`。有这一行时输出会话、Run 与位置；没有时输出 `null`。另一租户的 execution 与没有 Run 的 execution 都得到 `null`。输入缺 `tenant` 或 `execution` 时 handler 失败，不输出 `null`。
+- 迁移：`session/002-execution-index` 建这张表，依赖 `session/001-session-log`。读 handler 只依赖这个迁移。
+- 不提供重建：本成员不回填已有 SE13 的索引行。0.0.x 没有在本迁移之前写入的 SE13 需要保留（[当前演进政策](../../../docs/engineering/publication.md#当前演进与消费者)）。
+- 验证：`tests/execution-index.spec.ts` 在 `node:sqlite` 夹具上核对：写入的行与 SE13 位置一致；两个会话各有自己的行；在索引行写入时与操作记录写入时各注入一次失败，没有行也没有 SE13，同一命令随后只提交一次；Session 拒绝的 `startRun` 不写行；预置一行指向另一会话时 `startRun` 失败，原行不变；另一租户在自己的域与本租户的域里都读到 `null`。真实 sqlite-provider 上的迁移与写入由 session-adapters 的 `tests/agent-journal-provider.spec.ts` 慢层用例经过，本成员没有对它单独的用例。
 
 #### 共同日志根
 
@@ -177,9 +190,9 @@ TB-04 的大载荷保管链路仍是 Session 契约记下的[明确缺项](../se
 
 子路径 `@omne-harness/session-storage-sql/participants` 导出两个参加者的数据格式词汇（P5 决策第 5 条）。它只导入编码函数与类型，不引入 `createSessionStorage` 等提供者实现（IC-5）。本成员的 `commit.ts` 与 `entries.ts` 也用它，成员内只有一份编解码。
 
-- 名字与版本：`SESSION_PARTICIPANT`、`EXECUTION_RECORD_PARTICIPANT`、`SESSION_LOG_PARTICIPANTS`（按执行顺序）、两个协议版本，以及读 handler 名 `SESSION_HISTORY_ROOT_HANDLER`、`SESSION_WORK_HANDLER`、`SESSION_INPUT_HANDLER`、`EXECUTION_RECORD_HANDLERS`。
+- 名字与版本：`SESSION_PARTICIPANT`、`EXECUTION_RECORD_PARTICIPANT`、`SESSION_LOG_PARTICIPANTS`（按执行顺序）、两个协议版本，以及读 handler 名 `SESSION_HISTORY_ROOT_HANDLER`、`SESSION_WORK_HANDLER`、`SESSION_INPUT_HANDLER`、`SESSION_EXECUTION_HANDLER`、`EXECUTION_RECORD_HANDLERS`。
 - 构造：`sessionCommandFacts`、`sessionCheckFacts`、`sessionCheckDigest`、`executionRecordFacts`。`executionRecordFacts` 只编码索引成员，`state`、`answer` 与批次原样传递。
-- 解码：`decodeSessionReply` 给出参加（结果、是否认回、摘要）、停止（Session 失败）、失败或不支持。调用方用 session-contract 的 `commandDigest` 比较摘要：相等是同一命令的认回，不等是同身份的另一命令。`decodeExecutionRecordReply`、`decodeExecutionRecordState`、`decodeExecutionRecordOperation`、`decodeSessionHistoryRoot`、`decodeSessionWork`、`decodeSessionInput` 解码对应的回复与读输出。
+- 解码：`decodeSessionReply` 给出参加（结果、是否认回、摘要）、停止（Session 失败）、失败或不支持。调用方用 session-contract 的 `commandDigest` 比较摘要：相等是同一命令的认回，不等是同身份的另一命令。`decodeExecutionRecordReply`、`decodeExecutionRecordState`、`decodeExecutionRecordOperation`、`decodeSessionHistoryRoot`、`decodeSessionWork`、`decodeSessionInput`、`decodeSessionExecution` 解码对应的回复与读输出。`decodeSessionExecution` 区分没有这一行（`null`）与输出损坏（`malformed`）。
 
 0.0.x 阶段这组导出只增加，不改名。这是 C19 对 L-APP 的承诺。
 

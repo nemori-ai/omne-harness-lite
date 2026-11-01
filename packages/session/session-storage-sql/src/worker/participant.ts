@@ -367,12 +367,48 @@ export function initializationReceipts(
   return rows.map(row => JSON.parse(text(row['receipt'])) as CommitReceipt)
 }
 
+/**
+ * The execution index row of each SE13 (`run.started`) of the batch, in the batch's transaction.
+ * An execution is unique within its tenant: a row that already exists, for another session or for
+ * the same one, fails the commit and stays as it is.
+ */
+function indexExecutions(
+  port: ParticipantPort,
+  tenant: string,
+  session: string,
+  entries: readonly HistoryEntry[],
+): ParticipantReply | null {
+  for (const entry of entries) {
+    if (entry.kind !== 'run.started') continue
+    const { run, execution } = (plainOf(entry.payload) ?? {}) as Record<string, unknown>
+    if (typeof run !== 'string' || typeof execution !== 'string')
+      return { kind: 'failed', diagnostic: 'an SE13 entry without its Run and execution' }
+    const held = oneRow(
+      port,
+      'SELECT session FROM sl_execution_idx WHERE tenant = ? AND execution = ? LIMIT 1',
+      [tenant, execution],
+    )
+    if (held !== undefined)
+      return {
+        kind: 'failed',
+        diagnostic: `the execution ${execution} is already indexed to ${
+          text(held['session']) === session ? 'this session' : 'another session'
+        }`,
+      }
+    port.execute(
+      'INSERT INTO sl_execution_idx (tenant, execution, session, run, position) VALUES (?, ?, ?, ?, ?)',
+      [tenant, execution, session, run, BigInt(entry.id)],
+    )
+  }
+  return null
+}
+
 function writeEntries(
   port: ParticipantPort,
   tenant: string,
   session: string,
   entries: readonly HistoryEntry[],
-): void {
+): ParticipantReply | null {
   for (const entry of entries) {
     const body = JSON.stringify(encodeValue(entry))
     port.execute(
@@ -397,6 +433,7 @@ function writeEntries(
           )
     }
   }
+  return indexExecutions(port, tenant, session, entries)
 }
 
 /** The receipt of one committed batch: the same for a command batch and an entries batch. */
@@ -660,7 +697,8 @@ function runCommand(
   const { historyIndex: _index, ...snapshot } = reduced.snapshot
   const receipt = batchReceipt({ tenant, session, operation, seq, revision, entries })
 
-  writeEntries(port, tenant, session, entries)
+  const unindexed = writeEntries(port, tenant, session, entries)
+  if (unindexed !== null) return unindexed
   const epoch = maintainModelView(
     port,
     tenant,
@@ -724,7 +762,8 @@ function publishEntries(port: ParticipantPort, batch: EntriesBatch): Participant
   const { tenant, session, operation, journal, previous, snapshot, entries } = batch
   const revision = String(journal.tail + 1n)
   const receipt = batchReceipt({ tenant, session, operation, seq: journal.seq, revision, entries })
-  writeEntries(port, tenant, session, entries)
+  const unindexed = writeEntries(port, tenant, session, entries)
+  if (unindexed !== null) return unindexed
   const epoch = maintainModelView(port, tenant, session, journal.epoch, entries)
   if (epoch === null)
     return {
