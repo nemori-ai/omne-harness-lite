@@ -318,6 +318,7 @@ async function assembled(
   options: {
     prepare?: PrepareScript
     coordinator?: Parameters<typeof createSessionContextInputPlugin<unknown>>[0]['coordinator']
+    definitions?: SessionContextDefinitions
   } = {},
 ) {
   const ctx = new Context()
@@ -336,7 +337,7 @@ async function assembled(
           principals.push(input)
           return succeed(coordinatorOf(input.tenant, input.session))
         }),
-      definitions,
+      definitions: options.definitions ?? definitions,
     }),
   )
   const prepare = (
@@ -455,6 +456,53 @@ describe('preparing a registration change', () => {
     })
     expect(await prepare(A, foreign)).toMatchObject({ failure: { kind: 'invalid' } })
     expect(calls).toEqual([])
+  })
+
+  it('answers unavailable, not invalid, when the adopted definitions cannot answer', async () => {
+    const { prepare, calls, principals } = await assembled({
+      definitions: {
+        binding: () => {
+          throw new Error('the definition store is down')
+        },
+        declaration: () => {
+          throw new Error('the definition store is down')
+        },
+      },
+    })
+    const unreachable = { failure: { kind: 'unavailable', owner: 'context-definitions' } }
+    const command = registrationCommand(A, 'store-down', addNotes(scopeA, A.tenant))
+    expect(await prepare(A, command)).toMatchObject(unreachable)
+    const create: Extract<SessionCommand, { kind: 'create' }> = {
+      kind: 'create',
+      input: {
+        tenant: A.tenant,
+        session: A.session,
+        operation: operationId('create-store-down'),
+        creation: creation({
+          initialization: {
+            sources: [
+              {
+                kind: 'context-registration',
+                owner: 'context',
+                item: 'notes',
+                protocol: SESSION_CONTEXT_MATERIAL,
+                input: ok(
+                  encodeInitialContextRegistration(
+                    { definition, key: NOTES, bindings: [notesModel], parameters: undefined },
+                    definitions,
+                  ),
+                  'encode initial',
+                ),
+              },
+            ],
+            results: [],
+          },
+        }),
+      },
+    }
+    expect(await prepare(A, create)).toMatchObject(unreachable)
+    expect(calls).toEqual([])
+    expect(principals).toEqual([])
   })
 
   it('turns a rejection into invalid with each reason', async () => {
@@ -1032,6 +1080,48 @@ describe('the translation of committed Session entries', () => {
       ),
     }
     expect(translation.commitOf(theirs)).toHaveProperty('failure')
+  })
+})
+
+describe('the scope-to-tenant derivative of the translation', () => {
+  it('fails the end of a scope whose tenant it evicted, and keeps null for a scope it never saw', async () => {
+    const log = await sessionLog()
+    const [initial] = log.entries
+    const step = log.entries.find(entry => entry.kind === 'session.recovery-input-adopted')!
+    const archived = log.entries.find(entry => entry.kind === 'session.archived')!
+    // A step commit of another scope: with room for one scope, it evicts the scope of the log.
+    const other = scopeRef('session-scope:other')
+    const elsewhere: HistoryEntry = {
+      ...step,
+      payload: rewrite(
+        rewrite(step.payload, 'scope', tree(other.ref)),
+        'declaration',
+        tree({
+          kind: 'context-step-commit',
+          basis: evidence('basis/other'),
+          ...ok(
+            encodeContextStepCommit({
+              tenant: log.access.tenant,
+              stepCommit: { ...log.step, scope: other },
+              executionEnded: false,
+              operation: log.stepOperation,
+            }),
+            'encode',
+          ),
+        }),
+      ),
+    }
+    const small = createSessionContextTranslation(definitions, { scopeTenants: 1 })
+    ok(small.commitOf(initial!), 'initial')
+    ok(small.commitOf(elsewhere), 'elsewhere')
+    expect(small.commitOf(archived)).toHaveProperty('failure')
+    // Read again from the start, as the holder does: the tenant is learnt again and the end applies.
+    ok(small.commitOf(initial!), 'initial again')
+    expect(ok(small.commitOf(archived), 'end')).toMatchObject({ kind: 'scope', scope: log.scope })
+    // A scope that no record named still ends as null.
+    expect(
+      createSessionContextTranslation(definitions, { scopeTenants: 1 }).commitOf(archived),
+    ).toEqual(succeed(null))
   })
 })
 

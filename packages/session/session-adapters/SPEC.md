@@ -474,14 +474,16 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
   - 解码：`createSessionContextTranslation(definitions)` 给出 AD-03 回放的 `translation`。它把 SE07（初始与后续）、`change(context-step-commit)` 与 SE27 的结束还原为 Runtime Context 的提交输入，其他条目为 null。读不懂的记录答失败，不猜。
 - 准备：
   - 命令与本次访问的租户或 Session 不同时，返回 `denied`，不解码也不调用任何一方。
+  - 材料解码不了时返回 `invalid`。`definitions` 抛错时按依赖失败返回 `unavailable`，`owner` 为 `context-definitions`。
   - `change` 的注册：材料头部的租户不是本次访问的租户时，返回 `denied`。提交身份不由本次 `change` 的操作派生时，返回 `invalid`。之后以协调者主体调用 `prepareRegistration`，`prepared` 交出一份材料（`owner` 为 `runtime-context`，`participant` 为 `context-input`）。`rejected` 返回 `invalid` 与逐项原因。拒绝、不可用、未知、抛错，以及评判的变更不是交入的变更，都返回 `unavailable`（[AD-00](#ad-00) 第 6 条）。协调者主体答 `denied` 时返回 `denied`，其他失败返回 `unavailable`。
   - `change` 的步提交：同样核租户与提交身份，不调用 Runtime Context，交出一份材料。
   - `create`：只核每个 `context-registration` 来源都能还原，不能还原时返回 `invalid`，否则交出空材料。初始注册的准备在 `completeInitialization` 由采用来源完成，复用导出的适配函数 `prepareContextRegistration`。
   - `startRun`、`reload` 与其他声明的 `change` 不带注册材料，交出空材料。
 - 验证见 `tests/context-input.spec.ts`：真实 Cordis 4.0.4 的装载、停止、缺席与换提供者；跨租户与跨 Session 的命令、另一租户的材料；提交身份；`prepareRegistration` 各答复；协调者主体；步提交与创建；以及经 Session 真实判定写出的初始 SE07、后续 SE07、步提交与 SE27，由翻译还原为原输入。接到 AD-03 回放的用例在 AD-03 持有者合入后由集成方加入。
 - 已知限制：
-  - SE27 不带租户。翻译从该作用域此前的注册或步提交记下租户。回放总是从会话日志的开头读，所以这些记录先于结束被读到。作用域没有任何注册与步提交时，其结束答 null，Runtime Context 中该作用域不结束。触发条件：Session 契约让 SE27 带租户，或者 AD-03 的翻译接口交入会话的租户之后，改为直接取得租户。
+  - SE27 不带租户。翻译从该作用域此前的注册或步提交记下租户。回放总是从会话日志的开头读，所以这些记录先于结束被读到。作用域没有任何注册与步提交时，其结束答 null，Runtime Context 中该作用域不结束。记下的租户有上限（`scopeTenants`，初值 4096），最旧的先被驱逐。被驱逐过租户的作用域遇到结束时答失败，AD-03 把该会话作为读不到处理，下一次从头读会重新记下租户。被驱逐的作用域多到超出同一上限之后，无法再区分，所有不认识的作用域的结束都答失败。触发条件：Session 契约让 SE27 带租户，或者 AD-03 的翻译接口交入会话的租户之后，改为直接取得租户。
   - 后续注册的材料头部记有准备时的作用域。Session 写 SE07 时取当前作用域，不与材料比较。二者不同时（例如准备之后撤销归档换了作用域），翻译答失败，AD-03 把该会话的记录作为读不到处理。触发条件：Session 的判定比较二者之后，这种记录不再出现。
+  - 步提交同理。步提交的头部记有准备时的作用域，Session 写条目时取当前作用域。二者不同时翻译答失败，回放把该会话作为读不到处理。触发条件同上。
 
 ### 出站端口的实现
 

@@ -61,6 +61,8 @@ const OWNER = '@omne-harness/session-adapters'
 const CONTEXT_OWNER = 'runtime-context'
 /** The `participant` of the guard material: the Context input owns it (SPEC「构造依赖端口的实现」). */
 const PARTICIPANT = 'context-input'
+/** The owner named in `unavailable` when the adopted definitions cannot answer. */
+const DEFINITIONS_OWNER = 'context-definitions'
 
 function protocol(name: string): Adoption {
   return Object.freeze({
@@ -319,6 +321,20 @@ function materialValue(value: unknown, path: string): unknown {
   if (!sameAdoption(adoptionOf(fields['schema'], `${path}.schema`), SESSION_CONTEXT_MATERIAL))
     throw new Malformed(`${path}: the schema is not ${SESSION_CONTEXT_MATERIAL.name}/1`)
   return fromTree(fields['value'], `${path}.value`)
+}
+
+/**
+ * The failure of a preparation that threw: a material that does not decode is `invalid`; any other
+ * throw (the definitions source failed) is a dependency failure, `unavailable` (AD-00 第 6 条).
+ */
+function preparationFailure(cause: unknown, field: string) {
+  return cause instanceof Malformed
+    ? fail({ kind: 'invalid' as const, field, reason: cause.message })
+    : fail({
+        kind: 'unavailable' as const,
+        owner: DEFINITIONS_OWNER,
+        diagnostic: `the materials could not be restored: ${describe(cause)}`,
+      })
 }
 
 function describe(cause: unknown): string {
@@ -871,7 +887,8 @@ function decodeStepEntry(payload: Record<string, unknown>): CommitInput | null {
  * reference. The end of a scope (SE27) does not name its tenant: the translation takes it from the
  * scope's earlier registrations and step commits, which every replay reads first because it reads
  * the session log from its start. The end of a scope that has neither is `null` (a named limitation:
- * such a scope has no registration to end).
+ * such a scope has no registration to end). The end of a scope whose tenant the bounded table
+ * evicted fails, so the holder reads the session again instead of leaving the scope open.
  */
 export function createSessionContextTranslation(
   definitions: SessionContextDefinitions,
@@ -880,6 +897,13 @@ export function createSessionContextTranslation(
   const bound = options.scopeTenants ?? SCOPE_TENANTS
   /** scope text → its tenant; a derivative of decoded records, the oldest goes first. */
   const tenants = new Map<string, TenantId>()
+  /**
+   * The scopes whose tenant was evicted. The end of such a scope fails, so the holder reads the
+   * session as unreadable instead of never ending the scope. When this set would outgrow its own
+   * bound, `forgotten` is set: from then on no unknown scope can be told from an evicted one.
+   */
+  const evicted = new Set<string>()
+  let forgotten = false
   function learn(input: CommitInput): void {
     const scope =
       input.kind === 'registration'
@@ -893,9 +917,14 @@ export function createSessionContextTranslation(
       throw new Malformed(`scope ${scope.ref} is named with two tenants`)
     tenants.delete(scope.ref)
     tenants.set(scope.ref, tenant)
+    evicted.delete(scope.ref)
     if (tenants.size > bound) {
       const oldest = tenants.keys().next()
-      if (!oldest.done) tenants.delete(oldest.value)
+      if (!oldest.done) {
+        tenants.delete(oldest.value)
+        if (evicted.size >= bound) forgotten = true
+        else evicted.add(oldest.value)
+      }
     }
   }
   function translate(entry: HistoryEntry): CommitInput | null {
@@ -916,7 +945,13 @@ export function createSessionContextTranslation(
         if (binding['ended'] === null || binding['ended'] === undefined) return null
         const scope = scopeOf(binding['scope'], 'scope.scope')
         const tenant = tenants.get(scope.ref)
-        if (tenant === undefined) return null
+        if (tenant === undefined) {
+          // Only a scope with no registration and no step commit ends as null. A scope whose
+          // tenant this translation forgot fails: answering null would leave it open for ever.
+          if (evicted.has(scope.ref) || forgotten)
+            throw new Error(`the tenant of scope ${scope.ref} was evicted; read the session again`)
+          return null
+        }
         return {
           kind: 'scope',
           commit: contextScopeEndCommit({
@@ -1112,11 +1147,7 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
         if (head !== null || body.kind !== 'add' || body.required !== true)
           throw new Malformed('an initial registration is a required add without a head')
       } catch (cause) {
-        return fail({
-          kind: 'invalid' as const,
-          field: `creation.initialization.sources[${index}]`,
-          reason: describe(cause),
-        })
+        return preparationFailure(cause, `creation.initialization.sources[${index}]`)
       }
     }
     return succeed([])
@@ -1134,7 +1165,7 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
       try {
         step = decodeStep(declaration.updates)
       } catch (cause) {
-        return invalid(describe(cause))
+        return preparationFailure(cause, 'declaration')
       }
       if (!tenantEquals(step.tenant, access.tenant))
         return fail({ kind: 'denied' as const, action: command.kind })
@@ -1163,7 +1194,7 @@ class SessionContextInputProvider<P> extends SessionContextInputService<P> {
     try {
       decoded = decodeRegistration(declaration, this.given.definitions)
     } catch (cause) {
-      return invalid(describe(cause))
+      return preparationFailure(cause, 'declaration')
     }
     const { body, head } = decoded
     if (head === null) return invalid('a later registration names its scope and commit')
