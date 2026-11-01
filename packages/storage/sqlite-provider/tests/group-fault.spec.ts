@@ -222,6 +222,34 @@ describe('C09: ROLLBACK TO that cannot be confirmed (SPEC 7.7.2, state unclear)'
     const group = runner(log, sql => sql.startsWith('ROLLBACK TO'))
     const outcome = await run(group, log, [insert('a'), failing('b')])
     expect(kinds(outcome)).toEqual(['unknown', 'unknown'])
+    expect(outcome.fatal).toBe(true)
     expect(receipts()).toEqual([])
+  })
+
+  // SPEC 7.7.6 item 1: the outer transaction was alive when ROLLBACK TO failed. The connection is
+  // not used again, so no second short transaction and no suffix runs on it.
+  it('ROLLBACK TO fails with no prefix: the failed operation is unknown, no rolled_back receipt, the Worker must end', async () => {
+    const log: Log = []
+    const group = runner(log, sql => sql.startsWith('ROLLBACK TO'))
+    const outcome = await run(group, log, [failing('b')])
+    expect([...outcome.replies.values()]).toEqual([
+      { kind: 'unknown', diagnostic: 'rollback_state_unclear' },
+    ])
+    expect(outcome.fatal).toBe(true)
+    expect(receipts()).toEqual([])
+    expect(log.filter(entry => entry === 'exec:BEGIN IMMEDIATE')).toHaveLength(1)
+  })
+
+  it('ROLLBACK TO fails after a staged prefix: prefix and failed operation are unknown, the suffix does not run', async () => {
+    const log: Log = []
+    const group = runner(log, sql => sql.startsWith('ROLLBACK TO'))
+    const outcome = await run(group, log, [insert('a'), failing('b'), insert('c')])
+    expect(kinds(outcome)).toEqual(['unknown', 'unknown'])
+    expect(outcome.replies.get(1)).toEqual({ kind: 'unknown', diagnostic: 'rollback_state_unclear' })
+    expect(outcome.fatal).toBe(true)
+    expect(outcome.unstarted).toEqual([3])
+    expect(receipts()).toEqual([])
+    expect(log).not.toContain('exec:SAVEPOINT op_3')
+    expect(log.filter(entry => entry === 'exec:BEGIN IMMEDIATE')).toHaveLength(1)
   })
 })

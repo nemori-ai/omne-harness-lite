@@ -54,16 +54,19 @@ type StoppedOutcome = Extract<Outcome, { kind: 'stopped' }>
 
 const jobBytes = (job: CommitJob): number => utf8Length(canonicalJson(job.request.request))
 
-/** ROLLBACK TO and RELEASE of one savepoint. `ended`: the whole transaction is gone. */
+/**
+ * ROLLBACK TO and RELEASE of one savepoint. `ended`: a statement already ended the whole
+ * transaction (OR ROLLBACK), so nothing is left to undo (SPEC 7.7.5). `unclear`: the transaction
+ * was alive and the rollback failed. The connection is not used again (SPEC 7.7.6 item 1).
+ */
 function clearSavepoint(db: DatabaseSync, savepoint: string): 'cleared' | 'ended' | 'unclear' {
+  if (!db.isTransaction) return 'ended'
   try {
     db.exec(`ROLLBACK TO ${savepoint}`)
     db.exec(`RELEASE ${savepoint}`)
     return 'cleared'
   } catch {
-    // A statement may have ended the outer transaction (OR ROLLBACK). Then nothing is left to undo.
-    rollbackQuietly(db)
-    return db.isTransaction ? 'unclear' : 'ended'
+    return 'unclear'
   }
 }
 
