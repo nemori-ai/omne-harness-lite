@@ -56,6 +56,17 @@ describe('a chunk for an operation that a manifest already seals', () => {
   })
 })
 
+describe('a chunk whose data is not canonical base64', () => {
+  it('fails and writes nothing', () => {
+    const { port, rows } = migratedPort()
+    expect(participant.execute({ ...chunk('d1', 0, 'x'), data: 'AB' }, port)).toEqual({
+      kind: 'failed',
+      diagnostic: 'chunk data is not canonical base64',
+    })
+    expect(rows('SELECT COUNT(*) AS n FROM tl_chunk')).toEqual([{ n: 0n }])
+  })
+})
+
 describe('a manifest', () => {
   it('does not seal chunks that hold other bytes than it declares', () => {
     const { port, rows } = migratedPort()

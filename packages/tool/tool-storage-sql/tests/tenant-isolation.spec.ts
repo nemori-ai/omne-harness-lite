@@ -12,7 +12,8 @@ import {
 } from '@omne-harness/tool-contract'
 import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import type { TenantId } from '@omne-harness/legal-identity'
-import { createSqlToolOutputCustody } from '../src/index.ts'
+import { createSqlToolLedgerStore, createSqlToolOutputCustody } from '../src/index.ts'
+import { domainRef } from './fixtures/sqlite-storage.ts'
 import {
   domainNameOf,
   openApp,
@@ -200,6 +201,29 @@ describe('a tenant that the directory does not hold', () => {
       source,
     })
     expect('failure' in answer && answer.failure.kind).toBe('unavailable')
+    expect(a.faults.commits()).toBe(0)
+  })
+})
+
+describe('a directory that answers the scope of another tenant', () => {
+  it('leaves the tenant unavailable and writes nothing', async () => {
+    const a = await app()
+    const foreign = domainRef(textOf(TENANT_B), domainNameOf(TENANT_B))
+    const store = createSqlToolLedgerStore({
+      ...a.options,
+      domains: { lookup: () => Promise.resolve({ kind: 'ready', domain: foreign }) },
+    })
+    expect((await store.read(callDomain(TENANT_A))).kind).toBe('unavailable')
+    expect(
+      (
+        await store.commit({
+          domain: callDomain(TENANT_A),
+          expected: revision('0'),
+          revision: revision('1'),
+          writes: [{ kind: 'put', record: record('x') }],
+        })
+      ).kind,
+    ).toBe('unavailable')
     expect(a.faults.commits()).toBe(0)
   })
 })
