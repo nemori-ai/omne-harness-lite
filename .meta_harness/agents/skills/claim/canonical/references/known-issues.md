@@ -44,7 +44,7 @@ rm -rf "$stage"
 - task context 绑定「工作树 + 分支」。同一棵树换分支后，`start` 报 `stale: Context belongs to another tree or branch`。
 - 同一张卡开新 attempt 时，旧树上 `start` 报 `stale: Worktree is already bound to another task`。用 `worktree-cli.ts swap` 换树，或按顺序手动做：把旧树的 `tmp/issue-<号>/` 移到主检出 `tmp/` 保存，推送分支，移除旧树，在同一分支上建新树，还原材料。不手删 context。
 - 只合并不运行 `task-sync` 时，`targetBase` 仍是旧值，影响面按旧基线算。显式传入不等于 `targetBase` 的基线，检查以 2 退出。
-- 线内的卡：`start` 写的 targetBase 是 route 指定的远端线轨道头。目标前进时先合并再 task-sync，不忽略 targetBase；波内不擅自 FI 新联调轨道输入。
+- 线父卡本波的 attempt：`start` 写的 targetBase 是 route 指定的远端线轨道头。本波的其他卡不运行 `start`，以父分支工作树的 context 为准。目标前进时先合并再 task-sync，不忽略 targetBase；波内不擅自 FI 新联调轨道输入。
 
 ## 投影与环境
 

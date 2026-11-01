@@ -30,7 +30,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 - 等待命令退出 2 时诊断并恢复，恢复后先对账，不报告空队列成功。
 - 等另一个会话在某张卡上贴特定评论时，先看那张卡已有的评论用什么标记，等待就用这个标记。也可以在要求里写「沿用你已用的标记」。对方可能在读到你的要求之前，已经用自己的标记贴出了评论。这时只等你新指定的标记，就会错过它。
 - Reduce 自己启动的 gate 运行与审批、子代理、检查进程和约定期限由 Reduce 自己观察。审批交有权者，不自动批准。期限到达时核对事实，再决定等待、重排或取消。沉默保持 unknown，不判线失联。
-- 各线在波中还有两类事要 Reduce 处理（PanQiWei 2026-11-01 决定）。线父分支进线轨道的 PR 等 gate 审批时，Reduce 代 PanQiWei 确认。线把设计子门的候选与评审报告贴到卡上，Reduce 监视这些卡评论并批复。两者都不是波中问答，线在等待期间推进其他卡。
+- 各线在波中还有两类事要 Reduce 处理（PanQiWei 2026-11-01 决定）。线父分支进线轨道的 PR 等 gate 审批时，Reduce 代 PanQiWei 确认。线把线包「需 Reduce 批复」一节里设计点的候选与评审报告贴到线父卡上，Reduce 监视线父卡评论并批复，不另建卡。两者都不是波中问答，线在等待期间推进不依赖它的闭包。
 - Reduce 自己派的长跑子代理按 `delegate`「等待与追加」巡检：开始时间写进闭包表，跑过 10 分钟就看工作树事实。状态页把在跑清单与开始时间放在一眼能看到的位置。
 - Reduce 与它派的子代理共用宿主的一个限流池。Reduce 撞上限流时，会话停在原地，直到被唤醒或有人输入。进入无人值守的时段之前：
   1. 给 Reduce 自己留额度，例如少派并行的子代理。
@@ -40,20 +40,20 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 ## 处理一条交回
 
-先读交回记录的结果，再读该线各卡上的交接报告。
+先读交回记录的结果，再读线父卡上的本波交接报告，以及它列出的本波其他卡的证据。
 
 ### ready：接收线轨道提升
 
-一次接管一个提升 PR。先核对线父分支进线轨道的那次准入与 gate 合入证据，以及冻结 head。线内的卡不逐张准入，规则见 `docs/engineering/integration.md`「线父分支」。保存来源原 head、候选 head、目标 head、targetBase 和 merge 链。
+一次接管一个提升 PR。先核对线父分支进线轨道的那次准入与 gate 合入证据，以及冻结 head。线内工作不逐个准入，规则见 `docs/engineering/integration.md`「线父分支」。本波另有几张卡时，父分支进线轨道的那一个 PR 逐张列出它们与线父卡的 attempt，`ri-notes` 读取一个 PR 声明的多张卡，接受仍逐卡进行，见同页「本波有几张卡」。保存来源原 head、候选 head、目标 head、targetBase 和 merge 链。
 
-1. 核对 Line 已停写。线父分支进线轨道时，已在合并结果上跑过一次准入。RI 合并结果的树与那次准入时的树相同（期间 mainline 没有前进）时，复用那次准入，下面第 3 步不再跑准入，比对方法见 `docs/engineering/integration.md`「树相同时复用准入」。树不同时，在 RI 合并结果上跑一次准入。在具有真实工作卡 binding 的 reduce 隔离候选上处理同步和冲突；需要修正来源轨道时，由 Reduce 按获准路线经 gate 写回，再读回提升源头。线父卡不承担该修复的 Git binding。
+1. 核对 Line 已停写。线父分支进线轨道时，已在合并结果上跑过一次准入。RI 合并结果的树与那次准入时的树相同（期间 mainline 没有前进）时，复用那次准入，下面第 3 步不再跑准入，比对方法见 `docs/engineering/integration.md`「树相同时复用准入」。树不同时，在 RI 合并结果上跑一次准入。在具有 Reduce 自己 binding 的隔离候选上处理同步和冲突；需要修正来源轨道时，由 Reduce 按获准路线经 gate 写回，再读回提升源头。线父卡本波的 attempt 绑定在线的父分支工作树上，不承担这项修复。
 2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。自己派写者时按 `delegate`。
-3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。准入是一条全机串行的队列：
+3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。全机准入一次一个，由 `scripts/with-test-slot.mjs` 的运行名额排队保证；准入命令自动排队，不需要人工互斥。名额的覆盖缺口由 L-ENG 核实。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。准入是一条全机串行的队列：
    - 入队前在该树离线装依赖、刷新索引、修好 CRLF 工作副本，再跑轻量预检（`acceptance:lock`、`check:docs`、`lint:oxlint`、`format:check`）。工具链的 `pnpm run preflight` 合入之后用它。
    - 只有少数用例因超时或负载失败时，先确认没有并发负载，只重跑失败用例所在的文件，再补跑没有开始的轻步骤。全过记为通过，确认说明写明原准入记录与定向重跑。
    - 准入期间不派会跑测试的子代理。
    - 合入目标分支按批次顺序串行。合入前的准备彼此独立：合并目标分支、`task-sync`、证据起草、语义复核草稿与 qa 干净重跑。等关键路径时把它们一次扇出，做法见 `delegate`「扇出」。
-4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。线父分支进线轨道时，线负责人已对其中每张实际工作卡写入 `integrating`。提升阶段记录实际 PR 与 gate 事实，不为线父卡虚构 start；按卡接受决定读回后再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
+4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。线父分支进线轨道时，线负责人已对线父卡本波的 attempt 与本波其他卡写入 `integrating`。提升阶段记录实际 PR 与 gate 事实；接受决定读回后再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
 5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
 
 收件时，评审与 qa 报告以卡评论为准。只放在任务 tmp 的报告不进台账增量，落盘与贴卡的做法见 `delegate`「独立验收」。
@@ -62,7 +62,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 ### 几张连续的卡合成一个批次
 
-这一节只适用于 Reduce 连续推进且直接进入联调轨道的 `integration` 卡。线卡的批次是线父分支，由线负责人按 `docs/engineering/integration.md`「线父分支」处理。Reduce 是几张连续的这类卡的唯一写者时，按这一节合并它们，规则见 `docs/engineering/integration.md`「卡进入哪条轨道」的例外。
+这一节只适用于 Reduce 连续推进且直接进入联调轨道的 `integration` 卡。线内工作的批次是线父分支，由线负责人按 `docs/engineering/integration.md`「线父分支」处理。Reduce 是几张连续的这类卡的唯一写者时，按这一节合并它们，规则见 `docs/engineering/integration.md`「卡进入哪条轨道」的例外。
 
 1. 每张卡照常开工、实现，判据证据贴在各自的卡上。
 2. 从联调轨道头切一条个人批次分支，按依赖顺序把各卡的分支合进来，在本地解决冲突。
@@ -74,7 +74,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 核对线已停写，读清已完成部分与剩余工作，然后选一种处置：
 
-- redo：更正输入，按 `dispatch` 第 5 节为任务卡登记新 attempt，再按 `dispatch`「放行」一节的发布方法发 redo delta。redo 不推进波号。
+- redo：更正输入，按 `dispatch` 第 5 节在线父卡上登记新 attempt，再按 `dispatch`「放行」一节的发布方法发 redo delta。redo 不推进波号。
 - 接管：Reduce 自己完成剩余工作。线会话继续等待下一条 delta。自己派写者时按 `delegate`。
 
 处置规则（不另写处置记录、处置不等于已解决）见 `map-reduce-states.md` 4.1。处理一条交回时，其他事件继续落在等待里。
@@ -134,7 +134,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 恢复时从 GitHub 重读事实，不按会话记忆认定成功：
 
-1. 读当前收口卡、本波任务卡与 binding、各线父卡上最后的 delta 与交回记录、联调轨道上开放的提升 PR、在途 gate 运行。再读人给本里程碑的授权评论，弄清哪些可以代接受、代确认 gate，哪些仍要问人。
+1. 读当前收口卡、各线父卡上本波的 attempt 与 binding、各线父卡上最后的 delta 与交回记录、联调轨道上开放的提升 PR、在途 gate 运行。再读人给本里程碑的授权评论，弄清哪些可以代接受、代确认 gate，哪些仍要问人。
 2. 结果未知的写入、合入或发布先读回实际结果，再决定下一步。结果未知时不重复 POST 或 merge。
 3. 从读回的事件重挂两条等待，再继续处理。
 4. 有未合回的闭包时，读任务 tmp 进度记录里的闭包表。

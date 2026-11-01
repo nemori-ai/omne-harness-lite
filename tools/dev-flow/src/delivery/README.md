@@ -137,7 +137,7 @@ node --experimental-strip-types tools/dev-flow/src/delivery/scope-cli.ts <卡号
 调度者在登记 attempt 前运行这个检查：
 
 - 调度者从任务信息包引用的正文页整理每张卡的读集文件，与卡号或 binding 文件一起传入。读集用独立的 JSON 文件，不写进 binding，因为 binding 的字段集是严格的，增加字段要改 `parseTaskBinding` 与 `start`。
-- 命令读运行它的检出的工作树来取成员清单与依赖，读这个检出的 `HEAD` 来取分类用的配置与文件清单。在收口点的检出上运行时，分类的基础就是收口点。命令不读 binding 中的 `taskBase`，也不核对 `HEAD` 是否等于它。线内的卡的 taskBase 是线轨道头或本波线父分支上的提交，可以与联调轨道收口点不同。所以调度者用 `readBasis.commit` 核对分类所用的提交。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
+- 命令读运行它的检出的工作树来取成员清单与依赖，读这个检出的 `HEAD` 来取分类用的配置与文件清单。在收口点的检出上运行时，分类的基础就是收口点。命令不读 binding 中的 `taskBase`，也不核对 `HEAD` 是否等于它。线父卡本波 attempt 与本波其他卡的 taskBase 是开波 FI 后的线轨道头，可以与联调轨道收口点不同。所以调度者用 `readBasis.commit` 核对分类所用的提交。成员闭包只按 `package.json` 声明的 `workspace:` 依赖求，不做源码级 import 分析。
 - 同一条线顺序推进的几张卡，把写范围之并与读集之并作为一张卡传入，与写范围求交的做法相同。
 - 两条线写同一成员中不同的文件时，双方都读这个成员，所以总是报读写交叉。一方写的是 `tools`、`scripts` 下成员中没有登记的 `.md` 说明页时，这个方向的交叉归工程方法与验证正文。其他文件按 `WS(a) ∩ RS(b) = ∅` 判，这两张卡不能在同一波，调度者改分解。
 
@@ -431,7 +431,7 @@ pnpm --filter @omne-harness/dev-flow typecheck
 
 ## 首次派发临时消息
 
-Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。模板正文先列技能与实际工作树的阅读入口。线级上下文地图与拥有者入口从 `line_pack_ref` 引用，本线专项技能填入 `line_work_kind`；宿主与模型选择仍由 `machine_and_host`、`role_policy_ref` 承接。线父卡不需要每波 Git binding，`binding_refs` 引用实际工作卡。
+Reduce 从 binding、线包、里程碑计划、宿主策略和目标机配置填写输入。`pnpm initial-dispatch fields` 列出模板的全部字段名。输入 JSON 含 schemaVersion=1、milestone、line、revision 和 fields。line 只允许小写字母、数字和连字符。fields 是全部字段的非空字符串映射。模板正文先列技能与实际工作树的阅读入口。线级上下文地图与拥有者入口从 `line_pack_ref` 引用，本线专项技能填入 `line_work_kind`；宿主与模型选择仍由 `machine_and_host`、`role_policy_ref` 承接。每波的派发单位是线父卡上的一个 attempt，`binding_refs` 引用它的 binding，本波另有卡时一并列出。`wave_boundary_ref` 指向线包的「本波交付边界」一节。
 
 ```sh
 pnpm initial-dispatch render --input tmp/<task>/initial-dispatch.json --root <目标检出>
