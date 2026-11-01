@@ -35,7 +35,7 @@ import {
   resultVersion,
   revision,
   tenantKey,
-} from '../testing/value.ts'
+} from './value.ts'
 import {
   authFailure,
   dispatchOf,

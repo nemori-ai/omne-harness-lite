@@ -30,7 +30,7 @@ import type {
   ProviderDiagnostic,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { canonical, decimal, digest, invalid } from '../testing/value.ts'
+import { canonical, decimal, digest, invalid } from './value.ts'
 import type { CallDocument, DispatchDocument, EvidenceContext, TenantDocuments } from './types.ts'
 
 // Pure judgments over call documents. Nothing here writes a document or calls a port.
