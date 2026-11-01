@@ -88,7 +88,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 - `startRun` 时再核登录是否仍有效：需要 identity 按 `login` 读有效性，该读口尚未定义。在它就绪之前，登录在受理之后被撤销，已受理的输入仍可能开 Run。
 - Session 对被拒的受理是否在原操作身份下留痕：Session SPEC 变更操作次序写「任一步失败不提交」，命令表写「拒绝时只有 SE12」。前者成立时 `query-send-input` 的 `succeeded` 只表示受理已提交；两处由 Session 拥有者统一。
 - 观察推送与业务控制分开，观察取消不是业务控制。观察脱离与重附着由 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 给出归属，见下节。重连不得靠目录为空重发原 Model 或 Tool 调用。
-- 宿主身份、启停与归属、状态目录、重复启动、资源关闭和未知结果，模型准备、选择与切换分责，以及旧实例与数据调查归 [#803](https://github.com/nemori-ai/omne-harness-lite/issues/803)。宿主计划换代先业务交接再撤插件；意外退出保留原身份与结果责任。这些现行约束不因拆卡改变。
+- 宿主身份与生命周期、模型准备与选择的分责，以及旧实例与数据的处置，见下文[宿主身份、生命周期与旧数据](#宿主身份生命周期与旧数据)。
 
 #### 观察脱离与重附着
 
@@ -99,6 +99,62 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 `current` 为 null 时保留同边界 `CallState`，不把它解释成未执行或终局。接入拥有有界刷新与本地观察资源清理，策略参数见[刷新策略与资源](../../../packages/access/server-entry/SPEC.md#刷新策略与资源)。旧 ref 失效后重新查询，新目标从新快照开始，不能沿用旧 cursor。观察路径串行查询，阻止旧响应覆盖新目标。定位、核权、快照或订阅失败保留原含义，不转成观察成功、成功 null 或业务重发。脱离与撤权停止本地观察及刷新，不取消 Model 或 Tool 调用，不重发调用，不推进 Session。
 
 Session 日志读面的引用定位见 Session 的[稳定调用引用的读取](../../../packages/session/session-contract/SPEC.md#稳定调用引用的读取)。公开订阅形状、连接寿命与传输细节见公开契约的[会话观察](../../../packages/access/public-contract/SPEC.md#会话观察)。[#789](https://github.com/nemori-ai/omne-harness-lite/issues/789) 消费这条观察通道，[#790](https://github.com/nemori-ai/omne-harness-lite/issues/790) H3 负责观察连续的组合运行证据。
+
+#### 宿主身份、生命周期与旧数据
+
+本节给出 [#803](https://github.com/nemori-ai/omne-harness-lite/issues/803) 三项责任的拥有者与失败边界：宿主身份与生命周期，模型准备、选择与切换的分责，旧实例与数据的处置。依据是[装配设计的采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6554956488)与[会话设计的采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6554768436)。插件树、启动次序与运行时对象归[应用装配](application-assembly.md)。计划停止的协议归应用成员规格的[有序关闭](../../../apps/harness-server/SPEC.md#有序关闭)。本节不声明已有运行实现。
+
+##### 宿主身份与生命周期
+
+宿主是应用成员 `apps/harness-server`。
+
+| 事项 | 拥有者与规则 | 拒绝、失败或未知 |
+| --- | --- | --- |
+| 宿主身份 | 应用入口以 identity 的真实签发与核验，以及获准的部署用途，取得 Session、Agent、Model 与 Tool 各自需要的主体。会话工作主体按[运行时对象](application-assembly.md#运行时对象)签发。签发者与根进程同寿命。启动探针须同时证明三件事：核验可信，当前用途的授权成立，错部署与同名手写主体都失败。真实身份探针由 M2 应用装配实现承担 | 生产装配不用 fixture 字符串供给身份。真实身份来源没有被接受时，首条生产路径不就绪 |
+| 状态根与归属 | 应用接收一个显式的绝对状态根。启动时先显示解析后的规范路径。各存储拥有者拥有自己的文件、组合与关闭 | 应用不解析默认用户目录，也不借 CLI 的 `$HOME/.omne` 推导服务的默认状态根。旧根已存在、但没有已接受的兼容或迁移方案时，应用不自动覆盖、迁移或重新初始化它 |
+| 重复启动 | 应用拥有一个状态根的独占协调生命周期。具体的宿主锁须核对 Windows 支持。Model 与 Tool 拥有者验证旧执行者与真实发送入口已经排除 | 第二个同时运行的实例拒绝启动新服务，不写状态。锁文件、PID 或「已过期」都不能授权崩溃后的发送接管。无法证明旧执行已排除时，只保留可用的查询与保管路径，拒绝发送 |
+| 计划停止与换代 | 应用的单一有序关闭协调者先关接入，再请各业务拥有者停止新受理、完成交接、等待真实结果，然后撤插件、关资源 | 业务交接未决时，原责任与可查询状态保留，进程不报告平滑退出成功。这个次序不靠多个 disposer 的先后实现 |
+| 意外退出与未知结果 | 原操作、调用、Journal，以及 Model 与 Tool 的保管身份，仍归原事实拥有者。新进程先按原身份查询与认回，不重发调用来补结果 | 原身份未知、目录部分不可读、共同提交未知或无法排除旧执行时，结果保持 `unavailable` 或 `pending` |
+
+已知限制如下：
+
+- M2 以单实例部署交付。跨进程 writer 排除不由应用装配或 Cordis 提供，目前没有提供者，见应用装配的[缺口与承接者](application-assembly.md#缺口与承接者)。
+- M2 把运行期的提供者换代当作计划停止。进入停止状态后，宿主不再调用任何 `start`。
+
+意外退出与非计划卸载不走有序关闭。这时各行的 disposer 只发起停止，结果只进诊断。恢复的真实验证须包含进程崩溃、按原身份查询、旧结果与迟到账目。
+
+##### 模型准备、选择与切换
+
+| 承担方 | 责任 | 失败或禁止 |
+| --- | --- | --- |
+| 客户端 | 表达选择或切换的意图，展示结果 | 客户端不填写会话的初始模型选择 |
+| 服务端接入 `server-entry` | `create` 时从部署配置的默认档案路由填入创建材料的初始模型选择（`initialModelSelection`）。合法性来源是采用来源表的 `model` 行 | 该行缺失或不认可这个路由名时，`create` 返回 `unavailable` 或 `invalid`，不用默认名补值 |
+| Session | 保存当前选择、来源与切换事实，见 Session 的[模型选择与切换](../../../packages/session/session-contract/SPEC.md#模型选择与切换)。`management.change(model)` 是唯一的正常切换入口。保存选择的窄读口只交出选择与原依据 | 没有初始值也没有合法切换时，读口返回 `not-ready`。它不用当前默认、最近一次实际调用或空名补值，也不返回凭据、有效参数或供应商配置 |
+| 应用的 `agent-model-selection` 行 | 实现 Agent 的[模型选择](../../../packages/agent/agent-contract/SPEC.md#模型选择)。每次尚未固定的请求都读取 Session 保存的选择与来源，再按 `modelProfiles` 解释 | 它不从会话快照的私有字段取值。Session 的选择读口冻结之前，这个适配不交付 |
+| Context 一侧的 `agent-context` 行 | 经 `modelRequestPreparation` 调用 Model 的请求准备 | 无 |
+| Model | 实际调用、结果与费用。受理与发出时按当前资格、凭据与档案再核验 | 选择不授予发送资格 |
+
+改变选择不改写已固定的请求、旧的 PendingCall 或费用。新选择何时生效，由 Session 的切换操作契约决定。应用不发明新的模式，也不隐式重启。
+
+##### 旧实例与数据
+
+调查按[迁移义务的成立条件](../data-and-state.md#数据格式与版本演进)有界进行：迁移义务要求具名数据集与仍在使用的消费者同时存在。本节不删除、不迁移数据，也不读取秘密。
+
+已查范围只有本源码树中应用、文档与脚本的指针。没有读取用户业务目录或其他设备。查到的事实如下：
+
+- `apps/cli` 只支持 `--help` 与 `--version`。`apps/cli/src/state-directory.ts` 能解析 `$HOME/.omne`，但这两条操作不创建状态根。
+- `apps/harness-server` 的现有模式不打开业务状态根，见其[范围](../../../apps/harness-server/SPEC.md#范围)。
+- `apps.0.0.1.legacy/README.md` 仍列出 tenancy-host 与封存版 CLI，并注明旧 `local-harness` 基线已退役，原件在 Git 历史。它们不是已迁移到新树的服务。
+- `docs/development.md` 仍链接封存版 tenancy-host 与 CLI 的运行材料，这是现有的读者消费者。
+- `scripts/README.md` 写明两个脚本仍指向不存在的 `apps/tenancy-host/tools/*`。这是源码指针的事实，不能据此断定没有旧部署数据。
+
+未查范围是：用户实际的状态根、旧的活进程、其他设备与用户目录、已发行制品和生产数据。这些保持未知。仓库里没有文件，不代表这些位置没有数据。
+
+| 处置 | 责任 |
+| --- | --- |
+| 切换 | 切换前，后继调查为每个已确认的根记录拥有者、实例与消费者、schema 版本、当前进程，以及保存与回退的责任。应用见到旧根而没有已接受方案时，按上文「状态根与归属」处理 |
+| 重建 | 需要重建时，先具名接受保留或迁移方案。持久格式与迁移规则归数据拥有者 |
+| 保留 | 新服务建成时，不删除封存版的运行说明，也不把其历史数据当作新 schema |
 
 ## 仍需补齐的业务增量
 

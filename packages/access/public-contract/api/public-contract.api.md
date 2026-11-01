@@ -28,6 +28,7 @@
 - `SessionHistoryPage` · `session-messages.d.ts`
 - `SessionOperation` · `session-messages.d.ts`
 - `SessionOutcomes` · `session-messages.d.ts`
+- `SessionProducerRef` · `session-messages.d.ts`
 - `SessionProtocolRejected` · `session-messages.d.ts`
 - `SessionRequest` · `session-messages.d.ts`
 - `SessionRequestBodies` · `session-messages.d.ts`
@@ -36,6 +37,7 @@
 - `SessionResponseEncodeInput` · `session-messages.d.ts`
 - `SessionResponseRead` · `session-messages.d.ts`
 - `SessionSuccessBodies` · `session-messages.d.ts`
+- `SessionTerminalSource` · `session-messages.d.ts`
 - `encodeGovernanceRequest` · `codec.d.ts`
 - `encodeGovernanceResponse` · `codec.d.ts`
 - `encodeSessionRequest` · `session-codec.d.ts`
@@ -124,7 +126,7 @@ export declare function readRequestDocument(bytes: Uint8Array, limits: JsonLimit
 export { readGovernanceRequest, readGovernanceResponse, encodeGovernanceRequest, encodeGovernanceResponse, } from './codec.ts';
 export { readSessionRequest, readSessionResponse, encodeSessionRequest, encodeSessionResponse, } from './session-codec.ts';
 export type { GovernanceProvidedOperation, GovernanceStageOperation, GovernanceOperation, GovernanceRequest, GovernanceResponse, GovernanceCodecLimits, ProofInput, GovernanceProtocolRejected, GovernanceStageNotProvided, GovernanceProtocolResult, GovernanceDiagnostic, GovernanceRequestRead, GovernanceResponseRead, GovernanceEncodeResult, GovernanceResponseEncodeInput, } from './messages.ts';
-export type { SessionOperation, SessionRequestBodies, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
+export type { SessionOperation, SessionRequestBodies, SessionProducerRef, SessionTerminalSource, SessionRequest, SessionOutcomes, SessionSuccessBodies, SessionResponse, SessionProtocolRejected, SessionHistoryEntry, SessionHistoryPage, SessionCodecLimits, SessionDiagnostic, SessionRequestRead, SessionResponseRead, SessionEncodeResult, SessionResponseEncodeInput, } from './session-messages.ts';
 ```
 
 ## 声明文件 `messages.d.ts`
@@ -644,6 +646,16 @@ export type SessionTarget = {
     readonly tenant: TenantId;
     readonly session: string;
 };
+export type SessionProducerRef = {
+    readonly kind: 'model' | 'tool';
+    readonly call: string;
+};
+export type SessionTerminalSource = {
+    readonly owner: string;
+    readonly record: string;
+    readonly revision: string;
+    readonly digest: string;
+};
 export type SessionRequestBodies = {
     'create-session': {
         readonly createCallId: string;
@@ -669,6 +681,15 @@ export type SessionRequestBodies = {
     }) | (SessionTarget & {
         readonly cursor: string;
     });
+    'cancel-run': SessionTarget & {
+        readonly controlId: string;
+        readonly run: string;
+        readonly urgency: 'graceful' | 'force';
+    };
+    'stop-call': SessionTarget & {
+        readonly controlId: string;
+        readonly producer: SessionProducerRef;
+    };
 };
 export type SessionOperation = keyof SessionRequestBodies;
 export type SessionRequestByOperation = {
@@ -708,6 +729,33 @@ export type SessionSuccessBodies = {
     };
     'query-send-input': EmptyBody;
     'read-history': SessionHistoryPage;
+    'cancel-run': {
+        readonly kind: 'requested';
+        readonly controlId: string;
+        readonly run: string;
+    } | {
+        readonly kind: 'ended';
+        readonly controlId: string;
+        readonly run: string;
+        readonly terminal: {
+            readonly outcome: 'completed' | 'failed' | 'cancelled';
+            readonly source: SessionTerminalSource;
+        };
+    };
+    'stop-call': {
+        readonly kind: 'requested';
+        readonly controlId: string;
+        readonly producer: SessionProducerRef;
+    } | {
+        readonly kind: 'ended';
+        readonly controlId: string;
+        readonly producer: SessionProducerRef;
+        readonly terminal: {
+            readonly version: string;
+            readonly outcome: 'completed' | 'failed' | 'interrupted' | 'unavailable' | 'no-response';
+            readonly source: SessionTerminalSource;
+        };
+    };
 };
 export type SessionOutcomes = {
     'create-session': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'basis-unavailable' | 'unknown';
@@ -715,6 +763,8 @@ export type SessionOutcomes = {
     'send-input': 'succeeded' | 'denied' | 'invalid' | 'archived' | 'frozen' | 'conflict' | 'basis-unavailable' | 'unknown';
     'query-send-input': 'succeeded' | 'not-committed' | 'denied' | 'basis-unavailable' | 'unknown';
     'read-history': 'succeeded' | 'denied' | 'invalid' | 'basis-unavailable';
+    'cancel-run': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'not-found' | 'basis-unavailable' | 'unknown';
+    'stop-call': 'succeeded' | 'denied' | 'invalid' | 'conflict' | 'not-found' | 'basis-unavailable' | 'unknown' | 'unsupported';
 };
 export type SessionProtocolRejected = {
     readonly protocolVersion: 'session-public/1';
@@ -802,6 +852,25 @@ declare const outcomes: {
         "denied",
         "invalid",
         "basis-unavailable"
+    ];
+    readonly 'cancel-run': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "conflict",
+        "not-found",
+        "basis-unavailable",
+        "unknown"
+    ];
+    readonly 'stop-call': readonly [
+        "succeeded",
+        "denied",
+        "invalid",
+        "conflict",
+        "not-found",
+        "basis-unavailable",
+        "unknown",
+        "unsupported"
     ];
 };
 type MissingOutcomes = {

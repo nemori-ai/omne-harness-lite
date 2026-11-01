@@ -437,6 +437,32 @@ describe('card entry of the semantic review', () => {
     })
   })
 
+  it('reads each platform URL once, except the reads that follow the judgement', () => {
+    const fx = build()
+    fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+    const calls: string[] = []
+    const report = run(fx, calls)
+    if (!report.bound) throw new Error('bound tree expected')
+    expect(report.semantic?.exit).toBe(0)
+    const counts: Record<string, number> = {}
+    for (const path of calls) counts[path] = (counts[path] ?? 0) + 1
+    expect(counts).toEqual({
+      // Read once and reused by every later step of the first pass.
+      [`repos/${REPO}`]: 1,
+      [`repos/${REPO}/issues/comments/501`]: 1,
+      [`repos/${REPO}/issues/comments/60`]: 1,
+      // The live card and its dispatch: the first pass, then the rebind after the judgement.
+      [`repos/${REPO}/issues/5`]: 2,
+      [`repos/${REPO}/issues/comments/55`]: 2,
+      // The owner account and the reviewers: the first pass, the second read of the identity
+      // check, and the platform state after the judgement.
+      'users/alice': 3,
+      [`repos/${REPO}/environments/publish`]: 3,
+      // The carrier: the first pass, the second read of the carrier, and the state after.
+      [carrier()]: 3,
+    })
+  })
+
   it('refuses a platform account that took over the owner login, though the r1 checks pass (C1)', () => {
     const fx = build()
     const comparison = draftComparison(fx)

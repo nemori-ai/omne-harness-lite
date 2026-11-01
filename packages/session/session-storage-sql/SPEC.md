@@ -61,6 +61,7 @@
 2. 测试夹具在 `node:sqlite` 的内存库上运行本成员的真实 participant 与 handler 模块，每个事务域一个库。它不覆盖 sqlite-provider 的 Worker、持久、受理队列、关闭与限额。夹具通过只说明模块在 SQL 语义上成立，不证明提供者行为。
 3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。
 4. 上一节「尚未实现的设计」各项都是已知限制。它们在实现之前不得写成已验证。
+5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料，`startRun` 的 `login-entry` 材料；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
 
 
 ### 两个「事务端口」

@@ -226,7 +226,7 @@ flowchart LR
 | Model 推送按 `ConsumerRef.owner` 解析接收方，接收方由 `agent-host` 持有；作为服务交付与本页「不新增结果接收服务键」冲突 | Agent 契约与宿主拥有者、Model 契约拥有者修订接收边界；修订前生产推送不宣称就绪 |
 | `server-entry` 的 Cordis 入口与 Cordis 页（`./cordis` 导出、inject、开始与停止句柄、符合性映射） | 接入实现卡 |
 | `assemblyLifecycle`、`definitionMappings`、`tenantDomainLookup`、`sessionWorkPrincipals`、`sessionPrincipalBindings` 的服务定义 | 依次为 kernel-basis、server-entry、sql-contract、session-cordis-contract（两项）的拥有者 |
-| 单实例部署：跨进程 writer 排除没有提供者 | [#803](https://github.com/nemori-ai/omne-harness-lite/issues/803) 后续；M2 按已知限制交付 |
+| 单实例部署：跨进程 writer 排除没有提供者 | M2 按已知限制交付（见[宿主身份、生命周期与旧数据](runtime-contract-handoff.md#宿主身份生命周期与旧数据)）；跨进程排除归后续存储提供者卡 |
 
 ## 运行时对象
 

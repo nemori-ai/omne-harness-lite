@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, realpath, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   createDiagnosticPort,
   type AdmitInput,
@@ -13,6 +13,24 @@ import {
 
 function beside<T>(business: T, port: DiagnosticPort, input: AdmitInput) {
   return { business, diagnostic: port.admit(input) }
+}
+
+/**
+ * The visible record once its export has reached a final state. The export runs in the
+ * background; a fixed sleep guessed its duration and lost under load, so this polls the port
+ * until the status has left `queued` and `exporting`, two seconds at most.
+ */
+async function exported(port: DiagnosticPort, id: string) {
+  return vi.waitFor(
+    () => {
+      const visible = port.read({ tenant: 'org/account', id })
+      expect(visible.status).toBe('visible')
+      if (visible.status !== 'visible') throw new Error('expected visible')
+      expect(['queued', 'exporting']).not.toContain(visible.exportStatus)
+      return visible
+    },
+    { timeout: 2000, interval: 5 },
+  )
 }
 
 const correlation = {
@@ -142,11 +160,8 @@ describe('createDiagnosticPort', () => {
       correlation,
     })
     expect(result.business.kind).toBe('Committed')
-    await new Promise(resolve => setTimeout(resolve, 10))
     if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
-    const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
-    expect(visible.status).toBe('visible')
-    if (visible.status !== 'visible') throw new Error('expected visible')
+    const visible = await exported(port, result.diagnostic.id)
     expect(visible.exportStatus).toBe('export_failed')
     expect(visible.chain.causes.map(cause => cause.role)).toEqual(['origin', 'export'])
     const origin = visible.chain.causes[0]
@@ -248,13 +263,10 @@ describe('createDiagnosticPort', () => {
         correlation,
       })
       expect(result.business).toBe(committed)
-      await new Promise(resolve => setTimeout(resolve, 30))
       if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
+      const visible = await exported(port, result.diagnostic.id)
       const text = await readFile(join(dir, `${result.diagnostic.id}.json`), 'utf8')
       expect(text).toContain('"summary":"committed"')
-      const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
-      expect(visible.status).toBe('visible')
-      if (visible.status !== 'visible') throw new Error('expected visible')
       expect(visible.exportStatus).toBe('exported')
     } finally {
       await rm(dir, { recursive: true, force: true })
@@ -283,12 +295,9 @@ describe('createDiagnosticPort', () => {
         chain: chain('committed'),
         correlation,
       })
-      await new Promise(resolve => setTimeout(resolve, 20))
       expect(result.business).toBe(committed)
       if (result.diagnostic.status !== 'accepted') throw new Error('expected accepted')
-      const visible = port.read({ tenant: 'org/account', id: result.diagnostic.id })
-      expect(visible.status).toBe('visible')
-      if (visible.status !== 'visible') throw new Error('expected visible')
+      const visible = await exported(port, result.diagnostic.id)
       expect(visible.exportStatus).toBe('export_failed')
       expect(visible.chain.causes.map(cause => cause.role)).toEqual(['origin', 'export'])
       await expect(
