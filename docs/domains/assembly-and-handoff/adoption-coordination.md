@@ -1,6 +1,6 @@
 # 采用协调契约设计
 
-状态：候选（#978 DP-6）。Reduce 尚未采用本页。采用之前，本页不是实施输入，也不改变 [#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 的开工条件。
+状态：已采用（Reduce，R1-D34，[#978 评论](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6564997466)）。本页是实施输入。[#688](https://github.com/nemori-ai/omne-harness-lite/issues/688) 的 D-SPEC 条件是「公开承诺、包名及采用范围已确认」，本次采用满足它：AC-01 至 AC-17、AC-19、AC-22、AC-23 给出公开承诺，AC-18 给出包名，AC-20 给出采用范围，AC-24 至 AC-26 给出调用方适配。
 
 本页是领域角色「采用协调」的契约设计唯一源。[领域页](README.md#模块角色与事实归属)只定义这个角色。[assembly 规格](../../../packages/assembly/assembly/SPEC.md#adoption)继续拥有求值、发布、入口与失败记录的行为。本页不重述那些行为，只引用它们。
 
@@ -8,10 +8,9 @@
 
 采用与迁移：
 
-- Reduce 采用本页时，删除第 4 节。第 7 节只留仍未决的条目。
 - 成员 `adoption-contract` 建成时，#688 把 AC-01 至 AC-17、AC-19、AC-22、AC-23 迁入该成员的 SPEC。本页删除这些条款，改为指向成员 SPEC。
 - AC-18、AC-20、AC-21 是领域层的分工与 M2 采用范围。AC-24、AC-25、AC-26 是调用方的适配，它们点名 Session、Agent 与 `server-entry`，并依赖 Session 的候选节。这六条迁移后仍留在本页，不进契约成员的 SPEC。
-- #688 与应用成员的采用提供者都交付之后，删除第 8 节。
+- #688 与应用成员的采用提供者都交付之后，删除第 7 节。
 
 ## 1. 问题与范围
 
@@ -238,7 +237,7 @@ AC-12 对复现型的前提是：发行数据保留该条目，以及该条目�
 
 候选的其余各项取自缓存。命中是否正确，靠查缓存之前的重读与复核，不靠键的粒度。缓存省下的是合并与选胜出者，不省来源修订的读取与资格复核。缓存的候选不是采用依据，进入新 Run 或 reload 时必须再经 `validate`。
 
-Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「按采用变更计数」缓存。本页的键含当前采用，不含计数。采用经过 A→B→A 之后，本页的键回到原值，按计数的键却不同。所以本页的键比按计数的键粗。命中仍然正确，理由见上一段。两种说法哪一种作唯一说法，见第 7 节 R-3。
+Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「按采用变更计数」缓存。本页的键含当前采用，不含计数。采用经过 A→B→A 之后，本页的键回到原值，按计数的键却不同。所以本页的键比按计数的键粗。命中仍然正确，理由见上一段。R1-D34 采用本页的键，并把它与 Session 规格的说法记为已知分歧，见第 6 节 R-3。
 
 `prepare` 返回的 `ref` 等于输入的当前采用时，内容没有变化。契约不跳过任何步骤。调用方照常提交，Session 按 PM-06 不写 SE08，仍可以写新 attempt。新 Run 入口按 assembly 规格「入口」保持当前组合。
 
@@ -263,9 +262,9 @@ Session 规格「身份桥、证据桥与 Context 输入」说已校验候选「
 - 第一个提供者是复现型。清单来自与 `definitionMappings` 同一份只读表，字段来源见 AC-13。`ref` 按 AC-10 计算，不是该表的内容身份。
 - `server-entry` 是 `create` 路径的消费者。它在 `create` 时以调用者的 `Access` 调 `prepare`，把 `ref` 交给 Session（AC-24）。它仍注入 `definitionMappings`，判定定义名是否在映射内。
 - `agentAdoptions` 是消费者，经 `read` 为 `resolve` 取原清单。
-- `sessionAdoptionSource` 是消费者。`create` 经 `read` 取 `server-entry` 交来的 `ref` 的清单。`startRun`、`reload` 经 `prepare` 与候选核验取材料。`reload` 候选失败时，经已采用核验判断原采用是否仍合法（PM-09）。`completeInitialization` 经 `read` 读回原采用。`change` 与 `freeze` 不需要新求值，不调用契约。这条路径的 `prepare` 与 `validate` 要等 R-1 裁定（AC-24）。
-- 三个消费者在同一波一起从定义名映射换到本契约，换之前都沿用定义名映射（KL-10）。
-- 已采用配置的来源不经本契约。它归装配页 `session-conditions` 行所需原来源的拥有者，见第 7 节 R-2。
+- `sessionAdoptionSource` 是消费者。`create` 经 `read` 取 `server-entry` 交来的 `ref` 的清单。`startRun`、`reload` 经 `prepare` 与候选核验取材料。`reload` 候选失败时，经已采用核验判断原采用是否仍合法（PM-09）。`completeInitialization` 经 `read` 读回原采用。`change` 与 `freeze` 不需要新求值，不调用契约。这条路径的 `prepare` 与 `validate` 要等 R-1 的 Session 改动交付（第 6 节 R-1，AC-24）。
+- `session-conditions`（session-adapters 的 J06 插件，提供 `agentConditions`）是 `read` 的第三个消费者。它用 run 的采用 `ref` 调 `read` 读已采用配置。清单格式由本契约解释，Session 不解释证据里的 `capabilities`（第 6 节 R-2）。
+- `server-entry`、`agent-adoptions` 与 `sessionAdoptionSource` 三个消费者在同一波一起从定义名映射换到本契约，换之前都沿用定义名映射（KL-10）。
 - 适配器由应用成员持有。适配器在采用点调用 Tool 的 `planAdoption`，把结果写进 Session 的材料。契约不调用它。
 - 首条路径的 `modes` 默认值来自映射条目，进入清单的 `conditions`。
 - 多层资产来源进入契约不属于 M2。
@@ -312,7 +311,7 @@ AC-24 至 AC-26 留在本页，不迁入契约成员的 SPEC。
 
 - `create`：`server-entry` 以调用者的 `Access` 调 `prepare`，把候选的 `ref` 作为 `creation.definition.candidate` 交给 Session。Session 的创建校验要求 `initialAdoption.candidate` 与 `adopted` 都等于这个值（[初始化校验](../../../packages/session/session-contract/src/initialization-validation.ts)）。所以 `initialAdoption.candidate`、`initialAdoption.adopted` 与之后的 `run.adoption` 都是 `ref`。`completeInitialization` 用原采用调 `read`，Agent 的 `resolve` 用 `run.adoption` 调 `read`，两者都能答。
 - `create` 上的 `adoption-sources` 适配器只经 `read` 取该 `ref` 的清单，形成初始化材料。它不调用 `prepare` 与 `validate`。
-- `startRun`、`reload`：候选由 `adoption-sources` 适配器经 `prepare` 铸出 `ref`。这条路径的主体由跨线裁定给出（第 7 节 R-1）。F 上 `SessionAdoptionSource.prepare` 只收一个命令，命令的输入不带主体。裁定之前，适配器不得自选主体，也不在这条路径上调用 `prepare` 与 `validate`。所以这条路径上不出现 `denied`。
+- `startRun`、`reload`：候选由 `adoption-sources` 适配器经 `prepare` 铸出 `ref`。这条路径的主体由 R-1 给出：Session 给 `SessionAdoptionSource.prepare` 加 `SessionAccess`，适配器按真实调用者复核资格（第 6 节 R-1）。F 上 `SessionAdoptionSource.prepare` 只收一个命令，命令的输入不带主体。这项 Session 改动交付之前，适配器不得自选主体，也不在这条路径上调用 `prepare` 与 `validate`。所以这条路径上不出现 `denied`。
 - `ref.name` 是定义名（AC-06）。所以 reload 交上的 `ref` 与已采用的 `ref` 名字相同，满足 Session 对 reload「保持定义身份」的检查（[命令判定](../../../packages/session/session-contract/src/decide.ts)）。
 - `read` 不需要主体，不受 R-1 限制。
 
@@ -373,24 +372,7 @@ AC-24 至 AC-26 留在本页，不迁入契约成员的 SPEC。
 | Agent `AgentAdoptions` | `read` 给 `resolve` 取原清单                           | 不实现 `handover`，不核对当前胜出者                               |
 | Tool `planAdoption`    | 每项 Tool 能力的合法胜出者，作为判定输入               | 不调用它，不携带判定与常驻登记键                                  |
 
-## 4. 对判据的覆盖
-
-线包 R10 要求：未决项全部闭合或写成已知限制，两类评审无未决阻断，Reduce 具名采用。本闭包完成第一项。后两项由线负责人与 Reduce 执行。
-
-W1-APP-11 的判据。证据在父分支工作树的过程目录 `tmp/line-app-access/w1/logs/DSN-6/`，该目录不进 Git：
-
-| 判据            | 满足方式                                                   | 证据                   |
-| --------------- | ---------------------------------------------------------- | ---------------------- |
-| C1 对账         | 固定树与 F 的差额逐项处置                                  | `C1-reconciliation.md` |
-| C2 未决项与反例 | 候选第 3、7 节与 14 条反例逐项处置，反例的测试义务见 AC-23 | `C2-closure.md`        |
-| C3 条款         | 公开承诺、失败、租户公平、位置与包名、采用范围各有条款     | `C3-clauses.md`        |
-| C4 唯一源       | 本页是唯一源，其余文件只引用                               | `check-c4.py`          |
-| C5 评审与采用   | 本闭包不做                                                 | 线负责人派发           |
-| C6 文档检查     | `check:docs` 与登记                                        | 交回里的退出码         |
-
-#688 的 D-SPEC 条件是「公开承诺、包名及采用范围已确认」。AC-01 至 AC-17、AC-19、AC-22、AC-23 给出公开承诺，AC-18 给出包名，AC-20 给出采用范围，AC-24 至 AC-26 给出调用方适配。Reduce 采用本页之后，该条件可判定满足。
-
-## 5. 备选与取舍
+## 4. 备选与取舍
 
 - 继续扩大发行映射。放弃。映射不能表达来源变化、当前资格与稳定的采用记录。M2 仍用它做第一个提供者的数据。
 - 把全部流程放进 Session。放弃。Session 会同时解释资产与执行恢复。
@@ -401,18 +383,18 @@ W1-APP-11 的判据。证据在父分支工作树的过程目录 `tmp/line-app-a
 - 入口与当前采用放进清单。放弃。新 `ref` 会覆盖旧 `ref`，永远不等于当前采用。于是 PM-06 的「不写 SE08」分支不会出现，assembly 规格「入口」的「未变化则保持」也无法用 `ref` 判断。
 - `validate` 复用 `prepare` 时的主体。放弃。候选与 `ref` 都不记主体。复核的对象应是将要提交的调用者。
 
-## 6. 已知限制与剩余
+## 5. 已知限制与剩余
 
 - KL-1：`validate` 到 Session 提交之间有时间窗口。F 上 `SessionAdoptionSource` 只有 `prepare`，没有提交边界回调 `validate` 的端口。依据 AC-15，窗口内的变化不越权。`create` 上也有同样的窗口：`server-entry` 的 `prepare` 到 Session 提交之间，适配器只 `read`，不 `validate`（AC-24）。Session 的 `create` 要求在提交边界证明材料仍有效，并要求 `source` 与 `boundary` 证据。本契约只给 `basis` 与 `eligibility`。适配器怎样构成这两项证据，由它对照 Session 规格核对，不足时停下交 Session 的拥有者。若 Session 的拥有者要求同提交核验，另立新增契约改动。
 - KL-2：M2 不回收清单。
 - KL-3：发行数据改动并丢掉旧条目后，复现型对旧 `ref` 的 `read` 答 `unavailable`，这是 AC-13 的前提不成立。发行数据改动时保留旧条目的义务，归应用成员的采用提供者与发行数据的拥有者，不在本契约内。不保留时，旧会话须重新采用。
 - KL-4：公平参数、调度算法与时限的取值留给提供者规格。
 - KL-5：契约不使用同值 reload 的跳过路径。[重装与不重装的情形](../../architecture/runtime/assembly-and-change.md#重装与不重装的情形)与「比对代替求值」仍是候选，本页不依赖它们。
-- KL-6：已采用配置的字段由该配置来源的拥有者对照 Agent 契约确定（R-2）。契约只保证 `manifest` 的 `conditions` 可读。
+- KL-6：`session-conditions` 经 `read` 读已采用配置（R-2）。字段由清单的 `conditions` 承载，契约只保证它可读。哪些字段进入 Agent 的当前条件，由 `session-conditions` 对照 Agent 契约确定。
 - KL-7：多层资产来源与跨进程提供者不在 M2。跨进程后哪些保证失效，见 AC-22。
 - KL-8：初始化接续时新增能力的采用不在 M2。Session 规格允许该分支，契约没有对应入口，`prepare` 的三个入口不借用它。M2 的接续只读回原采用。
-- KL-9：M2 的复现型清单不固定能力的版本，`capabilities` 每项的版本为 `null`。Tool 能力的胜出者由适配器在采用点经 `planAdoption` 决定，写进 Session 的材料。非 Tool 能力（例如 Skill）的版本，M2 不记录。这是对 [assembly 规格「定义到消费者」](../../../packages/assembly/assembly/SPEC.md#definition-to-consumer)的偏离：该节写明依赖的身份和版本记在装配清单里，装配清单记下锁定的依赖身份与版本。偏离列入第 7 节 R-4。
-- KL-10：`server-entry` 的 `create`、`adoption-sources`、`agent-adoptions` 三处在 R-1 裁定后的同一波一起从定义名映射换到本契约。线包把这次换件放在波 D。换之前，三处都沿用定义名映射，线包 R2 的「同一内容身份」由同一份映射保证。只换一部分时，Session 记下的采用与 Agent 收到的采用不是同一种值：`read` 对定义候选答 `unavailable`，reload 也可能因定义名不同被 Session 拒绝。所以三处不分开换。
+- KL-9：M2 的复现型清单不固定能力的版本，`capabilities` 每项的版本为 `null`。Tool 能力的胜出者由适配器在采用点经 `planAdoption` 决定，写进 Session 的材料。非 Tool 能力（例如 Skill）的版本，M2 不记录。这是对 [assembly 规格「定义到消费者」](../../../packages/assembly/assembly/SPEC.md#definition-to-consumer)的偏离：该节写明依赖的身份和版本记在装配清单里，装配清单记下锁定的依赖身份与版本。偏离列入第 6 节 R-4。
+- KL-10：`server-entry` 的 `create`、`adoption-sources`、`agent-adoptions` 三处在 R-1 的 Session 改动交付之后的同一波，一起从定义名映射换到本契约。R-1 已裁定（R1-D34），Session 改动由 session-run 交付线在波 2 交付；换件的波次由 Reduce 安排。换之前，三处都沿用定义名映射，线包 R2 的「同一内容身份」由同一份映射保证。只换一部分时，Session 记下的采用与 Agent 收到的采用不是同一种值：`read` 对定义候选答 `unavailable`，reload 也可能因定义名不同被 Session 拒绝。所以三处不分开换。
 
 交给其他交付线或后续波：
 
@@ -420,44 +402,16 @@ W1-APP-11 的判据。证据在父分支工作树的过程目录 `tmp/line-app-a
 - 存储型提供者与清单回收，归后继，依赖存储契约。
 - 真实的反序、崩溃、跨租户组合场景，归应用成员的提供者测试与联调。
 
-## 7. 待定项
+## 6. 待交付与已知分歧
 
-能自己定：
+R1-D34（[#978 评论](https://github.com/nemori-ai/omne-harness-lite/issues/978#issuecomment-6564997466)）裁定了下面四条。本节只留尚未交付的条目与已知分歧。
 
-- 来源不完整答求值记录「来源未知」，不答操作失败。依据：assembly 规格「发布」的时序图只说「返回失败记录」，失败记录表里只有「来源未知」符合「不用猜测补齐定义」。
-- 候选与已采用依据共用一个 `ref` 与 `validate` 操作，以两种核验区分。依据：两者都是精确 `Adoption`，Session 规格 PM-09 需要问「原采用是否仍合法」。
-- 采用来源的 `create`、`new-run`、`reload` 三个入口，以及 AC-20 中各命令用的操作。依据：Session 规格「身份桥、证据桥与 Context 输入」。
-- `read` 只带租户。依据：它不授予资格（AC-15），租户隔离由摘要保证（AC-10）。
-- `validate` 按调用者复核资格。依据：AC-08。
-- `create` 上的适配器只经 `read` 取清单，不调用 `prepare` 与 `validate`。依据：`ref` 由 `server-entry` 取得（AC-24），R-1 裁定之前适配器没有可用的主体。
-- 缓存命中时重新取得 `eligibility` 与 `knownUnavailable`。依据：两项随时刻变化，不由键与 `basis` 决定（AC-06、AC-16）。
-- 服务键名 `adoptionCoordinator`。依据：同类键 `agentAdoptions`、`tenantDomains` 用名词。
+- R-1 Session 采用路径上 `startRun` 与 `reload` 的主体。已裁定：Session 给 `SessionAdoptionSource.prepare` 加 `SessionAccess`，适配器按真实调用者复核资格。这是 Session 契约的可加改动，归 session-run 交付线，经 [#996](https://github.com/nemori-ai/omne-harness-lite/issues/996)，在波 2 交付。交付之前按 KL-10 处理：`create` 经 `server-entry` 取得 `ref`（AC-24），`startRun` 与 `reload` 沿用定义名映射。
+- R-2 已采用配置的来源。已裁定：`agentConditions` 仍由 `session-conditions`（J06）提供，不改装配页的分工。它用 run 的采用 `ref` 调 `adoptionCoordinator.read` 读已采用配置，清单格式由本契约解释。Session 不解释证据里的 `capabilities`，第 4 节「次要证据，契约不依赖」不变。装配页 `session-conditions` 行的注入列加 `adoptionCoordinator`，由 Reduce 在 J06 交付时写（波 2）。
+- R-3 缓存键。已知分歧：本页采用 AC-16 的键，比 Session 规格「按采用变更计数」的键粗。命中靠重读与复核成立，两种说法在正确性上不冲突，不另裁。
+- R-4 对 assembly 规格的两处解释（AC-04 的失败种类、AC-07 的固定请求输入记在 Session 的事实里）与一处偏离（KL-9）。Reduce 代 assembly 规格的拥有者确认。
 
-只有负责人能定：下面的 R-1、R-2。三问去不掉它们，原因写在各条里。
-
-需单独具名的部分，供评审与采用时核对：
-
-- 新增成员与服务键，改动「装配组有两个目标成员」一句。它是已接受正文的修订，由 Reduce 经产品包组织的拥有者写。
-- `ref` 的取值与摘要覆盖范围（AC-06、AC-10）。它选定去重粒度为租户加清单内容，并把主体、范围、入口、当前采用与可用标记排除在清单之外。
-- 对 assembly 规格的两处解释（AC-04、AC-07）与一处偏离（KL-9）。规格不改，由 assembly 规格的拥有者经 Reduce 确认（R-4）。
-- `ref` 进入 Session 的路径（AC-24）。它由 `server-entry` 在 `create` 上取得 `ref`，不改 Session 契约。
-- 失败映射表（AC-26）。它约束应用成员的适配器，不改 Session 与 Agent 的词汇。
-- KL-1 与 KL-9 的取舍。KL-1 接受一个有界过时窗口，理由是采用不授予资格。KL-9 接受 M2 不记录非 Tool 能力的版本。
-
-给 Reduce 的条目（跨线分工，不是本契约能定的）：
-
-- R-1 Session 采用路径上 `startRun` 与 `reload` 的主体。`create` 的主体是 `server-entry` 的调用者（AC-24），不在本条内。F 上 Session 有意不给采用来源主体：`SessionAdoptionSource.prepare` 只收命令，而 `SessionContextInput.prepare` 收 `SessionAccess`。可能的方向，本页只列出，不代选：
-  1. 适配器用登记过的组件主体。后果：这条路径上的资格检查变成形式。
-  2. Session 给 `SessionAdoptionSource` 加 `SessionAccess`。后果：这是对 Session 契约的可加改动，归 session-run 交付线，要走 [#996](https://github.com/nemori-ai/omne-harness-lite/issues/996)。
-  3. 这条路径不做主体资格检查。后果：AC-10、AC-11 与 AC-26 的 `denied` 要随之改写，资格只由 Session 提交时的访问裁定承担。
-
-  三问去不掉它：方向 2 改 Session 契约，超出本线授权。方向 1 与 3 改变资格在这条路径上的含义，归 authorization 的拥有者。拥有者：Reduce，会同 authorization 的拥有者与 session-run 交付线。
-
-- R-2 已采用配置从哪里读，由谁解释清单格式。装配页的 `agentConditions` 行属于 `session-conditions`（session-adapters 的 J06 插件），它只注入 `session('coordinator')`。有两个自洽答案。一，`session-conditions` 解释 Session 证据里的 `capabilities` 材料。这让 Session 一侧多一个格式依赖，第 5 节「次要证据，契约不依赖」的说法随之作废。二，应用成员提供 `agentConditions`。这与装配页的分工冲突。本页不选，AC-20 已把该来源排除在契约之外。三问去不掉它：两个答案都改变别的交付线已登记的分工。拥有者：Reduce，会同 session-run 交付线。
-- R-3 采用协调者缓存键的唯一说法（AC-16 与 Session 规格「身份桥、证据桥与 Context 输入」）。本页的键比按计数的键粗。命中靠重读与复核成立，所以本页认为两者在正确性上不冲突。拥有者：Session 规格的拥有者与 Reduce。
-- R-4 对 assembly 规格的两处解释与一处偏离：AC-04 的失败种类，AC-07 的固定请求输入记在 Session 的事实里，KL-9 的 M2 不记录非 Tool 能力的版本（偏离规格「定义到消费者」）。拥有者：assembly 规格的拥有者，由 Reduce 代办。
-
-## 8. 给实现闭包的接入点
+## 7. 给实现闭包的接入点
 
 #688（契约成员）：
 
@@ -470,7 +424,7 @@ W1-APP-11 的判据。证据在父分支工作树的过程目录 `tmp/line-app-a
 应用成员的采用提供者（app-access 交付线）：
 
 - 新增复现型提供者行，提供 `adoptionCoordinator` 与 `definitionMappings`。
-- R-1 裁定后的同一波（线包的波 D），三处一起换（KL-10）。换之前三处都沿用定义名映射。
+- R-1 的 Session 改动交付之后的同一波，三处一起换（KL-10）。换之前三处都沿用定义名映射。
   - `server-entry` 的 `create` 改为以调用者的 `Access` 调 `prepare`，把 `ref` 交给 Session（AC-24）。`server-entry` 的规格在同一波写明 `prepare` 的答案到公开结果的映射。
   - `adoption-sources` 行改为从 `adoptionCoordinator` 取材料。适配器在采用点调用 `planAdoption`，并按 AC-26 映射失败。
   - `agent-adoptions` 行改为从 `adoptionCoordinator` 经 `read` 投影，删除运行时的定义名映射直读。
