@@ -1,0 +1,7 @@
+{
+  "rows": [
+    { "id": "storage", "plugin": "stubPlugin", "config": { "path": "state" } },
+    { "id": "identity", "plugin": "stubPlugin", "config": {} },
+    { "id": "server-entry", "plugin": "probePlugin", "config": { "port": 0 } }
+  ]
+}
