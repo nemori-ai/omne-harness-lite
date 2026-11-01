@@ -21,6 +21,7 @@ import {
   type FixedToolRequest,
   type ToolInvokeRequest,
 } from '@omne-harness/tool-contract'
+import { decodeToolRevision } from '@omne-harness/tool-contract/provider'
 import {
   INVOCATION_SOURCE_DOMAIN_KEY,
   createLocalInvocationSource,
@@ -286,6 +287,8 @@ describe('TL-11 invocation source: issuance and recall', () => {
     if (record?.kind !== 'host') throw new Error('fixture: expected a host record')
     const damaged = { ...(record.host.value as object), principal: 'not-a-subject' }
     const revision = String(BigInt(read.revision) + 1n)
+    const next = decodeToolRevision((BigInt(read.revision) + 1n).toString())
+    if ('failure' in next) throw new Error('fixture revision')
     const committed = await memory.commit({
       domain,
       expected: read.revision,
@@ -537,6 +540,51 @@ describe('TL-11 invocation source: verification of the fixed request', () => {
     const thrown = await guard.verify(verifyInput(outcome))
     expect(thrown).toMatchObject({ kind: 'unavailable' })
     expect(JSON.stringify(thrown)).not.toContain('secret')
+  })
+
+  it('TL-11 a stored binding of another shape is unavailable, not forged', async () => {
+    const { store, memory } = observed()
+    const { issuer, guard } = source(store)
+    const outcome = await bound(issuer)
+    const domain: LedgerDomain = {
+      kind: 'host',
+      tenant: tenantA,
+      key: INVOCATION_SOURCE_DOMAIN_KEY,
+    }
+    const read = await memory.read(domain)
+    if (read.kind !== 'complete') throw new Error('fixture read failed')
+    const [stored] = read.records
+    if (stored?.kind !== 'host') throw new Error('fixture: expected a host record')
+    const next = decodeToolRevision((BigInt(read.revision) + 1n).toString())
+    if ('failure' in next) throw new Error('fixture revision')
+    const committed = await memory.commit({
+      domain,
+      expected: read.revision,
+      revision: next.ok,
+      writes: [
+        { kind: 'put', record: { kind: 'host', host: { key: stored.host.key, value: 'x' } } },
+      ],
+    })
+    if (committed.kind !== 'committed') throw new Error('fixture commit failed')
+    expect(await guard.verify(verifyInput(outcome))).toMatchObject({ kind: 'unavailable' })
+  })
+
+  it('TL-11 a stored principal that the codec cannot decode is unavailable, not forged', async () => {
+    const { store } = observed()
+    const outcome = await bound(source(store).issuer)
+    const refusing: PrincipalCodec<P> = {
+      encode: codec.encode,
+      decode: () => fail({ reason: 'changed codec' }),
+    }
+    const rebuilt = createLocalInvocationSource<P>({
+      store,
+      authority: authority(),
+      principalCodec: refusing,
+      commitAttempts: 4,
+    })
+    expect(await rebuilt.guard.verify(verifyInput(outcome))).toMatchObject({
+      kind: 'unavailable',
+    })
   })
 
   it('TL-11 an authority that cannot compare subjects makes verification unavailable', async () => {
