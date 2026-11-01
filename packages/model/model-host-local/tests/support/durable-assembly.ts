@@ -39,6 +39,7 @@ import type {
   ModelCommandsEvidence,
   ModelSendSource,
 } from '@omne-harness/model/commands'
+import { createTestModelDependencies } from '@omne-harness/model/testing'
 import type {
   ConformanceAction,
   ConformanceHooks,
@@ -581,6 +582,54 @@ function durableBackend(
   }
 }
 
+/**
+ * The in-memory ModelCommands of `@omne-harness/model/testing`: a store without durability and
+ * without the storage faults. It is here so that a run over it says so in the evidence; the suite
+ * of this member runs the durable backend.
+ */
+function memoryBackend(
+  denied: Set<CommandAction>,
+  completions: ReturnType<typeof completionRecords>,
+): Backend {
+  const { core, source } = coreOptions(denied, completions)
+  const memory = createTestModelDependencies<unknown>({
+    owners: core.owners,
+    authority: core.authority,
+    evidence: core.evidence,
+    limits: core.limits,
+    start: '2026-11-02T00:00:00.000Z',
+    maxWaiters: 64,
+    maxQueued: 64,
+    sends: [],
+    sending: {
+      maxRetainedAttempts: STAGE_SETTINGS.maxRetainedAttempts,
+      credentials: { present: () => ({ kind: 'unavailable' }), resolve: () => ({ kind: 'unavailable' }) },
+      sources: [source],
+    },
+  })
+  return {
+    kind: 'memory',
+    description: '@omne-harness/model/testing createTestModelDependencies (in-memory, no durability)',
+    sqlProvider: 'none',
+    commands: memory.dependencies.commands,
+    coordinator: memory.controls.send.coordinator,
+    faults: null,
+  }
+}
+
+/** The backend of this member's suite. */
+const BACKEND: Backend['kind'] = 'durable-sql'
+
+function backendOf(
+  kind: Backend['kind'],
+  denied: Set<CommandAction>,
+  completions: ReturnType<typeof completionRecords>,
+): Backend {
+  return kind === 'durable-sql'
+    ? durableBackend(denied, completions)
+    : memoryBackend(denied, completions)
+}
+
 // --- The Cordis services the plugins inject ---------------------------------------------------
 
 class Authority extends ModelHostAuthorityService<unknown> {
@@ -655,7 +704,10 @@ function commandsServiceOver(commands: ModelCommands<unknown>) {
 // --- The per-call upstream channel -------------------------------------------------------------
 
 type Channel = {
+  /** Resolved by `startRun`: the send may start. */
   ready: ReturnType<typeof deferred<void>>
+  /** Resolved when the send path asked for the resource: the drive waits for upstream here. */
+  acquired: ReturnType<typeof deferred<void>>
   starts: number
   push(facts: readonly TransportFact[]): void
   iterable: AsyncIterable<TransportFact>
@@ -672,6 +724,7 @@ function channels() {
     const queue: TransportFact[] = []
     const created: Channel = {
       ready: deferred<void>(),
+      acquired: deferred<void>(),
       starts: 0,
       push(facts) {
         queue.push(...structuredClone(facts))
@@ -721,6 +774,7 @@ function channelSendResources(channel: (call: ModelCallId) => Channel): PiSendRe
   return {
     async acquire(demand) {
       const stream = channel(demand.call)
+      stream.acquired.resolve()
       await stream.ready.promise
       const script = createScriptedTransport({
         receipt: {
@@ -790,9 +844,14 @@ function resultFacts(parts: readonly ResultPart[]): TransportFact[] {
 /**
  * The host of the plugin as the runtime sees it, with what only the assembly can tell: when a call
  * is placed (its route is published) and the faults of the directory. The first schedule of a call
- * returns after the call is placed or its drive ended, so an admission that returns has a route.
+ * returns after the call is placed and its drive waits for upstream (`blockedAt`), or after the
+ * drive ended: an admission that returns has a route and a state that does not move by itself.
  */
-function instrumentedHost(host: ModelInstanceHost<unknown>, drives: Drives) {
+function instrumentedHost(
+  host: ModelInstanceHost<unknown>,
+  drives: Drives,
+  blockedAt: (call: ModelCallId) => Promise<void>,
+) {
   const publications = new Map<ModelCallId, Publication>()
   const placed = new Map<ModelCallId, ReturnType<typeof deferred<void>>>()
   const cut = new Set<ModelCallId>()
@@ -811,7 +870,11 @@ function instrumentedHost(host: ModelInstanceHost<unknown>, drives: Drives) {
       const settled = placing(input.call)
       const result = await host.schedule(input)
       if ('failure' in result || !first) return result
-      await Promise.race([settled.promise, drives.ended(input.call), sleep(WAIT_MS)])
+      await Promise.race([
+        Promise.all([settled.promise, blockedAt(input.call)]),
+        drives.ended(input.call),
+        sleep(WAIT_MS),
+      ])
       return result
     },
     async publish(execution, handle: ModelHandle<unknown>) {
@@ -912,7 +975,8 @@ const PLUGIN_NAMES = [
   'ModelCredentialService test class (synthetic factory value)',
 ]
 
-export function assemblyFacts(backend: Pick<Backend, 'kind' | 'description' | 'sqlProvider'>): AssemblyFacts {
+/** What the evidence says about one built subject. Every field comes from what was built. */
+function assemblyFacts(backend: Backend): AssemblyFacts {
   return {
     modelCommands: backend.description,
     commandsKind: backend.kind,
@@ -922,15 +986,6 @@ export function assemblyFacts(backend: Pick<Backend, 'kind' | 'description' | 's
     transport: '@omne-harness/model-contract/testing createScriptedTransport behind a per-call channel',
     network: 'closable stand-in that opens nothing',
   }
-}
-
-/** The facts of the assembly that the subject factory builds. Read by the spec for the evidence. */
-export function describeAssembly(): AssemblyFacts {
-  return assemblyFacts({
-    kind: 'durable-sql',
-    description: '@omne-harness/model-storage-sql createSqlModelCommands (durable, SQL storage)',
-    sqlProvider: 'node:sqlite test provider (tests/support/durable-assembly.ts), in-memory database',
-  })
 }
 
 export type DurableSubject = ConformanceSubject<unknown> &
@@ -944,7 +999,7 @@ export async function durableSubject(
 ): Promise<DurableSubject> {
   const denied = new Set<CommandAction>()
   const completions = completionRecords()
-  const backend = durableBackend(denied, completions)
+  const backend = backendOf(BACKEND, denied, completions)
   const upstream = channels()
   const drives = driveLog()
   const preserved = new Map<ModelCallId, number>()
@@ -987,7 +1042,11 @@ export async function durableSubject(
   let dependencies: Parameters<typeof createModelRuntime<unknown>>[0] | undefined
   const Plugin = createModelRuntimeLocalPlugin({
     provider: given => {
-      hostControl = instrumentedHost(given.host, drives)
+      hostControl = instrumentedHost(
+        given.host,
+        drives,
+        call => upstream.channel(call).acquired.promise,
+      )
       dependencies = {
         commands: given.commands,
         send,
