@@ -5,7 +5,7 @@ import { expect, it } from 'vitest'
 it('the commands subpath exports the shared core and its method set, and the root entry does not', async () => {
   const commands = await import('@omne-harness/model/commands')
   expect(Object.keys(commands).sort()).toEqual(
-    ['MODEL_WRITE_METHODS', 'createModelCommandsCore', 'modelCommands'].sort(),
+    ['MODEL_WRITE_METHODS', 'createModelCommandsCore', 'hasRecoveryWork', 'modelCommands'].sort(),
   )
   const root = await import('@omne-harness/model')
   expect(Object.keys(root)).not.toContain('createModelCommandsCore')
