@@ -1593,6 +1593,9 @@ importers:
         specifier: workspace:*
         version: link:../../storage/sql-contract
     devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

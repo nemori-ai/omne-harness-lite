@@ -32,6 +32,7 @@
     "@omne-harness/sql-contract": "workspace:*"
   },
   "devDependencies": {
+    "@omne-harness/sqlite-provider": "workspace:*",
     "@types/node": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"

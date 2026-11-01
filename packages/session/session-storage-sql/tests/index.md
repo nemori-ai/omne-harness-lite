@@ -9,4 +9,5 @@
 - [tenant-isolation.spec.ts](tenant-isolation.spec.ts)：租户隔离与事务域目录
 - [delegated.spec.ts](delegated.spec.ts)：委派视图的符合性与跨租户用例
 - [principal-bindings.spec.ts](principal-bindings.spec.ts)：会话归属读口的符合性与跨租户用例
-- [fixtures/](fixtures/index.md)：`node:sqlite` 测试夹具
+- [real-provider.spec.ts](real-provider.spec.ts)：真实 sqlite-provider 上的组合用例
+- [fixtures/](fixtures/index.md)：`node:sqlite` 与真实提供者的测试夹具

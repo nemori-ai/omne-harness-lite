@@ -45,23 +45,25 @@
 | 条款 | 现状 |
 | --- | --- |
 | 根入口导出 | `createSessionStorage`、`sessionStorageMaterials`、`SESSION_PARTICIPANT` 和类型 `SessionStorageOptions`、`SessionStorageMaterials`。没有 `./cordis` 子路径，也没有该源文件。会话存储组合由应用承担，本成员不建 Cordis 服务、目录或组合登记 |
-| SQL 依赖 | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，不依赖 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite` |
+| SQL 依赖 | 只从 `@omne-harness/sql-contract` 与 `@omne-harness/sql-contract/worker` 导入。不导入 `packages/storage/**` 内部，`dependencies` 不含 `@omne-harness/sqlite-provider`，源码里没有 `node:sqlite`。`devDependencies` 有 sqlite-provider，只供 `tests/real-provider.spec.ts` 用它的公开入口 |
 | 端口操作 | `commit`、`readWork`、`readInput`、`queryOperation`、`queryControlOperation`、`readModelSelection`、`history`（`begin`、`next`、`since`、`readModelView`）、`pending`、`references`、`releasedScopes` 已实现。`commitEntries` 恒返回 `unavailable`，见[已知限制](#已知限制) |
 | 静态材料 | 一个参加者 `session`（`grouping` 为 `singleton`）、一个迁移 `session/001-session-log`、八个 `snapshot` 读 handler：`session.work`、`session.input`、`session.model-selection`、`session.history`、`session.model-view`、`session.pending`、`session.references`、`session.released-scopes`。每个模块带文件摘要 |
 | 当前表 | `sl_journal`、`sl_entry`、`sl_operation`、`sl_state`、`sl_input`、`sl_model_view`、`sl_annotation_idx`、`sl_pending_idx`、`sl_resident_idx`、`sl_released_scope_idx`，另有 `sl_kind_idx` 与 `sl_operation_revision_idx` 两个二级索引。列见[对象模型](docs/object-model.md) |
 | 尚未实现的设计 | `sl_batch`、`sl_blob`、`sl_ref_idx`、`sl_rebuild`；TB-04 的内联阈值与外置载荷；R9 的追赶与重建、`fold_version`、解释版本记录与隔离；R4 的按关联定位；PostgreSQL；`maxScanPerPage` 与读路径的逐条披露核对；配置项「内联阈值」「大对象去向」「快照重建方式」。`sl_state` 落后时 handler 返回 `behind`，端口映射为 `unavailable`，没有自动追赶 |
 | 与设计的差异 | 提交身份的 `protocolVersion` 为 `2`，`scope` 为租户域，`operationKey` 为 `<SessionOperationId>#<代次>`。待办原因有八个，含 `initialization`（与 `PendingReason` 一致，下文 W3 与 R8 写「七个」处按八个读）。`sl_operation.form` 有 `batch`、`control`、`answer` 三种，`answer` 行没有 `revision`。尝试代次上限初值为 8，游标有效期初值为 15 分钟。`commit` 先对各代次调用存储 `query`，不先点查 `sl_operation`；参加者模块不另核对材料集合，交给 `decide`；提交结果从回执的响应证据取出，不读回 `sl_operation` |
-| R7 的差异（待裁定） | 规格要求辨认参加操作的入口缺席时，代次 1 为 `not_committed` 返回 `unknown`。源码在代次 1 返回 `not-committed`，依据为本成员生成的排除证据。两者不一致，本成员没有采用任何一边：拥有者裁定之前，调用方不得把这里的 `not-committed` 当作参加操作也未提交的证明 |
+| R7 的现状（Reduce R1-D23 按源码改写） | 未命中 `sl_operation` 的操作，在代次 1 得到存储 `not_committed` 时，`queryOperation` 与 `queryControlOperation` 对外答 `unknown`，与上文 R7 正文一致。源码里 `exclusion()` 仍构造 `not-committed` 与排除证据，但 `unfound()` 把它映射为 `unknown`，这份证据不到达调用方，见[已知限制](#已知限制)。真实 sqlite-provider 对从未使用的身份答带五项证明的 `not_committed`，`queryOperation` 仍答 `unknown`（`tests/real-provider.spec.ts`） |
 
 ### 已知限制
 
 <a id="已知限制"></a>
 
 1. `commitEntries` 目前返回 `unavailable`（`owner` 为本成员）。原因是 session-contract 还没有 entries 解释的纯范围检查，本成员无法判断范围，所以拒绝，不对未检查的范围返回成功。session-adapters 的内存提供者对同一操作做同样的拒绝。
-2. 测试夹具在 `node:sqlite` 的内存库上运行本成员的真实 participant 与 handler 模块，每个事务域一个库。它不覆盖 sqlite-provider 的 Worker、持久、受理队列、关闭与限额。夹具通过只说明模块在 SQL 语义上成立，不证明提供者行为。
+2. 两套测试夹具。`tests/fixtures/sqlite-storage.ts` 在 `node:sqlite` 的内存库上运行本成员真实的 participant 与 handler 模块，每个事务域一个库；它不覆盖 Worker、持久、受理队列、关闭与限额，通过只说明模块的 SQL 语义成立。`tests/fixtures/real-provider.ts` 经 sqlite-provider 的公开入口在临时目录的文件库上组合真实存储，`tests/real-provider.spec.ts` 覆盖：Worker 下提交与读回；回执返回后杀进程，新提供者按原身份 `query` 得 `committed`；从未提交的身份得 `not_committed`，不当作 `committed`，`queryOperation` 答 `unknown`；关闭（租约归还，关闭后写入为 `commit-unknown`，`query` 为 `unknown`）；`command_limit` 与 `queue_full` 两种限额。迁移里建索引在真实提供者上可用。未覆盖：断电耐久、WAL 维护与读暂停、跨进程写者、读 Worker 崩溃、`lockWaitMs` 超时。组提交计数见第 6 条。
 3. 本批新增行为（读路径路由、控制答案、模型选择、游标绑定）没有先红后绿的记录。本成员以负控用例代替：租户隔离、跨租户域目录、游标篡改与未授权访问各有反例用例。负控只说明这些反例被拒绝，不说明旧实现曾失败。
 4. 上一节「尚未实现的设计」各项都是已知限制。它们在实现之前不得写成已验证。
 5. 偏离：材料集合核对（W1 第 3 步；session-contract「SessionTransactionPort」义务 1、2）。现行条款要求按命令种类核对 `guards` 的完整材料集合，缺一项或多一项答「不支持」。共同提交表的「参加者」列只有文字，没有可核对的 `owner`、`participant`、`protocol` 取值，身份桥、证据桥与 Context 输入在生产中也尚未实现，所以本成员现在只执行契约已固定的两处核对：`create` 与 `completeInitialization` 的 `session-initialization` 材料，`startRun` 的 `login-entry` 材料；其余命令的 `guards` 原样带入，不核对集合。退出条件：真实身份桥、证据桥与 Context 输入接入 Session 时，由 session-contract 的拥有者补导出逐命令材料表，本成员随之核对缺项与多项。条款原文不改（Reduce 裁定，#1000）。
+6. 组提交计数：`tests/real-provider.spec.ts` 并发提交 8 个会话的 `create`，原操作数 8，物理写事务数 8（读 WAL 提交帧得到，没有读提供者内部计数）。两者相等，记为零合并：参加者 `session` 标 `singleton`，按提供者规格 §4.5 单独成组。本成员不声称 G2-P 在这条路径上生效。这是 Windows 上 Node 26.12 的一次观察。
+7. `exclusion()` 构造的 `not-committed` 排除证据（`record`、`digest`）是死数据：`unfound()` 不把它交给调用方。要么删除，要么等辨认参加操作的入口补上后启用，见[明确缺项](#明确缺项)。
 
 
 ### 两个「事务端口」
@@ -589,7 +591,7 @@ releasedScopes(principal, scope = system, after, limit):
 - 迁移片段分两类。权威表的迁移只增列、不改旧列含义、不改位置与身份；派生表的迁移可以整体重建。两类都随提供者的原子迁移执行：DDL、数据与迁移标记同事务，失败回到迁移前（[XP-5](#xp-table)）。
 - 归约版本升级是一次 `sl_state` 全量重建（R9），不是迁移。它在格式迁移之后、开放写准入之前完成，或在首次治理读时按会话惰性完成。两种方式都是策略配置。
 - 本成员没有 Cordis 入口，也没有关闭函数：`createSessionStorage` 返回的端口只持有应用交入的存储、目录、访问裁定与游标签名，不持有连接。应用在装配时把 `sessionStorageMaterials()` 并入材料目录并声明组合，端口在提供者就绪后才可用。已提交的条目不因端口被丢弃而变得可撤回。
-- 提供者关闭期间，新的 `commit` 得到 `closing` 映射的 `unavailable`；在途的语句跑完。读入口随提供者关闭而不可用。
+- 提供者关闭期间，写路径可能得到 `commit-unknown` 或 `unavailable`，两者都不当作未提交：`commit` 先对代次 1 调 `query`，关闭后 `query` 答 `unknown`（诊断 `closing`），写路径直接返回 `commit-unknown`；直接走到 `commit` 的路径得到 `closing` 映射的 `unavailable`。真实提供者下实测为前者。在途的语句跑完。读入口随提供者关闭而不可用。
 
 ### SQLite 与 PostgreSQL
 
@@ -624,7 +626,7 @@ releasedScopes(principal, scope = system, after, limit):
 
 ### 自有义务的验证
 
-每条义务的验证方法、前提与未覆盖写在 [docs/verification-obligations.md](docs/verification-obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。
+每条义务的验证方法、前提与未覆盖写在 [docs/verification-obligations.md](docs/verification-obligations.md)。下表只给对应关系。全部义务都是后继实现必须通过的可观察结果，不是已执行的测试。例外是真实 sqlite-provider 上的 `tests/real-provider.spec.ts`，它已执行的范围见[已知限制](#已知限制)第 2 条，只覆盖下表「尝试代次与 R7」与「失败分类表」两行里的存储应答部分（未提交身份、关闭、两种限额）。
 
 | 义务 | 验证 |
 | --- | --- |
