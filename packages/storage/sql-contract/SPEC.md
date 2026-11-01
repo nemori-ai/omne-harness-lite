@@ -227,7 +227,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 
 1. `closing`：提供者关闭已经开始。
 2. `field_missing`：必需字段缺失，或违反 §3.1 的字段规则。
-3. `participant_empty`：参加者列表为空，或含空字符串。
+3. `participant_empty`：参加者列表为空。含空字符串的名字违反 §3.1 的名字非空规则，在第 2 步得到 `field_missing`。
 4. `participant_repeated`：同一名字出现两次或更多。
 5. `material_unavailable`：某参加者不在目录中。
 6. `combination_invalid`：组合不满足 §4.3。
@@ -266,6 +266,7 @@ JSON 值只有 `null`、`true`、`false`、有限数、字符串、数组和普�
 1. `closing`：提供者关闭已经开始。
 2. `cancelled`：调用时 `signal` 已经中止。
 3. `field_missing`：必需字段缺失，或违反 §3.1 的字段规则。命令数组为空也算缺失。
+   请求或命令在 `facts` 之外含非 JSON 值（例如值为 `undefined` 的多余字段、`bigint`、循环引用）时，`commit` 不预留、不抛出，按 §2.5 第 1 条返回 `unknown`，诊断为 `request_not_json`。
 4. `unsupported_protocol`：`protocolVersion` 不是 `'2'`。
 5. `participant_repeated`：两条命令的参加者相同。
 6. `facts_not_json`：某条命令的 `facts` 含非 JSON 值。
