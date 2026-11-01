@@ -86,7 +86,7 @@ SessionService 是内部工作治理面，不是网络 SDK。外部调用者经�
 
 - 成功业务访问报告：服务端接入在业务成功后报告（[J53](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6357861225)），形状归 identity ID-11，尚未定义。定义之前不报告，会话操作不刷新空闲计时。
 - `startRun` 时再核登录是否仍有效：需要 identity 按 `login` 读有效性，该读口尚未定义。在它就绪之前，登录在受理之后被撤销，已受理的输入仍可能开 Run。
-- Session 对被拒的受理是否在原操作身份下留痕：Session SPEC 变更操作次序写「任一步失败不提交」，命令表写「拒绝时只有 SE12」。前者成立时 `query-send-input` 的 `succeeded` 只表示受理已提交；两处由 Session 拥有者统一。
+- 被拒受理的留痕已统一（[Session 契约](../../../packages/session/session-contract/SPEC.md)的「SE12 的适用范围」）：`routeInput` 的拒绝不提交、不留痕；SE12 只记准入者拦截，在原受理标识下提交。`query-send-input` 的 `succeeded` 只表示受理已提交。
 - 观察推送与业务控制分开，观察取消不是业务控制。观察脱离与重附着由 [#746 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/746) 给出归属，见下节。重连不得靠目录为空重发原 Model 或 Tool 调用。
 - 宿主身份与生命周期、模型准备与选择的分责，以及旧实例与数据的处置，见下文[宿主身份、生命周期与旧数据](#宿主身份生命周期与旧数据)。
 

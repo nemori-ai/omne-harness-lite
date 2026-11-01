@@ -32,6 +32,9 @@
     "model-profiles",
     "model-request-preparation",
     "model-credential",
+    "model-records",
+    "tool-records",
+    "tool-bindings",
     "tool-runtime",
     "tool-executor",
     "tool-host",
@@ -40,7 +43,8 @@
     "tool-environments",
     "execution-environment",
     "execution-files",
-    "execution-host-files",
+    "execution-command",
+    "execution-host",
     "request-context",
     "agent-context",
     "agent-account-outlet",
@@ -65,17 +69,33 @@
       "names": [
         "storage",
         "tenantDomainLookup",
-        "sessionPrincipalBindings"
+        "sessionPrincipalBindings",
+        "sessionDelegatedTransactions"
       ]
     },
     {
       "row": "session-provider",
       "names": [
-        "sessionWorkPrincipals"
+        "sessionWorkPrincipals",
+        "sessionDelegatedTransactions"
       ]
     },
     {
       "row": "agent-journal",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "model-records",
+      "names": [
+        "storage",
+        "tenantDomainLookup"
+      ]
+    },
+    {
+      "row": "tool-records",
       "names": [
         "storage",
         "tenantDomainLookup"
