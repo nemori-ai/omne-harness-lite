@@ -3,7 +3,8 @@
 // with its non-durable registry and the dynamics suite skeleton. The suites do not depend on a test
 // framework and do not need a Cordis runtime: each takes a fixture that gives the service under
 // test and its control handles. The service doubles declare `durability: 'none'`; they prove
-// nothing about the real services and must not be assembled into production.
+// nothing about the real services and must not be assembled into production. The holder-reference
+// reader double and the resident-key round-trip suite are re-exported at the end of this file.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { isDeepStrictEqual } from 'node:util'
@@ -41,6 +42,7 @@ import {
   NotApplicable,
   resendRecalls,
   testingTenant,
+  testingWorkspace,
   type AnswerModel,
   type ConformanceCase,
 } from '@omne-harness/tool-contract/testing'
@@ -54,6 +56,7 @@ import type {
   ToolRegistrationInput,
   VerifiedAuthority,
 } from './cordis.ts'
+import { residentKeyCases, type ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
 
 /** Observe the settings reader behind the public loaderFor/load seam, not a copied config value. */
 export interface ToolLoaderSourceFixture<P, E, B extends ContentBlock> {
@@ -1487,4 +1490,22 @@ export function toolResidencyReaderConformance(): readonly ConformanceCase<ToolR
       },
     },
   ]
+}
+
+export {
+  createMemoryToolResidencyReader,
+  type MemoryToolResidencyReader,
+  type ResidentReferencesRead,
+} from './testing-residency-memory.ts'
+export type { ResidentKeyRoundTripFixture } from './testing-resident-key.ts'
+
+/** The round-trip suite of the resident key (XC-RESKEY); see testing-resident-key.ts. */
+export function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[] {
+  return residentKeyCases({
+    tenant: testingTenant,
+    workspace: testingWorkspace,
+    missing: handle => {
+      throw new NotApplicable(handle)
+    },
+  })
 }

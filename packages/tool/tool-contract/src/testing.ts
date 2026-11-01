@@ -106,7 +106,7 @@ export {
   type ToolResourceResponsesFixture,
 } from './testing-resource-responses.ts'
 
-export { testingTenant, testingWorkspace } from './testing-values.ts'
+export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts'
 
 export {
   toolEnvironmentAllocationConformance,
