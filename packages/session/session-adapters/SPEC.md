@@ -53,7 +53,7 @@
 | [Journal 提供者](#agent-journal-提供者与非耐久替身) | Agent Journal 提供者 | 入站 | `agentJournal`；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 不调用 `session`；`inject` `sessionAccessCheck`、`storage` 与受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | AgentJournal、AgentJournalEntries、AgentMaterials | 非耐久替身 `createMemorySessionJournal`（`./testing`）已实现；生产插件未交付 |
 | [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件未交付 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
-| [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | 身份来源与授权域的公开读取 | 待 [ID-11](../../identity/identity/SPEC.md#id-11-公开形状与机制细化) 与 [AU-09](../../identity/authorization/SPEC.md#au-09-阶段范围公开形状与维护)：身份来源与授权域的公开读取由这两节定义 |
+| [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | identity 的 `PrincipalVerifier.verify`（服务键 `principalVerifier`） | 生产插件 `SessionIdentityBridgeProvider` 已实现（`src/cordis/identity-bridge.ts`），在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。装配用进程内核验器时只在同一进程内成立 |
 | [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | `sessionAdoptionSource`、`sessionProductionSource`、`sessionCustodySource` 三个窄来源端口 | 常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-11](#ad-11) | 空闲输入 | 构造依赖 | `sessionIdleInput` | `maintainer` | 子会话读取；`calls.inspect`、`queries.lookup` | 可登记 |
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
@@ -396,6 +396,11 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 - 动作：本插件核实主体的可信来源，生成绑定租户、会话、操作与命令的 `GuardCommand`。材料不能用于另一命令，不序列化主体的秘密。
 - 核验：本插件以 identity 的 `PrincipalVerifier.verify` 核实主体（[identity 的签发与核验](../../identity/identity/SPEC.md#签发与核验)）。`verified` 时生成材料；`rejected` 时返回 `denied`，不生成材料，Session 的变更不提交；`unavailable` 时按下一条处置。核验只证明来源，不证明当前成员资格或动作获准，后者归访问检查。
 - 失败：身份来源不可用时返回 `unavailable`，`owner` 为身份来源。Session 一侧只有变更操作因此返回 `unavailable` 或 `denied`。
+- 注入与缺席：本插件 `inject` identity 的 `principalVerifier` 服务（必需依赖）。该服务缺席时插件停在 `PENDING`，不提供 `sessionIdentity`，Session 的变更操作按[端口服务键](../session-cordis-contract/docs/cordis.md#端口服务键)返回 `unavailable`，读取照常。核验器服务卸载时本插件随之卸载；新核验器到位后插件体重新运行。插件停止后仍被持有的旧句柄不交出材料，返回 `unavailable`。
+- 租户绑定：`GuardCommand` 材料只含完整 `SessionCommand` 的摘要，不含主体的任何成员，也不含命令正文。命令已含租户、会话与操作身份，所以摘要同时绑定这四项与命令种类。同一命令经另一个已核验主体（重试、恢复）得到同一材料。核验之前先核对命令里的租户与会话和本次 `Access` 一致，不一致返回 `denied`。核验为 `verified` 的代租户行事主体，其租户与本次 `Access` 的租户不一致时返回 `denied`，不生成材料。系统主体不绑租户，其操作资格归访问检查。
+- 核验结果的容错：核验器抛错、答复形状不属于 `verified`、`rejected`、`unavailable`，或 `verified` 返回的主体不是传入的那个对象，一律返回 `unavailable`，不当作 `verified`，也不当作 `rejected`。`unavailable` 的 `owner` 为 `identity`。
+- 实现现状：`src/cordis/identity-bridge.ts` 的 `SessionIdentityBridgeProvider extends SessionIdentityBridgeService`。验证见 `tests/identity-bridge.spec.ts`：真实 Cordis 4.0.4 的装载、停止、缺席与换核验器，`rejected`、伪造主体、另一租户主体与不可答复的核验源。
+- 已知限制：装配用 identity 的 `inProcessPrincipalAuthority()` 的核验器时，核验只在同一进程、同一份已加载模块内成立（[签发与核验](../../identity/identity/SPEC.md#签发与核验)）。跨进程来源验证归后续核验提供者，不由本插件承诺。本插件不读授权域，也不核当前成员资格。
 
 <a id="ad-10"></a>
 

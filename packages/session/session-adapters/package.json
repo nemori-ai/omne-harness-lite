@@ -45,7 +45,9 @@
     "@omne-harness/operation-result": "workspace:*",
     "@omne-harness/message": "workspace:*",
     "@omne-harness/json-text": "workspace:*",
-    "@omne-harness/exchange-refs": "workspace:*"
+    "@omne-harness/exchange-refs": "workspace:*",
+    "@omne-harness/identity": "workspace:*",
+    "@omne-harness/session-cordis-contract": "workspace:*"
   },
   "devDependencies": {
     "@omne-harness/runtime-context-contract": "workspace:*",
