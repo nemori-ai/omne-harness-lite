@@ -668,12 +668,12 @@ AgentJournal、AgentJournalEntries 与 AgentMaterials 操作共用 Session 会�
 | --- | --- |
 | `readModelSelection` | 读同一会话日志：取最近一条 `session.model-selected` 条目里的模型声明；没有时取创建快照的 `initialModelSelection`。两者都没有返回 `not-ready`。结果的 `revision` 是当前快照修订，`source` 是保存该选择的那次提交的原回执证据；找不到那次提交的原回执时返回 `unavailable`。每次读取都经访问裁定 |
 | `queryControlOperation` | 只认控制身份。命中「只保存答案」的控制操作（Run 已结束或调用不存在）与带业务批次的 `cancelRun`、`stopCall` 时返回已提交的控制回执，带批次的回执按原结果还原；身份属于普通批次返回 `conflict`；没有该身份返回 `unknown`。`queryOperation` 对控制身份同样返回 `conflict`（SL07） |
-| `commitEntries` | 恒返回 `unavailable`，见下文[已知限制](#已知限制) |
+| `commitEntries` | 不经访问裁定。调用 session-contract 的 `projectSessionEntries`，`saved` 取快照的 `entriesProgress`。合法时在一个同步片段里写入后果行、进度行、快照（含已存进度）、模型视图与操作记录，`readWork` 随后读回已存进度。规则与失败类别见 [entries 通道的解释提交](../session-contract/docs/same-log-pure.md#entries-通道的解释提交) |
 
 控制命令 `cancelRun` 与 `stopCall` 在替身里的提交按访问裁定之后、查会话之前的次序处理：`stopCall` 的生产者为 Tool 时返回 `unsupported`，答复不透露会话里有什么。只保存答案的控制操作在替身里只写一行答案，不产生批次，不改变修订；同一身份、同一命令摘要重放返回原答案，摘要不同返回 `conflict`。替身没有保存调用终态，所以已绑定的调用查找结果恒为没有终态，`stopCall` 总是得到 `requested`。
 
 ### 已知限制
 
-1. `commitEntries` 目前返回 `unavailable`（`owner` 为替身所有者），因为 session-contract 还没有 entries 解释的纯范围检查，替身无法判断范围。它拒绝，不对未检查的范围返回成功。session-storage-sql 对同一操作做同样的拒绝。
+1. 替身的 `commitEntries` 只在进程内满足同批原子性与同一通道的互斥：读会话、判定与写入在一个同步片段里完成。它不证明事务、耐久或跨进程互斥。session-storage-sql 的同事务写入另有验证。
 2. 上述三个操作与两项控制命令是新行为，没有先红后绿记录。验证以负控用例代替：跨租户、未授权、身份种类错配和重放各有反例用例。
 3. 替身是非耐久的内存实现，不证明耐久、进程重启或跨进程同提交；它不覆盖 sqlite-provider 或任何真实后端。
