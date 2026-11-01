@@ -14,6 +14,8 @@
 - [local-model.spec.ts](local-model.spec.ts)：慢层，经本地 HTTPS 服务驱动两个家族的调用（含推理状态），核对凭据、终止、收场与账目
 - [continuation.spec.ts](continuation.spec.ts)：慢层，调用 X 收场并清理后，经装配的准备租约计量延续它的请求：锚点、余量、方法名与跨租户
 - [send-stage.spec.ts](send-stage.spec.ts)：发送阶段插件在真实 Cordis 4.0.4 下的装载、卸载、凭据槽与退出时的发送；慢层用例把四份回放件经插件回放并与装配路径对比
+- [runtime-push.spec.ts](runtime-push.spec.ts)：运行门面的结果推送、saved 之后才 ACK、重投与认回、清理、晚到账目及其上界、接收方登记与交给后继
+- [runtime-cancel.spec.ts](runtime-cancel.spec.ts)：慢层，`calls.cancel` 在本地 HTTPS 流进行中中断供应商流：终止在传输的物理停止之后，已交付内容保留、费用不写零；同租户另一调用照常完成；取消与自然完成同时到达时终止唯一
 - [recording-replay.spec.ts](recording-replay.spec.ts)：慢层，回放门禁：四份真实回放件经装配路径回放，核对收场、终止、推理状态、回执格式、请求摘要、账目与费用来源；另回放两个工具调用用例的合成回放件，并核对录制器在其上的写出与拒绝
 - [recording-c9.spec.ts](recording-c9.spec.ts)：慢层，计量对照证据：延续轮的计量与真实输入合计之差、两轮应付金额的精确累计；设 `OMNE_EVIDENCE_OUT` 时写 JSON
 - [recording-c1.spec.ts](recording-c1.spec.ts)：慢层，传输义务证据：四份回放件经装配路径的事实序列、终止与账目，以及真实传输上的六条传输义务；设 `OMNE_EVIDENCE_OUT` 时写脱敏 JSON
