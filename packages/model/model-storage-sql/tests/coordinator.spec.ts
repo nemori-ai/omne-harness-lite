@@ -6,7 +6,6 @@ import { DatabaseSync } from 'node:sqlite'
 import { describe, expect, it } from 'vitest'
 import { tenantCodec, tenantEquals, type TenantId } from '@omne-harness/legal-identity'
 import {
-  decodeCredentialId,
   decodeDispatchId,
   decodeModelCallId,
   decodeModelInstanceId,
@@ -18,11 +17,12 @@ import {
   type ModelCallId,
   type ModelOperationId,
 } from '@omne-harness/model-contract'
-import type {
-  ExecutionRef,
-  ModelCommands,
-  ModelConsumerOwnerDeclaration,
-  SendDemand,
+import {
+  decodeCredentialId,
+  type ExecutionRef,
+  type ModelCommands,
+  type ModelConsumerOwnerDeclaration,
+  type SendDemand,
 } from '@omne-harness/model-contract/provider'
 import type { SendCoordinator, SendStart } from '@omne-harness/model'
 import {
@@ -211,7 +211,7 @@ const TENANT = tenantOf('a')
 const callId = (name: string): ModelCallId => unbox(decodeModelCallId(`mcall_${name}`))
 const op = (name: string): ModelOperationId => unbox(decodeModelOperationId(`mop_${name}`))
 const instanceId = unbox(decodeModelInstanceId('minst_one'))
-const dispatchId = unbox(decodeDispatchId('dispatch_one'))
+const dispatchId = unbox(decodeDispatchId('mdisp_one'))
 const factoryId = unbox(decodeCredentialId('official-query'))
 const adoption: Adoption = { owner: 'test-owner', name: 'test', revision: '1', digest: '0'.repeat(64) }
 const owner: ModelConsumerOwnerDeclaration = {
