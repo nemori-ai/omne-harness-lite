@@ -1014,6 +1014,9 @@ importers:
 
   packages/identity/identity:
     dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
       '@omne-harness/legal-identity':
         specifier: workspace:*
         version: link:../../common/legal-identity
