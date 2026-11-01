@@ -65,6 +65,7 @@ export function checkpoint(): AgentCheckpoint {
     completedPassages: [],
     priorConditions: null,
     currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' },
   }
 }
 export type SceneQualification = {

@@ -20,6 +20,8 @@ import {
   decodeInputBatchId,
   decodeInputId,
   decodePassageId,
+  decodeReplyAdmissionPageCursor,
+  decodeReplyAdmissionSequence,
   decodeStepId,
   judgeAccess,
   judgeAdoption,
@@ -46,6 +48,7 @@ const DECODERS: readonly (readonly [string, Decode])[] = [
   ['InputId', decodeInputId],
   ['InputBatchId', decodeInputBatchId],
   ['ConsumptionId', decodeConsumptionId],
+  ['ReplyAdmissionPageCursor', decodeReplyAdmissionPageCursor],
 ]
 
 describe('the identity decoders', () => {
@@ -98,6 +101,39 @@ describe('the identity decoders', () => {
       expect(decode(`${' '.repeat(AGENT_IDENTITY_MAX_LENGTH)}x`)).toEqual({
         failure: { field: name, reason: 'length' },
       })
+    })
+  })
+})
+
+describe('decodeReplyAdmissionSequence', () => {
+  const field = 'ReplyAdmissionSequence'
+
+  it.each([['0'], ['1'], ['99'], ['100'], ['9007199254740993'], ['1'.repeat(256)]])(
+    'gives the canonical decimal %s back as the brand',
+    text => {
+      expect(decodeReplyAdmissionSequence(text)).toEqual({ ok: text })
+    },
+  )
+
+  it.each([
+    ['a leading zero', '01'],
+    ['two zeros', '00'],
+    ['a minus sign', '-1'],
+    ['a plus sign', '+1'],
+    ['a non-digit', '1a'],
+    ['a decimal point', '1.0'],
+    ['an exponent', '1e3'],
+    ['a space', ' 1'],
+    ['a full-width digit', '１'],
+  ])('refuses %s', (_label, text) => {
+    expect(decodeReplyAdmissionSequence(text)).toEqual({ failure: { field, reason: 'character' } })
+  })
+
+  it('refuses the empty string, a number and a text longer than the limit', () => {
+    expect(decodeReplyAdmissionSequence('')).toEqual({ failure: { field, reason: 'empty' } })
+    expect(decodeReplyAdmissionSequence(1)).toEqual({ failure: { field, reason: 'type' } })
+    expect(decodeReplyAdmissionSequence('1'.repeat(AGENT_IDENTITY_MAX_LENGTH + 1))).toEqual({
+      failure: { field, reason: 'length' },
     })
   })
 })

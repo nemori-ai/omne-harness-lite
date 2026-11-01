@@ -37,6 +37,8 @@ import type {
   OriginalInputAcceptance,
   PendingCall,
   ReplyAdmissionPage,
+  ReplyAdmissionPageCursor,
+  ReplyAdmissionSequence,
   ResultResponsibility,
   TerminalObservation,
   Adoption,
@@ -1357,6 +1359,13 @@ export function createJournal<P>(
         lastAdmission: last,
         consecutiveDenials: String(consecutive),
         totalDenials: String(total),
+        prefix: {
+          sequence: String(execution.admissions.length) as ReplyAdmissionSequence,
+          basis: journalEvidence(
+            `${cell.namespace}/${execution.id}/reply-admission-prefix/${execution.admissions.length}`,
+            execution.admissions.length,
+          ),
+        },
       },
       executionAttachment: activeAttachment(execution)?.authority ?? null,
       unresolved,
@@ -3609,12 +3618,26 @@ export function createJournal<P>(
         .slice(0, input.limit)
       const last = items.at(-1)?.sequence ?? after
       const complete = last === through
+      const prefix = (n: number) => ({
+        sequence: String(n) as ReplyAdmissionSequence,
+        basis: journalEvidence(`${cell.namespace}/${execution.id}/reply-admission-prefix/${n}`, n),
+      })
       return succeed({
         kind: 'page',
         through: copy(input.through),
-        items: items.map(item => ({ sequence: String(item.sequence), fact: copy(item.fact) })),
-        next: complete ? null : String(last),
-        complete,
+        start: prefix(after),
+        end: prefix(last),
+        items: items.map(item => ({
+          sequence: String(item.sequence) as ReplyAdmissionSequence,
+          fact: copy(item.fact),
+          publication: journalEvidence(
+            `${cell.namespace}/${execution.id}/publication/${item.sequence}`,
+            item.sequence,
+          ),
+        })),
+        tail: complete
+          ? { kind: 'complete' }
+          : { kind: 'more', next: String(last) as ReplyAdmissionPageCursor },
       })
     },
 

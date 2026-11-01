@@ -69,6 +69,7 @@ import type {
   StepId,
   Waiting,
   ReceivedEntry,
+  ReplyAdmissionPageCursor,
 } from '@omne-harness/agent-contract'
 import type * as M from '@omne-harness/model-contract'
 import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
@@ -540,12 +541,13 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
       watermark: read.inputWatermark,
     })
     if ('failure' in inputs) return inputs
-    let after: string | null = null
+    let after: ReplyAdmissionPageCursor | null = null
     const cursors = new Set<string>()
     for (;;) {
       const admissions = await ports.journal.readReplyAdmissions({
         ...access,
         execution,
+        from: { kind: 'origin' },
         through: read.replyAdmissions.through,
         after,
         limit: 100,
@@ -557,9 +559,9 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
           owner: 'agentJournal',
           diagnostic: 'reply admission projection has a gap',
         })
-      if (admissions.ok.complete) break
-      const next = admissions.ok.next
-      if (next === null || cursors.has(next))
+      if (admissions.ok.tail.kind === 'complete') break
+      const next = admissions.ok.tail.next
+      if (cursors.has(next))
         return fail({
           kind: 'unavailable',
           owner: 'agentJournal',
@@ -1602,7 +1604,10 @@ export function createExecutionCoordinator<P>(entry: ExecutionEntry<P>): Executi
     return failure.kind === 'unavailable' || failure.kind === 'commit-unknown'
       ? waitFor(node, converted, async () => {
           const pending = required(required(iteration, 'iteration').pending, 'pending call')
-          const read = await ports.models.calls.inspect({ ...access, reference: pending.reference })
+          const read = await ports.models.calls.inspect({
+            ...access,
+            reference: pending.reference,
+          })
           return 'failure' in read ? fail(modelFailure(node, read.failure)) : read
         })
       : fail(converted)

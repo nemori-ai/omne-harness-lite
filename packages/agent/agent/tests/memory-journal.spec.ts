@@ -1894,12 +1894,13 @@ describe('fact 13: reply admission projection', () => {
       await journal.readReplyAdmissions({
         ...access,
         execution: opened.execution,
+        from: { kind: 'origin' },
         through: projection.through,
         after: null,
         limit: 2,
       }),
     )
-    expect(page).toMatchObject({ kind: 'page', next: '2', complete: false })
+    expect(page).toMatchObject({ kind: 'page', end: { sequence: '2' }, tail: { kind: 'more' } })
     if (page.kind !== 'page') throw new Error('expected a page')
     expect(page.items.map(item => [item.sequence, item.fact.call])).toEqual([
       ['1', modelCall('c1')],

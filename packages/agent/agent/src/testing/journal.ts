@@ -59,6 +59,8 @@ import type {
   ModelReplyAdmission,
   PendingCall,
   ReplyAdmissionPage,
+  ReplyAdmissionPageCursor,
+  ReplyAdmissionSequence,
   ResultResponsibility,
   SettlementRequest,
   SettlementResult,
@@ -747,7 +749,10 @@ function handoffsOf(
   execution: Execution,
   custody: (handoff: HandoffReference) => ExecutionHandoff['custody'],
 ): readonly ExecutionHandoff[] {
-  return execution.handoffs.map(record => ({ ...copy(record), custody: custody(record.handoff) }))
+  return execution.handoffs.map(record => ({
+    ...copy(record),
+    custody: custody(record.handoff),
+  }))
 }
 
 /** The original acceptance that `open` or a new-input `submit` carries, checked against the method. */
@@ -1282,6 +1287,13 @@ export function createMemoryAgentJournal<P>(
         lastAdmission: last,
         consecutiveDenials: String(consecutive),
         totalDenials: String(total),
+        prefix: {
+          sequence: execution.admissions.length.toString() as ReplyAdmissionSequence,
+          basis: journalEvidence(
+            `${execution.id}/reply-admission-prefix/${execution.admissions.length}`,
+            execution.admissions.length,
+          ),
+        },
       },
       executionAttachment: activeAttachment(execution)?.authority ?? null,
       unresolved,
@@ -3589,12 +3601,26 @@ export function createMemoryAgentJournal<P>(
         .slice(0, input.limit)
       const last = items.at(-1)?.sequence ?? after
       const complete = last === through
+      const prefix = (n: number) => ({
+        sequence: String(n) as ReplyAdmissionSequence,
+        basis: journalEvidence(`${execution.id}/reply-admission-prefix/${n}`, n),
+      })
       return succeed({
         kind: 'page',
         through: copy(input.through),
-        items: items.map(item => ({ sequence: String(item.sequence), fact: copy(item.fact) })),
-        next: complete ? null : String(last),
-        complete,
+        start: prefix(after),
+        end: prefix(last),
+        items: items.map(item => ({
+          sequence: String(item.sequence) as ReplyAdmissionSequence,
+          fact: copy(item.fact),
+          publication: journalEvidence(
+            `${execution.id}/publication/${item.sequence}`,
+            item.sequence,
+          ),
+        })),
+        tail: complete
+          ? { kind: 'complete' }
+          : { kind: 'more', next: String(last) as ReplyAdmissionPageCursor },
       })
     },
 

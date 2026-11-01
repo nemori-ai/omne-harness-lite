@@ -67,6 +67,7 @@ function initial(
     completedPassages: [],
     priorConditions: null,
     currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' },
   })
 }
 
