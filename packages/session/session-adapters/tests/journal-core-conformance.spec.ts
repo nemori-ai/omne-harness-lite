@@ -5,10 +5,12 @@
 // and each first submit, so that an ordinary end is not blocked on the Session side; that record
 // is a Session write after the Journal answered, not a change of the Journal's answer.
 import { describe, it } from 'vitest'
+import { tenantCodec } from '@omne-harness/legal-identity'
 import {
   agentJournalCoreConformance,
   testCancellationPolicyInstallation,
   type AgentJournalCoreFixture,
+  type AgentJournalReplyAdmissionControls,
   type TestHostRecord,
 } from '@omne-harness/agent-contract/testing'
 import { memoryOtherAccess, operationId } from '@omne-harness/session-contract/testing'
@@ -18,17 +20,23 @@ import { toolCall } from './fixtures/tool-call.ts'
 
 const SETTLEMENT_QUALIFICATIONS: readonly string[] = ['settle', 'migrate-cancellation', 'reconcile']
 
+/** The read actions the scene's reading flag governs (Agent SPEC D5 第 6 节). */
+const READS: readonly string[] = ['load', 'readReplyAdmissions', 'query']
+
 const fixture: AgentJournalCoreFixture<string> = {
   async open(name, options = {}) {
     const hostRecords = new Map<string, TestHostRecord>()
     const installed = options.cancellationPolicy !== 'absent'
     // The settlement qualifications the caller holds; every other action stays allowed.
     const held = new Set<string>(SETTLEMENT_QUALIFICATIONS)
+    const reading = { allowed: true }
     const s = await scene(
       `core-${name}`,
       undefined,
       {
-        agent: action => !SETTLEMENT_QUALIFICATIONS.includes(action) || held.has(action),
+        agent: action =>
+          (!SETTLEMENT_QUALIFICATIONS.includes(action) || held.has(action)) &&
+          (!READS.includes(action) || reading.allowed),
         session: true,
       },
       { cancellationPolicy: installed ? 'installed' : 'absent', hostRecords },
@@ -50,7 +58,43 @@ const fixture: AgentJournalCoreFixture<string> = {
         return answered
       },
     }
+    const admissions = s.view.controls.replyAdmissions
+    const replyAdmissions: AgentJournalReplyAdmissionControls<string> = {
+      seed: async count => {
+        if (!admissions.seed(s.execution, count, s.access.tenant))
+          throw new Error('the facts could not be seeded')
+      },
+      damage: async damage => {
+        if (!admissions.damage(s.execution, damage, s.access.tenant))
+          throw new Error(`the damage ${JSON.stringify(damage)} names nothing`)
+      },
+      limitPages: limits => admissions.limitPages(limits),
+      statistics: () => admissions.statistics(),
+      changeRule: async (rule, conversion) => {
+        if (!admissions.changeRule(s.execution, rule, conversion, s.access.tenant))
+          throw new Error('the rule could not be changed')
+      },
+      readable: allowed => {
+        reading.allowed = allowed
+      },
+      // Another Session scene of the same tenant: its own execution and its own Journal.
+      sibling: async label => fixture.open(`${name}-${label}`.slice(0, 48)),
+      // The prefix of this execution as the same Journal would name it for another tenant: the
+      // tenant part of the basis is the other tenant's. A basis of another tenant is denied
+      // whether or not that tenant's prefix exists.
+      foreignPrefix: async () => {
+        const prefix = ok(await s.view.journal.load({ ...s.access, execution: s.execution }))
+          .replyAdmissions.prefix
+        const marker = prefix.basis.record.lastIndexOf('/reply-admission-prefix/')
+        const parts = JSON.parse(prefix.basis.record.slice(0, marker)) as string[]
+        const other = tenantCodec.encode(memoryOtherAccess('intruder', `core-${name}`).tenant)
+        if (!other.ok) throw new Error('the other tenant has no text')
+        const record = `${JSON.stringify([other.value, ...parts.slice(1)])}${prefix.basis.record.slice(marker)}`
+        return { ...prefix, basis: { ...prefix.basis, record } }
+      },
+    }
     return {
+      replyAdmissions,
       journal,
       access: s.access,
       otherAccess: memoryOtherAccess('intruder', `core-${name}`),
