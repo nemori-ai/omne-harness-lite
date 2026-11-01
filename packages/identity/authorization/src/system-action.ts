@@ -126,6 +126,8 @@ export function grantSnapshot(grant: MaintenanceGrant): MaintenanceGrant {
   })
 }
 
+const OUTSIDE_VERIFIER_CONTRACT = 'the principal verifier answered outside its contract'
+
 function initialBasis(input: SystemActionRequest): SystemActionBasis {
   const request = requestSnapshot(input)
   return Object.freeze({
@@ -192,9 +194,15 @@ export function matrixStep(request: SystemActionRequest): MatrixStep {
   return bound ? { kind: 'row', row } : { kind: 'denied', reason: 'binding-mismatch' }
 }
 
-/** A record whose `revoked` is not a boolean cannot be read as a trusted fact. */
-function recordReadable(grant: MaintenanceGrant): boolean {
-  return typeof grant.revoked === 'boolean'
+/** A record whose members are not in the agreed shape (`revoked` boolean, `purposes` a list of text) cannot be read as a trusted fact. */
+function recordReadable(grant: unknown): grant is MaintenanceGrant {
+  if (typeof grant !== 'object' || grant === null) return false
+  const { revoked, purposes } = grant as Partial<Record<keyof MaintenanceGrant, unknown>>
+  return (
+    typeof revoked === 'boolean' &&
+    Array.isArray(purposes) &&
+    purposes.every(purpose => typeof purpose === 'string')
+  )
 }
 
 /** Whether step 3 reaches the end time: a record of this purpose that is not revoked and has one. */
@@ -203,6 +211,7 @@ export function expiryDecides(
   grant: MaintenanceGrantReading | null,
 ): boolean {
   return (
+    typeof grant === 'object' &&
     grant?.kind === 'found' &&
     recordReadable(grant.grant) &&
     grant.grant.purposes.includes(row.purpose) &&
@@ -210,6 +219,8 @@ export function expiryDecides(
     grant.grant.expiresAt !== undefined
   )
 }
+
+const OUTSIDE_GRANT_CONTRACT = 'the maintenance grant source answered outside its contract'
 
 /** Step 3: the grant record holds the purpose, is not revoked, and has not reached its end time. */
 function grantStep(
@@ -219,12 +230,15 @@ function grantStep(
 ): SystemActionDecision | SystemActionBasis {
   const reading = facts.grant
   if (reading === null) return unavailable('the maintenance grant was not read')
+  // Closed: any answer that is not `found`, `none` or `unavailable` is not a trusted fact.
+  if (typeof reading !== 'object') return unavailable(OUTSIDE_GRANT_CONTRACT)
   if (reading.kind === 'unavailable') return unavailable(reading.diagnostic)
   if (reading.kind === 'none') return denied('grant-missing', basis)
+  if (reading.kind !== 'found') return unavailable(OUTSIDE_GRANT_CONTRACT)
+  if (!recordReadable(reading.grant))
+    return unavailable('the maintenance grant record is not in the agreed shape')
   const grant = grantSnapshot(reading.grant)
   const known = Object.freeze({ ...basis, grant })
-  if (!recordReadable(grant))
-    return unavailable('the maintenance grant record is not in the agreed shape')
   if (!grant.purposes.includes(row.purpose)) return denied('grant-missing', known)
   if (grant.revoked) return denied('grant-revoked', known)
   if (grant.expiresAt === undefined) return known
@@ -262,7 +276,15 @@ export function decideSystemAction(
 ): SystemActionDecision {
   const basis = initialBasis(request)
   const verified = facts.principal
+  // Closed: an answer outside `verified`, `rejected` and `unavailable`, or a `verified` without a
+  // principal, is not a trusted fact.
+  if (typeof verified !== 'object' || verified === null)
+    return unavailable(OUTSIDE_VERIFIER_CONTRACT)
   if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
+  if (verified.kind === 'verified') {
+    if (typeof verified.principal !== 'object' || verified.principal === null)
+      return unavailable(OUTSIDE_VERIFIER_CONTRACT)
+  } else if (verified.kind !== 'rejected') return unavailable(OUTSIDE_VERIFIER_CONTRACT)
   if (!principalTrusted(request, verified)) return denied('untrusted-principal', basis)
   const known = Object.freeze({ ...basis, principal: request.principal })
   const matrix = matrixStep(request)

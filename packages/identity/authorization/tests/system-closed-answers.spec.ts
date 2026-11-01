@@ -155,3 +155,43 @@ describe('what the decision rested on', () => {
     expect(Object.isFrozen(decision.basis.target.resource)).toBe(true)
   })
 })
+
+describe('a grant reading that the pure judgment cannot read', () => {
+  const judge = (grant: unknown) => {
+    const { scanner } = installed()
+    const facts: SystemActionFacts = {
+      principal: { kind: 'verified', principal: scanner },
+      grant: strange(grant),
+      expiry: null,
+    }
+    return decideSystemAction(requestFor(scanner, PENDING), facts)
+  }
+
+  it.each([
+    ['an unknown kind', { kind: 'bogus' }],
+    ['found without a grant', { kind: 'found' }],
+    ['a grant without purposes', { kind: 'found', grant: { ...grantOf([]), purposes: undefined } }],
+    ['a purpose that is not text', { kind: 'found', grant: grantOf([strange(1)]) }],
+    ['a grant that is null', { kind: 'found', grant: null }],
+  ])('is unavailable for %s, and does not throw', (_name, reading) => {
+    expect(judge(reading).kind).toBe('unavailable')
+  })
+})
+
+describe('an answer of the verifier outside its contract', () => {
+  it.each([
+    ['null', null],
+    ['an empty answer', {}],
+    ['an unknown kind', { kind: 'bogus' }],
+    ['verified without a principal', { kind: 'verified', principal: null }],
+  ])('is unavailable for %s, and reads no grant', async (_name, answer) => {
+    const { scanner, grants } = installed()
+    const { authorization } = installed({
+      verifier: verifierAnswering(() => Promise.resolve(strange(answer))),
+      grants: grants.source,
+    })
+    const decision = await authorization.check(requestFor(scanner, PENDING))
+    expect(decision.kind).toBe('unavailable')
+    expect(grants.calls()).toBe(0)
+  })
+})
