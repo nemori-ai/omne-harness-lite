@@ -137,7 +137,8 @@ packages/
 │   ├── request-context-contract/         Request Context 纯契约：已有组装、压缩计划纯操作、历史源与策略套件
 │   ├── request-context-cordis-contract/  Request Context 的唯一 Cordis 服务定义：已有贡献登记、策略选择与机制测试
 │   ├── request-context/                  不含 Cordis 的派生计算：索引、缓存、默认压缩与表示策略
-│   └── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
+│   ├── request-context-cordis/           Service 实现：贡献登记表、作用域遮蔽、策略装配
+│   └── agent-context/                    Context 一侧的 Agent 适配集成：请求准备、Runtime Context 读取与账目出站；只有骨架，成员名待 #859 采用确认
 ├── human-intervention/human-intervention/
 ├── execution/
 │   ├── execution-environment-contract/         Execution Environment 纯契约：已有身份、设施、八参数与六结果 schema、契约套件

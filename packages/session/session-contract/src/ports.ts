@@ -38,6 +38,7 @@ import type {
 import type {
   OperationResolution,
   PendingReason,
+  SessionFailure,
   ReleasedScope,
   Reply,
   ResidentReference,
@@ -297,6 +298,36 @@ export interface SessionTransactionPort<P> {
 }
 /** Principals the application assembly issues for commands that Session's own coordinators and schedulers submit. The identity bridge verifies them. */
 export type SessionInternalPrincipals<P> = Readonly<{ coordinator: P; maintainer: P }>
+/**
+ * The tenant ownership of an established session (D-AUTH r4 4.1). It proves only the tenant and the
+ * established identity, and does not ask `SessionAccessCheck`. An unknown session and a session of
+ * another tenant both answer `not-bound`. Only the trusted issuing closure of the assembly reads it.
+ */
+export interface SessionPrincipalBindingSource {
+  read(
+    input: Readonly<{ tenant: TenantId; session: SessionId }>,
+  ): Promise<
+    Outcome<
+      | Readonly<{ kind: 'bound'; tenant: TenantId; session: SessionId; source: DurableEvidence }>
+      | Readonly<{ kind: 'not-bound' }>,
+      Extract<SessionFailure, { kind: 'unavailable' | 'quarantined' }>
+    >
+  >
+}
+/**
+ * The per-session principal of a coordinator or maintainer (D-AUTH r4 4.1). The assembly entry
+ * issues it after it read `SessionPrincipalBindingSource`: `not-bound` answers `denied`; a `bound`
+ * answer for another tenant or session answers `quarantined`; a failed or throwing read passes its
+ * failure on (a throw as `unavailable`); a failed issue answers `unavailable` with owner `identity`.
+ * No failure issues a principal.
+ */
+export interface SessionWorkPrincipals<P> {
+  forSession(
+    input: Readonly<{ actor: 'coordinator' | 'maintainer'; tenant: TenantId; session: SessionId }>,
+  ): Promise<
+    Outcome<P, Extract<SessionFailure, { kind: 'denied' | 'unavailable' | 'quarantined' }>>
+  >
+}
 export interface SessionNotifier {
   committed(
     input: Readonly<{

@@ -1,8 +1,9 @@
 // The Cordis service definitions of the SQL storage contract (docs/cordis.md): the `storage` seam
 // that providers extend, the `storageHost` service that only the assembly entry provides, and the
-// `tenantDomains` enumeration. The root entry imports no Cordis; this entry imports no provider.
+// `tenantDomains` enumeration and the trusted `tenantDomainLookup`. The root entry imports no
+// Cordis; this entry imports no provider.
 import { Service, type Context } from '@deepseek-ai/cordis'
-import type { SqlStorage, StorageHost, TenantDomains } from './types.ts'
+import type { SqlStorage, StorageHost, TenantDomainLookup, TenantDomains } from './types.ts'
 
 /**
  * The storage capability seam. Key `storage` (IC-7). Providers extend this class and do not
@@ -58,11 +59,29 @@ export abstract class TenantDomainsService<P> extends Service implements TenantD
 }
 export const tenantDomainsKey = TenantDomainsService.provide
 
+/**
+ * Read-only lookup of a registered tenant's transaction domain in the published directory
+ * snapshot. The session storage composite provides it in the trusted storage subtree; rows that
+ * write joint commits (`agent-journal`) inject it. This is assembly scope, not access control.
+ * @owner packages/storage/sql-contract
+ */
+export abstract class TenantDomainLookupService extends Service implements TenantDomainLookup {
+  static readonly provide = 'tenantDomainLookup'
+
+  constructor(ctx: Context) {
+    super(ctx, TenantDomainLookupService.provide)
+  }
+
+  abstract readonly lookup: TenantDomainLookup['lookup']
+}
+export const tenantDomainLookupKey = TenantDomainLookupService.provide
+
 declare module '@deepseek-ai/cordis' {
   // The trusted identity adapter of an assembly narrows the principal type.
   interface Context {
     storage: StorageService
     storageHost: StorageHostService
     tenantDomains: TenantDomainsService<unknown>
+    tenantDomainLookup: TenantDomainLookupService
   }
 }

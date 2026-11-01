@@ -21,6 +21,7 @@ import type {
 import {
   NotApplicable,
   testingTenant,
+  testingTenantText,
   type ConformanceCase,
   createMemoryToolClock,
   createMemoryToolDecisionBridge,
@@ -51,6 +52,13 @@ import { storeCases } from './testing-ledger-store-cases.ts'
 import { storeFaultCases } from './testing-ledger-store-fault-cases.ts'
 import { compositionCases } from './testing-ledger-composition-cases.ts'
 import { createTestInvocationSource } from './testing-source.ts'
+import {
+  accessGuardCases,
+  tableToolAccess,
+  type TableToolAccess,
+  type ToolAccessGuardFixture,
+  type ToolAccessRule,
+} from './testing-access.ts'
 
 /** The caller supplies authorization, the trusted construction ports and the remaining ports. */
 export type TestToolDependenciesInput<P> = Readonly<{
@@ -365,4 +373,28 @@ export function toolLedgerStoreCompositionConformance(): readonly ConformanceCas
     custody: createMemoryToolOutputCustody,
     environment: createMemoryToolEnvironment,
   })
+}
+
+export type {
+  TableStartAccess,
+  TableToolAccess,
+  ToolAccessGuardFixture,
+  ToolAccessRule,
+} from './testing-access.ts'
+
+/**
+ * The table double of the Tool access guard (RD-TOOLHEAD): an explicit allow table, no default
+ * allow, a forged tenant denied. See testing-access.ts for the verdict order.
+ */
+export function createTableToolAccess<P>(
+  input: Readonly<{ principalKey(principal: P): string; allow: readonly ToolAccessRule[] }>,
+): TableToolAccess<P> {
+  return tableToolAccess(input, { tenantText: testingTenantText })
+}
+
+/** The five cases every Tool access guard must pass. */
+export function toolAccessGuardConformance<P>(): readonly ConformanceCase<
+  ToolAccessGuardFixture<P>
+>[] {
+  return accessGuardCases<P>({ missing: ledgerStoreCaseDependencies.missing })
 }

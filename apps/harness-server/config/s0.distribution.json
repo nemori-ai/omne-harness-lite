@@ -156,6 +156,21 @@
       "config": {}
     },
     {
+      "id": "model-records",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-records",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "tool-bindings",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
       "id": "tool-runtime",
       "plugin": "stubPlugin",
       "config": {}
@@ -196,7 +211,12 @@
       "config": {}
     },
     {
-      "id": "execution-host-files",
+      "id": "execution-command",
+      "plugin": "stubPlugin",
+      "config": {}
+    },
+    {
+      "id": "execution-host",
       "plugin": "stubPlugin",
       "config": {}
     },

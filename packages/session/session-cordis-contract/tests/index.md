@@ -7,6 +7,7 @@
 - [README.md](README.md)：测试范围、真实依赖与替身
 - [public-entry.spec.ts](public-entry.spec.ts)：根入口没有运行值，不导入 Cordis
 - [cordis-entry.spec.ts](cordis-entry.spec.ts)：`./cordis` 的导出、键与真实 Context 装载
+- [principals.spec.ts](principals.spec.ts)：会话归属读口与会话工作主体的替身、套件自证，以及三个受信服务的装载
 - [fixtures/](fixtures/index.md)：测试固定输入，现在为空
 
 - [access-check.spec.ts](access-check.spec.ts)：真实 Context 中访问检查定义的装卸与调用委派，不覆盖生产必需注入。

@@ -1,6 +1,6 @@
 # tool/tool-contract 长期行为规格
 
-状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。[结果推送与保存](#结果推送与保存)、P04 的[外层调用方的启动围栏](#外层调用方的启动围栏)与[授权消费点与撤权再核](#授权消费点与撤权再核)属 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`）和结果交付的纯关系判定 `judgeToolDelivery`，类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数、默认结果政策与 `toolBodyContract` 在 `./provider`。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
+状态：本页的 Tool 架构、公开契约、操作协议、对象模型与 Cordis 集成设计已接受。[公开入口的分组](#公开入口的分组)（D-03）与[公共流协议上的观察](#公共流协议上的观察)（D-10）属 [#626 revision 4](https://github.com/nemori-ai/omne-harness-lite/issues/626#issuecomment-6395260809) 的写回，其接受在该卡交付时记录。[结果推送与保存](#结果推送与保存)、P04 的[外层调用方的启动围栏](#外层调用方的启动围栏)与[授权消费点与撤权再核](#授权消费点与撤权再核)属 [#674 revision 2](https://github.com/nemori-ai/omne-harness-lite/issues/674#issuecomment-6395429174) 的写回，其接受在该卡交付时记录。当前源码实现资产正文端口和契约函数，按[公开入口的分组](#公开入口的分组)分在两个入口。根入口的运行时导出只有调用与操作引用的编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`）、结果交付的纯关系判定 `judgeToolDelivery` 和[常驻登记键与 shape 的文本编码](#常驻登记键与-shape-的文本编码)的三个纯函数，类型导出是组外成员实际导入的类型及其声明的传递闭包。其余契约函数（定义判定、状态判定、呈现、可用性判定、作者注册、等待契约、默认参数 codec、结果渲染和结果投影）、其余身份解码函数、默认结果政策与 `toolBodyContract` 在 `./provider`。服务定义、服务键和事件增补在 `@omne-harness/tool-cordis-contract`。独立执行与 runtime 在 `@omne-harness/tool`，单机宿主在 `@omne-harness/tool-host-local`，实现范围见[组的支持范围](../README.md#支持范围)。与决策方的双边交接在该功能实施时细化，其他明确未定项与运行验证义务保留。
 
 正文端口负责工具资产的读取与判定。执行、等待、结果保管和恢复由运行契约规定。
 
@@ -33,7 +33,7 @@
 
 本节依据 [CP-15c 契约稳定审计 D-03](https://github.com/nemori-ai/omne-harness-lite/issues/732)（选项 A），由 [#626](https://github.com/nemori-ai/omne-harness-lite/issues/626) 写回。源码按本节规则分组：`./provider` 子入口导出提供者协议，Tool 组成员从它导入这些名字。导入扫描表列在交付 PR 的说明中，不进入本页。`tests/public-entry.spec.ts` 核对两个入口的运行时导出与「一名一入口」。
 
-本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），以及按规则 3 进入根入口的 `judgeToolDelivery`，其余契约函数、默认结果政策与 `toolBodyContract` 在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
+本成员有四个入口。`.` 是消费者入口，`./provider` 是提供者协议入口，`./binding` 是受信绑定读取器入口，`./testing` 是一致性套件入口。根入口的运行时导出只有组外成员实际导入的调用与操作引用编解码函数、两个身份解码函数（`decodeToolCallId`、`decodeToolOperationId`），按规则 3 进入根入口的 `judgeToolDelivery`，以及常驻登记键的三个纯函数（`encodeResidentKey`、`residentToolFacts`、`projectResidentReferences`），其余契约函数、默认结果政策与 `toolBodyContract` 在 `./provider`；规则 6 规定了日后有组外消费者时怎样移回。四个入口都不导入 Cordis 或其他 Tool 成员。分组只改导出位置与导入路径，不改任何类型或函数的形状。
 
 分组规则：
 
@@ -52,6 +52,7 @@
 - [结果推送与保存](#结果推送与保存)的名字（`ToolResultReceiver`、`ToolDelivery`、`ToolDeliveryKey`、`ToolSavedReceipt`、`ToolDeliveryFailure`、`ToolDeliveryRejection` 与 `judgeToolDelivery`）当前没有组外导入者，也不被根入口声明引用。它们由 Tool 组外的消费拥有者实现或调用，不是提供者协议，按规则 3 进根入口。
 - `ToolStartFence` 是 `ToolStartAuthority` 的视图，`ToolStartAcceptance` 是启动排序域的受理记录，`ToolPermitRef` 与 `ToolPermitConsumption` 只被受理记录引用。它们的声明引用 `./provider` 的名字或只被这些名字引用，按规则 2、3 进 `./provider`。外层调用方成为组外导入者时，按规则 6 移回根入口。
 - 这些新面的一致性套件与内存替身在 `./testing`。
+- [常驻登记键与 shape 的文本编码](#常驻登记键与-shape-的文本编码)的名字（`encodeResidentKey`、`residentToolFacts`、`projectResidentReferences`、`ResidentKeyFailure`、`ResidentReferencesPage`、`ResidentHolderPage`）由 Tool 组外的 Session 证据桥与应用的常驻引用桥调用，进根入口。它们的声明引用 `ToolBindingKey`、`ToolShape`、`ToolShapeParameters` 与 `ToolAssetVersion`，这四个名字仍在 `./provider`。所以根入口在这里不满足规则 1 的自足要求。按规则 6 把这四个名字移回根入口是 `./provider` 的删除，属破坏性变化，本次可加交付不做，记为已知偏离，由契约拥有者另判。
 
 下列详细行为章节与本页操作协议共同构成本规格。
 
@@ -454,6 +455,49 @@ recover 使用 scanPending/loadRecovery 从原事实找待办，再分别接续�
 | G7 | 2026-10-21 按 [RFC-0012](../../../docs/rfcs/RFC-0012-tool-dynamics.md) 改写。`ToolBindingRegistry` 与换代协调者 `toolGenerations` 由单机宿主实现。登记键是（来源层，能力身份，资产版本）。来源层四选一：`official`、`organization(orgId)`、`tenant(TenantId)`、`workspace(WorkspaceId)`。`workspace` 是 legal-identity 第六族 `WorkspaceId`；实例与版本不在来源层，归执行环境放置。来源层只取自核验后的 `authority`，不取自登记者的 `Access.tenant`。`Access.tenant` 只核登记者在该层的登记资格。`resolve` 按请求带的能力身份与记下的形状，在本租户可访问、当前 live 的贡献中选同形者：记下的登记键仍 live 时优先它，否则按回退顺序取同形贡献；没有同形者返回 unavailable。回退顺序、draining 与 serving 替代的定义见 [ToolBindingRegistry](#p15-配置声明与合法装载)。访问核验按来源层：official 任何合法租户；organization 要同组织；tenant 要 `tenantEquals`；workspace 要当前获授。比较两个来源层是否同一层（登记键比较、`sameBindingKey`）用 `sameSourceLayer`，不用 `tenantEquals`：organization 与 tenant 层按文本比较，因为 `judgeFixedToolRequest` 复制出的 `layer.tenant` 是封闭形状核过的文本，未经 `tenantCodec` 铸造。workspace 层用 `workspaceEquals`：`judgeFixedToolRequest` 对 `layer.workspace` 经 `workspaceCodec.parse` 重铸，所以核过的值可直接比较。登记表保存或读回的 workspace 层须经 `workspaceCodec.parse` 重铸。未铸出的值与任何层都不相等，比较结果为不相等，不是错误。不做层序选择。同一个键的第二次登记：同一个 fiber 用同一个装载 digest 再登记，登记表认回同一贡献。其他情形一律 `conflict`，原贡献不动。原贡献 release 之后，新资格成立的登记成为后继。晚到的旧 release 比较 token，不删后继。release 只撤自己的 token。两个 fiber 同时首次登记同一个键时，一方成功，一方 `conflict`，由本地排序域决定。同一能力身份的新旧实现是不同资产版本键下的并存贡献。协调者是 `ctx.plugin` 句柄的唯一持有者，有 `ensureLoaded`、`unload`、`sweep` 三个动词，契约见 [Tool 的 Cordis 定义](../tool-cordis-contract/docs/cordis.md#换代协调者契约)。保留义务：有有效持有者引用、且没有同形 serving 替代的贡献，协调者不 dispose。`ToolLoader` 的设置读取仍是构造依赖，实现模块随 `load` 输入给出 | `tool-host-local`：登记表在根入口，协调者在 `./cordis` |
 | G8 | `executeTool`、`createIndependentToolScope` 与 `createToolRuntime` 进入不含 Cordis 的实现包。它们管理并发、等待、取消与状态，不属于各实现必须给出同一答案的契约词汇。构造形状 `ToolDependencies` 与 `ToolConfiguration` 随工厂进入同一包 | `tool` 根入口 |
 | G9 | 单机宿主命名为 `packages/tool/tool-host-local` | `tool-host-local` |
+
+### 常驻登记键与 shape 的文本编码
+
+本节依据 M2 冻结批 XC-RESKEY r2（M2 Reduce 裁定 R1-D13、R1-D16）。G7 的登记键是结构值，Session 的 `ResidentKey` 是按文本全等比较的不透明文本。写入侧（Session 证据桥）与读取侧（应用的常驻引用桥）都调用根入口的同一组纯函数，所以两侧算出同一段文本。两侧各写一套编码时，`references` 会返回合法的空页，换代协调者会据此撤掉仍被引用的贡献。本节防止这种静默失败。函数不读存储，不持有状态，没有实例和生命周期。
+
+键的文本编码 rk1：`encodeResidentKey(key)` 返回 8 个字符串组成的数组的 `JSON.stringify` 结果，不带空白：
+
+```
+["rk1", <layer.kind>, <层身份文本>, <asset.name>, <adoption.owner>, <adoption.name>, <adoption.revision>, <adoption.digest>]
+```
+
+| `layer.kind` | 层身份文本 | 编码时的核对 |
+| --- | --- | --- |
+| `official` | 空串 | 无 |
+| `organization` | `organization.text` | 文本非空，且 `organizationCodec.parse` 通过 |
+| `tenant` | `JSON.stringify({ organization, account })`，取两者的 `.text`，即 `tenantCodec` 的文本格式 | `tenantCodec.parse` 通过 |
+| `workspace` | `workspaceCodec.encode(workspace)` | 必须是已铸出的值 |
+
+规则：
+
+1. 后 5 项必须是非空文本。不是文本时失败 `type`，空文本时失败 `empty`，`field` 指出成员，例如 `asset.adoption.digest`。
+2. organization 与 tenant 分支按 `sameSourceLayer` 的现行做法读 `.text`，不要求已铸出。workspace 分支与 `sameSourceLayer` 一样要求已铸出，否则失败 `{ field: 'layer.workspace', reason: 'identity' }`。层身份文本不能解析时也失败 `identity`。
+3. 编码用数组，所以没有成员次序问题。`JSON.stringify` 对字符串的转义是确定的。`rk1` 留给以后换编码时区分版本。
+4. 两条律成立。确定：同一个键多次编码得到全等的文本。等价：两个都能编码的键，`sameBindingKey(a, b)` 当且仅当两段文本全等。
+5. 不提供解码。读取侧只从 `ToolBindingKey` 生成查询键。Session 只按文本全等比较键，不解析它。
+
+写入侧：`residentToolFacts(key, shape)` 一次给出证据材料要的三项。
+
+- `capability` 等于 `key.asset.name`。`ResidentAdoption.keys` 的 `capability` 与 `ResidentTool.capability` 用同一个值。
+- `key` 是 `encodeResidentKey(key)` 的文本。键不能编码时整次失败，失败与 `encodeResidentKey` 相同。
+- `shape` 是 `ToolShape` 的 json-text 树拷贝，命令按 `name` 排序（与 `shapeOf` 同序），没有别的变换。SE36 的 `shape` 与 `ResidentReference.shape` 都存这个值。函数按读回规则核对这个值，读回会失败的 shape 不交给写入方，`field` 以 `shape.` 开头。
+- `ResidentTool.version` 与 `admitted` 不由本函数给出，由证据桥按 session-contract 与 R4 填写。
+
+装配协调者交给证据桥的每个常驻项是结构值 `{ key: ToolBindingKey; shape: ToolShape }`，不是文本。编码只在证据桥与常驻引用桥两处发生，两处调用同一个函数。
+
+读取侧：`projectResidentReferences(page)` 把 Session `references` 的一页投影成持有者引用页。
+
+- 每条引用变成 `{ holder: session, tenant, shape }`，`next` 原样保留。`holder` 是会话身份文本，只在同一租户内有意义，Tool 不解析。
+- shape 按 `ToolShape` 的封闭结构读回：`name` 是非空文本。`kind` 为 `function` 时只有 `name`、`kind`、`parameters`。`kind` 为 `commands` 时只有 `name`、`kind`、`commands`，每个命令只有 `name`、`parameters`。`parameters` 是 `{ kind: 'executor-owned' }`，或 `{ kind: 'declared', schema, vocabulary: { owner, name, digest } }`。其中的文本都非空。
+- 任一条读回失败时整页失败，`field` 写出第几条的哪个成员，例如 `sessions[3].shape.kind`。不丢掉这一条后交其余各条。
+- 比较 shape 一律用 `sameShape`，不按 JSON 文本比较。
+
+常驻引用桥（应用装配）用 `encodeResidentKey` 生成查询键。编码失败、`references` 的任何失败与投影失败，`referencing` 都返回 `unavailable` 并带诊断，不返回空页。全仓唯一的读取替身 `createMemoryToolResidencyReader` 在 tool-cordis-contract 的 `./testing`，它复用这两个函数。
 
 ## 定义、可用性与发起
 

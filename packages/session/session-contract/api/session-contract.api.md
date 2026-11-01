@@ -135,6 +135,7 @@
 - `SessionCallTerminal` · `control-values.d.ts`
 - `SessionCallWait` · `call-values.d.ts`
 - `SessionCallerClass` · `identity.d.ts`
+- `SessionCheckedAccess` · `access.d.ts`
 - `SessionClock` · `ports.d.ts`
 - `SessionCommand` · `ports.d.ts`
 - `SessionContextInput` · `ports.d.ts`
@@ -143,6 +144,7 @@
 - `SessionControlReceipt` · `control-values.d.ts`
 - `SessionCreation` · `values.d.ts`
 - `SessionCustodySource` · `ports.d.ts`
+- `SessionDelegatedTransactions` · `access.d.ts`
 - `SessionEntriesBoundary` · `interpretation-values.d.ts`
 - `SessionEntriesChannel` · `interpretation-values.d.ts`
 - `SessionEntriesInterpretation` · `interpretation-values.d.ts`
@@ -176,6 +178,7 @@
 - `SessionOperationElements` · `operations.d.ts`
 - `SessionOperationId` · `identity.d.ts`
 - `SessionPrefixFact` · `history-values.d.ts`
+- `SessionPrincipalBindingSource` · `ports.d.ts`
 - `SessionProductionSource` · `ports.d.ts`
 - `SessionReadAccessOperation` · `access.d.ts`
 - `SessionReconciliation` · `faces.d.ts`
@@ -185,6 +188,7 @@
 - `SessionTransactionPort` · `ports.d.ts`
 - `SessionWork` · `faces.d.ts`
 - `SessionWorkEntryIndex` · `work-entry-values.d.ts`
+- `SessionWorkPrincipals` · `ports.d.ts`
 - `StartedRun` · `faces.d.ts`
 - `Waiting` · `values.d.ts`
 - `WorkSnapshot` · `values.d.ts`
@@ -227,11 +231,13 @@
 - `MemorySessionLogTransactions` · `testing-transactions.d.ts`
 - `MemorySessionNotifier` · `testing-providers.d.ts`
 - `MemorySessionTransactionOptions` · `testing-transactions.d.ts`
+- `MemorySessionTransactionPair` · `testing-transactions.d.ts`
 - `MemorySessionTransactions` · `testing-transactions.d.ts`
 - `NotApplicable` · `testing-case.d.ts`
 - `ScriptedSessionAccessCheck` · `testing-access.d.ts`
 - `ScriptedSessionIdentityBridge` · `testing-ports.d.ts`
 - `SessionAccessScript` · `testing-access.d.ts`
+- `SessionDelegatedTransactionsFixture` · `testing-delegated.d.ts`
 - `SessionTransactionsFixture` · `testing-transactions.d.ts`
 - `TESTING_OWNER` · `testing-values.d.ts`
 - `adoptedInitializationFixture` · `testing-initialization.d.ts`
@@ -249,6 +255,7 @@
 - `createMemorySessionHistorySource` · `testing-history-source.d.ts`
 - `createMemorySessionIdleInput` · `testing-providers.d.ts`
 - `createMemorySessionNotifier` · `testing-providers.d.ts`
+- `createMemorySessionTransactionPair` · `testing-transactions.d.ts`
 - `createMemorySessionTransactions` · `testing-transactions.d.ts`
 - `createPolicySessionAccessCheck` · `testing-access.d.ts`
 - `createScriptedSessionAccessCheck` · `testing-access.d.ts`
@@ -264,6 +271,7 @@
 - `isNotApplicable` · `testing-case.d.ts`
 - `memoryAccess` · `testing-values.d.ts`
 - `memoryOtherAccess` · `testing-values.d.ts`
+- `memorySessionDelegatedTransactionsFixture` · `testing-delegated.d.ts`
 - `memorySessionTransactionsFixture` · `testing-transactions.d.ts`
 - `mintEvidence` · `testing-values.d.ts`
 - `operationId` · `testing-values.d.ts`
@@ -274,6 +282,7 @@
 - `scopeReleaseConformance` · `testing-provider-conformance.d.ts`
 - `sessionClockConformance` · `testing-provider-conformance.d.ts`
 - `sessionContextInputConformance` · `testing-provider-conformance.d.ts`
+- `sessionDelegatedTransactionsConformance` · `testing-delegated.d.ts`
 - `sessionEvidenceBridgeConformance` · `testing-provider-conformance.d.ts`
 - `sessionId` · `testing-values.d.ts`
 - `sessionIdentityBridgeConformance` · `testing-provider-conformance.d.ts`
@@ -291,7 +300,7 @@
 ```ts
 import type { Access, TenantId } from '@omne-harness/legal-identity';
 import type { DurableEvidence, ResidentKey, SessionAccess, SessionId } from './identity.ts';
-import type { MutationName, SessionCommand } from './ports.ts';
+import type { MutationName, SessionCommand, SessionTransactionPort } from './ports.ts';
 export type SessionReadAccessOperation = 'readWork' | 'readInput' | 'queryOperation' | 'readModelSelection' | 'queryControlOperation' | 'loadRecovery' | 'inspectIdle' | 'history.begin' | 'history.next' | 'history.since' | 'history.readModelView';
 type SessionMutationAccess<P> = {
     readonly [K in MutationName]: Readonly<{
@@ -353,6 +362,13 @@ export type SessionAccessDecision = Readonly<{
 }>;
 export interface SessionAccessCheck<P> {
     check(input: SessionAccessRequest<P>): Promise<SessionAccessDecision>;
+}
+export type SessionCheckedAccess<P> = Readonly<{
+    request: SessionAccessRequest<P>;
+    evidence: DurableEvidence;
+}>;
+export interface SessionDelegatedTransactions<P> {
+    bind(checked: SessionCheckedAccess<P>): SessionTransactionPort<P>;
 }
 export declare function readAccessRequest<P>(access: SessionAccess<P>, operation: SessionReadAccessOperation): SessionAccessRequest<P>;
 export declare function mutationAccessRequest<P>(access: SessionAccess<P>, command: SessionCommand): SessionAccessRequest<P>;
@@ -1464,7 +1480,7 @@ export type { AdmittedMessage, CommitReceipt, Completion, EntryClass, ExternalCo
 export { INGRESS_FAMILIES, deriveDriveOperation, deriveIngressOperation, deriveSessionOperation, type DriveOperationElements, type IngressFamily, type SessionOperationElements, } from './operations.ts';
 export type { ControlOperationResolution, SavedModelSelection, SessionCallLookup, SessionCallTerminal, SessionControlAnswer, SessionControlReceipt, SessionModelSelection, SessionRunLookup, } from './control-values.ts';
 export type { SessionEntriesBoundary, SessionEntriesChannel, SessionEntriesInterpretation, SessionEntriesItem, SessionEntriesObservation, SessionEntriesProgress, SessionEntriesReceipt, SessionEntriesStart, } from './interpretation-values.ts';
-export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionTransactionPort, } from './ports.ts';
+export type { AdoptionEvidenceCommand, AgentDrivePort, CustodyEvidenceCommand, ProductionEvidenceCommand, SessionAdoptionSource, SessionCustodySource, SessionProductionSource, DriveFailure, DriveReceipt, DriveReply, DriveTarget, ExecutionStatus, GuardCommand, MutationName, ScopeReleasePort, ScopeReleaseReadback, SessionBlockDeclaration, SessionClock, SessionCommand, SessionContextInput, SessionEvidenceBridge, SessionIdentityBridge, SessionIdleInput, SessionInternalPrincipals, SessionNotifier, SessionPrincipalBindingSource, SessionTransactionPort, SessionWorkPrincipals, } from './ports.ts';
 export { sessionModesBlock } from './block.ts';
 export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, resolveCascade, resolveControlScope, resolveOperation, routeInput, type AdvanceClaim, type AdvanceJudgment, type CommittedBatch, type CompletionJudgment, type ControlScope, type DecideReads, type Decision, type EncodedEntry, type IdleJudgment, type OpenWork, type OperationJudgment, type OperationRecord, type ReduceResult, type RouteJudgment, type RunStartJudgment, } from './judgments.ts';
 export { decide, commandDigest } from './decide.ts';
@@ -1480,7 +1496,7 @@ export type { InitializationRequirement } from './initialization-requirements.ts
 export type { SessionLogRoot, SessionHistoryIndex, InputAdmissionBoundary, InputAdmissionMember, ExecutionHistoryBoundary, SessionFactBoundary, SessionBatchRecord, SessionAttemptRecord, SessionTakenRecord, SessionHistoryReads, SessionInputScope, InputAdmissionPage, SessionInputAdmission, SessionExecutionPrefix, SessionPrefixFact, } from './history-values.ts';
 export type { SessionCallRegistration, SessionCallRecord, SessionCallWait } from './call-values.ts';
 export type { SessionWorkEntryIndex, SessionCallEntryReferences, SessionControlEntryReferences, } from './work-entry-values.ts';
-export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionReadAccessOperation, } from './access.ts';
+export { mutationAccessRequest, readAccessRequest, type SessionAccessCheck, type SessionAccessDecision, type SessionAccessOperation, type SessionAccessRequest, type SessionAccessTarget, type SessionCheckedAccess, type SessionDelegatedTransactions, type SessionReadAccessOperation, } from './access.ts';
 ```
 
 ## 声明文件 `initialization-parse.d.ts`
@@ -1999,7 +2015,7 @@ import type { Adoption, AdvanceRef, ConsumptionId, DurableEvidence, InputId, Res
 import type { ClockSample, Control, IdleObservation, ProducedResult, RoutedInput, ScopeReleaseDisposition, WorkSnapshot } from './values.ts';
 import type { ControlOperationResolution, SessionModelSelection } from './control-values.ts';
 import type { SessionEntriesObservation, SessionEntriesReceipt, SessionEntriesStart } from './interpretation-values.ts';
-import type { OperationResolution, PendingReason, ReleasedScope, Reply, ResidentReference, SessionHistory, SessionManagement, SessionReconciliation, SessionWork } from './faces.ts';
+import type { OperationResolution, PendingReason, SessionFailure, ReleasedScope, Reply, ResidentReference, SessionHistory, SessionManagement, SessionReconciliation, SessionWork } from './faces.ts';
 export type DriveFailure = Readonly<{
     kind: 'denied' | 'busy' | 'terminal' | 'changed' | 'stale-advance' | 'unsupported' | 'conflict';
 }> | Readonly<{
@@ -2223,6 +2239,30 @@ export type SessionInternalPrincipals<P> = Readonly<{
     coordinator: P;
     maintainer: P;
 }>;
+export interface SessionPrincipalBindingSource {
+    read(input: Readonly<{
+        tenant: TenantId;
+        session: SessionId;
+    }>): Promise<Outcome<Readonly<{
+        kind: 'bound';
+        tenant: TenantId;
+        session: SessionId;
+        source: DurableEvidence;
+    }> | Readonly<{
+        kind: 'not-bound';
+    }>, Extract<SessionFailure, {
+        kind: 'unavailable' | 'quarantined';
+    }>>>;
+}
+export interface SessionWorkPrincipals<P> {
+    forSession(input: Readonly<{
+        actor: 'coordinator' | 'maintainer';
+        tenant: TenantId;
+        session: SessionId;
+    }>): Promise<Outcome<P, Extract<SessionFailure, {
+        kind: 'denied' | 'unavailable' | 'quarantined';
+    }>>>;
+}
 export interface SessionNotifier {
     committed(input: Readonly<{
         tenant: TenantId;
@@ -2352,8 +2392,8 @@ export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBa
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f7546e8515ad4c35afb95f2da2a957d330c90b63c73faf6cb686ba9305a6a56c";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f7546e8515ad4c35afb95f2da2a957d330c90b63c73faf6cb686ba9305a6a56c";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
+export declare const SESSION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
 ```
 
 ## 声明文件 `replay-validation.d.ts`
@@ -2450,6 +2490,32 @@ export declare function assertIndistinguishable(answers: Readonly<{
     real: Outcome<unknown, SessionFailure>;
     ghost: Outcome<unknown, SessionFailure>;
 }>, what: string): void;
+```
+
+## 声明文件 `testing-delegated.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type SessionDelegatedTransactions } from './access.ts';
+import type { DurableEvidence, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
+import type { SessionCreation } from './values.ts';
+import type { GuardCommand, SessionCommand, SessionTransactionPort } from './ports.ts';
+import { type ConformanceCase } from './testing-case.ts';
+export interface SessionDelegatedTransactionsFixture<P> {
+    readonly transactions: SessionTransactionPort<P>;
+    readonly delegated: SessionDelegatedTransactions<P>;
+    readonly access: SessionAccess<P>;
+    readonly otherAccess: SessionAccess<P>;
+    readonly creation: SessionCreation;
+    operation(name: string): SessionOperationId;
+    initializationGuards?(command: Extract<SessionCommand, {
+        kind: 'create';
+    }>): Promise<readonly GuardCommand[]>;
+    checks(): number;
+    decisionOf?(tenant: TenantId, session: SessionId, operation: SessionOperationId): DurableEvidence | null;
+}
+export declare function sessionDelegatedTransactionsConformance<P>(): readonly ConformanceCase<SessionDelegatedTransactionsFixture<P>>[];
+export declare function memorySessionDelegatedTransactionsFixture(): SessionDelegatedTransactionsFixture<string>;
 ```
 
 ## 声明文件 `testing-history-source.d.ts`
@@ -2611,12 +2677,12 @@ export declare function createMemoryAgentDrive(): MemoryAgentDrive;
 import { type MemorySessionHistorySource } from './testing-history-source.ts';
 import { type Outcome } from '@omne-harness/operation-result';
 import { type TenantId } from '@omne-harness/legal-identity';
-import { type SessionAccessCheck } from './access.ts';
-import type { DurableEvidence, InputId, SessionAccess, SessionId, SessionOperationId } from './identity.ts';
+import { type SessionAccessCheck, type SessionDelegatedTransactions } from './access.ts';
+import type { DurableEvidence, EntryId, InputId, SessionAccess, SessionId, SessionOperationId, SessionRevision } from './identity.ts';
 import type { SessionCallTerminal } from './control-values.ts';
-import type { SessionCreation, WorkSnapshot, Participation } from './values.ts';
+import type { BoundedClose, RoutedInput, RunTerminal, SessionCreation, WorkSnapshot, Participation } from './values.ts';
 import type { CommitReceipt, AdmittedMessage, HistoryEntry, PendingReason, SessionFailure } from './faces.ts';
-import type { GuardCommand, SessionCommand, SessionTransactionPort } from './ports.ts';
+import type { GuardCommand, MutationName, Mutations, SessionCommand, SessionTransactionPort } from './ports.ts';
 import { type SessionLogObservation } from './projection.ts';
 import { type MemoryInitializationSource } from './testing-initialization-source.ts';
 import { type ConformanceCase } from './testing-case.ts';
@@ -2646,6 +2712,11 @@ export type MemorySessionTransactionOptions<P> = Readonly<{
     history?: MemorySessionHistorySource;
     accessCheck: SessionAccessCheck<P>;
 }>;
+export type MemorySessionTransactionPair<P> = Readonly<{
+    transactions: MemoryInitializationTransactions<P>;
+    delegated: SessionDelegatedTransactions<P>;
+}>;
+export declare function createMemorySessionTransactionPair<P>(options: MemorySessionTransactionOptions<P>): MemorySessionTransactionPair<P>;
 export declare function createMemorySessionTransactions<P>(options: MemorySessionTransactionOptions<P>): MemoryInitializationTransactions<P>;
 export interface SessionTransactionsFixture<P> {
     readonly port: SessionTransactionPort<P>;
@@ -2668,8 +2739,147 @@ export interface SessionTransactionsFixture<P> {
         kind: 'create';
     }>): Promise<readonly GuardCommand[]>;
 }
+type Commit<K extends MutationName> = Awaited<ReturnType<Mutations[K]>>;
+export declare function scene<P>(fixture: SessionTransactionsFixture<P>): {
+    port: SessionTransactionPort<P>;
+    access: SessionAccess<P>;
+    base: {
+        tenant: TenantId;
+        session: SessionId;
+    };
+    commit: <K extends MutationName>(command: Extract<SessionCommand, {
+        kind: K;
+    }>, guards?: readonly GuardCommand[], as?: SessionAccess<P>) => Promise<Commit<K>>;
+    create: (name?: string, creation?: Readonly<{
+        definition: Readonly<{
+            name: string;
+            candidate: import("@omne-harness/exchange-refs").Adoption;
+        }>;
+        execution: import("@omne-harness/exchange-refs").Adoption;
+        requiredIdentities: readonly Readonly<{
+            capability: string;
+            name: string;
+        }>[];
+        purpose: string;
+        workspace: import("@omne-harness/legal-identity").WorkspaceId | null;
+        workspaceAttachment: import("./values.ts").WorkspaceAttachment | null;
+        modes: Readonly<{
+            kind: 'explicit';
+            value: import("./values.ts").Modes;
+        }> | Readonly<{
+            kind: 'tenant-default';
+            source: import("@omne-harness/exchange-refs").Adoption;
+        }>;
+        initial: Extract<RoutedInput, {
+            kind: 'ordinary';
+        }> | null;
+        entryContract: import("@omne-harness/exchange-refs").Adoption;
+        initialModelSelection?: import('./control-values.ts').SavedModelSelection;
+        residentAdoption?: import("./values.ts").ResidentAdoption;
+        initialization?: import("./values.ts").InitializationSources;
+    }>) => Promise<Outcome<Readonly<{
+        receipt: CommitReceipt;
+        state: WorkSnapshot;
+    }>, SessionFailure>>;
+    accept: (input: string, name?: string) => Promise<Outcome<Readonly<{
+        operation: SessionOperationId;
+        revision: SessionRevision;
+        first: EntryId;
+        last: EntryId;
+        recovered: boolean;
+        source: DurableEvidence;
+    }>, SessionFailure>>;
+    startRun: (name?: string, login?: boolean) => Promise<Outcome<Readonly<{
+        receipt: CommitReceipt;
+        advance: import("./identity.ts").AdvanceRef;
+        adopted: import("@omne-harness/exchange-refs").Adoption;
+        first: InputId;
+        execution: string;
+    }>, SessionFailure>>;
+    handover: (execution: string, input: string, name?: string) => Promise<Outcome<Readonly<{
+        operation: SessionOperationId;
+        revision: SessionRevision;
+        first: EntryId;
+        last: EntryId;
+        recovered: boolean;
+        source: DurableEvidence;
+    }>, SessionFailure>>;
+    message: (execution: string, text: string, name?: string) => Promise<Outcome<Readonly<{
+        operation: SessionOperationId;
+        revision: SessionRevision;
+        first: EntryId;
+        last: EntryId;
+        recovered: boolean;
+        source: DurableEvidence;
+    }>, SessionFailure>>;
+    publishMessage: (execution: string, text: string) => Promise<Participation | null>;
+    finish: (name?: string, bounded?: BoundedClose) => Promise<Outcome<Readonly<{
+        receipt: CommitReceipt;
+        terminal: RunTerminal;
+    }>, SessionFailure>>;
+    readWork: () => Promise<Readonly<{
+        workEntryIndex?: import("./work-entry-values.ts").SessionWorkEntryIndex;
+        session: SessionId;
+        tenant: TenantId;
+        revision: SessionRevision;
+        interpreter: import("@omne-harness/exchange-refs").Adoption;
+        source: DurableEvidence;
+        lifecycle: 'initializing' | 'dormant' | 'active' | 'frozen' | 'archived';
+        frozen: import("./values.ts").SessionFrozen | null;
+        residents: readonly import("./values.ts").ResidentTool[];
+        definition: Readonly<{
+            name: string;
+            adopted: import("@omne-harness/exchange-refs").Adoption;
+        }>;
+        execution: import("@omne-harness/exchange-refs").Adoption;
+        declarations: DurableEvidence;
+        revisions: Readonly<{
+            workspace: string;
+            declarations: string;
+        }>;
+        run: import("./values.ts").RunState;
+        pending: readonly InputId[];
+        handed: readonly InputId[];
+        waiting: readonly import("./values.ts").Waiting[];
+        consumptions: readonly import("./values.ts").Consumption[];
+        controls: readonly import("./values.ts").ControlProgress[];
+        unresolved: readonly SessionOperationId[];
+        creation: SessionCreation;
+        tasks: readonly import("./values.ts").RecoveryTask[];
+        idle: Readonly<{
+            observation: import("./values.ts").IdleObservation;
+            commit: DurableEvidence;
+        }> | null;
+        executions?: readonly import("./values.ts").RunExecution[];
+        residentKeys?: import("./values.ts").ResidentAdoption['keys'];
+        relation?: import("./values.ts").Relation;
+        children?: readonly SessionId[];
+        autoArchive?: import("./values.ts").AutoArchivePolicy;
+        taken?: readonly InputId[];
+        backgroundPlaceholders?: readonly import("./identity.ts").ConsumptionId[];
+        releasedScopes?: readonly Readonly<{
+            task: SessionOperationId;
+            scope: string;
+        }>[];
+        contextScopes?: readonly import("./values.ts").ContextScopeBinding[];
+        contextRecords?: readonly Readonly<{
+            scope: string;
+            declaration: import("./values.ts").DeclarationChange;
+        }>[];
+        changes?: readonly import("./values.ts").DeclarationChange[];
+        initialization?: import("./values.ts").InitializationState;
+        historyIndex?: import("./history-values.ts").SessionHistoryIndex;
+        callRegistrations?: readonly import("./call-values.ts").SessionCallRecord[];
+        callWaits?: readonly import("./call-values.ts").SessionCallWait[];
+    }>>;
+    openRun: () => Promise<string>;
+};
 export declare function sessionTransactionsConformance<P>(): readonly ConformanceCase<SessionTransactionsFixture<P>>[];
 export declare function memorySessionTransactionsFixture(): SessionTransactionsFixture<string>;
+export declare function memoryInitializationGuards(initialization: MemoryInitializationSource): (command: Extract<SessionCommand, {
+    kind: 'create';
+}>) => Promise<readonly GuardCommand[]>;
+export {};
 ```
 
 ## 声明文件 `testing-values.d.ts`
@@ -2704,7 +2914,8 @@ export declare function guard(participant: string, owner: string, facts: unknown
 
 ```ts
 export { NotApplicable, assertIndistinguishable, conformanceCase, expectKind, handle, isNotApplicable, refused, runConformanceCase, shapeOf, succeeded, type CaseVerdict, type ConformanceCase, } from './testing-case.ts';
-export { createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactions, type MemorySessionLogTransactions, type MemoryInitializationTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
+export { createMemorySessionTransactionPair, createMemorySessionTransactions, memorySessionTransactionsFixture, pendingReasonsOf, sessionTransactionsConformance, type MemorySessionTransactionPair, type MemorySessionTransactions, type MemorySessionLogTransactions, type MemoryInitializationTransactions, type SessionTransactionsFixture, } from './testing-transactions.ts';
+export { memorySessionDelegatedTransactionsFixture, sessionDelegatedTransactionsConformance, type SessionDelegatedTransactionsFixture, } from './testing-delegated.ts';
 export { createMemorySessionClock, createMemorySessionContextInput, createMemorySessionEvidenceBridge, createScriptedSessionIdentityBridge, type IdentityScript, type MemorySessionClock, type MemorySessionContextInput, type MemorySessionEvidenceBridge, type ScriptedSessionIdentityBridge, } from './testing-ports.ts';
 export { TESTING_OWNER, adoption, assistantMessage, creation, evidence, guard, inputId, memoryAccess, memoryOtherAccess, mintEvidence, operationId, ordinaryInput, sessionId, testingTenant, testingWorkspace, userMessage, } from './testing-values.ts';
 export * from './testing-providers.ts';
