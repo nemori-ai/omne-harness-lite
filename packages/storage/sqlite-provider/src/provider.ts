@@ -51,7 +51,7 @@ function createControl(core: Core): StorageControl {
     closing ??= (async () => {
       core.lifecycle.closing = true
       const stop = new AbortController()
-      const finished = core.domains.closeAll().then(() => 'closed' as const)
+      const finished = Promise.all([core.domains.closeAll(), core.readers.closeAll()]).then(() => 'closed' as const)
       const winner = await Promise.race([finished, sleep(core.config.closeDeadlineMs, stop.signal)])
       stop.abort()
       if (winner === 'closed') return { kind: 'closed' }

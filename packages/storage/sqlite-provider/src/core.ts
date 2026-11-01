@@ -6,12 +6,16 @@ import { Admission, PendingIndex } from './admission.ts'
 import type { SqliteStorageConfig } from './config.ts'
 import { Domains, type Lifecycle } from './domains.ts'
 import { clipDiagnostic, scopeKey } from './fields.ts'
+import { ReaderPool } from './reader-pool.ts'
+import { WriteBarrier } from './write-barrier.ts'
 
 export type Core = Readonly<{
   config: SqliteStorageConfig
   catalog: SqlMaterialCatalog
   lifecycle: Lifecycle
   domains: Domains
+  readers: ReaderPool
+  barrier: WriteBarrier
   admission: Admission
   pending: PendingIndex
   /** A diagnostic of at most maxDiagnosticBytes. Callers branch on kind and reason only. */
@@ -24,11 +28,15 @@ export function createCore(
   domains: (lifecycle: Lifecycle) => Domains,
 ): Core {
   const lifecycle: Lifecycle = { closing: false }
+  const owned = domains(lifecycle)
+  const barrier = new WriteBarrier()
   return {
     config,
     catalog,
     lifecycle,
-    domains: domains(lifecycle),
+    domains: owned,
+    readers: new ReaderPool(config, owned, lifecycle, barrier),
+    barrier,
     admission: new Admission(config),
     pending: new PendingIndex(),
     diagnostic: text => clipDiagnostic(text, config.maxDiagnosticBytes),
