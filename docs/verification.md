@@ -135,6 +135,19 @@ SHA-256；当前环境是否安装、仓库是否定义了模型，是两个问�
 交付说明检查针对哪个源码状态、配置和范围；已有证据仍覆盖同一状态时可引用，
 变化使其失效时补跑。临时日志放在 `tmp/`，清理工作树前保留任务需要的证据。
 
+## API 语义复核能支持什么
+
+API 语义复核让一个有权者的人工结论承接 `omne-contract-api` 的 `review` 分类。入口是 `change-scope-cli.ts`（卡级，自动读本卡评论）、`integration/cli.ts ri-notes --review-issue <卡号>`（提升级）和 `api-review-cli.ts check-milestone --semantic-review true`（里程碑累计）。`api-review-cli.ts draft-card`、`draft-ri` 与 `draft-milestone` 只生成待人工核对的草稿，不发评论，不产生通过结论。
+
+- 通过只说明：记录的来源、作者、reviewer、owner 稳定身份、委派、撤销和比较描述在本次运行时全部匹配，且集合完整。原始分类、原始退出码和工程级别并列输出。
+- 通过不说明：评论正文是人的明确决定，或结论在语义上正确。机器只核账号。会话以同一账号发表记录时，机器不区分人与代笔。这是已记录的限制。
+- 目标提交与候选的 `tools/dev-flow/src`、本页、`integration.md`、`delivery.md` 和身份文件等必须逐对象相同，否则拒绝为 `api-review-self-authorization`。这样候选不能给自己放行。它不防运行代码本身被篡改，这一点由旧门确认者承担。
+- 来源不可得、分页不全、403、工具异常退出或超时一律退出 2，不被任何记录覆盖。一个成员的通过不掩盖另一成员的未知。
+- `verify-owner-adoption` 供 `publish` 确认者核对身份文件改动。它只核对采用评论的链接、正文摘要、更新时间与作者 node ID 四项，退出 0 不说明评论是有权者的决定，也不判断删除是否获准。
+- 持续测试使用真实临时 Git 与已安装的 `omne-contract-api`，GitHub 以替身代替网络。替身通过不是真实平台验证。真实平台的 owner、reviewer、作者与记录正文由集成负责人只读复核，测试评论不能自称人的决定。
+
+三项 fail-open 残余（node ID 复用、评论编辑后更新时间不变、同账号代笔）由负责人在 Issue 中单独接受，本页不接受它们。
+
 ## 集成的两条基线
 
 有 task context 的检查由[共同 loader](../tools/repo-toolchain/src/core/task-context.ts)取得 targetBase 与本任务的 taskBase/taskSource。影响面按 targetBase，验收锁按原任务从 taskBase 逐提交审计，并补 targetBase 到 HEAD 的改动；合法运输父保留其来源。显式给出的基线与 targetBase 不同时拒绝。没有 context 的检出以显式基线或 `origin/main` 为基线。全局 main 趋势仍按 main。targetBase 只由 task-sync 前进，见[工具指南](../tools/dev-flow/src/integration/README.md#同步目标分支)。

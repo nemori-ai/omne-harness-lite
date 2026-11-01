@@ -81,7 +81,7 @@ pnpm run pre-admission --worktree /absolute/worktree --journal /absolute/task/pr
 
 ## 线归属表校验
 
-`pnpm run check:lines` 校验 `docs/engineering/delivery-lines.json`：线 ID 唯一且不为 `integration`，路径归属不重叠，每个工作区成员恰好属于一条线或 `integration.paths`，契约成员是本线路径下的工作区成员，线轨道已在 registry 登记、状态为 active 或 paused、上游是联调轨道。每处错误输出一行，带表中的 JSON 路径。有错误时退出1，输入读不到时退出2。`scripts/check.sh` 每次运行它。
+`pnpm run check:lines` 校验 `docs/engineering/delivery-lines.json`：线 ID 唯一且不为 `integration`，路径归属不重叠，每个工作区成员恰好属于一条线或 `integration.paths`，契约成员是本线路径下的工作区成员，线轨道已在 registry 登记、状态为 active 或 paused、上游是联调轨道。每处错误输出一行，带表中的 JSON 路径。有错误时退出1，输入读不到时退出2。`scripts/check.sh` 每次运行它。`docs/engineering/api-review-owners.json` 存在时，每个 `lineId` 必须在线归属表中存在，owner login 必须相同，否则输出 `owner-identity-drift` 并退出1。文件缺失时不检查。身份文件的含义见[API 语义复核](#契约变更的语义复核)。
 
 ## 标签同步
 
@@ -209,6 +209,19 @@ node --experimental-strip-types tools/dev-flow/src/delivery/baseline-cli.ts read
 5. 参数、交付配置或 GitHub 读取错误时退出2。有区块时命令要读 publish 环境；云端会话的代理不放行这个读取，所以在本地会话运行。
 
 区块格式归 repo-toolchain 的 `omne-contract-api`。dev-flow 依赖的版本不导出这个格式的解析，所以本命令自带一份同形状的校验。精确条款见 [SPEC](SPEC.md#契约基线的读取)。
+
+## 契约变更的语义复核
+
+`omne-contract-api` 把无法证明可加的成员分为 `review`。有权者可以用载体评论中的复核记录承接它，原始分类与退出码仍保持可见。规则的来源见[交付协议](../../../../docs/engineering/delivery.md#契约变更的语义复核)，比较与命令见[集成工具](../integration/README.md#api-语义复核)。本模块的 `api-semantic-review.ts` 只负责记录的解析、权威读取和权限判断。
+
+- 卡级入口是 `change-scope-cli.ts`：本卡有 `review` 成员时，它读取本卡的全部评论。找到复核记录就进入严格路径，每个 `review` 成员都须有完整匹配的记录。没有记录时行为不变，仍按原来的保守规则。
+- 记录是评论里的 `json omne-api-semantic-review:v1` 围栏，有 `attest`、`delegate` 与 `revoke`。记录不能编辑。要更正，发新评论并用 `replaces` 精确列出被取代的记录。
+- 有权作结论的人是线归属表中该成员所属线的 owner，且是评论作者和 `publish` environment 的 reviewer。owner 的稳定身份登记在 `docs/engineering/api-review-owners.json`，不从当前用户名查询补齐。
+- 输入不完整就拒绝：评论分页达到 20 页、403、作者不是 reviewer、两次读取之间有变化都不会得到通过。通过时报告同时写出原始分类、原始退出码和工程级别。
+- 工具不发评论，不改 binding，也不接受任意本地文件当记录。
+- 提升级入口用 `--review-issue`，里程碑累计入口用 `--semantic-review true`，两者在集成工具中。身份文件的严格解析与评论读取也供 `verify-owner-adoption` 复用，不另写一套。
+
+精确条款见 [SPEC](SPEC.md#api-语义复核记录)。
 
 ## 里程碑命令
 
