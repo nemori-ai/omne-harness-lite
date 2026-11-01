@@ -4,7 +4,7 @@ import { decodeScopeRef } from '@omne-harness/runtime-context-contract'
 // that answers by tenant membership. Each builder returns a fresh value.
 import { testingTenant } from '@omne-harness/tool-contract/testing'
 import type { ContentBlock } from '@omne-harness/content-block'
-import type { Outcome } from '@omne-harness/operation-result'
+import { fail, succeed, type Outcome } from '@omne-harness/operation-result'
 import {
   decodeToolCallId,
   decodeToolOperationId,
@@ -13,13 +13,15 @@ import {
   type FixedToolRequest,
   type ToolCallId,
   type ToolInstanceId,
+  type ToolInvokeRequest,
   type ToolOperationId,
   type ToolStartRecord,
 } from '@omne-harness/tool-contract'
 import { decodeToolInstanceId } from '@omne-harness/tool-contract/provider'
-import type { LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
+import type { AccessVerdict, LedgerCommitInput, ToolLedgerStore } from '@omne-harness/tool'
 import {
   createLocalStartCoordinator,
+  type PrincipalCodec,
   type GuardResource,
   type StartCoordinatorAccess,
 } from '@omne-harness/tool-host-local'
@@ -202,4 +204,34 @@ function fixtureScope() {
   const scope = decodeScopeRef({ ref: 'test-requester-scope' })
   if ('failure' in scope) throw new Error('invalid fixture scope')
   return scope.ok
+}
+
+/** A principal that is only a subject, for the tests of the invocation source and its guards. */
+export type Subject = Readonly<{ subject: string }>
+
+/** The request of a caller: the fixed request before the source issued its invocation. */
+export function invokeRequest(overrides: Partial<ToolInvokeRequest> = {}): ToolInvokeRequest {
+  const { invocation: _invocation, ...rest } = request()
+  return { ...rest, ...overrides }
+}
+
+/** Keeps a subject by its text; a stored value of another shape fails to decode. */
+export const subjectCodec: PrincipalCodec<Subject> = {
+  encode: principal => ({ subject: principal.subject }),
+  decode: value => {
+    const subject: unknown =
+      typeof value === 'object' && value !== null ? Reflect.get(value, 'subject') : undefined
+    return typeof subject === 'string' ? succeed({ subject }) : fail({ reason: 'subject-shape' })
+  },
+}
+
+/** The comparison of subjects: equal text is the same principal. */
+export function samePrincipalBySubject(
+  input: Readonly<{ current: Subject; original: Subject }>,
+): Promise<AccessVerdict> {
+  return Promise.resolve(
+    input.current.subject === input.original.subject
+      ? { kind: 'allowed' }
+      : { kind: 'denied', reason: 'different-subject' },
+  )
 }

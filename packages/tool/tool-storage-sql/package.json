@@ -1,0 +1,41 @@
+{
+  "name": "@omne-harness/tool-storage-sql",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Tool SQL storage: the durable ToolLedgerStore and ToolOutputCustody over the SQL storage contract, and their static materials",
+  "engines": {
+    "node": ">=24"
+  },
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:fast": "vitest run --mode fast",
+    "test:slow": "vitest run --mode slow --typecheck.enabled=false"
+  },
+  "dependencies": {
+    "@omne-harness/content-block": "workspace:*",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/operation-result": "workspace:*",
+    "@omne-harness/sql-contract": "workspace:*",
+    "@omne-harness/tool": "workspace:*",
+    "@omne-harness/tool-contract": "workspace:*"
+  },
+  "devDependencies": {
+    "@omne-harness/tool-host-local": "workspace:*",
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
