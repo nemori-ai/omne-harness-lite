@@ -1,17 +1,19 @@
 # @omne-harness/request-context 行为规格
 
-状态：机制实现成员，`draft`。本成员实现来源登记表 `createContextSourceRegistry` 与账目投影 `createContextAccounting`，有进程内的运行实现与契约测试。候选缓存、预计算派生物与默认策略已有本页的设计，尚未实现。公开行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页只写实现真实承担的本地行为：登记代际与借用、账目索引与恢复状态、缓存键、按组失效、失效来源、预计算派生物、默认策略数值与修剪器行为。不重复契约条款。
+状态：机制实现成员，`draft`。本成员实现来源登记表 `createContextSourceRegistry` 与账目投影 `createContextAccounting`，有进程内的运行实现与契约测试。默认压缩策略、默认表示策略、修剪器与转换件结果读口的缺席实现已进入（见[默认策略与修剪器](#默认策略与修剪器)）。候选缓存与预计算派生物已有本页的设计，尚未实现。公开行为归 [request-context-contract SPEC](../request-context-contract/SPEC.md)。本页只写实现真实承担的本地行为：登记代际与借用、账目索引与恢复状态、缓存键、按组失效、失效来源、预计算派生物、默认策略数值与修剪器行为。不重复契约条款。
 
 ## 范围与依据
 
 本成员与 Cordis 无关（[IC-4](../../../docs/architecture/cordis-integration-conventions.md#ic-4)）。[request-context-cordis](../request-context-cordis/SPEC.md) 的根入口不导出任何东西；不装配 Cordis 又要托管登记的调用方直接从本成员取工厂，只要独立操作组的调用方用契约根入口的 `createAssemblyOperations`。贡献登记面与 isolate 绑定归 [request-context-cordis](../request-context-cordis/SPEC.md)。
 
-本成员导出两个工厂：
+本成员导出两个有状态工厂：
 
 | 工厂 | 输入 | 交出 |
 | --- | --- | --- |
 | `createContextSourceRegistry(options)` | 主体绑定、登记授权判定者、两个策略实现（压缩策略、表示策略）。经 Cordis 时策略由 request-context-cordis 按配置选定 | 来源登记表 `ContextSourceRegistry`：`register`、`replace`、`assembly(target)` 与 `close()`（[RQ-12](../request-context-contract/SPEC.md#rq-12-来源集合与登记面)） |
 | `createContextAccounting(options)` | 来源核验、读取资格桥、窄采用来源、恢复授权与容量上限 | 收件口 `ContextAccountingInbox` 与恢复口 `ContextRecovery`（[RQ-14](../request-context-contract/SPEC.md#rq-14-窗口占用与账目收到)） |
+
+另导出三个无状态的构造件，供装配者和 request-context-cordis 使用：`createDefaultCompactionPolicy(options)`、`createDefaultRepresentationPolicy(options)` 与 `createAbsentConversionResults()`，以及两个策略的配置初值 `DEFAULT_COMPACTION_POLICY`、`DEFAULT_REPRESENTATION_CONFIG` 与修剪阈值初值 `DEFAULT_TRIM_BYTES`。它们的行为见[默认策略与修剪器](#默认策略与修剪器)。
 
 历史源读口、Model 准备资源、转换件结果读口与读取资格随来源集合登记，不在构造时给出，也不逐次交入。请求字节取自 Model 的 `rules.plan` 返回的物化表示，本成员没有序列化端口。
 
@@ -105,6 +107,22 @@
 | 步数上界 | 3 | 待重核 |
 
 这些项都是配置字段，默认值只是初值（[IC-14](../../../docs/architecture/cordis-integration-conventions.md#ic-14)）。
+
+实现现状（`createDefaultCompactionPolicy`、`createDefaultRepresentationPolicy`）：
+
+- 构造时按契约的 Schema 校验参数，不合就抛出 `TypeError`，不更正也不回退到初值。配置只替换给出的字段，其余字段取初值。
+- 触发界线的两个字段是 `triggerPercent`（初值 `'80'`）与 `headroomTokens`（初值 `null`）。余量没有数值依据，所以初值为空，这一项和上表三个数值一起待重核。触发界线由契约和 Model 的窗口口径使用，不在 `plan` 里使用。
+- 保留预算的比例按窗口的全部 token 计算，与契约的 `retentionLimit` 同口径，没有减去输出预留。比契约宽的预算会被契约当作策略错误，所以这里不做减法。
+- 保留名单以单元为单位选取。工具调用与回答它的结果是同一个单元，不拆开保留（CM-03 配对）。结果在窗口之后的调用、含未完成工作的单元先进入保留名单，不参与排序。名单超过预算时答 `floor-exceeds-budget`。消息为空或模型不可读的条目不保留。
+- 排序：`newest-first` 按单元内最新条目由新到旧。`most-referenced` 先比单元内已回答的结果数，多者优先，同数再按较新者优先；历史上没有别的引用事实。
+- 每试加一个单元，就对完整保留集合计量一次，不对单条求和。计量未知时原样答未知，不当成零。
+- 修剪阈值是字节数，初值 `65536`，取配置值和调用方传入值中较小者。只缩短 `tool` 消息里超过阈值的文本块，在字符边界截断，不加标记。媒体占位本身是文本，同样处理。截断结果被消息判定拒绝时，该消息保持原样且不记入 `trimmed`。阈值进入参数摘要，改阈值使 `deriveStep` 返回无效。
+- 表示策略按偏好顺序选第一个可接受的形式。派生表示要求它自己的每个块都是模型可接受的模态且对模型可见；transcript 要求模型接受文本。没有可接受形式答 `none`，不伪造转换结果。
+- 摘要指令是一个固定的、对模型可见的文本块。
+
+转换件结果读口（CX-10）：`createAbsentConversionResults()` 给没有媒体输入的部署用。它按访问身份核对租户（与目标租户不同答无权），其余一律答没有任何条目的索引，即「任何块都没有转换件」。它不答不可用，也不编造转换结果；这样纯文本历史照常组装，遇到模型不接受的媒体块时，组装按契约答没有可用表示（带原结果）。接入真实转换件的读口由有媒体输入的部署提供。
+
+候选缓存、预计算派生物和 `notify` 尚未实现，见[候选缓存](#候选缓存)与[预计算的派生物](#预计算的派生物)的设计。修剪阈值以外的缓存容量没有字段。
 
 修剪器默认实现：只缩短交给摘要步的材料中超过阈值的工具结果与媒体占位，保留原消息身份与占位的引用，不改原记录，不改模型视图。阈值是配置初值。修剪只缩短交给摘要步的材料，不改变装入裁定。修剪在给出第一个摘要步之前完成一次，不算一步进度（[RQ-06](../request-context-contract/SPEC.md#rq-06-压缩共同结果与保护边界)）。
 
