@@ -306,13 +306,10 @@ type Subject = Readonly<{
   commands: ModelCommands<Principal>
   coordinator: SendCoordinator<Principal>
 }>
+type Provider = ReturnType<typeof sqliteStorage>
 
-/** The SQL assembly: one SQL storage, its mirror, one core over the mirror, the coordinator. */
-function sqlAssembly(
-  provider: ReturnType<typeof sqliteStorage> = sqliteStorage(),
-  mirrorBytes = 1 << 20,
-): Subject & Readonly<{ provider: ReturnType<typeof sqliteStorage> }> {
-  const storage = createSqlModelStorage({
+const storageOf = (provider: Provider) =>
+  createSqlModelStorage({
     storage: provider.storage,
     domains: lookup,
     combination: { combinationVersion: 'v1', manifestDigest: 'a'.repeat(64) },
@@ -321,47 +318,77 @@ function sqlAssembly(
       maxCallBytes: 1 << 20,
       maxCommandBytes: (1 << 20) + COMMAND_RESERVE_BYTES,
     },
-    isPending: call => hasRecoveryWork(call as never),
+    isPending: call => hasRecoveryWork(call),
   })
-  // The S1 storage still types its port with its own copy of the core types (C-WIRE-SQL drops it).
-  const mirror = createSendMirror(storage as unknown as ModelCommandStorage, { mirrorBytes })
+
+/** The SQL assembly: one SQL storage, its mirror, one core over the mirror, the coordinator. */
+function sqlAssembly(
+  settings: Readonly<{ provider?: Provider; mirrorBytes?: number; maxClaims?: number }> = {},
+): Subject & Readonly<{ provider: Provider }> {
+  const provider = settings.provider ?? sqliteStorage()
+  const mirror = createSendMirror(storageOf(provider), {
+    mirrorBytes: settings.mirrorBytes ?? 1 << 20,
+    ...(settings.maxClaims === undefined ? {} : { maxClaims: settings.maxClaims }),
+  })
   const core = createModelCommandsCore(coreOptions, mirror.storage)
   return { commands: modelCommands(core), coordinator: mirror.coordinator(core, [source]), provider }
 }
 
-const admitOf = (call: ModelCallId) => ({
-  principal,
-  tenant: TENANT,
-  call,
-  operation: op(`admit-${call}`),
-  request,
-  consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
-  capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
-})
+/** The memory assembly of `@omne-harness/model/testing`, with the same options and source. */
+function memoryAssembly(): Subject {
+  const memory = createTestModelDependencies<Principal>({
+    ...coreOptions,
+    start: '2026-11-01T00:00:00.000Z',
+    maxWaiters: 1,
+    maxQueued: 1,
+    sends: [],
+    sending: {
+      credentials: {
+        present: () => ({ kind: 'unavailable' }),
+        resolve: () => ({ kind: 'unavailable' }),
+      },
+      sources: [source],
+      maxRetainedAttempts: 1,
+    },
+  })
+  return { commands: memory.dependencies.commands, coordinator: memory.controls.send.coordinator }
+}
+
+const WINDOW = 'receive_one'
+const access = (call: ModelCallId) => ({ principal, tenant: TENANT, call })
 
 type Stage = 'admitted' | 'prepared' | 'materialized' | 'window'
+type Driven = Readonly<{
+  demand: SendDemand<Principal>
+  /** The `recordMaterialization` input, once the call reached that stage. */
+  materialization: Parameters<ModelCommands<Principal>['recordMaterialization']>[0] | null
+}>
+
 /** Drives one call through the commands up to `stage`; returns its send demand. */
-async function drive(
-  subject: Subject,
-  call: ModelCallId,
-  stage: Stage,
-): Promise<Readonly<{ demand: SendDemand<Principal>; execution: ExecutionRef | null }>> {
+async function drive(subject: Subject, call: ModelCallId, stage: Stage): Promise<Driven> {
   const { commands } = subject
-  const admit = admitOf(call)
-  unbox(await commands.admit(admit))
-  const access = { principal, tenant: TENANT, call }
-  let execution: ExecutionRef | null = null
+  unbox(
+    await commands.admit({
+      ...access(call),
+      operation: op(`admit-${call}`),
+      request,
+      consumer: { owner: 'consumer', work: 'work', position: 'position', purpose: 'test' },
+      capacity: { bytes: '100000', blocks: '100', attachmentBytes: '100000' },
+    }),
+  )
+  let execution: ExecutionRef = { tenant: TENANT, call, instance: instanceId, generation: '0' }
+  let materialization: Driven['materialization'] = null
   if (stage !== 'admitted') {
     execution = unbox(
       await commands.claim({
-        ...access,
+        ...access(call),
         instance: instanceId,
         operation: op(`claim-${call}`),
         continuity: proof(call),
       }),
     )
-    const expected = unbox(await commands.loadRecovery(access)).state.revision
-    let revision = unbox(
+    const expected = unbox(await commands.loadRecovery(access(call))).state.revision
+    const revision = unbox(
       await commands.prepareDispatch({
         ...execution,
         operation: op(`prepare-${call}`),
@@ -372,52 +399,60 @@ async function drive(
       }),
     )
     if (stage !== 'prepared') {
-      revision = unbox(
-        await commands.recordMaterialization({
-          ...execution,
-          operation: op(`material-${call}`),
-          expected: revision,
-          dispatch: dispatchId,
-          receipt,
-        }),
-      ).revision
+      materialization = {
+        ...execution,
+        operation: op(`material-${call}`),
+        expected: revision,
+        dispatch: dispatchId,
+        receipt,
+      }
+      const recorded = unbox(await commands.recordMaterialization(materialization))
       if (stage === 'window')
         unbox(
           await commands.openReceiveWindow({
             ...execution,
             operation: op(`window-${call}`),
-            expected: revision,
+            expected: recorded.revision,
             dispatch: dispatchId,
             window: WINDOW,
           }),
         )
     }
   }
-  const recovery = unbox(await commands.loadRecovery(access))
+  const recovery = unbox(await commands.loadRecovery(access(call)))
   const demand: SendDemand<Principal> = {
-    principal,
-    tenant: TENANT,
-    call,
-    execution: execution ?? {
-      tenant: TENANT,
-      call,
-      instance: instanceId,
-      generation: '0',
-    },
+    ...access(call),
+    execution,
     dispatch: dispatchId,
     request,
     supplier: request.suppliers[0],
     consumer: recovery.state.consumer,
     initiator: recovery.initiator,
   }
-  return { demand, execution }
+  return { demand, materialization }
 }
-const WINDOW = 'receive_one'
-const STARTED: SendStart = { kind: 'started', facts: (async function* () {})() }
-const qualificationUnavailable = {
-  kind: 'refused',
-  failure: { kind: 'unavailable', dependency: 'model-send', diagnostic: 'qualification-unavailable' },
+
+const started = (): SendStart => ({ kind: 'started', facts: (async function* () {})() })
+const COLD = {
+  failure: {
+    kind: 'unavailable',
+    dependency: 'model-send',
+    diagnostic: 'qualification-unavailable',
+  },
 }
+/** A fence that counts its starts. */
+function fenceOf(subject: Subject, demand: SendDemand<Principal>) {
+  let starts = 0
+  return {
+    starts: () => starts,
+    enter: (start: () => SendStart = started, at = receipt, window = WINDOW) =>
+      subject.coordinator.withinCurrent(demand, at, window, () => {
+        starts += 1
+        return start()
+      }),
+  }
+}
+const turn = () => new Promise<void>(resolve => setImmediate(resolve))
 
 // --- Cases ---------------------------------------------------------------------------------
 
@@ -427,12 +462,12 @@ describe('the synchronous fence', () => {
     const { demand } = await drive(subject, callId('fence'), 'window')
     const order: string[] = []
     const result = subject.coordinator.withinCurrent(demand, receipt, WINDOW, selection => {
-      order.push(`start:${selection.scope}`)
-      return STARTED
+      order.push(`start:${selection.scope}:${selection.id}`)
+      return started()
     })
     order.push('returned')
-    expect(order).toEqual(['start:factory', 'returned'])
-    expect(result).toBe(STARTED)
+    expect(order).toEqual([`start:factory:${factoryId}`, 'returned'])
+    expect(result.kind).toBe('started')
   })
 
   it('refuses a fence entered from inside start', async () => {
@@ -446,26 +481,164 @@ describe('the synchronous fence', () => {
       } catch (error) {
         inner = error
       }
-      return STARTED
+      return started()
     })
     expect(inner).toBeInstanceOf(TypeError)
+  })
+
+  it('starts a dispatch once, also when start throws', async () => {
+    const subject = sqlAssembly()
+    const { demand } = await drive(subject, callId('once'), 'window')
+    const fence = fenceOf(subject, demand)
+    expect(
+      fence.enter(() => {
+        throw new Error('transport start')
+      }),
+    ).toEqual({ kind: 'unknown', diagnostic: 'transport-start-unknown' })
+    expect(fence.enter()).toEqual({ kind: 'unknown', diagnostic: 'dispatch-already-claimed' })
+    expect(fence.starts()).toBe(1)
+  })
+
+  it('accepts only a core that runs on the storage of its mirror', () => {
+    const storage = storageOf(sqliteStorage())
+    const mirror = createSendMirror(storage, { mirrorBytes: 1 })
+    const bare = createModelCommandsCore(coreOptions, storage)
+    expect(() => mirror.coordinator(bare, [source])).toThrow(TypeError)
   })
 })
 
 describe('the pin of a materialized dispatch', () => {
-  it('keeps the mirror of a call from recordMaterialization to withinCurrent', async () => {
+  it('keeps the mirror of a call from recordMaterialization to withinCurrent, then lets it go', async () => {
     // One byte of budget: every newly mirrored call evicts every call that is not pinned.
-    const subject = sqlAssembly(sqliteStorage(), 1)
+    const subject = sqlAssembly({ mirrorBytes: 1 })
     const { demand } = await drive(subject, callId('pinned'), 'window')
     await drive(subject, callId('other'), 'prepared')
-    let starts = 0
-    const result = subject.coordinator.withinCurrent(demand, receipt, WINDOW, () => {
-      starts += 1
-      return STARTED
-    })
-    expect(result).toBe(STARTED)
-    expect(starts).toBe(1)
+    const fence = fenceOf(subject, demand)
+    expect(fence.enter().kind).toBe('started')
+    expect(fence.starts()).toBe(1)
+    // The claim ends the pin: the next mirrored call evicts this one.
+    await drive(subject, callId('third'), 'admitted')
+    expect(subject.coordinator.check(demand, 'access')).toEqual(COLD)
   })
 })
 
-export { qualificationUnavailable, textOf }
+describe('a cold mirror', () => {
+  it('refuses the fence; recordMaterialization with the same operation reads the call back', async () => {
+    const provider = sqliteStorage()
+    const { demand, materialization } = await drive(
+      sqlAssembly({ provider }),
+      callId('cold'),
+      'window',
+    )
+    if (materialization === null) throw new Error('fixture materialization')
+    // A new instance over the same rows: the process state of the first one is gone.
+    const fresh = sqlAssembly({ provider })
+    const fence = fenceOf(fresh, demand)
+    expect(fresh.coordinator.check(demand, 'access')).toEqual(COLD)
+    expect(fence.enter()).toEqual({ kind: 'refused', ...COLD })
+    expect(fence.starts()).toBe(0)
+    unbox(await fresh.commands.recordMaterialization(materialization))
+    expect(fence.enter().kind).toBe('started')
+    expect(fence.starts()).toBe(1)
+  })
+
+  it('forgets a call whose write has an unknown outcome', async () => {
+    const subject = sqlAssembly()
+    const { demand } = await drive(subject, callId('lost'), 'prepared')
+    expect(subject.coordinator.check(demand, 'prepare')).toEqual({ ok: undefined })
+    const recovery = unbox(await subject.commands.loadRecovery(access(callId('lost'))))
+    subject.provider.hooks.loseNextReply = true
+    expect(
+      await subject.commands.recordMaterialization({
+        ...demand.execution,
+        operation: op('material-lost'),
+        expected: recovery.state.revision,
+        dispatch: dispatchId,
+        receipt,
+      }),
+    ).toEqual({ failure: { kind: 'commit-unknown', operation: op('material-lost') } })
+    expect(subject.coordinator.check(demand, 'prepare')).toEqual(COLD)
+  })
+
+  it('does not go back to a read that a later commit overtook', async () => {
+    const subject = sqlAssembly()
+    const { demand } = await drive(subject, callId('stale'), 'prepared')
+    let release = () => {}
+    subject.provider.hooks.holdNextRead = new Promise<void>(resolve => {
+      release = resolve
+    })
+    const reading = subject.commands.loadRecovery(access(callId('stale')))
+    await turn()
+    unbox(await subject.commands.control({ ...access(callId('stale')), operation: op('cancel') }))
+    release()
+    unbox(await reading)
+    expect(subject.coordinator.check(demand, 'prepare')).toEqual({
+      failure: { kind: 'invalid', field: 'call', reason: 'send-no-longer-valid' },
+    })
+  })
+})
+
+describe('claims', () => {
+  it('drops a claim once the send record is mirrored, so the bound frees', async () => {
+    const subject = sqlAssembly({ maxClaims: 1 })
+    const first = await drive(subject, callId('first'), 'window')
+    const second = await drive(subject, callId('second'), 'window')
+    expect(fenceOf(subject, first.demand).enter().kind).toBe('started')
+    expect(fenceOf(subject, second.demand).enter()).toEqual({
+      kind: 'refused',
+      failure: { kind: 'unavailable', dependency: 'model-send', diagnostic: 'send-claim-capacity' },
+    })
+    const { revision } = unbox(await subject.commands.loadRecovery(access(callId('first')))).state
+    unbox(
+      await subject.commands.recordSend({
+        ...first.demand.execution,
+        operation: op('send-first'),
+        expected: revision,
+        dispatch: dispatchId,
+        state: 'started',
+      }),
+    )
+    expect(fenceOf(subject, second.demand).enter().kind).toBe('started')
+  })
+})
+
+describe('parity with the memory coordinator', () => {
+  /** One script of fence calls; each answer reduced to its comparable part. */
+  async function script(subject: Subject): Promise<unknown[]> {
+    const answers: unknown[] = []
+    const answer = (result: SendStart | Outcome<void, unknown>) =>
+      answers.push('kind' in result && result.kind === 'started' ? 'started' : result)
+    const admitted = await drive(subject, callId('admitted'), 'admitted')
+    answer(subject.coordinator.check(admitted.demand, 'access'))
+    const prepared = await drive(subject, callId('prepared'), 'prepared')
+    answer(subject.coordinator.check(prepared.demand, 'access'))
+    answer(subject.coordinator.check(prepared.demand, 'prepare'))
+    answer(fenceOf(subject, prepared.demand).enter())
+    const open = await drive(subject, callId('open'), 'window')
+    const fence = fenceOf(subject, open.demand)
+    answer(fence.enter(started, { ...receipt, payloadDigest: 'b'.repeat(64) }))
+    answer(fence.enter(started, receipt, 'receive_other'))
+    const stranger = Object.freeze({ subject: 'stranger' })
+    answer(subject.coordinator.check({ ...open.demand, principal: stranger }, 'access'))
+    answer(fence.enter())
+    answer(fence.enter())
+    unbox(await subject.commands.control({ ...access(callId('prepared')), operation: op('stop') }))
+    answer(subject.coordinator.check(prepared.demand, 'prepare'))
+    return answers
+  }
+
+  it('answers each fence call as the memory coordinator does', async () => {
+    const memory = await script(memoryAssembly())
+    const sql = await script(sqlAssembly())
+    expect(sql).toEqual(memory)
+    expect(sql).toContain('started')
+  })
+
+  it('differs on a call the process does not hold: cold, not not-found', async () => {
+    const { demand } = await drive(sqlAssembly(), callId('missing'), 'admitted')
+    expect(memoryAssembly().coordinator.check(demand, 'access')).toEqual({
+      failure: { kind: 'invalid', field: 'call', reason: 'not-found' },
+    })
+    expect(sqlAssembly().coordinator.check(demand, 'access')).toEqual(COLD)
+  })
+})
