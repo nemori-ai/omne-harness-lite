@@ -19,6 +19,7 @@
 - [loop-admission.spec.ts](loop-admission.spec.ts)：受理幂等、输入冲突、busy、commit-unknown 与 R0 重试路由
 - [loop-wait-reconcile.spec.ts](loop-wait-reconcile.spec.ts)：W0 失通知、观察窗口、检查时刻、原操作对账、窄接续的未知保护、依赖重查与严格 Node 清理失败
 - [loop-wait.spec.ts](loop-wait.spec.ts)：W0 对 query 的 rejected 视为已定、unknown 保持等待
+- [loop-model-wait.spec.ts](loop-model-wait.spec.ts)：AG-03 先等待再收到回复的一次模型请求：节点提交次数、#1011 读取位置、每次进入等待最多一次 `load`、自身 waiting 事件不唤醒、重读失败不算进度与等待期间的重复 invoke
 - [loop-recovery.spec.ts](loop-recovery.spec.ts)：E1/E2 只读认回与挂接撤销、E4 恢复路由、R0 原提交切点的 committed/excluded 接续与 W0 保存等待
 - [loop-coordinator.spec.ts](loop-coordinator.spec.ts)：E1 found-existing 正常结束协调
 - [canonical.spec.ts](canonical.spec.ts)：输入等价性、元素边界与字节视图
