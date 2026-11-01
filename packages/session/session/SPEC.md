@@ -31,11 +31,11 @@
 
 | 步 | 动作 | 输入 | 输出 | 失败分支 |
 | --- | --- | --- | --- | --- |
-| 1 认回原操作 | 核对 `Access`；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |
+| 1 认回原操作 | 核对 `Access`；按面操作的请求调用一次 `accessCheck.check`；allowed 后以请求与证据调用 `SessionDelegatedTransactions.bind`，取得本次面操作的委派视图，本命令其余各步（含 `changed` 重做）的端口调用都经该视图；按 OP-00 派生 `SessionOperationId` 与规范化参数摘要，摘要只覆盖语义参数；经视图点查操作记录；调用 `resolveOperation` | 命令参数；操作记录 | `new`、`recovered`（原回执）或 `conflict` | 缺租户 `invalid`；跨租户 `denied`；`check` 答 `denied`：返回 `denied`，不继续；`check` 答 `unavailable` 或抛错：返回 `unavailable`，`owner` 为访问检查，不继续；会话在该租户下不存在：返回 `denied`，与跨租户不可区分；`recovered` 时按当前读取资格返回原回执，`recovered` 为真，流水线结束；`conflict` 返回，不提交 |
 | 2 权威读 | 在同一事务边界读 `WorkSnapshot`。命令带 `expected` 时，记下 `revision` 作为本次提交的 `expected` | `Access` | 一个完整提交位置上的快照 | 读不到返回 `unavailable`；归约隔离返回 `quarantined`。都不提交 |
 | 3 事务外裁定 | 以第 2 步的快照调用 `decide`。`decide` 按[命令表](../session-contract/SPEC.md#命令表)组合领域服务与守卫 | 快照与命令参数 | 拒绝结局，或「允许」与本命令需要的材料种类 | 拒绝结局原样返回，不提交。允许时丢弃这一次产出的批次，不交给第 5 步 |
-| 4 收材料 | 按命令向身份桥、证据桥、Context 输入或空闲输入要 `GuardCommand`。`GuardCommand.participant` 标识材料的拥有者，不是存储参加者的名字（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)） | `SessionCommand` | 完整的材料集合 | 桥返回失败时按端口表返回 `unavailable`，`owner` 为该桥；缺一项材料不提交 |
-| 5 提交 | 调用 `SessionTransactionPort.commit`，交 `SessionCommand` 与材料。材料随命令交给存储参加者，不各自成为存储参加者。存储参加者在同一事务里调用 `decide` 取得条目批次，再写条目、操作回执、治理变更、派生索引与解释进度。带 `expected` 的命令由 `decide` 在事务内核对 `expected`；其余命令由 `decide` 按事务内的当前状态重新裁定。批次内容（例如冻结的会话里 Run 终态同批的 SE38，见 [I-F4](../session-contract/SPEC.md#i-f4)）全部来自 `decide` | 命令与材料 | `CommitReceipt` | `changed`（只有带 `expected` 的七种命令会得到，尾部已变）：回到第 1 步，重读快照，用同一操作身份重做，存储参加者为重做开新的尝试代次（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)）。第 3 步在新快照上重算拒绝原因。重做上限为策略 `command.retriesOnChanged`，超过后把 `changed` 交给调用方。材料缺席、版本不符或来源无权：提交被拒绝，按[SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport)返回，不重做。`commit-unknown`：原样返回，不改写，不换身份。`attempt-rejected` 只出现在原操作查询里，说明该次尝试未生效，原操作可用同一身份重试（[SL09](../session-contract/SPEC.md#日志提交与查询结果)） |
+| 4 收材料 | 按命令向身份桥、证据桥、Context 输入或空闲输入要 `GuardCommand`。`GuardCommand.participant` 标识材料的拥有者，不是存储参加者的名字（[身份桥、证据桥与 Context 输入](../session-contract/SPEC.md#身份桥证据桥与-context-输入)） | `SessionCommand` | 完整的材料集合 | 桥返回失败时原样返回该失败，`owner` 沿[契约端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)取桥自己报告的拥有者；桥缺席或抛出时，`owner` 由宿主填该端口的服务键（[session-cordis 端口接线](../session-cordis/SPEC.md#端口接线)）；缺一项材料不提交 |
+| 5 提交 | 经第 1 步的委派视图调用 `commit`，交 `SessionCommand` 与材料；视图把绑定的证据交给存储，与操作记录放在一起。材料随命令交给存储参加者，不各自成为存储参加者。存储参加者在同一事务里调用 `decide` 取得条目批次，再写条目、操作回执、治理变更、派生索引与解释进度。带 `expected` 的命令由 `decide` 在事务内核对 `expected`；其余命令由 `decide` 按事务内的当前状态重新裁定。批次内容（例如冻结的会话里 Run 终态同批的 SE38，见 [I-F4](../session-contract/SPEC.md#i-f4)）全部来自 `decide` | 命令与材料 | `CommitReceipt` | `changed`（只有带 `expected` 的七种命令会得到，尾部已变）：回到第 1 步，重读快照，用同一操作身份重做，存储参加者为重做开新的尝试代次（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)）。第 3 步在新快照上重算拒绝原因。重做上限为策略 `command.retriesOnChanged`，超过后把 `changed` 交给调用方。材料缺席、版本不符或来源无权：提交被拒绝，按[SessionTransactionPort](../session-contract/SPEC.md#sessiontransactionport)返回，不重做。`commit-unknown`：原样返回，不改写，不换身份。`attempt-rejected` 只出现在原操作查询里，说明该次尝试未生效，原操作可用同一身份重试（[SL09](../session-contract/SPEC.md#日志提交与查询结果)） |
 | 6 通知 | 提交确认耐久之后，现取 `SessionNotifier` 并调用 `committed`，载荷为租户、会话、回执的 `revision`、`source` 与本次事件种类集合 | 回执 | 无 | 通知缺席或失败只记诊断，不回滚，不改回执（[EC-11](../session-contract/SPEC.md#ec-11)） |
 
 只有七种命令带 `expected`，做乐观并发核对：`reload`、`release`、`finishRun`、`recordIdle`、`bindExternalCall`、`completeExternalConsumption` 与 `commitDerived(context-reminder)`。对它们，第 2 步与第 5 步的一致性由存储提供者保证：事务内的 `decide` 发现 `expected` 不等于尾部时得到 `changed`。尾部与 `expected` 一致时，事务内的 `decide` 与第 3 步读同一快照与同一参数。`decide` 是纯函数，所以两次结局相同。
@@ -43,6 +43,10 @@
 其余命令不带 `expected`。事务内的 `decide` 以存储参加者读到的当前状态重新裁定，结局可能与第 3 步不同，以事务内的结局为准，不产生 `changed`。第 3 步只用来提前得到拒绝原因与决定收哪些材料，材料集合按命令种类固定，所以状态变化不会让收到的材料失配。
 
 因此第 2 步可以从[快照缓存](#ca-3)读取。错误的快照对带 `expected` 的命令只导致一次 `changed` 重做，对其余命令只影响事务外的预判，都不导致错误提交。第 1 步的点查不走快照缓存。重做沿用同一 `SessionOperationId`。Session 操作的输入摘要不含认证封套与 `expected`，材料只计拥有者与身份（[尝试代次](../session-storage-sql/SPEC.md#w1-attempts)），所以重做与同一意图的重试认回原回执或继续提交，不得到 `conflict`。
+
+<a id="cp-access"></a>
+
+一次面操作恰调用一次 `check`，核权点是第 1 步。点查、权威读、`changed` 重做与提交都经委派视图，视图不再裁定（[委派入口](../session-contract/docs/access-check.md#委派入口)、[当前操作的访问裁定](../session-contract/SPEC.md#当前操作的访问裁定)）。委派视图只服务本次面操作，不跨面操作保留，不写进任务、缓存或游标。协调器、调度器与恢复对已成立会话提交命令时，先按 `{ actor, tenant, session }` 调用 `SessionWorkPrincipals.forSession` 取得该会话的主体，再以这个主体进入第 1 步。`forSession` 答 `denied` 时不推进该会话，待办保留；答 `unavailable` 或 `quarantined` 时保留任务，记录诊断，下一次触发再取。`SessionInternalPrincipals` 只用于系统维护。首次 `create` 不用 `forSession`，沿用登录请求的工作关系。
 
 <a id="cp-02"></a>
 
@@ -65,7 +69,7 @@
 
 #### CP-03 读操作
 
-`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 可以经快照缓存回答，但必须先按 [CA-3](#ca-3) 核对有效性。`loadRecovery` 与 `queryOperation` 不走缓存。
+`readWork`、`loadRecovery`、`readInput`、`queryOperation`、`inspectIdle`、`pending`、`references`、`releasedScopes` 与四个历史读操作（`begin`、`next`、`since`、`readModelView`）只做核权与读取。单会话的读操作在面操作开头调用一次 `check`，读取经委派视图。`pending`、`references` 与 `releasedScopes` 不属于单会话的面操作，委派视图对它们答 `denied`：面操作不另行调用 `check`，直接调用公开 `SessionTransactionPort` 的同名方法，由端口在实际执行处调用一次 `check`。历史页的 `annotations` 由存储提供者的读路径随页给出（[SessionHistory](../session-contract/SPEC.md#sessionhistory)），本成员不另行拼接。它们不派生操作身份，不写条目，不发通知。`readWork` 可以经快照缓存回答，但必须先按 [CA-3](#ca-3) 核对有效性。`loadRecovery` 与 `queryOperation` 不走缓存。
 
 ### EX 受理流水线的拓展点编排
 
@@ -97,9 +101,9 @@
 | 触发源 | 入站调用方以 `intake` 调用方类调用 `accept` |
 | 顺序 | EX-1 → `accept`（CP-01）→ EX-2 |
 | 输入 | `RoutedInput`、来源、受理标识与 `InputId`、快照里的会话当前值 |
-| 产出 | 一次 `accept` 提交：普通输入写 SE10、SE11；卡片答复写 SE11、SE23，授权类另有 SE34；业务输入写 SE11；拒绝只写 SE12。回执交回调用方。提交通知唤醒 S1 |
+| 产出 | 一次 `accept` 提交：普通输入写 SE10、SE11；卡片答复写 SE11、SE23，授权类另有 SE34；业务输入写 SE11；准入者拒绝只写 SE12（[SE12 的适用范围](../session-contract/SPEC.md#se12-的适用范围)）。回执交回调用方。提交通知唤醒 S1 |
 | 单写 | 每会话串行。重复进入按受理标识认回 |
-| 失败分支 | 拦截：返回原因，不保管正文。`routeInput` 为 `rejected`：返回 `archived`、`frozen` 或 `invalid`，冻结的拒绝只发生在没有未终结 Run 时（[I-F4](../session-contract/SPEC.md#i-f4)）。`commit-unknown`：原样交给调用方，调用方以同一受理标识重试或 `queryOperation`。存储或保管不可用：`unavailable` |
+| 失败分支 | 拦截：返回原因，不保管正文。`routeInput` 为 `rejected`：返回 `archived`、`frozen` 或 `invalid`，不提交，不写 SE12；冻结的拒绝只发生在没有未终结 Run 时（[I-F4](../session-contract/SPEC.md#i-f4)）。`commit-unknown`：原样交给调用方，调用方以同一受理标识重试或 `queryOperation`。存储或保管不可用：`unavailable` |
 
 <a id="c2"></a>
 
@@ -117,7 +121,7 @@
 | 输入 | 快照；`readInput` 取得的输入内容（在 `session-adapters` 侧）；出站回执；Agent 事件页 |
 | 产出 | `startRun`、`claim`、`reload`、`release`、`finishRun`（PM-02 的准入拒绝）、`freeze`、`receive` 命令；`invoke`、`submit`、`resume`、`detach`、`query`、`inspect` 出站调用 |
 | 单写 | 每 Run 一个协调实例。跨进程由 attempt 序号、`expected` 与执行记录提供者的条件提交围栏保护，不用锁 |
-| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 表示本 attempt 已被取代，停止并交 C5；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
+| 失败分支 | `startRun`：`run-active` 表示另一方已开，无害结束；`changed` 重新裁定；`frozen` 按上面的冻结行；`no-input`、`not-ready`、`login-required`、`archived`、`denied`、`invalid` 停止并记诊断，待处理输入保留。`invoke`：`denied` 有两种来源，协调器经委派视图重读快照区分：快照里的推进资格已不指向本 attempt 时，本 attempt 已被取代，停止并交 C5；仍指向本 attempt 时，是访问裁定拒绝，停止，记录诊断，待处理输入与任务保留，不因此发起 `claim`；`busy` 等该 runtime 的终态事件后重试，退避按 `advance.retryDelaysMs`；`unavailable` 退避；`invalid` 按 [PM-02](../session-contract/SPEC.md#pm-02) 提交有界收束的 `finishRun`，同批写首条输入的 SE35 为拒收；`commit-unknown` 以同一出站身份 `query`。`submit`：`terminal` 按 [PA-03](../session-contract/SPEC.md#pa-03) 不重试、不改去处；`invalid` 按 [PA-09](../session-contract/SPEC.md#pa-09) 写 SE35 为拒收；`commit-unknown` 先 `query`。`claim`、`reload`、`resume`、`detach` 的失败按 [PM-05](../session-contract/SPEC.md#pm-05)、[PM-06](../session-contract/SPEC.md#pm-06)、[PM-09](../session-contract/SPEC.md#pm-09) 至 [PM-12](../session-contract/SPEC.md#pm-12)。`freeze`：`commit-unknown` 以同一身份 `queryOperation`，认回前不再触发开 Run。Agent 端口缺席：出站调用不发出，任务保留，由 S1 或 S3 重放 |
 
 <a id="c3"></a>
 
@@ -202,8 +206,8 @@
 | 项 | 内容 |
 | --- | --- |
 | 触发源 | 进程启动；周期到点；C2 或 C3 上报失败 |
-| 看什么 | 按租户分页读 `pending(reason)`，游标稳定。启动扫描与周期扫描都读七个原因：`unresolved`、`controls`、`tasks`、`inputs`、`run`、`idle-armed`、`release`。启动扫描不带 `reason` 读并集，再按每个会话的原因分派；周期扫描按七个原因各读一遍。七个原因都只由快照决定，所以只有待处理输入、只有未终结 Run、或只启用了自动归档的会话也能被找回。租户来源是事务域目录，与 `references`、`releasedScopes` 用同一个目录（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)）。目录缺席时，本调度器只扫描装配交入的租户集合，并向维护者报告目录缺口；其余租户要等它的下一次提交通知才被处理 |
-| 交给谁 | `unresolved` 交 S4；`controls` 与 `tasks` 交 C5；`inputs` 交 S1，即 C1 受理之后的推进触发：S1 调用 `judgeRunStart` 开 Run，Run 为 active 时交 C2 续入；`run` 交 C5 恢复与 C2 的同日志解释；`idle-armed` 交 S2 计时；`release` 交 C5 的[交付责任解除](#c5-release) |
+| 看什么 | 按租户分页读 `pending(reason)`，游标稳定。`pending` 经公开事务端口读取，端口每页调用一次 `check`（[CP-03](#cp-03)）。启动扫描与周期扫描都读八个原因：`initialization`、`unresolved`、`controls`、`tasks`、`inputs`、`run`、`idle-armed`、`release`（[SessionReconciliation](../session-contract/SPEC.md#sessionreconciliation)）。启动扫描不带 `reason` 读并集，再按每个会话的原因分派；周期扫描按八个原因各读一遍。八个原因都只由快照决定，所以只有未完成的初始化项、只有待处理输入、只有未终结 Run、或只启用了自动归档的会话也能被找回。租户来源是应用装配的部署枚举：扫描者以部署扫描主体调用 `tenantDomains.enumerate`，取得一个修订的完整租户集合，再逐个租户读 `pending`（[租户到事务域的目录](../../../docs/architecture/runtime/application-assembly.md#租户到事务域的目录)）。它是契约明确缺项中事务域目录的装配兑现（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)）。一轮只覆盖该修订的集合；之后登记的租户由它的首次提交通知与下一轮覆盖。枚举缺席或失败时，本调度器只扫描装配交入的租户集合，并向维护者报告缺口；其余租户要等它的下一次提交通知才被处理。部署枚举怎样交到本成员见 [session-cordis 性质 7](../session-cordis/SPEC.md#唤醒调用方与扫描者) |
+| 交给谁 | `initialization` 交 C5，C5 重新驱动初始化项的负责方；`unresolved` 交 S4；`controls` 与 `tasks` 交 C5；`inputs` 交 S1，即 C1 受理之后的推进触发：S1 调用 `judgeRunStart` 开 Run，Run 为 active 时交 C2 续入；`run` 交 C5 恢复与 C2 的同日志解释；`idle-armed` 交 S2 计时；`release` 交 C5 的[交付责任解除](#c5-release) |
 | 幂等 | 读取不删除待办。待办只在相应命令成功后由归约解除。同一会话在一轮里只交一次 |
 | 并发 | 每个租户同一时刻一个扫描者。第一版靠装配单实例兑现（[靠装配兑现的保证](../session-cordis-contract/docs/cordis.md#靠装配兑现的保证)）；多实例之前须先定义租约协议（[明确缺项](../session-contract/SPEC.md#具名前提与明确缺项)）。每会话退避独立计算 |
 | 停机与接续 | 游标不持久。重启后从零开始扫描，重复交付由各命令的操作身份认回 |
@@ -327,11 +331,12 @@
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | <a id="ca-1"></a>CA-1 | 条目缓存 | `(tenant, session, position)` | 解码后的条目，含内联载荷 | 永远有效。已提交条目不可变。只缓存从已确认提交前缀读到的条目；未提交候选没有对外位置，不进缓存 | 按字节 LRU，预算 `cache.entryBudgetBytes` | 不需要。键即内容，命中不可能过期 | 本成员 |
 | <a id="ca-2"></a>CA-2 | 视图前缀摘要缓存 | `(tenant, session, epoch, seq)` | 模型视图在该位置的前缀摘要 | 永远有效。一代模型视图物化后不改；压缩开新一代，旧键自然不再被读 | 按条数 LRU | 不需要。读者以「代已变」的读取结果发现新代，不靠失效 | `session-adapters` 的历史源插件，按本规则实现 |
-| <a id="ca-3"></a>CA-3 | 快照缓存 | `(tenant, session)` | `WorkSnapshot` 与它的 `revision` | 仅当 `revision` 等于权威尾部的修订。每次权威使用前经事务端口做一次尾部点查比对；提交通知带来的 `revision` 大于缓存值时直接丢弃缓存，通知不能使缓存变为有效。修订是十进制文本，按数值比较：先比长度，长度相同再比字典序 | 每会话单槽替换；会话数上限 `cache.snapshotSessions`，按 LRU 淘汰会话 | 每个进程各自点查比对。带 `expected` 的命令由事务内的 `expected` 核对兜底：过期快照只导致一次 `changed` 重做。其余命令由事务内的 `decide` 按当前状态重新裁定。两类都不导致错误提交 | 本成员 |
+| <a id="ca-3"></a>CA-3 | 快照缓存 | `(tenant, session)` | `WorkSnapshot` 与它的 `revision` 仅当 `revision` 等于权威尾部的修订。尾部比对的入口见下文已知限制；提交通知带来的 `revision` 大于缓存值时直接丢弃缓存，通知不能使缓存变为有效。修订是十进制文本，按数值比较：先比长度，长度相同再比字典序 | 每会话单槽替换；会话数上限 `cache.snapshotSessions`，按 LRU 淘汰会话 | 每个进程各自点查比对。带 `expected` 的命令由事务内的 `expected` 核对兜底：过期快照只导致一次 `changed` 重做。其余命令由事务内的 `decide` 按当前状态重新裁定。两类都不导致错误提交 | 本成员 |
 
 `SessionId` 只在租户内唯一，一个服务实例服务全部租户，所以三层缓存的键都带租户。缓存不是核权点：
 
-- CA-3 命中之前的尾部点查经事务端口，按调用身份核权。这一步就是 CA-3 的核权点，核权失败时返回 `denied` 或 `invalid`，不使用缓存。
+- CA-3 命中之前的尾部读取经委派视图，属于本次面操作，不单独核权。核权点是面操作开头的那一次 `check`（[CP-01](#cp-access)），核权失败时返回 `denied`、`invalid` 或 `unavailable`，不使用缓存。
+- 已知限制：`SessionTransactionPort` 没有只返回尾部修订的读操作，尾部比对没有廉价入口。在端口提供这项读取之前，CA-3 的命中只用于 CP-01 第 2 步。那里的正确性不依赖快照新鲜度（带 `expected` 的命令由事务内核对兜底，其余命令由事务内的 `decide` 重新裁定）。`readWork` 的回答不走 CA-3，经视图读权威快照。触发条件：事务端口增加尾部修订读取之后，按本表的有效性规则启用 `readWork` 的缓存回答。
 - CA-1 命中只省去载荷读取。分页、逐条披露核对与条目位置仍由事务端口的历史读取完成，缓存只按条目身份为已核权页提供载荷。
 - CA-2 命中同样不代替 `readModelView` 的核权（[session-adapters](../session-adapters/SPEC.md)）。
 
@@ -343,7 +348,7 @@
 
 ## 资源与替换
 
-- 本成员经工厂参数取得全部外部能力，不导入 Cordis。按[契约端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)，当前访问检查、事务端口与内部主体为必需依赖，任一缺席不构造实例；Cordis 下 PENDING。其他端口按需要返回 unavailable 或保留任务。访问检查及工厂仍未实现，本文不证明已运行。
+- 本成员经工厂参数取得全部外部能力，不导入 Cordis。按[契约端口表](../session-contract/SPEC.md#构造依赖端口与出站端口)，当前访问检查、委派事务入口、内部主体与会话工作主体为必需依赖，任一缺席不构造实例；Cordis 下 PENDING。公开事务端口只用于 `pending`、`references` 与 `releasedScopes`，按调用现取，缺席时这三项读取返回 `unavailable`。其他端口按需要返回 unavailable 或保留任务。访问检查及工厂仍未实现，本文不证明已运行。
 - 业务身份是操作输入。租户与会话不从装配树推导，不以 Context 或插件配置替代。
 - 调度器可以整体替换为外部工作流引擎，只要它仍只产生带同一操作身份的命令，并遵守 SR-1 至 SR-3。协调器与命令处理器不可替换，它们是本成员的机制本体。
 - 策略对象可以替换。替换只改变间隔、上限与退避，不改变任何命令的结局集合。
@@ -363,7 +368,7 @@
 | VM-02 | 参加命令在提交方事务里运行；提交方回滚 | Session 一侧没有条目，`ExecutionRef` 不变；参加者四种响应与结局一一对应 | [CP-02](#cp-02) |
 | VM-03 | before-admit 槽拦截、放行与展开；同一原提交重复进入 | 拦截只写 SE12，不保管正文；展开内容与原命令同批；重复进入认回原回执 | [EX-1](#ex-1)、[C1](#c1) |
 | VM-04 | 每个协调器在每个失败分支上的动作 | 与各协调器表的「失败分支」一致；没有一个分支把未知改写为成功或失败 | [C1](#c1) 至 [C5](#c5) |
-| VM-05 | 每个调度器的触发、幂等、并发与停机接续 | 重复触发无重复效果；每会话一个在途实例；重启后由 S3 按七个原因找回全部待办，包括只有待处理输入、只有未终结 Run、只启用了自动归档的会话；事务域目录缺席时只扫描装配交入的租户并报告缺口；调度器从不写日志 | [S1](#s1) 至 [S7](#s7)、[SR](#sr-1) |
+| VM-05 | 每个调度器的触发、幂等、并发与停机接续 | 重复触发无重复效果；每会话一个在途实例；重启后由 S3 按八个原因找回全部待办，包括只有未完成初始化项、只有待处理输入、只有未终结 Run、只启用了自动归档的会话；部署枚举缺席时只扫描装配交入的租户并报告缺口；调度器从不写日志 | [S1](#s1) 至 [S7](#s7)、[SR](#sr-1) |
 | VM-06 | `SchedulingPolicy` 每个字段替换为另一个值 | 只有间隔、上限与退避变化；结局集合不变 | [SchedulingPolicy](#schedulingpolicy) |
 | VM-07 | 事件页以不产生后果的事件结束；解释进度丢失；两个解释者并发 | 持久进度停在最后一个产生后果的事件；不调用 `output.acknowledge`；重读按原 execution 与事实身份认回，不重复写后果；进度不回退 | [RD-01](#rd-01) 至 RD-07 |
 | VM-08 | 三层缓存：命中、淘汰、过期快照、提交通知晚到；两个租户有同名会话与同值修订 | 条目与前缀摘要命中永不过期；过期快照对带 `expected` 的命令只导致一次 `changed`，对其余命令不改变事务内结局；通知不能使缓存变为有效；一个租户读不到另一个租户的缓存项；命中不跳过核权；全部缓存清空后结果不变 | [CA-1](#ca-1) 至 [CA-3](#ca-3) |
@@ -371,6 +376,7 @@
 | VM-10 | 崩溃矩阵的每个提交点，崩溃在提交前与提交后各一次 | 与 [CR](#cr-崩溃矩阵) 表一致；没有第二个执行、第二份输入、第二个 attempt 或第二个终态 | [CR](#cr-崩溃矩阵) |
 | VM-11 | 停止顺序与重启 | 在途命令跑完或返回未知；没有出站调用在停止期间发出；重启后未发出的调用被重放，回执认回 | [资源与替换](#资源与替换) |
 | VM-12 | 已保管或处理而原确认未投影；重启与答复丢失 | Tool 原确认从日志认回，核版本后 receive(release)；无确认保持 pending。Model ACK 未决时只报告，不直接调用生产者 | [C5](#c5-release)、[JC-Release](../session-contract/SPEC.md#jc-release) |
+| VM-13 | 每种面操作各执行一次，含 `changed` 重做、认回已有操作、CA-3 命中；`check` 答 `denied`、`unavailable` 或抛错；会话在该租户下不存在 | 每次面操作恰调用一次 `check`，重做不追加；视图不调用 `check`；`denied`、`unavailable`（`owner` 为访问检查）原样返回且没有提交；不存在的会话答 `denied`，与跨租户不可区分；`pending` 等三项目录读取只由公开端口调用一次 `check` | [CP-01](#cp-01)、[CP-03](#cp-03) |
 
 ### CR 崩溃矩阵
 
@@ -378,7 +384,7 @@
 
 | 编号 | 提交点 | 提交前崩溃 | 提交后、后续动作前崩溃 | 谁发现 | 恢复动作 | 不得发生 |
 | --- | --- | --- | --- | --- | --- | --- |
-| CR-01 | `create`、`completeInitialization` | 没有会话或没有该项结果 | 通知丢失 | 调用方以同一提交身份重试；S3 以 `tasks` 找回未完成的初始化项 | 认回原回执；C5 重新驱动负责方 | 第二个会话身份；用空值冒充初始化完成 |
+| CR-01 | `create`、`completeInitialization` | 没有会话或没有该项结果 | 通知丢失 | 调用方以同一提交身份重试；S3 以 `initialization` 原因找回未完成的初始化项 | 认回原回执；C5 重新驱动负责方 | 第二个会话身份；用空值冒充初始化完成 |
 | CR-02 | `accept` | 没有受理 | SE10、SE11 已在，S1 未被唤醒 | 调用方 `queryOperation`；S3 以 `inputs` 原因找回，交 S1 | 认回原回执；S1 调用 `judgeRunStart` | 第二份输入；未知期间报告未受理 |
 | CR-03 | `startRun` | 没有 Run | SE13、SE15 已在，`invoke` 未发出 | S3 以 `run` 原因找回，交 C5；C5 读到 `run.active`、`advance` 非空、首条输入没有 SE35 | 查 `invoke` 的出站身份；未提交则以同一身份重放（[PA-06](../session-contract/SPEC.md#pa-06) 第 2 项） | 第二个执行身份；重选首条输入 |
 | CR-04 | `invoke`（Agent 提交，Session 只读参加） | Agent 没有执行 | Agent 已受理，SE35 未写 | 同 CR-03 | `query` 为 `committed` 时 `receive` 写 SE35，再交入其余输入 | 第二次 `invoke` 用新身份 |
@@ -401,7 +407,7 @@
 | CR-21 | `freeze` | 没有冻结。第一条路径：`startRun` 已返回 `frozen`，判定只在该失败的 `verdict` 里 | SE37（与 SE38）已在，通知丢失 | 第一条路径：下一次 S1 触发重新取候选材料，Tool 再次给出同一判定；第二条路径：Tool 宿主协调者重试 | `freeze` 首次提交或认回原回执；S1 读到 `frozen` 后跳过 | 第二条 SE37；冻结取消未终结 Run；待处理输入既无去处又无 SE38 |
 | CR-22 | `change`、`setRelation`、`configureAutoArchive`、`commitDerived(context-reminder)` | 没有变更 | 条目已在，通知或消费者未更新 | 调用方以同一提交身份或变化材料身份重试 | 认回原回执；作用域持有者在下一次拉取补齐 | 未知期间作用域持有者先使注册生效 |
 | CR-23 | `bindExternalCall`、`completeExternalConsumption` | 没有登记或完成 | 条目已在 | 调用方 `queryOperation` | 认回 | 把 Run 内调用改登记为 Run 外调用 |
-| CR-24 | 提交通知 | 不适用 | 通知未发或丢失 | S3 周期扫描，按七个原因读 `pending` | 按权威读补查；每个原因只由快照决定，所以通知要唤醒的工作都在某个原因之下。前提是 S3 能枚举该租户：事务域目录缺席时，租户要等它的下一条通知 | 通知丢失导致工作丢失 |
+| CR-24 | 提交通知 | 不适用 | 通知未发或丢失 | S3 周期扫描，按八个原因读 `pending` | 按权威读补查；每个原因只由快照决定，所以通知要唤醒的工作都在某个原因之下。前提是 S3 能枚举该租户：部署枚举缺席时，租户要等它的下一条通知 | 通知丢失导致工作丢失 |
 
 ### 明确缺项
 

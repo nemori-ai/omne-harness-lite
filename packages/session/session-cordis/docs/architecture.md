@@ -44,9 +44,9 @@ flowchart LR
 
 ## 关键机制与理由
 
-### 只 inject 访问检查、事务端口与内部主体
+### 只 inject 五个必需键
 
-`inject` 的含义是「它换代或不在，本插件就卸载重跑」（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。访问检查缺席时不能执行公开操作；事务端口缺席时任何读写都不成立；内部主体缺席时协调器与调度器不能提交。任一缺席时重跑是正确的反应。其余端口缺席时只有需要它的操作失败。把它们写进 `inject`，会让一个身份桥或时钟的换代停下全部会话的读取、控制与恢复。
+`inject` 的含义是「它换代或不在，本插件就卸载重跑」（[plugin-body-reruns-on-provider-change](../../../../.meta_harness/design/basis/cordis/plugin-body-reruns-on-provider-change.md)）。访问检查缺席时不能执行公开操作；委派事务入口缺席时单会话的读写都不成立；内部主体或会话工作主体缺席时协调器与调度器不能提交；装配生命周期缺席时有序关闭里没有本插件。任一缺席时重跑是正确的反应。其余端口缺席时只有需要它的操作失败。把它们写进 `inject`，会让一个身份桥或时钟的换代停下全部会话的读取、控制与恢复。
 
 代价：每次调用多一次服务表查找。理由是查找是常数开销，而全服务重跑会丢掉调度计时与缓存，并让所有调用方插件一起重跑。
 

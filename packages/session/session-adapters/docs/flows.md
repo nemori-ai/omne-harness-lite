@@ -72,12 +72,12 @@ flowchart LR
   Commit[Session 提交 SE07 或步提交] --> Apply[applyCommit]
   Rebuild[Runtime Context 重建] --> Begin[beginReplay] --> Finish[finishReplay 交完整恢复材料] --> Reissue[重签资格]
   Step[步边界提交成功] --> Pull[changes 加 diffForReminder]
-  Basis[新的历史依据之前] --> Pull
+  Modes2[发布 session.modes 新值之后] --> Pull
   Pull --> Reminder[commitDerived 写系统提醒]
   Modes[SE03 提交] --> Publish[经生产者句柄发布 session.modes]
 ```
 
-1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。插件确认提交后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
+1. 注册：原初始化计划的增加经 create 或 completeInitialization 提交 SE02/SE07，后续变更经 change。AD-03 是调用 applyCommit 的唯一一方：它从提交通知或恢复材料得知提交确认后，按 SE07 顺序以每项原 CommitRef、原 basedOn 和完整输入调用 applyCommit。多个注册不共用同一 Context 提交身份。提交未知时先查询原操作，不先应用；失败沿原决定恢复。注册完成不证明生产者已供值。身份与修订映射见 [Session 初始注册](../../session-contract/SPEC.md#初始注册的身份与修订)。
 2. 恢复会话按 [AD-03 1a](../SPEC.md#ad-03-1a) 与 RC-09 进行。以原 scope、through/supersedes 及完整三部分材料 begin/finishReplay，只有 ready(open) 后按当前普通授权、可信绑定及所需注册重签资格，签发不等供给值恢复。合法普通读取触发待刷新供值，必要输入齐备后才发首个模型请求。新 scope 按 [J18](../../session-contract/SPEC.md#j18-作用域引用与结束事实) 经现有注册与提交路径初始化，不复制旧 scope。注册已提交但初始化未完即重启时，恢复原注册与已有检查点，再补供值并续原初始化。必要来源或资格有缺口时失败关闭，首请求保持暂停；恢复覆盖的普通提交不重复执行增量。
 3. 供给：SE03 提交后，插件经带租户的生产者句柄发布 `session.modes` 的新值，输入是作用域、租户与值。恢复完成后，第一次合法的普通读取遇到待刷新标记时，Runtime Context 调用供值回调，插件重新发布日志里的值。
 4. 变化提醒：在两个必拉时点，插件以模型类读者的游标调 `changes`，再以上一份快照调 `diffForReminder`，然后以 `commitDerived(context-reminder)` 写系统提醒。
@@ -87,7 +87,7 @@ flowchart LR
 
 对应 [AD-04](../SPEC.md#ad-04)。生产来源尚未交付。
 
-1. 补拉提醒后，固定真实 Access、显式 tenant/scope、epoch 与十进制 upper。以 read({ access, evidence, cursor, budgetBytes }) 读取固定页；空上界使用 empty。
+1. 不等 AD-03 补拉（[AD-03 1c](../SPEC.md#ad-03-1c) 的已知限制）。固定真实 Access、显式 tenant/scope、epoch 与十进制 upper。以 read({ access, evidence, cursor, budgetBytes }) 读取固定页；空上界使用 empty。
 2. 压缩读取 compactionContext({ access, evidence, coverTo })，交出同一 evidence 的最新合法 C、retained、未覆盖尾项、原配对与 open 证据。模型消息页不能代替完整窗口。
 3. sourceCall 与 continues 只来自真实 Model 来源及固定前缀。CompactionPlan.basis 序列化恢复保留原依据，不补读新历史。最终 context-transition 仍核当前 epoch。
 4. readWork/openWork 的未结下界沿 AD-04 保留原 SE18/SE22/SE24/SE25 及关联条目，未知不交空集合。
@@ -141,7 +141,7 @@ flowchart LR
 
 `GuardCommand.participant` 填材料的拥有者，不填存储参加者。初始化沿 [Session 自有编码](../../session-contract/SPEC.md#初始化守卫编码)穷举核对真实初始采用、完整计划、原绑定及成功事实，证据桥复用现有 prepare。SessionContextInput.prepare 的四类命令联合保持，不新增 completeInitialization 分支。
 
-证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
+证据桥按命令把准备交给三个窄来源端口；来源失败原样交回并指明拥有者。登录确认只属于 `startRun`，`reload` 与 `create` 不带。证据桥在 `startRun` 与 `reload` 时把 Tool 在采用点给出的常驻工具、登记键与冻结判定放进候选采用材料。带回冻结判定时，命令返回 `frozen`，`verdict` 就是这份判定。推进协调随后以它调用 `freeze`。会话已冻结时，`verdict` 为 null。
 
 ### FA-10 常驻工具候选采用
 
@@ -170,7 +170,7 @@ sequenceDiagram
 1. 推进协调调用 `invoke`。插件以 `readInput` 取首条输入的内容，取得 `AgentRuntime` 并发起执行，保留返回的句柄。
 2. 推进协调逐条调用 `submit`。插件经句柄交入输入。
 3. 接续时，插件以 `resume` 取得新挂接与新句柄。换代撤旧时，插件先 `load` 取挂接资格，再 `detach`。
-4. 控制传播经 agentExecutionControl.control，不要求句柄或挂接。原意图到 Agent 控制、后续 resume 收束按 [AD-14 的 J07 映射](../SPEC.md#ad-14)，suspend 次序未决保持。
+4. 控制传播经 agentExecutionControl.control，不要求句柄或挂接。原意图到 Agent 控制、后续 resume 收束按 [AD-14 的 J07 映射](../SPEC.md#ad-14)，Session 没有 suspend 意图。
 5. 结果未知时，推进协调调用 `query`。插件以 `agentExecutionRecovery.query` 查询。
 6. 消息准入拒收时，插件返回 `invalid` 与拒收证据，推进协调以 `receive` 写拒收事实。
 

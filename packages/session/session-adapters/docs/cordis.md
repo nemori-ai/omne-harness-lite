@@ -21,21 +21,21 @@
 | AD-03 持有者与生产者 | `runtimeContext`（数组形式）；`session: { caller: 'coordinator' }` | 无 | `registerProducer` 的生产者登记，每个租户一份 |
 | AD-03 回放子插件 | `session: { caller: 'reader' }` | 无 | 无 |
 | AD-03 变化提醒子插件 | `runtimeContext: { consumer: 'model' }` | 无 | 模型类绑定读者 |
-| AD-04 历史源 | `session: { caller: 'reader' }`；下界子插件为 `coordinator`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
+| AD-04 历史源 | 两个子插件：历史源子插件 `session: { caller: 'reader' }`；下界子插件 `session: { caller: 'coordinator' }`；RQ 来源登记服务 | 无 | 仅在完整 ContextSources 及当前资格可兑现时整组 register/replace；撤除等待在途与租约结清 |
 | AD-05 Model 日志消费适配 | `session: { caller: 'coordinator' }`。不注入 `modelRuntime`（[AD-05](../SPEC.md#ad-05)） | 无 | 不登记。经本成员 Journal 提供者读 `received` 条目与材料 |
 | AD-06 Tool 日志消费适配 | `session: { caller: 'coordinator' }`；同一 AgentJournal 与 AgentMaterials 提供者 | 无 | 只读原 entries/results 与材料，不注入 Tool；完整收场材料不可读则 unavailable，保留任务 |
 | AD-08 受理拓展点 | `session: { caller: 'intake' }` | 无 | 不登记，待 NP-07 |
-| AD-09 身份桥 | 身份来源的服务 | `sessionIdentity` | 服务提供 |
-| AD-10 证据桥 | 装配采用、生产来源与保管来源的服务 | `sessionEvidence` | 服务提供 |
+| AD-09 身份桥 | 身份来源的服务（identity 的核验器） | `sessionIdentity` | 服务提供 |
+| AD-10 证据桥 | `sessionAdoptionSource`、`sessionProductionSource`、`sessionCustodySource` | `sessionEvidence` | 服务提供 |
 | AD-11 空闲输入 | `modelRuntime`、`toolRuntime`；`session: { caller: 'maintainer' }` | `sessionIdleInput` | 服务提供 |
 | AD-12 Context 输入 | `runtimeContext` | `sessionContextInput` | 服务提供 |
 | AD-14 `AgentDrivePort` | `agentInstances`、`agentExecutionRecovery`、`agentExecutionControl`；`session: { caller: 'coordinator' }` | `sessionAgentDrive` | 服务提供 |
 | AD-15 `ScopeReleasePort` | `executionEnvironment: { caller: 'maintainer' }` | `sessionScopeRelease` | 服务提供；恢复授权由装配入口构造时交入 |
 | AD-15 重新释放子插件 | `executionEnvironment: { caller: 'maintainer' }`；`session: { caller: 'maintainer' }` | 无 | 无；恢复授权由同一个装配入口交入 |
-| J06 消息准入 | `session: { caller: 'coordinator' }`；原消息政策与来源 | `agentMessageHandoff` | 继承 Agent 定义；不在准入中写消息，生产插件未交付 |
-| J06 当前条件 | `session: { caller: 'coordinator' }`；原 Authority/grant 与已采用来源 | `agentConditions` | 不补默认条件，生产插件未交付 |
+| J06 消息准入 | `session: { caller: 'coordinator' }`、`agentAccessCheck`；原消息政策与来源 | `agentMessageHandoff` | 继承 Agent 定义；不在准入中写消息，生产插件未交付 |
+| J06 当前条件 | `session: { caller: 'coordinator' }`（访问只经 Session 面核）；原 Authority/grant 与已采用来源 | `agentConditions` | 不补默认条件，生产插件未交付 |
 | 实时显示 | 同一日志的调用关联、公共 StreamObserver | 无 | 只观察 snapshot/delta/gap/ended，不控制、不保管、不确认解除；生产插件未交付 |
-| Agent Journal 提供者 | 无邻域服务；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供。生产插件未交付；非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
+| Agent Journal 提供者 | `sessionAccessCheck`、`storage`、受信 `tenantDomainLookup`；与 Session 共用会话日志的提交状态 | `agentJournal`（`extends AgentJournalService`）；同一提供者兑现 `agentJournalEntries` 与 `agentMaterials` | 服务提供。生产插件未交付；非耐久替身是 `./testing` 的 `createMemorySessionJournal`（[SPEC](../SPEC.md#agent-journal-提供者与非耐久替身)） |
 
 说明：
 

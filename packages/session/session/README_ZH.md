@@ -32,7 +32,7 @@ PACKAGE_TEMPLATE_DRAFT
 
 本成员只有根入口 `@omne-harness/session`，现在没有导出。实现进入之后，宿主按下面的顺序使用：
 
-1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件只有事务端口与内部主体。
+1. 构造 `SessionDependencies` 与 `SessionConfiguration`。启动条件有四项：访问检查、委派事务入口、内部主体与会话工作主体。
 2. 调用 `createSessionInstance(dependencies, configuration)`。
 3. 用 `facesFor(caller)` 给每个调用方类各自的面。
 4. 对宿主要服务的每个租户调用 `maintain(tenant)`，保存返回的句柄。
@@ -51,7 +51,7 @@ PACKAGE_TEMPLATE_DRAFT
 - [对象模型](docs/object-model.md)拥有构造对象与内存状态的拥有者。
 - 操作、失败、事件与状态机归[契约 SPEC](../session-contract/SPEC.md)，本成员只链接，不复述。
 
-调用工厂的一方拥有实例，负责关闭。`close` 之后四个面返回 `unavailable`；`close` 不回滚已提交的事实，也不取消任何 Agent、Tool 或 Model 的执行。出站端口缺席只让需要它的操作失败，事务端口缺席则整个实例不能启动。
+调用工厂的一方拥有实例，负责关闭。`close` 之后四个面返回 `unavailable`；`close` 不回滚已提交的事实，也不取消任何 Agent、Tool 或 Model 的执行。出站端口缺席只让需要它的操作失败；访问检查、委派事务入口、内部主体或会话工作主体缺席，则整个实例不能启动。每次面操作在开头调用一次访问检查。
 
 ## 设计
 
