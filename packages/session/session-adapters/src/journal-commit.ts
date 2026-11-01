@@ -98,6 +98,8 @@ export async function commitJournal(input: JournalCommitInput): Promise<JournalC
  * - `unknown`: still undecided, or the storage could not be asked.
  * The storage cannot tell a generation that was sent and dropped from one never sent, so only a
  * caller that knows it sent the generation may read `not-run` as "dropped".
+ * A generation whose pre-send query already answered unknown is held the same way: the caller
+ * keeps it as undecided, and a later `not_committed` makes it excluded like a dropped one.
  */
 export type GenerationStanding = 'committed' | 'not-run' | 'unknown'
 

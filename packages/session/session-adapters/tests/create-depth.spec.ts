@@ -1,6 +1,6 @@
 // Why the real sqlite-provider scenes of this member set `maxJsonDepth` above 64 (SPEC K-14): the
 // guard facts of a Session `create` embed the typed form of the command input, which costs about
-// eight JSON levels for each level of the input. A creation with an initial input has an input
+// seven JSON levels for each further level of the input. A creation with an initial input has an input
 // eight levels deep (`input.creation.initial.message.blocks[].visibility`), so its commit command
 // nests 69 levels; one without an initial input nests 48. The provider refuses a command deeper
 // than `maxJsonDepth` as `command_limit`.

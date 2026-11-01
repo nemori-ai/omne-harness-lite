@@ -682,6 +682,14 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
       const root = cell.state()
       for (const [at, held] of book.held) {
         if (root.agent.operations.has(at)) continue
+        // The reference core keeps the custody attempt of a write while it is pending and after it
+        // is excluded, so the custody chain of the H goes on from it in both cases.
+        if (held.custody !== null) {
+          const execution = [...root.agent.executions.values()].find(
+            item => item.id === held.execution,
+          )
+          execution?.custodyAttempts.set(held.operation, held.custody)
+        }
         if (held.standing === 'unknown') {
           root.agent.operations.set(at, {
             kind: 'pending',
@@ -705,11 +713,6 @@ export function createSessionLogJournal<P>(options: SessionLogJournalOptions<P>)
             digest: `sha256:${createHash('sha256').update(record).digest('hex')}`,
           },
         })
-        if (held.custody === null) continue
-        const execution = [...root.agent.executions.values()].find(
-          item => item.id === held.execution,
-        )
-        execution?.custodyAttempts.set(held.operation, held.custody)
       }
       cell.touch()
     })
