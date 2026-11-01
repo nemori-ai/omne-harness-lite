@@ -181,6 +181,25 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 `tests/delivery-baseline.spec.ts` 用记录调用的 GitHub 替身覆盖：分页完整且只有固定 argv 的 GET；同一成员取最晚的区块，先比时间、同一时间再比 `id`，与响应顺序无关；较晚的区块加入新成员；`breakingCards` 合并；缺区块、一条评论两个区块、各种不合格的区块（含短一位的哈希与缺 `milestone` 键）与 milestone 不同各拒绝；非登记者较晚的区块不改基线、不加 `breakingCards` 并列在 `ignored`；团队成员授予、login 相同而 node ID 不同不授予；编辑过的评论标 `edited`；环境读不到时失败；写出的区块读回等于合并结果；`parseBaselineText` 的纯 JSON、单区块与两个区块。CLI 用例经 PATH 上的 `gh` 替身覆盖写出文件退出0、拒绝时退出1且不写文件、读取失败与参数错误退出2。与 `--baseline` 的组合不在本成员的测试中：dev-flow 依赖的版本没有 `--baseline`。
 
+## API 语义复核记录
+
+`api-semantic-review.ts` 拥有记录边界：严格解析、权威远端读取、owner 与委派、撤销和冲突判断。三个入口（卡级、提升级、里程碑累计）使用同一个读取器，不各自再定义权限和失效语义。比较描述由[集成工具](../integration/SPEC.md#api-语义复核)生成，本模块不生成它，也不发网络请求以外的写入。精确记录类型与失败码见该模块的导出类型，下面只写承诺。
+
+- 记录是载体评论中恰好一个 `json omne-api-semantic-review:v1` 围栏。原始 JSON 不允许重复键、未知键、非有限数字或不安全整数。路径必须是仓库相对 POSIX 路径。提交、tree 和 blob 为 40 位小写十六进制，摘要为 64 位小写十六进制。有权作者的标记评论不能严格解析时，结果为 `api-review-invalid`，不猜测范围后跳过。
+- 载体评论完整分页读取，按创建时间再按评论 ID 折叠。达到 20 页上限即未知，不当作读完。记录评论必须未被编辑，即 `created_at` 等于 `updated_at`。编辑过的记录无效，更正通过新评论完成。
+- owner 取目标提交 `delivery-lines.json` 中 `contracts` 精确包含成员的唯一一条线的 `owner`。零条或多条为 `api-review-owner-unresolved`，不从路径归属、轨道 owner 或其他线推导。稳定身份取同一提交的 `docs/engineering/api-review-owners.json`。没有条目为 `api-review-owner-identity-missing`。login 与 node ID 逐字符比较，区分大小写，只差大小写时带 `loginCaseOnly` 提示。
+- 每次运行核对四个互不替代的事实：目标提交中的稳定身份、`GET users/<login>` 的当前读回、评论作者、当前 `publish` environment 的 reviewer。读回只做一致性检查，绝不补齐或改写锚点。返回结果前重读关键平台事实，变化为 `api-review-source-changed`。
+- 委派只允许一次、精确内容，不可再委派。委派的成员与 owner 身份必须等于被委派比较描述的对应字段，被委派者以 node ID 固定。
+- `attest` 的 `replaces` 必须精确列出同一复核键此前全部仍有效的 `attest`。缺一条、多一条、跨键或引用已撤销的记录都拒绝。`revoke` 由当前 owner 发出，或由有有效委派的原作者撤销自己的 `attest`，重复撤销幂等。重复的 `operationId` 为 `api-review-conflict`。
+- 证据评论须在同仓库，其 URL、正文摘要与更新时间逐项匹配。机器只核来源与精确内容，语义是否充分由签发者负责。
+- owner 身份的采用评论只做一致性诊断，输出 `consistent`、`drifted` 或 `unreadable`，不改变结论与退出码。撤销只有治理一条路径。
+- 每个失败码只对应一个退出码。有任一退出 2 的发现时整体为 2，否则有发现时为 1，否则为 0。全部发现都写入报告，一个成员的通过不掩盖另一成员的未知。
+- `lines-cli.ts` 在身份文件存在时增加一致性检查：身份文件的每个 `lineId` 必须在同树 `delivery-lines.json` 中存在，owner login 必须逐字相等，否则发现 `owner-identity-drift`，退出 1。身份文件缺失时不检查，漏登记的线不是漂移。`parseDeliveryLines` 与 `DeliveryLine` 的形状不变。
+- 提升级入口的 `--review-issue`、里程碑累计入口的 `--semantic-review` 与 `verify-owner-adoption` 都复用本模块的身份文件严格解析和评论读取，不另写一套。
+- 已知限制：机器只证明平台账号，不证明账号背后是人还是代笔会话。三项 fail-open 残余（node ID 复用、编辑后更新时间不变、同账号代笔）由负责人在 Issue 中接受，本模块不接受它们。不承诺跨进程原子快照、评论不可篡改或外部结果可回滚。
+
+测试使用真实临时 Git 与替身网络，不写真实 GitHub。拒绝路径逐个单独覆盖：错误的仓库、node ID、作者、reviewer 与 owner，未知与重复键，编辑、撤销、重复 `operationId`、替代缺项与前向引用、委派越权，分页不全、403 与读取之间的变化。
+
 ## 里程碑命令
 
 `createMilestone` 先分页读仓库全部里程碑，按标题精确匹配。同名多于一个时拒绝。同名且截止日的日期部分等于请求日期时返回已有里程碑，不写。同名而日期不同时拒绝。否则以 POST 建里程碑，`due_on` 为请求日期的 `12:00:00Z`，再以响应中的 `due_on` 判断 `verified`。标题须为一行且不含 `-->`。日期须为真实存在的 `YYYY-MM-DD`。
