@@ -34,4 +34,4 @@
 | `agentAccountOutlet` | `AgentAccountOutlet` | Request Context 一侧的适配器。Agent 拥有端口与键，适配器的实现归 Request Context |
 | `agentExecutionControl` | `AgentExecutionControl` | 宿主的长期执行记录适配器。它就是经恢复入口发生的 control，外部协调者经它提交控制，不需要活体 runtime。实现归 [#502](https://github.com/nemori-ai/omne-harness-lite/issues/502) |
 
-Tool 启动围栏的服务不由本包声明。Agent 宿主以静态依赖取得 Tool 的 Cordis 定义的 `toolStartFence` 键，不取得 `toolStartAuthority`。依赖方向是 Agent 依赖 Tool，Tool 的定义不引用本包。本包的测试从 `@omne-harness/tool-cordis-contract/cordis` 读取该键名，核对本包没有重新声明它。
+Tool 启动围栏的服务不由本包声明。Agent 宿主在使用点以局部依赖取得 Tool 的 Cordis 定义的 `toolStartFence` 键，不取得 `toolStartAuthority`。依赖方向是 Agent 依赖 Tool，Tool 的定义不引用本包。本包的测试从 `@omne-harness/tool-cordis-contract/cordis` 读取该键名，核对本包没有重新声明它。

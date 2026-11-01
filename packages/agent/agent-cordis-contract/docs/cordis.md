@@ -50,7 +50,7 @@
 | agentInstances | AgentInstancesService（具体） | AgentDirectory | 目录插件 `agentInstancesPlugin`，由本成员的 `./cordis` 导出，候选发行行是 `agent-instances` |
 | agentInstanceProvision | AgentInstanceProvisionService | AgentInstanceProvision（本成员根入口的类型） | 宿主：agent-host-local。与 `agentInstanceHost`、`agentPublicationAuthority`、`agentExecutionRecovery` 在同一插件体、同一 fiber 内构造，共用槽表与预约表。会话适配器 AD-14 只取得 `acquire`，取不到 `route`、登记句柄或任何停用动作。规则见[实例的取得与回收](#实例的取得与回收) |
 
-另有三个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 与 `toolStartFence` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。Agent 宿主以静态依赖取得 `toolStartFence`，不取得 `toolStartAuthority`，规则见 [SPEC](../SPEC.md#生产者接收面的服务)。
+另有三个键属于外域定义，本成员只引用，不再声明：`modelRuntime` 归 [Model 的 Cordis 定义](../../../model/model-cordis-contract/docs/cordis.md)，`toolRuntime` 与 `toolStartFence` 归 [Tool 的 Cordis 定义](../../../tool/tool-cordis-contract/docs/cordis.md)。Agent 宿主在使用点以局部依赖取得 `toolStartFence`，不取得 `toolStartAuthority`，规则见 [SPEC](../SPEC.md#生产者接收面的服务)。
 
 下列契约类型没有服务键，使用方按下表取得。
 
