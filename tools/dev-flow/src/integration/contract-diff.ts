@@ -1,9 +1,12 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { findPackageJSON } from 'node:module'
 import { dirname, join } from 'node:path'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
-import { clean } from './git.ts'
+import { record, text } from '../delivery/protocol.ts'
+import type { ApiSide, Comparison } from '../delivery/api-review-types.ts'
+import { clean, exactTextBlob, git } from './git.ts'
 import { array, choice, IntegrationError, json, object, sha, string } from './parse.ts'
 import {
   SNAPSHOT_CHANGES,
@@ -273,28 +276,130 @@ function isUnavailable(value: object): value is Unavailable {
  * changes or untracked files (ignored files do not count). Anything it cannot establish is
  * `unavailable` with the reason; an unknown member is never reported as no change.
  */
-export const snapshotContractDiff: ContractDiffProvider =
-  ({ root, timeoutMs }) =>
-  range => {
-    const checkout = unavailableOnKnown(
-      () => clean(root),
-      error =>
-        error.code === 'refused'
-          ? `检出 ${root} 有未提交改动或未跟踪文件；快照差异读工作树，未运行。`
-          : `读不出检出 ${root} 的 Git 状态：${error.message}`,
-    )
-    if (isUnavailable(checkout)) return checkout
-    if (checkout.head !== range.head)
-      return {
-        kind: 'unavailable',
-        reason: `检出 ${root} 的 HEAD 为 ${checkout.head}，不是范围头 ${range.head}；快照差异读工作树，未运行。`,
+export const snapshotContractDiff: ContractDiffProvider = snapshotContractDiffWith(() => {})
+/**
+ * `snapshotContractDiff` that also hands the exact standard output of the CLI run to `onRaw`.
+ * The semantic review hashes the raw member objects of that same run.
+ */
+export function snapshotContractDiffWith(onRaw: (stdout: string) => void): ContractDiffProvider {
+  return ({ root, timeoutMs }) =>
+    range => {
+      const checkout = unavailableOnKnown(
+        () => clean(root),
+        error =>
+          error.code === 'refused'
+            ? `检出 ${root} 有未提交改动或未跟踪文件；快照差异读工作树，未运行。`
+            : `读不出检出 ${root} 的 Git 状态：${error.message}`,
+      )
+      if (isUnavailable(checkout)) return checkout
+      if (checkout.head !== range.head)
+        return {
+          kind: 'unavailable',
+          reason: `检出 ${root} 的 HEAD 为 ${checkout.head}，不是范围头 ${range.head}；快照差异读工作树，未运行。`,
+        }
+      const command = contractApiCommand()
+      if (isUnavailable(command)) return command
+      const ran = runDiff(command, { root, base: range.base, timeoutMs })
+      if (ran.kind === 'unavailable') return ran
+      onRaw(ran.stdout)
+      return unavailableOnKnown(
+        () => contractDiffOf(range, parseDiffRun(ran.stdout)),
+        error => `${CONTRACT_API_BIN} 的输出解析失败：${error.message}`,
+      )
+    }
+}
+
+/**
+ * The raw member objects of one `omne-contract-api --diff --json` stdout, by directory, with
+ * every field the CLI printed. The semantic review hashes them; `parseDiffRun` keeps only the
+ * fields this module reads.
+ */
+export function rawDiffMembers(text: string): Map<string, unknown> {
+  const v = object(json(text, `${CONTRACT_API_BIN} --diff --json`), 'diff')
+  return new Map(
+    array(v.members, 'diff.members').map((item, index) => [
+      string(object(item, `diff.members[${index}]`).directory, `diff.members[${index}].directory`),
+      item,
+    ]),
+  )
+}
+
+/** The pinned toolchain version and the TypeScript version it resolves, or why neither is known. */
+export function toolchainFacts():
+  | { kind: 'known'; version: string; typescriptVersion: string }
+  | Unavailable {
+  const manifest = toolchainManifest()
+  if (manifest === undefined)
+    return {
+      kind: 'unavailable',
+      reason: `dev-flow 解析不到 ${TOOLCHAIN_PACKAGE}。`,
+    }
+  const versionOf = (file: string) =>
+    string(object(json(readFileSync(file, 'utf8'), file), file).version, `${file} version`)
+  const typescript = (() => {
+    for (const base of [manifest, import.meta.url]) {
+      try {
+        const found = findPackageJSON('@typescript/typescript6', base)
+        if (found !== undefined) return found
+      } catch {
+        // Try the next resolution base.
       }
-    const command = contractApiCommand()
-    if (isUnavailable(command)) return command
-    const ran = runDiff(command, { root, base: range.base, timeoutMs })
-    if (ran.kind === 'unavailable') return ran
-    return unavailableOnKnown(
-      () => contractDiffOf(range, parseDiffRun(ran.stdout)),
-      error => `${CONTRACT_API_BIN} 的输出解析失败：${error.message}`,
+    }
+    return undefined
+  })()
+  if (typescript === undefined)
+    return { kind: 'unavailable', reason: '解析不到 @typescript/typescript6。' }
+  return unavailableOnKnown(
+    () => ({
+      kind: 'known' as const,
+      version: versionOf(manifest),
+      typescriptVersion: versionOf(typescript),
+    }),
+    error => `读不出工具链版本：${error.message}`,
+  )
+}
+
+const TOOL_VERSION = '0.0.18'
+const LOCK_PATH = 'pnpm-lock.yaml'
+/**
+ * The tool block of a Comparison, the same for the card, RI and milestone scopes: the installed
+ * toolchain must be the version the review path needs, and the lock file is read at `commit`.
+ */
+export function toolOf(
+  root: string,
+  commit: string,
+  facts: ReturnType<typeof toolchainFacts> = toolchainFacts(),
+): Comparison['tool'] {
+  if (facts.kind === 'unavailable') throw new IntegrationError('unknown', facts.reason)
+  if (facts.version !== TOOL_VERSION)
+    throw new IntegrationError(
+      'unknown',
+      `repo-toolchain ${facts.version} is installed; the review path needs ${TOOL_VERSION}`,
     )
+  return {
+    packageName: '@omne-harness/repo-toolchain',
+    version: TOOL_VERSION,
+    typescriptVersion: facts.typescriptVersion,
+    lockSha256: createHash('sha256')
+      .update(exactTextBlob(root, commit, LOCK_PATH).text, 'utf8')
+      .digest('hex'),
   }
+}
+
+/** One side of a Comparison: the member tree, its package name and every `*.api.md` snapshot. */
+export function sideOf(root: string, commit: string, member: string): ApiSide {
+  const apiTree = git(root, ['rev-parse', `${commit}:${member}/api`])
+  const snapshots = git(root, ['ls-tree', '-r', '--name-only', commit, '--', `${member}/api`])
+    .split('\n')
+    .filter(path => path.endsWith('.api.md'))
+    .sort()
+    .map(path => ({ path, sha256: sha256Of(exactTextBlob(root, commit, path).text) }))
+  const manifest = json(exactTextBlob(root, commit, `${member}/package.json`).text, member)
+  return {
+    commit,
+    apiTree,
+    packageName: text(record(manifest, `${member}/package.json`).name, `${member} package name`),
+    snapshots,
+  }
+}
+const sha256Of = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
