@@ -30,6 +30,51 @@ const ESC = '\u001b'
 
 type Escape = 'none' | 'introduced' | 'sequence' | 'single-shift'
 
+type LineStep = 'line-end' | 'cancel' | 'continue'
+
+/** The character after ESC decides the kind of control sequence; anything else ends it at once. */
+const INTRODUCERS: Readonly<Record<string, Escape>> = { '[': 'sequence', O: 'single-shift' }
+
+const FIRST_PRINTABLE = 0x20
+const SEQUENCE_FINAL_FIRST = 0x40
+const SEQUENCE_FINAL_LAST = 0x7e
+
+// A sequence that is open swallows the character, and ESC opens one: control sequences (arrow keys
+// and the like) are skipped here, so they never end up in the key.
+function nextEscape(state: Escape, char: string): Escape {
+  if (state === 'sequence') return isSequenceFinal(char) ? 'none' : 'sequence'
+  if (state === 'single-shift') return 'none'
+  if (state === 'introduced') return INTRODUCERS[char] ?? 'none'
+  return char === ESC ? 'introduced' : 'none'
+}
+
+function isSequenceFinal(char: string): boolean {
+  const code = char.charCodeAt(0)
+  return code >= SEQUENCE_FINAL_FIRST && code <= SEQUENCE_FINAL_LAST
+}
+
+/** The keys that end or cancel the line, as opposed to those that edit it. */
+const LINE_KEYS: Readonly<Record<string, LineStep>> = {
+  '\r': 'line-end',
+  '\n': 'line-end',
+  '\u0003': 'cancel',
+}
+
+function lineAction(char: string, hasText: boolean): LineStep | undefined {
+  const key = LINE_KEYS[char]
+  if (key !== undefined) return key
+  if (char !== '\u0004') return undefined
+  return hasText ? 'continue' : 'cancel'
+}
+
+function erases(char: string): boolean {
+  return char === '\u007f' || char === '\b'
+}
+
+function printable(char: string): boolean {
+  return char.charCodeAt(0) >= FIRST_PRINTABLE
+}
+
 /**
  * Reads one line from a terminal with the echo off. The terminal goes back to the mode it had when
  * the line ends, when the person cancels, when the stream ends or fails, when the signal fires, and
@@ -82,32 +127,19 @@ export function readSecretFromTerminal(options: ReadSecretOptions): Promise<stri
     const onFailed = (): void => finish(() => reject(new SecretInputError('input-failed')))
 
     // Control sequences (arrow keys and the like) are skipped, so they do not end up in the key.
-    const consume = (char: string): 'line-end' | 'cancel' | 'continue' => {
-      if (escape === 'introduced') {
-        escape = char === '[' ? 'sequence' : char === 'O' ? 'single-shift' : 'none'
-        return 'continue'
-      }
-      if (escape === 'single-shift') {
-        escape = 'none'
-        return 'continue'
-      }
-      if (escape === 'sequence') {
-        const code = char.charCodeAt(0)
-        if (code >= 0x40 && code <= 0x7e) escape = 'none'
+    const consume = (char: string): LineStep => {
+      if (escape !== 'none') {
+        escape = nextEscape(escape, char)
         return 'continue'
       }
       if (char === ESC) {
         escape = 'introduced'
         return 'continue'
       }
-      if (char === '\r' || char === '\n') return 'line-end'
-      if (char === '\u0003') return 'cancel'
-      if (char === '\u0004') return typed.length === 0 ? 'cancel' : 'continue'
-      if (char === '\u007f' || char === '\b') {
-        typed.pop()
-        return 'continue'
-      }
-      if (char.charCodeAt(0) >= 0x20) typed.push(char)
+      const line = lineAction(char, typed.length > 0)
+      if (line !== undefined) return line
+      if (erases(char)) typed.pop()
+      else if (printable(char)) typed.push(char)
       return 'continue'
     }
     function onData(chunk: Buffer | string): void {
@@ -144,42 +176,75 @@ type Parsed =
 
 const SECRET_NAME = /secret|key|token|passw|credential/i
 
+const HELP_FLAGS: ReadonlySet<string> = new Set(['--help', '-h'])
+const PATH_FLAG = '--path'
+const PATH_PREFIX = `${PATH_FLAG}=`
+
+/** One argument and, for `--path`, the value that follows it and whether it consumed the next one. */
+type Step =
+  | Readonly<{ kind: 'help' }>
+  | Readonly<{ kind: 'path'; value: string | undefined; consumed: boolean }>
+  | Readonly<{ kind: 'refused'; reason: ArgumentFailure }>
+
+/** Reads the value of a `--path` argument: inline after `=`, else the next argument when it is not an option. */
+function pathStep(argument: string, next: string | undefined): Step {
+  if (argument !== PATH_FLAG) {
+    return { kind: 'path', value: argument.slice(PATH_PREFIX.length), consumed: false }
+  }
+  const follows = next !== undefined && !next.startsWith('--')
+  return { kind: 'path', value: follows ? next : undefined, consumed: follows }
+}
+
+function stepAt(argument: string, next: string | undefined): Step {
+  if (HELP_FLAGS.has(argument)) return { kind: 'help' }
+  if (argument === PATH_FLAG || argument.startsWith(PATH_PREFIX)) return pathStep(argument, next)
+  // A refused argument is named, never echoed: it may be the key itself.
+  return { kind: 'refused', reason: secretName(argument) ? 'secret-in-argv' : 'argument-unknown' }
+}
+
+function secretName(argument: string): boolean {
+  return SECRET_NAME.test(argument.split('=')[0] ?? '')
+}
+
+/** What the arguments have said so far. The first refusal wins; the run reports only that one. */
+type Draft = {
+  path: string | undefined
+  help: boolean
+  refused: ArgumentFailure | undefined
+}
+
+function apply(draft: Draft, step: Step): void {
+  if (step.kind === 'help') {
+    draft.help = true
+    return
+  }
+  if (step.kind === 'refused') {
+    draft.refused ??= step.reason
+    return
+  }
+  if (step.value === undefined) {
+    draft.refused ??= 'argument-missing'
+    return
+  }
+  if (draft.path !== undefined) {
+    draft.refused ??= 'argument-duplicate'
+    return
+  }
+  draft.path = step.value
+}
+
 /** Reads the arguments. A refused argument is never echoed: it may be the key itself. */
 function parseArguments(argv: readonly string[]): Parsed {
-  let path: string | undefined
-  let help = false
-  let refused: ArgumentFailure | undefined
-  const refuse = (reason: ArgumentFailure): void => {
-    refused ??= reason
-  }
+  const draft: Draft = { path: undefined, help: false, refused: undefined }
   for (let index = 0; index < argv.length; index++) {
-    const argument = argv[index] ?? ''
-    if (argument === '--help' || argument === '-h') {
-      help = true
-    } else if (argument === '--path' || argument.startsWith('--path=')) {
-      let value: string | undefined
-      if (argument === '--path') {
-        const next = argv[index + 1]
-        if (next !== undefined && !next.startsWith('--')) {
-          value = next
-          index++
-        }
-      } else {
-        value = argument.slice('--path='.length)
-      }
-      if (value === undefined) refuse('argument-missing')
-      else if (path !== undefined) refuse('argument-duplicate')
-      else path = value
-    } else if (SECRET_NAME.test(argument.split('=')[0] ?? '')) {
-      refuse('secret-in-argv')
-    } else {
-      refuse('argument-unknown')
-    }
+    const step = stepAt(argv[index] ?? '', argv[index + 1])
+    apply(draft, step)
+    if (step.kind === 'path' && step.consumed) index++
   }
-  if (refused !== undefined) return { kind: 'refused', reason: refused }
-  if (help) return { kind: 'help' }
-  if (path === undefined) return { kind: 'refused', reason: 'argument-missing' }
-  return { kind: 'run', path }
+  if (draft.refused !== undefined) return { kind: 'refused', reason: draft.refused }
+  if (draft.help) return { kind: 'help' }
+  if (draft.path === undefined) return { kind: 'refused', reason: 'argument-missing' }
+  return { kind: 'run', path: draft.path }
 }
 
 const USAGE = `用法：node --experimental-strip-types src/vault-init-cli.ts --path <路径>

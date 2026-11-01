@@ -287,6 +287,11 @@ function removeDirectories(directories: readonly string[]): void {
  * The window between the last check and the store's lock is a known limit: a process that writes the
  * path in between makes the store adopt that file. The read-back then finds another factory secret
  * and the command reports `write-unconfirmed` without touching the file.
+ *
+ * Its cyclomatic complexity is kept above the alert line on purpose. The function is a flat sequence
+ * of guard clauses, one per step of the specified order, and each clause returns its own reason code.
+ * Splitting them would only move the order from one place to a helper chain, and the order is the
+ * contract (the key is read after the first check and before the second).
  */
 export async function initVault(path: string, deps: VaultInitDeps): Promise<VaultInitResult> {
   if (typeof path !== 'string' || path === '' || path.includes('\0')) {

@@ -263,6 +263,37 @@ describe('a path that already holds something', () => {
     expect(factoryValueAt(path)).toBe('synthetic-other-factory')
   })
 
+  it('does not remove the vault that a lock holder published while the command waited', async () => {
+    const home = newHome()
+    const path = join(home, 'vault.json')
+    let release: (() => void) | undefined
+    const { deps } = depsFor(home, {
+      lock: { waitMs: 0, backoffMs: 0 },
+      // The holder publishes its own vault and takes the lock before the command reaches the store,
+      // so the command waits it out and gets `lock-timeout` with another vault on the path.
+      createStore: options => {
+        createLocalCustodian({ path, factorySecret: 'synthetic-other-factory' })
+        release = lockSync(path, {
+          realpath: false,
+          stale: Number.MAX_SAFE_INTEGER,
+          retries: 0,
+        })
+        // The real store, with the lock wait of the command: the held lock is not free in time.
+        return createLocalCustodian(options)
+      },
+    })
+
+    try {
+      const result = await initVault(path, deps)
+
+      expect(result).toEqual({ ok: false, reason: 'lock-timeout' })
+      expect(existsSync(path)).toBe(true)
+      expect(factoryValueAt(path)).toBe('synthetic-other-factory')
+    } finally {
+      release?.()
+    }
+  })
+
   it('reports an unconfirmed write when the store returns without a file', async () => {
     const home = newHome()
     const { deps } = depsFor(home, {
@@ -783,7 +814,9 @@ describe('reading the secret from a terminal', () => {
     const read = readSecretFromTerminal({ input: terminal(input), output: sink() })
     await listening(input)
 
-    input.type('abX\u007f', 'c\u001b[A\u001b[1;5Cd\u0001e\r', 'ignored after the line end')
+    // CSI (`ESC [ A`), SS3 (`ESC O C`), a stray ESC before a printable character, and a CSI whose
+    // parameters run on before its final byte.
+    input.type('abX\u007f', 'c\u001b[A\u001bOC\u001bxd\u001b[1;5Ce\r', 'ignored after the line end')
 
     await expect(read).resolves.toBe('abcde')
   })
