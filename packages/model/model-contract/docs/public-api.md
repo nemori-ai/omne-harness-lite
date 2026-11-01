@@ -300,11 +300,11 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本章给领域外协调者的测试作者。名字由 `./testing` 入口导出。
 
-- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)；三个公开替身：[`src/testing/pusher.ts`](../src/testing/pusher.ts)、[`src/testing/stream-references.ts`](../src/testing/stream-references.ts)、[`src/testing/stream-observation.ts`](../src/testing/stream-observation.ts)；档案与请求准备的两个替身：[`src/testing/profiles.ts`](../src/testing/profiles.ts)、[`src/testing/preparation.ts`](../src/testing/preparation.ts)，两者共用的档案复制与范围核对 [`src/testing/profile-values.ts`](../src/testing/profile-values.ts)；全部替身共用的控制面决策 [`src/testing/access.ts`](../src/testing/access.ts)。
+- 声明：[`src/testing/provider.ts`](../src/testing/provider.ts)、[`src/testing/controller.ts`](../src/testing/controller.ts)、[`src/testing/core.ts`](../src/testing/core.ts)、[`src/testing/transport.ts`](../src/testing/transport.ts)、[`src/testing/error.ts`](../src/testing/error.ts)；三个公开替身：[`src/testing/pusher.ts`](../src/testing/pusher.ts)、[`src/testing/stream-references.ts`](../src/testing/stream-references.ts)、[`src/testing/stream-observation.ts`](../src/testing/stream-observation.ts)；档案与请求准备的两个替身：[`src/testing/profiles.ts`](../src/testing/profiles.ts)、[`src/testing/preparation.ts`](../src/testing/preparation.ts)，两者共用的档案复制与范围核对 [`src/testing/profile-values.ts`](../src/testing/profile-values.ts)；`current`、观察、档案与请求准备四个替身共用的控制面决策 [`src/testing/access.ts`](../src/testing/access.ts)。
 - `ScriptedWriteAction` 是 `src/testing/writes.ts` 里 `WriteAction` 的导出别名，由 [`src/testing/index.ts`](../src/testing/index.ts) 声明。
 - 行为测试：[`tests/testing-provider.spec.ts`](../tests/testing-provider.spec.ts)、[`tests/testing-transport.spec.ts`](../tests/testing-transport.spec.ts)、[`tests/testing-entry.spec.ts`](../tests/testing-entry.spec.ts)；三个替身：[`tests/testing-pusher.spec.ts`](../tests/testing-pusher.spec.ts)、[`tests/testing-stream-references.spec.ts`](../tests/testing-stream-references.spec.ts)、[`tests/testing-stream-observation.spec.ts`](../tests/testing-stream-observation.spec.ts)；档案与请求准备的两个替身：[`tests/testing-profiles.spec.ts`](../tests/testing-profiles.spec.ts)、[`tests/testing-preparation.spec.ts`](../tests/testing-preparation.spec.ts)，类型探针 [`tests/testing-profiles.spec-d.ts`](../tests/testing-profiles.spec-d.ts)、[`tests/testing-preparation.spec-d.ts`](../tests/testing-preparation.spec-d.ts)。
 
-`@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。它们不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
+`@omne-harness/model-contract/testing` 入口给领域外的协调者测试用。它提供一个按脚本行事的 `ModelProvider` 和一个按脚本行事的 `ModelTransport`，用来练习失败路径上的决策。本入口另有下文的五个公开替身。替代件与替代传输不运行模型，不保存任何耐久状态，受理先执行共同封闭输入判断，不读取媒体，只核验脚本登记过的证据，也不导入任何具体提供者、Cordis、pi 或厂商 SDK。状态都在闭包里，不读系统时钟。脚本结算的 parts 与每项 trims 必须是无空位的数组，每条 trim 都须有合法 removed/reason。非法输入抛出 ScriptedModelError，reason 为 invalid-script，并保留原生命周期。符合性断言在另一个入口 `./conformance`（见[符合性断言](#符合性断言)），任何提供者都可以用它检查自己；本入口只带一个把替代提供者接成被测方的函数。
 
 `controller.settle` 显式接收 parts、pageSize 和 pageTargetBytes，不从 play 自动结算。它校验最终项、真实 trim 的形状和原受理容量，在发布结算前按固定页源深复制。首项总能入页，超目标单项独页；后项按规范 parts 数组字节及项数贪心组页。整个 ResultPage（含 Settlement、next 和包装）不得超过原 C。超额或非法输入抛 ScriptedModelError，保留原生命周期。配置或返回对象的后续修改不改变原结果。具体领取与 partial 资格见 [普通调用面](#普通调用面与实例观察)。
 
@@ -350,9 +350,9 @@ ModelRequestRules 只处理固定声明、参数和可计算表示，不读媒�
 
 本入口另有[档案与请求准备](#档案与请求准备)两个端口的公开替身，供消费方测试自己怎样使用这两个端口。行为与边界归 [SPEC](../SPEC.md#档案与请求准备的公开替身)。
 
-`createScriptedModelProfiles` 返回业务端口 `profiles` 与测试控制。测试用 `setAccess` 设访问，用 `setList` 与 `setResolution` 按完整输入登记答案，用 `calls` 读调用记录。登记时替身核对答案自身与输入的一致性。它不求值范围链、来源、锁定或凭据，这些由脚本给出。
+`createScriptedModelProfiles` 返回业务端口 `profiles` 与测试控制面。测试用 `setAccess` 设访问，用 `setList` 与 `setResolution` 按完整输入登记答案，用 `calls` 读调用记录。登记时替身核对答案自身与输入的一致性。它不求值范围链、来源、锁定或凭据，这些由脚本给出。
 
-`createScriptedModelRequestPreparation` 只接收 `transport`。测试用 `setPlan` 按档案、模态依据与显式参数登记计划。计划只给出绑定后的供应商（含凭据）与参数采用。每次调用从本次组装输入形成请求，准备 transport，等待 close 完成后才返回。替身不计量，不读媒体，不取秘密，不运行参数规则，不物化也不启动传输。
+请求准备替身 `createScriptedModelRequestPreparation` 只接收 `transport`。测试用 `setPlan` 按档案、模态依据与显式参数登记计划。计划只给出绑定后的供应商（含凭据）与参数采用。每次调用从本次组装输入形成请求，准备 transport，等待 close 完成后才返回。替身不计量，不读媒体，不取秘密，不运行参数规则，不物化也不启动传输。
 
 两个替身的测试控制面与[三个公开替身](#三个公开替身)相同：按真实租户与主体身份（`Object.is`）设 `ScriptedAccessDecision`，没有设过的访问一律 `deny`。它不是生产 AccessCheck。没有登记的答案或计划时，调用以 `ScriptedModelError` 拒绝。
 

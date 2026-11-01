@@ -802,32 +802,32 @@ receiver 替身仍放在成员 tests/helpers。它是消费方的替身，接收
 
 ### 档案与请求准备的公开替身
 
-`createScriptedModelProfiles` 与 `createScriptedModelRequestPreparation` 经 `./testing` 公开。它们分别替代 `ModelProfiles<P>` 与 `ModelRequestPreparation<P>`，供消费方测试自己怎样使用这两个端口。采用依据：[#991 局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6553544046)，实施卡 [#994](https://github.com/nemori-ai/omne-harness-lite/issues/994)。本节只规定替身的测试行为，不改变[档案与请求准备协议](#档案与请求准备协议)的生产承诺。
+`createScriptedModelProfiles` 与 `createScriptedModelRequestPreparation` 经 `./testing` 公开。它们分别替代 `ModelProfiles<P>` 与 `ModelRequestPreparation<P>`，供消费方测试自己怎样使用这两个端口。采用依据：[#991 局部采用](https://github.com/nemori-ai/omne-harness-lite/issues/991#issuecomment-6553544046)。本节只规定替身的测试行为，不改变[档案与请求准备协议](#档案与请求准备协议)的生产承诺。
 
-1. 业务端口与测试控制是不同对象。业务端口只有原方法，`setAccess`、`setList`、`setResolution`、`setPlan` 与 `calls` 只在控制对象上。每个工厂实例独立持有脚本表、访问规则和调用记录。替身没有默认档案、默认来源、默认主体或默认凭据。
+1. 业务端口与测试控制面是两个对象。业务端口只有原方法。`setAccess`、`setList`、`setResolution`、`setPlan` 与 `calls` 只在测试控制面上。每个工厂实例独立持有脚本表、访问规则和调用记录。替身没有默认档案、默认来源、默认主体或默认凭据。
 2. 每次业务调用按以下顺序处理：
    1. 记录本次输入。
    2. 租户不是合法身份时，返回 `denied`，action 为 `tenant`。
    3. 测试控制面没有设为 allow 时返回失败。deny 返回 `denied`，action 为 `profiles.list`、`profiles.resolve` 或 `prepare`。unavailable 返回 `unavailable`，dependency 为 `model-profiles` 或 `model-request-preparation`，diagnostic 为 `scripted-access`。没有设过的访问按 deny 处理。
    4. 之后才查找脚本。所以未授权的调用不能得知某条登记是否存在。
 3. 测试控制面按合法租户编码与主体身份（`Object.is`）设置。结构相同的另一个主体不共享规则与答案。档案的 factory 范围不授予访问。
-4. 档案替身按完整输入查找答案：`list` 用 `selected` 与 `required`，`resolve` 用 `route` 与 `required`。`required` 的模态次序、重复项和来源的每个字段都参加匹配。查找先按租户与主体分区。没有匹配的登记时，调用以 `ScriptedModelError`（reason 为 `invalid-script`）拒绝。替身不把脚本遗漏当作 absent 或来源不可用。来源不可用由测试登记的 `unavailable` 失败表达，与 absent 是不同答案。
+4. 档案替身按完整输入查找答案：`list` 用 `selected` 与 `required`，`resolve` 用 `route` 与 `required`。`required` 的模态次序、重复项和来源的每个字段都参加匹配。查找先按租户与主体分区。没有匹配的登记时，调用以 `ScriptedModelError`（reason 为 `invalid-script`）拒绝。替身不把脚本遗漏当作 absent 或来源不可用。来源不可用由测试登记的 `unavailable` 失败表达，与 absent 是不同答案。同一输入再次登记时，新答案替换原答案。调用不消耗答案。
 5. 档案替身在保存成功答案前核对局部一致性。核对失败时登记抛 `invalid-script`，已有登记不变。核对的内容如下：
    - resolved 只带 active 档案，档案范围适用于登记的租户，路由等于所问路由。
-   - `selectable` 等于没有任何原因。原因不重复。档案输入不覆盖 `required` 时必须带 modality 原因，覆盖时不得带它。
+   - `selectable` 等于没有任何原因。原因不重复。档案的 `definition.input` 不覆盖 `required` 时必须带 modality 原因，覆盖时不得带它。
    - `choices` 只放可选的 resolved，路由不重复。
    - 所问 `selected` 为 null 时，答案的 `selected` 为 null。不为 null 时，答案保留所问路由。可选的 selected 等于 `choices` 中同路由的项。absent 或不可选的 selected 不在 `choices` 中。
    - 凭据状态、locked 与 scope 原因、shadowed 及来源由脚本给出。替身不推导它们。
-6. 准备替身在查找计划前做静态检查。档案范围属于另一个租户或组织时返回 `denied`，action 为 `prepare`。范围里的身份不合法时返回 `invalid`，field 为 `profile.identity.scope`，reason 为 `invalid-identity`。档案已撤回时返回 `invalid`，field 为 `profile`，reason 为 `withdrawn`。`required` 含档案输入没有的模态时返回 `invalid`，field 为 `required.modalities`，reason 为 `modality`。替身不据消息重建 `required`，也不按输入大小拒绝。
-7. 准备替身按完整的 profile、`required` 与 `assembled.parameters` 查找计划。消息、工具和来源不参加匹配。计划只给出绑定后的供应商和参数采用。成功计划的供应商个数、次序、adoption、recipient 与 model 必须与档案相同，只增加凭据。tenant 凭据保持原样，不改成 factory。每个显式参数对每个供应商至少有一项 explicit 采用。替身不运行参数规则，不补默认值。需要默认采用的测试显式给出 default 项。
-8. 每次调用都从本次 `assembled` 形成新请求：正文、工具、`toolChoice`、参数、表示、来源和 `replay: 'off'` 取自本次输入。替身按档案供应商次序调用 `judgeReplayDeclaration` 展开回放声明。声明失败时原样返回，不调用 transport。
-9. 准备替身以 `transport.prepare(request, request.suppliers[0], { resent: [] })` 准备传输：
+6. 请求准备替身在查找计划前做静态检查。档案范围属于另一个租户或组织时返回 `denied`，action 为 `prepare`。范围里的身份不合法时返回 `invalid`，field 为 `profile.identity.scope`，reason 为 `invalid-identity`。档案已撤回时返回 `invalid`，field 为 `profile`，reason 为 `withdrawn`。`required` 含档案 `definition.input` 没有的模态时返回 `invalid`，field 为 `required.modalities`，reason 为 `modality`。替身不据消息重建 `required`，也不按输入大小拒绝。锁定、当前来源、凭据的 missing、unreadable 与 unavailable、供应商能力等外部事实由测试登记的失败计划表达。替身不推导它们。
+7. 请求准备替身按完整的 profile、`required` 与 `assembled.parameters` 查找计划。`required` 的来源参加匹配。消息、工具与 `assembled.source` 不参加匹配。同一匹配再次登记时，新计划替换原计划。调用不消耗计划，所以压缩后重发的调用可以多次命中同一个计划。命中失败计划时，替身原样返回该失败，不调用 transport。计划只给出绑定后的供应商和参数采用。成功计划的供应商个数、次序、adoption、recipient 与 model 必须与档案相同，只增加凭据。tenant 凭据保持原样，不改成 factory。每个显式参数对每个供应商至少有一项 explicit 采用。替身不运行参数规则，不补默认值。需要默认采用的测试显式给出 default 项。
+8. 每次调用都从本次 `assembled` 形成新请求。正文、工具、`toolChoice`、参数、表示与来源取自本次输入。只有本次 `assembled.replay` 为 `'off'` 时，请求才带 `replay: 'off'`。否则请求没有 `replay` 字段。请求的 `profile` 是本次档案的 adoption，`fallback` 与 `retryPolicy` 取自本次档案的定义。请求没有 budget 字段。替身按档案供应商次序调用 `judgeReplayDeclaration` 展开回放声明。声明失败时原样返回，不调用 transport。
+9. 请求准备替身以 `transport.prepare(request, request.suppliers[0], { resent: [] })` 准备传输：
    - prepare 返回失败时，原样返回该失败，不调用 close。
    - prepare 抛出时，原异常传播，不调用 close。
    - prepare 成功时，替身等待 `close()` 一次，close 完成后才返回请求。close 等待期间业务调用保持未完成。
    - close 拒绝时，同一错误对象传播。替身不重试、不再次 close，也不返回成功。
    - 替身从不调用 materialize 或 start。close 不撤销 transport 已产生的外部效果。
-10. 主体 `P` 按原引用保留，不复制、不冻结、不枚举。租户与档案范围中的合法身份保留原引用，其余值冻结复制。登记后修改调用方的对象不改变脚本，修改返回值不改变后续回答。`calls()` 每次返回新的冻结数组。每次业务调用一进入就编号，拒绝、失败、无匹配和 transport 或 close 异常都计入。异步调用在进入时固定输入与命中的计划，之后的登记不改变在途调用。
+10. 主体 `P` 按原引用保留，不复制、不冻结、不枚举。租户与档案范围中的合法身份保留原引用，其余值冻结复制。登记后修改调用方的对象不改变脚本，修改返回值不改变后续回答。`calls()` 每次返回新的冻结数组。每次业务调用一进入就编号，拒绝、失败、无匹配和 transport 或 close 异常都计入。档案替身的 `list` 与 `resolve` 共用一个从 1 开始的序号。请求准备替身有自己的序号。异步调用在进入时固定输入与命中的计划，之后的登记不改变在途调用。
 
 这两个替身不证明生产档案求值、范围链、锁定、凭据保管、参数规则、计量或发送。
 
