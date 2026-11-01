@@ -54,9 +54,9 @@
 | [AD-06](#ad-06) | Tool 日志消费适配 | 入站 | 无 | `coordinator` | 同一 AgentJournal 的 entries/results 与 AgentMaterials 读取；`receive(execution/account)` | 生产插件未交付 |
 | [AD-08](#ad-08) | 受理拓展点接入 | 入站 | 无 | `intake` | 命令域与 hooks 的公开入口 | 待 [NP-07](#np-07) |
 | [AD-09](#ad-09) | 身份桥 | 构造依赖 | `sessionIdentity` | 不调用 | identity 的 `PrincipalVerifier.verify`（服务键 `principalVerifier`） | 生产插件 `SessionIdentityBridgeProvider` 已实现（`src/cordis/identity-bridge.ts`），在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入。装配用进程内核验器时只在同一进程内成立 |
-| [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | `sessionAdoptionSource`、`sessionProductionSource`、`sessionCustodySource` 三个窄来源端口 | 常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
+| [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | `sessionAdoptionSource`、`sessionProductionSource`、`sessionCustodySource` 三个窄来源端口 | 生产插件 `SessionEvidenceBridgeProvider` 已实现（`src/cordis/evidence-bridge.ts`），对三个来源的替身在真实 Cordis 上装载与停止已验证，未对真实来源运行；`./cordis` 导出由集成方合入。常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-11](#ad-11) | 空闲输入 | 构造依赖 | `sessionIdleInput` | `maintainer` | 子会话读取；`calls.inspect`、`queries.lookup` | 可登记 |
-| [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
+| [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 生产插件 `createSessionContextInputPlugin` 与翻译协议 `createSessionContextTranslation` 已实现（`src/cordis/context-input.ts`），对 Runtime Context 内存替身在真实 Cordis 上装载与停止已验证；`./cordis` 导出由集成方合入 |
 | [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读运行与输入为 `coordinator` | `agentInstanceProvision.acquire`、`agentInstances.resolve`、`invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach` | 生产插件 `createSessionAgentDrivePlugin` 已实现（`src/cordis/agent-drive.ts`），对 Agent 替身在真实 Cordis 上装载与停止已验证，未对 Agent 宿主真件运行；`./cordis` 与根入口的导出由集成方合入。`recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
 | [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator`；访问检查见 J06 | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 生产插件未交付 |
@@ -464,7 +464,7 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 
 | 命令 | 材料 |
 | --- | --- |
-| `startRun` | 当前定义采用、候选采用与登录确认。登录确认只属于 `startRun`：本插件从首条输入的 `origin` 取得，交出 `owner` 为 `login-entry` 的材料；`origin` 不是登录入口证据时不给确认，Session 返回 `login-required`（[契约的证据桥条款](../session-contract/SPEC.md#身份桥证据桥与-context-输入)、[装配页的登录门证据](../../../docs/architecture/runtime/application-assembly.md#桥接责任)）。候选采用材料带新纳入的常驻工具（写 SE36）与登记键（随 SE08），可带冻结判定 |
+| `startRun` | 当前定义采用、候选采用与登录确认。登录确认只属于 `startRun`：`sessionAdoptionSource` 从首条输入的 `origin` 取得，交出 `owner` 为 `login-entry` 的材料，本插件只对 `startRun` 放行它；`origin` 不是登录入口证据时不给确认，Session 返回 `login-required`（[契约的证据桥条款](../session-contract/SPEC.md#身份桥证据桥与-context-输入)、[装配页的登录门证据](../../../docs/architecture/runtime/application-assembly.md#桥接责任)）。候选采用材料带新纳入的常驻工具（写 SE36）与登记键（随 SE08），可带冻结判定 |
 | `reload` | 当前定义采用与候选采用，不带登录确认。候选采用材料同 `startRun`，可带冻结判定 |
 | `create` | 真实初始定义采用、入口、资产、声明条件与完整来源计划。不带登录确认，也不带冻结判定 |
 | `completeInitialization` | 按原初始化项核验协议、原绑定、结果及必要成功事实。execution-adoption 纯准备 ready 只写 SE02；确有新增能力实际采用时，材料带完整能力身份/ResidentKey 对和首次纳入的常驻定义，同批写 SE02、SE08 与必要 SE36。沿 [JC-02](../session-contract/SPEC.md#共同提交与共享事务域) 和[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)，不补造初始定义采用，不变更原定义版本 |
@@ -480,6 +480,16 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 - 候选采用材料带回冻结判定时，Session 的 `startRun` 或 `reload` 返回 `frozen`，不提交。失败的 `verdict` 就是本插件放进候选采用材料的这份判定。之后由推进协调以该判定调用 `freeze`（[常驻工具与会话冻结](../session-contract/SPEC.md#常驻工具与会话冻结)）。
 - 会话已冻结时，`frozen` 的 `verdict` 为 null。这个结果来自会话状态，不来自本插件的材料。
 - 失败：材料准备失败时，本插件返回失败并指明拥有者。它不缺一项材料仍交出其余材料。
+- 实现现状：`src/cordis/evidence-bridge.ts` 的 `SessionEvidenceBridgeProvider extends SessionEvidenceBridgeService`，`inject` 三个来源。本插件按上表的命令种类依次问对应来源，按来源顺序交出材料。它自己只做下列边界核对：
+  - 命令的租户不是 legal-identity 铸造的值时，返回 `denied`，不问任何来源。
+  - 来源交出 `owner` 为 `session-initialization` 的初始化材料时，材料 `binding` 中的租户与 Session 必须等于命令的租户与 Session。不相等时返回 `denied`（[初始化守卫编码](../session-contract/SPEC.md#初始化守卫编码)）。
+  - 登录确认（`owner` 为 `login-entry`）只属于 `startRun`。其他命令收到它时，本插件按来源缺陷返回 `unavailable`，`owner` 为该来源的服务键。
+  - 表内命令的全部来源都没有交出材料时，返回 `unavailable`，不交出空成功。一个来源为空而另一个来源有材料时照常交出。
+  - 来源答失败时原样交回，并停止询问后续来源。来源抛错或答复形状不对时，返回 `unavailable`，`owner` 为该来源的服务键。
+  - 表外命令（`claim` 与非普通输入的 `accept`）不问来源，交出空材料。Session 的判定不读这些命令的证据材料。
+- 登录确认的来源：`startRun` 的命令不带首条输入，本插件也不读 Session 与原事实拥有者，所以登录确认由 `sessionAdoptionSource` 准备。
+- 验证见 `tests/evidence-bridge.spec.ts`：真实 Cordis 4.0.4 的装载、停止、任一来源缺席、换来源；按命令的来源路由；来源失败、抛错、形状错误与空材料；未铸造租户、另一租户或另一 Session 的初始化材料、非 `startRun` 的登录确认。
+- 已知限制：常驻工具部分（候选采用材料里的常驻工具与登记键，P-8）仍是候选。本插件原样传递来源的材料，不编码常驻键，也不核对冻结判定。真实来源未交付，本插件只对替身验证。
 
 <a id="ad-11"></a>
 
@@ -503,6 +513,24 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 - 本插件不调用 `applyCommit`。Session 提交确认后，由 AD-03 按原 SE07 顺序调用现有 applyCommit（[AD-03](#ad-03) 的注册决定一段）。未知时先查原操作；失败沿原 CommitRef 和原输入恢复，不改 basedOn、不先应用。注册 ready 不证明块当前有值，生产者内容提交和 Context 首次恢复围栏仍分别受原契约约束。
 - Runtime Context API 保持。生产工作区加载、实际采用的供证能力与首次 scope 恢复分别归原提供者；来源和结果的可核验性须有相应提供者证据。
 - 失败：`prepareRegistration` 拒绝时，本插件交回逐项原因，Session 的命令返回 `invalid`。Runtime Context 不可用时返回不可用。
+- 实现现状：`src/cordis/context-input.ts`。插件工厂 `createSessionContextInputPlugin({ coordinator, definitions })` 给出插件 `session-ad12`。它 `inject` `runtimeContext`，不调用 `session`。`coordinator` 与 AD-03、AD-14 是同一个装配端口，`prepareRegistration` 以该会话协调者的主体调用。`definitions`（`SessionContextDefinitions`）由装配按精确已采用定义给回绑定与状态块声明。
+- 翻译协议：材料的 schema 是 `session-context-material` 修订 1（`SESSION_CONTEXT_MATERIAL`）。材料只存 JSON。不可序列化的部分（绑定的翻译函数、需要的形状、状态块声明）存为对精确已采用定义的引用，由 `definitions` 还原。编码器只接受定义给回的同一对象，所以编码后的材料一定能还原。
+  - 注册：`need` 存定义、变更种类、块键、必需性、是否带声明与头部。初始注册的头部为 null，作用域、租户、前修订与提交身份取自 Session 的 SE07 决定（`encodeInitialContextRegistration`）。后续注册的头部存租户、作用域、前修订、creating、提交身份与是否结束作用域（`encodeContextRegistrationChange`）。`binding` 存（需要名，块键）引用。`parameters` 存参数值，未定义时显式标出。
+  - 步提交：`updates` 的首项是块名 `@step` 的头部，存租户、作用域、步、提交身份、两种结束与待处理更新。其后每个已提交块一项，存全值与折入的更新（`encodeContextStepCommit`）。`@step` 不含点，不会等于块键。块值与更新必须是 JSON 数据。
+  - 提交身份：沿初始注册的字符串数组编码，各用自己的域标识。后续注册是 `["session-context-change","1",scope,operation,key]`，步提交是 `["session-context-step","1",scope,operation]`，作用域结束是 `["session-context-scope-end","1",scope,归档操作]`。
+  - 解码：`createSessionContextTranslation(definitions)` 给出 AD-03 回放的 `translation`。它把 SE07（初始与后续）、`change(context-step-commit)` 与 SE27 的结束还原为 Runtime Context 的提交输入，其他条目为 null。读不懂的记录答失败，不猜。
+- 准备：
+  - 命令与本次访问的租户或 Session 不同时，返回 `denied`，不解码也不调用任何一方。
+  - 材料解码不了时返回 `invalid`。`definitions` 抛错时按依赖失败返回 `unavailable`，`owner` 为 `context-definitions`。
+  - `change` 的注册：材料头部的租户不是本次访问的租户时，返回 `denied`。提交身份不由本次 `change` 的操作派生时，返回 `invalid`。之后以协调者主体调用 `prepareRegistration`，`prepared` 交出一份材料（`owner` 为 `runtime-context`，`participant` 为 `context-input`）。`rejected` 返回 `invalid` 与逐项原因。拒绝、不可用、未知、抛错，以及评判的变更不是交入的变更，都返回 `unavailable`（[AD-00](#ad-00) 第 6 条）。协调者主体答 `denied` 时返回 `denied`，其他失败返回 `unavailable`。
+  - `change` 的步提交：同样核租户与提交身份，不调用 Runtime Context，交出一份材料。
+  - `create`：只核每个 `context-registration` 来源都能还原，不能还原时返回 `invalid`，否则交出空材料。初始注册的准备在 `completeInitialization` 由采用来源完成，复用导出的适配函数 `prepareContextRegistration`。
+  - `startRun`、`reload` 与其他声明的 `change` 不带注册材料，交出空材料。
+- 验证见 `tests/context-input.spec.ts`：真实 Cordis 4.0.4 的装载、停止、缺席与换提供者；跨租户与跨 Session 的命令、另一租户的材料；提交身份；`prepareRegistration` 各答复；协调者主体；步提交与创建；以及经 Session 真实判定写出的初始 SE07、后续 SE07、步提交与 SE27，由翻译还原为原输入。接到 AD-03 回放的用例在 AD-03 持有者合入后由集成方加入。
+- 已知限制：
+  - SE27 不带租户。翻译从该作用域此前的注册或步提交记下租户。回放总是从会话日志的开头读，所以这些记录先于结束被读到。作用域没有任何注册与步提交时，其结束答 null，Runtime Context 中该作用域不结束。记下的租户有上限（`scopeTenants`，初值 4096），最旧的先被驱逐。被驱逐过租户的作用域遇到结束时答失败，AD-03 把该会话作为读不到处理，下一次从头读会重新记下租户。被驱逐的作用域多到超出同一上限之后，无法再区分，所有不认识的作用域的结束都答失败。触发条件：Session 契约让 SE27 带租户，或者 AD-03 的翻译接口交入会话的租户之后，改为直接取得租户。
+  - 后续注册的材料头部记有准备时的作用域。Session 写 SE07 时取当前作用域，不与材料比较。二者不同时（例如准备之后撤销归档换了作用域），翻译答失败，AD-03 把该会话的记录作为读不到处理。触发条件：Session 的判定比较二者之后，这种记录不再出现。
+  - 步提交同理。步提交的头部记有准备时的作用域，Session 写条目时取当前作用域。二者不同时翻译答失败，回放把该会话作为读不到处理。触发条件同上。
 
 ### 出站端口的实现
 

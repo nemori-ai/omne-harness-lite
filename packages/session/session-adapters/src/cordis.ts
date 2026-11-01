@@ -20,4 +20,24 @@ export {
   type ModelLogTarget,
   type SessionModelLogConsumptionInput,
 } from './cordis/model-log-consumption.ts'
+export {
+  SESSION_CONTEXT_INPUT,
+  SESSION_CONTEXT_MATERIAL,
+  contextChangeCommit,
+  contextScopeEndCommit,
+  contextStepCommit,
+  createSessionContextInputPlugin,
+  createSessionContextTranslation,
+  encodeContextRegistrationChange,
+  encodeContextStepCommit,
+  encodeInitialContextRegistration,
+  prepareContextRegistration,
+} from './cordis/context-input.ts'
+export type {
+  ContextRegistrationMaterials,
+  SessionContextCommitTranslation,
+  SessionContextDefinitions,
+  SessionContextInputPluginInput,
+} from './cordis/context-input.ts'
+export { SessionEvidenceBridgeProvider } from './cordis/evidence-bridge.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'
