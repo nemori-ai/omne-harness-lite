@@ -20,6 +20,18 @@ This member is the single-machine host provider of Model. It implements local cr
 
 A standalone program takes `createLocalCustodian` and `openLocalCustodian` from the root entry and does not start Cordis. To send real requests, a program takes `assembleLocalModel` from the root entry. It gives the vault, a `ModelCommands`, a `SendCoordinator`, the composed families, the network configuration, the routes, the limits, and the preparation options. It gets the Model send boundary `send`, the preparation resources `preparation`, and `close`. After `close` starts, `preparation` refuses new leases. A lease that the caller acquired before `close` stays usable until the caller releases it. A Cordis host loads `LocalCredentialPlugin` from the `./cordis` entry. When needed, it sends through static injection with `deliverInjected`. For usage and examples, see [usage and position](docs/context.md). For initialization and disposal responsibilities, see [Cordis integration](docs/cordis.md). Selecting this member installs Cordis, model-cordis-contract, pi-ai-transport, and proper-lockfile. A program that uses only the root entry does not start Cordis, but its installation closure still contains them.
 
+### Vault initialization command
+
+A person runs the vault initialization command once on each host that sends real requests. The command reads one key from the terminal with the echo off. It builds a new vault at the given path and stores the key as the factory secret. It prints `已建立：<path>` on success, or `失败：<reason code>` on failure. Run it from the repository root, in Git Bash or PowerShell (use `pnpm.cmd` in PowerShell):
+
+```sh
+pnpm --filter @omne-harness/model-host-local exec node --experimental-strip-types src/vault-init-cli.ts --path <path>
+```
+
+The path must lie below your user directory and must hold nothing. The command refuses a vault, a damaged or empty file, a directory, or a link on the path, and it never reads or changes them. It refuses a standard input that is not a terminal. It refuses an argument that looks as if it carries the key. A failed run leaves no file behind. The command is not exported from the root entry and is not part of `LocalCredentialPlugin`. The failure reasons and the exact behavior are in the [behavior specification](SPEC.md#保管库初始化命令).
+
+The person who owns the key runs the command. Reduce, writers, and other agents do not read, hold, or enter the key. A successful first real request is the only proof that the key works on that host.
+
 ## Contracts
 
 The [behavior specification](SPEC.md) owns the behavior of the vault file, the file lock, publish confirmation, refresh, close, and the plugin lifecycle. It also owns the behavior of the send resources and the local assembly. The shapes of references, results, and ports belong to model-contract. The `SendResources` port and the send boundary belong to model. The transport configuration belongs to pi-ai-transport. For navigation of the public entries, see the [public API](docs/public-api.md).
@@ -30,7 +42,7 @@ The encoding of disk records is in [records.ts](src/records.ts). The interaction
 
 ## Configuration and operation
 
-The vault path and the factory secret are the only configuration of the vault. The application supplies them. The application also supplies every route URL, the proxy, TLS, the connection capacity, and every limit of the local assembly. This member has no defaults for them. In the cloud environment of this repository, the vault holds a placeholder value, and the outbound proxy injects the real key. The file lock does not expire with time. After a crash of the process that holds the lock, remove `${path}.lock` by hand when all writers have stopped. The vault mints tenant values again from the disk records through legal-identity. Tenant equality holds only inside one legal-identity instance. Therefore the caller and the vault must share that instance in one process.
+The vault path and the factory secret are the only configuration of the vault. The application supplies them. The application also supplies every route URL, the proxy, TLS, the connection capacity, and every limit of the local assembly. This member has no defaults for them. In the cloud environment of this repository, the vault holds a placeholder value, and the outbound proxy injects the real key. The vault file of the command must be in your user directory. On POSIX, the command creates new directories with mode `0700` and the file with mode `0600`, and reads the modes back. On Windows, the command does not edit access control lists and does not call `icacls`. Protection comes from the access control that new entries inherit from the user directory. This holds only while the user directory stays closed to other accounts, and the command cannot read it back. The file lock does not expire with time. After a crash of the process that holds the lock, remove `${path}.lock` by hand when all writers have stopped. The vault mints tenant values again from the disk records through legal-identity. Tenant equality holds only inside one legal-identity instance. Therefore the caller and the vault must share that instance in one process.
 
 ## Verification
 
