@@ -147,6 +147,24 @@ describe('the continuation token of history.next', () => {
     expect(failureOf(await next(a, 'only.two'))).toMatchObject({ kind: 'invalid', field: 'cursor' })
   })
 
+  it('a token whose payload was signed without the protocol domain prefix is invalid', async () => {
+    const a = await seeded()
+    const cursor = await firstCursor(a)
+    const body = cursor.split('.')[0] as string
+    // The same signing key over the bare payload, as a signature made for another protocol would be.
+    const signed = await a.signing.sign(new Uint8Array(Buffer.from(body, 'base64url')))
+    if (signed.kind !== 'signed') throw new Error('fixture: the signing double signs')
+    const bare = [
+      body,
+      Buffer.from(signed.value.keyId).toString('base64url'),
+      Buffer.from(signed.value.signature).toString('base64url'),
+    ].join('.')
+    const mark = a.provider.calls.length
+    expect(failureOf(await next(a, bare))).toMatchObject({ kind: 'invalid', field: 'cursor' })
+    expect(a.provider.calls.length).toBe(mark)
+    expect(ok<Page>(await next(a, cursor)).entries.length).toBeGreaterThan(0)
+  })
+
   it('a token issued to tenant A is invalid for tenant B, even over a session of the same name', async () => {
     const a = await seeded()
     ok(await a.create(TENANT_B))

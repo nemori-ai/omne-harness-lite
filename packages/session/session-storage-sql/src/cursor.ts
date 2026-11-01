@@ -20,6 +20,19 @@ export type CursorOptions = Readonly<{
 }>
 
 const encoder = new TextEncoder()
+
+/**
+ * The fixed protocol domain separator (RD-CURSOR). The signature covers this prefix and then the
+ * payload, so a signature that the same key made for another protocol, or over the bare payload,
+ * never verifies as a Session cursor. The token carries the payload only.
+ */
+const DOMAIN = encoder.encode('omne-harness/session-storage-sql/cursor/v1\u0000')
+const signed = (payload: Uint8Array): Uint8Array => {
+  const out = new Uint8Array(DOMAIN.length + payload.length)
+  out.set(DOMAIN, 0)
+  out.set(payload, DOMAIN.length)
+  return out
+}
 const b64 = (bytes: Uint8Array): string => Buffer.from(bytes).toString('base64url')
 const unb64 = (text: string): Uint8Array => new Uint8Array(Buffer.from(text, 'base64url'))
 
@@ -34,14 +47,14 @@ export async function seal(
   const payload = encoder.encode(
     JSON.stringify({ ...binding, expires: options.now() + options.ttlMs, state }),
   )
-  const signed = await options.signing.sign(payload)
-  if (signed.kind !== 'signed')
+  const sealed = await options.signing.sign(signed(payload))
+  if (sealed.kind !== 'signed')
     return fail<SessionFailure>({
       kind: 'unavailable',
       owner: OWNER,
       diagnostic: 'the cursor signing key is unavailable',
     })
-  const { keyId, signature } = signed.value
+  const { keyId, signature } = sealed.value
   return succeed(`${b64(payload)}.${b64(encoder.encode(keyId))}.${b64(signature)}`)
 }
 
@@ -55,7 +68,7 @@ export async function open<T>(
   const [body, key, signature] = parts as [string, string, string]
   const payload = unb64(body)
   const verdict = await options.signing.verify({
-    payload,
+    payload: signed(payload),
     signature: { keyId: Buffer.from(unb64(key)).toString('utf8'), signature: unb64(signature) },
   })
   if (verdict.kind === 'unavailable')
