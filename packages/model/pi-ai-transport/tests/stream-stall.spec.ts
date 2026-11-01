@@ -5,6 +5,7 @@
 // the stall length.
 import type { ClientRequest, IncomingMessage, ServerResponse } from 'node:http'
 import type { RequestOptions } from 'node:https'
+import type { Socket } from 'node:net'
 import type { TransportFact } from '@omne-harness/model-contract/provider'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { TransportDiagnostic } from '../src/diagnostics.ts'
@@ -228,6 +229,22 @@ async function untilErrorBodyRead(): Promise<void> {
   throw new Error('the error body was not read')
 }
 
+/** The socket of the latest response, while the response holds it. */
+function latestSocket(): Socket {
+  const socket = built.responses.at(-1)?.socket
+  if (socket === undefined || socket === null) throw new Error('no response holds a socket')
+  return socket
+}
+
+/** Waits, in real time, until Node has received the whole body of the latest response. */
+async function untilComplete(): Promise<void> {
+  for (let turns = 0; turns < 2_000; turns += 1) {
+    if (built.responses.at(-1)?.complete === true) return
+    await new Promise<void>(resolve => realSetTimeout(resolve, 5))
+  }
+  throw new Error('the response body did not arrive whole')
+}
+
 describe('a stalled exchange', () => {
   it(
     'ends as stalled when no byte comes after the request, and returns the slot only after the physical stop',
@@ -357,6 +374,32 @@ describe('a stalled exchange', () => {
           expect(vi.getTimerCount()).toBe(0)
         },
       )
+    },
+  )
+
+  it(
+    'leaves a 2xx body alone once Node holds all of it, the reader has read it and the connection stays open',
+    { tags: ['slow'] },
+    async () => {
+      const { handler, response } = opening('all of it')
+      await withScene(handler, async scene => {
+        const reservation = await held(scene.resources)
+        const exchange = start(scene, reservation)
+        const body = claimed(await exchange.result)[Symbol.asyncIterator]()
+        const socket = latestSocket()
+        expect(Buffer.from((await body.next()).value as Uint8Array).toString()).toBe('all of it')
+        response().end() // Keep-alive: the end of the body does not close the connection.
+        await untilComplete()
+        vi.advanceTimersByTime(STALL)
+        await settle()
+        expect(await body.next()).toEqual({ done: true, value: undefined })
+        await exchange.stopped
+        // Nothing was missing, so nothing stalled: the connection is not destroyed but goes back to the pool.
+        expect(socket.destroyed).toBe(false)
+        expect(Object.values(scene.resources.agent.freeSockets).flat()).toEqual([socket])
+        expect(reservation.state).toBe('released')
+        expect(vi.getTimerCount()).toBe(0)
+      })
     },
   )
 
