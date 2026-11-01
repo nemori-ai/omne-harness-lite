@@ -28,7 +28,7 @@ Reduce 在线父卡上为每条存续线发布 delta，idle 线也发。delta �
 
 各 assignment 的写法：
 
-- active：写下一波的任务卡、binding 与验收。Line 核对从 F 到线轨道的实际 FI 结果后，从真实线轨道头建立工作卡 binding，不重放旧补丁。
+- active：写下一波的任务卡、binding 与验收。Line 核对从 F 到线轨道的实际 FI 结果后，从同步后的线轨道头建本波线父分支，工作卡从父分支开出，不重放旧补丁。
 - idle：写轮空原因与相关变化。不建虚假任务或 PR。Line 继续等待下一条 delta。
 - redo：reduce 先更正输入，在任务卡上登记新 attempt，再发 redo。redo 不推进波号。
 - terminal：写明完成、限定接受或取消，及最终报告的入口。空队列不能推断为 terminal。

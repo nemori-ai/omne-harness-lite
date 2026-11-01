@@ -30,6 +30,8 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 - 等待命令退出 2 时诊断并恢复，恢复后先对账，不报告空队列成功。
 - 等另一个会话在某张卡上贴特定评论时，先看那张卡已有的评论用什么标记，等待就用这个标记。也可以在要求里写「沿用你已用的标记」。对方可能在读到你的要求之前，已经用自己的标记贴出了评论。这时只等你新指定的标记，就会错过它。
 - Reduce 自己启动的 gate 运行与审批、子代理、检查进程和约定期限由 Reduce 自己观察。审批交有权者，不自动批准。期限到达时核对事实，再决定等待、重排或取消。沉默保持 unknown，不判线失联。
+- 各线在波中还有两类事要 Reduce 处理（PanQiWei 2026-11-01 决定）。线父分支进线轨道的 PR 等 gate 审批时，Reduce 代 PanQiWei 确认。线把设计子门的候选与评审报告贴到卡上，Reduce 监视这些卡评论并批复。两者都不是波中问答，线在等待期间推进其他卡。
+- Reduce 自己派的长跑子代理按 `delegate`「等待与追加」巡检：开始时间写进闭包表，跑过 10 分钟就看工作树事实。状态页把在跑清单与开始时间放在一眼能看到的位置。
 - Reduce 与它派的子代理共用宿主的一个限流池。Reduce 撞上限流时，会话停在原地，直到被唤醒或有人输入。进入无人值守的时段之前：
   1. 给 Reduce 自己留额度，例如少派并行的子代理。
   2. 用宿主的定时唤醒挂一个兜底唤醒，Claude Code 用 ScheduleWakeup 或 CronCreate。醒来后按「恢复」重读持久事实，重挂两条等待。
@@ -42,19 +44,25 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 
 ### ready：接收线轨道提升
 
-一次接管一个提升 PR。先核对来源线轨道的逐卡准入、gate 合入证据与冻结 head。保存来源原 head、候选 head、目标 head、targetBase 和 merge 链。
+一次接管一个提升 PR。先核对线父分支进线轨道的那次准入与 gate 合入证据，以及冻结 head。线内的卡不逐张准入，规则见 `docs/engineering/integration.md`「线父分支」。保存来源原 head、候选 head、目标 head、targetBase 和 merge 链。
 
 1. 核对 Line 已停写。在具有真实工作卡 binding 的 reduce 隔离候选上处理同步和冲突；需要修正来源轨道时，由 Reduce 按获准路线经 gate 写回，再读回提升源头。线父卡不承担该修复的 Git binding。
 2. 完成跨域修改与消费者迁移。Reduce 负责交回后的全部集成冲突、跨域修改、消费者迁移和改后验证，不把集成缺陷退回线会话。自己派写者时按 `delegate`。
-3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。
-4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。线卡入线轨道时的 `integrating` 已由线负责人对实际工作卡写入。提升阶段记录实际 PR 与 gate 事实，不为线父卡虚构 start；按卡接受决定读回后再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
+3. 验证：用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。准入只有一步失败时，修复后用 `pnpm run admission --resume-from <H1>` 补跑，H1 是失败的那个头，不整次重跑。规则见 `docs/engineering/integration.md`「增量准入」。候选或基线变动后，重做受影响的验证与评审。准入是一条全机串行的队列：
+   - 入队前在该树离线装依赖、刷新索引、修好 CRLF 工作副本，再跑轻量预检（`acceptance:lock`、`check:docs`、`lint:oxlint`、`format:check`）。工具链的 `pnpm run preflight` 合入之后用它。
+   - 只有少数用例因超时或负载失败时，先确认没有并发负载，只重跑失败用例所在的文件，再补跑没有开始的轻步骤。全过记为通过，确认说明写明原准入记录与定向重跑。
+   - 准入期间不派会跑测试的子代理。
+   - 合入目标分支按批次顺序串行。合入前的准备彼此独立：合并目标分支、`task-sync`、证据起草、语义复核草稿与 qa 干净重跑。等关键路径时把它们一次扇出，做法见 `delegate`「扇出」。
+4. gate：按既有权限发 gate，绑定精确的 workflow、ref、head、runId 与 runAttempt。需要审批时交有权者。线父分支进线轨道时，线负责人已对其中每张实际工作卡写入 `integrating`。提升阶段记录实际 PR 与 gate 事实，不为线父卡虚构 start；按卡接受决定读回后再运行 `board-cli.ts accepted`。规则归 `agent-delivery.md`「4. 推进和更新状态」。
 5. 读回合入：PR 实际合入，且合并提交在目标轨道可达，才记合入。gate 成功、PR 关闭或审批完成都不能单独记合入。合入被回退时，本批次重新未解决。
+
+收件时，评审与 qa 报告以卡评论为准。只放在任务 tmp 的报告不进台账增量，落盘与贴卡的做法见 `delegate`「独立验收」。
 
 评审或审计带出的新问题不属于本批次时，不把它并进正在集成的批次或正在推进的卡。先按 `agent-delivery.md`「1. 整理需求并定位已有卡」查有没有同一结果的卡；没有就另立小卡，按 `dispatch` 第 3、5 节求交并登记，在单独的分支上并行交付（P23）。
 
 ### 几张连续的卡合成一个批次
 
-这一节只适用于 Reduce 连续推进且直接进入联调轨道的 `integration` 卡，不适用于线卡。Reduce 是几张连续的这类卡的唯一写者时，按这一节合并它们，规则见 `docs/engineering/integration.md`「卡进入哪条轨道」的例外。
+这一节只适用于 Reduce 连续推进且直接进入联调轨道的 `integration` 卡。线卡的批次是线父分支，由线负责人按 `docs/engineering/integration.md`「线父分支」处理。Reduce 是几张连续的这类卡的唯一写者时，按这一节合并它们，规则见 `docs/engineering/integration.md`「卡进入哪条轨道」的例外。
 
 1. 每张卡照常开工、实现，判据证据贴在各自的卡上。
 2. 从联调轨道头切一条个人批次分支，按依赖顺序把各卡的分支合进来，在本地解决冲突。
@@ -96,7 +104,11 @@ node --experimental-strip-types tools/dev-flow/src/delivery/wait-cli.ts any --co
 3. 检查失败或候选变化时回到监督，旧证据失效。
 4. 整波检查通过后，按 `dispatch`「放行」一节建后继、给全部存续线发 delta、接受并读回 R(w)、关闭 R(w)。
 5. 调整后一波预案时，按 `dispatch` 技能的 `references/wave-planning.md` 用本波实际耗时、集成负荷和新事实修正取舍。
-6. 放行之后，按 `delegate`「反思」做 reduce 提炼并写 `ledger.json`，作为下一波联调轨道上的第一个提交。这个提交随下一波候选接受整波检查。里程碑最后一波没有下一波，经 gate 单独开 PR。
+6. 放行之后，按 `delegate`「反思」做 reduce 提炼并写 `ledger.json`，作为下一波联调轨道上的第一个提交。这个提交随下一波候选接受整波检查。里程碑最后一波没有下一波，经 gate 单独开 PR。每波的复盘按下面的顺序（PanQiWei 2026-11-01 定）：
+   1. Reduce 复盘本波派发：流水、各线交回的台账增量与经验、反思。
+   2. 经验写进仓库的技能、角色、文档与台账，经卡、准入与 gate 进入联调轨道。
+   3. 各线轨道 FI 到这个头并读回。下一波线包与首次消息的技能来源 revision 写这个提交，线包的「本波经验摘要」写聚合后的要点。
+   4. 下一波按最新经验派发。
 7. 里程碑完成后，按 `delegate`「反思」做一次里程碑反思。
 
 ## 报 ETA 之前

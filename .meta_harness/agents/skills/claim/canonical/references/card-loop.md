@@ -58,9 +58,9 @@
 | L2 | 有未交代的红项，或读完摘要仍说不清某处时派 | 有可运行交付面、验收标准写得成「触发 → 可观察结果」时派 |
 | L3 | 派，它逐行读热点。你仍逐行读热点 | 派 |
 
-文档评审与交付边界核对不受级别约束：候选含正式文档变更时开 PR 后跑 `review-docs`。任何候选开 PR 后、接受前跑 `review-delivery`。
+文档评审与交付边界核对不受级别约束：候选含正式文档变更时开 PR 后跑 `review-docs`。任何候选开 PR 后、接受前跑 `review-delivery`。线内的卡没有单卡 PR，这两项在合入父分支之前跑。
 
-力度：契约成员或跨成员的改动分面派发。中等的工具修复合成一次评审。评审之间可以并行，不与准入同时跑。评审的简报与汇总按 `delegate`「评审派发」。
+力度：契约成员或跨成员的改动分面派发。中等的工具修复合成一次评审。评审之间可以并行，不与准入同时跑。评审的简报与汇总按 `delegate`「评审派发」。评审与 qa 的报告交回即落 `tmp/<任务>/reviews/` 并贴卡，做法见 `delegate`「独立验收」。只放在 tmp 的报告不进台账增量。
 
 ## 修复
 
@@ -87,8 +87,10 @@
 
 ## 准入
 
-1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线内卡的目标是本线轨道，同样执行这一步；从联调轨道 FI 的时点按波计划固定。
-2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。它按准入锁排队，并把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。准入运行还在日志旁写一份同名的 `.json` 运行记录，增量准入与复用核对读它。格式见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。
+本节适用于不在线内的卡，以及线父分支头上的波末准入。线内的卡不跑卡级准入，合入父分支的条件归 `docs/engineering/integration.md`「线父分支」。
+
+1. 固定候选：记录 head、taskBase 和 targetBase。之后目标分支前进时，先合入并运行 `task-sync`，再按影响重验。线父分支没有 binding，线轨道前进时只合并，不运行 `task-sync`。
+2. 运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`）。卡要求时加 `FULL=1`。同一台机器上的准入一次只跑一个。机器级准入锁合入之前，跑准入前先查本机各工作树的 `tmp/admission/` 有没有在跑的记录。入口把命令、head、逐步结果与退出码写进 `tmp/admission/` 下的准入日志（P13 由入口完成）。准入运行还在日志旁写一份同名的 `.json` 运行记录，增量准入与复用核对读它。格式见 `tools/test-runner/README_ZH.md`「准入：运行记录、接续与证据核对」。
 3. 准入期间不提交（P11）、不做占 CPU 的事（P12）。可以写交接报告与下一张卡的简报。
 4. 准入失败先定向复现（`npx turbo run test:<层> --filter=<成员> --only --env-mode=strict -- <测试文件> -t <用例>`），不反复全量重跑。`check --keep-going` 一次报出全部失败。修复后，在最终 head 上按 `docs/engineering/integration.md`「增量准入」（在「检查责任」之下）补跑，命令是 `pnpm run admission --resume-from <H1>`，H1 是失败的那个 head。前提、要跑的步骤、全局路径例外与证据写法都以那一节为准。
 5. 要复用树相同的另一个提交上的全量准入时，在那次全量准入所在的工作树里运行 `node --experimental-strip-types tools/test-runner/src/testing/cli.ts admission-evidence --for <F>` 核对，F 是要复用准入的提交。规则见 `docs/engineering/integration.md`「树相同时复用准入」。
@@ -105,13 +107,14 @@ flowchart LR
   AD --> PR["开 PR，交接报告"]
 ```
 
+- 线内的卡没有图中最后两步：发交接报告后，由线负责人合入父分支。准入在波末的父分支头上跑一次。
 - 先复跑门禁再派评审，便宜的问题不等到准入才暴露。
 - 评审不与准入同时跑。
 - 没有评审发现时，直接在被评审的 head 上准入。
 
 ## gate
 
-每张线卡经卡级准入与 gate 进入线轨道，由线负责人按 `branch-integration` 技能组织。不在线内的卡交回后，由调度者按同一技能送进目标轨道。工具改动要发行时，版本号随工具改动一起入轨（P9）。新版本的行为取决于仓库状态时，改变仓库状态的 PR 通过准入之前，不把发行算作完成（P10）。
+线内的卡不逐张走 gate。线负责人在波末把父分支经一次准入与一次 gate 送进线轨道，按 `branch-integration` 技能组织。不在线内的卡交回后，由调度者按同一技能送进目标轨道。工具改动要发行时，版本号随工具改动一起入轨（P9）。新版本的行为取决于仓库状态时，改变仓库状态的 PR 通过准入之前，不把发行算作完成（P10）。
 
 ## 子检查点的效率规则
 

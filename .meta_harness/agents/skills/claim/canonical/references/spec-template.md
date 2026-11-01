@@ -107,7 +107,7 @@ SOLID 与 DDD 的采用范围归 `layers-and-dependencies.md`「方法依据与�
 | 结构读数 | `pnpm run metrics --coverage`，基线按 `review-code` 技能「度量与差分变异的基线」一段 | 若干切片后集中一次 |
 | 差分变异 | `pnpm run mutation`，基线与收窄按 `review-code` 技能「差分变异」一段 | 最终 head 上跑一次，只跑热点 |
 | 文档与投影 | `pnpm run check:docs`；`pnpm run check:agents` | 改到时 |
-| 整次准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 每张卡在最终 head 跑一次；线负责人组织卡级准入，Reduce 另做整波验证 |
+| 整次准入 | `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志） | 线内的卡不跑，本线本波只在父分支头跑一次；不在线内的卡在最终 head 跑一次。Reduce 另做整波验证 |
 
 - 不能声称的事（`docs/verification.md`）：<本卡验证覆盖不到的范围，写「未执行」或「未测量」及原因>
 

@@ -24,6 +24,14 @@ description: >
 
 按 `docs/engineering/delivery.md` 与 `docs/engineering/agent-delivery.md` 建卡，按实际 Issue 模板写本次范围、负责人、revision、条件和验收。`kind:` 唯一且与正文主工作类型一致；`line:`、`nature:`、`contract:` 用标签同步命令对齐。Project 是投影，写入失败单列，不写成成功。创建结果未知时先读回，不重复创建。
 
+下面几条写法来自波 0 被拒的派发与重复字段：
+
+- 条件行的目标列写 Issue 完整 URL，判据列含「整项结果」。交付条件只写条件表或 `无`。
+- 每个字段行只出现一次。`contract: none` 不建标签。
+- 卡写明验收文件（`acceptance/`）只由 Agent-Role 为 main 或 qa 的提交修改。
+- 简报里的缩写全部展开。起草子代理的简报写明它能不能再派子代理。
+- 旧卡升修订前，清掉旧的开始条件与 `blockedBy`，补「分支」「基线」小节。升修订要 swap 新树，swap 前先推送旧树的分支。
+
 写验收时，上位正文里的每条验证义务（复杂度上界、基准、规模）都对应到一张卡和一条验收判据，或者具名推迟。卡第一次实现某条按请求执行的热路径时，验收比较第 k 轮与第 k+n 轮的代价。替身配符合性套件只证明形状，联调的代价检查另派，并指定拥有者。方法见[波段编排](references/wave-planning.md)。
 
 ## 3. 波准入
@@ -48,9 +56,9 @@ node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts post
 node --experimental-strip-types tools/dev-flow/src/delivery/dispatch-cli.ts bind --binding <binding.json> --worktree <工作树>
 ```
 
-定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。
+定写范围时不只看类型检查或编译的失败清单。卡要删除或改名一个形状时（类型、事件名、字段名或命令），先在全仓的 `.md` 与 `.ts` 中搜索这个形状的全部命中。代码标识之外，这个形状的中文说法与别名也要搜。搜索输出不截断，命中清单存进任务过程目录。写范围覆盖全部命中所在的成员与正文。历史记录（例如 RFC）中的命中不改。命中落在别线的写范围或另一个写者的契约成员上时，不直接并入本卡，回第 3 节改分解（P20）。删除或搬迁正文时，同样先 `git grep` 旧路径与锚点：入向链接所在的文件放进写范围，或拆给有权写它们的卡，并与删除正文的卡编进同一批次。
 
-线父卡只承载线包、delta、交回与长期责任，不为每波建立 Git binding。实际工作卡各自登记 attempt；有线轨道的卡以该轨道为 route，从真实线轨道头登记 taskBase。派发前核对 registry 与远端分支齐备、上游链有效，并记录开波 FI 结果与固定同步点。每次写入后读回工作卡精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
+线父卡只承载线包、delta、交回与长期责任，不为每波建立 Git binding。实际工作卡各自登记 attempt；有线轨道的卡以该轨道为 route，从开波 FI 后的线轨道头登记 taskBase。这个提交也是本波线父分支的起点，规则见 `docs/engineering/integration.md`「线父分支」。派发前核对 registry 与远端分支齐备、上游链有效，并记录开波 FI 结果与固定同步点。每次写入后读回工作卡精确的 revision 与 attempt。结果未知时先读回，不用 `--force` 绕过冲突。
 
 redo 也走本节：Reduce 更正输入后为任务卡登记新 attempt，再按「放行」一节的发布方法发 redo delta。
 

@@ -121,6 +121,9 @@ describe('initial dispatch materialization without implicit authority', () => {
     expect(body).toContain('「进度更新」')
     expect(body).toContain('「本波进度」')
     expect(body).toContain('事件接收器的健康状态和自检结果不阻止开工')
+    expect(body).toContain('线父分支')
+    expect(body).toContain('「线负责人的思维模型」')
+    expect(body).toContain('「执行中前台并行关注的事」')
   })
   it('places every command field inside a shell code block and has no other code block', () => {
     const f = fixture()

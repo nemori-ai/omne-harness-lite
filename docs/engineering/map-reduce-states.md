@@ -104,7 +104,7 @@ PREPARE：
 
 SERVE 一次接管一个提升 PR：
 
-1. 核对线已停写及工作卡进入线轨道的准入、gate 证据。保留来源原始 head、候选 head、目标 head、targetBase 和 merge 链。
+1. 核对线已停写，以及父分支进入线轨道的那次准入与 gate 证据，见[线父分支](integration.md#线父分支)。保留来源原始 head、候选 head、目标 head、targetBase 和 merge 链。
 2. 在 reduce 隔离候选上处理同步、冲突、迁移和修复，同时继续收件。
 3. 同步后先用 `node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>` 生成宿主投影，它最后运行 `pnpm run check:agents`；再运行 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）。同一台机器上的准入一次只跑一个。
 4. 候选或基线变动后，重做受影响的验证与独立评审。
@@ -177,8 +177,8 @@ stateDiagram-v2
 | 阶段 | Line 的动作 | 离开条件 |
 | --- | --- | --- |
 | 开工 | 从首次消息取得身份、长程目标、方法地图与分工，从 delta 取得 F 与本波 assignment。核对任务卡上的 binding | active 或 redo：binding 齐全且任务卡开放，进入执行。事件接收器的健康状态和自检结果不阻止开工。idle：进入等待。输入缺失且无法自主解决：进入交回，结果为 blocked |
-| 执行 | 逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审。线负责人组织卡级准入，经 gate 入线轨道；同机整次准入互斥。局部细节在授权内决定，不吸收新评论或新设计 | 本波完成，或无工作可继续，进入交回 |
-| 交回 | 开提升 PR（零差异时没有），在每张卡发五节交接报告，在线父卡发交回记录。三样交回物的格式归[线会话记录](integration.md#线会话记录) | 交回记录已发布，Line 停写，进入等待 |
+| 执行 | 从线轨道头建本波的线父分支。逐卡按 `claim` 技能推进，在冻结输入内自主实现、验证与评审。线负责人把做完的卡合入父分支，不跑卡级准入，不走 gate。本波的卡都合入后，父分支只跑一次准入、只走一次 gate 进入线轨道；同机整次准入互斥。规则见[线父分支](integration.md#线父分支)。局部细节在授权内决定，不吸收新评论或新设计 | 父分支已合入线轨道并读回，或无工作可继续，进入交回 |
+| 交回 | 开提升 PR（零差异时没有），核对每张卡上的五节交接报告，在线父卡发交回记录。交回物的格式归[线会话记录](integration.md#线会话记录) | 交回记录已发布，Line 停写，进入等待 |
 | 等待 | 用低层等待命令等线父卡上的下一条 `line-delta`，不结束会话回合。命令归[等待监督](integration.md#等待监督) | 按 delta 的 assignment 转移。每次唤醒与超时后的读回、去重与重挂按[等待监督](integration.md#等待监督)。等待命令失败时，Line 记录状态，等人转告 |
 | 终态 | 交最终报告 | 停止。只清理自己的资源 |
 

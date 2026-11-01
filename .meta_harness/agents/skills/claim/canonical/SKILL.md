@@ -1,7 +1,7 @@
 ---
 name: claim
 description: >
-  执行者把一张交付卡从认领做到交回：先分清一条线开工时一次做好的线级准备，与每张卡开工前只增量做的卡级准备。卡级准备以 start 读回、上下文地图本卡附录、spec.md 与 plan.md 落盘为门槛。然后按 plan.md 的切片有序推进，按风险裁剪评审与验收。每张卡在最终 head 上执行卡级准入；线负责人组织本线准入，Reduce 另做整波验证。最后开 PR 并交回交接报告。
+  执行者把一张交付卡从认领做到交回：先分清一条线开工时一次做好的线级准备，与每张卡开工前只增量做的卡级准备。卡级准备以 start 读回、上下文地图本卡附录、spec.md 与 plan.md 落盘为门槛。然后按 plan.md 的切片有序推进，按风险裁剪评审与验收。线内的卡不跑卡级准入、不开 PR，由线负责人合入本线本波的父分支，波末父分支只跑一次准入；不在线内的卡在最终 head 上准入并开 PR。最后交回交接报告。
   用户要求认领任务、开工建工作树，线会话按线包推进一张卡，或点名 /claim 时加载。调度者给自己开的卡开工，或卡上登记了新 attempt 时，也加载。
   线会话的跨波流程用 line，建卡与派发用 dispatch，接提升与整波集成用 integrate。
 ---
@@ -41,9 +41,9 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 
 1. 认卡：按 `agent-delivery.md` 在本卡评论声明认卡：负责的人、宿主与会话、当前修订与 attempt、授权依据（派发评论或线包的登记授权）、现存执行核对。卡还没有派发、执行区没有 binding 时，线内的卡只有线包明确授权，线会话才按 `dispatch` 技能「发派发评论，写回 binding」一节登记；没有授权时按 `line` 交回 blocked。不在线内的卡停下，请调度者派发。
 2. 写范围：以 binding 为准。登记 attempt 时，新建成员的卡写范围要加锁文件、所属组的组页、组 `documentation.json`、组 docs 与包组织页。
-3. 分支：基线取 binding 的 `taskBase`，分支名取 binding 的 `branch`。远端还没有这根分支时 `git push origin <taskBase>:refs/heads/<分支>`。已有同名分支时核对尖端等于 taskBase，不等就停下报告，不覆盖。线内的卡从真实线轨道头切出，taskBase 就是登记时的线轨道头。
+3. 分支：基线取 binding 的 `taskBase`，分支名取 binding 的 `branch`。远端还没有这根分支时 `git push origin <taskBase>:refs/heads/<分支>`。已有同名分支时核对尖端等于 taskBase，不等就停下报告，不覆盖。线内的卡从父分支头切出，taskBase 就是开出时的父分支头，规则见 `integration.md`「线父分支」。
 4. 工作树：一次 attempt 一棵，放主检出的 `.worktrees/issue-<号>-r<修订>a<序号>`，跟踪远端同名分支，然后把会话的工作根切过去。调度者已用 `worktree-cli.ts prepare` 建好时直接用。
-5. `start` 与读回：在工作树里按 `tools/dev-flow/src/integration/README.md` 运行 `start`（`authority` 是派发评论 URL，`issue`、`revision`、`attempt` 取 binding），再用 `status` 读回：`bound=true`，issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。拒绝时停下，按错误码处理，不手写 context。核对 targetBase 是 route 指定的目标轨道头；目标前进时按双基线规则合并并运行 task-sync。云端会话的 `start` 成功后，交付身份会在卡上发一条「开工事实」评论，这是预期结果。
+5. `start` 与读回：在工作树里按 `tools/dev-flow/src/integration/README.md` 运行 `start`（`authority` 是派发评论 URL，`issue`、`revision`、`attempt` 取 binding），再用 `status` 读回：`bound=true`，issue、revision、attempt、branch、taskBase 与 binding 一致，relation 为 `current`。拒绝时停下，按错误码处理，不手写 context。核对 targetBase 是 route 指定的目标轨道头；目标前进时按双基线规则合并并运行 task-sync。线内的卡要用父分支上兄弟卡的成果时，用 `git merge --no-ff` 合并远端父分支，不运行 task-sync。云端会话的 `start` 成功后，交付身份会在卡上发一条「开工事实」评论，这是预期结果。
 6. 看板与正文：Stage 改为 In progress。线内的卡由线会话改。不在线内的卡由调度者改，执行者在认卡评论里请求。云端会话用 `delivery-stage`，以 `gh run view` 读到 `Stage: In progress` 才算完成。然后回填卡正文的开工读回表与当前进展。
 7. 本卡附录：在 `tmp/issue-<号>/context-map.md` 按[上下文地图模板](references/context-map.md)只写本卡附录（绑定、本卡依据、缺口、受影响成员），主体引用线级地图。调度者给了任务信息包 `task-pack.md` 时只读不改。
 8. `spec.md`：写本卡实施规格，放 `tmp/issue-<号>/spec.md`。方法用 Matt `to-spec`，格式用[实施规格模板](references/spec-template.md)。「原则与约束」一节引用线级 `constraints.md`，只写本卡新增条目。测试接缝：线内的卡由线会话定并写进 spec。不在线内的卡须经卡负责人确认。接续已有 attempt 的卡只写已采用规格之外的差额。
@@ -61,17 +61,17 @@ Issue 编号来自本次输入。没有编号时问一次，然后停下。线�
 - 一次只有一个写者在本工作树里写。实施与评审派新上下文的子代理，简报只给指针。做法按 `delegate`。
 - 每个切片后复跑功能门禁（至少类型检查与 lint）。评审只在高风险切片做，常规评审集中到实施完成后一次。阻断合成一轮集中修复。结构度量若干切片后集中跑一次。差分变异按 `review-code` 技能「差分变异」一段，只在最终 head 上跑热点。
 - 评审与验收按 `quality.md` 的风险级别裁剪：L0、L1 不派实现评审。纯文档的卡仍跑 `review-docs` 与 `review-delivery`。L3 逐行读热点并派独立评审。
-- 准入 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）：每张卡在最终 head 上跑一次。线内由线负责人排程，按同机准入锁串行执行；准入期间不提交、不做占 CPU 的事。整波全量准入与跨线联调归 Reduce，不能代替卡级准入。
+- 准入 `pnpm run admission`（等于 `OMNE_ADMISSION=1 pnpm run check`，另写准入日志）：线内的卡不跑卡级准入。合入父分支前的条件归 `integration.md`「线父分支」，本线本波只在父分支头跑一次准入。不在线内的卡在最终 head 上跑一次。同一台机器上的准入一次只跑一个；准入期间不提交、不做占 CPU 的事。整波全量准入与跨线联调归 Reduce。
 - 修复轮：线内的卡两轮未闭合即停，按 line 技能处理。不在线内的卡按 card-loop 的升级阶梯进第 3 轮。
 
 ## 交回
 
 1. 把 `plan.md` 进度总览改成最终状态，与提交历史一致。
-2. 推送候选，开 PR。base 按 binding 的 route；线内的卡指向本线轨道。正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」。署名与 trailer 都按 `CONTRIBUTING.md`。
-3. 在卡评论发五节交接报告。五节的格式归 `docs/engineering/integration.md`「线会话记录」，[任务信息包](references/task-pack.md)第 7 节给本卡的填写要求。评论同时写 PR 链接与固定 head。「做了什么」逐条对照卡判据写证据与未覆盖，并原样贴进度总览。判据要求的证据贴在卡评论里，只放在任务 tmp 的证据接受者不据它判断。原件太大时贴摘要和关键行，并写明原件位置与哈希。规则归 `agent-delivery.md`「5. 提交成果供接受」。交接报告第 4 节附本会话的派发台账增量（线内的卡只在本波最后交回的那张卡上附一次），按 `delegate`「反思」；这是交回的一部分。
-4. 回填卡正文「成果交回」，Stage 改为 In review（运行 `board-cli.ts delivered`）。线内的卡由线会话在候选 PR 交回时运行。不在线内的卡由调度者运行，执行者在交回评论里请求。
-5. 线内：本卡经卡级准入与 gate 入线轨道；本线本波的卡全部交完后，提升 PR 与线父卡上的 `<!-- line-handoff -->` 交回记录按 `line` 技能「交回」阶段发布。
-6. 不因验证通过自行接受。接受归有权者。线卡进轨道由线负责人按既有授权加载 `branch-integration`，经 gate 合入；不在线内的卡由调度者处理。线轨道提升交给 Reduce，按 `integrate` 处理。
+2. 推送候选。不在线内的卡开 PR，base 按 binding 的 route，正文按 `integration.md`「进轨道 PR 的说明」写「所含的卡」与「契约变化」。线内的卡不开 PR，交线负责人合入父分支。署名与 trailer 都按 `CONTRIBUTING.md`。
+3. 在卡评论发五节交接报告。五节的格式归 `docs/engineering/integration.md`「线会话记录」，[任务信息包](references/task-pack.md)第 7 节给本卡的填写要求。评论同时写固定 head，不在线内的卡另写 PR 链接。线内的卡在合入父分支之前发这份报告。「做了什么」逐条对照卡判据写证据与未覆盖，并原样贴进度总览。判据要求的证据贴在卡评论里，只放在任务 tmp 的证据接受者不据它判断。评审与 qa 报告也要贴卡，做法见 `delegate`「独立验收」。原件太大时贴摘要和关键行，并写明原件位置与哈希。规则归 `agent-delivery.md`「5. 提交成果供接受」。交接报告第 4 节附本会话的派发台账增量（线内的卡只在本波最后交回的那张卡上附一次），按 `delegate`「反思」；这是交回的一部分。
+4. 回填卡正文「成果交回」，Stage 改为 In review（运行 `board-cli.ts delivered`）。线内的卡由线会话在合入父分支时运行。不在线内的卡由调度者运行，执行者在交回评论里请求。
+5. 线内：线负责人把本卡合入父分支。这只算线内合入，不算接受，也不算进入轨道。本线本波的卡都合入后，父分支经一次准入与一次 gate 进入线轨道，提升 PR 与线父卡上的 `<!-- line-handoff -->` 交回记录按 `line` 技能「交回」阶段发布。
+6. 不因验证通过自行接受。接受归有权者，线内的卡在父分支进入线轨道之后才接受。父分支进线轨道由线负责人按既有授权加载 `branch-integration`，经 gate 合入；不在线内的卡由调度者处理。线轨道提升交给 Reduce，按 `integrate` 处理。
 
 ## 收尾
 
