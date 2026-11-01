@@ -1,6 +1,6 @@
 # 存储 Worker 探针
 
-本工具保存存储事务设计的既有 Worker 探针。它使用 Node 标准库，不是 workspace 包，不提供生产存储实现。事务行为由[存储规格](../../packages/storage/docs/storage-contract/SPEC.md)拥有，探针的覆盖与限制见[原观察记录](../../packages/storage/docs/storage-contract/probe-observations.md)。
+本工具保存存储事务设计的既有 Worker 探针。它使用 Node 标准库，不是 workspace 包，不提供生产存储实现。事务行为由[存储规格](../../packages/storage/sql-contract/SPEC.md)拥有，探针的覆盖与限制见[原观察记录](../../packages/storage/sqlite-provider/docs/probe-observations.md)。
 
 ## 运行
 
