@@ -266,7 +266,7 @@ export function createModelRuntime<P>(
     recover: () => unavailable('recover', '5.4'),
     quiesce: async () => {
       quiesced = true
-      await Promise.allSettled([...admitting])
+      await Promise.allSettled(admitting)
       const { pending, running } = activity.counts()
       return { ok: { pending: String(pending), running: String(running) } }
     },
