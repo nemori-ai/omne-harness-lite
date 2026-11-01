@@ -11,7 +11,7 @@
 | 入口                                                   | 源文件          | 承载                                                                                                                                  | 现状   |
 | ------------------------------------------------------ | --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
 | `@omne-harness/request-context-cordis-contract`        | `src/index.ts`  | 只重导出服务签名与登记面所需的契约类型，没有运行值，不导入 Cordis（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4)） | 已实现 |
-| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 三个抽象类 `RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`，三个键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补 | 已实现 |
+| `@omne-harness/request-context-cordis-contract/cordis` | `src/cordis.ts` | 四个抽象类 `RequestContextService`、`RequestContextTrustService`、`ContextAccountingInboxService`、`ContextHolderSourcesService`，四个键常量、intercept 配置类型、策略选择的配置形状、`Context` 与 `Events` 增补 | 已实现 |
 | `@omne-harness/request-context-cordis-contract/testing` | `src/testing/index.ts` | 脚本替身 `createScriptedRequestContextTrust` 与套件 `requestContextTrustConformance`，不属于生产导出 | 已实现 |
 
 ```mermaid
