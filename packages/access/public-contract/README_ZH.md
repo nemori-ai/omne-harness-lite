@@ -8,7 +8,7 @@
 
 本成员实现34项治理请求操作与7项会话操作（含会话中断的`cancel-run`与`stop-call`），并识别4项本阶段不提供的治理操作。[行为规格](SPEC.md)拥有规则。[主入口](src/index.ts)导出八个函数及其输入、结果类型，两种协议各四个。[治理消息类型](src/messages.ts)与[会话消息类型](src/session-messages.ts)把操作与允许的结果和正文关联。[公开接口导航](docs/public-api.md)索引全部导出。
 
-本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md)写两个位置的 HTTP 与 SSE 承载。该页与本句是 #978 DP-2 的候选，待批复。identity和authorization继续拥有业务责任。Session继续拥有会话业务规则。SDK和server-entry仍是独立消费者，各自承担后续交付义务。
+本成员不核验身份、不判断授权、不执行业务，也不选择传输保护协议。[承载绑定](docs/http-binding.md)写两个位置的 HTTP 与 SSE 承载。identity和authorization继续拥有业务责任。Session继续拥有会话业务规则。SDK和server-entry仍是独立消费者，各自承担后续交付义务。
 
 ## 使用
 

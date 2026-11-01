@@ -70,7 +70,7 @@
       "kind": "contract",
       "required": true,
       "visibility": "internal",
-      "basis": "candidate",
+      "basis": "adopted",
       "applicability": "applicable",
       "expectationSource": {
         "path": "docs/member-documentation.md",
