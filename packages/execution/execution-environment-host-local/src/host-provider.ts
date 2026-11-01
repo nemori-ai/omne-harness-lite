@@ -12,6 +12,8 @@ import type {
   LeaseInvalidation,
   ManagedResource,
   OriginalAcquisition,
+  ProviderAcquireInput,
+  ProviderAcquisition,
   ProviderAcquisitionStatus,
   ProviderFacts,
   Retirement,
@@ -20,6 +22,7 @@ import { commandSettings, createHostCommands, type HostCommandOptions } from './
 import {
   domainInternals,
   fingerprintOf,
+  type AdmitResult,
   type DomainInternals,
   type DomainRecord,
   type DrainResult,
@@ -315,6 +318,35 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
     return lease
   }
 
+  /** The provider's answer to the domain's admission of one acquisition. */
+  const answerAdmission = (
+    admitted: AdmitResult,
+    acquisition: ProviderAcquireInput['acquisition'],
+  ): ProviderAcquisition => {
+    switch (admitted.kind) {
+      case 'admitted':
+        return { kind: 'acquired', lease: leaseOf(admitted.record), evidence }
+      case 'existing': {
+        // A repeat reads the original record; it never makes a second facade.
+        const record = admitted.record
+        return record.state === 'open' && record.lease
+          ? { kind: 'acquired', lease: record.lease, evidence }
+          : { kind: 'unknown', acquisition }
+      }
+      case 'conflict':
+        return { kind: 'rejected', reason: 'acquisitionConflict' }
+      case 'quotaExceeded':
+      case 'globalCapacityExceeded':
+        return { kind: 'rejected', reason: admitted.kind }
+      case 'unknown':
+        return { kind: 'unknown', acquisition }
+      default: {
+        const exhaustive: never = admitted
+        return exhaustive
+      }
+    }
+  }
+
   /** The domain knows every generation it issued; a key of an unknown generation stays unknown. */
   const absent = (original: OriginalAcquisition): 'notAllocated' | 'unknown' =>
     internals.knowsGeneration(original.placement.provider.generation) ? 'notAllocated' : 'unknown'
@@ -383,28 +415,7 @@ export function createHostFilesProvider(options: HostFilesProviderOptions): Envi
               }),
           }),
       )
-      switch (admitted.kind) {
-        case 'admitted':
-          return { kind: 'acquired', lease: leaseOf(admitted.record), evidence }
-        case 'existing': {
-          // A repeat reads the original record; it never makes a second facade.
-          const record = admitted.record
-          return record.state === 'open' && record.lease
-            ? { kind: 'acquired', lease: record.lease, evidence }
-            : { kind: 'unknown', acquisition: input.acquisition }
-        }
-        case 'conflict':
-          return { kind: 'rejected', reason: 'acquisitionConflict' }
-        case 'quotaExceeded':
-        case 'globalCapacityExceeded':
-          return { kind: 'rejected', reason: admitted.kind }
-        case 'unknown':
-          return { kind: 'unknown', acquisition: input.acquisition }
-        default: {
-          const exhaustive: never = admitted
-          return exhaustive
-        }
-      }
+      return answerAdmission(admitted, input.acquisition)
     },
     async inspectAcquisition(original): Promise<ProviderAcquisitionStatus> {
       const record = lookup(original)
