@@ -16,6 +16,7 @@ import {
   type AccessVerdict,
   type LedgerDomain,
   type LedgerRead,
+  type SourceVerdict,
   type ToolInvokeAuthority,
   type ToolLedgerStore,
   type ToolSourceGuard,
@@ -27,6 +28,7 @@ import {
   type ToolCallId,
   type ToolDefiniteFailure,
   type ToolInvocation,
+  type ToolInvokeRequest,
   type ToolOperationId,
 } from '@omne-harness/tool-contract'
 import {
@@ -148,20 +150,49 @@ function isRecord(value: unknown): value is Readonly<Record<string, unknown>> {
  */
 function parseBinding(value: unknown): Binding | null {
   if (!isRecord(value) || value.kind !== 'invocation-source') return null
-  const invocation = value.invocation
-  if (
-    typeof value.call !== 'string' ||
-    typeof value.admission !== 'string' ||
-    typeof value.requestDigest !== 'string' ||
-    typeof value.fixedDigest !== 'string' ||
-    !isRecord(invocation) ||
-    invocation.kind !== 'direct' ||
-    !isRecord(invocation.source) ||
-    !('principal' in value)
-  )
-    return null
+  const texts = ['call', 'admission', 'requestDigest', 'fixedDigest']
+  if (!texts.every(key => typeof value[key] === 'string')) return null
+  if (!isDirectInvocation(value.invocation) || !('principal' in value)) return null
   // The fields that matter to a decision were checked above; the rest is the source's own.
   return value as unknown as Binding
+}
+
+function isDirectInvocation(invocation: unknown): boolean {
+  return isRecord(invocation) && invocation.kind === 'direct' && isRecord(invocation.source)
+}
+
+/** What one issuance needs once the consumer is qualified. */
+type IssuePlan = Readonly<{
+  tenant: TenantId
+  key: string
+  request: ToolInvokeRequest
+  requestDigest: string
+  call: ToolCallId
+  admission: ToolOperationId
+  encoded: PrincipalJson
+}>
+
+/** The digest of a fixed request and the key of its consumer, or null when it is not canonical. */
+function digestsOf(request: FixedToolRequest): Readonly<{ fixed: string; key: string }> | null {
+  try {
+    return { fixed: canonicalDigest(request), key: consumerKey(request.consumer) }
+  } catch {
+    return null
+  }
+}
+
+/** Whether a binding was made for this call, this admission operation and this fixed request. */
+function bindsTo(binding: Binding, call: ToolCallId, operation: ToolOperationId, fixed: string) {
+  return binding.call === call && binding.admission === operation && binding.fixedDigest === fixed
+}
+
+/** What the comparison of subjects means to verification. */
+function subjectVerdict(same: AccessVerdict | 'undecodable'): SourceVerdict {
+  if (same === 'undecodable')
+    return { kind: 'unavailable', diagnostic: 'the stored principal cannot be decoded' }
+  if (same.kind === 'unavailable') return same
+  if (same.kind === 'denied') return { kind: 'forged', reason: 'different-subject' }
+  return { kind: 'trusted' }
 }
 
 function nextRevision(revision: string) {
@@ -231,83 +262,117 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
     return checked(() => authority.samePrincipal({ current, original }))
   }
 
+  /** A rejection when the tenant is malformed or the consumer is not qualified now; else null. */
+  const admit = async (
+    principal: P,
+    tenant: TenantId,
+    consumer: FixedToolRequest['consumer'],
+  ): Promise<ToolInvocationSourceOutcome | null> => {
+    if (!isTenantShape(tenant)) return rejected(denied)
+    const qualified = await checked(() => authority.qualify({ principal, tenant, consumer }))
+    if (qualified.kind === 'denied') return rejected(denied)
+    if (qualified.kind === 'unavailable')
+      return unavailable('invoke-authority', qualified.diagnostic)
+    return null
+  }
+
+  const encodePrincipal = (
+    principal: P,
+  ): Readonly<{ encoded: PrincipalJson }> | ToolInvocationSourceOutcome => {
+    try {
+      return { encoded: principalCodec.encode(principal) }
+    } catch {
+      return unavailable('principal-codec', `the principal codec ${THROWN}`)
+    }
+  }
+
+  /** The answer to a consumer that already has a binding: the same bound call, or a refusal. */
+  const recall = async (
+    known: Binding,
+    principal: P,
+    requestDigest: string,
+  ): Promise<ToolInvocationSourceOutcome> => {
+    const same = await sameSubject(principal, known)
+    if (same === 'undecodable') return { kind: 'association-unknown' }
+    if (same.kind === 'denied') return rejected(denied)
+    if (same.kind === 'unavailable') return unavailable('invoke-authority', same.diagnostic)
+    if (known.requestDigest !== requestDigest)
+      return rejected({ kind: 'conflict', operation: known.admission })
+    return {
+      kind: 'bound',
+      call: known.call,
+      admission: known.admission,
+      invocation: known.invocation,
+      recovered: true,
+    }
+  }
+
+  /** Writes a new binding at the revision that was read; null when that revision moved. */
+  const bind = async (
+    read: Extract<LedgerRead<B>, { kind: 'complete' }>,
+    plan: IssuePlan,
+  ): Promise<ToolInvocationSourceOutcome | null> => {
+    const { tenant, key, request, requestDigest, call, admission, encoded } = plan
+    const invocation: ToolInvocation = Object.freeze({
+      kind: 'direct',
+      source: Object.freeze({
+        owner: INVOCATION_SOURCE_OWNER,
+        record: `invocation-source:${call}`,
+        revision: '1',
+        digest: canonicalDigest({ tenant: tenantText(tenant), call, admission, requestDigest }),
+      }),
+    })
+    const binding: Binding = {
+      kind: 'invocation-source',
+      call,
+      admission,
+      requestDigest,
+      fixedDigest: canonicalDigest({ ...request, invocation }),
+      invocation,
+      principal: encoded,
+    }
+    let committed: Awaited<ReturnType<typeof store.commit>>
+    try {
+      committed = await store.commit({
+        domain: domain(tenant),
+        expected: read.revision,
+        revision: nextRevision(read.revision),
+        writes: [{ kind: 'put', record: { kind: 'host', host: { key, value: binding } } }],
+      })
+    } catch {
+      return { kind: 'issuance-unknown', call, admission }
+    }
+    if (committed.kind === 'committed')
+      return { kind: 'bound', call, admission, invocation, recovered: false }
+    if (committed.kind === 'unknown') return { kind: 'issuance-unknown', call, admission }
+    if (committed.kind === 'unavailable')
+      return unavailable('invocation-source', committed.diagnostic)
+    return null
+  }
+
   const issuer: ToolInvocationSourceIssuer<P> = {
     resolve: async input => {
       const judged = judgeToolInvokeRequest(input.request)
       if ('failure' in judged) return rejected({ kind: 'invalid', ...judged.failure })
       const request = judged.ok
       const { principal, tenant } = input
-      if (!isTenantShape(tenant)) return rejected(denied)
-      const qualified = await checked(() =>
-        authority.qualify({ principal, tenant, consumer: request.consumer }),
-      )
-      if (qualified.kind === 'denied') return rejected(denied)
-      if (qualified.kind === 'unavailable')
-        return unavailable('invoke-authority', qualified.diagnostic)
-      let encoded: PrincipalJson
-      try {
-        encoded = principalCodec.encode(principal)
-      } catch {
-        return unavailable('principal-codec', `the principal codec ${THROWN}`)
-      }
+      const refused = await admit(principal, tenant, request.consumer)
+      if (refused !== null) return refused
+      const kept = encodePrincipal(principal)
+      if (!('encoded' in kept)) return kept
       const key = consumerKey(request.consumer)
       const { call, admission } = identitiesOf(tenant, request.consumer)
       const requestDigest = canonicalDigest(request)
+      const plan = { tenant, key, request, requestDigest, call, admission, encoded: kept.encoded }
 
       for (let attempt = 0; attempt < commitAttempts; attempt += 1) {
         const read = await readDomain(tenant)
         if (typeof read === 'string') return unavailable('invocation-source', read)
         const known = bindingOf(read, key)
         if (known === 'unreadable') return { kind: 'association-unknown' }
-        if (known !== null) {
-          const same = await sameSubject(principal, known)
-          if (same === 'undecodable') return { kind: 'association-unknown' }
-          if (same.kind === 'denied') return rejected(denied)
-          if (same.kind === 'unavailable') return unavailable('invoke-authority', same.diagnostic)
-          if (known.requestDigest !== requestDigest)
-            return rejected({ kind: 'conflict', operation: known.admission })
-          return {
-            kind: 'bound',
-            call: known.call,
-            admission: known.admission,
-            invocation: known.invocation,
-            recovered: true,
-          }
-        }
-        const invocation: ToolInvocation = Object.freeze({
-          kind: 'direct',
-          source: Object.freeze({
-            owner: INVOCATION_SOURCE_OWNER,
-            record: `invocation-source:${call}`,
-            revision: '1',
-            digest: canonicalDigest({ tenant: tenantText(tenant), call, admission, requestDigest }),
-          }),
-        })
-        const binding: Binding = {
-          kind: 'invocation-source',
-          call,
-          admission,
-          requestDigest,
-          fixedDigest: canonicalDigest({ ...request, invocation }),
-          invocation,
-          principal: encoded,
-        }
-        let committed: Awaited<ReturnType<typeof store.commit>>
-        try {
-          committed = await store.commit({
-            domain: domain(tenant),
-            expected: read.revision,
-            revision: nextRevision(read.revision),
-            writes: [{ kind: 'put', record: { kind: 'host', host: { key, value: binding } } }],
-          })
-        } catch {
-          return { kind: 'issuance-unknown', call, admission }
-        }
-        if (committed.kind === 'committed')
-          return { kind: 'bound', call, admission, invocation, recovered: false }
-        if (committed.kind === 'unknown') return { kind: 'issuance-unknown', call, admission }
-        if (committed.kind === 'unavailable')
-          return unavailable('invocation-source', committed.diagnostic)
+        if (known !== null) return recall(known, principal, requestDigest)
+        const issued = await bind(read, plan)
+        if (issued !== null) return issued
       }
       return unavailable('invocation-source', `${commitAttempts} revision conflicts in a row`)
     },
@@ -315,29 +380,19 @@ export function createLocalInvocationSource<P, B extends ContentBlock = ContentB
 
   const guard: ToolSourceGuard<P> = {
     verify: async ({ principal, tenant, call, operation, request }) => {
-      let fixed: string
-      let key: string
-      try {
-        fixed = canonicalDigest(request)
-        key = consumerKey(request.consumer)
-      } catch {
-        return { kind: 'forged', reason: 'request-not-canonical' }
-      }
+      const digests = digestsOf(request)
+      if (digests === null) return { kind: 'forged', reason: 'request-not-canonical' }
       if (!isTenantShape(tenant)) return { kind: 'forged', reason: 'tenant-shape' }
       const read = await readDomain(tenant)
       if (typeof read === 'string') return { kind: 'unavailable', diagnostic: read }
-      const binding = bindingOf(read, key)
+      const binding = bindingOf(read, digests.key)
       if (binding === null) return { kind: 'forged', reason: 'unknown-source' }
       if (binding === 'unreadable')
         return { kind: 'unavailable', diagnostic: 'the stored binding cannot be read' }
-      if (binding.call !== call || binding.admission !== operation || binding.fixedDigest !== fixed)
+      if (!bindsTo(binding, call, operation, digests.fixed))
         return { kind: 'forged', reason: 'binding-mismatch' }
       const same = await sameSubject(principal, binding)
-      if (same === 'undecodable')
-        return { kind: 'unavailable', diagnostic: 'the stored principal cannot be decoded' }
-      if (same.kind === 'unavailable') return same
-      if (same.kind === 'denied') return { kind: 'forged', reason: 'different-subject' }
-      return { kind: 'trusted' }
+      return subjectVerdict(same)
     },
   }
 
