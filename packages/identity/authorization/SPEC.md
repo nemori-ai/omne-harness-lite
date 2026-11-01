@@ -256,7 +256,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 ### 用途矩阵
 
-`SYSTEM_ACTION_MATRIX` 是仅有的七行。授予记录用 `purpose` 点名行。授予不能互借：持有某一行用途的主体对其他行得到 `grant-missing`。
+`SYSTEM_ACTION_MATRIX` 是仅有的十行。授予记录用 `purpose` 点名行。授予不能互借：持有某一行用途的主体对其他行得到 `grant-missing`。
 
 | 用途 | operation | target 分支与资源 | 参数 |
 | --- | --- | --- | --- |
@@ -267,8 +267,13 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 | `scope-release-receive` | session `receive` | 租户；session `session` | 按请求计算 |
 | `scope-release-load` | session `loadScopeRelease` | 租户；session `session` | 固定 |
 | `scope-release-query` | session `queryScopeReleaseOperation` | 租户；session `session` | 按请求计算 |
+| `agent-instance-publish` | agent `publish` | 租户；agent `instance` | 固定 |
+| `agent-instance-quiesce` | agent `quiesce` | 租户；agent `instance` | 固定 |
+| `agent-instance-withdraw` | agent `withdraw` | 租户；agent `instance` | 固定 |
 
 固定行的 `arguments` 是 `noArguments()`。需要矩阵之外的系统动作时，先给出该动作的既有职责与原义务绑定，再增行。
+
+三个 `agent-instance-*` 行的持有者是 Agent 宿主维护主体。它的既有职责是发布已取得的实例，并在停用时让实例静默与撤回（XC-AGINST r2 第 3.3 节第 4 步与第 3.4 节）。实例身份在资源键里，`AgentAccessCheck` 的输入没有参数成员，所以三行都是固定参数。发布与预约的绑定由 Agent 自己的登记协议核对，不归本端口。租户分支的租户是实例所在分区。
 
 ### 依据与证据
 
@@ -286,7 +291,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 ### 验证
 
-`tests/system-action.spec.ts` 每个步骤与顺序各有只违反它的用例，另含纯函数快照。`tests/system-matrix.spec.ts` 比较矩阵与独立字面表，逐行正例、固定参数反例、跨行借用与通配。`tests/system-closed-answers.spec.ts` 覆盖时钟与读口答复种类不明、`revoked` 非布尔、主体种类与请求范围不符，以及基线快照与「用途不符不问时钟」。`tests/system-evidence.spec.ts` 覆盖证据重算、无记录的证据构成、下一次核验的撤销与到期，以及源码中没有围栏名称。`tests/system-testing-doubles.spec.ts` 覆盖两个替身与 `./testing` 的导出清单。这些测试不覆盖生产授权来源、真实并发与多进程撤权。
+`tests/system-action.spec.ts` 每个步骤与顺序各有只违反它的用例，另含纯函数快照。`tests/system-matrix.spec.ts` 比较矩阵与独立字面表，逐行正例、固定参数反例、跨行借用与通配。`tests/agent-instance-rows.spec.ts` 覆盖三个 `agent-instance-*` 行：宿主主体有授予记录时放行，没有安装授予来源时 `unavailable`，其他系统主体 `grant-missing`，系统分支与非固定参数 `binding-mismatch`，三个用途互不代替。`tests/system-closed-answers.spec.ts` 覆盖时钟与读口答复种类不明、`revoked` 非布尔、主体种类与请求范围不符，以及基线快照与「用途不符不问时钟」。`tests/system-evidence.spec.ts` 覆盖证据重算、无记录的证据构成、下一次核验的撤销与到期，以及源码中没有围栏名称。`tests/system-testing-doubles.spec.ts` 覆盖两个替身与 `./testing` 的导出清单。这些测试不覆盖生产授权来源、真实并发与多进程撤权。
 
 ## 披露与后续治理操作
 
