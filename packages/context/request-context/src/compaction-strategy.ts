@@ -21,7 +21,7 @@ import {
   type CompactionPolicyPort,
   type RetentionMeasurement,
 } from '@omne-harness/request-context-contract'
-import { digest } from './digest.ts'
+import { adoptionDigest, digest } from './digest.ts'
 import { decodeByteCount, decodeParameters } from './policy-input.ts'
 import { trimMaterial } from './trimmer.ts'
 
@@ -169,7 +169,7 @@ export function createDefaultCompactionPolicy(
     owner: 'request-context',
     name: 'default-compaction',
     revision: '1',
-    digest: digest({ strategy: 'default-compaction', revision: '1' }),
+    digest: adoptionDigest({ strategy: 'default-compaction', revision: '1' }),
   }
   const instruction = judgeBlockIdentity({
     id: `rq_${digest({ strategy: 'default-compaction', block: 'instruction' })}`,

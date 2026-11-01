@@ -8,7 +8,7 @@ import {
   type RepresentationPolicyConfig,
   type RepresentationPolicyPort,
 } from '@omne-harness/request-context-contract'
-import { digest } from './digest.ts'
+import { adoptionDigest } from './digest.ts'
 import { decodeParameters } from './policy-input.ts'
 
 export const DEFAULT_REPRESENTATION_CONFIG: RepresentationPolicyConfig = Object.freeze({
@@ -49,7 +49,7 @@ export function createDefaultRepresentationPolicy(
     owner: 'request-context',
     name: 'default-representation',
     revision: '1',
-    digest: digest({ strategy: 'default-representation', revision: '1', config }),
+    digest: adoptionDigest({ strategy: 'default-representation', revision: '1', config }),
   }
   return {
     identity,

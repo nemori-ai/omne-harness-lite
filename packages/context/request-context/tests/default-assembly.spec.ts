@@ -6,7 +6,8 @@ import {
   createScriptedModelRequestPreparation,
   createScriptedTransport,
 } from '@omne-harness/model-contract/testing'
-import { decodeModelCallId } from '@omne-harness/model-contract'
+import { decodeModelCallId, decodeModelOperationId } from '@omne-harness/model-contract'
+import { judgeAdmit } from '@omne-harness/model-contract/provider'
 import {
   decodeCommitOrder,
   type AdoptedRequestFact,
@@ -108,6 +109,43 @@ describe('default strategies in a real operation group', () => {
     const prepared = await prepareThroughModel(f, candidate)
     if (!('ok' in prepared)) throw new Error(`Preparation refused: ${JSON.stringify(prepared)}`)
     expect(prepared.ok.messages).toEqual(candidate.assembled.messages)
+  })
+  it('assembles a request whose adoptions the Model admit judgment accepts', async () => {
+    const f = createAssemblyFixture({ policies: policies(), rows: rows() })
+    const candidate = candidateOf(await f.operations().assemble(f.call))
+    const prepared = await prepareThroughModel(f, candidate)
+    if (!('ok' in prepared)) throw new Error(`Preparation refused: ${JSON.stringify(prepared)}`)
+    // The double keeps the supplier fixtures as given; only the two minted adoptions are under test.
+    const sha = (letter: string) => letter.repeat(64)
+    const hexAdoption = (name: string, letter: string) => ({
+      owner: 'test',
+      name,
+      revision: '1',
+      digest: sha(letter),
+    })
+    const operation = decodeModelOperationId('mop_c27')
+    const call = decodeModelCallId('mcall_c27')
+    if ('failure' in operation || 'failure' in call) throw new Error('fixture')
+    const judged = judgeAdmit({
+      ...f.call.access,
+      call: call.ok,
+      operation: operation.ok,
+      request: {
+        ...prepared.ok,
+        profile: hexAdoption('profile', 'a'),
+        retryPolicy: hexAdoption('retry', 'b'),
+        suppliers: prepared.ok.suppliers.map(supplier => ({
+          ...supplier,
+          adoption: hexAdoption('supplier', 'c'),
+        })),
+      },
+      consumer: { owner: 'test', work: 'w', position: 'p', purpose: 'u' },
+      capacity: { bytes: '1', blocks: '1', attachmentBytes: '0' },
+    })
+    expect(judged).toHaveProperty('ok')
+    const hex = /^[0-9a-f]{64}$/u
+    expect(candidate.assembled.representation.digest).toMatch(hex)
+    expect(candidate.assembled.source.digest).toMatch(hex)
   })
   it('gives the same request for the same fixed input', async () => {
     const first = candidateOf(
