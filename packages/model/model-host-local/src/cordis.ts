@@ -112,3 +112,6 @@ export class LocalCredentialPlugin extends ModelCredentialService {
     })
   }
 }
+
+export { ModelInstancesLocalPlugin } from './plugins/instances.ts'
+export { ModelConvertersLocalPlugin } from './plugins/converters.ts'
