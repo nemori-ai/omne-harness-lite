@@ -3,10 +3,9 @@
 // system principal passes is decided by the grant record alone, never by the component text.
 import { describe, expect, it } from 'vitest'
 import {
+  SYSTEM_ACTION_MATRIX,
   effectiveArgumentsOf,
-  noArguments,
   type MaintenanceGrantSource,
-  type SystemActionRequest,
 } from '@omne-harness/authorization'
 import type { SystemPrincipal } from '@omne-harness/identity'
 import { grantOf, installed, requestFor, row } from './system-support.ts'
@@ -45,12 +44,15 @@ const request = (principal: SystemPrincipal, name: (typeof OPERATIONS)[number]) 
 
 describe('the agent instance rows', () => {
   it.each(OPERATIONS)('binds %s to the tenant branch of an agent instance', name => {
-    const { host } = hostAnd('restart-scanner')
-    const value: SystemActionRequest = request(host, name)
-    expect(value.operation).toEqual({ owner: 'agent', name })
-    expect(value.target.kind).toBe('tenant')
-    expect(value.target.resource).toMatchObject({ owner: 'agent', kind: 'instance' })
-    expect(value.arguments).toEqual(noArguments())
+    const found = SYSTEM_ACTION_MATRIX.find(
+      entry => entry.operation.owner === 'agent' && entry.operation.name === name,
+    )
+    expect(found).toMatchObject({
+      purpose: `agent-instance-${name}`,
+      target: 'tenant',
+      resource: { owner: 'agent', kind: 'instance' },
+      arguments: 'none',
+    })
   })
 
   it.each(OPERATIONS)('allows the agent host to %s when its grant record exists', async name => {
