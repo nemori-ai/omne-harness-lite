@@ -10,7 +10,7 @@
 
 范围是 M2 单机首条路径。首条路径不需要的能力写成已知限制（本文件末节）。
 
-状态：本文件描述设计。本文件写成时，没有提供者代码被运行。下列项都未运行，不能写成已验证：Node Worker、驱动事务状态探测、真实材料、authorizer 逃逸路径、跨进程排除、Windows 故障注入、SQL-T01 断电、E9、Cordis 实际装配。证据范围见「验证与未执行」。
+状态：提供者已实现，`tests/` 的 237 个用例（236 个通过，1 个 `it.fails` 记录已知缺陷）在 Windows 上用真实 `node:sqlite` 文件和 Node Worker 运行。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入（现有故障用例包装连接注入错误，不证明磁盘行为）、SQL-T01 断电、E9。证据范围见「验证与未执行」。
 
 ## 部件与归属
 
@@ -433,7 +433,7 @@ SQ-1 与 DO-1 没有模型覆盖，分别由 C22、C17 验证。
 
 ### 场景与成员验证
 
-场景 C01 至 C23 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景都未运行。验证单元 V2 在 Windows Node Worker 上运行，须保存提交、命令、环境、退出码与原始日志。需要 SQLite 3.51.3 及以上。
+场景 C01 至 C23 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景由 `tests/` 的提供者测试承担，已在 Windows Node Worker 上运行（运行记录在任务 tmp，不进入本成员）。sql-contract 的符合性套件只含 C01 至 C07、C12、C14、C16，其余场景只由本成员的测试承担（已知限制）。场景 × 域状态表（sql-contract 规格 §5.5）的对照在 `tests/state-cells.spec.ts` 文件头，其中 `recovering` 行没有测试（提供者不产生 `writer_not_current`），`[other scope × registerCombination]` 格因已知缺陷标为 `it.fails`：fresh 提供者经路径 A 打开已有文件时，`registerCombination` 不检查作用域也不执行登记，直接返回 `registered`。需要 SQLite 3.51.3 及以上。
 
 ### 探针
 
@@ -441,7 +441,7 @@ SQ-1 与 DO-1 没有模型覆盖，分别由 C22、C17 验证。
 
 ### 未执行
 
-Node Worker、驱动事务状态探测、真实材料、authorizer 逃逸路径、跨进程排除、Windows 故障注入、SQL-T01 断电、E9、Cordis 实际装配、成员类型检查与仓库门禁，都没有在写本文件时执行。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。物理断电没有做，行为模型不证明断电耐久。
+跨进程排除、真实磁盘的 Windows 故障注入、SQL-T01 断电、E9 没有执行。Node Worker、真实材料、Cordis 装配、成员类型检查已在 Windows 运行；authorizer 逃逸路径只有写型读取被拒的用例，没有系统枚举。当 `synchronous` 为 `FULL` 时，普通进程终止证明进程级持久。物理断电没有做，行为模型不证明断电耐久。
 
 ## 不在本设计内
 

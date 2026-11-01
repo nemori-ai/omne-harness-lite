@@ -102,6 +102,26 @@ describe('close steps (13.3)', () => {
     expect(kindOf(await next.storage.query(keyOf('running')))).toBe('committed')
   })
 
+  // The commit passed the control side before close and waits in the Worker inbox behind the
+  // running one. The Worker answers `withdrawn`, which maps to `unknown`, not to a rejection.
+  it('maps a commit that the Worker withdrew to unknown/withdrawn_before_start', async () => {
+    const provider = await ready()
+    const { result: running } = await startSpinning(provider, 'running', 600)
+    const sent = provider.storage.commit(plain('sent'))
+    await sleep(150)
+    const closing = provider.control.close({ initiator: 'disposal' })
+
+    const withdrawn = await sent
+    expect(kindOf(withdrawn)).toBe('unknown')
+    expect(withdrawn).toMatchObject({ diagnostic: 'withdrawn_before_start' })
+    expect(kindOf(await running)).toBe('committed')
+    expect(await closing).toEqual({ kind: 'closed' })
+
+    const next = await createProvider(workspace, built, {}, recordingLeases())
+    providers.push(next)
+    expect(kindOf(await next.storage.query(keyOf('sent')))).toBe('not_committed')
+  })
+
   it('gives incomplete with residuals at the deadline, and reports the in-flight commit as unknown, not rolled back', async () => {
     const provider = await ready({ closeDeadlineMs: 200 })
     const { result: running } = await startSpinning(provider, 'slow', 900)

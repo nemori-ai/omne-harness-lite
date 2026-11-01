@@ -56,11 +56,32 @@ function wrap(
   db: DatabaseSync,
   log: Log,
   fail: (sql: string, count: number) => boolean,
+  failStatement: (params: readonly unknown[]) => boolean = () => false,
 ): DatabaseSync {
   const counts = new Map<string, number>()
   return new Proxy(db, {
     get(target, property) {
       const value: unknown = Reflect.get(target, property, target)
+      if (property === 'prepare')
+        return (sql: string) => {
+          const statement = target.prepare(sql)
+          return new Proxy(statement, {
+            get(inner, name) {
+              const member: unknown = Reflect.get(inner, name, inner)
+              if (name === 'run')
+                return (...params: unknown[]) => {
+                  if (failStatement(params)) {
+                    log.push(`fail-run:${sql}`)
+                    throw Object.assign(new Error('injected io'), { errcode: 10 })
+                  }
+                  return inner.run(...(params as []))
+                }
+              return typeof member === 'function'
+                ? (member as (...args: unknown[]) => unknown).bind(inner)
+                : member
+            },
+          })
+        }
       if (property === 'exec')
         return (sql: string) => {
           const count = (counts.get(sql) ?? 0) + 1
@@ -79,7 +100,11 @@ function wrap(
   })
 }
 
-function runner(log: Log, fail: (sql: string, count: number) => boolean): GroupRunner {
+function runner(
+  log: Log,
+  fail: (sql: string, count: number) => boolean,
+  failStatement?: (params: readonly unknown[]) => boolean,
+): GroupRunner {
   real = new DatabaseSync(domainFile(workspace))
   real.exec('PRAGMA foreign_keys = ON')
   const config = defaultConfig(workspace.storageRoot)
@@ -109,7 +134,7 @@ function runner(log: Log, fail: (sql: string, count: number) => boolean): GroupR
     generation: number
   }
   return new GroupRunner(env, {
-    db: wrap(real, log, fail),
+    db: wrap(real, log, fail, failStatement),
     modules: new ModuleCache(),
     writeGeneration: generation,
   })
@@ -261,5 +286,29 @@ describe('C09: ROLLBACK TO that cannot be confirmed (SPEC 7.7.2, state unclear)'
     expect(receipts()).toEqual([])
     expect(log).not.toContain('exec:SAVEPOINT op_3')
     expect(log.filter(entry => entry === 'exec:BEGIN IMMEDIATE')).toHaveLength(1)
+  })
+})
+
+describe('C04: an environment error inside a participant statement (SPEC 7.6)', () => {
+  // The error is an I/O failure of the statement, not a verdict of the material. The operation
+  // is not rolled_back: it is unknown, and no rollback receipt may claim otherwise.
+  const envStatement = (params: readonly unknown[]): boolean => params[0] === 'ENV'
+
+  it('alone in the group: the operation is unknown and no receipt is written', async () => {
+    const log: Log = []
+    const group = runner(log, () => false, envStatement)
+    const outcome = await run(group, log, [insert('ENV')])
+    expect(kinds(outcome)).toEqual(['unknown'])
+    expect(log).toContain('fail-run:insert into t_seq(tag) values (?)')
+    expect(receipts()).toEqual([])
+  })
+
+  it('after a prefix: the prefix is committed, the failed operation is unknown, no rollback receipt', async () => {
+    const log: Log = []
+    const group = runner(log, () => false, envStatement)
+    const outcome = await run(group, log, [insert('a'), insert('ENV'), insert('c')])
+    expect(kinds(outcome).slice(0, 2)).toEqual(['receipt', 'unknown'])
+    expect(outcome.replies.get(1)).toMatchObject({ receipt: { kind: 'committed' } })
+    expect(receipts()).toEqual([{ operation_key: 'a', kind: 'committed' }])
   })
 })
