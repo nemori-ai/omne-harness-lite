@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { errorCode, type AtomicPredicate, type EventPredicate, type PullKey } from './events.ts'
 import { githubReconcile, originRepository } from './events-gh.ts'
-import { WaitTimeout, waitForEvent } from './events-wait.ts'
+import { WaitTimeout, nextWait, waitForEvent } from './events-wait.ts'
 import { runGhCommand } from './github-read.ts'
 import { InputError, issueNumberArgument } from './protocol.ts'
 import { repositoryFile } from './repository-files.ts'
@@ -12,17 +12,18 @@ const usage = [
   '       wait-cli.ts comment --issue <number> --marker <name> [common]',
   '       wait-cli.ts any [--issue-closed <number> ...] [--comment <issue>:<marker> ...] [common]',
   'common: [--file <event file>] [--timeout <seconds>] [--since <ISO time or delivery id>] [--repo <owner/name>]',
+  'comment and any also take: [--seen <comment id> ...]. A hit prints next: wait again with next.since and every next.seen.',
 ].join('\n')
 
 const common = ['--file', '--timeout', '--since', '--repo']
 const perCommand: Record<string, readonly string[]> = {
   'issue-closed': ['--issue', ...common],
   'pr-ready': ['--base', '--ignore', ...common],
-  comment: ['--issue', '--marker', ...common],
-  any: ['--issue-closed', '--comment', ...common],
+  comment: ['--issue', '--marker', '--seen', ...common],
+  any: ['--issue-closed', '--comment', '--seen', ...common],
 }
 /** The flags that may appear more than once. */
-const repeatable = new Set(['--ignore', '--issue-closed', '--comment'])
+const repeatable = new Set(['--ignore', '--issue-closed', '--comment', '--seen'])
 
 function options(args: string[]): { command: string; values: Map<string, string[]> } {
   const [command = '', ...rest] = args
@@ -66,6 +67,12 @@ function commentOf(issue: number, marker: string | undefined): AtomicPredicate {
   if (marker === undefined || marker === '') throw new InputError(usage)
   return { kind: 'comment', issue, marker }
 }
+/** `--seen` values: comment ids, which are decimal numbers. */
+function seenOf(values: Map<string, string[]>): string[] {
+  const seen = values.get('--seen') ?? []
+  if (!seen.every(id => /^\d+$/.test(id))) throw new InputError(usage)
+  return seen
+}
 function predicateOf(command: string, values: Map<string, string[]>): EventPredicate {
   if (command === 'issue-closed')
     return { kind: 'issue-closed', issue: issueOf(single(values, '--issue')) }
@@ -94,7 +101,8 @@ try {
   const { command, values } = options(process.argv.slice(2))
   const predicate = predicateOf(command, values),
     timeout = single(values, '--timeout'),
-    since = single(values, '--since')
+    since = single(values, '--since'),
+    seen = seenOf(values)
   const seconds = timeout === undefined ? undefined : Number(timeout)
   if (seconds !== undefined && !(Number.isFinite(seconds) && seconds > 0))
     throw new InputError(usage)
@@ -104,10 +112,14 @@ try {
     repository,
     predicate,
     ...(since === undefined ? {} : { since }),
+    seen,
     ...(seconds === undefined ? {} : { timeoutMs: Math.round(seconds * 1000) }),
     reconcile: githubReconcile(repository, runGhCommand),
   })
-  process.stdout.write(`${JSON.stringify(result)}\n`)
+  // Only a comment hit has an id to exclude, so only these commands print `next`.
+  const next =
+    command === 'comment' || command === 'any' ? { next: nextWait({ since, seen }, result) } : {}
+  process.stdout.write(`${JSON.stringify({ ...result, ...next })}\n`)
 } catch (error) {
   if (error instanceof WaitTimeout) {
     process.stderr.write(
