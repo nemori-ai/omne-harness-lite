@@ -2,25 +2,25 @@
 
 本页说明本成员怎样组织两个入口与依赖，来兑现 [SPEC](../SPEC.md)。插件、配置、端口现取、通知、扫描者绑定与撤除的正文归 [Cordis 说明](cordis.md)。机制归 [session](../../session/docs/architecture/README.md)。组内六个成员的分解、依赖方向与落位判据归[组架构](../../docs/architecture.md)。本页不另立公共规则。
 
-本成员没有运行实现。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。下文是 SPEC 固定的结构，文件名由实现确定。
+本成员已实现。`src/index.ts` 为空，`src/cordis.ts` 导出 `SessionProvider`。下文是 SPEC 固定的结构，文件名见下表。
 
 ## 模块与依赖
 
 | 入口 | 源文件 | 承载 | 现状 |
 | --- | --- | --- | --- |
-| `@omne-harness/session-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立宿主从 session 取工厂 | 模板标记 |
-| `@omne-harness/session-cordis/cordis` | `src/cordis.ts` | `SessionService` 的具体子类（即插件）与配置 Schema | 模板标记 |
+| `@omne-harness/session-cordis` | `src/index.ts` | 不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。独立宿主从 session 取工厂 | 空，已实现 |
+| `@omne-harness/session-cordis/cordis` | `src/cordis.ts` | `SessionService` 的具体子类（即插件）与配置 Schema | 已实现：`SessionProvider` |
 
 `./cordis` 内部按 Cordis 责任分成六块：
 
 | 模块 | 职责 | 依据 |
 | --- | --- | --- |
-| 配置 | 静态 `Config` 的 Standard Schema：`policy` 的逐字段覆盖、`disposeWaitMs` 与 `admission`；合成完整的 `SchedulingPolicy` | 性质 3 |
-| 端口接线 | 用本插件 Context 现取端口：按命令必需的端口包成代理，按调用现取的端口包成 `Current`；缺席与抛出映射为 `unavailable` | 性质 2、[端口接线](../SPEC.md#端口接线) |
-| 服务子类 | 持有实例；四个面属性做调用方类的第一层核对后转给 `facesFor` | 性质 1、4、6 |
-| 通知 | 组合通知者：派发 `committed`、转发 `sessionNotifier`；`ctx.on` 监听外来通知并交给实例 | 性质 5 |
-| 扫描者绑定 | 租户到维护句柄的表；首次见到租户时 `maintain` | 性质 7 |
-| 撤除 | 一个函数按顺序完成标记、释放句柄、限时 `close`；`assemblyLifecycle` 的停止句柄与 effect 释放两条路径调用它 | 性质 9 |
+| 配置（[config.ts](../src/config.ts)） | 静态 `Config` 的 Standard Schema：`policy` 的逐字段覆盖、`disposeWaitMs` 与 `admission`；合成完整的 `SchedulingPolicy` | 性质 3 |
+| 端口接线（[ports.ts](../src/ports.ts)） | 用本插件 Context 现取端口：按命令必需的端口包成代理，按调用现取的端口包成 `Current`；缺席与抛出映射为 `unavailable` | 性质 2、[端口接线](../SPEC.md#端口接线) |
+| 服务子类（[provider.ts](../src/provider.ts)、[faces.ts](../src/faces.ts)） | 持有实例；四个面属性做调用方类的第一层核对后转给 `facesFor` | 性质 1、4、6 |
+| 通知（[runtime.ts](../src/runtime.ts)） | 组合通知者：派发 `committed`、转发 `sessionNotifier`；`ctx.on` 监听外来通知并交给实例 | 性质 5 |
+| 扫描者绑定（[scanners.ts](../src/scanners.ts)） | 租户到维护句柄的表；首次见到租户时 `maintain` | 性质 7 |
+| 撤除（[teardown.ts](../src/teardown.ts)、[assembly-lifecycle.ts](../src/assembly-lifecycle.ts)） | 一个函数按顺序完成标记、释放句柄、限时 `close`；`assemblyLifecycle` 的停止句柄与 effect 释放两条路径调用它 | 性质 9 |
 
 ```mermaid
 flowchart LR
@@ -36,11 +36,13 @@ flowchart LR
 包外依赖都只由 `./cordis` 使用：
 
 - `@omne-harness/session-contract`：四个面、端口接口与失败的类型。
+- `@omne-harness/legal-identity`：租户的规范文本，作扫描者表的键。
+- `@omne-harness/operation-result`：端口缺席与抛出时的失败结果。
 - `@omne-harness/session-cordis-contract`：抽象类、键常量、调用方类与事件增补。
 - `@omne-harness/session`：工厂 `createSessionInstance`、`SchedulingPolicy` 与 `defaultSchedulingPolicy`。
 - `@deepseek-ai/cordis`：Service、Context 与事件。
 
-`package.json` 已经列出这四项。本成员不依赖 session-adapters、session-storage-sql、任何邻域契约或存储后端（性质 11）。端口的实现由装配接上：session-adapters 与存储成员提供端口，本成员按键现取，双方没有编译期依赖。没有包应依赖本成员的 `./cordis` 来调用四个面，调用方依赖服务定义，提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
+`package.json` 的 `dependencies` 列出这六项。session-storage-sql、sql-contract 与 sqlite-provider 只在 `devDependencies`，只给贯通检查 CP1 用。`src/` 不依赖 session-adapters、session-storage-sql、任何邻域契约或存储后端（性质 11）。端口的实现由装配接上：session-adapters 与存储成员提供端口，本成员按键现取，双方没有编译期依赖。没有包应依赖本成员的 `./cordis` 来调用四个面，调用方依赖服务定义，提供者选择归应用装配（[IC-5](../../../../docs/architecture/cordis-integration-conventions.md#ic-5)）。
 
 ## 关键机制与理由
 
