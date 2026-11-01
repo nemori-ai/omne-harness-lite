@@ -44,7 +44,14 @@ describe('policy registry', () => {
       ),
     )
     expect(policy.repository).toBe('nemori-ai/omne-harness-lite')
-    expect(policy.tracks.map(track => [track.id, track.parent])).toEqual([['mainline', 'main']])
+    expect(policy.tracks.map(track => [track.id, track.parent])).toEqual([
+      ['mainline', 'main'],
+      ['session-run', 'mainline'],
+      ['app-access', 'mainline'],
+      ['model', 'mainline'],
+      ['tool-exec', 'mainline'],
+      ['m2-toolchain', 'mainline'],
+    ])
     expect(policy.tracks.every(track => track.owner !== '')).toBe(true)
   })
   it.each(['parent', 'initialBase'] as const)('refuses a track without %s', field => {

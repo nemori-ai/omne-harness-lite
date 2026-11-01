@@ -163,7 +163,13 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 - 契约核对：`touchedContracts(files, members)` 取改动文件中有 `<成员>/api/` 下文件的契约成员。成员取 `taskBase` 线归属表（或 `--lines`）与工作树线归属表的 `contracts` 的并集，因为本卡可以新增成员。没有这样的成员时 `contract.kind` 为 `not-needed`，不运行 `omne-contract-api`。版本1的 binding 没有契约变更字段，`contract.kind` 为 `skipped` 并列出成员。其余情况运行 `diffContracts(taskBase)`，缺省为 dev-flow 依赖解析出的 `omne-contract-api --diff <taskBase> --json --root <检出根>`，经 `contract-diff.ts` 的 `runDiff` 与 `parseDiffRun`，超时 `CONTRACT_DIFF_TIMEOUT_MS`（120 秒）。它比较 `taskBase` 上的快照与工作树的快照，所以未提交的快照改动也计入。运行失败、输出不合格或输出的 `commit` 不是 `taskBase` 时抛出。`contract.kind` 为 `checked`，逐成员列出 `path` 与 `change`。
 - `contractFindings(touched, run, declared)` 只看本卡改到的成员。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，为 `contract-exceeds-declared`。申报高于差异不报。成员在差异里为 `invalid` 或不在差异里时为 `contract-change-unknown`，`change` 为 null。每项有 `member`、`change`、`declared`、`message` 与 `remedy`。契约发现排在文件发现之后。
 
-CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件或成员>: <说明> 改法：<改法>`。退出码：没有发现或未绑定为0，有发现为1，参数、context、Git、线归属表读取错误或 `omne-contract-api` 运行失败为2，错误以一行 JSON `{code, message}` 写到标准错误。
+- 语义复核通路：`changeScope` 的 `review` 钩子只在版本2的 binding、本卡改到的成员中有差异为 review 的成员，且钩子返回结果时运行。CLI 接上的钩子读卡 Issue 的评论一次：没有复核记录时返回 `undefined`，保守规则不变。有记录时走严格通路，判断每一条记录。通路运行时报告多一个 `semantic`，形状是 `CardSemantic`：`exit`、`rawExitCode`、`findings`（`code`、`member`、`detail`）、`members` 与 `levels`。`levels` 只列有有效结论的 review 成员，值为 `additive` 或 `breaking`。结论为 `additive` 的成员在契约核对里按 additive 重新计算，其余成员不变。
+- 每项语义发现列入 `findings`，形状是 `SemanticFinding`：`code`、`member`、`detail`、`message` 与 `remedy`。`message` 是失败码加成员路径，`remedy` 是固定的一句处置说明，指向[交付协议](../../../../docs/engineering/delivery.md#契约变更的语义复核)。失败码与退出码的对照归[集成工具](../integration/SPEC.md#api-语义复核)。
+- 常驻检查：`scripts/check.sh` 调用本命令。卡有 review 成员时，命令读 GitHub 评论。离线或没有令牌时读取失败，命令退出2。这是拒绝方向的结果，不是通过。
+- `--lines` 与语义复核通路不能同时使用。指定 `--lines` 且卡有 review 成员时，命令拒绝这种组合并退出2。
+- binding 的契约变更为 `breaking` 的卡仍按原有规则判定。有效的 `breaking` 结论不使这张卡失败。
+
+CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件或成员>: <说明> 改法：<改法>`。退出码：`report.semantic?.exit` 为2时为2，不论其他发现；没有发现或未绑定为0，有发现为1，参数、context、Git、线归属表读取错误或 `omne-contract-api` 运行失败为2，错误以一行 JSON `{code, message}` 写到标准错误。
 
 `tests/delivery-change-scope.spec.ts` 在临时真实 Git 仓库与手写 context 上覆盖：范围内放行；本卡提交越界；改名与删除（含未提交的 `git mv`）；从远端同步合并带来的文件不计入；从远端合并同批次别的卡的提交不计入；冲突解决越界；本卡本地侧分支作第二父时计入；目标作第一父、卡分支移到合并时本卡提交计入；契约差异的基线不是 taskBase 时失败；`targetBase` 早于 `taskBase` 且其间有别的卡的提交时不计入；未提交与未跟踪的越界改动；`tmp` 与 `shared` 不计入；别的线与联调轨道的路径即使在写范围内也拒绝；`integration` 卡不做线归属；线归属表取 `taskBase` 的版本；CLI 的未绑定、无发现、有发现与两种退出2。契约核对用注入的差异覆盖三种申报对三种差异、只比较改到的成员、`invalid` 与缺失的成员、版本1跳过，以及没有改 `api` 目录时不运行差异（合并别的卡带进来的快照变化）。用安装的 `omne-contract-api` 在临时检出覆盖：差异为 none 时放行，additive 申报 `none` 时拒绝、申报 `additive` 时放行，合并别的卡对另一成员的 review 不计入，差异运行失败时退出2。
 
@@ -180,6 +186,25 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 [baseline-cli.ts](baseline-cli.ts) 的 `read <卡号> --out <文件> [--config <文件>]` 从交付配置取仓库，读这张卡并合并。每条 `ignored` 向标准错误写一行 `baseline: ignored <评论>: <原因>`。结果为 `merged` 时把区块写到 `--out`，标准输出为 JSON（`issue`、`out`、`kind`、`baseline`、`registrations`、`ignored`），退出0。结果为 `refused` 时不写文件，标准输出为 JSON（`issue`、`kind`、`problems`、`ignored`），每个问题向标准错误写一行 `baseline: <代码> [<评论>]: <说明>`，退出1。参数、交付配置与 GitHub 读取错误（含环境读不到）退出2，标准输出为空，错误以一行 JSON `{kind: "baseline-error", message}` 写到标准错误，不转述 API 输出。云端会话的代理不放行环境读取，所以有区块时命令在云端会话退出2。
 
 `tests/delivery-baseline.spec.ts` 用记录调用的 GitHub 替身覆盖：分页完整且只有固定 argv 的 GET；同一成员取最晚的区块，先比时间、同一时间再比 `id`，与响应顺序无关；较晚的区块加入新成员；`breakingCards` 合并；缺区块、一条评论两个区块、各种不合格的区块（含短一位的哈希与缺 `milestone` 键）与 milestone 不同各拒绝；非登记者较晚的区块不改基线、不加 `breakingCards` 并列在 `ignored`；团队成员授予、login 相同而 node ID 不同不授予；编辑过的评论标 `edited`；环境读不到时失败；写出的区块读回等于合并结果；`parseBaselineText` 的纯 JSON、单区块与两个区块。CLI 用例经 PATH 上的 `gh` 替身覆盖写出文件退出0、拒绝时退出1且不写文件、读取失败与参数错误退出2。与 `--baseline` 的组合不在本成员的测试中：dev-flow 依赖的版本没有 `--baseline`。
+
+## API 语义复核记录
+
+`api-semantic-review.ts` 拥有记录边界：严格解析、权威远端读取、owner 与委派、撤销和冲突判断。三个入口（卡级、提升级、里程碑累计）使用同一个读取器，不各自再定义权限和失效语义。比较描述由[集成工具](../integration/SPEC.md#api-语义复核)生成，本模块不生成它，也不发网络请求以外的写入。精确记录类型与失败码见该模块的导出类型，下面只写承诺。
+
+- 记录是载体评论中恰好一个 `json omne-api-semantic-review:v1` 围栏。原始 JSON 不允许重复键、未知键、非有限数字或不安全整数。路径必须是仓库相对 POSIX 路径。提交、tree 和 blob 为 40 位小写十六进制，摘要为 64 位小写十六进制。有权作者的标记评论不能严格解析时，结果为 `api-review-invalid`，不猜测范围后跳过。
+- 载体评论完整分页读取，按创建时间再按评论 ID 折叠。达到 20 页上限即未知，不当作读完。记录评论必须未被编辑，即 `created_at` 等于 `updated_at`。编辑过的记录无效，更正通过新评论完成。
+- owner 取目标提交 `delivery-lines.json` 中 `contracts` 精确包含成员的唯一一条线的 `owner`。零条或多条为 `api-review-owner-unresolved`，不从路径归属、轨道 owner 或其他线推导。稳定身份取同一提交的 `docs/engineering/api-review-owners.json`。没有条目为 `api-review-owner-identity-missing`。login 与 node ID 逐字符比较，区分大小写，只差大小写时带 `loginCaseOnly` 提示。
+- 每次运行核对四个互不替代的事实：目标提交中的稳定身份、`GET users/<login>` 的当前读回、评论作者、当前 `publish` environment 的 reviewer。读回只做一致性检查，绝不补齐或改写锚点。返回结果前重读关键平台事实，变化为 `api-review-source-changed`。
+- 委派只允许一次、精确内容，不可再委派。委派的成员与 owner 身份必须等于被委派比较描述的对应字段，被委派者以 node ID 固定。
+- `attest` 的 `replaces` 必须精确列出同一复核键此前全部仍有效的 `attest`。缺一条、多一条、跨键或引用已撤销的记录都拒绝。`revoke` 由当前 owner 发出，或由有有效委派的原作者撤销自己的 `attest`，重复撤销幂等。重复的 `operationId` 为 `api-review-conflict`。
+- 证据评论须在同仓库，其 URL、正文摘要与更新时间逐项匹配。机器只核来源与精确内容，语义是否充分由签发者负责。
+- owner 身份的采用评论只做一致性诊断，输出 `consistent`、`drifted` 或 `unreadable`，不改变结论与退出码。撤销只有治理一条路径。
+- 每个失败码只对应一个退出码。有任一退出 2 的发现时整体为 2，否则有发现时为 1，否则为 0。全部发现都写入报告，一个成员的通过不掩盖另一成员的未知。
+- `lines-cli.ts` 在身份文件存在时增加一致性检查：身份文件的每个 `lineId` 必须在同树 `delivery-lines.json` 中存在，owner login 必须逐字相等，否则发现 `owner-identity-drift`，退出 1。身份文件缺失时不检查，漏登记的线不是漂移。身份文件存在却不能解析时，`parseOwnerIdentityManifest` 抛出输入错误，命令退出2。`parseDeliveryLines` 与 `DeliveryLine` 的形状不变。
+- 提升级入口的 `--review-issue`、里程碑累计入口的 `--semantic-review` 与 `verify-owner-adoption` 都复用本模块的身份文件严格解析和评论读取，不另写一套。
+- 已知限制：机器只证明平台账号，不证明账号背后是人还是代笔会话。三项 fail-open 残余（node ID 复用、编辑后更新时间不变、同账号代笔）仍然存在，机器不消除它们。残余是否被采用，按[交付协议的接受规则](../../../../docs/engineering/delivery.md#4-接受取消与重开)决定，本模块不记录接受状态。不承诺跨进程原子快照、评论不可篡改或外部结果可回滚。
+
+测试使用真实临时 Git 与替身网络，不写真实 GitHub。拒绝路径逐个单独覆盖：错误的仓库、node ID、作者、reviewer 与 owner，未知与重复键，编辑、撤销、重复 `operationId`、替代缺项与前向引用、委派越权，分页不全、403 与读取之间的变化。
 
 ## 里程碑命令
 
@@ -251,11 +276,23 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 
 同一事件目录的频道与 legacy 接收器共用原子守卫。receiver.pid 保留进程号，receiver-state.json 保存模式、仓库、实例、主机、进程启动身份、hookId、订阅类型、连接状态和诊断。健康检查默认每 5 秒核对本地进程身份、pid 和事件文件。不能只用 PID 存活断言接收健康。无法确认已停止的旧写者时拒绝争抢。
 
+本地状态使用 schemaVersion 2。`processIdentity` 与 `processStartedAt` 分别记录身份和启动时间。Linux 身份由 `/proc/sys/kernel/random/boot_id`、PID 和 `/proc/<pid>/stat` 的第 22 字段启动 tick 组成，不使用墙上时钟或 `ps lstart` 判断身份。解析 stat 时允许 comm 含空格和括号。读取失败或字段无效时不生成替代身份。Windows 继续使用 Get-Process 的 UTC StartTime，其他 POSIX 继续使用 ps lstart 识别进程。
+
+POSIX 的启动时间单独取 ps lstart。认领时向该子命令传入 `TZ=UTC0` 和 `LC_ALL=C`，取得 C locale 下的 UTC 时间，并按 UTC 解析。查询失败或输出不符合该格式时拒绝认领，不回退到无偏移本地文本。夏令时回拨时，不能从重复的本地时刻猜测绝对时间。Windows 启动时间继续取 Get-Process 的 UTC StartTime。所有平台的 `processStartedAt` 使用 `Date.prototype.toISOString()` 写出规范 UTC 字符串，消费进程按该绝对时刻判断。此查询不改变 Windows 或其他 POSIX 的原身份 token。启动时间只在认领时保存，之后校时不重写它。
+
+持久 `processStartedAt` 只支持上述规范 UTC 格式。读取时先用 `Date.parse` 取得有限时刻，再要求该时刻的 `toISOString()` 结果与原字符串完整相等。不相等时以 `invalid-receiver-state` 拒绝，不把自动归一的非法日期当作有效输入。合法但非规范的偏移或无毫秒文本也不在本地格式的支持范围内。
+
+健康检查比较稳定身份，释放还须核对持久的实例、仓库、文件、主机、PID、模式、管理状态、hookId 和启动时间。核对失败保留 pid 文件。
+
+版本 1、缺少身份、时间无效或启动时间格式不受支持的本地状态无法通过读取、健康检查或释放，不从旧时间文本猜测时区，不依据旧 PID 授予写权。恢复前须确认原接收器已停止、事件目录属于目标实例，以及配置里的仓库、主机和 hook 归属。只有旧 PID 已不存在或 pid 文件不存在时，新认领才可按既有守卫重建本地状态；PID 仍存活或无法确认已停止时保持拒绝。废弃的 guard 仍需在确认没有写者后人工处理。更新本地状态不迁移或删除 hook，不替代 hook 的精确所有权恢复。
+
 自建频道停止时只删除持久 owned hook，删除前验证精确身份。借用实例只退订，不调用 hook 写接口。创建响应丢失、日志失败或归属不明保存 recovery-needed。clean 只允许处理本机已停止且归属已证实的实例；全仓扫删入口退出。
 
 legacy 的 HTTP 接收器只绑定 127.0.0.1、只接受 POST。给出 secret 时校验 X-Hub-Signature-256；签名不符返回 401，非法投递返回 400，落盘完成返回 204，写失败返回 500。停止时结束自己的 forward 子进程并释放本地写者。gh forward 没有可证明所有权的创建回执，因此不得用前后列表差分猜 hook；停止保留 recovery-needed 并退出 2，422 另给 legacy-hook-conflict。SIGKILL 无法执行清理，后续按持久身份恢复。
 
 check 自检分别验证进程、连接、精确 hook 状态、一条真实事件落盘和等待对账立即返回。借用模式由拥有者提供 hook 证据，消费者仍验证端到端。命令退出、输出可取和 agent 续接是三项不同验证。
+
+check 消费通过上述读取校验的持久 `processStartedAt`，并要求事件 `receivedAt` 能解析为有限时间。check 拒绝无效时间和启动前事件，接受与启动时刻相等的事件。稳定身份不能作为时间字段参与比较；时间解析失败不能通过 NaN 比较放行。
 
 `waitForEvent` 的语义：
 
@@ -278,7 +315,7 @@ check 自检分别验证进程、连接、精确 hook 状态、一条真实事�
 
 事件文件只保存归一后的字段，不含评论正文。接收器进程不在时，GitHub 不补发事件。旧格式通过启动对账补救，频道还在连接恢复和业务提示时对账。同一个事件文件由一个接收器写，第二个接收器启动会被拒绝。`--ignore <pr>@<head>` 可重复，只属于 `pr-ready`。`head` 须是完整的 commit sha，40 或 64 位十六进制，大小写不分。短 sha 以输入错误退出2，消息说明要完整 sha。`any` 接受可重复的 `--issue-closed <号>` 与 `--comment <issue>:<标记名>`，至少一个。
 
-验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
+验证资源：[delivery-events.spec.ts](../../tests/delivery-events.spec.ts)覆盖归一、谓词、等待、对账及 legacy 生命周期。[delivery-events-cli.spec.ts](../../tests/delivery-events-cli.spec.ts)覆盖实际子进程 CLI、退出码、清理拒绝与 SIGHUP 收尾。[delivery-events-trust.spec.ts](../../tests/delivery-events-trust.spec.ts)验证频道提示不能直接放行、重连对账与读回期间新提示保留。[delivery-events-receiver-channel.spec.ts](../../tests/delivery-events-receiver-channel.spec.ts)验证 SSE、频道身份、hook 恢复与本地健康。[delivery-events-receiver-identity.spec.ts](../../tests/delivery-events-receiver-identity.spec.ts)用受控内核与时钟输入验证校时不改变身份、身份变化及旧状态拒绝、释放所有权和事件时间过滤。独立 UTC 或 America/New_York 生产进程与 UTC 或 Asia/Shanghai 消费进程覆盖启动前事件拒绝、相等边界接受及 DST 回拨。ps 替身按命令环境选择 UTC 或本地文本，并覆盖非 C locale。内核身份及系统查询输出受控，配置权限检查与文件读写使用实际宿主。网络 seam 和本地服务器不能替代真实双机、GitHub 投递及宿主续接验收。
 
 ## 首次派发消息具体化
 

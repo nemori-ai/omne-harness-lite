@@ -16,7 +16,8 @@ main 保存完整集成结果。任意数量的 integration/<track> 保存已登
 
 | 轨道                                | 责任与适用任务                                                                                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `integration/mainline`              | 联调轨道，见[交付线](#交付线)：唯一的顶层轨道，各子轨道的上游，承接跨线集成、联合验收、破坏性契约改动与工程工具链的卡。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
+| `integration/mainline`              | 联调轨道，见[交付线](#交付线)：唯一的顶层轨道，各子轨道的上游，承接跨线集成、联合验收、破坏性契约改动及直接以它为目标的卡。在它上面完成联调测试与验收后直接提升到 main。依据 [#973](https://github.com/nemori-ai/omne-harness-lite/issues/973) |
+| `integration/session-run`、`integration/app-access`、`integration/model`、`integration/tool-exec`、`integration/m2-toolchain` | M2 五条线的子轨道，分别承接[线与归属](#线与归属)中的线卡，上游都是 `mainline`。登记与分支创建分别读回；两者齐备前不派发线卡。 |
 
 新轨道由 `gate-track` 流程从上游的 first-parent 提交创建，起点记在 registry 的 `initialBase`，见[轨道树与上游](#轨道树与上游)。后续上游变化通过 FI 同步，不改写起点。任务 route 必须明确选择轨道，不设置隐含默认轨道。
 
@@ -56,24 +57,22 @@ registry 的 `parent` 是投影，取值为 `main` 或上游轨道的名称。`i
 - 新轨道的分支与起点标签都不存在。
 - 起点在上游的 first-parent 历史上。上游为轨道时，起点还须是它的核对下限或之后的提交。
 
-确认者核对上游在 registry 中为 active，写在说明中。轨道创建后，在 registry 登记 owner、责任与 `parent`，然后才能派发任务。
+确认者核对上游在 registry 中为 active，写在说明中。registry 可以先登记 owner、责任、`parent` 与 `initialBase`，再创建分支；登记不证明分支已存在。派发任务前，两者必须齐备并通过上游链核对。
 
 ## 交付线
 
-交付线是卡的路线与写入归属的单位。它把工作区成员和仓库中的其他路径分给各条交付线。本页不建线轨道：各交付线的卡都进入联调轨道，几条线并行时先合入所在线的批次分支，规则见[集成节点的清单](#集成节点的清单)。交付线不是领域、插件或部署单位。现行划分与理由见 #638 的[具名决定](https://github.com/nemori-ai/omne-harness-lite/issues/638#issuecomment-6338021284)。
+交付线是卡的路线与写入归属的单位。它把工作区成员和仓库中的其他路径分给各条交付线。交付线与 Git 轨道是不同对象，由线归属表的 `track` 关联。M2 的五条线采用子轨道，依据 [#783 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/783#issuecomment-6516545609)与 [#784 的决定](https://github.com/nemori-ai/omne-harness-lite/issues/784#issuecomment-6544910141)。交付线不是领域、插件或部署单位。
 
 ```mermaid
 flowchart TD
   main["main"] --> LR["integration/mainline<br/>联调轨道"]
-  LR -->|"从收口点切出"| B1["线 1 的批次分支<br/>个人分支"]
-  LR -->|"从收口点切出"| BN["线 N 的批次分支<br/>个人分支"]
-  B1 -->|"批次 PR"| LR
-  BN -->|"批次 PR"| LR
-  CL["并行推进的交付线的卡"] -. 先合入 .-> B1
-  CI["交付线为 integration 的卡<br/>工程工具链线的卡"] -. 进入 .-> LR
+  LR -->|"FI 同步"| B1["integration/线轨道"]
+  B1 -->|"提升 PR"| LR
+  CL["有线轨道的工作卡"] -. "卡级准入与 gate" .-> B1
+  CI["integration 卡<br/>track 为 null 的线卡"] -. "准入与 gate" .-> LR
 ```
 
-图中 main 与联调轨道之间的实线是轨道的上游关系，同步沿它向下，提升沿它向上。联调轨道与批次分支之间的实线是一波的来回：批次分支从收口点切出，经批次 PR 回到联调轨道。收口点 F(w) 是第 w 波收口时实际读回的联调轨道提交，术语见[负责人状态](map-reduce-states.md#术语)。虚线箭头是卡进入的分支。
+图中同步沿上游关系向下，提升沿它向上。收口点 F(w) 是第 w 波收口时实际读回的联调轨道提交，术语见[负责人状态](map-reduce-states.md#术语)。开波把 F 同步到各参加线的轨道，线卡从实际同步后的线轨道头开工。虚线箭头是卡进入的分支。
 
 ### 线与归属
 
@@ -81,24 +80,24 @@ flowchart TD
 
 - 表列出每条线的 ID、名称、owner、线轨道、拥有的路径与契约成员，联调轨道拥有的路径，以及共享路径 `shared`。共享路径不计入归属：其中的路径仍按各线与联调轨道的路径判定归属，任何卡只可在其中写入由本卡其他改动生成或登记的变化，写法见[交付协议](delivery.md#卡属性与合法组合)。
 - 路径按目录前缀匹配。每个工作区成员恰好属于一条线或联调轨道。表中没有列出的路径归联调轨道。
-- 本线的目标轨道是本线的卡进入的轨道。本页不建线轨道，所以每条线的 `track` 都是 `null`，目标轨道都是联调轨道。表保留 `track` 字段：将来改变这一条时，改本页，并在同一个 PR 中把 `track` 改为 registry 中以联调轨道为上游的轨道 ID。registry 登记轨道的状态、轨道负责人（`tracks[].owner`）与上游；线归属表登记交付线负责人（`lines[].owner`）、路径与契约成员归属。两类 owner 属于不同对象，不能因负责人相同而合并。
+- 本线的目标轨道由 `track` 指定；`null` 表示直接进入联调轨道。M2 的映射是 `session-run`、`app-access`、`model`、`tool-exec` 各进入同名轨道，`engineering-toolchain` 进入 `m2-toolchain`，上游都是 `mainline`。`platform` 与 `time-reach` 保留 `null`。registry 登记轨道的状态、轨道负责人（`tracks[].owner`）与上游；线归属表登记交付线负责人（`lines[].owner`）、路径与契约成员归属。两类 owner 属于不同对象，不能因负责人相同而合并。
 - 改变线的划分或归属由负责人决定，改动经 PR 进入联调轨道。
 - 契约成员由 `contracts` 列出。common 共享包按主要改动方归入各线，并列为契约成员，所以线内的卡对它们只做可加改动。
 
 ### 卡进入哪条轨道
 
-联调轨道是 `integration/mainline`。所有交付线的卡的 route 都写联调轨道：
+联调轨道是 `integration/mainline`。卡的 route 按线归属表选择：
 
-- 交付线为 `integration` 的卡和工程工具链线的卡直接进入联调轨道。工具链被所有线使用，放在共同上游，各线同步一次就能得到。
-- 其他交付线的卡，在几条线并行推进时先合入所在线的批次分支，批次完成后一次进入联调轨道，规则见[集成节点的清单](#集成节点的清单)。批次分支是个人分支，卡的 route 仍写联调轨道。
+- 交付线为 `integration` 或本线 `track` 为 `null` 的卡直接进入联调轨道。
+- 有线轨道的卡，route 具名该线轨道。每张卡通过卡级准入和 gate 后进入线轨道；线负责人组织卡级检查并读回合入。Reduce 接收线轨道到联调轨道的提升 PR，承担跨线联调与整波检查。
 
-「直接进入联调轨道」这一条有一个例外。例外只适用于直接进入联调轨道的卡，即交付线为 `integration` 的卡和工程工具链线的卡。Reduce 是几张连续的这类卡的唯一写者时，这几张卡不逐张进入联调轨道：
+Reduce 是几张连续 `integration` 卡的唯一写者时，这几张卡可以合成个人批次，不逐张进入联调轨道。这个例外不用于线卡：
 
 - Reduce 把它们叠在一条个人批次分支上，在本地合并并解决冲突。
 - 在批次头上只跑一次准入，只走一次 gate 进入联调轨道。PR 说明按[进轨道 PR 的说明](#进轨道-pr-的说明)逐张列出这几张卡。
 - 每张卡的判据证据仍贴在各自的卡上，接受仍逐卡进行。
 
-「直接进入」的目的是让别的线只同步一次。批次同样一次进入联调轨道，所以这个例外不改变这个目的。动作顺序见 `integrate` 技能「处理一条交回」中的[几张连续的卡合成一个批次](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md#几张连续的卡合成一个批次)。
+批次内各卡的证据与接受仍分别保留。动作顺序见 `integrate` 技能「处理一条交回」中的[几张连续的卡合成一个批次](../../.meta_harness/agents/skills/integrate/canonical/SKILL.md#几张连续的卡合成一个批次)。
 
 卡的交付线、性质与合法组合由[交付协议](delivery.md#卡属性与合法组合)定义。
 
@@ -108,9 +107,9 @@ flowchart TD
 
 ### 线轨道的同步与提升
 
-本页不建线轨道，线用批次分支代替。线与联调轨道之间按波交换提交：开波时线从收口点切批次分支，批次完成时经批次 PR 进入联调轨道，规则见[集成节点的清单](#集成节点的清单)。
+开波时，轨道 owner 按固定收口点 F 执行从联调轨道到线轨道的 FI，读回源头、目标头和合并提交。线包记录实际同步点。卡从真实线轨道头建立 binding 与不可变 taskBase，按 `start` 读回 targetBase。目标线轨道前进时，按[两条基线](#两条基线)先合并再 `task-sync`，以工具记录的 targetBase 运行影响面检查。
 
-线内的卡在波内不同步联调轨道。这是对[两条基线](#两条基线)与[同步与提升的节奏](#同步与提升的节奏)的例外：卡的目标分支是批次分支，taskBase 取批次分支头，开工与重新接活只合并批次分支。线内的卡以批次分支头为影响面基线，忽略 `start` 写入的 targetBase。dev-flow 尚未支持批次分支基线（未决，拥有者 dev-flow）。批次进入联调轨道之后，其余节奏按[同步与提升的节奏](#同步与提升的节奏)。
+波内不擅自 FI 新的联调轨道输入。额外同步点或工具链小批次提前提升必须由计划或 delta 明确，且不能改变其他线的冻结输入。兄弟线的成果仍经共同上游交换。交回后由 Reduce 接管提升中的冲突、迁移和验证；保存来源轨道原 head、候选 head、目标 head、targetBase、merge 链与实际合入结果。ready 不等于合入或接受。下一波再从新 F 执行 FI，不重放旧补丁。
 
 ## 里程碑与契约基线
 
@@ -155,7 +154,7 @@ flowchart TD
 5. 集成节点用 dev-flow 的 `baseline-cli.ts read <baseline 卡号> --out <文件>` 读出并合并全部登记，再用 `omne-contract-api --baseline <文件>` 核对累计变化。`--baseline` 与 `--baseline-write` 从 repo-toolchain 0.0.16 起提供。仓库钉住的版本早于 0.0.16 时，从源码运行：`node --experimental-strip-types tools/repo-toolchain/src/declarations/api-cli.ts --baseline <文件>`。命令见 [dev-flow 交付观察说明](../../tools/dev-flow/src/delivery/README.md#契约基线的读取)。
 6. 核对在下列情况失败：
    - 有成员判不了：登记的成员在它的基线提交上不是契约成员或没有快照；或者成员在基线点（全部登记提交的共同祖先）上已是契约成员，却没有登记。`breakingCards` 不能放行这些成员。
-   - 累计为 review 而登记没有 `breakingCards`。
+   - 累计为 review 而登记没有 `breakingCards`。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。
 
    基线点之后才加入的成员按上面里程碑内的规则第 4 条，整份算新增。有 `breakingCards` 时核对通过，只说明登记了承接卡；每个 review 成员由哪张卡承接，由集成节点核对。
 
@@ -175,7 +174,7 @@ flowchart TD
 
 本地核对分两处：
 
-1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
+1. 卡级：已绑定的工作树上，`pnpm run check` 比较本卡改到的契约成员自 `taskBase` 的快照差异与 binding 的契约变更。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，检查失败。经语义复核通路承接、且有效记录为 additive 的 review 成员除外，见 [delivery.md](delivery.md#契约变更的语义复核) 的契约变更语义复核。只比较本卡自己改了 `api` 目录的成员，合并进来的别的卡对其他成员的快照变化不计入。对本卡改到的成员，比较从 `taskBase` 到工作树，合并进来的别的卡对同一成员的变化也计入。命令见[交付观察说明](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。
 2. 提升：`pnpm run ri-notes --track <轨道 ID> --format markdown` 生成两节。PR 申报的级别高于所含卡的契约变更、联调轨道以外出现 breaking，或申报与快照差异不符时，命令退出 1。先改申报或停下交裁定，再提出 PR。快照差异不可得时只报告，退出 0。
 
 提升 PR 的确认者在 gate 说明里贴本地 `ri-notes` 的退出码与标准错误最后一行的汇总。所含的卡、快照差异与申报是否一致，以这两项为机器结果。个人分支（含批次分支）进轨道的 PR 不运行 `ri-notes`：两节手写，逐张列本次带入的卡。确认者按本节开头「第一阶段由确认者核对」一句人工核对；卡级核对的输出在各卡交接报告第 1 节，批次 head 的准入输出在准入证据评论。该轨道下一次提升时，`ri-notes` 对汇总后的申报与快照差异做核对，不逐批次核对。gate 一侧对说明格式与卡身份的核对归 `github-gate` 的拥有者。
@@ -245,6 +244,7 @@ stable 选择 main first-parent 历史上的已有提交，只要求旧 stable �
 - 任务卡的派发评论由 `publish` environment 的 reviewer 发出，`start` 据此核对开工准入并写入 task context。没有 task context 的检出也能运行本地检查，基线退回 `origin/main`；收工钩子例外，它在 `origin/main` 与活跃轨道中取离 HEAD 最近的合并点，见[收工钩子](../../tools/repo-toolchain/README_ZH.md#收工钩子)。
 - 一位 admin 在 Actions 的 `publish` environment 中确认，必须填写说明。admin 可以确认自己的 PR。agent 可以用 admin 的凭据代为确认，说明中注明代为确认的人。
 - 个人分支进入任何一层轨道的 PR 如果改动仓库工具链，确认前多一道审批。流程用 `git merge-tree` 算出合并结果，把结果相对目标改动的文件与 `github-gate` 上的 `gate/toolchain-paths.txt` 比对。命中时，先由 `repo-toolchain-review` environment 的确认者确认，再进入 `publish` 的确认。工具链确认也必须填写说明，说明原文写进发布决定评论。未命中的 PR 不经这道审批。同步（上游进轨道）、提升（轨道进上游）和 main 进 stable 不经这道审批，它们搬运的提交都已经从个人分支进入过某条轨道。路径清单由卡 [#332](https://github.com/nemori-ai/omne-harness-lite/issues/332) 建立，只在 `github-gate` 上维护。
+- 个人分支进入任何一层轨道的 PR 如果改动 `docs/engineering/api-review-owners.json`，`publish` 的确认者在确认前逐条核对改动的条目。对新增或改动的条目，确认者运行 dev-flow 的 `api-review-cli.ts verify-owner-adoption`，核对引用的评论在本仓库存在，正文摘要、更新时间与作者 node ID 与条目一致；再阅读该评论，核对正文是有权决定线归属的负责人对该条 lineId、owner login 与 node ID 的明确决定（代笔时附可核对的授权输入）。对删除的条目，确认者只核对删除由有权决定线归属的负责人决定。确认说明写明所核评论的 URL 与该命令的退出码。任一项不成立时不确认。
 - 确认后，发布身份 `omne-harness-lite-publish` 构造合并提交。第一父为目标，第二父为 PR head，有冲突就停止，冲突先在来源分支解决。它在一次原子推送中更新目标并创建记录标签，推送比较派发时读到的目标。合并写 `omne/gate/unit/<结果提交号>`。stable 写 `omne/gate/stable/<提交号>` 和 `omne/gate/checkpoint/<名称>`，同一提交只能进入 stable 一次：另一次发布已把 stable 推进到同一提交时，记录已存在，整次推送失败。标签正文是 `omne-gate-record:v1` JSON。
 - 提升前，即 head 是 base 的直接子轨道或 base 为 main 时，流程核对来源轨道在核对下限之后的每个 first-parent 提交都有目标为该轨道的 unit。同步不做这项核对，上游的记录由上游自己的提升负责。发布 stable 前，对 main 在切换点之后的 first-parent 历史做同样的核对。有缺口就停止。
 - 提升 PR 由该轨道的 owner 提出。PR 说明列出自上一次提升以来进入该轨道的卡，以及这些卡在上一层或 main 上要满足的条件，每张卡写 Issue 编号、revision 与 attempt。格式见 `github-gate` 分支 `gate/README.md` 的「提升 PR 的说明」。确认者据此核对条件。个人分支进轨道的 PR 与提升 PR 还要写「契约变化」，见[进轨道 PR 的说明](#进轨道-pr-的说明)。
@@ -296,15 +296,15 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 
 - 一个负责人。
 - 全部会话使用同一个 GitHub 账号。
-- 人负责在会话之间转发消息。
+- 会话创建与通信由 Reduce 按本次明确授权执行。已授权本机直接协作时，通过 mirasim 创建、发送并读回；没有直接通信授权或能力时，才由人原样转发。
 
 等待命令只认评论首行的标记，不按作者过滤。这个做法依据上述前提。出现跨组织、多个账号或互不信任的参与方时，前提失效，须重新设计信任边界。
 
 同一里程碑由同一个 reduce 会话负责，且它是人唯一的设计联系点。Reduce 负责全局设计、跨线的消费者迁移、跨线的实现与联调、集成冲突及交回后的问题。Line 是跨波持续的线会话，负责获准本线本波的细化、实现和验证。一个 Line 负责的范围可以覆盖一个或几个领域，其中跨领域的集成与联调归这个 Line，在交回前完成。Line 不是路径归属表里的交付线。线会话为单张卡派出子代理时，该子代理只持有这一次任务，不替代常驻 Line。轨道写入单写，Reduce 的等待持续挂起。
 
 - 收口点 F(w) 见[术语](map-reduce-states.md#术语)。波以当前收口卡 R(w) 为界。
-- 线父卡承载线包、delta 和交回记录。线包引用 binding，branch、taskBase 与写范围不得手抄成第二份权威。
-- 卡在线内顺序合入批次，批次承载本线本波结果。ready、blocked、failed 都必须交回明确结果。零差异不造空 PR。
+- 线父卡承载线包、delta、交回记录与长期责任，不为每波建立 Git binding 或运行 start。实际工作卡各有 binding 与 start。线包引用工作卡的 binding，branch、taskBase 与写范围不得手抄成第二份权威。
+- 卡逐张经卡级准入和 gate 合入线轨道，线轨道承载本线结果。ready、blocked、failed 都必须交回明确结果。零差异不造空 PR。
 - 交回、实际合入和整波放行分别核对。PR ready、单卡接受和队列暂空都不能代替其中任何一步。
 
 ### 线会话记录
@@ -318,22 +318,22 @@ RI 后，来源轨道若还要继续工作，先检查上游是否包含新的�
 | 波 | 本条 delta 指向的波 | 本次交回的波 |
 | F | 下一次开工的收口点 | 本次执行所基于的收口点 |
 | assignment 或结果 | active、idle、redo 或 terminal，及其依据 | ready、blocked 或 failed |
-| 任务与 binding 链接 | 任务卡及卡上的 binding。idle 与 terminal 写「无」 | 任务卡、卡上的交接报告评论、批次 PR 或「无 PR」 |
+| 任务与 binding 链接 | 任务卡及卡上的 binding。idle 与 terminal 写「无」 | 任务卡、卡上的交接报告评论、提升 PR 或「无 PR」 |
 | 变化 | 原候选到最终候选的变化与原因、本波变化、外域变化、消费者迁移、工具与技能版本变化。停止、取消、限定接受和完成分别写明 | 已完成部分、未完成部分及原因 |
 | 等待 | Line 下一步等待的对象 | 本线交回后挂起的等待命令 |
 
 assignment 的含义：
 
-- active：下一波有任务。Line 从 F 建新批次分支，按任务卡开工。
+- active：下一波有任务。核对从 F 到线轨道的 FI 结果与固定同步点，再按任务卡开工。
 - idle：下一波轮空。delta 写明原因。Line 不建任务分支，不交空 PR，继续等待下一条 delta。
 - redo：同一波重做。Reduce 已更正输入，并在任务卡上登记了新 attempt。Line 按新 binding 重新开工。redo 不推进波号。
 - terminal：本线结束。Line 交最终报告后停止。只有 terminal 结束本线。
 
 delta 传达已核对的事实，不改写在途卡的 taskBase。新 attempt 由派发命令登记在任务卡上，delta 只引用它。Line 按发布顺序逐条读取 delta，不跳过 idle delta，不按未来参与预案跳波。Line 不在波内逐卡吸收新的输入。技能与信息包消费本节的记录格式，不另立格式。
 
-Line 交回时交下列三样。零差异时没有批次 PR，只有报告与交回记录。
+Line 交回时交下列三样。零差异时没有提升 PR，只有报告与交回记录。
 
-- 批次 PR：从本线批次分支进入联调轨道。说明按[进轨道 PR 的说明](#进轨道-pr-的说明)手写「所含的卡」与「契约变化」两节，逐张列本批次的卡。`ri-notes` 只汇总已登记轨道上尚未提升的提交，批次分支不是轨道，所以不用它。
+- 提升 PR：从本线轨道进入联调轨道。用 `ri-notes` 生成「所含的卡」与「契约变化」，按[进轨道 PR 的说明](#进轨道-pr-的说明)核对。交回记录保存实际来源 head、目标 head、候选 head、targetBase 与后续 merge 链。
 - 交接报告：每张卡一条卡评论，写 PR 链接与 head 提交号。报告只陈述事实，固定五节：
   1. 做了什么：逐条对照验收，写达到或未达到，并给出证据。
   2. 没做什么及原因。
@@ -414,7 +414,7 @@ Line 在交回后、交 blocked 后和轮空时挂一条等待，作为前台阻
 
 Reduce 在波内挂两条等待：
 
-- 批次 PR：`wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<head> ...] --since <起点>`。
+- 提升 PR：`wait-cli.ts pr-ready --base <联调轨道> [--ignore <pr>@<head> ...] --since <起点>`。
 - 交回记录：`wait-cli.ts any --comment <线父卡>:line-handoff ...`。每条参加线写一个 `--comment`。
 
 等待命中只是唤醒，命中的那一条不代表全部待处理事件。Line 与 Reduce 每次被唤醒都这样处理，Line 读到 idle delta 后再等也一样：
@@ -422,7 +422,7 @@ Reduce 在波内挂两条等待：
 1. 读回相关父卡上的全部带标记记录：Line 读本线父卡的 `line-delta`，Reduce 读每条参加线父卡的 `line-handoff`。读法是 `gh api repos/<repo>/issues/<父卡>/comments --paginate`，按首行标记过滤。读回不带时间起点。
 2. 与已处理集合比对，按发布顺序逐条处理尚未处理的记录，不跳过 idle delta。全部处理完才回到等待：Line 只有在最后一条是 idle 时才再等，不能处理完一条 idle 就重挂。已处理集合记评论 id：Line 记在本线状态文件，Reduce 记在波段队列的「等待」一项。
 3. 重挂的 `--since` 只用来避免立即再次唤醒，不负责不漏事件，不漏由第 1、2 步保证。命中输出的 `delivery` 不为 null 时用这个 delivery id；为 null 时用命中评论的创建时间，读法是 `gh api repos/<repo>/issues/comments/<id> --jq .created_at`，id 是输出 `html_url` 中 `#issuecomment-` 之后的数字。不要用 `receivedAt`，也不要自己加减时间余量。重挂后可能对已处理的记录多唤醒有限的几次，例如 legacy 模式下对账先找到的评论其投递随后到达，或多条线时对账返回另一条线上已处理的记录。读回没有新记录时，按这次命中再取起点重挂即可。
-4. `pr-ready` 的对账不受 `--since` 约束，防止立即再唤醒的只有 `--ignore`。唤醒后读回联调轨道上全部开着的 PR，处理待处理的批次 PR；重挂时对当前开着、本次不处理的每个 PR 都写一条 `--ignore <pr>@<当前 head>`，包括 Reduce 推进后换了 head 的批次 PR 和等 gate 的同步 PR。命中来自事件文件时，`--since` 用这次的 delivery id；来自对账时，`--since` 不变。
+4. `pr-ready` 的对账不受 `--since` 约束，防止立即再唤醒的只有 `--ignore`。唤醒后读回联调轨道上全部开着的 PR，处理待处理的提升 PR；重挂时对当前开着、本次不处理的每个 PR 都写一条 `--ignore <pr>@<当前 head>`，包括 Reduce 推进后换了 head 的提升 PR 和等 gate 的同步 PR。命中来自事件文件时，`--since` 用这次的 delivery id；来自对账时，`--since` 不变。
 5. 每条等待都带 `--timeout`。超时后先做一次读回（交回记录与 delta 按第 1 步，`pr-ready` 按第 4 步），处理新记录，再用同一起点重跑。
 
 已知限制：与命中记录同一秒创建且晚于第 1 步读回的记录、本机与 GitHub 的时钟差、读回时 GitHub 尚未返回刚创建的记录，都可能让一条记录不唤醒等待。用同一起点重跑补不回它，只靠第 5 步超时后的读回发现；这条记录是一波最后一条时，最长要等一个超时。工具改进见 [#931](https://github.com/nemori-ai/omne-harness-lite/issues/931)。

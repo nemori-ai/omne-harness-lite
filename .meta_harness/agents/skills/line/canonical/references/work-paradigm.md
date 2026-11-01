@@ -19,7 +19,7 @@
 ## 会话级：开工时一次做好
 
 1. **身份与长程目标。** 写下：本线是谁、父卡、负责的卡与预案队列、里程碑卡的关闭门、本线结果服务哪道门。以后每个局部决定都回到这里核对。
-2. **加载技能。** 先 `line`；每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`；派子代理时加载 `delegate`。改文档前加载 `asd-ste100`。
+2. **加载技能。** 先加载 `line`、`pstack:poteto-mode`、`asd-ste100`，读取实际工作树的 `AGENTS.md`、`docs/orientation.md`、线级上下文地图与拥有者入口；实施前读 `ub-mode`，并按本线工作类型加载专项技能。每张卡按 `claim`；评审用 `review-code`、`review-docs`、`review-delivery`；派子代理时加载 `delegate`。改文档前加载 `asd-ste100`。
 3. **方法地图。** 按下一节写一份本线版本：本线的主工作类型对应哪个 playbook，三层各用哪些技能，哪些项目规矩最常碰到。
 4. **环境。** 依赖安装、生成 agent 投影（`node --experimental-strip-types tools/dev-flow/src/integration/worktree-cli.ts projections --tree <树>`，它最后运行 `check:agents`）、`check:agents` 通过；记下 Node、pnpm、git 版本。
 5. **线级上下文地图主体。** 本线各卡共用的拥有者正文、系统图景入口（`docs/orientation.md`）、最容易踩的耦合与禁止的依赖方向、相邻线的接口、读者角色。reduce 已给出时只核对。
@@ -69,10 +69,10 @@
 | 规矩 | 拥有者 |
 | --- | --- |
 | 认卡、交回、证据与接受 | `docs/engineering/agent-delivery.md`（证据贴卡评论的规则在第 5 节） |
-| 线内的卡的 Stage：In progress、In review 由线会话写 | `docs/engineering/agent-delivery.md` 第 4 节；`docs/engineering/delivery.md`「字段总表」 |
-| 批次分支：从 F 切出，波内不同步联调轨道，taskBase 取批次分支头 | `docs/engineering/integration.md`「线轨道的同步与提升」 |
+| 线内的卡的 Stage：In progress、In review 与入线轨道时的 Integrating 由线会话按事实写 | `docs/engineering/agent-delivery.md` 第 4 节；`docs/engineering/delivery.md`「字段总表」 |
+| 线轨道：开波从 F 做 FI，固定同步点；taskBase 取真实线轨道头，targetBase 按 start 与 task-sync 读回 | `docs/engineering/integration.md`「线轨道的同步与提升」 |
 | 线内的卡对契约成员只做可加改动 | `docs/engineering/integration.md`「里程碑内的规则」第 2 条；`docs/engineering/delivery.md`「契约变更与里程碑类型」 |
-| 交回物：批次 PR、五节交接报告、交回记录 | `docs/engineering/integration.md`「线会话记录」 |
+| 交回物：提升 PR、五节交接报告、交回记录 | `docs/engineering/integration.md`「线会话记录」 |
 | 风险级别、评审与升级阶梯 | `docs/engineering/quality.md` |
 | 隔离、单写与工作树清理 | `docs/engineering/workflow.md` |
 | 演进政策、提交与权限 | `docs/engineering/publication.md` |
@@ -84,7 +84,7 @@
 
 1. 读 delta：新 F、本波 assignment（active、idle、redo、terminal）、reduce 做过的修改与消费者迁移、外域变化。
 2. 写本波变化摘要。delta 提到的拥有者正文若在线级地图里，只更新那一条。
-3. active：从新 F 建本波批次分支，按队列开卡。不重放上一波的补丁。
+3. active：核对从新 F 到线轨道的 FI 结果，按实际同步头和队列开卡。不重放上一波的补丁。
 4. idle：只做第 1、2 步，然后继续等。这一步让下一次开工几乎零成本。
 5. redo：按任务卡上的新 attempt 重开，波号不变。
 6. terminal：交最终报告，结束。
@@ -113,12 +113,12 @@
 - **线级：** `tmp/line-<线>/state.md` 开头的「本波进度」，格式固定：
   - `本波进度：[■■■□□□□□□□] 1/3 卡已交回 · 波 <w> · F <短 sha> · 更新 <UTC 时间>`
   - `当前：#<卡号> 切片 <号> 第 <n> 步`；轮空写 `当前：轮空，等待下一条 delta`；受阻写 `当前：受阻：<一句原因>`。
-  - 卡队列表：`| 卡 | 状态 | 批次分支上的提交 |`，状态只用 `待做`、`进行中（切片 x/y）`、`已交回`、`受阻（<原因>）`、`跳过（<理由>）`。
+  - 卡队列表：`| 卡 | 状态 | 线轨道上的合入提交 |`，状态只用 `待做`、`进行中（切片 x/y）`、`已交回`、`受阻（<原因>）`、`跳过（<理由>）`。
 - **线级什么时候改：** 读到 delta 时按新队列重写；每张卡开工、每个切片完成、每张卡交回、受阻、开始等待时改。
 - **本会话派出的闭包：** 已派出、尚未合回的闭包写在 `state.md`「本波进度」之后，格式归 `claim` plan 模板「进度更新」第 4 部分。压缩后恢复时一并读它。
 - 进度与提交历史不一致时，以提交历史为准，先改进度再继续。
 
-结构度量与品味核对在若干切片后集中跑一次；差分变异的时机与范围按 `review-code`「差分变异」，只在最终修复轮留下的头上、只打热点。整次准入归 reduce。每张卡交回前只跑本卡成员的类型检查、测试、format、oxlint 和按需的 `check:docs`／`check:agents`。整线交回前，在批次分支头再跑一次线包「线内联调」一项。
+结构度量与品味核对在若干切片后集中跑一次；差分变异的时机与范围按 `review-code`「差分变异」，只在最终修复轮留下的头上、只打热点。每张卡最终 head 的卡级准入归线负责人组织，同机按准入锁串行。整波全量准入与跨线联调归 Reduce。整线交回前，在线轨道头再跑一次线包「线内联调」一项。
 
 ## 证据：一次做对，接受者不用回头问
 
@@ -129,7 +129,7 @@
 
 ## 交回与等待
 
-- 做完：每张卡合入本线批次分支，卡上发五节交接报告。整线本波交完后，先在批次分支头跑线包「线内联调」一项并核对判据，再开批次 PR，在线父卡发交回记录，然后停写。三样交回物的格式归 `integration.md`「线会话记录」。
+- 做完：每张卡经卡级准入与 gate 合入本线轨道，卡上发五节交接报告。整线本波交完后，先在线轨道头跑线包「线内联调」一项并核对判据，再开提升 PR，在线父卡发交回记录，然后停写。三样交回物的格式归 `integration.md`「线会话记录」。
 - 做不了：同一个入口交回 blocked，写清原因、已完成部分和剩余工作，然后停写。
 - 等待：一条等待命令等线父卡的下一条 delta。等待本身出问题时写进状态，等人转告，不轮询。
 
@@ -156,6 +156,6 @@
 
 - 每张卡重做会话级产物。
 - 波中向人提问、在普通评论向 reduce 求方案、读别线未集成的提交。
-- 自跑整次准入（归 reduce），或在准入期间提交。
+- 跳过卡级准入或 gate，忽略 targetBase，或在同机准入期间提交和增加测试负载。
 - 轮询 GitHub 等待，或让子代理用轮询循环等日志（P29）。
 - 把计划说成已交付，把未执行写成通过。
