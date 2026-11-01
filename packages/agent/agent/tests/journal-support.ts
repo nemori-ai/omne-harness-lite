@@ -116,6 +116,7 @@ export function checkpoint(position = 'E3', passages: readonly Passage[] = []): 
     completedPassages: [],
     priorConditions: null,
     currentHandoff: null,
+    replyAdmissionRead: { kind: 'unverified' },
   }
 }
 

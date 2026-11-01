@@ -6,6 +6,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createMemoryAgentJournal, createTestAgentDependencies } from '@omne-harness/agent/testing'
 import {
   decodeActionId,
+  decodeReplyAdmissionSequence,
+  decodeStepId,
   type AgentEvent,
   type DurableEvidence,
   type EventPage,
@@ -1894,17 +1896,154 @@ describe('fact 13: reply admission projection', () => {
       await journal.readReplyAdmissions({
         ...access,
         execution: opened.execution,
+        from: { kind: 'origin' },
         through: projection.through,
         after: null,
         limit: 2,
       }),
     )
-    expect(page).toMatchObject({ kind: 'page', next: '2', complete: false })
+    expect(page).toMatchObject({ kind: 'page', end: { sequence: '2' }, tail: { kind: 'more' } })
     if (page.kind !== 'page') throw new Error('expected a page')
     expect(page.items.map(item => [item.sequence, item.fact.call])).toEqual([
       ['1', modelCall('c1')],
       ['2', modelCall('c2')],
     ])
+  })
+})
+
+describe('D5: the reply admission ledger of the memory Journal', () => {
+  const caller = {
+    kind: 'message',
+    message: acceptedInput('m').content,
+    source: evidence('source'),
+    admission: evidence('admission'),
+  } as const
+
+  it('SQ-1: the sequence a withdrawn joint commit would have taken is neither observable nor a gap', async () => {
+    const journal = memory({ participants: ['message'] })
+    const opened = await open(journal.port)
+    const attempt = async (name: string, call: string) =>
+      journal.port.commit(
+        commitAt(await load(journal.port, opened.execution), opened.authority, name, {
+          caller,
+          replyAdmission: replyAdmission(call, 'admitted'),
+        }),
+      )
+    journal.respond('message', 'fail')
+    expect(failure(await attempt('withdrawn', 'c1')).kind).toBe('unavailable')
+    expect((await load(journal.port, opened.execution)).replyAdmissions.prefix.sequence).toBe('0')
+    ok(await attempt('next', 'c2'))
+    const projection = (await load(journal.port, opened.execution)).replyAdmissions
+    expect(projection.prefix.sequence).toBe('1')
+    const page = ok(
+      await journal.port.readReplyAdmissions({
+        ...access,
+        execution: opened.execution,
+        from: { kind: 'origin' },
+        through: projection.through,
+        after: null,
+        limit: 10,
+      }),
+    )
+    expect(page.kind === 'page' && page.items.map(item => [item.sequence, item.fact.call])).toEqual(
+      [['1', modelCall('c2')]],
+    )
+  })
+
+  it('R-598 is not adopted: the same call and version with another step, action and source is recognized without a new fact', async () => {
+    const { port: journal } = memory()
+    const opened = await open(journal)
+    const commitWith = async (name: string, admission: ReturnType<typeof replyAdmission>) =>
+      journal.commit(
+        commitAt(await load(journal, opened.execution), opened.authority, name, {
+          replyAdmission: admission,
+        }),
+      )
+    ok(await commitWith('first', replyAdmission('c1', 'admitted')))
+    const other = {
+      ...replyAdmission('c1', 'admitted'),
+      step: ok(decodeStepId('step-9')),
+      action: ok(decodeActionId('action-other')),
+      source: evidence('another-source'),
+    }
+    ok(await commitWith('other', other))
+    expect((await load(journal, opened.execution)).replyAdmissions.prefix.sequence).toBe('1')
+  })
+
+  it('commit-time check 2: a basis-shaped prefix beyond the published facts is invalid, not a missing basis', async () => {
+    const memoryJournal = memory()
+    const journal = memoryJournal.port
+    const opened = await open(journal)
+    expect(memoryJournal.replyAdmissions.seed(opened.execution, 2, access.tenant)).toBe(true)
+    const snapshot = await load(journal, opened.execution)
+    const { basis } = snapshot.replyAdmissions.prefix
+    const beyond = {
+      sequence: ok(decodeReplyAdmissionSequence('9')),
+      basis: { ...basis, record: basis.record.replace(/\/2$/u, '/9') },
+    }
+    const refused = failure(
+      await journal.commit(
+        commitAt(snapshot, opened.authority, 'beyond', {
+          checkpoint: {
+            ...snapshot.checkpoint,
+            replyAdmissionRead: { kind: 'verified', prefix: beyond },
+          },
+        }),
+      ),
+    )
+    expect(refused).toEqual({
+      kind: 'invalid',
+      field: 'checkpoint.replyAdmissionRead',
+      reason: 'beyond the published facts',
+    })
+  })
+
+  it('the commit-time check reads one basis by its position: no history row is scanned at 100 or at 10000 facts', async () => {
+    const scanned: number[] = []
+    for (const scale of [100, 10_000]) {
+      const memoryJournal = memory()
+      const opened = await open(memoryJournal.port)
+      expect(memoryJournal.replyAdmissions.seed(opened.execution, scale, access.tenant)).toBe(true)
+      const snapshot = await load(memoryJournal.port, opened.execution)
+      const before = memoryJournal.replyAdmissions.statistics()
+      ok(
+        await memoryJournal.port.commit(
+          commitAt(snapshot, opened.authority, 'save', {
+            checkpoint: {
+              ...snapshot.checkpoint,
+              replyAdmissionRead: { kind: 'verified', prefix: snapshot.replyAdmissions.prefix },
+            },
+          }),
+        ),
+      )
+      const after = memoryJournal.replyAdmissions.statistics()
+      scanned.push(after.scanned - before.scanned, after.seeks - before.seeks)
+    }
+    expect(scanned).toEqual([0, 1, 0, 1])
+  })
+
+  it('a caller qualified to read but without the attachment cannot save a read position', async () => {
+    const memoryJournal = memory({ reader: () => true })
+    const journal = memoryJournal.port
+    const opened = await open(journal)
+    expect(memoryJournal.replyAdmissions.seed(opened.execution, 1, access.tenant)).toBe(true)
+    const snapshot = await load(journal, opened.execution)
+    const reader = { ...opened.authority, generation: 'reader' }
+    expect(
+      failure(
+        await journal.commit(
+          commitAt(snapshot, reader, 'read-only', {
+            checkpoint: {
+              ...snapshot.checkpoint,
+              replyAdmissionRead: { kind: 'verified', prefix: snapshot.replyAdmissions.prefix },
+            },
+          }),
+        ),
+      ),
+    ).toEqual({ kind: 'stale-advance' })
+    expect((await load(journal, opened.execution)).checkpoint.replyAdmissionRead).toEqual({
+      kind: 'unverified',
+    })
   })
 })
 
