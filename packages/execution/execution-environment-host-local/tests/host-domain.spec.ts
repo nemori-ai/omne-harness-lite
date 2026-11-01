@@ -32,6 +32,13 @@ import {
   type HostFilesDiagnostic,
   type HostFilesDomain,
 } from '@omne-harness/execution-environment-host-local'
+import {
+  createHostFilesDomain as createSourceDomain,
+  domainInternals,
+  type DomainRecord as SourceRecord,
+  type HostFilesDomain as SourceDomain,
+} from '../src/host-domain.ts'
+import { createHostFilesProvider as createSourceProvider } from '../src/host-provider.ts'
 
 const control = vi.hoisted(() => ({
   marker: 'held-by-test',
@@ -544,3 +551,70 @@ it(
     }
   },
 )
+
+// The engine of an acquisition is reached through the domain internals, which the package entry
+// does not export; these cases use the source modules, all of them one module instance.
+const engineSealed = (record: SourceRecord) => {
+  const files = record.engine.facilityFor(record.owner)
+  return files.commitBatch({
+    requestId: 'after-drain',
+    access: { principal: 'subject', tenant: tenantA },
+    origin: originRef('call-1'),
+    binding: host,
+    entries: [],
+  })
+}
+
+function recordOf(domain: SourceDomain, input: ProviderAcquireInput): SourceRecord {
+  const record = domainInternals(domain)?.find(originalOf(input))
+  if (record === undefined) throw new Error('expected the record of the acquisition')
+  return record
+}
+
+it('seals the engine of an acquisition when its drain begins, as it seals the facade', async () => {
+  const domain = createSourceDomain()
+  const provider = createSourceProvider({ domain })
+  const input = inputFor(provider, 'sealed')
+  const { lease } = await leaseOf(provider, input)
+  const record = recordOf(domain, input)
+  // Before the drain the engine admits batches: this one is refused for its content, not as closed.
+  expect(await engineSealed(record)).not.toMatchObject({ reason: 'closed' })
+  expect(await lease.release()).toEqual({ kind: 'released' })
+  expect(await engineSealed(record)).toEqual({
+    kind: 'rejected',
+    requestId: 'after-drain',
+    reason: 'closed',
+  })
+})
+
+it('seals the engine of an acquisition when its provider retires', async () => {
+  const domain = createSourceDomain()
+  const provider = createSourceProvider({ domain })
+  const input = inputFor(provider, 'retired')
+  await leaseOf(provider, input)
+  const record = recordOf(domain, input)
+  expect(await provider.retire()).toEqual({ kind: 'drained' })
+  expect(await engineSealed(record)).toMatchObject({ kind: 'rejected', reason: 'closed' })
+})
+
+it('gives providers of one files configuration one engine, and another configuration its own', async () => {
+  const domain = createSourceDomain()
+  const state = await realpath(await mkdtemp(join(tmpdir(), 'omne-host-engine-')))
+  roots.push(state)
+  const engineOf = async (options: Record<string, unknown>, key: string) => {
+    const provider = createSourceProvider({ domain, ...options })
+    const input = inputFor(provider, key)
+    await leaseOf(provider, input)
+    return recordOf(domain, input).engine
+  }
+  const plain = await engineOf({}, 'plain-1')
+  expect(await engineOf({}, 'plain-2')).toBe(plain)
+  const rooted = await engineOf({ filesRoot: state }, 'rooted-1')
+  expect(rooted).not.toBe(plain)
+  expect(await engineOf({ filesRoot: state }, 'rooted-2')).toBe(rooted)
+  expect(rooted.hasRoot).toBe(true)
+  expect(plain.hasRoot).toBe(false)
+  expect(await engineOf({ filesRoot: state, limits: { listPageLimit: 5 } }, 'rooted-3')).not.toBe(
+    rooted,
+  )
+})

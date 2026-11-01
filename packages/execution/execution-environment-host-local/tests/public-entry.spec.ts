@@ -21,6 +21,9 @@ it('exports the host files facility, its object token reader, the domain and the
 const reachable = [
   'index',
   'host-files',
+  'host-paths',
+  'host-file-tree',
+  'host-file-batch',
   'host-domain',
   'host-provider',
   'host-command',
