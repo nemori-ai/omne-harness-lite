@@ -15,7 +15,11 @@ import {
   observeMilestone,
   type MilestoneInput,
 } from '../src/integration/contract-baseline-review.ts'
-import { contractApiCommand, contractApiEnv } from '../src/integration/contract-diff.ts'
+import {
+  contractApiCommand,
+  contractApiEnv,
+  toolchainFacts,
+} from '../src/integration/contract-diff.ts'
 import { git } from '../src/integration/git.ts'
 import {
   contracts,
@@ -509,6 +513,33 @@ describe('check-milestone without --semantic-review', () => {
       expect(resolved).toBe(0)
     },
   )
+})
+
+describe('tool facts of the milestone path', () => {
+  const other = () => ({ kind: 'known', version: '0.0.19', typescriptVersion: '6.0.0' }) as const
+  it(
+    'refuses when the installed toolchain differs from the version the path needs',
+    { tags: ['slow'] },
+    () => {
+      const s = state()
+      signed(s, world.registrationAll, { 'pkg/b': 'additive', 'pkg/c': 'additive' })
+      const report = checkMilestone(inputFor(s, { toolchain: other }))
+      expect(report).toMatchObject({ exit: 2, pass: false })
+      expect(JSON.stringify(report.findings)).toContain('0.0.19 is installed')
+      expect(draftMilestone(inputFor(s, { toolchain: other })).bundle).toBeNull()
+    },
+  )
+  it('records the installed TypeScript version in the Comparison', { tags: ['slow'] }, () => {
+    const s = state()
+    post(s, world.registrationAll)
+    const facts = toolchainFacts()
+    if (facts.kind !== 'known') throw new Error('toolchain unavailable')
+    const draft = draftMilestone(inputFor(s))
+    expect(draft.bundle?.comparisons[0]?.tool).toMatchObject({
+      version: facts.version,
+      typescriptVersion: facts.typescriptVersion,
+    })
+  })
 })
 
 describe('draft-milestone', () => {

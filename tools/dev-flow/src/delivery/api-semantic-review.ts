@@ -6,9 +6,15 @@
 // live publish reviewer, and who is the trusted owner of a member. The owner identity reader and
 // the Comparison builder belong to other modules. Nothing here writes to the platform.
 import { createHash } from 'node:crypto'
-import { readComments, type BaselineComment, type RegistrarCheck } from './baseline.ts'
-import { GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
-import { InputError, record as asRecord, text as asText } from './protocol.ts'
+import { hashJson } from '../integration/contract-review.ts'
+import {
+  readCommentByUrl,
+  readComments,
+  type BaselineComment,
+  type RegistrarCheck,
+} from './baseline.ts'
+import type { GhRead } from './github-read.ts'
+import { InputError, record as asRecord } from './protocol.ts'
 import { strictJson } from './strict-json.ts'
 
 import type {
@@ -281,21 +287,7 @@ export function parseRecordComment(body: string): ParsedComment {
 // ---------------------------------------------------------------------------------------------
 // Digests (section 4).
 // ---------------------------------------------------------------------------------------------
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
-function canonical(value: Json): Json {
-  if (Array.isArray(value)) return value.map(canonical)
-  if (typeof value === 'object' && value !== null) {
-    const sorted: { [key: string]: Json } = {}
-    for (const key of Object.keys(value).sort()) sorted[key] = canonical(value[key] as Json)
-    return sorted
-  }
-  return value
-}
 const sha256 = (data: string | Buffer): string => createHash('sha256').update(data).digest('hex')
-/** H of section 4: sorted keys, no whitespace, UTF-8, SHA-256. */
-export function hashJson(value: unknown): string {
-  return sha256(JSON.stringify(canonical(value as Json)))
-}
 /** The reference a comment has now: its URL, the SHA-256 of its body bytes and its `updatedAt`. */
 export function commentRefOf(comment: BaselineComment): CommentRef {
   return {
@@ -350,41 +342,17 @@ export function evidenceChecker(
   repositoryName: string,
   call: GhRead,
 ): (ref: CommentRef) => EvidenceCheck {
-  const pattern = new RegExp(
-    `^https://github\\.com/${repositoryName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/issues/[1-9][0-9]*#issuecomment-([1-9][0-9]*)$`,
-  )
   return ref => {
-    const id = pattern.exec(ref.url)?.[1]
-    if (id === undefined) return 'foreign'
-    let value: unknown
-    try {
-      value = call(
-        [
-          'api',
-          '--method',
-          'GET',
-          ...REST_HEADERS,
-          `repos/${repositoryName}/issues/comments/${id}`,
-        ],
-        15_000,
-      )
-    } catch (error) {
-      if (error instanceof GhReadError) {
-        const body = error.body
-        if (
-          typeof body === 'object' &&
-          body !== null &&
-          (body as { status?: unknown }).status === '404'
-        )
-          return 'absent'
-      }
-      throw error
+    const read = readCommentByUrl(repositoryName, ref.url, call)
+    if (read.kind === 'foreign') return 'foreign'
+    if (read.kind === 'failed') {
+      if (read.status === '404') return 'absent'
+      throw read.error
     }
-    const comment = asRecord(value, 'comment')
-    const body = comment.body === null ? '' : asText(comment.body, 'comment.body')
-    if (comment.html_url !== ref.url) return 'foreign'
-    return sha256(Buffer.from(body, 'utf8')) === ref.bodySha256 &&
-      asText(comment.updated_at, 'comment.updated_at') === ref.updatedAt
+    if (read.kind === 'unexplained') throw new InputError(read.reason)
+    const { comment } = read
+    if (comment.htmlUrl !== ref.url) return 'foreign'
+    return comment.bodySha256 === ref.bodySha256 && comment.updatedAt === ref.updatedAt
       ? 'matches'
       : 'drifted'
   }

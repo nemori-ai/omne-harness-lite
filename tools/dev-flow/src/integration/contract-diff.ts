@@ -1,9 +1,11 @@
 import { spawnSync } from 'node:child_process'
+import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { findPackageJSON } from 'node:module'
 import { dirname, join } from 'node:path'
 import { repositoryEnv } from '@omne-harness/repo-toolchain/core/git-environment'
-import { clean } from './git.ts'
+import type { Comparison } from '../delivery/api-review-types.ts'
+import { clean, exactTextBlob } from './git.ts'
 import { array, choice, IntegrationError, json, object, sha, string } from './parse.ts'
 import {
   SNAPSHOT_CHANGES,
@@ -354,4 +356,31 @@ export function toolchainFacts():
     }),
     error => `读不出工具链版本：${error.message}`,
   )
+}
+
+const TOOL_VERSION = '0.0.18'
+const LOCK_PATH = 'pnpm-lock.yaml'
+/**
+ * The tool block of a Comparison, the same for the card, RI and milestone scopes: the installed
+ * toolchain must be the version the review path needs, and the lock file is read at `commit`.
+ */
+export function toolOf(
+  root: string,
+  commit: string,
+  facts: ReturnType<typeof toolchainFacts> = toolchainFacts(),
+): Comparison['tool'] {
+  if (facts.kind === 'unavailable') throw new IntegrationError('unknown', facts.reason)
+  if (facts.version !== TOOL_VERSION)
+    throw new IntegrationError(
+      'unknown',
+      `repo-toolchain ${facts.version} is installed; the review path needs ${TOOL_VERSION}`,
+    )
+  return {
+    packageName: '@omne-harness/repo-toolchain',
+    version: TOOL_VERSION,
+    typescriptVersion: facts.typescriptVersion,
+    lockSha256: createHash('sha256')
+      .update(exactTextBlob(root, commit, LOCK_PATH).text, 'utf8')
+      .digest('hex'),
+  }
 }

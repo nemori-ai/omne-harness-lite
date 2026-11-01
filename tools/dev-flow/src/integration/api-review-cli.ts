@@ -3,7 +3,6 @@
 // `draft-milestone`, `check-milestone` and `verify-owner-adoption`. A draft only prepares data for
 // a human to review; it posts nothing and passes nothing. There is no `--record`,
 // `--trust-local` or owner argument.
-import { createHash } from 'node:crypto'
 import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type {
@@ -16,8 +15,8 @@ import type {
   RunExit,
 } from '../delivery/api-review-types.ts'
 import { OWNER_IDENTITY_PATH, parseOwnerIdentityManifest } from '../delivery/api-review-owners.ts'
-import { GhReadError, REST_HEADERS, runGhRead, type GhRead } from '../delivery/github-read.ts'
-import { record as asRecord, text as asText } from '../delivery/protocol.ts'
+import { readCommentByUrl } from '../delivery/baseline.ts'
+import { runGhRead, type GhRead } from '../delivery/github-read.ts'
 import { draftCard, draftRi, type DraftBundle, type ReviewReport } from './api-review-draft.ts'
 import { checkMilestone, draftMilestone, type TrustedTarget } from './contract-baseline-review.ts'
 import { exactTextBlob, git } from './git.ts'
@@ -34,8 +33,6 @@ export const ADOPTION_VERIFY_EXIT = {
 } as const satisfies Record<AdoptionVerifyCode, 1 | 2>
 
 const COMMIT = /^[0-9a-f]{40}$/
-const TIMEOUT_MS = 15_000
-const sha256 = (data: string) => createHash('sha256').update(data, 'utf8').digest('hex')
 
 export type VerifyAdoptionResult = {
   report: AdoptionVerifyReport
@@ -76,79 +73,56 @@ function readAdoption(
   call: GhRead,
 ): { readBack: AdoptionReadBack | null; findings: AdoptionVerifyFinding[] } {
   const { url, bodySha256, updatedAt } = fact.adoption.comment
-  const escaped = repository.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const id = new RegExp(
-    `^https://github\\.com/${escaped}/issues/[1-9][0-9]*#issuecomment-([1-9][0-9]*)$`,
-  ).exec(url)?.[1]
   const lineId = fact.lineId
-  if (id === undefined)
+  const read = readCommentByUrl(repository, url, call)
+  if (read.kind === 'foreign')
     return {
       readBack: null,
       findings: [{ code: 'adoption-verify-foreign-url', lineId, detail: { url } }],
     }
-  let value: unknown
-  try {
-    value = call(
-      ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/comments/${id}`],
-      TIMEOUT_MS,
-    )
-  } catch (error) {
-    const status =
-      error instanceof GhReadError ? (error.body as { status?: unknown } | null)?.status : undefined
+  if (read.kind === 'failed')
     return {
       readBack: null,
       findings: [
-        status === '404'
+        read.status === '404'
           ? { code: 'adoption-verify-comment-missing', lineId, detail: { url } }
           : unknown(
               lineId,
-              `comment read failed${status === undefined ? '' : ` (${String(status)})`}`,
+              `comment read failed${read.status === undefined ? '' : ` (${String(read.status)})`}`,
             ),
       ],
     }
-  }
-  try {
-    const comment = asRecord(value, 'comment')
-    const user = asRecord(comment.user, 'comment.user')
-    const body = comment.body === null ? '' : asText(comment.body, 'comment.body')
-    const readBack = {
-      htmlUrl: asText(comment.html_url, 'comment.html_url'),
-      bodySha256: sha256(body),
-      updatedAt: asText(comment.updated_at, 'comment.updated_at'),
-      author: {
-        login: asText(user.login, 'user.login'),
-        nodeId: asText(user.node_id, 'user.node_id'),
-      },
-      body,
-    }
-    if (readBack.htmlUrl !== url)
-      return {
-        readBack,
-        findings: [
-          {
-            code: 'adoption-verify-foreign-url',
-            lineId,
-            detail: { url, htmlUrl: readBack.htmlUrl },
-          },
-        ],
-      }
-    const fields: ('authorNodeId' | 'bodySha256' | 'updatedAt')[] = []
-    if (readBack.author.nodeId !== fact.adoption.authorNodeId) fields.push('authorNodeId')
-    if (readBack.bodySha256 !== bodySha256) fields.push('bodySha256')
-    if (readBack.updatedAt !== updatedAt) fields.push('updatedAt')
-    const [first, ...rest] = fields
-    return {
-      readBack,
-      findings:
-        first === undefined
-          ? []
-          : [{ code: 'adoption-verify-mismatch', lineId, fields: [first, ...rest] }],
-    }
-  } catch (error) {
+  if (read.kind === 'unexplained')
     return {
       readBack: null,
-      findings: [unknown(lineId, `unexplained comment response: ${describe(error)}`)],
+      findings: [unknown(lineId, `unexplained comment response: ${read.reason}`)],
     }
+  const { comment } = read
+  const readBack: AdoptionReadBack = {
+    htmlUrl: comment.htmlUrl,
+    bodySha256: comment.bodySha256,
+    updatedAt: comment.updatedAt,
+    author: comment.author,
+    body: comment.body,
+  }
+  if (readBack.htmlUrl !== url)
+    return {
+      readBack,
+      findings: [
+        { code: 'adoption-verify-foreign-url', lineId, detail: { url, htmlUrl: readBack.htmlUrl } },
+      ],
+    }
+  const fields: ('authorNodeId' | 'bodySha256' | 'updatedAt')[] = []
+  if (readBack.author.nodeId !== fact.adoption.authorNodeId) fields.push('authorNodeId')
+  if (readBack.bodySha256 !== bodySha256) fields.push('bodySha256')
+  if (readBack.updatedAt !== updatedAt) fields.push('updatedAt')
+  const [first, ...rest] = fields
+  return {
+    readBack,
+    findings:
+      first === undefined
+        ? []
+        : [{ code: 'adoption-verify-mismatch', lineId, fields: [first, ...rest] }],
   }
 }
 

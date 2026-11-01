@@ -8,10 +8,8 @@
 import { spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { findPackageJSON } from 'node:module'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
 import type {
   ApiSide,
   Comparison,
@@ -54,13 +52,17 @@ import {
   resolveMember,
   sideSetFindings,
 } from './contract-review.ts'
-import { contractApiCommand, contractApiEnv, type ContractApiCommand } from './contract-diff.ts'
+import {
+  contractApiCommand,
+  contractApiEnv,
+  toolOf,
+  toolchainFacts,
+  type ContractApiCommand,
+} from './contract-diff.ts'
 import { clean, exactTextBlob, git, GitError } from './git.ts'
 import { array, choice, IntegrationError, json, object, string } from './parse.ts'
 
 const POLICY_PATH = 'docs/engineering/integration-policy.json'
-const LOCK_PATH = 'pnpm-lock.yaml'
-const TOOL_PACKAGE = '@omne-harness/repo-toolchain'
 const BASELINE_TIMEOUT_MS = 300_000
 const READ_TIMEOUT_MS = 15_000
 
@@ -80,6 +82,8 @@ export type MilestoneInput = {
   resolveTrusted(): TrustedTarget
   /** Replaces the installed CLI run. Tests only; the command line never sets it. */
   runBaseline?: BaselineRunner
+  /** Replaces the installed toolchain facts. Tests only; the command line never sets it. */
+  toolchain?: () => ReturnType<typeof toolchainFacts>
   now?: () => Date
 }
 
@@ -191,18 +195,6 @@ function runOnRegistration(baseline: ContractBaseline, runner: BaselineRunner): 
     }
   } finally {
     rmSync(directory, { recursive: true, force: true })
-  }
-}
-
-function typescriptVersion(): string {
-  try {
-    const toolchain = findPackageJSON(TOOL_PACKAGE, import.meta.url)
-    if (toolchain === undefined) throw new Error(`${TOOL_PACKAGE} is not resolvable`)
-    const manifest = findPackageJSON('@typescript/typescript6', pathToFileURL(toolchain).href)
-    if (manifest === undefined) throw new Error('@typescript/typescript6 is not resolvable')
-    return string(object(JSON.parse(readFileSync(manifest, 'utf8')), manifest).version, 'version')
-  } catch (error) {
-    throw new IntegrationError('unknown', `TypeScript version unreadable: ${message(error)}`)
   }
 }
 
@@ -356,7 +348,9 @@ function observe(input: MilestoneInput): Observation {
   const merged = mergeRegistrations(carrier.comments, isReviewer)
   if (merged.kind === 'refused')
     return blocked([
-      finding('api-review-input-unknown', null, { problems: merged.problems.map(p => ({ ...p })) }),
+      finding('api-review-input-unknown', null, {
+        problems: merged.problems.map(p => ({ ...p })),
+      }),
     ])
   if (merged.baseline.milestone !== null && merged.baseline.milestone !== milestoneScope.title)
     return blocked([
@@ -395,12 +389,7 @@ function observe(input: MilestoneInput): Observation {
 
   const readings = new Map<string, OwnerIdentityReading>()
   const comparisons: Comparison[] = []
-  const tool = {
-    packageName: '@omne-harness/repo-toolchain' as const,
-    version: '0.0.18' as const,
-    typescriptVersion: typescriptVersion(),
-    lockSha256: review.length === 0 ? '' : sha256(exactTextBlob(root, candidate, LOCK_PATH).text),
-  }
+  let tool: Comparison['tool'] | undefined
   for (const member of review) {
     const registered = merged.baseline.members.find(item => item.path === member)
     const rawMember = baseline.members.find(item => item.directory === member)
@@ -416,6 +405,7 @@ function observe(input: MilestoneInput): Observation {
       )
       continue
     }
+    tool ??= toolOf(root, candidate, input.toolchain?.())
     const comparison: Comparison = {
       repository,
       head: candidate,
@@ -561,7 +551,9 @@ function conservative(input: MilestoneInput): MilestoneReport {
   const merged = mergeRegistrations(carrier.comments, publishReviewers(repository, input.call))
   if (merged.kind === 'refused')
     return failedReport(false, [
-      finding('api-review-input-unknown', null, { problems: merged.problems.map(p => ({ ...p })) }),
+      finding('api-review-input-unknown', null, {
+        problems: merged.problems.map(p => ({ ...p })),
+      }),
     ])
   const raw = runOnRegistration(
     merged.baseline,

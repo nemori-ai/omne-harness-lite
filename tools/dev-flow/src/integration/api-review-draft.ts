@@ -16,7 +16,7 @@ import {
   parseRecordComment,
   readCarrier,
 } from '../delivery/api-semantic-review.ts'
-import { publishReviewers, readComments } from '../delivery/baseline.ts'
+import { publishReviewers, readCommentByUrl, readComments } from '../delivery/baseline.ts'
 import { readTaskBinding, type TaskBinding } from '../delivery/binding.ts'
 import {
   cardReviewInput,
@@ -67,7 +67,7 @@ import {
   rawDiffMembers,
   runDiff,
   snapshotContractDiffWith,
-  toolchainFacts,
+  toolOf,
 } from './contract-diff.ts'
 import { blob, clean, exactTextBlob, git, GitError } from './git.ts'
 import { IntegrationError, json, section } from './parse.ts'
@@ -115,8 +115,6 @@ type Outcome = {
 }
 
 const TIMEOUT_MS = 15_000
-const TOOL_VERSION = '0.0.18'
-const LOCK_PATH = 'pnpm-lock.yaml'
 const DIFF_TIMEOUT_MS = 120_000
 const sha256 = (value: string) => createHash('sha256').update(value, 'utf8').digest('hex')
 const asJson = (value: unknown): Json => value as Json
@@ -162,44 +160,29 @@ function sideOf(root: string, commit: string, member: string): ApiSide {
     snapshots,
   }
 }
-function toolOf(root: string, head: string): Comparison['tool'] {
-  const facts = toolchainFacts()
-  if (facts.kind === 'unavailable') throw new IntegrationError('unknown', facts.reason)
-  if (facts.version !== TOOL_VERSION)
-    throw new IntegrationError(
-      'unknown',
-      `repo-toolchain ${facts.version} is installed; the review path needs ${TOOL_VERSION}`,
-    )
-  return {
-    packageName: '@omne-harness/repo-toolchain',
-    version: TOOL_VERSION,
-    typescriptVersion: facts.typescriptVersion,
-    lockSha256: sha256(exactTextBlob(root, head, LOCK_PATH).text),
-  }
-}
 /** The dispatch comment of a card as a CommentRef; a mismatch is reported as findings. */
 function dispatchOf(
   repository: string,
   binding: TaskBinding,
   call: GhRead,
 ): { ref: CommentRef; pre: Finding[] } {
-  const id = /#issuecomment-([1-9]\d*)$/.exec(binding.dispatch)?.[1]
-  if (id === undefined)
+  const read = readCommentByUrl(repository, binding.dispatch, call)
+  if (read.kind === 'foreign')
     throw new IntegrationError('refused', `Dispatch ${binding.dispatch} is not a comment URL`)
-  const raw = record(get(call, `repos/${repository}/issues/comments/${id}`), 'dispatch comment')
-  if (raw.html_url !== binding.dispatch)
+  if (read.kind === 'failed') throw read.error
+  if (read.kind === 'unexplained') throw new InputError(read.reason)
+  const { comment } = read
+  if (comment.htmlUrl !== binding.dispatch)
     throw new IntegrationError('refused', 'The dispatch comment URL differs from the binding')
-  const user = record(raw.user, 'dispatch author'),
-    body = raw.body === null ? '' : text(raw.body, 'dispatch body'),
-    login = text(user.login, 'dispatch author login'),
-    nodeId = text(user.node_id, 'dispatch author node_id')
+  const { body, author } = comment
+  const login = author.login
   const pre: Finding[] = []
   const decision = parseDispatchDecision(section(body, 'omne-integration-authority:v1'))
   if (hashJson(asJson(decision.task)) !== hashJson(asJson(binding)))
     pre.push(
       finding('api-review-unauthorized', null, { reason: 'dispatch decision names another task' }),
     )
-  if (decision.responsible !== login || !publishReviewers(repository, call)({ login, nodeId }))
+  if (decision.responsible !== login || !publishReviewers(repository, call)(author))
     pre.push(
       finding('api-review-unauthorized', null, {
         reason: 'dispatch author is not a live reviewer',
@@ -208,8 +191,8 @@ function dispatchOf(
   return {
     ref: {
       url: binding.dispatch,
-      bodySha256: sha256(body),
-      updatedAt: text(raw.updated_at, 'dispatch updated_at'),
+      bodySha256: comment.bodySha256,
+      updatedAt: comment.updatedAt,
     },
     pre,
   }

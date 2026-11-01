@@ -113,7 +113,7 @@ function canonicalText(value: unknown): string {
 }
 
 /** SHA-256 of the canonical, whitespace-free UTF-8 JSON of `value`. */
-export function hashJson(value: Json): string {
+export function hashJson(value: unknown): string {
   return createHash('sha256').update(canonicalText(value), 'utf8').digest('hex')
 }
 
