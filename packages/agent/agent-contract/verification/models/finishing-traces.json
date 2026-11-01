@@ -1,6 +1,6 @@
 {
   "model": "Finishing.tla",
-  "modelSha256": "35c459925eafa96f7ed617e57523a75e98b3dcc33dbdaf18aae9b94cf2b5b3d4",
+  "modelSha256": "c35cc33b2351c0775c11883941221301f8b394952300c841c0da3b55b09f4ff7",
   "conforming": [
     {
       "name": "ordinary-1",
@@ -63,12 +63,142 @@
       "origin": "trace-ordinary.cfg simulate seed 12",
       "steps": [
         {
-          "action": "F1-complete",
+          "action": "Submit",
           "reply": "ok",
           "state": {
-            "status": "settling",
-            "conclusion": "complete",
-            "route": "author",
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "P-h1",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "P-h1",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
@@ -77,19 +207,9 @@
           "reply": "ok",
           "state": {
             "status": "advancing",
-            "conclusion": "complete",
-            "route": "author",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
-          }
-        },
-        {
-          "action": "P-h1",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": true
           }
         },
         {
@@ -99,27 +219,7 @@
             "status": "settling",
             "conclusion": "failed",
             "route": "author",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Takeover",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": true
+            "handoff": false
           }
         },
         {
@@ -129,7 +229,17 @@
             "status": "settling",
             "conclusion": "failed",
             "route": "author",
-            "handoff": true
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "invalid",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
           }
         },
         {
@@ -139,7 +249,7 @@
             "status": "settling",
             "conclusion": "failed",
             "route": "author",
-            "handoff": true
+            "handoff": false
           }
         },
         {
@@ -149,7 +259,7 @@
             "status": "ended",
             "conclusion": "failed",
             "route": "author",
-            "handoff": true
+            "handoff": false
           }
         }
       ]
@@ -159,16 +269,6 @@
       "origin": "trace-ordinary.cfg simulate seed 13",
       "steps": [
         {
-          "action": "Takeover",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
           "action": "Submit",
           "reply": "ok",
           "state": {
@@ -179,108 +279,12 @@
           }
         },
         {
-          "action": "F1-complete",
+          "action": "TakeInputs",
           "reply": "failure-changed",
           "state": {
             "status": "advancing",
             "conclusion": "none",
             "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F2",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Lose-TryFinish",
-          "reply": "commit-unknown",
-          "state": {
-            "status": "ended",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        }
-      ]
-    },
-    {
-      "name": "complete-1",
-      "origin": "trace-complete.cfg simulate seed 31",
-      "steps": [
-        {
-          "action": "F1-failed",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Submit",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
             "handoff": false
           }
         },
@@ -289,8 +293,18 @@
           "reply": "failure-changed",
           "state": {
             "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
@@ -299,18 +313,8 @@
           "reply": "ok",
           "state": {
             "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
@@ -325,7 +329,27 @@
           }
         },
         {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
           "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
           "reply": "ok",
           "state": {
             "status": "advancing",
@@ -345,8 +369,8 @@
           }
         },
         {
-          "action": "F2",
-          "reply": "failure-changed",
+          "action": "StaleWrite",
+          "reply": "stale-advance",
           "state": {
             "status": "advancing",
             "conclusion": "complete",
@@ -355,10 +379,186 @@
           }
         },
         {
+          "action": "TakeInputs",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Lose-Prepare",
+          "reply": "commit-unknown",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Retry-Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "ended",
+          "state": {
+            "status": "ended",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "complete-1",
+      "origin": "trace-complete.cfg simulate seed 31",
+      "steps": [
+        {
+          "action": "TakeInputs",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "P-h1",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
           "action": "Load",
           "reply": "ok",
           "state": {
             "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
             "conclusion": "complete",
             "route": "author",
             "handoff": false
@@ -401,6 +601,302 @@
       "origin": "trace-complete.cfg simulate seed 32",
       "steps": [
         {
+          "action": "P-h1",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Submit",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Provider-prepared-h1",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Lose-Prepare",
+          "reply": "commit-unknown",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Retry-Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Ja-h1",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Cancel",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Ja-h1",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "ended",
+          "state": {
+            "status": "ended",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelled-1",
+      "origin": "trace-cancelled.cfg simulate seed 21",
+      "steps": [
+        {
           "action": "TakeInputs",
           "reply": "ok",
           "state": {
@@ -413,6 +909,56 @@
         {
           "action": "Takeover",
           "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Cancel",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
           "state": {
             "status": "advancing",
             "conclusion": "none",
@@ -431,75 +977,9 @@
           }
         },
         {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-complete",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
           "action": "StaleWrite",
           "reply": "stale-advance",
           "state": {
-            "status": "settling",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F2",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Lose-TryFinish",
-          "reply": "commit-unknown",
-          "state": {
-            "status": "ended",
-            "conclusion": "complete",
-            "route": "author",
-            "handoff": false
-          }
-        }
-      ]
-    },
-    {
-      "name": "cancelled-1",
-      "origin": "trace-cancelled.cfg simulate seed 21",
-      "steps": [
-        {
-          "action": "Takeover",
-          "reply": "ok",
-          "state": {
             "status": "advancing",
             "conclusion": "none",
             "route": "none",
@@ -507,7 +987,7 @@
           }
         },
         {
-          "action": "F1-failed",
+          "action": "P-h1",
           "reply": "failure-changed",
           "state": {
             "status": "advancing",
@@ -523,266 +1003,6 @@
             "status": "advancing",
             "conclusion": "none",
             "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Effect",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F2",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Produce",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "unavailable",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Lose-Prepare",
-          "reply": "commit-unknown",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Submit",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "RecordNone",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Cancel",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Retry-Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Custody",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "changed",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "changed",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Intent-unresolved",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "failure-changed",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
             "handoff": false
           }
         },
@@ -790,19 +1010,29 @@
           "action": "Intent-reached",
           "reply": "ok",
           "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
         {
-          "action": "Prepare",
+          "action": "Establish",
           "reply": "failure-changed",
           "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
@@ -810,29 +1040,9 @@
           "action": "StaleWrite",
           "reply": "stale-advance",
           "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "failure-changed",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
             "handoff": false
           }
         },
@@ -840,9 +1050,189 @@
           "action": "Load",
           "reply": "ok",
           "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Submit",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "ok",
+          "state": {
             "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Lose-Judge",
+          "reply": "commit-unknown",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Retry-Judge",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
             "handoff": false
           }
         },
@@ -851,8 +1241,8 @@
           "reply": "failure-changed",
           "state": {
             "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "conclusion": "cancelled",
+            "route": "cancellation",
             "handoff": false
           }
         },
@@ -861,14 +1251,74 @@
           "reply": "changed",
           "state": {
             "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
+            "conclusion": "cancelled",
+            "route": "cancellation",
             "handoff": false
           }
         },
         {
-          "action": "Establish",
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
           "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "invalid",
           "state": {
             "status": "settling",
             "conclusion": "cancelled",
@@ -887,540 +1337,8 @@
           }
         },
         {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "ended",
-          "state": {
-            "status": "ended",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        }
-      ]
-    },
-    {
-      "name": "cancelled-2",
-      "origin": "trace-cancelled.cfg simulate seed 22",
-      "steps": [
-        {
-          "action": "P-h1",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Provider-prepared-h1",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Cancel",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Submit",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Ja-h1",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Intent-unresolved",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": true
-          }
-        },
-        {
-          "action": "Ja-h1",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Effect",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Takeover",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TakeInputs",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Produce",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Intent-reached",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "RecordNone",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Establish",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Custody",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Establish",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-complete",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Establish",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Establish",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
           "action": "StaleWrite",
           "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Lose-Judge",
-          "reply": "commit-unknown",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Retry-Judge",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Prepare",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "TryFinish",
-          "reply": "ended",
-          "state": {
-            "status": "ended",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        }
-      ]
-    },
-    {
-      "name": "cancelled-3",
-      "origin": "trace-cancelled.cfg simulate seed 23",
-      "steps": [
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-failed",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Cancel",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Takeover",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Submit",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F2",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "F1-complete",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "P-h1",
-          "reply": "failure-changed",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Intent-reached",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "advancing",
-            "conclusion": "failed",
-            "route": "author",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Establish",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Lose-Judge",
-          "reply": "commit-unknown",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Retry-Judge",
-          "reply": "ok",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "StaleWrite",
-          "reply": "stale-advance",
-          "state": {
-            "status": "settling",
-            "conclusion": "cancelled",
-            "route": "cancellation",
-            "handoff": false
-          }
-        },
-        {
-          "action": "Load",
-          "reply": "ok",
           "state": {
             "status": "settling",
             "conclusion": "cancelled",
@@ -1449,8 +1367,8 @@
           }
         },
         {
-          "action": "Prepare",
-          "reply": "ok",
+          "action": "StaleWrite",
+          "reply": "stale-advance",
           "state": {
             "status": "settling",
             "conclusion": "cancelled",
@@ -1459,7 +1377,7 @@
           }
         },
         {
-          "action": "Judge",
+          "action": "Prepare",
           "reply": "ok",
           "state": {
             "status": "settling",
@@ -1481,6 +1399,718 @@
         {
           "action": "Prepare",
           "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "ended",
+          "state": {
+            "status": "ended",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelled-2",
+      "origin": "trace-cancelled.cfg simulate seed 22",
+      "steps": [
+        {
+          "action": "Submit",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Cancel",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "none",
+            "route": "none",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "P-h1",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "P-h1",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "invalid",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Provider-prepared-h1",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Lose-Prepare",
+          "reply": "commit-unknown",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Intent-unresolved",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Retry-Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Intent-reached",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "failed",
+            "route": "author",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "ended",
+          "state": {
+            "status": "ended",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "cancelled-3",
+      "origin": "trace-cancelled.cfg simulate seed 23",
+      "steps": [
+        {
+          "action": "F1-complete",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Submit",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Cancel",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Intent-unresolved",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TakeInputs",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Intent-reached",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "failure-changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "settling",
+            "conclusion": "complete",
+            "route": "author",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Establish",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Lose-Judge",
+          "reply": "commit-unknown",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Takeover",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Retry-Judge",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-failed",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "TryFinish",
+          "reply": "changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F1-complete",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "failure-changed",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Load",
+          "reply": "ok",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
+          "state": {
+            "status": "advancing",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "F2",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Judge",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "Prepare",
+          "reply": "ok",
+          "state": {
+            "status": "settling",
+            "conclusion": "cancelled",
+            "route": "cancellation",
+            "handoff": false
+          }
+        },
+        {
+          "action": "StaleWrite",
+          "reply": "stale-advance",
           "state": {
             "status": "settling",
             "conclusion": "cancelled",
@@ -1608,16 +2238,6 @@
       "name": "recheck-before-recognize",
       "origin": "trace-bad-recheck-before-recognize.cfg counterexample of ReplayOriginal",
       "steps": [
-        {
-          "action": "TakeInputs",
-          "reply": "ok",
-          "state": {
-            "status": "advancing",
-            "conclusion": "none",
-            "route": "none",
-            "handoff": false
-          }
-        },
         {
           "action": "F1-complete",
           "reply": "ok",
