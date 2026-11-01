@@ -42,7 +42,7 @@ Reduce 从工作卡 binding、已接受依据和当前波生成本包，发在�
 | 本线的约束 | <适用的 ub-mode 条目与项目独有判断。Line 在会话级按 spec 模板「原则与约束」写进 `constraints.md`> |
 | 风险级别与评审 | <`docs/engineering/quality.md` 的级别，及 `review-code`、`review-docs`、`review-delivery` 的力度> |
 | 角色策略 | <策略版本、两宿主的解析结果。requested 与 observed 分开记录> |
-| 线内检查 | <本卡成员的 build、类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。合入父分支前跑 `pnpm run preflight`；它进入线轨道之前写明代替它的轻量预检命令。线内的卡不跑卡级准入，本线本波只在父分支头跑一次准入，同机互斥；整波验证归 Reduce> |
+| 线内检查 | <本卡成员的 build、类型检查、测试、format、oxlint，及按需的 `check:docs`、`check:agents`。合入父分支前跑 `pnpm run preflight`。线内的卡不跑卡级准入，本线本波只在父分支头跑一次准入，同机互斥；整波验证归 Reduce> |
 | 线内联调 | <本线负责范围跨几个领域时：波末准入前在父分支头运行的命令与判据，例如本线纵切的端到端用例。只有一个领域时写「不适用」> |
 | 证据 | <证据贴在卡评论里。规则归 `docs/engineering/agent-delivery.md` 第 5 节> |
 | 进度记录 | 卡级按 `claim` 技能 plan 模板的「进度更新」维护 `tmp/issue-<号>/plan.md`。线级按 `line` 范式的「进度记录」维护 `tmp/line-<线>/state.md` 开头的「本波进度」。每个切片完成和每张卡交付时都更新，不攒到交回 |

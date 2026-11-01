@@ -111,7 +111,7 @@ flowchart TD
 3. 用兄弟卡的成果：卡要用父分支上已合入的成果时，用 `git merge --no-ff` 合并远端父分支。远端跟踪分支上的提交不计入本卡的写范围，见[改动的写范围与线归属](../../tools/dev-flow/src/delivery/README.md#改动的写范围与线归属)。这次合并不是目标同步，不运行 `task-sync`。
 4. 线内合入：线负责人把做完的卡合入父分支。这一步不跑卡级准入，不开 PR，不走 gate。合并前必须满足下列条件：
    - 成员级 build、typecheck 与 test 通过。
-   - `pnpm run preflight` 通过。这个命令进入线轨道之前，用线包「线内检查」给出的轻量预检代替。
+   - `pnpm run preflight` 通过。
    - 按风险做的独立验收（qa 或实现评审）已有结论。
    - 破坏性契约已按[契约变更的语义复核](delivery.md#契约变更的语义复核)完成具名复核，attest 绑定父分支上的对应 head。
    - 卡上已发五节交接报告。

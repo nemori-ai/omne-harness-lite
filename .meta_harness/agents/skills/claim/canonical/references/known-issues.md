@@ -61,7 +61,7 @@ rm -rf "$stage"
 
 - 合并目标分支或 `swap` 到新树之后，锁文件可能带来新依赖。不重装就跑准入，build 报模块无法解析（M2 波 0 有 2 次准入因此失败）。合并之后、准入之前，在该树运行 `pnpm install --offline --frozen-lockfile`，再运行 `git update-index --refresh`，然后确认 `git status --short` 为空。`swap` 先装依赖再合并时，合并后还要再装一次。
 - Windows 宿主上，已跟踪文件的工作副本可能是 CRLF，而索引是 LF。`format:check` 因此失败。用 `git ls-files --eol | grep 'i/lf.*w/crlf'` 找出这些文件。只是工作副本换行不同时，删掉工作副本再 `git checkout -- <文件>`。改动本身带 CRLF 时，改成 LF 再提交。
-- 工具链准入修复的第二阶段（预检入口、环境自愈、失败用例定向重跑）合入之前，本机主检出有两份临时脚本做同样的事：`tmp/m2-reduce/wave0-swarm/scripts/prep-tree.sh <树>`（离线装依赖、刷新索引、修 CRLF 工作副本，并预检 `acceptance:lock`、`check:docs`、oxlint、`format:check`），`rerun-failed.sh <树> [check-run 目录]`（只重跑准入里失败用例所在的文件，再补跑没有开始的轻步骤）。第二阶段合入后，用工具里的入口，并删除本条。
+- 合并基线后先跑 `pnpm run preflight`：一次列出轻步骤的全部失败与修法。准入开始时会自检环境并自愈（离线重装不一致的依赖、重新检出 CRLF 工作副本），test 步失败不超过 10 处时只重跑失败文件并记进 `retried`。用法见 `scripts/README.md`「环境自检与自愈」「预检」两节。
 - Windows 宿主上，Git Bash 的 `/tmp` 与 Windows 版 Python、Node 看到的不是同一个目录。给这些程序传临时文件路径时先用 `cygpath -w` 转换，否则报找不到文件。
 - WSL 的 `/tmp` 在 WSL 重启后清空。要留作证据的复现材料放在主检出的 `tmp/` 下，不放 WSL 的 `/tmp`。
 - 子代理或派发者借用别的工作树里的工具运行时，那棵树正被写者改动，工具读到的是半改状态。借用前确认那棵树没有写者在改，规则见 `docs/engineering/workflow.md` D8。
