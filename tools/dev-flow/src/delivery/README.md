@@ -375,6 +375,8 @@ check 核对进程、连接、精确 hook、真实事件落盘及等待对账。
 
 SIGINT、SIGTERM 或 SIGHUP 请求停止。自建实例只删除已确认归属的 hook，借用实例只退订。停止、失败及恢复状态写回本地记录。连接恢复触发权威对账；频道没有可靠重放承诺，覆盖缺口不能当成没有业务变化。
 
+自建实例停止后，本地配置把 ownership 记为 `deleted`，表示它的 hook 已确认不存在。用同一条 serve 命令再启动时，serve 复用已保存的频道和实例标记，先把 ownership 写成 `creating`，再创建一个精确 hook，成功后记为 `owned`。重启不需要 clean、搬事件目录或再 init。创建响应丢失或进程在中途崩溃时，配置停在 `creating`，下次 serve 只按持久实例身份对账，不重复创建。创建失败时 serve 以 `hook-create-outcome-unknown` 退出2，配置保持 `creating`，不会被读成 `owned`；此时没有匹配的 hook，需要人工核对后处理。重建不扫描、不删除任何其他 hook。
+
 legacy 单机选项仍可显式运行：
 
 ```sh
