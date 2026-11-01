@@ -195,7 +195,7 @@ pnpm run acceptance:scenarios
 pnpm --filter @omne-harness/product-checks run retire -- --wave B
 ```
 
-整波放行 R(w) 前运行的只读核对：按放行波次逐项扫描[退役表](retire-doubles.json)里的替身，报告三类问题，并列出每个契约成员 `./testing` 的清点表。它不在 `lint:rules` 的默认规则集里，不阻塞别的检查。根 `package.json` 的脚本入口由集成时单写。
+整波放行 R(w) 前运行的只读核对：按放行波次逐项扫描[退役表](retire-doubles.json)里的替身，报告三类问题，并列出每个契约成员 `./testing` 的清点表。它不在 `lint:rules` 的默认规则集里，不阻塞别的检查。根 `package.json` 的脚本入口由集成时单写。pnpm 会把 `run retire -- --wave B` 里的 `--` 原样传给脚本，命令忽略参数表里单独的 `--`。
 
 | 参数                     | 含义                                                                             |
 | ------------------------ | -------------------------------------------------------------------------------- |

@@ -26,6 +26,8 @@ function parseArguments(argv: readonly string[]): Arguments {
   let strict = false
   for (let index = 0; index < argv.length; index++) {
     const flag = argv[index]
+    // pnpm 把 `pnpm run retire -- --wave B` 里的 `--` 原样传给脚本，单独的 `--` 不是参数。
+    if (flag === '--') continue
     if (flag === '--json') json = true
     else if (flag === '--strict') strict = true
     else if (flag === '--wave' || flag === '--root' || flag === '--table') {

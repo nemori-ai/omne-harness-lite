@@ -78,6 +78,16 @@ describe('参数与退出码', () => {
     expect(result.stdout).toContain('未发现问题')
   })
 
+  it('pnpm 把单独的 -- 原样传给脚本：忽略它，结果与不带 -- 相同', () => {
+    const root = repository(FILES)
+    const table = tableFile()
+    const plain = run('--wave', 'B', '--root', root, '--table', table)
+    const dashed = run('--', '--wave', 'B', '--root', root, '--table', table)
+    expect(plain.status, plain.stderr).toBe(1)
+    expect(dashed.status, dashed.stderr).toBe(1)
+    expect(dashed.stdout).toBe(plain.stdout)
+  }, 30_000)
+
   it('应删未删：退出 1，输出 id、导出名、定义文件与行号', () => {
     const result = run('--wave', 'B', '--root', repository(FILES), '--table', tableFile())
     expect(result.status, result.stderr).toBe(1)
