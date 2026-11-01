@@ -1,45 +1,27 @@
 import type { Outcome } from '@omne-harness/operation-result'
-import { encodedBytes, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedOutcome, checkedEvidence } from './value.ts'
 import { decodeDispatchId } from '@omne-harness/model-contract'
-import type {
-  FixedModelRequest,
-  MaterializationReceipt,
-  Supplier,
-  Termination,
-  RetryDecision,
-  ModelFailure,
-  Revision,
-  Snapshot,
-} from '@omne-harness/model-contract'
+import type { Termination, ModelFailure, Revision, Snapshot } from '@omne-harness/model-contract'
 import type { ModelCommands, WriteContext } from '@omne-harness/model-contract/provider'
-import { parseInstant } from '@omne-harness/utc-instant'
-import { isReplayTag } from '@omne-harness/message'
-import { accountFact, completionOf, reduceFacts } from './arrival.ts'
+import { accountFact, reduceFacts } from './arrival.ts'
 import {
-  MemoryState,
-  bump,
+  completionOf,
+  dispatchOf,
+  encodedBytes,
   evidenceContext,
   expected,
+  MAX_TERMINATION_BYTES,
   missingReceipt,
-  type MemoryCall,
-  type MemoryDispatch,
-} from './state.ts'
+  positionedRetryRequest,
+  prepareSupplierFailure,
+  ready,
+  receiptBinds,
+  retryable,
+  retryChoiceFailure,
+} from '../commands/judge.ts'
+import { MemoryState, bump, type MemoryCall, type MemoryDispatch } from './state.ts'
 import { cursor, digest, invalid, operation } from './value.ts'
 
-/** The receipt names the dispatch supplier and the request representation, in valid shapes. */
-function receiptBinds(
-  receipt: MaterializationReceipt,
-  supplier: Supplier,
-  request: FixedModelRequest,
-): boolean {
-  return (
-    digest(receipt.supplier) === digest(supplier.adoption) &&
-    digest(receipt.representation) === digest(request.representation) &&
-    /^[0-9a-f]{64}$/u.test(receipt.payloadDigest) &&
-    (receipt.replayFormat === undefined || isReplayTag(receipt.replayFormat))
-  )
-}
 /**
  * Records an actual terminal that arrived late. Content that does not form a message leaves the
  * logical terminal open; reasoning state without a known replay range refuses the whole fact, as
@@ -55,32 +37,6 @@ function lateTerminal(
   const completion = completionOf(call, dispatch, actual)
   if (completion.kind === 'replay-unknown') return completion.failure
   if (completion.kind === 'formed') dispatch.logicalTerminal = structuredClone(actual)
-  return null
-}
-function dispatchOf(call: MemoryCall, id: string): MemoryDispatch | ModelFailure {
-  return call.dispatches.find(d => d.record.dispatch === id) ?? invalid('dispatch', 'not-found')
-}
-function ready(call: MemoryCall): ModelFailure | null {
-  return call.state.phase === 'settled' || call.state.control.kind !== 'none'
-    ? invalid('call', 'controlled-or-settled')
-    : null
-}
-function retryable(call: MemoryCall, dispatch: MemoryDispatch): ModelFailure | null {
-  const failure = ready(call)
-  if (failure) return failure
-  if (
-    dispatch.record.firstContent !== 'none-proven' ||
-    [...dispatch.windows.values()].includes('open')
-  )
-    return invalid('firstContent', 'not-none-proven')
-  const termination = dispatch.logicalTerminal
-  if (
-    termination?.kind !== 'failed' ||
-    ['input-over-limit', 'excluded', 'credential', 'input-rejected', 'modality'].includes(
-      termination.fault.cause,
-    )
-  )
-    return invalid('dispatch', 'not-retryable')
   return null
 }
 export function dispatchCommands<P>(
@@ -122,35 +78,6 @@ export function dispatchCommands<P>(
           b.receipt.kind === 'revision' ? { ok: b.receipt.revision } : missingReceipt(),
       }),
     )
-  }
-  function prepareSupplierFailure(
-    call: MemoryCall,
-    request: FixedModelRequest,
-    input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
-  ): ModelFailure | null {
-    if (!request.suppliers.some(s => digest(s) === digest(input.supplier)))
-      return invalid('supplier', 'outside-request')
-    const prior = call.dispatches.at(-1)
-    if (prior) return retrySupplierFailure(call, prior, input)
-    if (digest(input.supplier) !== digest(request.suppliers[0]) || input.policyDecision !== null)
-      return invalid('supplier', 'first-supplier')
-    return null
-  }
-  function retrySupplierFailure(
-    call: MemoryCall,
-    prior: MemoryDispatch,
-    input: Parameters<ModelCommands<P>['prepareDispatch']>[0],
-  ): ModelFailure | null {
-    const canRetry = retryable(call, prior)
-    if (canRetry) return canRetry
-    if (
-      call.retry?.kind !== 'retry' ||
-      !call.retrySource ||
-      digest(call.retry.supplier) !== digest(input.supplier) ||
-      digest(call.retrySource) !== digest(input.policyDecision)
-    )
-      return invalid('policyDecision', 'not-decided')
-    return null
   }
   function materializationProof(
     call: MemoryCall,
@@ -244,22 +171,6 @@ export function dispatchCommands<P>(
       }),
     )
   }
-  function positionedRetryRequest(
-    call: MemoryCall,
-    input: Parameters<ModelCommands<P>['decideRetry']>[0],
-  ): Outcome<FixedModelRequest, ModelFailure> {
-    if (
-      !call.request ||
-      !call.retryPosition ||
-      digest(call.retryPosition) !== digest(input.position)
-    )
-      return { failure: invalid('position', 'not-original') }
-    const dispatch = dispatchOf(call, input.position.dispatch)
-    if ('kind' in dispatch) return { failure: dispatch }
-    const failure = retryable(call, dispatch)
-    if (failure) return { failure }
-    return { ok: call.request }
-  }
   function retryProof(call: MemoryCall, input: Parameters<ModelCommands<P>['decideRetry']>[0]) {
     const adapter = store.adapter(call)
     if ('kind' in adapter) return { failure: adapter }
@@ -273,28 +184,6 @@ export function dispatchCommands<P>(
         source: structuredClone(input.source),
       }),
     )
-  }
-  function retryChoiceFailure(
-    request: FixedModelRequest,
-    dispatchCount: number,
-    decision: RetryDecision,
-  ): ModelFailure | null {
-    if (decision.kind === 'retry') {
-      if (
-        !parseInstant(decision.notBefore).ok ||
-        digest(decision.basis) !== digest(request.retryPolicy)
-      )
-        return invalid('decision', 'basis-or-time')
-      const index = request.fallback ? dispatchCount : 0
-      const supplier = request.suppliers[index]
-      if (
-        !supplier ||
-        (!request.fallback && dispatchCount >= 2) ||
-        digest(supplier) !== digest(decision.supplier)
-      )
-        return invalid('supplier', 'retry-bound')
-    }
-    return null
   }
   return {
     prepareDispatch: input =>

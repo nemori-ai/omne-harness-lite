@@ -3,14 +3,8 @@ import type { AckReceipt, CustodyState, ReadStart } from '@omne-harness/model-co
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import { decodeResultVersion } from '@omne-harness/model-contract'
 import { decodeReadId } from '@omne-harness/model-contract/provider'
-import {
-  MemoryState,
-  authFailure,
-  bump,
-  missingReceipt,
-  unresolved,
-  type MemoryCall,
-} from './state.ts'
+import { authFailure, missingReceipt, unresolved } from '../commands/judge.ts'
+import { MemoryState, bump, type MemoryCall } from './state.ts'
 import { invalid, readId } from './value.ts'
 
 function expireReads(call: MemoryCall, now: () => string, idleMs: number): void {

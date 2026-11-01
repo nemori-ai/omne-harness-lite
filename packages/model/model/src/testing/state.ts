@@ -6,52 +6,50 @@ import {
   decodeModelCallId,
   decodeModelOperationId,
   decodeModelInstanceId,
-  decodeRevision,
 } from '@omne-harness/model-contract'
 import { decodeCredentialId } from '@omne-harness/model-contract/provider'
 import type {
   Access,
-  Admission,
-  CallState,
   ConsumerRef,
-  DispatchRecord,
-  DurableEvidence,
-  FixedModelRequest,
+  MaterializationReceipt,
   ModelCallId,
   ModelFailure,
   ModelOperationId,
-  OutputCursor,
   ReadId,
   ReadState,
   ResultCapacity,
-  ResultTrim,
-  RetryDecision,
-  RetryPosition,
   Revision,
-  Settlement,
-  Snapshot,
-  VisibleBlock,
-  MaterializationReceipt,
-  Termination,
 } from '@omne-harness/model-contract'
 import type {
   ActorRef,
   ExecutionRef,
   ModelConsumerOwnerDeclaration,
-  ProviderDiagnostic,
   SendDemand,
 } from '@omne-harness/model-contract/provider'
-import { resultParts, makePage, pageEnd, materialBytes, encodedBytes } from './pages.ts'
-import type { StreamAssembly } from '@omne-harness/stream-arrival'
+import {
+  capacityValid,
+  encodedBytes,
+  makePage,
+  materialBytes,
+  pageEnd,
+  resultParts,
+} from '../commands/judge.ts'
+import type {
+  Applied,
+  Binding,
+  CallDocument,
+  DispatchDocument,
+  Draft,
+  ReadRelation,
+  WriteIdentity,
+} from '../commands/types.ts'
 import { MEMORY_WRITE_METHODS } from './types.ts'
 import type {
-  EvidenceContext,
   MemoryAction,
   MemoryModelCommandsOptions,
   MemoryModelControl,
   MemoryModelEvidence,
   MemoryWriteMethod,
-  ResultPaging,
   UnknownInjection,
 } from './types.ts'
 import {
@@ -66,76 +64,14 @@ import {
   unavailable,
 } from './value.ts'
 
-export type Receipt =
-  | Readonly<{ kind: 'revision'; revision: Revision }>
-  | Readonly<{ kind: 'admit'; admission: Admission }>
-  | Readonly<{ kind: 'claim'; instance: string; generation: string }>
-  | Readonly<{ kind: 'materialization'; revision: Revision; source: DurableEvidence }>
-  | Readonly<{ kind: 'retry'; position: RetryPosition }>
-  | Readonly<{ kind: 'settle'; settlement: Settlement }>
-  | Readonly<{ kind: 'preserve'; cursor: OutputCursor }>
-  | Readonly<{ kind: 'late'; revision: Revision }>
-  | Readonly<{ kind: 'read'; read: ReadId | null }>
-  | Readonly<{ kind: 'control' | 'handoff' | 'cleanup' }>
-export type Binding = Readonly<{
-  call: ModelCallId
-  method: MemoryWriteMethod
-  fingerprint: string
-  revision: Revision
-  receipt: Receipt
-}> &
-  (
-    | Readonly<{ status: 'committed' }>
-    | Readonly<{ status: 'unknown'; effect: 'applied' | 'not-applied' }>
-    | Readonly<{ status: 'rolled-back' | 'not-committed' }>
-  )
-export type MemoryRead = {
-  id: ReadId
-  lastProgress: string
-  furthest: number
-  state: Extract<ReadState, { kind: 'ended' }> | { kind: 'reading'; offset: number }
-}
-export type MemoryDispatch = {
-  record: DispatchRecord
-  logicalTerminal: Termination | null
-  windows: Map<string, 'open' | 'closed' | 'unproven'>
-  events: Map<string, string>
-  assembly: StreamAssembly | null
-  blocks: readonly VisibleBlock[]
-  nextSeq: Map<string, string>
-  trims: Map<string, readonly ResultTrim[]>
-  hadContent: Set<string>
-  /** The provider diagnostics of this dispatch, in the order they arrived. */
-  diagnostics: readonly ProviderDiagnostic[]
-}
-export type MemoryCall = {
-  state: CallState
-  request: FixedModelRequest | null
-  requestDigest: string
-  capacity: ResultCapacity
-  initiator: ActorRef
-  admission: ModelOperationId
-  owner: ModelConsumerOwnerDeclaration
-  execution: ExecutionRef | null
-  dispatches: MemoryDispatch[]
-  retry: RetryDecision | null
-  retryPosition: RetryPosition | null
-  retrySource: DurableEvidence | null
-  cursor: OutputCursor
-  snapshots: Map<OutputCursor, Snapshot>
-  reads: Map<ReadId, MemoryRead>
-  cleanupFailure: string | null
-  resultPaging: ResultPaging
-}
+export type { Applied, Binding, Draft, Receipt, WriteIdentity } from '../commands/types.ts'
+export type MemoryRead = ReadRelation
+export type MemoryDispatch = DispatchDocument
+export type MemoryCall = CallDocument
 export type TenantState = {
   calls: Map<ModelCallId, MemoryCall>
   operations: Map<ModelOperationId, Binding>
 }
-export type WriteIdentity = Pick<ExecutionRef, 'tenant' | 'call'> & {
-  readonly operation: ModelOperationId
-}
-export type Draft = { tenant: TenantState; call: MemoryCall | undefined }
-export type Applied<T> = { value: T; receipt: Receipt }
 
 type WriteArguments<T> = {
   input: WriteIdentity
@@ -162,46 +98,6 @@ export function bump(call: MemoryCall): Revision {
   call.state = { ...call.state, revision: next }
   return next
 }
-export function evidenceContext(
-  tenant: ExecutionRef['tenant'],
-  call: MemoryCall,
-): EvidenceContext | ModelFailure {
-  if (call.request === null) return invalid('call', 'recovery-material-released')
-  return {
-    tenant,
-    call: call.state.call,
-    consumer: call.state.consumer,
-    request: structuredClone(call.request),
-    execution: call.execution === null ? null : { ...call.execution },
-  }
-}
-export function unresolved(state: TenantState, call: ModelCallId): ModelOperationId[] {
-  return [...state.operations].flatMap(([id, op]) =>
-    op.call === call && op.status === 'unknown' ? [id] : [],
-  )
-}
-type RecoveryTask = 'execute' | 'control' | 'handoff' | 'cleanup' | 'account'
-function producerTasks(call: MemoryCall): RecoveryTask[] {
-  const result: RecoveryTask[] = []
-  if (call.state.phase !== 'settled') result.push('execute')
-  if (call.state.control.kind === 'requested' && call.state.control.propagation !== 'sent')
-    result.push('control')
-  if (call.state.phase === 'settled') result.push('handoff')
-  return result
-}
-export function tasks(call: MemoryCall, pending: readonly ModelOperationId[]): RecoveryTask[] {
-  const result = call.state.custody.kind === 'producer' ? producerTasks(call) : []
-  if (call.state.custody.kind === 'acknowledged' && call.state.custody.cleanup !== 'released')
-    result.push('cleanup')
-  if (pending.length > 0 || call.dispatches.some(d => d.record.send === 'unknown'))
-    result.push('account')
-  return result
-}
-function capacityValid(value: ResultCapacity): boolean {
-  return decimal(value.bytes, true) && decimal(value.blocks, true) && decimal(value.attachmentBytes)
-}
-export { materialBytes } from './pages.ts'
-
 export class MemoryState<P> {
   private roots = new Map<string, TenantState>()
   private plans = new Map<string, UnknownInjection>()
@@ -795,20 +691,4 @@ export class MemoryState<P> {
       ),
     }
   }
-}
-
-export function expected(
-  call: MemoryCall,
-  value: Revision,
-  operation: ModelOperationId,
-): ModelFailure | null {
-  return 'failure' in decodeRevision(value) || value !== call.state.revision
-    ? { kind: 'conflict', operation, revision: call.state.revision }
-    : null
-}
-export function authFailure(result: Outcome<ActorRef, ModelFailure>): ModelFailure | null {
-  return 'failure' in result ? result.failure : null
-}
-export function missingReceipt(): never {
-  throw new TypeError('inconsistent memory Model receipt')
 }

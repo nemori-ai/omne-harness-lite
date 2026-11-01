@@ -1,81 +1,22 @@
-import { randomUUID } from 'node:crypto'
-import { judgePart, parseMessageId } from '@omne-harness/message'
-import { assembleStream } from '@omne-harness/stream-arrival'
 import { admitRevision, judgeCallAccount } from '@omne-harness/call-account'
-import { readJsonText, writeJsonText } from '@omne-harness/json-text'
-import type {
-  ModelBlock,
-  ModelFailure,
-  Termination,
-  VisibleBlock,
-} from '@omne-harness/model-contract'
+import type { ModelFailure, VisibleBlock } from '@omne-harness/model-contract'
 import type {
   CallAccountReport,
   ProviderDiagnostic,
   TransportFact,
 } from '@omne-harness/model-contract/provider'
 import type { MemoryCall, MemoryDispatch } from './state.ts'
-import { encodedBytes, MAX_TERMINATION_BYTES } from './pages.ts'
+import {
+  completionOf,
+  encodedBytes,
+  hasContent,
+  MAX_TERMINATION_BYTES,
+  sealed,
+  sealsWhole,
+  wellFormed,
+} from '../commands/judge.ts'
 import { decimal, digest, invalid } from './value.ts'
 
-function target() {
-  const parsed = parseMessageId(`msg_${randomUUID()}`)
-  if (!parsed.ok) throw new TypeError('internal stream target')
-  return { id: parsed.value, role: 'assistant' as const }
-}
-function head(block: ModelBlock) {
-  if (block.kind === 'text' || block.kind === 'thinking') {
-    const { text: _text, ...value } = block
-    return value
-  }
-  if (block.kind === 'tool_call') {
-    const { arguments: _arguments, ...value } = block
-    return value
-  }
-  if ('inline' in block) {
-    const { inline: _inline, ...value } = block
-    return value
-  }
-  return { kind: block.kind, id: block.id, visibility: block.visibility }
-}
-function toolArgumentsFailure(block: ModelBlock, value: string): ModelFailure | null {
-  if (block.kind !== 'tool_call') return null
-  const parsed = readJsonText(value, {
-    maxBytes: Math.max(Buffer.byteLength(value), 1),
-    maxDepth: 256,
-    maxItems: 100000,
-    maxMembers: 100000,
-    maxStringLength: Math.max(value.length, 1),
-    maxNumberLength: Math.max(value.length, 1),
-  })
-  return parsed.kind !== 'ok' || writeJsonText(parsed.value) !== writeJsonText(block.arguments)
-    ? invalid('block', 'tool-arguments')
-    : null
-}
-function sealed(
-  block: ModelBlock,
-  prior: VisibleBlock | undefined,
-  trimmed: boolean,
-  filled: boolean,
-): ModelFailure | null {
-  const judged = judgePart(block)
-  if ('rejected' in judged) return invalid('block', judged.rejected)
-  if (prior?.kind === 'sealed') return invalid('block', 'closed')
-  const steps: unknown[] = [
-    { step: 'open', index: '0', mode: prior?.mode ?? 'replace', head: head(block) },
-  ]
-  if (prior?.kind === 'growing') {
-    const expectedKind = prior.content === 'tool-arguments' ? 'tool_call' : prior.content
-    if (block.kind !== expectedKind || (trimmed && block.kind === 'tool_call'))
-      return invalid('block', 'seal-kind-or-trim')
-    const failure = toolArgumentsFailure(block, prior.value)
-    if (failure) return failure
-    if (filled) steps.push({ step: 'fill', index: '0', seq: '0', chunk: prior.value })
-  }
-  steps.push({ step: 'close', index: '0', block })
-  const result = assembleStream({ target: target(), steps })
-  return 'rejected' in result ? invalid('block', result.detail ?? result.rejected) : null
-}
 /**
  * Keeps the account that a provider reported for a dispatch. The runtime adds the subject (this
  * call) and the receipt (`received` in the stream, `late` through `recordLateFact`). A report that
@@ -110,102 +51,6 @@ export function accountFact(
   dispatch.events.set(`account:${event}`, fingerprint)
   dispatch.record = { ...dispatch.record, account: structuredClone(judged.ok) }
   return null
-}
-function completionBlockSteps(
-  dispatch: MemoryDispatch,
-  visible: Extract<VisibleBlock, { kind: 'sealed' }>,
-  index: string,
-): unknown[] {
-  const block = visible.block
-  const steps: unknown[] = [{ step: 'open', index, mode: 'replace', head: head(block) }]
-  const body =
-    block.kind === 'text' || block.kind === 'thinking'
-      ? block.text
-      : 'inline' in block
-        ? block.inline
-        : null
-  if (
-    body !== null &&
-    (block.kind === 'text' ||
-      block.kind === 'thinking' ||
-      (block.kind === 'voice' && dispatch.nextSeq.get(visible.index) !== '0'))
-  )
-    steps.push({ step: 'fill', index, seq: '0', chunk: body })
-  steps.push({ step: 'close', index, block })
-  return steps
-}
-/**
- * Whether the blocks of a completed dispatch form one assistant message. `formed`: they do, or the
- * termination does not complete. `refused`: the content does not form a message, so the logical
- * terminal stays open. `replay-unknown`: the content holds reasoning state parts, but the replay
- * `format` of this dispatch is unknown, so the message cannot be written.
- */
-export type Completion =
-  | Readonly<{ kind: 'formed' }>
-  | Readonly<{ kind: 'refused' | 'replay-unknown'; failure: ModelFailure }>
-type FinishReplay =
-  | Readonly<{ kind: 'none' }>
-  | Readonly<{ kind: 'range'; scope: string; format: string }>
-  | Readonly<{ kind: 'unknown'; failure: ModelFailure }>
-/**
- * The replay of the finish. `scope` is the `produces` of the request declaration of the dispatch
- * supplier; `format` is the `replayFormat` of the dispatch receipt. Content without reasoning
- * leaves the finish without replay. Thinking alone without a known range does too (RS-03: the
- * origin of the reasoning text is unknown). Reasoning state parts need both: a missing `format`
- * fails named (`replay-format-unknown`); a missing `scope` breaks an invariant and throws.
- */
-function finishReplay(
-  call: MemoryCall,
-  dispatch: MemoryDispatch,
-  blocks: readonly ModelBlock[],
-): FinishReplay {
-  const state = blocks.some(block => block.kind === 'reasoning_state')
-  if (!state && !blocks.some(block => block.kind === 'thinking')) return { kind: 'none' }
-  const format = dispatch.record.materialization?.receipt.replayFormat
-  if (format === undefined)
-    return state
-      ? { kind: 'unknown', failure: invalid('termination', 'replay-format-unknown') }
-      : { kind: 'none' }
-  const supplier = digest(dispatch.record.supplier)
-  const index = call.request?.suppliers.findIndex(item => digest(item) === supplier) ?? -1
-  const scope = call.request?.declarations[index]?.produces
-  if (scope !== undefined) return { kind: 'range', scope, format }
-  if (!state) return { kind: 'none' }
-  // Unreachable while the invariants hold: the request declares every supplier it may dispatch
-  // to; the cleanup clears the request and the blocks in one step; and a late terminal of a
-  // settled call forms no message. Reaching here is a program defect, not a failure of the write.
-  throw new TypeError(
-    'a completion with reasoning state found no replay declaration for its dispatch supplier: ' +
-      'the request must declare every supplier, and cleanup must clear the blocks with the request',
-  )
-}
-export function completionOf(
-  call: MemoryCall,
-  dispatch: MemoryDispatch,
-  termination: Termination | Extract<TransportFact, { kind: 'ended' }>['termination'],
-): Completion {
-  if (termination.kind !== 'completed' || termination.reason === 'limit') return { kind: 'formed' }
-  const sealed = dispatch.blocks.flatMap(b => (b.kind === 'sealed' ? [b] : []))
-  if (sealed.length === 0 || sealed.length !== dispatch.blocks.length)
-    return { kind: 'refused', failure: invalid('termination', 'unsealed-or-empty') }
-  const replay = finishReplay(
-    call,
-    dispatch,
-    sealed.map(visible => visible.block),
-  )
-  if (replay.kind === 'unknown') return { kind: 'replay-unknown', failure: replay.failure }
-  const steps: unknown[] = []
-  for (const [i, visible] of sealed.entries())
-    steps.push(...completionBlockSteps(dispatch, visible, String(i)))
-  const index = String(dispatch.blocks.length)
-  steps.push(
-    replay.kind === 'none'
-      ? { step: 'finish', index }
-      : { step: 'finish', index, replay: { scope: replay.scope, format: replay.format } },
-  )
-  if ('rejected' in assembleStream({ target: target(), steps }))
-    return { kind: 'refused', failure: invalid('termination', 'invalid-completion') }
-  return { kind: 'formed' }
 }
 function endDispatch(
   call: MemoryCall,
@@ -265,14 +110,6 @@ function fillBlock(
   }
   return null
 }
-function hasContent(block: ModelBlock): boolean {
-  if (block.kind === 'text' || block.kind === 'thinking') return block.text.length > 0
-  return 'inline' in block ? block.inline.length > 0 : true
-}
-/** Media blocks and reasoning state parts may arrive sealed, without an open before them. */
-function sealsWhole(block: ModelBlock): boolean {
-  return block.kind === 'image' || block.kind === 'file' || block.kind === 'reasoning_state'
-}
 function sealBlock(
   dispatch: MemoryDispatch,
   fact: Extract<TransportFact, { kind: 'block-seal' }>,
@@ -316,46 +153,6 @@ function trimBlock(
     { removed: fact.removed, reason: fact.reason },
   ])
   return null
-}
-const DIAGNOSTIC_FIELDS: Readonly<Record<ProviderDiagnostic['kind'], readonly string[]>> = {
-  'replay-omitted': ['kind', 'message', 'scope', 'format', 'omittedParts'],
-  'reasoning-disabled': ['kind', 'reason'],
-  'reasoning-state-dropped': ['kind', 'reason', 'length'],
-  'usage-inconsistent': ['kind', 'field'],
-}
-function isCount(value: unknown): boolean {
-  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0
-}
-function isText(value: unknown): boolean {
-  return typeof value === 'string' && value.length > 0
-}
-/** True when the diagnostic has exactly the fields of its kind, each of the right type. */
-function wellFormed(diagnostic: ProviderDiagnostic): boolean {
-  const fields: readonly string[] | undefined = Object.hasOwn(DIAGNOSTIC_FIELDS, diagnostic.kind)
-    ? DIAGNOSTIC_FIELDS[diagnostic.kind]
-    : undefined
-  const keys = Object.keys(diagnostic)
-  if (fields === undefined || keys.length !== fields.length) return false
-  if (!keys.every(key => fields.includes(key))) return false
-  switch (diagnostic.kind) {
-    case 'replay-omitted':
-      return (
-        parseMessageId(diagnostic.message).ok &&
-        isText(diagnostic.scope) &&
-        isText(diagnostic.format) &&
-        isCount(diagnostic.omittedParts)
-      )
-    case 'reasoning-disabled':
-      return diagnostic.reason === 'foreign-prefix'
-    case 'reasoning-state-dropped':
-      return diagnostic.reason === 'payload-too-long' && isCount(diagnostic.length)
-    case 'usage-inconsistent':
-      return isText(diagnostic.field)
-    default: {
-      const _exhaustive: never = diagnostic
-      return _exhaustive
-    }
-  }
 }
 /** Keeps a diagnostic on the dispatch. It changes no block, no first content and no terminal. */
 function diagnosticFact(

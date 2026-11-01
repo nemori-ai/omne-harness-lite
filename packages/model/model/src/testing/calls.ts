@@ -1,4 +1,3 @@
-import { encodedBytes, MAX_SETTLEMENT_BYTES, MAX_TERMINATION_BYTES } from './pages.ts'
 import { checkedEvidence } from './value.ts'
 import { randomUUID } from 'node:crypto'
 import { tenantKey } from './value.ts'
@@ -8,89 +7,23 @@ import {
   decodeModelInstanceId,
 } from '@omne-harness/model-contract'
 import { judgeAdmit } from '@omne-harness/model-contract/provider'
-import type {
-  ModelCallId,
-  ModelFailure,
-  Termination,
-  Settlement,
-  Lookup,
-} from '@omne-harness/model-contract'
+import type { ModelCallId, Settlement, Lookup } from '@omne-harness/model-contract'
 import type { ModelCommands } from '@omne-harness/model-contract/provider'
 import {
-  MemoryState,
   authFailure,
-  bump,
+  encodedBytes,
   evidenceContext,
   expected,
+  MAX_SETTLEMENT_BYTES,
   missingReceipt,
+  pendingCalls,
+  settlementFailure,
   tasks,
   unresolved,
-  type MemoryCall,
-  type TenantState,
-} from './state.ts'
+} from '../commands/judge.ts'
+import { MemoryState, bump } from './state.ts'
 import { cursor, digest, invalid, resultVersion, revision } from './value.ts'
 
-function settlementFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
-  const pending = settlementPendingFailure(call)
-  if (pending) return pending
-  const actual = settlementActualFailure(call, termination)
-  if (actual) return actual
-  if (encodedBytes(termination) > MAX_TERMINATION_BYTES)
-    return invalid('termination', 'encoded-byte-limit')
-  return null
-}
-function settlementPendingFailure(call: MemoryCall): ModelFailure | null {
-  const latest = call.dispatches.at(-1)
-  if (call.retryPosition && call.retry === null) return invalid('termination', 'retry-pending')
-  if (call.retry?.kind === 'retry') return invalid('termination', 'retry-pending')
-  if (latest && [...latest.windows.values()].includes('open'))
-    return invalid('termination', 'receive-pending')
-  return undecidedRetryFailure(call)
-}
-function settlementActualFailure(call: MemoryCall, termination: Termination): ModelFailure | null {
-  const latest = call.dispatches.at(-1)
-  const terminal = latest?.logicalTerminal
-  const stopped = call.retry?.kind === 'stop' ? { kind: 'failed', fault: call.retry.fault } : null
-  const actual = stopped ?? terminal
-  const beforeSendControl =
-    !latest &&
-    call.state.control.kind === 'requested' &&
-    termination.kind === 'interrupted' &&
-    termination.control === call.state.control.operation
-  if (
-    !beforeSendControl &&
-    (actual === null || actual === undefined || digest(actual) !== digest(termination))
-  )
-    return invalid('termination', 'not-actual')
-  return null
-}
-function undecidedRetryFailure(call: MemoryCall): ModelFailure | null {
-  const latest = call.dispatches.at(-1)
-  const terminal = latest?.logicalTerminal
-  if (
-    terminal?.kind === 'failed' &&
-    latest?.record.firstContent === 'none-proven' &&
-    !['input-over-limit', 'excluded', 'credential', 'input-rejected', 'modality'].includes(
-      terminal.fault.cause,
-    ) &&
-    call.retry === null &&
-    call.state.control.kind === 'none'
-  )
-    return invalid('termination', 'retry-not-decided')
-  return null
-}
-function pendingCalls(root: TenantState): readonly ModelCallId[] {
-  return [
-    ...new Set([
-      ...[...root.calls.values()]
-        .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
-        .map(call => call.state.call),
-      ...[...root.operations.values()]
-        .filter(operation => operation.status === 'unknown')
-        .map(operation => operation.call),
-    ]),
-  ].sort()
-}
 export function callCommands<P>(
   store: MemoryState<P>,
 ): Pick<ModelCommands<P>, 'admit' | 'recall' | 'query' | 'dispatches' | 'control' | 'settle'> {
