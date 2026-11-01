@@ -415,7 +415,34 @@ importers:
       '@omne-harness/agent-cordis-contract':
         specifier: workspace:*
         version: link:../agent-cordis-contract
+      '@omne-harness/content-block':
+        specifier: workspace:*
+        version: link:../../common/content-block
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/model-contract':
+        specifier: workspace:*
+        version: link:../../model/model-contract
+      '@omne-harness/model-cordis-contract':
+        specifier: workspace:*
+        version: link:../../model/model-cordis-contract
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
+      '@omne-harness/tool-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-contract
+      '@omne-harness/tool-cordis-contract':
+        specifier: workspace:*
+        version: link:../../tool/tool-cordis-contract
     devDependencies:
+      '@omne-harness/message':
+        specifier: workspace:*
+        version: link:../../common/message
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
