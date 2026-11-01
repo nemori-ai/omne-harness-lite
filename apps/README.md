@@ -7,7 +7,7 @@
 | 装配角色 | 架构入口 | 成员状态 |
 | --- | --- | --- |
 | 客户端表现及系统接入 | [系统分层](../docs/architecture/layers-and-dependencies.md) | 最小 CLI 已建为 [`apps/cli`](cli/README.md)，只有 help 与 version；SDK 调用和 TTY 呈现尚未实现 |
-| 个人设备常驻Harness Server及多进程协作 | [单机部署](../docs/architecture/deployment/single-machine.md) | 待明确具体成员 |
+| 个人设备常驻Harness Server及多进程协作 | [单机部署](../docs/architecture/deployment/single-machine.md) | 私有 S0 成员 [`apps/harness-server`](harness-server/README.md) 在建，只验证装载、可见性、就绪与有序关闭，不接 HTTP，不是可部署成员 |
 | 云节点与集群装配 | [部署入口](../docs/architecture/deployment/README.md) | 待明确具体成员 |
 
 ## 建立与维护
