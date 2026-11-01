@@ -3,6 +3,9 @@
 // 运行名额脚本的行为核对：透传退出码、嵌套放行、占满时按先来后到排队并报出位置、
 // 被杀的排队者不挡后来者、等太久放弃且不执行命令，以及每次用完或放弃都在运行账本记一行；
 // 账本的等待与占用秒数按毫秒差截到整秒，用预载的伪时钟把时刻放到整秒边界两侧核对。
+// 分侧判存活（#979 D1）：登记带 side 行，进程号只在同侧判，对侧只看心跳或年龄；队列锁同一规则、只删自己的；
+// 票号单调、票被回收时提示；持有者发现名额文件被删时提示；旧版登记按同侧处理；WSL 里的默认目录解析
+// 用预载的替身覆盖 wslpath 与 PowerShell，不依赖真实 WSL（真实跨侧归 test-slot-wsl.spec.ts）。
 import { type ChildProcess, execFileSync, spawn, spawnSync } from 'node:child_process'
 import {
   existsSync,
@@ -11,10 +14,12 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
+  statSync,
+  utimesSync,
   writeFileSync,
   realpathSync,
 } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { hostname, tmpdir, userInfo } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -22,8 +27,16 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 const SCRIPT = resolve(
   fileURLToPath(new URL('../../../scripts/with-test-slot.sh', import.meta.url)),
 )
+const REPOSITORY_ROOT = resolve(fileURLToPath(new URL('../../../', import.meta.url)))
 
 const WINDOWS = process.platform === 'win32'
+
+/** 本进程的 side，与脚本同一算法：平台@主机名，WSL 里再加发行版名。 */
+const SIDE = `${process.platform}@${hostname()}${
+  process.env['WSL_DISTRO_NAME'] ? `/${process.env['WSL_DISTRO_NAME']}` : ''
+}`
+/** 对侧登记用的 side：主机名不同就够了，脚本只比较整串。 */
+const OTHER_SIDE = 'other@elsewhere'
 
 /** Git for Windows 的 bash：从 `git --exec-path`（`<Git>/mingw64/libexec/git-core`）往上三级找 `bin/bash.exe`。 */
 function gitBash(): string {
@@ -60,13 +73,18 @@ function killTree(pid: number): void {
 }
 
 let dir: string
-/** 后台起的进程组；用例失败、等着放行的命令没被放行时，收尾整组杀掉，不留空转的进程。 */
-let groups: number[] = []
+/**
+ * 后台起的进程；用例失败、等着放行的命令没被放行时，收尾整组杀掉，不留空转的进程。
+ * 已经退出的不再杀：Windows 上每次 taskkill 都要起一个进程，机器忙时几次就超过收尾钩子的时限。
+ */
+let groups: ChildProcess[] = []
 beforeEach(() => {
   dir = realpathSync(mkdtempSync(join(tmpdir(), 'omne-slot-')))
 })
 afterEach(() => {
-  for (const group of groups) killTree(group)
+  for (const child of groups)
+    if (child.pid !== undefined && child.exitCode === null && child.signalCode === null)
+      killTree(child.pid)
   groups = []
   rmSync(dir, { recursive: true, force: true })
 })
@@ -206,15 +224,170 @@ function clockShift(): string {
   return join(dir, 'clock.shift')
 }
 
-/** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。 */
-function queue(args: readonly string[], env: Record<string, string> = {}): Queued {
-  const child = spawn(...launch(args), {
+/** 写出一个预载模块，返回让脚本（与它起的 node 子进程）预载它的环境变量。 */
+function preload(name: string, source: string): Record<string, string> {
+  const path = join(dir, `${name}.mjs`)
+  writeFileSync(path, source)
+  return { NODE_OPTIONS: `--import ${pathToFileURL(path).href}` }
+}
+
+/**
+ * 替身：WSL 里解析默认目录要起的 `wslpath` 与 PowerShell。`wslpath -u X:\a\b` 映射到 `SLOT_TEST_INTEROP_ROOT/a/b`；
+ * PowerShell 按 `SLOT_TEST_INTEROP` 行事：`ok` 建好目录与命令里点名的探针文件并报出 Windows 路径，
+ * `unshared` 只报路径不建文件（解析出的目录里看不见 Windows 建的文件），`broken` 起不来。其余命令照常起。
+ */
+const INTEROP_SOURCE = `import cp from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { syncBuiltinESMExports } from 'node:module'
+import { dirname, join } from 'node:path'
+const root = process.env.SLOT_TEST_INTEROP_ROOT
+const mode = process.env.SLOT_TEST_INTEROP
+const toLinux = windows => join(root, ...windows.replace(/^[A-Za-z]:\\\\/, '').split('\\\\'))
+const reply = (status, stdout, stderr) => ({ status, stdout, stderr, pid: 0, signal: null, output: [null, stdout, stderr] })
+const real = cp.spawnSync
+cp.spawnSync = (file, args, options) => {
+  // 真实 WSL 上 binfmt 没登记时脚本经 /init 起：那时程序在第一个参数里。
+  const argv = Array.isArray(args) ? (file === '/init' ? args.slice(1) : args) : []
+  const program = file === '/init' && Array.isArray(args) ? String(args[0]) : String(file)
+  if (program === 'wslpath') {
+    const linux = toLinux(String(argv[1]))
+    // Windows 的系统目录在替身里也看得见：脚本先核对 powershell.exe 在不在
+    if (/powershell\\.exe$/iu.test(linux)) {
+      mkdirSync(dirname(linux), { recursive: true })
+      writeFileSync(linux, '')
+    }
+    return reply(0, linux + '\\n', '')
+  }
+  if (/powershell\\.exe$/iu.test(program)) {
+    if (mode === 'broken') return reply(1, '', 'interop 关着\\n')
+    const windows = 'C:\\\\Temp\\\\omne-test-slots-tester'
+    if (mode === 'ok') {
+      const linux = toLinux(windows)
+      mkdirSync(linux, { recursive: true })
+      // 命令里点名的探针是 .omne-probe-<进程号>；清旧探针那句的 .omne-probe-* 不算
+      const probe = /\\.omne-probe-\\d+/u.exec(argv.join(' '))?.[0]
+      writeFileSync(join(linux, probe), '')
+    }
+    return reply(0, windows + '\\r\\n', '')
+  }
+  return real(file, args, options)
+}
+syncBuiltinESMExports()
+`
+
+/**
+ * 替身：往 `SLOT_TEST_GATED_LEDGER` 追加账本行之前，等 `SLOT_TEST_LEDGER_GATE` 文件出现（最多 15 秒）。
+ * 脚本在队列锁内写账本，所以这能把它钉在持有队列锁的那一刻。
+ */
+const LEDGER_GATE_SOURCE = `import fs from 'node:fs'
+import { syncBuiltinESMExports } from 'node:module'
+const gated = process.env.SLOT_TEST_GATED_LEDGER
+const gate = process.env.SLOT_TEST_LEDGER_GATE
+const real = fs.appendFileSync
+fs.appendFileSync = (path, ...rest) => {
+  if (path === gated) {
+    const deadline = Date.now() + 15_000
+    while (!fs.existsSync(gate) && Date.now() < deadline)
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50)
+  }
+  return real(path, ...rest)
+}
+syncBuiltinESMExports()
+`
+
+/** 等到 `ready()` 成立；超过 `limitMs` 则失败。 */
+async function waitFor(ready: () => boolean, what: string, limitMs = 10_000): Promise<void> {
+  const deadline = Date.now() + limitMs
+  while (!ready()) {
+    if (Date.now() > deadline) throw new Error(`等了 ${limitMs} 毫秒没等到：${what}`)
+    await new Promise(tick => setTimeout(tick, 50))
+  }
+}
+
+/**
+ * 手写一份登记（名额、票或队列锁的 owner）：进程号、side（不给就不写这一行，即旧版格式，按同侧处理）、
+ * 心跳间隔，修改时间拨到 `age` 秒前。
+ */
+function register(
+  name: string,
+  entry: {
+    readonly pid: number
+    readonly side?: string
+    readonly beat?: number
+    readonly age?: number
+  },
+): string {
+  const path = join(dir, 'locks', name)
+  mkdirSync(dirname(path), { recursive: true })
+  const side = entry.side === undefined ? '' : `side=${entry.side}\n`
+  writeFileSync(
+    path,
+    `pid=${entry.pid}\n${side}since=${Math.floor(Date.now() / 1000)}\ncwd=${dir}\ncmd=手写的登记\nbeat=${entry.beat ?? 5}\n`,
+  )
+  const at = new Date(Date.now() - (entry.age ?? 0) * 1000)
+  utimesSync(path, at, at)
+  return path
+}
+
+/** 在锁目录里放一把队列锁，owner 写成给定内容，修改时间拨到 `age` 秒前。 */
+function placeQueueLock(owner: string, age = 0): string {
+  const lock = join(dir, 'locks', 'queue.lock')
+  mkdirSync(lock, { recursive: true })
+  writeFileSync(join(lock, 'owner'), owner)
+  const at = new Date(Date.now() - age * 1000)
+  utimesSync(lock, at, at)
+  return lock
+}
+
+/** 一个已经退出的进程的进程号。 */
+function deadPid(): number {
+  const exited = spawnSync(process.execPath, ['-e', '0'])
+  return exited.pid
+}
+
+/**
+ * 让一张票看起来心跳停了：把修改时间拨到 60 秒前。登记者每轮刷新它，所以拨完等一会再看，
+ * 被刷回来就再拨，直到旧时间留住。
+ */
+async function stall(path: string): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const old = new Date(Date.now() - 60_000)
+    utimesSync(path, old, old)
+    await new Promise(tick => setTimeout(tick, 250))
+    if (Date.now() - statSync(path).mtimeMs > 30_000) return
+  }
+  throw new Error(`${path} 的修改时间一直被刷回来`)
+}
+
+/** 基线版脚本（登记没有 side 行）：从 git 历史抽出放进临时目录，直接用 node 起。 */
+const BASELINE = '1a80ccd93eab67930bafcb4c679db66957ff9614'
+function legacyLaunch(): readonly [string, ...string[]] {
+  const path = join(dir, 'legacy-with-test-slot.mjs')
+  writeFileSync(
+    path,
+    execFileSync('git', ['show', `${BASELINE}:scripts/with-test-slot.mjs`], {
+      cwd: REPOSITORY_ROOT,
+      encoding: 'utf8',
+      env: gitEnv(REPOSITORY_ROOT, process.env),
+    }),
+  )
+  return [process.execPath, path]
+}
+
+/** 在后台经名额执行命令，边跑边收集输出；默认每秒看一次队列。`launcher` 可换成别的版本的脚本。 */
+function queue(
+  args: readonly string[],
+  env: Record<string, string> = {},
+  launcher: readonly [string, ...string[]] = LAUNCH,
+): Queued {
+  const [file, ...rest] = launcher
+  const child = spawn(file, [...rest, ...args], {
     env: slotEnv({ OMNE_TEST_SLOT_POLL_SECONDS: '1', ...env }),
     stdio: ['ignore', 'pipe', 'pipe'],
     // POSIX 上自成进程组，收尾时整组杀掉；Windows 上 detached 只会另开控制台，收尾改用 taskkill。
     detached: !WINDOWS,
   })
-  if (child.pid !== undefined) groups.push(child.pid)
+  groups.push(child)
   let stdout = ''
   let stderr = ''
   let done = false
@@ -248,16 +421,24 @@ function queue(args: readonly string[], env: Record<string, string> = {}): Queue
  * 经名额执行一条等着放行的命令：拿到名额后建 `<name>.ready`，等 `<name>.release` 出现才结束。
  * 命令行以 `env SLOT_TEST=<name>` 开头，排队者报出的持有者命令据此认得出是谁。
  */
-function blocker(name: string) {
+function blocker(
+  name: string,
+  env: Record<string, string> = {},
+  launcher: readonly [string, ...string[]] = LAUNCH,
+) {
   const ready = join(dir, `${name}.ready`)
   const release = join(dir, `${name}.release`)
-  const queued = queue([
-    'env',
-    `SLOT_TEST=${name}`,
-    'bash',
-    '-c',
-    `touch "${ready}"; until [ -e "${release}" ]; do sleep 0.1; done`,
-  ])
+  const queued = queue(
+    [
+      'env',
+      `SLOT_TEST=${name}`,
+      'bash',
+      '-c',
+      `touch "${ready}"; until [ -e "${release}" ]; do sleep 0.1; done`,
+    ],
+    env,
+    launcher,
+  )
   return {
     queued,
     started: async () => {
@@ -623,5 +804,223 @@ describe('with-test-slot.sh', { timeout: 30_000 }, () => {
     expect(slot([]).status).toBe(2)
     expect(slot(['true'], { OMNE_TEST_SLOTS: '两个' }).status).toBe(2)
     expect(slot(['true'], { OMNE_TEST_SLOTS: '0' }).status).toBe(2)
+  })
+
+  it('登记带 side 行：平台@主机名，给了 WSL_DISTRO_NAME 再加发行版名；排队提示里报出持有者的侧', async () => {
+    const holder = await hold()
+    expect(readFileSync(join(dir, 'locks', 'slot-1.lock'), 'utf8')).toContain(`\nside=${SIDE}\n`)
+    const waiter = queue(['true'], { WSL_DISTRO_NAME: 'Fedora' })
+    await waiter.until(`，${SIDE}）`)
+    const [ticket] = tickets()
+    expect(readFileSync(join(dir, 'locks', ticket ?? ''), 'utf8')).toContain(
+      `\nside=${process.platform}@${hostname()}/Fedora\n`,
+    )
+    await holder.release()
+    expect(await waiter.exited).toBe(0)
+  })
+
+  it('对侧的登记：心跳新鲜时排队不删（名额与票都算数），心跳停过阈值才回收并拿到', () => {
+    // 对侧的进程号在本侧判不了：这个号在本侧已经退出，心跳却是新鲜的。
+    const held = register('slot-1.lock', { pid: deadPid(), side: OTHER_SIDE, beat: 5 })
+    const before = readFileSync(held, 'utf8')
+    const refused = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(refused.status, refused.stderr).toBe(75)
+    expect(refused.stdout).toBe('')
+    expect(readFileSync(held, 'utf8')).toBe(before)
+    // 对侧的活票排在前面。
+    const ticket = register('ticket-7', { pid: deadPid(), side: OTHER_SIDE, beat: 1 })
+    const behind = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(behind.status).toBe(75)
+    expect(behind.stderr).toContain('前面还有 1 个')
+    expect(existsSync(ticket)).toBe(true)
+    // 心跳停了 30 秒：两份登记都失效，立刻回收并拿到。
+    for (const path of [held, ticket]) {
+      const old = new Date(Date.now() - 30_000)
+      utimesSync(path, old, old)
+    }
+    const ran = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(ran.status, ran.stderr).toBe(0)
+    expect(ran.stdout).toBe('跑了\n')
+    expect(ran.stderr).toBe('')
+    expect(existsSync(ticket)).toBe(false)
+  })
+
+  it('同侧的登记：进程不在了立刻回收（没有 side 行的旧版登记同样）；进程在而心跳停了，过了阈值加一次轮询内回收', async () => {
+    register('slot-1.lock', { pid: deadPid(), side: SIDE, beat: 5 })
+    const immediate = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(immediate.status, immediate.stderr).toBe(0)
+    expect(immediate.stderr).toBe('')
+    // 旧版登记没有 side 行：按同侧判进程号，不是只看心跳等 20 秒。
+    register('slot-1.lock', { pid: deadPid(), beat: 5 })
+    const legacy = slot(['bash', '-c', 'echo 跑了'], { OMNE_TEST_SLOT_MAX_WAIT_SECONDS: '0' })
+    expect(legacy.status, legacy.stderr).toBe(0)
+    expect(legacy.stdout).toBe('跑了\n')
+    // 进程号是本进程（活着），心跳 5 秒前停了，阈值 3×1+5=8 秒：再过约 3 秒失效，每秒看一次。
+    register('slot-1.lock', { pid: process.pid, side: SIDE, beat: 1, age: 5 })
+    const waiter = queue(['bash', '-c', 'echo 轮到了'])
+    await waiter.until('排队中')
+    expect(await waiter.exited).toBe(0)
+    expect(waiter.stdout()).toBe('轮到了\n')
+    const waited = Number(/等了 (\d+) 秒，拿到名额/u.exec(waiter.stderr())?.[1])
+    expect(waited).toBeGreaterThanOrEqual(2)
+    expect(waited).toBeLessThanOrEqual(8)
+  })
+
+  it('票号单调：票被回收后新号比它大；先到者发现票没了就提示并重新排队，最终拿到名额', async () => {
+    const holder = await hold()
+    // 先到者 3 秒看一次，它的票 60 秒没刷新就当作心跳停了。
+    const first = appendOrder('A', { OMNE_TEST_SLOT_POLL_SECONDS: '3' })
+    await first.until('排队中')
+    expect(tickets()).toEqual(['ticket-1'])
+    await stall(join(dir, 'locks', 'ticket-1'))
+    const second = appendOrder('B')
+    await second.until('排队中')
+    // 后到者把失效的 1 号删了，领到的是 2 号，不是 1 号。
+    expect(tickets()).toEqual(['ticket-2'])
+    await first.until('票被回收，重新排队（前面还有 1 个）')
+    expect(tickets().sort()).toEqual(['ticket-2', 'ticket-3'])
+    await holder.release()
+    expect(await Promise.all([first.exited, second.exited])).toEqual([0, 0])
+    expect(order()).toEqual(['B', 'A'])
+    expect(tickets()).toEqual([])
+  })
+
+  it('旧版脚本的登记没有 side 行，按同侧处理：与新版混跑仍互斥', async () => {
+    const legacy = legacyLaunch()
+    const legacyHolder = blocker('legacy', {}, legacy)
+    await legacyHolder.started()
+    expect(readFileSync(join(dir, 'locks', 'slot-1.lock'), 'utf8')).not.toContain('side=')
+    const waiter = appendOrder('new')
+    await waiter.until('排队中')
+    expect(existsSync(join(dir, 'order'))).toBe(false)
+    await legacyHolder.release()
+    expect(await waiter.exited).toBe(0)
+    const holder = await hold()
+    const legacyWaiter = queue(['bash', '-c', `echo legacy >> "${join(dir, 'order')}"`], {}, legacy)
+    await legacyWaiter.until('排队中')
+    expect(order()).toEqual(['new'])
+    await holder.release()
+    expect(await legacyWaiter.exited).toBe(0)
+    expect(order()).toEqual(['new', 'legacy'])
+  })
+
+  describe('WSL 里的默认目录', () => {
+    /** 不设 OMNE_TEST_SLOT_DIR，让脚本自己解析；Windows 上 TEMP 指到临时目录，回退也落在私有目录里。 */
+    function resolveDefault(mode: 'ok' | 'unshared' | 'broken') {
+      const root = join(dir, 'windows')
+      const env = slotEnv({
+        ...preload('interop', INTEROP_SOURCE),
+        WSL_DISTRO_NAME: 'Fake',
+        SLOT_TEST_INTEROP: mode,
+        SLOT_TEST_INTEROP_ROOT: root,
+        TEMP: dir,
+        TMP: dir,
+      })
+      delete env['OMNE_TEST_SLOT_DIR']
+      const result = spawnSync(
+        ...launch([
+          process.execPath,
+          '-e',
+          'process.stdout.write(process.env.OMNE_TEST_SLOT_HELD)',
+        ]),
+        { encoding: 'utf8', env, timeout: 20_000 },
+      )
+      return { ...result, root }
+    }
+    /** 回退目录：Windows 上是 TEMP（已指到临时目录）下的；POSIX 上是真实的 /tmp 下的，用例只在里面短暂领一次。 */
+    const fallback = () =>
+      WINDOWS
+        ? join(dir, `omne-test-slots-${userInfo().username}`)
+        : `/tmp/omne-test-slots-${process.getuid?.() ?? ''}`
+
+    it('有 interop：解析到 Windows 侧临时目录下的同一个目录，探针用完即删，不提示', () => {
+      const result = resolveDefault('ok')
+      const shared = join(result.root, 'Temp', 'omne-test-slots-tester')
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe(join(shared, 'slot-1.lock'))
+      expect(result.stderr).toBe('')
+      expect(readdirSync(shared).filter(name => name.startsWith('.omne-probe-'))).toEqual([])
+    })
+
+    it('interop 起不来：回退到本侧目录，并在标准错误提示没有共用名额', () => {
+      const result = resolveDefault('broken')
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe(join(fallback(), 'slot-1.lock'))
+      expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
+      expect(result.stderr).toContain(fallback())
+    })
+
+    it('解析出了路径，但 Windows 建的文件在那里看不见：同目录判定不成立，回退并提示', () => {
+      const result = resolveDefault('unshared')
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe(join(fallback(), 'slot-1.lock'))
+      expect(result.stderr).toContain('WSL 与 Windows 没有共用名额')
+      expect(result.stderr).toContain('看不见')
+    })
+  })
+
+  it('对侧的队列锁：年龄不到 30 秒不删、等着；过了 30 秒才删。同侧进程不在了立刻删', async () => {
+    const lock = placeQueueLock(`pid=${deadPid()}\nside=${OTHER_SIDE}\n`)
+    const waiter = appendOrder('A')
+    await new Promise(tick => setTimeout(tick, 2000))
+    expect(existsSync(join(dir, 'order'))).toBe(false)
+    expect(readFileSync(join(lock, 'owner'), 'utf8')).toContain(`side=${OTHER_SIDE}`)
+    rmSync(lock, { recursive: true, force: true })
+    expect(await waiter.exited).toBe(0)
+    expect(order()).toEqual(['A'])
+    placeQueueLock(`pid=${deadPid()}\nside=${OTHER_SIDE}\n`, 40)
+    const aged = slot(['bash', '-c', 'echo 过期'])
+    expect(aged.status, aged.stderr).toBe(0)
+    expect(aged.stdout).toBe('过期\n')
+    placeQueueLock(`pid=${deadPid()}\nside=${SIDE}\n`)
+    const same = slot(['bash', '-c', 'echo 同侧'])
+    expect(same.status, same.stderr).toBe(0)
+    expect(same.stdout).toBe('同侧\n')
+  })
+
+  it('结束时只删自己的队列锁：锁被别人重建过就不动它', async () => {
+    const gate = join(dir, 'ledger.gate')
+    const holder = queue(['bash', '-c', 'true'], {
+      ...preload('ledger-gate', LEDGER_GATE_SOURCE),
+      SLOT_TEST_GATED_LEDGER: join(dir, 'ledger.jsonl'),
+      SLOT_TEST_LEDGER_GATE: gate,
+    })
+    const slotFile = join(dir, 'locks', 'slot-1.lock')
+    const owner = join(dir, 'locks', 'queue.lock', 'owner')
+    await waitFor(() => existsSync(slotFile), '拿到名额')
+    // 命令跑完、名额已删、卡在写账本：这时它持有队列锁。
+    await waitFor(() => !existsSync(slotFile) && existsSync(owner), '收尾时持有队列锁')
+    expect(readFileSync(owner, 'utf8')).toContain(`side=${SIDE}`)
+    const foreign = `pid=${deadPid()}\nside=${OTHER_SIDE}\n`
+    rmSync(dirname(owner), { recursive: true, force: true })
+    placeQueueLock(foreign)
+    writeFileSync(gate, '')
+    expect(await holder.exited).toBe(0)
+    expect(readFileSync(owner, 'utf8')).toBe(foreign)
+    expect(ledger()).toMatchObject([{ event: 'ran', exitCode: 0 }])
+  })
+
+  it('持有者发现名额文件被删：标准错误报一句，命令照常跑完', async () => {
+    const holder = blocker('holder')
+    await holder.started()
+    rmSync(join(dir, 'locks', 'slot-1.lock'))
+    await holder.queued.until('名额文件被删')
+    await holder.release()
+    expect(await holder.queued.exited).toBe(0)
+    expect(ledger()).toMatchObject([{ event: 'ran', exitCode: 0 }])
+  })
+
+  it('读者时钟超前 25 秒、持有者在对侧：会误删活着的持有者并拿到名额，持有者报名额文件被删（已知限制）', async () => {
+    const holder = blocker('holder', { WSL_DISTRO_NAME: 'elsewhere' })
+    await holder.started()
+    // 读者拿到名额后占 8 秒：持有者下一次心跳（5 秒一次）落在这期间，发现登记已经是别人的，不等读者放手才报。
+    const reader = queue(['bash', '-c', 'echo 抢到了; sleep 8'], clockEnv(Date.now() + 25_000))
+    await waitFor(() => reader.stdout().includes('抢到了'), '读者拿到名额')
+    expect(reader.stderr()).not.toContain('排队中')
+    await holder.queued.until('名额文件被删')
+    expect(reader.child.exitCode).toBeNull()
+    expect(await reader.exited).toBe(0)
+    await holder.release()
+    expect(await holder.queued.exited).toBe(0)
   })
 })
