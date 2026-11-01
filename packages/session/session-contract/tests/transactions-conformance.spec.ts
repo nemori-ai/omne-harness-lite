@@ -48,6 +48,8 @@ const NAMES = {
   toolUnsupported:
     'stopCall of a Tool target is unsupported before the identity and the session are read',
   answerOnly: 'an answer-only control writes no revision and replays the original answer',
+  malformedControl:
+    'a malformed cancelRun or stopCall is refused invalid and saves neither an answer nor an operation',
   modelSelection:
     'readModelSelection is not-ready before any selection and then returns the saved one with its original source',
 } as const
@@ -371,6 +373,35 @@ const variants: readonly Variant<Fixture>[] = [
             guards: [],
           })
         return answer
+      }) as Port['commit'],
+    })),
+  },
+  {
+    name: 'format-refusal-as-answer: a malformed control is repaired and saved as a business answer',
+    fails: [NAMES.malformedControl],
+    fixture: variant(real => ({
+      commit: (async input => {
+        const command = input.command as SessionCommand
+        if (command.kind === 'cancelRun') {
+          const run = command.input.run === '' ? ('run_never' as never) : command.input.run
+          const urgency = command.input.urgency === 'force' ? 'force' : 'graceful'
+          return real.commit({
+            ...input,
+            command: { ...command, input: { ...command.input, run, urgency } },
+          } as never)
+        }
+        if (command.kind === 'stopCall' && command.input.producer.kind !== 'tool') {
+          const { producer } = command.input
+          const fixed = {
+            kind: 'model' as const,
+            call: producer.call === '' ? 'm1' : producer.call,
+          }
+          return real.commit({
+            ...input,
+            command: { ...command, input: { ...command.input, producer: fixed } },
+          } as never)
+        }
+        return real.commit(input)
       }) as Port['commit'],
     })),
   },

@@ -61,7 +61,8 @@ export function createFixedSessionCursorSigning(): FixedSessionCursorSigning {
       const closedNow = unavailable || unloaded
       await Promise.resolve()
       if (closedNow || unloaded) return { kind: 'unavailable' }
-      if (keyId !== key.keyId) return { kind: 'invalid' }
+      // A rotation during the call makes the key chosen before the await stale: not a success of the old key.
+      if (keyId !== key.keyId || KEYS[current] !== key) return { kind: 'invalid' }
       const expected = mac(key.bytes, payload)
       return given.length === expected.length && timingSafeEqual(given, expected)
         ? { kind: 'valid' }
@@ -139,6 +140,17 @@ export function sessionCursorSigningConformance(): readonly ConformanceCase<Sess
         const fresh = await signed(signing, payload)
         assert.notEqual(fresh.keyId, old.keyId)
         assert.deepEqual(await signing.verify({ payload, signature: fresh }), { kind: 'valid' })
+      },
+    ),
+    conformanceCase(
+      'RD-CURSOR',
+      'a verify in flight at a rotation is invalid, not a success of the old key',
+      async ({ signing, controls }) => {
+        const payload = text('cursor-payload')
+        const value = await signed(signing, payload)
+        const pending = signing.verify({ payload, signature: value })
+        controls.rotate()
+        assert.deepEqual(await pending, { kind: 'invalid' })
       },
     ),
     conformanceCase(

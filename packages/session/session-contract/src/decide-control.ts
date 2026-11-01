@@ -8,7 +8,7 @@ import type { WorkSnapshot } from './values.ts'
 import type { Decision } from './judgments.ts'
 import { resolveControlScope } from './judgments.ts'
 import { decideControl } from './decide-management.ts'
-import { rejected } from './decision-support.ts'
+import { invalid, rejected } from './decision-support.ts'
 import type { DecideReads } from './judgments.ts'
 
 const unknownLookup = (what: string): Decision =>
@@ -47,6 +47,11 @@ export function decideCancelRun(
   reads: DecideReads,
 ): Decision {
   const { run, urgency, operation } = command.input
+  // A format refusal is no business answer: it is returned before any lookup and saved nowhere (r2.2 4.2).
+  if (typeof run !== 'string' || run.length === 0)
+    return invalid('run', 'empty or not a Run identity')
+  if (urgency !== 'graceful' && urgency !== 'force')
+    return invalid('urgency', 'not a registered urgency')
   const found = (reads.runs ?? []).filter(item => item.run === run)
   const [lookup] = found
   if (found.length !== 1 || lookup === undefined) return unknownLookup('the Run lookup')
@@ -72,6 +77,10 @@ export function decideStopCall(
   reads: DecideReads,
 ): Decision {
   const { producer, operation } = command.input
+  if (producer.kind !== 'model' && producer.kind !== 'tool')
+    return invalid('producer.kind', 'not a registered producer kind')
+  if (typeof producer.call !== 'string' || producer.call.length === 0)
+    return invalid('producer.call', 'empty or not a call identity')
   const found = (reads.calls ?? []).filter(
     item => item.producer.kind === producer.kind && item.producer.call === producer.call,
   )
