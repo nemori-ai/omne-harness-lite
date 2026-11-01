@@ -14,4 +14,10 @@ export type {
   SessionContextHolderInput,
   SessionContextTranslation,
 } from './cordis/context-holder.ts'
+export {
+  createSessionModelLogConsumptionPlugin,
+  type ModelLogConsumed,
+  type ModelLogTarget,
+  type SessionModelLogConsumptionInput,
+} from './cordis/model-log-consumption.ts'
 export { SessionIdentityBridgeProvider } from './cordis/identity-bridge.ts'

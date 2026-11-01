@@ -8,6 +8,7 @@ it('cordis entry exports the production plugins that have landed', async () => {
     'createSessionAgentDrivePlugin',
     'createSessionContextHolder',
     'createSessionLogJournal',
+    'createSessionModelLogConsumptionPlugin',
     'sessionScopeEvidence',
   ])
 })
