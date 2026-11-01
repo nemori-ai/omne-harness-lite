@@ -8,7 +8,7 @@ Pure codecs for the `governance-public/1` and `session-public/1` protocols. Clie
 
 This package implements 34 governance request operations and seven session operations, including `cancel-run` and `stop-call` for session interruption. It recognizes four governance operations that this stage does not provide. [SPEC.md](SPEC.md) owns their behavior. [The public exports](src/index.ts) expose eight functions, four for each protocol, and their input and result types. [Governance messages](src/messages.ts) and [session messages](src/session-messages.ts) associate each operation with its permitted outcomes and bodies. [The public API navigation](docs/public-api.md) indexes every export.
 
-The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport protection protocol. The [HTTP binding page](docs/http-binding.md) fixes the HTTP and SSE carriage of both positions. Identity and authorization retain responsibility for authentication, authorization, and business operations. Session retains the session business rules. SDK and server-entry remain separate consumers with their own delivery obligations.
+The package does not authenticate a caller, authorize an action, perform a business operation, or select a transport protection protocol. The [HTTP binding page](docs/http-binding.md) fixes the HTTP and SSE carriage of both positions. This page and that sentence are candidates under #978 DP-2 and wait for approval. Identity and authorization retain responsibility for authentication, authorization, and business operations. Session retains the session business rules. SDK and server-entry remain separate consumers with their own delivery obligations.
 
 ## Usage
 

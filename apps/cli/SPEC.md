@@ -8,7 +8,16 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 [包组织](../../docs/package-organization.md#最小-cli-的接入边界)只规定了 help 和 version 不能做什么。本页补上的是那些未定细节。
 
-「[命令](#命令)」一节起至「[命令结果与退出码](#命令结果与退出码)」是 #978 波 1 的候选，等待 Reduce 批复，尚未被接受。本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
+下列条款是 #978 波 1 的候选，待批复，尚未被接受：
+
+- 「[范围](#范围)」中候选命令面的列表，以及通过 SDK 使用系统能力的一段。
+- 「[输出与退出码](#输出与退出码)」中登记命令之后的帮助文本。
+- 「[状态目录](#状态目录)」开头一段。
+- 「[命令](#命令)」一节起至「[命令结果与退出码](#命令结果与退出码)」的全部内容。
+- 「[安装闭包](#安装闭包)」中命令面实现后的一段。
+- 「[适用平台](#适用平台)」中登录状态文件的一句。
+
+本页其余条款保持上面的接受状态。批复后，需要的话本页再改采用状态。候选依据是包组织页「最小 CLI 的接入边界」：CLI 通过 SDK 使用系统能力，不导入 server-entry。本卡验证环境接受本机 Node v26.0.0。`package.json` 的 engines 是 `>=24`。Node 24 没有另跑。
 
 ## 范围
 
@@ -62,7 +71,7 @@ PanQiWei 于 2026-10-14 接受本页对 #246 revision 1 的行为。依据是他
 
 进程设置 `process.exitCode`，不调用 `process.exit()`。这样管道上的 stdout 在进程退出前写完。
 
-帮助文本由 `renderHelp(productionCatalog)` 生成，不是另一份手写文档。命令目录为空时，生成结果是下面的原文。登记[命令](#命令)的六个命令之后，文本多出命令清单，由 `renderHelp` 生成。最后一行之后有一个换行：
+帮助文本由 `renderHelp(productionCatalog)` 生成，不是另一份手写文档。命令目录为空时，生成结果是下面的原文。最后一行之后有一个换行：
 
 ```text
 omne
@@ -74,6 +83,34 @@ Show help or version. This build has no other commands.
 
   --home <directory>    State directory. Overrides OMNE_HOME.
   OMNE_HOME             State directory when --home is absent.
+
+The default state directory is $HOME/.omne.
+--help and --version do not open or create a state directory.
+```
+
+登记[命令](#命令)的六个命令之后，生成结果是下面的原文。第三行改为 `Show help or version, or run a command.`，`This build has no other commands.` 不再出现。目录另登记 `--server` 与 `OMNE_SERVER` 两个选项。帮助文本只列每个命令的必需选项，可选选项见[命令](#命令)的命令表。最后一行之后有一个换行：
+
+```text
+omne
+
+Show help or version, or run a command.
+
+  omne --help
+  omne --version
+
+Commands
+
+  omne register --login-identifier <id>                               Register and activate an account.
+  omne login --login-identifier <id>                                  Issue a login and save it in the state directory.
+  omne create-session --definition <name>                             Create a session.
+  omne send-input --session <id> --text <text>                        Send a user message to a session.
+  omne cancel-run --session <id> --run <id>                           Cancel a run.
+  omne stop-call --session <id> --producer-kind <kind> --call <id>    Stop a model or tool call.
+
+  --home <directory>    State directory. Overrides OMNE_HOME.
+  OMNE_HOME             State directory when --home is absent.
+  --server <url>        Server address. Overrides OMNE_SERVER.
+  OMNE_SERVER           Server address when --server is absent.
 
 The default state directory is $HOME/.omne.
 --help and --version do not open or create a state directory.
@@ -149,10 +186,10 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 
 补充规则如下。
 
-- `--tenant` 的默认值是登录状态里的租户。会话命令中，除 `create-session` 外都用它作 body 的 `tenant`。
-- 命令生成缺省的标识。每次发送生成新的 `messageId`。`--create-call-id`、`--accept-id`、`--input-id` 和 `--control-id` 缺省时也各生成一个新值。生成值用 `crypto.randomUUID()`。调用者要重试同一次操作时，必须用这些选项传入原来的值。
+- `--tenant` 的默认值是登录状态里的租户。会话命令中，除 `create-session` 外都用它作 body 的 `tenant`。这是客户端填充：线上的 `tenant` 仍是必填字段，服务端仍核对它的账号。结果对象的 `request.tenant` 回显实际发送的租户文本，见[命令结果与退出码](#命令结果与退出码)。
+- 命令生成缺省的标识。每次执行命令生成新的 `messageId`。SDK 的零字节再送沿用同一个 `messageId`。`--create-call-id`、`--accept-id`、`--input-id` 和 `--control-id` 缺省时也各生成一个新值。生成值用 `crypto.randomUUID()`。调用者要重试同一次操作时，必须用这些选项传入原来的值。
 - 命令不提供 `query-create-session`、`query-send-input`、`read-history`、`observe-session` 和 `cancel-observation` 的入口。读历史与观察命令在后续波。
-- 命令不提供其余治理操作的入口。服务端对它们答 `stage-not-provided`，见[治理位置的操作范围](../../packages/access/public-contract/docs/http-binding.md#治理位置的操作范围)。
+- 命令不提供其余治理操作的入口。M2 部署的治理范围见服务端接入规格的[治理位置](../../packages/access/server-entry/SPEC.md#治理位置)。
 - 命令不提供退出登录。`revoke-login` 本部署不提供。用户删除登录状态文件，只是忘掉本机持有的证明。
 
 ### 服务地址
@@ -162,7 +199,7 @@ stdin、stdout、stderr 不是 TTY 时，输出与上面相同。本成员不加
 1. `--server` 的值。
 2. 环境变量 `OMNE_SERVER`。
 3. 登录状态文件里 `login` 记录的地址，仅会话命令使用。
-4. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值。M2 发行配置的服务端监听端口初值取同一个数字，由装配给出。
+4. 默认值 `http://127.0.0.1:8787`。这是 CLI 自己的默认值。服务端的监听端口由装配配置给出，见[应用装配](../../docs/architecture/runtime/application-assembly.md)。两者不一致时，用户用 `--server` 或 `OMNE_SERVER` 给出地址。
 
 CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令按用法错误处理，消息为 `omne: --server must be a loopback http address\n`。哪些地址被拒绝是 SDK 的 M2 已知限制，见 SDK 的[已知限制](../../packages/access/sdk/SPEC.md#已知限制)。
 
@@ -204,26 +241,39 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | 命令 | 状态目录 |
 | --- | --- |
 | `--help`、`--version`、用法错误 | 不解析，不创建，规则见[输出与退出码](#输出与退出码) |
-| `register` | 不解析，不创建，也不读 `--home` 与 `OMNE_HOME` |
+| `register` | 不解析，不创建，也不读 `OMNE_HOME`。带 `--home` 是用法错误，使用[命令的用法错误](#命令的用法错误)中「选项不属于该命令」那一条消息 |
 | `login` | 在发送任何请求之前解析并创建。创建失败则退出 `1`，不发送凭据。凭据错误等非成功结果不删除已创建的空目录 |
 | `create-session`、`send-input`、`cancel-run`、`stop-call` | 只读取。不存在时不创建，退出 `1` |
 
-`login` 先创建目录再发送请求。这样，签发成功后不会因为写不下登录证明而留下一份无人持有的登录。
+`login` 先创建目录再发送请求。这样可以降低签发成功后写不下登录证明的可能，但不能排除它。
+
+签发成功后，写临时文件或改名仍可能失败。这时命令照常在标准输出写结果对象：`result` 为 `response`，`outcome` 为 `succeeded`，`body` 去掉 `loginProof`。标准错误写 `omne login: cannot write login state <path>: <code>\n`，拿不到错误码时去掉 `: <code>` 部分。命令退出 `1`。这份登录没有本机持有者。M2 不提供 `revoke-login`，所以它在过期之前一直有效。这是已知限制。
 
 ## 命令结果与退出码
 
-命令的结果写一个 JSON 对象到标准输出，后接一个换行。TTY 与非 TTY 的输出相同。本成员不加载终端界面。标准错误只在本地失败、凭据提示和用法错误时有内容。
+命令的结果写一个 JSON 对象到标准输出，后接一个换行。TTY 与非 TTY 的输出相同。本成员不加载终端界面。标准错误只在本地失败、凭据提示、用法错误和结果不确定时有内容。
 
 对象的键如下。
 
 | 键 | 出现条件 | 内容 |
 | --- | --- | --- |
-| `result` | 总是 | `response`、`uncertain` 或 `not-sent` |
+| `result` | 总是 | `response` 或 `uncertain` |
 | `outcome` | `result` 为 `response` | 公开契约的 `outcome` |
 | `body` | `result` 为 `response` | 响应的 `body`。`login` 的 `body` 去掉 `loginProof` |
-| `request` | 总是 | 本次发送使用的 `messageId`，以及该命令生成或收到的 `createCallId`、`acceptId`、`inputId`、`controlId` |
+| `request` | 总是 | 一个对象，见下表 |
 
-`result` 的含义如下。`response` 表示收到可信答复。`uncertain` 表示请求字节可能已经发出，调用者没有可信答复。`not-sent` 表示 SDK 按再送规则发了两次，两次都没有发出。`uncertain` 不是成功，也不是没有发生。`request` 让用户可以用原标识重试。
+`request` 对象的键随命令而定。每个值都是本次发送使用的原文，包括命令生成的值和用户给出的值。
+
+| 命令 | `request` 的键 |
+| --- | --- |
+| `register`、`login` | `messageId` |
+| `create-session` | `messageId`、`createCallId`、`tenant`（取 `actingTenant`） |
+| `send-input` | `messageId`、`acceptId`、`inputId`、`tenant` |
+| `cancel-run`、`stop-call` | `messageId`、`controlId`、`tenant` |
+
+`result` 的含义如下。`response` 表示收到可信答复。`uncertain` 表示调用者没有可信答复，结果不确定。请求字节可能已经发出，也可能两次都没有发出，例如服务没有启动。SDK 只给出 `uncertain`，所以 CLI 不区分这两种情况。`uncertain` 不是成功，也不是没有发生。`request` 让用户可以用原标识重试同一意图。`messageId` 不必沿用。
+
+`result` 为 `uncertain`，或 `outcome` 为 `unknown` 时，标准错误另写 `omne <command>: result uncertain\n`。
 
 标准输出不含登录证明、凭据、签发者和游标密钥。
 
@@ -232,14 +282,13 @@ CLI 把地址交给 SDK 的 HTTP 传输适配。适配拒绝地址时，命令�
 | 退出码 | 条件 |
 | --- | --- |
 | `0` | `result` 为 `response`，`outcome` 是 `succeeded` 或 `no-change` |
-| `1` | 本地失败：身份文件无效、状态目录或登录状态文件的错误、凭据读取失败、标准输出写入失败 |
+| `1` | 本地失败：身份文件无效、状态目录或登录状态文件的错误、凭据读取失败、标准输出写入失败。`login` 签发成功后写不下登录状态文件也是 `1`，它优先于 `0` |
 | `2` | 用法错误，包括服务地址不合法 |
 | `3` | `result` 为 `response`，`outcome` 是其余的非成功结果：`denied`、`not-visible`、`uniform-auth-failure`、`not-loginable`、`protocol-rejected`、`stage-not-provided`、`invalid`、`archived`、`frozen`、`conflict`、`not-found`、`not-committed`、`unsupported`、`need-decision` |
 | `4` | `result` 为 `response`，`outcome` 是 `basis-unavailable`。稍后可再试 |
-| `5` | `result` 为 `uncertain`，或 `outcome` 是 `unknown` |
-| `6` | `result` 为 `not-sent` |
+| `5` | `result` 为 `uncertain`，或 `outcome` 是 `unknown`。结果不确定 |
 
-退出码 `3` 到 `6` 只由 `result` 与 `outcome` 决定，不由 HTTP 状态码决定。
+退出码 `3` 到 `5` 只由 `result` 与 `outcome` 决定，不由 HTTP 状态码决定。退出码共有 `0` 到 `5` 六个。
 
 ## 安装闭包
 

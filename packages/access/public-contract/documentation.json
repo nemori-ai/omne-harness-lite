@@ -104,15 +104,15 @@
         },
         {
           "id": "section-7",
-          "anchor": "sse-观察"
+          "anchor": "观察消息的手写读写"
         },
         {
           "id": "section-8",
-          "anchor": "会话中断操作"
+          "anchor": "sse-观察"
         },
         {
           "id": "section-9",
-          "anchor": "治理位置的操作范围"
+          "anchor": "会话中断操作"
         },
         {
           "id": "section-10",
@@ -120,18 +120,14 @@
         },
         {
           "id": "section-11",
-          "anchor": "sessionoperationid-的派生规则"
-        },
-        {
-          "id": "section-12",
           "anchor": "名字与约束"
         },
         {
-          "id": "section-13",
+          "id": "section-12",
           "anchor": "拥有者与取舍"
         },
         {
-          "id": "section-14",
+          "id": "section-13",
           "anchor": "已知限制"
         }
       ]
