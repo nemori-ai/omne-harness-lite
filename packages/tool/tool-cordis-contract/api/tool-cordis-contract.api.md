@@ -80,7 +80,10 @@
 - `ConformanceCase` · 包 `@omne-harness/tool-contract`
 - `MemoryToolBindingRegistry` · `testing.d.ts`
 - `MemoryToolRegistrations` · `testing.d.ts`
+- `MemoryToolResidencyReader` · `testing-residency-memory.d.ts`
 - `NotApplicable` · 包 `@omne-harness/tool-contract`
+- `ResidentKeyRoundTripFixture` · `testing-resident-key.d.ts`
+- `ResidentReferencesRead` · `testing-residency-memory.d.ts`
 - `TOOL_DYNAMICS_CRITERIA` · `testing.d.ts`
 - `ToolBindingGrant` · `testing.d.ts`
 - `ToolBindingRegistryFixture` · `testing.d.ts`
@@ -93,10 +96,12 @@
 - `ToolResidencyReaderFixture` · `testing.d.ts`
 - `createMemoryToolBindingRegistry` · `testing.d.ts`
 - `createMemoryToolRegistrations` · `testing.d.ts`
+- `createMemoryToolResidencyReader` · `testing-residency-memory.d.ts`
 - `isNotApplicable` · 包 `@omne-harness/tool-contract`
 - `memoryToolBindingRegistryFixture` · `testing.d.ts`
 - `memoryToolRegistrationFixture` · `testing.d.ts`
 - `registrationAnswers` · `testing.d.ts`
+- `residentKeyRoundTripConformance` · `testing-resident-key.d.ts`
 - `runConformanceCase` · 包 `@omne-harness/tool-contract`
 - `runToolDynamicsSuite` · `testing.d.ts`
 - `toolBindingRegistryConformance` · `testing.d.ts`
@@ -494,6 +499,63 @@ export {};
 export {};
 ```
 
+## 声明文件 `testing-residency-memory.d.ts`
+
+```ts
+import { type Outcome } from '@omne-harness/operation-result';
+import type { TenantId } from '@omne-harness/legal-identity';
+import { type ResidentReferencesPage } from '@omne-harness/tool-contract';
+import type { ToolBindingKey, ToolShape } from '@omne-harness/tool-contract/provider';
+import type { ToolResidencyReader } from './cordis.ts';
+export type ResidentReferencesRead = (input: Readonly<{
+    scope: 'system';
+    key: string;
+    after: string | null;
+    limit: number;
+}>) => Promise<Outcome<ResidentReferencesPage, Readonly<{
+    kind: string;
+}>>>;
+export type MemoryToolResidencyReader = Readonly<{
+    durability: 'none';
+    reader: ToolResidencyReader;
+    set(key: ToolBindingKey, holders: readonly Readonly<{
+        tenant: TenantId;
+        session: string;
+        shape: ToolShape;
+    }>[]): void;
+    interrupt(diagnostic?: string): void;
+    restore(): void;
+}>;
+export declare function createMemoryToolResidencyReader(input?: Readonly<{
+    source?: ResidentReferencesRead;
+    pageSize?: number;
+}>): MemoryToolResidencyReader;
+```
+
+## 声明文件 `testing-resident-key.d.ts`
+
+```ts
+import type { TenantId } from '@omne-harness/legal-identity';
+import type { ResidentReferencesPage } from '@omne-harness/tool-contract';
+import { type ToolBindingKey, type ToolShape } from '@omne-harness/tool-contract/provider';
+import { type ConformanceCase } from '@omne-harness/tool-contract/testing';
+import type { ToolResidencyReader } from './cordis.ts';
+export interface ResidentKeyRoundTripFixture {
+    write(input: Readonly<{
+        tenant: TenantId;
+        key: ToolBindingKey;
+        shape: ToolShape;
+    }>): Promise<void>;
+    readonly reader: ToolResidencyReader;
+    writeRaw?(input: Readonly<{
+        tenant: TenantId;
+        key: ToolBindingKey;
+        shape: ResidentReferencesPage['sessions'][number]['shape'];
+    }>): Promise<void>;
+}
+export declare function residentKeyRoundTripConformance(): readonly ConformanceCase<ResidentKeyRoundTripFixture>[];
+```
+
 ## 声明文件 `testing.d.ts`
 
 ```ts
@@ -607,4 +669,6 @@ export interface ToolResidencyReaderFixture {
     interrupt?(): void;
 }
 export declare function toolResidencyReaderConformance(): readonly ConformanceCase<ToolResidencyReaderFixture>[];
+export { createMemoryToolResidencyReader, type MemoryToolResidencyReader, type ResidentReferencesRead, } from './testing-residency-memory.ts';
+export { residentKeyRoundTripConformance, type ResidentKeyRoundTripFixture, } from './testing-resident-key.ts';
 ```

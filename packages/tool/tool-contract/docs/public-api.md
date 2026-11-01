@@ -151,6 +151,8 @@ ToolAuthor 表示一个操作，不表示所有命令的返回联合。defineToo
 
 子路径入口 `@omne-harness/tool-contract/testing`（G6）给外部提供者一组一致性套件，每个由提供者实现的端口一个。入口依赖 `node:assert` 和 `node:crypto`，不依赖测试框架，也不依赖 `@omne-harness/tool`、`tool-host-local` 或 Cordis。根入口不导出它们。
 
+测试身份工具 `testingTenant` 与 `testingWorkspace` 铸出真实的 legal-identity 值。`testingTenantText(tenant)` 对 legal-identity 铸出的租户返回租户文本，对其他值（同形对象、经 JSON 或 `structuredClone` 的拷贝、非对象）返回 null。没有 legal-identity 依赖的 Tool 成员的替身用它把伪造的租户答为 `denied`，例如 `@omne-harness/tool/testing` 的 `createTableToolAccess`。
+
 | 端口 | 套件函数与夹具 | 条款 | 守约的非耐久替身 |
 | --- | --- | --- | --- |
 | `ToolEnvironment` | `toolEnvironmentConformance`，`ToolEnvironmentFixture` | [P03](../SPEC.md#p03-环境准备和释放) | `createMemoryToolEnvironment` |

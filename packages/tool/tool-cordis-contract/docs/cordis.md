@@ -112,6 +112,8 @@ register 的 publication 逐项复用根 publish 参数。authority.check 核证
 | --- | --- | --- |
 | toolResidencyReader | `referencing({ scope: 'system', key, after })` 返回 `Outcome<Page<{ holder, tenant, shape }>, unavailable>`。Page 是 `{ items, next }`，after 与 next 为不透明游标，null 分别表示首页和读完。holder 只在同一 tenant 内区分持有者，Tool 不解析。shape 为已有 ToolShape，不返回正文。不用 Access，是 IC-18 系统作用域例外 | 桥接行缺席或未就绪时协调者停在 PENDING，不提供 toolGenerations，不执行撤除。读取 unavailable 时 unload 与 sweep 返回 retained |
 
+Reader 的实现用 tool-contract 根入口的 `encodeResidentKey` 生成 Session `references` 的查询键，用 `projectResidentReferences` 投影每条引用。编码失败、读取失败与投影失败都交 `unavailable`，不交空页。规则见 [常驻登记键与 shape 的文本编码](../../tool-contract/SPEC.md#常驻登记键与-shape-的文本编码)，测试替身是 `./testing` 的 `createMemoryToolResidencyReader`。
+
 协调者从 after=null 开始逐页读取，把 next 原样作为下一页 after。它读完全部页后才判断保留，逐项按 tenant 与 shape 核 G7，不能按 holder 文本合并跨租户引用。任一页失败、提供者撤除、租户无效或资格未知均保留原贡献并 reopen，不把已读部分当完整集合。Reader 只有读取动作，没有冻结或登记键目录枚举动作。
 
 独立 Tool 宿主同样必须提供该 Reader，由其装配桥接自己的持有者事实。只有可证明没有任何持有者引用的实现才返回空终页。进程内系统读取依赖受信装配与接线，不能由 inject 推导访问控制或跨进程授权。跨进程读取资格仍须具体装配证明。

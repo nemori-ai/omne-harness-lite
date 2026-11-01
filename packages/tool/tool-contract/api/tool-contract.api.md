@@ -390,6 +390,7 @@
 - `runConformanceCase` · `testing-case.d.ts`
 - `startAuthorityAnswers` · `testing-start-authority.d.ts`
 - `testingTenant` · `testing-values.d.ts`
+- `testingTenantText` · `testing-values.d.ts`
 - `testingWorkspace` · `testing-values.d.ts`
 - `toolClockConformance` · `testing-clock.d.ts`
 - `toolCredentialsConformance` · `testing-credentials.d.ts`
@@ -4260,6 +4261,7 @@ export declare function mintEvidence(record: string, content: unknown): DurableE
 export declare function tenantKey(tenant: TenantId): string;
 export declare function identifyingValues(tenant: TenantId, ...evidences: readonly DurableEvidence[]): readonly unknown[];
 export declare function testingTenant(organization: string, account: string): TenantId;
+export declare function testingTenantText(tenant: unknown): string | null;
 export declare function testingWorkspace(text: string): WorkspaceId;
 export declare function memoryAccess<P>(principal: P): Access<P>;
 export declare function memoryOtherAccess<P>(principal: P): Access<P>;
@@ -4302,7 +4304,7 @@ export { createMemoryToolOutputCustody, memoryToolOutputCustodyFixture, outputCu
 export { clockAnswers, createMemoryToolClock, memoryToolClockFixture, toolClockConformance, type MemoryToolClock, type ToolClockFixture, } from './testing-clock.ts';
 export { createMemoryToolDecisionBridge, decisionBridgeAnswers, memoryToolDecisionBridgeFixture, toolDecisionBridgeConformance, type MemoryToolDecisionBridge, type ToolDecisionBridgeFixture, } from './testing-decision-bridge.ts';
 export { createMemoryToolResourceResponses, resourceResponsesAnswers, memoryToolResourceResponsesFixture, toolResourceResponsesConformance, type MemoryToolResourceResponses, type ToolResourceResponsesFixture, } from './testing-resource-responses.ts';
-export { testingTenant, testingWorkspace } from './testing-values.ts';
+export { testingTenant, testingTenantText, testingWorkspace } from './testing-values.ts';
 export { toolEnvironmentAllocationConformance, type ToolEnvironmentAllocationFixture, } from './testing-environment-allocation.ts';
 ```
 

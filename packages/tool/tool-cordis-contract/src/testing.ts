@@ -3,7 +3,8 @@
 // with its non-durable registry and the dynamics suite skeleton. The suites do not depend on a test
 // framework and do not need a Cordis runtime: each takes a fixture that gives the service under
 // test and its control handles. The service doubles declare `durability: 'none'`; they prove
-// nothing about the real services and must not be assembled into production.
+// nothing about the real services and must not be assembled into production. The holder-reference
+// reader double and the resident-key round-trip suite are re-exported at the end of this file.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { isDeepStrictEqual } from 'node:util'
@@ -1488,3 +1489,13 @@ export function toolResidencyReaderConformance(): readonly ConformanceCase<ToolR
     },
   ]
 }
+
+export {
+  createMemoryToolResidencyReader,
+  type MemoryToolResidencyReader,
+  type ResidentReferencesRead,
+} from './testing-residency-memory.ts'
+export {
+  residentKeyRoundTripConformance,
+  type ResidentKeyRoundTripFixture,
+} from './testing-resident-key.ts'

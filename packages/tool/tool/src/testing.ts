@@ -366,3 +366,12 @@ export function toolLedgerStoreCompositionConformance(): readonly ConformanceCas
     environment: createMemoryToolEnvironment,
   })
 }
+
+export {
+  createTableToolAccess,
+  toolAccessGuardConformance,
+  type TableStartAccess,
+  type TableToolAccess,
+  type ToolAccessGuardFixture,
+  type ToolAccessRule,
+} from './testing-access.ts'
