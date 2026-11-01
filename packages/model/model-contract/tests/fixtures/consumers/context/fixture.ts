@@ -203,7 +203,7 @@ async function profileAndMeterFixTheRequest(): Promise<void> {
 }
 
 async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void> {
-  const { services } = setup()
+  const { services, profiles } = setup()
   const resolution = await services.profiles.resolve({ ...access, route: 'default', required })
   expect('ok' in resolution, 'the profile service refused the route')
   expect(resolution.ok.kind === 'resolved', 'the route did not resolve')
@@ -215,8 +215,11 @@ async function contextReadsWindowAndTriggerFromTheWinningProfile(): Promise<void
   // its value: it must be the window of the registered profile, not one read from elsewhere.
   expect(
     JSON.stringify(context.window) === JSON.stringify(profile.definition.context.window),
-    'the profile was read twice',
+    'the window is not the window of the registered profile',
   )
+  // The context read the profile once: the double recorded one business call.
+  const reads = profiles.calls().length
+  expect(reads === 1, `the profiles were read ${reads} times`)
 }
 
 // The system text of this fixture is 9 characters, so the input below holds 9 + the blocks.
