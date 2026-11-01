@@ -4,26 +4,41 @@
 
 ## 职责与状态
 
-本成员是 Model 的单机宿主提供者，承载本地凭据保管与本地发送路径。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源。`./cordis` 入口装载本地实例目录、转换目录、带有序关闭的宿主驱动、运行门面（`modelRuntime`）与结果推送，以及带计量租约的请求准备插件。恢复扫描、发送与重试阶段插件、档案读取尚未实现，它们的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
+本成员是 Model 的单机宿主提供者，承载本地凭据保管、本地发送路径与官方档案读取。本地凭据保管是文件保管库（磁盘记录、文件锁、原子发布、关闭）和装载它的 Cordis 插件。本地发送路径是生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`：它把凭据保管、model 的发送边界、pi 传输与两个家族、调用方注入的 `ModelCommands` 连成一条真实请求路径，并在同一组家族与 `ModelCommands` 上给出 model 的计量准备资源。`./cordis` 入口装载本地实例目录、转换目录、带有序关闭的宿主驱动，运行门面（`modelRuntime`）与结果推送，带计量租约的请求准备插件，以及在本地发送路径上提供 `modelSendBoundary` 的发送阶段插件。恢复扫描、重试与目录阶段插件尚未实现，它们的设计已接受，暂存于 [model/docs/cordis.md](../model/docs/cordis.md)。凭据的公共值与端口归 [model-contract](../model-contract/README_ZH.md)，`modelCredential` 服务定义归 [model-cordis-contract](../model-cordis-contract/README_ZH.md)，存在性与解析的判定和发送边界归 [model](../model/README_ZH.md)，传输与家族归 [pi-ai-transport](../pi-ai-transport/README.md)。设计、实现与运行验证分别判断。
 
-| 能力                                                        | 状态               | 证据范围                                                                                                                                                                                                    |
-| ----------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 文件保管库与 Cordis 插件                                    | 已实现             | 真实文件系统、子进程与真实 Cordis 4.0.4                                                                                                                                                                     |
-| 生产发送资源 `createPiSendResources`                        | 已实现             | 观察凭据槽的传输工厂与真实 pi 传输（不发送）                                                                                                                                                                |
-| 本地 Model 装配 `assembleLocalModel`                        | 已实现             | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场                                                                                                |
-| 经真实厂商或代理的请求                                      | 只经手动录制器验证 | [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件。门禁回放走同一装配路径                                                                            |
-| 经 `assembleLocalModel` 的计量准备资源                      | 已实现             | model 的真实租约，经家族与内存 `ModelCommands`；慢层让两家各一次调用收场并清理，再计量延续它的请求，数据来自本地 HTTPS 回放，不来自真实厂商                                                                 |
-| `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` | 已实现             | 真实 Cordis 4.0.4，权威用测试对象：唯一服务、登记的释放、等待权威、后继目录                                                                                                                                 |
-| `ModelRuntimeLocalPlugin` 的宿主部分（`modelInstanceHost`） | 已实现             | 真实 Cordis 4.0.4，测试驱动与时钟、内存 `ModelCommands`：绑定后发布、四项上限、唤醒集合、有序关闭、后继宿主、观察者资格                                                                                     |
-| `ModelRequestPreparationService` 插件与它的计量租约         | 已实现             | 真实 Cordis 4.0.4、内存 `ModelCommands`、带记录计量器的桩家族：无运行面与网络时的 prepare、第 2 轮租约的锚点、命令换代                                                                                      |
-| 耐久 `ModelCommands`                                        | 不在本包           | 无                                                                                                                                                                                                          |
-| `modelRuntime` 门面与结果推送                               | 已实现             | 真实 Cordis 4.0.4、真实 model 运行时、内存 `ModelCommands`、脚本传输与脚本接收方：冻结的结果、saved 之后才取 retained ACK、重投、ACK 未知时认回、清理、晚到账目及其上界、接收方登记、交给后继。账本只在内存 |
-| 流进行中的 `calls.cancel`                                   | 已实现             | 本地 HTTPS 服务保持流打开，经装配的发送路径与真实 pi 传输                                                                                                                                                   |
-| 耐久推送账本、恢复扫描、发送与重试阶段插件、档案读取        | 未实现             | 无                                                                                                                                                                                                          |
+| 能力                                                        | 状态                   | 证据范围                                                                                                                                                                                                    |
+| ----------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 文件保管库与 Cordis 插件                                    | 已实现                 | 真实文件系统、子进程与真实 Cordis 4.0.4                                                                                                                                                                     |
+| 生产发送资源 `createPiSendResources`                        | 已实现                 | 观察凭据槽的传输工厂与真实 pi 传输（不发送）                                                                                                                                                                |
+| 本地 Model 装配 `assembleLocalModel`                        | 已实现                 | 本地 HTTPS 服务回放两个家族录制的 SSE，经 model 运行时与内存 `ModelCommands`；两家回复含推理状态的调用都收场                                                                                                |
+| 经真实厂商或代理的请求                                      | 只经手动录制器验证     | [`pi-ai-transport/tests/fixtures/recordings/`](../pi-ai-transport/tests/fixtures/README.md) 的四份回放件。门禁回放走同一装配路径                                                                            |
+| 经 `assembleLocalModel` 的计量准备资源                      | 已实现                 | model 的真实租约，经家族与内存 `ModelCommands`；慢层让两家各一次调用收场并清理，再计量延续它的请求，数据来自本地 HTTPS 回放，不来自真实厂商                                                                 |
+| `ModelInstancesLocalPlugin` 与 `ModelConvertersLocalPlugin` | 已实现                 | 真实 Cordis 4.0.4，权威用测试对象：唯一服务、登记的释放、等待权威、后继目录                                                                                                                                 |
+| `ModelRuntimeLocalPlugin` 的宿主部分（`modelInstanceHost`） | 已实现                 | 真实 Cordis 4.0.4，测试驱动与时钟、内存 `ModelCommands`：绑定后发布、四项上限、唤醒集合、有序关闭、后继宿主、观察者资格                                                                                     |
+| `ModelRequestPreparationService` 插件与它的计量租约         | 已实现                 | 真实 Cordis 4.0.4、内存 `ModelCommands`、带记录计量器的桩家族：无运行面与网络时的 prepare、第 2 轮租约的锚点、命令换代                                                                                      |
+| 官方档案读取 `ModelProfilesLocalPlugin`                     | 已实现                 | 真实 Cordis 4.0.4 与 pi-ai-openai 的真实 `officialOpenAiProfiles`。每份档案的凭据状态是 `unavailable`：来源没有元数据，档案仍可选。不读取 settings 与凭据元数据                                             |
+| `ModelSendStagePlugin`（`modelSendBoundary`）               | 已实现                 | 真实 Cordis 4.0.4、内存 `ModelCommands`、凭据服务测试对象：两项注入的装载与卸载、凭据槽、退出时在途的发送、退出后的发送；慢层把四份回放件经它回放，并与装配路径对比事实、请求与发出记录                     |
+| 工具调用录制（`openai-tool-call` 及其延续轮）               | 只有合成回放件与录制器 | 手写的回放件经装配路径回放，录制器经本地 HTTPS 服务写出同一条流；真实工具流尚未录制                                                                                                                         |
+| 耐久 `ModelCommands`                                        | 不在本包               | 无                                                                                                                                                                                                          |
+| `modelRuntime` 门面与结果推送                               | 已实现                 | 真实 Cordis 4.0.4、真实 model 运行时、内存 `ModelCommands`、脚本传输与脚本接收方：冻结的结果、saved 之后才取 retained ACK、重投、ACK 未知时认回、清理、晚到账目及其上界、接收方登记、交给后继。账本只在内存 |
+| 流进行中的 `calls.cancel`                                   | 已实现                 | 本地 HTTPS 服务保持流打开，经装配的发送路径与真实 pi 传输                                                                                                                                                   |
+| 耐久推送账本、恢复扫描、重试与目录阶段插件、档案读取        | 未实现                 | 无                                                                                                                                                                                                          |
 
 ## 使用
 
-独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。宿主插件是 `createModelRuntimeLocalPlugin` 与 `createModelRequestPreparationPlugin` 造出的类：它们的对象选项（运行提供者、观察资格、家族绑定、凭据补全）不可序列化，由创建插件类的装配给出。准备插件同时交出租约来源 `resources`，由装配交给请求组装；它不是服务键。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
+独立程序从根入口取得 `createLocalCustodian` 与 `openLocalCustodian`，不启动 Cordis。要发出真实请求时，程序从根入口取得 `assembleLocalModel`，给出保管库、`ModelCommands`、`SendCoordinator`、组合后的家族、网络配置、路由、限额与准备选项，得到 model 的发送边界 `send`、计量准备资源 `preparation` 与 `close`。`close` 开始后，`preparation` 拒绝新的租约；调用方在关闭前取得的租约仍可使用，直到调用方释放它。Cordis 宿主从 `./cordis` 装载 `LocalCredentialPlugin`，需要时用 `deliverInjected` 经静态注入发送。宿主插件是 `createModelRuntimeLocalPlugin` 与 `createModelRequestPreparationPlugin` 造出的类：它们的对象选项（运行提供者、观察资格、家族绑定、凭据补全）不可序列化，由创建插件类的装配给出。准备插件同时交出租约来源 `resources`，由装配交给请求组装；它不是服务键。发送阶段插件是 `createModelSendStagePlugin(options)` 造出的类：选项是本地发送路径的对象（家族、协调器、网络、路由、限额、准备配置），必需的设置只有 `maxRetainedAttempts`。插件静态注入 `modelCredential` 与 `modelCommands`，提供 `modelSendBoundary`，退出时先撤回自己的凭据端口，再关闭发送路径。用法与示例见[使用与定位](docs/context.md)，初始化与释放责任见[Cordis 集成](docs/cordis.md)。选择本成员会安装 Cordis、model-cordis-contract、pi-ai-transport 与 proper-lockfile；直接使用根入口不启动 Cordis，但安装闭包仍含它们。
+
+### 保管库初始化命令
+
+要发真实请求的每台宿主，由人运行一次保管库初始化命令。命令在关闭回显的终端里读一个密钥，在给定路径新建保管库并把密钥写成工厂秘密；成功时输出 `已建立：<路径>`，失败时输出 `失败：<原因代码>`。在仓库根目录用 Git Bash 或 PowerShell 运行（PowerShell 里用 `pnpm.cmd`）：
+
+```sh
+pnpm --filter @omne-harness/model-host-local exec node --experimental-strip-types src/vault-init-cli.ts --path <路径>
+```
+
+路径必须位于当前用户目录之下，且路径上没有任何对象。路径上已有有效保管库、损坏文件、空文件、目录或符号链接时，命令一律拒绝，不读也不改它们。标准输入不是终端时拒绝，出现像是携带密钥的参数时拒绝。失败的运行不留下文件。命令不从根入口导出，也不属于 `LocalCredentialPlugin`。失败原因与完整行为见[行为规格](SPEC.md#保管库初始化命令)。
+
+运行命令的是持有密钥的人。Reduce、写者与其他 agent 不读取、不持有、不输入密钥。该宿主上第一次真实请求成功，才证明这把密钥可用。
 
 ## 契约
 
@@ -31,11 +46,11 @@
 
 ## 设计
 
-磁盘记录的编码在 [records.ts](src/records.ts)，保管库与文件系统交互在 [store.ts](src/store.ts)，插件在 [cordis.ts](src/cordis.ts)，注入发送在 [deliver-injected.ts](src/deliver-injected.ts)，发送资源在 [send-resources.ts](src/send-resources.ts)，本地装配在 [assembly.ts](src/assembly.ts)。保管状态的类型（`CustodianState`、`Binding`、`BindingLife`）来自 model。判定不在本成员：保管库把当前状态快照交给 model 的判定函数。模块、机制与理由见[内部架构](docs/architecture.md)。
+磁盘记录的编码在 [records.ts](src/records.ts)，保管库与文件系统交互在 [store.ts](src/store.ts)，插件在 [cordis.ts](src/cordis.ts)，注入发送在 [deliver-injected.ts](src/deliver-injected.ts)，发送资源在 [send-resources.ts](src/send-resources.ts)，本地装配在 [assembly.ts](src/assembly.ts)，发送阶段插件在 [plugins/send-stage.ts](src/plugins/send-stage.ts)。保管状态的类型（`CustodianState`、`Binding`、`BindingLife`）来自 model。判定不在本成员：保管库把当前状态快照交给 model 的判定函数。模块、机制与理由见[内部架构](docs/architecture.md)。
 
 ## 配置与运行
 
-保管库路径与工厂秘密是保管库仅有的配置，由应用提供。本地装配的路由地址、代理、TLS、连接容量与各项限额全部由应用配置给出，本包不写默认值。在本仓库的云端环境里，保管库只存占位值，真实密钥由出站代理注入。文件锁不按时间过期，持锁进程崩溃后须在所有写者停止后手工删除 `${path}.lock`。保管库从磁盘记录经 legal-identity 重新铸造租户值，租户相等只在同一 legal-identity 实例内成立，因此调用方与保管库须在同一进程内共享该实例。
+保管库路径与工厂秘密是保管库仅有的配置，由应用提供。本地装配的路由地址、代理、TLS、连接容量与各项限额全部由应用配置给出，本包不写默认值。在本仓库的云端环境里，保管库只存占位值，真实密钥由出站代理注入。命令建的保管库文件必须在当前用户目录之下。POSIX 上，命令以 `0700` 建新目录、以 `0600` 建文件，并读回模式。Windows 上，命令不改访问控制列表，也不调用 `icacls`；保护来自新建目录与文件从用户目录继承的访问控制，前提是该用户目录一直不对其他账户开放，命令也无法读回这个保护。文件锁不按时间过期，持锁进程崩溃后须在所有写者停止后手工删除 `${path}.lock`。保管库从磁盘记录经 legal-identity 重新铸造租户值，租户相等只在同一 legal-identity 实例内成立，因此调用方与保管库须在同一进程内共享该实例。
 
 ## 验证
 

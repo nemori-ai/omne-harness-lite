@@ -1,6 +1,6 @@
 # Model 领域实现规格
 
-本包非 pi-ai 实现设计已接受，独立执行及凭据存在性与解析的判定已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
+本包非 pi-ai 实现设计已接受，独立执行、凭据存在性与解析的判定及档案读取 `createModelProfiles` 已有实现，本地保管归 model-host-local，createModelRuntime 已实现受理、事实查询、取消意图、原流保存、最小实例观察与下述支持范围内的调用收场，结果读取和 processed ACK 已实现，retained ACK 与生产托管宿主尚未实现。pi-ai 细化的采用范围见[组架构各节](../docs/architecture.md#成员与新增条件)。共同领域行为与提供者协议由 [model-contract](../model-contract/SPEC.md) 唯一维护；本页只补本实现的执行、配置及资源义务。
 
 受理入口在解构和 await 前同步调用共同 judgeAdmit。直接 Memory Commands 在 store.run 前执行同一判断；sendBinding 使用 judgeFixedModelRequest 后仍核原 digest。畸形重放先 invalid，合法异输入仍 conflict。预算、不可变性、资格例外及失败 Pointer 归[共同封闭契约](../model-contract/SPEC.md#封闭输入判断)，不代表供应商 token/context 检查。
 
@@ -23,6 +23,23 @@
 发送准备、物化回执、同步 start 与两级资源关闭的完整协议见 [传输协议](../model-contract/SPEC.md#342-独立执行与提供者操作)。其余托管行为直接遵循该规格，不另写状态机。
 
 <a id="调用和各次真实发出"></a>调用受理与各次真实发出的事实归 model-contract 的[调用和各次真实发出](../model-contract/SPEC.md#调用和各次真实发出)。
+
+## 档案读取与同名求值
+
+`createModelProfiles(source)` 返回 `ModelProfiles`。每次 `list` 与 `resolve` 先检查租户是否经 legal-identity 铸造，未铸造时返回 `denied`（action 为 `tenant`），先于读取来源。通过后读一次来源快照，来源失败原样返回，不折成 absent。快照交给纯函数 `judgeProfileResolution` 与 `judgeProfileChoices`（[profiles/judge.ts](src/profiles/judge.ts)，不读环境，不做 I/O，不抛异常，不进根入口）。本包不依赖任何 `pi-ai-*` 成员，由 [install-policy.json](tests/fixtures/install-policy.json) 与 `package.json` 共同保证。
+
+求值规则依 [model-contract 同名求值](../model-contract/SPEC.md#同名求值选择及列表)：
+
+1. 同路由候选先去掉已撤回的，再去掉被排除的，余下的按 `precedence` 取最具体者，层序位置靠后者更具体。求值不写死层序。
+2. 没有同名候选是 `unknown-name`。同名候选全部撤回是 `withdrawn`。仍有在册候选而全部被排除是 `excluded`。
+3. 胜出后才判相容：`required.modalities` 不全在 `definition.input` 内加 `modality` 原因，`locked` 为真加 `locked` 原因，`selectable` 等于无原因。含 `video` 的 `required` 因此不可选。
+4. 缺凭据与模态不符都不改换外层，`credential` 原样取自候选，求值不读秘密。
+5. `list` 的 `choices` 只含可选的 resolved 项，路由不重复，次序同候选在快照中的首次出现；`selected` 只解释传入值，保留当前不合法项；`source` 取自快照。
+6. 快照有重复身份返回 `unavailable`（`duplicate-profile-identity`），候选范围不在 `precedence` 内返回 `unavailable`（`profile-scope-outside-precedence`），不使用半份目录。
+
+契约没写的三点，本实现取下列值并由用例固定：`shadowed` 只含未撤回、未排除的低层同名项，次序同 `precedence`；`choices` 次序同候选在快照中的首次出现；`scope` 原因在本阶段不产生，因为快照里没有租户层与组织层候选，契约也没有定义它的触发条件，留给契约拥有者。
+
+**O1，待契约拥有者裁定。** model-contract SPEC 的「同名求值、选择及列表」一节（先去掉已撤回候选，再取最具体）与「档案和准备提供者的组合协议」一节（被更高层同名档案遮蔽的低层项不能在高层撤回时自动顶替）在「两层同名、高层撤回」上读法不一。本实现按前一节读：高层撤回后，在册的低层同名档案胜出。用例（[profiles.spec.ts](tests/profiles.spec.ts)）标注了这一读法。M2 的快照只有 `factory` 一层，官方档案不触发这个情形。
 
 ## 工厂与配置
 
@@ -160,13 +177,24 @@ calls.admit 按[共同封闭契约](../model-contract/SPEC.md#封闭输入判断
 
 独立 testing 入口的内存 Commands 实现共同协议的本地状态转换。每个公开方法同步形成候选，只有一个提交点发布调用事实与 operation 绑定。prepareDispatch 把固定请求的消息身份序列抄进发出记录的 `messages`；`dispatches` 返回它，清理释放请求材料时保留它。当前资格及执行通道在认回前重核。请求、owner 采用和 ActorRef 固定，P 不保存。待办和总预留从原责任派生，容量为整个装配共用的有限上界。
 
+<a id="共享归约核心"></a>**共享归约核心。** 22 个方法的规则在 [src/commands/](src/commands/index.ts)，内存实现与耐久实现共用同一份。这是[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446) MD-03 决定 D3 第 2 条的选项 A。`createModelCommandsCore(options, storage)` 构造核心：构造时校验限额与 owner 声明，校验失败时抛出。`modelCommands(core)` 给出完整的 `ModelCommands`。两个实现的边界如下：
+
+- 核心拥有每个方法的检查次序、调用文档的变化、回执与认回、待决写的阻挡、单调用容量、流事实归约、分页、读关系和发送绑定。核心只经端口读写，不做 I/O，也不持有进程外的状态。
+- 存储实现 [ModelCommandStorage](src/commands/storage.ts)：`run` 一次只运行一个尝试；`documents` 读一个租户的调用与 operation 绑定；`reserved` 给出容量汇总；`commit` 在所读调用仍为当前值时写入调用并绑定 operation，返回 `committed` 或 `unknown`；`publish` 只用于读关系的进度。
+- 汇总范围由存储决定。内存存储汇总整个装配，`limits.capacity` 是整个装配共用的上界。
+- 内存存储 [testing/state.ts](src/testing/state.ts) 只保留同步围栏、内存文档、注入未知与 reveal、测试控制和发送协调器。
+
+核心与端口经子路径 `@omne-harness/model/commands` 导出：`createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS` 与端口类型。根入口不导出它们，根入口只放运行面；子路径给耐久存储这类提供者装配核心，不是消费者接口。核心用到的规范编码、摘要与身份铸造在 [commands/value.ts](src/commands/value.ts)，[testing/value.ts](src/testing/value.ts) 只重新导出它们，所以子路径的导入图不经 testing，产品代码的 `no-testing-import` 检查也不受影响。testing 入口仍转导核心，供内存实现的测试使用。
+
+`run` 的第二个参数 `scope` 可选，写明本次尝试的租户（规范文本）、call 与 operation。耐久存储可在运行同步的 `work` 之前按它预读；内存存储不读任何东西，忽略它。核心的调用点目前不传 `scope`，存储不得依赖它出现。
+
 已知限制：内存 Commands 把每次确认的 Snapshot 计入调用容量。长回复即使分批保存，占用也随确认次数持续增长。耐久 Commands 须规定自己的快照与容量策略，这项工作归[父卡](https://github.com/nemori-ai/omne-harness-lite/issues/446)阶段 7.2。
 
 发送边界在准备前复制 execution、request、supplier、consumer 和 initiator 的值，后续异步步骤、计数和关闭使用同一份需求。合法 TenantId 与不透明 P 保留原身份，AbortSignal 保留原取消语义。调用者改写外层字段或嵌套值不改变本次发送；实际 start 仍重核当前资格、代次与控制。请求参数的统一校验覆盖 parameters、parameterAdoptions.applied 和显式 origin.requested。已知非法参数沿原结果通道拒绝，不进入摘要或消耗 unknown 注入；已有 operation 的异输入仍按原绑定冲突。retry 的决定认回也核对原请求，不重复消费决定。请求拥有的 suppliers、parameters、system、messages、tools、parameterAdoptions 及三个参数承载位置中的 stop 都要求数组无空位，并保留各自的元素规则。合法空序列仍允许，suppliers 与 stop 保持非空要求。内部规范编码独立拒绝空位，不将其编码为合法空数组。
 
 内存分页以 resultPageParts 限项数、resultPageTargetBytes 定目标。每页先放一个完整 ResultPart，再在项数及候选 parts 数组规范 UTF-8 JSON 字节数都允许时加入后项。对象键递归排序，数组保序，字符串按 JSON.stringify 转义，孤立代理码元不丢失。首项超目标独页，空结果有空 parts 与真实终局。页包装、next 和 Settlement 另受原容量 C 硬界。受理时复制装配默认页配置。受信 configureResultPaging 只能在结果尚未收场且没有 read 时调整；结果冻结后拒绝修改。读只保存固定源的必要位置与保护元数据，不缓存第二份页正文。合法 after 从真实组页起点和该读最远已返回页派生，未发出的页起点拒绝。
 
-保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [pages.ts](src/testing/pages.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。分页配置的完整规范对象计入材料，从受理起预留两个正安全整数的最大表示及键和包装。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call、按原容量检查后一次发布；失败保留原对象与配置。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
+保存计费还包含原请求/主体/采用、输出与真实 trim/曾有内容事实、历史确认 Snapshot、原状态/账目/重试、最终有序 parts 的交付表示。实现 [judge.ts](src/commands/judge.ts) 为每个 dispatch 保留4096字节实际终局槽，逻辑终局尚未固定时另保留4096字节。逻辑终局固定后按其实际编码计费，晚到实际回执不覆盖它。分页配置的完整规范对象计入材料，从受理起预留两个正安全整数的最大表示及键和包装。控制器在既有 exclusive 内检查身份、正安全整数和冻结条件，复制 call、按原容量检查后一次发布；失败保留原对象与配置。另保留8192字节 Settlement、12288字节 custody、1024字节 control、首个读1024字节和最大游标页包装64字节。实际材料落入相应槽后消费预留，不重复计费。每个已接纳的 open 窗口分别保留闭合状态增长和完整确认 Snapshot，Snapshot 包含当前正文及最大修订、游标和控制额度。没有 open 窗口且逻辑终局尚未到达时，另保留一个最大合法窗口及其确认 Snapshot。每次开窗和保存都在原提交边界按剩余义务重算，首个终局不撤销其他窗口的预留。容量不足在受理、准备或合法前缀保存边界拒绝，不发布半份事实。这个额度模型不等于 JavaScript 堆占用。
 
 本地 terminal、身份事实及证据的规范编码分别最多4096字节，Settlement 最多8192字节。超长终局在 preserve/recordLateFact/策略 stop 的首次输入边界拒绝，证据在可信返回边界拒绝。consumer owner 构造/替换时最多512 UTF-8字节，避免受理无法形成有限 ACK 证据的 owner；窗口身份规范编码最多256字节，清理诊断规范编码最多4096字节。revision、cursor 和读取位置不超过 Number.MAX_SAFE_INTEGER，十进制游标最多16字节，实际铸造同时校验。UUIDv4 结果/读取身份和 SHA-256 摘要使用固定文本形状。runtime 的组页实际由注入的 Commands 拥有。内存页配置由上述受信控制准备，不证明生产后端或生产参数映射。
 
@@ -281,4 +309,4 @@ start 返回事实而记录未确认时，原流和资源由 sender 有界保留
 
 交出 facts 后只允许一个 iterator，推进串行。耗尽、return、throw 或读取异常均按 materialized、prepared、resource 逆序尝试全部释放，各钩子最多一次。失败抛安全 resource-release-failed，保持可观察且继续占位。signal 只向原传输请求停止，sender 不在 abort 回调关闭原事实流。正常释放才删除本地尝试；后续 send 仍读权威 dispatch，不会再次 start。关闭、跨进程恢复、生产有界调度及完整控制排空不在此构造的实现范围。
 
-内存测试的来源登记与同步围栏以 [testing/types.ts](src/testing/types.ts) 和 [state.ts](src/testing/state.ts) 为准。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。
+内存测试的来源登记以 [commands/types.ts](src/commands/types.ts) 的 `ModelSendSource` 为准，同步围栏以 [testing/state.ts](src/testing/state.ts) 为准。缺 sending 配置没有默认成功凭据。脚本仅模拟外部传输；产品不得依赖 testing。共同 started 结果交出已确认的原 window 和唯一 facts 流。消费者使用 result.window 保存该流，Commands 仍核原 tenant、call、execution、dispatch 与 window 绑定。window 不授予访问权。driver 已接入该唯一事实消费者，按原窗口批量确认后发布。

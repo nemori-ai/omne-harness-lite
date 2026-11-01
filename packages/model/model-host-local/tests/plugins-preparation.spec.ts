@@ -143,6 +143,8 @@ const BASIS: ModelCountingBasis = {
 
 function stubFamily() {
   const released = { count: 0 }
+  // What the test switches on: a release that rejects, and a planning rule that throws.
+  const faults = { releaseRejects: false, planThrows: false }
   const meter: CalibratedInputMeter = {
     basis: BASIS,
     measure: input => meter.measureCalibrated(input, { anchor: null, outputs: [] }),
@@ -159,28 +161,33 @@ function stubFamily() {
   }
   return {
     released,
+    faults,
     bindings: {
       async acquire(supplier: PreparationBinding['supplier']) {
         const binding: PreparationBinding = {
           supplier,
           rules: {
-            plan: ({ assembled }) => ({
-              ok: {
-                parameters: [],
-                representation: {
-                  kind: 'materialized',
-                  adoption: ADOPTION,
-                  tokenInput: { kind: 'null' },
-                  media: [],
-                  requestBytes: '0',
-                  units: assembled.messages.map(message => message.id),
+            plan: ({ assembled }) => {
+              if (faults.planThrows) throw new Error('rule defect')
+              return {
+                ok: {
+                  parameters: [],
+                  representation: {
+                    kind: 'materialized',
+                    adoption: ADOPTION,
+                    tokenInput: { kind: 'null' },
+                    media: [],
+                    requestBytes: '0',
+                    units: assembled.messages.map(message => message.id),
+                  },
                 },
-              },
-            }),
+              }
+            },
           },
           meter,
           release: async () => {
             released.count += 1
+            if (faults.releaseRejects) throw new Error('resource still held')
           },
         }
         return { ok: binding }
@@ -604,4 +611,53 @@ it('with the commands lost, the preparation service is gone and the lease source
   expect(await resources.acquire({ ...access, profile: PROFILE })).toMatchObject({
     failure: { kind: 'unavailable', diagnostic: 'preparation-plugin-unloaded' },
   })
+})
+
+// --- the lease ends with the request, and only the plugin's own resources end with it ----------------
+
+it('fails the prepare when the lease cannot be given back: the provider still owes the resource', async () => {
+  const { ctx, family } = await loaded()
+  family.faults.releaseRejects = true
+  const answer = await ctx.modelRequestPreparation.prepare({
+    ...access,
+    profile: PROFILE,
+    required: REQUIRED,
+    assembled: assembledOf(requestWith(TWO)),
+  })
+  expect(answer).toMatchObject({ failure: { kind: 'unavailable', diagnostic: 'release-failed' } })
+  expect(family.released.count).toBe(1)
+})
+
+it('gives the lease back before a throwing rule surfaces, and the throw is not hidden', async () => {
+  const { ctx, family } = await loaded()
+  family.faults.planThrows = true
+  await expect(
+    ctx.modelRequestPreparation.prepare({
+      ...access,
+      profile: PROFILE,
+      required: REQUIRED,
+      assembled: assembledOf(requestWith(TWO)),
+    }),
+  ).rejects.toThrow('rule defect')
+  expect(family.released.count).toBe(1)
+})
+
+it('keeps the leases of a successor that loaded first when the earlier load is unloaded', async () => {
+  const commands = memoryCommands()
+  const family = stubFamily()
+  const { plugin, resources } = createModelRequestPreparationPlugin({
+    bindings: family.bindings,
+    supplierOf,
+  })
+  const earlier = new Context()
+  await earlier.plugin(commandsServiceOver(commands))
+  const earlierFiber = await earlier.plugin(plugin, CONFIG)
+  const successor = new Context()
+  await successor.plugin(commandsServiceOver(commands))
+  await successor.plugin(plugin, CONFIG)
+
+  await earlierFiber.dispose()
+  const lease = await resources.acquire({ ...access, profile: PROFILE })
+  expect('ok' in lease).toBe(true)
+  if ('ok' in lease) await lease.ok.release()
 })
