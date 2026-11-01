@@ -80,4 +80,4 @@ flowchart LR
 
 ### 现在的真实消费者
 
-session-cordis 的 `package.json` 已经列出本成员，但两边的根入口都还没有导出，所以现在没有运行中的调用。其他包不依赖本成员。
+session-cordis 的 `package.json` 已经列出本成员，但 session-cordis 的根入口还没有导出，所以现在没有运行中的调用。其他包不依赖本成员。本成员的测试固定装配 [tests/fixtures/harness.ts](../tests/fixtures/harness.ts) 按独立装配的路径调用工厂。

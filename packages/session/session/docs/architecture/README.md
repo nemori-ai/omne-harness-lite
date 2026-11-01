@@ -2,7 +2,7 @@
 
 本页说明本成员怎样组织机制来兑现 [SPEC](../../SPEC.md)：包内模块怎样划分、依赖朝哪个方向、状态归谁、为什么这样分。公开行为归[会话契约](../../../session-contract/SPEC.md)，Cordis 绑定归 [session-cordis](../../../session-cordis/README.md)，内部对象的身份与生灭归[对象模型](../object-model.md)，候选工厂与依赖归[构造入口](../public-api.md)。组内六个成员的分法与落位判据归组根的[成员分解](../../../docs/architecture.md#成员分解与邻接协作)。
 
-状态为候选技术设计。根入口目前为空，`src/index.ts` 只有模板标记。下文是 SPEC 固定的结构，文件名与类名由实现确定。
+状态为候选技术设计。根入口已导出工厂，实现覆盖 SPEC 的一个子集，见 SPEC 的[实现现状](../../SPEC.md#实现现状)。下文是 SPEC 固定的结构，文件名与类名以 `src/` 为准。
 
 ## 模块与状态责任
 
@@ -106,7 +106,7 @@ Session 对 Agent、执行环境与子会话的出站调用都在提交确认之
 
 ## 包与安装边界
 
-本成员只依赖 `@omne-harness/session-contract`。它不依赖 Cordis、任何邻域契约、具体插件或存储实现。根入口不加载 Cordis，见 [Cordis 说明](../cordis.md)。
+本成员的运行依赖是 `@omne-harness/session-contract`，以及 session-contract 也依赖的两个公共包 `@omne-harness/legal-identity`（租户比较与编码）与 `@omne-harness/operation-result`（结果值）。它不依赖 Cordis、任何邻域契约、具体插件或存储实现。存储实现与 sqlite-provider 只是测试依赖。根入口不加载 Cordis，见 [Cordis 说明](../cordis.md)。
 
 | 方向 | 成员 | 关系 |
 | --- | --- | --- |

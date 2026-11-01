@@ -12,11 +12,19 @@
 
 ### 现有导出
 
-根入口现在没有导出。`src/index.ts` 只有模板标记，[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言导出为空。
+根入口 [src/index.ts](../src/index.ts) 有下列导出。[public-entry.spec.ts](../tests/public-entry.spec.ts) 断言运行时导出只有 `createSessionInstance` 与 `defaultSchedulingPolicy`。精确签名以源码为准，本页不保留第二套手写签名。导出的形状仍是候选，尚未技术接受。
+
+| 导出 | 种类 | 源码 |
+| --- | --- | --- |
+| `createSessionInstance` | 函数 | [instance.ts](../src/instance.ts) |
+| `SessionInstance`、`MaintenanceHandle` | 类型 | [instance.ts](../src/instance.ts)、[scan.ts](../src/scan.ts) |
+| `SessionDependencies`、`Current`、`BeforeAdmitSlot` | 类型 | [dependencies.ts](../src/dependencies.ts) |
+| `SchedulingPolicy`、`SessionConfiguration` | 类型 | [policy.ts](../src/policy.ts) |
+| `defaultSchedulingPolicy` | 常量 | [policy.ts](../src/policy.ts) |
 
 ### 随实现进入的导出
 
-下文的 TypeScript 是候选形状，尚未实现，也尚未技术接受。某项进入 `src/` 后，本页把它移到「现有导出」，改为源码导航，并同步导出测试，不保留第二套手写签名。
+本页原先列出的候选导出都已进入 `src/`，移到上表。
 
 ## 参数与依赖
 
@@ -24,58 +32,7 @@
 
 ### 依赖
 
-```ts
-import type {
-  SessionAccessCheck, SessionDelegatedTransactions, SessionTransactionPort, SessionWorkPrincipals,
-  SessionIdentityBridge, SessionEvidenceBridge, SessionClock,
-  SessionIdleInput, SessionContextInput, SessionNotifier,
-  AgentDrivePort, ScopeReleasePort,
-  SessionFaces, SessionCallerClass, SessionInternalPrincipals, SessionId, SessionRevision, DurableEvidence,
-  RoutedInput, WorkSnapshot, GuardCommand, Reply,
-} from '@omne-harness/session-contract'
-
-/** The member depends on session-contract only, so it reads the tenant type from the snapshot. */
-type TenantId = WorkSnapshot['tenant']
-
-/** Resolves a port at the call site. Null means that the port is absent now. */
-export type Current<T> = Readonly<{ current(): T | null }>
-
-/** One before-admit slot (SPEC EX-1). The slot owner defines its meaning. */
-export type BeforeAdmitSlot = Readonly<{
-  name: string
-  run(input: Readonly<{
-    submission: RoutedInput; source: DurableEvidence
-    /** The slot reads the current modes, purpose and workspace selection from this snapshot. */
-    snapshot: WorkSnapshot
-  }>): Promise<
-    | Readonly<{ kind: 'pass'; submission: RoutedInput; material: GuardCommand }>
-    | Readonly<{ kind: 'block'; reason: string; material: GuardCommand }>
-  >
-}>
-
-export type SessionDependencies<P> = Readonly<{
-  /** Required dependencies. The face checks once and then works through a delegated view. */
-  accessCheck: SessionAccessCheck<P>
-  transactions: SessionDelegatedTransactions<P>
-  /** The per-session principal of a coordinator or maintainer (SPEC CP-01). */
-  workPrincipals: SessionWorkPrincipals<P>
-  /** The public port, only for pending, references and releasedScopes. Its methods check once. */
-  directory: Current<SessionTransactionPort<P>>
-  identity: SessionIdentityBridge<P>
-  evidence: SessionEvidenceBridge
-  clock: SessionClock
-  idle: SessionIdleInput<P>
-  context: SessionContextInput<P>
-  /** Resolved after each durable commit. */
-  notifier: Current<SessionNotifier>
-  agentDrive: Current<AgentDrivePort>
-  scopeRelease: Current<ScopeReleasePort>
-  /** Principals for system maintenance only. The identity bridge verifies them. */
-  principals: SessionInternalPrincipals<P>
-  /** Ordered before-admit slots. null means admission is unavailable, so accept returns unavailable. An empty list, given only when the assembly declares no command domain and no hooks, makes accept run without slots. */
-  admission: Current<readonly BeforeAdmitSlot[]>
-}>
-```
+形状见 [dependencies.ts](../src/dependencies.ts)。成员类型取自 session-contract。租户类型取 `WorkSnapshot['tenant']`，与 session-contract 用同一个 legal-identity 类型。
 
 依赖按契约的[端口表](../../session-contract/SPEC.md#构造依赖端口与出站端口)分成三类，缺席时的表现由契约规定：
 
@@ -85,66 +42,21 @@ export type SessionDependencies<P> = Readonly<{
 | 按命令必需 | `identity`、`evidence`、`clock`、`idle`、`context` | 传入完整接口。宿主在底层能力缺席时让方法返回 `unavailable`，`owner` 为该端口 | 只有需要它的操作返回 `unavailable`；不用系统时间或空材料补默认 |
 | 按调用现取 | `directory`、`notifier`、`agentDrive`、`scopeRelease`、`admission` | 传入现取函数，每次调用前取一次 | `directory` 缺席时 `pending`、`references` 与 `releasedScopes` 返回 `unavailable`；通知缺席只记诊断；出站端口缺席时调用不发出，任务保留，由调度器重放；`admission` 取不到时 `accept` 返回 `unavailable`；只有装配声明没有命令域与 hooks 时才是空列表，`accept` 不经槽 |
 
-公开面在面操作开头按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 检查一次，经委派视图读写，不缓存 allowed（[SPEC CP-01](../SPEC.md#cp-access)、[委派入口](../../session-contract/docs/access-check.md#委派入口)）。拒绝、不可用或抛错不继续执行。视图不再检查，存储只核租户键与绑定的裁定证据。`pending`、`references` 与 `releasedScopes` 不经视图，由公开事务端口检查一次。访问检查类型与独立脚本替身已由 [session-contract](../../session-contract/docs/access-check.md) 导出，Service 与键已由 [session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 导出。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../../session-contract/docs/access-check.md)）。本成员的生产注入尚未接入，生产运行尚未验证。
+公开面在面操作开头按 [当前操作访问裁定](../../session-contract/SPEC.md#当前操作的访问裁定) 检查一次，经委派视图读写，不缓存 allowed（[SPEC CP-01](../SPEC.md#cp-access)、[委派入口](../../session-contract/docs/access-check.md#委派入口)）。拒绝、不可用或抛错不继续执行。视图不再检查，存储只核租户键与绑定的裁定证据。`pending`、`references` 与 `releasedScopes` 不经视图，由公开事务端口检查一次。访问检查类型与独立脚本替身已由 [session-contract](../../session-contract/docs/access-check.md) 导出，Service 与键已由 [session-cordis-contract](../../session-cordis-contract/docs/public-api.md) 导出。事务 commit 的显式 access、工厂必需 accessCheck 与实际读写 check 已在 session-contract 与 session-adapters 的内存替身接入（见[访问检查](../../session-contract/docs/access-check.md)）。本成员在每次面操作开头调用一次 `check`，成员测试对内存替身对与真实 SQL 提供者对核对计次（[access.spec.ts](../tests/access.spec.ts)、[conformance-sql.spec.ts](../tests/conformance-sql.spec.ts)）。经 Cordis 的生产注入归 session-cordis，尚未接入。生产运行尚未验证。
 
 协调器、调度器与恢复对已成立会话的每次面操作（提交命令与读取）都经 `workPrincipals.forSession` 取得该会话的主体。actor 的取值、失败处置与 `principals` 适用的两处系统维护见 [SPEC CP-01](../SPEC.md#cp-access)。两者都由应用装配签发，身份桥核实它们的可信来源，本成员不铸造主体。
 
-`BeforeAdmitSlot` 的输入与输出取自 [EX-1](../SPEC.md#ex-1) 的表：输入是原提交、来源与会话当前值，输出是放行（可能已展开的内容与该槽的结论）或拦截（原因与留痕材料）。前一个槽放行的 `submission` 是后一个槽的输入。槽的结论与留痕以 `GuardCommand` 表示，作为参加者材料进入 `accept`，`participant` 为该槽的拥有者。槽的语义与公开入口归命令域与 hooks 的拥有者，尚未定义。定义之前 session-adapters 不登记槽，`admission` 取不到，`accept` 返回 `unavailable`；只有装配声明 `admission: 'none'` 时才返回空列表。
+`BeforeAdmitSlot` 的输入与输出取自 [EX-1](../SPEC.md#ex-1) 的表：输入是原提交、来源与会话当前值，输出是放行（可能已展开的内容与该槽的结论）或拦截（原因与留痕材料）。前一个槽放行的 `submission` 是后一个槽的输入。槽的结论与留痕以 `GuardCommand` 表示，作为参加者材料进入 `accept`，`participant` 为该槽的拥有者。槽的语义与公开入口归命令域与 hooks 的拥有者，尚未定义。定义之前 session-adapters 不登记槽，`admission` 取不到，`accept` 返回 `unavailable`；只有装配声明 `admission: 'none'` 时才返回空列表。本成员现在只接受空列表。槽列表取不到或不为空时，普通输入的 `accept` 返回 `unavailable`，`owner` 为 `sessionAdmission`。理由见 SPEC 的[实现现状](../SPEC.md#实现现状)。
 
 ### 配置
 
-```ts
-export type SchedulingPolicy = Readonly<{
-  command: Readonly<{ retriesOnChanged: number }>
-  advance: Readonly<{ retryDelaysMs: readonly number[] }>
-  idle: Readonly<{ checkIntervalMs: number; clockToleranceMs: number }>
-  recoveryScan: Readonly<{
-    periodMs: number; pageSize: number
-    sessionBackoff: Readonly<{ initialMs: number; multiplier: number; maxMs: number }>
-  }>
-  pendingResolution: Readonly<{ retryIntervalMs: number; maxAttempts: number }>
-  controlReplay: Readonly<{ intervalMs: number; maxReplays: number }>
-  cascade: Readonly<{ intervalMs: number; maxDrives: number }>
-  /** prewarm stays false until the Agent host instance-creation entry exists (contract P-7). */
-  preEvaluation: Readonly<{ concurrency: number; prewarm: false }>
-  boundedRecovery: Readonly<{ maxInspectAttempts: number; retryIntervalMs: number }>
-  cache: Readonly<{ entryBudgetBytes: number; snapshotSessions: number }>
-}>
-
-export type SessionConfiguration = Readonly<{ policy: SchedulingPolicy }>
-
-/** Initial values from SPEC SchedulingPolicy. They are configuration seeds, not contract promises. */
-export declare const defaultSchedulingPolicy: SchedulingPolicy
-```
+形状与初值见 [policy.ts](../src/policy.ts)。工厂用同一文件里的核对函数检查装配交来的配置。
 
 每个字段的含义、覆盖的机制与初值归 SPEC 的 [SchedulingPolicy](../SPEC.md#schedulingpolicy) 表，本页不重复。`defaultSchedulingPolicy` 只是那张表的初值，装配可以整体或逐字段替换。替换只改变间隔、上限与退避，不改变任何命令的结局集合（[SR-3](../SPEC.md#sr-1)）。`preEvaluation.prewarm` 的类型是字面量 `false`：Agent 宿主创建实例的入口（[P-7](../../session-contract/SPEC.md#具名前提与明确缺项)）定义之前，配置无法打开预热。入口定义之后，这个字段改为 `boolean`。
 
 ### 工厂与实例
 
-```ts
-export type MaintenanceHandle = Readonly<{ release(): Promise<void> }>
-
-export type SessionInstance<P> = Readonly<{
-  /** The four faces as one caller class sees them. */
-  facesFor(caller: SessionCallerClass): SessionFaces<P>
-  /** Wakes S1, S2 and C5 from a commit notice that another process or a participant commit produced. */
-  committed(notice: Readonly<{
-    tenant: TenantId; session: SessionId; revision: SessionRevision
-    source: DurableEvidence; kinds: readonly string[]
-  }>): void
-  /** Wakes S7 from an asset, workspace or settings change notice. */
-  changed(notice: Readonly<{
-    tenant: TenantId; scope: string; counters: Readonly<Record<string, string>>
-  }>): void
-  /** Starts the S3 scanner for one tenant, with a startup scan. One scanner per tenant. */
-  maintain(tenant: TenantId): Reply<MaintenanceHandle>
-  close(): Promise<void>
-}>
-
-export declare function createSessionInstance<P>(
-  dependencies: SessionDependencies<P>, configuration: SessionConfiguration,
-): SessionInstance<P>
-```
+形状见 [instance.ts](../src/instance.ts)。`MaintenanceHandle` 在 [scan.ts](../src/scan.ts)。
 
 | 成员 | 用途 | 依据 |
 | --- | --- | --- |

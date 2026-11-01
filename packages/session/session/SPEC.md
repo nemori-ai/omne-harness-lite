@@ -1,6 +1,6 @@
 # Session 通用实现的行为规格
 
-本成员实现[会话契约](../session-contract/SPEC.md)的[运行契约](../session-contract/SPEC.md#运行契约候选)，不新增公开行为。契约已经写定的操作、失败、事件与状态机，本文只链接，不复述。本文写契约没有写的机制：命令处理器流水线、五个协调器、七个调度器、受理拓展点的编排、缓存、同一会话日志中 Agent 事实的解释规则，以及这些机制的持续验证义务。状态为候选技术设计。根入口目前为空，没有生产实现；本文存在不表示实现、提供者或验证已经完成。
+本成员实现[会话契约](../session-contract/SPEC.md)的[运行契约](../session-contract/SPEC.md#运行契约候选)，不新增公开行为。契约已经写定的操作、失败、事件与状态机，本文只链接，不复述。本文写契约没有写的机制：命令处理器流水线、五个协调器、七个调度器、受理拓展点的编排、缓存、同一会话日志中 Agent 事实的解释规则，以及这些机制的持续验证义务。状态为候选技术设计。根入口已导出工厂，实现覆盖本文的一个子集，见[实现现状](#实现现状)。本文存在不表示其余机制、提供者或验证已经完成。
 
 本文的条款前缀：AP 应用层规矩，CP 命令处理器流水线，EX 受理拓展点，C1 至 C5 协调器，S1 至 S7 调度器，SR 调度器共同规则，RD 同日志解释，CA 缓存，CR 崩溃矩阵，VM 持续验证义务。契约条款沿契约的前缀（OP、JC、PA、PM、EC、RS、I-R、I-F、P、VC），事件编号沿[事件目录](../session-contract/docs/object-model/session-log-events.md#原生事实类别)，守卫编号沿[状态转移页](../session-contract/docs/object-model/session-state-transitions.md#命令守卫与完整结果)。
 
@@ -367,9 +367,54 @@
 - 替换提供者或重启进程不重置条目身份、提交位置或 `readThrough`。恢复出的分支无法证明原前缀连续时，原检查点与游标不可继续采用，沿[投影与恢复算法](docs/architecture/mechanisms.md#投影与恢复算法)。
 - 释放本成员持有的资源不取消任何 Model、Tool、Agent 执行或子会话。外部效果不因 disposer 运行而变得可撤回。依赖丢失不能报告为业务成功。
 
+## 实现现状
+
+本节写根入口现在实现了本文的哪些机制、怎样实现、哪些还没有实现。它不改本文的条款。
+
+### 已实现
+
+- 工厂 `createSessionInstance`。构造前核对四项启动条件与 `SchedulingPolicy` 的每个字段。任一不合，工厂抛出错误并指出依赖名或字段路径，不调用任何依赖。
+- [CP-01](#cp-01) 的六步，含 `changed` 重做与 `command.retriesOnChanged` 上限，以及 [cp-access](#cp-access) 的一次核权与委派视图。
+- [CP-03](#cp-03) 的读路径。调用方类按契约的四面操作表核对，不在其中返回 `denied`，不调用 `check`。
+- [S1](#s1)，以及 [C2](#c2) 的开 Run 顺序：`judgeRunStart`、`startRun`、`invoke`、`receive(input-handover)`。`invoke` 答 `invalid` 时提交有界收束的 `finishRun`。`startRun` 带回冻结判定时提交 `freeze`。`startRun`、`claim`、`reload` 的 `instance` 按 XC-AGINST 第 2.1 节的会话槽引用规则计算。
+- [S4](#s4)：按同一操作身份查询，结局已知后交回原发起者，以同一身份重做。
+- [S3](#s3)：启动扫描读原因的并集，周期扫描读 `inputs` 与 `unresolved`。有待处理输入的会话交 S1，每个未知操作交 S4。
+- 停止顺序：先不接受新的触发，再等在途工作结束。停止期间不发出出站调用。
+
+### 实现选择
+
+- 第 1 步认回：点查经视图调用 `queryOperation`（控制命令调用 `queryControlOperation`）。点查答 `committed`，或答身份属于另一种记录形式的 `conflict` 时，流水线不读快照、不收材料，直接经视图 `commit`，由存储参加者的 `decide` 认回原答案或答 `conflict`。`create` 与 `completeInitialization` 的认回仍收材料，因为初始化认回要核对来源守卫。点查答 `denied` 时，除 `create` 外返回 `denied`。
+- 第 3 步只返回快照本身决定的拒绝：`archived`、`frozen`、`run-active`、`no-input`、`not-ready`、`terminal`、`stale-advance`。其他拒绝可能依赖材料或同根读取，只有事务内的 `decide` 能裁定，所以流水线不在事务外返回它们。
+- 第 4 步的材料拥有者按命令种类固定：每个变更调用身份桥。证据桥只用于需要它的命令。Context 输入用于 `create`、`change`、`startRun`、`reload`。空闲输入用于 `recordIdle`、`considerAutoArchive`。
+- 第 6 步的事件种类：流水线经同一视图读一页历史（1 MiB 字节预算），取该次提交修订的条目种类。读取失败时种类集合为空，通知照发。本实例自己的提交按命令种类在本地唤醒 S1，不依赖事件种类。
+- 端口抛错时：`commit` 抛错按 `commit-unknown` 返回，其余端口抛错按 `unavailable` 返回，`owner` 为该端口的服务键。
+- C2 的候选采用取快照的 `definition.adopted`。`invoke` 的 `source` 与 `grant` 都取 `startRun` 回执的 `source`，因为 SE13 与 SE15 在同一次提交里写入。
+- 读出的快照不属于本次访问的租户与会话时，流水线不用它，返回 `denied`。
+
+### 未实现与触发条件
+
+| 未实现 | 现在的表现 | 触发条件 |
+| --- | --- | --- |
+| [CP-02](#cp-02) 参加分支 | 四个面上的参加命令走 CP-01 | 执行记录提供者接入同日志提交（C19） |
+| [EX-1](#ex-1) 非空槽列表 | 普通输入的 `accept` 返回 `unavailable`，`owner` 为 `sessionAdmission`。槽可能展开提交内容，而委派视图绑定已核验的原命令，展开后的命令没有获准的提交路径 | 命令域与 hooks 定义槽的公开入口，并且委派入口的规则覆盖展开后的命令 |
+| EX-2、C1 单列的协调器 | `accept` 直接走 CP-01，本地唤醒 S1 代替推进条件触发 | 受理槽进入本波以后的范围 |
+| C2 的续入、同日志解释（[RD](#rd-同日志解释)）、恢复与接管、换代 | 不交入后续输入，不解释 Agent 事实。`invoke` 答 `denied` 时停止，不区分来源 | RD 依赖 `commitEntries` 的范围检查（C11）与 Journal 提供者（C19） |
+| [C3](#c3)、[C4](#c4)、[C5](#c5)，[S2](#s2)、[S5](#s5)、[S6](#s6)、[S7](#s7) | 不触发。`changed` 通知不唤醒任何调度器 | 各自的协调对象进入实现 |
+| S3 的其余六个原因、每会话退避、部署租户枚举 | 周期扫描只读 `inputs` 与 `unresolved`。租户由调用方逐个交入 `maintain` | 对应协调器进入实现。租户枚举归 session-cordis |
+| [CA](#ca-缓存) 三层缓存 | 没有缓存。第 2 步总经视图读权威快照 | 实测显示权威读成为瓶颈 |
+| 诊断出口 | `SessionDependencies` 没有诊断端口。通知失败、`forSession` 失败、S4 超过上限时只停止，不报告维护者。后台工作抛出的缺陷留在实例内存里 | 公开接口页增加诊断端口 |
+
+### 已有测试
+
+成员测试在 `tests/`，逐项对应见 [tests/README.md](tests/README.md)。
+
+- session-contract 的事务套件经四个面运行：对内存替身对 21 例全部通过；对真实 sqlite-provider 上的 SQL 提供者对，19 例通过，J40 与 SL10 两例钉在存储缺陷上。缺陷是 session-storage-sql 的 `session.history` 读处理器有一条语句没有 `LIMIT`，真实读端口答 `read_port_violation`。套件直接驱动 SQL 端口时，这两例同样失败。缺陷修复后这两例变红，届时删除钉住。
+- [VM-13](#vm-机制的持续验证义务) 的计次与失败分支、跨租户拒绝、[VM-01](#vm-机制的持续验证义务) 的重做与上限、SS-02 的确定性计数（两个规模下各面操作的计数相同），各有用例。
+- 没有测试的义务：VM-02 至 VM-12 中本节「未实现」一表涉及的部分，以及崩溃矩阵。
+
 ## 验证
 
-当前入口测试只检查根入口为空。下列义务是后继实现必须通过的可观察结果，不是已经执行的测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [docs/fault-scenarios.md](docs/fault-scenarios.md)。
+下列义务是实现必须通过的可观察结果。已有测试覆盖的部分见[已有测试](#已有测试)，其余义务还没有测试。契约的 [VC 表](../session-contract/SPEC.md#候选的持续验证义务)继续适用；本节只列机制自有的义务与崩溃矩阵。故障场景的前置、注入与期望观察在 [docs/fault-scenarios.md](docs/fault-scenarios.md)。
 
 ### VM 机制的持续验证义务
 

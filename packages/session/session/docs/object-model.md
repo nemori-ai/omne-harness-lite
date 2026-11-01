@@ -2,7 +2,7 @@
 
 本页描述本成员的实现内部对象：服务实例、调度与协调用的内存项、缓存项，以及一次命令调用的临时对象。它们是技术对象，不自动成为领域对象。`WorkSnapshot`、`CommitReceipt`、`ExecutionRef`、`ControlProgress`、`RecoveryTask`、`OperationRecord` 等契约对象归 [session-contract 的公开定义](../../session-contract/docs/public-api.md)与[契约对象模型](../../session-contract/docs/object-model/README.md)，本页只说明本成员怎样持有或引用它们。
 
-状态为候选技术设计。根入口目前为空。下面的对象由 [SPEC](../SPEC.md) 固定，类名与字段名随实现确定。
+状态为候选技术设计。根入口已导出工厂，实现覆盖 SPEC 的一个子集，见 SPEC 的[实现现状](../SPEC.md#实现现状)。下面的对象由 [SPEC](../SPEC.md) 固定，类名与字段名以 `src/` 为准。
 
 ## 构造对象
 
