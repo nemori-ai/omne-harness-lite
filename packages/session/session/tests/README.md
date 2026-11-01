@@ -8,7 +8,7 @@
 
 ## 边界
 
-本成员与 Cordis 无关，测试直接调用工厂，不装载 Cordis。事务端口、身份桥、证据桥、时钟、空闲输入、Context 输入与四个出站端口在测试里用替身，因为它们的真实实现归存储参加者、session-adapters 与邻域。替身要能给出 `changed`、`commit-unknown`、`unavailable` 与缺席，并能让时钟前进，才能覆盖重做、未知结局与恢复的场景。真实存储介质、真实邻域协调者与跨进程的组合不在本目录。测试通过不代替规格或验收。
+本成员与 Cordis 无关，测试直接调用工厂，不装载 Cordis。身份桥、证据桥、时钟、空闲输入、Context 输入、会话工作主体与出站端口在测试里用 session-contract 与 session-cordis-contract 的 `./testing` 替身，因为它们的真实实现归 session-adapters、应用装配与邻域。替身要能给出 `changed`、`commit-unknown`、`unavailable` 与缺席，并能让时钟前进，才能覆盖重做、未知结局与恢复的场景。存储有两种：session-contract 的内存替身对，以及 session-storage-sql 在真实 sqlite-provider 上的提供者对（慢层）。真实邻域协调者与跨进程的组合不在本目录。测试通过不代替规格或验收。
 
 ## 维护
 
@@ -16,8 +16,19 @@
 
 ## 本包事实
 
-现在只有 [public-entry.spec.ts](public-entry.spec.ts)，它断言根入口没有导出。没有 `*.spec-d.ts` 类型测试。它只是骨架，不证明任何会话行为。
+| 文件 | 层 | 覆盖 |
+| --- | --- | --- |
+| [public-entry.spec.ts](public-entry.spec.ts) | 快 | 根入口的运行时导出（经 `dist`，先构建） |
+| [conformance.spec.ts](conformance.spec.ts) | 快 | session-contract 的事务套件经四个面运行，内存替身对 |
+| [conformance-sql.spec.ts](conformance-sql.spec.ts) | 慢 | 同一套件与计次、跨租户，真实 sqlite-provider 上的 SQL 提供者对。J40、SL10 钉在存储缺陷上，见文件开头 |
+| [access.spec.ts](access.spec.ts) | 快 | 每次面操作一次 `check`、`changed` 重做不追加；CP-01 第 1 步的失败分支；调用方类；另一租户 |
+| [pipeline.spec.ts](pipeline.spec.ts) | 快 | CP-01 的认回、事务外拒绝、材料拥有者、`changed` 上限、未知结局、通知与关闭 |
+| [construction.spec.ts](construction.spec.ts) | 快 | 启动条件与 `SchedulingPolicy` 的逐字段核对 |
+| [advance.spec.ts](advance.spec.ts) | 快 | S1、C2 的开 Run 顺序、会话槽引用的两组样例、S4、S3 |
+| [complexity.spec.ts](complexity.spec.ts) | 快 | SS-02：两个历史规模下各面操作的确定性计数相同，并有一个负控 |
+
+没有 `*.spec-d.ts` 类型测试。
 
 运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/session`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 
-当前缺口：SPEC 的[验证义务](../SPEC.md#vm-机制的持续验证义务)、[崩溃矩阵](../SPEC.md#cr-崩溃矩阵)与[故障场景](../docs/fault-scenarios.md)都还没有测试，随实现进入。具名维护者由负责人指定。
+当前缺口：SPEC 中未实现的机制没有测试，[崩溃矩阵](../SPEC.md#cr-崩溃矩阵)与[故障场景](../docs/fault-scenarios.md)也没有运行器。覆盖范围见 SPEC 的[已有测试](../SPEC.md#已有测试)。具名维护者由负责人指定。
