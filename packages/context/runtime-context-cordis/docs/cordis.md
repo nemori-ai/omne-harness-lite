@@ -4,7 +4,7 @@
 
 服务键、抽象类、intercept 配置、事件与登记协议归 [runtime-context-cordis-contract 的 Cordis 说明](../../runtime-context-cordis-contract/docs/cordis.md)，本插件继承这些定义，不重复提供键。供给机制归 [runtime-context](../../runtime-context/docs/architecture.md)。共同集成规则归 [IC 约定](../../../../docs/architecture/cordis-integration-conventions.md)。
 
-现状：`src/cordis.ts` 导出 `createRuntimeContextPlugin`：插件 `inject` 键 `runtimeContextTrust`（由服务定义成员定义），键缺席时停在 PENDING，取出 `authority` 与 `bindings` 交给调用方给的构造函数。服务子类、生产工厂与配置尚未实现。`src/index.ts` 仍无导出。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
+现状：`src/cordis.ts` 导出 `createRuntimeContextPlugin`：插件 `inject` 键 `runtimeContextTrust`（由服务定义成员定义），键缺席时停在 PENDING，取出 `authority` 与 `bindings` 交给调用方给的构造函数。服务子类、生产工厂与配置尚未实现。provider 卸载后插件 fiber 释放；`construct` 造出的旧产物由 `construct` 的调用方自行处理，本插件不登记 disposer，生产工厂接入时再定。`src/index.ts` 仍无导出。机制事实按已采用的 Cordis 4.0.4 核对。有 basis 条目的写条目链接，只有源码读数的标明「源码读数」。
 
 ## 插件与服务
 

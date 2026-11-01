@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import type { ConformanceCase } from './case.js'
+import { NotApplicable, type ConformanceCase } from './case.js'
 import { declaration, scope, openScope, setup } from './fixtures.js'
 import { createMemoryRuntimeContext } from './memory.js'
 import { createTestAuthorityPorts } from './ports.js'
@@ -14,6 +14,7 @@ export const RUNTIME_CONTEXT_TRUST_OBLIGATIONS = [
   'bridge-invalidates-while-original-current',
   'original-current-false-refused',
   'revocation-during-await-discarded',
+  'work-revocation-during-await-discarded',
   'request-replacement-old-disclosure-refused',
   'bridge-unload-late-callback-discarded',
   'scope-rebind-refused',
@@ -34,6 +35,7 @@ const trustCases = {
   'original-current-false-refused': originalCurrentFalseRefused,
   'revocation-during-await-discarded': <P>(f: Fixture<P>) =>
     staleDuringRead(f, 'revokeAuthorization'),
+  'work-revocation-during-await-discarded': <P>(f: Fixture<P>) => staleDuringRead(f, 'revokeWork'),
   'request-replacement-old-disclosure-refused': <P>(f: Fixture<P>) =>
     staleDuringRead(f, 'advanceRequestGeneration'),
   'bridge-unload-late-callback-discarded': <P>(f: Fixture<P>) =>
@@ -154,18 +156,14 @@ async function originalCurrentFalseRefused<P>(fixture: Fixture<P>) {
   }
 }
 
-/** The original writer confirms a revocation; no notification and no control is involved. */
-async function asyncNotificationPendingRevoked<P>(fixture: Fixture<P>) {
-  const t = build(fixture)
-  try {
-    const s = await setup(t.subject, t.ports, fixture.tenant, fixture.principal)
-    const before = await decisions(t.trust, fixture, s.eligibility)
-    assert.deepEqual(currents(before), [true, true, true])
-    t.ports.revokeAll()
-    assert.deepEqual(currents(before), [false, false, false])
-  } finally {
-    await t.subject.close()
-  }
+/**
+ * Known gap (#677): the original writer confirmed a revocation but no asynchronous notification has
+ * arrived. A production composition must then fail this case. No fixture can supply a real
+ * synchronous revocation source through this interface, and the test double must not make the case
+ * pass by revoking at the test port, so the case reports NotApplicable for every fixture.
+ */
+async function asyncNotificationPendingRevoked<P>(_fixture: Fixture<P>): Promise<void> {
+  throw new NotApplicable('synchronous revocation source (known gap #677)')
 }
 
 /** A per-request read whose source runs the given step while the read waits for it. */

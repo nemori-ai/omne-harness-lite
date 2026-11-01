@@ -57,7 +57,13 @@ async function failures(fixture: RuntimeContextTrustFixture<string>): Promise<st
 describe('the fixed double satisfies the whole suite', () => {
   for (const c of runtimeContextTrustConformance<string>())
     it(c.name, async () => {
-      expect(await runConformanceCase(c, fixtureOf(honest))).toEqual({ kind: 'passed' })
+      const verdict = await runConformanceCase(c, fixtureOf(honest))
+      // The double never passes the known-gap case (#677); the other eleven pass.
+      expect(verdict).toEqual(
+        c.name === 'async-notification-pending-revoked'
+          ? { kind: 'not-applicable', handle: 'synchronous revocation source (known gap #677)' }
+          : { kind: 'passed' },
+      )
     })
 })
 
@@ -79,7 +85,7 @@ describe('a fixture that breaks one rule fails only the cases of that rule', () 
       'revokeAuthorization',
       ['authorization-revocation-synchronous', 'revocation-during-await-discarded'],
     ],
-    ['revokeWork', ['work-revocation-synchronous']],
+    ['revokeWork', ['work-revocation-synchronous', 'work-revocation-during-await-discarded']],
     [
       'advanceRequestGeneration',
       ['request-generation-synchronous', 'request-replacement-old-disclosure-refused'],
@@ -108,10 +114,7 @@ describe('a fixture that breaks one rule fails only the cases of that rule', () 
         },
       })
     }
-    expect(await failures(fixtureOf(dropped))).toEqual([
-      'async-notification-pending-revoked',
-      'original-current-false-refused',
-    ])
+    expect(await failures(fixtureOf(dropped))).toEqual(['original-current-false-refused'])
   })
 
   it('a bridge that caches the first binding of a scope', async () => {

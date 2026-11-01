@@ -1500,7 +1500,7 @@ export declare function addScope<P>(s: Setup<P>, ref: string, required?: boolean
 ## 声明文件 `testing/trust-conformance.d.ts`
 
 ```ts
-import type { ConformanceCase } from './case.js';
+import { type ConformanceCase } from './case.js';
 import type { RuntimeContextTrustFixture } from './trust.js';
 export declare const RUNTIME_CONTEXT_TRUST_OBLIGATIONS: readonly [
     'cross-tenant-zero-source-calls',
@@ -1510,6 +1510,7 @@ export declare const RUNTIME_CONTEXT_TRUST_OBLIGATIONS: readonly [
     'bridge-invalidates-while-original-current',
     'original-current-false-refused',
     'revocation-during-await-discarded',
+    'work-revocation-during-await-discarded',
     'request-replacement-old-disclosure-refused',
     'bridge-unload-late-callback-discarded',
     'scope-rebind-refused',
