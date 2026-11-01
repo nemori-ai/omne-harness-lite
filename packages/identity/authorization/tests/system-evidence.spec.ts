@@ -109,6 +109,7 @@ describe('revocation takes effect at the next check', () => {
     const request = requestFor(scanner, PENDING)
     const held = grantOf(['pending-sessions'], { expiresAt: '2026-11-02T00:00:00Z' })
     grants.script({ kind: 'found', grant: held }, { kind: 'found', grant: held })
+    clock.pend('2026-11-02T00:00:00Z')
     const first = await authorization.check(request)
     clock.expire('2026-11-02T00:00:00Z')
     const second = await authorization.check(request)

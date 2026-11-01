@@ -9,6 +9,8 @@ import {
   expiryDecides,
   grantSnapshot,
   matrixStep,
+  principalTrusted,
+  requestSnapshot,
   type ExpiryReading,
   type MaintenanceGrantReading,
   type SystemActionAuthorization,
@@ -43,24 +45,6 @@ export type SystemActionDependencies = Readonly<{
 
 const THREW = 'threw an exception; its message is not reported'
 
-function requestSnapshot(request: SystemActionRequest): SystemActionRequest {
-  const resource = Object.freeze({
-    owner: request.target.resource.owner,
-    kind: request.target.resource.kind,
-    key: request.target.resource.key,
-  })
-  return Object.freeze({
-    principal: request.principal,
-    scope: 'system',
-    operation: Object.freeze({ owner: request.operation.owner, name: request.operation.name }),
-    target:
-      request.target.kind === 'system'
-        ? Object.freeze({ kind: 'system', resource })
-        : Object.freeze({ kind: 'tenant', tenant: request.target.tenant, resource }),
-    arguments: Object.freeze({ digest: request.arguments.digest }),
-  })
-}
-
 async function verify(
   deps: SystemActionDependencies,
   principal: unknown,
@@ -91,6 +75,11 @@ async function readGrant(
         return Object.freeze({ kind: 'none' })
       case 'unavailable':
         return Object.freeze({ kind: 'unavailable', diagnostic: reading.diagnostic })
+      default:
+        return {
+          kind: 'unavailable',
+          diagnostic: 'the maintenance grant source answered outside its contract',
+        }
     }
   } catch {
     return { kind: 'unavailable', diagnostic: `the maintenance grant source ${THREW}` }
@@ -105,9 +94,19 @@ async function readExpiry(
     return { kind: 'unavailable', diagnostic: 'no trusted clock is installed' }
   try {
     const reading = await deps.clock.reached(expiresAt)
-    return reading.kind === 'unavailable'
-      ? Object.freeze({ kind: 'unavailable', diagnostic: reading.diagnostic })
-      : Object.freeze({ kind: reading.kind })
+    switch (reading.kind) {
+      case 'reached':
+        return Object.freeze({ kind: 'reached' })
+      case 'pending':
+        return Object.freeze({ kind: 'pending' })
+      case 'unavailable':
+        return Object.freeze({ kind: 'unavailable', diagnostic: reading.diagnostic })
+      default:
+        return {
+          kind: 'unavailable',
+          diagnostic: 'the trusted clock answered outside its contract',
+        }
+    }
   } catch {
     return { kind: 'unavailable', diagnostic: `the trusted clock ${THREW}` }
   }
@@ -118,7 +117,7 @@ function rowToRead(
   request: SystemActionRequest,
   principal: PrincipalVerification,
 ): SystemActionRow | null {
-  if (principal.kind !== 'verified' || principal.principal !== request.principal) return null
+  if (!principalTrusted(request, principal)) return null
   const matrix = matrixStep(request)
   return matrix.kind === 'row' ? matrix.row : null
 }

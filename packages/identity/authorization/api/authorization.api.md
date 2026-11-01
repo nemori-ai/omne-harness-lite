@@ -368,7 +368,9 @@ export type SystemActionDecision = Readonly<{
 export interface SystemActionAuthorization {
     check(input: SystemActionRequest): Promise<SystemActionDecision>;
 }
+export declare function requestSnapshot(request: SystemActionRequest): SystemActionRequest;
 export declare function grantSnapshot(grant: MaintenanceGrant): MaintenanceGrant;
+export declare function principalTrusted(request: SystemActionRequest, verified: PrincipalVerification): boolean;
 export type MatrixStep = Readonly<{
     kind: 'row';
     row: SystemActionRow;
@@ -428,6 +430,7 @@ export declare function referenceSystemActionAuthorization(deps: SystemActionDep
 import type { SystemActionClock } from '../system-reference.ts';
 export type ManualSystemClock = Readonly<{
     clock: SystemActionClock;
+    pend(expiresAt: string): void;
     expire(expiresAt: string): void;
     fail(diagnostic: string): void;
     asked(): readonly string[];

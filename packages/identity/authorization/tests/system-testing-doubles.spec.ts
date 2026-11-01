@@ -70,8 +70,10 @@ describe('the scripted maintenance grant source', () => {
 })
 
 describe('the manual clock', () => {
-  it('says pending for a time it was not told to reach, and reached for one it was', async () => {
-    const { clock, expire } = manualSystemClock()
+  it('says unavailable for a time it was not told about, pending after pend, reached after expire', async () => {
+    const { clock, pend, expire } = manualSystemClock()
+    await expect(clock.reached('t1')).resolves.toMatchObject({ kind: 'unavailable' })
+    pend('t1')
     await expect(clock.reached('t1')).resolves.toEqual({ kind: 'pending' })
     expire('t1')
     await expect(clock.reached('t1')).resolves.toEqual({ kind: 'reached' })

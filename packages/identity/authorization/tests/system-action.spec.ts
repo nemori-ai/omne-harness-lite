@@ -167,6 +167,7 @@ describe('step 3: the grant record', () => {
 
   it('allows a grant whose end time is not reached yet', async () => {
     const { scanner, grants, clock, authorization } = installed()
+    clock.pend('2099-01-01T00:00:00Z')
     grants.script({
       kind: 'found',
       grant: grantOf(['pending-sessions'], { expiresAt: '2099-01-01T00:00:00Z' }),

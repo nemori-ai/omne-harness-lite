@@ -94,16 +94,23 @@ export interface SystemActionAuthorization {
   check(input: SystemActionRequest): Promise<SystemActionDecision>
 }
 
-function resourceSnapshot(resource: AdmissionTarget): AdmissionTarget {
-  return Object.freeze({ owner: resource.owner, kind: resource.kind, key: resource.key })
-}
-
-function targetSnapshot(target: SystemActionTarget): SystemActionTarget {
-  const resource = resourceSnapshot(target.resource)
-  // The minted tenant keeps its original object.
-  return target.kind === 'system'
-    ? Object.freeze({ kind: 'system', resource })
-    : Object.freeze({ kind: 'tenant', tenant: target.tenant, resource })
+/**
+ * An own frozen copy of the value fields of a request. The principal and the minted tenant keep
+ * their original objects. `scope` is copied as given, so a foreign scope reaches the judgment.
+ */
+export function requestSnapshot(request: SystemActionRequest): SystemActionRequest {
+  const { resource } = request.target
+  const frozen = Object.freeze({ owner: resource.owner, kind: resource.kind, key: resource.key })
+  return Object.freeze({
+    principal: request.principal,
+    scope: request.scope,
+    operation: Object.freeze({ owner: request.operation.owner, name: request.operation.name }),
+    target:
+      request.target.kind === 'system'
+        ? Object.freeze({ kind: 'system', resource: frozen })
+        : Object.freeze({ kind: 'tenant', tenant: request.target.tenant, resource: frozen }),
+    arguments: Object.freeze({ digest: request.arguments.digest }),
+  })
 }
 
 /** An own frozen copy of the value fields of a grant. */
@@ -119,11 +126,12 @@ export function grantSnapshot(grant: MaintenanceGrant): MaintenanceGrant {
   })
 }
 
-function initialBasis(request: SystemActionRequest): SystemActionBasis {
+function initialBasis(input: SystemActionRequest): SystemActionBasis {
+  const request = requestSnapshot(input)
   return Object.freeze({
-    operation: Object.freeze({ owner: request.operation.owner, name: request.operation.name }),
-    target: targetSnapshot(request.target),
-    arguments: Object.freeze({ digest: request.arguments.digest }),
+    operation: request.operation,
+    target: request.target,
+    arguments: request.arguments,
     principal: null,
     grant: null,
   })
@@ -154,21 +162,39 @@ function unavailable(diagnostic: string): SystemActionDecision {
   return Object.freeze({ kind: 'unavailable', diagnostic })
 }
 
+/** Whether the verification is of the very principal of the request, and that principal is a system one. */
+export function principalTrusted(
+  request: SystemActionRequest,
+  verified: PrincipalVerification,
+): boolean {
+  return (
+    verified.kind === 'verified' &&
+    verified.principal === request.principal &&
+    request.principal.kind === 'system'
+  )
+}
+
 /** The matrix row that the request binds to, or the denial of step 2. */
 export type MatrixStep =
   | Readonly<{ kind: 'row'; row: SystemActionRow }>
   | Readonly<{ kind: 'denied'; reason: 'operation-forbidden' | 'binding-mismatch' }>
 
-/** Step 2. An operation outside the matrix is forbidden; a row whose target, owner or kind differ is a mismatch. */
+/** Step 2. An operation outside the matrix is forbidden; a row whose scope, target, owner or kind differ is a mismatch. */
 export function matrixStep(request: SystemActionRequest): MatrixStep {
   const row = systemActionRowOf(request.operation)
   if (row === null) return { kind: 'denied', reason: 'operation-forbidden' }
   const { target } = request
   const bound =
+    request.scope === 'system' &&
     target.kind === row.target &&
     target.resource.owner === row.resource.owner &&
     target.resource.kind === row.resource.kind
   return bound ? { kind: 'row', row } : { kind: 'denied', reason: 'binding-mismatch' }
+}
+
+/** A record whose `revoked` is not a boolean cannot be read as a trusted fact. */
+function recordReadable(grant: MaintenanceGrant): boolean {
+  return typeof grant.revoked === 'boolean'
 }
 
 /** Whether step 3 reaches the end time: a record of this purpose that is not revoked and has one. */
@@ -178,8 +204,9 @@ export function expiryDecides(
 ): boolean {
   return (
     grant?.kind === 'found' &&
+    recordReadable(grant.grant) &&
     grant.grant.purposes.includes(row.purpose) &&
-    !grant.grant.revoked &&
+    grant.grant.revoked === false &&
     grant.grant.expiresAt !== undefined
   )
 }
@@ -196,13 +223,24 @@ function grantStep(
   if (reading.kind === 'none') return denied('grant-missing', basis)
   const grant = grantSnapshot(reading.grant)
   const known = Object.freeze({ ...basis, grant })
+  if (!recordReadable(grant))
+    return unavailable('the maintenance grant record is not in the agreed shape')
   if (!grant.purposes.includes(row.purpose)) return denied('grant-missing', known)
   if (grant.revoked) return denied('grant-revoked', known)
   if (grant.expiresAt === undefined) return known
   const expiry = facts.expiry
   if (expiry === null) return unavailable('the end time of the grant was not checked')
-  if (expiry.kind === 'unavailable') return unavailable(expiry.diagnostic)
-  return expiry.kind === 'reached' ? denied('grant-expired', known) : known
+  // Closed: any answer that is not `reached` or `pending` is not a trusted fact.
+  switch (expiry.kind) {
+    case 'reached':
+      return denied('grant-expired', known)
+    case 'pending':
+      return known
+    case 'unavailable':
+      return unavailable(expiry.diagnostic)
+    default:
+      return unavailable('the trusted clock answered outside its contract')
+  }
 }
 
 function isDecision(
@@ -225,8 +263,7 @@ export function decideSystemAction(
   const basis = initialBasis(request)
   const verified = facts.principal
   if (verified.kind === 'unavailable') return unavailable(verified.diagnostic)
-  if (verified.kind === 'rejected' || verified.principal !== request.principal)
-    return denied('untrusted-principal', basis)
+  if (!principalTrusted(request, verified)) return denied('untrusted-principal', basis)
   const known = Object.freeze({ ...basis, principal: request.principal })
   const matrix = matrixStep(request)
   if (matrix.kind === 'denied') return denied(matrix.reason, known)

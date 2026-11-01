@@ -26,6 +26,18 @@ describe('the system purpose matrix', () => {
     )
   })
 
+  it('binds the arguments of each row as the specification table says', () => {
+    expect(SYSTEM_ACTION_MATRIX.map(entry => [entry.purpose, entry.arguments])).toEqual([
+      ['resident-references', 'none'],
+      ['released-scopes', 'none'],
+      ['enumerate-tenants', 'none'],
+      ['pending-sessions', 'none'],
+      ['scope-release-receive', 'request'],
+      ['scope-release-load', 'none'],
+      ['scope-release-query', 'request'],
+    ])
+  })
+
   it.each(ROWS.map(value => [value.name, value] as const))(
     'allows %s with a grant of its own purpose',
     async (_name, value) => {

@@ -247,9 +247,9 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 `decideSystemAction(request, facts)` 按固定顺序判断。第一个不满足的步骤决定结果。
 
-1. 主体核验。核验器答 `rejected`，或答 `verified` 但返回的主体不是 `request.principal` 的同一个对象，拒绝，原因 `untrusted-principal`。核验器答 `unavailable`，结论 `unavailable`。
-2. 矩阵。`operation` 不在下表内，拒绝，原因 `operation-forbidden`。这一步先于读取授予记录。`operation` 在表内，但 `target.kind`、`resource.owner` 或 `resource.kind` 与该行不符，拒绝，原因 `binding-mismatch`。
-3. 授予记录。读口答 `none`，或记录的 `purposes` 不含本行用途，拒绝，原因 `grant-missing`。记录已撤销，拒绝，原因 `grant-revoked`。记录有 `expiresAt` 且可信时钟答已到，拒绝，原因 `grant-expired`。读口或时钟不可用，结论 `unavailable`。已撤销的记录不再问时钟。用途名只按相等比较，`*` 不是通配。
+1. 主体核验。核验器答 `rejected`，或答 `verified` 但返回的主体不是 `request.principal` 的同一个对象，或该主体的 `kind` 不是 `system`，拒绝，原因 `untrusted-principal`。核验器答 `unavailable`，结论 `unavailable`。
+2. 矩阵。`operation` 不在下表内，拒绝，原因 `operation-forbidden`。这一步先于读取授予记录。`operation` 在表内，但 `scope` 不是 `system`，或 `target.kind`、`resource.owner` 或 `resource.kind` 与该行不符，拒绝，原因 `binding-mismatch`。比较时使用请求自带的 `scope`，不以常量覆盖。`resource.key` 与 `target.tenant` 的绑定由授予读口负责：读口按 key 查到记录，即承诺该记录属于该租户。本端口只比较分支、owner 与 kind。
+3. 授予记录。记录的 `revoked` 不是布尔值，或读口、时钟的答复种类不在约定之内，都是读不到可信事实，结论 `unavailable`；记录形状先于用途比较判断。读口答 `none`，或记录的 `purposes` 不含本行用途，拒绝，原因 `grant-missing`。记录存在但不含本行用途时，证据取该授予记录（见下节）。记录已撤销，拒绝，原因 `grant-revoked`。记录有 `expiresAt` 且可信时钟答 `reached`，拒绝，原因 `grant-expired`；答 `pending` 才继续；其余任何答复（含空答复和大小写不同的种类）为 `unavailable`。读口或时钟不可用，结论 `unavailable`。已撤销的记录不再问时钟。用途名只按相等比较，`*` 不是通配。
 4. 参数。该行为固定参数时，请求的摘要必须等于 `noArguments()`，否则拒绝，原因 `binding-mismatch`。按请求计算的行只把摘要写入依据，不比较。
 
 四步全部通过为 `allowed`。已知无授予答 `denied`，授予来源或时钟读不到答 `unavailable`，二者不能互换。没有安装授予来源时每个矩阵内的动作都是 `unavailable`。
@@ -278,7 +278,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 `MaintenanceGrantSource.read({ principal, operation, target })` 答 `found`、`none` 或 `unavailable`。它是裁定读取授予记录的唯一入口，没有写入侧：本包不提供 grant 管理 API，也不把安装事件当作授予。`referenceSystemActionAuthorization({ verifier, grants, clock })` 读事实后调用纯函数。它不保存任何结论，每次 `check` 重新读取，依赖抛出一律是 `unavailable`，诊断不带异常文本。只有授予记录有 `expiresAt` 且未被前面的步骤拒绝时才问时钟。
 
-`@omne-harness/authorization/testing` 提供 `scriptedMaintenanceGrants`（逐次脚本化 `found`、`none`、`unavailable`，记录调用次数与请求，脚本用完答 `unavailable`）与 `manualSystemClock`。它们是替身，不是生产来源。生产 `SystemActionAuthorization` 与维护授权读口的提供者归应用 `authorization` 行，本包没有提供。
+`@omne-harness/authorization/testing` 提供 `scriptedMaintenanceGrants`（逐次脚本化 `found`、`none`、`unavailable`，记录调用次数与请求，脚本用完答 `unavailable`）与 `manualSystemClock`。时钟替身只回答登记过的截止时间：`pend` 登记为未到，`expire` 登记为已到，没有登记的截止时间答 `unavailable`（默认拒绝）。它们是替身，不是生产来源。生产 `SystemActionAuthorization` 与维护授权读口的提供者归应用 `authorization` 行，本包没有提供。
 
 ### 撤权在下一次核验生效
 
@@ -286,7 +286,7 @@ Session 一侧的映射用 session-contract 根入口的真实 `SessionAccessChe
 
 ### 验证
 
-`tests/system-action.spec.ts` 每个步骤与顺序各有只违反它的用例，另含纯函数快照。`tests/system-matrix.spec.ts` 比较矩阵与独立字面表，逐行正例、固定参数反例、跨行借用与通配。`tests/system-evidence.spec.ts` 覆盖证据重算、无记录的证据构成、下一次核验的撤销与到期，以及源码中没有围栏名称。`tests/system-testing-doubles.spec.ts` 覆盖两个替身与 `./testing` 的导出清单。这些测试不覆盖生产授权来源、真实并发与多进程撤权。
+`tests/system-action.spec.ts` 每个步骤与顺序各有只违反它的用例，另含纯函数快照。`tests/system-matrix.spec.ts` 比较矩阵与独立字面表，逐行正例、固定参数反例、跨行借用与通配。`tests/system-closed-answers.spec.ts` 覆盖时钟与读口答复种类不明、`revoked` 非布尔、主体种类与请求范围不符，以及基线快照与「用途不符不问时钟」。`tests/system-evidence.spec.ts` 覆盖证据重算、无记录的证据构成、下一次核验的撤销与到期，以及源码中没有围栏名称。`tests/system-testing-doubles.spec.ts` 覆盖两个替身与 `./testing` 的导出清单。这些测试不覆盖生产授权来源、真实并发与多进程撤权。
 
 ## 披露与后续治理操作
 
