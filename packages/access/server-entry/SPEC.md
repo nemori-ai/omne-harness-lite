@@ -1,6 +1,8 @@
 # 服务端接入行为规格
 
-本页拥有治理协议的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
+本页拥有治理位置与会话位置的入口职责。消息字段和 `outcome` 的含义只归[公开契约](../public-contract/SPEC.md)。路径、方法、状态码、请求体上限和 SSE 格式只归[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。观察接入的组合责任见[观察脱离与重附着](#观察脱离与重附着746)。各小节的采用依据见该节开头。
+
+下列条款由 #978 波 1 设计点 DP-2 采用，依据是 DP-2 决策记录（评论 6561904972）与 R1-D27（评论 6562041248）：本段第一段对会话位置和承载页的引用、「[位置与操作范围](#位置与操作范围)」整节（含各小节）、「[验证](#验证)」一节中会话位置与 HTTP 层的验证义务。其余条款保持各自原有的采用状态。
 
 ## 入口职责
 
@@ -13,6 +15,94 @@
 必填登录证明的缺失、空字符串、未签发、已撤销，以及不是本部署签发的证明，交给 identity。对外是同一份 `denied`。时间或权威记录不可得时，identity 返回 `basis-unavailable`。接入不改写这两个结果，也不另持一份登录表。
 
 发起者只取证明核验出的账号。请求体里的账号、组织和租户是目标。通过协议检查的请求交给 identity 与 authorization 的公开入口。接入不把存储对象放进公开响应。
+
+## 位置与操作范围
+
+接入有两个位置。治理位置读写 `governance-public/1`，会话位置读写 `session-public/1`。接入按请求路径选择位置和读取函数，不按消息里的版本文本分派。路径、方法、内容类型、状态码与请求体上限在[承载绑定表](../public-contract/docs/http-binding.md#承载绑定表)。本页不复制那张表。
+
+两个位置的 HTTP 层先于公开契约的判断次序。HTTP 层的步骤和次序见[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)。HTTP 层的失败不调用 identity、authorization 和 Session。
+
+状态码不替代消息里的 `outcome`。接入只由 `outcome` 决定状态码，映射见[状态码映射](../public-contract/docs/http-binding.md#状态码映射)。同一个 `outcome` 总是得到同一个状态码和同样形状的响应体。
+
+### 治理位置
+
+M2 的治理位置只提供两个公开操作：`register-and-activate` 和 `issue-login`。
+
+- 接入把这两个消息交给 identity 的公开入口，不核验登录证明。
+- 其余治理操作按 D-10 答 `stage-not-provided`，空 `body`。这是一个偏离，见[治理位置的偏离](#治理位置的偏离)。
+- 识别登录不是公开操作。它是会话位置判断次序第 2 步的内部步骤。
+
+### 会话位置
+
+会话位置提供公开契约的七个会话操作和两个观察操作。接入按公开契约的[会话判断次序](../public-contract/SPEC.md#会话判断次序)处理会话操作。下表写接入在每一步的职责。
+
+| 步骤 | 接入的职责 |
+| --- | --- |
+| 1 协议读取 | 按承载页的[会话路径的读取分派](../public-contract/docs/http-binding.md#会话路径的读取分派)读取。两个观察操作按承载页的手写读取规则，其他操作用 `readSessionRequest`。另按 message 包完整解码 `message`。任一不合规是 `protocol-rejected`，Session 不被调用 |
+| 2 登录识别 | 把 `loginProof` 交给 identity 的登录识别，得到账号、登录和当前租户。接入不改写 `denied` 与 `basis-unavailable`，也不另持登录表 |
+| 3 行事租户 | 只对 `create-session`：核对 `actingTenant` 等于该登录的当前选择，不等是 `denied`，响应不含实际选择 |
+| 4 目标租户与主体 | 目标租户的账号等于识别出的账号时，用签发者签发代租户行事主体，规则见[登录到 Access](../../../docs/architecture/runtime/runtime-contract-handoff.md#登录到-access)。账号不等是 `denied`。签发者未安装或签发失败是 `basis-unavailable` |
+| 5 部署范围 | 用 `definitionMappings` 解析 `definition`。定义名不在映射内，或 `pageBytes` 超出部署上界，是 `invalid` |
+| 6 Session 判断 | 按[操作到 Session 的映射](../../../docs/architecture/runtime/runtime-contract-handoff.md#操作到-session-的映射)调用 Session 的面。结果按公开契约的映射表对外表示 |
+
+补充规则如下。
+
+- `cancel-run` 和 `stop-call` 调用 Session 的 `cancelRun` 与 `stopCall`，调用方类是 `intake`。它们没有行事租户，第 3 步不适用。
+- `stop-call` 的 `producer.kind` 为 `tool` 时，接入在 Session 的访问裁定之后、会话存在核对之前答 `unsupported`。接入不写任何记录。该结果与会话是否存在、`controlId` 是否用过无关。
+- 接入从识别出的登录和请求标识派生 `SessionOperationId`，规则见[SessionOperationId 的派生规则](#sessionoperationid-的派生规则)。客户端不填它。
+- `definitionMappings` 的选择是部署装配的配置。接入只读取已装配的映射，不自己选择。同一份映射数据交给 Agent 采用和 Session 采用来源。
+- 会话位置的 `denied` 不披露会话是否存在。接入对所有 `denied` 原因给出逐字节相同的响应，见[denied 的一致性](../public-contract/docs/http-binding.md#denied-的一致性)。
+- 观察操作的建立点、帧与取消沿公开契约的[会话观察](../public-contract/SPEC.md#会话观察)。承载格式见[SSE 观察](../public-contract/docs/http-binding.md#sse-观察)。观察消息的读写见承载页的[观察消息的手写读写](../public-contract/docs/http-binding.md#观察消息的手写读写)。
+
+### SessionOperationId 的派生规则
+
+本节是 `SessionOperationId` 派生规则的现行源。公开契约的[控制标识与重试](../public-contract/SPEC.md#控制标识与重试)把派生规则分给服务端接入，本节兑现它。摘要算法、族的文本和字段编码归 Session 的 [`deriveIngressOperation`](../../session/session-contract/docs/public-api.md)。接入调用它，不另写算法。
+
+1. 派生是确定性的。同一业务意图在崩溃前后得到同一个身份。
+2. 需要操作身份的操作各属于一个族，族与字段取法如下表。字段按表中的次序传入。
+
+| 族 | 适用操作 | 字段 |
+| --- | --- | --- |
+| create | `create-session`、`query-create-session` | 租户文本、`createCallId` |
+| accept | `send-input`、`query-send-input` | 租户文本、会话文本、`acceptId` |
+| control | `cancel-run`、`stop-call` | 登录文本、租户文本、会话文本、`controlId` |
+
+3. create 与 accept 的字段取法同[派生身份](../../../docs/architecture/runtime/runtime-contract-handoff.md#派生身份)已有的两行。control 一行待 Reduce 并入那张表。并入后，本表删去这一行，只引用那张表。登录文本是识别出的登录的 loginStateCodec 文本。
+4. control 含登录文本，因为不同登录不共享中断回执。create 与 accept 不含登录文本，因为租户文本已经含账号。
+5. `messageId` 不进入任何身份。换新的 `messageId` 或重连不产生新身份。
+6. `cancel-run` 和 `stop-call` 共用 control 族，所以共用 `controlId` 的唯一范围。同一登录在同一会话里，同一 `controlId` 跨两个操作复用，由 Session 得到 `conflict`。
+7. `body` 中出现 `login` 或 `operation` 一类字段时，公开契约已经规定为 `protocol-rejected`。客户端不能填写身份。
+
+碰撞测试分两层。接入的碰撞测试归接入，见[验证](#验证)：每个族只改一个字段，身份就变。摘要算法本身的碰撞测试归 Session，已在 Session 的 `deriveIngressOperation` 测试中。
+
+### 治理位置的偏离
+
+偏离：接入对 32 个治理操作答 `stage-not-provided`，状态 501，`body` 为空对象。这 32 个操作是公开契约的 34 个治理请求操作中，除 `register-and-activate` 和 `issue-login` 之外的全部，`public-health` 也在其中。公开契约现在只让四个固定操作得到 `stage-not-provided`，并写明正常操作没有这个结果。所以这是接入对公开契约的偏离。
+
+- 拥有者：服务端接入。
+- 影响：按公开契约的 `readGovernanceResponse` 读这 32 个操作的响应，读到 `unreadable`，调用者本地永远保持未知。M2 的 CLI 不发这 32 个操作，所以这个偏离不挡 M2。SDK 的调用者发这些操作时得到 `uncertain`，见 SDK 的[已知限制](../sdk/SPEC.md#已知限制)。
+- 闭合条件：public-contract 的两张可加卡。PC-1：治理位置每个正常操作的允许结果集合增加 `stage-not-provided`。PC-2：公开契约的「本阶段不提供的操作」一节写明，部署可以声明自己不提供的治理操作，这些操作得到 `stage-not-provided`。两张卡合入后，本节删去。
+- 过渡期的做法：接入先用公开契约的 `readGovernanceRequest` 读消息，只对读出的 `request` 且操作名属于这 32 个的消息答 `stage-not-provided`。接入不自己预读 `operation`，所以严格读取规则只有契约读取函数一个读取者。
+- 过渡期的代价：这 32 个操作带坏字段时，答 `protocol-rejected`，不答 `stage-not-provided`。这与四个固定操作不同。登录核验和账号库读取在这些操作上都不发生。
+- 可选的第三张卡 PC-3：`readGovernanceRequest` 接受部署声明的操作集合，命中时在封闭字段检查之前答 `stage-not-provided`。它消除上面的代价，不挡 M2。
+
+### 服务端的 HTTP 层责任
+
+下面的规则属于服务端自己，不是两端共用的承载保证。
+
+- 监听地址只能是 `127.0.0.1`，使用明文 HTTP/1.1。部署配置给出其他地址时，服务启动失败并报配置错误。`0.0.0.0`、`::`、主机名和其他网卡地址都属于其他地址。接入不静默改写地址。
+- 监听端口是部署配置，名字是 `listenPort`。初值归装配配置。
+- 接入不发 CORS 头。`OPTIONS` 请求按承载页[请求与响应规则](../public-contract/docs/http-binding.md#请求与响应规则)的第 2 步得到 405。
+- 接入的日志和诊断不记录请求体和响应体。登录证明、凭据和签发者不出现在任何输出里。
+- M2 不提供 TLS，见承载页的[已知限制](../public-contract/docs/http-binding.md#已知限制)。
+
+依赖抛出异常或不可达时，对外结果按调用的类别决定。接入不把它们写成接入自身的故障。
+
+- 读取类依赖：identity 的登录识别、authorization、签发者，以及 Session 的读取类调用（`queryOperation`、日志读取与历史页读取）。它们抛出异常或不可达时，结果是 `basis-unavailable`，状态 503。读取没有提交任何效果，所以「现在不能得出允许」成立。
+- Session 的提交类调用：`create`、`accept`、`cancelRun` 与 `stopCall`。调用开始之后抛出异常或不可达时，结果是 `unknown`，状态 500，带 `unknown` 的响应体。提交可能已经发生，所以接入不答 `basis-unavailable`。依据是公开契约：只有存储提交之前来源不可读才是 `basis-unavailable`（[Session 结果与线上结果](../public-contract/SPEC.md#session-结果与线上结果)），`commit-unknown` 映射为 `unknown`（[结果](../public-contract/SPEC.md#结果)）。调用者用原标识原样再送，或用查询操作认回。
+- 治理位置的 `register-and-activate` 与 `issue-login`：identity 的公开入口抛出异常或不可达时，签发或激活可能已经提交。公开契约[结果闭合与关联](../public-contract/SPEC.md#结果闭合与关联)给这两个操作的结果集没有线上 `unknown`，丢失回执只是调用者本地未知。所以接入不构造业务结果，写出响应体为空的状态 500，并关闭连接。
+
+响应体为空的状态 500 表示接入没有可信答复。它只用于接入自身的故障和上面治理位置的这一种情况。接入写出它之后关闭连接。接入不把这类情况写成 `denied`、`succeeded` 或 `basis-unavailable`。`unknown` 的状态 500 带响应体，不属于这一条。
 
 ## 依赖
 
@@ -53,6 +143,20 @@ function receiveRevoke(
 - `query-current-tenant` 不带行事租户。
 - `issue-login` 的 `basis-unavailable` 不来自凭据已匹配的分支。
 - 版本是 `governance-public/1` 时，`disable-subject`、`restore-subject`、`end-subject` 和 `reopen-after-media-loss` 在坏正文和坏证明下都是 `stage-not-provided`。版本不是 `governance-public/1` 时是 `protocol-rejected`。
+
+会话位置与 HTTP 层另有下列验证义务。实现闭包用测试兑现它们。
+
+- 状态码映射覆盖公开契约的全部 `outcome`，少一个就变红。
+- 会话位置的 `denied` 在各个原因下，响应除 `messageId` 外逐字节相同。
+- 超限的请求体得到 413 和该位置的 `protocol-rejected`，没有业务调用。
+- 配置了非回环监听地址时，启动失败。
+- Tool 目标的 `stop-call` 得到 `unsupported`，会话存在与否都一样，没有记录写入。
+- 负控：让 identity 的登录识别抛出异常，响应是状态 503 和 `basis-unavailable`，不是状态 500。
+- 负控：让 Session 的 `accept` 在调用开始后抛出异常，`send-input` 的响应是状态 500 和带响应体的 `unknown`，不是 503 和 `basis-unavailable`。
+- `OPTIONS` 请求得到 405，不调用任何成员。
+- 会话路径上一份大于治理路径上限、不大于会话路径上限的 `create-session` 进入公开契约的判断次序，不得到 413。
+- 两个观察操作的手写读取拒绝每一条封闭规则的违例，结果是 `protocol-rejected`，Session 不被调用。
+- 接入的碰撞测试：每个会话族只改一个字段，`SessionOperationId` 就变。只换 `messageId`，它不变。
 
 ## 观察脱离与重附着（#746）
 

@@ -96,6 +96,36 @@ export const ROWS: readonly MatrixRow[] = [
     key: 'ses_1',
     fixedArguments: false,
   },
+  {
+    purpose: 'agent-instance-publish',
+    owner: 'agent',
+    name: 'publish',
+    branch: 'tenant',
+    resourceOwner: 'agent',
+    resourceKind: 'instance',
+    key: 'agi_1',
+    fixedArguments: true,
+  },
+  {
+    purpose: 'agent-instance-quiesce',
+    owner: 'agent',
+    name: 'quiesce',
+    branch: 'tenant',
+    resourceOwner: 'agent',
+    resourceKind: 'instance',
+    key: 'agi_1',
+    fixedArguments: true,
+  },
+  {
+    purpose: 'agent-instance-withdraw',
+    owner: 'agent',
+    name: 'withdraw',
+    branch: 'tenant',
+    resourceOwner: 'agent',
+    resourceKind: 'instance',
+    key: 'agi_1',
+    fixedArguments: true,
+  },
 ]
 
 export const row = (name: string): MatrixRow => {
