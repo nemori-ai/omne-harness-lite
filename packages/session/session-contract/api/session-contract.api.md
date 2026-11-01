@@ -198,6 +198,7 @@
 - `deriveDriveOperation` · `operations.d.ts`
 - `deriveIngressOperation` · `operations.d.ts`
 - `deriveSessionOperation` · `operations.d.ts`
+- `digestSessionEntries` · `entries-interpretation.d.ts`
 - `initializationRegistrationCommit` · `initialization-plan.d.ts`
 - `judgeAdvance` · `judgments.d.ts`
 - `judgeCompletion` · `judgments.d.ts`
@@ -205,6 +206,7 @@
 - `judgeRunStart` · `judgments.d.ts`
 - `mutationAccessRequest` · `access.d.ts`
 - `openWork` · `judgments.d.ts`
+- `projectSessionEntries` · `entries-interpretation.d.ts`
 - `projectSessionLog` · `projection.d.ts`
 - `readAccessRequest` · `access.d.ts`
 - `reduce` · `reduce.d.ts`
@@ -642,6 +644,26 @@ export declare function terminalEntries(snapshot: WorkSnapshot, terminal: RunTer
 }>): EncodedEntry[];
 ```
 
+## 声明文件 `entries-interpretation.d.ts`
+
+```ts
+import type { Decision, OperationRecord } from './judgments.ts';
+import type { SessionEntriesObservation, SessionEntriesProgress, SessionEntriesStart } from './interpretation-values.ts';
+import type { WorkSnapshot } from './values.ts';
+export declare const SAME_LOG_ENTRIES_VIA = "same-log-entries";
+type EntriesDecision = Exclude<Decision, {
+    kind: 'control-answer';
+}>;
+export declare function digestSessionEntries(observation: SessionEntriesObservation): string;
+export declare function projectSessionEntries(snapshot: WorkSnapshot, input: Readonly<{
+    observation: SessionEntriesObservation;
+    start: SessionEntriesStart;
+    saved: readonly SessionEntriesProgress[];
+    record: OperationRecord | null;
+}>): EntriesDecision;
+export {};
+```
+
 ## 声明文件 `entries.d.ts`
 
 ```ts
@@ -654,6 +676,7 @@ import type { EntryClass, HistoryEntry } from './faces.ts';
 import type { EncodedEntry } from './judgments.ts';
 import type { InitialAdoption, InitializationAdoption, InitializationGuardResult, InitializationFactReference, InitializationPlanItem, InitializationRequirement, InitializationRegistration } from './values.ts';
 import type { SessionCallRegistration, SessionCallWait } from './call-values.ts';
+import type { SessionEntriesChannel } from './interpretation-values.ts';
 export declare const SESSION_INTERPRETER: Adoption;
 export type InitializationItem = Omit<Extract<RecoveryTask, {
     kind: 'initialization';
@@ -859,6 +882,22 @@ export type SessionEntry = Readonly<{
     kind: 'history.annotated';
     run: RunId;
     terminal: RunTerminal;
+}> | Readonly<{
+    kind: 'entries.interpreted';
+    run: RunId;
+    execution: string;
+    channel: SessionEntriesChannel;
+    after: string;
+    through: string;
+    boundary: Readonly<{
+        revision: string;
+        executionEvidence: DurableEvidence;
+        count: string;
+    }>;
+    interpreted: readonly Readonly<{
+        ordinal: string;
+        key: string;
+    }>[];
 }>;
 export type SessionEntryKind = SessionEntry['kind'];
 export declare function toJsonValue(plain: unknown): JsonValue;
@@ -1486,6 +1525,7 @@ export { judgeAdvance, judgeCompletion, judgeIdle, judgeRunStart, openWork, reso
 export { decide, commandDigest } from './decide.ts';
 export { reduce } from './reduce.ts';
 export { projectSessionLog, type SessionLogObservation, type SessionLogConsequence, } from './projection.ts';
+export { projectSessionEntries, digestSessionEntries } from './entries-interpretation.ts';
 export type { ResidentAdoption, RunExecution, ContextScopeBinding } from './values.ts';
 export { INITIALIZATION_PROTOCOL } from './initialization-schema.ts';
 export type { InitialAdoption, InitializationAdoption, InitializationGuardFacts, InitializationGuardResult, InitializationConsequence, InitializationState, InitializationFactReference, } from './initialization-schema.ts';
@@ -2342,10 +2382,15 @@ export declare function projectSessionLog(snapshot: WorkSnapshot, observation: S
 import type { SessionEntry } from './entries.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { DurableEvidence } from './identity.ts';
+import type { SessionEntriesProgress } from './interpretation-values.ts';
 type Draft = {
     -readonly [K in keyof WorkSnapshot]: WorkSnapshot[K];
 };
 export declare function applyExtended(draft: Draft, entry: SessionEntry, source: DurableEvidence): string | null;
+type ProgressRow = Extract<SessionEntry, {
+    kind: 'entries.interpreted';
+}>;
+export declare function advanceEntriesProgress(saved: readonly SessionEntriesProgress[], rows: readonly ProgressRow[], evidence: DurableEvidence): readonly SessionEntriesProgress[] | string;
 export {};
 ```
 
@@ -2385,15 +2430,23 @@ import type { SessionHistoryReads } from './history-values.ts';
 import type { DurableEvidence } from './identity.ts';
 import type { WorkSnapshot } from './values.ts';
 import type { CommittedBatch, ReduceResult } from './judgments.ts';
+import type { SessionEntriesProgress } from './interpretation-values.ts';
 export declare function batchEvidence(batch: CommittedBatch, session: string): DurableEvidence;
 export declare function reduce(previous: WorkSnapshot | null, batch: CommittedBatch, reads?: SessionHistoryReads): ReduceResult;
+export declare function reduceWithEntriesProgress(previous: WorkSnapshot | null, saved: readonly SessionEntriesProgress[], batch: CommittedBatch, reads?: SessionHistoryReads): Readonly<{
+    kind: 'reduced';
+    snapshot: WorkSnapshot;
+    progress: readonly SessionEntriesProgress[];
+}> | Extract<ReduceResult, {
+    kind: 'quarantined';
+}>;
 ```
 
 ## 声明文件 `release-digests.d.ts`
 
 ```ts
-export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
-export declare const SESSION_RELEASE_DIGEST = "sha256:f26618d96c13db2198cf2f10d27c90fe1b9d439c726887e6e7a0cda0235aa558";
+export declare const INITIALIZATION_RELEASE_DIGEST = "sha256:86e3a3365bcbf4d750b450280133a7095877b851703532f442f444ae3e63364b";
+export declare const SESSION_RELEASE_DIGEST = "sha256:86e3a3365bcbf4d750b450280133a7095877b851703532f442f444ae3e63364b";
 ```
 
 ## 声明文件 `replay-validation.d.ts`

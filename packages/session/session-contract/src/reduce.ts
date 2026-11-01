@@ -16,7 +16,8 @@ import type { Adoption, DurableEvidence, InputId } from './identity.ts'
 import type { RecoveryTask, WorkSnapshot } from './values.ts'
 import { SESSION_INTERPRETER, decodeEntry, type SessionEntry } from './entries.ts'
 import type { CommittedBatch, ReduceResult } from './judgments.ts'
-import { applyExtended } from './reduce-extended.ts'
+import { advanceEntriesProgress, applyExtended } from './reduce-extended.ts'
+import type { SessionEntriesProgress } from './interpretation-values.ts'
 import { scopeBinding } from './decide-management.ts'
 import { digestOf } from './operations.ts'
 import { applyParticipation } from './result-state.ts'
@@ -374,4 +375,36 @@ export function reduce(
       return quarantined(`malformed or inconsistent Session batch: ${error.message}`)
     throw error
   }
+}
+
+/**
+ * `reduce`, carrying the saved entries progress of the session across batches. The progress rows
+ * of the batch advance it (RD-1), and the item of each channel takes the evidence of the batch
+ * that set it: the `source` of the reduced snapshot. The repeated batch recalls and keeps the
+ * progress. The progress is an input and an output until `WorkSnapshot` can hold it.
+ */
+export function reduceWithEntriesProgress(
+  previous: WorkSnapshot | null,
+  saved: readonly SessionEntriesProgress[],
+  batch: CommittedBatch,
+  reads?: SessionHistoryReads,
+):
+  | Readonly<{
+      kind: 'reduced'
+      snapshot: WorkSnapshot
+      progress: readonly SessionEntriesProgress[]
+    }>
+  | Extract<ReduceResult, { kind: 'quarantined' }> {
+  const reduced = reduce(previous, batch, reads)
+  if (reduced.kind === 'quarantined') return reduced
+  if (previous !== null && batch.revision === previous.revision)
+    return { kind: 'reduced', snapshot: reduced.snapshot, progress: saved }
+  const rows = batch.entries.flatMap(row => {
+    const decoded = decodeEntry(row)
+    return 'ok' in decoded && decoded.ok.kind === 'entries.interpreted' ? [decoded.ok] : []
+  })
+  const progress = advanceEntriesProgress(saved, rows, reduced.snapshot.source)
+  return typeof progress === 'string'
+    ? { kind: 'quarantined', diagnostic: progress }
+    : { kind: 'reduced', snapshot: reduced.snapshot, progress }
 }
