@@ -23,8 +23,10 @@
 
 - `RuntimeContextService`：抽象类，实现三面八操作。方法参数与结果从根契约推导；登记方法保留块键泛型。
 - `runtimeContextKey`：只取自类的 provide。
+- `RuntimeContextTrustService`：抽象类，逐属性投影根契约的 `RuntimeContextTrust`（`authority`、`bindings`）。键 `runtimeContextTrust` 只写在它的 `static readonly provide`。它是构造输入，不是 Runtime Context 能力。
+- `runtimeContextTrustKey`：只取自该类的 provide。
 - `runtimeContextScopeKey`：监听上下文的作用域标记键。
 - `RuntimeContextIntercept`：调用方声明的消费者类。它不是读取资格。
 - `RuntimeContextChangedPayload`：作用域与修订的解释类型。事件实际使用两个位置参数。
 
-`Context` 增补 runtimeContext 与可选的作用域标记；`Events` 增补 runtime-context-cordis-contract/changed。事件按 emit 同步派发，不含块值。只监听事件的插件可用 type-only import 取得增补。
+`Context` 增补 runtimeContext、runtimeContextTrust 与可选的作用域标记；`Events` 增补 runtime-context-cordis-contract/changed。事件按 emit 同步派发，不含块值。只监听事件的插件可用 type-only import 取得增补。

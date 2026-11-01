@@ -6,7 +6,7 @@ Runtime Context 的 Cordis 定义成员，`service-contract` 变体。
 
 ## 职责与状态
 
-本成员只拥有 Runtime Context 这一接缝的 Cordis 定义：服务键 `runtimeContext`、抽象类 `RuntimeContextService`、intercept 配置 `{ consumer }`，以及唤醒事件 `runtime-context-cordis-contract/changed`。三面操作的领域行为归 [runtime-context-contract](../runtime-context-contract/README_ZH.md)，供给机制归 [runtime-context](../runtime-context/README_ZH.md)，Service 实现归 [runtime-context-cordis](../runtime-context-cordis/README_ZH.md)。本成员只认通用角色：生产者、作用域持有者、消费者类与监听者。
+本成员只拥有 Runtime Context 这一接缝的 Cordis 定义：服务键 `runtimeContext`、抽象类 `RuntimeContextService`、intercept 配置 `{ consumer }`，以及唤醒事件 `runtime-context-cordis-contract/changed`；另有构造输入 `RuntimeContextTrustService`（键 `runtimeContextTrust`），由受信装配入口交入两个原权威端口，提供者插件 `inject` 它。它不是 Runtime Context 能力，子树可见性是装配位置，不是封装保证。三面操作的领域行为归 [runtime-context-contract](../runtime-context-contract/README_ZH.md)，供给机制归 [runtime-context](../runtime-context/README_ZH.md)，Service 实现归 [runtime-context-cordis](../runtime-context-cordis/README_ZH.md)。本成员只认通用角色：生产者、作用域持有者、消费者类与监听者。
 
 状态：Cordis 定义成员，`draft`。采用依据是[系统页的成员与 Cordis 落位](../../../docs/architecture/runtime/runtime-context.md#成员与-cordis-落位)与 [IC 约定](../../../docs/architecture/cordis-integration-conventions.md)。现在的实现情况如下：
 

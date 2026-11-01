@@ -16,10 +16,11 @@ SPEC 性质或验证义务变化时，同步对应测试与本目录 `index.md`�
 
 ## 本包事实
 
-现在有两个测试：
+现在有三个测试文件：
 
 - [public-entry.spec.ts](public-entry.spec.ts)：断言根入口没有导出。
-- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口没有导出。
+- [cordis-entry.spec.ts](cordis-entry.spec.ts)：断言 `./cordis` 入口只导出 `createRuntimeContextPlugin`。
+- [trust-inject.spec.ts](trust-inject.spec.ts)：信任键缺席时插件停在 PENDING、只取得两个原端口、提供者撤除后重跑。
 
 没有 `*.spec-d.ts` 类型测试。运行方式：在仓库根执行 `pnpm turbo run test --filter=@omne-harness/runtime-context-cordis`，或在本包目录执行 `pnpm test` 与 `pnpm typecheck`。
 

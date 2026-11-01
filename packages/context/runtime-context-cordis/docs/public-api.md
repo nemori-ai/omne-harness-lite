@@ -15,7 +15,7 @@
 
 ### 现有导出
 
-两个入口现在都没有导出。`src/index.ts` 与 `src/cordis.ts` 只有模板标记。[public-entry.spec.ts](../tests/public-entry.spec.ts) 与 [cordis-entry.spec.ts](../tests/cordis-entry.spec.ts) 断言两个入口的导出为空。
+根入口没有导出（[public-entry.spec.ts](../tests/public-entry.spec.ts)）。`./cordis` 导出 `createRuntimeContextPlugin(construct)`：插件 `inject` 键 `runtimeContextTrust`，键缺席时停在 PENDING，取出 `authority` 与 `bindings` 交给 `construct`（[cordis-entry.spec.ts](../tests/cordis-entry.spec.ts)、[trust-inject.spec.ts](../tests/trust-inject.spec.ts)）。
 
 ### 随实现进入的导出
 
@@ -24,7 +24,6 @@
 | 定义 | 入口 | 种类 | 依据 |
 | --- | --- | --- | --- |
 | `RuntimeContextService` 的具体子类 | `./cordis` | 类，不写服务键 | [SPEC 范围与依据](../SPEC.md#范围与依据)、[插件与服务](cordis.md#插件与服务) |
-| 插件 | `./cordis` | 装配用的插件导出 | 同上 |
 | 配置 Schema | `./cordis` | 静态 `Config`，Standard Schema。观察链保留上限、来源调用与回调的超时、诊断级别 | [IC-14](../../../../docs/architecture/cordis-integration-conventions.md#ic-14)、[配置](cordis.md#配置) |
 
 本成员不导出服务键常量。键常量只由服务定义成员导出（[IC-2](../../../../docs/architecture/cordis-integration-conventions.md#ic-2)）。根入口不导出任何东西（[IC-4](../../../../docs/architecture/cordis-integration-conventions.md#ic-4) 的空根入口）。机制工厂只由 [runtime-context](../../runtime-context/docs/public-api.md) 导出，独立调用方从那里取。
