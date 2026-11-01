@@ -56,7 +56,7 @@ createModelRuntime 只构造对象，返回 runtime 管理面及受信 driver。
 
 ## 共享归约核心子路径
 
-`@omne-harness/model/commands` 从 [commands/index.ts](../src/commands/index.ts) 导出 `createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS` 和存储端口类型 `ModelCommandStorage`、`CommandWrite`、`RunScope`。它给耐久存储提供者装配 22 个方法的共享核心，不是消费者入口，根入口不导出这些名字。子路径的导入图不经 `testing`。端口与 `scope` 参数的规则归 [SPEC](../SPEC.md#共享归约核心)。
+`@omne-harness/model/commands` 从 [commands/index.ts](../src/commands/index.ts) 导出 `createModelCommandsCore`、`modelCommands`、`MODEL_WRITE_METHODS`、恢复工作判定 `hasRecoveryWork` 和存储端口类型 `ModelCommandStorage`、`CommandWrite`、`RunScope`。它给耐久存储提供者装配 22 个方法的共享核心，不是消费者入口，根入口不导出这些名字。子路径的导入图不经 `testing`。端口与 `scope` 参数的规则归 [SPEC](../SPEC.md#共享归约核心)。
 
 ## 内存测试入口
 

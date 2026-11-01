@@ -200,11 +200,23 @@ export function tasks(call: CallDocument, pending: readonly ModelOperationId[]):
     result.push('account')
   return result
 }
+/**
+ * Whether a call still owes recovery work: one of its tasks, or an operation that stays unknown.
+ * `pending` is the operations of the call that stay unknown, as `unresolved` reads them. This is the
+ * rule that `scanPending` applies to every call of a tenant, so a storage that selects pending
+ * calls itself asks the same question.
+ */
+export function hasRecoveryWork(
+  call: CallDocument,
+  pending: readonly ModelOperationId[] = [],
+): boolean {
+  return tasks(call, pending).length > 0
+}
 export function pendingCalls(root: TenantDocuments): readonly ModelCallId[] {
   return [
     ...new Set([
       ...[...root.calls.values()]
-        .filter(call => tasks(call, unresolved(root, call.state.call)).length > 0)
+        .filter(call => hasRecoveryWork(call, unresolved(root, call.state.call)))
         .map(call => call.state.call),
       ...[...root.operations.values()]
         .filter(operation => operation.status === 'unknown')
