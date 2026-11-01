@@ -115,6 +115,11 @@ export function migrationDecision(
       case C.SQLITE_DROP_TRIGGER:
       case C.SQLITE_ALTER_TABLE:
         return arg2 !== null && write.has(arg2)
+      // CREATE INDEX also raises SQLITE_REINDEX with the index name; the CREATE_INDEX action above
+      // already judged the owner table. Only the migration port allows it, and not on `_sql_` or
+      // `sqlite_` names.
+      case C.SQLITE_REINDEX:
+        return arg1 !== null && !arg1.startsWith('_sql_') && !arg1.startsWith('sqlite_')
       case C.SQLITE_FUNCTION:
         return arg2 !== null && functions.has(arg2.toLowerCase())
       default:
