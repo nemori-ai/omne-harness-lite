@@ -1,6 +1,7 @@
 // SSE observation: the confirmation before any frame, heartbeats through the same serial writer,
 // cancel and replacement, connection close as cancel, the hand-written closed read, and stop.
 import { afterEach, describe, expect, it } from 'vitest'
+import type { ServerEntryConfig } from '../src/index.ts'
 import {
   SESSION_PATH,
   createSession,
@@ -36,6 +37,31 @@ function cancel(who: Login, session: string, observationId = 'obs-1', messageId 
     { loginProof: who.loginProof },
     messageId,
   )
+}
+
+/**
+ * A second entry over the same identity whose `history.begin` waits on a gate. The eligibility
+ * read of `observe-session` therefore stays pending until `release()`.
+ */
+async function slowBeginFixture(
+  base: Fixture,
+  config: Partial<ServerEntryConfig> = {},
+): Promise<Readonly<{ fixture: Fixture; release: () => void }>> {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(resolve => {
+    release = resolve
+  })
+  const faces = base.session.faces
+  const slowBegin: typeof faces.history.begin = async input => {
+    await gate
+    return faces.history.begin(input)
+  }
+  const slow = { ...faces, history: { ...faces.history, begin: slowBegin } }
+  const fixture = await startFixture({
+    config,
+    dependencies: { session: slow, identity: base.identity, issuer: base.issuer },
+  })
+  return { fixture, release }
 }
 
 /** The byte positions of heartbeat lines never fall inside an event. */
@@ -106,22 +132,10 @@ describe('establishing an observation', () => {
   })
 
   it('writes the confirmation before any frame even when a cancel races the Session read', async () => {
-    let release: () => void = () => {}
-    const gate = new Promise<void>(resolve => {
-      release = resolve
-    })
     fixture = await startFixture()
     const who = await login(fixture, 'alice')
     const session = await createSession(fixture, who)
-    const faces = fixture.session.faces
-    const slowBegin: typeof faces.history.begin = async input => {
-      await gate
-      return faces.history.begin(input)
-    }
-    const slow = { ...faces, history: { ...faces.history, begin: slowBegin } }
-    const second = await startFixture({
-      dependencies: { session: slow, identity: fixture.identity, issuer: fixture.issuer },
-    })
+    const { fixture: second, release } = await slowBeginFixture(fixture)
     try {
       const stream = openSse(second.port, observe(who, session))
       await sleep(30)
@@ -188,6 +202,63 @@ describe('establishing an observation', () => {
     const [confirmation] = await fresh.waitForEvents(1)
     expect((confirmation as { messageId: string }).messageId).toBe('m-n')
     fresh.close()
+  })
+
+  it('releases the slot and lets stop() return when the client disconnects during a slow Session read', async () => {
+    fixture = await startFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    const { fixture: second, release } = await slowBeginFixture(fixture, {
+      heartbeatIntervalMs: 20,
+      observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 200 },
+    })
+    try {
+      const gone = openSse(second.port, observe(who, session, 'obs-gone'))
+      await sleep(30)
+      gone.close()
+      await gone.ended
+      await sleep(30)
+      release()
+      await sleep(60)
+      // The slot of the disconnected observer is free again under perLogin = 1.
+      const fresh = openSse(second.port, observe(who, session, 'obs-fresh', 'm-f'))
+      expect(await fresh.status).toBe(200)
+      await fresh.waitForEvents(1)
+      fresh.close()
+      await fresh.ended
+      const stopped = await Promise.race([
+        second.stop().then(() => 'stopped' as const),
+        sleep(1000).then(() => 'hung' as const),
+      ])
+      expect(stopped).toBe('stopped')
+    } finally {
+      await second.stop()
+    }
+  })
+
+  it('admits exactly one of two concurrent observations when perLogin is 1', async () => {
+    fixture = await startFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    const { fixture: second, release } = await slowBeginFixture(fixture, {
+      observation: { perLogin: 1, perInstance: 8, cancelRetentionMs: 200 },
+    })
+    try {
+      const a = openSse(second.port, observe(who, session, 'obs-a', 'm-a'))
+      const b = openSse(second.port, observe(who, session, 'obs-b', 'm-b'))
+      await sleep(40)
+      release()
+      const statuses = [await a.status, await b.status].sort()
+      expect(statuses).toEqual([200, 503])
+      const refused = statuses[0] === 200 ? b : a
+      const [refusal] = await refused.waitForEvents(1)
+      expect((refusal as { outcome: string }).outcome).toBe('basis-unavailable')
+      await refused.ended
+      a.close()
+      b.close()
+    } finally {
+      await second.stop()
+    }
   })
 
   it('answers basis-unavailable over the per-login capacity, not counting the replaced observation', async () => {

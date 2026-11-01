@@ -29,6 +29,8 @@ export type ObservationOperation = (typeof OBSERVATION_OPERATIONS)[number]
 const ROOT_KEYS = ['protocolVersion', 'messageId', 'operation', 'loginProof', 'body'] as const
 const BODY_KEYS = ['tenant', 'session', 'observationId'] as const
 const SESSION_TEXT = /^[0-9a-f]{64}$/
+/** The page size of the eligibility read at establishment; a fixed value (docs/internals.md「已知固定值」). */
+const ELIGIBILITY_PAGE_BYTES = 4096
 
 export type ObservationRequest = Readonly<{
   operation: ObservationOperation
@@ -233,27 +235,36 @@ type Active = {
   readonly loginText: string
   readonly messageId: string
   readonly observationId: string
-  readonly stream: SseStream
+  /** The stream, once the HTTP layer has opened it. A claim holds the slot before that. */
+  stream: SseStream | undefined
   seq: number
-  ended: boolean
+  /** Set once the observation left the active set: the frame reason, or the connection close. */
+  ended: EndReason | 'connection-closed' | undefined
+}
+
+/** A slot held for one observation between the capacity decision and the opened stream. */
+export interface ObservationClaim {
+  /** Hands the opened stream to the claim. An end that arrived meanwhile is written now. */
+  attach(stream: SseStream): void
 }
 
 export interface ObservationRegistry {
-  /** Whether a new observation under `loginText` fits, not counting the one `key` would replace. */
-  hasCapacity(loginText: string, key: string): boolean
-  /** Registers an observation on an opened stream, replacing the one with the same key. */
-  establish(
-    input: Readonly<{
-      key: string
-      loginText: string
-      messageId: string
-      observationId: string
-      stream: SseStream
-    }>,
-  ): void
+  /**
+   * Takes the slot for a new observation, or answers `undefined` when `loginText` or this
+   * instance is at capacity. The one `key` would replace does not count and is ended on success.
+   * The decision and the count change happen in the same synchronous step, so two requests that
+   * passed their Session read together cannot both be admitted over the bound.
+   */
+  claim(
+    input: Readonly<{ key: string; loginText: string; messageId: string; observationId: string }>,
+  ): ObservationClaim | undefined
   /** Ends an active observation, or answers from the retained record. */
   cancel(key: string): CancelState
-  /** Ends every active observation with `reason` and resolves when their streams finished. */
+  /**
+   * Ends every active observation with `reason` and resolves when the streams attached so far
+   * finished. A claim whose stream has not attached yet gets its frame at attach; the HTTP layer's
+   * own in-flight count covers that response.
+   */
   endAll(reason: EndReason): Promise<void>
 }
 
@@ -284,25 +295,30 @@ export function createObservationRegistry(
     retained.set(key, timer)
   }
 
-  /** Removes the observation from the active set. The stream itself is ended by the caller. */
-  const forget = (observation: Active): void => {
-    if (observation.ended) return
-    observation.ended = true
+  const hasCapacity = (loginText: string, key: string): boolean => {
+    const replacing = active.get(key) !== undefined
+    const mine = (perLogin.get(loginText) ?? 0) - (replacing ? 1 : 0)
+    const total = active.size - (replacing ? 1 : 0)
+    return mine < limits.perLogin && total < limits.perInstance
+  }
+
+  /** Removes the observation from the active set and frees its slot. */
+  const forget = (observation: Active, ended: NonNullable<Active['ended']>): void => {
+    observation.ended = ended
     if (active.get(observation.key) === observation) active.delete(observation.key)
     count(observation.loginText, -1)
     retain(observation.key)
   }
 
-  const end = (observation: Active, reason: EndReason): void => {
-    if (observation.ended) return
-    forget(observation)
+  /** Writes the `ended` frame and ends the stream. The confirmation is already queued before it. */
+  const writeEnd = (observation: Active, stream: SseStream, reason: EndReason): void => {
     try {
-      if (!observation.stream.closed) {
+      if (!stream.closed) {
         observation.seq += 1
-        observation.stream.event(
+        stream.event(
           endedFrameText(observation.messageId, observation.observationId, observation.seq, reason),
         )
-        observation.stream.end()
+        stream.end()
       }
       emit(diagnostics, { code: 'observation.ended', operation: reason })
     } catch {
@@ -310,23 +326,38 @@ export function createObservationRegistry(
     }
   }
 
+  const end = (observation: Active, reason: EndReason): void => {
+    if (observation.ended !== undefined) return
+    forget(observation, reason)
+    // Without a stream yet, the frame is written when the stream attaches.
+    if (observation.stream !== undefined) writeEnd(observation, observation.stream, reason)
+  }
+
+  const attach = (observation: Active, stream: SseStream): void => {
+    if (observation.stream !== undefined)
+      throw new TypeError('server-entry: observation attached twice')
+    observation.stream = stream
+    const { ended } = observation
+    if (ended === 'connection-closed') return
+    if (ended !== undefined) {
+      writeEnd(observation, stream, ended)
+      return
+    }
+    stream.onClose(() => {
+      // The connection closed before an end: that is the cancel; no frame can be written.
+      if (observation.ended === undefined) forget(observation, 'connection-closed')
+    })
+  }
+
   return {
-    hasCapacity(loginText, key) {
-      const replacing = active.get(key) !== undefined
-      const mine = (perLogin.get(loginText) ?? 0) - (replacing ? 1 : 0)
-      const total = active.size - (replacing ? 1 : 0)
-      return mine < limits.perLogin && total < limits.perInstance
-    },
-    establish(input) {
+    claim(input) {
+      if (!hasCapacity(input.loginText, input.key)) return undefined
       const previous = active.get(input.key)
       if (previous !== undefined) end(previous, 'observer-replaced')
-      const observation: Active = { ...input, seq: 0, ended: false }
+      const observation: Active = { ...input, stream: undefined, seq: 0, ended: undefined }
       active.set(input.key, observation)
       count(input.loginText, 1)
-      input.stream.onClose(() => {
-        // The connection closed before an end: that is the cancel; no frame can be written.
-        forget(observation)
-      })
+      return { attach: stream => attach(observation, stream) }
     },
     cancel(key) {
       const observation = active.get(key)
@@ -337,14 +368,13 @@ export function createObservationRegistry(
       return retained.has(key) ? 'ended' : 'not-found'
     },
     async endAll(reason) {
-      const streams: Promise<void>[] = []
       // `end` removes from `active`, so the list is taken first.
       const current = Array.from(active.values())
-      for (const observation of current) {
-        streams.push(observation.stream.finished)
-        end(observation, reason)
-      }
-      await Promise.all(streams)
+      const attached = current.flatMap(observation =>
+        observation.stream === undefined ? [] : [observation.stream.finished],
+      )
+      for (const observation of current) end(observation, reason)
+      await Promise.all(attached)
     },
   }
 }
@@ -399,7 +429,7 @@ async function eligibleToRead(
       kinds: context.config.historyKinds,
       from: null,
       direction: 'backward',
-      pageBytes: Math.min(context.config.maxPageBytes, 4096),
+      pageBytes: Math.min(context.config.maxPageBytes, ELIGIBILITY_PAGE_BYTES),
     })
     if ('ok' in page) return 'succeeded'
     return page.failure.kind === 'denied' ? 'denied' : 'basis-unavailable'
@@ -430,16 +460,18 @@ export async function handleObservation(
     const state = context.registry.cancel(key)
     return jsonAnswer(cancelReplyText(messageId, 'succeeded', observationId, state), 'succeeded')
   }
-  if (!context.registry.hasCapacity(caller.loginText, key)) return refuse('basis-unavailable')
   const eligible = await eligibleToRead(context, principal, request)
   if (eligible !== 'succeeded') return refuse(eligible)
+  // The slot is taken here, with no await between the decision and the count. The HTTP layer
+  // attaches the opened stream right after it queues the confirmation.
+  const claim = context.registry.claim({
+    key,
+    loginText: caller.loginText,
+    messageId,
+    observationId,
+  })
+  if (claim === undefined) return refuse('basis-unavailable')
   return sseAnswer(confirmationText(messageId, 'succeeded', observationId), 'succeeded', stream =>
-    context.registry.establish({
-      key,
-      loginText: caller.loginText,
-      messageId,
-      observationId,
-      stream,
-    }),
+    claim.attach(stream),
   )
 }

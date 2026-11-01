@@ -77,6 +77,8 @@ await entry.stop()
 - 成功业务访问报告尚未定义，会话操作不刷新登录的空闲计时。
 - `startRun` 时不再核登录是否仍有效。
 - 观察记录只在本实例内存里，多实例部署的粘性路由由部署另行给出。
+- Tool 目标的 `stop-call` 先到达 Session 的 `stopCall`，接入再把对外答案定为 `unsupported`。「不写任何记录」由 Session 的契约承诺（`stopCall` 对 Tool 目标在会话存在核对之前返回 `unsupported`），接入只兜住对外答案，挡不住一个不按契约写入的 Session。
+- `send-input` 交给 Session 的输入来源（`origin.record`）带登录状态文本。真实 Session 若把来源写进历史条目的 `payload`，`read-history` 会原样透传它。来源是否入 `payload`、登录状态文本是否机密，归 Session 与 identity 的拥有者，本成员不替它们裁定。
 
 ## 验证
 

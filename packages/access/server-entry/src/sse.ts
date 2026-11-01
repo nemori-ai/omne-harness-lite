@@ -26,7 +26,11 @@ export class SseStream {
     this.finished = new Promise(resolve => {
       this.#resolveFinished = resolve
     })
-    res.once('close', () => this.#onClosed())
+    // A client that left while the request was still being answered has already emitted `close`;
+    // a listener added now would never fire. The stream starts closed instead, so a registration
+    // made on it releases at once and no heartbeat is armed against a destroyed response.
+    if (res.destroyed || res.writableEnded || res.socket?.destroyed === true) this.#onClosed()
+    else res.once('close', () => this.#onClosed())
   }
 
   get closed(): boolean {
@@ -37,6 +41,7 @@ export class SseStream {
   open(status: number, firstEvent: string): void {
     if (this.#opened) throw new TypeError('server-entry: SSE stream opened twice')
     this.#opened = true
+    if (this.#closed) return
     this.#res.writeHead(status, {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-store',

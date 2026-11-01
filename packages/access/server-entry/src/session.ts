@@ -108,9 +108,12 @@ function failureOutcome(failure: SessionFailure): PublicOutcome {
       return 'archived'
     case 'frozen':
       return 'frozen'
+    case 'unsupported':
+      // Only `stopCall` returns it (session-contract `SessionFailure`); the public table maps it
+      // to `unsupported` for any producer kind. For another operation the encoder refuses it.
+      return 'unsupported'
     default:
-      // A kind outside the public result set of the operation (`unsupported` for a Model target
-      // included): the entry cannot say allowed now.
+      // A kind outside the public result set of the operation: the entry cannot say allowed now.
       return 'basis-unavailable'
   }
 }

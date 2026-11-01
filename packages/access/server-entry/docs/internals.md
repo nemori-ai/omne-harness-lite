@@ -44,7 +44,7 @@
 
 `session.ts` 用两个包装区分调用类别。`commitCall` 包 `create`、`accept`、`cancelRun`、`stopCall`：抛错答 `unknown`，状态 500 带响应体。`readCall` 包 `queryOperation`、`history.begin`、`history.next`：抛错答 `basis-unavailable`。identity 的登录识别与签发者抛错也是 `basis-unavailable`，在 `identity-steps.ts`。
 
-Session 失败种类在该操作公开结果集之外时（例如 `login-required`），映射为 `basis-unavailable`。编码函数会拒绝不在该操作结果集里的 `outcome`，这时答复是 `no-answer`。
+Session 失败种类在该操作公开结果集之外时（例如 `login-required`），映射为 `basis-unavailable`。`unsupported` 按契约表映射为 `unsupported`，不看 `producer` 的种类；它只在 `stop-call` 的结果集里。编码函数会拒绝不在该操作结果集里的 `outcome`，这时答复是 `no-answer`。
 
 ## 会话路径的读取次序
 
@@ -54,7 +54,9 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 
 本阶段的观察只做 M2 需要的心跳与关闭语义：
 
-- 建立：判断次序第 1、2、4 步，容量，然后以观察者自己的 `Access` 对该会话做一次 `history.begin` 作为读取资格核对。
+- 建立：判断次序第 1、2、4 步，然后以观察者自己的 `Access` 对该会话做一次 `history.begin` 作为读取资格核对，最后认领名额。名额的判断与计数在同一个同步步骤里完成（`ObservationRegistry.claim`），所以两个一起通过资格核对的请求不会都越过 `perLogin` 或 `perInstance`。达到上界时答 `basis-unavailable`。
+- 认领与附着：`claim` 先占名额并返回 `ObservationClaim`，HTTP 层把确认事件入队之后再 `attach` 已打开的流。两步之间没有 `await`，但别的请求的 `cancel-observation`、同键再次建立或 `stop` 可能在微任务间隙到达。这时记录已经离开活动集，`ended` 帧在流附着时写出，确认仍在它之前。`stop()` 的 `endAll` 只等已附着的流写完；尚未附着的认领由 HTTP 层的在途计数兜住，它的响应写完之后 `stop()` 才关闭连接。
+- 客户端在确认写出之前断开：`SseStream` 在构造时核对响应是否已销毁或已结束，已经关闭就直接进入关闭态。附着到它的登记立即释放名额，不 arm 心跳，`finished` 立即落定，`stop()` 不会等一个永不结束的流。
 - 确认之后，流上只有心跳与 `ended` 帧。本阶段不定位 Model 调用登记，不查询 `current`，不发 `state`、`refreshing`、`snapshot`、`delta`、`gap`。刷新策略与资源上界中的 `interval`、`backoff`、`maxAttempts`、`deadline`、`currentTimeout`、`frameQueueBytes`、`locatePages` 本阶段没有消费者，不在配置里。
 - `ended` 的原因：`observer-cancelled`（`cancel-observation`）、`observer-replaced`（同一登录同一会话同一 `observationId` 再次建立）、`unavailable`（`stop`）。
 - 连接关闭即取消：观察记录从活动集移除，保留 `cancelRetentionMs`，供 `cancel-observation` 重放得到 `ended`。
@@ -62,19 +64,31 @@ Session 失败种类在该操作公开结果集之外时（例如 `login-require
 
 重附着、刷新与生产者观察的完整组合归 [#746 的设计](#观察接入的责任选择)，运行证据归联调。
 
+## 已知固定值
+
+下面三个值写在代码里，不在 `ServerEntryConfig` 里。它们不改变对外行为，本阶段没有要调它们的装配。要调时把它们移进配置，不在调用点改数字。
+
+| 值                              | 位置                        | 作用                                                                                      |
+| ------------------------------- | --------------------------- | ----------------------------------------------------------------------------------------- |
+| `headersTimeout: 60_000`        | `http.ts` 的 `createServer` | 请求头在 60 秒内没到齐，宿主关闭连接                                                      |
+| `requestTimeout: 0`             | `http.ts` 的 `createServer` | 不限整个请求的时长，SSE 观察流可以长期保持                                                |
+| `ELIGIBILITY_PAGE_BYTES = 4096` | `observation.ts`            | 建立观察时资格核对那次 `history.begin` 的 `pageBytes`，取它与 `maxPageBytes` 中较小的一个 |
+
 ## 验证与维护
 
 改处理次序时只改本成员规格，并核对它没有改写公开契约的结果含义。
 
-| 用例文件                           | 覆盖                                                                    |
-| ---------------------------------- | ----------------------------------------------------------------------- |
-| `tests/http-layer.spec.ts`         | 监听地址、路径、方法、Host、Content-Type、请求体上限、空正文 500、stop  |
-| `tests/governance.spec.ts`         | 注册激活、签发登录、四个阶段操作、未提供的操作、协议拒绝、identity 抛错 |
-| `tests/session-operations.spec.ts` | 七个操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                 |
-| `tests/derivation.spec.ts`         | 每族只改一个字段身份就变；`messageId` 不进身份                          |
-| `tests/observation.spec.ts`        | 确认先于帧、心跳、取消、替换、连接关闭、手写读取的每条封闭规则、stop    |
-| `tests/secrets.spec.ts`            | 响应、诊断与错误文本里没有登录证明、凭据与签发者，带正控                |
-| `tests/status.spec.ts`             | 状态码表与承载页逐项相同                                                |
+| 用例文件                             | 覆盖                                                                                                                           |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `tests/http-layer.spec.ts`           | 监听地址、路径、方法、Host、Content-Type、请求体上限、空正文 500、stop                                                         |
+| `tests/governance.spec.ts`           | 注册激活、签发登录、四个阶段操作、未提供的操作、协议拒绝、identity 抛错                                                        |
+| `tests/session-operations.spec.ts`   | 七个操作、判断次序逐步、denied 逐字节相同、两类依赖抛错                                                                        |
+| `tests/derivation.spec.ts`           | 每族只改一个字段身份就变；`messageId` 不进身份                                                                                 |
+| `tests/observation.spec.ts`          | 确认先于帧、心跳、取消、替换、连接关闭、确认前断开后名额释放与 `stop()` 返回、并发建立只放行一个、手写读取的每条封闭规则、stop |
+| `tests/sse-stream.spec.ts`           | 串行写入者在客户端已断开的响应上构造：立即关闭、不写字节、`finished` 落定                                                      |
+| `tests/observation-registry.spec.ts` | 登记在自己的接口上：认领与附着之间到达的取消在确认之后写出 `ended` 帧；已关闭的流附着后名额释放、`endAll` 落定                 |
+| `tests/secrets.spec.ts`              | 响应、诊断与错误文本里没有登录证明、凭据与签发者，带正控                                                                       |
+| `tests/status.spec.ts`               | 状态码表与承载页逐项相同                                                                                                       |
 
 用例经 `tests/support/harness.ts` 起真实回环 HTTP，用 identity 的 `./testing` 参考替身、进程内主体权威与 `tests/support/session-double.ts` 的 Session 面替身。替身保持 Session 自己写明的判定顺序，它不证明真实 Session、持久 identity 或跨进程主体来源。
 

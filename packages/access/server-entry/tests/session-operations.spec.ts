@@ -371,6 +371,22 @@ describe('read-history', () => {
     }
     expect(fixture.session.controls.calls().length).toBe(calls)
   })
+
+  it('passes pageBytes equal to the deployment bound to Session', async () => {
+    fixture = await startFixture({ config: { maxPageBytes: 1000 } })
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    const reply = await send(fixture.port, SESSION_PATH, {
+      body: sessionMessage(
+        'read-history',
+        { tenant: who.tenantText, session, cursor: null, direction: 'backward', pageBytes: '1000' },
+        { loginProof: who.loginProof },
+      ),
+    })
+    expect(reply.status).toBe(200)
+    const begin = fixture.session.controls.calls().find(call => call.method === 'history.begin')
+    expect(begin?.input).toEqual({ kinds: ['message.user', 'message.assistant'], pageBytes: 1000 })
+  })
 })
 
 describe('cancel-run and stop-call', () => {
@@ -503,6 +519,32 @@ describe('cancel-run and stop-call', () => {
     expect(outcomeOf(reply.json)).toBe('unsupported')
     const call = fixture.session.controls.calls().find(c => c.method === 'stopCall')
     expect(call?.input).toEqual({ producer: { kind: 'tool', call: 'call-1' } })
+  })
+
+  it('answers unsupported with status 501 when Session says unsupported for a Model target', async () => {
+    fixture = await startFixture()
+    const who = await login(fixture, 'alice')
+    const session = await createSession(fixture, who)
+    fixture.session.controls.failWith({ kind: 'unsupported' })
+    const reply = await send(fixture.port, SESSION_PATH, {
+      body: sessionMessage(
+        'stop-call',
+        {
+          tenant: who.tenantText,
+          session,
+          controlId: 'ctl-9',
+          producer: { kind: 'model', call: 'call-1' },
+        },
+        { loginProof: who.loginProof },
+      ),
+    })
+    expect(reply.status).toBe(501)
+    expect(reply.json).toEqual({
+      protocolVersion: 'session-public/1',
+      messageId: 'm-1',
+      outcome: 'unsupported',
+      body: {},
+    })
   })
 })
 
