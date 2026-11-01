@@ -1,6 +1,6 @@
 # 系统公开契约行为规格
 
-本页拥有治理消息与会话公开消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization，会话的业务事实归 Session。本页固定两个协议版本及其操作名。它不决定传输协议，也不决定这两类消息以外的 SDK 覆盖范围。
+本页拥有治理消息与会话公开消息的字段、`outcome`、操作名，以及同一输入的可见结果。身份和授权的业务事实仍归 identity 与 authorization，会话的业务事实归 Session。本页固定两个协议版本及其操作名。它选定 HTTP 承载，承载映射写在[承载绑定](docs/http-binding.md)（候选，待批复：#978 DP-2）。它不选定传输保护协议，也不决定这两类消息以外的 SDK 覆盖范围。
 
 SDK 和服务端接入使用本页的结果表。它们不另写一套结果含义。
 
@@ -439,7 +439,7 @@ false 时，具有该读面资格的人得到该组织当前有效成员和角�
 
 会话消息的协议版本是 `session-public/1`，与 `governance-public/1` 分开计版本。严格 JSON 读取、重复 `protocolVersion`、可信 `messageId` 与协议拒绝的规则同[共同消息](#共同消息)与[重复的 protocolVersion](#重复的-protocolversion)，其中的版本文本换成 `session-public/1`；会话入口的 `protocol-rejected` 响应写 `session-public/1`。
 
-会话消息与治理消息使用两组编解码函数和两个承载位置。会话一组是 `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest` 与 `encodeSessionResponse`，参数与可见结果见[会话编解码函数](#会话编解码函数)。承载适配为两组消息分设位置，例如 HTTP 的两个路径。服务端按位置选择读取函数，不按消息里的版本文本分派。会话位置收到 `governance-public/1` 的消息，或治理位置收到 `session-public/1` 的消息，都是 `protocol-rejected`。
+会话消息与治理消息使用两组编解码函数和两个承载位置。会话一组是 `readSessionRequest`、`readSessionResponse`、`encodeSessionRequest` 与 `encodeSessionResponse`，参数与可见结果见[会话编解码函数](#会话编解码函数)。承载适配为两组消息分设位置。HTTP 承载的两个路径、方法、状态码与 SSE 格式见[承载绑定](docs/http-binding.md)（候选，待批复：#978 DP-2）。服务端按位置选择读取函数，不按消息里的版本文本分派。会话位置收到 `governance-public/1` 的消息，或治理位置收到 `session-public/1` 的消息，都是 `protocol-rejected`。
 
 `loginProof` 与 `actingTenant` 的字段要求同共同消息。信封按操作闭合：
 
@@ -827,7 +827,7 @@ const encoded = encodeGovernanceRequest({
 
 - 成功业务访问如何报告。identity ID-11 继续拥有该公开形状。这些治理操作不代替那份报告。
 - 人工决定的答复消息。需要决定时只返回原请求标识。
-- 传输协议、登录证明的密码学形式、存储和治理名单的页大小。[会话观察](#会话观察)不选定承载协议，只固定 SSE 承载下确认与帧的先后。
+- 传输保护协议、登录证明的密码学形式、存储和治理名单的页大小。[会话观察](#会话观察)只固定 SSE 承载下确认与帧的先后，HTTP 承载格式见[承载绑定](docs/http-binding.md)（候选，待批复：#978 DP-2）。
 - 资产确认时刻。它归资产读面，不是这些治理消息。
 
 ## 公开编解码入口与实现细化
