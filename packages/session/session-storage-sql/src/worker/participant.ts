@@ -28,6 +28,7 @@ import type {
   ParticipantReply,
 } from '@omne-harness/sql-contract/worker'
 import { canonicalText, decodeValue, encodeValue, plainOf, sha256 } from '../codec.ts'
+import { runChecks } from './check.ts'
 import { judgeEntries, type EntriesBatch } from './entries.ts'
 import { readHistory } from './history-index.ts'
 import { PROTOCOL } from './schema.ts'
@@ -794,6 +795,7 @@ const participant: ParticipantModule = {
         : { kind: 'unsupported', basis: { reason: 'query facts are incomplete' } }
     }
     if (intent === 'entries') return runEntries(facts, port)
+    if (intent === 'check') return runChecks(facts, port)
     if (
       intent !== 'command' ||
       typeof facts['command'] !== 'object' ||
@@ -801,7 +803,9 @@ const participant: ParticipantModule = {
     )
       return {
         kind: 'unsupported',
-        basis: { reason: 'the facts are neither a command, an entries commit nor a query' },
+        basis: {
+          reason: 'the facts are neither a command, a check, an entries commit nor a query',
+        },
       }
     let command: SessionCommand
     let guards: GuardCommand[]

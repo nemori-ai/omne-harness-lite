@@ -37,6 +37,7 @@ import {
 } from '@omne-harness/sql-contract'
 import { createSqliteStorage, type SqliteStorageConfig } from '@omne-harness/sqlite-provider'
 import { createSessionStorage, sessionStorageMaterials } from '../../src/index.ts'
+import type { ExecutionRecordWrite } from '../../src/participants.ts'
 
 export const TENANT_A = testingTenant(
   'org_c0nf0rmance000000000000000',
@@ -112,11 +113,11 @@ function catalogOf(): { catalog: SqlMaterialCatalog; digest: string } {
     migrations: materials.migrations,
     readHandlers: materials.readHandlers,
     declaredCombinations: {
-      tenant: { combinationVersion: COMBINATION, participants: ['session'] },
+      tenant: { combinationVersion: COMBINATION, participants: ['execution-record', 'session'] },
       system: null,
     },
   }
-  const manifest = combinationManifest({ catalog, participants: ['session'] })
+  const manifest = combinationManifest({ catalog, participants: ['execution-record', 'session'] })
   if (manifest.kind !== 'manifest') throw new Error(`combination is ${manifest.kind}`)
   return { catalog, digest: manifestDigest(manifest.manifest) }
 }
@@ -246,7 +247,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: COMBINATION,
       manifestDigest: digest,
-      participants: ['session'],
+      participants: ['execution-record', 'session'],
     })
     if (registered.kind !== 'registered')
       throw new Error(
@@ -316,6 +317,7 @@ export async function openRealApp(options: RealAppOptions = {}) {
   return {
     root,
     storageRoot,
+    combination: { combinationVersion: COMBINATION, manifestDigest: digest },
     port,
     storage,
     control,
@@ -340,3 +342,32 @@ export async function openRealApp(options: RealAppOptions = {}) {
 }
 
 export type RealApp = Awaited<ReturnType<typeof openRealApp>>
+
+/** One execution-record publication of execution `exe_1` in `session-1` of tenant A. */
+export function jointWrite(over: Partial<ExecutionRecordWrite> = {}): ExecutionRecordWrite {
+  return {
+    tenant: TENANT_A,
+    session: sessionId('session-1'),
+    execution: 'exe_1',
+    expected: null,
+    revision: '1',
+    published: '0',
+    operation: 'aop_joint',
+    digest: 'sha256:joint',
+    answer: { receipt: 'joint' },
+    state: { records: ['joint'] },
+    boundaries: [
+      {
+        execution: 'exe_1',
+        revision: '1',
+        receipt: evidence('agent/exe_1/1'),
+        emittedThrough: '0',
+        ended: null,
+      },
+    ],
+    facts: [],
+    batches: [],
+    admissions: [],
+    ...over,
+  }
+}

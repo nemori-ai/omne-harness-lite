@@ -88,7 +88,7 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['session'],
+      participants: ['execution-record', 'session'],
     })
   const signing: FixedSessionCursorSigning = createFixedSessionCursorSigning()
   const denied = new Set<string>()
@@ -162,7 +162,7 @@ export async function app(options: { directory?: readonly TenantId[]; now?: () =
       transactionDomain: entry.domain.transactionDomain,
       combinationVersion: 'c1',
       manifestDigest: 'a'.repeat(64),
-      participants: ['session'],
+      participants: ['execution-record', 'session'],
     })
     directory.entries.push(entry)
     directory.revision = String(Number(directory.revision) + 1)

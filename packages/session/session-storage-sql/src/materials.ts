@@ -1,5 +1,8 @@
-// The static materials of the Session storage: one participant, one migration and eight read
-// handlers, as the SQL storage contract describes them (sql-contract SPEC 4). The application
+// The static materials of the Session storage: two participants (`session` and `execution-record`),
+// their two migrations and their read handlers, as the SQL storage contract describes them
+// (sql-contract SPEC 4). The `session` participant reads the same-root index tables of
+// `execution-record` (sql-contract SPEC 4.1: a read table of another participant of the same
+// combination). The application
 // aggregates these with the materials of the other owners into one catalog and declares the
 // combination; this member never builds a catalog, a Cordis service or a domain registration.
 import { createHash } from 'node:crypto'
@@ -10,7 +13,16 @@ import type {
   ParticipantDescriptor,
   ReadHandlerDescriptor,
 } from '@omne-harness/sql-contract'
-import { SESSION_PARTICIPANT } from './participants.ts'
+import {
+  EXECUTION_RECORD_PARTICIPANT,
+  EXECUTION_RECORD_PROTOCOL,
+  SESSION_PARTICIPANT,
+} from './participants.ts'
+import {
+  EXECUTION_RECORD_INDEX_TABLES,
+  EXECUTION_RECORD_MIGRATION,
+  EXECUTION_RECORD_TABLES,
+} from './worker/execution-record-schema.ts'
 import { MIGRATION, PROTOCOL, SESSION_TABLES } from './worker/schema.ts'
 
 const extension = import.meta.url.endsWith('.ts') ? '.ts' : '.js'
@@ -24,8 +36,20 @@ function module(name: string): Readonly<{ moduleUrl: string; digest: string }> {
 }
 
 const migrationRef = Object.freeze({ owner: MIGRATION.owner, id: MIGRATION.id })
+const recordMigrationRef = Object.freeze({
+  owner: EXECUTION_RECORD_MIGRATION.owner,
+  id: EXECUTION_RECORD_MIGRATION.id,
+})
 
-type Handler = Readonly<{ handler: string; file: string; tables: readonly string[] }>
+type Handler = Readonly<{
+  handler: string
+  file: string
+  tables: readonly string[]
+  /** The protocol of the participant the handler reads for; the Session protocol by default. */
+  protocol?: string
+  /** The migrations whose tables the handler reads; the Session migration by default. */
+  migrations?: readonly Readonly<{ owner: string; id: string }>[]
+}>
 
 export const HANDLERS: readonly Handler[] = [
   { handler: 'session.work', file: 'read-work', tables: ['sl_journal', 'sl_state'] },
@@ -52,6 +76,26 @@ export const HANDLERS: readonly Handler[] = [
     file: 'read-released-scopes',
     tables: ['sl_released_scope_idx'],
   },
+  {
+    handler: 'session.history-root',
+    file: 'read-history-root',
+    tables: ['sl_journal', 'sl_entry', 'er_root'],
+    migrations: [migrationRef, recordMigrationRef],
+  },
+  {
+    handler: 'execution-record.state',
+    file: 'read-execution-state',
+    tables: ['er_root', 'er_state'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef],
+  },
+  {
+    handler: 'execution-record.operation',
+    file: 'read-execution-operation',
+    tables: ['er_operation'],
+    protocol: EXECUTION_RECORD_PROTOCOL,
+    migrations: [recordMigrationRef],
+  },
 ]
 
 export type SessionStorageMaterials = Readonly<{
@@ -63,16 +107,30 @@ export type SessionStorageMaterials = Readonly<{
 /** Reads the module files once and returns the descriptors with their digests. */
 export function sessionStorageMaterials(): SessionStorageMaterials {
   const participant = module('participant')
+  const record = module('execution-record')
   const migration = module('migration')
+  const recordMigration = module('execution-record-migration')
   return {
     participants: [
+      {
+        participant: EXECUTION_RECORD_PARTICIPANT,
+        protocol: EXECUTION_RECORD_PROTOCOL,
+        moduleUrl: record.moduleUrl,
+        codeDigest: record.digest,
+        ownedTables: EXECUTION_RECORD_TABLES,
+        readTables: [],
+        requiresFacts: [],
+        providesFacts: [],
+        allowedFunctions: [],
+        grouping: 'singleton',
+      },
       {
         participant: SESSION_PARTICIPANT,
         protocol: PROTOCOL,
         moduleUrl: participant.moduleUrl,
         codeDigest: participant.digest,
         ownedTables: SESSION_TABLES,
-        readTables: [],
+        readTables: EXECUTION_RECORD_INDEX_TABLES,
         requiresFacts: [],
         providesFacts: [],
         allowedFunctions: [],
@@ -86,17 +144,23 @@ export function sessionStorageMaterials(): SessionStorageMaterials {
         checksum: migration.digest,
         requires: [],
       },
+      {
+        ...recordMigrationRef,
+        moduleUrl: recordMigration.moduleUrl,
+        checksum: recordMigration.digest,
+        requires: [],
+      },
     ],
     readHandlers: HANDLERS.map(item => {
       const file = module(item.file)
       return {
         handler: item.handler,
-        protocol: PROTOCOL,
+        protocol: item.protocol ?? PROTOCOL,
         moduleUrl: file.moduleUrl,
         codeDigest: file.digest,
         ordering: 'snapshot',
         readTables: item.tables,
-        requiresMigrations: [migrationRef],
+        requiresMigrations: item.migrations ?? [migrationRef],
         maxOutputBytes: 1 << 20,
         maxRowsRead: 2000,
       }
