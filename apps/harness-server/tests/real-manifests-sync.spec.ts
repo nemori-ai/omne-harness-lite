@@ -11,8 +11,6 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
 > = {
-  // AAP-3：`storage` 行必需栏加 `storageHost`（候选表 6-1）。
-  storage: { patch: 'AAP-3', manifest: { injects: ['storageHost'] } },
 }
 
 const profile = serveProfile()

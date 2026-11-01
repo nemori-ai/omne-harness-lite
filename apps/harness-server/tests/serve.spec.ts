@@ -127,7 +127,7 @@ describe('serve: fixture rows (R1-6, R1-3, R1-5)', () => {
     })
     expect(run.of('entry-object').find(r => r['name'] === 'storageHost')).toMatchObject({
       implementation: 'real',
-      trusted: false,
+      trusted: true,
     })
     const report = run.of('shutdown-result')[0]!
     expect(report).toMatchObject({

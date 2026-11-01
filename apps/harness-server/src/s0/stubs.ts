@@ -16,11 +16,11 @@ type Entry = {
 const priv = (keys: readonly string[] = []): readonly string[] => keys.map(key => `s0.${key}`)
 
 const TABLE: Readonly<Record<string, Entry>> = {
-  storage: { provides: ['storage'], phase: 'storage' },
-  identity: { provides: ['identity', 'tenantStandingSource'], injects: ['storage'] },
+  storage: { provides: ['storage'], injects: ['storageHost'], phase: 'storage' },
+  identity: { provides: ['identityOperations', 'tenantStanding'], injects: ['storage'] },
   authorization: {
     provides: ['agentAccessCheck', 'sessionAccessCheck', 'agentActionAdmission'],
-    injects: ['identity'],
+    injects: ['tenantStanding', 'principalVerifier'],
   },
   'session-storage': {
     provides: [
@@ -48,7 +48,7 @@ const TABLE: Readonly<Record<string, Entry>> = {
   'session-ad04': { injects: ['session'] },
   'session-ad05': { injects: ['session'] },
   'session-ad06': { injects: ['session'] },
-  'session-ad09': { provides: ['sessionIdentity'], injects: ['identity'] },
+  'session-ad09': { provides: ['sessionIdentity'], injects: ['principalVerifier'] },
   'session-ad10': { provides: ['sessionEvidence'] },
   'session-ad11': {
     provides: ['sessionIdleInput'],
