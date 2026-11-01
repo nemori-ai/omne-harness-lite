@@ -14,38 +14,21 @@
 import { createHash } from 'node:crypto'
 import { realpathSync } from 'node:fs'
 import { isAbsolute, join, relative } from 'node:path'
+import type {
+  AuthorityPathPresence,
+  Enablement,
+  EnablementFailureCode,
+  Json,
+} from '../delivery/api-review-types.ts'
+import { FAILURE_EXIT } from './contract-review.ts'
 import { git } from './git.ts'
 
 type Sha256 = string
 type Commit = string
 type RepoPath = string
-type Json = null | boolean | number | string | Json[] | { [key: string]: Json }
 
-/** The failure codes of this check and their exit codes (candidate-r4.md 7.1). */
-export const ENABLEMENT_FAILURE_EXIT = {
-  'api-review-entry-outside-root': 1,
-  'api-review-self-authorization': 1,
-  'api-review-policy-unavailable': 2,
-} as const
-export type EnablementFailureCode = keyof typeof ENABLEMENT_FAILURE_EXIT
-
-export type Finding = {
-  code: EnablementFailureCode
-  member: null
-  detail: Json
-}
-export type AuthorityPathPresence = {
-  path: RepoPath
-  targetBase: 'present' | 'absent'
-  candidate: 'present' | 'absent'
-}
-export type Enablement =
-  | { kind: 'enabled'; authoritySha256: Sha256 }
-  | { kind: 'entry-outside-root'; entryRealpath: string; root: string }
-  | { kind: 'presence'; rows: AuthorityPathPresence[] }
-  | { kind: 'oid-differs'; paths: RepoPath[] }
-  | { kind: 'unparsable'; path: RepoPath }
-
+export type { AuthorityPathPresence, Enablement, EnablementFailureCode }
+export type Finding = { code: EnablementFailureCode; member: null; detail: Json }
 export type EnablementResult = {
   enablement: Enablement
   /** The primary failure code; `null` when the path is enabled. */
@@ -109,7 +92,7 @@ function result(enablement: Enablement, findings: Finding[]): EnablementResult {
   const code = findings.some(f => f.code === 'api-review-self-authorization')
     ? 'api-review-self-authorization'
     : (findings[0]?.code ?? null)
-  return { enablement, code, exit: code === null ? 0 : ENABLEMENT_FAILURE_EXIT[code], findings }
+  return { enablement, code, exit: code === null ? 0 : FAILURE_EXIT[code], findings }
 }
 function finding(code: EnablementFailureCode, detail: Json): Finding {
   return { code, member: null, detail }

@@ -1,4 +1,5 @@
 import { IntegrationError, array, fields, literal, string } from '../integration/parse.ts'
+import type { OwnerIdentityFact, OwnerIdentityManifest } from './api-review-types.ts'
 import { LINES_PATH, lineId, type DeliveryLines } from './lines.ts'
 import { InputError } from './protocol.ts'
 import { strictJson } from './strict-json.ts'
@@ -6,20 +7,7 @@ import { strictJson } from './strict-json.ts'
 /** The only file that owns per-line owner identity facts for the API review mechanism. */
 export const OWNER_IDENTITY_PATH = 'docs/engineering/api-review-owners.json'
 
-export type OwnerIdentityFact = {
-  lineId: string
-  owner: { login: string; nodeId: string }
-  adoption: {
-    comment: { url: string; bodySha256: string; updatedAt: string }
-    authorNodeId: string
-  }
-}
-export type OwnerIdentityManifest = {
-  schemaVersion: 1
-  repository: { name: string; nodeId: string }
-  /** Unique and sorted by lineId; a line without an entry has no anchor. */
-  owners: OwnerIdentityFact[]
-}
+export type { OwnerIdentityFact, OwnerIdentityManifest }
 /** One drift finding; `at` locates the entry as a JSON path into the manifest. */
 export type OwnerIdentityDrift = { code: 'owner-identity-drift'; at: string; message: string }
 
