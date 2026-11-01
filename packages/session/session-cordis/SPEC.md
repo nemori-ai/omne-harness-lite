@@ -1,6 +1,6 @@
 # @omne-harness/session-cordis 行为规格
 
-状态：Service 实现成员，候选设计，尚未技术接受，没有运行实现。本成员把 [session](../session/SPEC.md) 的机制装进 [session-cordis-contract](../session-cordis-contract/SPEC.md) 定义的服务 `session`，承担端口取得、配置校验、调用方类核对、提交通知的派发与订阅、每租户扫描者的绑定，以及撤除与换代。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，机制行为归 session SPEC，本页都不复述。插件、配置与撤除的机制说明归 [Cordis 说明](docs/cordis.md)。
+状态：Service 实现成员，已技术接受（[采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172)），没有运行实现。本成员把 [session](../session/SPEC.md) 的机制装进 [session-cordis-contract](../session-cordis-contract/SPEC.md) 定义的服务 `session`，承担端口取得、配置校验、调用方类核对、提交通知的派发与订阅、每租户扫描者的绑定，以及撤除与换代。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，机制行为归 session SPEC，本页都不复述。插件、配置与撤除的机制说明归 [Cordis 说明](docs/cordis.md)。
 
 本页的性质编号是 1 至 11。服务定义成员的性质 1 至 8 写作「定义性质 n」。
 

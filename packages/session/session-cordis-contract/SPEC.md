@@ -1,6 +1,6 @@
 # @omne-harness/session-cordis-contract 行为规格
 
-状态：Cordis 定义成员，候选设计，尚未技术接受。本成员只拥有 Session 的 Cordis 定义：一个 Session 服务键、十一个依赖服务键（八个构造依赖端口、两个出站端口与内部主体）、三个受信服务键、一种 intercept 配置和一个事件。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，本页不另写第二份保证。访问检查定义的源码支持与其余服务键分别核验；声明装配要求不表示提供者已交付。提供者实现不在本成员。服务定义、依赖分类、事件与机制读数的正文归 [docs/cordis.md](docs/cordis.md)。
+状态：Cordis 定义成员，已技术接受（[采用记录](https://github.com/nemori-ai/omne-harness-lite/issues/502#issuecomment-6562280172)）。本成员只拥有 Session 的 Cordis 定义：一个 Session 服务键、十一个依赖服务键（八个构造依赖端口、两个出站端口与内部主体）、三个受信服务键、一种 intercept 配置和一个事件。领域行为归 [session-contract SPEC](../session-contract/SPEC.md)，本页不另写第二份保证。访问检查定义的源码支持与其余服务键分别核验；声明装配要求不表示提供者已交付。提供者实现不在本成员。服务定义、依赖分类、事件与机制读数的正文归 [docs/cordis.md](docs/cordis.md)。
 
 ## 唯一性
 
