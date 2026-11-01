@@ -161,6 +161,7 @@ describe('S0-2 缺 storage', () => {
     expect([...s.values()].some(r => r['state'] === 'FAILED')).toBe(false)
     const result = startup(out)
     expect(result['barrierCalls']).toBe(0)
+    expect(result['startedRows']).toEqual([])
     expect(result['outcome']).toBe('pending')
     for (const id of pending) expect(result['appliedRows']).not.toContain(id)
   }
@@ -187,7 +188,7 @@ describe('S0-3 插件失败', () => {
     expect(s.get('model-profiles')).toMatchObject({ state: 'FAILED', error: { tag: 'boom-tag' } })
     expect(s.get('agent-model-selection')).toMatchObject({ state: 'PENDING' })
     expect(s.get('agent-model-selection')!['blockedBy']).toContain('model-profiles')
-    expect(startup(out)).toMatchObject({ outcome: 'failed', barrierCalls: 0 })
+    expect(startup(out)).toMatchObject({ outcome: 'failed', barrierCalls: 0, startedRows: [] })
   })
 })
 
@@ -299,6 +300,7 @@ describe('G 启动门控', () => {
       error: { tag: 'joint-commits-mismatch' },
     })
     expect(startup(out)['barrierCalls']).toBe(0)
+    expect(startup(out)['startedRows']).toEqual([])
   })
 
   const mappingRun = (selection: string) => {

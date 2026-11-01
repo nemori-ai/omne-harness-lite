@@ -25,9 +25,12 @@ const EXPECTED = new Map<RowId, LifecyclePhase>([
 function fakeClock() {
   let current = 0
   const timers: { at: number; fire: () => void; live: boolean }[] = []
-  const clock: ShutdownClock & { advance(ms: number): void } = {
+  const delays: number[] = [] // 每次 after 收到的参数
+  const clock: ShutdownClock & { advance(ms: number): void; delays: number[] } = {
+    delays,
     now: () => current,
     after(ms) {
+      delays.push(ms)
       let fire = () => {}
       const promise = new Promise<void>(resolve => {
         fire = resolve
@@ -205,6 +208,29 @@ describe('X-2 期限', () => {
     // 超时写入报告，不是只留在日志里。
     expect(JSON.stringify(report)).toContain('deadline')
     expect(records.length).toBeGreaterThan(0)
+  })
+
+  it('多个阶段连续 hang：全部阶段共用同一截止时间 D，计时器参数为 deadline - now', async () => {
+    const calls: Calls = []
+    const hang = () => new Promise<StopResult>(() => {})
+    const clock = fakeClock()
+    const { run } = setup(
+      calls,
+      fullSet(calls, {
+        'server-entry': handle(calls, 'server-entry', 'entry', hang),
+        'agent-host': handle(calls, 'agent-host', 'business', hang),
+        'session-storage': handle(calls, 'session-storage', 'composition', hang),
+      }),
+      clock,
+    )
+    const done = run()
+    await flush()
+    clock.advance(DEADLINE_MS) // 只推进一次：D 一到，之后各阶段的计时器都已过期
+    const report = await done
+    expect(report.overall).toBe('incomplete')
+    expect(clock.delays[0]).toBe(DEADLINE_MS)
+    for (const arg of clock.delays.slice(1)) expect(arg).toBeLessThanOrEqual(0)
+    expect(report.outcomes.filter(o => o.result.kind === 'incomplete')).toHaveLength(3)
   })
 })
 
