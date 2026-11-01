@@ -51,6 +51,7 @@ import {
   type PlanFile,
 } from './steps.ts'
 import { describeHealing, healEnvironment, type EnvironmentIo } from './environment.ts'
+import { readTestStepReport, TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { timestamp } from './support.ts'
 import { cachePolicy, TEST_CACHE_ENV } from './test-cache.ts'
 import { admissionRequested, affectedMembers, dependentMembers } from './turbo.ts'
@@ -407,6 +408,12 @@ export async function runCheck(
       `结束时头已不是 ${at.shortHead}，或工作树有未提交改动：记录记 dirty，不作 ${at.shortHead} 的证据`,
     )
 
+  // test 步留下的报告（定向重跑过的文件与最终仍失败的文件）：是对这个头写的才进记录。
+  const testReport = readTestStepReport(join(root, PLAN_DIR, TEST_STEP_REPORT_FILE))
+  if (testReport !== undefined && testReport.retried.length > 0)
+    say(
+      `test 步定向重跑 ${testReport.retried.length} 个文件：${testReport.retried.map(entry => `${entry.file}（${entry.kind}）→ ${entry.retryResult}`).join('、')}`,
+    )
   // 运行记录：准入运行写在准入日志旁边（同名 .json），每次运行都在本头的目录里留一份副本。
   const origin: AdmissionRunInputs['origin'] =
     resume?.kind === 'resume'
@@ -432,6 +439,9 @@ export async function runCheck(
     startedAt,
     finishedAt: new Date(),
     ...(healed === undefined ? {} : { environment: healed }),
+    ...(testReport === undefined || testReport.head !== at.head
+      ? {}
+      : { testReport: { retried: testReport.retried, failures: testReport.failures } }),
     origin,
   })
   const copies = [join(runDir, RUN_RECORD_FILE)]

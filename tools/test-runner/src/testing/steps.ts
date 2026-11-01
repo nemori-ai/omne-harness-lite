@@ -37,6 +37,7 @@ import {
   emptyLedger,
   ledgerSummary,
   testCount,
+  type Failure,
   type LedgerFile,
   type MemberRun,
   type RunMeta,
@@ -67,6 +68,15 @@ import {
 } from '@omne-harness/repo-toolchain/core/workspace'
 import { runMembers, runTurboTests, slugOf } from './run.ts'
 import { buildTargets, pnpmCommand, timestamp } from './support.ts'
+import {
+  tierWithRetry,
+  writeTestStepReport,
+  type FailedFile,
+  type RetriedFile,
+  type RetryTier,
+} from './test-retry.ts'
+import { rerunInFile, type RerunOutcome } from './triage.ts'
+import { TIER_TASKS } from './turbo.ts'
 
 /**
  * `run` 的缓存策略：`FULL=1` 时不读；`build` 为本次调用是否为被选中的成员构建，没构建就不写。
@@ -407,8 +417,15 @@ function runDirOf(run: RecordedRun): string {
   )
 }
 
+/** 一次记账本的运行的结果：退出码只反映是否全过；账本里的失败清单交给调用方（定向重跑按它选文件）。 */
+export interface RecordedOutcome {
+  readonly exitCode: number
+  readonly failures: readonly Failure[]
+  readonly runDir: string
+}
+
 /** 跑 `targets` 的脚本并写账本；退出码只反映是否全过。 */
-export async function recordedRun(root: string, run: RecordedRun): Promise<number> {
+export async function recordedRun(root: string, run: RecordedRun): Promise<RecordedOutcome> {
   const { script, tier, targets, budget } = run
   const config = readTestRunsConfig()
   const parallel = effectiveParallelism(config, process.env, budget)
@@ -416,7 +433,7 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   mkdirSync(runDir, { recursive: true })
   // 测试的构建由 turbo 按任务依赖在同一次运行里做；验收不经 turbo，先在这里构建。
   if (script === 'acceptance' && run.build && !buildTargets(root, targets, runDir, budget.workers))
-    return 1
+    return { exitCode: 1, failures: [], runDir }
 
   // 成员测试先查缓存：命中的不跑；查不了（快照、依赖图取不到）就全部照跑、不写。
   const found =
@@ -534,7 +551,11 @@ export async function recordedRun(root: string, run: RecordedRun): Promise<numbe
   )
   writeFileSync(join(runDir, 'summary.md'), `${summary.join('\n')}\n`)
   console.log(summary.join('\n'))
-  return runs.every(member => member.exitCode === 0) ? 0 : 1
+  return {
+    exitCode: runs.every(member => member.exitCode === 0) ? 0 : 1,
+    failures: ledger.failures,
+    runDir,
+  }
 }
 
 /** 运行前说清缓存怎么用、命中了几个；整个缓存不可用时说原因。 */
@@ -586,6 +607,7 @@ export async function testStep(
   build: boolean,
   cache: CachePolicy,
   builtFrom?: ReadonlyMap<string, BuiltMember>,
+  reportPath?: string,
 ): Promise<number> {
   const config = readTestRunsConfig()
   const selected = new Set(file.plan.test)
@@ -615,16 +637,37 @@ export async function testStep(
   console.log(
     `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
   )
-  return fastThenSlow(
-    async tier =>
-      recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
-    console.log,
+  const report = { failures: [] as FailedFile[], retried: [] as RetriedFile[] }
+  const code = await fastThenSlow(async tier => {
+    const outcome = await tierWithRetry(
+      tier,
+      async () =>
+        recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
+      failed => rerunFailedFile(root, failed),
+      console.log,
+    )
+    report.failures = [...outcome.failures]
+    report.retried = [...report.retried, ...outcome.retried]
+    return outcome.exitCode
+  }, console.log)
+  if (reportPath !== undefined) writeTestStepReport(reportPath, { head: file.head, ...report })
+  return code
+}
+
+/** 定向重跑一个失败的测试文件：经成员那一层的脚本（`test:fast`／`test:slow`）起 vitest，一个工作进程；日志落账本目录下的 retry/。 */
+async function rerunFailedFile(root: string, failed: FailedFile): Promise<RerunOutcome> {
+  const base = join(
+    ledgerHome('test', coordinates(root, undefined).mainRoot, process.env),
+    'retry',
+    `${timestamp(new Date())}-${slugOf(failed.member)}-${failed.file.split('/').at(-1) ?? 'file'}`,
   )
+  mkdirSync(dirname(base), { recursive: true })
+  return rerunInFile(root, TIER_TASKS[failed.tier], failed.member, failed.file, undefined, base)
 }
 
 /** 快层失败时这一步的结论已定，不再跑慢层，也不写慢层账本；快层通过才跑慢层。 */
 export async function fastThenSlow(
-  run: (tier: 'fast' | 'slow') => Promise<number>,
+  run: (tier: RetryTier) => Promise<number>,
   note: (text: string) => void,
 ): Promise<number> {
   if ((await run('fast')) !== 0) {
@@ -697,7 +740,7 @@ export async function acceptanceStep(
     `验收：${targets.map(member => member.path).join('、')}` +
       (skipped.length > 0 ? `；跳过 ${skipped.join('、')}（不在本次影响面）` : ''),
   )
-  return recordedRun(root, {
+  const outcome = await recordedRun(root, {
     script: 'acceptance',
     tier: 'all',
     targets,
@@ -709,4 +752,5 @@ export async function acceptanceStep(
     scope: { reason: file.plan.reason, skipped },
     budget,
   })
+  return outcome.exitCode
 }

@@ -5,7 +5,7 @@
 // `step`、`run` 的退出码反映那一步是否通过；`plan`、`replay` 只在引擎出错时非零；`triage` 只报告，非零表示工具自己出错。
 import { resolveBaseline } from '@omne-harness/repo-toolchain/core/task-context'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { coordinates } from '@omne-harness/repo-toolchain/core/git'
 import {
@@ -43,6 +43,7 @@ import { budgetFor, describeBudget } from './parallelism.ts'
 import { coverageParallelism } from './coverage-parallel.ts'
 import { runCheck } from './check.ts'
 import { runPreflight } from './preflight.ts'
+import { TEST_STEP_REPORT_FILE } from './test-retry.ts'
 import { ADMISSION_EVIDENCE_USAGE, admissionEvidenceCommand } from './admission-evidence.ts'
 
 const STEPS = ['python', 'build', 'typecheck', 'test', 'acceptance'] as const
@@ -137,7 +138,17 @@ async function step(argv: readonly string[]): Promise<number> {
         noCache: flags.switches.has('--no-cache'),
         full: flags.switches.has('--full') || fullRequested(process.env),
       })
-      return testStep(ROOT, file, planPath === undefined, policy, builtFrom)
+      // 带计划文件时把失败文件与定向重跑的结果写在它旁边，check 读进运行记录。
+      return testStep(
+        ROOT,
+        file,
+        planPath === undefined,
+        policy,
+        builtFrom,
+        planPath === undefined
+          ? undefined
+          : join(dirname(resolve(planPath)), TEST_STEP_REPORT_FILE),
+      )
     },
     acceptance: async () => acceptanceStep(ROOT, file, await budget()),
   }
@@ -219,7 +230,7 @@ async function run(request: RunRequest): Promise<number> {
     )
     return 0
   }
-  return recordedRun(ROOT, {
+  const outcome = await recordedRun(ROOT, {
     script,
     tier,
     targets,
@@ -233,6 +244,7 @@ async function run(request: RunRequest): Promise<number> {
       ? { cache: runCachePolicy(process.env, { noCache: request.noCache, build: request.build }) }
       : {}),
   })
+  return outcome.exitCode
 }
 
 function runReplay(argv: readonly string[]): number {

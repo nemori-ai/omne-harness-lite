@@ -69,6 +69,13 @@ const lists = plan === undefined ? {} : {
 }
 appendFileSync('trace.txt', name + '\\t' + (lists[name] === undefined ? '-' : lists[name].join(',')) + '\\n')
 if (name === 'loop:status' && process.env.FAKE_STRAY) appendFileSync(process.env.FAKE_STRAY, 'stray\\n')
+// 环境变量 FAKE_RETRIED 给了测试文件名时，假的 test 步像真的那样在计划旁写报告：那个文件定向重跑后通过。
+if (name === 'test' && process.env.FAKE_RETRIED && plan !== undefined) {
+  const head = JSON.parse(readFileSync(planPath, 'utf8')).head
+  const file = process.env.FAKE_RETRIED
+  const entry = { member: file.split('/').slice(0, 2).join('/'), file, tier: 'slow', kind: 'timeout', firstError: 'Error: Test timed out in 5000ms.' }
+  writeFileSync('tmp/check-plan/test-step.json', JSON.stringify({ head, failures: [], retried: [{ ...entry, retryResult: 'passed' }] }))
+}
 const bad = file => readFileSync(file, 'utf8').includes('bad')
 const doneDir = '${FAKE_DONE_DIR}'
 const doneFile = step => doneDir + '/' + step.replaceAll(':', '-')
@@ -499,6 +506,35 @@ describe('夹具仓库上的准入运行与接续', { timeout: 240_000 }, () => 
     // 同一个头再跑一次、工作树干净：不是 dirty。trace.txt 与 tmp/ 被忽略，不算。
     await check()
     expect(runRecord(fx.root, head).dirty).toBe(false)
+  })
+
+  it('test 步在计划旁留下定向重跑的报告：记录带 retried，准入日志写明哪个文件重跑才过', async () => {
+    const head = fx.git('rev-parse', 'HEAD')
+    process.env['FAKE_RETRIED'] = 'members/a/tests/x.spec.ts'
+    try {
+      const retried = await check()
+      expect(retried.code).toBe(0)
+      expect(retried.output.join('\n')).toContain(
+        'test 步定向重跑 1 个文件：members/a/tests/x.spec.ts（timeout）→ passed',
+      )
+    } finally {
+      delete process.env['FAKE_RETRIED']
+    }
+    const record = runRecord(fx.root, head)
+    expect(record.retried).toEqual([
+      {
+        member: 'members/a',
+        file: 'members/a/tests/x.spec.ts',
+        tier: 'slow',
+        kind: 'timeout',
+        firstError: 'Error: Test timed out in 5000ms.',
+        retryResult: 'passed',
+      },
+    ])
+    expect(record.testFailures).toEqual([])
+    // 下一次运行没有报告：计划目录每次先清空，旧报告不会串进新记录。
+    await check()
+    expect(runRecord(fx.root, head).retried).toBeUndefined()
   })
 
   it('开始时自愈环境：索引 LF、工作副本 CRLF 的文件从索引重新检出，记录写明；树不记 dirty', async () => {

@@ -14,6 +14,12 @@ import {
 import { dirname, join } from 'node:path'
 import type { CheckStep, GraphRun } from './check-graph.ts'
 import { parseEnvironmentHealing, type EnvironmentHealing } from './environment.ts'
+import {
+  parseFailedFiles,
+  parseRetriedFiles,
+  type FailedFile,
+  type RetriedFile,
+} from './test-retry.ts'
 
 export const ADMISSION_RUN_SCHEMA_VERSION = 1
 export const ADMISSION_RUN_KIND = 'admission-run'
@@ -91,6 +97,10 @@ interface AdmissionRunCommon {
   readonly finishedAt: string
   /** 开始时环境自检与自愈的结果（environment.ts）：依赖目录有没有重装、哪些 CRLF 工作副本被重新检出。早于这一栏的记录没有。 */
   readonly environment?: EnvironmentHealing
+  /** test 步一层失败后定向重跑过的文件与各自结果（test-retry.ts）；没失败或没重跑时为空或没有。 */
+  readonly retried?: readonly RetriedFile[]
+  /** test 步最终失败时仍失败的文件（定向重跑后仍不过的，或没重跑时的全部）；接续按它收窄。通过时为空或没有。 */
+  readonly testFailures?: readonly FailedFile[]
 }
 
 export type AdmissionRun =
@@ -154,9 +164,15 @@ function parseCommon(value: Record<string, unknown>): AdmissionRunCommon | undef
     startedAt,
     finishedAt,
     environment,
+    retried,
+    testFailures,
   } = value
   if (schemaVersion !== ADMISSION_RUN_SCHEMA_VERSION || kind !== ADMISSION_RUN_KIND)
     return undefined
+  const parsedRetried = retried === undefined ? undefined : parseRetriedFiles(retried)
+  if (retried !== undefined && parsedRetried === undefined) return undefined
+  const parsedFailures = testFailures === undefined ? undefined : parseFailedFiles(testFailures)
+  if (testFailures !== undefined && parsedFailures === undefined) return undefined
   const parsedEnvironment =
     environment === undefined ? undefined : parseEnvironmentHealing(environment)
   if (environment !== undefined && parsedEnvironment === undefined) return undefined
@@ -191,6 +207,8 @@ function parseCommon(value: Record<string, unknown>): AdmissionRunCommon | undef
     startedAt,
     finishedAt,
     ...(parsedEnvironment === undefined ? {} : { environment: parsedEnvironment }),
+    ...(parsedRetried === undefined ? {} : { retried: parsedRetried }),
+    ...(parsedFailures === undefined ? {} : { testFailures: parsedFailures }),
   }
 }
 
@@ -258,6 +276,11 @@ export interface AdmissionRunInputs {
   readonly startedAt: Date
   readonly finishedAt: Date
   readonly environment?: EnvironmentHealing
+  /** `step test` 留下的报告（test-retry.ts）：重跑过的文件与最终仍失败的文件。 */
+  readonly testReport?: {
+    readonly retried: readonly RetriedFile[]
+    readonly failures: readonly FailedFile[]
+  }
   readonly origin:
     | { readonly mode: 'full' | 'affected' }
     | { readonly mode: 'resume'; readonly from: ResumeOrigin }
@@ -295,6 +318,9 @@ export function admissionRunFrom(inputs: AdmissionRunInputs): AdmissionRun {
     startedAt: inputs.startedAt.toISOString(),
     finishedAt: inputs.finishedAt.toISOString(),
     ...(inputs.environment === undefined ? {} : { environment: inputs.environment }),
+    ...(inputs.testReport === undefined
+      ? {}
+      : { retried: inputs.testReport.retried, testFailures: inputs.testReport.failures }),
   }
   return inputs.origin.mode === 'resume'
     ? { ...common, mode: 'resume', resumeFrom: inputs.origin.from }
