@@ -86,7 +86,7 @@ describe('each face operation asks the access check exactly once', () => {
     ])
   })
 
-  it('a changed retry reads the authoritative snapshot again through the same view and asks no second decision', async () => {
+  it('a changed commit of a caller expected reaches the caller: one read, one commit, and no second decision', async () => {
     const h = await harness({ backend: memoryBackend })
     open.push(h)
     await h.create()
@@ -140,14 +140,14 @@ describe('each face operation asks the access check exactly once', () => {
           rejection: started.receipt.source,
         },
       })
-      expect(finished, JSON.stringify(finished)).toHaveProperty('ok')
+      expect(failureOf(finished)).toMatchObject({ kind: 'changed' })
     })
     const decided = h.checks.asked().map(request => request.operation)
     expect(decided.filter(operation => operation === 'finishRun')).toHaveLength(1)
     expect(decided.filter(operation => operation === 'accept')).toHaveLength(2)
     const methods = h.view.calls().map(call => call.method)
-    expect(methods.filter(method => method === 'commit')).toHaveLength(2)
-    expect(methods.filter(method => method === 'readWork')).toHaveLength(2)
+    expect(methods.filter(method => method === 'commit')).toHaveLength(1)
+    expect(methods.filter(method => method === 'readWork')).toHaveLength(1)
   })
 
   it('pending is decided once, by the public port, and binds no view', async () => {
