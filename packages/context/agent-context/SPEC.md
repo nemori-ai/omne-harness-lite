@@ -168,6 +168,8 @@
 
 `context.source` 指向的读取记录已丢失时答 `unavailable(context-material-lost)`，不调用 Request Context。
 
+<a id="requests-modality"></a>模态依据：Model 请求准备的 `required` 是必填项，至少列一种模态。候选的历史模态约束为 `null` 时（组装输入里没有一个块需要模态，例如空历史），本包交 `text`，来源证据取本次的覆盖证据。理由：组装输入里总有文本部分（系统提示词、提醒），`text` 是最小的要求；它不扩大候选，只让 Model 照常核对档案是否接受文本输入。档案不接受文本时，Model 的拒绝按上表映射。
+
 <a id="requests-derive"></a>`derive`：
 
 1. 用 `original.progress.plan` 取材料库里的计划。不是本包证据答 `invalid`，租户不符答 `denied`，已丢失答 `unavailable(compaction-plan-lost)`。

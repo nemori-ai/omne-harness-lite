@@ -196,6 +196,8 @@ export async function createWorld(options: WorldOptions = {}) {
   }
 
   const historyEvidence: HistoryEvidence = f.history.evidence()
+  // A holder that admits the access yet resolves the head to a target of another tenant.
+  let resolvedTenant: TenantId = tenant
   const parts: ContextHolderParts<string> = {
     history: f.sources.history,
     adopted: f.sources.adopted,
@@ -207,7 +209,13 @@ export async function createWorld(options: WorldOptions = {}) {
       counts.resolveHistory++
       if (!tenantEquals(who.tenant, tenant)) return { kind: 'denied' }
       return head.record === HEAD.record
-        ? { kind: 'value', value: historyEvidence }
+        ? {
+            kind: 'value',
+            value: {
+              ...historyEvidence,
+              target: { ...historyEvidence.target, tenant: resolvedTenant },
+            },
+          }
         : { kind: 'invalid', field: 'evidence', reason: 'unknown-epoch' }
     },
   }
@@ -478,6 +486,10 @@ export async function createWorld(options: WorldOptions = {}) {
     counts,
     parts,
     adopted,
+    /** From now on the holder resolves the history head to a target of this tenant. */
+    resolveTo(next: TenantId) {
+      resolvedTenant = next
+    },
     adopt,
     rc,
     ports,

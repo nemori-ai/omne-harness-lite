@@ -282,6 +282,18 @@ describe('failures', () => {
     })
   })
 
+  it('denies a target of another tenant that the holder resolves, and asks nothing further', async () => {
+    const w = await createWorld()
+    const context = await w.read()
+    const seen = { ...w.counts }
+    w.resolveTo(tenantOf('2'))
+    expect(await w.requests.prepare(w.prepareInput(context))).toEqual({
+      failure: { kind: 'denied', action: 'prepare' },
+    })
+    expect(w.counts.resolveHistory).toBe(seen.resolveHistory + 1)
+    expect({ ...w.counts, resolveHistory: 0 }).toEqual({ ...seen, resolveHistory: 0 })
+  })
+
   it('denies a read of another tenant before anything is resolved', async () => {
     const w = await createWorld()
     const context = await w.read()

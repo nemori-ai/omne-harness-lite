@@ -155,6 +155,16 @@ describe('refusals', () => {
     expect(w.counts.bind).toBe(0)
   })
 
+  it('denies a target of another tenant that the holder resolves, before eligibility or bind', async () => {
+    const w = await createWorld()
+    w.resolveTo(tenantOf('2'))
+    expect(await w.reader.read(w.readInput())).toEqual({
+      failure: { kind: 'denied', action: 'read' },
+    })
+    expect(w.counts.eligibility).toBe(0)
+    expect(w.counts.bind).toBe(0)
+  })
+
   it('denies evidence of another tenant before anything is resolved', async () => {
     const w = await createWorld()
     const { coverage } = await adoptedRound(w)
