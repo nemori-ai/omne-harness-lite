@@ -1606,6 +1606,12 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/operation-result':
+        specifier: workspace:*
+        version: link:../../common/operation-result
       '@omne-harness/session':
         specifier: workspace:*
         version: link:../session
@@ -1616,6 +1622,15 @@ importers:
         specifier: workspace:*
         version: link:../session-cordis-contract
     devDependencies:
+      '@omne-harness/session-storage-sql':
+        specifier: workspace:*
+        version: link:../session-storage-sql
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
