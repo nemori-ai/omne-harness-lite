@@ -120,6 +120,18 @@ async function entryNames(
   return { names: names.sort(byBytes), lossy }
 }
 
+/** The entry as it is, or undefined when it cannot be read. */
+async function lstatOrUndefined(
+  directory: FileHandle,
+  name: string,
+): Promise<FileStats | undefined> {
+  try {
+    return await lstat(fdPath(directory, name), { bigint: true })
+  } catch {
+    return undefined
+  }
+}
+
 function typeOf(stat: FileStats): FileInformation['type'] {
   if (stat.isSymbolicLink()) return 'symlink'
   return stat.isDirectory() ? 'directory' : 'file'
@@ -287,6 +299,47 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
         }
       }
 
+      /** Records a name match, or reads a file for the pattern; `continue` unless the walk must stop. */
+      const examine = async (
+        directory: FileHandle,
+        name: string,
+        entryPath: string,
+        info: FileStats,
+      ): Promise<Walk> => {
+        if (request.match === 'name') {
+          if (Buffer.from(name).includes(pattern))
+            hits.push({ path: entryPath, object: tokenOf(info) })
+          return 'continue'
+        }
+        return info.isFile() ? readFor(directory, name, entryPath, info) : 'continue'
+      }
+
+      /** Walks into a directory below `directory`; one that vanished or became another kind is skipped. */
+      const enter = async (
+        directory: FileHandle,
+        name: string,
+        entryPath: string,
+      ): Promise<Walk> => {
+        let child: FileHandle
+        try {
+          child = await open(fdPath(directory, name), directoryFlags)
+        } catch (error) {
+          const code = errorCode(error)
+          return code === 'ENOTDIR' || code === 'ELOOP' || code === 'ENOENT'
+            ? 'continue'
+            : 'unknown'
+        }
+        try {
+          return await visit(child, entryPath)
+        } finally {
+          await env.close(child)
+        }
+      }
+
+      /** Whether the walk goes below an entry: only a directory on the device the search started on. */
+      const descends = (info: FileStats): boolean =>
+        request.recursive && info.isDirectory() && info.dev === startStat.dev
+
       const visit = async (directory: FileHandle, prefix: string): Promise<Walk> => {
         let names: string[]
         try {
@@ -299,37 +352,15 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
             spent.truncated = true
             return 'budget'
           }
-          let info: FileStats
-          try {
-            info = await lstat(fdPath(directory, name), { bigint: true })
-          } catch {
-            return 'unknown'
-          }
+          const info = await lstatOrUndefined(directory, name)
+          if (info === undefined) return 'unknown'
           const entryPath = `${prefix}/${name}`
-          if (request.match === 'name') {
-            if (Buffer.from(name).includes(pattern))
-              hits.push({ path: entryPath, object: tokenOf(info) })
-          } else if (info.isFile()) {
-            const read = await readFor(directory, name, entryPath, info)
-            if (read !== 'continue') return read
-          }
+          const examined = await examine(directory, name, entryPath, info)
+          if (examined !== 'continue') return examined
           if (hits.length >= want) return 'enough'
-          if (request.recursive && info.isDirectory() && info.dev === startStat.dev) {
-            let child: FileHandle
-            try {
-              child = await open(fdPath(directory, name), directoryFlags)
-            } catch (error) {
-              const code = errorCode(error)
-              if (code === 'ENOTDIR' || code === 'ELOOP' || code === 'ENOENT') continue
-              return 'unknown'
-            }
-            try {
-              const inner = await visit(child, entryPath)
-              if (inner !== 'continue') return inner
-            } finally {
-              await env.close(child)
-            }
-          }
+          if (!descends(info)) continue
+          const inner = await enter(directory, name, entryPath)
+          if (inner !== 'continue') return inner
         }
         return 'continue'
       }
@@ -500,6 +531,73 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     return true
   }
 
+  type Removal = FacilityResult<{ removed: ObjectToken }>
+
+  /** The object a remove names, found and checked against the token and version of the request. */
+  async function removalTarget(
+    request: Parameters<FileSystemFacility<unknown>['remove']>[0],
+    parent: FileHandle,
+    name: string,
+  ): Promise<Readonly<{ stat: FileStats; object: ObjectToken }> | FacilityResult<never>> {
+    const { requestId } = request
+    const entry = await entryAt(parent, name)
+    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+    const stat = entry.value
+    if (stat === undefined) return reject(requestId, 'notFound')
+    const object = tokenOf(stat)
+    if (object.token !== request.named?.token) return reject(requestId, 'conflict')
+    if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
+      return reject(requestId, 'conflict')
+    return { stat, object }
+  }
+
+  /** Removes a file or link, or an empty directory, with one system call. */
+  async function removeEntry(
+    requestId: string,
+    target: string,
+    object: ObjectToken,
+    directory: boolean,
+  ): Promise<Removal> {
+    try {
+      await (directory ? rmdir(target) : unlink(target))
+    } catch (error) {
+      return failed(requestId, changeFailure(error), 'notFound')
+    }
+    return { kind: 'done', requestId, value: { removed: object } }
+  }
+
+  /** Empties a directory, leaves first, then removes it. Anything that fails after a start is unknown. */
+  async function removeSubtree(
+    requestId: string,
+    target: string,
+    object: ObjectToken,
+    dev: bigint,
+  ): Promise<Removal> {
+    let directory: FileHandle
+    try {
+      directory = await open(target, directoryFlags)
+    } catch (error) {
+      return failed(requestId, mapped(openCodes, error) ?? 'unknown', 'notFound')
+    }
+    try {
+      if (tokenOf(await directory.stat({ bigint: true })).token !== object.token)
+        return reject(requestId, 'conflict')
+      const refusal = await verifyTree(directory, dev)
+      if (refusal !== undefined) return failed(requestId, refusal, 'notFound')
+      if (!(await deleteTree(directory, dev))) return unknown(requestId)
+    } catch {
+      return unknown(requestId)
+    } finally {
+      await env.close(directory)
+    }
+    try {
+      await rmdir(target)
+    } catch {
+      return unknown(requestId)
+    }
+    return { kind: 'done', requestId, value: { removed: object } }
+  }
+
   async function remove(
     request: Parameters<FileSystemFacility<unknown>['remove']>[0],
   ): ReturnType<FileSystemFacility<unknown>['remove']> {
@@ -511,56 +609,13 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     const { parent, name, isRoot } = located.value
     try {
       if (isRoot) return reject(requestId, 'notAuthorized')
-      const entry = await entryAt(parent, name)
-      if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
-      const stat = entry.value
-      if (stat === undefined) return reject(requestId, 'notFound')
-      const object = tokenOf(stat)
-      if (object.token !== request.named?.token) return reject(requestId, 'conflict')
-      if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
-        return reject(requestId, 'conflict')
+      const found = await removalTarget(request, parent, name)
+      if ('kind' in found) return found
+      const { stat, object } = found
       const target = fdPath(parent, name)
-
-      if (!stat.isDirectory()) {
-        try {
-          await unlink(target)
-        } catch (error) {
-          return failed(requestId, changeFailure(error), 'notFound')
-        }
-        return { kind: 'done', requestId, value: { removed: object } }
-      }
-      if (!request.recursive) {
-        try {
-          await rmdir(target)
-        } catch (error) {
-          return failed(requestId, changeFailure(error), 'notFound')
-        }
-        return { kind: 'done', requestId, value: { removed: object } }
-      }
-
-      let directory: FileHandle
-      try {
-        directory = await open(target, directoryFlags)
-      } catch (error) {
-        return failed(requestId, mapped(openCodes, error) ?? 'unknown', 'notFound')
-      }
-      try {
-        if (tokenOf(await directory.stat({ bigint: true })).token !== object.token)
-          return reject(requestId, 'conflict')
-        const refusal = await verifyTree(directory, stat.dev)
-        if (refusal !== undefined) return failed(requestId, refusal, 'notFound')
-        if (!(await deleteTree(directory, stat.dev))) return unknown(requestId)
-      } catch {
-        return unknown(requestId)
-      } finally {
-        await env.close(directory)
-      }
-      try {
-        await rmdir(target)
-      } catch {
-        return unknown(requestId)
-      }
-      return { kind: 'done', requestId, value: { removed: object } }
+      if (stat.isDirectory() && request.recursive)
+        return await removeSubtree(requestId, target, object, stat.dev)
+      return await removeEntry(requestId, target, object, stat.isDirectory())
     } catch {
       return unknown(requestId)
     } finally {
@@ -580,19 +635,58 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     | Readonly<{ kind: 'opened'; endpoints: Endpoints }>
     | Readonly<{ kind: 'refused'; result: FacilityResult<never> }>
 
+  type EndpointRequest = FileRequest<unknown> & {
+    readonly target: FileTarget
+    readonly replace: boolean
+    readonly expectedVersion?: FileVersion
+  }
+
+  /** The source object as it is now, checked against the token and version the request names. */
+  async function checkSource(
+    request: EndpointRequest,
+    source: Located,
+  ): Promise<FileStats | FacilityResult<never>> {
+    const { requestId } = request
+    if (source.isRoot) return reject(requestId, 'notAuthorized')
+    const entry = await entryAt(source.parent, source.name)
+    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+    const stat = entry.value
+    if (stat === undefined) return reject(requestId, 'notFound')
+    if (tokenOf(stat).token !== request.named?.token) return reject(requestId, 'conflict')
+    if (request.expectedVersion !== undefined && versionOf(stat) !== request.expectedVersion)
+      return reject(requestId, 'conflict')
+    return stat
+  }
+
+  /**
+   * The target name: an existing object that `replace` allows and the request names, or a free name
+   * whose parent directory the request names.
+   */
+  async function checkTarget(
+    request: EndpointRequest,
+    target: Located,
+  ): Promise<Readonly<{ stat: FileStats | undefined }> | FacilityResult<never>> {
+    const { requestId } = request
+    if (target.isRoot) return reject(requestId, 'notAuthorized')
+    const entry = await entryAt(target.parent, target.name)
+    if (!entry.ok) return failed(requestId, entry.failure, 'notFound')
+    const stat = entry.value
+    const named = request.target.named?.token
+    if (stat !== undefined) {
+      if (!request.replace || tokenOf(stat).token !== named) return reject(requestId, 'conflict')
+    } else if (tokenOf(await target.parent.stat({ bigint: true })).token !== named) {
+      return reject(requestId, 'conflict')
+    }
+    return { stat }
+  }
+
   /**
    * Opens the directories of the source and of the target of a move or copy and checks what the
    * request names: the source object and version, and either the target object (when it exists and
    * `replace` is true) or the target's parent directory (when it does not). A refusal has already
    * closed what it opened; an opened pair is released by the operation that uses it.
    */
-  async function openEndpoints(
-    request: FileRequest<unknown> & {
-      readonly target: FileTarget
-      readonly replace: boolean
-      readonly expectedVersion?: FileVersion
-    },
-  ): Promise<Opened> {
+  async function openEndpoints(request: EndpointRequest): Promise<Opened> {
     const { requestId } = request
     const held: FileHandle[] = []
     const releaseAll = async () => {
@@ -606,40 +700,20 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     if (!source.ok) return refused(failed(requestId, source.failure, 'notFound'))
     held.push(source.value.parent)
     try {
-      if (source.value.isRoot) return await refused(reject(requestId, 'notAuthorized'))
-      const sourceEntry = await entryAt(source.value.parent, source.value.name)
-      if (!sourceEntry.ok) return await refused(failed(requestId, sourceEntry.failure, 'notFound'))
-      const sourceStat = sourceEntry.value
-      if (sourceStat === undefined) return await refused(reject(requestId, 'notFound'))
-      if (tokenOf(sourceStat).token !== request.named?.token)
-        return await refused(reject(requestId, 'conflict'))
-      if (
-        request.expectedVersion !== undefined &&
-        versionOf(sourceStat) !== request.expectedVersion
-      )
-        return await refused(reject(requestId, 'conflict'))
-
+      const sourceStat = await checkSource(request, source.value)
+      if ('kind' in sourceStat) return await refused(sourceStat)
       const target = await paths.locate(request.target.path)
       if (!target.ok) return await refused(failed(requestId, target.failure, 'notFound'))
       held.push(target.value.parent)
-      if (target.value.isRoot) return await refused(reject(requestId, 'notAuthorized'))
-      const targetEntry = await entryAt(target.value.parent, target.value.name)
-      if (!targetEntry.ok) return await refused(failed(requestId, targetEntry.failure, 'notFound'))
-      const targetStat = targetEntry.value
-      const named = request.target.named?.token
-      if (targetStat !== undefined) {
-        if (!request.replace) return await refused(reject(requestId, 'conflict'))
-        if (tokenOf(targetStat).token !== named) return await refused(reject(requestId, 'conflict'))
-      } else if (tokenOf(await target.value.parent.stat({ bigint: true })).token !== named) {
-        return await refused(reject(requestId, 'conflict'))
-      }
+      const checked = await checkTarget(request, target.value)
+      if ('kind' in checked) return await refused(checked)
       return {
         kind: 'opened',
         endpoints: {
           source: source.value,
           sourceStat,
           target: target.value,
-          targetStat,
+          targetStat: checked.stat,
           release: releaseAll,
         },
       }
@@ -727,41 +801,59 @@ export function createHostFileTree(env: FileTreeEnvironment): FileTree {
     if (early !== undefined) return early
     const opened = await openEndpoints(request)
     if (opened.kind === 'refused') return opened.result
-    const { source, target, sourceStat, targetStat } = opened.endpoints
     try {
-      if (!sourceStat.isFile()) return reject(requestId, 'unsupported')
-      if (targetStat?.isDirectory()) return reject(requestId, 'unsupported')
-
-      let input: FileHandle
-      try {
-        input = await open(
-          fdPath(source.parent, source.name),
-          constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
-        )
-      } catch (error) {
-        return failed(requestId, mapped(openCodes, error) ?? 'unknown', 'notFound')
-      }
-      try {
-        const stat = await input.stat({ bigint: true })
-        if (!stat.isFile() || tokenOf(stat).token !== tokenOf(sourceStat).token)
-          return reject(requestId, 'conflict')
-        if (paths.rooted && stat.nlink > 1n) return reject(requestId, 'notAuthorized')
-        const mode = Number(stat.mode & 0o777n)
-        const result = request.replace
-          ? await copyReplacing(requestId, input, target, mode)
-          : await copyNew(requestId, input, target, mode)
-        if (result !== undefined) return result
-        const identity = await identityAt(target.parent, target.name)
-        if (identity === undefined) return unknown(requestId)
-        return { kind: 'done', requestId, value: { source: tokenOf(sourceStat), target: identity } }
-      } catch {
-        return unknown(requestId)
-      } finally {
-        await env.close(input)
-      }
+      return await copyBetween(request, opened.endpoints)
     } finally {
       await opened.endpoints.release()
     }
+  }
+
+  /** Copies from the opened source to the opened target; the endpoints are released by the caller. */
+  async function copyBetween(
+    request: Parameters<FileSystemFacility<unknown>['copy']>[0],
+    { source, target, sourceStat, targetStat }: Endpoints,
+  ): ReturnType<FileSystemFacility<unknown>['copy']> {
+    const { requestId } = request
+    if (!sourceStat.isFile()) return reject(requestId, 'unsupported')
+    if (targetStat?.isDirectory()) return reject(requestId, 'unsupported')
+    let input: FileHandle
+    try {
+      input = await open(
+        fdPath(source.parent, source.name),
+        constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+      )
+    } catch (error) {
+      return failed(requestId, mapped(openCodes, error) ?? 'unknown', 'notFound')
+    }
+    try {
+      return await copyFrom(request, input, sourceStat, target)
+    } catch {
+      return unknown(requestId)
+    } finally {
+      await env.close(input)
+    }
+  }
+
+  /** Copies the open source file to the target; the source must still be the object that was named. */
+  async function copyFrom(
+    request: Parameters<FileSystemFacility<unknown>['copy']>[0],
+    input: FileHandle,
+    sourceStat: FileStats,
+    target: Located,
+  ): ReturnType<FileSystemFacility<unknown>['copy']> {
+    const { requestId } = request
+    const stat = await input.stat({ bigint: true })
+    if (!stat.isFile() || tokenOf(stat).token !== tokenOf(sourceStat).token)
+      return reject(requestId, 'conflict')
+    if (paths.rooted && stat.nlink > 1n) return reject(requestId, 'notAuthorized')
+    const mode = Number(stat.mode & 0o777n)
+    const result = request.replace
+      ? await copyReplacing(requestId, input, target, mode)
+      : await copyNew(requestId, input, target, mode)
+    if (result !== undefined) return result
+    const identity = await identityAt(target.parent, target.name)
+    if (identity === undefined) return unknown(requestId)
+    return { kind: 'done', requestId, value: { source: tokenOf(sourceStat), target: identity } }
   }
 
   /** Writes the target exclusively; undefined is success. */

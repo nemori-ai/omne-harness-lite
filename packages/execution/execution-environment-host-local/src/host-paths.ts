@@ -354,6 +354,29 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return 'unknown'
     }
 
+    /**
+     * Moves from `current` to its child `next`: `next` must be on device `dev`. Closes `current`,
+     * and `next` as well when the step is refused.
+     */
+    const crossStep = async (
+      current: FileHandle,
+      next: FileHandle,
+      dev: bigint,
+    ): Promise<Outcome<FileHandle>> => {
+      let nextDev: bigint
+      try {
+        nextDev = (await next.stat({ bigint: true })).dev
+      } catch {
+        await close(next)
+        await close(current)
+        return fail('unknown')
+      }
+      await close(current)
+      if (nextDev === dev) return ok(next)
+      await close(next)
+      return fail('notAuthorized')
+    }
+
     /** Opens `names` one below the other from `start`, never following a link. Closes `start`. */
     const descend = async (
       start: FileHandle,
@@ -372,29 +395,23 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
           await close(current)
           return fail(failure)
         }
-        let nextDev: bigint
-        try {
-          nextDev = (await next.stat({ bigint: true })).dev
-        } catch {
-          await close(next)
-          await close(current)
-          return fail('unknown')
-        }
-        await close(current)
-        if (nextDev !== dev) {
-          await close(next)
-          return fail('notAuthorized')
-        }
-        current = next
+        const stepped = await crossStep(current, next, dev)
+        if (!stepped.ok) return stepped
+        current = stepped.value
       }
       return ok(current)
     }
 
+    /**
+     * The path is judged against the recorded root first, so a path outside the root or with a `..`
+     * is refused before the prerequisite probe makes anything in the state directory.
+     */
     const checkPath = async (path: string): Promise<Failure | undefined> => {
-      if ((await prerequisite()) !== 'satisfied') return 'unavailable'
+      if (process.platform !== 'linux') return 'unavailable'
       const recorded = await rootBinding()
       if (recorded === undefined) return 'unavailable'
-      return belowRoot(recorded, path) === 'outside' ? 'notAuthorized' : undefined
+      if (belowRoot(recorded, path) === 'outside') return 'notAuthorized'
+      return (await prerequisite()) === 'satisfied' ? undefined : 'unavailable'
     }
 
     const openDirectory = async (
@@ -448,68 +465,72 @@ export function createHostPathsCore(options: HostPathsOptions): HostPathsCore {
       return ok({ parent: parent.value, name, isRoot: false })
     }
 
-    const nearestAncestor = async (path: string): Promise<Outcome<Ancestor>> => {
-      if (!rooted) {
-        const split = splitLast(path)
-        if (split === undefined) return fail('invalidInput')
-        const rest = [split.name]
-        let directory = split.directory
-        for (;;) {
-          const opened = await openDirectory(directory, 'parent')
-          if (opened.ok) return ok({ ancestor: opened.value, rest })
-          if (opened.failure !== 'unresolved' || directory === '/') return opened
-          const up = splitLast(directory)
-          if (up === undefined) return fail('invalidInput')
-          rest.unshift(up.name)
-          directory = up.directory
-        }
+    /** Why a step of the climb failed, found while its parent is still open. */
+    const ancestorFailure = async (
+      parent: FileHandle,
+      name: string,
+      error: unknown,
+      last: boolean,
+    ): Promise<Failure> => {
+      const code = errorCode(error)
+      if (code === 'EACCES' || code === 'EPERM') return 'notAuthorized'
+      if (code !== 'ENOTDIR' && code !== 'ELOOP') return 'unknown'
+      const entry = await lstat(fdPath(parent, name)).catch(() => undefined)
+      if (entry === undefined) return 'unresolved'
+      return last || !entry.isSymbolicLink() ? 'conflict' : 'notAuthorized'
+    }
+
+    /** Without a root: the path as given, shortened from the end until a directory opens. */
+    const nearestUnrooted = async (path: string): Promise<Outcome<Ancestor>> => {
+      const split = splitLast(path)
+      if (split === undefined) return fail('invalidInput')
+      const rest = [split.name]
+      let directory = split.directory
+      for (;;) {
+        const opened = await openDirectory(directory, 'parent')
+        if (opened.ok) return ok({ ancestor: opened.value, rest })
+        if (opened.failure !== 'unresolved' || directory === '/') return opened
+        const up = splitLast(directory)
+        if (up === undefined) return fail('invalidInput')
+        rest.unshift(up.name)
+        directory = up.directory
       }
+    }
+
+    /** With a root: opens the segments below it one by one until one does not exist. Closes the root. */
+    const climb = async (
+      start: FileHandle,
+      dev: bigint,
+      below: readonly string[],
+    ): Promise<Outcome<Ancestor>> => {
+      let current = start
+      for (const [index, name] of below.entries()) {
+        let next: FileHandle
+        try {
+          next = await open(fdPath(current, name), directoryFlags)
+        } catch (error) {
+          if (errorCode(error) === 'ENOENT')
+            return ok({ ancestor: current, rest: below.slice(index) })
+          const failure = await ancestorFailure(current, name, error, index === below.length - 1)
+          await close(current)
+          return fail(failure)
+        }
+        const stepped = await crossStep(current, next, dev)
+        if (!stepped.ok) return stepped
+        current = stepped.value
+      }
+      return ok({ ancestor: current, rest: [] })
+    }
+
+    const nearestAncestor = async (path: string): Promise<Outcome<Ancestor>> => {
+      if (!rooted) return nearestUnrooted(path)
       const recorded = await rootBinding()
       if (recorded === undefined) return fail('unavailable')
       const below = belowRoot(recorded, path)
       if (below === 'outside') return fail('notAuthorized')
       const root = await openRoot()
       if (!root.ok) return root
-      let current = root.value.handle
-      for (const [index, name] of below.entries()) {
-        let next: FileHandle
-        try {
-          next = await open(fdPath(current, name), directoryFlags)
-        } catch (error) {
-          const code = errorCode(error)
-          if (code === 'ENOENT') return ok({ ancestor: current, rest: below.slice(index) })
-          const last = index === below.length - 1
-          let failure: Failure = 'unknown'
-          if (code === 'ENOTDIR' || code === 'ELOOP') {
-            const entry = await lstat(fdPath(current, name)).catch(() => undefined)
-            failure =
-              entry === undefined
-                ? 'unresolved'
-                : last
-                  ? 'conflict'
-                  : entry.isSymbolicLink()
-                    ? 'notAuthorized'
-                    : 'conflict'
-          } else if (code === 'EACCES' || code === 'EPERM') failure = 'notAuthorized'
-          await close(current)
-          return fail(failure)
-        }
-        let nextDev: bigint
-        try {
-          nextDev = (await next.stat({ bigint: true })).dev
-        } catch {
-          await close(next)
-          await close(current)
-          return fail('unknown')
-        }
-        await close(current)
-        if (nextDev !== root.value.dev) {
-          await close(next)
-          return fail('notAuthorized')
-        }
-        current = next
-      }
-      return ok({ ancestor: current, rest: [] })
+      return climb(root.value.handle, root.value.dev, below)
     }
 
     return Object.freeze({
