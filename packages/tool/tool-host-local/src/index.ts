@@ -31,3 +31,21 @@ export type {
   ToolEnvironmentDiagnosticStage,
   ToolEnvironmentDiagnostics,
 } from './environment-diagnostics.ts'
+export { createLocalToolClock, type LocalToolClockInput } from './clock.ts'
+export {
+  createLocalToolBindingRegistry,
+  type LocalToolAuthorityFailure,
+  type LocalToolBindingRegistry,
+  type LocalToolBindingRegistryInput,
+  type LocalToolContributionVerifier,
+  type ToolBindingPin,
+  type ToolListing,
+  type ToolListingSource,
+} from './bindings.ts'
+export {
+  createLocalToolCatalog,
+  type LocalToolAvailabilitySource,
+  type LocalToolCatalogInput,
+  type ToolAvailabilityVerdict,
+} from './catalog.ts'
+export { createAbsentToolPorts, type AbsentToolPorts } from './absent-ports.ts'

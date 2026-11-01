@@ -8,6 +8,8 @@
 
 `createLocalToolCredentials` 返回 `ToolCredentials`。构造依赖分别核当前调用资格、读取固定设置采用的分层引用、解析所选引用的实际绑定（`ToolCredentialResolution`：绑定、能力与撤销句柄）。成功能力的 `use` 在执行回调前重核资格并重新读取同一引用，回调结束后撤销本次能力，再返回或原样重抛；撤销失败不报告成功。引用、用途、目标与原请求在解析时固定，秘密和实际能力不进入记录或日志。工厂见 [credentials.ts](../src/credentials.ts)，端口依据见 [第三方凭据](../../tool-contract/SPEC.md#第三方凭据端口)。真实秘密保管提供者尚未交付。
 
+`createLocalToolClock` 返回 `ToolClock`，输入 `LocalToolClockInput` 的墙钟、单调读数、epoch 与睡眠都可选，缺省读进程。`createLocalToolBindingRegistry` 返回 `LocalToolBindingRegistry`：契约的 `ToolBindingRegistry` 加三个本包内部使用的成员，`listings`（给 Catalog 读 live 贡献与定义）、`pin`（固定请求解析到某键时持有它，`pins` 与 `drain` 据此计数）和 `retire`（fiber 结束时撤除其贡献）。输入的 `verifier` 是来源核验端口，形状同 `toolContributionAuthority`，本包不提供实现，未注入时 `register` 回复 `unavailable`；`fiber()` 给出正在登记的调用方 fiber。`createLocalToolCatalog` 返回 `ToolCatalog`，输入的 `registry` 是登记表（或 null，此时三个动词都回复 `unavailable`），`availability` 是已核验事实的来源（资格、依赖、输入输出与附件兼容）。`createAbsentToolPorts` 返回 `toolDecisions`、`toolResourceResponses`、`toolChildren`，每个方法回复具名 `unavailable`。工厂见 [clock.ts](../src/clock.ts)、[bindings.ts](../src/bindings.ts)、[catalog.ts](../src/catalog.ts)、[absent-ports.ts](../src/absent-ports.ts)，行为依据见 [SPEC](../SPEC.md#绑定登记表与换代协调者g7)。调用者是应用装配，它把这些部件交给 `createToolRuntime`。登记表不耐久，只在进程内成立。
+
 根入口 `.` 由 [src/index.ts](../src/index.ts) 定义，源码是唯一定义，本页不手写签名。
 
 - [start-coordinator.ts](../src/start-coordinator.ts)：`createLocalStartCoordinator`（G5）返回契约的 `ToolStartAuthority`。输入类型是 `LocalStartCoordinatorInput`：记录仓、资格守卫 `StartCoordinatorAccess`、按请求给出守卫资源的 `guardsOf`（资源类型 `GuardResource`）与修订冲突的重试上限。`startCoordinatorAdoption` 是它在许可里的采用，`START_COORDINATOR_OWNER` 是它铸造的证据的拥有者，`START_COORDINATOR_DOMAIN_KEY` 是它在 `host` 域的键。行为见 [SPEC](../SPEC.md#本地启动协调器g5)。

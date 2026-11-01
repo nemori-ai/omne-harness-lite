@@ -1,3 +1,4 @@
+import { readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import {
   describeImport,
@@ -7,13 +8,17 @@ import {
   type ModuleKind,
 } from './module-graph.ts'
 
-it('root entry exports the local start coordinator (G5) and its names', async () => {
+it('root entry exports the local start coordinator (G5), the host clock (G4), the registry and Catalog (G7) and the absent ports', async () => {
   const root = (await import('@omne-harness/tool-host-local')) as Record<string, unknown>
   expect(Object.keys(root).sort()).toEqual([
     'START_COORDINATOR_DOMAIN_KEY',
     'START_COORDINATOR_OWNER',
+    'createAbsentToolPorts',
     'createLocalScheduledEnvironment',
     'createLocalStartCoordinator',
+    'createLocalToolBindingRegistry',
+    'createLocalToolCatalog',
+    'createLocalToolClock',
     'createLocalToolCredentials',
     'startCoordinatorAdoption',
   ])
@@ -54,6 +59,37 @@ describe('root entry has no Cordis', () => {
       '@deepseek-ai/cordis',
       './cordis.js',
       '@omne-harness/tool-cordis-contract/cordis',
+    ])
+  })
+})
+
+/** A testing entry of any package, or a Cordis entry: neither belongs to a production source. */
+function forbiddenInSource(specifier: string): boolean {
+  return forbiddenFromRoot(specifier) || /(^|\/)testing(\.d)?(\.ts|\.js)?$/u.test(specifier)
+}
+
+describe('production sources import no testing entry', () => {
+  const sources = readdirSync(memberPath('src')).filter(file => file.endsWith('.ts'))
+
+  it('has sources to check', () => {
+    expect(sources.length).toBeGreaterThan(0)
+  })
+
+  it.each(sources)('src/%s imports no testing entry and no Cordis', file => {
+    const text = readFileSync(memberPath(`src/${file}`), 'utf8')
+    expect(specifiersOf(text).filter(forbiddenInSource)).toEqual([])
+  })
+
+  it('sees a testing entry in every form of import that the walker reads', () => {
+    const text = [
+      "import { x } from '@omne-harness/tool/testing'",
+      "export * from '@omne-harness/tool-contract/testing'",
+      "const d = await import('./testing.ts')",
+    ].join('\n')
+    expect(specifiersOf(text).filter(forbiddenInSource)).toEqual([
+      '@omne-harness/tool/testing',
+      '@omne-harness/tool-contract/testing',
+      './testing.ts',
     ])
   })
 })
