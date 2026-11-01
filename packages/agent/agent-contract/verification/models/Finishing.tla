@@ -29,7 +29,7 @@ CONSTANTS
 ScopeNames == {"call", "tool", "card", "legacy", "newrun", "held"}
 BugNames == {"skip-pending", "unknown-as-pending", "ignore-cancel", "stale-intent",
              "stale-judgment", "rh-moves-pointer", "release-before-custody",
-             "recheck-before-recognize", "new-run-blocks-cancel"}
+             "release-while-issued", "recheck-before-recognize", "new-run-blocks-cancel"}
 ASSUME Bugs \subseteq BugNames /\ Scope \subseteq ScopeNames
 ASSUME Coordinated \in BOOLEAN /\ SupersedeStaleCancelled \in BOOLEAN /\ Observe \in BOOLEAN
 ASSUME Handoffs \in 0..2 /\ MaxInputs \in 1..3 /\ MaxF1 \in 1..3
@@ -60,6 +60,7 @@ VARIABLES
   part,       \* the Session participant: "none" | "input" | "terminal"
   call,       \* the Model call: "none" | "issued" | "recorded" | "settled"
   pcopy,      \* the producer still holds its durable copy of the result
+  produced,   \* ghost: the result exists; set by Produce, never cleared, read by no action
   tool,       \* the Tool invoke whose return was commit-unknown: "none" | "unknown" | "held"
   card,       \* a card round whose presentation is unknown: "none" | "unknown" | "held"
   legacyRet,  \* the before-terminal call of a legacy candidate: "none" | "inflight" | "held"
@@ -80,7 +81,7 @@ VARIABLES
 
 fin == <<status, cand, nf1, list, judg>>
 inp == <<acc, tk, part>>
-res == <<call, pcopy, tool, card, legacyRet>>
+res == <<call, pcopy, produced, tool, card, legacyRet>>
 hand == <<hist, pv, rh, ptr>>
 run == <<zombie, held, crashes, lost, slot>>
 ends == <<endc, final>>
@@ -241,7 +242,7 @@ SlotFree == "new-run-blocks-cancel" \notin Bugs \/ slot = "old"
 InitCommon ==
   /\ nf1 = 0 /\ list = NoList /\ judg = NoJudgment
   /\ acc = 1 /\ tk = 0 /\ part = "none"
-  /\ call = "none" /\ pcopy = FALSE /\ tool = "none" /\ card = "none"
+  /\ call = "none" /\ pcopy = FALSE /\ produced = FALSE /\ tool = "none" /\ card = "none"
   /\ hist = [h \in Hs |-> "none"] /\ pv = [h \in Hs |-> "none"] /\ rh = [h \in Hs |-> FALSE]
   /\ ptr = NoH /\ fresh = TRUE /\ pend = NoPend
   /\ zombie = FALSE /\ held = FALSE /\ crashes = 0 /\ lost = 0 /\ slot = "old"
@@ -474,12 +475,14 @@ Effect ==
   /\ "call" \in Scope /\ Coordinator /\ status = "advancing" /\ ctl # "effective"
   /\ call = "none" /\ fresh
   /\ call' = "issued" /\ Step("Effect", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, pcopy, tool, card, legacyRet, hand, fresh, pend, run, ends,
-                 okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, pcopy, produced, tool, card, legacyRet, hand, fresh, pend, run,
+                 ends, okReplay>>
 
+\* The producer has the result and holds its durable copy; the ghost `produced` records that the
+\* result exists from now on, whoever holds it.
 Produce ==
   /\ call = "issued" /\ ~pcopy
-  /\ pcopy' = TRUE /\ Step("Produce", "ok")
+  /\ pcopy' = TRUE /\ produced' = TRUE /\ Step("Produce", "ok")
   /\ UNCHANGED <<fin, ctl, inp, call, tool, card, legacyRet, hand, fresh, pend, run, ends,
                  okReplay>>
 
@@ -487,13 +490,15 @@ Produce ==
 RecordNone ==
   /\ call = "issued" /\ pcopy
   /\ call' = "recorded" /\ fresh' = FALSE /\ Step("RecordNone", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, pcopy, tool, card, legacyRet, hand, pend, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, pcopy, produced, tool, card, legacyRet, hand, pend, run, ends,
+                 okReplay>>
 
 \* recordResult with transfer custody: the Journal takes custody in one commit.
 Custody ==
   /\ call \in {"issued", "recorded"} /\ pcopy /\ pend.m = "none"
   /\ call' = "settled" /\ fresh' = FALSE /\ Step("Custody", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, pcopy, tool, card, legacyRet, hand, pend, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, pcopy, produced, tool, card, legacyRet, hand, pend, run, ends,
+                 okReplay>>
 
 \* The same custody write with its reply lost; the write is applied or not.
 LoseCustody(applied) ==
@@ -501,29 +506,34 @@ LoseCustody(applied) ==
   /\ call' = IF applied THEN "settled" ELSE call
   /\ pend' = [m |-> "Custody", r |-> "ok"] /\ lost' = lost + 1 /\ fresh' = FALSE
   /\ Step("Lose-Custody", "commit-unknown")
-  /\ UNCHANGED <<fin, ctl, inp, pcopy, tool, card, legacyRet, hand, zombie, held, crashes, slot,
-                 ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, pcopy, produced, tool, card, legacyRet, hand, zombie, held,
+                 crashes, slot, ends, okReplay>>
 
-\* The retry of the custody write recognizes it or writes it.
+\* The retry of the custody write recognizes the applied write, or writes it from the copy the
+\* producer still holds. Without the applied write and without the copy there is nothing to
+\* write: the retry is not enabled, and OneCustodian reports the lost result.
 RetryCustody ==
-  /\ pend.m = "Custody"
+  /\ pend.m = "Custody" /\ (call = "settled" \/ pcopy)
   /\ call' = "settled" /\ pend' = NoPend /\ fresh' = FALSE
   /\ Step("Retry-Custody", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, pcopy, tool, card, legacyRet, hand, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, pcopy, produced, tool, card, legacyRet, hand, run, ends, okReplay>>
 
-\* "release-before-custody" releases while the custody write is still unknown.
+\* "release-before-custody" releases while the custody write is still unknown;
+\* "release-while-issued" releases as soon as the result exists, before any custody write.
 Release ==
   /\ pcopy
   /\ \/ call = "settled" /\ pend.m # "Custody"
      \/ "release-before-custody" \in Bugs /\ pend.m = "Custody"
+     \/ "release-while-issued" \in Bugs /\ call = "issued"
   /\ pcopy' = FALSE /\ Step("Release", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, tool, card, legacyRet, hand, fresh, pend, run, ends,
-                 okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, produced, tool, card, legacyRet, hand, fresh, pend, run,
+                 ends, okReplay>>
 
 Custodians ==
   (IF pcopy /\ call # "settled" THEN {"producer"} ELSE {})
   \cup (IF call = "settled" THEN {"journal"} ELSE {})
-ResultExists == pcopy \/ call \in {"recorded", "settled"}
+\* Whether the result exists does not depend on who holds it: once produced, it exists.
+ResultExists == produced
 
 (***************************************************************************)
 (* The custody variants of commitSettlement (reconcile qualification, also  *)
@@ -533,30 +543,32 @@ ToolIntent ==
   /\ "tool" \in Scope /\ Coordinator /\ status = "advancing" /\ ctl # "effective"
   /\ tool = "none" /\ fresh
   /\ tool' = "unknown" /\ Step("ToolIntent", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, card, legacyRet, hand, fresh, pend, run, ends,
-                 okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, produced, card, legacyRet, hand, fresh, pend, run,
+                 ends, okReplay>>
 
 RecordToolAssociation ==
   /\ tool = "unknown"
   /\ tool' = "held" /\ fresh' = FALSE /\ Step("RecordToolAssociation", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, card, legacyRet, hand, pend, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, produced, card, legacyRet, hand, pend, run, ends,
+                 okReplay>>
 
 CardAsk ==
   /\ "card" \in Scope /\ Coordinator /\ status = "advancing" /\ ctl # "effective"
   /\ card = "none" /\ fresh
   /\ card' = "unknown" /\ Step("CardAsk", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, tool, legacyRet, hand, fresh, pend, run, ends,
-                 okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, produced, tool, legacyRet, hand, fresh, pend, run,
+                 ends, okReplay>>
 
 RecordCardReconciliation ==
   /\ card = "unknown"
   /\ card' = "held" /\ fresh' = FALSE /\ Step("RecordCardReconciliation", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, tool, legacyRet, hand, pend, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, produced, tool, legacyRet, hand, pend, run, ends,
+                 okReplay>>
 
 RecordLegacyReturn ==
   /\ legacyRet = "inflight"
   /\ legacyRet' = "held" /\ fresh' = FALSE /\ Step("RecordLegacyReturn", "ok")
-  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, tool, card, hand, pend, run, ends, okReplay>>
+  /\ UNCHANGED <<fin, ctl, inp, call, pcopy, produced, tool, card, hand, pend, run, ends, okReplay>>
 
 (***************************************************************************)
 (* Message admission (SPEC "消息准入", "准入结果保管"): P saves the request *)
@@ -618,9 +630,9 @@ Rh(h) ==
 (***************************************************************************)
 (* Crashes, takeover, stale writers, held writes and a new Run.             *)
 (***************************************************************************)
-\* The coordinator crashes and a new attachment takes over: the attach fences every held write
-\* of the execution, supersedes the old attachment and returns the execution to reconciling
-\* (SPEC "四种控制", "恢复与接管"); the model does not tell reconciling from advancing.
+\* The coordinator crashes and a new attachment takes over: the attach supersedes the old
+\* attachment, so a held advancing write of the old one can no longer commit, and returns the
+\* execution to reconciling (SPEC "恢复与接管"); the model does not tell reconciling from advancing.
 Takeover ==
   /\ status # "ended" /\ crashes < MaxCrashes
   /\ crashes' = crashes + 1 /\ zombie' = TRUE /\ held' = FALSE /\ fresh' = FALSE
@@ -698,7 +710,7 @@ TypeOK ==
   /\ acc \in 1..MaxInputs /\ tk \in 0..acc /\ nf1 \in 0..MaxF1
   /\ cand.concl \in {"none", "complete", "failed", "cancelled"}
   /\ cand.route \in {"none", "author", "cancellation"}
-  /\ call \in {"none", "issued", "recorded", "settled"}
+  /\ call \in {"none", "issued", "recorded", "settled"} /\ produced \in BOOLEAN
   /\ ptr \in Hs \cup {NoH}
   /\ endc \in {"none", "complete", "failed", "cancelled"}
 
@@ -725,7 +737,7 @@ PointerByJa ==
        \/ ptr = NoH /\ act' \in {"P-" \o h : h \in Hs}
        \/ ptr # NoH /\ act' \in {"Ja-" \o h : h \in Hs} \cup {"Retire-" \o h : h \in Hs}]_vars
 
-\* S7: a result has exactly one durable custodian at any time.
+\* S7: from the moment a result exists it has exactly one durable custodian.
 OneCustodian == ResultExists => Cardinality(Custodians) = 1
 
 \* S8: the retry of the same operation with the same input answers the original result.

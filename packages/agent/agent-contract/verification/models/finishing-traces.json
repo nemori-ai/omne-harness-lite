@@ -1,6 +1,6 @@
 {
   "model": "Finishing.tla",
-  "modelSha256": "c35cc33b2351c0775c11883941221301f8b394952300c841c0da3b55b09f4ff7",
+  "modelSha256": "2770b9f7c423580f4a80e57e23436bb49bbd2b5d89f46dff2606d73fb815a10f",
   "conforming": [
     {
       "name": "ordinary-1",
