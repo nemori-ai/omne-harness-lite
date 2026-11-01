@@ -28,7 +28,7 @@ import {
   writeSnapshots,
   A_ADDITIVE,
 } from './fixtures/contract-api.ts'
-import { init } from './fixtures/integration.ts'
+import { body as cardBody, init } from './fixtures/integration.ts'
 import { r1DynamicIdentityCheck } from './support/r1-dynamic-identity-check.ts'
 
 const REPO = 'owner/repo'
@@ -174,12 +174,16 @@ type ApiComment = {
   body: string
 }
 type State = {
+  attempt: string
+  repoNode: string
   comments: ApiComment[]
   reviewers: { login: string; node_id: string }[]
   users: Record<string, { login: string; node_id: string }>
 }
 function state(): State {
   return {
+    attempt: '5-a1',
+    repoNode: 'R_repo',
     comments: [],
     reviewers: [{ login: 'alice', node_id: 'N_alice' }],
     users: { alice: { login: 'alice', node_id: 'N_alice' } },
@@ -196,6 +200,53 @@ function post(s: State, body: string): void {
     user: { login: 'alice', node_id: 'N_alice' },
     body,
   })
+}
+const CARD_URL = `https://github.com/${REPO}/issues/5`
+const DISPATCH_URL = `${CARD_URL}#issuecomment-55`
+/** The owner task of the checkout: a version 2 binding of card 5. */
+function bindingOf(attempt: string) {
+  return {
+    schemaVersion: 2 as const,
+    issue: { repository: REPO, id: 'I_5', number: 5, url: CARD_URL },
+    revision: 1,
+    attempt,
+    responsible: 'human',
+    branch: 'human/task',
+    route: { kind: 'track' as const, track: 'mainline' },
+    completionTarget: 'stable' as const,
+    taskBase: world.base,
+    writeScope: ['pkg/a'],
+    dispatch: DISPATCH_URL,
+    conditions: [],
+    authorization: [],
+    line: 'alpha',
+    nature: 'impl' as const,
+    contractChange: 'additive' as const,
+    milestone: 'M1',
+  }
+}
+const trusted = (s: State, over: Partial<ReturnType<typeof trustedOf>> = {}) => ({
+  ...trustedOf(s),
+  ...over,
+})
+function trustedOf(s: State) {
+  return {
+    candidate: world.head,
+    targetBase: world.base,
+    targetBranch: BRANCH,
+    binding: bindingOf(s.attempt),
+  }
+}
+function dispatchText(attempt: string): string {
+  const decision = {
+    schemaVersion: 1,
+    responsible: 'alice',
+    basis: ['x'],
+    action: 'dispatch',
+    task: bindingOf(attempt),
+    confirmations: [],
+  }
+  return `\`\`\`json omne-integration-authority:v1\n${JSON.stringify(decision)}\n\`\`\``
 }
 const apiError = (status: string) => new GhReadError({ message: 'x', status })
 function gh(s: State) {
@@ -216,6 +267,29 @@ function gh(s: State) {
             reviewers: s.reviewers.map(reviewer => ({ type: 'User', reviewer })),
           },
         ],
+      }
+    if (path === `repos/${REPO}`) return { node_id: s.repoNode }
+    if (path === `repos/${REPO}/issues/5`)
+      return {
+        number: 5,
+        node_id: 'I_5',
+        html_url: CARD_URL,
+        body: cardBody(bindingOf(s.attempt), [], {
+          line: 'alpha',
+          nature: 'impl',
+          contractChange: 'additive',
+        }),
+        labels: [],
+        milestone: { title: 'M1' },
+      }
+    if (path === `repos/${REPO}/issues/comments/55`)
+      return {
+        id: 55,
+        html_url: DISPATCH_URL,
+        created_at: '2026-11-01T00:00:00Z',
+        updated_at: '2026-11-01T00:00:00Z',
+        user: { login: 'alice', node_id: 'N_alice' },
+        body: dispatchText(s.attempt === '5-a1' ? '5-a1' : s.attempt),
       }
     if (path === `repos/${REPO}/issues/${ISSUE}`)
       return {
@@ -275,7 +349,7 @@ function inputFor(
     baselineIssue: ISSUE,
     semanticReview: true,
     call: gh(s).call,
-    resolveTrusted: () => ({ candidate: world.head, targetBase: world.base, targetBranch: BRANCH }),
+    resolveTrusted: () => trusted(s),
     ...over,
   }
 }
@@ -421,7 +495,7 @@ describe('check-milestone --semantic-review true', () => {
           entry: join(tmpdir(), 'elsewhere', 'api-review-cli.ts'),
           resolveTrusted: () => {
             resolved += 1
-            return { candidate: world.head, targetBase: world.base, targetBranch: BRANCH }
+            return trusted(s)
           },
         }),
       )
@@ -445,11 +519,7 @@ describe('check-milestone --semantic-review true', () => {
         const report = checkMilestone(
           inputFor(s, {
             call: platform.call,
-            resolveTrusted: () => ({
-              candidate: edited,
-              targetBase: world.base,
-              targetBranch: BRANCH,
-            }),
+            resolveTrusted: () => trusted(s, { candidate: edited }),
           }),
         )
         expect(codesOf(report)).toEqual(['api-review-self-authorization@-'])
@@ -469,11 +539,9 @@ describe('check-milestone --semantic-review true', () => {
       inputFor(s, {
         resolveTrusted: () => {
           calls += 1
-          return {
-            candidate: world.head,
-            targetBase: world.base,
+          return trusted(s, {
             targetBranch: calls > 1 ? 'refs/heads/integration/other' : BRANCH,
-          }
+          })
         },
       }),
     )
@@ -495,7 +563,7 @@ describe('check-milestone without --semantic-review', () => {
           semanticReview: false,
           resolveTrusted: () => {
             resolved += 1
-            return { candidate: world.head, targetBase: world.base, targetBranch: BRANCH }
+            return trusted(s)
           },
         }),
       )
@@ -511,6 +579,74 @@ describe('check-milestone without --semantic-review', () => {
       expect(report.exit).toBe(direct.status)
       expect(report.pass).toBe(false)
       expect(resolved).toBe(0)
+    },
+  )
+})
+
+describe('live binding, platform repository and second read of the milestone path', () => {
+  it('refuses when the card was dispatched again with a new attempt', { tags: ['slow'] }, () => {
+    const s = state()
+    signed(s, world.registrationAll, { 'pkg/b': 'additive', 'pkg/c': 'additive' })
+    s.attempt = '5-a2'
+    const report = checkMilestone(
+      inputFor(s, { resolveTrusted: () => trusted(s, { binding: bindingOf('5-a1') }) }),
+    )
+    expect(codesOf(report)).toContain('api-review-source-changed@-')
+    expect(report).toMatchObject({ pass: false })
+  })
+  it(
+    'reports source-changed when a reviewer is removed during the fold',
+    { tags: ['slow'] },
+    () => {
+      const s = state()
+      signed(s, world.registrationAll, { 'pkg/b': 'additive', 'pkg/c': 'additive' })
+      const base = gh(s).call
+      let flipped = false
+      const call: GhRead = (argv, timeoutMs) => {
+        if (!flipped && String(argv[argv.length - 1]).endsWith('/issues/comments/502')) {
+          flipped = true
+          s.reviewers = [{ login: 'dora', node_id: 'N_dora' }]
+        }
+        return base(argv, timeoutMs)
+      }
+      const report = checkMilestone(inputFor(s, { call }))
+      expect(flipped).toBe(true)
+      expect(codesOf(report)).toContain('api-review-source-changed@-')
+      expect(report.pass).toBe(false)
+    },
+  )
+  it(
+    'reports source-changed when the card is dispatched again during the fold',
+    { tags: ['slow'] },
+    () => {
+      const s = state()
+      signed(s, world.registrationAll, { 'pkg/b': 'additive', 'pkg/c': 'additive' })
+      const base = gh(s).call
+      let flipped = false
+      const call: GhRead = (argv, timeoutMs) => {
+        if (!flipped && String(argv[argv.length - 1]).endsWith('/issues/comments/502')) {
+          flipped = true
+          s.attempt = '5-a2'
+        }
+        return base(argv, timeoutMs)
+      }
+      const report = checkMilestone(
+        inputFor(s, { call, resolveTrusted: () => trusted(s, { binding: bindingOf('5-a1') }) }),
+      )
+      expect(flipped).toBe(true)
+      expect(codesOf(report)).toContain('api-review-source-changed@-')
+    },
+  )
+  it(
+    'takes the repository node ID from the platform, not from the identity file',
+    { tags: ['slow'] },
+    () => {
+      const s = state()
+      post(s, world.registrationAll)
+      s.repoNode = 'R_other'
+      const report = checkMilestone(inputFor(s))
+      expect(codesOf(report)).toContain('api-review-owner-identity-mismatch@pkg/b')
+      expect(report.pass).toBe(false)
     },
   )
 })

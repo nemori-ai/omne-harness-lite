@@ -23,6 +23,7 @@ import { checkMilestone, draftMilestone, type TrustedTarget } from './contract-b
 import { composeRunExit } from './contract-review.ts'
 import { exactTextBlob, git } from './git.ts'
 import { IntegrationError } from './parse.ts'
+import { readContextFile } from './context.ts'
 import { taskStatus } from './sync.ts'
 
 /** One failure code, one exit code (candidate-r4.md 8.6). */
@@ -270,7 +271,14 @@ function trustedFromContext(root: string): TrustedTarget {
   if (!status.bound) throw new IntegrationError('refused', 'This worktree is not bound to a task')
   if (status.relation !== 'current')
     throw new IntegrationError('refused', `targetBase is ${status.relation} the remote target`)
-  return { candidate: status.head, targetBase: status.targetBase, targetBranch: status.target.ref }
+  const binding = readContextFile(status.root).context.ownerTask
+  if (binding === null) throw new IntegrationError('refused', 'The task context has no owner task')
+  return {
+    candidate: status.head,
+    targetBase: status.targetBase,
+    targetBranch: status.target.ref,
+    binding,
+  }
 }
 
 /** Prints a draft and returns its exit: the bundle when the run produced one, the refusal otherwise. */

@@ -32,6 +32,7 @@ import {
   readCarrier,
   type RecordAuthority,
 } from '../delivery/api-semantic-review.ts'
+import type { TaskBinding } from '../delivery/binding.ts'
 import {
   mergeRegistrations,
   publishReviewers,
@@ -47,6 +48,7 @@ import {
 import { LINES_PATH, parseDeliveryLines } from '../delivery/lines.ts'
 import { InputError, record as asRecord, text as asText } from '../delivery/protocol.ts'
 import { checkEnablement, gitEnablementPorts } from './api-review-enablement.ts'
+import { bindingInputOf, platformState } from './api-review-draft.ts'
 import {
   anchorFindings,
   composeRunExit,
@@ -72,7 +74,13 @@ const POLICY_PATH = 'docs/engineering/integration-policy.json'
 const BASELINE_TIMEOUT_MS = 300_000
 
 /** The trusted candidate and direct target of one run (candidate-r4.md 3). */
-export type TrustedTarget = { candidate: string; targetBase: string; targetBranch: string }
+export type TrustedTarget = {
+  candidate: string
+  targetBase: string
+  targetBranch: string
+  /** The owner task of the context. Its live card and dispatch are checked like a card entry. */
+  binding: TaskBinding
+}
 export type RawRun = { exitCode: number; stdout: string; report: Json }
 /** Runs the baseline check on a read-back registration file; `exitCode` is the process status. */
 export type BaselineRunner = (file: string) => { exitCode: number | null; stdout: string }
@@ -223,7 +231,7 @@ export type Observation =
       carrierIssue: Issue
       authority: RecordAuthority
       authoritySha256: string
-      /** Reads the trusted target and the checkout again; true when both equal the first read. */
+      /** Reads the trusted target, the checkout and the platform state again; true when all equal the first read. */
       stable(): boolean
     }
 
@@ -280,7 +288,7 @@ function observe(input: MilestoneInput): Observation {
   )
   if (trusted === undefined || enabled.enablement.kind !== 'enabled')
     return blocked(enablementFindings(enabled.enablement))
-  const { candidate, targetBase, targetBranch } = trusted
+  const { candidate, targetBase, targetBranch, binding } = trusted
   const authoritySha256 = enabled.enablement.authoritySha256
 
   const lines = policyFile(root, targetBase, LINES_PATH, text =>
@@ -295,7 +303,20 @@ function observe(input: MilestoneInput): Observation {
   )
   if (policyRepository !== manifest.repository.name)
     throw new PolicyUnavailable(OWNER_IDENTITY_PATH, 'identity file names another repository')
-  const repository = manifest.repository
+  // The node ID of the repository is the platform's, never the identity file's own.
+  const repository: Repository = {
+    name: manifest.repository.name,
+    nodeId: asText(
+      asRecord(
+        call(
+          ['api', '--method', 'GET', ...REST_HEADERS, `repos/${manifest.repository.name}`],
+          GH_READ_TIMEOUT_MS,
+        ),
+        'repository',
+      ).node_id,
+      'repository.node_id',
+    ),
+  }
 
   const carrier = readCarrier(repository.name, input.baselineIssue, call)
   if (carrier.kind === 'refused')
@@ -368,6 +389,11 @@ function observe(input: MilestoneInput): Observation {
   const review = [...rawReview].sort()
   const setFindings = memberSetFindings({ checked, review, rawReview, member: null })
   const findings: Finding[] = [...setFindings]
+  const rebind = () => {
+    const again = bindingInputOf(repository.name, binding, call)
+    return [again.input, again.pre]
+  }
+  findings.push(...bindingInputOf(repository.name, binding, call).pre)
   const statusesValid = baseline.members.every(item => item.status === 'compared')
 
   const readings = new Map<string, OwnerIdentityReading>()
@@ -430,6 +456,17 @@ function observe(input: MilestoneInput): Observation {
     },
     checkEvidence: evidenceChecker(repository.name, call),
   }
+  const state = () =>
+    platformState({
+      call,
+      repository: repository.name,
+      owners: [...readings.values()].flatMap(item =>
+        item.fact === null ? [] : [item.fact.owner.login],
+      ),
+      carrier: input.baselineIssue,
+      rebind,
+    })
+  const firstState = state()
   return {
     kind: 'observed',
     raw,
@@ -453,7 +490,8 @@ function observe(input: MilestoneInput): Observation {
         return (
           again.candidate === candidate &&
           again.targetBase === targetBase &&
-          again.targetBranch === targetBranch
+          again.targetBranch === targetBranch &&
+          state() === firstState
         )
       } catch (error) {
         if (error instanceof GitError || isInputFailure(error)) return false
