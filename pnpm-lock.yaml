@@ -173,6 +173,9 @@ importers:
       '@omne-harness/identity':
         specifier: workspace:*
         version: link:../../packages/identity/identity
+      '@omne-harness/identity-sql':
+        specifier: workspace:*
+        version: link:../../packages/identity/identity-sql
       '@omne-harness/kernel-basis':
         specifier: workspace:*
         version: link:../../packages/assembly/kernel-basis
@@ -1167,6 +1170,43 @@ importers:
         specifier: workspace:*
         version: link:../../common/utc-instant
     devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.13.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
+
+  packages/identity/identity-sql:
+    dependencies:
+      '@deepseek-ai/cordis':
+        specifier: 'catalog:'
+        version: 4.0.4
+      '@omne-harness/identity':
+        specifier: workspace:*
+        version: link:../identity
+      '@omne-harness/kernel-basis':
+        specifier: workspace:*
+        version: link:../../assembly/kernel-basis
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/scrypt':
+        specifier: workspace:*
+        version: link:../scrypt
+      '@omne-harness/sql-contract':
+        specifier: workspace:*
+        version: link:../../storage/sql-contract
+      '@omne-harness/utc-instant':
+        specifier: workspace:*
+        version: link:../../common/utc-instant
+    devDependencies:
+      '@omne-harness/sqlite-provider':
+        specifier: workspace:*
+        version: link:../../storage/sqlite-provider
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6

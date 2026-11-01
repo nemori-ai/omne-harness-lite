@@ -37,6 +37,7 @@
     "@omne-harness/authorization": "workspace:*",
     "@omne-harness/exchange-refs": "workspace:*",
     "@omne-harness/identity": "workspace:*",
+    "@omne-harness/identity-sql": "workspace:*",
     "@omne-harness/kernel-basis": "workspace:*",
     "@omne-harness/legal-identity": "workspace:*",
     "@omne-harness/model-contract": "workspace:*",
