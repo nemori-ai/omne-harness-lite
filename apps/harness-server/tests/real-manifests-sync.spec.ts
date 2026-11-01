@@ -10,7 +10,10 @@ import { AA_FIXTURE_ROWS } from './fixtures/serve/index.ts'
 /** 具名差额清单：行 → 补丁编号与该补丁落地后 `stubs.ts` 这一行会变成的样子（只写变化的字段）。 */
 const KNOWN_GAPS: Readonly<
   Record<string, Readonly<{ patch: string; manifest: Partial<RowManifest> }>>
-> = {}
+> = {
+  // R1-D27：identity 持久提供者经根上的 `identityClock` 入口对象取时钟；装配页补丁 AAP-14 待登记（#978 评论 6563724224）。
+  identity: { patch: 'AAP-14', manifest: { injects: ['storage', 'identityClock'] } },
+}
 
 const profile = serveProfile()
 
@@ -27,22 +30,22 @@ function comparable(manifest: RowManifest) {
   }
 }
 
-/** 表里这一行在差额落地后的样子。 */
-function expectedFor(row: RowId): ReturnType<typeof comparable> {
+/** 表里这一行的样子；`withGap` 时取差额落地后的样子（只用于 `./cordis` 的真实导出，夹具照表现状）。 */
+function expectedFor(row: RowId, withGap: boolean): ReturnType<typeof comparable> {
   const table = profile.stubManifests.get(row)
   if (table === undefined) throw new Error(`row "${row}" is not in the stubs table`)
-  const gap = KNOWN_GAPS[row]
+  const gap = withGap ? KNOWN_GAPS[row] : undefined
   return comparable(gap === undefined ? table : { ...table, ...gap.manifest })
 }
 
-function checkDeclared(exportName: string, plugin: unknown): RowDeclaration {
+function checkDeclared(exportName: string, plugin: unknown, withGap: boolean): RowDeclaration {
   const declaration = rowDeclarationOf(plugin)
   expect(declaration, `export "${exportName}" carries no declaration`).toBeDefined()
   if (declaration === undefined) throw new Error('unreachable')
   expect(
     comparable(declaration.manifest),
     `row "${declaration.row}" (export ${exportName})`,
-  ).toEqual(expectedFor(declaration.row))
+  ).toEqual(expectedFor(declaration.row, withGap))
   return declaration
 }
 
@@ -50,13 +53,13 @@ describe('real-manifests-sync', () => {
   test('every export of ./cordis except the stub is a declared row equal to its table row', () => {
     for (const [name, plugin] of Object.entries(cordisExports)) {
       if (name === STUB_EXPORT) continue
-      checkDeclared(name, plugin)
+      checkDeclared(name, plugin, true)
     }
   })
 
   test('every fixture row with an AA row id equals its table row', () => {
     for (const [name, plugin] of Object.entries(AA_FIXTURE_ROWS)) {
-      const declaration = checkDeclared(name, plugin)
+      const declaration = checkDeclared(name, plugin, false)
       expect(profile.stubManifests.has(declaration.row)).toBe(true)
     }
   })

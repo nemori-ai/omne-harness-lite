@@ -2,3 +2,6 @@
 export { createStubPlugin as stubPlugin } from './s0/stub-plugin.ts'
 export { agentAdoptionsRow } from './rows/agent-adoptions/index.ts'
 export { adoptionSourcesRow } from './rows/adoption-sources/index.ts'
+export { authorization } from './rows/authorization/row.ts'
+export { identityRow } from './rows/identity/index.ts'
+export { serverEntryRow } from './rows/server-entry/index.ts'
