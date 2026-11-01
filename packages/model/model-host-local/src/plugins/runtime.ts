@@ -278,7 +278,10 @@ export type RuntimeStage = Readonly<{
    * inside the plugin of the contribution. Without push options it publishes nothing.
    */
   contribute(child: Context, runtime: ModelRuntime<unknown> | undefined): void
-  /** Stops the push: aborts the pushes in flight, waits for them, and releases the ledger. */
+  /**
+   * Stops the push: refuses new late accounts, aborts the pushes in flight, waits for them and for
+   * the late accounts being accepted, writes what arrived into the ledger, and releases the ledger.
+   */
   stop(): Promise<void>
 }>
 
@@ -721,14 +724,23 @@ function createResultPush(
     return count
   }
 
+  /** Refuses a late account before the commands see it; the source keeps its report. */
+  function refuse(
+    diagnostic: string,
+  ): Awaited<ReturnType<ModelCommands<unknown>['recordLateFact']>> {
+    return { failure: { kind: 'unavailable', dependency: DEPENDENCY, diagnostic } }
+  }
+
   /**
    * Reserves a place for a late account before the commands accept it, and freezes its delivery
-   * right after. A full bound refuses the account; the source keeps its report.
+   * right after. A full bound refuses the account; the source keeps its report. A stopped stage
+   * refuses every account: nothing would hold it after the ledger is released.
    */
   async function recordLateFact(
     late: Parameters<ModelCommands<unknown>['recordLateFact']>[0],
   ): ReturnType<ModelCommands<unknown>['recordLateFact']> {
     if (late.fact.kind !== 'account') return commands.recordLateFact(late)
+    if (phase === 'stopped') return refuse('result-push-stopped')
     const target = { tenant: late.tenant, call: late.call }
     const callKey = keyOf(target)
     const tenantText = tenantCodec.encode(late.tenant)
@@ -741,13 +753,7 @@ function createResultPush(
         reservations.size >= limits.maxPendingAccounts
       ) {
         report({ kind: 'late-account-refused', pending })
-        return {
-          failure: {
-            kind: 'unavailable',
-            dependency: DEPENDENCY,
-            diagnostic: 'late-account-capacity',
-          },
-        }
+        return refuse('late-account-capacity')
       }
       reservations.set(reservation, tenantText.value)
     }
@@ -898,6 +904,9 @@ function createResultPush(
       stopping.abort()
       dirty.clear()
       await Promise.allSettled(running.values())
+      // An account that was accepted before the stop is frozen into the inbox by its intake. No
+      // intake starts after the stop, so these are the last ones.
+      await Promise.allSettled(intake.values())
       // What arrived and was not yet taken in stays owed: the successor finds it in the ledger.
       // Deleting the entry in hand while a Map is iterated is safe.
       for (const [first] of inbox.values())
