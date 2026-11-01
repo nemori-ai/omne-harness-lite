@@ -2838,12 +2838,25 @@ export declare function createScriptedModelRequestPreparation<P>(options: Script
 ## 声明文件 `testing/profile-values.d.ts`
 
 ```ts
-import { type TenantId } from '@omne-harness/legal-identity';
-import type { ModelChoices, ModelProfile, ProfileResolution, ProfileScope } from '../profile.ts';
+import { type Outcome } from '@omne-harness/operation-result';
+import { type Access, type TenantId } from '@omne-harness/legal-identity';
+import type { ModelFailure } from '../result.ts';
+import type { ModalityRequirement, ModelChoices, ModelProfile, ProfileResolution, ProfileScope } from '../profile.ts';
 export declare function profileScopeFailure(scope: ProfileScope, tenant: TenantId): 'invalid-identity' | 'foreign' | null;
+export declare function covers(profile: ModelProfile, required: ModalityRequirement): boolean;
 export declare function copyProfile(profile: ModelProfile): ModelProfile;
 export declare function copyResolution(resolution: ProfileResolution): ProfileResolution;
 export declare function copyChoices(choices: ModelChoices): ModelChoices;
+export declare function frozenAnswer<T>(answer: Outcome<T, ModelFailure>, copy: (value: T) => T): Outcome<T, ModelFailure>;
+export declare function refusal(failure: ModelFailure): Outcome<never, ModelFailure>;
+export type ScriptRow<P, K, T> = Readonly<{
+    tenant: string;
+    principal: P;
+    key: K;
+    answer: Outcome<T, ModelFailure>;
+}>;
+export declare function putRow<P, K, T>(rows: ScriptRow<P, K, T>[], row: ScriptRow<P, K, T>): void;
+export declare function findRow<P, K, T>(rows: readonly ScriptRow<P, K, T>[], access: Access<P>, key: K): ScriptRow<P, K, T> | undefined;
 ```
 
 ## 声明文件 `testing/profiles.d.ts`
