@@ -1252,6 +1252,9 @@ importers:
       '@omne-harness/call-account':
         specifier: workspace:*
         version: link:../../common/call-account
+      '@omne-harness/model-storage-sql':
+        specifier: workspace:*
+        version: link:../model-storage-sql
       '@omne-harness/pi-ai-anthropic':
         specifier: workspace:*
         version: link:../pi-ai-anthropic
