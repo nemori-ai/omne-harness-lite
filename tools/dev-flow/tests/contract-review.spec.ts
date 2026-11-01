@@ -15,14 +15,16 @@ import {
   milestonePredicates,
   resolveMember,
   sideSetFindings,
-  type ApiSide,
-  type Comparison,
-  type Enablement,
-  type Finding,
-  type Json,
-  type MemberResolution,
-  type ReviewFailureCode,
 } from '../src/integration/contract-review.ts'
+import type {
+  ApiSide,
+  Comparison,
+  Enablement,
+  Finding,
+  Json,
+  MemberResolution,
+  ReviewFailureCode,
+} from '../src/delivery/api-review-types.ts'
 
 const sha = (c: string) => c.repeat(64)
 const commit = (c: string) => c.repeat(40)

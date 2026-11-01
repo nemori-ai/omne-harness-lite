@@ -211,7 +211,12 @@ function build({
 type Fx = ReturnType<typeof build>
 
 /** The attest comment of `author` for `comparison`. */
-function attest(fx: Fx, comparison: unknown, author = { login: 'alice', nodeId: 'N_alice' }) {
+function attest(
+  fx: Fx,
+  comparison: unknown,
+  author = { login: 'alice', nodeId: 'N_alice' },
+  conclusion: 'additive' | 'breaking' = 'additive',
+) {
   const record = {
     schemaVersion: 1,
     repository: { name: REPO, nodeId: 'R_repo' },
@@ -221,7 +226,7 @@ function attest(fx: Fx, comparison: unknown, author = { login: 'alice', nodeId: 
     authority: { kind: 'owner' },
     review: {
       comparison,
-      conclusion: 'additive',
+      conclusion,
       rationale: 'The removed property was never public.',
       evidence: [
         {
@@ -306,7 +311,130 @@ describe('card entry of the semantic review', () => {
     expect(JSON.stringify(report.semantic?.findings[0]?.detail)).toContain(
       'docs/engineering/integration.md',
     )
-    expect(calls.filter(path => path.startsWith('users/') || path.endsWith('/publish'))).toEqual([])
+    // The enablement check comes first: not even the carrier was read.
+    expect(calls).toEqual([])
+  })
+
+  it('reads nothing from the platform when the entry lies outside the checkout (section 10)', () => {
+    const fx = build()
+    fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+    const calls: string[] = []
+    const report = changeScope({
+      root: fx.root,
+      review: cardReviewHook({
+        entry: join(fx.f.home, 'elsewhere', 'change-scope-cli.ts'),
+        call: stub(fx.responses, calls),
+      }),
+    })
+    if (!report.bound) throw new Error('bound tree expected')
+    expect(report.semantic?.findings.map(item => item.code)).toEqual([
+      'api-review-entry-outside-root',
+    ])
+    expect(calls).toEqual([])
+  })
+
+  it('ignores a marker comment of an account that is not an owner of the identity file', () => {
+    const fx = build()
+    const calls: string[] = []
+    const marked = '```json ' + MARKER + '\n{}\n```'
+    fx.responses[carrier()] = [comment(71, 5, 'mallory', 'N_mallory', marked)]
+    const report = run(fx, calls)
+    if (!report.bound) throw new Error('bound tree expected')
+    expect(report.semantic).toBeUndefined()
+    expect(report.findings.map(item => item.code)).toEqual(['contract-exceeds-declared'])
+    expect(calls).toEqual([carrier()])
+  })
+
+  it('judges a valid breaking conclusion by the original rule under a breaking binding', () => {
+    const fx = build({ contractChange: 'breaking' })
+    fx.responses[carrier()] = [attest(fx, draftComparison(fx), undefined, 'breaking')]
+    const report = run(fx)
+    if (!report.bound) throw new Error('bound tree expected')
+    expect(report.semantic?.exit).toBe(0)
+    expect(report.findings).toEqual([])
+  })
+
+  it('still asks for the breaking route when the binding does not declare breaking', () => {
+    const fx = build()
+    fx.responses[carrier()] = [attest(fx, draftComparison(fx), undefined, 'breaking')]
+    const report = run(fx)
+    if (!report.bound) throw new Error('bound tree expected')
+    expect(report.semantic?.findings.map(item => item.code)).toContain(
+      'api-review-breaking-route-required',
+    )
+  })
+
+  it('refuses --lines together with the semantic review of a card that has review members', () => {
+    const fx = build()
+    fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+    expect(() =>
+      changeScope({
+        root: fx.root,
+        linesFile: join(fx.root, LINES_FILE),
+        review: cardReviewHook({ entry: fx.entry, call: stub(fx.responses) }),
+      }),
+    ).toThrow(/--lines/)
+  })
+
+  describe('the platform read again after the judgement', () => {
+    /** Runs the hook; `flip` runs once, when the fold reads the evidence comment. */
+    function runDrifting(fx: Fx, flip: () => void) {
+      const base = stub(fx.responses)
+      let flipped = false
+      const call: GhRead = (argv, timeoutMs) => {
+        if (!flipped && String(argv[argv.length - 1]).endsWith('/issues/comments/60')) {
+          flipped = true
+          flip()
+        }
+        return base(argv, timeoutMs)
+      }
+      const report = changeScope({
+        root: fx.root,
+        review: cardReviewHook({ entry: fx.entry, call }),
+      })
+      if (!report.bound) throw new Error('bound tree expected')
+      expect(flipped).toBe(true)
+      return report.semantic?.findings.map(item => item.code) ?? []
+    }
+    const sourceChanged = 'api-review-source-changed'
+    it('is quiet when nothing changes', () => {
+      const fx = build()
+      fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+      expect(runDrifting(fx, () => undefined)).toEqual([])
+    })
+    it('reports source-changed when a reviewer is removed during the fold', () => {
+      const fx = build()
+      fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+      const codes = runDrifting(fx, () => {
+        fx.responses[`repos/${REPO}/environments/publish`] = {
+          protection_rules: [
+            {
+              type: 'required_reviewers',
+              reviewers: [{ type: 'User', reviewer: { login: 'dora', node_id: 'N_dora' } }],
+            },
+          ],
+        }
+      })
+      expect(codes).toContain(sourceChanged)
+    })
+    it('reports source-changed when the carrier gains a comment during the fold', () => {
+      const fx = build()
+      const first = attest(fx, draftComparison(fx))
+      fx.responses[carrier()] = [first]
+      const codes = runDrifting(fx, () => {
+        fx.responses[carrier()] = [first, comment(72, 5, 'alice', 'N_alice', 'revoked later')]
+      })
+      expect(codes).toContain(sourceChanged)
+    })
+    it('reports source-changed when the card is dispatched again during the fold', () => {
+      const fx = build()
+      fx.responses[carrier()] = [attest(fx, draftComparison(fx))]
+      const codes = runDrifting(fx, () => {
+        const issue = fx.responses[`repos/${REPO}/issues/5`] as { body: string }
+        issue.body = issue.body.replace('5-a1', '5-a2')
+      })
+      expect(codes).toContain(sourceChanged)
+    })
   })
 
   it('refuses a platform account that took over the owner login, though the r1 checks pass (C1)', () => {

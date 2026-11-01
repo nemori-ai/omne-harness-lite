@@ -8,7 +8,6 @@ import {
   commentRefOf,
   evidenceChecker,
   foldSemanticReviews,
-  hashJson,
   parseRecordComment,
   readCarrier,
   type Actor,
@@ -20,6 +19,7 @@ import {
   type RecordAuthority,
 } from '../src/delivery/api-semantic-review.ts'
 import type { BaselineComment } from '../src/delivery/baseline.ts'
+import { hashJson } from '../src/integration/contract-review.ts'
 import { GhReadError, type GhRead } from '../src/delivery/github-read.ts'
 
 const REPO = 'nemori-ai/omne-harness-lite'
@@ -268,13 +268,6 @@ describe('parseRecordComment', () => {
     ).toBe('invalid')
     const text = t.fence(good).replace('"number": 5,', '"number": 9007199254740993,')
     expect(parseRecordComment(text).kind).toBe('invalid')
-  })
-})
-
-describe('hashJson', () => {
-  it('ignores key order and keeps array order', () => {
-    expect(hashJson({ a: 1, b: [1, 2] })).toBe(hashJson({ b: [1, 2], a: 1 }))
-    expect(hashJson({ b: [1, 2] })).not.toBe(hashJson({ b: [2, 1] }))
   })
 })
 
@@ -775,7 +768,12 @@ describe('evidenceChecker', () => {
     (value: unknown): GhRead =>
     () =>
       value
-  const answer = { html_url: url, body, updated_at: 'u' }
+  const answer = {
+    html_url: url,
+    body,
+    updated_at: 'u',
+    user: { login: A.login, node_id: A.nodeId },
+  }
   it('matches an unchanged comment, and reports drift of body or time', () => {
     expect(evidenceChecker(REPO, read(answer))(ref())).toBe('matches')
     expect(evidenceChecker(REPO, read({ ...answer, body: 'edited' }))(ref())).toBe('drifted')

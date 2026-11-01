@@ -2,7 +2,6 @@
 // 5.4). It joins two trusted files of one target commit, `delivery-lines.json` and the identity
 // manifest, and checks the join against the platform. The platform only confirms; it never
 // writes or completes an anchor. The caller supplies both parsed files and the `gh` read.
-import { createHash } from 'node:crypto'
 import type {
   Actor,
   AdoptionDiagnostic,
@@ -15,8 +14,8 @@ import type {
   OwnerLineResolution,
   Repository,
 } from './api-review-types.ts'
-import { publishReviewers } from './baseline.ts'
-import { GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
+import { publishReviewers, readCommentByUrl } from './baseline.ts'
+import { GH_READ_TIMEOUT_MS, GhReadError, REST_HEADERS, type GhRead } from './github-read.ts'
 import type { DeliveryLines } from './lines.ts'
 
 export type {
@@ -44,7 +43,7 @@ export type OwnerIdentityReading = {
   adoption: AdoptionDiagnostic | null
 }
 
-const TIMEOUT_MS = 15_000
+const TIMEOUT_MS = GH_READ_TIMEOUT_MS
 
 /**
  * The owner line of `member`: the lines whose `contracts` contain the exact path. Prefixes,
@@ -114,32 +113,17 @@ function diagnoseAdoption(
   adoption: IdentityAdoption,
   call: GhRead,
 ): AdoptionDiagnostic {
-  const escaped = repository.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const id = new RegExp(`^https://github\\.com/${escaped}/issues/\\d+#issuecomment-(\\d+)$`).exec(
-    adoption.comment.url,
-  )?.[1]
-  if (id === undefined) return unreadable('adoption URL is not a comment of this repository')
-  const read = lookup(call, `repos/${repository}/issues/comments/${id}`)
-  if (read.kind === 'absent') return unreadable('adoption comment not found')
-  if (read.kind === 'unknown') return unreadable(read.reason)
-  const value = read.value
-  if (
-    !isObject(value) ||
-    typeof value.html_url !== 'string' ||
-    typeof value.updated_at !== 'string' ||
-    !(typeof value.body === 'string' || value.body === null) ||
-    !isObject(value.user) ||
-    typeof value.user.node_id !== 'string'
-  )
-    return unreadable('unexplained response')
-  const bodySha256 = createHash('sha256')
-    .update(value.body ?? '', 'utf8')
-    .digest('hex')
+  const read = readCommentByUrl(repository, adoption.comment.url, call)
+  if (read.kind === 'foreign') return unreadable('adoption URL is not a comment of this repository')
+  if (read.kind === 'failed')
+    return unreadable(read.status === '404' ? 'adoption comment not found' : read.reason)
+  if (read.kind === 'unexplained') return unreadable('unexplained response')
+  const value = read.comment
   const fields: ('url' | 'bodySha256' | 'updatedAt' | 'authorNodeId')[] = []
-  if (value.user.node_id !== adoption.authorNodeId) fields.push('authorNodeId')
-  if (bodySha256 !== adoption.comment.bodySha256) fields.push('bodySha256')
-  if (value.updated_at !== adoption.comment.updatedAt) fields.push('updatedAt')
-  if (value.html_url !== adoption.comment.url) fields.push('url')
+  if (value.author.nodeId !== adoption.authorNodeId) fields.push('authorNodeId')
+  if (value.bodySha256 !== adoption.comment.bodySha256) fields.push('bodySha256')
+  if (value.updatedAt !== adoption.comment.updatedAt) fields.push('updatedAt')
+  if (value.htmlUrl !== adoption.comment.url) fields.push('url')
   return fields.length === 0 ? { kind: 'consistent' } : { kind: 'drifted', fields }
 }
 

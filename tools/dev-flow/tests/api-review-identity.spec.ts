@@ -9,6 +9,8 @@ import {
   type OwnerIdentityManifest,
   type OwnerIdentityReading,
 } from '../src/delivery/api-review-identity.ts'
+import { readCommentByUrl } from '../src/delivery/baseline.ts'
+import { evidenceChecker } from '../src/delivery/api-semantic-review.ts'
 import { GhReadError, type GhRead } from '../src/delivery/github-read.ts'
 import type { DeliveryLine, DeliveryLines } from '../src/delivery/lines.ts'
 import { r1DynamicIdentityCheck } from './support/r1-dynamic-identity-check.ts'
@@ -495,5 +497,50 @@ describe('source-changed: the platform facts are read again before the answer', 
       },
     })
     expect(code(reading)).toBe('api-review-input-unknown')
+  })
+})
+
+describe('one reading of a comment URL for every caller', () => {
+  const urls = [
+    `https://github.com/${REPO}/issues/10#issuecomment-501`,
+    `https://github.com/${REPO}/issues/0#issuecomment-501`,
+    `https://github.com/${REPO}/issues/10#issuecomment-0501`,
+    `https://github.com/${REPO}/issues/10#issuecomment-0`,
+    `https://github.com/${REPO}/pull/10#issuecomment-501`,
+    `https://github.com/other/repo/issues/10#issuecomment-501`,
+  ]
+  it.each(urls)('%s is foreign to all three readers or to none', url => {
+    const answer = { ...adoptionComment, html_url: url }
+    const fetched = (run: (call: GhRead) => unknown): boolean => {
+      let requested = false
+      const call: GhRead = argv => {
+        const path = String(argv[argv.length - 1])
+        if (path.includes('issues/comments/')) {
+          requested = true
+          return answer
+        }
+        return gh(platform()).call(argv, 15_000)
+      }
+      run(call)
+      return requested
+    }
+    const byUrl = fetched(call => readCommentByUrl(REPO, url, call))
+    const byEvidence = fetched(call =>
+      evidenceChecker(REPO, call)({ url, bodySha256: sha(ADOPTION_BODY), updatedAt: 'u' }),
+    )
+    const adopted = fact()
+    adopted.adoption.comment.url = url
+    const byIdentity = fetched(call =>
+      readOwnerIdentity({
+        repository,
+        member: MEMBER,
+        lines: table(line('alpha', 'alice', [MEMBER])),
+        manifest: manifest(adopted),
+        call,
+      }),
+    )
+    expect(byEvidence).toBe(byUrl)
+    expect(byIdentity).toBe(byUrl)
+    expect(byUrl).toBe(url === urls[0])
   })
 })
