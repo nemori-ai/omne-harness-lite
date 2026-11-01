@@ -4,7 +4,7 @@
 
 ## 范围与依据
 
-本包承载四项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动与请求准备及其计量租约）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。运行门面 `modelRuntime`、恢复扫描、发送与重试阶段插件不在本包当前范围，没有实现也不由本文件承诺。
+本包承载四项能力：本地凭据保管（文件保管库及装载它的 Cordis 插件）；本地发送路径（生产发送资源 `createPiSendResources` 与本地 Model 装配 `assembleLocalModel`），装配同时接入 model 的计量准备资源；单机宿主插件（实例目录、转换目录、宿主驱动、请求准备及其计量租约，以及发送阶段）；以及官方档案读取（`ModelProfilesLocalPlugin`，来源构造 `createOfficialProfileSource` 不出本包公开入口）。运行门面 `modelRuntime`、恢复扫描、重试与目录阶段插件不在本包当前范围，没有实现也不由本文件承诺。
 
 发送资源满足 model 的 `SendResources` 端口，端口形状与发送边界的行为归 [model 的 SPEC](../model/SPEC.md)。传输、家族贡献、网络资源与路由的形状和行为归 [pi-ai-transport](../pi-ai-transport/SPEC.md)。秘密不进入请求、发出记录、失败、扩展或遥测的要求归 [model-contract](../model-contract/SPEC.md)。
 
@@ -181,6 +181,18 @@
 
 已知限制：`scope` 原因本阶段不产生（没有租户层与组织层档案）；`retryPolicy` 本阶段不被任何阶段解析；快照 `source` 的 digest 只证内容相同。
 
+### 发送阶段插件
+
+`createModelSendStagePlugin(options)` 交出插件类 `ModelSendStagePlugin`，继承契约包的 `ModelSendBoundaryService`，提供 `modelSendBoundary`。静态注入是 `modelCredential` 与 `modelCommands`：两者缺一个，插件不装载，不建发送路径。配置是 `maxRetainedAttempts`（正整数，必需），其余取值让加载失败，不取默认值。`options` 是对象，不是可序列化配置：家族、协调器、网络、路由、限额与 `preparation`。`preparation` 必需，因为 `assembleLocalModel` 在同一次调用里建准备租约，插件不使用它们。
+
+- 构造时，插件用 `assembleLocalModel` 建发送路径。`credentials` 是插件自己的端口，`commands` 是注入的 `modelCommands`。装配拒绝配置时构造抛出 `RangeError`，什么都没有打开，服务不发布。
+- 服务面只有 `send`，委托给发送路径的发送边界。发送规则全归 model 与[发送资源](#发送资源)：围栏、尝试保留、凭据解析与凭据槽。本插件不另写发送规则。凭据槽仍只在 `start` 期间有值，经插件发送时也一样。
+- 凭据端口只转发 `present` 与 `resolve` 给注入的服务，不缓存任何值。
+- 退出是一个流程：先撤回凭据端口，此后端口返回 `unavailable`，插件不再持有服务。再关闭发送路径：释放发送资源，关闭网络并等待在途交换停止。流程不抛出，关闭失败只记一条不含原因的警告。卸载等它结束。
+- 退出时在两步之间的发送不启动传输，也不解析凭据：它以 `not-started` 收场，失败是 `unavailable`，`dependency` 为 `model-credential`，诊断为 `credential-unavailable`。
+- 退出后，仍持有旧服务引用的调用方继续得到原发送边界的答复。没有开始过的 dispatch 得到 `not-started`，`dependency` 为 `pi-send-resources`，诊断为 `send-resources-closed`，此时不取得资源，不解析凭据。
+- 卸载不收回已经发出的请求。网络关闭让在途交换停止，该交换的终止仍由传输按自己的映射给出。接替的插件建一个新的发送边界，它对已发出的 dispatch 的答复归 model 的发送边界。本包没有测试这两种情形。
+
 ## 所有权、失败与生命周期
 
 ### 插件
@@ -239,7 +251,8 @@
 - [plugins-preparation.spec.ts](tests/plugins-preparation.spec.ts)：真实 Cordis 4.0.4 下无运行面与网络时的 `prepare`、档案拒绝、租约交还、卸载后查询仍可用、同一命令上的第 2 轮锚点与另一份命令的读不到、卸载后的租约、命令换代。
 - [local-model.spec.ts](tests/local-model.spec.ts)（慢层）：本地 HTTPS 服务回放 OpenAI 与 Anthropic 两个家族录制的 SSE 正文，两家各有一条回复含推理续接状态部件。调用经本地保管库、装配的发送边界、真实 pi 传输、两个家族与 model 运行时。测试核对：请求带保管库解析出的 `Bearer` 占位值；事实以唯一的 `ended` 结束；调用收场，发出记录的终局与之相同；物化回执带该家族记录产出的 `replayFormat`；账目带本次调用的 `subject` 与 `receipt: 'received'` 到达内存 `ModelCommands`，并经 `dispatches` 读回；`payableAmount` 得到已知的 `openrouter-credit` 金额；占位值不出现在事实与发出记录中。
 - [continuation.spec.ts](tests/continuation.spec.ts)（慢层）：两家各让一次带推理状态的调用 X 经装配收场、读取、确认并释放请求材料，再用 `preparation` 的真实租约与真实家族计量器计量延续 X 的下一次请求。测试核对：锚点命中；金额等于 X 的 `input`、`cache-read` 与 `cache-write` 之和加新增部分的估算；余量只按估算部分计算；方法名以 `+continuation-anchored/1` 结尾；带 X 回复的请求比不带时恰好多 X 的输出 token 数。另一租户声明 X 时，计量结果与声明一个不存在的调用逐字节相同。
-- [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。
+- [send-stage.spec.ts](tests/send-stage.spec.ts)：真实 Cordis 4.0.4 下发送阶段插件的装载与卸载（服务发布与撤回，缺凭据服务时等待，随凭据服务卸载，配置与装配被拒时什么都不建）、凭据槽、退出后的发送、退出时在途的发送，以及卸载等发送路径关闭。慢层用例把四份真实回放件经插件的 `modelSendBoundary` 回放，并与装配路径在同一用例里对比事实、请求与发出记录。
+- [recording-replay.spec.ts](tests/recording-replay.spec.ts)（慢层，门禁）：把 pi-ai-transport 的四份真实回放件逐一经装配路径回放，核对收场、唯一终止、推理状态与回放格式、请求摘要可复现、账目经真实路径到达，以及占位凭据只出现在 `Authorization` 头里。它还回放两个工具调用用例的合成回放件：请求带 function 形状的工具、`tool_choice` 为 `auto`、推理档位为 `medium`，首轮以工具建议收场；延续轮带首轮回复里的工具调用与推理状态，再带工具结果；录制器把合成流原样写出，旁注摘要等于发出请求体的摘要，密钥模式命中时不写文件，回复没有工具调用时不写文件。合成回放件是手写数据，不证明真实模型的输出。
 - [recording-c9.spec.ts](tests/recording-c9.spec.ts)（慢层）：两家各计量一次延续真实首轮的请求，再回放延续轮，记录发送前计量与真实输入合计之差。差值只记录，不是门槛。
 - [recorder.spec.ts](tests/recorder.spec.ts)（慢层）与 [secret-scan.spec.ts](tests/secret-scan.spec.ts)（快层）：录制器写出的字节与旁注、不写文件的情形，以及密钥扫描。录制器的规则见 [tests/README.md](tests/README.md)。
 
