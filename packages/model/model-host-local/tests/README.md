@@ -70,6 +70,22 @@ OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vit
 OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow --typecheck.enabled=false tests/recording-c1.spec.ts
 ```
 
+[line-e2e.spec.ts](line-e2e.spec.ts) 是本波的线内贯通用例，属于慢层，不依赖网络和密钥。它在一个 vitest 进程里起一个真实 Cordis 4.0.4 根 Context，由 [support/line-assembly.ts](support/line-assembly.ts) 按装载顺序装出：`LocalCredentialPlugin`（临时目录里的保管库，存占位值）、`ModelProfilesLocalPlugin`（官方 OpenAI 档案）、`ModelCommandsService`（model-storage-sql 的 `createSqlModelCommands`，给出 `send`，命令与发送协调器共用一个核心）、时钟与宿主权威服务、请求准备插件、发送阶段插件（真实 pi 传输与家族，路由指向本地 HTTPS 服务）、运行时插件与结果推送。五步各断言用户看得到的结果：
+
+- 准备：请求由 `modelProfiles.resolve` 得到的档案与 `modelRequestPreparation.prepare` 得出；准备期间本地服务没有收到请求。
+- 发送（回放）：调用 A 经发送阶段到本地服务，服务回放 `fixtures/recordings/openai-tool-call/synthetic.jsonl`；终止唯一；服务收到的请求体 SHA-256 等于回放件旁注的 `payloadDigest`；占位凭据只出现在 `Authorization` 头里，不在事实、发出记录、状态与插件日志里。
+- 持久：关掉并重开同一个 SQLite 文件后，一组没有运行时、没有进程内状态的新 `createSqlModelCommands` 读出调用 A 的收场、结果页与发出记录。
+- 推送：接收方替身登记后，A 被推送一次；接收方先回答 `saved`，生产方才 `handoff`；ACK 之后托管推进到 `released`。
+- 取消：调用 B 的流进行中（服务写出一段后挂住响应），`calls.cancel` 真正中断供应商流：传输的 `exchange-stopped` 出现在 `settle` 之前，B 的终止是该取消的 `interrupted`，取消前交付的内容仍在推送给接收方的结果里。
+
+替身各有来源：SQL 提供者是 `line-assembly.ts` 里的 `node:sqlite` 文件提供者，不是 `@omne-harness/sqlite-provider`——真实提供者按模块文件与摘要装载材料，而 model-storage-sql 还没有 `modelStorageMaterials()`（其 SPEC「明确缺项」），两个读 handler 没有模块文件。文件提供者在一个事务里运行该成员真实的参加者、迁移与读 handler，回执存在同一个文件里；它不模拟 Worker、队列、上界与崩溃耐久，通过不证明这些。参加者由该成员构建产物的模块文件装载（`dist/commit.js` 的默认导出），这是提供者装载材料的同一种方式。接收方是脚本接收方，代表 agent-host-local 的 `createLocalModelReceiver`，联调 A 才接真件。重试策略回答「没有计划」，重试不在本波。
+
+设 `OMNE_EVIDENCE_OUT=<目录>` 时写一份 `line-e2e.json`：五步各自的结论、两个调用的身份与终止种类、ModelCommands 与 SQL 提供者是哪个实现、Cordis 版本。文件不含请求体、回复正文、任何头与凭据。运行方式：
+
+```sh
+OMNE_EVIDENCE_OUT=<目录> pnpm --filter @omne-harness/model-host-local exec vitest run --mode slow tests/line-e2e.spec.ts
+```
+
 [live/record.spec.ts](live/record.spec.ts) 是录制器的真实入口。它只在 `OMNE_LIVE_TESTS=1` 并且 `OMNE_RECORD_CASE` 给出用例名时运行，否则在用例体内跳过。它读取以下环境变量：
 
 - `OMNE_RECORD_CASE`：用例名。第二轮从同一输出根目录读取首轮录制，所以首轮必须先录。
