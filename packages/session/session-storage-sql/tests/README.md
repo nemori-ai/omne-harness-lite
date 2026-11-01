@@ -25,6 +25,7 @@
 - [real-provider.spec.ts](real-provider.spec.ts)：真实 sqlite-provider 上的组合用例（慢层）：Worker 下提交与读回；回执返回后 SIGKILL 子进程，新提供者按原身份 `query` 得 `committed`；从未提交的身份得 `not_committed`（五项证明）、指向不服务的域得 `unknown`、`queryOperation` 答 `unknown`；关闭后租约归还、写入不当作未提交；`command_limit` 与 `queue_full`；8 个并发会话的原操作数与物理写事务数（WAL 提交帧）相等，记零合并。
 - [participants.spec.ts](participants.spec.ts)：`./participants` 的导出集合；入口只导入编码函数与类型；`sessionCommandFacts` 构造的事实由 `session` 模块执行并按摘要认回；`decodeSessionReply` 解码四种回复。
 - [execution-record.spec.ts](execution-record.spec.ts)：只含 `session` 的组合无效，两个参加者的组合中 `execution-record` 在前；首次共同发布一次提交两个参加者，两处写后注入失败时两侧都不保存；发布计数与 head 修订号守卫；原操作行冲突带原摘要与原答案；另一租户读不到；只读核对成立时不写 Session 行，冲突时整批回滚；共同根在任一方发布时前进。
+- [execution-index.spec.ts](execution-index.spec.ts)：`startRun` 在同一事务里写执行索引，行与 SE13 位置一致；注入失败或 Session 拒绝时没有行；预置一行指向另一会话时 `startRun` 失败，原行不变；读 handler `session.execution` 对另一租户与没有 Run 的 execution 都输出 `null`，输入不全时 handler 失败。
 - [real-joint.spec.ts](real-joint.spec.ts)：真实 sqlite-provider 上的共同提交（慢层）：一次回执含两个参加者，读 Worker 读到前进的共同根；只读核对冲突回滚 Agent 一侧；回执返回后 SIGKILL 子进程，新提供者按原身份 `query` 得 `committed`，两侧记录都在。
 - [fixtures/](fixtures/README.md)：测试夹具，见该目录。
 
