@@ -11,12 +11,15 @@ import { decodeReadId, type ModelCommands } from '@omne-harness/model-contract/p
 import { expect, it } from 'vitest'
 import {
   createModelCommandsCore,
+  hasRecoveryWork,
   modelCommands,
   MODEL_WRITE_METHODS,
   type ModelWriteMethod,
   type ModelCommandStorage,
   type RunScope,
 } from '../src/commands/index.ts'
+import { copyCall } from '../src/commands/state.ts'
+import type { Binding, CallDocument, TenantDocuments } from '../src/commands/types.ts'
 import { MemoryState } from '../src/testing/state.ts'
 import { adoption, callId, fixture, instance, op, proof, request, unbox } from './memory-fixture.ts'
 
@@ -158,4 +161,77 @@ it('every one of the 22 methods runs its attempt under a scope that names the te
       expect(scope, method).toStrictEqual({ tenant: text.value, call })
     }
   }
+})
+
+/** Calls in the four states that decide pending work, over documents the storage returns as they are. */
+async function pendingFixture() {
+  const f = fixture()
+  const memory = new MemoryState(f.options)
+  const key = tenantCodec.encode(f.tenant)
+  if (!key.ok) throw new Error('fixture tenant')
+  unbox(await modelCommands(memory.core).admit(f.admit))
+  const base = memory.documents(key.value).calls.get(f.admit.call)
+  const binding = memory.documents(key.value).operations.get(f.admit.operation)
+  if (!base || !binding) throw new Error('fixture admission')
+  const acknowledged = (cleanup: 'pending' | 'released'): CallDocument['state']['custody'] => ({
+    kind: 'acknowledged',
+    operation: op('acknowledge'),
+    receipt: proof('acknowledged'),
+    cleanup,
+    diagnostic: null,
+  })
+  const variant = (name: string, custody: CallDocument['state']['custody']): CallDocument => {
+    const copy = copyCall(base)
+    return { ...copy, state: { ...copy.state, call: callId(name), custody } }
+  }
+  const calls = [
+    variant('accepted', base.state.custody),
+    variant('cleanup', acknowledged('pending')),
+    variant('released', acknowledged('released')),
+    variant('unknown', acknowledged('released')),
+  ]
+  const unknown: Binding = {
+    ...binding,
+    call: callId('unknown'),
+    status: 'unknown',
+    effect: 'applied',
+  }
+  const documents: TenantDocuments = {
+    calls: new Map(calls.map(call => [call.state.call, call])),
+    operations: new Map([[op('unknown-write'), unknown]]),
+  }
+  const commands = modelCommands(
+    createModelCommandsCore(f.options, {
+      run: (work, scope) => memory.run(work, scope),
+      documents: () => documents,
+      reserved: field => memory.reserved(field),
+      commit: (tenant, write) => memory.commit(tenant, write),
+      publish: (tenant, call) => memory.publish(tenant, call),
+    }),
+  )
+  return { f, calls, documents, commands }
+}
+
+it('the exported recovery-work judgment gives the answer that scanPending gives for each call', async () => {
+  const { f, calls, documents, commands } = await pendingFixture()
+  const scanned: ModelCallId[] = []
+  let after: string | null = null
+  do {
+    const page: { calls: readonly ModelCallId[]; next: string | null } = unbox(
+      await commands.scanPending({ principal: f.principal, tenant: f.tenant, after, limit: 2 }),
+    )
+    scanned.push(...page.calls)
+    after = page.next
+  } while (after !== null)
+  const judged = calls.flatMap(call => {
+    const pending = [...documents.operations]
+      .filter(([, binding]) => binding.call === call.state.call && binding.status === 'unknown')
+      .map(([id]) => id)
+    return hasRecoveryWork(call, pending) ? [call.state.call] : []
+  })
+  expect(scanned).toEqual(judged.sort())
+  // The four calls differ: a judgment that answers one way for all of them is wrong.
+  expect(scanned).toEqual(['accepted', 'cleanup', 'unknown'].map(name => callId(name)).sort())
+  const released = calls.find(call => call.state.call === callId('released'))
+  expect(released && hasRecoveryWork(released)).toBe(false)
 })

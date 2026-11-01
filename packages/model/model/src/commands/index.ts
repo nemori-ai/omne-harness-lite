@@ -13,6 +13,7 @@ export function createModelCommandsCore<P>(
   return new ModelCommandCore(options, storage)
 }
 export { modelCommands } from './commands.ts'
+export { hasRecoveryWork } from './judge.ts'
 export type { ModelCommandCore } from './state.ts'
 export type { CommandWrite, ModelCommandStorage, RunScope } from './storage.ts'
 export { MODEL_WRITE_METHODS } from './types.ts'
