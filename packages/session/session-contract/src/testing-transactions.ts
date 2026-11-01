@@ -24,14 +24,25 @@ import type {
   DurableEvidence,
   EntryId,
   InputId,
+  RunId,
   SessionAccess,
   SessionId,
   SessionOperationId,
   SessionRevision,
 } from './identity.ts'
 import type {
+  ControlOperationResolution,
+  SessionCallLookup,
+  SessionCallTerminal,
+  SessionControlReceipt,
+  SessionModelSelection,
+  SessionRunLookup,
+} from './control-values.ts'
+import type {
   BoundedClose,
+  ProducerRef,
   RoutedInput,
+  RunTerminal,
   SessionCreation,
   WorkSnapshot,
   Participation,
@@ -90,6 +101,7 @@ import {
   guard,
   memoryAccess,
   memoryOtherAccess,
+  mintEvidence,
   operationId,
   ordinaryInput,
   sessionId,
@@ -107,7 +119,22 @@ type Store = {
   readonly entries: HistoryEntry[]
   readonly operations: Map<
     SessionOperationId,
-    Readonly<{ record: OperationRecord; recall: Recall; decision: DurableEvidence | null }>
+    Readonly<{
+      record: OperationRecord
+      recall: Recall
+      decision: DurableEvidence | null
+      /** `control` marks a cancelRun/stopCall that has a business batch; it recalls a control receipt. */
+      form?: 'control'
+    }>
+  >
+  /** The answer-only control operations (ended, not-found): one row, no batch, no revision. */
+  readonly answers: Map<
+    SessionOperationId,
+    Readonly<{
+      digest: string
+      receipt: SessionControlReceipt<RunTerminal | SessionCallTerminal>
+      decision: DurableEvidence | null
+    }>
   >
   readonly inputs: Map<InputId, Extract<RoutedInput, { kind: 'ordinary' }>>
 }
@@ -145,6 +172,11 @@ export interface MemorySessionLogTransactions<P> extends MemorySessionTransactio
         operation: SessionOperationId,
       ): Promise<Outcome<CommitReceipt, SessionFailure>>
       directoryAvailable(available: boolean): void
+      /**
+       * Models the first committed SE19 that ended a call. The entry codec of this segment has no
+       * outcome field, so the double takes the end as a control and `stopCall` reads it as a lookup.
+       */
+      recordCallTerminal(tenant: TenantId, session: SessionId, terminal: SessionCallTerminal): void
     }>
 }
 
@@ -243,7 +275,8 @@ function receiptOf(
 }
 
 /** The result of a commit for each mutation kind, built from the snapshot after the batch. */
-function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
+/** A control that left no progress item is not reachable, but it answers `null` (unavailable), never throws. */
+function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall | null {
   const kind = command.kind
   switch (command.kind) {
     case 'create':
@@ -284,6 +317,16 @@ function resultOf(command: SessionCommand, snapshot: WorkSnapshot): Recall {
       const progress = snapshot.controls.find(item => item.operation === command.input.operation)
       return receipt => ({ receipt, progress })
     }
+    case 'cancelRun':
+    case 'stopCall': {
+      const progress = snapshot.controls.find(item => item.operation === command.input.operation)
+      if (progress === undefined) return null
+      return receipt => ({
+        operation: receipt.operation,
+        source: receipt.source,
+        answer: { kind: 'requested', progress },
+      })
+    }
     case 'considerAutoArchive':
       return receipt => ({ result: 'archived', receipt })
     default:
@@ -298,6 +341,28 @@ function admittedInput(command: SessionCommand): Extract<RoutedInput, { kind: 'o
   if (command.kind === 'create') return command.input.creation.initial
   if (command.kind === 'interrupt') return command.input.urgent
   return null
+}
+
+function sameProducer(left: ProducerRef, right: ProducerRef): boolean {
+  return left.kind === right.kind && left.call === right.call
+}
+
+/** The Run lookup of one snapshot, covering exactly that snapshot. */
+function runLookup(snapshot: WorkSnapshot, run: RunId): SessionRunLookup {
+  const history = snapshot.executions?.find(item => item.run === run)
+  const current =
+    snapshot.run.kind === 'terminal' && snapshot.run.terminal.run === run
+      ? snapshot.run.terminal
+      : null
+  const active = snapshot.run.kind === 'active' && snapshot.run.run === run
+  if (history === undefined && current === null && !active)
+    return { kind: 'absent', run, covered: snapshot.revision }
+  return {
+    kind: 'bound',
+    run,
+    bound: mintEvidence(`${snapshot.session}/run/${run}`, { run }),
+    terminal: current ?? history?.terminal ?? null,
+  }
 }
 
 export type MemorySessionTransactionOptions<P> = Readonly<{
@@ -317,6 +382,25 @@ export function createMemorySessionTransactions<P>(
   let failInitialization = false
   let loseInitializationReply = false
   const issuedCursors = new Set<string>()
+  const callTerminals = new Map<string, SessionCallTerminal>()
+  const terminalKey = (key: string, producer: ProducerRef): string =>
+    `${key}\u0000${producer.kind}\u0000${producer.call}`
+  const callLookup = (
+    key: string,
+    snapshot: WorkSnapshot,
+    producer: ProducerRef,
+  ): SessionCallLookup =>
+    snapshot.consumptions.some(item => sameProducer(item.binding.producer, producer))
+      ? {
+          kind: 'bound',
+          producer,
+          bound: mintEvidence(
+            `${snapshot.session}/call/${producer.kind}/${producer.call}`,
+            producer,
+          ),
+          terminal: callTerminals.get(terminalKey(key, producer)) ?? null,
+        }
+      : { kind: 'absent', producer, covered: snapshot.revision }
 
   /** One current decision for one public call. A throwing or unavailable source does not continue. */
   const qualify = async (
@@ -374,10 +458,20 @@ export function createMemorySessionTransactions<P>(
     const qualification = await qualify(mutationAccessRequest(input.access, command))
     if ('failure' in qualification) return fail(qualification.failure)
     const accessEvidence = qualification.ok
+    // Before the session, the identity table or any lookup: the answer must not tell what exists.
+    if (command.kind === 'stopCall' && command.input.producer.kind === 'tool')
+      return fail({ kind: 'unsupported' })
     const key = keyOf(command.input.tenant, command.input.session)
     if ('failure' in key) return key
     const store = stores.get(key.ok)
     if (store === undefined && command.kind !== 'create') return fail(denied(command.kind))
+    const answered = store?.answers.get(command.input.operation)
+    if (answered !== undefined) {
+      const control = command.kind === 'cancelRun' || command.kind === 'stopCall'
+      return control && answered.digest === commandDigest(command)
+        ? succeed(answered.receipt)
+        : fail({ kind: 'conflict', operation: command.input.operation })
+    }
     if (command.kind === 'create' || command.kind === 'completeInitialization') {
       const refusal =
         options.initialization?.verify(command, input.guards) ??
@@ -428,6 +522,12 @@ export function createMemorySessionTransactions<P>(
           ? compactionReads(store.entries, store.snapshot, command.input.value.message.covers.to)
           : null,
       ...(frozen === undefined ? {} : { frozenReceipt: frozen.record.receipt }),
+      ...(command.kind === 'cancelRun' && store !== undefined
+        ? { runs: [runLookup(store.snapshot, command.input.run)] }
+        : {}),
+      ...(command.kind === 'stopCall' && store !== undefined
+        ? { calls: [callLookup(key.ok, store.snapshot, command.input.producer)] }
+        : {}),
       initializationReceipts: [...(store?.operations.values() ?? [])].map(
         value => value.record.receipt,
       ),
@@ -452,6 +552,22 @@ export function createMemorySessionTransactions<P>(
         stores.set(key.ok, { ...store, operations })
       }
       return succeed(recall({ ...decision.receipt, recovered: true }))
+    }
+    if (decision.kind === 'control-answer') {
+      if (store === undefined) return fail(unavailable('a control answer without a session'))
+      const receipt = {
+        operation: command.input.operation,
+        source: decision.source,
+        answer: decision.answer,
+      }
+      const answers = new Map(store.answers)
+      answers.set(command.input.operation, {
+        digest: commandDigest(command),
+        receipt,
+        decision: accessEvidence,
+      })
+      stores.set(key.ok, { ...store, answers })
+      return succeed(receipt)
     }
     if (
       decision.entries.length === 0 &&
@@ -509,11 +625,16 @@ export function createMemorySessionTransactions<P>(
           }
     const receipt = receiptOf(command.input.session, command.input.operation, revision, entries)
     const recall = resultOf(command, committedSnapshot)
+    if (recall === null)
+      return fail(unavailable(`${command.kind} committed without a control progress item`))
     const operations = new Map(store?.operations)
     operations.set(command.input.operation, {
       record: { operation: command.input.operation, digest: commandDigest(command), receipt },
       recall,
       decision: accessEvidence,
+      ...(command.kind === 'cancelRun' || command.kind === 'stopCall'
+        ? { form: 'control' as const }
+        : {}),
     })
     const inputs = new Map(store?.inputs)
     const admitted = admittedInput(command)
@@ -526,6 +647,7 @@ export function createMemorySessionTransactions<P>(
       ]),
       entries: [...(store?.entries ?? []), ...entries],
       operations,
+      answers: store?.answers ?? new Map(),
       inputs,
     }
     const initialization = command.kind === 'create' || command.kind === 'completeInitialization'
@@ -717,12 +839,71 @@ export function createMemorySessionTransactions<P>(
       const store = await storeOf(input, 'queryOperation')
       if ('failure' in store) return store
       const held = store.ok.operations.get(input.operation)
+      if (held?.form === 'control' || store.ok.answers.has(input.operation))
+        return fail({ kind: 'conflict', operation: input.operation })
       const resolution: OperationResolution =
         held === undefined
           ? { kind: 'unknown' }
           : { kind: 'committed', receipt: held.record.receipt }
       return succeed(resolution)
     },
+    queryControlOperation: async input => {
+      const store = await storeOf(input, 'queryControlOperation')
+      if ('failure' in store) return store
+      const answered = store.ok.answers.get(input.operation)
+      if (answered !== undefined)
+        return succeed<ControlOperationResolution>({ kind: 'committed', receipt: answered.receipt })
+      const held = store.ok.operations.get(input.operation)
+      if (held === undefined) return succeed<ControlOperationResolution>({ kind: 'unknown' })
+      if (held.form !== 'control') return fail({ kind: 'conflict', operation: input.operation })
+      return succeed<ControlOperationResolution>({
+        kind: 'committed',
+        receipt: held.recall(held.record.receipt) as SessionControlReceipt<
+          RunTerminal | SessionCallTerminal
+        >,
+      })
+    },
+    readModelSelection: async input => {
+      const store = await storeOf(input, 'readModelSelection')
+      if ('failure' in store) return store
+      let saved: { selection: SessionModelSelection['selection']; at: string } | null = null
+      for (const row of store.ok.entries) {
+        const value = decodeEntry(row)
+        if (
+          'ok' in value &&
+          value.ok.kind === 'session.model-selected' &&
+          value.ok.declaration.kind === 'model'
+        )
+          saved = {
+            selection: { name: value.ok.declaration.name, basis: value.ok.declaration.basis },
+            at: row.revision,
+          }
+      }
+      const initial = store.ok.snapshot.creation.initialModelSelection
+      const first = store.ok.entries[0]
+      const chosen =
+        saved ??
+        (initial !== undefined && first !== undefined
+          ? { selection: initial, at: first.revision }
+          : null)
+      if (chosen === null) return fail({ kind: 'not-ready' })
+      const origin = [...store.ok.operations.values()].find(
+        item => item.record.receipt.revision === chosen.at,
+      )
+      if (origin === undefined)
+        return fail(unavailable('the commit that saved the selection has no original receipt'))
+      return succeed<SessionModelSelection>({
+        selection: chosen.selection,
+        revision: store.ok.snapshot.revision,
+        source: origin.record.receipt.source,
+      })
+    },
+    commitEntries: async () =>
+      fail(
+        unavailable(
+          'the in-memory double has no shared transaction domain, so it does not interpret entries',
+        ),
+      ),
     history,
     pending: async input => {
       const qualification = await qualify({
@@ -898,6 +1079,10 @@ export function createMemorySessionTransactions<P>(
       },
       directoryAvailable: (available: boolean) => {
         directoryAvailable = available
+      },
+      recordCallTerminal: (tenant: TenantId, session: SessionId, terminal: SessionCallTerminal) => {
+        const key = keyOf(tenant, session)
+        if ('ok' in key) callTerminals.set(terminalKey(key.ok, terminal.producer), terminal)
       },
       failNextInitializationCommit: () => {
         failInitialization = true
@@ -1715,6 +1900,251 @@ export function sessionTransactionsConformance<P>(): readonly ConformanceCase<
         assert.equal(state.lifecycle, 'archived')
         assert.ok(state.tasks.some(task => task.kind === 'scope-release'))
         assert.deepEqual(state.releasedScopes ?? [], [])
+      },
+    ),
+
+    conformanceCase(
+      'SL07',
+      'an operation identity belongs to one operation, whatever its form',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const run = expectKind((await s.readWork()).run, 'active', 'the open Run').run
+        const shared = fixture.operation('shared')
+        succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: shared,
+              declaration: { kind: 'model', name: 'route-b', basis: evidence('route-b') },
+            },
+          }),
+          'change',
+        )
+        const clash = refused(
+          await s.commit<'cancelRun'>({
+            kind: 'cancelRun',
+            input: { ...s.base, operation: shared, run, urgency: 'graceful' },
+          }),
+          'cancelRun on a batch identity',
+        )
+        assert.equal(
+          expectKind(clash, 'conflict', 'cancelRun on a batch identity').operation,
+          shared,
+        )
+        assert.equal(
+          expectKind((await s.readWork()).run, 'active', 'the Run is untouched').run,
+          run,
+        )
+        const answered = fixture.operation('answered')
+        const none = succeeded(
+          await s.commit<'cancelRun'>({
+            kind: 'cancelRun',
+            input: { ...s.base, operation: answered, run: 'run_never' as RunId, urgency: 'force' },
+          }),
+          'cancelRun of a Run that never was',
+        )
+        assert.deepEqual(none.answer, { kind: 'not-found' })
+        const reuse = refused(
+          await s.commit<'control'>({
+            kind: 'control',
+            input: { ...s.base, operation: answered, intent: { kind: 'archive' } },
+          }),
+          'archive on a control identity',
+        )
+        expectKind(reuse, 'conflict', 'archive on a control identity')
+        assert.notEqual((await s.readWork()).lifecycle, 'archived')
+        const asBatch = refused(
+          await s.port.queryOperation({ ...fixture.access, operation: answered }),
+          'queryOperation on a control identity',
+        )
+        expectKind(asBatch, 'conflict', 'queryOperation on a control identity')
+        const asControl = refused(
+          await s.port.queryControlOperation({ ...fixture.access, operation: shared }),
+          'queryControlOperation on a batch identity',
+        )
+        expectKind(asControl, 'conflict', 'queryControlOperation on a batch identity')
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'stopCall of a Tool target is unsupported before the identity and the session are read',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const used = fixture.operation('used')
+        succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: used,
+              declaration: { kind: 'model', name: 'route-b', basis: evidence('route-b') },
+            },
+          }),
+          'change',
+        )
+        const before = await s.readWork()
+        const tool = { kind: 'tool', call: 'tool-1' } as const
+        const stop = (operation: SessionOperationId, session = fixture.access.session) =>
+          s.port.commit<'stopCall'>({
+            access: { ...fixture.access, session },
+            command: {
+              kind: 'stopCall',
+              input: { ...s.base, session, operation, producer: tool },
+            },
+            guards: [],
+          })
+        expectKind(refused(await stop(used), 'stopCall on a used identity'), 'unsupported', 'used')
+        expectKind(
+          refused(await stop(fixture.operation('fresh')), 'stopCall on a fresh identity'),
+          'unsupported',
+          'fresh',
+        )
+        expectKind(
+          refused(
+            await stop(fixture.operation('ghost'), sessionId(`${fixture.access.session}-ghost`)),
+            'stopCall on an unknown session',
+          ),
+          'unsupported',
+          'unknown session',
+        )
+        assert.deepEqual(await s.readWork(), before, 'a refusal writes nothing')
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'an answer-only control writes no revision and replays the original answer',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const before = await s.readWork()
+        const operation = fixture.operation('none')
+        const command = {
+          kind: 'cancelRun',
+          input: { ...s.base, operation, run: 'run_never' as RunId, urgency: 'force' },
+        } as const
+        const first = succeeded(await s.commit<'cancelRun'>(command), 'cancelRun')
+        assert.deepEqual(first.answer, { kind: 'not-found' })
+        assert.equal((await s.readWork()).revision, before.revision, 'no revision advanced')
+        assert.deepEqual(succeeded(await s.commit<'cancelRun'>(command), 'replay'), first)
+        const resolved = succeeded(
+          await s.port.queryControlOperation({ ...fixture.access, operation }),
+          'queryControlOperation',
+        )
+        assert.deepEqual(resolved, { kind: 'committed', receipt: first })
+      },
+    ),
+
+    conformanceCase(
+      'XC-INTERRUPT',
+      'a malformed cancelRun or stopCall is refused invalid and saves neither an answer nor an operation',
+      async fixture => {
+        const s = scene(fixture)
+        await s.openRun()
+        const run = expectKind((await s.readWork()).run, 'active', 'the open Run').run
+        const before = await s.readWork()
+        const cases: readonly (readonly [string, string, SessionCommand])[] = [
+          [
+            'run',
+            'empty run',
+            {
+              kind: 'cancelRun',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e1'),
+                run: '' as RunId,
+                urgency: 'force',
+              },
+            },
+          ],
+          [
+            'urgency',
+            'unregistered urgency',
+            {
+              kind: 'cancelRun',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e2'),
+                run,
+                urgency: 'abort' as 'force',
+              },
+            },
+          ],
+          [
+            'producer.kind',
+            'unregistered producer kind',
+            {
+              kind: 'stopCall',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e3'),
+                producer: { kind: 'agent', call: 'm1' } as unknown as ProducerRef,
+              },
+            },
+          ],
+          [
+            'producer.call',
+            'empty producer call',
+            {
+              kind: 'stopCall',
+              input: {
+                ...s.base,
+                operation: fixture.operation('e4'),
+                producer: { kind: 'model', call: '' },
+              },
+            },
+          ],
+        ]
+        for (const [field, label, command] of cases) {
+          const failure = refused(
+            await s.port.commit({ access: fixture.access, command, guards: [] }),
+            label,
+          )
+          assert.equal(expectKind(failure, 'invalid', label).field, field, label)
+          const resolved = succeeded(
+            await s.port.queryControlOperation({
+              ...fixture.access,
+              operation: command.input.operation,
+            }),
+            `queryControlOperation after ${label}`,
+          )
+          assert.deepEqual(resolved, { kind: 'unknown' }, `${label}: no answer or operation saved`)
+        }
+        assert.deepEqual(await s.readWork(), before, 'a format refusal writes nothing')
+      },
+    ),
+
+    conformanceCase(
+      'XC-MODELSEL',
+      'readModelSelection is not-ready before any selection and then returns the saved one with its original source',
+      async fixture => {
+        const s = scene(fixture)
+        succeeded(await s.create(), 'create')
+        expectKind(
+          refused(await s.port.readModelSelection(fixture.access), 'before a selection'),
+          'not-ready',
+          'before a selection',
+        )
+        const saved = succeeded(
+          await s.commit<'change'>({
+            kind: 'change',
+            input: {
+              ...s.base,
+              operation: fixture.operation('select'),
+              declaration: { kind: 'model', name: 'route-a', basis: evidence('route-a') },
+            },
+          }),
+          'change',
+        )
+        succeeded(await s.accept('later'), 'accept')
+        const read = succeeded(await s.port.readModelSelection(fixture.access), 'read')
+        assert.deepEqual(read.selection, { name: 'route-a', basis: evidence('route-a') })
+        assert.deepEqual(read.source, saved.source, 'the source is the commit that saved it')
+        assert.equal(read.revision, (await s.readWork()).revision)
       },
     ),
   ]

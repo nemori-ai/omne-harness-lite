@@ -14,3 +14,10 @@
 ## 消费者怎样导入
 
 消费者只从 `@omne-harness/session-cordis-contract/cordis` 导入绑定。领域类型从 `@omne-harness/session-contract` 导入。不从实现包导入 Service。
+
+## 采用来源三口与游标签名
+
+- `./cordis` 增加 `SessionAdoptionSourceService`、`SessionProductionSourceService`、`SessionCustodySourceService` 与 `SessionCursorSigningService` 及各自键常量，`SessionTransactionPortService` 增加三个方法的投影。
+- 根入口重导出 [src/cursor-signing.ts](../src/cursor-signing.ts) 的类型。
+- `./testing` 导出 `createFixedSessionCursorSigning` 与 `sessionCursorSigningConformance`。固定键为公开测试字节，keyId 为 `test-session-cursor-1` 与 `test-session-cursor-2`，不得进入生产插件树。
+- 换代与卸载后的旧调用（含在途调用）不返回看似当前的成功：换代答 `invalid`，卸载答 `unavailable`，见 [SPEC 游标签名](../SPEC.md#游标签名)。

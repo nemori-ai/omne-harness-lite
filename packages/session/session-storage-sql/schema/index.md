@@ -5,4 +5,4 @@
 ## 内容
 
 - [README.md](README.md)：Schema 的身份、发布与消费者。现在没有 Schema 文件
-- 表与索引的形状在[对象模型](../docs/object-model.md#权威表)
+- 表与索引的形状在[对象模型](../docs/object-model.md#当前实现的表)

@@ -1,6 +1,6 @@
 # @omne-harness/session-adapters 行为规格
 
-状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
+状态：适配成员，`draft`，候选技术设计，AD-01、AD-02、AD-05 的同日志行为与 Agent Journal 提供者由 `./testing` 内存提供者实现，生产插件未交付；其余候选插件仍未交付。`./testing` 的会话事务替身还实现 `SessionTransactionPort` 的 `queryControlOperation`、`readModelSelection` 与 `commitEntries`，见[会话事务端口的契约面](#会话事务端口的契约面)。内存实现不证明耐久、跨进程或完整生产运行组合。本成员是 Session 组里唯一导入邻域契约的成员。它把 Session 的命令、端口与事实翻译成邻域公开契约里的操作，也把邻域交来的调用翻译成 Session 的命令。治理规则不在本页。
 
 ## 范围与依据
 
@@ -632,3 +632,21 @@ Session 契约的明确缺项也约束本成员，其中两项直接影响插件
 第二个发布点是后续 Session 解释提交，共同保存派生后果、解释进度与该次认回答案。解释失败不撤销首次发布，也不推进解释进度。Agent ended 与后续 Session 终态之间允许 PA-08 的取消竞争，不能把二者合并成一个原子提交。各次读取捕获一份已提交状态：output.read / output.events 读事件正文，load 读 entries/results 等快照；事件序号与 entries 提交顺序分别保持，不互作 cursor。复原索引不能改变原 Run 归属。
 
 `./testing` 提供上述角色组的内存会话日志替身，供 CS v2 组合测试。故障注入与提交前暂停只经 testing 句柄暴露，生产根入口不暴露它们。验证义务包括 Agent 自有 entries/received 套件、提交前失败全无、提交后丢答复认回、并发修订复核及跨租户读写拒绝。验证入口及受信夹具前提见 [testing 指南](docs/testing.md)。内存原子可见不证明耐久、进程重启或跨进程同提交。
+
+### 会话事务端口的契约面
+
+`./testing` 的会话事务替身实现 session-contract 的 `SessionTransactionPort<P>` 的全部操作。除 `commit`、读与历史面之外，下列三个操作在 head 补齐，行为以 session-contract 为准，本节只写替身怎样兑现。
+
+| 操作 | 替身的行为 |
+| --- | --- |
+| `readModelSelection` | 读同一会话日志：取最近一条 `session.model-selected` 条目里的模型声明；没有时取创建快照的 `initialModelSelection`。两者都没有返回 `not-ready`。结果的 `revision` 是当前快照修订，`source` 是保存该选择的那次提交的原回执证据；找不到那次提交的原回执时返回 `unavailable`。每次读取都经访问裁定 |
+| `queryControlOperation` | 只认控制身份。命中「只保存答案」的控制操作（Run 已结束或调用不存在）与带业务批次的 `cancelRun`、`stopCall` 时返回已提交的控制回执，带批次的回执按原结果还原；身份属于普通批次返回 `conflict`；没有该身份返回 `unknown`。`queryOperation` 对控制身份同样返回 `conflict`（SL07） |
+| `commitEntries` | 恒返回 `unavailable`，见下文[已知限制](#已知限制) |
+
+控制命令 `cancelRun` 与 `stopCall` 在替身里的提交按访问裁定之后、查会话之前的次序处理：`stopCall` 的生产者为 Tool 时返回 `unsupported`，答复不透露会话里有什么。只保存答案的控制操作在替身里只写一行答案，不产生批次，不改变修订；同一身份、同一命令摘要重放返回原答案，摘要不同返回 `conflict`。替身没有保存调用终态，所以已绑定的调用查找结果恒为没有终态，`stopCall` 总是得到 `requested`。
+
+### 已知限制
+
+1. `commitEntries` 目前返回 `unavailable`（`owner` 为替身所有者），因为 session-contract 还没有 entries 解释的纯范围检查，替身无法判断范围。它拒绝，不对未检查的范围返回成功。session-storage-sql 对同一操作做同样的拒绝。
+2. 上述三个操作与两项控制命令是新行为，没有先红后绿记录。验证以负控用例代替：跨租户、未授权、身份种类错配和重放各有反例用例。
+3. 替身是非耐久的内存实现，不证明耐久、进程重启或跨进程同提交；它不覆盖 sqlite-provider 或任何真实后端。
