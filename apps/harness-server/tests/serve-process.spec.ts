@@ -94,6 +94,30 @@ describe('serve process', () => {
     expect(out.stderr).toContain('serve: stop requested: stdin closed')
   })
 
+  it('without --stop-on-stdin-close, keeps waiting for a stop request after startup', async () => {
+    const child = spawn(process.execPath, [bin, 'serve', ...common(scratch)], {
+      env: { ...process.env, NO_COLOR: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let stdout = ''
+    child.stdout.setEncoding('utf8')
+    const exited = new Promise<number | null>(resolve => child.on('exit', code => resolve(code)))
+    await new Promise<void>(resolve =>
+      child.stdout.on('data', (chunk: string) => {
+        stdout += chunk
+        if (stdout.includes('"kind":"startup-result"')) resolve()
+      }),
+    )
+    const early = await Promise.race([
+      exited,
+      new Promise(resolve => setTimeout(() => resolve('alive'), 1500)),
+    ])
+    child.kill()
+    await exited
+    expect(early).toBe('alive')
+    expect(stdout).not.toContain('"kind":"shutdown-result"')
+  })
+
   it.each([
     ['missing --state-root', ['serve', ...common(scratch).slice(0, 6)]],
     ['relative --state-root', ['serve', ...common('state')]],

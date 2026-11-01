@@ -113,6 +113,9 @@ async function mainServe(argv: readonly string[]): Promise<number> {
   const root = await stateRoot(values['state-root'])
 
   const controller = new AbortController()
+  // Signal listeners do not keep the event loop alive. Without this timer a tree
+  // with no open handle reaches the stop wait and exits 13 before any stop request.
+  const keepAlive = setInterval(() => {}, 1 << 30)
   const requestStop = (reason: string) => controller.abort(reason)
   const onSigint = () => requestStop('SIGINT')
   const onSigterm = () => requestStop('SIGTERM')
@@ -133,6 +136,7 @@ async function mainServe(argv: readonly string[]): Promise<number> {
     })
     return result.exitCode
   } finally {
+    clearInterval(keepAlive)
     process.off('SIGINT', onSigint)
     process.off('SIGTERM', onSigterm)
     if (values['stop-on-stdin-close'] === true) process.stdin.destroy()
