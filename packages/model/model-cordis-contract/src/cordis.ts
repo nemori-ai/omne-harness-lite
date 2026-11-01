@@ -4,6 +4,7 @@ import type {
   ConsumerRef,
   ModelCallId,
   ModelDiagnostics,
+  ModelPreparationResources,
   ModelResultReceiver,
   ModelRuntime,
   Revision,
@@ -247,6 +248,30 @@ export abstract class ModelRequestPreparationService<P>
 }
 export const modelRequestPreparationKey = ModelRequestPreparationService.provide
 
+/**
+ * The metering leases of request preparation. The request assembler takes a lease for a profile
+ * before it plans and meters each candidate, and gives it back. It is a key of its own, not a
+ * member of `modelRequestPreparation`: one seam, one definition. The provider of
+ * `modelRequestPreparation` provides it on the same plugin fiber, so the leases and `prepare` live
+ * and end together and read the same call facts.
+ * @owner packages/model/model-cordis-contract
+ */
+export abstract class ModelPreparationResourcesService<P>
+  extends Service
+  implements ModelPreparationResources<P>
+{
+  static readonly provide = 'modelPreparationResources'
+
+  constructor(ctx: CordisContext) {
+    super(ctx, ModelPreparationResourcesService.provide)
+  }
+
+  abstract acquire(
+    ...args: Parameters<ModelPreparationResources<P>['acquire']>
+  ): ReturnType<ModelPreparationResources<P>['acquire']>
+}
+export const modelPreparationResourcesKey = ModelPreparationResourcesService.provide
+
 /** @owner packages/model/model-cordis-contract */
 export abstract class ModelMessageConversionService<P>
   extends Service
@@ -319,6 +344,7 @@ declare module '@deepseek-ai/cordis' {
     modelProfiles: ModelProfilesService<unknown>
     modelProfileMaintenance: ModelProfileMaintenanceService<unknown>
     modelRequestPreparation: ModelRequestPreparationService<unknown>
+    modelPreparationResources: ModelPreparationResourcesService<unknown>
     modelMessageConversion: ModelMessageConversionService<unknown>
     modelHostAuthority: ModelHostAuthorityService<unknown>
     modelConverterAuthority: ModelConverterAuthorityService<unknown>

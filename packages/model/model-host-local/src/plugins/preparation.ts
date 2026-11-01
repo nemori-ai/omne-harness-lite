@@ -1,16 +1,18 @@
 // MD-15 and MD-14: the request preparation plugin and the metering leases of the same host.
 //
-// The plugin serves `modelRequestPreparation`. It needs `modelCommands` and nothing else of the
-// system: no `modelRuntime` and no network. Both of its jobs run over the one `ModelCommands` that
-// the host plugin injects, so a lease that continues an earlier call reads that call's facts.
+// The plugin provides two keys on one fiber: `modelRequestPreparation` and
+// `modelPreparationResources`. It needs `modelCommands` and nothing else of the system: no
+// `modelRuntime` and no network. Both keys run over the one `ModelCommands` that the host plugin
+// injects, so a lease that continues an earlier call reads that call's facts.
 // - `prepare` takes a lease for the profile, plans each supplier with the rules of its binding,
 //   gives the lease back and returns the fixed request. It never measures and never sends.
-// - The same lease source, `createModelPreparationResources`, is what the request assembler
-//   meters with. It is not a service key (R1-D17 Q-8): the assembly takes `resources` from the
-//   creator of the plugin and hands it to the request assembly.
+// - `modelPreparationResources` gives the leases the request assembler meters with, from the same
+//   lease source, `createModelPreparationResources`, of the same load. The `resources` that the
+//   creator returns is the same source seen from outside the plugin tree.
 //
-// A lease belongs to the live plugin. Once the plugin is gone, no new lease is given and `prepare`
-// answers unavailable; a lease taken before keeps its bindings until it is released.
+// A lease belongs to the live plugin. Once the plugin is gone, no new lease is given, through the
+// key or through `resources`, and `prepare` answers unavailable; a lease taken before keeps its
+// bindings until it is released.
 import type { Context } from '@deepseek-ai/cordis'
 import {
   organizationEquals,
@@ -41,6 +43,7 @@ import {
   type ModelRequestPreparation,
 } from '@omne-harness/model-contract/provider'
 import {
+  ModelPreparationResourcesService,
   ModelRequestPreparationService,
   modelCommandsKey,
 } from '@omne-harness/model-cordis-contract/cordis'
@@ -156,19 +159,37 @@ export type ModelRequestPreparationPluginClass = {
   readonly Config: typeof modelPreparationConfigSchema
 }
 
+type Live = { current: ModelPreparationResources<unknown> | null }
+type Acquire = ModelPreparationResources<unknown>['acquire']
+
+/** `modelPreparationResources` of one load: the leases of that load while it lives. */
+class ModelPreparationResourcesLocal extends ModelPreparationResourcesService<unknown> {
+  private readonly leases: ModelPreparationResources<unknown>
+
+  constructor(ctx: Context, leases: ModelPreparationResources<unknown>) {
+    super(ctx)
+    this.leases = leases
+  }
+
+  acquire(...args: Parameters<Acquire>): ReturnType<Acquire> {
+    return this.leases.acquire(...args)
+  }
+}
+
 export type ModelPreparationPlugin = Readonly<{
   /** The plugin class. Cordis gives it `modelCommands` and the configuration. */
   plugin: ModelRequestPreparationPluginClass
   /**
-   * The leases of the live plugin, for the assembly to give to the request assembly. Before the
-   * plugin is loaded and after it is unloaded `acquire` answers unavailable.
+   * The leases of the live plugin, seen from outside the plugin tree. Inside the tree the same
+   * leases are at `modelPreparationResources`. Before the plugin is loaded and after it is unloaded
+   * `acquire` answers unavailable.
    */
   resources: ModelPreparationResources<unknown>
 }>
 
 function createPluginClass(
   options: ModelPreparationPluginOptions,
-  live: { current: ModelPreparationResources<unknown> | null },
+  live: Live,
 ): ModelRequestPreparationPluginClass {
   const leases = gate(live)
 
@@ -214,7 +235,12 @@ function createPluginClass(
       })
       this.prepare = prepareOver
       live.current = resources
+      // The second key of this fiber: the leases of this load only, so a reference kept after
+      // the unload refuses instead of reaching a successor.
+      const own: Live = { current: resources }
+      new ModelPreparationResourcesLocal(ctx, gate(own))
       ctx.fiber.effect(() => () => {
+        own.current = null
         // Only this plugin's own resources end here: a successor that loaded first keeps its own.
         if (live.current === resources) live.current = null
       })
@@ -222,9 +248,7 @@ function createPluginClass(
   }
 }
 
-function gate(live: {
-  current: ModelPreparationResources<unknown> | null
-}): ModelPreparationResources<unknown> {
+function gate(live: Live): ModelPreparationResources<unknown> {
   return {
     async acquire(input) {
       const resources = live.current
@@ -240,6 +264,6 @@ function gate(live: {
 export function createModelRequestPreparationPlugin(
   options: ModelPreparationPluginOptions,
 ): ModelPreparationPlugin {
-  const live: { current: ModelPreparationResources<unknown> | null } = { current: null }
+  const live: Live = { current: null }
   return { plugin: createPluginClass(options, live), resources: gate(live) }
 }

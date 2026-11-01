@@ -11,7 +11,7 @@
 | `ModelInstancesLocalPlugin` | `modelPublicationAuthority` | 构造唯一 `ModelInstancesService`；权威换代时随 fiber 卸载与重装，后继目录从空开始 |
 | `ModelConvertersLocalPlugin` | `modelConverterAuthority` | 构造唯一 `ModelConvertersService`；独立于运行时与结果查询 |
 | `createModelRuntimeLocalPlugin` 造出的类（宿主部分） | `modelCommands`、`modelClock`、`modelHostAuthority`；配置四项上限 | `await bind` 成功后才发布 `modelInstanceHost`；`modelRuntime` 由后续闭包在同一贡献点接入 |
-| `createModelRequestPreparationPlugin` 造出的类 | `modelCommands`；配置 `maxCitedCalls` | 发布 `modelRequestPreparation`；同一份准备资源交给装配作计量租约来源 |
+| `createModelRequestPreparationPlugin` 造出的类 | `modelCommands`；配置 `maxCitedCalls` | 在同一 fiber 发布 `modelRequestPreparation` 与 `modelPreparationResources`；后者的租约与 `prepare` 出自同一份准备资源，随 fiber 撤除后拒绝新租约 |
 | `ModelSendStagePlugin`（`createModelSendStagePlugin` 造出的类） | `modelCredential`、`modelCommands`；配置 `maxRetainedAttempts` | 发布 `modelSendBoundary`；发送路径随 fiber 建立与关闭，凭据端口先于关闭撤回 |
 
 三个造类的工厂交出对象选项，因为运行提供者、观察资格、家族绑定、凭据补全、协调器与网络配置不是可序列化配置。宿主状态全在闭包里：消费者看到的实例只有 `schedule`、`publish`、`withdraw` 与 `directory`，`bind` 留在插件里。

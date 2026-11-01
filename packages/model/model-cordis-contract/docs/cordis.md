@@ -63,6 +63,7 @@ Model 的全部能力不集中到一个必需依赖集合。下表补足独立�
 | modelProfiles | ModelProfiles / ModelProfilesService | 档案读取、当前身份/设置及凭据状态元数据适配器；不读取秘密，不依赖 runtime 或供应商网络 |
 | modelProfileMaintenance | ModelProfileMaintenance / ModelProfileMaintenanceService | 当前维护资格、档案条件写与操作核实；不因只读列表需求一同注入 |
 | modelRequestPreparation | ModelRequestPreparation / ModelRequestPreparationService | 档案采用解析、当前合法性、绑定引用与固定算法目录；不持有秘密 |
+| modelPreparationResources | ModelPreparationResources / ModelPreparationResourcesService | 计量租约来源；由提供 `modelRequestPreparation` 的插件在同一 fiber 提供，与 `prepare` 读同一份调用事实；插件卸载后拒绝新租约 |
 | modelMessageConversion | ModelMessageConversion / ModelMessageConversionService | 系统转换目录与来源核验；按准入操作取得局部转换器 |
 | modelConverterAuthority | ModelConverterAuthority / ModelConverterAuthorityService | 登记前同步核系统贡献资格，不授业务执行权 |
 | modelConverters | ModelConverterCatalog / ModelConvertersService | 定义自有的具体注册服务；宿主装载，系统装配贡献时核当前资格 |

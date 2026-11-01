@@ -34,7 +34,11 @@ import {
   type ModelCommands,
   type TransportFact,
 } from '@omne-harness/model-contract/provider'
-import { ModelCommandsService } from '@omne-harness/model-cordis-contract/cordis'
+import {
+  ModelCommandsService,
+  ModelPreparationResourcesService,
+} from '@omne-harness/model-cordis-contract/cordis'
+import { modelPreparationResourcesConformance } from '@omne-harness/model-cordis-contract/testing'
 import type { PreparationBinding } from '@omne-harness/model'
 import { expect, it } from 'vitest'
 import { createModelRequestPreparationPlugin } from '../src/cordis.ts'
@@ -661,3 +665,71 @@ it('keeps the leases of a successor that loaded first when the earlier load is u
   expect('ok' in lease).toBe(true)
   if ('ok' in lease) await lease.ok.release()
 })
+
+// --- the second key of the fiber: modelPreparationResources -------------------------------------
+
+it('provides modelPreparationResources on the same fiber, and its lease reads the facts of the injected commands', async () => {
+  const commands = memoryCommands()
+  await settleCall(commands, callOf('x'), requestWith(TWO))
+  const { ctx } = await loaded(commands)
+  expect(ctx.modelPreparationResources).toBeInstanceOf(ModelPreparationResourcesService)
+
+  const lease = unbox(
+    await ctx.modelPreparationResources.acquire({
+      ...access,
+      profile: PROFILE,
+      lineage: { continues: callOf('x') },
+    }),
+  )
+  // A hit needs call x, which only the commands that the plugin injects hold.
+  expect(anchorOf(measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(await lease.release()).toEqual({})
+})
+
+it('removes modelPreparationResources with the plugin, and a kept reference refuses a new lease', async () => {
+  const commands = memoryCommands()
+  await settleCall(commands, callOf('x'), requestWith(TWO))
+  const { ctx, fiber, family, plugin } = await loaded(commands)
+  const kept = ctx.modelPreparationResources
+  const lease = unbox(
+    await kept.acquire({ ...access, profile: PROFILE, lineage: { continues: callOf('x') } }),
+  )
+
+  await fiber.dispose()
+  expect(ctx.modelPreparationResources).toBeUndefined()
+  expect(await kept.acquire({ ...access, profile: PROFILE })).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-request-preparation',
+      diagnostic: 'preparation-plugin-unloaded',
+    },
+  })
+  // The lease taken before the unload keeps its bindings until it is released.
+  expect(anchorOf(measure(lease, requestWith(THREE)))).toEqual({ kind: 'hit' })
+  expect(await lease.release()).toEqual({})
+  expect(family.released.count).toBe(1)
+
+  // A new load provides the key again, over its own commands.
+  await ctx.plugin(plugin, CONFIG)
+  expect(ctx.modelPreparationResources).toBeInstanceOf(ModelPreparationResourcesService)
+})
+
+/** The real plugin on its own Context, for the conformance cases of the contract member. */
+async function subject(releaseRejects: boolean) {
+  const { ctx, family } = await loaded()
+  family.faults.releaseRejects = releaseRejects
+  return {
+    context: ctx,
+    input: { ...access, profile: PROFILE },
+    dispose: async () => {
+      await ctx.fiber.dispose()
+    },
+  }
+}
+
+for (const conformance of modelPreparationResourcesConformance({
+  create: () => subject(false),
+  createWithFailingRelease: () => subject(true),
+})) {
+  it(`conformance of modelPreparationResources: ${conformance.name}`, () => conformance.run())
+}

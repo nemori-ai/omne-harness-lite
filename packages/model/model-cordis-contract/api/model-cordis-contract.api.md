@@ -30,6 +30,7 @@
 - `ModelInstanceHostService` · `cordis.d.ts`
 - `ModelInstancesService` · `instances.d.ts`
 - `ModelMessageConversionService` · `cordis.d.ts`
+- `ModelPreparationResourcesService` · `cordis.d.ts`
 - `ModelProfileMaintenanceService` · `cordis.d.ts`
 - `ModelProfilesService` · `cordis.d.ts`
 - `ModelPublication` · `registration.d.ts`
@@ -55,6 +56,7 @@
 - `modelInstanceHostKey` · `cordis.d.ts`
 - `modelInstancesKey` · `instances.d.ts`
 - `modelMessageConversionKey` · `cordis.d.ts`
+- `modelPreparationResourcesKey` · `cordis.d.ts`
 - `modelProfileMaintenanceKey` · `cordis.d.ts`
 - `modelProfilesKey` · `cordis.d.ts`
 - `modelPublicationAuthorityKey` · `cordis.d.ts`
@@ -65,11 +67,19 @@
 
 ## 入口 `./testing` · `testing/index.d.ts`
 
+- `ModelPreparationResourcesCase` · `testing/preparation-resources.d.ts`
+- `ModelPreparationResourcesFixture` · `testing/preparation-resources.d.ts`
+- `ModelPreparationResourcesSubject` · `testing/preparation-resources.d.ts`
 - `ModelResultReceiverCase` · `testing/index.d.ts`
 - `ModelResultReceiverFixture` · `testing/index.d.ts`
 - `ModelResultReceiverHost` · `testing/index.d.ts`
+- `ScriptedModelPreparationResources` · `testing/preparation-resources.d.ts`
+- `ScriptedModelPreparationResourcesScript` · `testing/preparation-resources.d.ts`
 - `ScriptedModelRuntimeHostOptions` · `testing/index.d.ts`
+- `createModelPreparationResourcesPlugin` · `testing/preparation-resources.d.ts`
+- `createScriptedModelPreparationResources` · `testing/preparation-resources.d.ts`
 - `createScriptedModelRuntimeHost` · `testing/index.d.ts`
+- `modelPreparationResourcesConformance` · `testing/preparation-resources.d.ts`
 - `modelResultReceiverConformance` · `testing/index.d.ts`
 
 ## 声明文件 `converters.d.ts`
@@ -93,7 +103,7 @@ export declare const modelConvertersKey = "modelConverters";
 ```ts
 import { Service, type Context as CordisContext } from '@deepseek-ai/cordis';
 import type { TenantId } from '@omne-harness/legal-identity';
-import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelResultReceiver, ModelRuntime, Revision } from '@omne-harness/model-contract';
+import type { ConsumerRef, ModelCallId, ModelDiagnostics, ModelPreparationResources, ModelResultReceiver, ModelRuntime, Revision } from '@omne-harness/model-contract';
 import type { CredentialPort, ModelClock, ModelCommands, ModelHostAuthority, ModelInstanceHost, ModelMessageConversion, ModelProfileMaintenance, ModelProfiles, ModelRequestPreparation, ModelRetryPolicy, ModelSendBoundary } from '@omne-harness/model-contract/provider';
 import type { ModelConvertersService } from './converters.ts';
 import type { ModelInstancesService } from './instances.ts';
@@ -202,6 +212,12 @@ export declare abstract class ModelRequestPreparationService<P> extends Service 
     abstract readonly prepare: ModelRequestPreparation<P>['prepare'];
 }
 export declare const modelRequestPreparationKey = "modelRequestPreparation";
+export declare abstract class ModelPreparationResourcesService<P> extends Service implements ModelPreparationResources<P> {
+    static readonly provide = "modelPreparationResources";
+    constructor(ctx: CordisContext);
+    abstract acquire(...args: Parameters<ModelPreparationResources<P>['acquire']>): ReturnType<ModelPreparationResources<P>['acquire']>;
+}
+export declare const modelPreparationResourcesKey = "modelPreparationResources";
 export declare abstract class ModelMessageConversionService<P> extends Service implements ModelMessageConversion<P> {
     static readonly provide = "modelMessageConversion";
     constructor(ctx: CordisContext);
@@ -239,6 +255,7 @@ declare module '@deepseek-ai/cordis' {
         modelProfiles: ModelProfilesService<unknown>;
         modelProfileMaintenance: ModelProfileMaintenanceService<unknown>;
         modelRequestPreparation: ModelRequestPreparationService<unknown>;
+        modelPreparationResources: ModelPreparationResourcesService<unknown>;
         modelMessageConversion: ModelMessageConversionService<unknown>;
         modelHostAuthority: ModelHostAuthorityService<unknown>;
         modelConverterAuthority: ModelConverterAuthorityService<unknown>;
@@ -368,4 +385,47 @@ export type ModelResultReceiverCase = Readonly<{
     run(): Promise<void>;
 }>;
 export declare function modelResultReceiverConformance(fixture: ModelResultReceiverFixture): readonly ModelResultReceiverCase[];
+export { createModelPreparationResourcesPlugin, createScriptedModelPreparationResources, modelPreparationResourcesConformance, } from './preparation-resources.ts';
+export type { ModelPreparationResourcesCase, ModelPreparationResourcesFixture, ModelPreparationResourcesSubject, ScriptedModelPreparationResources, ScriptedModelPreparationResourcesScript, } from './preparation-resources.ts';
+```
+
+## 声明文件 `testing/preparation-resources.d.ts`
+
+```ts
+import type { Context } from '@deepseek-ai/cordis';
+import type { ModelFailure, ModelInputMeter, ModelPreparationLease, ModelPreparationResources, ModelRequestRules } from '@omne-harness/model-contract';
+type Acquire<P> = ModelPreparationResources<P>['acquire'];
+type Released = Awaited<ReturnType<ModelPreparationLease['release']>>;
+type PlanInput = Parameters<ModelRequestRules['plan']>[0];
+export type ScriptedModelPreparationResourcesScript = Readonly<{
+    meter: ModelInputMeter;
+    plan?: (input: PlanInput) => ReturnType<ModelRequestRules['plan']>;
+    acquire?: () => ModelFailure | null;
+    release?: () => Released;
+}>;
+export interface ScriptedModelPreparationResources<P> extends ModelPreparationResources<P> {
+    readonly durability: 'none';
+    outstanding(): number;
+}
+export declare function createScriptedModelPreparationResources<P = unknown>(script: ScriptedModelPreparationResourcesScript): ScriptedModelPreparationResources<P>;
+export declare function createModelPreparationResourcesPlugin<P = unknown>(source: ModelPreparationResources<P>): Readonly<{
+    name: string;
+    apply(ctx: Context): void;
+}>;
+export interface ModelPreparationResourcesSubject {
+    readonly context: Context;
+    readonly input: Parameters<Acquire<unknown>>[0];
+    dispose(): Promise<void>;
+}
+export interface ModelPreparationResourcesFixture {
+    create(): Promise<ModelPreparationResourcesSubject>;
+    createWithFailingRelease(): Promise<ModelPreparationResourcesSubject>;
+}
+export type ModelPreparationResourcesCase = Readonly<{
+    name: string;
+    clause: string;
+    run(): Promise<void>;
+}>;
+export declare function modelPreparationResourcesConformance(fixture: ModelPreparationResourcesFixture): readonly ModelPreparationResourcesCase[];
+export {};
 ```
