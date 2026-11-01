@@ -18,6 +18,7 @@ import {
   type CacheStates,
 } from './admission-run.ts'
 import { parseFlags } from './support.ts'
+import { parseRetriedFiles, type RetriedFile } from './test-retry.ts'
 
 export const ADMISSION_EVIDENCE_USAGE = [
   '  admission-evidence --for <F> [--record <记录路径>]',
@@ -61,6 +62,8 @@ export interface Rejection {
 export interface RecordFinding {
   readonly record: string
   readonly reasons: readonly Rejection[]
+  /** 记录里 test 步定向重跑过的文件（写得合法时）；确认者要看得到哪些用例是重跑才过的。 */
+  readonly retried?: readonly RetriedFile[]
 }
 
 export interface CommitTree {
@@ -77,6 +80,8 @@ export type AdmissionEvidence =
       readonly caches: Caches
       /** 记录是接续了 H1 全量准入的组成证据时，H1 的头；一次整次全量没有。 */
       readonly resumedFrom?: string
+      /** test 步定向重跑过的文件。 */
+      readonly retried?: readonly RetriedFile[]
     }
   | {
       readonly kind: 'rejected'
@@ -128,6 +133,7 @@ type Inspected =
       readonly caches: Caches
       /** 接续记录写的 H1 的头；不是接续或写得不对时没有（写得不对已进 `problems`）。 */
       readonly resumedFrom: string | undefined
+      readonly retried: readonly RetriedFile[] | undefined
       readonly problems: readonly Rejection[]
     }
 
@@ -267,6 +273,7 @@ function inspect(path: string): Inspected {
     finishedAt: typeof finishedAt === 'string' ? finishedAt : '',
     caches,
     resumedFrom,
+    retried: parsed['retried'] === undefined ? undefined : parseRetriedFiles(parsed['retried']),
     problems: problemsOf(parsed),
   }
 }
@@ -323,7 +330,11 @@ function judge(root: string, path: string, target: CommitTree): Judged {
           resumedFrom: read.resumedFrom,
         }
       : undefined
-  return { finding: { record, reasons }, tree, accepted }
+  return {
+    finding: { record, reasons, ...(read.retried === undefined ? {} : { retried: read.retried }) },
+    tree,
+    accepted,
+  }
 }
 
 /** 记录路径给人看：在 `root` 里写相对路径（`/` 分隔），在外面写绝对路径。 */
@@ -353,7 +364,20 @@ function accept(target: CommitTree, judged: Judged): AdmissionEvidence | undefin
     record: judged.finding.record,
     caches,
     ...(resumedFrom === undefined ? {} : { resumedFrom }),
+    ...(judged.finding.retried === undefined ? {} : { retried: judged.finding.retried }),
   }
+}
+
+/** 定向重跑过的文件，给人看：没有或为空时没有这几行。 */
+function retriedLines(retried: readonly RetriedFile[] | undefined, indent: string): string[] {
+  if (retried === undefined || retried.length === 0) return []
+  return [
+    `${indent}test 步定向重跑 ${retried.length} 个测试文件（重跑才过的也在内）：`,
+    ...retried.map(
+      entry =>
+        `${indent}  ${entry.file}（${entry.tier}，${entry.kind}：${entry.firstError}）→ ${entry.retryResult}`,
+    ),
+  ]
 }
 
 /** 按 F 的树在本树 `tmp/admission/*.json` 里找；同树且可采用的取最晚结束的那份。 */
@@ -425,6 +449,7 @@ export function formatEvidence(evidence: AdmissionEvidence): string[] {
     return [
       `F ${target.commit} 采用 C ${source.commit} 的全量准入${composed}，树 ${target.tree} 相同；记录 ${record}；` +
         `缓存 test=${caches.test}, depGraph=${caches.depGraph}, mutation=${caches.mutation}`,
+      ...retriedLines(evidence.retried, ''),
     ]
   }
   const { forRef, target, reasons, records } = evidence
@@ -435,6 +460,7 @@ export function formatEvidence(evidence: AdmissionEvidence): string[] {
     ...records.flatMap(finding => [
       `  记录 ${finding.record}：`,
       ...finding.reasons.map(reason => `    - ${reason.message}`),
+      ...retriedLines(finding.retried, '    '),
     ]),
   ]
 }
