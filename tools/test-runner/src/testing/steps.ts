@@ -617,7 +617,8 @@ export async function testStep(
   ).filter(member => selected.has(member.path))
   if (targets.length !== selected.size)
     throw new Error('计划里的测试成员与现在的成员清单对不上：重新算计划')
-  if (targets.length === 0) {
+  const resumed = file.plan.testResume
+  if (targets.length === 0 && resumed === undefined) {
     console.log(
       `成员测试：没有要跑的成员（${file.plan.reason}）——这一步什么都没跑，不是「跑过了、全绿」`,
     )
@@ -634,24 +635,53 @@ export async function testStep(
     plan: planSummary(file.plan),
     ...(builtFrom === undefined ? {} : { builtFrom }),
   } as const
-  console.log(
-    `成员测试：${file.plan.mode === 'full' ? '全部' : '按影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
-  )
   const report = { failures: [] as FailedFile[], retried: [] as RetriedFile[] }
-  const code = await fastThenSlow(async tier => {
-    const outcome = await tierWithRetry(
-      tier,
-      async () =>
-        recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
-      failed => rerunFailedFile(root, failed),
-      console.log,
+  let code = 0
+  if (targets.length > 0) {
+    console.log(
+      `成员测试：${file.plan.mode === 'full' ? '全部' : resumed === undefined ? '按影响面' : '按 H1..HEAD 影响面'} ${targets.length} 个成员的快层，快层通过再跑慢层`,
     )
-    report.failures = [...outcome.failures]
-    report.retried = [...report.retried, ...outcome.retried]
-    return outcome.exitCode
-  }, console.log)
+    code = await fastThenSlow(async tier => {
+      const outcome = await tierWithRetry(
+        tier,
+        async () =>
+          recordedRun(root, { ...common, tier, cache, budget: await budgetFor(config.parallel) }),
+        failed => rerunFailedFile(root, failed),
+        console.log,
+      )
+      report.failures = [...outcome.failures]
+      report.retried = [...report.retried, ...outcome.retried]
+      return outcome.exitCode
+    }, console.log)
+  }
+  // 接续只跑必要的：H1 上失败的文件（都在慢层）各单独跑一次；所在成员这次已整个跑过的不重复。
+  if (code === 0 && resumed !== undefined) {
+    const covered = new Set(targets.map(member => member.path))
+    const alone = resumeFilesToRun(resumed.files, covered)
+    console.log(
+      `成员测试（接续）：H1 上失败的 ${resumed.files.length} 个文件里 ${alone.length} 个单独各跑一次（其余所在成员已整个跑过），成员串行、每成员 1 个工作进程`,
+    )
+    for (const failed of alone) {
+      const outcome = await rerunFailedFile(root, failed)
+      console.log(`  ${failed.file}（${failed.tier}）→ ${outcome}`)
+      if (outcome !== 'passed') {
+        code = 1
+        report.failures.push(failed)
+      }
+    }
+    if (alone.length > 0)
+      console.log(code === 0 ? '接续的失败文件全部通过' : '接续的失败文件仍有没过的：这一步失败')
+  }
   if (reportPath !== undefined) writeTestStepReport(reportPath, { head: file.head, ...report })
   return code
+}
+
+/** 接续时要单独跑的失败文件：所在成员这次已整个跑过的不算（它的文件在成员运行里已经跑了）。 */
+export function resumeFilesToRun(
+  files: readonly FailedFile[],
+  coveredMembers: ReadonlySet<string>,
+): FailedFile[] {
+  return files.filter(file => !coveredMembers.has(file.member))
 }
 
 /** 定向重跑一个失败的测试文件：经成员那一层的脚本（`test:fast`／`test:slow`）起 vitest，一个工作进程；日志落账本目录下的 retry/。 */

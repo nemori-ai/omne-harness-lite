@@ -63,7 +63,7 @@ const plan = existsSync(planPath) ? JSON.parse(readFileSync(planPath, 'utf8')).p
 const lists = plan === undefined ? {} : {
   build: plan.build.map(entry => entry.path),
   typecheck: plan.typecheck,
-  test: plan.test,
+  test: plan.testResume === undefined ? plan.test : [...plan.test, ...plan.testResume.files.map(entry => 'file:' + entry.file)],
   acceptance: plan.acceptance,
   python: [String(plan.python.run)],
 }
@@ -103,6 +103,12 @@ if (at !== -1 && bad(flags[at + 1])) {
     const missing = [step !== undefined && !started() ? 'trace 里的 ' + step : undefined, ...waitDone.filter(other => !existsSync(doneFile(other))).map(other => other + ' 跑完')].filter(Boolean)
     process.stderr.write(name + ' 在等 ' + missing.join('、') + '，30 秒内没出现\\n')
     process.exit(3)
+  }
+  // 环境变量 FAKE_TEST_FAILURE 给了文件名时，失败的假 test 步像真的那样在计划旁写报告：那个文件在慢层失败、没能重跑过。
+  if (name === 'test' && process.env.FAKE_TEST_FAILURE && plan !== undefined) {
+    const file = process.env.FAKE_TEST_FAILURE
+    const failed = { member: file.split('/').slice(0, 2).join('/'), file, tier: 'slow', kind: 'timeout', firstError: 'Error: Test timed out in 5000ms.' }
+    writeFileSync('tmp/check-plan/test-step.json', JSON.stringify({ head: JSON.parse(readFileSync(planPath, 'utf8')).head, failures: [failed], retried: [] }))
   }
   process.exit(1)
 }
@@ -699,5 +705,70 @@ describe('H1 之后这棵树上跑过中间运行', { timeout: 240_000 }, () => 
     expect(text).toContain(`中间运行 1 次（头 ${short(h2)}）`)
     expect(text).toContain('members/a/src.ts')
     expect(runRecord(fb.root, h3)).toMatchObject({ mode: 'resume', failedStep: null })
+  })
+})
+
+describe('H1 失败于 test 的接续只跑必要的', { timeout: 240_000 }, () => {
+  // H1（FULL=1）的 test 步在慢层失败于 members/c 的一个文件（假步骤按 members/c/README.md 里的 bad 失败并写报告）；
+  // H2 只改了那份 README：接续时 test 步只跑 H1..HEAD 影响到的成员加那个文件，不是全部成员；没开始的验收整次、构建因它整次。
+  let fc: Fixture
+  let on: Fixture
+  let h1 = ''
+  const gate = join('members', 'c', 'README.md')
+  const file = 'members/c/tests/x.spec.ts'
+
+  beforeAll(() => {
+    fc = fixture()
+    const table = fc.steps()
+    on = {
+      ...fc,
+      steps: () =>
+        table.map(step =>
+          step.name === 'test'
+            ? {
+                ...step,
+                // 去掉 --hold-if-bad，换成按 README 失败：[node, fake-step.mjs, 'test', ...]。
+                command: [
+                  step.command[0],
+                  ...step.command.slice(1, 3),
+                  '--fail-if-bad',
+                  gate,
+                ] satisfies Command,
+              }
+            : step,
+        ),
+    }
+  })
+
+  afterAll(() => {
+    rmSync(fc.root, { recursive: true, force: true })
+  })
+
+  it('H1：test 步失败，记录写下失败的文件', async () => {
+    writeFileSync(join(fc.root, gate), 'bad\n')
+    h1 = fc.commit('card: break a slow test')
+    process.env['FULL'] = '1'
+    process.env['FAKE_TEST_FAILURE'] = file
+    try {
+      expect((await check({}, on)).code).toBe(1)
+    } finally {
+      delete process.env['FULL']
+      delete process.env['FAKE_TEST_FAILURE']
+    }
+    const record = runRecord(fc.root, h1)
+    expect(record.failedStep).toBe('test')
+    expect(record.testFailures).toMatchObject([{ member: 'members/c', file, tier: 'slow' }])
+  })
+
+  it('H2 只改了失败成员里的文件：接续时 test 步只跑影响到的成员加失败的文件，证据写明', async () => {
+    writeFileSync(join(fc.root, gate), 'good\n')
+    const h2 = fc.commit('card: fix the slow test')
+    const resumed = await check({ resumeFrom: h1 }, on)
+    expect(resumed.code).toBe(0)
+    // 夹具里成员根目录的 README 算成员改动：H1..HEAD 影响面是 c；test 步只跑 c 加失败的文件，不是全部四个成员。
+    expect(members(resumed.trace.get('test'))).toEqual(new Set(['members/c', `file:${file}`]))
+    expect(members(resumed.trace.get('acceptance'))).toEqual(new Set(ACCEPTING))
+    expect(resumed.output.join('\n')).toMatch(/^ {2}只跑失败用例文件：test（/mu)
+    expect(runRecord(fc.root, h2)).toMatchObject({ mode: 'resume', failedStep: null })
   })
 })
