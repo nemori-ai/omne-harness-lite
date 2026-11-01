@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Draft runtime-context package; complete the accepted public contract before delivery",
+  "description": "Runtime context mechanism: one factory over the contract operations, independent of Cordis",
   "engines": {
     "node": ">=24"
   },
@@ -24,7 +24,11 @@
     "test:fast": "vitest run --mode fast",
     "test:slow": "vitest run --mode slow --typecheck.enabled=false"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@standard-schema/spec": "catalog:",
+    "@omne-harness/legal-identity": "workspace:*",
+    "@omne-harness/runtime-context-contract": "workspace:*"
+  },
   "devDependencies": {
     "@types/node": "catalog:",
     "typescript": "catalog:",

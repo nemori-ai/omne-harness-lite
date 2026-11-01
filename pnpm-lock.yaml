@@ -814,6 +814,16 @@ importers:
         version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@24.13.6)(@vitest/coverage-v8@4.1.11)(vite@8.3.0(@types/node@24.13.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/context/runtime-context:
+    dependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-contract
+      '@standard-schema/spec':
+        specifier: 'catalog:'
+        version: 1.1.0
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -852,10 +862,19 @@ importers:
       '@deepseek-ai/cordis':
         specifier: 'catalog:'
         version: 4.0.4
+      '@omne-harness/runtime-context':
+        specifier: workspace:*
+        version: link:../runtime-context
+      '@omne-harness/runtime-context-contract':
+        specifier: workspace:*
+        version: link:../runtime-context-contract
       '@omne-harness/runtime-context-cordis-contract':
         specifier: workspace:*
         version: link:../runtime-context-cordis-contract
     devDependencies:
+      '@omne-harness/legal-identity':
+        specifier: workspace:*
+        version: link:../../common/legal-identity
       '@types/node':
         specifier: 'catalog:'
         version: 24.13.6
