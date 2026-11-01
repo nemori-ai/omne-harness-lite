@@ -275,13 +275,20 @@ async function loadError(fiber: PromiseLike<unknown>): Promise<unknown> {
 it('publishes modelInstanceHost only after the bind has returned: a consumer that loads with it can schedule', async () => {
   const f = fixture()
   const answers: unknown[] = []
-  await f.load()
-  await f.ctx.plugin({
+  await f.ctx.plugin(f.Authority)
+  await f.ctx.plugin(f.Clock)
+  await f.ctx.plugin(f.Commands)
+  // Both fibers are started before either settles, the way a plugin tree loads its rows. That the
+  // consumer still sees the host can then only come from the bind having returned before the
+  // contribution was created: a contribution made earlier is published to both at once.
+  const host = f.ctx.plugin(f.Plugin, { ...SETTINGS })
+  const consumer = f.ctx.plugin({
     inject: [modelInstanceHostKey],
     apply: async inner => {
       answers.push(await inner.modelInstanceHost.schedule(wake('first')))
     },
   })
+  await Promise.all([host, consumer])
   expect(answers).toEqual([{ ok: { queued: true } }])
   await until(() => f.driven.length === 1, 'the first drive')
   f.gateOf(callOf('first')).open()
