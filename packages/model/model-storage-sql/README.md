@@ -2,62 +2,76 @@
 
 [中文](README_ZH.md)
 
-The SQL storage member of Model. It implements `ModelCommandStorage`, the storage port of the shared commands core. It keeps the durable facts of one Model call as one call document and writes the document with a version check (CAS). It uses SQL only through the public shapes of `@omne-harness/sql-contract`.
+The SQL storage member of Model. It implements `ModelCommandStorage`, the storage port of the shared commands core, and it assembles the durable `ModelCommands` from the core and this storage. It keeps the durable facts of one Model call as one call document and writes the document with a version check (CAS). It uses SQL only through the public shapes of `@omne-harness/sql-contract`.
 
 ## Responsibility and status
 
-This package owns four things: the four tables `md_call`, `md_dispatch`, `md_part`, and `md_operation` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; and the participant `model` with the two read handlers `model.call` and `model.pending`.
+This package owns five things: the four tables `md_call`, `md_dispatch`, `md_part`, and `md_operation` with their migration; the parse from rows to the call document; the SQL `ModelCommandStorage`, whose runs read, run the core's work, and commit with CAS; the participant `model` with the two read handlers `model.call` and `model.pending`; and `createSqlModelCommands`, which puts the shared core on this storage.
 
-The package does not own the reduction rules of the Model commands. The shared core of `@omne-harness/model` owns them. It does not own the commit protocol, the receipts, or the tenant domain directory. The storage contract and the application own them.
+The package does not own the rules of the Model commands. The shared core of `@omne-harness/model` owns them. It does not own the commit protocol, the receipts, or the tenant domain directory. The storage contract and the application own them.
 
-Status: `draft`, slice S1 (storage skeleton). The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
+Status: `draft`. The [implementation status](SPEC.md#实现现状) of the SPEC gives the coverage.
 
-- Implemented: `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, and the construction checks.
-- Not implemented: the assembly of `ModelCommands` over this storage, the send coordinator, and `modelStorageMaterials()`.
-- The port types in `src/documents.ts` mirror the shared core. They become imports when `@omne-harness/model/commands` exists.
+- Implemented: `createSqlModelCommands`, `createSqlModelStorage`, the tables and the migration, the row parse, the participant, the two handler modules, and the construction checks.
+- Not implemented: the send coordinator and `modelStorageMaterials()`.
+- Known difference: `query` answers `not-committed` for a committed operation, because the read scope of the core does not name the operation. The [known differences](SPEC.md#已知差异) of the SPEC give all differences from the memory commands.
 - No `./cordis` subpath exists. The application plugin `modelCommands` belongs to the application.
 
 ## Usage
 
-The root entry is the only entry. Create the storage and give it to the shared commands core:
+The root entry is the only entry. Create the durable commands:
 
 ```ts
-import { createSqlModelStorage } from '@omne-harness/model-storage-sql'
+import { createSqlModelCommands } from '@omne-harness/model-storage-sql'
 
-const storage = createSqlModelStorage({ storage, domains, combination, limits, isPending })
+const { commands } = createSqlModelCommands({
+  owners,
+  authority,
+  evidence,
+  clock,
+  limits,
+  storage,
+  domains,
+  combination,
+  maxCallBytes,
+  maxCommandBytes,
+})
 ```
 
-The core calls `run(work, scope)` with the tenant, call, and operation of one command. In `work` it reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. The work can run more than one time: after a CAS conflict, the run reads again and runs the work again. The work must be synchronous.
+`commands` has the 22 methods of `ModelCommands`. The shared core runs each method with `run(work, scope)` of the storage. The scope gives the tenant, the call, and, for a write, the operation. In `work` the core reads with `documents` and `reserved`, and it writes one time with `commit` or `publish`. After a CAS conflict, the run reads again and runs the work again. `scanPending` uses the `pending` port of the storage and does not run an attempt.
 
 ## Contracts
 
-The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N1, N2, N3, N5, N6, and N7.
+The public types and the runtime checks are in [src/](src/index.md). The behavior is in the [SPEC](SPEC.md). The SPEC also records how this package meets the storage port of the shared core, and the invariants N1, N2, N3, N5, N6, and N7. The types of the storage port belong to `@omne-harness/model/commands`. The root entry exports them again without change.
 
 ## Design
 
-The main thread computes. The participant checks the version and writes. One commit holds one fact command for the participant `model`. The participant does not run reduction rules or callbacks. A stale read can only cause a CAS conflict. The loop then reads again in the next attempt generation. The [SPEC](SPEC.md#一次-run) gives the steps.
+The main thread computes. The participant checks the version and writes. One commit holds one fact command for the participant `model`. The participant does not run the rules of the commands or callbacks. A stale read can only cause a CAS conflict. The loop then reads again in the next attempt generation. The [SPEC](SPEC.md#一次-run) gives the steps.
 
 Each column is declared one time, in `TABLES` of `src/schema.ts`. The migration, the parse, and the participant use that declaration.
 
 ## Configuration and operation
 
-| Option                   | Meaning                                                                     |
-| ------------------------ | --------------------------------------------------------------------------- |
-| `storage`                | The `SqlStorage` of the application                                         |
-| `domains`                | The `TenantDomainLookup` of the application                                 |
-| `combination`            | The combination version and manifest digest that the application registered |
-| `limits.tenantCapacity`  | The share of one tenant                                                     |
-| `limits.maxCallBytes`    | The largest call material                                                   |
-| `limits.maxCommandBytes` | The `maxCommandBytes` of the provider                                       |
-| `isPending`              | The rule of the shared core that marks a call with recovery work            |
-| `attemptLimit`           | Attempt generations of one operation, default 8                             |
-| `unresolvedLimit`        | Operations with an unknown outcome that the process keeps, default 1024     |
+| Option            | Meaning                                                                                |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `owners`          | The consumer owner declarations of the shared core                                     |
+| `authority`       | The qualification port of the shared core                                              |
+| `evidence`        | The evidence adapters of the shared core                                               |
+| `clock`           | The clock of the shared core                                                           |
+| `limits`          | The limits of the shared core. `limits.capacity` is the share of one tenant            |
+| `storage`         | The `SqlStorage` of the application                                                    |
+| `domains`         | The `TenantDomainLookup` of the application                                            |
+| `combination`     | The combination version and manifest digest that the application registered            |
+| `maxCallBytes`    | The largest call material                                                              |
+| `maxCommandBytes` | The `maxCommandBytes` of the provider                                                  |
+| `attemptLimit`    | Attempt generations of one operation, default 8                                        |
+| `unresolvedLimit` | Operations with an unknown outcome that the process keeps for one tenant, default 1024 |
 
-Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more than `maxCommandBytes` (N1).
+Construction fails when `maxCallBytes` plus the 64 KiB command reserve is more than `maxCommandBytes` (N1), and when `limits.scanPageCalls` is more than 1000. A call whose `capacity.bytes` is more than `maxCallBytes` is refused when it is admitted.
 
 ## Verification
 
-The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. They do not cover the Worker, durability, queues, or close of the real provider.
+The tests in [tests/](tests/index.md) run the real participant, migration, and read handlers on `node:sqlite` in-memory databases. Most of them run the 22 methods through the shared core. They compare the accounts suite on the memory and the SQL commands. They do not cover the Worker, durability, queues, or close of the real provider.
 
 ## Maintenance
 
