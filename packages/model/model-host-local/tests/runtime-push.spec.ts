@@ -165,7 +165,7 @@ function scriptedReceiver() {
   const saved = new Map<string, { delivery: ModelDelivery; receipt: ModelSavedReceipt }>()
   const state = {
     missing: null as Conjunct | null,
-    next: [] as ('unknown' | 'foreign-key' | 'foreign-owner')[],
+    next: [] as ('unknown' | 'unavailable' | 'backpressured' | 'foreign-key' | 'foreign-owner')[],
     refuseAccounts: false,
   }
   const evidenceOf = (delivery: ModelDelivery): DurableEvidence => ({
@@ -179,6 +179,10 @@ function scriptedReceiver() {
       pushes.push(delivery)
       const scripted = state.next.shift()
       if (scripted === 'unknown') return { failure: { kind: 'outcome-unknown' } }
+      if (scripted === 'unavailable')
+        return { failure: { kind: 'unavailable', dependency: 'responsibility' } }
+      if (scripted === 'backpressured')
+        return { failure: { kind: 'backpressured', resource: 'in-flight' } }
       const key = JSON.stringify(delivery.key)
       const known = saved.get(key)
       if (known !== undefined)
@@ -223,6 +227,8 @@ type Hooks = {
   /** `lost`: this ACK takes effect and its answer is lost; the storage knows it committed. */
   handoff?(): 'lost' | 'pass'
   advanceCleanup?(): 'fail' | 'pass'
+  /** Runs before each `dispatches` of the plugin's commands; the read waits for what it returns. */
+  dispatches?(): Promise<void> | void
 }
 
 /**
@@ -327,6 +333,10 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
       hooks.advanceCleanup?.() === 'fail'
         ? { failure: { kind: 'unavailable', dependency: 'cleanup', diagnostic: 'synthetic' } }
         : raw.advanceCleanup(step),
+    dispatches: async input => {
+      await hooks.dispatches?.()
+      return raw.dispatches(input)
+    },
   }
   const resources: SendResources<unknown> = {
     async acquire(demand) {
@@ -439,6 +449,7 @@ function world(input: Readonly<{ limits?: ResultPushLimits; ledger?: ResultPushL
     handoffs,
     messages,
     raw,
+    controls: memory.controls,
     Plugin,
     provided,
     async services() {
@@ -601,6 +612,27 @@ it('redelivers the same key and frozen payload after an unknown outcome and ackn
   for (const delivery of again) expect(delivery).toEqual(first)
   expect(w.handoffs).toHaveLength(1)
 })
+
+it.each(['unavailable', 'backpressured'] as const)(
+  'keeps a delivery unknown when the redelivery after an unknown outcome is refused with %s',
+  async refusal => {
+    const w = world()
+    await w.services()
+    await w.load()
+    const scripted = scriptedReceiver()
+    scripted.state.next = ['unknown', refusal]
+    await w.register(scripted.receiver)
+    await w.admit('one')
+
+    await until(() => w.record('one')?.result?.standing.status !== 'pending', 'the answers')
+    await quiet()
+    expect(scripted.pushes).toHaveLength(2)
+    // A refusal cannot show that the receiver never saved the first push.
+    expect(w.record('one')?.result?.standing).toEqual({ status: 'unknown' })
+    expect(w.handoffs).toEqual([])
+    expect(await w.custody('one')).toEqual({ kind: 'producer' })
+  },
+)
 
 it('recognises an unknown ACK through the original operation and input', async () => {
   const w = world()
@@ -768,6 +800,35 @@ it('refuses a late account beyond the bound, says so, and accepts it from its so
   await until(() => w.record('one')?.accounts[1]?.standing.status === 'saved', 'the second account')
 })
 
+it('keeps the place of a late account whose acceptance is unknown, and its resubmission takes no second place', async () => {
+  const w = world({ limits: { ...LIMITS, maxPendingAccountsPerTenant: 1 } })
+  await w.services()
+  await w.load()
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the released body')
+
+  const unknown = { tenant: TENANT, call: callOf('one'), operation: op('late-one-2') }
+  w.controls.commands.injectUnknown({ ...unknown, method: 'recordLateFact', effect: 'applied' })
+  expect(await w.late('one', '2')).toMatchObject({ failure: { kind: 'commit-unknown' } })
+  // The account may have been accepted, so its place stays taken: the tenant has no room left.
+  expect(await w.late('one', '3')).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-result-push',
+      diagnostic: 'late-account-capacity',
+    },
+  })
+
+  w.controls.commands.reveal({ ...unknown, result: 'committed' })
+  // The same operation again uses the place it holds and is not refused for capacity.
+  const again = await w.late('one', '2')
+  expect('ok' in again).toBe(true)
+  await until(() => w.record('one')?.accounts[0]?.standing.status === 'saved', 'the account')
+  expect(scripted.pushes.filter(delivery => delivery.kind === 'account')).toHaveLength(1)
+})
+
 it('fails a second live plugin that registers the same consumer owner and keeps the first', async () => {
   const w = world()
   await w.services()
@@ -845,4 +906,60 @@ it('hands an unfinished push to a successor on unload, with the original key and
   await until(() => w.record('one')?.acknowledgement === 'acknowledged', 'the ACK of the successor')
   expect(scripted.pushes.at(-1)).toEqual(before)
   expect(w.handoffs).toHaveLength(1)
+})
+
+it('waits on unload for a late account that is being accepted and hands it to the successor', async () => {
+  const w = world()
+  await w.services()
+  const first = w.load()
+  await first
+  const scripted = scriptedReceiver()
+  await w.register(scripted.receiver)
+  await w.admit('one')
+  await until(() => w.record('one')?.cleanup === 'released', 'the released body')
+
+  // The acceptance commits the account, then stops while it reads the revision back.
+  let reached = false
+  let resume = () => {}
+  const gate = new Promise<void>(resolve => {
+    resume = resolve
+  })
+  w.hooks.dispatches = () => {
+    delete w.hooks.dispatches
+    reached = true
+    return gate
+  }
+  const late = w.late('one', '2')
+  await until(() => reached, 'the read-back of the accepted revision')
+  expect((await w.dispatches('one'))[0]?.account?.revision).toBe('2')
+
+  let unloaded = false
+  const unloading = first.dispose().then(() => {
+    unloaded = true
+  })
+  await quiet()
+  expect(unloaded).toBe(false)
+  resume()
+  await unloading
+  expect(await late).toMatchObject({ ok: { recovered: false } })
+  // The account is owed in the ledger, not lost with the stopped stage.
+  expect(w.record('one')?.accounts.map(held => held.delivery.key)).toMatchObject([
+    { kind: 'account', revision: '2' },
+  ])
+  // The stopped stage accepts no more accounts: the source keeps them for the successor.
+  expect(await w.late('one', '3')).toEqual({
+    failure: {
+      kind: 'unavailable',
+      dependency: 'model-result-push',
+      diagnostic: 'result-push-stopped',
+    },
+  })
+  expect((await w.dispatches('one'))[0]?.account?.revision).toBe('2')
+
+  await w.load()
+  await until(
+    () => w.record('one')?.accounts[0]?.standing.status === 'saved',
+    'the account pushed by the successor',
+  )
+  expect(scripted.pushes.map(delivery => delivery.kind)).toEqual(['result', 'account'])
 })

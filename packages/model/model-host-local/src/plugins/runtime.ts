@@ -34,7 +34,11 @@ import {
   type ModelSavedReceipt,
   type ResultPart,
 } from '@omne-harness/model-contract'
-import type { ModelCommands, ModelHostAuthority } from '@omne-harness/model-contract/provider'
+import type {
+  ExecutionRef,
+  ModelCommands,
+  ModelHostAuthority,
+} from '@omne-harness/model-contract/provider'
 import {
   ModelRuntimeService,
   createModelResultReceiverTable,
@@ -278,7 +282,10 @@ export type RuntimeStage = Readonly<{
    * inside the plugin of the contribution. Without push options it publishes nothing.
    */
   contribute(child: Context, runtime: ModelRuntime<unknown> | undefined): void
-  /** Stops the push: aborts the pushes in flight, waits for them, and releases the ledger. */
+  /**
+   * Stops the push: refuses new late accounts, aborts the pushes in flight, waits for them and for
+   * the late accounts being accepted, writes what arrived into the ledger, and releases the ledger.
+   */
   stop(): Promise<void>
 }>
 
@@ -654,37 +661,53 @@ function createResultPush(
   /** Moves the cleanup of an acknowledged call on. A failure keeps the ACK and tries again later. */
   async function clean(record: ResultPushRecord, access: Access): Promise<ResultPushRecord> {
     if (record.acknowledgement !== 'acknowledged' || record.cleanup === 'released') return record
+    const execution = await cleanupExecution(record, access)
+    if (execution === null) return record
+    if (execution === 'released' || (await advanceCleanup(execution)))
+      return save(dropBody({ ...record, cleanup: 'released' }))
+    return record
+  }
+
+  /**
+   * The execution whose cleanup is still to do, `released` when it is done, or null when the
+   * cleanup cannot go on now (reported).
+   */
+  async function cleanupExecution(
+    record: ResultPushRecord,
+    access: Access,
+  ): Promise<ExecutionRef | 'released' | null> {
     const recovery = await commands.loadRecovery({ ...access, call: record.call })
     if ('failure' in recovery) {
-      const released =
-        recovery.failure.kind === 'invalid' &&
-        recovery.failure.reason === 'recovery-material-released'
-      if (released) return save(dropBody({ ...record, cleanup: 'released' }))
-      report({ kind: 'cleanup-pending', reason: recovery.failure.kind })
-      return record
+      const { failure } = recovery
+      if (failure.kind === 'invalid' && failure.reason === 'recovery-material-released')
+        return 'released'
+      report({ kind: 'cleanup-pending', reason: failure.kind })
+      return null
     }
     const { execution, state } = recovery.ok
     if (state.custody.kind === 'acknowledged' && state.custody.cleanup === 'released')
-      return save(dropBody({ ...record, cleanup: 'released' }))
-    if (execution === null) {
-      report({ kind: 'cleanup-pending', reason: 'no-execution' })
-      return record
-    }
+      return 'released'
+    if (execution === null) report({ kind: 'cleanup-pending', reason: 'no-execution' })
+    return execution
+  }
+
+  /** At most `maxCleanupSteps` cleanup steps; true once the cleanup is released. */
+  async function advanceCleanup(execution: ExecutionRef): Promise<boolean> {
     for (let step = 0; step < limits.maxCleanupSteps; step += 1) {
       const advanced = await commands.advanceCleanup({ ...execution, operation: newOperation() })
       if ('failure' in advanced) {
         report({ kind: 'cleanup-pending', reason: advanced.failure.kind })
-        return record
+        return false
       }
-      if (advanced.ok.kind === 'acknowledged' && advanced.ok.cleanup === 'released')
-        return save(dropBody({ ...record, cleanup: 'released' }))
-      if (advanced.ok.kind === 'acknowledged' && advanced.ok.cleanup === 'blocked') {
+      if (advanced.ok.kind !== 'acknowledged') continue
+      if (advanced.ok.cleanup === 'released') return true
+      if (advanced.ok.cleanup === 'blocked') {
         report({ kind: 'cleanup-pending', reason: 'blocked' })
-        return record
+        return false
       }
     }
     report({ kind: 'cleanup-pending', reason: 'steps' })
-    return record
+    return false
   }
 
   /** After the ACK the receiver holds the result: the producer keeps its key and standing only. */
@@ -721,14 +744,23 @@ function createResultPush(
     return count
   }
 
+  /** Refuses a late account before the commands see it; the source keeps its report. */
+  function refuse(
+    diagnostic: string,
+  ): Awaited<ReturnType<ModelCommands<unknown>['recordLateFact']>> {
+    return { failure: { kind: 'unavailable', dependency: DEPENDENCY, diagnostic } }
+  }
+
   /**
    * Reserves a place for a late account before the commands accept it, and freezes its delivery
-   * right after. A full bound refuses the account; the source keeps its report.
+   * right after. A full bound refuses the account; the source keeps its report. A stopped stage
+   * refuses every account: nothing would hold it after the ledger is released.
    */
   async function recordLateFact(
     late: Parameters<ModelCommands<unknown>['recordLateFact']>[0],
   ): ReturnType<ModelCommands<unknown>['recordLateFact']> {
     if (late.fact.kind !== 'account') return commands.recordLateFact(late)
+    if (phase === 'stopped') return refuse('result-push-stopped')
     const target = { tenant: late.tenant, call: late.call }
     const callKey = keyOf(target)
     const tenantText = tenantCodec.encode(late.tenant)
@@ -741,13 +773,7 @@ function createResultPush(
         reservations.size >= limits.maxPendingAccounts
       ) {
         report({ kind: 'late-account-refused', pending })
-        return {
-          failure: {
-            kind: 'unavailable',
-            dependency: DEPENDENCY,
-            diagnostic: 'late-account-capacity',
-          },
-        }
+        return refuse('late-account-capacity')
       }
       reservations.set(reservation, tenantText.value)
     }
@@ -898,6 +924,9 @@ function createResultPush(
       stopping.abort()
       dirty.clear()
       await Promise.allSettled(running.values())
+      // An account that was accepted before the stop is frozen into the inbox by its intake. No
+      // intake starts after the stop, so these are the last ones.
+      await Promise.allSettled(intake.values())
       // What arrived and was not yet taken in stays owed: the successor finds it in the ledger.
       // Deleting the entry in hand while a Map is iterated is safe.
       for (const [first] of inbox.values())
