@@ -163,7 +163,13 @@ Project 读取只查询配置 Project 的字段、目标 Issue 的 memberships �
 - 契约核对：`touchedContracts(files, members)` 取改动文件中有 `<成员>/api/` 下文件的契约成员。成员取 `taskBase` 线归属表（或 `--lines`）与工作树线归属表的 `contracts` 的并集，因为本卡可以新增成员。没有这样的成员时 `contract.kind` 为 `not-needed`，不运行 `omne-contract-api`。版本1的 binding 没有契约变更字段，`contract.kind` 为 `skipped` 并列出成员。其余情况运行 `diffContracts(taskBase)`，缺省为 dev-flow 依赖解析出的 `omne-contract-api --diff <taskBase> --json --root <检出根>`，经 `contract-diff.ts` 的 `runDiff` 与 `parseDiffRun`，超时 `CONTRACT_DIFF_TIMEOUT_MS`（120 秒）。它比较 `taskBase` 上的快照与工作树的快照，所以未提交的快照改动也计入。运行失败、输出不合格或输出的 `commit` 不是 `taskBase` 时抛出。`contract.kind` 为 `checked`，逐成员列出 `path` 与 `change`。
 - `contractFindings(touched, run, declared)` 只看本卡改到的成员。差异为 additive 而申报 `none`，或差异为 review 而申报不是 `breaking`，为 `contract-exceeds-declared`。申报高于差异不报。成员在差异里为 `invalid` 或不在差异里时为 `contract-change-unknown`，`change` 为 null。每项有 `member`、`change`、`declared`、`message` 与 `remedy`。契约发现排在文件发现之后。
 
-CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件或成员>: <说明> 改法：<改法>`。退出码：没有发现或未绑定为0，有发现为1，参数、context、Git、线归属表读取错误或 `omne-contract-api` 运行失败为2，错误以一行 JSON `{code, message}` 写到标准错误。
+- 语义复核通路：`changeScope` 的 `review` 钩子只在版本2的 binding、本卡改到的成员中有差异为 review 的成员，且钩子返回结果时运行。CLI 接上的钩子读卡 Issue 的评论一次：没有复核记录时返回 `undefined`，保守规则不变。有记录时走严格通路，判断每一条记录。通路运行时报告多一个 `semantic`，形状是 `CardSemantic`：`exit`、`rawExitCode`、`findings`（`code`、`member`、`detail`）、`members` 与 `levels`。`levels` 只列有有效结论的 review 成员，值为 `additive` 或 `breaking`。结论为 `additive` 的成员在契约核对里按 additive 重新计算，其余成员不变。
+- 每项语义发现列入 `findings`，形状是 `SemanticFinding`：`code`、`member`、`detail`、`message` 与 `remedy`。`message` 是失败码加成员路径，`remedy` 是固定的一句处置说明，指向[交付协议](../../../../docs/engineering/delivery.md#契约变更的语义复核)。失败码与退出码的对照归[集成工具](../integration/SPEC.md#api-语义复核)。
+- 常驻检查：`scripts/check.sh` 调用本命令。卡有 review 成员时，命令读 GitHub 评论。离线或没有令牌时读取失败，命令退出2。这是拒绝方向的结果，不是通过。
+- `--lines` 与语义复核通路不能同时使用。指定 `--lines` 且卡有 review 成员时，命令拒绝这种组合并退出2。
+- binding 的契约变更为 `breaking` 的卡仍按原有规则判定。有效的 `breaking` 结论不使这张卡失败。
+
+CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `change-scope: <代码> <文件或成员>: <说明> 改法：<改法>`。退出码：`report.semantic?.exit` 为2时为2，不论其他发现；没有发现或未绑定为0，有发现为1，参数、context、Git、线归属表读取错误或 `omne-contract-api` 运行失败为2，错误以一行 JSON `{code, message}` 写到标准错误。
 
 `tests/delivery-change-scope.spec.ts` 在临时真实 Git 仓库与手写 context 上覆盖：范围内放行；本卡提交越界；改名与删除（含未提交的 `git mv`）；从远端同步合并带来的文件不计入；从远端合并同批次别的卡的提交不计入；冲突解决越界；本卡本地侧分支作第二父时计入；目标作第一父、卡分支移到合并时本卡提交计入；契约差异的基线不是 taskBase 时失败；`targetBase` 早于 `taskBase` 且其间有别的卡的提交时不计入；未提交与未跟踪的越界改动；`tmp` 与 `shared` 不计入；别的线与联调轨道的路径即使在写范围内也拒绝；`integration` 卡不做线归属；线归属表取 `taskBase` 的版本；CLI 的未绑定、无发现、有发现与两种退出2。契约核对用注入的差异覆盖三种申报对三种差异、只比较改到的成员、`invalid` 与缺失的成员、版本1跳过，以及没有改 `api` 目录时不运行差异（合并别的卡带进来的快照变化）。用安装的 `omne-contract-api` 在临时检出覆盖：差异为 none 时放行，additive 申报 `none` 时拒绝、申报 `additive` 时放行，合并别的卡对另一成员的 review 不计入，差异运行失败时退出2。
 
@@ -180,6 +186,25 @@ CLI 的标准输出是报告 JSON。每项发现另向标准错误写一行 `cha
 [baseline-cli.ts](baseline-cli.ts) 的 `read <卡号> --out <文件> [--config <文件>]` 从交付配置取仓库，读这张卡并合并。每条 `ignored` 向标准错误写一行 `baseline: ignored <评论>: <原因>`。结果为 `merged` 时把区块写到 `--out`，标准输出为 JSON（`issue`、`out`、`kind`、`baseline`、`registrations`、`ignored`），退出0。结果为 `refused` 时不写文件，标准输出为 JSON（`issue`、`kind`、`problems`、`ignored`），每个问题向标准错误写一行 `baseline: <代码> [<评论>]: <说明>`，退出1。参数、交付配置与 GitHub 读取错误（含环境读不到）退出2，标准输出为空，错误以一行 JSON `{kind: "baseline-error", message}` 写到标准错误，不转述 API 输出。云端会话的代理不放行环境读取，所以有区块时命令在云端会话退出2。
 
 `tests/delivery-baseline.spec.ts` 用记录调用的 GitHub 替身覆盖：分页完整且只有固定 argv 的 GET；同一成员取最晚的区块，先比时间、同一时间再比 `id`，与响应顺序无关；较晚的区块加入新成员；`breakingCards` 合并；缺区块、一条评论两个区块、各种不合格的区块（含短一位的哈希与缺 `milestone` 键）与 milestone 不同各拒绝；非登记者较晚的区块不改基线、不加 `breakingCards` 并列在 `ignored`；团队成员授予、login 相同而 node ID 不同不授予；编辑过的评论标 `edited`；环境读不到时失败；写出的区块读回等于合并结果；`parseBaselineText` 的纯 JSON、单区块与两个区块。CLI 用例经 PATH 上的 `gh` 替身覆盖写出文件退出0、拒绝时退出1且不写文件、读取失败与参数错误退出2。与 `--baseline` 的组合不在本成员的测试中：dev-flow 依赖的版本没有 `--baseline`。
+
+## API 语义复核记录
+
+`api-semantic-review.ts` 拥有记录边界：严格解析、权威远端读取、owner 与委派、撤销和冲突判断。三个入口（卡级、提升级、里程碑累计）使用同一个读取器，不各自再定义权限和失效语义。比较描述由[集成工具](../integration/SPEC.md#api-语义复核)生成，本模块不生成它，也不发网络请求以外的写入。精确记录类型与失败码见该模块的导出类型，下面只写承诺。
+
+- 记录是载体评论中恰好一个 `json omne-api-semantic-review:v1` 围栏。原始 JSON 不允许重复键、未知键、非有限数字或不安全整数。路径必须是仓库相对 POSIX 路径。提交、tree 和 blob 为 40 位小写十六进制，摘要为 64 位小写十六进制。有权作者的标记评论不能严格解析时，结果为 `api-review-invalid`，不猜测范围后跳过。
+- 载体评论完整分页读取，按创建时间再按评论 ID 折叠。达到 20 页上限即未知，不当作读完。记录评论必须未被编辑，即 `created_at` 等于 `updated_at`。编辑过的记录无效，更正通过新评论完成。
+- owner 取目标提交 `delivery-lines.json` 中 `contracts` 精确包含成员的唯一一条线的 `owner`。零条或多条为 `api-review-owner-unresolved`，不从路径归属、轨道 owner 或其他线推导。稳定身份取同一提交的 `docs/engineering/api-review-owners.json`。没有条目为 `api-review-owner-identity-missing`。login 与 node ID 逐字符比较，区分大小写，只差大小写时带 `loginCaseOnly` 提示。
+- 每次运行核对四个互不替代的事实：目标提交中的稳定身份、`GET users/<login>` 的当前读回、评论作者、当前 `publish` environment 的 reviewer。读回只做一致性检查，绝不补齐或改写锚点。返回结果前重读关键平台事实，变化为 `api-review-source-changed`。
+- 委派只允许一次、精确内容，不可再委派。委派的成员与 owner 身份必须等于被委派比较描述的对应字段，被委派者以 node ID 固定。
+- `attest` 的 `replaces` 必须精确列出同一复核键此前全部仍有效的 `attest`。缺一条、多一条、跨键或引用已撤销的记录都拒绝。`revoke` 由当前 owner 发出，或由有有效委派的原作者撤销自己的 `attest`，重复撤销幂等。重复的 `operationId` 为 `api-review-conflict`。
+- 证据评论须在同仓库，其 URL、正文摘要与更新时间逐项匹配。机器只核来源与精确内容，语义是否充分由签发者负责。
+- owner 身份的采用评论只做一致性诊断，输出 `consistent`、`drifted` 或 `unreadable`，不改变结论与退出码。撤销只有治理一条路径。
+- 每个失败码只对应一个退出码。有任一退出 2 的发现时整体为 2，否则有发现时为 1，否则为 0。全部发现都写入报告，一个成员的通过不掩盖另一成员的未知。
+- `lines-cli.ts` 在身份文件存在时增加一致性检查：身份文件的每个 `lineId` 必须在同树 `delivery-lines.json` 中存在，owner login 必须逐字相等，否则发现 `owner-identity-drift`，退出 1。身份文件缺失时不检查，漏登记的线不是漂移。身份文件存在却不能解析时，`parseOwnerIdentityManifest` 抛出输入错误，命令退出2。`parseDeliveryLines` 与 `DeliveryLine` 的形状不变。
+- 提升级入口的 `--review-issue`、里程碑累计入口的 `--semantic-review` 与 `verify-owner-adoption` 都复用本模块的身份文件严格解析和评论读取，不另写一套。
+- 已知限制：机器只证明平台账号，不证明账号背后是人还是代笔会话。三项 fail-open 残余（node ID 复用、编辑后更新时间不变、同账号代笔）仍然存在，机器不消除它们。残余是否被采用，按[交付协议的接受规则](../../../../docs/engineering/delivery.md#4-接受取消与重开)决定，本模块不记录接受状态。不承诺跨进程原子快照、评论不可篡改或外部结果可回滚。
+
+测试使用真实临时 Git 与替身网络，不写真实 GitHub。拒绝路径逐个单独覆盖：错误的仓库、node ID、作者、reviewer 与 owner，未知与重复键，编辑、撤销、重复 `operationId`、替代缺项与前向引用、委派越权，分页不全、403 与读取之间的变化。
 
 ## 里程碑命令
 

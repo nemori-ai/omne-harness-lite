@@ -16,6 +16,8 @@ export class GhReadError extends Error {
     this.body = body
   }
 }
+/** The time limit of one platform read, in milliseconds. */
+export const GH_READ_TIMEOUT_MS = 15_000
 /** The request headers of a REST call: the JSON media type and the adopted API version. */
 export const REST_HEADERS = [
   '-H',
@@ -62,7 +64,7 @@ export function fetchIssueCard(
   const card = readIssueCard(
     call(
       ['api', '--method', 'GET', ...REST_HEADERS, `repos/${repository}/issues/${number}`],
-      15_000,
+      GH_READ_TIMEOUT_MS,
     ),
     repository,
     number,
@@ -152,7 +154,7 @@ export function collectDelivery(config: DeliveryConfig, read: GhRead = runGhRead
     if (requests >= 200 || Date.now() >= deadline)
       throw new InputError('collection request or time limit reached')
     requests += 1
-    return read(argv, Math.min(15_000, Math.max(1, deadline - Date.now())))
+    return read(argv, Math.min(GH_READ_TIMEOUT_MS, Math.max(1, deadline - Date.now())))
   }
   function rest(path: string): unknown {
     return request([
