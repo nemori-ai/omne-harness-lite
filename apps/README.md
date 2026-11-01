@@ -1,6 +1,6 @@
 # 产品应用与装配入口
 
-本树是产品应用的维护入口。现有一个可启动成员：最小 CLI [`apps/cli`](cli/README.md)，包名 `@omne-harness/cli`，二进制名 `omne`。它只提供 `--help` 和 `--version`。装配角色由[部署与运行拓扑](../docs/architecture/deployment/README.md)决定；其余应用成员名、规格与提供包尚未建立。旧应用名称不作为新成员的命名依据。
+本树是产品应用的维护入口。可启动成员有：最小 CLI [`apps/cli`](cli/README.md)（包名 `@omne-harness/cli`，二进制名 `omne`，只提供 `--help` 和 `--version`）；私有服务端应用 [`apps/harness-server`](harness-server/README.md)（S0 插件树骨架与有序关闭）。装配角色由[部署与运行拓扑](../docs/architecture/deployment/README.md)决定；其余应用成员名、规格与提供包尚未建立。旧应用名称不作为新成员的命名依据。
 
 ## 目标责任
 
