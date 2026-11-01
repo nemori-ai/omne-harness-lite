@@ -121,6 +121,7 @@ it('reply admissions page the actual original decisions and output acknowledgeme
       await s.view.journal.readReplyAdmissions({
         ...s.access,
         execution: s.execution,
+        from: { kind: 'origin' },
         through: snapshot.replyAdmissions.through,
         after: null,
         limit: 2,
@@ -136,12 +137,13 @@ it('reply admissions page the actual original decisions and output acknowledgeme
       await s.view.journal.readReplyAdmissions({
         ...s.access,
         execution: s.execution,
+        from: { kind: 'origin' },
         through: first.through,
-        after: first.next,
+        after: first.tail.kind === 'more' ? first.tail.next : null,
         limit: 2,
       }),
     ),
-  ).toMatchObject({ kind: 'page', complete: true, items: [{ sequence: '3' }] })
+  ).toMatchObject({ kind: 'page', tail: { kind: 'complete' }, items: [{ sequence: '3' }] })
   ok(
     await s.view.journal.acknowledge({
       ...s.access,

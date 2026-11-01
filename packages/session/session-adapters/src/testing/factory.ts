@@ -1068,6 +1068,7 @@ export function createMemorySessionJournal<P>(options: MemorySessionJournalOptio
         failNext: view.failNext,
         settle: view.settle,
         seedLegacyCandidate: view.seedLegacyCandidate,
+        replyAdmissions: view.replyAdmissions,
         respond: view.respond,
         planEvidence: cell.planEvidence,
         pauseWrite: cell.pause,

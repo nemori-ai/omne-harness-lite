@@ -292,7 +292,8 @@ describe('E1 and E2 read-only recognition', () => {
       ...d,
       journal: {
         ...d.journal,
-        readReplyAdmissions: async () => succeed({ kind: 'gap', recovery: evidence('gap') }),
+        readReplyAdmissions: async () =>
+          succeed({ kind: 'gap', reason: 'missing-fact', recovery: evidence('gap') }),
       },
     }))
     const c = coordinator(assembly)
@@ -607,6 +608,7 @@ describe('R0 and W0 coordination', () => {
         await assembly.dependencies.journal.readReplyAdmissions({
           ...alice,
           execution: execution(),
+          from: { kind: 'origin' },
           through: saved.replyAdmissions.through,
           after: null,
           limit: 100,
