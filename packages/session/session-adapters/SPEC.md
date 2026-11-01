@@ -57,7 +57,7 @@
 | [AD-10](#ad-10) | 证据桥 | 构造依赖 | `sessionEvidence` | 不调用 | `sessionAdoptionSource`、`sessionProductionSource`、`sessionCustodySource` 三个窄来源端口 | 常驻工具部分待 [P-8](../session-contract/SPEC.md#具名前提与明确缺项) |
 | [AD-11](#ad-11) | 空闲输入 | 构造依赖 | `sessionIdleInput` | `maintainer` | 子会话读取；`calls.inspect`、`queries.lookup` | 可登记 |
 | [AD-12](#ad-12) | Context 输入 | 构造依赖 | `sessionContextInput` | 不调用 | `prepareRegistration`、`NeedBinding` | 可登记 |
-| [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读输入为 `coordinator` | `invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach`、`reconcile` | `recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
+| [AD-14](#ad-14) | `AgentDrivePort` | 出站 | `sessionAgentDrive` | 不调用；读运行与输入为 `coordinator` | `agentInstanceProvision.acquire`、`agentInstances.resolve`、`invoke`、`resume`、`input.submit`、`agentExecutionControl.control`、`agentExecutionRecovery.query`、`load`、`detach` | 生产插件 `createSessionAgentDrivePlugin` 已实现（`src/cordis/agent-drive.ts`），对 Agent 替身在真实 Cordis 上装载与停止已验证，未对 Agent 宿主真件运行；`./cordis` 与根入口的导出由集成方合入。`recordResult` 待 [NP-04](#np-04)；`prewarm` 不调用 |
 | [AD-15](#ad-15) | `ScopeReleasePort` | 出站 | `sessionScopeRelease` | 端口实现不调用；重新释放子插件为 `maintainer` | `executionEnvironment.releaseScope`；`releasedScopes` | 可登记 |
 | [J06 提供者](#j06-会话路径的两个-agent-提供者) | 消息准入与当前条件 | 入站 | `agentMessageHandoff`、`agentConditions`，各一个插件 | `coordinator`；访问检查见 J06 | MessageHandoff.prepare、lookup、exclude；CurrentConditions.read | 生产插件未交付 |
 | [显示适配](#实时显示适配) | 实时流显示 | 观察 | 无 | 读取关联时为 `reader` | 公共 StreamObserver.observe 与 StreamFrame | 只规定消费行为；生产插件未交付 |
@@ -468,19 +468,19 @@ AD-09 至 AD-12 生成的 `GuardCommand` 中，`participant` 标识材料的拥�
 #### AD-14 `AgentDrivePort`
 
 - 提供：`sessionAgentDrive`。插件 `extends` 对应的端口抽象类。
-- 注入：`agentInstances`、`agentExecutionRecovery`、`agentExecutionControl`；`session` 调用方类 `coordinator`，只用于 `readInput`。
-- 主体：出站调用的主体是应用装配为会话协调者签发的主体。Agent 在实际执行处以 `AgentAccessCheck` 核验它。
+- 注入：`agentInstances`、`agentInstanceProvision`、`agentExecutionRecovery`、`agentExecutionControl`；`session` 调用方类 `coordinator`，只用于 `readWork` 与 `readInput`。五项都是必需依赖。任一项缺席时插件停在 `PENDING`，`sessionAgentDrive` 缺席，Session 保留任务并重放。
+- 主体：出站调用的主体是应用装配为会话协调者签发的主体，即该会话 `coordinator` 的会话工作主体。装配入口经插件工厂 `createSessionAgentDrivePlugin({ coordinator })` 直接交入取得它的函数，装配入口以 `forSession({ actor: 'coordinator', tenant, session })` 实现这个函数。它不进配置，也不是插件树上的键。每次端口调用按目标的租户与会话取一次主体。取主体答 `denied` 时端口答 `denied`，答 `unavailable` 或 `quarantined` 时端口答 `unavailable`，都不调用 Agent。同一次端口调用里，`readWork`、`readInput`、`acquire`、`resolve` 与 Agent 操作都用这个主体。Agent 在实际执行处以 `AgentAccessCheck` 核验它。
 
 | 端口操作 | Agent 操作 | 翻译 |
 | --- | --- | --- |
-| `invoke` | `agentInstances.resolve` 取 `AgentRuntime`，再 `invoke` | 首条输入经 `readInput` 取内容，组成 `AcceptedInput`；来源依据为 SE13 回执；`grant` 为本 attempt 的 SE15 证据；执行身份为 SE13 所记。本插件保留返回的执行句柄 |
+| `invoke` | 按[会话槽](#会话槽引用)取实例：`agentInstanceProvision.acquire`，再 `agentInstances.resolve` 取 `AgentRuntime`，再 `invoke` | 首条输入经 `readInput` 取内容，组成 `AcceptedInput`；来源依据为 SE13 回执；`grant` 为本 attempt 的 SE15 证据；执行身份为 SE13 所记。本插件保留返回的执行句柄。成功的回执见[回执的读回](#回执的读回) |
 | `submit` | 执行句柄的 `input.submit` | 输入经 `readInput` 取内容；来源依据为该输入的 SE11 回执 |
-| `resume` | `AgentRuntime.resume` | `recovery` 为恢复依据或交接证明；`grant` 为新 attempt 的 SE15 证据。接管资格由 Agent 按主体核验，本插件不判断 |
-| `control` | `agentExecutionControl.control` | 按下表翻译原控制意图，保留原 operation 与原因依据；不要求句柄或挂接 |
-| `detach` | `agentExecutionRecovery.detach` | 本插件先以 `load` 取目标挂接的 `Authority`，再带原因依据交还 |
+| `resume` | 按[会话槽](#会话槽引用)取实例，同 `invoke`，再 `AgentRuntime.resume` | `recovery` 为恢复依据或交接证明；`grant` 为新 attempt 的 SE15 证据。接管资格由 Agent 按主体核验，本插件不判断。本插件保留返回的执行句柄 |
+| `control` | `agentExecutionControl.control` | 按下表翻译原控制意图，保留原 operation 与原因依据；不要求句柄或挂接。原因依据指向 Session 的原控制操作，见[原因依据](#原因依据) |
+| `detach` | `agentExecutionRecovery.detach` | 本插件先以 `load` 取目标挂接的 `Authority`，再带原因依据交还。快照没有挂接时答 `unavailable`，不调用 `detach` |
 | `recordResult` | 合格保管方经 `reconcile` 内的 `recordResult` | 见 [NP-04](#np-04) |
 | `query` | `agentExecutionRecovery.query` | `committed`、`excluded`、`unknown` 原样交回，`excluded` 等于 Session 的 `not-committed`。`rejected` 按下表「`query` 的 `rejected`」一行处置 |
-| `inspect` | `agentExecutionRecovery.load` | 快照映射为 `ExecutionStatus`：执行状态、挂接状态、修订、结束结论与依据 |
+| `inspect` | `agentExecutionRecovery.load` | 快照映射为 `ExecutionStatus`：执行状态、挂接状态、修订、结束结论与依据。映射见[inspect 的映射](#inspect-的映射) |
 | `prewarm` | 无 | 不调用 Agent，返回 `unsupported`（[P-7](../session-contract/SPEC.md#具名前提与明确缺项)） |
 
 控制映射以 Agent J07 为准。左列是 Session 契约的 `ControlIntent`（[values.ts](../session-contract/src/values.ts)）：
@@ -514,6 +514,56 @@ Session 没有 suspend 意图，本插件不发 control(suspend)（#730 不被�
 - `submit` 仍需要执行句柄；缺席时保留原任务并返回 unavailable（NP-03）。`control` 使用公开长期入口，不因无句柄拒绝。无活体执行的后续收束仍按 Agent 自己的 resume/取消授权规则，不能把控制受理写成已经收场。
 - `inspect` 不能区分「记录不存在」与其他读取失败：`load` 只有 `denied` 与 `unavailable`（[NP-05](#np-05)）。本插件不产生 `missing`。PM-14 的「尚未受理」以 `query` 的 `excluded` 判断。
 - 本插件不调用 `prewarm` 对应的任何 Agent 入口。
+- Agent 的 `not-ready` 不在上表。本插件把它答为 `unavailable`，Session 保留任务。
+- 端口的 `submit` 不带优先级，本插件一律以 `ordinary` 提交。上面控制映射里 `interrupt` 的 urgent 插队在本插件尚未实现，等端口能区分插队输入时补上。
+- `invalid` 拒收的拒收证据由本插件按规则生成，因为 Agent 的 `invalid` 只带字段与原因：`{ owner: 'session-adapters', record: <Agent 操作身份>, revision: '1', digest: <JSON 数组 [Agent 操作身份, 字段, 原因] 的 sha256 十六进制> }`。它只指明这次拒收，不是 Agent 的耐久记录。
+- 翻译缺陷的答复是 `unavailable`，诊断以 `translation defect` 开头，插件同时以 error 级写入日志。
+
+##### 会话槽引用
+
+`AdvanceRef.instance` 不记活体实例身份，记会话槽引用。格式归本插件，是一条纯规则，由 `src/slot-ref.ts` 的 `encodeSessionSlotRef` 与 `decodeSessionSlotRef` 实现：
+
+```text
+AgentInstanceRef = { owner: 'agent', id: JSON.stringify(["slot1", <SessionId 文本>, adoption.owner, adoption.name, adoption.revision, adoption.digest]) }
+```
+
+- `adoption` 是这次 `startRun`、`claim` 或 `reload` 所属 Run 的采用：`startRun` 与 `reload` 取输入的 `candidate`，`claim` 取 `RunState.active.adoption`。
+- 租户不进文本。会话日志属于租户自己，本插件解析时从 `DriveTarget.tenant` 取租户。
+- 解析要求：`owner` 是 `agent`；`id` 是 JSON 数组，恰好 6 项，每项是字符串；第 1 项是 `"slot1"`；数组重新 `JSON.stringify` 后与 `id` 全等。不满足任一项时解析失败。
+- 会话协调器 C2 在 session 包里按同一规则计算，不导入本成员。两边的测试断言同一组样例。
+
+| 样例 | 会话 | 采用（owner、name、revision、digest） | `id` 文本 |
+| --- | --- | --- | --- |
+| 普通文本 | `session-1` | `conformance`、`assistant@1`、`1`、`sha256:assistant@1` | `["slot1","session-1","conformance","assistant@1","1","sha256:assistant@1"]` |
+| 需转义的文本与非 ASCII 文本 | `sess-"引号"\终` | `assets/agents`、`定义 A`、`42`、`sha256:00ff` | `["slot1","sess-\"引号\"\\终","assets/agents","定义 A","42","sha256:00ff"]` |
+
+`invoke` 与 `resume` 取实例的步骤：
+
+1. 以 `coordinator` 调用方类 `readWork`，取 `run`。`run` 不是 `active` 时答 `unavailable`。
+2. `run.advance` 为空，或 `advance.instance` 解析失败，或解析出的会话不等于 `DriveTarget.session`，或解析出的采用不等于 `run.adoption` 的四项：答 `unavailable`，作为翻译缺陷报告，不取实例。
+3. 组成实例槽：租户为 `DriveTarget.tenant`；安全作用域为会话作用域证据 `{ owner: 'session', record: <SessionId 文本>, revision: '1', digest: <JSON 数组 [租户文本, SessionId 文本] 的 sha256 十六进制> }`；定义采用为解析出的采用。同一会话在重启前后得到同一值。宿主只按全等比较，不解析。
+4. `agentInstanceProvision.acquire`，再 `agentInstances.resolve`。`acquire` 与 `resolve` 的失败按上面的结果表对应：`invalid` 答 `unavailable` 并报告翻译缺陷。
+5. 在取得的 runtime 上 `invoke` 或 `resume`。答 `unavailable` 时，本插件再 `acquire` 一次。得到的实例与上次不同时，表示旧实例已被宿主回收，本插件在新实例上重试一次，交回这一次的结果。实例相同时交回原来的 `unavailable`。本插件不因其他失败重试。
+
+执行句柄按租户、会话与 execution 保留。本插件监听 `agent-cordis-contract/instance-retired`，按租户与实例丢弃对应的句柄。插件重跑或卸载时丢弃全部句柄。之后的 `submit` 在句柄重建前答 `unavailable`（NP-03）。`control` 不用句柄，不受影响。
+
+##### 回执的读回
+
+`AgentRuntime.invoke` 与 `resume` 只交回执行句柄，不交回执。本插件随后以原操作身份调用 `agentExecutionRecovery.query`：`committed` 时交回该回执的修订与证据；`unknown` 时答 `commit-unknown`，带原操作身份；`excluded` 或 `rejected` 与已受理矛盾，答 `unavailable` 并报告翻译缺陷。查询失败按结果表对应。句柄在读回前已保留。
+
+##### 原因依据
+
+`control` 与 `detach` 的原因依据由本插件按规则生成，指向 Session 的原操作：`{ owner: 'session', record: <Session 操作身份>, revision: '1', digest: <JSON 数组 [租户文本, SessionId 文本, Session 操作身份] 的 sha256 十六进制> }`。`control` 取端口输入的 `control`，`detach` 取 `DriveTarget.operation`。`control(unarchive)` 不调用 Agent，端口答 `unsupported`。
+
+##### inspect 的映射
+
+| 快照 | `state` | `attachment` | `conclusion` |
+| --- | --- | --- | --- |
+| `ended` | `ended` | `null` | 结论种类、`fail` 与 `cancelled` 的原因、处置依据 |
+| `suspended` | `suspended` | 有挂接为 `detached`，否则 `null` | `null` |
+| 其他 | `open` | 有挂接为 `active`，否则 `null` | `null` |
+
+`revision` 取快照修订，`evidence` 取快照的 `history`。快照不带挂接状态，所以本插件不产生 `superseded`。
 
 <a id="ad-15"></a>
 
