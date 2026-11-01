@@ -20,6 +20,14 @@ export type WorkerEnv = Readonly<{
   maxResponseBytes: number
   maxOperationResponseBytes: number
   maxDiagnosticBytes: number
+  /** Group commit limits (SPEC 7.3). */
+  groupMaxOperations: number
+  groupCollectMs: number
+  groupMaxInputBytes: number
+  groupMaxResponseReservationBytes: number
+  groupMaxExecutionSliceMs: number
+  /** The Worker generation of this start. Every reply carries it (SPEC 7.7.2). */
+  generation: number
 }>
 
 export type RegistrationSpec = Readonly<{
@@ -62,8 +70,7 @@ export type CommitReply =
   | Readonly<{ kind: 'receipt'; receipt: ReceiptV2 }>
   | Readonly<{ kind: 'conflict'; existing: ReceiptV2 }>
   | Readonly<{ kind: 'rejected'; reason: CommitWorkerRejection }>
-  /** fatal: the connection state is unclear, so the Worker exits after this reply. */
-  | Readonly<{ kind: 'unknown'; diagnostic: string; fatal?: boolean }>
+  | Readonly<{ kind: 'unknown'; diagnostic: string }>
   | Readonly<{ kind: 'quarantine'; diagnostic: string }>
 
 export type QueryReply =
@@ -72,4 +79,4 @@ export type QueryReply =
 
 export type InternalErrorReply = Readonly<{ kind: 'internal_error'; diagnostic: string }>
 
-export type WorkerEnvelope = Readonly<{ id: number; reply: unknown }>
+export type WorkerEnvelope = Readonly<{ id: number; generation: number; reply: unknown }>

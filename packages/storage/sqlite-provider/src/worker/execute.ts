@@ -1,7 +1,6 @@
-// One commit inside the write Worker (SPEC 7.2 steps 11 to 15, 7.4 to 7.6, 8). The Worker runs
-// the participants of one operation in one savepoint of one BEGIN IMMEDIATE transaction. A
-// stopped operation is rolled back and its rollback receipt goes into a second short
-// transaction (SPEC 7.7.5, prefix 0). The group scheduler of G2-P wraps this unit later.
+// The units of one commit inside the write Worker (SPEC 7.2 steps 11 to 15, 7.4 to 7.6, 8):
+// receipts, the registration and dependency checks, and the run of the participants of one
+// operation. The group scheduler (group.ts) puts operations into savepoints and transactions.
 import type { DatabaseSync } from 'node:sqlite'
 import {
   combinationManifest,
@@ -20,11 +19,9 @@ import {
 import type { ParticipantModule, ParticipantPort } from '@omne-harness/sql-contract/worker'
 import { clipDiagnostic } from '../fields.ts'
 import { canonicalJson, isStrictJson, utf8Length } from '../json.ts'
-import { describeError } from './errors.ts'
-import { rollbackQuietly, transact, type WorkerState } from './domain.ts'
-import { MaterialMismatch } from './modules.ts'
+import type { WorkerState } from './domain.ts'
 import { SqlGateway, participantDecision } from './ports.ts'
-import type { CommitReply, CommitWorkerRejection, QueryReply, WorkerEnv } from './protocol.ts'
+import type { CommitWorkerRejection, QueryReply, WorkerEnv } from './protocol.ts'
 
 type FactKey = Readonly<{ key: string; protocol: string }>
 const factId = (fact: FactKey): string => JSON.stringify([fact.key, fact.protocol])
@@ -39,7 +36,7 @@ export function readReceipt(db: DatabaseSync, identity: SqlIdentity): ReceiptV2 
   return row === undefined ? null : (JSON.parse(row.receipt) as ReceiptV2)
 }
 
-function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
+export function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
   db.prepare(
     'insert into _sql_receipt(operation, operation_key, kind, input_digest, receipt) values (?, ?, ?, ?, ?)',
   ).run(
@@ -51,7 +48,7 @@ function insertReceipt(db: DatabaseSync, receipt: ReceiptV2): void {
   )
 }
 
-function receiptOf(
+export function receiptOf(
   kind: 'committed' | 'rolled_back',
   request: CommitRequestV2,
   inputDigest: string,
@@ -92,7 +89,7 @@ function dependencyMissing(
 }
 
 /** Topological order over the facts, ties broken by name in UTF-16 code units (SPEC 7.5). */
-function executionOrder(
+export function executionOrder(
   named: readonly string[],
   descriptors: ReadonlyMap<string, ParticipantDescriptor>,
 ): string[] {
@@ -115,7 +112,7 @@ function executionOrder(
   return order
 }
 
-function checkRegistration(
+export function checkRegistration(
   db: DatabaseSync,
   env: WorkerEnv,
   request: CommitRequestV2,
@@ -260,11 +257,12 @@ function runOne(
   return { kind: 'stopped', reply: judged.reply }
 }
 
-type Outcome =
-  | Readonly<{ kind: 'participated' | 'stopped'; entries: (ParticipatedEntry | StoppingEntry)[] }>
+export type Outcome =
+  | Readonly<{ kind: 'participated'; entries: (ParticipatedEntry | StoppingEntry)[] }>
+  | Readonly<{ kind: 'stopped'; entries: (ParticipatedEntry | StoppingEntry)[] }>
   | Readonly<{ kind: 'environment'; error: unknown }>
 
-function runParticipants(
+export function runParticipants(
   db: DatabaseSync,
   env: WorkerEnv,
   order: readonly string[],
@@ -307,97 +305,4 @@ function runParticipants(
     return { kind: 'stopped', entries }
   }
   return { kind: 'participated', entries }
-}
-
-// --- The operation ------------------------------------------------------------------------------
-
-/** ROLLBACK TO and RELEASE of the savepoint, then the end of the empty outer transaction. */
-function abandon(db: DatabaseSync): void {
-  try {
-    db.exec('ROLLBACK TO op_1')
-    db.exec('RELEASE op_1')
-    db.exec('ROLLBACK')
-  } catch {
-    // A statement may have ended the whole outer transaction (OR ROLLBACK). Then there is nothing
-    // left to undo. If a transaction is still open, the caller sees it in isTransaction.
-    rollbackQuietly(db)
-  }
-}
-
-export async function runCommit(
-  env: WorkerEnv,
-  state: WorkerState,
-  request: CommitRequestV2,
-  inputDigest: string,
-): Promise<CommitReply> {
-  const db = state.db as DatabaseSync
-  const descriptors = new Map(env.catalog.participants.map(item => [item.participant, item]))
-  const rejected = checkRegistration(db, env, request, descriptors)
-  if (rejected !== null) return { kind: 'rejected', reason: rejected }
-
-  const existing = readReceipt(db, request.identity)
-  if (existing !== null)
-    return existing.inputDigest === inputDigest
-      ? { kind: 'receipt', receipt: existing }
-      : { kind: 'conflict', existing }
-
-  const order = executionOrder(
-    request.commands.map(command => command.participant),
-    descriptors,
-  )
-  const modules = new Map<string, ParticipantModule>()
-  try {
-    for (const name of order) {
-      const descriptor = descriptors.get(name) as ParticipantDescriptor
-      modules.set(
-        name,
-        await state.modules.load<ParticipantModule>(descriptor.moduleUrl, descriptor.codeDigest),
-      )
-    }
-  } catch (error) {
-    return {
-      kind: 'quarantine',
-      diagnostic: error instanceof MaterialMismatch ? 'material_digest_mismatch' : 'module_load_failed',
-    }
-  }
-
-  try {
-    db.exec('BEGIN IMMEDIATE')
-  } catch (error) {
-    return { kind: 'unknown', diagnostic: describeError('begin', error) }
-  }
-  let outcome: Outcome
-  try {
-    db.exec('SAVEPOINT op_1')
-    outcome = runParticipants(db, env, order, descriptors, modules, request)
-  } catch (error) {
-    rollbackQuietly(db)
-    return { kind: 'unknown', diagnostic: describeError('execute', error), fatal: db.isTransaction }
-  }
-
-  if (outcome.kind === 'participated') {
-    const receipt = receiptOf('committed', request, inputDigest, outcome.entries)
-    try {
-      insertReceipt(db, receipt)
-      db.exec('RELEASE op_1')
-      db.exec('COMMIT')
-    } catch (error) {
-      rollbackQuietly(db)
-      return { kind: 'unknown', diagnostic: describeError('commit', error), fatal: db.isTransaction }
-    }
-    return { kind: 'receipt', receipt }
-  }
-
-  abandon(db)
-  if (db.isTransaction)
-    return { kind: 'unknown', diagnostic: 'rollback_state_unclear', fatal: true }
-  if (outcome.kind === 'environment')
-    return { kind: 'unknown', diagnostic: describeError('environment', outcome.error) }
-  const receipt = receiptOf('rolled_back', request, inputDigest, outcome.entries)
-  try {
-    transact(db, () => insertReceipt(db, receipt))
-  } catch (error) {
-    return { kind: 'unknown', diagnostic: describeError('rollback_receipt', error) }
-  }
-  return { kind: 'receipt', receipt }
 }

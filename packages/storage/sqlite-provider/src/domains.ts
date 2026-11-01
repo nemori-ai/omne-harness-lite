@@ -156,6 +156,12 @@ export class Domains {
           maxResponseBytes: this.config.maxResponseBytes,
           maxOperationResponseBytes: this.config.maxOperationResponseBytes,
           maxDiagnosticBytes: this.config.maxDiagnosticBytes,
+          groupMaxOperations: this.config.groupMaxOperations,
+          groupCollectMs: this.config.groupCollectMs,
+          groupMaxInputBytes: this.config.groupMaxInputBytes,
+          groupMaxResponseReservationBytes: this.config.groupMaxResponseReservationBytes,
+          groupMaxExecutionSliceMs: this.config.groupMaxExecutionSliceMs,
+          generation: this.workerGeneration,
         },
         () => {
           // Unexpected exit: the next touch opens the domain again (SPEC 5.2, recovering).

@@ -15,14 +15,18 @@ export class WriterClient {
   /** Settles when the Worker has ended. */
   readonly exited: Promise<void>
   private readonly worker: Worker
+  private readonly generation: number
   private readonly waiting = new Map<number, Waiter>()
   private nextId = 1
   private ended = false
   private closeRequested = false
 
   constructor(env: WorkerEnv, onUnexpectedExit: () => void) {
+    this.generation = env.generation
     this.worker = new Worker(WRITER_URL, { workerData: env })
     this.worker.on('message', (envelope: WorkerEnvelope) => {
+      // A reply of another Worker generation answers nothing that this client sent (SPEC 7.7.2).
+      if (envelope.generation !== this.generation) return
       const waiter = this.waiting.get(envelope.id)
       this.waiting.delete(envelope.id)
       waiter?.resolve(envelope.reply)
