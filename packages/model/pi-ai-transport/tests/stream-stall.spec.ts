@@ -161,6 +161,13 @@ async function withScene(
 /** A handler that sends nothing at all and never ends the exchange. */
 const SILENT: RequestHandler = () => new Promise<void>(() => {})
 
+/** Answers 500 with half an error body and never ends it. */
+const HALF_ERROR_BODY: RequestHandler = res => {
+  res.writeHead(500)
+  res.write('partial')
+  return new Promise<void>(() => {})
+}
+
 /** Answers 200 with the given first chunk, keeps the response open, and hands it to the test. */
 function opening(first: string): { handler: RequestHandler; response: () => ServerResponse } {
   let current: ServerResponse | undefined
@@ -205,6 +212,20 @@ async function untilResponse(minimumBuffered = 0): Promise<void> {
     await new Promise<void>(resolve => realSetTimeout(resolve, 5))
   }
   throw new Error('the response did not arrive')
+}
+
+/**
+ * Waits, in real time, until Node holds the head of the latest response and its reader has taken
+ * every byte that arrived: the next expiry of the stall timer is a stall, not a slow reader.
+ */
+async function untilErrorBodyRead(): Promise<void> {
+  await untilResponse()
+  for (let turns = 0; turns < 2_000; turns += 1) {
+    const response = built.responses.at(-1)
+    if (response !== undefined && response.readableLength === 0) return
+    await new Promise<void>(resolve => realSetTimeout(resolve, 5))
+  }
+  throw new Error('the error body was not read')
 }
 
 describe('a stalled exchange', () => {
@@ -339,6 +360,28 @@ describe('a stalled exchange', () => {
     },
   )
 
+  it(
+    'keeps the status of a non-2xx response when a stop follows an expiry in its error body',
+    { tags: ['slow'] },
+    async () => {
+      await withScene(HALF_ERROR_BODY, async scene => {
+        const reservation = await held(scene.resources)
+        const exchange = start(scene, reservation)
+        await untilErrorBodyRead()
+        vi.advanceTimersByTime(STALL)
+        exchange.stop() // The physical stop has not completed: the stop comes second.
+        expect(await exchange.result).toMatchObject({
+          kind: 'http-error',
+          status: 500,
+          errorBody: { kind: 'read-failed' },
+        })
+        await exchange.stopped
+        expect(reservation.state).toBe('released')
+        expect(vi.getTimerCount()).toBe(0)
+      })
+    },
+  )
+
   it('arms no timer when the limit is absent', { tags: ['slow'] }, async () => {
     const { handler, response } = opening('data: first\n\n')
     await withScene(handler, async scene => {
@@ -452,7 +495,18 @@ describe('the timer of a stall limit is cleared when the exchange ends', () => {
   })
 })
 
-type Stage = 'before the response' | 'after the response began'
+type Stage = 'before the response' | 'after the response began' | 'in the error body'
+
+function handlerOf(stage: Stage, opened: RequestHandler): RequestHandler {
+  switch (stage) {
+    case 'before the response':
+      return SILENT
+    case 'after the response began':
+      return opened
+    case 'in the error body':
+      return HALF_ERROR_BODY
+  }
+}
 
 /** A transport over a server that answers by `stage`, with the stall limit on. */
 async function withStalledTransport(
@@ -466,10 +520,7 @@ async function withStalledTransport(
 ): Promise<void> {
   const observed: TransportDiagnostic[] = []
   const opened = opening(`data: ${TEXT('hel')}\n\n`)
-  const server = await startHttpsServer(
-    certificate,
-    stage === 'before the response' ? SILENT : opened.handler,
-  )
+  const server = await startHttpsServer(certificate, handlerOf(stage, opened.handler))
   const resources = network(server.ca, {}, observed)
   const transport = transportOver(resources, {
     url: new URL(PATH, server.url).href,
@@ -637,13 +688,24 @@ describe('a stall racing a cancel', () => {
     },
   )
 
-  it.each<readonly [Stage, 'upstream-unavailable' | 'stream-lost', string]>([
-    ['before the response', 'upstream-unavailable', 'stream-stall'],
-    ['after the response began', 'stream-lost', 'stream-stall'],
+  it.each<readonly [Stage, TransportFact]>([
+    ['before the response', failedWith('upstream-unavailable', 'stream-stall')],
+    ['after the response began', failedWith('stream-lost', 'stream-stall')],
+    // The error body ends as read-failed; the status, not the stall, gives the termination.
+    [
+      'in the error body',
+      {
+        kind: 'ended',
+        termination: {
+          kind: 'failed',
+          fault: { cause: 'upstream-unavailable', diagnostic: 'http-500', upstreamStatus: '500' },
+        },
+      },
+    ],
   ])(
     'an expiry that arrives first wins over a cancel before the physical stop (%s)',
     { tags: ['slow'] },
-    async (stage, cause, diagnostic) => {
+    async (stage, ended) => {
       await withStalledTransport(stage, async ({ stream, abort }) => {
         const iterator = stream[Symbol.asyncIterator]()
         if (stage === 'after the response began') {
@@ -655,10 +717,11 @@ describe('a stall racing a cancel', () => {
           for (let step = await iterator.next(); !step.done; step = await iterator.next())
             facts.push(step.value)
         })()
+        if (stage === 'in the error body') await untilErrorBodyRead()
         vi.advanceTimersByTime(STALL)
         abort() // The physical stop has not completed: the cancel comes second.
         await rest
-        expect(facts).toEqual([failedWith(cause, diagnostic)])
+        expect(facts).toEqual([ended])
       })
     },
   )

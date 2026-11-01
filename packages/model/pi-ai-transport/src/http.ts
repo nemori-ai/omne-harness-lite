@@ -253,7 +253,10 @@ type Phase =
 /** The physical handles that must end before the exchange is closed. */
 type OpenHandle = 'request' | 'response' | 'error-body'
 
-/** Why a 2xx body was ended locally. The first cause stays. */
+/**
+ * Why the response was ended locally. The first cause stays: a stop that follows a stall changes
+ * nothing, and the reader of a 2xx body reports the cause.
+ */
 type LocalEnd = 'stop' | 'stall'
 
 function runExchange(
@@ -275,7 +278,7 @@ function runExchange(
   let watchedSocket: Socket | undefined
   /** Reaches the pool: a connection still being built for this request ends with the request. */
   const connecting = new AbortController()
-  /** Set by the first local end of a 2xx body: a stop (`stop()`, the signal, the close of the resources) or a stall. */
+  /** Set by the first local end: a stop (`stop()`, the signal, the close of the resources) or a stall. */
   let localEnd: LocalEnd | undefined
   let req: ClientRequest
 
@@ -380,29 +383,45 @@ function runExchange(
       armStall()
       return
     }
-    switch (phase.kind) {
+    stallIn(phase)
+  }
+
+  function stallIn(current: Phase): void {
+    switch (current.kind) {
       case 'requesting':
-        phase = { kind: 'concluding', outcome: { kind: 'stalled' } }
-        destroyRequest()
-        break
+        return stallBeforeResponse()
       case 'responding':
-        localEnd = 'stall'
-        destroyConnection()
-        break
+        return stallInBody()
       case 'reading-error':
-        // The error body ends as `read-failed`; the status stays the outcome.
-        destroyConnection()
-        break
+        return stallInErrorBody()
       case 'concluding':
       case 'stopping':
       case 'defective':
       case 'closed':
-        break
+        return
       default: {
-        const _exhaustive: never = phase
+        const _exhaustive: never = current
         return _exhaustive
       }
     }
+  }
+
+  function stallBeforeResponse(): void {
+    localEnd = 'stall'
+    phase = { kind: 'concluding', outcome: { kind: 'stalled' } }
+    destroyRequest()
+  }
+
+  /** The reader of the 2xx body sees `ResponseBodyStalledError`. */
+  function stallInBody(): void {
+    localEnd = 'stall'
+    destroyConnection()
+  }
+
+  /** The error body ends as `read-failed`; the status stays the outcome, and a later stop keeps it. */
+  function stallInErrorBody(): void {
+    localEnd = 'stall'
+    destroyConnection()
   }
 
   function onConnectTimeout(): void {
@@ -465,6 +484,8 @@ function runExchange(
   }
 
   function stop(): void {
+    // A stall that came first keeps its outcome; it has already ended the connection.
+    if (localEnd === 'stall') return
     switch (phase.kind) {
       case 'requesting':
         phase = { kind: 'stopping', responded: false }
@@ -473,9 +494,8 @@ function runExchange(
         phase = { kind: 'stopping', responded: true }
         break
       case 'concluding':
-        // A stall that won first keeps its outcome; every other natural outcome is replaced.
-        if (phase.outcome.kind !== 'stalled')
-          phase = { kind: 'stopping', responded: phase.outcome.kind === 'http-error' }
+        // A natural outcome is replaced until the physical stop completes.
+        phase = { kind: 'stopping', responded: phase.outcome.kind === 'http-error' }
         break
       case 'responding':
         // The result is delivered; the stop only ends the body.
