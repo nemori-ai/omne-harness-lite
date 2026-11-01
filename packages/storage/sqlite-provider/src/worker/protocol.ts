@@ -61,7 +61,13 @@ export type WorkerRequest =
   | Readonly<{ kind: 'close' }>
 
 export type OpenReply =
-  | Readonly<{ kind: 'ready'; scope: StorageScope; singletons: readonly string[] }>
+  | Readonly<{
+      kind: 'ready'
+      scope: StorageScope
+      singletons: readonly string[]
+      /** True only when this open wrote the binding and the registration (path B). */
+      created: boolean
+    }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
   | Readonly<{ kind: 'transient'; diagnostic: string }>

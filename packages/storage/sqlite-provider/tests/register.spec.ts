@@ -6,7 +6,10 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import {
   DOMAIN,
   buildMaterials,
+  command,
+  commitRequest,
   createProvider,
+  identity,
   kindOf,
   makeWorkspace,
   registration,
@@ -79,6 +82,52 @@ describe('registration results', () => {
     const list = db.prepare('select combination_version v from _sql_registration order by 1').all()
     db.close()
     expect(list).toEqual([{ v: 'v1' }, { v: 'v2' }])
+  })
+})
+
+// A fresh provider whose first touch of an existing file is registerCombination opens it through
+// path A. The Worker-side steps of SPEC 6.2 step 9 still apply after that open: only a path B
+// creation in the same call settles the registration without them.
+describe('first touch of an existing domain is registerCombination (path A, SPEC 6.2 step 9)', () => {
+  const v2 = (): ReturnType<typeof registration> =>
+    registration(built, {
+      combinationVersion: 'v2',
+      participants: ['ledger'],
+      manifestDigest: built.digest(['ledger']),
+    })
+
+  beforeEach(async () => {
+    const { storage, control } = await createProvider(workspace, built)
+    expect((await storage.registerCombination(registration(built))).kind).toBe('registered')
+    await control.close({ initiator: 'disposal' })
+  })
+
+  it('stores a new combination version, so a commit on that version is accepted', async () => {
+    const { storage } = await provide()
+    expect(await storage.registerCombination(v2())).toEqual({
+      kind: 'registered',
+      registration: v2(),
+    })
+    const result = await storage.commit(
+      commitRequest(built, {
+        identity: identity({ operationKey: 'on-v2' }),
+        combinationVersion: 'v2',
+        manifestDigest: built.digest(['ledger']),
+        commands: [command('ledger', { note: 'v2' })],
+      }),
+    )
+    expect(kindOf(result)).toBe('committed')
+  })
+
+  it('refuses the same key with other participants as registration_conflict', async () => {
+    const { storage } = await provide()
+    const narrower = registration(built, {
+      participants: ['ledger'],
+      manifestDigest: built.digest(['ledger']),
+    })
+    expect(kindOf(await storage.registerCombination(narrower))).toBe(
+      'rejected_before_accept/registration_conflict',
+    )
   })
 })
 

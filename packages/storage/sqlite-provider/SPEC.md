@@ -10,7 +10,7 @@
 
 范围是 M2 单机首条路径。首条路径不需要的能力写成已知限制（本文件末节）。
 
-状态：提供者已实现，`tests/` 的 237 个用例（236 个通过，1 个 `it.fails` 记录已知缺陷）在 Windows 上用真实 `node:sqlite` 文件和 Node Worker 运行。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入（现有故障用例包装连接注入错误，不证明磁盘行为）、SQL-T01 断电、E9。证据范围见「验证与未执行」。
+状态：提供者已实现，`tests/` 的 239 个用例在 Windows 上用真实 `node:sqlite` 文件和 Node Worker 运行。仍未执行的项：跨进程排除、真实磁盘的 Windows 故障注入（现有故障用例包装连接注入错误，不证明磁盘行为）、SQL-T01 断电、E9。证据范围见「验证与未执行」。
 
 ## 部件与归属
 
@@ -88,6 +88,8 @@
 3. 任一步失败时回滚，域保持 `absent`，返回 `domain_unavailable` 并带诊断。COMMIT 结果不确定时返回 `unknown`。
 
 `commit`、`query`、`read` 触及 `absent` 的域时不创建文件。
+
+`registerCombination` 触发路径 A 时，打开成功后仍执行 sql-contract 规格 §6.2 第 9 步的 Worker 侧判断：作用域、登记冲突、同版本重复登记，以及新版本的迁移与登记。只有本次调用经路径 B 创建域时，登记随创建写入，不再判断。
 
 登记只发生一次（依赖 Context r3）。应用只在未登记租户首次 create 时调用 `registerCombination`。之后每次重启，路径 A 负责迁移与组合版本升级。这与 AA 一致：登记成功即表示迁移已经完成。S1 中新写者「加一完成之前，`commit` 和 `registerCombination` 返回 `writer_not_current`」的规则改为：域打开期间这些操作排队等待打开结果，打开失败为 `domain_unavailable`；`writer_not_current` 只用于旧 Worker 退出尚未被观察的 `recovering`【提案 P-08】。
 
@@ -433,7 +435,7 @@ SQ-1 与 DO-1 没有模型覆盖，分别由 C22、C17 验证。
 
 ### 场景与成员验证
 
-场景 C01 至 C23 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景由 `tests/` 的提供者测试承担，已在 Windows Node Worker 上运行（运行记录在任务 tmp，不进入本成员）。sql-contract 的符合性套件只含 C01 至 C07、C12、C14、C16，其余场景只由本成员的测试承担（已知限制）。场景 × 域状态表（sql-contract 规格 §5.5）的对照在 `tests/state-cells.spec.ts` 文件头，其中 `recovering` 行没有测试（提供者不产生 `writer_not_current`），`[other scope × registerCombination]` 格因已知缺陷标为 `it.fails`：fresh 提供者经路径 A 打开已有文件时，`registerCombination` 不检查作用域也不执行登记，直接返回 `registered`。需要 SQLite 3.51.3 及以上。
+场景 C01 至 C23 在 [sql-contract 规格](../sql-contract/SPEC.md)的「§16.1 场景」。本成员承担需要真实 `node:sqlite` 文件、Node Worker、域状态表、DO-1、SQ-1、读池与关闭的场景（C06 至 C10、C15 及 C13、C14、C16 至 C23 中依赖真实文件的部分）。这些场景由 `tests/` 的提供者测试承担，已在 Windows Node Worker 上运行（运行记录在任务 tmp，不进入本成员）。sql-contract 的符合性套件只含 C01 至 C07、C12、C14、C16，其余场景只由本成员的测试承担（已知限制）。场景 × 域状态表（sql-contract 规格 §5.5）的对照在 `tests/state-cells.spec.ts` 文件头，其中 `recovering` 行没有测试（提供者不产生 `writer_not_current`）。需要 SQLite 3.51.3 及以上。
 
 ### 探针
 

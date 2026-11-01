@@ -219,7 +219,12 @@ async function createDomain(
     insertRegistration(db, create)
   })
   state.writeGeneration = 1
-  return { kind: 'ready', scope: create.scope, singletons: findSingletons(db, plan.participants) }
+  return {
+    kind: 'ready',
+    scope: create.scope,
+    singletons: findSingletons(db, plan.participants),
+    created: true,
+  }
 }
 
 /** Path A steps 6 and 7. */
@@ -246,7 +251,7 @@ async function reopenDomain(
     else if (!sameRegistration(stored, declared))
       throw new DomainFault('declared_registration_conflict')
   })
-  return { kind: 'ready', scope, singletons: findSingletons(db, plan.participants) }
+  return { kind: 'ready', scope, singletons: findSingletons(db, plan.participants), created: false }
 }
 
 export async function openDomain(

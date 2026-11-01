@@ -54,6 +54,10 @@ type QuarantinedDomain = { readonly state: 'quarantined'; readonly diagnostic: s
 type Entry = ReadyDomain | OpeningDomain | QuarantinedDomain
 
 export type OpenOutcome =
+  /**
+   * `created` is the registration that this open wrote with the binding (path B), else null. A
+   * caller with a registration that gets null still runs the Worker-side steps (SPEC 6.2 step 9).
+   */
   | Readonly<{ kind: 'ready'; entry: ReadyDomain; created: RegistrationSpec | null }>
   | Readonly<{ kind: 'absent' }>
   | Readonly<{ kind: 'quarantined'; diagnostic: string }>
@@ -257,7 +261,8 @@ export class Domains {
       const live = this.workers.get(leaseName)
       if (live !== undefined) live.scope = reply.scope
       this.entries.set(domain, entry)
-      return { kind: 'ready', entry, created: create }
+      // A file that held a binding was opened through path A: the registration was not written.
+      return { kind: 'ready', entry, created: reply.created ? create : null }
     }
     await client?.close()
     if (reply.kind === 'quarantined') {

@@ -14,7 +14,6 @@
 //     the four operations together while the open is still pending.
 //   draining x commit, registerCombination, query: close.spec.ts, "close steps (13.3)".
 //   read-paused, write-stopped x commit, query, read: wal.spec.ts, "write-stopped through the provider".
-// A cell marked it.fails shows a known product defect, see its comment.
 // Cells without a test:
 //   read-paused, write-stopped x registerCombination; draining x read.
 //   recovering (writer_not_current): the provider does not give writer_not_current; the SPEC
@@ -104,11 +103,9 @@ describe('bound to another scope (SPEC 5.5)', () => {
     await seededFile()
   })
 
-  // Known product defect, found by this cell: on a file that a fresh provider opens through
-  // path A, registerCombination gets `created: spec` from domains.ensure (src/domains.ts, the
-  // `ready` return of open) and returns `registered` before the scope check in src/register.ts.
-  // `it.fails` turns red when the defect is fixed, which is the signal to make this a plain `it`.
-  it.fails('[other scope x registerCombination] is domain_occupied', async () => {
+  // The first touch of the file is this registration, so the provider opens it through path A.
+  // The scope check must still run after that open.
+  it('[other scope x registerCombination] is domain_occupied', async () => {
     const { storage } = await provide()
     expect(
       kindOf(await storage.registerCombination(registration(built, { scope: TENANT_B }))),
